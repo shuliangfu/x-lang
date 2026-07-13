@@ -87,7 +87,6 @@ function args_count(): i32 {
   unsafe {
     return process_args_count_c();
   }
-  return 0; // unreachable — typeck workaround
 }
 /** 返回第 i 个参数的 C 字符串指针（NUL 结尾）；i 越界或未初始化返回
 * 0。0 ≤ i < args_count()。 */
@@ -95,14 +94,12 @@ function arg(i: i32): *u8 {
   unsafe {
     return process_arg_c(i);
   }
-  return 0; // unreachable — typeck workaround
 }
 /** 返回环境变量 name（NUL 结尾）的值；不存在返回 0。 */
 function getenv(name: *u8): *u8 {
   unsafe {
     return process_getenv_c(name);
   }
-  return 0; // unreachable — typeck workaround
 }
 /** 设置环境变量 name=value；overwrite 非 0 时覆盖已有值。返回 0 成功，-1
 * 失败。 */
@@ -110,28 +107,24 @@ function setenv(name: *u8, value: *u8, overwrite: i32): i32 {
   unsafe {
     return process_setenv_c(name, value, overwrite);
   }
-  return 0; // unreachable — typeck workaround
 }
 /** 删除环境变量 name。返回 0 成功，-1 失败。 */
 function unsetenv(name: *u8): i32 {
   unsafe {
     return process_unsetenv_c(name);
   }
-  return 0; // unreachable — typeck workaround
 }
 /** 返回当前进程 ID（Rust id() / Go Getpid / Zig 同）。 */
 function getpid(): i32 {
   unsafe {
     return process_getpid_c();
   }
-  return 0; // unreachable — typeck workaround
 }
 /** 返回父进程 ID；Windows 无简单 API 返回 -1（Go Getppid / POSIX getppid）。 */
 function getppid(): i32 {
   unsafe {
     return process_getppid_c();
   }
-  return 0; // unreachable — typeck workaround
 }
 /** 将当前工作目录写入 buf（NUL 结尾），最多 buf_size
 * 字节。返回写入字节数（不含 NUL），失败 -1（Go Getwd / Zig getCwd）。 */
@@ -139,7 +132,6 @@ function getcwd(buf: *u8, buf_size: i32): i32 {
   unsafe {
     return process_getcwd_c(buf, buf_size);
   }
-  return 0; // unreachable — typeck workaround
 }
 /** 零拷贝：返回指向内部缓存的当前工作目录（NUL
 * 结尾）。只读，勿改；指针在下次 chdir 或 getcwd 前有效；失败返回 0。 */
@@ -147,7 +139,6 @@ function getcwd_ptr(): *u8 {
   unsafe {
     return process_getcwd_ptr_c();
   }
-  return 0; // unreachable — typeck workaround
 }
 /** 返回 getcwd 缓存长度（不含 NUL）；未缓存或已失效为 0。与 getcwd_ptr
 * 配套使用。 */
@@ -155,7 +146,6 @@ function getcwd_cached_len(): i32 {
   unsafe {
     return process_getcwd_cached_len_c();
   }
-  return 0; // unreachable — typeck workaround
 }
 /** 切换当前工作目录到 path（NUL 结尾）。返回 0 成功，-1 失败（Go Chdir）。
 */
@@ -163,7 +153,6 @@ function chdir(path: *u8): i32 {
   unsafe {
     return process_chdir_c(path);
   }
-  return 0; // unreachable — typeck workaround
 }
 /** 将当前可执行文件路径写入 buf（NUL 结尾），最多 buf_size
 * 字节。返回写入字节数（不含 NUL），失败 -1（Zig selfExePath）。 */
@@ -171,7 +160,6 @@ function self_exe_path(buf: *u8, buf_size: i32): i32 {
   unsafe {
     return process_self_exe_path_c(buf, buf_size);
   }
-  return 0; // unreachable — typeck workaround
 }
 /** 零拷贝：返回指向内部缓存的可执行路径（NUL
 * 结尾）。只读，勿改；指针在进程生命周期内有效；失败返回 0。 */
@@ -179,7 +167,6 @@ function self_exe_path_ptr(): *u8 {
   unsafe {
     return process_self_exe_path_ptr_c();
   }
-  return 0; // unreachable — typeck workaround
 }
 /** 返回 self_exe_path 缓存长度（不含 NUL）；未缓存为 0。与 self_exe_path_ptr
 * 配套使用。 */
@@ -187,7 +174,6 @@ function self_exe_path_cached_len(): i32 {
   unsafe {
     return process_self_exe_path_cached_len_c();
   }
-  return 0; // unreachable — typeck workaround
 }
 /**
 * 创建子进程执行 program，参数为 argv（argv 在 C 侧为 char* 数组指针，以 NULL
@@ -199,7 +185,6 @@ function spawn(program: *u8, argv: *u8): i32 {
   unsafe {
     return process_spawn_c(program, argv);
   }
-  return 0; // unreachable — typeck workaround
 }
 
 /**
@@ -210,7 +195,6 @@ function spawn_io(program: *u8, argv: *u8, io: *SpawnIo): i32 {
   unsafe {
     return process_spawn_io_c(program, argv, io);
   }
-  return 0; // unreachable — typeck workaround
 }
 /**
 * 用 program 替换当前进程（成功不返回）。argv 同 spawn。Windows 不支持，返回
@@ -220,28 +204,24 @@ function exec(program: *u8, argv: *u8): i32 {
   unsafe {
     return process_exec_c(program, argv);
   }
-  return 0; // unreachable — typeck workaround
 }
 /** 等待子进程 pid 结束，返回其退出码（低 8 位）；失败返回 -1。 */
 function waitpid(pid: i32): i32 {
   unsafe {
     return process_waitpid_c(pid);
   }
-  return 0; // unreachable — typeck workaround
 }
 /** 简化 spawn：argv = [program, NULL]。返回 pid 或 -1。 */
 function spawn_simple(program: *u8): i32 {
   unsafe {
     return process_spawn_simple_c(program);
   }
-  return 0; // unreachable — typeck workaround
 }
 /** 简化 exec：argv = [program, NULL]。成功不返回；失败返回 -1。 */
 function exec_simple(program: *u8): i32 {
   unsafe {
     return process_exec_simple_c(program);
   }
-  return 0; // unreachable — typeck workaround
 }
 extern function process_pipe_c(read_fd: *i32, write_fd: *i32): i32;
 /** 创建管道（P3 扩展）；成功时 *read_fd 可读、*write_fd 可写，返回
@@ -250,5 +230,4 @@ function pipe(read_fd: *i32, write_fd: *i32): i32 {
   unsafe {
     return process_pipe_c(read_fd, write_fd);
   }
-  return 0; // unreachable — typeck workaround
 }
