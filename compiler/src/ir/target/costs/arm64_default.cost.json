@@ -1,0 +1,51 @@
+{
+  "_comment": "ARM64 default Cost Model — v4.0 Architecture Freeze 骨架，待 Phase 3 Benchmark 确定具体数值",
+  "_reference": "analysis/IR核心设计.md §10.3（多维度 Cost Model 六维度）",
+
+  "inst_costs": {
+    "_comment": "指令成本表（单位：相对 cycle 数），待 Benchmark 校准",
+    "add": 1,
+    "sub": 1,
+    "mul": 3,
+    "div": 22,
+    "load": 4,
+    "store": 1,
+    "fma": 4,
+    "branch": 2,
+    "call": 5
+  },
+
+  "register_pressure": {
+    "_comment": "ARM64 通用寄存器 31 个（x0-x30），向量寄存器 32 个（v0-v31）",
+    "gpr_count": 31,
+    "simd_count": 32,
+    "spill_cost_weight": 1.4
+  },
+
+  "cache_hierarchy": {
+    "_comment": "cache 层级配置（典型 ARM64 服务器，待校准）",
+    "l1_size": 32768,
+    "l1_line_size": 64,
+    "l2_size": 524288,
+    "l3_size": 16777216
+  },
+
+  "branch_model": {
+    "_comment": "分支预测模型",
+    "mispredict_penalty": 12,
+    "history_bits": 16
+  },
+
+  "simd_capacity": {
+    "_comment": "NEON SIMD 容量",
+    "neon_width": 128,
+    "sve_width": 2048
+  },
+
+  "pipeline_model": {
+    "_comment": "流水线模型（典型 ARM64 服务器，待校准）",
+    "ports": ["alu0", "alu1", "alu2", "lsb", "fp0", "fp1"],
+    "issue_width": 6,
+    "reorder_buffer": 320
+  }
+}

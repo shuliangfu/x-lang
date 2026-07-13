@@ -1,0 +1,61 @@
+{
+  "_comment": "x86_64 default Cost Model — v4.0 Architecture Freeze 骨架，待 Phase 3 Benchmark 确定具体数值",
+  "_reference": "analysis/IR核心设计.md §10.3（多维度 Cost Model 六维度）",
+  "_dimensions": [
+    "inst_costs",
+    "register_pressure",
+    "cache_hierarchy",
+    "branch_model",
+    "simd_capacity",
+    "pipeline_model"
+  ],
+
+  "inst_costs": {
+    "_comment": "指令成本表（单位：相对 cycle 数），待 Benchmark 校准",
+    "add": 1,
+    "sub": 1,
+    "mul": 3,
+    "div": 20,
+    "load": 4,
+    "store": 1,
+    "lea": 1,
+    "fma": 4,
+    "branch": 2,
+    "call": 5
+  },
+
+  "register_pressure": {
+    "_comment": "寄存器压力权重（影响 spilling 决策）",
+    "gpr_count": 16,
+    "xmm_count": 16,
+    "spill_cost_weight": 1.5
+  },
+
+  "cache_hierarchy": {
+    "_comment": "cache 层级配置（影响 SoA/AoS 转换收益评估）",
+    "l1_size": 32768,
+    "l1_line_size": 64,
+    "l2_size": 262144,
+    "l3_size": 8388608
+  },
+
+  "branch_model": {
+    "_comment": "分支预测模型（影响 branch_predict 提示指令的 cost）",
+    "mispredict_penalty": 15,
+    "history_bits": 16
+  },
+
+  "simd_capacity": {
+    "_comment": "SIMD 容量（影响 vector_load/op/store 的 cost 与 vl 上限）",
+    "avx2_width": 256,
+    "avx512_width": 512,
+    "neon_width": 128
+  },
+
+  "pipeline_model": {
+    "_comment": "流水线模型（影响最终指令调度）",
+    "ports": ["alu0", "alu1", "lsb", "fp0", "fp1"],
+    "issue_width": 4,
+    "reorder_buffer": 256
+  }
+}
