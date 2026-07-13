@@ -84,6 +84,8 @@ uint8_t *heap_alloc_aligned_c(size_t align_bytes, size_t size) {
 #endif
 }
 
+/* G-02f-rest：rest→.x 迁移：Arena64 struct + 3 函数真迁 .x，seed 进入 DIRECT 模式 */
+#ifndef SHUX_RUNTIME_HEAP_USER_FROM_X
 /** std.heap Arena64 布局（chunk/cap/off 各 8B）。 */
 typedef struct ShuxHeapArena64 {
     uint8_t *chunk;
@@ -145,5 +147,6 @@ void heap_arena64_deinit_c(ShuxHeapArena64 *a) {
     a->cap = 0;
     a->off = 0;
 }
+#endif /* SHUX_RUNTIME_HEAP_USER_FROM_X */
 
 #endif /* SHUX_RUNTIME_HEAP_USER_INC */
