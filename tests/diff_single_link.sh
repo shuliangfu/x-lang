@@ -21,6 +21,10 @@ COMPILER_DIR="."
 TMP_DIR="${TMPDIR:-/tmp}/shux_diff_$$"
 mkdir -p "$TMP_DIR"
 
+# import 搜索路径：覆盖所有 compiler/src/ 子模块 + 上级 std/
+# 根因：.x 文件用 import("ast") / import("std.heap") 等，需要 -L 指定搜索目录
+SHUX_LIB_PATHS="-L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/lsp -L src/driver -L src/preprocess"
+
 # 核心前端模块（.x 源 → seed C）
 # 格式：.x相对路径|seed相对路径
 MODULES=(
@@ -75,9 +79,10 @@ for entry in "${MODULES[@]}"; do
   fi
 
   # 跑 shux -E，捕获 stdout 到临时文件（超时 30 秒，防止大模块死循环）
+  # 加 -L 搜索路径，让 import("ast") / import("std.heap") 等能正确解析
   out_file="$TMP_DIR/$(basename "$x_src" .x)_gen.c"
   err_file="$TMP_DIR/$(basename "$x_src" .x)_err.txt"
-  perl -e 'alarm 30; exec @ARGV' "$SHUX_BIN" -E "$x_src" >"$out_file" 2>"$err_file"
+  perl -e 'alarm 30; exec @ARGV' "$SHUX_BIN" -E $SHUX_LIB_PATHS "$x_src" >"$out_file" 2>"$err_file"
   rc=$?
 
   if [ $rc -ne 0 ]; then
