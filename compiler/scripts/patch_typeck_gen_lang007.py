@@ -34,26 +34,8 @@ int typeck_get_allow_legacy_extern_calls(void) {
 
 CALL_BODY = """\
 int32_t typeck_check_expr_call(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
-  /* LANG-007: glue path enforces S0 extern-in-unsafe; allow_legacy skips boundary for -E regen. */
+  /* LANG-007: always use glue path (enforces S0 extern-in-unsafe). */
   extern int32_t pipeline_typeck_check_expr_call_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
-  extern int32_t pipeline_typeck_resolve_call_callee_return_type_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t callee_ref, int32_t expr_ref, struct ast_PipelineDepCtx *ctx);
-  if (g_typeck_allow_legacy_extern_calls) {
-    int32_t rc;
-    int32_t callee_ref;
-    int32_t ret_ty;
-    rc = typeck_check_expr_call_arg(module, arena, expr_ref, return_type_ref, ctx, 0,
-                                    pipeline_expr_call_num_args_at(arena, expr_ref));
-    if (rc != 0) return rc;
-    rc = typeck_check_expr_call_resolve(module, arena, expr_ref, ctx);
-    if (rc != 0) return rc;
-    if (ast_ref_is_null(pipeline_expr_resolved_type_ref(arena, expr_ref))) {
-      callee_ref = pipeline_expr_call_callee_ref_at(arena, expr_ref);
-      ret_ty = pipeline_typeck_resolve_call_callee_return_type_c(module, arena, callee_ref, expr_ref, ctx);
-      if (ret_ty != 0)
-        (void)pipeline_expr_set_resolved_type_ref(arena, expr_ref, ret_ty);
-    }
-    return 0;
-  }
   return pipeline_typeck_check_expr_call_c(module, arena, expr_ref, return_type_ref, ctx);
 }
 """
