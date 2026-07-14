@@ -1,9 +1,10 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-343/344/345/387/388/400–402/413/414/416：runtime_driver_abi L2 thin（门闩 thin）。
+// G-02f-343/344/345/387/388/400–402/413/414/416：runtime_driver_abi R2 thin full（门闩 thin）。
 // 产品 PREFER_X_O：thin.o + full seed rest（-DSHUX_L2_RDABI_THIN_FROM_X）ld -r → runtime_driver_abi.o
-// prove IDENTICAL：thin.x ↔ seeds/runtime_driver_abi_thin.from_x.c（公共面；_impl 仍 U / rest）
+// prove IDENTICAL：thin.x ↔ seeds/runtime_driver_abi_thin_surface.from_x.c（公共面 61+；_impl 仍 U / rest）
+// Cap residual：*_impl / 静态槽 / path-read / spawn 等 C 尾仍在 full seed rest。
 //
 
 export extern "C" function driver_check_only_flag_slot_impl(): *i32;

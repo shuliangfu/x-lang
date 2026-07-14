@@ -83,9 +83,10 @@ MODULES=(
   # rest 在 SHUX_L2_RDD_THIN_FROM_X 下无 thin 公共体；Cap residual：*_impl/va_list/snprintf 在 full seed rest
   # prove 锁 thin surface IDENTICAL；冷/无 PREFER 仍可走 seeds/runtime_driver_diagnostic.from_x.c 全 C 体
   "diagnostic|src/runtime_driver_diagnostic_thin.x|seeds/runtime_driver_diagnostic_thin_surface.from_x.c||"
-  # driver_abi L2 thin 公共面：与产品 PREFER_X_O 同源（thin.x + full seed rest）；prove 锁 thin 面 IDENTICAL
-  # full seed rest 仍持 _impl / 静态槽 / path-read 等 C 尾
-  "driver_abi|src/runtime_driver_abi_thin.x|seeds/runtime_driver_abi_thin.from_x.c||"
+  # driver_abi R2 thin full：thin.x 吃满 61+ 公共门闩（*u8/槽透传 _impl）；
+  # rest 在 SHUX_L2_RDABI_THIN_FROM_X 下无 thin 公共体；Cap residual：*_impl/槽/path-read/spawn 在 full seed rest
+  # prove 锁 thin surface IDENTICAL；冷/无 PREFER 仍可走 seeds/runtime_driver_abi.from_x.c 全 C 体
+  "driver_abi|src/runtime_driver_abi_thin.x|seeds/runtime_driver_abi_thin_surface.from_x.c||"
   # fmt_check_cmd L2 thin 公共面：与产品 PREFER_X_O 同源（thin.x + full seed rest）；prove 锁 thin 面 IDENTICAL
   # full seed rest 仍持 _impl / walk·argv C 尾；产品 o 名 fmt_check_cmd_driver.o
   "fmt_check|src/driver/fmt_check_cmd_thin.x|seeds/fmt_check_cmd_thin.from_x.c||"

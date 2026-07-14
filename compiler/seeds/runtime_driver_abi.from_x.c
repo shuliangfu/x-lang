@@ -1,4 +1,5 @@
-/* G-02f-343/344/345：PREFER hybrid thin 由 src/runtime_driver_abi_thin.x；rest SHUX_L2_RDABI_THIN_FROM_X。
+/* G-02f-343/344/345 / R2 thin full：PREFER hybrid thin 由 src/runtime_driver_abi_thin.x；
+ * rest SHUX_L2_RDABI_THIN_FROM_X（public 门闩→_impl；slice_marker + Cap residual 体）。
  */
 /* Generated from src/runtime_driver_abi.x (G-02f-29/41/45..57/83 true .x + C tail).
  * G-02f-116 true .x pure helpers.
@@ -3083,4 +3084,8 @@ int32_t driver_dispatch_sibling_try_spawn(int32_t argc, uint8_t *argv) {
         }
     }
 #endif
+}
+
+int runtime_driver_abi_slice_marker(void) {
+    return 1;
 }
