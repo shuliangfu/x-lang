@@ -63,6 +63,9 @@ MODULES=(
   # driver_abi L2 thin 公共面：与产品 PREFER_X_O 同源（thin.x + full seed rest）；prove 锁 thin 面 IDENTICAL
   # full seed rest 仍持 _impl / 静态槽 / path-read 等 C 尾
   "driver_abi|src/runtime_driver_abi_thin.x|seeds/runtime_driver_abi_thin.from_x.c||"
+  # fmt_check_cmd L2 thin 公共面：与产品 PREFER_X_O 同源（thin.x + full seed rest）；prove 锁 thin 面 IDENTICAL
+  # full seed rest 仍持 _impl / walk·argv C 尾；产品 o 名 fmt_check_cmd_driver.o
+  "fmt_check|src/driver/fmt_check_cmd_thin.x|seeds/fmt_check_cmd_thin.from_x.c||"
 )
 
 # 找 shux 二进制（优先 shux，fallback shux-c）
