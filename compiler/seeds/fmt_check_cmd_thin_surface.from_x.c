@@ -2,10 +2,9 @@
  * fmt_check_cmd R2 thin + Cap residual pure 深迁 surface — isomorphic with src/driver/fmt_check_cmd_thin.x
  * Product PREFER_X_O: g05_try_x_to_o(thin.x) + full seed rest (-DSHUX_L2_FMT_CHECK_THIN_FROM_X) ld -r
  * Prove: thin.x vs this seed → nm IDENTICAL (public surface; Cap residual _impl are U)
- * Cap residual: walk opendir/stat/argv/BSS / missing-diag / cwd / one_file_body in rest
- * pure 真迁：path_should_ignore / .x 后缀 / lint / file_list_push / process_child /
- *   collect_paths / default_dirs / check_one_file 门闩 / try_append 早退 / parse_ignore 前缀 /
- *   invoke_compile·dep_clear 分派
+ * Cap residual: walk opendir/stat/argv/大 BSS / missing-diag / one_file_body in rest
+ * pure 真迁：path_should_ignore / .x / lint / file_list / process_child / collect / default_dirs /
+ *   one_file 门闩 / try_append / parse_ignore / invoke·dep_clear / set_current_file / print / cwd_fallback
  * Regen: ./shux -E ... thin.x | filter DBG + g05 prologue polish
  */
 /* g05_try_x_to_o prologue (G-02f-332/334) */
@@ -56,12 +55,14 @@ extern void walk_dir_collect(uint8_t * dir);
 extern void parse_ignore_opt(uint8_t * arg);
 extern void file_list_clear(void);
 extern int32_t fmt_try_walk_if_product_subdir(uint8_t * sub);
+extern void fmt_walk_cwd_fallback(void);
 extern void check_collect_default_product_dirs(void);
 extern void collect_paths_from_arg(uint8_t * arg);
 extern void check_append_repo_lib_roots(uint8_t * path, uint8_t * check_argv, int32_t * n);
 extern void check_argv_append_default_libs_for_path(uint8_t * path, uint8_t * check_argv, int32_t * n);
 extern int32_t driver_run_fmt(int32_t argc, uint8_t * argv);
 extern int32_t driver_run_compiler_check(int32_t argc, uint8_t * argv);
+static uint8_t * g_check_current_file;
 static uint8_t * g_fmt_lit_check_error;
 static uint8_t * g_fmt_lit_fmt_error;
 static uint8_t * g_fmt_lit_chk002;
@@ -79,6 +80,7 @@ static uint8_t * g_fmt_default_product_sub_1;
 static uint8_t * g_fmt_default_product_sub_2;
 static uint8_t * g_fmt_default_product_sub_3;
 static void init_globals(void) {
+  g_check_current_file = (uint8_t[]){ };
   g_fmt_lit_check_error = (uint8_t[]){99, 104, 101, 99, 107, 32, 101, 114, 114, 111, 114, 0 };
   g_fmt_lit_fmt_error = (uint8_t[]){102, 109, 116, 32, 101, 114, 114, 111, 114, 0 };
   g_fmt_lit_chk002 = (uint8_t[]){67, 72, 75, 48, 48, 50, 0 };
@@ -96,6 +98,7 @@ static void init_globals(void) {
   g_fmt_default_product_sub_2 = (uint8_t[]){115, 116, 100, 0 };
   g_fmt_default_product_sub_3 = (uint8_t[]){101, 120, 97, 109, 112, 108, 101, 115, 0 };
 }
+extern int32_t lsp_diag_print_stderr_human(uint8_t * path);
 extern int32_t driver_run_compiler_full(int32_t argc, uint8_t * argv);
 extern void driver_dep_seeded_clear_all(void);
 extern int32_t driver_collect_mode_is_check_impl(void);
@@ -363,8 +366,6 @@ int32_t fmt_path_stat_kind(uint8_t * path) {
 }
 extern void check_try_append_lib_root_impl(uint8_t * check_argv, int32_t * n, uint8_t * dir);
 extern void check_init_user_lib_flags_impl(int32_t argc, uint8_t * argv, int32_t path_start);
-extern void driver_check_set_current_file_impl(uint8_t * path);
-extern int32_t driver_check_print_collected_diagnostics_impl(uint8_t * path);
 extern int32_t check_one_file_body_impl(uint8_t * path, int32_t argc, uint8_t * argv);
 void check_try_append_lib_root(uint8_t * check_argv, int32_t * n, uint8_t * dir) {
   if ((check_argv ==((uint8_t *)(0)))) {
@@ -399,15 +400,31 @@ void check_init_user_lib_flags(int32_t argc, uint8_t * argv, int32_t path_start)
   return;
 }
 void driver_check_set_current_file(uint8_t * path) {
+  if ((path ==((uint8_t *)(0)))) {
+    (void)(((g_check_current_file)[0] = 0));
+    return;
+  }
   {
-    (void)(driver_check_set_current_file_impl(path));
+    int32_t i = 0;
+    while ((i < 511)) {
+      uint8_t c = (path)[i];
+      (void)(((g_check_current_file)[i] = c));
+      if ((c ==0)) {
+        return;
+      }
+      (void)((i = (i + 1)));
+    }
+    (void)(((g_check_current_file)[511] = 0));
   }
   (void)(0);
   return;
 }
 int32_t driver_check_print_collected_diagnostics(uint8_t * path) {
   {
-    return driver_check_print_collected_diagnostics_impl(path);
+    if ((path !=((uint8_t *)(0)))) {
+      return lsp_diag_print_stderr_human(path);
+    }
+    return lsp_diag_print_stderr_human(&((g_check_current_file)[0]));
   }
   return 0;
 }
@@ -554,7 +571,6 @@ void file_list_clear(void) {
   return;
 }
 extern int32_t fmt_try_walk_if_product_subdir_impl(uint8_t * sub);
-extern void fmt_walk_cwd_fallback_impl(void);
 extern void collect_paths_missing_diag_impl(uint8_t * path);
 extern void check_append_repo_lib_roots_impl(uint8_t * path, uint8_t * check_argv, int32_t * n);
 extern void check_argv_append_default_libs_for_path_impl(uint8_t * path, uint8_t * check_argv, int32_t * n);
@@ -563,6 +579,18 @@ int32_t fmt_try_walk_if_product_subdir(uint8_t * sub) {
     return fmt_try_walk_if_product_subdir_impl(sub);
   }
   return 0;
+}
+void fmt_walk_cwd_fallback(void) {
+  {
+    uint8_t cwd[512] = {};
+    uint8_t * p = getcwd(&((cwd)[0]), 512);
+    if ((p ==((uint8_t *)(0)))) {
+      return;
+    }
+    (void)(walk_dir_collect(&((cwd)[0])));
+  }
+  (void)(0);
+  return;
 }
 void check_collect_default_product_dirs(void) {
   {
@@ -579,7 +607,7 @@ void check_collect_default_product_dirs(void) {
       (void)((i = (i + 1)));
     }
     if ((any_product ==0)) {
-      (void)(fmt_walk_cwd_fallback_impl());
+      (void)(fmt_walk_cwd_fallback());
     }
   }
   (void)(0);

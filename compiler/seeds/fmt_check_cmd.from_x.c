@@ -1,8 +1,8 @@
-/* R2 thin + Cap residual pure 深迁（续 invoke_compile / dep_clear 分派）：
+/* R2 thin + Cap residual pure 深迁（续 set_current_file / print / cwd_fallback）：
  * PREFER hybrid thin 由 src/driver/fmt_check_cmd_thin.x（lit/entry + pure 真体）；
  * rest SHUX_L2_FMT_CHECK_THIN_FROM_X：无 thin 公共体；pure-duplicate _impl 剔除
- * （含 collect_paths / default_dirs / check_one_file_impl / invoke_compile / dep_clear）；
- * Cap residual：walk opendir/stat/argv/BSS / missing-diag / cwd / one_file_body 仍 rest。
+ * （含 set_current_file / print_collected / cwd_fallback / invoke/dep_clear / …）；
+ * Cap residual：walk opendir/stat/argv/大 BSS / missing-diag / one_file_body 仍 rest。
  * 冷启动无宏：全 C 体（含 pure _impl + public 门闩）。
  * Regen thin surface: shux -E src/driver/fmt_check_cmd_thin.x → thin_surface.
  */
@@ -145,7 +145,10 @@ int shux_path_is_absolute(const char *path) {
 /** 忽略规则条数（CLI --ignore + 内置）。 */
 #define DRIVER_FMT_MAX_IGNORE 32
 
+/* 冷启动 set_current_file / print 用；hybrid 时 thin.x g_check_current_file 权威 */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 static char s_check_current_file[512];
+#endif
 
 /* 冷启动 pure _impl / public 用；hybrid 时 thin.x 字节表权威 */
 #ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
@@ -519,8 +522,10 @@ void fmt_check_dep_clear(void) {
 
 /**
  * 记录当前 check 的源文件路径，供诊断前缀使用。
+ * pure 权威：thin.x driver_check_set_current_file（512B BSS 字节拷贝）；
+ * 冷启动保留 _impl + public；FROM_X 下剔除 pure-dup _impl（H↓）。
  */
-/* G-02f-406：实现体始终 seed；public PREFER 时 thin forward */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 void driver_check_set_current_file_impl(const char *path) {
     if (!path) {
         s_check_current_file[0] = '\0';
@@ -529,7 +534,6 @@ void driver_check_set_current_file_impl(const char *path) {
     snprintf(s_check_current_file, sizeof s_check_current_file, "%s", path);
 }
 
-#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 void driver_check_set_current_file(const char *path) {
   driver_check_set_current_file_impl(path);
 }
@@ -537,15 +541,16 @@ void driver_check_set_current_file(const char *path) {
 
 /**
  * 将 lsp_diag 收集器中的条目打印为 deno 风格行；返回条数。
+ * pure 权威：thin.x driver_check_print_collected_diagnostics → lsp_diag_print_stderr_human；
+ * 冷启动保留 _impl + public；FROM_X 下剔除 pure-dup _impl（H↓）。
  */
-/* G-02f-406：实现体始终 seed；public PREFER 时 thin forward */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 int driver_check_print_collected_diagnostics_impl(const char *path) {
     extern int lsp_diag_enabled;
     (void)lsp_diag_enabled;
     return lsp_diag_print_stderr_human(path ? path : s_check_current_file);
 }
 
-#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 int driver_check_print_collected_diagnostics(const char *path) {
   return driver_check_print_collected_diagnostics_impl(path);
 }
@@ -811,7 +816,12 @@ int fmt_try_walk_if_product_subdir(const char *sub) {
 }
 #endif
 
-/* Cap residual：getcwd + walk 🔒；hybrid/cold 均由 pure orch 调 public 语义 */
+/**
+ * pure 权威：thin.x fmt_walk_cwd_fallback（getcwd + walk_dir_collect public）；
+ * 冷启动保留 _impl；FROM_X 下剔除 pure-dup _impl（H↓）；
+ * cold orch 与 hybrid pure orch 同形：调 public 语义（cold 时 _impl 即 public 体）。
+ */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 void fmt_walk_cwd_fallback_impl(void) {
     char cwd[512];
     if (!getcwd(cwd, sizeof cwd))
@@ -819,10 +829,16 @@ void fmt_walk_cwd_fallback_impl(void) {
     walk_dir_collect(cwd);
 }
 
+void fmt_walk_cwd_fallback(void) {
+    fmt_walk_cwd_fallback_impl();
+}
+#endif
+
 /**
  * 无路径参数时 check 的默认扫描范围（产品树，不含 tests 负例目录）。
  * pure 编排权威：thin.x check_collect_default_product_dirs；
- * 冷启动保留 _impl + public；getcwd/stat try_walk 🔒 Cap residual。
+ * 冷启动保留 _impl + public；try_walk getcwd/stat 🔒 Cap residual；
+ * cwd fallback 调 public fmt_walk_cwd_fallback（hybrid thin pure / 冷 seed）。
  */
 #ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 void check_collect_default_product_dirs_impl(void) {
@@ -837,7 +853,7 @@ void check_collect_default_product_dirs_impl(void) {
             any_product = 1;
     }
     if (!any_product)
-        fmt_walk_cwd_fallback_impl();
+        fmt_walk_cwd_fallback();
 }
 
 void check_collect_default_product_dirs(void) {
@@ -1122,7 +1138,8 @@ int check_one_file_body_impl(const char *path, int argc, char **argv) {
     }
     lsp_diag_collect_begin();
     driver_check_diag_emitted_reset();
-    driver_check_set_current_file_impl(path);
+    /* public：hybrid thin pure BSS / 冷 seed public→_impl */
+    driver_check_set_current_file(path);
 
     /* 每个文件独立构建 check_argv；-L 缓冲须按文件重置，否则跨文件 dedup 会漏注入仓库根。 */
     s_n_check_lib_bufs = 0;

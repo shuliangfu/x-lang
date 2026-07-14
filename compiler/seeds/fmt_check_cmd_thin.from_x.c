@@ -3,7 +3,7 @@
  * Product PREFER_X_O: g05_try_x_to_o(thin.x) + full seed rest (-DSHUX_L2_FMT_CHECK_THIN_FROM_X) ld -r
  * Cold full seed: seeds/fmt_check_cmd.from_x.c (unchanged)
  * Prove: thin.x vs this seed → nm IDENTICAL (public surface; _impl are U)
- * Regen: ./shux-c -E ... src/driver/fmt_check_cmd_thin.x | filter DBG + polish externs
+ * Regen: ./shux -E ... thin.x | filter DBG + polish externs
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -52,12 +52,14 @@ extern void walk_dir_collect(uint8_t * dir);
 extern void parse_ignore_opt(uint8_t * arg);
 extern void file_list_clear(void);
 extern int32_t fmt_try_walk_if_product_subdir(uint8_t * sub);
+extern void fmt_walk_cwd_fallback(void);
 extern void check_collect_default_product_dirs(void);
 extern void collect_paths_from_arg(uint8_t * arg);
 extern void check_append_repo_lib_roots(uint8_t * path, uint8_t * check_argv, int32_t * n);
 extern void check_argv_append_default_libs_for_path(uint8_t * path, uint8_t * check_argv, int32_t * n);
 extern int32_t driver_run_fmt(int32_t argc, uint8_t * argv);
 extern int32_t driver_run_compiler_check(int32_t argc, uint8_t * argv);
+static uint8_t * g_check_current_file;
 static uint8_t * g_fmt_lit_check_error;
 static uint8_t * g_fmt_lit_fmt_error;
 static uint8_t * g_fmt_lit_chk002;
@@ -75,6 +77,7 @@ static uint8_t * g_fmt_default_product_sub_1;
 static uint8_t * g_fmt_default_product_sub_2;
 static uint8_t * g_fmt_default_product_sub_3;
 static void init_globals(void) {
+  g_check_current_file = (uint8_t[]){ };
   g_fmt_lit_check_error = (uint8_t[]){99, 104, 101, 99, 107, 32, 101, 114, 114, 111, 114, 0 };
   g_fmt_lit_fmt_error = (uint8_t[]){102, 109, 116, 32, 101, 114, 114, 111, 114, 0 };
   g_fmt_lit_chk002 = (uint8_t[]){67, 72, 75, 48, 48, 50, 0 };
@@ -92,14 +95,16 @@ static void init_globals(void) {
   g_fmt_default_product_sub_2 = (uint8_t[]){115, 116, 100, 0 };
   g_fmt_default_product_sub_3 = (uint8_t[]){101, 120, 97, 109, 112, 108, 101, 115, 0 };
 }
+extern int32_t lsp_diag_print_stderr_human(uint8_t * path);
+extern int32_t driver_run_compiler_full(int32_t argc, uint8_t * argv);
+extern void driver_dep_seeded_clear_all(void);
 extern int32_t driver_collect_mode_is_check_impl(void);
 extern int32_t check_user_passed_L_get_impl(void);
 extern int32_t fmt_user_ignore_count_impl(void);
-extern int32_t fmt_path_ends_with_dot_x_impl(uint8_t * path);
 extern int32_t fmt_file_list_n_impl(void);
 extern uint8_t * fmt_user_ignore_at_impl(int32_t i);
 extern uint8_t * fmt_path_resolve_abs_impl(uint8_t * path);
-extern int32_t check_one_finalize_rc_lint_impl(int32_t warn_count);
+extern int32_t fmt_file_list_store_impl(uint8_t * abs_path);
 int32_t driver_check_quiet_ok_get(void) {
   return 1;
 }
@@ -173,8 +178,8 @@ int32_t check_one_finalize_rc(int32_t rc, int32_t warn_count) {
   if ((warn_count <=0)) {
     return 0;
   }
-  {
-    return check_one_finalize_rc_lint_impl(warn_count);
+  if ((check_lint_fail_on_warnings() !=0)) {
+    return 1;
   }
   return 0;
 }
@@ -279,8 +284,25 @@ int32_t fmt_user_ignore_count(void) {
   return 0;
 }
 int32_t fmt_path_ends_with_dot_x(uint8_t * path) {
+  if ((path ==((uint8_t *)(0)))) {
+    return 0;
+  }
   {
-    return fmt_path_ends_with_dot_x_impl(path);
+    int32_t i = 0;
+    while ((i < 4096)) {
+      if (((path)[i] ==0)) {
+        if ((i < 2)) {
+          return 0;
+        }
+        if (((path)[(i - 2)] ==46)) {
+          if (((path)[(i - 1)] ==120)) {
+            return 1;
+          }
+        }
+        return 0;
+      }
+      (void)((i = (i + 1)));
+    }
   }
   return 0;
 }
@@ -290,25 +312,45 @@ int32_t fmt_file_list_n(void) {
   }
   return 0;
 }
-extern int32_t check_lint_fail_on_warnings_impl(void);
-extern int32_t fmt_check_invoke_compile_impl(int32_t argc, uint8_t * check_argv);
-extern void fmt_check_dep_clear_impl(void);
 extern int32_t fmt_path_stat_kind_impl(uint8_t * path);
 int32_t check_lint_fail_on_warnings(void) {
   {
-    return check_lint_fail_on_warnings_impl();
+    uint8_t * v = getenv((uint8_t[]){83, 72, 85, 88, 95, 76, 73, 78, 84, 95, 67, 73, 95, 70, 65, 73, 76, 95, 79, 78, 0 });
+    if ((v ==((uint8_t *)(0)))) {
+      return 0;
+    }
+    if (((v)[0] ==119)) {
+      if (((v)[1] ==97)) {
+        if (((v)[2] ==114)) {
+          if (((v)[3] ==110)) {
+            if (((v)[4] ==0)) {
+              return 1;
+            }
+            if (((v)[4] ==105)) {
+              if (((v)[5] ==110)) {
+                if (((v)[6] ==103)) {
+                  if (((v)[7] ==0)) {
+                    return 1;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   }
   return 0;
 }
 int32_t fmt_check_invoke_compile(int32_t argc, uint8_t * check_argv) {
   {
-    return fmt_check_invoke_compile_impl(argc, check_argv);
+    return driver_run_compiler_full(argc, check_argv);
   }
   return 0;
 }
 void fmt_check_dep_clear(void) {
   {
-    (void)(fmt_check_dep_clear_impl());
+    (void)(driver_dep_seeded_clear_all());
   }
   (void)(0);
   return;
@@ -321,11 +363,27 @@ int32_t fmt_path_stat_kind(uint8_t * path) {
 }
 extern void check_try_append_lib_root_impl(uint8_t * check_argv, int32_t * n, uint8_t * dir);
 extern void check_init_user_lib_flags_impl(int32_t argc, uint8_t * argv, int32_t path_start);
-extern void driver_check_set_current_file_impl(uint8_t * path);
-extern int32_t driver_check_print_collected_diagnostics_impl(uint8_t * path);
-extern int32_t check_one_file_impl(uint8_t * path, int32_t argc, uint8_t * argv);
+extern int32_t check_one_file_body_impl(uint8_t * path, int32_t argc, uint8_t * argv);
 void check_try_append_lib_root(uint8_t * check_argv, int32_t * n, uint8_t * dir) {
+  if ((check_argv ==((uint8_t *)(0)))) {
+    return;
+  }
+  if ((n ==((int32_t *)(0)))) {
+    return;
+  }
+  if ((dir ==((uint8_t *)(0)))) {
+    return;
+  }
+  if (((dir)[0] ==0)) {
+    return;
+  }
+  if ((check_user_passed_L_get() !=0)) {
+    return;
+  }
   {
+    if (((n)[0] >=58)) {
+      return;
+    }
     (void)(check_try_append_lib_root_impl(check_argv, n, dir));
   }
   (void)(0);
@@ -339,45 +397,121 @@ void check_init_user_lib_flags(int32_t argc, uint8_t * argv, int32_t path_start)
   return;
 }
 void driver_check_set_current_file(uint8_t * path) {
+  if ((path ==((uint8_t *)(0)))) {
+    (void)(((g_check_current_file)[0] = 0));
+    return;
+  }
   {
-    (void)(driver_check_set_current_file_impl(path));
+    int32_t i = 0;
+    while ((i < 511)) {
+      uint8_t c = (path)[i];
+      (void)(((g_check_current_file)[i] = c));
+      if ((c ==0)) {
+        return;
+      }
+      (void)((i = (i + 1)));
+    }
+    (void)(((g_check_current_file)[511] = 0));
   }
   (void)(0);
   return;
 }
 int32_t driver_check_print_collected_diagnostics(uint8_t * path) {
   {
-    return driver_check_print_collected_diagnostics_impl(path);
+    if ((path !=((uint8_t *)(0)))) {
+      return lsp_diag_print_stderr_human(path);
+    }
+    return lsp_diag_print_stderr_human(&((g_check_current_file)[0]));
   }
   return 0;
 }
 int32_t check_one_file(uint8_t * path, int32_t argc, uint8_t * argv) {
+  if ((path ==((uint8_t *)(0)))) {
+    return (0 - 1);
+  }
+  if ((argv ==((uint8_t *)(0)))) {
+    return (0 - 1);
+  }
+  if ((argc <=0)) {
+    return (0 - 1);
+  }
   {
-    return check_one_file_impl(path, argc, argv);
+    return check_one_file_body_impl(path, argc, argv);
   }
   return (0 - 1);
 }
-extern int32_t path_should_ignore_impl(uint8_t * path);
-extern int32_t file_list_push_impl(uint8_t * path);
-extern void walk_dir_collect_process_child_impl(uint8_t * child, int32_t is_dir, int32_t is_reg);
 extern void walk_dir_collect_impl(uint8_t * dir);
 extern void parse_ignore_opt_impl(uint8_t * arg);
 extern void file_list_clear_impl(void);
 int32_t path_should_ignore(uint8_t * path) {
+  if ((path ==((uint8_t *)(0)))) {
+    return 1;
+  }
   {
-    return path_should_ignore_impl(path);
+    int32_t i = 0;
+    while ((i < 32)) {
+      uint8_t * b = fmt_builtin_ignore_at(i);
+      if ((b ==((uint8_t *)(0)))) {
+        break;
+      }
+      if ((strstr(path, b) !=((uint8_t *)(0)))) {
+        return 1;
+      }
+      (void)((i = (i + 1)));
+    }
+    int32_t n = fmt_user_ignore_count();
+    int32_t j = 0;
+    while ((j < n)) {
+      uint8_t * u = fmt_user_ignore_at(j);
+      if ((u !=((uint8_t *)(0)))) {
+        if (((u)[0] !=0)) {
+          if ((strstr(path, u) !=((uint8_t *)(0)))) {
+            return 1;
+          }
+        }
+      }
+      (void)((j = (j + 1)));
+    }
   }
   return 0;
 }
 int32_t file_list_push(uint8_t * path) {
+  if ((path ==((uint8_t *)(0)))) {
+    return (0 - 1);
+  }
   {
-    return file_list_push_impl(path);
+    uint8_t * abs_path = fmt_path_resolve_abs(path);
+    if ((fmt_file_list_n() >=8192)) {
+      return (0 - 1);
+    }
+    if ((abs_path ==((uint8_t *)(0)))) {
+      return (0 - 1);
+    }
+    if ((path_should_ignore(abs_path) !=0)) {
+      return 0;
+    }
+    if ((fmt_path_ends_with_dot_x(abs_path) ==0)) {
+      return 0;
+    }
+    return fmt_file_list_store_impl(abs_path);
   }
   return (0 - 1);
 }
 void walk_dir_collect_process_child(uint8_t * child, int32_t is_dir, int32_t is_reg) {
-  {
-    (void)(walk_dir_collect_process_child_impl(child, is_dir, is_reg));
+  if ((child ==((uint8_t *)(0)))) {
+    return;
+  }
+  if ((path_should_ignore(child) !=0)) {
+    return;
+  }
+  if ((is_dir !=0)) {
+    (void)(walk_dir_collect(child));
+    return;
+  }
+  if ((is_reg !=0)) {
+    if ((fmt_path_ends_with_dot_x(child) !=0)) {
+      (void)(file_list_push(child));
+    }
   }
   (void)(0);
   return;
@@ -390,6 +524,36 @@ void walk_dir_collect(uint8_t * dir) {
   return;
 }
 void parse_ignore_opt(uint8_t * arg) {
+  if ((arg ==((uint8_t *)(0)))) {
+    return;
+  }
+  if (((arg)[0] !=45)) {
+    return;
+  }
+  if (((arg)[1] !=45)) {
+    return;
+  }
+  if (((arg)[2] !=105)) {
+    return;
+  }
+  if (((arg)[3] !=103)) {
+    return;
+  }
+  if (((arg)[4] !=110)) {
+    return;
+  }
+  if (((arg)[5] !=111)) {
+    return;
+  }
+  if (((arg)[6] !=114)) {
+    return;
+  }
+  if (((arg)[7] !=101)) {
+    return;
+  }
+  if (((arg)[8] !=61)) {
+    return;
+  }
   {
     (void)(parse_ignore_opt_impl(arg));
   }
@@ -404,8 +568,7 @@ void file_list_clear(void) {
   return;
 }
 extern int32_t fmt_try_walk_if_product_subdir_impl(uint8_t * sub);
-extern void check_collect_default_product_dirs_impl(void);
-extern void collect_paths_from_arg_impl(uint8_t * arg);
+extern void collect_paths_missing_diag_impl(uint8_t * path);
 extern void check_append_repo_lib_roots_impl(uint8_t * path, uint8_t * check_argv, int32_t * n);
 extern void check_argv_append_default_libs_for_path_impl(uint8_t * path, uint8_t * check_argv, int32_t * n);
 int32_t fmt_try_walk_if_product_subdir(uint8_t * sub) {
@@ -414,16 +577,57 @@ int32_t fmt_try_walk_if_product_subdir(uint8_t * sub) {
   }
   return 0;
 }
+void fmt_walk_cwd_fallback(void) {
+  {
+    uint8_t cwd[512] = {};
+    uint8_t * p = getcwd(&((cwd)[0]), 512);
+    if ((p ==((uint8_t *)(0)))) {
+      return;
+    }
+    (void)(walk_dir_collect(&((cwd)[0])));
+  }
+  (void)(0);
+  return;
+}
 void check_collect_default_product_dirs(void) {
   {
-    (void)(check_collect_default_product_dirs_impl());
+    int32_t any_product = 0;
+    int32_t i = 0;
+    while ((i < 64)) {
+      uint8_t * sub = fmt_default_product_sub_at(i);
+      if ((sub ==((uint8_t *)(0)))) {
+        break;
+      }
+      if ((fmt_try_walk_if_product_subdir(sub) !=0)) {
+        (void)((any_product = 1));
+      }
+      (void)((i = (i + 1)));
+    }
+    if ((any_product ==0)) {
+      (void)(fmt_walk_cwd_fallback());
+    }
   }
   (void)(0);
   return;
 }
 void collect_paths_from_arg(uint8_t * arg) {
+  if ((arg ==((uint8_t *)(0)))) {
+    return;
+  }
   {
-    (void)(collect_paths_from_arg_impl(arg));
+    int32_t k = fmt_path_stat_kind(arg);
+    if ((k < 0)) {
+      (void)(collect_paths_missing_diag_impl(arg));
+      return;
+    }
+    if ((k ==1)) {
+      uint8_t * base = fmt_path_resolve_abs(arg);
+      if ((base !=((uint8_t *)(0)))) {
+        (void)(walk_dir_collect(base));
+      }
+      return;
+    }
+    (void)(file_list_push(arg));
   }
   (void)(0);
   return;

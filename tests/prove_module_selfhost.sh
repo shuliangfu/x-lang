@@ -97,8 +97,8 @@ MODULES=(
   # fmt_check R2 thin + Cap residual pure 深迁：thin.x 吃满 lit/entry + pure 真体
   # （path_should_ignore / .x 后缀 / lint / file_list_push / process_child /
   #  collect_paths / default_dirs / check_one_file 门闩 / try_append 早退 / parse_ignore 前缀 /
-  #  invoke_compile·dep_clear 分派）；
-  # rest FROM_X 无 pure-dup _impl；Cap residual：walk/stat/argv/BSS/missing-diag/cwd/one_file_body
+  #  invoke_compile·dep_clear / set_current_file / print_collected / cwd_fallback）；
+  # rest FROM_X 无 pure-dup _impl；Cap residual：walk/stat/argv/大 BSS/missing-diag/one_file_body
   # prove 锁 thin surface IDENTICAL；冷/无 PREFER 仍可走 seeds/fmt_check_cmd.from_x.c 全 C 体
   "fmt_check|src/driver/fmt_check_cmd_thin.x|seeds/fmt_check_cmd_thin_surface.from_x.c||"
   # simd_loop R2 full：.x 吃满 peel/parse/emit 公共业务；
@@ -293,6 +293,8 @@ gen_x_o() {
         -e '/^extern int memcmp(/d' \
         -e '/^extern char \* getenv(/d' \
         -e '/^extern uint8_t \* getenv(/d' \
+        -e '/^extern char \* getcwd(/d' \
+        -e '/^extern uint8_t \* getcwd(/d' \
         -e '/^extern int32_t unlink(/d' \
         -e '/^extern int unlink(/d' \
         -e '/^extern size_t strlen(/d' \

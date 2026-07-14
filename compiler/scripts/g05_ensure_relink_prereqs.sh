@@ -144,6 +144,8 @@ g05_try_x_to_o() {
         -e '/^extern int memcmp(/d' \
         -e '/^extern char \* getenv(/d' \
         -e '/^extern uint8_t \* getenv(/d' \
+        -e '/^extern char \* getcwd(/d' \
+        -e '/^extern uint8_t \* getcwd(/d' \
         -e '/^extern int32_t unlink(/d' \
         -e '/^extern int unlink(/d' \
         -e '/^extern size_t strlen(/d' \
@@ -2552,7 +2554,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       fi
     fi
   fi
-  # G-02f-11 / fmt_check R2 thin + Cap residual pure 深迁（续 invoke/dep_clear 分派）：fmt_check_cmd_driver.o
+  # G-02f-11 / fmt_check R2 thin + Cap residual pure 深迁（续 set_current_file/print/cwd_fallback）：fmt_check_cmd_driver.o
   # PREFER_X_O=1：thin.x（lit/entry+pure 含 invoke_compile/dep_clear）+ seed-rest（FROM_X）ld -r
   _fcc=seeds/fmt_check_cmd.from_x.c
   _fcc_thin_x=src/driver/fmt_check_cmd_thin.x

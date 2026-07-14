@@ -5,19 +5,22 @@
 //   lit/entry 门闩 + pure 业务真体（path_should_ignore / .x 后缀 / lint /
 //   file_list_push / walk process_child / collect_paths_from_arg /
 //   check_collect_default_product_dirs / check_one_file 门闩 /
-//   try_append 早退 / parse_ignore 前缀 / invoke_compile·dep_clear 分派）进 thin.x；
+//   try_append 早退 / parse_ignore 前缀 / invoke_compile·dep_clear 分派 /
+//   set_current_file + print_collected + cwd_fallback）进 thin.x；
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_FMT_CHECK_THIN_FROM_X）ld -r
 //   → fmt_check_cmd_driver.o
 // Prove IDENTICAL：seeds/fmt_check_cmd_thin_surface.from_x.c
-// Cap residual：walk opendir/stat/argv/BSS / missing-diag format / cwd fallback /
+// Cap residual：walk opendir/stat/argv/大 BSS / missing-diag format /
 //   check_one_file_body 等 *_impl 仍在 full seed rest；FROM_X 下 pure-duplicate
-//   _impl 已剔除（含 check_one_file_impl / invoke_compile_impl / dep_clear_impl；H↓）。
+//   _impl 已剔除（含 set_current_file / print_collected / cwd_fallback；H↓）。
 //
 // -E 约束：无 while 重赋值；无零参-only 不稳写法；6 参用扁平 if。
 //
 
 export extern "C" function strstr(hay: *u8, needle: *u8): *u8;
 export extern "C" function getenv(name: *u8): *u8;
+export extern "C" function getcwd(buf: *u8, size: i32): *u8;
+export extern "C" function lsp_diag_print_stderr_human(path: *u8): i32;
 export extern "C" function driver_run_compiler_full(argc: i32, argv: *u8): i32;
 export extern "C" function driver_dep_seeded_clear_all(): void;
 export extern "C" function driver_collect_mode_is_check_impl(): i32;
@@ -27,6 +30,9 @@ export extern "C" function fmt_file_list_n_impl(): i32;
 export extern "C" function fmt_user_ignore_at_impl(i: i32): *u8;
 export extern "C" function fmt_path_resolve_abs_impl(path: *u8): *u8;
 export extern "C" function fmt_file_list_store_impl(abs_path: *u8): i32;
+
+// pure：当前 check 源路径（512B 小 BSS；单线程流水线；非 Cap 大数组）
+let g_check_current_file: u8[512] = [];
 
 let g_fmt_lit_check_error: u8[12] = [99, 104, 101, 99, 107, 32, 101, 114, 114, 111, 114, 0];
 let g_fmt_lit_fmt_error: u8[10] = [102, 109, 116, 32, 101, 114, 114, 111, 114, 0];
@@ -362,11 +368,9 @@ export function fmt_path_stat_kind(path: *u8): i32 {
   return 0 - 1;
 }
 
-// ---- pure 门闩 / try_append 早退；Cap：lib root body / one_file body / current file ----
+// ---- pure 门闩 / try_append 早退 / current file + print pure；Cap：lib root body / one_file body ----
 export extern "C" function check_try_append_lib_root_impl(check_argv: *u8, n: *i32, dir: *u8): void;
 export extern "C" function check_init_user_lib_flags_impl(argc: i32, argv: *u8, path_start: i32): void;
-export extern "C" function driver_check_set_current_file_impl(path: *u8): void;
-export extern "C" function driver_check_print_collected_diagnostics_impl(path: *u8): i32;
 export extern "C" function check_one_file_body_impl(path: *u8, argc: i32, argv: *u8): i32;
 
 // pure 早退：null/空 dir / 用户已传 -L / argv 槽满；stat+BSS 去重 🔒 _impl
@@ -402,17 +406,35 @@ export function check_init_user_lib_flags(argc: i32, argv: *u8, path_start: i32)
   }
 }
 
+// pure：写 512B 当前文件 BSS（字节拷贝，无 snprintf）
 #[no_mangle]
 export function driver_check_set_current_file(path: *u8): void {
+  if (path == 0 as *u8) {
+    g_check_current_file[0] = 0;
+    return;
+  }
   unsafe {
-    driver_check_set_current_file_impl(path);
+    let i: i32 = 0;
+    while (i < 511) {
+      let c: u8 = path[i];
+      g_check_current_file[i] = c;
+      if (c == 0) {
+        return;
+      }
+      i = i + 1;
+    }
+    g_check_current_file[511] = 0;
   }
 }
 
+// pure：LSP human 打印；path 空则用当前文件 BSS
 #[no_mangle]
 export function driver_check_print_collected_diagnostics(path: *u8): i32 {
   unsafe {
-    return driver_check_print_collected_diagnostics_impl(path);
+    if (path != 0 as *u8) {
+      return lsp_diag_print_stderr_human(path);
+    }
+    return lsp_diag_print_stderr_human(&g_check_current_file[0]);
   }
   return 0;
 }
@@ -573,9 +595,8 @@ export function file_list_clear(): void {
   }
 }
 
-// ---- G-02f-408：try_walk Cap residual；collect orch pure 深迁；lib roots Cap ----
+// ---- G-02f-408：try_walk Cap residual；collect orch + cwd_fallback pure；lib roots Cap ----
 export extern "C" function fmt_try_walk_if_product_subdir_impl(sub: *u8): i32;
-export extern "C" function fmt_walk_cwd_fallback_impl(): void;
 export extern "C" function collect_paths_missing_diag_impl(path: *u8): void;
 export extern "C" function check_append_repo_lib_roots_impl(path: *u8, check_argv: *u8, n: *i32): void;
 export extern "C" function check_argv_append_default_libs_for_path_impl(path: *u8, check_argv: *u8, n: *i32): void;
@@ -588,7 +609,20 @@ export function fmt_try_walk_if_product_subdir(sub: *u8): i32 {
   return 0;
 }
 
-// pure 编排：默认产品子目录 try_walk；全未命中则 cwd fallback 🔒
+// pure：getcwd + walk_dir_collect public（栈 512B；无 rest _impl）
+#[no_mangle]
+export function fmt_walk_cwd_fallback(): void {
+  unsafe {
+    let cwd: u8[512] = [];
+    let p: *u8 = getcwd(&cwd[0], 512);
+    if (p == 0 as *u8) {
+      return;
+    }
+    walk_dir_collect(&cwd[0]);
+  }
+}
+
+// pure 编排：默认产品子目录 try_walk；全未命中则 cwd fallback pure
 #[no_mangle]
 export function check_collect_default_product_dirs(): void {
   unsafe {
@@ -605,7 +639,7 @@ export function check_collect_default_product_dirs(): void {
       i = i + 1;
     }
     if (any_product == 0) {
-      fmt_walk_cwd_fallback_impl();
+      fmt_walk_cwd_fallback();
     }
   }
 }
