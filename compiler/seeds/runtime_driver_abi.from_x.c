@@ -1,6 +1,8 @@
 /* G-02f-343/344/345 / R2 thin full：PREFER hybrid thin 由 src/runtime_driver_abi_thin.x；
  * rest SHUX_L2_RDABI_THIN_FROM_X（无 pure-dup _impl；slice_marker + Cap residual 体）。
- * pure 深迁：scan/has/argv_collect/target_os/fail/smoke/peek/entry_len_i32/large_stack orch 在 thin.x。
+ * pure 深迁：scan/has/argv_collect/target_os/fail/smoke/peek/entry_len_i32/large_stack orch
+ *   + getenv 门闩（force_c / asm skip / emit_heavy / module_only / metric / no_large_stack /
+ *   sanitize_address env）在 thin.x；FROM_X 剔 pure-dup _impl。
  */
 /* Generated from src/runtime_driver_abi.x (G-02f-29/41/45..57/83 true .x + C tail).
  * G-02f-116 true .x pure helpers.
@@ -255,27 +257,10 @@ void driver_sanitize_address_set(int32_t v) {
 
 /**
  * 查询 sanitize=address；显式标志或 SHUX_SANITIZE_ADDRESS 环境变量。
- * 返回值：1 表示启用边界检查插桩。
+ * pure 权威：thin.x driver_sanitize_address_get（flag + env 门闩）；
+ * 冷启动保留全 C 体；FROM_X 无 pure-dup env_enabled_impl（H↓）。
  */
-#ifdef SHUX_L2_RDABI_THIN_FROM_X
-int32_t driver_sanitize_address_env_enabled_impl(void) {
-  (void)(({   {
-    char *e = getenv("SHUX_SANITIZE_ADDRESS");
-    if ((e ==((char *)(0)))) {
-      return 0;
-    }
-    if (((e)[0] ==0)) {
-      return 0;
-    }
-    if (((e)[0] ==48)) {
-      return 0;
-    }
-    return 1;
-  }
- }));
-  return 0;
-}
-#else
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 int32_t driver_sanitize_address_get(void) {
   (void)(({   {
     int32_t * p = driver_sanitize_address_flag_slot();
@@ -416,9 +401,9 @@ void driver_x_pipeline_skip_codegen_set(int32_t v) {
 
 /**
  * 非 0 时入口模块 typeck 走 C 的 typeck_module（大模块 asm 构建时避免 .x typeck 栈过深）。
- * 返回值：1 表示 SHUX_TYPECK_FORCE_C 已启用。
+ * pure 权威：thin.x driver_typeck_force_c_enabled；冷启动保留 _impl + public；FROM_X 无 pure-dup（H↓）。
  */
-/* G-02f-387：实现体始终 seed；public PREFER 时 thin forward */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 int32_t driver_typeck_force_c_enabled_impl(void) {
   (void)(({   {
     char *e = getenv("SHUX_TYPECK_FORCE_C");
@@ -437,7 +422,6 @@ int32_t driver_typeck_force_c_enabled_impl(void) {
   return 0;
 }
 
-#ifndef SHUX_L2_RDABI_THIN_FROM_X
 int32_t driver_typeck_force_c_enabled(void) {
   return driver_typeck_force_c_enabled_impl();
 }
@@ -590,9 +574,9 @@ int32_t driver_typeck_skip_large_entry(void) {
 
 /**
  * build_shux_asm 单模块 -o：SHUX_ASM_BUILD_SKIP_TYPECK=1 时跳过 .x typeck。
- * 返回值：环境变量非空且非 '0' 时为 1。
+ * pure 权威：thin.x；冷启动保留 _impl + public；FROM_X 无 pure-dup（H↓）。
  */
-/* G-02f-387：实现体始终 seed；public PREFER 时 thin forward */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 int32_t driver_asm_build_skip_typeck_impl(void) {
   (void)(({   {
     char *e = getenv("SHUX_ASM_BUILD_SKIP_TYPECK");
@@ -611,7 +595,6 @@ int32_t driver_asm_build_skip_typeck_impl(void) {
   return 0;
 }
 
-#ifndef SHUX_L2_RDABI_THIN_FROM_X
 int32_t driver_asm_build_skip_typeck(void) {
   return driver_asm_build_skip_typeck_impl();
 }
@@ -619,9 +602,9 @@ int32_t driver_asm_build_skip_typeck(void) {
 
 /**
  * typeck 第二遍 EMIT_HEAVY：SHUX_ASM_ENTRY_EMIT_HEAVY=1 时 pipeline 跳过文本 asm codegen。
- * 返回值：环境变量非空且非 '0' 时为 1。
+ * pure 权威：thin.x；冷启动保留 _impl + public；FROM_X 无 pure-dup（H↓）。
  */
-/* G-02f-387：实现体始终 seed；public PREFER 时 thin forward */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 int32_t driver_asm_entry_emit_heavy_impl(void) {
   (void)(({   {
     char *e = getenv("SHUX_ASM_ENTRY_EMIT_HEAVY");
@@ -640,7 +623,6 @@ int32_t driver_asm_entry_emit_heavy_impl(void) {
   return 0;
 }
 
-#ifndef SHUX_L2_RDABI_THIN_FROM_X
 int32_t driver_asm_entry_emit_heavy(void) {
   return driver_asm_entry_emit_heavy_impl();
 }
@@ -648,9 +630,9 @@ int32_t driver_asm_entry_emit_heavy(void) {
 
 /**
  * build_shux_asm 单模块 -o：SHUX_ASM_ENTRY_MODULE_ONLY=1 时仅编入口模块。
- * 返回值：环境变量非空且非 '0' 时为 1。
+ * pure 权威：thin.x；冷启动保留 _impl + public；FROM_X 无 pure-dup（H↓）。
  */
-/* G-02f-388：实现体始终 seed；public PREFER 时 thin forward */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 int32_t driver_asm_entry_module_only_from_env_impl(void) {
   (void)(({   {
     char *e = getenv("SHUX_ASM_ENTRY_MODULE_ONLY");
@@ -669,7 +651,6 @@ int32_t driver_asm_entry_module_only_from_env_impl(void) {
   return 0;
 }
 
-#ifndef SHUX_L2_RDABI_THIN_FROM_X
 int32_t driver_asm_entry_module_only_from_env(void) {
   return driver_asm_entry_module_only_from_env_impl();
 }
@@ -677,9 +658,9 @@ int32_t driver_asm_entry_module_only_from_env(void) {
 
 /**
  * A-11 typeck-parse-count-gate：仅采集 parse 指标，不跑 pipeline/asm_codegen_elf_o。
- * 返回值：SHUX_ASM_PARSE_METRIC_ONLY 非空且非 '0' 时为 1。
+ * pure 权威：thin.x；冷启动保留 _impl + public；FROM_X 无 pure-dup（H↓）。
  */
-/* G-02f-388：实现体始终 seed；public PREFER 时 thin forward */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 int32_t driver_asm_parse_metric_only_from_env_impl(void) {
   (void)(({   {
     char *e = getenv("SHUX_ASM_PARSE_METRIC_ONLY");
@@ -698,7 +679,6 @@ int32_t driver_asm_parse_metric_only_from_env_impl(void) {
   return 0;
 }
 
-#ifndef SHUX_L2_RDABI_THIN_FROM_X
 int32_t driver_asm_parse_metric_only_from_env(void) {
   return driver_asm_parse_metric_only_from_env_impl();
 }
@@ -1287,8 +1267,8 @@ void driver_call_fn_void_arg_impl(void *(*fn)(void *), void *arg) {
         (void)fn(arg);
 }
 
-/* G-02f-246：逻辑源 .x（真迁 NO_LARGE_STACK env）；seed 保留同语义 C 供产品 cc */
-/* G-02f-387：实现体始终 seed；public PREFER 时 thin forward */
+/* pure 权威：thin.x driver_pipeline_no_large_stack_env；冷启动保留 _impl + public；FROM_X 无 pure-dup（H↓）。 */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 int32_t driver_pipeline_no_large_stack_env_impl(void) {
     const char *e = getenv("SHUX_PIPELINE_NO_LARGE_STACK");
     if (!e || !e[0] || e[0] == '0')
@@ -1296,7 +1276,6 @@ int32_t driver_pipeline_no_large_stack_env_impl(void) {
     return 1;
 }
 
-#ifndef SHUX_L2_RDABI_THIN_FROM_X
 int32_t driver_pipeline_no_large_stack_env(void) {
   return driver_pipeline_no_large_stack_env_impl();
 }

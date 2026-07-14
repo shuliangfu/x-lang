@@ -1,14 +1,16 @@
-/* seeds/runtime_driver_abi_thin_surface.from_x.c
- * G-02f runtime_driver_abi R2 thin full surface — isomorphic with src/runtime_driver_abi_thin.x
- * Product PREFER_X_O: g05_try_x_to_o(thin.x) + full seed rest (-DSHUX_L2_RDABI_THIN_FROM_X) ld -r
- * Prove: thin.x vs this seed → nm IDENTICAL (public surface; pure 深迁真体 + Cap residual _impl 为 U)
- * pure 深迁：scan/has/argv_collect/target_os/fail/smoke/peek/entry_len_i32/large_stack orch 在 thin.x
- * Cap residual: getenv 门闩 / uname / setrlimit / pthread / path-read / BSS / format print 在 full seed rest
- * Regen: ./shux -E ... thin.x | filter DBG + polish
- */
-#include <stdint.h>
+/* prove surface: isomorphic to src/runtime_driver_abi_thin.x (g05_try_x_to_o aligned) */
 #include <stddef.h>
+#include <stdint.h>
 #include <sys/types.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#ifndef _WIN32
+#include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
+#endif
+extern int32_t driver_env_flag_truthy(uint8_t * name);
 extern int32_t * driver_check_only_flag_slot(void);
 extern int32_t * driver_check_diag_emitted_flag_slot(void);
 extern int32_t * driver_freestanding_flag_slot(void);
@@ -84,6 +86,22 @@ extern void driver_run_thread_on_large_stack(uint8_t * fn, uint8_t * arg);
 extern void driver_run_on_large_stack_pthread(uint8_t * fn, uint8_t * arg);
 extern int64_t driver_pipeline_entry_source_len_load_and_maybe_debug(void);
 extern int64_t driver_pipeline_entry_source_len(void);
+static uint8_t * g_env_sanitize_address;
+static uint8_t * g_env_typeck_force_c;
+static uint8_t * g_env_asm_build_skip_typeck;
+static uint8_t * g_env_asm_entry_emit_heavy;
+static uint8_t * g_env_asm_entry_module_only;
+static uint8_t * g_env_asm_parse_metric_only;
+static uint8_t * g_env_pipeline_no_large_stack;
+static void init_globals(void) {
+  g_env_sanitize_address = (uint8_t[]){83, 72, 85, 88, 95, 83, 65, 78, 73, 84, 73, 90, 69, 95, 65, 68, 68, 82, 69, 83, 83, 0 };
+  g_env_typeck_force_c = (uint8_t[]){83, 72, 85, 88, 95, 84, 89, 80, 69, 67, 75, 95, 70, 79, 82, 67, 69, 95, 67, 0 };
+  g_env_asm_build_skip_typeck = (uint8_t[]){83, 72, 85, 88, 95, 65, 83, 77, 95, 66, 85, 73, 76, 68, 95, 83, 75, 73, 80, 95, 84, 89, 80, 69, 67, 75, 0 };
+  g_env_asm_entry_emit_heavy = (uint8_t[]){83, 72, 85, 88, 95, 65, 83, 77, 95, 69, 78, 84, 82, 89, 95, 69, 77, 73, 84, 95, 72, 69, 65, 86, 89, 0 };
+  g_env_asm_entry_module_only = (uint8_t[]){83, 72, 85, 88, 95, 65, 83, 77, 95, 69, 78, 84, 82, 89, 95, 77, 79, 68, 85, 76, 69, 95, 79, 78, 76, 89, 0 };
+  g_env_asm_parse_metric_only = (uint8_t[]){83, 72, 85, 88, 95, 65, 83, 77, 95, 80, 65, 82, 83, 69, 95, 77, 69, 84, 82, 73, 67, 95, 79, 78, 76, 89, 0 };
+  g_env_pipeline_no_large_stack = (uint8_t[]){83, 72, 85, 88, 95, 80, 73, 80, 69, 76, 73, 78, 69, 95, 78, 79, 95, 76, 65, 82, 71, 69, 95, 83, 84, 65, 67, 75, 0 };
+}
 extern int32_t * driver_check_only_flag_slot_impl(void);
 extern int32_t * driver_check_diag_emitted_flag_slot_impl(void);
 extern int32_t * driver_freestanding_flag_slot_impl(void);
@@ -97,7 +115,22 @@ extern uint8_t * driver_path_read_preprocess_malloc_impl(uint8_t * path);
 extern void driver_current_dep_path_store_impl(uint8_t * path);
 extern uint8_t * driver_current_dep_path_load_impl(void);
 extern void driver_pipeline_entry_source_len_store_impl(int64_t len);
-extern int32_t driver_sanitize_address_env_enabled_impl(void);
+int32_t driver_env_flag_truthy(uint8_t * name) {
+  {
+    uint8_t * e = getenv(name);
+    if ((e ==((uint8_t *)(0)))) {
+      return 0;
+    }
+    if (((e)[0] ==0)) {
+      return 0;
+    }
+    if (((e)[0] ==48)) {
+      return 0;
+    }
+    return 1;
+  }
+  return 0;
+}
 extern int32_t driver_check_quiet_ok_get(void);
 extern uint8_t * driver_argv_at(uint8_t * argv, int32_t i);
 extern uint8_t * shux_cstr_offset(uint8_t * s, int32_t off);
@@ -110,7 +143,6 @@ extern void driver_print_x_smoke_typeck_ok_impl(void);
 extern int32_t driver_get_module_num_funcs(uint8_t * m);
 extern int32_t driver_get_module_main_func_index(uint8_t * m);
 extern int32_t shux_read_file_into_path(uint8_t * path, uint8_t * buf, int64_t cap);
-extern void free(uint8_t * p);
 extern int32_t bootstrap_nostdlib_pthread_is_stub(void);
 extern void driver_run_thread_on_large_stack_pthread_impl(uint8_t * fn, uint8_t * arg);
 int32_t * driver_check_only_flag_slot(void) {
@@ -641,51 +673,27 @@ int32_t driver_sanitize_address_get(void) {
     if (((p)[0] !=0)) {
       return 1;
     }
-    return driver_sanitize_address_env_enabled_impl();
+    return driver_env_flag_truthy(&((g_env_sanitize_address)[0]));
   }
   return 0;
 }
-extern int32_t driver_typeck_force_c_enabled_impl(void);
-extern int32_t driver_asm_build_skip_typeck_impl(void);
-extern int32_t driver_asm_entry_emit_heavy_impl(void);
-extern int32_t driver_pipeline_no_large_stack_env_impl(void);
 int32_t driver_typeck_force_c_enabled(void) {
-  {
-    return driver_typeck_force_c_enabled_impl();
-  }
-  return 0;
+  return driver_env_flag_truthy(&((g_env_typeck_force_c)[0]));
 }
 int32_t driver_asm_build_skip_typeck(void) {
-  {
-    return driver_asm_build_skip_typeck_impl();
-  }
-  return 0;
+  return driver_env_flag_truthy(&((g_env_asm_build_skip_typeck)[0]));
 }
 int32_t driver_asm_entry_emit_heavy(void) {
-  {
-    return driver_asm_entry_emit_heavy_impl();
-  }
-  return 0;
+  return driver_env_flag_truthy(&((g_env_asm_entry_emit_heavy)[0]));
 }
 int32_t driver_pipeline_no_large_stack_env(void) {
-  {
-    return driver_pipeline_no_large_stack_env_impl();
-  }
-  return 0;
+  return driver_env_flag_truthy(&((g_env_pipeline_no_large_stack)[0]));
 }
-extern int32_t driver_asm_entry_module_only_from_env_impl(void);
-extern int32_t driver_asm_parse_metric_only_from_env_impl(void);
 int32_t driver_asm_entry_module_only_from_env(void) {
-  {
-    return driver_asm_entry_module_only_from_env_impl();
-  }
-  return 0;
+  return driver_env_flag_truthy(&((g_env_asm_entry_module_only)[0]));
 }
 int32_t driver_asm_parse_metric_only_from_env(void) {
-  {
-    return driver_asm_parse_metric_only_from_env_impl();
-  }
-  return 0;
+  return driver_env_flag_truthy(&((g_env_asm_parse_metric_only)[0]));
 }
 int32_t driver_pipeline_entry_source_len_i32(void) {
   {

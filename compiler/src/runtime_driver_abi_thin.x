@@ -1,13 +1,16 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-343/344/345/387/388/400–402/413/414/416：runtime_driver_abi R2 thin full（门闩 thin）。
+// G-02f-343/344/345/387/388/400–402/413/414/416 + getenv pure 深迁：runtime_driver_abi R2 thin。
 // 产品 PREFER_X_O：thin.o + full seed rest（-DSHUX_L2_RDABI_THIN_FROM_X）ld -r → runtime_driver_abi.o
 // prove IDENTICAL：thin.x ↔ seeds/runtime_driver_abi_thin_surface.from_x.c（公共面 61+；_impl 仍 U / rest）
-// pure 深迁：scan/has/argv_collect/target_os/fail/smoke/peek/entry_len_i32/large_stack orch 真体在 thin.x。
-// Cap residual：getenv 门闩 / uname / setrlimit / pthread 创建 / path-read / BSS 槽 / format print 仍 rest。
+// pure 深迁：scan/has/argv_collect/target_os/fail/smoke/peek/entry_len_i32/large_stack orch
+//   + getenv 门闩（非空且非 '0' → 1）真体在 thin.x。
+// Cap residual：uname / setrlimit / pthread 创建 / path-read / BSS 槽 / format print /
+//   数值 env（stack_limit_mb 等）/ debug_pipe reportf 仍 rest。
 //
 
+export extern "C" function getenv(name: *u8): *u8;
 export extern "C" function driver_check_only_flag_slot_impl(): *i32;
 export extern "C" function driver_check_diag_emitted_flag_slot_impl(): *i32;
 export extern "C" function driver_freestanding_flag_slot_impl(): *i32;
@@ -21,7 +24,33 @@ export extern "C" function driver_path_read_preprocess_malloc_impl(path: *u8): *
 export extern "C" function driver_current_dep_path_store_impl(path: *u8): void;
 export extern "C" function driver_current_dep_path_load_impl(): *u8;
 export extern "C" function driver_pipeline_entry_source_len_store_impl(len: i64): void;
-export extern "C" function driver_sanitize_address_env_enabled_impl(): i32;
+
+// env 名字节表（-E 稳：无依赖字符串字面量在 compound 里的形态）
+let g_env_sanitize_address: u8[22] = [83, 72, 85, 88, 95, 83, 65, 78, 73, 84, 73, 90, 69, 95, 65, 68, 68, 82, 69, 83, 83, 0];
+let g_env_typeck_force_c: u8[20] = [83, 72, 85, 88, 95, 84, 89, 80, 69, 67, 75, 95, 70, 79, 82, 67, 69, 95, 67, 0];
+let g_env_asm_build_skip_typeck: u8[27] = [83, 72, 85, 88, 95, 65, 83, 77, 95, 66, 85, 73, 76, 68, 95, 83, 75, 73, 80, 95, 84, 89, 80, 69, 67, 75, 0];
+let g_env_asm_entry_emit_heavy: u8[26] = [83, 72, 85, 88, 95, 65, 83, 77, 95, 69, 78, 84, 82, 89, 95, 69, 77, 73, 84, 95, 72, 69, 65, 86, 89, 0];
+let g_env_asm_entry_module_only: u8[27] = [83, 72, 85, 88, 95, 65, 83, 77, 95, 69, 78, 84, 82, 89, 95, 77, 79, 68, 85, 76, 69, 95, 79, 78, 76, 89, 0];
+let g_env_asm_parse_metric_only: u8[27] = [83, 72, 85, 88, 95, 65, 83, 77, 95, 80, 65, 82, 83, 69, 95, 77, 69, 84, 82, 73, 67, 95, 79, 78, 76, 89, 0];
+let g_env_pipeline_no_large_stack: u8[29] = [83, 72, 85, 88, 95, 80, 73, 80, 69, 76, 73, 78, 69, 95, 78, 79, 95, 76, 65, 82, 71, 69, 95, 83, 84, 65, 67, 75, 0];
+
+// pure：getenv 非空且首字节非 '0' → 1（与 seed Cap residual 同形）
+function driver_env_flag_truthy(name: *u8): i32 {
+  unsafe {
+    let e: *u8 = getenv(name);
+    if (e == 0 as *u8) {
+      return 0;
+    }
+    if (e[0] == 0) {
+      return 0;
+    }
+    if (e[0] == 48) {
+      return 0;
+    }
+    return 1;
+  }
+  return 0;
+}
 
 // driver_check_quiet_ok_get：weak default 由 seed 提供，强符号由 fmt_check_cmd 提供。
 // thin.x 不导出，仅 extern 声明供 driver_print_check_ok 调用。
@@ -527,6 +556,7 @@ export function driver_typeck_skip_large_entry(): i32 {
   return 0;
 }
 
+// pure：flag 槽 或 SHUX_SANITIZE_ADDRESS 非空且非 '0'
 #[no_mangle]
 export function driver_sanitize_address_get(): i32 {
   unsafe {
@@ -534,67 +564,40 @@ export function driver_sanitize_address_get(): i32 {
     if (p[0] != 0) {
       return 1;
     }
-    return driver_sanitize_address_env_enabled_impl();
+    return driver_env_flag_truthy(&g_env_sanitize_address[0]);
   }
   return 0;
 }
 
-// ---- G-02f-387：env flag getters → seed impl（-E 勿写 getenv 字符串）----
-export extern "C" function driver_typeck_force_c_enabled_impl(): i32;
-export extern "C" function driver_asm_build_skip_typeck_impl(): i32;
-export extern "C" function driver_asm_entry_emit_heavy_impl(): i32;
-export extern "C" function driver_pipeline_no_large_stack_env_impl(): i32;
-
+// ---- getenv pure 深迁：env flag 门闩真体（FROM_X 无 pure-dup _impl）----
 #[no_mangle]
 export function driver_typeck_force_c_enabled(): i32 {
-  unsafe {
-    return driver_typeck_force_c_enabled_impl();
-  }
-  return 0;
+  return driver_env_flag_truthy(&g_env_typeck_force_c[0]);
 }
 
 #[no_mangle]
 export function driver_asm_build_skip_typeck(): i32 {
-  unsafe {
-    return driver_asm_build_skip_typeck_impl();
-  }
-  return 0;
+  return driver_env_flag_truthy(&g_env_asm_build_skip_typeck[0]);
 }
 
 #[no_mangle]
 export function driver_asm_entry_emit_heavy(): i32 {
-  unsafe {
-    return driver_asm_entry_emit_heavy_impl();
-  }
-  return 0;
+  return driver_env_flag_truthy(&g_env_asm_entry_emit_heavy[0]);
 }
 
 #[no_mangle]
 export function driver_pipeline_no_large_stack_env(): i32 {
-  unsafe {
-    return driver_pipeline_no_large_stack_env_impl();
-  }
-  return 0;
+  return driver_env_flag_truthy(&g_env_pipeline_no_large_stack[0]);
 }
-
-// ---- G-02f-388：module_only / parse_metric_only / entry_source_len_i32 → seed impl ----
-export extern "C" function driver_asm_entry_module_only_from_env_impl(): i32;
-export extern "C" function driver_asm_parse_metric_only_from_env_impl(): i32;
 
 #[no_mangle]
 export function driver_asm_entry_module_only_from_env(): i32 {
-  unsafe {
-    return driver_asm_entry_module_only_from_env_impl();
-  }
-  return 0;
+  return driver_env_flag_truthy(&g_env_asm_entry_module_only[0]);
 }
 
 #[no_mangle]
 export function driver_asm_parse_metric_only_from_env(): i32 {
-  unsafe {
-    return driver_asm_parse_metric_only_from_env_impl();
-  }
-  return 0;
+  return driver_env_flag_truthy(&g_env_asm_parse_metric_only[0]);
 }
 
 // G-02f-243 pure 深迁：load + i32 饱和
