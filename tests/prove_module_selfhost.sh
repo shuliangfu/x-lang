@@ -39,8 +39,10 @@ MODULES=(
   # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：Windows #if sep 在 mega 冷路径
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_path_pure.from_x.c 全 C 体
   "labi_path_pure|src/runtime/labi_path_pure.x|seeds/labi_path_pure_surface.from_x.c||"
-  # labi_gates：L9 thin null-check 转发；产品 PREFER_X_O；冷启动 seed；本条锁 nm / 扩 N
-  "labi_gates|src/runtime/labi_gates.x|seeds/labi_gates.from_x.c||"
+  # labi_gates R2 full：.x 吃满 6 thin gates + count（*u8 透传 _impl）；
+  # mega rest 在 FROM_X 下业务 H=0；Cap residual：*_impl 主体在 mega rest
+  # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_gates.from_x.c 全 C 体
+  "labi_gates|src/runtime/labi_gates.x|seeds/labi_gates_surface.from_x.c||"
   # labi_invoke_cc_list R2 full：.x 吃满 harden/skip-native/icc rel 纯表；
   # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：getenv 🔒 + mega invoke_cc_impl
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_invoke_cc_list.from_x.c 全 C 体

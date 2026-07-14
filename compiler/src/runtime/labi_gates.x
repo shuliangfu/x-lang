@@ -1,20 +1,18 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-277 / P2 link_abi L9：thin gate / null 检查转发层。
+// G-02f-277 / P2 link_abi L9：thin gate / null 检查转发层 → R2 full。
 // 产品：PREFER_X_O → g05_try_x_to_o；冷启动 seeds/labi_gates.from_x.c。
-// hybrid 宏 SHUX_LABI_GATES_FROM_X。
+// hybrid 宏 SHUX_LABI_GATES_FROM_X；mega rest 在 FROM_X 下仅前向（H=0）。
 //
-// 符号：
-//   shux_asm_ld_bank_push
-//   shux_invoke_cc
+// R2 full 公共符号（thin shell，*u8 透传 _impl）：
+//   shux_asm_ld_bank_push / shux_invoke_cc
 //   shux_asm_ld_append_mach_tail_libs / shux_asm_ld_append_unix_gcc_tail_libs
-//   shux_append_linux_link_harden
-//   shux_invoke_ld_for_exe
+//   shux_append_linux_link_harden / shux_invoke_ld_for_exe
 //   labi_gates_count
-// _impl 主体仍在 mega rest。
+// Cap residual：*_impl 主体仍在 mega rest。
 //
-// G-02f-L：真迁 thin shell（*u8 不透明指针透传；与 C 指针 ABI 兼容）。
+// R2 full：真迁 thin shell（*u8 不透明指针透传；与 C 指针 ABI 兼容）。
 // 不做 struct 布局；不做字符串表（见 labi_diag_pure 语言限制）。
 
 export extern "C" function shux_asm_ld_bank_push_impl(b: *u8, path: *u8): *u8;
