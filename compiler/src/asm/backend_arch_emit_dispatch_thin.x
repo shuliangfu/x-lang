@@ -5,6 +5,7 @@
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_ARCH_EMIT_THIN_FROM_X）ld -r
 //   → backend_arch_emit_dispatch.o
 // 对照：src/asm/backend_arch_emit_dispatch.x；默认仍整 seed。
+// Prove IDENTICAL：seeds/backend_arch_emit_dispatch_thin.from_x.c（本 thin 公共面 47；arch_*_emit_* 仍 U）
 //
 
 export extern "C" function arch_arm64_emit_add_imm_to_rax(out: *u8, imm: i32): i32;
