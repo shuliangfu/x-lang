@@ -49,7 +49,8 @@ extern function lsp_debug_ptr(p: *u8): void;
 * state_buf[i] 与 &state_buf[expr]，无指针运算。 */
 function read_message(fd: i32, body_out: *u8, body_cap: i32, state_buf: *u8): isize {
   let h: usize = 0 as usize;
-  if (fd != 0) { return -1; }
+  /* 返回类型为 isize：整数字面量默认为 i32，错误路径须显式 as isize（与 write_fd 一致） */
+  if (fd != 0) { return (-1) as isize; }
   let b0: u8 = state_buf[LSP_STATE_LEN_OFF];
   let b1: u8 = state_buf[LSP_STATE_LEN_OFF + 1];
   let b2: u8 = state_buf[LSP_STATE_LEN_OFF + 2];
@@ -81,7 +82,7 @@ function read_message(fd: i32, body_out: *u8, body_cap: i32, state_buf: *u8): is
     }
   }
   if (n <= 0) {
-    return -1;
+    return (-1) as isize;
   }
   let i: i32 = 0;
   while (i + 4 <= n) {
@@ -92,12 +93,12 @@ function read_message(fd: i32, body_out: *u8, body_cap: i32, state_buf: *u8): is
     i = i + 1;
   }
   if (i + 4 > n) {
-    return -1;
+    return (-1) as isize;
   }
   let header_end: i32 = i + 4;
   let content_len: i32 = parse_content_length_in_buf(state_buf, 0, header_end);
   if (content_len <= 0 || content_len > body_cap || content_len > LSP_BODY_SAFETY_CAP) {
-    return -1;
+    return (-1) as isize;
   }
   let body_in_buf: i32 = n - header_end;
   let to_copy: i32 = if (body_in_buf > content_len) { content_len } else { body_in_buf };
@@ -111,7 +112,7 @@ function read_message(fd: i32, body_out: *u8, body_cap: i32, state_buf: *u8): is
     /* 剩余 body 直读入 body_out，勿经 state_buf[0] 以免覆盖 leftover 区。 */
     let r: i32 = io.read(h, &body_out[to_copy], remain as usize, 0 as u32);
     if (r != remain) {
-      return -1;
+      return (-1) as isize;
     }
   }
   let consumed: i32 = header_end + content_len;
@@ -234,10 +235,13 @@ function extract_document_text(body: *u8, body_len: i32, out_buf: *u8, out_cap: 
 /** build_response_with_result 仍由 lsp_io.c 提供，供 C 内 build_definition 等与 lsp.x
 * 共用。 */
 
-/** 分配 size 字节；失败返回 0。 */
+/** 分配 size 字节；失败返回 0。
+ * 使用 alloc_zero 而非 heap.alloc：std.heap 中 alloc 多 overload，跨模块 binding import
+ * typeck 现按「首同名」取 alloc(i32)→*u64，导致 expected *u8 found *u64（见 W-heap-overload）。
+ * alloc_zero 仅有 (usize)→*u8 签名，无歧义；LSP 缓冲零初始化亦可接受。 */
 function lsp_alloc(size: usize): *u8 {
   if (size == 0 || size > (LSP_BODY_SAFETY_CAP as usize)) { return 0 as *u8; }
-  return heap.alloc(size);
+  return heap.alloc_zero(size);
 }
 
 /** 释放由 lsp_alloc 得到的指针。 */
