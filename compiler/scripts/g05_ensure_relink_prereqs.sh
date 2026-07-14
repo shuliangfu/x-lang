@@ -147,6 +147,14 @@ g05_try_x_to_o() {
         -e '/^extern size_t strlen(/d' \
         -e '/^extern int32_t strcmp(/d' \
         -e '/^extern int strcmp(/d' \
+        -e '/^extern int32_t strncmp(/d' \
+        -e '/^extern int strncmp(/d' \
+        -e '/^extern uint8_t \* strstr(/d' \
+        -e '/^extern char \* strstr(/d' \
+        -e '/^extern uint8_t \* memset(/d' \
+        -e '/^extern void \* memset(/d' \
+        -e '/^extern int32_t setenv(/d' \
+        -e '/^extern int setenv(/d' \
         -e '/^extern uint8_t \* strerror(/d' \
         -e '/^extern char \* strerror(/d' \
         -e '/^extern int32_t system(/d' \
@@ -783,7 +791,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
                    -c -o "$_rt_cmp_rest_o" "$_rt_compile_seed" \
               && $CC -r -nostdlib -o "$_rt_cmp_o" "$_rt_cmp_thin_o" "$_rt_cmp_rest_o" 2>/dev/null; then
               _rt_compile_ok=1
-              echo "g05_ensure: R6 compile ← thin .x + rest (G-02f-454 L2 prefer .x)"
+              echo "g05_ensure: R6 compile ← full .x + rest marker (R2 full H=0)"
             fi
             rm -f "$_rt_cmp_thin_o" "$_rt_cmp_rest_o"
           fi

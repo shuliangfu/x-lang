@@ -142,6 +142,10 @@ MODULES=(
   # Cap residual：driver_stdio_* + driver_entry_*_slot 在 driver_abi
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/rt_entry.from_x.c 全 C 体
   "rt_entry|src/runtime/rt_entry.x|seeds/rt_entry_surface.from_x.c||"
+  # rt_compile R2 full：.x 吃满 deps/asm_dep/apply/init/scan/impl/alloc 等 25 公共；产品 rest 在 FROM_X 下业务 H=0
+  # （禁 let **u8 / 局部 u8[N]；malloc 扫描缓冲；strstr/strncmp；diag_report_with_code）
+  # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/rt_compile.from_x.c 全 C 体
+  "rt_compile|src/runtime/rt_compile.x|seeds/rt_compile_surface.from_x.c||"
 )
 
 # 找 shux 二进制（优先 shux，fallback shux-c）
@@ -227,6 +231,14 @@ gen_x_o() {
         -e '/^extern size_t strlen(/d' \
         -e '/^extern int32_t strcmp(/d' \
         -e '/^extern int strcmp(/d' \
+        -e '/^extern int32_t strncmp(/d' \
+        -e '/^extern int strncmp(/d' \
+        -e '/^extern uint8_t \* strstr(/d' \
+        -e '/^extern char \* strstr(/d' \
+        -e '/^extern uint8_t \* memset(/d' \
+        -e '/^extern void \* memset(/d' \
+        -e '/^extern int32_t setenv(/d' \
+        -e '/^extern int setenv(/d' \
         -e '/^extern uint8_t \* strerror(/d' \
         -e '/^extern char \* strerror(/d' \
         -e '/^extern int32_t system(/d' \

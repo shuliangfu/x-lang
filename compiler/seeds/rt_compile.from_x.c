@@ -2,6 +2,10 @@
  * Logic source: src/runtime/rt_compile.x
  * Hybrid: SHUX_RT_COMPILE_FROM_X + ld -r into runtime_driver_no_c.o
  *
+ * R2 full（2026-07-14）：25 公共业务符号均由 .x 提供；
+ * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务符号 H=0）。
+ * 冷启动/无 PREFER 时仍编译完整 C 体。
+ *
  * f-291～295: deps / flags / apply_* / init-ensure / step-scan
  * f-296: parse_argv_impl + resolve_target_cpu + cfg_sync + state_alloc/free
  */
@@ -64,18 +68,12 @@ extern int shu_target_cpu_resolve(const char *spec, size_t spec_len, uint32_t *o
 extern uint32_t shu_target_cpu_generic_for_host(void);
 extern void diag_reportf(const char *file, int line, int col, const char *kind, const char *detail, const char *fmt,
                          ...);
+extern void diag_report_with_code(const char *file, int line, int col, const char *kind, const char *code,
+                                  const char *msg, const char *detail);
 extern void cfg_apply_compile_target_from_triple(const char *triple, int32_t len);
 extern int32_t driver_resolve_target_arch(int32_t parsed_target, int32_t saw_target_flag);
 
-/* G-02f-454：thin+rest PREFER_X_O
- *   thin .x provides 1 #[no_mangle] wrapper (calls *_impl in rest).
- *   rest seed C (compiled with -DSHUX_RT_COMPILE_FROM_X):
- *     - driver_deps_are_std_core_closure_only renamed to *_impl via macro.
- *   Other 24 functions stay in rest (no .x counterpart; parse_argv_impl,
- *   resolve_target_cpu, cfg_sync, state_alloc/free, apply_* helpers, etc.). */
-#ifdef SHUX_RT_COMPILE_FROM_X
-#define driver_deps_are_std_core_closure_only    driver_deps_are_std_core_closure_only_impl
-#endif
+#ifndef SHUX_RT_COMPILE_FROM_X
 
 /**
  * dep 列表是否全为 std./core. 闭包（符号由预编 .o / preamble 提供，勿 dep_prerun 全量 typeck）。
@@ -439,8 +437,7 @@ void driver_compile_resolve_target_cpu_c(DriverCompileStateSU *state) {
     spec_len = (size_t)state->target_cpu_len;
   }
   if (shu_target_cpu_resolve(spec, spec_len, &feats) != 0) {
-    diag_reportf(NULL, 0, 0, "note", NULL, "unknown -target-cpu '%.*s'; using generic baseline", (int)spec_len,
-                 spec ? spec : "");
+    diag_report_with_code(NULL, 0, 0, "note", NULL, "unknown -target-cpu; using generic baseline", NULL);
     feats = shu_target_cpu_generic_for_host();
   }
   state->target_cpu_features = (int32_t)feats;
@@ -491,6 +488,43 @@ void driver_compile_state_free_c(DriverCompileStateSU *state) {
   if (state)
     free(state);
 }
+
+#else /* SHUX_RT_COMPILE_FROM_X：产品 rest 仅前向声明；业务体在 .x */
+
+int driver_deps_are_std_core_closure_only(char **dep_paths, int n_deps);
+int driver_x_emit_asm_dep_parse_only_ok(const char *input_path, const char *dep_path);
+int driver_x_emit_asm_direct_import_only(const char *input_path);
+int driver_x_emit_asm_dep_parse_skip_typeck_ok(const char *input_path, const char *dep_path);
+void driver_compile_argv_copy_path_c(DriverCompileStateSU *state, uint8_t *arg_buf, int32_t plen);
+void driver_compile_argv_set_use_freestanding_c(DriverCompileStateSU *state);
+void driver_compile_argv_set_legacy_f32_abi_c(void);
+void driver_compile_argv_set_sanitize_address_c(void);
+int32_t driver_compile_argv_is_help_c(int32_t argc, uint8_t *argv_opaque);
+void driver_compile_append_lib_root_c(DriverCompileStateSU *state, uint8_t *path, int32_t len);
+void driver_compile_ensure_default_lib_c(uint8_t *key);
+void driver_compile_parse_argv_init_c(DriverCompileStateSU *state);
+void driver_compile_argv_apply_minus_o_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
+                                              int32_t i);
+void driver_compile_argv_apply_minus_L_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
+                                               int32_t i, uint8_t *arg_buf, int32_t arg_cap);
+void driver_compile_argv_apply_minus_O_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
+                                              int32_t i);
+void driver_compile_argv_apply_backend_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
+                                              int32_t i, uint8_t *arg_buf, int32_t arg_cap);
+void driver_compile_argv_apply_target_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
+                                             int32_t i);
+void driver_compile_argv_apply_target_cpu_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
+                                                  int32_t i);
+int driver_compile_parse_argv_step_c(int argc, char **argv, DriverCompileStateSU *state, int i, char *arg_buf,
+                                     int arg_cap);
+void driver_compile_parse_argv_scan_c(int32_t argc, uint8_t *argv_opaque, DriverCompileStateSU *state);
+void driver_compile_resolve_target_cpu_c(DriverCompileStateSU *state);
+void cfg_sync_compile_target_from_state_c(void *state);
+int32_t driver_compile_parse_argv_impl_c(int32_t argc, uint8_t *argv_opaque, DriverCompileStateSU *state);
+DriverCompileStateSU *driver_compile_state_alloc_c(void);
+void driver_compile_state_free_c(DriverCompileStateSU *state);
+
+#endif /* SHUX_RT_COMPILE_FROM_X */
 
 int labi_rt_compile_slice_marker(void) {
   return 1;
