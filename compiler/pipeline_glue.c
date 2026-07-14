@@ -25610,7 +25610,11 @@ int32_t pipeline_typeck_check_extern_call_unsafe_boundary_c(struct ast_Module *m
   int32_t fi;
   int32_t line;
   int32_t col;
+  /* -E seed regen / allow_legacy: typeck_x.o 提供 getter；缺省弱 0 保持 S0 强制。 */
+  extern int typeck_get_allow_legacy_extern_calls(void);
 
+  if (typeck_get_allow_legacy_extern_calls() != 0)
+    return 0;
   if (pipeline_dep_ctx_typeck_unsafe_depth_at(ctx) > 0)
     return 0;
   if (!module || !arena || expr_ref <= 0 || expr_ref > arena->num_exprs)

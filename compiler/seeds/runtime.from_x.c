@@ -1490,6 +1490,15 @@ int RUN_CC_FUNC(int argc, char **argv) {
         return 0;
     }
 
+    /**
+     * LANG-007 / selfhost：-E（emit C only）允许裸 extern 调用，与 C 路径 2069 同意图。
+     * .x pipeline 原先未接线 typeck_set_allow_legacy_extern_calls，导致 compile/lsp/typeck
+     * 等模块 -E 地图被 “extern call requires unsafe” 整轨卡住。
+     * 非 -E 默认仍强制 S0（unsafe { }）。
+     */
+    if (emit_c_only)
+        (void)typeck_set_allow_legacy_extern_calls(1);
+
     /** B-02：#[cfg] 与 -target triple 联动（shux-c 主路径 run_compiler_c）。 */
     if (target)
         cfg_apply_compile_target_from_triple(target, (int)strlen(target));
@@ -6991,8 +7000,14 @@ int driver_run_x_emit_c_extern_via_cparser(const char *input_path) {
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 int driver_run_x_emit_c(void) {
     const char *input_path = driver_x_emit_c_path;
+    int old_allow_legacy_extern = 0;
     driver_x_emit_c_path = NULL;
     if (!input_path) return 1;
+    /**
+     * LANG-007 / selfhost：-E 出 C 路径允许裸 extern（与 C 前端 2069 同意图）。
+     * X driver 主路径经本函数（非 RUN_CC_FUNC）；须在此接线 allow_legacy。
+     */
+    old_allow_legacy_extern = typeck_set_allow_legacy_extern_calls(1);
 #ifdef SHUX_USE_X_PIPELINE
     {
         /* 关闭 stdout 缓冲，避免重定向或管道下输出被截断（平台差异见 analysis/下一步开发分析.md §4.4） */
@@ -7003,11 +7018,16 @@ int driver_run_x_emit_c(void) {
             driver_x_emit_c_want_extern = 0;
             if (want_extern) {
 #if !defined(SHUX_NO_C_FRONTEND)
-                return driver_run_x_emit_c_extern_via_cparser(input_path);
+                {
+                    int r = driver_run_x_emit_c_extern_via_cparser(input_path);
+                    typeck_set_allow_legacy_extern_calls(old_allow_legacy_extern);
+                    return r;
+                }
 #else
                 diag_report_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001,
                             "-x -E -E-extern requires C parser/codegen (rebuild without -DSHUX_NO_C_FRONTEND)",
                             NULL);
+                typeck_set_allow_legacy_extern_calls(old_allow_legacy_extern);
                 return 1;
 #endif
             }
@@ -7017,6 +7037,7 @@ int driver_run_x_emit_c(void) {
         if (runtime_read_file_view(input_path, &raw_src_view) != 0) {
             diag_reportf_with_code(input_path, 0, 0, "io error", SHUX_DIAG_CODE_IO_IO001, NULL,
                                    "cannot read file '%s'", input_path ? input_path : "?");
+            typeck_set_allow_legacy_extern_calls(old_allow_legacy_extern);
             return 1;
         }
         size_t src_len = 0;
@@ -7376,10 +7397,12 @@ x_emit_c_done:
         free(arena);
         free(module);
         free(src);
+        typeck_set_allow_legacy_extern_calls(old_allow_legacy_extern);
         return emit_ret;
     }
 #else
     (void)input_path;
+    typeck_set_allow_legacy_extern_calls(old_allow_legacy_extern);
     return 1;
 #endif
 }

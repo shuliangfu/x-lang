@@ -16,10 +16,44 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 PATH = ROOT / "typeck_gen.c"
 
+# LANG-007 + selfhost: -E seed regen sets allow_legacy so compiler sources can
+# call pipeline_* externs without wrapping every site in unsafe { } yet.
+# Default (allow=0) still enforces S0 via glue boundary.
+ALLOW_LEGACY_HELPERS = """\
+/* SHUX_ALLOW_LEGACY_EXTERN: typeck_set_allow_legacy_extern_calls (seed regen / -E). */
+static int g_typeck_allow_legacy_extern_calls = 0;
+int typeck_set_allow_legacy_extern_calls(int allow) {
+  int old = g_typeck_allow_legacy_extern_calls;
+  g_typeck_allow_legacy_extern_calls = allow ? 1 : 0;
+  return old;
+}
+int typeck_get_allow_legacy_extern_calls(void) {
+  return g_typeck_allow_legacy_extern_calls;
+}
+"""
+
 CALL_BODY = """\
 int32_t typeck_check_expr_call(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
-  /* LANG-007: always use glue path (S0 extern requires unsafe). */
+  /* LANG-007: glue path enforces S0 extern-in-unsafe; allow_legacy skips boundary for -E regen. */
   extern int32_t pipeline_typeck_check_expr_call_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
+  extern int32_t pipeline_typeck_resolve_call_callee_return_type_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t callee_ref, int32_t expr_ref, struct ast_PipelineDepCtx *ctx);
+  if (g_typeck_allow_legacy_extern_calls) {
+    int32_t rc;
+    int32_t callee_ref;
+    int32_t ret_ty;
+    rc = typeck_check_expr_call_arg(module, arena, expr_ref, return_type_ref, ctx, 0,
+                                    pipeline_expr_call_num_args_at(arena, expr_ref));
+    if (rc != 0) return rc;
+    rc = typeck_check_expr_call_resolve(module, arena, expr_ref, ctx);
+    if (rc != 0) return rc;
+    if (ast_ref_is_null(pipeline_expr_resolved_type_ref(arena, expr_ref))) {
+      callee_ref = pipeline_expr_call_callee_ref_at(arena, expr_ref);
+      ret_ty = pipeline_typeck_resolve_call_callee_return_type_c(module, arena, callee_ref, expr_ref, ctx);
+      if (ret_ty != 0)
+        (void)pipeline_expr_set_resolved_type_ref(arena, expr_ref, ret_ty);
+    }
+    return 0;
+  }
   return pipeline_typeck_check_expr_call_c(module, arena, expr_ref, return_type_ref, ctx);
 }
 """
@@ -116,9 +150,11 @@ def replace_weak_fn(src: str, name: str, new_body: str) -> tuple[str, bool]:
             if depth == 0:
                 end = i + 1
                 old = src[start:end]
-                if "pipeline_typeck_check_expr_call_c" in old and name == "typeck_check_expr_call":
-                    return src, False  # already delegated
-                if "pipeline_typeck_check_expr_deref_c" in old and name == "typeck_check_expr_deref":
+                if name == "typeck_check_expr_call":
+                    if "g_typeck_allow_legacy_extern_calls" in old:
+                        return src, False  # already allow_legacy + glue path
+                    # else replace (old glue-only or inline body)
+                elif "pipeline_typeck_check_expr_deref_c" in old and name == "typeck_check_expr_deref":
                     return src, False
                 if "pipeline_typeck_check_block_one_region_c" in old and name == "typeck_check_block_one_region":
                     return src, False
@@ -413,12 +449,33 @@ def patch_string_lit_dispatch(src: str) -> tuple[str, bool]:
     return src, True
 
 
+def insert_allow_legacy_helpers(src: str) -> tuple[str, bool]:
+    """Insert typeck_set/get_allow_legacy_extern_calls once (strong symbols for -E)."""
+    if "SHUX_ALLOW_LEGACY_EXTERN" in src:
+        return src, False
+    # Place after first includes block / before first function if possible
+    marker = "/* SHUX_ALLOW_LEGACY_EXTERN"
+    # Prefer after last #include
+    last_inc = -1
+    for m in re.finditer(r"^#include[^\n]*\n", src, re.M):
+        last_inc = m.end()
+    if last_inc > 0:
+        return src[:last_inc] + "\n" + ALLOW_LEGACY_HELPERS + "\n" + src[last_inc:], True
+    return ALLOW_LEGACY_HELPERS + "\n" + src, True
+
+
 def main() -> int:
     if not PATH.is_file():
         print(f"patch_typeck_gen_lang007: skip (missing {PATH.name})")
         return 0
     src = PATH.read_text(encoding="utf-8", errors="replace")
     changed = False
+    src, did = insert_allow_legacy_helpers(src)
+    if did:
+        print("patch_typeck_gen_lang007: inserted allow_legacy_extern helpers")
+        changed = True
+    else:
+        print("patch_typeck_gen_lang007: allow_legacy_extern helpers already ok")
     for name, body in (
         ("typeck_check_expr_call", CALL_BODY),
         ("typeck_check_expr_deref", DEREF_BODY),
