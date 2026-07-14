@@ -348,7 +348,7 @@ export function heap_alloc_aligned_c(align_bytes: usize, size: usize): *u8 {
  */
 export function heap_ptr_mod_c(ptr: *u8, mod: usize): usize {
   if (ptr == 0 || mod == 0) {
-    return 0;
+    return 0 as usize;
   }
   return (ptr as usize) % mod;
 }

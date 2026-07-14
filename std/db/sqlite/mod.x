@@ -204,7 +204,7 @@ export function last_error(): DbError {
 /** 当前链接后端名称（"sqlite3" 或 "stub"）。 */
 export function backend_name(): *u8 {
   unsafe { return db_backend_name_c(); }
-  return 0; // unreachable — typeck workaround
+  return 0 as *u8; // unreachable — typeck workaround
 }
 
 /** 最近一次 exec 影响行数（SQLite 路径）。 */

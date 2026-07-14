@@ -128,7 +128,7 @@ export function owned(col: ArrowColumn): i32 {
 /** null bitmap 指针（bit=1 表示有效值）。 */
 export function null_bitmap(col: ArrowColumn): *u8 {
   unsafe { return arrow_column_null_bitmap_c(col.handle); }
-  return 0; // unreachable — typeck workaround
+  return 0 as *u8; // unreachable — typeck workaround
 }
 
 /** 索引处元素是否有效（非 null）。 */
@@ -140,19 +140,19 @@ export function valid(col: ArrowColumn, index: i32): i32 {
 /** 零拷贝 Int32 data 指针。 */
 export function data_i32(col: ArrowColumn): *i32 {
   unsafe { return arrow_column_i32_data_c(col.handle); }
-  return 0; // unreachable — typeck workaround
+  return 0 as *i32; // unreachable — typeck workaround
 }
 
 /** 零拷贝 Float32 data 指针。 */
 export function data_f32(col: ArrowColumn): *f32 {
   unsafe { return arrow_column_f32_data_c(col.handle); }
-  return 0; // unreachable — typeck workaround
+  return 0 as *f32; // unreachable — typeck workaround
 }
 
 /** 零拷贝 Float64 data 指针。 */
 export function data_f64(col: ArrowColumn): *f64 {
   unsafe { return arrow_column_f64_data_c(col.handle); }
-  return 0; // unreachable — typeck workaround
+  return 0 as *f64; // unreachable — typeck workaround
 }
 
 /** 追加 Int32（非 null）。 */
@@ -226,19 +226,19 @@ export function sum_valid_i32(col: ArrowColumn, n: i32): i32 {
 /** Float32 列前 n 元素求和（SIMD 内核）。 */
 export function sum(col: ArrowColumn, n: i32): f32 {
   unsafe { return arrow_column_f32_sum_c(col.handle, n); }
-  return 0; // unreachable — typeck workaround
+  return 0 as f32; // unreachable — typeck workaround
 }
 
 /** Float32 列前 n 个有效元素求和（null-aware SIMD 内核）。 */
 export function sum_valid_f32(col: ArrowColumn, n: i32): f32 {
   unsafe { return arrow_column_f32_sum_valid_c(col.handle, n); }
-  return 0; // unreachable — typeck workaround
+  return 0 as f32; // unreachable — typeck workaround
 }
 
 /** 两列 Float32 点积 sum(a[i]*b[i])（SIMD 内核）。 */
 export function dot(a: ArrowColumn, b: ArrowColumn, n: i32): f32 {
   unsafe { return arrow_column_f32_dot_c(a.handle, b.handle, n); }
-  return 0; // unreachable — typeck workaround
+  return 0 as f32; // unreachable — typeck workaround
 }
 
 /** SIMD 硬件是否可用。 */

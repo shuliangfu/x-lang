@@ -120,11 +120,11 @@ export function gzip_zstream_clear_alloc(strm: *ZStream): void {
 export function shu_gzip_stream_cast(state: *u8, state_cap: i32): *GzipStream {
   let need: i32 = gzip_stream_state_bytes();
   if (state == 0 || state_cap < need) {
-    return 0;
+    return 0 as *GzipStream;
   }
   let s: *GzipStream = state as *GzipStream;
   if (s.hdr.magic != SHU_GZIP_STREAM_MAGIC || s.hdr.inited == 0) {
-    return 0;
+    return 0 as *GzipStream;
   }
   return s;
 }

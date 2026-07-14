@@ -81,6 +81,6 @@ export function version(u: Uuid): i32 {
 
 /** 返回 UUID 首字节指针（16 字节连续；零拷贝视图）。 */
 export function as_bytes(u: *Uuid): *u8 {
-  if (u == 0) { return 0; }
+  if (u == 0) { return 0 as *u8; }
   return &u.bytes[0];
 }

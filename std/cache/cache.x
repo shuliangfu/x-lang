@@ -90,13 +90,13 @@ export function cache_f_cache_v2_marker_c(): i32 {
 
 /** 句柄转 LRU 指针；非法 0。 */
 export function lru_from_handle(h: i64): *LruCacheMem {
-  if (h == 0) { return 0; }
+  if (h == 0) { return 0 as *LruCacheMem; }
   return h as *LruCacheMem;
 }
 
 /** 句柄转对象池指针；非法 0。 */
 export function pool_from_handle(h: i64): *ObjPoolMem {
-  if (h == 0) { return 0; }
+  if (h == 0) { return 0 as *ObjPoolMem; }
   return h as *ObjPoolMem;
 }
 

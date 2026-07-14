@@ -142,7 +142,7 @@ export function unicode_nfc_compose_acute(base: u32): u32 {
   if (base == 85 as u32) { return 0x00DA; }
   if (base == 121 as u32) { return 0x00FD; }
   if (base == 89 as u32) { return 0x00DD; }
-  return 0;
+  return 0 as u32;
 }
 
 /** 是否为组合附标 U+0300..U+036F。 */

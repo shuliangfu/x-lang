@@ -81,7 +81,7 @@ export function win32_get_std_handle(n: i32): *u8 {
   }
   let h_i: i64 = h as i64;
   if (h == 0 || h_i == WIN32_INVALID_HANDLE) {
-    return 0;
+    return 0 as *u8;
   }
   return h;
 }

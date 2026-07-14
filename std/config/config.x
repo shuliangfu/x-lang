@@ -176,7 +176,7 @@ export function config_smoke_setenv_c(key: *u8, val: *u8): i32 {
 
 /** 句柄转 store 指针；非法 0。 */
 export function cfg_from_handle(handle: i64): *CfgStore {
-  if (handle == 0) { return 0; }
+  if (handle == 0) { return 0 as *CfgStore; }
   return handle as *CfgStore;
 }
 

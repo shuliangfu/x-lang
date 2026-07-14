@@ -162,7 +162,7 @@ export function alloc(al: Allocator, size: usize): *u8 {
   if (al.kind == kind_heap()) {
     return heap_libc.heap_alloc_c(size);
   }
-  if (al.arena == 0) { return 0; }
+  if (al.arena == 0) { return 0 as *u8; }
   return heap_libc.heap_arena64_alloc_c(al.arena, size, 8);
 }
 
@@ -178,7 +178,7 @@ export function realloc(al: Allocator, ptr: *u8, new_size: usize): *u8 {
   if (al.kind == kind_heap()) {
     return heap_libc.heap_realloc_c(ptr, new_size);
   }
-  return 0;
+  return 0 as *u8;
 }
 
 /**

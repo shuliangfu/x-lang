@@ -69,7 +69,7 @@ export function ctx_f_context_v2_marker_c(): i32 {
 
 /** 句柄转节点指针；非法 0。 */
 export function ctx_ptr(handle: i64): *CtxNode {
-  if (handle == 0) { return 0; }
+  if (handle == 0) { return 0 as *CtxNode; }
   return handle as *CtxNode;
 }
 
@@ -195,7 +195,7 @@ export function ctx_glue_value_get_c(handle: i64, key_hash: u32, out: *i64): i32
 export function ctx_key_hash(key: *u8): u32 {
   let h: u32 = 2166136261;
   let i: i32 = 0;
-  if (key == 0) { return 0; }
+  if (key == 0) { return 0 as u32; }
   while (key[i] != 0) {
     h = h ^ (key[i] as u32);
     h = h * 16777619;

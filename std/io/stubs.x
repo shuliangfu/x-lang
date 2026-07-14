@@ -35,9 +35,9 @@ export function io_unregister_provided_buffers(): void {
 /** 无效 bid 返回 0。 */
 export function io_provided_buffer_ptr(bid: u32): *u8 {
   if (bid > 0) {
-    return 0;
+    return 0 as *u8;
   }
-  return 0;
+  return 0 as *u8;
 }
 
 /** provided 单块容量：v1 返回 0。 */

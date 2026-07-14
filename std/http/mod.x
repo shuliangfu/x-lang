@@ -1224,7 +1224,7 @@ export function http_libc_response_parse_smoke_c(): i32 {
 /** 包装 `http_response_body_ptr_c`；glue FFI 须 unsafe。 */
 export function http_libc_response_body_ptr_c(buf: *u8, hdr_end: i32): *u8 {
   unsafe { return http_response_body_ptr_c(buf, hdr_end); }
-  return 0; // unreachable — typeck workaround
+  return 0 as *u8; // unreachable — typeck workaround
 }
 
 /** 包装 `http_response_body_copy_c`；glue FFI 须 unsafe。 */

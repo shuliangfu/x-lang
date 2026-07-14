@@ -48,7 +48,7 @@ export function mmap_available(): i32 {
 #[cfg(target_os = "macos")]
 export function mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
   if (path == 0 || out_size == 0 || min_size == 0) {
-    return 0;
+    return 0 as *u8;
   }
   return macos_m.macos_mmap_rw(path, min_size, out_size);
 }
@@ -56,7 +56,7 @@ export function mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
 #[cfg(target_os = "freebsd")]
 export function mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
   if (path == 0 || out_size == 0 || min_size == 0) {
-    return 0;
+    return 0 as *u8;
   }
   return freebsd_m.freebsd_mmap_rw(path, min_size, out_size);
 }
@@ -65,7 +65,7 @@ export function mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
 #[cfg(not(freestanding))]
 export function mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
   if (path == 0 || out_size == 0 || min_size == 0) {
-    return 0;
+    return 0 as *u8;
   }
   return linux_m.linux_mmap_rw(path, min_size, out_size);
 }
@@ -129,9 +129,9 @@ export function mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
     out_size[0] = 0;
   }
   if (path == 0 || min_size == 0) {
-    return 0;
+    return 0 as *u8;
   }
-  return 0;
+  return 0 as *u8;
 }
 
 #[cfg(target_os = "windows")]

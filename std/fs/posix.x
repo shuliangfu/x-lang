@@ -160,23 +160,23 @@ export function fs_libc_close(fd: i32): i32 {
 }
 export function fs_libc_read(fd: i32, buf: *u8, count: usize): isize {
   unsafe { return read(fd, buf, count); }
-  return 0; // unreachable — typeck workaround
+  return 0 as isize; // unreachable — typeck workaround
 }
 export function fs_libc_write(fd: i32, buf: *u8, count: usize): isize {
   unsafe { return write(fd, buf, count); }
-  return 0; // unreachable — typeck workaround
+  return 0 as isize; // unreachable — typeck workaround
 }
 export function fs_libc_pread(fd: i32, buf: *u8, count: usize, offset: i64): isize {
   unsafe { return pread(fd, buf, count, offset); }
-  return 0; // unreachable — typeck workaround
+  return 0 as isize; // unreachable — typeck workaround
 }
 export function fs_libc_pwrite(fd: i32, buf: *u8, count: usize, offset: i64): isize {
   unsafe { return pwrite(fd, buf, count, offset); }
-  return 0; // unreachable — typeck workaround
+  return 0 as isize; // unreachable — typeck workaround
 }
 export function fs_libc_mmap(addr: *u8, len: usize, prot: i32, flags: i32, fd: i32, offset: i64): *u8 {
   unsafe { return mmap(addr, len, prot, flags, fd, offset); }
-  return 0; // unreachable — typeck workaround
+  return 0 as *u8; // unreachable — typeck workaround
 }
 export function fs_libc_munmap(addr: *u8, len: usize): i32 {
   unsafe { return munmap(addr, len); }
@@ -216,23 +216,23 @@ export function fs_libc_rmdir(path: *u8): i32 {
 }
 export function fs_libc_umask(mask: u32): u32 {
   unsafe { return umask(mask); }
-  return 0; // unreachable — typeck workaround
+  return 0 as u32; // unreachable — typeck workaround
 }
 export function fs_libc_readv(fd: i32, iov: *Iovec, iovcnt: i32): isize {
   unsafe { return readv(fd, iov, iovcnt); }
-  return 0; // unreachable — typeck workaround
+  return 0 as isize; // unreachable — typeck workaround
 }
 export function fs_libc_writev(fd: i32, iov: *Iovec, iovcnt: i32): isize {
   unsafe { return writev(fd, iov, iovcnt); }
-  return 0; // unreachable — typeck workaround
+  return 0 as isize; // unreachable — typeck workaround
 }
 export function fs_libc_opendir(name: *u8): *u8 {
   unsafe { return opendir(name); }
-  return 0; // unreachable — typeck workaround
+  return 0 as *u8; // unreachable — typeck workaround
 }
 export function fs_libc_readdir(dirp: *u8): *u8 {
   unsafe { return readdir(dirp); }
-  return 0; // unreachable — typeck workaround
+  return 0 as *u8; // unreachable — typeck workaround
 }
 export function fs_libc_closedir(dirp: *u8): i32 {
   unsafe { return closedir(dirp); }
@@ -240,18 +240,18 @@ export function fs_libc_closedir(dirp: *u8): i32 {
 }
 export function fs_libc_malloc(size: usize): *u8 {
   unsafe { return malloc(size); }
-  return 0; // unreachable — typeck workaround
+  return 0 as *u8; // unreachable — typeck workaround
 }
 export function fs_libc_free(ptr: *u8): void {
   unsafe { free(ptr); }
 }
 export function fs_libc_memcpy(dst: *u8, src: *u8, n: usize): *u8 {
   unsafe { return memcpy(dst, src, n); }
-  return 0; // unreachable — typeck workaround
+  return 0 as *u8; // unreachable — typeck workaround
 }
 export function fs_libc_strlen(s: *u8): usize {
   unsafe { return strlen(s); }
-  return 0; // unreachable — typeck workaround
+  return 0 as usize; // unreachable — typeck workaround
 }
 #[cfg(target_os = "linux")]
 export function fs_libc_errno_location(): *i32 {
@@ -290,17 +290,17 @@ export function fs_libc_posix_fadvise(fd: i32, offset: i64, len: i64, advice: i3
 #[cfg(target_os = "linux")]
 export function fs_libc_copy_file_range(fd_in: i32, off_in: *i64, fd_out: i32, off_out: *i64, len: usize, flags: u32): isize {
   unsafe { return copy_file_range(fd_in, off_in, fd_out, off_out, len, flags); }
-  return 0; // unreachable — typeck workaround
+  return 0 as isize; // unreachable — typeck workaround
 }
 #[cfg(target_os = "linux")]
 export function fs_libc_sendfile(out_fd: i32, in_fd: i32, offset: *i64, count: usize): isize {
   unsafe { return sendfile(out_fd, in_fd, offset, count); }
-  return 0; // unreachable — typeck workaround
+  return 0 as isize; // unreachable — typeck workaround
 }
 #[cfg(target_os = "linux")]
 export function fs_libc_splice(fd_in: i32, off_in: *i64, fd_out: i32, off_out: *i64, len: usize, flags: u32): isize {
   unsafe { return splice(fd_in, off_in, fd_out, off_out, len, flags); }
-  return 0; // unreachable — typeck workaround
+  return 0 as isize; // unreachable — typeck workaround
 }
 #[cfg(target_os = "linux")]
 export function fs_libc_pipe(pipefd: *i32): i32 {
@@ -443,7 +443,7 @@ export function fs_fill_stat_from_st(st: *PosixStatBuf, out: *FsStatOut): void {
  */
 export function fs_mmap_ro_c(path: *u8, out_size: *usize): *u8 {
   if (path == 0 || out_size == 0) {
-    return 0;
+    return 0 as *u8;
   }
   let fd: i32 = -1;
   let len: usize = 0;
@@ -489,13 +489,13 @@ export function fs_mmap_ro_c(path: *u8, out_size: *usize): *u8 {
     if (fd >= 0) {
       fs_libc_close(fd);
     }
-    return 0;
+    return 0 as *u8;
   }
   let p: *u8 = fs_libc_mmap(0 as *u8, len, PROT_READ, MAP_PRIVATE, fd, 0 as i64);
   fs_libc_close(fd);
   let p_i: i64 = p as i64;
   if (p_i == MAP_FAILED) {
-    return 0;
+    return 0 as *u8;
   }
   #[cfg(target_os = "linux")]
   {
@@ -517,27 +517,27 @@ export function fs_mmap_ro_c(path: *u8, out_size: *usize): *u8 {
  */
 export function fs_mmap_rw_c(path: *u8, out_size: *usize): *u8 {
   if (path == 0 || out_size == 0) {
-    return 0;
+    return 0 as *u8;
   }
   let fd: i32 = fs_libc_open(path, O_RDWR, 0);
   if (fd < 0) {
-    return 0;
+    return 0 as *u8;
   }
   let st: PosixStatBuf;
   if (fs_libc_fstat(fd, &st) != 0) {
     fs_libc_close(fd);
-    return 0;
+    return 0 as *u8;
   }
   let len: usize = st.st_size as usize;
   if (len == 0) {
     fs_libc_close(fd);
-    return 0;
+    return 0 as *u8;
   }
   let p: *u8 = fs_libc_mmap(0 as *u8, len, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0 as i64);
   fs_libc_close(fd);
   let p_i: i64 = p as i64;
   if (p_i == MAP_FAILED) {
-    return 0;
+    return 0 as *u8;
   }
   #[cfg(target_os = "linux")]
   {

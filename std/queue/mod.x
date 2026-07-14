@@ -290,7 +290,7 @@ export function push_back(q: *Queue_u8, x: u8): i32 {
 
 /** 队首弹出 u8；空队列返回 0。 */
 export function pop_front(q: *Queue_u8): u8 {
-  if (q.len <= 0) { return 0; }
+  if (q.len <= 0) { return 0 as u8; }
   let x: u8 = q.data[q.head];
   q.head = q.head + 1;
   if (q.head >= q.cap) { q.head = 0; }

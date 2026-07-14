@@ -53,7 +53,7 @@ export function io_read_ptr(handle: usize, timeout_ms: u32): *u8 {
   let r: isize = io_sync.io_read(fd, &g_io_read_ptr_buf[0], IO_READ_PTR_BUF_SIZE, timeout_ms);
   if (r < 0) {
     g_io_read_ptr_len = 0;
-    return 0;
+    return 0 as *u8;
   }
   g_io_read_ptr_len = (r as i32);
   return &g_io_read_ptr_buf[0];

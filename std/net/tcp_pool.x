@@ -55,7 +55,7 @@ export function pool_tcp_close_c(fd: i32): i32 {
  */
 export function tcp_pool_ptr(pool_h: i64): *NetTcpPool {
   if (pool_h == 0) {
-    return 0;
+    return 0 as *NetTcpPool;
   }
   return pool_h as *NetTcpPool;
 }

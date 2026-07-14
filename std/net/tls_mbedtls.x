@@ -124,7 +124,7 @@ extern "C" function mbedtls_ssl_conf_own_cert(conf: *u8, cert: *u8, pk: *u8): i3
  */
 export function tls_mbedtls_sess_ptr(handle: i64): *TlsMbedtlsSess {
   if (handle == 0) {
-    return 0;
+    return 0 as *TlsMbedtlsSess;
   }
   return handle as usize as *TlsMbedtlsSess;
 }

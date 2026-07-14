@@ -135,7 +135,7 @@ export function fs_win32_handle_from_fd(fd: i32): *u8 {
   let h: i64 = 0;
   unsafe { h = _get_osfhandle(fd); }
   if (h == WIN32_INVALID_HANDLE || h <= 0) {
-    return 0;
+    return 0 as *u8;
   }
   return h as *u8;
 }
@@ -147,26 +147,26 @@ export function fs_mmap_ro_c(path: *u8, out_size: *usize): *u8 {
   let li: LargeInteger;
   let view: *u8;
   if (path == 0 || out_size == 0) {
-    return 0;
+    return 0 as *u8;
   }
   out_size[0] = 0;
   unsafe { hFile = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ, 0 as *u8, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0 as *u8); }
   if ((hFile as i64) == WIN32_INVALID_HANDLE) {
-    return 0;
+    return 0 as *u8;
   }
   unsafe { if (GetFileSizeEx(hFile, &li) == 0 || li.quad <= 0) {
     CloseHandle(hFile);
-    return 0;
+    return 0 as *u8;
   } }
   unsafe { hMap = CreateFileMappingA(hFile, 0 as *u8, PAGE_READONLY, 0, 0, 0 as *u8); }
   unsafe { CloseHandle(hFile); }
   if (hMap == 0) {
-    return 0;
+    return 0 as *u8;
   }
   unsafe { view = MapViewOfFile(hMap, FILE_MAP_READ, 0, 0, 0); }
   unsafe { CloseHandle(hMap); }
   if (view == 0) {
-    return 0;
+    return 0 as *u8;
   }
   out_size[0] = li.quad as usize;
   return view;
@@ -179,26 +179,26 @@ export function fs_mmap_rw_c(path: *u8, out_size: *usize): *u8 {
   let li: LargeInteger;
   let view: *u8;
   if (path == 0 || out_size == 0) {
-    return 0;
+    return 0 as *u8;
   }
   out_size[0] = 0;
   unsafe { hFile = CreateFileA(path, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, 0 as *u8, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0 as *u8); }
   if ((hFile as i64) == WIN32_INVALID_HANDLE) {
-    return 0;
+    return 0 as *u8;
   }
   unsafe { if (GetFileSizeEx(hFile, &li) == 0 || li.quad <= 0) {
     CloseHandle(hFile);
-    return 0;
+    return 0 as *u8;
   } }
   unsafe { hMap = CreateFileMappingA(hFile, 0 as *u8, PAGE_READWRITE, 0, 0, 0 as *u8); }
   unsafe { CloseHandle(hFile); }
   if (hMap == 0) {
-    return 0;
+    return 0 as *u8;
   }
   unsafe { view = MapViewOfFile(hMap, FILE_MAP_WRITE, 0, 0, 0); }
   unsafe { CloseHandle(hMap); }
   if (view == 0) {
-    return 0;
+    return 0 as *u8;
   }
   out_size[0] = li.quad as usize;
   return view;

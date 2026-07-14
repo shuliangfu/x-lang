@@ -471,7 +471,7 @@ export function tls_is_available(): bool {
 /** TLS 后端名称（NUL 结尾）；桩时为 "stub"。 */
 export function tls_backend_name(): *u8 {
   unsafe { return tls_plat.net_tls_backend_name_c(); }
-  return 0; // unreachable — typeck workaround
+  return 0 as *u8; // unreachable — typeck workaround
 }
 
 /** 在已有 TCP 连接上执行 TLS 客户端握手；sni 可为 NUL 或主机名字符串。 */

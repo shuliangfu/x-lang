@@ -92,7 +92,7 @@ export function set_qos_class_self(qos_class: i32): i32 {
 * create(dummy_entry_ptr(), 0) 验证 spawn+join。 */
 export function dummy_entry_ptr(): usize {
   unsafe { return thread_dummy_entry_ptr_c(); }
-  return 0; // unreachable — typeck workaround
+  return 0 as usize; // unreachable — typeck workaround
 }
 
 // —— STD-043：命名线程与固定 worker 线程池 ——

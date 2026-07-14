@@ -158,7 +158,7 @@ export function kv_layer_base_cap(s: *KvStoreMem, layer: u8, out_cap: *u64): *u8
   let wh: *KvWalHeader = 0;
   let hh: *KvHeader = 0;
   let sh: *KvSstHeader = 0;
-  if (s == 0 || out_cap == 0) { return 0; }
+  if (s == 0 || out_cap == 0) { return 0 as *u8; }
   if (layer == KV_LAYER_WAL) {
     if (s.wal_hdr != 0 as i64) {
       wh = s.wal_hdr as *KvWalHeader;
@@ -181,7 +181,7 @@ export function kv_layer_base_cap(s: *KvStoreMem, layer: u8, out_cap: *u64): *u8
       return s.sst_map[slot] as *u8;
     }
   }
-  return 0;
+  return 0 as *u8;
 }
 
 export function kv_mt_put_ex(s: *KvStoreMem, off: u64, key: *u8, key_len: u32, layer: u8): void {
@@ -231,15 +231,15 @@ export function kv_mt_get_off(s: *KvStoreMem, key: *u8, key_len: u32): u64 {
     if (s.mt[i].key_hash == h && s.mt[i].key_len == key_len) { return s.mt[i].off; }
     i = i + 1;
   }
-  return 0;
+  return 0 as u64;
 }
 
 export function kv_arena_alloc(s: *KvStoreMem, n: usize, align_bytes: usize): *u8 {
   let off: usize = s.arena_off;
   let mask: usize = align_bytes - 1;
-  if ((align_bytes & mask) != 0) { return 0; }
+  if ((align_bytes & mask) != 0) { return 0 as *u8; }
   off = (off + mask) & (0 ^ mask);
-  if (off + n > KV_ARENA_CAP) { return 0; }
+  if (off + n > KV_ARENA_CAP) { return 0 as *u8; }
   s.arena_off = off + n;
   return &s.arena[off] as *u8;
 }
@@ -268,10 +268,10 @@ export function kv_u32_to_dec(buf: *u8, cap: usize, v: u32): usize {
   let n: usize = 0;
   let x: u32 = v;
   let i: usize = 0;
-  if (cap == 0) { return 0; }
+  if (cap == 0) { return 0 as usize; }
   if (x == 0) { buf[0] = 48; return 1; }
   while (x > 0 && n < 16) { tmp[n] = (48 + (x % 10)) as u8; x = x / 10; n = n + 1; }
-  if (n > cap) { return 0; }
+  if (n > cap) { return 0 as usize; }
   while (n > 0) { n = n - 1; buf[i] = tmp[n]; i = i + 1; }
   return i;
 }
@@ -892,15 +892,15 @@ export function db_kv_compact_gen_c(handle: i64): u64 {
     hdr = s.hdr as *KvHeader;
     return hdr.compact_gen;
   }
-  return 0;
+  return 0 as u64;
 }
 
 export function db_kv_wal_bytes_c(handle: i64): u64 {
   let s: *KvStoreMem = handle as *KvStoreMem;
   let wh: *KvWalHeader = 0 as *KvWalHeader;
-  if (s == 0 || s.wal_hdr == 0 as i64) { return 0; }
+  if (s == 0 || s.wal_hdr == 0 as i64) { return 0 as u64; }
   wh = s.wal_hdr as *KvWalHeader;
-  if (wh.write_pos <= KV_SECTOR as u64) { return 0; }
+  if (wh.write_pos <= KV_SECTOR as u64) { return 0 as u64; }
   return wh.write_pos - (KV_SECTOR as u64);
 }
 
@@ -911,7 +911,7 @@ export function db_kv_sst_level_count_c(handle: i64): u32 {
     hdr = s.hdr as *KvHeader;
     return hdr.sst_count;
   }
-  return 0;
+  return 0 as u32;
 }
 
 #[cfg(target_os = "linux")]

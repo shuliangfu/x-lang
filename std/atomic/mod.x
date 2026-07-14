@@ -56,7 +56,7 @@ export function load(ptr: *i32): i32 {
 }
 export function load(ptr: *u32): u32 {
   unsafe { return atomic_load_u32_c(ptr); }
-  return 0; // unreachable — typeck workaround
+  return 0 as u32; // unreachable — typeck workaround
 }
 export function load(ptr: *i64): i64 {
   unsafe { return atomic_load_i64_c(ptr); }
@@ -64,15 +64,15 @@ export function load(ptr: *i64): i64 {
 }
 export function load(ptr: *u64): u64 {
   unsafe { return atomic_load_u64_c(ptr); }
-  return 0; // unreachable — typeck workaround
+  return 0 as u64; // unreachable — typeck workaround
 }
 export function load(ptr: *i16): i16 {
   unsafe { return atomic_load_i16_c(ptr); }
-  return 0; // unreachable — typeck workaround
+  return 0 as i16; // unreachable — typeck workaround
 }
 export function load(ptr: *u16): u16 {
   unsafe { return atomic_load_u16_c(ptr); }
-  return 0; // unreachable — typeck workaround
+  return 0 as u16; // unreachable — typeck workaround
 }
 
 /** 原子 store（*T 重载分派）。 */
@@ -128,7 +128,7 @@ export function fetch_add(ptr: *i32, delta: i32): i32 {
 }
 export function fetch_add(ptr: *u32, delta: u32): u32 {
   unsafe { return atomic_fetch_add_u32_c(ptr, delta); }
-  return 0; // unreachable — typeck workaround
+  return 0 as u32; // unreachable — typeck workaround
 }
 export function fetch_add(ptr: *i64, delta: i64): i64 {
   unsafe { return atomic_fetch_add_i64_c(ptr, delta); }
@@ -136,15 +136,15 @@ export function fetch_add(ptr: *i64, delta: i64): i64 {
 }
 export function fetch_add(ptr: *u64, delta: u64): u64 {
   unsafe { return atomic_fetch_add_u64_c(ptr, delta); }
-  return 0; // unreachable — typeck workaround
+  return 0 as u64; // unreachable — typeck workaround
 }
 export function fetch_add(ptr: *i16, delta: i16): i16 {
   unsafe { return atomic_fetch_add_i16_c(ptr, delta); }
-  return 0; // unreachable — typeck workaround
+  return 0 as i16; // unreachable — typeck workaround
 }
 export function fetch_add(ptr: *u16, delta: u16): u16 {
   unsafe { return atomic_fetch_add_u16_c(ptr, delta); }
-  return 0; // unreachable — typeck workaround
+  return 0 as u16; // unreachable — typeck workaround
 }
 
 /** 原子 fetch_sub；返回旧值（*T 重载分派）。 */
@@ -158,7 +158,7 @@ export function fetch_sub(ptr: *i64, delta: i64): i64 {
 }
 export function fetch_sub(ptr: *u64, delta: u64): u64 {
   unsafe { return atomic_fetch_sub_u64_c(ptr, delta); }
-  return 0; // unreachable — typeck workaround
+  return 0 as u64; // unreachable — typeck workaround
 }
 
 /* --- STD-046：Ordering 常量与 fence API --- */

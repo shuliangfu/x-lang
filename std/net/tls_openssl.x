@@ -95,7 +95,7 @@ extern "C" function SSL_CTX_use_PrivateKey(ctx: *u8, key: *u8): i32;
  */
 export function tls_openssl_sess_ptr(handle: i64): *TlsOpensslSess {
   if (handle == 0) {
-    return 0;
+    return 0 as *TlsOpensslSess;
   }
   return handle as usize as *TlsOpensslSess;
 }

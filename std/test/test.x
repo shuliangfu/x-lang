@@ -172,7 +172,7 @@ export function test_fuzz_seed_c(): u32 {
   unsafe { n = env_getenv_c(&key[0], 14, &buf[0], 64); }
   if (n > 0) {
     unsafe { return strtoul(&buf[0], 0, 0); }
-  return 0; // unreachable — typeck workaround
+  return 0 as u32; // unreachable — typeck workaround
   }
   return 0xABCDEF01;
 }
@@ -330,7 +330,7 @@ export function test_bench_report_c(name: *u8, len: i32, ns: i64): i32 {
 /** LCG 单步 PRNG；state 为 in/out 种子。 */
 export function test_fuzz_next_c(state: *u32): u32 {
   let s: u32 = 0;
-  if (state == 0) { return 0; }
+  if (state == 0) { return 0 as u32; }
   unsafe { s = *state; }
   s = (s * 1103515245 + 12345) & 0x7fffffff;
   unsafe { *state = s; }

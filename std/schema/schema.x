@@ -155,7 +155,7 @@ export function schema_f_schema_v2_marker_c(): i32 {
 
 /** 由 i64 句柄取 Schema 指针；非法返回 NULL。 */
 export function sch_from_handle(handle: i64): *SchSchema {
-  if (handle == 0) { return 0; }
+  if (handle == 0) { return 0 as *SchSchema; }
   return handle as *SchSchema;
 }
 

@@ -193,7 +193,7 @@ export function freebsd_read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
  */
 export function freebsd_anonymous_mmap(len: usize, prot: i32): *u8 {
   if (len == 0) {
-    return 0;
+    return 0 as *u8;
   }
   unsafe {
     return mmap(0 as *u8, len, prot, FREEBSD_MAP_PRIVATE | FREEBSD_MAP_ANON, -1, 0 as i64);
@@ -220,24 +220,24 @@ export function freebsd_mmap_available(): i32 {
  */
 export function freebsd_mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
   if (path == 0 || out_size == 0 || min_size == 0) {
-    return 0;
+    return 0 as *u8;
   }
   unsafe {
     let flags: i32 = FREEBSD_O_RDWR | FREEBSD_O_CREAT;
     let fd: i32 = open(path, flags, FREEBSD_OPEN_MODE_0644);
     if (fd < 0) {
-      return 0;
+      return 0 as *u8;
     }
     let cur: i64 = lseek(fd, 0 as i64, FREEBSD_SEEK_END);
     if (cur < 0) {
       close(fd);
-      return 0;
+      return 0 as *u8;
     }
     let len: usize = cur as usize;
     if (len < min_size) {
       if (ftruncate(fd, min_size as i64) != 0) {
         close(fd);
-        return 0;
+        return 0 as *u8;
       }
       len = min_size;
     }
@@ -246,7 +246,7 @@ export function freebsd_mmap_rw(path: *u8, min_size: usize, out_size: *usize): *
     close(fd);
     let p_i: i64 = p as i64;
     if (p_i <= 0) {
-      return 0;
+      return 0 as *u8;
     }
     out_size[0] = len;
     return p;

@@ -80,7 +80,7 @@ export function task_f_task_v2_marker_c(): i32 {
 /** handle → TaskGroup 指针；0 返回 null。 */
 export function tg_from_handle(handle: i64): *TaskGroupMem {
   if (handle == 0) {
-    return 0;
+    return 0 as *TaskGroupMem;
   }
   return handle as *TaskGroupMem;
 }
@@ -88,7 +88,7 @@ export function tg_from_handle(handle: i64): *TaskGroupMem {
 /** handle → JoinSet 指针；0 返回 null。 */
 export function js_from_handle(handle: i64): *JoinSetMem {
   if (handle == 0) {
-    return 0;
+    return 0 as *JoinSetMem;
   }
   return handle as *JoinSetMem;
 }
@@ -117,7 +117,7 @@ export function task_echo_fn_c(): i32 {
 /** 返回 demo 任务函数指针（供 .x spawn 烟测）。 */
 export function task_echo_fn_ptr_c(): *u8 {
   unsafe { return shux_async_task_echo_fn_ptr_c(); }
-  return 0; // unreachable — typeck workaround
+  return 0 as *u8; // unreachable — typeck workaround
 }
 
 /** 创建 TaskGroup；capacity 须 1..TASK_MAX。 */

@@ -61,9 +61,9 @@ export function future_f_async_future_v2_marker_c(): i32 {
 /** handle（1..N）→ 槽指针；非法返回 0。 */
 export function shux_future_slot_from_handle(handle: i64): *ShuxFutureSlot {
   let idx: i32 = 0;
-  if (handle <= 0) { return 0; }
+  if (handle <= 0) { return 0 as *ShuxFutureSlot; }
   idx = (handle - 1) as i32;
-  if (idx < 0 || idx >= g_shux_future_count) { return 0; }
+  if (idx < 0 || idx >= g_shux_future_count) { return 0 as *ShuxFutureSlot; }
   return &g_shux_futures[idx] as *ShuxFutureSlot;
 }
 

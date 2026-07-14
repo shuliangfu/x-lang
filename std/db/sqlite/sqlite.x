@@ -231,7 +231,7 @@ export function db_stmt_cache_find(conn: i64, sql: *u8): *DbCachedStmt {
     }
     i = i + 1;
   }
-  return 0;
+  return 0 as *DbCachedStmt;
 }
 
 /** 分配缓存槽；满则驱逐首项。 */
@@ -784,7 +784,7 @@ export function db_last_code_c(): i32 {
 
 /** 读取最后一次库错误消息（静态缓冲）。 */
 export function db_last_error_msg_c(): *u8 {
-  if (g_db_last_err.msg[0] == 0) { return 0; }
+  if (g_db_last_err.msg[0] == 0) { return 0 as *u8; }
   return &g_db_last_err.msg[0];
 }
 

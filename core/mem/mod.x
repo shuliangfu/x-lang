@@ -119,7 +119,7 @@ let g_mem_fence_seq: u64 = 0 as u64;
 
 /** volatile 读 u8；ptr 可为任意字节地址。 */
 export function volatile_load_u8(ptr: *u8): u8 {
-  if (ptr == 0) { return 0; }
+  if (ptr == 0) { return 0 as u8; }
   return ptr[0];
 }
 
@@ -131,7 +131,7 @@ export function volatile_store_u8(ptr: *u8, val: u8): void {
 
 /** volatile 读 u16；ptr 须 2 字节对齐。 */
 export function volatile_load_u16(ptr: *u8): u16 {
-  if (ptr == 0) { return 0; }
+  if (ptr == 0) { return 0 as u16; }
   let p: *u16 = (ptr as *u16);
   return p[0];
 }
@@ -145,7 +145,7 @@ export function volatile_store_u16(ptr: *u8, val: u16): void {
 
 /** volatile 读 u32；ptr 须 4 字节对齐。 */
 export function volatile_load_u32(ptr: *u8): u32 {
-  if (ptr == 0) { return 0; }
+  if (ptr == 0) { return 0 as u32; }
   let p: *u32 = (ptr as *u32);
   return p[0];
 }

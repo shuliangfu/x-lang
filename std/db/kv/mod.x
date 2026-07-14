@@ -121,17 +121,17 @@ export function compact(store: KvStore): i32 {
 /** 压实世代号（每次 compact +1）。 */
 export function compact_generation(store: KvStore): u64 {
   unsafe { return db_kv_compact_gen_c(store.handle); }
-  return 0; // unreachable — typeck workaround
+  return 0 as u64; // unreachable — typeck workaround
 }
 
 /** 当前 WAL 区已用字节数（不含 4KiB 头）。 */
 export function wal_bytes(store: KvStore): u64 {
   unsafe { return db_kv_wal_bytes_c(store.handle); }
-  return 0; // unreachable — typeck workaround
+  return 0 as u64; // unreachable — typeck workaround
 }
 
 /** 已冻结 SST 层数（L2+ 侧车 *.sst.N；compact 后递增）。 */
 export function sst_level_count(store: KvStore): u32 {
   unsafe { return db_kv_sst_level_count_c(store.handle); }
-  return 0; // unreachable — typeck workaround
+  return 0 as u32; // unreachable — typeck workaround
 }

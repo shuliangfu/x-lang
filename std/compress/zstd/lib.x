@@ -112,11 +112,11 @@ let shu_compress_zstd_marker: u8 = 1;
 export function shu_zstd_stream_cast(state: *u8, state_cap: i32): *ZstdStream {
   let need: i32 = zstd_stream_state_bytes();
   if (state == 0 || state_cap < need) {
-    return 0;
+    return 0 as *ZstdStream;
   }
   let s: *ZstdStream = state as *ZstdStream;
   if (s.hdr.magic != SHU_ZSTD_STREAM_MAGIC || s.hdr.inited == 0) {
-    return 0;
+    return 0 as *ZstdStream;
   }
   return s;
 }

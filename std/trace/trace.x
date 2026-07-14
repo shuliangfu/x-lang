@@ -85,7 +85,7 @@ export function trace_f_trace_v2_marker_c(): i32 {
 
 /** 句柄转 TraceState 指针；非法 0。 */
 export function trace_from_handle(h: i64): *TraceState {
-  if (h == 0) { return 0; }
+  if (h == 0) { return 0 as *TraceState; }
   return h as *TraceState;
 }
 

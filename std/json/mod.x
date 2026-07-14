@@ -129,7 +129,7 @@ export function json_libc_skip_value_c(ptr: *u8, len: i32, consumed: *i32): i32 
 /** 包装 `json_parse_string_view_c`；glue FFI 须 unsafe。 */
 export function json_libc_parse_string_view_c(ptr: *u8, len: i32, out_len: *i32, consumed: *i32): *u8 {
   unsafe { return json_parse_string_view_c(ptr, len, out_len, consumed); }
-  return 0; // unreachable — typeck workaround
+  return 0 as *u8; // unreachable — typeck workaround
 }
 
 /** 包装 `json_cursor_init_c`；glue FFI 须 unsafe。 */

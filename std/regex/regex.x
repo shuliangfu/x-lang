@@ -96,7 +96,7 @@ export function regex_f_regex_v2_marker_c(): i32 {
 
 /** 句柄转 RegexMinImpl 指针；非法 0。 */
 export function regex_re_from_handle(re: *u8): *RegexMinImpl {
-  if (re == 0) { return 0; }
+  if (re == 0) { return 0 as *RegexMinImpl; }
   return re as *RegexMinImpl;
 }
 
@@ -1081,12 +1081,12 @@ export function regex_min_search(re: *RegexMinImpl, text: *u8, len: i32): i32 {
 
 export function regex_compile_c(pat: *u8, pat_len: i32): *u8 {
   let r: *RegexMinImpl = 0 as *RegexMinImpl;
-  if (pat == 0 || pat_len <= 0) { return 0; }
-  if (regex_min_valid(pat, pat_len) == 0) { return 0; }
+  if (pat == 0 || pat_len <= 0) { return 0 as *u8; }
+  if (regex_min_valid(pat, pat_len) == 0) { return 0 as *u8; }
   unsafe { r = malloc(REGEX_MIN_IMPL_SIZE) as *RegexMinImpl; }
-  if (r == 0) { return 0; }
+  if (r == 0) { return 0 as *u8; }
   unsafe { r.pat = malloc((pat_len + 1)); }
-  if (r.pat == 0) { unsafe { free(r as *u8); } return 0; }
+  if (r.pat == 0) { unsafe { free(r as *u8); } return 0 as *u8; }
   unsafe { memcpy(r.pat, pat, pat_len); }
   r.pat[pat_len] = 0;
   r.pat_len = pat_len;
@@ -1096,7 +1096,7 @@ export function regex_compile_c(pat: *u8, pat_len: i32): *u8 {
   if (regex_min_build_capture_meta(r) == 0) {
     unsafe { free(r.pat); }
     unsafe { free(r as *u8); }
-    return 0;
+    return 0 as *u8;
   }
   return r as *u8;
 }

@@ -108,11 +108,11 @@ let shu_compress_brotli_marker: u8 = 1;
 export function shu_brotli_stream_cast(state: *u8, state_cap: i32): *BrotliStream {
   let need: i32 = brotli_stream_state_bytes();
   if (state == 0 || state_cap < need) {
-    return 0;
+    return 0 as *BrotliStream;
   }
   let s: *BrotliStream = state as *BrotliStream;
   if (s.hdr.magic != SHU_BROTLI_STREAM_MAGIC || s.hdr.inited == 0) {
-    return 0;
+    return 0 as *BrotliStream;
   }
   return s;
 }

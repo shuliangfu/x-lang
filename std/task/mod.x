@@ -76,7 +76,7 @@ export function echo(): i32 {
 /** 烟测用回显任务函数指针。 */
 export function echo_ptr(): *u8 {
   unsafe { return task_echo_fn_ptr_c(); }
-  return 0; // unreachable — typeck workaround
+  return 0 as *u8; // unreachable — typeck workaround
 }
 
 /** 创建 TaskGroup。 */

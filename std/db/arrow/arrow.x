@@ -59,7 +59,7 @@ extern function arrow_column_f32_dot_c(handle_a: i64, handle_b: i64, n: i32): f3
 export function arrow_alloc_aligned(size: usize): *u8 {
   let out: *u8 = 0 as *u8;
   unsafe { if (posix_memalign(&out, ARROW_ALIGN, size) != 0) {
-    return 0;
+    return 0 as *u8;
   } }
   return out;
 }
@@ -71,12 +71,12 @@ export function arrow_null_bitmap_alloc(capacity: i32): *u8 {
   let n: usize = 0;
   let bm: *u8 = 0 as *u8;
   if (capacity <= 0) {
-    return 0;
+    return 0 as *u8;
   }
   n = ((capacity as usize + 7) / 8);
   unsafe { bm = calloc(n, 1); }
   if (bm == 0) {
-    return 0;
+    return 0 as *u8;
   }
   unsafe { memset(bm, 0xff, n); }
   return bm;
@@ -109,11 +109,11 @@ export function arrow_null_bitmap_set(col: *ArrowColumnMem, index: i32, is_valid
 export function arrow_column_create_typed(type_id: i32, capacity: i32, elem_size: usize): *ArrowColumnMem {
   let c: *ArrowColumnMem = 0 as *ArrowColumnMem;
   if (capacity <= 0) {
-    return 0;
+    return 0 as *ArrowColumnMem;
   }
   unsafe { c = calloc(1, 32) as *ArrowColumnMem; }
   if (c == 0) {
-    return 0;
+    return 0 as *ArrowColumnMem;
   }
   c.type_id = type_id;
   c.capacity = capacity;
@@ -121,13 +121,13 @@ export function arrow_column_create_typed(type_id: i32, capacity: i32, elem_size
   c.null_bitmap = arrow_null_bitmap_alloc(capacity);
   if (c.null_bitmap == 0) {
     unsafe { free(c as *u8); }
-    return 0;
+    return 0 as *ArrowColumnMem;
   }
   c.data = arrow_alloc_aligned((capacity as usize) * elem_size);
   if (c.data == 0) {
     unsafe { free(c.null_bitmap); }
     unsafe { free(c as *u8); }
-    return 0;
+    return 0 as *ArrowColumnMem;
   }
   return c;
 }
@@ -245,7 +245,7 @@ export function arrow_column_data_owned_c(handle: i64): i32 {
 export function arrow_column_null_bitmap_c(handle: i64): *u8 {
   let c: *ArrowColumnMem = handle as *ArrowColumnMem;
   if (c == 0) {
-    return 0;
+    return 0 as *u8;
   }
   return c.null_bitmap;
 }
@@ -268,7 +268,7 @@ export function arrow_column_is_valid_c(handle: i64, index: i32): i32 {
 export function arrow_column_i32_data_c(handle: i64): *i32 {
   let c: *ArrowColumnMem = handle as *ArrowColumnMem;
   if (c == 0 || c.type_id != ARROW_TYPE_I32) {
-    return 0;
+    return 0 as *i32;
   }
   return c.data as *i32;
 }
@@ -277,7 +277,7 @@ export function arrow_column_i32_data_c(handle: i64): *i32 {
 export function arrow_column_f32_data_c(handle: i64): *f32 {
   let c: *ArrowColumnMem = handle as *ArrowColumnMem;
   if (c == 0 || c.type_id != ARROW_TYPE_F32) {
-    return 0;
+    return 0 as *f32;
   }
   return c.data as *f32;
 }
@@ -286,7 +286,7 @@ export function arrow_column_f32_data_c(handle: i64): *f32 {
 export function arrow_column_f64_data_c(handle: i64): *f64 {
   let c: *ArrowColumnMem = handle as *ArrowColumnMem;
   if (c == 0 || c.type_id != ARROW_TYPE_F64) {
-    return 0;
+    return 0 as *f64;
   }
   return c.data as *f64;
 }

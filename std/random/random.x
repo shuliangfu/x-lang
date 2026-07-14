@@ -24,7 +24,7 @@ extern function random_fill_bytes_c(buf: *u8, len: i32): i32;
 /** 生成密码学安全 u32；失败返回 0。 */
 export function random_u32_c(): u32 {
   let buf: u8[4] = [0, 0, 0, 0];
-  unsafe { if (random_fill_bytes_c(&buf[0], 4) != 4) { return 0; } }
+  unsafe { if (random_fill_bytes_c(&buf[0], 4) != 4) { return 0 as u32; } }
   return (buf[0] as u32)
     | ((buf[1] as u32) << 8)
     | ((buf[2] as u32) << 16)

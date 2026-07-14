@@ -51,7 +51,7 @@ export function args_iter_count_c(): i32 {
 #[no_mangle]
 export function args_iter_at_c(i: i32): *u8 {
   unsafe { return process_arg_c(i); }
-  return 0; // unreachable — typeck workaround
+  return 0 as *u8; // unreachable — typeck workaround
 }
 
 /** C 串相等比较；1 相等。 */

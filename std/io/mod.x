@@ -65,7 +65,7 @@ export trait Writer {
 // 使用示例：read_with_timeout(ptr, len, 0) 等价于 read_stdin(ptr, len)。
 // ——— 标准 handle（0=stdin，1=stdout，2=stderr；≥2 可与 std.fs/std.net fd 统一） ———
 // X 流水线 return 字面量可由 typeck 隐式升格为 usize（与 std 内 read(数字,…) 的常见写法等价）。
-export function stdin(): usize { return 0; }
+export function stdin(): usize { return 0 as usize; }
 export function stdout(): usize { return 1; }
 export function stderr(): usize { return 2; }
 /** 将 std.fs 等得到的 fd 转为 io handle，用于 read/write；与 std.fs 联合压榨时 fd 走 io_uring/readv。 */

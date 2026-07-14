@@ -53,7 +53,7 @@ export function io_win_fd_to_handle(fd: i32): *u8 {
   let h: i64 = 0;
   unsafe { h = _get_osfhandle(fd); }
   if (h < 0) {
-    return 0;
+    return 0 as *u8;
   }
   return h as *u8;
 }

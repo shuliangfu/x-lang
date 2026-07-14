@@ -105,7 +105,7 @@ extern "C" function strcmp(a: *u8, b: *u8): i32;
 /** libc FFI 须 unsafe；集中薄包装，避免 hash_*_c 重复写 unsafe 块。 */
 export function hash_libc_memcpy(dst: *u8, src: *u8, n: usize): *u8 {
   unsafe { return memcpy(dst, src, n); }
-  return 0; // unreachable — typeck workaround
+  return 0 as *u8; // unreachable — typeck workaround
 }
 
 /** xxHash64 流式 mem 区起始地址（offset 40 = mem64 字段）。 */
@@ -296,7 +296,7 @@ export function hash_sip_finish_c(h: *u8): u64 {
   let v1: u64 = 0;
   let v2: u64 = 0;
   let v3: u64 = 0;
-  if (ctx == 0) { return 0; }
+  if (ctx == 0) { return 0 as u64; }
   len_bits = ctx.total_len * 8;
   i = ctx.buflen;
   while (i < 8) {
@@ -336,7 +336,7 @@ export function hash_sip_free_c(h: *u8): void {
 export function hash_sip_bytes_c(ptr: *u8, len: i32): u64 {
   let h: *u8 = hash_sip_new_c();
   let r: u64 = 0;
-  if (h == 0) { return 0; }
+  if (h == 0) { return 0 as u64; }
   hash_sip_write_bytes_c(h, ptr, len);
   r = hash_sip_finish_c(h);
   hash_sip_free_c(h);
@@ -424,7 +424,7 @@ export function hash_xxh64_digest(s: *HashXxh64Ctx): u64 {
   let h64: u64 = 0;
   let p: *u8 = 0;
   let i: i32 = 0;
-  if (s == 0) { return 0; }
+  if (s == 0) { return 0 as u64; }
   if (s.total_len >= 32) {
     h64 = hash_rotl64(s.v1, 1) + hash_rotl64(s.v2, 7) + hash_rotl64(s.v3, 12)
       + hash_rotl64(s.v4, 18);
@@ -553,11 +553,11 @@ export function hash_unified_write_u32_c(h: *u8, x: u32): void {
 /** 统一 Hasher 完成并返回 u64 摘要。 */
 export function hash_unified_finish_c(h: *u8): u64 {
   let u: *HashUnifiedCtx = h as *HashUnifiedCtx;
-  if (u == 0) { return 0; }
+  if (u == 0) { return 0 as u64; }
   if (u.algo == HASHER_SIPHASH) { return hash_sip_finish_c(hash_unified_sip(u) as *u8); }
   if (u.algo == HASHER_AHASH) { return u.fnv; }
   if (u.algo == HASHER_XXHASH) { return hash_unified_xxh_digest_ptr_c(h); }
-  return 0;
+  return 0 as u64;
 }
 
 /** 释放统一 Hasher。 */
