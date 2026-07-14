@@ -47,6 +47,8 @@ MODULES=(
   "labi_freestanding_list|src/runtime/labi_freestanding_list.x|seeds/labi_freestanding_list.from_x.c||"
   # labi_std_list：L8 默认 std 链接计划表；plan_step_at 多 out（*i32/*usize）；产品 PREFER_X_O；本条锁 nm / 扩 N
   "labi_std_list|src/runtime/labi_std_list.x|seeds/labi_std_list.from_x.c||"
+  # labi_ondemand_list：L8b on_demand 符号组/rel 纯表；依赖 W-string-nul；产品 PREFER_X_O；本条锁 nm / 扩 N
+  "labi_ondemand_list|src/runtime/labi_ondemand_list.x|seeds/labi_ondemand_list.from_x.c||"
   # hybrid thin+C-tail：seed 多 _impl/scratch；x 多 append_*（.x 真迁拼装）。CORE 锁公共 API 面不丢。
   "diagnostic|src/runtime_driver_diagnostic.x|seeds/runtime_driver_diagnostic.from_x.c||core:driver_diag_append_cstr,driver_diag_append_i32,driver_diag_append_name"
 )

@@ -4,130 +4,147 @@
  *
  * Pure data: co-emit / on-demand symbol groups → std rel paths.
  * Probe (nm) + push/ensure stay in mega shux_asm_ld_append_on_demand_user_objs.
+ *
+ * G-02f-L：冷启动 / 回退 seed 与 .x 同构（if/else 短字面量，无 static 表），
+ * 便于 nm 全局符号 IDENTICAL；产品 PREFER_X_O 优先 .x（W-string-nul）。
  */
 #include <stddef.h>
 
-/* Simple groups: any undef sym match → push single rel (no glue). */
-enum {
-  LABI_OD_SIMPLE_STRING = 0,
-  LABI_OD_SIMPLE_CORE_TYPES = 1,
-  LABI_OD_SIMPLE_ENCODING = 2,
-  LABI_OD_SIMPLE_BASE64 = 3,
-  LABI_OD_SIMPLE_CSV = 4,
-  LABI_OD_SIMPLE_SCHEMA = 5,
-  LABI_OD_SIMPLE_COUNT = 6
-};
-
-static const char *const g_od_string_syms[] = {
-    "shux_string_copy_c",
-    "shux_string_memcmp_c",
-    "shux_string_memchr_c",
-    "shux_string_memmem_c",
-    "shux_string_memrchr_c",
-    "std_string_string_new",
-    "std_string_string_from_slice",
-    "std_string_string_view",
-    "std_string_string_len",
-};
-
-static const char *const g_od_core_types_syms[] = {
-    "core_types_size_of_i32",
-    "core_types_placeholder",
-};
-
-static const char *const g_od_encoding_syms[] = {
-    "encoding_utf8_valid_c",
-    "encoding_hex_encode_c",
-    "encoding_ascii_is_alpha_c",
-    "std_encoding_utf8_valid",
-    "std_encoding_utf8_decode_rune",
-    "std_encoding_ascii_is_alpha",
-};
-
-static const char *const g_od_base64_syms[] = {
-    "base64_encode_standard_c",
-    "std_base64_encode_standard",
-    "std_base64_decode_standard",
-    "std_base64_encode_url",
-};
-
-static const char *const g_od_csv_syms[] = {
-    "std_csv_next_field",
-    "std_csv_escape",
-    "std_csv_csv_test_quoted_first",
-};
-
-static const char *const g_od_schema_syms[] = {
-    "schema_create_c",
-    "schema_decode_json_c",
-    "schema_smoke_c",
-};
-
-static const char *const g_od_simple_rels[LABI_OD_SIMPLE_COUNT] = {
-    "std/string/string.o",
-    "std/base64/base64.o",
-    "std/encoding/encoding.o",
-    "std/base64/base64.o",
-    "std/csv/csv.o",
-    "std/schema/schema.o",
-};
-
-static const char *const *const g_od_simple_syms[LABI_OD_SIMPLE_COUNT] = {
-    g_od_string_syms,
-    g_od_core_types_syms,
-    g_od_encoding_syms,
-    g_od_base64_syms,
-    g_od_csv_syms,
-    g_od_schema_syms,
-};
-
-static const int g_od_simple_sym_n[LABI_OD_SIMPLE_COUNT] = {
-    (int)(sizeof g_od_string_syms / sizeof g_od_string_syms[0]),
-    (int)(sizeof g_od_core_types_syms / sizeof g_od_core_types_syms[0]),
-    (int)(sizeof g_od_encoding_syms / sizeof g_od_encoding_syms[0]),
-    (int)(sizeof g_od_base64_syms / sizeof g_od_base64_syms[0]),
-    (int)(sizeof g_od_csv_syms / sizeof g_od_csv_syms[0]),
-    (int)(sizeof g_od_schema_syms / sizeof g_od_schema_syms[0]),
-};
+/* Simple groups: string=0 core_types=1 encoding=2 base64=3 csv=4 schema=5 */
 
 int labi_od_simple_group_count(void) {
-  return LABI_OD_SIMPLE_COUNT;
+  return 6;
 }
 
 int labi_od_simple_group_sym_count(int g) {
-  if (g < 0 || g >= LABI_OD_SIMPLE_COUNT)
+  if (g < 0)
     return 0;
-  return g_od_simple_sym_n[g];
+  if (g == 0)
+    return 9;
+  if (g == 1)
+    return 2;
+  if (g == 2)
+    return 6;
+  if (g == 3)
+    return 4;
+  if (g == 4)
+    return 3;
+  if (g == 5)
+    return 3;
+  return 0;
 }
 
 const char *labi_od_simple_group_sym_at(int g, int i) {
-  if (g < 0 || g >= LABI_OD_SIMPLE_COUNT)
+  if (g < 0)
     return NULL;
-  if (i < 0 || i >= g_od_simple_sym_n[g])
+  if (i < 0)
     return NULL;
-  return g_od_simple_syms[g][i];
+  if (g == 0) {
+    if (i == 0)
+      return "shux_string_copy_c";
+    if (i == 1)
+      return "shux_string_memcmp_c";
+    if (i == 2)
+      return "shux_string_memchr_c";
+    if (i == 3)
+      return "shux_string_memmem_c";
+    if (i == 4)
+      return "shux_string_memrchr_c";
+    if (i == 5)
+      return "std_string_string_new";
+    if (i == 6)
+      return "std_string_string_from_slice";
+    if (i == 7)
+      return "std_string_string_view";
+    if (i == 8)
+      return "std_string_string_len";
+    return NULL;
+  }
+  if (g == 1) {
+    if (i == 0)
+      return "core_types_size_of_i32";
+    if (i == 1)
+      return "core_types_placeholder";
+    return NULL;
+  }
+  if (g == 2) {
+    if (i == 0)
+      return "encoding_utf8_valid_c";
+    if (i == 1)
+      return "encoding_hex_encode_c";
+    if (i == 2)
+      return "encoding_ascii_is_alpha_c";
+    if (i == 3)
+      return "std_encoding_utf8_valid";
+    if (i == 4)
+      return "std_encoding_utf8_decode_rune";
+    if (i == 5)
+      return "std_encoding_ascii_is_alpha";
+    return NULL;
+  }
+  if (g == 3) {
+    if (i == 0)
+      return "base64_encode_standard_c";
+    if (i == 1)
+      return "std_base64_encode_standard";
+    if (i == 2)
+      return "std_base64_decode_standard";
+    if (i == 3)
+      return "std_base64_encode_url";
+    return NULL;
+  }
+  if (g == 4) {
+    if (i == 0)
+      return "std_csv_next_field";
+    if (i == 1)
+      return "std_csv_escape";
+    if (i == 2)
+      return "std_csv_csv_test_quoted_first";
+    return NULL;
+  }
+  if (g == 5) {
+    if (i == 0)
+      return "schema_create_c";
+    if (i == 1)
+      return "schema_decode_json_c";
+    if (i == 2)
+      return "schema_smoke_c";
+    return NULL;
+  }
+  return NULL;
 }
 
 const char *labi_od_simple_group_rel(int g) {
-  if (g < 0 || g >= LABI_OD_SIMPLE_COUNT)
+  if (g < 0)
     return NULL;
-  return g_od_simple_rels[g];
+  if (g == 0)
+    return "std/string/string.o";
+  if (g == 1)
+    return "std/base64/base64.o";
+  if (g == 2)
+    return "std/encoding/encoding.o";
+  if (g == 3)
+    return "std/base64/base64.o";
+  if (g == 4)
+    return "std/csv/csv.o";
+  if (g == 5)
+    return "std/schema/schema.o";
+  return NULL;
 }
 
 /* KV: multi-sym → kv.o + optional glue rel */
-static const char *const g_od_kv_syms[] = {
-    "db_kv_open_c",
-    "db_kv_get_c",
-};
-
 int labi_od_kv_sym_count(void) {
-  return (int)(sizeof g_od_kv_syms / sizeof g_od_kv_syms[0]);
+  return 2;
 }
 
 const char *labi_od_kv_sym_at(int i) {
-  if (i < 0 || i >= labi_od_kv_sym_count())
+  if (i < 0)
     return NULL;
-  return g_od_kv_syms[i];
+  if (i == 0)
+    return "db_kv_open_c";
+  if (i == 1)
+    return "db_kv_get_c";
+  return NULL;
 }
 
 const char *labi_od_kv_rel(void) {
@@ -138,20 +155,19 @@ const char *labi_od_kv_glue_rel(void) {
   return "compiler/runtime_kv_mmap_glue.o";
 }
 
-/* Arrow: multi-sym → arrow.o + glue */
-static const char *const g_od_arrow_syms[] = {
-    "arrow_column_i32_create_c",
-    "arrow_column_adopt_f32_c",
-};
-
+/* Arrow */
 int labi_od_arrow_sym_count(void) {
-  return (int)(sizeof g_od_arrow_syms / sizeof g_od_arrow_syms[0]);
+  return 2;
 }
 
 const char *labi_od_arrow_sym_at(int i) {
-  if (i < 0 || i >= labi_od_arrow_sym_count())
+  if (i < 0)
     return NULL;
-  return g_od_arrow_syms[i];
+  if (i == 0)
+    return "arrow_column_i32_create_c";
+  if (i == 1)
+    return "arrow_column_adopt_f32_c";
+  return NULL;
 }
 
 const char *labi_od_arrow_rel(void) {
@@ -162,22 +178,23 @@ const char *labi_od_arrow_glue_rel(void) {
   return "compiler/runtime_arrow_simd_glue.o";
 }
 
-/* Time: multi-sym → time_os + time.o */
-static const char *const g_od_time_syms[] = {
-    "std_time_now_monotonic_ns",
-    "std_time_sleep_ms",
-    "std_time_timer_start",
-    "time_now_monotonic_ns_c",
-};
-
+/* Time */
 int labi_od_time_sym_count(void) {
-  return (int)(sizeof g_od_time_syms / sizeof g_od_time_syms[0]);
+  return 4;
 }
 
 const char *labi_od_time_sym_at(int i) {
-  if (i < 0 || i >= labi_od_time_sym_count())
+  if (i < 0)
     return NULL;
-  return g_od_time_syms[i];
+  if (i == 0)
+    return "std_time_now_monotonic_ns";
+  if (i == 1)
+    return "std_time_sleep_ms";
+  if (i == 2)
+    return "std_time_timer_start";
+  if (i == 3)
+    return "time_now_monotonic_ns_c";
+  return NULL;
 }
 
 const char *labi_od_time_rel(void) {
@@ -188,21 +205,21 @@ const char *labi_od_time_os_rel(void) {
   return "compiler/runtime_time_os.o";
 }
 
-/* Queue contention: multi-sym → queue_contention + queue.o */
-static const char *const g_od_queue_syms[] = {
-    "sync_queue_contention_smoke_c",
-    "queue_os_run_two_workers_c",
-    "queue_contention_worker_push_c",
-};
-
+/* Queue contention */
 int labi_od_queue_sym_count(void) {
-  return (int)(sizeof g_od_queue_syms / sizeof g_od_queue_syms[0]);
+  return 3;
 }
 
 const char *labi_od_queue_sym_at(int i) {
-  if (i < 0 || i >= labi_od_queue_sym_count())
+  if (i < 0)
     return NULL;
-  return g_od_queue_syms[i];
+  if (i == 0)
+    return "sync_queue_contention_smoke_c";
+  if (i == 1)
+    return "queue_os_run_two_workers_c";
+  if (i == 2)
+    return "queue_contention_worker_push_c";
+  return NULL;
 }
 
 const char *labi_od_queue_rel(void) {
