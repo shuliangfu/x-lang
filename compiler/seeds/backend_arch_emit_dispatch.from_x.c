@@ -1,7 +1,9 @@
-/* G-02f-362：PREFER hybrid thin 由 src/asm/backend_arch_emit_dispatch_thin.x；rest SHUX_L2_ARCH_EMIT_THIN_FROM_X。
+/* G-02f-362 / R2 thin full：PREFER hybrid thin 由 src/asm/backend_arch_emit_dispatch_thin.x；
+ * rest SHUX_L2_ARCH_EMIT_THIN_FROM_X（public 门闩→thin；slice_marker + Cap residual）。
  * seeds/backend_arch_emit_dispatch.from_x.c — G-02f-209 arch_emit ta shells; G-02f-9 product TU
  * Source intent: src/asm/backend_arch_emit_dispatch.x (doc) + this seed (full C body).
- * Product: → src/asm/backend_arch_emit_dispatch.o. Logic still C until full .x port.
+ * Product: → src/asm/backend_arch_emit_dispatch.o.
+ * Cap residual: arch_*_emit_* C 尾在 asm_backend_partial / 冷 full seed 壳。
  */
 /**
  * backend_arch_emit_dispatch.c — backend_arch_emit_* 的 C 侧 ta 分派
@@ -854,3 +856,7 @@ int32_t backend_arch_emit_epilogue(struct codegen_CodegenOutBuf *out, int32_t fr
 }
 #endif
 
+
+int backend_arch_emit_dispatch_slice_marker(void) {
+    return 1;
+}

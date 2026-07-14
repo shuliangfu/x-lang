@@ -1,11 +1,11 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-362：backend_arch_emit_dispatch L2 thin — 全部 ta 分派壳（weak）。
-// PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_ARCH_EMIT_THIN_FROM_X）ld -r
-//   → backend_arch_emit_dispatch.o
-// 对照：src/asm/backend_arch_emit_dispatch.x；默认仍整 seed。
-// Prove IDENTICAL：seeds/backend_arch_emit_dispatch_thin.from_x.c（本 thin 公共面 47；arch_*_emit_* 仍 U）
+// G-02f-362：backend_arch_emit_dispatch R2 thin full — 全部 ta 分派壳（47 公共面）。
+// PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_ARCH_EMIT_THIN_FROM_X）ld -r → backend_arch_emit_dispatch.o
+// Prove IDENTICAL：seeds/backend_arch_emit_dispatch_thin_surface.from_x.c（本 thin 公共面；arch_*_emit_* 仍 U）
+// Cap residual：arch_*_emit_* C 尾在 asm_backend_partial / 冷 full seed 壳。
+// 对照：src/asm/backend_arch_emit_dispatch.x；冷启动 full seed rest。
 //
 
 export extern "C" function arch_arm64_emit_add_imm_to_rax(out: *u8, imm: i32): i32;

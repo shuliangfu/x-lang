@@ -1676,7 +1676,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     fi
   fi
   # G-02f-9 / G-02f-362：backend_arch_emit_dispatch.o
-  # 默认整 seed；PREFER 时 thin 47 ta shells + rest ld -r
+  # R2 thin full：PREFER_X_O=1 时 thin.x（47 公共门闩）+ seed-rest（FROM_X）ld -r
   _bae=seeds/backend_arch_emit_dispatch.from_x.c
   _bae_thin_x=src/asm/backend_arch_emit_dispatch_thin.x
   _bae_o=src/asm/backend_arch_emit_dispatch.o
@@ -1693,10 +1693,10 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_L2_ARCH_EMIT_THIN_FROM_X \
                -c -o "$_bae_rest_o" "$_bae" \
           && $CC -r -nostdlib -o "$_bae_o" "$_bae_thin_o" "$_bae_rest_o" 2>/dev/null; then
-          echo "g05_ensure: $_bae_o ← $_bae_thin_x + seed-rest (G-02f-362 L2 hybrid arch_emit thin)"
+          echo "g05_ensure: $_bae_o ← $_bae_thin_x + seed-rest (G-02f-362 R2 hybrid arch_emit thin)"
           _bae_done=1
         else
-          echo "g05_ensure: L2 hybrid arch_emit thin failed; fallback full seed" >&2
+          echo "g05_ensure: R2 hybrid arch_emit thin failed; fallback full seed" >&2
         fi
         rm -f "$_bae_thin_o" "$_bae_rest_o"
       fi
