@@ -2,7 +2,9 @@
  * Logic source: src/runtime/rt_parse_diag.x
  * Hybrid: SHUX_RT_PARSE_DIAG_FROM_X + ld -r into runtime_driver_no_c.o
  *
- * Scope: runtime_report_precise_parse_failure_if_known（TOKEN_STRING → P001 文案）。
+ * R2 full（2026-07-14）：runtime_report_precise_parse_failure_if_known 由 .x 提供；
+ * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
+ * 冷启动/无 PREFER 时仍编译完整 C 体（TOKEN_STRING → P001）。
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -19,15 +21,7 @@ extern int32_t parser_diag_fail_at_token_kind(struct shux_slice_uint8_t *source)
 extern void diag_reportf_with_code(const char *file, int line, int col, const char *kind, const char *code,
                                    const char *detail, const char *fmt, ...);
 
-/* G-02f-448：thin+rest PREFER_X_O
- *   thin .x provides 1 #[no_mangle] wrapper (calls *_impl in rest).
- *   rest seed C (compiled with -DSHUX_RT_PARSE_DIAG_FROM_X):
- *     - runtime_report_precise_parse_failure_if_known renamed to *_impl via macro.
- *   No #ifndef guard needed (no real .x implementation; .x is thin-only). */
-#ifdef SHUX_RT_PARSE_DIAG_FROM_X
-#define runtime_report_precise_parse_failure_if_known    runtime_report_precise_parse_failure_if_known_impl
-#endif
-
+#ifndef SHUX_RT_PARSE_DIAG_FROM_X
 int runtime_report_precise_parse_failure_if_known(const char *input_path, const char *src, size_t src_len) {
   struct shux_slice_uint8_t diag_src_slice;
   int32_t fail_tok;
@@ -44,6 +38,9 @@ int runtime_report_precise_parse_failure_if_known(const char *input_path, const 
   }
   return 0;
 }
+#else
+int runtime_report_precise_parse_failure_if_known(const char *input_path, const char *src, size_t src_len);
+#endif
 
 int labi_rt_parse_diag_slice_marker(void) {
   return 1;

@@ -954,7 +954,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
                    -c -o "$_rt_pd_rest_o" "$_rt_parse_diag_seed" \
               && $CC -r -nostdlib -o "$_rt_pd_o" "$_rt_pd_thin_o" "$_rt_pd_rest_o" 2>/dev/null; then
               _rt_pd_ok=1
-              echo "g05_ensure: rest parse_diag ← thin .x + rest (G-02f-448 L2 prefer .x)"
+              echo "g05_ensure: rest parse_diag ← thin .x + rest (R2 full H=0; G-02f-448 PREFER_X_O)"
             fi
             rm -f "$_rt_pd_thin_o" "$_rt_pd_rest_o"
           fi
