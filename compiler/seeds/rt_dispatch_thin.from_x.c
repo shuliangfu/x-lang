@@ -1,12 +1,19 @@
-/* seeds/rt_dispatch_thin.from_x.c — G-02f-312 P2 runtime rest (dispatch thin gates)
+/* seeds/rt_dispatch_thin.from_x.c — G-02f-312 P2 runtime rest → R2 full (dispatch thin)
  * Logic source: src/runtime/rt_dispatch_thin.x
  * Hybrid: SHUX_RT_DISPATCH_THIN_FROM_X + ld -r into runtime_driver_no_c.o
+ *
+ * R2 full（2026-07-14）：公共业务符号由 full .x 提供：
+ *   driver_run_asm_backend_c / driver_run_emit_c_path_c /
+ *   driver_run_compiler_full / driver_try_compile_via_shu_c_sibling
+ * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务符号 H=0）。
+ * Cap residual（driver_abi）：sibling path/access/fork/exec（🔒）。
+ * 冷启动/无 PREFER 时仍编译完整 C 体（含非 product ifdef）。
  *
  * Scope:
  *  - driver_run_asm_backend_c / driver_run_emit_c_path_c 兼容旧名薄门闩
  *  - driver_run_compiler_full 入口选择
  *  - driver_try_compile_via_shu_c_sibling（fork/exec 同目录 shux-c）🔒
- * impl_c / parsed 巨石仍 mega rest。
+ * impl_c / parsed 巨石在其它 R2 切片。
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -25,17 +32,7 @@ extern int32_t driver_run_emit_c_path_impl_c(uint8_t *input_path, uint8_t *out_p
                                              uint8_t *opt_level, int32_t use_lto, int32_t argc, uint8_t *argv);
 extern int32_t driver_run_compiler_full_x_impl_c(int32_t argc, uint8_t *argv);
 
-/* G-02f-453：thin+rest PREFER_X_O
- *   thin .x provides 1 #[no_mangle] wrapper (calls *_impl in rest).
- *   rest seed C (compiled with -DSHUX_RT_DISPATCH_THIN_FROM_X):
- *     - driver_run_asm_backend_c renamed to *_impl via macro.
- *   Other functions (driver_run_emit_c_path_c, driver_run_compiler_full,
- *   driver_try_compile_via_shu_c_sibling) stay in rest:
- *     - driver_run_compiler_full uses char **argv (signature mismatch with .x *u8).
- *     - driver_run_emit_c_path_c / driver_try_compile_via_shu_c_sibling have no .x counterpart. */
-#ifdef SHUX_RT_DISPATCH_THIN_FROM_X
-#define driver_run_asm_backend_c    driver_run_asm_backend_c_impl
-#endif
+#ifndef SHUX_RT_DISPATCH_THIN_FROM_X
 
 /** 兼容旧符号名；新路径 compile.x 经 compile_dispatch_* 调 impl_c。 */
 int32_t driver_run_asm_backend_c(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target, int32_t argc,
@@ -125,6 +122,15 @@ int driver_try_compile_via_shu_c_sibling(int argc, char **argv) {
   }
 #endif
 }
+
+#else
+int32_t driver_run_asm_backend_c(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target, int32_t argc,
+                                 uint8_t *argv);
+int32_t driver_run_emit_c_path_c(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target,
+                                 uint8_t *opt_level, int32_t use_lto, int32_t argc, uint8_t *argv);
+int driver_run_compiler_full(int argc, char **argv);
+int driver_try_compile_via_shu_c_sibling(int argc, char **argv);
+#endif
 
 int labi_rt_dispatch_thin_slice_marker(void) {
   return 1;

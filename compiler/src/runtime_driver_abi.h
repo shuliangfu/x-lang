@@ -432,4 +432,12 @@ int32_t driver_asm_stub_gas_line_count(void);
  */
 int32_t driver_asm_stub_out_append_cstr(void *out, uint8_t *s);
 
+/*
+ * Cap residual：rt_dispatch_thin（R2 full）
+ *   - sibling：从 argv0 拼同目录 shux-c、access X_OK、fork/exec/wait（或 win spawn）
+ *   业务薄门闩 / full 入口在 rt_dispatch_thin.x，不在 rest。
+ *   返回 ≥0 子进程 exit；-1 未委托（含 basename 已是 shux-c / 不可执行等）。
+ */
+int32_t driver_dispatch_sibling_try_spawn(int32_t argc, uint8_t *argv);
+
 #endif /* SHUX_RUNTIME_DRIVER_ABI_H */

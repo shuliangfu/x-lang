@@ -1077,27 +1077,26 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           fi
         fi
         if [ -n "$_rt_dt_o" ] && [ -f "$_rt_dispatch_thin_seed" ]; then
-          # G-02f-453：PREFER_X_O=1 时 thin .x + rest seed (-D) → cc -r 合并
-          # rest 仍需 -DSHUX_ASM_USE_COMPILER_IMPL_C（driver_run_compiler_full 内部分派依赖）
+          # R2 full H=0：PREFER_X_O=1 时 full .x + rest seed (-D，仅 marker) → cc -r 合并
           if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_dispatch_thin_x" ]; then
             _rt_dt_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_dispatch_thin_thin.XXXXXX") || true
             _rt_dt_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_dispatch_thin_rest.XXXXXX") || true
             if [ -n "$_rt_dt_thin_o" ] && [ -n "$_rt_dt_rest_o" ] \
               && g05_try_x_to_o "$_rt_dispatch_thin_x" "$_rt_dt_thin_o" \
-              && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_RT_DISPATCH_THIN_FROM_X -DSHUX_ASM_USE_COMPILER_IMPL_C \
+              && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_RT_DISPATCH_THIN_FROM_X \
                    -c -o "$_rt_dt_rest_o" "$_rt_dispatch_thin_seed" \
               && $CC -r -nostdlib -o "$_rt_dt_o" "$_rt_dt_thin_o" "$_rt_dt_rest_o" 2>/dev/null; then
               _rt_dt_ok=1
-              echo "g05_ensure: rest dispatch_thin ← thin .x + rest (G-02f-453 L2 prefer .x)"
+              echo "g05_ensure: rest dispatch_thin ← full .x + rest marker (R2 H=0)"
             fi
             rm -f "$_rt_dt_thin_o" "$_rt_dt_rest_o"
           fi
           if [ "$_rt_dt_ok" = "0" ]; then
             # shellcheck disable=SC2086
-            # product path defines SHUX_ASM_USE_COMPILER_IMPL_C on rest; dispatch thin needs same for run_compiler_full
+            # cold / no PREFER：全 C 体；product 冷路径仍带 ASM_USE_COMPILER_IMPL_C 选 full 分派
             if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_ASM_USE_COMPILER_IMPL_C -c -o "$_rt_dt_o" "$_rt_dispatch_thin_seed"; then
               _rt_dt_ok=1
-              echo "g05_ensure: rest dispatch_thin ← $_rt_dispatch_thin_seed (G-02f-312 seed slice)"
+              echo "g05_ensure: rest dispatch_thin ← $_rt_dispatch_thin_seed (G-02f-312 seed slice cold)"
             fi
           fi
         fi

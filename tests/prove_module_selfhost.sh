@@ -84,8 +84,9 @@ MODULES=(
   # backend_call_dispatch L2 thin 公共面：与产品 PREFER_X_O 同源（thin.x + full seed rest）；prove 锁 thin 面 IDENTICAL
   # full seed rest 仍持 CALL / heavy C 尾；产品 o 名 backend_call_dispatch.o
   "backend_call_dispatch|src/asm/backend_call_dispatch_thin.x|seeds/backend_call_dispatch_thin.from_x.c||"
-  # rt_dispatch L2 thin 公共面：与产品 PREFER_X_O 同源（thin.x + hybrid rest seed）；prove 锁 thin 面 IDENTICAL
-  # 产品 hybrid rest 仍见 seeds/rt_dispatch_thin.from_x.c（emit/full/sibling）；入 runtime_driver_no_c.o
+  # rt_dispatch R2 full：.x 吃满 asm/emit 薄门闩 + run_compiler_full + sibling；
+  # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：sibling spawn 在 driver_abi
+  # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/rt_dispatch_thin.from_x.c 全 C 体
   "rt_dispatch|src/runtime/rt_dispatch_thin.x|seeds/rt_dispatch_thin_surface.from_x.c||"
   # rt_dispatch_impl R2 full：.x 吃满 asm/emit/post_parse/full_x/x_emit_from_state 5 公共；
   # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：lib_roots 槽 + Parsed 填表在 driver_abi

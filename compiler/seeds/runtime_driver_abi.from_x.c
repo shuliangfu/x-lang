@@ -3016,3 +3016,71 @@ int32_t driver_asm_stub_out_append_cstr(void *out, uint8_t *s) {
     ob->len = (int32_t)n;
     return 0;
 }
+
+/* ---------- Cap residual：rt_dispatch_thin R2（sibling path/access/fork） ---------- */
+extern int driver_argv0_basename_is(const char *argv0, const char *base);
+
+/**
+ * 与冷启动 seeds/rt_dispatch_thin.from_x.c driver_try_compile_via_shu_c_sibling 同语义。
+ * argv 为 char**（*u8）；成功返回子进程 exit；-1 未委托。
+ */
+int32_t driver_dispatch_sibling_try_spawn(int32_t argc, uint8_t *argv) {
+    char shu_c[512];
+    char **av = (char **)(void *)argv;
+    const char *self;
+    const char *slash;
+    if (argc < 2 || !av || !av[0])
+        return -1;
+    if (driver_argv0_basename_is(av[0], "shux-c"))
+        return -1;
+    self = av[0];
+    slash = strrchr(self, '/');
+#if defined(_WIN32)
+    {
+        const char *bs = strrchr(self, '\\');
+        if (bs && (!slash || bs > slash))
+            slash = bs;
+    }
+#endif
+    if (slash) {
+        size_t dir_len = (size_t)(slash - self);
+        if (dir_len >= sizeof(shu_c) - 8)
+            return -1;
+        memcpy(shu_c, self, dir_len);
+        shu_c[dir_len] = '\0';
+        strcat(shu_c, "/shux-c");
+    } else {
+        strcpy(shu_c, "shux-c");
+    }
+    if (access(shu_c, X_OK) != 0)
+        return -1;
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+    {
+        intptr_t rc;
+        av[0] = shu_c;
+        rc = _spawnvp(_P_WAIT, shu_c, (const char *const *)av);
+        if (rc == -1)
+            return -1;
+        return (int32_t)rc;
+    }
+#else
+    {
+        pid_t pid = fork();
+        if (pid < 0)
+            return -1;
+        if (pid == 0) {
+            av[0] = shu_c;
+            execvp(shu_c, av);
+            _exit(127);
+        }
+        {
+            int st = 0;
+            if (waitpid(pid, &st, 0) < 0)
+                return -1;
+            if (WIFEXITED(st))
+                return (int32_t)WEXITSTATUS(st);
+            return 1;
+        }
+    }
+#endif
+}
