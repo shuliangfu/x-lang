@@ -1,14 +1,12 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-8：simd_loop 产品源迁 seeds/simd_loop.from_x.c。
-// 本文件为语义对照 / 后续真迁 .x 入口；循环剥离实现仍在 seed C。
-// 产品：cc seeds/simd_loop.from_x.c → src/asm/simd_loop.o
-// G-02f-106：+ expr/index/array/cpu/lanes pure glue 薄门闩。
-// G-02f-107：+ parse/peel/slot glue 薄门闩。
-// G-02f-213：try_simd_peel f32_soa_sum / index_add while 真迁 .x。
-// G-02f-214：parse/local/chunk/const-peel 中层真迁。
-// G-02f-215：runtime_strip + f32_soa_sum_strip 真迁；simd_loop 主路径闭合。
+// G-02f-8 / R2 full（2026-07-14）：simd_loop 真迁
+// 产品 PREFER：g05_try_x_to_o(本文件) + rest (-DSHUX_SIMD_LOOP_FROM_X，仅 marker)
+// R2：full.x 吃满 peel/parse/emit 公共业务；FROM_X rest 业务 T=0（仅 slice_marker）
+// 冷启动/无 PREFER：seeds/simd_loop.from_x.c 完整 C 体
+// L2 thin hybrid（SHUX_L2_SIMD_LOOP_THIN_FROM_X）仍作 full.x 失败时的回退路径。
+// G-02f-213/214/215：try_simd_peel / parse / runtime_strip / f32_soa_sum_strip 已在本文件。
 
 export extern "C" function driver_get_pending_target_cpu_features(): u32;
 export extern "C" function shu_target_cpu_detect_host(): u32;
@@ -20,27 +18,45 @@ export extern "C" function pipeline_expr_resolved_type_ref(arena: *u8, expr_ref:
 export extern "C" function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
 export extern "C" function pipeline_type_array_size_at(arena: *u8, type_ref: i32): i32;
 export extern "C" function pipeline_type_elem_ref_at(arena: *u8, type_ref: i32): i32;
-export extern "C" function glue_expr_same_var_c_impl(arena: *u8, a_ref: i32, b_ref: i32): i32;
-export extern "C" function glue_index_uses_var_c_impl(arena: *u8, index_expr_ref: i32, i_var_ref: i32): i32;
-export extern "C" function glue_simd_loop_cpu_features_c_impl(): u32;
 
 export function simd_loop_x_doc_anchor(): i32 {
   return 0;
 }
 
-/* ---- G-02f-106 / G-02f-129：simd_loop pure glue 真迁 ---- */
+/* ---- G-02f-106 / G-02f-129：simd_loop pure glue 真迁（无 _impl 依赖）---- */
 
 // G-02f-129：两 EXPR_VAR 是否同名（GLUE_EXPR_VAR=3）
 #[no_mangle]
 export function glue_expr_same_var_c(arena: *u8, a_ref: i32, b_ref: i32): i32 {
-  unsafe { return glue_expr_same_var_c_impl(arena, a_ref, b_ref); }
-  return 0;
+  unsafe {
+    if (pipeline_expr_kind_ord_at(arena, a_ref) != 3) { return 0; }
+    if (pipeline_expr_kind_ord_at(arena, b_ref) != 3) { return 0; }
+    let alen: i32 = pipeline_expr_var_name_len(arena, a_ref);
+    let blen: i32 = pipeline_expr_var_name_len(arena, b_ref);
+    if (alen <= 0) { return 0; }
+    if (alen != blen) { return 0; }
+    if (alen > 63) { return 0; }
+    let an: u8[64] = [];
+    let bn: u8[64] = [];
+    pipeline_expr_var_name_into(arena, a_ref, &an[0]);
+    pipeline_expr_var_name_into(arena, b_ref, &bn[0]);
+    let k: i32 = 0;
+    while (k < alen) {
+      if (an[k] != bn[k]) { return 0; }
+      k = k + 1;
+    }
+  }
+  return 1;
 }
 
-// G-02f-128：glue_index_uses_var_c 真迁 .x（GLUE_EXPR_INDEX=47）
+// G-02f-128：INDEX 下标是否为归纳变量 i（GLUE_EXPR_INDEX=47）
 #[no_mangle]
 export function glue_index_uses_var_c(arena: *u8, index_expr_ref: i32, i_var_ref: i32): i32 {
-  unsafe { return glue_index_uses_var_c_impl(arena, index_expr_ref, i_var_ref); }
+  unsafe {
+    if (pipeline_expr_kind_ord_at(arena, index_expr_ref) != 47) { return 0; }
+    let idx_ref: i32 = pipeline_expr_index_index_ref(arena, index_expr_ref);
+    return glue_expr_same_var_c(arena, idx_ref, i_var_ref);
+  }
   return 0;
 }
 
@@ -63,13 +79,14 @@ export function glue_var_array_i32_size_c(arena: *u8, var_ref: i32): i32 {
   return 0;
 }
 
-
-
-#[no_mangle]
 // G-02f-133：pending features，否则 host detect
 #[no_mangle]
 export function glue_simd_loop_cpu_features_c(): u32 {
-  unsafe { return glue_simd_loop_cpu_features_c_impl(); }
+  unsafe {
+    let feats: u32 = driver_get_pending_target_cpu_features();
+    if (feats != 0) { return feats; }
+    return shu_target_cpu_detect_host();
+  }
   return 0;
 }
 

@@ -1610,17 +1610,35 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       fi
     fi
   fi
-  # G-02f-8 / G-02f-349：simd_loop.o
-  # R2 thin full：PREFER_X_O=1 时 thin.x（22 公共门闩）+ seed-rest（FROM_X）ld -r
+  # G-02f-8 / R2 full：simd_loop.o
+  # PREFER：full.x 真迁业务 + rest (-DSHUX_SIMD_LOOP_FROM_X，仅 marker) ld -r
+  # full.x 失败时回退 L2 thin hybrid；再失败整 seed 冷路径
   _simd_loop=seeds/simd_loop.from_x.c
+  _simd_loop_x=src/asm/simd_loop.x
   _simd_loop_thin_x=src/asm/simd_loop_thin.x
   _simd_loop_o=src/asm/simd_loop.o
   if [ -f "$_simd_loop" ]; then
     if [ ! -f "$_simd_loop_o" ] || [ "$_simd_loop" -nt "$_simd_loop_o" ] \
-      || { [ -f "$_simd_loop_thin_x" ] && [ "$_simd_loop_thin_x" -nt "$_simd_loop_o" ]; } \
-      || [ src/asm/simd_loop.x -nt "$_simd_loop_o" ] 2>/dev/null; then
+      || { [ -f "$_simd_loop_x" ] && [ "$_simd_loop_x" -nt "$_simd_loop_o" ]; } \
+      || { [ -f "$_simd_loop_thin_x" ] && [ "$_simd_loop_thin_x" -nt "$_simd_loop_o" ]; }; then
       _simd_loop_done=0
-      if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_simd_loop_thin_x" ]; then
+      if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_simd_loop_x" ]; then
+        _simd_loop_x_o=$(mktemp "${TMPDIR:-/tmp}/g05_simd_loop_x.XXXXXX") || true
+        _simd_loop_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_simd_loop_rest.XXXXXX") || true
+        # shellcheck disable=SC2086
+        if [ -n "$_simd_loop_x_o" ] && [ -n "$_simd_loop_rest_o" ] \
+          && g05_try_x_to_o "$_simd_loop_x" "$_simd_loop_x_o" \
+          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_SIMD_LOOP_FROM_X \
+               -c -o "$_simd_loop_rest_o" "$_simd_loop" \
+          && $CC -r -nostdlib -o "$_simd_loop_o" "$_simd_loop_x_o" "$_simd_loop_rest_o" 2>/dev/null; then
+          echo "g05_ensure: $_simd_loop_o ← $_simd_loop_x + rest marker (R2 full simd_loop H=0)"
+          _simd_loop_done=1
+        else
+          echo "g05_ensure: R2 full simd_loop failed; try L2 thin hybrid" >&2
+        fi
+        rm -f "$_simd_loop_x_o" "$_simd_loop_rest_o"
+      fi
+      if [ "$_simd_loop_done" = "0" ] && [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_simd_loop_thin_x" ]; then
         _simd_loop_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_simd_loop_thin.XXXXXX") || true
         _simd_loop_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_simd_loop_rest.XXXXXX") || true
         # shellcheck disable=SC2086
@@ -1629,7 +1647,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_L2_SIMD_LOOP_THIN_FROM_X \
                -c -o "$_simd_loop_rest_o" "$_simd_loop" \
           && $CC -r -nostdlib -o "$_simd_loop_o" "$_simd_loop_thin_o" "$_simd_loop_rest_o" 2>/dev/null; then
-          echo "g05_ensure: $_simd_loop_o ← $_simd_loop_thin_x + seed-rest (G-02f-349/412 R2 hybrid simd_loop thin)"
+          echo "g05_ensure: $_simd_loop_o ← $_simd_loop_thin_x + seed-rest (L2 hybrid simd_loop thin fallback)"
           _simd_loop_done=1
         else
           echo "g05_ensure: L2 hybrid simd_loop thin failed; fallback full seed" >&2
@@ -1637,7 +1655,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         rm -f "$_simd_loop_thin_o" "$_simd_loop_rest_o"
       fi
       if [ "$_simd_loop_done" = "0" ]; then
-        echo "g05_ensure: $_simd_loop_o ← simd_loop.from_x (G-02f-8)"
+        echo "g05_ensure: $_simd_loop_o ← simd_loop.from_x (cold seed)"
         # shellcheck disable=SC2086
         $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_simd_loop_o" "$_simd_loop"
       fi
