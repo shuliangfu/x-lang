@@ -1,10 +1,11 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-350/383/389/405–410：fmt_check_cmd L2 thin — pure + lit + entry 门闩（42 公共面）。
+// G-02f-350/383/389/405–410：fmt_check_cmd R2 thin full — pure + lit + entry 门闩（42 公共面）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_FMT_CHECK_THIN_FROM_X）ld -r
 //   → fmt_check_cmd_driver.o
-// Prove IDENTICAL：seeds/fmt_check_cmd_thin.from_x.c（本 thin 公共面；_impl 仍 U）
+// Prove IDENTICAL：seeds/fmt_check_cmd_thin_surface.from_x.c（本 thin 公共面；_impl 仍 U）
+// Cap residual：*_impl / walk·argv / dirent·stat C 尾仍在 full seed rest。
 // 对照：src/driver/fmt_check_cmd.x；冷启动 full seed rest。
 //
 // -E 约束：无 while 重赋值；无零参-only 不稳写法；6 参用扁平 if。

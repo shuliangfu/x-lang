@@ -2441,7 +2441,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     fi
   fi
   # G-02f-11 / G-02f-350/351：fmt_check_cmd_driver.o
-  # 默认整 seed（-DSHUX_USE_X_PIPELINE）；PREFER 时 thin 7 pure + rest ld -r
+  # R2 thin full：PREFER_X_O=1 时 thin.x（42 公共门闩）+ seed-rest（FROM_X）ld -r
   _fcc=seeds/fmt_check_cmd.from_x.c
   _fcc_thin_x=src/driver/fmt_check_cmd_thin.x
   _fcc_o=src/driver/fmt_check_cmd_driver.o
@@ -2458,7 +2458,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_USE_X_PIPELINE -DSHUX_L2_FMT_CHECK_THIN_FROM_X \
                -c -o "$_fcc_rest_o" "$_fcc" \
           && $CC -r -nostdlib -o "$_fcc_o" "$_fcc_thin_o" "$_fcc_rest_o" 2>/dev/null; then
-          echo "g05_ensure: $_fcc_o ← $_fcc_thin_x + seed-rest (G-02f-350/410 L2 hybrid fmt_check thin)"
+          echo "g05_ensure: $_fcc_o ← $_fcc_thin_x + seed-rest (G-02f-350/410 R2 hybrid fmt_check thin)"
           _fcc_done=1
         else
           echo "g05_ensure: L2 hybrid fmt_check thin failed; fallback full seed" >&2

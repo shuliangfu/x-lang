@@ -1,4 +1,5 @@
-/* G-02f-350/351：PREFER hybrid thin 由 src/driver/fmt_check_cmd_thin.x；rest SHUX_L2_FMT_CHECK_THIN_FROM_X。
+/* G-02f-350/351 / R2 thin full：PREFER hybrid thin 由 src/driver/fmt_check_cmd_thin.x；
+ * rest SHUX_L2_FMT_CHECK_THIN_FROM_X（public 门闩→_impl；slice_marker + Cap residual 体）。
  * Generated from src/driver/fmt_check_cmd.x (G-02f-31 true .x + C tail).
  * G-02f-116 true .x pure helpers.
  * G-02f-112 helper gates.
@@ -1289,3 +1290,7 @@ int driver_run_compiler_check(int argc, char **argv) {
     return driver_run_compiler_check_impl(argc, argv);
 }
 #endif
+
+int fmt_check_cmd_slice_marker(void) {
+    return 1;
+}

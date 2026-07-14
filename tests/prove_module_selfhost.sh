@@ -91,9 +91,10 @@ MODULES=(
   # rest 在 SHUX_L2_RIO_THIN_FROM_X+FROM_X 下无 thin/impl 公共体；Cap residual：4 平台 _impl（mmap/fstat/O_*）
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/runtime_io_abi.from_x.c 全 C 体
   "runtime_io_abi|src/runtime_io_abi.x|seeds/runtime_io_abi_surface.from_x.c||"
-  # fmt_check_cmd L2 thin 公共面：与产品 PREFER_X_O 同源（thin.x + full seed rest）；prove 锁 thin 面 IDENTICAL
-  # full seed rest 仍持 _impl / walk·argv C 尾；产品 o 名 fmt_check_cmd_driver.o
-  "fmt_check|src/driver/fmt_check_cmd_thin.x|seeds/fmt_check_cmd_thin.from_x.c||"
+  # fmt_check R2 thin full：thin.x 吃满 42 公共门闩（pure+lit+entry 透传 _impl）；
+  # rest 在 SHUX_L2_FMT_CHECK_THIN_FROM_X 下无 thin 公共体；Cap residual：*_impl/walk·argv/dirent·stat 在 full seed rest
+  # prove 锁 thin surface IDENTICAL；冷/无 PREFER 仍可走 seeds/fmt_check_cmd.from_x.c 全 C 体
+  "fmt_check|src/driver/fmt_check_cmd_thin.x|seeds/fmt_check_cmd_thin_surface.from_x.c||"
   # simd_loop L2 thin 公共面：与产品 PREFER_X_O 同源（thin.x + full seed rest）；prove 锁 thin 面 IDENTICAL
   # full seed rest 仍持 _impl / peel·emit C 尾；产品 o 名 simd_loop.o
   "simd_loop|src/asm/simd_loop_thin.x|seeds/simd_loop_thin.from_x.c||"
