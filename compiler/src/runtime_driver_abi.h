@@ -69,6 +69,12 @@ void driver_run_thread_on_large_stack(void *(*fn)(void *), void *arg);
 /** 对外别名：与 driver_run_thread_on_large_stack 相同（LSP 主循环等）。 */
 void driver_run_on_large_stack_pthread(void *(*fn)(void *), void *arg);
 
+/**
+ * Cap-fn-ptr residual：绑定 driver_stack_esc_gate_thread_fn 后进大栈。
+ * .x 无法取函数地址；rt_stack R2 经此入口调用（平台层，非 rest 业务体）。
+ */
+void driver_run_stack_esc_gate_on_large_stack(void *arg);
+
 /** pipeline 入口源码长度（大模块 typeck 跳过判定）。 */
 void driver_set_pipeline_entry_source_len(size_t len);
 size_t driver_pipeline_entry_source_len(void);

@@ -1399,6 +1399,18 @@ void driver_run_on_large_stack_pthread(void *(*fn)(void *), void *arg) {
 #endif
 
 /**
+ * Cap-fn-ptr residual：.x 无法形成函数指针常量。
+ * 绑定 driver_stack_esc_gate_thread_fn 后走大栈路径（与 pthread 体同层平台原语）。
+ * 始终提供（不随 RDABI thin 宏剥离），供 rt_stack R2 full .x 调用。
+ */
+extern void *driver_stack_esc_gate_thread_fn(void *arg);
+void driver_run_stack_esc_gate_on_large_stack(void *arg) {
+    if (arg == NULL)
+        return;
+    driver_run_thread_on_large_stack_impl(driver_stack_esc_gate_thread_fn, arg);
+}
+
+/**
  * 扫描预处理后源码是否含顶层 import（`import("` 或 `= import(`）。
  * 参数：src 预处理后缓冲；src_len 有效字节数。
  * 返回值：1 含顶层 import；0 否。

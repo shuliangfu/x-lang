@@ -2,9 +2,10 @@
  * Logic source: src/runtime/rt_stack.x
  * Hybrid: SHUX_RT_STACK_FROM_X + ld -r into runtime_driver_no_c.o
  *
- * Scope: driver_stack_esc_gate_thread_fn / driver_stack_esc_gate_large_stack
- * 🔒 driver_run_thread_on_large_stack（pthread 在 driver_abi）。
- * smoke lex dump 仍 !X_DRIVER 在 mega（需 C lexer 头）。
+ * R2 full：thread_fn + large_stack 由 .x 提供；FROM_X 下本文件仅前向声明 + slice marker
+ * （产品 rest 业务 H=0）。冷启动/无 PREFER 时仍编译完整 C 体。
+ * Cap-fn-ptr residual：.x 经 driver_run_stack_esc_gate_on_large_stack（driver_abi）
+ * 绑定 thread_fn；冷启动 C 体仍直接传函数指针给 driver_run_thread_on_large_stack。
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -19,15 +20,7 @@ typedef struct {
 extern int32_t pipeline_typeck_x_stack_escape_gate_from_src_c(uint8_t *src, int32_t src_len);
 extern void driver_run_thread_on_large_stack(void *(*fn)(void *), void *arg);
 
-/* G-02f-449：thin+rest PREFER_X_O
- *   thin .x provides 1 #[no_mangle] wrapper (calls *_impl in rest).
- *   rest seed C (compiled with -DSHUX_RT_STACK_FROM_X):
- *     - driver_stack_esc_gate_large_stack renamed to *_impl via macro.
- *   driver_stack_esc_gate_thread_fn stays in rest (internal helper, no .x counterpart).
- *   No #ifndef guard needed (no real .x implementation; .x is thin-only). */
-#ifdef SHUX_RT_STACK_FROM_X
-#define driver_stack_esc_gate_large_stack    driver_stack_esc_gate_large_stack_impl
-#endif
+#ifndef SHUX_RT_STACK_FROM_X
 
 /** pthread 入口：WPO-S3 post-scan gate。 */
 void *driver_stack_esc_gate_thread_fn(void *arg) {
@@ -49,6 +42,11 @@ int32_t driver_stack_esc_gate_large_stack(uint8_t *src, int32_t src_len) {
     return pipeline_typeck_x_stack_escape_gate_from_src_c(src, src_len);
   return args.result;
 }
+
+#else
+void *driver_stack_esc_gate_thread_fn(void *arg);
+int32_t driver_stack_esc_gate_large_stack(uint8_t *src, int32_t src_len);
+#endif
 
 int labi_rt_stack_slice_marker(void) {
   return 1;
