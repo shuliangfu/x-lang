@@ -49,8 +49,10 @@ MODULES=(
   # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：spawn/ld/cc IO 在 mega invoke_ld
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_invoke_ld_list.from_x.c 全 C 体
   "labi_invoke_ld_list|src/runtime/labi_invoke_ld_list.x|seeds/labi_invoke_ld_list_surface.from_x.c||"
-  # labi_freestanding_list：L7 env/io_sym/ensure 短字面量表；依赖 W-string-nul；产品 PREFER_X_O；本条锁 nm / 扩 N
-  "labi_freestanding_list|src/runtime/labi_freestanding_list.x|seeds/labi_freestanding_list.from_x.c||"
+  # labi_freestanding_list R2 full：.x 吃满 env/io_sym/panic/ensure catalog 纯表；
+  # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：ensure/cc/spawn IO 在 mega freestanding
+  # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_freestanding_list.from_x.c 全 C 体
+  "labi_freestanding_list|src/runtime/labi_freestanding_list.x|seeds/labi_freestanding_list_surface.from_x.c||"
   # labi_std_list：L8 默认 std 链接计划表；plan_step_at 多 out（*i32/*usize）；产品 PREFER_X_O；本条锁 nm / 扩 N
   "labi_std_list|src/runtime/labi_std_list.x|seeds/labi_std_list.from_x.c||"
   # labi_ondemand_list：L8b on_demand 符号组/rel 纯表；依赖 W-string-nul；产品 PREFER_X_O；本条锁 nm / 扩 N

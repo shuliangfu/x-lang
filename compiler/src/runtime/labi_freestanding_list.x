@@ -1,11 +1,11 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-276 / P2 link_abi L7：freestanding 纯表（env / needs 符号 / ensure src）。
+// G-02f-276 / P2 link_abi L7：freestanding 纯表（env / needs 符号 / ensure src）→ R2 full。
 // 产品：PREFER_X_O → g05_try_x_to_o；冷启动 seeds/labi_freestanding_list.from_x.c。
-// hybrid 宏 SHUX_LABI_FREESTANDING_LIST_FROM_X。
+// hybrid 宏 SHUX_LABI_FREESTANDING_LIST_FROM_X；FROM_X rest 仅 marker（H=0）。
 //
-// G-02f-L：真迁 if/else + let 绑定短字符串（依赖 W-string-nul；无全局表）。
+// R2 full：真迁 if/else + let 绑定短字符串（依赖 W-string-nul；无全局表）。
 // 禁止「函数体仅 return "lit"」——parser 会 skip 整函数；用 let p + return p。
 // catalog_step_at 的 const char** out：.x 用 *usize 写指针（与 C 指针 ABI 同宽）。
 // ensure/cc/spawn 仍在 mega（🔒）。
