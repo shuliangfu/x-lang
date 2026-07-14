@@ -1434,7 +1434,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_L2_RDABI_THIN_FROM_X \
                -c -o "$_rdabi_rest_o" "$_rdabi" \
           && $CC -r -nostdlib -o "$_rdabi_o" "$_rdabi_thin_o" "$_rdabi_rest_o" 2>/dev/null; then
-          echo "g05_ensure: $_rdabi_o ← $_rdabi_thin_x + seed-rest (G-02f-343/416 R2 hybrid driver_abi thin)"
+          echo "g05_ensure: $_rdabi_o ← $_rdabi_thin_x + seed-rest (driver_abi pure 深迁 hybrid; rest 无 pure-dup)"
           _rdabi_done=1
         else
           echo "g05_ensure: L2 hybrid runtime_driver_abi failed; fallback full seed" >&2

@@ -84,8 +84,8 @@ MODULES=(
   # Cap residual snprintf/va_list/debug 在 full seed rest
   # prove 锁 thin surface IDENTICAL；冷/无 PREFER 仍可走 seeds/runtime_driver_diagnostic.from_x.c 全 C 体
   "diagnostic|src/runtime_driver_diagnostic_thin.x|seeds/runtime_driver_diagnostic_thin_surface.from_x.c||"
-  # driver_abi R2 thin full：thin.x 吃满 61+ 公共门闩（*u8/槽透传 _impl）；
-  # rest 在 SHUX_L2_RDABI_THIN_FROM_X 下无 thin 公共体；Cap residual：*_impl/槽/path-read/spawn 在 full seed rest
+  # driver_abi R2 thin + pure 深迁：thin.x 门闩 + pure 真体（scan/has/argv/target_os/fail/smoke/peek/entry_i32/large_stack orch）；
+  # rest FROM_X 无 pure-dup _impl；Cap residual：getenv/uname/setrlimit/pthread/path-read/BSS/format
   # prove 锁 thin surface IDENTICAL；冷/无 PREFER 仍可走 seeds/runtime_driver_abi.from_x.c 全 C 体
   "driver_abi|src/runtime_driver_abi_thin.x|seeds/runtime_driver_abi_thin_surface.from_x.c||"
   # runtime_io_abi R2 full：.x 吃满 19 公共门闩 + 5 _impl 真迁（read/malloc/memcpy）；

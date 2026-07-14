@@ -1,5 +1,6 @@
 /* G-02f-343/344/345 / R2 thin full：PREFER hybrid thin 由 src/runtime_driver_abi_thin.x；
- * rest SHUX_L2_RDABI_THIN_FROM_X（public 门闩→_impl；slice_marker + Cap residual 体）。
+ * rest SHUX_L2_RDABI_THIN_FROM_X（无 pure-dup _impl；slice_marker + Cap residual 体）。
+ * pure 深迁：scan/has/argv_collect/target_os/fail/smoke/peek/entry_len_i32/large_stack orch 在 thin.x。
  */
 /* Generated from src/runtime_driver_abi.x (G-02f-29/41/45..57/83 true .x + C tail).
  * G-02f-116 true .x pure helpers.
@@ -48,6 +49,9 @@ void driver_bump_stack_limit(void);
 void driver_set_pipeline_entry_source_len(size_t len);
 int compile_phase_timing_enabled(void);
 const char *driver_os_define_lit(int kind);
+void driver_run_thread_on_large_stack(void *(*fn)(void *), void *arg);
+int driver_argv_collect_defines(int argc, char **argv, const char **defines, int max_defines);
+int driver_source_has_top_level_import(const char *src, size_t src_len);
 #define compile_phase_now_sec compile_phase_now_sec_impl
 #define driver_compile_phase_timing_enabled driver_compile_phase_timing_enabled_impl
 #define driver_check_only_flag_slot driver_check_only_flag_slot_impl
@@ -495,11 +499,13 @@ static size_t g_pipeline_entry_source_len;
 /* G-02f-45 */
 /* G-02f-243：逻辑源 .x（真迁 saturate）；seed 保留同语义 C 供产品 cc */
 /* G-02f-388：实现体始终 seed（读 static g_pipeline_entry_source_len）；public PREFER 时 thin forward */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 int32_t driver_pipeline_entry_source_len_i32_impl(void) {
     if (g_pipeline_entry_source_len > (size_t)0x7fffffff)
         return 0x7fffffff;
     return (int32_t)g_pipeline_entry_source_len;
 }
+#endif
 
 #ifndef SHUX_L2_RDABI_THIN_FROM_X
 int32_t driver_pipeline_entry_source_len_i32(void) {
@@ -553,9 +559,11 @@ void driver_set_pipeline_entry_source_len(size_t len) {
  * 返回值：最近一次 driver_set_pipeline_entry_source_len 写入的长度。
  */
 /* G-02f-416：public PREFER 时 thin pure forward */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 size_t driver_pipeline_entry_source_len_impl(void) {
     return driver_pipeline_entry_source_len_load_and_maybe_debug_impl();
 }
+#endif
 #ifndef SHUX_L2_RDABI_THIN_FROM_X
 size_t driver_pipeline_entry_source_len(void) {
     return driver_pipeline_entry_source_len_impl();
@@ -1003,6 +1011,7 @@ const char *driver_os_define_lit(int kind) {
 
 /* G-02f-245：逻辑源 .x（真迁 target→OS kind）；seed 保留同语义 C 供产品 cc */
 /* G-02f-401：strstr 字面量体始终 seed；public PREFER 时 thin forward */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 int32_t driver_target_arg_os_kind_impl(const char *target) {
     if (!target)
         return 0;
@@ -1016,6 +1025,7 @@ int32_t driver_target_arg_os_kind_impl(const char *target) {
         return 4;
     return 0;
 }
+#endif
 
 #ifndef SHUX_L2_RDABI_THIN_FROM_X
 int32_t driver_target_arg_os_kind(const char *target) {
@@ -1045,6 +1055,7 @@ int driver_argv_collect_append_uname_impl(const char **defines, int ndefines, in
 }
 
 /* G-02f-245：逻辑源 .x；G-02f-413：实现体始终 seed；public PREFER 时 thin pure forward */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 int driver_argv_collect_defines_impl(int argc, char **argv, const char **defines, int max_defines) {
     int ndefines = 0;
     const char *target_arg = NULL;
@@ -1091,6 +1102,7 @@ int driver_argv_collect_defines_impl(int argc, char **argv, const char **defines
         ndefines = driver_argv_collect_append_uname_impl(defines, ndefines, max_defines);
     return ndefines;
 }
+#endif
 #ifndef SHUX_L2_RDABI_THIN_FROM_X
 int driver_argv_collect_defines(int argc, char **argv, const char **defines, int max_defines) {
     return driver_argv_collect_defines_impl(argc, argv, defines, max_defines);
@@ -1103,6 +1115,7 @@ extern int driver_get_module_main_func_index(void *m);
 
 /** pipeline 失败 rc 诊断；rc==-7 时打印 resolve 尝试路径。 */
 /* G-02f-413：实现体始终 seed；public PREFER 时 thin pure forward */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_pipeline_fail_code_impl(int rc, const uint8_t *path) {
     driver_pipeline_fail_code_rc_impl((int32_t)rc);
     if (rc != -7) {
@@ -1113,6 +1126,7 @@ void driver_pipeline_fail_code_impl(int rc, const uint8_t *path) {
     }
     driver_pipeline_fail_code_path_impl(path);
 }
+#endif
 #ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_pipeline_fail_code(int rc, const uint8_t *path) {
     driver_pipeline_fail_code_impl(rc, path);
@@ -1124,6 +1138,7 @@ void driver_pipeline_fail_code(int rc, const uint8_t *path) {
  * 参数：module ASTModule*；codegen_len 产出字节数（可为 0）。
  */
 /* G-02f-244/413：实现体始终 seed；public PREFER 时 thin pure forward */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_print_x_smoke_summary_impl(void *module, size_t codegen_len) {
     int32_t num_funcs;
     int32_t main_ix;
@@ -1142,6 +1157,7 @@ void driver_print_x_smoke_summary_impl(void *module, size_t codegen_len) {
     }
     driver_print_x_smoke_typeck_ok_impl();
 }
+#endif
 #ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_print_x_smoke_summary(void *module, size_t codegen_len) {
     driver_print_x_smoke_summary_impl(module, codegen_len);
@@ -1153,6 +1169,7 @@ void driver_print_x_smoke_summary(void *module, size_t codegen_len) {
  * 参数：path 源路径；content/cap 输出缓冲；实现委托 runtime_io_abi。
  */
 /* G-02f-413：实现体始终 seed；public PREFER 时 thin pure forward */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 int driver_peek_source_file_impl(const char *path, char *content, size_t cap) {
     int32_t n;
     if (path == NULL) {
@@ -1167,6 +1184,7 @@ int driver_peek_source_file_impl(const char *path, char *content, size_t cap) {
     n = shux_read_file_into_path(path, content, (size_t)(cap - 1));
     return (int)n;
 }
+#endif
 #ifndef SHUX_L2_RDABI_THIN_FROM_X
 int driver_peek_source_file(const char *path, char *content, size_t cap) {
     return driver_peek_source_file_impl(path, content, cap);
@@ -1285,12 +1303,9 @@ int32_t driver_pipeline_no_large_stack_env(void) {
 #endif
 
 /** 在当前线程直接执行 fn(arg)，并临时标记大栈上下文。 */
-/* G-02f-246：逻辑源 .x（真迁 mark/bump/call 编排）；call 🔒 */
+/* G-02f-246 pure 深迁：PREFER thin 真体；冷启动 full C；FROM_X 无 pure-dup */
 #ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_run_fn_on_current_large_stack(void *(*fn)(void *), void *arg)
-#else
-void driver_run_fn_on_current_large_stack_impl(void *(*fn)(void *), void *arg)
-#endif
 {
     if (fn == NULL)
         return;
@@ -1299,6 +1314,7 @@ void driver_run_fn_on_current_large_stack_impl(void *(*fn)(void *), void *arg)
     driver_call_fn_void_arg_impl(fn, arg);
     driver_large_stack_thread_mark(0);
 }
+#endif
 
 /**
  * pthread 创建/join 体 🔒；调用方已做 null / 早退 pure。
@@ -1358,6 +1374,7 @@ void driver_run_thread_on_large_stack_pthread_impl(void *(*fn)(void *), void *ar
  * macOS 主线程 RLIMIT_STACK 硬顶约 8MiB，深递归 pipeline/typeck 须与大 pipeline 同路径。
  * G-02f-246/414：实现体始终 seed；public PREFER 时 thin pure forward；pthread 创建 🔒。
  */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_run_thread_on_large_stack_impl(void *(*fn)(void *), void *arg) {
     if (fn == NULL)
         return;
@@ -1380,6 +1397,7 @@ void driver_run_thread_on_large_stack_impl(void *(*fn)(void *), void *arg) {
     }
     driver_run_thread_on_large_stack_pthread_impl(fn, arg);
 }
+#endif
 #ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_run_thread_on_large_stack(void *(*fn)(void *), void *arg) {
     driver_run_thread_on_large_stack_impl(fn, arg);
@@ -1390,9 +1408,11 @@ void driver_run_thread_on_large_stack(void *(*fn)(void *), void *arg) {
 
 /** 对外别名：LSP 主循环等在 256MiB 栈 pthread 上执行 fn(arg)。 */
 /* G-02f-414：实现体始终 seed；public PREFER 时 thin pure forward */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_run_on_large_stack_pthread_impl(void *(*fn)(void *), void *arg) {
     driver_run_thread_on_large_stack_impl(fn, arg);
 }
+#endif
 #ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_run_on_large_stack_pthread(void *(*fn)(void *), void *arg) {
     driver_run_on_large_stack_pthread_impl(fn, arg);
@@ -1408,7 +1428,7 @@ extern void *driver_stack_esc_gate_thread_fn(void *arg);
 void driver_run_stack_esc_gate_on_large_stack(void *arg) {
     if (arg == NULL)
         return;
-    driver_run_thread_on_large_stack_impl(driver_stack_esc_gate_thread_fn, arg);
+    driver_run_thread_on_large_stack(driver_stack_esc_gate_thread_fn, arg);
 }
 
 /**
@@ -2031,6 +2051,7 @@ void driver_x_emit_work_cleanup(void) {
  * 返回值：1 含顶层 import；0 否。
  * G-02f-243/414：实现体始终 seed（memcmp 字面量）；public PREFER 时 thin pure forward。
  */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 int driver_source_scan_top_level_import_impl(const char *src, size_t src_len) {
     const char *p;
     const char *end;
@@ -2049,6 +2070,7 @@ int driver_source_scan_top_level_import_impl(const char *src, size_t src_len) {
     }
     return 0;
 }
+#endif
 #ifndef SHUX_L2_RDABI_THIN_FROM_X
 int driver_source_scan_top_level_import(const char *src, size_t src_len) {
     return driver_source_scan_top_level_import_impl(src, src_len);
@@ -2056,6 +2078,7 @@ int driver_source_scan_top_level_import(const char *src, size_t src_len) {
 #endif
 
 /* G-02f-243/414：实现体始终 seed；public PREFER 时 thin pure forward */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 int driver_source_has_top_level_import_impl(const char *src, size_t src_len) {
     if (src == NULL) {
         return 0;
@@ -2065,6 +2088,7 @@ int driver_source_has_top_level_import_impl(const char *src, size_t src_len) {
     }
     return driver_source_scan_top_level_import_impl(src, src_len);
 }
+#endif
 #ifndef SHUX_L2_RDABI_THIN_FROM_X
 int driver_source_has_top_level_import(const char *src, size_t src_len) {
     return driver_source_has_top_level_import_impl(src, src_len);
@@ -2107,6 +2131,7 @@ int64_t driver_path_last_preprocess_len(void) {
 #endif
 
 /* G-02f-244/414：实现体始终 seed（IO/preprocess）；public PREFER 时 thin pure forward */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 int driver_source_has_top_level_import_path_impl(const char *path) {
     char *src;
     int has;
@@ -2122,6 +2147,7 @@ int driver_source_has_top_level_import_path_impl(const char *path) {
     free(src);
     return has;
 }
+#endif
 #ifndef SHUX_L2_RDABI_THIN_FROM_X
 int driver_source_has_top_level_import_path(const char *path) {
     return driver_source_has_top_level_import_path_impl(path);
