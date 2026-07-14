@@ -342,7 +342,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           fi
         fi
         if [ -n "$_labi_l4_o" ]; then
-          # Track L：PREFER_X_O=1 时优先 labi_ensure_list.x → -E → cc；失败回退 seed C
+          # R2 labi_ensure_list：PREFER_X_O=1 时 full .x（ensure catalog 纯表真迁 H=0）；失败回退 seed 冷 C
           if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_labi_l4_x" ]; then
             if g05_try_x_to_o "$_labi_l4_x" "$_labi_l4_o"; then
               _labi_l4_ok=1

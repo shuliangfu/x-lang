@@ -55,8 +55,10 @@ MODULES=(
   "labi_std_list|src/runtime/labi_std_list.x|seeds/labi_std_list.from_x.c||"
   # labi_ondemand_list：L8b on_demand 符号组/rel 纯表；依赖 W-string-nul；产品 PREFER_X_O；本条锁 nm / 扩 N
   "labi_ondemand_list|src/runtime/labi_ondemand_list.x|seeds/labi_ondemand_list.from_x.c||"
-  # labi_ensure_list：L4 ensure 目录 stem/out/seed/flags/hint；step_at 多 out（*usize/*i32）；产品 PREFER_X_O；本条锁 nm / 扩 N
-  "labi_ensure_list|src/runtime/labi_ensure_list.x|seeds/labi_ensure_list.from_x.c||"
+  # labi_ensure_list R2 full：.x 吃满 ensure catalog 纯表（26 条目 stem/out/seed/flags/step_at）；
+  # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：spawn/cc IO 在 mega ensure_from_catalog
+  # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_ensure_list.from_x.c 全 C 体
+  "labi_ensure_list|src/runtime/labi_ensure_list.x|seeds/labi_ensure_list_surface.from_x.c||"
   # labi_path_io R2 full：.x 吃满 3 公共门闩 + count；
   # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：stat/realpath _impl 在 mega rest
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_path_io.from_x.c 全 C 体

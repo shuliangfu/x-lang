@@ -1,11 +1,11 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-273 / P2 link_abi L4：ensure 目标纯目录（stem / out.o / seed / flags / hint）。
+// G-02f-273 / P2 link_abi L4：ensure 目标纯目录（stem / out.o / seed / flags / hint）→ R2 full。
 // 产品：PREFER_X_O → g05_try_x_to_o；冷启动 seeds/labi_ensure_list.from_x.c。
-// hybrid 宏 SHUX_LABI_ENSURE_LIST_FROM_X。
+// hybrid 宏 SHUX_LABI_ENSURE_LIST_FROM_X；FROM_X rest 仅 marker（H=0）。
 //
-// Track L：真迁 if/else + let 绑定短字符串（依赖 W-string-nul；无全局表）。
+// R2 full：真迁 if/else + let 绑定短字符串（依赖 W-string-nul；无全局表）。
 // 禁止「函数体仅 return "lit"」——parser 会 skip 整函数；用 let p + return p。
 // catalog_step_at：const char** out 用 *usize；flags 用 *i32；hint 空→0。
 // step_at 经 stem/out/seed/flags accessor 聚合（与 seed 同构；避免巨型单函数 check_block 失败）。

@@ -1,15 +1,20 @@
-/* seeds/labi_ensure_list.from_x.c — G-02f-273 P2 link_abi L4 ensure list pure
+/* seeds/labi_ensure_list.from_x.c — G-02f-273 P2 link_abi L4 ensure list pure → R2 full
  * Logic source: src/runtime/labi_ensure_list.x
  * Hybrid: SHUX_LABI_ENSURE_LIST_FROM_X + ld -r into runtime_link_abi.o
  *
- * Pure catalog: runtime ensure targets (stem / out.o / seed / flags / hint).
- * spawn/cc IO stays in mega link_abi_ensure_from_catalog.
+ * R2 full（2026-07-14）：公共业务符号由 full .x 提供：
+ *   labi_ensure_catalog_count
+ *   labi_ensure_catalog_{stem,out_base,seed_base,flags}
+ *   labi_ensure_catalog_step_at
+ * Cap residual：spawn/cc IO 仍在 mega link_abi_ensure_from_catalog。
+ * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
+ * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
  *
- * Track L：冷启动 / 回退 seed 与 .x 同构（if/else 短字面量，无 static 表；
- * step_at 经 accessor 聚合，与 .x 一致），便于 nm 全局符号 IDENTICAL；
- * 产品 PREFER_X_O 优先 .x（W-string-nul）。
+ * Prove：seeds/labi_ensure_list_surface.from_x.c（-E 同构）nm IDENTICAL。
  */
 #include <stddef.h>
+
+#ifndef SHUX_LABI_ENSURE_LIST_FROM_X
 
 /* flags: 0=NONE, 1=PIE (-fPIE), 2=SQLITE (-DSHUX_DB_USE_SQLITE3) */
 
@@ -229,5 +234,20 @@ int labi_ensure_catalog_step_at(int i, const char **stem_out, const char **out_b
     else
       *hint_out = NULL;
   }
+  return 1;
+}
+
+#else
+int labi_ensure_catalog_count(void);
+const char *labi_ensure_catalog_stem(int i);
+const char *labi_ensure_catalog_out_base(int i);
+const char *labi_ensure_catalog_seed_base(int i);
+int labi_ensure_catalog_flags(int i);
+int labi_ensure_catalog_step_at(int i, const char **stem_out, const char **out_base_out,
+                                const char **seed_base_out, int *flags_out,
+                                const char **hint_out);
+#endif
+
+int labi_ensure_list_slice_marker(void) {
   return 1;
 }
