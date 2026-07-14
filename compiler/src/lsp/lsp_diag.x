@@ -24,8 +24,10 @@
 // pipeline）分离：此处开头 invalidate 缓存，避免混用两种 AST。
 //
 // 约束：ctx 由 lsp_diag_prepare_pipeline_ctx 填入 libRoots/entry_dir；pipeline 内装载 direct import deps 后 typeck。
-
-const ast = import("ast");
+//
+// 根因纪律：禁止 `let e: Expr = ast_arena_expr_get` / `let ty: Type = ast_arena_type_get`。
+// 大 struct 按值拷贝在自举 typeck 上字段类型为 ?（check_block failed）。统一走 pipeline_* 标量读
+//（与 typeck.x 同源），kind 用 ordinal 字面量（与 ast.x 序一致）。
 
 /** 与 pipeline.x 经 -E 导出名 pipeline_lsp_diag_parse_typeck_buf 一致；仅用 extern
 * 引用，避免 import pipeline。 */
@@ -34,6 +36,18 @@ export extern function pipeline_lsp_diag_parse_typeck_buf(module: *Module, arena
 
 export extern function pipeline_module_func_name_len_at(module: *Module, fi: i32): i32;
 export extern function pipeline_module_func_name_copy64(module: *Module, fi: i32, dst: *u8): void;
+
+/** Expr/Type 标量字段读（勿按值拷贝整颗 Expr/Type）。 */
+export extern function pipeline_expr_line_at(arena: *ASTArena, expr_ref: i32): i32;
+export extern function pipeline_expr_col_at(arena: *ASTArena, expr_ref: i32): i32;
+export extern function pipeline_expr_kind_ord_at(arena: *ASTArena, expr_ref: i32): i32;
+export extern function pipeline_expr_resolved_type_ref(arena: *ASTArena, expr_ref: i32): i32;
+export extern function pipeline_expr_call_resolved_func_index_at(arena: *ASTArena, expr_ref: i32): i32;
+export extern function pipeline_expr_var_name_len(arena: *ASTArena, expr_ref: i32): i32;
+export extern function pipeline_expr_field_access_name_len(arena: *ASTArena, expr_ref: i32): i32;
+export extern function pipeline_expr_struct_lit_type_name_len(arena: *ASTArena, expr_ref: i32): i32;
+export extern function pipeline_type_kind_ord_at(arena: *ASTArena, type_ref: i32): i32;
+export extern function pipeline_type_named_name_into(arena: *ASTArena, type_ref: i32, out: *u8): i32;
 
 /** C 侧：按 SHUX_LSP_LIB_ROOTS / entry_dir 填充 PipelineDepCtx。 */
 export extern function lsp_diag_prepare_pipeline_ctx(ctx: *PipelineDepCtx): void;
@@ -143,10 +157,12 @@ export function lsp_find_type_ref_at_pos(arena: *ASTArena, line_1: i32, col_1: i
   }
   let ei: i32 = 1;
   while (ei <= arena.num_exprs) {
-    let e: Expr = ast.ast_arena_expr_get(arena, ei);
-    if (e.line == line_1 && e.col == col_1) {
-      if (e.resolved_type_ref != 0) {
-        return e.resolved_type_ref;
+    let el: i32 = pipeline_expr_line_at(arena, ei);
+    let ec: i32 = pipeline_expr_col_at(arena, ei);
+    if (el == line_1 && ec == col_1) {
+      let tr: i32 = pipeline_expr_resolved_type_ref(arena, ei);
+      if (tr != 0) {
+        return tr;
       }
     }
     ei = ei + 1;
@@ -184,51 +200,57 @@ out_cap: i32): i32 {
   std_heap_free(mut_buf);
   let type_ref: i32 = lsp_find_type_ref_at_pos(arena, line_0 + 1, col_0 + 1);
   if (type_ref == 0) { return 0; }
-  /* 取 type 池中节点，按 kind 逐字写入 out_buf（纯 ASCII 拼接，不递归）。 */
+  /* 取 type 池 kind 序（pipeline_type_*）；禁止 Type 按值拷贝。 */
   if (type_ref <= 0 || type_ref > arena.num_types) { return 0; }
-  let ty: Type = ast.ast_arena_type_get(arena, type_ref);
-  let k: i32 = 0;
-  if (ty.kind == TypeKind.TYPE_I32 && out_cap >= 4) {
+  let ko: i32 = pipeline_type_kind_ord_at(arena, type_ref);
+  /* TypeKind 序：I32=0 BOOL=1 U8=2 U32=3 U64=4 I64=5 USIZE=6 NAMED=8 PTR=9 F32=14 F64=15 VOID=16 */
+  if (ko == 0 && out_cap >= 4) {
     out_buf[0] = 105; out_buf[1] = 51; out_buf[2] = 50; return 3;
   }
-  if (ty.kind == TypeKind.TYPE_BOOL && out_cap >= 5) {
+  if (ko == 1 && out_cap >= 5) {
     out_buf[0] = 98; out_buf[1] = 111; out_buf[2] = 111; out_buf[3] = 108; return 4;
   }
-  if (ty.kind == TypeKind.TYPE_U8 && out_cap >= 3) {
+  if (ko == 2 && out_cap >= 3) {
     out_buf[0] = 117; out_buf[1] = 56; return 2;
   }
-  if (ty.kind == TypeKind.TYPE_U32 && out_cap >= 4) {
+  if (ko == 3 && out_cap >= 4) {
     out_buf[0] = 117; out_buf[1] = 51; out_buf[2] = 50; return 3;
   }
-  if (ty.kind == TypeKind.TYPE_U64 && out_cap >= 4) {
+  if (ko == 4 && out_cap >= 4) {
     out_buf[0] = 117; out_buf[1] = 54; out_buf[2] = 52; return 3;
   }
-  if (ty.kind == TypeKind.TYPE_I64 && out_cap >= 4) {
+  if (ko == 5 && out_cap >= 4) {
     out_buf[0] = 105; out_buf[1] = 54; out_buf[2] = 52; return 3;
   }
-  if (ty.kind == TypeKind.TYPE_USIZE && out_cap >= 6) {
+  if (ko == 6 && out_cap >= 6) {
     out_buf[0] = 117; out_buf[1] = 115; out_buf[2] = 105; out_buf[3] = 122; out_buf[4] = 101;
     return 5;
   }
-  if (ty.kind == TypeKind.TYPE_F32 && out_cap >= 4) {
+  if (ko == 14 && out_cap >= 4) {
     out_buf[0] = 102; out_buf[1] = 51; out_buf[2] = 50; return 3;
   }
-  if (ty.kind == TypeKind.TYPE_F64 && out_cap >= 4) {
+  if (ko == 15 && out_cap >= 4) {
     out_buf[0] = 102; out_buf[1] = 54; out_buf[2] = 52; return 3;
   }
-  if (ty.kind == TypeKind.TYPE_VOID && out_cap >= 5) {
+  if (ko == 16 && out_cap >= 5) {
     out_buf[0] = 118; out_buf[1] = 111; out_buf[2] = 105; out_buf[3] = 100; return 4;
   }
   /* ptr: "*" + 不做递归；只输出 "*" */
-  if (ty.kind == TypeKind.TYPE_PTR && out_cap >= 2) {
+  if (ko == 9 && out_cap >= 2) {
     out_buf[0] = 42; return 1;
   }
   /* named: 直接输出名字 */
-  if (ty.kind == TypeKind.TYPE_NAMED && ty.name_len > 0 && ty.name_len <= 64 && out_cap >
-  ty.name_len) {
-    let i: i32 = 0;
-    while (i < ty.name_len && k < out_cap) { out_buf[k] = ty.name[i]; k = k + 1; i = i + 1; }
-    return k;
+  if (ko == 8 && out_cap > 0) {
+    let nm: u8[64] = [];
+    let nlen: i32 = pipeline_type_named_name_into(arena, type_ref, &nm[0]);
+    if (nlen > 0 && nlen <= 64 && out_cap > nlen) {
+      let i: i32 = 0;
+      while (i < nlen) {
+        out_buf[i] = nm[i];
+        i = i + 1;
+      }
+      return nlen;
+    }
   }
   /* fallback */
   if (out_cap >= 2) { out_buf[0] = 63; return 1; }
@@ -247,13 +269,16 @@ max_refs: i32): i32 {
   if (arena == 0 as *ASTArena || out_lines == 0 as *i32 || out_cols == 0 as *i32 || max_refs <= 0) {
     return 0;
   }
+  let ord_call: i32 = 48;
   let count: i32 = 0;
   let ei: i32 = 1;
   while (ei <= arena.num_exprs && count < max_refs) {
-    let e: Expr = ast.ast_arena_expr_get(arena, ei);
-    if (e.kind == ExprKind.EXPR_CALL && e.call_resolved_func_index == func_index && e.line > 0) {
-      out_lines[count] = e.line;
-      out_cols[count] = e.col;
+    let ek: i32 = pipeline_expr_kind_ord_at(arena, ei);
+    let el: i32 = pipeline_expr_line_at(arena, ei);
+    let fri: i32 = pipeline_expr_call_resolved_func_index_at(arena, ei);
+    if (ek == ord_call && fri == func_index && el > 0) {
+      out_lines[count] = el;
+      out_cols[count] = pipeline_expr_col_at(arena, ei);
       count = count + 1;
     }
     ei = ei + 1;
@@ -291,13 +316,16 @@ export function lsp_diag_references_at(source: *u8, source_len: i32, line_0: i32
   /* 先定位 (line,col) 处的 CALL，取 func_index */
   let line_1: i32 = line_0 + 1;
   let col_1: i32 = col_0 + 1;
+  let ord_call: i32 = 48;
   let func_index: i32 = -1;
   let ei: i32 = 1;
   while (ei <= arena.num_exprs) {
-    let e: Expr = ast.ast_arena_expr_get(arena, ei);
-    if (e.line == line_1 && e.col == col_1 && e.kind == ExprKind.EXPR_CALL &&
-    e.call_resolved_func_index >= 0) {
-      func_index = e.call_resolved_func_index;
+    let el: i32 = pipeline_expr_line_at(arena, ei);
+    let ec: i32 = pipeline_expr_col_at(arena, ei);
+    let ek: i32 = pipeline_expr_kind_ord_at(arena, ei);
+    let fri: i32 = pipeline_expr_call_resolved_func_index_at(arena, ei);
+    if (el == line_1 && ec == col_1 && ek == ord_call && fri >= 0) {
+      func_index = fri;
       break;
     }
     ei = ei + 1;
@@ -467,13 +495,16 @@ export function lsp_diag_definition_at(source: *u8, source_len: i32, line_0: i32
     fi = fi + 1;
   }
   /* 调用处：找 (line,col) 的 CALL，跳转到 resolved 函数定义。 */
+  let ord_call: i32 = 48;
   let func_index: i32 = -1;
   let ei: i32 = 1;
   while (ei <= arena.num_exprs) {
-    let e: Expr = ast.ast_arena_expr_get(arena, ei);
-    if (e.line == line_1 && e.col == col_1 && e.kind == ExprKind.EXPR_CALL &&
-    e.call_resolved_func_index >= 0) {
-      func_index = e.call_resolved_func_index;
+    let el: i32 = pipeline_expr_line_at(arena, ei);
+    let ec: i32 = pipeline_expr_col_at(arena, ei);
+    let ek: i32 = pipeline_expr_kind_ord_at(arena, ei);
+    let fri: i32 = pipeline_expr_call_resolved_func_index_at(arena, ei);
+    if (el == line_1 && ec == col_1 && ek == ord_call && fri >= 0) {
+      func_index = fri;
       break;
     }
     ei = ei + 1;
@@ -500,56 +531,70 @@ export function lsp_collect_semantic_tokens(arena: *ASTArena, out_data: *i32, ou
   if (arena == 0 as *ASTArena || out_data == 0 as *i32 || out_cap < 5) {
     return 0;
   }
+  /* ExprKind 序：LIT=0 FLOAT=1 VAR=3 FIELD=44 STRUCT_LIT=45 CALL=48 METHOD=49 ENUM_VARIANT=50 AS=54 */
+  let ord_lit: i32 = 0;
+  let ord_float: i32 = 1;
+  let ord_var: i32 = 3;
+  let ord_field: i32 = 44;
+  let ord_struct_lit: i32 = 45;
+  let ord_call: i32 = 48;
+  let ord_method: i32 = 49;
+  let ord_enum_var: i32 = 50;
+  let ord_as: i32 = 54;
   let count: i32 = 0;
   let prev_line: i32 = 0;
   let prev_start: i32 = 0;
-  /* 遍历 arena 中所有表达式 */
+  /* 遍历 arena 中所有表达式（标量读，勿 Expr 按值） */
   let ei: i32 = 1;
   while (ei <= arena.num_exprs && count + 5 <= out_cap) {
-    let e: Expr = ast.ast_arena_expr_get(arena, ei);
-    if (e.line <= 0 || e.col <= 0) { ei = ei + 1; continue; }
-    let line0: i32 = e.line - 1; /* 0-based */
-    let start0: i32 = e.col - 1;
-    let len: i32 = e.var_name_len;
+    let el: i32 = pipeline_expr_line_at(arena, ei);
+    let ec: i32 = pipeline_expr_col_at(arena, ei);
+    if (el <= 0 || ec <= 0) { ei = ei + 1; continue; }
+    let line0: i32 = el - 1; /* 0-based */
+    let start0: i32 = ec - 1;
+    let vlen: i32 = pipeline_expr_var_name_len(arena, ei);
+    let len: i32 = vlen;
     if (len <= 0) { len = 1; }
     let token_type: i32 = -1;
     let modifiers: i32 = 0;
-    
-    /* 根据 ExprKind 确定 token 类型 */
-    if (e.kind == ExprKind.EXPR_VAR) {
+    let ek: i32 = pipeline_expr_kind_ord_at(arena, ei);
+
+    if (ek == ord_var) {
       token_type = 8; /* variable */
-      if (e.resolved_type_ref != 0) {
+      if (pipeline_expr_resolved_type_ref(arena, ei) != 0) {
         modifiers = 4; /* readonly */
       }
     }
-    if (e.kind == ExprKind.EXPR_CALL || e.kind == ExprKind.EXPR_METHOD_CALL) {
+    if (ek == ord_call || ek == ord_method) {
       token_type = 12; /* function */
-      if (e.var_name_len > 0) { len = e.var_name_len; }
+      if (vlen > 0) { len = vlen; }
     }
-    if (e.kind == ExprKind.EXPR_STRUCT_LIT) {
+    if (ek == ord_struct_lit) {
       token_type = 5; /* struct */
-      if (e.struct_lit_struct_name_len > 0) { len = e.struct_lit_struct_name_len; }
+      let sn: i32 = pipeline_expr_struct_lit_type_name_len(arena, ei);
+      if (sn > 0) { len = sn; }
     }
-    if (e.kind == ExprKind.EXPR_ENUM_VARIANT) {
+    if (ek == ord_enum_var) {
       token_type = 3; /* enum */
-      if (e.var_name_len > 0) { len = e.var_name_len; }
+      if (vlen > 0) { len = vlen; }
     }
-    if (e.kind == ExprKind.EXPR_LIT) {
+    if (ek == ord_lit) {
       token_type = 19; /* number */
       len = 1;
     }
-    if (e.kind == ExprKind.EXPR_FLOAT_LIT) {
+    if (ek == ord_float) {
       token_type = 19; /* number */
       len = 1;
     }
-    if (e.kind == ExprKind.EXPR_FIELD_ACCESS) {
+    if (ek == ord_field) {
       token_type = 9; /* property */
-      if (e.field_access_field_len > 0) { len = e.field_access_field_len; }
+      let flen: i32 = pipeline_expr_field_access_name_len(arena, ei);
+      if (flen > 0) { len = flen; }
     }
-    if (e.kind == ExprKind.EXPR_AS) {
+    if (ek == ord_as) {
       token_type = 8; /* variable */
     }
-    
+
     if (token_type >= 0) {
       /* 计算 delta */
       let delta_line: i32 = line0 - prev_line;
