@@ -55,8 +55,10 @@ MODULES=(
   # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：stat/realpath _impl 在 mega rest
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_path_io.from_x.c 全 C 体
   "labi_path_io|src/runtime/labi_path_io.x|seeds/labi_path_io_surface.from_x.c||"
-  # labi_host_lit：L2 host #if 探测 thin 转发（#if body 在 mega rest _impl）；产品 PREFER_X_O；本条锁 nm / 扩 N
-  "labi_host_lit|src/runtime/labi_host_lit.x|seeds/labi_host_lit.from_x.c||"
+  # labi_host_lit R2 full：.x 吃满 2 公共门闩 + count；
+  # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：#if host _impl 在 mega rest
+  # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_host_lit.from_x.c 全 C 体
+  "labi_host_lit|src/runtime/labi_host_lit.x|seeds/labi_host_lit_surface.from_x.c||"
   # labi_diag_pure R2 full：.x 吃满 code_for_kind + 7 report 消息体 + count；
   # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：ld_debug_argv char** 在 mega rest
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_diag_pure.from_x.c 全 C 体
