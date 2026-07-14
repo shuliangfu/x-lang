@@ -216,6 +216,8 @@ struct ast_Func {
   int32_t is_no_mangle;
   int32_t is_interrupt;
   int32_t abi_kind; /**< ABI 标记：0=X ABI（默认），1=C ABI（extern "C"） */
+  int32_t is_variadic; /**< 与 ast.x Func 一致 */
+  int32_t is_export; /**< 与 ast.x Func / get_copy 0x84 布局一致 */
 };
 
 

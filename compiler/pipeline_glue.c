@@ -12849,7 +12849,7 @@ static int32_t glue_struct_layout_metrics_c(struct ast_Module *module, struct as
       flen = pipeline_module_struct_layout_field_name_len(module, li, j);
       fsize = glue_type_size_simple(module, arena, ftr, depth);
       if (fsize <= 0) {
-        if (driver_asm_build_skip_typeck() == 0)
+        if (driver_asm_build_skip_typeck() == 0 && check_pad != 0)
           driver_diagnostic_typeck_struct_field_bad_size(layout_nm, layout_nlen, field_nm, flen);
         return -1;
       }
@@ -12887,8 +12887,11 @@ static int32_t glue_struct_layout_metrics_c(struct ast_Module *module, struct as
     current = current + gap;
     fsize = glue_type_size_simple(module, arena, ftr, depth);
     if (fsize <= 0) {
-      /** build_shux_asm SKIP_TYPECK：layout 热路径勿刷屏（LexerResult 等已 parse-only merge dep 后仍偶发失败）。 */
-      if (driver_asm_build_skip_typeck() == 0)
+      /**
+       * check_pad!=0：zero-padding 校验路径报告。
+       * check_pad==0：size 查询静默失败（避免每个 Token 字面量刷百万行 → harness TIMEOUT）。
+       */
+      if (check_pad != 0 && driver_asm_build_skip_typeck() == 0)
         driver_diagnostic_typeck_struct_field_bad_size(layout_nm, layout_nlen, field_nm, flen);
       return -1;
     }
@@ -25894,20 +25897,29 @@ int32_t pipeline_typeck_check_expr_impl_c(struct ast_Module *module, struct ast_
     return typeck_check_expr_int_lit(arena, expr_ref, return_type_ref);
   if (kind == (int32_t)ast_ExprKind_EXPR_BOOL_LIT)
     return typeck_check_expr_bool_lit(arena, expr_ref);
-  /** STRING_LIT(kind 59)：有期望类型时沿用（assign/let 回填 *u8 等）；否则默认 u8[]。 */
+  /** STRING_LIT(kind 59)：仅当期望为 PTR/ARRAY/SLICE 时沿用（*u8 / u8[]）；勿吞 void 等函数返回类型。 */
   if (kind == GLUE_EXPR_STRING_LIT_ORD) {
     int32_t u8r;
     int32_t slice_u8;
+    int32_t exp_kind;
     extern int32_t typeck_ensure_u8_type_ref(struct ast_ASTArena *arena);
     extern int32_t typeck_find_or_alloc_slice_type_ref(struct ast_ASTArena *w, int32_t elem_ref);
     if (!ast_ref_is_null(return_type_ref) && return_type_ref > 0 && return_type_ref <= arena->num_types) {
-      pipeline_expr_set_resolved_type_ref(arena, expr_ref, return_type_ref);
-      return 0;
+      exp_kind = pipeline_type_kind_ord_at(arena, return_type_ref);
+      if (exp_kind == (int32_t)ast_TypeKind_TYPE_PTR || exp_kind == (int32_t)ast_TypeKind_TYPE_ARRAY
+          || exp_kind == (int32_t)ast_TypeKind_TYPE_SLICE) {
+        pipeline_expr_set_resolved_type_ref(arena, expr_ref, return_type_ref);
+        return 0;
+      }
     }
     u8r = typeck_ensure_u8_type_ref(arena);
     if (ast_ref_is_null(u8r))
       return -1;
-    slice_u8 = typeck_find_or_alloc_slice_type_ref(arena, u8r);
+    /* Default *u8 — see typeck_check_expr_string_lit comment in typeck_gen.c */
+    {
+      extern int32_t typeck_find_or_alloc_ptr_type_ref(struct ast_ASTArena *w, int32_t elem_ref);
+      slice_u8 = typeck_find_or_alloc_ptr_type_ref(arena, u8r);
+    }
     if (!ast_ref_is_null(slice_u8))
       pipeline_expr_set_resolved_type_ref(arena, expr_ref, slice_u8);
     return 0;

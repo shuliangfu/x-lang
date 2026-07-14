@@ -133,6 +133,8 @@ struct ast_Func {
   int32_t is_interrupt;
   int32_t abi_kind; /**< ABI 标记：0=X ABI（默认），1=C ABI（extern "C"） */
   int32_t is_variadic; /**< 变参：1=extern "C" function f(fmt: *u8, ...); 0=定参 */
+  /** 与 ast.x Func / pipeline_arena_func_get_copy 一致：缺此字段则 sizeof=0x80，get_copy 写 0x84 冲栈。 */
+  int32_t is_export;
 };
 
 /** 与 parser_gen parser_OneFuncResult 布局一致（wire/parse_one_function_impl ABI）。 */

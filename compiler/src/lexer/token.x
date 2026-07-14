@@ -193,8 +193,9 @@ export enum TokenKind {
 }
 
 // 单个 Token：类型 + 源码位置 + 字面量/标识符（.x 无
-// union，用独立字段）；allow(padding) 与 C 端布局兼容
-allow(padding) struct Token {
+// union，用独立字段）；allow(padding) 与 C 端布局兼容。
+// export：跨模块 layout 合并 / struct lit 依赖 E(M) 可见名。
+export allow(padding) struct Token {
   kind: TokenKind;
   line: i32;
   col: i32;

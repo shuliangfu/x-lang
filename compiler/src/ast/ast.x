@@ -111,7 +111,9 @@ export enum ExprKind {
   /** spawn async_fn()（非阻塞 submit；复用 unary_operand_ref） */
   EXPR_SPAWN,
   /** Result `?` 传播：operand 为 Result_*；codegen 降成 err 早退 + value unwrap。 */
-  EXPR_TRY_PROPAGATE
+  EXPR_TRY_PROPAGATE,
+  /** 字符串字面量 "..."；内容在 var_name/var_name_len（不含引号）；序 59，与 C AST_EXPR_STRING_LIT / GLUE_EXPR_STRING_LIT_ORD 一致 */
+  EXPR_STRING_LIT
 }
 
 /** 类型节点：kind + 具名类型名（NAMED 时）+ 元素类型下标（PTR/ARRAY/SLICE/VECTOR 时）+ 数组长度（ARRAY/VECTOR 时） */

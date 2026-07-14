@@ -2529,16 +2529,45 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
     }
     if (init_handled == 0) {
       if (r.tok.kind == TokenKind.TOKEN_STRING) {
-        /** `lexer_next_into` 已在 lex 上读出当前 TOKEN_STRING；对空串等场景，r.token_start/lex_at_token_from_result 会落到引号内部，须直接复用当前 lex 作为表达式起点。 */
-        let str_lex: Lexer = lex;
-        lex_from_result_ptr_into(&lex, &r);
-        parse_expr_result_reset(&expr_tmp, str_lex);
-        parse_expr_into(arena, str_lex, source, &expr_tmp);
-        if (!expr_tmp.ok) {
-          lex_out.pos = lex.pos; lex_out.line = lex.line; lex_out.col = lex.col; return false;
+        /**
+         * 【Why 根源】不可对 TOKEN_STRING 再 parse_expr_into：
+         * lexer 的 token_start 指向开引号**后**首字节；以 token_start 为起点重扫时
+         * 见不到 TOKEN_STRING，body let 失败 → 整函数 parse skip → 残体被顶层 let 误收
+         * （init_globals 泄漏、msg_cap 未声明等 diagnostic -E 故障）。
+         * 与 parse_primary / bool 初值相同：直接建 EXPR_STRING_LIT，内容从 token 拷入 var_name。
+         */
+        let str_ref: i32 = ast.ast_arena_expr_alloc(arena);
+        if (str_ref != 0) {
+          let se: Expr = ast.ast_arena_expr_get(arena, str_ref);
+          se.kind = ExprKind.EXPR_STRING_LIT;
+          se.resolved_type_ref = 0;
+          se.line = r.tok.line;
+          se.col = r.tok.col;
+          expr_set_common_zeros(&se);
+          let nlen: i32 = r.tok.ident_len;
+          if (nlen > 63) {
+            nlen = 63;
+          }
+          if (nlen < 0) {
+            nlen = 0;
+          }
+          se.var_name_len = nlen;
+          let q0: usize = r.token_start;
+          let k: i32 = 0;
+          while (k < nlen) {
+            if (q0 + (k as usize) < source.length) {
+              se.var_name[k] = source[q0 + (k as usize)];
+            }
+            k = k + 1;
+          }
+          while (k < 64) {
+            se.var_name[k] = 0;
+            k = k + 1;
+          }
+          ast.ast_arena_expr_set(arena, str_ref, se);
+          let_init_ref = str_ref;
         }
-        let_init_ref = expr_tmp.expr_ref;
-        lexer_copy_from_parse_expr_result_into(&lex, &expr_tmp);
+        lex_from_result_ptr_into(&lex, &r);
         lexer.lexer_next_into(&r, lex, source);
         parser_rewind_lex_for_following_stmt_into(&lex, lex, r);
         if (r.tok.kind == TokenKind.TOKEN_SEMICOLON) {

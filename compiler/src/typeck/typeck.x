@@ -991,9 +991,12 @@ check_pad: i32, out_sz: *i32, out_al: *i32): i32 {
       ftr = pipeline_module_struct_layout_field_type_ref(module, li, j);
       fsize = typeck_x_type_size(module, arena, ftr, depth);
       if (fsize <= 0) {
-        typeck_layout_field_name_into(module, li, j, field_nm);
-        flen = pipeline_module_struct_layout_field_name_len(module, li, j);
-        driver_diagnostic_typeck_struct_field_bad_size(layout_nm, layout_nlen, field_nm, flen);
+        /** size 查询（check_pad=0）静默；校验路径才诊断（避免百万行刷屏 TIMEOUT）。 */
+        if (check_pad != 0) {
+          typeck_layout_field_name_into(module, li, j, field_nm);
+          flen = pipeline_module_struct_layout_field_name_len(module, li, j);
+          driver_diagnostic_typeck_struct_field_bad_size(layout_nm, layout_nlen, field_nm, flen);
+        }
         return - 1;
       }
       current = current + fsize;
@@ -1026,7 +1029,9 @@ check_pad: i32, out_sz: *i32, out_al: *i32): i32 {
     current = current + gap;
     fsize = typeck_x_type_size(module, arena, ftr, depth);
     if (fsize <= 0) {
-      driver_diagnostic_typeck_struct_field_bad_size(layout_nm, layout_nlen, field_nm, flen);
+      if (check_pad != 0) {
+        driver_diagnostic_typeck_struct_field_bad_size(layout_nm, layout_nlen, field_nm, flen);
+      }
       return - 1;
     }
     current = current + fsize;
@@ -4092,16 +4097,17 @@ export function typeck_check_expr_bool_lit(arena: *ASTArena, expr_ref: i32): i32
   return 0;
 }
 
-/** STRING_LIT(kind 59)：当前统一视为 `u8[]`，供 let/init 与 fmt/debug 字节串重载使用。 */
+/** STRING_LIT(kind 59)：默认 `*u8`（C 字面量衰减；call 传 *u8 时 -E 出 (uint8_t[])）。
+ *  let/arg 有期望 PTR/ARRAY/SLICE 时由 typeck_gen 路径采用期望类型（见 typeck_gen.c）。 */
 export function typeck_check_expr_string_lit(arena: *ASTArena, expr_ref: i32): i32 {
   let u8r: i32 = ensure_u8_type_ref(arena);
-  let slice_u8: i32 = 0;
+  let ptr_u8: i32 = 0;
   if (ast.ref_is_null(u8r)) {
     return -1;
   }
-  slice_u8 = find_or_alloc_slice_type_ref(arena, u8r);
-  if (!ast.ref_is_null(slice_u8)) {
-    pipeline_expr_set_resolved_type_ref(arena, expr_ref, slice_u8);
+  ptr_u8 = find_or_alloc_ptr_type_ref(arena, u8r);
+  if (!ast.ref_is_null(ptr_u8)) {
+    pipeline_expr_set_resolved_type_ref(arena, expr_ref, ptr_u8);
   }
   return 0;
 }
@@ -4491,6 +4497,14 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     if (rhs_kind == ord_string_lit) {
       pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
       rt = lt;
+    }
+    /** Name.Variant（FIELD_ACCESS）作赋值 RHS：与 let 初值 coerce_init_enum_field 对齐。
+     *  否则 tok.kind = TokenKind.TOKEN_EOF 在 FIELD_ACCESS 未填 resolved 时报 found ?。 */
+    if (rhs_kind == ord_field) {
+      lt_kind = pipeline_type_kind_ord_at(arena, lt);
+      if (typeck_coerce_init_enum_field_to_decl(module, arena, right_ref, lt, lt_kind, rhs_kind) != 0) {
+        rt = expr_type_ref(arena, right_ref);
+      }
     }
   }
   if (ast.ref_is_null(lt) && !ast.ref_is_null(rt)) {

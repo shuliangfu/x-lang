@@ -85,7 +85,11 @@ typedef struct {
 } TypeAliasEntry;
 
 /** 顶层 enum 名槽；变体名在 parse 跳过 enum { A, B } 时登记，供 asm Color.Green 等发射 tag。 */
-#define MODULE_ENUM_MAX_VARIANTS 64
+/**
+ * TokenKind 等前端枚举已超过 64 变体（token.x 约 130+）。
+ * 截断会导致 TOKEN_LPAREN 等 tag 查找失败 → tok.kind = TokenKind.X 报 found ?。
+ */
+#define MODULE_ENUM_MAX_VARIANTS 256
 typedef struct {
   uint8_t name[64];
   int32_t name_len;
@@ -696,8 +700,10 @@ int32_t pipeline_arena_func_alloc(struct ast_ASTArena *a) {
   if (grow_vec_push(&sc->funcs) < 0)
     return 0;
   f = (struct ast_Func *)grow_vec_at(&sc->funcs, sc->funcs.len - 1);
-  if (f)
+  if (f) {
     memset(f, 0, sizeof(*f));
+    f->param_base = -1;
+  }
   a->num_funcs = sc->funcs.len;
   return a->num_funcs;
 }
@@ -875,14 +881,15 @@ static FuncParamEntry *module_func_param_entry(struct ast_Module *m, int32_t fi,
   if (!sc)
     return NULL;
   if (!create) {
-    if (pi >= f->num_params)
+    if (pi >= f->num_params || f->param_base < 0)
       return NULL;
     abs = f->param_base + pi;
     if (abs < 0 || abs >= sc->func_params.len)
       return NULL;
     return (FuncParamEntry *)grow_vec_at(&sc->func_params, abs);
   }
-  if (f->param_base == 0 && (f->num_params == 0 || pi == 0))
+  /** 与 struct_layout field_base 相同：-1=未挂接，0 是合法池起点。 */
+  if (f->param_base < 0)
     f->param_base = sc->func_params.len;
   abs = f->param_base + pi;
   while (sc->func_params.len <= abs) {
@@ -908,14 +915,14 @@ static FuncParamEntry *arena_func_param_entry(struct ast_ASTArena *a, int32_t fu
   if (!sc)
     return NULL;
   if (!create) {
-    if (pi >= f->num_params)
+    if (pi >= f->num_params || f->param_base < 0)
       return NULL;
     abs = f->param_base + pi;
     if (abs < 0 || abs >= sc->func_params.len)
       return NULL;
     return (FuncParamEntry *)grow_vec_at(&sc->func_params, abs);
   }
-  if (f->param_base == 0 && (f->num_params == 0 || pi == 0))
+  if (f->param_base < 0)
     f->param_base = sc->func_params.len;
   abs = f->param_base + pi;
   while (sc->func_params.len <= abs) {
@@ -927,7 +934,13 @@ static FuncParamEntry *arena_func_param_entry(struct ast_ASTArena *a, int32_t fu
   return (FuncParamEntry *)grow_vec_at(&sc->func_params, abs);
 }
 
-/** 读/写 struct_layout 字段 sidecar 槽；create=1 时按需 grow。 */
+/**
+ * 读/写 struct_layout 字段 sidecar 槽；create=1 时按需 grow。
+ *
+ * field_base 语义：-1 = 尚未分配字段池起点；>=0 = 在 struct_layout_fields 中的绝对下标。
+ * 禁止用 field_base==0 兼作「未初始化」——首个 layout 的合法 base 就是 0，
+ * 否则后续 layout 会误把 field_base 留在 0 上，读写落到 Lexer 等同池前缀（lexer TIMEOUT 根因）。
+ */
 static StructLayoutFieldEntry *module_layout_field_entry(struct ast_Module *m, int32_t li, int32_t j, int create) {
   ModuleSidecar *sc;
   struct ast_StructLayout *sl;
@@ -941,14 +954,14 @@ static StructLayoutFieldEntry *module_layout_field_entry(struct ast_Module *m, i
   if (!sc)
     return NULL;
   if (!create) {
-    if (j >= sl->num_fields)
+    if (j >= sl->num_fields || sl->field_base < 0)
       return NULL;
     abs = sl->field_base + j;
     if (abs < 0 || abs >= sc->struct_layout_fields.len)
       return NULL;
     return (StructLayoutFieldEntry *)grow_vec_at(&sc->struct_layout_fields, abs);
   }
-  if (sl->field_base == 0 && (sl->num_fields == 0 || j == 0))
+  if (sl->field_base < 0)
     sl->field_base = sc->struct_layout_fields.len;
   abs = sl->field_base + j;
   while (sc->struct_layout_fields.len <= abs) {
@@ -1106,8 +1119,10 @@ int32_t pipeline_module_func_alloc_slot(struct ast_Module *m) {
   if (idx < 0)
     return -1;
   f = (struct ast_Func *)grow_vec_at(&sc->funcs, idx);
-  if (f)
+  if (f) {
     memset(f, 0, sizeof(*f));
+    f->param_base = -1;
+  }
   if (grow_vec_push(&sc->func_refs) >= 0) {
     pr = (int32_t *)grow_vec_at(&sc->func_refs, idx);
     if (pr)
@@ -3181,20 +3196,26 @@ uint8_t pipeline_module_import_select_name_byte_at(struct ast_Module *m, int32_t
 int32_t pipeline_module_struct_layout_alloc(struct ast_Module *m) {
   ModuleSidecar *sc;
   int32_t idx;
+  struct ast_StructLayout *sl;
   if (!m || !(sc = module_sidecar_get(m, 1)))
     return -1;
   idx = grow_vec_push(&sc->struct_layouts);
   if (idx < 0)
     return -1;
-  memset(grow_vec_at(&sc->struct_layouts, idx), 0, sizeof(struct ast_StructLayout));
+  sl = (struct ast_StructLayout *)grow_vec_at(&sc->struct_layouts, idx);
+  memset(sl, 0, sizeof(struct ast_StructLayout));
+  /** 与 module_layout_field_entry 约定：-1 = 字段池未挂接（0 是合法 base）。 */
+  sl->field_base = -1;
   m->num_struct_layouts = sc->struct_layouts.len;
   return idx;
 }
 
 void pipeline_module_struct_layout_reset_slot(struct ast_Module *m, int32_t idx) {
   struct ast_StructLayout *sl = module_layout_at(m, idx);
-  if (sl)
-    memset(sl, 0, sizeof(*sl));
+  if (!sl)
+    return;
+  memset(sl, 0, sizeof(*sl));
+  sl->field_base = -1;
 }
 
 void pipeline_module_struct_layout_set_name(struct ast_Module *m, int32_t idx, uint8_t *bytes, int32_t len) {
@@ -4113,8 +4134,16 @@ int32_t pipeline_module_enum_append_variant(struct ast_Module *m, int32_t idx, u
   if (!sc || !bytes || len <= 0 || len > 64 || idx < 0 || idx >= sc->module_enums.len)
     return -1;
   me = (ModuleEnumEntry *)grow_vec_at(&sc->module_enums, idx);
-  if (!me || me->num_variants >= MODULE_ENUM_MAX_VARIANTS)
+  if (!me)
     return -1;
+  if (me->num_variants >= MODULE_ENUM_MAX_VARIANTS) {
+    /** 禁止静默截断：TokenKind 曾 >64 时只表现为 typeck found ?。 */
+    fprintf(stderr,
+            "shux: enum '%.*s' exceeds MODULE_ENUM_MAX_VARIANTS=%d (registered=%d, drop variant '%.*s')\n",
+            me->name_len > 0 ? me->name_len : 0, me->name_len > 0 ? (const char *)me->name : "?",
+            MODULE_ENUM_MAX_VARIANTS, me->num_variants, len, (const char *)bytes);
+    return -1;
+  }
   slot = me->num_variants;
   me->variant_name_len[slot] = len;
   memset(me->variant_name[slot], 0, 64);

@@ -314,7 +314,11 @@ typedef struct ASTStructDef {
     int is_sync;   /**< L6：#[sync] 可安全跨线程共享（设计决策标记） */
 } ASTStructDef;
 
-/** 单枚举最大变体数（与 parser 一致） */
+/**
+ * 单枚举最大变体数（legacy C ASTEnumDef 文档常量）。
+ * X 自举热路径用 ast_pool ModuleEnumEntry / MODULE_ENUM_MAX_VARIANTS（256），
+ * 本宏目前无数组定长引用；勿与 ModuleEnum 混为第二权威。TokenKind≈132。
+ */
 #define AST_ENUM_MAX_VARIANTS 32
 
 /** 枚举定义：名称与变体名列表（无负载枚举，文档 §7.4）；由 ast_module_free 释放。 */

@@ -982,7 +982,7 @@ export function skip_cfg_attr_if_present(lex: Lexer, data: u8[]): Lexer {
   if (data[l.pos + 5] != 40) {
     return l;
   }
-  p = l.pos + 6;
+  p = l.pos + (6 as usize);
   depth = 1;
   while (p < data.length && depth > 0) {
     if (data[p] == 40) {
@@ -990,12 +990,12 @@ export function skip_cfg_attr_if_present(lex: Lexer, data: u8[]): Lexer {
     } else if (data[p] == 41) {
       depth = depth - 1;
     }
-    p = p + 1;
+    p = p + (1 as usize);
   }
   if (p >= data.length || data[p] != 93) {
     return lex;
   }
-  p = p + 1;
+  p = p + (1 as usize);
   return Lexer { pos: p, line: l.line, col: l.col };
 }
 
@@ -1021,7 +1021,7 @@ export function lexer_try_cfg_attr_into(out: *LexerResult, l: Lexer, data: u8[])
   if (data[l.pos + 5] != 40) {
     return 0;
   }
-  p = l.pos + 6;
+  p = l.pos + (6 as usize);
   depth = 1;
   expr_start = p;
   while (p < data.length && depth > 0) {
@@ -1030,7 +1030,7 @@ export function lexer_try_cfg_attr_into(out: *LexerResult, l: Lexer, data: u8[])
     } else if (data[p] == 41) {
       depth = depth - 1;
     }
-    p = p + 1;
+    p = p + (1 as usize);
   }
   if (p >= data.length || data[p] != 93) {
     return 0;
@@ -1046,7 +1046,7 @@ export function lexer_try_cfg_attr_into(out: *LexerResult, l: Lexer, data: u8[])
     ti = ti + 1;
   }
   let enabled: i32 = cfg_eval_expr_c(&tmp[0], expr_len);
-  p = p + 1;
+  p = p + (1 as usize);
   let l2: Lexer = Lexer { pos: p, line: l.line, col: l.col };
   let tok: Token = Token {
     kind: TokenKind.TOKEN_ATTR_CFG,
@@ -1084,7 +1084,7 @@ export function lexer_try_repr_c_attr_into(out: *LexerResult, l: Lexer, data: u8
   }
   let line0: i32 = l.line;
   let col0: i32 = l.col;
-  let np: usize = l.pos + 10;
+  let np: usize = l.pos + (10 as usize);
   let l2: Lexer = Lexer { pos: np, line: line0, col: col0 };
   let tok: Token = Token {
     kind: TokenKind.TOKEN_ATTR_REPR_C,
@@ -1129,7 +1129,7 @@ export function lexer_try_repr_compatible_attr_into(out: *LexerResult, l: Lexer,
   }
   let line0: i32 = l.line;
   let col0: i32 = l.col;
-  let np: usize = l.pos + 19;
+  let np: usize = l.pos + (19 as usize);
   let l2: Lexer = Lexer { pos: np, line: line0, col: col0 };
   let tok: Token = Token {
     kind: TokenKind.TOKEN_ATTR_REPR_COMPATIBLE,
@@ -1490,7 +1490,9 @@ export function lexer_next(lex: Lexer, data: u8[]): LexerResult {
   if (lexer_try_sync_attr_into(&attr_out, l, data) != 0) {
     return attr_out;
   }
-  return lexer_next_body(l, data);
+  /** 用 _into 避免对后置定义的 lexer_next_body 做 return 类型前向解析（found ?）。 */
+  lexer_next_body_into(&attr_out, l, data);
+  return attr_out;
 }
 
 /**
@@ -1581,7 +1583,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
   if (c == 34) {
     let line0: i32 = l.line;
     let col0: i32 = l.col;
-    let start: usize = l.pos + 1;
+    let start: usize = l.pos + (1 as usize);
     l = advance_one(l, 34);
     while (l.pos < data.length && data[l.pos] != 34) {
       if (data[l.pos] == 92 && l.pos + 1 < data.length) {
