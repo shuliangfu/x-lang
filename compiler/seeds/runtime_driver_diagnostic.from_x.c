@@ -1,13 +1,12 @@
-/* G-02f-339～341 / R2 thin + Cap residual pure 深迁（续 getenv truthy）：
+/* G-02f-339～341 / R2 thin + Cap residual pure 深迁（续 report_prefixed/pipe_note）：
  * PREFER hybrid thin 由 src/runtime_driver_diagnostic_thin.x→-E；
  * rest SHUX_L2_RDD_THIN_FROM_X：无 thin 公共体；pure-dup 固定措辞/pipe orch/拼装/
- * env_debug_pipe/parse_strict_enabled 剔除；
- * 仅 slice_marker + Cap residual（snprintf/va_list/debug_log/pipe_note/report_prefixed）体。
+ * env_debug_pipe/parse_strict_enabled/report_prefixed/pipe_note 剔除；
+ * 仅 slice_marker + Cap residual（snprintf/va_list/debug_log/scratch）体。
  * Generated from (G-02f-86/96 +copy/report_prefixed) src/runtime_driver_diagnostic.x (G-02f-180 P0-4 audit + va_list lock; G-02f-179 asm notes true .x; G-02f-178 padding true .x; G-02f-177 generic call true .x; G-02f-176 mismatch true .x; G-02f-175 return_unresolved/subexpr true .x; G-02f-30/31/73 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_driver_diagnostic.x > /tmp/rdd.c
  *         merge fixed-msg wrappers; polish slice strings; keep snprintf C.
- * .x covers: fixed typeck msgs (f-30/31) + remaining diags gated f-73
- * .x covers: fixed typeck msgs, fail, no-ops, parse_strict pure (f-30/31 + getenv 深迁).
+ * .x covers: fixed typeck msgs, fail, no-ops, parse_strict pure + report_prefixed/pipe_note pure.
  */
 #include "runtime_driver_diagnostic.h"
 #include "runtime_driver_abi.h"
@@ -15,8 +14,8 @@
 #include "lsp/lsp_diag.h"
 #include "diag.h"
 #ifdef SHUX_L2_RDD_THIN_FROM_X
-/* pure 在 thin：copy_bytes/note/fill/build/env_debug_pipe/parse_strict — rest 勿 #define 到已剔除的 _impl */
-#define driver_diag_report_prefixed driver_diag_report_prefixed_impl
+/* pure 在 thin：copy_bytes/note/fill/build/env_debug_pipe/parse_strict/report_prefixed/pipe_note
+ * — rest 勿 #define 到已剔除的 _impl；scratch 仍 residual */
 #define driver_typeck_diag_scratch_expect driver_typeck_diag_scratch_expect_impl
 #define driver_typeck_diag_scratch_found driver_typeck_diag_scratch_found_impl
 /* thin 提供 pure public：供 rest residual 调用 */
@@ -24,6 +23,8 @@ int driver_diag_env_debug_pipe(void);
 int32_t driver_parse_strict_enabled(void);
 int driver_diag_copy_bytes(char *dst, size_t dst_size, const uint8_t *src, int32_t src_len);
 void driver_diag_note(const char *msg);
+void driver_diag_report_prefixed(int32_t line, int32_t col, const char *msg);
+void driver_diag_pipe_note(int32_t kind, int32_t a, int32_t b);
 void driver_diag_fill_expr_part(char *dst, int32_t cap, const uint8_t *expr_buf, int32_t expr_len);
 void driver_diag_build_expected_found(char *msg, int32_t msg_cap, const char *pref, const char *epart, const char *fpart);
 #endif
@@ -145,12 +146,9 @@ int lsp_diag_get_enabled(void) {
 }
 #endif
 
-/* G-02f-163：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* pure 权威：thin.x driver_diag_report_prefixed；冷启动保留全 C 体；FROM_X 无 pure-dup _impl（H↓）。 */
 #ifndef SHUX_L2_RDD_THIN_FROM_X
 void driver_diag_report_prefixed(int32_t line, int32_t col, const char *msg)
-#else
-void driver_diag_report_prefixed_impl(int32_t line, int32_t col, const char *msg)
-#endif
 {
     if (lsp_diag_enabled) {
         lsp_diag_add(line > 0 ? (int)line : 1, col > 0 ? (int)col : 1, 1, msg ? msg : "");
@@ -160,6 +158,7 @@ void driver_diag_report_prefixed_impl(int32_t line, int32_t col, const char *msg
         driver_check_diag_emitted_note();
     diag_report(NULL, (int)line, (int)col, NULL, msg ? msg : "", msg ? msg : "");
 }
+#endif
 
 
 void driver_diag_report_x_pipeline_code_impl(const char *code, const char *fmt, va_list ap) {
@@ -926,8 +925,10 @@ int driver_diag_env_debug_pipe(void) {
     return driver_diag_env_debug_pipe_impl();
 }
 #endif
-/** reportf 冷路径（va_list 限制，kind：0=before_codegen 1=source_len 2=after_entry 3=pipe_marker）。 */
-/* G-02f-409：实现体始终 seed；public PREFER 时 thin pure forward */
+/** pure 权威：thin.x driver_diag_pipe_note（append+note，无 va_list）；
+ * 冷启动保留 reportf 体；FROM_X 无 pure-dup _impl（H↓）。
+ * kind：0=before_codegen 1=source_len 2=after_entry 3=pipe_marker。 */
+#ifndef SHUX_L2_RDD_THIN_FROM_X
 void driver_diag_pipe_note_impl(int32_t kind, int32_t a, int32_t b) {
     if (kind == 0)
         diag_reportf(NULL, 0, 0, "note", NULL,
@@ -942,7 +943,6 @@ void driver_diag_pipe_note_impl(int32_t kind, int32_t a, int32_t b) {
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "pipeline debug: pipe_marker=%d", (int)a);
 }
-#ifndef SHUX_L2_RDD_THIN_FROM_X
 void driver_diag_pipe_note(int32_t kind, int32_t a, int32_t b) {
     driver_diag_pipe_note_impl(kind, a, b);
 }
@@ -954,7 +954,7 @@ void driver_diag_pipe_note(int32_t kind, int32_t a, int32_t b) {
 void driver_diagnostic_before_codegen(int32_t num_funcs, int32_t out_len)
 {
     if (driver_diag_env_debug_pipe())
-        driver_diag_pipe_note_impl(0, num_funcs, out_len);
+        driver_diag_pipe_note(0, num_funcs, out_len);
 }
 #endif
 
@@ -974,7 +974,7 @@ void driver_diagnostic_entry_already(int32_t v) {
 void driver_diagnostic_source_len(int32_t len)
 {
     if (driver_diag_env_debug_pipe())
-        driver_diag_pipe_note_impl(1, len, 0);
+        driver_diag_pipe_note(1, len, 0);
 }
 #endif
 
@@ -987,7 +987,7 @@ void driver_diagnostic_source_len(int32_t len)
 void driver_diagnostic_after_entry_parse(int32_t num_funcs)
 {
     if (driver_diag_env_debug_pipe())
-        driver_diag_pipe_note_impl(2, num_funcs, 0);
+        driver_diag_pipe_note(2, num_funcs, 0);
 }
 #endif
 
@@ -1169,7 +1169,7 @@ void driver_diagnostic_after_entry_parse_module_impl(void *module)
 void driver_diagnostic_pipe_marker(int32_t id)
 {
     if (driver_diag_env_debug_pipe())
-        driver_diag_pipe_note_impl(3, id, 0);
+        driver_diag_pipe_note(3, id, 0);
 }
 #endif
 

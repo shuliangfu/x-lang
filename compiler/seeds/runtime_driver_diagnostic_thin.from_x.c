@@ -1,10 +1,6 @@
 /* seeds/runtime_driver_diagnostic_thin.from_x.c
- * G-02f diagnostic R2 thin + Cap residual pure 深迁 surface — isomorphic with thin.x
- * Product PREFER_X_O: g05_try_x_to_o(thin.x) + full seed rest (-DSHUX_L2_RDD_THIN_FROM_X) ld -r
- * Prove: thin.x vs this seed → nm IDENTICAL
- * pure 真体：固定措辞 typeck + pipe orch + 拼装 pure + env_debug_pipe/parse_strict getenv truthy
- * Cap residual: snprintf/va_list/debug_log/pipe_note/report_prefixed _impl 在 rest
- * Regen: ./shux -E ... thin.x | filter DBG + g05 prologue polish
+ * G-02f diagnostic R2 thin seed (cold / fallback); isomorphic polish of thin.x -E
+ * pure: report_prefixed + pipe_note + getenv + 拼装/固定措辞
  */
 /* g05_try_x_to_o prologue (G-02f-332/334) */
 #include <stddef.h>
@@ -53,7 +49,6 @@ extern void driver_diagnostic_typeck_fail(void);
 extern void driver_diagnostic_asm_last_expr_kind_set(int32_t k);
 extern void driver_diagnostic_asm_current_func_store(uint8_t * name, int32_t len);
 extern void driver_diagnostic_asm_current_func_maybe_trace(void);
-extern void driver_diag_pipe_note(int32_t kind, int32_t a, int32_t b);
 extern void driver_diagnostic_asm_set_last_expr_kind(int32_t k);
 extern void driver_diagnostic_asm_set_current_func(uint8_t * name, int32_t len);
 extern int32_t driver_diag_append_cstr(uint8_t * dst, int32_t cap, int32_t at, uint8_t * src);
@@ -77,8 +72,9 @@ extern void driver_diagnostic_typeck_try_propagate_bad_enclosing(int32_t line, i
 extern void driver_diagnostic_typeck_break_continue_outside(int32_t line, int32_t col, int32_t is_break);
 extern int32_t parser_is_ident_allow(uint8_t * ident, int32_t len);
 extern int32_t driver_parse_strict_enabled(void);
-extern void driver_diag_report_prefixed(int32_t line, int32_t col, uint8_t * msg);
 extern void driver_diag_note(uint8_t * msg);
+extern void driver_diag_report_prefixed(int32_t line, int32_t col, uint8_t * msg);
+extern void driver_diag_pipe_note(int32_t kind, int32_t a, int32_t b);
 extern uint8_t * driver_typeck_diag_scratch_expect(void);
 extern uint8_t * driver_typeck_diag_scratch_found(void);
 extern void driver_diag_fill_expr_part(uint8_t * dst, int32_t cap, uint8_t * expr_buf, int32_t expr_len);
@@ -343,7 +339,6 @@ extern int32_t driver_check_diag_emitted_get(void);
 extern void driver_diagnostic_asm_last_expr_kind_set_impl(int32_t k);
 extern void driver_diagnostic_asm_current_func_store_impl(uint8_t * name, int32_t len);
 extern void driver_diagnostic_asm_current_func_maybe_trace_impl(void);
-extern void driver_diag_pipe_note_impl(int32_t kind, int32_t a, int32_t b);
 void driver_diagnostic_entry_already(int32_t v) {
   (void)(0);
 }
@@ -375,13 +370,6 @@ void driver_diagnostic_asm_current_func_store(uint8_t * name, int32_t len) {
 void driver_diagnostic_asm_current_func_maybe_trace(void) {
   {
     (void)(driver_diagnostic_asm_current_func_maybe_trace_impl());
-  }
-  (void)(0);
-  return;
-}
-void driver_diag_pipe_note(int32_t kind, int32_t a, int32_t b) {
-  {
-    (void)(driver_diag_pipe_note_impl(kind, a, b));
   }
   (void)(0);
   return;
@@ -700,19 +688,13 @@ int32_t parser_is_ident_allow(uint8_t * ident, int32_t len) {
   }
   return 0;
 }
-extern void driver_diag_report_prefixed_impl(int32_t line, int32_t col, uint8_t * msg);
 extern void diag_report(uint8_t * file, int32_t line, int32_t col, uint8_t * kind, uint8_t * msg, uint8_t * detail);
+extern void lsp_diag_add(int32_t line, int32_t col, int32_t severity, uint8_t * msg);
+extern void driver_check_diag_emitted_note(void);
 extern uint8_t * driver_typeck_diag_scratch_expect_impl(void);
 extern uint8_t * driver_typeck_diag_scratch_found_impl(void);
 int32_t driver_parse_strict_enabled(void) {
   return driver_env_flag_truthy((uint8_t[]){83, 72, 85, 88, 95, 80, 65, 82, 83, 69, 95, 83, 84, 82, 73, 67, 84, 0 });
-}
-void driver_diag_report_prefixed(int32_t line, int32_t col, uint8_t * msg) {
-  {
-    (void)(driver_diag_report_prefixed_impl(line, col, msg));
-  }
-  (void)(0);
-  return;
 }
 void driver_diag_note(uint8_t * msg) {
   {
@@ -721,6 +703,67 @@ void driver_diag_note(uint8_t * msg) {
       (void)((m = (uint8_t[]){0 }));
     }
     (void)(diag_report(((uint8_t *)(0)), 0, 0, (uint8_t[]){110, 111, 116, 101, 0 }, m, ((uint8_t *)(0))));
+  }
+  (void)(0);
+  return;
+}
+void driver_diag_report_prefixed(int32_t line, int32_t col, uint8_t * msg) {
+  {
+    uint8_t * m2 = msg;
+    if ((lsp_diag_get_enabled() !=0)) {
+      int32_t ln = line;
+      int32_t cl = col;
+      if ((ln <=0)) {
+        (void)((ln = 1));
+      }
+      if ((cl <=0)) {
+        (void)((cl = 1));
+      }
+      uint8_t * m = msg;
+      if ((m ==((uint8_t *)(0)))) {
+        (void)((m = (uint8_t[]){0 }));
+      }
+      (void)(lsp_diag_add(ln, cl, 1, m));
+      return;
+    }
+    if ((driver_check_only_get() !=0)) {
+      (void)(driver_check_diag_emitted_note());
+    }
+    if ((m2 ==((uint8_t *)(0)))) {
+      (void)((m2 = (uint8_t[]){0 }));
+    }
+    (void)(diag_report(((uint8_t *)(0)), line, col, ((uint8_t *)(0)), m2, m2));
+  }
+  (void)(0);
+  return;
+}
+void driver_diag_pipe_note(int32_t kind, int32_t a, int32_t b) {
+  uint8_t msg[128] = {};
+  if ((kind ==0)) {
+    int32_t at = driver_diag_append_cstr(&((msg)[0]), 128, 0, (uint8_t[]){112, 105, 112, 101, 108, 105, 110, 101, 32, 100, 101, 98, 117, 103, 58, 32, 98, 101, 102, 111, 114, 101, 95, 99, 111, 100, 101, 103, 101, 110, 32, 110, 117, 109, 95, 102, 117, 110, 99, 115, 61, 0 });
+    (void)((at = driver_diag_append_i32(&((msg)[0]), 128, at, a)));
+    (void)((at = driver_diag_append_cstr(&((msg)[0]), 128, at, (uint8_t[]){32, 111, 117, 116, 95, 108, 101, 110, 61, 0 })));
+    (void)((at = driver_diag_append_i32(&((msg)[0]), 128, at, b)));
+    (void)(driver_diag_note(&((msg)[0])));
+    return;
+  }
+  if ((kind ==1)) {
+    int32_t at1 = driver_diag_append_cstr(&((msg)[0]), 128, 0, (uint8_t[]){112, 105, 112, 101, 108, 105, 110, 101, 32, 100, 101, 98, 117, 103, 58, 32, 101, 110, 116, 114, 121, 95, 115, 111, 117, 114, 99, 101, 95, 108, 101, 110, 61, 0 });
+    (void)((at1 = driver_diag_append_i32(&((msg)[0]), 128, at1, a)));
+    (void)(driver_diag_note(&((msg)[0])));
+    return;
+  }
+  if ((kind ==2)) {
+    int32_t at2 = driver_diag_append_cstr(&((msg)[0]), 128, 0, (uint8_t[]){112, 105, 112, 101, 108, 105, 110, 101, 32, 100, 101, 98, 117, 103, 58, 32, 97, 102, 116, 101, 114, 95, 101, 110, 116, 114, 121, 95, 112, 97, 114, 115, 101, 32, 110, 117, 109, 95, 102, 117, 110, 99, 115, 61, 0 });
+    (void)((at2 = driver_diag_append_i32(&((msg)[0]), 128, at2, a)));
+    (void)(driver_diag_note(&((msg)[0])));
+    return;
+  }
+  if ((kind ==3)) {
+    int32_t at3 = driver_diag_append_cstr(&((msg)[0]), 128, 0, (uint8_t[]){112, 105, 112, 101, 108, 105, 110, 101, 32, 100, 101, 98, 117, 103, 58, 32, 112, 105, 112, 101, 95, 109, 97, 114, 107, 101, 114, 61, 0 });
+    (void)((at3 = driver_diag_append_i32(&((msg)[0]), 128, at3, a)));
+    (void)(driver_diag_note(&((msg)[0])));
+    return;
   }
   (void)(0);
   return;
