@@ -3,7 +3,8 @@
 //
 // G-02f-9：backend_call_dispatch 产品源迁 seeds/backend_call_dispatch.from_x.c。
 // G-02f-184：f32 xmm 标志三件套真迁；残余扫描见优先级表 §4.5。
-// 产品：cc seeds/backend_call_dispatch.from_x.c → src/asm/backend_call_dispatch.o
+// R2 full（2026-07-14）：产品 PREFER_X_O → 本文件 -E→.o + rest（SHUX_BACKEND_CALL_DISPATCH_FROM_X 仅 marker）
+// 冷启动：seeds/backend_call_dispatch.from_x.c 全 C；L2 thin 仅 g05 回退
 
 export function backend_call_dispatch_x_doc_anchor(): i32 {
   return 0;
@@ -45,8 +46,13 @@ export function pipeline_asm_emit_get_call_f32_xmm_c(): i32 {
 
 // G-02f-108：+ string_lit / f32 param / reg_max / import_sym 薄门闩。
 // G-02f-139：string_lit_into / import_path_to_c_prefix 真迁 .x
+// R2 full：pipeline_expr/type_kind 等 extern 须在首次使用前声明，否则 -E 不发原型 → cc 隐式声明失败
 
 export extern "C" function pipeline_expr_var_name_into(arena: *u8, er: i32, out: *u8): void;
+export extern "C" function pipeline_expr_kind_ord_at(arena: *u8, er: i32): i32;
+export extern "C" function pipeline_expr_var_name_len_for_string_lit_c(arena: *u8, er: i32): i32;
+export extern "C" function pipeline_asm_call_param_type_ref_at_c(arena: *u8, call: i32, pix: i32): i32;
+export extern "C" function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
 
 /* ---- G-02f-108 / G-02f-139：backend call dispatch helpers ---- */
 
@@ -1546,8 +1552,7 @@ export function glue_asm_prefix_is_fmt_or_debug(pre: *u8, pre_len: i32): i32 {
 }
 
 // G-02f-120：call_dispatch pure helpers 真迁 .x
-
-export extern "C" function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
+// pipeline_type_kind_ord_at：见文件头 R2 full 前置 extern
 
 #[no_mangle]
 export function glue_call_param_is_f32_c(arena: *u8, tr: i32): i32 {
@@ -1727,10 +1732,7 @@ export function glue_sysv_x86_call_n_stack_c(arena: *u8, call: i32, nargs: i32):
 }
 
 // G-02f-122：call_dispatch pure helpers 真迁 .x
-
-export extern "C" function pipeline_expr_kind_ord_at(arena: *u8, er: i32): i32;
-export extern "C" function pipeline_expr_var_name_len_for_string_lit_c(arena: *u8, er: i32): i32;
-export extern "C" function pipeline_asm_call_param_type_ref_at_c(arena: *u8, call: i32, pix: i32): i32;
+// pipeline_expr_kind_ord_at / var_name_len_for_string_lit / call_param_type_ref：见文件头 R2 full 前置 extern
 
 #[no_mangle]
 export function glue_asm_string_lit_len(arena: *u8, er: i32): i32 {

@@ -115,9 +115,10 @@ MODULES=(
   # rest FROM_X 仅 *_impl Cap residual + slice_marker；
   # prove 锁 thin surface IDENTICAL；冷/无 PREFER 仍可走 seeds/backend_try_inline_dispatch.from_x.c 全 C 体
   "backend_try_inline_dispatch|src/asm/backend_try_inline_dispatch_thin.x|seeds/backend_try_inline_dispatch_thin_surface.from_x.c||"
-  # backend_call_dispatch L2 thin 公共面：与产品 PREFER_X_O 同源（thin.x + full seed rest）；prove 锁 thin 面 IDENTICAL
-  # full seed rest 仍持 CALL / heavy C 尾；产品 o 名 backend_call_dispatch.o
-  "backend_call_dispatch|src/asm/backend_call_dispatch_thin.x|seeds/backend_call_dispatch_thin.from_x.c||"
+  # backend_call_dispatch R2 full：.x 吃满 CALL/emit/import 公共业务；
+  # 产品 rest 在 FROM_X 下业务 H=0（仅 slice_marker）；冷/无 PREFER 仍可走 seeds/backend_call_dispatch.from_x.c 全 C 体
+  # prove 锁 full surface IDENTICAL；L2 thin seed 仅作 g05 full.x 失败回退
+  "backend_call_dispatch|src/asm/backend_call_dispatch.x|seeds/backend_call_dispatch_surface.from_x.c||"
   # rt_dispatch R2 full：.x 吃满 asm/emit 薄门闩 + run_compiler_full + sibling；
   # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：sibling spawn 在 driver_abi
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/rt_dispatch_thin.from_x.c 全 C 体

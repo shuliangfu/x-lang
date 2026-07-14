@@ -1739,16 +1739,35 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       fi
     fi
   fi
-  # G-02f-9 / G-02f-364：backend_call_dispatch.o
-  # 默认整 seed；PREFER 时 thin pure 门闩 + rest ld -r
+  # G-02f-9 / R2 full：backend_call_dispatch.o
+  # PREFER：full.x 真迁业务 + rest (-DSHUX_BACKEND_CALL_DISPATCH_FROM_X，仅 marker) ld -r
+  # full.x 失败时回退 L2 thin hybrid；再失败整 seed 冷路径
   _bcd=seeds/backend_call_dispatch.from_x.c
+  _bcd_x=src/asm/backend_call_dispatch.x
   _bcd_thin_x=src/asm/backend_call_dispatch_thin.x
   _bcd_o=src/asm/backend_call_dispatch.o
   if [ -f "$_bcd" ]; then
     if [ ! -f "$_bcd_o" ] || [ "$_bcd" -nt "$_bcd_o" ] \
+      || { [ -f "$_bcd_x" ] && [ "$_bcd_x" -nt "$_bcd_o" ]; } \
       || { [ -f "$_bcd_thin_x" ] && [ "$_bcd_thin_x" -nt "$_bcd_o" ]; }; then
       _bcd_done=0
-      if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_bcd_thin_x" ]; then
+      if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_bcd_x" ]; then
+        _bcd_x_o=$(mktemp "${TMPDIR:-/tmp}/g05_bcd_x.XXXXXX") || true
+        _bcd_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_bcd_rest.XXXXXX") || true
+        # shellcheck disable=SC2086
+        if [ -n "$_bcd_x_o" ] && [ -n "$_bcd_rest_o" ] \
+          && g05_try_x_to_o "$_bcd_x" "$_bcd_x_o" \
+          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_BACKEND_CALL_DISPATCH_FROM_X \
+               -c -o "$_bcd_rest_o" "$_bcd" \
+          && $CC -r -nostdlib -o "$_bcd_o" "$_bcd_x_o" "$_bcd_rest_o" 2>/dev/null; then
+          echo "g05_ensure: $_bcd_o ← $_bcd_x + rest marker (R2 full call_dispatch H=0)"
+          _bcd_done=1
+        else
+          echo "g05_ensure: R2 full call_dispatch failed; try L2 thin hybrid" >&2
+        fi
+        rm -f "$_bcd_x_o" "$_bcd_rest_o"
+      fi
+      if [ "$_bcd_done" = "0" ] && [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_bcd_thin_x" ]; then
         _bcd_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_bcd_thin.XXXXXX") || true
         _bcd_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_bcd_rest.XXXXXX") || true
         # shellcheck disable=SC2086
@@ -1757,7 +1776,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_L2_CALL_DISPATCH_THIN_FROM_X \
                -c -o "$_bcd_rest_o" "$_bcd" \
           && $CC -r -nostdlib -o "$_bcd_o" "$_bcd_thin_o" "$_bcd_rest_o" 2>/dev/null; then
-          echo "g05_ensure: $_bcd_o ← $_bcd_thin_x + seed-rest (G-02f-364/381 L2 hybrid call_dispatch thin)"
+          echo "g05_ensure: $_bcd_o ← $_bcd_thin_x + seed-rest (L2 hybrid call_dispatch thin fallback)"
           _bcd_done=1
         else
           echo "g05_ensure: L2 hybrid call_dispatch thin failed; fallback full seed" >&2
@@ -1765,7 +1784,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         rm -f "$_bcd_thin_o" "$_bcd_rest_o"
       fi
       if [ "$_bcd_done" = "0" ]; then
-        echo "g05_ensure: backend_call_dispatch.o ← backend_call_dispatch.from_x (G-02f-9)"
+        echo "g05_ensure: backend_call_dispatch.o ← backend_call_dispatch.from_x (cold seed)"
         # shellcheck disable=SC2086
         $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_bcd_o" "$_bcd"
       fi
