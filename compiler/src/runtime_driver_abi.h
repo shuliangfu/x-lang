@@ -76,6 +76,25 @@ void driver_run_on_large_stack_pthread(void *(*fn)(void *), void *arg);
 void driver_run_stack_esc_gate_on_large_stack(void *arg);
 
 /**
+ * Cap residual：opaque FILE* 给 .x（rt_entry R2 等 diag_print_*）。
+ * .x 无 FILE 类型；stdout/stderr 仅平台层可取。
+ */
+void *driver_stdio_stdout(void);
+void *driver_stdio_stderr(void);
+
+/**
+ * Cap residual：rt_entry R2 扫描/消息缓冲与 fmt argv。
+ * .x 勿用局部 u8[N]（-E 会抬 init_globals / 丢函数）。
+ */
+uint8_t *driver_entry_ab_slot(void);
+uint8_t *driver_entry_code_slot(void);
+uint8_t *driver_entry_suggest_slot(void);
+uint8_t *driver_entry_msg_slot(void);
+uint8_t *driver_entry_tmp_slot(void);
+uint8_t *driver_entry_tmp2_slot(void);
+char **driver_entry_fmt_argv_slot(void);
+
+/**
  * Cap-global-bss residual：rt_emit_state R2 经槽写共享 emit 状态。
  * .x export let 会变 static，不能跨 TU 导出 path_buf / lib_roots；数据在 rest seed。
  * 绑定类 API 避免 .x 侧 **u8 写指针（-E 会丢函数体）。

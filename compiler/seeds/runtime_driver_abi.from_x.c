@@ -1411,6 +1411,58 @@ void driver_run_stack_esc_gate_on_large_stack(void *arg) {
 }
 
 /**
+ * Cap residual：opaque FILE* 供 rt_entry R2 full .x 的 diag_print_*。
+ * 始终提供（不随 RDABI thin 宏剥离）。
+ */
+void *driver_stdio_stdout(void) {
+    return (void *)stdout;
+}
+
+void *driver_stdio_stderr(void) {
+    return (void *)stderr;
+}
+
+/**
+ * Cap residual：rt_entry R2 缓冲槽 + fmt argv。
+ * .x 禁局部 u8[N]（-E 抬 init_globals / 丢函数）。
+ */
+static char driver_entry_ab[256];
+static char driver_entry_code_buf[256];
+static char driver_entry_suggest[16];
+static char driver_entry_msg[256];
+static char driver_entry_tmp[16];
+static char driver_entry_tmp2[16];
+static char *driver_entry_fmt_argv[2] = {"shux", "fmt"};
+
+uint8_t *driver_entry_ab_slot(void) {
+    return (uint8_t *)driver_entry_ab;
+}
+
+uint8_t *driver_entry_code_slot(void) {
+    return (uint8_t *)driver_entry_code_buf;
+}
+
+uint8_t *driver_entry_suggest_slot(void) {
+    return (uint8_t *)driver_entry_suggest;
+}
+
+uint8_t *driver_entry_msg_slot(void) {
+    return (uint8_t *)driver_entry_msg;
+}
+
+uint8_t *driver_entry_tmp_slot(void) {
+    return (uint8_t *)driver_entry_tmp;
+}
+
+uint8_t *driver_entry_tmp2_slot(void) {
+    return (uint8_t *)driver_entry_tmp2;
+}
+
+char **driver_entry_fmt_argv_slot(void) {
+    return driver_entry_fmt_argv;
+}
+
+/**
  * Cap-global-bss residual：rt_emit_state R2 full .x 写共享 emit 槽。
  * 数据定义在 seeds/rt_emit_state.from_x.c（跨 TU 非 static）；本层暴露槽/绑定。
  * 始终提供（不随 RDABI thin 宏剥离）。避免 .x 侧 **u8 赋值（-E 会丢函数）。

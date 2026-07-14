@@ -2,9 +2,11 @@
  * Logic source: src/runtime/rt_entry.x
  * Hybrid: SHUX_RT_ENTRY_FROM_X + ld -r into runtime_driver_no_c.o
  *
- * f-301: explain CLI / smoke summary / fmt no-files thin gate
- * f-310: run_compiler_c 薄转调 + driver_build_build_x（system 🔒）
- * main_entry (!X_DRIVER) and full run_compiler orchestration remain mega.
+ * R2（2026-07-14）：6 公共符号（explain_cli / smoke_diag / smoke_summary /
+ *   fmt_report_no_files / run_compiler_c / build_build_x）均由 .x 提供；
+ * FROM_X 下本文件仅前向声明 + marker（产品 rest 业务 H=0）。
+ * Cap residual：driver_stdio_{stdout,stderr} 在 driver_abi。
+ * 冷启动/无 PREFER 时仍编译完整 C 体。
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -30,19 +32,7 @@ extern int driver_run_fmt(int argc, char **argv);
 extern int main_run_compiler_c(int argc, uint8_t *argv);
 extern int system(const char *command);
 
-/* G-02f-456：thin+rest PREFER_X_O
- *   thin .x provides 2 #[no_mangle] wrappers (call *_impl in rest).
- *   rest seed C (compiled with -DSHUX_RT_ENTRY_FROM_X):
- *     - shux_smoke_diag_enabled renamed to *_impl via macro.
- *     - driver_build_build_x renamed to *_impl via macro.
- *   Other functions stay in rest:
- *     - run_compiler_c uses char **argv (signature mismatch with .x *u8).
- *     - runtime_try_handle_explain_cli / driver_emit_legacy_smoke_summary_stdout /
- *       driver_fmt_report_no_files / labi_marker have no .x counterpart. */
-#ifdef SHUX_RT_ENTRY_FROM_X
-#define shux_smoke_diag_enabled    shux_smoke_diag_enabled_impl
-#define driver_build_build_x    driver_build_build_x_impl
-#endif
+#ifndef SHUX_RT_ENTRY_FROM_X
 
 /** explain 子命令 / --explain：-1=非 explain，0=成功，1=失败。 */
 int runtime_try_handle_explain_cli(int argc, char **argv) {
@@ -161,3 +151,16 @@ int driver_build_build_x(void) {
 int labi_rt_entry_slice_marker(void) {
   return 1;
 }
+
+#else
+int runtime_try_handle_explain_cli(int argc, char **argv);
+int shux_smoke_diag_enabled(void);
+void driver_emit_legacy_smoke_summary_stdout(const char *main_name, int main_final_lit, int has_main_body);
+int driver_fmt_report_no_files(void);
+int run_compiler_c(int argc, char **argv);
+int driver_build_build_x(void);
+
+int labi_rt_entry_slice_marker(void) {
+  return 1;
+}
+#endif /* !SHUX_RT_ENTRY_FROM_X */

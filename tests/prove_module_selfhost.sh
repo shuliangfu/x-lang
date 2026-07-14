@@ -136,6 +136,11 @@ MODULES=(
   # rt_argv R2 full：.x 吃满 15 公共 drv_eq_* / path_ends_x / target_has_arm；产品 rest 在 FROM_X 下业务 H=0
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/rt_argv.from_x.c 全 C 体
   "rt_argv|src/runtime/rt_argv.x|seeds/rt_argv_surface.from_x.c||"
+  # rt_entry R2 full：.x 吃满 explain_cli / smoke_diag / smoke_summary /
+  #   fmt_report_no_files / run_compiler_c / build_build_x；产品 rest 在 FROM_X 下业务 H=0
+  # Cap residual：driver_stdio_* + driver_entry_*_slot 在 driver_abi
+  # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/rt_entry.from_x.c 全 C 体
+  "rt_entry|src/runtime/rt_entry.x|seeds/rt_entry_surface.from_x.c||"
 )
 
 # 找 shux 二进制（优先 shux，fallback shux-c）
@@ -223,6 +228,8 @@ gen_x_o() {
         -e '/^extern int strcmp(/d' \
         -e '/^extern uint8_t \* strerror(/d' \
         -e '/^extern char \* strerror(/d' \
+        -e '/^extern int32_t system(/d' \
+        -e '/^extern int system(/d' \
         "$tmp"
   } >"${tmp}.full" && mv "${tmp}.full" "$tmp"
 
