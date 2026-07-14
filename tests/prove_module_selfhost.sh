@@ -51,8 +51,10 @@ MODULES=(
   "labi_ondemand_list|src/runtime/labi_ondemand_list.x|seeds/labi_ondemand_list.from_x.c||"
   # labi_ensure_list：L4 ensure 目录 stem/out/seed/flags/hint；step_at 多 out（*usize/*i32）；产品 PREFER_X_O；本条锁 nm / 扩 N
   "labi_ensure_list|src/runtime/labi_ensure_list.x|seeds/labi_ensure_list.from_x.c||"
-  # labi_path_io：L3 path 探活 thin shell（null 门闩 + realpath libc；stat 在 mega rest _impl）；产品 PREFER_X_O；本条锁 nm / 扩 N
-  "labi_path_io|src/runtime/labi_path_io.x|seeds/labi_path_io.from_x.c||"
+  # labi_path_io R2 full：.x 吃满 3 公共门闩 + count；
+  # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：stat/realpath _impl 在 mega rest
+  # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_path_io.from_x.c 全 C 体
+  "labi_path_io|src/runtime/labi_path_io.x|seeds/labi_path_io_surface.from_x.c||"
   # labi_host_lit：L2 host #if 探测 thin 转发（#if body 在 mega rest _impl）；产品 PREFER_X_O；本条锁 nm / 扩 N
   "labi_host_lit|src/runtime/labi_host_lit.x|seeds/labi_host_lit.from_x.c||"
   # labi_diag_pure R2 full：.x 吃满 code_for_kind + 7 report 消息体 + count；

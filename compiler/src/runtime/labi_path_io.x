@@ -1,14 +1,14 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-270 / P2 link_abi L3：路径探活 thin shell（stat / realpath）🔒 OS。
+// G-02f-270 / P2 link_abi L3：路径探活 thin shell → R2 full。
 // 产品：PREFER_X_O → g05_try_x_to_o；冷启动 seeds/labi_path_io.from_x.c。
-// hybrid 宏 SHUX_LABI_PATH_IO_FROM_X。
+// hybrid 宏 SHUX_LABI_PATH_IO_FROM_X（FROM_X rest 业务 H=0，仅 marker）。
 //
-// Track L：真迁 null-check 门闩（与 labi_gates 同构）。
-//   - shux_path_is_nonempty_regular_file → _impl（stat 在 mega rest）
+// R2 full：.x 吃满 3 公共门闩 + count：
+//   - shux_path_is_nonempty_regular_file → _impl（stat 🔒 Cap residual mega rest）
 //   - asm_link_obj_skip_missing：组合 nonempty
-//   - shux_runtime_o_realpath_if_exists → _impl（realpath+skip 在 mega rest）
+//   - shux_runtime_o_realpath_if_exists → _impl（realpath+skip 🔒 Cap residual）
 // 不做 struct stat 布局；不做 libc realpath 原型（避免 *u8 与 char* 冲突）。
 
 export extern "C" function shux_path_is_nonempty_regular_file_impl(path: *u8): i32;
