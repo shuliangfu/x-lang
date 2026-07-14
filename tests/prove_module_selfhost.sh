@@ -111,6 +111,9 @@ MODULES=(
   # rt_stack L2 thin 公共面：与产品 PREFER_X_O 同源（thin.x + hybrid rest seed）；prove 锁 thin 面 IDENTICAL
   # 产品 hybrid rest 仍见 seeds/rt_stack.from_x.c（pthread gate body + thread_fn + marker）；入 runtime_driver_no_c.o
   "rt_stack|src/runtime/rt_stack.x|seeds/rt_stack_surface.from_x.c||"
+  # rt_lib_root L2 thin 公共面：与产品 PREFER_X_O 同源（thin.x + hybrid rest seed）；prove 锁 thin 面 IDENTICAL
+  # 产品 hybrid rest 仍见 seeds/rt_lib_root.from_x.c（default/roots_from_key + marker）；入 runtime_driver_no_c.o
+  "rt_lib_root|src/runtime/rt_lib_root.x|seeds/rt_lib_root_surface.from_x.c||"
 )
 
 # 找 shux 二进制（优先 shux，fallback shux-c）
