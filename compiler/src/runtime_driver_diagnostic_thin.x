@@ -1,12 +1,13 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-339～341/409/416：runtime_driver_diagnostic R2 thin full — _impl 门闩 + append_* 真迁。
+// G-02f-339～341/409/416 + Cap residual pure 深迁：runtime_driver_diagnostic R2 thin。
 // 产品 PREFER_X_O：g05_try_x_to_o → thin.o + seeds/runtime_driver_diagnostic.from_x.c rest
 //   （-DSHUX_L2_RDD_THIN_FROM_X）ld -r → src/runtime_driver_diagnostic.o
-// prove IDENTICAL：thin.x ↔ seeds/runtime_driver_diagnostic_thin_surface.from_x.c（公共面 79；_impl 为 U）
-// Cap residual：*_impl / va_list / snprintf 消息体仍在 full seed rest；true-migrate 见 runtime_driver_diagnostic.x。
-// 本 TU 门闩数：77 + append_cstr/i32/name（f-339～341 + f-387 env + f-409 pipe/storage + f-416 lsp_diag_get）
+// prove IDENTICAL：thin.x ↔ seeds/runtime_driver_diagnostic_thin_surface.from_x.c
+// pure 真体（本波）：固定措辞 typeck 10 + pipe orch 4；append_*/copy_bytes 仍 pure。
+// Cap residual：snprintf/va_list/debug 体 + 仍门闩的 *_impl 在 full seed rest。
+// 本 TU：门闩 + pure 真体（f-339～341 + f-387 env + f-409 pipe/storage + f-416 lsp_diag_get）
 
 export extern "C" function driver_debug_log_impl(step: i32): void;
 export extern "C" function driver_diagnostic_after_entry_parse_module_impl(module: *u8): void;
@@ -446,119 +447,120 @@ export function driver_diag_copy_bytes(dst: *u8, dst_size: i64, src: *u8, src_le
   return n;
 }
 
-// ---- G-02f-340 _impl gates ----
-export extern "C" function driver_diagnostic_before_codegen_impl(num_funcs: i32, out_len: i32): void;
-export extern "C" function driver_diagnostic_source_len_impl(len: i32): void;
-export extern "C" function driver_diagnostic_after_entry_parse_impl(num_funcs: i32): void;
-export extern "C" function driver_diagnostic_pipe_marker_impl(id: i32): void;
+// ---- Cap residual pure 深迁：固定措辞 typeck + pipe orch（真体；FROM_X 无 pure-dup _impl）----
+export extern "C" function lsp_diag_report_typeck(line: i32, col: i32, msg: *u8): void;
 export extern "C" function driver_diag_fill_expr_part_impl(dst: *u8, cap: i32, expr_buf: *u8, expr_len: i32): void;
-export extern "C" function driver_diagnostic_typeck_if_condition_not_bool_impl(line: i32, col: i32): void;
-export extern "C" function driver_diagnostic_typeck_while_condition_not_bool_impl(line: i32, col: i32): void;
-export extern "C" function driver_diagnostic_typeck_for_condition_not_bool_impl(line: i32, col: i32): void;
-export extern "C" function driver_diagnostic_typeck_deref_outside_unsafe_impl(line: i32, col: i32): void;
-export extern "C" function driver_diagnostic_typeck_extern_call_outside_unsafe_impl(line: i32, col: i32): void;
-export extern "C" function driver_diagnostic_typeck_linear_addr_of_impl(line: i32, col: i32): void;
-export extern "C" function driver_diagnostic_typeck_subscript_base_impl(line: i32, col: i32): void;
-export extern "C" function driver_diagnostic_typeck_enum_no_variant_impl(line: i32, col: i32): void;
-export extern "C" function driver_diagnostic_typeck_try_propagate_bad_enclosing_impl(line: i32, col: i32): void;
-export extern "C" function driver_diagnostic_typeck_break_continue_outside_impl(line: i32, col: i32, is_break: i32): void;
+// Cap residual getenv：env_debug_pipe_impl 仍 seed；orch pure 在 thin
+export extern "C" function driver_diag_env_debug_pipe_impl(): i32;
 
 #[no_mangle]
 export function driver_diagnostic_before_codegen(num_funcs: i32, out_len: i32): void {
   unsafe {
-    driver_diagnostic_before_codegen_impl(num_funcs, out_len);
+    if (driver_diag_env_debug_pipe_impl() != 0) {
+      driver_diag_pipe_note(0, num_funcs, out_len);
+    }
   }
 }
 
 #[no_mangle]
 export function driver_diagnostic_source_len(len: i32): void {
   unsafe {
-    driver_diagnostic_source_len_impl(len);
+    if (driver_diag_env_debug_pipe_impl() != 0) {
+      driver_diag_pipe_note(1, len, 0);
+    }
   }
 }
 
 #[no_mangle]
 export function driver_diagnostic_after_entry_parse(num_funcs: i32): void {
   unsafe {
-    driver_diagnostic_after_entry_parse_impl(num_funcs);
+    if (driver_diag_env_debug_pipe_impl() != 0) {
+      driver_diag_pipe_note(2, num_funcs, 0);
+    }
   }
 }
 
 #[no_mangle]
 export function driver_diagnostic_pipe_marker(id: i32): void {
   unsafe {
-    driver_diagnostic_pipe_marker_impl(id);
+    if (driver_diag_env_debug_pipe_impl() != 0) {
+      driver_diag_pipe_note(3, id, 0);
+    }
   }
 }
-
 
 #[no_mangle]
 export function driver_diagnostic_typeck_if_condition_not_bool(line: i32, col: i32): void {
   unsafe {
-    driver_diagnostic_typeck_if_condition_not_bool_impl(line, col);
+    lsp_diag_report_typeck(line, col, "if condition must be bool (no implicit int-to-bool)");
   }
 }
 
 #[no_mangle]
 export function driver_diagnostic_typeck_while_condition_not_bool(line: i32, col: i32): void {
   unsafe {
-    driver_diagnostic_typeck_while_condition_not_bool_impl(line, col);
+    lsp_diag_report_typeck(line, col, "while condition must be bool (no implicit int-to-bool)");
   }
 }
 
 #[no_mangle]
 export function driver_diagnostic_typeck_for_condition_not_bool(line: i32, col: i32): void {
   unsafe {
-    driver_diagnostic_typeck_for_condition_not_bool_impl(line, col);
+    lsp_diag_report_typeck(line, col, "for condition must be bool (no implicit int-to-bool)");
   }
 }
 
 #[no_mangle]
 export function driver_diagnostic_typeck_deref_outside_unsafe(line: i32, col: i32): void {
   unsafe {
-    driver_diagnostic_typeck_deref_outside_unsafe_impl(line, col);
+    lsp_diag_report_typeck(line, col, "pointer dereference requires unsafe block");
   }
 }
 
 #[no_mangle]
 export function driver_diagnostic_typeck_extern_call_outside_unsafe(line: i32, col: i32): void {
   unsafe {
-    driver_diagnostic_typeck_extern_call_outside_unsafe_impl(line, col);
+    lsp_diag_report_typeck(line, col, "extern call requires unsafe block");
   }
 }
 
 #[no_mangle]
 export function driver_diagnostic_typeck_linear_addr_of(line: i32, col: i32): void {
   unsafe {
-    driver_diagnostic_typeck_linear_addr_of_impl(line, col);
+    lsp_diag_report_typeck(line, col, "cannot take address of linear value");
   }
 }
 
 #[no_mangle]
 export function driver_diagnostic_typeck_subscript_base(line: i32, col: i32): void {
   unsafe {
-    driver_diagnostic_typeck_subscript_base_impl(line, col);
+    lsp_diag_report_typeck(line, col, "subscript base must be array, slice or pointer");
   }
 }
 
 #[no_mangle]
 export function driver_diagnostic_typeck_enum_no_variant(line: i32, col: i32): void {
   unsafe {
-    driver_diagnostic_typeck_enum_no_variant_impl(line, col);
+    lsp_diag_report_typeck(line, col, "enum has no variant");
   }
 }
 
 #[no_mangle]
 export function driver_diagnostic_typeck_try_propagate_bad_enclosing(line: i32, col: i32): void {
   unsafe {
-    driver_diagnostic_typeck_try_propagate_bad_enclosing_impl(line, col);
+    lsp_diag_report_typeck(line, col,
+                           "`?` requires the enclosing function to return the same Result type");
   }
 }
 
 #[no_mangle]
 export function driver_diagnostic_typeck_break_continue_outside(line: i32, col: i32, is_break: i32): void {
   unsafe {
-    driver_diagnostic_typeck_break_continue_outside_impl(line, col, is_break);
+    if (is_break != 0) {
+      lsp_diag_report_typeck(line, col, "break only allowed inside a loop");
+    } else {
+      lsp_diag_report_typeck(line, col, "continue only allowed inside a loop");
+    }
   }
 }
 
@@ -749,9 +751,7 @@ export function driver_diag_build_expected_found(msg: *u8, msg_cap: i32, pref: *
   }
 }
 
-// ---- G-02f-387：DEBUG_PIPE env → seed impl ----
-export extern "C" function driver_diag_env_debug_pipe_impl(): i32;
-
+// ---- G-02f-387：DEBUG_PIPE env → seed impl（声明见上 pure orch 段）----
 #[no_mangle]
 export function driver_diag_env_debug_pipe(): i32 {
   unsafe {

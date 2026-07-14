@@ -1,9 +1,10 @@
-/* seeds/runtime_driver_diagnostic_thin.from_x.c
- * G-02f diagnostic L2 thin surface — isomorphic with src/runtime_driver_diagnostic_thin.x
+/* seeds/runtime_driver_diagnostic_thin_surface.from_x.c
+ * G-02f diagnostic R2 thin + Cap residual pure 深迁 surface — isomorphic with thin.x
  * Product PREFER_X_O: g05_try_x_to_o(thin.x) + full seed rest (-DSHUX_L2_RDD_THIN_FROM_X) ld -r
- * Cold full seed: seeds/runtime_driver_diagnostic.from_x.c (unchanged)
- * Prove: thin.x vs this seed → nm IDENTICAL (public surface; _impl are U)
- * Regen: ./shux -E ... src/runtime_driver_diagnostic_thin.x | filter DBG + polish externs
+ * Prove: thin.x vs this seed → nm IDENTICAL
+ * pure 真体：固定措辞 typeck 10 + pipe orch 4 + append_* + copy_bytes
+ * Cap residual: snprintf/va_list/debug _impl 在 seeds/runtime_driver_diagnostic.from_x.c rest
+ * Regen: ./shux -E ... thin.x | filter DBG + g05 prologue polish
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -550,115 +551,115 @@ int32_t driver_diag_copy_bytes(uint8_t * dst, int64_t dst_size, uint8_t * src, i
   (void)(((dst)[n] = 0));
   return n;
 }
-extern void driver_diagnostic_before_codegen_impl(int32_t num_funcs, int32_t out_len);
-extern void driver_diagnostic_source_len_impl(int32_t len);
-extern void driver_diagnostic_after_entry_parse_impl(int32_t num_funcs);
-extern void driver_diagnostic_pipe_marker_impl(int32_t id);
+extern void lsp_diag_report_typeck(int32_t line, int32_t col, uint8_t * msg);
 extern void driver_diag_fill_expr_part_impl(uint8_t * dst, int32_t cap, uint8_t * expr_buf, int32_t expr_len);
-extern void driver_diagnostic_typeck_if_condition_not_bool_impl(int32_t line, int32_t col);
-extern void driver_diagnostic_typeck_while_condition_not_bool_impl(int32_t line, int32_t col);
-extern void driver_diagnostic_typeck_for_condition_not_bool_impl(int32_t line, int32_t col);
-extern void driver_diagnostic_typeck_deref_outside_unsafe_impl(int32_t line, int32_t col);
-extern void driver_diagnostic_typeck_extern_call_outside_unsafe_impl(int32_t line, int32_t col);
-extern void driver_diagnostic_typeck_linear_addr_of_impl(int32_t line, int32_t col);
-extern void driver_diagnostic_typeck_subscript_base_impl(int32_t line, int32_t col);
-extern void driver_diagnostic_typeck_enum_no_variant_impl(int32_t line, int32_t col);
-extern void driver_diagnostic_typeck_try_propagate_bad_enclosing_impl(int32_t line, int32_t col);
-extern void driver_diagnostic_typeck_break_continue_outside_impl(int32_t line, int32_t col, int32_t is_break);
+extern int32_t driver_diag_env_debug_pipe_impl(void);
 void driver_diagnostic_before_codegen(int32_t num_funcs, int32_t out_len) {
   {
-    (void)(driver_diagnostic_before_codegen_impl(num_funcs, out_len));
+    if ((driver_diag_env_debug_pipe_impl() !=0)) {
+      (void)(driver_diag_pipe_note(0, num_funcs, out_len));
+    }
   }
   (void)(0);
   return;
 }
 void driver_diagnostic_source_len(int32_t len) {
   {
-    (void)(driver_diagnostic_source_len_impl(len));
+    if ((driver_diag_env_debug_pipe_impl() !=0)) {
+      (void)(driver_diag_pipe_note(1, len, 0));
+    }
   }
   (void)(0);
   return;
 }
 void driver_diagnostic_after_entry_parse(int32_t num_funcs) {
   {
-    (void)(driver_diagnostic_after_entry_parse_impl(num_funcs));
+    if ((driver_diag_env_debug_pipe_impl() !=0)) {
+      (void)(driver_diag_pipe_note(2, num_funcs, 0));
+    }
   }
   (void)(0);
   return;
 }
 void driver_diagnostic_pipe_marker(int32_t id) {
   {
-    (void)(driver_diagnostic_pipe_marker_impl(id));
+    if ((driver_diag_env_debug_pipe_impl() !=0)) {
+      (void)(driver_diag_pipe_note(3, id, 0));
+    }
   }
   (void)(0);
   return;
 }
 void driver_diagnostic_typeck_if_condition_not_bool(int32_t line, int32_t col) {
   {
-    (void)(driver_diagnostic_typeck_if_condition_not_bool_impl(line, col));
+    (void)(lsp_diag_report_typeck(line, col, (uint8_t[]){105, 102, 32, 99, 111, 110, 100, 105, 116, 105, 111, 110, 32, 109, 117, 115, 116, 32, 98, 101, 32, 98, 111, 111, 108, 32, 40, 110, 111, 32, 105, 109, 112, 108, 105, 99, 105, 116, 32, 105, 110, 116, 45, 116, 111, 45, 98, 111, 111, 108, 41, 0 }));
   }
   (void)(0);
   return;
 }
 void driver_diagnostic_typeck_while_condition_not_bool(int32_t line, int32_t col) {
   {
-    (void)(driver_diagnostic_typeck_while_condition_not_bool_impl(line, col));
+    (void)(lsp_diag_report_typeck(line, col, (uint8_t[]){119, 104, 105, 108, 101, 32, 99, 111, 110, 100, 105, 116, 105, 111, 110, 32, 109, 117, 115, 116, 32, 98, 101, 32, 98, 111, 111, 108, 32, 40, 110, 111, 32, 105, 109, 112, 108, 105, 99, 105, 116, 32, 105, 110, 116, 45, 116, 111, 45, 98, 111, 111, 108, 41, 0 }));
   }
   (void)(0);
   return;
 }
 void driver_diagnostic_typeck_for_condition_not_bool(int32_t line, int32_t col) {
   {
-    (void)(driver_diagnostic_typeck_for_condition_not_bool_impl(line, col));
+    (void)(lsp_diag_report_typeck(line, col, (uint8_t[]){102, 111, 114, 32, 99, 111, 110, 100, 105, 116, 105, 111, 110, 32, 109, 117, 115, 116, 32, 98, 101, 32, 98, 111, 111, 108, 32, 40, 110, 111, 32, 105, 109, 112, 108, 105, 99, 105, 116, 32, 105, 110, 116, 45, 116, 111, 45, 98, 111, 111, 108, 41, 0 }));
   }
   (void)(0);
   return;
 }
 void driver_diagnostic_typeck_deref_outside_unsafe(int32_t line, int32_t col) {
   {
-    (void)(driver_diagnostic_typeck_deref_outside_unsafe_impl(line, col));
+    (void)(lsp_diag_report_typeck(line, col, (uint8_t[]){112, 111, 105, 110, 116, 101, 114, 32, 100, 101, 114, 101, 102, 101, 114, 101, 110, 99, 101, 32, 114, 101, 113, 117, 105, 114, 101, 115, 32, 117, 110, 115, 97, 102, 101, 32, 98, 108, 111, 99, 107, 0 }));
   }
   (void)(0);
   return;
 }
 void driver_diagnostic_typeck_extern_call_outside_unsafe(int32_t line, int32_t col) {
   {
-    (void)(driver_diagnostic_typeck_extern_call_outside_unsafe_impl(line, col));
+    (void)(lsp_diag_report_typeck(line, col, (uint8_t[]){101, 120, 116, 101, 114, 110, 32, 99, 97, 108, 108, 32, 114, 101, 113, 117, 105, 114, 101, 115, 32, 117, 110, 115, 97, 102, 101, 32, 98, 108, 111, 99, 107, 0 }));
   }
   (void)(0);
   return;
 }
 void driver_diagnostic_typeck_linear_addr_of(int32_t line, int32_t col) {
   {
-    (void)(driver_diagnostic_typeck_linear_addr_of_impl(line, col));
+    (void)(lsp_diag_report_typeck(line, col, (uint8_t[]){99, 97, 110, 110, 111, 116, 32, 116, 97, 107, 101, 32, 97, 100, 100, 114, 101, 115, 115, 32, 111, 102, 32, 108, 105, 110, 101, 97, 114, 32, 118, 97, 108, 117, 101, 0 }));
   }
   (void)(0);
   return;
 }
 void driver_diagnostic_typeck_subscript_base(int32_t line, int32_t col) {
   {
-    (void)(driver_diagnostic_typeck_subscript_base_impl(line, col));
+    (void)(lsp_diag_report_typeck(line, col, (uint8_t[]){115, 117, 98, 115, 99, 114, 105, 112, 116, 32, 98, 97, 115, 101, 32, 109, 117, 115, 116, 32, 98, 101, 32, 97, 114, 114, 97, 121, 44, 32, 115, 108, 105, 99, 101, 32, 111, 114, 32, 112, 111, 105, 110, 116, 101, 114, 0 }));
   }
   (void)(0);
   return;
 }
 void driver_diagnostic_typeck_enum_no_variant(int32_t line, int32_t col) {
   {
-    (void)(driver_diagnostic_typeck_enum_no_variant_impl(line, col));
+    (void)(lsp_diag_report_typeck(line, col, (uint8_t[]){101, 110, 117, 109, 32, 104, 97, 115, 32, 110, 111, 32, 118, 97, 114, 105, 97, 110, 116, 0 }));
   }
   (void)(0);
   return;
 }
 void driver_diagnostic_typeck_try_propagate_bad_enclosing(int32_t line, int32_t col) {
   {
-    (void)(driver_diagnostic_typeck_try_propagate_bad_enclosing_impl(line, col));
+    (void)(lsp_diag_report_typeck(line, col, (uint8_t[]){96, 63, 96, 32, 114, 101, 113, 117, 105, 114, 101, 115, 32, 116, 104, 101, 32, 101, 110, 99, 108, 111, 115, 105, 110, 103, 32, 102, 117, 110, 99, 116, 105, 111, 110, 32, 116, 111, 32, 114, 101, 116, 117, 114, 110, 32, 116, 104, 101, 32, 115, 97, 109, 101, 32, 82, 101, 115, 117, 108, 116, 32, 116, 0 }));
   }
   (void)(0);
   return;
 }
 void driver_diagnostic_typeck_break_continue_outside(int32_t line, int32_t col, int32_t is_break) {
   {
-    (void)(driver_diagnostic_typeck_break_continue_outside_impl(line, col, is_break));
+    if ((is_break !=0)) {
+      (void)(lsp_diag_report_typeck(line, col, (uint8_t[]){98, 114, 101, 97, 107, 32, 111, 110, 108, 121, 32, 97, 108, 108, 111, 119, 101, 100, 32, 105, 110, 115, 105, 100, 101, 32, 97, 32, 108, 111, 111, 112, 0 }));
+    } else {
+      (void)(lsp_diag_report_typeck(line, col, (uint8_t[]){99, 111, 110, 116, 105, 110, 117, 101, 32, 111, 110, 108, 121, 32, 97, 108, 108, 111, 119, 101, 100, 32, 105, 110, 115, 105, 100, 101, 32, 97, 32, 108, 111, 111, 112, 0 }));
+    }
   }
   (void)(0);
   return;
@@ -839,7 +840,6 @@ void driver_diag_build_expected_found(uint8_t * msg, int32_t msg_cap, uint8_t * 
   (void)(0);
   return;
 }
-extern int32_t driver_diag_env_debug_pipe_impl(void);
 int32_t driver_diag_env_debug_pipe(void) {
   {
     return driver_diag_env_debug_pipe_impl();

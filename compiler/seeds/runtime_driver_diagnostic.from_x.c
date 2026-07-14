@@ -1,5 +1,7 @@
-/* G-02f-339～341 / R2 thin full：PREFER hybrid thin 由 src/runtime_driver_diagnostic_thin.x→-E；
- * rest 用 SHUX_L2_RDD_THIN_FROM_X（public 门闩→_impl；仅 slice_marker + Cap residual 体）。
+/* G-02f-339～341 / R2 thin + Cap residual pure 深迁：
+ * PREFER hybrid thin 由 src/runtime_driver_diagnostic_thin.x→-E；
+ * rest SHUX_L2_RDD_THIN_FROM_X：无 thin 公共体；pure-dup 固定措辞/pipe orch 剔除；
+ * 仅 slice_marker + Cap residual（snprintf/va_list/debug）体。
  * Generated from (G-02f-86/96 +copy/report_prefixed) src/runtime_driver_diagnostic.x (G-02f-180 P0-4 audit + va_list lock; G-02f-179 asm notes true .x; G-02f-178 padding true .x; G-02f-177 generic call true .x; G-02f-176 mismatch true .x; G-02f-175 return_unresolved/subexpr true .x; G-02f-30/31/73 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_driver_diagnostic.x > /tmp/rdd.c
  *         merge fixed-msg wrappers; polish slice strings; keep snprintf C.
@@ -594,11 +596,9 @@ void driver_diagnostic_typeck_call_requires_type_args_impl(int32_t line, int32_t
  * 以便 run-typeck、负例与 shux-c 对齐（含 "assignment type mismatch: expected …, found …"）。
  */
 /** .x typeck：break/continue 不在循环内时打印，与 typeck.c TYPECK_ERR 措辞一致。 */
+/* pure 权威：thin.x driver_diagnostic_typeck_break_continue_outside；冷启动全 C；FROM_X 无 pure-dup _impl */
 #ifndef SHUX_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_break_continue_outside(int32_t line, int32_t col, int32_t is_break)
-#else
-void driver_diagnostic_typeck_break_continue_outside_impl(int32_t line, int32_t col, int32_t is_break)
-#endif
 {
   if ((is_break !=0)) {
     {
@@ -612,81 +612,83 @@ void driver_diagnostic_typeck_break_continue_outside_impl(int32_t line, int32_t 
   (void)(0);
   return;
 }
+#endif
 
+
+/* pure 权威：thin.x driver_diagnostic_typeck_if_condition_not_bool；冷启动全 C；FROM_X 无 pure-dup _impl */
 #ifndef SHUX_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_if_condition_not_bool(int32_t line, int32_t col)
-#else
-void driver_diagnostic_typeck_if_condition_not_bool_impl(int32_t line, int32_t col)
-#endif
 {
   (void)(({   {
     (void)(lsp_diag_report_typeck(line, col, "if condition must be bool (no implicit int-to-bool)"));
   }
  }));
 }
+#endif
 
+
+/* pure 权威：thin.x driver_diagnostic_typeck_while_condition_not_bool；冷启动全 C；FROM_X 无 pure-dup _impl */
 #ifndef SHUX_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_while_condition_not_bool(int32_t line, int32_t col)
-#else
-void driver_diagnostic_typeck_while_condition_not_bool_impl(int32_t line, int32_t col)
-#endif
 {
   (void)(({   {
     (void)(lsp_diag_report_typeck(line, col, "while condition must be bool (no implicit int-to-bool)"));
   }
  }));
 }
+#endif
 
+
+/* pure 权威：thin.x driver_diagnostic_typeck_for_condition_not_bool；冷启动全 C；FROM_X 无 pure-dup _impl */
 #ifndef SHUX_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_for_condition_not_bool(int32_t line, int32_t col)
-#else
-void driver_diagnostic_typeck_for_condition_not_bool_impl(int32_t line, int32_t col)
-#endif
 {
   (void)(({   {
     (void)(lsp_diag_report_typeck(line, col, "for condition must be bool (no implicit int-to-bool)"));
   }
  }));
 }
+#endif
+
 
 /** LANG-007 v2：S0 内 *T 解引用须在 unsafe { } 内。 */
+/* pure 权威：thin.x driver_diagnostic_typeck_deref_outside_unsafe；冷启动全 C；FROM_X 无 pure-dup _impl */
 #ifndef SHUX_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_deref_outside_unsafe(int32_t line, int32_t col)
-#else
-void driver_diagnostic_typeck_deref_outside_unsafe_impl(int32_t line, int32_t col)
-#endif
 {
   (void)(({   {
     (void)(lsp_diag_report_typeck(line, col, "pointer dereference requires unsafe block"));
   }
  }));
 }
+#endif
+
 
 /** LANG-007 v2：S0 内 extern 调用须在 unsafe { } 内。 */
+/* pure 权威：thin.x driver_diagnostic_typeck_extern_call_outside_unsafe；冷启动全 C；FROM_X 无 pure-dup _impl */
 #ifndef SHUX_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_extern_call_outside_unsafe(int32_t line, int32_t col)
-#else
-void driver_diagnostic_typeck_extern_call_outside_unsafe_impl(int32_t line, int32_t col)
-#endif
 {
   (void)(({   {
     (void)(lsp_diag_report_typeck(line, col, "extern call requires unsafe block"));
   }
  }));
 }
+#endif
+
 
 /** .x typeck：对 linear 值取址时打印，与 typeck.c「cannot take address of linear value」一致。 */
+/* pure 权威：thin.x driver_diagnostic_typeck_linear_addr_of；冷启动全 C；FROM_X 无 pure-dup _impl */
 #ifndef SHUX_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_linear_addr_of(int32_t line, int32_t col)
-#else
-void driver_diagnostic_typeck_linear_addr_of_impl(int32_t line, int32_t col)
-#endif
 {
   (void)(({   {
     (void)(lsp_diag_report_typeck(line, col, "cannot take address of linear value"));
   }
  }));
 }
+#endif
+
 
 /** .x typeck：import 顶层 const 裸名访问时打印，与 typeck.c TYPECK_ERR 措辞对齐。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
@@ -722,43 +724,43 @@ void driver_diagnostic_typeck_import_const_must_be_qualified_impl(int32_t line, 
 
 
 /** .x typeck：match 臂 Enum.Variant 在模块枚举表中未命中（与 typeck.c TYPECK_ERR 措辞一致）。 */
+/* pure 权威：thin.x driver_diagnostic_typeck_enum_no_variant；冷启动全 C；FROM_X 无 pure-dup _impl */
 #ifndef SHUX_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_enum_no_variant(int32_t line, int32_t col)
-#else
-void driver_diagnostic_typeck_enum_no_variant_impl(int32_t line, int32_t col)
-#endif
 {
   (void)(({   {
     (void)(lsp_diag_report_typeck(line, col, "enum has no variant"));
   }
  }));
 }
+#endif
+
 
 /** .x typeck：下标基类型非数组/切片/指针时打印，与 typeck.c TYPECK_ERR 措辞一致。 */
+/* pure 权威：thin.x driver_diagnostic_typeck_subscript_base；冷启动全 C；FROM_X 无 pure-dup _impl */
 #ifndef SHUX_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_subscript_base(int32_t line, int32_t col)
-#else
-void driver_diagnostic_typeck_subscript_base_impl(int32_t line, int32_t col)
-#endif
 {
   (void)(({   {
     (void)(lsp_diag_report_typeck(line, col, "subscript base must be array, slice or pointer"));
   }
  }));
 }
+#endif
+
 
 /** ERR-01：`?` 要求 enclosing function 返回与 operand 同型的 Result（run-typeck result_try_bad.x）。 */
+/* pure 权威：thin.x driver_diagnostic_typeck_try_propagate_bad_enclosing；冷启动全 C；FROM_X 无 pure-dup _impl */
 #ifndef SHUX_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_try_propagate_bad_enclosing(int32_t line, int32_t col)
-#else
-void driver_diagnostic_typeck_try_propagate_bad_enclosing_impl(int32_t line, int32_t col)
-#endif
 {
   (void)(({   {
     (void)(lsp_diag_report_typeck(line, col, "`?` requires the enclosing function to return the same Result t"));
   }
  }));
 }
+#endif
+
 
 /** .x typeck：结构体 §11.1 隐式 padding 前间隙；行文与 typeck.c TYPECK_ERR_AT 一致。 */
 /* G-02f-178：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
@@ -957,15 +959,15 @@ void driver_diag_pipe_note(int32_t kind, int32_t a, int32_t b) {
 #endif
 
 /* G-02f-164：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* pure 权威：thin.x driver_diagnostic_before_codegen；冷启动全 C；FROM_X 无 pure-dup _impl */
 #ifndef SHUX_L2_RDD_THIN_FROM_X
 void driver_diagnostic_before_codegen(int32_t num_funcs, int32_t out_len)
-#else
-void driver_diagnostic_before_codegen_impl(int32_t num_funcs, int32_t out_len)
-#endif
 {
     if (driver_diag_env_debug_pipe())
         driver_diag_pipe_note_impl(0, num_funcs, out_len);
 }
+#endif
+
 
 
 /** 诊断：pipeline 入口 ctx.entry_already_parsed。由 pipeline.x 调用。需要时取消注释 fprintf。 */
@@ -977,28 +979,28 @@ void driver_diagnostic_entry_already(int32_t v) {
 
 /** 诊断：解析前 source_len。由 pipeline.x 调用。需要时取消注释 fprintf。 */
 /* G-02f-164：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* pure 权威：thin.x driver_diagnostic_source_len；冷启动全 C；FROM_X 无 pure-dup _impl */
 #ifndef SHUX_L2_RDD_THIN_FROM_X
 void driver_diagnostic_source_len(int32_t len)
-#else
-void driver_diagnostic_source_len_impl(int32_t len)
-#endif
 {
     if (driver_diag_env_debug_pipe())
         driver_diag_pipe_note_impl(1, len, 0);
 }
+#endif
+
 
 
 /** 诊断：entry 解析后 module.num_funcs，便于确认是否未解析（0）。由 pipeline.x 调用。需要时取消注释 fprintf。 */
 /* G-02f-164：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* pure 权威：thin.x driver_diagnostic_after_entry_parse；冷启动全 C；FROM_X 无 pure-dup _impl */
 #ifndef SHUX_L2_RDD_THIN_FROM_X
 void driver_diagnostic_after_entry_parse(int32_t num_funcs)
-#else
-void driver_diagnostic_after_entry_parse_impl(int32_t num_funcs)
-#endif
 {
     if (driver_diag_env_debug_pipe())
         driver_diag_pipe_note_impl(2, num_funcs, 0);
 }
+#endif
+
 
 
 extern int32_t pipeline_module_num_funcs(void *module);
@@ -1172,15 +1174,15 @@ void driver_diagnostic_after_entry_parse_module_impl(void *module)
 
 /** 诊断：pipeline/typeck 阶段 marker；SHUX_DEBUG_PIPE=1 时打印（1=merge 后，2=typeck library 入口，3=validate 后）。 */
 /* G-02f-164：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* pure 权威：thin.x driver_diagnostic_pipe_marker；冷启动全 C；FROM_X 无 pure-dup _impl */
 #ifndef SHUX_L2_RDD_THIN_FROM_X
 void driver_diagnostic_pipe_marker(int32_t id)
-#else
-void driver_diagnostic_pipe_marker_impl(int32_t id)
-#endif
 {
     if (driver_diag_env_debug_pipe())
         driver_diag_pipe_note_impl(3, id, 0);
 }
+#endif
+
 
 
 /** 每个 dep codegen 后打印 j 与 out_buf.len，确认 buffer 是否递增。需要时取消注释 fprintf。 */

@@ -1449,7 +1449,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     fi
   fi
   # G-02f-12 / G-02f-339：runtime_driver_diagnostic.o
-  # R2 thin full：PREFER_X_O=1 时 diagnostic_thin.x（79 门闩）+ seed-rest（FROM_X）ld -r
+  # R2 thin + Cap residual pure 深迁：PREFER thin.x（门闩 + 固定措辞/pipe orch pure）+ seed-rest（FROM_X）ld -r
   _rdd=seeds/runtime_driver_diagnostic.from_x.c
   _rdd_thin_x=src/runtime_driver_diagnostic_thin.x
   _rdd_o=src/runtime_driver_diagnostic.o
@@ -1466,7 +1466,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_L2_RDD_THIN_FROM_X \
                -c -o "$_rdd_rest_o" "$_rdd" \
           && $CC -r -nostdlib -o "$_rdd_o" "$_rdd_thin_o" "$_rdd_rest_o" 2>/dev/null; then
-          echo "g05_ensure: $_rdd_o ← $_rdd_thin_x + seed-rest (G-02f-341/416 R2 hybrid diagnostic thin)"
+          echo "g05_ensure: $_rdd_o ← $_rdd_thin_x + seed-rest (R2 hybrid diagnostic thin pure deep)"
           _rdd_done=1
         else
           echo "g05_ensure: L2 hybrid runtime_driver_diagnostic failed; fallback full seed" >&2
