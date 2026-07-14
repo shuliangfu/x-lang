@@ -35,8 +35,10 @@ MODULES=(
   "token|src/lexer/token.x|token_gen.c||"
   # lsp_diag_pipeline_sizes：三枚 sizeof 门闩；产品 sizes_nostub PREFER_X_O；本条锁 nm / 扩 N
   "lsp_diag_pipeline_sizes|src/lsp/lsp_diag_pipeline_sizes.x|seeds/lsp_diag_pipeline_sizes.from_x.c||"
-  # labi_path_pure：路径纯串 L0；产品 hybrid 入 runtime_link_abi；本条锁 nm / 扩 N
-  "labi_path_pure|src/runtime/labi_path_pure.x|seeds/labi_path_pure.from_x.c||"
+  # labi_path_pure R2 full：.x 吃满 7 公共门闩 + count；
+  # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：Windows #if sep 在 mega 冷路径
+  # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_path_pure.from_x.c 全 C 体
+  "labi_path_pure|src/runtime/labi_path_pure.x|seeds/labi_path_pure_surface.from_x.c||"
   # labi_gates：L9 thin null-check 转发；产品 PREFER_X_O；冷启动 seed；本条锁 nm / 扩 N
   "labi_gates|src/runtime/labi_gates.x|seeds/labi_gates.from_x.c||"
   # labi_invoke_cc_list：L5 短字面量表；依赖 W-string-nul；产品 PREFER_X_O；本条锁 nm / 扩 N

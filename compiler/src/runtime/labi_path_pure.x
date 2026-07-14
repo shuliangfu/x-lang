@@ -1,11 +1,15 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-267/429 / P2 link_abi L0：路径纯串（无 stat）。
-// 产品默认 seeds/runtime_link_abi.from_x.c；hybrid → seeds/labi_path_pure.from_x.c。
-// 符号：shux_path_last_sep / shux_path_has_sep / link_abi_ld_argv_entry_is_obj / shux_output_is_elf_o
-//       + shux_output_want_exe + labi_suffix_eq2/eq4 helpers
-// G-02f-429：扁平化控制流（消除 &&/||/深层嵌套 if），使全部函数可通过 shux -E。
+// G-02f-267/429 / P2 link_abi L0：路径纯串（无 stat）→ R2 full。
+// 产品：PREFER_X_O → g05_try_x_to_o；冷启动 seeds/labi_path_pure.from_x.c。
+// hybrid 宏 SHUX_LABI_PATH_PURE_FROM_X（FROM_X rest 业务 H=0，仅 marker）。
+//
+// R2 full：.x 吃满 7 公共门闩 + count：
+//   - labi_suffix_eq2 / labi_suffix_eq4
+//   - link_abi_ld_argv_entry_is_obj / shux_output_is_elf_o / shux_output_want_exe
+//   - shux_path_has_sep / shux_path_last_sep（POSIX '/' only）
+// Cap residual（mega rest 冷路径 Windows #if '\\'）：产品 PREFER 走 .x 纯 POSIX。
 // G-02f-L：长度用 i32（对齐 rt_content.x），避免 usize 字面量/减法 typeck 阻 -E。
 
 // G-02f-429：后缀 2 字节匹配（flat early-return，参照 rt_content.x rt_eq2 模式）。
@@ -114,4 +118,10 @@ export function shux_path_last_sep(s: *u8): *u8 {
   }
   let base: usize = s as usize;
   return (base + (last as usize)) as *u8;
+}
+
+/* Pure audit: number of L0 path-pure public gates in this slice. */
+#[no_mangle]
+export function labi_path_pure_count(): i32 {
+  return 7;
 }

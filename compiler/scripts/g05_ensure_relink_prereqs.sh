@@ -278,18 +278,18 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _labi_l8b_ok=0
         _labi_l9_ok=0
         if [ -n "$_labi_l0_o" ]; then
-          # G-02f-429：PREFER_X_O=1 时优先 .x → shux -E → cc -c；失败回退 seed C
+          # R2 labi_path_pure：PREFER_X_O=1 时 full .x（7 门闩真迁 H=0）；失败回退 seed 冷 C
           if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_labi_l0_x" ]; then
             if g05_try_x_to_o "$_labi_l0_x" "$_labi_l0_o"; then
               _labi_l0_ok=1
-              echo "g05_ensure: L0 path pure ← $_labi_l0_x (G-02f-429 L2 prefer .x)"
+              echo "g05_ensure: L0 path pure ← $_labi_l0_x (R2 full prefer .x)"
             fi
           fi
           if [ "$_labi_l0_ok" = "0" ]; then
             # shellcheck disable=SC2086
             if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_labi_l0_o" "$_labi_l0_seed"; then
               _labi_l0_ok=1
-              echo "g05_ensure: L0 path pure ← $_labi_l0_seed (G-02f-267 seed slice)"
+              echo "g05_ensure: L0 path pure ← $_labi_l0_seed (R2 cold seed slice)"
             fi
           fi
         fi
