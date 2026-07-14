@@ -5,19 +5,21 @@
 //   lit/entry 门闩 + pure 业务真体（path_should_ignore / .x 后缀 / lint /
 //   file_list_push / walk process_child / collect_paths_from_arg /
 //   check_collect_default_product_dirs / check_one_file 门闩 /
-//   try_append 早退 / parse_ignore 前缀）进 thin.x；
+//   try_append 早退 / parse_ignore 前缀 / invoke_compile·dep_clear 分派）进 thin.x；
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_FMT_CHECK_THIN_FROM_X）ld -r
 //   → fmt_check_cmd_driver.o
 // Prove IDENTICAL：seeds/fmt_check_cmd_thin_surface.from_x.c
 // Cap residual：walk opendir/stat/argv/BSS / missing-diag format / cwd fallback /
 //   check_one_file_body 等 *_impl 仍在 full seed rest；FROM_X 下 pure-duplicate
-//   _impl 已剔除（含 check_one_file_impl；H↓）。
+//   _impl 已剔除（含 check_one_file_impl / invoke_compile_impl / dep_clear_impl；H↓）。
 //
 // -E 约束：无 while 重赋值；无零参-only 不稳写法；6 参用扁平 if。
 //
 
 export extern "C" function strstr(hay: *u8, needle: *u8): *u8;
 export extern "C" function getenv(name: *u8): *u8;
+export extern "C" function driver_run_compiler_full(argc: i32, argv: *u8): i32;
+export extern "C" function driver_dep_seeded_clear_all(): void;
 export extern "C" function driver_collect_mode_is_check_impl(): i32;
 export extern "C" function check_user_passed_L_get_impl(): i32;
 export extern "C" function fmt_user_ignore_count_impl(): i32;
@@ -300,9 +302,7 @@ export function fmt_file_list_n(): i32 {
   return 0;
 }
 
-// ---- G-02f-405：lint pure / invoke·dep_clear·path_stat Cap residual ----
-export extern "C" function fmt_check_invoke_compile_impl(argc: i32, check_argv: *u8): i32;
-export extern "C" function fmt_check_dep_clear_impl(): void;
+// ---- lint pure / invoke·dep_clear pure 分派；path_stat Cap residual ----
 export extern "C" function fmt_path_stat_kind_impl(path: *u8): i32;
 
 // pure：SHUX_LINT_CI_FAIL_ON=warn|warning
@@ -337,18 +337,20 @@ export function check_lint_fail_on_warnings(): i32 {
   return 0;
 }
 
+// pure 分派：产品 X pipeline → driver_run_compiler_full（冷 seed 仍 #ifdef 双路径）
 #[no_mangle]
 export function fmt_check_invoke_compile(argc: i32, check_argv: *u8): i32 {
   unsafe {
-    return fmt_check_invoke_compile_impl(argc, check_argv);
+    return driver_run_compiler_full(argc, check_argv);
   }
   return 0;
 }
 
+// pure 分派：清 typeck dep 侧车（产品恒 X pipeline）
 #[no_mangle]
 export function fmt_check_dep_clear(): void {
   unsafe {
-    fmt_check_dep_clear_impl();
+    driver_dep_seeded_clear_all();
   }
 }
 

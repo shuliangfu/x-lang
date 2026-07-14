@@ -1,7 +1,7 @@
-/* R2 thin + Cap residual pure 深迁（续 one_file 门闩 / try_append / parse_ignore）：
+/* R2 thin + Cap residual pure 深迁（续 invoke_compile / dep_clear 分派）：
  * PREFER hybrid thin 由 src/driver/fmt_check_cmd_thin.x（lit/entry + pure 真体）；
  * rest SHUX_L2_FMT_CHECK_THIN_FROM_X：无 thin 公共体；pure-duplicate _impl 剔除
- * （含 collect_paths / default_dirs / check_one_file_impl）；
+ * （含 collect_paths / default_dirs / check_one_file_impl / invoke_compile / dep_clear）；
  * Cap residual：walk opendir/stat/argv/BSS / missing-diag / cwd / one_file_body 仍 rest。
  * 冷启动无宏：全 C 体（含 pure _impl + public 门闩）。
  * Regen thin surface: shux -E src/driver/fmt_check_cmd_thin.x → thin_surface.
@@ -477,9 +477,10 @@ int check_lint_fail_on_warnings(void) {
 
 /**
  * 单文件 check：X pipeline 走 driver_run_compiler_full，shux-c 走 run_compiler_c。
+ * pure 分派权威：thin.x fmt_check_invoke_compile → driver_run_compiler_full；
+ * 冷启动保留 _impl + public（#ifdef 双路径）；FROM_X 下剔除 pure-dup _impl（H↓）。
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-405：实现体始终 seed；public PREFER 时 thin forward */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 int fmt_check_invoke_compile_impl(int argc, char **check_argv) {
 #ifdef SHUX_USE_X_PIPELINE
     return driver_run_compiler_full(argc, check_argv);
@@ -488,7 +489,6 @@ int fmt_check_invoke_compile_impl(int argc, char **check_argv) {
 #endif
 }
 
-#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 int fmt_check_invoke_compile(int argc, char **check_argv) {
   return fmt_check_invoke_compile_impl(argc, check_argv);
 }
@@ -499,16 +499,16 @@ int fmt_check_invoke_compile(int argc, char **check_argv) {
 
 /**
  * check 批次结束后清理 dep 槽（仅 X pipeline 需要）。
+ * pure 分派权威：thin.x fmt_check_dep_clear → driver_dep_seeded_clear_all；
+ * 冷启动保留 _impl + public；FROM_X 下剔除 pure-dup _impl（H↓）。
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-405：实现体始终 seed；public PREFER 时 thin forward */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 void fmt_check_dep_clear_impl(void) {
 #ifdef SHUX_USE_X_PIPELINE
     driver_dep_seeded_clear_all();
 #endif
 }
 
-#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 void fmt_check_dep_clear(void) {
   fmt_check_dep_clear_impl();
 }
@@ -1148,7 +1148,8 @@ int check_one_file_body_impl(const char *path, int argc, char **argv) {
     check_argv[n++] = (char *)path;
 
     driver_check_only_set(1);
-    rc = fmt_check_invoke_compile_impl(n, check_argv);
+    /* public：hybrid thin pure 分派 / 冷 seed public→_impl */
+    rc = fmt_check_invoke_compile(n, check_argv);
     driver_check_only_set(0);
 
     {
@@ -1177,7 +1178,8 @@ int check_one_file_body_impl(const char *path, int argc, char **argv) {
     lsp_diag_collect_end();
     if (have_diag_view)
         runtime_release_file_view(&diag_view);
-    fmt_check_dep_clear_impl();
+    /* public：hybrid thin pure 分派 / 冷 seed public→_impl */
+    fmt_check_dep_clear();
     return rc;
 }
 

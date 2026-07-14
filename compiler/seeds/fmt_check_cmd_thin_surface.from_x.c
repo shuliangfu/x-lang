@@ -4,7 +4,8 @@
  * Prove: thin.x vs this seed → nm IDENTICAL (public surface; Cap residual _impl are U)
  * Cap residual: walk opendir/stat/argv/BSS / missing-diag / cwd / one_file_body in rest
  * pure 真迁：path_should_ignore / .x 后缀 / lint / file_list_push / process_child /
- *   collect_paths / default_dirs / check_one_file 门闩 / try_append 早退 / parse_ignore 前缀
+ *   collect_paths / default_dirs / check_one_file 门闩 / try_append 早退 / parse_ignore 前缀 /
+ *   invoke_compile·dep_clear 分派
  * Regen: ./shux -E ... thin.x | filter DBG + g05 prologue polish
  */
 /* g05_try_x_to_o prologue (G-02f-332/334) */
@@ -95,6 +96,8 @@ static void init_globals(void) {
   g_fmt_default_product_sub_2 = (uint8_t[]){115, 116, 100, 0 };
   g_fmt_default_product_sub_3 = (uint8_t[]){101, 120, 97, 109, 112, 108, 101, 115, 0 };
 }
+extern int32_t driver_run_compiler_full(int32_t argc, uint8_t * argv);
+extern void driver_dep_seeded_clear_all(void);
 extern int32_t driver_collect_mode_is_check_impl(void);
 extern int32_t check_user_passed_L_get_impl(void);
 extern int32_t fmt_user_ignore_count_impl(void);
@@ -309,8 +312,6 @@ int32_t fmt_file_list_n(void) {
   }
   return 0;
 }
-extern int32_t fmt_check_invoke_compile_impl(int32_t argc, uint8_t * check_argv);
-extern void fmt_check_dep_clear_impl(void);
 extern int32_t fmt_path_stat_kind_impl(uint8_t * path);
 int32_t check_lint_fail_on_warnings(void) {
   {
@@ -343,13 +344,13 @@ int32_t check_lint_fail_on_warnings(void) {
 }
 int32_t fmt_check_invoke_compile(int32_t argc, uint8_t * check_argv) {
   {
-    return fmt_check_invoke_compile_impl(argc, check_argv);
+    return driver_run_compiler_full(argc, check_argv);
   }
   return 0;
 }
 void fmt_check_dep_clear(void) {
   {
-    (void)(fmt_check_dep_clear_impl());
+    (void)(driver_dep_seeded_clear_all());
   }
   (void)(0);
   return;
