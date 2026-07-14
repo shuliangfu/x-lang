@@ -1,4 +1,4 @@
-/* regen from fmt_check_cmd_thin.x -E (try_walk pure) */
+/* regen from fmt_check_cmd_thin.x -E (path_resolve_abs pure) */
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/types.h>
@@ -10,6 +10,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #endif
+
 extern int32_t driver_check_quiet_ok_get(void);
 extern int32_t fmt_walk_skip_dot_name(uint8_t * name);
 extern int32_t check_one_need_fallback_diag(int32_t rc, int32_t nd, int32_t nd_errors, int32_t nd_warnings, int32_t nd_infos, int32_t direct_diag);
@@ -54,6 +55,7 @@ extern void check_argv_append_default_libs_for_path(uint8_t * path, uint8_t * ch
 extern int32_t driver_run_fmt(int32_t argc, uint8_t * argv);
 extern int32_t driver_run_compiler_check(int32_t argc, uint8_t * argv);
 static uint8_t * g_check_current_file;
+static uint8_t * g_resolve_abs_buf;
 static uint8_t * g_fmt_lit_check_error;
 static uint8_t * g_fmt_lit_fmt_error;
 static uint8_t * g_fmt_lit_chk002;
@@ -72,6 +74,7 @@ static uint8_t * g_fmt_default_product_sub_2;
 static uint8_t * g_fmt_default_product_sub_3;
 static void init_globals(void) {
   g_check_current_file = (uint8_t[]){ };
+  g_resolve_abs_buf = (uint8_t[]){ };
   g_fmt_lit_check_error = (uint8_t[]){99, 104, 101, 99, 107, 32, 101, 114, 114, 111, 114, 0 };
   g_fmt_lit_fmt_error = (uint8_t[]){102, 109, 116, 32, 101, 114, 114, 111, 114, 0 };
   g_fmt_lit_chk002 = (uint8_t[]){67, 72, 75, 48, 48, 50, 0 };
@@ -97,7 +100,6 @@ extern int32_t check_user_passed_L_get_impl(void);
 extern int32_t fmt_user_ignore_count_impl(void);
 extern int32_t fmt_file_list_n_impl(void);
 extern uint8_t * fmt_user_ignore_at_impl(int32_t i);
-extern uint8_t * fmt_path_resolve_abs_impl(uint8_t * path);
 extern int32_t fmt_file_list_store_impl(uint8_t * abs_path);
 int32_t driver_check_quiet_ok_get(void) {
   return 1;
@@ -254,10 +256,59 @@ uint8_t * fmt_user_ignore_at(int32_t i) {
   return ((uint8_t *)(0));
 }
 uint8_t * fmt_path_resolve_abs(uint8_t * path) {
-  {
-    return fmt_path_resolve_abs_impl(path);
+  if ((path ==((uint8_t *)(0)))) {
+    return ((uint8_t *)(0));
   }
-  return ((uint8_t *)(0));
+  if ((shux_path_is_absolute(path) !=0)) {
+    {
+      int32_t i = 0;
+      while ((i < 511)) {
+        uint8_t c = (path)[i];
+        (void)(((g_resolve_abs_buf)[i] = c));
+        if ((c ==0)) {
+          return &((g_resolve_abs_buf)[0]);
+        }
+        (void)((i = (i + 1)));
+      }
+      (void)(((g_resolve_abs_buf)[511] = 0));
+    }
+    return &((g_resolve_abs_buf)[0]);
+  }
+  {
+    uint8_t * p = getcwd(&((g_resolve_abs_buf)[0]), 512);
+    if ((p ==((uint8_t *)(0)))) {
+      return ((uint8_t *)(0));
+    }
+    int32_t n = 0;
+    while ((n < 511)) {
+      if (((g_resolve_abs_buf)[n] ==0)) {
+        break;
+      }
+      (void)((n = (n + 1)));
+    }
+    int32_t plen = 0;
+    while ((plen < 512)) {
+      if (((path)[plen] ==0)) {
+        break;
+      }
+      (void)((plen = (plen + 1)));
+    }
+    if ((((n + 1) + plen) >=512)) {
+      return ((uint8_t *)(0));
+    }
+    (void)(((g_resolve_abs_buf)[n] = 47));
+    (void)((n = (n + 1)));
+    int32_t j = 0;
+    while ((j <=plen)) {
+      uint8_t c2 = (path)[j];
+      (void)(((g_resolve_abs_buf)[(n + j)] = c2));
+      if ((c2 ==0)) {
+        break;
+      }
+      (void)((j = (j + 1)));
+    }
+  }
+  return &((g_resolve_abs_buf)[0]);
 }
 int32_t driver_collect_mode_is_check(void) {
   {

@@ -7,13 +7,14 @@
 //   check_collect_default_product_dirs / check_one_file 门闩 /
 //   try_append 早退 / parse_ignore 前缀 / invoke_compile·dep_clear 分派 /
 //   set_current_file + print_collected + cwd_fallback +
-//   try_walk_if_product_subdir）进 thin.x；
+//   try_walk_if_product_subdir + path_resolve_abs）进 thin.x；
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_FMT_CHECK_THIN_FROM_X）ld -r
 //   → fmt_check_cmd_driver.o
 // Prove IDENTICAL：seeds/fmt_check_cmd_thin_surface.from_x.c
 // Cap residual：walk opendir/stat/argv/大 BSS / missing-diag format /
 //   check_one_file_body 等 *_impl 仍在 full seed rest；FROM_X 下 pure-duplicate
-//   _impl 已剔除（含 set_current_file / print / cwd_fallback / try_walk；H↓）。
+//   _impl 已剔除（含 set_current_file / print / cwd_fallback / try_walk /
+//   path_resolve_abs；H↓）。
 //
 // -E 约束：无 while 重赋值；无零参-only 不稳写法；6 参用扁平 if。
 //
@@ -29,11 +30,12 @@ export extern "C" function check_user_passed_L_get_impl(): i32;
 export extern "C" function fmt_user_ignore_count_impl(): i32;
 export extern "C" function fmt_file_list_n_impl(): i32;
 export extern "C" function fmt_user_ignore_at_impl(i: i32): *u8;
-export extern "C" function fmt_path_resolve_abs_impl(path: *u8): *u8;
 export extern "C" function fmt_file_list_store_impl(abs_path: *u8): i32;
 
 // pure：当前 check 源路径（512B 小 BSS；单线程流水线；非 Cap 大数组）
 let g_check_current_file: u8[512] = [];
+// pure：resolve_abs 返回缓冲（与冷 seed static ab[512] 同语义；勿 free）
+let g_resolve_abs_buf: u8[512] = [];
 
 let g_fmt_lit_check_error: u8[12] = [99, 104, 101, 99, 107, 32, 101, 114, 114, 111, 114, 0];
 let g_fmt_lit_fmt_error: u8[10] = [102, 109, 116, 32, 101, 114, 114, 111, 114, 0];
@@ -241,12 +243,62 @@ export function fmt_user_ignore_at(i: i32): *u8 {
   return 0 as *u8;
 }
 
+// pure：相对路径 getcwd+字节拼；绝对路径字节拷贝；512B 小 BSS（无 snprintf/rest _impl）
 #[no_mangle]
 export function fmt_path_resolve_abs(path: *u8): *u8 {
-  unsafe {
-    return fmt_path_resolve_abs_impl(path);
+  if (path == 0 as *u8) {
+    return 0 as *u8;
   }
-  return 0 as *u8;
+  if (shux_path_is_absolute(path) != 0) {
+    unsafe {
+      let i: i32 = 0;
+      while (i < 511) {
+        let c: u8 = path[i];
+        g_resolve_abs_buf[i] = c;
+        if (c == 0) {
+          return &g_resolve_abs_buf[0];
+        }
+        i = i + 1;
+      }
+      g_resolve_abs_buf[511] = 0;
+    }
+    return &g_resolve_abs_buf[0];
+  }
+  unsafe {
+    let p: *u8 = getcwd(&g_resolve_abs_buf[0], 512);
+    if (p == 0 as *u8) {
+      return 0 as *u8;
+    }
+    let n: i32 = 0;
+    while (n < 511) {
+      if (g_resolve_abs_buf[n] == 0) {
+        break;
+      }
+      n = n + 1;
+    }
+    let plen: i32 = 0;
+    while (plen < 512) {
+      if (path[plen] == 0) {
+        break;
+      }
+      plen = plen + 1;
+    }
+    if (n + 1 + plen >= 512) {
+      return 0 as *u8;
+    }
+    g_resolve_abs_buf[n] = 47;
+    n = n + 1;
+    let j: i32 = 0;
+    while (j <= plen) {
+      let c2: u8 = path[j];
+      g_resolve_abs_buf[n + j] = c2;
+      if (c2 == 0) {
+        break;
+      }
+      j = j + 1;
+    }
+  }
+  return &g_resolve_abs_buf[0];
 }
 
 // ---- G-02f-383：collect_mode / user_passed_L → seed impl ----

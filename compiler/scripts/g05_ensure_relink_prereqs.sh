@@ -2554,8 +2554,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       fi
     fi
   fi
-  # G-02f-11 / fmt_check R2 thin + Cap residual pure 深迁（续 try_walk pure）：fmt_check_cmd_driver.o
-  # PREFER_X_O=1：thin.x（lit/entry+pure 含 try_walk/cwd_fallback）+ seed-rest（FROM_X）ld -r
+  # G-02f-11 / fmt_check R2 thin + Cap residual pure 深迁（续 path_resolve_abs pure）：fmt_check_cmd_driver.o
+  # PREFER_X_O=1：thin.x（lit/entry+pure 含 try_walk/resolve_abs/cwd_fallback）+ seed-rest（FROM_X）ld -r
   _fcc=seeds/fmt_check_cmd.from_x.c
   _fcc_thin_x=src/driver/fmt_check_cmd_thin.x
   _fcc_o=src/driver/fmt_check_cmd_driver.o

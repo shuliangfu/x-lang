@@ -1,4 +1,4 @@
-/* R2 thin + Cap residual pure 深迁（续 try_walk pure）：
+/* R2 thin + Cap residual pure 深迁（续 path_resolve_abs pure）：
  * PREFER hybrid thin 由 src/driver/fmt_check_cmd_thin.x（lit/entry + pure 真体）；
  * rest SHUX_L2_FMT_CHECK_THIN_FROM_X：无 thin 公共体；pure-duplicate _impl 剔除
  * （含 set_current_file / print / cwd_fallback / try_walk / invoke/dep_clear / …）；
@@ -618,7 +618,11 @@ int fmt_file_list_n(void) {
 }
 #endif
 
-/* getcwd + 相对拼接 🔒；返回静态缓冲指针（勿 free） */
+/* pure 权威：thin.x fmt_path_resolve_abs（getcwd+字节拼/拷贝；512B BSS）；
+ * 冷启动保留 _impl + public；FROM_X 下剔除 pure-dup _impl（H↓）；
+ * 返回静态缓冲指针（勿 free；与 thin g_resolve_abs_buf 同语义）。
+ */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 const char *fmt_path_resolve_abs_impl(const char *path) {
     static char ab[512];
     if (!path)
@@ -637,7 +641,6 @@ const char *fmt_path_resolve_abs_impl(const char *path) {
     return ab;
 }
 
-#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 const char *fmt_path_resolve_abs(const char *path) {
     return fmt_path_resolve_abs_impl(path);
 }
@@ -723,9 +726,10 @@ void walk_dir_collect_process_child(const char *child, int is_dir, int is_reg) {
  * Cap residual：opendir 循环 🔒；过滤/递归编排调 public walk_dir_collect_process_child
  * （hybrid 时 thin pure；冷启动时 seed public→_impl）。
  *
- * 【Why 根源】dir 可能指向 fmt_path_resolve_abs_impl 的 static char ab[512] 静态缓冲区
- * （collect_paths_from_arg_impl → fmt_path_resolve_abs_impl → walk_dir_collect 传入）。
- * 循环中 file_list_push → fmt_path_resolve_abs_impl 会覆盖该静态缓冲区，
+ * 【Why 根源】dir 可能指向 fmt_path_resolve_abs 的静态/小 BSS 缓冲
+ * （collect_paths_from_arg → resolve_abs → walk_dir_collect 传入；hybrid thin
+ * g_resolve_abs_buf / 冷 seed static ab[512]）。
+ * 循环中 file_list_push → resolve_abs 会覆盖该缓冲，
  * 导致 dir 指针内容变为上一个 .x 文件路径，snprintf 拼接出
  * "compiler/foo.x/bar.x" 这样的错误路径。拷贝到本地 dir_buf 隔离别名。
  * 【Invariant】dir_buf 在本函数栈帧内，不受下游调用影响。
