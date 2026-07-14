@@ -133,6 +133,9 @@ MODULES=(
   # rt_util R2 full：.x 吃满 unlink + argv0_basename；产品 rest 在 FROM_X 下业务符号 H=0
   # prove 锁 full surface IDENTICAL（2 公共符号）；冷/无 PREFER 仍可走 seeds/rt_util.from_x.c 全 C 体
   "rt_util|src/runtime/rt_util.x|seeds/rt_util_surface.from_x.c||"
+  # rt_argv R2 full：.x 吃满 15 公共 drv_eq_* / path_ends_x / target_has_arm；产品 rest 在 FROM_X 下业务 H=0
+  # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/rt_argv.from_x.c 全 C 体
+  "rt_argv|src/runtime/rt_argv.x|seeds/rt_argv_surface.from_x.c||"
 )
 
 # 找 shux 二进制（优先 shux，fallback shux-c）

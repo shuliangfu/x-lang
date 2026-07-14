@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // G-02f-263/431 / P2 R1：argv 令牌比较（drv_eq_* / path_ends / target_has_arm）。
-// 产品默认 seeds/runtime.from_x.c；hybrid 用 seeds/rt_argv.from_x.c。
-// G-02f-431：15 函数全部 .x 真迁（memcmp → flat early-return byte 比较），-E 通过。
+// 产品 PREFER_X_O：本文件 full + rest seed（FROM_X 仅 marker）；冷启动走 seeds/rt_argv.from_x.c。
+// R2 full：15 函数全部 .x 真迁（memcmp → flat early-return byte 比较）；hybrid rest 业务 H=0。
 
 #[no_mangle]
 export function drv_eq_minus_o(buf: *u8, len: i32): i32 {

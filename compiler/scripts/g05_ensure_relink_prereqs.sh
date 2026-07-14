@@ -718,12 +718,19 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           fi
         fi
         if [ -n "$_rt_a_o" ]; then
-          # G-02f-431：PREFER_X_O=1 时优先 .x → shux -E → cc -c；失败回退 seed C
+          # R2 full：PREFER_X_O=1 时 full .x + rest seed (-D FROM_X 业务 H=0) → cc -r 合并
           if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_argv_x" ]; then
-            if g05_try_x_to_o "$_rt_argv_x" "$_rt_a_o"; then
+            _rt_argv_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_argv_thin.XXXXXX") || true
+            _rt_argv_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_argv_rest.XXXXXX") || true
+            if [ -n "$_rt_argv_thin_o" ] && [ -n "$_rt_argv_rest_o" ] \
+              && g05_try_x_to_o "$_rt_argv_x" "$_rt_argv_thin_o" \
+              && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_RT_ARGV_FROM_X \
+                   -c -o "$_rt_argv_rest_o" "$_rt_argv_seed" \
+              && $CC -r -nostdlib -o "$_rt_a_o" "$_rt_argv_thin_o" "$_rt_argv_rest_o" 2>/dev/null; then
               _rt_argv_ok=1
-              echo "g05_ensure: R1 argv ← $_rt_argv_x (G-02f-431 L2 prefer .x)"
+              echo "g05_ensure: R1 argv ← full .x + rest (R2 full H=0; G-02f-431 PREFER_X_O)"
             fi
+            rm -f "$_rt_argv_thin_o" "$_rt_argv_rest_o"
           fi
           if [ "$_rt_argv_ok" = "0" ] && [ -f "$_rt_argv_seed" ]; then
             # shellcheck disable=SC2086
