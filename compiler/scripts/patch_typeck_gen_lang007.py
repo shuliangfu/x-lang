@@ -312,9 +312,7 @@ def patch_var_debug_print(src: str) -> tuple[str, bool]:
     pos = src.find(fn_sig)
     if pos < 0:
         return src, False
-    pos = src.find(fn_sig, pos + 1)
-    if pos < 0:
-        return src, False
+    # First occurrence is the definition (forward declaration has ; not {)
     # Find function end by counting braces
     brace_at = src.find("{", pos)
     if brace_at < 0:
