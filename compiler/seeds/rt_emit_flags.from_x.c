@@ -3,6 +3,10 @@
  * Note: RFC R4 DCE is under #if !SHUX_USE_X_DRIVER and is NOT in product G05
  * runtime_driver_no_c.o; this slice is the product-path substitute (R5-lite flags).
  * Hybrid: SHUX_RT_EMIT_FLAGS_FROM_X + ld -r into runtime_driver_no_c.o
+ *
+ * R2（2026-07-14）：has_emit + set_use_lto + set_print_target_cpu 均由 .x 提供；
+ * FROM_X 下本文件仅前向声明（产品 rest 业务符号 H=0）。
+ * 冷启动/无 PREFER 时仍编译完整 C 体。
  */
 #include <stdint.h>
 #include <stddef.h>
@@ -31,15 +35,7 @@ typedef struct DriverCompileStateSU {
   int32_t parse_saw_target_cpu;
 } DriverCompileStateSU;
 
-/* G-02f-451：thin+rest PREFER_X_O
- *   thin .x provides 1 #[no_mangle] wrapper (calls *_impl in rest).
- *   rest seed C (compiled with -DSHUX_RT_EMIT_FLAGS_FROM_X):
- *     - driver_argv_has_emit_c_flag renamed to *_impl via macro.
- *   Other functions stay in rest (no .x counterpart). */
-#ifdef SHUX_RT_EMIT_FLAGS_FROM_X
-#define driver_argv_has_emit_c_flag    driver_argv_has_emit_c_flag_impl
-#endif
-
+#ifndef SHUX_RT_EMIT_FLAGS_FROM_X
 /** argv 是否含 -E / -E-extern。 */
 int driver_argv_has_emit_c_flag(int argc, char **argv) {
   int i;
@@ -61,3 +57,8 @@ void driver_compile_argv_set_print_target_cpu_c(DriverCompileStateSU *state) {
   if (state)
     state->print_target_cpu = 1;
 }
+#else
+int driver_argv_has_emit_c_flag(int argc, char **argv);
+void driver_compile_argv_set_use_lto_c(DriverCompileStateSU *state);
+void driver_compile_argv_set_print_target_cpu_c(DriverCompileStateSU *state);
+#endif

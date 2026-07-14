@@ -740,7 +740,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
                    -c -o "$_rt_ef_rest_o" "$_rt_ef_seed" \
               && $CC -r -nostdlib -o "$_rt_e_o" "$_rt_ef_thin_o" "$_rt_ef_rest_o" 2>/dev/null; then
               _rt_ef_ok=1
-              echo "g05_ensure: R5-lite emit_flags ← thin .x + rest (G-02f-451 L2 prefer .x)"
+              echo "g05_ensure: R2 emit_flags ← full .x + rest (G-02f R2 prefer .x; FROM_X rest H=0)"
             fi
             rm -f "$_rt_ef_thin_o" "$_rt_ef_rest_o"
           fi

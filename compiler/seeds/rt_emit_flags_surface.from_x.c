@@ -1,10 +1,7 @@
 /* seeds/rt_emit_flags_surface.from_x.c
- * G-02f rt_emit_flags L2 thin surface — isomorphic with src/runtime/rt_emit_flags.x
- * Product PREFER_X_O: g05_try_x_to_o(rt_emit_flags.x) + hybrid rest seed
- *   seeds/rt_emit_flags.from_x.c (-DSHUX_RT_EMIT_FLAGS_FROM_X) ld -r into runtime_driver_no_c
- * Hybrid rest seed unchanged: has_emit_c_flag body (macro→_impl) + set_use_lto /
- *   set_print_target_cpu (no .x counterpart)
- * Prove: thin.x vs this seed → nm IDENTICAL (public surface; _impl is U)
+ * G-02f rt_emit_flags R2 full surface — isomorphic with src/runtime/rt_emit_flags.x
+ * Product PREFER_X_O: g05_try_x_to_o(rt_emit_flags.x) + rest seed empty under FROM_X
+ * Prove: full.x vs this seed → nm IDENTICAL (3 public: has_emit + set_use_lto + set_print_target_cpu)
  * Regen: ./shux -E ... src/runtime/rt_emit_flags.x | filter DBG + polish prologue
  */
 #include <stddef.h>
@@ -18,10 +15,112 @@
 #include <fcntl.h>
 #include <errno.h>
 #endif
-extern int32_t driver_argv_has_emit_c_flag_impl(int32_t argc, uint8_t * * argv);
-int32_t driver_argv_has_emit_c_flag(int32_t argc, uint8_t * * argv) {
-  {
-    return driver_argv_has_emit_c_flag_impl(argc, argv);
+struct RtEmitFlagsState {
+  uint8_t path_buf[512];
+  int32_t path_len;
+  uint8_t out_path_buf[512];
+  int32_t out_path_len;
+  int32_t use_asm_backend;
+  int32_t target_arch;
+  uint8_t target_buf[512];
+  int32_t target_len;
+  uint8_t opt_level_buf[8];
+  int32_t opt_level_len;
+  int32_t use_lto;
+  int32_t backend_asm_explicit;
+  int32_t use_freestanding;
+  int32_t parse_saw_target;
+  uint8_t target_cpu_buf[64];
+  int32_t target_cpu_len;
+  int32_t target_cpu_features;
+  int32_t print_target_cpu;
+  int32_t parse_saw_target_cpu;
+};
+
+extern int32_t rt_argv_is_minus_E(uint8_t * s);
+extern int32_t rt_argv_is_minus_E_extern(uint8_t * s);
+extern int32_t rt_scan_argv_emit(int32_t argc, uint8_t * * argv, int32_t i);
+extern int32_t driver_argv_has_emit_c_flag(int32_t argc, uint8_t * * argv);
+extern void driver_compile_argv_set_use_lto_c(struct RtEmitFlagsState * state);
+extern void driver_compile_argv_set_print_target_cpu_c(struct RtEmitFlagsState * state);
+int32_t rt_argv_is_minus_E(uint8_t * s) {
+  if ((s ==((uint8_t *)(0)))) {
+    return 0;
   }
-  return 0;
+  if (((s)[0] !=45)) {
+    return 0;
+  }
+  if (((s)[1] !=69)) {
+    return 0;
+  }
+  if (((s)[2] !=0)) {
+    return 0;
+  }
+  return 1;
+}
+int32_t rt_argv_is_minus_E_extern(uint8_t * s) {
+  if ((s ==((uint8_t *)(0)))) {
+    return 0;
+  }
+  if (((s)[0] !=45)) {
+    return 0;
+  }
+  if (((s)[1] !=69)) {
+    return 0;
+  }
+  if (((s)[2] !=45)) {
+    return 0;
+  }
+  if (((s)[3] !=101)) {
+    return 0;
+  }
+  if (((s)[4] !=120)) {
+    return 0;
+  }
+  if (((s)[5] !=116)) {
+    return 0;
+  }
+  if (((s)[6] !=101)) {
+    return 0;
+  }
+  if (((s)[7] !=114)) {
+    return 0;
+  }
+  if (((s)[8] !=110)) {
+    return 0;
+  }
+  if (((s)[9] !=0)) {
+    return 0;
+  }
+  return 1;
+}
+int32_t rt_scan_argv_emit(int32_t argc, uint8_t * * argv, int32_t i) {
+  if ((i >=argc)) {
+    return 0;
+  }
+  if ((rt_argv_is_minus_E((argv)[i]) !=0)) {
+    return 1;
+  }
+  if ((rt_argv_is_minus_E_extern((argv)[i]) !=0)) {
+    return 1;
+  }
+  return rt_scan_argv_emit(argc, argv, (i + 1));
+}
+int32_t driver_argv_has_emit_c_flag(int32_t argc, uint8_t * * argv) {
+  if ((argc < 2)) {
+    return 0;
+  }
+  return rt_scan_argv_emit(argc, argv, 1);
+}
+void driver_compile_argv_set_use_lto_c(struct RtEmitFlagsState * state) {
+  if ((state ==((struct RtEmitFlagsState *)(0)))) {
+    return;
+  }
+  (void)(((state->use_lto) = 1));
+}
+void driver_compile_argv_set_print_target_cpu_c(struct RtEmitFlagsState * state) {
+  if ((state ==((struct RtEmitFlagsState *)(0)))) {
+    return;
+  }
+  (void)(((state->print_target_cpu) = 1));
 }
