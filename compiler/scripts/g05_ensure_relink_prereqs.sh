@@ -1011,7 +1011,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           fi
         fi
         if [ -n "$_rt_ab_o" ] && [ -f "$_rt_arena_buf_seed" ]; then
-          # G-02f-443：PREFER_X_O=1 时 thin .x + rest seed (-D) → cc -r 合并
+          # R2 full H=0：PREFER_X_O=1 时 full .x + rest seed (-D，BSS+marker) → cc -r 合并
           if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_arena_buf_x" ]; then
             _rt_ab_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_arena_thin.XXXXXX") || true
             _rt_ab_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_arena_rest.XXXXXX") || true
@@ -1021,7 +1021,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
                    -c -o "$_rt_ab_rest_o" "$_rt_arena_buf_seed" \
               && $CC -r -nostdlib -o "$_rt_ab_o" "$_rt_ab_thin_o" "$_rt_ab_rest_o" 2>/dev/null; then
               _rt_ab_ok=1
-              echo "g05_ensure: rest arena_buf ← thin .x + rest (G-02f-443 L2 prefer .x)"
+              echo "g05_ensure: rest arena_buf ← full .x + rest BSS+marker (R2 full H=0)"
             fi
             rm -f "$_rt_ab_thin_o" "$_rt_ab_rest_o"
           fi

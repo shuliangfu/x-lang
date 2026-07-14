@@ -121,6 +121,15 @@ void driver_x_emit_bind_lib_root(int i);
 int32_t *driver_x_emit_n_lib_roots_slot(void);
 int32_t *driver_x_emit_want_extern_slot(void);
 
+/**
+ * Cap-global-bss residual：rt_arena_buf R2 经槽访问 128MiB/2MiB 静态缓冲。
+ * 数据定义在 seeds/rt_arena_buf.from_x.c（跨 TU 非 static）；本层暴露槽/尺寸。
+ */
+uint8_t *driver_arena_static_slot(void);
+uint8_t *driver_module_static_slot(void);
+size_t driver_arena_static_size(void);
+size_t driver_module_static_size(void);
+
 /** pipeline 入口源码长度（大模块 typeck 跳过判定）。 */
 void driver_set_pipeline_entry_source_len(size_t len);
 size_t driver_pipeline_entry_source_len(void);

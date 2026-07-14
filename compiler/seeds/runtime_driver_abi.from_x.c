@@ -1628,6 +1628,32 @@ int32_t *driver_x_emit_want_extern_slot(void) {
 }
 
 /**
+ * Cap-global-bss residual：rt_arena_buf R2 full .x 访问 128MiB/2MiB 静态缓冲。
+ * 数据定义在 seeds/rt_arena_buf.from_x.c（跨 TU 非 static）；本层暴露槽/尺寸。
+ * 始终提供（不随 RDABI thin 宏剥离）。
+ */
+#define DRIVER_ARENA_STATIC_SIZE_ABI (128 * 1024 * 1024)
+#define DRIVER_MODULE_STATIC_SIZE_ABI (2 * 1024 * 1024)
+extern uint8_t driver_arena_static[DRIVER_ARENA_STATIC_SIZE_ABI];
+extern uint8_t driver_module_static[DRIVER_MODULE_STATIC_SIZE_ABI];
+
+uint8_t *driver_arena_static_slot(void) {
+    return driver_arena_static;
+}
+
+uint8_t *driver_module_static_slot(void) {
+    return driver_module_static;
+}
+
+size_t driver_arena_static_size(void) {
+    return (size_t)DRIVER_ARENA_STATIC_SIZE_ABI;
+}
+
+size_t driver_module_static_size(void) {
+    return (size_t)DRIVER_MODULE_STATIC_SIZE_ABI;
+}
+
+/**
  * 扫描预处理后源码是否含顶层 import（`import("` 或 `= import(`）。
  * 参数：src 预处理后缓冲；src_len 有效字节数。
  * 返回值：1 含顶层 import；0 否。
