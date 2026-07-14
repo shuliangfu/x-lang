@@ -3757,6 +3757,29 @@ ensure_runtime_driver_diagnostic_obj() {
   fi
 }
 
+# Cap residual：driver_abi 跨 TU 数据/thread_fn（与 Makefile RT_SEED_SLICE_OBJS 同源）。
+ensure_rt_seed_slice_objs() {
+  mkdir -p src/runtime
+  local pair seed o
+  for pair in \
+    "rt_arena_buf:seeds/rt_arena_buf.from_x.c:src/runtime/rt_arena_buf.o" \
+    "rt_emit_state:seeds/rt_emit_state.from_x.c:src/runtime/rt_emit_state.o" \
+    "rt_preamble:seeds/rt_preamble.from_x.c:src/runtime/rt_preamble.o" \
+    "rt_stack:seeds/rt_stack.from_x.c:src/runtime/rt_stack.o"; do
+    seed="${pair#*:}"
+    seed="${seed%%:*}"
+    o="${pair##*:}"
+    if [ ! -f "$seed" ]; then
+      build_shux_asm_error "rt seed slice missing: $seed"
+      return 1
+    fi
+    if [ ! -f "$o" ] || [ "$seed" -nt "$o" ]; then
+      echo " cc -c $o <- $seed (Cap residual / RT seed slice)"
+      $CC $CFLAGS -I. -Iinclude -Isrc -c "$seed" -o "$o"
+    fi
+  done
+}
+
 ensure_runtime_driver_asm_strict_obj() {
   ensure_runtime_io_abi_obj
   ensure_runtime_link_abi_obj
@@ -3764,10 +3787,13 @@ ensure_runtime_driver_asm_strict_obj() {
   ensure_runtime_driver_abi_obj
   ensure_diag_obj
   ensure_runtime_driver_diagnostic_obj
+  ensure_rt_seed_slice_objs
   local o="src/runtime_driver_asm_bstrict.o"
   if [ ! -f "$o" ] || [ "seeds/runtime.from_x.c" -nt "$o" ] || [ "scripts/build_shux_asm.sh" -nt "$o" ]; then
-  echo " cc -c $o <- seeds/runtime.from_x.c (-DSHUX_ASM_USE_COMPILER_IMPL_C -DSHUX_NO_C_FRONTEND)"
+  echo " cc -c $o <- seeds/runtime.from_x.c (-DSHUX_ASM_USE_COMPILER_IMPL_C -DSHUX_NO_C_FRONTEND + RT_*_FROM_X)"
   local rt_flags="-DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_PREPROCESS -DSHUX_ASM_USE_COMPILER_IMPL_C -DSHUX_NO_C_FRONTEND"
+  # 与 Makefile RUNTIME_DRIVER_RT_SLICE_CFLAGS 一致：数据在 rt_* 切片，runtime 仅声明。
+  rt_flags="$rt_flags -DSHUX_RT_ARENA_BUF_FROM_X -DSHUX_RT_EMIT_STATE_FROM_X -DSHUX_RT_PREAMBLE_FROM_X -DSHUX_RT_STACK_FROM_X"
   if [ "${SHUX_LEGACY_PREPROCESS_C:-0}" = "1" ]; then
   rt_flags="$rt_flags -DSHUX_LEGACY_PREPROCESS_C"
   fi
@@ -3807,8 +3833,9 @@ ensure_asm_bootstrap_support_extra_objs() {
 }
 
 # experimental / strict runtime 链：heap_*_c 在 runtime_driver_strict_glue_stubs.o（G-02e-14）。
+# RT Cap residual slices：driver_abi 始终 extern 引用（arena/emit/preamble/stack_esc）。
 asm_bootstrap_support_extra_link() {
-  echo "src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o $BUILD_DIR/typeck_c_module_stubs.o src/runtime_driver_strict_glue_stubs.o"
+  echo "src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o $BUILD_DIR/typeck_c_module_stubs.o src/runtime_driver_strict_glue_stubs.o src/runtime/rt_arena_buf.o src/runtime/rt_emit_state.o src/runtime/rt_preamble.o src/runtime/rt_stack.o"
 }
 
 # 确保 typeck_f64_bits.o 存在（pipeline_x / parser 浮点字面量位拆分）。
