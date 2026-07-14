@@ -99,6 +99,9 @@ MODULES=(
   # rt_run_x_emit L2 thin 公共面：与产品 PREFER_X_O 同源（thin.x + hybrid rest seed）；prove 锁 thin 面 IDENTICAL
   # 产品 hybrid rest 仍见 seeds/rt_run_x_emit.from_x.c（emit body）；入 runtime_driver_no_c.o
   "rt_run_x_emit|src/runtime/rt_run_x_emit.x|seeds/rt_run_x_emit_surface.from_x.c||"
+  # rt_parse_diag L2 thin 公共面：与产品 PREFER_X_O 同源（thin.x + hybrid rest seed）；prove 锁 thin 面 IDENTICAL
+  # 产品 hybrid rest 仍见 seeds/rt_parse_diag.from_x.c（precise parse body + marker）；入 runtime_driver_no_c.o
+  "rt_parse_diag|src/runtime/rt_parse_diag.x|seeds/rt_parse_diag_surface.from_x.c||"
 )
 
 # 找 shux 二进制（优先 shux，fallback shux-c）
