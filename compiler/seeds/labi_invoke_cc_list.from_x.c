@@ -1,15 +1,21 @@
-/* seeds/labi_invoke_cc_list.from_x.c — G-02f-274 P2 link_abi L5 invoke_cc list pure
+/* seeds/labi_invoke_cc_list.from_x.c — G-02f-274/L P2 link_abi L5 invoke_cc list pure → R2 full
  * Logic source: src/runtime/labi_invoke_cc_list.x
  * Hybrid: SHUX_LABI_INVOKE_CC_LIST_FROM_X + ld -r into runtime_link_abi.o
  *
- * Pure data: linux harden flags, skip-native env names, invoke_cc rel paths.
- * fork/exec/spawn IO stays in mega shux_invoke_cc_impl.
+ * R2 full（2026-07-14）：公共业务符号由 full .x 提供：
+ *   labi_linux_harden_flag_{count,at}
+ *   labi_invoke_cc_skip_native_env_{count,at} + invoke_cc_skip_native_tuning
+ *   labi_icc_rel_* (12) + labi_icc_needs_rel_{count,at}
+ * Cap residual：getenv 🔒（libc；.x extern）；fork/exec 仍在 mega shux_invoke_cc_impl。
+ * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
+ * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
  *
- * G-02f-L：冷启动 / 回退 seed 与 .x 同构（if/else 短字面量，无 static 表），
- * 便于 nm 全局符号 IDENTICAL；产品 PREFER_X_O 优先 .x（W-string-nul）。
+ * Prove：seeds/labi_invoke_cc_list_surface.from_x.c（-E 同构）nm IDENTICAL。
  */
 #include <stddef.h>
 #include <stdlib.h>
+
+#ifndef SHUX_LABI_INVOKE_CC_LIST_FROM_X
 
 int labi_linux_harden_flag_count(void) {
   return 5;
@@ -103,4 +109,30 @@ const char *labi_icc_needs_rel_at(int i) {
   if (i == 11)
     return "std/socketio/socketio.o";
   return NULL;
+}
+
+#else
+int labi_linux_harden_flag_count(void);
+const char *labi_linux_harden_flag_at(int i);
+int labi_invoke_cc_skip_native_env_count(void);
+const char *labi_invoke_cc_skip_native_env_at(int i);
+int invoke_cc_skip_native_tuning(void);
+const char *labi_icc_rel_core_builtin_o(void);
+const char *labi_icc_rel_core_builtin_abi_h(void);
+const char *labi_icc_rel_core_mem_o(void);
+const char *labi_icc_rel_core_slice_o(void);
+const char *labi_icc_rel_db_kv_o(void);
+const char *labi_icc_rel_db_arrow_o(void);
+const char *labi_icc_rel_csv_o(void);
+const char *labi_icc_rel_error_o(void);
+const char *labi_icc_rel_heap_o(void);
+const char *labi_icc_rel_json_o(void);
+const char *labi_icc_rel_log_o(void);
+const char *labi_icc_rel_socketio_o(void);
+int labi_icc_needs_rel_count(void);
+const char *labi_icc_needs_rel_at(int i);
+#endif
+
+int labi_invoke_cc_list_slice_marker(void) {
+  return 1;
 }

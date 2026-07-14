@@ -1,13 +1,14 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-274 / P2 link_abi L5：invoke_cc 纯表（harden / skip-native env / needs rel）。
+// G-02f-274 / P2 link_abi L5：invoke_cc 纯表（harden / skip-native env / needs rel）→ R2 full。
 // 产品：PREFER_X_O → g05_try_x_to_o；冷启动 seeds/labi_invoke_cc_list.from_x.c。
-// hybrid 宏 SHUX_LABI_INVOKE_CC_LIST_FROM_X。
+// hybrid 宏 SHUX_LABI_INVOKE_CC_LIST_FROM_X（FROM_X rest 业务 H=0，仅 marker）。
 //
+// R2 full：.x 吃满 harden 表 + skip-native env + invoke_cc_skip_native_tuning + icc rel 表。
+// Cap residual：getenv 🔒（libc）；fork/exec 仍在 mega shux_invoke_cc_impl（🔒）。
 // G-02f-L：真迁 if/else + let 绑定短字符串（依赖 W-string-nul；无全局表）。
 // 禁止「函数体仅 return "lit"」——parser 会 skip 整函数；用 let p + return p。
-// fork/exec 仍在 mega shux_invoke_cc_impl（🔒）。
 
 export extern "C" function getenv(name: *u8): *u8;
 
