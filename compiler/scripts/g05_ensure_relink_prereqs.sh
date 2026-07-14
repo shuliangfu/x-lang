@@ -2438,8 +2438,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o x_frontend_link_alias.o "$_xfla"
     fi
   fi
-  # Track L：driver 叶子（fmt/check/test/build/run/compile/emit）构建链退役 — 仅 .x→.o 或 seeds/* 冷启动
-  # 不再读取工作区 pinned driver_*_gen.c；lsp_io_std_heap 仍可回退 workspace gen
+  # Track L：driver 叶子 + lsp_io_std_heap 构建链退役 — 仅 .x→.o 或 seeds/* 冷启动
+  # 不再读取工作区 pinned driver_*_gen.c / lsp_io_std_heap_gen.c
   for _leaf_pair in \
     "src/driver/fmt.x|driver_fmt_x.o|cmd_fmt:driver_cmd_fmt|seeds/driver_fmt_gen.linux.x86_64.c" \
     "src/driver/check.x|driver_check_x.o|cmd_check:driver_cmd_check|seeds/driver_check_gen.linux.x86_64.c" \
@@ -2447,7 +2447,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     "src/driver/build.x|driver_build_x.o|cmd_build:build_cmd_build|seeds/driver_build_gen.linux.x86_64.c" \
     "src/driver/run.x|driver_run_x.o|run_eq_word:driver_run_eq_word,cmd_run:driver_cmd_run|seeds/driver_run_gen.linux.x86_64.c" \
     "src/driver/compile.x|driver_compile_x.o|compile_dispatch_asm_backend:driver_compile_dispatch_asm_backend,compile_dispatch_emit_c_path:driver_compile_dispatch_emit_c_path,eq_minus_o:driver_eq_minus_o,eq_minus_L:driver_eq_minus_L,eq_minus_backend:driver_eq_minus_backend,eq_minus_target:driver_eq_minus_target,eq_minus_target_cpu:driver_eq_minus_target_cpu,eq_print_target_cpu:driver_eq_print_target_cpu,eq_minus_O:driver_eq_minus_O,eq_flto:driver_eq_flto,eq_minus_freestanding:driver_eq_minus_freestanding,eq_legacy_f32_abi:driver_eq_legacy_f32_abi,eq_fsanitize_address:driver_eq_fsanitize_address,eq_asm_word:driver_eq_asm_word,eq_c_word:driver_eq_c_word,path_ends_x:driver_path_ends_x,target_has_arm:driver_target_has_arm,run_compiler_full_x_post_parse:driver_run_compiler_full_x_post_parse,run_compiler_full_x:driver_run_compiler_full_x|seeds/driver_compile_gen.linux.x86_64.c" \
-    "src/driver/emit.x|driver_emit_x.o|emit_copy_lib_roots_to_ctx:driver_emit_copy_lib_roots_to_ctx,run_x_emit_x:driver_run_x_emit_x,dispatch_x_emit_to_c:driver_dispatch_x_emit_to_c,emit_state_key:driver_emit_state_key,pipeline_dep_ctx_fill_for_emit:driver_pipeline_dep_ctx_fill_for_emit|seeds/driver_emit_gen.linux.x86_64.c"
+    "src/driver/emit.x|driver_emit_x.o|emit_copy_lib_roots_to_ctx:driver_emit_copy_lib_roots_to_ctx,run_x_emit_x:driver_run_x_emit_x,dispatch_x_emit_to_c:driver_dispatch_x_emit_to_c,emit_state_key:driver_emit_state_key,pipeline_dep_ctx_fill_for_emit:driver_pipeline_dep_ctx_fill_for_emit|seeds/driver_emit_gen.linux.x86_64.c" \
+    "src/lsp/lsp_io_std_heap.x|lsp_io_std_heap_x.o|std_heap_alloc:lsp_io_std_heap_std_heap_alloc,std_heap_alloc_zeroed:lsp_io_std_heap_std_heap_alloc_zeroed,std_heap_free:lsp_io_std_heap_std_heap_free|seeds/lsp_io_std_heap_gen.linux.x86_64.c"
   do
     _leaf_x="${_leaf_pair%%|*}"
     _leaf_rest="${_leaf_pair#*|}"
@@ -2468,34 +2469,6 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         echo "g05_ensure: cc -c $_leaf_seed → $_leaf_o (Track L cold seed)"
         # shellcheck disable=SC2086
         $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -c -o "$_leaf_o" "$_leaf_seed"
-      fi
-    fi
-  done
-  # lsp_io_std_heap 仍 pin workspace gen（未 Track L 退役）
-  for _fe_pair in \
-    "src/lsp/lsp_io_std_heap.x|lsp_io_std_heap_gen.c|lsp_io_std_heap_x.o|std_heap_alloc:lsp_io_std_heap_std_heap_alloc,std_heap_alloc_zeroed:lsp_io_std_heap_std_heap_alloc_zeroed,std_heap_free:lsp_io_std_heap_std_heap_free"
-  do
-    _fe_x="${_fe_pair%%|*}"
-    _fe_rest="${_fe_pair#*|}"
-    _fe_gen="${_fe_rest%%|*}"
-    _fe_rest2="${_fe_rest#*|}"
-    _fe_o="${_fe_rest2%%|*}"
-    _fe_rename="${_fe_rest2#*|}"
-    if [ ! -f "$_fe_o" ] || { [ -f "$_fe_x" ] && [ "$_fe_x" -nt "$_fe_o" ]; } \
-      || { [ -f "$_fe_gen" ] && [ "$_fe_gen" -nt "$_fe_o" ]; }; then
-      _fe_done=0
-      if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_fe_x" ]; then
-        if G05_X_O_SYM_RENAME="$_fe_rename" g05_try_x_to_o "$_fe_x" "$_fe_o"; then
-          echo "g05_ensure: $_fe_o ← $_fe_x (G-02f-459 frontend PREFER_X_O)"
-          _fe_done=1
-        else
-          echo "g05_ensure: frontend PREFER_X_O failed for $_fe_o; fallback gen.c" >&2
-        fi
-      fi
-      if [ "$_fe_done" = "0" ] && [ -f "$_fe_gen" ]; then
-        echo "g05_ensure: cc -c $_fe_gen → $_fe_o (gen.c seed)"
-        # shellcheck disable=SC2086
-        $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -c -o "$_fe_o" "$_fe_gen"
       fi
     fi
   done

@@ -1936,38 +1936,26 @@ lsp_gen.c: src/lsp/lsp.x
 	@sed -i.bak 's/uint8_t state_buf\[16388\] = { 0 }/extern uint8_t g_lsp_state_buf[16388]/' lsp_gen.c 2>/dev/null || true
 	@sed -i.bak 's/(state_buf)/(g_lsp_state_buf)/g' lsp_gen.c 2>/dev/null || true
 
-# std_heap_* 由 lsp_io_std_heap.x 提供（转调 libc malloc/free/calloc）；shux-x 路径下 extern 由 codegen.x 输出。
+# Track L：lsp_io_std_heap 叶子退役 — .x→.o（rename 与 prove_module_selfhost 一致）
+# 冷启动仅 seeds/lsp_io_std_heap_gen.linux.x86_64.c；工作区 lsp_io_std_heap_gen.c 仅考古/FORCE_REGEN
+LSP_IO_STD_HEAP_RENAME = std_heap_alloc:lsp_io_std_heap_std_heap_alloc,std_heap_alloc_zeroed:lsp_io_std_heap_std_heap_alloc_zeroed,std_heap_free:lsp_io_std_heap_std_heap_free
+lsp_io_std_heap_x.o: src/lsp/lsp_io_std_heap.x scripts/driver_leaf_x_to_o.sh
+	@DRIVER_SUBCMD_DIRS="$(LSP_X_E_DIRS)" BASE_CFLAGS="$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc" \
+	  bash scripts/driver_leaf_x_to_o.sh src/lsp/lsp_io_std_heap.x $@ '$(LSP_IO_STD_HEAP_RENAME)' seeds/lsp_io_std_heap_gen.linux.x86_64.c
+# 考古：FORCE_REGEN / 手工对照用；产品链不依赖工作区 pinned gen
 lsp_io_std_heap_gen.c: src/lsp/lsp_io_std_heap.x
 	@if [ -s lsp_io_std_heap_gen.c ] && [ "$(SHUX_FORCE_REGEN_GEN)" != "1" ]; then \
-	  echo "lsp_io_std_heap_gen.c: pinned ($$(wc -c < lsp_io_std_heap_gen.c | tr -d ' ') bytes)"; \
+	  echo "lsp_io_std_heap_gen.c: pinned ($$(wc -c < lsp_io_std_heap_gen.c | tr -d ' ') bytes; Track L 退役，构建用 lsp_io_std_heap_x.o)"; \
 	elif [ -f seeds/lsp_io_std_heap_gen.linux.x86_64.c ] && [ ! -s lsp_io_std_heap_gen.c ]; then \
 	  cp -f seeds/lsp_io_std_heap_gen.linux.x86_64.c lsp_io_std_heap_gen.c; \
-	  echo "lsp_io_std_heap_gen.c: restored from seeds/lsp_io_std_heap_gen.linux.x86_64.c"; \
-	elif [ -f $(SHUX_X) ]; then \
-	  echo "lsp_io_std_heap_gen.c: ./$(SHUX_X) -x -E ..." >&2; \
-	  ./$(SHUX_X) -x -E $(LSP_X_E_DIRS) -E-extern src/lsp/lsp_io_std_heap.x > $@.tmp 2>/dev/null || true; \
-	  if [ -s $@.tmp ]; then \
-	  mv $@.tmp $@; \
-	  else \
-	  rm -f $@.tmp; \
-	  echo "lsp_io_std_heap_gen.c: shux-x failed/OOM, fallback to shux-c -E -E-extern" >&2; \
+	  echo "lsp_io_std_heap_gen.c: restored from seed (archaeology)"; \
+	elif [ -f $(SHUX_C) ] || $(MAKE) $(SHUX_C); then \
 	  tmp="$@.tmp"; \
-	  $(MAKE) $(SHUX_C) && \
 	  ./$(SHUX_C) $(LSP_X_E_DIRS) src/lsp/lsp_io_std_heap.x -E -E-extern > "$$tmp" || \
-	  { rm -f "$$tmp"; if [ -f seeds/lsp_io_std_heap_gen.linux.x86_64.c ]; then cp -f seeds/lsp_io_std_heap_gen.linux.x86_64.c $@ && echo "lsp_io_std_heap_gen.c: fallback seed" >&2; else exit 1; fi; }; \
-	  if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
-	  fi; \
-	else \
-	  tmp="$@.tmp"; \
-	  $(MAKE) $(SHUX_C) && \
-	  ./$(SHUX_C) $(LSP_X_E_DIRS) src/lsp/lsp_io_std_heap.x -E -E-extern > "$$tmp" || \
-	  { rm -f "$$tmp"; if [ -f seeds/lsp_io_std_heap_gen.linux.x86_64.c ]; then cp -f seeds/lsp_io_std_heap_gen.linux.x86_64.c $@ && echo "lsp_io_std_heap_gen.c: fallback seed" >&2; else exit 1; fi; }; \
+	  { rm -f "$$tmp"; if [ -f seeds/lsp_io_std_heap_gen.linux.x86_64.c ]; then cp -f seeds/lsp_io_std_heap_gen.linux.x86_64.c $@; else exit 1; fi; }; \
 	  if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
 	fi
 	@sed -i.bak '/^extern uint8_t \* malloc/d; /^extern void free(/d; /^extern uint8_t \* calloc/d' $@ 2>/dev/null || true
-	@perl -i.bak -0pe 's/(uint8_t \* typeck_std_heap_alloc\(size_t size\);)/#define std_heap_alloc typeck_std_heap_alloc\n#define std_heap_free typeck_std_heap_free\n#define std_heap_alloc_zeroed typeck_std_heap_alloc_zeroed\n$$1/s' $@ 2>/dev/null || true
-lsp_io_std_heap_x.o: lsp_io_std_heap_gen.c
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c lsp_io_std_heap_gen.c -o lsp_io_std_heap_x.o
 
 # bootstrap-driver-seed / relink-shux 共用：lsp_io / lsp 生成 C → .o
 lsp_io_x.o: lsp_io_gen.c src/lsp/lsp_io.x Makefile
@@ -1982,12 +1970,11 @@ lsp_x.o: lsp_gen.c
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -c lsp_gen.c -o lsp_x.o
 
 # Driver 子命令 .o：
-#   Track L 已退役叶子：fmt/check/test/build/run → PREFER_X_O（.x→.o），构建不读工作区 pinned *_gen.c
-#   仍 pin：compile/emit（typeck 尚未全绿 / 未 prove）
-# 冷启动回退仅 seeds/*_gen.linux.x86_64.c（考古；物理删文件见 自举方法 §7.3）
+#   Track L 已退役叶子：fmt/check/test/build/run/compile/emit + lsp_io_std_heap → PREFER_X_O（.x→.o）
+#   构建不读工作区 pinned *_gen.c；冷启动回退仅 seeds/*_gen.linux.x86_64.c
 DRIVER_LEAF_OBJS = driver_fmt_x.o driver_check_x.o driver_test_x.o driver_build_x.o driver_run_x.o
-DRIVER_SUBCMD_GEN = driver_compile_gen.c driver_emit_gen.c
-# 兼容旧引用名：DRIVER_SUBCMD_GEN 现仅含未退役；考古 gen 规则仍保留于 FORCE_REGEN
+DRIVER_SUBCMD_GEN =
+# 兼容旧引用名：全部叶子已退役；考古 gen 规则仍保留于 FORCE_REGEN
 DRIVER_SUBCMD_GEN_ALL = driver_fmt_gen.c driver_check_gen.c driver_test_gen.c driver_compile_gen.c driver_build_gen.c driver_run_gen.c driver_emit_gen.c
 DRIVER_SUBCMD_OBJS = driver_fmt_x.o driver_check_x.o driver_test_x.o driver_compile_x.o driver_build_x.o driver_run_x.o driver_emit_x.o
 DRIVER_SUBCMD_DIRS = -L .. -L src -L src/lexer -L src/ast
@@ -2250,7 +2237,8 @@ else
 DRIVER_SEED_LINK_BASE = $(DRIVER_SEED_OBJS) driver_x.o pipeline_x.o lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(PIPELINE_LIBS)
 BOOTSTRAP_DRIVER_SEED_LINK_BASE = $(DRIVER_SEED_OBJS) driver_x.o $(BOOTSTRAP_DRIVER_SEED_PIPELINE_LINK_O) lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(PIPELINE_LIBS)
 
-DRIVER_SEED_PREREQS = $(SHUX_C) pipeline_x.o parser_x.o lexer_x.o typeck_x.o codegen_x.o x_frontend_link_alias.o driver_x.o preprocess_x.o lsp_io_gen.c lsp_gen.c lsp_diag_gen.c lsp_io_std_heap_gen.c $(DRIVER_SUBCMD_GEN) $(MAIN_LINK_REBUILD) src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o $(DRIVER_SEED_RUNTIME_O) src/driver/fmt_check_cmd_driver.o $(PREPROCESS_LINK_O) $(LEXER_LINK_O) $(AST_LINK_O) $(DRIVER_SEED_FRONTEND_EXTRA) $(DRIVER_SEED_SUPPORT_EXTRA) src/x_seed_bridge.o src/seed_link_compat.o src/runtime_driver_strict_glue_stubs.o $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(DRIVER_SUBCMD_OBJS) $(USER_ASM_SEED_OBJS)
+# lsp_io_std_heap：Track L 退役，产品链只依赖 lsp_io_std_heap_x.o（.x→.o），不 pin workspace gen
+DRIVER_SEED_PREREQS = $(SHUX_C) pipeline_x.o parser_x.o lexer_x.o typeck_x.o codegen_x.o x_frontend_link_alias.o driver_x.o preprocess_x.o lsp_io_gen.c lsp_gen.c lsp_diag_gen.c $(DRIVER_SUBCMD_GEN) $(MAIN_LINK_REBUILD) src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o $(DRIVER_SEED_RUNTIME_O) src/driver/fmt_check_cmd_driver.o $(PREPROCESS_LINK_O) $(LEXER_LINK_O) $(AST_LINK_O) $(DRIVER_SEED_FRONTEND_EXTRA) $(DRIVER_SEED_SUPPORT_EXTRA) src/x_seed_bridge.o src/seed_link_compat.o src/runtime_driver_strict_glue_stubs.o $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(DRIVER_SUBCMD_OBJS) $(USER_ASM_SEED_OBJS)
 
 # legacy shux-c 复用 bootstrap-driver-seed 的现有权威闭包，避免手写对象清单与 pinned seed 漂移。
 LEGACY_SHUX_C_LINK_BASE := $(BOOTSTRAP_DRIVER_SEED_LINK_BASE)
