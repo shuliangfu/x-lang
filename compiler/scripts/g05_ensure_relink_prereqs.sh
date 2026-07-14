@@ -294,18 +294,18 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           fi
         fi
         if [ -n "$_labi_l1_o" ]; then
-          # Track L：PREFER_X_O=1 时优先 labi_diag_pure.x → -E → cc；失败回退 seed C
+          # R2 labi_diag_pure：PREFER_X_O=1 时 full .x（消息体真迁 H=0）；失败回退 seed 冷 C
           if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_labi_l1_x" ]; then
             if g05_try_x_to_o "$_labi_l1_x" "$_labi_l1_o"; then
               _labi_l1_ok=1
-              echo "g05_ensure: L1 diag pure ← $_labi_l1_x (Track L prefer .x)"
+              echo "g05_ensure: L1 diag pure ← $_labi_l1_x (R2 full prefer .x)"
             fi
           fi
           if [ "$_labi_l1_ok" = "0" ] && [ -f "$_labi_l1_seed" ]; then
             # shellcheck disable=SC2086
             if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_labi_l1_o" "$_labi_l1_seed"; then
               _labi_l1_ok=1
-              echo "g05_ensure: L1 diag pure ← $_labi_l1_seed (G-02f-268 seed slice)"
+              echo "g05_ensure: L1 diag pure ← $_labi_l1_seed (R2 cold seed slice)"
             fi
           fi
         fi

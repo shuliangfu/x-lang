@@ -344,7 +344,8 @@ void link_diag_tool_status(const char *tool, int status) {
 
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-268 L1 diag pure：reportf body 常驻 _impl；public thin 在 L1 hybrid */
+/* R2 labi_diag_pure：hybrid FROM_X 下公共+消息体由 L1 .x 提供；冷启动仍保留 _impl */
+#ifndef SHUX_LABI_DIAG_PURE_FROM_X
 void link_diag_runtime_obj_resolve_fail_impl(const char *obj_name, const char *hint) {
     if (!obj_name)
         obj_name = "runtime object";
@@ -358,7 +359,6 @@ void link_diag_runtime_obj_resolve_fail_impl(const char *obj_name, const char *h
                                obj_name);
     }
 }
-#ifndef SHUX_LABI_DIAG_PURE_FROM_X
 void link_diag_runtime_obj_resolve_fail(const char *obj_name, const char *hint) {
     link_diag_runtime_obj_resolve_fail_impl(obj_name, hint);
 }
@@ -367,7 +367,7 @@ void link_diag_runtime_obj_resolve_fail(const char *obj_name, const char *hint);
 #endif
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-268 L1 diag pure：reportf body 常驻 _impl */
+#ifndef SHUX_LABI_DIAG_PURE_FROM_X
 void link_diag_runtime_source_missing_impl(const char *obj_name, const char *source_path) {
     if (!obj_name)
         obj_name = "runtime object";
@@ -375,7 +375,6 @@ void link_diag_runtime_source_missing_impl(const char *obj_name, const char *sou
                            "%s source not found at %s",
                            obj_name, source_path ? source_path : "?");
 }
-#ifndef SHUX_LABI_DIAG_PURE_FROM_X
 void link_diag_runtime_source_missing(const char *obj_name, const char *source_path) {
     link_diag_runtime_source_missing_impl(obj_name, source_path);
 }
@@ -386,7 +385,7 @@ void link_diag_runtime_source_missing(const char *obj_name, const char *source_p
 
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-268 L1 diag pure：reportf body 常驻 _impl */
+#ifndef SHUX_LABI_DIAG_PURE_FROM_X
 void link_diag_runtime_source_missing_under_impl(const char *obj_name, const char *base_dir,
                                                    const char *suffix) {
     if (!obj_name)
@@ -395,7 +394,6 @@ void link_diag_runtime_source_missing_under_impl(const char *obj_name, const cha
                            "%s source not found under %s%s",
                            obj_name, base_dir ? base_dir : "?", suffix ? suffix : "");
 }
-#ifndef SHUX_LABI_DIAG_PURE_FROM_X
 void link_diag_runtime_source_missing_under(const char *obj_name, const char *base_dir,
                                                    const char *suffix) {
     link_diag_runtime_source_missing_under_impl(obj_name, base_dir, suffix);
@@ -405,7 +403,7 @@ void link_diag_runtime_source_missing_under(const char *obj_name, const char *ba
 #endif
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-268 L1 diag pure：reportf body 常驻 _impl */
+#ifndef SHUX_LABI_DIAG_PURE_FROM_X
 void link_diag_runtime_obj_missing_impl(const char *obj_name, const char *out_o) {
     if (!obj_name)
         obj_name = "runtime object";
@@ -413,7 +411,6 @@ void link_diag_runtime_obj_missing_impl(const char *obj_name, const char *out_o)
                            "%s missing after cc -c (expected near %s)",
                            obj_name, out_o ? out_o : "?");
 }
-#ifndef SHUX_LABI_DIAG_PURE_FROM_X
 void link_diag_runtime_obj_missing(const char *obj_name, const char *out_o) {
     link_diag_runtime_obj_missing_impl(obj_name, out_o);
 }
@@ -497,7 +494,8 @@ void link_diag_errno_path(const char *kind, const char *op, const char *path) {
 __attribute__((unused))
 #endif
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-268 L1 diag pure：reportf body 常驻 _impl */
+/* R2：freestanding_missing 消息体 hybrid 由 L1 .x；冷启动 _impl */
+#ifndef SHUX_LABI_DIAG_PURE_FROM_X
 void link_diag_freestanding_missing_impl(const char *obj_name, const char *symbol_name) {
     if (symbol_name && symbol_name[0]) {
         diag_reportf_with_code(NULL, 0, 0, "link error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
@@ -510,7 +508,6 @@ void link_diag_freestanding_missing_impl(const char *obj_name, const char *symbo
                  "freestanding link missing %s",
                  obj_name ? obj_name : "runtime object");
 }
-#ifndef SHUX_LABI_DIAG_PURE_FROM_X
 void link_diag_freestanding_missing(const char *obj_name, const char *symbol_name) {
     link_diag_freestanding_missing_impl(obj_name, symbol_name);
 }
@@ -521,13 +518,13 @@ void link_diag_freestanding_missing(const char *obj_name, const char *symbol_nam
 
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-268 L1 diag pure：长文案 body 常驻 _impl（>64 字面量） */
+/* R2：freestanding_unsupported 消息体 hybrid 由 L1 .x（拆段 ≤64） */
+#ifndef SHUX_LABI_DIAG_PURE_FROM_X
 void link_diag_freestanding_unsupported_impl(void) {
     diag_report_with_code(NULL, 0, 0, "link error", SHUX_DIAG_CODE_BUILD_BLD001,
                 "-freestanding / SHUX_FREESTANDING is only supported for Linux ELF x86_64 (-o prog, not .o/.obj on macOS/COFF)",
                 NULL);
 }
-#ifndef SHUX_LABI_DIAG_PURE_FROM_X
 void link_diag_freestanding_unsupported(void) {
     link_diag_freestanding_unsupported_impl();
 }
@@ -536,7 +533,8 @@ void link_diag_freestanding_unsupported(void);
 #endif
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-268 L1 diag pure：reportf body 常驻 _impl */
+/* R2：ld_debug_push 消息体 hybrid 由 L1 .x */
+#ifndef SHUX_LABI_DIAG_PURE_FROM_X
 void link_diag_ld_debug_push_impl(const char *rel, const char *stage, const char *path) {
     diag_reportf(NULL, 0, 0, "note", NULL,
                  "ld debug: push %s %s=%s",
@@ -544,7 +542,6 @@ void link_diag_ld_debug_push_impl(const char *rel, const char *stage, const char
                  stage ? stage : "path",
                  path ? path : "(null)");
 }
-#ifndef SHUX_LABI_DIAG_PURE_FROM_X
 void link_diag_ld_debug_push(const char *rel, const char *stage, const char *path) {
     link_diag_ld_debug_push_impl(rel, stage, path);
 }
@@ -555,7 +552,7 @@ void link_diag_ld_debug_push(const char *rel, const char *stage, const char *pat
 
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-268 L1 diag pure：reportf + argv 遍历 body 常驻 _impl */
+/* Cap residual：ld_debug_argv char** 遍历 🔒 常驻 _impl（L1 .x thin 转发） */
 void link_diag_ld_debug_argv_impl(const char *label, const char *const *argv) {
     int di;
     diag_reportf(NULL, 0, 0, "note", NULL,

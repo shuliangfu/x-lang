@@ -55,8 +55,10 @@ MODULES=(
   "labi_path_io|src/runtime/labi_path_io.x|seeds/labi_path_io.from_x.c||"
   # labi_host_lit：L2 host #if 探测 thin 转发（#if body 在 mega rest _impl）；产品 PREFER_X_O；本条锁 nm / 扩 N
   "labi_host_lit|src/runtime/labi_host_lit.x|seeds/labi_host_lit.from_x.c||"
-  # labi_diag_pure：L1 code_for_kind 真迁 + reportf thin→_impl（body 在 mega rest）；产品 PREFER_X_O；本条锁 nm / 扩 N
-  "labi_diag_pure|src/runtime/labi_diag_pure.x|seeds/labi_diag_pure.from_x.c||"
+  # labi_diag_pure R2 full：.x 吃满 code_for_kind + 7 report 消息体 + count；
+  # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：ld_debug_argv char** 在 mega rest
+  # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_diag_pure.from_x.c 全 C 体
+  "labi_diag_pure|src/runtime/labi_diag_pure.x|seeds/labi_diag_pure_surface.from_x.c||"
   # diagnostic L2 thin 公共面：与产品 PREFER_X_O 同源（thin.x + full seed rest）；prove 锁 thin 面 IDENTICAL
   # 全量 true-migrate 消息体仍见 runtime_driver_diagnostic.x；C 尾 _impl/va_list 仍在 full seed rest
   "diagnostic|src/runtime_driver_diagnostic_thin.x|seeds/runtime_driver_diagnostic_thin.from_x.c||"
