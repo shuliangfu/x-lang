@@ -6,13 +6,14 @@
 //   file_list_push / walk process_child / collect_paths_from_arg /
 //   check_collect_default_product_dirs / check_one_file 门闩 /
 //   try_append 早退 / parse_ignore 前缀 / invoke_compile·dep_clear 分派 /
-//   set_current_file + print_collected + cwd_fallback）进 thin.x；
+//   set_current_file + print_collected + cwd_fallback +
+//   try_walk_if_product_subdir）进 thin.x；
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_FMT_CHECK_THIN_FROM_X）ld -r
 //   → fmt_check_cmd_driver.o
 // Prove IDENTICAL：seeds/fmt_check_cmd_thin_surface.from_x.c
 // Cap residual：walk opendir/stat/argv/大 BSS / missing-diag format /
 //   check_one_file_body 等 *_impl 仍在 full seed rest；FROM_X 下 pure-duplicate
-//   _impl 已剔除（含 set_current_file / print_collected / cwd_fallback；H↓）。
+//   _impl 已剔除（含 set_current_file / print / cwd_fallback / try_walk；H↓）。
 //
 // -E 约束：无 while 重赋值；无零参-only 不稳写法；6 参用扁平 if。
 //
@@ -595,16 +596,53 @@ export function file_list_clear(): void {
   }
 }
 
-// ---- G-02f-408：try_walk Cap residual；collect orch + cwd_fallback pure；lib roots Cap ----
-export extern "C" function fmt_try_walk_if_product_subdir_impl(sub: *u8): i32;
+// ---- G-02f-408：try_walk pure；collect orch + cwd_fallback pure；lib roots Cap ----
 export extern "C" function collect_paths_missing_diag_impl(path: *u8): void;
 export extern "C" function check_append_repo_lib_roots_impl(path: *u8, check_argv: *u8, n: *i32): void;
 export extern "C" function check_argv_append_default_libs_for_path_impl(path: *u8, check_argv: *u8, n: *i32): void;
 
+// pure：getcwd + 字节拼接 cwd/sub + stat_kind public + walk（无 snprintf/rest _impl）
 #[no_mangle]
 export function fmt_try_walk_if_product_subdir(sub: *u8): i32 {
+  if (sub == 0 as *u8) {
+    return 0;
+  }
   unsafe {
-    return fmt_try_walk_if_product_subdir_impl(sub);
+    let cwd: u8[512] = [];
+    let p: *u8 = getcwd(&cwd[0], 512);
+    if (p == 0 as *u8) {
+      return 0;
+    }
+    let subp: u8[560] = [];
+    let i: i32 = 0;
+    while (i < 511) {
+      let c: u8 = cwd[i];
+      if (c == 0) {
+        break;
+      }
+      subp[i] = c;
+      i = i + 1;
+    }
+    if (i >= 559) {
+      return 0;
+    }
+    subp[i] = 47;
+    i = i + 1;
+    let j: i32 = 0;
+    while (i < 559) {
+      let c2: u8 = sub[j];
+      subp[i] = c2;
+      if (c2 == 0) {
+        break;
+      }
+      i = i + 1;
+      j = j + 1;
+    }
+    subp[559] = 0;
+    if (fmt_path_stat_kind(&subp[0]) == 1) {
+      walk_dir_collect(&subp[0]);
+      return 1;
+    }
   }
   return 0;
 }

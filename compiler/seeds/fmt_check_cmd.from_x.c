@@ -1,7 +1,7 @@
-/* R2 thin + Cap residual pure 深迁（续 set_current_file / print / cwd_fallback）：
+/* R2 thin + Cap residual pure 深迁（续 try_walk pure）：
  * PREFER hybrid thin 由 src/driver/fmt_check_cmd_thin.x（lit/entry + pure 真体）；
  * rest SHUX_L2_FMT_CHECK_THIN_FROM_X：无 thin 公共体；pure-duplicate _impl 剔除
- * （含 set_current_file / print_collected / cwd_fallback / invoke/dep_clear / …）；
+ * （含 set_current_file / print / cwd_fallback / try_walk / invoke/dep_clear / …）；
  * Cap residual：walk opendir/stat/argv/大 BSS / missing-diag / one_file_body 仍 rest。
  * 冷启动无宏：全 C 体（含 pure _impl + public 门闩）。
  * Regen thin surface: shux -E src/driver/fmt_check_cmd_thin.x → thin_surface.
@@ -792,8 +792,11 @@ const char *fmt_default_product_sub_at(int i) {
 }
 #endif
 
-/* getcwd+stat+walk 🔒；命中产品子目录返回 1 */
-/* G-02f-408：实现体始终 seed；public PREFER 时 thin forward */
+/* pure 权威：thin.x fmt_try_walk_if_product_subdir（getcwd+字节拼+stat_kind+walk）；
+ * 冷启动保留 _impl + public；FROM_X 下剔除 pure-dup _impl（H↓）；
+ * cold public 与 hybrid pure 同形语义（getcwd/stat/walk）。
+ */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 int fmt_try_walk_if_product_subdir_impl(const char *sub) {
     char cwd[512];
     char subp[560];
@@ -810,7 +813,6 @@ int fmt_try_walk_if_product_subdir_impl(const char *sub) {
     return 0;
 }
 
-#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 int fmt_try_walk_if_product_subdir(const char *sub) {
   return fmt_try_walk_if_product_subdir_impl(sub);
 }

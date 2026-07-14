@@ -1,13 +1,4 @@
-/* seeds/fmt_check_cmd_thin_surface.from_x.c
- * fmt_check_cmd R2 thin + Cap residual pure 深迁 surface — isomorphic with src/driver/fmt_check_cmd_thin.x
- * Product PREFER_X_O: g05_try_x_to_o(thin.x) + full seed rest (-DSHUX_L2_FMT_CHECK_THIN_FROM_X) ld -r
- * Prove: thin.x vs this seed → nm IDENTICAL (public surface; Cap residual _impl are U)
- * Cap residual: walk opendir/stat/argv/大 BSS / missing-diag / one_file_body in rest
- * pure 真迁：path_should_ignore / .x / lint / file_list / process_child / collect / default_dirs /
- *   one_file 门闩 / try_append / parse_ignore / invoke·dep_clear / set_current_file / print / cwd_fallback
- * Regen: ./shux -E ... thin.x | filter DBG + g05 prologue polish
- */
-/* g05_try_x_to_o prologue (G-02f-332/334) */
+/* regen from fmt_check_cmd_thin.x -E (try_walk pure) */
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/types.h>
@@ -570,13 +561,49 @@ void file_list_clear(void) {
   (void)(0);
   return;
 }
-extern int32_t fmt_try_walk_if_product_subdir_impl(uint8_t * sub);
 extern void collect_paths_missing_diag_impl(uint8_t * path);
 extern void check_append_repo_lib_roots_impl(uint8_t * path, uint8_t * check_argv, int32_t * n);
 extern void check_argv_append_default_libs_for_path_impl(uint8_t * path, uint8_t * check_argv, int32_t * n);
 int32_t fmt_try_walk_if_product_subdir(uint8_t * sub) {
+  if ((sub ==((uint8_t *)(0)))) {
+    return 0;
+  }
   {
-    return fmt_try_walk_if_product_subdir_impl(sub);
+    uint8_t cwd[512] = {};
+    uint8_t * p = getcwd(&((cwd)[0]), 512);
+    if ((p ==((uint8_t *)(0)))) {
+      return 0;
+    }
+    uint8_t subp[560] = {};
+    int32_t i = 0;
+    while ((i < 511)) {
+      uint8_t c = (cwd)[i];
+      if ((c ==0)) {
+        break;
+      }
+      (void)(((subp)[i] = c));
+      (void)((i = (i + 1)));
+    }
+    if ((i >=559)) {
+      return 0;
+    }
+    (void)(((subp)[i] = 47));
+    (void)((i = (i + 1)));
+    int32_t j = 0;
+    while ((i < 559)) {
+      uint8_t c2 = (sub)[j];
+      (void)(((subp)[i] = c2));
+      if ((c2 ==0)) {
+        break;
+      }
+      (void)((i = (i + 1)));
+      (void)((j = (j + 1)));
+    }
+    (void)(((subp)[559] = 0));
+    if ((fmt_path_stat_kind(&((subp)[0])) ==1)) {
+      (void)(walk_dir_collect(&((subp)[0])));
+      return 1;
+    }
   }
   return 0;
 }

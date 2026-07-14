@@ -94,10 +94,10 @@ MODULES=(
   # rest 在 SHUX_L2_RIO_THIN_FROM_X+FROM_X 下无 thin/impl 公共体；Cap residual：4 平台 _impl（mmap/fstat/O_*）
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/runtime_io_abi.from_x.c 全 C 体
   "runtime_io_abi|src/runtime_io_abi.x|seeds/runtime_io_abi_surface.from_x.c||"
-  # fmt_check R2 thin + Cap residual pure 深迁：thin.x 吃满 lit/entry + pure 真体
+  # fmt_check R2 thin + Cap residual pure 深迁（含 try_walk pure）：thin.x 吃满 lit/entry + pure 真体
   # （path_should_ignore / .x 后缀 / lint / file_list_push / process_child /
   #  collect_paths / default_dirs / check_one_file 门闩 / try_append 早退 / parse_ignore 前缀 /
-  #  invoke_compile·dep_clear / set_current_file / print_collected / cwd_fallback）；
+  #  invoke_compile·dep_clear / set_current_file / print_collected / cwd_fallback / try_walk）；
   # rest FROM_X 无 pure-dup _impl；Cap residual：walk/stat/argv/大 BSS/missing-diag/one_file_body
   # prove 锁 thin surface IDENTICAL；冷/无 PREFER 仍可走 seeds/fmt_check_cmd.from_x.c 全 C 体
   "fmt_check|src/driver/fmt_check_cmd_thin.x|seeds/fmt_check_cmd_thin_surface.from_x.c||"
