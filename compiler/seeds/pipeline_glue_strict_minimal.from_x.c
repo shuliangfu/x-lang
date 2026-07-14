@@ -2005,7 +2005,8 @@ __attribute__((weak)) int32_t pipeline_typeck_check_expr_match_c(struct ast_Modu
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-219：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-__attribute__((weak)) int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module,
+/* W-heap-overload：须为 strong，覆盖 pipeline_filtered 内旧 METHOD_CALL 分派（仅 arity 取首）。 */
+int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module,
                                                                        struct ast_ASTArena *arena, int32_t expr_ref,
                                                                        int32_t return_type_ref,
                                                                        struct ast_PipelineDepCtx *ctx) {
