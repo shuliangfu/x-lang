@@ -20823,10 +20823,36 @@ int32_t pipeline_typeck_func_body_tail_expr_ref_for_implicit_rule_c(struct ast_A
   const uint8_t stmt_order_kind_region_c_parser = 5;
   const uint8_t stmt_order_kind_region_x_parser = 6;
 
+  nso = ast_ast_block_num_stmt_order(arena, body_ref);
   fin_ref = ast_ast_block_final_expr_ref(arena, body_ref);
+  /* W-tail:
+   * 1) final RETURN/PANIC/BREAK/CONTINUE wins (return after unsafe assign).
+   * 2) else peel trailing unsafe region (sole `unsafe { return ... }` may leave stale EXPR_LIT final).
+   * 3) else fall through to final / expr_stmt. */
+  if (!ast_ref_is_null(fin_ref)) {
+    int32_t fin_kind = pipeline_expr_kind_ord_at(arena, fin_ref);
+    if (fin_kind == 41 || fin_kind == 42 || fin_kind == 39 || fin_kind == 40)
+      return fin_ref;
+  }
+  if (nso > 0) {
+    uint8_t last_k = (uint8_t)pipeline_block_stmt_order_kind(arena, body_ref, nso - 1);
+    if (last_k == stmt_order_kind_region_c_parser || last_k == stmt_order_kind_region_x_parser) {
+      int32_t idx = pipeline_block_stmt_order_idx(arena, body_ref, nso - 1);
+      int32_t nreg = ast_ast_block_num_regions(arena, body_ref);
+      int32_t is_unsafe =
+          (idx >= 0 && idx < nreg) ? pipeline_block_region_is_unsafe(arena, body_ref, idx) : 0;
+      if (getenv("SHUX_DEBUG_PIPE"))
+        fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] implicit_tail_region_peel body=%d idx=%d nreg=%d unsafe=%d\n",
+                (int)body_ref, (int)idx, (int)nreg, (int)is_unsafe);
+      if (idx >= 0 && idx < nreg && is_unsafe != 0) {
+        int32_t inner_ref = ast_ast_block_region_body_ref(arena, body_ref, idx);
+        if (!ast_ref_is_null(inner_ref))
+          return pipeline_typeck_func_body_tail_expr_ref_for_implicit_rule_c(arena, inner_ref);
+      }
+    }
+  }
   if (!ast_ref_is_null(fin_ref))
     return fin_ref;
-  nso = ast_ast_block_num_stmt_order(arena, body_ref);
   if (getenv("SHUX_DEBUG_PIPE"))
     fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] implicit_tail_scan body=%d fin=%d nso=%d\n", (int)body_ref,
             (int)fin_ref, (int)nso);
@@ -20862,20 +20888,6 @@ int32_t pipeline_typeck_func_body_tail_expr_ref_for_implicit_rule_c(struct ast_A
       nes = ast_ast_block_num_expr_stmts(arena, body_ref);
       if (idx >= 0 && idx < nes)
         return pipeline_block_expr_stmt_ref(arena, body_ref, idx);
-    }
-    if (last_k == stmt_order_kind_region_c_parser || last_k == stmt_order_kind_region_x_parser) {
-      int32_t is_unsafe;
-      idx = pipeline_block_stmt_order_idx(arena, body_ref, nso - 1);
-      nes = ast_ast_block_num_regions(arena, body_ref);
-      is_unsafe = (idx >= 0 && idx < nes) ? pipeline_block_region_is_unsafe(arena, body_ref, idx) : 0;
-      if (getenv("SHUX_DEBUG_PIPE"))
-        fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] implicit_tail_region body=%d idx=%d nreg=%d unsafe=%d\n",
-                (int)body_ref, (int)idx, (int)nes, (int)is_unsafe);
-      if (idx >= 0 && idx < nes && is_unsafe != 0) {
-        int32_t inner_ref = ast_ast_block_region_body_ref(arena, body_ref, idx);
-        if (!ast_ref_is_null(inner_ref))
-          return pipeline_typeck_func_body_tail_expr_ref_for_implicit_rule_c(arena, inner_ref);
-      }
     }
     return 0;
   }

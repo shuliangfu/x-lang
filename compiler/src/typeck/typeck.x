@@ -5431,29 +5431,34 @@ ctx: *PipelineDepCtx): i32 {
 
 /**
 * 取函数体块上用于「禁止隐式尾返回」规则所审视的表达式 ref。
-* - 优先 final_expr_ref；
-* - 否则若 stmt_order 的**最后一条**为 kind=2（expr_stmt），取该条（parser 将仅含尾式的 `{ 0 }` 升格为一条 expr_stmt 并清空 final_expr，见 parser.x 约 7323+；末条为 if/while 时不应向前扫旧的 expr_stmt）；
-* - 无 stmt_order 的旧式块则回退为最后一条 expr_stmt。
+*
+* W-tail 次序（勿颠倒）：
+* 1) final_expr 若已是 RETURN/PANIC/BREAK/CONTINUE → 用它
+*    （`let; unsafe { x = f(); }; return x;` 时 last stmt 是 region，return 在 final）
+* 2) 否则末条为 unsafe region（kind 5/C 或 6/X）→ peel 内层
+*    （sole body `unsafe { return ...; }` 时 outer final 可能是陈旧 EXPR_LIT）
+* 3) 否则 final_expr；末条 expr_stmt(2)；旧式 last expr_stmt
 */
 function func_body_tail_expr_ref_for_implicit_rule(arena: *ASTArena, body_ref: i32): i32 {
   let stmt_order_kind_expr_stmt: u8 = (2 as u8);
   let stmt_order_kind_region_c_parser: u8 = (5 as u8);
   let stmt_order_kind_region_x_parser: u8 = (6 as u8);
+  let ord_break: i32 = 39;
+  let ord_continue: i32 = 40;
+  let ord_return: i32 = 41;
+  let ord_panic: i32 = 42;
   let fin_ref: i32 = ast.ast_block_final_expr_ref(arena, body_ref);
-  if (!ast.ref_is_null(fin_ref)) {
-    return fin_ref;
-  }
+  let fin_kind: i32 = 0;
   let nso: i32 = ast.ast_block_num_stmt_order(arena, body_ref);
+  if (!ast.ref_is_null(fin_ref)) {
+    fin_kind = pipeline_expr_kind_ord_at(arena, fin_ref);
+    if (fin_kind == ord_return || fin_kind == ord_panic || fin_kind == ord_break ||
+        fin_kind == ord_continue) {
+      return fin_ref;
+    }
+  }
   if (nso > 0) {
     let last_k: u8 = ast.ast_block_stmt_order_kind(arena, body_ref, nso - 1);
-    if (last_k == stmt_order_kind_expr_stmt) {
-      let idx: i32 = ast.ast_block_stmt_order_idx(arena, body_ref, nso - 1);
-      let nes: i32 = ast.ast_block_num_expr_stmts(arena, body_ref);
-      if (idx >= 0 && idx < nes) {
-        return ast.ast_block_expr_stmt_ref(arena, body_ref, idx);
-      }
-    }
-    /** `unsafe { return ...; }` 作为末条语句时，兼容 C parser(5=region) 与 X parser(6=region)。 */
     if (last_k == stmt_order_kind_region_c_parser || last_k == stmt_order_kind_region_x_parser) {
       let ridx: i32 = ast.ast_block_stmt_order_idx(arena, body_ref, nso - 1);
       let nreg: i32 = ast.ast_block_num_regions(arena, body_ref);
@@ -5465,6 +5470,19 @@ function func_body_tail_expr_ref_for_implicit_rule(arena: *ASTArena, body_ref: i
             return func_body_tail_expr_ref_for_implicit_rule(arena, inner_ref);
           }
         }
+      }
+    }
+  }
+  if (!ast.ref_is_null(fin_ref)) {
+    return fin_ref;
+  }
+  if (nso > 0) {
+    let last_k2: u8 = ast.ast_block_stmt_order_kind(arena, body_ref, nso - 1);
+    if (last_k2 == stmt_order_kind_expr_stmt) {
+      let idx: i32 = ast.ast_block_stmt_order_idx(arena, body_ref, nso - 1);
+      let nes: i32 = ast.ast_block_num_expr_stmts(arena, body_ref);
+      if (idx >= 0 && idx < nes) {
+        return ast.ast_block_expr_stmt_ref(arena, body_ref, idx);
       }
     }
     return 0;

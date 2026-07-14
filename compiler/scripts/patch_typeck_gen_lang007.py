@@ -268,51 +268,74 @@ def swap_var_param_order(src: str) -> tuple[str, bool]:
 
 
 def patch_implicit_tail_region(src: str) -> tuple[str, bool]:
-    """Add region (unsafe block) handling to typeck_func_body_tail_expr_ref_for_implicit_rule.
+    """Ensure W-tail ordered tail finder (terminal final, else region peel).
 
-    Seed lacks handling for stmt_order kind 5/6 (region) as last statement.
-    When a function body ends with unsafe { return ... }, the seed doesn't
-    find the return and reports false "implicit tail return" error.
-    Fix: add region check after the expr_stmt (kind 2) check.
-    Idempotent: skip if 'region_c_parser' already present.
+    Replace the whole function when missing marker "W-tail order:".
     """
-    marker = "(uint8_t)(5)"
+    marker = "W-tail order:"
     fn_sig = "int32_t typeck_func_body_tail_expr_ref_for_implicit_rule(struct ast_ASTArena * arena, int32_t body_ref) {"
     pos = src.find(fn_sig)
     if pos < 0:
         return src, False
-    # Check if already patched
-    fn_end = src.find("\n}\n", pos)
-    if fn_end < 0:
+    # Find end of this function: next top-level fn after matching braces is fragile;
+    # use known successor symbol from typeck_gen.
+    nxt = src.find("\nint typeck_func_body_has_implicit_return_tail(", pos)
+    if nxt < 0:
         return src, False
-    fn_body = src[pos:fn_end]
-    if marker in fn_body:
-        return src, False  # already patched
+    if marker in src[pos:nxt]:
+        return src, False
 
-    # Insert region handling after the expr_stmt (kind 2) check
-    # The pattern: after the kind==2 block closes, before "return 0;"
-    insert_point = ' } else (__tmp = 0) ; __tmp; }));\n  return 0;\n } else (__tmp = 0) ; __tmp; }));'
-
-    region_code = """ } else (__tmp = 0) ; __tmp; }));
-  /* G-02f-477: region (unsafe block) as last stmt — check inner block for explicit return */
+    new_fn = """int32_t typeck_func_body_tail_expr_ref_for_implicit_rule(struct ast_ASTArena * arena, int32_t body_ref) {
+  /* W-tail order:
+   * 1) final RETURN/PANIC/BREAK/CONTINUE wins (return after unsafe assign).
+   * 2) else peel trailing unsafe region (sole unsafe{return} may leave stale EXPR_LIT final).
+   * 3) else final / expr_stmt / last expr_stmt. */
   extern int32_t pipeline_block_region_is_unsafe(struct ast_ASTArena *a, int32_t br, int32_t ri);
   extern int32_t pipeline_block_region_body_ref(struct ast_ASTArena *a, int32_t br, int32_t ri);
-  (void)(({ int __tmp = 0; if (last_k == ((uint8_t)(5)) || last_k == ((uint8_t)(6))) {   int32_t ridx = ast_block_stmt_order_idx(arena, body_ref, nso - 1);
-  int32_t nreg = ast_block_num_regions(arena, body_ref);
-  __tmp = ({ int __tmp = 0; if (ridx >= 0 && ridx < nreg) {   int32_t unsafe_region = pipeline_block_region_is_unsafe(arena, body_ref, ridx);
-  __tmp = ({ int __tmp = 0; if (unsafe_region != 0) {   int32_t inner_ref = pipeline_block_region_body_ref(arena, body_ref, ridx);
-  __tmp = ({ int __tmp = 0; if ((!ast_ref_is_null(inner_ref))) {   return typeck_func_body_tail_expr_ref_for_implicit_rule(arena, inner_ref);
- } else (__tmp = 0) ; __tmp; });
- } else (__tmp = 0) ; __tmp; });
- } else (__tmp = 0) ; __tmp; });
- } else (__tmp = 0) ; __tmp; }));
+  int32_t nso = ast_block_num_stmt_order(arena, body_ref);
+  int32_t fin_ref = ast_block_final_expr_ref(arena, body_ref);
+  if (!ast_ref_is_null(fin_ref)) {
+    int32_t fin_kind = pipeline_expr_kind_ord_at(arena, fin_ref);
+    if (fin_kind == 41 || fin_kind == 42 || fin_kind == 39 || fin_kind == 40)
+      return fin_ref;
+  }
+  if (nso > 0) {
+    uint8_t last_k = ast_block_stmt_order_kind(arena, body_ref, nso - 1);
+    if (last_k == ((uint8_t)(5)) || last_k == ((uint8_t)(6))) {
+      int32_t ridx = ast_block_stmt_order_idx(arena, body_ref, nso - 1);
+      int32_t nreg = ast_block_num_regions(arena, body_ref);
+      if (ridx >= 0 && ridx < nreg) {
+        int32_t unsafe_region = pipeline_block_region_is_unsafe(arena, body_ref, ridx);
+        if (unsafe_region != 0) {
+          int32_t inner_ref = pipeline_block_region_body_ref(arena, body_ref, ridx);
+          if (!ast_ref_is_null(inner_ref))
+            return typeck_func_body_tail_expr_ref_for_implicit_rule(arena, inner_ref);
+        }
+      }
+    }
+  }
+  if (!ast_ref_is_null(fin_ref))
+    return fin_ref;
+  if (nso > 0) {
+    uint8_t last_k2 = ast_block_stmt_order_kind(arena, body_ref, nso - 1);
+    if (last_k2 == ((uint8_t)(2))) {
+      int32_t idx = ast_block_stmt_order_idx(arena, body_ref, nso - 1);
+      int32_t nes = ast_block_num_expr_stmts(arena, body_ref);
+      if (idx >= 0 && idx < nes)
+        return ast_block_expr_stmt_ref(arena, body_ref, idx);
+    }
+    return 0;
+  }
+  {
+    int32_t nes2 = ast_block_num_expr_stmts(arena, body_ref);
+    if (nes2 > 0)
+      return ast_block_expr_stmt_ref(arena, body_ref, nes2 - 1);
+  }
   return 0;
- } else (__tmp = 0) ; __tmp; }));"""
-
-    if insert_point in src[pos:fn_end+4]:
-        new_src = src[:pos] + src[pos:fn_end+4].replace(insert_point, region_code, 1) + src[fn_end+4:]
-        return new_src, True
-    return src, False
+}
+"""
+    new_src = src[:pos] + new_fn + src[nxt + 1 :]
+    return new_src, True
 
 
 
