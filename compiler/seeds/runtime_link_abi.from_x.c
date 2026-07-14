@@ -1712,14 +1712,19 @@ int shux_ensure_runtime_panic_o(const char *argv0) {
  * 返回值：非 0 表示 freestanding 链启用。
  */
 /** G-02f-36：OS 门闩槽 — .x freestanding_enabled 读此，避免 .x 内 #if。 */
-/* G-02f-269 L2 host lit */
-#ifndef SHUX_LABI_HOST_LIT_FROM_X
-int shux_host_is_linux(void) {
+/* G-02f-269 L2 host lit：#if body 常驻 rest（与 path_io stat/realpath 同构） */
+int shux_host_is_linux_impl(void) {
 #if defined(__linux__)
     return 1;
 #else
     return 0;
 #endif
+}
+
+/* G-02f-269 L2 host lit public thin（非 hybrid 时 rest 自带；hybrid 时由 L2 提供） */
+#ifndef SHUX_LABI_HOST_LIT_FROM_X
+int shux_host_is_linux(void) {
+    return shux_host_is_linux_impl();
 }
 #else
 int shux_host_is_linux(void);
@@ -1727,14 +1732,19 @@ int shux_host_is_linux(void);
 
 
 /** G-02f-43：Apple aarch64 门闩槽 — .x resolve_target_arch 读此。 */
-/* G-02f-269 L2 host lit */
-#ifndef SHUX_LABI_HOST_LIT_FROM_X
-int shux_host_is_apple_aarch64(void) {
+/* G-02f-269 L2 host lit：#if body 常驻 rest */
+int shux_host_is_apple_aarch64_impl(void) {
 #if defined(__APPLE__) && defined(__aarch64__)
     return 1;
 #else
     return 0;
 #endif
+}
+
+/* G-02f-269 L2 host lit public thin（非 hybrid 时 rest 自带；hybrid 时由 L2 提供） */
+#ifndef SHUX_LABI_HOST_LIT_FROM_X
+int shux_host_is_apple_aarch64(void) {
+    return shux_host_is_apple_aarch64_impl();
 }
 #else
 int shux_host_is_apple_aarch64(void);

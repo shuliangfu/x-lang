@@ -191,6 +191,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   _labi_l0_x=src/runtime/labi_path_pure.x
   _labi_l1_seed=seeds/labi_diag_pure.from_x.c
   _labi_l2_seed=seeds/labi_host_lit.from_x.c
+  _labi_l2_x=src/runtime/labi_host_lit.x
   _labi_l3_seed=seeds/labi_path_io.from_x.c
   _labi_l3_x=src/runtime/labi_path_io.x
   _labi_l4_seed=seeds/labi_ensure_list.from_x.c
@@ -214,6 +215,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       || { [ -f "$_labi_l0_x" ] && [ "$_labi_l0_x" -nt "$_labi_o" ]; } \
       || { [ -f "$_labi_l1_seed" ] && [ "$_labi_l1_seed" -nt "$_labi_o" ]; } \
       || { [ -f "$_labi_l2_seed" ] && [ "$_labi_l2_seed" -nt "$_labi_o" ]; } \
+      || { [ -f "$_labi_l2_x" ] && [ "$_labi_l2_x" -nt "$_labi_o" ]; } \
       || { [ -f "$_labi_l3_seed" ] && [ "$_labi_l3_seed" -nt "$_labi_o" ]; } \
       || { [ -f "$_labi_l3_x" ] && [ "$_labi_l3_x" -nt "$_labi_o" ]; } \
       || { [ -f "$_labi_l4_seed" ] && [ "$_labi_l4_seed" -nt "$_labi_o" ]; } \
@@ -278,11 +280,20 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             echo "g05_ensure: L1 diag pure ← $_labi_l1_seed (G-02f-268 seed slice)"
           fi
         fi
-        if [ -n "$_labi_l2_o" ] && [ -f "$_labi_l2_seed" ]; then
-          # shellcheck disable=SC2086
-          if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_labi_l2_o" "$_labi_l2_seed"; then
-            _labi_l2_ok=1
-            echo "g05_ensure: L2 host lit ← $_labi_l2_seed (G-02f-269 seed slice)"
+        if [ -n "$_labi_l2_o" ]; then
+          # Track L：PREFER_X_O=1 时优先 labi_host_lit.x → -E → cc；失败回退 seed C
+          if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_labi_l2_x" ]; then
+            if g05_try_x_to_o "$_labi_l2_x" "$_labi_l2_o"; then
+              _labi_l2_ok=1
+              echo "g05_ensure: L2 host lit ← $_labi_l2_x (Track L prefer .x)"
+            fi
+          fi
+          if [ "$_labi_l2_ok" = "0" ] && [ -f "$_labi_l2_seed" ]; then
+            # shellcheck disable=SC2086
+            if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_labi_l2_o" "$_labi_l2_seed"; then
+              _labi_l2_ok=1
+              echo "g05_ensure: L2 host lit ← $_labi_l2_seed (G-02f-269 seed slice)"
+            fi
           fi
         fi
         if [ -n "$_labi_l3_o" ]; then
