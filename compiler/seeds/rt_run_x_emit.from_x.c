@@ -2,6 +2,11 @@
  * Logic source: src/runtime/rt_run_x_emit.x
  * Hybrid: SHUX_RT_RUN_X_EMIT_FROM_X + ld -r into runtime_driver_no_c.o
  *
+ * R2 full（2026-07-14）：公共业务符号 driver_run_x_emit_c 由 full .x 提供；
+ * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务符号 H=0）。
+ * Cap residual（driver_abi）：stdout/OutBuf/指针表/parse/diag/typeck/work 槽。
+ * 冷启动/无 PREFER 时仍编译完整 C 体。
+ *
  * Scope: driver_run_x_emit_c（读源 → pipeline → stdout）。
  * run_asm_backend / run_compiler_parsed 仍 mega rest。
  */
@@ -28,6 +33,8 @@
 #ifndef PATH_MAX
 #define PATH_MAX 4096
 #endif
+
+#ifndef SHUX_RT_RUN_X_EMIT_FROM_X
 
 #define X_CODEGEN_OUTBUF_CAP (9 * 1024 * 1024)
 struct codegen_CodegenOutBuf {
@@ -79,24 +86,18 @@ extern void codegen_set_dep_slots_for_x_pipeline(struct ASTModule **mods, const 
 extern int runtime_report_precise_parse_failure_if_known(const char *input_path, const char *src, size_t src_len);
 extern int driver_run_x_emit_c_extern_via_cparser(const char *input_path);
 extern void pipeline_dep_ctx_heap_destroy(struct ast_PipelineDepCtx *ctx);
-
-/* G-02f-444：thin+rest PREFER_X_O
- *   thin .x provides 1 #[no_mangle] wrapper (calls *_impl in rest).
- *   rest seed C (compiled with -DSHUX_RT_RUN_X_EMIT_FROM_X):
- *     - driver_run_x_emit_c renamed to *_impl via macro (real C impl stays).
- *   No #ifndef guard needed (no real .x implementation; .x is thin-only). */
-#ifdef SHUX_RT_RUN_X_EMIT_FROM_X
-#define driver_run_x_emit_c    driver_run_x_emit_c_impl
-#endif
+extern int typeck_set_allow_legacy_extern_calls(int allow);
 
 /** 执行刚解析的 -x -E（读文件、.x pipeline、写 stdout）；成功 0，失败 1。无 SHUX_USE_X_PIPELINE 时返回 1。 */
 int driver_run_x_emit_c(void) {
     const char *input_path = driver_x_emit_c_path;
+    int old_allow_legacy_extern = 0;
     driver_x_emit_c_path = NULL;
     if (!input_path) return 1;
+    /* LANG-007：-E 路径允许裸 extern（与 mega runtime 同意图） */
+    old_allow_legacy_extern = typeck_set_allow_legacy_extern_calls(1);
 #ifdef SHUX_USE_X_PIPELINE
     {
-        /* 关闭 stdout 缓冲，避免重定向或管道下输出被截断（平台差异见 analysis/下一步开发分析.md §4.4） */
         (void)setvbuf(stdout, NULL, _IONBF, 0);
 #if defined(SHUX_USE_X_DRIVER) && defined(SHUX_USE_X_PIPELINE)
         {
@@ -104,11 +105,16 @@ int driver_run_x_emit_c(void) {
             driver_x_emit_c_want_extern = 0;
             if (want_extern) {
 #if !defined(SHUX_NO_C_FRONTEND)
-                return driver_run_x_emit_c_extern_via_cparser(input_path);
+                {
+                    int r = driver_run_x_emit_c_extern_via_cparser(input_path);
+                    typeck_set_allow_legacy_extern_calls(old_allow_legacy_extern);
+                    return r;
+                }
 #else
                 diag_report_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001,
                             "-x -E -E-extern requires C parser/codegen (rebuild without -DSHUX_NO_C_FRONTEND)",
                             NULL);
+                typeck_set_allow_legacy_extern_calls(old_allow_legacy_extern);
                 return 1;
 #endif
             }
@@ -156,7 +162,6 @@ int driver_run_x_emit_c(void) {
             return 1;
         }
         parser_parse_into_init(module, arena);
-        /* 与 run_compiler_c 的 -x pipeline 一致：用 parse_into_buf，勿 parse_into（slice 路径在 seed 链易失败）。 */
         struct parser_ParseIntoResult pr =
             parser_parse_into_buf(arena, module, (uint8_t *)src, (int32_t)src_len);
         if (pr.ok != 0) {
@@ -192,10 +197,8 @@ int driver_run_x_emit_c(void) {
         char entry_dir_buf[512];
         shux_get_entry_dir(input_path, entry_dir_buf, sizeof(entry_dir_buf));
         const char *entry_dir = entry_dir_buf;
-        /* 供 pipeline 内 resolve/read 单段 import 用；仅在有 import 时设置，避免单文件时影响 */
         if (n_imports > 0)
             pipeline_set_entry_dir(entry_dir_buf);
-        /* 阶段 2.1：使用解析到的 -L 库根；无 -L 时退化为当前目录 */
         const char *lib_roots_arr[X_EMIT_MAX_LIB_ROOTS];
         int n_lib_roots = driver_x_emit_n_lib_roots;
         if (n_lib_roots == 0) {
@@ -248,9 +251,6 @@ int driver_run_x_emit_c(void) {
             }
         }
         typeck_ndep = 0;
-        /*
-         * CodegenOutBuf / PipelineDepCtx 体积大；-x -E 路径同样堆分配避免栈溢出。
-         */
         void *dep_arenas[32];
         void *dep_modules[32];
         for (int i = 0; i < n_deps; i++) {
@@ -284,8 +284,7 @@ int driver_run_x_emit_c(void) {
             shux_pipeline_pctx_seed_dep_import_paths_only(pctx_e, dep_paths, n_deps);
         else
             shux_pipeline_pctx_seed_dep_slots(pctx_e, dep_modules, dep_arenas, dep_paths, n_deps);
-        pctx_e->use_asm_backend = 0; /* -E 须走 C codegen 写 stdout */
-        /* 与 driver_run_compiler_parsed 一致：逆拓扑 dep prerun parse+typeck，再编入口+deps。 */
+        pctx_e->use_asm_backend = 0;
         driver_dep_seeded_clear_all();
         for (int j = n_deps - 1; j >= 0; j--) {
             struct ast_PipelineDepCtx *one_ctx = (struct ast_PipelineDepCtx *)calloc(1, sizeof(*one_ctx));
@@ -365,17 +364,9 @@ int driver_run_x_emit_c(void) {
                 ec_dep = shux_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
                                                              (const uint8_t *)dep_src, dep_len);
             } else {
-                if (getenv("SHUX_DEBUG_PIPE"))
-                    diag_reportf(NULL, 0, 0, "note", NULL,
-                                 "pipeline debug: dep prerun begin j=%d path=%s",
-                                 j, dep_paths[j] ? dep_paths[j] : "?");
                 ec_dep = shux_pipeline_dep_prerun_typeck_only(dep_modules[j], dep_arenas[j],
                                                               (const uint8_t *)dep_src, dep_len,
                                                               (void *)dep_out, (void *)one_ctx);
-                if (getenv("SHUX_DEBUG_PIPE"))
-                    diag_reportf(NULL, 0, 0, "note", NULL,
-                                 "pipeline debug: dep prerun end j=%d path=%s rc=%d",
-                                 j, dep_paths[j] ? dep_paths[j] : "?", ec_dep);
             }
             diag_restore(&dep_diag_snapshot);
             driver_set_current_dep_path_for_codegen(NULL);
@@ -413,26 +404,12 @@ int driver_run_x_emit_c(void) {
             pipeline_set_dep_slots(dep_arenas, dep_modules);
             driver_dep_seed_slots(dep_arenas, dep_modules, n_deps);
             codegen_set_dep_slots_for_x_pipeline((struct ASTModule **)dep_modules, (const char **)dep_paths, n_deps);
-            /* 设置 driver_dep_* 槽位，使 pipeline 内 resolve/load 时能拿到与当前 dep 一致的 arena/module。仅对 entry 跑一次 pipeline，其内部会 codegen 所有 deps + entry，避免对每个 dep 单独跑 pipeline 再 fwrite 导致 deps 的 C 被写两遍（重复符号）。 */
             pipeline_set_dep_slots(dep_arenas, dep_modules);
         }
         memset(arena, 0, arena_sz);
         memset(module, 0, module_sz);
         int ec = shux_pipeline_run_x_pipeline_large_stack(module, arena, (uint8_t *)src, src_len, (void *)out_buf, (void *)pctx_e);
         if (ec == 0 && out_buf->len > 0) {
-            /* 平台差异诊断（分析文档 4.4）：main 段输出过短时打 stderr，便于 CI/本地确认是 len 错误还是内容只写了数字 */
-            if (out_buf->len < 20) {
-                char hexbuf[16 * 3 + 1];
-                int hexlen = 0;
-                hexbuf[0] = '\0';
-                for (int di = 0; di < out_buf->len && di < 16 && hexlen + 4 < (int)sizeof(hexbuf); di++) {
-                    hexlen += snprintf(hexbuf + hexlen, sizeof(hexbuf) - (size_t)hexlen,
-                                       "%s%02x", di == 0 ? "" : " ", (unsigned char)out_buf->data[di]);
-                }
-                diag_reportf(input_path, 0, 0, "note", NULL,
-                             "-x -E diagnostic: out_buf.len=%d first bytes: %s",
-                             (int)out_buf->len, hexbuf);
-            }
             fwrite(out_buf->data, 1, (size_t)out_buf->len, stdout);
             fflush(stdout);
             for (int j = n_deps - 1; j >= 0; j--) { free(dep_arenas[j]); free(dep_modules[j]); }
@@ -461,7 +438,6 @@ int driver_run_x_emit_c(void) {
                     }
                     goto x_emit_c_done;
                 }
-                /* CI / cross-host: distinguish -x -E 「只吐 0」与真失败——空缓冲视为 codegen 路径未写入 */
                 diag_reportf_with_code(input_path, 0, 0, "codegen error", SHUX_DIAG_CODE_CODEGEN_CG004, NULL,
                              "-x -E pipeline succeeded but codegen buffer is empty (ec=0 out_buf.len=%d); "
                              "check typeck/codegen/pipeline CodegenOutBuf",
@@ -477,13 +453,19 @@ x_emit_c_done:
         free(arena);
         free(module);
         free(src);
+        typeck_set_allow_legacy_extern_calls(old_allow_legacy_extern);
         return emit_ret;
     }
 #else
     (void)input_path;
+    typeck_set_allow_legacy_extern_calls(old_allow_legacy_extern);
     return 1;
 #endif
 }
+
+#else /* SHUX_RT_RUN_X_EMIT_FROM_X：产品 rest 仅 marker；业务体在 full .x */
+int driver_run_x_emit_c(void);
+#endif /* SHUX_RT_RUN_X_EMIT_FROM_X */
 
 int labi_rt_run_x_emit_slice_marker(void) {
   return 1;

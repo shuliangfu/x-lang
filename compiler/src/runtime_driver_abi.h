@@ -146,6 +146,67 @@ int32_t driver_preamble_fs_path_line_count(void);
  */
 int32_t driver_preamble_fputs(uint8_t *s, uint8_t *stream);
 
+/**
+ * Cap residual：rt_run_x_emit R2 平台/巨型布局缺口。
+ * 业务控制流在 .x；本层仅：stdout 无缓冲+写、9MiB CodegenOutBuf 分配/字段、
+ * 指针/size 表、parse_into out-param、diag snapshot opaque、typeck 槽、
+ * emit path take、lib_roots 表、PATH_MAX 槽。
+ */
+uint8_t *driver_x_emit_take_c_path(void);
+int32_t driver_x_emit_take_want_extern(void);
+int32_t driver_x_emit_n_lib_roots_get(void);
+uint8_t *driver_x_emit_lib_root_at(int32_t i);
+void driver_x_emit_stdout_set_unbuffered(void);
+int32_t driver_x_emit_fwrite_stdout(uint8_t *data, int32_t len);
+void *driver_codegen_outbuf_calloc(void);
+void driver_codegen_outbuf_free(void *p);
+int32_t driver_codegen_outbuf_len(void *p);
+uint8_t *driver_codegen_outbuf_data(void *p);
+void *driver_pipeline_dep_ctx_calloc(void);
+void *driver_ptr_table_calloc(int32_t n);
+void driver_ptr_table_free(void *t);
+void *driver_ptr_table_get(void *t, int32_t i);
+void driver_ptr_table_set(void *t, int32_t i, void *p);
+void *driver_size_table_calloc(int32_t n);
+void driver_size_table_free(void *t);
+size_t driver_size_table_get(void *t, int32_t i);
+void driver_size_table_set(void *t, int32_t i, size_t v);
+int32_t driver_parse_into_buf_rc(void *arena, void *module, uint8_t *data, int32_t len,
+                                 int32_t *out_main_idx);
+void *driver_diag_snapshot_alloc(void);
+void driver_diag_snapshot_free(void *s);
+void driver_diag_push_file(void *snap, uint8_t *path, uint8_t *src, size_t len);
+void driver_diag_restore(void *snap);
+void driver_typeck_ndep_set(int32_t n);
+void driver_typeck_dep_ptrs_set(int32_t j, void *mod, void *arena);
+uint8_t *driver_path_max_slot(void);
+uint8_t *driver_entry_dir_slot(void);
+/** n=0 时回退 ["."]；返回 *u8 实为 const char**（.x 禁 **u8）。 */
+uint8_t *driver_x_emit_effective_lib_roots(int32_t *n_out);
+/** 构造 slice 调 parser_diag_fail_at_token_kind（.x 无 slice 字面量）。 */
+int32_t driver_parser_diag_fail_tok_kind(uint8_t *src, size_t len);
+/** pctx->use_asm_backend = v（.x 无 PipelineDepCtx 字段布局）。 */
+void driver_pipeline_dep_ctx_set_use_asm(void *ctx, int32_t v);
+
+/**
+ * Cap residual：rt_run_x_emit 工作槽（避免 .x 巨型函数 ~50 局部被 -E 抬 static/丢体）。
+ * 业务步骤仍由 .x 编排；槽仅持跨步骤状态指针/计数。get/set 避免 .x 侧 * 解引用槽。
+ */
+void driver_x_emit_work_reset(void);
+uint8_t *driver_x_emit_work_p_get(int32_t i);
+void driver_x_emit_work_p_set(int32_t i, uint8_t *v);
+int32_t driver_x_emit_work_i_get(int32_t i);
+void driver_x_emit_work_i_set(int32_t i, int32_t v);
+size_t driver_x_emit_work_z_get(int32_t i);
+void driver_x_emit_work_z_set(int32_t i, size_t v);
+/** 释放 work 槽内 dep 表/arena/out/pctx/src/kind 等；调用后 reset。 */
+void driver_x_emit_work_cleanup(void);
+/**
+ * Cap residual：-E-extern 分支（#ifdef SHUX_NO_C_FRONTEND）。
+ * 有 C frontend 时调 driver_run_x_emit_c_extern_via_cparser；否则诊断并返回 1。
+ */
+int32_t driver_x_emit_try_extern_via_cparser(uint8_t *input_path);
+
 /** pipeline 入口源码长度（大模块 typeck 跳过判定）。 */
 void driver_set_pipeline_entry_source_len(size_t len);
 size_t driver_pipeline_entry_source_len(void);

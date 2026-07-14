@@ -1690,6 +1690,340 @@ int32_t driver_preamble_fputs(uint8_t *s, uint8_t *stream) {
     return (int32_t)fputs((const char *)(void *)s, (FILE *)(void *)stream);
 }
 
+/* ---------- Cap residual：rt_run_x_emit R2（平台/巨型布局） ---------- */
+#ifndef X_CODEGEN_OUTBUF_CAP_ABI
+#define X_CODEGEN_OUTBUF_CAP_ABI (9 * 1024 * 1024)
+#endif
+struct driver_codegen_outbuf_abi {
+    unsigned char data[X_CODEGEN_OUTBUF_CAP_ABI];
+    int32_t len;
+};
+
+extern const char *driver_x_emit_c_path;
+extern const char *driver_x_emit_lib_roots[];
+extern int driver_x_emit_n_lib_roots;
+extern int driver_x_emit_c_want_extern;
+extern int typeck_ndep;
+extern void *typeck_dep_module_ptrs[];
+extern void *typeck_dep_arena_ptrs[];
+
+struct parser_ParseIntoResult {
+    int32_t ok;
+    int32_t main_idx;
+};
+extern struct parser_ParseIntoResult parser_parse_into_buf(void *arena, void *module, uint8_t *data,
+                                                          int32_t len);
+
+uint8_t *driver_x_emit_take_c_path(void) {
+    const char *p = driver_x_emit_c_path;
+    driver_x_emit_c_path = NULL;
+    return (uint8_t *)(void *)p;
+}
+
+int32_t driver_x_emit_take_want_extern(void) {
+    int32_t w = (int32_t)driver_x_emit_c_want_extern;
+    driver_x_emit_c_want_extern = 0;
+    return w;
+}
+
+int32_t driver_x_emit_n_lib_roots_get(void) {
+    return (int32_t)driver_x_emit_n_lib_roots;
+}
+
+uint8_t *driver_x_emit_lib_root_at(int32_t i) {
+    if (i < 0 || i >= driver_x_emit_n_lib_roots)
+        return NULL;
+    return (uint8_t *)(void *)driver_x_emit_lib_roots[i];
+}
+
+void driver_x_emit_stdout_set_unbuffered(void) {
+    (void)setvbuf(stdout, NULL, _IONBF, 0);
+}
+
+int32_t driver_x_emit_fwrite_stdout(uint8_t *data, int32_t len) {
+    size_t n;
+    if (data == NULL || len <= 0)
+        return 0;
+    n = fwrite(data, 1, (size_t)len, stdout);
+    (void)fflush(stdout);
+    return (int32_t)n;
+}
+
+void *driver_codegen_outbuf_calloc(void) {
+    return calloc(1, sizeof(struct driver_codegen_outbuf_abi));
+}
+
+void driver_codegen_outbuf_free(void *p) {
+    free(p);
+}
+
+int32_t driver_codegen_outbuf_len(void *p) {
+    if (p == NULL)
+        return 0;
+    return ((struct driver_codegen_outbuf_abi *)p)->len;
+}
+
+uint8_t *driver_codegen_outbuf_data(void *p) {
+    if (p == NULL)
+        return NULL;
+    return ((struct driver_codegen_outbuf_abi *)p)->data;
+}
+
+void *driver_pipeline_dep_ctx_calloc(void) {
+    return calloc(1, sizeof(struct ast_PipelineDepCtx));
+}
+
+void *driver_ptr_table_calloc(int32_t n) {
+    if (n <= 0)
+        return NULL;
+    return calloc((size_t)n, sizeof(void *));
+}
+
+void driver_ptr_table_free(void *t) {
+    free(t);
+}
+
+void *driver_ptr_table_get(void *t, int32_t i) {
+    if (t == NULL || i < 0)
+        return NULL;
+    return ((void **)t)[i];
+}
+
+void driver_ptr_table_set(void *t, int32_t i, void *p) {
+    if (t == NULL || i < 0)
+        return;
+    ((void **)t)[i] = p;
+}
+
+void *driver_size_table_calloc(int32_t n) {
+    if (n <= 0)
+        return NULL;
+    return calloc((size_t)n, sizeof(size_t));
+}
+
+void driver_size_table_free(void *t) {
+    free(t);
+}
+
+size_t driver_size_table_get(void *t, int32_t i) {
+    if (t == NULL || i < 0)
+        return 0;
+    return ((size_t *)t)[i];
+}
+
+void driver_size_table_set(void *t, int32_t i, size_t v) {
+    if (t == NULL || i < 0)
+        return;
+    ((size_t *)t)[i] = v;
+}
+
+int32_t driver_parse_into_buf_rc(void *arena, void *module, uint8_t *data, int32_t len,
+                                 int32_t *out_main_idx) {
+    struct parser_ParseIntoResult pr;
+    if (out_main_idx)
+        *out_main_idx = -1;
+    if (!arena || !module || !data)
+        return -1;
+    pr = parser_parse_into_buf(arena, module, data, len);
+    if (out_main_idx)
+        *out_main_idx = pr.main_idx;
+    return pr.ok;
+}
+
+void *driver_diag_snapshot_alloc(void) {
+    return calloc(1, sizeof(DiagContextSnapshot));
+}
+
+void driver_diag_snapshot_free(void *s) {
+    free(s);
+}
+
+void driver_diag_push_file(void *snap, uint8_t *path, uint8_t *src, size_t len) {
+    if (snap == NULL)
+        return;
+    diag_push_file((DiagContextSnapshot *)snap, (const char *)(void *)path,
+                   (const char *)(void *)src, len);
+}
+
+void driver_diag_restore(void *snap) {
+    if (snap == NULL)
+        return;
+    diag_restore((const DiagContextSnapshot *)snap);
+}
+
+void driver_typeck_ndep_set(int32_t n) {
+    typeck_ndep = (int)n;
+}
+
+void driver_typeck_dep_ptrs_set(int32_t j, void *mod, void *arena) {
+    if (j < 0 || j >= 32)
+        return;
+    typeck_dep_module_ptrs[j] = mod;
+    typeck_dep_arena_ptrs[j] = arena;
+}
+
+static char g_driver_path_max_slot[4096];
+static char g_driver_entry_dir_slot[512];
+
+uint8_t *driver_path_max_slot(void) {
+    return (uint8_t *)g_driver_path_max_slot;
+}
+
+uint8_t *driver_entry_dir_slot(void) {
+    return (uint8_t *)g_driver_entry_dir_slot;
+}
+
+static const char *g_driver_x_emit_dot = ".";
+static const char *g_driver_x_emit_one_root[1];
+
+uint8_t *driver_x_emit_effective_lib_roots(int32_t *n_out) {
+    if (driver_x_emit_n_lib_roots <= 0) {
+        g_driver_x_emit_one_root[0] = g_driver_x_emit_dot;
+        if (n_out)
+            *n_out = 1;
+        return (uint8_t *)(void *)g_driver_x_emit_one_root;
+    }
+    if (n_out)
+        *n_out = (int32_t)driver_x_emit_n_lib_roots;
+    return (uint8_t *)(void *)driver_x_emit_lib_roots;
+}
+
+extern int32_t parser_diag_fail_at_token_kind(struct shux_slice_uint8_t *source);
+
+int32_t driver_parser_diag_fail_tok_kind(uint8_t *src, size_t len) {
+    struct shux_slice_uint8_t s;
+    if (src == NULL)
+        return 0;
+    s.data = src;
+    s.length = len;
+    return parser_diag_fail_at_token_kind(&s);
+}
+
+void driver_pipeline_dep_ctx_set_use_asm(void *ctx, int32_t v) {
+    if (ctx == NULL)
+        return;
+    ((struct ast_PipelineDepCtx *)ctx)->use_asm_backend = v;
+}
+
+/*
+ * Cap residual：rt_run_x_emit 工作槽。
+ * 指针槽 i: 0 path 1 src 2 raw 3 arena 4 module 5 entry_dir 6 dep_sources
+ *   7 dep_paths 8 dep_lens 9 dep_arenas 10 dep_modules 11 out_buf 12 pctx
+ *   13 one_ctx 14 dep_out 15 dep_src 16 resolved 17 snap 18 dep_diag_file
+ *   19 kind 20 code 21 msg 22 cpaths 23 out_data 24 lib_roots_as_u8 25 tmp_p
+ * i32 槽 i: 0 want_extern 1 n_lib 2 n_deps 3 asm_direct 4 n_imports 5 main_idx
+ *   6 pr_ok 7 ec 8 ec_dep 9 emit_ret 10 out_len 11 j 12 i 13 fail_tok
+ *   14 n_closure 15 rc 16 free_src_flag
+ * size_t 槽 i: 0 src_len 1 raw_len 2 arena_sz 3 module_sz 4 dep_len
+ */
+#define DRIVER_X_EMIT_WORK_NP 26
+#define DRIVER_X_EMIT_WORK_NI 17
+#define DRIVER_X_EMIT_WORK_NZ 5
+static uint8_t *g_xe_work_p[DRIVER_X_EMIT_WORK_NP];
+static int32_t g_xe_work_i[DRIVER_X_EMIT_WORK_NI];
+static size_t g_xe_work_z[DRIVER_X_EMIT_WORK_NZ];
+
+void driver_x_emit_work_reset(void) {
+    memset(g_xe_work_p, 0, sizeof g_xe_work_p);
+    memset(g_xe_work_i, 0, sizeof g_xe_work_i);
+    memset(g_xe_work_z, 0, sizeof g_xe_work_z);
+}
+
+uint8_t *driver_x_emit_work_p_get(int32_t i) {
+    if (i < 0 || i >= DRIVER_X_EMIT_WORK_NP)
+        return NULL;
+    return g_xe_work_p[i];
+}
+
+void driver_x_emit_work_p_set(int32_t i, uint8_t *v) {
+    if (i < 0 || i >= DRIVER_X_EMIT_WORK_NP)
+        return;
+    g_xe_work_p[i] = v;
+}
+
+int32_t driver_x_emit_work_i_get(int32_t i) {
+    if (i < 0 || i >= DRIVER_X_EMIT_WORK_NI)
+        return 0;
+    return g_xe_work_i[i];
+}
+
+void driver_x_emit_work_i_set(int32_t i, int32_t v) {
+    if (i < 0 || i >= DRIVER_X_EMIT_WORK_NI)
+        return;
+    g_xe_work_i[i] = v;
+}
+
+size_t driver_x_emit_work_z_get(int32_t i) {
+    if (i < 0 || i >= DRIVER_X_EMIT_WORK_NZ)
+        return 0;
+    return g_xe_work_z[i];
+}
+
+void driver_x_emit_work_z_set(int32_t i, size_t v) {
+    if (i < 0 || i >= DRIVER_X_EMIT_WORK_NZ)
+        return;
+    g_xe_work_z[i] = v;
+}
+
+extern void pipeline_dep_ctx_heap_destroy(struct ast_PipelineDepCtx *ctx);
+
+int32_t driver_x_emit_try_extern_via_cparser(uint8_t *input_path) {
+    /*
+     * 产品 runtime_driver_no_c 为 SHUX_NO_C_FRONTEND；driver_abi 本层不带该宏编译，
+     * 故固定走 no-C 诊断（与产品 NO_C 语义一致）。
+     * 冷启动全 C 体（seeds/rt_run_x_emit.from_x.c 无 FROM_X）仍可走 cparser 分支。
+     */
+    (void)input_path;
+    diag_report_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001,
+                          "-x -E -E-extern requires C parser/codegen (rebuild without -DSHUX_NO_C_FRONTEND)",
+                          NULL);
+    return 1;
+}
+
+void driver_x_emit_work_cleanup(void) {
+    int32_t n = g_xe_work_i[2]; /* ndeps */
+    int32_t i;
+    void *p;
+    void *ds = g_xe_work_p[6];
+    void *dp = g_xe_work_p[7];
+    void *dl = g_xe_work_p[8];
+    void *da = g_xe_work_p[9];
+    void *dm = g_xe_work_p[10];
+    for (i = 0; i < n; i++) {
+        if (da) {
+            p = ((void **)da)[i];
+            free(p);
+        }
+        if (dm) {
+            p = ((void **)dm)[i];
+            free(p);
+        }
+        if (ds) {
+            p = ((void **)ds)[i];
+            free(p);
+        }
+        if (dp) {
+            p = ((void **)dp)[i];
+            free(p);
+        }
+    }
+    free(ds);
+    free(dp);
+    free(dl);
+    free(da);
+    free(dm);
+    free(g_xe_work_p[11]); /* out_buf */
+    if (g_xe_work_p[12])
+        pipeline_dep_ctx_heap_destroy((struct ast_PipelineDepCtx *)(void *)g_xe_work_p[12]);
+    free(g_xe_work_p[3]);  /* arena */
+    free(g_xe_work_p[4]);  /* module */
+    free(g_xe_work_p[1]);  /* src */
+    free(g_xe_work_p[19]); /* kind */
+    free(g_xe_work_p[20]); /* code */
+    free(g_xe_work_p[21]); /* msg */
+    driver_x_emit_work_reset();
+}
+
 /**
  * 扫描预处理后源码是否含顶层 import（`import("` 或 `= import(`）。
  * 参数：src 预处理后缓冲；src_len 有效字节数。
