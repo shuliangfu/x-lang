@@ -1524,7 +1524,8 @@ int driver_asm_fp_is_stdout(FILE *fp) {
     return fp == stdout ? 1 : 0;
 }
 
-void driver_asm_fflush_stdout(void) {
+/* 产品链与 runtime_driver_abi 同链；driver_abi 为权威定义。弱化避免 Darwin ld 双 T。 */
+__attribute__((weak)) void driver_asm_fflush_stdout(void) {
     fflush(stdout);
 }
 

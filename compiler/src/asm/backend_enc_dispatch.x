@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // G-02f-9：backend_enc_dispatch 产品源迁 seeds/backend_enc_dispatch.from_x.c。
-// 本文件为语义对照 / 后续真迁 .x 锚点；分派实现仍在 seed C。
-// 产品：cc seeds/backend_enc_dispatch.from_x.c → src/asm/backend_enc_dispatch.o
 // G-02f-100：+ x86 jcc / append_u32 / arm64 call/add/sub/str 薄门闩。
 // G-02f-101：+ arm64 load/store w0 from rbp 薄门闩。
 // G-02f-206：backend_enc_*_arch 短 ta 分派壳真迁 .x（arm64/riscv/x86）。
 // G-02f-207：x86-only / imm / lane / scale / disp encode 壳真迁。
 // G-02f-208：x86 f32/xmm 编码壳；enc_dispatch `*_arch` 逻辑源闭合。
+// R2 full（2026-07-14）：产品 PREFER_X_O → 本文件 -E→.o + rest（SHUX_BACKEND_ENC_DISPATCH_FROM_X 仅 marker）
+// 冷启动：seeds/backend_enc_dispatch.from_x.c 全 C；L2 thin 仅 g05 回退
+// typeck：大常量 encode 勿 `let word: u32 = lit | …`（lit| 产 i32）；直接传参 / `as i32`
 
 export function backend_enc_dispatch_x_doc_anchor(): i32 {
   return 0;
@@ -114,61 +115,73 @@ export function backend_enc_arm64_call_c(elf_ctx: *u8, name: *u8, name_len: i32)
   return 0 - 1;
 }
 
+// ADD X31, X31, #imm12 — 0x910003ff | (imm12<<10)
 #[no_mangle]
 export function backend_enc_arm64_add_sp_imm12_c(elf_ctx: *u8, imm: i32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   if (imm <= 0) { return 0; }
-  let imm12: i32 = imm;
-  if (imm12 > 4095) { imm12 = 4095; }
-  let word: u32 = 2432697343 | ((imm12 as u32) * 1024);
-  return backend_enc_append_u32_le_c(elf_ctx, word);
+  if (imm > 4095) {
+    return backend_enc_append_u32_le_c(elf_ctx, 2432697343 | (4095 * 1024));
+  }
+  return backend_enc_append_u32_le_c(elf_ctx, 2432697343 | ((imm as u32) * 1024));
 }
 
+// SUB X31, X31, #imm12 — 0xd10003ff | (imm12<<10)
 #[no_mangle]
 export function backend_enc_arm64_sub_sp_imm12_c(elf_ctx: *u8, imm: i32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   if (imm <= 0) { return 0; }
-  let imm12: i32 = imm;
-  if (imm12 > 4095) { imm12 = 4095; }
-  let word: u32 = 3506439167 | ((imm12 as u32) * 1024);
-  return backend_enc_append_u32_le_c(elf_ctx, word);
+  if (imm > 4095) {
+    return backend_enc_append_u32_le_c(elf_ctx, 3506439167 | (4095 * 1024));
+  }
+  return backend_enc_append_u32_le_c(elf_ctx, 3506439167 | ((imm as u32) * 1024));
 }
 
+// STR X0, [SP, #imm12*8] — 0xf90003e0 | (imm12<<10)
 #[no_mangle]
 export function backend_enc_arm64_str_x0_sp_offset_c(elf_ctx: *u8, off_bytes: i32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
-  let off: i32 = off_bytes;
-  if (off < 0) { off = 0; }
-  let imm12: i32 = off / 8;
-  if (imm12 > 4095) { imm12 = 4095; }
-  let word: u32 = 4177527776 | ((imm12 as u32) * 1024);
-  return backend_enc_append_u32_le_c(elf_ctx, word);
+  if (off_bytes < 0) {
+    return backend_enc_append_u32_le_c(elf_ctx, 4177527776);
+  }
+  if (off_bytes / 8 > 4095) {
+    return backend_enc_append_u32_le_c(elf_ctx, 4177527776 | (4095 * 1024));
+  }
+  return backend_enc_append_u32_le_c(elf_ctx, 4177527776 | (((off_bytes / 8) as u32) * 1024));
 }
 
+// LDUR w0, [x29, #-offset] — 0xB8400000 | (u9<<12) | (29<<5)
 #[no_mangle]
 export function arm64_enc_load_w0_from_rbp_c(elf_ctx: *u8, offset: i32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   if (offset < 0) { return 0 - 1; }
-  let simm9: i32 = 0 - offset;
-  if (simm9 < 0 - 256) { simm9 = 0 - 256; }
-  let u9: i32 = simm9 & 511;
-  let word: u32 = 3087007744 | ((u9 as u32) * 4096) | 928;
+  if (offset > 256) {
+    unsafe {
+      return arch_arm64_enc_enc_u32_le(elf_ctx, (3091202048 | (256 * 4096) | 928) as i32);
+    }
+    return 0 - 1;
+  }
   unsafe {
-    return arch_arm64_enc_enc_u32_le(elf_ctx, word as i32);
+    let u9: i32 = (0 - offset) & 511;
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (3091202048 | ((u9 as u32) * 4096) | 928) as i32);
   }
   return 0 - 1;
 }
 
+// STUR w0, [x29, #-offset] — 0xB8000000 | (u9<<12) | (29<<5)
 #[no_mangle]
 export function arm64_enc_store_w0_to_rbp_c(elf_ctx: *u8, offset: i32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   if (offset < 0) { return 0 - 1; }
-  let simm9: i32 = 0 - offset;
-  if (simm9 < 0 - 256) { simm9 = 0 - 256; }
-  let u9: i32 = simm9 & 511;
-  let word: u32 = 3087007744 | ((u9 as u32) * 4096) | 928;
+  if (offset > 256) {
+    unsafe {
+      return arch_arm64_enc_enc_u32_le(elf_ctx, (3087007744 | (256 * 4096) | 928) as i32);
+    }
+    return 0 - 1;
+  }
   unsafe {
-    return arch_arm64_enc_enc_u32_le(elf_ctx, word as i32);
+    let u9: i32 = (0 - offset) & 511;
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (3087007744 | ((u9 as u32) * 4096) | 928) as i32);
   }
   return 0 - 1;
 }
@@ -182,9 +195,8 @@ export extern "C" function arch_arm64_enc_enc_and_rbx_rax(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_cltd(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_cmp_rax_rbx(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_cmp_rbx_rax(elf_ctx: *u8): i32;
-export extern "C" function arch_arm64_enc_enc_cmp_w0_imm12(elf_ctx: *u8, imm12: i32): i32;
 export extern "C" function arch_arm64_enc_enc_cmp_setcc_movzbl(elf_ctx: *u8, cc: i32): i32;
-export extern "C" function arch_arm64_enc_enc_cset_w0_from_cc(elf_ctx: *u8, cc: i32): i32;
+export extern "C" function pipeline_asm_arm64_cset_cond_enc_from_cc(cc: i32): i32;
 export extern "C" function arch_arm64_enc_enc_epilogue(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_imul_rbx_rax(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_jeq(elf_ctx: *u8, label: *u8, label_len: i32): i32;
@@ -1168,7 +1180,7 @@ export function backend_enc_load_rbp_lane_to_rbx_arch(elf_ctx: *u8, offset: i32,
   return backend_enc_load_rbp_to_rbx_arch(elf_ctx, offset, ta);
 }
 
-// G-02f-207：arm64 ldr x0,[x29,#pos]
+// G-02f-207：arm64 ldr x0,[x29,#pos] — 0xf9400000 | (imm12<<10) | (29<<5) ≈ 4181722016 base
 #[no_mangle]
 export function backend_enc_load_x29_pos_to_rax_arch(elf_ctx: *u8, off_pos: i32, ta: i32): i32 {
   if (ta == 1) {
@@ -1176,9 +1188,7 @@ export function backend_enc_load_x29_pos_to_rax_arch(elf_ctx: *u8, off_pos: i32,
     if (off < 0) { off = 0; }
     let imm12: i32 = off / 8;
     if (imm12 > 4095) { imm12 = 4095; }
-    let base: u32 = 4181722016;
-    let ins: u32 = base | ((imm12 as u32) * 1024);
-    return arch_arm64_enc_enc_u32_le(elf_ctx, ins as i32);
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (4181722016 | ((imm12 as u32) * 1024)) as i32);
   }
   return 0 - 1;
 }
@@ -1208,8 +1218,7 @@ export function backend_enc_add_imm_to_index_scratch_arch(elf_ctx: *u8, imm: i32
     if (imm == 0) { return 0; }
     let imm12: i32 = imm;
     if (imm12 > 4095) { imm12 = 4095; }
-    let ins: u32 = 285213762 + (((imm12 - 1) as u32) * 1024);
-    return arch_arm64_enc_enc_u32_le(elf_ctx, ins as i32);
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (285213762 + ((imm12 - 1) * 1024)) as i32);
   }
   if (ta == 2) { return arch_riscv64_enc_enc_add_imm_to_a2(elf_ctx, imm); }
   return arch_x86_64_enc_enc_add_imm_to_ecx(elf_ctx, imm);
@@ -1221,8 +1230,7 @@ export function backend_enc_sub_imm_from_index_scratch_arch(elf_ctx: *u8, imm: i
     if (imm == 0) { return 0; }
     let imm12: i32 = imm;
     if (imm12 > 4095) { imm12 = 4095; }
-    let ins: u32 = 1358955586 + (((imm12 - 1) as u32) * 1024);
-    return arch_arm64_enc_enc_u32_le(elf_ctx, ins as i32);
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (1358955586 + ((imm12 - 1) * 1024)) as i32);
   }
   if (ta == 2) { return arch_riscv64_enc_enc_sub_imm_from_a2(elf_ctx, imm); }
   return arch_x86_64_enc_enc_sub_imm_from_ecx(elf_ctx, imm);
@@ -1234,8 +1242,7 @@ export function backend_enc_add_imm_to_rbx_index_arch(elf_ctx: *u8, imm: i32, ta
   if (ta == 1) {
     let imm12: i32 = imm;
     if (imm12 > 4095) { imm12 = 4095; }
-    let ins: u32 = 285213729 + (((imm12 - 1) as u32) * 1024);
-    return arch_arm64_enc_enc_u32_le(elf_ctx, ins as i32);
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (285213729 + ((imm12 - 1) * 1024)) as i32);
   }
   if (ta == 2) { return arch_riscv64_enc_enc_add_imm_to_rbx(elf_ctx, imm); }
   return arch_x86_64_enc_enc_add_imm_to_ebx_index(elf_ctx, imm);
@@ -1247,8 +1254,7 @@ export function backend_enc_sub_imm_from_rbx_index_arch(elf_ctx: *u8, imm: i32, 
   if (ta == 1) {
     let imm12: i32 = imm;
     if (imm12 > 4095) { imm12 = 4095; }
-    let ins: u32 = 1358955553 + (((imm12 - 1) as u32) * 1024);
-    return arch_arm64_enc_enc_u32_le(elf_ctx, ins as i32);
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (1358955553 + ((imm12 - 1) * 1024)) as i32);
   }
   if (ta == 2) { return arch_riscv64_enc_enc_sub_imm_from_rbx_index(elf_ctx, imm); }
   return arch_x86_64_enc_enc_sub_imm_from_ebx_index(elf_ctx, imm);
@@ -1259,9 +1265,8 @@ export function backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx: *u8, 
   if (ta == 1) {
     let simm9: i32 = 0 - offset;
     if (simm9 < 0 - 256) { simm9 = 0 - 256; }
-    let u9: u32 = (simm9 & 511) as u32;
-    let ins: u32 = 3090513920 | (u9 * 4096) | (29 * 32) | 3;
-    return arch_arm64_enc_enc_u32_le(elf_ctx, ins as i32);
+    let u9: i32 = simm9 & 511;
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (3090513920 | ((u9 as u32) * 4096) | (29 * 32) | 3) as i32);
   }
   if (ta == 2) { return arch_riscv64_enc_enc_load_rbp_to_a3(elf_ctx, offset); }
   return arch_x86_64_enc_enc_load_rbp_to_edx(elf_ctx, offset);
@@ -1272,8 +1277,7 @@ export function backend_enc_mul_imm_to_index_scratch_arch(elf_ctx: *u8, lit: i32
   if (lit <= 1) { return 0; }
   if (lit > 65535) { return 0 - 1; }
   if (ta == 1) {
-    let ins: u32 = 1384120320 | ((lit as u32) * 32) | 3;
-    if (arch_arm64_enc_enc_u32_le(elf_ctx, ins as i32) != 0) { return 0 - 1; }
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (1384120320 | ((lit as u32) * 32) | 3) as i32) != 0) { return 0 - 1; }
     return arch_arm64_enc_enc_u32_le(elf_ctx, 453213250);
   }
   if (ta == 2) { return arch_riscv64_enc_enc_mul_imm_to_a2(elf_ctx, lit); }
@@ -1285,8 +1289,7 @@ export function backend_enc_mul_imm_to_rbx_arch(elf_ctx: *u8, lit: i32, ta: i32)
   if (lit <= 1) { return 0; }
   if (lit > 65535) { return 0 - 1; }
   if (ta == 1) {
-    let ins: u32 = 1384120320 | ((lit as u32) * 32) | 3;
-    if (arch_arm64_enc_enc_u32_le(elf_ctx, ins as i32) != 0) { return 0 - 1; }
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, (1384120320 | ((lit as u32) * 32) | 3) as i32) != 0) { return 0 - 1; }
     return arch_arm64_enc_enc_u32_le(elf_ctx, 453213217);
   }
   if (ta == 2) { return arch_riscv64_enc_enc_mul_imm_to_rbx(elf_ctx, lit); }
@@ -1387,6 +1390,86 @@ export function backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx: *u8, k: i32, ta
     if (pipeline_elf_ctx_append_bytes(elf_ctx, &p[0], 3) != 0) { return 0 - 1; }
     let modrm: u8 = (192 | ((k * 8) & 255)) as u8;
     return pipeline_elf_ctx_append_bytes(elf_ctx, &modrm, 1);
+  }
+  return 0 - 1;
+}
+
+/* ---- R2 full 补齐：thin 产品面仍有、full 缺的公共符号（真体，非 _impl 门闩）---- */
+
+// arm64 cmp w0,#imm12 — 0x7100001f | (imm12<<10)；与 arch/arm64_enc.x enc_cmp_w0_imm12 一致
+#[no_mangle]
+export function arch_arm64_enc_enc_cmp_w0_imm12(elf_ctx: *u8, imm12: i32): i32 {
+  let imm: i32 = imm12 & 4095;
+  return arch_arm64_enc_enc_u32_le(elf_ctx, (1895825439 | (imm * 1024)) as i32);
+}
+
+// arm64 cset w0,cond — 0x1a9f07e0 | (cond<<12)
+#[no_mangle]
+export function arch_arm64_enc_enc_cset_w0_from_cc(elf_ctx: *u8, cc: i32): i32 {
+  unsafe {
+    let c: i32 = pipeline_asm_arm64_cset_cond_enc_from_cc(cc);
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (446629856 | (c * 4096)) as i32);
+  }
+  return 0 - 1;
+}
+
+// arch_arm64_* weak-style aliases → 本文件真迁 body
+#[no_mangle]
+export function arch_arm64_enc_enc_add_sp_imm12(elf_ctx: *u8, imm: i32): i32 {
+  return backend_enc_arm64_add_sp_imm12_c(elf_ctx, imm);
+}
+
+#[no_mangle]
+export function arch_arm64_enc_enc_sub_sp_imm12(elf_ctx: *u8, imm: i32): i32 {
+  return backend_enc_arm64_sub_sp_imm12_c(elf_ctx, imm);
+}
+
+#[no_mangle]
+export function arch_arm64_enc_enc_str_x0_sp_offset(elf_ctx: *u8, off_bytes: i32): i32 {
+  return backend_enc_arm64_str_x0_sp_offset_c(elf_ctx, off_bytes);
+}
+
+#[no_mangle]
+export function arch_arm64_enc_enc_call(elf_ctx: *u8, name: *u8, name_len: i32): i32 {
+  return backend_enc_arm64_call_c(elf_ctx, name, name_len);
+}
+
+// riscv stubs：与 seed SHUX_WEAK 冷路径一致（非 host 返回 -1；真 encoder 对象可覆盖）
+#[no_mangle]
+export function arch_riscv64_enc_enc_call(elf_ctx: *u8, name: *u8, name_len: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (name == 0) { return 0 - 1; }
+  if (name_len <= 0) { return 0 - 1; }
+  return 0 - 1;
+}
+
+#[no_mangle]
+export function arch_riscv64_enc_enc_mov_rax_to_arg_reg(elf_ctx: *u8, k: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (k < 0) { return 0 - 1; }
+  return 0 - 1;
+}
+
+// 单字节 append（f32/xmm / store_eax 路径）
+#[no_mangle]
+export function backend_enc_append_u8_c(elf_ctx: *u8, byte: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  let b: u8 = (byte & 255) as u8;
+  unsafe {
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &b, 1);
+  }
+  return 0 - 1;
+}
+
+// x86_64 cdqe：48 98
+#[no_mangle]
+export function arch_x86_64_enc_enc_cdqe_rax(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  unsafe {
+    let cdqe: u8[2] = [];
+    cdqe[0] = 72;
+    cdqe[1] = 152;
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &cdqe[0], 2);
   }
   return 0 - 1;
 }

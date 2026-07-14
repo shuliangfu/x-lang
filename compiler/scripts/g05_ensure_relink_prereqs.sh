@@ -1643,16 +1643,35 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       fi
     fi
   fi
-  # G-02f-9 / G-02f-352/361：backend_enc_dispatch.o
-  # R2 thin full：PREFER_X_O=1 时 thin.x（120 公共门闩）+ seed-rest（FROM_X）ld -r
+  # G-02f-9 / R2 full：backend_enc_dispatch.o
+  # PREFER：full.x 真迁业务 + rest (-DSHUX_BACKEND_ENC_DISPATCH_FROM_X，仅 marker) ld -r
+  # full.x 失败时回退 L2 thin hybrid；再失败整 seed 冷路径
   _bed=seeds/backend_enc_dispatch.from_x.c
+  _bed_x=src/asm/backend_enc_dispatch.x
   _bed_thin_x=src/asm/backend_enc_dispatch_thin.x
   _bed_o=src/asm/backend_enc_dispatch.o
   if [ -f "$_bed" ]; then
     if [ ! -f "$_bed_o" ] || [ "$_bed" -nt "$_bed_o" ] \
+      || { [ -f "$_bed_x" ] && [ "$_bed_x" -nt "$_bed_o" ]; } \
       || { [ -f "$_bed_thin_x" ] && [ "$_bed_thin_x" -nt "$_bed_o" ]; }; then
       _bed_done=0
-      if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_bed_thin_x" ]; then
+      if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_bed_x" ]; then
+        _bed_x_o=$(mktemp "${TMPDIR:-/tmp}/g05_bed_x.XXXXXX") || true
+        _bed_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_bed_rest.XXXXXX") || true
+        # shellcheck disable=SC2086
+        if [ -n "$_bed_x_o" ] && [ -n "$_bed_rest_o" ] \
+          && g05_try_x_to_o "$_bed_x" "$_bed_x_o" \
+          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_BACKEND_ENC_DISPATCH_FROM_X \
+               -c -o "$_bed_rest_o" "$_bed" \
+          && $CC -r -nostdlib -o "$_bed_o" "$_bed_x_o" "$_bed_rest_o" 2>/dev/null; then
+          echo "g05_ensure: $_bed_o ← $_bed_x + rest marker (R2 full enc_dispatch H=0)"
+          _bed_done=1
+        else
+          echo "g05_ensure: R2 full enc_dispatch failed; try L2 thin hybrid" >&2
+        fi
+        rm -f "$_bed_x_o" "$_bed_rest_o"
+      fi
+      if [ "$_bed_done" = "0" ] && [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_bed_thin_x" ]; then
         _bed_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_bed_thin.XXXXXX") || true
         _bed_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_bed_rest.XXXXXX") || true
         # shellcheck disable=SC2086
@@ -1661,15 +1680,15 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_L2_ENC_DISPATCH_THIN_FROM_X \
                -c -o "$_bed_rest_o" "$_bed" \
           && $CC -r -nostdlib -o "$_bed_o" "$_bed_thin_o" "$_bed_rest_o" 2>/dev/null; then
-          echo "g05_ensure: $_bed_o ← $_bed_thin_x + seed-rest (G-02f-352/419 R2 hybrid enc_dispatch thin)"
+          echo "g05_ensure: $_bed_o ← $_bed_thin_x + seed-rest (L2 hybrid enc_dispatch thin fallback)"
           _bed_done=1
         else
-          echo "g05_ensure: R2 hybrid enc_dispatch thin failed; fallback full seed" >&2
+          echo "g05_ensure: L2 hybrid enc_dispatch thin failed; fallback full seed" >&2
         fi
         rm -f "$_bed_thin_o" "$_bed_rest_o"
       fi
       if [ "$_bed_done" = "0" ]; then
-        echo "g05_ensure: backend_enc_dispatch.o ← backend_enc_dispatch.from_x (G-02f-9)"
+        echo "g05_ensure: backend_enc_dispatch.o ← backend_enc_dispatch.from_x (cold seed)"
         # shellcheck disable=SC2086
         $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_bed_o" "$_bed"
       fi
