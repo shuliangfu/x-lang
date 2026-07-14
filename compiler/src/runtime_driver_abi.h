@@ -254,4 +254,83 @@ int driver_source_has_top_level_import(const char *src, size_t src_len);
 /** 读 path 并检测顶层 import（compile.x extern）。 */
 int driver_source_has_top_level_import_path(const char *path);
 
+/*
+ * Cap residual：rt_run_asm_backend R2 平台/FILE/pctx 布局/指针表缺口。
+ * 业务控制流在 .x（step 拆分 + work 槽）；本层仅：
+ *   - FILE open/write/close + mkstemp 临时 .o
+ *   - PipelineDepCtx 字段 set/get（.x 无布局）
+ *   - host 默认 macho/coff/arch（平台 ifdef）
+ *   - defines 与 lib_roots/argv 绑定（.x 禁 **u8）
+ *   - C frontend smoke / typeck 预检（产品 NO_C 固定跳过）
+ *   - elf_ctx 分配、metric 写盘、asm work 槽
+ */
+void driver_pipeline_dep_ctx_set_target_arch(void *ctx, int32_t v);
+void driver_pipeline_dep_ctx_set_target_cpu_features(void *ctx, int32_t v);
+void driver_pipeline_dep_ctx_set_use_macho_o(void *ctx, int32_t v);
+void driver_pipeline_dep_ctx_set_use_coff_o(void *ctx, int32_t v);
+void driver_pipeline_dep_ctx_set_entry_already_parsed(void *ctx, int32_t v);
+void driver_pipeline_dep_ctx_set_asm_entry_module_only(void *ctx, int32_t v);
+int32_t driver_pipeline_dep_ctx_get_asm_entry_module_only(void *ctx);
+int32_t driver_pipeline_dep_ctx_get_use_macho_o(void *ctx);
+int32_t driver_pipeline_dep_ctx_get_use_coff_o(void *ctx);
+/** target 字符串 + emit_elf_o → 填 arch/macho/coff（含 host #ifdef）。 */
+void driver_asm_pctx_apply_host_defaults(void *ctx, uint8_t *target, int32_t emit_elf_o);
+
+uint8_t *driver_asm_fopen_wb(uint8_t *path);
+/** 写 path_out64（≥64B）为临时路径并 fdopen("wb")；失败 NULL。 */
+uint8_t *driver_asm_mkstemp_fdopen(uint8_t *path_out64);
+void driver_asm_fclose(uint8_t *fp);
+/** fp==NULL 时写 stdout；返回 0 成功。 */
+int32_t driver_asm_fwrite(uint8_t *fp, uint8_t *data, int32_t len);
+void driver_asm_fflush_stdout(void);
+/** 写单字节 0 的 metric .o；0 成功 1 失败。 */
+int32_t driver_asm_write_metric_o(uint8_t *path);
+
+uint8_t *driver_asm_elf_ctx_calloc(void);
+void driver_asm_elf_ctx_free(uint8_t *p);
+uint8_t *driver_asm_tmp_path_slot(void);
+
+/**
+ * 收集 -D 到内部表；argv 为 char** 以 *u8 传入（.x 禁 **u8）。
+ * 返回 ndefines；driver_asm_defines_as_u8 取表指针。
+ */
+int32_t driver_asm_collect_defines(int32_t argc, uint8_t *argv);
+uint8_t *driver_asm_defines_as_u8(void);
+int32_t driver_asm_ndefines_get(void);
+
+/**
+ * 绑定调用方 lib_roots（*u8 实为 const char**）；n<=0 时回退 ["."]。
+ * 返回 effective 表指针（*u8）。
+ */
+uint8_t *driver_asm_bind_lib_roots(uint8_t *lib_roots, int32_t n, int32_t *n_out);
+uint8_t *driver_asm_argv0(uint8_t *argv);
+
+/**
+ * 无 -o 且非 check：C frontend smoke（有 C 时）；check 且无 X pipeline：C typeck。
+ * 返回 -2 表示继续 .x pipeline；>=0 为应直接返回的 rc。
+ */
+int32_t driver_asm_try_c_frontend_early(uint8_t *input_path, uint8_t *src, uint8_t *lib_roots,
+                                        int32_t n_lib, uint8_t *out_path);
+/**
+ * 用户 asm 编译前 C typeck 预检。0 成功；1 失败；-1 跳过（NO_C / skip env / SKIP_TYPECK）。
+ */
+int32_t driver_asm_try_c_typeck_precheck(uint8_t *input_path, uint8_t *src, uint8_t *lib_roots,
+                                        int32_t n_lib);
+/** SHUX_ASM_USE_COMPILER_IMPL_C 是否启用（dep 仅 parse）。 */
+int32_t driver_asm_use_compiler_impl_c(void);
+
+/**
+ * Cap residual：rt_run_asm_backend 工作槽（避免巨型函数局部被 -E 抬 static/丢体）。
+ * 与 x_emit 槽独立，避免交错污染。
+ */
+void driver_asm_work_reset(void);
+uint8_t *driver_asm_work_p_get(int32_t i);
+void driver_asm_work_p_set(int32_t i, uint8_t *v);
+int32_t driver_asm_work_i_get(int32_t i);
+void driver_asm_work_i_set(int32_t i, int32_t v);
+size_t driver_asm_work_z_get(int32_t i);
+void driver_asm_work_z_set(int32_t i, size_t v);
+/** 释放 work 槽内资源；不 unlink tmp（由 .x 在 ld 前后处理）。 */
+void driver_asm_work_cleanup(void);
+
 #endif /* SHUX_RUNTIME_DRIVER_ABI_H */

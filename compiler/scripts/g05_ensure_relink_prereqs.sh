@@ -1149,7 +1149,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           fi
         fi
         if [ -n "$_rt_abk_o" ] && [ -f "$_rt_run_asm_backend_seed" ]; then
-          # G-02f-457：PREFER_X_O=1 时 thin .x + rest seed (-D) → cc -r 合并
+          # R2 full H=0：PREFER_X_O=1 时 full .x + rest seed (-D，仅 marker) → cc -r 合并
           if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_run_asm_backend_x" ]; then
             _rt_abk_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_abk_thin.XXXXXX") || true
             _rt_abk_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_abk_rest.XXXXXX") || true
@@ -1159,7 +1159,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
                    -c -o "$_rt_abk_rest_o" "$_rt_run_asm_backend_seed" \
               && $CC -r -nostdlib -o "$_rt_abk_o" "$_rt_abk_thin_o" "$_rt_abk_rest_o" 2>/dev/null; then
               _rt_abk_ok=1
-              echo "g05_ensure: rest run_asm_backend ← thin .x + rest (G-02f-457 L2 prefer .x)"
+              echo "g05_ensure: R2 run_asm_backend ← full .x + rest marker (R2 full H=0)"
             fi
             rm -f "$_rt_abk_thin_o" "$_rt_abk_rest_o"
           fi

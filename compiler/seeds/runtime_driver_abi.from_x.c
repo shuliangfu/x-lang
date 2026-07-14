@@ -2126,3 +2126,374 @@ int driver_source_has_top_level_import_path(const char *path) {
     return driver_source_has_top_level_import_path_impl(path);
 }
 #endif
+
+/* --------------------------------------------------------------------------
+ * Cap residual：rt_run_asm_backend R2（FILE* / pctx 字段 / host #ifdef / **u8 / work 槽）
+ * -------------------------------------------------------------------------- */
+
+void driver_pipeline_dep_ctx_set_target_arch(void *ctx, int32_t v) {
+    if (ctx == NULL)
+        return;
+    ((struct ast_PipelineDepCtx *)ctx)->target_arch = v;
+}
+
+void driver_pipeline_dep_ctx_set_target_cpu_features(void *ctx, int32_t v) {
+    if (ctx == NULL)
+        return;
+    ((struct ast_PipelineDepCtx *)ctx)->target_cpu_features = v;
+}
+
+void driver_pipeline_dep_ctx_set_use_macho_o(void *ctx, int32_t v) {
+    if (ctx == NULL)
+        return;
+    ((struct ast_PipelineDepCtx *)ctx)->use_macho_o = v;
+}
+
+void driver_pipeline_dep_ctx_set_use_coff_o(void *ctx, int32_t v) {
+    if (ctx == NULL)
+        return;
+    ((struct ast_PipelineDepCtx *)ctx)->use_coff_o = v;
+}
+
+void driver_pipeline_dep_ctx_set_entry_already_parsed(void *ctx, int32_t v) {
+    if (ctx == NULL)
+        return;
+    ((struct ast_PipelineDepCtx *)ctx)->entry_already_parsed = v;
+}
+
+void driver_pipeline_dep_ctx_set_asm_entry_module_only(void *ctx, int32_t v) {
+    if (ctx == NULL)
+        return;
+    ((struct ast_PipelineDepCtx *)ctx)->asm_entry_module_only = v;
+}
+
+int32_t driver_pipeline_dep_ctx_get_asm_entry_module_only(void *ctx) {
+    if (ctx == NULL)
+        return 0;
+    return ((struct ast_PipelineDepCtx *)ctx)->asm_entry_module_only;
+}
+
+int32_t driver_pipeline_dep_ctx_get_use_macho_o(void *ctx) {
+    if (ctx == NULL)
+        return 0;
+    return ((struct ast_PipelineDepCtx *)ctx)->use_macho_o;
+}
+
+int32_t driver_pipeline_dep_ctx_get_use_coff_o(void *ctx) {
+    if (ctx == NULL)
+        return 0;
+    return ((struct ast_PipelineDepCtx *)ctx)->use_coff_o;
+}
+
+extern uint32_t driver_get_pending_target_cpu_features(void);
+
+void driver_asm_pctx_apply_host_defaults(void *ctx, uint8_t *target, int32_t emit_elf_o) {
+    struct ast_PipelineDepCtx *pctx = (struct ast_PipelineDepCtx *)ctx;
+    const char *t = (const char *)(void *)target;
+    if (pctx == NULL)
+        return;
+    pctx->target_arch = 0;
+    if (t && (strstr(t, "aarch64") != NULL || strstr(t, "arm64") != NULL))
+        pctx->target_arch = 1;
+    if (t && strstr(t, "riscv64") != NULL)
+        pctx->target_arch = 2;
+    pctx->target_cpu_features = (int32_t)driver_get_pending_target_cpu_features();
+#if defined(__APPLE__) && defined(__aarch64__)
+    if (!t)
+        pctx->target_arch = 1;
+#endif
+    pctx->use_macho_o = 0;
+    pctx->use_coff_o = 0;
+#if defined(__APPLE__)
+    if (emit_elf_o)
+        pctx->use_macho_o = 1;
+#endif
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+    if (emit_elf_o)
+        pctx->use_coff_o = 1;
+#endif
+    if (emit_elf_o && t && strstr(t, "windows") != NULL)
+        pctx->use_coff_o = 1;
+}
+
+uint8_t *driver_asm_fopen_wb(uint8_t *path) {
+    if (path == NULL)
+        return NULL;
+    return (uint8_t *)(void *)fopen((const char *)(void *)path, "wb");
+}
+
+#ifndef SHUX_TMP_PREFIX
+#if !defined(_WIN32) && !defined(_WIN64)
+#define SHUX_TMP_PREFIX "/tmp/shux_"
+#else
+#define SHUX_TMP_PREFIX "shux_"
+#endif
+#endif
+
+uint8_t *driver_asm_mkstemp_fdopen(uint8_t *path_out64) {
+#if defined(_WIN32) || defined(_WIN64)
+    (void)path_out64;
+    return NULL;
+#else
+    int fd;
+    FILE *fp;
+    if (path_out64 == NULL)
+        return NULL;
+    snprintf((char *)(void *)path_out64, 64, "%sshux_asm_XXXXXX", SHUX_TMP_PREFIX);
+    fd = mkstemp((char *)(void *)path_out64);
+    if (fd < 0)
+        return NULL;
+    fp = fdopen(fd, "wb");
+    if (!fp) {
+        close(fd);
+        unlink((char *)(void *)path_out64);
+        path_out64[0] = 0;
+        return NULL;
+    }
+    return (uint8_t *)(void *)fp;
+#endif
+}
+
+void driver_asm_fclose(uint8_t *fp) {
+    driver_asm_fclose_asm_out((FILE *)(void *)fp);
+}
+
+int32_t driver_asm_fwrite(uint8_t *fp, uint8_t *data, int32_t len) {
+    FILE *out;
+    size_t n;
+    if (data == NULL || len <= 0)
+        return 0;
+    out = fp ? (FILE *)(void *)fp : stdout;
+    n = fwrite(data, 1, (size_t)len, out);
+    return (n == (size_t)len) ? 0 : 1;
+}
+
+void driver_asm_fflush_stdout(void) {
+    (void)fflush(stdout);
+}
+
+int32_t driver_asm_write_metric_o(uint8_t *path) {
+    FILE *metric_o;
+    if (path == NULL)
+        return 1;
+    metric_o = fopen((const char *)(void *)path, "wb");
+    if (!metric_o)
+        return 1;
+    (void)fputc('\0', metric_o);
+    if (fclose(metric_o) != 0)
+        return 1;
+    return 0;
+}
+
+extern size_t pipeline_sizeof_elf_ctx(void);
+
+uint8_t *driver_asm_elf_ctx_calloc(void) {
+    size_t sz = pipeline_sizeof_elf_ctx();
+    void *p;
+    if (sz == 0)
+        return NULL;
+    p = malloc(sz);
+    if (p)
+        memset(p, 0, sz);
+    return (uint8_t *)p;
+}
+
+void driver_asm_elf_ctx_free(uint8_t *p) {
+    free(p);
+}
+
+static char g_driver_asm_tmp_path_slot[64];
+
+uint8_t *driver_asm_tmp_path_slot(void) {
+    return (uint8_t *)g_driver_asm_tmp_path_slot;
+}
+
+#ifndef MAX_DEFINES
+#define MAX_DEFINES 64
+#endif
+static const char *g_driver_asm_defines[MAX_DEFINES];
+static int32_t g_driver_asm_ndefines;
+
+int32_t driver_asm_collect_defines(int32_t argc, uint8_t *argv) {
+    g_driver_asm_ndefines = 0;
+    memset(g_driver_asm_defines, 0, sizeof g_driver_asm_defines);
+    if (argv == NULL || argc <= 0)
+        return 0;
+    g_driver_asm_ndefines = (int32_t)driver_argv_collect_defines(
+        (int)argc, (char **)(void *)argv, g_driver_asm_defines, MAX_DEFINES);
+    return g_driver_asm_ndefines;
+}
+
+uint8_t *driver_asm_defines_as_u8(void) {
+    if (g_driver_asm_ndefines <= 0)
+        return NULL;
+    return (uint8_t *)(void *)g_driver_asm_defines;
+}
+
+int32_t driver_asm_ndefines_get(void) {
+    return g_driver_asm_ndefines;
+}
+
+static const char *g_driver_asm_dot = ".";
+static const char *g_driver_asm_one_root[1];
+static const char **g_driver_asm_lib_roots_bound;
+static int32_t g_driver_asm_n_lib_bound;
+
+uint8_t *driver_asm_bind_lib_roots(uint8_t *lib_roots, int32_t n, int32_t *n_out) {
+    g_driver_asm_lib_roots_bound = (const char **)(void *)lib_roots;
+    g_driver_asm_n_lib_bound = n;
+    if (n <= 0 || lib_roots == NULL) {
+        g_driver_asm_one_root[0] = g_driver_asm_dot;
+        if (n_out)
+            *n_out = 1;
+        return (uint8_t *)(void *)g_driver_asm_one_root;
+    }
+    if (n_out)
+        *n_out = n;
+    return lib_roots;
+}
+
+uint8_t *driver_asm_argv0(uint8_t *argv) {
+    char **a = (char **)(void *)argv;
+    if (a == NULL || a[0] == NULL)
+        return NULL;
+    return (uint8_t *)(void *)a[0];
+}
+
+int32_t driver_asm_try_c_frontend_early(uint8_t *input_path, uint8_t *src, uint8_t *lib_roots,
+                                        int32_t n_lib, uint8_t *out_path) {
+    /*
+     * 产品 runtime_driver_no_c 为 SHUX_NO_C_FRONTEND；本层固定走 no-C 继续 pipeline。
+     * 冷启动全 C 体（seeds/rt_run_asm_backend.from_x.c 无 FROM_X）仍含 #if 分支。
+     */
+    (void)input_path;
+    (void)src;
+    (void)lib_roots;
+    (void)n_lib;
+    (void)out_path;
+    return -2;
+}
+
+int32_t driver_asm_try_c_typeck_precheck(uint8_t *input_path, uint8_t *src, uint8_t *lib_roots,
+                                        int32_t n_lib) {
+    (void)input_path;
+    (void)src;
+    (void)lib_roots;
+    (void)n_lib;
+    /* 产品 NO_C：跳过 C typeck 预检。 */
+    return -1;
+}
+
+int32_t driver_asm_use_compiler_impl_c(void) {
+#if defined(SHUX_ASM_USE_COMPILER_IMPL_C)
+    return 1;
+#else
+    return 0;
+#endif
+}
+
+/*
+ * asm work 槽：
+ * p: 0 path 1 src 2 out_path 3 arena 4 module 5 entry 6 dsrc 7 dpath 8 dlens
+ *    9 dar 10 dmod 11 out_buf 12 pctx 13 kind 14 code 15 msg 16 lib 17 target
+ *    18 argv 19 asm_out 20 elf 21 defines 22 tmp_path 23 one_ctx 24 dep_out
+ * i: 0 nlib 1 ndeps 2 nimp 3 main 4 emit_elf 5 want_exe 6 smoke 7 ndef 8 argc
+ *    9 ec 10 j 11 entry_only 12 skip_dep_load 13 rc 14 n_closure 15 num_funcs
+ * z: 0 src_len 1 asz 2 msz 3 dep_len
+ */
+#define DRIVER_ASM_WORK_NP 25
+#define DRIVER_ASM_WORK_NI 16
+#define DRIVER_ASM_WORK_NZ 4
+static uint8_t *g_asm_work_p[DRIVER_ASM_WORK_NP];
+static int32_t g_asm_work_i[DRIVER_ASM_WORK_NI];
+static size_t g_asm_work_z[DRIVER_ASM_WORK_NZ];
+
+void driver_asm_work_reset(void) {
+    memset(g_asm_work_p, 0, sizeof g_asm_work_p);
+    memset(g_asm_work_i, 0, sizeof g_asm_work_i);
+    memset(g_asm_work_z, 0, sizeof g_asm_work_z);
+    g_driver_asm_tmp_path_slot[0] = 0;
+}
+
+uint8_t *driver_asm_work_p_get(int32_t i) {
+    if (i < 0 || i >= DRIVER_ASM_WORK_NP)
+        return NULL;
+    return g_asm_work_p[i];
+}
+
+void driver_asm_work_p_set(int32_t i, uint8_t *v) {
+    if (i < 0 || i >= DRIVER_ASM_WORK_NP)
+        return;
+    g_asm_work_p[i] = v;
+}
+
+int32_t driver_asm_work_i_get(int32_t i) {
+    if (i < 0 || i >= DRIVER_ASM_WORK_NI)
+        return 0;
+    return g_asm_work_i[i];
+}
+
+void driver_asm_work_i_set(int32_t i, int32_t v) {
+    if (i < 0 || i >= DRIVER_ASM_WORK_NI)
+        return;
+    g_asm_work_i[i] = v;
+}
+
+size_t driver_asm_work_z_get(int32_t i) {
+    if (i < 0 || i >= DRIVER_ASM_WORK_NZ)
+        return 0;
+    return g_asm_work_z[i];
+}
+
+void driver_asm_work_z_set(int32_t i, size_t v) {
+    if (i < 0 || i >= DRIVER_ASM_WORK_NZ)
+        return;
+    g_asm_work_z[i] = v;
+}
+
+void driver_asm_work_cleanup(void) {
+    int32_t n = g_asm_work_i[1]; /* ndeps */
+    int32_t i;
+    void *p;
+    void *ds = g_asm_work_p[6];
+    void *dp = g_asm_work_p[7];
+    void *dl = g_asm_work_p[8];
+    void *da = g_asm_work_p[9];
+    void *dm = g_asm_work_p[10];
+    for (i = 0; i < n; i++) {
+        if (da) {
+            p = ((void **)da)[i];
+            free(p);
+        }
+        if (dm) {
+            p = ((void **)dm)[i];
+            free(p);
+        }
+        if (ds) {
+            p = ((void **)ds)[i];
+            free(p);
+        }
+        if (dp) {
+            p = ((void **)dp)[i];
+            free(p);
+        }
+    }
+    free(ds);
+    free(dp);
+    free(dl);
+    free(da);
+    free(dm);
+    free(g_asm_work_p[11]); /* out_buf */
+    if (g_asm_work_p[12])
+        pipeline_dep_ctx_heap_destroy((struct ast_PipelineDepCtx *)(void *)g_asm_work_p[12]);
+    if (g_asm_work_p[19])
+        driver_asm_fclose_asm_out((FILE *)(void *)g_asm_work_p[19]);
+    free(g_asm_work_p[20]); /* elf */
+    free(g_asm_work_p[3]);  /* arena */
+    free(g_asm_work_p[4]);  /* module */
+    free(g_asm_work_p[1]);  /* src */
+    free(g_asm_work_p[13]); /* kind */
+    free(g_asm_work_p[14]); /* code */
+    free(g_asm_work_p[15]); /* msg */
+    driver_asm_work_reset();
+}

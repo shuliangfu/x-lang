@@ -2,6 +2,11 @@
  * Logic source: src/runtime/rt_run_asm_backend.x
  * Hybrid: SHUX_RT_RUN_ASM_BACKEND_FROM_X + ld -r into runtime_driver_no_c.o
  *
+ * R2 full（2026-07-14）：公共业务符号 driver_run_asm_backend 由 full .x 提供；
+ * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务符号 H=0）。
+ * Cap residual（driver_abi）：FILE/pctx/host/defines/work 槽。
+ * 冷启动/无 PREFER 时仍编译完整 C 体。
+ *
  * Scope: driver_run_asm_backend（读源 → X pipeline → .o/.s/exe）。
  * run_compiler_parsed 仍 mega rest。
  */
@@ -41,10 +46,6 @@
 #define PATH_MAX 4096
 #endif
 
-/* G-02f-457：thin+rest PREFER_X_O；.x 薄门闩调 _impl，seed 宏重命名 */
-#ifdef SHUX_RT_RUN_ASM_BACKEND_FROM_X
-#define driver_run_asm_backend    driver_run_asm_backend_impl
-#endif
 
 #define X_CODEGEN_OUTBUF_CAP (9 * 1024 * 1024)
 struct codegen_CodegenOutBuf {
@@ -111,6 +112,8 @@ extern void driver_unlink_failed_output(const char *out_path);
 /**
  * -backend asm 专用：读文件、跑 .x pipeline、写 .o 或调 ld。与 run_compiler_c 内 asm 路径逻辑一致，供 driver_run_compiler_full 转调。
  */
+#ifndef SHUX_RT_RUN_ASM_BACKEND_FROM_X
+
 int driver_run_asm_backend(const char *input_path, const char *out_path, const char **lib_roots_arr, int n_lib_roots,
     const char *target, int argc, char **argv) {
     const char *defines[MAX_DEFINES];
@@ -871,6 +874,11 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     free(src);
     return (ec != 0) ? 1 : 0;
 }
+
+#else /* SHUX_RT_RUN_ASM_BACKEND_FROM_X：产品 rest 仅 marker；业务体在 full .x */
+int driver_run_asm_backend(const char *input_path, const char *out_path, const char **lib_roots_arr, int n_lib_roots,
+    const char *target, int argc, char **argv);
+#endif /* SHUX_RT_RUN_ASM_BACKEND_FROM_X */
 
 int labi_rt_run_asm_backend_slice_marker(void) {
   return 1;
