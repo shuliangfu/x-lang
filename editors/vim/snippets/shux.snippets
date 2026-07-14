@@ -1,0 +1,146 @@
+" snippets/shux.snippets — SHUX 代码片段（UltiSnips / vim-vsnip 格式）
+"
+" 【Why】常用结构快速展开，减少重复输入
+" 【Invariant】片段内容与 SHUX 语法规范一致，$1/$2 为 tabstop
+
+snippet fn "function 声明" b
+function ${1:name}(${2:params})${3:: ${4:return_type}} {
+  $0
+}
+endsnippet
+
+snippet efn "export function 声明" b
+export function ${1:name}(${2:params})${3:: ${4:return_type}} {
+  $0
+}
+endsnippet
+
+snippet xfn "extern function 声明" b
+export extern function ${1:name}(${2:params})${3:: ${4:return_type}};
+endsnippet
+
+snippet cfn "extern \"C\" function 声明" b
+export extern "C" function ${1:name}(${2:params})${3:: ${4:return_type}};
+endsnippet
+
+snippet st "struct 声明" b
+struct ${1:Name} {
+  ${2:field}: ${3:type}
+}
+endsnippet
+
+snippet pst "allow(padding) struct 声明" b
+allow(padding) struct ${1:Name} {
+  ${2:field}: ${3:type}
+}
+endsnippet
+
+snippet en "enum 声明" b
+enum ${1:Name} {
+  ${2:Variant1},
+  ${3:Variant2}
+}
+endsnippet
+
+snippet tr "trait 声明" b
+trait ${1:Name} {
+  ${2:method_signature};
+}
+endsnippet
+
+snippet im "impl 块" b
+impl ${1:Name} {
+  $0
+}
+endsnippet
+
+snippet if "if 表达式" b
+if (${1:condition}) {
+  $0
+}
+endsnippet
+
+snippet ife "if-else 表达式" b
+if (${1:condition}) {
+  ${2:then}
+} else {
+  $0
+}
+endsnippet
+
+snippet match "match 表达式" b
+match ${1:expr} {
+  ${2:pattern} => ${3:value},
+  _ => ${4:default}
+}
+endsnippet
+
+snippet for "for range 循环" b
+for (${1:i} : 0 .. ${2:n}) {
+  $0
+}
+endsnippet
+
+snippet while "while 循环" b
+while (${1:condition}) {
+  $0
+}
+endsnippet
+
+snippet loop "loop 循环" b
+loop {
+  $0
+  break;
+}
+endsnippet
+
+snippet let "let 声明" b
+let ${1:name}: ${2:type} = ${3:value};
+endsnippet
+
+snippet const "const 声明" b
+const ${1:NAME}: ${2:type} = ${3:value};
+endsnippet
+
+snippet import "import 模块" b
+const ${1:mod} = import("${2:module.path}");
+endsnippet
+
+snippet defer "defer 语句" b
+defer ${1:expression};
+endsnippet
+
+snippet unsafe "unsafe 块" b
+unsafe {
+  $0
+}
+endsnippet
+
+snippet main "main 函数" b
+function main(): i32 {
+  $0
+  return 0;
+}
+endsnippet
+
+snippet ret "return 语句" b
+return ${1:value};
+endsnippet
+
+snippet retif "return if 表达式" b
+return if (${1:cond}) { ${2:0} } else { ${3:1} };
+endsnippet
+
+snippet sl "struct literal" b
+${1:Type} {
+  ${2:field}: ${3:value}
+}
+endsnippet
+
+snippet al "array literal" b
+[${1:elements}]
+endsnippet
+
+snippet => "match arm" b
+${1:pattern} => ${2:value},
+endsnippet

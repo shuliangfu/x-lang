@@ -30,11 +30,7 @@ syn keyword shuxConstant self panic
 
 " ==================== 类型 ====================
 " 原始类型（lexer.x 无对应 token，typeck 直接按 name 识别）
-syn keyword shuxType
-  \ i8 i16 i32 i64 isize
-  \ u8 u16 u32 u64 usize
-  \ f32 f64 bool void
-  \ i32x4 i32x8 i32x16 u32x4 u32x8 u32x16
+syn keyword shuxType i8 i16 i32 i64 isize u8 u16 u32 u64 usize f32 f64 bool void i32x4 i32x8 i32x16 u32x4 u32x8 u32x16
 
 " 大写开头的类型名（struct/enum/trait 名）
 syn match shuxTypeName "\<\u[A-Za-z0-9_]*\>"
@@ -112,5 +108,16 @@ hi def link shuxFloat        Float
 hi def link shuxOperator     Operator
 hi def link shuxDelimiter    Delimiter
 hi def link shuxBracket      Delimiter
+
+" ==================== 语法折叠 ====================
+" 【Why】foldmethod=syntax 时，这些 fold region 提供按语法结构折叠能力
+" 【Invariant】fold region 必须与 block {} 配对，不破坏高亮
+" 【Asm/Perf】fold 仅在 foldmethod=syntax 时激活，无性能影响
+syn region shuxFunctionFold start="^\s*\(export\s\+\)\?\(extern\s\+\(\("[CX]" \)\?\)\)\?function\s\+\w\+.*{$" end="^\s*}$" fold transparent keepend extend
+syn region shuxBlockFold start="{" end="}" fold transparent
+syn region shuxCommentFold start="/\*" end="\*/" fold transparent keepend extend
+
+" 同步：用 function 声明作为同步点，避免大文件从头扫描
+syn sync fromstart
 
 let b:current_syntax = "shux"
