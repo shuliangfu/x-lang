@@ -37,6 +37,8 @@ MODULES=(
   "lsp_diag_pipeline_sizes|src/lsp/lsp_diag_pipeline_sizes.x|seeds/lsp_diag_pipeline_sizes.from_x.c||"
   # labi_path_pure：路径纯串 L0；产品 hybrid 入 runtime_link_abi；本条锁 nm / 扩 N
   "labi_path_pure|src/runtime/labi_path_pure.x|seeds/labi_path_pure.from_x.c||"
+  # labi_gates：L9 thin null-check 转发；产品 PREFER_X_O；冷启动 seed；本条锁 nm / 扩 N
+  "labi_gates|src/runtime/labi_gates.x|seeds/labi_gates.from_x.c||"
   # hybrid thin+C-tail：seed 多 _impl/scratch；x 多 append_*（.x 真迁拼装）。CORE 锁公共 API 面不丢。
   "diagnostic|src/runtime_driver_diagnostic.x|seeds/runtime_driver_diagnostic.from_x.c||core:driver_diag_append_cstr,driver_diag_append_i32,driver_diag_append_name"
 )

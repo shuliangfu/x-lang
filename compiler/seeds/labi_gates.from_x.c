@@ -1,8 +1,11 @@
-/* seeds/labi_gates.from_x.c — G-02f-277 P2 link_abi L9 thin gates
- * Logic source: src/runtime/labi_gates.x
+/* seeds/labi_gates.from_x.c — G-02f-277/L P2 link_abi L9 thin gates
+ * Logic source: src/runtime/labi_gates.x（真迁 thin shell；*u8 不透明透传）
  * Hybrid: SHUX_LABI_GATES_FROM_X + ld -r into runtime_link_abi.o
+ * 产品 PREFER_X_O：g05_try_x_to_o(labi_gates.x)；本 seed 冷启动 / fallback
+ * prove：nm IDENTICAL（7 定义符号 + U _impl）
  *
  * Thin null-check shells that forward to *_impl / platform bodies in mega rest.
+ * 冷启动保留 C 精确签名（const char** 等）；.x -E 为 *u8 透传（ABI 兼容）。
  */
 #include "runtime_link_abi.h"
 
