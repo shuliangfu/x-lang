@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // G-02f-261/306 / P2 R2：content_has_* 纯串 + path 包装 driver_source_has_*。
+// R2 full（2026-07-14）：path rest 亦由 .x 提供；FROM_X rest 业务 H=0（仅 marker）。
 // 注意：部分 usize 下标/减法写法会触发 parse no functions；索引用 i32 再 cast。
-// 产品默认 seeds/rt_content.from_x.c；PREFER_X_O hybrid 见 ensure。
+// 产品 PREFER_X_O hybrid：thin full .x + rest 空业务体。
 
 export function rt_eq2(c: *u8, n: i32, p: i32, a0: u8, a1: u8): i32 {
   if (p + 2 > n) {
@@ -332,6 +333,61 @@ export function content_has_compound_assign_syntax(content: *u8, n: usize): i32 
   return 0;
 }
 
-// G-02f-436：driver_source_has_generic_syntax / driver_source_has_compound_assign_syntax
-// 暂留 seed C（需 driver_peek_source_file + 65536 字节栈缓冲，.x 不支持）。
+// G-02f-436 / R2 path rest：driver_source_has_* 真迁 .x
+// peek 经 extern；content 用 u8[65536] 栈缓冲（-E 已验可发射）；path 拷入 u8[512] 尾 0。
+
+export extern "C" function driver_peek_source_file(path: *u8, content: *u8, cap: i64): i32;
+
+/** path[0..path_len) 拷到 path_buf 并写尾 0；成功 1 / 失败 0。 */
+export function rt_path_copy_nul(path: *u8, path_len: i32, path_buf: *u8): i32 {
+  let i: i32 = 0;
+  if (path_len <= 0) {
+    return 0;
+  }
+  if (path_len >= 512) {
+    return 0;
+  }
+  while (i < path_len) {
+    path_buf[i as usize] = path[i as usize];
+    i = i + 1;
+  }
+  path_buf[path_len as usize] = 0;
+  return 1;
+}
+
+/** 检测 path 指向的源码是否含泛型语法；peek 后转 content_has_generic_syntax。 */
+#[no_mangle]
+export function driver_source_has_generic_syntax(path: *u8, path_len: i32): i32 {
+  let content: u8[65536] = [];
+  let path_buf: u8[512] = [];
+  let rn: i32 = 0;
+  if (rt_path_copy_nul(path, path_len, &path_buf[0]) == 0) {
+    return 0;
+  }
+  unsafe {
+    rn = driver_peek_source_file(&path_buf[0], &content[0], 65536);
+  }
+  if (rn < 0) {
+    return 0;
+  }
+  return content_has_generic_syntax(&content[0], rn as usize);
+}
+
+/** 检测 path 指向的源码是否含复合赋值；peek 后转 content_has_compound_assign_syntax。 */
+#[no_mangle]
+export function driver_source_has_compound_assign_syntax(path: *u8, path_len: i32): i32 {
+  let content: u8[65536] = [];
+  let path_buf: u8[512] = [];
+  let rn: i32 = 0;
+  if (rt_path_copy_nul(path, path_len, &path_buf[0]) == 0) {
+    return 0;
+  }
+  unsafe {
+    rn = driver_peek_source_file(&path_buf[0], &content[0], 65536);
+  }
+  if (rn < 0) {
+    return 0;
+  }
+  return content_has_compound_assign_syntax(&content[0], rn as usize);
+}
 

@@ -678,7 +678,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
                    -c -o "$_rt_content_rest_o" "$_rt_content_seed" \
               && $CC -r -nostdlib -o "$_rt_c_o" "$_rt_content_thin_o" "$_rt_content_rest_o" 2>/dev/null; then
               _rt_content_ok=1
-              echo "g05_ensure: R2 content ← thin .x + rest (G-02f-436 L2 prefer .x)"
+              echo "g05_ensure: R2 content ← full .x + rest H=0 (path wrappers in .x)"
             fi
             rm -f "$_rt_content_thin_o" "$_rt_content_rest_o"
           fi

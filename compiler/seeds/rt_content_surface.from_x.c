@@ -1,10 +1,9 @@
 /* seeds/rt_content_surface.from_x.c
- * G-02f rt_content L2 thin surface — isomorphic with src/runtime/rt_content.x
+ * G-02f rt_content R2 full surface — isomorphic with src/runtime/rt_content.x
  * Product PREFER_X_O: g05_try_x_to_o(rt_content.x) + hybrid rest seed
  *   seeds/rt_content.from_x.c (-DSHUX_RT_CONTENT_FROM_X) ld -r into runtime_driver_no_c
- * Hybrid rest seed unchanged: driver_source_has_* path wrappers + marker
- *   (#ifndef SHUX_RT_CONTENT_FROM_X keeps content_has_* C bodies for cold path)
- * Prove: thin.x vs this seed → nm IDENTICAL (public surface + helpers)
+ * R2: content_has_* + driver_source_has_* path wrappers from .x; rest FROM_X only decls+marker
+ * Prove: full.x vs this seed → nm IDENTICAL (public surface + helpers)
  * Regen: ./shux -E ... src/runtime/rt_content.x | filter DBG + polish prologue
  */
 #include <stddef.h>
@@ -31,6 +30,10 @@ extern int32_t rt_is_string_escape(uint8_t * c, int32_t n, int32_t at);
 extern int32_t rt_is_line_comment_start(uint8_t * c, int32_t n, int32_t at);
 extern int32_t rt_is_block_comment_start(uint8_t * c, int32_t n, int32_t at);
 extern int32_t content_has_compound_assign_syntax(uint8_t * content, size_t n);
+extern int32_t rt_path_copy_nul(uint8_t * path, int32_t path_len, uint8_t * path_buf);
+extern int32_t driver_source_has_generic_syntax(uint8_t * path, int32_t path_len);
+extern int32_t driver_source_has_compound_assign_syntax(uint8_t * path, int32_t path_len);
+extern int32_t driver_peek_source_file(uint8_t * path, uint8_t * content, int64_t cap);
 int32_t rt_eq2(uint8_t * c, int32_t n, int32_t p, uint8_t a0, uint8_t a1) {
   if (((p + 2) > n)) {
     return 0;
@@ -362,4 +365,49 @@ int32_t content_has_compound_assign_syntax(uint8_t * content, size_t n) {
     }
   }
   return 0;
+}
+int32_t rt_path_copy_nul(uint8_t * path, int32_t path_len, uint8_t * path_buf) {
+  int32_t i = 0;
+  if ((path_len <=0)) {
+    return 0;
+  }
+  if ((path_len >=512)) {
+    return 0;
+  }
+  while ((i < path_len)) {
+    (void)(((path_buf)[((size_t)(i))] = (path)[((size_t)(i))]));
+    (void)((i = (i + 1)));
+  }
+  (void)(((path_buf)[((size_t)(path_len))] = 0));
+  return 1;
+}
+int32_t driver_source_has_generic_syntax(uint8_t * path, int32_t path_len) {
+  uint8_t content[65536] = {};
+  uint8_t path_buf[512] = {};
+  int32_t rn = 0;
+  if ((rt_path_copy_nul(path, path_len, &((path_buf)[0])) ==0)) {
+    return 0;
+  }
+  {
+    (void)((rn = driver_peek_source_file(&((path_buf)[0]), &((content)[0]), 65536)));
+  }
+  if ((rn < 0)) {
+    return 0;
+  }
+  return content_has_generic_syntax(&((content)[0]), ((size_t)(rn)));
+}
+int32_t driver_source_has_compound_assign_syntax(uint8_t * path, int32_t path_len) {
+  uint8_t content[65536] = {};
+  uint8_t path_buf[512] = {};
+  int32_t rn = 0;
+  if ((rt_path_copy_nul(path, path_len, &((path_buf)[0])) ==0)) {
+    return 0;
+  }
+  {
+    (void)((rn = driver_peek_source_file(&((path_buf)[0]), &((content)[0]), 65536)));
+  }
+  if ((rn < 0)) {
+    return 0;
+  }
+  return content_has_compound_assign_syntax(&((content)[0]), ((size_t)(rn)));
 }

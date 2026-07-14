@@ -4,6 +4,9 @@
  *
  * f-261: content_has_generic / compound_assign（纯串）
  * f-306: driver_source_has_*（path → peek → content_has）
+ * R2 full（2026-07-14）：path wrappers 亦由 .x 提供；
+ * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务符号 H=0）。
+ * 冷启动/无 PREFER 时仍编译完整 C 体。
  */
 #include <stdint.h>
 #include <stddef.h>
@@ -111,6 +114,7 @@ int content_has_compound_assign_syntax(const char *content, size_t n) {
 int content_has_compound_assign_syntax(const char *content, size_t n);
 #endif
 
+#ifndef SHUX_RT_CONTENT_FROM_X
 /** 检测 path 指向的源码是否含泛型语法；peek 后转 content_has_generic_syntax。 */
 int driver_source_has_generic_syntax(const uint8_t *path, int path_len) {
     char content[65536];
@@ -152,10 +156,11 @@ int driver_source_has_compound_assign_syntax(const uint8_t *path, int path_len) 
         content[n] = '\0';
     return content_has_compound_assign_syntax(content, n);
 }
+#else
+int driver_source_has_generic_syntax(const uint8_t *path, int path_len);
+int driver_source_has_compound_assign_syntax(const uint8_t *path, int path_len);
+#endif
 
 int labi_rt_content_slice_marker(void) {
     return 1;
 }
-
-/** 供 compile.x：源码含复合赋值则返回 1，默认 asm 应降级为 C。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
