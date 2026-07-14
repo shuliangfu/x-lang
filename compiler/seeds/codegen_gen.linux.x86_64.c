@@ -296,6 +296,8 @@ extern int32_t pipeline_type_named_name_into(struct ast_ASTArena * arena, int32_
 extern int32_t pipeline_type_kind_ord_at(struct ast_ASTArena * arena, int32_t ref);
 extern int32_t pipeline_type_elem_ref_at(struct ast_ASTArena * arena, int32_t ref);
 extern int32_t pipeline_type_array_size_at(struct ast_ASTArena * arena, int32_t ref);
+extern int32_t pipeline_codegen_c_file_prologue_done_get(void);
+extern void pipeline_codegen_c_file_prologue_done_set(int32_t v);
 extern int32_t pipeline_codegen_type_to_c_repr(struct ast_ASTArena * arena, uint8_t * scratch, int32_t cap, int32_t type_ref, uint8_t * struct_prefix, int32_t struct_prefix_len);
 extern int32_t pipeline_codegen_emit_struct_field_type(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t type_ref, uint8_t * struct_prefix, int32_t struct_prefix_len);
 extern int32_t pipeline_codegen_emit_struct_field_decl(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t type_ref, uint8_t * field_name, int32_t field_name_len, uint8_t * struct_prefix, int32_t struct_prefix_len);
@@ -5851,17 +5853,25 @@ SHUX_LIB_WEAK int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTAr
  }
   int32_t i = 0;
   while (i < (module)->num_funcs) {
-    if (i == 0) {   if (codegen_x_ast_emit_header(out) != 0) {   return (-1);
+    if (i == 0) {
+  /* 对齐 codegen.x：全文件 prologue 只 emit 一次，避免每 dep 重 #include/struct redefinition。 */
+  if (pipeline_codegen_c_file_prologue_done_get() == 0) {
+  if (codegen_x_ast_emit_header(out) != 0) {   return (-1);
  }
   if (codegen_emit_skipped_dep_type_definitions(ctx, out) != 0) {   return (-1);
  }
   if (codegen_emit_dep_struct_forward_declarations(ctx, out) != 0) {   return (-1);
  }
-  if (codegen_emit_module_enum_definitions(module, out, (&((prefix_buf)[0])), prefix_len) != 0) {   return (-1);
+  pipeline_codegen_c_file_prologue_done_set(1);
  }
   if (codegen_emit_import_dep_function_declarations(module, out, ctx) != 0) {   return (-1);
  }
+  /* entry 才 emit 自身 enum/struct；dep 类型已在 prologue skipped_dep 中。 */
+  if (dep_index < 0) {
+  if (codegen_emit_module_enum_definitions(module, out, (&((prefix_buf)[0])), prefix_len) != 0) {   return (-1);
+ }
   if (codegen_emit_module_struct_definitions(module, arena, out, (&((prefix_buf)[0])), prefix_len, ctx) != 0) {   return (-1);
+ }
  }
   /* Emit forward declarations for all non-extern functions in this module */
   { int32_t fwd_fi = 0;
