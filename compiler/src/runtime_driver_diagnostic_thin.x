@@ -1,14 +1,35 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-339～341/409/416 + Cap residual pure 深迁：runtime_driver_diagnostic R2 thin。
+// G-02f-339～341/409/416 + Cap residual pure 深迁（续 getenv truthy）：runtime_driver_diagnostic R2 thin。
 // 产品 PREFER_X_O：g05_try_x_to_o → thin.o + seeds/runtime_driver_diagnostic.from_x.c rest
 //   （-DSHUX_L2_RDD_THIN_FROM_X）ld -r → src/runtime_driver_diagnostic.o
 // prove IDENTICAL：thin.x ↔ seeds/runtime_driver_diagnostic_thin_surface.from_x.c
 // pure 真体：固定措辞 typeck + pipe orch + 拼装 pure（return/assign/call/struct/asm note
-//   + fill/build/note）+ append_*/copy_bytes。
-// Cap residual：snprintf/va_list/debug 体 + 仍门闩的 *_impl 在 full seed rest。
-// 本 TU：门闩 + pure 真体（f-339～341 + f-387 env + f-409 pipe/storage + f-416 lsp_diag_get）
+//   + fill/build/note）+ append_*/copy_bytes + env_debug_pipe / parse_strict_enabled。
+// Cap residual：snprintf/va_list/debug_log/pipe_note/report_prefixed/scratch 等 *_impl 仍 rest。
+// 本 TU：门闩 + pure 真体（f-339～341 + f-387 env pure + f-409 pipe/storage + f-416 lsp_diag_get）
+
+export extern "C" function getenv(name: *u8): *u8;
+
+// pure：getenv 非空且首字节非 '0' → 1（与 seed Cap residual 同形）。
+// 调用点用字符串字面量（-E → 实参 compound lit；勿用全局 let u8[] → 悬空/NULL SIGSEGV）。
+function driver_env_flag_truthy(name: *u8): i32 {
+  unsafe {
+    let e: *u8 = getenv(name);
+    if (e == 0 as *u8) {
+      return 0;
+    }
+    if (e[0] == 0) {
+      return 0;
+    }
+    if (e[0] == 48) {
+      return 0;
+    }
+    return 1;
+  }
+  return 0;
+}
 
 export extern "C" function driver_debug_log_impl(step: i32): void;
 export extern "C" function driver_diagnostic_after_entry_parse_module_impl(module: *u8): void;
@@ -450,13 +471,17 @@ export function driver_diag_copy_bytes(dst: *u8, dst_size: i64, src: *u8, src_le
 
 // ---- Cap residual pure 深迁：固定措辞 typeck + pipe orch（真体；FROM_X 无 pure-dup _impl）----
 export extern "C" function lsp_diag_report_typeck(line: i32, col: i32, msg: *u8): void;
-// Cap residual getenv：env_debug_pipe_impl 仍 seed；orch pure 在 thin
-export extern "C" function driver_diag_env_debug_pipe_impl(): i32;
+// pure：SHUX_DEBUG_PIPE truthy（getenv 非空且 ≠'0'）；FROM_X 无 pure-dup _impl
+
+#[no_mangle]
+export function driver_diag_env_debug_pipe(): i32 {
+  return driver_env_flag_truthy("SHUX_DEBUG_PIPE");
+}
 
 #[no_mangle]
 export function driver_diagnostic_before_codegen(num_funcs: i32, out_len: i32): void {
   unsafe {
-    if (driver_diag_env_debug_pipe_impl() != 0) {
+    if (driver_diag_env_debug_pipe() != 0) {
       driver_diag_pipe_note(0, num_funcs, out_len);
     }
   }
@@ -465,7 +490,7 @@ export function driver_diagnostic_before_codegen(num_funcs: i32, out_len: i32): 
 #[no_mangle]
 export function driver_diagnostic_source_len(len: i32): void {
   unsafe {
-    if (driver_diag_env_debug_pipe_impl() != 0) {
+    if (driver_diag_env_debug_pipe() != 0) {
       driver_diag_pipe_note(1, len, 0);
     }
   }
@@ -474,7 +499,7 @@ export function driver_diagnostic_source_len(len: i32): void {
 #[no_mangle]
 export function driver_diagnostic_after_entry_parse(num_funcs: i32): void {
   unsafe {
-    if (driver_diag_env_debug_pipe_impl() != 0) {
+    if (driver_diag_env_debug_pipe() != 0) {
       driver_diag_pipe_note(2, num_funcs, 0);
     }
   }
@@ -483,7 +508,7 @@ export function driver_diagnostic_after_entry_parse(num_funcs: i32): void {
 #[no_mangle]
 export function driver_diagnostic_pipe_marker(id: i32): void {
   unsafe {
-    if (driver_diag_env_debug_pipe_impl() != 0) {
+    if (driver_diag_env_debug_pipe() != 0) {
       driver_diag_pipe_note(3, id, 0);
     }
   }
@@ -577,8 +602,8 @@ export function parser_is_ident_allow(ident: *u8, len: i32): i32 {
 }
 
 // ---- Cap residual pure 深迁：拼装 pure（return/assign/call/struct/asm note + fill/build）----
-// 权威同构 full.x G-02f-175～179；append_* 已 pure；Cap residual：report_prefixed/strict/scratch 仍 rest
-export extern "C" function driver_parse_strict_enabled_impl(): i32;
+// 权威同构 full.x G-02f-175～179；append_* 已 pure；Cap residual：report_prefixed/scratch 仍 rest
+// pure：SHUX_PARSE_STRICT truthy；FROM_X 无 pure-dup _impl
 export extern "C" function driver_diag_report_prefixed_impl(line: i32, col: i32, msg: *u8): void;
 export extern "C" function diag_report(file: *u8, line: i32, col: i32, kind: *u8, msg: *u8, detail: *u8): void;
 export extern "C" function driver_typeck_diag_scratch_expect_impl(): *u8;
@@ -586,10 +611,7 @@ export extern "C" function driver_typeck_diag_scratch_found_impl(): *u8;
 
 #[no_mangle]
 export function driver_parse_strict_enabled(): i32 {
-  unsafe {
-    return driver_parse_strict_enabled_impl();
-  }
-  return 0;
+  return driver_env_flag_truthy("SHUX_PARSE_STRICT");
 }
 
 #[no_mangle]
@@ -817,15 +839,6 @@ export function driver_diagnostic_asm_macho_missing_und_reloc(reloc_idx: i32): v
   let at: i32 = driver_diag_append_cstr(&msg[0], 96, 0, "macho undef reloc not in und pool at idx=");
   at = driver_diag_append_i32(&msg[0], 96, at, reloc_idx);
   driver_diag_note(&msg[0]);
-}
-
-// ---- G-02f-387：DEBUG_PIPE env → seed impl（声明见上 pure orch 段）----
-#[no_mangle]
-export function driver_diag_env_debug_pipe(): i32 {
-  unsafe {
-    return driver_diag_env_debug_pipe_impl();
-  }
-  return 0;
 }
 
 // ---- G-02f-416：lsp_diag_enabled getter → seed impl ----

@@ -79,7 +79,7 @@ MODULES=(
   # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：ld_debug_argv char** 在 mega rest
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_diag_pure.from_x.c 全 C 体
   "labi_diag_pure|src/runtime/labi_diag_pure.x|seeds/labi_diag_pure_surface.from_x.c||"
-  # diagnostic R2 thin + Cap residual pure 深迁：thin.x 公共门闩 + 固定措辞/pipe orch + 拼装 pure
+  # diagnostic R2 thin + Cap residual pure 深迁：thin.x 公共门闩 + 固定措辞/pipe orch + 拼装 pure + getenv truthy
   # （return/assign/call/struct/asm note + fill/build/note）；rest FROM_X 无 pure-dup _impl；
   # Cap residual snprintf/va_list/debug 在 full seed rest
   # prove 锁 thin surface IDENTICAL；冷/无 PREFER 仍可走 seeds/runtime_driver_diagnostic.from_x.c 全 C 体

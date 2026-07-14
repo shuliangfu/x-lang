@@ -1,12 +1,13 @@
-/* G-02f-339～341 / R2 thin + Cap residual pure 深迁：
+/* G-02f-339～341 / R2 thin + Cap residual pure 深迁（续 getenv truthy）：
  * PREFER hybrid thin 由 src/runtime_driver_diagnostic_thin.x→-E；
- * rest SHUX_L2_RDD_THIN_FROM_X：无 thin 公共体；pure-dup 固定措辞/pipe orch/拼装 剔除；
- * 仅 slice_marker + Cap residual（snprintf/va_list/debug）体。
+ * rest SHUX_L2_RDD_THIN_FROM_X：无 thin 公共体；pure-dup 固定措辞/pipe orch/拼装/
+ * env_debug_pipe/parse_strict_enabled 剔除；
+ * 仅 slice_marker + Cap residual（snprintf/va_list/debug_log/pipe_note/report_prefixed）体。
  * Generated from (G-02f-86/96 +copy/report_prefixed) src/runtime_driver_diagnostic.x (G-02f-180 P0-4 audit + va_list lock; G-02f-179 asm notes true .x; G-02f-178 padding true .x; G-02f-177 generic call true .x; G-02f-176 mismatch true .x; G-02f-175 return_unresolved/subexpr true .x; G-02f-30/31/73 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_driver_diagnostic.x > /tmp/rdd.c
  *         merge fixed-msg wrappers; polish slice strings; keep snprintf C.
  * .x covers: fixed typeck msgs (f-30/31) + remaining diags gated f-73
- * .x covers: fixed typeck msgs, fail, no-ops, parse_strict (f-30/31).
+ * .x covers: fixed typeck msgs, fail, no-ops, parse_strict pure (f-30/31 + getenv 深迁).
  */
 #include "runtime_driver_diagnostic.h"
 #include "runtime_driver_abi.h"
@@ -14,13 +15,13 @@
 #include "lsp/lsp_diag.h"
 #include "diag.h"
 #ifdef SHUX_L2_RDD_THIN_FROM_X
-/* pure 在 thin：copy_bytes/note/fill/build — rest 勿 #define 到已剔除的 _impl */
+/* pure 在 thin：copy_bytes/note/fill/build/env_debug_pipe/parse_strict — rest 勿 #define 到已剔除的 _impl */
 #define driver_diag_report_prefixed driver_diag_report_prefixed_impl
-#define driver_parse_strict_enabled driver_parse_strict_enabled_impl
 #define driver_typeck_diag_scratch_expect driver_typeck_diag_scratch_expect_impl
 #define driver_typeck_diag_scratch_found driver_typeck_diag_scratch_found_impl
-int driver_diag_env_debug_pipe(void);
 /* thin 提供 pure public：供 rest residual 调用 */
+int driver_diag_env_debug_pipe(void);
+int32_t driver_parse_strict_enabled(void);
 int driver_diag_copy_bytes(char *dst, size_t dst_size, const uint8_t *src, int32_t src_len);
 void driver_diag_note(const char *msg);
 void driver_diag_fill_expr_part(char *dst, int32_t cap, const uint8_t *expr_buf, int32_t expr_len);
@@ -224,12 +225,10 @@ void driver_diagnostic_parse_fail_impl(int32_t main_idx, int32_t num_funcs, int3
 /**
  * 非 0 时 parse_into_buf 在单函数 impl/buf 均失败时返回 -2，不再静默 skip（与 parse_into slice 路径对齐）。
  * 环境变量 SHUX_PARSE_STRICT=1。
+ * pure 权威：thin.x driver_parse_strict_enabled；冷启动保留 public 体；FROM_X 剔除 pure-dup（H↓）。
  */
 #ifndef SHUX_L2_RDD_THIN_FROM_X
 int32_t driver_parse_strict_enabled(void)
-#else
-int32_t driver_parse_strict_enabled_impl(void)
-#endif
 {
   (void)(({   {
     uint8_t * e = getenv("SHUX_PARSE_STRICT");
@@ -247,6 +246,7 @@ int32_t driver_parse_strict_enabled_impl(void)
  }));
   return 0;
 }
+#endif
 
 /**
  * parse_into_buf 跳过无法解析的 function 时打印诊断（SHUX_DEBUG_PARSE=1 或 SHUX_PARSE_STRICT=1）。
@@ -915,13 +915,13 @@ void driver_diagnostic_typeck_var_resolution_impl(int32_t expr_ref, const uint8_
 
 /** -x -E 多文件诊断：codegen 前打印 module.num_funcs 与 out_buf.len，便于排查 dep 产出为空。 */
 /** 供 .x 探测 SHUX_DEBUG_PIPE（G-02f-164）。 */
-/* G-02f-387：实现体始终 seed；public PREFER 时 thin forward */
+/* pure 权威：thin.x driver_diag_env_debug_pipe；冷启动保留 _impl + public；FROM_X 剔除 pure-dup（H↓）。 */
+#ifndef SHUX_L2_RDD_THIN_FROM_X
 int driver_diag_env_debug_pipe_impl(void) {
     const char *e = getenv("SHUX_DEBUG_PIPE");
     return (e && e[0] && e[0] != '0') ? 1 : 0;
 }
 
-#ifndef SHUX_L2_RDD_THIN_FROM_X
 int driver_diag_env_debug_pipe(void) {
     return driver_diag_env_debug_pipe_impl();
 }
