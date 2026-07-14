@@ -31,7 +31,7 @@ const io_sync = import("std.io.sync");
 const io_sync = import("std.io.win32");
 
 /** read_ptr 内部缓冲大小（与 io.c IO_READ_PTR_BUF_SIZE 一致）。 */
-const IO_READ_PTR_BUF_SIZE: usize = 65536;
+export const IO_READ_PTR_BUF_SIZE: usize = 65536;
 
 /** M-5：u8[] slice ABI（与 shux_slice_uint8_t 一致）。 */
 allow(padding) struct ShuxSliceU8 { data: *u8; length: usize; }
@@ -46,7 +46,7 @@ let g_io_read_ptr_backend: i32 = 0;
  * 零拷贝读：读入内部缓冲并返回只读指针；失败返回 0。
  * 任意调用均递增 generation（含失败路径）。
  */
-function io_read_ptr(handle: usize, timeout_ms: u32): *u8 {
+export function io_read_ptr(handle: usize, timeout_ms: u32): *u8 {
   g_io_read_ptr_gen = g_io_read_ptr_gen + 1;
   g_io_read_ptr_backend = 0;
   let fd: i32 = (handle as i32);
@@ -60,17 +60,17 @@ function io_read_ptr(handle: usize, timeout_ms: u32): *u8 {
 }
 
 /** 返回最近一次 io_read_ptr 成功读入的字节数。 */
-function io_read_ptr_len(): i32 {
+export function io_read_ptr_len(): i32 {
   return g_io_read_ptr_len;
 }
 
 /** 返回当前 read_ptr generation。 */
-function io_read_ptr_gen(): u64 {
+export function io_read_ptr_gen(): u64 {
   return g_io_read_ptr_gen;
 }
 
 /** saved 与当前 gen 相等返回 1，否则 0。 */
-function io_read_ptr_gen_valid(saved: u64): i32 {
+export function io_read_ptr_gen_valid(saved: u64): i32 {
   if (saved == g_io_read_ptr_gen) {
     return 1;
   }
@@ -78,12 +78,12 @@ function io_read_ptr_gen_valid(saved: u64): i32 {
 }
 
 /** 返回上次 read_ptr 后端：v1 恒为 0（TLS 缓冲）。 */
-function io_read_ptr_backend(): i32 {
+export function io_read_ptr_backend(): i32 {
   return g_io_read_ptr_backend;
 }
 
 /** 零拷贝读并打包为 u8[] slice 视图。 */
-function io_read_ptr_slice(handle: usize, timeout_ms: u32): ShuxSliceU8 {
+export function io_read_ptr_slice(handle: usize, timeout_ms: u32): ShuxSliceU8 {
   let p: *u8 = io_read_ptr(handle, timeout_ms);
   let s: ShuxSliceU8;
   s.data = p;

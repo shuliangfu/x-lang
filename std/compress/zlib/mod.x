@@ -21,11 +21,11 @@
 const libz = import("std.compress.zlib.libz");
 
 /** 压缩为 zlib 格式，返回写入字节数，失败 -1。 */
-function deflate(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
+export function deflate(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
   return libz.compress_deflate_c(in, in_len, out, out_cap);
 }
 
 /** 解压 zlib 流，返回写入字节数，失败 -1。 */
-function inflate(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
+export function inflate(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
   return libz.compress_inflate_c(in, in_len, out, out_cap);
 }

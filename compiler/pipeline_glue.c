@@ -96,6 +96,18 @@ void pipeline_module_func_set_is_interrupt(struct ast_Module *m, int32_t fi, int
 int32_t pipeline_module_func_is_interrupt_at(struct ast_Module *m, int32_t func_index);
 void pipeline_module_func_set_is_variadic(struct ast_Module *m, int32_t fi, int32_t is_variadic);
 int32_t pipeline_module_func_is_variadic_at(struct ast_Module *m, int32_t func_index);
+void pipeline_module_func_set_is_export(struct ast_Module *m, int32_t fi, int32_t is_export);
+int32_t pipeline_module_func_is_export_at(struct ast_Module *m, int32_t func_index);
+void pipeline_module_struct_layout_set_is_export(struct ast_Module *m, int32_t idx, int32_t v);
+int32_t pipeline_module_struct_layout_is_export_at(struct ast_Module *m, int32_t idx);
+void pipeline_module_enum_set_is_export(struct ast_Module *m, int32_t idx, int32_t v);
+int32_t pipeline_module_enum_is_export_at(struct ast_Module *m, int32_t idx);
+void pipeline_module_top_level_let_set_is_export(struct ast_Module *m, int32_t idx, int32_t is_export);
+int32_t pipeline_module_top_level_let_is_export_at(struct ast_Module *m, int32_t idx);
+/** SHUX_VISIBILITY: 0=compat 1=warn 2=strict；默认 compat（迁移期）。 */
+int32_t pipeline_visibility_mode(void);
+/** 跨模块访问函数：compat 放行；warn 告警并放行；strict 要求 is_export。返回 1 允许 0 拒绝。 */
+int32_t pipeline_visibility_allow_func(struct ast_Module *m, int32_t fi, int32_t cross_module);
 void pipeline_module_func_ref_set(struct ast_Module *m, int32_t func_index, int32_t func_ref);
 /** ast_pool.c 提供；pipeline_backend_get_return_expr_ref 在 #include ast_pool 之前调用。 */
 int32_t pipeline_module_enum_variant_tag_for_names(struct ast_Module *m, uint8_t *enum_name, int32_t enum_len,
@@ -19625,6 +19637,8 @@ struct parser_ParseIntoResult pipeline_parse_into_with_init_c(struct ast_ASTAren
 int32_t pipeline_typeck_scan_module_struct_stack_escape_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                           struct ast_PipelineDepCtx *ctx);
 
+extern void pipeline_lint_set_source_buf(const uint8_t *data, int32_t len);
+
 int32_t pipeline_typeck_after_parse_ok_impl_c(struct ast_ASTArena *arena, struct ast_Module *module,
                                                struct shux_slice_uint8_t *source, struct ast_PipelineDepCtx *ctx) {
   struct parser_ParseIntoResult r;
@@ -19632,6 +19646,8 @@ int32_t pipeline_typeck_after_parse_ok_impl_c(struct ast_ASTArena *arena, struct
 
   if (!arena || !module || !source || !ctx)
     return -1;
+  if (source->data && source->length > 0)
+    pipeline_lint_set_source_buf(source->data, (int32_t)source->length);
   r = pipeline_parse_into_with_init_c(arena, module, source);
   if (r.ok != 0)
     return r.main_idx;
@@ -22481,6 +22497,11 @@ int32_t pipeline_typeck_find_func_return_type_in_module_by_name_c(
   j = 0;
   while (j < mod->num_funcs) {
     if (pipeline_module_func_name_equal_at(mod, j, name, name_len) != 0) {
+      /* 模块导出：strict 下跨模块仅 is_export（compat/warn 放行）。 */
+      if (from_dep_index >= 0 && pipeline_visibility_allow_func(mod, j, 1) == 0) {
+        j = j + 1;
+        continue;
+      }
       if (getenv("SHUX_DEBUG_PIPE"))
         fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] dep_func_match name=%.*s func_idx=%d dep_ix=%d raw_ret=%d\n",
                 (int)name_len, name, (int)j, (int)from_dep_index, (int)pipeline_module_func_return_type_at(mod, j));

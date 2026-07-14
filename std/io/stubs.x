@@ -21,7 +21,7 @@
 // shux_io_uring_is_available_c 返回 0；调用方应回退 io_read/io_write 同步路径。
 
 /** 注册 provided buffer 池：v1 不支持，返回 0。 */
-function io_register_provided_buffers(nr: u32, bufsz: u32): i32 {
+export function io_register_provided_buffers(nr: u32, bufsz: u32): i32 {
   if (nr > 0 || bufsz > 0) {
     /* 保留参数，避免未使用警告。 */
   }
@@ -29,11 +29,11 @@ function io_register_provided_buffers(nr: u32, bufsz: u32): i32 {
 }
 
 /** 注销 provided 池：v1 no-op。 */
-function io_unregister_provided_buffers(): void {
+export function io_unregister_provided_buffers(): void {
 }
 
 /** 无效 bid 返回 0。 */
-function io_provided_buffer_ptr(bid: u32): *u8 {
+export function io_provided_buffer_ptr(bid: u32): *u8 {
   if (bid > 0) {
     return 0;
   }
@@ -41,12 +41,12 @@ function io_provided_buffer_ptr(bid: u32): *u8 {
 }
 
 /** provided 单块容量：v1 返回 0。 */
-function io_provided_buffer_size(): u32 {
+export function io_provided_buffer_size(): u32 {
   return 0 as u32;
 }
 
 /** 单次 provided recv：v1 不支持，返回 -1。 */
-function io_read_provided(fd: i32, timeout_ms: u32, out_bid: *u32, out_len: *u32): isize {
+export function io_read_provided(fd: i32, timeout_ms: u32, out_bid: *u32, out_len: *u32): isize {
   if (fd >= 0 || timeout_ms >= 0 || out_bid != 0 || out_len != 0) {
     /* ABI 占位。 */
   }
@@ -55,14 +55,14 @@ function io_read_provided(fd: i32, timeout_ms: u32, out_bid: *u32, out_len: *u32
 
 /** 批量 provided recv：v1 不支持。 */
 #[no_mangle]
-function io_read_batch_provided(fd: i32, n: i32, timeout_ms: u32, out_bids: *u32, out_lens: *u32): isize {
+export function io_read_batch_provided(fd: i32, n: i32, timeout_ms: u32, out_bids: *u32, out_lens: *u32): isize {
   if (fd >= 0 || n > 0 || timeout_ms >= 0 || out_bids != 0 || out_lens != 0) {
   }
   return -1;
 }
 
 /** 提交非阻塞 read async：v1 不支持，返回 -1。 */
-function shux_io_submit_read_async(ptr: *u8, len: usize, handle: usize): i32 {
+export function shux_io_submit_read_async(ptr: *u8, len: usize, handle: usize): i32 {
   if (ptr != 0 && len > 0 && handle >= 0) {
     return -1;
   }
@@ -70,12 +70,12 @@ function shux_io_submit_read_async(ptr: *u8, len: usize, handle: usize): i32 {
 }
 
 /** 收割 read async（无 slot）：v1 返回 -1。 */
-function shux_io_complete_read_async(): i32 {
+export function shux_io_complete_read_async(): i32 {
   return -1;
 }
 
 /** 收割指定 slot read async：v1 返回 -1。 */
-function shux_io_complete_read_async_slot(slot: i32): i32 {
+export function shux_io_complete_read_async_slot(slot: i32): i32 {
   if (slot >= 0) {
     return -1;
   }
@@ -83,18 +83,18 @@ function shux_io_complete_read_async_slot(slot: i32): i32 {
 }
 
 /** 提交非阻塞 write async：v1 不支持。 */
-function shux_io_submit_write_async(ptr: *u8, len: usize, handle: usize): i32 {
+export function shux_io_submit_write_async(ptr: *u8, len: usize, handle: usize): i32 {
   if (ptr != 0 && len > 0 && handle >= 0) {
     return -1;
   }
   return -1;
 }
 
-function shux_io_complete_write_async(): i32 {
+export function shux_io_complete_write_async(): i32 {
   return -1;
 }
 
-function shux_io_complete_write_async_slot(slot: i32): i32 {
+export function shux_io_complete_write_async_slot(slot: i32): i32 {
   if (slot >= 0) {
     return -1;
   }
@@ -102,13 +102,13 @@ function shux_io_complete_write_async_slot(slot: i32): i32 {
 }
 
 /** poll io_uring async CQE：v1 无 CQE，返回 0。 */
-function shux_io_poll_async_completions(timeout_ms: u32): u32 {
+export function shux_io_poll_async_completions(timeout_ms: u32): u32 {
   if (timeout_ms >= 0) {
   }
   return 0 as u32;
 }
 
 /** 当前线程 io_uring 是否可用：v1 恒 0。 */
-function shux_io_uring_is_available_c(): i32 {
+export function shux_io_uring_is_available_c(): i32 {
   return 0;
 }

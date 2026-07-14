@@ -28,27 +28,27 @@ const mem = import("core.mem");
 const types = import("core.types");
 
 /** zstd 流状态字节数。 */
-function zstd_stream_state_bytes(): i32 {
+export function zstd_stream_state_bytes(): i32 {
   return types.size_of<ZstdStream>();
 }
 
 /** zstd 流头字节数。 */
-function zstd_stream_hdr_bytes(): i32 {
+export function zstd_stream_hdr_bytes(): i32 {
   return types.size_of<ZstdStreamHdr>();
 }
 
 /** zstd 流状态魔数（'ZSTR'，与 compress_common.h 一致）。 */
-const SHU_ZSTD_STREAM_MAGIC: u32 = 0x5a535452;
+export const SHU_ZSTD_STREAM_MAGIC: u32 = 0x5a535452;
 
 /** 默认压缩级别。 */
-const ZSTD_CLEVEL_DEFAULT: i32 = 3;
+export const ZSTD_CLEVEL_DEFAULT: i32 = 3;
 
 /** ZSTD_CCtx_setParameter：压缩级别参数 id。 */
-const ZSTD_c_compressionLevel: i32 = 100;
+export const ZSTD_c_compressionLevel: i32 = 100;
 
 /** ZSTD_compressStream2 结束指令。 */
-const ZSTD_e_continue: i32 = 0;
-const ZSTD_e_end: i32 = 2;
+export const ZSTD_e_continue: i32 = 0;
+export const ZSTD_e_end: i32 = 2;
 
 /** zstd 流状态头（后接 C/D 上下文指针）。 */
 allow(padding) struct ZstdStreamHdr {
@@ -80,28 +80,28 @@ allow(padding) struct ZstdOutBuffer {
 }
 
 /** libzstd：块压缩。 */
-extern function ZSTD_compress(dst: *u8, dstCapacity: usize, src: *u8, srcSize: usize, compressionLevel: i32): usize;
+export extern function ZSTD_compress(dst: *u8, dstCapacity: usize, src: *u8, srcSize: usize, compressionLevel: i32): usize;
 
 /** libzstd：块解压。 */
-extern function ZSTD_decompress(dst: *u8, dstCapacity: usize, src: *u8, compressedSize: usize): usize;
+export extern function ZSTD_decompress(dst: *u8, dstCapacity: usize, src: *u8, compressedSize: usize): usize;
 
 /** libzstd：返回值是否错误码。 */
-extern function ZSTD_isError(code: usize): u32;
+export extern function ZSTD_isError(code: usize): u32;
 
 /** libzstd：压缩/解压上下文。 */
-extern function ZSTD_createCCtx(): *u8;
-extern function ZSTD_freeCCtx(cctx: *u8): usize;
-extern function ZSTD_createDCtx(): *u8;
-extern function ZSTD_freeDCtx(dctx: *u8): usize;
+export extern function ZSTD_createCCtx(): *u8;
+export extern function ZSTD_freeCCtx(cctx: *u8): usize;
+export extern function ZSTD_createDCtx(): *u8;
+export extern function ZSTD_freeDCtx(dctx: *u8): usize;
 
 /** libzstd：设置压缩参数。 */
-extern function ZSTD_CCtx_setParameter(cctx: *u8, param: i32, value: i32): usize;
+export extern function ZSTD_CCtx_setParameter(cctx: *u8, param: i32, value: i32): usize;
 
 /** libzstd：流式压缩。 */
-extern function ZSTD_compressStream2(cctx: *u8, output: *ZstdOutBuffer, input: *ZstdInBuffer, endOp: i32): usize;
+export extern function ZSTD_compressStream2(cctx: *u8, output: *ZstdOutBuffer, input: *ZstdInBuffer, endOp: i32): usize;
 
 /** libzstd：流式解压。 */
-extern function ZSTD_decompressStream(dctx: *u8, output: *ZstdOutBuffer, input: *ZstdInBuffer): usize;
+export extern function ZSTD_decompressStream(dctx: *u8, output: *ZstdOutBuffer, input: *ZstdInBuffer): usize;
 
 /** 链接 marker：runtime 据此追加 -lzstd。 */
 let shu_compress_zstd_marker: u8 = 1;
@@ -109,7 +109,7 @@ let shu_compress_zstd_marker: u8 = 1;
 /**
  * 校验并返回 zstd 流状态指针；无效返回 0。
  */
-function shu_zstd_stream_cast(state: *u8, state_cap: i32): *ZstdStream {
+export function shu_zstd_stream_cast(state: *u8, state_cap: i32): *ZstdStream {
   let need: i32 = zstd_stream_state_bytes();
   if (state == 0 || state_cap < need) {
     return 0;
@@ -124,7 +124,7 @@ function shu_zstd_stream_cast(state: *u8, state_cap: i32): *ZstdStream {
 /**
  * 压缩为 zstd 帧，返回写入字节数，失败 -1。
  */
-function compress_zstd_compress_c(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
+export function compress_zstd_compress_c(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
   if (in == 0 || out == 0 || in_len < 0 || out_cap <= 0) {
     return -1;
   }
@@ -141,7 +141,7 @@ function compress_zstd_compress_c(in: *u8, in_len: i32, out: *u8, out_cap: i32):
 /**
  * 解压 zstd 帧，返回写入字节数，失败 -1。
  */
-function compress_zstd_decompress_c(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
+export function compress_zstd_decompress_c(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
   if (in == 0 || out == 0 || in_len < 0 || out_cap <= 0) {
     return -1;
   }
@@ -158,21 +158,21 @@ function compress_zstd_decompress_c(in: *u8, in_len: i32, out: *u8, out_cap: i32
 /**
  * 探测 zstd 是否可用；.x 路径恒 1。
  */
-function compress_zstd_available_c(): i32 {
+export function compress_zstd_available_c(): i32 {
   return 1;
 }
 
 /**
  * 返回 zstd 流状态缓冲最小字节数。
  */
-function compress_zstd_stream_state_bytes_c(): i32 {
+export function compress_zstd_stream_state_bytes_c(): i32 {
   return zstd_stream_state_bytes();
 }
 
 /**
  * 初始化 zstd 压缩流；成功 0，失败 -1。
  */
-function compress_zstd_stream_init_compress_c(state: *u8, state_cap: i32): i32 {
+export function compress_zstd_stream_init_compress_c(state: *u8, state_cap: i32): i32 {
   let need: i32 = zstd_stream_state_bytes();
   if (state == 0 || state_cap < need) {
     return -1;
@@ -201,7 +201,7 @@ function compress_zstd_stream_init_compress_c(state: *u8, state_cap: i32): i32 {
 /**
  * 初始化 zstd 解压流；成功 0，失败 -1。
  */
-function compress_zstd_stream_init_decompress_c(state: *u8, state_cap: i32): i32 {
+export function compress_zstd_stream_init_decompress_c(state: *u8, state_cap: i32): i32 {
   let need: i32 = zstd_stream_state_bytes();
   if (state == 0 || state_cap < need) {
     return -1;
@@ -221,7 +221,7 @@ function compress_zstd_stream_init_decompress_c(state: *u8, state_cap: i32): i32
 /**
  * 分块 zstd 压缩；is_last≠0 时 ZSTD_e_end。
  */
-function compress_zstd_stream_compress_c(state: *u8, state_cap: i32, in: *u8, in_len: i32,
+export function compress_zstd_stream_compress_c(state: *u8, state_cap: i32, in: *u8, in_len: i32,
   out: *u8, out_cap: i32, is_last: i32, in_consumed: *i32): i32 {
   if (in_consumed != 0) {
     in_consumed[0] = 0;
@@ -268,7 +268,7 @@ function compress_zstd_stream_compress_c(state: *u8, state_cap: i32, in: *u8, in
 /**
  * 分块 zstd 解压。
  */
-function compress_zstd_stream_decompress_c(state: *u8, state_cap: i32, in: *u8, in_len: i32,
+export function compress_zstd_stream_decompress_c(state: *u8, state_cap: i32, in: *u8, in_len: i32,
   out: *u8, out_cap: i32, in_consumed: *i32): i32 {
   if (in_consumed != 0) {
     in_consumed[0] = 0;
@@ -311,7 +311,7 @@ function compress_zstd_stream_decompress_c(state: *u8, state_cap: i32, in: *u8, 
 /**
  * 释放 zstd 流；成功 0。
  */
-function compress_zstd_stream_end_c(state: *u8, state_cap: i32): i32 {
+export function compress_zstd_stream_end_c(state: *u8, state_cap: i32): i32 {
   let hdr_need: i32 = zstd_stream_hdr_bytes();
   if (state == 0 || state_cap < hdr_need) {
     return 0;
@@ -335,7 +335,7 @@ function compress_zstd_stream_end_c(state: *u8, state_cap: i32): i32 {
 /**
  * zstd 块 + 流往返烟测；失败返回非 0，成功 0。
  */
-function compress_zstd_smoke_c(): i32 {
+export function compress_zstd_smoke_c(): i32 {
   let inp: u8[5] = [104, 101, 108, 108, 111];
   let out: u8[64] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,

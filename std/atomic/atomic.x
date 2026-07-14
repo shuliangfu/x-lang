@@ -21,6 +21,6 @@
 // 对外 API 在 mod.x。
 
 /** F-atomic v1 版本标记；供聚合 gate 校验 atomic.x 已参与 ld -r 合并。 */
-function atomic_f_atomic_v1_marker_c(): i32 {
+export function atomic_f_atomic_v1_marker_c(): i32 {
   return 1;
 }

@@ -25,23 +25,23 @@
 // 【shux_asm 约束】函数体内 #[cfg]、struct 字面量、&buf[0] 作 call 实参均会触发 parse/emit 失败；
 // 见 udp.x / addr.x 的 u8 缓冲 + 顶层 cfg 分函数模式。
 
-const AF_INET: i32 = 2;
-const SOCK_STREAM: i32 = 1;
-const IPPROTO_TCP: i32 = 6;
-const SOL_SOCKET: i32 = 1;
-const SO_REUSEADDR: i32 = 2;
-const SO_ERROR: i32 = 4;
-const O_NONBLOCK: i32 = 2048;
-const POLLIN: i16 = 1;
-const POLLOUT: i16 = 4;
-const POLLERR: i16 = 8;
-const POLLHUP: i16 = 16;
+export const AF_INET: i32 = 2;
+export const SOCK_STREAM: i32 = 1;
+export const IPPROTO_TCP: i32 = 6;
+export const SOL_SOCKET: i32 = 1;
+export const SO_REUSEADDR: i32 = 2;
+export const SO_ERROR: i32 = 4;
+export const O_NONBLOCK: i32 = 2048;
+export const POLLIN: i16 = 1;
+export const POLLOUT: i16 = 4;
+export const POLLERR: i16 = 8;
+export const POLLHUP: i16 = 16;
 
 #[cfg(target_os = "linux")]
-const ERR_INPROGRESS: i32 = 115;
+export const ERR_INPROGRESS: i32 = 115;
 
 #[cfg(target_os = "macos")]
-const ERR_INPROGRESS: i32 = 36;
+export const ERR_INPROGRESS: i32 = 36;
 
 /** IPv4 sockaddr 前缀（文档用；运行时用 u8[16] 缓冲）。 */
 allow(padding) struct SockAddrIn {
@@ -53,73 +53,73 @@ allow(padding) struct SockAddrIn {
 #[cfg(not(target_os = "windows"))]
 allow(padding) struct PollFd { fd: i32; events: i16; revents: i16; }
 
-extern "C" function socket(domain: i32, sock_type: i32, protocol: i32): i32;
-extern "C" function connect(fd: i32, addr: *u8, addrlen: u32): i32;
-extern "C" function bind(fd: i32, addr: *u8, addrlen: u32): i32;
-extern "C" function listen(fd: i32, backlog: i32): i32;
-extern "C" function accept(fd: i32, addr: *u8, addrlen: *u32): i32;
-extern "C" function setsockopt(fd: i32, level: i32, optname: i32, optval: *i32, optlen: u32): i32;
-extern "C" function getsockopt(fd: i32, level: i32, optname: i32, optval: *i32, optlen: *u32): i32;
-extern "C" function htonl(hostlong: u32): u32;
-extern "C" function htons(hostshort: u16): u16;
+export extern "C" function socket(domain: i32, sock_type: i32, protocol: i32): i32;
+export extern "C" function connect(fd: i32, addr: *u8, addrlen: u32): i32;
+export extern "C" function bind(fd: i32, addr: *u8, addrlen: u32): i32;
+export extern "C" function listen(fd: i32, backlog: i32): i32;
+export extern "C" function accept(fd: i32, addr: *u8, addrlen: *u32): i32;
+export extern "C" function setsockopt(fd: i32, level: i32, optname: i32, optval: *i32, optlen: u32): i32;
+export extern "C" function getsockopt(fd: i32, level: i32, optname: i32, optval: *i32, optlen: *u32): i32;
+export extern "C" function htonl(hostlong: u32): u32;
+export extern "C" function htons(hostshort: u16): u16;
 
-extern function net_set_blocking_c(fd: i32, blocking: i32): i32;
+export extern function net_set_blocking_c(fd: i32, blocking: i32): i32;
 
-extern function net_close_socket_c(fd: i32): i32;
-
-#[cfg(not(target_os = "windows"))]
-extern "C" function fcntl(fd: i32, cmd: i32, arg: i32): i32;
+export extern function net_close_socket_c(fd: i32): i32;
 
 #[cfg(not(target_os = "windows"))]
-extern "C" function poll(fds: *u8, nfds: u64, timeout: i32): i32;
+export extern "C" function fcntl(fd: i32, cmd: i32, arg: i32): i32;
+
+#[cfg(not(target_os = "windows"))]
+export extern "C" function poll(fds: *u8, nfds: u64, timeout: i32): i32;
 
 #[cfg(target_os = "linux")]
-extern "C" function __errno_location(): *i32;
+export extern "C" function __errno_location(): *i32;
 
 #[cfg(target_os = "macos")]
-extern "C" function __error(): *i32;
+export extern "C" function __error(): *i32;
 
 /** 平台无关 errno 指针获取：Linux 走 __errno_location，macOS/BSD 走 __error。
  * 【Why 根源治理】原 `#[cfg(not(windows))] extern __errno_location` 在 macOS 链接失败：
  * __errno_location 是 glibc 符号，macOS 用 __error()。错误 cfg 导致 net.o 引用
  * undefined `___errno_location`，~75 个测试链接失败。 */
 #[cfg(target_os = "linux")]
-function net_tcp_errno_ptr(): *i32 {
+export function net_tcp_errno_ptr(): *i32 {
   let p: *i32 = 0 as *i32;
   unsafe { p = __errno_location(); }
   return p;
 }
 
 #[cfg(target_os = "macos")]
-function net_tcp_errno_ptr(): *i32 {
+export function net_tcp_errno_ptr(): *i32 {
   let p: *i32 = 0 as *i32;
   unsafe { p = __error(); }
   return p;
 }
 
 #[cfg(target_os = "linux")]
-extern function io_uring_connect(addr_u32: u32, port_u32: u32, timeout_ms: u32): i32;
+export extern function io_uring_connect(addr_u32: u32, port_u32: u32, timeout_ms: u32): i32;
 
 #[cfg(target_os = "linux")]
-extern function io_uring_accept(listener_fd: i32, timeout_ms: u32): i32;
+export extern function io_uring_accept(listener_fd: i32, timeout_ms: u32): i32;
 
 #[cfg(target_os = "linux")]
-extern function io_uring_accept_many(listener_fd: i32, out_fds: *i32, n: i32, timeout_ms: u32): i32;
+export extern function io_uring_accept_many(listener_fd: i32, out_fds: *i32, n: i32, timeout_ms: u32): i32;
 
 #[cfg(target_os = "linux")]
-extern function io_uring_connect_many(addr_u32: u32, port_u32: u32, out_fds: *i32, n: i32, timeout_ms: u32): i32;
+export extern function io_uring_connect_many(addr_u32: u32, port_u32: u32, out_fds: *i32, n: i32, timeout_ms: u32): i32;
 
 #[cfg(target_os = "linux")]
-extern function io_uring_prefetch_fd(fd: i32): i32;
+export extern function io_uring_prefetch_fd(fd: i32): i32;
 
 #[cfg(target_os = "windows")]
-extern "C" function WSAStartup(wVersionRequested: u16, lpWSAData: *u8): i32;
+export extern "C" function WSAStartup(wVersionRequested: u16, lpWSAData: *u8): i32;
 
 #[cfg(target_os = "windows")]
-extern "C" function ioctlsocket(fd: i32, cmd: i32, arg: *u32): i32;
+export extern "C" function ioctlsocket(fd: i32, cmd: i32, arg: *u32): i32;
 
 #[cfg(target_os = "windows")]
-extern "C" function closesocket(fd: i32): i32;
+export extern "C" function closesocket(fd: i32): i32;
 
 #[cfg(target_os = "windows")]
 let net_tcp_wsa_done: i32 = 0;
@@ -128,7 +128,7 @@ let net_tcp_wsa_done: i32 = 0;
  * Windows：一次性 WSAStartup。
  */
 #[cfg(target_os = "windows")]
-function net_tcp_ensure_wsa_c(): i32 {
+export function net_tcp_ensure_wsa_c(): i32 {
   if (net_tcp_wsa_done != 0) {
     return 0;
   }
@@ -143,7 +143,7 @@ function net_tcp_ensure_wsa_c(): i32 {
  * Windows：connect/listen 前确保 WSA；非 Windows 恒为 0（顶层 cfg，避免函数体内 #[cfg] parse skip）。
  */
 #[cfg(target_os = "windows")]
-function net_tcp_maybe_wsa_fail_c(): i32 {
+export function net_tcp_maybe_wsa_fail_c(): i32 {
   if (net_tcp_ensure_wsa_c() != 0) {
     return -1;
   }
@@ -151,25 +151,25 @@ function net_tcp_maybe_wsa_fail_c(): i32 {
 }
 
 #[cfg(not(target_os = "windows"))]
-function net_tcp_maybe_wsa_fail_c(): i32 {
+export function net_tcp_maybe_wsa_fail_c(): i32 {
   return 0;
 }
 
 /**
  * 取栈上 sockaddr/pollfd 缓冲首地址（seed emit 不支持 call 实参内联 &buf[0]）。
  */
-function net_tcp_sin_buf_ptr_c(p: *u8): *u8 {
+export function net_tcp_sin_buf_ptr_c(p: *u8): *u8 {
   return p;
 }
 
 /** IPv4 sockaddr 填充；实现见 net_import_alias.c（规避 asm u16 间接 store codegen 缺陷）。 */
-extern function net_tcp_set_addr_port_buf_c(sin: *u8, addr_u32: u32, port_u32: u32): void;
+export extern function net_tcp_set_addr_port_buf_c(sin: *u8, addr_u32: u32, port_u32: u32): void;
 
 /**
  * 设 TCP socket 非阻塞（Unix）。
  */
 #[cfg(not(target_os = "windows"))]
-function net_tcp_set_nonblock_c(fd: i32): i32 {
+export function net_tcp_set_nonblock_c(fd: i32): i32 {
   let flags: i32 = 0;
   unsafe { flags = fcntl(fd, 3, 0); }
   if (flags < 0) {
@@ -185,7 +185,7 @@ function net_tcp_set_nonblock_c(fd: i32): i32 {
  * 设 TCP socket 非阻塞（Windows）。
  */
 #[cfg(target_os = "windows")]
-function net_tcp_set_nonblock_c(fd: i32): i32 {
+export function net_tcp_set_nonblock_c(fd: i32): i32 {
   let one: u32 = 1;
   unsafe { if (ioctlsocket(fd, (0x80000000 | 0x40000000) as i32, &one) == 0) {
     return 0;
@@ -197,7 +197,7 @@ function net_tcp_set_nonblock_c(fd: i32): i32 {
  * poll 可写（Unix）；失败 -1。
  */
 #[cfg(not(target_os = "windows"))]
-function net_tcp_poll_writable_c(fd: i32, timeout_ms: u32): i32 {
+export function net_tcp_poll_writable_c(fd: i32, timeout_ms: u32): i32 {
   let pfd_mem: u8[8] = [];
   let pfd_ptr: *u8 = net_tcp_sin_buf_ptr_c(&pfd_mem[0]);
   let p_fd: *i32 = (pfd_ptr + 0) as *i32;
@@ -222,7 +222,7 @@ function net_tcp_poll_writable_c(fd: i32, timeout_ms: u32): i32 {
  * poll 可写（Windows 桩：恒成功）。
  */
 #[cfg(target_os = "windows")]
-function net_tcp_poll_writable_c(fd: i32, timeout_ms: u32): i32 {
+export function net_tcp_poll_writable_c(fd: i32, timeout_ms: u32): i32 {
   return 0;
 }
 
@@ -230,7 +230,7 @@ function net_tcp_poll_writable_c(fd: i32, timeout_ms: u32): i32 {
  * poll 可读（Unix）；失败 -1。
  */
 #[cfg(not(target_os = "windows"))]
-function net_tcp_poll_readable_c(fd: i32, timeout_ms: u32): i32 {
+export function net_tcp_poll_readable_c(fd: i32, timeout_ms: u32): i32 {
   let pfd_mem: u8[8] = [];
   let pfd_ptr: *u8 = net_tcp_sin_buf_ptr_c(&pfd_mem[0]);
   let p_fd: *i32 = (pfd_ptr + 0) as *i32;
@@ -255,7 +255,7 @@ function net_tcp_poll_readable_c(fd: i32, timeout_ms: u32): i32 {
  * poll 可读（Windows 桩：恒成功）。
  */
 #[cfg(target_os = "windows")]
-function net_tcp_poll_readable_c(fd: i32, timeout_ms: u32): i32 {
+export function net_tcp_poll_readable_c(fd: i32, timeout_ms: u32): i32 {
   return 0;
 }
 
@@ -263,7 +263,7 @@ function net_tcp_poll_readable_c(fd: i32, timeout_ms: u32): i32 {
  * connect 非 EINPROGRESS 判定（Unix）；1=应失败关闭 fd。
  */
 #[cfg(not(target_os = "windows"))]
-function net_tcp_connect_not_inprogress_c(): i32 {
+export function net_tcp_connect_not_inprogress_c(): i32 {
   let ep: *i32 = 0 as *i32;
   ep = net_tcp_errno_ptr();
   if (ep[0] != ERR_INPROGRESS) {
@@ -276,7 +276,7 @@ function net_tcp_connect_not_inprogress_c(): i32 {
  * connect 非 EINPROGRESS 判定（Windows 桩：恒为 in-progress 路径）。
  */
 #[cfg(target_os = "windows")]
-function net_tcp_connect_not_inprogress_c(): i32 {
+export function net_tcp_connect_not_inprogress_c(): i32 {
   return 0;
 }
 
@@ -284,7 +284,7 @@ function net_tcp_connect_not_inprogress_c(): i32 {
  * Linux：io_uring prefetch fd。
  */
 #[cfg(target_os = "linux")]
-function net_tcp_prefetch_fd_c(fd: i32): void {
+export function net_tcp_prefetch_fd_c(fd: i32): void {
   if (fd >= 0) {
     unsafe { io_uring_prefetch_fd(fd); }
   }
@@ -294,13 +294,13 @@ function net_tcp_prefetch_fd_c(fd: i32): void {
  * 非 Linux：prefetch 为 no-op（顶层 cfg，避免函数体内 #[cfg] parse skip）。
  */
 #[cfg(not(target_os = "linux"))]
-function net_tcp_prefetch_fd_c(fd: i32): void {
+export function net_tcp_prefetch_fd_c(fd: i32): void {
 }
 
 /**
  * POSIX connect 完成路径（poll + SO_ERROR）。
  */
-function net_tcp_connect_finish_c(fd: i32, timeout_ms: u32): i32 {
+export function net_tcp_connect_finish_c(fd: i32, timeout_ms: u32): i32 {
   let err: i32 = 0;
   let errlen: u32 = 4;
   if (net_tcp_poll_writable_c(fd, timeout_ms) != 0) {
@@ -319,7 +319,7 @@ function net_tcp_connect_finish_c(fd: i32, timeout_ms: u32): i32 {
  */
 #[cfg(target_os = "linux")]
 #[no_mangle]
-function net_tcp_connect_c(addr_u32: u32, port_u32: u32, timeout_ms: u32): i32 {
+export function net_tcp_connect_c(addr_u32: u32, port_u32: u32, timeout_ms: u32): i32 {
   let fd: i32 = 0;
   unsafe { fd = io_uring_connect(addr_u32, port_u32, timeout_ms); }
   if (fd >= 0) {
@@ -333,7 +333,7 @@ function net_tcp_connect_c(addr_u32: u32, port_u32: u32, timeout_ms: u32): i32 {
  */
 #[cfg(not(target_os = "linux"))]
 #[no_mangle]
-function net_tcp_connect_c(addr_u32: u32, port_u32: u32, timeout_ms: u32): i32 {
+export function net_tcp_connect_c(addr_u32: u32, port_u32: u32, timeout_ms: u32): i32 {
   let sin_mem: u8[16] = [];
   let sin_ptr: *u8 = net_tcp_sin_buf_ptr_c(&sin_mem[0]);
   let fd: i32 = 0;
@@ -363,7 +363,7 @@ function net_tcp_connect_c(addr_u32: u32, port_u32: u32, timeout_ms: u32): i32 {
  * 阻塞 TCP connect（bulk 快路径）。
  */
 #[no_mangle]
-function net_tcp_connect_blocking_c(addr_u32: u32, port_u32: u32, timeout_ms: u32): i32 {
+export function net_tcp_connect_blocking_c(addr_u32: u32, port_u32: u32, timeout_ms: u32): i32 {
   let sin_mem: u8[16] = [];
   let sin_ptr: *u8 = net_tcp_sin_buf_ptr_c(&sin_mem[0]);
   let fd: i32 = 0;
@@ -403,14 +403,14 @@ function net_tcp_connect_blocking_c(addr_u32: u32, port_u32: u32, timeout_ms: u3
  * TCP listen；非阻塞 listener fd。
  * 实现见 net_import_alias.c（规避 asm socket/bind/listen 字面量实参 codegen 缺陷）。
  */
-extern function net_tcp_listen_c(addr_u32: u32, port_u32: u32): i32;
+export extern function net_tcp_listen_c(addr_u32: u32, port_u32: u32): i32;
 
 /**
  * accept 单连接（Linux io_uring）；非阻塞 client fd。
  */
 #[cfg(target_os = "linux")]
 #[no_mangle]
-function net_accept_c(listener_fd: i32, timeout_ms: u32): i32 {
+export function net_accept_c(listener_fd: i32, timeout_ms: u32): i32 {
   unsafe { return io_uring_accept(listener_fd, timeout_ms); }
   return 0; // unreachable — typeck workaround
 }
@@ -420,7 +420,7 @@ function net_accept_c(listener_fd: i32, timeout_ms: u32): i32 {
  */
 #[cfg(not(target_os = "linux"))]
 #[no_mangle]
-function net_accept_c(listener_fd: i32, timeout_ms: u32): i32 {
+export function net_accept_c(listener_fd: i32, timeout_ms: u32): i32 {
   let peer_mem: u8[16] = [];
   let peer_ptr: *u8 = net_tcp_sin_buf_ptr_c(&peer_mem[0]);
   let peer_len: u32 = 16;
@@ -446,7 +446,7 @@ function net_accept_c(listener_fd: i32, timeout_ms: u32): i32 {
  */
 #[cfg(target_os = "linux")]
 #[no_mangle]
-function net_accept_many_c(listener_fd: i32, out_fds: *i32, n: i32, timeout_ms: u32): i32 {
+export function net_accept_many_c(listener_fd: i32, out_fds: *i32, n: i32, timeout_ms: u32): i32 {
   if (n <= 0 || out_fds == 0) {
     return 0;
   }
@@ -459,7 +459,7 @@ function net_accept_many_c(listener_fd: i32, out_fds: *i32, n: i32, timeout_ms: 
  */
 #[cfg(not(target_os = "linux"))]
 #[no_mangle]
-function net_accept_many_c(listener_fd: i32, out_fds: *i32, n: i32, timeout_ms: u32): i32 {
+export function net_accept_many_c(listener_fd: i32, out_fds: *i32, n: i32, timeout_ms: u32): i32 {
   let i: i32 = 0;
   let fd: i32 = 0;
   let tm: u32 = 0;
@@ -486,7 +486,7 @@ function net_accept_many_c(listener_fd: i32, out_fds: *i32, n: i32, timeout_ms: 
  * 批量 connect（Linux io_uring）。
  */
 #[cfg(target_os = "linux")]
-function net_connect_many_c(addr_u32: u32, port_u32: u32, out_fds: *i32, n: i32, timeout_ms: u32): i32 {
+export function net_connect_many_c(addr_u32: u32, port_u32: u32, out_fds: *i32, n: i32, timeout_ms: u32): i32 {
   if (n <= 0 || out_fds == 0) {
     return 0;
   }
@@ -498,7 +498,7 @@ function net_connect_many_c(addr_u32: u32, port_u32: u32, out_fds: *i32, n: i32,
  * 批量 connect（非 Linux：循环 net_tcp_connect_c）。
  */
 #[cfg(not(target_os = "linux"))]
-function net_connect_many_c(addr_u32: u32, port_u32: u32, out_fds: *i32, n: i32, timeout_ms: u32): i32 {
+export function net_connect_many_c(addr_u32: u32, port_u32: u32, out_fds: *i32, n: i32, timeout_ms: u32): i32 {
   let i: i32 = 0;
   let fd: i32 = 0;
   if (n <= 0 || out_fds == 0) {

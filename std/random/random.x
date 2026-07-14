@@ -19,10 +19,10 @@
 // 【文件职责】random_u32/u64、SplitMix64 PRNG 烟测；OS fill 见 runtime_random_fill.inc（compiler）。
 
 /** OS 胶层：密码学安全随机字节。 */
-extern function random_fill_bytes_c(buf: *u8, len: i32): i32;
+export extern function random_fill_bytes_c(buf: *u8, len: i32): i32;
 
 /** 生成密码学安全 u32；失败返回 0。 */
-function random_u32_c(): u32 {
+export function random_u32_c(): u32 {
   let buf: u8[4] = [0, 0, 0, 0];
   unsafe { if (random_fill_bytes_c(&buf[0], 4) != 4) { return 0; } }
   return (buf[0] as u32)
@@ -32,7 +32,7 @@ function random_u32_c(): u32 {
 }
 
 /** 生成密码学安全 u64；失败返回 0。 */
-function random_u64_c(): u64 {
+export function random_u64_c(): u64 {
   let buf: u8[8] = [0, 0, 0, 0, 0, 0, 0, 0];
   unsafe { if (random_fill_bytes_c(&buf[0], 8) != 8) { return 0 as u64; } }
   return (buf[0] as u64)
@@ -51,7 +51,7 @@ allow(padding) struct RngC {
 }
 
 /** SplitMix64 单步。 */
-function random_rng_next_u64(r: *RngC): u64 {
+export function random_rng_next_u64(r: *RngC): u64 {
   let z: u64 = r.state + 0x9e3779b97f4a7c15 as u64;
   r.state = z;
   let t: u64 = z >> 30;
@@ -65,7 +65,7 @@ function random_rng_next_u64(r: *RngC): u64 {
 }
 
 /** STD-130 PRNG 烟测；0 成功。 */
-function random_rng_smoke_c(): i32 {
+export function random_rng_smoke_c(): i32 {
   let a: RngC = RngC { state: 0 };
   let b: RngC = RngC { state: 0 };
   let c: RngC = RngC { state: 1 };

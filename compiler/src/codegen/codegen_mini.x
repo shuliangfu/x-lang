@@ -17,11 +17,11 @@
 // 最小 codegen 片段：import + struct + 一函数，用于验证 .x 流水线
 const ast = import("ast");
 
-struct CodegenOutBuf {
+export struct CodegenOutBuf {
   data: u8[64];
   len: i32;
 }
 
-function foo(): i32 {
+export function foo(): i32 {
   return 0;
 }

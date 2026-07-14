@@ -7,10 +7,10 @@
 // G-02f-101：+ append_byte / append_lit / append_i32 薄门闩。
 // G-02f-102：+ find_meta_idx / get_order 薄门闩。
 
-extern "C" function sync_lock_diag_find_meta_idx_impl(m: *u8): i32;
-extern "C" function sync_lock_diag_get_order_impl(m: *u8): i32;
+export extern "C" function sync_lock_diag_find_meta_idx_impl(m: *u8): i32;
+export extern "C" function sync_lock_diag_get_order_impl(m: *u8): i32;
 
-function runtime_sync_lock_diag_tls_x_doc_anchor(): i32 {
+export function runtime_sync_lock_diag_tls_x_doc_anchor(): i32 {
   return 0;
 }
 
@@ -25,7 +25,7 @@ function runtime_sync_lock_diag_tls_x_doc_anchor(): i32 {
 /* ---- G-02f-102：meta/order 门闩 ---- */
 
 #[no_mangle]
-function sync_lock_diag_find_meta_idx(m: *u8): i32 {
+export function sync_lock_diag_find_meta_idx(m: *u8): i32 {
   unsafe {
     return sync_lock_diag_find_meta_idx_impl(m);
   }
@@ -33,7 +33,7 @@ function sync_lock_diag_find_meta_idx(m: *u8): i32 {
 }
 
 #[no_mangle]
-function sync_lock_diag_get_order(m: *u8): i32 {
+export function sync_lock_diag_get_order(m: *u8): i32 {
   unsafe {
     return sync_lock_diag_get_order_impl(m);
   }
@@ -43,7 +43,7 @@ function sync_lock_diag_get_order(m: *u8): i32 {
 // G-02f-119：sync_lock_diag append pure helpers 真迁 .x
 
 #[no_mangle]
-function sync_lock_diag_append_byte(out: *u8, pos: i32, cap: i32, b: u8): i32 {
+export function sync_lock_diag_append_byte(out: *u8, pos: i32, cap: i32, b: u8): i32 {
   if (out == 0) { return 0 - 1; }
   if (pos < 0) { return 0 - 1; }
   if (pos >= cap) { return 0 - 1; }
@@ -52,7 +52,7 @@ function sync_lock_diag_append_byte(out: *u8, pos: i32, cap: i32, b: u8): i32 {
 }
 
 #[no_mangle]
-function sync_lock_diag_append_lit(out: *u8, pos: i32, cap: i32, s: *u8, n: i32): i32 {
+export function sync_lock_diag_append_lit(out: *u8, pos: i32, cap: i32, s: *u8, n: i32): i32 {
   let i: i32 = 0;
   while (i < n) {
     pos = sync_lock_diag_append_byte(out, pos, cap, s[i]);
@@ -63,7 +63,7 @@ function sync_lock_diag_append_lit(out: *u8, pos: i32, cap: i32, s: *u8, n: i32)
 }
 
 #[no_mangle]
-function sync_lock_diag_append_i32(out: *u8, pos: i32, cap: i32, v: i32): i32 {
+export function sync_lock_diag_append_i32(out: *u8, pos: i32, cap: i32, v: i32): i32 {
   if (out == 0) { return 0 - 1; }
   if (pos < 0) { return 0 - 1; }
   if (cap <= pos) { return 0 - 1; }

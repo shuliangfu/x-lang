@@ -30,19 +30,19 @@
 // - 仅 Linux freestanding；hosted 仍用 heap.c / malloc
 
 /** freestanding mmap(2) 桩（6 参；offset 低 32 位在 r9）。 */
-extern function shux_sys_mmap(addr: *u8, len: usize, prot: i32, flags: i32, fd: i32, offset: i64): *u8;
+export extern function shux_sys_mmap(addr: *u8, len: usize, prot: i32, flags: i32, fd: i32, offset: i64): *u8;
 
 /** freestanding munmap(2) 桩；成功 0，失败负 errno。 */
-extern function shux_sys_munmap(addr: *u8, len: usize): i32;
+export extern function shux_sys_munmap(addr: *u8, len: usize): i32;
 
 /** 默认映射容量（64KiB）。bug ① 已修复（commit 853c5e1b）：字面量 const 跳过栈槽登记，引用走立即数。 */
-const HEAP_CAP: usize = 65536;
+export const HEAP_CAP: usize = 65536;
 /** mmap prot：PROT_READ|PROT_WRITE。 */
-const HEAP_PROT: i32 = 3;
+export const HEAP_PROT: i32 = 3;
 /** mmap flags：MAP_PRIVATE|MAP_ANONYMOUS。 */
-const HEAP_FLAGS: i32 = 0x22;
+export const HEAP_FLAGS: i32 = 0x22;
 /** mmap fd：MAP_ANONYMOUS 时传 -1。 */
-const HEAP_FD: i32 = -1;
+export const HEAP_FD: i32 = -1;
 
 /**
  * 单映射 bump 堆状态；调用方栈上持有，init/deinit 成对使用。
@@ -56,14 +56,14 @@ allow(padding) struct PageMmapHeap {
 /**
  * v1 探测：page_mmap 堆是否在 mod 层可用（Linux freestanding 路径恒 1）。
  */
-function page_mmap_heap_available(): i32 {
+export function page_mmap_heap_available(): i32 {
   return 1;
 }
 
 /**
  * 映射匿名 RW 区并初始化 bump；成功 0，失败 -1。
  */
-function page_mmap_heap_init(h: *PageMmapHeap): i32 {
+export function page_mmap_heap_init(h: *PageMmapHeap): i32 {
   if (h == 0) {
     return -1;
   }
@@ -88,7 +88,7 @@ function page_mmap_heap_init(h: *PageMmapHeap): i32 {
  * bump 分配 size 字节（align 向上对齐）；失败返回 null。
  * align 须为 2 的幂；0 视为 1。
  */
-function page_mmap_heap_alloc(h: *PageMmapHeap, size: usize, align_bytes: usize): *u8 {
+export function page_mmap_heap_alloc(h: *PageMmapHeap, size: usize, align_bytes: usize): *u8 {
   if (h == 0 as *PageMmapHeap) {
     return 1 as *u8;
   }
@@ -118,13 +118,13 @@ function page_mmap_heap_alloc(h: *PageMmapHeap, size: usize, align_bytes: usize)
 /**
  * bump free no-op（保留 API 与 Allocator 语义对齐）。
  */
-function page_mmap_heap_free(_h: *PageMmapHeap, _ptr: *u8): void {
+export function page_mmap_heap_free(_h: *PageMmapHeap, _ptr: *u8): void {
 }
 
 /**
  * munmap 整段映射并重置字段。
  */
-function page_mmap_heap_deinit(h: *PageMmapHeap): void {
+export function page_mmap_heap_deinit(h: *PageMmapHeap): void {
   if (h == 0) {
     return;
   }

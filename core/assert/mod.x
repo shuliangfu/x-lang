@@ -24,86 +24,86 @@ let debug_diag_last_b: i32 = 0;
 let debug_diag_last_ok: i32 = 0;
 
 /** 条件为假时终止程序（调用 panic）；条件为真时返回 0。 */
-function assert(b: bool): i32 {
+export function assert(b: bool): i32 {
   if (!b) { return panic(); }
   return 0;
 }
 
 /** 与 assert 同义；可约定仅在 debug 构建生效，当前实现与 assert 一致。 */
-function debug_assert(b: bool): i32 {
+export function debug_assert(b: bool): i32 {
   if (!b) { return panic(); }
   return 0;
 }
 
 /** 断言 a == b，否则 panic；返回 0。 */
-function assert_eq_i32(a: i32, b: i32): i32 {
+export function assert_eq_i32(a: i32, b: i32): i32 {
   if (a != b) { return panic(); }
   return 0;
 }
 
 /** 断言 a != b，否则 panic；返回 0。 */
-function assert_ne_i32(a: i32, b: i32): i32 {
+export function assert_ne_i32(a: i32, b: i32): i32 {
   if (a == b) { return panic(); }
   return 0;
 }
 
 /** 断言 a == b（u32），否则 panic；返回 0。 */
-function assert_eq_u32(a: u32, b: u32): i32 {
+export function assert_eq_u32(a: u32, b: u32): i32 {
   if (a != b) { return panic(); }
   return 0;
 }
 
 /** 断言 a != b（u32），否则 panic；返回 0。 */
-function assert_ne_u32(a: u32, b: u32): i32 {
+export function assert_ne_u32(a: u32, b: u32): i32 {
   if (a == b) { return panic(); }
   return 0;
 }
 
 /** 断言 a == b（bool），否则 panic；返回 0。 */
-function assert_eq_bool(a: bool, b: bool): i32 {
+export function assert_eq_bool(a: bool, b: bool): i32 {
   if (a != b) { return panic(); }
   return 0;
 }
 
 /** 断言 a != b（bool），否则 panic；返回 0。 */
-function assert_ne_bool(a: bool, b: bool): i32 {
+export function assert_ne_bool(a: bool, b: bool): i32 {
   if (a == b) { return panic(); }
   return 0;
 }
 
 /** 断言 a == b（u64），否则 panic；返回 0。 */
-function assert_eq_u64(a: u64, b: u64): i32 {
+export function assert_eq_u64(a: u64, b: u64): i32 {
   if (a != b) { return panic(); }
   return 0;
 }
 
 /** 断言 a != b（u64），否则 panic；返回 0。 */
-function assert_ne_u64(a: u64, b: u64): i32 {
+export function assert_ne_u64(a: u64, b: u64): i32 {
   if (a == b) { return panic(); }
   return 0;
 }
 
 /** 断言指针 a == b（按地址），否则 panic；返回 0。 */
-function assert_eq_ptr(a: *u8, b: *u8): i32 {
+export function assert_eq_ptr(a: *u8, b: *u8): i32 {
   if (a != b) { return panic(); }
   return 0;
 }
 
 /** 断言指针 a != b（按地址），否则 panic；返回 0。 */
-function assert_ne_ptr(a: *u8, b: *u8): i32 {
+export function assert_ne_ptr(a: *u8, b: *u8): i32 {
   if (a == b) { return panic(); }
   return 0;
 }
 
 /** 断言 a == b 并记录 tag；不等时 panic，相等返回 0（CORE-019）。 */
-function debug_assert_eq_i32_diag(a: i32, b: i32, tag: i32): i32 {
+export function debug_assert_eq_i32_diag(a: i32, b: i32, tag: i32): i32 {
   debug_diag_store(a, b, if (a == b) { 1 } else { 0 });
   if (a != b) { return panic(); }
   return 0;
 }
 
 /** 存储最近一次诊断三元组（烟测 / 调试器读取）。 */
-function debug_diag_store(a: i32, b: i32, ok: i32): void {
+export function debug_diag_store(a: i32, b: i32, ok: i32): void {
   debug_diag_last_a = a;
   debug_diag_last_b = b;
   debug_diag_last_ok = ok;

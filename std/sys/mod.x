@@ -39,29 +39,29 @@ const win32 = import("std.sys.win32");
 const mmap_m = import("std.sys.mmap");
 
 /** 标准输出 fd（POSIX）。 */
-const STDOUT_FD: i32 = 1;
+export const STDOUT_FD: i32 = 1;
 /** 标准错误 fd（POSIX）。 */
-const STDERR_FD: i32 = 2;
+export const STDERR_FD: i32 = 2;
 
 /** Linux write(2) freestanding 桩（compiler/src/asm/freestanding_io_x86_64.s）。 */
 #[cfg(target_os = "linux")]
-extern function shux_sys_write(fd: i32, buf: *u8, len: i32): i32;
+export extern function shux_sys_write(fd: i32, buf: *u8, len: i32): i32;
 
 /**
  * v0：freestanding write 是否在 mod 层可用（Linux=1，macOS=0）。
  */
 #[cfg(target_os = "linux")]
-function freestanding_write_available(): i32 {
+export function freestanding_write_available(): i32 {
   return 1;
 }
 
 #[cfg(target_os = "macos")]
-function freestanding_write_available(): i32 {
+export function freestanding_write_available(): i32 {
   return 0;
 }
 
 #[cfg(target_os = "freebsd")]
-function freestanding_write_available(): i32 {
+export function freestanding_write_available(): i32 {
   return 0;
 }
 
@@ -69,7 +69,7 @@ function freestanding_write_available(): i32 {
  * 统一 write：Linux freestanding → shux_sys_write；macOS → macos.macos_write。
  */
 #[cfg(target_os = "linux")]
-function write(fd: i32, buf: *u8, len: i32): i32 {
+export function write(fd: i32, buf: *u8, len: i32): i32 {
   if (len <= 0) {
     return 0;
   }
@@ -82,60 +82,60 @@ function write(fd: i32, buf: *u8, len: i32): i32 {
 }
 
 #[cfg(target_os = "macos")]
-function write(fd: i32, buf: *u8, len: i32): i32 {
+export function write(fd: i32, buf: *u8, len: i32): i32 {
   return macos.macos_write(fd, buf, len);
 }
 
 #[cfg(target_os = "freebsd")]
-function write(fd: i32, buf: *u8, len: i32): i32 {
+export function write(fd: i32, buf: *u8, len: i32): i32 {
   return freebsd.freebsd_write(fd, buf, len);
 }
 
 /** Windows v0：占位 win32_write（B-17 深化前返回 -1）。 */
 #[cfg(target_os = "windows")]
-function write(fd: i32, buf: *u8, len: i32): i32 {
+export function write(fd: i32, buf: *u8, len: i32): i32 {
   return win32.win32_write(fd, buf, len);
 }
 
 /** 写 stdout；等价 write(STDOUT_FD, buf, len)。 */
 #[cfg(target_os = "linux")]
-function write_stdout(buf: *u8, len: i32): i32 {
+export function write_stdout(buf: *u8, len: i32): i32 {
   return write(STDOUT_FD, buf, len);
 }
 
 #[cfg(target_os = "macos")]
-function write_stdout(buf: *u8, len: i32): i32 {
+export function write_stdout(buf: *u8, len: i32): i32 {
   return write(STDOUT_FD, buf, len);
 }
 
 #[cfg(target_os = "freebsd")]
-function write_stdout(buf: *u8, len: i32): i32 {
+export function write_stdout(buf: *u8, len: i32): i32 {
   return write(STDOUT_FD, buf, len);
 }
 
 #[cfg(target_os = "windows")]
-function write_stdout(buf: *u8, len: i32): i32 {
+export function write_stdout(buf: *u8, len: i32): i32 {
   return write(STDOUT_FD, buf, len);
 }
 
 /** 写 stderr；等价 write(STDERR_FD, buf, len)。 */
 #[cfg(target_os = "linux")]
-function write_stderr(buf: *u8, len: i32): i32 {
+export function write_stderr(buf: *u8, len: i32): i32 {
   return write(STDERR_FD, buf, len);
 }
 
 #[cfg(target_os = "macos")]
-function write_stderr(buf: *u8, len: i32): i32 {
+export function write_stderr(buf: *u8, len: i32): i32 {
   return write(STDERR_FD, buf, len);
 }
 
 #[cfg(target_os = "freebsd")]
-function write_stderr(buf: *u8, len: i32): i32 {
+export function write_stderr(buf: *u8, len: i32): i32 {
   return write(STDERR_FD, buf, len);
 }
 
 #[cfg(target_os = "windows")]
-function write_stderr(buf: *u8, len: i32): i32 {
+export function write_stderr(buf: *u8, len: i32): i32 {
   return write(STDERR_FD, buf, len);
 }
 
@@ -143,19 +143,19 @@ function write_stderr(buf: *u8, len: i32): i32 {
  * v1：Linux syscall 号表是否在 mod 层导出（仅 Linux host 编译保留）。
  */
 #[cfg(target_os = "linux")]
-function linux_syscall_table_available(): i32 {
+export function linux_syscall_table_available(): i32 {
   return linux.linux_syscall_table_available();
 }
 
 /** Linux x86_64 write(2) 号；与 freestanding_io_x86_64.s 一致。 */
 #[cfg(target_os = "linux")]
-function linux_syscall_nr_write_amd64(): i64 {
+export function linux_syscall_nr_write_amd64(): i64 {
   return linux.syscall_nr_write_amd64();
 }
 
 /** Linux aarch64 write(2) 号。 */
 #[cfg(target_os = "linux")]
-function linux_syscall_nr_write_arm64(): i64 {
+export function linux_syscall_nr_write_arm64(): i64 {
   return linux.syscall_nr_write_arm64();
 }
 
@@ -163,58 +163,58 @@ function linux_syscall_nr_write_arm64(): i64 {
  * v2：macOS POSIX write 是否在 mod 层导出（仅 macOS host 编译保留）。
  */
 #[cfg(target_os = "macos")]
-function macos_write_available(): i32 {
+export function macos_write_available(): i32 {
   return macos.macos_write_available();
 }
 
 /** Darwin write(2) 薄转发；见 import("std.sys.macos")。 */
 #[cfg(target_os = "macos")]
-function macos_write(fd: i32, buf: *u8, len: i32): i32 {
+export function macos_write(fd: i32, buf: *u8, len: i32): i32 {
   return macos.macos_write(fd, buf, len);
 }
 
 /** Darwin stdout write 薄转发。 */
 #[cfg(target_os = "macos")]
-function macos_write_stdout(buf: *u8, len: i32): i32 {
+export function macos_write_stdout(buf: *u8, len: i32): i32 {
   return macos.macos_write_stdout(buf, len);
 }
 
 /** Darwin stderr write 薄转发。 */
 #[cfg(target_os = "macos")]
-function macos_write_stderr(buf: *u8, len: i32): i32 {
+export function macos_write_stderr(buf: *u8, len: i32): i32 {
   return macos.macos_write_stderr(buf, len);
 }
 
 /** FreeBSD POSIX write 是否在 mod 层导出。 */
 #[cfg(target_os = "freebsd")]
-function freebsd_write_available(): i32 {
+export function freebsd_write_available(): i32 {
   return freebsd.freebsd_write_available();
 }
 
 #[cfg(target_os = "freebsd")]
-function freebsd_write(fd: i32, buf: *u8, len: i32): i32 {
+export function freebsd_write(fd: i32, buf: *u8, len: i32): i32 {
   return freebsd.freebsd_write(fd, buf, len);
 }
 
 #[cfg(target_os = "freebsd")]
-function freebsd_write_stdout(buf: *u8, len: i32): i32 {
+export function freebsd_write_stdout(buf: *u8, len: i32): i32 {
   return freebsd.freebsd_write_stdout(buf, len);
 }
 
 #[cfg(target_os = "freebsd")]
-function freebsd_write_stderr(buf: *u8, len: i32): i32 {
+export function freebsd_write_stderr(buf: *u8, len: i32): i32 {
   return freebsd.freebsd_write_stderr(buf, len);
 }
 
 /** FreeBSD mmap 是否在 mod 层导出。 */
 #[cfg(target_os = "freebsd")]
-function freebsd_mmap_available(): i32 {
+export function freebsd_mmap_available(): i32 {
   return freebsd.freebsd_mmap_available();
 }
 
 /** B-16 v0：macOS mmap 是否在 mod 层导出。 */
 #[cfg(target_os = "macos")]
-function macos_mmap_available(): i32 {
+export function macos_mmap_available(): i32 {
   return macos.macos_mmap_available();
 }
 
@@ -222,25 +222,25 @@ function macos_mmap_available(): i32 {
  * v3：mmap 是否在 mod 层导出（委托 std.sys.mmap）。
  * 供 std.db.kv 等模块在硬盘开辟连续扇区。
  */
-function mmap_available(): i32 {
+export function mmap_available(): i32 {
   return mmap_m.mmap_available();
 }
 
 /** 可写 mmap 薄转发。 */
 #[cfg(not(freestanding))]
-function mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
+export function mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
   return mmap_m.mmap_rw(path, min_size, out_size);
 }
 
 /** 解除 mmap 薄转发。 */
 #[cfg(not(freestanding))]
-function munmap(ptr: *u8, size: usize): i32 {
+export function munmap(ptr: *u8, size: usize): i32 {
   return mmap_m.munmap(ptr, size);
 }
 
 /** msync 薄转发。 */
 #[cfg(not(freestanding))]
-function msync(ptr: *u8, size: usize): i32 {
+export function msync(ptr: *u8, size: usize): i32 {
   return mmap_m.msync(ptr, size);
 }
 
@@ -249,46 +249,46 @@ function msync(ptr: *u8, size: usize): i32 {
  * 成功返回读入字节数；失败返回 -1。
  */
 #[cfg(target_os = "linux")]
-function read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
+export function read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
   return linux.linux_read_file_into(path, buf, cap);
 }
 
 #[cfg(target_os = "macos")]
-function read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
+export function read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
   return macos.macos_read_file_into(path, buf, cap);
 }
 
 #[cfg(target_os = "freebsd")]
-function read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
+export function read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
   return freebsd.freebsd_read_file_into(path, buf, cap);
 }
 
 /** Windows v0：占位 win32_read_file_into（B-17 深化前返回 -1）。 */
 #[cfg(target_os = "windows")]
-function read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
+export function read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
   return win32.win32_read_file_into(path, buf, cap);
 }
 
 /** Linux freestanding read(2) 薄转发。 */
 #[cfg(target_os = "linux")]
-function read(fd: i32, buf: *u8, len: i32): i32 {
+export function read(fd: i32, buf: *u8, len: i32): i32 {
   return linux.linux_syscall_read(fd, buf, len);
 }
 
 /** macOS POSIX read(2) 薄转发（单次 read，非读整文件）。 */
 #[cfg(target_os = "macos")]
-function read(fd: i32, buf: *u8, len: i32): i32 {
+export function read(fd: i32, buf: *u8, len: i32): i32 {
   return macos.macos_read(fd, buf, len);
 }
 
 #[cfg(target_os = "freebsd")]
-function read(fd: i32, buf: *u8, len: i32): i32 {
+export function read(fd: i32, buf: *u8, len: i32): i32 {
   return freebsd.freebsd_read(fd, buf, len);
 }
 
 /** Windows v1：ReadFile 路径尚未暴露 fd read；v1 返回 -1。 */
 #[cfg(target_os = "windows")]
-function read(fd: i32, buf: *u8, len: i32): i32 {
+export function read(fd: i32, buf: *u8, len: i32): i32 {
   (void)fd;
   (void)buf;
   (void)len;
@@ -297,53 +297,53 @@ function read(fd: i32, buf: *u8, len: i32): i32 {
 
 /** Linux close(2) freestanding 薄转发。 */
 #[cfg(target_os = "linux")]
-function close(fd: i32): i32 {
+export function close(fd: i32): i32 {
   return linux.linux_syscall_close(fd);
 }
 
 /** macOS close(2) 薄转发。 */
 #[cfg(target_os = "macos")]
-function close(fd: i32): i32 {
+export function close(fd: i32): i32 {
   return macos.macos_close(fd);
 }
 
 #[cfg(target_os = "freebsd")]
-function close(fd: i32): i32 {
+export function close(fd: i32): i32 {
   return freebsd.freebsd_close(fd);
 }
 
 /** Windows v1：fd close 暂不支持。 */
 #[cfg(target_os = "windows")]
-function close(fd: i32): i32 {
+export function close(fd: i32): i32 {
   (void)fd;
   return -1;
 }
 
 /** Linux exit(2) freestanding；noreturn。 */
 #[cfg(target_os = "linux")]
-function exit(code: i32): void {
+export function exit(code: i32): void {
   linux.linux_syscall_exit(code);
 }
 
 /** macOS _exit 薄转发（B-16 v2）。 */
 #[cfg(target_os = "macos")]
-function exit(code: i32): void {
+export function exit(code: i32): void {
   macos.macos_exit(code);
 }
 
 #[cfg(target_os = "freebsd")]
-function exit(code: i32): void {
+export function exit(code: i32): void {
   freebsd.freebsd_exit(code);
 }
 
 /** Windows ExitProcess 薄转发（B-17 v3）。 */
 #[cfg(target_os = "windows")]
-function exit(code: i32): void {
+export function exit(code: i32): void {
   win32.win32_exit_process(code);
 }
 
 /** B-19：mmap 为 mmap_rw 别名（可写文件 mmap）。 */
 #[cfg(not(freestanding))]
-function mmap(path: *u8, min_size: usize, out_size: *usize): *u8 {
+export function mmap(path: *u8, min_size: usize, out_size: *usize): *u8 {
   return mmap_rw(path, min_size, out_size);
 }

@@ -36,11 +36,11 @@ allow(padding) struct Queue_i32 {
   head: i32;
 }
 /** 新建空队列。 */
-function new(): Queue_i32 {
+export function new(): Queue_i32 {
   return Queue_i32 { data: 0, cap: 0, len: 0, head: 0 };
 }
 /** 预分配 capacity；失败返回 -1。 */
-function with_capacity(q: *Queue_i32, capacity: i32): i32 {
+export function with_capacity(q: *Queue_i32, capacity: i32): i32 {
   if (capacity <= 0) {
     q.data = 0;
     q.cap = 0;
@@ -57,13 +57,13 @@ function with_capacity(q: *Queue_i32, capacity: i32): i32 {
   return 0;
 }
 /** 逻辑下标 i 对应的物理下标。 */
-function at(q: Queue_i32, i: i32): i32 {
+export function at(q: Queue_i32, i: i32): i32 {
   let idx: i32 = q.head + i;
   if (idx >= q.cap) { idx = idx - q.cap; }
   return idx;
 }
 /** 扩容至至少能再放 1 个元素；内部复制为 head=0 布局。失败返回 -1。 */
-function grow(q: *Queue_i32): i32 {
+export function grow(q: *Queue_i32): i32 {
   let new_cap: i32 = if (q.cap <= 0) { 8 } else { q.cap * 2 };
   if (new_cap <= q.cap) { return 0; }
   let p: *i32 = heap_libc.heap_alloc_i32_c(new_cap);
@@ -82,7 +82,7 @@ function grow(q: *Queue_i32): i32 {
   return 0;
 }
 /** 队尾插入。失败返回 -1。 */
-function push_back(q: *Queue_i32, x: i32): i32 {
+export function push_back(q: *Queue_i32, x: i32): i32 {
   if (q.len >= q.cap && grow(q) != 0) { return -1; }
   let tail: i32 = 0;
   unsafe { tail = at(*q, q.len); }
@@ -91,7 +91,7 @@ function push_back(q: *Queue_i32, x: i32): i32 {
   return 0;
 }
 /** 队首插入。失败返回 -1。 */
-function push_front(q: *Queue_i32, x: i32): i32 {
+export function push_front(q: *Queue_i32, x: i32): i32 {
   if (q.len >= q.cap && grow(q) != 0) { return -1; }
   q.head = q.head - 1;
   if (q.head < 0) { q.head = q.head + q.cap; }
@@ -100,7 +100,7 @@ function push_front(q: *Queue_i32, x: i32): i32 {
   return 0;
 }
 /** 队尾弹出；空队列返回 0（调用方须保证 len>0）。 */
-function pop_back(q: *Queue_i32): i32 {
+export function pop_back(q: *Queue_i32): i32 {
   if (q.len <= 0) { return 0; }
   q.len = q.len - 1;
   let idx: i32 = 0;
@@ -108,7 +108,7 @@ function pop_back(q: *Queue_i32): i32 {
   return q.data[idx];
 }
 /** 队首弹出；空队列返回 0。 */
-function pop_front(q: *Queue_i32): i32 {
+export function pop_front(q: *Queue_i32): i32 {
   if (q.len <= 0) { return 0; }
   let x: i32 = q.data[q.head];
   q.head = q.head + 1;
@@ -117,24 +117,24 @@ function pop_front(q: *Queue_i32): i32 {
   return x;
 }
 /** 取第 i 个元素（0..len-1）；越界返回 0。 */
-function get(q: Queue_i32, i: i32): i32 {
+export function get(q: Queue_i32, i: i32): i32 {
   if (i < 0 || i >= q.len) { return 0; }
   return q.data[at(q, i)];
 }
 /** 元素个数。 */
-function len(q: Queue_i32): i32 { return q.len; }
+export function len(q: Queue_i32): i32 { return q.len; }
 /** 是否为空。返回 1 是，0 否。 */
-function is_empty(q: Queue_i32): i32 {
+export function is_empty(q: Queue_i32): i32 {
   if (q.len <= 0) { return 1; }
   return 0;
 }
 /** 清空，不释放内存。 */
-function clear(q: *Queue_i32): void {
+export function clear(q: *Queue_i32): void {
   q.len = 0;
   q.head = 0;
 }
 /** 确保容量至少 new_cap；失败返回 -1。 */
-function reserve(q: *Queue_i32, new_cap: i32): i32 {
+export function reserve(q: *Queue_i32, new_cap: i32): i32 {
   if (new_cap <= q.cap) { return 0; }
   let p: *i32 = heap_libc.heap_alloc_i32_c(new_cap);
   if (p == 0) { return -1; }
@@ -152,7 +152,7 @@ function reserve(q: *Queue_i32, new_cap: i32): i32 {
   return 0;
 }
 /** 释放；调用后不可再用。 */
-function deinit(q: *Queue_i32): void {
+export function deinit(q: *Queue_i32): void {
   if (q.data != 0) { heap_libc.heap_free_i32_c(q.data); q.data = 0; }
   q.cap = 0;
   q.len = 0;
@@ -167,17 +167,17 @@ allow(padding) struct SyncQueue_i32 {
 }
 
 /** C 层双线程竞争 push 烟测（queue.x + runtime_queue_contention.c）；0 通过，-1 失败。 */
-extern function sync_queue_contention_smoke_c(): i32;
+export extern function sync_queue_contention_smoke_c(): i32;
 
 /** 创建空 SyncQueue_i32；mutex 分配失败时 lock 为 null。 */
-function sync_new(): SyncQueue_i32 {
+export function sync_new(): SyncQueue_i32 {
   let lock: *u8 = sync.new_mutex();
   let q: Queue_i32 = Queue_i32 { data: 0, cap: 0, len: 0, head: 0 };
   return SyncQueue_i32 { q: q, lock: lock };
 }
 
 /** 销毁队列并释放 mutex。 */
-function sync_deinit(sq: *SyncQueue_i32): void {
+export function sync_deinit(sq: *SyncQueue_i32): void {
   if (sq.lock != 0) {
     sync.lock(sq.lock);
     deinit(&sq.q);
@@ -190,7 +190,7 @@ function sync_deinit(sq: *SyncQueue_i32): void {
 }
 
 /** 加锁队尾插入；失败 -1。 */
-function sync_push(sq: *SyncQueue_i32, x: i32): i32 {
+export function sync_push(sq: *SyncQueue_i32, x: i32): i32 {
   if (sq.lock == 0) { return -1; }
   if (sync.lock(sq.lock) != 0) { return -1; }
   let r: i32 = push_back(&sq.q, x);
@@ -201,7 +201,7 @@ function sync_push(sq: *SyncQueue_i32, x: i32): i32 {
 /**
  * 加锁队首弹出：0 成功写入 *out，1 空队列，-1 失败。
  */
-function sync_try_pop(sq: *SyncQueue_i32, out: *i32): i32 {
+export function sync_try_pop(sq: *SyncQueue_i32, out: *i32): i32 {
   if (sq.lock == 0) { return -1; }
   if (sync.lock(sq.lock) != 0) { return -1; }
   if (is_empty(sq.q) != 0) {
@@ -214,7 +214,7 @@ function sync_try_pop(sq: *SyncQueue_i32, out: *i32): i32 {
 }
 
 /** 加锁读元素个数。 */
-function len(sq: SyncQueue_i32): i32 {
+export function len(sq: SyncQueue_i32): i32 {
   if (sq.lock == 0) { return 0; }
   if (sync.lock(sq.lock) != 0) { return 0; }
   let n: i32 = len(sq.q);
@@ -223,7 +223,7 @@ function len(sq: SyncQueue_i32): i32 {
 }
 
 /** 加锁判空：1 空，0 非空。 */
-function is_empty(sq: SyncQueue_i32): i32 {
+export function is_empty(sq: SyncQueue_i32): i32 {
   if (sq.lock == 0) { return 1; }
   if (sync.lock(sq.lock) != 0) { return 1; }
   let e: i32 = is_empty(sq.q);
@@ -232,7 +232,7 @@ function is_empty(sq: SyncQueue_i32): i32 {
 }
 
 /** 门面：C 层 sync_queue_contention_smoke_c 烟测。 */
-function sync_smoke(): i32 {
+export function sync_smoke(): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = sync_queue_contention_smoke_c(); }
   return _rc;
@@ -248,19 +248,19 @@ allow(padding) struct Queue_u8 {
 }
 
 /** 新建空 Queue_u8。 */
-function new(): Queue_u8 {
+export function new(): Queue_u8 {
   return Queue_u8 { data: 0, cap: 0, len: 0, head: 0 };
 }
 
 /** Queue_u8 逻辑下标转物理下标。 */
-function at(q: Queue_u8, i: i32): i32 {
+export function at(q: Queue_u8, i: i32): i32 {
   let idx: i32 = q.head + i;
   if (idx >= q.cap) { idx = idx - q.cap; }
   return idx;
 }
 
 /** Queue_u8 扩容；失败 -1。 */
-function grow(q: *Queue_u8): i32 {
+export function grow(q: *Queue_u8): i32 {
   let new_cap: i32 = if (q.cap <= 0) { 8 } else { q.cap * 2 };
   let p: *u8 = heap_libc.heap_alloc_u8_c(new_cap);
   if (p == 0) { return -1; }
@@ -279,7 +279,7 @@ function grow(q: *Queue_u8): i32 {
 }
 
 /** 队尾插入 u8；失败 -1。 */
-function push_back(q: *Queue_u8, x: u8): i32 {
+export function push_back(q: *Queue_u8, x: u8): i32 {
   if (q.len >= q.cap && grow(q) != 0) { return -1; }
   let tail: i32 = 0;
   unsafe { tail = at(*q, q.len); }
@@ -289,7 +289,7 @@ function push_back(q: *Queue_u8, x: u8): i32 {
 }
 
 /** 队首弹出 u8；空队列返回 0。 */
-function pop_front(q: *Queue_u8): u8 {
+export function pop_front(q: *Queue_u8): u8 {
   if (q.len <= 0) { return 0; }
   let x: u8 = q.data[q.head];
   q.head = q.head + 1;
@@ -299,10 +299,10 @@ function pop_front(q: *Queue_u8): u8 {
 }
 
 /** Queue_u8 元素个数。 */
-function len(q: Queue_u8): i32 { return q.len; }
+export function len(q: Queue_u8): i32 { return q.len; }
 
 /** 释放 Queue_u8。 */
-function deinit(q: *Queue_u8): void {
+export function deinit(q: *Queue_u8): void {
   if (q.data != 0) { heap_libc.heap_free_u8_c(q.data); q.data = 0; }
   q.cap = 0;
   q.len = 0;

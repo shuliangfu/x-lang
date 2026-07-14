@@ -27,37 +27,37 @@
 // std::panic::panic!、std::process::abort、panic::set_hook；
 // Go: panic()、recover()、runtime.Goexit、runtime.NumCPU
 // 等。我们提供最小集：panic/abort/ready。
-extern function runtime_panic(): void;
-extern function runtime_abort(): void;
+export extern function runtime_panic(): void;
+export extern function runtime_abort(): void;
 /** 无参 panic：终止程序（noreturn）。用于断言失败、不可达分支等。对标
 * Rust panic!()、Zig @panic、Go panic()。 */
-function panic(): void {
+export function panic(): void {
   unsafe { runtime_panic(); }
 }
 /** 终止程序（noreturn）；与 panic 同义。对标 C abort()、Rust std::process::abort。
 */
-function abort(): void {
+export function abort(): void {
   unsafe { runtime_abort(); }
 }
 /** 运行时已就绪（占位）；返回 0。可用于初始化检查。对标 Go runtime
 * 初始化语义。 */
-function ready(): i32 { return 0; }
+export function ready(): i32 { return 0; }
 
 /** 运行时诊断是否启用；当前恒为 1（STD-159）。 */
-function diag_enabled(): i32 { return 1; }
+export function diag_enabled(): i32 { return 1; }
 
 /** 收集运行时诊断事件（占位；code/detail 保留扩展）。 */
-function diag_collect(code: i32, detail: i32): void {
+export function diag_collect(code: i32, detail: i32): void {
   let _c: i32 = code;
   let _d: i32 = detail;
 }
 
 /** 用户/测试可调用：登记 panic 钩子参数（has_msg/msg_val 透传 runtime）。 */
-function panic_hook_collect(has_msg: i32, msg_val: i32): void {
+export function panic_hook_collect(has_msg: i32, msg_val: i32): void {
   /** 【Why 根源】runtime.x 提供实现：runtime_crash_evidence_collect_c 转发到 shux_crash_evidence_collect_c C 桩。 */
   unsafe { runtime_crash_evidence_collect_c(has_msg, msg_val); }
 }
 
-extern function runtime_crash_evidence_collect_c(has_msg: i32, msg_val: i32): void;
+export extern function runtime_crash_evidence_collect_c(has_msg: i32, msg_val: i32): void;
 /** 模块尾占位：transitive import 解析时末位 function 会丢失，须保留非 API 锚点。 */
-function runtime_module_anchor(): i32 { return 0; }
+export function runtime_module_anchor(): i32 { return 0; }

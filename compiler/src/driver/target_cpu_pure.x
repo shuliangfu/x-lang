@@ -15,22 +15,22 @@
 
 let g_driver_pending_target_cpu_features: u32 = 0;
 
-extern function shu_target_cpu_detect_host(): u32;
-extern function shu_target_cpu_generic_for_host(): u32;
+export extern function shu_target_cpu_detect_host(): u32;
+export extern function shu_target_cpu_generic_for_host(): u32;
 
 #[no_mangle]
-function driver_set_pending_target_cpu_features(features: u32): void {
+export function driver_set_pending_target_cpu_features(features: u32): void {
   g_driver_pending_target_cpu_features = features;
 }
 
 #[no_mangle]
-function driver_get_pending_target_cpu_features(): u32 {
+export function driver_get_pending_target_cpu_features(): u32 {
   return g_driver_pending_target_cpu_features;
 }
 
 /* G-02f-97：纯 helper 导出门闩（真 .x 体，非 _impl 转发） */
 #[no_mangle]
-function tcp_tolower(c: u8): u8 {
+export function tcp_tolower(c: u8): u8 {
   if (c >= 65 && c <= 90) {
     return (c + 32) as u8;
   }
@@ -38,7 +38,7 @@ function tcp_tolower(c: u8): u8 {
 }
 
 /** 从 name[base..] 比较 n 字节（忽略大小写）与固定小写序列（由调用方保证长度）。 */
-function tcp_eq_at(name: *u8, base: usize, n: usize, lit0: u8, lit1: u8, lit2: u8, lit3: u8, lit4: u8, lit5: u8, lit6: u8, lit7: u8, lit8: u8): i32 {
+export function tcp_eq_at(name: *u8, base: usize, n: usize, lit0: u8, lit1: u8, lit2: u8, lit3: u8, lit4: u8, lit5: u8, lit6: u8, lit7: u8, lit8: u8): i32 {
   let i: usize = 0;
   let want: u8 = 0;
   while (i < n) {
@@ -59,12 +59,12 @@ function tcp_eq_at(name: *u8, base: usize, n: usize, lit0: u8, lit1: u8, lit2: u
   return 1;
 }
 
-function tcp_set_u32(out: *u32, f: u32): void {
+export function tcp_set_u32(out: *u32, f: u32): void {
   out[0] = f;
 }
 
 /** 具名规格；base/end 为 [base, end)。成功 0。 */
-function tcp_parse_named(spec: *u8, base: usize, end: usize, out: *u32): i32 {
+export function tcp_parse_named(spec: *u8, base: usize, end: usize, out: *u32): i32 {
   let n: usize = 0;
   let f: u32 = 0;
   if (end < base) {
@@ -148,7 +148,7 @@ function tcp_parse_named(spec: *u8, base: usize, end: usize, out: *u32): i32 {
 }
 
 #[no_mangle]
-function shu_target_cpu_resolve(spec: *u8, spec_len: usize, out: *u32): i32 {
+export function shu_target_cpu_resolve(spec: *u8, spec_len: usize, out: *u32): i32 {
   let start: usize = 0;
   let end: usize = 0;
   let f: u32 = 0;
@@ -176,17 +176,17 @@ function shu_target_cpu_resolve(spec: *u8, spec_len: usize, out: *u32): i32 {
 }
 
 #[no_mangle]
-function tcp_eq5(name: *u8, a0: u8, a1: u8, a2: u8, a3: u8, a4: u8): i32 {
+export function tcp_eq5(name: *u8, a0: u8, a1: u8, a2: u8, a3: u8, a4: u8): i32 {
   return tcp_eq_at(name, 0, 5, a0, a1, a2, a3, a4, 0, 0, 0, 0);
 }
 
 #[no_mangle]
-function tcp_eq6(name: *u8, a0: u8, a1: u8, a2: u8, a3: u8, a4: u8, a5: u8): i32 {
+export function tcp_eq6(name: *u8, a0: u8, a1: u8, a2: u8, a3: u8, a4: u8, a5: u8): i32 {
   return tcp_eq_at(name, 0, 6, a0, a1, a2, a3, a4, a5, 0, 0, 0);
 }
 
 #[no_mangle]
-function shu_simd_is_vector_type_spelling(name: *u8, name_len: usize): i32 {
+export function shu_simd_is_vector_type_spelling(name: *u8, name_len: usize): i32 {
   if (name == 0 as *u8 || name_len == 0) {
     return 0;
   }
@@ -207,7 +207,7 @@ function shu_simd_is_vector_type_spelling(name: *u8, name_len: usize): i32 {
 }
 
 #[no_mangle]
-function shu_simd_vector_lanes_esz_from_spelling(name: *u8, name_len: usize, out_lanes: *i32, out_esz: *i32): i32 {
+export function shu_simd_vector_lanes_esz_from_spelling(name: *u8, name_len: usize, out_lanes: *i32, out_esz: *i32): i32 {
   let lanes: i32 = 4;
   let esz: i32 = 4;
   if (out_lanes == 0 as *i32 || out_esz == 0 as *i32) {
@@ -234,7 +234,7 @@ function shu_simd_vector_lanes_esz_from_spelling(name: *u8, name_len: usize, out
 
 // G-02f-160：逗号分隔追加 feature 名
 #[no_mangle]
-function append_feat_name(buf: *u8, cap: usize, pos: *usize, name: *u8): void {
+export function append_feat_name(buf: *u8, cap: usize, pos: *usize, name: *u8): void {
   if (buf == 0) { return; }
   if (pos == 0) { return; }
   if (name == 0) { return; }
@@ -264,7 +264,7 @@ function append_feat_name(buf: *u8, cap: usize, pos: *usize, name: *u8): void {
 
 // G-02f-160：token 边界匹配（空白/逗号分隔）
 #[no_mangle]
-function flags_has_token(hay: *u8, token: *u8): i32 {
+export function flags_has_token(hay: *u8, token: *u8): i32 {
   if (hay == 0) { return 0; }
   if (token == 0) { return 0; }
   let tlen: i32 = 0;

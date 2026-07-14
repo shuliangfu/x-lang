@@ -33,14 +33,14 @@ let TLS_STUB_BACKEND_NAME: u8[5] = [115, 116, 117, 98, 0];
  * TLS 后端是否可用；桩恒为 0（不可用）。
  * 返回值：1 可用，0 桩。
  */
-function net_tls_is_available_c(): i32 {
+export function net_tls_is_available_c(): i32 {
   return 0;
 }
 
 /**
  * TLS 后端名称（NUL 结尾）；桩为 "stub"。
  */
-function net_tls_backend_name_c(): *u8 {
+export function net_tls_backend_name_c(): *u8 {
   return &TLS_STUB_BACKEND_NAME[0];
 }
 
@@ -48,7 +48,7 @@ function net_tls_backend_name_c(): *u8 {
  * TLS 客户端握手（桩）；恒失败并写 shu_tls_last_error。
  * fd<0 写 -2；否则 -9（TLS_NOT_IMPL）。
  */
-function net_tls_connect_client_c(fd: i32, sni: *u8): i64 {
+export function net_tls_connect_client_c(fd: i32, sni: *u8): i64 {
   let _ign_sni: *u8 = sni;
   shu_tls_last_error = 0;
   if (fd < 0) {
@@ -62,7 +62,7 @@ function net_tls_connect_client_c(fd: i32, sni: *u8): i64 {
 /**
  * 关闭 TLS 会话（桩）；恒成功 0。
  */
-function net_tls_close_c(ctx_handle: i64): i32 {
+export function net_tls_close_c(ctx_handle: i64): i32 {
   let _ign: i64 = ctx_handle;
   shu_tls_last_error = 0;
   return 0;
@@ -71,7 +71,7 @@ function net_tls_close_c(ctx_handle: i64): i32 {
 /**
  * TLS 读（桩）；返回 -9（TLS_NOT_IMPL）。
  */
-function net_tls_read_c(ctx_handle: i64, buf: *u8, cap: i32): i32 {
+export function net_tls_read_c(ctx_handle: i64, buf: *u8, cap: i32): i32 {
   let _ign0: i64 = ctx_handle;
   let _ign1: *u8 = buf;
   let _ign2: i32 = cap;
@@ -82,7 +82,7 @@ function net_tls_read_c(ctx_handle: i64, buf: *u8, cap: i32): i32 {
 /**
  * TLS 写（桩）；返回 -9（TLS_NOT_IMPL）。
  */
-function net_tls_write_c(ctx_handle: i64, buf: *u8, len: i32): i32 {
+export function net_tls_write_c(ctx_handle: i64, buf: *u8, len: i32): i32 {
   let _ign0: i64 = ctx_handle;
   let _ign1: *u8 = buf;
   let _ign2: i32 = len;
@@ -93,21 +93,21 @@ function net_tls_write_c(ctx_handle: i64, buf: *u8, len: i32): i32 {
 /**
  * OpenSSL 烟测（桩）；恒 -9。
  */
-function net_tls_openssl_smoke_c(): i32 {
+export function net_tls_openssl_smoke_c(): i32 {
   return -9;
 }
 
 /**
  * mbedTLS 烟测（桩）；恒 -9。
  */
-function net_tls_mbedtls_smoke_c(): i32 {
+export function net_tls_mbedtls_smoke_c(): i32 {
   return -9;
 }
 
 /**
  * ALPN 握手（桩）；委托 net_tls_connect_client_c。
  */
-function net_tls_connect_client_alpn_c(fd: i32, sni: *u8, alpn_wire: *u8, alpn_wire_len: i32): i64 {
+export function net_tls_connect_client_alpn_c(fd: i32, sni: *u8, alpn_wire: *u8, alpn_wire_len: i32): i64 {
   let _ign0: *u8 = alpn_wire;
   let _ign1: i32 = alpn_wire_len;
   return net_tls_connect_client_c(fd, sni);
@@ -116,7 +116,7 @@ function net_tls_connect_client_alpn_c(fd: i32, sni: *u8, alpn_wire: *u8, alpn_w
 /**
  * 读取协商 ALPN（桩）；无协议，返回 0。
  */
-function net_tls_alpn_selected_c(ctx_handle: i64, out: *u8, out_cap: i32): i32 {
+export function net_tls_alpn_selected_c(ctx_handle: i64, out: *u8, out_cap: i32): i32 {
   let _ign0: i64 = ctx_handle;
   let _ign1: *u8 = out;
   let _ign2: i32 = out_cap;
@@ -127,7 +127,7 @@ function net_tls_alpn_selected_c(ctx_handle: i64, out: *u8, out_cap: i32): i32 {
 /**
  * 协商协议是否为 h2（桩）；恒 0。
  */
-function net_tls_alpn_is_h2_c(ctx_handle: i64): i32 {
+export function net_tls_alpn_is_h2_c(ctx_handle: i64): i32 {
   let _ign: i64 = ctx_handle;
   return 0;
 }
@@ -135,7 +135,7 @@ function net_tls_alpn_is_h2_c(ctx_handle: i64): i32 {
 /**
  * TLS 服务端上下文（桩）；不可用，写 -9。
  */
-function net_tls_server_ctx_create_mem_c(cert_pem: *u8, cert_len: i32, key_pem: *u8, key_len: i32): i64 {
+export function net_tls_server_ctx_create_mem_c(cert_pem: *u8, cert_len: i32, key_pem: *u8, key_len: i32): i64 {
   let _ign0: *u8 = cert_pem;
   let _ign1: i32 = cert_len;
   let _ign2: *u8 = key_pem;
@@ -147,14 +147,14 @@ function net_tls_server_ctx_create_mem_c(cert_pem: *u8, cert_len: i32, key_pem: 
 /**
  * 销毁 TLS 服务端上下文（桩）；无操作。
  */
-function net_tls_server_ctx_destroy_c(srv_ctx_h: i64): void {
+export function net_tls_server_ctx_destroy_c(srv_ctx_h: i64): void {
   let _ign: i64 = srv_ctx_h;
 }
 
 /**
  * TLS 服务端 accept（桩）；不可用，写 -9。
  */
-function net_tls_accept_server_c(srv_ctx_h: i64, fd: i32): i64 {
+export function net_tls_accept_server_c(srv_ctx_h: i64, fd: i32): i64 {
   let _ign0: i64 = srv_ctx_h;
   let _ign1: i32 = fd;
   shu_tls_last_error = -9;
@@ -164,6 +164,6 @@ function net_tls_accept_server_c(srv_ctx_h: i64, fd: i32): i64 {
 /**
  * 读取 TLS 最后一次错误码（桩路径）。
  */
-function net_tls_last_error_c(): i32 {
+export function net_tls_last_error_c(): i32 {
   return shu_tls_last_error;
 }

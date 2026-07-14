@@ -5,6 +5,6 @@
 // 实现仍在 seed C；本文件为文档锚点。
 // 产品：cc seeds/runtime_time_os.from_x.c → runtime_time_os.o
 
-function runtime_time_os_x_doc_anchor(): i32 {
+export function runtime_time_os_x_doc_anchor(): i32 {
   return 0;
 }

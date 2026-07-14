@@ -23,13 +23,13 @@
 
 /** C 侧 runtime.c：fork+exec 运行编译产物（须写全 C 链接名，-E-extern
 * 不追加模块前缀）。 */
-extern function driver_exec_compiled(argc: i32, argv: *u8): i32;
+export extern function driver_exec_compiled(argc: i32, argv: *u8): i32;
 /** main.x 编译入口；链接符号 main_run_compiler_x_path_impl。 */
-extern function main_run_compiler_x_path_impl(argc: i32, argv: *u8): i32;
+export extern function main_run_compiler_x_path_impl(argc: i32, argv: *u8): i32;
 
 /** 比较 buf[0..len-1] 与
 * word_ptr[0..word_len-1]（当前未使用，保留供将来子命令解析复用）。 */
-function run_eq_word(buf: *u8, len: i32, word_ptr: *u8, word_len: i32): i32 {
+export function run_eq_word(buf: *u8, len: i32, word_ptr: *u8, word_len: i32): i32 {
   if (len != word_len) {
     return 0;
   }
@@ -43,7 +43,7 @@ function run_eq_word(buf: *u8, len: i32, word_ptr: *u8, word_len: i32): i32 {
   return 1;
 }
 
-function cmd_run(argc: i32, argv: *u8): i32 {
+export function cmd_run(argc: i32, argv: *u8): i32 {
   unsafe {
     if (argc < 2) {
       return 1;

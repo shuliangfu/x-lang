@@ -27,37 +27,37 @@
 const mem = import("core.mem");
 
 /** DOD-CL-S2：单 chunk bump arena 默认 chunk 字节数（须为 64 倍数）。 */
-const HEAP_ARENA64_DEFAULT_CAP: usize = 4096;
+export const HEAP_ARENA64_DEFAULT_CAP: usize = 4096;
 
 /** libc 堆接口（hosted 路径由链接器解析 -lc）。 */
-extern "C" function malloc(size: usize): *u8;
-extern "C" function free(ptr: *u8): void;
-extern "C" function realloc(ptr: *u8, new_size: usize): *u8;
-extern "C" function calloc(nmemb: usize, size: usize): *u8;
-extern "C" function posix_memalign(memptr: * *void, alignment: usize, size: usize): i32;
-extern "C" function getenv(name: *u8): *u8;
+export extern "C" function malloc(size: usize): *u8;
+export extern "C" function free(ptr: *u8): void;
+export extern "C" function realloc(ptr: *u8, new_size: usize): *u8;
+export extern "C" function calloc(nmemb: usize, size: usize): *u8;
+export extern "C" function posix_memalign(memptr: * *void, alignment: usize, size: usize): i32;
+export extern "C" function getenv(name: *u8): *u8;
 
 /** libc 堆/环境 FFI 须 unsafe；薄包装供 heap_*_c 调用。 */
-function heap_libc_malloc(size: usize): *u8 {
+export function heap_libc_malloc(size: usize): *u8 {
   unsafe { return malloc(size); }
   return 0; // unreachable — typeck workaround
 }
-function heap_libc_free(ptr: *u8): void {
+export function heap_libc_free(ptr: *u8): void {
   unsafe { free(ptr); }
 }
-function heap_libc_realloc(ptr: *u8, new_size: usize): *u8 {
+export function heap_libc_realloc(ptr: *u8, new_size: usize): *u8 {
   unsafe { return realloc(ptr, new_size); }
   return 0; // unreachable — typeck workaround
 }
-function heap_libc_calloc(nmemb: usize, size: usize): *u8 {
+export function heap_libc_calloc(nmemb: usize, size: usize): *u8 {
   unsafe { return calloc(nmemb, size); }
   return 0; // unreachable — typeck workaround
 }
-function heap_libc_posix_memalign(memptr: * *void, alignment: usize, size: usize): i32 {
+export function heap_libc_posix_memalign(memptr: * *void, alignment: usize, size: usize): i32 {
   unsafe { return posix_memalign(memptr, alignment, size); }
   return 0; // unreachable — typeck workaround
 }
-function heap_libc_getenv(name: *u8): *u8 {
+export function heap_libc_getenv(name: *u8): *u8 {
   unsafe { return getenv(name); }
   return 0; // unreachable — typeck workaround
 }
@@ -75,7 +75,7 @@ let shu_heap_trace_realloc_count: u64 = 0;
 let shu_heap_trace_bytes: u64 = 0;
 
 /** void* 指针对齐下限（hosted 64-bit 为 8 字节）。 */
-const HEAP_PTR_SIZE: usize = 8;
+export const HEAP_PTR_SIZE: usize = 8;
 
 /** 与 std.heap/mod.x Arena64 布局一致（chunk/cap/off）。 */
 allow(padding) struct Arena64 {
@@ -88,7 +88,7 @@ allow(padding) struct Arena64 {
  * 懒加载 SHUX_HEAP_TRACE：env 首字符为 '1' 时启用统计。
  * 返回值：1 启用，0 未启用。
  */
-function heap_trace_is_on(): i32 {
+export function heap_trace_is_on(): i32 {
   if (shu_heap_trace_on >= 0) {
     return shu_heap_trace_on;
   }
@@ -104,7 +104,7 @@ function heap_trace_is_on(): i32 {
 /**
  * 分配成功时更新 trace 计数（alloc 次数与累计字节）。
  */
-function heap_trace_note_alloc(size: usize): void {
+export function heap_trace_note_alloc(size: usize): void {
   if (heap_trace_is_on() == 0) {
     return;
   }
@@ -115,7 +115,7 @@ function heap_trace_note_alloc(size: usize): void {
 /**
  * free 时更新 trace 计数（free 次数）。
  */
-function heap_trace_note_free(): void {
+export function heap_trace_note_free(): void {
   if (heap_trace_is_on() == 0) {
     return;
   }
@@ -126,7 +126,7 @@ function heap_trace_note_free(): void {
  * 分配 size 字节，未初始化；size==0 或失败返回 null。
  * 供 std.heap alloc 与 LSP heap_alloc_c 符号使用。
  */
-function heap_alloc_c(size: usize): *u8 {
+export function heap_alloc_c(size: usize): *u8 {
   if (size == 0) {
     return 0;
   }
@@ -140,7 +140,7 @@ function heap_alloc_c(size: usize): *u8 {
 /**
  * 释放 ptr；ptr 为 null 时不操作（与 C free 一致）。
  */
-function heap_free_c(ptr: *u8): void {
+export function heap_free_c(ptr: *u8): void {
   if (ptr == 0) {
     return;
   }
@@ -152,7 +152,7 @@ function heap_free_c(ptr: *u8): void {
  * 将 ptr 调整为 new_size 字节；new_size==0 等价于 free 并返回 null。
  * 失败返回 null 且原 ptr 未释放。
  */
-function heap_realloc_c(ptr: *u8, new_size: usize): *u8 {
+export function heap_realloc_c(ptr: *u8, new_size: usize): *u8 {
   if (new_size == 0) {
     if (ptr != 0) {
       heap_libc_free(ptr);
@@ -165,7 +165,7 @@ function heap_realloc_c(ptr: *u8, new_size: usize): *u8 {
 /**
  * 分配 size 字节并清零（calloc(1,size)）；size==0 或失败返回 null。
  */
-function heap_alloc_zeroed_c(size: usize): *u8 {
+export function heap_alloc_zeroed_c(size: usize): *u8 {
   if (size == 0) {
     return 0;
   }
@@ -175,7 +175,7 @@ function heap_alloc_zeroed_c(size: usize): *u8 {
 /**
  * 分配 count 个 i32；count<=0 或失败返回 null。
  */
-function heap_alloc_i32_c(count: i32): *i32 {
+export function heap_alloc_i32_c(count: i32): *i32 {
   if (count <= 0) {
     return 0;
   }
@@ -186,7 +186,7 @@ function heap_alloc_i32_c(count: i32): *i32 {
 /**
  * 将 ptr 调整为 new_count 个 i32；new_count<=0 时 free 并返回 null。
  */
-function heap_realloc_i32_c(ptr: *i32, new_count: i32): *i32 {
+export function heap_realloc_i32_c(ptr: *i32, new_count: i32): *i32 {
   if (new_count <= 0) {
     if (ptr != 0) {
       heap_libc_free(ptr as *u8);
@@ -200,7 +200,7 @@ function heap_realloc_i32_c(ptr: *i32, new_count: i32): *i32 {
 /**
  * 释放 heap_alloc_i32_c / heap_realloc_i32_c 分配的 ptr；ptr 可为 null。
  */
-function heap_free_i32_c(ptr: *i32): void {
+export function heap_free_i32_c(ptr: *i32): void {
   if (ptr != 0) {
     heap_libc_free(ptr as *u8);
   }
@@ -209,7 +209,7 @@ function heap_free_i32_c(ptr: *i32): void {
 /**
  * 分配 count 个 u8；count<=0 或失败返回 null。
  */
-function heap_alloc_u8_c(count: i32): *u8 {
+export function heap_alloc_u8_c(count: i32): *u8 {
   if (count <= 0) {
     return 0;
   }
@@ -219,7 +219,7 @@ function heap_alloc_u8_c(count: i32): *u8 {
 /**
  * 将 ptr 调整为 new_count 个 u8；new_count<=0 时 free 并返回 null。
  */
-function heap_realloc_u8_c(ptr: *u8, new_count: i32): *u8 {
+export function heap_realloc_u8_c(ptr: *u8, new_count: i32): *u8 {
   if (new_count <= 0) {
     if (ptr != 0) {
       heap_libc_free(ptr);
@@ -232,7 +232,7 @@ function heap_realloc_u8_c(ptr: *u8, new_count: i32): *u8 {
 /**
  * 释放 heap_alloc_u8_c / heap_realloc_u8_c 分配的 ptr；ptr 可为 null。
  */
-function heap_free_u8_c(ptr: *u8): void {
+export function heap_free_u8_c(ptr: *u8): void {
   if (ptr != 0) {
     heap_libc_free(ptr);
   }
@@ -241,7 +241,7 @@ function heap_free_u8_c(ptr: *u8): void {
 /**
  * 块拷贝 i32：dst[dst_offset..] = src[0..count-1]；count<=0 不写。
  */
-function heap_copy_i32_at_c(dst: *i32, dst_offset: i32, src: *i32, count: i32): void {
+export function heap_copy_i32_at_c(dst: *i32, dst_offset: i32, src: *i32, count: i32): void {
   if (count <= 0) {
     return;
   }
@@ -252,7 +252,7 @@ function heap_copy_i32_at_c(dst: *i32, dst_offset: i32, src: *i32, count: i32): 
 /**
  * 块拷贝 u8：dst[dst_offset..] = src[0..count-1]；count<=0 不写。
  */
-function heap_copy_u8_at_c(dst: *u8, dst_offset: i32, src: *u8, count: i32): void {
+export function heap_copy_u8_at_c(dst: *u8, dst_offset: i32, src: *u8, count: i32): void {
   if (count <= 0) {
     return;
   }
@@ -262,7 +262,7 @@ function heap_copy_u8_at_c(dst: *u8, dst_offset: i32, src: *u8, count: i32): voi
 /**
  * 分配 count 个 f32；count<=0 或失败返回 null（DOD-S2 SoA 列）。
  */
-function heap_alloc_f32_c(count: i32): *f32 {
+export function heap_alloc_f32_c(count: i32): *f32 {
   if (count <= 0) {
     return 0;
   }
@@ -273,7 +273,7 @@ function heap_alloc_f32_c(count: i32): *f32 {
 /**
  * 将 ptr 调整为 new_count 个 f32；new_count<=0 时 free 并返回 null。
  */
-function heap_realloc_f32_c(ptr: *f32, new_count: i32): *f32 {
+export function heap_realloc_f32_c(ptr: *f32, new_count: i32): *f32 {
   if (new_count <= 0) {
     if (ptr != 0) {
       heap_libc_free(ptr as *u8);
@@ -287,7 +287,7 @@ function heap_realloc_f32_c(ptr: *f32, new_count: i32): *f32 {
 /**
  * 释放 heap_alloc_f32_c / heap_realloc_f32_c 分配的 ptr；ptr 可为 null。
  */
-function heap_free_f32_c(ptr: *f32): void {
+export function heap_free_f32_c(ptr: *f32): void {
   if (ptr != 0) {
     heap_libc_free(ptr as *u8);
   }
@@ -296,7 +296,7 @@ function heap_free_f32_c(ptr: *f32): void {
 /**
  * 块拷贝 f32 列；count<=0 不写。
  */
-function heap_copy_f32_at_c(dst: *f32, dst_offset: i32, src: *f32, count: i32): void {
+export function heap_copy_f32_at_c(dst: *f32, dst_offset: i32, src: *f32, count: i32): void {
   if (count <= 0) {
     return;
   }
@@ -307,28 +307,28 @@ function heap_copy_f32_at_c(dst: *f32, dst_offset: i32, src: *f32, count: i32): 
 /**
  * asm 路径薄包装：alloc_f32 → heap_alloc_f32_c（与 ast_pool_bootstrap_glue 表一致）。
  */
-function alloc_f32(count: i32): *f32 {
+export function alloc_f32(count: i32): *f32 {
   return heap_alloc_f32_c(count);
 }
 
 /**
  * asm 路径薄包装：realloc_f32 → heap_realloc_f32_c。
  */
-function realloc_f32(ptr: *f32, new_count: i32): *f32 {
+export function realloc_f32(ptr: *f32, new_count: i32): *f32 {
   return heap_realloc_f32_c(ptr, new_count);
 }
 
 /**
  * asm 路径薄包装：free_f32 → heap_free_f32_c。
  */
-function free_f32(ptr: *f32): void {
+export function free_f32(ptr: *f32): void {
   heap_free_f32_c(ptr);
 }
 
 /**
  * posix_memalign 分配；align 须为 2 的幂且 ≥ sizeof(void*)；失败返回 null。
  */
-function heap_alloc_aligned_c(align_bytes: usize, size: usize): *u8 {
+export function heap_alloc_aligned_c(align_bytes: usize, size: usize): *u8 {
   let obj_align: usize = align_bytes;
   let slot: *void = 0 as *void;
   if (size == 0) {
@@ -346,7 +346,7 @@ function heap_alloc_aligned_c(align_bytes: usize, size: usize): *u8 {
 /**
  * 返回 (ptr as usize) % mod；mod==0 或 ptr==null 时返回 0（对齐 smoke 用）。
  */
-function heap_ptr_mod_c(ptr: *u8, mod: usize): usize {
+export function heap_ptr_mod_c(ptr: *u8, mod: usize): usize {
   if (ptr == 0 || mod == 0) {
     return 0;
   }
@@ -356,7 +356,7 @@ function heap_ptr_mod_c(ptr: *u8, mod: usize): usize {
 /**
  * 初始化 Arena64；cap==0 时用 HEAP_ARENA64_DEFAULT_CAP；失败返回 -1。
  */
-function heap_arena64_init_c(a: *Arena64, cap: usize): i32 {
+export function heap_arena64_init_c(a: *Arena64, cap: usize): i32 {
   if (a == 0) {
     return -1;
   }
@@ -378,7 +378,7 @@ function heap_arena64_init_c(a: *Arena64, cap: usize): i32 {
 /**
  * arena bump 内核：obj_align 须 >0（由 heap_arena64_alloc_c 保证默认 8）。
  */
-function heap_arena64_bump_c(a: *Arena64, size: usize, obj_align: usize): *u8 {
+export function heap_arena64_bump_c(a: *Arena64, size: usize, obj_align: usize): *u8 {
   let cur: usize = 0;
   let rem: usize = 0;
   let gap: usize = 0;
@@ -403,7 +403,7 @@ function heap_arena64_bump_c(a: *Arena64, size: usize, obj_align: usize): *u8 {
 /**
  * 从 arena bump 分配 size 字节；align 为对象对齐（0 视为 8）；空间不足返回 null。
  */
-function heap_arena64_alloc_c(a: *Arena64, size: usize, align_bytes: usize): *u8 {
+export function heap_arena64_alloc_c(a: *Arena64, size: usize, align_bytes: usize): *u8 {
   if (align_bytes == 0) {
     return heap_arena64_bump_c(a, size, HEAP_PTR_SIZE);
   }
@@ -413,7 +413,7 @@ function heap_arena64_alloc_c(a: *Arena64, size: usize, align_bytes: usize): *u8
 /**
  * 释放 arena chunk 并重置 off/cap（经 heap_free_c 以参与 trace）。
  */
-function heap_arena64_deinit_c(a: *Arena64): void {
+export function heap_arena64_deinit_c(a: *Arena64): void {
   if (a == 0) {
     return;
   }
@@ -426,7 +426,7 @@ function heap_arena64_deinit_c(a: *Arena64): void {
 /**
  * 分配 count 个 u64；count<=0 或失败返回 null（STD-013 Map_u64）。
  */
-function heap_alloc_u64_c(count: i32): *u64 {
+export function heap_alloc_u64_c(count: i32): *u64 {
   if (count <= 0) {
     return 0;
   }
@@ -437,7 +437,7 @@ function heap_alloc_u64_c(count: i32): *u64 {
 /**
  * 释放 heap_alloc_u64_c 分配的 ptr。
  */
-function heap_free_u64_c(ptr: *u64): void {
+export function heap_free_u64_c(ptr: *u64): void {
   if (ptr != 0) {
     heap_libc_free(ptr as *u8);
   }
@@ -446,7 +446,7 @@ function heap_free_u64_c(ptr: *u64): void {
 /**
  * 将 ptr 调整为 new_count 个 u64；new_count<=0 时 free 并返回 null。
  */
-function heap_realloc_u64_c(ptr: *u64, new_count: i32): *u64 {
+export function heap_realloc_u64_c(ptr: *u64, new_count: i32): *u64 {
   if (new_count <= 0) {
     if (ptr != 0) {
       heap_libc_free(ptr as *u8);
@@ -460,7 +460,7 @@ function heap_realloc_u64_c(ptr: *u64, new_count: i32): *u64 {
 /**
  * 块拷贝 u64 列；count<=0 不写（STD-014 Vec_u64）。
  */
-function heap_copy_u64_at_c(dst: *u64, dst_offset: i32, src: *u64, count: i32): void {
+export function heap_copy_u64_at_c(dst: *u64, dst_offset: i32, src: *u64, count: i32): void {
   if (count <= 0) {
     return;
   }
@@ -471,7 +471,7 @@ function heap_copy_u64_at_c(dst: *u64, dst_offset: i32, src: *u64, count: i32): 
 /**
  * 分配 count 个 f64；count<=0 或失败返回 null（STD-014 Vec_f64）。
  */
-function heap_alloc_f64_c(count: i32): *f64 {
+export function heap_alloc_f64_c(count: i32): *f64 {
   if (count <= 0) {
     return 0;
   }
@@ -482,7 +482,7 @@ function heap_alloc_f64_c(count: i32): *f64 {
 /**
  * 将 ptr 调整为 new_count 个 f64；new_count<=0 时 free 并返回 null。
  */
-function heap_realloc_f64_c(ptr: *f64, new_count: i32): *f64 {
+export function heap_realloc_f64_c(ptr: *f64, new_count: i32): *f64 {
   if (new_count <= 0) {
     if (ptr != 0) {
       heap_libc_free(ptr as *u8);
@@ -496,7 +496,7 @@ function heap_realloc_f64_c(ptr: *f64, new_count: i32): *f64 {
 /**
  * 释放 heap_alloc_f64_c / heap_realloc_f64_c 分配的 ptr。
  */
-function heap_free_f64_c(ptr: *f64): void {
+export function heap_free_f64_c(ptr: *f64): void {
   if (ptr != 0) {
     heap_libc_free(ptr as *u8);
   }
@@ -505,7 +505,7 @@ function heap_free_f64_c(ptr: *f64): void {
 /**
  * 块拷贝 f64 列；count<=0 不写。
  */
-function heap_copy_f64_at_c(dst: *f64, dst_offset: i32, src: *f64, count: i32): void {
+export function heap_copy_f64_at_c(dst: *f64, dst_offset: i32, src: *f64, count: i32): void {
   if (count <= 0) {
     return;
   }
@@ -516,14 +516,14 @@ function heap_copy_f64_at_c(dst: *f64, dst_offset: i32, src: *f64, count: i32): 
 /**
  * STD-017：trace 是否启用（1/0）。
  */
-function heap_trace_enabled_c(): i32 {
+export function heap_trace_enabled_c(): i32 {
   return heap_trace_is_on();
 }
 
 /**
  * STD-017：重置 trace 计数器（不改变 on/off 懒加载状态）。
  */
-function heap_trace_reset_c(): void {
+export function heap_trace_reset_c(): void {
   shu_heap_trace_alloc_count = 0;
   shu_heap_trace_free_count = 0;
   shu_heap_trace_realloc_count = 0;
@@ -533,7 +533,7 @@ function heap_trace_reset_c(): void {
 /**
  * STD-017：读取 trace 统计到输出指针（与 HeapTraceStats ABI 一致；null 指针跳过）。
  */
-function heap_trace_stats_c(alloc_count: *u64, free_count: *u64, realloc_count: *u64,
+export function heap_trace_stats_c(alloc_count: *u64, free_count: *u64, realloc_count: *u64,
   bytes_allocated: *u64): void {
   if (alloc_count != 0) {
     alloc_count[0] = shu_heap_trace_alloc_count;
@@ -550,4 +550,4 @@ function heap_trace_stats_c(alloc_count: *u64, free_count: *u64, realloc_count: 
 }
 
 /** 模块尾占位：transitive import 解析锚点。 */
-function heap_libc_module_anchor(): i32 { return 0; }
+export function heap_libc_module_anchor(): i32 { return 0; }

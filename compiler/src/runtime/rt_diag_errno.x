@@ -8,12 +8,12 @@
 // 符号：runtime_diag_code_for_kind / runtime_diag_errno{,_path,_path_pair} /
 //       runtime_diag_cli_usage_note。
 
-extern "C" function strcmp(a: *u8, b: *u8): i32;
-extern "C" function runtime_diag_code_for_kind_impl(kind: *u8): *u8;
+export extern "C" function strcmp(a: *u8, b: *u8): i32;
+export extern "C" function runtime_diag_code_for_kind_impl(kind: *u8): *u8;
 
 /** kind 文案 → 诊断码（薄门闩；实际实现 seed _impl）。 */
 #[no_mangle]
-function runtime_diag_code_for_kind(kind: *u8): *u8 {
+export function runtime_diag_code_for_kind(kind: *u8): *u8 {
   unsafe {
     return runtime_diag_code_for_kind_impl(kind);
   }

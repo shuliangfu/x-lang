@@ -19,90 +19,90 @@
 // 【文件职责】cstr_len、cstring_new/free；FfiPoint pack/unpack；
 // invoke_cb usize 回调调用。
 // 【依赖】core；与 std/ffi/ffi.x 同属一模块（F-ZC 纯 .x）。
-extern function ffi_cstr_len_c(ptr: *u8): i32;
-extern function ffi_cstring_new_c(ptr: *u8, len: i32): *u8;
-extern function ffi_cstring_free_c(ptr: *u8): void;
-extern function ffi_cstring_try_new_c(ptr: *u8, len: i32, out: *usize): i32;
-extern function ffi_point_pack_c(buf: *u8, cap: i32, x: i32, y: i32): i32;
-extern function ffi_point_unpack_c(buf: *u8, cap: i32, out: *FfiPoint): i32;
-extern function ffi_cb_double_i32_fn_c(): usize;
-extern function ffi_invoke_i32_cb_c(cb: usize, arg: i32): i32;
+export extern function ffi_cstr_len_c(ptr: *u8): i32;
+export extern function ffi_cstring_new_c(ptr: *u8, len: i32): *u8;
+export extern function ffi_cstring_free_c(ptr: *u8): void;
+export extern function ffi_cstring_try_new_c(ptr: *u8, len: i32, out: *usize): i32;
+export extern function ffi_point_pack_c(buf: *u8, cap: i32, x: i32, y: i32): i32;
+export extern function ffi_point_unpack_c(buf: *u8, cap: i32, out: *FfiPoint): i32;
+export extern function ffi_cb_double_i32_fn_c(): usize;
+export extern function ffi_invoke_i32_cb_c(cb: usize, arg: i32): i32;
 
 /** 成功。 */
-const FFI_OK: i32 = 0;
+export const FFI_OK: i32 = 0;
 /** 空指针错误。 */
-const FFI_ERR_NULL: i32 = -1;
+export const FFI_ERR_NULL: i32 = -1;
 /** len < 0。 */
-const FFI_ERR_INVALID_LEN: i32 = -2;
+export const FFI_ERR_INVALID_LEN: i32 = -2;
 /** malloc 失败。 */
-const FFI_ERR_OOM: i32 = -3;
+export const FFI_ERR_OOM: i32 = -3;
 /** 缓冲区过小（cap < 8）。 */
-const FFI_ERR_TOO_SMALL: i32 = -4;
+export const FFI_ERR_TOO_SMALL: i32 = -4;
 
 /** 8 字节 POD 点（x, y 各 i32）。 */
-struct FfiPoint {
+export struct FfiPoint {
   x: i32
   y: i32
 }
 
 /** 返回 NUL 结尾字符串的字节长度（不含 NUL）；ptr 为 0 返回 -1。 */
-function cstr_len(ptr: *u8): i32 {
+export function cstr_len(ptr: *u8): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = ffi_cstr_len_c(ptr); }
   return _rc;
 }
 
 /** 分配并复制 ptr[0..len]，末尾加 NUL；失败返回 0。需用 cstring_free 释放。 */
-function cstring_new(ptr: *u8, len: i32): *u8 {
+export function cstring_new(ptr: *u8, len: i32): *u8 {
   let _rc: *u8 = 0;
   unsafe { _rc = ffi_cstring_new_c(ptr, len); }
   return _rc;
 }
 
 /** 显式错误码分配 owned CString；成功 FFI_OK 且 *out 为指针位模式（STD-055）。 */
-function cstring_try_new(ptr: *u8, len: i32, out: *usize): i32 {
+export function cstring_try_new(ptr: *u8, len: i32, out: *usize): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = ffi_cstring_try_new_c(ptr, len, out); }
   return _rc;
 }
 
 /** 释放由 cstring_new / cstring_try_new 返回的指针。 */
-function cstring_free(ptr: *u8): void {
+export function cstring_free(ptr: *u8): void {
   unsafe {
     ffi_cstring_free_c(ptr);
   }
 }
 
 /** cstring_free 别名（SAFE-004 C6：恰好一次释放）。 */
-function cstring_destroy(ptr: *u8): void {
+export function cstring_destroy(ptr: *u8): void {
   unsafe {
     ffi_cstring_free_c(ptr);
   }
 }
 
 /** 将 x/y 以小端写入 buf；cap<8 返回 FFI_ERR_TOO_SMALL。 */
-function point_pack(buf: *u8, cap: i32, x: i32, y: i32): i32 {
+export function point_pack(buf: *u8, cap: i32, x: i32, y: i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = ffi_point_pack_c(buf, cap, x, y); }
   return _rc;
 }
 
 /** 从 buf 读出 FfiPoint 到 out；cap<8 返回 FFI_ERR_TOO_SMALL。 */
-function point_unpack(buf: *u8, cap: i32, out: *FfiPoint): i32 {
+export function point_unpack(buf: *u8, cap: i32, out: *FfiPoint): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = ffi_point_unpack_c(buf, cap, out); }
   return _rc;
 }
 
 /** 返回内置 arg*2 回调函数地址（usize）。 */
-function cb_double_fn(): usize {
+export function cb_double_fn(): usize {
   let _rc: usize = 0;
   unsafe { _rc = ffi_cb_double_i32_fn_c(); }
   return _rc;
 }
 
 /** 调用 usize 承载的 i32→i32 回调；cb=0 返回 FFI_ERR_NULL。 */
-function invoke_cb(cb: usize, arg: i32): i32 {
+export function invoke_cb(cb: usize, arg: i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = ffi_invoke_i32_cb_c(cb, arg); }
   return _rc;

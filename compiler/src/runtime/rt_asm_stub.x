@@ -7,11 +7,11 @@
 // 符号：asm_codegen_ast（weak GAS main→42）、driver_asm_output_want_exe。
 // 全量 elf/macho codegen 仍 backend / mega。
 
-extern "C" function shux_output_want_exe(path: *u8): i32;
+export extern "C" function shux_output_want_exe(path: *u8): i32;
 
 /** -o 路径是否表示可执行（转调 shux_output_want_exe；G-02f-430 已 .x 真迁）。 */
 #[no_mangle]
-function driver_asm_output_want_exe(path: *u8): i32 {
+export function driver_asm_output_want_exe(path: *u8): i32 {
   unsafe {
     return shux_output_want_exe(path);
   }

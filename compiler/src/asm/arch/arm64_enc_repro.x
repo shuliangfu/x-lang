@@ -15,12 +15,12 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 const elf = import("platform.elf");
 
-extern function pipeline_asm_arm64_cset_cond_enc_from_cc(cc: i32): i32;
+export extern function pipeline_asm_arm64_cset_cond_enc_from_cc(cc: i32): i32;
 
-function enc_a(ctx: *ElfCodegenCtx, val: i32): i32 {
+export function enc_a(ctx: *ElfCodegenCtx, val: i32): i32 {
   return 0;
 }
 
-function enc_b(ctx: *ElfCodegenCtx, frame_size: i32): i32 {
+export function enc_b(ctx: *ElfCodegenCtx, frame_size: i32): i32 {
   return 0;
 }

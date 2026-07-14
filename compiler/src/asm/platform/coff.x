@@ -29,12 +29,12 @@ const codegen_outbuf_abi = import("codegen_outbuf_abi");
 const elf = import("platform.elf");
 
 /** sidecar reloc glue（定义在 ast_pool.c）。 */
-extern function pipeline_elf_ctx_reloc_sym_name_copy64(ctx: *u8, idx: i32, dst: *u8): void;
-extern function pipeline_elf_ctx_reloc_name_len(ctx: *u8, idx: i32): i32;
-extern function pipeline_elf_ctx_reloc_offset_at(ctx: *u8, idx: i32): i32;
+export extern function pipeline_elf_ctx_reloc_sym_name_copy64(ctx: *u8, idx: i32, dst: *u8): void;
+export extern function pipeline_elf_ctx_reloc_name_len(ctx: *u8, idx: i32): i32;
+export extern function pipeline_elf_ctx_reloc_offset_at(ctx: *u8, idx: i32): i32;
 
 /** 向 out 追加 ptr[0..n-1]，返回 0 成功，-1 缓冲区满。 */
-function coff_append(out: *CodegenOutBuf, ptr: *u8, n: i32): i32 {
+export function coff_append(out: *CodegenOutBuf, ptr: *u8, n: i32): i32 {
   let i: i32 = 0;
   while (i < n && out.len < 8388608) {
     out.data[out.len] = ptr[i];
@@ -47,7 +47,7 @@ function coff_append(out: *CodegenOutBuf, ptr: *u8, n: i32): i32 {
 
 /** 将 PE/COFF x86_64 可重定位 .obj 写入 out；调用前需已执行
 * elf_resolve_patches。仅支持 ctx.e_machine == 62。返回写入字节数，失败 -1。 */
-function write_coff_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i32 {
+export function write_coff_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i32 {
   if (ctx.e_machine != 62) {
     return -1;
   }

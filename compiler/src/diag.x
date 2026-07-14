@@ -12,51 +12,51 @@
 // G-02f-181：P0-1 闭合登记；code 表+reportf 仍属语言/ABI 限制，当前总进度见 analysis/自举进度.md。
 // 注意：va_list 入口仍留 C（语言/ABI 限制）。
 
-extern "C" function diag_json_get_state(): i32;
-extern "C" function diag_json_set_state(v: i32): void;
-extern "C" function diag_ctx_get_use_color(): i32;
-extern "C" function diag_ctx_get_file(): *u8;
-extern "C" function diag_ctx_get_source(): *u8;
-extern "C" function diag_ctx_get_source_len(): i64;
-extern "C" function diag_ctx_set_all(path: *u8, source: *u8, source_len: i64, use_color: i32): void;
-extern "C" function diag_code_table_has(code: *u8): i32;
-extern "C" function diag_code_table_len(): i64;
-extern "C" function diag_code_table_code_at(i: i64): *u8;
-extern "C" function diag_code_table_kind_at(i: i64): *u8;
-extern "C" function diag_code_table_summary_at(i: i64): *u8;
-extern "C" function diag_code_table_details_at(i: i64): *u8;
-extern "C" function diag_entry_code(code: *u8): *u8;
-extern "C" function diag_entry_kind(code: *u8): *u8;
-extern "C" function diag_entry_summary(code: *u8): *u8;
-extern "C" function diag_entry_details(code: *u8): *u8;
-extern "C" function getenv(name: *u8): *u8;
-extern "C" function isatty(fd: i32): i32;
-extern "C" function diag_code_eq_impl(lhs: *u8, rhs: *u8): i32;
-extern "C" function diag_kind_is_exact_impl(kind: *u8, needle: *u8): i32;
-extern "C" function diag_line_digits_impl(line: i32): i32;
+export extern "C" function diag_json_get_state(): i32;
+export extern "C" function diag_json_set_state(v: i32): void;
+export extern "C" function diag_ctx_get_use_color(): i32;
+export extern "C" function diag_ctx_get_file(): *u8;
+export extern "C" function diag_ctx_get_source(): *u8;
+export extern "C" function diag_ctx_get_source_len(): i64;
+export extern "C" function diag_ctx_set_all(path: *u8, source: *u8, source_len: i64, use_color: i32): void;
+export extern "C" function diag_code_table_has(code: *u8): i32;
+export extern "C" function diag_code_table_len(): i64;
+export extern "C" function diag_code_table_code_at(i: i64): *u8;
+export extern "C" function diag_code_table_kind_at(i: i64): *u8;
+export extern "C" function diag_code_table_summary_at(i: i64): *u8;
+export extern "C" function diag_code_table_details_at(i: i64): *u8;
+export extern "C" function diag_entry_code(code: *u8): *u8;
+export extern "C" function diag_entry_kind(code: *u8): *u8;
+export extern "C" function diag_entry_summary(code: *u8): *u8;
+export extern "C" function diag_entry_details(code: *u8): *u8;
+export extern "C" function getenv(name: *u8): *u8;
+export extern "C" function isatty(fd: i32): i32;
+export extern "C" function diag_code_eq_impl(lhs: *u8, rhs: *u8): i32;
+export extern "C" function diag_kind_is_exact_impl(kind: *u8, needle: *u8): i32;
+export extern "C" function diag_line_digits_impl(line: i32): i32;
 
 // G-02f-156 / G-02f-157：stdio 冷路径桥
-extern "C" function diag_stderr(): *u8;
-extern "C" function diag_stdout(): *u8;
-extern "C" function diag_io_fputc(o: *u8, c: i32): i32;
-extern "C" function diag_io_fputs(s: *u8, o: *u8): i32;
-extern "C" function diag_io_fputs_u04x(o: *u8, c: i32): void;
-extern "C" function diag_io_fflush(o: *u8): void;
-extern "C" function diag_io_fprint_line_col(o: *u8, line: i32, col: i32): void;
-extern "C" function diag_io_fprint_unknown_code(o: *u8, code: *u8): void;
-extern "C" function diag_io_fprint_code_table_hdr(o: *u8): void;
-extern "C" function diag_io_fprint_code_table_row(o: *u8, code: *u8, kind: *u8, summary: *u8): void;
-extern "C" function diag_io_fprint_loc_file_line_col(o: *u8, pc: *u8, file: *u8, line: i32, col: i32, rs: *u8): void;
-extern "C" function diag_io_fprint_loc_file_line(o: *u8, pc: *u8, file: *u8, line: i32, rs: *u8): void;
-extern "C" function diag_io_fprint_loc_file(o: *u8, pc: *u8, file: *u8, rs: *u8): void;
-extern "C" function diag_io_fprint_loc_line_col(o: *u8, pc: *u8, line: i32, col: i32, rs: *u8): void;
-extern "C" function diag_io_fprint_gutter_blank(o: *u8, width: i32): void;
-extern "C" function diag_io_fprint_src_line(o: *u8, line: i32, start: *u8, len: i32): void;
-extern "C" function diag_io_fprint_gutter_bar(o: *u8, width: i32): void;
-extern "C" function diag_io_fprint_caret_mark(o: *u8, cc: *u8, rs: *u8, detail: *u8): void;
+export extern "C" function diag_stderr(): *u8;
+export extern "C" function diag_stdout(): *u8;
+export extern "C" function diag_io_fputc(o: *u8, c: i32): i32;
+export extern "C" function diag_io_fputs(s: *u8, o: *u8): i32;
+export extern "C" function diag_io_fputs_u04x(o: *u8, c: i32): void;
+export extern "C" function diag_io_fflush(o: *u8): void;
+export extern "C" function diag_io_fprint_line_col(o: *u8, line: i32, col: i32): void;
+export extern "C" function diag_io_fprint_unknown_code(o: *u8, code: *u8): void;
+export extern "C" function diag_io_fprint_code_table_hdr(o: *u8): void;
+export extern "C" function diag_io_fprint_code_table_row(o: *u8, code: *u8, kind: *u8, summary: *u8): void;
+export extern "C" function diag_io_fprint_loc_file_line_col(o: *u8, pc: *u8, file: *u8, line: i32, col: i32, rs: *u8): void;
+export extern "C" function diag_io_fprint_loc_file_line(o: *u8, pc: *u8, file: *u8, line: i32, rs: *u8): void;
+export extern "C" function diag_io_fprint_loc_file(o: *u8, pc: *u8, file: *u8, rs: *u8): void;
+export extern "C" function diag_io_fprint_loc_line_col(o: *u8, pc: *u8, line: i32, col: i32, rs: *u8): void;
+export extern "C" function diag_io_fprint_gutter_blank(o: *u8, width: i32): void;
+export extern "C" function diag_io_fprint_src_line(o: *u8, line: i32, start: *u8, len: i32): void;
+export extern "C" function diag_io_fprint_gutter_bar(o: *u8, width: i32): void;
+export extern "C" function diag_io_fprint_caret_mark(o: *u8, cc: *u8, rs: *u8, detail: *u8): void;
 
 // G-02f-159：palette 颜色（use_color 经 color_prefix）
-function diag_palette_kind_color(kind: *u8): *u8 {
+export function diag_palette_kind_color(kind: *u8): *u8 {
   unsafe {
     if (kind == 0) { return diag_color_prefix("", "\x1b[1;37m"); }
     if (kind[0] == 0) { return diag_color_prefix("", "\x1b[1;37m"); }
@@ -71,7 +71,7 @@ function diag_palette_kind_color(kind: *u8): *u8 {
   return "";
 }
 
-function diag_palette_caret_color(kind: *u8): *u8 {
+export function diag_palette_caret_color(kind: *u8): *u8 {
   unsafe {
     if (kind == 0) { return diag_color_prefix("", "\x1b[37m"); }
     if (kind[0] == 0) { return diag_color_prefix("", "\x1b[37m"); }
@@ -88,7 +88,7 @@ function diag_palette_caret_color(kind: *u8): *u8 {
 
 // G-02f-159：人类可读 caret / 位置渲染
 #[no_mangle]
-function diag_report_human(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void {
+export function diag_report_human(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void {
   unsafe {
     let err: *u8 = diag_stderr();
     let actual_file: *u8 = file;
@@ -168,14 +168,14 @@ function diag_report_human(file: *u8, line: i32, col: i32, kind: *u8, code: *u8,
 
 // G-02f-158 / G-02f-159：report 分流 JSON / human
 #[no_mangle]
-function diag_report(file: *u8, line: i32, col: i32, kind: *u8, msg: *u8, detail: *u8): void {
+export function diag_report(file: *u8, line: i32, col: i32, kind: *u8, msg: *u8, detail: *u8): void {
   diag_report_with_code(file, line, col, kind, 0 as *u8, msg, detail);
 }
 
 /* ---- G-02f-74 / G-02f-82 / G-02f-158 / G-02f-159 diag gates ---- */
 
 #[no_mangle]
-function diag_report_with_code(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void {
+export function diag_report_with_code(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void {
   unsafe {
     if (diag_json_enabled() != 0) {
       let f: *u8 = file;
@@ -189,7 +189,7 @@ function diag_report_with_code(file: *u8, line: i32, col: i32, kind: *u8, code: 
 
 // G-02f-155：上下文 getter 真迁
 #[no_mangle]
-function diag_get_file(): *u8 {
+export function diag_get_file(): *u8 {
   unsafe {
     return diag_ctx_get_file();
   }
@@ -197,7 +197,7 @@ function diag_get_file(): *u8 {
 }
 
 #[no_mangle]
-function diag_get_source(): *u8 {
+export function diag_get_source(): *u8 {
   unsafe {
     return diag_ctx_get_source();
   }
@@ -205,7 +205,7 @@ function diag_get_source(): *u8 {
 }
 
 #[no_mangle]
-function diag_get_source_len(): i64 {
+export function diag_get_source_len(): i64 {
   unsafe {
     return diag_ctx_get_source_len();
   }
@@ -214,7 +214,7 @@ function diag_get_source_len(): i64 {
 
 // G-02f-156：set_file / push_file / restore 真迁
 #[no_mangle]
-function diag_set_file(path: *u8, source: *u8, source_len: i64): void {
+export function diag_set_file(path: *u8, source: *u8, source_len: i64): void {
   let c: i32 = diag_should_color();
   unsafe {
     diag_ctx_set_all(path, source, source_len, c);
@@ -222,7 +222,7 @@ function diag_set_file(path: *u8, source: *u8, source_len: i64): void {
 }
 
 // DiagContextSnapshot：file_path@0 source@8 source_len@16 use_color@24
-function diag_snap_store_ptr(snap: *u8, off: i32, val: *u8): void {
+export function diag_snap_store_ptr(snap: *u8, off: i32, val: *u8): void {
   if (snap == 0) { return; }
   let q: *u8 = snap;
   let i: i32 = 0;
@@ -233,7 +233,7 @@ function diag_snap_store_ptr(snap: *u8, off: i32, val: *u8): void {
   diag_store_ptr_le(q, val);
 }
 
-function diag_snap_store_usize(snap: *u8, off: i32, val: usize): void {
+export function diag_snap_store_usize(snap: *u8, off: i32, val: usize): void {
   if (snap == 0) { return; }
   let q: *u8 = snap;
   let i: i32 = 0;
@@ -244,7 +244,7 @@ function diag_snap_store_usize(snap: *u8, off: i32, val: usize): void {
   diag_store_usize_le(q, val);
 }
 
-function diag_snap_store_i32(snap: *u8, off: i32, val: i32): void {
+export function diag_snap_store_i32(snap: *u8, off: i32, val: i32): void {
   if (snap == 0) { return; }
   let q: *u8 = snap;
   let i: i32 = 0;
@@ -264,7 +264,7 @@ function diag_snap_store_i32(snap: *u8, off: i32, val: i32): void {
   q[3] = (a % m) as u8;
 }
 
-function diag_snap_load_ptr(snap: *u8, off: i32): *u8 {
+export function diag_snap_load_ptr(snap: *u8, off: i32): *u8 {
   if (snap == 0) { return 0 as *u8; }
   let q: *u8 = snap;
   let i: i32 = 0;
@@ -286,7 +286,7 @@ function diag_snap_load_ptr(snap: *u8, off: i32): *u8 {
   return a as *u8;
 }
 
-function diag_snap_load_usize(snap: *u8, off: i32): usize {
+export function diag_snap_load_usize(snap: *u8, off: i32): usize {
   if (snap == 0) { return 0; }
   let q: *u8 = snap;
   let i: i32 = 0;
@@ -308,7 +308,7 @@ function diag_snap_load_usize(snap: *u8, off: i32): usize {
   return a;
 }
 
-function diag_snap_load_i32(snap: *u8, off: i32): i32 {
+export function diag_snap_load_i32(snap: *u8, off: i32): i32 {
   if (snap == 0) { return 0; }
   let q: *u8 = snap;
   let i: i32 = 0;
@@ -325,7 +325,7 @@ function diag_snap_load_i32(snap: *u8, off: i32): i32 {
 }
 
 #[no_mangle]
-function diag_push_file(snapshot: *u8, path: *u8, source: *u8, source_len: i64): void {
+export function diag_push_file(snapshot: *u8, path: *u8, source: *u8, source_len: i64): void {
   unsafe {
     if (snapshot != 0) {
       diag_snap_store_ptr(snapshot, 0, diag_ctx_get_file());
@@ -348,7 +348,7 @@ function diag_push_file(snapshot: *u8, path: *u8, source: *u8, source_len: i64):
 }
 
 #[no_mangle]
-function diag_restore(snapshot: *u8): void {
+export function diag_restore(snapshot: *u8): void {
   if (snapshot == 0) { return; }
   unsafe {
     let p: *u8 = diag_snap_load_ptr(snapshot, 0);
@@ -361,7 +361,7 @@ function diag_restore(snapshot: *u8): void {
 
 // G-02f-155 / G-02f-157：code 表
 #[no_mangle]
-function diag_code_is_known(code: *u8): i32 {
+export function diag_code_is_known(code: *u8): i32 {
   unsafe {
     return diag_code_table_has(code);
   }
@@ -369,7 +369,7 @@ function diag_code_is_known(code: *u8): i32 {
 }
 
 #[no_mangle]
-function diag_code_kind(code: *u8): *u8 {
+export function diag_code_kind(code: *u8): *u8 {
   unsafe {
     return diag_entry_kind(code);
   }
@@ -377,7 +377,7 @@ function diag_code_kind(code: *u8): *u8 {
 }
 
 #[no_mangle]
-function diag_code_summary(code: *u8): *u8 {
+export function diag_code_summary(code: *u8): *u8 {
   unsafe {
     return diag_entry_summary(code);
   }
@@ -385,7 +385,7 @@ function diag_code_summary(code: *u8): *u8 {
 }
 
 #[no_mangle]
-function diag_code_details(code: *u8): *u8 {
+export function diag_code_details(code: *u8): *u8 {
   unsafe {
     return diag_entry_details(code);
   }
@@ -394,7 +394,7 @@ function diag_code_details(code: *u8): *u8 {
 
 // G-02f-157：已知码列表（comma 分隔）
 #[no_mangle]
-function diag_print_known_codes(out: *u8): void {
+export function diag_print_known_codes(out: *u8): void {
   unsafe {
     let o: *u8 = out;
     if (o == 0) { o = diag_stdout(); }
@@ -416,7 +416,7 @@ function diag_print_known_codes(out: *u8): void {
 
 // G-02f-157：单码解释 / 未知时列已知码
 #[no_mangle]
-function diag_print_code_explain(out: *u8, code: *u8): void {
+export function diag_print_code_explain(out: *u8, code: *u8): void {
   unsafe {
     let o: *u8 = out;
     if (o == 0) { o = diag_stdout(); }
@@ -446,7 +446,7 @@ function diag_print_code_explain(out: *u8, code: *u8): void {
 
 // G-02f-157：完整 code 表
 #[no_mangle]
-function diag_print_code_table(out: *u8): void {
+export function diag_print_code_table(out: *u8): void {
   unsafe {
     let o: *u8 = out;
     if (o == 0) { o = diag_stdout(); }
@@ -465,7 +465,7 @@ function diag_print_code_table(out: *u8): void {
 
 // G-02f-153：JSON 模式与颜色探测
 #[no_mangle]
-function diag_set_json_mode(enable: i32): void {
+export function diag_set_json_mode(enable: i32): void {
   unsafe {
     if (enable != 0) {
       diag_json_set_state(1);
@@ -476,7 +476,7 @@ function diag_set_json_mode(enable: i32): void {
 }
 
 #[no_mangle]
-function diag_json_enabled(): i32 {
+export function diag_json_enabled(): i32 {
   unsafe {
     let s: i32 = diag_json_get_state();
     // -2 = unset
@@ -504,7 +504,7 @@ function diag_json_enabled(): i32 {
 /* ---- G-02f-96 / G-02f-153 / G-02f-154：color ---- */
 
 #[no_mangle]
-function diag_should_color(): i32 {
+export function diag_should_color(): i32 {
   unsafe {
     let k: u8[16] = [];
     // SHUX_NO_COLOR
@@ -519,7 +519,7 @@ function diag_should_color(): i32 {
 
 // G-02f-154：use_color ? color : plain
 #[no_mangle]
-function diag_color_prefix(plain: *u8, color: *u8): *u8 {
+export function diag_color_prefix(plain: *u8, color: *u8): *u8 {
   unsafe {
     if (diag_ctx_get_use_color() != 0) {
       return color;
@@ -531,7 +531,7 @@ function diag_color_prefix(plain: *u8, color: *u8): *u8 {
 
 // G-02f-154：use_color ? ANSI reset : ""
 #[no_mangle]
-function diag_color_reset(): *u8 {
+export function diag_color_reset(): *u8 {
   unsafe {
     if (diag_ctx_get_use_color() != 0) {
       // "\x1b[0m"
@@ -543,7 +543,7 @@ function diag_color_reset(): *u8 {
 }
 
 // G-02f-154：64 位 LE 写指针 / size_t（**out / *size_t 语义）
-function diag_store_ptr_le(p: *u8, val: *u8): void {
+export function diag_store_ptr_le(p: *u8, val: *u8): void {
   if (p == 0) { return; }
   let a: usize = val as usize;
   let m: usize = 256;
@@ -564,7 +564,7 @@ function diag_store_ptr_le(p: *u8, val: *u8): void {
   p[7] = (a % m) as u8;
 }
 
-function diag_store_usize_le(p: *u8, val: usize): void {
+export function diag_store_usize_le(p: *u8, val: usize): void {
   if (p == 0) { return; }
   let a: usize = val;
   let m: usize = 256;
@@ -589,7 +589,7 @@ function diag_store_usize_le(p: *u8, val: usize): void {
 
 // G-02f-156：print_header 真迁（fputs 组合，避免 varargs）
 #[no_mangle]
-function diag_print_header(kind: *u8, code: *u8, msg: *u8, kind_color: *u8, reset: *u8): void {
+export function diag_print_header(kind: *u8, code: *u8, msg: *u8, kind_color: *u8, reset: *u8): void {
   unsafe {
     let err: *u8 = diag_stderr();
     let m: *u8 = msg;
@@ -623,7 +623,7 @@ function diag_print_header(kind: *u8, code: *u8, msg: *u8, kind_color: *u8, rese
 
 // G-02f-154：按行号从 diag 源缓冲取一行
 #[no_mangle]
-function diag_extract_line(line_no: i32, line_start_out: *u8, line_len_out: *u8): i32 {
+export function diag_extract_line(line_no: i32, line_start_out: *u8, line_len_out: *u8): i32 {
   if (line_no <= 0) { return 0 - 1; }
   if (line_start_out == 0) { return 0 - 1; }
   if (line_len_out == 0) { return 0 - 1; }
@@ -669,7 +669,7 @@ function diag_extract_line(line_no: i32, line_start_out: *u8, line_len_out: *u8)
 
 // G-02f-156：JSON 字符串转义写出
 #[no_mangle]
-function diag_json_write_str(out: *u8, s: *u8): void {
+export function diag_json_write_str(out: *u8, s: *u8): void {
   unsafe {
     let p: *u8 = s;
     if (p == 0) { p = ""; }
@@ -719,7 +719,7 @@ function diag_json_write_str(out: *u8, s: *u8): void {
 
 // G-02f-156：NDJSON 一行诊断
 #[no_mangle]
-function diag_report_json(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8): void {
+export function diag_report_json(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8): void {
   unsafe {
     let err: *u8 = diag_stderr();
     let sev: *u8 = diag_json_severity(kind);
@@ -758,7 +758,7 @@ function diag_report_json(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, 
 
 // G-02f-158：did-you-mean 建议码
 #[no_mangle]
-function diag_code_suggest(code: *u8, out: *u8, out_cap: i64): *u8 {
+export function diag_code_suggest(code: *u8, out: *u8, out_cap: i64): *u8 {
   if (code == 0) { return 0 as *u8; }
   unsafe {
     let n: i64 = diag_code_table_len();
@@ -807,7 +807,7 @@ function diag_code_suggest(code: *u8, out: *u8, out_cap: i64): *u8 {
 
 // G-02f-152：有界 Levenshtein（大小写不敏感）；码长 <64
 #[no_mangle]
-function diag_levenshtein_ci(a: *u8, b: *u8): i32 {
+export function diag_levenshtein_ci(a: *u8, b: *u8): i32 {
   if (a == 0) { return 999; }
   if (b == 0) { return 999; }
   let la: i32 = 0;
@@ -870,7 +870,7 @@ function diag_levenshtein_ci(a: *u8, b: *u8): i32 {
 
 // G-02f-130：diag_kind_contains 真迁 .x（子串探测）
 #[no_mangle]
-function diag_kind_contains(kind: *u8, needle: *u8): i32 {
+export function diag_kind_contains(kind: *u8, needle: *u8): i32 {
   if (kind == 0) { return 0; }
   if (needle == 0) { return 0; }
   if (needle[0] == 0) { return 0; }
@@ -901,7 +901,7 @@ function diag_kind_contains(kind: *u8, needle: *u8): i32 {
 }
 
 #[no_mangle]
-function diag_line_digits(line: i32): i32 {
+export function diag_line_digits(line: i32): i32 {
   let width: i32 = 1;
   while (line >= 10) {
     line = line / 10;
@@ -911,7 +911,7 @@ function diag_line_digits(line: i32): i32 {
 }
 
 #[no_mangle]
-function diag_kind_is_exact(kind: *u8, needle: *u8): i32 {
+export function diag_kind_is_exact(kind: *u8, needle: *u8): i32 {
   if (kind == 0) { return 0; }
   if (needle == 0) { return 0; }
   let i: i32 = 0;
@@ -927,7 +927,7 @@ function diag_kind_is_exact(kind: *u8, needle: *u8): i32 {
 
 // Case-insensitive code equality (ASCII a-z).
 #[no_mangle]
-function diag_code_eq(lhs: *u8, rhs: *u8): i32 {
+export function diag_code_eq(lhs: *u8, rhs: *u8): i32 {
   if (lhs == 0) { return 0; }
   if (rhs == 0) { return 0; }
   let i: i32 = 0;
@@ -950,7 +950,7 @@ function diag_code_eq(lhs: *u8, rhs: *u8): i32 {
 // G-02f-124：diag_json_severity 真迁 .x
 
 #[no_mangle]
-function diag_json_severity(kind: *u8): *u8 {
+export function diag_json_severity(kind: *u8): *u8 {
   if (kind == 0) { return "error"; }
   if (kind[0] == 0) { return "error"; }
   // contains "warning"

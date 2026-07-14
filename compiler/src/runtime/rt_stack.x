@@ -6,11 +6,11 @@
 // 🔒 pthread 体在 driver_run_thread_on_large_stack。
 // G-02f-449：thin+rest PREFER_X_O；.x 薄门闩调 _impl，seed 宏重命名。
 
-extern "C" function driver_stack_esc_gate_large_stack_impl(src: *u8, src_len: i32): i32;
+export extern "C" function driver_stack_esc_gate_large_stack_impl(src: *u8, src_len: i32): i32;
 
 /** large_stack gate（薄门闩；实际实现 seed _impl）。 */
 #[no_mangle]
-function driver_stack_esc_gate_large_stack(src: *u8, src_len: i32): i32 {
+export function driver_stack_esc_gate_large_stack(src: *u8, src_len: i32): i32 {
   unsafe {
     return driver_stack_esc_gate_large_stack_impl(src, src_len);
   }

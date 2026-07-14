@@ -7,9 +7,9 @@
 // G-02f-99：+ format_u32 / elf append u32 / arm64 mov imm32 薄门闩。
 // G-02f-128：shu_elf_ctx_append_u32_le / shu_arm64_mov_imm32_to_w0_c 真迁 .x
 
-extern "C" function pipeline_elf_ctx_append_bytes(ctx: *u8, ptr: *u8, n: i32): i32;
+export extern "C" function pipeline_elf_ctx_append_bytes(ctx: *u8, ptr: *u8, n: i32): i32;
 
-function asm_backend_compat_stubs_x_doc_anchor(): i32 {
+export function asm_backend_compat_stubs_x_doc_anchor(): i32 {
   return 0;
 }
 
@@ -17,7 +17,7 @@ function asm_backend_compat_stubs_x_doc_anchor(): i32 {
 
 // G-02f-139：u32 十进制写入 buf[off..]，返回位数；失败 -1
 #[no_mangle]
-function shu_format_u32_to_buf(buf: *u8, off: i32, max: i32, u: u32): i32 {
+export function shu_format_u32_to_buf(buf: *u8, off: i32, max: i32, u: u32): i32 {
   if (buf == 0) { return 0 - 1; }
   if (max < 1) { return 0 - 1; }
   let tmp: u8[10] = [];
@@ -45,7 +45,7 @@ function shu_format_u32_to_buf(buf: *u8, off: i32, max: i32, u: u32): i32 {
 }
 
 #[no_mangle]
-function shu_elf_ctx_append_u32_le(elf_ctx: *u8, word: u32): i32 {
+export function shu_elf_ctx_append_u32_le(elf_ctx: *u8, word: u32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   let b0: u8 = (word & 255) as u8;
   let b1: u8 = ((word / 256) & 255) as u8;
@@ -63,7 +63,7 @@ function shu_elf_ctx_append_u32_le(elf_ctx: *u8, word: u32): i32 {
 }
 
 #[no_mangle]
-function shu_arm64_mov_imm32_to_w0_c(elf_ctx: *u8, imm32: i32): i32 {
+export function shu_arm64_mov_imm32_to_w0_c(elf_ctx: *u8, imm32: i32): i32 {
   // MOVZ/MOVK w0：lo/hi 各 16 位；<<5 → *32
   let u: u32 = imm32 as u32;
   let lo: u32 = u & 65535;

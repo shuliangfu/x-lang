@@ -7,17 +7,17 @@
 // G-02f-101：+ hex2 / gold_anchor 薄门闩。
 // G-02f-106：+ capture_and_check_gold 薄门闩。
 
-extern "C" function backtrace_u8_hex2_impl(b: u8, out: *u8): void;
-extern "C" function backtrace_capture_and_check_gold_c_impl(): i32;
+export extern "C" function backtrace_u8_hex2_impl(b: u8, out: *u8): void;
+export extern "C" function backtrace_capture_and_check_gold_c_impl(): i32;
 
-function runtime_backtrace_platform_x_doc_anchor(): i32 {
+export function runtime_backtrace_platform_x_doc_anchor(): i32 {
   return 0;
 }
 
 /* ---- G-02f-101：backtrace helpers 门闩 ---- */
 
 #[no_mangle]
-function backtrace_u8_hex2(b: u8, out: *u8): void {
+export function backtrace_u8_hex2(b: u8, out: *u8): void {
   unsafe {
     backtrace_u8_hex2_impl(b, out);
   }
@@ -28,7 +28,7 @@ function backtrace_u8_hex2(b: u8, out: *u8): void {
 /* ---- G-02f-106：capture gold 门闩 ---- */
 
 #[no_mangle]
-function backtrace_capture_and_check_gold_c(): i32 {
+export function backtrace_capture_and_check_gold_c(): i32 {
   unsafe {
     return backtrace_capture_and_check_gold_c_impl();
   }
@@ -37,10 +37,10 @@ function backtrace_capture_and_check_gold_c(): i32 {
 
 // G-02f-127：name_has_gold_anchor 真迁 .x
 
-extern "C" function backtrace_name_has_gold_anchor_c(name: *u8): i32;
+export extern "C" function backtrace_name_has_gold_anchor_c(name: *u8): i32;
 
 #[no_mangle]
-function name_has_gold_anchor(name: *u8): i32 {
+export function name_has_gold_anchor(name: *u8): i32 {
   unsafe {
     return backtrace_name_has_gold_anchor_c(name);
   }

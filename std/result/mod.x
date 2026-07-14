@@ -25,24 +25,24 @@ const result = import("core.result");
 const error = import("std.error");
 
 /** 构造 Ok(i32)。 */
-function ok(x: i32): Result_i32 { return result.ok(x); }
+export function ok(x: i32): Result_i32 { return result.ok(x); }
 
 /** 构造 Err(i32)。 */
-function err(e: i32): Result_i32 { return result.err(e); }
+export function err(e: i32): Result_i32 { return result.err(e); }
 
 /** 是否 Ok。 */
-function is_ok(r: Result_i32): bool { return result.is_ok(r); }
+export function is_ok(r: Result_i32): bool { return result.is_ok(r); }
 
 /** 是否 Err。 */
-function is_err(r: Result_i32): bool { return result.is_err(r); }
+export function is_err(r: Result_i32): bool { return result.is_err(r); }
 
 /** 成功返回值，否则 default。 */
-function unwrap_or(r: Result_i32, default_val: i32): i32 {
+export function unwrap_or(r: Result_i32, default_val: i32): i32 {
   return result.unwrap_or(r, default_val);
 }
 
 /** eager map（Result 侧）。 */
-function map(r: Result_i32, mapped: i32): Result_i32 {
+export function map(r: Result_i32, mapped: i32): Result_i32 {
   if (result.is_ok(r)) {
     return result.ok(mapped);
   }
@@ -50,7 +50,7 @@ function map(r: Result_i32, mapped: i32): Result_i32 {
 }
 
 /** eager and_then（Result 侧）。 */
-function and_then(r: Result_i32, next: Result_i32): Result_i32 {
+export function and_then(r: Result_i32, next: Result_i32): Result_i32 {
   if (result.is_ok(r)) {
     return next;
   }
@@ -58,7 +58,7 @@ function and_then(r: Result_i32, next: Result_i32): Result_i32 {
 }
 
 /** eager or_else（Result 侧）。 */
-function or_else(r: Result_i32, fallback: Result_i32): Result_i32 {
+export function or_else(r: Result_i32, fallback: Result_i32): Result_i32 {
   if (result.is_ok(r)) {
     return r;
   }
@@ -66,7 +66,7 @@ function or_else(r: Result_i32, fallback: Result_i32): Result_i32 {
 }
 
 /** 从 std.error 风格错误码构造 Result；0=Ok(0)，非 0=Err(code)。 */
-function from_error_code(code: i32): Result_i32 {
+export function from_error_code(code: i32): Result_i32 {
   if (code == error.ok()) {
     return result.ok(0);
   }
@@ -74,7 +74,7 @@ function from_error_code(code: i32): Result_i32 {
 }
 
 /** 错误码为 0 时 Ok(value)，否则 Err(err_code)。 */
-function from_value(value: i32, err_code: i32): Result_i32 {
+export function from_value(value: i32, err_code: i32): Result_i32 {
   if (err_code == error.ok()) {
     return result.ok(value);
   }
@@ -82,7 +82,7 @@ function from_value(value: i32, err_code: i32): Result_i32 {
 }
 
 /** 提取 Result 错误码（Ok 时返回 ok()）。 */
-function err_code(r: Result_i32): i32 {
+export function err_code(r: Result_i32): i32 {
   if (result.is_ok(r)) {
     return error.ok();
   }

@@ -22,11 +22,11 @@
 // 【导出】shu_chacha20_block（供 mod / aead extern）。
 
 /** seed asm 可 emit 的版本标记。 */
-function crypto_chacha_core_marker_c(): i32 {
+export function crypto_chacha_core_marker_c(): i32 {
   return 0x43484132;
 }
 
 /** ChaCha20 单块 keystream 锚点。 */
-function shu_chacha20_block(key: *u8, nonce: *u8, counter: u32, out: *u8): void {
+export function shu_chacha20_block(key: *u8, nonce: *u8, counter: u32, out: *u8): void {
   return;
 }

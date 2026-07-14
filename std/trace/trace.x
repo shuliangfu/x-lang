@@ -22,28 +22,28 @@
 //
 // 【对标】OpenTelemetry 最小子集、Go opentelemetry trace 简化版。
 
-const TRACE_OK: i32 = 0;
-const TRACE_ERR_NULL: i32 = -1;
-const TRACE_ERR_NOT_FOUND: i32 = -2;
-const TRACE_ERR_FULL: i32 = -3;
-const TRACE_ERR_INVALID: i32 = -4;
+export const TRACE_OK: i32 = 0;
+export const TRACE_ERR_NULL: i32 = -1;
+export const TRACE_ERR_NOT_FOUND: i32 = -2;
+export const TRACE_ERR_FULL: i32 = -3;
+export const TRACE_ERR_INVALID: i32 = -4;
 
 /** C 字符串常量（解析器不支持 "..." as *u8）。 */
-const TRA_LIT_END: u8[6] = [32, 101, 110, 100, 61, 0];
-const TRA_LIT_NAME: u8[7] = [32, 110, 97, 109, 101, 61, 0];
-const TRA_LIT_PARENT: u8[9] = [32, 112, 97, 114, 101, 110, 116, 61, 0];
-const TRA_LIT_START: u8[8] = [32, 115, 116, 97, 114, 116, 61, 0];
-const TRA_LIT_NAME_CHILD: u8[11] = [110, 97, 109, 101, 61, 99, 104, 105, 108, 100, 0];
-const TRA_LIT_NAME_ROOT: u8[10] = [110, 97, 109, 101, 61, 114, 111, 111, 116, 0];
-const TRA_LIT_SPAN_ID: u8[9] = [115, 112, 97, 110, 32, 105, 100, 61, 0];
-const TRA_LIT_TRACE_ID: u8[10] = [116, 114, 97, 99, 101, 95, 105, 100, 61, 0];
+export const TRA_LIT_END: u8[6] = [32, 101, 110, 100, 61, 0];
+export const TRA_LIT_NAME: u8[7] = [32, 110, 97, 109, 101, 61, 0];
+export const TRA_LIT_PARENT: u8[9] = [32, 112, 97, 114, 101, 110, 116, 61, 0];
+export const TRA_LIT_START: u8[8] = [32, 115, 116, 97, 114, 116, 61, 0];
+export const TRA_LIT_NAME_CHILD: u8[11] = [110, 97, 109, 101, 61, 99, 104, 105, 108, 100, 0];
+export const TRA_LIT_NAME_ROOT: u8[10] = [110, 97, 109, 101, 61, 114, 111, 111, 116, 0];
+export const TRA_LIT_SPAN_ID: u8[9] = [115, 112, 97, 110, 32, 105, 100, 61, 0];
+export const TRA_LIT_TRACE_ID: u8[10] = [116, 114, 97, 99, 101, 95, 105, 100, 61, 0];
 
-const TRACE_MAX_SPANS: i32 = 32;
-const TRACE_MAX_NAME: i32 = 64;
-const TRACE_STACK_MAX: i32 = 16;
+export const TRACE_MAX_SPANS: i32 = 32;
+export const TRACE_MAX_NAME: i32 = 64;
+export const TRACE_STACK_MAX: i32 = 16;
 
-const SPAN_NODE_SIZE: usize = 128;
-const TRACE_STATE_SIZE: usize = 4196;
+export const SPAN_NODE_SIZE: usize = 128;
+export const TRACE_STATE_SIZE: usize = 4196;
 
 /** Span 节点：id、parent、名称与时间戳。 */
 allow(padding) struct SpanNode {
@@ -66,31 +66,31 @@ allow(padding) struct TraceState {
   stack_depth: i32;
 }
 
-extern function time_now_monotonic_ns_c(): i64;
-extern function random_fill_bytes_c(buf: *u8, len: i32): i32;
-extern "C" function calloc(nmemb: usize, size: usize): *u8;
-extern "C" function free(ptr: *u8): void;
-extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
-extern "C" function memset(s: *u8, c: i32, n: usize): *u8;
+export extern function time_now_monotonic_ns_c(): i64;
+export extern function random_fill_bytes_c(buf: *u8, len: i32): i32;
+export extern "C" function calloc(nmemb: usize, size: usize): *u8;
+export extern "C" function free(ptr: *u8): void;
+export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+export extern "C" function memset(s: *u8, c: i32, n: usize): *u8;
 
 /** F-trace v1 版本标记；供聚合 gate 校验 trace.x 已参与构建。 */
-function trace_f_trace_v1_marker_c(): i32 {
+export function trace_f_trace_v1_marker_c(): i32 {
   return 1;
 }
 
 /** F-trace v2 逻辑全量 .x 标记（span/export 无 glue）。 */
-function trace_f_trace_v2_marker_c(): i32 {
+export function trace_f_trace_v2_marker_c(): i32 {
   return 1;
 }
 
 /** 句柄转 TraceState 指针；非法 0。 */
-function trace_from_handle(h: i64): *TraceState {
+export function trace_from_handle(h: i64): *TraceState {
   if (h == 0) { return 0; }
   return h as *TraceState;
 }
 
 /** 生成 128-bit trace_id；random 失败时用单调时钟填充。 */
-function trace_gen_trace_id(out16: *u8): void {
+export function trace_gen_trace_id(out16: *u8): void {
   let t: i64 = 0;
   let i: i32 = 0;
   if (out16 == 0) { return; }
@@ -105,7 +105,7 @@ function trace_gen_trace_id(out16: *u8): void {
 }
 
 /** 查找 span 索引；不存在 -1。 */
-function trace_find_span(t: *TraceState, span_id: u64): i32 {
+export function trace_find_span(t: *TraceState, span_id: u64): i32 {
   let i: i32 = 0;
   if (t == 0 || span_id == 0) { return -1; }
   while (i < TRACE_MAX_SPANS) {
@@ -116,7 +116,7 @@ function trace_find_span(t: *TraceState, span_id: u64): i32 {
 }
 
 /** 向 out 追加单字节；满则 TRACE_ERR_FULL。 */
-function trace_append_byte(out: *u8, out_cap: i32, pos: *i32, b: u8): i32 {
+export function trace_append_byte(out: *u8, out_cap: i32, pos: *i32, b: u8): i32 {
   if (out == 0 || pos == 0) { return TRACE_ERR_NULL; }
   unsafe {
     if (*pos < 0 || *pos >= out_cap) { return TRACE_ERR_FULL; }
@@ -127,7 +127,7 @@ function trace_append_byte(out: *u8, out_cap: i32, pos: *i32, b: u8): i32 {
 }
 
 /** 向 out 追加 n 字节。 */
-function trace_append_bytes(out: *u8, out_cap: i32, pos: *i32, s: *u8, n: i32): i32 {
+export function trace_append_bytes(out: *u8, out_cap: i32, pos: *i32, s: *u8, n: i32): i32 {
   let i: i32 = 0;
   while (i < n) {
     if (trace_append_byte(out, out_cap, pos, s[i]) != TRACE_OK) { return TRACE_ERR_FULL; }
@@ -137,7 +137,7 @@ function trace_append_bytes(out: *u8, out_cap: i32, pos: *i32, s: *u8, n: i32): 
 }
 
 /** 单字节转两位小写十六进制写入 out[0..1]。 */
-function u8_to_hex2(b: u8, out: *u8): void {
+export function u8_to_hex2(b: u8, out: *u8): void {
   let hi: u8 = (b >> 4) & 0x0f;
   let lo: u8 = b & 0x0f;
   if (out == 0) { return; }
@@ -148,7 +148,7 @@ function u8_to_hex2(b: u8, out: *u8): void {
 }
 
 /** 追加 u64 十进制表示。 */
-function append_u64_dec(out: *u8, out_cap: i32, pos: *i32, v: u64): i32 {
+export function append_u64_dec(out: *u8, out_cap: i32, pos: *i32, v: u64): i32 {
   let tmp: u8[21] = [];
   let n: i32 = 0;
   let i: i32 = 0;
@@ -173,7 +173,7 @@ function append_u64_dec(out: *u8, out_cap: i32, pos: *i32, v: u64): i32 {
 }
 
 /** 追加 i64 十进制表示（含负号）。 */
-function append_i64_dec(out: *u8, out_cap: i32, pos: *i32, v: i64): i32 {
+export function append_i64_dec(out: *u8, out_cap: i32, pos: *i32, v: i64): i32 {
   let neg: u64 = 0;
   if (v < 0) {
     if (trace_append_byte(out, out_cap, pos, 45) != TRACE_OK) { return TRACE_ERR_FULL; }
@@ -184,7 +184,7 @@ function append_i64_dec(out: *u8, out_cap: i32, pos: *i32, v: i64): i32 {
 }
 
 /** 创建追踪会话；失败 0。 */
-function trace_create_c(): i64 {
+export function trace_create_c(): i64 {
   let t: *TraceState = 0;
   unsafe { t = calloc(1, TRACE_STATE_SIZE) as *TraceState; }
   if (t == 0) { return 0; }
@@ -194,27 +194,27 @@ function trace_create_c(): i64 {
 }
 
 /** 释放追踪会话。 */
-function trace_free_c(handle: i64): void {
+export function trace_free_c(handle: i64): void {
   let t: *TraceState = trace_from_handle(handle);
   if (t != 0) { unsafe { free(t as *u8); } }
 }
 
 /** 读取 trace_id 16 字节。 */
-function trace_trace_id_c(handle: i64, out16: *u8): void {
+export function trace_trace_id_c(handle: i64, out16: *u8): void {
   let t: *TraceState = trace_from_handle(handle);
   if (t == 0 || out16 == 0) { return; }
   unsafe { memcpy(out16, &t.trace_id[0], 16); }
 }
 
 /** 当前栈顶 span_id；无则 0。 */
-function trace_current_span_c(handle: i64): i64 {
+export function trace_current_span_c(handle: i64): i64 {
   let t: *TraceState = trace_from_handle(handle);
   if (t == 0 || t.stack_depth <= 0) { return 0; }
   return t.stack[(t.stack_depth - 1)] as i64;
 }
 
 /** 开始 span；parent_id=0 表示根。返回 span_id，失败 0。 */
-function trace_start_span_c(handle: i64, parent_id: i64, name: *u8, name_len: i32): i64 {
+export function trace_start_span_c(handle: i64, parent_id: i64, name: *u8, name_len: i32): i64 {
   let t: *TraceState = trace_from_handle(handle);
   let i: i32 = 0;
   let sid: u64 = 0;
@@ -246,7 +246,7 @@ function trace_start_span_c(handle: i64, parent_id: i64, name: *u8, name_len: i3
 }
 
 /** 结束 span；须为栈顶。0 成功。 */
-function trace_end_span_c(handle: i64, span_id: i64): i32 {
+export function trace_end_span_c(handle: i64, span_id: i64): i32 {
   let t: *TraceState = trace_from_handle(handle);
   let idx: i32 = 0;
   if (t == 0 || span_id == 0) { return TRACE_ERR_NULL; }
@@ -262,7 +262,7 @@ function trace_end_span_c(handle: i64, span_id: i64): i32 {
 }
 
 /** 以当前栈顶为 parent 开始子 span。 */
-function trace_start_child_c(handle: i64, name: *u8, name_len: i32): i64 {
+export function trace_start_child_c(handle: i64, name: *u8, name_len: i32): i64 {
   let t: *TraceState = trace_from_handle(handle);
   let parent: i64 = 0;
   if (t == 0) { return 0; }
@@ -272,14 +272,14 @@ function trace_start_child_c(handle: i64, name: *u8, name_len: i32): i64 {
 }
 
 /** 已完成 span 数量。 */
-function trace_span_count_c(handle: i64): i32 {
+export function trace_span_count_c(handle: i64): i32 {
   let t: *TraceState = trace_from_handle(handle);
   if (t == 0) { return TRACE_ERR_NULL; }
   return t.span_count;
 }
 
 /** 导出 text 格式（OTLP 风格简化行）；返回写入长度，失败负值。 */
-function trace_export_text_c(handle: i64, out: *u8, out_cap: i32): i32 {
+export function trace_export_text_c(handle: i64, out: *u8, out_cap: i32): i32 {
   let t: *TraceState = trace_from_handle(handle);
   let pos: i32 = 0;
   let i: i32 = 0;
@@ -321,7 +321,7 @@ function trace_export_text_c(handle: i64, out: *u8, out_cap: i32): i32 {
 }
 
 /** 缓冲是否含子串 needle（NUL 结尾）。 */
-function trace_contains(hay: *u8, hay_len: i32, needle: *u8): i32 {
+export function trace_contains(hay: *u8, hay_len: i32, needle: *u8): i32 {
   let i: i32 = 0;
   let j: i32 = 0;
   if (hay == 0 || needle == 0) { return 0; }
@@ -337,7 +337,7 @@ function trace_contains(hay: *u8, hay_len: i32, needle: *u8): i32 {
 }
 
 /** C 烟测：嵌套 span + text 导出。 */
-function trace_smoke_c(): i32 {
+export function trace_smoke_c(): i32 {
   let tr: i64 = 0;
   let root: i64 = 0;
   let child: i64 = 0;
@@ -364,7 +364,7 @@ function trace_smoke_c(): i32 {
 }
 
 /** STD-118：关键路径 hook span 烟测。 */
-function trace_hooks_smoke_c(): i32 {
+export function trace_hooks_smoke_c(): i32 {
   let tr: i64 = 0;
   let root: i64 = 0;
   let sp_io: i64 = 0;

@@ -25,7 +25,7 @@
  * 写入 h2/http/1.1 ALPN 线格式；成功返回字节数，缓冲不足返回 -1。
  * RFC 7301 字节序列：\x02h2\x08http/1.1
  */
-function net_tls_alpn_h2_http1_wire_c(out: *u8, out_cap: i32): i32 {
+export function net_tls_alpn_h2_http1_wire_c(out: *u8, out_cap: i32): i32 {
   if (out == 0 || out_cap < 12) {
     return -1;
   }

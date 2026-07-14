@@ -42,64 +42,64 @@ let LSP_REF_RESP_CAP: i32 = 8192;
 let LSP_FORMAT_RESP_CAP: i32 = 262144;
 
 /** read_message 状态区：定义在 lsp_state.c，避免栈上大数组。 */
-extern function lsp_state_buf_ptr(): *u8;
+export extern function lsp_state_buf_ptr(): *u8;
 
 /** 完整 write(2) 循环写 fd；定义在 lsp_state.c，LSP 响应不走 io_uring。 */
-extern function lsp_write_all(fd: i32, ptr: *u8, len: i32): i32;
+export extern function lsp_write_all(fd: i32, ptr: *u8, len: i32): i32;
 
 /** 构建 InitializeResult JSON（含 capabilities 与 serverInfo）；仍由 lsp_io.c 提供。 */
-extern function lsp_build_initialize_result(id_val: i32, out_buf: *u8, out_cap: i32): i32;
+export extern function lsp_build_initialize_result(id_val: i32, out_buf: *u8, out_cap: i32): i32;
 /** 对 source 跑 .x pipeline（parse_into + typeck）收集诊断，构建完整 JSON-RPC
 * 响应（id + result: Diagnostic[]）；返回长度，失败 -1。 */
-extern function lsp_build_diagnostics_response(id_val: i32, source: *u8, source_len: i32, out_buf:
+export extern function lsp_build_diagnostics_response(id_val: i32, source: *u8, source_len: i32, out_buf:
 *u8, out_cap: i32): i32;
 /** 从 definition 请求 body 与当前文档构建 definition 响应（result: Location 或
 * null）；返回长度，失败 -1。 */
-extern function lsp_build_definition_response(id_val: i32, body: *u8, body_len: i32, doc_buf: *u8,
+export extern function lsp_build_definition_response(id_val: i32, body: *u8, body_len: i32, doc_buf: *u8,
 doc_len: i32, out_buf: *u8, out_cap: i32): i32;
 /** 从 references 请求 body 与当前文档构建 references 响应（result:
 * Location[]）；返回长度，失败 -1。 */
-extern function lsp_build_references_response(id_val: i32, body: *u8, body_len: i32, doc_buf: *u8,
+export extern function lsp_build_references_response(id_val: i32, body: *u8, body_len: i32, doc_buf: *u8,
 doc_len: i32, out_buf: *u8, out_cap: i32): i32;
 /** 从 hover 请求 body 与当前文档构建 hover 响应（result: Hover 或
 * null）；返回长度，失败 -1。 */
-extern function lsp_build_hover_response(id_val: i32, body: *u8, body_len: i32, doc_buf: *u8,
+export extern function lsp_build_hover_response(id_val: i32, body: *u8, body_len: i32, doc_buf: *u8,
 doc_len: i32, out_buf: *u8, out_cap: i32): i32;
 /** 从 formatting 请求 body 与当前文档构建格式化响应（result:
 * TextEdit[]）；返回长度，失败 -1。 */
-extern function lsp_build_formatting_response(id_val: i32, body: *u8, body_len: i32, doc_buf: *u8,
+export extern function lsp_build_formatting_response(id_val: i32, body: *u8, body_len: i32, doc_buf: *u8,
 doc_len: i32, out_buf: *u8, out_cap: i32): i32;
 /** 从 completion 请求 body 与当前文档构建补全响应（result:
 * CompletionItem[]）；返回长度，失败 -1。 */
-extern function lsp_build_completion_response(id_val: i32, body: *u8, body_len: i32, doc_buf: *u8,
+export extern function lsp_build_completion_response(id_val: i32, body: *u8, body_len: i32, doc_buf: *u8,
 doc_len: i32, out_buf: *u8, out_cap: i32): i32;
 /** 从 documentSymbol 请求与当前文档构建文档符号响应（result:
 * DocumentSymbol[]）；返回长度，失败 -1。 */
-extern function lsp_build_document_symbol_response(id_val: i32, body: *u8, body_len: i32, doc_buf:
+export extern function lsp_build_document_symbol_response(id_val: i32, body: *u8, body_len: i32, doc_buf:
 *u8, doc_len: i32, out_buf: *u8, out_cap: i32): i32;
 /** 从 semanticTokens/full 请求构建响应（result: SemanticTokens）；返回长度，失败
 -1。 */
-extern function lsp_build_semantic_tokens_response(id_val: i32, doc_buf: *u8, doc_len: i32,
+export extern function lsp_build_semantic_tokens_response(id_val: i32, doc_buf: *u8, doc_len: i32,
 out_buf: *u8, out_cap: i32): i32;
 /** 从 rename 请求 body + 文档构建 WorkspaceEdit 响应；失败返回 -1。 */
-extern function lsp_build_rename_response(id_val: i32, body: *u8, body_len: i32, doc_buf: *u8,
+export extern function lsp_build_rename_response(id_val: i32, body: *u8, body_len: i32, doc_buf: *u8,
 doc_len: i32, out_buf: *u8, out_cap: i32): i32;
 /** 文档变更时使诊断哈希缓存失效。 */
-extern function lsp_diag_invalidate_cache(): void;
+export extern function lsp_diag_invalidate_cache(): void;
 /** 构建 JSON-RPC 响应外壳 {"jsonrpc":"2.0","id":<id>,"result":<result>}；仍由 lsp_io.c
 * 提供（供 C 内 build_definition 等调用）。 */
-extern function lsp_build_response_with_result(id_val: i32, result_ptr: *u8, result_len: i32,
+export extern function lsp_build_response_with_result(id_val: i32, result_ptr: *u8, result_len: i32,
 out_buf: *u8, out_cap: i32): i32;
 /** 从 didOpen/didChange 的 body 中提取文档并设为当前文档（仍由 lsp_io.c
 * 维护）。 */
-extern function lsp_set_document_from_body(body: *u8, body_len: i32): void;
+export extern function lsp_set_document_from_body(body: *u8, body_len: i32): void;
 /** 当前文档内容指针（只读）。 */
-extern function lsp_get_document_ptr(): *u8;
+export extern function lsp_get_document_ptr(): *u8;
 /** 当前文档字节长度。 */
-extern function lsp_get_document_len(): i32;
+export extern function lsp_get_document_len(): i32;
 
 /** 在 body[0..len-1] 中查找子串 "initialize"；找到返回 1 否则 0。 */
-function lsp_body_contains_initialize(body: *u8, len: i32): i32 {
+export function lsp_body_contains_initialize(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 10 <= len) {
     if (body[i] == 105 && body[i + 1] == 110 && body[i + 2] == 105 && body[i + 3] == 116 && body[i
@@ -114,7 +114,7 @@ function lsp_body_contains_initialize(body: *u8, len: i32): i32 {
 
 /** 在 body[0..len-1] 中查找子串 "initialized"（11 字节）；握手后 Client
 * 发的通知，无需响应。 */
-function lsp_body_contains_initialized(body: *u8, len: i32): i32 {
+export function lsp_body_contains_initialized(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 11 <= len) {
     if (body[i] == 105 && body[i + 1] == 110 && body[i + 2] == 105 && body[i + 3] == 116 && body[i
@@ -128,7 +128,7 @@ function lsp_body_contains_initialized(body: *u8, len: i32): i32 {
 }
 
 /** 在 body[0..len-1] 中查找子串 "shutdown"；找到返回 1 否则 0。 */
-function lsp_body_contains_shutdown(body: *u8, len: i32): i32 {
+export function lsp_body_contains_shutdown(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 8 <= len) {
     if (body[i] == 115 && body[i + 1] == 104 && body[i + 2] == 117 && body[i + 3] == 116 && body[i
@@ -142,7 +142,7 @@ function lsp_body_contains_shutdown(body: *u8, len: i32): i32 {
 
 /** 在 body[0..len-1] 中查找子串 "textDocument/didOpen"；打开文件时 Client
 * 发此通知。 */
-function lsp_body_contains_did_open(body: *u8, len: i32): i32 {
+export function lsp_body_contains_did_open(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 19 <= len) {
     if (body[i] == 116 && body[i + 1] == 101 && body[i + 2] == 120 && body[i + 3] == 116 && body[i
@@ -159,7 +159,7 @@ function lsp_body_contains_did_open(body: *u8, len: i32): i32 {
 
 /** 在 body[0..len-1] 中查找子串 "textDocument/didChange"；编辑时 Client 发此通知。
 */
-function lsp_body_contains_did_change(body: *u8, len: i32): i32 {
+export function lsp_body_contains_did_change(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 21 <= len) {
     if (body[i] == 116 && body[i + 1] == 101 && body[i + 2] == 120 && body[i + 3] == 116 && body[i
@@ -176,7 +176,7 @@ function lsp_body_contains_did_change(body: *u8, len: i32): i32 {
 }
 
 /** 在 body 中查找 "textDocument/didSave"；保存时 Client 发此通知，不回复。 */
-function lsp_body_contains_did_save(body: *u8, len: i32): i32 {
+export function lsp_body_contains_did_save(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 19 <= len) {
     if (body[i] == 116 && body[i+1] == 101 && body[i+2] == 120 && body[i+3] == 116 && body[i+4] ==
@@ -193,7 +193,7 @@ function lsp_body_contains_did_save(body: *u8, len: i32): i32 {
 
 /** 在 body 中查找 "textDocument/diagnostic"（23 字节，LSP 规范单数）；Client
 * 请求诊断，需按 id 回复 result。 */
-function lsp_body_contains_diagnostic(body: *u8, len: i32): i32 {
+export function lsp_body_contains_diagnostic(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 23 <= len) {
     if (body[i] == 116 && body[i+1] == 101 && body[i+2] == 120 && body[i+3] == 116 && body[i+4] ==
@@ -209,7 +209,7 @@ function lsp_body_contains_diagnostic(body: *u8, len: i32): i32 {
 }
 
 // 在 body 中查找 textDocument/completion（23 字符）；补全请求。
-function lsp_body_contains_completion(body: *u8, len: i32): i32 {
+export function lsp_body_contains_completion(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 23 <= len) {
     if (body[i] == 116 && body[i+1] == 101 && body[i+2] == 120 && body[i+3] == 116 && body[i+4] ==
@@ -225,7 +225,7 @@ function lsp_body_contains_completion(body: *u8, len: i32): i32 {
 }
 
 // 在 body 中查找 textDocument/documentSymbol（27 字符）；文档大纲符号请求。
-function lsp_body_contains_document_symbol(body: *u8, len: i32): i32 {
+export function lsp_body_contains_document_symbol(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 27 <= len) {
     if (body[i] == 116 && body[i+1] == 101 && body[i+2] == 120 && body[i+3] == 116 && body[i+4] ==
@@ -242,7 +242,7 @@ function lsp_body_contains_document_symbol(body: *u8, len: i32): i32 {
 }
 
 // 在 body 中查找 textDocument/semanticTokens（28 字符）
-function lsp_body_contains_semantic_tokens(body: *u8, len: i32): i32 {
+export function lsp_body_contains_semantic_tokens(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 28 <= len) {
     if (body[i] == 116 && body[i+1] == 101 && body[i+2] == 120 && body[i+3] == 116 && body[i+4] ==
@@ -259,7 +259,7 @@ function lsp_body_contains_semantic_tokens(body: *u8, len: i32): i32 {
 }
 
 // 在 body 中查找 textDocument/rename（20 字符）
-function lsp_body_contains_rename(body: *u8, len: i32): i32 {
+export function lsp_body_contains_rename(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 20 <= len) {
     if (body[i] == 116 && body[i+1] == 101 && body[i+2] == 120 && body[i+3] == 116 && body[i+4] ==
@@ -275,7 +275,7 @@ function lsp_body_contains_rename(body: *u8, len: i32): i32 {
 }
 
 // 在 body 中查找 textDocument/didClose（20 字符）；通知，无需响应。
-function lsp_body_contains_did_close(body: *u8, len: i32): i32 {
+export function lsp_body_contains_did_close(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 20 <= len) {
     if (body[i] == 116 && body[i+1] == 101 && body[i+2] == 120 && body[i+3] == 116 && body[i+4] ==
@@ -291,7 +291,7 @@ function lsp_body_contains_did_close(body: *u8, len: i32): i32 {
 }
 
 // 在 body 中查找 $/cancelRequest（14 字符）；通知，无需响应。
-function lsp_body_contains_cancel(body: *u8, len: i32): i32 {
+export function lsp_body_contains_cancel(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 14 <= len) {
     if (body[i] == 36 && body[i+1] == 47 && body[i+2] == 99 && body[i+3] == 97 && body[i+4] == 110
@@ -306,7 +306,7 @@ function lsp_body_contains_cancel(body: *u8, len: i32): i32 {
 }
 
 // 在 body 中查找 workspace/didChangeConfiguration（35 字符）；通知，无需响应。
-function lsp_body_contains_did_change_config(body: *u8, len: i32): i32 {
+export function lsp_body_contains_did_change_config(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 35 <= len) {
     if (body[i] == 119 && body[i+1] == 111 && body[i+2] == 114 && body[i+3] == 107 && body[i+4] ==
@@ -325,7 +325,7 @@ function lsp_body_contains_did_change_config(body: *u8, len: i32): i32 {
 
 /** 在 body 中查找 "textDocument/definition"（23 字符）；转到定义请求，需按 id
 * 回复 result。 */
-function lsp_body_contains_definition(body: *u8, len: i32): i32 {
+export function lsp_body_contains_definition(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 22 < len) {
     if (body[i] == 116 && body[i+1] == 101 && body[i+2] == 120 && body[i+3] == 116 && body[i+4] ==
@@ -341,7 +341,7 @@ function lsp_body_contains_definition(body: *u8, len: i32): i32 {
 }
 
 /** 在 body 中查找 "textDocument/references"（24 字符）；查找引用请求。 */
-function lsp_body_contains_references(body: *u8, len: i32): i32 {
+export function lsp_body_contains_references(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 23 < len) {
     if (body[i] == 116 && body[i+1] == 101 && body[i+2] == 120 && body[i+3] == 116 && body[i+4] ==
@@ -358,7 +358,7 @@ function lsp_body_contains_references(body: *u8, len: i32): i32 {
 }
 
 /** 在 body 中查找 "textDocument/hover"；悬停请求。 */
-function lsp_body_contains_hover(body: *u8, len: i32): i32 {
+export function lsp_body_contains_hover(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 17 <= len) {
     if (body[i] == 116 && body[i+1] == 101 && body[i+2] == 120 && body[i+3] == 116 && body[i+4] ==
@@ -373,7 +373,7 @@ function lsp_body_contains_hover(body: *u8, len: i32): i32 {
 }
 
 /** 在 body 中查找 "textDocument/formatting"；格式化文档请求。 */
-function lsp_body_contains_formatting(body: *u8, len: i32): i32 {
+export function lsp_body_contains_formatting(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 23 <= len) {
     if (body[i] == 116 && body[i+1] == 101 && body[i+2] == 120 && body[i+3] == 116 && body[i+4] ==
@@ -389,7 +389,7 @@ function lsp_body_contains_formatting(body: *u8, len: i32): i32 {
 }
 
 /** 在 body[0..len-1] 中查找子串 "exit"；简单起见只查 "exit"。 */
-function lsp_body_contains_exit(body: *u8, len: i32): i32 {
+export function lsp_body_contains_exit(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 4 <= len) {
     if (body[i] == 101 && body[i + 1] == 120 && body[i + 2] == 105 && body[i + 3] == 116) {
@@ -402,7 +402,7 @@ function lsp_body_contains_exit(body: *u8, len: i32): i32 {
 
 /** 从 body 中提取请求 id（简单实现：找 "id": 后的数字）；未找到返回 -1。
 */
-function lsp_parse_id(body: *u8, len: i32, id_buf: *u8, id_buf_len: i32): i32 {
+export function lsp_parse_id(body: *u8, len: i32, id_buf: *u8, id_buf_len: i32): i32 {
   let i: i32 = 0;
   while (i + 6 <= len) {
     if (body[i] == 34 && body[i + 1] == 105 && body[i + 2] == 100 && body[i + 3] == 34 && body[i +
@@ -436,7 +436,7 @@ function lsp_parse_id(body: *u8, len: i32, id_buf: *u8, id_buf_len: i32): i32 {
 }
 
 /** 向 stdout（fd 1）发送 LSP 响应：Content-Length: <body_len>\r\n\r\n + body。 */
-function lsp_send_response(fd: i32, body: *u8, body_len: i32): i32 {
+export function lsp_send_response(fd: i32, body: *u8, body_len: i32): i32 {
   let header: u8[64] = [];
   header[0] = 67;
   header[1] = 111;
@@ -499,7 +499,7 @@ function lsp_send_response(fd: i32, body: *u8, body_len: i32): i32 {
 /** LSP 主循环：从 stdin 读消息，根据 method 分发，向 stdout 写响应；收到 exit
 * 后返回 0。body/doc 按需动态分配，无固定缓冲上限。 */
 /** LSP 主循环实现；typeck_lsp_main 由 lsp_state.c 在大栈 pthread 上包装调用。 */
-function lsp_main_impl(): i32 {
+export function lsp_main_impl(): i32 {
   let stdin_fd: i32 = 0;
   let stdout_fd: i32 = 1;
   let line_buf: u8[256] = [];

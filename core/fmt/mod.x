@@ -18,14 +18,14 @@
 // 已提供：十进制 i32/u32/i64/u64、bool、十六进制 u32/u64、append 链式写入、浮点 fmt_f64_to_buf（依赖 f64↔整数 as 转换）。
 
 // 占位函数，表示本模块已可 import。
-function placeholder(): i32 { return 0; }
+export function placeholder(): i32 { return 0; }
 
 // 将 i32 作为“格式结果”返回（自举前占位：无缓冲区时仅透传，后续扩展为 format!("{}", x) 等）。
-function fmt_i32(x: i32): i32 { return x; }
+export function fmt_i32(x: i32): i32 { return x; }
 
 // 将 x 的十进制表示写入 buf[0..cap)，返回写入字节数；缓冲区不足返回 -1。
 // 负数写 '-' 再写绝对值；INT32_MIN（0-x 溢出为负）单独写 "-2147483648"。
-function fmt_i32_to_buf(buf: *u8, cap: i32, x: i32): i32 {
+export function fmt_i32_to_buf(buf: *u8, cap: i32, x: i32): i32 {
   let digits: u8[10] = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57];
   if (cap < 1) { return -1; }
   let u: i32 = 0 - x;
@@ -68,7 +68,7 @@ function fmt_i32_to_buf(buf: *u8, cap: i32, x: i32): i32 {
 }
 
 // 将 u 的十进制表示写入 buf[0..cap)，返回写入字节数；缓冲区不足返回 -1。无符号，无负号。
-function fmt_u32_to_buf(buf: *u8, cap: i32, u: u32): i32 {
+export function fmt_u32_to_buf(buf: *u8, cap: i32, u: u32): i32 {
   let digits: u8[10] = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57];
   if (cap < 1) { return -1; }
   let tmp: u8[10] = [];
@@ -93,7 +93,7 @@ function fmt_u32_to_buf(buf: *u8, cap: i32, u: u32): i32 {
 }
 
 // 将 u 的十进制表示写入 buf[0..cap)（u64，最多 20 位）；不足返回 -1。
-function fmt_u64_to_buf(buf: *u8, cap: i32, u: u64): i32 {
+export function fmt_u64_to_buf(buf: *u8, cap: i32, u: u64): i32 {
   let digits: u8[10] = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57];
   if (cap < 1) { return -1; }
   let tmp: u8[20] = [];
@@ -118,7 +118,7 @@ function fmt_u64_to_buf(buf: *u8, cap: i32, u: u64): i32 {
 }
 
 // 将 x 的十进制表示写入 buf[0..cap)（i64）；INT64_MIN 特判，不足返回 -1。
-function fmt_i64_to_buf(buf: *u8, cap: i32, x: i64): i32 {
+export function fmt_i64_to_buf(buf: *u8, cap: i32, x: i64): i32 {
   let digits: u8[10] = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57];
   if (cap < 1) { return -1; }
   /** INT64_MIN 字面量；须先于 `0 - x` 判定，避免一元取负溢出。 */
@@ -170,7 +170,7 @@ function fmt_i64_to_buf(buf: *u8, cap: i32, x: i64): i32 {
 }
 
 // 将 b 写入 buf：true -> "true"（4 字节），false -> "false"（5 字节）；容量不足返回 -1。
-function fmt_bool_to_buf(buf: *u8, cap: i32, b: bool): i32 {
+export function fmt_bool_to_buf(buf: *u8, cap: i32, b: bool): i32 {
   if (b) {
     if (cap < 4) { return -1; }
     buf[0] = 116; buf[1] = 114; buf[2] = 117; buf[3] = 101;
@@ -184,7 +184,7 @@ function fmt_bool_to_buf(buf: *u8, cap: i32, b: bool): i32 {
 
 // ——— 十六进制（小写 a-f） ———
 // 将 u 的十六进制表示写入 buf[0..cap)，不足返回 -1。0 写为 "0"。
-function fmt_u32_hex_to_buf(buf: *u8, cap: i32, u: u32): i32 {
+export function fmt_u32_hex_to_buf(buf: *u8, cap: i32, u: u32): i32 {
   let hex: u8[16] = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 97, 98, 99, 100, 101, 102];
   if (cap < 1) { return -1; }
   if (u == 0) { buf[0] = 48; return 1; }
@@ -205,7 +205,7 @@ function fmt_u32_hex_to_buf(buf: *u8, cap: i32, u: u32): i32 {
   return num_digits;
 }
 
-function fmt_u64_hex_to_buf(buf: *u8, cap: i32, u: u64): i32 {
+export function fmt_u64_hex_to_buf(buf: *u8, cap: i32, u: u64): i32 {
   let hex: u8[16] = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 97, 98, 99, 100, 101, 102];
   if (cap < 1) { return -1; }
   if (u == 0) { buf[0] = 48; return 1; }
@@ -228,7 +228,7 @@ function fmt_u64_hex_to_buf(buf: *u8, cap: i32, u: u64): i32 {
 
 // ——— 从偏移处追加写入（便于多段拼接，无需 format! 宏） ———
 // 从 buf[off] 起写，有效容量为 cap - off；成功返回新偏移 off + 写入数，失败返回 -1。
-function fmt_append_i32_to_buf(buf: *u8, cap: i32, off: i32, x: i32): i32 {
+export function fmt_append_i32_to_buf(buf: *u8, cap: i32, off: i32, x: i32): i32 {
   if (off < 0 || off >= cap) { return -1; }
   let tmp: u8[24] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   let n: i32 = fmt_i32_to_buf(tmp, 24, x);
@@ -239,7 +239,7 @@ function fmt_append_i32_to_buf(buf: *u8, cap: i32, off: i32, x: i32): i32 {
 }
 
 // 从 buf[off] 起追加写入 i64 的十进制表示；成功返回新偏移，失败返回 -1。
-function fmt_append_i64_to_buf(buf: *u8, cap: i32, off: i32, x: i64): i32 {
+export function fmt_append_i64_to_buf(buf: *u8, cap: i32, off: i32, x: i64): i32 {
   if (off < 0 || off >= cap) { return -1; }
   let tmp: u8[24] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   let n: i32 = fmt_i64_to_buf(tmp, 24, x);
@@ -251,15 +251,15 @@ function fmt_append_i64_to_buf(buf: *u8, cap: i32, off: i32, x: i64): i32 {
 
 // ——— 浮点 f64（NaN/Inf 特判 + 可配置精度，截断取整） ———
 /** 默认小数位数；`fmt_f64_to_buf` 委托本常量。 */
-const FMT_F64_DEFAULT_PREC: i32 = 6;
+export const FMT_F64_DEFAULT_PREC: i32 = 6;
 
 /** IEEE 754 NaN 检测：`x != x`。 */
-function fmt_f64_is_nan(x: f64): bool {
+export function fmt_f64_is_nan(x: f64): bool {
   return x != x;
 }
 
 /** 正/负 Inf 检测：非 NaN、非零且 `x + x == x`。 */
-function fmt_f64_is_inf(x: f64): bool {
+export function fmt_f64_is_inf(x: f64): bool {
   if (fmt_f64_is_nan(x)) {
     return false;
   }
@@ -270,7 +270,7 @@ function fmt_f64_is_inf(x: f64): bool {
 }
 
 /** 将 NaN/Inf 特殊值写入 buf；成功返回字节数，非特殊值返回 -1。 */
-function fmt_f64_write_special(buf: *u8, cap: i32, x: f64): i32 {
+export function fmt_f64_write_special(buf: *u8, cap: i32, x: f64): i32 {
   if (fmt_f64_is_nan(x)) {
     if (cap < 3) { return -1; }
     buf[0] = 78;
@@ -300,7 +300,7 @@ function fmt_f64_write_special(buf: *u8, cap: i32, x: f64): i32 {
  * 将 x 的十进制写入 buf[0..cap)；`prec` 为 0–9 小数位（截断，不四舍五入）。
  * NaN/Inf 走固定字符串；非法 prec 或容量不足返回 -1；prec=0 仅写整数部分。
  */
-function fmt_f64_to_buf_prec(buf: *u8, cap: i32, x: f64, prec: i32): i32 {
+export function fmt_f64_to_buf_prec(buf: *u8, cap: i32, x: f64, prec: i32): i32 {
   let digits: u8[10] = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57];
   if (cap < 1) { return -1; }
   if (prec < 0 || prec > 9) { return -1; }
@@ -338,29 +338,29 @@ function fmt_f64_to_buf_prec(buf: *u8, cap: i32, x: f64, prec: i32): i32 {
 }
 
 /** 默认精度（FMT_F64_DEFAULT_PREC 位小数）写入 buf；不足返回 -1。 */
-function fmt_f64_to_buf(buf: *u8, cap: i32, x: f64): i32 {
+export function fmt_f64_to_buf(buf: *u8, cap: i32, x: f64): i32 {
   return fmt_f64_to_buf_prec(buf, cap, x, FMT_F64_DEFAULT_PREC);
 }
 
 /** 将任意整数标量 x 的十进制写入 buf（overload 分派到对应 *_to_buf）。 */
-function fmt_scalar_to_buf(buf: *u8, cap: i32, x: i32): i32 { return fmt_i32_to_buf(buf, cap, x); }
-function fmt_scalar_to_buf(buf: *u8, cap: i32, x: i64): i32 { return fmt_i64_to_buf(buf, cap, x); }
-function fmt_scalar_to_buf(buf: *u8, cap: i32, x: u32): i32 { return fmt_u32_to_buf(buf, cap, x); }
-function fmt_scalar_to_buf(buf: *u8, cap: i32, x: u64): i32 { return fmt_u64_to_buf(buf, cap, x); }
-function fmt_scalar_to_buf(buf: *u8, cap: i32, x: usize): i32 { return fmt_u32_to_buf(buf, cap, x as u32); }
-function fmt_scalar_to_buf(buf: *u8, cap: i32, x: isize): i32 { return fmt_i64_to_buf(buf, cap, x as i64); }
+export function fmt_scalar_to_buf(buf: *u8, cap: i32, x: i32): i32 { return fmt_i32_to_buf(buf, cap, x); }
+export function fmt_scalar_to_buf(buf: *u8, cap: i32, x: i64): i32 { return fmt_i64_to_buf(buf, cap, x); }
+export function fmt_scalar_to_buf(buf: *u8, cap: i32, x: u32): i32 { return fmt_u32_to_buf(buf, cap, x); }
+export function fmt_scalar_to_buf(buf: *u8, cap: i32, x: u64): i32 { return fmt_u64_to_buf(buf, cap, x); }
+export function fmt_scalar_to_buf(buf: *u8, cap: i32, x: usize): i32 { return fmt_u32_to_buf(buf, cap, x as u32); }
+export function fmt_scalar_to_buf(buf: *u8, cap: i32, x: isize): i32 { return fmt_i64_to_buf(buf, cap, x as i64); }
 
 /** usize 十进制写入 buf；与 fmt_scalar_to_buf(buf,cap,x:usize) 等价，供显式 API 名调用。 */
-function fmt_usize_to_buf(buf: *u8, cap: i32, x: usize): i32 {
+export function fmt_usize_to_buf(buf: *u8, cap: i32, x: usize): i32 {
   return fmt_u32_to_buf(buf, cap, x as u32);
 }
 /** isize 十进制写入 buf；与 fmt_scalar_to_buf(buf,cap,x:isize) 等价。 */
-function fmt_isize_to_buf(buf: *u8, cap: i32, x: isize): i32 {
+export function fmt_isize_to_buf(buf: *u8, cap: i32, x: isize): i32 {
   return fmt_i64_to_buf(buf, cap, x as i64);
 }
 
 /** 将指针 p 格式化为 "0x" + 十六进制（usize 宽度）；用于调试输出。 */
-function fmt_ptr_to_buf(buf: *u8, cap: i32, p: *u8): i32 {
+export function fmt_ptr_to_buf(buf: *u8, cap: i32, p: *u8): i32 {
   if (cap < 2) { return -1; }
   buf[0] = 48;
   buf[1] = 120;
@@ -369,4 +369,4 @@ function fmt_ptr_to_buf(buf: *u8, cap: i32, p: *u8): i32 {
   return 2 + n;
 }
 /** 模块尾占位：transitive import 解析时末位 function 会丢失，须保留非 API 锚点。 */
-function fmt_module_anchor(): i32 { return 0; }
+export function fmt_module_anchor(): i32 { return 0; }

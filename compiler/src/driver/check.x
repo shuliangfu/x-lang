@@ -21,13 +21,13 @@
 // 处理。
 
 /** C 侧 fmt_check_cmd.c：多文件/目录、deno check 风格诊断。 */
-extern function driver_run_compiler_check(argc: i32, argv: *u8): i32;
+export extern function driver_run_compiler_check(argc: i32, argv: *u8): i32;
 
 /**
  * shux check [flags] [path...]
  * 无路径时递归检查当前目录 *.x（与 shux fmt 一致）；目录则递归 *.x。
  */
-function cmd_check(argc: i32, argv: *u8): i32 {
+export function cmd_check(argc: i32, argv: *u8): i32 {
   unsafe {
     return driver_run_compiler_check(argc, argv);
   }

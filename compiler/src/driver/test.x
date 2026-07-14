@@ -20,7 +20,7 @@
 // 勿 import ast：-E 生成 driver_test_gen.c 时无需 AST 类型。
 
 /** C 侧 runtime.c：cd 到仓库根并 bash 执行测试脚本。 */
-extern function driver_run_test(argc: i32, argv: *u8): i32;
+export extern function driver_run_test(argc: i32, argv: *u8): i32;
 
 /**
 * shux test [script.sh]
@@ -28,7 +28,7 @@ extern function driver_run_test(argc: i32, argv: *u8): i32;
 * tests/run-all.sh；可指定相对仓库根的脚本路径。退出码与脚本一致（非 0
 * 映射为 1）。
 */
-function cmd_test(argc: i32, argv: *u8): i32 {
+export function cmd_test(argc: i32, argv: *u8): i32 {
   unsafe {
     return driver_run_test(argc, argv);
   }

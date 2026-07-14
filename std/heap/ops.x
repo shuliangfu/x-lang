@@ -27,7 +27,7 @@ const mem = import("core.mem");
 /**
  * std.mem 用：将 ptr[0..n-1] 置为 byte；n<=0 不写。
  */
-function heap_mem_set_c(ptr: *u8, byte: u8, n: i32): void {
+export function heap_mem_set_c(ptr: *u8, byte: u8, n: i32): void {
   if (n <= 0) {
     return;
   }
@@ -37,7 +37,7 @@ function heap_mem_set_c(ptr: *u8, byte: u8, n: i32): void {
 /**
  * std.mem 用：比较 a[0..n-1] 与 b[0..n-1]；返回 -1 / 0 / 1。
  */
-function heap_mem_compare_c(a: *u8, b: *u8, n: i32): i32 {
+export function heap_mem_compare_c(a: *u8, b: *u8, n: i32): i32 {
   if (n <= 0) {
     return 0;
   }
@@ -47,7 +47,7 @@ function heap_mem_compare_c(a: *u8, b: *u8, n: i32): i32 {
 /**
  * 哈希槽起始下标；cap 须 > 0。
  */
-function map_slot(key: i32, cap: i32): i32 {
+export function map_slot(key: i32, cap: i32): i32 {
   let h: i32 = key % cap;
   if (h < 0) {
     return h + cap;
@@ -58,7 +58,7 @@ function map_slot(key: i32, cap: i32): i32 {
 /**
  * std.map / std.set 用：线性探测查找 key；存在返回下标，否则 -1。
  */
-function map_i32_i32_find_c(keys: *i32, occupied: *u8, cap: i32, key: i32): i32 {
+export function map_i32_i32_find_c(keys: *i32, occupied: *u8, cap: i32, key: i32): i32 {
   if (cap <= 0) {
     return -1;
   }

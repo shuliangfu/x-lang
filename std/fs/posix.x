@@ -113,309 +113,309 @@ allow(padding) struct PosixStatBuf {
 /* 【Why 根源治理】PollFd 不在此模块重定义。
  * PollFd 由 std.io.sync 定义；重定义导致 poll extern 声明类型冲突。 */
 
-extern "C" function open(path: *u8, flags: i32, mode: i32): i32;
-extern "C" function close(fd: i32): i32;
-extern "C" function read(fd: i32, buf: *u8, count: usize): isize;
-extern "C" function write(fd: i32, buf: *u8, count: usize): isize;
-extern "C" function pread(fd: i32, buf: *u8, count: usize, offset: i64): isize;
-extern "C" function pwrite(fd: i32, buf: *u8, count: usize, offset: i64): isize;
-extern "C" function mmap(addr: *u8, len: usize, prot: i32, flags: i32, fd: i32, offset: i64): *u8;
-extern "C" function munmap(addr: *u8, len: usize): i32;
-extern "C" function fstat(fd: i32, st: *PosixStatBuf): i32;
-extern "C" function stat(path: *u8, st: *PosixStatBuf): i32;
-extern "C" function fsync(fd: i32): i32;
-extern "C" function fchmod(fd: i32, mode: u32): i32;
-extern "C" function chmod(path: *u8, mode: u32): i32;
-extern "C" function mkdir(path: *u8, mode: u32): i32;
-extern "C" function unlink(path: *u8): i32;
-extern "C" function rmdir(path: *u8): i32;
-extern "C" function umask(mask: u32): u32;
-extern "C" function readv(fd: i32, iov: *Iovec, iovcnt: i32): isize;
-extern "C" function writev(fd: i32, iov: *Iovec, iovcnt: i32): isize;
-extern "C" function opendir(name: *u8): *u8;
-extern "C" function readdir(dirp: *u8): *u8;
-extern "C" function closedir(dirp: *u8): i32;
-extern "C" function malloc(size: usize): *u8;
-extern "C" function free(ptr: *u8): void;
-extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
-extern "C" function strlen(s: *u8): usize;
+export extern "C" function open(path: *u8, flags: i32, mode: i32): i32;
+export extern "C" function close(fd: i32): i32;
+export extern "C" function read(fd: i32, buf: *u8, count: usize): isize;
+export extern "C" function write(fd: i32, buf: *u8, count: usize): isize;
+export extern "C" function pread(fd: i32, buf: *u8, count: usize, offset: i64): isize;
+export extern "C" function pwrite(fd: i32, buf: *u8, count: usize, offset: i64): isize;
+export extern "C" function mmap(addr: *u8, len: usize, prot: i32, flags: i32, fd: i32, offset: i64): *u8;
+export extern "C" function munmap(addr: *u8, len: usize): i32;
+export extern "C" function fstat(fd: i32, st: *PosixStatBuf): i32;
+export extern "C" function stat(path: *u8, st: *PosixStatBuf): i32;
+export extern "C" function fsync(fd: i32): i32;
+export extern "C" function fchmod(fd: i32, mode: u32): i32;
+export extern "C" function chmod(path: *u8, mode: u32): i32;
+export extern "C" function mkdir(path: *u8, mode: u32): i32;
+export extern "C" function unlink(path: *u8): i32;
+export extern "C" function rmdir(path: *u8): i32;
+export extern "C" function umask(mask: u32): u32;
+export extern "C" function readv(fd: i32, iov: *Iovec, iovcnt: i32): isize;
+export extern "C" function writev(fd: i32, iov: *Iovec, iovcnt: i32): isize;
+export extern "C" function opendir(name: *u8): *u8;
+export extern "C" function readdir(dirp: *u8): *u8;
+export extern "C" function closedir(dirp: *u8): i32;
+export extern "C" function malloc(size: usize): *u8;
+export extern "C" function free(ptr: *u8): void;
+export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+export extern "C" function strlen(s: *u8): usize;
 #[cfg(target_os = "linux")]
-extern "C" function __errno_location(): *i32;
+export extern "C" function __errno_location(): *i32;
 
 #[cfg(target_os = "macos")]
-extern "C" function __error(): *i32;
-extern "C" function fcntl(fd: i32, cmd: i32, arg: i32): i32;
-extern "C" function usleep(usec: u32): i32;
-extern "C" function madvise(addr: *u8, len: usize, advice: i32): i32;
-extern "C" function poll(fds: *PollFd, nfds: u64, timeout: i32): i32;
+export extern "C" function __error(): *i32;
+export extern "C" function fcntl(fd: i32, cmd: i32, arg: i32): i32;
+export extern "C" function usleep(usec: u32): i32;
+export extern "C" function madvise(addr: *u8, len: usize, advice: i32): i32;
+export extern "C" function poll(fds: *PollFd, nfds: u64, timeout: i32): i32;
 
 /** libc FFI 须 unsafe；集中薄包装，避免各 fs_*_c 重复写 unsafe 块。 */
-function fs_libc_open(path: *u8, flags: i32, mode: i32): i32 {
+export function fs_libc_open(path: *u8, flags: i32, mode: i32): i32 {
   unsafe { return open(path, flags, mode); }
   return 0; // unreachable — typeck workaround
 }
-function fs_libc_close(fd: i32): i32 {
+export function fs_libc_close(fd: i32): i32 {
   unsafe { return close(fd); }
   return 0; // unreachable — typeck workaround
 }
-function fs_libc_read(fd: i32, buf: *u8, count: usize): isize {
+export function fs_libc_read(fd: i32, buf: *u8, count: usize): isize {
   unsafe { return read(fd, buf, count); }
   return 0; // unreachable — typeck workaround
 }
-function fs_libc_write(fd: i32, buf: *u8, count: usize): isize {
+export function fs_libc_write(fd: i32, buf: *u8, count: usize): isize {
   unsafe { return write(fd, buf, count); }
   return 0; // unreachable — typeck workaround
 }
-function fs_libc_pread(fd: i32, buf: *u8, count: usize, offset: i64): isize {
+export function fs_libc_pread(fd: i32, buf: *u8, count: usize, offset: i64): isize {
   unsafe { return pread(fd, buf, count, offset); }
   return 0; // unreachable — typeck workaround
 }
-function fs_libc_pwrite(fd: i32, buf: *u8, count: usize, offset: i64): isize {
+export function fs_libc_pwrite(fd: i32, buf: *u8, count: usize, offset: i64): isize {
   unsafe { return pwrite(fd, buf, count, offset); }
   return 0; // unreachable — typeck workaround
 }
-function fs_libc_mmap(addr: *u8, len: usize, prot: i32, flags: i32, fd: i32, offset: i64): *u8 {
+export function fs_libc_mmap(addr: *u8, len: usize, prot: i32, flags: i32, fd: i32, offset: i64): *u8 {
   unsafe { return mmap(addr, len, prot, flags, fd, offset); }
   return 0; // unreachable — typeck workaround
 }
-function fs_libc_munmap(addr: *u8, len: usize): i32 {
+export function fs_libc_munmap(addr: *u8, len: usize): i32 {
   unsafe { return munmap(addr, len); }
   return 0; // unreachable — typeck workaround
 }
-function fs_libc_fstat(fd: i32, st: *PosixStatBuf): i32 {
+export function fs_libc_fstat(fd: i32, st: *PosixStatBuf): i32 {
   unsafe { return fstat(fd, st); }
   return 0; // unreachable — typeck workaround
 }
-function fs_libc_stat(path: *u8, st: *PosixStatBuf): i32 {
+export function fs_libc_stat(path: *u8, st: *PosixStatBuf): i32 {
   unsafe { return stat(path, st); }
   return 0; // unreachable — typeck workaround
 }
-function fs_libc_fsync(fd: i32): i32 {
+export function fs_libc_fsync(fd: i32): i32 {
   unsafe { return fsync(fd); }
   return 0; // unreachable — typeck workaround
 }
-function fs_libc_fchmod(fd: i32, mode: u32): i32 {
+export function fs_libc_fchmod(fd: i32, mode: u32): i32 {
   unsafe { return fchmod(fd, mode); }
   return 0; // unreachable — typeck workaround
 }
-function fs_libc_chmod(path: *u8, mode: u32): i32 {
+export function fs_libc_chmod(path: *u8, mode: u32): i32 {
   unsafe { return chmod(path, mode); }
   return 0; // unreachable — typeck workaround
 }
-function fs_libc_mkdir(path: *u8, mode: u32): i32 {
+export function fs_libc_mkdir(path: *u8, mode: u32): i32 {
   unsafe { return mkdir(path, mode); }
   return 0; // unreachable — typeck workaround
 }
-function fs_libc_unlink(path: *u8): i32 {
+export function fs_libc_unlink(path: *u8): i32 {
   unsafe { return unlink(path); }
   return 0; // unreachable — typeck workaround
 }
-function fs_libc_rmdir(path: *u8): i32 {
+export function fs_libc_rmdir(path: *u8): i32 {
   unsafe { return rmdir(path); }
   return 0; // unreachable — typeck workaround
 }
-function fs_libc_umask(mask: u32): u32 {
+export function fs_libc_umask(mask: u32): u32 {
   unsafe { return umask(mask); }
   return 0; // unreachable — typeck workaround
 }
-function fs_libc_readv(fd: i32, iov: *Iovec, iovcnt: i32): isize {
+export function fs_libc_readv(fd: i32, iov: *Iovec, iovcnt: i32): isize {
   unsafe { return readv(fd, iov, iovcnt); }
   return 0; // unreachable — typeck workaround
 }
-function fs_libc_writev(fd: i32, iov: *Iovec, iovcnt: i32): isize {
+export function fs_libc_writev(fd: i32, iov: *Iovec, iovcnt: i32): isize {
   unsafe { return writev(fd, iov, iovcnt); }
   return 0; // unreachable — typeck workaround
 }
-function fs_libc_opendir(name: *u8): *u8 {
+export function fs_libc_opendir(name: *u8): *u8 {
   unsafe { return opendir(name); }
   return 0; // unreachable — typeck workaround
 }
-function fs_libc_readdir(dirp: *u8): *u8 {
+export function fs_libc_readdir(dirp: *u8): *u8 {
   unsafe { return readdir(dirp); }
   return 0; // unreachable — typeck workaround
 }
-function fs_libc_closedir(dirp: *u8): i32 {
+export function fs_libc_closedir(dirp: *u8): i32 {
   unsafe { return closedir(dirp); }
   return 0; // unreachable — typeck workaround
 }
-function fs_libc_malloc(size: usize): *u8 {
+export function fs_libc_malloc(size: usize): *u8 {
   unsafe { return malloc(size); }
   return 0; // unreachable — typeck workaround
 }
-function fs_libc_free(ptr: *u8): void {
+export function fs_libc_free(ptr: *u8): void {
   unsafe { free(ptr); }
 }
-function fs_libc_memcpy(dst: *u8, src: *u8, n: usize): *u8 {
+export function fs_libc_memcpy(dst: *u8, src: *u8, n: usize): *u8 {
   unsafe { return memcpy(dst, src, n); }
   return 0; // unreachable — typeck workaround
 }
-function fs_libc_strlen(s: *u8): usize {
+export function fs_libc_strlen(s: *u8): usize {
   unsafe { return strlen(s); }
   return 0; // unreachable — typeck workaround
 }
 #[cfg(target_os = "linux")]
-function fs_libc_errno_location(): *i32 {
+export function fs_libc_errno_location(): *i32 {
   let p: *i32 = 0 as *i32;
   unsafe { p = __errno_location(); }
   return p;
 }
 
 #[cfg(target_os = "macos")]
-function fs_libc_errno_location(): *i32 {
+export function fs_libc_errno_location(): *i32 {
   let p: *i32 = 0 as *i32;
   unsafe { p = __error(); }
   return p;
 }
-function fs_libc_fcntl(fd: i32, cmd: i32, arg: i32): i32 {
+export function fs_libc_fcntl(fd: i32, cmd: i32, arg: i32): i32 {
   unsafe { return fcntl(fd, cmd, arg); }
   return 0; // unreachable — typeck workaround
 }
-function fs_libc_usleep(usec: u32): i32 {
+export function fs_libc_usleep(usec: u32): i32 {
   unsafe { return usleep(usec); }
   return 0; // unreachable — typeck workaround
 }
-function fs_libc_madvise(addr: *u8, len: usize, advice: i32): i32 {
+export function fs_libc_madvise(addr: *u8, len: usize, advice: i32): i32 {
   unsafe { return madvise(addr, len, advice); }
   return 0; // unreachable — typeck workaround
 }
-function fs_libc_poll(fds: *PollFd, nfds: u64, timeout: i32): i32 {
+export function fs_libc_poll(fds: *PollFd, nfds: u64, timeout: i32): i32 {
   unsafe { return poll(fds, nfds, timeout); }
   return 0; // unreachable — typeck workaround
 }
 #[cfg(target_os = "linux")]
-function fs_libc_posix_fadvise(fd: i32, offset: i64, len: i64, advice: i32): i32 {
+export function fs_libc_posix_fadvise(fd: i32, offset: i64, len: i64, advice: i32): i32 {
   unsafe { return posix_fadvise(fd, offset, len, advice); }
   return 0; // unreachable — typeck workaround
 }
 #[cfg(target_os = "linux")]
-function fs_libc_copy_file_range(fd_in: i32, off_in: *i64, fd_out: i32, off_out: *i64, len: usize, flags: u32): isize {
+export function fs_libc_copy_file_range(fd_in: i32, off_in: *i64, fd_out: i32, off_out: *i64, len: usize, flags: u32): isize {
   unsafe { return copy_file_range(fd_in, off_in, fd_out, off_out, len, flags); }
   return 0; // unreachable — typeck workaround
 }
 #[cfg(target_os = "linux")]
-function fs_libc_sendfile(out_fd: i32, in_fd: i32, offset: *i64, count: usize): isize {
+export function fs_libc_sendfile(out_fd: i32, in_fd: i32, offset: *i64, count: usize): isize {
   unsafe { return sendfile(out_fd, in_fd, offset, count); }
   return 0; // unreachable — typeck workaround
 }
 #[cfg(target_os = "linux")]
-function fs_libc_splice(fd_in: i32, off_in: *i64, fd_out: i32, off_out: *i64, len: usize, flags: u32): isize {
+export function fs_libc_splice(fd_in: i32, off_in: *i64, fd_out: i32, off_out: *i64, len: usize, flags: u32): isize {
   unsafe { return splice(fd_in, off_in, fd_out, off_out, len, flags); }
   return 0; // unreachable — typeck workaround
 }
 #[cfg(target_os = "linux")]
-function fs_libc_pipe(pipefd: *i32): i32 {
+export function fs_libc_pipe(pipefd: *i32): i32 {
   unsafe { return pipe(pipefd); }
   return 0; // unreachable — typeck workaround
 }
 #[cfg(target_os = "linux")]
-function fs_libc_sync_file_range(fd: i32, offset: i64, nbytes: i64, flags: u32): i32 {
+export function fs_libc_sync_file_range(fd: i32, offset: i64, nbytes: i64, flags: u32): i32 {
   unsafe { return sync_file_range(fd, offset, nbytes, flags); }
   return 0; // unreachable — typeck workaround
 }
 #[cfg(target_os = "linux")]
-function fs_libc_fallocate(fd: i32, mode: i32, offset: i64, len: i64): i32 {
+export function fs_libc_fallocate(fd: i32, mode: i32, offset: i64, len: i64): i32 {
   unsafe { return fallocate(fd, mode, offset, len); }
   return 0; // unreachable — typeck workaround
 }
 #[cfg(target_os = "macos")]
-function fs_libc_sendfile_mac(in_fd: i32, out_fd: i32, offset: i64, len: *i64, hdtr: *u8, flags: i32): i32 {
+export function fs_libc_sendfile_mac(in_fd: i32, out_fd: i32, offset: i64, len: *i64, hdtr: *u8, flags: i32): i32 {
   unsafe { return sendfile(in_fd, out_fd, offset, len, hdtr, flags); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 读取当前 errno；双步取值规避 C parser 对 let init 中 call()[i] postfix 的限制。 */
-function fs_errno_get(): i32 {
+export function fs_errno_get(): i32 {
   let ep: *i32 = fs_libc_errno_location();
   return ep[0];
 }
 
 /** 写入当前 errno。 */
-function fs_errno_set(v: i32): void {
+export function fs_errno_set(v: i32): void {
   let ep: *i32 = fs_libc_errno_location();
   ep[0] = v;
 }
 
 #[cfg(target_os = "linux")]
-extern "C" function posix_fadvise(fd: i32, offset: i64, len: i64, advice: i32): i32;
+export extern "C" function posix_fadvise(fd: i32, offset: i64, len: i64, advice: i32): i32;
 #[cfg(target_os = "linux")]
-extern "C" function copy_file_range(fd_in: i32, off_in: *i64, fd_out: i32, off_out: *i64, len: usize, flags: u32): isize;
+export extern "C" function copy_file_range(fd_in: i32, off_in: *i64, fd_out: i32, off_out: *i64, len: usize, flags: u32): isize;
 #[cfg(target_os = "linux")]
-extern "C" function sendfile(out_fd: i32, in_fd: i32, offset: *i64, count: usize): isize;
+export extern "C" function sendfile(out_fd: i32, in_fd: i32, offset: *i64, count: usize): isize;
 #[cfg(target_os = "linux")]
-extern "C" function splice(fd_in: i32, off_in: *i64, fd_out: i32, off_out: *i64, len: usize, flags: u32): isize;
+export extern "C" function splice(fd_in: i32, off_in: *i64, fd_out: i32, off_out: *i64, len: usize, flags: u32): isize;
 #[cfg(target_os = "linux")]
-extern "C" function pipe(pipefd: *i32): i32;
+export extern "C" function pipe(pipefd: *i32): i32;
 #[cfg(target_os = "linux")]
-extern "C" function sync_file_range(fd: i32, offset: i64, nbytes: i64, flags: u32): i32;
+export extern "C" function sync_file_range(fd: i32, offset: i64, nbytes: i64, flags: u32): i32;
 #[cfg(target_os = "linux")]
-extern "C" function fallocate(fd: i32, mode: i32, offset: i64, len: i64): i32;
+export extern "C" function fallocate(fd: i32, mode: i32, offset: i64, len: i64): i32;
 
 #[cfg(target_os = "macos")]
-extern "C" function sendfile(in_fd: i32, out_fd: i32, offset: i64, len: *i64, hdtr: *u8, flags: i32): i32;
+export extern "C" function sendfile(in_fd: i32, out_fd: i32, offset: i64, len: *i64, hdtr: *u8, flags: i32): i32;
 
 /** dirent.d_name 在 readdir 结果中的偏移（Linux/macOS 常见布局）。 */
-const DIRENT_D_NAME_OFF: usize = 19;
+export const DIRENT_D_NAME_OFF: usize = 19;
 
-const FS_IOV_BUF_MAX: i32 = 16;
-const O_RDONLY: i32 = 0;
-const O_WRONLY: i32 = 1;
-const O_RDWR: i32 = 2;
-const MAP_PRIVATE: i32 = 2;
-const MAP_SHARED: i32 = 1;
-const PROT_READ: i32 = 1;
-const PROT_WRITE: i32 = 2;
-const MAP_FAILED: i64 = -1;
-const S_IFMT: u32 = 61440;
-const S_IFDIR: u32 = 16384;
-const S_IFREG: u32 = 32768;
-
-#[cfg(target_os = "linux")]
-const O_CREAT: i32 = 64;
-#[cfg(target_os = "linux")]
-const O_TRUNC: i32 = 512;
-#[cfg(target_os = "linux")]
-const O_APPEND: i32 = 1024;
-#[cfg(target_os = "linux")]
-const O_DIRECT: i32 = 16384;
-#[cfg(target_os = "linux")]
-const POSIX_FADV_SEQUENTIAL: i32 = 2;
-#[cfg(target_os = "linux")]
-const POSIX_FADV_WILLNEED: i32 = 3;
-#[cfg(target_os = "linux")]
-const SYNC_FILE_RANGE_WRITE: u32 = 2;
-#[cfg(target_os = "linux")]
-const SPLICE_F_MOVE: u32 = 1;
-#[cfg(target_os = "linux")]
-const MADV_SEQUENTIAL: i32 = 23;
-#[cfg(target_os = "linux")]
-const MADV_HUGEPAGE: i32 = 14;
-#[cfg(target_os = "linux")]
-const POLLIN: i16 = 1;
-#[cfg(target_os = "linux")]
-const POLLOUT: i16 = 4;
-
-#[cfg(target_os = "macos")]
-const O_CREAT: i32 = 512;
-#[cfg(target_os = "macos")]
-const O_TRUNC: i32 = 1024;
-#[cfg(target_os = "macos")]
-const O_APPEND: i32 = 8;
-#[cfg(target_os = "macos")]
-const F_NOCACHE: i32 = 48;
-#[cfg(target_os = "macos")]
-const POLLIN: i16 = 1;
-#[cfg(target_os = "macos")]
-const POLLOUT: i16 = 4;
+export const FS_IOV_BUF_MAX: i32 = 16;
+export const O_RDONLY: i32 = 0;
+export const O_WRONLY: i32 = 1;
+export const O_RDWR: i32 = 2;
+export const MAP_PRIVATE: i32 = 2;
+export const MAP_SHARED: i32 = 1;
+export const PROT_READ: i32 = 1;
+export const PROT_WRITE: i32 = 2;
+export const MAP_FAILED: i64 = -1;
+export const S_IFMT: u32 = 61440;
+export const S_IFDIR: u32 = 16384;
+export const S_IFREG: u32 = 32768;
 
 #[cfg(target_os = "linux")]
-function fs_note_last_error_posix(): void {
+export const O_CREAT: i32 = 64;
+#[cfg(target_os = "linux")]
+export const O_TRUNC: i32 = 512;
+#[cfg(target_os = "linux")]
+export const O_APPEND: i32 = 1024;
+#[cfg(target_os = "linux")]
+export const O_DIRECT: i32 = 16384;
+#[cfg(target_os = "linux")]
+export const POSIX_FADV_SEQUENTIAL: i32 = 2;
+#[cfg(target_os = "linux")]
+export const POSIX_FADV_WILLNEED: i32 = 3;
+#[cfg(target_os = "linux")]
+export const SYNC_FILE_RANGE_WRITE: u32 = 2;
+#[cfg(target_os = "linux")]
+export const SPLICE_F_MOVE: u32 = 1;
+#[cfg(target_os = "linux")]
+export const MADV_SEQUENTIAL: i32 = 23;
+#[cfg(target_os = "linux")]
+export const MADV_HUGEPAGE: i32 = 14;
+#[cfg(target_os = "linux")]
+export const POLLIN: i16 = 1;
+#[cfg(target_os = "linux")]
+export const POLLOUT: i16 = 4;
+
+#[cfg(target_os = "macos")]
+export const O_CREAT: i32 = 512;
+#[cfg(target_os = "macos")]
+export const O_TRUNC: i32 = 1024;
+#[cfg(target_os = "macos")]
+export const O_APPEND: i32 = 8;
+#[cfg(target_os = "macos")]
+export const F_NOCACHE: i32 = 48;
+#[cfg(target_os = "macos")]
+export const POLLIN: i16 = 1;
+#[cfg(target_os = "macos")]
+export const POLLOUT: i16 = 4;
+
+#[cfg(target_os = "linux")]
+export function fs_note_last_error_posix(): void {
   let ep: *i32 = fs_libc_errno_location();
   fs_saved_last_error = ep[0];
   fs_saved_last_error_set = 1;
 }
 
 #[cfg(target_os = "macos")]
-function fs_note_last_error_posix(): void {
+export function fs_note_last_error_posix(): void {
   let ep: *i32 = fs_libc_errno_location();
   fs_saved_last_error = ep[0];
   fs_saved_last_error_set = 1;
@@ -424,7 +424,7 @@ function fs_note_last_error_posix(): void {
 /**
  * 从 PosixStatBuf 填充 FsStatOut。
  */
-function fs_fill_stat_from_st(st: *PosixStatBuf, out: *FsStatOut): void {
+export function fs_fill_stat_from_st(st: *PosixStatBuf, out: *FsStatOut): void {
   let st_mode: u32 = st[0].st_mode as u32;
   out[0].size = st[0].st_size;
   out[0].mode = (st_mode as u32) & 4095;
@@ -441,7 +441,7 @@ function fs_fill_stat_from_st(st: *PosixStatBuf, out: *FsStatOut): void {
 /**
  * 只读 mmap 整个文件；madvise 顺序 + Linux ≥2MB 大页提示。
  */
-function fs_mmap_ro_c(path: *u8, out_size: *usize): *u8 {
+export function fs_mmap_ro_c(path: *u8, out_size: *usize): *u8 {
   if (path == 0 || out_size == 0) {
     return 0;
   }
@@ -515,7 +515,7 @@ function fs_mmap_ro_c(path: *u8, out_size: *usize): *u8 {
 /**
  * 可写 mmap 整个文件（MAP_SHARED）。
  */
-function fs_mmap_rw_c(path: *u8, out_size: *usize): *u8 {
+export function fs_mmap_rw_c(path: *u8, out_size: *usize): *u8 {
   if (path == 0 || out_size == 0) {
     return 0;
   }
@@ -548,7 +548,7 @@ function fs_mmap_rw_c(path: *u8, out_size: *usize): *u8 {
 }
 
 /** 解除 mmap。 */
-function fs_munmap_c(ptr: *u8, size: usize): i32 {
+export function fs_munmap_c(ptr: *u8, size: usize): i32 {
   if (ptr == 0) {
     return 0;
   }
@@ -559,7 +559,7 @@ function fs_munmap_c(ptr: *u8, size: usize): i32 {
 }
 
 /** 只读 + O_DIRECT（Linux）/ F_NOCACHE（macOS）打开。 */
-function fs_open_read_direct_c(path: *u8): i32 {
+export function fs_open_read_direct_c(path: *u8): i32 {
   if (path == 0) {
     return -1;
   }
@@ -583,12 +583,12 @@ function fs_open_read_direct_c(path: *u8): i32 {
 }
 
 /** O_DIRECT 对齐要求（4096）。 */
-function fs_direct_align_c(): u64 {
+export function fs_direct_align_c(): u64 {
   return 4096 as u64;
 }
 
 /** POSIX_FADV_SEQUENTIAL（仅 Linux）。 */
-function fs_fadvise_sequential_c(fd: i32): i32 {
+export function fs_fadvise_sequential_c(fd: i32): i32 {
   #[cfg(target_os = "linux")]
   {
     if (fs_libc_posix_fadvise(fd, 0 as i64, 0 as i64, POSIX_FADV_SEQUENTIAL) == 0) {
@@ -603,7 +603,7 @@ function fs_fadvise_sequential_c(fd: i32): i32 {
 }
 
 /** POSIX_FADV_WILLNEED（仅 Linux）。 */
-function fs_fadvise_willneed_c(fd: i32, offset: i64, len: usize): i32 {
+export function fs_fadvise_willneed_c(fd: i32, offset: i64, len: usize): i32 {
   #[cfg(target_os = "linux")]
   {
     if (fs_libc_posix_fadvise(fd, offset, len as i64, POSIX_FADV_WILLNEED) == 0) {
@@ -618,7 +618,7 @@ function fs_fadvise_willneed_c(fd: i32, offset: i64, len: usize): i32 {
 }
 
 /** read/write 回退复制（非 Linux copy_file_range）。 */
-function fs_copy_rw_fallback(fd_in: i32, fd_out: i32, len: usize): i64 {
+export function fs_copy_rw_fallback(fd_in: i32, fd_out: i32, len: usize): i64 {
   let buf: u8[262144];
   let copied: usize = 0;
   while (copied < len) {
@@ -643,7 +643,7 @@ function fs_copy_rw_fallback(fd_in: i32, fd_out: i32, len: usize): i64 {
 }
 
 /** copy_file_range 或 read/write 回退。 */
-function fs_copy_file_range_c(fd_in: i32, fd_out: i32, len: usize): i64 {
+export function fs_copy_file_range_c(fd_in: i32, fd_out: i32, len: usize): i64 {
   #[cfg(target_os = "linux")]
   {
     let n: isize = fs_libc_copy_file_range(fd_in, 0 as *i64, fd_out, 0 as *i64, len, 0);
@@ -656,21 +656,21 @@ function fs_copy_file_range_c(fd_in: i32, fd_out: i32, len: usize): i64 {
 }
 
 /** 两段 readv。 */
-function fs_readv2_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize): i64 {
+export function fs_readv2_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize): i64 {
   let iov: Iovec[2] = [Iovec { base: p0, len: l0 }, Iovec { base: p1, len: l1 }];
   let n: isize = fs_libc_readv(fd, &iov[0], 2);
   return n >= 0 ? (n as i64) : (-1 as i64);
 }
 
 /** 两段 writev。 */
-function fs_writev2_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize): i64 {
+export function fs_writev2_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize): i64 {
   let iov: Iovec[2] = [Iovec { base: p0, len: l0 }, Iovec { base: p1, len: l1 }];
   let n: isize = fs_libc_writev(fd, &iov[0], 2);
   return n >= 0 ? (n as i64) : (-1 as i64);
 }
 
 /** Linux sendfile 循环；macOS sendfile 变体。 */
-function fs_sendfile_c(out_fd: i32, in_fd: i32, count: usize): i64 {
+export function fs_sendfile_c(out_fd: i32, in_fd: i32, count: usize): i64 {
   let remaining: usize = count;
   let total: i64 = 0;
   while (remaining > 0) {
@@ -731,7 +731,7 @@ function fs_sendfile_c(out_fd: i32, in_fd: i32, count: usize): i64 {
 }
 
 /** pipe_splice read/write 回退。 */
-function fs_pipe_splice_rw_fallback(fd_in: i32, fd_out: i32, len: usize): i64 {
+export function fs_pipe_splice_rw_fallback(fd_in: i32, fd_out: i32, len: usize): i64 {
   if (len == 0) {
     return 0;
   }
@@ -739,7 +739,7 @@ function fs_pipe_splice_rw_fallback(fd_in: i32, fd_out: i32, len: usize): i64 {
 }
 
 /** Linux splice 经 pipe；非 Linux 回退 read/write。 */
-function fs_pipe_splice_c(fd_in: i32, fd_out: i32, len: usize): i64 {
+export function fs_pipe_splice_c(fd_in: i32, fd_out: i32, len: usize): i64 {
   #[cfg(target_os = "linux")]
   {
     let pipefd: i32[2] = [0, 0];
@@ -800,7 +800,7 @@ function fs_pipe_splice_c(fd_in: i32, fd_out: i32, len: usize): i64 {
 }
 
 /** sync_file_range（Linux）；macOS no-op。 */
-function fs_sync_range_c(fd: i32, offset: i64, len: usize): i32 {
+export function fs_sync_range_c(fd: i32, offset: i64, len: usize): i32 {
   #[cfg(target_os = "linux")]
   {
     if (fs_libc_sync_file_range(fd, offset, len as i64, SYNC_FILE_RANGE_WRITE) == 0) {
@@ -815,7 +815,7 @@ function fs_sync_range_c(fd: i32, offset: i64, len: usize): i32 {
 }
 
 /** fsync 整文件刷盘。 */
-function fs_sync_c(fd: i32): i32 {
+export function fs_sync_c(fd: i32): i32 {
   if (fs_libc_fsync(fd) == 0) {
     return 0;
   }
@@ -823,7 +823,7 @@ function fs_sync_c(fd: i32): i32 {
 }
 
 /** fallocate（Linux）；macOS no-op。 */
-function fs_fallocate_c(fd: i32, offset: i64, len: i64): i32 {
+export function fs_fallocate_c(fd: i32, offset: i64, len: i64): i32 {
   #[cfg(target_os = "linux")]
   {
     if (fs_libc_fallocate(fd, 0, offset, len) == 0) {
@@ -838,7 +838,7 @@ function fs_fallocate_c(fd: i32, offset: i64, len: i64): i32 {
 }
 
 /** 只读打开 path。 */
-function fs_open_read_c(path: *u8): i32 {
+export function fs_open_read_c(path: *u8): i32 {
   if (path == 0) {
     fs_saved_last_error = 22;
     fs_saved_last_error_set = 1;
@@ -853,7 +853,7 @@ function fs_open_read_c(path: *u8): i32 {
 }
 
 /** 写打开：O_CREAT|O_TRUNC + fs_libc_umask(0) + fchmod 0644。 */
-function fs_open_write_c(path: *u8): i32 {
+export function fs_open_write_c(path: *u8): i32 {
   if (path == 0) {
     return -1;
   }
@@ -868,7 +868,7 @@ function fs_open_write_c(path: *u8): i32 {
 }
 
 /** 追加写打开。 */
-function fs_open_append_c(path: *u8): i32 {
+export function fs_open_append_c(path: *u8): i32 {
   if (path == 0) {
     return -1;
   }
@@ -876,7 +876,7 @@ function fs_open_append_c(path: *u8): i32 {
 }
 
 /** 写打开不截断。 */
-function fs_open_create_c(path: *u8): i32 {
+export function fs_open_create_c(path: *u8): i32 {
   if (path == 0) {
     return -1;
   }
@@ -884,7 +884,7 @@ function fs_open_create_c(path: *u8): i32 {
 }
 
 /** 返回上次保存的 errno。 */
-function fs_last_error_c(): i32 {
+export function fs_last_error_c(): i32 {
   if (fs_saved_last_error_set != 0) {
     return fs_saved_last_error;
   }
@@ -892,34 +892,34 @@ function fs_last_error_c(): i32 {
 }
 
 /** 包装 libc read。 */
-function fs_posix_read_c(fd: i32, buf: *u8, count: usize): i64 {
+export function fs_posix_read_c(fd: i32, buf: *u8, count: usize): i64 {
   return fs_libc_read(fd, buf, count) as i64;
 }
 
 /** 包装 libc write。 */
-function fs_posix_write_c(fd: i32, buf: *u8, count: usize): i64 {
+export function fs_posix_write_c(fd: i32, buf: *u8, count: usize): i64 {
   return fs_libc_write(fd, buf, count) as i64;
 }
 
 /** 包装 libc close。 */
-function fs_posix_close_c(fd: i32): i32 {
+export function fs_posix_close_c(fd: i32): i32 {
   return fs_libc_close(fd);
 }
 
 /** 包装 libc pread（带 offset，不改变 fd 位置）。 */
-function fs_posix_pread_c(fd: i32, buf: *u8, count: usize, offset: i64): i64 {
+export function fs_posix_pread_c(fd: i32, buf: *u8, count: usize, offset: i64): i64 {
   let n: isize = fs_libc_pread(fd, buf, count, offset);
   return n >= 0 ? (n as i64) : (-1 as i64);
 }
 
 /** 包装 libc pwrite（带 offset，不改变 fd 位置）。 */
-function fs_posix_pwrite_c(fd: i32, buf: *u8, count: usize, offset: i64): i64 {
+export function fs_posix_pwrite_c(fd: i32, buf: *u8, count: usize, offset: i64): i64 {
   let n: isize = fs_libc_pwrite(fd, buf, count, offset);
   return n >= 0 ? (n as i64) : (-1 as i64);
 }
 
 /** 四段 readv。 */
-function fs_readv4_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize): i64 {
+export function fs_readv4_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize): i64 {
   let iov: Iovec[4] = [
     Iovec { base: p0, len: l0 },
     Iovec { base: p1, len: l1 },
@@ -931,7 +931,7 @@ function fs_readv4_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l
 }
 
 /** 四段 writev。 */
-function fs_writev4_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize): i64 {
+export function fs_writev4_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize): i64 {
   let iov: Iovec[4] = [
     Iovec { base: p0, len: l0 },
     Iovec { base: p1, len: l1 },
@@ -943,7 +943,7 @@ function fs_writev4_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, 
 }
 
 /** 按段数 readv（1..16）。 */
-function fs_readv_buf_c(fd: i32, bufs: *u8, n: i32): i64 {
+export function fs_readv_buf_c(fd: i32, bufs: *u8, n: i32): i64 {
   if (n <= 0 || n > FS_IOV_BUF_MAX || bufs == 0) {
     return -1;
   }
@@ -960,7 +960,7 @@ function fs_readv_buf_c(fd: i32, bufs: *u8, n: i32): i64 {
 }
 
 /** 按段数 writev（1..16）。 */
-function fs_writev_buf_c(fd: i32, bufs: *u8, n: i32): i64 {
+export function fs_writev_buf_c(fd: i32, bufs: *u8, n: i32): i64 {
   if (n <= 0 || n > FS_IOV_BUF_MAX || bufs == 0) {
     return -1;
   }
@@ -977,7 +977,7 @@ function fs_writev_buf_c(fd: i32, bufs: *u8, n: i32): i64 {
 }
 
 /** 路径 stat。 */
-function fs_stat_c(path: *u8, out: *FsStatOut): i32 {
+export function fs_stat_c(path: *u8, out: *FsStatOut): i32 {
   let st: PosixStatBuf;
   if (path == 0 || out == 0) {
     return -1;
@@ -991,7 +991,7 @@ function fs_stat_c(path: *u8, out: *FsStatOut): i32 {
 }
 
 /** chmod 路径权限。 */
-function fs_chmod_c(path: *u8, mode: u32): i32 {
+export function fs_chmod_c(path: *u8, mode: u32): i32 {
   if (path == 0) {
     return -1;
   }
@@ -1003,7 +1003,7 @@ function fs_chmod_c(path: *u8, mode: u32): i32 {
 }
 
 /** mkdir。 */
-function fs_mkdir_c(path: *u8, mode: u32): i32 {
+export function fs_mkdir_c(path: *u8, mode: u32): i32 {
   if (path == 0) {
     return -1;
   }
@@ -1015,7 +1015,7 @@ function fs_mkdir_c(path: *u8, mode: u32): i32 {
 }
 
 /** unlink 文件。 */
-function fs_unlink_c(path: *u8): i32 {
+export function fs_unlink_c(path: *u8): i32 {
   if (path == 0) {
     return -1;
   }
@@ -1027,7 +1027,7 @@ function fs_unlink_c(path: *u8): i32 {
 }
 
 /** rmdir 空目录。 */
-function fs_rmdir_c(path: *u8): i32 {
+export function fs_rmdir_c(path: *u8): i32 {
   if (path == 0) {
     return -1;
   }
@@ -1039,7 +1039,7 @@ function fs_rmdir_c(path: *u8): i32 {
 }
 
 /** opendir；失败 -1。 */
-function fs_dir_open_c(path: *u8): i64 {
+export function fs_dir_open_c(path: *u8): i64 {
   let d: *u8;
   let h: *FsDirHandlePosix;
   if (path == 0) {
@@ -1061,7 +1061,7 @@ function fs_dir_open_c(path: *u8): i64 {
 }
 
 /** readdir 下一项；跳过 . 与 ..。 */
-function fs_dir_read_c(handle: i64, name_out: *u8, name_cap: i32, is_dir_out: *i32): i32 {
+export function fs_dir_read_c(handle: i64, name_out: *u8, name_cap: i32, is_dir_out: *i32): i32 {
   let h: *FsDirHandlePosix;
   let de: *u8;
   let name: *u8;
@@ -1101,7 +1101,7 @@ function fs_dir_read_c(handle: i64, name_out: *u8, name_cap: i32, is_dir_out: *i
 }
 
 /** closedir + free 句柄。 */
-function fs_dir_close_c(handle: i64): i32 {
+export function fs_dir_close_c(handle: i64): i32 {
   let h: *FsDirHandlePosix;
   if (handle < 0) {
     return -1;
@@ -1114,6 +1114,6 @@ function fs_dir_close_c(handle: i64): i32 {
 }
 
 /** 模块尾占位：transitive import 解析锚点。 */
-function fs_posix_module_anchor(): i32 {
+export function fs_posix_module_anchor(): i32 {
   return 0;
 }

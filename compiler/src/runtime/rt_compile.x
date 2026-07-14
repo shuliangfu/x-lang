@@ -6,11 +6,11 @@
 // G-02f-454：thin+rest PREFER_X_O；.x 薄门闩调 _impl，seed 宏重命名。
 //   原函数含 unsafe{let+if+strncmp} 组合（shux -E 易丢体）；thin wrapper 消除此风险。
 
-extern "C" function driver_deps_are_std_core_closure_only_impl(dep_paths: **u8, n_deps: i32): i32;
+export extern "C" function driver_deps_are_std_core_closure_only_impl(dep_paths: **u8, n_deps: i32): i32;
 
 /** dep 列表是否全为 std./core. 闭包（薄门闩；实际实现 seed _impl）。 */
 #[no_mangle]
-function driver_deps_are_std_core_closure_only(dep_paths: **u8, n_deps: i32): i32 {
+export function driver_deps_are_std_core_closure_only(dep_paths: **u8, n_deps: i32): i32 {
   unsafe {
     return driver_deps_are_std_core_closure_only_impl(dep_paths, n_deps);
   }

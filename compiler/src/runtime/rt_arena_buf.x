@@ -6,12 +6,12 @@
 // 🔒 大 BSS 与 pipeline_arena_offset_num_types 在 seed。
 // G-02f-443：thin+rest PREFER_X_O；.x 薄门闩调 _impl，seed 宏重命名。
 
-extern "C" function driver_arena_buf_impl(): *u8;
-extern "C" function driver_module_buf_impl(): *u8;
+export extern "C" function driver_arena_buf_impl(): *u8;
+export extern "C" function driver_module_buf_impl(): *u8;
 
 /** 清零并返回静态 arena 缓冲（薄门闩；实际实现 seed _impl）。 */
 #[no_mangle]
-function driver_arena_buf(): *u8 {
+export function driver_arena_buf(): *u8 {
   unsafe {
     return driver_arena_buf_impl();
   }
@@ -20,7 +20,7 @@ function driver_arena_buf(): *u8 {
 
 /** 清零并返回静态 module 缓冲（薄门闩；实际实现 seed _impl）。 */
 #[no_mangle]
-function driver_module_buf(): *u8 {
+export function driver_module_buf(): *u8 {
   unsafe {
     return driver_module_buf_impl();
   }

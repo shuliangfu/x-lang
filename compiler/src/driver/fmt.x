@@ -20,13 +20,13 @@
 // 类型，且可避免解析失败。
 
 /** C 侧 fmt_check_cmd.c：无参递归 cwd；--check / --fail-fast / --ignore=。 */
-extern function driver_run_fmt(argc: i32, argv: *u8): i32;
+export extern function driver_run_fmt(argc: i32, argv: *u8): i32;
 
 /**
 * shux fmt [--check] [--fail-fast] [--ignore=a,b] [path ...]
 * 无路径时格式化当前目录下全部 .x；--check 成功时无输出。
 */
-function cmd_fmt(argc: i32, argv: *u8): i32 {
+export function cmd_fmt(argc: i32, argv: *u8): i32 {
   unsafe {
     return driver_run_fmt(argc, argv);
   }

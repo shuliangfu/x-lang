@@ -21,27 +21,27 @@
 // OS getenv/setenv/iter 在 runtime_env_os.c（compiler runtime）。
 
 /** C 字符串常量（解析器不支持 "..." as *u8）。 */
-const ENV_LIT_KEY: u8[4] = [75, 69, 89, 0];
-const ENV_LIT_K: u8[2] = [75, 0];
-const ENV_LIT_V_EQ_W: u8[4] = [86, 61, 87, 0];
-const ENV_LIT_NOEQ: u8[5] = [78, 79, 69, 81, 0];
-const ENV_LIT_EMPTY: u8[1] = [0];
+export const ENV_LIT_KEY: u8[4] = [75, 69, 89, 0];
+export const ENV_LIT_K: u8[2] = [75, 0];
+export const ENV_LIT_V_EQ_W: u8[4] = [86, 61, 87, 0];
+export const ENV_LIT_NOEQ: u8[5] = [78, 79, 69, 81, 0];
+export const ENV_LIT_EMPTY: u8[1] = [0];
 
-extern "C" function strchr(s: *u8, c: i32): *u8;
-extern "C" function strlen(s: *u8): usize;
-extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+export extern "C" function strchr(s: *u8, c: i32): *u8;
+export extern "C" function strlen(s: *u8): usize;
+export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 
-extern function process_args_count_c(): i32;
-extern function process_arg_c(i: i32): *u8;
+export extern function process_args_count_c(): i32;
+export extern function process_arg_c(i: i32): *u8;
 
-extern function env_getenv_c(key: *u8, key_len: i32, out: *u8, out_cap: i32): i32;
-extern function env_setenv_c(name: *u8, value: *u8, overwrite: i32): i32;
-extern function env_unsetenv_c(name: *u8): i32;
+export extern function env_getenv_c(key: *u8, key_len: i32, out: *u8, out_cap: i32): i32;
+export extern function env_setenv_c(name: *u8, value: *u8, overwrite: i32): i32;
+export extern function env_unsetenv_c(name: *u8): i32;
 
 /** args_iter 计数：委托 process argc。 */
 /** mod.x extern args_iter_count_c → bare name 调用；#[no_mangle] 让 .x 定义符号与调用端一致。 */
 #[no_mangle]
-function args_iter_count_c(): i32 {
+export function args_iter_count_c(): i32 {
   unsafe { return process_args_count_c(); }
   return 0; // unreachable — typeck workaround
 }
@@ -49,13 +49,13 @@ function args_iter_count_c(): i32 {
 /** args_iter 取第 i 个 argv 指针（NUL 结尾）；越界返回 NULL。 */
 /** mod.x extern args_iter_at_c → bare name 调用；#[no_mangle] 让 .x 定义符号与调用端一致。 */
 #[no_mangle]
-function args_iter_at_c(i: i32): *u8 {
+export function args_iter_at_c(i: i32): *u8 {
   unsafe { return process_arg_c(i); }
   return 0; // unreachable — typeck workaround
 }
 
 /** C 串相等比较；1 相等。 */
-function env_cstr_eq(a: *u8, b: *u8): i32 {
+export function env_cstr_eq(a: *u8, b: *u8): i32 {
   let i: i32 = 0;
   if (a == 0 || b == 0) { return 0; }
   while (a[i] != 0 && a[i] == b[i]) {
@@ -69,7 +69,7 @@ function env_cstr_eq(a: *u8, b: *u8): i32 {
  * 解析 environ 风格条目 entry（NUL 结尾）为 key/value 写入 out 缓冲。
  * 无 '=' 时 value 为空串；仅首 '=' 分割。成功 0，cap 不足 -1。
  */
-function env_parse_kv_entry(entry: *u8, key_out: *u8, key_cap: i32,
+export function env_parse_kv_entry(entry: *u8, key_out: *u8, key_cap: i32,
                           val_out: *u8, val_cap: i32): i32 {
   let eq: *u8 = 0;
   let key_len: i32 = 0;
@@ -101,7 +101,7 @@ function env_parse_kv_entry(entry: *u8, key_out: *u8, key_cap: i32,
  * STD-132 C 金样：KV 解析 + setenv/getenv 空 value / value 含 '=' 往返。
  * 成功 0，失败非 0。
  */
-function env_platform_encoding_smoke_c(): i32 {
+export function env_platform_encoding_smoke_c(): i32 {
   let key: u8[64];
   let val: u8[64];
   let out: u8[32];

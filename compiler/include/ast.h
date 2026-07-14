@@ -464,7 +464,8 @@ typedef struct ASTFunc {
     int is_cold;          /**< #[cold] 冷路径优化提示 */
     int is_inline_never;  /**< #[inline(never)] 禁止内联 */
     int is_inline_always; /**< #[inline(always)] 强制内联 */
-    const char *export_name; /**< #[export_name("name")] 导出符号名 */
+    const char *export_name; /**< #[export_name("name")] 导出符号名（链接层，≠ 模块 export 关键字） */
+    int is_export;       /**< 1 表示 `export function`（模块导出表 E(M)；与 export_name 正交） */
     int is_panic_handler; /**< #[panic_handler] panic 处理函数 */
     /** 以下仅当本函数为 impl 块内方法时非 NULL；codegen 用于生成 mangle 名（阶段 7.2） */
     const char *impl_for_trait; /**< 所属 trait 名，NULL 表示顶层函数 */

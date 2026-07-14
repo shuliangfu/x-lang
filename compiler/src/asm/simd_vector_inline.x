@@ -24,7 +24,7 @@ const ast = import("ast");
 const backend = import("asm.backend");
 
 /** shuffle intrinsic 内联尝试（@shuffle / simd_shuffle / vec*_shuffle）。 */
-extern function pipeline_asm_simd_try_inline_shuffle_call_elf_c(
+export extern function pipeline_asm_simd_try_inline_shuffle_call_elf_c(
   arena: *ASTArena,
   elf_ctx: *ElfCodegenCtx,
   call_ref: i32,
@@ -34,7 +34,7 @@ extern function pipeline_asm_simd_try_inline_shuffle_call_elf_c(
   type_ref: i32,
 ): i32;
 
-function simd_try_inline_shuffle_call_elf(
+export function simd_try_inline_shuffle_call_elf(
   arena: *ASTArena,
   elf_ctx: *ElfCodegenCtx,
   call_ref: i32,
@@ -48,7 +48,7 @@ function simd_try_inline_shuffle_call_elf(
 }
 
 /** select intrinsic 内联尝试（@select / simd_select / vec*_select）。 */
-extern function pipeline_asm_simd_try_inline_select_call_elf_c(
+export extern function pipeline_asm_simd_try_inline_select_call_elf_c(
   arena: *ASTArena,
   elf_ctx: *ElfCodegenCtx,
   call_ref: i32,
@@ -58,7 +58,7 @@ extern function pipeline_asm_simd_try_inline_select_call_elf_c(
   type_ref: i32,
 ): i32;
 
-function simd_try_inline_select_call_elf(
+export function simd_try_inline_select_call_elf(
   arena: *ASTArena,
   elf_ctx: *ElfCodegenCtx,
   call_ref: i32,
@@ -72,7 +72,7 @@ function simd_try_inline_select_call_elf(
 }
 
 /** 两参向量 binop CALL 内联（vec8i_add / vec4f_mul 等）。 */
-extern function pipeline_asm_simd_try_inline_binop2_call_elf_c(
+export extern function pipeline_asm_simd_try_inline_binop2_call_elf_c(
   arena: *ASTArena,
   elf_ctx: *ElfCodegenCtx,
   call_ref: i32,
@@ -82,7 +82,7 @@ extern function pipeline_asm_simd_try_inline_binop2_call_elf_c(
   type_ref: i32,
 ): i32;
 
-function simd_try_inline_binop2_call_elf(
+export function simd_try_inline_binop2_call_elf(
   arena: *ASTArena,
   elf_ctx: *ElfCodegenCtx,
   call_ref: i32,
@@ -96,7 +96,7 @@ function simd_try_inline_binop2_call_elf(
 }
 
 /** 三参 Vec4f FMA CALL 内联（vec4f_fma / vec4f_madd / simd_fma）。 */
-extern function pipeline_asm_simd_try_inline_fma3_call_elf_c(
+export extern function pipeline_asm_simd_try_inline_fma3_call_elf_c(
   arena: *ASTArena,
   elf_ctx: *ElfCodegenCtx,
   call_ref: i32,
@@ -106,7 +106,7 @@ extern function pipeline_asm_simd_try_inline_fma3_call_elf_c(
   type_ref: i32,
 ): i32;
 
-function simd_try_inline_fma3_call_elf(
+export function simd_try_inline_fma3_call_elf(
   arena: *ASTArena,
   elf_ctx: *ElfCodegenCtx,
   call_ref: i32,

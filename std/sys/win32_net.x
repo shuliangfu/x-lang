@@ -23,22 +23,22 @@
 // F-02 v2：直接 extern ws2_32.dll（无 win32_net.inc.c）。
 
 /** winsock2 WSAStartup；0 成功。 */
-extern "C" function WSAStartup(wVersionRequested: u16, lpWSAData: *u8): i32;
+export extern "C" function WSAStartup(wVersionRequested: u16, lpWSAData: *u8): i32;
 
 /** winsock2 WSACleanup；0 成功。 */
-extern "C" function WSACleanup(): i32;
+export extern "C" function WSACleanup(): i32;
 
 /** MAKEWORD(2, 2) = 0x0202。 */
-const WIN32_WSA_VERSION_2_2: u16 = 0x0202;
+export const WIN32_WSA_VERSION_2_2: u16 = 0x0202;
 
 /** WSADATA 栈缓冲字节数（大于 Winsock2 结构体实际尺寸）。 */
-const WIN32_WSA_DATA_BYTES: i32 = 512;
+export const WIN32_WSA_DATA_BYTES: i32 = 512;
 
 /**
  * 返回 1 表示 Windows 网络栈（WSA）可用。
  * 探测：WSAStartup → WSACleanup 成功即视为可用。
  */
-function win32_net_available(): i32 {
+export function win32_net_available(): i32 {
   let wsa: u8[512] = [];
   unsafe {
     if (WSAStartup(WIN32_WSA_VERSION_2_2, &wsa[0]) != 0) {

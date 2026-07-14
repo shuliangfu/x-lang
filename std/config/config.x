@@ -22,59 +22,59 @@
 //
 // 【对标】Go viper 最小子集、Rust config + figment 分层覆盖。
 
-const CFG_OK: i32 = 0;
-const CFG_ERR_NULL: i32 = -1;
-const CFG_ERR_NOT_FOUND: i32 = -2;
-const CFG_ERR_INVALID: i32 = -3;
-const CFG_ERR_IO: i32 = -4;
-const CFG_ERR_FULL: i32 = -5;
+export const CFG_OK: i32 = 0;
+export const CFG_ERR_NULL: i32 = -1;
+export const CFG_ERR_NOT_FOUND: i32 = -2;
+export const CFG_ERR_INVALID: i32 = -3;
+export const CFG_ERR_IO: i32 = -4;
+export const CFG_ERR_FULL: i32 = -5;
 
-const CFG_MAX_ENTRIES: i32 = 64;
-const CFG_KEY_MAX: i32 = 128;
-const CFG_VAL_MAX: i32 = 256;
-const CFG_FILE_MAX: i32 = 65536;
-const CFG_SRC_LABEL_MAX: i32 = 64;
-const YAML_STACK_MAX: i32 = 8;
-const CFG_STORE_SIZE: usize = 29000;
-const YAML_CTX_SIZE: usize = 1200;
+export const CFG_MAX_ENTRIES: i32 = 64;
+export const CFG_KEY_MAX: i32 = 128;
+export const CFG_VAL_MAX: i32 = 256;
+export const CFG_FILE_MAX: i32 = 65536;
+export const CFG_SRC_LABEL_MAX: i32 = 64;
+export const YAML_STACK_MAX: i32 = 8;
+export const CFG_STORE_SIZE: usize = 29000;
+export const YAML_CTX_SIZE: usize = 1200;
 
-const CFG_SRC_UNKNOWN: i32 = 0;
+export const CFG_SRC_UNKNOWN: i32 = 0;
 /** 布尔字面量 C 字符串（解析器不支持 &CFG_LIT_TRUE[0]）。 */
-const CFG_LIT_TRUE: u8[5] = [116, 114, 117, 101, 0];
-const CFG_LIT_FALSE: u8[6] = [102, 97, 108, 115, 101, 0];
-const CFG_LIT_ONE: u8[2] = [49, 0];
-const CFG_LIT_ZERO: u8[2] = [48, 0];
-const CFG_LIT_YES: u8[4] = [121, 101, 115, 0];
-const CFG_LIT_ON: u8[3] = [111, 110, 0];
-const CFG_LIT_NO: u8[3] = [110, 111, 0];
-const CFG_LIT_OFF: u8[4] = [111, 102, 102, 0];
+export const CFG_LIT_TRUE: u8[5] = [116, 114, 117, 101, 0];
+export const CFG_LIT_FALSE: u8[6] = [102, 97, 108, 115, 101, 0];
+export const CFG_LIT_ONE: u8[2] = [49, 0];
+export const CFG_LIT_ZERO: u8[2] = [48, 0];
+export const CFG_LIT_YES: u8[4] = [121, 101, 115, 0];
+export const CFG_LIT_ON: u8[3] = [111, 110, 0];
+export const CFG_LIT_NO: u8[3] = [110, 111, 0];
+export const CFG_LIT_OFF: u8[4] = [111, 102, 102, 0];
 /** C 字符串常量（解析器不支持 "..." as *u8）。 */
-const CFG_LIT_N9090: u8[5] = [57, 48, 57, 48, 0];
-const CFG_LIT_SHUX_CFG_DEBUG: u8[15] = [83, 72, 85, 88, 95, 67, 70, 71, 95, 100, 101, 98, 117, 103, 0];
-const CFG_LIT_ALPHA: u8[6] = [97, 108, 112, 104, 97, 0];
-const CFG_LIT_BETA: u8[5] = [98, 101, 116, 97, 0];
-const CFG_LIT_CLI: u8[4] = [99, 108, 105, 0];
-const CFG_LIT_DB_URL: u8[7] = [100, 98, 46, 117, 114, 108, 0];
-const CFG_LIT_DEBUG: u8[6] = [100, 101, 98, 117, 103, 0];
-const CFG_LIT_ITEMS_0: u8[8] = [105, 116, 101, 109, 115, 46, 48, 0];
-const CFG_LIT_ITEMS_1: u8[8] = [105, 116, 101, 109, 115, 46, 49, 0];
-const CFG_LIT_LOCALHOST: u8[10] = [108, 111, 99, 97, 108, 104, 111, 115, 116, 0];
-const CFG_LIT_PORT: u8[5] = [112, 111, 114, 116, 0];
-const CFG_LIT_SERVER_DB_PORT: u8[15] = [115, 101, 114, 118, 101, 114, 46, 100, 98, 46, 112, 111, 114, 116, 0];
-const CFG_LIT_SERVER_DB_URL: u8[14] = [115, 101, 114, 118, 101, 114, 46, 100, 98, 46, 117, 114, 108, 0];
-const CFG_LIT_SERVER_HOST: u8[12] = [115, 101, 114, 118, 101, 114, 46, 104, 111, 115, 116, 0];
-const CFG_LIT_SERVERS_0_HOST: u8[15] = [115, 101, 114, 118, 101, 114, 115, 46, 48, 46, 104, 111, 115, 116, 0];
-const CFG_LIT_SERVERS_0_PORT: u8[15] = [115, 101, 114, 118, 101, 114, 115, 46, 48, 46, 112, 111, 114, 116, 0];
-const CFG_LIT_SERVERS_1_HOST: u8[15] = [115, 101, 114, 118, 101, 114, 115, 46, 49, 46, 104, 111, 115, 116, 0];
-const CFG_LIT_SERVERS_1_PORT: u8[15] = [115, 101, 114, 118, 101, 114, 115, 46, 49, 46, 112, 111, 114, 116, 0];
-const CFG_LIT_SQLITE_MEM: u8[13] = [115, 113, 108, 105, 116, 101, 58, 47, 47, 109, 101, 109, 0];
-const CFG_LIT_TOML: u8[5] = [116, 111, 109, 108, 0];
-const CFG_LIT_YAML: u8[5] = [121, 97, 109, 108, 0];
+export const CFG_LIT_N9090: u8[5] = [57, 48, 57, 48, 0];
+export const CFG_LIT_SHUX_CFG_DEBUG: u8[15] = [83, 72, 85, 88, 95, 67, 70, 71, 95, 100, 101, 98, 117, 103, 0];
+export const CFG_LIT_ALPHA: u8[6] = [97, 108, 112, 104, 97, 0];
+export const CFG_LIT_BETA: u8[5] = [98, 101, 116, 97, 0];
+export const CFG_LIT_CLI: u8[4] = [99, 108, 105, 0];
+export const CFG_LIT_DB_URL: u8[7] = [100, 98, 46, 117, 114, 108, 0];
+export const CFG_LIT_DEBUG: u8[6] = [100, 101, 98, 117, 103, 0];
+export const CFG_LIT_ITEMS_0: u8[8] = [105, 116, 101, 109, 115, 46, 48, 0];
+export const CFG_LIT_ITEMS_1: u8[8] = [105, 116, 101, 109, 115, 46, 49, 0];
+export const CFG_LIT_LOCALHOST: u8[10] = [108, 111, 99, 97, 108, 104, 111, 115, 116, 0];
+export const CFG_LIT_PORT: u8[5] = [112, 111, 114, 116, 0];
+export const CFG_LIT_SERVER_DB_PORT: u8[15] = [115, 101, 114, 118, 101, 114, 46, 100, 98, 46, 112, 111, 114, 116, 0];
+export const CFG_LIT_SERVER_DB_URL: u8[14] = [115, 101, 114, 118, 101, 114, 46, 100, 98, 46, 117, 114, 108, 0];
+export const CFG_LIT_SERVER_HOST: u8[12] = [115, 101, 114, 118, 101, 114, 46, 104, 111, 115, 116, 0];
+export const CFG_LIT_SERVERS_0_HOST: u8[15] = [115, 101, 114, 118, 101, 114, 115, 46, 48, 46, 104, 111, 115, 116, 0];
+export const CFG_LIT_SERVERS_0_PORT: u8[15] = [115, 101, 114, 118, 101, 114, 115, 46, 48, 46, 112, 111, 114, 116, 0];
+export const CFG_LIT_SERVERS_1_HOST: u8[15] = [115, 101, 114, 118, 101, 114, 115, 46, 49, 46, 104, 111, 115, 116, 0];
+export const CFG_LIT_SERVERS_1_PORT: u8[15] = [115, 101, 114, 118, 101, 114, 115, 46, 49, 46, 112, 111, 114, 116, 0];
+export const CFG_LIT_SQLITE_MEM: u8[13] = [115, 113, 108, 105, 116, 101, 58, 47, 47, 109, 101, 109, 0];
+export const CFG_LIT_TOML: u8[5] = [116, 111, 109, 108, 0];
+export const CFG_LIT_YAML: u8[5] = [121, 97, 109, 108, 0];
 
-const CFG_SRC_TOML: i32 = 1;
-const CFG_SRC_YAML: i32 = 2;
-const CFG_SRC_ENV: i32 = 3;
-const CFG_SRC_SET: i32 = 4;
+export const CFG_SRC_TOML: i32 = 1;
+export const CFG_SRC_YAML: i32 = 2;
+export const CFG_SRC_ENV: i32 = 3;
+export const CFG_SRC_SET: i32 = 4;
 
 /** 单条键值及来源 meta。 */
 allow(padding) struct CfgEntry {
@@ -107,34 +107,34 @@ allow(padding) struct YamlParseCtx {
   list_indent: i32;
 }
 
-extern function env_iter_count_c(): i32;
-extern function env_iter_at_c(index: i32, key_out: *u8, key_cap: i32, val_out: *u8, val_cap: i32): i32;
-extern function env_setenv_c(name: *u8, value: *u8, overwrite: i32): i32;
-extern "C" function fs_open_read_c(path: *u8): i32;
-extern "C" function fs_posix_read_c(fd: i32, buf: *u8, count: usize): i64;
-extern "C" function close(fd: i32): i32;
+export extern function env_iter_count_c(): i32;
+export extern function env_iter_at_c(index: i32, key_out: *u8, key_cap: i32, val_out: *u8, val_cap: i32): i32;
+export extern function env_setenv_c(name: *u8, value: *u8, overwrite: i32): i32;
+export extern "C" function fs_open_read_c(path: *u8): i32;
+export extern "C" function fs_posix_read_c(fd: i32, buf: *u8, count: usize): i64;
+export extern "C" function close(fd: i32): i32;
 
-extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
-extern "C" function memset(s: *u8, c: i32, n: usize): *u8;
-extern "C" function calloc(nmemb: usize, size: usize): *u8;
-extern "C" function free(ptr: *u8): void;
-extern "C" function strcmp(a: *u8, b: *u8): i32;
-extern "C" function strncmp(a: *u8, b: *u8, n: usize): i32;
-extern "C" function strlen(s: *u8): usize;
-extern "C" function strchr(s: *u8, c: i32): *u8;
+export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+export extern "C" function memset(s: *u8, c: i32, n: usize): *u8;
+export extern "C" function calloc(nmemb: usize, size: usize): *u8;
+export extern "C" function free(ptr: *u8): void;
+export extern "C" function strcmp(a: *u8, b: *u8): i32;
+export extern "C" function strncmp(a: *u8, b: *u8, n: usize): i32;
+export extern "C" function strlen(s: *u8): usize;
+export extern "C" function strchr(s: *u8, c: i32): *u8;
 
 /** F-config v1 版本标记。 */
-function config_f_config_v1_marker_c(): i32 {
+export function config_f_config_v1_marker_c(): i32 {
   return 1;
 }
 
 /** F-config v2 逻辑下沉标记。 */
-function config_f_config_v2_marker_c(): i32 {
+export function config_f_config_v2_marker_c(): i32 {
   return 1;
 }
 
 /** F-std-zero-c：config_io_glue.c 已删除，IO 在 .x 内。 */
-function config_f_zero_c_marker_c(): i32 {
+export function config_f_zero_c_marker_c(): i32 {
   return 1;
 }
 
@@ -142,7 +142,7 @@ function config_f_zero_c_marker_c(): i32 {
  * 读取 path 文件至 out_buf（最多 out_cap-1 字节 + 结尾 NUL）。
  * 成功返回字节数（不含 NUL）；失败 -1 参数，-4 IO/过大。
  */
-function config_read_file_c(path: *u8, out_buf: *u8, out_cap: i32): i32 {
+export function config_read_file_c(path: *u8, out_buf: *u8, out_cap: i32): i32 {
   let fd: i32 = 0;
   let total: i32 = 0;
   let n: i64 = 0;
@@ -169,31 +169,31 @@ function config_read_file_c(path: *u8, out_buf: *u8, out_cap: i32): i32 {
 }
 
 /** smoke 专用 setenv（经 std.env 胶层 env_setenv_c）。 */
-function config_smoke_setenv_c(key: *u8, val: *u8): i32 {
+export function config_smoke_setenv_c(key: *u8, val: *u8): i32 {
   unsafe { return env_setenv_c(key, val, 1); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 句柄转 store 指针；非法 0。 */
-function cfg_from_handle(handle: i64): *CfgStore {
+export function cfg_from_handle(handle: i64): *CfgStore {
   if (handle == 0) { return 0; }
   return handle as *CfgStore;
 }
 
 /** 内联 isspace（ASCII 空白）。 */
-function cfg_isspace(c: u8): i32 {
+export function cfg_isspace(c: u8): i32 {
   if (c == 32 || c == 9 || c == 10 || c == 13 || c == 12) { return 1; }
   return 0;
 }
 
 /** 内联 isalnum。 */
-function cfg_isalnum(c: u8): i32 {
+export function cfg_isalnum(c: u8): i32 {
   if ((c >= 48 && c <= 57) || (c >= 65 && c <= 90) || (c >= 97 && c <= 122)) { return 1; }
   return 0;
 }
 
 /** 安全 strncpy：最多 cap-1 字节并 NUL 结尾；返回 0。 */
-function cfg_strncpy(dst: *u8, src: *u8, cap: i32): i32 {
+export function cfg_strncpy(dst: *u8, src: *u8, cap: i32): i32 {
   let n: i32 = 0;
   if (dst == 0 || src == 0 || cap <= 0) { return CFG_ERR_NULL; }
   while (n + 1 < cap && src[n] != 0) {
@@ -205,7 +205,7 @@ function cfg_strncpy(dst: *u8, src: *u8, cap: i32): i32 {
 }
 
 /** 去除首尾空白；返回起始指针并写入 out_len。 */
-function cfg_trim(s: *u8, out_len: *i32): *u8 {
+export function cfg_trim(s: *u8, out_len: *i32): *u8 {
   let start: i32 = 0;
   let end: i32 = 0;
   if (s == 0) {
@@ -220,7 +220,7 @@ function cfg_trim(s: *u8, out_len: *i32): *u8 {
 }
 
 /** 查找键索引；不存在 -1。 */
-function cfg_find_index(store: *CfgStore, key: *u8): i32 {
+export function cfg_find_index(store: *CfgStore, key: *u8): i32 {
   let i: i32 = 0;
   if (store == 0 || key == 0) { return -1; }
   while (i < store.count) {
@@ -231,7 +231,7 @@ function cfg_find_index(store: *CfgStore, key: *u8): i32 {
 }
 
 /** 设置键值及来源 meta；override 非 0 时覆盖已有项。 */
-function cfg_set_raw_ex(store: *CfgStore, key: *u8, val: *u8, override: i32,
+export function cfg_set_raw_ex(store: *CfgStore, key: *u8, val: *u8, override: i32,
                       src_kind: i32, src_label: *u8): i32 {
   let idx: i32 = 0;
   if (store == 0 || key == 0 || val == 0) { return CFG_ERR_NULL; }
@@ -262,14 +262,14 @@ function cfg_set_raw_ex(store: *CfgStore, key: *u8, val: *u8, override: i32,
 }
 
 /** 设置键值；来源取自 store->active_source_*。 */
-function cfg_set_raw(store: *CfgStore, key: *u8, val: *u8, override: i32): i32 {
+export function cfg_set_raw(store: *CfgStore, key: *u8, val: *u8, override: i32): i32 {
   if (store == 0) { return CFG_ERR_NULL; }
   return cfg_set_raw_ex(store, key, val, override, store.active_source_kind,
                         &store.active_source_label[0]);
 }
 
 /** 解析 TOML 双引号字符串到 out；成功 0。 */
-function cfg_parse_quoted(src: *u8, len: i32, out: *u8, out_cap: i32): i32 {
+export function cfg_parse_quoted(src: *u8, len: i32, out: *u8, out_cap: i32): i32 {
   let i: i32 = 1;
   let o: i32 = 0;
   if (len < 2 || src[0] != 34 || src[(len - 1)] != 34) { return CFG_ERR_INVALID; }
@@ -296,7 +296,7 @@ function cfg_parse_quoted(src: *u8, len: i32, out: *u8, out_cap: i32): i32 {
 }
 
 /** 将 TOML 标量值规范化为存储字符串。 */
-function cfg_normalize_value(raw: *u8, raw_len: i32, out: *u8, out_cap: i32): i32 {
+export function cfg_normalize_value(raw: *u8, raw_len: i32, out: *u8, out_cap: i32): i32 {
   let tl: i32 = 0;
   let t: *u8 = 0;
   t = cfg_trim(raw, &tl);
@@ -317,7 +317,7 @@ function cfg_normalize_value(raw: *u8, raw_len: i32, out: *u8, out_cap: i32): i3
 }
 
 /** 拼接 prefix + '.' + key 片段（key_len 字节）；prefix 空则仅拷贝 key。 */
-function cfg_build_key_prefix(prefix: *u8, key_start: *u8, key_len: i32, out: *u8, out_cap: i32): i32 {
+export function cfg_build_key_prefix(prefix: *u8, key_start: *u8, key_len: i32, out: *u8, out_cap: i32): i32 {
   let pos: i32 = 0;
   let plen: i32 = 0;
   if (key_start == 0 || out == 0) { return CFG_ERR_NULL; }
@@ -337,7 +337,7 @@ function cfg_build_key_prefix(prefix: *u8, key_start: *u8, key_len: i32, out: *u
 }
 
 /** 将 i32 追加到 out[pos]；返回新 pos，失败 -1。 */
-function cfg_append_i32(out: *u8, pos: i32, cap: i32, v: i32): i32 {
+export function cfg_append_i32(out: *u8, pos: i32, cap: i32, v: i32): i32 {
   let tmp: u8[16] = [];
   let n: i32 = 0;
   let x: i32 = v;
@@ -362,7 +362,7 @@ function cfg_append_i32(out: *u8, pos: i32, cap: i32, v: i32): i32 {
 }
 
 /** 构建 name.index section 键。 */
-function cfg_build_array_section(name: *u8, index: i32, out: *u8, out_cap: i32): i32 {
+export function cfg_build_array_section(name: *u8, index: i32, out: *u8, out_cap: i32): i32 {
   let pos: i32 = 0;
   let nl: i32 = 0;
   if (name == 0 || out == 0) { return CFG_ERR_NULL; }
@@ -379,7 +379,7 @@ function cfg_build_array_section(name: *u8, index: i32, out: *u8, out_cap: i32):
 }
 
 /** 构建 list_prefix.index[.field] 键。 */
-function cfg_build_list_key(prefix: *u8, index: i32, field: *u8, out: *u8, out_cap: i32): i32 {
+export function cfg_build_list_key(prefix: *u8, index: i32, field: *u8, out: *u8, out_cap: i32): i32 {
   let pos: i32 = 0;
   let pl: i32 = 0;
   let fl: i32 = 0;
@@ -406,7 +406,7 @@ function cfg_build_list_key(prefix: *u8, index: i32, field: *u8, out: *u8, out_c
 
 
 /** 解析单行 key = value；section_prefix 可为空或 "sect"。 */
-function cfg_parse_kv_line(store: *CfgStore, line: *u8, section_prefix: *u8, override: i32): i32 {
+export function cfg_parse_kv_line(store: *CfgStore, line: *u8, section_prefix: *u8, override: i32): i32 {
   let key_full: u8[128] = [];
   let val_buf: u8[256] = [];
   let eq: *u8 = 0;
@@ -431,7 +431,7 @@ function cfg_parse_kv_line(store: *CfgStore, line: *u8, section_prefix: *u8, ove
 }
 
 /** 解析 [section] 头；写入 out 并返回 1，否则 0；非法 -1。 */
-function cfg_parse_section(line: *u8, out: *u8, out_cap: i32): i32 {
+export function cfg_parse_section(line: *u8, out: *u8, out_cap: i32): i32 {
   let len: i32 = 0;
   let t: *u8 = 0;
   let i: i32 = 0;
@@ -451,7 +451,7 @@ function cfg_parse_section(line: *u8, out: *u8, out_cap: i32): i32 {
 }
 
 /** 解析 [[array]] 头；返回 2；非法 -1；非 array 0。 */
-function cfg_parse_array_section(line: *u8, out: *u8, out_cap: i32): i32 {
+export function cfg_parse_array_section(line: *u8, out: *u8, out_cap: i32): i32 {
   let len: i32 = 0;
   let t: *u8 = 0;
   let i: i32 = 0;
@@ -473,7 +473,7 @@ function cfg_parse_array_section(line: *u8, out: *u8, out_cap: i32): i32 {
 }
 
 /** 从内存缓冲加载 TOML 子集。 */
-function cfg_load_toml_buf_impl(store: *CfgStore, buf: *u8, len: i32, override: i32): i32 {
+export function cfg_load_toml_buf_impl(store: *CfgStore, buf: *u8, len: i32, override: i32): i32 {
   let section: u8[128] = [];
   let array_name: u8[128] = [];
   let array_index: i32 = -1;
@@ -535,7 +535,7 @@ function cfg_load_toml_buf_impl(store: *CfgStore, buf: *u8, len: i32, override: 
 }
 
 
-function config_load_toml_buf_c(handle: i64, buf: *u8, len: i32, override: i32): i32 {
+export function config_load_toml_buf_c(handle: i64, buf: *u8, len: i32, override: i32): i32 {
   let store: *CfgStore = cfg_from_handle(handle);
   if (store == 0 || buf == 0 || len < 0) { return CFG_ERR_NULL; }
   store.active_source_kind = CFG_SRC_TOML;
@@ -543,7 +543,7 @@ function config_load_toml_buf_c(handle: i64, buf: *u8, len: i32, override: i32):
   return cfg_load_toml_buf_impl(store, buf, len, override);
 }
 
-function config_load_toml_file_c(handle: i64, path: *u8, override: i32): i32 {
+export function config_load_toml_file_c(handle: i64, path: *u8, override: i32): i32 {
   let store: *CfgStore = cfg_from_handle(handle);
   let buf: *u8 = 0;
   let sz: i32 = 0;
@@ -562,7 +562,7 @@ function config_load_toml_file_c(handle: i64, path: *u8, override: i32): i32 {
   return r;
 }
 
-function config_load_env_prefix_c(handle: i64, prefix: *u8, prefix_len: i32, override: i32): i32 {
+export function config_load_env_prefix_c(handle: i64, prefix: *u8, prefix_len: i32, override: i32): i32 {
   let store: *CfgStore = cfg_from_handle(handle);
   let pfx: u8[128] = [];
   let n: i32 = 0;
@@ -592,24 +592,24 @@ function config_load_env_prefix_c(handle: i64, prefix: *u8, prefix_len: i32, ove
   return loaded;
 }
 
-function config_create_c(): i64 {
+export function config_create_c(): i64 {
   let s: *u8 = 0;
   unsafe { s = calloc(1, CFG_STORE_SIZE); }
   if (s == 0) { return 0; }
   return s as i64;
 }
 
-function config_free_c(handle: i64): void {
+export function config_free_c(handle: i64): void {
   let s: *CfgStore = cfg_from_handle(handle);
   if (s != 0) { unsafe { free(s as *u8); } }
 }
 
-function config_clear_c(handle: i64): void {
+export function config_clear_c(handle: i64): void {
   let s: *CfgStore = cfg_from_handle(handle);
   if (s != 0) { s.count = 0; }
 }
 
-function config_merge_c(dst_handle: i64, src_handle: i64, override: i32): i32 {
+export function config_merge_c(dst_handle: i64, src_handle: i64, override: i32): i32 {
   let dst: *CfgStore = cfg_from_handle(dst_handle);
   let src: *CfgStore = cfg_from_handle(src_handle);
   let i: i32 = 0;
@@ -624,7 +624,7 @@ function config_merge_c(dst_handle: i64, src_handle: i64, override: i32): i32 {
   return CFG_OK;
 }
 
-function config_set_string_c(handle: i64, key: *u8, key_len: i32, val: *u8, val_len: i32): i32 {
+export function config_set_string_c(handle: i64, key: *u8, key_len: i32, val: *u8, val_len: i32): i32 {
   let store: *CfgStore = cfg_from_handle(handle);
   let k: u8[128] = [];
   let v: u8[256] = [];
@@ -640,7 +640,7 @@ function config_set_string_c(handle: i64, key: *u8, key_len: i32, val: *u8, val_
   return cfg_set_raw_ex(store, &k[0], &v[0], 1, CFG_SRC_SET, &CFG_LIT_CLI[0]);
 }
 
-function config_get_string_c(handle: i64, key: *u8, key_len: i32, out: *u8, out_cap: i32): i32 {
+export function config_get_string_c(handle: i64, key: *u8, key_len: i32, out: *u8, out_cap: i32): i32 {
   let store: *CfgStore = cfg_from_handle(handle);
   let idx: i32 = 0;
   let k: u8[128] = [];
@@ -662,7 +662,7 @@ function config_get_string_c(handle: i64, key: *u8, key_len: i32, out: *u8, out_
 }
 
 /** 十进制字符串转 i32；非法 CFG_ERR_INVALID。 */
-function cfg_parse_i32_str(s: *u8, out: *i32): i32 {
+export function cfg_parse_i32_str(s: *u8, out: *i32): i32 {
   let i: i32 = 0;
   let sign: i32 = 1;
   let v: i64 = 0;
@@ -688,7 +688,7 @@ function cfg_parse_i32_str(s: *u8, out: *i32): i32 {
   return CFG_OK;
 }
 
-function config_get_i32_c(handle: i64, key: *u8, key_len: i32, out: *i32): i32 {
+export function config_get_i32_c(handle: i64, key: *u8, key_len: i32, out: *i32): i32 {
   let store: *CfgStore = cfg_from_handle(handle);
   let idx: i32 = 0;
   let k: u8[128] = [];
@@ -701,7 +701,7 @@ function config_get_i32_c(handle: i64, key: *u8, key_len: i32, out: *i32): i32 {
   return cfg_parse_i32_str(&store.entries[idx].val[0], out);
 }
 
-function config_get_bool_c(handle: i64, key: *u8, key_len: i32, out: *i32): i32 {
+export function config_get_bool_c(handle: i64, key: *u8, key_len: i32, out: *i32): i32 {
   let store: *CfgStore = cfg_from_handle(handle);
   let idx: i32 = 0;
   let k: u8[128] = [];
@@ -726,7 +726,7 @@ function config_get_bool_c(handle: i64, key: *u8, key_len: i32, out: *i32): i32 
   return CFG_ERR_INVALID;
 }
 
-function config_get_source_c(handle: i64, key: *u8, key_len: i32, out_kind: *i32,
+export function config_get_source_c(handle: i64, key: *u8, key_len: i32, out_kind: *i32,
                              out_label: *u8, label_cap: i32): i32 {
   let store: *CfgStore = cfg_from_handle(handle);
   let idx: i32 = 0;
@@ -744,21 +744,21 @@ function config_get_source_c(handle: i64, key: *u8, key_len: i32, out_kind: *i32
   return CFG_OK;
 }
 
-function config_get_i32_meta_c(handle: i64, key: *u8, key_len: i32, out_val: *i32,
+export function config_get_i32_meta_c(handle: i64, key: *u8, key_len: i32, out_val: *i32,
                                out_kind: *i32, out_label: *u8, label_cap: i32): i32 {
   let r: i32 = config_get_i32_c(handle, key, key_len, out_val);
   if (r != CFG_OK || out_kind == 0) { return r; }
   return config_get_source_c(handle, key, key_len, out_kind, out_label, label_cap);
 }
 
-function config_get_bool_meta_c(handle: i64, key: *u8, key_len: i32, out_val: *i32,
+export function config_get_bool_meta_c(handle: i64, key: *u8, key_len: i32, out_val: *i32,
                                 out_kind: *i32, out_label: *u8, label_cap: i32): i32 {
   let r: i32 = config_get_bool_c(handle, key, key_len, out_val);
   if (r != CFG_OK || out_kind == 0) { return r; }
   return config_get_source_c(handle, key, key_len, out_kind, out_label, label_cap);
 }
 
-function config_get_string_meta_c(handle: i64, key: *u8, key_len: i32, out: *u8, out_cap: i32,
+export function config_get_string_meta_c(handle: i64, key: *u8, key_len: i32, out: *u8, out_cap: i32,
                                   out_kind: *i32, out_label: *u8, label_cap: i32): i32 {
   let r: i32 = config_get_string_c(handle, key, key_len, out, out_cap);
   if (r < 0 || out_kind == 0) { return r; }
@@ -769,7 +769,7 @@ function config_get_string_meta_c(handle: i64, key: *u8, key_len: i32, out: *u8,
 }
 
 
-function cfg_yaml_indent(line: *u8): i32 {
+export function cfg_yaml_indent(line: *u8): i32 {
   let n: i32 = 0;
   if (line == 0) { return 0; }
   while (line[n] == 32) { n = n + 1; }
@@ -777,13 +777,13 @@ function cfg_yaml_indent(line: *u8): i32 {
   return n;
 }
 
-function cfg_yaml_pop_to(stack: *YamlFrame, depth: *i32, target_indent: i32): void {
+export function cfg_yaml_pop_to(stack: *YamlFrame, depth: *i32, target_indent: i32): void {
   while (*depth > 0 && stack[(*depth - 1)].indent >= target_indent) {
     depth[0] = depth[0] - 1;
   }
 }
 
-function cfg_yaml_build_key(stack: *YamlFrame, depth: i32, local: *u8, out: *u8, out_cap: i32): i32 {
+export function cfg_yaml_build_key(stack: *YamlFrame, depth: i32, local: *u8, out: *u8, out_cap: i32): i32 {
   let pos: i32 = 0;
   let i: i32 = 0;
   if (local == 0 || out == 0 || out_cap <= 0) { return CFG_ERR_NULL; }
@@ -816,14 +816,14 @@ function cfg_yaml_build_key(stack: *YamlFrame, depth: i32, local: *u8, out: *u8,
   return CFG_OK;
 }
 
-function cfg_yaml_list_reset(ctx: *YamlParseCtx): void {
+export function cfg_yaml_list_reset(ctx: *YamlParseCtx): void {
   if (ctx == 0) { return; }
   ctx.list_prefix[0] = 0;
   ctx.list_index = -1;
   ctx.list_indent = -1;
 }
 
-function cfg_yaml_frame_key(stack: *YamlFrame, depth: i32, out: *u8, out_cap: i32): i32 {
+export function cfg_yaml_frame_key(stack: *YamlFrame, depth: i32, out: *u8, out_cap: i32): i32 {
   let pos: i32 = 0;
   let i: i32 = 0;
   if (stack == 0 || out == 0 || out_cap <= 0 || depth <= 0) { return CFG_ERR_NULL; }
@@ -845,7 +845,7 @@ function cfg_yaml_frame_key(stack: *YamlFrame, depth: i32, out: *u8, out_cap: i3
   return CFG_OK;
 }
 
-function cfg_yaml_list_ensure_item(ctx: *YamlParseCtx, indent: i32, new_dash: i32): i32 {
+export function cfg_yaml_list_ensure_item(ctx: *YamlParseCtx, indent: i32, new_dash: i32): i32 {
   if (ctx == 0) { return CFG_ERR_NULL; }
   if (ctx.list_prefix[0] == 0) {
     if (ctx.depth <= 0) { return CFG_ERR_INVALID; }
@@ -860,7 +860,7 @@ function cfg_yaml_list_ensure_item(ctx: *YamlParseCtx, indent: i32, new_dash: i3
   return CFG_OK;
 }
 
-function cfg_yaml_set_list_entry(store: *CfgStore, ctx: *YamlParseCtx, field: *u8, val: *u8, override: i32): i32 {
+export function cfg_yaml_set_list_entry(store: *CfgStore, ctx: *YamlParseCtx, field: *u8, val: *u8, override: i32): i32 {
   let key_full: u8[128] = [];
   if (store == 0 || ctx == 0 || val == 0) { return CFG_ERR_NULL; }
   if (ctx.list_index < 0) { return CFG_ERR_INVALID; }
@@ -870,7 +870,7 @@ function cfg_yaml_set_list_entry(store: *CfgStore, ctx: *YamlParseCtx, field: *u
   return cfg_set_raw(store, &key_full[0], val, override);
 }
 
-function cfg_yaml_parse_list_field(store: *CfgStore, ctx: *YamlParseCtx, line: *u8,
+export function cfg_yaml_parse_list_field(store: *CfgStore, ctx: *YamlParseCtx, line: *u8,
                                  indent: i32, new_dash: i32, override: i32): i32 {
   let key_local: u8[128] = [];
   let val_buf: u8[256] = [];
@@ -906,7 +906,7 @@ function cfg_yaml_parse_list_field(store: *CfgStore, ctx: *YamlParseCtx, line: *
   return cfg_yaml_set_list_entry(store, ctx, &key_local[0], &val_buf[0], override);
 }
 
-function cfg_yaml_parse_list_scalar(store: *CfgStore, ctx: *YamlParseCtx, line: *u8, override: i32): i32 {
+export function cfg_yaml_parse_list_scalar(store: *CfgStore, ctx: *YamlParseCtx, line: *u8, override: i32): i32 {
   let val_buf: u8[256] = [];
   let tl: i32 = 0;
   let indent: i32 = 0;
@@ -924,7 +924,7 @@ function cfg_yaml_parse_list_scalar(store: *CfgStore, ctx: *YamlParseCtx, line: 
   return cfg_yaml_set_list_entry(store, ctx, 0, &val_buf[0], override);
 }
 
-function cfg_yaml_parse_line(store: *CfgStore, line: *u8, ctx: *YamlParseCtx, override: i32): i32 {
+export function cfg_yaml_parse_line(store: *CfgStore, line: *u8, ctx: *YamlParseCtx, override: i32): i32 {
   let key_local: u8[128] = [];
   let key_full: u8[128] = [];
   let val_buf: u8[256] = [];
@@ -988,7 +988,7 @@ function cfg_yaml_parse_line(store: *CfgStore, line: *u8, ctx: *YamlParseCtx, ov
   return cfg_set_raw(store, &key_full[0], &val_buf[0], override);
 }
 
-function cfg_load_yaml_buf_impl(store: *CfgStore, buf: *u8, len: i32, override: i32): i32 {
+export function cfg_load_yaml_buf_impl(store: *CfgStore, buf: *u8, len: i32, override: i32): i32 {
   let ctx: YamlParseCtx = YamlParseCtx {
     stack: [], depth: 0, list_prefix: [], list_index: -1, list_indent: -1
   };
@@ -1020,7 +1020,7 @@ function cfg_load_yaml_buf_impl(store: *CfgStore, buf: *u8, len: i32, override: 
   return CFG_OK;
 }
 
-function config_load_yaml_buf_c(handle: i64, buf: *u8, len: i32, override: i32): i32 {
+export function config_load_yaml_buf_c(handle: i64, buf: *u8, len: i32, override: i32): i32 {
   let store: *CfgStore = cfg_from_handle(handle);
   if (store == 0 || buf == 0 || len < 0) { return CFG_ERR_NULL; }
   store.active_source_kind = CFG_SRC_YAML;
@@ -1028,7 +1028,7 @@ function config_load_yaml_buf_c(handle: i64, buf: *u8, len: i32, override: i32):
   return cfg_load_yaml_buf_impl(store, buf, len, override);
 }
 
-function config_load_yaml_file_c(handle: i64, path: *u8, override: i32): i32 {
+export function config_load_yaml_file_c(handle: i64, path: *u8, override: i32): i32 {
   let store: *CfgStore = cfg_from_handle(handle);
   let buf: *u8 = 0;
   let sz: i32 = 0;
@@ -1048,7 +1048,7 @@ function config_load_yaml_file_c(handle: i64, path: *u8, override: i32): i32 {
 }
 
 
-function config_yaml_smoke_c(): i32 {
+export function config_yaml_smoke_c(): i32 {
   let cfg: i64 = 0;
   let port: i32 = 0;
   let dbg: i32 = 0;
@@ -1078,7 +1078,7 @@ function config_yaml_smoke_c(): i32 {
   return 0;
 }
 
-function config_array_smoke_c(): i32 {
+export function config_array_smoke_c(): i32 {
   let cfg: i64 = 0;
   let p0: i32 = 0;
   let p1: i32 = 0;
@@ -1098,7 +1098,7 @@ function config_array_smoke_c(): i32 {
   return 0;
 }
 
-function config_nested_smoke_c(): i32 {
+export function config_nested_smoke_c(): i32 {
   let cfg: i64 = 0;
   let port: i32 = 0;
   let host: u8[64] = [];
@@ -1116,7 +1116,7 @@ function config_nested_smoke_c(): i32 {
   return 0;
 }
 
-function config_smoke_c(): i32 {
+export function config_smoke_c(): i32 {
   let base: i64 = 0;
   let overlay: i64 = 0;
   let port: i32 = 0;

@@ -5,11 +5,11 @@
 // hybrid → seeds/rt_emit_flags.from_x.c；默认仍在 runtime.from_x.c。
 // G-02f-451：thin+rest PREFER_X_O；.x 薄门闩调 _impl，seed 宏重命名。
 
-extern "C" function driver_argv_has_emit_c_flag_impl(argc: i32, argv: **u8): i32;
+export extern "C" function driver_argv_has_emit_c_flag_impl(argc: i32, argv: **u8): i32;
 
 /** argv 是否含 -E / -E-extern（薄门闩；实际实现 seed _impl）。 */
 #[no_mangle]
-function driver_argv_has_emit_c_flag(argc: i32, argv: **u8): i32 {
+export function driver_argv_has_emit_c_flag(argc: i32, argv: **u8): i32 {
   unsafe {
     return driver_argv_has_emit_c_flag_impl(argc, argv);
   }

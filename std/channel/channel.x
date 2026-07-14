@@ -21,6 +21,6 @@
 // 对外 API 在 mod.x。
 
 /** F-channel v1 版本标记；供聚合 gate 校验 channel.x 已参与 ld -r 合并。 */
-function channel_f_channel_v1_marker_c(): i32 {
+export function channel_f_channel_v1_marker_c(): i32 {
   return 1;
 }

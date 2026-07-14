@@ -25,7 +25,7 @@ const codegen_outbuf_abi = import("codegen_outbuf_abi");
 
 /** 当前支持的目标架构；pipeline 或 driver 按 -target 选择，backend
 * 据此分派到对应 emit 实现。 */
-enum TargetArch {
+export enum TargetArch {
   TARGET_X86_64,
   TARGET_ARM64,
   TARGET_RISCV64,
@@ -34,7 +34,7 @@ enum TargetArch {
 
 /** 向 CodegenOutBuf 追加一行汇编（ptr[0..len-1] + 换行）。与 pipeline 共用同一
 * out，便于 -backend asm 时写汇编到 out。返回 0 成功，缓冲区满返回 -1。 */
-function append_asm_line(out: *CodegenOutBuf, ptr: *u8, len: i32): i32 {
+export function append_asm_line(out: *CodegenOutBuf, ptr: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i < len && out.len < 8388608) {
     out.data[out.len] = ptr[i];
@@ -60,7 +60,7 @@ function append_asm_line(out: *CodegenOutBuf, ptr: *u8, len: i32): i32 {
 * 使用迭代实现：生成 pipeline 时 C codegen 对该块未按 stmt_order
 * 输出，递归版会导致栈溢出。
 */
-function format_u32_to_buf(buf: *u8, off: i32, max: i32, u: i32): i32 {
+export function format_u32_to_buf(buf: *u8, off: i32, max: i32, u: i32): i32 {
   let digit_chars: u8[10] = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57];
   if (max < 1) {
     return -1;
@@ -99,7 +99,7 @@ function format_u32_to_buf(buf: *u8, off: i32, max: i32, u: i32): i32 {
 * 字节，返回写入长度；缓冲区不足返回 -1。
 * 特殊处理 -2147483648（0-val 会溢出）。
 */
-function format_i32_to_buf(buf: *u8, off: i32, max: i32, val: i32): i32 {
+export function format_i32_to_buf(buf: *u8, off: i32, max: i32, val: i32): i32 {
   if (val < 0) {
     let u: i32 = 0 - val;
     if (u < 0) {
@@ -130,7 +130,7 @@ function format_i32_to_buf(buf: *u8, off: i32, max: i32, val: i32): i32 {
 
 /** 将 32 位值按 8 个十六进制字符写入 buf[off..off+7]，返回 8。用于 64
 * 位立即数（float 位模式）输出。 */
-function format_u32_hex8_to_buf(buf: *u8, off: i32, val: i32): i32 {
+export function format_u32_hex8_to_buf(buf: *u8, off: i32, val: i32): i32 {
   let hex: u8[16] = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 97, 98, 99, 100, 101, 102];
   let i: i32 = 0;
   while (i < 8) {

@@ -22,71 +22,71 @@
 //
 // 【对标】Rust serde + validator、Go mapstructure 最小子集。
 
-const SCH_OK: i32 = 0;
-const SCH_ERR_NULL: i32 = -1;
-const SCH_ERR_NOT_FOUND: i32 = -2;
-const SCH_ERR_TYPE: i32 = -3;
-const SCH_ERR_INVALID: i32 = -4;
-const SCH_ERR_FULL: i32 = -5;
+export const SCH_OK: i32 = 0;
+export const SCH_ERR_NULL: i32 = -1;
+export const SCH_ERR_NOT_FOUND: i32 = -2;
+export const SCH_ERR_TYPE: i32 = -3;
+export const SCH_ERR_INVALID: i32 = -4;
+export const SCH_ERR_FULL: i32 = -5;
 
-const SCH_TYPE_STRING: i32 = 0;
-const SCH_TYPE_I32: i32 = 1;
-const SCH_TYPE_BOOL: i32 = 2;
-const SCH_TYPE_F64: i32 = 3;
+export const SCH_TYPE_STRING: i32 = 0;
+export const SCH_TYPE_I32: i32 = 1;
+export const SCH_TYPE_BOOL: i32 = 2;
+export const SCH_TYPE_F64: i32 = 3;
 
-const SCH_MAX_FIELDS: i32 = 32;
-const SCH_NAME_MAX: i32 = 64;
-const SCH_VAL_MAX: i32 = 256;
-const SCH_ERR_MSG_MAX: i32 = 128;
-const SCH_SCHEMA_MEM_SIZE: usize = 12000;
+export const SCH_MAX_FIELDS: i32 = 32;
+export const SCH_NAME_MAX: i32 = 64;
+export const SCH_VAL_MAX: i32 = 256;
+export const SCH_ERR_MSG_MAX: i32 = 128;
+export const SCH_SCHEMA_MEM_SIZE: usize = 12000;
 
 /** C 字符串常量（解析器不支持 "..." as *u8）。 */
-const SCH_LIT_N0: u8[2] = [48, 0];
-const SCH_LIT_N1: u8[2] = [49, 0];
-const SCH_LIT_N2147483648: u8[11] = [50, 49, 52, 55, 52, 56, 51, 54, 52, 56, 0];
-const SCH_LIT_CSV_PARSE_ERROR: u8[16] = [67, 83, 86, 32, 112, 97, 114, 115, 101, 32, 101, 114, 114, 111, 114, 0];
-const SCH_LIT_JSON_ARRAY_PARSE_ERROR: u8[23] = [74, 83, 79, 78, 32, 97, 114, 114, 97, 121, 32, 112, 97, 114, 115, 101, 32, 101, 114, 114, 111, 114, 0];
-const SCH_LIT_JSON_PARSE_ERROR: u8[17] = [74, 83, 79, 78, 32, 112, 97, 114, 115, 101, 32, 101, 114, 114, 111, 114, 0];
-const SCH_LIT_JSON_VALUE_SKIP_FAILED: u8[23] = [74, 83, 79, 78, 32, 118, 97, 108, 117, 101, 32, 115, 107, 105, 112, 32, 102, 97, 105, 108, 101, 100, 0];
-const SCH_LIT_ACTIVE: u8[7] = [97, 99, 116, 105, 118, 101, 0];
-const SCH_LIT_AGE: u8[4] = [97, 103, 101, 0];
-const SCH_LIT_ALICE: u8[6] = [97, 108, 105, 99, 101, 0];
-const SCH_LIT_ARRAY_KEY_TOO_LONG: u8[19] = [97, 114, 114, 97, 121, 32, 107, 101, 121, 32, 116, 111, 111, 32, 108, 111, 110, 103, 0];
-const SCH_LIT_BOB: u8[4] = [98, 111, 98, 0];
-const SCH_LIT_BOB_25_FALSE: u8[14] = [98, 111, 98, 44, 50, 53, 44, 102, 97, 108, 115, 101, 10, 0];
-const SCH_LIT_CAROL: u8[6] = [99, 97, 114, 111, 108, 0];
-const SCH_LIT_EXPECTED_JSON_OBJECT: u8[21] = [101, 120, 112, 101, 99, 116, 101, 100, 32, 74, 83, 79, 78, 32, 111, 98, 106, 101, 99, 116, 0];
-const SCH_LIT_EXPECTED_ARRAY: u8[15] = [101, 120, 112, 101, 99, 116, 101, 100, 32, 97, 114, 114, 97, 121, 0];
-const SCH_LIT_EXPECTED_BOOL: u8[14] = [101, 120, 112, 101, 99, 116, 101, 100, 32, 98, 111, 111, 108, 0];
-const SCH_LIT_EXPECTED_F64: u8[13] = [101, 120, 112, 101, 99, 116, 101, 100, 32, 102, 54, 52, 0];
-const SCH_LIT_EXPECTED_I32: u8[13] = [101, 120, 112, 101, 99, 116, 101, 100, 32, 105, 51, 50, 0];
-const SCH_LIT_EXPECTED_NUMBER: u8[16] = [101, 120, 112, 101, 99, 116, 101, 100, 32, 110, 117, 109, 98, 101, 114, 0];
-const SCH_LIT_EXPECTED_OBJECT: u8[16] = [101, 120, 112, 101, 99, 116, 101, 100, 32, 111, 98, 106, 101, 99, 116, 0];
-const SCH_LIT_EXPECTED_STRING: u8[16] = [101, 120, 112, 101, 99, 116, 101, 100, 32, 115, 116, 114, 105, 110, 103, 0];
-const SCH_LIT_FALSE: u8[6] = [102, 97, 108, 115, 101, 0];
-const SCH_LIT_ITEMS_0: u8[8] = [105, 116, 101, 109, 115, 46, 48, 0];
-const SCH_LIT_ITEMS_1: u8[8] = [105, 116, 101, 109, 115, 46, 49, 0];
-const SCH_LIT_KEY_TOO_LONG: u8[13] = [107, 101, 121, 32, 116, 111, 111, 32, 108, 111, 110, 103, 0];
-const SCH_LIT_MISSING_CSV_COLUMN: u8[19] = [109, 105, 115, 115, 105, 110, 103, 32, 67, 83, 86, 32, 99, 111, 108, 117, 109, 110, 0];
-const SCH_LIT_MISSING_COLUMN: u8[15] = [109, 105, 115, 115, 105, 110, 103, 32, 99, 111, 108, 117, 109, 110, 0];
-const SCH_LIT_MISSING_REQUIRED_FIELD: u8[23] = [109, 105, 115, 115, 105, 110, 103, 32, 114, 101, 113, 117, 105, 114, 101, 100, 32, 102, 105, 101, 108, 100, 0];
-const SCH_LIT_NAME: u8[5] = [110, 97, 109, 101, 0];
-const SCH_LIT_NO: u8[3] = [110, 111, 0];
-const SCH_LIT_TRUE: u8[5] = [116, 114, 117, 101, 0];
-const SCH_LIT_UNKNOWN_TYPE: u8[13] = [117, 110, 107, 110, 111, 119, 110, 32, 116, 121, 112, 101, 0];
-const SCH_LIT_USER_AGE: u8[9] = [117, 115, 101, 114, 46, 97, 103, 101, 0];
-const SCH_LIT_USER_NAME: u8[10] = [117, 115, 101, 114, 46, 110, 97, 109, 101, 0];
-const SCH_LIT_USERS_0_NAME: u8[13] = [117, 115, 101, 114, 115, 46, 48, 46, 110, 97, 109, 101, 0];
-const SCH_LIT_USERS_1_NAME: u8[13] = [117, 115, 101, 114, 115, 46, 49, 46, 110, 97, 109, 101, 0];
-const SCH_LIT_YES: u8[4] = [121, 101, 115, 0];
-const SCH_LIT_ITEMS_10_20: u8[18] = [123, 34, 105, 116, 101, 109, 115, 34, 58, 91, 49, 48, 44, 50, 48, 93, 125, 0];
-const SCH_LIT_NAME_ALICE_AGE_30_ACTIVE_TRUE: u8[40] = [123, 34, 110, 97, 109, 101, 34, 58, 34, 97, 108, 105, 99, 101, 34, 44, 34, 97, 103, 101, 34, 58, 51, 48, 44, 34, 97, 99, 116, 105, 118, 101, 34, 58, 116, 114, 117, 101, 125, 0];
-const SCH_LIT_NAME_X: u8[13] = [123, 34, 110, 97, 109, 101, 34, 58, 34, 120, 34, 125, 0];
-const SCH_LIT_USER_NAME_CAROL_AGE_42: u8[35] = [123, 34, 117, 115, 101, 114, 34, 58, 123, 34, 110, 97, 109, 101, 34, 58, 34, 99, 97, 114, 111, 108, 34, 44, 34, 97, 103, 101, 34, 58, 52, 50, 125, 125, 0];
-const SCH_LIT_USERS_NAME_ALICE_NAME_BOB: u8[44] = [123, 34, 117, 115, 101, 114, 115, 34, 58, 91, 123, 34, 110, 97, 109, 101, 34, 58, 34, 97, 108, 105, 99, 101, 34, 125, 44, 123, 34, 110, 97, 109, 101, 34, 58, 34, 98, 111, 98, 34, 125, 93, 125, 0];
+export const SCH_LIT_N0: u8[2] = [48, 0];
+export const SCH_LIT_N1: u8[2] = [49, 0];
+export const SCH_LIT_N2147483648: u8[11] = [50, 49, 52, 55, 52, 56, 51, 54, 52, 56, 0];
+export const SCH_LIT_CSV_PARSE_ERROR: u8[16] = [67, 83, 86, 32, 112, 97, 114, 115, 101, 32, 101, 114, 114, 111, 114, 0];
+export const SCH_LIT_JSON_ARRAY_PARSE_ERROR: u8[23] = [74, 83, 79, 78, 32, 97, 114, 114, 97, 121, 32, 112, 97, 114, 115, 101, 32, 101, 114, 114, 111, 114, 0];
+export const SCH_LIT_JSON_PARSE_ERROR: u8[17] = [74, 83, 79, 78, 32, 112, 97, 114, 115, 101, 32, 101, 114, 114, 111, 114, 0];
+export const SCH_LIT_JSON_VALUE_SKIP_FAILED: u8[23] = [74, 83, 79, 78, 32, 118, 97, 108, 117, 101, 32, 115, 107, 105, 112, 32, 102, 97, 105, 108, 101, 100, 0];
+export const SCH_LIT_ACTIVE: u8[7] = [97, 99, 116, 105, 118, 101, 0];
+export const SCH_LIT_AGE: u8[4] = [97, 103, 101, 0];
+export const SCH_LIT_ALICE: u8[6] = [97, 108, 105, 99, 101, 0];
+export const SCH_LIT_ARRAY_KEY_TOO_LONG: u8[19] = [97, 114, 114, 97, 121, 32, 107, 101, 121, 32, 116, 111, 111, 32, 108, 111, 110, 103, 0];
+export const SCH_LIT_BOB: u8[4] = [98, 111, 98, 0];
+export const SCH_LIT_BOB_25_FALSE: u8[14] = [98, 111, 98, 44, 50, 53, 44, 102, 97, 108, 115, 101, 10, 0];
+export const SCH_LIT_CAROL: u8[6] = [99, 97, 114, 111, 108, 0];
+export const SCH_LIT_EXPECTED_JSON_OBJECT: u8[21] = [101, 120, 112, 101, 99, 116, 101, 100, 32, 74, 83, 79, 78, 32, 111, 98, 106, 101, 99, 116, 0];
+export const SCH_LIT_EXPECTED_ARRAY: u8[15] = [101, 120, 112, 101, 99, 116, 101, 100, 32, 97, 114, 114, 97, 121, 0];
+export const SCH_LIT_EXPECTED_BOOL: u8[14] = [101, 120, 112, 101, 99, 116, 101, 100, 32, 98, 111, 111, 108, 0];
+export const SCH_LIT_EXPECTED_F64: u8[13] = [101, 120, 112, 101, 99, 116, 101, 100, 32, 102, 54, 52, 0];
+export const SCH_LIT_EXPECTED_I32: u8[13] = [101, 120, 112, 101, 99, 116, 101, 100, 32, 105, 51, 50, 0];
+export const SCH_LIT_EXPECTED_NUMBER: u8[16] = [101, 120, 112, 101, 99, 116, 101, 100, 32, 110, 117, 109, 98, 101, 114, 0];
+export const SCH_LIT_EXPECTED_OBJECT: u8[16] = [101, 120, 112, 101, 99, 116, 101, 100, 32, 111, 98, 106, 101, 99, 116, 0];
+export const SCH_LIT_EXPECTED_STRING: u8[16] = [101, 120, 112, 101, 99, 116, 101, 100, 32, 115, 116, 114, 105, 110, 103, 0];
+export const SCH_LIT_FALSE: u8[6] = [102, 97, 108, 115, 101, 0];
+export const SCH_LIT_ITEMS_0: u8[8] = [105, 116, 101, 109, 115, 46, 48, 0];
+export const SCH_LIT_ITEMS_1: u8[8] = [105, 116, 101, 109, 115, 46, 49, 0];
+export const SCH_LIT_KEY_TOO_LONG: u8[13] = [107, 101, 121, 32, 116, 111, 111, 32, 108, 111, 110, 103, 0];
+export const SCH_LIT_MISSING_CSV_COLUMN: u8[19] = [109, 105, 115, 115, 105, 110, 103, 32, 67, 83, 86, 32, 99, 111, 108, 117, 109, 110, 0];
+export const SCH_LIT_MISSING_COLUMN: u8[15] = [109, 105, 115, 115, 105, 110, 103, 32, 99, 111, 108, 117, 109, 110, 0];
+export const SCH_LIT_MISSING_REQUIRED_FIELD: u8[23] = [109, 105, 115, 115, 105, 110, 103, 32, 114, 101, 113, 117, 105, 114, 101, 100, 32, 102, 105, 101, 108, 100, 0];
+export const SCH_LIT_NAME: u8[5] = [110, 97, 109, 101, 0];
+export const SCH_LIT_NO: u8[3] = [110, 111, 0];
+export const SCH_LIT_TRUE: u8[5] = [116, 114, 117, 101, 0];
+export const SCH_LIT_UNKNOWN_TYPE: u8[13] = [117, 110, 107, 110, 111, 119, 110, 32, 116, 121, 112, 101, 0];
+export const SCH_LIT_USER_AGE: u8[9] = [117, 115, 101, 114, 46, 97, 103, 101, 0];
+export const SCH_LIT_USER_NAME: u8[10] = [117, 115, 101, 114, 46, 110, 97, 109, 101, 0];
+export const SCH_LIT_USERS_0_NAME: u8[13] = [117, 115, 101, 114, 115, 46, 48, 46, 110, 97, 109, 101, 0];
+export const SCH_LIT_USERS_1_NAME: u8[13] = [117, 115, 101, 114, 115, 46, 49, 46, 110, 97, 109, 101, 0];
+export const SCH_LIT_YES: u8[4] = [121, 101, 115, 0];
+export const SCH_LIT_ITEMS_10_20: u8[18] = [123, 34, 105, 116, 101, 109, 115, 34, 58, 91, 49, 48, 44, 50, 48, 93, 125, 0];
+export const SCH_LIT_NAME_ALICE_AGE_30_ACTIVE_TRUE: u8[40] = [123, 34, 110, 97, 109, 101, 34, 58, 34, 97, 108, 105, 99, 101, 34, 44, 34, 97, 103, 101, 34, 58, 51, 48, 44, 34, 97, 99, 116, 105, 118, 101, 34, 58, 116, 114, 117, 101, 125, 0];
+export const SCH_LIT_NAME_X: u8[13] = [123, 34, 110, 97, 109, 101, 34, 58, 34, 120, 34, 125, 0];
+export const SCH_LIT_USER_NAME_CAROL_AGE_42: u8[35] = [123, 34, 117, 115, 101, 114, 34, 58, 123, 34, 110, 97, 109, 101, 34, 58, 34, 99, 97, 114, 111, 108, 34, 44, 34, 97, 103, 101, 34, 58, 52, 50, 125, 125, 0];
+export const SCH_LIT_USERS_NAME_ALICE_NAME_BOB: u8[44] = [123, 34, 117, 115, 101, 114, 115, 34, 58, 91, 123, 34, 110, 97, 109, 101, 34, 58, 34, 97, 108, 105, 99, 101, 34, 125, 44, 123, 34, 110, 97, 109, 101, 34, 58, 34, 98, 111, 98, 34, 125, 93, 125, 0];
 
 /** JSON 游标布局（与 json.c json_cursor_t 一致）。 */
-struct JsonCursor {
+export struct JsonCursor {
   ptr: *u8;
   len: i32;
   off: i32;
@@ -119,48 +119,48 @@ allow(padding) struct SchSchema {
   error_msg: u8[128];
 }
 
-extern function json_cursor_init_c(cur: *JsonCursor, ptr: *u8, len: i32): void;
-extern function json_cursor_enter_object_c(cur: *JsonCursor): i32;
-extern function json_cursor_object_next_c(cur: *JsonCursor, key_buf: *u8, key_cap: i32,
+export extern function json_cursor_init_c(cur: *JsonCursor, ptr: *u8, len: i32): void;
+export extern function json_cursor_enter_object_c(cur: *JsonCursor): i32;
+export extern function json_cursor_object_next_c(cur: *JsonCursor, key_buf: *u8, key_cap: i32,
   key_len: *i32): i32;
-extern function json_cursor_skip_value_c(cur: *JsonCursor): i32;
-extern function json_cursor_enter_array_c(cur: *JsonCursor): i32;
-extern function json_cursor_array_has_elem_c(cur: *JsonCursor): i32;
-extern function json_cursor_value_type_c(cur: *JsonCursor): i32;
-extern function json_parse_string_c(ptr: *u8, len: i32, out: *u8, out_cap: i32,
+export extern function json_cursor_skip_value_c(cur: *JsonCursor): i32;
+export extern function json_cursor_enter_array_c(cur: *JsonCursor): i32;
+export extern function json_cursor_array_has_elem_c(cur: *JsonCursor): i32;
+export extern function json_cursor_value_type_c(cur: *JsonCursor): i32;
+export extern function json_parse_string_c(ptr: *u8, len: i32, out: *u8, out_cap: i32,
   consumed: *i32): i32;
-extern function json_parse_number_c(ptr: *u8, len: i32, out_val: *f64, consumed: *i32): i32;
-extern function json_parse_bool_c(ptr: *u8, len: i32, out: *i32, consumed: *i32): i32;
-extern function json_parse_null_c(ptr: *u8, len: i32, consumed: *i32): i32;
+export extern function json_parse_number_c(ptr: *u8, len: i32, out_val: *f64, consumed: *i32): i32;
+export extern function json_parse_bool_c(ptr: *u8, len: i32, out: *i32, consumed: *i32): i32;
+export extern function json_parse_null_c(ptr: *u8, len: i32, consumed: *i32): i32;
 
-extern function parse_row(ptr: *u8, len: i32, offset: i32, field_starts: *i32,
+export extern function parse_row(ptr: *u8, len: i32, offset: i32, field_starts: *i32,
   field_lens: *i32, max_fields: i32, out_count: *i32): i32;
 
-extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
-extern "C" function memset(s: *u8, c: i32, n: usize): *u8;
-extern "C" function calloc(nmemb: usize, size: usize): *u8;
-extern "C" function free(ptr: *u8): void;
-extern "C" function strcmp(a: *u8, b: *u8): i32;
-extern "C" function strlen(s: *u8): usize;
+export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+export extern "C" function memset(s: *u8, c: i32, n: usize): *u8;
+export extern "C" function calloc(nmemb: usize, size: usize): *u8;
+export extern "C" function free(ptr: *u8): void;
+export extern "C" function strcmp(a: *u8, b: *u8): i32;
+export extern "C" function strlen(s: *u8): usize;
 
 /** F-schema v1 版本标记；供聚合 gate 校验 schema.x 已参与构建。 */
-function schema_f_schema_v1_marker_c(): i32 {
+export function schema_f_schema_v1_marker_c(): i32 {
   return 1;
 }
 
 /** F-schema v2 逻辑全量 .x 标记。 */
-function schema_f_schema_v2_marker_c(): i32 {
+export function schema_f_schema_v2_marker_c(): i32 {
   return 1;
 }
 
 /** 由 i64 句柄取 Schema 指针；非法返回 NULL。 */
-function sch_from_handle(handle: i64): *SchSchema {
+export function sch_from_handle(handle: i64): *SchSchema {
   if (handle == 0) { return 0; }
   return handle as *SchSchema;
 }
 
 /** 受限拷贝 C 串到 dst；最多 cap-1 字节并 NUL 结尾。 */
-function sch_strncpy(dst: *u8, src: *u8, cap: i32): void {
+export function sch_strncpy(dst: *u8, src: *u8, cap: i32): void {
   let n: i32 = 0;
   if (dst == 0 || src == 0 || cap <= 0) { return; }
   while (src[n] != 0 && n < cap - 1) {
@@ -171,7 +171,7 @@ function sch_strncpy(dst: *u8, src: *u8, cap: i32): void {
 }
 
 /** 从定长字节缓冲拷贝 name_len 字节并 NUL 结尾。 */
-function sch_copy_bytes_n(dst: *u8, src: *u8, name_len: i32, cap: i32): void {
+export function sch_copy_bytes_n(dst: *u8, src: *u8, name_len: i32, cap: i32): void {
   let n: i32 = name_len;
   if (dst == 0 || src == 0 || cap <= 0) { return; }
   if (n >= cap) { n = cap - 1; }
@@ -180,7 +180,7 @@ function sch_copy_bytes_n(dst: *u8, src: *u8, name_len: i32, cap: i32): void {
 }
 
 /** 设置字段级错误信息。 */
-function sch_set_error(sch: *SchSchema, field: *u8, msg: *u8): void {
+export function sch_set_error(sch: *SchSchema, field: *u8, msg: *u8): void {
   if (sch == 0) { return; }
   if (field != 0 && field[0] != 0) {
     sch_strncpy(&sch.error_field[0], field, SCH_NAME_MAX);
@@ -195,7 +195,7 @@ function sch_set_error(sch: *SchSchema, field: *u8, msg: *u8): void {
 }
 
 /** 清空 decode 结果与错误状态。 */
-function sch_clear_values(sch: *SchSchema): void {
+export function sch_clear_values(sch: *SchSchema): void {
   let i: i32 = 0;
   if (sch == 0) { return; }
   while (i < sch.field_count) {
@@ -212,7 +212,7 @@ function sch_clear_values(sch: *SchSchema): void {
 }
 
 /** 按名称查找字段索引；不存在返回 -1。 */
-function sch_find_field(sch: *SchSchema, name: *u8): i32 {
+export function sch_find_field(sch: *SchSchema, name: *u8): i32 {
   let i: i32 = 0;
   if (sch == 0 || name == 0) { return -1; }
   while (i < sch.field_count) {
@@ -223,7 +223,7 @@ function sch_find_field(sch: *SchSchema, name: *u8): i32 {
 }
 
 /** 手动解析十进制 i32；成功 0，失败 -1。 */
-function sch_parse_i32_text(text: *u8, out: *i32): i32 {
+export function sch_parse_i32_text(text: *u8, out: *i32): i32 {
   let i: i32 = 0;
   let sign: i32 = 1;
   let val: i64 = 0;
@@ -255,7 +255,7 @@ function sch_parse_i32_text(text: *u8, out: *i32): i32 {
 }
 
 /** 手动解析 f64（整数/小数/可选 e 指数）；成功 0，失败 -1。 */
-function sch_parse_f64_text(text: *u8, out: *f64): i32 {
+export function sch_parse_f64_text(text: *u8, out: *f64): i32 {
   let i: i32 = 0;
   let sign: f64 = 1.0;
   let int_part: f64 = 0.0;
@@ -314,7 +314,7 @@ function sch_parse_f64_text(text: *u8, out: *f64): i32 {
 }
 
 /** 将文本解析为字段类型并写入 values[idx]。 */
-function sch_parse_text(sch: *SchSchema, idx: i32, text: *u8): i32 {
+export function sch_parse_text(sch: *SchSchema, idx: i32, text: *u8): i32 {
   let fd: *SchFieldDef = 0;
   let v: *SchVal = 0;
   let fd_type: i32 = 0;
@@ -361,7 +361,7 @@ function sch_parse_text(sch: *SchSchema, idx: i32, text: *u8): i32 {
 }
 
 /** 校验所有必填字段已 present。 */
-function sch_check_required(sch: *SchSchema): i32 {
+export function sch_check_required(sch: *SchSchema): i32 {
   let i: i32 = 0;
   if (sch == 0) { return SCH_ERR_NULL; }
   while (i < sch.field_count) {
@@ -375,7 +375,7 @@ function sch_check_required(sch: *SchSchema): i32 {
 }
 
 /** 拼接 prefix.local 为点分键名；prefix 为空时仅复制 local。 */
-function sch_build_dotted_key(out: *u8, out_cap: i32, prefix: *u8, local: *u8): i32 {
+export function sch_build_dotted_key(out: *u8, out_cap: i32, prefix: *u8, local: *u8): i32 {
   let pl: i32 = 0;
   let ll: i32 = 0;
   if (out == 0 || out_cap <= 0 || local == 0) { return SCH_ERR_NULL; }
@@ -395,7 +395,7 @@ function sch_build_dotted_key(out: *u8, out_cap: i32, prefix: *u8, local: *u8): 
 }
 
 /** 手动 i32 转十进制串；返回长度（不含 NUL），失败 -1。 */
-function sch_i32_to_str(buf: *u8, cap: i32, val: i32): i32 {
+export function sch_i32_to_str(buf: *u8, cap: i32, val: i32): i32 {
   let tmp: u8[16];
   let i: i32 = 0;
   let j: i32 = 0;
@@ -439,7 +439,7 @@ function sch_i32_to_str(buf: *u8, cap: i32, val: i32): i32 {
 }
 
 /** 拼接 prefix.index 为数组元素键名（如 tags.0）。 */
-function sch_build_index_key(out: *u8, out_cap: i32, prefix: *u8, index: i32): i32 {
+export function sch_build_index_key(out: *u8, out_cap: i32, prefix: *u8, index: i32): i32 {
   let idx_buf: u8[16];
   let pl: i32 = 0;
   let n: i32 = 0;
@@ -456,7 +456,7 @@ function sch_build_index_key(out: *u8, out_cap: i32, prefix: *u8, index: i32): i
 }
 
 /** 在游标当前 value 处解码标量到已注册字段 full_key。 */
-function sch_decode_json_scalar(sch: *SchSchema, cur: *JsonCursor, full_key: *u8): i32 {
+export function sch_decode_json_scalar(sch: *SchSchema, cur: *JsonCursor, full_key: *u8): i32 {
   let idx: i32 = 0;
   let consumed: i32 = 0;
   let vp: *u8 = 0;
@@ -528,7 +528,7 @@ function sch_decode_json_scalar(sch: *SchSchema, cur: *JsonCursor, full_key: *u8
 }
 
 /** 递归解码 JSON object（支持 nested object → 点分字段名）；与 array 互递归。 */
-function sch_decode_json_object(sch: *SchSchema, cur: *JsonCursor, prefix: *u8): i32 {
+export function sch_decode_json_object(sch: *SchSchema, cur: *JsonCursor, prefix: *u8): i32 {
   let key_buf: u8[64];
   let full_key: u8[64];
   let key_len: i32 = 0;
@@ -567,7 +567,7 @@ function sch_decode_json_object(sch: *SchSchema, cur: *JsonCursor, prefix: *u8):
 }
 
 /** 递归解码 JSON array（元素键 prefix.0 / prefix.1 …）；与 object 互递归。 */
-function sch_decode_json_array(sch: *SchSchema, cur: *JsonCursor, prefix: *u8): i32 {
+export function sch_decode_json_array(sch: *SchSchema, cur: *JsonCursor, prefix: *u8): i32 {
   let idx: i32 = 0;
   let elem_key: u8[64];
   let has: i32 = 0;
@@ -610,7 +610,7 @@ function sch_decode_json_array(sch: *SchSchema, cur: *JsonCursor, prefix: *u8): 
 }
 
 /** 创建空 Schema；失败返回 0。 */
-function schema_create_c(): i64 {
+export function schema_create_c(): i64 {
   let sch: *SchSchema = 0;
   unsafe { sch = calloc(1, SCH_SCHEMA_MEM_SIZE) as *SchSchema; }
   if (sch == 0) { return 0; }
@@ -618,13 +618,13 @@ function schema_create_c(): i64 {
 }
 
 /** 释放 Schema。 */
-function schema_free_c(handle: i64): void {
+export function schema_free_c(handle: i64): void {
   let sch: *SchSchema = sch_from_handle(handle);
   if (sch != 0) { unsafe { free(sch as *u8); } }
 }
 
 /** 清空字段定义与 decode 结果。 */
-function schema_clear_c(handle: i64): void {
+export function schema_clear_c(handle: i64): void {
   let sch: *SchSchema = sch_from_handle(handle);
   if (sch == 0) { return; }
   sch.field_count = 0;
@@ -635,7 +635,7 @@ function schema_clear_c(handle: i64): void {
  * 注册字段：name 为 JSON 键名 / 逻辑名；col_index 用于 CSV/SQLite 列映射。
  * optional 非 0 表示可选；返回 SCH_OK 或错误码。
  */
-function schema_add_field_c(handle: i64, name: *u8, name_len: i32, type: i32,
+export function schema_add_field_c(handle: i64, name: *u8, name_len: i32, type: i32,
   optional: i32, col_index: i32): i32 {
   let sch: *SchSchema = sch_from_handle(handle);
   let key: u8[64];
@@ -656,7 +656,7 @@ function schema_add_field_c(handle: i64, name: *u8, name_len: i32, type: i32,
 }
 
 /** 从 JSON 对象缓冲 decode；支持 flat + nested object 点分字段（如 user.name）。 */
-function schema_decode_json_c(handle: i64, json: *u8, json_len: i32): i32 {
+export function schema_decode_json_c(handle: i64, json: *u8, json_len: i32): i32 {
   let sch: *SchSchema = sch_from_handle(handle);
   let cur: JsonCursor;
   let rc: i32 = 0;
@@ -675,7 +675,7 @@ function schema_decode_json_c(handle: i64, json: *u8, json_len: i32): i32 {
 }
 
 /** 从 CSV 行 decode；按 field.col_index 映射列。 */
-function schema_decode_csv_row_c(handle: i64, row: *u8, row_len: i32, offset: i32): i32 {
+export function schema_decode_csv_row_c(handle: i64, row: *u8, row_len: i32, offset: i32): i32 {
   let sch: *SchSchema = sch_from_handle(handle);
   let starts: i32[32];
   let lens: i32[32];
@@ -715,7 +715,7 @@ function schema_decode_csv_row_c(handle: i64, row: *u8, row_len: i32, offset: i3
  * 从列文本数组映射（CSV 解析后或 SQLite row_col_text 结果）。
  * col_starts/col_lens 为每列在 row 缓冲内的偏移与长度；count 为列数。
  */
-function schema_map_columns_c(handle: i64, row: *u8, col_starts: *i32, col_lens: *i32,
+export function schema_map_columns_c(handle: i64, row: *u8, col_starts: *i32, col_lens: *i32,
   count: i32): i32 {
   let sch: *SchSchema = sch_from_handle(handle);
   let i: i32 = 0;
@@ -746,7 +746,7 @@ function schema_map_columns_c(handle: i64, row: *u8, col_starts: *i32, col_lens:
 }
 
 /** 读取 string 字段；返回长度，未找到或类型错误返回负数。 */
-function schema_get_string_c(handle: i64, name: *u8, name_len: i32, out: *u8,
+export function schema_get_string_c(handle: i64, name: *u8, name_len: i32, out: *u8,
   out_cap: i32): i32 {
   let sch: *SchSchema = sch_from_handle(handle);
   let key: u8[64];
@@ -767,7 +767,7 @@ function schema_get_string_c(handle: i64, name: *u8, name_len: i32, out: *u8,
 }
 
 /** 读取 i32 字段。 */
-function schema_get_i32_c(handle: i64, name: *u8, name_len: i32, out: *i32): i32 {
+export function schema_get_i32_c(handle: i64, name: *u8, name_len: i32, out: *i32): i32 {
   let sch: *SchSchema = sch_from_handle(handle);
   let key: u8[64];
   let idx: i32 = 0;
@@ -783,7 +783,7 @@ function schema_get_i32_c(handle: i64, name: *u8, name_len: i32, out: *i32): i32
 }
 
 /** 读取 bool 字段。 */
-function schema_get_bool_c(handle: i64, name: *u8, name_len: i32, out: *i32): i32 {
+export function schema_get_bool_c(handle: i64, name: *u8, name_len: i32, out: *i32): i32 {
   let sch: *SchSchema = sch_from_handle(handle);
   let key: u8[64];
   let idx: i32 = 0;
@@ -799,7 +799,7 @@ function schema_get_bool_c(handle: i64, name: *u8, name_len: i32, out: *i32): i3
 }
 
 /** 读取 f64 字段。 */
-function schema_get_f64_c(handle: i64, name: *u8, name_len: i32, out: *f64): i32 {
+export function schema_get_f64_c(handle: i64, name: *u8, name_len: i32, out: *f64): i32 {
   let sch: *SchSchema = sch_from_handle(handle);
   let key: u8[64];
   let idx: i32 = 0;
@@ -815,7 +815,7 @@ function schema_get_f64_c(handle: i64, name: *u8, name_len: i32, out: *f64): i32
 }
 
 /** 复制最近错误字段名；无错误返回 0 长度。 */
-function schema_last_error_field_c(handle: i64, out: *u8, out_cap: i32): i32 {
+export function schema_last_error_field_c(handle: i64, out: *u8, out_cap: i32): i32 {
   let sch: *SchSchema = sch_from_handle(handle);
   let n: i32 = 0;
   if (sch == 0 || out == 0 || out_cap <= 0) { return SCH_ERR_NULL; }
@@ -827,7 +827,7 @@ function schema_last_error_field_c(handle: i64, out: *u8, out_cap: i32): i32 {
 }
 
 /** 复制最近错误消息。 */
-function schema_last_error_message_c(handle: i64, out: *u8, out_cap: i32): i32 {
+export function schema_last_error_message_c(handle: i64, out: *u8, out_cap: i32): i32 {
   let sch: *SchSchema = sch_from_handle(handle);
   let n: i32 = 0;
   if (sch == 0 || out == 0 || out_cap <= 0) { return SCH_ERR_NULL; }
@@ -839,7 +839,7 @@ function schema_last_error_message_c(handle: i64, out: *u8, out_cap: i32): i32 {
 }
 
 /** C 烟测：JSON + CSV + 列映射 + 错误路径 + nested/array。 */
-function schema_smoke_c(): i32 {
+export function schema_smoke_c(): i32 {
   let sch: i64 = 0;
   let age: i32 = 0;
   let active: i32 = 0;

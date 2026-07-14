@@ -26,7 +26,7 @@ const heap = import("std.heap");
  * HTTP 方法枚举（discriminant 0..6，与常见 u8 编码一致）。
  * GET=0, POST=1, HEAD=2, PUT=3, DELETE=4, PATCH=5, OPTIONS=6。
  */
-enum Method {
+export enum Method {
   GET,
   POST,
   HEAD,
@@ -37,7 +37,7 @@ enum Method {
 }
 
 /** Method → u8 判别值（GET=0 … OPTIONS=6）；与 `method(tag: u8)` 成对重载。 */
-function method(m: Method): u8 {
+export function method(m: Method): u8 {
   if (m == Method.POST) { return 1 as u8; }
   if (m == Method.HEAD) { return 2 as u8; }
   if (m == Method.PUT) { return 3 as u8; }
@@ -48,7 +48,7 @@ function method(m: Method): u8 {
 }
 
 /** u8 判别值 → Method；非法值回退 GET。 */
-function method(tag: u8): Method {
+export function method(tag: u8): Method {
   if (tag == 1) { return Method.POST; }
   if (tag == 2) { return Method.HEAD; }
   if (tag == 3) { return Method.PUT; }
@@ -58,86 +58,86 @@ function method(tag: u8): Method {
   return Method.GET;
 }
 
-extern function http_get_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32;
-extern function http_post_c(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32): i32;
-extern function http_head_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32;
-extern function http_put_c(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32): i32;
-extern function http_delete_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32;
-extern function http_patch_c(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32): i32;
-extern function http_options_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32;
-extern function http_get_timeout_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
-extern function http_post_timeout_c(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
-extern function http_head_timeout_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
-extern function http_put_timeout_c(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
-extern function http_delete_timeout_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
-extern function http_patch_timeout_c(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
-extern function http_options_timeout_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
-extern function http_request_ex_c(method: *u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32): i32;
-extern function http_request_method_c(method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32): i32;
-extern function http_request_method_timeout_c(method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
-extern function http_respond_get_ok_c(fd: i32, body: *u8, body_len: i32): i32;
-extern function http_listen_c(addr_u32: u32, port_u32: u32, backlog: i32): i32;
-extern function http_serve_one_c(listener_fd: i32, body: *u8, body_len: i32, timeout_ms: u32): i32;
-extern function http_client_pool_create_c(host: *u8, host_len: i32, port: *u8, port_len: i32, max_conns: i32): i64;
-extern function http_client_pool_destroy_c(pool_h: i64): void;
-extern function http_client_pool_get_c(pool_h: i64, url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32;
-extern function http_parse_status_line_c(line: *u8, len: i32, out_code: *i32): i32;
-extern function http_headers_body_offset_c(buf: *u8, len: i32, out_off: *i32): i32;
-extern function http_has_chunked_encoding_c(buf: *u8, len: i32): i32;
-extern function http_has_keep_alive_c(buf: *u8, len: i32): i32;
-extern function http_decode_chunked_body_c(buf: *u8, len: i32, hdr_end: i32, out_body: *u8, out_cap: i32): i32;
-extern function http_build_get_keep_alive_c(host: *u8, path: *u8, out: *u8, out_cap: i32): i32;
-extern function http_is_upgrade_websocket_c(buf: *u8, len: i32): i32;
-extern function http_build_ws_upgrade_101_c(accept: *u8, out: *u8, out_cap: i32): i32;
-extern function http_is_https_available_c(): i32;
-extern function http_https_smoke_c(): i32;
+export extern function http_get_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32;
+export extern function http_post_c(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32): i32;
+export extern function http_head_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32;
+export extern function http_put_c(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32): i32;
+export extern function http_delete_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32;
+export extern function http_patch_c(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32): i32;
+export extern function http_options_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32;
+export extern function http_get_timeout_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
+export extern function http_post_timeout_c(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
+export extern function http_head_timeout_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
+export extern function http_put_timeout_c(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
+export extern function http_delete_timeout_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
+export extern function http_patch_timeout_c(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
+export extern function http_options_timeout_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
+export extern function http_request_ex_c(method: *u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32): i32;
+export extern function http_request_method_c(method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32): i32;
+export extern function http_request_method_timeout_c(method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
+export extern function http_respond_get_ok_c(fd: i32, body: *u8, body_len: i32): i32;
+export extern function http_listen_c(addr_u32: u32, port_u32: u32, backlog: i32): i32;
+export extern function http_serve_one_c(listener_fd: i32, body: *u8, body_len: i32, timeout_ms: u32): i32;
+export extern function http_client_pool_create_c(host: *u8, host_len: i32, port: *u8, port_len: i32, max_conns: i32): i64;
+export extern function http_client_pool_destroy_c(pool_h: i64): void;
+export extern function http_client_pool_get_c(pool_h: i64, url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32;
+export extern function http_parse_status_line_c(line: *u8, len: i32, out_code: *i32): i32;
+export extern function http_headers_body_offset_c(buf: *u8, len: i32, out_off: *i32): i32;
+export extern function http_has_chunked_encoding_c(buf: *u8, len: i32): i32;
+export extern function http_has_keep_alive_c(buf: *u8, len: i32): i32;
+export extern function http_decode_chunked_body_c(buf: *u8, len: i32, hdr_end: i32, out_body: *u8, out_cap: i32): i32;
+export extern function http_build_get_keep_alive_c(host: *u8, path: *u8, out: *u8, out_cap: i32): i32;
+export extern function http_is_upgrade_websocket_c(buf: *u8, len: i32): i32;
+export extern function http_build_ws_upgrade_101_c(accept: *u8, out: *u8, out_cap: i32): i32;
+export extern function http_is_https_available_c(): i32;
+export extern function http_https_smoke_c(): i32;
 
 /** C 层 TLS 不可用（须链入 std.net TLS 后端）。 */
-function err_tls_not_impl(): i32 { return -1221; }
+export function err_tls_not_impl(): i32 { return -1221; }
 
 /** HTTPS 是否可用（OpenSSL/mbedTLS 链入时为 true）。 */
-function https_is_available(): bool {
+export function https_is_available(): bool {
   if (http_libc_is_https_available_c() != 0) { return true; }
   return false;
 }
 
 /** HTTPS C 烟测钩子（STD-HTTP-HTTPS）。 */
-function https_smoke(): i32 {
+export function https_smoke(): i32 {
   return http_libc_https_smoke_c();
 }
 
 /** HTTP GET；返回写入 out_buf 的字节数，失败 -1。 */
-function get(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32 {
+export function get(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32 {
   return http_libc_get_c(url, url_len, out_buf, out_cap);
 }
 
 /** HTTP POST。 */
-function post(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32): i32 {
+export function post(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32): i32 {
   return http_libc_post_c(url, url_len, body, body_len, out_buf, out_cap);
 }
 
 /** HTTP HEAD。 */
-function head(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32 {
+export function head(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32 {
   return http_libc_head_c(url, url_len, out_buf, out_cap);
 }
 
 /** HTTP PUT（带 Content-Length 请求体）。 */
-function put(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32): i32 {
+export function put(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32): i32 {
   return http_libc_put_c(url, url_len, body, body_len, out_buf, out_cap);
 }
 
 /** HTTP DELETE。 */
-function delete(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32 {
+export function delete(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32 {
   return http_libc_delete_c(url, url_len, out_buf, out_cap);
 }
 
 /** HTTP PATCH（带 Content-Length 请求体）。 */
-function patch(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32): i32 {
+export function patch(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32): i32 {
   return http_libc_patch_c(url, url_len, body, body_len, out_buf, out_cap);
 }
 
 /** HTTP OPTIONS。 */
-function options(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32 {
+export function options(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32 {
   return http_libc_options_c(url, url_len, out_buf, out_cap);
 }
 
@@ -145,7 +145,7 @@ function options(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32 {
  * 统一 HTTP 客户端入口：按 Method 发请求。
  * POST/PUT/PATCH 使用 body/body_len；其余方法 body 可为 null、body_len=0。
  */
-function client_request(method: Method, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32): i32 {
+export function client_request(method: Method, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32): i32 {
   return http_libc_request_method_c(method(method), url, url_len, body, body_len, out_buf, out_cap);
 }
 
@@ -170,15 +170,15 @@ allow(padding) struct HttpResponse {
   chunked: i32;
 }
 
-extern function http_response_parse_c(buf: *u8, len: i32, out_status: *i32, out_hdr_end: *i32, out_body_len: *i32, out_chunked: *i32): i32;
-extern function http_response_parse_smoke_c(): i32;
-extern function http_response_body_ptr_c(buf: *u8, hdr_end: i32): *u8;
-extern function http_response_body_copy_c(buf: *u8, hdr_end: i32, body_len: i32, out: *u8, out_cap: i32): i32;
-extern function http_response_body_owned_smoke_c(): i32;
-extern function http_url_exceeds_string_cap_c(url_len: i32): i32;
-extern function http_url_copy_c(src: *u8, len: i32, out: *u8, out_cap: i32): i32;
-extern function http_url_owned_smoke_c(): i32;
-extern function http_request_owned_smoke_c(): i32;
+export extern function http_response_parse_c(buf: *u8, len: i32, out_status: *i32, out_hdr_end: *i32, out_body_len: *i32, out_chunked: *i32): i32;
+export extern function http_response_parse_smoke_c(): i32;
+export extern function http_response_body_ptr_c(buf: *u8, hdr_end: i32): *u8;
+export extern function http_response_body_copy_c(buf: *u8, hdr_end: i32, body_len: i32, out: *u8, out_cap: i32): i32;
+export extern function http_response_body_owned_smoke_c(): i32;
+export extern function http_url_exceeds_string_cap_c(url_len: i32): i32;
+export extern function http_url_copy_c(src: *u8, len: i32, out: *u8, out_cap: i32): i32;
+export extern function http_url_owned_smoke_c(): i32;
+export extern function http_request_owned_smoke_c(): i32;
 
 /** 堆分配的 URL（>256B；须 url_owned_free）。 */
 allow(padding) struct HttpUrlOwned {
@@ -187,7 +187,7 @@ allow(padding) struct HttpUrlOwned {
 }
 
 /** std.string.String 固定容量（256）。 */
-function url_string_cap(): i32 { return 256; }
+export function url_string_cap(): i32 { return 256; }
 
 /** 堆分配的响应 body（须 body_owned_free）。 */
 allow(padding) struct HttpBodyOwned {
@@ -205,7 +205,7 @@ allow(padding) struct HttpBodyView {
  * 初始化 HttpRequest。
  * timeout_ms=0 表示无超时；POST/PUT/PATCH 须 body/body_len>0。
  */
-function request_init(method: Method, url: *u8, url_len: i32, body: *u8, body_len: i32, timeout_ms: u32, out: *HttpRequest): void {
+export function request_init(method: Method, url: *u8, url_len: i32, body: *u8, body_len: i32, timeout_ms: u32, out: *HttpRequest): void {
   out.method = method;
   out.url = url;
   out.url_len = url_len;
@@ -215,7 +215,7 @@ function request_init(method: Method, url: *u8, url_len: i32, body: *u8, body_le
 }
 
 /** 从 raw HTTP/1.x 响应缓冲解析 HttpResponse；成功返回 raw_len，失败 -1。 */
-function parse_response(buf: *u8, raw_len: i32, out: *HttpResponse): i32 {
+export function parse_response(buf: *u8, raw_len: i32, out: *HttpResponse): i32 {
   let st: i32 = 0;
   let he: i32 = 0;
   let bl: i32 = 0;
@@ -233,7 +233,7 @@ function parse_response(buf: *u8, raw_len: i32, out: *HttpResponse): i32 {
  * 执行 HttpRequest：发请求并将完整响应写入 buf，解析为 HttpResponse。
  * 成功返回 raw_len；网络/C 错误返回负值。
  */
-function execute(req: HttpRequest, buf: *u8, buf_cap: i32, out: *HttpResponse): i32 {
+export function execute(req: HttpRequest, buf: *u8, buf_cap: i32, out: *HttpResponse): i32 {
   let n: i32 = 0;
   let m: u8 = method(req.method);
   if (req.timeout_ms > 0) {
@@ -248,7 +248,7 @@ function execute(req: HttpRequest, buf: *u8, buf_cap: i32, out: *HttpResponse): 
 /**
  * 解码响应 body：chunked 时解码到 out_body；否则返回 body_len（body 仍在 buf+header_end）。
  */
-function response_body_decode(buf: *u8, resp: HttpResponse, out_body: *u8, out_cap: i32): i32 {
+export function response_body_decode(buf: *u8, resp: HttpResponse, out_body: *u8, out_cap: i32): i32 {
   if (resp.chunked != 0) {
     return decode_chunked_body(buf, resp.raw_len, resp.header_end, out_body, out_cap);
   }
@@ -256,84 +256,84 @@ function response_body_decode(buf: *u8, resp: HttpResponse, out_body: *u8, out_c
 }
 
 /** Request/Response 解析 C 烟测；0 通过。 */
-function response_parse_smoke(): i32 {
+export function response_parse_smoke(): i32 {
   return http_libc_response_parse_smoke_c();
 }
 
 /** 对已连接 fd 回 200 OK + body（STD-009 server）。 */
-function respond_get_ok(fd: i32, body: *u8, body_len: i32): i32 {
+export function respond_get_ok(fd: i32, body: *u8, body_len: i32): i32 {
   return http_libc_respond_get_ok_c(fd, body, body_len);
 }
 
 /** IPv4 listen（addr 主机序，如 127.0.0.1 = 0x7f000001）。 */
-function listen(addr_u32: u32, port_u32: u32, backlog: i32): i32 {
+export function listen(addr_u32: u32, port_u32: u32, backlog: i32): i32 {
   return http_libc_listen_c(addr_u32, port_u32, backlog);
 }
 
 /** accept 一个连接并 respond_get_ok。 */
-function serve_one(listener_fd: i32, body: *u8, body_len: i32, timeout_ms: u32): i32 {
+export function serve_one(listener_fd: i32, body: *u8, body_len: i32, timeout_ms: u32): i32 {
   return http_libc_serve_one_c(listener_fd, body, body_len, timeout_ms);
 }
 
 /** 创建 client 连接池句柄。 */
-function client_pool_create(host: *u8, host_len: i32, port: *u8, port_len: i32, max_conns: i32): i64 {
+export function client_pool_create(host: *u8, host_len: i32, port: *u8, port_len: i32, max_conns: i32): i64 {
   return http_libc_client_pool_create_c(host, host_len, port, port_len, max_conns);
 }
 
 /** 释放连接池。 */
-function client_pool_destroy(pool_h: i64): void {
+export function client_pool_destroy(pool_h: i64): void {
   http_libc_client_pool_destroy_c(pool_h);
 }
 
 /** 经连接池 GET。 */
-function client_pool_get(pool_h: i64, url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32 {
+export function client_pool_get(pool_h: i64, url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32 {
   return http_libc_client_pool_get_c(pool_h, url, url_len, out_buf, out_cap);
 }
 
-function parse_status_line(line: *u8, len: i32, out_code: *i32): i32 {
+export function parse_status_line(line: *u8, len: i32, out_code: *i32): i32 {
   return http_libc_parse_status_line_c(line, len, out_code);
 }
 
-function headers_body_offset(buf: *u8, len: i32, out_off: *i32): i32 {
+export function headers_body_offset(buf: *u8, len: i32, out_off: *i32): i32 {
   return http_libc_headers_body_offset_c(buf, len, out_off);
 }
 
-function has_chunked_encoding(buf: *u8, len: i32): bool {
+export function has_chunked_encoding(buf: *u8, len: i32): bool {
   if (http_libc_has_chunked_encoding_c(buf, len) != 0) { return true; }
   return false;
 }
 
-function has_keep_alive(buf: *u8, len: i32): bool {
+export function has_keep_alive(buf: *u8, len: i32): bool {
   if (http_libc_has_keep_alive_c(buf, len) != 0) { return true; }
   return false;
 }
 
-function decode_chunked_body(buf: *u8, len: i32, hdr_end: i32, out_body: *u8, out_cap: i32): i32 {
+export function decode_chunked_body(buf: *u8, len: i32, hdr_end: i32, out_body: *u8, out_cap: i32): i32 {
   return http_libc_decode_chunked_body_c(buf, len, hdr_end, out_body, out_cap);
 }
 
 /** 是否含 Upgrade: websocket（供 std.websocket 握手检测）。 */
-function is_upgrade_websocket(buf: *u8, len: i32): bool {
+export function is_upgrade_websocket(buf: *u8, len: i32): bool {
   if (http_libc_is_upgrade_websocket_c(buf, len) != 0) { return true; }
   return false;
 }
 
 /** 构建 101 Switching Protocols 响应头。 */
-function build_ws_upgrade(accept: *u8, out: *u8, out_cap: i32): i32 {
+export function build_ws_upgrade(accept: *u8, out: *u8, out_cap: i32): i32 {
   return http_libc_build_ws_upgrade_101_c(accept, out, out_cap);
 }
 
-function build_get_keep_alive(host: *u8, path: *u8, out: *u8, out_cap: i32): i32 {
+export function build_get_keep_alive(host: *u8, path: *u8, out: *u8, out_cap: i32): i32 {
   return http_libc_build_get_keep_alive_c(host, path, out, out_cap);
 }
 
 /** Context 已取消 sentinel（须 < 0，区别于 0=无超时）。 */
-const HTTP_CTX_MS_CANCELLED: i32 = -1;
+export const HTTP_CTX_MS_CANCELLED: i32 = -1;
 /** Context 已过期 sentinel。 */
-const HTTP_CTX_MS_EXPIRED: i32 = -2;
+export const HTTP_CTX_MS_EXPIRED: i32 = -2;
 
 /** 从 Context 推导 HTTP 超时毫秒；无 deadline 返回 0；取消/过期返回 HTTP_CTX_MS_*。 */
-function timeout_ms_for_http(ctx: Context): i32 {
+export function timeout_ms_for_http(ctx: Context): i32 {
   if (context.is_cancelled(ctx) != 0) {
     return HTTP_CTX_MS_CANCELLED;
   }
@@ -356,7 +356,7 @@ function timeout_ms_for_http(ctx: Context): i32 {
 }
 
 /** 请求前检查 Context；0 可继续，否则返回 http_err_cancelled/timeout。 */
-function ctx_check_for_http(ctx: Context): i32 {
+export function ctx_check_for_http(ctx: Context): i32 {
   let tm: i32 = timeout_ms_for_http(ctx);
   if (tm == HTTP_CTX_MS_CANCELLED) {
     return err.http_err_cancelled();
@@ -368,7 +368,7 @@ function ctx_check_for_http(ctx: Context): i32 {
 }
 
 /** 从 Context 推导请求超时；已取消/过期直接返回 http_err_*（STD-095）。 */
-function request_timeout_ms_for_ctx(ctx: Context): i32 {
+export function request_timeout_ms_for_ctx(ctx: Context): i32 {
   if (context.is_cancelled(ctx) != 0) {
     return err.http_err_cancelled();
   }
@@ -391,7 +391,7 @@ function request_timeout_ms_for_ctx(ctx: Context): i32 {
 }
 
 /** 将 C 层 HTTP 错误码映射为 std.error 风格（-1220 → http_err_timeout；-1221 → TLS 不可用）。 */
-function map_http_c_result(c_code: i32): i32 {
+export function map_http_c_result(c_code: i32): i32 {
   if (c_code == -1220) {
     return err.http_err_timeout();
   }
@@ -402,7 +402,7 @@ function map_http_c_result(c_code: i32): i32 {
 }
 
 /** 带 Context 的 GET；取消/过期短路，不建连。 */
-function get_ctx(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, ctx: Context): i32 {
+export function get_ctx(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, ctx: Context): i32 {
   let chk: i32 = ctx_check_for_http(ctx);
   if (chk != 0) {
     return chk;
@@ -412,7 +412,7 @@ function get_ctx(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, ctx: Contex
 }
 
 /** 带 Context 的 POST。 */
-function post_ctx(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, ctx: Context): i32 {
+export function post_ctx(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, ctx: Context): i32 {
   let chk: i32 = ctx_check_for_http(ctx);
   if (chk != 0) {
     return chk;
@@ -422,7 +422,7 @@ function post_ctx(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8
 }
 
 /** 带 Context 的 HEAD。 */
-function head_ctx(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, ctx: Context): i32 {
+export function head_ctx(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, ctx: Context): i32 {
   let chk: i32 = ctx_check_for_http(ctx);
   if (chk != 0) {
     return chk;
@@ -432,7 +432,7 @@ function head_ctx(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, ctx: Conte
 }
 
 /** 带 Context 的 PUT。 */
-function put_ctx(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, ctx: Context): i32 {
+export function put_ctx(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, ctx: Context): i32 {
   let chk: i32 = ctx_check_for_http(ctx);
   if (chk != 0) {
     return chk;
@@ -442,7 +442,7 @@ function put_ctx(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8,
 }
 
 /** 带 Context 的 DELETE。 */
-function delete_ctx(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, ctx: Context): i32 {
+export function delete_ctx(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, ctx: Context): i32 {
   let chk: i32 = ctx_check_for_http(ctx);
   if (chk != 0) {
     return chk;
@@ -452,7 +452,7 @@ function delete_ctx(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, ctx: Con
 }
 
 /** 带 Context 的 PATCH。 */
-function patch_ctx(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, ctx: Context): i32 {
+export function patch_ctx(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, ctx: Context): i32 {
   let chk: i32 = ctx_check_for_http(ctx);
   if (chk != 0) {
     return chk;
@@ -462,7 +462,7 @@ function patch_ctx(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u
 }
 
 /** 带 Context 的 OPTIONS。 */
-function options_ctx(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, ctx: Context): i32 {
+export function options_ctx(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, ctx: Context): i32 {
   let chk: i32 = ctx_check_for_http(ctx);
   if (chk != 0) {
     return chk;
@@ -472,7 +472,7 @@ function options_ctx(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, ctx: Co
 }
 
 /** 带 Context 的统一 request（Method 分发 + 超时/取消）。 */
-function client_request_ctx(method: Method, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, ctx: Context): i32 {
+export function client_request_ctx(method: Method, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, ctx: Context): i32 {
   let chk: i32 = ctx_check_for_http(ctx);
   if (chk != 0) {
     return chk;
@@ -487,7 +487,7 @@ function client_request_ctx(method: Method, url: *u8, url_len: i32, body: *u8, b
  * 带 Context 的 HttpRequest 执行：取消/过期短路；超时来自 ctx。
  * 成功返回 raw_len 并填充 out。
  */
-function execute_ctx(req: HttpRequest, buf: *u8, buf_cap: i32, out: *HttpResponse, ctx: Context): i32 {
+export function execute_ctx(req: HttpRequest, buf: *u8, buf_cap: i32, out: *HttpResponse, ctx: Context): i32 {
   let chk: i32 = ctx_check_for_http(ctx);
   if (chk != 0) {
     return chk;
@@ -502,7 +502,7 @@ function execute_ctx(req: HttpRequest, buf: *u8, buf_cap: i32, out: *HttpRespons
 }
 
 /** identity 响应 body 零拷贝视图（chunked 须先 response_body_owned/decode）。 */
-function response_body_view(buf: *u8, resp: HttpResponse): HttpBodyView {
+export function response_body_view(buf: *u8, resp: HttpResponse): HttpBodyView {
   return HttpBodyView { ptr: http_libc_response_body_ptr_c(buf, resp.header_end), len: resp.body_len };
 }
 
@@ -510,7 +510,7 @@ function response_body_view(buf: *u8, resp: HttpResponse): HttpBodyView {
  * 将响应 body 复制/解码到堆（std.heap.alloc）；写入 out。
  * 成功返回字节数；失败 -1。调用方须 body_owned_free。
  */
-function response_body_owned(buf: *u8, resp: HttpResponse, out: *HttpBodyOwned): i32 {
+export function response_body_owned(buf: *u8, resp: HttpResponse, out: *HttpBodyOwned): i32 {
   let cap: i32 = 0;
   let p: *u8 = 0;
   let n: i32 = 0;
@@ -552,14 +552,14 @@ function response_body_owned(buf: *u8, resp: HttpResponse, out: *HttpBodyOwned):
 }
 
 /** 释放 response_body_owned 分配的堆内存。 */
-function body_owned_free(body: HttpBodyOwned): void {
+export function body_owned_free(body: HttpBodyOwned): void {
   if (body.ptr != 0) {
     heap.free(body.ptr);
   }
 }
 
 /** url_len 是否超过 std.string.String 固定 256 字节。 */
-function url_exceeds_string_cap(url_len: i32): bool {
+export function url_exceeds_string_cap(url_len: i32): bool {
   if (http_libc_url_exceeds_string_cap_c(url_len) != 0) { return true; }
   return false;
 }
@@ -568,7 +568,7 @@ function url_exceeds_string_cap(url_len: i32): bool {
  * 从 (src, src_len) 复制 URL 到堆（std.heap.alloc）；写入 out。
  * 成功返回 len；失败 -1。调用方须 url_owned_free。
  */
-function url_owned_from_slice(src: *u8, src_len: i32, out: *HttpUrlOwned): i32 {
+export function url_owned_from_slice(src: *u8, src_len: i32, out: *HttpUrlOwned): i32 {
   let p: *u8 = 0;
   let n: i32 = 0;
   if (src_len <= 0) {
@@ -594,7 +594,7 @@ function url_owned_from_slice(src: *u8, src_len: i32, out: *HttpUrlOwned): i32 {
 }
 
 /** 释放 url_owned_from_slice 分配的堆内存。 */
-function url_owned_free(url: HttpUrlOwned): void {
+export function url_owned_free(url: HttpUrlOwned): void {
   if (url.ptr != 0) {
     heap.free(url.ptr);
   }
@@ -604,7 +604,7 @@ function url_owned_free(url: HttpUrlOwned): void {
  * 用堆 URL 绑定 HttpRequest（url.ptr/url.len）；不复制 body。
  * 须保持 url 生命周期覆盖 execute/execute_ctx 调用。
  */
-function request_bind_url_owned(method: Method, url: *HttpUrlOwned, body: *u8, body_len: i32, timeout_ms: u32, out: *HttpRequest): void {
+export function request_bind_url_owned(method: Method, url: *HttpUrlOwned, body: *u8, body_len: i32, timeout_ms: u32, out: *HttpRequest): void {
   out.method = method;
   out.url = url.ptr;
   out.url_len = url.len;
@@ -614,7 +614,7 @@ function request_bind_url_owned(method: Method, url: *HttpUrlOwned, body: *u8, b
 }
 
 /** 堆 URL 复制 C 烟测；0 通过。 */
-function url_owned_smoke(): i32 {
+export function url_owned_smoke(): i32 {
   return http_libc_url_owned_smoke_c();
 }
 
@@ -630,7 +630,7 @@ allow(padding) struct HttpRequestOwned {
  * 从 slice 复制 URL/body 到堆并构造 HttpRequestOwned。
  * body_src 可为 null（body_len=0）。成功 0，失败 -1。
  */
-function request_owned_init(method: Method, url_src: *u8, url_len: i32, body_src: *u8, body_len: i32, timeout_ms: u32, out: *HttpRequestOwned): i32 {
+export function request_owned_init(method: Method, url_src: *u8, url_len: i32, body_src: *u8, body_len: i32, timeout_ms: u32, out: *HttpRequestOwned): i32 {
   out.method = method;
   out.timeout_ms = timeout_ms;
   out.body.ptr = 0;
@@ -669,7 +669,7 @@ function request_owned_init(method: Method, url_src: *u8, url_len: i32, body_src
 }
 
 /** 释放 HttpRequestOwned 堆 URL/body。 */
-function request_owned_free(req: *HttpRequestOwned): void {
+export function request_owned_free(req: *HttpRequestOwned): void {
   url_owned_free(req.url);
   body_owned_free(req.body);
   req.url.ptr = 0;
@@ -682,7 +682,7 @@ function request_owned_free(req: *HttpRequestOwned): void {
  * 执行 HttpRequestOwned：内部绑定 HttpRequest 后 execute。
  * 成功返回 raw_len；失败负值。
  */
-function execute_owned(req: *HttpRequestOwned, buf: *u8, buf_cap: i32, out: *HttpResponse): i32 {
+export function execute_owned(req: *HttpRequestOwned, buf: *u8, buf_cap: i32, out: *HttpResponse): i32 {
   let view: HttpRequest = HttpRequest {
     method: req.method,
     url: req.url.ptr,
@@ -695,12 +695,12 @@ function execute_owned(req: *HttpRequestOwned, buf: *u8, buf_cap: i32, out: *Htt
 }
 
 /** HttpRequestOwned C 烟测；0 通过。 */
-function request_owned_smoke(): i32 {
+export function request_owned_smoke(): i32 {
   return http_libc_request_owned_smoke_c();
 }
 
 /** 堆 body 复制 C 烟测；0 通过。 */
-function response_body_owned_smoke(): i32 {
+export function response_body_owned_smoke(): i32 {
   return http_libc_response_body_owned_smoke_c();
 }
 
@@ -714,19 +714,19 @@ allow(padding) struct HttpResponseOwned {
  * 从 HttpResponse + 原始 buf 构造 HttpResponseOwned（复制 identity body 到堆）。
  * 成功返回 body 字节数；失败 -1。
  */
-function response_owned_from_parse(buf: *u8, resp: HttpResponse, out: *HttpResponseOwned): i32 {
+export function response_owned_from_parse(buf: *u8, resp: HttpResponse, out: *HttpResponseOwned): i32 {
   out.status = resp.status;
   return response_body_owned(buf, resp, &out.body);
 }
 
 /** 释放 HttpResponseOwned 堆 body。 */
-function response_owned_free(resp: *HttpResponseOwned): void {
+export function response_owned_free(resp: *HttpResponseOwned): void {
   body_owned_free(resp.body);
   resp.body = HttpBodyOwned { ptr: 0, len: 0 };
 }
 
 /** IPv4 listen 别名（STD-107 manifest 名 listen_on）。 */
-function listen_on(addr_u32: u32, port_u32: u32, backlog: i32): i32 {
+export function listen_on(addr_u32: u32, port_u32: u32, backlog: i32): i32 {
   return listen(addr_u32, port_u32, backlog);
 }
 
@@ -744,98 +744,98 @@ allow(padding) struct Http2FlowRecvState {
   stream_left: i32;
 }
 
-extern function http2_preface_len_c(): i32;
-extern function http2_is_connection_preface_c(buf: *u8, len: i32): i32;
-extern function http2_parse_frame_header_c(buf: *u8, len: i32, out_type: *i32, out_flags: *i32, out_stream_id: *i32, out_payload_len: *i32): i32;
-extern function http2_build_settings_ack_c(out: *u8, out_cap: i32): i32;
-extern function http2_build_settings_one_c(setting_id: i32, value: i32, out: *u8, out_cap: i32): i32;
-extern function http2_wire_is_available_c(): i32;
-extern function http2_client_is_available_c(): i32;
-extern function http2_alpn_h2_len_c(): i32;
-extern function http2_write_alpn_h2_c(out: *u8, out_cap: i32): i32;
-extern function http2_smoke_c(): i32;
-extern function http2_hpack_encode_indexed_c(index: i32, out: *u8, out_cap: i32): i32;
-extern function http2_hpack_encode_literal_c(name_index: i32, value: *u8, value_len: i32, out: *u8, out_cap: i32): i32;
-extern function http2_hpack_encode_get_request_c(authority: *u8, authority_len: i32, path: *u8, path_len: i32, is_https: i32, out: *u8, out_cap: i32): i32;
-extern function http2_hpack_decode_status_c(block: *u8, block_len: i32, out_status: *i32): i32;
-extern function http2_hpack_smoke_c(): i32;
-extern function http2_hpack_dyn_reset_c(): void;
-extern function http2_hpack_dyn_count_c(): i32;
-extern function http2_hpack_encode_literal_incremental_c(name_index: i32, value: *u8, value_len: i32, out: *u8, out_cap: i32): i32;
-extern function http2_hpack_encode_indexed_any_c(index: i32, out: *u8, out_cap: i32): i32;
-extern function http2_hpack_encode_request_c(method_u8: u8, authority: *u8, authority_len: i32, path: *u8, path_len: i32, is_https: i32, out: *u8, out_cap: i32): i32;
-extern function http2_hpack_dyn_smoke_c(): i32;
-extern function http2_hpack_server_dyn_create_c(peer: *Http2PeerSettings): i64;
-extern function http2_hpack_server_dyn_destroy_c(handle: i64): void;
-extern function http2_hpack_server_dyn_set_table_size_h_c(handle: i64, size: i32): void;
-extern function http2_hpack_server_dyn_max_size_h_c(handle: i64): i32;
-extern function http2_hpack_server_dyn_count_h_c(handle: i64): i32;
-extern function http2_hpack_server_encode_status_h_c(handle: i64, status: i32, out: *u8, out_cap: i32): i32;
-extern function http2_hpack_server_dyn_smoke_c(): i32;
-extern function http2_frame_payload_limit_c(max_frame_size: i32): i32;
-extern function http2_frame_check_payload_c(payload_len: i32, max_frame_size: i32): i32;
-extern function http2_frame_count_data_chunks_c(data_len: i32, max_frame_size: i32): i32;
-extern function http2_frame_capped_smoke_c(): i32;
-extern function http2_frame_goaway_c(): i32;
-extern function http2_goaway_error_no_error_c(): i32;
-extern function http2_err_goaway_c(): i32;
-extern function http2_build_goaway_c(last_stream_id: i32, code: i32, out: *u8, out_cap: i32): i32;
-extern function http2_parse_goaway_c(payload: *u8, plen: i32, out_last_stream: *i32, out_code: *i32): i32;
-extern function http2_goaway_smoke_c(): i32;
-extern function http2_frame_ping_c(): i32;
-extern function http2_err_ping_c(): i32;
-extern function http2_build_ping_c(opaque: *u8, out: *u8, out_cap: i32): i32;
-extern function http2_build_ping_ack_c(opaque: *u8, out: *u8, out_cap: i32): i32;
-extern function http2_parse_ping_c(payload: *u8, plen: i32, out_opaque: *u8): i32;
-extern function http2_ping_opaque_match_c(a: *u8, b: *u8): i32;
-extern function http2_ping_smoke_c(): i32;
-extern function http2_frame_rst_stream_c(): i32;
-extern function http2_rst_error_cancel_c(): i32;
-extern function http2_err_rst_stream_c(): i32;
-extern function http2_build_rst_stream_c(stream_id: i32, code: i32, out: *u8, out_cap: i32): i32;
-extern function http2_parse_rst_stream_c(payload: *u8, plen: i32, out_code: *i32): i32;
-extern function http2_rst_stream_smoke_c(): i32;
-extern function http2_conn_reset_stream_c(conn: *Http2Conn, stream_id: i32, code: i32): i32;
-extern function http2_http2_complete_smoke_c(): i32;
-extern function http2_build_headers_frame_c(stream_id: i32, flags: i32, hpack: *u8, hpack_len: i32, out: *u8, out_cap: i32): i32;
-extern function http2_build_data_frame_c(stream_id: i32, flags: i32, data: *u8, data_len: i32, out: *u8, out_cap: i32): i32;
-extern function http2_build_get_headers_frame_c(authority: *u8, authority_len: i32, path: *u8, path_len: i32, is_https: i32, out: *u8, out_cap: i32): i32;
-extern function http2_build_request_headers_frame_c(method_u8: u8, authority: *u8, authority_len: i32, path: *u8, path_len: i32, is_https: i32, has_body: i32, stream_id: i32, out: *u8, out_cap: i32): i32;
-extern function http2_client_smoke_c(): i32;
-extern function http2_network_is_available_c(): i32;
-extern function http2_network_smoke_c(): i32;
-extern function http_h2_get_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
-extern function http_h2_request_c(method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
-extern function http_request_method_h2_c(method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
-extern function http2_hpack_huffman_decode_c(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32;
-extern function http2_hpack_huffman_is_available_c(): i32;
-extern function http2_hpack_huffman_smoke_c(): i32;
-extern function http2_build_window_update_c(stream_id: i32, increment: i32, out: *u8, out_cap: i32): i32;
-extern function http2_default_initial_window_c(): i32;
-extern function http2_flow_control_smoke_c(): i32;
-extern function http2_flow_state_init_c(st: *Http2FlowState): void;
-extern function http2_flow_state_reset_stream_c(st: *Http2FlowState, initial_window: i32): void;
-extern function http2_flow_state_apply_initial_window_c(st: *Http2FlowState, initial_window: i32): void;
-extern function http2_flow_state_apply_window_update_c(st: *Http2FlowState, stream_id: i32, increment: i32): i32;
-extern function http2_flow_state_max_send_c(st: *Http2FlowState, want: i32): i32;
-extern function http2_flow_state_can_send_c(st: *Http2FlowState, want: i32): i32;
-extern function http2_flow_state_consume_send_c(st: *Http2FlowState, nbytes: i32): i32;
-extern function http2_parse_window_update_payload_c(payload: *u8, plen: i32, out_increment: *i32): i32;
-extern function http2_flow_state_smoke_c(): i32;
-extern function http2_flow_recv_init_c(st: *Http2FlowRecvState): void;
-extern function http2_flow_recv_reset_stream_c(st: *Http2FlowRecvState, initial_window: i32): void;
-extern function http2_flow_recv_on_data_c(st: *Http2FlowRecvState, nbytes: i32): i32;
-extern function http2_flow_recv_release_c(st: *Http2FlowRecvState, stream_id: i32, nbytes: i32, out: *u8, out_cap: i32): i32;
-extern function http2_flow_recv_smoke_c(): i32;
-extern function http2_frame_push_promise_c(): i32;
-extern function http2_is_push_promise_frame_c(ftype: i32): i32;
-extern function http2_parse_push_promise_stream_c(payload: *u8, plen: i32, out_promised_id: *i32): i32;
-extern function http2_is_h2c_upgrade_response_c(buf: *u8, len: i32): i32;
-extern function http2_h2c_is_available_c(): i32;
-extern function http2_push_h2c_smoke_c(): i32;
-extern function http2_h2c_wire_is_available_c(): i32;
-extern function http2_h2c_session_begin_c(out: *u8, out_cap: i32): i32;
-extern function http2_push_collect_data_c(promised_id: i32, stream_id: i32, data: *u8, dlen: i32, inout_promised_id: *i32, acc: *u8, acc_cap: i32, acc_len: *i32): i32;
+export extern function http2_preface_len_c(): i32;
+export extern function http2_is_connection_preface_c(buf: *u8, len: i32): i32;
+export extern function http2_parse_frame_header_c(buf: *u8, len: i32, out_type: *i32, out_flags: *i32, out_stream_id: *i32, out_payload_len: *i32): i32;
+export extern function http2_build_settings_ack_c(out: *u8, out_cap: i32): i32;
+export extern function http2_build_settings_one_c(setting_id: i32, value: i32, out: *u8, out_cap: i32): i32;
+export extern function http2_wire_is_available_c(): i32;
+export extern function http2_client_is_available_c(): i32;
+export extern function http2_alpn_h2_len_c(): i32;
+export extern function http2_write_alpn_h2_c(out: *u8, out_cap: i32): i32;
+export extern function http2_smoke_c(): i32;
+export extern function http2_hpack_encode_indexed_c(index: i32, out: *u8, out_cap: i32): i32;
+export extern function http2_hpack_encode_literal_c(name_index: i32, value: *u8, value_len: i32, out: *u8, out_cap: i32): i32;
+export extern function http2_hpack_encode_get_request_c(authority: *u8, authority_len: i32, path: *u8, path_len: i32, is_https: i32, out: *u8, out_cap: i32): i32;
+export extern function http2_hpack_decode_status_c(block: *u8, block_len: i32, out_status: *i32): i32;
+export extern function http2_hpack_smoke_c(): i32;
+export extern function http2_hpack_dyn_reset_c(): void;
+export extern function http2_hpack_dyn_count_c(): i32;
+export extern function http2_hpack_encode_literal_incremental_c(name_index: i32, value: *u8, value_len: i32, out: *u8, out_cap: i32): i32;
+export extern function http2_hpack_encode_indexed_any_c(index: i32, out: *u8, out_cap: i32): i32;
+export extern function http2_hpack_encode_request_c(method_u8: u8, authority: *u8, authority_len: i32, path: *u8, path_len: i32, is_https: i32, out: *u8, out_cap: i32): i32;
+export extern function http2_hpack_dyn_smoke_c(): i32;
+export extern function http2_hpack_server_dyn_create_c(peer: *Http2PeerSettings): i64;
+export extern function http2_hpack_server_dyn_destroy_c(handle: i64): void;
+export extern function http2_hpack_server_dyn_set_table_size_h_c(handle: i64, size: i32): void;
+export extern function http2_hpack_server_dyn_max_size_h_c(handle: i64): i32;
+export extern function http2_hpack_server_dyn_count_h_c(handle: i64): i32;
+export extern function http2_hpack_server_encode_status_h_c(handle: i64, status: i32, out: *u8, out_cap: i32): i32;
+export extern function http2_hpack_server_dyn_smoke_c(): i32;
+export extern function http2_frame_payload_limit_c(max_frame_size: i32): i32;
+export extern function http2_frame_check_payload_c(payload_len: i32, max_frame_size: i32): i32;
+export extern function http2_frame_count_data_chunks_c(data_len: i32, max_frame_size: i32): i32;
+export extern function http2_frame_capped_smoke_c(): i32;
+export extern function http2_frame_goaway_c(): i32;
+export extern function http2_goaway_error_no_error_c(): i32;
+export extern function http2_err_goaway_c(): i32;
+export extern function http2_build_goaway_c(last_stream_id: i32, code: i32, out: *u8, out_cap: i32): i32;
+export extern function http2_parse_goaway_c(payload: *u8, plen: i32, out_last_stream: *i32, out_code: *i32): i32;
+export extern function http2_goaway_smoke_c(): i32;
+export extern function http2_frame_ping_c(): i32;
+export extern function http2_err_ping_c(): i32;
+export extern function http2_build_ping_c(opaque: *u8, out: *u8, out_cap: i32): i32;
+export extern function http2_build_ping_ack_c(opaque: *u8, out: *u8, out_cap: i32): i32;
+export extern function http2_parse_ping_c(payload: *u8, plen: i32, out_opaque: *u8): i32;
+export extern function http2_ping_opaque_match_c(a: *u8, b: *u8): i32;
+export extern function http2_ping_smoke_c(): i32;
+export extern function http2_frame_rst_stream_c(): i32;
+export extern function http2_rst_error_cancel_c(): i32;
+export extern function http2_err_rst_stream_c(): i32;
+export extern function http2_build_rst_stream_c(stream_id: i32, code: i32, out: *u8, out_cap: i32): i32;
+export extern function http2_parse_rst_stream_c(payload: *u8, plen: i32, out_code: *i32): i32;
+export extern function http2_rst_stream_smoke_c(): i32;
+export extern function http2_conn_reset_stream_c(conn: *Http2Conn, stream_id: i32, code: i32): i32;
+export extern function http2_http2_complete_smoke_c(): i32;
+export extern function http2_build_headers_frame_c(stream_id: i32, flags: i32, hpack: *u8, hpack_len: i32, out: *u8, out_cap: i32): i32;
+export extern function http2_build_data_frame_c(stream_id: i32, flags: i32, data: *u8, data_len: i32, out: *u8, out_cap: i32): i32;
+export extern function http2_build_get_headers_frame_c(authority: *u8, authority_len: i32, path: *u8, path_len: i32, is_https: i32, out: *u8, out_cap: i32): i32;
+export extern function http2_build_request_headers_frame_c(method_u8: u8, authority: *u8, authority_len: i32, path: *u8, path_len: i32, is_https: i32, has_body: i32, stream_id: i32, out: *u8, out_cap: i32): i32;
+export extern function http2_client_smoke_c(): i32;
+export extern function http2_network_is_available_c(): i32;
+export extern function http2_network_smoke_c(): i32;
+export extern function http_h2_get_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
+export extern function http_h2_request_c(method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
+export extern function http_request_method_h2_c(method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
+export extern function http2_hpack_huffman_decode_c(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32;
+export extern function http2_hpack_huffman_is_available_c(): i32;
+export extern function http2_hpack_huffman_smoke_c(): i32;
+export extern function http2_build_window_update_c(stream_id: i32, increment: i32, out: *u8, out_cap: i32): i32;
+export extern function http2_default_initial_window_c(): i32;
+export extern function http2_flow_control_smoke_c(): i32;
+export extern function http2_flow_state_init_c(st: *Http2FlowState): void;
+export extern function http2_flow_state_reset_stream_c(st: *Http2FlowState, initial_window: i32): void;
+export extern function http2_flow_state_apply_initial_window_c(st: *Http2FlowState, initial_window: i32): void;
+export extern function http2_flow_state_apply_window_update_c(st: *Http2FlowState, stream_id: i32, increment: i32): i32;
+export extern function http2_flow_state_max_send_c(st: *Http2FlowState, want: i32): i32;
+export extern function http2_flow_state_can_send_c(st: *Http2FlowState, want: i32): i32;
+export extern function http2_flow_state_consume_send_c(st: *Http2FlowState, nbytes: i32): i32;
+export extern function http2_parse_window_update_payload_c(payload: *u8, plen: i32, out_increment: *i32): i32;
+export extern function http2_flow_state_smoke_c(): i32;
+export extern function http2_flow_recv_init_c(st: *Http2FlowRecvState): void;
+export extern function http2_flow_recv_reset_stream_c(st: *Http2FlowRecvState, initial_window: i32): void;
+export extern function http2_flow_recv_on_data_c(st: *Http2FlowRecvState, nbytes: i32): i32;
+export extern function http2_flow_recv_release_c(st: *Http2FlowRecvState, stream_id: i32, nbytes: i32, out: *u8, out_cap: i32): i32;
+export extern function http2_flow_recv_smoke_c(): i32;
+export extern function http2_frame_push_promise_c(): i32;
+export extern function http2_is_push_promise_frame_c(ftype: i32): i32;
+export extern function http2_parse_push_promise_stream_c(payload: *u8, plen: i32, out_promised_id: *i32): i32;
+export extern function http2_is_h2c_upgrade_response_c(buf: *u8, len: i32): i32;
+export extern function http2_h2c_is_available_c(): i32;
+export extern function http2_push_h2c_smoke_c(): i32;
+export extern function http2_h2c_wire_is_available_c(): i32;
+export extern function http2_h2c_session_begin_c(out: *u8, out_cap: i32): i32;
+export extern function http2_push_collect_data_c(promised_id: i32, stream_id: i32, data: *u8, dlen: i32, inout_promised_id: *i32, acc: *u8, acc_cap: i32, acc_len: *i32): i32;
 
 /** 最近一次读路径 push 元数据。 */
 allow(padding) struct Http2PushLast {
@@ -849,16 +849,16 @@ allow(padding) struct Http2PushResource {
   body_len: i32;
 }
 
-extern function http2_push_fetch_smoke_c(): i32;
-extern function http2_push_last_reset_c(): void;
-extern function http2_push_last_copy_c(out_meta: *Http2PushLast, out_body: *u8, out_cap: i32): i32;
-extern function http2_push_network_smoke_c(): i32;
-extern function http2_session_request_h2c_c(fd: i32, method_u8: u8, authority: *u8, authority_len: i32, path: *u8, path_len: i32, body: *u8, body_len: i32, out: *u8, out_cap: i32): i32;
-extern function http2_h2c_network_smoke_c(): i32;
-extern function http_h2c_get_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
-extern function http_h2c_request_c(method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
-extern function http_request_method_h2c_c(method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
-extern function http_h2c_client_smoke_c(): i32;
+export extern function http2_push_fetch_smoke_c(): i32;
+export extern function http2_push_last_reset_c(): void;
+export extern function http2_push_last_copy_c(out_meta: *Http2PushLast, out_body: *u8, out_cap: i32): i32;
+export extern function http2_push_network_smoke_c(): i32;
+export extern function http2_session_request_h2c_c(fd: i32, method_u8: u8, authority: *u8, authority_len: i32, path: *u8, path_len: i32, body: *u8, body_len: i32, out: *u8, out_cap: i32): i32;
+export extern function http2_h2c_network_smoke_c(): i32;
+export extern function http_h2c_get_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
+export extern function http_h2c_request_c(method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
+export extern function http_request_method_h2c_c(method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
+export extern function http_h2c_client_smoke_c(): i32;
 
 /** HTTP/2 多 stream 注册表槽位（与 C http2_stream_slot_t 布局一致）。 */
 allow(padding) struct Http2StreamSlot {
@@ -873,11 +873,11 @@ allow(padding) struct Http2StreamRegistry {
   next_id: i32;
 }
 
-extern function http2_stream_registry_init_c(reg: *Http2StreamRegistry): void;
-extern function http2_stream_registry_open_c(reg: *Http2StreamRegistry): i32;
-extern function http2_stream_registry_close_c(reg: *Http2StreamRegistry, stream_id: i32): void;
-extern function http2_stream_registry_is_open_c(reg: *Http2StreamRegistry, stream_id: i32): i32;
-extern function http2_stream_registry_smoke_c(): i32;
+export extern function http2_stream_registry_init_c(reg: *Http2StreamRegistry): void;
+export extern function http2_stream_registry_open_c(reg: *Http2StreamRegistry): i32;
+export extern function http2_stream_registry_close_c(reg: *Http2StreamRegistry, stream_id: i32): void;
+export extern function http2_stream_registry_is_open_c(reg: *Http2StreamRegistry, stream_id: i32): i32;
+export extern function http2_stream_registry_smoke_c(): i32;
 
 /** 对端 SETTINGS 协商视图（RFC 7540 §6.5 已识别项）。 */
 allow(padding) struct Http2PeerSettings {
@@ -898,33 +898,33 @@ allow(padding) struct Http2MultistreamClient {
   open_count: i32;
 }
 
-extern function http2_peer_settings_init_c(ps: *Http2PeerSettings): void;
-extern function http2_settings_entry_count_c(plen: i32): i32;
-extern function http2_parse_settings_entry_c(payload: *u8, plen: i32, entry_index: i32, out_id: *i32, out_value: *i32): i32;
-extern function http2_peer_settings_apply_entry_c(ps: *Http2PeerSettings, setting_id: i32, value: i32): void;
-extern function http2_peer_settings_consume_payload_c(payload: *u8, plen: i32, ps: *Http2PeerSettings): i32;
-extern function http2_build_client_settings_c(max_streams: i32, initial_window: i32, out: *u8, out_cap: i32): i32;
-extern function http2_build_client_settings_ex_c(max_streams: i32, initial_window: i32, enable_push: i32, out: *u8, out_cap: i32): i32;
-extern function http2_build_client_settings_with_max_frame_c(max_streams: i32, initial_window: i32, enable_push: i32, max_frame_size: i32, out: *u8, out_cap: i32): i32;
-extern function http2_build_server_settings_c(out: *u8, out_cap: i32): i32;
-extern function http2_setting_enable_push_c(): i32;
-extern function http2_setting_header_table_size_c(): i32;
-extern function http2_setting_max_frame_size_c(): i32;
-extern function http2_setting_max_header_list_size_c(): i32;
-extern function http2_peer_settings_enable_push_c(ps: *Http2PeerSettings): i32;
-extern function http2_peer_settings_header_table_size_c(ps: *Http2PeerSettings): i32;
-extern function http2_peer_settings_max_frame_size_c(ps: *Http2PeerSettings): i32;
-extern function http2_peer_settings_max_header_list_size_c(ps: *Http2PeerSettings): i32;
-extern function http2_peer_settings_max_streams_c(ps: *Http2PeerSettings): i32;
-extern function http2_peer_settings_initial_window_c(ps: *Http2PeerSettings): i32;
-extern function http2_settings_smoke_c(): i32;
-extern function http2_multistream_client_init_c(cli: *Http2MultistreamClient): void;
-extern function http2_multistream_client_on_settings_c(cli: *Http2MultistreamClient, payload: *u8, plen: i32): i32;
-extern function http2_multistream_client_open_stream_c(cli: *Http2MultistreamClient): i32;
-extern function http2_multistream_client_close_stream_c(cli: *Http2MultistreamClient, stream_id: i32): void;
-extern function http2_multistream_client_build_get_c(cli: *Http2MultistreamClient, stream_id: i32, authority: *u8, authority_len: i32, path: *u8, path_len: i32, out: *u8, out_cap: i32): i32;
-extern function http2_multistream_client_build_parallel_get_c(cli: *Http2MultistreamClient, authority: *u8, authority_len: i32, path: *u8, path_len: i32, n_reqs: i32, out: *u8, out_cap: i32): i32;
-extern function http2_multistream_client_smoke_c(): i32;
+export extern function http2_peer_settings_init_c(ps: *Http2PeerSettings): void;
+export extern function http2_settings_entry_count_c(plen: i32): i32;
+export extern function http2_parse_settings_entry_c(payload: *u8, plen: i32, entry_index: i32, out_id: *i32, out_value: *i32): i32;
+export extern function http2_peer_settings_apply_entry_c(ps: *Http2PeerSettings, setting_id: i32, value: i32): void;
+export extern function http2_peer_settings_consume_payload_c(payload: *u8, plen: i32, ps: *Http2PeerSettings): i32;
+export extern function http2_build_client_settings_c(max_streams: i32, initial_window: i32, out: *u8, out_cap: i32): i32;
+export extern function http2_build_client_settings_ex_c(max_streams: i32, initial_window: i32, enable_push: i32, out: *u8, out_cap: i32): i32;
+export extern function http2_build_client_settings_with_max_frame_c(max_streams: i32, initial_window: i32, enable_push: i32, max_frame_size: i32, out: *u8, out_cap: i32): i32;
+export extern function http2_build_server_settings_c(out: *u8, out_cap: i32): i32;
+export extern function http2_setting_enable_push_c(): i32;
+export extern function http2_setting_header_table_size_c(): i32;
+export extern function http2_setting_max_frame_size_c(): i32;
+export extern function http2_setting_max_header_list_size_c(): i32;
+export extern function http2_peer_settings_enable_push_c(ps: *Http2PeerSettings): i32;
+export extern function http2_peer_settings_header_table_size_c(ps: *Http2PeerSettings): i32;
+export extern function http2_peer_settings_max_frame_size_c(ps: *Http2PeerSettings): i32;
+export extern function http2_peer_settings_max_header_list_size_c(ps: *Http2PeerSettings): i32;
+export extern function http2_peer_settings_max_streams_c(ps: *Http2PeerSettings): i32;
+export extern function http2_peer_settings_initial_window_c(ps: *Http2PeerSettings): i32;
+export extern function http2_settings_smoke_c(): i32;
+export extern function http2_multistream_client_init_c(cli: *Http2MultistreamClient): void;
+export extern function http2_multistream_client_on_settings_c(cli: *Http2MultistreamClient, payload: *u8, plen: i32): i32;
+export extern function http2_multistream_client_open_stream_c(cli: *Http2MultistreamClient): i32;
+export extern function http2_multistream_client_close_stream_c(cli: *Http2MultistreamClient, stream_id: i32): void;
+export extern function http2_multistream_client_build_get_c(cli: *Http2MultistreamClient, stream_id: i32, authority: *u8, authority_len: i32, path: *u8, path_len: i32, out: *u8, out_cap: i32): i32;
+export extern function http2_multistream_client_build_parallel_get_c(cli: *Http2MultistreamClient, authority: *u8, authority_len: i32, path: *u8, path_len: i32, n_reqs: i32, out: *u8, out_cap: i32): i32;
+export extern function http2_multistream_client_smoke_c(): i32;
 
 /** 可复用 HTTP/2 连接（单 TCP/TLS 多 stream 往返）。 */
 allow(padding) struct Http2Conn {
@@ -936,1890 +936,1890 @@ allow(padding) struct Http2Conn {
   ms: Http2MultistreamClient;
 }
 
-extern function http2_conn_init_c(conn: *Http2Conn): void;
-extern function http2_conn_attach_h2c_c(fd: i32, conn: *Http2Conn): i32;
-extern function http2_conn_attach_tls_c(tls_ctx: i64, conn: *Http2Conn): i32;
-extern function http2_conn_is_ready_c(conn: *Http2Conn): i32;
-extern function http2_conn_handshake_c(conn: *Http2Conn): i32;
-extern function http2_conn_handshake_with_enable_push_c(conn: *Http2Conn, client_enable_push: i32): i32;
-extern function http2_conn_handshake_with_max_frame_c(conn: *Http2Conn, client_max_frame_size: i32): i32;
-extern function http2_conn_request_c(conn: *Http2Conn, method_u8: u8, authority: *u8, authority_len: i32, path: *u8, path_len: i32, body: *u8, body_len: i32, out: *u8, out_cap: i32): i32;
-extern function http2_conn_close_c(conn: *Http2Conn): void;
-extern function http2_conn_shutdown_graceful_c(conn: *Http2Conn, last_stream_id: i32, code: i32): void;
-extern function http2_conn_read_goaway_c(conn: *Http2Conn, out_last_stream: *i32, out_code: *i32): i32;
-extern function http2_conn_ping_c(conn: *Http2Conn, opaque: *u8): i32;
-extern function http2_conn_goaway_seen_c(conn: *Http2Conn): i32;
-extern function http2_conn_is_pool_reusable_c(conn: *Http2Conn): i32;
-extern function http2_conn_goaway_smoke_c(): i32;
-extern function http2_conn_ping_smoke_c(): i32;
-extern function http2_conn_reuse_smoke_c(): i32;
-extern function http2_conn_reuse_is_available_c(): i32;
-extern function http2_conn_pool_create_h2c_c(host: *u8, host_len: i32, port: *u8, port_len: i32, max_conns: i32): i64;
-extern function http2_conn_pool_create_h2_c(host: *u8, host_len: i32, port: *u8, port_len: i32, max_conns: i32): i64;
-extern function http2_conn_pool_destroy_c(pool_h: i64): void;
-extern function http2_conn_pool_request_c(pool_h: i64, method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
-extern function http_h2c_pool_get_c(pool_h: i64, url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
-extern function http_h2_pool_get_c(pool_h: i64, url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
-extern function http2_conn_pool_smoke_c(): i32;
-extern function http2_conn_pool_goaway_smoke_c(): i32;
-extern function http2_conn_pool_connect_count_c(pool_h: i64): i32;
-extern function http2_conn_pool_is_available_c(): i32;
-extern function http2_global_pool_create_c(max_entries: i32, max_conns_per_host: i32): i64;
-extern function http2_global_pool_destroy_c(gpool_h: i64): void;
-extern function http2_global_pool_get_c(gpool_h: i64, url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
-extern function http2_global_pool_request_c(gpool_h: i64, method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
-extern function http2_global_pool_entry_count_c(gpool_h: i64): i32;
-extern function http2_global_pool_connect_count_c(gpool_h: i64): i32;
-extern function http2_global_pool_smoke_c(): i32;
-extern function http2_global_pool_is_available_c(): i32;
-extern function http2_serve_h2c_one_c(listener_fd: i32, body: *u8, body_len: i32, timeout_ms: u32): i32;
-extern function http2_serve_h2c_one_with_goaway_c(listener_fd: i32, body: *u8, body_len: i32, last_stream_id: i32, timeout_ms: u32): i32;
-extern function http2_server_serve_h2c_c(client_fd: i32, body: *u8, body_len: i32): i32;
-extern function http2_server_serve_h2c_with_goaway_c(client_fd: i32, body: *u8, body_len: i32, last_stream_id: i32): i32;
-extern function http2_serve_h2c_one_ping_echo_c(listener_fd: i32, timeout_ms: u32): i32;
-extern function http2_server_serve_h2c_ping_echo_c(client_fd: i32): i32;
-extern function http2_serve_h2c_one_with_push_c(listener_fd: i32, body: *u8, body_len: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32, timeout_ms: u32): i32;
-extern function http2_server_serve_h2c_with_push_c(client_fd: i32, body: *u8, body_len: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32): i32;
-extern function http2_server_serve_h2_with_push_c(tls_ctx: i64, body: *u8, body_len: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32): i32;
-extern function http2_serve_h2_one_with_push_c(listener_fd: i32, srv_ctx_h: i64, body: *u8, body_len: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32, timeout_ms: u32): i32;
-extern function http2_server_push_smoke_c(): i32;
-extern function http2_server_push_tls_smoke_c(): i32;
-extern function http2_server_push_settings_smoke_c(): i32;
-extern function http2_server_settings_full_smoke_c(): i32;
-extern function http2_server_hpack_dyn_smoke_c(): i32;
-extern function http2_server_max_frame_smoke_c(): i32;
-extern function http2_server_push_is_available_c(): i32;
-extern function http2_serve_h2c_multi_one_c(listener_fd: i32, body: *u8, body_len: i32, max_requests: i32, timeout_ms: u32): i32;
-extern function http2_server_serve_h2c_multi_c(client_fd: i32, body: *u8, body_len: i32, max_requests: i32): i32;
-extern function http2_serve_h2c_multi_one_with_push_c(listener_fd: i32, body: *u8, body_len: i32, max_requests: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32, timeout_ms: u32): i32;
-extern function http2_server_serve_h2c_multi_with_push_c(client_fd: i32, body: *u8, body_len: i32, max_requests: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32): i32;
-extern function http2_serve_h2_multi_one_c(listener_fd: i32, srv_ctx_h: i64, body: *u8, body_len: i32, max_requests: i32, timeout_ms: u32): i32;
-extern function http2_server_serve_h2_multi_c(tls_ctx: i64, body: *u8, body_len: i32, max_requests: i32): i32;
-extern function http2_serve_h2_multi_one_with_push_c(listener_fd: i32, srv_ctx_h: i64, body: *u8, body_len: i32, max_requests: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32, timeout_ms: u32): i32;
-extern function http2_server_serve_h2_multi_with_push_c(tls_ctx: i64, body: *u8, body_len: i32, max_requests: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32): i32;
-extern function http2_server_multistream_push_smoke_c(): i32;
-extern function http2_server_multistream_push_is_available_c(): i32;
-extern function http2_server_multistream_smoke_c(): i32;
-extern function http2_server_multistream_is_available_c(): i32;
-extern function http2_server_smoke_c(): i32;
-extern function http2_server_is_available_c(): i32;
-extern function http2_serve_h2_one_c(listener_fd: i32, srv_ctx_h: i64, body: *u8, body_len: i32, timeout_ms: u32): i32;
-extern function http2_server_serve_h2_c(tls_ctx: i64, body: *u8, body_len: i32): i32;
-extern function http2_tls_server_ctx_create_c(cert_pem: *u8, cert_len: i32, key_pem: *u8, key_len: i32): i64;
-extern function http2_tls_server_ctx_destroy_c(srv_ctx_h: i64): void;
-extern function http2_hpack_decode_get_request_c(block: *u8, block_len: i32, out_is_get: *i32, out_path: *u8, path_cap: i32, out_path_len: *i32): i32;
-extern function http2_hpack_encode_status_c(status: i32, out: *u8, out_cap: i32): i32;
+export extern function http2_conn_init_c(conn: *Http2Conn): void;
+export extern function http2_conn_attach_h2c_c(fd: i32, conn: *Http2Conn): i32;
+export extern function http2_conn_attach_tls_c(tls_ctx: i64, conn: *Http2Conn): i32;
+export extern function http2_conn_is_ready_c(conn: *Http2Conn): i32;
+export extern function http2_conn_handshake_c(conn: *Http2Conn): i32;
+export extern function http2_conn_handshake_with_enable_push_c(conn: *Http2Conn, client_enable_push: i32): i32;
+export extern function http2_conn_handshake_with_max_frame_c(conn: *Http2Conn, client_max_frame_size: i32): i32;
+export extern function http2_conn_request_c(conn: *Http2Conn, method_u8: u8, authority: *u8, authority_len: i32, path: *u8, path_len: i32, body: *u8, body_len: i32, out: *u8, out_cap: i32): i32;
+export extern function http2_conn_close_c(conn: *Http2Conn): void;
+export extern function http2_conn_shutdown_graceful_c(conn: *Http2Conn, last_stream_id: i32, code: i32): void;
+export extern function http2_conn_read_goaway_c(conn: *Http2Conn, out_last_stream: *i32, out_code: *i32): i32;
+export extern function http2_conn_ping_c(conn: *Http2Conn, opaque: *u8): i32;
+export extern function http2_conn_goaway_seen_c(conn: *Http2Conn): i32;
+export extern function http2_conn_is_pool_reusable_c(conn: *Http2Conn): i32;
+export extern function http2_conn_goaway_smoke_c(): i32;
+export extern function http2_conn_ping_smoke_c(): i32;
+export extern function http2_conn_reuse_smoke_c(): i32;
+export extern function http2_conn_reuse_is_available_c(): i32;
+export extern function http2_conn_pool_create_h2c_c(host: *u8, host_len: i32, port: *u8, port_len: i32, max_conns: i32): i64;
+export extern function http2_conn_pool_create_h2_c(host: *u8, host_len: i32, port: *u8, port_len: i32, max_conns: i32): i64;
+export extern function http2_conn_pool_destroy_c(pool_h: i64): void;
+export extern function http2_conn_pool_request_c(pool_h: i64, method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
+export extern function http_h2c_pool_get_c(pool_h: i64, url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
+export extern function http_h2_pool_get_c(pool_h: i64, url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
+export extern function http2_conn_pool_smoke_c(): i32;
+export extern function http2_conn_pool_goaway_smoke_c(): i32;
+export extern function http2_conn_pool_connect_count_c(pool_h: i64): i32;
+export extern function http2_conn_pool_is_available_c(): i32;
+export extern function http2_global_pool_create_c(max_entries: i32, max_conns_per_host: i32): i64;
+export extern function http2_global_pool_destroy_c(gpool_h: i64): void;
+export extern function http2_global_pool_get_c(gpool_h: i64, url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
+export extern function http2_global_pool_request_c(gpool_h: i64, method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
+export extern function http2_global_pool_entry_count_c(gpool_h: i64): i32;
+export extern function http2_global_pool_connect_count_c(gpool_h: i64): i32;
+export extern function http2_global_pool_smoke_c(): i32;
+export extern function http2_global_pool_is_available_c(): i32;
+export extern function http2_serve_h2c_one_c(listener_fd: i32, body: *u8, body_len: i32, timeout_ms: u32): i32;
+export extern function http2_serve_h2c_one_with_goaway_c(listener_fd: i32, body: *u8, body_len: i32, last_stream_id: i32, timeout_ms: u32): i32;
+export extern function http2_server_serve_h2c_c(client_fd: i32, body: *u8, body_len: i32): i32;
+export extern function http2_server_serve_h2c_with_goaway_c(client_fd: i32, body: *u8, body_len: i32, last_stream_id: i32): i32;
+export extern function http2_serve_h2c_one_ping_echo_c(listener_fd: i32, timeout_ms: u32): i32;
+export extern function http2_server_serve_h2c_ping_echo_c(client_fd: i32): i32;
+export extern function http2_serve_h2c_one_with_push_c(listener_fd: i32, body: *u8, body_len: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32, timeout_ms: u32): i32;
+export extern function http2_server_serve_h2c_with_push_c(client_fd: i32, body: *u8, body_len: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32): i32;
+export extern function http2_server_serve_h2_with_push_c(tls_ctx: i64, body: *u8, body_len: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32): i32;
+export extern function http2_serve_h2_one_with_push_c(listener_fd: i32, srv_ctx_h: i64, body: *u8, body_len: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32, timeout_ms: u32): i32;
+export extern function http2_server_push_smoke_c(): i32;
+export extern function http2_server_push_tls_smoke_c(): i32;
+export extern function http2_server_push_settings_smoke_c(): i32;
+export extern function http2_server_settings_full_smoke_c(): i32;
+export extern function http2_server_hpack_dyn_smoke_c(): i32;
+export extern function http2_server_max_frame_smoke_c(): i32;
+export extern function http2_server_push_is_available_c(): i32;
+export extern function http2_serve_h2c_multi_one_c(listener_fd: i32, body: *u8, body_len: i32, max_requests: i32, timeout_ms: u32): i32;
+export extern function http2_server_serve_h2c_multi_c(client_fd: i32, body: *u8, body_len: i32, max_requests: i32): i32;
+export extern function http2_serve_h2c_multi_one_with_push_c(listener_fd: i32, body: *u8, body_len: i32, max_requests: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32, timeout_ms: u32): i32;
+export extern function http2_server_serve_h2c_multi_with_push_c(client_fd: i32, body: *u8, body_len: i32, max_requests: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32): i32;
+export extern function http2_serve_h2_multi_one_c(listener_fd: i32, srv_ctx_h: i64, body: *u8, body_len: i32, max_requests: i32, timeout_ms: u32): i32;
+export extern function http2_server_serve_h2_multi_c(tls_ctx: i64, body: *u8, body_len: i32, max_requests: i32): i32;
+export extern function http2_serve_h2_multi_one_with_push_c(listener_fd: i32, srv_ctx_h: i64, body: *u8, body_len: i32, max_requests: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32, timeout_ms: u32): i32;
+export extern function http2_server_serve_h2_multi_with_push_c(tls_ctx: i64, body: *u8, body_len: i32, max_requests: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32): i32;
+export extern function http2_server_multistream_push_smoke_c(): i32;
+export extern function http2_server_multistream_push_is_available_c(): i32;
+export extern function http2_server_multistream_smoke_c(): i32;
+export extern function http2_server_multistream_is_available_c(): i32;
+export extern function http2_server_smoke_c(): i32;
+export extern function http2_server_is_available_c(): i32;
+export extern function http2_serve_h2_one_c(listener_fd: i32, srv_ctx_h: i64, body: *u8, body_len: i32, timeout_ms: u32): i32;
+export extern function http2_server_serve_h2_c(tls_ctx: i64, body: *u8, body_len: i32): i32;
+export extern function http2_tls_server_ctx_create_c(cert_pem: *u8, cert_len: i32, key_pem: *u8, key_len: i32): i64;
+export extern function http2_tls_server_ctx_destroy_c(srv_ctx_h: i64): void;
+export extern function http2_hpack_decode_get_request_c(block: *u8, block_len: i32, out_is_get: *i32, out_path: *u8, path_cap: i32, out_path_len: *i32): i32;
+export extern function http2_hpack_encode_status_c(status: i32, out: *u8, out_cap: i32): i32;
 
 // ─── libc/胶水 FFI 薄包装（extern 须 unsafe；集中于此，公开 API 调用包装而非直接 extern）───
 
 /** 包装 `http_get_c`；glue FFI 须 unsafe。 */
-function http_libc_get_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32 {
+export function http_libc_get_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32 {
   unsafe { return http_get_c(url, url_len, out_buf, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_post_c`；glue FFI 须 unsafe。 */
-function http_libc_post_c(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32): i32 {
+export function http_libc_post_c(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32): i32 {
   unsafe { return http_post_c(url, url_len, body, body_len, out_buf, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_head_c`；glue FFI 须 unsafe。 */
-function http_libc_head_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32 {
+export function http_libc_head_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32 {
   unsafe { return http_head_c(url, url_len, out_buf, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_put_c`；glue FFI 须 unsafe。 */
-function http_libc_put_c(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32): i32 {
+export function http_libc_put_c(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32): i32 {
   unsafe { return http_put_c(url, url_len, body, body_len, out_buf, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_delete_c`；glue FFI 须 unsafe。 */
-function http_libc_delete_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32 {
+export function http_libc_delete_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32 {
   unsafe { return http_delete_c(url, url_len, out_buf, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_patch_c`；glue FFI 须 unsafe。 */
-function http_libc_patch_c(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32): i32 {
+export function http_libc_patch_c(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32): i32 {
   unsafe { return http_patch_c(url, url_len, body, body_len, out_buf, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_options_c`；glue FFI 须 unsafe。 */
-function http_libc_options_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32 {
+export function http_libc_options_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32 {
   unsafe { return http_options_c(url, url_len, out_buf, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_get_timeout_c`；glue FFI 须 unsafe。 */
-function http_libc_get_timeout_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
+export function http_libc_get_timeout_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   unsafe { return http_get_timeout_c(url, url_len, out_buf, out_cap, timeout_ms); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_post_timeout_c`；glue FFI 须 unsafe。 */
-function http_libc_post_timeout_c(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
+export function http_libc_post_timeout_c(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   unsafe { return http_post_timeout_c(url, url_len, body, body_len, out_buf, out_cap, timeout_ms); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_head_timeout_c`；glue FFI 须 unsafe。 */
-function http_libc_head_timeout_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
+export function http_libc_head_timeout_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   unsafe { return http_head_timeout_c(url, url_len, out_buf, out_cap, timeout_ms); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_put_timeout_c`；glue FFI 须 unsafe。 */
-function http_libc_put_timeout_c(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
+export function http_libc_put_timeout_c(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   unsafe { return http_put_timeout_c(url, url_len, body, body_len, out_buf, out_cap, timeout_ms); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_delete_timeout_c`；glue FFI 须 unsafe。 */
-function http_libc_delete_timeout_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
+export function http_libc_delete_timeout_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   unsafe { return http_delete_timeout_c(url, url_len, out_buf, out_cap, timeout_ms); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_patch_timeout_c`；glue FFI 须 unsafe。 */
-function http_libc_patch_timeout_c(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
+export function http_libc_patch_timeout_c(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   unsafe { return http_patch_timeout_c(url, url_len, body, body_len, out_buf, out_cap, timeout_ms); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_options_timeout_c`；glue FFI 须 unsafe。 */
-function http_libc_options_timeout_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
+export function http_libc_options_timeout_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   unsafe { return http_options_timeout_c(url, url_len, out_buf, out_cap, timeout_ms); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_request_ex_c`；glue FFI 须 unsafe。 */
-function http_libc_request_ex_c(method: *u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32): i32 {
+export function http_libc_request_ex_c(method: *u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32): i32 {
   unsafe { return http_request_ex_c(method, url, url_len, body, body_len, out_buf, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_request_method_c`；glue FFI 须 unsafe。 */
-function http_libc_request_method_c(method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32): i32 {
+export function http_libc_request_method_c(method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32): i32 {
   unsafe { return http_request_method_c(method_u8, url, url_len, body, body_len, out_buf, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_request_method_timeout_c`；glue FFI 须 unsafe。 */
-function http_libc_request_method_timeout_c(method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
+export function http_libc_request_method_timeout_c(method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   unsafe { return http_request_method_timeout_c(method_u8, url, url_len, body, body_len, out_buf, out_cap, timeout_ms); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_respond_get_ok_c`；glue FFI 须 unsafe。 */
-function http_libc_respond_get_ok_c(fd: i32, body: *u8, body_len: i32): i32 {
+export function http_libc_respond_get_ok_c(fd: i32, body: *u8, body_len: i32): i32 {
   unsafe { return http_respond_get_ok_c(fd, body, body_len); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_listen_c`；glue FFI 须 unsafe。 */
-function http_libc_listen_c(addr_u32: u32, port_u32: u32, backlog: i32): i32 {
+export function http_libc_listen_c(addr_u32: u32, port_u32: u32, backlog: i32): i32 {
   unsafe { return http_listen_c(addr_u32, port_u32, backlog); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_serve_one_c`；glue FFI 须 unsafe。 */
-function http_libc_serve_one_c(listener_fd: i32, body: *u8, body_len: i32, timeout_ms: u32): i32 {
+export function http_libc_serve_one_c(listener_fd: i32, body: *u8, body_len: i32, timeout_ms: u32): i32 {
   unsafe { return http_serve_one_c(listener_fd, body, body_len, timeout_ms); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_client_pool_create_c`；glue FFI 须 unsafe。 */
-function http_libc_client_pool_create_c(host: *u8, host_len: i32, port: *u8, port_len: i32, max_conns: i32): i64 {
+export function http_libc_client_pool_create_c(host: *u8, host_len: i32, port: *u8, port_len: i32, max_conns: i32): i64 {
   unsafe { return http_client_pool_create_c(host, host_len, port, port_len, max_conns); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_client_pool_destroy_c`；glue FFI 须 unsafe。 */
-function http_libc_client_pool_destroy_c(pool_h: i64): void {
+export function http_libc_client_pool_destroy_c(pool_h: i64): void {
   unsafe { http_client_pool_destroy_c(pool_h); }
 }
 
 /** 包装 `http_client_pool_get_c`；glue FFI 须 unsafe。 */
-function http_libc_client_pool_get_c(pool_h: i64, url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32 {
+export function http_libc_client_pool_get_c(pool_h: i64, url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32 {
   unsafe { return http_client_pool_get_c(pool_h, url, url_len, out_buf, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_parse_status_line_c`；glue FFI 须 unsafe。 */
-function http_libc_parse_status_line_c(line: *u8, len: i32, out_code: *i32): i32 {
+export function http_libc_parse_status_line_c(line: *u8, len: i32, out_code: *i32): i32 {
   unsafe { return http_parse_status_line_c(line, len, out_code); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_headers_body_offset_c`；glue FFI 须 unsafe。 */
-function http_libc_headers_body_offset_c(buf: *u8, len: i32, out_off: *i32): i32 {
+export function http_libc_headers_body_offset_c(buf: *u8, len: i32, out_off: *i32): i32 {
   unsafe { return http_headers_body_offset_c(buf, len, out_off); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_has_chunked_encoding_c`；glue FFI 须 unsafe。 */
-function http_libc_has_chunked_encoding_c(buf: *u8, len: i32): i32 {
+export function http_libc_has_chunked_encoding_c(buf: *u8, len: i32): i32 {
   unsafe { return http_has_chunked_encoding_c(buf, len); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_has_keep_alive_c`；glue FFI 须 unsafe。 */
-function http_libc_has_keep_alive_c(buf: *u8, len: i32): i32 {
+export function http_libc_has_keep_alive_c(buf: *u8, len: i32): i32 {
   unsafe { return http_has_keep_alive_c(buf, len); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_decode_chunked_body_c`；glue FFI 须 unsafe。 */
-function http_libc_decode_chunked_body_c(buf: *u8, len: i32, hdr_end: i32, out_body: *u8, out_cap: i32): i32 {
+export function http_libc_decode_chunked_body_c(buf: *u8, len: i32, hdr_end: i32, out_body: *u8, out_cap: i32): i32 {
   unsafe { return http_decode_chunked_body_c(buf, len, hdr_end, out_body, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_build_get_keep_alive_c`；glue FFI 须 unsafe。 */
-function http_libc_build_get_keep_alive_c(host: *u8, path: *u8, out: *u8, out_cap: i32): i32 {
+export function http_libc_build_get_keep_alive_c(host: *u8, path: *u8, out: *u8, out_cap: i32): i32 {
   unsafe { return http_build_get_keep_alive_c(host, path, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_is_upgrade_websocket_c`；glue FFI 须 unsafe。 */
-function http_libc_is_upgrade_websocket_c(buf: *u8, len: i32): i32 {
+export function http_libc_is_upgrade_websocket_c(buf: *u8, len: i32): i32 {
   unsafe { return http_is_upgrade_websocket_c(buf, len); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_build_ws_upgrade_101_c`；glue FFI 须 unsafe。 */
-function http_libc_build_ws_upgrade_101_c(accept: *u8, out: *u8, out_cap: i32): i32 {
+export function http_libc_build_ws_upgrade_101_c(accept: *u8, out: *u8, out_cap: i32): i32 {
   unsafe { return http_build_ws_upgrade_101_c(accept, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_is_https_available_c`；glue FFI 须 unsafe。 */
-function http_libc_is_https_available_c(): i32 {
+export function http_libc_is_https_available_c(): i32 {
   unsafe { return http_is_https_available_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_https_smoke_c`；glue FFI 须 unsafe。 */
-function http_libc_https_smoke_c(): i32 {
+export function http_libc_https_smoke_c(): i32 {
   unsafe { return http_https_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_response_parse_c`；glue FFI 须 unsafe。 */
-function http_libc_response_parse_c(buf: *u8, len: i32, out_status: *i32, out_hdr_end: *i32, out_body_len: *i32, out_chunked: *i32): i32 {
+export function http_libc_response_parse_c(buf: *u8, len: i32, out_status: *i32, out_hdr_end: *i32, out_body_len: *i32, out_chunked: *i32): i32 {
   unsafe { return http_response_parse_c(buf, len, out_status, out_hdr_end, out_body_len, out_chunked); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_response_parse_smoke_c`；glue FFI 须 unsafe。 */
-function http_libc_response_parse_smoke_c(): i32 {
+export function http_libc_response_parse_smoke_c(): i32 {
   unsafe { return http_response_parse_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_response_body_ptr_c`；glue FFI 须 unsafe。 */
-function http_libc_response_body_ptr_c(buf: *u8, hdr_end: i32): *u8 {
+export function http_libc_response_body_ptr_c(buf: *u8, hdr_end: i32): *u8 {
   unsafe { return http_response_body_ptr_c(buf, hdr_end); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_response_body_copy_c`；glue FFI 须 unsafe。 */
-function http_libc_response_body_copy_c(buf: *u8, hdr_end: i32, body_len: i32, out: *u8, out_cap: i32): i32 {
+export function http_libc_response_body_copy_c(buf: *u8, hdr_end: i32, body_len: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http_response_body_copy_c(buf, hdr_end, body_len, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_response_body_owned_smoke_c`；glue FFI 须 unsafe。 */
-function http_libc_response_body_owned_smoke_c(): i32 {
+export function http_libc_response_body_owned_smoke_c(): i32 {
   unsafe { return http_response_body_owned_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_url_exceeds_string_cap_c`；glue FFI 须 unsafe。 */
-function http_libc_url_exceeds_string_cap_c(url_len: i32): i32 {
+export function http_libc_url_exceeds_string_cap_c(url_len: i32): i32 {
   unsafe { return http_url_exceeds_string_cap_c(url_len); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_url_copy_c`；glue FFI 须 unsafe。 */
-function http_libc_url_copy_c(src: *u8, len: i32, out: *u8, out_cap: i32): i32 {
+export function http_libc_url_copy_c(src: *u8, len: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http_url_copy_c(src, len, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_url_owned_smoke_c`；glue FFI 须 unsafe。 */
-function http_libc_url_owned_smoke_c(): i32 {
+export function http_libc_url_owned_smoke_c(): i32 {
   unsafe { return http_url_owned_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_request_owned_smoke_c`；glue FFI 须 unsafe。 */
-function http_libc_request_owned_smoke_c(): i32 {
+export function http_libc_request_owned_smoke_c(): i32 {
   unsafe { return http_request_owned_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_preface_len_c`；glue FFI 须 unsafe。 */
-function http2_libc_preface_len_c(): i32 {
+export function http2_libc_preface_len_c(): i32 {
   unsafe { return http2_preface_len_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_is_connection_preface_c`；glue FFI 须 unsafe。 */
-function http2_libc_is_connection_preface_c(buf: *u8, len: i32): i32 {
+export function http2_libc_is_connection_preface_c(buf: *u8, len: i32): i32 {
   unsafe { return http2_is_connection_preface_c(buf, len); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_parse_frame_header_c`；glue FFI 须 unsafe。 */
-function http2_libc_parse_frame_header_c(buf: *u8, len: i32, out_type: *i32, out_flags: *i32, out_stream_id: *i32, out_payload_len: *i32): i32 {
+export function http2_libc_parse_frame_header_c(buf: *u8, len: i32, out_type: *i32, out_flags: *i32, out_stream_id: *i32, out_payload_len: *i32): i32 {
   unsafe { return http2_parse_frame_header_c(buf, len, out_type, out_flags, out_stream_id, out_payload_len); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_build_settings_ack_c`；glue FFI 须 unsafe。 */
-function http2_libc_build_settings_ack_c(out: *u8, out_cap: i32): i32 {
+export function http2_libc_build_settings_ack_c(out: *u8, out_cap: i32): i32 {
   unsafe { return http2_build_settings_ack_c(out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_build_settings_one_c`；glue FFI 须 unsafe。 */
-function http2_libc_build_settings_one_c(setting_id: i32, value: i32, out: *u8, out_cap: i32): i32 {
+export function http2_libc_build_settings_one_c(setting_id: i32, value: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_build_settings_one_c(setting_id, value, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_wire_is_available_c`；glue FFI 须 unsafe。 */
-function http2_libc_wire_is_available_c(): i32 {
+export function http2_libc_wire_is_available_c(): i32 {
   unsafe { return http2_wire_is_available_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_client_is_available_c`；glue FFI 须 unsafe。 */
-function http2_libc_client_is_available_c(): i32 {
+export function http2_libc_client_is_available_c(): i32 {
   unsafe { return http2_client_is_available_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_alpn_h2_len_c`；glue FFI 须 unsafe。 */
-function http2_libc_alpn_h2_len_c(): i32 {
+export function http2_libc_alpn_h2_len_c(): i32 {
   unsafe { return http2_alpn_h2_len_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_write_alpn_h2_c`；glue FFI 须 unsafe。 */
-function http2_libc_write_alpn_h2_c(out: *u8, out_cap: i32): i32 {
+export function http2_libc_write_alpn_h2_c(out: *u8, out_cap: i32): i32 {
   unsafe { return http2_write_alpn_h2_c(out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_smoke_c`；glue FFI 须 unsafe。 */
-function http2_libc_smoke_c(): i32 {
+export function http2_libc_smoke_c(): i32 {
   unsafe { return http2_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_hpack_encode_indexed_c`；glue FFI 须 unsafe。 */
-function http2_libc_hpack_encode_indexed_c(index: i32, out: *u8, out_cap: i32): i32 {
+export function http2_libc_hpack_encode_indexed_c(index: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_hpack_encode_indexed_c(index, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_hpack_encode_literal_c`；glue FFI 须 unsafe。 */
-function http2_libc_hpack_encode_literal_c(name_index: i32, value: *u8, value_len: i32, out: *u8, out_cap: i32): i32 {
+export function http2_libc_hpack_encode_literal_c(name_index: i32, value: *u8, value_len: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_hpack_encode_literal_c(name_index, value, value_len, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_hpack_encode_get_request_c`；glue FFI 须 unsafe。 */
-function http2_libc_hpack_encode_get_request_c(authority: *u8, authority_len: i32, path: *u8, path_len: i32, is_https: i32, out: *u8, out_cap: i32): i32 {
+export function http2_libc_hpack_encode_get_request_c(authority: *u8, authority_len: i32, path: *u8, path_len: i32, is_https: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_hpack_encode_get_request_c(authority, authority_len, path, path_len, is_https, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_hpack_decode_status_c`；glue FFI 须 unsafe。 */
-function http2_libc_hpack_decode_status_c(block: *u8, block_len: i32, out_status: *i32): i32 {
+export function http2_libc_hpack_decode_status_c(block: *u8, block_len: i32, out_status: *i32): i32 {
   unsafe { return http2_hpack_decode_status_c(block, block_len, out_status); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_hpack_smoke_c`；glue FFI 须 unsafe。 */
-function http2_libc_hpack_smoke_c(): i32 {
+export function http2_libc_hpack_smoke_c(): i32 {
   unsafe { return http2_hpack_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_hpack_dyn_reset_c`；glue FFI 须 unsafe。 */
-function http2_libc_hpack_dyn_reset_c(): void {
+export function http2_libc_hpack_dyn_reset_c(): void {
   unsafe { http2_hpack_dyn_reset_c(); }
 }
 
 /** 包装 `http2_hpack_dyn_count_c`；glue FFI 须 unsafe。 */
-function http2_libc_hpack_dyn_count_c(): i32 {
+export function http2_libc_hpack_dyn_count_c(): i32 {
   unsafe { return http2_hpack_dyn_count_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_hpack_encode_literal_incremental_c`；glue FFI 须 unsafe。 */
-function http2_libc_hpack_encode_literal_incremental_c(name_index: i32, value: *u8, value_len: i32, out: *u8, out_cap: i32): i32 {
+export function http2_libc_hpack_encode_literal_incremental_c(name_index: i32, value: *u8, value_len: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_hpack_encode_literal_incremental_c(name_index, value, value_len, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_hpack_encode_indexed_any_c`；glue FFI 须 unsafe。 */
-function http2_libc_hpack_encode_indexed_any_c(index: i32, out: *u8, out_cap: i32): i32 {
+export function http2_libc_hpack_encode_indexed_any_c(index: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_hpack_encode_indexed_any_c(index, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_hpack_encode_request_c`；glue FFI 须 unsafe。 */
-function http2_libc_hpack_encode_request_c(method_u8: u8, authority: *u8, authority_len: i32, path: *u8, path_len: i32, is_https: i32, out: *u8, out_cap: i32): i32 {
+export function http2_libc_hpack_encode_request_c(method_u8: u8, authority: *u8, authority_len: i32, path: *u8, path_len: i32, is_https: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_hpack_encode_request_c(method_u8, authority, authority_len, path, path_len, is_https, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_hpack_dyn_smoke_c`；glue FFI 须 unsafe。 */
-function http2_libc_hpack_dyn_smoke_c(): i32 {
+export function http2_libc_hpack_dyn_smoke_c(): i32 {
   unsafe { return http2_hpack_dyn_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_hpack_server_dyn_create_c`；glue FFI 须 unsafe。 */
-function http2_libc_hpack_server_dyn_create_c(peer: *Http2PeerSettings): i64 {
+export function http2_libc_hpack_server_dyn_create_c(peer: *Http2PeerSettings): i64 {
   unsafe { return http2_hpack_server_dyn_create_c(peer); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_hpack_server_dyn_destroy_c`；glue FFI 须 unsafe。 */
-function http2_libc_hpack_server_dyn_destroy_c(handle: i64): void {
+export function http2_libc_hpack_server_dyn_destroy_c(handle: i64): void {
   unsafe { http2_hpack_server_dyn_destroy_c(handle); }
 }
 
 /** 包装 `http2_hpack_server_dyn_set_table_size_h_c`；glue FFI 须 unsafe。 */
-function http2_libc_hpack_server_dyn_set_table_size_h_c(handle: i64, size: i32): void {
+export function http2_libc_hpack_server_dyn_set_table_size_h_c(handle: i64, size: i32): void {
   unsafe { http2_hpack_server_dyn_set_table_size_h_c(handle, size); }
 }
 
 /** 包装 `http2_hpack_server_dyn_max_size_h_c`；glue FFI 须 unsafe。 */
-function http2_libc_hpack_server_dyn_max_size_h_c(handle: i64): i32 {
+export function http2_libc_hpack_server_dyn_max_size_h_c(handle: i64): i32 {
   unsafe { return http2_hpack_server_dyn_max_size_h_c(handle); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_hpack_server_dyn_count_h_c`；glue FFI 须 unsafe。 */
-function http2_libc_hpack_server_dyn_count_h_c(handle: i64): i32 {
+export function http2_libc_hpack_server_dyn_count_h_c(handle: i64): i32 {
   unsafe { return http2_hpack_server_dyn_count_h_c(handle); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_hpack_server_encode_status_h_c`；glue FFI 须 unsafe。 */
-function http2_libc_hpack_server_encode_status_h_c(handle: i64, status: i32, out: *u8, out_cap: i32): i32 {
+export function http2_libc_hpack_server_encode_status_h_c(handle: i64, status: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_hpack_server_encode_status_h_c(handle, status, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_hpack_server_dyn_smoke_c`；glue FFI 须 unsafe。 */
-function http2_libc_hpack_server_dyn_smoke_c(): i32 {
+export function http2_libc_hpack_server_dyn_smoke_c(): i32 {
   unsafe { return http2_hpack_server_dyn_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_frame_payload_limit_c`；glue FFI 须 unsafe。 */
-function http2_libc_frame_payload_limit_c(max_frame_size: i32): i32 {
+export function http2_libc_frame_payload_limit_c(max_frame_size: i32): i32 {
   unsafe { return http2_frame_payload_limit_c(max_frame_size); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_frame_check_payload_c`；glue FFI 须 unsafe。 */
-function http2_libc_frame_check_payload_c(payload_len: i32, max_frame_size: i32): i32 {
+export function http2_libc_frame_check_payload_c(payload_len: i32, max_frame_size: i32): i32 {
   unsafe { return http2_frame_check_payload_c(payload_len, max_frame_size); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_frame_count_data_chunks_c`；glue FFI 须 unsafe。 */
-function http2_libc_frame_count_data_chunks_c(data_len: i32, max_frame_size: i32): i32 {
+export function http2_libc_frame_count_data_chunks_c(data_len: i32, max_frame_size: i32): i32 {
   unsafe { return http2_frame_count_data_chunks_c(data_len, max_frame_size); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_frame_capped_smoke_c`；glue FFI 须 unsafe。 */
-function http2_libc_frame_capped_smoke_c(): i32 {
+export function http2_libc_frame_capped_smoke_c(): i32 {
   unsafe { return http2_frame_capped_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_frame_goaway_c`；glue FFI 须 unsafe。 */
-function http2_libc_frame_goaway_c(): i32 {
+export function http2_libc_frame_goaway_c(): i32 {
   unsafe { return http2_frame_goaway_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_goaway_error_no_error_c`；glue FFI 须 unsafe。 */
-function http2_libc_goaway_error_no_error_c(): i32 {
+export function http2_libc_goaway_error_no_error_c(): i32 {
   unsafe { return http2_goaway_error_no_error_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_err_goaway_c`；glue FFI 须 unsafe。 */
-function http2_libc_err_goaway_c(): i32 {
+export function http2_libc_err_goaway_c(): i32 {
   unsafe { return http2_err_goaway_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_build_goaway_c`；glue FFI 须 unsafe。 */
-function http2_libc_build_goaway_c(last_stream_id: i32, code: i32, out: *u8, out_cap: i32): i32 {
+export function http2_libc_build_goaway_c(last_stream_id: i32, code: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_build_goaway_c(last_stream_id, code, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_parse_goaway_c`；glue FFI 须 unsafe。 */
-function http2_libc_parse_goaway_c(payload: *u8, plen: i32, out_last_stream: *i32, out_code: *i32): i32 {
+export function http2_libc_parse_goaway_c(payload: *u8, plen: i32, out_last_stream: *i32, out_code: *i32): i32 {
   unsafe { return http2_parse_goaway_c(payload, plen, out_last_stream, out_code); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_goaway_smoke_c`；glue FFI 须 unsafe。 */
-function http2_libc_goaway_smoke_c(): i32 {
+export function http2_libc_goaway_smoke_c(): i32 {
   unsafe { return http2_goaway_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_frame_ping_c`；glue FFI 须 unsafe。 */
-function http2_libc_frame_ping_c(): i32 {
+export function http2_libc_frame_ping_c(): i32 {
   unsafe { return http2_frame_ping_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_err_ping_c`；glue FFI 须 unsafe。 */
-function http2_libc_err_ping_c(): i32 {
+export function http2_libc_err_ping_c(): i32 {
   unsafe { return http2_err_ping_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_build_ping_c`；glue FFI 须 unsafe。 */
-function http2_libc_build_ping_c(opaque: *u8, out: *u8, out_cap: i32): i32 {
+export function http2_libc_build_ping_c(opaque: *u8, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_build_ping_c(opaque, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_build_ping_ack_c`；glue FFI 须 unsafe。 */
-function http2_libc_build_ping_ack_c(opaque: *u8, out: *u8, out_cap: i32): i32 {
+export function http2_libc_build_ping_ack_c(opaque: *u8, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_build_ping_ack_c(opaque, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_parse_ping_c`；glue FFI 须 unsafe。 */
-function http2_libc_parse_ping_c(payload: *u8, plen: i32, out_opaque: *u8): i32 {
+export function http2_libc_parse_ping_c(payload: *u8, plen: i32, out_opaque: *u8): i32 {
   unsafe { return http2_parse_ping_c(payload, plen, out_opaque); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_ping_opaque_match_c`；glue FFI 须 unsafe。 */
-function http2_libc_ping_opaque_match_c(a: *u8, b: *u8): i32 {
+export function http2_libc_ping_opaque_match_c(a: *u8, b: *u8): i32 {
   unsafe { return http2_ping_opaque_match_c(a, b); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_ping_smoke_c`；glue FFI 须 unsafe。 */
-function http2_libc_ping_smoke_c(): i32 {
+export function http2_libc_ping_smoke_c(): i32 {
   unsafe { return http2_ping_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_frame_rst_stream_c`；glue FFI 须 unsafe。 */
-function http2_libc_frame_rst_stream_c(): i32 {
+export function http2_libc_frame_rst_stream_c(): i32 {
   unsafe { return http2_frame_rst_stream_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_rst_error_cancel_c`；glue FFI 须 unsafe。 */
-function http2_libc_rst_error_cancel_c(): i32 {
+export function http2_libc_rst_error_cancel_c(): i32 {
   unsafe { return http2_rst_error_cancel_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_err_rst_stream_c`；glue FFI 须 unsafe。 */
-function http2_libc_err_rst_stream_c(): i32 {
+export function http2_libc_err_rst_stream_c(): i32 {
   unsafe { return http2_err_rst_stream_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_build_rst_stream_c`；glue FFI 须 unsafe。 */
-function http2_libc_build_rst_stream_c(stream_id: i32, code: i32, out: *u8, out_cap: i32): i32 {
+export function http2_libc_build_rst_stream_c(stream_id: i32, code: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_build_rst_stream_c(stream_id, code, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_parse_rst_stream_c`；glue FFI 须 unsafe。 */
-function http2_libc_parse_rst_stream_c(payload: *u8, plen: i32, out_code: *i32): i32 {
+export function http2_libc_parse_rst_stream_c(payload: *u8, plen: i32, out_code: *i32): i32 {
   unsafe { return http2_parse_rst_stream_c(payload, plen, out_code); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_rst_stream_smoke_c`；glue FFI 须 unsafe。 */
-function http2_libc_rst_stream_smoke_c(): i32 {
+export function http2_libc_rst_stream_smoke_c(): i32 {
   unsafe { return http2_rst_stream_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_conn_reset_stream_c`；glue FFI 须 unsafe。 */
-function http2_libc_conn_reset_stream_c(conn: *Http2Conn, stream_id: i32, code: i32): i32 {
+export function http2_libc_conn_reset_stream_c(conn: *Http2Conn, stream_id: i32, code: i32): i32 {
   unsafe { return http2_conn_reset_stream_c(conn, stream_id, code); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_http2_complete_smoke_c`；glue FFI 须 unsafe。 */
-function http2_libc_http2_complete_smoke_c(): i32 {
+export function http2_libc_http2_complete_smoke_c(): i32 {
   unsafe { return http2_http2_complete_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_build_headers_frame_c`；glue FFI 须 unsafe。 */
-function http2_libc_build_headers_frame_c(stream_id: i32, flags: i32, hpack: *u8, hpack_len: i32, out: *u8, out_cap: i32): i32 {
+export function http2_libc_build_headers_frame_c(stream_id: i32, flags: i32, hpack: *u8, hpack_len: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_build_headers_frame_c(stream_id, flags, hpack, hpack_len, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_build_data_frame_c`；glue FFI 须 unsafe。 */
-function http2_libc_build_data_frame_c(stream_id: i32, flags: i32, data: *u8, data_len: i32, out: *u8, out_cap: i32): i32 {
+export function http2_libc_build_data_frame_c(stream_id: i32, flags: i32, data: *u8, data_len: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_build_data_frame_c(stream_id, flags, data, data_len, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_build_get_headers_frame_c`；glue FFI 须 unsafe。 */
-function http2_libc_build_get_headers_frame_c(authority: *u8, authority_len: i32, path: *u8, path_len: i32, is_https: i32, out: *u8, out_cap: i32): i32 {
+export function http2_libc_build_get_headers_frame_c(authority: *u8, authority_len: i32, path: *u8, path_len: i32, is_https: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_build_get_headers_frame_c(authority, authority_len, path, path_len, is_https, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_build_request_headers_frame_c`；glue FFI 须 unsafe。 */
-function http2_libc_build_request_headers_frame_c(method_u8: u8, authority: *u8, authority_len: i32, path: *u8, path_len: i32, is_https: i32, has_body: i32, stream_id: i32, out: *u8, out_cap: i32): i32 {
+export function http2_libc_build_request_headers_frame_c(method_u8: u8, authority: *u8, authority_len: i32, path: *u8, path_len: i32, is_https: i32, has_body: i32, stream_id: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_build_request_headers_frame_c(method_u8, authority, authority_len, path, path_len, is_https, has_body, stream_id, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_client_smoke_c`；glue FFI 须 unsafe。 */
-function http2_libc_client_smoke_c(): i32 {
+export function http2_libc_client_smoke_c(): i32 {
   unsafe { return http2_client_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_network_is_available_c`；glue FFI 须 unsafe。 */
-function http2_libc_network_is_available_c(): i32 {
+export function http2_libc_network_is_available_c(): i32 {
   unsafe { return http2_network_is_available_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_network_smoke_c`；glue FFI 须 unsafe。 */
-function http2_libc_network_smoke_c(): i32 {
+export function http2_libc_network_smoke_c(): i32 {
   unsafe { return http2_network_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_h2_get_c`；glue FFI 须 unsafe。 */
-function http_libc_h2_get_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
+export function http_libc_h2_get_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   unsafe { return http_h2_get_c(url, url_len, out_buf, out_cap, timeout_ms); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_h2_request_c`；glue FFI 须 unsafe。 */
-function http_libc_h2_request_c(method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
+export function http_libc_h2_request_c(method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   unsafe { return http_h2_request_c(method_u8, url, url_len, body, body_len, out_buf, out_cap, timeout_ms); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_request_method_h2_c`；glue FFI 须 unsafe。 */
-function http_libc_request_method_h2_c(method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
+export function http_libc_request_method_h2_c(method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   unsafe { return http_request_method_h2_c(method_u8, url, url_len, body, body_len, out_buf, out_cap, timeout_ms); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_hpack_huffman_decode_c`；glue FFI 须 unsafe。 */
-function http2_libc_hpack_huffman_decode_c(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
+export function http2_libc_hpack_huffman_decode_c(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_hpack_huffman_decode_c(in, in_len, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_hpack_huffman_is_available_c`；glue FFI 须 unsafe。 */
-function http2_libc_hpack_huffman_is_available_c(): i32 {
+export function http2_libc_hpack_huffman_is_available_c(): i32 {
   unsafe { return http2_hpack_huffman_is_available_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_hpack_huffman_smoke_c`；glue FFI 须 unsafe。 */
-function http2_libc_hpack_huffman_smoke_c(): i32 {
+export function http2_libc_hpack_huffman_smoke_c(): i32 {
   unsafe { return http2_hpack_huffman_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_build_window_update_c`；glue FFI 须 unsafe。 */
-function http2_libc_build_window_update_c(stream_id: i32, increment: i32, out: *u8, out_cap: i32): i32 {
+export function http2_libc_build_window_update_c(stream_id: i32, increment: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_build_window_update_c(stream_id, increment, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_default_initial_window_c`；glue FFI 须 unsafe。 */
-function http2_libc_default_initial_window_c(): i32 {
+export function http2_libc_default_initial_window_c(): i32 {
   unsafe { return http2_default_initial_window_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_flow_control_smoke_c`；glue FFI 须 unsafe。 */
-function http2_libc_flow_control_smoke_c(): i32 {
+export function http2_libc_flow_control_smoke_c(): i32 {
   unsafe { return http2_flow_control_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_flow_state_init_c`；glue FFI 须 unsafe。 */
-function http2_libc_flow_state_init_c(st: *Http2FlowState): void {
+export function http2_libc_flow_state_init_c(st: *Http2FlowState): void {
   unsafe { http2_flow_state_init_c(st); }
 }
 
 /** 包装 `http2_flow_state_reset_stream_c`；glue FFI 须 unsafe。 */
-function http2_libc_flow_state_reset_stream_c(st: *Http2FlowState, initial_window: i32): void {
+export function http2_libc_flow_state_reset_stream_c(st: *Http2FlowState, initial_window: i32): void {
   unsafe { http2_flow_state_reset_stream_c(st, initial_window); }
 }
 
 /** 包装 `http2_flow_state_apply_initial_window_c`；glue FFI 须 unsafe。 */
-function http2_libc_flow_state_apply_initial_window_c(st: *Http2FlowState, initial_window: i32): void {
+export function http2_libc_flow_state_apply_initial_window_c(st: *Http2FlowState, initial_window: i32): void {
   unsafe { http2_flow_state_apply_initial_window_c(st, initial_window); }
 }
 
 /** 包装 `http2_flow_state_apply_window_update_c`；glue FFI 须 unsafe。 */
-function http2_libc_flow_state_apply_window_update_c(st: *Http2FlowState, stream_id: i32, increment: i32): i32 {
+export function http2_libc_flow_state_apply_window_update_c(st: *Http2FlowState, stream_id: i32, increment: i32): i32 {
   unsafe { return http2_flow_state_apply_window_update_c(st, stream_id, increment); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_flow_state_max_send_c`；glue FFI 须 unsafe。 */
-function http2_libc_flow_state_max_send_c(st: *Http2FlowState, want: i32): i32 {
+export function http2_libc_flow_state_max_send_c(st: *Http2FlowState, want: i32): i32 {
   unsafe { return http2_flow_state_max_send_c(st, want); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_flow_state_can_send_c`；glue FFI 须 unsafe。 */
-function http2_libc_flow_state_can_send_c(st: *Http2FlowState, want: i32): i32 {
+export function http2_libc_flow_state_can_send_c(st: *Http2FlowState, want: i32): i32 {
   unsafe { return http2_flow_state_can_send_c(st, want); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_flow_state_consume_send_c`；glue FFI 须 unsafe。 */
-function http2_libc_flow_state_consume_send_c(st: *Http2FlowState, nbytes: i32): i32 {
+export function http2_libc_flow_state_consume_send_c(st: *Http2FlowState, nbytes: i32): i32 {
   unsafe { return http2_flow_state_consume_send_c(st, nbytes); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_parse_window_update_payload_c`；glue FFI 须 unsafe。 */
-function http2_libc_parse_window_update_payload_c(payload: *u8, plen: i32, out_increment: *i32): i32 {
+export function http2_libc_parse_window_update_payload_c(payload: *u8, plen: i32, out_increment: *i32): i32 {
   unsafe { return http2_parse_window_update_payload_c(payload, plen, out_increment); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_flow_state_smoke_c`；glue FFI 须 unsafe。 */
-function http2_libc_flow_state_smoke_c(): i32 {
+export function http2_libc_flow_state_smoke_c(): i32 {
   unsafe { return http2_flow_state_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_flow_recv_init_c`；glue FFI 须 unsafe。 */
-function http2_libc_flow_recv_init_c(st: *Http2FlowRecvState): void {
+export function http2_libc_flow_recv_init_c(st: *Http2FlowRecvState): void {
   unsafe { http2_flow_recv_init_c(st); }
 }
 
 /** 包装 `http2_flow_recv_reset_stream_c`；glue FFI 须 unsafe。 */
-function http2_libc_flow_recv_reset_stream_c(st: *Http2FlowRecvState, initial_window: i32): void {
+export function http2_libc_flow_recv_reset_stream_c(st: *Http2FlowRecvState, initial_window: i32): void {
   unsafe { http2_flow_recv_reset_stream_c(st, initial_window); }
 }
 
 /** 包装 `http2_flow_recv_on_data_c`；glue FFI 须 unsafe。 */
-function http2_libc_flow_recv_on_data_c(st: *Http2FlowRecvState, nbytes: i32): i32 {
+export function http2_libc_flow_recv_on_data_c(st: *Http2FlowRecvState, nbytes: i32): i32 {
   unsafe { return http2_flow_recv_on_data_c(st, nbytes); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_flow_recv_release_c`；glue FFI 须 unsafe。 */
-function http2_libc_flow_recv_release_c(st: *Http2FlowRecvState, stream_id: i32, nbytes: i32, out: *u8, out_cap: i32): i32 {
+export function http2_libc_flow_recv_release_c(st: *Http2FlowRecvState, stream_id: i32, nbytes: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_flow_recv_release_c(st, stream_id, nbytes, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_flow_recv_smoke_c`；glue FFI 须 unsafe。 */
-function http2_libc_flow_recv_smoke_c(): i32 {
+export function http2_libc_flow_recv_smoke_c(): i32 {
   unsafe { return http2_flow_recv_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_frame_push_promise_c`；glue FFI 须 unsafe。 */
-function http2_libc_frame_push_promise_c(): i32 {
+export function http2_libc_frame_push_promise_c(): i32 {
   unsafe { return http2_frame_push_promise_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_is_push_promise_frame_c`；glue FFI 须 unsafe。 */
-function http2_libc_is_push_promise_frame_c(ftype: i32): i32 {
+export function http2_libc_is_push_promise_frame_c(ftype: i32): i32 {
   unsafe { return http2_is_push_promise_frame_c(ftype); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_parse_push_promise_stream_c`；glue FFI 须 unsafe。 */
-function http2_libc_parse_push_promise_stream_c(payload: *u8, plen: i32, out_promised_id: *i32): i32 {
+export function http2_libc_parse_push_promise_stream_c(payload: *u8, plen: i32, out_promised_id: *i32): i32 {
   unsafe { return http2_parse_push_promise_stream_c(payload, plen, out_promised_id); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_is_h2c_upgrade_response_c`；glue FFI 须 unsafe。 */
-function http2_libc_is_h2c_upgrade_response_c(buf: *u8, len: i32): i32 {
+export function http2_libc_is_h2c_upgrade_response_c(buf: *u8, len: i32): i32 {
   unsafe { return http2_is_h2c_upgrade_response_c(buf, len); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_h2c_is_available_c`；glue FFI 须 unsafe。 */
-function http2_libc_h2c_is_available_c(): i32 {
+export function http2_libc_h2c_is_available_c(): i32 {
   unsafe { return http2_h2c_is_available_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_push_h2c_smoke_c`；glue FFI 须 unsafe。 */
-function http2_libc_push_h2c_smoke_c(): i32 {
+export function http2_libc_push_h2c_smoke_c(): i32 {
   unsafe { return http2_push_h2c_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_h2c_wire_is_available_c`；glue FFI 须 unsafe。 */
-function http2_libc_h2c_wire_is_available_c(): i32 {
+export function http2_libc_h2c_wire_is_available_c(): i32 {
   unsafe { return http2_h2c_wire_is_available_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_h2c_session_begin_c`；glue FFI 须 unsafe。 */
-function http2_libc_h2c_session_begin_c(out: *u8, out_cap: i32): i32 {
+export function http2_libc_h2c_session_begin_c(out: *u8, out_cap: i32): i32 {
   unsafe { return http2_h2c_session_begin_c(out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_push_collect_data_c`；glue FFI 须 unsafe。 */
-function http2_libc_push_collect_data_c(promised_id: i32, stream_id: i32, data: *u8, dlen: i32, inout_promised_id: *i32, acc: *u8, acc_cap: i32, acc_len: *i32): i32 {
+export function http2_libc_push_collect_data_c(promised_id: i32, stream_id: i32, data: *u8, dlen: i32, inout_promised_id: *i32, acc: *u8, acc_cap: i32, acc_len: *i32): i32 {
   unsafe { return http2_push_collect_data_c(promised_id, stream_id, data, dlen, inout_promised_id, acc, acc_cap, acc_len); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_push_fetch_smoke_c`；glue FFI 须 unsafe。 */
-function http2_libc_push_fetch_smoke_c(): i32 {
+export function http2_libc_push_fetch_smoke_c(): i32 {
   unsafe { return http2_push_fetch_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_push_last_reset_c`；glue FFI 须 unsafe。 */
-function http2_libc_push_last_reset_c(): void {
+export function http2_libc_push_last_reset_c(): void {
   unsafe { http2_push_last_reset_c(); }
 }
 
 /** 包装 `http2_push_last_copy_c`；glue FFI 须 unsafe。 */
-function http2_libc_push_last_copy_c(out_meta: *Http2PushLast, out_body: *u8, out_cap: i32): i32 {
+export function http2_libc_push_last_copy_c(out_meta: *Http2PushLast, out_body: *u8, out_cap: i32): i32 {
   unsafe { return http2_push_last_copy_c(out_meta, out_body, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_push_network_smoke_c`；glue FFI 须 unsafe。 */
-function http2_libc_push_network_smoke_c(): i32 {
+export function http2_libc_push_network_smoke_c(): i32 {
   unsafe { return http2_push_network_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_session_request_h2c_c`；glue FFI 须 unsafe。 */
-function http2_libc_session_request_h2c_c(fd: i32, method_u8: u8, authority: *u8, authority_len: i32, path: *u8, path_len: i32, body: *u8, body_len: i32, out: *u8, out_cap: i32): i32 {
+export function http2_libc_session_request_h2c_c(fd: i32, method_u8: u8, authority: *u8, authority_len: i32, path: *u8, path_len: i32, body: *u8, body_len: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_session_request_h2c_c(fd, method_u8, authority, authority_len, path, path_len, body, body_len, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_h2c_network_smoke_c`；glue FFI 须 unsafe。 */
-function http2_libc_h2c_network_smoke_c(): i32 {
+export function http2_libc_h2c_network_smoke_c(): i32 {
   unsafe { return http2_h2c_network_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_h2c_get_c`；glue FFI 须 unsafe。 */
-function http_libc_h2c_get_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
+export function http_libc_h2c_get_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   unsafe { return http_h2c_get_c(url, url_len, out_buf, out_cap, timeout_ms); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_h2c_request_c`；glue FFI 须 unsafe。 */
-function http_libc_h2c_request_c(method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
+export function http_libc_h2c_request_c(method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   unsafe { return http_h2c_request_c(method_u8, url, url_len, body, body_len, out_buf, out_cap, timeout_ms); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_request_method_h2c_c`；glue FFI 须 unsafe。 */
-function http_libc_request_method_h2c_c(method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
+export function http_libc_request_method_h2c_c(method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   unsafe { return http_request_method_h2c_c(method_u8, url, url_len, body, body_len, out_buf, out_cap, timeout_ms); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_h2c_client_smoke_c`；glue FFI 须 unsafe。 */
-function http_libc_h2c_client_smoke_c(): i32 {
+export function http_libc_h2c_client_smoke_c(): i32 {
   unsafe { return http_h2c_client_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_stream_registry_init_c`；glue FFI 须 unsafe。 */
-function http2_libc_stream_registry_init_c(reg: *Http2StreamRegistry): void {
+export function http2_libc_stream_registry_init_c(reg: *Http2StreamRegistry): void {
   unsafe { http2_stream_registry_init_c(reg); }
 }
 
 /** 包装 `http2_stream_registry_open_c`；glue FFI 须 unsafe。 */
-function http2_libc_stream_registry_open_c(reg: *Http2StreamRegistry): i32 {
+export function http2_libc_stream_registry_open_c(reg: *Http2StreamRegistry): i32 {
   unsafe { return http2_stream_registry_open_c(reg); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_stream_registry_close_c`；glue FFI 须 unsafe。 */
-function http2_libc_stream_registry_close_c(reg: *Http2StreamRegistry, stream_id: i32): void {
+export function http2_libc_stream_registry_close_c(reg: *Http2StreamRegistry, stream_id: i32): void {
   unsafe { http2_stream_registry_close_c(reg, stream_id); }
 }
 
 /** 包装 `http2_stream_registry_is_open_c`；glue FFI 须 unsafe。 */
-function http2_libc_stream_registry_is_open_c(reg: *Http2StreamRegistry, stream_id: i32): i32 {
+export function http2_libc_stream_registry_is_open_c(reg: *Http2StreamRegistry, stream_id: i32): i32 {
   unsafe { return http2_stream_registry_is_open_c(reg, stream_id); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_stream_registry_smoke_c`；glue FFI 须 unsafe。 */
-function http2_libc_stream_registry_smoke_c(): i32 {
+export function http2_libc_stream_registry_smoke_c(): i32 {
   unsafe { return http2_stream_registry_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_peer_settings_init_c`；glue FFI 须 unsafe。 */
-function http2_libc_peer_settings_init_c(ps: *Http2PeerSettings): void {
+export function http2_libc_peer_settings_init_c(ps: *Http2PeerSettings): void {
   unsafe { http2_peer_settings_init_c(ps); }
 }
 
 /** 包装 `http2_settings_entry_count_c`；glue FFI 须 unsafe。 */
-function http2_libc_settings_entry_count_c(plen: i32): i32 {
+export function http2_libc_settings_entry_count_c(plen: i32): i32 {
   unsafe { return http2_settings_entry_count_c(plen); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_parse_settings_entry_c`；glue FFI 须 unsafe。 */
-function http2_libc_parse_settings_entry_c(payload: *u8, plen: i32, entry_index: i32, out_id: *i32, out_value: *i32): i32 {
+export function http2_libc_parse_settings_entry_c(payload: *u8, plen: i32, entry_index: i32, out_id: *i32, out_value: *i32): i32 {
   unsafe { return http2_parse_settings_entry_c(payload, plen, entry_index, out_id, out_value); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_peer_settings_apply_entry_c`；glue FFI 须 unsafe。 */
-function http2_libc_peer_settings_apply_entry_c(ps: *Http2PeerSettings, setting_id: i32, value: i32): void {
+export function http2_libc_peer_settings_apply_entry_c(ps: *Http2PeerSettings, setting_id: i32, value: i32): void {
   unsafe { http2_peer_settings_apply_entry_c(ps, setting_id, value); }
 }
 
 /** 包装 `http2_peer_settings_consume_payload_c`；glue FFI 须 unsafe。 */
-function http2_libc_peer_settings_consume_payload_c(payload: *u8, plen: i32, ps: *Http2PeerSettings): i32 {
+export function http2_libc_peer_settings_consume_payload_c(payload: *u8, plen: i32, ps: *Http2PeerSettings): i32 {
   unsafe { return http2_peer_settings_consume_payload_c(payload, plen, ps); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_build_client_settings_c`；glue FFI 须 unsafe。 */
-function http2_libc_build_client_settings_c(max_streams: i32, initial_window: i32, out: *u8, out_cap: i32): i32 {
+export function http2_libc_build_client_settings_c(max_streams: i32, initial_window: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_build_client_settings_c(max_streams, initial_window, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_build_client_settings_ex_c`；glue FFI 须 unsafe。 */
-function http2_libc_build_client_settings_ex_c(max_streams: i32, initial_window: i32, enable_push: i32, out: *u8, out_cap: i32): i32 {
+export function http2_libc_build_client_settings_ex_c(max_streams: i32, initial_window: i32, enable_push: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_build_client_settings_ex_c(max_streams, initial_window, enable_push, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_build_client_settings_with_max_frame_c`；glue FFI 须 unsafe。 */
-function http2_libc_build_client_settings_with_max_frame_c(max_streams: i32, initial_window: i32, enable_push: i32, max_frame_size: i32, out: *u8, out_cap: i32): i32 {
+export function http2_libc_build_client_settings_with_max_frame_c(max_streams: i32, initial_window: i32, enable_push: i32, max_frame_size: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_build_client_settings_with_max_frame_c(max_streams, initial_window, enable_push, max_frame_size, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_build_server_settings_c`；glue FFI 须 unsafe。 */
-function http2_libc_build_server_settings_c(out: *u8, out_cap: i32): i32 {
+export function http2_libc_build_server_settings_c(out: *u8, out_cap: i32): i32 {
   unsafe { return http2_build_server_settings_c(out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_setting_enable_push_c`；glue FFI 须 unsafe。 */
-function http2_libc_setting_enable_push_c(): i32 {
+export function http2_libc_setting_enable_push_c(): i32 {
   unsafe { return http2_setting_enable_push_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_setting_header_table_size_c`；glue FFI 须 unsafe。 */
-function http2_libc_setting_header_table_size_c(): i32 {
+export function http2_libc_setting_header_table_size_c(): i32 {
   unsafe { return http2_setting_header_table_size_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_setting_max_frame_size_c`；glue FFI 须 unsafe。 */
-function http2_libc_setting_max_frame_size_c(): i32 {
+export function http2_libc_setting_max_frame_size_c(): i32 {
   unsafe { return http2_setting_max_frame_size_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_setting_max_header_list_size_c`；glue FFI 须 unsafe。 */
-function http2_libc_setting_max_header_list_size_c(): i32 {
+export function http2_libc_setting_max_header_list_size_c(): i32 {
   unsafe { return http2_setting_max_header_list_size_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_peer_settings_enable_push_c`；glue FFI 须 unsafe。 */
-function http2_libc_peer_settings_enable_push_c(ps: *Http2PeerSettings): i32 {
+export function http2_libc_peer_settings_enable_push_c(ps: *Http2PeerSettings): i32 {
   unsafe { return http2_peer_settings_enable_push_c(ps); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_peer_settings_header_table_size_c`；glue FFI 须 unsafe。 */
-function http2_libc_peer_settings_header_table_size_c(ps: *Http2PeerSettings): i32 {
+export function http2_libc_peer_settings_header_table_size_c(ps: *Http2PeerSettings): i32 {
   unsafe { return http2_peer_settings_header_table_size_c(ps); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_peer_settings_max_frame_size_c`；glue FFI 须 unsafe。 */
-function http2_libc_peer_settings_max_frame_size_c(ps: *Http2PeerSettings): i32 {
+export function http2_libc_peer_settings_max_frame_size_c(ps: *Http2PeerSettings): i32 {
   unsafe { return http2_peer_settings_max_frame_size_c(ps); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_peer_settings_max_header_list_size_c`；glue FFI 须 unsafe。 */
-function http2_libc_peer_settings_max_header_list_size_c(ps: *Http2PeerSettings): i32 {
+export function http2_libc_peer_settings_max_header_list_size_c(ps: *Http2PeerSettings): i32 {
   unsafe { return http2_peer_settings_max_header_list_size_c(ps); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_peer_settings_max_streams_c`；glue FFI 须 unsafe。 */
-function http2_libc_peer_settings_max_streams_c(ps: *Http2PeerSettings): i32 {
+export function http2_libc_peer_settings_max_streams_c(ps: *Http2PeerSettings): i32 {
   unsafe { return http2_peer_settings_max_streams_c(ps); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_peer_settings_initial_window_c`；glue FFI 须 unsafe。 */
-function http2_libc_peer_settings_initial_window_c(ps: *Http2PeerSettings): i32 {
+export function http2_libc_peer_settings_initial_window_c(ps: *Http2PeerSettings): i32 {
   unsafe { return http2_peer_settings_initial_window_c(ps); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_settings_smoke_c`；glue FFI 须 unsafe。 */
-function http2_libc_settings_smoke_c(): i32 {
+export function http2_libc_settings_smoke_c(): i32 {
   unsafe { return http2_settings_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_multistream_client_init_c`；glue FFI 须 unsafe。 */
-function http2_libc_multistream_client_init_c(cli: *Http2MultistreamClient): void {
+export function http2_libc_multistream_client_init_c(cli: *Http2MultistreamClient): void {
   unsafe { http2_multistream_client_init_c(cli); }
 }
 
 /** 包装 `http2_multistream_client_on_settings_c`；glue FFI 须 unsafe。 */
-function http2_libc_multistream_client_on_settings_c(cli: *Http2MultistreamClient, payload: *u8, plen: i32): i32 {
+export function http2_libc_multistream_client_on_settings_c(cli: *Http2MultistreamClient, payload: *u8, plen: i32): i32 {
   unsafe { return http2_multistream_client_on_settings_c(cli, payload, plen); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_multistream_client_open_stream_c`；glue FFI 须 unsafe。 */
-function http2_libc_multistream_client_open_stream_c(cli: *Http2MultistreamClient): i32 {
+export function http2_libc_multistream_client_open_stream_c(cli: *Http2MultistreamClient): i32 {
   unsafe { return http2_multistream_client_open_stream_c(cli); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_multistream_client_close_stream_c`；glue FFI 须 unsafe。 */
-function http2_libc_multistream_client_close_stream_c(cli: *Http2MultistreamClient, stream_id: i32): void {
+export function http2_libc_multistream_client_close_stream_c(cli: *Http2MultistreamClient, stream_id: i32): void {
   unsafe { http2_multistream_client_close_stream_c(cli, stream_id); }
 }
 
 /** 包装 `http2_multistream_client_build_get_c`；glue FFI 须 unsafe。 */
-function http2_libc_multistream_client_build_get_c(cli: *Http2MultistreamClient, stream_id: i32, authority: *u8, authority_len: i32, path: *u8, path_len: i32, out: *u8, out_cap: i32): i32 {
+export function http2_libc_multistream_client_build_get_c(cli: *Http2MultistreamClient, stream_id: i32, authority: *u8, authority_len: i32, path: *u8, path_len: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_multistream_client_build_get_c(cli, stream_id, authority, authority_len, path, path_len, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_multistream_client_build_parallel_get_c`；glue FFI 须 unsafe。 */
-function http2_libc_multistream_client_build_parallel_get_c(cli: *Http2MultistreamClient, authority: *u8, authority_len: i32, path: *u8, path_len: i32, n_reqs: i32, out: *u8, out_cap: i32): i32 {
+export function http2_libc_multistream_client_build_parallel_get_c(cli: *Http2MultistreamClient, authority: *u8, authority_len: i32, path: *u8, path_len: i32, n_reqs: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_multistream_client_build_parallel_get_c(cli, authority, authority_len, path, path_len, n_reqs, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_multistream_client_smoke_c`；glue FFI 须 unsafe。 */
-function http2_libc_multistream_client_smoke_c(): i32 {
+export function http2_libc_multistream_client_smoke_c(): i32 {
   unsafe { return http2_multistream_client_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_conn_init_c`；glue FFI 须 unsafe。 */
-function http2_libc_conn_init_c(conn: *Http2Conn): void {
+export function http2_libc_conn_init_c(conn: *Http2Conn): void {
   unsafe { http2_conn_init_c(conn); }
 }
 
 /** 包装 `http2_conn_attach_h2c_c`；glue FFI 须 unsafe。 */
-function http2_libc_conn_attach_h2c_c(fd: i32, conn: *Http2Conn): i32 {
+export function http2_libc_conn_attach_h2c_c(fd: i32, conn: *Http2Conn): i32 {
   unsafe { return http2_conn_attach_h2c_c(fd, conn); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_conn_attach_tls_c`；glue FFI 须 unsafe。 */
-function http2_libc_conn_attach_tls_c(tls_ctx: i64, conn: *Http2Conn): i32 {
+export function http2_libc_conn_attach_tls_c(tls_ctx: i64, conn: *Http2Conn): i32 {
   unsafe { return http2_conn_attach_tls_c(tls_ctx, conn); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_conn_is_ready_c`；glue FFI 须 unsafe。 */
-function http2_libc_conn_is_ready_c(conn: *Http2Conn): i32 {
+export function http2_libc_conn_is_ready_c(conn: *Http2Conn): i32 {
   unsafe { return http2_conn_is_ready_c(conn); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_conn_handshake_c`；glue FFI 须 unsafe。 */
-function http2_libc_conn_handshake_c(conn: *Http2Conn): i32 {
+export function http2_libc_conn_handshake_c(conn: *Http2Conn): i32 {
   unsafe { return http2_conn_handshake_c(conn); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_conn_handshake_with_enable_push_c`；glue FFI 须 unsafe。 */
-function http2_libc_conn_handshake_with_enable_push_c(conn: *Http2Conn, client_enable_push: i32): i32 {
+export function http2_libc_conn_handshake_with_enable_push_c(conn: *Http2Conn, client_enable_push: i32): i32 {
   unsafe { return http2_conn_handshake_with_enable_push_c(conn, client_enable_push); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_conn_handshake_with_max_frame_c`；glue FFI 须 unsafe。 */
-function http2_libc_conn_handshake_with_max_frame_c(conn: *Http2Conn, client_max_frame_size: i32): i32 {
+export function http2_libc_conn_handshake_with_max_frame_c(conn: *Http2Conn, client_max_frame_size: i32): i32 {
   unsafe { return http2_conn_handshake_with_max_frame_c(conn, client_max_frame_size); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_conn_request_c`；glue FFI 须 unsafe。 */
-function http2_libc_conn_request_c(conn: *Http2Conn, method_u8: u8, authority: *u8, authority_len: i32, path: *u8, path_len: i32, body: *u8, body_len: i32, out: *u8, out_cap: i32): i32 {
+export function http2_libc_conn_request_c(conn: *Http2Conn, method_u8: u8, authority: *u8, authority_len: i32, path: *u8, path_len: i32, body: *u8, body_len: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_conn_request_c(conn, method_u8, authority, authority_len, path, path_len, body, body_len, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_conn_close_c`；glue FFI 须 unsafe。 */
-function http2_libc_conn_close_c(conn: *Http2Conn): void {
+export function http2_libc_conn_close_c(conn: *Http2Conn): void {
   unsafe { http2_conn_close_c(conn); }
 }
 
 /** 包装 `http2_conn_shutdown_graceful_c`；glue FFI 须 unsafe。 */
-function http2_libc_conn_shutdown_graceful_c(conn: *Http2Conn, last_stream_id: i32, code: i32): void {
+export function http2_libc_conn_shutdown_graceful_c(conn: *Http2Conn, last_stream_id: i32, code: i32): void {
   unsafe { http2_conn_shutdown_graceful_c(conn, last_stream_id, code); }
 }
 
 /** 包装 `http2_conn_read_goaway_c`；glue FFI 须 unsafe。 */
-function http2_libc_conn_read_goaway_c(conn: *Http2Conn, out_last_stream: *i32, out_code: *i32): i32 {
+export function http2_libc_conn_read_goaway_c(conn: *Http2Conn, out_last_stream: *i32, out_code: *i32): i32 {
   unsafe { return http2_conn_read_goaway_c(conn, out_last_stream, out_code); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_conn_ping_c`；glue FFI 须 unsafe。 */
-function http2_libc_conn_ping_c(conn: *Http2Conn, opaque: *u8): i32 {
+export function http2_libc_conn_ping_c(conn: *Http2Conn, opaque: *u8): i32 {
   unsafe { return http2_conn_ping_c(conn, opaque); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_conn_goaway_seen_c`；glue FFI 须 unsafe。 */
-function http2_libc_conn_goaway_seen_c(conn: *Http2Conn): i32 {
+export function http2_libc_conn_goaway_seen_c(conn: *Http2Conn): i32 {
   unsafe { return http2_conn_goaway_seen_c(conn); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_conn_is_pool_reusable_c`；glue FFI 须 unsafe。 */
-function http2_libc_conn_is_pool_reusable_c(conn: *Http2Conn): i32 {
+export function http2_libc_conn_is_pool_reusable_c(conn: *Http2Conn): i32 {
   unsafe { return http2_conn_is_pool_reusable_c(conn); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_conn_goaway_smoke_c`；glue FFI 须 unsafe。 */
-function http2_libc_conn_goaway_smoke_c(): i32 {
+export function http2_libc_conn_goaway_smoke_c(): i32 {
   unsafe { return http2_conn_goaway_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_conn_ping_smoke_c`；glue FFI 须 unsafe。 */
-function http2_libc_conn_ping_smoke_c(): i32 {
+export function http2_libc_conn_ping_smoke_c(): i32 {
   unsafe { return http2_conn_ping_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_conn_reuse_smoke_c`；glue FFI 须 unsafe。 */
-function http2_libc_conn_reuse_smoke_c(): i32 {
+export function http2_libc_conn_reuse_smoke_c(): i32 {
   unsafe { return http2_conn_reuse_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_conn_reuse_is_available_c`；glue FFI 须 unsafe。 */
-function http2_libc_conn_reuse_is_available_c(): i32 {
+export function http2_libc_conn_reuse_is_available_c(): i32 {
   unsafe { return http2_conn_reuse_is_available_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_conn_pool_create_h2c_c`；glue FFI 须 unsafe。 */
-function http2_libc_conn_pool_create_h2c_c(host: *u8, host_len: i32, port: *u8, port_len: i32, max_conns: i32): i64 {
+export function http2_libc_conn_pool_create_h2c_c(host: *u8, host_len: i32, port: *u8, port_len: i32, max_conns: i32): i64 {
   unsafe { return http2_conn_pool_create_h2c_c(host, host_len, port, port_len, max_conns); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_conn_pool_create_h2_c`；glue FFI 须 unsafe。 */
-function http2_libc_conn_pool_create_h2_c(host: *u8, host_len: i32, port: *u8, port_len: i32, max_conns: i32): i64 {
+export function http2_libc_conn_pool_create_h2_c(host: *u8, host_len: i32, port: *u8, port_len: i32, max_conns: i32): i64 {
   unsafe { return http2_conn_pool_create_h2_c(host, host_len, port, port_len, max_conns); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_conn_pool_destroy_c`；glue FFI 须 unsafe。 */
-function http2_libc_conn_pool_destroy_c(pool_h: i64): void {
+export function http2_libc_conn_pool_destroy_c(pool_h: i64): void {
   unsafe { http2_conn_pool_destroy_c(pool_h); }
 }
 
 /** 包装 `http2_conn_pool_request_c`；glue FFI 须 unsafe。 */
-function http2_libc_conn_pool_request_c(pool_h: i64, method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
+export function http2_libc_conn_pool_request_c(pool_h: i64, method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   unsafe { return http2_conn_pool_request_c(pool_h, method_u8, url, url_len, body, body_len, out_buf, out_cap, timeout_ms); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_h2c_pool_get_c`；glue FFI 须 unsafe。 */
-function http_libc_h2c_pool_get_c(pool_h: i64, url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
+export function http_libc_h2c_pool_get_c(pool_h: i64, url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   unsafe { return http_h2c_pool_get_c(pool_h, url, url_len, out_buf, out_cap, timeout_ms); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_h2_pool_get_c`；glue FFI 须 unsafe。 */
-function http_libc_h2_pool_get_c(pool_h: i64, url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
+export function http_libc_h2_pool_get_c(pool_h: i64, url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   unsafe { return http_h2_pool_get_c(pool_h, url, url_len, out_buf, out_cap, timeout_ms); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_conn_pool_smoke_c`；glue FFI 须 unsafe。 */
-function http2_libc_conn_pool_smoke_c(): i32 {
+export function http2_libc_conn_pool_smoke_c(): i32 {
   unsafe { return http2_conn_pool_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_conn_pool_goaway_smoke_c`；glue FFI 须 unsafe。 */
-function http2_libc_conn_pool_goaway_smoke_c(): i32 {
+export function http2_libc_conn_pool_goaway_smoke_c(): i32 {
   unsafe { return http2_conn_pool_goaway_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_conn_pool_connect_count_c`；glue FFI 须 unsafe。 */
-function http2_libc_conn_pool_connect_count_c(pool_h: i64): i32 {
+export function http2_libc_conn_pool_connect_count_c(pool_h: i64): i32 {
   unsafe { return http2_conn_pool_connect_count_c(pool_h); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_conn_pool_is_available_c`；glue FFI 须 unsafe。 */
-function http2_libc_conn_pool_is_available_c(): i32 {
+export function http2_libc_conn_pool_is_available_c(): i32 {
   unsafe { return http2_conn_pool_is_available_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_global_pool_create_c`；glue FFI 须 unsafe。 */
-function http2_libc_global_pool_create_c(max_entries: i32, max_conns_per_host: i32): i64 {
+export function http2_libc_global_pool_create_c(max_entries: i32, max_conns_per_host: i32): i64 {
   unsafe { return http2_global_pool_create_c(max_entries, max_conns_per_host); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_global_pool_destroy_c`；glue FFI 须 unsafe。 */
-function http2_libc_global_pool_destroy_c(gpool_h: i64): void {
+export function http2_libc_global_pool_destroy_c(gpool_h: i64): void {
   unsafe { http2_global_pool_destroy_c(gpool_h); }
 }
 
 /** 包装 `http2_global_pool_get_c`；glue FFI 须 unsafe。 */
-function http2_libc_global_pool_get_c(gpool_h: i64, url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
+export function http2_libc_global_pool_get_c(gpool_h: i64, url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   unsafe { return http2_global_pool_get_c(gpool_h, url, url_len, out_buf, out_cap, timeout_ms); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_global_pool_request_c`；glue FFI 须 unsafe。 */
-function http2_libc_global_pool_request_c(gpool_h: i64, method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
+export function http2_libc_global_pool_request_c(gpool_h: i64, method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   unsafe { return http2_global_pool_request_c(gpool_h, method_u8, url, url_len, body, body_len, out_buf, out_cap, timeout_ms); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_global_pool_entry_count_c`；glue FFI 须 unsafe。 */
-function http2_libc_global_pool_entry_count_c(gpool_h: i64): i32 {
+export function http2_libc_global_pool_entry_count_c(gpool_h: i64): i32 {
   unsafe { return http2_global_pool_entry_count_c(gpool_h); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_global_pool_connect_count_c`；glue FFI 须 unsafe。 */
-function http2_libc_global_pool_connect_count_c(gpool_h: i64): i32 {
+export function http2_libc_global_pool_connect_count_c(gpool_h: i64): i32 {
   unsafe { return http2_global_pool_connect_count_c(gpool_h); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_global_pool_smoke_c`；glue FFI 须 unsafe。 */
-function http2_libc_global_pool_smoke_c(): i32 {
+export function http2_libc_global_pool_smoke_c(): i32 {
   unsafe { return http2_global_pool_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_global_pool_is_available_c`；glue FFI 须 unsafe。 */
-function http2_libc_global_pool_is_available_c(): i32 {
+export function http2_libc_global_pool_is_available_c(): i32 {
   unsafe { return http2_global_pool_is_available_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_serve_h2c_one_c`；glue FFI 须 unsafe。 */
-function http2_libc_serve_h2c_one_c(listener_fd: i32, body: *u8, body_len: i32, timeout_ms: u32): i32 {
+export function http2_libc_serve_h2c_one_c(listener_fd: i32, body: *u8, body_len: i32, timeout_ms: u32): i32 {
   unsafe { return http2_serve_h2c_one_c(listener_fd, body, body_len, timeout_ms); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_serve_h2c_one_with_goaway_c`；glue FFI 须 unsafe。 */
-function http2_libc_serve_h2c_one_with_goaway_c(listener_fd: i32, body: *u8, body_len: i32, last_stream_id: i32, timeout_ms: u32): i32 {
+export function http2_libc_serve_h2c_one_with_goaway_c(listener_fd: i32, body: *u8, body_len: i32, last_stream_id: i32, timeout_ms: u32): i32 {
   unsafe { return http2_serve_h2c_one_with_goaway_c(listener_fd, body, body_len, last_stream_id, timeout_ms); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_server_serve_h2c_c`；glue FFI 须 unsafe。 */
-function http2_libc_server_serve_h2c_c(client_fd: i32, body: *u8, body_len: i32): i32 {
+export function http2_libc_server_serve_h2c_c(client_fd: i32, body: *u8, body_len: i32): i32 {
   unsafe { return http2_server_serve_h2c_c(client_fd, body, body_len); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_server_serve_h2c_with_goaway_c`；glue FFI 须 unsafe。 */
-function http2_libc_server_serve_h2c_with_goaway_c(client_fd: i32, body: *u8, body_len: i32, last_stream_id: i32): i32 {
+export function http2_libc_server_serve_h2c_with_goaway_c(client_fd: i32, body: *u8, body_len: i32, last_stream_id: i32): i32 {
   unsafe { return http2_server_serve_h2c_with_goaway_c(client_fd, body, body_len, last_stream_id); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_serve_h2c_one_ping_echo_c`；glue FFI 须 unsafe。 */
-function http2_libc_serve_h2c_one_ping_echo_c(listener_fd: i32, timeout_ms: u32): i32 {
+export function http2_libc_serve_h2c_one_ping_echo_c(listener_fd: i32, timeout_ms: u32): i32 {
   unsafe { return http2_serve_h2c_one_ping_echo_c(listener_fd, timeout_ms); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_server_serve_h2c_ping_echo_c`；glue FFI 须 unsafe。 */
-function http2_libc_server_serve_h2c_ping_echo_c(client_fd: i32): i32 {
+export function http2_libc_server_serve_h2c_ping_echo_c(client_fd: i32): i32 {
   unsafe { return http2_server_serve_h2c_ping_echo_c(client_fd); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_serve_h2c_one_with_push_c`；glue FFI 须 unsafe。 */
-function http2_libc_serve_h2c_one_with_push_c(listener_fd: i32, body: *u8, body_len: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32, timeout_ms: u32): i32 {
+export function http2_libc_serve_h2c_one_with_push_c(listener_fd: i32, body: *u8, body_len: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32, timeout_ms: u32): i32 {
   unsafe { return http2_serve_h2c_one_with_push_c(listener_fd, body, body_len, authority, authority_len, push_path, push_path_len, push_body, push_body_len, timeout_ms); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_server_serve_h2c_with_push_c`；glue FFI 须 unsafe。 */
-function http2_libc_server_serve_h2c_with_push_c(client_fd: i32, body: *u8, body_len: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32): i32 {
+export function http2_libc_server_serve_h2c_with_push_c(client_fd: i32, body: *u8, body_len: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32): i32 {
   unsafe { return http2_server_serve_h2c_with_push_c(client_fd, body, body_len, authority, authority_len, push_path, push_path_len, push_body, push_body_len); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_server_serve_h2_with_push_c`；glue FFI 须 unsafe。 */
-function http2_libc_server_serve_h2_with_push_c(tls_ctx: i64, body: *u8, body_len: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32): i32 {
+export function http2_libc_server_serve_h2_with_push_c(tls_ctx: i64, body: *u8, body_len: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32): i32 {
   unsafe { return http2_server_serve_h2_with_push_c(tls_ctx, body, body_len, authority, authority_len, push_path, push_path_len, push_body, push_body_len); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_serve_h2_one_with_push_c`；glue FFI 须 unsafe。 */
-function http2_libc_serve_h2_one_with_push_c(listener_fd: i32, srv_ctx_h: i64, body: *u8, body_len: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32, timeout_ms: u32): i32 {
+export function http2_libc_serve_h2_one_with_push_c(listener_fd: i32, srv_ctx_h: i64, body: *u8, body_len: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32, timeout_ms: u32): i32 {
   unsafe { return http2_serve_h2_one_with_push_c(listener_fd, srv_ctx_h, body, body_len, authority, authority_len, push_path, push_path_len, push_body, push_body_len, timeout_ms); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_server_push_smoke_c`；glue FFI 须 unsafe。 */
-function http2_libc_server_push_smoke_c(): i32 {
+export function http2_libc_server_push_smoke_c(): i32 {
   unsafe { return http2_server_push_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_server_push_tls_smoke_c`；glue FFI 须 unsafe。 */
-function http2_libc_server_push_tls_smoke_c(): i32 {
+export function http2_libc_server_push_tls_smoke_c(): i32 {
   unsafe { return http2_server_push_tls_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_server_push_settings_smoke_c`；glue FFI 须 unsafe。 */
-function http2_libc_server_push_settings_smoke_c(): i32 {
+export function http2_libc_server_push_settings_smoke_c(): i32 {
   unsafe { return http2_server_push_settings_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_server_settings_full_smoke_c`；glue FFI 须 unsafe。 */
-function http2_libc_server_settings_full_smoke_c(): i32 {
+export function http2_libc_server_settings_full_smoke_c(): i32 {
   unsafe { return http2_server_settings_full_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_server_hpack_dyn_smoke_c`；glue FFI 须 unsafe。 */
-function http2_libc_server_hpack_dyn_smoke_c(): i32 {
+export function http2_libc_server_hpack_dyn_smoke_c(): i32 {
   unsafe { return http2_server_hpack_dyn_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_server_max_frame_smoke_c`；glue FFI 须 unsafe。 */
-function http2_libc_server_max_frame_smoke_c(): i32 {
+export function http2_libc_server_max_frame_smoke_c(): i32 {
   unsafe { return http2_server_max_frame_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_server_push_is_available_c`；glue FFI 须 unsafe。 */
-function http2_libc_server_push_is_available_c(): i32 {
+export function http2_libc_server_push_is_available_c(): i32 {
   unsafe { return http2_server_push_is_available_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_serve_h2c_multi_one_c`；glue FFI 须 unsafe。 */
-function http2_libc_serve_h2c_multi_one_c(listener_fd: i32, body: *u8, body_len: i32, max_requests: i32, timeout_ms: u32): i32 {
+export function http2_libc_serve_h2c_multi_one_c(listener_fd: i32, body: *u8, body_len: i32, max_requests: i32, timeout_ms: u32): i32 {
   unsafe { return http2_serve_h2c_multi_one_c(listener_fd, body, body_len, max_requests, timeout_ms); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_server_serve_h2c_multi_c`；glue FFI 须 unsafe。 */
-function http2_libc_server_serve_h2c_multi_c(client_fd: i32, body: *u8, body_len: i32, max_requests: i32): i32 {
+export function http2_libc_server_serve_h2c_multi_c(client_fd: i32, body: *u8, body_len: i32, max_requests: i32): i32 {
   unsafe { return http2_server_serve_h2c_multi_c(client_fd, body, body_len, max_requests); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_serve_h2c_multi_one_with_push_c`；glue FFI 须 unsafe。 */
-function http2_libc_serve_h2c_multi_one_with_push_c(listener_fd: i32, body: *u8, body_len: i32, max_requests: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32, timeout_ms: u32): i32 {
+export function http2_libc_serve_h2c_multi_one_with_push_c(listener_fd: i32, body: *u8, body_len: i32, max_requests: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32, timeout_ms: u32): i32 {
   unsafe { return http2_serve_h2c_multi_one_with_push_c(listener_fd, body, body_len, max_requests, authority, authority_len, push_path, push_path_len, push_body, push_body_len, timeout_ms); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_server_serve_h2c_multi_with_push_c`；glue FFI 须 unsafe。 */
-function http2_libc_server_serve_h2c_multi_with_push_c(client_fd: i32, body: *u8, body_len: i32, max_requests: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32): i32 {
+export function http2_libc_server_serve_h2c_multi_with_push_c(client_fd: i32, body: *u8, body_len: i32, max_requests: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32): i32 {
   unsafe { return http2_server_serve_h2c_multi_with_push_c(client_fd, body, body_len, max_requests, authority, authority_len, push_path, push_path_len, push_body, push_body_len); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_serve_h2_multi_one_c`；glue FFI 须 unsafe。 */
-function http2_libc_serve_h2_multi_one_c(listener_fd: i32, srv_ctx_h: i64, body: *u8, body_len: i32, max_requests: i32, timeout_ms: u32): i32 {
+export function http2_libc_serve_h2_multi_one_c(listener_fd: i32, srv_ctx_h: i64, body: *u8, body_len: i32, max_requests: i32, timeout_ms: u32): i32 {
   unsafe { return http2_serve_h2_multi_one_c(listener_fd, srv_ctx_h, body, body_len, max_requests, timeout_ms); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_server_serve_h2_multi_c`；glue FFI 须 unsafe。 */
-function http2_libc_server_serve_h2_multi_c(tls_ctx: i64, body: *u8, body_len: i32, max_requests: i32): i32 {
+export function http2_libc_server_serve_h2_multi_c(tls_ctx: i64, body: *u8, body_len: i32, max_requests: i32): i32 {
   unsafe { return http2_server_serve_h2_multi_c(tls_ctx, body, body_len, max_requests); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_serve_h2_multi_one_with_push_c`；glue FFI 须 unsafe。 */
-function http2_libc_serve_h2_multi_one_with_push_c(listener_fd: i32, srv_ctx_h: i64, body: *u8, body_len: i32, max_requests: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32, timeout_ms: u32): i32 {
+export function http2_libc_serve_h2_multi_one_with_push_c(listener_fd: i32, srv_ctx_h: i64, body: *u8, body_len: i32, max_requests: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32, timeout_ms: u32): i32 {
   unsafe { return http2_serve_h2_multi_one_with_push_c(listener_fd, srv_ctx_h, body, body_len, max_requests, authority, authority_len, push_path, push_path_len, push_body, push_body_len, timeout_ms); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_server_serve_h2_multi_with_push_c`；glue FFI 须 unsafe。 */
-function http2_libc_server_serve_h2_multi_with_push_c(tls_ctx: i64, body: *u8, body_len: i32, max_requests: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32): i32 {
+export function http2_libc_server_serve_h2_multi_with_push_c(tls_ctx: i64, body: *u8, body_len: i32, max_requests: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32): i32 {
   unsafe { return http2_server_serve_h2_multi_with_push_c(tls_ctx, body, body_len, max_requests, authority, authority_len, push_path, push_path_len, push_body, push_body_len); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_server_multistream_push_smoke_c`；glue FFI 须 unsafe。 */
-function http2_libc_server_multistream_push_smoke_c(): i32 {
+export function http2_libc_server_multistream_push_smoke_c(): i32 {
   unsafe { return http2_server_multistream_push_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_server_multistream_push_is_available_c`；glue FFI 须 unsafe。 */
-function http2_libc_server_multistream_push_is_available_c(): i32 {
+export function http2_libc_server_multistream_push_is_available_c(): i32 {
   unsafe { return http2_server_multistream_push_is_available_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_server_multistream_smoke_c`；glue FFI 须 unsafe。 */
-function http2_libc_server_multistream_smoke_c(): i32 {
+export function http2_libc_server_multistream_smoke_c(): i32 {
   unsafe { return http2_server_multistream_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_server_multistream_is_available_c`；glue FFI 须 unsafe。 */
-function http2_libc_server_multistream_is_available_c(): i32 {
+export function http2_libc_server_multistream_is_available_c(): i32 {
   unsafe { return http2_server_multistream_is_available_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_server_smoke_c`；glue FFI 须 unsafe。 */
-function http2_libc_server_smoke_c(): i32 {
+export function http2_libc_server_smoke_c(): i32 {
   unsafe { return http2_server_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_server_is_available_c`；glue FFI 须 unsafe。 */
-function http2_libc_server_is_available_c(): i32 {
+export function http2_libc_server_is_available_c(): i32 {
   unsafe { return http2_server_is_available_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_serve_h2_one_c`；glue FFI 须 unsafe。 */
-function http2_libc_serve_h2_one_c(listener_fd: i32, srv_ctx_h: i64, body: *u8, body_len: i32, timeout_ms: u32): i32 {
+export function http2_libc_serve_h2_one_c(listener_fd: i32, srv_ctx_h: i64, body: *u8, body_len: i32, timeout_ms: u32): i32 {
   unsafe { return http2_serve_h2_one_c(listener_fd, srv_ctx_h, body, body_len, timeout_ms); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_server_serve_h2_c`；glue FFI 须 unsafe。 */
-function http2_libc_server_serve_h2_c(tls_ctx: i64, body: *u8, body_len: i32): i32 {
+export function http2_libc_server_serve_h2_c(tls_ctx: i64, body: *u8, body_len: i32): i32 {
   unsafe { return http2_server_serve_h2_c(tls_ctx, body, body_len); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_tls_server_ctx_create_c`；glue FFI 须 unsafe。 */
-function http2_libc_tls_server_ctx_create_c(cert_pem: *u8, cert_len: i32, key_pem: *u8, key_len: i32): i64 {
+export function http2_libc_tls_server_ctx_create_c(cert_pem: *u8, cert_len: i32, key_pem: *u8, key_len: i32): i64 {
   unsafe { return http2_tls_server_ctx_create_c(cert_pem, cert_len, key_pem, key_len); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_tls_server_ctx_destroy_c`；glue FFI 须 unsafe。 */
-function http2_libc_tls_server_ctx_destroy_c(srv_ctx_h: i64): void {
+export function http2_libc_tls_server_ctx_destroy_c(srv_ctx_h: i64): void {
   unsafe { http2_tls_server_ctx_destroy_c(srv_ctx_h); }
 }
 
 /** 包装 `http2_hpack_decode_get_request_c`；glue FFI 须 unsafe。 */
-function http2_libc_hpack_decode_get_request_c(block: *u8, block_len: i32, out_is_get: *i32, out_path: *u8, path_cap: i32, out_path_len: *i32): i32 {
+export function http2_libc_hpack_decode_get_request_c(block: *u8, block_len: i32, out_is_get: *i32, out_path: *u8, path_cap: i32, out_path_len: *i32): i32 {
   unsafe { return http2_hpack_decode_get_request_c(block, block_len, out_is_get, out_path, path_cap, out_path_len); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_hpack_encode_status_c`；glue FFI 须 unsafe。 */
-function http2_libc_hpack_encode_status_c(status: i32, out: *u8, out_cap: i32): i32 {
+export function http2_libc_hpack_encode_status_c(status: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_hpack_encode_status_c(status, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 
 /** HTTP/2 server push 未实现（旧 API；读路径已可收集）。 */
-function err_push_not_impl(): i32 { return -1233; }
+export function err_push_not_impl(): i32 { return -1233; }
 
 /** HTTP/2 h2c 升级路径未实现（直连 preface 见 h2c_session_begin）。 */
-function err_h2c_not_impl(): i32 { return -1234; }
+export function err_h2c_not_impl(): i32 { return -1234; }
 
 /** h2c 仅支持 http://；https:// URL 返回此错误（-1235）。 */
-function err_h2c_scheme(): i32 { return -1235; }
+export function err_h2c_scheme(): i32 { return -1235; }
 
 /** 并发 stream 已达对端 SETTINGS 上限（-1236）。 */
-function err_max_streams(): i32 { return -1236; }
+export function err_max_streams(): i32 { return -1236; }
 
 /** 连接未完成 handshake（-1237）。 */
-function err_conn_not_ready(): i32 { return -1237; }
+export function err_conn_not_ready(): i32 { return -1237; }
 
 /** URL scheme 与 H2 连接池类型不匹配（-1238）。 */
-function err_pool_scheme(): i32 { return -1238; }
+export function err_pool_scheme(): i32 { return -1238; }
 
 /** 全局 H2 连接池 host:port 条目已满（-1239）。 */
-function err_global_pool_full(): i32 { return -1239; }
+export function err_global_pool_full(): i32 { return -1239; }
 
 /** HTTP/2 h2c server 协议/请求错误（-1240）。 */
-function err_server(): i32 { return -1240; }
+export function err_server(): i32 { return -1240; }
 
 /** HTTP/2 server push 发送侧参数非法（-1242）。 */
-function err_server_push(): i32 { return -1242; }
+export function err_server_push(): i32 { return -1242; }
 
 /** client SETTINGS ENABLE_PUSH=0，server 软拒绝 push（-1243）。 */
-function err_server_push_disabled(): i32 { return -1243; }
+export function err_server_push_disabled(): i32 { return -1243; }
 
 /** 对端发送 GOAWAY / 期望 GOAWAY 时语义码（-1244）。 */
-function err_goaway(): i32 { return -1244; }
+export function err_goaway(): i32 { return -1244; }
 
 /** PING 往返失败 / 未收到匹配 PONG（-1245）。 */
-function err_ping(): i32 { return -1245; }
+export function err_ping(): i32 { return -1245; }
 
 /** 对端 RST_STREAM / stream 被取消（-1246）。 */
-function err_rst_stream(): i32 { return -1246; }
+export function err_rst_stream(): i32 { return -1246; }
 
 /** HTTP/2 over TLS server 不可用或 ALPN 非 h2（-1241）。 */
-function err_server_tls(): i32 { return -1241; }
+export function err_server_tls(): i32 { return -1241; }
 
 /** HTTP/2 发送窗口耗尽（须 WINDOW_UPDATE；v5 流控状态机）。 */
-function err_flow_blocked(): i32 { return -1232; }
+export function err_flow_blocked(): i32 { return -1232; }
 
 /** HTTP/2 网络 h2 over TLS 不可用（须 std.net ALPN；v2）。 */
-function err_network_h2(): i32 { return -1231; }
+export function err_network_h2(): i32 { return -1231; }
 
 /** HTTP/2 完整编解码层不可用（v1 前占位；现与 client_is_available 对齐）。 */
-function err_not_impl(): i32 { return -1230; }
+export function err_not_impl(): i32 { return -1230; }
 
 /** DATA 帧类型。 */
-function frame_data(): i32 { return 0; }
+export function frame_data(): i32 { return 0; }
 
 /** HEADERS 帧类型。 */
-function frame_headers(): i32 { return 1; }
+export function frame_headers(): i32 { return 1; }
 
 /** SETTINGS 帧类型（RFC 7540）。 */
-function frame_settings(): i32 { return 4; }
+export function frame_settings(): i32 { return 4; }
 
 /** END_STREAM 标志。 */
-function flag_end_stream(): i32 { return 1; }
+export function flag_end_stream(): i32 { return 1; }
 
 /** END_HEADERS 标志。 */
-function flag_end_headers(): i32 { return 4; }
+export function flag_end_headers(): i32 { return 4; }
 
 /** SETTINGS ACK 标志。 */
-function flag_ack(): i32 { return 1; }
+export function flag_ack(): i32 { return 1; }
 
 /** SETTINGS MAX_CONCURRENT_STREAMS id（0x0003）。 */
-function setting_max_concurrent_streams(): i32 { return 3; }
+export function setting_max_concurrent_streams(): i32 { return 3; }
 
 /** SETTINGS INITIAL_WINDOW_SIZE id（0x0004）。 */
-function setting_initial_window_size(): i32 { return 4; }
+export function setting_initial_window_size(): i32 { return 4; }
 
 /** SETTINGS ENABLE_PUSH id（0x0002；RFC 7540 §6.5.2）。 */
-function setting_enable_push(): i32 {
+export function setting_enable_push(): i32 {
   return http2_libc_setting_enable_push_c();
 }
 
 /** SETTINGS HEADER_TABLE_SIZE id（0x0001）。 */
-function setting_header_table_size(): i32 {
+export function setting_header_table_size(): i32 {
   return http2_libc_setting_header_table_size_c();
 }
 
 /** SETTINGS MAX_FRAME_SIZE id（0x0005）。 */
-function setting_max_frame_size(): i32 {
+export function setting_max_frame_size(): i32 {
   return http2_libc_setting_max_frame_size_c();
 }
 
 /** SETTINGS MAX_HEADER_LIST_SIZE id（0x0006）。 */
-function setting_max_header_list_size(): i32 {
+export function setting_max_header_list_size(): i32 {
   return http2_libc_setting_max_header_list_size_c();
 }
 
 /** 连接 preface 长度（24）。 */
-function preface_len(): i32 {
+export function preface_len(): i32 {
   return http2_libc_preface_len_c();
 }
 
 /** 检测 buf 是否为 HTTP/2 连接 preface；1 是，0 否。 */
-function is_connection_preface(buf: *u8, len: i32): bool {
+export function is_connection_preface(buf: *u8, len: i32): bool {
   if (http2_libc_is_connection_preface_c(buf, len) != 0) { return true; }
   return false;
 }
 
 /** 解析 9 字节帧头；成功 0，失败 -1。 */
-function parse_frame_header(buf: *u8, len: i32, out_type: *i32, out_flags: *i32, out_stream_id: *i32, out_payload_len: *i32): i32 {
+export function parse_frame_header(buf: *u8, len: i32, out_type: *i32, out_flags: *i32, out_stream_id: *i32, out_payload_len: *i32): i32 {
   return http2_libc_parse_frame_header_c(buf, len, out_type, out_flags, out_stream_id, out_payload_len);
 }
 
 /** 构建 SETTINGS ACK 帧（9 字节）；成功返回写入长度。 */
-function build_settings_ack(out: *u8, out_cap: i32): i32 {
+export function build_settings_ack(out: *u8, out_cap: i32): i32 {
   return http2_libc_build_settings_ack_c(out, out_cap);
 }
 
 /** 构建含一条 SETTINGS 的帧（15 字节）。 */
-function build_settings_one(setting_id: i32, value: i32, out: *u8, out_cap: i32): i32 {
+export function build_settings_one(setting_id: i32, value: i32, out: *u8, out_cap: i32): i32 {
   return http2_libc_build_settings_one_c(setting_id, value, out, out_cap);
 }
 
 /** 线格式层（preface/帧头）是否可用。 */
-function wire_is_available(): bool {
+export function wire_is_available(): bool {
   if (http2_libc_wire_is_available_c() != 0) { return true; }
   return false;
 }
 
 /** 完整 HTTP/2 客户端编解码是否可用（v1+ HPACK+帧；v3 动态表；网络 ALPN v2）。 */
-function client_is_available(): bool {
+export function client_is_available(): bool {
   if (http2_libc_client_is_available_c() != 0) { return true; }
   return false;
 }
 
 /** HPACK indexed 头字段编码；成功返回写入字节数。 */
-function hpack_encode_indexed(index: i32, out: *u8, out_cap: i32): i32 {
+export function hpack_encode_indexed(index: i32, out: *u8, out_cap: i32): i32 {
   return http2_libc_hpack_encode_indexed_c(index, out, out_cap);
 }
 
 /** HPACK literal 头字段（不索引，indexed name）编码。 */
-function hpack_encode_literal(name_index: i32, value: *u8, value_len: i32, out: *u8, out_cap: i32): i32 {
+export function hpack_encode_literal(name_index: i32, value: *u8, value_len: i32, out: *u8, out_cap: i32): i32 {
   return http2_libc_hpack_encode_literal_c(name_index, value, value_len, out, out_cap);
 }
 
 /** 编码 GET 请求 HPACK 块（:method/:scheme/:path/:authority）。 */
-function hpack_encode_get_request(authority: *u8, authority_len: i32, path: *u8, path_len: i32, is_https: i32, out: *u8, out_cap: i32): i32 {
+export function hpack_encode_get_request(authority: *u8, authority_len: i32, path: *u8, path_len: i32, is_https: i32, out: *u8, out_cap: i32): i32 {
   return http2_libc_hpack_encode_get_request_c(authority, authority_len, path, path_len, is_https, out, out_cap);
 }
 
 /** 清空 HPACK 动态表（v3 FIFO 16 条目）。 */
-function hpack_dyn_reset(): void {
+export function hpack_dyn_reset(): void {
   http2_libc_hpack_dyn_reset_c();
 }
 
 /** 返回 HPACK 动态表当前条目数。 */
-function hpack_dyn_count(): i32 {
+export function hpack_dyn_count(): i32 {
   return http2_libc_hpack_dyn_count_c();
 }
 
 /** HPACK incremental indexing + indexed name 编码（并写入动态表）。 */
-function hpack_encode_literal_incremental(name_index: i32, value: *u8, value_len: i32, out: *u8, out_cap: i32): i32 {
+export function hpack_encode_literal_incremental(name_index: i32, value: *u8, value_len: i32, out: *u8, out_cap: i32): i32 {
   return http2_libc_hpack_encode_literal_incremental_c(name_index, value, value_len, out, out_cap);
 }
 
 /** HPACK indexed 头（静态或动态 index≥62）。 */
-function hpack_encode_indexed_any(index: i32, out: *u8, out_cap: i32): i32 {
+export function hpack_encode_indexed_any(index: i32, out: *u8, out_cap: i32): i32 {
   return http2_libc_hpack_encode_indexed_any_c(index, out, out_cap);
 }
 
 /** 编码多 method 请求 HPACK 块（复用 authority/path 动态表）。method_u8 与 Method 一致。 */
-function hpack_encode_request(method_u8: u8, authority: *u8, authority_len: i32, path: *u8, path_len: i32, is_https: i32, out: *u8, out_cap: i32): i32 {
+export function hpack_encode_request(method_u8: u8, authority: *u8, authority_len: i32, path: *u8, path_len: i32, is_https: i32, out: *u8, out_cap: i32): i32 {
   return http2_libc_hpack_encode_request_c(method_u8, authority, authority_len, path, path_len, is_https, out, out_cap);
 }
 
 /** HPACK 动态表 C 烟测；0 通过。 */
-function hpack_dyn_smoke(): i32 {
+export function hpack_dyn_smoke(): i32 {
   return http2_libc_hpack_dyn_smoke_c();
 }
 
 /** 由对端 SETTINGS 创建 server 响应 HPACK 动态表句柄；失败 0。 */
-function hpack_server_dyn_create(peer: *Http2PeerSettings): i64 {
+export function hpack_server_dyn_create(peer: *Http2PeerSettings): i64 {
   return http2_libc_hpack_server_dyn_create_c(peer);
 }
 
 /** 释放 server HPACK 动态表句柄。 */
-function hpack_server_dyn_destroy(handle: i64): void {
+export function hpack_server_dyn_destroy(handle: i64): void {
   http2_libc_hpack_server_dyn_destroy_c(handle);
 }
 
 /** 更新 server 动态表上限（HEADER_TABLE_SIZE 联动）。 */
-function hpack_server_dyn_set_table_size(handle: i64, size: i32): void {
+export function hpack_server_dyn_set_table_size(handle: i64, size: i32): void {
   http2_libc_hpack_server_dyn_set_table_size_h_c(handle, size);
 }
 
 /** 返回 server 动态表 HEADER_TABLE_SIZE 上限。 */
-function hpack_server_dyn_max_size(handle: i64): i32 {
+export function hpack_server_dyn_max_size(handle: i64): i32 {
   return http2_libc_hpack_server_dyn_max_size_h_c(handle);
 }
 
 /** 返回 server 动态表条目数。 */
-function hpack_server_dyn_count(handle: i64): i32 {
+export function hpack_server_dyn_count(handle: i64): i32 {
   return http2_libc_hpack_server_dyn_count_h_c(handle);
 }
 
 /** 使用 server 动态表编码 :status 响应 HPACK 块。 */
-function hpack_server_encode_status(handle: i64, status: i32, out: *u8, out_cap: i32): i32 {
+export function hpack_server_encode_status(handle: i64, status: i32, out: *u8, out_cap: i32): i32 {
   return http2_libc_hpack_server_encode_status_h_c(handle, status, out, out_cap);
 }
 
 /** server HPACK 动态表离线烟测；0 通过。 */
-function hpack_server_dyn_smoke(): i32 {
+export function hpack_server_dyn_smoke(): i32 {
   return http2_libc_hpack_server_dyn_smoke_c();
 }
 
 /** 返回有效单帧 payload 上限（RFC 7540 MAX_FRAME_SIZE）。 */
-function frame_payload_limit(max_frame_size: i32): i32 {
+export function frame_payload_limit(max_frame_size: i32): i32 {
   return http2_libc_frame_payload_limit_c(max_frame_size);
 }
 
 /** 校验 payload 是否不超过 max_frame_size；合法 0，超限 -1。 */
-function frame_check_payload(payload_len: i32, max_frame_size: i32): i32 {
+export function frame_check_payload(payload_len: i32, max_frame_size: i32): i32 {
   return http2_libc_frame_check_payload_c(payload_len, max_frame_size);
 }
 
 /** 计算 DATA 按 max_frame_size 分片后的帧数。 */
-function frame_count_data_chunks(data_len: i32, max_frame_size: i32): i32 {
+export function frame_count_data_chunks(data_len: i32, max_frame_size: i32): i32 {
   return http2_libc_frame_count_data_chunks_c(data_len, max_frame_size);
 }
 
 /** MAX_FRAME_SIZE 分片计算烟测；0 通过。 */
-function frame_capped_smoke(): i32 {
+export function frame_capped_smoke(): i32 {
   return http2_libc_frame_capped_smoke_c();
 }
 
 /** GOAWAY 帧类型（RFC 7540 §6.8，0x07）。 */
-function frame_goaway(): i32 {
+export function frame_goaway(): i32 {
   return http2_libc_frame_goaway_c();
 }
 
 /** GOAWAY NO_ERROR 错误码（0）。 */
-function goaway_error_no_error(): i32 {
+export function goaway_error_no_error(): i32 {
   return http2_libc_goaway_error_no_error_c();
 }
 
 /** 构建 GOAWAY 帧；成功返回 17。 */
-function build_goaway(last_stream_id: i32, code: i32, out: *u8, out_cap: i32): i32 {
+export function build_goaway(last_stream_id: i32, code: i32, out: *u8, out_cap: i32): i32 {
   return http2_libc_build_goaway_c(last_stream_id, code, out, out_cap);
 }
 
 /** 解析 GOAWAY payload（8 字节）；成功 0。 */
-function parse_goaway(payload: *u8, plen: i32, out_last_stream: *i32, out_code: *i32): i32 {
+export function parse_goaway(payload: *u8, plen: i32, out_last_stream: *i32, out_code: *i32): i32 {
   return http2_libc_parse_goaway_c(payload, plen, out_last_stream, out_code);
 }
 
 /** GOAWAY 编解码离线烟测；0 通过。 */
-function goaway_smoke(): i32 {
+export function goaway_smoke(): i32 {
   return http2_libc_goaway_smoke_c();
 }
 
 /** PING 帧类型（RFC 7540 §6.7，0x06）。 */
-function frame_ping(): i32 {
+export function frame_ping(): i32 {
   return http2_libc_frame_ping_c();
 }
 
 /** 构建 PING 帧（8 字节 opaque）；成功返回 17。 */
-function build_ping(opaque: *u8, out: *u8, out_cap: i32): i32 {
+export function build_ping(opaque: *u8, out: *u8, out_cap: i32): i32 {
   return http2_libc_build_ping_c(opaque, out, out_cap);
 }
 
 /** 构建 PONG（PING+ACK）帧；成功返回 17。 */
-function build_ping_ack(opaque: *u8, out: *u8, out_cap: i32): i32 {
+export function build_ping_ack(opaque: *u8, out: *u8, out_cap: i32): i32 {
   return http2_libc_build_ping_ack_c(opaque, out, out_cap);
 }
 
 /** 解析 PING payload（8 字节）；成功 0。 */
-function parse_ping(payload: *u8, plen: i32, out_opaque: *u8): i32 {
+export function parse_ping(payload: *u8, plen: i32, out_opaque: *u8): i32 {
   return http2_libc_parse_ping_c(payload, plen, out_opaque);
 }
 
 /** PING/PONG 编解码离线烟测；0 通过。 */
-function ping_smoke(): i32 {
+export function ping_smoke(): i32 {
   return http2_libc_ping_smoke_c();
 }
 
 /** RST_STREAM 帧类型（RFC 7540 §6.4，0x03）。 */
-function frame_rst_stream(): i32 {
+export function frame_rst_stream(): i32 {
   return http2_libc_frame_rst_stream_c();
 }
 
 /** RST_STREAM CANCEL 错误码（8）。 */
-function rst_error_cancel(): i32 {
+export function rst_error_cancel(): i32 {
   return http2_libc_rst_error_cancel_c();
 }
 
 /** 构建 RST_STREAM 帧；成功返回 13。 */
-function build_rst_stream(stream_id: i32, code: i32, out: *u8, out_cap: i32): i32 {
+export function build_rst_stream(stream_id: i32, code: i32, out: *u8, out_cap: i32): i32 {
   return http2_libc_build_rst_stream_c(stream_id, code, out, out_cap);
 }
 
 /** 解析 RST_STREAM payload（4 字节）；成功 0。 */
-function parse_rst_stream(payload: *u8, plen: i32, out_code: *i32): i32 {
+export function parse_rst_stream(payload: *u8, plen: i32, out_code: *i32): i32 {
   return http2_libc_parse_rst_stream_c(payload, plen, out_code);
 }
 
 /** RST_STREAM 编解码离线烟测；0 通过。 */
-function rst_stream_smoke(): i32 {
+export function rst_stream_smoke(): i32 {
   return http2_libc_rst_stream_smoke_c();
 }
 
 /** 从 HPACK 头块解析 :status；成功 0，未找到 -2，失败 -1。 */
-function hpack_decode_status(block: *u8, block_len: i32, out_status: *i32): i32 {
+export function hpack_decode_status(block: *u8, block_len: i32, out_status: *i32): i32 {
   return http2_libc_hpack_decode_status_c(block, block_len, out_status);
 }
 
 /** 从 HPACK 请求头块解析 GET 与 :path；非 GET 返回 1。 */
-function hpack_decode_get_request(block: *u8, block_len: i32, out_is_get: *i32, out_path: *u8, path_cap: i32, out_path_len: *i32): i32 {
+export function hpack_decode_get_request(block: *u8, block_len: i32, out_is_get: *i32, out_path: *u8, path_cap: i32, out_path_len: *i32): i32 {
   return http2_libc_hpack_decode_get_request_c(block, block_len, out_is_get, out_path, path_cap, out_path_len);
 }
 
 /** 编码 :status 响应 HPACK 块（200 用 indexed）。 */
-function hpack_encode_status(status: i32, out: *u8, out_cap: i32): i32 {
+export function hpack_encode_status(status: i32, out: *u8, out_cap: i32): i32 {
   return http2_libc_hpack_encode_status_c(status, out, out_cap);
 }
 
 /** 构建 HEADERS 帧（9 字节头 + HPACK payload）。 */
-function build_headers_frame(stream_id: i32, flags: i32, hpack: *u8, hpack_len: i32, out: *u8, out_cap: i32): i32 {
+export function build_headers_frame(stream_id: i32, flags: i32, hpack: *u8, hpack_len: i32, out: *u8, out_cap: i32): i32 {
   return http2_libc_build_headers_frame_c(stream_id, flags, hpack, hpack_len, out, out_cap);
 }
 
 /** 构建 DATA 帧。 */
-function build_data_frame(stream_id: i32, flags: i32, data: *u8, data_len: i32, out: *u8, out_cap: i32): i32 {
+export function build_data_frame(stream_id: i32, flags: i32, data: *u8, data_len: i32, out: *u8, out_cap: i32): i32 {
   return http2_libc_build_data_frame_c(stream_id, flags, data, data_len, out, out_cap);
 }
 
 /** 构建 stream 1 GET HEADERS 帧（END_STREAM|END_HEADERS）。 */
-function build_get_headers_frame(authority: *u8, authority_len: i32, path: *u8, path_len: i32, is_https: i32, out: *u8, out_cap: i32): i32 {
+export function build_get_headers_frame(authority: *u8, authority_len: i32, path: *u8, path_len: i32, is_https: i32, out: *u8, out_cap: i32): i32 {
   return http2_libc_build_get_headers_frame_c(authority, authority_len, path, path_len, is_https, out, out_cap);
 }
 
@@ -2827,28 +2827,28 @@ function build_get_headers_frame(authority: *u8, authority_len: i32, path: *u8, 
  * 构建 HTTP 请求 HEADERS 帧（v3 多 method + 动态 HPACK）。
  * has_body 非 0 时不设 END_STREAM（后续发 DATA）。
  */
-function build_request_headers_frame(method_u8: u8, authority: *u8, authority_len: i32, path: *u8, path_len: i32, is_https: i32, has_body: i32, stream_id: i32, out: *u8, out_cap: i32): i32 {
+export function build_request_headers_frame(method_u8: u8, authority: *u8, authority_len: i32, path: *u8, path_len: i32, is_https: i32, has_body: i32, stream_id: i32, out: *u8, out_cap: i32): i32 {
   return http2_libc_build_request_headers_frame_c(method_u8, authority, authority_len, path, path_len, is_https, has_body, stream_id, out, out_cap);
 }
 
 /** HPACK 编解码 C 烟测；0 通过。 */
-function hpack_smoke(): i32 {
+export function hpack_smoke(): i32 {
   return http2_libc_hpack_smoke_c();
 }
 
 /** HTTP/2 客户端多路复用 C 烟测；0 通过。 */
-function client_smoke(): i32 {
+export function client_smoke(): i32 {
   return http2_libc_client_smoke_c();
 }
 
 /** h2 over TLS 网络栈是否可用（须链入 std.net TLS）。 */
-function network_is_available(): bool {
+export function network_is_available(): bool {
   if (http2_libc_network_is_available_c() != 0) { return true; }
   return false;
 }
 
 /** 网络层烟测（ALPN wire + HPACK；不建连）；0 通过。 */
-function network_smoke(): i32 {
+export function network_smoke(): i32 {
   return http2_libc_network_smoke_c();
 }
 
@@ -2856,7 +2856,7 @@ function network_smoke(): i32 {
  * HTTPS + ALPN h2 GET；响应为 HTTP/1 风格（供 parse_status_line）。
  * 非 https 或未协商 h2 时返回 err_network_h2()。
  */
-function h2_get(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
+export function h2_get(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   return http_libc_h2_get_c(url, url_len, out_buf, out_cap, timeout_ms);
 }
 
@@ -2864,14 +2864,14 @@ function h2_get(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: 
  * HTTPS + ALPN h2 多 method 请求（GET/POST/HEAD/PUT/DELETE/PATCH/OPTIONS）。
  * POST/PUT/PATCH 须非空 body；GET/HEAD/DELETE/OPTIONS 不得带 body。
  */
-function h2_request(method: Method, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
+export function h2_request(method: Method, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   return http_libc_h2_request_c(method(method), url, url_len, body, body_len, out_buf, out_cap, timeout_ms);
 }
 
 /**
  * HTTP/2 版 client_request（v3 全 method + 动态 HPACK）。
  */
-function client_request_h2(method: Method, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
+export function client_request_h2(method: Method, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   return http_libc_request_method_h2_c(method(method), url, url_len, body, body_len, out_buf, out_cap, timeout_ms);
 }
 
@@ -2879,7 +2879,7 @@ function client_request_h2(method: Method, url: *u8, url_len: i32, body: *u8, bo
  * HTTP/2 cleartext h2c GET（http:// + TCP preface；无 TLS）。
  * https:// 返回 err_h2c_scheme(-1235)。
  */
-function h2c_get(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
+export function h2c_get(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   return http_libc_h2c_get_c(url, url_len, out_buf, out_cap, timeout_ms);
 }
 
@@ -2887,33 +2887,33 @@ function h2c_get(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms:
  * HTTP/2 cleartext h2c 多 method 请求（GET/POST/HEAD/PUT/DELETE/PATCH/OPTIONS）。
  * POST/PUT/PATCH 须非空 body；https:// 返回 err_h2c_scheme(-1235)。
  */
-function h2c_request(method: Method, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
+export function h2c_request(method: Method, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   return http_libc_h2c_request_c(method(method), url, url_len, body, body_len, out_buf, out_cap, timeout_ms);
 }
 
 /**
  * h2c 版 client_request（http:// 明文 TCP；https:// 返回 err_h2c_scheme）。
  */
-function client_request_h2c(method: Method, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
+export function client_request_h2c(method: Method, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   return http_libc_request_method_h2c_c(method(method), url, url_len, body, body_len, out_buf, out_cap, timeout_ms);
 }
 
 /**
  * 创建 h2c（http://）长连接池；失败返回 0。
  */
-function conn_pool_create_h2c(host: *u8, host_len: i32, port: *u8, port_len: i32, max_conns: i32): i64 {
+export function conn_pool_create_h2c(host: *u8, host_len: i32, port: *u8, port_len: i32, max_conns: i32): i64 {
   return http2_libc_conn_pool_create_h2c_c(host, host_len, port, port_len, max_conns);
 }
 
 /**
  * 创建 h2 over TLS（https://）长连接池；失败返回 0。
  */
-function conn_pool_create_h2(host: *u8, host_len: i32, port: *u8, port_len: i32, max_conns: i32): i64 {
+export function conn_pool_create_h2(host: *u8, host_len: i32, port: *u8, port_len: i32, max_conns: i32): i64 {
   return http2_libc_conn_pool_create_h2_c(host, host_len, port, port_len, max_conns);
 }
 
 /** 销毁 H2 连接池并关闭 idle 连接。 */
-function conn_pool_destroy(pool_h: i64): void {
+export function conn_pool_destroy(pool_h: i64): void {
   http2_libc_conn_pool_destroy_c(pool_h);
 }
 
@@ -2921,38 +2921,38 @@ function conn_pool_destroy(pool_h: i64): void {
  * 经 H2 连接池发请求（URL 须匹配池 host:port + scheme）。
  * scheme 不匹配返回 err_pool_scheme(-1238)。
  */
-function conn_pool_request(pool_h: i64, method: Method, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
+export function conn_pool_request(pool_h: i64, method: Method, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   return http2_libc_conn_pool_request_c(pool_h, method(method), url, url_len, body, body_len, out_buf, out_cap, timeout_ms);
 }
 
 /** h2c 长连接池 GET。 */
-function h2c_pool_get(pool_h: i64, url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
+export function h2c_pool_get(pool_h: i64, url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   return http_libc_h2c_pool_get_c(pool_h, url, url_len, out_buf, out_cap, timeout_ms);
 }
 
 /** h2 over TLS 长连接池 GET。 */
-function h2_pool_get(pool_h: i64, url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
+export function h2_pool_get(pool_h: i64, url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   return http_libc_h2_pool_get_c(pool_h, url, url_len, out_buf, out_cap, timeout_ms);
 }
 
 /** H2 连接池 API 是否可用。 */
-function conn_pool_is_available(): bool {
+export function conn_pool_is_available(): bool {
   if (http2_libc_conn_pool_is_available_c() != 0) { return true; }
   return false;
 }
 
 /** H2 连接池 C 烟测；0 通过。 */
-function conn_pool_smoke(): i32 {
+export function conn_pool_smoke(): i32 {
   return http2_libc_conn_pool_smoke_c();
 }
 
 /** 连接池 GOAWAY 感知烟测（离线 + h2c fork 双连）；0 通过。 */
-function conn_pool_goaway_smoke(): i32 {
+export function conn_pool_goaway_smoke(): i32 {
   return http2_libc_conn_pool_goaway_smoke_c();
 }
 
 /** 池累计新建 TCP/TLS 连接次数（烟测/诊断）。 */
-function conn_pool_connect_count(pool_h: i64): i32 {
+export function conn_pool_connect_count(pool_h: i64): i32 {
   return http2_libc_conn_pool_connect_count_c(pool_h);
 }
 
@@ -2960,12 +2960,12 @@ function conn_pool_connect_count(pool_h: i64): i32 {
  * 创建 HTTP/2 全局连接池（按 URL 自动路由 host:port 子池）。
  * max_entries 默认 4；max_conns_per_host 默认 2；失败返回 0。
  */
-function global_pool_create(max_entries: i32, max_conns_per_host: i32): i64 {
+export function global_pool_create(max_entries: i32, max_conns_per_host: i32): i64 {
   return http2_libc_global_pool_create_c(max_entries, max_conns_per_host);
 }
 
 /** 销毁全局池及全部子连接池。 */
-function global_pool_destroy(gpool_h: i64): void {
+export function global_pool_destroy(gpool_h: i64): void {
   http2_libc_global_pool_destroy_c(gpool_h);
 }
 
@@ -2973,7 +2973,7 @@ function global_pool_destroy(gpool_h: i64): void {
  * 经全局池 GET URL（http:// → h2c 子池，https:// → h2 子池）。
  * 满池返回 err_global_pool_full(-1239)。
  */
-function global_pool_get(gpool_h: i64, url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
+export function global_pool_get(gpool_h: i64, url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   return http2_libc_global_pool_get_c(gpool_h, url, url_len, out_buf, out_cap, timeout_ms);
 }
 
@@ -2981,33 +2981,33 @@ function global_pool_get(gpool_h: i64, url: *u8, url_len: i32, out_buf: *u8, out
  * 经全局池发多 method 请求（URL 自动路由）。
  * 满池返回 err_global_pool_full(-1239)。
  */
-function global_pool_request(gpool_h: i64, method: Method, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
+export function global_pool_request(gpool_h: i64, method: Method, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   return http2_libc_global_pool_request_c(gpool_h, method(method), url, url_len, body, body_len, out_buf, out_cap, timeout_ms);
 }
 
 /** 全局池已登记的不同 host:port 子池数量。 */
-function global_pool_entry_count(gpool_h: i64): i32 {
+export function global_pool_entry_count(gpool_h: i64): i32 {
   return http2_libc_global_pool_entry_count_c(gpool_h);
 }
 
 /** 全局池内全部子池累计新建连接次数。 */
-function global_pool_connect_count(gpool_h: i64): i32 {
+export function global_pool_connect_count(gpool_h: i64): i32 {
   return http2_libc_global_pool_connect_count_c(gpool_h);
 }
 
 /** 全局 H2 连接池 API 是否可用。 */
-function global_pool_is_available(): bool {
+export function global_pool_is_available(): bool {
   if (http2_libc_global_pool_is_available_c() != 0) { return true; }
   return false;
 }
 
 /** 全局 H2 连接池 C 烟测；0 通过。 */
-function global_pool_smoke(): i32 {
+export function global_pool_smoke(): i32 {
   return http2_libc_global_pool_smoke_c();
 }
 
 /** HTTP/2 v1 收口烟测（RST + 全局池 GOAWAY）；0 通过。 */
-function complete_smoke(): i32 {
+export function complete_smoke(): i32 {
   return http2_libc_http2_complete_smoke_c();
 }
 
@@ -3015,7 +3015,7 @@ function complete_smoke(): i32 {
  * accept 一个 h2c 连接并处理单次 GET 请求（200 + body）。
  * listener_fd 来自 listen()；失败 -1 或 err_server(-1240)。
  */
-function serve_h2c_one(listener_fd: i32, body: *u8, body_len: i32, timeout_ms: u32): i32 {
+export function serve_h2c_one(listener_fd: i32, body: *u8, body_len: i32, timeout_ms: u32): i32 {
   return http2_libc_serve_h2c_one_c(listener_fd, body, body_len, timeout_ms);
 }
 
@@ -3023,27 +3023,27 @@ function serve_h2c_one(listener_fd: i32, body: *u8, body_len: i32, timeout_ms: u
  * accept 一个 h2c 连接：单次 GET 200+body 后发 GOAWAY 再关闭。
  * last_stream_id 写入 GOAWAY payload（通常为 1）。
  */
-function serve_h2c_one_with_goaway(listener_fd: i32, body: *u8, body_len: i32, last_stream_id: i32, timeout_ms: u32): i32 {
+export function serve_h2c_one_with_goaway(listener_fd: i32, body: *u8, body_len: i32, last_stream_id: i32, timeout_ms: u32): i32 {
   return http2_libc_serve_h2c_one_with_goaway_c(listener_fd, body, body_len, last_stream_id, timeout_ms);
 }
 
 /** 对已 accept 的 h2c client fd 处理单次 GET 并回 200+body。 */
-function server_serve_h2c(client_fd: i32, body: *u8, body_len: i32): i32 {
+export function server_serve_h2c(client_fd: i32, body: *u8, body_len: i32): i32 {
   return http2_libc_server_serve_h2c_c(client_fd, body, body_len);
 }
 
 /** 对已连接 h2c fd：单次 GET 200+body 后发 GOAWAY（NO_ERROR）。 */
-function server_serve_h2c_with_goaway(client_fd: i32, body: *u8, body_len: i32, last_stream_id: i32): i32 {
+export function server_serve_h2c_with_goaway(client_fd: i32, body: *u8, body_len: i32, last_stream_id: i32): i32 {
   return http2_libc_server_serve_h2c_with_goaway_c(client_fd, body, body_len, last_stream_id);
 }
 
 /** accept 一个 h2c 连接并回显单次 client PING（PONG）。 */
-function serve_h2c_one_ping_echo(listener_fd: i32, timeout_ms: u32): i32 {
+export function serve_h2c_one_ping_echo(listener_fd: i32, timeout_ms: u32): i32 {
   return http2_libc_serve_h2c_one_ping_echo_c(listener_fd, timeout_ms);
 }
 
 /** 对已连接 h2c fd：handshake 后读 PING 并回 PONG。 */
-function server_serve_h2c_ping_echo(client_fd: i32): i32 {
+export function server_serve_h2c_ping_echo(client_fd: i32): i32 {
   return http2_libc_server_serve_h2c_ping_echo_c(client_fd);
 }
 
@@ -3051,58 +3051,58 @@ function server_serve_h2c_ping_echo(client_fd: i32): i32 {
  * accept 一个 h2c 连接：发 PUSH_PROMISE + push 资源，再回主 GET 200+body。
  * push_path/push_body 为 promised stream 上的 GET 资源；失败 -1240/-1242。
  */
-function serve_h2c_one_with_push(listener_fd: i32, body: *u8, body_len: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32, timeout_ms: u32): i32 {
+export function serve_h2c_one_with_push(listener_fd: i32, body: *u8, body_len: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32, timeout_ms: u32): i32 {
   return http2_libc_serve_h2c_one_with_push_c(listener_fd, body, body_len, authority, authority_len, push_path, push_path_len, push_body, push_body_len, timeout_ms);
 }
 
 /** 对已连接 h2c fd：PUSH_PROMISE + push body + 主 GET 200+body。 */
-function server_serve_h2c_with_push(client_fd: i32, body: *u8, body_len: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32): i32 {
+export function server_serve_h2c_with_push(client_fd: i32, body: *u8, body_len: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32): i32 {
   return http2_libc_server_serve_h2c_with_push_c(client_fd, body, body_len, authority, authority_len, push_path, push_path_len, push_body, push_body_len);
 }
 
 /** HTTP/2 server push 发送侧 API 是否可用（v17）。 */
-function server_push_is_available(): bool {
+export function server_push_is_available(): bool {
   if (http2_libc_server_push_is_available_c() != 0) { return true; }
   return false;
 }
 
 /** server push 烟测（离线 PUSH_PROMISE + fork h2c/h2 集成）；0 通过。 */
-function server_push_smoke(): i32 {
+export function server_push_smoke(): i32 {
   return http2_libc_server_push_smoke_c();
 }
 
 /** TLS h2 server push fork 烟测；TLS 不可用时 C 层跳过返回 0。 */
-function server_push_tls_smoke(): i32 {
+export function server_push_tls_smoke(): i32 {
   return http2_libc_server_push_tls_smoke_c();
 }
 
 /** server push ENABLE_PUSH 协商烟测（client=0 时软拒绝）；0 通过。 */
-function server_push_settings_smoke(): i32 {
+export function server_push_settings_smoke(): i32 {
   return http2_libc_server_push_settings_smoke_c();
 }
 
 /** server 全量 SETTINGS 协商烟测（fork 读 server SETTINGS）；0 通过。 */
-function server_settings_full_smoke(): i32 {
+export function server_settings_full_smoke(): i32 {
   return http2_libc_server_settings_full_smoke_c();
 }
 
 /** server HPACK 动态表 + 多 stream 集成烟测；0 通过。 */
-function server_hpack_dyn_smoke(): i32 {
+export function server_hpack_dyn_smoke(): i32 {
   return http2_libc_server_hpack_dyn_smoke_c();
 }
 
 /** server MAX_FRAME_SIZE 分片 DATA 烟测；0 通过。 */
-function server_max_frame_smoke(): i32 {
+export function server_max_frame_smoke(): i32 {
   return http2_libc_server_max_frame_smoke_c();
 }
 
 /** GOAWAY 编解码 + h2c fork 集成烟测；0 通过。 */
-function conn_goaway_smoke(): i32 {
+export function conn_goaway_smoke(): i32 {
   return http2_libc_conn_goaway_smoke_c();
 }
 
 /** PING/PONG 编解码 + h2c fork 集成烟测；0 通过。 */
-function conn_ping_smoke(): i32 {
+export function conn_ping_smoke(): i32 {
   return http2_libc_conn_ping_smoke_c();
 }
 
@@ -3110,12 +3110,12 @@ function conn_ping_smoke(): i32 {
  * accept 一个 h2c 连接并顺序 serve 至多 max_requests 个 GET。
  * 成功返回 serve 次数（>=1）。
  */
-function serve_h2c_multi_one(listener_fd: i32, body: *u8, body_len: i32, max_requests: i32, timeout_ms: u32): i32 {
+export function serve_h2c_multi_one(listener_fd: i32, body: *u8, body_len: i32, max_requests: i32, timeout_ms: u32): i32 {
   return http2_libc_serve_h2c_multi_one_c(listener_fd, body, body_len, max_requests, timeout_ms);
 }
 
 /** 对已连接 h2c fd 顺序 serve 至多 max_requests 个 GET。 */
-function server_serve_h2c_multi(client_fd: i32, body: *u8, body_len: i32, max_requests: i32): i32 {
+export function server_serve_h2c_multi(client_fd: i32, body: *u8, body_len: i32, max_requests: i32): i32 {
   return http2_libc_server_serve_h2c_multi_c(client_fd, body, body_len, max_requests);
 }
 
@@ -3123,23 +3123,23 @@ function server_serve_h2c_multi(client_fd: i32, body: *u8, body_len: i32, max_re
  * accept 一个 h2c 连接并顺序 serve 至多 max_requests 个带 push 的 GET。
  * 成功返回 serve 次数（>=1）；失败 -1240/-1242。
  */
-function serve_h2c_multi_one_with_push(listener_fd: i32, body: *u8, body_len: i32, max_requests: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32, timeout_ms: u32): i32 {
+export function serve_h2c_multi_one_with_push(listener_fd: i32, body: *u8, body_len: i32, max_requests: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32, timeout_ms: u32): i32 {
   return http2_libc_serve_h2c_multi_one_with_push_c(listener_fd, body, body_len, max_requests, authority, authority_len, push_path, push_path_len, push_body, push_body_len, timeout_ms);
 }
 
 /** 对已连接 h2c fd 顺序 serve 至多 max_requests 个带 push 的 GET。 */
-function server_serve_h2c_multi_with_push(client_fd: i32, body: *u8, body_len: i32, max_requests: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32): i32 {
+export function server_serve_h2c_multi_with_push(client_fd: i32, body: *u8, body_len: i32, max_requests: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32): i32 {
   return http2_libc_server_serve_h2c_multi_with_push_c(client_fd, body, body_len, max_requests, authority, authority_len, push_path, push_path_len, push_body, push_body_len);
 }
 
 /** HTTP/2 h2c server API 是否可用。 */
-function server_is_available(): bool {
+export function server_is_available(): bool {
   if (http2_libc_server_is_available_c() != 0) { return true; }
   return false;
 }
 
 /** HTTP/2 h2c server C 烟测（含 fork 集成）；0 通过。 */
-function server_smoke(): i32 {
+export function server_smoke(): i32 {
   return http2_libc_server_smoke_c();
 }
 
@@ -3147,12 +3147,12 @@ function server_smoke(): i32 {
  * 从 PEM 创建 h2 over TLS 服务端上下文；须 net.tls 可用。
  * 失败返回 0。
  */
-function tls_server_ctx_create(cert_pem: *u8, cert_len: i32, key_pem: *u8, key_len: i32): i64 {
+export function tls_server_ctx_create(cert_pem: *u8, cert_len: i32, key_pem: *u8, key_len: i32): i64 {
   return http2_libc_tls_server_ctx_create_c(cert_pem, cert_len, key_pem, key_len);
 }
 
 /** 销毁 h2 TLS 服务端上下文。 */
-function tls_server_ctx_destroy(srv_ctx_h: i64): void {
+export function tls_server_ctx_destroy(srv_ctx_h: i64): void {
   http2_libc_tls_server_ctx_destroy_c(srv_ctx_h);
 }
 
@@ -3160,7 +3160,7 @@ function tls_server_ctx_destroy(srv_ctx_h: i64): void {
  * accept + TLS + h2 GET serve（200 + body）。
  * srv_ctx 来自 tls_server_ctx_create；失败 -1 或 err_server_tls(-1241)。
  */
-function serve_h2_one(listener_fd: i32, srv_ctx_h: i64, body: *u8, body_len: i32, timeout_ms: u32): i32 {
+export function serve_h2_one(listener_fd: i32, srv_ctx_h: i64, body: *u8, body_len: i32, timeout_ms: u32): i32 {
   return http2_libc_serve_h2_one_c(listener_fd, srv_ctx_h, body, body_len, timeout_ms);
 }
 
@@ -3168,255 +3168,255 @@ function serve_h2_one(listener_fd: i32, srv_ctx_h: i64, body: *u8, body_len: i32
  * accept + TLS + h2 GET serve 带 push（PUSH_PROMISE + push 资源 + 主 200+body）。
  * srv_ctx 来自 tls_server_ctx_create；失败 -1240/-1241/-1242。
  */
-function serve_h2_one_with_push(listener_fd: i32, srv_ctx_h: i64, body: *u8, body_len: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32, timeout_ms: u32): i32 {
+export function serve_h2_one_with_push(listener_fd: i32, srv_ctx_h: i64, body: *u8, body_len: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32, timeout_ms: u32): i32 {
   return http2_libc_serve_h2_one_with_push_c(listener_fd, srv_ctx_h, body, body_len, authority, authority_len, push_path, push_path_len, push_body, push_body_len, timeout_ms);
 }
 
 /** 对已 TLS+ALPN h2 会话处理单次 GET 并回 200+body。 */
-function server_serve_h2(tls_ctx: i64, body: *u8, body_len: i32): i32 {
+export function server_serve_h2(tls_ctx: i64, body: *u8, body_len: i32): i32 {
   return http2_libc_server_serve_h2_c(tls_ctx, body, body_len);
 }
 
 /** 对已 TLS+h2 会话：PUSH_PROMISE + push body + 主 GET 200+body。 */
-function server_serve_h2_with_push(tls_ctx: i64, body: *u8, body_len: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32): i32 {
+export function server_serve_h2_with_push(tls_ctx: i64, body: *u8, body_len: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32): i32 {
   return http2_libc_server_serve_h2_with_push_c(tls_ctx, body, body_len, authority, authority_len, push_path, push_path_len, push_body, push_body_len);
 }
 
 /**
  * accept + TLS + 至多 max_requests 个 GET serve；成功返回 serve 次数。
  */
-function serve_h2_multi_one(listener_fd: i32, srv_ctx_h: i64, body: *u8, body_len: i32, max_requests: i32, timeout_ms: u32): i32 {
+export function serve_h2_multi_one(listener_fd: i32, srv_ctx_h: i64, body: *u8, body_len: i32, max_requests: i32, timeout_ms: u32): i32 {
   return http2_libc_serve_h2_multi_one_c(listener_fd, srv_ctx_h, body, body_len, max_requests, timeout_ms);
 }
 
 /** 对已 TLS+h2 会话顺序 serve 至多 max_requests 个 GET。 */
-function server_serve_h2_multi(tls_ctx: i64, body: *u8, body_len: i32, max_requests: i32): i32 {
+export function server_serve_h2_multi(tls_ctx: i64, body: *u8, body_len: i32, max_requests: i32): i32 {
   return http2_libc_server_serve_h2_multi_c(tls_ctx, body, body_len, max_requests);
 }
 
 /**
  * accept + TLS + 至多 max_requests 个带 push 的 GET serve；成功返回 serve 次数。
  */
-function serve_h2_multi_one_with_push(listener_fd: i32, srv_ctx_h: i64, body: *u8, body_len: i32, max_requests: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32, timeout_ms: u32): i32 {
+export function serve_h2_multi_one_with_push(listener_fd: i32, srv_ctx_h: i64, body: *u8, body_len: i32, max_requests: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32, timeout_ms: u32): i32 {
   return http2_libc_serve_h2_multi_one_with_push_c(listener_fd, srv_ctx_h, body, body_len, max_requests, authority, authority_len, push_path, push_path_len, push_body, push_body_len, timeout_ms);
 }
 
 /** 对已 TLS+h2 会话顺序 serve 至多 max_requests 个带 push 的 GET。 */
-function server_serve_h2_multi_with_push(tls_ctx: i64, body: *u8, body_len: i32, max_requests: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32): i32 {
+export function server_serve_h2_multi_with_push(tls_ctx: i64, body: *u8, body_len: i32, max_requests: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32): i32 {
   return http2_libc_server_serve_h2_multi_with_push_c(tls_ctx, body, body_len, max_requests, authority, authority_len, push_path, push_path_len, push_body, push_body_len);
 }
 
 /** server 多 stream API 是否可用。 */
-function server_multistream_is_available(): bool {
+export function server_multistream_is_available(): bool {
   if (http2_libc_server_multistream_is_available_c() != 0) { return true; }
   return false;
 }
 
 /** server 多 stream C 烟测；0 通过。 */
-function server_multistream_smoke(): i32 {
+export function server_multistream_smoke(): i32 {
   return http2_libc_server_multistream_smoke_c();
 }
 
 /** HTTP/2 server 多 stream + push API 是否可用（v19）。 */
-function server_multistream_push_is_available(): bool {
+export function server_multistream_push_is_available(): bool {
   if (http2_libc_server_multistream_push_is_available_c() != 0) { return true; }
   return false;
 }
 
 /** server 多 stream + push 烟测（h2c + TLS fork 集成）；0 通过。 */
-function server_multistream_push_smoke(): i32 {
+export function server_multistream_push_smoke(): i32 {
   return http2_libc_server_multistream_push_smoke_c();
 }
 
 /** h2c URL 客户端 C 烟测（https 须 SCHEME 错误）；0 通过。 */
-function h2c_client_smoke(): i32 {
+export function h2c_client_smoke(): i32 {
   return http_libc_h2c_client_smoke_c();
 }
 
 /** 注册表最大 stream 槽位数（8）。 */
-function registry_max(): i32 { return 8; }
+export function registry_max(): i32 { return 8; }
 
 /** 初始化 stream 注册表；下一 id 从 1（奇数）开始。 */
-function init(reg: *Http2StreamRegistry): void {
+export function init(reg: *Http2StreamRegistry): void {
   http2_libc_stream_registry_init_c(reg);
 }
 
 /** 分配并登记新 stream id；表满 -1。 */
-function open(reg: *Http2StreamRegistry): i32 {
+export function open(reg: *Http2StreamRegistry): i32 {
   return http2_libc_stream_registry_open_c(reg);
 }
 
 /** 关闭 stream（保留槽位）。 */
-function close(reg: *Http2StreamRegistry, stream_id: i32): void {
+export function close(reg: *Http2StreamRegistry, stream_id: i32): void {
   http2_libc_stream_registry_close_c(reg, stream_id);
 }
 
 /** stream 是否 open；1 是，0 否。 */
-function is_open(reg: *Http2StreamRegistry, stream_id: i32): bool {
+export function is_open(reg: *Http2StreamRegistry, stream_id: i32): bool {
   if (http2_libc_stream_registry_is_open_c(reg, stream_id) != 0) { return true; }
   return false;
 }
 
 /** 多 stream 注册表 C 烟测；0 通过。 */
-function registry_smoke(): i32 {
+export function registry_smoke(): i32 {
   return http2_libc_stream_registry_smoke_c();
 }
 
 /** 初始化对端 SETTINGS 视图。 */
-function peer_settings_init(ps: *Http2PeerSettings): void {
+export function peer_settings_init(ps: *Http2PeerSettings): void {
   http2_libc_peer_settings_init_c(ps);
 }
 
 /** SETTINGS payload 6 字节条目数；plen 非 6 倍数 -1。 */
-function settings_entry_count(plen: i32): i32 {
+export function settings_entry_count(plen: i32): i32 {
   return http2_libc_settings_entry_count_c(plen);
 }
 
 /** 读取 SETTINGS payload 第 entry_index 条；无条目 -2。 */
-function parse_settings_entry(payload: *u8, plen: i32, entry_index: i32, out_id: *i32, out_value: *i32): i32 {
+export function parse_settings_entry(payload: *u8, plen: i32, entry_index: i32, out_id: *i32, out_value: *i32): i32 {
   return http2_libc_parse_settings_entry_c(payload, plen, entry_index, out_id, out_value);
 }
 
 /** 应用单条 SETTINGS 到对端视图。 */
-function peer_settings_apply_entry(ps: *Http2PeerSettings, setting_id: i32, value: i32): void {
+export function peer_settings_apply_entry(ps: *Http2PeerSettings, setting_id: i32, value: i32): void {
   http2_libc_peer_settings_apply_entry_c(ps, setting_id, value);
 }
 
 /** 解析完整 SETTINGS payload 并累加。 */
-function peer_settings_consume_payload(payload: *u8, plen: i32, ps: *Http2PeerSettings): i32 {
+export function peer_settings_consume_payload(payload: *u8, plen: i32, ps: *Http2PeerSettings): i32 {
   return http2_libc_peer_settings_consume_payload_c(payload, plen, ps);
 }
 
 /** 构建客户端 SETTINGS（含 ENABLE_PUSH=1）；成功 27。 */
-function build_client_settings(max_streams: i32, initial_window: i32, out: *u8, out_cap: i32): i32 {
+export function build_client_settings(max_streams: i32, initial_window: i32, out: *u8, out_cap: i32): i32 {
   return http2_libc_build_client_settings_c(max_streams, initial_window, out, out_cap);
 }
 
 /** 构建含 ENABLE_PUSH 的客户端 SETTINGS 帧；enable_push 0=拒绝 server push。 */
-function build_client_settings_ex(max_streams: i32, initial_window: i32, enable_push: i32, out: *u8, out_cap: i32): i32 {
+export function build_client_settings_ex(max_streams: i32, initial_window: i32, enable_push: i32, out: *u8, out_cap: i32): i32 {
   return http2_libc_build_client_settings_ex_c(max_streams, initial_window, enable_push, out, out_cap);
 }
 
 /** 构建含 MAX_FRAME_SIZE 的 client SETTINGS 帧；成功 33。 */
-function build_client_settings_with_max_frame(max_streams: i32, initial_window: i32, enable_push: i32, max_frame_size: i32, out: *u8, out_cap: i32): i32 {
+export function build_client_settings_with_max_frame(max_streams: i32, initial_window: i32, enable_push: i32, max_frame_size: i32, out: *u8, out_cap: i32): i32 {
   return http2_libc_build_client_settings_with_max_frame_c(max_streams, initial_window, enable_push, max_frame_size, out, out_cap);
 }
 
 /** 构建 server 全量 SETTINGS 帧（含 HEADER_TABLE_SIZE/MAX_FRAME_SIZE）；成功 39。 */
-function build_server_settings(out: *u8, out_cap: i32): i32 {
+export function build_server_settings(out: *u8, out_cap: i32): i32 {
   return http2_libc_build_server_settings_c(out, out_cap);
 }
 
 /** 对端是否允许 server push（ENABLE_PUSH=0 时 false）。 */
-function peer_settings_enable_push(ps: *Http2PeerSettings): bool {
+export function peer_settings_enable_push(ps: *Http2PeerSettings): bool {
   if (http2_libc_peer_settings_enable_push_c(ps) != 0) { return true; }
   return false;
 }
 
 /** 对端 HEADER_TABLE_SIZE（未设置时 4096）。 */
-function peer_settings_header_table_size(ps: *Http2PeerSettings): i32 {
+export function peer_settings_header_table_size(ps: *Http2PeerSettings): i32 {
   return http2_libc_peer_settings_header_table_size_c(ps);
 }
 
 /** 对端 MAX_FRAME_SIZE（未设置时 16384）。 */
-function peer_settings_max_frame_size(ps: *Http2PeerSettings): i32 {
+export function peer_settings_max_frame_size(ps: *Http2PeerSettings): i32 {
   return http2_libc_peer_settings_max_frame_size_c(ps);
 }
 
 /** 对端 MAX_HEADER_LIST_SIZE（未设置时 0=无限制）。 */
-function peer_settings_max_header_list_size(ps: *Http2PeerSettings): i32 {
+export function peer_settings_max_header_list_size(ps: *Http2PeerSettings): i32 {
   return http2_libc_peer_settings_max_header_list_size_c(ps);
 }
 
 /** 有效并发 stream 上限（未设置时默认 100）。 */
-function peer_settings_max_streams(ps: *Http2PeerSettings): i32 {
+export function peer_settings_max_streams(ps: *Http2PeerSettings): i32 {
   return http2_libc_peer_settings_max_streams_c(ps);
 }
 
 /** 有效初始窗口（未设置时 65535）。 */
-function peer_settings_initial_window(ps: *Http2PeerSettings): i32 {
+export function peer_settings_initial_window(ps: *Http2PeerSettings): i32 {
   return http2_libc_peer_settings_initial_window_c(ps);
 }
 
 /** SETTINGS 解析 C 烟测；0 通过。 */
-function settings_smoke(): i32 {
+export function settings_smoke(): i32 {
   return http2_libc_settings_smoke_c();
 }
 
 /** 初始化多 stream 并发客户端。 */
-function client_init(cli: *Http2MultistreamClient): void {
+export function client_init(cli: *Http2MultistreamClient): void {
   http2_libc_multistream_client_init_c(cli);
 }
 
 /** 应用对端 SETTINGS payload。 */
-function client_on_settings(cli: *Http2MultistreamClient, payload: *u8, plen: i32): i32 {
+export function client_on_settings(cli: *Http2MultistreamClient, payload: *u8, plen: i32): i32 {
   return http2_libc_multistream_client_on_settings_c(cli, payload, plen);
 }
 
 /** 在 SETTINGS 限制内 open stream；超上限 err_max_streams(-1236)。 */
-function client_open(cli: *Http2MultistreamClient): i32 {
+export function client_open(cli: *Http2MultistreamClient): i32 {
   return http2_libc_multistream_client_open_stream_c(cli);
 }
 
 /** 关闭 stream。 */
-function client_close(cli: *Http2MultistreamClient, stream_id: i32): void {
+export function client_close(cli: *Http2MultistreamClient, stream_id: i32): void {
   http2_libc_multistream_client_close_stream_c(cli, stream_id);
 }
 
 /** 在指定 stream 构建 GET HEADERS 帧。 */
-function client_get(cli: *Http2MultistreamClient, stream_id: i32, authority: *u8, authority_len: i32, path: *u8, path_len: i32, out: *u8, out_cap: i32): i32 {
+export function client_get(cli: *Http2MultistreamClient, stream_id: i32, authority: *u8, authority_len: i32, path: *u8, path_len: i32, out: *u8, out_cap: i32): i32 {
   return http2_libc_multistream_client_build_get_c(cli, stream_id, authority, authority_len, path, path_len, out, out_cap);
 }
 
 /** 并发构建 n 个 GET HEADERS 帧（依次 open stream）。 */
-function client_parallel_get(cli: *Http2MultistreamClient, authority: *u8, authority_len: i32, path: *u8, path_len: i32, n_reqs: i32, out: *u8, out_cap: i32): i32 {
+export function client_parallel_get(cli: *Http2MultistreamClient, authority: *u8, authority_len: i32, path: *u8, path_len: i32, n_reqs: i32, out: *u8, out_cap: i32): i32 {
   return http2_libc_multistream_client_build_parallel_get_c(cli, authority, authority_len, path, path_len, n_reqs, out, out_cap);
 }
 
 /** 多 stream 并发客户端 C 烟测；0 通过。 */
-function multistream_client_smoke(): i32 {
+export function multistream_client_smoke(): i32 {
   return http2_libc_multistream_client_smoke_c();
 }
 
 /** 单连接复用 API 是否可用。 */
-function conn_reuse_is_available(): bool {
+export function conn_reuse_is_available(): bool {
   if (http2_libc_conn_reuse_is_available_c() != 0) { return true; }
   return false;
 }
 
 /** 初始化可复用 HTTP/2 连接。 */
-function conn_init(conn: *Http2Conn): void {
+export function conn_init(conn: *Http2Conn): void {
   http2_libc_conn_init_c(conn);
 }
 
 /** 绑定 cleartext h2c fd（须已 connect）。 */
-function conn_attach_h2c(fd: i32, conn: *Http2Conn): i32 {
+export function conn_attach_h2c(fd: i32, conn: *Http2Conn): i32 {
   return http2_libc_conn_attach_h2c_c(fd, conn);
 }
 
 /** 绑定已协商 h2 的 TLS ctx。 */
-function conn_attach_tls(tls_ctx: i64, conn: *Http2Conn): i32 {
+export function conn_attach_tls(tls_ctx: i64, conn: *Http2Conn): i32 {
   return http2_libc_conn_attach_tls_c(tls_ctx, conn);
 }
 
 /** 连接是否已完成 handshake。 */
-function conn_is_ready(conn: *Http2Conn): bool {
+export function conn_is_ready(conn: *Http2Conn): bool {
   if (http2_libc_conn_is_ready_c(conn) != 0) { return true; }
   return false;
 }
 
 /** 发送 preface + SETTINGS 并完成协商；成功 0。 */
-function conn_handshake(conn: *Http2Conn): i32 {
+export function conn_handshake(conn: *Http2Conn): i32 {
   return http2_libc_conn_handshake_c(conn);
 }
 
 /** handshake 并显式设置 client ENABLE_PUSH（0=拒绝 server push）。 */
-function conn_handshake_with_enable_push(conn: *Http2Conn, client_enable_push: i32): i32 {
+export function conn_handshake_with_enable_push(conn: *Http2Conn, client_enable_push: i32): i32 {
   return http2_libc_conn_handshake_with_enable_push_c(conn, client_enable_push);
 }
 
 /** handshake 并声明 client MAX_FRAME_SIZE（server 分片 DATA 联动）。 */
-function conn_handshake_with_max_frame(conn: *Http2Conn, client_max_frame_size: i32): i32 {
+export function conn_handshake_with_max_frame(conn: *Http2Conn, client_max_frame_size: i32): i32 {
   return http2_libc_conn_handshake_with_max_frame_c(conn, client_max_frame_size);
 }
 
@@ -3424,115 +3424,115 @@ function conn_handshake_with_max_frame(conn: *Http2Conn, client_max_frame_size: 
  * 在已 ready 连接上发单请求（新 stream）并读响应。
  * 未 handshake 返回 err_conn_not_ready(-1237)。
  */
-function conn_request(conn: *Http2Conn, method: Method, authority: *u8, authority_len: i32, path: *u8, path_len: i32, body: *u8, body_len: i32, out: *u8, out_cap: i32): i32 {
+export function conn_request(conn: *Http2Conn, method: Method, authority: *u8, authority_len: i32, path: *u8, path_len: i32, body: *u8, body_len: i32, out: *u8, out_cap: i32): i32 {
   return http2_libc_conn_request_c(conn, method(method), authority, authority_len, path, path_len, body, body_len, out, out_cap);
 }
 
 /** 标记连接关闭（不 shutdown 底层 fd/TLS）。 */
-function conn_close(conn: *Http2Conn): void {
+export function conn_close(conn: *Http2Conn): void {
   http2_libc_conn_close_c(conn);
 }
 
 /**
  * 向对端发 GOAWAY 后 shutdown 底层 fd/TLS（连接优雅关闭）。
  */
-function conn_shutdown_graceful(conn: *Http2Conn, last_stream_id: i32, code: i32): void {
+export function conn_shutdown_graceful(conn: *Http2Conn, last_stream_id: i32, code: i32): void {
   http2_libc_conn_shutdown_graceful_c(conn, last_stream_id, code);
 }
 
 /** 读下一 GOAWAY 帧；非 GOAWAY 返回 err_goaway(-1244)。 */
-function conn_read_goaway(conn: *Http2Conn, out_last_stream: *i32, out_code: *i32): i32 {
+export function conn_read_goaway(conn: *Http2Conn, out_last_stream: *i32, out_code: *i32): i32 {
   return http2_libc_conn_read_goaway_c(conn, out_last_stream, out_code);
 }
 
 /** 在已 ready 连接上发 PING 并等待匹配 PONG；失败 err_ping(-1245)。 */
-function conn_ping(conn: *Http2Conn, opaque: *u8): i32 {
+export function conn_ping(conn: *Http2Conn, opaque: *u8): i32 {
   return http2_libc_conn_ping_c(conn, opaque);
 }
 
 /** 连接是否已收到对端 GOAWAY（不可再复用）。 */
-function conn_goaway_seen(conn: *Http2Conn): bool {
+export function conn_goaway_seen(conn: *Http2Conn): bool {
   if (http2_libc_conn_goaway_seen_c(conn) != 0) { return true; }
   return false;
 }
 
 /** 连接是否可归还 H2 连接池 idle 栈。 */
-function conn_is_pool_reusable(conn: *Http2Conn): bool {
+export function conn_is_pool_reusable(conn: *Http2Conn): bool {
   if (http2_libc_conn_is_pool_reusable_c(conn) != 0) { return true; }
   return false;
 }
 
 /** 向对端发送 RST_STREAM 取消 stream；失败 err_rst_stream(-1246) 读路径。 */
-function conn_reset_stream(conn: *Http2Conn, stream_id: i32, code: i32): i32 {
+export function conn_reset_stream(conn: *Http2Conn, stream_id: i32, code: i32): i32 {
   return http2_libc_conn_reset_stream_c(conn, stream_id, code);
 }
 
 /** 单连接复用 C 烟测；0 通过。 */
-function conn_reuse_smoke(): i32 {
+export function conn_reuse_smoke(): i32 {
   return http2_libc_conn_reuse_smoke_c();
 }
 
 /** ALPN 协议名 "h2" 长度（2）。 */
-function alpn_h2_len(): i32 {
+export function alpn_h2_len(): i32 {
   return http2_libc_alpn_h2_len_c();
 }
 
 /** 将 ALPN "h2" 写入 out；成功返回 2。 */
-function write_alpn_h2(out: *u8, out_cap: i32): i32 {
+export function write_alpn_h2(out: *u8, out_cap: i32): i32 {
   return http2_libc_write_alpn_h2_c(out, out_cap);
 }
 
 /** HTTP/2 线格式 C 烟测；0 通过。 */
-function smoke(): i32 {
+export function smoke(): i32 {
   return http2_libc_smoke_c();
 }
 
 /** WINDOW_UPDATE 帧类型（RFC 7540 §6.9）。 */
-function frame_window_update(): i32 { return 8; }
+export function frame_window_update(): i32 { return 8; }
 
 /** 默认初始流控窗口（65535）。 */
-function default_initial_window(): i32 {
+export function default_initial_window(): i32 {
   return http2_libc_default_initial_window_c();
 }
 
 /** 构建 WINDOW_UPDATE 帧；成功返回 13。 */
-function build_window_update(stream_id: i32, increment: i32, out: *u8, out_cap: i32): i32 {
+export function build_window_update(stream_id: i32, increment: i32, out: *u8, out_cap: i32): i32 {
   return http2_libc_build_window_update_c(stream_id, increment, out, out_cap);
 }
 
 /** HPACK Huffman 解码（RFC 7541）；成功返回解码字节数。 */
-function hpack_huffman_decode(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
+export function hpack_huffman_decode(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
   return http2_libc_hpack_huffman_decode_c(in, in_len, out, out_cap);
 }
 
 /** HPACK Huffman 是否可用。 */
-function hpack_huffman_is_available(): bool {
+export function hpack_huffman_is_available(): bool {
   if (http2_libc_hpack_huffman_is_available_c() != 0) { return true; }
   return false;
 }
 
 /** Huffman + 流控 C 烟测（含于 network_smoke）。 */
-function hpack_huffman_smoke(): i32 {
+export function hpack_huffman_smoke(): i32 {
   return http2_libc_hpack_huffman_smoke_c();
 }
 
 /** 流控 WINDOW_UPDATE C 烟测；0 通过。 */
-function flow_control_smoke(): i32 {
+export function flow_control_smoke(): i32 {
   return http2_libc_flow_control_smoke_c();
 }
 
 /** 初始化连接/流窗口为默认 65535。 */
-function flow_state_init(st: *Http2FlowState): void {
+export function flow_state_init(st: *Http2FlowState): void {
   http2_libc_flow_state_init_c(st);
 }
 
 /** 重置流窗口（保留连接窗口）；用于新 stream。 */
-function flow_state_reset_stream(st: *Http2FlowState, initial_window: i32): void {
+export function flow_state_reset_stream(st: *Http2FlowState, initial_window: i32): void {
   http2_libc_flow_state_reset_stream_c(st, initial_window);
 }
 
 /** 应用 SETTINGS INITIAL_WINDOW_SIZE 到新 stream 基准。 */
-function flow_state_apply_initial_window(st: *Http2FlowState, initial_window: i32): void {
+export function flow_state_apply_initial_window(st: *Http2FlowState, initial_window: i32): void {
   http2_libc_flow_state_apply_initial_window_c(st, initial_window);
 }
 
@@ -3540,17 +3540,17 @@ function flow_state_apply_initial_window(st: *Http2FlowState, initial_window: i3
  * 应用 WINDOW_UPDATE：stream_id=0 增连接窗口，否则增流窗口。
  * 成功 0；increment 非法 -1。
  */
-function flow_state_apply_window_update(st: *Http2FlowState, stream_id: i32, increment: i32): i32 {
+export function flow_state_apply_window_update(st: *Http2FlowState, stream_id: i32, increment: i32): i32 {
   return http2_libc_flow_state_apply_window_update_c(st, stream_id, increment);
 }
 
 /** 返回当前可发送字节数 min(conn, stream, want)；0 表示背压阻塞。 */
-function flow_state_max_send(st: *Http2FlowState, want: i32): i32 {
+export function flow_state_max_send(st: *Http2FlowState, want: i32): i32 {
   return http2_libc_flow_state_max_send_c(st, want);
 }
 
 /** want 字节是否可发送（true 可发，false 背压）。 */
-function flow_state_can_send(st: *Http2FlowState, want: i32): bool {
+export function flow_state_can_send(st: *Http2FlowState, want: i32): bool {
   if (http2_libc_flow_state_can_send_c(st, want) != 0) { return true; }
   return false;
 }
@@ -3559,76 +3559,76 @@ function flow_state_can_send(st: *Http2FlowState, want: i32): bool {
  * 发送 DATA 后扣减连接/流窗口。
  * 窗口不足返回 err_flow_blocked(-1232)；成功 0。
  */
-function flow_state_consume_send(st: *Http2FlowState, nbytes: i32): i32 {
+export function flow_state_consume_send(st: *Http2FlowState, nbytes: i32): i32 {
   return http2_libc_flow_state_consume_send_c(st, nbytes);
 }
 
 /** 解析 WINDOW_UPDATE payload（4 字节）；成功 0，失败 -1。 */
-function parse_window_update_payload(payload: *u8, plen: i32, out_increment: *i32): i32 {
+export function parse_window_update_payload(payload: *u8, plen: i32, out_increment: *i32): i32 {
   return http2_libc_parse_window_update_payload_c(payload, plen, out_increment);
 }
 
 /** 流控状态机 C 烟测；0 通过。 */
-function flow_state_smoke(): i32 {
+export function flow_state_smoke(): i32 {
   return http2_libc_flow_state_smoke_c();
 }
 
 /** PUSH_PROMISE 帧类型（RFC 7540 §6.6）。 */
-function frame_push_promise(): i32 {
+export function frame_push_promise(): i32 {
   return http2_libc_frame_push_promise_c();
 }
 
 /** ftype 是否为 PUSH_PROMISE。 */
-function is_push_promise_frame(ftype: i32): bool {
+export function is_push_promise_frame(ftype: i32): bool {
   if (http2_libc_is_push_promise_frame_c(ftype) != 0) { return true; }
   return false;
 }
 
 /** 解析 PUSH_PROMISE promised stream id；成功 0。 */
-function parse_push_promise_stream(payload: *u8, plen: i32, out_promised_id: *i32): i32 {
+export function parse_push_promise_stream(payload: *u8, plen: i32, out_promised_id: *i32): i32 {
   return http2_libc_parse_push_promise_stream_c(payload, plen, out_promised_id);
 }
 
 /** 检测 HTTP/1.1 101 + Upgrade: h2c 响应。 */
-function is_h2c_upgrade_response(buf: *u8, len: i32): bool {
+export function is_h2c_upgrade_response(buf: *u8, len: i32): bool {
   if (http2_libc_is_h2c_upgrade_response_c(buf, len) != 0) { return true; }
   return false;
 }
 
 /** cleartext h2c TCP 会话 API 是否可用（v8）。 */
-function h2c_is_available(): bool {
+export function h2c_is_available(): bool {
   if (http2_libc_h2c_is_available_c() != 0) { return true; }
   return false;
 }
 
 /** push + h2c wire C 烟测；0 通过。 */
-function push_h2c_smoke(): i32 {
+export function push_h2c_smoke(): i32 {
   return http2_libc_push_h2c_smoke_c();
 }
 
 /** cleartext h2c 起始 preface 是否可用（v7 wire）。 */
-function h2c_wire_is_available(): bool {
+export function h2c_wire_is_available(): bool {
   if (http2_libc_h2c_wire_is_available_c() != 0) { return true; }
   return false;
 }
 
 /** 构建 h2c 直连起始 preface（24 字节）；成功返回 24。 */
-function h2c_session_begin(out: *u8, out_cap: i32): i32 {
+export function h2c_session_begin(out: *u8, out_cap: i32): i32 {
   return http2_libc_h2c_session_begin_c(out, out_cap);
 }
 
 /** push 资源离线收集 C 烟测；0 通过。 */
-function push_fetch_smoke(): i32 {
+export function push_fetch_smoke(): i32 {
   return http2_libc_push_fetch_smoke_c();
 }
 
 /** 重置读路径 push 收集状态。 */
-function push_last_reset(): void {
+export function push_last_reset(): void {
   http2_libc_push_last_reset_c();
 }
 
 /** 复制最近一次 push body；成功返回 body_len，无 push 返回 0。 */
-function push_last_copy(out_meta: *Http2PushLast, out_body: *u8, out_cap: i32): i32 {
+export function push_last_copy(out_meta: *Http2PushLast, out_body: *u8, out_cap: i32): i32 {
   return http2_libc_push_last_copy_c(out_meta, out_body, out_cap);
 }
 
@@ -3636,7 +3636,7 @@ function push_last_copy(out_meta: *Http2PushLast, out_body: *u8, out_cap: i32): 
  * 复制最近一次 push 资源到堆 body（std.heap.alloc）。
  * 无 push 时 body.len=0 返回 0；失败 -1。调用方须 body_owned_free(out_body)。
  */
-function push_last_body_owned(out_meta: *Http2PushLast, out_body: *HttpBodyOwned): i32 {
+export function push_last_body_owned(out_meta: *Http2PushLast, out_body: *HttpBodyOwned): i32 {
   let tmp: u8[4096] = [];
   let n: i32 = 0;
   let p: *u8 = 0;
@@ -3665,36 +3665,36 @@ function push_last_body_owned(out_meta: *Http2PushLast, out_body: *HttpBodyOwned
 }
 
 /** push 网络拉取 C 烟测；0 通过。 */
-function push_network_smoke(): i32 {
+export function push_network_smoke(): i32 {
   return http2_libc_push_network_smoke_c();
 }
 
 /** h2c 明文 TCP 会话 C 烟测；0 通过。 */
-function h2c_network_smoke(): i32 {
+export function h2c_network_smoke(): i32 {
   return http2_libc_h2c_network_smoke_c();
 }
 
 /** 初始化 recv 窗口为默认 65535。 */
-function flow_recv_init(st: *Http2FlowRecvState): void {
+export function flow_recv_init(st: *Http2FlowRecvState): void {
   http2_libc_flow_recv_init_c(st);
 }
 
 /** 重置流 recv 窗口。 */
-function flow_recv_reset_stream(st: *Http2FlowRecvState, initial_window: i32): void {
+export function flow_recv_reset_stream(st: *Http2FlowRecvState, initial_window: i32): void {
   http2_libc_flow_recv_reset_stream_c(st, initial_window);
 }
 
 /** 收到 DATA 后扣减 recv 窗口；成功 0。 */
-function flow_recv_on_data(st: *Http2FlowRecvState, nbytes: i32): i32 {
+export function flow_recv_on_data(st: *Http2FlowRecvState, nbytes: i32): i32 {
   return http2_libc_flow_recv_on_data_c(st, nbytes);
 }
 
 /** 释放已消费字节并构建 WINDOW_UPDATE；成功返回帧长度 13。 */
-function flow_recv_release(st: *Http2FlowRecvState, stream_id: i32, nbytes: i32, out: *u8, out_cap: i32): i32 {
+export function flow_recv_release(st: *Http2FlowRecvState, stream_id: i32, nbytes: i32, out: *u8, out_cap: i32): i32 {
   return http2_libc_flow_recv_release_c(st, stream_id, nbytes, out, out_cap);
 }
 
 /** 接收侧流控 C 烟测；0 通过。 */
-function flow_recv_smoke(): i32 {
+export function flow_recv_smoke(): i32 {
   return http2_libc_flow_recv_smoke_c();
 }

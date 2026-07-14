@@ -19,50 +19,50 @@
 //
 // 【文件职责】compile、match、free；STD-064 capture：group_count/offset/length。
 // 【依赖】std.heap；引擎在 std/regex/regex.x（F-regex v2 纯 .x）；全平台无 regex.h。
-extern function regex_compile_c(pat: *u8, pat_len: i32): *u8;
-extern function regex_match_c(re: *u8, str: *u8, len: i32): i32;
-extern function regex_free_c(re: *u8): void;
-extern function regex_group_count_c(re: *u8): i32;
-extern function regex_group_offset_c(re: *u8, group: i32): i32;
-extern function regex_group_length_c(re: *u8, group: i32): i32;
+export extern function regex_compile_c(pat: *u8, pat_len: i32): *u8;
+export extern function regex_match_c(re: *u8, str: *u8, len: i32): i32;
+export extern function regex_free_c(re: *u8): void;
+export extern function regex_group_count_c(re: *u8): i32;
+export extern function regex_group_offset_c(re: *u8, group: i32): i32;
+export extern function regex_group_length_c(re: *u8, group: i32): i32;
 
 /** 编译模式；失败返回 null。 */
-function compile(pat: *u8, pat_len: i32): *u8 {
+export function compile(pat: *u8, pat_len: i32): *u8 {
   let _rc: *u8 = 0;
   unsafe { _rc = regex_compile_c(pat, pat_len); }
   return _rc;
 }
 
 /** 子串匹配；成功 0，失败 -1（对标 Rust is_match；`match` 为关键字，仅作模块 API 名）。 */
-function match(re: *u8, str: *u8, len: i32): i32 {
+export function match(re: *u8, str: *u8, len: i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = regex_match_c(re, str, len); }
   return _rc;
 }
 
 /** 释放 compile 返回的句柄。 */
-function free(re: *u8): void {
+export function free(re: *u8): void {
   unsafe {
     regex_free_c(re);
   }
 }
 
 /** 返回 capture 槽数（含 group 0 全匹配）；compile 后即可读。 */
-function group_count(re: *u8): i32 {
+export function group_count(re: *u8): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = regex_group_count_c(re); }
   return _rc;
 }
 
 /** 读上次 match 的 group 起始字节偏移；无有效 capture 时 -1。 */
-function group_offset(re: *u8, group: i32): i32 {
+export function group_offset(re: *u8, group: i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = regex_group_offset_c(re, group); }
   return _rc;
 }
 
 /** 读上次 match 的 group 匹配长度；无有效 capture 时 -1。 */
-function group_length(re: *u8, group: i32): i32 {
+export function group_length(re: *u8, group: i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = regex_group_length_c(re, group); }
   return _rc;

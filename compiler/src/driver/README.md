@@ -15,7 +15,7 @@
 | `shux file.x` | 无子命令时：与 **`shux run file.x`** 相同（编译并运行）。 |
 | `shux fmt [path...]` | **已实现**（对标 `deno fmt`）：无路径时递归当前目录 `*.x`；**仅在实际写回时**打印 `fmt OK: path`，已规范文件无输出；`SHUX_FMT_VERBOSE=1` 可打印统计。 |
 | `shux fmt --check [path...]` | **已实现**（对标 `deno fmt --check`）：不写回；全通过时**无输出** exit 0；否则列出未格式化文件并 exit 1。支持 `--fail-fast`、`--ignore=子串`。 |
-| `shux check [path...]` | **已实现**（对标 `deno check`）：**无路径时递归产品目录**（`compiler/src`、`core`、`std`、`examples`）；多文件/目录；**全通过时无输出**；失败为 `path:line:col - error: msg`；warning/info 为 `- warning:` / `- info:`；支持 `-L`、`--ignore=`、`--fail-fast`；`SHUX_PAD_FIELDS`/`SHUX_HOT_REORDER`/`SHUX_UNUSED_HINT` 环境开关；`SHUX_LINT_CI_FAIL_ON=warn` 令 warning 也失败。 |
+| `shux check [path...]` | **已实现**（对标 `deno check`）：**无路径时递归产品目录**（`compiler/src`、`core`、`std`、`examples`）；多文件/目录；**全通过时无输出**；失败为 `path:line:col - error: msg`；warning/info 为 `- warning:` / `- info:`；支持 `-L`、`--ignore=`、`--fail-fast`；`SHUX_PAD_FIELDS`/`SHUX_HOT_REORDER`/`SHUX_UNUSED_HINT`/`SHUX_UNUSED_PRIVATE`；**L7 unused private 仅 warning（默认不失败）**；`SHUX_LINT_CI_FAIL_ON=warn` 令 warning 也失败。LSP（`--lsp`）同路径收集 severity=Warning，编辑器波浪线。 |
 | `shux test [script.sh]` | **已实现**：[`test.x`](test.x) 定义 `cmd_test` → `driver_cmd_test`；默认执行 `tests/run-all.sh`，可指定脚本路径。 |
 
 **模块前缀约定**：`src/driver/*.x` 内函数名不要重复写 `driver_` 前缀（例如 `cmd_check` → `driver_cmd_check`）。**例外**：根目录另有 `build.x` 时，`src/driver/build.x` 的模块前缀为 `build_`（`cmd_build` → `build_cmd_build`），`main.x` 须 `extern build_cmd_build`。C 侧 `extern` 须写全链接名（如 `driver_exec_compiled`）。

@@ -21,6 +21,6 @@
 // 对外 API 在 mod.x。
 
 /** F-http v1 版本标记；供聚合 gate 校验 http.x 已参与 ld -r 合并。 */
-function http_f_http_v1_marker_c(): i32 {
+export function http_f_http_v1_marker_c(): i32 {
   return 1;
 }

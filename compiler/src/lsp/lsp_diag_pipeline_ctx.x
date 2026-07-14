@@ -8,27 +8,27 @@
 // C 尾：fill_paths（struct memset/strlen）、g_lsp_state_buf 静态、typeck_lsp_main 大栈、
 //       lsp_write_all（EINTR/write）、lsp_definition_at 出参逻辑。
 
-extern "C" function pipeline_sizeof_dep_ctx(): usize;
-extern "C" function typeck_lsp_build_diagnostics_response(id_val: i32, source: *u8, source_len: i32,
+export extern "C" function pipeline_sizeof_dep_ctx(): usize;
+export extern "C" function typeck_lsp_build_diagnostics_response(id_val: i32, source: *u8, source_len: i32,
                                                           out_buf: *u8, out_cap: i32): i32;
-extern "C" function typeck_lsp_diag_hover_at(source: *u8, source_len: i32, line_0: i32, col_0: i32,
+export extern "C" function typeck_lsp_diag_hover_at(source: *u8, source_len: i32, line_0: i32, col_0: i32,
                                              out_buf: *u8, out_cap: i32): i32;
-extern "C" function typeck_lsp_diag_references_at(source: *u8, source_len: i32, line_0: i32, col_0: i32,
+export extern "C" function typeck_lsp_diag_references_at(source: *u8, source_len: i32, line_0: i32, col_0: i32,
                                                   out_lines: *i32, out_cols: *i32, max_refs: i32): i32;
-extern "C" function typeck_lsp_diag_definition_at(source: *u8, source_len: i32, line_0: i32, col_0: i32,
+export extern "C" function typeck_lsp_diag_definition_at(source: *u8, source_len: i32, line_0: i32, col_0: i32,
                                                   out_line: *i32, out_col: *i32): i32;
-extern "C" function typeck_lsp_build_semantic_tokens_response(id_val: i32, doc_buf: *u8, doc_len: i32,
+export extern "C" function typeck_lsp_build_semantic_tokens_response(id_val: i32, doc_buf: *u8, doc_len: i32,
                                                               out_buf: *u8, out_cap: i32): i32;
-extern "C" function lsp_diag_invalidate_cache(): void;
+export extern "C" function lsp_diag_invalidate_cache(): void;
 
-extern "C" function lsp_diag_pipeline_ctx_fill_paths_impl(ctx_void: *u8, entry_dir: *u8, lib_roots: *u8, n_lib_roots: i32): void;
-extern "C" function typeck_lsp_main_impl(): i32;
-extern "C" function lsp_write_all_impl(fd: i32, buf: *u8, len: i32): i32;
-extern "C" function lsp_debug_report_sqpoll_env_impl(): void;
-extern "C" function lsp_apply_default_io_policy_impl(): void;
+export extern "C" function lsp_diag_pipeline_ctx_fill_paths_impl(ctx_void: *u8, entry_dir: *u8, lib_roots: *u8, n_lib_roots: i32): void;
+export extern "C" function typeck_lsp_main_impl(): i32;
+export extern "C" function lsp_write_all_impl(fd: i32, buf: *u8, len: i32): i32;
+export extern "C" function lsp_debug_report_sqpoll_env_impl(): void;
+export extern "C" function lsp_apply_default_io_policy_impl(): void;
 
 #[no_mangle]
-function lsp_diag_x_alloc_dep_ctx_size(): usize {
+export function lsp_diag_x_alloc_dep_ctx_size(): usize {
   unsafe {
     let r: usize = pipeline_sizeof_dep_ctx();
     return r;
@@ -37,7 +37,7 @@ function lsp_diag_x_alloc_dep_ctx_size(): usize {
 }
 
 #[no_mangle]
-function lsp_build_diagnostics_response(id_val: i32, source: *u8, source_len: i32, out_buf: *u8,
+export function lsp_build_diagnostics_response(id_val: i32, source: *u8, source_len: i32, out_buf: *u8,
                                         out_cap: i32): i32 {
   unsafe {
     let r: i32 = typeck_lsp_build_diagnostics_response(id_val, source, source_len, out_buf, out_cap);
@@ -47,7 +47,7 @@ function lsp_build_diagnostics_response(id_val: i32, source: *u8, source_len: i3
 }
 
 #[no_mangle]
-function lsp_diag_hover_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_buf: *u8,
+export function lsp_diag_hover_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_buf: *u8,
                            out_cap: i32): i32 {
   unsafe {
     let r: i32 = typeck_lsp_diag_hover_at(source, source_len, line_0, col_0, out_buf, out_cap);
@@ -57,7 +57,7 @@ function lsp_diag_hover_at(source: *u8, source_len: i32, line_0: i32, col_0: i32
 }
 
 #[no_mangle]
-function lsp_diag_references_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_lines: *i32,
+export function lsp_diag_references_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_lines: *i32,
                                 out_cols: *i32, max_refs: i32): i32 {
   unsafe {
     let r: i32 = typeck_lsp_diag_references_at(source, source_len, line_0, col_0, out_lines, out_cols,
@@ -68,7 +68,7 @@ function lsp_diag_references_at(source: *u8, source_len: i32, line_0: i32, col_0
 }
 
 #[no_mangle]
-function lsp_hover_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_buf: *u8,
+export function lsp_hover_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_buf: *u8,
                       out_cap: i32): i32 {
   unsafe {
     let r: i32 = typeck_lsp_diag_hover_at(source, source_len, line_0, col_0, out_buf, out_cap);
@@ -78,7 +78,7 @@ function lsp_hover_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out
 }
 
 #[no_mangle]
-function lsp_references_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_lines: *i32,
+export function lsp_references_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_lines: *i32,
                            out_cols: *i32, max_refs: i32): i32 {
   unsafe {
     let r: i32 = typeck_lsp_diag_references_at(source, source_len, line_0, col_0, out_lines, out_cols,
@@ -89,7 +89,7 @@ function lsp_references_at(source: *u8, source_len: i32, line_0: i32, col_0: i32
 }
 
 #[no_mangle]
-function lsp_diag_definition_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_line: *i32,
+export function lsp_diag_definition_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_line: *i32,
                                 out_col: *i32): i32 {
   unsafe {
     let r: i32 = typeck_lsp_diag_definition_at(source, source_len, line_0, col_0, out_line, out_col);
@@ -99,7 +99,7 @@ function lsp_diag_definition_at(source: *u8, source_len: i32, line_0: i32, col_0
 }
 
 #[no_mangle]
-function lsp_build_semantic_tokens_response(id_val: i32, doc_buf: *u8, doc_len: i32, out_buf: *u8,
+export function lsp_build_semantic_tokens_response(id_val: i32, doc_buf: *u8, doc_len: i32, out_buf: *u8,
                                             out_cap: i32): i32 {
   unsafe {
     let r: i32 = typeck_lsp_build_semantic_tokens_response(id_val, doc_buf, doc_len, out_buf, out_cap);
@@ -109,7 +109,7 @@ function lsp_build_semantic_tokens_response(id_val: i32, doc_buf: *u8, doc_len: 
 }
 
 #[no_mangle]
-function lsp_io_lsp_diag_invalidate_cache(): void {
+export function lsp_io_lsp_diag_invalidate_cache(): void {
   unsafe {
     lsp_diag_invalidate_cache();
   }
@@ -118,14 +118,14 @@ function lsp_io_lsp_diag_invalidate_cache(): void {
 /* ---- G-02f-74 lsp ctx gates ---- */
 
 #[no_mangle]
-function lsp_diag_pipeline_ctx_fill_paths(ctx_void: *u8, entry_dir: *u8, lib_roots: *u8, n_lib_roots: i32): void {
+export function lsp_diag_pipeline_ctx_fill_paths(ctx_void: *u8, entry_dir: *u8, lib_roots: *u8, n_lib_roots: i32): void {
   unsafe {
     lsp_diag_pipeline_ctx_fill_paths_impl(ctx_void, entry_dir, lib_roots, n_lib_roots);
   }
 }
 
 #[no_mangle]
-function typeck_lsp_main(): i32 {
+export function typeck_lsp_main(): i32 {
   unsafe {
     return typeck_lsp_main_impl();
   }
@@ -133,7 +133,7 @@ function typeck_lsp_main(): i32 {
 }
 
 #[no_mangle]
-function lsp_write_all(fd: i32, buf: *u8, len: i32): i32 {
+export function lsp_write_all(fd: i32, buf: *u8, len: i32): i32 {
   unsafe {
     return lsp_write_all_impl(fd, buf, len);
   }
@@ -143,14 +143,14 @@ function lsp_write_all(fd: i32, buf: *u8, len: i32): i32 {
 /* ---- G-02f-98：LSP IO policy / debug env 门闩 ---- */
 
 #[no_mangle]
-function lsp_debug_report_sqpoll_env(): void {
+export function lsp_debug_report_sqpoll_env(): void {
   unsafe {
     lsp_debug_report_sqpoll_env_impl();
   }
 }
 
 #[no_mangle]
-function lsp_apply_default_io_policy(): void {
+export function lsp_apply_default_io_policy(): void {
   unsafe {
     lsp_apply_default_io_policy_impl();
   }

@@ -64,29 +64,29 @@ allow(padding) struct CodegenOutBuf {
 }
 
 /** std.sys 模块函数（原 sys.read_file_into）；-E 符号名 std_sys_read_file_into。 */
-extern function std_sys_read_file_into(path: *u8, buf: *u8, cap: i32): i32;
+export extern function std_sys_read_file_into(path: *u8, buf: *u8, cap: i32): i32;
 
 /** POSIX 读写原语（链 ../std/fs/fs.o）；勿 import("std.fs")，-E-extern 不会内联 fs_read
 * 符号名。 */
-extern "C" function fs_posix_read_c(fd: i32, buf: *u8, count: usize): isize;
-extern "C" function fs_posix_write_c(fd: i32, buf: *u8, count: usize): isize;
-extern "C" function fs_posix_close_c(fd: i32): i32;
+export extern "C" function fs_posix_read_c(fd: i32, buf: *u8, count: usize): isize;
+export extern "C" function fs_posix_write_c(fd: i32, buf: *u8, count: usize): isize;
+export extern "C" function fs_posix_close_c(fd: i32): i32;
 /** preprocess.x 导出名带模块前缀。 */
-extern function preprocess_x_buf(source_buf: *u8, source_len: isize, out_buf: *u8,
+export extern function preprocess_x_buf(source_buf: *u8, source_len: isize, out_buf: *u8,
 out_cap: i32): i32;
 /** pipeline_glue / ast_pool：堆缓冲生命周期（emit 栈上 ctx 须显式 ensure/free）。
 */
-extern function pipeline_dep_ctx_ensure_source_buffers(ctx: *PipelineDepCtx): i32;
-extern function pipeline_dep_ctx_free_source_buffers(ctx: *PipelineDepCtx): void;
-extern function pipeline_dep_ctx_loaded_buf_ptr(ctx: *PipelineDepCtx): *u8;
-extern function pipeline_dep_ctx_preprocess_buf_ptr(ctx: *PipelineDepCtx): *u8;
-extern function pipeline_dep_ctx_set_loaded_len(ctx: *PipelineDepCtx, n: isize): void;
+export extern function pipeline_dep_ctx_ensure_source_buffers(ctx: *PipelineDepCtx): i32;
+export extern function pipeline_dep_ctx_free_source_buffers(ctx: *PipelineDepCtx): void;
+export extern function pipeline_dep_ctx_loaded_buf_ptr(ctx: *PipelineDepCtx): *u8;
+export extern function pipeline_dep_ctx_preprocess_buf_ptr(ctx: *PipelineDepCtx): *u8;
+export extern function pipeline_dep_ctx_set_loaded_len(ctx: *PipelineDepCtx, n: isize): void;
 
 /**
 * 与 main.x 中 DriverXEmitState 布局一致（字段顺序/类型勿改）。
 * main 负责 argv 解析填本 struct；本模块负责 emit 执行。
 */
-struct DriverXEmitState {
+export struct DriverXEmitState {
   path_buf: u8[512];
   path_len: i32;
   emit_extern_imports: i32;
@@ -97,14 +97,14 @@ struct DriverXEmitState {
 }
 
 /** sidecar 键：DriverXEmitState 指针转 *u8，供 C lib_root 池 API 使用。 */
-function emit_state_key(state: *DriverXEmitState): *u8 {
+export function emit_state_key(state: *DriverXEmitState): *u8 {
   return state as *u8;
 }
 
 /** 将 emit lib_root 池灌入 PipelineDepCtx（-backend c 烟测路径）。
  * state_key 用 *u8（emit_state_key），避免 ( *DriverXEmitState, *PipelineDepCtx )
  * 同传触发 WPO-S3「local + outer *Struct」误报（param 被视作 outer）。 */
-function emit_copy_lib_roots_to_ctx(state_key: *u8, ctx: *PipelineDepCtx): void {
+export function emit_copy_lib_roots_to_ctx(state_key: *u8, ctx: *PipelineDepCtx): void {
   let k: i32 = 0;
   let n: i32 = ew_lib_root_count(state_key);
   let tmp: u8[256] = [];
@@ -123,7 +123,7 @@ function emit_copy_lib_roots_to_ctx(state_key: *u8, ctx: *PipelineDepCtx): void 
  * 【Why 不返回 by-value】shux -E 对大 struct 按值返回会把后续字段赋值误编成 `ctx->field`
  * （ctx 为值而非指针），cc 失败；改 out-pointer 与 seed `driver_pipeline_dep_ctx_for_emit` 语义一致。
  */
-function pipeline_dep_ctx_fill_for_emit(ctx: *PipelineDepCtx, use_asm: i32, target: i32): void {
+export function pipeline_dep_ctx_fill_for_emit(ctx: *PipelineDepCtx, use_asm: i32, target: i32): void {
   ctx.ndep = 0;
   ctx.entry_dir_len = 0;
   ctx.num_lib_roots = 0;
@@ -133,91 +133,91 @@ function pipeline_dep_ctx_fill_for_emit(ctx: *PipelineDepCtx, use_asm: i32, targ
   ctx.current_func_single_empty_param_index = -1;
 }
 
-extern function driver_emit_lib_root_count(state: *u8): i32;
-extern function driver_emit_lib_root_len(state: *u8, i: i32): i32;
-extern function driver_emit_lib_root_copy(state: *u8, i: i32, dst: *u8, cap: i32): void;
-extern function driver_fs_open_read_path(path: *u8, path_len: i32): i32;
-extern function driver_fs_open_write(path: *u8, path_len: i32): i32;
-extern function driver_arena_buf(): *u8;
-extern function driver_module_buf(): *u8;
-extern function driver_pipeline_fail_code(rc: i32, path: *u8): void;
-extern function driver_print_x_smoke_summary(module: *u8, codegen_len: usize): void;
-extern function pipeline_run_x_pipeline_impl(module_buf: *u8, arena_buf: *u8, source: *u8,
+export extern function driver_emit_lib_root_count(state: *u8): i32;
+export extern function driver_emit_lib_root_len(state: *u8, i: i32): i32;
+export extern function driver_emit_lib_root_copy(state: *u8, i: i32, dst: *u8, cap: i32): void;
+export extern function driver_fs_open_read_path(path: *u8, path_len: i32): i32;
+export extern function driver_fs_open_write(path: *u8, path_len: i32): i32;
+export extern function driver_arena_buf(): *u8;
+export extern function driver_module_buf(): *u8;
+export extern function driver_pipeline_fail_code(rc: i32, path: *u8): void;
+export extern function driver_print_x_smoke_summary(module: *u8, codegen_len: usize): void;
+export extern function pipeline_run_x_pipeline_impl(module_buf: *u8, arena_buf: *u8, source: *u8,
 source_len: usize, out: *CodegenOutBuf, ctx: *PipelineDepCtx): i32;
-extern function driver_run_x_emit_c_set_path(path: *u8, path_len: i32): i32;
-extern function driver_run_x_emit_c_set_lib(i: i32, buf: *u8, len: i32): i32;
-extern function driver_run_x_emit_c_set_n_lib_roots(n: i32): i32;
-extern function driver_run_x_emit_c_set_emit_extern(v: i32): i32;
-extern function driver_run_x_emit_c(): i32;
+export extern function driver_run_x_emit_c_set_path(path: *u8, path_len: i32): i32;
+export extern function driver_run_x_emit_c_set_lib(i: i32, buf: *u8, len: i32): i32;
+export extern function driver_run_x_emit_c_set_n_lib_roots(n: i32): i32;
+export extern function driver_run_x_emit_c_set_emit_extern(v: i32): i32;
+export extern function driver_run_x_emit_c(): i32;
 /** pipeline_glue：向 PipelineDepCtx 追加 -L 库根。 */
-extern function ast_pipeline_ctx_append_lib_root(ctx: *PipelineDepCtx, path: *u8, len: i32): i32;
+export extern function ast_pipeline_ctx_append_lib_root(ctx: *PipelineDepCtx, path: *u8, len: i32): i32;
 
 /**
 * -E unsafe wrappers：typeck 要求 extern 调用须在 unsafe 块内。
 * helper 内 unsafe 块仅含单条 extern 调用 + return，无 let+if 组合，
 * 避免 shux -E 丢弃函数体。
 */
-function ew_std_sys_read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
+export function ew_std_sys_read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
   unsafe { return std_sys_read_file_into(path, buf, cap); }
   return 0;
 }
-function ew_fs_posix_write_c(fd: i32, buf: *u8, count: usize): isize {
+export function ew_fs_posix_write_c(fd: i32, buf: *u8, count: usize): isize {
   unsafe { return fs_posix_write_c(fd, buf, count); }
   return 0 as isize;
 }
-function ew_fs_posix_close_c(fd: i32): i32 {
+export function ew_fs_posix_close_c(fd: i32): i32 {
   unsafe { return fs_posix_close_c(fd); }
   return 0;
 }
-function ew_preprocess_x_buf(source_buf: *u8, source_len: isize, out_buf: *u8, out_cap: i32): i32 {
+export function ew_preprocess_x_buf(source_buf: *u8, source_len: isize, out_buf: *u8, out_cap: i32): i32 {
   unsafe { return preprocess_x_buf(source_buf, source_len, out_buf, out_cap); }
   return 0;
 }
-function ew_ensure_source_buffers(ctx: *PipelineDepCtx): i32 {
+export function ew_ensure_source_buffers(ctx: *PipelineDepCtx): i32 {
   unsafe { return pipeline_dep_ctx_ensure_source_buffers(ctx); }
   return 0;
 }
-function ew_free_source_buffers(ctx: *PipelineDepCtx): void {
+export function ew_free_source_buffers(ctx: *PipelineDepCtx): void {
   unsafe { pipeline_dep_ctx_free_source_buffers(ctx); }
 }
-function ew_loaded_buf_ptr(ctx: *PipelineDepCtx): *u8 {
+export function ew_loaded_buf_ptr(ctx: *PipelineDepCtx): *u8 {
   unsafe { return pipeline_dep_ctx_loaded_buf_ptr(ctx); }
   return 0 as *u8;
 }
-function ew_preprocess_buf_ptr(ctx: *PipelineDepCtx): *u8 {
+export function ew_preprocess_buf_ptr(ctx: *PipelineDepCtx): *u8 {
   unsafe { return pipeline_dep_ctx_preprocess_buf_ptr(ctx); }
   return 0 as *u8;
 }
-function ew_set_loaded_len(ctx: *PipelineDepCtx, n: isize): void {
+export function ew_set_loaded_len(ctx: *PipelineDepCtx, n: isize): void {
   unsafe { pipeline_dep_ctx_set_loaded_len(ctx, n); }
 }
-function ew_lib_root_count(state: *u8): i32 {
+export function ew_lib_root_count(state: *u8): i32 {
   unsafe { return driver_emit_lib_root_count(state); }
   return 0;
 }
-function ew_lib_root_len(state: *u8, i: i32): i32 {
+export function ew_lib_root_len(state: *u8, i: i32): i32 {
   unsafe { return driver_emit_lib_root_len(state, i); }
   return 0;
 }
-function ew_lib_root_copy(state: *u8, i: i32, dst: *u8, cap: i32): void {
+export function ew_lib_root_copy(state: *u8, i: i32, dst: *u8, cap: i32): void {
   unsafe { driver_emit_lib_root_copy(state, i, dst, cap); }
 }
-function ew_fs_open_write(path: *u8, path_len: i32): i32 {
+export function ew_fs_open_write(path: *u8, path_len: i32): i32 {
   unsafe { return driver_fs_open_write(path, path_len); }
   return 0;
 }
-function ew_arena_buf(): *u8 {
+export function ew_arena_buf(): *u8 {
   unsafe { return driver_arena_buf(); }
   return 0 as *u8;
 }
-function ew_module_buf(): *u8 {
+export function ew_module_buf(): *u8 {
   unsafe { return driver_module_buf(); }
   return 0 as *u8;
 }
-function ew_pipeline_fail_code(rc: i32, path: *u8): void {
+export function ew_pipeline_fail_code(rc: i32, path: *u8): void {
   unsafe { driver_pipeline_fail_code(rc, path); }
 }
-function ew_print_x_smoke_summary(module: *u8, codegen_len: usize): void {
+export function ew_print_x_smoke_summary(module: *u8, codegen_len: usize): void {
   unsafe { driver_print_x_smoke_summary(module, codegen_len); }
 }
 /**
@@ -227,27 +227,27 @@ function ew_print_x_smoke_summary(module: *u8, codegen_len: usize): void {
  * 不会命中该路径。真根因在 pipeline_glue 已修（同帧 &local 兄弟放行），
  * 但检查函数嵌在 pipeline_x 静态副本中，须 mega 重编后 wrapper 才可恢复。
  */
-function ew_set_path(path: *u8, path_len: i32): i32 {
+export function ew_set_path(path: *u8, path_len: i32): i32 {
   unsafe { return driver_run_x_emit_c_set_path(path, path_len); }
   return 0;
 }
-function ew_set_lib(i: i32, buf: *u8, len: i32): i32 {
+export function ew_set_lib(i: i32, buf: *u8, len: i32): i32 {
   unsafe { return driver_run_x_emit_c_set_lib(i, buf, len); }
   return 0;
 }
-function ew_set_n_lib_roots(n: i32): i32 {
+export function ew_set_n_lib_roots(n: i32): i32 {
   unsafe { return driver_run_x_emit_c_set_n_lib_roots(n); }
   return 0;
 }
-function ew_set_emit_extern(v: i32): i32 {
+export function ew_set_emit_extern(v: i32): i32 {
   unsafe { return driver_run_x_emit_c_set_emit_extern(v); }
   return 0;
 }
-function ew_run_x_emit_c(): i32 {
+export function ew_run_x_emit_c(): i32 {
   unsafe { return driver_run_x_emit_c(); }
   return 0;
 }
-function ew_append_lib_root(ctx: *PipelineDepCtx, path: *u8, len: i32): i32 {
+export function ew_append_lib_root(ctx: *PipelineDepCtx, path: *u8, len: i32): i32 {
   unsafe { return ast_pipeline_ctx_append_lib_root(ctx, path, len); }
   return 0;
 }
@@ -257,7 +257,7 @@ function ew_append_lib_root(ctx: *PipelineDepCtx, path: *u8, len: i32): i32 {
 * 路径。
 * 仅无 import 单文件时正确（deps 为 0）；多文件须走 dispatch_x_emit_to_c。
 */
-function run_x_emit_x(state: *DriverXEmitState): i32 {
+export function run_x_emit_x(state: *DriverXEmitState): i32 {
   if (state.path_len >= 0 && state.path_len < 511) {
     state.path_buf[state.path_len] = 0 as u8;
   }
@@ -371,7 +371,7 @@ function run_x_emit_x(state: *DriverXEmitState): i32 {
 * -x -E 多文件：将 path 与 -L 库根灌入 C 侧，再调 driver_run_x_emit_c（deps+main
 * 完整路径）。
 */
-function dispatch_x_emit_to_c(state: *DriverXEmitState): i32 {
+export function dispatch_x_emit_to_c(state: *DriverXEmitState): i32 {
   ew_set_emit_extern(state.emit_extern_imports);
   ew_set_path(state.path_buf, state.path_len);
   let k: i32 = 0;

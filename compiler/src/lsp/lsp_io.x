@@ -27,7 +27,7 @@ const io = import("std.io");
 const heap = import("std.heap");
 
 /** 文档变更时使诊断缓存失效；由 lsp_diag.c 提供。 */
-extern function lsp_diag_invalidate_cache(): void;
+export extern function lsp_diag_invalidate_cache(): void;
 
 /** 单条消息 body 安全上限（1MiB），与 lsp.x 中 LSP_BODY_CAP 一致。 */
 let LSP_BODY_SAFETY_CAP: i32 = 1048576;
@@ -39,15 +39,15 @@ let LSP_STATE_LEFTOVER_MAX: i32 = 8192 * 2;
 let LSP_STATE_LEN_OFF: i32 = 8192 * 2;
 
 /** 调试：LSP_READ_DEBUG 时打 leftover 长度（仅 n>0），由 lsp_diag 提供。 */
-extern function lsp_debug_u32(n: u32): void;
+export extern function lsp_debug_u32(n: u32): void;
 /** 调试：打 state 指针。 */
-extern function lsp_debug_ptr(p: *u8): void;
+export extern function lsp_debug_ptr(p: *u8): void;
 
 /** 从 fd（0=stdin）读取一条 LSP 消息到 body_out，返回 body 长度；失败/EOF 返回
 * -1。state_buf 布局：state_buf[0..LSP_STATE_LEFTOVER_MAX-1] 为 leftover
 * 内容，state_buf[LSP_STATE_LEN_OFF..LSP_STATE_LEN_OFF+3] 为 leftover 长度（小端）；仅用
 * state_buf[i] 与 &state_buf[expr]，无指针运算。 */
-function read_message(fd: i32, body_out: *u8, body_cap: i32, state_buf: *u8): isize {
+export function read_message(fd: i32, body_out: *u8, body_cap: i32, state_buf: *u8): isize {
   let h: usize = 0 as usize;
   /* 返回类型为 isize：整数字面量默认为 i32，错误路径须显式 as isize（与 write_fd 一致） */
   if (fd != 0) { return (-1) as isize; }
@@ -140,7 +140,7 @@ function read_message(fd: i32, body_out: *u8, body_cap: i32, state_buf: *u8): is
 
 /** 在 state_buf[off..off+header_end) 中解析 "Content-Length: "
 * 后的数字；允许冒号后有多余空白（如 BSD wc -c 产生的前导空格）。 */
-function parse_content_length_in_buf(state_buf: *u8, off: i32, header_end: i32): i32 {
+export function parse_content_length_in_buf(state_buf: *u8, off: i32, header_end: i32): i32 {
   if (header_end < 16) { return -1; }
   let key: u8[16] = [67, 111, 110, 116, 101, 110, 116, 45, 76, 101, 110, 103, 116, 104, 58, 32];
   let ki: i32 = 0;
@@ -171,7 +171,7 @@ function parse_content_length_in_buf(state_buf: *u8, off: i32, header_end: i32):
 }
 
 /** 向 fd（1=stdout）写 ptr[0..count-1]；短写时循环直至写完或出错（pipe 大 body 在 ARM64 等会 partial write）。 */
-function write_fd(fd: i32, ptr: *u8, count: usize): isize {
+export function write_fd(fd: i32, ptr: *u8, count: usize): isize {
   let h: usize = 1 as usize;
   if (fd != 1) { return (-1) as isize; }
   let off: usize = 0 as usize;
@@ -185,7 +185,7 @@ function write_fd(fd: i32, ptr: *u8, count: usize): isize {
 
 /** 从 body 中找 "text":" 并取其后 JSON 字符串到 out_buf（做 \", \\, \n, \r, \t
 * 反义）；返回长度，失败 -1。全部用 body[i]、out_buf[i] 下标。 */
-function extract_document_text(body: *u8, body_len: i32, out_buf: *u8, out_cap: i32): i32 {
+export function extract_document_text(body: *u8, body_len: i32, out_buf: *u8, out_cap: i32): i32 {
   let key_len: i32 = 8;
   let key: u8[8] = [34, 116, 101, 120, 116, 34, 58, 34];
   let i: i32 = 0;
@@ -239,18 +239,18 @@ function extract_document_text(body: *u8, body_len: i32, out_buf: *u8, out_cap: 
  * 使用 alloc_zero 而非 heap.alloc：std.heap 中 alloc 多 overload，跨模块 binding import
  * typeck 现按「首同名」取 alloc(i32)→*u64，导致 expected *u8 found *u64（见 W-heap-overload）。
  * alloc_zero 仅有 (usize)→*u8 签名，无歧义；LSP 缓冲零初始化亦可接受。 */
-function lsp_alloc(size: usize): *u8 {
+export function lsp_alloc(size: usize): *u8 {
   if (size == 0 || size > (LSP_BODY_SAFETY_CAP as usize)) { return 0 as *u8; }
   return heap.alloc_zero(size);
 }
 
 /** 释放由 lsp_alloc 得到的指针。 */
-function lsp_free(ptr: *u8): void {
+export function lsp_free(ptr: *u8): void {
   heap.free(ptr);
 }
 
 /** 判断指针是否为空（1=空，0=非空）。 */
-function lsp_is_null(ptr: *u8): i32 {
+export function lsp_is_null(ptr: *u8): i32 {
   if (ptr == 0 as *u8) { return 1; }
   return 0;
 }

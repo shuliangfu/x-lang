@@ -9,14 +9,14 @@
 // -E 约束：无 while 重赋值；无零参-only 不稳写法；6 参用扁平 if。
 //
 
-extern "C" function driver_collect_mode_is_check_impl(): i32;
-extern "C" function check_user_passed_L_get_impl(): i32;
-extern "C" function fmt_user_ignore_count_impl(): i32;
-extern "C" function fmt_path_ends_with_dot_x_impl(path: *u8): i32;
-extern "C" function fmt_file_list_n_impl(): i32;
-extern "C" function fmt_user_ignore_at_impl(i: i32): *u8;
-extern "C" function fmt_path_resolve_abs_impl(path: *u8): *u8;
-extern "C" function check_one_finalize_rc_lint_impl(warn_count: i32): i32;
+export extern "C" function driver_collect_mode_is_check_impl(): i32;
+export extern "C" function check_user_passed_L_get_impl(): i32;
+export extern "C" function fmt_user_ignore_count_impl(): i32;
+export extern "C" function fmt_path_ends_with_dot_x_impl(path: *u8): i32;
+export extern "C" function fmt_file_list_n_impl(): i32;
+export extern "C" function fmt_user_ignore_at_impl(i: i32): *u8;
+export extern "C" function fmt_path_resolve_abs_impl(path: *u8): *u8;
+export extern "C" function check_one_finalize_rc_lint_impl(warn_count: i32): i32;
 
 let g_fmt_lit_check_error: u8[12] = [99, 104, 101, 99, 107, 32, 101, 114, 114, 111, 114, 0];
 let g_fmt_lit_fmt_error: u8[10] = [102, 109, 116, 32, 101, 114, 114, 111, 114, 0];
@@ -39,13 +39,13 @@ let g_fmt_default_product_sub_3: u8[9] = [101, 120, 97, 109, 112, 108, 101, 115,
 
 // deno check：全部成功时不打印逐文件 check OK
 #[no_mangle]
-function driver_check_quiet_ok_get(): i32 {
+export function driver_check_quiet_ok_get(): i32 {
   return 1;
 }
 
 // 跳过 "." 名与空名
 #[no_mangle]
-function fmt_walk_skip_dot_name(name: *u8): i32 {
+export function fmt_walk_skip_dot_name(name: *u8): i32 {
   if (name == 0 as *u8) {
     return 1;
   }
@@ -60,7 +60,7 @@ function fmt_walk_skip_dot_name(name: *u8): i32 {
 
 // rc!=0 且无 direct_diag 且无有效 nd* 时需要 fallback 收集
 #[no_mangle]
-function check_one_need_fallback_diag(rc: i32, nd: i32, nd_errors: i32, nd_warnings: i32, nd_infos: i32, direct_diag: i32): i32 {
+export function check_one_need_fallback_diag(rc: i32, nd: i32, nd_errors: i32, nd_warnings: i32, nd_infos: i32, direct_diag: i32): i32 {
   if (rc == 0) {
     return 0;
   }
@@ -84,7 +84,7 @@ function check_one_need_fallback_diag(rc: i32, nd: i32, nd_errors: i32, nd_warni
 
 // POSIX / 或 Windows 盘符:
 #[no_mangle]
-function shux_path_is_absolute(path: *u8): i32 {
+export function shux_path_is_absolute(path: *u8): i32 {
   if (path == 0 as *u8) {
     return 0;
   }
@@ -117,7 +117,7 @@ function shux_path_is_absolute(path: *u8): i32 {
 
 // rc==0 且 lint fail-on-warnings 时升失败
 #[no_mangle]
-function check_one_finalize_rc(rc: i32, warn_count: i32): i32 {
+export function check_one_finalize_rc(rc: i32, warn_count: i32): i32 {
   if (rc != 0) {
     return rc;
   }
@@ -131,27 +131,27 @@ function check_one_finalize_rc(rc: i32, warn_count: i32): i32 {
 }
 
 #[no_mangle]
-function driver_fmt_check_lit_check_error(): *u8 {
+export function driver_fmt_check_lit_check_error(): *u8 {
   return &g_fmt_lit_check_error[0];
 }
 
 #[no_mangle]
-function driver_fmt_check_lit_fmt_error(): *u8 {
+export function driver_fmt_check_lit_fmt_error(): *u8 {
   return &g_fmt_lit_fmt_error[0];
 }
 
 #[no_mangle]
-function driver_fmt_check_lit_chk002(): *u8 {
+export function driver_fmt_check_lit_chk002(): *u8 {
   return &g_fmt_lit_chk002[0];
 }
 
 #[no_mangle]
-function driver_fmt_check_lit_fmt001(): *u8 {
+export function driver_fmt_check_lit_fmt001(): *u8 {
   return &g_fmt_lit_fmt001[0];
 }
 
 #[no_mangle]
-function driver_collect_error_kind(): *u8 {
+export function driver_collect_error_kind(): *u8 {
   unsafe {
     if (driver_collect_mode_is_check_impl() != 0) {
       return &g_fmt_lit_check_error[0];
@@ -161,7 +161,7 @@ function driver_collect_error_kind(): *u8 {
 }
 
 #[no_mangle]
-function driver_collect_missing_path_code(): *u8 {
+export function driver_collect_missing_path_code(): *u8 {
   unsafe {
     if (driver_collect_mode_is_check_impl() != 0) {
       return &g_fmt_lit_chk002[0];
@@ -171,7 +171,7 @@ function driver_collect_missing_path_code(): *u8 {
 }
 
 #[no_mangle]
-function fmt_builtin_ignore_at(i: i32): *u8 {
+export function fmt_builtin_ignore_at(i: i32): *u8 {
   if (i == 0) {
     return &g_fmt_builtin_ignore_0[0];
   }
@@ -200,7 +200,7 @@ function fmt_builtin_ignore_at(i: i32): *u8 {
 }
 
 #[no_mangle]
-function fmt_default_product_sub_at(i: i32): *u8 {
+export function fmt_default_product_sub_at(i: i32): *u8 {
   if (i == 0) {
     return &g_fmt_default_product_sub_0[0];
   }
@@ -217,7 +217,7 @@ function fmt_default_product_sub_at(i: i32): *u8 {
 }
 
 #[no_mangle]
-function fmt_user_ignore_at(i: i32): *u8 {
+export function fmt_user_ignore_at(i: i32): *u8 {
   unsafe {
     return fmt_user_ignore_at_impl(i);
   }
@@ -225,7 +225,7 @@ function fmt_user_ignore_at(i: i32): *u8 {
 }
 
 #[no_mangle]
-function fmt_path_resolve_abs(path: *u8): *u8 {
+export function fmt_path_resolve_abs(path: *u8): *u8 {
   unsafe {
     return fmt_path_resolve_abs_impl(path);
   }
@@ -234,7 +234,7 @@ function fmt_path_resolve_abs(path: *u8): *u8 {
 
 // ---- G-02f-383：collect_mode / user_passed_L → seed impl ----
 #[no_mangle]
-function driver_collect_mode_is_check(): i32 {
+export function driver_collect_mode_is_check(): i32 {
   unsafe {
     return driver_collect_mode_is_check_impl();
   }
@@ -242,7 +242,7 @@ function driver_collect_mode_is_check(): i32 {
 }
 
 #[no_mangle]
-function check_user_passed_L_get(): i32 {
+export function check_user_passed_L_get(): i32 {
   unsafe {
     return check_user_passed_L_get_impl();
   }
@@ -251,7 +251,7 @@ function check_user_passed_L_get(): i32 {
 
 // ---- G-02f-389：ignore count / .x 后缀 / file list n → seed impl ----
 #[no_mangle]
-function fmt_user_ignore_count(): i32 {
+export function fmt_user_ignore_count(): i32 {
   unsafe {
     return fmt_user_ignore_count_impl();
   }
@@ -259,7 +259,7 @@ function fmt_user_ignore_count(): i32 {
 }
 
 #[no_mangle]
-function fmt_path_ends_with_dot_x(path: *u8): i32 {
+export function fmt_path_ends_with_dot_x(path: *u8): i32 {
   unsafe {
     return fmt_path_ends_with_dot_x_impl(path);
   }
@@ -267,7 +267,7 @@ function fmt_path_ends_with_dot_x(path: *u8): i32 {
 }
 
 #[no_mangle]
-function fmt_file_list_n(): i32 {
+export function fmt_file_list_n(): i32 {
   unsafe {
     return fmt_file_list_n_impl();
   }
@@ -275,13 +275,13 @@ function fmt_file_list_n(): i32 {
 }
 
 // ---- G-02f-405：lint/invoke/dep_clear/path_stat → seed impl ----
-extern "C" function check_lint_fail_on_warnings_impl(): i32;
-extern "C" function fmt_check_invoke_compile_impl(argc: i32, check_argv: *u8): i32;
-extern "C" function fmt_check_dep_clear_impl(): void;
-extern "C" function fmt_path_stat_kind_impl(path: *u8): i32;
+export extern "C" function check_lint_fail_on_warnings_impl(): i32;
+export extern "C" function fmt_check_invoke_compile_impl(argc: i32, check_argv: *u8): i32;
+export extern "C" function fmt_check_dep_clear_impl(): void;
+export extern "C" function fmt_path_stat_kind_impl(path: *u8): i32;
 
 #[no_mangle]
-function check_lint_fail_on_warnings(): i32 {
+export function check_lint_fail_on_warnings(): i32 {
   unsafe {
     return check_lint_fail_on_warnings_impl();
   }
@@ -289,7 +289,7 @@ function check_lint_fail_on_warnings(): i32 {
 }
 
 #[no_mangle]
-function fmt_check_invoke_compile(argc: i32, check_argv: *u8): i32 {
+export function fmt_check_invoke_compile(argc: i32, check_argv: *u8): i32 {
   unsafe {
     return fmt_check_invoke_compile_impl(argc, check_argv);
   }
@@ -297,14 +297,14 @@ function fmt_check_invoke_compile(argc: i32, check_argv: *u8): i32 {
 }
 
 #[no_mangle]
-function fmt_check_dep_clear(): void {
+export function fmt_check_dep_clear(): void {
   unsafe {
     fmt_check_dep_clear_impl();
   }
 }
 
 #[no_mangle]
-function fmt_path_stat_kind(path: *u8): i32 {
+export function fmt_path_stat_kind(path: *u8): i32 {
   unsafe {
     return fmt_path_stat_kind_impl(path);
   }
@@ -312,35 +312,35 @@ function fmt_path_stat_kind(path: *u8): i32 {
 }
 
 // ---- G-02f-406：lib roots / current file / one_file → seed impl ----
-extern "C" function check_try_append_lib_root_impl(check_argv: *u8, n: *i32, dir: *u8): void;
-extern "C" function check_init_user_lib_flags_impl(argc: i32, argv: *u8, path_start: i32): void;
-extern "C" function driver_check_set_current_file_impl(path: *u8): void;
-extern "C" function driver_check_print_collected_diagnostics_impl(path: *u8): i32;
-extern "C" function check_one_file_impl(path: *u8, argc: i32, argv: *u8): i32;
+export extern "C" function check_try_append_lib_root_impl(check_argv: *u8, n: *i32, dir: *u8): void;
+export extern "C" function check_init_user_lib_flags_impl(argc: i32, argv: *u8, path_start: i32): void;
+export extern "C" function driver_check_set_current_file_impl(path: *u8): void;
+export extern "C" function driver_check_print_collected_diagnostics_impl(path: *u8): i32;
+export extern "C" function check_one_file_impl(path: *u8, argc: i32, argv: *u8): i32;
 
 #[no_mangle]
-function check_try_append_lib_root(check_argv: *u8, n: *i32, dir: *u8): void {
+export function check_try_append_lib_root(check_argv: *u8, n: *i32, dir: *u8): void {
   unsafe {
     check_try_append_lib_root_impl(check_argv, n, dir);
   }
 }
 
 #[no_mangle]
-function check_init_user_lib_flags(argc: i32, argv: *u8, path_start: i32): void {
+export function check_init_user_lib_flags(argc: i32, argv: *u8, path_start: i32): void {
   unsafe {
     check_init_user_lib_flags_impl(argc, argv, path_start);
   }
 }
 
 #[no_mangle]
-function driver_check_set_current_file(path: *u8): void {
+export function driver_check_set_current_file(path: *u8): void {
   unsafe {
     driver_check_set_current_file_impl(path);
   }
 }
 
 #[no_mangle]
-function driver_check_print_collected_diagnostics(path: *u8): i32 {
+export function driver_check_print_collected_diagnostics(path: *u8): i32 {
   unsafe {
     return driver_check_print_collected_diagnostics_impl(path);
   }
@@ -348,7 +348,7 @@ function driver_check_print_collected_diagnostics(path: *u8): i32 {
 }
 
 #[no_mangle]
-function check_one_file(path: *u8, argc: i32, argv: *u8): i32 {
+export function check_one_file(path: *u8, argc: i32, argv: *u8): i32 {
   unsafe {
     return check_one_file_impl(path, argc, argv);
   }
@@ -356,15 +356,15 @@ function check_one_file(path: *u8, argc: i32, argv: *u8): i32 {
 }
 
 // ---- G-02f-407：ignore / file_list / walk / parse_ignore → seed impl ----
-extern "C" function path_should_ignore_impl(path: *u8): i32;
-extern "C" function file_list_push_impl(path: *u8): i32;
-extern "C" function walk_dir_collect_process_child_impl(child: *u8, is_dir: i32, is_reg: i32): void;
-extern "C" function walk_dir_collect_impl(dir: *u8): void;
-extern "C" function parse_ignore_opt_impl(arg: *u8): void;
-extern "C" function file_list_clear_impl(): void;
+export extern "C" function path_should_ignore_impl(path: *u8): i32;
+export extern "C" function file_list_push_impl(path: *u8): i32;
+export extern "C" function walk_dir_collect_process_child_impl(child: *u8, is_dir: i32, is_reg: i32): void;
+export extern "C" function walk_dir_collect_impl(dir: *u8): void;
+export extern "C" function parse_ignore_opt_impl(arg: *u8): void;
+export extern "C" function file_list_clear_impl(): void;
 
 #[no_mangle]
-function path_should_ignore(path: *u8): i32 {
+export function path_should_ignore(path: *u8): i32 {
   unsafe {
     return path_should_ignore_impl(path);
   }
@@ -372,7 +372,7 @@ function path_should_ignore(path: *u8): i32 {
 }
 
 #[no_mangle]
-function file_list_push(path: *u8): i32 {
+export function file_list_push(path: *u8): i32 {
   unsafe {
     return file_list_push_impl(path);
   }
@@ -380,42 +380,42 @@ function file_list_push(path: *u8): i32 {
 }
 
 #[no_mangle]
-function walk_dir_collect_process_child(child: *u8, is_dir: i32, is_reg: i32): void {
+export function walk_dir_collect_process_child(child: *u8, is_dir: i32, is_reg: i32): void {
   unsafe {
     walk_dir_collect_process_child_impl(child, is_dir, is_reg);
   }
 }
 
 #[no_mangle]
-function walk_dir_collect(dir: *u8): void {
+export function walk_dir_collect(dir: *u8): void {
   unsafe {
     walk_dir_collect_impl(dir);
   }
 }
 
 #[no_mangle]
-function parse_ignore_opt(arg: *u8): void {
+export function parse_ignore_opt(arg: *u8): void {
   unsafe {
     parse_ignore_opt_impl(arg);
   }
 }
 
 #[no_mangle]
-function file_list_clear(): void {
+export function file_list_clear(): void {
   unsafe {
     file_list_clear_impl();
   }
 }
 
 // ---- G-02f-408：collect/walk product dirs / lib roots → seed impl ----
-extern "C" function fmt_try_walk_if_product_subdir_impl(sub: *u8): i32;
-extern "C" function check_collect_default_product_dirs_impl(): void;
-extern "C" function collect_paths_from_arg_impl(arg: *u8): void;
-extern "C" function check_append_repo_lib_roots_impl(path: *u8, check_argv: *u8, n: *i32): void;
-extern "C" function check_argv_append_default_libs_for_path_impl(path: *u8, check_argv: *u8, n: *i32): void;
+export extern "C" function fmt_try_walk_if_product_subdir_impl(sub: *u8): i32;
+export extern "C" function check_collect_default_product_dirs_impl(): void;
+export extern "C" function collect_paths_from_arg_impl(arg: *u8): void;
+export extern "C" function check_append_repo_lib_roots_impl(path: *u8, check_argv: *u8, n: *i32): void;
+export extern "C" function check_argv_append_default_libs_for_path_impl(path: *u8, check_argv: *u8, n: *i32): void;
 
 #[no_mangle]
-function fmt_try_walk_if_product_subdir(sub: *u8): i32 {
+export function fmt_try_walk_if_product_subdir(sub: *u8): i32 {
   unsafe {
     return fmt_try_walk_if_product_subdir_impl(sub);
   }
@@ -423,39 +423,39 @@ function fmt_try_walk_if_product_subdir(sub: *u8): i32 {
 }
 
 #[no_mangle]
-function check_collect_default_product_dirs(): void {
+export function check_collect_default_product_dirs(): void {
   unsafe {
     check_collect_default_product_dirs_impl();
   }
 }
 
 #[no_mangle]
-function collect_paths_from_arg(arg: *u8): void {
+export function collect_paths_from_arg(arg: *u8): void {
   unsafe {
     collect_paths_from_arg_impl(arg);
   }
 }
 
 #[no_mangle]
-function check_append_repo_lib_roots(path: *u8, check_argv: *u8, n: *i32): void {
+export function check_append_repo_lib_roots(path: *u8, check_argv: *u8, n: *i32): void {
   unsafe {
     check_append_repo_lib_roots_impl(path, check_argv, n);
   }
 }
 
 #[no_mangle]
-function check_argv_append_default_libs_for_path(path: *u8, check_argv: *u8, n: *i32): void {
+export function check_argv_append_default_libs_for_path(path: *u8, check_argv: *u8, n: *i32): void {
   unsafe {
     check_argv_append_default_libs_for_path_impl(path, check_argv, n);
   }
 }
 
 // ---- G-02f-410：fmt/check entry → seed impl ----
-extern "C" function driver_run_fmt_impl(argc: i32, argv: *u8): i32;
-extern "C" function driver_run_compiler_check_impl(argc: i32, argv: *u8): i32;
+export extern "C" function driver_run_fmt_impl(argc: i32, argv: *u8): i32;
+export extern "C" function driver_run_compiler_check_impl(argc: i32, argv: *u8): i32;
 
 #[no_mangle]
-function driver_run_fmt(argc: i32, argv: *u8): i32 {
+export function driver_run_fmt(argc: i32, argv: *u8): i32 {
   unsafe {
     return driver_run_fmt_impl(argc, argv);
   }
@@ -463,7 +463,7 @@ function driver_run_fmt(argc: i32, argv: *u8): i32 {
 }
 
 #[no_mangle]
-function driver_run_compiler_check(argc: i32, argv: *u8): i32 {
+export function driver_run_compiler_check(argc: i32, argv: *u8): i32 {
   unsafe {
     return driver_run_compiler_check_impl(argc, argv);
   }

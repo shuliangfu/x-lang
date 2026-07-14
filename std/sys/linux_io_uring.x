@@ -20,12 +20,12 @@
 // 为阶段 B 提供 std.sys 层 io_uring 可用性探测；不重复实现 ring 逻辑。
 
 /** C 侧探测：liburing 链入且 io_uring 可用时返回 1。 */
-extern function shux_io_uring_is_available_c(): i32;
+export extern function shux_io_uring_is_available_c(): i32;
 
 /**
  * 返回 1 表示当前构建/宿主可安全尝试 io_uring 路径。
  */
-function io_uring_available(): i32 {
+export function io_uring_available(): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = shux_io_uring_is_available_c(); }
   return _rc;

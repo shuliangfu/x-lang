@@ -6,7 +6,7 @@
 
 /** 指针是否可安全当 lib root 用（逻辑锚点；完整实现见 seed）。 */
 #[no_mangle]
-function driver_lib_root_ptr_usable(p: *u8): i32 {
+export function driver_lib_root_ptr_usable(p: *u8): i32 {
   if (p == 0 as *u8) {
     return 0;
   }

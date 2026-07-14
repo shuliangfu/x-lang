@@ -23,7 +23,7 @@
 // 【依赖】tcp.x net_accept_many_c；sock.x net_close_socket_c；thread.o
 
 /** 每 listener 最多 worker 数。 */
-const SHUX_NET_MAX_WORKERS: i32 = 64;
+export const SHUX_NET_MAX_WORKERS: i32 = 64;
 
 /** 传入 worker 线程的参数块。 */
 allow(padding) struct NetWorkerArg {
@@ -32,23 +32,23 @@ allow(padding) struct NetWorkerArg {
   worker_index: i32;
 }
 
-extern function thread_create_c(entry: usize, arg: usize): i64;
+export extern function thread_create_c(entry: usize, arg: usize): i64;
 
-extern function thread_join_c(thread_id: i64): i32;
+export extern function thread_join_c(thread_id: i64): i32;
 
-extern function shu_net_worker_accept_entry_ptr_c(): usize;
+export extern function shu_net_worker_accept_entry_ptr_c(): usize;
 
 /**
  * 取 NetWorkerArg 数组第 i 项指针（seed emit 不支持 &args[i] 直接作 call 实参）。
  */
-function net_worker_arg_slot_ptr_c(base: *NetWorkerArg, i: i32): *NetWorkerArg {
+export function net_worker_arg_slot_ptr_c(base: *NetWorkerArg, i: i32): *NetWorkerArg {
   return base + i;
 }
 
 /**
  * 写入单条 worker 参数（避免 struct 字面量初始化触发 parse skip）。
  */
-function net_worker_arg_fill_c(slot: *NetWorkerArg, listener_fd: i32, timeout_ms: u32, worker_index: i32): void {
+export function net_worker_arg_fill_c(slot: *NetWorkerArg, listener_fd: i32, timeout_ms: u32, worker_index: i32): void {
   slot.listener_fd = listener_fd;
   slot.timeout_ms = timeout_ms;
   slot.worker_index = worker_index;
@@ -58,7 +58,7 @@ function net_worker_arg_fill_c(slot: *NetWorkerArg, listener_fd: i32, timeout_ms
  * 起 n_workers 线程，每线程循环 accept_many 后立即 close。
  * 主线程阻塞 join（永不返回）；失败 -1。
  */
-function net_run_accept_workers_c(listener_fd: i32, n_workers: i32, timeout_ms: u32): i32 {
+export function net_run_accept_workers_c(listener_fd: i32, n_workers: i32, timeout_ms: u32): i32 {
   let nw: i32 = n_workers;
   let args: NetWorkerArg[64] = [];
   let tids: i64[64] = [];

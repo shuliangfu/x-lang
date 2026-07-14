@@ -23,16 +23,16 @@
 //
 // 【对标】Rust Future/Poll、Zig async 最小手动驱动子集。
 
-const SHUX_POLL_PENDING: i32 = 0;
-const SHUX_POLL_READY: i32 = 1;
+export const SHUX_POLL_PENDING: i32 = 0;
+export const SHUX_POLL_READY: i32 = 1;
 
-const FUT_OK: i32 = 0;
-const FUT_ERR_NULL: i32 = -1;
-const FUT_ERR_INVALID: i32 = -2;
-const FUT_ERR_PENDING: i32 = -3;
-const FUT_ERR_FULL: i32 = -4;
+export const FUT_OK: i32 = 0;
+export const FUT_ERR_NULL: i32 = -1;
+export const FUT_ERR_INVALID: i32 = -2;
+export const FUT_ERR_PENDING: i32 = -3;
+export const FUT_ERR_FULL: i32 = -4;
 
-const SHUX_FUTURE_MAX: i32 = 64;
+export const SHUX_FUTURE_MAX: i32 = 64;
 
 /** 单 Future 槽：state 0=pending，1=ready。 */
 allow(padding) struct ShuxFutureSlot {
@@ -41,25 +41,25 @@ allow(padding) struct ShuxFutureSlot {
 }
 
 /** 未链 scheduler.o 时 drain/poll 弱桩（future_wait 仍可编译）。 */
-extern function shux_async_run_drain_until_idle(): i32;
-extern function shux_io_poll_async_completions(timeout_ms: u32): u32;
+export extern function shux_async_run_drain_until_idle(): i32;
+export extern function shux_io_poll_async_completions(timeout_ms: u32): u32;
 
 /** 模块级 Future 静态池（BSS 零初始化）。 */
 let g_shux_futures: ShuxFutureSlot[64] = [];
 let g_shux_future_count: i32 = 0;
 
 /** F-async v1 Future 版本标记；供 v1 聚合 gate 校验。 */
-function future_f_async_future_v1_marker_c(): i32 {
+export function future_f_async_future_v1_marker_c(): i32 {
   return 1;
 }
 
 /** F-async-future v2 逻辑全量 .x 标记。 */
-function future_f_async_future_v2_marker_c(): i32 {
+export function future_f_async_future_v2_marker_c(): i32 {
   return 1;
 }
 
 /** handle（1..N）→ 槽指针；非法返回 0。 */
-function shux_future_slot_from_handle(handle: i64): *ShuxFutureSlot {
+export function shux_future_slot_from_handle(handle: i64): *ShuxFutureSlot {
   let idx: i32 = 0;
   if (handle <= 0) { return 0; }
   idx = (handle - 1) as i32;
@@ -70,7 +70,7 @@ function shux_future_slot_from_handle(handle: i64): *ShuxFutureSlot {
 /**
  * 创建 pending Future；返回 opaque handle（≥1），池满返回 0。
  */
-function shux_async_future_create_c(): i64 {
+export function shux_async_future_create_c(): i64 {
   let s: *ShuxFutureSlot = 0 as *ShuxFutureSlot;
   if (g_shux_future_count >= SHUX_FUTURE_MAX) { return 0; }
   s = &g_shux_futures[g_shux_future_count] as *ShuxFutureSlot;
@@ -83,7 +83,7 @@ function shux_async_future_create_c(): i64 {
 /**
  * 轮询 Future：SHUX_POLL_PENDING / SHUX_POLL_READY；非法 handle 返回 -1。
  */
-function shux_async_future_poll_c(handle: i64): i32 {
+export function shux_async_future_poll_c(handle: i64): i32 {
   let s: *ShuxFutureSlot = shux_future_slot_from_handle(handle);
   if (s == 0) { return FUT_ERR_INVALID; }
   if (s.state == SHUX_POLL_READY) { return SHUX_POLL_READY; }
@@ -93,7 +93,7 @@ function shux_async_future_poll_c(handle: i64): i32 {
 /**
  * 完成 Future 并写入 i32 结果；重复 complete 覆盖 value 并保持 Ready。
  */
-function shux_async_future_complete_c(handle: i64, value: i32): void {
+export function shux_async_future_complete_c(handle: i64, value: i32): void {
   let s: *ShuxFutureSlot = shux_future_slot_from_handle(handle);
   if (s == 0) { return; }
   s.value = value;
@@ -103,7 +103,7 @@ function shux_async_future_complete_c(handle: i64, value: i32): void {
 /**
  * Ready 时取出 value 并重置为 Pending；Pending 返回 FUT_ERR_PENDING。
  */
-function shux_async_future_take_c(handle: i64, out: *i32): i32 {
+export function shux_async_future_take_c(handle: i64, out: *i32): i32 {
   let s: *ShuxFutureSlot = shux_future_slot_from_handle(handle);
   if (out == 0) { return FUT_ERR_NULL; }
   if (s == 0) { return FUT_ERR_INVALID; }
@@ -115,7 +115,7 @@ function shux_async_future_take_c(handle: i64, out: *i32): i32 {
 }
 
 /** 重置 Future 池（单进程烟测/二次 poll 用）。 */
-function shux_async_future_reset_c(): void {
+export function shux_async_future_reset_c(): void {
   let i: i32 = 0;
   g_shux_future_count = 0;
   while (i < SHUX_FUTURE_MAX) {
@@ -129,7 +129,7 @@ function shux_async_future_reset_c(): void {
  * 带 scheduler drain 的 Future 等待：每轮 poll → IO poll → drain_until_idle。
  * 返回 SHUX_POLL_READY / SHUX_POLL_PENDING；非法 handle 返回 -1。
  */
-function shux_async_future_wait_c(handle: i64, max_rounds: i32): i32 {
+export function shux_async_future_wait_c(handle: i64, max_rounds: i32): i32 {
   let round: i32 = 0;
   let pr: i32 = 0;
   let mr: i32 = max_rounds;
@@ -146,7 +146,7 @@ function shux_async_future_wait_c(handle: i64, max_rounds: i32): i32 {
 }
 
 /** C 烟测：create → poll pending → complete → poll ready → take。 */
-function shux_async_future_smoke_c(): i32 {
+export function shux_async_future_smoke_c(): i32 {
   let h: i64 = 0;
   let v: i32 = 0;
   let pr: i32 = 0;

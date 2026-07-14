@@ -24,23 +24,23 @@ allow(padding) struct Option<T> {
 }
 
 // Option_i32：可空 i32，is_some 为真时 value 有效
-struct Option_i32 {
+export struct Option_i32 {
   is_some: bool;
   value: i32;
 }
 
 // 构造“无值”
-function none_i32(): Option_i32 {
+export function none_i32(): Option_i32 {
   return Option_i32 { is_some: false, value: 0 }
 }
 
 // 构造“有值”
-function some_i32(x: i32): Option_i32 {
+export function some_i32(x: i32): Option_i32 {
   return Option_i32 { is_some: true, value: x }
 }
 
 // 有值则返回值，否则返回默认值（if/else：seed shux-c 解析器暂不支持 return 内三元 ? :）
-function unwrap_or_i32(opt: Option_i32, default_val: i32): i32 {
+export function unwrap_or_i32(opt: Option_i32, default_val: i32): i32 {
   if (opt.is_some) {
     return opt.value;
   }
@@ -48,17 +48,17 @@ function unwrap_or_i32(opt: Option_i32, default_val: i32): i32 {
 }
 
 // 是否为“有值”
-function is_some_i32(opt: Option_i32): bool {
+export function is_some_i32(opt: Option_i32): bool {
   return opt.is_some;
 }
 
 // 是否为“无值”
-function is_none_i32(opt: Option_i32): bool {
+export function is_none_i32(opt: Option_i32): bool {
   return !opt.is_some;
 }
 
 // 有值则返回值，否则 panic（用于必须有的场景）
-function expect_i32(opt: Option_i32): i32 {
+export function expect_i32(opt: Option_i32): i32 {
   if (opt.is_some) {
     return opt.value;
   }
@@ -66,7 +66,7 @@ function expect_i32(opt: Option_i32): i32 {
 }
 
 // 若 opt 有值则返回 opt，否则返回 other（组合两个可选值，取第一个 Some）
-function or_i32(opt: Option_i32, other: Option_i32): Option_i32 {
+export function or_i32(opt: Option_i32, other: Option_i32): Option_i32 {
   if (opt.is_some) {
     return opt;
   }
@@ -74,7 +74,7 @@ function or_i32(opt: Option_i32, other: Option_i32): Option_i32 {
 }
 
 // 若 opt 无值则返回 None，否则返回 other（串联：当前有值才继续）
-function and_i32(opt: Option_i32, other: Option_i32): Option_i32 {
+export function and_i32(opt: Option_i32, other: Option_i32): Option_i32 {
   if (opt.is_some) {
     return other;
   }
@@ -86,30 +86,30 @@ allow(padding) struct Option_u8 {
   is_some: bool;
   value: u8;
 }
-function none_u8(): Option_u8 { return Option_u8 { is_some: false, value: 0 } }
-function some_u8(x: u8): Option_u8 { return Option_u8 { is_some: true, value: x } }
-function unwrap_or_u8(opt: Option_u8, default_val: u8): u8 {
+export function none_u8(): Option_u8 { return Option_u8 { is_some: false, value: 0 } }
+export function some_u8(x: u8): Option_u8 { return Option_u8 { is_some: true, value: x } }
+export function unwrap_or_u8(opt: Option_u8, default_val: u8): u8 {
   if (opt.is_some) {
     return opt.value;
   }
   return default_val;
 }
-function is_some_u8(opt: Option_u8): bool { return opt.is_some; }
-function is_none_u8(opt: Option_u8): bool { return !opt.is_some; }
-function expect_u8(opt: Option_u8): u8 {
+export function is_some_u8(opt: Option_u8): bool { return opt.is_some; }
+export function is_none_u8(opt: Option_u8): bool { return !opt.is_some; }
+export function expect_u8(opt: Option_u8): u8 {
   if (opt.is_some) {
     return opt.value;
   }
   return panic();
 }
 
-function or_u8(opt: Option_u8, other: Option_u8): Option_u8 {
+export function or_u8(opt: Option_u8, other: Option_u8): Option_u8 {
   if (opt.is_some) {
     return opt;
   }
   return other;
 }
-function and_u8(opt: Option_u8, other: Option_u8): Option_u8 {
+export function and_u8(opt: Option_u8, other: Option_u8): Option_u8 {
   if (opt.is_some) {
     return other;
   }
@@ -123,15 +123,15 @@ allow(padding) struct Option_u64 {
 }
 
 /** 构造无值 Option_u64。 */
-function none_u64(): Option_u64 { return Option_u64 { is_some: false, value: 0 } }
+export function none_u64(): Option_u64 { return Option_u64 { is_some: false, value: 0 } }
 
 /** 构造有值 Option_u64。 */
-function some_u64(x: u64): Option_u64 { return Option_u64 { is_some: true, value: x } }
+export function some_u64(x: u64): Option_u64 { return Option_u64 { is_some: true, value: x } }
 
 // ——— eager 组合子（CORE-002 map/and_then） ———
 
 /** 有值则 some(mapped)，否则 none。 */
-function map_i32(opt: Option_i32, mapped: i32): Option_i32 {
+export function map_i32(opt: Option_i32, mapped: i32): Option_i32 {
   if (is_some_i32(opt)) {
     return some_i32(mapped);
   }
@@ -139,7 +139,7 @@ function map_i32(opt: Option_i32, mapped: i32): Option_i32 {
 }
 
 /** 有值则 some(mapped)，否则 none。 */
-function map_u8(opt: Option_u8, mapped: u8): Option_u8 {
+export function map_u8(opt: Option_u8, mapped: u8): Option_u8 {
   if (is_some_u8(opt)) {
     return some_u8(mapped);
   }
@@ -147,7 +147,7 @@ function map_u8(opt: Option_u8, mapped: u8): Option_u8 {
 }
 
 /** 有值则返回 next，否则 none。 */
-function and_then_i32(opt: Option_i32, next: Option_i32): Option_i32 {
+export function and_then_i32(opt: Option_i32, next: Option_i32): Option_i32 {
   if (is_some_i32(opt)) {
     return next;
   }
@@ -155,7 +155,7 @@ function and_then_i32(opt: Option_i32, next: Option_i32): Option_i32 {
 }
 
 /** 泛型 unwrap_or：有值返回值，否则 default（CORE-002）。 */
-function unwrap_or<T>(is_some: bool, value: T, default_val: T): T {
+export function unwrap_or<T>(is_some: bool, value: T, default_val: T): T {
   if (is_some) {
     return value;
   }
@@ -169,17 +169,17 @@ allow(padding) struct Option_ptr_u8 {
 }
 
 /** 构造无值 Option_ptr_u8。 */
-function none_ptr_u8(): Option_ptr_u8 {
+export function none_ptr_u8(): Option_ptr_u8 {
   return Option_ptr_u8 { is_some: false, value: 0 as *u8 };
 }
 
 /** 构造有值 Option_ptr_u8。 */
-function some_ptr_u8(ptr: *u8): Option_ptr_u8 {
+export function some_ptr_u8(ptr: *u8): Option_ptr_u8 {
   return Option_ptr_u8 { is_some: true, value: ptr };
 }
 
 /** 有值则 some(mapped)，否则 none。 */
-function map_ptr_u8(opt: Option_ptr_u8, mapped: *u8): Option_ptr_u8 {
+export function map_ptr_u8(opt: Option_ptr_u8, mapped: *u8): Option_ptr_u8 {
   if (is_some_ptr_u8(opt)) {
     return some_ptr_u8(mapped);
   }
@@ -187,17 +187,17 @@ function map_ptr_u8(opt: Option_ptr_u8, mapped: *u8): Option_ptr_u8 {
 }
 
 /** 是否为 Some。 */
-function is_some_ptr_u8(opt: Option_ptr_u8): bool {
+export function is_some_ptr_u8(opt: Option_ptr_u8): bool {
   return opt.is_some;
 }
 
 /** 是否为 None。 */
-function is_none_ptr_u8(opt: Option_ptr_u8): bool {
+export function is_none_ptr_u8(opt: Option_ptr_u8): bool {
   return !opt.is_some;
 }
 
 /** 有值则返回指针，否则 panic。 */
-function expect_ptr_u8(opt: Option_ptr_u8): *u8 {
+export function expect_ptr_u8(opt: Option_ptr_u8): *u8 {
   if (opt.is_some) {
     return opt.value;
   }
@@ -205,6 +205,6 @@ function expect_ptr_u8(opt: Option_ptr_u8): *u8 {
 }
 
 // 泛型占位，表示本模块可 import；完整 Option<T> 待类型实参语法后扩展
-function option_placeholder<T>(x: T): T { return x; }
+export function option_placeholder<T>(x: T): T { return x; }
 /** 模块尾占位：transitive import 解析时末位 function 会丢失，须保留非 API 锚点。 */
-function option_module_anchor(): i32 { return 0; }
+export function option_module_anchor(): i32 { return 0; }

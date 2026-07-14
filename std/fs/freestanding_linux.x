@@ -28,12 +28,12 @@ const sys = import("std.sys");
 const linux = import("std.sys.linux");
 
 /** Linux O_RDONLY（与 linux.x 一致）。 */
-const FREESTANDING_O_RDONLY: i32 = 0;
+export const FREESTANDING_O_RDONLY: i32 = 0;
 
 /**
  * v1 探测：freestanding fs 是否在 Linux 可用（1/0）。
  */
-function freestanding_fs_available(): i32 {
+export function freestanding_fs_available(): i32 {
   if (linux.linux_syscall_invoke_available() != 1) {
     return 0;
   }
@@ -43,39 +43,39 @@ function freestanding_fs_available(): i32 {
 /**
  * 读整文件到 buf[0..cap)（循环 read 至 EOF 或 cap）；成功返回字节数，失败 -1。
  */
-function freestanding_read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
+export function freestanding_read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
   return sys.read_file_into(path, buf, cap);
 }
 
 /**
  * 只读打开 path（NUL 结尾）；失败返回 -1。
  */
-function freestanding_open_read(path: *u8): i32 {
+export function freestanding_open_read(path: *u8): i32 {
   return linux.linux_syscall_open(path, FREESTANDING_O_RDONLY, 0);
 }
 
 /**
  * 从 fd 读最多 len 字节到 buf；返回读入字节数，0=EOF，-1=错误。
  */
-function freestanding_read(fd: i32, buf: *u8, len: i32): i32 {
+export function freestanding_read(fd: i32, buf: *u8, len: i32): i32 {
   return sys.read(fd, buf, len);
 }
 
 /**
  * 写 fd；返回写入字节数，-1=错误。
  */
-function freestanding_write(fd: i32, buf: *u8, len: i32): i32 {
+export function freestanding_write(fd: i32, buf: *u8, len: i32): i32 {
   return sys.write(fd, buf, len);
 }
 
 /**
  * 关闭 fd；成功 0，失败 -1。
  */
-function freestanding_close(fd: i32): i32 {
+export function freestanding_close(fd: i32): i32 {
   return sys.close(fd);
 }
 
 /** 模块尾占位：transitive import 解析锚点。 */
-function freestanding_fs_module_anchor(): i32 {
+export function freestanding_fs_module_anchor(): i32 {
   return 0;
 }

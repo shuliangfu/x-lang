@@ -24,18 +24,18 @@ const ast = import("ast");
 const codegen_outbuf_abi = import("codegen_outbuf_abi");
 
 /** 与 pipeline 对齐：若非 0 则跳过 dep 0 的机器码编码（宿主已提供等价 .o）。 */
-extern function driver_skip_codegen_dep_0_get(): i32;
+export extern function driver_skip_codegen_dep_0_get(): i32;
 /** CALL 前缀：当前正在为第 j 个 dep 编码时须指向 dep 池 import 路径；入口模块前须置 NULL。 */
-extern function driver_set_current_dep_path_for_codegen(path: *u8): void;
+export extern function driver_set_current_dep_path_for_codegen(path: *u8): void;
 /** backend.x 的公开入口本身只是薄转发；这里直接走现成 C glue，避免 `asm.x -E` 解析整份 backend.x。 */
-extern function asm_asm_codegen_ast(module: *u8, arena: *u8, out: *u8, pipeline_ctx: *u8): i32;
-extern function asm_asm_codegen_elf_o(module: *u8, arena: *u8, pipeline_ctx: *u8, elf_ctx: *u8, out: *u8): i32;
+export extern function asm_asm_codegen_ast(module: *u8, arena: *u8, out: *u8, pipeline_ctx: *u8): i32;
+export extern function asm_asm_codegen_elf_o(module: *u8, arena: *u8, pipeline_ctx: *u8, elf_ctx: *u8, out: *u8): i32;
 
 /**
  * 汇编后端入口：将 AST 生成汇编文本写入 out（与 codegen 共用 CodegenOutBuf）。
  * M8b：勿写 `if (foo(...) != 0)`——.x parser 会丢整函数；用 let 累加后 return。
  */
-function asm_codegen_ast(module: *Module, arena: *ASTArena, out: *CodegenOutBuf, ctx: *PipelineDepCtx): i32 {
+export function asm_codegen_ast(module: *Module, arena: *ASTArena, out: *CodegenOutBuf, ctx: *PipelineDepCtx): i32 {
   return asm_asm_codegen_ast(module as *u8, arena as *u8, out as *u8, ctx as *u8);
 }
 
@@ -46,11 +46,11 @@ function asm_codegen_ast(module: *Module, arena: *ASTArena, out: *CodegenOutBuf,
  * 用分分支 if + return；按 ctx.use_coff_o / use_macho_o 选择 COFF / Mach-O / ELF 写出。
  */
 #[cfg(target_os = "linux")]
-function asm_codegen_elf_o(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx, elf_ctx: *u8, out: *CodegenOutBuf): i32 {
+export function asm_codegen_elf_o(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx, elf_ctx: *u8, out: *CodegenOutBuf): i32 {
   return asm_asm_codegen_elf_o(module as *u8, arena as *u8, ctx as *u8, elf_ctx as *u8, out as *u8);
 }
 
 #[cfg(not(target_os = "linux"))]
-function asm_codegen_elf_o(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx, elf_ctx: *u8, out: *CodegenOutBuf): i32 {
+export function asm_codegen_elf_o(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx, elf_ctx: *u8, out: *CodegenOutBuf): i32 {
   return asm_asm_codegen_elf_o(module as *u8, arena as *u8, ctx as *u8, elf_ctx as *u8, out as *u8);
 }

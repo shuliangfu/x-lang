@@ -5,11 +5,11 @@
 // 产品实现：seeds/rt_run_x_emit.from_x.c；hybrid 宏 SHUX_RT_RUN_X_EMIT_FROM_X。
 // G-02f-444：thin+rest PREFER_X_O；.x 薄门闩调 _impl，seed 宏重命名。
 
-extern "C" function driver_run_x_emit_c_impl(): i32;
+export extern "C" function driver_run_x_emit_c_impl(): i32;
 
 /** 执行 -x -E（薄门闩；实际实现 seed _impl）。 */
 #[no_mangle]
-function driver_run_x_emit_c(): i32 {
+export function driver_run_x_emit_c(): i32 {
   unsafe {
     return driver_run_x_emit_c_impl();
   }

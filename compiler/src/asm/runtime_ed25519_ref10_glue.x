@@ -5,6 +5,6 @@
 // 实现仍在 seed C；本文件为文档锚点。
 // 产品：cc seeds/runtime_ed25519_ref10_glue.from_x.c → runtime_ed25519_ref10_glue.o
 
-function runtime_ed25519_ref10_glue_x_doc_anchor(): i32 {
+export function runtime_ed25519_ref10_glue_x_doc_anchor(): i32 {
   return 0;
 }

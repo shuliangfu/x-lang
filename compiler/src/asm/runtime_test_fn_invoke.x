@@ -6,6 +6,6 @@
 // 原因：.x 尚不能稳定经 usize 间接调用无参函数；真迁阻塞于语言/codegen。
 // 回归：test_call_i32_void_c(fn) → fn() 或 fn==0 时 -1。
 
-function runtime_test_fn_invoke_x_doc_anchor(): i32 {
+export function runtime_test_fn_invoke_x_doc_anchor(): i32 {
   return 0;
 }

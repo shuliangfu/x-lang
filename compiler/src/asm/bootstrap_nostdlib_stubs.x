@@ -6,13 +6,13 @@
 // G-02f-103：+ align16 / heap_grow / syscall3/4 薄门闩。
 // G-02f-104：+ format_double / vfprintf_fd 薄门闩。
 
-extern "C" function bootstrap_heap_grow_impl(need: usize): i32;
-extern "C" function bootstrap_syscall3_impl(nr: i64, a0: i64, a1: i64, a2: i64): i64;
-extern "C" function bootstrap_syscall4_impl(nr: i64, a0: i64, a1: i64, a2: i64, a3: i64): i64;
-extern "C" function bootstrap_format_double_impl(x: f64, out: *u8, cap: usize): i32;
-extern "C" function bootstrap_vfprintf_fd_impl(fd: i32, fmt: *u8, ap: *u8): i32;
+export extern "C" function bootstrap_heap_grow_impl(need: usize): i32;
+export extern "C" function bootstrap_syscall3_impl(nr: i64, a0: i64, a1: i64, a2: i64): i64;
+export extern "C" function bootstrap_syscall4_impl(nr: i64, a0: i64, a1: i64, a2: i64, a3: i64): i64;
+export extern "C" function bootstrap_format_double_impl(x: f64, out: *u8, cap: usize): i32;
+export extern "C" function bootstrap_vfprintf_fd_impl(fd: i32, fmt: *u8, ap: *u8): i32;
 
-function bootstrap_nostdlib_stubs_x_doc_anchor(): i32 {
+export function bootstrap_nostdlib_stubs_x_doc_anchor(): i32 {
   return 0;
 }
 
@@ -20,7 +20,7 @@ function bootstrap_nostdlib_stubs_x_doc_anchor(): i32 {
 
 
 #[no_mangle]
-function bootstrap_heap_grow(need: usize): i32 {
+export function bootstrap_heap_grow(need: usize): i32 {
   unsafe {
     return bootstrap_heap_grow_impl(need);
   }
@@ -28,7 +28,7 @@ function bootstrap_heap_grow(need: usize): i32 {
 }
 
 #[no_mangle]
-function bootstrap_syscall3(nr: i64, a0: i64, a1: i64, a2: i64): i64 {
+export function bootstrap_syscall3(nr: i64, a0: i64, a1: i64, a2: i64): i64 {
   unsafe {
     return bootstrap_syscall3_impl(nr, a0, a1, a2);
   }
@@ -36,7 +36,7 @@ function bootstrap_syscall3(nr: i64, a0: i64, a1: i64, a2: i64): i64 {
 }
 
 #[no_mangle]
-function bootstrap_syscall4(nr: i64, a0: i64, a1: i64, a2: i64, a3: i64): i64 {
+export function bootstrap_syscall4(nr: i64, a0: i64, a1: i64, a2: i64, a3: i64): i64 {
   unsafe {
     return bootstrap_syscall4_impl(nr, a0, a1, a2, a3);
   }
@@ -46,7 +46,7 @@ function bootstrap_syscall4(nr: i64, a0: i64, a1: i64, a2: i64, a3: i64): i64 {
 /* ---- G-02f-104：format / vfprintf 门闩 ---- */
 
 #[no_mangle]
-function bootstrap_format_double(x: f64, out: *u8, cap: usize): i32 {
+export function bootstrap_format_double(x: f64, out: *u8, cap: usize): i32 {
   unsafe {
     return bootstrap_format_double_impl(x, out, cap);
   }
@@ -54,7 +54,7 @@ function bootstrap_format_double(x: f64, out: *u8, cap: usize): i32 {
 }
 
 #[no_mangle]
-function bootstrap_vfprintf_fd(fd: i32, fmt: *u8, ap: *u8): i32 {
+export function bootstrap_vfprintf_fd(fd: i32, fmt: *u8, ap: *u8): i32 {
   unsafe {
     return bootstrap_vfprintf_fd_impl(fd, fmt, ap);
   }
@@ -64,7 +64,7 @@ function bootstrap_vfprintf_fd(fd: i32, fmt: *u8, ap: *u8): i32 {
 // G-02f-114：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
 
 #[no_mangle]
-function bootstrap_align16(n: usize): usize {
+export function bootstrap_align16(n: usize): usize {
   // (n + 15) & ~15
   return (n + 15) & (0 - 16);
 }

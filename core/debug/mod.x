@@ -26,64 +26,64 @@ let debug_diag_last_b: i32 = 0;
 let debug_diag_last_ok: i32 = 0;
 
 /** @deprecated 使用 core.assert.assert */
-function assert(b: bool): i32 {
+export function assert(b: bool): i32 {
   if (!b) { return panic(); }
   return 0;
 }
 /** @deprecated 使用 core.assert.debug_assert */
-function debug_assert(b: bool): i32 {
+export function debug_assert(b: bool): i32 {
   if (!b) { return panic(); }
   return 0;
 }
 /** 断言 a == b，否则 panic；返回 0。 */
-function assert_eq_i32(a: i32, b: i32): i32 {
+export function assert_eq_i32(a: i32, b: i32): i32 {
   if (a != b) { return panic(); }
   return 0;
 }
 /** 断言 a != b，否则 panic；返回 0。 */
-function assert_ne_i32(a: i32, b: i32): i32 {
+export function assert_ne_i32(a: i32, b: i32): i32 {
   if (a == b) { return panic(); }
   return 0;
 }
-function assert_eq_u32(a: u32, b: u32): i32 {
+export function assert_eq_u32(a: u32, b: u32): i32 {
   if (a != b) { return panic(); }
   return 0;
 }
-function assert_ne_u32(a: u32, b: u32): i32 {
+export function assert_ne_u32(a: u32, b: u32): i32 {
   if (a == b) { return panic(); }
   return 0;
 }
-function assert_eq_bool(a: bool, b: bool): i32 {
+export function assert_eq_bool(a: bool, b: bool): i32 {
   if (a != b) { return panic(); }
   return 0;
 }
-function assert_ne_bool(a: bool, b: bool): i32 {
+export function assert_ne_bool(a: bool, b: bool): i32 {
   if (a == b) { return panic(); }
   return 0;
 }
-function assert_eq_u64(a: u64, b: u64): i32 {
+export function assert_eq_u64(a: u64, b: u64): i32 {
   if (a != b) { return panic(); }
   return 0;
 }
-function assert_ne_u64(a: u64, b: u64): i32 {
+export function assert_ne_u64(a: u64, b: u64): i32 {
   if (a == b) { return panic(); }
   return 0;
 }
-function assert_eq_ptr(a: *u8, b: *u8): i32 {
+export function assert_eq_ptr(a: *u8, b: *u8): i32 {
   if (a != b) { return panic(); }
   return 0;
 }
-function assert_ne_ptr(a: *u8, b: *u8): i32 {
+export function assert_ne_ptr(a: *u8, b: *u8): i32 {
   if (a == b) { return panic(); }
   return 0;
 }
-function debug_assert_eq_i32_diag(a: i32, b: i32, tag: i32): i32 {
+export function debug_assert_eq_i32_diag(a: i32, b: i32, tag: i32): i32 {
   debug_diag_store(a, b, if (a == b) { 1 } else { 0 });
   if (a != b) { return panic(); }
   return 0;
 }
 /** 存储最近一次诊断三元组（烟测 / 调试器读取）。 */
-function debug_diag_store(a: i32, b: i32, ok: i32): void {
+export function debug_diag_store(a: i32, b: i32, ok: i32): void {
   debug_diag_last_a = a;
   debug_diag_last_b = b;
   debug_diag_last_ok = ok;
@@ -93,7 +93,7 @@ function debug_diag_store(a: i32, b: i32, ok: i32): void {
 
 /** 寄存器快照结构（x86_64）。 */
 #[repr(C)]
-struct RegSnapshot {
+export struct RegSnapshot {
   rax: u64; rbx: u64; rcx: u64; rdx: u64;
   rsi: u64; rdi: u64; rbp: u64; rsp: u64;
   r8: u64; r9: u64; r10: u64; r11: u64;
@@ -102,7 +102,7 @@ struct RegSnapshot {
 }
 
 /** 捕获当前寄存器状态（x86_64 asm!）；须在 unsafe {} 内调用。 */
-function capture_regs_x86_64(): RegSnapshot {
+export function capture_regs_x86_64(): RegSnapshot {
   let regs: RegSnapshot = {
     rax: 0, rbx: 0, rcx: 0, rdx: 0,
     rsi: 0, rdi: 0, rbp: 0, rsp: 0,
@@ -123,18 +123,18 @@ function capture_regs_x86_64(): RegSnapshot {
   return regs;
 }
 
-extern function std_debug_write_stderr(buf: *u8, count: usize): isize;
+export extern function std_debug_write_stderr(buf: *u8, count: usize): isize;
 
 /** panic 带位置信息：写 write(2) + 文件名 + 行号 + 寄存器快照。
  *  用于编译器内部致命错误的增强诊断。 */
-function panic_with_location(file: *u8, line: i32, msg: i32): i32 {
+export function panic_with_location(file: *u8, line: i32, msg: i32): i32 {
   // 写位置信息到 stderr：简化版，仅写 msg 值
   // 完整版需解决数组零初始化 codegen 问题后启用
   return panic();
 }
 
 /** 触发调试器断点（x86_64: INT3; ARM64: BRK #0）。 */
-function debug_breakpoint(): void {
+export function debug_breakpoint(): void {
   unsafe {
     asm!("int3");
   }

@@ -5,12 +5,12 @@
 // 产品实现：seeds/rt_parse_diag.from_x.c；hybrid 宏 SHUX_RT_PARSE_DIAG_FROM_X。
 // G-02f-448：thin+rest PREFER_X_O；.x 薄门闩调 _impl，seed 宏重命名。
 
-extern "C" function runtime_report_precise_parse_failure_if_known_impl(
+export extern "C" function runtime_report_precise_parse_failure_if_known_impl(
   input_path: *u8, src: *u8, src_len: usize): i32;
 
 /** TOKEN_STRING 失败时发 P001；否则 0（薄门闩；实际实现 seed _impl）。 */
 #[no_mangle]
-function runtime_report_precise_parse_failure_if_known(input_path: *u8, src: *u8, src_len: usize): i32 {
+export function runtime_report_precise_parse_failure_if_known(input_path: *u8, src: *u8, src_len: usize): i32 {
   unsafe {
     return runtime_report_precise_parse_failure_if_known_impl(input_path, src, src_len);
   }

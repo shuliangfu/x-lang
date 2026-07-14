@@ -21,29 +21,29 @@
 //
 // 【依赖】libc close / fcntl / ioctlsocket
 
-const O_NONBLOCK: i32 = 2048;
+export const O_NONBLOCK: i32 = 2048;
 
 /** Unix poll 未使用；保留常量对齐 net.c。 */
-const F_GETFL: i32 = 3;
-const F_SETFL: i32 = 4;
+export const F_GETFL: i32 = 3;
+export const F_SETFL: i32 = 4;
 
-extern "C" function close(fd: i32): i32;
+export extern "C" function close(fd: i32): i32;
 
 #[cfg(not(target_os = "windows"))]
-extern "C" function fcntl(fd: i32, cmd: i32, arg: i32): i32;
+export extern "C" function fcntl(fd: i32, cmd: i32, arg: i32): i32;
 
 #[cfg(target_os = "windows")]
-extern "C" function closesocket(fd: i32): i32;
+export extern "C" function closesocket(fd: i32): i32;
 
 #[cfg(target_os = "windows")]
-extern "C" function ioctlsocket(fd: i32, cmd: i32, arg: *u32): i32;
+export extern "C" function ioctlsocket(fd: i32, cmd: i32, arg: *u32): i32;
 
 /**
  * 内部：切换阻塞/非阻塞（Unix）；blocking=1 阻塞。
  * 顶层 cfg 分函数，避免函数体内 #[cfg] 触发 seed emit skip。
  */
 #[cfg(not(target_os = "windows"))]
-function net_sock_set_blocking_fd_c(fd: i32, blocking: i32): i32 {
+export function net_sock_set_blocking_fd_c(fd: i32, blocking: i32): i32 {
   let flags: i32 = 0;
   unsafe { flags = fcntl(fd, F_GETFL, 0); }
   if (flags < 0) {
@@ -64,7 +64,7 @@ function net_sock_set_blocking_fd_c(fd: i32, blocking: i32): i32 {
  * 内部：切换阻塞/非阻塞（Windows）；blocking=1 阻塞。
  */
 #[cfg(target_os = "windows")]
-function net_sock_set_blocking_fd_c(fd: i32, blocking: i32): i32 {
+export function net_sock_set_blocking_fd_c(fd: i32, blocking: i32): i32 {
   let mode: u32 = 0;
   if (blocking == 0) {
     mode = 1;
@@ -78,7 +78,7 @@ function net_sock_set_blocking_fd_c(fd: i32, blocking: i32): i32 {
 /**
  * 关闭 socket fd；Windows 用 closesocket。0 成功，-1 失败。
  */
-function net_close_socket_c(fd: i32): i32 {
+export function net_close_socket_c(fd: i32): i32 {
   if (fd < 0) {
     return 0;
   }
@@ -100,7 +100,7 @@ function net_close_socket_c(fd: i32): i32 {
 /**
  * 设置 socket 阻塞/非阻塞；blocking：1=阻塞，0=非阻塞。
  */
-function net_set_blocking_c(fd: i32, blocking: i32): i32 {
+export function net_set_blocking_c(fd: i32, blocking: i32): i32 {
   if (fd < 0) {
     return -1;
   }

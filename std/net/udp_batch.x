@@ -27,32 +27,32 @@
 allow(padding) struct NetBatchBuf { ptr: *u8; len: usize; handle: usize; }
 
 /** .x 参数限制：最多 2 报文 flat API。 */
-const UDP_BATCH_MAX: i32 = 2;
+export const UDP_BATCH_MAX: i32 = 2;
 
 /** 切片 batch：最多 8 段。 */
-const UDP_BATCH_BUF_MAX: i32 = 8;
+export const UDP_BATCH_BUF_MAX: i32 = 8;
 
-extern function net_udp_recv_from_c(fd: i32, buf: *u8, len: usize, timeout_ms: u32, out_addr_u32: *u32, out_port_u32: *u32): i32;
+export extern function net_udp_recv_from_c(fd: i32, buf: *u8, len: usize, timeout_ms: u32, out_addr_u32: *u32, out_port_u32: *u32): i32;
 
-extern function net_udp_send_to_c(fd: i32, addr_u32: u32, port_u32: u32, buf: *u8, len: usize): i32;
-
-#[cfg(target_os = "linux")]
-extern function shu_net_udp_recvmmsg2_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, n: i32, timeout_ms: u32, out_sizes: *i32, out_addrs: *u32, out_ports: *u32): i32;
+export extern function net_udp_send_to_c(fd: i32, addr_u32: u32, port_u32: u32, buf: *u8, len: usize): i32;
 
 #[cfg(target_os = "linux")]
-extern function shu_net_udp_sendmmsg2_c(fd: i32, a0: u32, port0: u32, p0: *u8, l0: usize, a1: u32, port1: u32, p1: *u8, l1: usize, n: i32): i32;
+export extern function shu_net_udp_recvmmsg2_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, n: i32, timeout_ms: u32, out_sizes: *i32, out_addrs: *u32, out_ports: *u32): i32;
 
 #[cfg(target_os = "linux")]
-extern function shu_net_udp_recvmmsg_buf_c(fd: i32, bufs: *NetBatchBuf, n: i32, timeout_ms: u32, out_sizes: *i32, out_addrs: *u32, out_ports: *u32): i32;
+export extern function shu_net_udp_sendmmsg2_c(fd: i32, a0: u32, port0: u32, p0: *u8, l0: usize, a1: u32, port1: u32, p1: *u8, l1: usize, n: i32): i32;
 
 #[cfg(target_os = "linux")]
-extern function shu_net_udp_sendmmsg_buf_c(fd: i32, addrs: *u32, ports: *u32, bufs: *NetBatchBuf, n: i32): i32;
+export extern function shu_net_udp_recvmmsg_buf_c(fd: i32, bufs: *NetBatchBuf, n: i32, timeout_ms: u32, out_sizes: *i32, out_addrs: *u32, out_ports: *u32): i32;
+
+#[cfg(target_os = "linux")]
+export extern function shu_net_udp_sendmmsg_buf_c(fd: i32, addrs: *u32, ports: *u32, bufs: *NetBatchBuf, n: i32): i32;
 
 /**
  * UDP 批量接收；最多 2 段 (p0,l0),(p1,l1)，n 为 1..2（Linux recvmmsg 快路径）。
  */
 #[cfg(target_os = "linux")]
-function net_udp_recv_many_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, n: i32, timeout_ms: u32, out_sizes: *i32, out_addrs: *u32, out_ports: *u32): i32 {
+export function net_udp_recv_many_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, n: i32, timeout_ms: u32, out_sizes: *i32, out_addrs: *u32, out_ports: *u32): i32 {
   if (n <= 0 || n > UDP_BATCH_MAX || out_sizes == 0 || out_addrs == 0 || out_ports == 0) {
     return -1;
   }
@@ -64,7 +64,7 @@ function net_udp_recv_many_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, n:
  * UDP 批量接收回退（非 Linux：循环 net_udp_recv_from_c）。
  */
 #[cfg(not(target_os = "linux"))]
-function net_udp_recv_many_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, n: i32, timeout_ms: u32, out_sizes: *i32, out_addrs: *u32, out_ports: *u32): i32 {
+export function net_udp_recv_many_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, n: i32, timeout_ms: u32, out_sizes: *i32, out_addrs: *u32, out_ports: *u32): i32 {
   let count: i32 = 0;
   let got: i32 = 0;
   let tm: u32 = 0;
@@ -98,7 +98,7 @@ function net_udp_recv_many_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, n:
  * UDP 批量发送；n 条 (addr, port, buf, len)，n 为 1..2（Linux sendmmsg 快路径）。
  */
 #[cfg(target_os = "linux")]
-function net_udp_send_many_c(fd: i32, a0: u32, port0: u32, p0: *u8, l0: usize, a1: u32, port1: u32, p1: *u8, l1: usize, n: i32): i32 {
+export function net_udp_send_many_c(fd: i32, a0: u32, port0: u32, p0: *u8, l0: usize, a1: u32, port1: u32, p1: *u8, l1: usize, n: i32): i32 {
   if (n <= 0 || n > UDP_BATCH_MAX) {
     return -1;
   }
@@ -110,7 +110,7 @@ function net_udp_send_many_c(fd: i32, a0: u32, port0: u32, p0: *u8, l0: usize, a
  * UDP 批量发送回退（非 Linux）。
  */
 #[cfg(not(target_os = "linux"))]
-function net_udp_send_many_c(fd: i32, a0: u32, port0: u32, p0: *u8, l0: usize, a1: u32, port1: u32, p1: *u8, l1: usize, n: i32): i32 {
+export function net_udp_send_many_c(fd: i32, a0: u32, port0: u32, p0: *u8, l0: usize, a1: u32, port1: u32, p1: *u8, l1: usize, n: i32): i32 {
   let i: i32 = 0;
   let sent: i32 = 0;
   if (n <= 0 || n > UDP_BATCH_MAX) {
@@ -134,9 +134,9 @@ function net_udp_send_many_c(fd: i32, a0: u32, port0: u32, p0: *u8, l0: usize, a
 /**
  * UDP 批量接收（Buffer 切片）；实现见 net_import_alias.c（规避 asm 常量比较 codegen 缺陷）。
  */
-extern function net_udp_recv_many_buf_c(fd: i32, bufs: *NetBatchBuf, n: i32, timeout_ms: u32, out_sizes: *i32, out_addrs: *u32, out_ports: *u32): i32;
+export extern function net_udp_recv_many_buf_c(fd: i32, bufs: *NetBatchBuf, n: i32, timeout_ms: u32, out_sizes: *i32, out_addrs: *u32, out_ports: *u32): i32;
 
 /**
  * UDP 批量发送（Buffer 切片）；实现见 net_import_alias.c（规避 asm 常量比较 codegen 缺陷）。
  */
-extern function net_udp_send_many_buf_c(fd: i32, addrs: *u32, ports: *u32, bufs: *NetBatchBuf, n: i32): i32;
+export extern function net_udp_send_many_buf_c(fd: i32, addrs: *u32, ports: *u32, bufs: *NetBatchBuf, n: i32): i32;

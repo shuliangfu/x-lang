@@ -144,7 +144,9 @@ typedef enum TokenKind {
     TOKEN_QUESTION, /**< ? 三元运算符 cond ? then : else */
     TOKEN_AS,       /**< as 类型转换 expr as type */
     TOKEN_AT,       /**< @ SIMD comptime builtin 前缀（@shuffle / @select） */
-    TOKEN_STRING    /**< 字符串字面量（import("path") 路径等） */
+    TOKEN_STRING,   /**< 字符串字面量（import("path") 路径等） */
+    /** 放在枚举末尾：避免挤动 IDENT 等序数（thin 路径大量硬编码 IDENT=59）。 */
+    TOKEN_EXPORT    /**< 关键字 export（模块导出：进入导出表 E(M)，供 import 跨模块使用） */
 } TokenKind;
 
 /** 单个 Token：类型 + 源码位置 + 可选值（字面量/标识符） */

@@ -6,7 +6,7 @@
 // G-02f-151：net_sockaddr_in_pack_addr_port_c 真迁 .x
 // sin_port@2 / sin_addr@4 网络序（Linux 与 Darwin 一致；Darwin 另有 sin_len@0）
 
-function runtime_net_addr_fast_x_doc_anchor(): i32 {
+export function runtime_net_addr_fast_x_doc_anchor(): i32 {
   return 0;
 }
 
@@ -14,7 +14,7 @@ function runtime_net_addr_fast_x_doc_anchor(): i32 {
 
 // 网络序 u16/u32 → 主机序，再 pack (addr<<32)|port；避免 << 用 *4294967296
 #[no_mangle]
-function net_sockaddr_in_pack_addr_port_c(sin_ptr: *u8): i64 {
+export function net_sockaddr_in_pack_addr_port_c(sin_ptr: *u8): i64 {
   if (sin_ptr == 0) { return 0; }
   // sin_port 网络序 @2
   let p0: u32 = sin_ptr[2] as u32;

@@ -5,10 +5,10 @@
 // 产品默认仍在 seeds/runtime.from_x.c；hybrid 用 seeds/rt_util.from_x.c。
 // 🔒 unlink / strrchr / strcmp 经 libc extern。
 
-extern "C" function unlink(path: *u8): i32;
+export extern "C" function unlink(path: *u8): i32;
 
 #[no_mangle]
-function driver_unlink_failed_output(out_path: *u8): void {
+export function driver_unlink_failed_output(out_path: *u8): void {
   if (out_path == 0 as *u8) {
     return;
   }

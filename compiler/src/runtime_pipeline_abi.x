@@ -30,125 +30,125 @@
 // G-02f-241：thread_fn 边界 pure；collect process_one helper；emit prepare 边界。
 // G-02f-242：typeck_module_for_ctx 编排 pure；P1-5 soft 近闭。
 
-extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
-extern "C" function typeck_ndep_slot(): *i32;
-extern "C" function typeck_ndep_store_impl(n: i32): void;
-extern "C" function driver_dep_seeded_slot(i: i32): *i32;
-extern "C" function typeck_dep_module_get(i: i32): *u8;
-extern "C" function typeck_dep_arena_get(i: i32): *u8;
-extern "C" function typeck_dep_module_set_impl(i: i32, mod: *u8): void;
-extern "C" function typeck_dep_arena_set_impl(i: i32, arena: *u8): void;
-extern "C" function driver_dep_arena_ptr_set_impl(i: i32, arena: *u8): void;
-extern "C" function driver_dep_module_ptr_set_impl(i: i32, module: *u8): void;
-extern "C" function driver_dep_path_registry_set(i: i32, path: *u8): void;
-extern "C" function driver_dep_path_registry_at(i: i32): *u8;
-extern "C" function driver_dep_module_buf(i: i32): *u8;
-extern "C" function driver_dep_arena_buf(i: i32): *u8;
-extern "C" function strchr(s: *u8, c: i32): *u8;
-extern "C" function pipeline_asm_user_dep_skip_x_typeck(path: *u8): i32;
-extern "C" function pipeline_asm_user_std_net_dep_path(path: *u8): i32;
-extern "C" function pipeline_codegen_path_is_std_io_driver_bytes(path: *u8): i32;
+export extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
+export extern "C" function typeck_ndep_slot(): *i32;
+export extern "C" function typeck_ndep_store_impl(n: i32): void;
+export extern "C" function driver_dep_seeded_slot(i: i32): *i32;
+export extern "C" function typeck_dep_module_get(i: i32): *u8;
+export extern "C" function typeck_dep_arena_get(i: i32): *u8;
+export extern "C" function typeck_dep_module_set_impl(i: i32, mod: *u8): void;
+export extern "C" function typeck_dep_arena_set_impl(i: i32, arena: *u8): void;
+export extern "C" function driver_dep_arena_ptr_set_impl(i: i32, arena: *u8): void;
+export extern "C" function driver_dep_module_ptr_set_impl(i: i32, module: *u8): void;
+export extern "C" function driver_dep_path_registry_set(i: i32, path: *u8): void;
+export extern "C" function driver_dep_path_registry_at(i: i32): *u8;
+export extern "C" function driver_dep_module_buf(i: i32): *u8;
+export extern "C" function driver_dep_arena_buf(i: i32): *u8;
+export extern "C" function strchr(s: *u8, c: i32): *u8;
+export extern "C" function pipeline_asm_user_dep_skip_x_typeck(path: *u8): i32;
+export extern "C" function pipeline_asm_user_std_net_dep_path(path: *u8): i32;
+export extern "C" function pipeline_codegen_path_is_std_io_driver_bytes(path: *u8): i32;
 /* shux_dep_prerun_entry_dir_pick：G-02f-223 下方真迁 */
 /* typeck_module_for_ctx：G-02f-242 下方真迁 */
-extern "C" function typeck_module_entry_only(module: *u8): i32;
-extern "C" function typeck_module_with_sidecar(module: *u8): i32;
-extern "C" function free(p: *u8): void;
-extern "C" function ast_module_free(mod: *u8): void;
-extern "C" function shu_lsp_ptr_slot_clear(arr: *u8, i: i32): void;
+export extern "C" function typeck_module_entry_only(module: *u8): i32;
+export extern "C" function typeck_module_with_sidecar(module: *u8): i32;
+export extern "C" function free(p: *u8): void;
+export extern "C" function ast_module_free(mod: *u8): void;
+export extern "C" function shu_lsp_ptr_slot_clear(arr: *u8, i: i32): void;
 /* pctx_update_dep_slots_no_reset：G-02f-228 下方真迁 */
-extern "C" function ast_pipeline_dep_ctx_reset(ctx: *u8): void;
-extern "C" function ast_pipeline_dep_ctx_set_module(ctx: *u8, idx: i32, m: *u8): void;
-extern "C" function ast_pipeline_dep_ctx_set_arena(ctx: *u8, idx: i32, a: *u8): void;
-extern "C" function ast_pipeline_dep_ctx_set_import_path(ctx: *u8, idx: i32, bytes: *u8, len: i32): void;
-extern "C" function ast_pipeline_dep_ctx_set_ndep(ctx: *u8, n: i32): void;
-extern "C" function pipeline_run_x_thread_fn_impl(arg: *u8): *u8;
-extern "C" function shux_asm_codegen_elf_o_thread_fn_impl(arg: *u8): *u8;
+export extern "C" function ast_pipeline_dep_ctx_reset(ctx: *u8): void;
+export extern "C" function ast_pipeline_dep_ctx_set_module(ctx: *u8, idx: i32, m: *u8): void;
+export extern "C" function ast_pipeline_dep_ctx_set_arena(ctx: *u8, idx: i32, a: *u8): void;
+export extern "C" function ast_pipeline_dep_ctx_set_import_path(ctx: *u8, idx: i32, bytes: *u8, len: i32): void;
+export extern "C" function ast_pipeline_dep_ctx_set_ndep(ctx: *u8, n: i32): void;
+export extern "C" function pipeline_run_x_thread_fn_impl(arg: *u8): *u8;
+export extern "C" function shux_asm_codegen_elf_o_thread_fn_impl(arg: *u8): *u8;
 
 /* emit_pipeline_glue_include：G-02f-234 下方真迁 */
-extern "C" function shux_fputs_stdout(s: *u8): void;
-extern "C" function shux_import_dep_dir_from_path_impl(path: *u8, dep_dir: *u8, dep_dir_size: i64): i32;
-extern "C" function pipeline_debug_trace_named_func_bodies(phase: *u8, module: *u8, arena: *u8): void;
+export extern "C" function shux_fputs_stdout(s: *u8): void;
+export extern "C" function shux_import_dep_dir_from_path_impl(path: *u8, dep_dir: *u8, dep_dir_size: i64): i32;
+export extern "C" function pipeline_debug_trace_named_func_bodies(phase: *u8, module: *u8, arena: *u8): void;
 /* seeded_clear_slots：G-02f-230 下方真迁 */
 /* get_entry_dir / import_path_to_file_path：G-02f-229 下方真迁 */
 /* fclose_asm_out：G-02f-234 下方真迁 */
-extern "C" function driver_asm_fp_is_stdout(fp: *u8): i32;
-extern "C" function driver_asm_fflush_stdout(): void;
-extern "C" function driver_asm_fclose_file(fp: *u8): void;
+export extern "C" function driver_asm_fp_is_stdout(fp: *u8): i32;
+export extern "C" function driver_asm_fflush_stdout(): void;
+export extern "C" function driver_asm_fclose_file(fp: *u8): void;
 /* resolve_file_import_path：G-02f-231 下方真迁（join pure；realpath 🔒） */
-extern "C" function shux_path_try_realpath_inplace(path: *u8, path_size: i64): void;
-extern "C" function pipeline_dep_ctx_path_bufs_reset(ctx: *u8): void;
-extern "C" function pipeline_dep_ctx_copy_entry_dir(ctx: *u8, entry_dir: *u8): void;
-extern "C" function ast_pipeline_ctx_append_lib_root(ctx: *u8, path: *u8, len: i32): i32;
+export extern "C" function shux_path_try_realpath_inplace(path: *u8, path_size: i64): void;
+export extern "C" function pipeline_dep_ctx_path_bufs_reset(ctx: *u8): void;
+export extern "C" function pipeline_dep_ctx_copy_entry_dir(ctx: *u8, entry_dir: *u8): void;
+export extern "C" function ast_pipeline_ctx_append_lib_root(ctx: *u8, path: *u8, len: i32): i32;
 /* driver_dep_slot_for_path_scan：G-02f-224 下方真迁 */
-extern "C" function shux_preprocess_raw_to_malloc_impl(raw: *u8, raw_len: i64, out_src: *u8, out_src_len: *u8, path_diag: *u8, defines: *u8, ndefines: i32, emit_diag: i32): i32;
-extern "C" function driver_dep_seed_slots_impl(arenas: *u8, modules: *u8, n: i32): void;
-extern "C" function shux_entry_lib_name_from_path_impl(input_path: *u8): *u8;
-extern "C" function shux_cstr_typeck_lit(): *u8;
-extern "C" function shux_entry_lib_keyword_lit(k: i32): *u8;
-extern "C" function pipeline_dep_arena_slot_set(i: i32, p: *u8): void;
-extern "C" function pipeline_dep_module_slot_set(i: i32, p: *u8): void;
-extern "C" function pipeline_dep_arena_slot_at(i: i32): *u8;
-extern "C" function pipeline_dep_module_slot_at(i: i32): *u8;
+export extern "C" function shux_preprocess_raw_to_malloc_impl(raw: *u8, raw_len: i64, out_src: *u8, out_src_len: *u8, path_diag: *u8, defines: *u8, ndefines: i32, emit_diag: i32): i32;
+export extern "C" function driver_dep_seed_slots_impl(arenas: *u8, modules: *u8, n: i32): void;
+export extern "C" function shux_entry_lib_name_from_path_impl(input_path: *u8): *u8;
+export extern "C" function shux_cstr_typeck_lit(): *u8;
+export extern "C" function shux_entry_lib_keyword_lit(k: i32): *u8;
+export extern "C" function pipeline_dep_arena_slot_set(i: i32, p: *u8): void;
+export extern "C" function pipeline_dep_module_slot_set(i: i32, p: *u8): void;
+export extern "C" function pipeline_dep_arena_slot_at(i: i32): *u8;
+export extern "C" function pipeline_dep_module_slot_at(i: i32): *u8;
 /* import_open_fail_once：G-02f-227 下方真迁 */
-extern "C" function pipeline_asm_debug_enabled_impl(): i32;
-extern "C" function diag_report_with_code(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void;
-extern "C" function diag_report(file: *u8, line: i32, col: i32, kind: *u8, msg: *u8, detail: *u8): void;
+export extern "C" function pipeline_asm_debug_enabled_impl(): i32;
+export extern "C" function diag_report_with_code(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void;
+export extern "C" function diag_report(file: *u8, line: i32, col: i32, kind: *u8, msg: *u8, detail: *u8): void;
 /* preprocess/import diag：G-02f-225 下方真迁 */
 
 /* pipeline_resolve_path：G-02f-237 下方真迁 */
-extern "C" function pipeline_resolve_path_into_static(path_c: *u8): void;
+export extern "C" function pipeline_resolve_path_into_static(path_c: *u8): void;
 /* pipeline_read_file：G-02f-238 下方真迁 */
-extern "C" function pipeline_read_file_stage_prep(): i32;
-extern "C" function pipeline_read_file_commit_prep(): i32;
+export extern "C" function pipeline_read_file_stage_prep(): i32;
+export extern "C" function pipeline_read_file_commit_prep(): i32;
 /* parse_into_loaded_import：G-02f-239 下方真迁 */
-extern "C" function pipeline_loaded_import_data(): *u8;
-extern "C" function pipeline_loaded_import_len_get(): i64;
-extern "C" function pipeline_parse_into_bytes(arena: *u8, module: *u8, data: *u8, len: i64): i32;
-extern "C" function shux_pipeline_run_x_pipeline_large_stack_impl(module: *u8, arena: *u8, source_data: *u8, source_len: i64, out_buf: *u8, ctx: *u8): i32;
-extern "C" function shux_pipeline_dep_prerun_parse_skip_typeck_impl(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32;
-extern "C" function shux_pipeline_dep_prerun_parse_only_impl(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64): i32;
-extern "C" function shux_pipeline_dep_prerun_typeck_only_impl(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32;
+export extern "C" function pipeline_loaded_import_data(): *u8;
+export extern "C" function pipeline_loaded_import_len_get(): i64;
+export extern "C" function pipeline_parse_into_bytes(arena: *u8, module: *u8, data: *u8, len: i64): i32;
+export extern "C" function shux_pipeline_run_x_pipeline_large_stack_impl(module: *u8, arena: *u8, source_data: *u8, source_len: i64, out_buf: *u8, ctx: *u8): i32;
+export extern "C" function shux_pipeline_dep_prerun_parse_skip_typeck_impl(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32;
+export extern "C" function shux_pipeline_dep_prerun_parse_only_impl(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64): i32;
+export extern "C" function shux_pipeline_dep_prerun_typeck_only_impl(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32;
 /* resolve_import_file_path_multi：G-02f-232 下方真迁 */
-extern "C" function access(path: *u8, mode: i32): i32;
-extern "C" function shux_cstr_offset(s: *u8, off: i32): *u8;
+export extern "C" function access(path: *u8, mode: i32): i32;
+export extern "C" function shux_cstr_offset(s: *u8, off: i32): *u8;
 /* set_entry_dir：G-02f-231 下方真迁 */
-extern "C" function pipeline_entry_dir_copy(path: *u8): void;
-extern "C" function pipeline_entry_dir_set_dot(): void;
-extern "C" function pipeline_set_dep_slots_impl(arenas: *u8, modules: *u8): void;
+export extern "C" function pipeline_entry_dir_copy(path: *u8): void;
+export extern "C" function pipeline_entry_dir_set_dot(): void;
+export extern "C" function pipeline_set_dep_slots_impl(arenas: *u8, modules: *u8): void;
 /* fill_ctx_path_buffers：G-02f-230 下方真迁 */
 /* pctx_seed_dep_slots / import_paths_only：G-02f-228 下方真迁 */
 /* one_ctx_for_dep_prerun：G-02f-233 下方真迁（早退 pure；map 🔒） */
-extern "C" function pipeline_dep_ctx_set_use_asm_backend(ctx: *u8, v: i32): void;
-extern "C" function shux_pipeline_one_ctx_for_dep_prerun_map_impl(ctx: *u8, dep_mods: *u8, dep_ars: *u8, dep_paths: *u8, ndep: i32, dep_src: *u8, dep_src_len: i64): void;
-extern "C" function shux_asm_codegen_elf_o_large_stack_impl(module: *u8, arena: *u8, ctx: *u8, elf_ctx: *u8, out_buf: *u8): i32;
+export extern "C" function pipeline_dep_ctx_set_use_asm_backend(ctx: *u8, v: i32): void;
+export extern "C" function shux_pipeline_one_ctx_for_dep_prerun_map_impl(ctx: *u8, dep_mods: *u8, dep_ars: *u8, dep_paths: *u8, ndep: i32, dep_src: *u8, dep_src_len: i64): void;
+export extern "C" function shux_asm_codegen_elf_o_large_stack_impl(module: *u8, arena: *u8, ctx: *u8, elf_ctx: *u8, out_buf: *u8): i32;
 /* load_direct_imports_for_asm_layout：G-02f-236 下方真迁 */
-extern "C" function shux_module_num_imports(module: *u8): i32;
-extern "C" function shux_load_one_direct_import_at(lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, import_key: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, mi: i32): i32;
-extern "C" function shux_load_direct_fail_cleanup(dep_sources: *u8, dep_paths: *u8, mi: i32): void;
+export extern "C" function shux_module_num_imports(module: *u8): i32;
+export extern "C" function shux_load_one_direct_import_at(lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, import_key: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, mi: i32): i32;
+export extern "C" function shux_load_direct_fail_cleanup(dep_sources: *u8, dep_paths: *u8, mi: i32): void;
 /* merge_direct_then_transitive_dep_paths：G-02f-234 下方真迁 */
-extern "C" function shux_module_import_path_cstr(module: *u8, idx: i32, buf: *u8, cap: i32): void;
-extern "C" function shux_ptr_slot_set(arr: *u8, i: i32, p: *u8): void;
-extern "C" function shux_i32_store(p: *i32, v: i32): void;
+export extern "C" function shux_module_import_path_cstr(module: *u8, idx: i32, buf: *u8, cap: i32): void;
+export extern "C" function shux_ptr_slot_set(arr: *u8, i: i32, p: *u8): void;
+export extern "C" function shux_i32_store(p: *i32, v: i32): void;
 /* merge_direct_then_transitive_deps：G-02f-235 下方真迁 */
-extern "C" function shux_size_slot_get(arr: *u8, i: i32): i64;
-extern "C" function shux_size_slot_set(arr: *u8, i: i32, v: i64): void;
-extern "C" function shux_collect_deps_transitive_impl(module: *u8, arena_sz: i64, module_sz: i64, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, n_deps: *i32): i32;
-extern "C" function shux_collect_dep_paths_transitive_impl(module: *u8, arena_sz: i64, module_sz: i64, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_paths: *u8, n_deps: *i32): i32;
-extern "C" function pipeline_debug_trace_named_func_bodies_impl(phase: *u8, module: *u8, arena: *u8): void;
+export extern "C" function shux_size_slot_get(arr: *u8, i: i32): i64;
+export extern "C" function shux_size_slot_set(arr: *u8, i: i32, v: i64): void;
+export extern "C" function shux_collect_deps_transitive_impl(module: *u8, arena_sz: i64, module_sz: i64, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, n_deps: *i32): i32;
+export extern "C" function shux_collect_dep_paths_transitive_impl(module: *u8, arena_sz: i64, module_sz: i64, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_paths: *u8, n_deps: *i32): i32;
+export extern "C" function pipeline_debug_trace_named_func_bodies_impl(phase: *u8, module: *u8, arena: *u8): void;
 
 /* ---- G-02f-32：占位 no-op ---- */
 
 #[no_mangle]
-function parser_parse_into_init(module: *u8, arena: *u8): void {
+export function parser_parse_into_init(module: *u8, arena: *u8): void {
 }
 
 #[no_mangle]
-function parser_get_module_num_imports(module: *u8): i32 {
+export function parser_get_module_num_imports(module: *u8): i32 {
   return 0;
 }
 
 #[no_mangle]
-function parser_get_module_import_path(module: *u8, idx: i32, path_buf: *u8): void {
+export function parser_get_module_import_path(module: *u8, idx: i32, path_buf: *u8): void {
   if (path_buf == 0 as *u8) {
     return;
   }
@@ -158,35 +158,35 @@ function parser_get_module_import_path(module: *u8, idx: i32, path_buf: *u8): vo
 }
 
 #[no_mangle]
-function asm_skip_heavy_set_pipeline_ctx(ctx: *u8): void {
+export function asm_skip_heavy_set_pipeline_ctx(ctx: *u8): void {
 }
 
 #[no_mangle]
-function pipeline_fill_array_lit_types_for_skipped_typeck(m: *u8, a: *u8): void {
+export function pipeline_fill_array_lit_types_for_skipped_typeck(m: *u8, a: *u8): void {
 }
 
 #[no_mangle]
-function pipeline_fill_soa_field_access_for_asm_emit(m: *u8, a: *u8): void {
+export function pipeline_fill_soa_field_access_for_asm_emit(m: *u8, a: *u8): void {
 }
 
 #[no_mangle]
-function pipeline_module_fixup_with_arena_stmt_orders(m: *u8, a: *u8): void {
+export function pipeline_module_fixup_with_arena_stmt_orders(m: *u8, a: *u8): void {
 }
 
 #[no_mangle]
-function asm_asm_codegen_elf_o(m: *u8, a: *u8, c: *u8, e: *u8, o: *u8): i32 {
+export function asm_asm_codegen_elf_o(m: *u8, a: *u8, c: *u8, e: *u8, o: *u8): i32 {
   return 0 - 1;
 }
 
 #[no_mangle]
-function pipeline_parse_set_main_from_buf_c(m: *u8, a: *u8, d: *u8, len: i32): i32 {
+export function pipeline_parse_set_main_from_buf_c(m: *u8, a: *u8, d: *u8, len: i32): i32 {
   return 0;
 }
 
 /* ---- G-02f-33：diag_emitted / ndep 读 ---- */
 
 #[no_mangle]
-function pipeline_diag_emitted_reset(): void {
+export function pipeline_diag_emitted_reset(): void {
   unsafe {
     let p: *i32 = pipeline_diag_emitted_flag_slot();
     p[0] = 0;
@@ -194,7 +194,7 @@ function pipeline_diag_emitted_reset(): void {
 }
 
 #[no_mangle]
-function pipeline_diag_emitted_note(): void {
+export function pipeline_diag_emitted_note(): void {
   unsafe {
     let p: *i32 = pipeline_diag_emitted_flag_slot();
     p[0] = 1;
@@ -202,7 +202,7 @@ function pipeline_diag_emitted_note(): void {
 }
 
 #[no_mangle]
-function pipeline_diag_emitted_get(): i32 {
+export function pipeline_diag_emitted_get(): i32 {
   unsafe {
     let p: *i32 = pipeline_diag_emitted_flag_slot();
     if (p[0] != 0) {
@@ -214,7 +214,7 @@ function pipeline_diag_emitted_get(): i32 {
 }
 
 #[no_mangle]
-function get_ndep(): i32 {
+export function get_ndep(): i32 {
   unsafe {
     let p: *i32 = typeck_ndep_slot();
     let r: i32 = p[0];
@@ -227,12 +227,12 @@ function get_ndep(): i32 {
 
 // G-02f-233：ndep 写入（边界在 typeck_ndep_store）
 #[no_mangle]
-function pipeline_set_ndep(n: i32): void {
+export function pipeline_set_ndep(n: i32): void {
   typeck_ndep_store(n);
 }
 
 #[no_mangle]
-function driver_dep_seeded_get(i: i32): i32 {
+export function driver_dep_seeded_get(i: i32): i32 {
   if (i < 0) {
     return 0;
   }
@@ -250,7 +250,7 @@ function driver_dep_seeded_get(i: i32): i32 {
 }
 
 #[no_mangle]
-function driver_dep_seeded_set(i: i32, v: i32): void {
+export function driver_dep_seeded_set(i: i32, v: i32): void {
   if (i < 0) {
     return;
   }
@@ -264,14 +264,14 @@ function driver_dep_seeded_set(i: i32, v: i32): void {
 }
 
 #[no_mangle]
-function typeck_driver_dep_seeded_get(i: i32): i32 {
+export function typeck_driver_dep_seeded_get(i: i32): i32 {
   return driver_dep_seeded_get(i);
 }
 
 /* ---- G-02f-40：dep module/arena get/set（数组本体 C，API 逻辑 .x）---- */
 
 #[no_mangle]
-function get_dep_module(i: i32): *u8 {
+export function get_dep_module(i: i32): *u8 {
   if (i < 0) {
     return 0 as *u8;
   }
@@ -287,7 +287,7 @@ function get_dep_module(i: i32): *u8 {
 }
 
 #[no_mangle]
-function get_dep_arena(i: i32): *u8 {
+export function get_dep_arena(i: i32): *u8 {
   if (i < 0) {
     return 0 as *u8;
   }
@@ -303,17 +303,17 @@ function get_dep_arena(i: i32): *u8 {
 }
 
 #[no_mangle]
-function typeck_get_dep_module(i: i32): *u8 {
+export function typeck_get_dep_module(i: i32): *u8 {
   return get_dep_module(i);
 }
 
 #[no_mangle]
-function typeck_get_dep_arena(i: i32): *u8 {
+export function typeck_get_dep_arena(i: i32): *u8 {
   return get_dep_arena(i);
 }
 
 #[no_mangle]
-function pipeline_set_dep(i: i32, mod: *u8, arena: *u8): void {
+export function pipeline_set_dep(i: i32, mod: *u8, arena: *u8): void {
   if (i < 0) {
     return;
   }
@@ -329,7 +329,7 @@ function pipeline_set_dep(i: i32, mod: *u8, arena: *u8): void {
 /* ---- G-02f-42：driver dep publish + typeck buf 转发 ---- */
 
 #[no_mangle]
-function driver_dep_publish_slot(i: i32, arena: *u8, module: *u8, import_path: *u8): void {
+export function driver_dep_publish_slot(i: i32, arena: *u8, module: *u8, import_path: *u8): void {
   if (i < 0) {
     return;
   }
@@ -346,7 +346,7 @@ function driver_dep_publish_slot(i: i32, arena: *u8, module: *u8, import_path: *
 }
 
 #[no_mangle]
-function typeck_driver_dep_module_buf(i: i32): *u8 {
+export function typeck_driver_dep_module_buf(i: i32): *u8 {
   unsafe {
     let r: *u8 = driver_dep_module_buf(i);
     return r;
@@ -355,7 +355,7 @@ function typeck_driver_dep_module_buf(i: i32): *u8 {
 }
 
 #[no_mangle]
-function typeck_driver_dep_arena_buf(i: i32): *u8 {
+export function typeck_driver_dep_arena_buf(i: i32): *u8 {
   unsafe {
     let r: *u8 = driver_dep_arena_buf(i);
     return r;
@@ -367,7 +367,7 @@ function typeck_driver_dep_arena_buf(i: i32): *u8 {
 
 /* 真逻辑：后缀是否为 ".x"（无 strlen 语言限制；逐字节扫）。 */
 #[no_mangle]
-function shux_cstr_ends_with_dot_x(s: *u8): i32 {
+export function shux_cstr_ends_with_dot_x(s: *u8): i32 {
   if (s == 0 as *u8) {
     return 0;
   }
@@ -393,7 +393,7 @@ function shux_cstr_ends_with_dot_x(s: *u8): i32 {
 
 /* 真逻辑：Mach-O 64 / CIGAM / ELF 魔数（前 4 字节）。 */
 #[no_mangle]
-function shux_asm_out_buf_is_object_magic(data: *u8): i32 {
+export function shux_asm_out_buf_is_object_magic(data: *u8): i32 {
   if (data == 0 as *u8) {
     return 0;
   }
@@ -438,7 +438,7 @@ function shux_asm_out_buf_is_object_magic(data: *u8): i32 {
 }
 
 #[no_mangle]
-function shux_import_path_is_file_path(import_path: *u8): i32 {
+export function shux_import_path_is_file_path(import_path: *u8): i32 {
   if (import_path == 0 as *u8) {
     return 0;
   }
@@ -465,7 +465,7 @@ function shux_import_path_is_file_path(import_path: *u8): i32 {
 }
 
 #[no_mangle]
-function shux_asm_user_std_dep_skip_x_typeck(dep_path: *u8): i32 {
+export function shux_asm_user_std_dep_skip_x_typeck(dep_path: *u8): i32 {
   if (dep_path == 0 as *u8) {
     return 0;
   }
@@ -482,7 +482,7 @@ function shux_asm_user_std_dep_skip_x_typeck(dep_path: *u8): i32 {
 }
 
 #[no_mangle]
-function shux_asm_user_std_net_dep_path(dep_path: *u8): i32 {
+export function shux_asm_user_std_net_dep_path(dep_path: *u8): i32 {
   if (dep_path == 0 as *u8) {
     return 0;
   }
@@ -499,7 +499,7 @@ function shux_asm_user_std_net_dep_path(dep_path: *u8): i32 {
 }
 
 #[no_mangle]
-function shux_asm_user_std_io_driver_dep_path(dep_path: *u8): i32 {
+export function shux_asm_user_std_io_driver_dep_path(dep_path: *u8): i32 {
   if (dep_path == 0 as *u8) {
     return 0;
   }
@@ -516,7 +516,7 @@ function shux_asm_user_std_io_driver_dep_path(dep_path: *u8): i32 {
 }
 
 #[no_mangle]
-function shux_asm_user_dep_parse_skip_typeck_path(dep_path: *u8): i32 {
+export function shux_asm_user_dep_parse_skip_typeck_path(dep_path: *u8): i32 {
   unsafe {
     if (shux_asm_user_std_net_dep_path(dep_path) != 0) {
       return 1;
@@ -530,7 +530,7 @@ function shux_asm_user_dep_parse_skip_typeck_path(dep_path: *u8): i32 {
 }
 
 #[no_mangle]
-function shux_asm_out_buf_is_object(data: *u8, len: i64): i32 {
+export function shux_asm_out_buf_is_object(data: *u8, len: i64): i32 {
   if (data == 0 as *u8) {
     return 0;
   }
@@ -546,7 +546,7 @@ function shux_asm_out_buf_is_object(data: *u8, len: i64): i32 {
 /* ---- G-02f-51：prerun entry_dir / import 查找去重 / glue include / dep_dir ---- */
 
 #[no_mangle]
-function shux_dep_prerun_entry_dir(main_entry_dir: *u8, lib_roots: *u8, n_lib_roots: i32): *u8 {
+export function shux_dep_prerun_entry_dir(main_entry_dir: *u8, lib_roots: *u8, n_lib_roots: i32): *u8 {
   unsafe {
     if (n_lib_roots <= 0) {
       return main_entry_dir;
@@ -557,7 +557,7 @@ function shux_dep_prerun_entry_dir(main_entry_dir: *u8, lib_roots: *u8, n_lib_ro
 }
 
 #[no_mangle]
-function shux_find_loaded_import_index(import_path: *u8, all_paths: *u8, n_all: i32): i32 {
+export function shux_find_loaded_import_index(import_path: *u8, all_paths: *u8, n_all: i32): i32 {
   if (import_path == 0 as *u8) {
     return -1;
   }
@@ -571,7 +571,7 @@ function shux_find_loaded_import_index(import_path: *u8, all_paths: *u8, n_all: 
 }
 
 #[no_mangle]
-function shux_merge_deps_path_already_out(path: *u8, out_paths: *u8, n_out: i32): i32 {
+export function shux_merge_deps_path_already_out(path: *u8, out_paths: *u8, n_out: i32): i32 {
   if (path == 0 as *u8) {
     return 0;
   }
@@ -586,7 +586,7 @@ function shux_merge_deps_path_already_out(path: *u8, out_paths: *u8, n_out: i32)
 
 // G-02f-234：输出 pipeline_glue include 行
 #[no_mangle]
-function shux_emit_pipeline_glue_include(): void {
+export function shux_emit_pipeline_glue_include(): void {
   // "\n#include \"pipeline_glue.c\"\n"
   let s: u8[32] = [];
   s[0]=10;s[1]=35;s[2]=105;s[3]=110;s[4]=99;s[5]=108;s[6]=117;s[7]=100;
@@ -600,7 +600,7 @@ function shux_emit_pipeline_glue_include(): void {
 
 // G-02f-223：从 path 取目录（最后 '/' 前）；无 path 时写 "."
 #[no_mangle]
-function shux_import_dep_dir_from_path(path: *u8, dep_dir: *u8, dep_dir_size: i64): i32 {
+export function shux_import_dep_dir_from_path(path: *u8, dep_dir: *u8, dep_dir_size: i64): i32 {
   if (path == 0 as *u8) { return 0 - 1; }
   if (dep_dir == 0 as *u8) { return 0 - 1; }
   if (dep_dir_size == 0) { return 0 - 1; }
@@ -639,42 +639,42 @@ function shux_import_dep_dir_from_path(path: *u8, dep_dir: *u8, dep_dir_size: i6
 /* ---- G-02f-52：mega debug 转发 / clear / entry_dir / fclose ---- */
 
 #[no_mangle]
-function pipeline_debug_trace_body_x_mega_pre_reset(module: *u8, arena: *u8): void {
+export function pipeline_debug_trace_body_x_mega_pre_reset(module: *u8, arena: *u8): void {
   unsafe {
     pipeline_debug_trace_named_func_bodies("x_mega_pre_reset", module, arena);
   }
 }
 
 #[no_mangle]
-function pipeline_debug_trace_body_x_mega_post_reset(module: *u8, arena: *u8): void {
+export function pipeline_debug_trace_body_x_mega_post_reset(module: *u8, arena: *u8): void {
   unsafe {
     pipeline_debug_trace_named_func_bodies("x_mega_post_reset", module, arena);
   }
 }
 
 #[no_mangle]
-function pipeline_debug_trace_body_x_mega_post_params(module: *u8, arena: *u8): void {
+export function pipeline_debug_trace_body_x_mega_post_params(module: *u8, arena: *u8): void {
   unsafe {
     pipeline_debug_trace_named_func_bodies("x_mega_post_params", module, arena);
   }
 }
 
 #[no_mangle]
-function pipeline_debug_trace_body_x_mega_post_frame(module: *u8, arena: *u8): void {
+export function pipeline_debug_trace_body_x_mega_post_frame(module: *u8, arena: *u8): void {
   unsafe {
     pipeline_debug_trace_named_func_bodies("x_mega_post_frame", module, arena);
   }
 }
 
 #[no_mangle]
-function pipeline_debug_trace_body_x_mega_post_locals(module: *u8, arena: *u8): void {
+export function pipeline_debug_trace_body_x_mega_post_locals(module: *u8, arena: *u8): void {
   unsafe {
     pipeline_debug_trace_named_func_bodies("x_mega_post_locals", module, arena);
   }
 }
 
 #[no_mangle]
-function pipeline_debug_trace_body_x_mega_pre_emit(module: *u8, arena: *u8): void {
+export function pipeline_debug_trace_body_x_mega_pre_emit(module: *u8, arena: *u8): void {
   unsafe {
     pipeline_debug_trace_named_func_bodies("x_mega_pre_emit", module, arena);
   }
@@ -682,7 +682,7 @@ function pipeline_debug_trace_body_x_mega_pre_emit(module: *u8, arena: *u8): voi
 
 // G-02f-225：清 typeck dep 侧车（ndep=0 + 32 槽空）
 #[no_mangle]
-function driver_typeck_dep_sidecar_clear(): void {
+export function driver_typeck_dep_sidecar_clear(): void {
   typeck_ndep_store(0);
   let i: i32 = 0;
   while (i < 32) {
@@ -694,7 +694,7 @@ function driver_typeck_dep_sidecar_clear(): void {
 
 // G-02f-230：清 32 槽 seeded/path/arena/module 指针
 #[no_mangle]
-function driver_dep_seeded_clear_slots(): void {
+export function driver_dep_seeded_clear_slots(): void {
   let i: i32 = 0;
   while (i < 32) {
     driver_dep_seeded_set(i, 0);
@@ -709,14 +709,14 @@ function driver_dep_seeded_clear_slots(): void {
 
 // G-02f-230：clear_slots + typeck dep 侧车
 #[no_mangle]
-function driver_dep_seeded_clear_all(): void {
+export function driver_dep_seeded_clear_all(): void {
   driver_dep_seeded_clear_slots();
   driver_typeck_dep_sidecar_clear();
 }
 
 // G-02f-229：入口路径 → 所在目录（末尾 / 前缀）；无 / 则写 "."
 #[no_mangle]
-function shux_get_entry_dir(input_path: *u8, entry_dir: *u8, size: i64): void {
+export function shux_get_entry_dir(input_path: *u8, entry_dir: *u8, size: i64): void {
   if (entry_dir == 0 as *u8) {
     return;
   }
@@ -769,7 +769,7 @@ function shux_get_entry_dir(input_path: *u8, entry_dir: *u8, size: i64): void {
 
 // G-02f-234：stdout 仅 fflush；其它 fclose
 #[no_mangle]
-function driver_asm_fclose_asm_out(fp: *u8): void {
+export function driver_asm_fclose_asm_out(fp: *u8): void {
   unsafe {
     if (fp == 0 as *u8) {
       driver_asm_fflush_stdout();
@@ -787,7 +787,7 @@ function driver_asm_fclose_asm_out(fp: *u8): void {
 
 // G-02f-229：lib_root + import（'.'→'/'）+ ".x"
 #[no_mangle]
-function shux_import_path_to_file_path(lib_root: *u8, import_path: *u8, path: *u8, path_size: i64): void {
+export function shux_import_path_to_file_path(lib_root: *u8, import_path: *u8, path: *u8, path_size: i64): void {
   if (path == 0 as *u8) {
     return;
   }
@@ -869,7 +869,7 @@ function shux_import_path_to_file_path(lib_root: *u8, import_path: *u8, path: *u
 }
 
 // G-02f-231 内部：a + '/' + b → dst（cap 含 NUL）
-function pipe_cstr_join_slash(dst: *u8, cap: i32, a: *u8, b: *u8): void {
+export function pipe_cstr_join_slash(dst: *u8, cap: i32, a: *u8, b: *u8): void {
   if (dst == 0 as *u8) { return; }
   if (cap <= 0) { return; }
   let off: i32 = 0;
@@ -908,7 +908,7 @@ function pipe_cstr_join_slash(dst: *u8, cap: i32, a: *u8, b: *u8): void {
 
 // G-02f-231：拼路径 pure，再 try realpath（OS 🔒 helper）
 #[no_mangle]
-function shux_resolve_file_import_path(entry_dir: *u8, import_path: *u8, path: *u8, path_size: i64): void {
+export function shux_resolve_file_import_path(entry_dir: *u8, import_path: *u8, path: *u8, path_size: i64): void {
   if (path == 0 as *u8) {
     return;
   }
@@ -946,7 +946,7 @@ function shux_resolve_file_import_path(entry_dir: *u8, import_path: *u8, path: *
 
 // G-02f-224：按 path 扫 path_registry（32 槽）
 #[no_mangle]
-function driver_dep_slot_for_path_scan(path: *u8): i32 {
+export function driver_dep_slot_for_path_scan(path: *u8): i32 {
   if (path == 0 as *u8) { return 0 - 1; }
   unsafe {
     let i: i32 = 0;
@@ -962,7 +962,7 @@ function driver_dep_slot_for_path_scan(path: *u8): i32 {
 }
 
 #[no_mangle]
-function driver_dep_slot_for_path(path: *u8): i32 {
+export function driver_dep_slot_for_path(path: *u8): i32 {
   if (path == 0 as *u8) {
     return 0 - 1;
   }
@@ -973,7 +973,7 @@ function driver_dep_slot_for_path(path: *u8): i32 {
 
 // G-02f-240：边界 pure；scratch/preprocess_x_buf 仍 impl（emit_diag=1）
 #[no_mangle]
-function shux_preprocess_raw_to_malloc(raw: *u8, raw_len: i64, out_src: *u8, out_src_len: *u8, path_diag: *u8, defines: *u8, ndefines: i32): i32 {
+export function shux_preprocess_raw_to_malloc(raw: *u8, raw_len: i64, out_src: *u8, out_src_len: *u8, path_diag: *u8, defines: *u8, ndefines: i32): i32 {
   if (raw_len < 0) {
     return 0 - 1;
   }
@@ -993,7 +993,7 @@ function shux_preprocess_raw_to_malloc(raw: *u8, raw_len: i64, out_src: *u8, out
 
 // G-02f-224：批量预填 dep 槽 + seeded 标记
 #[no_mangle]
-function driver_dep_seed_slots(arenas: *u8, modules: *u8, n: i32): void {
+export function driver_dep_seed_slots(arenas: *u8, modules: *u8, n: i32): void {
   let j: i32 = 0;
   while (j < 32) {
     if (j < n) {
@@ -1018,7 +1018,7 @@ function driver_dep_seed_slots(arenas: *u8, modules: *u8, n: i32): void {
 }
 
 // G-02f-226 内部：hay 是否包含 needle（strstr 语义）
-function pipe_cstr_contains(hay: *u8, needle: *u8): i32 {
+export function pipe_cstr_contains(hay: *u8, needle: *u8): i32 {
   if (hay == 0 as *u8) { return 0; }
   if (needle == 0 as *u8) { return 0; }
   if (needle[0] == 0) { return 1; }
@@ -1044,7 +1044,7 @@ function pipe_cstr_contains(hay: *u8, needle: *u8): i32 {
 
 // G-02f-226：入口路径 → lib 前缀；关键词 pure，std/ 等回落 impl
 #[no_mangle]
-function shux_entry_lib_name_from_path(input_path: *u8): *u8 {
+export function shux_entry_lib_name_from_path(input_path: *u8): *u8 {
   if (input_path == 0 as *u8) {
     unsafe {
       return shux_cstr_typeck_lit();
@@ -1096,7 +1096,7 @@ function shux_entry_lib_name_from_path(input_path: *u8): *u8 {
 /* ---- G-02f-55：pipeline dep 槽访问 + import open 诊断门闩 ---- */
 
 #[no_mangle]
-function pipeline_get_dep_arena_slot(i: i32): *u8 {
+export function pipeline_get_dep_arena_slot(i: i32): *u8 {
   if (i < 0) {
     return 0 as *u8;
   }
@@ -1110,7 +1110,7 @@ function pipeline_get_dep_arena_slot(i: i32): *u8 {
 }
 
 #[no_mangle]
-function pipeline_get_dep_module_slot(i: i32): *u8 {
+export function pipeline_get_dep_module_slot(i: i32): *u8 {
   if (i < 0) {
     return 0 as *u8;
   }
@@ -1128,7 +1128,7 @@ let g_import_open_valid: i32 = 0;
 let g_import_open_import: u8[65] = [];
 let g_import_open_resolved: u8[512] = [];
 
-function pipe_cstr_copy(dst: *u8, cap: i32, src: *u8): void {
+export function pipe_cstr_copy(dst: *u8, cap: i32, src: *u8): void {
   let i: i32 = 0;
   if (dst == 0 as *u8) { return; }
   if (cap <= 0) { return; }
@@ -1148,7 +1148,7 @@ function pipe_cstr_copy(dst: *u8, cap: i32, src: *u8): void {
 }
 
 #[no_mangle]
-function pipeline_diag_import_open_fail_once(import_path: *u8, resolved_path: *u8): void {
+export function pipeline_diag_import_open_fail_once(import_path: *u8, resolved_path: *u8): void {
   let q: u8[2] = [];
   q[0] = 63; // '?'
   q[1] = 0;
@@ -1191,7 +1191,7 @@ function pipeline_diag_import_open_fail_once(import_path: *u8, resolved_path: *u
 
 // G-02f-237：拷 path 字节 → 静态 resolved（multi resolve 🔒 helper）
 #[no_mangle]
-function pipeline_resolve_path(path_ptr: *u8, path_len: i32): i32 {
+export function pipeline_resolve_path(path_ptr: *u8, path_len: i32): i32 {
   if (path_ptr == 0 as *u8) {
     return 0 - 1;
   }
@@ -1220,7 +1220,7 @@ function pipeline_resolve_path(path_ptr: *u8, path_len: i32): i32 {
 
 // G-02f-238：resolved 读+preprocess → 写入 loaded 缓冲（两阶段 🔒）
 #[no_mangle]
-function pipeline_read_file(): i32 {
+export function pipeline_read_file(): i32 {
   unsafe {
     if (pipeline_read_file_stage_prep() != 0) {
       return 0 - 1;
@@ -1234,7 +1234,7 @@ function pipeline_read_file(): i32 {
 
 // G-02f-239：loaded 缓冲 → parse_into（bytes helper 🔒）
 #[no_mangle]
-function pipeline_parse_into_loaded_import(arena: *u8, module: *u8): i32 {
+export function pipeline_parse_into_loaded_import(arena: *u8, module: *u8): i32 {
   if (arena == 0 as *u8) {
     return 0 - 1;
   }
@@ -1256,7 +1256,7 @@ function pipeline_parse_into_loaded_import(arena: *u8, module: *u8): i32 {
 
 // G-02f-239：参数边界 pure；pthread 仍 impl
 #[no_mangle]
-function shux_pipeline_run_x_pipeline_large_stack(module: *u8, arena: *u8, source_data: *u8, source_len: i64, out_buf: *u8, ctx: *u8): i32 {
+export function shux_pipeline_run_x_pipeline_large_stack(module: *u8, arena: *u8, source_data: *u8, source_len: i64, out_buf: *u8, ctx: *u8): i32 {
   if (module == 0 as *u8) {
     return 0 - 1;
   }
@@ -1279,7 +1279,7 @@ function shux_pipeline_run_x_pipeline_large_stack(module: *u8, arena: *u8, sourc
 
 // G-02f-239：边界 pure；skip flags + large_stack 仍 impl
 #[no_mangle]
-function shux_pipeline_dep_prerun_parse_skip_typeck(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32 {
+export function shux_pipeline_dep_prerun_parse_skip_typeck(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32 {
   if (dep_mod == 0 as *u8) {
     return 0 - 1;
   }
@@ -1299,7 +1299,7 @@ function shux_pipeline_dep_prerun_parse_skip_typeck(dep_mod: *u8, dep_arena: *u8
 }
 
 #[no_mangle]
-function shux_pipeline_dep_prerun_parse_only(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64): i32 {
+export function shux_pipeline_dep_prerun_parse_only(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64): i32 {
   if (dep_mod == 0 as *u8) {
     return 0 - 1;
   }
@@ -1321,7 +1321,7 @@ function shux_pipeline_dep_prerun_parse_only(dep_mod: *u8, dep_arena: *u8, src: 
 /* ---- G-02f-59 / G-02f-239：dep prerun typeck ---- */
 
 #[no_mangle]
-function shux_pipeline_dep_prerun_typeck_only(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32 {
+export function shux_pipeline_dep_prerun_typeck_only(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32 {
   if (dep_mod == 0 as *u8) {
     return 0 - 1;
   }
@@ -1345,12 +1345,12 @@ function shux_pipeline_dep_prerun_typeck_only(dep_mod: *u8, dep_arena: *u8, src:
 
 // G-02f-239：asm module.o 预跑 = typeck_only
 #[no_mangle]
-function shux_pipeline_dep_prerun_for_asm_module_o(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32 {
+export function shux_pipeline_dep_prerun_for_asm_module_o(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32 {
   return shux_pipeline_dep_prerun_typeck_only(dep_mod, dep_arena, src, len, dep_out, one_ctx);
 }
 
 // G-02f-232 内部：POSIX R_OK=4
-function pipe_path_readable(path: *u8): i32 {
+export function pipe_path_readable(path: *u8): i32 {
   if (path == 0 as *u8) { return 0; }
   unsafe {
     if (access(path, 4) == 0) { return 1; }
@@ -1358,7 +1358,7 @@ function pipe_path_readable(path: *u8): i32 {
   return 0;
 }
 
-function pipe_cstr_has_char(s: *u8, ch: u8): i32 {
+export function pipe_cstr_has_char(s: *u8, ch: u8): i32 {
   if (s == 0 as *u8) { return 0; }
   let i: i32 = 0;
   while (i < 4096) {
@@ -1370,7 +1370,7 @@ function pipe_cstr_has_char(s: *u8, ch: u8): i32 {
 }
 
 // 写 root/name/name.x（单段 nested）
-function pipe_write_nested_name_x(dst: *u8, cap: i32, root: *u8, name: *u8): void {
+export function pipe_write_nested_name_x(dst: *u8, cap: i32, root: *u8, name: *u8): void {
   if (dst == 0 as *u8) { return; }
   if (cap <= 0) { return; }
   let off: i32 = 0;
@@ -1418,7 +1418,7 @@ function pipe_write_nested_name_x(dst: *u8, cap: i32, root: *u8, name: *u8): voi
 }
 
 // root + '/' + dots_to_slash(imp) 写入；返回 off（末字节位置，未含 .x）
-function pipe_write_root_dotted_imp(dst: *u8, cap: i32, root: *u8, imp: *u8): i32 {
+export function pipe_write_root_dotted_imp(dst: *u8, cap: i32, root: *u8, imp: *u8): i32 {
   if (dst == 0 as *u8) { return 0; }
   if (cap <= 0) { return 0; }
   let off: i32 = 0;
@@ -1450,7 +1450,7 @@ function pipe_write_root_dotted_imp(dst: *u8, cap: i32, root: *u8, imp: *u8): i3
   return off;
 }
 
-function pipe_append_suffix(dst: *u8, cap: i32, off: i32, suf: *u8): void {
+export function pipe_append_suffix(dst: *u8, cap: i32, off: i32, suf: *u8): void {
   if (dst == 0 as *u8) { return; }
   if (suf == 0 as *u8) { return; }
   if (cap <= 0) { return; }
@@ -1469,7 +1469,7 @@ function pipe_append_suffix(dst: *u8, cap: i32, off: i32, suf: *u8): void {
 }
 
 // 取 entry_dir 末段（最后一个 / 之后）
-function pipe_dir_tail(entry_dir: *u8): *u8 {
+export function pipe_dir_tail(entry_dir: *u8): *u8 {
   if (entry_dir == 0 as *u8) { return 0 as *u8; }
   let last: i32 = 0 - 1;
   let i: i32 = 0;
@@ -1486,7 +1486,7 @@ function pipe_dir_tail(entry_dir: *u8): *u8 {
 }
 
 // 若 import 首段 == dir_tail，返回首段后；否则 import 本身
-function pipe_strip_prefix_seg(import_path: *u8, dir_tail: *u8): *u8 {
+export function pipe_strip_prefix_seg(import_path: *u8, dir_tail: *u8): *u8 {
   if (import_path == 0 as *u8) { return import_path; }
   if (dir_tail == 0 as *u8) { return import_path; }
   unsafe {
@@ -1506,7 +1506,7 @@ function pipe_strip_prefix_seg(import_path: *u8, dir_tail: *u8): *u8 {
 
 // G-02f-232：lib_roots + entry_dir 多路径解析；access 判可读
 #[no_mangle]
-function shux_resolve_import_file_path_multi(lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, import_path: *u8, path: *u8, path_size: i64): void {
+export function shux_resolve_import_file_path_multi(lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, import_path: *u8, path: *u8, path_size: i64): void {
   if (path == 0 as *u8) {
     return;
   }
@@ -1623,7 +1623,7 @@ function shux_resolve_import_file_path_multi(lib_roots: *u8, n_lib_roots: i32, e
 
 // G-02f-231：非空 path → copy 到静态 buf；否则 "."
 #[no_mangle]
-function pipeline_set_entry_dir(path: *u8): void {
+export function pipeline_set_entry_dir(path: *u8): void {
   unsafe {
     if (path == 0 as *u8) {
       pipeline_entry_dir_set_dot();
@@ -1639,7 +1639,7 @@ function pipeline_set_entry_dir(path: *u8): void {
 
 // G-02f-226：写入 32 个 pipeline dep arena/module 槽
 #[no_mangle]
-function pipeline_set_dep_slots(arenas: *u8, modules: *u8): void {
+export function pipeline_set_dep_slots(arenas: *u8, modules: *u8): void {
   let i: i32 = 0;
   while (i < 32) {
     unsafe {
@@ -1660,7 +1660,7 @@ function pipeline_set_dep_slots(arenas: *u8, modules: *u8): void {
 
 // G-02f-230：reset path 侧车 + 写 entry_dir + 追加 lib_roots
 #[no_mangle]
-function shux_pipeline_fill_ctx_path_buffers(ctx: *u8, entry_dir: *u8, lib_roots: *u8, n_lib_roots: i32): void {
+export function shux_pipeline_fill_ctx_path_buffers(ctx: *u8, entry_dir: *u8, lib_roots: *u8, n_lib_roots: i32): void {
   if (ctx == 0 as *u8) {
     return;
   }
@@ -1695,7 +1695,7 @@ function shux_pipeline_fill_ctx_path_buffers(ctx: *u8, entry_dir: *u8, lib_roots
 }
 
 // G-02f-228 内部：C 字符串长度（上限 65536）
-function pipe_cstr_len(s: *u8): i32 {
+export function pipe_cstr_len(s: *u8): i32 {
   if (s == 0 as *u8) { return 0; }
   let i: i32 = 0;
   while (i < 65536) {
@@ -1707,7 +1707,7 @@ function pipe_cstr_len(s: *u8): i32 {
 
 // G-02f-228：reset + 写 module/arena/import_path 槽 + set_ndep
 #[no_mangle]
-function shux_pipeline_pctx_seed_dep_slots(ctx: *u8, dep_mods: *u8, dep_ar: *u8, import_paths: *u8, n: i32): void {
+export function shux_pipeline_pctx_seed_dep_slots(ctx: *u8, dep_mods: *u8, dep_ar: *u8, import_paths: *u8, n: i32): void {
   if (ctx == 0 as *u8) {
     return;
   }
@@ -1744,7 +1744,7 @@ function shux_pipeline_pctx_seed_dep_slots(ctx: *u8, dep_mods: *u8, dep_ar: *u8,
 
 // G-02f-228：仅镜像 import path；ndep 保持 0（reset 后不 set_ndep）
 #[no_mangle]
-function shux_pipeline_pctx_seed_dep_import_paths_only(ctx: *u8, import_paths: *u8, n: i32): void {
+export function shux_pipeline_pctx_seed_dep_import_paths_only(ctx: *u8, import_paths: *u8, n: i32): void {
   if (ctx == 0 as *u8) {
     return;
   }
@@ -1768,7 +1768,7 @@ function shux_pipeline_pctx_seed_dep_import_paths_only(ctx: *u8, import_paths: *
 
 // G-02f-233：早退 pure；parse/map 走 map_impl（malloc/parser 🔒）
 #[no_mangle]
-function shux_pipeline_one_ctx_for_dep_prerun(ctx: *u8, j: i32, dep_mods: *u8, dep_ars: *u8, dep_paths: *u8, ndep: i32, dep_src: *u8, dep_src_len: i64): void {
+export function shux_pipeline_one_ctx_for_dep_prerun(ctx: *u8, j: i32, dep_mods: *u8, dep_ars: *u8, dep_paths: *u8, ndep: i32, dep_src: *u8, dep_src_len: i64): void {
   if (ctx == 0 as *u8) {
     return;
   }
@@ -1816,7 +1816,7 @@ function shux_pipeline_one_ctx_for_dep_prerun(ctx: *u8, j: i32, dep_mods: *u8, d
 
 // G-02f-241：entry emit 准备编排 pure（null 早退）
 #[no_mangle]
-function shux_driver_asm_prepare_entry_elf_emit(module: *u8, arena: *u8, pctx: *u8): void {
+export function shux_driver_asm_prepare_entry_elf_emit(module: *u8, arena: *u8, pctx: *u8): void {
   if (module == 0 as *u8) {
     return;
   }
@@ -1835,7 +1835,7 @@ function shux_driver_asm_prepare_entry_elf_emit(module: *u8, arena: *u8, pctx: *
 
 // G-02f-240：参数边界 pure；大栈 pthread 仍 impl
 #[no_mangle]
-function shux_asm_codegen_elf_o_large_stack(module: *u8, arena: *u8, ctx: *u8, elf_ctx: *u8, out_buf: *u8): i32 {
+export function shux_asm_codegen_elf_o_large_stack(module: *u8, arena: *u8, ctx: *u8, elf_ctx: *u8, out_buf: *u8): i32 {
   if (module == 0 as *u8) {
     return 0 - 1;
   }
@@ -1853,7 +1853,7 @@ function shux_asm_codegen_elf_o_large_stack(module: *u8, arena: *u8, ctx: *u8, e
 
 // G-02f-236：仅 direct imports（不递归）；每项 resolve+read+preprocess 🔒
 #[no_mangle]
-function shux_load_direct_imports_for_asm_layout(module: *u8, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, out_n: *i32): i32 {
+export function shux_load_direct_imports_for_asm_layout(module: *u8, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, out_n: *i32): i32 {
   if (module == 0 as *u8) {
     return 0 - 1;
   }
@@ -1901,7 +1901,7 @@ function shux_load_direct_imports_for_asm_layout(module: *u8, lib_roots: *u8, n_
 
 // G-02f-234：direct imports 先入 out，再补 closure 未用路径
 #[no_mangle]
-function shux_merge_direct_then_transitive_dep_paths(module: *u8, n_imports: i32, cpaths: *u8, n_closure: i32, out_paths: *u8, out_n: *i32): i32 {
+export function shux_merge_direct_then_transitive_dep_paths(module: *u8, n_imports: i32, cpaths: *u8, n_closure: i32, out_paths: *u8, out_n: *i32): i32 {
   if (module == 0 as *u8) {
     return 0 - 1;
   }
@@ -1993,7 +1993,7 @@ function shux_merge_direct_then_transitive_dep_paths(module: *u8, n_imports: i32
 
 // G-02f-235：与 dep_paths 同构，另写 out_src / out_lens
 #[no_mangle]
-function shux_merge_direct_then_transitive_deps(module: *u8, n_imports: i32, cls: *u8, clens: *u8, cpaths: *u8, n_closure: i32, out_src: *u8, out_lens: *u8, out_paths: *u8, out_n: *i32): i32 {
+export function shux_merge_direct_then_transitive_deps(module: *u8, n_imports: i32, cls: *u8, clens: *u8, cpaths: *u8, n_closure: i32, out_src: *u8, out_lens: *u8, out_paths: *u8, out_n: *i32): i32 {
   if (module == 0 as *u8) {
     return 0 - 1;
   }
@@ -2128,7 +2128,7 @@ function shux_merge_direct_then_transitive_deps(module: *u8, n_imports: i32, cls
 
 // G-02f-237：空 import 早退 pure；闭包队列/IO 仍 work_impl
 #[no_mangle]
-function shux_collect_deps_transitive(module: *u8, arena_sz: i64, module_sz: i64, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, n_deps: *i32): i32 {
+export function shux_collect_deps_transitive(module: *u8, arena_sz: i64, module_sz: i64, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, n_deps: *i32): i32 {
   if (module == 0 as *u8) {
     return 0 - 1;
   }
@@ -2153,7 +2153,7 @@ function shux_collect_deps_transitive(module: *u8, arena_sz: i64, module_sz: i64
 
 // G-02f-237：路径-only 闭包；空 import 早退 pure
 #[no_mangle]
-function shux_collect_dep_paths_transitive(module: *u8, arena_sz: i64, module_sz: i64, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_paths: *u8, n_deps: *i32): i32 {
+export function shux_collect_dep_paths_transitive(module: *u8, arena_sz: i64, module_sz: i64, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_paths: *u8, n_deps: *i32): i32 {
   if (module == 0 as *u8) {
     return 0 - 1;
   }
@@ -2177,7 +2177,7 @@ function shux_collect_dep_paths_transitive(module: *u8, arena_sz: i64, module_sz
 }
 
 #[no_mangle]
-function pipeline_debug_trace_named_func_bodies(phase: *u8, module: *u8, arena: *u8): void {
+export function pipeline_debug_trace_named_func_bodies(phase: *u8, module: *u8, arena: *u8): void {
   if (module == 0 as *u8) {
     return;
   }
@@ -2193,7 +2193,7 @@ function pipeline_debug_trace_named_func_bodies(phase: *u8, module: *u8, arena: 
 
 // G-02f-242：ndep>0 走 sidecar deps，否则 entry-only；arena/ctx 未用
 #[no_mangle]
-function pipeline_typeck_module_for_ctx(module: *u8, arena: *u8, ctx: *u8): i32 {
+export function pipeline_typeck_module_for_ctx(module: *u8, arena: *u8, ctx: *u8): i32 {
   if (module == 0 as *u8) {
     return 0 - 1;
   }
@@ -2212,7 +2212,7 @@ function pipeline_typeck_module_for_ctx(module: *u8, arena: *u8, ctx: *u8): i32 
 
 // G-02f-227：释放 LSP 已加载 dep mods/paths 列表
 #[no_mangle]
-function shu_lsp_free_loaded_imports(all_dep_mods: *u8, all_dep_paths: *u8, n_all: i32): void {
+export function shu_lsp_free_loaded_imports(all_dep_mods: *u8, all_dep_paths: *u8, n_all: i32): void {
   if (all_dep_mods == 0 as *u8) { return; }
   if (all_dep_paths == 0 as *u8) { return; }
   if (n_all <= 0) { return; }
@@ -2242,7 +2242,7 @@ function shu_lsp_free_loaded_imports(all_dep_mods: *u8, all_dep_paths: *u8, n_al
 // kind="preprocess error" / "pipeline error" / "import error"；code=PP001/PP002/XP005/IMP002/IMP004
 
 #[no_mangle]
-function pipeline_diag_preprocess_unclosed_if(path_diag: *u8): void {
+export function pipeline_diag_preprocess_unclosed_if(path_diag: *u8): void {
   pipeline_diag_emitted_note();
   let kind: u8[24] = [];
   let code: u8[8] = [];
@@ -2261,7 +2261,7 @@ function pipeline_diag_preprocess_unclosed_if(path_diag: *u8): void {
 }
 
 #[no_mangle]
-function pipeline_diag_preprocess_fail(path_diag: *u8): void {
+export function pipeline_diag_preprocess_fail(path_diag: *u8): void {
   pipeline_diag_emitted_note();
   let kind: u8[24] = [];
   let code: u8[8] = [];
@@ -2279,7 +2279,7 @@ function pipeline_diag_preprocess_fail(path_diag: *u8): void {
 }
 
 #[no_mangle]
-function pipeline_diag_import_preprocess_fail(import_path: *u8, resolved_path: *u8): void {
+export function pipeline_diag_import_preprocess_fail(import_path: *u8, resolved_path: *u8): void {
   pipeline_diag_emitted_note();
   let kind: u8[24] = [];
   let code: u8[8] = [];
@@ -2299,7 +2299,7 @@ function pipeline_diag_import_preprocess_fail(import_path: *u8, resolved_path: *
 }
 
 #[no_mangle]
-function pipeline_diag_preprocess_alloc_fail(path_diag: *u8, what: *u8): void {
+export function pipeline_diag_preprocess_alloc_fail(path_diag: *u8, what: *u8): void {
   pipeline_diag_emitted_note();
   let kind: u8[24] = [];
   let code: u8[8] = [];
@@ -2321,7 +2321,7 @@ function pipeline_diag_preprocess_alloc_fail(path_diag: *u8, what: *u8): void {
 }
 
 #[no_mangle]
-function pipeline_diag_merge_dep_missing(import_path: *u8): void {
+export function pipeline_diag_merge_dep_missing(import_path: *u8): void {
   pipeline_diag_emitted_note();
   let kind: u8[16] = [];
   let code: u8[8] = [];
@@ -2353,7 +2353,7 @@ function pipeline_diag_merge_dep_missing(import_path: *u8): void {
 
 // G-02f-223：ndep 上限 32
 #[no_mangle]
-function typeck_ndep_store(n: i32): void {
+export function typeck_ndep_store(n: i32): void {
   let v: i32 = n;
   if (v > 32) { v = 32; }
   if (v < 0) { v = 0; }
@@ -2364,7 +2364,7 @@ function typeck_ndep_store(n: i32): void {
 
 // G-02f-223：dep module 槽写（边界 + 槽 API）
 #[no_mangle]
-function typeck_dep_module_set(i: i32, mod: *u8): void {
+export function typeck_dep_module_set(i: i32, mod: *u8): void {
   if (i < 0) { return; }
   if (i >= 32) { return; }
   unsafe {
@@ -2374,7 +2374,7 @@ function typeck_dep_module_set(i: i32, mod: *u8): void {
 
 // G-02f-223：dep arena 槽写
 #[no_mangle]
-function typeck_dep_arena_set(i: i32, arena: *u8): void {
+export function typeck_dep_arena_set(i: i32, arena: *u8): void {
   if (i < 0) { return; }
   if (i >= 32) { return; }
   unsafe {
@@ -2384,7 +2384,7 @@ function typeck_dep_arena_set(i: i32, arena: *u8): void {
 
 // G-02f-224：driver dep 指针槽边界
 #[no_mangle]
-function driver_dep_arena_ptr_set(i: i32, arena: *u8): void {
+export function driver_dep_arena_ptr_set(i: i32, arena: *u8): void {
   if (i < 0) { return; }
   if (i >= 32) { return; }
   unsafe {
@@ -2393,7 +2393,7 @@ function driver_dep_arena_ptr_set(i: i32, arena: *u8): void {
 }
 
 #[no_mangle]
-function driver_dep_module_ptr_set(i: i32, module: *u8): void {
+export function driver_dep_module_ptr_set(i: i32, module: *u8): void {
   if (i < 0) { return; }
   if (i >= 32) { return; }
   unsafe {
@@ -2404,7 +2404,7 @@ function driver_dep_module_ptr_set(i: i32, module: *u8): void {
 
 /* ---- G-02f-85 / G-02f-134：import path scan ---- */
 
-function pipe_cstr_eq(a: *u8, b: *u8): i32 {
+export function pipe_cstr_eq(a: *u8, b: *u8): i32 {
   if (a == 0) { return 0; }
   if (b == 0) { return 0; }
   let i: i32 = 0;
@@ -2417,7 +2417,7 @@ function pipe_cstr_eq(a: *u8, b: *u8): i32 {
 }
 
 // char** 槽位：all_paths 为指针数组首地址
-function pipe_load_ptr_slot(base: *u8, i: i32): *u8 {
+export function pipe_load_ptr_slot(base: *u8, i: i32): *u8 {
   if (base == 0) { return 0 as *u8; }
   let off: i32 = i * 8;
   let m: usize = 256;
@@ -2436,7 +2436,7 @@ function pipe_load_ptr_slot(base: *u8, i: i32): *u8 {
 
 // G-02f-223：-L lib_roots[0] 优先于 main_entry_dir
 #[no_mangle]
-function shux_dep_prerun_entry_dir_pick(main_entry_dir: *u8, lib_roots: *u8, n_lib_roots: i32): *u8 {
+export function shux_dep_prerun_entry_dir_pick(main_entry_dir: *u8, lib_roots: *u8, n_lib_roots: i32): *u8 {
   if (lib_roots == 0 as *u8) { return main_entry_dir; }
   if (n_lib_roots <= 0) { return main_entry_dir; }
   unsafe {
@@ -2449,7 +2449,7 @@ function shux_dep_prerun_entry_dir_pick(main_entry_dir: *u8, lib_roots: *u8, n_l
 }
 
 #[no_mangle]
-function shux_find_loaded_import_index_scan(path: *u8, all_paths: *u8, n_all: i32): i32 {
+export function shux_find_loaded_import_index_scan(path: *u8, all_paths: *u8, n_all: i32): i32 {
   if (path == 0 as *u8) { return 0 - 1; }
   if (all_paths == 0 as *u8) { return 0 - 1; }
   if (n_all <= 0) { return 0 - 1; }
@@ -2465,7 +2465,7 @@ function shux_find_loaded_import_index_scan(path: *u8, all_paths: *u8, n_all: i3
 }
 
 #[no_mangle]
-function shux_merge_deps_path_already_out_scan(path: *u8, out_paths: *u8, n_out: i32): i32 {
+export function shux_merge_deps_path_already_out_scan(path: *u8, out_paths: *u8, n_out: i32): i32 {
   if (path == 0 as *u8) { return 0; }
   if (out_paths == 0 as *u8) { return 0; }
   if (n_out <= 0) { return 0; }
@@ -2484,7 +2484,7 @@ function shux_merge_deps_path_already_out_scan(path: *u8, out_paths: *u8, n_out:
 
 // G-02f-228：写 module/arena/import_path + set_ndep，不 reset
 #[no_mangle]
-function shux_pipeline_pctx_update_dep_slots_no_reset(ctx: *u8, dep_mods: *u8, dep_ars: *u8, import_paths: *u8, n: i32): void {
+export function shux_pipeline_pctx_update_dep_slots_no_reset(ctx: *u8, dep_mods: *u8, dep_ars: *u8, import_paths: *u8, n: i32): void {
   if (ctx == 0 as *u8) {
     return;
   }
@@ -2522,7 +2522,7 @@ function shux_pipeline_pctx_update_dep_slots_no_reset(ctx: *u8, dep_mods: *u8, d
 
 // G-02f-241：null 早退 pure；args 解包/run 仍 impl
 #[no_mangle]
-function pipeline_run_x_thread_fn(arg: *u8): *u8 {
+export function pipeline_run_x_thread_fn(arg: *u8): *u8 {
   if (arg == 0 as *u8) {
     return 0 as *u8;
   }
@@ -2534,7 +2534,7 @@ function pipeline_run_x_thread_fn(arg: *u8): *u8 {
 
 // G-02f-241：null 早退 pure
 #[no_mangle]
-function shux_asm_codegen_elf_o_thread_fn(arg: *u8): *u8 {
+export function shux_asm_codegen_elf_o_thread_fn(arg: *u8): *u8 {
   if (arg == 0 as *u8) {
     return 0 as *u8;
   }
@@ -2546,10 +2546,10 @@ function shux_asm_codegen_elf_o_thread_fn(arg: *u8): *u8 {
 
 // G-02f-116：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
 
-extern "C" function getenv(name: *u8): *u8;
+export extern "C" function getenv(name: *u8): *u8;
 
 #[no_mangle]
-function pipeline_asm_debug_enabled(): i32 {
+export function pipeline_asm_debug_enabled(): i32 {
   unsafe {
     let e: *u8 = getenv("SHUX_ASM_DEBUG");
     if (e != 0) { return 1; }
@@ -2560,7 +2560,7 @@ function pipeline_asm_debug_enabled(): i32 {
 // G-02f-118：pipeline_debug_body_func_match 真迁 .x
 
 #[no_mangle]
-function pipeline_debug_body_func_match(filter: *u8, name: *u8): i32 {
+export function pipeline_debug_body_func_match(filter: *u8, name: *u8): i32 {
   if (filter == 0) { return 0; }
   if (filter[0] == 0) { return 0; }
   if (filter[0] == 48) { return 0; } // '0'

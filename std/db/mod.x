@@ -34,64 +34,64 @@ const kv_m = import("std.db.kv");
 const arrow_m = import("std.db.arrow");
 
 /** 不透明连接句柄（与 std.db.sqlite.DbConn 布局一致）。 */
-struct DbConn {
+export struct DbConn {
   handle: i64;
 }
 
-extern function db_open_c(path: *u8): i64;
-extern function db_close_c(handle: i64): i32;
-extern function db_exec_c(handle: i64, sql: *u8): i32;
-extern function db_changes_c(handle: i64): i32;
+export extern function db_open_c(path: *u8): i64;
+export extern function db_close_c(handle: i64): i32;
+export extern function db_exec_c(handle: i64, sql: *u8): i32;
+export extern function db_changes_c(handle: i64): i32;
 
 /** STD-120：import("std.db") 已废弃；恒 1。 */
-function is_deprecated(): i32 {
+export function is_deprecated(): i32 {
   return 1;
 }
 
 /** 打开数据库（转发 std.db.sqlite / db_open_c）。 */
-function open(path: *u8): DbConn {
+export function open(path: *u8): DbConn {
   let _rc: DbConn = 0;
   unsafe { _rc = DbConn { handle: db_open_c(path) }; }
   return _rc;
 }
 
 /** 关闭连接。 */
-function close(conn: DbConn): i32 {
+export function close(conn: DbConn): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = db_close_c(conn.handle); }
   return _rc;
 }
 
 /** 执行无结果集 SQL。 */
-function exec(conn: DbConn, sql: *u8): i32 {
+export function exec(conn: DbConn, sql: *u8): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = db_exec_c(conn.handle, sql); }
   return _rc;
 }
 
 /** 最近一次 exec 影响行数。 */
-function changes(conn: DbConn): i32 {
+export function changes(conn: DbConn): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = db_changes_c(conn.handle); }
   return _rc;
 }
 
 /** SQLite 后端是否可用（委托 std.db.sqlite）。 */
-function sqlite_is_available(): i32 {
+export function sqlite_is_available(): i32 {
   return sqlite_m.is_available();
 }
 
 /** KV mmap 引擎是否导出（委托 std.db.kv）。 */
-function kv_mmap_available(): i32 {
+export function kv_mmap_available(): i32 {
   return kv_m.mmap_available();
 }
 
 /** Arrow 列式模块是否导出（恒 1）。 */
-function arrow_available(): i32 {
+export function arrow_available(): i32 {
   return 1;
 }
 
 /** SIMD 是否可用于 Arrow 列计算（委托 std.db.arrow）。 */
-function arrow_simd_hw_available(): i32 {
+export function arrow_simd_hw_available(): i32 {
   return arrow_m.simd_hw_available();
 }

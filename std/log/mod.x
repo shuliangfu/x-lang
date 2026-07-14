@@ -20,72 +20,72 @@
 //
 // 【文件职责】set_min_level、log、structured_kv；输出到 stderr 和/或文件。
 // 【依赖】core；与 std/log/log.x 同属一模块（F-log v1 / F-ZC）；OS 胶层在 runtime_log_os.o。
-extern function log_set_min_level_c(level: i32): void;
-extern function log_write_c(level: i32, ptr: *u8, len: i32): i32;
-extern function log_set_sink_mask_c(mask: i32): void;
-extern function log_set_file_sink_c(path: *u8, len: i32): i32;
-extern function log_close_file_sink_c(): void;
-extern function log_write_structured_kv_c(comp: *u8, level: i32, kv: *u8): i32;
-extern function log_set_rotate_c(max_bytes: i32, max_backups: i32): i32;
-extern function log_set_async_enabled_c(enabled: i32): i32;
-extern function log_async_flush_c(): i32;
+export extern function log_set_min_level_c(level: i32): void;
+export extern function log_write_c(level: i32, ptr: *u8, len: i32): i32;
+export extern function log_set_sink_mask_c(mask: i32): void;
+export extern function log_set_file_sink_c(path: *u8, len: i32): i32;
+export extern function log_close_file_sink_c(): void;
+export extern function log_write_structured_kv_c(comp: *u8, level: i32, kv: *u8): i32;
+export extern function log_set_rotate_c(max_bytes: i32, max_backups: i32): i32;
+export extern function log_set_async_enabled_c(enabled: i32): i32;
+export extern function log_async_flush_c(): i32;
 
 /** stderr sink 掩码位。 */
-const SINK_STDERR: i32 = 1;
+export const SINK_STDERR: i32 = 1;
 /** 文件 sink 掩码位。 */
-const SINK_FILE: i32 = 2;
+export const SINK_FILE: i32 = 2;
 
-function level_debug(): i32 { return 0; }
-function level_info(): i32 { return 1; }
-function level_warn(): i32 { return 2; }
-function level_error(): i32 { return 3; }
+export function level_debug(): i32 { return 0; }
+export function level_info(): i32 { return 1; }
+export function level_warn(): i32 { return 2; }
+export function level_error(): i32 { return 3; }
 
 /** 设置最小输出级别；低于此级别的 log 不写。0=DEBUG, 1=INFO, 2=WARN, 3=ERROR。 */
-function set_min_level(level: i32): void { unsafe { log_set_min_level_c(level); } }
+export function set_min_level(level: i32): void { unsafe { log_set_min_level_c(level); } }
 
 /** 设置活跃 sink 掩码：SINK_STDERR | SINK_FILE。 */
-function set_sink_mask(mask: i32): void { unsafe { log_set_sink_mask_c(mask); } }
+export function set_sink_mask(mask: i32): void { unsafe { log_set_sink_mask_c(mask); } }
 
 /** 打开追加写文件 sink；path 为字节路径，len 为长度。成功 0，失败 -1。 */
-function set_file_sink(path: *u8, len: i32): i32 {
+export function set_file_sink(path: *u8, len: i32): i32 {
   let rc: i32 = 0;
   unsafe { rc = log_set_file_sink_c(path, len); }
   return rc;
 }
 
 /** 关闭文件 sink（若已打开）。 */
-function close_file_sink(): void { unsafe { log_close_file_sink_c(); } }
+export function close_file_sink(): void { unsafe { log_close_file_sink_c(); } }
 
 /** 写一条人类可读日志："[LEVEL] " + ptr[0..len] + 换行。返回 0 成功，-1 失败。 */
-function log(level: i32, ptr: *u8, len: i32): i32 {
+export function log(level: i32, ptr: *u8, len: i32): i32 {
   let rc: i32 = 0;
   unsafe { rc = log_write_c(level, ptr, len); }
   return rc;
 }
 
 /** 写一条 OBS-003 结构化行：shux: level=… component=… kv…；comp/kv 为 NUL 结尾字节串。 */
-function structured_kv(comp: *u8, level: i32, kv: *u8): i32 {
+export function structured_kv(comp: *u8, level: i32, kv: *u8): i32 {
   let rc: i32 = 0;
   unsafe { rc = log_write_structured_kv_c(comp, level, kv); }
   return rc;
 }
 
 /** 设置文件 sink 轮转阈值（须先 set_file_sink）；max_backups 0=截断，1..8=备份。 */
-function set_rotate_limit(max_bytes: i32, max_backups: i32): i32 {
+export function set_rotate_limit(max_bytes: i32, max_backups: i32): i32 {
   let rc: i32 = 0;
   unsafe { rc = log_set_rotate_c(max_bytes, max_backups); }
   return rc;
 }
 
 /** 启用/关闭异步缓冲（32 槽环形队列）；关闭前自动 flush。 */
-function set_async_enabled(enabled: i32): i32 {
+export function set_async_enabled(enabled: i32): i32 {
   let rc: i32 = 0;
   unsafe { rc = log_set_async_enabled_c(enabled); }
   return rc;
 }
 
 /** 刷出异步缓冲到活跃 sink。 */
-function async_flush(): i32 {
+export function async_flush(): i32 {
   let rc: i32 = 0;
   unsafe { rc = log_async_flush_c(); }
   return rc;

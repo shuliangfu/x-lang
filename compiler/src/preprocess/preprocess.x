@@ -20,15 +20,15 @@
 // 约定：与 preprocess.c 一致；COND 可为 -D 宏或 target_os == "linux" 等（经 preprocess_eval_condition_c）；嵌套栈在 ast_pool grow 池。
 
 /** #if/#else 嵌套栈 grow 池（ast_pool.c）。 */
-extern function preprocess_if_stack_reset(): void;
-extern function preprocess_if_stack_len(): i32;
-extern function preprocess_if_stack_push(v: i32): i32;
-extern function preprocess_if_stack_pop(): void;
-extern function preprocess_if_stack_at(i: i32): i32;
-extern function preprocess_if_stack_set_at(i: i32, v: i32): void;
+export extern function preprocess_if_stack_reset(): void;
+export extern function preprocess_if_stack_len(): i32;
+export extern function preprocess_if_stack_push(v: i32): i32;
+export extern function preprocess_if_stack_pop(): void;
+export extern function preprocess_if_stack_at(i: i32): i32;
+export extern function preprocess_if_stack_set_at(i: i32, v: i32): void;
 
 /** 求值 #if COND（C bridge：-D 宏 + target_os/target_arch，与 #[cfg] 对齐）。 */
-extern function preprocess_eval_condition_c(cond: *u8, cond_len: i32): i32;
+export extern function preprocess_eval_condition_c(cond: *u8, cond_len: i32): i32;
 
 /**
  * 全局解析结果（替代 *ParseDirectiveResult 指针参数）。
@@ -46,40 +46,40 @@ let g_pp_cond: u8[256] = [];
  * helper 函数内 unsafe 块仅含单条 extern 调用 + return，无 let+if 组合，
  * 避免 shux -E 丢弃函数体。
  */
-function pp_if_stack_reset(): void {
+export function pp_if_stack_reset(): void {
   unsafe {
     preprocess_if_stack_reset();
   }
 }
-function pp_if_stack_len(): i32 {
+export function pp_if_stack_len(): i32 {
   unsafe {
     return preprocess_if_stack_len();
   }
   return 0;
 }
-function pp_if_stack_push(v: i32): i32 {
+export function pp_if_stack_push(v: i32): i32 {
   unsafe {
     return preprocess_if_stack_push(v);
   }
   return 0;
 }
-function pp_if_stack_at(i: i32): i32 {
+export function pp_if_stack_at(i: i32): i32 {
   unsafe {
     return preprocess_if_stack_at(i);
   }
   return 0;
 }
-function pp_if_stack_set_at(i: i32, v: i32): void {
+export function pp_if_stack_set_at(i: i32, v: i32): void {
   unsafe {
     preprocess_if_stack_set_at(i, v);
   }
 }
-function pp_if_stack_pop(): void {
+export function pp_if_stack_pop(): void {
   unsafe {
     preprocess_if_stack_pop();
   }
 }
-function pp_eval_condition(cond: *u8, cond_len: i32): i32 {
+export function pp_eval_condition(cond: *u8, cond_len: i32): i32 {
   unsafe {
     return preprocess_eval_condition_c(cond, cond_len);
   }
@@ -91,7 +91,7 @@ function pp_eval_condition(cond: *u8, cond_len: i32): i32 {
  * 【Why】void 函数调用在函数体顶层会导致 shux -E 丢弃后续所有语句；
  * 包装为 i32 返回 + let 赋值可避免此问题。
  */
-function pp_reset_i32(): i32 {
+export function pp_reset_i32(): i32 {
   unsafe {
     preprocess_if_stack_reset();
   }
@@ -99,28 +99,28 @@ function pp_reset_i32(): i32 {
 }
 
 /** kind == 1 (#if) 或 kind == 4 (#elseif) 需求值 COND；消除 || 的 helper。 */
-function pp_kind_needs_cond(kind: i32): bool {
+export function pp_kind_needs_cond(kind: i32): bool {
   if (kind == 1) { return true; }
   if (kind == 4) { return true; }
   return false;
 }
 
 /** ch 是否为空白（空格 32 / 制表符 9）。 */
-function pp_is_ws(ch: u8): bool {
+export function pp_is_ws(ch: u8): bool {
   if (ch == 32) { return true; }
   if (ch == 9) { return true; }
   return false;
 }
 
 /** ch 是否为行尾（LF 10 / CR 13）。 */
-function pp_is_eol(ch: u8): bool {
+export function pp_is_eol(ch: u8): bool {
   if (ch == 10) { return true; }
   if (ch == 13) { return true; }
   return false;
 }
 
 /** ch 是否为空白/行尾/NUL（词边界终止符）。 */
-function pp_is_token_end(ch: u8): bool {
+export function pp_is_token_end(ch: u8): bool {
   if (ch == 32) { return true; }
   if (ch == 9) { return true; }
   if (ch == 10) { return true; }
@@ -130,14 +130,14 @@ function pp_is_token_end(ch: u8): bool {
 }
 
 /** pos 是否越界或 buf[pos] 为指定字节；消除 || 的 helper。 */
-function pp_at_end_or_not_byte(buf: *u8, pos: i32, line_len: i32, target: u8): bool {
+export function pp_at_end_or_not_byte(buf: *u8, pos: i32, line_len: i32, target: u8): bool {
   if (pos >= line_len) { return true; }
   if (buf[pos] != target) { return true; }
   return false;
 }
 
 /** pos 是否在行内且 buf[pos] 非词边界终止符（词边界检查）。消除 && 的 helper。 */
-function pp_is_word_boundary(buf: *u8, pos: i32, line_len: i32): bool {
+export function pp_is_word_boundary(buf: *u8, pos: i32, line_len: i32): bool {
   if (pos >= line_len) { return false; }
   let ch: u8 = buf[pos];
   if (pp_is_token_end(ch)) { return false; }
@@ -145,7 +145,7 @@ function pp_is_word_boundary(buf: *u8, pos: i32, line_len: i32): bool {
 }
 
 /** pos 是否越界或 buf[pos] 为词边界终止符。消除 || 的 helper。 */
-function pp_at_end_or_token_end(buf: *u8, pos: i32, line_len: i32): bool {
+export function pp_at_end_or_token_end(buf: *u8, pos: i32, line_len: i32): bool {
   if (pos >= line_len) { return true; }
   let ch: u8 = buf[pos];
   if (pp_is_token_end(ch)) { return true; }
@@ -153,7 +153,7 @@ function pp_at_end_or_token_end(buf: *u8, pos: i32, line_len: i32): bool {
 }
 
 /** buf[pos..] 是否匹配 "if" (105,102)，且 pos+2 <= line_len。 */
-function pp_match_if(buf: *u8, pos: i32, line_len: i32): bool {
+export function pp_match_if(buf: *u8, pos: i32, line_len: i32): bool {
   if (pos + 2 > line_len) { return false; }
   if (buf[pos] != 105) { return false; }
   if (buf[pos + 1] != 102) { return false; }
@@ -161,7 +161,7 @@ function pp_match_if(buf: *u8, pos: i32, line_len: i32): bool {
 }
 
 /** buf[pos..] 是否匹配 "elseif" (101,108,115,101,105,102)，且 pos+6 <= line_len。 */
-function pp_match_elseif(buf: *u8, pos: i32, line_len: i32): bool {
+export function pp_match_elseif(buf: *u8, pos: i32, line_len: i32): bool {
   if (pos + 6 > line_len) { return false; }
   if (buf[pos] != 101) { return false; }
   if (buf[pos + 1] != 108) { return false; }
@@ -173,7 +173,7 @@ function pp_match_elseif(buf: *u8, pos: i32, line_len: i32): bool {
 }
 
 /** buf[pos..] 是否匹配 "else" (101,108,115,101)，且 pos+4 <= line_len。 */
-function pp_match_else(buf: *u8, pos: i32, line_len: i32): bool {
+export function pp_match_else(buf: *u8, pos: i32, line_len: i32): bool {
   if (pos + 4 > line_len) { return false; }
   if (buf[pos] != 101) { return false; }
   if (buf[pos + 1] != 108) { return false; }
@@ -183,7 +183,7 @@ function pp_match_else(buf: *u8, pos: i32, line_len: i32): bool {
 }
 
 /** buf[pos..] 是否匹配 "endif" (101,110,100,105,102)，且 pos+5 <= line_len。 */
-function pp_match_endif(buf: *u8, pos: i32, line_len: i32): bool {
+export function pp_match_endif(buf: *u8, pos: i32, line_len: i32): bool {
   if (pos + 5 > line_len) { return false; }
   if (buf[pos] != 101) { return false; }
   if (buf[pos + 1] != 110) { return false; }
@@ -197,7 +197,7 @@ function pp_match_endif(buf: *u8, pos: i32, line_len: i32): bool {
  * 处理一条预处理指令对嵌套栈的影响；cond_val 为 #if/#elseif 条件真值（0/1）。
  * 成功 0，失败 -1。
  */
-function preprocess_apply_directive_kind(kind: i32, cond_val: i32): i32 {
+export function preprocess_apply_directive_kind(kind: i32, cond_val: i32): i32 {
   let depth: i32 = pp_if_stack_len();
   if (kind == 1) {
     let v: i32 = cond_val;
@@ -256,7 +256,7 @@ function preprocess_apply_directive_kind(kind: i32, cond_val: i32): i32 {
 }
 
 /** 当前嵌套栈顶是否应保留源码行（非指令行）。 */
-function preprocess_line_keeping(): bool {
+export function preprocess_line_keeping(): bool {
   let depth: i32 = pp_if_stack_len();
   if (depth == 0) {
     return true;
@@ -273,7 +273,7 @@ function preprocess_line_keeping(): bool {
 }
 
 /** 解析指令结果：kind 0=非指令 1=#if 2=#else 3=#endif 4=#elseif；sym_len 为 COND 字节数。 */
-struct ParseDirectiveResult {
+export struct ParseDirectiveResult {
   kind: i32;
   sym_len: i32;
 }
@@ -281,7 +281,7 @@ struct ParseDirectiveResult {
 /**
  * 从 line_buf[pos..line_len) 拷贝条件到 cond，返回写入长度。
  */
-function parse_copy_cond_from_line(cond: u8[256], line_buf: u8[512], pos: i32, line_len: i32): i32 {
+export function parse_copy_cond_from_line(cond: u8[256], line_buf: u8[512], pos: i32, line_len: i32): i32 {
   let s: i32 = 0;
   while (pos < line_len) {
     if (s >= 255) {
@@ -315,7 +315,7 @@ function parse_copy_cond_from_line(cond: u8[256], line_buf: u8[512], pos: i32, l
  * 【Why】shux -E 丢弃含 *ParseDirectiveResult 指针参数 + 字段写入的函数体；
  * 改用全局变量绕过。消除所有 &&/||，用 helper 函数替代。
  */
-function parse_directive_into(line_buf: u8[512], line_len: i32, cond: u8[256]): void {
+export function parse_directive_into(line_buf: u8[512], line_len: i32, cond: u8[256]): void {
   let pos: i32 = 0;
   g_pp_kind = 0;
   g_pp_sym_len = 0;
@@ -418,7 +418,7 @@ function parse_directive_into(line_buf: u8[512], line_len: i32, cond: u8[256]): 
 }
 
 /** 主入口：对 source 做条件编译，结果写入 out_buf，返回输出长度，失败返回 -1。 */
-function preprocess_x(source: u8[], out_buf: u8[]): i32 {
+export function preprocess_x(source: u8[], out_buf: u8[]): i32 {
   if (out_buf.length <= 0) {
     return -1;
   }
@@ -480,7 +480,7 @@ function preprocess_x(source: u8[], out_buf: u8[]): i32 {
 }
 
 /** 6.1 完全自举：用固定数组+长度调用预处理逻辑，不依赖 slice 构造；供 pipeline.x 在 read_file_x 后调用。与 runtime PIPELINE_CTX_BUF_SIZE 一致（4MiB）。 */
-function preprocess_x_buf(source_buf: u8[4194304], source_len: isize, out_buf: u8[4194304], out_cap: i32): i32 {
+export function preprocess_x_buf(source_buf: u8[4194304], source_len: isize, out_buf: u8[4194304], out_cap: i32): i32 {
   if (out_cap <= 0) {
     return -1;
   }

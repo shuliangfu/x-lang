@@ -18,19 +18,19 @@
 //
 // 从 ed25519.inc.c 迁出 crypto_ed25519_* 导出与烟测；ref10 曲线运算见 ed25519_ref10_glue.c。
 
-extern function crypto_mem_eq_c(a: *u8, b: *u8, len: i32): i32;
+export extern function crypto_mem_eq_c(a: *u8, b: *u8, len: i32): i32;
 
 /** ref10：由 seed 导出公钥与 64 字节私钥（glue 提供；符号 ed25519_ref10_* 避免与 mod.x 高层 API 冲突）。 */
-extern function ed25519_ref10_create_keypair(public_key: *u8, private_key: *u8, seed: *u8): void;
+export extern function ed25519_ref10_create_keypair(public_key: *u8, private_key: *u8, seed: *u8): void;
 
 /** ref10：对消息签名（glue 提供）。 */
-extern function ed25519_ref10_sign(signature: *u8, message: *u8, message_len: usize, public_key: *u8, private_key: *u8): void;
+export extern function ed25519_ref10_sign(signature: *u8, message: *u8, message_len: usize, public_key: *u8, private_key: *u8): void;
 
 /** ref10：验签；成功 1，失败 0（glue 提供）。 */
-extern function ed25519_ref10_verify(signature: *u8, message: *u8, message_len: usize, public_key: *u8): i32;
+export extern function ed25519_ref10_verify(signature: *u8, message: *u8, message_len: usize, public_key: *u8): i32;
 
 /** 由 32 字节 seed 导出 Ed25519 公钥至 pub[0..32]。 */
-function crypto_ed25519_public_from_seed_c(seed: *u8, pub: *u8): void {
+export function crypto_ed25519_public_from_seed_c(seed: *u8, pub: *u8): void {
   let priv: u8[64] = [];
   if (seed == 0 || pub == 0) {
     return;
@@ -42,7 +42,7 @@ function crypto_ed25519_public_from_seed_c(seed: *u8, pub: *u8): void {
  * 使用 seed 对 msg 签名；sig 写入 64 字节。
  * 成功 0，参数非法 -1。
  */
-function crypto_ed25519_sign_c(seed: *u8, msg: *u8, msg_len: i32, sig: *u8): i32 {
+export function crypto_ed25519_sign_c(seed: *u8, msg: *u8, msg_len: i32, sig: *u8): i32 {
   let pub: u8[32] = [];
   let priv: u8[64] = [];
   if (seed == 0 || sig == 0 || msg_len < 0) {
@@ -60,7 +60,7 @@ function crypto_ed25519_sign_c(seed: *u8, msg: *u8, msg_len: i32, sig: *u8): i32
  * 验签；成功 0，失败 -1。
  * 内部 ed25519_verify 返回 1/0，此处映射为 0/-1。
  */
-function crypto_ed25519_verify_c(pub: *u8, msg: *u8, msg_len: i32, sig: *u8): i32 {
+export function crypto_ed25519_verify_c(pub: *u8, msg: *u8, msg_len: i32, sig: *u8): i32 {
   if (pub == 0 || sig == 0 || msg_len < 0) {
     return -1;
   }
@@ -74,7 +74,7 @@ function crypto_ed25519_verify_c(pub: *u8, msg: *u8, msg_len: i32, sig: *u8): i3
 }
 
 /** RFC 8032 TEST 1（空消息）C 烟测；0 通过。 */
-function crypto_ed25519_smoke_c(): i32 {
+export function crypto_ed25519_smoke_c(): i32 {
   let seed: u8[32] = [
     0x9d, 0x61, 0xb1, 0x9d, 0xef, 0xfd, 0x5a, 0x60, 0xba, 0x84, 0x4a, 0xf4, 0x92, 0xec, 0x2c, 0xc4,
     0x44, 0x49, 0xc5, 0x69, 0x7b, 0x32, 0x69, 0x19, 0x70, 0x3b, 0xac, 0x03, 0x1c, 0xae, 0x7f, 0x60

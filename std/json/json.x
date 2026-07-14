@@ -24,30 +24,30 @@
 // 【对标】Zig std.json parseFromSlice；Rust serde_json from_str 最小子集。
 
 /** 零拷贝视图需拷贝时的 out_len 哨兵（STD-008）。 */
-const JSON_VIEW_NEEDS_COPY: i32 = -2;
+export const JSON_VIEW_NEEDS_COPY: i32 = -2;
 
 /** object 字段缺失时的返回码（STD-116）。 */
-const JSON_DECODE_MISSING: i32 = -3;
+export const JSON_DECODE_MISSING: i32 = -3;
 
 /** JSON 游标：与 mod.x JsonCursor 布局一致（STD-034）。 */
-struct JsonCursor {
+export struct JsonCursor {
   ptr: *u8;
   len: i32;
   off: i32;
 }
 
 /** F-json v1 版本标记；供聚合 gate 校验 json.x 已参与构建。 */
-function json_f_json_v1_marker_c(): i32 {
+export function json_f_json_v1_marker_c(): i32 {
   return 1;
 }
 
 /** F-json v2 逻辑全量 .x 标记。 */
-function json_f_json_v2_marker_c(): i32 {
+export function json_f_json_v2_marker_c(): i32 {
   return 1;
 }
 
 /** 拷贝 JsonCursor 三字段（替代 C 结构体赋值）。 */
-function json_cursor_copy(dst: *JsonCursor, src: *JsonCursor): void {
+export function json_cursor_copy(dst: *JsonCursor, src: *JsonCursor): void {
   if (dst == 0 || src == 0) { return; }
   dst.ptr = src.ptr;
   dst.len = src.len;
@@ -55,7 +55,7 @@ function json_cursor_copy(dst: *JsonCursor, src: *JsonCursor): void {
 }
 
 /** WPO-S3：按字段写入游标，避免 local& + outer* 同 call 触发 stack escape typeck。 */
-function json_cursor_write_fields(dst: *JsonCursor, ptr: *u8, len: i32, off: i32): void {
+export function json_cursor_write_fields(dst: *JsonCursor, ptr: *u8, len: i32, off: i32): void {
   if (dst == 0) { return; }
   dst.ptr = ptr;
   dst.len = len;
@@ -63,7 +63,7 @@ function json_cursor_write_fields(dst: *JsonCursor, ptr: *u8, len: i32, off: i32
 }
 
 /** 手写 double 解析（单遍、无 sscanf）；consumed 写入消费字节数；成功返回 0。 */
-function json_parse_number_c(ptr: *u8, len: i32, out_val: *f64, consumed: *i32): i32 {
+export function json_parse_number_c(ptr: *u8, len: i32, out_val: *f64, consumed: *i32): i32 {
   let i: i32 = 0;
   let neg: i32 = 0;
   let mantissa: u64 = 0;
@@ -122,7 +122,7 @@ function json_parse_number_c(ptr: *u8, len: i32, out_val: *f64, consumed: *i32):
 }
 
 /** 解析 JSON null 字面量；匹配返回 1 并写 consumed=4，否则 0。 */
-function json_parse_null_c(ptr: *u8, len: i32, consumed: *i32): i32 {
+export function json_parse_null_c(ptr: *u8, len: i32, consumed: *i32): i32 {
   if (ptr == 0 || len < 4 || consumed == 0) { return 0; }
   if (ptr[0] == 110 && ptr[1] == 117 && ptr[2] == 108 && ptr[3] == 108) {
     consumed[0] = 4;
@@ -132,7 +132,7 @@ function json_parse_null_c(ptr: *u8, len: i32, consumed: *i32): i32 {
 }
 
 /** 解析 JSON true/false；匹配返回 1 并写 out/consumed，否则 0。 */
-function json_parse_bool_c(ptr: *u8, len: i32, out: *i32, consumed: *i32): i32 {
+export function json_parse_bool_c(ptr: *u8, len: i32, out: *i32, consumed: *i32): i32 {
   if (ptr == 0 || len < 4 || out == 0 || consumed == 0) { return 0; }
   if (len >= 4 && ptr[0] == 116 && ptr[1] == 114 && ptr[2] == 117 && ptr[3] == 101) {
     out[0] = 1;
@@ -149,7 +149,7 @@ function json_parse_bool_c(ptr: *u8, len: i32, out: *i32, consumed: *i32): i32 {
 
 /** 解析 JSON 字符串 "..."（含 \\ \" \/ \b \f \n \r \t \uXXXX）；
  *  consumed[0] 含前后引号；内容写入 out，最多 out_cap；返回内容长度，失败 -1。 */
-function json_parse_string_c(ptr: *u8, len: i32, out: *u8, out_cap: i32, consumed: *i32): i32 {
+export function json_parse_string_c(ptr: *u8, len: i32, out: *u8, out_cap: i32, consumed: *i32): i32 {
   let i: i32 = 1;
   let o: i32 = 0;
   let u: u32 = 0;
@@ -217,7 +217,7 @@ function json_parse_string_c(ptr: *u8, len: i32, out: *u8, out_cap: i32, consume
 }
 
 /** 转义字符串内容（不含外围引号）；从 buf[buf_off] 起写入至多 buf_cap 字节。 */
-function json_escape_inner(ptr: *u8, len: i32, buf: *u8, buf_off: i32, buf_cap: i32): i32 {
+export function json_escape_inner(ptr: *u8, len: i32, buf: *u8, buf_off: i32, buf_cap: i32): i32 {
   let i: i32 = 0;
   let j: i32 = 0;
   let c: u8 = 0;
@@ -262,7 +262,7 @@ function json_escape_inner(ptr: *u8, len: i32, buf: *u8, buf_off: i32, buf_cap: 
 }
 
 /** 将 ptr[0..len] 按 JSON 字符串转义写入 buf（含前后引号）；返回写入长度，不足 -1。 */
-function json_escape_c(ptr: *u8, len: i32, buf: *u8, buf_cap: i32): i32 {
+export function json_escape_c(ptr: *u8, len: i32, buf: *u8, buf_cap: i32): i32 {
   let i: i32 = 0;
   let n: i32 = 0;
   let inner_cap: i32 = 0;
@@ -278,7 +278,7 @@ function json_escape_c(ptr: *u8, len: i32, buf: *u8, buf_cap: i32): i32 {
 }
 
 /** 将 number 追加为 JSON 到 buf（整数优先；非整数写 0）；返回写入长度，不足 -1。 */
-function json_append_number_c(buf: *u8, buf_cap: i32, val: f64): i32 {
+export function json_append_number_c(buf: *u8, buf_cap: i32, val: f64): i32 {
   let i: i32 = 0;
   let u: u64 = 0;
   let t: u64 = 0;
@@ -306,14 +306,14 @@ function json_append_number_c(buf: *u8, buf_cap: i32, val: f64): i32 {
 }
 
 /** 追加 "null" 到 buf；返回 4，不足 -1。 */
-function json_append_null_c(buf: *u8, buf_cap: i32): i32 {
+export function json_append_null_c(buf: *u8, buf_cap: i32): i32 {
   if (buf == 0 || buf_cap < 4) { return -1; }
   buf[0] = 110; buf[1] = 117; buf[2] = 108; buf[3] = 108;
   return 4;
 }
 
 /** 追加 "true" 或 "false" 到 buf；返回写入长度，不足 -1。 */
-function json_append_bool_c(buf: *u8, buf_cap: i32, val: i32): i32 {
+export function json_append_bool_c(buf: *u8, buf_cap: i32, val: i32): i32 {
   if (buf == 0 || buf_cap < 5) { return -1; }
   if (val != 0) {
     buf[0] = 116; buf[1] = 114; buf[2] = 117; buf[3] = 101;
@@ -324,7 +324,7 @@ function json_append_bool_c(buf: *u8, buf_cap: i32, val: i32): i32 {
 }
 
 /** 跳过 JSON 空白。 */
-function json_cursor_skip_ws(cur: *JsonCursor): void {
+export function json_cursor_skip_ws(cur: *JsonCursor): void {
   let c: u8 = 0;
   if (cur == 0) { return; }
   while (cur.off < cur.len) {
@@ -335,7 +335,7 @@ function json_cursor_skip_ws(cur: *JsonCursor): void {
 }
 
 /** 跳过单个 JSON 值并前进 off；失败返回 -1。 */
-function json_cursor_skip_value_impl(cur: *JsonCursor): i32 {
+export function json_cursor_skip_value_impl(cur: *JsonCursor): i32 {
   let consumed: i32 = 0;
   let dummy: i32 = 0;
   let dv: f64 = 0.0;
@@ -397,7 +397,7 @@ function json_cursor_skip_value_impl(cur: *JsonCursor): i32 {
 }
 
 /** 初始化游标。 */
-function json_cursor_init_c(cur: *JsonCursor, ptr: *u8, len: i32): void {
+export function json_cursor_init_c(cur: *JsonCursor, ptr: *u8, len: i32): void {
   if (cur == 0) { return; }
   cur.ptr = ptr;
   cur.len = len;

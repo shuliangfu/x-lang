@@ -21,142 +21,142 @@
 // 【依赖】core；与 std/atomic/atomic.x + runtime_atomic_glue.c 同属一模块（F-atomic v2 / F-ZC）。
 
 // ─── C11 atomic FFI（Tier-X；门面 unsafe 包装）───
-extern function atomic_load_i32_c(ptr: *i32): i32;
-extern function atomic_store_i32_c(ptr: *i32, val: i32): void;
-extern function atomic_compare_exchange_i32_c(ptr: *i32, expected: *i32, desired: i32): i32;
-extern function atomic_fetch_add_i32_c(ptr: *i32, delta: i32): i32;
-extern function atomic_fetch_sub_i32_c(ptr: *i32, delta: i32): i32;
-extern function atomic_load_u32_c(ptr: *u32): u32;
-extern function atomic_store_u32_c(ptr: *u32, val: u32): void;
-extern function atomic_compare_exchange_u32_c(ptr: *u32, expected: *u32, desired: u32): i32;
-extern function atomic_fetch_add_u32_c(ptr: *u32, delta: u32): u32;
-extern function atomic_load_i64_c(ptr: *i64): i64;
-extern function atomic_store_i64_c(ptr: *i64, val: i64): void;
-extern function atomic_load_u64_c(ptr: *u64): u64;
-extern function atomic_store_u64_c(ptr: *u64, val: u64): void;
-extern function atomic_fetch_add_i64_c(ptr: *i64, delta: i64): i64;
-extern function atomic_load_i16_c(ptr: *i16): i16;
-extern function atomic_store_i16_c(ptr: *i16, val: i16): void;
-extern function atomic_fetch_add_i16_c(ptr: *i16, delta: i16): i16;
-extern function atomic_compare_exchange_i16_c(ptr: *i16, expected: *i16, desired: i16): i32;
-extern function atomic_load_u16_c(ptr: *u16): u16;
-extern function atomic_store_u16_c(ptr: *u16, val: u16): void;
-extern function atomic_fetch_add_u16_c(ptr: *u16, delta: u16): u16;
-extern function atomic_compare_exchange_u16_c(ptr: *u16, expected: *u16, desired: u16): i32;
-extern function atomic_compare_exchange_i64_c(ptr: *i64, expected: *i64, desired: i64): i32;
-extern function atomic_fetch_sub_i64_c(ptr: *i64, delta: i64): i64;
-extern function atomic_fetch_add_u64_c(ptr: *u64, delta: u64): u64;
-extern function atomic_fetch_sub_u64_c(ptr: *u64, delta: u64): u64;
-extern function atomic_compare_exchange_u64_c(ptr: *u64, expected: *u64, desired: u64): i32;
+export extern function atomic_load_i32_c(ptr: *i32): i32;
+export extern function atomic_store_i32_c(ptr: *i32, val: i32): void;
+export extern function atomic_compare_exchange_i32_c(ptr: *i32, expected: *i32, desired: i32): i32;
+export extern function atomic_fetch_add_i32_c(ptr: *i32, delta: i32): i32;
+export extern function atomic_fetch_sub_i32_c(ptr: *i32, delta: i32): i32;
+export extern function atomic_load_u32_c(ptr: *u32): u32;
+export extern function atomic_store_u32_c(ptr: *u32, val: u32): void;
+export extern function atomic_compare_exchange_u32_c(ptr: *u32, expected: *u32, desired: u32): i32;
+export extern function atomic_fetch_add_u32_c(ptr: *u32, delta: u32): u32;
+export extern function atomic_load_i64_c(ptr: *i64): i64;
+export extern function atomic_store_i64_c(ptr: *i64, val: i64): void;
+export extern function atomic_load_u64_c(ptr: *u64): u64;
+export extern function atomic_store_u64_c(ptr: *u64, val: u64): void;
+export extern function atomic_fetch_add_i64_c(ptr: *i64, delta: i64): i64;
+export extern function atomic_load_i16_c(ptr: *i16): i16;
+export extern function atomic_store_i16_c(ptr: *i16, val: i16): void;
+export extern function atomic_fetch_add_i16_c(ptr: *i16, delta: i16): i16;
+export extern function atomic_compare_exchange_i16_c(ptr: *i16, expected: *i16, desired: i16): i32;
+export extern function atomic_load_u16_c(ptr: *u16): u16;
+export extern function atomic_store_u16_c(ptr: *u16, val: u16): void;
+export extern function atomic_fetch_add_u16_c(ptr: *u16, delta: u16): u16;
+export extern function atomic_compare_exchange_u16_c(ptr: *u16, expected: *u16, desired: u16): i32;
+export extern function atomic_compare_exchange_i64_c(ptr: *i64, expected: *i64, desired: i64): i32;
+export extern function atomic_fetch_sub_i64_c(ptr: *i64, delta: i64): i64;
+export extern function atomic_fetch_add_u64_c(ptr: *u64, delta: u64): u64;
+export extern function atomic_fetch_sub_u64_c(ptr: *u64, delta: u64): u64;
+export extern function atomic_compare_exchange_u64_c(ptr: *u64, expected: *u64, desired: u64): i32;
 
 /** 原子 load（*T 重载分派）。 */
-function load(ptr: *i32): i32 {
+export function load(ptr: *i32): i32 {
   unsafe { return atomic_load_i32_c(ptr); }
   return 0; // unreachable — typeck workaround
 }
-function load(ptr: *u32): u32 {
+export function load(ptr: *u32): u32 {
   unsafe { return atomic_load_u32_c(ptr); }
   return 0; // unreachable — typeck workaround
 }
-function load(ptr: *i64): i64 {
+export function load(ptr: *i64): i64 {
   unsafe { return atomic_load_i64_c(ptr); }
   return 0; // unreachable — typeck workaround
 }
-function load(ptr: *u64): u64 {
+export function load(ptr: *u64): u64 {
   unsafe { return atomic_load_u64_c(ptr); }
   return 0; // unreachable — typeck workaround
 }
-function load(ptr: *i16): i16 {
+export function load(ptr: *i16): i16 {
   unsafe { return atomic_load_i16_c(ptr); }
   return 0; // unreachable — typeck workaround
 }
-function load(ptr: *u16): u16 {
+export function load(ptr: *u16): u16 {
   unsafe { return atomic_load_u16_c(ptr); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 原子 store（*T 重载分派）。 */
-function store(ptr: *i32, val: i32): void {
+export function store(ptr: *i32, val: i32): void {
   unsafe { atomic_store_i32_c(ptr, val); }
 }
-function store(ptr: *u32, val: u32): void {
+export function store(ptr: *u32, val: u32): void {
   unsafe { atomic_store_u32_c(ptr, val); }
 }
-function store(ptr: *i64, val: i64): void {
+export function store(ptr: *i64, val: i64): void {
   unsafe { atomic_store_i64_c(ptr, val); }
 }
-function store(ptr: *u64, val: u64): void {
+export function store(ptr: *u64, val: u64): void {
   unsafe { atomic_store_u64_c(ptr, val); }
 }
-function store(ptr: *i16, val: i16): void {
+export function store(ptr: *i16, val: i16): void {
   unsafe { atomic_store_i16_c(ptr, val); }
 }
-function store(ptr: *u16, val: u16): void {
+export function store(ptr: *u16, val: u16): void {
   unsafe { atomic_store_u16_c(ptr, val); }
 }
 
 /** 原子 compare_exchange；成功返回 1，失败返回 0（*T 重载分派）。 */
-function compare_exchange(ptr: *i32, expected: *i32, desired: i32): i32 {
+export function compare_exchange(ptr: *i32, expected: *i32, desired: i32): i32 {
   unsafe { return atomic_compare_exchange_i32_c(ptr, expected, desired); }
   return 0; // unreachable — typeck workaround
 }
-function compare_exchange(ptr: *u32, expected: *u32, desired: u32): i32 {
+export function compare_exchange(ptr: *u32, expected: *u32, desired: u32): i32 {
   unsafe { return atomic_compare_exchange_u32_c(ptr, expected, desired); }
   return 0; // unreachable — typeck workaround
 }
-function compare_exchange(ptr: *i64, expected: *i64, desired: i64): i32 {
+export function compare_exchange(ptr: *i64, expected: *i64, desired: i64): i32 {
   unsafe { return atomic_compare_exchange_i64_c(ptr, expected, desired); }
   return 0; // unreachable — typeck workaround
 }
-function compare_exchange(ptr: *u64, expected: *u64, desired: u64): i32 {
+export function compare_exchange(ptr: *u64, expected: *u64, desired: u64): i32 {
   unsafe { return atomic_compare_exchange_u64_c(ptr, expected, desired); }
   return 0; // unreachable — typeck workaround
 }
-function compare_exchange(ptr: *i16, expected: *i16, desired: i16): i32 {
+export function compare_exchange(ptr: *i16, expected: *i16, desired: i16): i32 {
   unsafe { return atomic_compare_exchange_i16_c(ptr, expected, desired); }
   return 0; // unreachable — typeck workaround
 }
-function compare_exchange(ptr: *u16, expected: *u16, desired: u16): i32 {
+export function compare_exchange(ptr: *u16, expected: *u16, desired: u16): i32 {
   unsafe { return atomic_compare_exchange_u16_c(ptr, expected, desired); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 原子 fetch_add；返回旧值（*T 重载分派）。 */
-function fetch_add(ptr: *i32, delta: i32): i32 {
+export function fetch_add(ptr: *i32, delta: i32): i32 {
   unsafe { return atomic_fetch_add_i32_c(ptr, delta); }
   return 0; // unreachable — typeck workaround
 }
-function fetch_add(ptr: *u32, delta: u32): u32 {
+export function fetch_add(ptr: *u32, delta: u32): u32 {
   unsafe { return atomic_fetch_add_u32_c(ptr, delta); }
   return 0; // unreachable — typeck workaround
 }
-function fetch_add(ptr: *i64, delta: i64): i64 {
+export function fetch_add(ptr: *i64, delta: i64): i64 {
   unsafe { return atomic_fetch_add_i64_c(ptr, delta); }
   return 0; // unreachable — typeck workaround
 }
-function fetch_add(ptr: *u64, delta: u64): u64 {
+export function fetch_add(ptr: *u64, delta: u64): u64 {
   unsafe { return atomic_fetch_add_u64_c(ptr, delta); }
   return 0; // unreachable — typeck workaround
 }
-function fetch_add(ptr: *i16, delta: i16): i16 {
+export function fetch_add(ptr: *i16, delta: i16): i16 {
   unsafe { return atomic_fetch_add_i16_c(ptr, delta); }
   return 0; // unreachable — typeck workaround
 }
-function fetch_add(ptr: *u16, delta: u16): u16 {
+export function fetch_add(ptr: *u16, delta: u16): u16 {
   unsafe { return atomic_fetch_add_u16_c(ptr, delta); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 原子 fetch_sub；返回旧值（*T 重载分派）。 */
-function fetch_sub(ptr: *i32, delta: i32): i32 {
+export function fetch_sub(ptr: *i32, delta: i32): i32 {
   unsafe { return atomic_fetch_sub_i32_c(ptr, delta); }
   return 0; // unreachable — typeck workaround
 }
-function fetch_sub(ptr: *i64, delta: i64): i64 {
+export function fetch_sub(ptr: *i64, delta: i64): i64 {
   unsafe { return atomic_fetch_sub_i64_c(ptr, delta); }
   return 0; // unreachable — typeck workaround
 }
-function fetch_sub(ptr: *u64, delta: u64): u64 {
+export function fetch_sub(ptr: *u64, delta: u64): u64 {
   unsafe { return atomic_fetch_sub_u64_c(ptr, delta); }
   return 0; // unreachable — typeck workaround
 }
@@ -164,34 +164,34 @@ function fetch_sub(ptr: *u64, delta: u64): u64 {
 /* --- STD-046：Ordering 常量与 fence API --- */
 
 /** C11 memory_order_relaxed。 */
-const ORDER_RELAXED: i32 = 0;
+export const ORDER_RELAXED: i32 = 0;
 /** C11 memory_order_acquire。 */
-const ORDER_ACQUIRE: i32 = 1;
+export const ORDER_ACQUIRE: i32 = 1;
 /** C11 memory_order_release。 */
-const ORDER_RELEASE: i32 = 2;
+export const ORDER_RELEASE: i32 = 2;
 /** C11 memory_order_acq_rel。 */
-const ORDER_ACQ_REL: i32 = 3;
+export const ORDER_ACQ_REL: i32 = 3;
 /** C11 memory_order_seq_cst（v1 默认）。 */
-const ORDER_SEQ_CST: i32 = 4;
+export const ORDER_SEQ_CST: i32 = 4;
 
-extern function atomic_fence_seq_cst_c(): void;
-extern function atomic_fence_acquire_c(): void;
-extern function atomic_fence_release_c(): void;
+export extern function atomic_fence_seq_cst_c(): void;
+export extern function atomic_fence_acquire_c(): void;
+export extern function atomic_fence_release_c(): void;
 
 /** 全序内存栅栏。 */
-function fence_seq_cst(): void {
+export function fence_seq_cst(): void {
   unsafe { atomic_fence_seq_cst_c(); }
 }
 
 /** 获取侧内存栅栏。 */
-function fence_acquire(): void {
+export function fence_acquire(): void {
   unsafe { atomic_fence_acquire_c(); }
 }
 
 /** 释放侧内存栅栏。 */
-function fence_release(): void {
+export function fence_release(): void {
   unsafe { atomic_fence_release_c(); }
 }
 
 /** 模块尾占位：transitive import 解析时末位 function 会丢失，须保留非 API 锚点。 */
-function atomic_module_anchor(): i32 { return 0; }
+export function atomic_module_anchor(): i32 { return 0; }

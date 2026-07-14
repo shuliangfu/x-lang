@@ -5,7 +5,7 @@
 // 注意：部分 usize 下标/减法写法会触发 parse no functions；索引用 i32 再 cast。
 // 产品默认 seeds/rt_content.from_x.c；PREFER_X_O hybrid 见 ensure。
 
-function rt_eq2(c: *u8, n: i32, p: i32, a0: u8, a1: u8): i32 {
+export function rt_eq2(c: *u8, n: i32, p: i32, a0: u8, a1: u8): i32 {
   if (p + 2 > n) {
     return 0;
   }
@@ -18,7 +18,7 @@ function rt_eq2(c: *u8, n: i32, p: i32, a0: u8, a1: u8): i32 {
   return 1;
 }
 
-function rt_eq3(c: *u8, n: i32, p: i32, a0: u8, a1: u8, a2: u8): i32 {
+export function rt_eq3(c: *u8, n: i32, p: i32, a0: u8, a1: u8, a2: u8): i32 {
   if (p + 3 > n) {
     return 0;
   }
@@ -34,7 +34,7 @@ function rt_eq3(c: *u8, n: i32, p: i32, a0: u8, a1: u8, a2: u8): i32 {
   return 1;
 }
 
-function rt_eq4(c: *u8, n: i32, p: i32, a0: u8, a1: u8, a2: u8, a3: u8): i32 {
+export function rt_eq4(c: *u8, n: i32, p: i32, a0: u8, a1: u8, a2: u8, a3: u8): i32 {
   if (p + 4 > n) {
     return 0;
   }
@@ -53,7 +53,7 @@ function rt_eq4(c: *u8, n: i32, p: i32, a0: u8, a1: u8, a2: u8, a3: u8): i32 {
   return 1;
 }
 
-function rt_eq5(c: *u8, n: i32, p: i32, a0: u8, a1: u8, a2: u8, a3: u8, a4: u8): i32 {
+export function rt_eq5(c: *u8, n: i32, p: i32, a0: u8, a1: u8, a2: u8, a3: u8, a4: u8): i32 {
   if (p + 5 > n) {
     return 0;
   }
@@ -75,7 +75,7 @@ function rt_eq5(c: *u8, n: i32, p: i32, a0: u8, a1: u8, a2: u8, a3: u8, a4: u8):
   return 1;
 }
 
-function rt_eq6(c: *u8, n: i32, p: i32, a0: u8, a1: u8, a2: u8, a3: u8, a4: u8, a5: u8): i32 {
+export function rt_eq6(c: *u8, n: i32, p: i32, a0: u8, a1: u8, a2: u8, a3: u8, a4: u8, a5: u8): i32 {
   if (p + 6 > n) {
     return 0;
   }
@@ -100,7 +100,7 @@ function rt_eq6(c: *u8, n: i32, p: i32, a0: u8, a1: u8, a2: u8, a3: u8, a4: u8, 
   return 1;
 }
 
-function rt_is_generic_at(content: *u8, n: i32, p: i32): i32 {
+export function rt_is_generic_at(content: *u8, n: i32, p: i32): i32 {
   let prev: i32 = 0;
   let q: i32 = 0;
   if (p >= n) {
@@ -167,7 +167,7 @@ function rt_is_generic_at(content: *u8, n: i32, p: i32): i32 {
 }
 
 #[no_mangle]
-function content_has_generic_syntax(content: *u8, n: usize): i32 {
+export function content_has_generic_syntax(content: *u8, n: usize): i32 {
   let p: i32 = 0;
   let i: i32 = 0;
   let ni: i32 = 0;
@@ -203,7 +203,7 @@ function content_has_generic_syntax(content: *u8, n: usize): i32 {
   return 0;
 }
 
-function rt_is_compound_at(content: *u8, n: i32, at: i32): i32 {
+export function rt_is_compound_at(content: *u8, n: i32, at: i32): i32 {
   if (rt_eq3(content, n, at, 60, 60, 61) != 0) {
     return 1;
   }
@@ -239,27 +239,27 @@ function rt_is_compound_at(content: *u8, n: i32, at: i32): i32 {
 
 // G-02f-436：消除 && 条件 → flat helper（避免 -E 指数级分析超时）
 
-function rt_is_block_comment_end(c: *u8, n: i32, at: i32): i32 {
+export function rt_is_block_comment_end(c: *u8, n: i32, at: i32): i32 {
   if (at + 1 >= n) { return 0; }
   if (c[at as usize] != 42) { return 0; }
   if (c[(at + 1) as usize] != 47) { return 0; }
   return 1;
 }
 
-function rt_is_string_escape(c: *u8, n: i32, at: i32): i32 {
+export function rt_is_string_escape(c: *u8, n: i32, at: i32): i32 {
   if (c[at as usize] != 92) { return 0; }
   if (at + 1 >= n) { return 0; }
   return 1;
 }
 
-function rt_is_line_comment_start(c: *u8, n: i32, at: i32): i32 {
+export function rt_is_line_comment_start(c: *u8, n: i32, at: i32): i32 {
   if (at + 1 >= n) { return 0; }
   if (c[at as usize] != 47) { return 0; }
   if (c[(at + 1) as usize] != 47) { return 0; }
   return 1;
 }
 
-function rt_is_block_comment_start(c: *u8, n: i32, at: i32): i32 {
+export function rt_is_block_comment_start(c: *u8, n: i32, at: i32): i32 {
   if (at + 1 >= n) { return 0; }
   if (c[at as usize] != 47) { return 0; }
   if (c[(at + 1) as usize] != 42) { return 0; }
@@ -267,7 +267,7 @@ function rt_is_block_comment_start(c: *u8, n: i32, at: i32): i32 {
 }
 
 #[no_mangle]
-function content_has_compound_assign_syntax(content: *u8, n: usize): i32 {
+export function content_has_compound_assign_syntax(content: *u8, n: usize): i32 {
   let at: i32 = 0;
   let ni: i32 = 0;
   let state: i32 = 0;

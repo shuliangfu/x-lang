@@ -27,15 +27,15 @@ allow(padding) struct Uuid {
   bytes: u8[16];
 }
 
-extern function uuid_new_v4_c(out: *u8): i32;
-extern function uuid_new_v7_c(out: *u8): i32;
-extern function uuid_parse_c(ptr: *u8, len: i32, out: *u8): i32;
-extern function uuid_format_c(u: *u8, out: *u8, out_cap: i32): i32;
-extern function uuid_eq_c(a: *u8, b: *u8): i32;
-extern function uuid_version_c(u: *u8): i32;
+export extern function uuid_new_v4_c(out: *u8): i32;
+export extern function uuid_new_v7_c(out: *u8): i32;
+export extern function uuid_parse_c(ptr: *u8, len: i32, out: *u8): i32;
+export extern function uuid_format_c(u: *u8, out: *u8, out_cap: i32): i32;
+export extern function uuid_eq_c(a: *u8, b: *u8): i32;
+export extern function uuid_version_c(u: *u8): i32;
 
 /** 生成 UUID v4；失败返回全零 Uuid。 */
-function new_v4(): Uuid {
+export function new_v4(): Uuid {
   let u: Uuid = Uuid { bytes: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] };
   unsafe { if (uuid_new_v4_c(&u.bytes[0]) != 0) {
     return Uuid { bytes: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] };
@@ -44,7 +44,7 @@ function new_v4(): Uuid {
 }
 
 /** 生成 UUID v7（RFC 9562：墙钟毫秒 + 同毫秒序号单调递增）；失败返回全零 Uuid。 */
-function new_v7(): Uuid {
+export function new_v7(): Uuid {
   let u: Uuid = Uuid { bytes: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] };
   unsafe { 
     if (uuid_new_v7_c(&u.bytes[0]) != 0) {
@@ -55,32 +55,32 @@ function new_v7(): Uuid {
 }
 
 /** 解析 UUID 字符串（36 带连字符或 32 纯 hex）；0 成功，-1 失败。 */
-function parse(ptr: *u8, len: i32, out: *Uuid): i32 {
+export function parse(ptr: *u8, len: i32, out: *Uuid): i32 {
   if (out == 0) { return -1; }
   unsafe { return uuid_parse_c(ptr, len, &out.bytes[0]); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 格式化为小写连字符字符串；返回 36，失败 -1。 */
-function format(u: Uuid, out: *u8, out_cap: i32): i32 {
+export function format(u: Uuid, out: *u8, out_cap: i32): i32 {
   unsafe { return uuid_format_c(&u.bytes[0], out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 128-bit 相等：1 是，0 否。 */
-function eq(a: Uuid, b: Uuid): i32 {
+export function eq(a: Uuid, b: Uuid): i32 {
   unsafe { return uuid_eq_c(&a.bytes[0], &b.bytes[0]); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 版本 nibble（4=v4，7=v7）；非法 -1。 */
-function version(u: Uuid): i32 {
+export function version(u: Uuid): i32 {
   unsafe { return uuid_version_c(&u.bytes[0]); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 返回 UUID 首字节指针（16 字节连续；零拷贝视图）。 */
-function as_bytes(u: *Uuid): *u8 {
+export function as_bytes(u: *Uuid): *u8 {
   if (u == 0) { return 0; }
   return &u.bytes[0];
 }

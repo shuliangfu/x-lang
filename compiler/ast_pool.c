@@ -73,6 +73,8 @@ typedef struct {
   int32_t type_ref;
   int32_t init_ref;
   int32_t is_const;
+  /** 1=`export const` / `export let`（顶层）；进入模块导出表。 */
+  int32_t is_export;
 } TopLevelLetEntry;
 
 /** 顶层 type 别名槽：type Alias = Target;（纯 typeck 别名，codegen typedef）。 */
@@ -90,6 +92,8 @@ typedef struct {
   int32_t num_variants;
   uint8_t variant_name[MODULE_ENUM_MAX_VARIANTS][64];
   int32_t variant_name_len[MODULE_ENUM_MAX_VARIANTS];
+  /** 1=`export enum`；类型名 ∈ E(M)。 */
+  int32_t is_export;
 } ModuleEnumEntry;
 
 /** 通用 grow 向量：元素大小 elem_sz，失败返回 0。 */
@@ -1277,6 +1281,307 @@ int32_t pipeline_module_func_is_variadic_at(struct ast_Module *m, int32_t func_i
   if (!m || func_index < 0 || func_index >= m->num_funcs) return 0;
   f = module_func_at(m, func_index);
   return f ? (int32_t)f->is_variadic : 0;
+}
+
+/** 模块导出：设置 / 读取 function 的 is_export（`export function`）。 */
+void pipeline_module_func_set_is_export(struct ast_Module *m, int32_t fi, int32_t is_export) {
+  struct ast_Func *f = module_func_at(m, fi);
+  if (f) f->is_export = is_export;
+}
+int32_t pipeline_module_func_is_export_at(struct ast_Module *m, int32_t func_index) {
+  struct ast_Func *f;
+  if (!m || func_index < 0 || func_index >= m->num_funcs) return 0;
+  f = module_func_at(m, func_index);
+  return f ? (int32_t)f->is_export : 0;
+}
+
+/**
+ * SHUX_VISIBILITY 模式（模块导出迁移）：
+ *   0 = compat：未 export 仍可跨模块访问（回退）
+ *   1 = warn：跨模块访问未 export 时 stderr 警告，仍放行
+ *   2 = strict（默认）：仅 export 可跨模块；未写 export = 模块私有
+ * 可用 env 回退：SHUX_VISIBILITY=compat|warn|strict
+ */
+int32_t pipeline_visibility_mode(void) {
+  static int cached = -1;
+  const char *e;
+  if (cached >= 0)
+    return cached;
+  e = getenv("SHUX_VISIBILITY");
+  if (!e || !e[0] || strcmp(e, "strict") == 0)
+    cached = 2;
+  else if (strcmp(e, "warn") == 0)
+    cached = 1;
+  else if (strcmp(e, "compat") == 0)
+    cached = 0;
+  else
+    cached = 2; /* 未知值亦按 strict，避免静默放开 */
+  return cached;
+}
+
+int32_t pipeline_visibility_allow_func(struct ast_Module *m, int32_t fi, int32_t cross_module) {
+  int32_t mode;
+  uint8_t name[64];
+  int32_t nlen;
+  int i;
+  if (!cross_module)
+    return 1;
+  mode = pipeline_visibility_mode();
+  if (mode == 0)
+    return 1;
+  if (pipeline_module_func_is_export_at(m, fi) != 0)
+    return 1;
+  /* main 入口不要求 export */
+  nlen = pipeline_module_func_name_len_at(m, fi);
+  if (nlen == 4) {
+    pipeline_module_func_name_copy64(m, fi, name);
+    if (name[0] == 'm' && name[1] == 'a' && name[2] == 'i' && name[3] == 'n')
+      return 1;
+  }
+  if (mode == 1) {
+    pipeline_module_func_name_copy64(m, fi, name);
+    nlen = pipeline_module_func_name_len_at(m, fi);
+    if (nlen < 0)
+      nlen = 0;
+    if (nlen > 63)
+      nlen = 63;
+    fprintf(stderr, "warning: '%.*s' is not exported (SHUX_VISIBILITY=warn); "
+                    "add `export` or it will error under strict\n",
+            (int)nlen, (const char *)name);
+    (void)i;
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * L7 unused private function（全效化 / 模块导出 §7）：
+ *   private ≔ 未 export；roots ≔ main / #[used] / #[no_mangle] / #[entry] / #[interrupt] / extern
+ *   本模块 arena 内 Call(var)/MethodCall 名字引用 ⇒ 可达
+ * 启用：
+ *   - shux check（driver_check_only）
+ *   - LSP 诊断会话（lsp_diag_enabled）→ 编辑器波浪线
+ *   - SHUX_UNUSED_PRIVATE=1 强制开；=0 强制关
+ * 诊断层：**永远是 warning（severity=2）**，不使 typeck 失败、不使 `shux check` 默认非零退出
+ *   （仅 SHUX_LINT_CI_FAIL_ON=warn 时 check 才因 warning 失败）。
+ * 编译/运行路径默认不跑，避免干扰日常 build。
+ */
+extern int32_t driver_check_only_get(void);
+extern int lsp_diag_enabled;
+extern void lsp_diag_add(int line, int col, int severity, const char *msg);
+extern void lsp_diag_add_code(int line, int col, int severity, const char *code, const char *msg);
+extern void diag_report(const char *path, int line, int col, const char *kind, const char *msg, const char *code);
+
+/** parse 入口登记的源缓冲，供 L7 把波浪线锚到 `function name` 定义处。 */
+static const uint8_t *g_l7_source = NULL;
+static int32_t g_l7_source_len = 0;
+
+void pipeline_lint_set_source_buf(const uint8_t *data, int32_t len) {
+  g_l7_source = data;
+  g_l7_source_len = (data && len > 0) ? len : 0;
+}
+
+static int pipeline_unused_private_enabled(void) {
+  const char *e = getenv("SHUX_UNUSED_PRIVATE");
+  if (e && e[0]) {
+    if (e[0] == '0' && e[1] == '\0')
+      return 0;
+    return 1;
+  }
+  if (driver_check_only_get() != 0)
+    return 1;
+  if (lsp_diag_enabled != 0)
+    return 1;
+  return 0;
+}
+
+/** 扫描 "function name" 定义行列（1-based）；对齐 lsp_source_find_function_def。 */
+static int pipeline_l7_find_func_def(const uint8_t *source, int32_t sl, const uint8_t *name, int32_t name_len,
+                                    int *out_line, int *out_col) {
+  static const uint8_t kw[] = {'f', 'u', 'n', 'c', 't', 'i', 'o', 'n', ' '};
+  int32_t i;
+  int line = 1;
+  int col = 1;
+  if (!source || !name || name_len <= 0 || sl <= 0 || !out_line || !out_col)
+    return 0;
+  for (i = 0; i < sl; i++) {
+    int boundary = (i == 0);
+    if (!boundary) {
+      uint8_t prev = source[i - 1];
+      if (prev == ' ' || prev == '\t' || prev == '\n' || prev == '\r')
+        boundary = 1;
+    }
+    if (boundary && i + 9 + name_len <= sl) {
+      int ki;
+      int kw_ok = 1;
+      for (ki = 0; ki < 9; ki++) {
+        if (source[i + ki] != kw[ki]) {
+          kw_ok = 0;
+          break;
+        }
+      }
+      if (kw_ok) {
+        int ni;
+        int name_ok = 1;
+        for (ni = 0; ni < name_len; ni++) {
+          if (source[i + 9 + ni] != name[ni]) {
+            name_ok = 0;
+            break;
+          }
+        }
+        if (name_ok) {
+          int32_t after = i + 9 + name_len;
+          uint8_t ac = (after < sl) ? source[after] : (uint8_t)' ';
+          if (after >= sl || ac == ' ' || ac == '(' || ac == '\n' || ac == '\t' || ac == '<' || ac == '\r') {
+            *out_line = line;
+            *out_col = col + 9;
+            return 1;
+          }
+        }
+      }
+    }
+    if (source[i] == '\n') {
+      line++;
+      col = 1;
+    } else {
+      col++;
+    }
+  }
+  return 0;
+}
+
+/** severity=2 Warning；永不升级为 Error。 */
+static void pipeline_report_unused_private(const uint8_t *name, int32_t nlen) {
+  char msg[192];
+  int nl = (nlen > 0) ? (int)nlen : 0;
+  int line = 1;
+  int col = 1;
+  if (nl > 63)
+    nl = 63;
+  snprintf(msg, sizeof msg, "unused private function '%.*s' (not export, not reachable in module)",
+           nl, (const char *)(name ? name : (const uint8_t *)""));
+  if (g_l7_source && g_l7_source_len > 0 && name && nlen > 0)
+    (void)pipeline_l7_find_func_def(g_l7_source, g_l7_source_len, name, nlen, &line, &col);
+  if (lsp_diag_enabled) {
+    /* LSP / check 收集器：Warning → 编辑器波浪线；不进 Error 集合 */
+    lsp_diag_add_code(line, col, 2, "L7", msg);
+  } else {
+    diag_report(NULL, line, col, "warning", msg, "L7");
+  }
+}
+
+static int pipeline_name_eq_bytes(const uint8_t *a, int32_t alen, const uint8_t *b, int32_t blen) {
+  int32_t i;
+  if (alen != blen || alen < 0)
+    return 0;
+  for (i = 0; i < alen; i++) {
+    if (a[i] != b[i])
+      return 0;
+  }
+  return 1;
+}
+
+/** 标记本模块内被 Call/MethodCall 引用的函数名（简化 callgraph；不建第二套 WPO）。 */
+static void pipeline_mark_local_call_names(struct ast_ASTArena *a, uint8_t *used_flags, int32_t nfuncs,
+                                          struct ast_Module *m) {
+  int32_t er;
+  int32_t ko;
+  int32_t fi;
+  struct ast_Expr *ex;
+  struct ast_Expr *callee;
+  uint8_t fname[64];
+  int32_t flen;
+
+  if (!a || !used_flags || !m || nfuncs <= 0)
+    return;
+  for (er = 1; er <= a->num_exprs; er++) {
+    ko = pipeline_expr_kind_ord_at(a, er);
+    ex = pipeline_arena_expr_ptr(a, er);
+    if (!ex)
+      continue;
+    if (ko == (int32_t)ast_ExprKind_EXPR_CALL) {
+      if (ex->call_callee_ref <= 0)
+        continue;
+      if (pipeline_expr_kind_ord_at(a, ex->call_callee_ref) != (int32_t)ast_ExprKind_EXPR_VAR)
+        continue;
+      callee = pipeline_arena_expr_ptr(a, ex->call_callee_ref);
+      if (!callee || callee->var_name_len <= 0)
+        continue;
+      for (fi = 0; fi < nfuncs; fi++) {
+        flen = pipeline_module_func_name_len_at(m, fi);
+        if (flen <= 0)
+          continue;
+        pipeline_module_func_name_copy64(m, fi, fname);
+        if (pipeline_name_eq_bytes(fname, flen, callee->var_name, callee->var_name_len))
+          used_flags[fi] = 1;
+      }
+    } else if (ko == (int32_t)ast_ExprKind_EXPR_METHOD_CALL) {
+      if (ex->method_call_name_len <= 0)
+        continue;
+      for (fi = 0; fi < nfuncs; fi++) {
+        flen = pipeline_module_func_name_len_at(m, fi);
+        if (flen <= 0)
+          continue;
+        pipeline_module_func_name_copy64(m, fi, fname);
+        if (pipeline_name_eq_bytes(fname, flen, ex->method_call_name, ex->method_call_name_len))
+          used_flags[fi] = 1;
+      }
+    }
+  }
+}
+
+/**
+ * typeck 成功后：报告未 export 且本模块内不可达的函数。
+ * 返回发出的 warning 条数（不失败 typeck）。
+ */
+int32_t pipeline_typeck_unused_private_funcs(struct ast_Module *m, struct ast_ASTArena *a) {
+  int32_t nfuncs;
+  int32_t fi;
+  int32_t nwarn = 0;
+  uint8_t *used = NULL;
+  uint8_t name[64];
+  int32_t nlen;
+  struct ast_Func *f;
+
+  if (!m || !a)
+    return 0;
+  if (!pipeline_unused_private_enabled())
+    return 0;
+  nfuncs = pipeline_module_num_funcs(m);
+  if (nfuncs <= 0)
+    return 0;
+  used = (uint8_t *)calloc((size_t)nfuncs, 1);
+  if (!used)
+    return 0;
+  pipeline_mark_local_call_names(a, used, nfuncs, m);
+
+  for (fi = 0; fi < nfuncs; fi++) {
+    f = module_func_at(m, fi);
+    if (!f)
+      continue;
+    /* roots / 非本模块实现 */
+    if (f->is_export != 0)
+      continue;
+    if (f->is_extern != 0)
+      continue;
+    if (f->is_used != 0 || f->is_no_mangle != 0 || f->is_entry != 0 || f->is_interrupt != 0)
+      continue;
+    nlen = f->name_len;
+    if (nlen == 4 && f->name[0] == 'm' && f->name[1] == 'a' && f->name[2] == 'i' && f->name[3] == 'n')
+      continue;
+    if (nlen <= 0)
+      continue;
+    /* 无体声明不报（常见 forward / 桩） */
+    if (f->body_ref <= 0 && f->body_expr_ref <= 0)
+      continue;
+    if (used[fi] != 0)
+      continue;
+    memcpy(name, f->name, 64);
+    pipeline_report_unused_private(name, nlen);
+    nwarn++;
+  }
+  free(used);
+  return nwarn;
 }
 
 int32_t pipeline_module_func_is_async_at(struct ast_Module *m, int32_t func_index) {
@@ -3082,6 +3387,17 @@ int32_t pipeline_module_struct_layout_repr_compatible_at(struct ast_Module *m, i
   return sl ? sl->repr_compatible : 0;
 }
 
+/** 模块导出：写 / 读 struct layout 的 is_export（`export struct`）。 */
+void pipeline_module_struct_layout_set_is_export(struct ast_Module *m, int32_t idx, int32_t v) {
+  struct ast_StructLayout *sl = module_layout_at(m, idx);
+  if (sl)
+    sl->is_export = v;
+}
+int32_t pipeline_module_struct_layout_is_export_at(struct ast_Module *m, int32_t idx) {
+  struct ast_StructLayout *sl = module_layout_at(m, idx);
+  return sl ? sl->is_export : 0;
+}
+
 /** typeck.x：读 module.num_struct_layouts；勿 X 内 Module 字段访问（check_block 失败）。 */
 int32_t pipeline_module_num_struct_layouts_at(struct ast_Module *m) {
   return m ? m->num_struct_layouts : 0;
@@ -3162,6 +3478,24 @@ int32_t pipeline_module_top_level_let_is_const(struct ast_Module *m, int32_t idx
     return 0;
   tl = (TopLevelLetEntry *)grow_vec_at(&sc->top_level_lets, idx);
   return tl ? tl->is_const : 0;
+}
+
+void pipeline_module_top_level_let_set_is_export(struct ast_Module *m, int32_t idx, int32_t is_export) {
+  ModuleSidecar *sc = module_sidecar_get(m, 0);
+  TopLevelLetEntry *tl;
+  if (!sc || idx < 0 || idx >= sc->top_level_lets.len)
+    return;
+  tl = (TopLevelLetEntry *)grow_vec_at(&sc->top_level_lets, idx);
+  if (tl)
+    tl->is_export = is_export;
+}
+int32_t pipeline_module_top_level_let_is_export_at(struct ast_Module *m, int32_t idx) {
+  ModuleSidecar *sc = module_sidecar_get(m, 0);
+  TopLevelLetEntry *tl;
+  if (!sc || idx < 0 || idx >= sc->top_level_lets.len)
+    return 0;
+  tl = (TopLevelLetEntry *)grow_vec_at(&sc->top_level_lets, idx);
+  return tl ? tl->is_export : 0;
 }
 
 /** 分配 module 侧车 type 别名槽；返回 idx 或 -1。 */
@@ -3748,8 +4082,27 @@ void pipeline_module_enum_set_name(struct ast_Module *m, int32_t idx, uint8_t *b
     return;
   me->name_len = len;
   me->num_variants = 0;
+  me->is_export = 0;
   memset(me->name, 0, sizeof(me->name));
   memcpy(me->name, bytes, (size_t)len);
+}
+
+void pipeline_module_enum_set_is_export(struct ast_Module *m, int32_t idx, int32_t v) {
+  ModuleEnumEntry *me;
+  ModuleSidecar *sc = module_sidecar_get(m, 0);
+  if (!sc || idx < 0 || idx >= sc->module_enums.len)
+    return;
+  me = (ModuleEnumEntry *)grow_vec_at(&sc->module_enums, idx);
+  if (me)
+    me->is_export = v;
+}
+int32_t pipeline_module_enum_is_export_at(struct ast_Module *m, int32_t idx) {
+  ModuleEnumEntry *me;
+  ModuleSidecar *sc = module_sidecar_get(m, 0);
+  if (!sc || idx < 0 || idx >= sc->module_enums.len)
+    return 0;
+  me = (ModuleEnumEntry *)grow_vec_at(&sc->module_enums, idx);
+  return me ? me->is_export : 0;
 }
 
 /** 向 module 第 idx 个 enum 追加变体名；成功返回变体 tag（0..n-1），失败返回 -1。 */
@@ -5931,6 +6284,8 @@ int32_t pipeline_parse_set_main_from_buf_c(struct ast_Module *module, struct ast
 
   if (!module || !arena || !data || len <= 0)
     return -2;
+  /* L7 / LSP：锚定 unused private 波浪线到定义处 */
+  pipeline_lint_set_source_buf(data, len);
   pipeline_parse_into_with_init_buf_scalars(arena, module, data, len, &ok, &main_idx);
   if (getenv("SHUX_DEBUG_PIPE"))
     fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c ok=%d main_idx=%d num_funcs=%d\n", (int)ok,
@@ -5981,6 +6336,7 @@ int32_t pipeline_typeck_parsed_module_c(struct ast_Module *module, struct ast_AS
         return fail_mapped;
       return -1;
     }
+    (void)pipeline_typeck_unused_private_funcs(module, arena);
     return 0;
   }
   {
@@ -5999,6 +6355,7 @@ int32_t pipeline_typeck_parsed_module_c(struct ast_Module *module, struct ast_AS
       return -1;
     }
   }
+  (void)pipeline_typeck_unused_private_funcs(module, arena);
   return 0;
 }
 

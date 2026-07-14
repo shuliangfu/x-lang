@@ -27,10 +27,10 @@
 const mem = import("core.mem");
 
 /** OpenSSL 初始化标志。 */
-const OPENSSL_INIT_LOAD_SSL_STRINGS: u64 = 0x00000001;
-const OPENSSL_INIT_LOAD_CRYPTO_STRINGS: u64 = 0x00000002;
-const SSL_VERIFY_NONE: i32 = 0;
-const SSL_TLSEXT_ERR_OK: i32 = 0;
+export const OPENSSL_INIT_LOAD_SSL_STRINGS: u64 = 0x00000001;
+export const OPENSSL_INIT_LOAD_CRYPTO_STRINGS: u64 = 0x00000002;
+export const SSL_VERIFY_NONE: i32 = 0;
+export const SSL_TLSEXT_ERR_OK: i32 = 0;
 
 /** TLS 最后错误码（本模块路径）。 */
 let shu_tls_last_error: i32 = 0;
@@ -53,47 +53,47 @@ allow(padding) struct TlsOpensslServerCtx {
   ctx: *u8;
 }
 
-extern "C" function calloc(nmemb: usize, size: usize): *u8;
-extern "C" function free(ptr: *u8): void;
-extern "C" function getenv(name: *u8): *u8;
-extern "C" function atoi(s: *u8): i32;
-extern "C" function strlen(s: *u8): usize;
-extern "C" function strstr(haystack: *u8, needle: *u8): *u8;
+export extern "C" function calloc(nmemb: usize, size: usize): *u8;
+export extern "C" function free(ptr: *u8): void;
+export extern "C" function getenv(name: *u8): *u8;
+export extern "C" function atoi(s: *u8): i32;
+export extern "C" function strlen(s: *u8): usize;
+export extern "C" function strstr(haystack: *u8, needle: *u8): *u8;
 
-extern function net_set_blocking_c(fd: i32, blocking: i32): i32;
-extern function net_tcp_connect_blocking_c(addr_u32: u32, port_u32: u32, timeout_ms: u32): i32;
-extern function net_close_socket_c(fd: i32): i32;
+export extern function net_set_blocking_c(fd: i32, blocking: i32): i32;
+export extern function net_tcp_connect_blocking_c(addr_u32: u32, port_u32: u32, timeout_ms: u32): i32;
+export extern function net_close_socket_c(fd: i32): i32;
 
-extern "C" function OPENSSL_init_ssl(opts: u64, settings: *u8): i32;
-extern "C" function TLS_client_method(): *u8;
-extern "C" function TLS_server_method(): *u8;
-extern "C" function SSL_CTX_new(method: *u8): *u8;
-extern "C" function SSL_CTX_free(ctx: *u8): void;
-extern "C" function SSL_CTX_set_verify(ctx: *u8, mode: i32, cb: *u8): void;
-extern "C" function SSL_CTX_set_alpn_protos(ctx: *u8, protos: *u8, protos_len: u32): i32;
-extern "C" function SSL_new(ctx: *u8): *u8;
-extern "C" function SSL_free(ssl: *u8): void;
-extern "C" function SSL_set_fd(ssl: *u8, fd: i32): i32;
-extern "C" function SSL_set_tlsext_host_name(ssl: *u8, name: *u8): i32;
-extern "C" function SSL_connect(ssl: *u8): i32;
-extern "C" function SSL_accept(ssl: *u8): i32;
-extern "C" function SSL_shutdown(ssl: *u8): i32;
-extern "C" function SSL_read(ssl: *u8, buf: *u8, cap: i32): i32;
-extern "C" function SSL_write(ssl: *u8, buf: *u8, len: i32): i32;
-extern "C" function SSL_get0_alpn_selected(ssl: *u8, out: * *u8, out_len: *u32): void;
-extern "C" function BIO_new_mem_buf(buf: *u8, len: i32): *u8;
-extern "C" function BIO_free(bio: *u8): void;
-extern "C" function PEM_read_bio_X509(bio: *u8, x: * *u8, cb: *u8, u: *u8): *u8;
-extern "C" function PEM_read_bio_PrivateKey(bio: *u8, x: * *u8, cb: *u8, u: *u8): *u8;
-extern "C" function X509_free(x: *u8): void;
-extern "C" function EVP_PKEY_free(k: *u8): void;
-extern "C" function SSL_CTX_use_certificate(ctx: *u8, cert: *u8): i32;
-extern "C" function SSL_CTX_use_PrivateKey(ctx: *u8, key: *u8): i32;
+export extern "C" function OPENSSL_init_ssl(opts: u64, settings: *u8): i32;
+export extern "C" function TLS_client_method(): *u8;
+export extern "C" function TLS_server_method(): *u8;
+export extern "C" function SSL_CTX_new(method: *u8): *u8;
+export extern "C" function SSL_CTX_free(ctx: *u8): void;
+export extern "C" function SSL_CTX_set_verify(ctx: *u8, mode: i32, cb: *u8): void;
+export extern "C" function SSL_CTX_set_alpn_protos(ctx: *u8, protos: *u8, protos_len: u32): i32;
+export extern "C" function SSL_new(ctx: *u8): *u8;
+export extern "C" function SSL_free(ssl: *u8): void;
+export extern "C" function SSL_set_fd(ssl: *u8, fd: i32): i32;
+export extern "C" function SSL_set_tlsext_host_name(ssl: *u8, name: *u8): i32;
+export extern "C" function SSL_connect(ssl: *u8): i32;
+export extern "C" function SSL_accept(ssl: *u8): i32;
+export extern "C" function SSL_shutdown(ssl: *u8): i32;
+export extern "C" function SSL_read(ssl: *u8, buf: *u8, cap: i32): i32;
+export extern "C" function SSL_write(ssl: *u8, buf: *u8, len: i32): i32;
+export extern "C" function SSL_get0_alpn_selected(ssl: *u8, out: * *u8, out_len: *u32): void;
+export extern "C" function BIO_new_mem_buf(buf: *u8, len: i32): *u8;
+export extern "C" function BIO_free(bio: *u8): void;
+export extern "C" function PEM_read_bio_X509(bio: *u8, x: * *u8, cb: *u8, u: *u8): *u8;
+export extern "C" function PEM_read_bio_PrivateKey(bio: *u8, x: * *u8, cb: *u8, u: *u8): *u8;
+export extern "C" function X509_free(x: *u8): void;
+export extern "C" function EVP_PKEY_free(k: *u8): void;
+export extern "C" function SSL_CTX_use_certificate(ctx: *u8, cert: *u8): i32;
+export extern "C" function SSL_CTX_use_PrivateKey(ctx: *u8, key: *u8): i32;
 
 /**
  * handle 转 TlsOpensslSess*；0 返回 0。
  */
-function tls_openssl_sess_ptr(handle: i64): *TlsOpensslSess {
+export function tls_openssl_sess_ptr(handle: i64): *TlsOpensslSess {
   if (handle == 0) {
     return 0;
   }
@@ -103,28 +103,28 @@ function tls_openssl_sess_ptr(handle: i64): *TlsOpensslSess {
 /**
  * TLS 后端是否可用；OpenSSL 恒 1。
  */
-function net_tls_is_available_c(): i32 {
+export function net_tls_is_available_c(): i32 {
   return 1;
 }
 
 /**
  * TLS 后端名称（NUL 结尾）。
  */
-function net_tls_backend_name_c(): *u8 {
+export function net_tls_backend_name_c(): *u8 {
   return &TLS_BACKEND_NAME[0];
 }
 
 /**
  * 读取 TLS 最后一次错误码。
  */
-function net_tls_last_error_c(): i32 {
+export function net_tls_last_error_c(): i32 {
   return shu_tls_last_error;
 }
 
 /**
  * 从内存 PEM 创建 TLS 服务端上下文（v8：无 ALPN select 回调）。
  */
-function net_tls_server_ctx_create_mem_c(cert_pem: *u8, cert_len: i32, key_pem: *u8, key_len: i32): i64 {
+export function net_tls_server_ctx_create_mem_c(cert_pem: *u8, cert_len: i32, key_pem: *u8, key_len: i32): i64 {
   let srv: *TlsOpensslServerCtx = 0 as *TlsOpensslServerCtx;
   let cert_bio: *u8 = 0 as *u8;
   let key_bio: *u8 = 0 as *u8;
@@ -184,7 +184,7 @@ function net_tls_server_ctx_create_mem_c(cert_pem: *u8, cert_len: i32, key_pem: 
 /**
  * 释放 TLS 服务端上下文。
  */
-function net_tls_server_ctx_destroy_c(srv_ctx_h: i64): void {
+export function net_tls_server_ctx_destroy_c(srv_ctx_h: i64): void {
   let srv: *TlsOpensslServerCtx = srv_ctx_h as usize as *TlsOpensslServerCtx;
   if (srv == 0) {
     return;
@@ -198,7 +198,7 @@ function net_tls_server_ctx_destroy_c(srv_ctx_h: i64): void {
 /**
  * 在已 accept 的 TCP fd 上完成 TLS 服务端握手。
  */
-function net_tls_accept_server_c(srv_ctx_h: i64, fd: i32): i64 {
+export function net_tls_accept_server_c(srv_ctx_h: i64, fd: i32): i64 {
   let srv: *TlsOpensslServerCtx = srv_ctx_h as usize as *TlsOpensslServerCtx;
   let sess: *TlsOpensslSess = 0 as *TlsOpensslSess;
   let ssl: *u8 = 0 as *u8;
@@ -237,7 +237,7 @@ function net_tls_accept_server_c(srv_ctx_h: i64, fd: i32): i64 {
 /**
  * TLS 客户端握手（SNI）；失败返回 0。
  */
-function net_tls_connect_client_c(fd: i32, sni: *u8): i64 {
+export function net_tls_connect_client_c(fd: i32, sni: *u8): i64 {
   let sess: *TlsOpensslSess = 0 as *TlsOpensslSess;
   let ctx: *u8 = 0 as *u8;
   let ssl: *u8 = 0 as *u8;
@@ -302,7 +302,7 @@ function net_tls_connect_client_c(fd: i32, sni: *u8): i64 {
 /**
  * 带 ALPN 的 TLS 客户端握手。
  */
-function net_tls_connect_client_alpn_c(fd: i32, sni: *u8, alpn_wire: *u8, alpn_wire_len: i32): i64 {
+export function net_tls_connect_client_alpn_c(fd: i32, sni: *u8, alpn_wire: *u8, alpn_wire_len: i32): i64 {
   let sess: *TlsOpensslSess = 0 as *TlsOpensslSess;
   let ctx: *u8 = 0 as *u8;
   let ssl: *u8 = 0 as *u8;
@@ -373,7 +373,7 @@ function net_tls_connect_client_alpn_c(fd: i32, sni: *u8, alpn_wire: *u8, alpn_w
 /**
  * 读取协商 ALPN 协议名；返回长度，写入 out（可 NULL）。
  */
-function net_tls_alpn_selected_c(ctx_handle: i64, out: *u8, out_cap: i32): i32 {
+export function net_tls_alpn_selected_c(ctx_handle: i64, out: *u8, out_cap: i32): i32 {
   let sess: *TlsOpensslSess = tls_openssl_sess_ptr(ctx_handle);
   let sel: *u8 = 0 as *u8;
   let len: u32 = 0;
@@ -399,7 +399,7 @@ function net_tls_alpn_selected_c(ctx_handle: i64, out: *u8, out_cap: i32): i32 {
 /**
  * 协商协议是否为 h2。
  */
-function net_tls_alpn_is_h2_c(ctx_handle: i64): i32 {
+export function net_tls_alpn_is_h2_c(ctx_handle: i64): i32 {
   let buf: u8[4] = [0, 0, 0, 0];
   let n: i32 = net_tls_alpn_selected_c(ctx_handle, &buf[0], 4);
   if (n == 2 && buf[0] == 104 && buf[1] == 50) {
@@ -411,7 +411,7 @@ function net_tls_alpn_is_h2_c(ctx_handle: i64): i32 {
 /**
  * 关闭 TLS 会话。
  */
-function net_tls_close_c(ctx_handle: i64): i32 {
+export function net_tls_close_c(ctx_handle: i64): i32 {
   let sess: *TlsOpensslSess = tls_openssl_sess_ptr(ctx_handle);
   if (sess == 0) {
     return 0;
@@ -431,7 +431,7 @@ function net_tls_close_c(ctx_handle: i64): i32 {
 /**
  * TLS 读；失败 -1/-2。
  */
-function net_tls_read_c(ctx_handle: i64, buf: *u8, cap: i32): i32 {
+export function net_tls_read_c(ctx_handle: i64, buf: *u8, cap: i32): i32 {
   let sess: *TlsOpensslSess = tls_openssl_sess_ptr(ctx_handle);
   let n: i32 = 0;
   if (sess == 0 || sess.ssl == 0) {
@@ -454,7 +454,7 @@ function net_tls_read_c(ctx_handle: i64, buf: *u8, cap: i32): i32 {
 /**
  * TLS 写；失败 -1/-2。
  */
-function net_tls_write_c(ctx_handle: i64, buf: *u8, len: i32): i32 {
+export function net_tls_write_c(ctx_handle: i64, buf: *u8, len: i32): i32 {
   let sess: *TlsOpensslSess = tls_openssl_sess_ptr(ctx_handle);
   let n: i32 = 0;
   if (sess == 0 || sess.ssl == 0) {
@@ -475,7 +475,7 @@ function net_tls_write_c(ctx_handle: i64, buf: *u8, len: i32): i32 {
 }
 
 /** 127.0.0.1 主机序 addr_u32（与 net 测试一致）。 */
-const ADDR_LOOPBACK: u32 = 0x7f000001;
+export const ADDR_LOOPBACK: u32 = 0x7f000001;
 
 /** 烟测用字面量（NUL 结尾）。 */
 let LOCALHOST: u8[10] = [108, 111, 99, 97, 108, 104, 111, 115, 116, 0];
@@ -487,7 +487,7 @@ let ENV_SHUX_TLS_PORT: u8[20] = [83, 72, 85, 88, 95, 84, 76, 83, 95, 83, 77, 79,
 /**
  * OpenSSL 烟测：连接 SHUX_TLS_SMOKE_PORT 上 s_server，握手并读 HTTP 前缀。
  */
-function net_tls_openssl_smoke_c(): i32 {
+export function net_tls_openssl_smoke_c(): i32 {
   let port_env: *u8 = 0 as *u8;
   let port: i32 = 0;
   let fd: i32 = 0;
@@ -549,6 +549,6 @@ function net_tls_openssl_smoke_c(): i32 {
 /**
  * mbedTLS 烟测：OpenSSL 构建下不可用。
  */
-function net_tls_mbedtls_smoke_c(): i32 {
+export function net_tls_mbedtls_smoke_c(): i32 {
   return -9;
 }

@@ -8,7 +8,7 @@
 //   Invariant：与 seed 同语义（copy_text 纯字节拷贝；json_escape 转义 "/\\/\n/\r/\t）
 //   Perf：无 libc 依赖，无热路径分支冗余
 
-function lsp_diag_stubs_no_c_x_doc_anchor(): i32 {
+export function lsp_diag_stubs_no_c_x_doc_anchor(): i32 {
   return 0;
 }
 
@@ -19,7 +19,7 @@ function lsp_diag_stubs_no_c_x_doc_anchor(): i32 {
 // 【Invariant】与 seed 同语义：null 检查 + cap 边界 + null 终止
 // 【Perf】单次遍历，无分支预测惩罚
 #[no_mangle]
-function lsp_diag_copy_text_impl(dst: *u8, cap: i32, src: *u8): void {
+export function lsp_diag_copy_text_impl(dst: *u8, cap: i32, src: *u8): void {
   if (dst == 0 || cap <= 0) { return; }
   if (src == 0) { dst[0] = 0; return; }
   let n: i32 = 0;
@@ -35,7 +35,7 @@ function lsp_diag_copy_text_impl(dst: *u8, cap: i32, src: *u8): void {
 // 【Invariant】与 seed 同语义：转义 "(34) \(92) \n(10) \r(13) \t(9)；cap 边界检查
 // 【Perf】单次遍历，if/else 链按 ASCII 频率排序
 #[no_mangle]
-function json_escape_str_impl(msg: *u8, out: *u8, out_cap: i32): i32 {
+export function json_escape_str_impl(msg: *u8, out: *u8, out_cap: i32): i32 {
   let k: i32 = 0;
   if (msg == 0 || out == 0 || out_cap <= 0) { return 0; }
   let i: i32 = 0;
@@ -69,11 +69,11 @@ function json_escape_str_impl(msg: *u8, out: *u8, out_cap: i32): i32 {
 /* ---- G-02f-101：lsp diag text helpers 门闩（_impl 已在 .x 中实现，无需 unsafe） ---- */
 
 #[no_mangle]
-function lsp_diag_copy_text(dst: *u8, cap: i32, src: *u8): void {
+export function lsp_diag_copy_text(dst: *u8, cap: i32, src: *u8): void {
   lsp_diag_copy_text_impl(dst, cap, src);
 }
 
 #[no_mangle]
-function json_escape_str(msg: *u8, out: *u8, out_cap: i32): i32 {
+export function json_escape_str(msg: *u8, out: *u8, out_cap: i32): i32 {
   return json_escape_str_impl(msg, out, out_cap);
 }

@@ -22,80 +22,80 @@
 //
 // 【所属模块】标准库 std.db.sqlite；与 std/db/sqlite/mod.x 同属一模块。
 
-const DB_OK: i32 = 0;
-const DB_ERR_NULL: i32 = -1;
-const DB_ERR_OPEN: i32 = -2;
-const DB_ERR_EXEC: i32 = -3;
-const DB_ERR_BUSY: i32 = -4;
-const DB_NOT_IMPL: i32 = -9;
+export const DB_OK: i32 = 0;
+export const DB_ERR_NULL: i32 = -1;
+export const DB_ERR_OPEN: i32 = -2;
+export const DB_ERR_EXEC: i32 = -3;
+export const DB_ERR_BUSY: i32 = -4;
+export const DB_NOT_IMPL: i32 = -9;
 
-const SHU_SQLITE_OK: i32 = 0;
-const SHU_SQLITE_ROW: i32 = 100;
-const SHU_SQLITE_DONE: i32 = 101;
+export const SHU_SQLITE_OK: i32 = 0;
+export const SHU_SQLITE_ROW: i32 = 100;
+export const SHU_SQLITE_DONE: i32 = 101;
 
-const DB_STMT_CACHE_CAP: i32 = 16;
-const DB_STMT_SQL_MAX: i32 = 240;
-const DB_POOL_SLOT_MAX: i32 = 8;
-const DB_POOL_PATH_MAX: i32 = 512;
-const DB_ERR_MSG_MAX: i32 = 160;
+export const DB_STMT_CACHE_CAP: i32 = 16;
+export const DB_STMT_SQL_MAX: i32 = 240;
+export const DB_POOL_SLOT_MAX: i32 = 8;
+export const DB_POOL_PATH_MAX: i32 = 512;
+export const DB_ERR_MSG_MAX: i32 = 160;
 
 /** C 字符串常量（解析器不支持 &SQL_LIT_EMPTY[0] as *u8）。 */
-const SQL_LIT_ALICE: u8[6] = [97, 108, 105, 99, 101, 0];
-const SQL_LIT_ALPHA: u8[6] = [97, 108, 112, 104, 97, 0];
-const SQL_LIT_BAD_OFFSET: u8[11] = [98, 97, 100, 32, 111, 102, 102, 115, 101, 116, 0];
-const SQL_LIT_BEGIN_IMMEDIATE: u8[17] = [66, 69, 71, 73, 78, 32, 73, 77, 77, 69, 68, 73, 65, 84, 69, 59, 0];
-const SQL_LIT_BETA: u8[5] = [98, 101, 116, 97, 0];
-const SQL_LIT_BIND_IDX: u8[9] = [98, 105, 110, 100, 32, 105, 100, 120, 0];
-const SQL_LIT_BOB: u8[4] = [98, 111, 98, 0];
-const SQL_LIT_BUF_SMALL: u8[10] = [98, 117, 102, 32, 115, 109, 97, 108, 108, 0];
-const SQL_LIT_COL_INDEX: u8[10] = [99, 111, 108, 32, 105, 110, 100, 101, 120, 0];
-const SQL_LIT_COMMIT: u8[8] = [67, 79, 77, 77, 73, 84, 59, 0];
-const SQL_LIT_CREATE_TABLE_T_DATA_BLOB: u8[27] = [67, 82, 69, 65, 84, 69, 32, 84, 65, 66, 76, 69, 32, 116, 40, 100, 97, 116, 97, 32, 66, 76, 79, 66, 41, 59, 0];
-const SQL_LIT_CREATE_TABLE_T_K_INTEGER: u8[27] = [67, 82, 69, 65, 84, 69, 32, 84, 65, 66, 76, 69, 32, 116, 40, 107, 32, 73, 78, 84, 69, 71, 69, 82, 41, 59, 0];
-const SQL_LIT_CREATE_TABLE_T_K_INTEGER_DATA_BLOB: u8[38] = [67, 82, 69, 65, 84, 69, 32, 84, 65, 66, 76, 69, 32, 116, 40, 107, 32, 73, 78, 84, 69, 71, 69, 82, 44, 32, 100, 97, 116, 97, 32, 66, 76, 79, 66, 41, 59, 0];
-const SQL_LIT_CREATE_TABLE_T_K_INTEGER_NAME_TEXT: u8[38] = [67, 82, 69, 65, 84, 69, 32, 84, 65, 66, 76, 69, 32, 116, 40, 107, 32, 73, 78, 84, 69, 71, 69, 82, 44, 32, 110, 97, 109, 101, 32, 84, 69, 88, 84, 41, 59, 0];
-const SQL_LIT_EMPTY: u8[4] = [39, 41, 59, 0];
-const SQL_LIT_EXEC_FAILED: u8[12] = [101, 120, 101, 99, 32, 102, 97, 105, 108, 101, 100, 0];
-const SQL_LIT_FINALIZE_FAILED: u8[16] = [102, 105, 110, 97, 108, 105, 122, 101, 32, 102, 97, 105, 108, 101, 100, 0];
-const SQL_LIT_INSERT_INTO_T_DATA_VALUES_X: u8[31] = [73, 78, 83, 69, 82, 84, 32, 73, 78, 84, 79, 32, 116, 40, 100, 97, 116, 97, 41, 32, 86, 65, 76, 85, 69, 83, 32, 40, 120, 39, 0];
-const SQL_LIT_INSERT_INTO_T_K_DATA_VALUES_1_X_010203: u8[44] = [73, 78, 83, 69, 82, 84, 32, 73, 78, 84, 79, 32, 116, 40, 107, 44, 100, 97, 116, 97, 41, 32, 86, 65, 76, 85, 69, 83, 32, 40, 49, 44, 120, 39, 48, 49, 48, 50, 48, 51, 39, 41, 59, 0];
-const SQL_LIT_INSERT_INTO_T_K_DATA_VALUES_2_X_0A0B0C0D: u8[46] = [73, 78, 83, 69, 82, 84, 32, 73, 78, 84, 79, 32, 116, 40, 107, 44, 100, 97, 116, 97, 41, 32, 86, 65, 76, 85, 69, 83, 32, 40, 50, 44, 120, 39, 48, 97, 48, 98, 48, 99, 48, 100, 39, 41, 59, 0];
-const SQL_LIT_INSERT_INTO_T_K_NAME_VALUES: u8[35] = [73, 78, 83, 69, 82, 84, 32, 73, 78, 84, 79, 32, 116, 40, 107, 44, 110, 97, 109, 101, 41, 32, 86, 65, 76, 85, 69, 83, 40, 63, 44, 63, 41, 59, 0];
-const SQL_LIT_INSERT_INTO_T_K_NAME_VALUES_1_ALPHA: u8[42] = [73, 78, 83, 69, 82, 84, 32, 73, 78, 84, 79, 32, 116, 40, 107, 44, 110, 97, 109, 101, 41, 32, 86, 65, 76, 85, 69, 83, 32, 40, 49, 44, 39, 97, 108, 112, 104, 97, 39, 41, 59, 0];
-const SQL_LIT_INSERT_INTO_T_K_NAME_VALUES_2_BETA: u8[41] = [73, 78, 83, 69, 82, 84, 32, 73, 78, 84, 79, 32, 116, 40, 107, 44, 110, 97, 109, 101, 41, 32, 86, 65, 76, 85, 69, 83, 32, 40, 50, 44, 39, 98, 101, 116, 97, 39, 41, 59, 0];
-const SQL_LIT_INSERT_INTO_T_K_VALUES_1: u8[29] = [73, 78, 83, 69, 82, 84, 32, 73, 78, 84, 79, 32, 116, 40, 107, 41, 32, 86, 65, 76, 85, 69, 83, 32, 40, 49, 41, 59, 0];
-const SQL_LIT_INSERT_INTO_T_K_VALUES_2: u8[29] = [73, 78, 83, 69, 82, 84, 32, 73, 78, 84, 79, 32, 116, 40, 107, 41, 32, 86, 65, 76, 85, 69, 83, 32, 40, 50, 41, 59, 0];
-const SQL_LIT_INSERT_INTO_T_K_VALUES_42: u8[30] = [73, 78, 83, 69, 82, 84, 32, 73, 78, 84, 79, 32, 116, 40, 107, 41, 32, 86, 65, 76, 85, 69, 83, 32, 40, 52, 50, 41, 59, 0];
-const SQL_LIT_INSERT_INTO_T_K_VALUES_42_NOSPACE: u8[29] = [73, 78, 83, 69, 82, 84, 32, 73, 78, 84, 79, 32, 116, 40, 107, 41, 32, 86, 65, 76, 85, 69, 83, 40, 52, 50, 41, 59, 0];
-const SQL_LIT_INSERT_INTO_T_K_VALUES_7: u8[29] = [73, 78, 83, 69, 82, 84, 32, 73, 78, 84, 79, 32, 116, 40, 107, 41, 32, 86, 65, 76, 85, 69, 83, 32, 40, 55, 41, 59, 0];
-const SQL_LIT_INSERT_INTO_T_K_VALUES_99: u8[30] = [73, 78, 83, 69, 82, 84, 32, 73, 78, 84, 79, 32, 116, 40, 107, 41, 32, 86, 65, 76, 85, 69, 83, 32, 40, 57, 57, 41, 59, 0];
-const SQL_LIT_MEMORY: u8[9] = [58, 109, 101, 109, 111, 114, 121, 58, 0];
-const SQL_LIT_NULL_BUF: u8[9] = [110, 117, 108, 108, 32, 98, 117, 102, 0];
-const SQL_LIT_NULL_CONN: u8[10] = [110, 117, 108, 108, 32, 99, 111, 110, 110, 0];
-const SQL_LIT_NULL_CURSOR: u8[12] = [110, 117, 108, 108, 32, 99, 117, 114, 115, 111, 114, 0];
-const SQL_LIT_NULL_HANDLE: u8[12] = [110, 117, 108, 108, 32, 104, 97, 110, 100, 108, 101, 0];
-const SQL_LIT_NULL_PATH: u8[10] = [110, 117, 108, 108, 32, 112, 97, 116, 104, 0];
-const SQL_LIT_NULL_POOL: u8[10] = [110, 117, 108, 108, 32, 112, 111, 111, 108, 0];
-const SQL_LIT_NULL_SQL: u8[9] = [110, 117, 108, 108, 32, 115, 113, 108, 0];
-const SQL_LIT_NULL_STMT: u8[10] = [110, 117, 108, 108, 32, 115, 116, 109, 116, 0];
-const SQL_LIT_POOL_ALLOC: u8[11] = [112, 111, 111, 108, 32, 97, 108, 108, 111, 99, 0];
-const SQL_LIT_POOL_EXHAUSTED: u8[15] = [112, 111, 111, 108, 32, 101, 120, 104, 97, 117, 115, 116, 101, 100, 0];
-const SQL_LIT_POOL_IN_USE: u8[12] = [112, 111, 111, 108, 32, 105, 110, 32, 117, 115, 101, 0];
-const SQL_LIT_QUERY_FAILED: u8[13] = [113, 117, 101, 114, 121, 32, 102, 97, 105, 108, 101, 100, 0];
-const SQL_LIT_ROLLBACK: u8[10] = [82, 79, 76, 76, 66, 65, 67, 75, 59, 0];
-const SQL_LIT_SELECT_1: u8[10] = [83, 69, 76, 69, 67, 84, 32, 49, 59, 0];
-const SQL_LIT_SELECT_DATA_FROM_T: u8[20] = [83, 69, 76, 69, 67, 84, 32, 100, 97, 116, 97, 32, 70, 82, 79, 77, 32, 116, 59, 0];
-const SQL_LIT_SELECT_DATA_FROM_T_ORDER_BY_K: u8[31] = [83, 69, 76, 69, 67, 84, 32, 100, 97, 116, 97, 32, 70, 82, 79, 77, 32, 116, 32, 79, 82, 68, 69, 82, 32, 66, 89, 32, 107, 59, 0];
-const SQL_LIT_SELECT_K_FROM_T: u8[17] = [83, 69, 76, 69, 67, 84, 32, 107, 32, 70, 82, 79, 77, 32, 116, 59, 0];
-const SQL_LIT_SELECT_K_FROM_T_ORDER_BY_K: u8[28] = [83, 69, 76, 69, 67, 84, 32, 107, 32, 70, 82, 79, 77, 32, 116, 32, 79, 82, 68, 69, 82, 32, 66, 89, 32, 107, 59, 0];
-const SQL_LIT_SELECT_K_FROM_T_WHERE_K_1: u8[27] = [83, 69, 76, 69, 67, 84, 32, 107, 32, 70, 82, 79, 77, 32, 116, 32, 87, 72, 69, 82, 69, 32, 107, 61, 49, 59, 0];
-const SQL_LIT_SELECT_NAME_FROM_T_ORDER_BY_K: u8[31] = [83, 69, 76, 69, 67, 84, 32, 110, 97, 109, 101, 32, 70, 82, 79, 77, 32, 116, 32, 79, 82, 68, 69, 82, 32, 66, 89, 32, 107, 59, 0];
-const SQL_LIT_SELECT_NAME_FROM_T_WHERE_K: u8[30] = [83, 69, 76, 69, 67, 84, 32, 110, 97, 109, 101, 32, 70, 82, 79, 77, 32, 116, 32, 87, 72, 69, 82, 69, 32, 107, 61, 63, 59, 0];
-const SQL_LIT_SQLITE3: u8[8] = [115, 113, 108, 105, 116, 101, 51, 0];
-const SQL_LIT_SQLITE3_OPEN_FAILED: u8[20] = [115, 113, 108, 105, 116, 101, 51, 95, 111, 112, 101, 110, 32, 102, 97, 105, 108, 101, 100, 0];
-const SQL_LIT_SQL_TOO_LONG_FOR_CACHE: u8[23] = [115, 113, 108, 32, 116, 111, 111, 32, 108, 111, 110, 103, 32, 102, 111, 114, 32, 99, 97, 99, 104, 101, 0];
-const SQL_LIT_STUB: u8[5] = [115, 116, 117, 98, 0];
-const SQL_LIT_STUB_BACKEND: u8[13] = [115, 116, 117, 98, 32, 98, 97, 99, 107, 101, 110, 100, 0];
+export const SQL_LIT_ALICE: u8[6] = [97, 108, 105, 99, 101, 0];
+export const SQL_LIT_ALPHA: u8[6] = [97, 108, 112, 104, 97, 0];
+export const SQL_LIT_BAD_OFFSET: u8[11] = [98, 97, 100, 32, 111, 102, 102, 115, 101, 116, 0];
+export const SQL_LIT_BEGIN_IMMEDIATE: u8[17] = [66, 69, 71, 73, 78, 32, 73, 77, 77, 69, 68, 73, 65, 84, 69, 59, 0];
+export const SQL_LIT_BETA: u8[5] = [98, 101, 116, 97, 0];
+export const SQL_LIT_BIND_IDX: u8[9] = [98, 105, 110, 100, 32, 105, 100, 120, 0];
+export const SQL_LIT_BOB: u8[4] = [98, 111, 98, 0];
+export const SQL_LIT_BUF_SMALL: u8[10] = [98, 117, 102, 32, 115, 109, 97, 108, 108, 0];
+export const SQL_LIT_COL_INDEX: u8[10] = [99, 111, 108, 32, 105, 110, 100, 101, 120, 0];
+export const SQL_LIT_COMMIT: u8[8] = [67, 79, 77, 77, 73, 84, 59, 0];
+export const SQL_LIT_CREATE_TABLE_T_DATA_BLOB: u8[27] = [67, 82, 69, 65, 84, 69, 32, 84, 65, 66, 76, 69, 32, 116, 40, 100, 97, 116, 97, 32, 66, 76, 79, 66, 41, 59, 0];
+export const SQL_LIT_CREATE_TABLE_T_K_INTEGER: u8[27] = [67, 82, 69, 65, 84, 69, 32, 84, 65, 66, 76, 69, 32, 116, 40, 107, 32, 73, 78, 84, 69, 71, 69, 82, 41, 59, 0];
+export const SQL_LIT_CREATE_TABLE_T_K_INTEGER_DATA_BLOB: u8[38] = [67, 82, 69, 65, 84, 69, 32, 84, 65, 66, 76, 69, 32, 116, 40, 107, 32, 73, 78, 84, 69, 71, 69, 82, 44, 32, 100, 97, 116, 97, 32, 66, 76, 79, 66, 41, 59, 0];
+export const SQL_LIT_CREATE_TABLE_T_K_INTEGER_NAME_TEXT: u8[38] = [67, 82, 69, 65, 84, 69, 32, 84, 65, 66, 76, 69, 32, 116, 40, 107, 32, 73, 78, 84, 69, 71, 69, 82, 44, 32, 110, 97, 109, 101, 32, 84, 69, 88, 84, 41, 59, 0];
+export const SQL_LIT_EMPTY: u8[4] = [39, 41, 59, 0];
+export const SQL_LIT_EXEC_FAILED: u8[12] = [101, 120, 101, 99, 32, 102, 97, 105, 108, 101, 100, 0];
+export const SQL_LIT_FINALIZE_FAILED: u8[16] = [102, 105, 110, 97, 108, 105, 122, 101, 32, 102, 97, 105, 108, 101, 100, 0];
+export const SQL_LIT_INSERT_INTO_T_DATA_VALUES_X: u8[31] = [73, 78, 83, 69, 82, 84, 32, 73, 78, 84, 79, 32, 116, 40, 100, 97, 116, 97, 41, 32, 86, 65, 76, 85, 69, 83, 32, 40, 120, 39, 0];
+export const SQL_LIT_INSERT_INTO_T_K_DATA_VALUES_1_X_010203: u8[44] = [73, 78, 83, 69, 82, 84, 32, 73, 78, 84, 79, 32, 116, 40, 107, 44, 100, 97, 116, 97, 41, 32, 86, 65, 76, 85, 69, 83, 32, 40, 49, 44, 120, 39, 48, 49, 48, 50, 48, 51, 39, 41, 59, 0];
+export const SQL_LIT_INSERT_INTO_T_K_DATA_VALUES_2_X_0A0B0C0D: u8[46] = [73, 78, 83, 69, 82, 84, 32, 73, 78, 84, 79, 32, 116, 40, 107, 44, 100, 97, 116, 97, 41, 32, 86, 65, 76, 85, 69, 83, 32, 40, 50, 44, 120, 39, 48, 97, 48, 98, 48, 99, 48, 100, 39, 41, 59, 0];
+export const SQL_LIT_INSERT_INTO_T_K_NAME_VALUES: u8[35] = [73, 78, 83, 69, 82, 84, 32, 73, 78, 84, 79, 32, 116, 40, 107, 44, 110, 97, 109, 101, 41, 32, 86, 65, 76, 85, 69, 83, 40, 63, 44, 63, 41, 59, 0];
+export const SQL_LIT_INSERT_INTO_T_K_NAME_VALUES_1_ALPHA: u8[42] = [73, 78, 83, 69, 82, 84, 32, 73, 78, 84, 79, 32, 116, 40, 107, 44, 110, 97, 109, 101, 41, 32, 86, 65, 76, 85, 69, 83, 32, 40, 49, 44, 39, 97, 108, 112, 104, 97, 39, 41, 59, 0];
+export const SQL_LIT_INSERT_INTO_T_K_NAME_VALUES_2_BETA: u8[41] = [73, 78, 83, 69, 82, 84, 32, 73, 78, 84, 79, 32, 116, 40, 107, 44, 110, 97, 109, 101, 41, 32, 86, 65, 76, 85, 69, 83, 32, 40, 50, 44, 39, 98, 101, 116, 97, 39, 41, 59, 0];
+export const SQL_LIT_INSERT_INTO_T_K_VALUES_1: u8[29] = [73, 78, 83, 69, 82, 84, 32, 73, 78, 84, 79, 32, 116, 40, 107, 41, 32, 86, 65, 76, 85, 69, 83, 32, 40, 49, 41, 59, 0];
+export const SQL_LIT_INSERT_INTO_T_K_VALUES_2: u8[29] = [73, 78, 83, 69, 82, 84, 32, 73, 78, 84, 79, 32, 116, 40, 107, 41, 32, 86, 65, 76, 85, 69, 83, 32, 40, 50, 41, 59, 0];
+export const SQL_LIT_INSERT_INTO_T_K_VALUES_42: u8[30] = [73, 78, 83, 69, 82, 84, 32, 73, 78, 84, 79, 32, 116, 40, 107, 41, 32, 86, 65, 76, 85, 69, 83, 32, 40, 52, 50, 41, 59, 0];
+export const SQL_LIT_INSERT_INTO_T_K_VALUES_42_NOSPACE: u8[29] = [73, 78, 83, 69, 82, 84, 32, 73, 78, 84, 79, 32, 116, 40, 107, 41, 32, 86, 65, 76, 85, 69, 83, 40, 52, 50, 41, 59, 0];
+export const SQL_LIT_INSERT_INTO_T_K_VALUES_7: u8[29] = [73, 78, 83, 69, 82, 84, 32, 73, 78, 84, 79, 32, 116, 40, 107, 41, 32, 86, 65, 76, 85, 69, 83, 32, 40, 55, 41, 59, 0];
+export const SQL_LIT_INSERT_INTO_T_K_VALUES_99: u8[30] = [73, 78, 83, 69, 82, 84, 32, 73, 78, 84, 79, 32, 116, 40, 107, 41, 32, 86, 65, 76, 85, 69, 83, 32, 40, 57, 57, 41, 59, 0];
+export const SQL_LIT_MEMORY: u8[9] = [58, 109, 101, 109, 111, 114, 121, 58, 0];
+export const SQL_LIT_NULL_BUF: u8[9] = [110, 117, 108, 108, 32, 98, 117, 102, 0];
+export const SQL_LIT_NULL_CONN: u8[10] = [110, 117, 108, 108, 32, 99, 111, 110, 110, 0];
+export const SQL_LIT_NULL_CURSOR: u8[12] = [110, 117, 108, 108, 32, 99, 117, 114, 115, 111, 114, 0];
+export const SQL_LIT_NULL_HANDLE: u8[12] = [110, 117, 108, 108, 32, 104, 97, 110, 100, 108, 101, 0];
+export const SQL_LIT_NULL_PATH: u8[10] = [110, 117, 108, 108, 32, 112, 97, 116, 104, 0];
+export const SQL_LIT_NULL_POOL: u8[10] = [110, 117, 108, 108, 32, 112, 111, 111, 108, 0];
+export const SQL_LIT_NULL_SQL: u8[9] = [110, 117, 108, 108, 32, 115, 113, 108, 0];
+export const SQL_LIT_NULL_STMT: u8[10] = [110, 117, 108, 108, 32, 115, 116, 109, 116, 0];
+export const SQL_LIT_POOL_ALLOC: u8[11] = [112, 111, 111, 108, 32, 97, 108, 108, 111, 99, 0];
+export const SQL_LIT_POOL_EXHAUSTED: u8[15] = [112, 111, 111, 108, 32, 101, 120, 104, 97, 117, 115, 116, 101, 100, 0];
+export const SQL_LIT_POOL_IN_USE: u8[12] = [112, 111, 111, 108, 32, 105, 110, 32, 117, 115, 101, 0];
+export const SQL_LIT_QUERY_FAILED: u8[13] = [113, 117, 101, 114, 121, 32, 102, 97, 105, 108, 101, 100, 0];
+export const SQL_LIT_ROLLBACK: u8[10] = [82, 79, 76, 76, 66, 65, 67, 75, 59, 0];
+export const SQL_LIT_SELECT_1: u8[10] = [83, 69, 76, 69, 67, 84, 32, 49, 59, 0];
+export const SQL_LIT_SELECT_DATA_FROM_T: u8[20] = [83, 69, 76, 69, 67, 84, 32, 100, 97, 116, 97, 32, 70, 82, 79, 77, 32, 116, 59, 0];
+export const SQL_LIT_SELECT_DATA_FROM_T_ORDER_BY_K: u8[31] = [83, 69, 76, 69, 67, 84, 32, 100, 97, 116, 97, 32, 70, 82, 79, 77, 32, 116, 32, 79, 82, 68, 69, 82, 32, 66, 89, 32, 107, 59, 0];
+export const SQL_LIT_SELECT_K_FROM_T: u8[17] = [83, 69, 76, 69, 67, 84, 32, 107, 32, 70, 82, 79, 77, 32, 116, 59, 0];
+export const SQL_LIT_SELECT_K_FROM_T_ORDER_BY_K: u8[28] = [83, 69, 76, 69, 67, 84, 32, 107, 32, 70, 82, 79, 77, 32, 116, 32, 79, 82, 68, 69, 82, 32, 66, 89, 32, 107, 59, 0];
+export const SQL_LIT_SELECT_K_FROM_T_WHERE_K_1: u8[27] = [83, 69, 76, 69, 67, 84, 32, 107, 32, 70, 82, 79, 77, 32, 116, 32, 87, 72, 69, 82, 69, 32, 107, 61, 49, 59, 0];
+export const SQL_LIT_SELECT_NAME_FROM_T_ORDER_BY_K: u8[31] = [83, 69, 76, 69, 67, 84, 32, 110, 97, 109, 101, 32, 70, 82, 79, 77, 32, 116, 32, 79, 82, 68, 69, 82, 32, 66, 89, 32, 107, 59, 0];
+export const SQL_LIT_SELECT_NAME_FROM_T_WHERE_K: u8[30] = [83, 69, 76, 69, 67, 84, 32, 110, 97, 109, 101, 32, 70, 82, 79, 77, 32, 116, 32, 87, 72, 69, 82, 69, 32, 107, 61, 63, 59, 0];
+export const SQL_LIT_SQLITE3: u8[8] = [115, 113, 108, 105, 116, 101, 51, 0];
+export const SQL_LIT_SQLITE3_OPEN_FAILED: u8[20] = [115, 113, 108, 105, 116, 101, 51, 95, 111, 112, 101, 110, 32, 102, 97, 105, 108, 101, 100, 0];
+export const SQL_LIT_SQL_TOO_LONG_FOR_CACHE: u8[23] = [115, 113, 108, 32, 116, 111, 111, 32, 108, 111, 110, 103, 32, 102, 111, 114, 32, 99, 97, 99, 104, 101, 0];
+export const SQL_LIT_STUB: u8[5] = [115, 116, 117, 98, 0];
+export const SQL_LIT_STUB_BACKEND: u8[13] = [115, 116, 117, 98, 32, 98, 97, 99, 107, 101, 110, 100, 0];
 
 /** 线程局部错误快照（v1 原型用进程静态缓冲）。 */
 allow(padding) struct DbErrSlot {
@@ -124,43 +124,43 @@ let g_db_last_err: *DbErrSlot = &g_db_last_err_bytes[0] as *DbErrSlot;
 let g_db_stmt_cache_bytes: u8[4224] = [];
 
 /** 返回语句缓存槽 i 的指针（4224 = 16 × 264 字节/槽）。 */
-function db_stmt_cache_slot(i: i32): *DbCachedStmt {
+export function db_stmt_cache_slot(i: i32): *DbCachedStmt {
   return (&g_db_stmt_cache_bytes[(i * 264) as i32] as *DbCachedStmt);
 }
 
-extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
-extern "C" function memcmp(a: *u8, b: *u8, n: usize): i32;
-extern "C" function memset(s: *u8, c: i32, n: usize): *u8;
-extern "C" function calloc(nmemb: usize, size: usize): *u8;
-extern "C" function free(ptr: *u8): void;
-extern "C" function malloc(size: usize): *u8;
-extern "C" function snprintf(buf: *u8, size: usize, fmt: *u8): i32;
-extern "C" function strlen(s: *u8): usize;
+export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+export extern "C" function memcmp(a: *u8, b: *u8, n: usize): i32;
+export extern "C" function memset(s: *u8, c: i32, n: usize): *u8;
+export extern "C" function calloc(nmemb: usize, size: usize): *u8;
+export extern "C" function free(ptr: *u8): void;
+export extern "C" function malloc(size: usize): *u8;
+export extern "C" function snprintf(buf: *u8, size: usize, fmt: *u8): i32;
+export extern "C" function strlen(s: *u8): usize;
 
-extern "C" function shu_db_use_sqlite3_c(): i32;
-extern "C" function shu_sqlite3_open_c(path: *u8, out_db: *i64): i32;
-extern "C" function shu_sqlite3_close_c(db_h: i64): i32;
-extern "C" function shu_sqlite3_exec_c(db_h: i64, sql: *u8, out_errmsg: *i64): i32;
-extern "C" function shu_sqlite3_exec_count_c(db_h: i64, sql: *u8, out_count: *i32, out_errmsg: *i64): i32;
-extern "C" function shu_sqlite3_prepare_v2_c(db_h: i64, sql: *u8, out_stmt: *i64): i32;
-extern "C" function shu_sqlite3_step_c(stmt_h: i64): i32;
-extern "C" function shu_sqlite3_finalize_c(stmt_h: i64): i32;
-extern "C" function shu_sqlite3_reset_c(stmt_h: i64): i32;
-extern "C" function shu_sqlite3_clear_bindings_c(stmt_h: i64): i32;
-extern "C" function shu_sqlite3_column_count_c(stmt_h: i64): i32;
-extern "C" function shu_sqlite3_column_int_c(stmt_h: i64, col: i32): i32;
-extern "C" function shu_sqlite3_column_text_c(stmt_h: i64, col: i32): i64;
-extern "C" function shu_sqlite3_column_blob_c(stmt_h: i64, col: i32): i64;
-extern "C" function shu_sqlite3_column_bytes_c(stmt_h: i64, col: i32): i32;
-extern "C" function shu_sqlite3_bind_int_c(stmt_h: i64, idx: i32, val: i32): i32;
-extern "C" function shu_sqlite3_bind_text_c(stmt_h: i64, idx: i32, text: *u8): i32;
-extern "C" function shu_sqlite3_errmsg_c(db_h: i64): i64;
-extern "C" function shu_sqlite3_db_handle_c(stmt_h: i64): i64;
-extern "C" function shu_sqlite3_changes_c(db_h: i64): i32;
-extern "C" function shu_sqlite3_free_c(ptr: i64): void;
+export extern "C" function shu_db_use_sqlite3_c(): i32;
+export extern "C" function shu_sqlite3_open_c(path: *u8, out_db: *i64): i32;
+export extern "C" function shu_sqlite3_close_c(db_h: i64): i32;
+export extern "C" function shu_sqlite3_exec_c(db_h: i64, sql: *u8, out_errmsg: *i64): i32;
+export extern "C" function shu_sqlite3_exec_count_c(db_h: i64, sql: *u8, out_count: *i32, out_errmsg: *i64): i32;
+export extern "C" function shu_sqlite3_prepare_v2_c(db_h: i64, sql: *u8, out_stmt: *i64): i32;
+export extern "C" function shu_sqlite3_step_c(stmt_h: i64): i32;
+export extern "C" function shu_sqlite3_finalize_c(stmt_h: i64): i32;
+export extern "C" function shu_sqlite3_reset_c(stmt_h: i64): i32;
+export extern "C" function shu_sqlite3_clear_bindings_c(stmt_h: i64): i32;
+export extern "C" function shu_sqlite3_column_count_c(stmt_h: i64): i32;
+export extern "C" function shu_sqlite3_column_int_c(stmt_h: i64, col: i32): i32;
+export extern "C" function shu_sqlite3_column_text_c(stmt_h: i64, col: i32): i64;
+export extern "C" function shu_sqlite3_column_blob_c(stmt_h: i64, col: i32): i64;
+export extern "C" function shu_sqlite3_column_bytes_c(stmt_h: i64, col: i32): i32;
+export extern "C" function shu_sqlite3_bind_int_c(stmt_h: i64, idx: i32, val: i32): i32;
+export extern "C" function shu_sqlite3_bind_text_c(stmt_h: i64, idx: i32, text: *u8): i32;
+export extern "C" function shu_sqlite3_errmsg_c(db_h: i64): i64;
+export extern "C" function shu_sqlite3_db_handle_c(stmt_h: i64): i64;
+export extern "C" function shu_sqlite3_changes_c(db_h: i64): i32;
+export extern "C" function shu_sqlite3_free_c(ptr: i64): void;
 
 /** 设置最后一次库错误码与消息（截断至 159 字节）。 */
-function db_set_err(code: i32, msg: *u8): void {
+export function db_set_err(code: i32, msg: *u8): void {
   let i: i32 = 0;
   g_db_last_err.code = code;
   if (msg == 0 || msg[0] == 0) {
@@ -175,13 +175,13 @@ function db_set_err(code: i32, msg: *u8): void {
 }
 
 /** 清除错误槽。 */
-function db_clear_err(): void {
+export function db_clear_err(): void {
   g_db_last_err.code = DB_OK;
   g_db_last_err.msg[0] = 0;
 }
 
 /** C 串相等比较。 */
-function db_str_eq(a: *u8, b: *u8): i32 {
+export function db_str_eq(a: *u8, b: *u8): i32 {
   let i: usize = 0;
   if (a == 0 || b == 0) { return 0; }
   while (a[i] != 0 && b[i] != 0) {
@@ -192,7 +192,7 @@ function db_str_eq(a: *u8, b: *u8): i32 {
 }
 
 /** 拷贝 C 串到固定缓冲（cap 含 NUL）。 */
-function db_str_copy(dst: *u8, cap: i32, src: *u8): void {
+export function db_str_copy(dst: *u8, cap: i32, src: *u8): void {
   let i: i32 = 0;
   if (dst == 0 || cap <= 0) { return; }
   if (src == 0) { dst[0] = 0; return; }
@@ -204,7 +204,7 @@ function db_str_copy(dst: *u8, cap: i32, src: *u8): void {
 }
 
 /** 释放指定连接上的全部缓存语句。 */
-function db_stmt_cache_drop_conn(conn: i64): void {
+export function db_stmt_cache_drop_conn(conn: i64): void {
   let i: i32 = 0;
   let slot: *DbCachedStmt = 0 as *DbCachedStmt;
   while (i < DB_STMT_CACHE_CAP) {
@@ -220,7 +220,7 @@ function db_stmt_cache_drop_conn(conn: i64): void {
 }
 
 /** 按连接 + SQL 查找缓存项。 */
-function db_stmt_cache_find(conn: i64, sql: *u8): *DbCachedStmt {
+export function db_stmt_cache_find(conn: i64, sql: *u8): *DbCachedStmt {
   let i: i32 = 0;
   let slot: *DbCachedStmt = 0 as *DbCachedStmt;
   while (i < DB_STMT_CACHE_CAP) {
@@ -235,7 +235,7 @@ function db_stmt_cache_find(conn: i64, sql: *u8): *DbCachedStmt {
 }
 
 /** 分配缓存槽；满则驱逐首项。 */
-function db_stmt_cache_alloc_slot(): *DbCachedStmt {
+export function db_stmt_cache_alloc_slot(): *DbCachedStmt {
   let i: i32 = 0;
   let slot: *DbCachedStmt = 0 as *DbCachedStmt;
   while (i < DB_STMT_CACHE_CAP) {
@@ -256,7 +256,7 @@ function db_stmt_cache_alloc_slot(): *DbCachedStmt {
 }
 
 /** 从缓存移除指定 stmt（finalize 前调用）。 */
-function db_stmt_cache_remove_stmt(stmt_h: i64): void {
+export function db_stmt_cache_remove_stmt(stmt_h: i64): void {
   let i: i32 = 0;
   let slot: *DbCachedStmt = 0 as *DbCachedStmt;
   if (stmt_h == 0 as i64) { return; }
@@ -273,13 +273,13 @@ function db_stmt_cache_remove_stmt(stmt_h: i64): void {
 }
 
 /** stub 后端统一入口：设置 DB_NOT_IMPL 并返回 1 表示 stub。 */
-function db_stub_active(): i32 {
+export function db_stub_active(): i32 {
   unsafe { return shu_db_use_sqlite3_c() == 0 ? 1 : 0; }
   return 0; // unreachable — typeck workaround
 }
 
 /** 打开数据库；失败返回 handle=0。 */
-function db_open_c(path: *u8): i64 {
+export function db_open_c(path: *u8): i64 {
   let db: i64 = 0;
   let rc: i32 = 0;
   if (db_stub_active() != 0) {
@@ -306,7 +306,7 @@ function db_open_c(path: *u8): i64 {
 }
 
 /** 关闭连接（并释放该连接 stmt 缓存）。 */
-function db_close_c(handle: i64): i32 {
+export function db_close_c(handle: i64): i32 {
   let rc: i32 = 0;
   if (db_stub_active() != 0) {
     db_set_err(DB_NOT_IMPL, &SQL_LIT_STUB_BACKEND[0]);
@@ -327,7 +327,7 @@ function db_close_c(handle: i64): i32 {
 }
 
 /** 执行无结果集 SQL。 */
-function db_exec_c(handle: i64, sql: *u8): i32 {
+export function db_exec_c(handle: i64, sql: *u8): i32 {
   let errmsg: i64 = 0;
   let rc: i32 = 0;
   if (db_stub_active() != 0) {
@@ -356,7 +356,7 @@ function db_exec_c(handle: i64, sql: *u8): i32 {
 }
 
 /** 查询行集：返回 SELECT 匹配行数。 */
-function db_query_rows_c(handle: i64, sql: *u8): i32 {
+export function db_query_rows_c(handle: i64, sql: *u8): i32 {
   let count: i32 = 0;
   let errmsg: i64 = 0;
   let rc: i32 = 0;
@@ -386,7 +386,7 @@ function db_query_rows_c(handle: i64, sql: *u8): i32 {
 }
 
 /** 准备 SELECT 游标；失败返回 cursor=0。 */
-function db_query_begin_c(handle: i64, sql: *u8): i64 {
+export function db_query_begin_c(handle: i64, sql: *u8): i64 {
   let stmt: i64 = 0;
   let rc: i32 = 0;
   if (db_stub_active() != 0) {
@@ -411,7 +411,7 @@ function db_query_begin_c(handle: i64, sql: *u8): i64 {
 }
 
 /** 推进游标：1=有行，0=结束，<0=错误。 */
-function db_next_row_c(cursor: i64): i32 {
+export function db_next_row_c(cursor: i64): i32 {
   let rc: i32 = 0;
   if (db_stub_active() != 0) {
     db_set_err(DB_NOT_IMPL, &SQL_LIT_STUB_BACKEND[0]);
@@ -432,7 +432,7 @@ function db_next_row_c(cursor: i64): i32 {
 }
 
 /** 读取当前行列值（i32）；列越界返回 DB_ERR_EXEC。 */
-function db_row_col_i32_c(cursor: i64, col: i32): i32 {
+export function db_row_col_i32_c(cursor: i64, col: i32): i32 {
   if (db_stub_active() != 0) {
     db_set_err(DB_NOT_IMPL, &SQL_LIT_STUB_BACKEND[0]);
     return DB_NOT_IMPL;
@@ -451,7 +451,7 @@ function db_row_col_i32_c(cursor: i64, col: i32): i32 {
 }
 
 /** 读取当前行文本列到 out_buf；成功返回字节长度（不含 NUL），NULL 列返回 0。 */
-function db_row_col_text_c(cursor: i64, col: i32, out_buf: *u8, out_cap: i32): i32 {
+export function db_row_col_text_c(cursor: i64, col: i32, out_buf: *u8, out_cap: i32): i32 {
   let txt: i64 = 0;
   let n: i32 = 0;
   if (db_stub_active() != 0) {
@@ -487,7 +487,7 @@ function db_row_col_text_c(cursor: i64, col: i32, out_buf: *u8, out_cap: i32): i
 }
 
 /** 读取当前行 BLOB 列到 out_buf；成功返回字节长度，NULL 列返回 0。 */
-function db_row_col_blob_c(cursor: i64, col: i32, out_buf: *u8, out_cap: i32): i32 {
+export function db_row_col_blob_c(cursor: i64, col: i32, out_buf: *u8, out_cap: i32): i32 {
   let blob: i64 = 0;
   let n: i32 = 0;
   if (db_stub_active() != 0) {
@@ -526,7 +526,7 @@ function db_row_col_blob_c(cursor: i64, col: i32, out_buf: *u8, out_cap: i32): i
 }
 
 /** 返回当前行 BLOB 列字节长度（NULL / 空列返回 0）。 */
-function db_row_col_blob_len_c(cursor: i64, col: i32): i32 {
+export function db_row_col_blob_len_c(cursor: i64, col: i32): i32 {
   let n: i32 = 0;
   if (db_stub_active() != 0) {
     db_set_err(DB_NOT_IMPL, &SQL_LIT_STUB_BACKEND[0]);
@@ -547,7 +547,7 @@ function db_row_col_blob_len_c(cursor: i64, col: i32): i32 {
 }
 
 /** 分块读取 BLOB 列：从 offset 起最多 out_cap 字节；offset>=len 返回 0。 */
-function db_row_col_blob_read_c(cursor: i64, col: i32, offset: i32, out_buf: *u8, out_cap: i32): i32 {
+export function db_row_col_blob_read_c(cursor: i64, col: i32, offset: i32, out_buf: *u8, out_cap: i32): i32 {
   let blob: i64 = 0;
   let n: i32 = 0;
   let avail: i32 = 0;
@@ -591,7 +591,7 @@ function db_row_col_blob_read_c(cursor: i64, col: i32, offset: i32, out_buf: *u8
 }
 
 /** 释放游标（finalize，并从 stmt 缓存移除）。 */
-function db_query_end_c(cursor: i64): i32 {
+export function db_query_end_c(cursor: i64): i32 {
   let rc: i32 = 0;
   if (db_stub_active() != 0) {
     db_set_err(DB_NOT_IMPL, &SQL_LIT_STUB_BACKEND[0]);
@@ -609,12 +609,12 @@ function db_query_end_c(cursor: i64): i32 {
 }
 
 /** 预编译 SQL（独立 finalize，不入缓存）。 */
-function db_prepare_c(handle: i64, sql: *u8): i64 {
+export function db_prepare_c(handle: i64, sql: *u8): i64 {
   return db_query_begin_c(handle, sql);
 }
 
 /** 预编译并缓存（同 SQL 复用 sqlite3_stmt*）。 */
-function db_prepare_cached_c(handle: i64, sql: *u8): i64 {
+export function db_prepare_cached_c(handle: i64, sql: *u8): i64 {
   let slot: *DbCachedStmt = 0 as *DbCachedStmt;
   let stmt: i64 = 0;
   let rc: i32 = 0;
@@ -655,7 +655,7 @@ function db_prepare_cached_c(handle: i64, sql: *u8): i64 {
 }
 
 /** 绑定整型参数（idx 为 1 起始 SQLite 约定）。 */
-function db_stmt_bind_i32_c(stmt_h: i64, idx: i32, val: i32): i32 {
+export function db_stmt_bind_i32_c(stmt_h: i64, idx: i32, val: i32): i32 {
   let rc: i32 = 0;
   if (db_stub_active() != 0) {
     db_set_err(DB_NOT_IMPL, &SQL_LIT_STUB_BACKEND[0]);
@@ -679,7 +679,7 @@ function db_stmt_bind_i32_c(stmt_h: i64, idx: i32, val: i32): i32 {
 }
 
 /** 绑定文本参数（idx 为 1 起始）。 */
-function db_stmt_bind_text_c(stmt_h: i64, idx: i32, text: *u8): i32 {
+export function db_stmt_bind_text_c(stmt_h: i64, idx: i32, text: *u8): i32 {
   let rc: i32 = 0;
   if (db_stub_active() != 0) {
     db_set_err(DB_NOT_IMPL, &SQL_LIT_STUB_BACKEND[0]);
@@ -703,12 +703,12 @@ function db_stmt_bind_text_c(stmt_h: i64, idx: i32, text: *u8): i32 {
 }
 
 /** 执行一步：1=有行，0=完成，<0=错误。 */
-function db_stmt_step_c(stmt_h: i64): i32 {
+export function db_stmt_step_c(stmt_h: i64): i32 {
   return db_next_row_c(stmt_h);
 }
 
 /** 重置预编译语句以便复用。 */
-function db_stmt_reset_c(stmt_h: i64): i32 {
+export function db_stmt_reset_c(stmt_h: i64): i32 {
   let rc: i32 = 0;
   if (db_stub_active() != 0) {
     db_set_err(DB_NOT_IMPL, &SQL_LIT_STUB_BACKEND[0]);
@@ -728,12 +728,12 @@ function db_stmt_reset_c(stmt_h: i64): i32 {
 }
 
 /** 释放预编译语句（并从缓存移除）。 */
-function db_stmt_finalize_c(stmt_h: i64): i32 {
+export function db_stmt_finalize_c(stmt_h: i64): i32 {
   return db_query_end_c(stmt_h);
 }
 
 /** 清空连接上全部 stmt 缓存（不关闭连接）。 */
-function db_stmt_cache_clear_c(handle: i64): i32 {
+export function db_stmt_cache_clear_c(handle: i64): i32 {
   if (db_stub_active() != 0) {
     db_set_err(DB_NOT_IMPL, &SQL_LIT_STUB_BACKEND[0]);
     return DB_NOT_IMPL;
@@ -748,7 +748,7 @@ function db_stmt_cache_clear_c(handle: i64): i32 {
 }
 
 /** 开始事务（BEGIN IMMEDIATE）。 */
-function db_begin_tx_c(handle: i64): i32 {
+export function db_begin_tx_c(handle: i64): i32 {
   if (db_stub_active() != 0) {
     db_set_err(DB_NOT_IMPL, &SQL_LIT_STUB_BACKEND[0]);
     return DB_NOT_IMPL;
@@ -757,7 +757,7 @@ function db_begin_tx_c(handle: i64): i32 {
 }
 
 /** 提交事务。 */
-function db_commit_c(handle: i64): i32 {
+export function db_commit_c(handle: i64): i32 {
   if (db_stub_active() != 0) {
     db_set_err(DB_NOT_IMPL, &SQL_LIT_STUB_BACKEND[0]);
     return DB_NOT_IMPL;
@@ -766,7 +766,7 @@ function db_commit_c(handle: i64): i32 {
 }
 
 /** 回滚事务。 */
-function db_rollback_c(handle: i64): i32 {
+export function db_rollback_c(handle: i64): i32 {
   if (db_stub_active() != 0) {
     db_set_err(DB_NOT_IMPL, &SQL_LIT_STUB_BACKEND[0]);
     return DB_NOT_IMPL;
@@ -775,7 +775,7 @@ function db_rollback_c(handle: i64): i32 {
 }
 
 /** 读取最后一次库错误码。 */
-function db_last_code_c(): i32 {
+export function db_last_code_c(): i32 {
   if (db_stub_active() != 0) {
     return g_db_last_err.code != 0 ? g_db_last_err.code : DB_NOT_IMPL;
   }
@@ -783,13 +783,13 @@ function db_last_code_c(): i32 {
 }
 
 /** 读取最后一次库错误消息（静态缓冲）。 */
-function db_last_error_msg_c(): *u8 {
+export function db_last_error_msg_c(): *u8 {
   if (g_db_last_err.msg[0] == 0) { return 0; }
   return &g_db_last_err.msg[0];
 }
 
 /** 当前后端名称（&SQL_LIT_SQLITE3[0] 或 &SQL_LIT_STUB[0]）。 */
-function db_backend_name_c(): *u8 {
+export function db_backend_name_c(): *u8 {
   if (db_stub_active() != 0) {
     return &SQL_LIT_STUB[0];
   }
@@ -797,7 +797,7 @@ function db_backend_name_c(): *u8 {
 }
 
 /** 返回最近一次 exec 影响行数（仅 SQLite 路径有效）。 */
-function db_changes_c(handle: i64): i32 {
+export function db_changes_c(handle: i64): i32 {
   if (db_stub_active() != 0) { return 0; }
   if (handle == 0 as i64) { return 0; }
   unsafe { return shu_sqlite3_changes_c(handle); }
@@ -805,7 +805,7 @@ function db_changes_c(handle: i64): i32 {
 }
 
 /** 单字节转两位十六进制（小写）。 */
-function db_byte_to_hex2(b: u8, out: *u8): void {
+export function db_byte_to_hex2(b: u8, out: *u8): void {
   let hi: u8 = (b >> 4) & 0x0f;
   let lo: u8 = b & 0x0f;
   out[0] = (hi < 10) ? ((48 + hi) as u8) : ((87 + hi) as u8);
@@ -814,7 +814,7 @@ function db_byte_to_hex2(b: u8, out: *u8): void {
 }
 
 /** 构建 blob_stream 烟测 INSERT SQL（96 字节递增 BLOB）。 */
-function db_blob_stream_build_sql(sql: *u8, cap: i32): void {
+export function db_blob_stream_build_sql(sql: *u8, cap: i32): void {
   let prefix: *u8 = &SQL_LIT_INSERT_INTO_T_DATA_VALUES_X[0];
   let suffix: *u8 = &SQL_LIT_EMPTY[0];
   let pos: i32 = 0;
@@ -844,13 +844,13 @@ function db_blob_stream_build_sql(sql: *u8, cap: i32): void {
 }
 
 /** 烟测辅助：后端名首字符是否为 's'（sqlite3）。 */
-function db_smoke_is_sqlite(): i32 {
+export function db_smoke_is_sqlite(): i32 {
   let n: *u8 = db_backend_name_c();
   return n[0] == 115 ? 1 : 0;
 }
 
 /** C 烟测：内存库 exec 往返（CREATE / INSERT / changes）。 */
-function db_sqlite_exec_smoke_c(): i32 {
+export function db_sqlite_exec_smoke_c(): i32 {
   let h: i64 = 0;
   if (db_smoke_is_sqlite() == 0) { return 1; }
   h = db_open_c(&SQL_LIT_MEMORY[0]);
@@ -863,7 +863,7 @@ function db_sqlite_exec_smoke_c(): i32 {
 }
 
 /** C 烟测：事务 exec 往返（begin/commit + rollback）。 */
-function db_sqlite_tx_exec_smoke_c(): i32 {
+export function db_sqlite_tx_exec_smoke_c(): i32 {
   let h: i64 = 0;
   if (db_smoke_is_sqlite() == 0) { return 1; }
   h = db_open_c(&SQL_LIT_MEMORY[0]);
@@ -881,7 +881,7 @@ function db_sqlite_tx_exec_smoke_c(): i32 {
 }
 
 /** C 烟测：query_rows 行迭代计数。 */
-function db_sqlite_query_rows_smoke_c(): i32 {
+export function db_sqlite_query_rows_smoke_c(): i32 {
   let h: i64 = 0;
   let rows: i32 = 0;
   if (db_smoke_is_sqlite() == 0) { return 1; }
@@ -899,7 +899,7 @@ function db_sqlite_query_rows_smoke_c(): i32 {
 }
 
 /** C 烟测：next_row 列值游标迭代（ORDER BY k 读 1、2）。 */
-function db_sqlite_next_row_smoke_c(): i32 {
+export function db_sqlite_next_row_smoke_c(): i32 {
   let h: i64 = 0;
   let cur: i64 = 0;
   let st: i32 = 0;
@@ -928,7 +928,7 @@ function db_sqlite_next_row_smoke_c(): i32 {
 }
 
 /** C 烟测：row_col_text 文本列游标（ORDER BY k 读 alpha、beta）。 */
-function db_sqlite_row_col_text_smoke_c(): i32 {
+export function db_sqlite_row_col_text_smoke_c(): i32 {
   let h: i64 = 0;
   let cur: i64 = 0;
   let st: i32 = 0;
@@ -958,7 +958,7 @@ function db_sqlite_row_col_text_smoke_c(): i32 {
 }
 
 /** C 烟测：大 BLOB 分块读（96 字节，32×3 块）。 */
-function db_sqlite_blob_stream_smoke_c(): i32 {
+export function db_sqlite_blob_stream_smoke_c(): i32 {
   let h: i64 = 0;
   let cur: i64 = 0;
   let st: i32 = 0;
@@ -1009,7 +1009,7 @@ function db_sqlite_blob_stream_smoke_c(): i32 {
 }
 
 /** C 烟测：row_col_blob BLOB 列游标（ORDER BY k 读 3/4 字节）。 */
-function db_sqlite_row_col_blob_smoke_c(): i32 {
+export function db_sqlite_row_col_blob_smoke_c(): i32 {
   let h: i64 = 0;
   let cur: i64 = 0;
   let st: i32 = 0;
@@ -1041,7 +1041,7 @@ function db_sqlite_row_col_blob_smoke_c(): i32 {
 }
 
 /** C 烟测：预编译 bind + stmt 缓存。 */
-function db_sqlite_stmt_bind_smoke_c(): i32 {
+export function db_sqlite_stmt_bind_smoke_c(): i32 {
   let h: i64 = 0;
   let ins: i64 = 0;
   let sel: i64 = 0;
@@ -1085,7 +1085,7 @@ function db_sqlite_stmt_bind_smoke_c(): i32 {
 }
 
 /** 创建连接池（不预建连接）；max_conns 上限 8。 */
-function db_pool_open_c(path: *u8, max_conns: i32): i64 {
+export function db_pool_open_c(path: *u8, max_conns: i32): i64 {
   let p: *DbPoolMem = 0 as *DbPoolMem;
   if (db_stub_active() != 0) {
     db_set_err(DB_NOT_IMPL, &SQL_LIT_STUB_BACKEND[0]);
@@ -1109,7 +1109,7 @@ function db_pool_open_c(path: *u8, max_conns: i32): i64 {
 }
 
 /** 关闭池并释放全部 idle 连接；仍有借出连接时返回 DB_ERR_BUSY。 */
-function db_pool_close_c(pool_h: i64): i32 {
+export function db_pool_close_c(pool_h: i64): i32 {
   let p: *DbPoolMem = pool_h as *DbPoolMem;
   let i: i32 = 0;
   if (db_stub_active() != 0) {
@@ -1137,7 +1137,7 @@ function db_pool_close_c(pool_h: i64): i32 {
 }
 
 /** 从池获取连接；池耗尽返回 handle=0（DB_ERR_BUSY）。 */
-function db_pool_acquire_c(pool_h: i64): i64 {
+export function db_pool_acquire_c(pool_h: i64): i64 {
   let p: *DbPoolMem = pool_h as *DbPoolMem;
   let h: i64 = 0;
   if (db_stub_active() != 0) {
@@ -1171,7 +1171,7 @@ function db_pool_acquire_c(pool_h: i64): i64 {
 }
 
 /** 归还连接到 idle 队列（不关闭 sqlite3）。 */
-function db_pool_release_c(pool_h: i64, conn_h: i64): i32 {
+export function db_pool_release_c(pool_h: i64, conn_h: i64): i32 {
   let p: *DbPoolMem = pool_h as *DbPoolMem;
   if (db_stub_active() != 0) {
     db_set_err(DB_NOT_IMPL, &SQL_LIT_STUB_BACKEND[0]);
@@ -1198,7 +1198,7 @@ function db_pool_release_c(pool_h: i64, conn_h: i64): i32 {
 }
 
 /** 当前 idle 连接数（诊断/烟测）。 */
-function db_pool_idle_c(pool_h: i64): i32 {
+export function db_pool_idle_c(pool_h: i64): i32 {
   let p: *DbPoolMem = pool_h as *DbPoolMem;
   if (db_stub_active() != 0) { return DB_NOT_IMPL; }
   if (p == 0) { return DB_ERR_NULL; }
@@ -1206,7 +1206,7 @@ function db_pool_idle_c(pool_h: i64): i32 {
 }
 
 /** C 烟测：acquire 上限、release 复用、pool_close（:memory: max=1）。 */
-function db_sqlite_pool_smoke_c(): i32 {
+export function db_sqlite_pool_smoke_c(): i32 {
   let pool: i64 = 0;
   let c1: i64 = 0;
   let c2: i64 = 0;
@@ -1240,7 +1240,7 @@ function db_sqlite_pool_smoke_c(): i32 {
 }
 
 /** C 烟测：stub 语义；真实 sqlite3 后端时跳过（返回 0）。 */
-function db_sqlite_stub_smoke_c(): i32 {
+export function db_sqlite_stub_smoke_c(): i32 {
   let h: i64 = 0;
   let ec: i32 = 0;
   if (db_str_eq(db_backend_name_c(), &SQL_LIT_STUB[0]) == 0) { return 0; }

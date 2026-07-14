@@ -22,29 +22,29 @@
 //
 // 【对标】Linux ELF64 规范子集；STD-058/063/064/103/121。
 
-const ELF_OK: i32 = 0;
-const ELF_ERR_NULL: i32 = -1;
-const ELF_ERR_SHORT: i32 = -2;
-const ELF_ERR_MAGIC: i32 = -3;
-const ELF_ERR_CLASS: i32 = -4;
-const ELF_ERR_ENDIAN: i32 = -5;
-const ELF_ERR_INDEX: i32 = -6;
-const ELF_ERR_NOT_FOUND: i32 = -7;
+export const ELF_OK: i32 = 0;
+export const ELF_ERR_NULL: i32 = -1;
+export const ELF_ERR_SHORT: i32 = -2;
+export const ELF_ERR_MAGIC: i32 = -3;
+export const ELF_ERR_CLASS: i32 = -4;
+export const ELF_ERR_ENDIAN: i32 = -5;
+export const ELF_ERR_INDEX: i32 = -6;
+export const ELF_ERR_NOT_FOUND: i32 = -7;
 
-const ELFMAG0: u8 = 0x7f;
-const ELFMAG1: u8 = 69;   /* 'E' */
-const ELFMAG2: u8 = 76;   /* 'L' */
-const ELFMAG3: u8 = 70;   /* 'F' */
-const ELFCLASS64: u8 = 2;
-const ELFDATA2LSB: u8 = 1;
+export const ELFMAG0: u8 = 0x7f;
+export const ELFMAG1: u8 = 69;   /* 'E' */
+export const ELFMAG2: u8 = 76;   /* 'L' */
+export const ELFMAG3: u8 = 70;   /* 'F' */
+export const ELFCLASS64: u8 = 2;
+export const ELFDATA2LSB: u8 = 1;
 
-const ELF_WRITE_OK: i32 = 0;
-const ELF_WRITE_ERR_NULL: i32 = -1;
-const ELF_WRITE_ERR_BUFFER: i32 = -2;
-const ELF_WRITE_ERR_PARAM: i32 = -3;
-const ELF64_WRITE_MIN_TEXT_MAX: i32 = 64;
-const ELF64_WRITE_SHSTR: i32 = 7;
-const ELF_FIXTURE_MAX: i32 = 512;
+export const ELF_WRITE_OK: i32 = 0;
+export const ELF_WRITE_ERR_NULL: i32 = -1;
+export const ELF_WRITE_ERR_BUFFER: i32 = -2;
+export const ELF_WRITE_ERR_PARAM: i32 = -3;
+export const ELF64_WRITE_MIN_TEXT_MAX: i32 = 64;
+export const ELF64_WRITE_SHSTR: i32 = 7;
+export const ELF_FIXTURE_MAX: i32 = 512;
 
 /** 与 mod.x 布局一致。 */
 allow(padding) struct Elf64Hdr {
@@ -91,24 +91,24 @@ allow(padding) struct Elf64Rela {
   addend: i64
 }
 
-extern "C" function fs_open_read_c(path: *u8): i32;
-extern "C" function fs_posix_read_c(fd: i32, buf: *u8, count: usize): i64;
-extern "C" function close(fd: i32): i32;
-extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
-extern "C" function memset(s: *u8, c: i32, n: usize): *u8;
+export extern "C" function fs_open_read_c(path: *u8): i32;
+export extern "C" function fs_posix_read_c(fd: i32, buf: *u8, count: usize): i64;
+export extern "C" function close(fd: i32): i32;
+export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+export extern "C" function memset(s: *u8, c: i32, n: usize): *u8;
 
 /** F-elf v1 版本标记。 */
-function elf_f_elf_v1_marker_c(): i32 {
+export function elf_f_elf_v1_marker_c(): i32 {
   return 1;
 }
 
 /** F-elf v2 逻辑下沉标记。 */
-function elf_f_elf_v2_marker_c(): i32 {
+export function elf_f_elf_v2_marker_c(): i32 {
   return 1;
 }
 
 /** F-std-zero-c：elf_io_glue.c 已删除，fixture 读在 .x 内。 */
-function elf_f_zero_c_marker_c(): i32 {
+export function elf_f_zero_c_marker_c(): i32 {
   return 1;
 }
 
@@ -116,7 +116,7 @@ function elf_f_zero_c_marker_c(): i32 {
  * 读取 path 指向文件至 out_buf（最多 out_cap 字节，不含写入 NUL）。
  * 成功返回读取字节数；失败 -1（参数）或 -4（IO/过长）。
  */
-function elf_read_fixture_c(path: *u8, out_buf: *u8, out_cap: i32): i32 {
+export function elf_read_fixture_c(path: *u8, out_buf: *u8, out_cap: i32): i32 {
   let fd: i32 = 0;
   let cap: i32 = out_cap;
   let n: i64 = 0;
@@ -131,7 +131,7 @@ function elf_read_fixture_c(path: *u8, out_buf: *u8, out_cap: i32): i32 {
 }
 
 /** 校验 ELF ident 魔数/类/字节序。 */
-function elf64_check_ident(p: *u8, len: i32): i32 {
+export function elf64_check_ident(p: *u8, len: i32): i32 {
   if (p == 0 || len < 64) { return ELF_ERR_SHORT; }
   if (p[0] != ELFMAG0 || p[1] != ELFMAG1 || p[2] != ELFMAG2 || p[3] != ELFMAG3) {
     return ELF_ERR_MAGIC;
@@ -142,30 +142,30 @@ function elf64_check_ident(p: *u8, len: i32): i32 {
 }
 
 /** 读取 little-endian u16。 */
-function elf64_u16le(p: *u8): u32 {
+export function elf64_u16le(p: *u8): u32 {
   return (p[0] as u32) | ((p[1] as u32) << 8);
 }
 
 /** 读取 little-endian u32。 */
-function elf64_u32le(p: *u8): u32 {
+export function elf64_u32le(p: *u8): u32 {
   return (p[0] as u32) | ((p[1] as u32) << 8) | ((p[2] as u32) << 16) | ((p[3] as u32) << 24);
 }
 
 /** 读取 little-endian u64。 */
-function elf64_u64le(p: *u8): u64 {
+export function elf64_u64le(p: *u8): u64 {
   let lo: u64 = elf64_u32le(p) as u64;
   let hi: u64 = elf64_u32le(p + 4) as u64;
   return lo | (hi << 32);
 }
 
 /** 写入 little-endian u16。 */
-function elf64_put_u16le(p: *u8, v: u32): void {
+export function elf64_put_u16le(p: *u8, v: u32): void {
   p[0] = (v & 0xff) as u8;
   p[1] = ((v >> 8) & 0xff) as u8;
 }
 
 /** 写入 little-endian u32。 */
-function elf64_put_u32le(p: *u8, v: u32): void {
+export function elf64_put_u32le(p: *u8, v: u32): void {
   p[0] = (v & 0xff) as u8;
   p[1] = ((v >> 8) & 0xff) as u8;
   p[2] = ((v >> 16) & 0xff) as u8;
@@ -173,13 +173,13 @@ function elf64_put_u32le(p: *u8, v: u32): void {
 }
 
 /** 写入 little-endian u64。 */
-function elf64_put_u64le(p: *u8, v: u64): void {
+export function elf64_put_u64le(p: *u8, v: u64): void {
   elf64_put_u32le(p, (v & 0xffffffff) as u32);
   elf64_put_u32le(p + 4, (v >> 32) as u32);
 }
 
 /** 清零 Elf64Hdr 输出。 */
-function elf64_zero_hdr(hdr: *Elf64Hdr): void {
+export function elf64_zero_hdr(hdr: *Elf64Hdr): void {
   if (hdr == 0) { return; }
   hdr.e_type = 0;
   hdr.machine = 0;
@@ -192,7 +192,7 @@ function elf64_zero_hdr(hdr: *Elf64Hdr): void {
 }
 
 /** 解析 ELF64 文件头。 */
-function elf64_parse_hdr_c(ptr: *u8, len: i32, out: *Elf64Hdr): i32 {
+export function elf64_parse_hdr_c(ptr: *u8, len: i32, out: *Elf64Hdr): i32 {
   let rc: i32 = 0;
   if (out == 0) { return ELF_ERR_NULL; }
   elf64_zero_hdr(out);
@@ -210,7 +210,7 @@ function elf64_parse_hdr_c(ptr: *u8, len: i32, out: *Elf64Hdr): i32 {
 }
 
 /** 读取第 idx 个 program 头（phentsize 固定 56）。 */
-function elf64_read_phdr_c(ptr: *u8, len: i32, phoff: u64, phnum: i32, idx: i32,
+export function elf64_read_phdr_c(ptr: *u8, len: i32, phoff: u64, phnum: i32, idx: i32,
                           out: *Elf64Phdr): i32 {
   let off: u64 = 0;
   let phb: *u8 = 0;
@@ -235,7 +235,7 @@ function elf64_read_phdr_c(ptr: *u8, len: i32, phoff: u64, phnum: i32, idx: i32,
 }
 
 /** 读取第 idx 个 section 头（shentsize 固定 64）。 */
-function elf64_read_shdr_c(ptr: *u8, len: i32, shoff: u64, shnum: i32, idx: i32,
+export function elf64_read_shdr_c(ptr: *u8, len: i32, shoff: u64, shnum: i32, idx: i32,
                           out: *Elf64Sec): i32 {
   let off: u64 = 0;
   let sh: *u8 = 0;
@@ -258,7 +258,7 @@ function elf64_read_shdr_c(ptr: *u8, len: i32, shoff: u64, shnum: i32, idx: i32,
 }
 
 /** 从 shstrtab 取出节名到 buf（NUL 结尾）；返回写入长度或错误码。 */
-function elf64_sec_name_c(ptr: *u8, len: i32, str_off: u64, str_size: u64, name_off: i32,
+export function elf64_sec_name_c(ptr: *u8, len: i32, str_off: u64, str_size: u64, name_off: i32,
                           buf: *u8, buf_len: i32): i32 {
   let pos: u64 = 0;
   let i: i32 = 0;
@@ -276,7 +276,7 @@ function elf64_sec_name_c(ptr: *u8, len: i32, str_off: u64, str_size: u64, name_
 }
 
 /** 比较 shstrtab 中 name_off 处节名与 want（NUL 结尾 C 串）。 */
-function elf64_name_eq_c(ptr: *u8, len: i32, str_off: u64, str_size: u64, name_off: i32,
+export function elf64_name_eq_c(ptr: *u8, len: i32, str_off: u64, str_size: u64, name_off: i32,
                          want: *u8): i32 {
   let buf: u8[32];
   let rc: i32 = 0;
@@ -292,7 +292,7 @@ function elf64_name_eq_c(ptr: *u8, len: i32, str_off: u64, str_size: u64, name_o
 }
 
 /** 按节名查找索引；未找到返回 ELF_ERR_NOT_FOUND。 */
-function elf64_find_section_c(ptr: *u8, len: i32, shoff: u64, shnum: i32, shstrndx: i32,
+export function elf64_find_section_c(ptr: *u8, len: i32, shoff: u64, shnum: i32, shstrndx: i32,
                               want: *u8, out_idx: *i32): i32 {
   let shstr: Elf64Sec;
   let sec: Elf64Sec;
@@ -316,7 +316,7 @@ function elf64_find_section_c(ptr: *u8, len: i32, shoff: u64, shnum: i32, shstrn
 }
 
 /** 读取节体内偏移 at 处的单字节。 */
-function elf64_read_sec_byte_c(ptr: *u8, len: i32, sec_off: u64, sec_size: u64, at: u64,
+export function elf64_read_sec_byte_c(ptr: *u8, len: i32, sec_off: u64, sec_size: u64, at: u64,
                               out: *u8): i32 {
   let pos: u64 = 0;
   if (ptr == 0 || out == 0) { return ELF_ERR_NULL; }
@@ -328,7 +328,7 @@ function elf64_read_sec_byte_c(ptr: *u8, len: i32, sec_off: u64, sec_size: u64, 
 }
 
 /** 读取 symtab 内第 idx 个 Elf64_Sym（24 字节）。 */
-function elf64_read_sym_c(ptr: *u8, len: i32, sym_off: u64, sym_size: u64, idx: i32,
+export function elf64_read_sym_c(ptr: *u8, len: i32, sym_off: u64, sym_size: u64, idx: i32,
                           out: *Elf64Sym): i32 {
   let off: u64 = 0;
   let sb: *u8 = 0;
@@ -356,7 +356,7 @@ function elf64_read_sym_c(ptr: *u8, len: i32, sym_off: u64, sym_size: u64, idx: 
 }
 
 /** 读取 rela 节内第 idx 个 Elf64_Rela（24 字节）。 */
-function elf64_read_rela_c(ptr: *u8, len: i32, rela_off: u64, rela_size: u64, idx: i32,
+export function elf64_read_rela_c(ptr: *u8, len: i32, rela_off: u64, rela_size: u64, idx: i32,
                            out: *Elf64Rela): i32 {
   let off: u64 = 0;
   let rb: *u8 = 0;
@@ -379,7 +379,7 @@ function elf64_read_rela_c(ptr: *u8, len: i32, rela_off: u64, rela_size: u64, id
 }
 
 /** 计算 write_min_reloc 所需缓冲容量。 */
-function elf64_write_min_reloc_size_c(text_len: i32): i32 {
+export function elf64_write_min_reloc_size_c(text_len: i32): i32 {
   if (text_len < 0 || text_len > ELF64_WRITE_MIN_TEXT_MAX) { return ELF_WRITE_ERR_PARAM; }
   return 64 + 3 * 64 + ELF64_WRITE_SHSTR + text_len;
 }
@@ -388,7 +388,7 @@ function elf64_write_min_reloc_size_c(text_len: i32): i32 {
  * 写入最小 ET_REL：Ehdr + 3 Shdr（null/.text/.shstrtab）+ shstrtab + .text 节体。
  * shstrtab 固定 "\0.text\0"；text_len 上限 64。
  */
-function elf64_write_min_reloc_c(buf: *u8, cap: i32, text: *u8, text_len: i32, out_len: *i32): i32 {
+export function elf64_write_min_reloc_c(buf: *u8, cap: i32, text: *u8, text_len: i32, out_len: *i32): i32 {
   let need: i32 = 0;
   let shstr_off: i32 = 0;
   let text_off: i32 = 0;
@@ -439,7 +439,7 @@ function elf64_write_min_reloc_c(buf: *u8, cap: i32, text: *u8, text_len: i32, o
 }
 
 /** 写入 + 解析 round-trip 烟测；0 通过。 */
-function elf64_write_smoke_c(): i32 {
+export function elf64_write_smoke_c(): i32 {
   let out: u8[512];
   let text: u8[4] = [0x90, 0x90, 0x90, 0x90];
   let out_len: i32 = 0;
@@ -464,7 +464,7 @@ function elf64_write_smoke_c(): i32 {
 }
 
 /** 烟测：读取 elf64_min_reloc.bin，解析 ET_REL 与 .text 节名。 */
-function elf64_parse_smoke_c(): i32 {
+export function elf64_parse_smoke_c(): i32 {
   let fixture: u8[44] = [
     116, 101, 115, 116, 115, 47, 98, 97, 115, 101, 108, 105, 110, 101, 47,
     102, 105, 120, 116, 117, 114, 101, 115, 47, 101, 108, 102, 54, 52, 95,
@@ -493,7 +493,7 @@ function elf64_parse_smoke_c(): i32 {
 }
 
 /** 深化烟测（STD-063）：按名查找 .text 并读取首字节。 */
-function elf64_sections_deep_smoke_c(): i32 {
+export function elf64_sections_deep_smoke_c(): i32 {
   let fixture: u8[44] = [
     116, 101, 115, 116, 115, 47, 98, 97, 115, 101, 108, 105, 110, 101, 47,
     102, 105, 120, 116, 117, 114, 101, 115, 47, 101, 108, 102, 54, 52, 95,
@@ -523,7 +523,7 @@ function elf64_sections_deep_smoke_c(): i32 {
 }
 
 /** phdr 烟测（STD-064）：解析 elf64_min_phdr.bin program header。 */
-function elf64_phdr_smoke_c(): i32 {
+export function elf64_phdr_smoke_c(): i32 {
   let fixture: u8[43] = [
     116, 101, 115, 116, 115, 47, 98, 97, 115, 101, 108, 105, 110, 101, 47,
     102, 105, 120, 116, 117, 114, 101, 115, 47, 101, 108, 102, 54, 52, 95,
@@ -549,7 +549,7 @@ function elf64_phdr_smoke_c(): i32 {
 }
 
 /** symtab/rela 烟测（STD-103）：解析 elf64_sym_rela.bin 中 main 与 R_X86_64_64。 */
-function elf64_sym_rela_smoke_c(): i32 {
+export function elf64_sym_rela_smoke_c(): i32 {
   let fixture: u8[44] = [
     116, 101, 115, 116, 115, 47, 98, 97, 115, 101, 108, 105, 110, 101, 47,
     102, 105, 120, 116, 117, 114, 101, 115, 47, 101, 108, 102, 54, 52, 95,

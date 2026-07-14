@@ -19,34 +19,34 @@
 // 【文件职责】open(path)、sym(lib, name)、close(lib)。按需链接。
 // 【依赖】core；与 std/dynlib/dynlib.x + runtime_dynlib_os.c 同属一模块（F-dynlib v2 / F-ZC）。
 
-extern function dynlib_open_c(path: *u8): *u8;
-extern function dynlib_sym_c(lib: *u8, name: *u8): *u8;
-extern function dynlib_close_c(lib: *u8): void;
-extern function dynlib_last_error_copy_c(buf: *u8, cap: i32): i32;
+export extern function dynlib_open_c(path: *u8): *u8;
+export extern function dynlib_sym_c(lib: *u8, name: *u8): *u8;
+export extern function dynlib_close_c(lib: *u8): void;
+export extern function dynlib_last_error_copy_c(buf: *u8, cap: i32): i32;
 
 /** 打开动态库 path（NUL 结尾）；失败返回 0。 */
-function open(path: *u8): *u8 {
+export function open(path: *u8): *u8 {
   let _rc: *u8 = 0;
   unsafe { _rc = dynlib_open_c(path); }
   return _rc;
 }
 
 /** 取符号 name（NUL 结尾）；失败返回 0。 */
-function sym(lib: *u8, name: *u8): *u8 {
+export function sym(lib: *u8, name: *u8): *u8 {
   let _rc: *u8 = 0;
   unsafe { _rc = dynlib_sym_c(lib, name); }
   return _rc;
 }
 
 /** 关闭动态库。 */
-function close(lib: *u8): void {
+export function close(lib: *u8): void {
   unsafe {
     dynlib_close_c(lib);
   }
 }
 
 /** 复制最近一次 open/sym 失败诊断到 buf；返回写入字节数，无内容返回 0（STD-096）。 */
-function last_os_error(buf: *u8, cap: i32): i32 {
+export function last_os_error(buf: *u8, cap: i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = dynlib_last_error_copy_c(buf, cap); }
   return _rc;

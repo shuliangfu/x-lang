@@ -22,9 +22,9 @@
 //
 // 【对标】Go context.Context 最小子集、Rust tokio::time::timeout 传播语义简化版。
 
-const CTX_VALUE_SLOTS: i32 = 8;
+export const CTX_VALUE_SLOTS: i32 = 8;
 /** CtxNode 堆对象字节数（与 C ctx_node_t 布局对齐，含 padding）。 */
-const CTX_NODE_MEM_SIZE: usize = 152;
+export const CTX_NODE_MEM_SIZE: usize = 152;
 
 /** value bag 单槽。 */
 allow(padding) struct CtxValueSlot {
@@ -42,39 +42,39 @@ allow(padding) struct CtxNode {
 }
 
 /** 成功。 */
-const CTX_OK: i32 = 0;
+export const CTX_OK: i32 = 0;
 /** 空指针或无效句柄。 */
-const CTX_ERR_NULL: i32 = -1;
+export const CTX_ERR_NULL: i32 = -1;
 
 /** background 单例存储（字节布局同 CtxNode，避免顶层 struct 字面量 parse 问题）。 */
 let g_ctx_background_bytes: u8[152] = [];
 let g_ctx_background_init: i32 = 0;
 
-extern function time_now_monotonic_ns_c(): i64;
-extern function atomic_load_i32_c(ptr: *i32): i32;
-extern function atomic_store_i32_c(ptr: *i32, val: i32): void;
-extern "C" function memset(s: *u8, c: i32, n: usize): *u8;
-extern "C" function calloc(nmemb: usize, size: usize): *u8;
-extern "C" function free(ptr: *u8): void;
+export extern function time_now_monotonic_ns_c(): i64;
+export extern function atomic_load_i32_c(ptr: *i32): i32;
+export extern function atomic_store_i32_c(ptr: *i32, val: i32): void;
+export extern "C" function memset(s: *u8, c: i32, n: usize): *u8;
+export extern "C" function calloc(nmemb: usize, size: usize): *u8;
+export extern "C" function free(ptr: *u8): void;
 
 /** F-context v1 版本标记。 */
-function ctx_f_context_v1_marker_c(): i32 {
+export function ctx_f_context_v1_marker_c(): i32 {
   return 1;
 }
 
 /** F-context v2 节点存储下沉标记（纯 .x，无 context_node_glue.c）。 */
-function ctx_f_context_v2_marker_c(): i32 {
+export function ctx_f_context_v2_marker_c(): i32 {
   return 1;
 }
 
 /** 句柄转节点指针；非法 0。 */
-function ctx_ptr(handle: i64): *CtxNode {
+export function ctx_ptr(handle: i64): *CtxNode {
   if (handle == 0) { return 0; }
   return handle as *CtxNode;
 }
 
 /** 返回 background 句柄（单例）。 */
-function ctx_glue_background_c(): i64 {
+export function ctx_glue_background_c(): i64 {
   let bg: *CtxNode = 0 as *CtxNode;
   if (g_ctx_background_init == 0) {
     bg = &g_ctx_background_bytes[0] as *CtxNode;
@@ -88,7 +88,7 @@ function ctx_glue_background_c(): i64 {
 }
 
 /** 是否 background 节点。 */
-function ctx_glue_is_background_c(handle: i64): i32 {
+export function ctx_glue_is_background_c(handle: i64): i32 {
   let bg: i64 = ctx_glue_background_c();
   if (handle == 0) { return 0; }
   if (handle == bg) { return 1; }
@@ -96,7 +96,7 @@ function ctx_glue_is_background_c(handle: i64): i32 {
 }
 
 /** 分配子节点；失败 0。 */
-function ctx_glue_alloc_c(parent_handle: i64, deadline_ns: i64): i64 {
+export function ctx_glue_alloc_c(parent_handle: i64, deadline_ns: i64): i64 {
   let parent: *CtxNode = ctx_ptr(parent_handle);
   let child: *CtxNode = 0;
   if (parent == 0) { return 0; }
@@ -113,7 +113,7 @@ function ctx_glue_alloc_c(parent_handle: i64, deadline_ns: i64): i64 {
 }
 
 /** 释放派生节点（不可释放 background）。 */
-function ctx_glue_free_c(handle: i64): void {
+export function ctx_glue_free_c(handle: i64): void {
   let n: *CtxNode = ctx_ptr(handle);
   if (n == 0) { return; }
   if (ctx_glue_is_background_c(handle) != 0) { return; }
@@ -121,21 +121,21 @@ function ctx_glue_free_c(handle: i64): void {
 }
 
 /** 读取父句柄；无父 0。 */
-function ctx_glue_parent_c(handle: i64): i64 {
+export function ctx_glue_parent_c(handle: i64): i64 {
   let n: *CtxNode = ctx_ptr(handle);
   if (n == 0) { return 0; }
   return n.parent;
 }
 
 /** 读取本节点 deadline_ns。 */
-function ctx_glue_deadline_c(handle: i64): i64 {
+export function ctx_glue_deadline_c(handle: i64): i64 {
   let n: *CtxNode = ctx_ptr(handle);
   if (n == 0) { return 0; }
   return n.deadline_ns;
 }
 
 /** 原子读 cancelled。 */
-function ctx_glue_cancelled_load_c(handle: i64): i32 {
+export function ctx_glue_cancelled_load_c(handle: i64): i32 {
   let n: *CtxNode = ctx_ptr(handle);
   if (n == 0) { return 1; }
   unsafe { return atomic_load_i32_c(&n.cancelled); }
@@ -143,7 +143,7 @@ function ctx_glue_cancelled_load_c(handle: i64): i32 {
 }
 
 /** 原子写 cancelled。 */
-function ctx_glue_cancelled_store_c(handle: i64, v: i32): void {
+export function ctx_glue_cancelled_store_c(handle: i64, v: i32): void {
   let n: *CtxNode = ctx_ptr(handle);
   if (n == 0) { return; }
   if (v != 0) {
@@ -154,7 +154,7 @@ function ctx_glue_cancelled_store_c(handle: i64, v: i32): void {
 }
 
 /** 设置 value 槽；成功 0，满 -1。 */
-function ctx_glue_value_set_c(handle: i64, key_hash: u32, value: i64): i32 {
+export function ctx_glue_value_set_c(handle: i64, key_hash: u32, value: i64): i32 {
   let n: *CtxNode = ctx_ptr(handle);
   let i: i32 = 0;
   let free_slot: i32 = -1;
@@ -177,7 +177,7 @@ function ctx_glue_value_set_c(handle: i64, key_hash: u32, value: i64): i32 {
 }
 
 /** 读取 value 槽；找到 1，否则 0。 */
-function ctx_glue_value_get_c(handle: i64, key_hash: u32, out: *i64): i32 {
+export function ctx_glue_value_get_c(handle: i64, key_hash: u32, out: *i64): i32 {
   let n: *CtxNode = ctx_ptr(handle);
   let i: i32 = 0;
   if (n == 0 || out == 0) { return 0; }
@@ -192,7 +192,7 @@ function ctx_glue_value_get_c(handle: i64, key_hash: u32, out: *i64): i32 {
 }
 
 /** FNV-1a 32-bit：对 NUL 结尾 C 串求哈希。 */
-function ctx_key_hash(key: *u8): u32 {
+export function ctx_key_hash(key: *u8): u32 {
   let h: u32 = 2166136261;
   let i: i32 = 0;
   if (key == 0) { return 0; }
@@ -205,7 +205,7 @@ function ctx_key_hash(key: *u8): u32 {
 }
 
 /** 沿父链解析有效 deadline（取最近非零）。 */
-function ctx_effective_deadline(handle: i64): i64 {
+export function ctx_effective_deadline(handle: i64): i64 {
   let dl: i64 = 0;
   let cur: i64 = handle;
   while (cur != 0) {
@@ -217,7 +217,7 @@ function ctx_effective_deadline(handle: i64): i64 {
 }
 
 /** 节点或祖先是否已取消。 */
-function ctx_chain_cancelled(handle: i64): i32 {
+export function ctx_chain_cancelled(handle: i64): i32 {
   let cur: i64 = handle;
   while (cur != 0) {
     if (ctx_glue_cancelled_load_c(cur) != 0) { return 1; }
@@ -227,18 +227,18 @@ function ctx_chain_cancelled(handle: i64): i32 {
 }
 
 /** 返回 background 句柄。 */
-function ctx_background_c(): i64 {
+export function ctx_background_c(): i64 {
   return ctx_glue_background_c();
 }
 
 /** 派生可取消子上下文；失败返回 0。 */
-function ctx_with_cancel_c(parent_handle: i64): i64 {
+export function ctx_with_cancel_c(parent_handle: i64): i64 {
   if (parent_handle == 0) { return 0; }
   return ctx_glue_alloc_c(parent_handle, 0);
 }
 
 /** 派生带绝对 deadline（单调 ns）的子上下文。 */
-function ctx_with_deadline_c(parent_handle: i64, deadline_ns: i64): i64 {
+export function ctx_with_deadline_c(parent_handle: i64, deadline_ns: i64): i64 {
   let dl: i64 = 0;
   if (parent_handle == 0) { return 0; }
   if (deadline_ns > 0) { dl = deadline_ns; }
@@ -246,7 +246,7 @@ function ctx_with_deadline_c(parent_handle: i64, deadline_ns: i64): i64 {
 }
 
 /** 派生相对超时子上下文（now + timeout_ns）。 */
-function ctx_with_timeout_c(parent_handle: i64, timeout_ns: i64): i64 {
+export function ctx_with_timeout_c(parent_handle: i64, timeout_ns: i64): i64 {
   let now: i64 = 0;
   let dl: i64 = 0;
   if (timeout_ns <= 0) { return ctx_with_deadline_c(parent_handle, 0); }
@@ -258,25 +258,25 @@ function ctx_with_timeout_c(parent_handle: i64, timeout_ns: i64): i64 {
 }
 
 /** 取消上下文（仅标记本节点）。 */
-function ctx_cancel_c(handle: i64): void {
+export function ctx_cancel_c(handle: i64): void {
   ctx_glue_cancelled_store_c(handle, 1);
 }
 
 /** 是否已取消：1 是，0 否；无效句柄视为已取消。 */
 #[no_mangle]
-function ctx_is_cancelled_c(handle: i64): i32 {
+export function ctx_is_cancelled_c(handle: i64): i32 {
   if (handle == 0) { return 1; }
   return ctx_chain_cancelled(handle);
 }
 
 /** 有效 deadline（单调 ns）；0 表示无 deadline。 */
-function ctx_deadline_ns_c(handle: i64): i64 {
+export function ctx_deadline_ns_c(handle: i64): i64 {
   if (handle == 0) { return 0; }
   return ctx_effective_deadline(handle);
 }
 
 /** 剩余时间（纳秒）；已取消或已过期返回 0。 */
-function ctx_remaining_ns_c(handle: i64): i64 {
+export function ctx_remaining_ns_c(handle: i64): i64 {
   let dl: i64 = 0;
   let now: i64 = 0;
   let rem: i64 = 0;
@@ -292,7 +292,7 @@ function ctx_remaining_ns_c(handle: i64): i64 {
 }
 
 /** 设置键值；成功 CTX_OK，满 -1，空参 CTX_ERR_NULL。 */
-function ctx_set_value_c(handle: i64, key: *u8, value: i64): i32 {
+export function ctx_set_value_c(handle: i64, key: *u8, value: i64): i32 {
   let h: u32 = 0;
   if (handle == 0 || key == 0) { return CTX_ERR_NULL; }
   h = ctx_key_hash(key);
@@ -300,7 +300,7 @@ function ctx_set_value_c(handle: i64, key: *u8, value: i64): i32 {
 }
 
 /** 读取键值；找到返回 1 并写 *out，否则 0。 */
-function ctx_get_value_c(handle: i64, key: *u8, out: *i64): i32 {
+export function ctx_get_value_c(handle: i64, key: *u8, out: *i64): i32 {
   let h: u32 = 0;
   if (handle == 0 || key == 0 || out == 0) { return 0; }
   h = ctx_key_hash(key);
@@ -308,14 +308,14 @@ function ctx_get_value_c(handle: i64, key: *u8, out: *i64): i32 {
 }
 
 /** 释放派生上下文（不可释放 background）。 */
-function ctx_free_c(handle: i64): void {
+export function ctx_free_c(handle: i64): void {
   if (handle == 0) { return; }
   if (ctx_glue_is_background_c(handle) != 0) { return; }
   ctx_glue_free_c(handle);
 }
 
 /** C 烟测：cancel 传播 + deadline 过期 + value bag。 */
-function ctx_smoke_c(): i32 {
+export function ctx_smoke_c(): i32 {
   let bg: i64 = 0;
   let child: i64 = 0;
   let dl_child: i64 = 0;

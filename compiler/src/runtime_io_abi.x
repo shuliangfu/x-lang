@@ -7,24 +7,24 @@
 // G-02f-59：+ shux_fs_open_write_flags / mode 薄门闩（常量本体 C）。
 // G-02f-96：+ shux_read_fd_into_buf / file_view_read_malloc 门闩。
 
-extern "C" function open(path: *u8, flags: i32, mode: i32): i32;
-extern "C" function close(fd: i32): i32;
-extern "C" function read(fd: i32, buf: *u8, count: usize): isize;
-extern "C" function write(fd: i32, buf: *u8, count: usize): isize;
+export extern "C" function open(path: *u8, flags: i32, mode: i32): i32;
+export extern "C" function close(fd: i32): i32;
+export extern "C" function read(fd: i32, buf: *u8, count: usize): isize;
+export extern "C" function write(fd: i32, buf: *u8, count: usize): isize;
 // libc
-extern "C" function malloc(size: usize): *u8;
-extern "C" function free(ptr: *u8): void;
-extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+export extern "C" function malloc(size: usize): *u8;
+export extern "C" function free(ptr: *u8): void;
+export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 
 // 保留 seed 的 _impl（依赖平台 #ifdef / mmap / fstat / O_* flags）
-extern "C" function shux_fs_open_write_flags_impl(): i32;
-extern "C" function shux_write_path_bytes_impl(path: *u8, data: *u8, len: i64): i32;
-extern "C" function runtime_release_file_view_impl(view: *u8): void;
-extern "C" function runtime_read_file_view_impl(path: *u8, out: *u8): i32;
+export extern "C" function shux_fs_open_write_flags_impl(): i32;
+export extern "C" function shux_write_path_bytes_impl(path: *u8, data: *u8, len: i64): i32;
+export extern "C" function runtime_release_file_view_impl(view: *u8): void;
+export extern "C" function runtime_read_file_view_impl(path: *u8, out: *u8): i32;
 
 /** 文件视图（与 C ShuxRuntimeFileView ABI 兼容，24B 无 padding）。
  *  data 8B + length 8B + needs_free 4B + needs_munmap 4B = 24B 对齐 8B。 */
-struct ShuxRuntimeFileView {
+export struct ShuxRuntimeFileView {
   data: *u8;
   length: usize;
   needs_free: i32;
@@ -32,7 +32,7 @@ struct ShuxRuntimeFileView {
 }
 
 #[no_mangle]
-function std_fs_fs_open_read(path: *u8): i32 {
+export function std_fs_fs_open_read(path: *u8): i32 {
   if (path == 0 as *u8) {
     return 0 - 1;
   }
@@ -45,7 +45,7 @@ function std_fs_fs_open_read(path: *u8): i32 {
 }
 
 #[no_mangle]
-function shux_fs_open_write_flags(): i32 {
+export function shux_fs_open_write_flags(): i32 {
   unsafe {
     return shux_fs_open_write_flags_impl();
   }
@@ -54,13 +54,13 @@ function shux_fs_open_write_flags(): i32 {
 
 // G-02f-120 / G-02f-334：mode 须在 open_write 之前（-E 产物 C 无前向声明）
 #[no_mangle]
-function shux_fs_open_write_mode(): i32 {
+export function shux_fs_open_write_mode(): i32 {
   // 0644
   return 420;
 }
 
 #[no_mangle]
-function std_fs_fs_open_write(path: *u8): i32 {
+export function std_fs_fs_open_write(path: *u8): i32 {
   if (path == 0 as *u8) {
     return 0 - 1;
   }
@@ -74,7 +74,7 @@ function std_fs_fs_open_write(path: *u8): i32 {
 }
 
 #[no_mangle]
-function std_fs_fs_close(fd: i32): i32 {
+export function std_fs_fs_close(fd: i32): i32 {
   unsafe {
     let r: i32 = close(fd);
     return r;
@@ -83,12 +83,12 @@ function std_fs_fs_close(fd: i32): i32 {
 }
 
 #[no_mangle]
-function std_fs_fs_invalid_handle(): i32 {
+export function std_fs_fs_invalid_handle(): i32 {
   return 0 - 1;
 }
 
 #[no_mangle]
-function std_fs_fs_read(fd: i32, buf: *u8, count: usize): isize {
+export function std_fs_fs_read(fd: i32, buf: *u8, count: usize): isize {
   if (buf == 0 as *u8) {
     let neg: isize = (0 - 1) as isize;
     return neg;
@@ -102,7 +102,7 @@ function std_fs_fs_read(fd: i32, buf: *u8, count: usize): isize {
 }
 
 #[no_mangle]
-function std_fs_fs_write(fd: i32, buf: *u8, count: usize): isize {
+export function std_fs_fs_write(fd: i32, buf: *u8, count: usize): isize {
   if (buf == 0 as *u8) {
     let neg: isize = (0 - 1) as isize;
     return neg;
@@ -116,24 +116,24 @@ function std_fs_fs_write(fd: i32, buf: *u8, count: usize): isize {
 }
 
 #[no_mangle]
-function fs_posix_close_c(fd: i32): i32 {
+export function fs_posix_close_c(fd: i32): i32 {
   return std_fs_fs_close(fd);
 }
 
 #[no_mangle]
-function fs_posix_read_c(fd: i32, buf: *u8, count: usize): isize {
+export function fs_posix_read_c(fd: i32, buf: *u8, count: usize): isize {
   return std_fs_fs_read(fd, buf, count);
 }
 
 #[no_mangle]
-function fs_posix_write_c(fd: i32, buf: *u8, count: usize): isize {
+export function fs_posix_write_c(fd: i32, buf: *u8, count: usize): isize {
   return std_fs_fs_write(fd, buf, count);
 }
 
 /* ---- G-02f-57：路径读/写与 file_view 释放 ---- */
 
 #[no_mangle]
-function shux_read_file_into_path(path: *u8, buf: *u8, cap: i64): i32 {
+export function shux_read_file_into_path(path: *u8, buf: *u8, cap: i64): i32 {
   if (path == 0 as *u8) {
     return -1;
   }
@@ -150,7 +150,7 @@ function shux_read_file_into_path(path: *u8, buf: *u8, cap: i64): i32 {
 }
 
 #[no_mangle]
-function shux_write_path_bytes(path: *u8, data: *u8, len: i64): i32 {
+export function shux_write_path_bytes(path: *u8, data: *u8, len: i64): i32 {
   if (path == 0 as *u8) {
     return -1;
   }
@@ -164,7 +164,7 @@ function shux_write_path_bytes(path: *u8, data: *u8, len: i64): i32 {
 }
 
 #[no_mangle]
-function runtime_release_file_view(view: *u8): void {
+export function runtime_release_file_view(view: *u8): void {
   if (view == 0 as *u8) {
     return;
   }
@@ -176,7 +176,7 @@ function runtime_release_file_view(view: *u8): void {
 /* ---- G-02f-58：file_view 读入 / malloc 整文件 / os_read_file_into ---- */
 
 #[no_mangle]
-function runtime_read_file_view(path: *u8, out: *u8): i32 {
+export function runtime_read_file_view(path: *u8, out: *u8): i32 {
   if (path == 0 as *u8) {
     return -1;
   }
@@ -190,7 +190,7 @@ function runtime_read_file_view(path: *u8, out: *u8): i32 {
 }
 
 #[no_mangle]
-function runtime_read_file_malloc(path: *u8, out_len: *u8): *u8 {
+export function runtime_read_file_malloc(path: *u8, out_len: *u8): *u8 {
   if (path == 0 as *u8) {
     return 0 as *u8;
   }
@@ -201,7 +201,7 @@ function runtime_read_file_malloc(path: *u8, out_len: *u8): *u8 {
 }
 
 #[no_mangle]
-function std_sys_os_read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
+export function std_sys_os_read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
   if (path == 0 as *u8) {
     return -1;
   }
@@ -220,7 +220,7 @@ function std_sys_os_read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
 /* ---- G-02f-96：fd 读缓冲 / file_view malloc 门闩 ---- */
 
 #[no_mangle]
-function shux_read_fd_into_buf(fd: i32, buf: *u8, cap: i64): i32 {
+export function shux_read_fd_into_buf(fd: i32, buf: *u8, cap: i64): i32 {
   unsafe {
     return shux_read_fd_into_buf_impl(fd, buf, cap);
   }
@@ -228,7 +228,7 @@ function shux_read_fd_into_buf(fd: i32, buf: *u8, cap: i64): i32 {
 }
 
 #[no_mangle]
-function shux_runtime_file_view_read_malloc(fd: i32, size: i64, out: *u8): i32 {
+export function shux_runtime_file_view_read_malloc(fd: i32, size: i64, out: *u8): i32 {
   unsafe {
     return shux_runtime_file_view_read_malloc_impl(fd, size, out);
   }
@@ -244,7 +244,7 @@ function shux_runtime_file_view_read_malloc(fd: i32, size: i64, out: *u8): i32 {
 
 /** POSIX read 循环读 fd 到 buf[0..cap-1]；成功返回读入字节数，失败 -1。 */
 #[no_mangle]
-function shux_read_fd_into_buf_impl(fd: i32, buf: *u8, cap: i64): i32 {
+export function shux_read_fd_into_buf_impl(fd: i32, buf: *u8, cap: i64): i32 {
   if (fd < 0) {
     return -1;
   }
@@ -277,7 +277,7 @@ function shux_read_fd_into_buf_impl(fd: i32, buf: *u8, cap: i64): i32 {
 /** malloc + read 循环读 fd 到堆缓冲；成功 0，失败 -1。
  *  调用方：runtime_read_file_view_impl（mmap 失败时回退此函数）。 */
 #[no_mangle]
-function shux_runtime_file_view_read_malloc_impl(fd: i32, size: i64, out: *u8): i32 {
+export function shux_runtime_file_view_read_malloc_impl(fd: i32, size: i64, out: *u8): i32 {
   let size_u: usize = size as usize;
   let buf: *u8 = 0 as *u8;
   unsafe {
@@ -327,7 +327,7 @@ function shux_runtime_file_view_read_malloc_impl(fd: i32, size: i64, out: *u8): 
 
 /** 读整文件到堆缓冲（经 runtime_read_file_view thin wrapper）；成功返回 NUL 结尾缓冲，失败 NULL。 */
 #[no_mangle]
-function runtime_read_file_malloc_impl(path: *u8, out_len: *u8): *u8 {
+export function runtime_read_file_malloc_impl(path: *u8, out_len: *u8): *u8 {
   let view: ShuxRuntimeFileView = ShuxRuntimeFileView {
     data: 0 as *u8,
     length: 0,
@@ -364,7 +364,7 @@ function runtime_read_file_malloc_impl(path: *u8, out_len: *u8): *u8 {
 
 /** open(O_RDONLY) + read 循环读文件前缀到 buf；成功返回读入字节数，失败 -1。 */
 #[no_mangle]
-function shux_read_file_into_path_impl(path: *u8, buf: *u8, cap: i64): i32 {
+export function shux_read_file_into_path_impl(path: *u8, buf: *u8, cap: i64): i32 {
   if (cap > 2147483647) {
     return -1;
   }
@@ -385,7 +385,7 @@ function shux_read_file_into_path_impl(path: *u8, buf: *u8, cap: i64): i32 {
 
 /** std.sys.os_read_file_into 的 C 链接符号；成功返回读入字节数，失败 -1。 */
 #[no_mangle]
-function std_sys_os_read_file_into_impl(path: *u8, buf: *u8, cap: i32): i32 {
+export function std_sys_os_read_file_into_impl(path: *u8, buf: *u8, cap: i32): i32 {
   if (path == 0 as *u8) {
     return -1;
   }

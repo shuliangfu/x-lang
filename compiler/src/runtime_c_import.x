@@ -4,6 +4,6 @@
 // G-02f-22：runtime_c_import 产品源迁 seeds/runtime_c_import.from_x.c。
 // 实现仍在 seed C；本文件为文档锚点。
 
-function runtime_c_import_x_doc_anchor(): i32 {
+export function runtime_c_import_x_doc_anchor(): i32 {
   return 0;
 }

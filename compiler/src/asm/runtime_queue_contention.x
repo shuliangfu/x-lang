@@ -7,15 +7,15 @@
 //   5 个平台 #ifdef 函数（mutex create/destroy/lock/unlock + run_two_workers）保留 seed。
 
 // libc
-extern "C" function malloc(size: usize): *u8;
-extern "C" function free(ptr: *u8): void;
+export extern "C" function malloc(size: usize): *u8;
+export extern "C" function free(ptr: *u8): void;
 
 // seed 提供（平台 #ifdef：pthread / Win32 CRITICAL_SECTION）
-extern "C" function queue_os_mutex_create_c(): *u8;
-extern "C" function queue_os_mutex_destroy_c(mu: *u8): void;
-extern "C" function queue_os_mutex_lock_c(mu: *u8): void;
-extern "C" function queue_os_mutex_unlock_c(mu: *u8): void;
-extern "C" function queue_os_run_two_workers_c(ctx: *u8): i32;
+export extern "C" function queue_os_mutex_create_c(): *u8;
+export extern "C" function queue_os_mutex_destroy_c(mu: *u8): void;
+export extern "C" function queue_os_mutex_lock_c(mu: *u8): void;
+export extern "C" function queue_os_mutex_unlock_c(mu: *u8): void;
+export extern "C" function queue_os_run_two_workers_c(ctx: *u8): i32;
 
 /** 烟测用 mutex 保护环形队列（与 seed C QueueSmokeState 布局一致）。
 * allow(padding)：mu/data 各 8B，cap/len/head 各 4B，总 28B 对齐到 32B，尾部 4B padding。 */
@@ -27,7 +27,7 @@ allow(padding) struct QueueSmokeState {
   head: i32;
 }
 
-function runtime_queue_contention_x_doc_anchor(): i32 {
+export function runtime_queue_contention_x_doc_anchor(): i32 {
   return 0;
 }
 
@@ -35,7 +35,7 @@ function runtime_queue_contention_x_doc_anchor(): i32 {
 
 /** 逻辑下标 i 对应的物理下标。 */
 #[no_mangle]
-function queue_smoke_at_impl(q: *QueueSmokeState, i: i32): i32 {
+export function queue_smoke_at_impl(q: *QueueSmokeState, i: i32): i32 {
   let idx: i32 = q.head + i;
   if (idx >= q.cap) {
     idx = idx - q.cap;
@@ -44,13 +44,13 @@ function queue_smoke_at_impl(q: *QueueSmokeState, i: i32): i32 {
 }
 
 #[no_mangle]
-function queue_smoke_at(q: *QueueSmokeState, i: i32): i32 {
+export function queue_smoke_at(q: *QueueSmokeState, i: i32): i32 {
   return queue_smoke_at_impl(q, i);
 }
 
 /** 队尾插入；失败 -1。 */
 #[no_mangle]
-function queue_smoke_push_back_impl(q: *QueueSmokeState, x: i32): i32 {
+export function queue_smoke_push_back_impl(q: *QueueSmokeState, x: i32): i32 {
   if (q == 0 as *QueueSmokeState) {
     return -1;
   }
@@ -86,13 +86,13 @@ function queue_smoke_push_back_impl(q: *QueueSmokeState, x: i32): i32 {
 }
 
 #[no_mangle]
-function queue_smoke_push_back(q: *QueueSmokeState, x: i32): i32 {
+export function queue_smoke_push_back(q: *QueueSmokeState, x: i32): i32 {
   return queue_smoke_push_back_impl(q, x);
 }
 
 /** 每 worker 线程：加锁 push 500 次。 */
 #[no_mangle]
-function queue_contention_worker_push_c(ctx: *u8): i32 {
+export function queue_contention_worker_push_c(ctx: *u8): i32 {
   let q: *QueueSmokeState = ctx as *QueueSmokeState;
   if (q == 0 as *QueueSmokeState) {
     return -1;
@@ -111,19 +111,19 @@ function queue_contention_worker_push_c(ctx: *u8): i32 {
 
 /** 每 worker 线程 trampoline。 */
 #[no_mangle]
-function queue_os_worker_trampoline_impl(arg: *u8): *u8 {
+export function queue_os_worker_trampoline_impl(arg: *u8): *u8 {
   queue_contention_worker_push_c(arg);
   return 0 as *u8;
 }
 
 #[no_mangle]
-function queue_os_worker_trampoline(arg: *u8): *u8 {
+export function queue_os_worker_trampoline(arg: *u8): *u8 {
   return queue_os_worker_trampoline_impl(arg);
 }
 
 /** STD-048：双线程并发 push 烟测；0 通过，-1 失败。 */
 #[no_mangle]
-function sync_queue_contention_smoke_c(): i32 {
+export function sync_queue_contention_smoke_c(): i32 {
   let st: QueueSmokeState = QueueSmokeState {
     mu: 0 as *u8,
     data: 0 as *i32,

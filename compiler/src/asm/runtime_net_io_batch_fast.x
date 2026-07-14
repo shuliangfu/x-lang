@@ -5,6 +5,6 @@
 // 实现仍在 seed C；本文件为文档锚点。
 // 产品：cc seeds/runtime_net_io_batch_fast.from_x.c → ../std/net/net_io_batch_fast.o
 
-function runtime_net_io_batch_fast_x_doc_anchor(): i32 {
+export function runtime_net_io_batch_fast_x_doc_anchor(): i32 {
   return 0;
 }

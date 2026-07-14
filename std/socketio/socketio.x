@@ -23,105 +23,105 @@
 
 
 
-const SIO_EIO_OPEN: i32 = 0;
-const SIO_EIO_CLOSE: i32 = 1;
-const SIO_EIO_PING: i32 = 2;
-const SIO_EIO_PONG: i32 = 3;
-const SIO_EIO_MESSAGE: i32 = 4;
-const SIO_EIO_UPGRADE: i32 = 5;
-const SIO_EIO_NOOP: i32 = 6;
-const SIO_SIO_EVENT: i32 = 2;
-const SIO_SIO_CONNECT: i32 = 0;
-const SIO_SIO_ACK: i32 = 3;
-const SIO_EIO_VERSION: i32 = 4;
-const SIO_TRANSPORT_POLLING: i32 = 0;
-const SIO_TRANSPORT_WEBSOCKET: i32 = 1;
-const SIO_NS_ROUTER_MAX: i32 = 4;
-const SIO_NS_NAME_CAP: i32 = 24;
-const SIO_WS_HUB_MAX: i32 = 4;
-const SIO_WS_SID_CAP: i32 = 24;
-const SIO_ROOM_MAX: i32 = 4;
-const SIO_ROOM_NAME_CAP: i32 = 16;
-const SIO_ROOM_MEMBERS_MAX: i32 = 4;
-const SIO_HUB_SNAP_MAGIC: u32 = 0x53494F48;
-const SIO_HUB_SNAP_VERSION: i32 = 1;
-const SIO_ROOM_SNAP_MAGIC: u32 = 0x53494F52;
-const SIO_ROOM_SNAP_VERSION: i32 = 1;
-const SIO_SESSION_SNAP_MAGIC: u32 = 0x53494F53;
-const SIO_SESSION_SNAP_VERSION: i32 = 1;
-const SIO_CLUSTER_ADAPTER_MAX: i32 = 4;
-const SIO_CLUSTER_ADAPTER_NS_CAP: i32 = 16;
-const SIO_CLUSTER_ADAPTER_EVT_CAP: i32 = 16;
-const SIO_CLUSTER_ADAPTER_DATA_CAP: i32 = 16;
-const SIO_ADAPTER_SNAP_MAGIC: u32 = 0x53494F41;
-const SIO_ADAPTER_SNAP_VERSION: i32 = 1;
+export const SIO_EIO_OPEN: i32 = 0;
+export const SIO_EIO_CLOSE: i32 = 1;
+export const SIO_EIO_PING: i32 = 2;
+export const SIO_EIO_PONG: i32 = 3;
+export const SIO_EIO_MESSAGE: i32 = 4;
+export const SIO_EIO_UPGRADE: i32 = 5;
+export const SIO_EIO_NOOP: i32 = 6;
+export const SIO_SIO_EVENT: i32 = 2;
+export const SIO_SIO_CONNECT: i32 = 0;
+export const SIO_SIO_ACK: i32 = 3;
+export const SIO_EIO_VERSION: i32 = 4;
+export const SIO_TRANSPORT_POLLING: i32 = 0;
+export const SIO_TRANSPORT_WEBSOCKET: i32 = 1;
+export const SIO_NS_ROUTER_MAX: i32 = 4;
+export const SIO_NS_NAME_CAP: i32 = 24;
+export const SIO_WS_HUB_MAX: i32 = 4;
+export const SIO_WS_SID_CAP: i32 = 24;
+export const SIO_ROOM_MAX: i32 = 4;
+export const SIO_ROOM_NAME_CAP: i32 = 16;
+export const SIO_ROOM_MEMBERS_MAX: i32 = 4;
+export const SIO_HUB_SNAP_MAGIC: u32 = 0x53494F48;
+export const SIO_HUB_SNAP_VERSION: i32 = 1;
+export const SIO_ROOM_SNAP_MAGIC: u32 = 0x53494F52;
+export const SIO_ROOM_SNAP_VERSION: i32 = 1;
+export const SIO_SESSION_SNAP_MAGIC: u32 = 0x53494F53;
+export const SIO_SESSION_SNAP_VERSION: i32 = 1;
+export const SIO_CLUSTER_ADAPTER_MAX: i32 = 4;
+export const SIO_CLUSTER_ADAPTER_NS_CAP: i32 = 16;
+export const SIO_CLUSTER_ADAPTER_EVT_CAP: i32 = 16;
+export const SIO_CLUSTER_ADAPTER_DATA_CAP: i32 = 16;
+export const SIO_ADAPTER_SNAP_MAGIC: u32 = 0x53494F41;
+export const SIO_ADAPTER_SNAP_VERSION: i32 = 1;
 
 /** C 字符串常量（解析器不支持 "..." as *u8）。 */
-const SIO_LIT_JSON_SID_PREFIX: u8[9] = [123, 34, 115, 105, 100, 34, 58, 34, 0];
-const SIO_LIT_JSON_SID_SUFFIX: u8[3] = [34, 125, 0];
-const SIO_LIT_SID_QUERY: u8[5] = [115, 105, 100, 61, 0];
-const SIO_LIT_NS_ROOT: u8[2] = [47, 0];
-const SIO_LIT_NULL: u8[5] = [110, 117, 108, 108, 0];
-const SIO_LIT_OK: u8[3] = [111, 107, 0];
-const SIO_LIT_MSG: u8[4] = [109, 115, 103, 0];
-const SIO_LIT_HI: u8[3] = [104, 105, 0];
-const SIO_LIT_X: u8[2] = [120, 0];
-const SIO_LIT_WORLD: u8[6] = [119, 111, 114, 108, 100, 0];
-const SIO_LIT_N40: u8[3] = [52, 48, 0];
-const SIO_LIT_N3PROBE: u8[7] = [51, 112, 114, 111, 98, 101, 0];
-const SIO_LIT_HTTP_127_0_0_1_3000_SOCKET_IO_EIO_4_TRANSPORT_POLLING: u8[57] = [104, 116, 116, 112, 58, 47, 47, 49, 50, 55, 46, 48, 46, 48, 46, 49, 58, 51, 48, 48, 48, 47, 115, 111, 99, 107, 101, 116, 46, 105, 111, 47, 63, 69, 73, 79, 61, 52, 38, 116, 114, 97, 110, 115, 112, 111, 114, 116, 61, 112, 111, 108, 108, 105, 110, 103, 0];
-const SIO_LIT_WS_127_0_0_1_3000: u8[20] = [119, 115, 58, 47, 47, 49, 50, 55, 46, 48, 46, 48, 46, 49, 58, 51, 48, 48, 48, 0];
-const SIO_LIT_WSS_EXAMPLE_COM_8443: u8[23] = [119, 115, 115, 58, 47, 47, 101, 120, 97, 109, 112, 108, 101, 46, 99, 111, 109, 58, 56, 52, 52, 51, 0];
+export const SIO_LIT_JSON_SID_PREFIX: u8[9] = [123, 34, 115, 105, 100, 34, 58, 34, 0];
+export const SIO_LIT_JSON_SID_SUFFIX: u8[3] = [34, 125, 0];
+export const SIO_LIT_SID_QUERY: u8[5] = [115, 105, 100, 61, 0];
+export const SIO_LIT_NS_ROOT: u8[2] = [47, 0];
+export const SIO_LIT_NULL: u8[5] = [110, 117, 108, 108, 0];
+export const SIO_LIT_OK: u8[3] = [111, 107, 0];
+export const SIO_LIT_MSG: u8[4] = [109, 115, 103, 0];
+export const SIO_LIT_HI: u8[3] = [104, 105, 0];
+export const SIO_LIT_X: u8[2] = [120, 0];
+export const SIO_LIT_WORLD: u8[6] = [119, 111, 114, 108, 100, 0];
+export const SIO_LIT_N40: u8[3] = [52, 48, 0];
+export const SIO_LIT_N3PROBE: u8[7] = [51, 112, 114, 111, 98, 101, 0];
+export const SIO_LIT_HTTP_127_0_0_1_3000_SOCKET_IO_EIO_4_TRANSPORT_POLLING: u8[57] = [104, 116, 116, 112, 58, 47, 47, 49, 50, 55, 46, 48, 46, 48, 46, 49, 58, 51, 48, 48, 48, 47, 115, 111, 99, 107, 101, 116, 46, 105, 111, 47, 63, 69, 73, 79, 61, 52, 38, 116, 114, 97, 110, 115, 112, 111, 114, 116, 61, 112, 111, 108, 108, 105, 110, 103, 0];
+export const SIO_LIT_WS_127_0_0_1_3000: u8[20] = [119, 115, 58, 47, 47, 49, 50, 55, 46, 48, 46, 48, 46, 49, 58, 51, 48, 48, 48, 0];
+export const SIO_LIT_WSS_EXAMPLE_COM_8443: u8[23] = [119, 115, 115, 58, 47, 47, 101, 120, 97, 109, 112, 108, 101, 46, 99, 111, 109, 58, 56, 52, 52, 51, 0];
 /** C 字符串常量（解析器不支持 "..." as *u8）。 */
-const SIO_LIT_ADMIN: u8[7] = [47, 97, 100, 109, 105, 110, 0];
-const SIO_LIT_UNKNOWN: u8[9] = [47, 117, 110, 107, 110, 111, 119, 110, 0];
-const SIO_LIT_SUB: u8[4] = [115, 117, 98, 0];
-const SIO_LIT_CHAT: u8[6] = [47, 99, 104, 97, 116, 0];
-const SIO_LIT_SOCKET_IO_EIO_4_TRANSPORT_POLLING: u8[36] = [47, 115, 111, 99, 107, 101, 116, 46, 105, 111, 47, 63, 69, 73, 79, 61, 52, 38, 116, 114, 97, 110, 115, 112, 111, 114, 116, 61, 112, 111, 108, 108, 105, 110, 103, 0];
-const SIO_LIT_SOCKET_IO_EIO_4_TRANSPORT_POLLING_SID_X: u8[42] = [47, 115, 111, 99, 107, 101, 116, 46, 105, 111, 47, 63, 69, 73, 79, 61, 52, 38, 116, 114, 97, 110, 115, 112, 111, 114, 116, 61, 112, 111, 108, 108, 105, 110, 103, 38, 115, 105, 100, 61, 120, 0];
-const SIO_LIT_SOCKET_IO_EIO_4_TRANSPORT_POLLING_T_ABC: u8[42] = [47, 115, 111, 99, 107, 101, 116, 46, 105, 111, 47, 63, 69, 73, 79, 61, 52, 38, 116, 114, 97, 110, 115, 112, 111, 114, 116, 61, 112, 111, 108, 108, 105, 110, 103, 38, 116, 61, 97, 98, 99, 0];
-const SIO_LIT_SOCKET_IO_EIO_4_TRANSPORT_WEBSOCKET: u8[38] = [47, 115, 111, 99, 107, 101, 116, 46, 105, 111, 47, 63, 69, 73, 79, 61, 52, 38, 116, 114, 97, 110, 115, 112, 111, 114, 116, 61, 119, 101, 98, 115, 111, 99, 107, 101, 116, 0];
-const SIO_LIT_N0: u8[2] = [48, 0];
-const SIO_LIT_N2PROBE: u8[7] = [50, 112, 114, 111, 98, 101, 0];
-const SIO_LIT_N40_CHAT: u8[9] = [52, 48, 47, 99, 104, 97, 116, 44, 0];
-const SIO_LIT_N42_CHAT_MESSAGE_HELLO: u8[27] = [52, 50, 91, 34, 99, 104, 97, 116, 32, 109, 101, 115, 115, 97, 103, 101, 34, 44, 34, 104, 101, 108, 108, 111, 34, 93, 0];
-const SIO_LIT_N42_NEWS_UPDATE: u8[20] = [52, 50, 91, 34, 110, 101, 119, 115, 34, 44, 34, 117, 112, 100, 97, 116, 101, 34, 93, 0];
-const SIO_LIT_N5: u8[2] = [53, 0];
-const SIO_LIT_EIO_4: u8[6] = [69, 73, 79, 61, 52, 0];
-const SIO_LIT_HTTP_1_1_200_OK_R_CONTENT_TYPE_TEXT_PLAIN_CHARSET_UTF_8_R_CONNECTION_KEEP_ALIVE_R_CONTENT_LENGTH: u8[102] = [72, 84, 84, 80, 47, 49, 46, 49, 32, 50, 48, 48, 32, 79, 75, 92, 114, 10, 67, 111, 110, 116, 101, 110, 116, 45, 84, 121, 112, 101, 58, 32, 116, 101, 120, 116, 47, 112, 108, 97, 105, 110, 59, 32, 99, 104, 97, 114, 115, 101, 116, 61, 85, 84, 70, 45, 56, 92, 114, 10, 67, 111, 110, 110, 101, 99, 116, 105, 111, 110, 58, 32, 107, 101, 101, 112, 45, 97, 108, 105, 118, 101, 92, 114, 10, 67, 111, 110, 116, 101, 110, 116, 45, 76, 101, 110, 103, 116, 104, 58, 32, 0];
-const SIO_LIT_HTTP_1_1_200_OK_R_CONTENT_TYPE_TEXT_PLAIN_CHARSET_UTF_8_R_CONNECTION_KEEP_ALIVE_R_R_0_SID_OXLMYI_UPGRADES_WEBSOCKET_PINGINTERVAL_25000_PINGTIMEOUT_20000_MAXPAYLOAD_1000000: u8[193] = [72, 84, 84, 80, 47, 49, 46, 49, 32, 50, 48, 48, 32, 79, 75, 92, 114, 10, 67, 111, 110, 116, 101, 110, 116, 45, 84, 121, 112, 101, 58, 32, 116, 101, 120, 116, 47, 112, 108, 97, 105, 110, 59, 32, 99, 104, 97, 114, 115, 101, 116, 61, 85, 84, 70, 45, 56, 92, 114, 10, 67, 111, 110, 110, 101, 99, 116, 105, 111, 110, 58, 32, 107, 101, 101, 112, 45, 97, 108, 105, 118, 101, 92, 114, 10, 92, 114, 10, 48, 123, 34, 115, 105, 100, 34, 58, 34, 111, 88, 76, 77, 121, 105, 34, 44, 34, 117, 112, 103, 114, 97, 100, 101, 115, 34, 58, 91, 34, 119, 101, 98, 115, 111, 99, 107, 101, 116, 34, 93, 44, 34, 112, 105, 110, 103, 73, 110, 116, 101, 114, 118, 97, 108, 34, 58, 50, 53, 48, 48, 48, 44, 34, 112, 105, 110, 103, 84, 105, 109, 101, 111, 117, 116, 34, 58, 50, 48, 48, 48, 48, 44, 34, 109, 97, 120, 80, 97, 121, 108, 111, 97, 100, 34, 58, 49, 48, 48, 48, 48, 48, 48, 125, 0];
-const SIO_LIT_HTTP_1_1_200_OK_R_CONTENT_TYPE_TEXT_PLAIN_R_CONTENT_LENGTH_52_R_R_0_SID_ABC123_UPGRADES_WEBSOCKET_PINGINTERVAL_25000: u8[133] = [72, 84, 84, 80, 47, 49, 46, 49, 32, 50, 48, 48, 32, 79, 75, 92, 114, 10, 67, 111, 110, 116, 101, 110, 116, 45, 84, 121, 112, 101, 58, 32, 116, 101, 120, 116, 47, 112, 108, 97, 105, 110, 92, 114, 10, 67, 111, 110, 116, 101, 110, 116, 45, 76, 101, 110, 103, 116, 104, 58, 32, 53, 50, 92, 114, 10, 92, 114, 10, 48, 123, 34, 115, 105, 100, 34, 58, 34, 97, 98, 99, 49, 50, 51, 34, 44, 34, 117, 112, 103, 114, 97, 100, 101, 115, 34, 58, 91, 34, 119, 101, 98, 115, 111, 99, 107, 101, 116, 34, 93, 44, 34, 112, 105, 110, 103, 73, 110, 116, 101, 114, 118, 97, 108, 34, 58, 50, 53, 48, 48, 48, 125, 0];
-const SIO_LIT_UPGRADES_WEBSOCKET_PINGINTERVAL_25000_PINGTIMEOUT_20000: u8[69] = [34, 44, 34, 117, 112, 103, 114, 97, 100, 101, 115, 34, 58, 91, 34, 119, 101, 98, 115, 111, 99, 107, 101, 116, 34, 93, 44, 34, 112, 105, 110, 103, 73, 110, 116, 101, 114, 118, 97, 108, 34, 58, 50, 53, 48, 48, 48, 44, 34, 112, 105, 110, 103, 84, 105, 109, 101, 111, 117, 116, 34, 58, 50, 48, 48, 48, 48, 125, 0];
-const SIO_LIT_WEBSOCKET: u8[12] = [34, 119, 101, 98, 115, 111, 99, 107, 101, 116, 34, 0];
-const SIO_LIT_R_R: u8[7] = [92, 114, 10, 92, 114, 10, 0];
-const SIO_LIT_ABC: u8[4] = [97, 98, 99, 0];
-const SIO_LIT_ABC123: u8[7] = [97, 98, 99, 49, 50, 51, 0];
-const SIO_LIT_CHAT_MESSAGE: u8[13] = [99, 104, 97, 116, 32, 109, 101, 115, 115, 97, 103, 101, 0];
-const SIO_LIT_HELLO: u8[6] = [104, 101, 108, 108, 111, 0];
-const SIO_LIT_HTTP: u8[8] = [104, 116, 116, 112, 58, 47, 47, 0];
-const SIO_LIT_HTTP_127_0_0_1_3000: u8[22] = [104, 116, 116, 112, 58, 47, 47, 49, 50, 55, 46, 48, 46, 48, 46, 49, 58, 51, 48, 48, 48, 0];
-const SIO_LIT_HTTPS: u8[9] = [104, 116, 116, 112, 115, 58, 47, 47, 0];
-const SIO_LIT_HTTPS_EXAMPLE_COM_8443: u8[25] = [104, 116, 116, 112, 115, 58, 47, 47, 101, 120, 97, 109, 112, 108, 101, 46, 99, 111, 109, 58, 56, 52, 52, 51, 0];
-const SIO_LIT_HUBA: u8[5] = [104, 117, 98, 65, 0];
-const SIO_LIT_HUBB: u8[5] = [104, 117, 98, 66, 0];
-const SIO_LIT_LOBBY: u8[6] = [108, 111, 98, 98, 121, 0];
-const SIO_LIT_ND2: u8[4] = [110, 100, 50, 0];
-const SIO_LIT_NEWS: u8[5] = [110, 101, 119, 115, 0];
-const SIO_LIT_NODEA: u8[6] = [110, 111, 100, 101, 65, 0];
-const SIO_LIT_NODEB: u8[6] = [110, 111, 100, 101, 66, 0];
-const SIO_LIT_OXLMYI: u8[7] = [111, 88, 76, 77, 121, 105, 0];
-const SIO_LIT_PING: u8[5] = [112, 105, 110, 103, 0];
-const SIO_LIT_PONG: u8[5] = [112, 111, 110, 103, 0];
-const SIO_LIT_SESS1: u8[6] = [115, 101, 115, 115, 49, 0];
-const SIO_LIT_SESS42: u8[7] = [115, 101, 115, 115, 52, 50, 0];
-const SIO_LIT_SNAPA: u8[6] = [115, 110, 97, 112, 65, 0];
-const SIO_LIT_SNAPB: u8[6] = [115, 110, 97, 112, 66, 0];
-const SIO_LIT_SRV001: u8[7] = [115, 114, 118, 48, 48, 49, 0];
-const SIO_LIT_SYNC1: u8[6] = [115, 121, 110, 99, 49, 0];
-const SIO_LIT_TRANSPORT_POLLING: u8[18] = [116, 114, 97, 110, 115, 112, 111, 114, 116, 61, 112, 111, 108, 108, 105, 110, 103, 0];
-const SIO_LIT_UPDATE: u8[7] = [117, 112, 100, 97, 116, 101, 0];
-const SIO_LIT_WS: u8[6] = [119, 115, 58, 47, 47, 0];
-const SIO_LIT_WSS: u8[7] = [119, 115, 115, 58, 47, 47, 0];
+export const SIO_LIT_ADMIN: u8[7] = [47, 97, 100, 109, 105, 110, 0];
+export const SIO_LIT_UNKNOWN: u8[9] = [47, 117, 110, 107, 110, 111, 119, 110, 0];
+export const SIO_LIT_SUB: u8[4] = [115, 117, 98, 0];
+export const SIO_LIT_CHAT: u8[6] = [47, 99, 104, 97, 116, 0];
+export const SIO_LIT_SOCKET_IO_EIO_4_TRANSPORT_POLLING: u8[36] = [47, 115, 111, 99, 107, 101, 116, 46, 105, 111, 47, 63, 69, 73, 79, 61, 52, 38, 116, 114, 97, 110, 115, 112, 111, 114, 116, 61, 112, 111, 108, 108, 105, 110, 103, 0];
+export const SIO_LIT_SOCKET_IO_EIO_4_TRANSPORT_POLLING_SID_X: u8[42] = [47, 115, 111, 99, 107, 101, 116, 46, 105, 111, 47, 63, 69, 73, 79, 61, 52, 38, 116, 114, 97, 110, 115, 112, 111, 114, 116, 61, 112, 111, 108, 108, 105, 110, 103, 38, 115, 105, 100, 61, 120, 0];
+export const SIO_LIT_SOCKET_IO_EIO_4_TRANSPORT_POLLING_T_ABC: u8[42] = [47, 115, 111, 99, 107, 101, 116, 46, 105, 111, 47, 63, 69, 73, 79, 61, 52, 38, 116, 114, 97, 110, 115, 112, 111, 114, 116, 61, 112, 111, 108, 108, 105, 110, 103, 38, 116, 61, 97, 98, 99, 0];
+export const SIO_LIT_SOCKET_IO_EIO_4_TRANSPORT_WEBSOCKET: u8[38] = [47, 115, 111, 99, 107, 101, 116, 46, 105, 111, 47, 63, 69, 73, 79, 61, 52, 38, 116, 114, 97, 110, 115, 112, 111, 114, 116, 61, 119, 101, 98, 115, 111, 99, 107, 101, 116, 0];
+export const SIO_LIT_N0: u8[2] = [48, 0];
+export const SIO_LIT_N2PROBE: u8[7] = [50, 112, 114, 111, 98, 101, 0];
+export const SIO_LIT_N40_CHAT: u8[9] = [52, 48, 47, 99, 104, 97, 116, 44, 0];
+export const SIO_LIT_N42_CHAT_MESSAGE_HELLO: u8[27] = [52, 50, 91, 34, 99, 104, 97, 116, 32, 109, 101, 115, 115, 97, 103, 101, 34, 44, 34, 104, 101, 108, 108, 111, 34, 93, 0];
+export const SIO_LIT_N42_NEWS_UPDATE: u8[20] = [52, 50, 91, 34, 110, 101, 119, 115, 34, 44, 34, 117, 112, 100, 97, 116, 101, 34, 93, 0];
+export const SIO_LIT_N5: u8[2] = [53, 0];
+export const SIO_LIT_EIO_4: u8[6] = [69, 73, 79, 61, 52, 0];
+export const SIO_LIT_HTTP_1_1_200_OK_R_CONTENT_TYPE_TEXT_PLAIN_CHARSET_UTF_8_R_CONNECTION_KEEP_ALIVE_R_CONTENT_LENGTH: u8[102] = [72, 84, 84, 80, 47, 49, 46, 49, 32, 50, 48, 48, 32, 79, 75, 92, 114, 10, 67, 111, 110, 116, 101, 110, 116, 45, 84, 121, 112, 101, 58, 32, 116, 101, 120, 116, 47, 112, 108, 97, 105, 110, 59, 32, 99, 104, 97, 114, 115, 101, 116, 61, 85, 84, 70, 45, 56, 92, 114, 10, 67, 111, 110, 110, 101, 99, 116, 105, 111, 110, 58, 32, 107, 101, 101, 112, 45, 97, 108, 105, 118, 101, 92, 114, 10, 67, 111, 110, 116, 101, 110, 116, 45, 76, 101, 110, 103, 116, 104, 58, 32, 0];
+export const SIO_LIT_HTTP_1_1_200_OK_R_CONTENT_TYPE_TEXT_PLAIN_CHARSET_UTF_8_R_CONNECTION_KEEP_ALIVE_R_R_0_SID_OXLMYI_UPGRADES_WEBSOCKET_PINGINTERVAL_25000_PINGTIMEOUT_20000_MAXPAYLOAD_1000000: u8[193] = [72, 84, 84, 80, 47, 49, 46, 49, 32, 50, 48, 48, 32, 79, 75, 92, 114, 10, 67, 111, 110, 116, 101, 110, 116, 45, 84, 121, 112, 101, 58, 32, 116, 101, 120, 116, 47, 112, 108, 97, 105, 110, 59, 32, 99, 104, 97, 114, 115, 101, 116, 61, 85, 84, 70, 45, 56, 92, 114, 10, 67, 111, 110, 110, 101, 99, 116, 105, 111, 110, 58, 32, 107, 101, 101, 112, 45, 97, 108, 105, 118, 101, 92, 114, 10, 92, 114, 10, 48, 123, 34, 115, 105, 100, 34, 58, 34, 111, 88, 76, 77, 121, 105, 34, 44, 34, 117, 112, 103, 114, 97, 100, 101, 115, 34, 58, 91, 34, 119, 101, 98, 115, 111, 99, 107, 101, 116, 34, 93, 44, 34, 112, 105, 110, 103, 73, 110, 116, 101, 114, 118, 97, 108, 34, 58, 50, 53, 48, 48, 48, 44, 34, 112, 105, 110, 103, 84, 105, 109, 101, 111, 117, 116, 34, 58, 50, 48, 48, 48, 48, 44, 34, 109, 97, 120, 80, 97, 121, 108, 111, 97, 100, 34, 58, 49, 48, 48, 48, 48, 48, 48, 125, 0];
+export const SIO_LIT_HTTP_1_1_200_OK_R_CONTENT_TYPE_TEXT_PLAIN_R_CONTENT_LENGTH_52_R_R_0_SID_ABC123_UPGRADES_WEBSOCKET_PINGINTERVAL_25000: u8[133] = [72, 84, 84, 80, 47, 49, 46, 49, 32, 50, 48, 48, 32, 79, 75, 92, 114, 10, 67, 111, 110, 116, 101, 110, 116, 45, 84, 121, 112, 101, 58, 32, 116, 101, 120, 116, 47, 112, 108, 97, 105, 110, 92, 114, 10, 67, 111, 110, 116, 101, 110, 116, 45, 76, 101, 110, 103, 116, 104, 58, 32, 53, 50, 92, 114, 10, 92, 114, 10, 48, 123, 34, 115, 105, 100, 34, 58, 34, 97, 98, 99, 49, 50, 51, 34, 44, 34, 117, 112, 103, 114, 97, 100, 101, 115, 34, 58, 91, 34, 119, 101, 98, 115, 111, 99, 107, 101, 116, 34, 93, 44, 34, 112, 105, 110, 103, 73, 110, 116, 101, 114, 118, 97, 108, 34, 58, 50, 53, 48, 48, 48, 125, 0];
+export const SIO_LIT_UPGRADES_WEBSOCKET_PINGINTERVAL_25000_PINGTIMEOUT_20000: u8[69] = [34, 44, 34, 117, 112, 103, 114, 97, 100, 101, 115, 34, 58, 91, 34, 119, 101, 98, 115, 111, 99, 107, 101, 116, 34, 93, 44, 34, 112, 105, 110, 103, 73, 110, 116, 101, 114, 118, 97, 108, 34, 58, 50, 53, 48, 48, 48, 44, 34, 112, 105, 110, 103, 84, 105, 109, 101, 111, 117, 116, 34, 58, 50, 48, 48, 48, 48, 125, 0];
+export const SIO_LIT_WEBSOCKET: u8[12] = [34, 119, 101, 98, 115, 111, 99, 107, 101, 116, 34, 0];
+export const SIO_LIT_R_R: u8[7] = [92, 114, 10, 92, 114, 10, 0];
+export const SIO_LIT_ABC: u8[4] = [97, 98, 99, 0];
+export const SIO_LIT_ABC123: u8[7] = [97, 98, 99, 49, 50, 51, 0];
+export const SIO_LIT_CHAT_MESSAGE: u8[13] = [99, 104, 97, 116, 32, 109, 101, 115, 115, 97, 103, 101, 0];
+export const SIO_LIT_HELLO: u8[6] = [104, 101, 108, 108, 111, 0];
+export const SIO_LIT_HTTP: u8[8] = [104, 116, 116, 112, 58, 47, 47, 0];
+export const SIO_LIT_HTTP_127_0_0_1_3000: u8[22] = [104, 116, 116, 112, 58, 47, 47, 49, 50, 55, 46, 48, 46, 48, 46, 49, 58, 51, 48, 48, 48, 0];
+export const SIO_LIT_HTTPS: u8[9] = [104, 116, 116, 112, 115, 58, 47, 47, 0];
+export const SIO_LIT_HTTPS_EXAMPLE_COM_8443: u8[25] = [104, 116, 116, 112, 115, 58, 47, 47, 101, 120, 97, 109, 112, 108, 101, 46, 99, 111, 109, 58, 56, 52, 52, 51, 0];
+export const SIO_LIT_HUBA: u8[5] = [104, 117, 98, 65, 0];
+export const SIO_LIT_HUBB: u8[5] = [104, 117, 98, 66, 0];
+export const SIO_LIT_LOBBY: u8[6] = [108, 111, 98, 98, 121, 0];
+export const SIO_LIT_ND2: u8[4] = [110, 100, 50, 0];
+export const SIO_LIT_NEWS: u8[5] = [110, 101, 119, 115, 0];
+export const SIO_LIT_NODEA: u8[6] = [110, 111, 100, 101, 65, 0];
+export const SIO_LIT_NODEB: u8[6] = [110, 111, 100, 101, 66, 0];
+export const SIO_LIT_OXLMYI: u8[7] = [111, 88, 76, 77, 121, 105, 0];
+export const SIO_LIT_PING: u8[5] = [112, 105, 110, 103, 0];
+export const SIO_LIT_PONG: u8[5] = [112, 111, 110, 103, 0];
+export const SIO_LIT_SESS1: u8[6] = [115, 101, 115, 115, 49, 0];
+export const SIO_LIT_SESS42: u8[7] = [115, 101, 115, 115, 52, 50, 0];
+export const SIO_LIT_SNAPA: u8[6] = [115, 110, 97, 112, 65, 0];
+export const SIO_LIT_SNAPB: u8[6] = [115, 110, 97, 112, 66, 0];
+export const SIO_LIT_SRV001: u8[7] = [115, 114, 118, 48, 48, 49, 0];
+export const SIO_LIT_SYNC1: u8[6] = [115, 121, 110, 99, 49, 0];
+export const SIO_LIT_TRANSPORT_POLLING: u8[18] = [116, 114, 97, 110, 115, 112, 111, 114, 116, 61, 112, 111, 108, 108, 105, 110, 103, 0];
+export const SIO_LIT_UPDATE: u8[7] = [117, 112, 100, 97, 116, 101, 0];
+export const SIO_LIT_WS: u8[6] = [119, 115, 58, 47, 47, 0];
+export const SIO_LIT_WSS: u8[7] = [119, 115, 115, 58, 47, 47, 0];
 
 /** 多 namespace 路由表（CONNECT 包 → slot_id；布局与 mod.x SioNsRouter 一致）。 */
 allow(padding) struct SioNsRouterMem {
@@ -232,29 +232,29 @@ allow(padding) struct SioClusterAdapterSnapshotMem {
 }
 
 
-extern function http_get_timeout_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
-extern function http_post_timeout_c(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32,
+export extern function http_get_timeout_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
+export extern function http_post_timeout_c(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32,
   timeout_ms: u32): i32;
-extern function net_ws_write_text_c(fd: i32, tls_ctx: i64, payload: *u8, payload_len: i32): i32;
-extern function net_ws_write_server_text_c(fd: i32, tls_ctx: i64, payload: *u8, payload_len: i32): i32;
-extern function net_ws_read_frame_c(fd: i32, tls_ctx: i64, out_opcode: *i32, out_payload: *u8, out_cap: i32,
+export extern function net_ws_write_text_c(fd: i32, tls_ctx: i64, payload: *u8, payload_len: i32): i32;
+export extern function net_ws_write_server_text_c(fd: i32, tls_ctx: i64, payload: *u8, payload_len: i32): i32;
+export extern function net_ws_read_frame_c(fd: i32, tls_ctx: i64, out_opcode: *i32, out_payload: *u8, out_cap: i32,
   out_payload_len: *i32, timeout_ms: u32): i32;
-extern function memcpy(dst: *u8, src: *u8, n: usize): *u8;
-extern function memcmp(a: *u8, b: *u8, n: usize): i32;
-extern function memset(s: *u8, c: i32, n: usize): *u8;
-extern function strlen(s: *u8): usize;
+export extern function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+export extern function memcmp(a: *u8, b: *u8, n: usize): i32;
+export extern function memset(s: *u8, c: i32, n: usize): *u8;
+export extern function strlen(s: *u8): usize;
 
 
 /** F-socketio v1 版本标记；供聚合 gate 校验 socketio.x 已参与编译。 */
-function socketio_f_socketio_v1_marker_c(): i32 { return 1; }
+export function socketio_f_socketio_v1_marker_c(): i32 { return 1; }
 
 /** F-socketio v2 逻辑下沉标记；protocol 全量在 socketio.x。 */
-function socketio_f_socketio_v2_marker_c(): i32 { return 1; }
+export function socketio_f_socketio_v2_marker_c(): i32 { return 1; }
 
 
-function sio_bump_off(off: *i32): void { *off = *off + 1; }
+export function sio_bump_off(off: *i32): void { *off = *off + 1; }
 
-function sio_append_bytes(out: *u8, cap: i32, off: *i32, s: *u8, slen: i32): i32 {
+export function sio_append_bytes(out: *u8, cap: i32, off: *i32, s: *u8, slen: i32): i32 {
   let i: i32 = 0;
   if (out == 0 || off == 0 || *off < 0) { return -1; }
   if (slen > 0 && s == 0) { return -1; }
@@ -267,7 +267,7 @@ function sio_append_bytes(out: *u8, cap: i32, off: *i32, s: *u8, slen: i32): i32
   return 0;
 }
 
-function sio_append_u32_dec(out: *u8, cap: i32, off: *i32, v: u32): i32 {
+export function sio_append_u32_dec(out: *u8, cap: i32, off: *i32, v: u32): i32 {
   let tmp: u8[12] = [];
   let n: i32 = 0;
   let i: i32 = 0;
@@ -288,7 +288,7 @@ function sio_append_u32_dec(out: *u8, cap: i32, off: *i32, v: u32): i32 {
   return sio_append_bytes(out, cap, off, &tmp[0], n);
 }
 
-function sio_server_wrap_http_body_c(body: *u8, blen: i32, out: *u8, out_cap: i32): i32 {
+export function sio_server_wrap_http_body_c(body: *u8, blen: i32, out: *u8, out_cap: i32): i32 {
   let off: i32 = 0;
   let prefix: *u8 = &SIO_LIT_HTTP_1_1_200_OK_R_CONTENT_TYPE_TEXT_PLAIN_CHARSET_UTF_8_R_CONNECTION_KEEP_ALIVE_R_CONTENT_LENGTH[0];
   let suffix: *u8 = &SIO_LIT_R_R[0];
@@ -301,19 +301,19 @@ function sio_server_wrap_http_body_c(body: *u8, blen: i32, out: *u8, out_cap: i3
   return off + blen;
 }
 
-function sio_eio_version_c(): i32 {
+export function sio_eio_version_c(): i32 {
  return SIO_EIO_VERSION;
 }
 
-function sio_transport_polling_c(): i32 {
+export function sio_transport_polling_c(): i32 {
  return SIO_TRANSPORT_POLLING;
 }
 
-function sio_transport_websocket_c(): i32 {
+export function sio_transport_websocket_c(): i32 {
  return SIO_TRANSPORT_WEBSOCKET;
 }
 
-function sio_build_eio_url_c(base: *u8, base_len: i32, sid: *u8, sid_len: i32, transport: i32, out: *u8, out_cap: i32): i32 {
+export function sio_build_eio_url_c(base: *u8, base_len: i32, sid: *u8, sid_len: i32, transport: i32, out: *u8, out_cap: i32): i32 {
 
     let path_poll: *u8 = &SIO_LIT_SOCKET_IO_EIO_4_TRANSPORT_POLLING[0];
     let path_ws: *u8 = &SIO_LIT_SOCKET_IO_EIO_4_TRANSPORT_WEBSOCKET[0];
@@ -379,7 +379,7 @@ function sio_build_eio_url_c(base: *u8, base_len: i32, sid: *u8, sid_len: i32, t
     return off;
 }
 
-function sio_http_extract_body_c(http: *u8, len: i32, out: *u8, out_cap: i32, out_len: *i32): i32 {
+export function sio_http_extract_body_c(http: *u8, len: i32, out: *u8, out_cap: i32, out_len: *i32): i32 {
 
     let i: i32 = 0;
     let body_off: i32 = -1;
@@ -412,7 +412,7 @@ function sio_http_extract_body_c(http: *u8, len: i32, out: *u8, out_cap: i32, ou
     return 0;
 }
 
-function sio_eio_open_has_websocket_c(open_payload: *u8, len: i32): i32 {
+export function sio_eio_open_has_websocket_c(open_payload: *u8, len: i32): i32 {
 
     let needle: *u8 = &SIO_LIT_WEBSOCKET[0];
     let i: i32 = 0;
@@ -429,7 +429,7 @@ function sio_eio_open_has_websocket_c(open_payload: *u8, len: i32): i32 {
     return 0;
 }
 
-function sio_polling_handshake_parse_c(http: *u8, http_len: i32, out_sid: *u8, sid_cap: i32, out_has_ws: *i32): i32 {
+export function sio_polling_handshake_parse_c(http: *u8, http_len: i32, out_sid: *u8, sid_cap: i32, out_has_ws: *i32): i32 {
 
     let body: u8[512] = [];
     let payload: u8[480] = [];
@@ -467,7 +467,7 @@ function sio_polling_handshake_parse_c(http: *u8, http_len: i32, out_sid: *u8, s
     return sid_len;
 }
 
-function sio_polling_handshake_c(base_url: *u8, base_len: i32, out_sid: *u8, sid_cap: i32, timeout_ms: u32, out_has_ws: *i32): i32 {
+export function sio_polling_handshake_c(base_url: *u8, base_len: i32, out_sid: *u8, sid_cap: i32, timeout_ms: u32, out_has_ws: *i32): i32 {
 
     let url: u8[384] = [];
     let resp: u8[4096] = [];
@@ -491,7 +491,7 @@ function sio_polling_handshake_c(base_url: *u8, base_len: i32, out_sid: *u8, sid
     return sio_polling_handshake_parse_c(resp, n, out_sid, sid_cap, out_has_ws);
 }
 
-function sio_polling_post_packet_c(base_url: *u8, base_len: i32, sid: *u8, sid_len: i32, packet: *u8, packet_len: i32, out_resp: *u8, out_cap: i32, timeout_ms: u32): i32 {
+export function sio_polling_post_packet_c(base_url: *u8, base_len: i32, sid: *u8, sid_len: i32, packet: *u8, packet_len: i32, out_resp: *u8, out_cap: i32, timeout_ms: u32): i32 {
 
     let url: u8[384] = [];
     let url_len: i32 = 0;
@@ -514,7 +514,7 @@ function sio_polling_post_packet_c(base_url: *u8, base_len: i32, sid: *u8, sid_l
     return n;
 }
 
-function sio_polling_smoke_c(): i32 {
+export function sio_polling_smoke_c(): i32 {
 
     let base: *u8 = &SIO_LIT_HTTP_127_0_0_1_3000[0];
     let sid: *u8 = &SIO_LIT_ABC123[0];
@@ -559,15 +559,15 @@ function sio_polling_smoke_c(): i32 {
     return 0;
 }
 
-function sio_sio_type_connect_c(): i32 {
+export function sio_sio_type_connect_c(): i32 {
  return SIO_SIO_CONNECT;
 }
 
-function sio_sio_type_ack_c(): i32 {
+export function sio_sio_type_ack_c(): i32 {
  return SIO_SIO_ACK;
 }
 
-function sio_http_to_ws_base_c(http_base: *u8, len: i32, out: *u8, out_cap: i32): i32 {
+export function sio_http_to_ws_base_c(http_base: *u8, len: i32, out: *u8, out_cap: i32): i32 {
 
     let https_p: *u8 = &SIO_LIT_HTTPS[0];
     let wss_p: *u8 = &SIO_LIT_WSS[0];
@@ -610,7 +610,7 @@ function sio_http_to_ws_base_c(http_base: *u8, len: i32, out: *u8, out_cap: i32)
     return off;
 }
 
-function sio_build_ws_connect_url_c(http_base: *u8, base_len: i32, sid: *u8, sid_len: i32, out: *u8, out_cap: i32): i32 {
+export function sio_build_ws_connect_url_c(http_base: *u8, base_len: i32, sid: *u8, sid_len: i32, out: *u8, out_cap: i32): i32 {
 
     let ws_base: u8[384] = [];
     let wl: i32 = 0;
@@ -626,7 +626,7 @@ function sio_build_ws_connect_url_c(http_base: *u8, base_len: i32, sid: *u8, sid
     return sio_build_eio_url_c(ws_base, wl, sid, sid_len, SIO_TRANSPORT_WEBSOCKET, out, out_cap);
 }
 
-function sio_eio_ws_upgrade_c(fd: i32, tls_ctx: i64, timeout_ms: u32): i32 {
+export function sio_eio_ws_upgrade_c(fd: i32, tls_ctx: i64, timeout_ms: u32): i32 {
 
     let probe: *u8 = &SIO_LIT_N2PROBE[0];
     let upgrade: *u8 = &SIO_LIT_N5[0];
@@ -656,13 +656,13 @@ function sio_eio_ws_upgrade_c(fd: i32, tls_ctx: i64, timeout_ms: u32): i32 {
     return 0;
 }
 
-function sio_encode_connect_packet_c(out: *u8, out_cap: i32): i32 {
+export function sio_encode_connect_packet_c(out: *u8, out_cap: i32): i32 {
 
     let sio_connect: *u8 = &SIO_LIT_N0[0];
     return sio_eio_encode_packet_c(SIO_EIO_MESSAGE, sio_connect, 1, out, out_cap);
 }
 
-function sio_reconnect_delay_ms_c(attempt: i32, cap_ms: i32): i32 {
+export function sio_reconnect_delay_ms_c(attempt: i32, cap_ms: i32): i32 {
 
     let delay: i32 = 0;
     if (attempt < 0)
@@ -681,7 +681,7 @@ function sio_reconnect_delay_ms_c(attempt: i32, cap_ms: i32): i32 {
     return delay;
 }
 
-function sio_connect_smoke_c(): i32 {
+export function sio_connect_smoke_c(): i32 {
 
     let http_base: *u8 = &SIO_LIT_HTTP_127_0_0_1_3000[0];
     let https_base: *u8 = &SIO_LIT_HTTPS_EXAMPLE_COM_8443[0];
@@ -721,7 +721,7 @@ function sio_connect_smoke_c(): i32 {
     return 0;
 }
 
-function sio_node_interop_smoke_c(): i32 {
+export function sio_node_interop_smoke_c(): i32 {
 
     let node_http_open: *u8 = &SIO_LIT_HTTP_1_1_200_OK_R_CONTENT_TYPE_TEXT_PLAIN_CHARSET_UTF_8_R_CONNECTION_KEEP_ALIVE_R_R_0_SID_OXLMYI_UPGRADES_WEBSOCKET_PINGINTERVAL_25000_PINGTIMEOUT_20000_MAXPAYLOAD_1000000[0];
     let node_sid: *u8 = &SIO_LIT_OXLMYI[0];
@@ -780,7 +780,7 @@ function sio_node_interop_smoke_c(): i32 {
     return 0;
 }
 
-function sio_server_build_open_json_c(sid: *u8, sid_len: i32, out: *u8, out_cap: i32): i32 {
+export function sio_server_build_open_json_c(sid: *u8, sid_len: i32, out: *u8, out_cap: i32): i32 {
 
     let prefix: *u8 = &SIO_LIT_JSON_SID_PREFIX[0];
     let suffix: *u8 = &SIO_LIT_UPGRADES_WEBSOCKET_PINGINTERVAL_25000_PINGTIMEOUT_20000[0];
@@ -800,7 +800,7 @@ function sio_server_build_open_json_c(sid: *u8, sid_len: i32, out: *u8, out_cap:
     return need;
 }
 
-function sio_server_build_open_packet_c(sid: *u8, sid_len: i32, out: *u8, out_cap: i32): i32 {
+export function sio_server_build_open_packet_c(sid: *u8, sid_len: i32, out: *u8, out_cap: i32): i32 {
 
     let json: u8[128] = [];
     let jl: i32 = 0;
@@ -816,7 +816,7 @@ function sio_server_build_open_packet_c(sid: *u8, sid_len: i32, out: *u8, out_ca
     return sio_eio_encode_packet_c(SIO_EIO_OPEN, json, jl, out, out_cap);
 }
 
-function sio_server_build_http_open_response_c(sid: *u8, sid_len: i32, out: *u8, out_cap: i32): i32 {
+export function sio_server_build_http_open_response_c(sid: *u8, sid_len: i32, out: *u8, out_cap: i32): i32 {
 
     let body: u8[160] = [];
     let blen: i32 = 0;
@@ -832,7 +832,7 @@ function sio_server_build_http_open_response_c(sid: *u8, sid_len: i32, out: *u8,
     return sio_server_wrap_http_body_c(body, blen, out, out_cap);
 }
 
-function sio_server_is_polling_handshake_c(path: *u8, len: i32): i32 {
+export function sio_server_is_polling_handshake_c(path: *u8, len: i32): i32 {
 
     let eio: *u8 = &SIO_LIT_EIO_4[0];
     let tp: *u8 = &SIO_LIT_TRANSPORT_POLLING[0];
@@ -865,7 +865,7 @@ function sio_server_is_polling_handshake_c(path: *u8, len: i32): i32 {
     return (has_eio != 0 && has_tp != 0) ? 1 : 0;
 }
 
-function sio_server_is_connect_packet_c(pkt: *u8, len: i32): i32 {
+export function sio_server_is_connect_packet_c(pkt: *u8, len: i32): i32 {
 
     let etype: i32 = -1;
     let plen: i32 = 0;
@@ -889,7 +889,7 @@ function sio_server_is_connect_packet_c(pkt: *u8, len: i32): i32 {
     return (inner[0] == ((48 as u8) +  SIO_SIO_CONNECT)) ? 1 : 0;
 }
 
-function sio_server_emit_event_c(event: *u8, event_len: i32, data: *u8, data_len: i32, out: *u8, out_cap: i32): i32 {
+export function sio_server_emit_event_c(event: *u8, event_len: i32, data: *u8, data_len: i32, out: *u8, out_cap: i32): i32 {
 
     if ((event == 0) || event_len <= 0 || (out == 0))
         {
@@ -906,7 +906,7 @@ function sio_server_emit_event_c(event: *u8, event_len: i32, data: *u8, data_len
     return sio_encode_event_packet_c(event, event_len, data, data_len, out, out_cap);
 }
 
-function sio_server_build_http_event_response_c(event: *u8, event_len: i32, data: *u8, data_len: i32, out: *u8, out_cap: i32): i32 {
+export function sio_server_build_http_event_response_c(event: *u8, event_len: i32, data: *u8, data_len: i32, out: *u8, out_cap: i32): i32 {
 
     let body: u8[512] = [];
     let blen: i32 = 0;
@@ -922,7 +922,7 @@ function sio_server_build_http_event_response_c(event: *u8, event_len: i32, data
     return sio_server_wrap_http_body_c(body, blen, out, out_cap);
 }
 
-function sio_server_emit_smoke_c(): i32 {
+export function sio_server_emit_smoke_c(): i32 {
 
     let evt: *u8 = &SIO_LIT_NEWS[0];
     let payload: *u8 = &SIO_LIT_UPDATE[0];
@@ -964,7 +964,7 @@ function sio_server_emit_smoke_c(): i32 {
     return 0;
 }
 
-function sio_server_smoke_c(): i32 {
+export function sio_server_smoke_c(): i32 {
 
     let sid: *u8 = &SIO_LIT_SRV001[0];
     let path_ok: *u8 = &SIO_LIT_SOCKET_IO_EIO_4_TRANSPORT_POLLING_T_ABC[0];
@@ -1011,7 +1011,7 @@ function sio_server_smoke_c(): i32 {
     return 0;
 }
 
-function sio_encode_connect_ns_packet_c(ns: *u8, ns_len: i32, out: *u8, out_cap: i32): i32 {
+export function sio_encode_connect_ns_packet_c(ns: *u8, ns_len: i32, out: *u8, out_cap: i32): i32 {
 
     let inner: u8[128] = [];
     let off: i32 = 0;
@@ -1046,7 +1046,7 @@ function sio_encode_connect_ns_packet_c(ns: *u8, ns_len: i32, out: *u8, out_cap:
     return sio_eio_encode_packet_c(SIO_EIO_MESSAGE, inner, off, out, out_cap);
 }
 
-function sio_parse_sio_packet_head_c(pkt: *u8, len: i32, out_type: *i32, out_id: *i32, out_payload_off: *i32): i32 {
+export function sio_parse_sio_packet_head_c(pkt: *u8, len: i32, out_type: *i32, out_id: *i32, out_payload_off: *i32): i32 {
 
     let i: i32 = 0;
     let type: i32 = 0;
@@ -1078,7 +1078,7 @@ function sio_parse_sio_packet_head_c(pkt: *u8, len: i32, out_type: *i32, out_id:
     return 0;
 }
 
-function sio_server_is_connect_ns_packet_c(pkt: *u8, len: i32, ns: *u8, ns_len: i32): i32 {
+export function sio_server_is_connect_ns_packet_c(pkt: *u8, len: i32, ns: *u8, ns_len: i32): i32 {
 
     let etype: i32 = -1;
     let plen: i32 = 0;
@@ -1120,7 +1120,7 @@ function sio_server_is_connect_ns_packet_c(pkt: *u8, len: i32, ns: *u8, ns_len: 
     return (inner[plen - 1] == (44 as u8)) ? 1 : 0;
 }
 
-function sio_parse_connect_ns_packet_c(pkt: *u8, len: i32, out_ns: *u8, out_cap: i32): i32 {
+export function sio_parse_connect_ns_packet_c(pkt: *u8, len: i32, out_ns: *u8, out_cap: i32): i32 {
 
     let etype: i32 = -1;
     let plen: i32 = 0;
@@ -1163,11 +1163,11 @@ function sio_parse_connect_ns_packet_c(pkt: *u8, len: i32, out_ns: *u8, out_cap:
     return ns_len;
 }
 
-function sio_ns_router_bytes_c(): i32 {
+export function sio_ns_router_bytes_c(): i32 {
  return 132;
 }
 
-function sio_ns_router_init_c(r: *SioNsRouterMem): void {
+export function sio_ns_router_init_c(r: *SioNsRouterMem): void {
 
     if ((r == 0))
         {
@@ -1176,7 +1176,7 @@ function sio_ns_router_init_c(r: *SioNsRouterMem): void {
     unsafe { memset(r as *u8, 0, (sio_ns_router_bytes_c() as usize)); }
 }
 
-function sio_ns_equal_c(a: *u8, alen: i32, b: *u8, blen: i32): i32 {
+export function sio_ns_equal_c(a: *u8, alen: i32, b: *u8, blen: i32): i32 {
 
     let root: *u8 = &SIO_LIT_NS_ROOT[0];
     if (alen <= 0 || (alen == 1 && a[0] == (47 as u8))) {
@@ -1190,7 +1190,7 @@ function sio_ns_equal_c(a: *u8, alen: i32, b: *u8, blen: i32): i32 {
     return (alen == blen && unsafe { memcmp(a, b,  (alen as usize)) } == 0) ? 1 : 0;
 }
 
-function sio_ns_router_register_c(r: *SioNsRouterMem, ns: *u8, ns_len: i32, slot_id: i32): i32 {
+export function sio_ns_router_register_c(r: *SioNsRouterMem, ns: *u8, ns_len: i32, slot_id: i32): i32 {
 
     let root: *u8 = &SIO_LIT_NS_ROOT[0];
     if ((r == 0) || slot_id < 0)
@@ -1220,7 +1220,7 @@ function sio_ns_router_register_c(r: *SioNsRouterMem, ns: *u8, ns_len: i32, slot
     return 0;
 }
 
-function sio_ns_router_lookup_c(r: *SioNsRouterMem, ns: *u8, ns_len: i32): i32 {
+export function sio_ns_router_lookup_c(r: *SioNsRouterMem, ns: *u8, ns_len: i32): i32 {
 
     let i: i32 = 0;
     if ((r == 0))
@@ -1236,7 +1236,7 @@ function sio_ns_router_lookup_c(r: *SioNsRouterMem, ns: *u8, ns_len: i32): i32 {
     return -1;
 }
 
-function sio_ns_router_route_connect_c(r: *SioNsRouterMem, pkt: *u8, len: i32): i32 {
+export function sio_ns_router_route_connect_c(r: *SioNsRouterMem, pkt: *u8, len: i32): i32 {
 
     let ns: u8[24] = [];
     let nl: i32 = 0;
@@ -1252,7 +1252,7 @@ function sio_ns_router_route_connect_c(r: *SioNsRouterMem, pkt: *u8, len: i32): 
     return sio_ns_router_lookup_c(r, ns, nl);
 }
 
-function sio_ns_router_smoke_c(): i32 {
+export function sio_ns_router_smoke_c(): i32 {
 
     let ns_chat: *u8 = &SIO_LIT_CHAT[0];
     let ns_admin: *u8 = &SIO_LIT_ADMIN[0];
@@ -1328,11 +1328,11 @@ function sio_ns_router_smoke_c(): i32 {
     return 0;
 }
 
-function sio_ns_sessions_bytes_c(): i32 {
+export function sio_ns_sessions_bytes_c(): i32 {
  return 36;
 }
 
-function sio_ns_sessions_init_c(s: *SioNsSessionsMem): void {
+export function sio_ns_sessions_init_c(s: *SioNsSessionsMem): void {
 
     if ((s == 0))
         {
@@ -1341,7 +1341,7 @@ function sio_ns_sessions_init_c(s: *SioNsSessionsMem): void {
     unsafe { memset(s as *u8, 0, (sio_ns_sessions_bytes_c() as usize)); }
 }
 
-function sio_ns_sessions_sync_router_c(s: *SioNsSessionsMem, r: *SioNsRouterMem): i32 {
+export function sio_ns_sessions_sync_router_c(s: *SioNsSessionsMem, r: *SioNsRouterMem): i32 {
 
     let i: i32 = 0;
     if ((s == 0) || (r == 0))
@@ -1360,7 +1360,7 @@ function sio_ns_sessions_sync_router_c(s: *SioNsSessionsMem, r: *SioNsRouterMem)
     return 0;
 }
 
-function sio_ns_sessions_slot_index_c(s: *SioNsSessionsMem, slot_id: i32): i32 {
+export function sio_ns_sessions_slot_index_c(s: *SioNsSessionsMem, slot_id: i32): i32 {
 
     let i: i32 = 0;
     if ((s == 0) || slot_id < 0)
@@ -1376,7 +1376,7 @@ function sio_ns_sessions_slot_index_c(s: *SioNsSessionsMem, slot_id: i32): i32 {
     return -1;
 }
 
-function sio_ns_sessions_connect_c(s: *SioNsSessionsMem, r: *SioNsRouterMem, pkt: *u8, len: i32): i32 {
+export function sio_ns_sessions_connect_c(s: *SioNsSessionsMem, r: *SioNsRouterMem, pkt: *u8, len: i32): i32 {
 
     let slot: i32 = 0;
     let idx: i32 = 0;
@@ -1398,7 +1398,7 @@ function sio_ns_sessions_connect_c(s: *SioNsSessionsMem, r: *SioNsRouterMem, pkt
     return slot;
 }
 
-function sio_ns_sessions_disconnect_c(s: *SioNsSessionsMem, slot_id: i32): i32 {
+export function sio_ns_sessions_disconnect_c(s: *SioNsSessionsMem, slot_id: i32): i32 {
 
     let idx: i32 = 0;
     if ((s == 0))
@@ -1417,7 +1417,7 @@ function sio_ns_sessions_disconnect_c(s: *SioNsSessionsMem, slot_id: i32): i32 {
     return 0;
 }
 
-function sio_ns_sessions_active_c(s: *SioNsSessionsMem, slot_id: i32): i32 {
+export function sio_ns_sessions_active_c(s: *SioNsSessionsMem, slot_id: i32): i32 {
 
     let idx: i32 = 0;
     if ((s == 0))
@@ -1432,7 +1432,7 @@ function sio_ns_sessions_active_c(s: *SioNsSessionsMem, slot_id: i32): i32 {
     return s.active[idx];
 }
 
-function sio_ns_sessions_total_c(s: *SioNsSessionsMem): i32 {
+export function sio_ns_sessions_total_c(s: *SioNsSessionsMem): i32 {
 
     let i: i32 = 0;
     let total: i32 = 0;
@@ -1446,7 +1446,7 @@ function sio_ns_sessions_total_c(s: *SioNsSessionsMem): i32 {
     return total;
 }
 
-function sio_ns_sessions_smoke_c(): i32 {
+export function sio_ns_sessions_smoke_c(): i32 {
 
     let ns_chat: *u8 = &SIO_LIT_CHAT[0];
     let ns_admin: *u8 = &SIO_LIT_ADMIN[0];
@@ -1520,11 +1520,11 @@ function sio_ns_sessions_smoke_c(): i32 {
     return 0;
 }
 
-function sio_ws_hub_bytes_c(): i32 {
+export function sio_ws_hub_bytes_c(): i32 {
  return 200;
 }
 
-function sio_ws_hub_init_c(h: *SioWsHubMem): void {
+export function sio_ws_hub_init_c(h: *SioWsHubMem): void {
 
     let i: i32 = 0;
     if ((h == 0))
@@ -1537,7 +1537,7 @@ function sio_ws_hub_init_c(h: *SioWsHubMem): void {
     }
 }
 
-function sio_ws_hub_alloc_slot_c(h: *SioWsHubMem): i32 {
+export function sio_ws_hub_alloc_slot_c(h: *SioWsHubMem): i32 {
 
     let i: i32 = 0;
     if ((h == 0))
@@ -1553,7 +1553,7 @@ function sio_ws_hub_alloc_slot_c(h: *SioWsHubMem): i32 {
     return -1;
 }
 
-function sio_ws_hub_register_c(h: *SioWsHubMem, fd: i32, tls_ctx: i64, sid: *u8, sid_len: i32): i32 {
+export function sio_ws_hub_register_c(h: *SioWsHubMem, fd: i32, tls_ctx: i64, sid: *u8, sid_len: i32): i32 {
 
     let idx: i32 = 0;
     let sl: *SioWsHubSlotMem = 0;
@@ -1581,7 +1581,7 @@ function sio_ws_hub_register_c(h: *SioWsHubMem, fd: i32, tls_ctx: i64, sid: *u8,
     return idx;
 }
 
-function sio_ws_hub_unregister_c(h: *SioWsHubMem, conn_idx: i32): i32 {
+export function sio_ws_hub_unregister_c(h: *SioWsHubMem, conn_idx: i32): i32 {
 
     let sl: *SioWsHubSlotMem = 0;
     if ((h == 0) || conn_idx < 0 || conn_idx >= SIO_WS_HUB_MAX)
@@ -1605,7 +1605,7 @@ function sio_ws_hub_unregister_c(h: *SioWsHubMem, conn_idx: i32): i32 {
     return 0;
 }
 
-function sio_ws_hub_find_by_sid_c(h: *SioWsHubMem, sid: *u8, sid_len: i32): i32 {
+export function sio_ws_hub_find_by_sid_c(h: *SioWsHubMem, sid: *u8, sid_len: i32): i32 {
 
     let i: i32 = 0;
     if ((h == 0) || sid_len <= 0 || (sid == 0))
@@ -1630,7 +1630,7 @@ function sio_ws_hub_find_by_sid_c(h: *SioWsHubMem, sid: *u8, sid_len: i32): i32 
     return -1;
 }
 
-function sio_ws_hub_register_or_rebind_c(h: *SioWsHubMem, fd: i32, tls_ctx: i64, sid: *u8, sid_len: i32): i32 {
+export function sio_ws_hub_register_or_rebind_c(h: *SioWsHubMem, fd: i32, tls_ctx: i64, sid: *u8, sid_len: i32): i32 {
 
     let idx: i32 = 0;
     let sl: *SioWsHubSlotMem = 0;
@@ -1650,7 +1650,7 @@ function sio_ws_hub_register_or_rebind_c(h: *SioWsHubMem, fd: i32, tls_ctx: i64,
     return sio_ws_hub_register_c(h, fd, tls_ctx, sid, sid_len);
 }
 
-function sio_ws_hub_handle_connect_c(h: *SioWsHubMem, conn_idx: i32, r: *SioNsRouterMem, s: *SioNsSessionsMem, pkt: *u8, len: i32): i32 {
+export function sio_ws_hub_handle_connect_c(h: *SioWsHubMem, conn_idx: i32, r: *SioNsRouterMem, s: *SioNsSessionsMem, pkt: *u8, len: i32): i32 {
 
     let slot: i32 = 0;
     let sl: *SioWsHubSlotMem = 0;
@@ -1676,7 +1676,7 @@ function sio_ws_hub_handle_connect_c(h: *SioWsHubMem, conn_idx: i32, r: *SioNsRo
     return slot;
 }
 
-function sio_ws_hub_emit_event_ns_c(h: *SioWsHubMem, slot_id: i32, ns: *u8, ns_len: i32, event: *u8, event_len: i32, data: *u8, data_len: i32): i32 {
+export function sio_ws_hub_emit_event_ns_c(h: *SioWsHubMem, slot_id: i32, ns: *u8, ns_len: i32, event: *u8, event_len: i32, data: *u8, data_len: i32): i32 {
 
     let frame: u8[256] = [];
     let n: i32 = 0;
@@ -1705,7 +1705,7 @@ function sio_ws_hub_emit_event_ns_c(h: *SioWsHubMem, slot_id: i32, ns: *u8, ns_l
     return sent;
 }
 
-function sio_server_build_connect_ns_ack_c(ns: *u8, ns_len: i32, sid: *u8, sid_len: i32, out: *u8, out_cap: i32): i32 {
+export function sio_server_build_connect_ns_ack_c(ns: *u8, ns_len: i32, sid: *u8, sid_len: i32, out: *u8, out_cap: i32): i32 {
 
     let jp: *u8 = &SIO_LIT_JSON_SID_PREFIX[0];
     let js: *u8 = &SIO_LIT_JSON_SID_SUFFIX[0];
@@ -1777,7 +1777,7 @@ function sio_server_build_connect_ns_ack_c(ns: *u8, ns_len: i32, sid: *u8, sid_l
     return sio_eio_encode_packet_c(SIO_EIO_MESSAGE, inner, off, out, out_cap);
 }
 
-function sio_ws_hub_smoke_c(): i32 {
+export function sio_ws_hub_smoke_c(): i32 {
 
     let ns_chat: *u8 = &SIO_LIT_CHAT[0];
     let sid_a: *u8 = &SIO_LIT_HUBA[0];
@@ -1849,7 +1849,7 @@ function sio_ws_hub_smoke_c(): i32 {
     return 0;
 }
 
-function sio_ws_hub_emit_event_ns_conn_c(h: *SioWsHubMem, conn_idx: i32, ns: *u8, ns_len: i32, event: *u8, event_len: i32, data: *u8, data_len: i32): i32 {
+export function sio_ws_hub_emit_event_ns_conn_c(h: *SioWsHubMem, conn_idx: i32, ns: *u8, ns_len: i32, event: *u8, event_len: i32, data: *u8, data_len: i32): i32 {
 
     let frame: u8[256] = [];
     let n: i32 = 0;
@@ -1875,11 +1875,11 @@ function sio_ws_hub_emit_event_ns_conn_c(h: *SioWsHubMem, conn_idx: i32, ns: *u8
     return 0;
 }
 
-function sio_ws_hub_snapshot_bytes_c(): i32 {
+export function sio_ws_hub_snapshot_bytes_c(): i32 {
  return 184;
 }
 
-function sio_ws_hub_export_c(h: *SioWsHubMem, out: *u8, out_cap: i32): i32 {
+export function sio_ws_hub_export_c(h: *SioWsHubMem, out: *u8, out_cap: i32): i32 {
 
     let snap: *SioWsHubSnapshotMem = 0;
     let i: i32 = 0;
@@ -1904,7 +1904,7 @@ function sio_ws_hub_export_c(h: *SioWsHubMem, out: *u8, out_cap: i32): i32 {
     return 184;
 }
 
-function sio_ws_hub_import_c(h: *SioWsHubMem, buf: *u8, len: i32): i32 {
+export function sio_ws_hub_import_c(h: *SioWsHubMem, buf: *u8, len: i32): i32 {
 
     let snap: *SioWsHubSnapshotMem = 0;
     let i: i32 = 0;
@@ -1942,11 +1942,11 @@ function sio_ws_hub_import_c(h: *SioWsHubMem, buf: *u8, len: i32): i32 {
     return 0;
 }
 
-function sio_room_registry_bytes_c(): i32 {
+export function sio_room_registry_bytes_c(): i32 {
  return 196;
 }
 
-function sio_room_registry_init_c(reg: *SioRoomRegistryMem): void {
+export function sio_room_registry_init_c(reg: *SioRoomRegistryMem): void {
 
     if ((reg == 0))
         {
@@ -1955,7 +1955,7 @@ function sio_room_registry_init_c(reg: *SioRoomRegistryMem): void {
     unsafe { memset(reg as *u8, 0, (sio_room_registry_bytes_c() as usize)); }
 }
 
-function sio_room_alloc_slot_c(reg: *SioRoomRegistryMem): i32 {
+export function sio_room_alloc_slot_c(reg: *SioRoomRegistryMem): i32 {
 
     let i: i32 = 0;
     if ((reg == 0))
@@ -1971,7 +1971,7 @@ function sio_room_alloc_slot_c(reg: *SioRoomRegistryMem): i32 {
     return -1;
 }
 
-function sio_room_find_id_c(reg: *SioRoomRegistryMem, room_id: i32): i32 {
+export function sio_room_find_id_c(reg: *SioRoomRegistryMem, room_id: i32): i32 {
 
     let i: i32 = 0;
     if ((reg == 0) || room_id < 0)
@@ -1987,7 +1987,7 @@ function sio_room_find_id_c(reg: *SioRoomRegistryMem, room_id: i32): i32 {
     return -1;
 }
 
-function sio_room_register_c(reg: *SioRoomRegistryMem, name: *u8, name_len: i32, room_id: i32): i32 {
+export function sio_room_register_c(reg: *SioRoomRegistryMem, name: *u8, name_len: i32, room_id: i32): i32 {
 
     let idx: i32 = 0;
     let rm: *SioRoomMem = 0;
@@ -2018,7 +2018,7 @@ function sio_room_register_c(reg: *SioRoomRegistryMem, name: *u8, name_len: i32,
     return 0;
 }
 
-function sio_room_join_c(reg: *SioRoomRegistryMem, room_id: i32, conn_idx: i32): i32 {
+export function sio_room_join_c(reg: *SioRoomRegistryMem, room_id: i32, conn_idx: i32): i32 {
 
     let idx: i32 = 0;
     let rm: *SioRoomMem = 0;
@@ -2048,7 +2048,7 @@ function sio_room_join_c(reg: *SioRoomRegistryMem, room_id: i32, conn_idx: i32):
     return 0;
 }
 
-function sio_room_leave_c(reg: *SioRoomRegistryMem, room_id: i32, conn_idx: i32): i32 {
+export function sio_room_leave_c(reg: *SioRoomRegistryMem, room_id: i32, conn_idx: i32): i32 {
 
     let idx: i32 = 0;
     let rm: *SioRoomMem = 0;
@@ -2078,7 +2078,7 @@ function sio_room_leave_c(reg: *SioRoomRegistryMem, room_id: i32, conn_idx: i32)
     return 0;
 }
 
-function sio_room_leave_all_c(reg: *SioRoomRegistryMem, conn_idx: i32): i32 {
+export function sio_room_leave_all_c(reg: *SioRoomRegistryMem, conn_idx: i32): i32 {
 
     let i: i32 = 0;
     let n: i32 = 0;
@@ -2099,7 +2099,7 @@ function sio_room_leave_all_c(reg: *SioRoomRegistryMem, conn_idx: i32): i32 {
     return n;
 }
 
-function sio_room_member_count_c(reg: *SioRoomRegistryMem, room_id: i32): i32 {
+export function sio_room_member_count_c(reg: *SioRoomRegistryMem, room_id: i32): i32 {
 
     let idx: i32 = 0;
     if ((reg == 0))
@@ -2114,7 +2114,7 @@ function sio_room_member_count_c(reg: *SioRoomRegistryMem, room_id: i32): i32 {
     return reg.room[idx].member_count;
 }
 
-function sio_room_broadcast_ns_c(reg: *SioRoomRegistryMem, h: *SioWsHubMem, room_id: i32, ns: *u8, ns_len: i32, event: *u8, event_len: i32, data: *u8, data_len: i32): i32 {
+export function sio_room_broadcast_ns_c(reg: *SioRoomRegistryMem, h: *SioWsHubMem, room_id: i32, ns: *u8, ns_len: i32, event: *u8, event_len: i32, data: *u8, data_len: i32): i32 {
 
     let idx: i32 = 0;
     let rm: *SioRoomMem = 0;
@@ -2145,7 +2145,7 @@ function sio_room_broadcast_ns_c(reg: *SioRoomRegistryMem, h: *SioWsHubMem, room
     return sent;
 }
 
-function sio_room_smoke_c(): i32 {
+export function sio_room_smoke_c(): i32 {
 
     let ns_chat: *u8 = &SIO_LIT_CHAT[0];
     let room_name: *u8 = &SIO_LIT_LOBBY[0];
@@ -2212,7 +2212,7 @@ function sio_room_smoke_c(): i32 {
     return 0;
 }
 
-function sio_ws_hub_rebind_c(h: *SioWsHubMem, conn_idx: i32, fd: i32, tls_ctx: i64): i32 {
+export function sio_ws_hub_rebind_c(h: *SioWsHubMem, conn_idx: i32, fd: i32, tls_ctx: i64): i32 {
 
     let sl: *SioWsHubSlotMem = 0;
     if ((h == 0) || conn_idx < 0 || conn_idx >= SIO_WS_HUB_MAX || fd < 0)
@@ -2229,11 +2229,11 @@ function sio_ws_hub_rebind_c(h: *SioWsHubMem, conn_idx: i32, fd: i32, tls_ctx: i
     return 0;
 }
 
-function sio_room_registry_snapshot_bytes_c(): i32 {
+export function sio_room_registry_snapshot_bytes_c(): i32 {
  return 204;
 }
 
-function sio_room_registry_export_c(reg: *SioRoomRegistryMem, out: *u8, out_cap: i32): i32 {
+export function sio_room_registry_export_c(reg: *SioRoomRegistryMem, out: *u8, out_cap: i32): i32 {
 
     let snap: *SioRoomRegistrySnapshotMem = 0;
     let i: i32 = 0;
@@ -2251,7 +2251,7 @@ function sio_room_registry_export_c(reg: *SioRoomRegistryMem, out: *u8, out_cap:
     return sio_room_registry_snapshot_bytes_c();
 }
 
-function sio_room_registry_import_c(reg: *SioRoomRegistryMem, buf: *u8, len: i32): i32 {
+export function sio_room_registry_import_c(reg: *SioRoomRegistryMem, buf: *u8, len: i32): i32 {
 
     let snap: *SioRoomRegistrySnapshotMem = 0;
     let i: i32 = 0;
@@ -2272,7 +2272,7 @@ function sio_room_registry_import_c(reg: *SioRoomRegistryMem, buf: *u8, len: i32
     return 0;
 }
 
-function sio_hub_sync_smoke_c(): i32 {
+export function sio_hub_sync_smoke_c(): i32 {
 
     let sid: *u8 = &SIO_LIT_SYNC1[0];
     let room_name: *u8 = &SIO_LIT_LOBBY[0];
@@ -2333,11 +2333,11 @@ function sio_hub_sync_smoke_c(): i32 {
     return 0;
 }
 
-function sio_session_bundle_bytes_c(): i32 {
+export function sio_session_bundle_bytes_c(): i32 {
  return 396;
 }
 
-function sio_session_bundle_export_c(h: *SioWsHubMem, reg: *SioRoomRegistryMem, out: *u8, out_cap: i32): i32 {
+export function sio_session_bundle_export_c(h: *SioWsHubMem, reg: *SioRoomRegistryMem, out: *u8, out_cap: i32): i32 {
 
     let bundle: *SioSessionBundleMem = 0;
     let i: i32 = 0;
@@ -2370,7 +2370,7 @@ function sio_session_bundle_export_c(h: *SioWsHubMem, reg: *SioRoomRegistryMem, 
     return sio_session_bundle_bytes_c();
 }
 
-function sio_session_bundle_import_c(h: *SioWsHubMem, reg: *SioRoomRegistryMem, buf: *u8, len: i32): i32 {
+export function sio_session_bundle_import_c(h: *SioWsHubMem, reg: *SioRoomRegistryMem, buf: *u8, len: i32): i32 {
 
     let bundle: *SioSessionBundleMem = 0;
     if ((h == 0) || (reg == 0) || (buf == 0) || len <  396)
@@ -2393,7 +2393,7 @@ function sio_session_bundle_import_c(h: *SioWsHubMem, reg: *SioRoomRegistryMem, 
     return 0;
 }
 
-function sio_session_sync_smoke_c(): i32 {
+export function sio_session_sync_smoke_c(): i32 {
 
     let sid: *u8 = &SIO_LIT_SESS1[0];
     let room_name: *u8 = &SIO_LIT_LOBBY[0];
@@ -2452,7 +2452,7 @@ function sio_session_sync_smoke_c(): i32 {
     return 0;
 }
 
-function sio_ws_hub_recount_c(h: *SioWsHubMem): void {
+export function sio_ws_hub_recount_c(h: *SioWsHubMem): void {
 
     let i: i32 = 0;
     let c: i32 = 0;
@@ -2469,7 +2469,7 @@ function sio_ws_hub_recount_c(h: *SioWsHubMem): void {
     h.count = c;
 }
 
-function sio_ws_hub_append_from_c(dst: *SioWsHubMem, src: *SioWsHubMem): i32 {
+export function sio_ws_hub_append_from_c(dst: *SioWsHubMem, src: *SioWsHubMem): i32 {
 
     let i: i32 = 0;
     let j: i32 = 0;
@@ -2501,7 +2501,7 @@ function sio_ws_hub_append_from_c(dst: *SioWsHubMem, src: *SioWsHubMem): i32 {
     return start >= 0 ? start : 0;
 }
 
-function sio_room_registry_merge_offset_c(dst: *SioRoomRegistryMem, src: *SioRoomRegistryMem, conn_offset: i32): i32 {
+export function sio_room_registry_merge_offset_c(dst: *SioRoomRegistryMem, src: *SioRoomRegistryMem, conn_offset: i32): i32 {
 
     let i: i32 = 0;
     let j: i32 = 0;
@@ -2540,7 +2540,7 @@ function sio_room_registry_merge_offset_c(dst: *SioRoomRegistryMem, src: *SioRoo
     return 0;
 }
 
-function sio_cluster_sync_c(h: *SioWsHubMem, reg: *SioRoomRegistryMem, bundle_a: *u8, len_a: i32, bundle_b: *u8, len_b: i32): i32 {
+export function sio_cluster_sync_c(h: *SioWsHubMem, reg: *SioRoomRegistryMem, bundle_a: *u8, len_a: i32, bundle_b: *u8, len_b: i32): i32 {
 
     let hub_b: SioWsHubMem;
     let reg_b: SioRoomRegistryMem;
@@ -2567,7 +2567,7 @@ function sio_cluster_sync_c(h: *SioWsHubMem, reg: *SioRoomRegistryMem, bundle_a:
     return sio_room_registry_merge_offset_c(reg, &reg_b, off);
 }
 
-function sio_cluster_sync_smoke_c(): i32 {
+export function sio_cluster_sync_smoke_c(): i32 {
 
     let sid_a: *u8 = &SIO_LIT_NODEA[0];
     let sid_b: *u8 = &SIO_LIT_NODEB[0];
@@ -2637,11 +2637,11 @@ function sio_cluster_sync_smoke_c(): i32 {
     return 0;
 }
 
-function sio_cluster_adapter_bytes_c(): i32 {
+export function sio_cluster_adapter_bytes_c(): i32 {
  return 296;
 }
 
-function sio_cluster_adapter_init_c(a: *SioClusterAdapterMem, node_id: i32): void {
+export function sio_cluster_adapter_init_c(a: *SioClusterAdapterMem, node_id: i32): void {
 
     if ((a == 0))
         {
@@ -2651,7 +2651,7 @@ function sio_cluster_adapter_init_c(a: *SioClusterAdapterMem, node_id: i32): voi
     a.node_id = node_id;
 }
 
-function sio_cluster_adapter_alloc_c(a: *SioClusterAdapterMem): i32 {
+export function sio_cluster_adapter_alloc_c(a: *SioClusterAdapterMem): i32 {
 
     let i: i32 = 0;
     if ((a == 0))
@@ -2667,7 +2667,7 @@ function sio_cluster_adapter_alloc_c(a: *SioClusterAdapterMem): i32 {
     return -1;
 }
 
-function sio_cluster_adapter_publish_ns_c(a: *SioClusterAdapterMem, src_node_id: i32, room_id: i32, ns: *u8, ns_len: i32, event: *u8, event_len: i32, data: *u8, data_len: i32): i32 {
+export function sio_cluster_adapter_publish_ns_c(a: *SioClusterAdapterMem, src_node_id: i32, room_id: i32, ns: *u8, ns_len: i32, event: *u8, event_len: i32, data: *u8, data_len: i32): i32 {
 
     let idx: i32 = 0;
     let m: *SioClusterAdapterMsgMem = 0;
@@ -2716,7 +2716,7 @@ function sio_cluster_adapter_publish_ns_c(a: *SioClusterAdapterMem, src_node_id:
     return 0;
 }
 
-function sio_cluster_adapter_drain_apply_c(a: *SioClusterAdapterMem, h: *SioWsHubMem, reg: *SioRoomRegistryMem, local_node_id: i32): i32 {
+export function sio_cluster_adapter_drain_apply_c(a: *SioClusterAdapterMem, h: *SioWsHubMem, reg: *SioRoomRegistryMem, local_node_id: i32): i32 {
 
     let i: i32 = 0;
     let applied: i32 = 0;
@@ -2752,7 +2752,7 @@ function sio_cluster_adapter_drain_apply_c(a: *SioClusterAdapterMem, h: *SioWsHu
     return applied;
 }
 
-function sio_cluster_adapter_smoke_c(): i32 {
+export function sio_cluster_adapter_smoke_c(): i32 {
 
     let ns_chat: *u8 = &SIO_LIT_CHAT[0];
     let room_name: *u8 = &SIO_LIT_LOBBY[0];
@@ -2792,11 +2792,11 @@ function sio_cluster_adapter_smoke_c(): i32 {
     return 0;
 }
 
-function sio_cluster_adapter_snapshot_bytes_c(): i32 {
+export function sio_cluster_adapter_snapshot_bytes_c(): i32 {
  return 304;
 }
 
-function sio_cluster_adapter_export_c(a: *SioClusterAdapterMem, out: *u8, out_cap: i32): i32 {
+export function sio_cluster_adapter_export_c(a: *SioClusterAdapterMem, out: *u8, out_cap: i32): i32 {
 
     let snap: *SioClusterAdapterSnapshotMem = 0;
     let i: i32 = 0;
@@ -2815,7 +2815,7 @@ function sio_cluster_adapter_export_c(a: *SioClusterAdapterMem, out: *u8, out_ca
     return sio_cluster_adapter_snapshot_bytes_c();
 }
 
-function sio_cluster_adapter_import_merge_c(a: *SioClusterAdapterMem, buf: *u8, len: i32): i32 {
+export function sio_cluster_adapter_import_merge_c(a: *SioClusterAdapterMem, buf: *u8, len: i32): i32 {
 
     let snap: *SioClusterAdapterSnapshotMem = 0;
     let i: i32 = 0;
@@ -2851,7 +2851,7 @@ function sio_cluster_adapter_import_merge_c(a: *SioClusterAdapterMem, buf: *u8, 
     return merged;
 }
 
-function sio_cluster_ring_sync_smoke_c(): i32 {
+export function sio_cluster_ring_sync_smoke_c(): i32 {
 
     let ns_chat: *u8 = &SIO_LIT_CHAT[0];
     let room_name: *u8 = &SIO_LIT_LOBBY[0];
@@ -2903,7 +2903,7 @@ function sio_cluster_ring_sync_smoke_c(): i32 {
 }
 
 
-function sio_eio_encode_packet_c(type: i32, payload: *u8, payload_len: i32, out: *u8, out_cap: i32): i32 {
+export function sio_eio_encode_packet_c(type: i32, payload: *u8, payload_len: i32, out: *u8, out_cap: i32): i32 {
 
     let n: i32 = 0;
     if ((out == 0) || out_cap < 1)
@@ -2935,7 +2935,7 @@ function sio_eio_encode_packet_c(type: i32, payload: *u8, payload_len: i32, out:
     return n;
 }
 
-function sio_eio_decode_packet_c(buf: *u8, len: i32, out_type: *i32, out_payload: *u8, out_cap: i32, out_payload_len: *i32): i32 {
+export function sio_eio_decode_packet_c(buf: *u8, len: i32, out_type: *i32, out_payload: *u8, out_cap: i32, out_payload_len: *i32): i32 {
 
     let type: i32 = 0;
     let plen: i32 = 0;
@@ -2969,7 +2969,7 @@ function sio_eio_decode_packet_c(buf: *u8, len: i32, out_type: *i32, out_payload
     return 0;
 }
 
-function sio_append_json_string(out: *u8, cap: i32, off: *i32, s: *u8, slen: i32): i32 {
+export function sio_append_json_string(out: *u8, cap: i32, off: *i32, s: *u8, slen: i32): i32 {
 
     let i: i32 = 0;
     let c: u8 = 0;
@@ -3011,7 +3011,7 @@ function sio_append_json_string(out: *u8, cap: i32, off: *i32, s: *u8, slen: i32
     return 0;
 }
 
-function sio_encode_event_packet_c(event: *u8, event_len: i32, data: *u8, data_len: i32, out: *u8, out_cap: i32): i32 {
+export function sio_encode_event_packet_c(event: *u8, event_len: i32, data: *u8, data_len: i32, out: *u8, out_cap: i32): i32 {
 
     let inner: u8[512] = [];
     let off: i32 = 0;
@@ -3062,7 +3062,7 @@ function sio_encode_event_packet_c(event: *u8, event_len: i32, data: *u8, data_l
     return sio_eio_encode_packet_c(SIO_EIO_MESSAGE, inner, off, out, out_cap);
 }
 
-function sio_encode_event_ns_packet_c(ns: *u8, ns_len: i32, event: *u8, event_len: i32, data: *u8, data_len: i32, out: *u8, out_cap: i32): i32 {
+export function sio_encode_event_ns_packet_c(ns: *u8, ns_len: i32, event: *u8, event_len: i32, data: *u8, data_len: i32, out: *u8, out_cap: i32): i32 {
 
     let inner: u8[512] = [];
     let off: i32 = 0;
@@ -3131,7 +3131,7 @@ function sio_encode_event_ns_packet_c(ns: *u8, ns_len: i32, event: *u8, event_le
     return sio_eio_encode_packet_c(SIO_EIO_MESSAGE, inner, off, out, out_cap);
 }
 
-function sio_encode_event_ack_packet_c(ack_id: i32, event: *u8, event_len: i32, data: *u8, data_len: i32, out: *u8, out_cap: i32): i32 {
+export function sio_encode_event_ack_packet_c(ack_id: i32, event: *u8, event_len: i32, data: *u8, data_len: i32, out: *u8, out_cap: i32): i32 {
 
     let inner: u8[512] = [];
     let off: i32 = 0;
@@ -3185,7 +3185,7 @@ function sio_encode_event_ack_packet_c(ack_id: i32, event: *u8, event_len: i32, 
     off = off + 1;
     return sio_eio_encode_packet_c(SIO_EIO_MESSAGE, inner, off, out, out_cap);
 }
-function sio_encode_ack_packet_c(ack_id: i32, data: *u8, data_len: i32, out: *u8, out_cap: i32): i32 {
+export function sio_encode_ack_packet_c(ack_id: i32, data: *u8, data_len: i32, out: *u8, out_cap: i32): i32 {
 
     let inner: u8[256] = [];
     let off: i32 = 0;
@@ -3218,7 +3218,7 @@ function sio_encode_ack_packet_c(ack_id: i32, data: *u8, data_len: i32, out: *u8
     return sio_eio_encode_packet_c(SIO_EIO_MESSAGE, inner, off, out, out_cap);
 }
 
-function sio_ns_ack_smoke_c(): i32 {
+export function sio_ns_ack_smoke_c(): i32 {
 
     let ns_chat: *u8 = &SIO_LIT_CHAT[0];
     let expect_ns: *u8 = &SIO_LIT_N40_CHAT[0];
@@ -3295,7 +3295,7 @@ function sio_ns_ack_smoke_c(): i32 {
 }
 
 
-function sio_decode_event_packet_c(sio_pkt: *u8, len: i32, out_event: *u8, out_event_cap: i32, out_data: *u8, out_data_cap: i32, out_data_len: *i32): i32 {
+export function sio_decode_event_packet_c(sio_pkt: *u8, len: i32, out_event: *u8, out_event_cap: i32, out_data: *u8, out_data_cap: i32, out_data_len: *i32): i32 {
 
     let i: i32 = 0;
     let ei: i32 = 0;
@@ -3403,7 +3403,7 @@ function sio_decode_event_packet_c(sio_pkt: *u8, len: i32, out_event: *u8, out_e
     return 0;
 }
 
-function sio_eio_extract_sid_c(open_payload: *u8, len: i32, out_sid: *u8, out_cap: i32): i32 {
+export function sio_eio_extract_sid_c(open_payload: *u8, len: i32, out_sid: *u8, out_cap: i32): i32 {
 
     let needle: *u8 = &SIO_LIT_JSON_SID_PREFIX[0];
     let i: i32 = 0;
@@ -3436,7 +3436,7 @@ function sio_eio_extract_sid_c(open_payload: *u8, len: i32, out_sid: *u8, out_ca
     return -1;
 }
 
-function sio_packet_smoke_c(): i32 {
+export function sio_packet_smoke_c(): i32 {
 
     let open_json: u8[128] = [];
     let enc: u8[64] = [];
@@ -3529,7 +3529,7 @@ function sio_packet_smoke_c(): i32 {
     return 0;
 }
 
-function sio_p3_complete_smoke_c(): i32 {
+export function sio_p3_complete_smoke_c(): i32 {
 
     if (sio_ws_hub_smoke_c() != 0)
         {

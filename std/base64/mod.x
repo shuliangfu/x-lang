@@ -19,70 +19,70 @@
 // 【文件职责】encode/decode standard 与 URL；单遍、静态表、无堆分配；流式 enc/dec update。
 // 【依赖】core；与 std/base64/base64.x 同属一模块（F-base64 v1）。
 
-extern function base64_encode_standard_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32;
-extern function base64_encode_url_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32;
-extern function base64_decode_standard_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32;
-extern function base64_decode_url_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32;
+export extern function base64_encode_standard_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32;
+export extern function base64_encode_url_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32;
+export extern function base64_decode_standard_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32;
+export extern function base64_decode_url_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32;
 
 /** 标准 Base64 编码；返回写入字节数，缓冲区不足返回 -1。 */
-function encode_standard(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
+export function encode_standard(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = base64_encode_standard_c(src, src_len, out, out_cap); }
   return _rc;
 }
 
 /** URL 安全 Base64 编码（无填充）；返回写入字节数。 */
-function encode_url(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
+export function encode_url(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = base64_encode_url_c(src, src_len, out, out_cap); }
   return _rc;
 }
 
 /** 标准 Base64 解码；返回写入 out 的字节数，非法输入返回 -1。 */
-function decode_standard(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
+export function decode_standard(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = base64_decode_standard_c(src, src_len, out, out_cap); }
   return _rc;
 }
 
 /** URL 变体解码；返回写入字节数，非法返回 -1。 */
-function decode_url(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
+export function decode_url(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = base64_decode_url_c(src, src_len, out, out_cap); }
   return _rc;
 }
 
-extern function base64_stream_state_bytes_c(): i32;
-extern function base64_stream_enc_init_c(state: *u8, state_cap: i32, url: i32): i32;
-extern function base64_stream_dec_init_c(state: *u8, state_cap: i32, url: i32): i32;
-extern function base64_stream_enc_update_c(state: *u8, state_cap: i32, inp: *u8, in_len: i32, out: *u8,
+export extern function base64_stream_state_bytes_c(): i32;
+export extern function base64_stream_enc_init_c(state: *u8, state_cap: i32, url: i32): i32;
+export extern function base64_stream_dec_init_c(state: *u8, state_cap: i32, url: i32): i32;
+export extern function base64_stream_enc_update_c(state: *u8, state_cap: i32, inp: *u8, in_len: i32, out: *u8,
   out_cap: i32, is_last: i32, in_consumed: *i32): i32;
-extern function base64_stream_dec_update_c(state: *u8, state_cap: i32, inp: *u8, in_len: i32, out: *u8,
+export extern function base64_stream_dec_update_c(state: *u8, state_cap: i32, inp: *u8, in_len: i32, out: *u8,
   out_cap: i32, is_last: i32, in_consumed: *i32): i32;
 
 /** 流状态缓冲最小字节数（STD-109）。 */
-function state_bytes(): i32 {
+export function state_bytes(): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = base64_stream_state_bytes_c(); }
   return _rc;
 }
 
 /** 初始化 Base64 编码流；url 非 0 为 URL 变体。 */
-function enc_init(state: *u8, state_cap: i32, url: i32): i32 {
+export function enc_init(state: *u8, state_cap: i32, url: i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = base64_stream_enc_init_c(state, state_cap, url); }
   return _rc;
 }
 
 /** 初始化 Base64 解码流。 */
-function dec_init(state: *u8, state_cap: i32, url: i32): i32 {
+export function dec_init(state: *u8, state_cap: i32, url: i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = base64_stream_dec_init_c(state, state_cap, url); }
   return _rc;
 }
 
 /** 流式 Base64 编码 update；is_last=1 时 flush padding。 */
-function enc_update(state: *u8, state_cap: i32, inp: *u8, in_len: i32, out: *u8, out_cap: i32,
+export function enc_update(state: *u8, state_cap: i32, inp: *u8, in_len: i32, out: *u8, out_cap: i32,
   is_last: i32, in_consumed: *i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = base64_stream_enc_update_c(state, state_cap, inp, in_len, out, out_cap, is_last, in_consumed); }
@@ -90,7 +90,7 @@ function enc_update(state: *u8, state_cap: i32, inp: *u8, in_len: i32, out: *u8,
 }
 
 /** 流式 Base64 解码 update；is_last=1 时 flush 尾部。 */
-function dec_update(state: *u8, state_cap: i32, inp: *u8, in_len: i32, out: *u8, out_cap: i32,
+export function dec_update(state: *u8, state_cap: i32, inp: *u8, in_len: i32, out: *u8, out_cap: i32,
   is_last: i32, in_consumed: *i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = base64_stream_dec_update_c(state, state_cap, inp, in_len, out, out_cap, is_last, in_consumed); }

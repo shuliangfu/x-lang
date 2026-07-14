@@ -19,6 +19,6 @@
 
 const token = import("token");
 
-function main(): i32 {
+export function main(): i32 {
   return 0;
 }

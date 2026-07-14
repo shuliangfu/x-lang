@@ -35,55 +35,55 @@
 const heap_libc = import("std.heap.libc");
 /** 长串快路径阈值：长度 ≥ 此值时 eq/compare/find 走
 * C（memcmp/memmem/memchr）；热路径内用字面量 32 避免调用。 */
-function string_long_threshold(): i32 { return 32; }
+export function string_long_threshold(): i32 { return 32; }
 /** 块拷贝快路径阈值：长度 ≥ 此值时 from_slice/append_slice/copy_to/trim 走 C
 * memcpy；热路径内用字面量 8 避免调用。 */
-function string_copy_threshold(): i32 { return 8; }
-extern function shux_string_memcmp_c(a: *u8, b: *u8, n: i32): i32;
-extern function shux_string_memmem_c(hay: *u8, hay_len: i32, needle: *u8, needle_len: i32): i32;
-extern function shux_string_copy_c(dst: *u8, src: *u8, n: i32): void;
-extern function shux_string_memchr_c(ptr: *u8, c: u8, n: i32): i32;
-extern function shux_string_memrchr_c(ptr: *u8, c: u8, n: i32): i32;
-extern function shux_string_memcmp_at_c(a: *u8, off: i32, b: *u8, n: i32): i32;
+export function string_copy_threshold(): i32 { return 8; }
+export extern function shux_string_memcmp_c(a: *u8, b: *u8, n: i32): i32;
+export extern function shux_string_memmem_c(hay: *u8, hay_len: i32, needle: *u8, needle_len: i32): i32;
+export extern function shux_string_copy_c(dst: *u8, src: *u8, n: i32): void;
+export extern function shux_string_memchr_c(ptr: *u8, c: u8, n: i32): i32;
+export extern function shux_string_memrchr_c(ptr: *u8, c: u8, n: i32): i32;
+export extern function shux_string_memcmp_at_c(a: *u8, off: i32, b: *u8, n: i32): i32;
 /** 指针偏移 ptr+off；供 subview 与 arena concat 写入第二段。 */
-extern function shux_string_ptr_at_c(ptr: *u8, off: i32): *u8;
+export extern function shux_string_ptr_at_c(ptr: *u8, off: i32): *u8;
 /** C memcmp 包装：extern 须在 unsafe 块内调用。 */
-function string_memcmp_c(a: *u8, b: *u8, n: i32): i32 {
+export function string_memcmp_c(a: *u8, b: *u8, n: i32): i32 {
   let rc: i32 = 0;
   unsafe { rc = shux_string_memcmp_c(a, b, n); }
   return rc;
 }
 /** C memmem 包装。 */
-function string_memmem_c(hay: *u8, hay_len: i32, needle: *u8, needle_len: i32): i32 {
+export function string_memmem_c(hay: *u8, hay_len: i32, needle: *u8, needle_len: i32): i32 {
   let rc: i32 = 0;
   unsafe { rc = shux_string_memmem_c(hay, hay_len, needle, needle_len); }
   return rc;
 }
 /** C memcpy 包装。 */
-function string_copy_c(dst: *u8, src: *u8, n: i32): void {
+export function string_copy_c(dst: *u8, src: *u8, n: i32): void {
   unsafe { shux_string_copy_c(dst, src, n); }
 }
 /** C memchr 包装。 */
-function string_memchr_c(ptr: *u8, c: u8, n: i32): i32 {
+export function string_memchr_c(ptr: *u8, c: u8, n: i32): i32 {
   let rc: i32 = 0;
   unsafe { rc = shux_string_memchr_c(ptr, c, n); }
   return rc;
 }
 /** C memcmp_at 包装。 */
-function string_memcmp_at_c(a: *u8, off: i32, b: *u8, n: i32): i32 {
+export function string_memcmp_at_c(a: *u8, off: i32, b: *u8, n: i32): i32 {
   let rc: i32 = 0;
   unsafe { rc = shux_string_memcmp_at_c(a, off, b, n); }
   return rc;
 }
 /** 指针偏移 ptr+off 包装。 */
-function string_ptr_at_c(ptr: *u8, off: i32): *u8 {
+export function string_ptr_at_c(ptr: *u8, off: i32): *u8 {
   let p: *u8 = 0 as *u8;
   unsafe { p = shux_string_ptr_at_c(ptr, off); }
   return p;
 }
 /** 固定缓冲容量（字节）；不分配堆，超过请用 StrView。 */
-function string_capacity(): i32 { return 256; }
-struct String {
+export function string_capacity(): i32 { return 256; }
+export struct String {
   data: u8[256];
   len: i32;
 }
@@ -94,22 +94,22 @@ allow(padding) struct StrView {
   len: i32;
 }
 /** 空字符串长度常量 0。 */
-function string_empty(): i32 { return 0; }
+export function string_empty(): i32 { return 0; }
 // ——— 零拷贝 StrView：仅 (ptr, len)，不拷贝；只读操作 ———
 /** 从 (ptr, len) 构造只读视图，零拷贝（不复制内存）。 */
-function view(ptr: *u8, len: i32): StrView {
+export function view(ptr: *u8, len: i32): StrView {
   return StrView { ptr: ptr, len: len };
 }
 /** 视图字节数。 */
-function len(v: StrView): i32 { return v.len; }
+export function len(v: StrView): i32 { return v.len; }
 /** 视图是否为空。返回 1 是，0 否。 */
-function is_empty(v: StrView): i32 {
+export function is_empty(v: StrView): i32 {
   if (v.len <= 0) { return 1; }
   return 0;
 }
 
 /** ASCII 小写化写入 out；返回写入字节数，缓冲不足 -1（STD-160）。 */
-function string_view_case_fold(v: StrView, out: *u8, out_cap: i32): i32 {
+export function string_view_case_fold(v: StrView, out: *u8, out_cap: i32): i32 {
   let i: i32 = 0;
   while (i < v.len) {
     if (i >= out_cap) { return -1; }
@@ -122,7 +122,7 @@ function string_view_case_fold(v: StrView, out: *u8, out_cap: i32): i32 {
 }
 
 /** 校验 UTF-8 合法性；合法 1，非法 0（STD-160 烟测：ASCII 子集）。 */
-function string_view_is_valid_utf8(v: StrView): i32 {
+export function string_view_is_valid_utf8(v: StrView): i32 {
   let i: i32 = 0;
   while (i < v.len) {
     let c: u8 = v.ptr[i];
@@ -135,12 +135,12 @@ function string_view_is_valid_utf8(v: StrView): i32 {
   return 1;
 }
 /** 取视图中第 i 字节；i 越界未定义。 */
-function string_view_get(v: StrView, i: i32): u8 { return v.ptr[i]; }
+export function string_view_get(v: StrView, i: i32): u8 { return v.ptr[i]; }
 /**
  * ZC-4：零拷贝子视图 v[off..off+len)。
  * off/len 钳制到 v 范围内；len<=0 或 off>=v.len 时返回 len=0 的空视图。
  */
-function string_view_subview(v: StrView, off: i32, len: i32): StrView {
+export function string_view_subview(v: StrView, off: i32, len: i32): StrView {
   if (off < 0) { off = 0; }
   if (off >= v.len || len <= 0) {
     return view(string_ptr_at_c(v.ptr, off), 0);
@@ -155,7 +155,7 @@ function string_view_subview(v: StrView, off: i32, len: i32): StrView {
  * 分配路径仅为 arena chunk（posix_memalign 一次）；不做 per-concat heap_alloc。
  * arena 空间不足时返回 len=0 的空视图。
  */
-function string_view_concat_arena(arena: *Arena64, left: StrView, right: StrView): StrView {
+export function string_view_concat_arena(arena: *Arena64, left: StrView, right: StrView): StrView {
   let n: i32 = left.len + right.len;
   if (n <= 0) {
     return view(left.ptr, 0);
@@ -175,7 +175,7 @@ function string_view_concat_arena(arena: *Arena64, left: StrView, right: StrView
 }
 /** 两视图相等。返回 1 相等，0 不等。超短串(1~4)特判，长串走 C
 * memcmp；中间长度 4 字节展开。 */
-function string_view_eq(a: StrView, b: StrView): i32 {
+export function string_view_eq(a: StrView, b: StrView): i32 {
   if (a.len != b.len) { return 0; }
   if (a.len == 1) { if (a.ptr[0] != b.ptr[0]) { return 0; } return 1; }
   if (a.len == 2) { if (a.ptr[0] != b.ptr[0] || a.ptr[1] != b.ptr[1]) { return 0; } return 1; }
@@ -201,7 +201,7 @@ function string_view_eq(a: StrView, b: StrView): i32 {
 }
 /** 视图与 (ptr, len) 相等。返回 1 相等，0 不等。超短串特判，长串走 C
 * memcmp；中间 4 字节展开。 */
-function string_view_eq_slice(v: StrView, ptr: *u8, len: i32): i32 {
+export function string_view_eq_slice(v: StrView, ptr: *u8, len: i32): i32 {
   if (v.len != len) { return 0; }
   if (v.len == 1) { if (v.ptr[0] != ptr[0]) { return 0; } return 1; }
   if (v.len == 2) { if (v.ptr[0] != ptr[0] || v.ptr[1] != ptr[1]) { return 0; } return 1; }
@@ -226,7 +226,7 @@ function string_view_eq_slice(v: StrView, ptr: *u8, len: i32): i32 {
   return 1;
 }
 /** 视图字典序比较。返回 <0 / 0 / >0。长串走 C memcmp 快路径。 */
-function string_view_compare(a: StrView, b: StrView): i32 {
+export function string_view_compare(a: StrView, b: StrView): i32 {
   let n: i32 = a.len;
   if (b.len < n) { n = b.len; }
   if (n >= 32) {
@@ -254,12 +254,12 @@ function string_view_compare(a: StrView, b: StrView): i32 {
   return 0;
 }
 /** 视图中字节 c 首次出现下标，不存在返回 -1。统一 memchr（while 不落码）。 */
-function string_view_find_char(v: StrView, c: u8): i32 {
+export function string_view_find_char(v: StrView, c: u8): i32 {
   return string_memchr_c(v.ptr, c, v.len);
 }
 /** 视图是否以 prefix[0..prefix_len-1] 开头。返回 1 是，0 否。长 prefix 走 C
 * memcmp。 */
-function string_view_starts_with(v: StrView, prefix: *u8, prefix_len: i32): i32 {
+export function string_view_starts_with(v: StrView, prefix: *u8, prefix_len: i32): i32 {
   if (prefix_len <= 0) { return 1; }
   if (v.len < prefix_len) { return 0; }
   if (prefix_len >= 8) {
@@ -274,7 +274,7 @@ function string_view_starts_with(v: StrView, prefix: *u8, prefix_len: i32): i32 
   return 1;
 }
 /** 视图是否以 suffix[0..suffix_len-1] 结尾。返回 1 是，0 否。统一 memcmp_at 快路径。 */
-function string_view_ends_with(v: StrView, suffix: *u8, suffix_len: i32): i32 {
+export function string_view_ends_with(v: StrView, suffix: *u8, suffix_len: i32): i32 {
   if (suffix_len <= 0) { return 1; }
   if (v.len < suffix_len) { return 0; }
   let off: i32 = v.len - suffix_len;
@@ -282,7 +282,7 @@ function string_view_ends_with(v: StrView, suffix: *u8, suffix_len: i32): i32 {
   return 0;
 }
 /** StrView 子串扫描（memcmp_at 四轮 + 递归）。 */
-function string_view_find_slice_scan(v: StrView, sub: *u8, sub_len: i32, start: i32, end: i32): i32 {
+export function string_view_find_slice_scan(v: StrView, sub: *u8, sub_len: i32, start: i32, end: i32): i32 {
   if (start > end) { return 0 - 1; }
   if (string_memcmp_at_c(v.ptr, start, sub, sub_len) == 0) { return start; }
   if (start + 1 <= end && string_memcmp_at_c(v.ptr, start + 1, sub, sub_len) == 0) {
@@ -294,7 +294,7 @@ function string_view_find_slice_scan(v: StrView, sub: *u8, sub_len: i32, start: 
   return string_view_find_slice_scan(v, sub, sub_len, start + 4, end);
 }
 /** 视图中子串 sub[0..sub_len-1] 首次下标，不存在返回 -1。短 hay 走 scan。 */
-function string_view_find_slice(v: StrView, sub: *u8, sub_len: i32): i32 {
+export function string_view_find_slice(v: StrView, sub: *u8, sub_len: i32): i32 {
   if (sub_len <= 0) { return 0; }
   if (v.len < sub_len) { return 0 - 1; }
   if (sub_len == 1) {
@@ -307,13 +307,13 @@ function string_view_find_slice(v: StrView, sub: *u8, sub_len: i32): i32 {
   return string_view_find_slice_scan(v, sub, sub_len, 0, end);
 }
 /** 视图是否包含子串 sub。返回 1 是，0 否。 */
-function string_view_contains(v: StrView, sub: *u8, sub_len: i32): i32 {
+export function string_view_contains(v: StrView, sub: *u8, sub_len: i32): i32 {
   if (string_view_find_slice(v, sub, sub_len) >= 0) { return 1; }
   return 0;
 }
 /** String 与 StrView 相等。返回 1 相等，0 不等。长串走 C memcmp；短串 4
 * 字节展开。 */
-function string_eq_view(s: String, v: StrView): i32 {
+export function string_eq_view(s: String, v: StrView): i32 {
   if (s.len != v.len) { return 0; }
   if (s.len >= 32) {
     if (string_memcmp_c(&s.data[0], v.ptr, s.len) == 0) { return 1; }
@@ -332,7 +332,7 @@ function string_eq_view(s: String, v: StrView): i32 {
   return 1;
 }
 /** String 与 StrView 字典序比较。返回 <0 / 0 / >0。长串走 C memcmp。 */
-function string_compare_view(s: String, v: StrView): i32 {
+export function string_compare_view(s: String, v: StrView): i32 {
   let n: i32 = s.len;
   if (v.len < n) { n = v.len; }
   if (n >= 32) {
@@ -361,27 +361,27 @@ function string_compare_view(s: String, v: StrView): i32 {
 }
 // ——— ZC-4 SSO_STACK：栈上小字符串（32B 内联），无堆；零拷贝转 StrView ———
 /** StackStr 内联容量（字节）；超出请用 StrView + Arena64 或 String(256)。 */
-function stack_str_capacity(): i32 { return 32; }
+export function stack_str_capacity(): i32 { return 32; }
 /** 栈上小字符串拥有者：data+len 均在栈帧内，不触发 heap_alloc。 */
-struct StackStr {
+export struct StackStr {
   data: u8[32];
   len: i32;
 }
 /** 新建空 StackStr。 */
-function stack_str_new(): StackStr {
+export function stack_str_new(): StackStr {
   return StackStr { data: [], len: 0 };
 }
 /** 当前字节数。 */
-function stack_str_len(s: *StackStr): i32 { return s.len; }
+export function stack_str_len(s: *StackStr): i32 { return s.len; }
 /** 零拷贝转为 StrView；视图生命周期须不超出 StackStr 所在栈帧。 */
-function stack_str_view(s: *StackStr): StrView {
+export function stack_str_view(s: *StackStr): StrView {
   return view(&s.data[0], s.len);
 }
 /**
  * 从 (ptr,len) 写入 StackStr；len 超过 stack_str_capacity 时返回 -1 且不修改。
  * 成功返回 0。≥8 字节走 C memcpy。
  */
-function stack_str_from_slice(s: *StackStr, ptr: *u8, len: i32): i32 {
+export function stack_str_from_slice(s: *StackStr, ptr: *u8, len: i32): i32 {
   let cap: i32 = stack_str_capacity();
   if (len > cap) { return -1; }
   if (len <= 0) {
@@ -401,7 +401,7 @@ function stack_str_from_slice(s: *StackStr, ptr: *u8, len: i32): i32 {
   return 0;
 }
 /** 追加一字节；溢出返回 -1，成功返回 0。 */
-function stack_str_append_char(s: *StackStr, c: u8): i32 {
+export function stack_str_append_char(s: *StackStr, c: u8): i32 {
   let cap: i32 = stack_str_capacity();
   if (s.len >= cap) { return -1; }
   s.data[s.len] = c;
@@ -410,35 +410,35 @@ function stack_str_append_char(s: *StackStr, c: u8): i32 {
 }
 // ——— String 构造与访问 ———
 /** 新建空字符串。 */
-function new(): String {
+export function new(): String {
   return String {
     data: [],
     len: 0
   }
 }
 /** 当前字节数（对标 Rust len()、Go len(s)）。 */
-function len(s: String): i32 { return s.len; }
+export function len(s: String): i32 { return s.len; }
 /** 只读热路径：通过指针取长度，避免 36 字节结构体按值传递。 */
-function string_len_ptr(s: *String): i32 { return s.len; }
+export function string_len_ptr(s: *String): i32 { return s.len; }
 /** 是否为空（len==0）。返回 1 是，0 否。 */
-function is_empty(s: String): i32 {
+export function is_empty(s: String): i32 {
   if (s.len <= 0) { return 1; }
   return 0;
 }
 /** 热路径：指针版 is_empty，避免 260 字节按值传递。 */
-function string_is_empty_ptr(s: *String): i32 {
+export function string_is_empty_ptr(s: *String): i32 {
   if (s.len <= 0) { return 1; }
   return 0;
 }
 /** 单字符构造。 */
-function string_from_char(c: u8): String {
+export function string_from_char(c: u8): String {
   let s: String = new();
   let _discard: i32 = string_append_char(&s, c);
   return s;
 }
 /** 从 (ptr, len) 拷贝构造；超过 capacity 时截断。≥8 字节走 C
 * memcpy，否则逐字节（展开 4 字节）拷贝。 */
-function string_from_slice(ptr: *u8, len: i32): String {
+export function string_from_slice(ptr: *u8, len: i32): String {
   let s: String = new();
   let n: i32 = len;
   if (n > 256) { n = 256; }
@@ -449,10 +449,10 @@ function string_from_slice(ptr: *u8, len: i32): String {
   return s;
 }
 /** 取第 i 字节；i 越界未定义。 */
-function string_get(s: String, i: i32): u8 { return s.data[i]; }
+export function string_get(s: String, i: i32): u8 { return s.data[i]; }
 /** 相等比较。返回 1 相等，0 不等。超短串(1~4)特判避免循环，长串走 C
 * memcmp。 */
-function string_eq(a: String, b: String): i32 {
+export function string_eq(a: String, b: String): i32 {
   if (a.len != b.len) { return 0; }
   if (a.len == 1) { if (a.data[0] != b.data[0]) { return 0; } return 1; }
   if (a.len == 2) { if (a.data[0] != b.data[0] || a.data[1] != b.data[1]) { return 0; } return 1; }
@@ -478,7 +478,7 @@ function string_eq(a: String, b: String): i32 {
 }
 /** 热路径：指针版相等比较，避免 260 字节×2
 * 按值传递；超短串特判，长串走 C memcmp。 */
-function string_eq_ptr(a: *String, b: *String): i32 {
+export function string_eq_ptr(a: *String, b: *String): i32 {
   if (a.len != b.len) { return 0; }
   if (a.len == 1) { if (a.data[0] != b.data[0]) { return 0; } return 1; }
   if (a.len == 2) { if (a.data[0] != b.data[0] || a.data[1] != b.data[1]) { return 0; } return 1; }
@@ -503,7 +503,7 @@ function string_eq_ptr(a: *String, b: *String): i32 {
   return 1;
 }
 /** 字典序比较。返回 <0 / 0 / >0。memcmp 后勿嵌 if-block（return r 不落码），拆成 r<0/r>0。 */
-function string_compare(a: String, b: String): i32 {
+export function string_compare(a: String, b: String): i32 {
   let n: i32 = a.len;
   if (b.len < n) { n = b.len; }
   /** if 块内仅首句落码；用短路求值把 memcmp 与比较写在同一 if 条件里。 */
@@ -515,7 +515,7 @@ function string_compare(a: String, b: String): i32 {
 }
 /** 热路径：指针版字典序比较，避免大结构体按值传递；长串走 C
 * memcmp，短串 4 字节展开。 */
-function string_compare_ptr(a: *String, b: *String): i32 {
+export function string_compare_ptr(a: *String, b: *String): i32 {
   let n: i32 = a.len;
   if (b.len < n) { n = b.len; }
   if (n >= 1 && string_memcmp_c(&a.data[0], &b.data[0], n) < 0) { return -1; }
@@ -525,12 +525,12 @@ function string_compare_ptr(a: *String, b: *String): i32 {
   return 0;
 }
 /** 清空，len 置 0。 */
-function string_clear(s: *String): i32 {
+export function string_clear(s: *String): i32 {
   s.len = 0;
   return 0;
 }
 /** 追加单字符。返回 0 成功，-1 溢出（已满）。 */
-function string_append_char(s: *String, c: u8): i32 {
+export function string_append_char(s: *String, c: u8): i32 {
   if (s.len >= 256) { return -1; }
   s.data[s.len] = c;
   s.len = s.len + 1;
@@ -538,7 +538,7 @@ function string_append_char(s: *String, c: u8): i32 {
 }
 /** 追加 (ptr, len)。最多追加到 cap；若无法全部追加返回 -1，否则 0。长块走
 * C memcpy 快路径。 */
-function string_append_slice(s: *String, ptr: *u8, len: i32): i32 {
+export function string_append_slice(s: *String, ptr: *u8, len: i32): i32 {
   let cap: i32 = 256;
   let remain: i32 = cap - s.len;
   if (remain <= 0) { return -1; }
@@ -553,19 +553,19 @@ function string_append_slice(s: *String, ptr: *u8, len: i32): i32 {
 }
 /** 零拷贝输出：返回 String 内部缓冲首地址；与 string_len(s) 组合即 (ptr,
 * len)，可直接传 std.fs/std.path，调用方在 s 未被修改前使用。 */
-function string_data_ptr(s: *String): *u8 {
+export function string_data_ptr(s: *String): *u8 {
   return &s.data[0];
 }
 /**
  * 从 String 零拷贝构造 StrView（STD-016 / ZC-4 api_from_string）。
  * 视图生命周期须不超出 s 所在内存的有效期。
  */
-function string_view_from_string(s: *String): StrView {
+export function string_view_from_string(s: *String): StrView {
   return view(string_data_ptr(s), s.len);
 }
 /** 将 s 内容拷贝到 out[0..out_max-1]，返回拷贝长度；溢出返回 -1。长块走 C
 * memcpy。 */
-function string_copy_to(s: String, out: *u8, out_max: i32): i32 {
+export function string_copy_to(s: String, out: *u8, out_max: i32): i32 {
   if (s.len > out_max) { return -1; }
   /** n>=4 走 copy_c（co-emit 连续 if/while 仅前段落码）。 */
   if (s.len >= 4) {
@@ -578,7 +578,7 @@ function string_copy_to(s: String, out: *u8, out_max: i32): i32 {
   return s.len;
 }
 /** 热路径：指针版 copy_to，避免 260 字节按值传递；长块走 C memcpy。 */
-function string_copy_to_ptr(s: *String, out: *u8, out_max: i32): i32 {
+export function string_copy_to_ptr(s: *String, out: *u8, out_max: i32): i32 {
   if (s.len > out_max) { return -1; }
   if (s.len >= 4) {
     string_copy_c(out, &s.data[0], s.len);
@@ -591,18 +591,18 @@ function string_copy_to_ptr(s: *String, out: *u8, out_max: i32): i32 {
 }
 /** 首次出现字节 c 的下标，不存在返回 -1。长串走 C memchr 快路径。 */
 /** 查找字节 c 首次出现下标；无则 0-1。统一走 memchr 快路径（避免 asm 短串 while/return -1 emit 错位）。 */
-function string_find_char(s: String, c: u8): i32 {
+export function string_find_char(s: String, c: u8): i32 {
   return string_memchr_c(&s.data[0], c, s.len);
 }
 /** 是否以 prefix[0..prefix_len-1] 开头。返回 1 是，0 否。短串亦走 memcmp（asm while 槽位 emit 待修）。 */
-function string_starts_with(s: String, prefix: *u8, prefix_len: i32): i32 {
+export function string_starts_with(s: String, prefix: *u8, prefix_len: i32): i32 {
   if (prefix_len <= 0) { return 1; }
   if (s.len < prefix_len) { return 0; }
   if (string_memcmp_c(&s.data[0], prefix, prefix_len) == 0) { return 1; }
   return 0;
 }
 /** 是否以 suffix[0..suffix_len-1] 结尾。返回 1 是，0 否。统一 memcmp_at 快路径（勿嵌 string_view 构造，co-emit 会 SIGSEGV）。 */
-function string_ends_with(s: String, suffix: *u8, suffix_len: i32): i32 {
+export function string_ends_with(s: String, suffix: *u8, suffix_len: i32): i32 {
   if (suffix_len <= 0) { return 1; }
   if (s.len < suffix_len) { return 0; }
   let off: i32 = s.len - suffix_len;
@@ -611,12 +611,12 @@ function string_ends_with(s: String, suffix: *u8, suffix_len: i32): i32 {
 }
 /** 是否包含子串 sub[0..sub_len-1]。返回 1 是，0 否（对标 Rust contains、Go
 * Contains）。 */
-function string_contains(s: String, sub: *u8, sub_len: i32): i32 {
+export function string_contains(s: String, sub: *u8, sub_len: i32): i32 {
   if (string_find_slice(s, sub, sub_len) >= 0) { return 1; }
   return 0;
 }
 /** co-emit while 槽位错位：每轮最多 4 档 memcmp_at，递归推进 start。 */
-function string_find_slice_scan(s: *String, sub: *u8, sub_len: i32, start: i32, end: i32): i32 {
+export function string_find_slice_scan(s: *String, sub: *u8, sub_len: i32, start: i32, end: i32): i32 {
   if (start > end) { return 0 - 1; }
   if (string_memcmp_at_c(&s.data[0], start, sub, sub_len) == 0) { return start; }
   if (start + 1 <= end && string_memcmp_at_c(&s.data[0], start + 1, sub, sub_len) == 0) {
@@ -628,7 +628,7 @@ function string_find_slice_scan(s: *String, sub: *u8, sub_len: i32, start: i32, 
   return string_find_slice_scan(s, sub, sub_len, start + 4, end);
 }
 /** 子串 sub[0..sub_len-1] 首次出现的起始下标，不存在返回 0-1。短 hay 走 scan（memmem 内 while 不落码）。 */
-function string_find_slice(s: String, sub: *u8, sub_len: i32): i32 {
+export function string_find_slice(s: String, sub: *u8, sub_len: i32): i32 {
   if (sub_len <= 0) { return 0; }
   if (s.len < sub_len) { return 0 - 1; }
   if (sub_len == 1) {
@@ -641,31 +641,31 @@ function string_find_slice(s: String, sub: *u8, sub_len: i32): i32 {
   return string_find_slice_scan(&s, sub, sub_len, 0, end);
 }
 /** co-emit memrchr 内 while 不落码；递归反向扫描。 */
-function string_rfind_char_scan(s: *String, c: u8, pos: i32): i32 {
+export function string_rfind_char_scan(s: *String, c: u8, pos: i32): i32 {
   if (pos < 0) { return 0 - 1; }
   if (s.data[pos] == c) { return pos; }
   return string_rfind_char_scan(s, c, pos - 1);
 }
 /** 字节 c 最后一次出现的下标，不存在返回 -1。 */
-function string_rfind_char(s: String, c: u8): i32 {
+export function string_rfind_char(s: String, c: u8): i32 {
   if (s.len <= 0) { return 0 - 1; }
   return string_rfind_char_scan(&s, c, s.len - 1);
 }
 /** trim：跳过首部空白（递归，避免 while 不落码）。 */
-function string_trim_skip_start(s: *String, i: i32): i32 {
+export function string_trim_skip_start(s: *String, i: i32): i32 {
   if (i >= s.len) { return i; }
   if (s.data[i] != 32 && s.data[i] != 9) { return i; }
   return string_trim_skip_start(s, i + 1);
 }
 /** trim：跳过尾部空白（递归）。 */
-function string_trim_skip_end(s: *String, start: i32, i: i32): i32 {
+export function string_trim_skip_end(s: *String, start: i32, i: i32): i32 {
   if (i < start) { return start - 1; }
   if (s.data[i] != 32 && s.data[i] != 9) { return i; }
   return string_trim_skip_end(s, start, i - 1);
 }
 /** 将 s 去掉首尾 ASCII 空格（0x20、\\t）后写入
 * out，返回写入长度；溢出返回 -1。 */
-function trim(s: String, out: *u8, out_max: i32): i32 {
+export function trim(s: String, out: *u8, out_max: i32): i32 {
   if (s.len <= 0 || out_max <= 0) { return 0; }
   let start: i32 = string_trim_skip_start(&s, 0);
   let end: i32 = string_trim_skip_end(&s, start, s.len - 1);
@@ -678,7 +678,7 @@ function trim(s: String, out: *u8, out_max: i32): i32 {
   return n;
 }
 /** replace 扫描（递归，避免 while 不落码）。 */
-function string_replace_char_scan(s: *String, from: u8, to: u8, i: i32, count: i32): i32 {
+export function string_replace_char_scan(s: *String, from: u8, to: u8, i: i32, count: i32): i32 {
   if (i >= s.len) { return count; }
   if (s.data[i] == from) {
     s.data[i] = to;
@@ -688,8 +688,8 @@ function string_replace_char_scan(s: *String, from: u8, to: u8, i: i32, count: i
 }
 /** 原地将全部 from 字节替换为 to；返回替换次数（对标 Rust replace、Go Replace
 * 单字节情形）。 */
-function replace(s: *String, from: u8, to: u8): i32 {
+export function replace(s: *String, from: u8, to: u8): i32 {
   return string_replace_char_scan(s, from, to, 0, 0);
 }
 /** 模块尾占位：transitive import 解析时末位 function 会丢失，须保留非 API 锚点。 */
-function string_module_anchor(): i32 { return 0; }
+export function string_module_anchor(): i32 { return 0; }

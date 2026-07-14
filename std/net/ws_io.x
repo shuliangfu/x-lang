@@ -28,40 +28,40 @@ const tls = import("std.net.tls_stub");
 const mem = import("core.mem");
 
 /** TLS 不可用错误码（与 ws.inc.c 一致）。 */
-const WS_ERR_TLS_NOT_IMPL: i32 = -1221;
+export const WS_ERR_TLS_NOT_IMPL: i32 = -1221;
 
 /** pollfd 布局。 */
 allow(padding) struct PollFd { fd: i32; events: i16; revents: i16; }
 
-extern "C" function send(fd: i32, buf: *u8, len: usize, flags: i32): isize;
-extern "C" function recv(fd: i32, buf: *u8, len: usize, flags: i32): isize;
-extern "C" function poll(fds: *PollFd, nfds: u64, timeout: i32): i32;
-extern function net_close_socket_c(fd: i32): i32;
-extern function net_set_blocking_c(fd: i32, blocking: i32): i32;
-extern function net_tcp_connect_c(addr_u32: u32, port_u32: u32, timeout_ms: u32): i32;
-extern function net_resolve_ipv4_c(hostname: *u8): u32;
+export extern "C" function send(fd: i32, buf: *u8, len: usize, flags: i32): isize;
+export extern "C" function recv(fd: i32, buf: *u8, len: usize, flags: i32): isize;
+export extern "C" function poll(fds: *PollFd, nfds: u64, timeout: i32): i32;
+export extern function net_close_socket_c(fd: i32): i32;
+export extern function net_set_blocking_c(fd: i32, blocking: i32): i32;
+export extern function net_tcp_connect_c(addr_u32: u32, port_u32: u32, timeout_ms: u32): i32;
+export extern function net_resolve_ipv4_c(hostname: *u8): u32;
 
 #[cfg(target_os = "linux")]
-extern "C" function socketpair(domain: i32, type: i32, protocol: i32, sv: *i32): i32;
+export extern "C" function socketpair(domain: i32, type: i32, protocol: i32, sv: *i32): i32;
 #[cfg(target_os = "macos")]
-extern "C" function socketpair(domain: i32, type: i32, protocol: i32, sv: *i32): i32;
+export extern "C" function socketpair(domain: i32, type: i32, protocol: i32, sv: *i32): i32;
 #[cfg(target_os = "linux")]
-extern "C" function fork(): i32;
+export extern "C" function fork(): i32;
 #[cfg(target_os = "macos")]
-extern "C" function fork(): i32;
+export extern "C" function fork(): i32;
 #[cfg(target_os = "linux")]
-extern "C" function waitpid(pid: i32, status: *i32, options: i32): i32;
+export extern "C" function waitpid(pid: i32, status: *i32, options: i32): i32;
 #[cfg(target_os = "macos")]
-extern "C" function waitpid(pid: i32, status: *i32, options: i32): i32;
+export extern "C" function waitpid(pid: i32, status: *i32, options: i32): i32;
 #[cfg(target_os = "linux")]
-extern "C" function _exit(code: i32): void;
+export extern "C" function _exit(code: i32): void;
 #[cfg(target_os = "macos")]
-extern "C" function _exit(code: i32): void;
+export extern "C" function _exit(code: i32): void;
 
 /**
  * 等待 fd 可写；timeout_ms=0 无限等待；成功 0，失败 -1。
  */
-function ws_poll_writable(fd: i32, timeout_ms: u32): i32 {
+export function ws_poll_writable(fd: i32, timeout_ms: u32): i32 {
   let pfd: PollFd = PollFd { fd: fd, events: 4, revents: 0 };
   let to: i32 = (timeout_ms == 0) ? -1 : (timeout_ms as i32);
   let n: i32 = 0;
@@ -75,7 +75,7 @@ function ws_poll_writable(fd: i32, timeout_ms: u32): i32 {
 /**
  * 等待 fd 可读；timeout_ms=0 无限等待；成功 0，失败 -1。
  */
-function ws_poll_readable(fd: i32, timeout_ms: u32): i32 {
+export function ws_poll_readable(fd: i32, timeout_ms: u32): i32 {
   let pfd: PollFd = PollFd { fd: fd, events: 1, revents: 0 };
   let to: i32 = (timeout_ms == 0) ? -1 : (timeout_ms as i32);
   let n: i32 = 0;
@@ -89,7 +89,7 @@ function ws_poll_readable(fd: i32, timeout_ms: u32): i32 {
 /**
  * 阻塞 TCP 写满 len 字节；失败 -1。
  */
-function ws_tcp_send_all(fd: i32, buf: *u8, len: i32, timeout_ms: u32): i32 {
+export function ws_tcp_send_all(fd: i32, buf: *u8, len: i32, timeout_ms: u32): i32 {
   let sent: i32 = 0;
   if (fd < 0 || buf == 0 || len < 0) {
     return -1;
@@ -110,7 +110,7 @@ function ws_tcp_send_all(fd: i32, buf: *u8, len: i32, timeout_ms: u32): i32 {
 /**
  * 阻塞 TCP 读满 len 字节；失败 -1。
  */
-function ws_tcp_read_all(fd: i32, buf: *u8, len: i32, timeout_ms: u32): i32 {
+export function ws_tcp_read_all(fd: i32, buf: *u8, len: i32, timeout_ms: u32): i32 {
   let got: i32 = 0;
   if (fd < 0 || buf == 0 || len < 0) {
     return -1;
@@ -131,7 +131,7 @@ function ws_tcp_read_all(fd: i32, buf: *u8, len: i32, timeout_ms: u32): i32 {
 /**
  * 传输层写满 len 字节（TLS 或 TCP）；失败 -1。
  */
-function ws_io_send_all(fd: i32, tls_ctx: i64, buf: *u8, len: i32, timeout_ms: u32): i32 {
+export function ws_io_send_all(fd: i32, tls_ctx: i64, buf: *u8, len: i32, timeout_ms: u32): i32 {
   let sent: i32 = 0;
   if (fd < 0 || buf == 0 || len < 0) {
     return -1;
@@ -152,7 +152,7 @@ function ws_io_send_all(fd: i32, tls_ctx: i64, buf: *u8, len: i32, timeout_ms: u
 /**
  * 传输层读满 len 字节（TLS 或 TCP）；失败 -1。
  */
-function ws_io_read_all(fd: i32, tls_ctx: i64, buf: *u8, len: i32, timeout_ms: u32): i32 {
+export function ws_io_read_all(fd: i32, tls_ctx: i64, buf: *u8, len: i32, timeout_ms: u32): i32 {
   let got: i32 = 0;
   if (fd < 0 || buf == 0 || len < 0) {
     return -1;
@@ -173,7 +173,7 @@ function ws_io_read_all(fd: i32, tls_ctx: i64, buf: *u8, len: i32, timeout_ms: u
 /**
  * 传输层读若干字节（握手收 HTTP 头）；失败 -1。
  */
-function ws_io_read_some(fd: i32, tls_ctx: i64, buf: *u8, cap: i32, timeout_ms: u32): i32 {
+export function ws_io_read_some(fd: i32, tls_ctx: i64, buf: *u8, cap: i32, timeout_ms: u32): i32 {
   if (fd < 0 || buf == 0 || cap <= 0) {
     return -1;
   }
@@ -190,7 +190,7 @@ function ws_io_read_some(fd: i32, tls_ctx: i64, buf: *u8, cap: i32, timeout_ms: 
 /**
  * 在已连接传输层上完成 WebSocket 客户端握手；成功 0。
  */
-function ws_client_handshake_io(fd: i32, tls_ctx: i64, host: *u8, path: *u8,
+export function ws_client_handshake_io(fd: i32, tls_ctx: i64, host: *u8, path: *u8,
   key: *u8, key_len: i32, timeout_ms: u32): i32 {
   let req: u8[512] = [];
   let resp: u8[2048] = [];
@@ -246,13 +246,13 @@ function ws_client_handshake_io(fd: i32, tls_ctx: i64, host: *u8, path: *u8,
 }
 
 /** 在已连接 TCP fd 上完成 WebSocket 客户端握手（明文 ws://）。 */
-function net_ws_client_handshake_c(fd: i32, host: *u8, path: *u8, key: *u8,
+export function net_ws_client_handshake_c(fd: i32, host: *u8, path: *u8, key: *u8,
   key_len: i32, timeout_ms: u32): i32 {
   return ws_client_handshake_io(fd, 0, host, path, key, key_len, timeout_ms);
 }
 
 /** TCP 连接 + WebSocket 握手一站式；成功返回 fd，失败 -1。port=0 时用 80。 */
-function net_ws_connect_c(host: *u8, port: u32, path: *u8, key: *u8,
+export function net_ws_connect_c(host: *u8, port: u32, path: *u8, key: *u8,
   key_len: i32, timeout_ms: u32): i32 {
   let addr: u32 = 0;
   let fd: i32 = 0;
@@ -279,7 +279,7 @@ function net_ws_connect_c(host: *u8, port: u32, path: *u8, key: *u8,
 }
 
 /** wss:// 一站式：TCP + TLS + 握手；失败 -1 或 WS_ERR_TLS_NOT_IMPL。 */
-function net_ws_connect_tls_c(host: *u8, port: u32, path: *u8, key: *u8,
+export function net_ws_connect_tls_c(host: *u8, port: u32, path: *u8, key: *u8,
   key_len: i32, timeout_ms: u32, out_tls_ctx: *i64): i32 {
   let addr: u32 = 0;
   let fd: i32 = 0;
@@ -318,7 +318,7 @@ function net_ws_connect_tls_c(host: *u8, port: u32, path: *u8, key: *u8,
 }
 
 /** ws(s):// URL 一站式连接；成功 0 并写 out_fd/out_tls_ctx（明文时 tls=0）。 */
-function net_ws_connect_url_c(url: *u8, url_len: i32, key: *u8, key_len: i32,
+export function net_ws_connect_url_c(url: *u8, url_len: i32, key: *u8, key_len: i32,
   timeout_ms: u32, out_fd: *i32, out_tls_ctx: *i64): i32 {
   let host: u8[256] = [];
   let path: u8[512] = [];
@@ -350,12 +350,12 @@ function net_ws_connect_url_c(url: *u8, url_len: i32, key: *u8, key_len: i32,
 }
 
 /** WSS 是否可用（同 std.net TLS 后端探测）。 */
-function net_ws_tls_is_available_c(): i32 {
+export function net_ws_tls_is_available_c(): i32 {
   return tls.net_tls_is_available_c();
 }
 
 /** 编码并发送 TEXT 帧；tls_ctx=0 为明文；成功返回 payload_len。 */
-function net_ws_write_text_c(fd: i32, tls_ctx: i64, payload: *u8, payload_len: i32): i32 {
+export function net_ws_write_text_c(fd: i32, tls_ctx: i64, payload: *u8, payload_len: i32): i32 {
   let frame: u8[140] = [];
   let flen: i32 = 0;
   if (fd < 0 || payload_len < 0) {
@@ -375,7 +375,7 @@ function net_ws_write_text_c(fd: i32, tls_ctx: i64, payload: *u8, payload_len: i
 }
 
 /** 编码并发送 BINARY 帧；tls_ctx=0 为明文；成功返回 payload_len。 */
-function net_ws_write_binary_c(fd: i32, tls_ctx: i64, payload: *u8, payload_len: i32): i32 {
+export function net_ws_write_binary_c(fd: i32, tls_ctx: i64, payload: *u8, payload_len: i32): i32 {
   let frame: u8[140] = [];
   let flen: i32 = 0;
   if (fd < 0 || payload_len < 0) {
@@ -395,7 +395,7 @@ function net_ws_write_binary_c(fd: i32, tls_ctx: i64, payload: *u8, payload_len:
 }
 
 /** 从传输层读一帧；tls_ctx=0 为明文；成功 0。 */
-function net_ws_read_frame_c(fd: i32, tls_ctx: i64, out_opcode: *i32, out_payload: *u8,
+export function net_ws_read_frame_c(fd: i32, tls_ctx: i64, out_opcode: *i32, out_payload: *u8,
   out_cap: i32, out_payload_len: *i32, timeout_ms: u32): i32 {
   let wire: u8[140] = [];
   let masked: i32 = 0;
@@ -431,7 +431,7 @@ function net_ws_read_frame_c(fd: i32, tls_ctx: i64, out_opcode: *i32, out_payloa
 /**
  * 构建服务端 101 Switching Protocols 响应；返回字节数，失败 -1。
  */
-function ws_build_server_101(accept: *u8, out: *u8, out_cap: i32): i32 {
+export function ws_build_server_101(accept: *u8, out: *u8, out_cap: i32): i32 {
   let n: i32 = 0;
   let h0: u8[36] = [72, 84, 84, 80, 47, 49, 46, 49, 32, 49, 48, 49, 32, 83, 119, 105,
     116, 99, 104, 105, 110, 103, 32, 80, 114, 111, 116, 111, 99, 111, 108, 115, 13, 10, 0, 0];
@@ -463,7 +463,7 @@ function ws_build_server_101(accept: *u8, out: *u8, out_cap: i32): i32 {
 }
 
 /** 服务端：对已有 Upgrade 请求缓冲回复 101 并交接到帧层；成功 0。 */
-function net_ws_server_accept_request_c(fd: i32, tls_ctx: i64, req: *u8, req_len: i32,
+export function net_ws_server_accept_request_c(fd: i32, tls_ctx: i64, req: *u8, req_len: i32,
   timeout_ms: u32): i32 {
   let key: u8[80] = [];
   let accept: u8[32] = [];
@@ -494,7 +494,7 @@ function net_ws_server_accept_request_c(fd: i32, tls_ctx: i64, req: *u8, req_len
 }
 
 /** 服务端：从 fd 读取 Upgrade 请求并完成 101 握手；成功 0。 */
-function net_ws_server_handshake_c(fd: i32, tls_ctx: i64, timeout_ms: u32): i32 {
+export function net_ws_server_handshake_c(fd: i32, tls_ctx: i64, timeout_ms: u32): i32 {
   let req: u8[2048] = [];
   let req_len: i32 = 0;
   let hdr_end: i32 = 0;
@@ -526,7 +526,7 @@ function net_ws_server_handshake_c(fd: i32, tls_ctx: i64, timeout_ms: u32): i32 
 }
 
 /** 服务端发送 TEXT 帧（无掩码）；成功返回 payload_len。 */
-function net_ws_write_server_text_c(fd: i32, tls_ctx: i64, payload: *u8, payload_len: i32): i32 {
+export function net_ws_write_server_text_c(fd: i32, tls_ctx: i64, payload: *u8, payload_len: i32): i32 {
   let frame: u8[140] = [];
   let flen: i32 = 0;
   if (fd < 0 || payload_len < 0) {
@@ -546,7 +546,7 @@ function net_ws_write_server_text_c(fd: i32, tls_ctx: i64, payload: *u8, payload
 }
 
 /** 服务端发送 BINARY 帧（无掩码）；成功返回 payload_len。 */
-function net_ws_write_server_binary_c(fd: i32, tls_ctx: i64, payload: *u8, payload_len: i32): i32 {
+export function net_ws_write_server_binary_c(fd: i32, tls_ctx: i64, payload: *u8, payload_len: i32): i32 {
   let frame: u8[140] = [];
   let flen: i32 = 0;
   if (fd < 0 || payload_len < 0) {
@@ -566,7 +566,7 @@ function net_ws_write_server_binary_c(fd: i32, tls_ctx: i64, payload: *u8, paylo
 }
 
 /** 服务端 accept 烟测（请求解析 + Unix socketpair/fork 101）。 */
-function net_ws_server_accept_smoke_c(): i32 {
+export function net_ws_server_accept_smoke_c(): i32 {
   let req: u8[200] = [
     71, 69, 84, 32, 47, 119, 115, 32, 72, 84, 84, 80, 47, 49, 46, 49, 13, 10,
     72, 111, 115, 116, 58, 32, 108, 111, 99, 97, 108, 104, 111, 115, 116, 13, 10,
@@ -588,6 +588,6 @@ function net_ws_server_accept_smoke_c(): i32 {
 }
 
 /** 客户端握手烟测；Unix 用 fork+socketpair，其它宿主跳过返回 0。 */
-function net_ws_client_handshake_smoke_c(): i32 {
+export function net_ws_client_handshake_smoke_c(): i32 {
   return 0;
 }

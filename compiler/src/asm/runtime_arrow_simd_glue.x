@@ -5,19 +5,19 @@
 // 实现仍在 seed C；本文件为文档锚点。
 // G-02f-103：+ f32/i32 sum/dot kernels 薄门闩（hsum_ps 仍 C，__m128 ABI）。
 
-extern "C" function arrow_f32_sum_kernel_impl(data: *u8, n: i32): f32;
-extern "C" function arrow_f32_dot_kernel_impl(a: *u8, b: *u8, n: i32): f32;
-extern "C" function arrow_i32_sum_valid_kernel_impl(data: *u8, bm: *u8, n: i32): i32;
-extern "C" function arrow_f32_sum_valid_kernel_impl(data: *u8, bm: *u8, n: i32): f32;
+export extern "C" function arrow_f32_sum_kernel_impl(data: *u8, n: i32): f32;
+export extern "C" function arrow_f32_dot_kernel_impl(a: *u8, b: *u8, n: i32): f32;
+export extern "C" function arrow_i32_sum_valid_kernel_impl(data: *u8, bm: *u8, n: i32): i32;
+export extern "C" function arrow_f32_sum_valid_kernel_impl(data: *u8, bm: *u8, n: i32): f32;
 
-function runtime_arrow_simd_glue_x_doc_anchor(): i32 {
+export function runtime_arrow_simd_glue_x_doc_anchor(): i32 {
   return 0;
 }
 
 /* ---- G-02f-103：arrow simd kernels 门闩 ---- */
 
 #[no_mangle]
-function arrow_f32_sum_kernel(data: *u8, n: i32): f32 {
+export function arrow_f32_sum_kernel(data: *u8, n: i32): f32 {
   unsafe {
     return arrow_f32_sum_kernel_impl(data, n);
   }
@@ -25,7 +25,7 @@ function arrow_f32_sum_kernel(data: *u8, n: i32): f32 {
 }
 
 #[no_mangle]
-function arrow_f32_dot_kernel(a: *u8, b: *u8, n: i32): f32 {
+export function arrow_f32_dot_kernel(a: *u8, b: *u8, n: i32): f32 {
   unsafe {
     return arrow_f32_dot_kernel_impl(a, b, n);
   }
@@ -33,7 +33,7 @@ function arrow_f32_dot_kernel(a: *u8, b: *u8, n: i32): f32 {
 }
 
 #[no_mangle]
-function arrow_i32_sum_valid_kernel(data: *u8, bm: *u8, n: i32): i32 {
+export function arrow_i32_sum_valid_kernel(data: *u8, bm: *u8, n: i32): i32 {
   unsafe {
     return arrow_i32_sum_valid_kernel_impl(data, bm, n);
   }
@@ -41,7 +41,7 @@ function arrow_i32_sum_valid_kernel(data: *u8, bm: *u8, n: i32): i32 {
 }
 
 #[no_mangle]
-function arrow_f32_sum_valid_kernel(data: *u8, bm: *u8, n: i32): f32 {
+export function arrow_f32_sum_valid_kernel(data: *u8, bm: *u8, n: i32): f32 {
   unsafe {
     return arrow_f32_sum_valid_kernel_impl(data, bm, n);
   }

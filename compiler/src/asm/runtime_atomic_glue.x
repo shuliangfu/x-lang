@@ -5,6 +5,6 @@
 // 实现仍在 seed C；本文件为文档锚点。
 // 产品：cc seeds/runtime_atomic_glue.from_x.c → runtime_atomic_glue.o
 
-function runtime_atomic_glue_x_doc_anchor(): i32 {
+export function runtime_atomic_glue_x_doc_anchor(): i32 {
   return 0;
 }

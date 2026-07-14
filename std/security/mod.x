@@ -25,27 +25,27 @@
 const crypto = import("std.crypto");
 const random = import("std.random");
 
-extern function security_secure_zero_c(p: *u8, len: i32): void;
-extern function security_mlock_c(p: *u8, len: i32): i32;
-extern function security_munlock_c(p: *u8, len: i32): i32;
-extern function security_hkdf_sha256_c(salt: *u8, salt_len: i32, ikm: *u8, ikm_len: i32,
+export extern function security_secure_zero_c(p: *u8, len: i32): void;
+export extern function security_mlock_c(p: *u8, len: i32): i32;
+export extern function security_munlock_c(p: *u8, len: i32): i32;
+export extern function security_hkdf_sha256_c(salt: *u8, salt_len: i32, ikm: *u8, ikm_len: i32,
   info: *u8, info_len: i32, okm: *u8, okm_len: i32): i32;
 
 /** 推荐 AES-256 密钥长度（字节）。 */
-function key_len(): i32 { return 32; }
+export function key_len(): i32 { return 32; }
 /** 默认盐长度（字节）。 */
-function salt_len_default(): i32 { return 16; }
+export function salt_len_default(): i32 { return 16; }
 /** 最小可接受密钥/盐长度。 */
-function min_secret_len(): i32 { return 8; }
+export function min_secret_len(): i32 { return 8; }
 
 /** 成功。 */
-function err_ok(): i32 { return 0; }
+export function err_ok(): i32 { return 0; }
 /** 参数非法。 */
-function err_invalid(): i32 { return -1; }
+export function err_invalid(): i32 { return -1; }
 /** 随机源失败。 */
-function err_random(): i32 { return -2; }
+export function err_random(): i32 { return -2; }
 /** 输出缓冲不足。 */
-function err_buffer(): i32 { return -3; }
+export function err_buffer(): i32 { return -3; }
 
 /** 敏感缓冲描述（指针 + 长度 + 是否已 mlock）。 */
 allow(padding) struct SensitiveBuf {
@@ -55,12 +55,12 @@ allow(padding) struct SensitiveBuf {
 }
 
 /** 常量时间比较；与 std.crypto.mem_eq 同义，语义别名便于安全审计。 */
-function ct_compare(a: *u8, b: *u8, len: i32): i32 {
+export function ct_compare(a: *u8, b: *u8, len: i32): i32 {
   return crypto.mem_eq(a, b, len);
 }
 
 /** 用 CSPRNG 填充密钥材料；len 须 >= min_secret_len()。 */
-function random_key(buf: *u8, len: i32): i32 {
+export function random_key(buf: *u8, len: i32): i32 {
   let n: i32 = 0;
   if (buf == 0 || len < min_secret_len()) { return err_invalid(); }
   n = random.fill_bytes(buf, len);
@@ -69,12 +69,12 @@ function random_key(buf: *u8, len: i32): i32 {
 }
 
 /** 用 CSPRNG 填充盐；len 须 >= min_secret_len()。 */
-function random_salt(buf: *u8, len: i32): i32 {
+export function random_salt(buf: *u8, len: i32): i32 {
   return random_key(buf, len);
 }
 
 /** HKDF-SHA256 派生；okm_len 须 > 0。 */
-function hkdf(salt: *u8, salt_len: i32, ikm: *u8, ikm_len: i32,
+export function hkdf(salt: *u8, salt_len: i32, ikm: *u8, ikm_len: i32,
   info: *u8, info_len: i32, okm: *u8, okm_len: i32): i32 {
   let r: i32 = 0;
   if (ikm == 0 || okm == 0 || ikm_len <= 0 || okm_len <= 0) { return err_invalid(); }
@@ -86,27 +86,27 @@ function hkdf(salt: *u8, salt_len: i32, ikm: *u8, ikm_len: i32,
 }
 
 /** 安全清零缓冲（密钥释放前调用）。 */
-function secure_zero(p: *u8, len: i32): void {
+export function secure_zero(p: *u8, len: i32): void {
   if (p == 0 || len <= 0) { return; }
   unsafe { security_secure_zero_c(p, len); }
 }
 
 /** 尝试锁定敏感页；不支持时返回 0（静默回退）。 */
-function sensitive_lock(p: *u8, len: i32): i32 {
+export function sensitive_lock(p: *u8, len: i32): i32 {
   if (p == 0 || len <= 0) { return 0; }
   unsafe { return security_mlock_c(p, len); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 解除敏感页锁定。 */
-function sensitive_unlock(p: *u8, len: i32): i32 {
+export function sensitive_unlock(p: *u8, len: i32): i32 {
   if (p == 0 || len <= 0) { return 0; }
   unsafe { return security_munlock_c(p, len); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 绑定 SensitiveBuf 并可选 mlock。 */
-function sensitive_buf_init(sb: *SensitiveBuf, p: *u8, len: i32, try_lock: i32): i32 {
+export function sensitive_buf_init(sb: *SensitiveBuf, p: *u8, len: i32, try_lock: i32): i32 {
   if (sb == 0 || p == 0 || len <= 0) { return err_invalid(); }
   sb.ptr = p;
   sb.len = len;
@@ -118,7 +118,7 @@ function sensitive_buf_init(sb: *SensitiveBuf, p: *u8, len: i32, try_lock: i32):
 }
 
 /** 释放 SensitiveBuf：unlock + secure_zero。 */
-function sensitive_buf_wipe(sb: *SensitiveBuf): void {
+export function sensitive_buf_wipe(sb: *SensitiveBuf): void {
   let p: *u8 = 0;
   let n: i32 = 0;
   if (sb == 0) { return; }

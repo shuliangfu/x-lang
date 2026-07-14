@@ -13,47 +13,47 @@
 // G-02f-249：walk 条目过滤 pure + collect_paths_from_arg 编排 pure。
 // G-02f-250：default product dirs 编排 pure + check_one 结果 pure；P1-8 soft 近闭。
 
-extern "C" function getenv(name: *u8): *u8;
-extern "C" function strstr(hay: *u8, needle: *u8): *u8;
+export extern "C" function getenv(name: *u8): *u8;
+export extern "C" function strstr(hay: *u8, needle: *u8): *u8;
 /* collect mode / lit：G-02f-247 下方真迁 */
-extern "C" function driver_collect_mode_is_check(): i32;
-extern "C" function driver_fmt_check_lit_check_error(): *u8;
-extern "C" function driver_fmt_check_lit_fmt_error(): *u8;
-extern "C" function driver_fmt_check_lit_chk002(): *u8;
-extern "C" function driver_fmt_check_lit_fmt001(): *u8;
+export extern "C" function driver_collect_mode_is_check(): i32;
+export extern "C" function driver_fmt_check_lit_check_error(): *u8;
+export extern "C" function driver_fmt_check_lit_fmt_error(): *u8;
+export extern "C" function driver_fmt_check_lit_chk002(): *u8;
+export extern "C" function driver_fmt_check_lit_fmt001(): *u8;
 /* path_should_ignore：G-02f-247 下方真迁；ignore 槽 🔒 */
-extern "C" function fmt_builtin_ignore_at(i: i32): *u8;
-extern "C" function fmt_user_ignore_count(): i32;
-extern "C" function fmt_user_ignore_at(i: i32): *u8;
+export extern "C" function fmt_builtin_ignore_at(i: i32): *u8;
+export extern "C" function fmt_user_ignore_count(): i32;
+export extern "C" function fmt_user_ignore_at(i: i32): *u8;
 /* file_list：G-02f-248 下方真迁编排；getcwd/strdup 🔒 */
-extern "C" function fmt_file_list_n(): i32;
-extern "C" function fmt_path_resolve_abs(path: *u8): *u8;
-extern "C" function fmt_file_list_store_impl(abs_path: *u8): i32;
-extern "C" function file_list_clear_impl(): void;
-extern "C" function fmt_check_dep_clear_impl(): void;
-extern "C" function check_init_user_lib_flags_impl(argc: i32, argv: *u8, path_start: i32): void;
+export extern "C" function fmt_file_list_n(): i32;
+export extern "C" function fmt_path_resolve_abs(path: *u8): *u8;
+export extern "C" function fmt_file_list_store_impl(abs_path: *u8): i32;
+export extern "C" function file_list_clear_impl(): void;
+export extern "C" function fmt_check_dep_clear_impl(): void;
+export extern "C" function check_init_user_lib_flags_impl(argc: i32, argv: *u8, path_start: i32): void;
 /* lib_root：G-02f-248 早退 pure；stat/dedup 🔒 */
-extern "C" function check_user_passed_L_get(): i32;
-extern "C" function check_try_append_lib_root_impl(check_argv: *u8, n: *i32, dir: *u8): void;
-extern "C" function check_append_repo_lib_roots_impl(check_argv: *u8, n: *i32): void;
-extern "C" function check_argv_append_default_libs_for_path_impl(path: *u8, check_argv: *u8, n: *i32): void;
-extern "C" function fmt_check_invoke_compile_impl(path: *u8): i32;
+export extern "C" function check_user_passed_L_get(): i32;
+export extern "C" function check_try_append_lib_root_impl(check_argv: *u8, n: *i32, dir: *u8): void;
+export extern "C" function check_append_repo_lib_roots_impl(check_argv: *u8, n: *i32): void;
+export extern "C" function check_argv_append_default_libs_for_path_impl(path: *u8, check_argv: *u8, n: *i32): void;
+export extern "C" function fmt_check_invoke_compile_impl(path: *u8): i32;
 /* walk：G-02f-249 过滤 pure；opendir 循环 🔒 */
-extern "C" function walk_dir_collect_impl(dir: *u8): void;
+export extern "C" function walk_dir_collect_impl(dir: *u8): void;
 /* default dirs：G-02f-250 编排 pure；getcwd/stat 🔒 */
-extern "C" function fmt_default_product_sub_at(i: i32): *u8;
-extern "C" function fmt_try_walk_if_product_subdir(sub: *u8): i32;
-extern "C" function fmt_walk_cwd_fallback_impl(): void;
+export extern "C" function fmt_default_product_sub_at(i: i32): *u8;
+export extern "C" function fmt_try_walk_if_product_subdir(sub: *u8): i32;
+export extern "C" function fmt_walk_cwd_fallback_impl(): void;
 /* collect_paths：G-02f-249 编排 pure；stat/diag 🔒 */
-extern "C" function fmt_path_stat_kind(path: *u8): i32;
-extern "C" function collect_paths_missing_diag_impl(path: *u8): void;
-extern "C" function parse_ignore_opt_impl(arg: *u8): void;
+export extern "C" function fmt_path_stat_kind(path: *u8): i32;
+export extern "C" function collect_paths_missing_diag_impl(path: *u8): void;
+export extern "C" function parse_ignore_opt_impl(arg: *u8): void;
 /* check_one 主体 🔒；结果 pure 见 G-02f-250 */
-extern "C" function check_one_file_body_impl(path: *u8, argc: i32, argv: *u8): i32;
-extern "C" function closedir_win_impl(d: *u8): void;
+export extern "C" function check_one_file_body_impl(path: *u8, argc: i32, argv: *u8): i32;
+export extern "C" function closedir_win_impl(d: *u8): void;
 
 #[no_mangle]
-function driver_check_quiet_ok_get(): i32 {
+export function driver_check_quiet_ok_get(): i32 {
   // deno check：全部成功时不打印逐文件 check OK。
   return 1;
 }
@@ -62,7 +62,7 @@ function driver_check_quiet_ok_get(): i32 {
 
 // G-02f-247：check 模式 → "check error"，否则 "fmt error"
 #[no_mangle]
-function driver_collect_error_kind(): *u8 {
+export function driver_collect_error_kind(): *u8 {
   unsafe {
     if (driver_collect_mode_is_check() != 0) {
       return driver_fmt_check_lit_check_error();
@@ -74,7 +74,7 @@ function driver_collect_error_kind(): *u8 {
 
 // G-02f-247：check → CHK002，否则 FMT001
 #[no_mangle]
-function driver_collect_missing_path_code(): *u8 {
+export function driver_collect_missing_path_code(): *u8 {
   unsafe {
     if (driver_collect_mode_is_check() != 0) {
       return driver_fmt_check_lit_chk002();
@@ -88,7 +88,7 @@ function driver_collect_missing_path_code(): *u8 {
 
 // G-02f-247：内置 + --ignore 子串；null path → 忽略
 #[no_mangle]
-function path_should_ignore(path: *u8): i32 {
+export function path_should_ignore(path: *u8): i32 {
   if (path == 0 as *u8) {
     return 1;
   }
@@ -123,7 +123,7 @@ function path_should_ignore(path: *u8): i32 {
 
 // G-02f-248：路径是否以 ".x" 结尾
 #[no_mangle]
-function fmt_path_ends_with_dot_x(path: *u8): i32 {
+export function fmt_path_ends_with_dot_x(path: *u8): i32 {
   if (path == 0 as *u8) {
     return 0;
   }
@@ -150,7 +150,7 @@ function fmt_path_ends_with_dot_x(path: *u8): i32 {
 
 // G-02f-248：满员/解析/ignore/.x 过滤 pure；strdup 入表 🔒
 #[no_mangle]
-function file_list_push(path: *u8): i32 {
+export function file_list_push(path: *u8): i32 {
   if (path == 0 as *u8) {
     return 0 - 1;
   }
@@ -174,21 +174,21 @@ function file_list_push(path: *u8): i32 {
 }
 
 #[no_mangle]
-function file_list_clear(): void {
+export function file_list_clear(): void {
   unsafe {
     file_list_clear_impl();
   }
 }
 
 #[no_mangle]
-function fmt_check_dep_clear(): void {
+export function fmt_check_dep_clear(): void {
   unsafe {
     fmt_check_dep_clear_impl();
   }
 }
 
 #[no_mangle]
-function check_init_user_lib_flags(argc: i32, argv: *u8, path_start: i32): void {
+export function check_init_user_lib_flags(argc: i32, argv: *u8, path_start: i32): void {
   if (argv == 0 as *u8) {
     return;
   }
@@ -199,7 +199,7 @@ function check_init_user_lib_flags(argc: i32, argv: *u8, path_start: i32): void 
 
 // G-02f-248：user -L / n>=58 / 空 dir 早退 pure；stat 体 🔒
 #[no_mangle]
-function check_try_append_lib_root(check_argv: *u8, n: *i32, dir: *u8): void {
+export function check_try_append_lib_root(check_argv: *u8, n: *i32, dir: *u8): void {
   if (check_argv == 0 as *u8) {
     return;
   }
@@ -226,7 +226,7 @@ function check_try_append_lib_root(check_argv: *u8, n: *i32, dir: *u8): void {
 /* ---- G-02f-107：fmt walk/collect/check 门闩 ---- */
 
 #[no_mangle]
-function check_append_repo_lib_roots(check_argv: *u8, n: *i32): void {
+export function check_append_repo_lib_roots(check_argv: *u8, n: *i32): void {
   if (check_argv == 0 as *u8) {
     return;
   }
@@ -239,7 +239,7 @@ function check_append_repo_lib_roots(check_argv: *u8, n: *i32): void {
 }
 
 #[no_mangle]
-function check_argv_append_default_libs_for_path(path: *u8, check_argv: *u8, n: *i32): void {
+export function check_argv_append_default_libs_for_path(path: *u8, check_argv: *u8, n: *i32): void {
   if (check_argv == 0 as *u8) {
     return;
   }
@@ -252,7 +252,7 @@ function check_argv_append_default_libs_for_path(path: *u8, check_argv: *u8, n: 
 }
 
 #[no_mangle]
-function fmt_check_invoke_compile(path: *u8): i32 {
+export function fmt_check_invoke_compile(path: *u8): i32 {
   if (path == 0 as *u8) {
     return 0 - 1;
   }
@@ -264,7 +264,7 @@ function fmt_check_invoke_compile(path: *u8): i32 {
 
 // G-02f-249：dirent 名以 '.' 开头（含 . / ..）则跳过
 #[no_mangle]
-function fmt_walk_skip_dot_name(name: *u8): i32 {
+export function fmt_walk_skip_dot_name(name: *u8): i32 {
   if (name == 0 as *u8) {
     return 1;
   }
@@ -281,7 +281,7 @@ function fmt_walk_skip_dot_name(name: *u8): i32 {
 
 // G-02f-249：已 join 的 child；ignore / 递归 / .x 入表 pure
 #[no_mangle]
-function walk_dir_collect_process_child(child: *u8, is_dir: i32, is_reg: i32): void {
+export function walk_dir_collect_process_child(child: *u8, is_dir: i32, is_reg: i32): void {
   if (child == 0 as *u8) {
     return;
   }
@@ -300,7 +300,7 @@ function walk_dir_collect_process_child(child: *u8, is_dir: i32, is_reg: i32): v
 }
 
 #[no_mangle]
-function walk_dir_collect(dir: *u8): void {
+export function walk_dir_collect(dir: *u8): void {
   if (dir == 0 as *u8) {
     return;
   }
@@ -311,7 +311,7 @@ function walk_dir_collect(dir: *u8): void {
 
 // G-02f-250：扫 compiler/src,core,std,examples；全无则 walk cwd
 #[no_mangle]
-function check_collect_default_product_dirs(): void {
+export function check_collect_default_product_dirs(): void {
   let any: i32 = 0;
   let i: i32 = 0;
   while (i < 8) {
@@ -336,7 +336,7 @@ function check_collect_default_product_dirs(): void {
 // G-02f-249：stat kind → missing diag / walk / file_list pure 编排
 // kind: -1 不可访问；1 目录；0 文件
 #[no_mangle]
-function collect_paths_from_arg(arg: *u8): void {
+export function collect_paths_from_arg(arg: *u8): void {
   if (arg == 0 as *u8) {
     return;
   }
@@ -359,7 +359,7 @@ function collect_paths_from_arg(arg: *u8): void {
 
 // G-02f-247：前缀 `--ignore=` pure；体 C 写 s_ignore_paths
 #[no_mangle]
-function parse_ignore_opt(arg: *u8): i32 {
+export function parse_ignore_opt(arg: *u8): i32 {
   if (arg == 0 as *u8) {
     return 0;
   }
@@ -399,7 +399,7 @@ function parse_ignore_opt(arg: *u8): i32 {
 
 // G-02f-250：check 失败且无诊断时是否补 CHK001
 #[no_mangle]
-function check_one_need_fallback_diag(rc: i32, nd: i32, nd_errors: i32, nd_warnings: i32, nd_infos: i32, direct_diag: i32): i32 {
+export function check_one_need_fallback_diag(rc: i32, nd: i32, nd_errors: i32, nd_warnings: i32, nd_infos: i32, direct_diag: i32): i32 {
   if (rc == 0) {
     return 0;
   }
@@ -421,7 +421,7 @@ function check_one_need_fallback_diag(rc: i32, nd: i32, nd_errors: i32, nd_warni
 
 // G-02f-250：rc==0 且 lint warn 时改失败
 #[no_mangle]
-function check_one_finalize_rc(rc: i32, warn_count: i32): i32 {
+export function check_one_finalize_rc(rc: i32, warn_count: i32): i32 {
   if (rc != 0) {
     return rc;
   }
@@ -435,7 +435,7 @@ function check_one_finalize_rc(rc: i32, warn_count: i32): i32 {
 
 // G-02f-250：门闩 + body 🔒（argv 拼装/compile/diag IO）
 #[no_mangle]
-function check_one_file(path: *u8, argc: i32, argv: *u8): i32 {
+export function check_one_file(path: *u8, argc: i32, argv: *u8): i32 {
   if (path == 0 as *u8) {
     return 0 - 1;
   }
@@ -454,7 +454,7 @@ function check_one_file(path: *u8, argc: i32, argv: *u8): i32 {
 /* ---- G-02f-112：closedir_win 门闩 ---- */
 
 #[no_mangle]
-function closedir_win(d: *u8): void {
+export function closedir_win(d: *u8): void {
   if (d == 0 as *u8) {
     return;
   }
@@ -466,7 +466,7 @@ function closedir_win(d: *u8): void {
 // G-02f-116：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
 
 #[no_mangle]
-function check_lint_fail_on_warnings(): i32 {
+export function check_lint_fail_on_warnings(): i32 {
   unsafe {
     let v: *u8 = getenv("SHUX_LINT_CI_FAIL_ON");
     if (v == 0) {
@@ -500,7 +500,7 @@ function check_lint_fail_on_warnings(): i32 {
 // G-02f-118：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
 
 #[no_mangle]
-function shux_path_is_absolute(path: *u8): i32 {
+export function shux_path_is_absolute(path: *u8): i32 {
   if (path == 0) {
     return 0;
   }

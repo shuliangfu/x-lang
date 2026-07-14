@@ -10,34 +10,34 @@
 // G-02f-254：lsp_find_text_value / _from pure。
 // G-02f-255：extract_position pure；P1-9 soft 近闭。
 
-function runtime_lsp_glue_x_doc_anchor(): i32 {
+export function runtime_lsp_glue_x_doc_anchor(): i32 {
   return 0;
 }
 
 // G-02f-109：+ uri/path/json/hash/line_index 薄门闩。
 
-extern "C" function lsp_free_import_cache_impl(): void;
+export extern "C" function lsp_free_import_cache_impl(): void;
 /* uri↔path / copy_text：G-02f-251 pure；entry_dir：G-02f-252 pure + 槽写 🔒 */
-extern "C" function lsp_entry_dir_set_dot(): void;
-extern "C" function lsp_entry_fs_path_store(path: *u8): void;
-extern "C" function lsp_entry_dir_store_prefix(path: *u8, n: i32): void;
-extern "C" function lsp_init_lib_roots_once_impl(): void;
-extern "C" function lsp_diag_x_ctx_alloc_size_impl(): i64;
+export extern "C" function lsp_entry_dir_set_dot(): void;
+export extern "C" function lsp_entry_fs_path_store(path: *u8): void;
+export extern "C" function lsp_entry_dir_store_prefix(path: *u8, n: i32): void;
+export extern "C" function lsp_init_lib_roots_once_impl(): void;
+export extern "C" function lsp_diag_x_ctx_alloc_size_impl(): i64;
 /* json_escape：G-02f-252 下方真迁 pure */
-extern "C" function build_line_index_impl(mod: *u8): void;
-extern "C" function line_index_of_func_impl(f: *u8): i32;
+export extern "C" function build_line_index_impl(mod: *u8): void;
+export extern "C" function line_index_of_func_impl(f: *u8): i32;
 
 /* ---- G-02f-109 / G-02f-251：lsp glue helpers ---- */
 
 #[no_mangle]
-function lsp_free_import_cache(): void {
+export function lsp_free_import_cache(): void {
   unsafe {
     lsp_free_import_cache_impl();
   }
 }
 
 // G-02f-251：hex nibble → 0..15；非法 -1
-function lsp_hex_nibble(c: i32): i32 {
+export function lsp_hex_nibble(c: i32): i32 {
   if (c >= 48) {
     if (c <= 57) {
       return c - 48;
@@ -57,7 +57,7 @@ function lsp_hex_nibble(c: i32): i32 {
 }
 
 // G-02f-251：是否以 file:// 开头
-function lsp_uri_has_file_scheme(uri: *u8): i32 {
+export function lsp_uri_has_file_scheme(uri: *u8): i32 {
   if (uri == 0 as *u8) {
     return 0;
   }
@@ -90,7 +90,7 @@ function lsp_uri_has_file_scheme(uri: *u8): i32 {
 
 // G-02f-251：file URI → 本地路径（%XX 解码）
 #[no_mangle]
-function lsp_uri_to_fs_path(uri: *u8, out: *u8, cap: i64): void {
+export function lsp_uri_to_fs_path(uri: *u8, out: *u8, cap: i64): void {
   if (uri == 0 as *u8) {
     return;
   }
@@ -146,7 +146,7 @@ function lsp_uri_to_fs_path(uri: *u8, out: *u8, cap: i64): void {
 
 // G-02f-251：本地路径 → file URI（空格 → %20）
 #[no_mangle]
-function lsp_fs_path_to_uri(path: *u8, uri: *u8, cap: i32): void {
+export function lsp_fs_path_to_uri(path: *u8, uri: *u8, cap: i32): void {
   if (path == 0 as *u8) {
     return;
   }
@@ -197,7 +197,7 @@ function lsp_fs_path_to_uri(path: *u8, uri: *u8, cap: i32): void {
 
 // G-02f-252：最后 '/' 下标；无则 -1
 #[no_mangle]
-function lsp_path_last_slash(path: *u8): i32 {
+export function lsp_path_last_slash(path: *u8): i32 {
   if (path == 0 as *u8) {
     return 0 - 1;
   }
@@ -220,7 +220,7 @@ function lsp_path_last_slash(path: *u8): i32 {
 
 // G-02f-252：目录前缀 → entry_dir 槽；空路径 → "."
 #[no_mangle]
-function lsp_update_entry_dir(path: *u8): void {
+export function lsp_update_entry_dir(path: *u8): void {
   unsafe {
     if (path == 0 as *u8) {
       lsp_entry_dir_set_dot();
@@ -246,7 +246,7 @@ function lsp_update_entry_dir(path: *u8): void {
 }
 
 #[no_mangle]
-function lsp_init_lib_roots_once(): void {
+export function lsp_init_lib_roots_once(): void {
   unsafe {
     lsp_init_lib_roots_once_impl();
   }
@@ -254,7 +254,7 @@ function lsp_init_lib_roots_once(): void {
 
 // G-02f-251：有界 cstr 拷贝 pure
 #[no_mangle]
-function lsp_diag_copy_text(dst: *u8, cap: i32, src: *u8): void {
+export function lsp_diag_copy_text(dst: *u8, cap: i32, src: *u8): void {
   if (dst == 0 as *u8) {
     return;
   }
@@ -280,7 +280,7 @@ function lsp_diag_copy_text(dst: *u8, cap: i32, src: *u8): void {
 }
 
 #[no_mangle]
-function lsp_diag_x_ctx_alloc_size(): i64 {
+export function lsp_diag_x_ctx_alloc_size(): i64 {
   unsafe {
     return lsp_diag_x_ctx_alloc_size_impl();
   }
@@ -289,7 +289,7 @@ function lsp_diag_x_ctx_alloc_size(): i64 {
 
 // G-02f-252：JSON 字符串转义 pure（\" \\ \n \r \t）
 #[no_mangle]
-function json_escape_str(msg: *u8, out: *u8, cap: i32): i32 {
+export function json_escape_str(msg: *u8, out: *u8, cap: i32): i32 {
   if (out == 0 as *u8) {
     return 0;
   }
@@ -378,83 +378,83 @@ function json_escape_str(msg: *u8, out: *u8, cap: i32): i32 {
 
 // G-02f-133：func_name_covers 见文件尾（依赖 col_in_ident_span）
 #[no_mangle]
-function build_line_index(mod: *u8): void { unsafe { build_line_index_impl(mod); } }
+export function build_line_index(mod: *u8): void { unsafe { build_line_index_impl(mod); } }
 #[no_mangle]
-function line_index_of_func(f: *u8): i32 { unsafe { return line_index_of_func_impl(f); } return 0; }
+export function line_index_of_func(f: *u8): i32 { unsafe { return line_index_of_func_impl(f); } return 0; }
 
 // G-02f-110：+ expr_at/max_line/refs/def/type_to_string 薄门闩。
 
-extern "C" function expr_at_impl(e: *u8, line: i32, col: i32): i32;
-extern "C" function expr_max_line_impl(e: *u8): i32;
-extern "C" function block_max_line_impl(b: *u8): i32;
-extern "C" function add_ref_for_func_impl(f: *u8, line: i32, col: i32): void;
-extern "C" function build_refs_index_impl(mod: *u8): void;
-extern "C" function find_def_in_module_impl(mod: *u8, line: i32, col: i32, ol: *i32, oc: *i32): i32;
-extern "C" function lsp_typeck_entry_module_impl(mod: *u8, only: i32): void;
-extern "C" function collect_refs_index_in_expr_impl(e: *u8): void;
-extern "C" function collect_refs_index_in_block_impl(b: *u8): void;
-extern "C" function find_def_in_expr_impl(mod: *u8, e: *u8, line: i32, col: i32, ol: *i32, oc: *i32): i32;
-extern "C" function find_def_in_block_impl(mod: *u8, b: *u8, line: i32, col: i32, ol: *i32, oc: *i32): i32;
-extern "C" function collect_refs_add_impl(name: *u8, line: i32, col: i32): void;
-extern "C" function collect_refs_in_expr_impl(e: *u8): void;
-extern "C" function collect_refs_in_block_impl(b: *u8): void;
-extern "C" function collect_refs_to_func_impl(f: *u8): void;
-extern "C" function type_to_string_impl(ty: *u8, buf: *u8, cap: i32): i32;
+export extern "C" function expr_at_impl(e: *u8, line: i32, col: i32): i32;
+export extern "C" function expr_max_line_impl(e: *u8): i32;
+export extern "C" function block_max_line_impl(b: *u8): i32;
+export extern "C" function add_ref_for_func_impl(f: *u8, line: i32, col: i32): void;
+export extern "C" function build_refs_index_impl(mod: *u8): void;
+export extern "C" function find_def_in_module_impl(mod: *u8, line: i32, col: i32, ol: *i32, oc: *i32): i32;
+export extern "C" function lsp_typeck_entry_module_impl(mod: *u8, only: i32): void;
+export extern "C" function collect_refs_index_in_expr_impl(e: *u8): void;
+export extern "C" function collect_refs_index_in_block_impl(b: *u8): void;
+export extern "C" function find_def_in_expr_impl(mod: *u8, e: *u8, line: i32, col: i32, ol: *i32, oc: *i32): i32;
+export extern "C" function find_def_in_block_impl(mod: *u8, b: *u8, line: i32, col: i32, ol: *i32, oc: *i32): i32;
+export extern "C" function collect_refs_add_impl(name: *u8, line: i32, col: i32): void;
+export extern "C" function collect_refs_in_expr_impl(e: *u8): void;
+export extern "C" function collect_refs_in_block_impl(b: *u8): void;
+export extern "C" function collect_refs_to_func_impl(f: *u8): void;
+export extern "C" function type_to_string_impl(ty: *u8, buf: *u8, cap: i32): i32;
 
 /* ---- G-02f-110：lsp refs/def helpers 门闩 ---- */
 
 #[no_mangle]
-function expr_at(e: *u8, line: i32, col: i32): i32 { unsafe { return expr_at_impl(e, line, col); } return 0; }
+export function expr_at(e: *u8, line: i32, col: i32): i32 { unsafe { return expr_at_impl(e, line, col); } return 0; }
 #[no_mangle]
-function expr_max_line(e: *u8): i32 { unsafe { return expr_max_line_impl(e); } return 0; }
+export function expr_max_line(e: *u8): i32 { unsafe { return expr_max_line_impl(e); } return 0; }
 #[no_mangle]
-function block_max_line(b: *u8): i32 { unsafe { return block_max_line_impl(b); } return 0; }
+export function block_max_line(b: *u8): i32 { unsafe { return block_max_line_impl(b); } return 0; }
 #[no_mangle]
-function add_ref_for_func(f: *u8, line: i32, col: i32): void { unsafe { add_ref_for_func_impl(f, line, col); } }
+export function add_ref_for_func(f: *u8, line: i32, col: i32): void { unsafe { add_ref_for_func_impl(f, line, col); } }
 #[no_mangle]
-function build_refs_index(mod: *u8): void { unsafe { build_refs_index_impl(mod); } }
+export function build_refs_index(mod: *u8): void { unsafe { build_refs_index_impl(mod); } }
 #[no_mangle]
-function find_def_in_module(mod: *u8, line: i32, col: i32, ol: *i32, oc: *i32): i32 { unsafe { return find_def_in_module_impl(mod, line, col, ol, oc); } return 0; }
+export function find_def_in_module(mod: *u8, line: i32, col: i32, ol: *i32, oc: *i32): i32 { unsafe { return find_def_in_module_impl(mod, line, col, ol, oc); } return 0; }
 #[no_mangle]
-function lsp_typeck_entry_module(mod: *u8, only: i32): void { unsafe { lsp_typeck_entry_module_impl(mod, only); } }
+export function lsp_typeck_entry_module(mod: *u8, only: i32): void { unsafe { lsp_typeck_entry_module_impl(mod, only); } }
 #[no_mangle]
-function collect_refs_index_in_expr(e: *u8): void { unsafe { collect_refs_index_in_expr_impl(e); } }
+export function collect_refs_index_in_expr(e: *u8): void { unsafe { collect_refs_index_in_expr_impl(e); } }
 #[no_mangle]
-function collect_refs_index_in_block(b: *u8): void { unsafe { collect_refs_index_in_block_impl(b); } }
+export function collect_refs_index_in_block(b: *u8): void { unsafe { collect_refs_index_in_block_impl(b); } }
 #[no_mangle]
-function find_def_in_expr(mod: *u8, e: *u8, line: i32, col: i32, ol: *i32, oc: *i32): i32 { unsafe { return find_def_in_expr_impl(mod, e, line, col, ol, oc); } return 0; }
+export function find_def_in_expr(mod: *u8, e: *u8, line: i32, col: i32, ol: *i32, oc: *i32): i32 { unsafe { return find_def_in_expr_impl(mod, e, line, col, ol, oc); } return 0; }
 #[no_mangle]
-function find_def_in_block(mod: *u8, b: *u8, line: i32, col: i32, ol: *i32, oc: *i32): i32 { unsafe { return find_def_in_block_impl(mod, b, line, col, ol, oc); } return 0; }
+export function find_def_in_block(mod: *u8, b: *u8, line: i32, col: i32, ol: *i32, oc: *i32): i32 { unsafe { return find_def_in_block_impl(mod, b, line, col, ol, oc); } return 0; }
 #[no_mangle]
-function collect_refs_add(name: *u8, line: i32, col: i32): void { unsafe { collect_refs_add_impl(name, line, col); } }
+export function collect_refs_add(name: *u8, line: i32, col: i32): void { unsafe { collect_refs_add_impl(name, line, col); } }
 #[no_mangle]
-function collect_refs_in_expr(e: *u8): void { unsafe { collect_refs_in_expr_impl(e); } }
+export function collect_refs_in_expr(e: *u8): void { unsafe { collect_refs_in_expr_impl(e); } }
 #[no_mangle]
-function collect_refs_in_block(b: *u8): void { unsafe { collect_refs_in_block_impl(b); } }
+export function collect_refs_in_block(b: *u8): void { unsafe { collect_refs_in_block_impl(b); } }
 #[no_mangle]
-function collect_refs_to_func(f: *u8): void { unsafe { collect_refs_to_func_impl(f); } }
+export function collect_refs_to_func(f: *u8): void { unsafe { collect_refs_to_func_impl(f); } }
 #[no_mangle]
-function type_to_string(ty: *u8, buf: *u8, cap: i32): i32 { unsafe { return type_to_string_impl(ty, buf, cap); } return 0; }
+export function type_to_string(ty: *u8, buf: *u8, cap: i32): i32 { unsafe { return type_to_string_impl(ty, buf, cap); } return 0; }
 
 // G-02f-111 / G-02f-253：JSON/offset/format document helpers。
 
-extern "C" function try_apply_content_changes_impl(doc: *u8, json: *u8): i32;
+export extern "C" function try_apply_content_changes_impl(doc: *u8, json: *u8): i32;
 /* line_char_to_offset / lsp_doc_line_count：G-02f-253 pure */
 /* find_text_value：G-02f-254 pure */
-extern "C" function parse_first_content_change_impl(json: *u8, out: *u8): i32;
-extern "C" function lsp_extract_formatting_options_impl(json: *u8, out: *u8): i32;
-extern "C" function lsp_format_line_update_depth_impl(line: *u8, depth: *i32): void;
-extern "C" function lsp_fmt_try_emit_op_impl(ctx: *u8): i32;
-extern "C" function lsp_format_emit_segment_impl(ctx: *u8): i32;
-extern "C" function lsp_fmt_comma_expand_extra_impl(ctx: *u8): i32;
-extern "C" function lsp_format_find_break_impl(ctx: *u8): i32;
-extern "C" function lsp_format_document_impl(src: *u8, out: *u8, cap: i32): i32;
-extern "C" function lsp_extract_string_value_impl(s: *u8, from: i32, out: *u8, cap: i32): i32;
+export extern "C" function parse_first_content_change_impl(json: *u8, out: *u8): i32;
+export extern "C" function lsp_extract_formatting_options_impl(json: *u8, out: *u8): i32;
+export extern "C" function lsp_format_line_update_depth_impl(line: *u8, depth: *i32): void;
+export extern "C" function lsp_fmt_try_emit_op_impl(ctx: *u8): i32;
+export extern "C" function lsp_format_emit_segment_impl(ctx: *u8): i32;
+export extern "C" function lsp_fmt_comma_expand_extra_impl(ctx: *u8): i32;
+export extern "C" function lsp_format_find_break_impl(ctx: *u8): i32;
+export extern "C" function lsp_format_document_impl(src: *u8, out: *u8, cap: i32): i32;
+export extern "C" function lsp_extract_string_value_impl(s: *u8, from: i32, out: *u8, cap: i32): i32;
 
 /* ---- G-02f-111 / G-02f-253：lsp JSON/format ---- */
 
 #[no_mangle]
-function try_apply_content_changes(doc: *u8, json: *u8): i32 {
+export function try_apply_content_changes(doc: *u8, json: *u8): i32 {
   if (doc == 0 as *u8) {
     return 0;
   }
@@ -466,7 +466,7 @@ function try_apply_content_changes(doc: *u8, json: *u8): i32 {
 
 // G-02f-253：(line, character) 0-based → 字节偏移；失败 -1
 #[no_mangle]
-function line_char_to_offset(doc: *u8, len: i32, line: i32, character: i32): i32 {
+export function line_char_to_offset(doc: *u8, len: i32, line: i32, character: i32): i32 {
   if (doc == 0 as *u8) {
     return 0 - 1;
   }
@@ -515,7 +515,7 @@ function line_char_to_offset(doc: *u8, len: i32, line: i32, character: i32): i32
 
 // G-02f-253：最后一行号（0-based）与末行字符数
 #[no_mangle]
-function lsp_doc_line_count(doc: *u8, len: i32, out_last_line: *i32, out_last_line_char: *i32): void {
+export function lsp_doc_line_count(doc: *u8, len: i32, out_last_line: *i32, out_last_line_char: *i32): void {
   if (out_last_line == 0 as *i32) {
     return;
   }
@@ -555,7 +555,7 @@ function lsp_doc_line_count(doc: *u8, len: i32, out_last_line: *i32, out_last_li
 }
 
 #[no_mangle]
-function parse_first_content_change(json: *u8, out: *u8): i32 {
+export function parse_first_content_change(json: *u8, out: *u8): i32 {
   unsafe {
     return parse_first_content_change_impl(json, out);
   }
@@ -563,7 +563,7 @@ function parse_first_content_change(json: *u8, out: *u8): i32 {
 }
 
 // G-02f-254：JSON 空白
-function lsp_json_is_ws(c: u8): i32 {
+export function lsp_json_is_ws(c: u8): i32 {
   if (c == 32) {
     return 1;
   }
@@ -580,7 +580,7 @@ function lsp_json_is_ws(c: u8): i32 {
 }
 
 // G-02f-254：body[i..] 是否为 "text"
-function lsp_match_quote_text_quote(body: *u8, i: i32): i32 {
+export function lsp_match_quote_text_quote(body: *u8, i: i32): i32 {
   unsafe {
     // "text"
     if (body[i] != 34) {
@@ -606,7 +606,7 @@ function lsp_match_quote_text_quote(body: *u8, i: i32): i32 {
 }
 
 // G-02f-254：body[i..] 是否为 "textDocument"
-function lsp_match_quote_textdocument_quote(body: *u8, i: i32): i32 {
+export function lsp_match_quote_textdocument_quote(body: *u8, i: i32): i32 {
   unsafe {
     // "textDocument" = 14 bytes
     if (body[i] != 34) {
@@ -657,7 +657,7 @@ function lsp_match_quote_textdocument_quote(body: *u8, i: i32): i32 {
 
 // G-02f-254：从 search_start 找 "text":"..." 并 unescape
 #[no_mangle]
-function lsp_find_text_value_from(body: *u8, len: i32, search_start: i32, out_buf: *u8, out_cap: i32): i32 {
+export function lsp_find_text_value_from(body: *u8, len: i32, search_start: i32, out_buf: *u8, out_cap: i32): i32 {
   if (body == 0 as *u8) {
     return 0 - 1;
   }
@@ -763,7 +763,7 @@ function lsp_find_text_value_from(body: *u8, len: i32, search_start: i32, out_bu
 
 // G-02f-254：优先在 "textDocument" 后找 "text"；否则全段找
 #[no_mangle]
-function lsp_find_text_value(body: *u8, len: i32, out_buf: *u8, out_cap: i32): i32 {
+export function lsp_find_text_value(body: *u8, len: i32, out_buf: *u8, out_cap: i32): i32 {
   if (body == 0 as *u8) {
     return 0 - 1;
   }
@@ -792,7 +792,7 @@ function lsp_find_text_value(body: *u8, len: i32, out_buf: *u8, out_cap: i32): i
 }
 
 #[no_mangle]
-function lsp_extract_formatting_options(json: *u8, out: *u8): i32 {
+export function lsp_extract_formatting_options(json: *u8, out: *u8): i32 {
   unsafe {
     return lsp_extract_formatting_options_impl(json, out);
   }
@@ -800,7 +800,7 @@ function lsp_extract_formatting_options(json: *u8, out: *u8): i32 {
 }
 
 #[no_mangle]
-function lsp_format_line_update_depth(line: *u8, depth: *i32): void {
+export function lsp_format_line_update_depth(line: *u8, depth: *i32): void {
   if (depth == 0 as *i32) {
     return;
   }
@@ -810,7 +810,7 @@ function lsp_format_line_update_depth(line: *u8, depth: *i32): void {
 }
 
 #[no_mangle]
-function lsp_fmt_try_emit_op(ctx: *u8): i32 {
+export function lsp_fmt_try_emit_op(ctx: *u8): i32 {
   unsafe {
     return lsp_fmt_try_emit_op_impl(ctx);
   }
@@ -818,7 +818,7 @@ function lsp_fmt_try_emit_op(ctx: *u8): i32 {
 }
 
 #[no_mangle]
-function lsp_format_emit_segment(ctx: *u8): i32 {
+export function lsp_format_emit_segment(ctx: *u8): i32 {
   unsafe {
     return lsp_format_emit_segment_impl(ctx);
   }
@@ -826,7 +826,7 @@ function lsp_format_emit_segment(ctx: *u8): i32 {
 }
 
 #[no_mangle]
-function lsp_fmt_comma_expand_extra(ctx: *u8): i32 {
+export function lsp_fmt_comma_expand_extra(ctx: *u8): i32 {
   unsafe {
     return lsp_fmt_comma_expand_extra_impl(ctx);
   }
@@ -834,7 +834,7 @@ function lsp_fmt_comma_expand_extra(ctx: *u8): i32 {
 }
 
 #[no_mangle]
-function lsp_format_find_break(ctx: *u8): i32 {
+export function lsp_format_find_break(ctx: *u8): i32 {
   unsafe {
     return lsp_format_find_break_impl(ctx);
   }
@@ -842,7 +842,7 @@ function lsp_format_find_break(ctx: *u8): i32 {
 }
 
 #[no_mangle]
-function lsp_format_document(src: *u8, out: *u8, cap: i32): i32 {
+export function lsp_format_document(src: *u8, out: *u8, cap: i32): i32 {
   unsafe {
     return lsp_format_document_impl(src, out, cap);
   }
@@ -850,7 +850,7 @@ function lsp_format_document(src: *u8, out: *u8, cap: i32): i32 {
 }
 
 #[no_mangle]
-function lsp_extract_string_value(s: *u8, from: i32, out: *u8, cap: i32): i32 {
+export function lsp_extract_string_value(s: *u8, from: i32, out: *u8, cap: i32): i32 {
   unsafe {
     return lsp_extract_string_value_impl(s, from, out, cap);
   }
@@ -860,7 +860,7 @@ function lsp_extract_string_value(s: *u8, from: i32, out: *u8, cap: i32): i32 {
 // G-02f-113：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
 
 #[no_mangle]
-function lsp_fmt_is_atom_tail(c: u8): i32 {
+export function lsp_fmt_is_atom_tail(c: u8): i32 {
   if (c >= 97) {
     if (c <= 122) { return 1; }
   }
@@ -878,7 +878,7 @@ function lsp_fmt_is_atom_tail(c: u8): i32 {
 }
 
 #[no_mangle]
-function lsp_fmt_is_atom_head(c: u8): i32 {
+export function lsp_fmt_is_atom_head(c: u8): i32 {
   if (c >= 97) {
     if (c <= 122) { return 1; }
   }
@@ -896,7 +896,7 @@ function lsp_fmt_is_atom_head(c: u8): i32 {
 }
 
 #[no_mangle]
-function lsp_fmt_unary_lhs(prev: u8): i32 {
+export function lsp_fmt_unary_lhs(prev: u8): i32 {
   if (prev == 0) { return 1; }
   if (prev == 40) { return 1; }
   if (prev == 91) { return 1; }
@@ -923,7 +923,7 @@ function lsp_fmt_unary_lhs(prev: u8): i32 {
 // G-02f-118：以下 LSP pure helper 真迁 .x（签名与产品 seed C 对齐）
 
 #[no_mangle]
-function col_in_ident_span(line: i32, col: i32, sl: i32, sc: i32, name: *u8): i32 {
+export function col_in_ident_span(line: i32, col: i32, sl: i32, sc: i32, name: *u8): i32 {
   if (name == 0) { return 0; }
   if (sl != line) { return 0; }
   if (sc <= 0) { return 0; }
@@ -939,7 +939,7 @@ function col_in_ident_span(line: i32, col: i32, sl: i32, sc: i32, name: *u8): i3
 }
 
 // G-02f-133：ASTFunc line@0 col@4 name@+8
-function lsp_load_i32_at(p: *u8, off: i32): i32 {
+export function lsp_load_i32_at(p: *u8, off: i32): i32 {
   let m: i32 = 256;
   let a: i32 = p[off] as i32;
   a = a + (p[off + 1] as i32) * m;
@@ -948,7 +948,7 @@ function lsp_load_i32_at(p: *u8, off: i32): i32 {
   return a;
 }
 
-function lsp_load_ptr_at(p: *u8, off: i32): *u8 {
+export function lsp_load_ptr_at(p: *u8, off: i32): *u8 {
   if (p == 0) { return 0 as *u8; }
   let m: usize = 256;
   let m2: usize = m * m;
@@ -965,7 +965,7 @@ function lsp_load_ptr_at(p: *u8, off: i32): *u8 {
 }
 
 #[no_mangle]
-function func_name_covers(f: *u8, line: i32, col: i32): i32 {
+export function func_name_covers(f: *u8, line: i32, col: i32): i32 {
   if (f == 0) { return 0; }
   let name: *u8 = lsp_load_ptr_at(f, 8);
   if (name == 0) { return 0; }
@@ -976,7 +976,7 @@ function func_name_covers(f: *u8, line: i32, col: i32): i32 {
 
 // G-02f-255：加强边界；无数字时仍返回 offset（与 seed 一致）
 #[no_mangle]
-function lsp_parse_int(body: *u8, len: i32, offset: i32, out: *i32): i32 {
+export function lsp_parse_int(body: *u8, len: i32, offset: i32, out: *i32): i32 {
   if (body == 0 as *u8) {
     return 0 - 1;
   }
@@ -1011,7 +1011,7 @@ function lsp_parse_int(body: *u8, len: i32, offset: i32, out: *i32): i32 {
 }
 
 #[no_mangle]
-function lsp_line_has_block_comment_end(doc: *u8, start: i32, len: i32): i32 {
+export function lsp_line_has_block_comment_end(doc: *u8, start: i32, len: i32): i32 {
   let i: i32 = 0;
   while (i + 1 < len) {
     if (doc[start + i] == 42) { // '*'
@@ -1023,7 +1023,7 @@ function lsp_line_has_block_comment_end(doc: *u8, start: i32, len: i32): i32 {
 }
 
 #[no_mangle]
-function lsp_fmt_last_out(out_buf: *u8, out_len: i32): u8 {
+export function lsp_fmt_last_out(out_buf: *u8, out_len: i32): u8 {
   let k: i32 = out_len - 1;
   while (k >= 0) {
     let c: u8 = out_buf[k];
@@ -1036,7 +1036,7 @@ function lsp_fmt_last_out(out_buf: *u8, out_len: i32): u8 {
 }
 
 #[no_mangle]
-function lsp_fmt_prev_src(doc: *u8, start: i32, j: i32): u8 {
+export function lsp_fmt_prev_src(doc: *u8, start: i32, j: i32): u8 {
   let k: i32 = j - 1;
   while (k >= 0) {
     let c: u8 = doc[start + k];
@@ -1051,7 +1051,7 @@ function lsp_fmt_prev_src(doc: *u8, start: i32, j: i32): u8 {
 }
 
 #[no_mangle]
-function lsp_fmt_src_ws_before(doc: *u8, start: i32, j: i32): i32 {
+export function lsp_fmt_src_ws_before(doc: *u8, start: i32, j: i32): i32 {
   let k: i32 = j - 1;
   if (k < 0) { return 0; }
   let c: u8 = doc[start + k];
@@ -1061,7 +1061,7 @@ function lsp_fmt_src_ws_before(doc: *u8, start: i32, j: i32): i32 {
 }
 
 #[no_mangle]
-function lsp_fmt_src_ws_after(doc: *u8, start: i32, len: i32, j: i32): i32 {
+export function lsp_fmt_src_ws_after(doc: *u8, start: i32, len: i32, j: i32): i32 {
   let k: i32 = j + 1;
   if (k >= len) { return 0; }
   let c: u8 = doc[start + k];
@@ -1073,12 +1073,12 @@ function lsp_fmt_src_ws_after(doc: *u8, start: i32, len: i32, j: i32): i32 {
 // G-02f-122 / G-02f-255：LSP pure helpers 真迁 .x（签名与产品 seed C 对齐）
 
 // G-02f-255：JSON key 字面量槽（产品 seed 提供）
-extern "C" function lsp_json_key_position(): *u8;
-extern "C" function lsp_json_key_line(): *u8;
-extern "C" function lsp_json_key_character(): *u8;
+export extern "C" function lsp_json_key_position(): *u8;
+export extern "C" function lsp_json_key_line(): *u8;
+export extern "C" function lsp_json_key_character(): *u8;
 
 #[no_mangle]
-function lsp_find_key_after(body: *u8, len: i32, start: i32, key: *u8): i32 {
+export function lsp_find_key_after(body: *u8, len: i32, start: i32, key: *u8): i32 {
   if (body == 0 as *u8) {
     return 0 - 1;
   }
@@ -1124,7 +1124,7 @@ function lsp_find_key_after(body: *u8, len: i32, start: i32, key: *u8): i32 {
 
 // G-02f-255：params.position.line / character pure 编排
 #[no_mangle]
-function lsp_extract_position_from_params(body: *u8, len: i32, out_line: *i32, out_character: *i32): i32 {
+export function lsp_extract_position_from_params(body: *u8, len: i32, out_line: *i32, out_character: *i32): i32 {
   if (body == 0 as *u8) {
     return 0 - 1;
   }
@@ -1163,7 +1163,7 @@ function lsp_extract_position_from_params(body: *u8, len: i32, out_line: *i32, o
 }
 
 #[no_mangle]
-function lsp_line_is_block_comment(doc: *u8, content_start: i32, content_len: i32, in_block: i32): i32 {
+export function lsp_line_is_block_comment(doc: *u8, content_start: i32, content_len: i32, in_block: i32): i32 {
   if (doc == 0) { return 0; }
   if (content_len >= 2) {
     if (doc[content_start] == 47) { // '/'
@@ -1179,7 +1179,7 @@ function lsp_line_is_block_comment(doc: *u8, content_start: i32, content_len: i3
 }
 
 #[no_mangle]
-function lsp_parse_bool_after(body: *u8, len: i32, start: i32, key: *u8, out_val: *i32): i32 {
+export function lsp_parse_bool_after(body: *u8, len: i32, start: i32, key: *u8, out_val: *i32): i32 {
   if (out_val == 0) { return 0 - 1; }
   let k: i32 = lsp_find_key_after(body, len, start, key);
   if (k < 0) { return 0 - 1; }
@@ -1201,7 +1201,7 @@ function lsp_parse_bool_after(body: *u8, len: i32, start: i32, key: *u8, out_val
 }
 
 #[no_mangle]
-function lsp_fmt_space_before(doc: *u8, start: i32, j: i32, out_buf: *u8, out_len: *i32, out_cap: i32): i32 {
+export function lsp_fmt_space_before(doc: *u8, start: i32, j: i32, out_buf: *u8, out_len: *i32, out_cap: i32): i32 {
   if (out_buf == 0) { return 0; }
   if (out_len == 0) { return 0; }
   if (lsp_fmt_src_ws_before(doc, start, j) != 0) { return 0; }
@@ -1226,7 +1226,7 @@ function lsp_fmt_space_before(doc: *u8, start: i32, j: i32, out_buf: *u8, out_le
 // G-02f-123：LSP pure helpers 真迁 .x（签名与产品 seed C 对齐）
 
 #[no_mangle]
-function lsp_fmt_space_after(doc: *u8, start: i32, len: i32, j: i32, out_buf: *u8, out_len: *i32, out_cap: i32): i32 {
+export function lsp_fmt_space_after(doc: *u8, start: i32, len: i32, j: i32, out_buf: *u8, out_len: *i32, out_cap: i32): i32 {
   if (out_buf == 0) { return 0; }
   if (out_len == 0) { return 0; }
   if (lsp_fmt_src_ws_after(doc, start, len, j) != 0) { return 0; }
@@ -1252,7 +1252,7 @@ function lsp_fmt_space_after(doc: *u8, start: i32, len: i32, j: i32, out_buf: *u
 }
 
 #[no_mangle]
-function lsp_json_escape_ident(s: *u8, esc: *u8, esc_cap: i32): i32 {
+export function lsp_json_escape_ident(s: *u8, esc: *u8, esc_cap: i32): i32 {
   if (s == 0) { return 0; }
   if (esc == 0) { return 0; }
   if (esc_cap < 4) { return 0; }
@@ -1285,7 +1285,7 @@ function lsp_json_escape_ident(s: *u8, esc: *u8, esc_cap: i32): i32 {
 
 
 #[no_mangle]
-function lsp_hash_source(src: *u8, len: i32): u32 {
+export function lsp_hash_source(src: *u8, len: i32): u32 {
   if (src == 0) { return 0; }
   let h: u64 = len as u64;
   let i: i32 = 0;

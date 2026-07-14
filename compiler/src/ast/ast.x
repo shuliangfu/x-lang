@@ -21,7 +21,7 @@
 // 约定：.x 无 union，变体数据用独立字段；子节点用“池下标”表示，0 表示空（无子节点）。
 
 /** 类型节点种类：与 C 的 ASTTypeKind 一一对应，供 typeck/codegen 使用 */
-enum TypeKind {
+export enum TypeKind {
   TYPE_I32,
   TYPE_BOOL,
   TYPE_U8,
@@ -43,7 +43,7 @@ enum TypeKind {
 }
 
 /** 表达式节点种类：与 C 的 ASTExprKind 一一对应（须在 struct 前，因解析顺序为 enum* 再 struct*） */
-enum ExprKind {
+export enum ExprKind {
   EXPR_LIT,
   EXPR_FLOAT_LIT,
   EXPR_BOOL_LIT,
@@ -115,7 +115,7 @@ enum ExprKind {
 }
 
 /** 类型节点：kind + 具名类型名（NAMED 时）+ 元素类型下标（PTR/ARRAY/SLICE/VECTOR 时）+ 数组长度（ARRAY/VECTOR 时） */
-struct Type {
+export struct Type {
   kind: TypeKind;
   name: u8[64];
   name_len: i32;
@@ -196,7 +196,7 @@ allow(padding) struct Expr {
 }
 
 /** 常量声明：名称 + 类型池下标 + 初值表达式池下标 */
-struct ConstDecl {
+export struct ConstDecl {
   name: u8[64];
   name_len: i32;
   type_ref: i32;
@@ -204,7 +204,7 @@ struct ConstDecl {
 }
 
 /** 变量声明：名称 + 类型池下标 + 初值表达式池下标 */
-struct LetDecl {
+export struct LetDecl {
   name: u8[64];
   name_len: i32;
   type_ref: i32;
@@ -212,13 +212,13 @@ struct LetDecl {
 }
 
 /** 单条 while 循环：条件表达式池下标 + 体块池下标 */
-struct WhileLoop {
+export struct WhileLoop {
   cond_ref: i32;
   body_ref: i32;
 }
 
 /** 单条 for 循环：init/cond/step 表达式池下标 + 体块池下标 */
-struct ForLoop {
+export struct ForLoop {
   init_ref: i32;
   cond_ref: i32;
   step_ref: i32;
@@ -226,7 +226,7 @@ struct ForLoop {
 }
 
 /** 单条 if 语句：条件表达式池下标 + then 块 ref；else_body_ref 非 0 时为 `else` / `else if` 体（块），与手写 C 的 if/else 一致。 */
-struct IfStmt {
+export struct IfStmt {
   cond_ref: i32;
   then_body_ref: i32;
   /** 0 表示无 else；否则为块池 ref（`else { ... }` 或 `else if` 落成的包裹块）。 */
@@ -240,7 +240,7 @@ allow(padding) struct StmtOrderItem {
 }
 
 /** 带标签的语句：goto 或 return；标签名与目标/返回值由后续字段表示 */
-struct LabeledStmt {
+export struct LabeledStmt {
   label: u8[32];
   label_len: i32;
   is_goto: i32;
@@ -250,7 +250,7 @@ struct LabeledStmt {
 }
 
 /** 块：循环/defer/标签与 const/let/if 均在 C grow pool（base+count）。 */
-struct Block {
+export struct Block {
   /** C ast_pool 中 const_decls 池起始下标（分配块时快照）。 */
   const_base: i32;
   num_consts: i32;
@@ -280,14 +280,14 @@ struct Block {
 }
 
 /** 函数形参：名称 + 类型池下标 */
-struct Param {
+export struct Param {
   name: u8[32];
   name_len: i32;
   type_ref: i32;
 }
 
 /** 函数：名称 + 形参 sidecar 池（param_base + num_params）+ 返回类型池下标 + 体块/体表达式池下标 + 是否 extern。 */
-struct Func {
+export struct Func {
   name: u8[64];
   name_len: i32;
   /** 形参表在 module/arena sidecar func_params 池中的起始下标 */
@@ -321,10 +321,13 @@ struct Func {
    *  Invariant：仅 abi_kind==1 且 is_extern==1 时可置 1；parser 在 `...` token 后设置。
    *  Asm/Perf：codegen 读取此字段决定是否发 `...`，无运行期开销。 */
   is_variadic: i32;
+  /** 模块导出：1=`export function`（进入 E(M)，strict 下可被 import 跨模块使用）。
+   *  与 #[export_name]/#[no_mangle] 正交（链接层 vs 语言模块表面）。 */
+  is_export: i32;
 }
 
 /** 结构体布局（用于 typeck 填 field_access_offset / 字段类型）：名称 + field_base/num_fields；字段名/偏移/类型在 C sidecar grow 池。 */
-struct StructLayout {
+export struct StructLayout {
   name: u8[64];
   name_len: i32;
   /** 字段表在 module sidecar struct_layout_fields 池中的起始下标 */
@@ -337,13 +340,15 @@ struct StructLayout {
   /** 1 表示 packed 布局（无填充、对齐 1，与 C __attribute__((packed)) 一致）。 */
   packed: i32;
   repr_compatible: i32;
+  /** 模块导出：1=`export struct`（类型名 ∈ E(M)）。 */
+  is_export: i32;
 }
 
 /** import 种类：与 C 的 AST_IMPORT_KIND_* 一致，供 parser/codegen 使用 */
-enum ImportKind { IMPORT_WHOLE, IMPORT_BINDING, IMPORT_SELECT }
+export enum ImportKind { IMPORT_WHOLE, IMPORT_BINDING, IMPORT_SELECT }
 
 /** 模块：funcs 在 C module pool；import/struct_layout/top_level/enum 亦在 grow pool（仅保留计数）。 */
-struct Module {
+export struct Module {
   num_funcs: i32;
   main_func_index: i32;
   num_imports: i32;
@@ -369,6 +374,8 @@ struct Module {
   pending_no_mangle: i32;
   /** A1：#[interrupt] 后置 1 */
   pending_interrupt: i32;
+  /** 模块可见性：`export` 关键字后置 1，下一顶层 function/struct/enum/const 消费后清零。 */
+  pending_export: i32;
   num_module_enums: i32;
 }
 
@@ -442,194 +449,194 @@ allow(padding) struct PipelineDepCtx {
 }
 
 /** C grow pool：块分配后初始化 base；见 ast_pool.c。 */
-extern function ast_pool_block_on_alloc(arena: *ASTArena, block_ref: i32): void;
+export extern function ast_pool_block_on_alloc(arena: *ASTArena, block_ref: i32): void;
 /** 主池 alloc/get/set（C ast_pool.c 可增长池，无固定上限）。 */
-extern function pipeline_arena_type_alloc(arena: *ASTArena): i32;
-extern function pipeline_arena_expr_alloc(arena: *ASTArena): i32;
-extern function pipeline_arena_block_alloc(arena: *ASTArena): i32;
-extern function pipeline_arena_func_alloc(arena: *ASTArena): i32;
-extern function pipeline_arena_type_get_copy(arena: *ASTArena, ref: i32): Type;
-extern function pipeline_arena_type_set_copy(arena: *ASTArena, ref: i32, t: Type): void;
-extern function pipeline_arena_expr_get_copy(arena: *ASTArena, ref: i32): Expr;
-extern function pipeline_arena_expr_set_copy(arena: *ASTArena, ref: i32, e: Expr): void;
-extern function pipeline_arena_block_get_copy(arena: *ASTArena, ref: i32): Block;
-extern function pipeline_arena_block_set_copy(arena: *ASTArena, ref: i32, b: Block): void;
-extern function pipeline_arena_func_get_copy(arena: *ASTArena, ref: i32): Func;
-extern function pipeline_arena_func_set_copy(arena: *ASTArena, ref: i32, f: Func): void;
+export extern function pipeline_arena_type_alloc(arena: *ASTArena): i32;
+export extern function pipeline_arena_expr_alloc(arena: *ASTArena): i32;
+export extern function pipeline_arena_block_alloc(arena: *ASTArena): i32;
+export extern function pipeline_arena_func_alloc(arena: *ASTArena): i32;
+export extern function pipeline_arena_type_get_copy(arena: *ASTArena, ref: i32): Type;
+export extern function pipeline_arena_type_set_copy(arena: *ASTArena, ref: i32, t: Type): void;
+export extern function pipeline_arena_expr_get_copy(arena: *ASTArena, ref: i32): Expr;
+export extern function pipeline_arena_expr_set_copy(arena: *ASTArena, ref: i32, e: Expr): void;
+export extern function pipeline_arena_block_get_copy(arena: *ASTArena, ref: i32): Block;
+export extern function pipeline_arena_block_set_copy(arena: *ASTArena, ref: i32, b: Block): void;
+export extern function pipeline_arena_func_get_copy(arena: *ASTArena, ref: i32): Func;
+export extern function pipeline_arena_func_set_copy(arena: *ASTArena, ref: i32, f: Func): void;
 /** 主池容量（兼容旧边界检查，实际为 INT32_MAX）。 */
-extern function pipeline_arena_type_cap(): i32;
-extern function pipeline_arena_expr_cap(): i32;
-extern function pipeline_arena_block_cap(): i32;
-extern function pipeline_arena_func_cap(): i32;
+export extern function pipeline_arena_type_cap(): i32;
+export extern function pipeline_arena_expr_cap(): i32;
+export extern function pipeline_arena_block_cap(): i32;
+export extern function pipeline_arena_func_cap(): i32;
 
 /** Module import / struct_layout / top_level / enum 动态池（C ast_pool.c）。 */
-extern function pipeline_module_import_alloc(module: *Module): i32;
-extern function pipeline_module_import_set_path(module: *Module, idx: i32, bytes: *u8, len: i32): void;
-extern function pipeline_module_import_path_len(module: *Module, idx: i32): i32;
-extern function pipeline_module_import_path_copy(module: *Module, idx: i32, dst: *u8, dst_cap: i32): void;
-extern function pipeline_module_import_path_byte_at(module: *Module, idx: i32, off: i32): u8;
-extern function pipeline_module_import_set_kind(module: *Module, idx: i32, kind: i32): void;
-extern function pipeline_module_import_kind_at(module: *Module, idx: i32): i32;
-extern function pipeline_module_import_set_binding_name(module: *Module, idx: i32, bytes: *u8, len: i32): void;
-extern function pipeline_module_import_binding_name_len(module: *Module, idx: i32): i32;
-extern function pipeline_module_import_binding_name_byte_at(module: *Module, idx: i32, off: i32): u8;
-extern function pipeline_module_import_set_select_count(module: *Module, idx: i32, n: i32): void;
-extern function pipeline_module_import_append_select_name(module: *Module, idx: i32, bytes: *u8, len: i32): i32;
-extern function pipeline_module_import_select_count_at(module: *Module, idx: i32): i32;
-extern function pipeline_module_import_set_select_name(module: *Module, idx: i32, sel: i32, bytes: *u8, len: i32): void;
-extern function pipeline_module_import_select_name_len(module: *Module, idx: i32, sel: i32): i32;
-extern function pipeline_module_import_select_name_byte_at(module: *Module, idx: i32, sel: i32, off: i32): u8;
-extern function pipeline_module_struct_layout_alloc(module: *Module): i32;
-extern function pipeline_module_struct_layout_reset_slot(module: *Module, idx: i32): void;
-extern function pipeline_module_struct_layout_set_name(module: *Module, idx: i32, bytes: *u8, len: i32): void;
-extern function pipeline_module_struct_layout_set_field(module: *Module, li: i32, j: i32, fname_bytes: *u8, fname_len: i32, ftype_ref: i32, foff: i32): void;
-extern function pipeline_module_struct_layout_name_len(module: *Module, idx: i32): i32;
-extern function pipeline_module_struct_layout_name_into(module: *Module, idx: i32, out64: *u8): void;
-extern function pipeline_module_struct_layout_field_name_into(module: *Module, li: i32, j: i32, out64: *u8): void;
-extern function pipeline_module_struct_layout_num_fields(module: *Module, idx: i32): i32;
-extern function pipeline_module_struct_layout_set_num_fields(module: *Module, idx: i32, nf: i32): void;
-extern function pipeline_module_struct_layout_field_type_ref(module: *Module, li: i32, j: i32): i32;
-extern function pipeline_module_struct_layout_field_name_len(module: *Module, li: i32, j: i32): i32;
-extern function pipeline_module_top_level_let_alloc(module: *Module): i32;
-extern function pipeline_module_top_level_let_set(module: *Module, idx: i32, name: *u8, name_len: i32, type_ref: i32, init_ref: i32, is_const: i32): void;
-extern function pipeline_module_top_level_let_name_len(module: *Module, idx: i32): i32;
-extern function pipeline_module_top_level_let_name_byte_at(module: *Module, idx: i32, off: i32): u8;
-extern function pipeline_module_top_level_let_type_ref(module: *Module, idx: i32): i32;
-extern function pipeline_module_top_level_let_init_ref(module: *Module, idx: i32): i32;
-extern function pipeline_module_top_level_let_is_const(module: *Module, idx: i32): i32;
-extern function pipeline_module_enum_alloc(module: *Module): i32;
-extern function pipeline_module_enum_set_name(module: *Module, idx: i32, bytes: *u8, len: i32): void;
-extern function pipeline_module_enum_name_len(module: *Module, idx: i32): i32;
-extern function pipeline_module_enum_name_byte_at(module: *Module, idx: i32, off: i32): u8;
-extern function pipeline_module_struct_layout_name_byte_at(module: *Module, idx: i32, off: i32): u8;
-extern function pipeline_module_struct_layout_set_allow_padding(module: *Module, idx: i32, v: i32): void;
-extern function pipeline_module_struct_layout_allow_padding_at(module: *Module, idx: i32): i32;
-extern function pipeline_module_struct_layout_set_soa(module: *Module, idx: i32, v: i32): void;
-extern function pipeline_module_struct_layout_set_packed(module: *Module, idx: i32, v: i32): void;
-extern function pipeline_module_struct_layout_packed_at(module: *Module, idx: i32): i32;
-extern function pipeline_module_struct_layout_soa_at(module: *Module, idx: i32): i32;
-extern function pipeline_module_struct_layout_field_offset_at(module: *Module, li: i32, j: i32): i32;
-extern function pipeline_module_struct_layout_set_field_offset(module: *Module, li: i32, j: i32, foff: i32): void;
+export extern function pipeline_module_import_alloc(module: *Module): i32;
+export extern function pipeline_module_import_set_path(module: *Module, idx: i32, bytes: *u8, len: i32): void;
+export extern function pipeline_module_import_path_len(module: *Module, idx: i32): i32;
+export extern function pipeline_module_import_path_copy(module: *Module, idx: i32, dst: *u8, dst_cap: i32): void;
+export extern function pipeline_module_import_path_byte_at(module: *Module, idx: i32, off: i32): u8;
+export extern function pipeline_module_import_set_kind(module: *Module, idx: i32, kind: i32): void;
+export extern function pipeline_module_import_kind_at(module: *Module, idx: i32): i32;
+export extern function pipeline_module_import_set_binding_name(module: *Module, idx: i32, bytes: *u8, len: i32): void;
+export extern function pipeline_module_import_binding_name_len(module: *Module, idx: i32): i32;
+export extern function pipeline_module_import_binding_name_byte_at(module: *Module, idx: i32, off: i32): u8;
+export extern function pipeline_module_import_set_select_count(module: *Module, idx: i32, n: i32): void;
+export extern function pipeline_module_import_append_select_name(module: *Module, idx: i32, bytes: *u8, len: i32): i32;
+export extern function pipeline_module_import_select_count_at(module: *Module, idx: i32): i32;
+export extern function pipeline_module_import_set_select_name(module: *Module, idx: i32, sel: i32, bytes: *u8, len: i32): void;
+export extern function pipeline_module_import_select_name_len(module: *Module, idx: i32, sel: i32): i32;
+export extern function pipeline_module_import_select_name_byte_at(module: *Module, idx: i32, sel: i32, off: i32): u8;
+export extern function pipeline_module_struct_layout_alloc(module: *Module): i32;
+export extern function pipeline_module_struct_layout_reset_slot(module: *Module, idx: i32): void;
+export extern function pipeline_module_struct_layout_set_name(module: *Module, idx: i32, bytes: *u8, len: i32): void;
+export extern function pipeline_module_struct_layout_set_field(module: *Module, li: i32, j: i32, fname_bytes: *u8, fname_len: i32, ftype_ref: i32, foff: i32): void;
+export extern function pipeline_module_struct_layout_name_len(module: *Module, idx: i32): i32;
+export extern function pipeline_module_struct_layout_name_into(module: *Module, idx: i32, out64: *u8): void;
+export extern function pipeline_module_struct_layout_field_name_into(module: *Module, li: i32, j: i32, out64: *u8): void;
+export extern function pipeline_module_struct_layout_num_fields(module: *Module, idx: i32): i32;
+export extern function pipeline_module_struct_layout_set_num_fields(module: *Module, idx: i32, nf: i32): void;
+export extern function pipeline_module_struct_layout_field_type_ref(module: *Module, li: i32, j: i32): i32;
+export extern function pipeline_module_struct_layout_field_name_len(module: *Module, li: i32, j: i32): i32;
+export extern function pipeline_module_top_level_let_alloc(module: *Module): i32;
+export extern function pipeline_module_top_level_let_set(module: *Module, idx: i32, name: *u8, name_len: i32, type_ref: i32, init_ref: i32, is_const: i32): void;
+export extern function pipeline_module_top_level_let_name_len(module: *Module, idx: i32): i32;
+export extern function pipeline_module_top_level_let_name_byte_at(module: *Module, idx: i32, off: i32): u8;
+export extern function pipeline_module_top_level_let_type_ref(module: *Module, idx: i32): i32;
+export extern function pipeline_module_top_level_let_init_ref(module: *Module, idx: i32): i32;
+export extern function pipeline_module_top_level_let_is_const(module: *Module, idx: i32): i32;
+export extern function pipeline_module_enum_alloc(module: *Module): i32;
+export extern function pipeline_module_enum_set_name(module: *Module, idx: i32, bytes: *u8, len: i32): void;
+export extern function pipeline_module_enum_name_len(module: *Module, idx: i32): i32;
+export extern function pipeline_module_enum_name_byte_at(module: *Module, idx: i32, off: i32): u8;
+export extern function pipeline_module_struct_layout_name_byte_at(module: *Module, idx: i32, off: i32): u8;
+export extern function pipeline_module_struct_layout_set_allow_padding(module: *Module, idx: i32, v: i32): void;
+export extern function pipeline_module_struct_layout_allow_padding_at(module: *Module, idx: i32): i32;
+export extern function pipeline_module_struct_layout_set_soa(module: *Module, idx: i32, v: i32): void;
+export extern function pipeline_module_struct_layout_set_packed(module: *Module, idx: i32, v: i32): void;
+export extern function pipeline_module_struct_layout_packed_at(module: *Module, idx: i32): i32;
+export extern function pipeline_module_struct_layout_soa_at(module: *Module, idx: i32): i32;
+export extern function pipeline_module_struct_layout_field_offset_at(module: *Module, li: i32, j: i32): i32;
+export extern function pipeline_module_struct_layout_set_field_offset(module: *Module, li: i32, j: i32, foff: i32): void;
 
 /** OneFunc scratch const/let 动态池。 */
-extern function pipeline_onefunc_append_const_name(out: *u8, name: *u8, name_len: i32, init_val: i32): i32;
-extern function pipeline_onefunc_const_name_len(out: *u8, i: i32): i32;
-extern function pipeline_onefunc_const_name_byte_at(out: *u8, i: i32, off: i32): u8;
-extern function pipeline_onefunc_const_init_val(out: *u8, i: i32): i32;
-extern function pipeline_onefunc_num_consts(out: *u8): i32;
-extern function pipeline_onefunc_append_let(out: *u8, name: *u8, name_len: i32, init_val: i32, init_ref: i32, type_ref: i32): i32;
-extern function pipeline_onefunc_let_name_len(out: *u8, i: i32): i32;
-extern function pipeline_onefunc_let_name_byte_at(out: *u8, i: i32, off: i32): u8;
-extern function pipeline_onefunc_let_init_val(out: *u8, i: i32): i32;
-extern function pipeline_onefunc_let_init_ref(out: *u8, i: i32): i32;
-extern function pipeline_onefunc_let_type_ref(out: *u8, i: i32): i32;
-extern function pipeline_onefunc_num_lets(out: *u8): i32;
-extern function pipeline_onefunc_const_name_copy64(out: *u8, i: i32, dst: *u8): void;
-extern function pipeline_onefunc_let_name_copy64(out: *u8, i: i32, dst: *u8): void;
-extern function pipeline_onefunc_copy_sidecar(dst: *u8, src: *u8): void;
-extern function ast_pool_onefunc_reset(out: *u8): void;
+export extern function pipeline_onefunc_append_const_name(out: *u8, name: *u8, name_len: i32, init_val: i32): i32;
+export extern function pipeline_onefunc_const_name_len(out: *u8, i: i32): i32;
+export extern function pipeline_onefunc_const_name_byte_at(out: *u8, i: i32, off: i32): u8;
+export extern function pipeline_onefunc_const_init_val(out: *u8, i: i32): i32;
+export extern function pipeline_onefunc_num_consts(out: *u8): i32;
+export extern function pipeline_onefunc_append_let(out: *u8, name: *u8, name_len: i32, init_val: i32, init_ref: i32, type_ref: i32): i32;
+export extern function pipeline_onefunc_let_name_len(out: *u8, i: i32): i32;
+export extern function pipeline_onefunc_let_name_byte_at(out: *u8, i: i32, off: i32): u8;
+export extern function pipeline_onefunc_let_init_val(out: *u8, i: i32): i32;
+export extern function pipeline_onefunc_let_init_ref(out: *u8, i: i32): i32;
+export extern function pipeline_onefunc_let_type_ref(out: *u8, i: i32): i32;
+export extern function pipeline_onefunc_num_lets(out: *u8): i32;
+export extern function pipeline_onefunc_const_name_copy64(out: *u8, i: i32, dst: *u8): void;
+export extern function pipeline_onefunc_let_name_copy64(out: *u8, i: i32, dst: *u8): void;
+export extern function pipeline_onefunc_copy_sidecar(dst: *u8, src: *u8): void;
+export extern function ast_pool_onefunc_reset(out: *u8): void;
 
 /** Block 池读/写（C ast_pool.c）；避免 Block 内嵌大数组。 */
-extern function pipeline_block_append_const(arena: *ASTArena, br: i32, name: *u8, name_len: i32, type_ref: i32, init_ref: i32): i32;
-extern function pipeline_block_append_let(arena: *ASTArena, br: i32, name: *u8, name_len: i32, type_ref: i32, init_ref: i32): i32;
-extern function pipeline_block_append_if(arena: *ASTArena, br: i32, cond_ref: i32, then_ref: i32, else_ref: i32): i32;
+export extern function pipeline_block_append_const(arena: *ASTArena, br: i32, name: *u8, name_len: i32, type_ref: i32, init_ref: i32): i32;
+export extern function pipeline_block_append_let(arena: *ASTArena, br: i32, name: *u8, name_len: i32, type_ref: i32, init_ref: i32): i32;
+export extern function pipeline_block_append_if(arena: *ASTArena, br: i32, cond_ref: i32, then_ref: i32, else_ref: i32): i32;
 /** M-3：追加 region label { body } 到块池；返回块内 region 下标。 */
-extern function pipeline_block_append_region(arena: *ASTArena, br: i32, label: *u8, label_len: i32,
+export extern function pipeline_block_append_region(arena: *ASTArena, br: i32, label: *u8, label_len: i32,
 body_ref: i32): i32;
 /** LANG-007 v2：追加 unsafe { body } 到块池（复用 regions 池，with_arena_cap_ref=-1 标记）；返回块内下标。 */
-extern function pipeline_block_append_unsafe(arena: *ASTArena, br: i32, body_ref: i32): i32;
-extern function pipeline_block_region_body_ref(arena: *ASTArena, br: i32, ri: i32): i32;
-extern function pipeline_block_append_expr_stmt(arena: *ASTArena, br: i32, expr_ref: i32): i32;
-extern function pipeline_block_append_stmt_order(arena: *ASTArena, br: i32, kind: u8, idx: i32): i32;
-extern function pipeline_block_const_init_ref(arena: *ASTArena, br: i32, ci: i32): i32;
-extern function pipeline_block_const_type_ref(arena: *ASTArena, br: i32, ci: i32): i32;
-extern function pipeline_block_const_name_len(arena: *ASTArena, br: i32, ci: i32): i32;
-extern function pipeline_block_const_name_copy64(arena: *ASTArena, br: i32, ci: i32, dst: *u8): void;
-extern function pipeline_block_let_init_ref(arena: *ASTArena, br: i32, li: i32): i32;
-extern function pipeline_block_let_type_ref(arena: *ASTArena, br: i32, li: i32): i32;
-extern function pipeline_block_let_name_len(arena: *ASTArena, br: i32, li: i32): i32;
-extern function pipeline_block_let_name_copy64(arena: *ASTArena, br: i32, li: i32, dst: *u8): void;
-extern function pipeline_block_expr_stmt_ref(arena: *ASTArena, br: i32, ei: i32): i32;
-extern function pipeline_block_stmt_order_kind(arena: *ASTArena, br: i32, si: i32): u8;
-extern function pipeline_block_stmt_order_idx(arena: *ASTArena, br: i32, si: i32): i32;
-extern function pipeline_block_if_cond_ref(arena: *ASTArena, br: i32, ii: i32): i32;
-extern function pipeline_block_if_then_body_ref(arena: *ASTArena, br: i32, ii: i32): i32;
-extern function pipeline_block_if_else_body_ref(arena: *ASTArena, br: i32, ii: i32): i32;
-extern function pipeline_block_resolve_var_type_ref(arena: *ASTArena, block_ref: i32, vname: *u8, vlen: i32): i32;
-extern function pipeline_block_fill_ifs_from_onefunc(arena: *ASTArena, br: i32, out: *u8, count: i32): void;
-extern function pipeline_block_fill_stmt_order_from_onefunc(arena: *ASTArena, br: i32, out: *u8, count: i32): void;
-extern function pipeline_block_fill_expr_stmts_from_onefunc(arena: *ASTArena, br: i32, out: *u8, count: i32): void;
-extern function pipeline_block_append_while(arena: *ASTArena, br: i32, cond_ref: i32, body_ref: i32): i32;
-extern function pipeline_block_append_for(arena: *ASTArena, br: i32, init_ref: i32, cond_ref: i32, step_ref: i32, body_ref: i32): i32;
-extern function pipeline_block_while_cond_ref(arena: *ASTArena, br: i32, wi: i32): i32;
-extern function pipeline_block_while_body_ref(arena: *ASTArena, br: i32, wi: i32): i32;
-extern function pipeline_block_for_init_ref(arena: *ASTArena, br: i32, fi: i32): i32;
-extern function pipeline_block_for_cond_ref(arena: *ASTArena, br: i32, fi: i32): i32;
-extern function pipeline_block_for_step_ref(arena: *ASTArena, br: i32, fi: i32): i32;
-extern function pipeline_block_for_body_ref(arena: *ASTArena, br: i32, fi: i32): i32;
-extern function pipeline_block_fill_whiles_from_onefunc(arena: *ASTArena, br: i32, out: *u8, count: i32): void;
-extern function pipeline_block_fill_fors_from_onefunc(arena: *ASTArena, br: i32, out: *u8, count: i32): void;
-extern function pipeline_block_append_labeled(arena: *ASTArena, br: i32, label_len: i32, is_goto: i32, goto_target_len: i32, return_expr_ref: i32): i32;
-extern function pipeline_block_labeled_return_expr_ref(arena: *ASTArena, br: i32, li: i32): i32;
-extern function pipeline_onefunc_append_while(out: *u8, cond_ref: i32, body_ref: i32): i32;
-extern function pipeline_onefunc_while_cond_ref(out: *u8, i: i32): i32;
-extern function pipeline_onefunc_while_body_ref(out: *u8, i: i32): i32;
-extern function pipeline_onefunc_num_whiles(out: *u8): i32;
-extern function pipeline_onefunc_append_for(out: *u8, init_ref: i32, cond_ref: i32, step_ref: i32, body_ref: i32): i32;
-extern function pipeline_onefunc_for_init_ref(out: *u8, i: i32): i32;
-extern function pipeline_onefunc_for_cond_ref(out: *u8, i: i32): i32;
-extern function pipeline_onefunc_for_step_ref(out: *u8, i: i32): i32;
-extern function pipeline_onefunc_for_body_ref(out: *u8, i: i32): i32;
-extern function pipeline_onefunc_num_fors(out: *u8): i32;
+export extern function pipeline_block_append_unsafe(arena: *ASTArena, br: i32, body_ref: i32): i32;
+export extern function pipeline_block_region_body_ref(arena: *ASTArena, br: i32, ri: i32): i32;
+export extern function pipeline_block_append_expr_stmt(arena: *ASTArena, br: i32, expr_ref: i32): i32;
+export extern function pipeline_block_append_stmt_order(arena: *ASTArena, br: i32, kind: u8, idx: i32): i32;
+export extern function pipeline_block_const_init_ref(arena: *ASTArena, br: i32, ci: i32): i32;
+export extern function pipeline_block_const_type_ref(arena: *ASTArena, br: i32, ci: i32): i32;
+export extern function pipeline_block_const_name_len(arena: *ASTArena, br: i32, ci: i32): i32;
+export extern function pipeline_block_const_name_copy64(arena: *ASTArena, br: i32, ci: i32, dst: *u8): void;
+export extern function pipeline_block_let_init_ref(arena: *ASTArena, br: i32, li: i32): i32;
+export extern function pipeline_block_let_type_ref(arena: *ASTArena, br: i32, li: i32): i32;
+export extern function pipeline_block_let_name_len(arena: *ASTArena, br: i32, li: i32): i32;
+export extern function pipeline_block_let_name_copy64(arena: *ASTArena, br: i32, li: i32, dst: *u8): void;
+export extern function pipeline_block_expr_stmt_ref(arena: *ASTArena, br: i32, ei: i32): i32;
+export extern function pipeline_block_stmt_order_kind(arena: *ASTArena, br: i32, si: i32): u8;
+export extern function pipeline_block_stmt_order_idx(arena: *ASTArena, br: i32, si: i32): i32;
+export extern function pipeline_block_if_cond_ref(arena: *ASTArena, br: i32, ii: i32): i32;
+export extern function pipeline_block_if_then_body_ref(arena: *ASTArena, br: i32, ii: i32): i32;
+export extern function pipeline_block_if_else_body_ref(arena: *ASTArena, br: i32, ii: i32): i32;
+export extern function pipeline_block_resolve_var_type_ref(arena: *ASTArena, block_ref: i32, vname: *u8, vlen: i32): i32;
+export extern function pipeline_block_fill_ifs_from_onefunc(arena: *ASTArena, br: i32, out: *u8, count: i32): void;
+export extern function pipeline_block_fill_stmt_order_from_onefunc(arena: *ASTArena, br: i32, out: *u8, count: i32): void;
+export extern function pipeline_block_fill_expr_stmts_from_onefunc(arena: *ASTArena, br: i32, out: *u8, count: i32): void;
+export extern function pipeline_block_append_while(arena: *ASTArena, br: i32, cond_ref: i32, body_ref: i32): i32;
+export extern function pipeline_block_append_for(arena: *ASTArena, br: i32, init_ref: i32, cond_ref: i32, step_ref: i32, body_ref: i32): i32;
+export extern function pipeline_block_while_cond_ref(arena: *ASTArena, br: i32, wi: i32): i32;
+export extern function pipeline_block_while_body_ref(arena: *ASTArena, br: i32, wi: i32): i32;
+export extern function pipeline_block_for_init_ref(arena: *ASTArena, br: i32, fi: i32): i32;
+export extern function pipeline_block_for_cond_ref(arena: *ASTArena, br: i32, fi: i32): i32;
+export extern function pipeline_block_for_step_ref(arena: *ASTArena, br: i32, fi: i32): i32;
+export extern function pipeline_block_for_body_ref(arena: *ASTArena, br: i32, fi: i32): i32;
+export extern function pipeline_block_fill_whiles_from_onefunc(arena: *ASTArena, br: i32, out: *u8, count: i32): void;
+export extern function pipeline_block_fill_fors_from_onefunc(arena: *ASTArena, br: i32, out: *u8, count: i32): void;
+export extern function pipeline_block_append_labeled(arena: *ASTArena, br: i32, label_len: i32, is_goto: i32, goto_target_len: i32, return_expr_ref: i32): i32;
+export extern function pipeline_block_labeled_return_expr_ref(arena: *ASTArena, br: i32, li: i32): i32;
+export extern function pipeline_onefunc_append_while(out: *u8, cond_ref: i32, body_ref: i32): i32;
+export extern function pipeline_onefunc_while_cond_ref(out: *u8, i: i32): i32;
+export extern function pipeline_onefunc_while_body_ref(out: *u8, i: i32): i32;
+export extern function pipeline_onefunc_num_whiles(out: *u8): i32;
+export extern function pipeline_onefunc_append_for(out: *u8, init_ref: i32, cond_ref: i32, step_ref: i32, body_ref: i32): i32;
+export extern function pipeline_onefunc_for_init_ref(out: *u8, i: i32): i32;
+export extern function pipeline_onefunc_for_cond_ref(out: *u8, i: i32): i32;
+export extern function pipeline_onefunc_for_step_ref(out: *u8, i: i32): i32;
+export extern function pipeline_onefunc_for_body_ref(out: *u8, i: i32): i32;
+export extern function pipeline_onefunc_num_fors(out: *u8): i32;
 
 /** PipelineDepCtx dep/lib_root 动态池（C ast_pool.c）。 */
-extern function pipeline_dep_ctx_set_module(ctx: *PipelineDepCtx, idx: i32, m: *Module): void;
-extern function pipeline_dep_ctx_set_arena(ctx: *PipelineDepCtx, idx: i32, a: *ASTArena): void;
-extern function pipeline_dep_ctx_module_at(ctx: *PipelineDepCtx, idx: i32): *Module;
-extern function pipeline_dep_ctx_arena_at(ctx: *PipelineDepCtx, idx: i32): *ASTArena;
-extern function pipeline_dep_ctx_set_import_path(ctx: *PipelineDepCtx, idx: i32, bytes: *u8, len: i32): void;
-extern function pipeline_dep_ctx_import_path_len(ctx: *PipelineDepCtx, idx: i32): i32;
-extern function pipeline_dep_ctx_import_path_byte_at(ctx: *PipelineDepCtx, idx: i32, off: i32): u8;
-extern function pipeline_dep_ctx_import_path_copy64(ctx: *PipelineDepCtx, idx: i32, dst: *u8): void;
-extern function pipeline_dep_ctx_ndep(ctx: *PipelineDepCtx): i32;
-extern function pipeline_dep_ctx_set_ndep(ctx: *PipelineDepCtx, n: i32): void;
-extern function pipeline_ctx_append_lib_root(ctx: *PipelineDepCtx, path: *u8, len: i32): i32;
-extern function pipeline_ctx_lib_root_count(ctx: *PipelineDepCtx): i32;
-extern function pipeline_ctx_lib_root_len(ctx: *PipelineDepCtx, i: i32): i32;
-extern function pipeline_ctx_lib_root_copy(ctx: *PipelineDepCtx, i: i32, dst: *u8, cap: i32): void;
+export extern function pipeline_dep_ctx_set_module(ctx: *PipelineDepCtx, idx: i32, m: *Module): void;
+export extern function pipeline_dep_ctx_set_arena(ctx: *PipelineDepCtx, idx: i32, a: *ASTArena): void;
+export extern function pipeline_dep_ctx_module_at(ctx: *PipelineDepCtx, idx: i32): *Module;
+export extern function pipeline_dep_ctx_arena_at(ctx: *PipelineDepCtx, idx: i32): *ASTArena;
+export extern function pipeline_dep_ctx_set_import_path(ctx: *PipelineDepCtx, idx: i32, bytes: *u8, len: i32): void;
+export extern function pipeline_dep_ctx_import_path_len(ctx: *PipelineDepCtx, idx: i32): i32;
+export extern function pipeline_dep_ctx_import_path_byte_at(ctx: *PipelineDepCtx, idx: i32, off: i32): u8;
+export extern function pipeline_dep_ctx_import_path_copy64(ctx: *PipelineDepCtx, idx: i32, dst: *u8): void;
+export extern function pipeline_dep_ctx_ndep(ctx: *PipelineDepCtx): i32;
+export extern function pipeline_dep_ctx_set_ndep(ctx: *PipelineDepCtx, n: i32): void;
+export extern function pipeline_ctx_append_lib_root(ctx: *PipelineDepCtx, path: *u8, len: i32): i32;
+export extern function pipeline_ctx_lib_root_count(ctx: *PipelineDepCtx): i32;
+export extern function pipeline_ctx_lib_root_len(ctx: *PipelineDepCtx, i: i32): i32;
+export extern function pipeline_ctx_lib_root_copy(ctx: *PipelineDepCtx, i: i32, dst: *u8, cap: i32): void;
 
 /** Module 函数池（C ast_pool.c）。 */
-extern function pipeline_module_func_alloc_slot(module: *Module): i32;
-extern function pipeline_module_func_ref_at(module: *Module, func_index: i32): i32;
-extern function pipeline_module_func_ref_set(module: *Module, func_index: i32, func_ref: i32): void;
-extern function pipeline_module_func_set_return_type(module: *Module, fi: i32, type_ref: i32): void;
-extern function pipeline_module_func_set_body_ref(module: *Module, fi: i32, body_ref: i32): void;
-extern function pipeline_module_func_set_body_expr_ref(module: *Module, fi: i32, body_expr_ref: i32): void;
-extern function pipeline_module_func_set_is_extern(module: *Module, fi: i32, is_extern: i32): void;
-extern function pipeline_module_func_set_is_variadic(module: *Module, fi: i32, is_variadic: i32): void;
-extern function pipeline_module_func_is_variadic_at(module: *Module, fi: i32): i32;
-extern function pipeline_module_func_set_num_params(module: *Module, fi: i32, n: i32): void;
-extern function pipeline_module_func_set_num_generic_params(module: *Module, fi: i32, n: i32): void;
-extern function pipeline_module_func_return_type_at(module: *Module, fi: i32): i32;
-extern function pipeline_module_func_num_generic_params_at(module: *Module, fi: i32): i32;
-extern function pipeline_module_func_name_equal_at(module: *Module, fi: i32, name: *u8, name_len: i32): i32;
-extern function pipeline_module_func_name_byte_at(module: *Module, fi: i32, i: i32): u8;
-extern function pipeline_module_func_body_expr_ref_at(module: *Module, fi: i32): i32;
+export extern function pipeline_module_func_alloc_slot(module: *Module): i32;
+export extern function pipeline_module_func_ref_at(module: *Module, func_index: i32): i32;
+export extern function pipeline_module_func_ref_set(module: *Module, func_index: i32, func_ref: i32): void;
+export extern function pipeline_module_func_set_return_type(module: *Module, fi: i32, type_ref: i32): void;
+export extern function pipeline_module_func_set_body_ref(module: *Module, fi: i32, body_ref: i32): void;
+export extern function pipeline_module_func_set_body_expr_ref(module: *Module, fi: i32, body_expr_ref: i32): void;
+export extern function pipeline_module_func_set_is_extern(module: *Module, fi: i32, is_extern: i32): void;
+export extern function pipeline_module_func_set_is_variadic(module: *Module, fi: i32, is_variadic: i32): void;
+export extern function pipeline_module_func_is_variadic_at(module: *Module, fi: i32): i32;
+export extern function pipeline_module_func_set_num_params(module: *Module, fi: i32, n: i32): void;
+export extern function pipeline_module_func_set_num_generic_params(module: *Module, fi: i32, n: i32): void;
+export extern function pipeline_module_func_return_type_at(module: *Module, fi: i32): i32;
+export extern function pipeline_module_func_num_generic_params_at(module: *Module, fi: i32): i32;
+export extern function pipeline_module_func_name_equal_at(module: *Module, fi: i32, name: *u8, name_len: i32): i32;
+export extern function pipeline_module_func_name_byte_at(module: *Module, fi: i32, i: i32): u8;
+export extern function pipeline_module_func_body_expr_ref_at(module: *Module, fi: i32): i32;
 
 /** 池下标空值：所有 ref 字段用 0 表示“无” */
-function ref_is_null(ref: i32): bool {
+export function ref_is_null(ref: i32): bool {
   return ref == 0;
 }
 
 /** 占位：表示本 AST 模块可被 parser/typeck/codegen 引用；后续接池分配与 parser 构建。 */
-function ast_placeholder(): i32 {
+export function ast_placeholder(): i32 {
   return 0;
 }
 
 /**
  * 合并 Expr 尾段（call_resolved_*）进本模块 struct_layouts；单字面量 ≤8 字段（与 parser onefunc_result_layout_prime 同类）。
  */
-function expr_layout_prime_call_resolved(): void {
+export function expr_layout_prime_call_resolved(): void {
   let _tail: Expr = Expr {
     kind: ExprKind.EXPR_LIT,
     resolved_type_ref: 0,
@@ -645,7 +652,7 @@ function expr_layout_prime_call_resolved(): void {
 }
 
 /** 保活 Func.generic 计数字段进 pipeline_gen.c / glue_types 布局。 */
-function func_layout_prime_generic_params(): void {
+export function func_layout_prime_generic_params(): void {
   let name0: u8[64] = [];
   let f0: Func = Func {
     name: name0,
@@ -663,7 +670,7 @@ function func_layout_prime_generic_params(): void {
 }
 
 /** 将 Arena 内所有计数清零，用于复用或初始化。 */
-function ast_arena_init(arena: *ASTArena): void {
+export function ast_arena_init(arena: *ASTArena): void {
   expr_layout_prime_call_resolved();
   func_layout_prime_generic_params();
   arena.num_types = 0;
@@ -673,7 +680,7 @@ function ast_arena_init(arena: *ASTArena): void {
 }
 
 /** 在 Type 池中分配一个槽位，返回 1-based ref；失败返回 0。 */
-function ast_arena_type_alloc(arena: *ASTArena): i32 {
+export function ast_arena_type_alloc(arena: *ASTArena): i32 {
   let ref: i32 = 0;
   unsafe {
     ref = pipeline_arena_type_alloc(arena);
@@ -685,7 +692,7 @@ function ast_arena_type_alloc(arena: *ASTArena): i32 {
 }
 
 /** 在 Expr 池中分配一个槽位，返回 1-based ref；失败返回 0。 */
-function ast_arena_expr_alloc(arena: *ASTArena): i32 {
+export function ast_arena_expr_alloc(arena: *ASTArena): i32 {
   let ref: i32 = 0;
   unsafe {
     ref = pipeline_arena_expr_alloc(arena);
@@ -697,7 +704,7 @@ function ast_arena_expr_alloc(arena: *ASTArena): i32 {
 }
 
 /** 在 Block 池中分配一个槽位，返回 1-based ref；失败返回 0。 */
-function ast_arena_block_alloc(arena: *ASTArena): i32 {
+export function ast_arena_block_alloc(arena: *ASTArena): i32 {
   let ref: i32 = 0;
   unsafe {
     ref = pipeline_arena_block_alloc(arena);
@@ -709,73 +716,73 @@ function ast_arena_block_alloc(arena: *ASTArena): i32 {
 }
 
 /** 按 ref 取 Type 池中节点（副本）；ref 须为 1..num_types。ref<=0 时返回默认 TYPE_I32，避免 C 生成码中 ref-1 越界触发 panic。实现于 pipeline_glue.c，禁止 X codegen 直访 types[]。 */
-extern function ast_arena_type_get(arena: *ASTArena, ref: i32): Type;
+export extern function ast_arena_type_get(arena: *ASTArena, ref: i32): Type;
 
 /** 将 Type 节点写回池中 ref 槽位；ref 须为 1..num_types。用于 parser 构建 AST。 */
-extern function ast_arena_type_set(arena: *ASTArena, ref: i32, t: Type): void;
+export extern function ast_arena_type_set(arena: *ASTArena, ref: i32, t: Type): void;
 
 /** 将 Expr 的 match 占位与 enum_variant_tag 置 0；各臂数据在侧车池，由 append API 写入。 */
-function expr_init_match_enum(e: *Expr): void {
+export function expr_init_match_enum(e: *Expr): void {
   e.match_arm_base = 0;
   e.enum_variant_tag = 0;
 }
 
 /** Expr 变长附属：call/method/match/struct_lit/array_lit 侧车 grow pool（C ast_pool.c）。 */
-extern function pipeline_expr_append_call_arg(arena: *ASTArena, expr_ref: i32, arg_ref: i32): i32;
-extern function pipeline_expr_call_arg_ref(arena: *ASTArena, expr_ref: i32, idx: i32): i32;
-extern function pipeline_expr_call_num_args_at(arena: *ASTArena, expr_ref: i32): i32;
-extern function pipeline_expr_call_num_type_args_at(arena: *ASTArena, expr_ref: i32): i32;
-extern function pipeline_expr_append_method_call_arg(arena: *ASTArena, expr_ref: i32, arg_ref: i32): i32;
-extern function pipeline_expr_method_call_arg_ref(arena: *ASTArena, expr_ref: i32, idx: i32): i32;
-extern function pipeline_expr_append_match_arm(arena: *ASTArena, expr_ref: i32, result_ref: i32, is_wildcard: i32, lit_val: i32, is_enum_variant: i32, variant_index: i32): i32;
-extern function pipeline_expr_match_num_arms_at(arena: *ASTArena, expr_ref: i32): i32;
-extern function pipeline_expr_match_arm_result_ref(arena: *ASTArena, expr_ref: i32, i: i32): i32;
-extern function pipeline_expr_match_arm_is_wildcard(arena: *ASTArena, expr_ref: i32, i: i32): i32;
-extern function pipeline_expr_match_arm_lit_val(arena: *ASTArena, expr_ref: i32, i: i32): i32;
-extern function pipeline_expr_match_arm_is_enum_variant(arena: *ASTArena, expr_ref: i32, i: i32): i32;
-extern function pipeline_expr_match_arm_variant_index(arena: *ASTArena, expr_ref: i32, i: i32): i32;
-extern function pipeline_expr_match_arm_set_wildcard(arena: *ASTArena, expr_ref: i32, i: i32, v: i32): void;
-extern function pipeline_expr_match_arm_set_lit_val(arena: *ASTArena, expr_ref: i32, i: i32, v: i32): void;
-extern function pipeline_expr_match_arm_set_enum_variant(arena: *ASTArena, expr_ref: i32, i: i32, is_var: i32, variant_index: i32): void;
-extern function pipeline_expr_append_struct_lit_field(arena: *ASTArena, expr_ref: i32, name_bytes: *u8, name_len: i32, init_ref: i32): i32;
-extern function pipeline_expr_append_array_lit_elem(arena: *ASTArena, expr_ref: i32, elem_ref: i32): i32;
-extern function pipeline_expr_array_lit_elem_ref(arena: *ASTArena, expr_ref: i32, idx: i32): i32;
-extern function pipeline_expr_array_lit_num_elems_at(arena: *ASTArena, expr_ref: i32): i32;
+export extern function pipeline_expr_append_call_arg(arena: *ASTArena, expr_ref: i32, arg_ref: i32): i32;
+export extern function pipeline_expr_call_arg_ref(arena: *ASTArena, expr_ref: i32, idx: i32): i32;
+export extern function pipeline_expr_call_num_args_at(arena: *ASTArena, expr_ref: i32): i32;
+export extern function pipeline_expr_call_num_type_args_at(arena: *ASTArena, expr_ref: i32): i32;
+export extern function pipeline_expr_append_method_call_arg(arena: *ASTArena, expr_ref: i32, arg_ref: i32): i32;
+export extern function pipeline_expr_method_call_arg_ref(arena: *ASTArena, expr_ref: i32, idx: i32): i32;
+export extern function pipeline_expr_append_match_arm(arena: *ASTArena, expr_ref: i32, result_ref: i32, is_wildcard: i32, lit_val: i32, is_enum_variant: i32, variant_index: i32): i32;
+export extern function pipeline_expr_match_num_arms_at(arena: *ASTArena, expr_ref: i32): i32;
+export extern function pipeline_expr_match_arm_result_ref(arena: *ASTArena, expr_ref: i32, i: i32): i32;
+export extern function pipeline_expr_match_arm_is_wildcard(arena: *ASTArena, expr_ref: i32, i: i32): i32;
+export extern function pipeline_expr_match_arm_lit_val(arena: *ASTArena, expr_ref: i32, i: i32): i32;
+export extern function pipeline_expr_match_arm_is_enum_variant(arena: *ASTArena, expr_ref: i32, i: i32): i32;
+export extern function pipeline_expr_match_arm_variant_index(arena: *ASTArena, expr_ref: i32, i: i32): i32;
+export extern function pipeline_expr_match_arm_set_wildcard(arena: *ASTArena, expr_ref: i32, i: i32, v: i32): void;
+export extern function pipeline_expr_match_arm_set_lit_val(arena: *ASTArena, expr_ref: i32, i: i32, v: i32): void;
+export extern function pipeline_expr_match_arm_set_enum_variant(arena: *ASTArena, expr_ref: i32, i: i32, is_var: i32, variant_index: i32): void;
+export extern function pipeline_expr_append_struct_lit_field(arena: *ASTArena, expr_ref: i32, name_bytes: *u8, name_len: i32, init_ref: i32): i32;
+export extern function pipeline_expr_append_array_lit_elem(arena: *ASTArena, expr_ref: i32, elem_ref: i32): i32;
+export extern function pipeline_expr_array_lit_elem_ref(arena: *ASTArena, expr_ref: i32, idx: i32): i32;
+export extern function pipeline_expr_array_lit_num_elems_at(arena: *ASTArena, expr_ref: i32): i32;
 
 /**
  * 将 CALL/METHOD_CALL 的目标解析占位为 -1；parser/typeck 在创建 CALL 节点后调用。
  * typeck 成功解析顶层函数后将两字段改写为合法下标。
  */
 /** 由 pipeline_glue.c 写池槽 call_resolved 占位（X struct_layout 常缺 Expr 尾字段）。 */
-extern function pipeline_expr_init_call_resolve_at_ref(arena: *ASTArena, expr_ref: i32): void;
+export extern function pipeline_expr_init_call_resolve_at_ref(arena: *ASTArena, expr_ref: i32): void;
 
 /** 由 pipeline_glue.c 写池槽 call_resolved 解析结果。 */
-extern function pipeline_expr_apply_call_resolve(arena: *ASTArena, call_expr_ref: i32, dep_ix: i32, func_ix: i32): void;
+export extern function pipeline_expr_apply_call_resolve(arena: *ASTArena, call_expr_ref: i32, dep_ix: i32, func_ix: i32): void;
 
-function expr_init_call_resolve(arena: *ASTArena, expr_ref: i32): void {
+export function expr_init_call_resolve(arena: *ASTArena, expr_ref: i32): void {
   unsafe {
     pipeline_expr_init_call_resolve_at_ref(arena, expr_ref);
   }
 }
 
 /** typeck 解析 CALL 后写入目标模块/函数下标（委托 C glue）。 */
-function ast_expr_apply_call_resolve(arena: *ASTArena, call_expr_ref: i32, dep_ix: i32, func_ix: i32): void {
+export function ast_expr_apply_call_resolve(arena: *ASTArena, call_expr_ref: i32, dep_ix: i32, func_ix: i32): void {
   unsafe {
     pipeline_expr_apply_call_resolve(arena, call_expr_ref, dep_ix, func_ix);
   }
 }
 
 /** 按 ref 取 Expr 池中节点（副本）；ref 须为 1..num_exprs。实现于 pipeline_glue.c。 */
-extern function ast_arena_expr_get(arena: *ASTArena, ref: i32): Expr;
+export extern function ast_arena_expr_get(arena: *ASTArena, ref: i32): Expr;
 
 /** 将 Expr 节点写回池中 ref 槽位；ref 须为 1..num_exprs。用于 parser 构建 AST。 */
-extern function ast_arena_expr_set(arena: *ASTArena, ref: i32, e: Expr): void;
+export extern function ast_arena_expr_set(arena: *ASTArena, ref: i32, e: Expr): void;
 
 /** 按 ref 取 Block 池中节点（副本）；ref 须为 1..num_blocks。实现于 pipeline_glue.c。 */
-extern function ast_arena_block_get(arena: *ASTArena, ref: i32): Block;
+export extern function ast_arena_block_get(arena: *ASTArena, ref: i32): Block;
 
 /** 两段字节名字是否相等；供 ast 模块内解析块绑定，不复用 typeck 的 name_equal。 */
-function ast_name_bytes_equal(a_nm: *u8, a_len: i32, b_nm: *u8, b_len: i32): bool {
+export function ast_name_bytes_equal(a_nm: *u8, a_len: i32, b_nm: *u8, b_len: i32): bool {
   if (a_len != b_len || a_len <= 0) {
     return false;
   }
@@ -790,7 +797,7 @@ function ast_name_bytes_equal(a_nm: *u8, a_len: i32, b_nm: *u8, b_len: i32): boo
 }
 
 /** 取块池中某块的 final_expr_ref（无尾表达式时为 0）；封装在 ast 内避免 import 模块对 Block 做字段访问（其 struct_layout 常未含 Block）。 */
-function ast_block_final_expr_ref(a: *ASTArena, body_ref: i32): i32 {
+export function ast_block_final_expr_ref(a: *ASTArena, body_ref: i32): i32 {
   if (body_ref <= 0 || body_ref > a.num_blocks) {
     return 0;
   }
@@ -805,16 +812,16 @@ function ast_block_final_expr_ref(a: *ASTArena, body_ref: i32): i32 {
  * X 无法用局部 Expr 安全读取 expr.kind；由 pipeline_glue.c 实现该裸 C 符号（无前缀，
  * preamble 与原样 extern 对齐，避免 import 前缀叠层）。
  */
-extern function implicit_tail_expr_disallowed_by_glue(a: *ASTArena, expr_ref: i32): bool;
+export extern function implicit_tail_expr_disallowed_by_glue(a: *ASTArena, expr_ref: i32): bool;
 
 /** 末表达式若为 RETURN/PANIC/BREAK/CONTINUE，则不允许隐式尾返回；委托 glue。 */
-function ast_expr_disallows_implicit_tail(a: *ASTArena, expr_ref: i32): bool {
+export function ast_expr_disallows_implicit_tail(a: *ASTArena, expr_ref: i32): bool {
   unsafe {
     return implicit_tail_expr_disallowed_by_glue(a, expr_ref);
   }
 }
 
-function ast_block_num_consts(a: *ASTArena, br: i32): i32 {
+export function ast_block_num_consts(a: *ASTArena, br: i32): i32 {
   if (br <= 0 || br > a.num_blocks) {
     return 0;
   }
@@ -826,7 +833,7 @@ function ast_block_num_consts(a: *ASTArena, br: i32): i32 {
   return blk_nc.num_consts;
 }
 
-function ast_block_num_lets(a: *ASTArena, br: i32): i32 {
+export function ast_block_num_lets(a: *ASTArena, br: i32): i32 {
   if (br <= 0 || br > a.num_blocks) {
     return 0;
   }
@@ -837,7 +844,7 @@ function ast_block_num_lets(a: *ASTArena, br: i32): i32 {
   return blk_nl.num_lets;
 }
 
-function ast_block_num_loops(a: *ASTArena, br: i32): i32 {
+export function ast_block_num_loops(a: *ASTArena, br: i32): i32 {
   if (br <= 0 || br > a.num_blocks) {
     return 0;
   }
@@ -848,7 +855,7 @@ function ast_block_num_loops(a: *ASTArena, br: i32): i32 {
   return blk_nlp.num_loops;
 }
 
-function ast_block_num_for_loops(a: *ASTArena, br: i32): i32 {
+export function ast_block_num_for_loops(a: *ASTArena, br: i32): i32 {
   if (br <= 0 || br > a.num_blocks) {
     return 0;
   }
@@ -859,7 +866,7 @@ function ast_block_num_for_loops(a: *ASTArena, br: i32): i32 {
   return blk_nfp.num_for_loops;
 }
 
-function ast_block_num_if_stmts(a: *ASTArena, br: i32): i32 {
+export function ast_block_num_if_stmts(a: *ASTArena, br: i32): i32 {
   if (br <= 0 || br > a.num_blocks) {
     return 0;
   }
@@ -871,7 +878,7 @@ function ast_block_num_if_stmts(a: *ASTArena, br: i32): i32 {
 }
 
 /** M-3：块内 region 域块个数。 */
-function ast_block_num_regions(a: *ASTArena, br: i32): i32 {
+export function ast_block_num_regions(a: *ASTArena, br: i32): i32 {
   if (br <= 0 || br > a.num_blocks) {
     return 0;
   }
@@ -882,13 +889,13 @@ function ast_block_num_regions(a: *ASTArena, br: i32): i32 {
   return blk_nr.num_regions;
 }
 
-function ast_block_region_body_ref(a: *ASTArena, br: i32, ri: i32): i32 {
+export function ast_block_region_body_ref(a: *ASTArena, br: i32, ri: i32): i32 {
   unsafe {
     return pipeline_block_region_body_ref(a, br, ri);
   }
 }
 
-function ast_block_num_expr_stmts(a: *ASTArena, br: i32): i32 {
+export function ast_block_num_expr_stmts(a: *ASTArena, br: i32): i32 {
   if (br <= 0 || br > a.num_blocks) {
     return 0;
   }
@@ -899,7 +906,7 @@ function ast_block_num_expr_stmts(a: *ASTArena, br: i32): i32 {
   return blk_nes.num_expr_stmts;
 }
 
-function ast_block_num_stmt_order(a: *ASTArena, br: i32): i32 {
+export function ast_block_num_stmt_order(a: *ASTArena, br: i32): i32 {
   if (br <= 0 || br > a.num_blocks) {
     return 0;
   }
@@ -910,97 +917,97 @@ function ast_block_num_stmt_order(a: *ASTArena, br: i32): i32 {
   return blk_nso.num_stmt_order;
 }
 
-function ast_block_stmt_order_kind(a: *ASTArena, br: i32, si: i32): u8 {
+export function ast_block_stmt_order_kind(a: *ASTArena, br: i32, si: i32): u8 {
   unsafe {
     return pipeline_block_stmt_order_kind(a, br, si);
   }
 }
 
-function ast_block_stmt_order_idx(a: *ASTArena, br: i32, si: i32): i32 {
+export function ast_block_stmt_order_idx(a: *ASTArena, br: i32, si: i32): i32 {
   unsafe {
     return pipeline_block_stmt_order_idx(a, br, si);
   }
 }
 
-function ast_block_const_init_ref(a: *ASTArena, br: i32, ci: i32): i32 {
+export function ast_block_const_init_ref(a: *ASTArena, br: i32, ci: i32): i32 {
   unsafe {
     return pipeline_block_const_init_ref(a, br, ci);
   }
 }
 
-function ast_block_const_type_ref(a: *ASTArena, br: i32, ci: i32): i32 {
+export function ast_block_const_type_ref(a: *ASTArena, br: i32, ci: i32): i32 {
   unsafe {
     return pipeline_block_const_type_ref(a, br, ci);
   }
 }
 
-function ast_block_let_init_ref(a: *ASTArena, br: i32, li: i32): i32 {
+export function ast_block_let_init_ref(a: *ASTArena, br: i32, li: i32): i32 {
   unsafe {
     return pipeline_block_let_init_ref(a, br, li);
   }
 }
 
-function ast_block_let_type_ref(a: *ASTArena, br: i32, li: i32): i32 {
+export function ast_block_let_type_ref(a: *ASTArena, br: i32, li: i32): i32 {
   unsafe {
     return pipeline_block_let_type_ref(a, br, li);
   }
 }
 
-function ast_block_expr_stmt_ref(a: *ASTArena, br: i32, ei: i32): i32 {
+export function ast_block_expr_stmt_ref(a: *ASTArena, br: i32, ei: i32): i32 {
   unsafe {
     return pipeline_block_expr_stmt_ref(a, br, ei);
   }
 }
 
-function ast_block_while_cond_ref(a: *ASTArena, br: i32, wi: i32): i32 {
+export function ast_block_while_cond_ref(a: *ASTArena, br: i32, wi: i32): i32 {
   unsafe {
     return pipeline_block_while_cond_ref(a, br, wi);
   }
 }
 
-function ast_block_while_body_ref(a: *ASTArena, br: i32, wi: i32): i32 {
+export function ast_block_while_body_ref(a: *ASTArena, br: i32, wi: i32): i32 {
   unsafe {
     return pipeline_block_while_body_ref(a, br, wi);
   }
 }
 
-function ast_block_for_init_ref(a: *ASTArena, br: i32, fi: i32): i32 {
+export function ast_block_for_init_ref(a: *ASTArena, br: i32, fi: i32): i32 {
   unsafe {
     return pipeline_block_for_init_ref(a, br, fi);
   }
 }
 
-function ast_block_for_cond_ref(a: *ASTArena, br: i32, fi: i32): i32 {
+export function ast_block_for_cond_ref(a: *ASTArena, br: i32, fi: i32): i32 {
   unsafe {
     return pipeline_block_for_cond_ref(a, br, fi);
   }
 }
 
-function ast_block_for_step_ref(a: *ASTArena, br: i32, fi: i32): i32 {
+export function ast_block_for_step_ref(a: *ASTArena, br: i32, fi: i32): i32 {
   unsafe {
     return pipeline_block_for_step_ref(a, br, fi);
   }
 }
 
-function ast_block_for_body_ref(a: *ASTArena, br: i32, fi: i32): i32 {
+export function ast_block_for_body_ref(a: *ASTArena, br: i32, fi: i32): i32 {
   unsafe {
     return pipeline_block_for_body_ref(a, br, fi);
   }
 }
 
-function ast_block_if_cond_ref(a: *ASTArena, br: i32, ii: i32): i32 {
+export function ast_block_if_cond_ref(a: *ASTArena, br: i32, ii: i32): i32 {
   unsafe {
     return pipeline_block_if_cond_ref(a, br, ii);
   }
 }
 
-function ast_block_if_then_body_ref(a: *ASTArena, br: i32, ii: i32): i32 {
+export function ast_block_if_then_body_ref(a: *ASTArena, br: i32, ii: i32): i32 {
   unsafe {
     return pipeline_block_if_then_body_ref(a, br, ii);
   }
 }
 
-function ast_block_if_else_body_ref(a: *ASTArena, br: i32, ii: i32): i32 {
+export function ast_block_if_else_body_ref(a: *ASTArena, br: i32, ii: i32): i32 {
   unsafe {
     return pipeline_block_if_else_body_ref(a, br, ii);
   }
@@ -1009,7 +1016,7 @@ function ast_block_if_else_body_ref(a: *ASTArena, br: i32, ii: i32): i32 {
 /**
  * 在块内按 const/let 顺序解析局部名到类型池 ref；委托 C grow pool 遍历。
  */
-function ast_block_resolve_var_to_type_ref(a: *ASTArena, block_ref: i32, vname: *u8, vlen: i32): i32 {
+export function ast_block_resolve_var_to_type_ref(a: *ASTArena, block_ref: i32, vname: *u8, vlen: i32): i32 {
   unsafe {
     return pipeline_block_resolve_var_type_ref(a, block_ref, vname, vlen);
   }
@@ -1019,7 +1026,7 @@ function ast_block_resolve_var_to_type_ref(a: *ASTArena, block_ref: i32, vname: 
  * 为嵌套块补 parent_block_ref：OneFuncResult 落成函数体 Block 时，子块已由 parse_block_into 分配但父块 ref 尚不存在；
  * 显式栈遍历 while/for/if 体，避免深层嵌套在 X 自举 typecheck 路径上递归栈溢出。
  */
-function ast_arena_patch_block_parent_links(arena: *ASTArena, block_ref: i32, parent_ref: i32): void {
+export function ast_arena_patch_block_parent_links(arena: *ASTArena, block_ref: i32, parent_ref: i32): void {
   let stack_blk: i32[256] = [];
   let stack_par: i32[256] = [];
   let sp: i32 = 0;
@@ -1111,10 +1118,10 @@ function ast_arena_patch_block_parent_links(arena: *ASTArena, block_ref: i32, pa
 }
 
 /** 将 Block 节点写回池中 ref 槽位；ref 须为 1..num_blocks。用于 parser 构建 AST。 */
-extern function ast_arena_block_set(arena: *ASTArena, ref: i32, b: Block): void;
+export extern function ast_arena_block_set(arena: *ASTArena, ref: i32, b: Block): void;
 
 /** 在 Func 池中分配一个槽位，返回 1-based ref；失败返回 0。 */
-function ast_arena_func_alloc(arena: *ASTArena): i32 {
+export function ast_arena_func_alloc(arena: *ASTArena): i32 {
   let ref: i32 = 0;
   unsafe {
     ref = pipeline_arena_func_alloc(arena);
@@ -1126,7 +1133,7 @@ function ast_arena_func_alloc(arena: *ASTArena): i32 {
 }
 
 /** 按 ref 取 Func 池中节点（副本）；ref 须为 1..num_funcs。实现于 pipeline_glue.c。 */
-extern function ast_arena_func_get(arena: *ASTArena, ref: i32): Func;
+export extern function ast_arena_func_get(arena: *ASTArena, ref: i32): Func;
 
 /** 将 Func 节点写回池中 ref 槽位；ref 须为 1..num_funcs。用于 parser 构建 AST。 */
-extern function ast_arena_func_set(arena: *ASTArena, ref: i32, f: Func): void;
+export extern function ast_arena_func_set(arena: *ASTArena, ref: i32, f: Func): void;

@@ -25,23 +25,23 @@
 // 标准库 std.env；用户通过 import("std.env") 使用。依赖 core；与 std/env/env.x
 // 同属一模块。
 
-extern function env_getenv_c(key: *u8, key_len: i32, out: *u8, out_cap: i32): i32;
-extern function env_getenv_ptr_c(key: *u8, key_len: i32, out_len: *i32): *u8;
-extern function env_getenv_z_c(key_z: *u8, out_len: *i32): *u8;
-extern function env_getenv_exists_c(key: *u8, key_len: i32): i32;
-extern function env_setenv_c(name: *u8, value: *u8, overwrite: i32): i32;
-extern function env_unsetenv_c(name: *u8): i32;
-extern function env_temp_dir_c(out: *u8, cap: i32): i32;
-extern function env_iter_count_c(): i32;
-extern function env_iter_at_c(index: i32, key_out: *u8, key_cap: i32, val_out: *u8, val_cap: i32): i32;
-extern function args_iter_count_c(): i32;
-extern function args_iter_at_c(i: i32): *u8;
+export extern function env_getenv_c(key: *u8, key_len: i32, out: *u8, out_cap: i32): i32;
+export extern function env_getenv_ptr_c(key: *u8, key_len: i32, out_len: *i32): *u8;
+export extern function env_getenv_z_c(key_z: *u8, out_len: *i32): *u8;
+export extern function env_getenv_exists_c(key: *u8, key_len: i32): i32;
+export extern function env_setenv_c(name: *u8, value: *u8, overwrite: i32): i32;
+export extern function env_unsetenv_c(name: *u8): i32;
+export extern function env_temp_dir_c(out: *u8, cap: i32): i32;
+export extern function env_iter_count_c(): i32;
+export extern function env_iter_at_c(index: i32, key_out: *u8, key_cap: i32, val_out: *u8, val_cap: i32): i32;
+export extern function args_iter_count_c(): i32;
+export extern function args_iter_at_c(i: i32): *u8;
 
 /**
  * 取环境变量 key[0..key_len) 的值，写入 out[0..out_cap)，保证 NUL 结尾。
  * 返回写入字节数（不含 NUL），不存在或错误返回 -1。对标 env::var()。
  */
-function getenv(key: *u8, key_len: i32, out: *u8, out_cap: i32): i32 {
+export function getenv(key: *u8, key_len: i32, out: *u8, out_cap: i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = env_getenv_c(key, key_len, out, out_cap); }
   return _rc;
@@ -51,7 +51,7 @@ function getenv(key: *u8, key_len: i32, out: *u8, out_cap: i32): i32 {
  * 零拷贝：返回 key[0..key_len) 对应 value 的只读指针（NUL 结尾），不存在返回 0。
  * out_len 可选写入长度（不含 NUL）。指针在 setenv/unsetenv 或下次 getenv_ptr/getenv_z 前有效。
  */
-function getenv_ptr(key: *u8, key_len: i32, out_len: *i32): *u8 {
+export function getenv_ptr(key: *u8, key_len: i32, out_len: *i32): *u8 {
   let _rc: *u8 = 0;
   unsafe { _rc = env_getenv_ptr_c(key, key_len, out_len); }
   return _rc;
@@ -61,64 +61,64 @@ function getenv_ptr(key: *u8, key_len: i32, out_len: *i32): *u8 {
  * 零拷贝（key+value）：key_z 须 NUL 结尾；返回 value 指针（NUL 结尾）或 0。
  * out_len 可选。适合字面量如 getenv_z("PATH", &len)。
  */
-function getenv_z(key_z: *u8, out_len: *i32): *u8 {
+export function getenv_z(key_z: *u8, out_len: *i32): *u8 {
   let _rc: *u8 = 0;
   unsafe { _rc = env_getenv_z_c(key_z, out_len); }
   return _rc;
 }
 
 /** 判断环境变量 key[0..key_len) 是否存在；存在返回 1，不存在返回 0。 */
-function getenv_exists(key: *u8, key_len: i32): i32 {
+export function getenv_exists(key: *u8, key_len: i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = env_getenv_exists_c(key, key_len); }
   return _rc;
 }
 
 /** 设置环境变量 name=value（name、value 须为 NUL 结尾）；overwrite 非 0 时覆盖。 */
-function setenv(name: *u8, value: *u8, overwrite: i32): i32 {
+export function setenv(name: *u8, value: *u8, overwrite: i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = env_setenv_c(name, value, overwrite); }
   return _rc;
 }
 
 /** 删除环境变量 name（NUL 结尾）。返回 0 成功，-1 失败。 */
-function unsetenv(name: *u8): i32 {
+export function unsetenv(name: *u8): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = env_unsetenv_c(name); }
   return _rc;
 }
 
 /** 将临时目录路径写入 out（NUL 结尾），最多 cap 字节；失败 -1。 */
-function temp_dir(out: *u8, cap: i32): i32 {
+export function temp_dir(out: *u8, cap: i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = env_temp_dir_c(out, cap); }
   return _rc;
 }
 
 /** 环境变量遍历状态：index 为下一次 env_iter_at_c 下标。 */
-struct EnvIter {
+export struct EnvIter {
   index: i32;
 }
 
 /** 命令行参数遍历状态。 */
-struct ArgsIter {
+export struct ArgsIter {
   index: i32;
 }
 
 /** 创建环境变量迭代器（从 0 开始；原 env_iter）。 */
-function iter(): EnvIter {
+export function iter(): EnvIter {
   return EnvIter { index: 0 };
 }
 
 /** 当前进程环境变量条目数（原 env_iter_count）。 */
-function iter_count(): i32 {
+export function iter_count(): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = env_iter_count_c(); }
   return _rc;
 }
 
 /** 读取下一环境变量；成功 1，结束 0，错误 -1。缓冲不足时跳过该条目。 */
-function iter_next(it: *EnvIter, key_out: *u8, key_cap: i32, val_out: *u8, val_cap: i32): i32 {
+export function iter_next(it: *EnvIter, key_out: *u8, key_cap: i32, val_out: *u8, val_cap: i32): i32 {
   loop {
     let r: i32 = 0;
     unsafe {
@@ -141,19 +141,19 @@ function iter_next(it: *EnvIter, key_out: *u8, key_cap: i32, val_out: *u8, val_c
 }
 
 /** 创建命令行参数迭代器。 */
-function args_iter(): ArgsIter {
+export function args_iter(): ArgsIter {
   return ArgsIter { index: 0 };
 }
 
 /** 命令行参数个数（含 argv[0]）。 */
-function args_iter_count(): i32 {
+export function args_iter_count(): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = args_iter_count_c(); }
   return _rc;
 }
 
 /** 读取下一 argv 指针；结束返回 null。 */
-function args_iter_next(it: *ArgsIter): *u8 {
+export function args_iter_next(it: *ArgsIter): *u8 {
   let total: i32 = 0;
   unsafe {
     total = args_iter_count_c();

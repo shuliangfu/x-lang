@@ -863,7 +863,9 @@ extern int32_t pipeline_typeck_type_refs_equal_c(struct ast_ASTArena *arena, int
 extern int32_t pipeline_type_kind_ord_at(struct ast_ASTArena *arena, int32_t type_ref);
 extern int32_t pipeline_module_func_param_type_ref_at(struct ast_Module *m, int32_t fi, int32_t pi);
 extern int32_t pipeline_expr_method_call_num_args_at(struct ast_ASTArena *arena, int32_t expr_ref);
-extern int32_t pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
+extern extern int32_t pipeline_visibility_allow_func(struct ast_Module *m, int32_t fi, int32_t cross_module);
+
+int32_t pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
     struct ast_Module *mod, struct ast_ASTArena *caller_arena, uint8_t *name, int32_t name_len, int32_t from_dep_index,
     int32_t want_arity, int32_t call_expr_ref, int32_t is_method, struct ast_PipelineDepCtx *ctx,
     int32_t *func_index_out);
@@ -997,6 +999,9 @@ int32_t pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_mini
   func_ix = pipeline_typeck_pick_func_index_by_name_args_strict_minimal(
       mod, caller_arena, name, name_len, from_dep_index, want_arity, call_expr_ref, is_method, ctx);
   if (func_ix < 0)
+    return 0;
+  /* 模块导出：strict 下跨模块仅 is_export（compat/warn 放行）。 */
+  if (from_dep_index >= 0 && pipeline_visibility_allow_func(mod, func_ix, 1) == 0)
     return 0;
   if (func_index_out)
     *func_index_out = func_ix;

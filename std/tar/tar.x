@@ -20,25 +20,25 @@
 // STD-038/152 tar_* C ABI 锚点；seed asm 单文件仅首函数可 emit，全局状态不可用。
 // 参考实现见 git 历史 tar.x 全量版本。
 
-const TAR_PATH_MAX: i32 = 512;
+export const TAR_PATH_MAX: i32 = 512;
 
 /** F-tar v1 版本标记。 */
-function tar_f_tar_v1_marker_c(): i32 {
+export function tar_f_tar_v1_marker_c(): i32 {
   return 1;
 }
 
 /** F-tar v2 版本标记。 */
-function tar_f_tar_v2_marker_c(): i32 {
+export function tar_f_tar_v2_marker_c(): i32 {
   return 1;
 }
 
 /** 支持的最大完整路径（Pax）。 */
-function tar_path_max_c(): i32 {
+export function tar_path_max_c(): i32 {
   return TAR_PATH_MAX;
 }
 
 /** 从 buf[off..off+width] 解析八进制（遇 NUL/空格止）。 */
-function tar_read_octal(buf: *u8, off: i32, width: i32): i32 {
+export function tar_read_octal(buf: *u8, off: i32, width: i32): i32 {
   let v: i32 = 0;
   let i: i32 = 0;
   while (i < width) {
@@ -52,7 +52,7 @@ function tar_read_octal(buf: *u8, off: i32, width: i32): i32 {
 
 /** 解析 UStar 头；name 拷贝到 name_out（NUL 结尾，不超过 name_cap），size 写入 *size_out。
  * 返回 0 成功，-1 参数错。 */
-function tar_read_header_c(buf: *u8, len: i32, name_out: *u8, name_cap: i32, size_out: *i32): i32 {
+export function tar_read_header_c(buf: *u8, len: i32, name_out: *u8, name_cap: i32, size_out: *i32): i32 {
   if (buf == 0 || len < 512 || name_out == 0 || name_cap <= 0 || size_out == 0) {
     return -1;
   }
@@ -67,7 +67,7 @@ function tar_read_header_c(buf: *u8, len: i32, name_out: *u8, name_cap: i32, siz
 }
 
 /** 把 v 以八进制写入 buf[off..off+width]：前导 0 填充，末尾 NUL（width 含 NUL 位）。 */
-function tar_write_octal(buf: *u8, off: i32, width: i32, v: i32): void {
+export function tar_write_octal(buf: *u8, off: i32, width: i32, v: i32): void {
   let w: i32 = width - 1;
   let n: i32 = v;
   if (n < 0) { n = 0; }
@@ -82,7 +82,7 @@ function tar_write_octal(buf: *u8, off: i32, width: i32, v: i32): void {
 }
 
 /** 计算 512 字节 UStar 头校验和（chksum 字段视为空格）。 */
-function tar_header_chksum(buf: *u8): i32 {
+export function tar_header_chksum(buf: *u8): i32 {
   let sum: i32 = 0;
   let i: i32 = 0;
   while (i < 512) {
@@ -96,7 +96,7 @@ function tar_header_chksum(buf: *u8): i32 {
 
 /** 写入 UStar 头到 buf[0..512]；name_len 为不含 NUL 的名字字节数，file_size 为文件字节数。
  * 返回 0 成功，-1 参数错或 buf_cap < 512。 */
-function tar_write_header_c(buf: *u8, buf_cap: i32, name: *u8, name_len: i32, file_size: i32): i32 {
+export function tar_write_header_c(buf: *u8, buf_cap: i32, name: *u8, name_len: i32, file_size: i32): i32 {
   if (buf == 0 || buf_cap < 512 || name == 0 || name_len < 0 || name_len > 100) {
     return -1;
   }
@@ -122,23 +122,23 @@ function tar_write_header_c(buf: *u8, buf_cap: i32, name: *u8, name_len: i32, fi
 }
 
 /** 追加 tar 条目；锚点桩。 */
-function tar_append_entry_c(buf: *u8, buf_cap: i32, off_io: *i32, name: *u8, name_len: i32, data: *u8,
+export function tar_append_entry_c(buf: *u8, buf_cap: i32, off_io: *i32, name: *u8, name_len: i32, data: *u8,
   data_len: i32): i32 {
   return -1;
 }
 
 /** 迭代下一 tar 条目；锚点桩。 */
-function tar_next_entry_c(buf: *u8, buf_len: i32, pos_io: *i32, name_out: *u8, name_cap: i32,
+export function tar_next_entry_c(buf: *u8, buf_len: i32, pos_io: *i32, name_out: *u8, name_cap: i32,
   size_out: *i32): i32 {
   return -1;
 }
 
 /** 读取条目数据；锚点桩。 */
-function tar_read_entry_data_c(buf: *u8, buf_len: i32, entry_off: i32, out: *u8, out_cap: i32): i32 {
+export function tar_read_entry_data_c(buf: *u8, buf_len: i32, entry_off: i32, out: *u8, out_cap: i32): i32 {
   return -1;
 }
 
 /** 扩展路径烟测；锚点桩。 */
-function tar_extended_smoke_c(): i32 {
+export function tar_extended_smoke_c(): i32 {
   return -1;
 }

@@ -37,84 +37,84 @@
 // 单调/墙钟单次系统调用、无分配；目标延迟 ≤ Zig/Rust 同场景（见
 // analysis/std标准库全量清单与优先级.md 3.1）。
 
-extern function time_now_monotonic_ns_c(): i64;
-extern function time_now_wall_ns_c(): i64;
-extern function time_sleep_ns_c(ns: i64): void;
-extern function time_format_wall_rfc3339_c(buf: *u8, cap: i32): i32;
-extern function time_wall_local_offset_min_c(): i32;
+export extern function time_now_monotonic_ns_c(): i64;
+export extern function time_now_wall_ns_c(): i64;
+export extern function time_sleep_ns_c(ns: i64): void;
+export extern function time_format_wall_rfc3339_c(buf: *u8, cap: i32): i32;
+export extern function time_wall_local_offset_min_c(): i32;
 
 /** 单调时钟：纳秒（自任意起点，仅用于差值；对标 Rust Instant、Zig Timer）。 */
-function now_monotonic_ns(): i64 {
+export function now_monotonic_ns(): i64 {
   let _rc: i64 = 0;
   unsafe { _rc = time_now_monotonic_ns_c(); }
   return _rc;
 }
 
 /** 单调时钟：微秒。 */
-function now_monotonic_us(): i64 {
+export function now_monotonic_us(): i64 {
   let _rc: i64 = 0;
   unsafe { _rc = time_now_monotonic_ns_c() / 1000; }
   return _rc;
 }
 
 /** 单调时钟：毫秒。 */
-function now_monotonic_ms(): i64 {
+export function now_monotonic_ms(): i64 {
   let _rc: i64 = 0;
   unsafe { _rc = time_now_monotonic_ns_c() / 1000000; }
   return _rc;
 }
 
 /** 单调时钟：秒。 */
-function now_monotonic_sec(): i64 {
+export function now_monotonic_sec(): i64 {
   let _rc: i64 = 0;
   unsafe { _rc = time_now_monotonic_ns_c() / 1000000000; }
   return _rc;
 }
 
 /** 墙钟：自 Unix 纪元 1970-01-01 00:00:00 UTC 的秒。 */
-function now_wall_sec(): i64 {
+export function now_wall_sec(): i64 {
   let _rc: i64 = 0;
   unsafe { _rc = time_now_wall_ns_c() / 1000000000; }
   return _rc;
 }
 
 /** 墙钟：毫秒。 */
-function now_wall_ms(): i64 {
+export function now_wall_ms(): i64 {
   let _rc: i64 = 0;
   unsafe { _rc = time_now_wall_ns_c() / 1000000; }
   return _rc;
 }
 
 /** 墙钟：微秒。 */
-function now_wall_us(): i64 {
+export function now_wall_us(): i64 {
   let _rc: i64 = 0;
   unsafe { _rc = time_now_wall_ns_c() / 1000; }
   return _rc;
 }
 
 /** 墙钟：纳秒（Windows 粒度为 100ns）。 */
-function now_wall_ns(): i64 {
+export function now_wall_ns(): i64 {
   let _rc: i64 = 0;
   unsafe { _rc = time_now_wall_ns_c(); }
   return _rc;
 }
 
 /** 睡眠：纳秒。可能提前唤醒，不保证精度。 */
-function sleep_ns(ns: i64): void {
+export function sleep_ns(ns: i64): void {
   unsafe {
     time_sleep_ns_c(ns);
   }
 }
 
 /** 睡眠：微秒。 */
-function sleep_us(us: i64): void {
+export function sleep_us(us: i64): void {
   unsafe {
     time_sleep_ns_c(us * 1000);
   }
 }
 
 /** 睡眠：毫秒。 */
-function sleep_ms(ms: i32): void {
+export function sleep_ms(ms: i32): void {
   if (ms <= 0) { return; }
   unsafe {
     time_sleep_ns_c((ms as i64) * 1000000);
@@ -122,7 +122,7 @@ function sleep_ms(ms: i32): void {
 }
 
 /** 睡眠：秒。 */
-function sleep_sec(s: i32): void {
+export function sleep_sec(s: i32): void {
   if (s <= 0) { return; }
   unsafe {
     time_sleep_ns_c((s as i64) * 1000000000);
@@ -130,50 +130,50 @@ function sleep_sec(s: i32): void {
 }
 
 /** 时间差（纳秒）：to_ns - from_ns；纯算术。 */
-function duration_ns(from_ns: i64, to_ns: i64): i64 {
+export function duration_ns(from_ns: i64, to_ns: i64): i64 {
   return to_ns - from_ns;
 }
 
 /** 单调计时器状态（STD-133）。 */
-struct Timer {
+export struct Timer {
   start_ns: i64;
 }
 
 /** 启动计时器并记录起点。 */
-function start(): Timer {
+export function start(): Timer {
     return Timer { start_ns: now_monotonic_ns() };
 }
 
 /** 重置计时器起点为当前单调时钟。 */
-function reset(t: *Timer): void {
+export function reset(t: *Timer): void {
     unsafe {
         t.start_ns = now_monotonic_ns();
     }
 }
 
 /** 自 timer_start/reset 起经过的纳秒数。 */
-function elapsed_ns(t: Timer): i64 {
+export function elapsed_ns(t: Timer): i64 {
     let start_ns: i64 = t.start_ns;
     return now_monotonic_ns() - start_ns;
 }
 
 /** 经过的微秒数。 */
-function elapsed_us(t: Timer): i64 {
+export function elapsed_us(t: Timer): i64 {
     return elapsed_ns(t) / 1000;
 }
 
 /** 经过的毫秒数。 */
-function elapsed_ms(t: Timer): i64 {
+export function elapsed_ms(t: Timer): i64 {
     return elapsed_ns(t) / 1000000;
 }
 
 /** 经过的秒数。 */
-function elapsed_sec(t: Timer): i64 {
+export function elapsed_sec(t: Timer): i64 {
     return elapsed_ns(t) / 1000000000;
 }
 
 /** 记录 lap 并返回本段纳秒数；同时重置段起点。 */
-function lap_ns(t: *Timer): i64 {
+export function lap_ns(t: *Timer): i64 {
     let now: i64 = now_monotonic_ns();
     let start_ns: i64 = t.start_ns;
     let lap: i64 = now - start_ns;
@@ -184,21 +184,21 @@ function lap_ns(t: *Timer): i64 {
 }
 
 /** 将当前 UTC 墙钟写入 buf（RFC3339，STD-137）。 */
-function format_wall_rfc3339(buf: *u8, cap: i32): i32 {
+export function format_wall_rfc3339(buf: *u8, cap: i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = time_format_wall_rfc3339_c(buf, cap); }
   return _rc;
 }
 
 /** 本地时区相对 UTC 偏移（分钟；东为正，STD-137）。 */
-function wall_local_offset_min(): i32 {
+export function wall_local_offset_min(): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = time_wall_local_offset_min_c(); }
   return _rc;
 }
 
 /** 时区/格式化烟测；0 成功。 */
-function format_timezone_smoke(): i32 {
+export function format_timezone_smoke(): i32 {
   let buf: u8[32];
   let i: i32 = 0;
   while (i < 32) {

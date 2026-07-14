@@ -20,10 +20,10 @@
 // 长短选项检测、子命令匹配、usage 生成；供 mod.x 与 std.env args_iter 组合使用。
 
 /** C 字符串常量（解析器不支持 "..." as *u8）。 */
-const CLI_LIT_HELP: u8[7] = [45, 45, 104, 101, 108, 112, 0];
+export const CLI_LIT_HELP: u8[7] = [45, 45, 104, 101, 108, 112, 0];
 
-extern "C" function memcmp(a: *u8, b: *u8, n: usize): i32;
-extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+export extern "C" function memcmp(a: *u8, b: *u8, n: usize): i32;
+export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 
 /** 与 mod.x CliResult 布局一致。 */
 allow(padding) struct CliResult {
@@ -39,7 +39,7 @@ allow(padding) struct CliResult {
 }
 
 /** 比较等长字节串；1 相等。 */
-function cli_bytes_eq(a: *u8, alen: i32, b: *u8, blen: i32): i32 {
+export function cli_bytes_eq(a: *u8, alen: i32, b: *u8, blen: i32): i32 {
   let i: i32 = 0;
   if (alen != blen) { return 0; }
   while (i < alen) {
@@ -50,7 +50,7 @@ function cli_bytes_eq(a: *u8, alen: i32, b: *u8, blen: i32): i32 {
 }
 
 /** 是否为 -h / --help。 */
-function cli_is_help_c(arg: *u8, len: i32): i32 {
+export function cli_is_help_c(arg: *u8, len: i32): i32 {
   if (arg == 0 || len <= 0) { return 0; }
   if (len == 2 && arg[0] == 45 && arg[1] == 104) { return 1; }
   if (len == 6 && arg[0] == 45 && arg[1] == 45 &&
@@ -61,7 +61,7 @@ function cli_is_help_c(arg: *u8, len: i32): i32 {
 }
 
 /** 是否为 --version。 */
-function cli_is_version_c(arg: *u8, len: i32): i32 {
+export function cli_is_version_c(arg: *u8, len: i32): i32 {
   if (arg == 0 || len <= 0) { return 0; }
   if (len == 9 && arg[0] == 45 && arg[1] == 45 &&
       arg[2] == 118 && arg[3] == 101 && arg[4] == 114 &&
@@ -72,14 +72,14 @@ function cli_is_version_c(arg: *u8, len: i32): i32 {
 }
 
 /** 长选项 --name 匹配（不含前缀）。 */
-function cli_match_long_c(arg: *u8, len: i32, name: *u8, name_len: i32): i32 {
+export function cli_match_long_c(arg: *u8, len: i32, name: *u8, name_len: i32): i32 {
   if (arg == 0 || name == 0 || len < 2 + name_len) { return 0; }
   if (arg[0] != 45 || arg[1] != 45) { return 0; }
   return cli_bytes_eq(arg + 2, len - 2, name, name_len);
 }
 
 /** 短选项串 -x 或 -abc 是否含 c。 */
-function cli_match_short_c(arg: *u8, len: i32, c: u8): i32 {
+export function cli_match_short_c(arg: *u8, len: i32, c: u8): i32 {
   let i: i32 = 0;
   if (arg == 0 || len < 2 || arg[0] != 45) { return 0; }
   if (len == 2 && arg[1] == c) { return 1; }
@@ -92,7 +92,7 @@ function cli_match_short_c(arg: *u8, len: i32, c: u8): i32 {
 }
 
 /** 将固定片段写入 out；返回写入字节数，空间不足 -1。 */
-function cli_copy_lit(out: *u8, out_cap: i32, off: i32, lit: *u8, lit_len: i32): i32 {
+export function cli_copy_lit(out: *u8, out_cap: i32, off: i32, lit: *u8, lit_len: i32): i32 {
   let i: i32 = 0;
   if (off + lit_len >= out_cap) { return -1; }
   while (i < lit_len) {
@@ -103,7 +103,7 @@ function cli_copy_lit(out: *u8, out_cap: i32, off: i32, lit: *u8, lit_len: i32):
 }
 
 /** 写入 usage 行；返回长度，失败 -1（无 snprintf 变参，手工拼接）。 */
-function cli_write_usage_c(prog: *u8, prog_len: i32, desc: *u8, desc_len: i32,
+export function cli_write_usage_c(prog: *u8, prog_len: i32, desc: *u8, desc_len: i32,
                            out: *u8, out_cap: i32): i32 {
   let n: i32 = 0;
   let u1: u8[7] = [85, 115, 97, 103, 101, 58, 32];
@@ -125,7 +125,7 @@ function cli_write_usage_c(prog: *u8, prog_len: i32, desc: *u8, desc_len: i32,
 }
 
 /** 解析 argv[1..] 扁平参数；成功 0，未知 -1，help 1。 */
-function cli_parse_args_c(argv: * *u8, lens: *i32, argc: i32,
+export function cli_parse_args_c(argv: * *u8, lens: *i32, argc: i32,
                           expect_sub: *u8, expect_sub_len: i32, out: *CliResult): i32 {
   let i: i32 = 0;
   let a: *u8 = 0;
@@ -195,7 +195,7 @@ function cli_parse_args_c(argv: * *u8, lens: *i32, argc: i32,
 }
 
 /** C 烟测：help/long/short/sub/positional。 */
-function cli_smoke_c(): i32 {
+export function cli_smoke_c(): i32 {
   let r: CliResult;
   let argv: *u8[5];
   let lens: i32[5];

@@ -21,32 +21,32 @@
 // f-421：entry_* / code_table_*_at / stderr/stdout → _impl 门闩（共 76）
 
 // ---- rest / libc 提供的符号（勿与下方 thin public 同名，以免 -E 改名）----
-extern "C" function diag_ctx_get_use_color_impl(): i32;
-extern "C" function diag_ctx_get_file_impl(): *u8;
-extern "C" function diag_ctx_get_source_impl(): *u8;
-extern "C" function diag_ctx_get_source_len_impl(): i64;
-extern "C" function diag_ctx_set_all_impl(path: *u8, source: *u8, source_len: i64, use_color: i32): void;
-extern "C" function diag_code_table_has_impl(code: *u8): i32;
-extern "C" function diag_entry_kind_impl(code: *u8): *u8;
-extern "C" function diag_entry_summary_impl(code: *u8): *u8;
-extern "C" function diag_entry_details_impl(code: *u8): *u8;
-extern "C" function diag_push_file_apply_impl(path: *u8, source: *u8, source_len: i64): void;
-extern "C" function diag_should_color_impl(): i32;
-extern "C" function diag_color_reset_impl(): *u8;
-extern "C" function diag_set_json_mode_impl(enable: i32): void;
-extern "C" function diag_json_enabled_impl(): i32;
-extern "C" function diag_extract_line_impl(line_no: i32, line_start_out: *u8, line_len_out: *u8): i32;
-extern "C" function diag_print_header_impl(kind: *u8, code: *u8, msg: *u8, kind_color: *u8, reset: *u8): void;
-extern "C" function diag_print_code_table_impl(out: *u8): void;
-extern "C" function diag_print_known_codes_impl(out: *u8): void;
-extern "C" function diag_print_code_explain_impl(out: *u8, code: *u8): void;
-extern "C" function diag_report_with_code_impl(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void;
-extern "C" function diag_report_human_impl(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void;
+export extern "C" function diag_ctx_get_use_color_impl(): i32;
+export extern "C" function diag_ctx_get_file_impl(): *u8;
+export extern "C" function diag_ctx_get_source_impl(): *u8;
+export extern "C" function diag_ctx_get_source_len_impl(): i64;
+export extern "C" function diag_ctx_set_all_impl(path: *u8, source: *u8, source_len: i64, use_color: i32): void;
+export extern "C" function diag_code_table_has_impl(code: *u8): i32;
+export extern "C" function diag_entry_kind_impl(code: *u8): *u8;
+export extern "C" function diag_entry_summary_impl(code: *u8): *u8;
+export extern "C" function diag_entry_details_impl(code: *u8): *u8;
+export extern "C" function diag_push_file_apply_impl(path: *u8, source: *u8, source_len: i64): void;
+export extern "C" function diag_should_color_impl(): i32;
+export extern "C" function diag_color_reset_impl(): *u8;
+export extern "C" function diag_set_json_mode_impl(enable: i32): void;
+export extern "C" function diag_json_enabled_impl(): i32;
+export extern "C" function diag_extract_line_impl(line_no: i32, line_start_out: *u8, line_len_out: *u8): i32;
+export extern "C" function diag_print_header_impl(kind: *u8, code: *u8, msg: *u8, kind_color: *u8, reset: *u8): void;
+export extern "C" function diag_print_code_table_impl(out: *u8): void;
+export extern "C" function diag_print_known_codes_impl(out: *u8): void;
+export extern "C" function diag_print_code_explain_impl(out: *u8, code: *u8): void;
+export extern "C" function diag_report_with_code_impl(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void;
+export extern "C" function diag_report_human_impl(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void;
 
 // ---- G-02f-335 pure helpers ----
 
 #[no_mangle]
-function diag_line_digits(line: i32): i32 {
+export function diag_line_digits(line: i32): i32 {
   let width: i32 = 1;
   while (line >= 10) {
     line = line / 10;
@@ -55,7 +55,7 @@ function diag_line_digits(line: i32): i32 {
   return width;
 }
 
-function diag_cstr_len_bounded(s: *u8): i32 {
+export function diag_cstr_len_bounded(s: *u8): i32 {
   if (s == 0) {
     return 0;
   }
@@ -69,7 +69,7 @@ function diag_cstr_len_bounded(s: *u8): i32 {
   return 4096;
 }
 
-function diag_bytes_match_at(hay: *u8, needle: *u8, off: i32, nlen: i32): i32 {
+export function diag_bytes_match_at(hay: *u8, needle: *u8, off: i32, nlen: i32): i32 {
   let j: i32 = 0;
   while (j < nlen) {
     if (hay[off + j] != needle[j]) {
@@ -81,7 +81,7 @@ function diag_bytes_match_at(hay: *u8, needle: *u8, off: i32, nlen: i32): i32 {
 }
 
 #[no_mangle]
-function diag_kind_is_exact(kind: *u8, needle: *u8): i32 {
+export function diag_kind_is_exact(kind: *u8, needle: *u8): i32 {
   if (kind == 0) {
     return 0;
   }
@@ -97,7 +97,7 @@ function diag_kind_is_exact(kind: *u8, needle: *u8): i32 {
 }
 
 #[no_mangle]
-function diag_kind_contains(kind: *u8, needle: *u8): i32 {
+export function diag_kind_contains(kind: *u8, needle: *u8): i32 {
   if (kind == 0) {
     return 0;
   }
@@ -126,7 +126,7 @@ function diag_kind_contains(kind: *u8, needle: *u8): i32 {
 }
 
 #[no_mangle]
-function diag_color_prefix(plain: *u8, color: *u8): *u8 {
+export function diag_color_prefix(plain: *u8, color: *u8): *u8 {
   unsafe {
     if (diag_ctx_get_use_color_impl() != 0) {
       return color;
@@ -139,49 +139,49 @@ function diag_color_prefix(plain: *u8, color: *u8): *u8 {
 // ---- G-02f-336 context / code-table gates ----
 
 #[no_mangle]
-function diag_get_file(): *u8 {
+export function diag_get_file(): *u8 {
   unsafe {
     return diag_ctx_get_file_impl();
   }
 }
 
 #[no_mangle]
-function diag_get_source(): *u8 {
+export function diag_get_source(): *u8 {
   unsafe {
     return diag_ctx_get_source_impl();
   }
 }
 
 #[no_mangle]
-function diag_get_source_len(): i64 {
+export function diag_get_source_len(): i64 {
   unsafe {
     return diag_ctx_get_source_len_impl();
   }
 }
 
 #[no_mangle]
-function diag_code_is_known(code: *u8): i32 {
+export function diag_code_is_known(code: *u8): i32 {
   unsafe {
     return diag_code_table_has_impl(code);
   }
 }
 
 #[no_mangle]
-function diag_code_kind(code: *u8): *u8 {
+export function diag_code_kind(code: *u8): *u8 {
   unsafe {
     return diag_entry_kind_impl(code);
   }
 }
 
 #[no_mangle]
-function diag_code_summary(code: *u8): *u8 {
+export function diag_code_summary(code: *u8): *u8 {
   unsafe {
     return diag_entry_summary_impl(code);
   }
 }
 
 #[no_mangle]
-function diag_code_details(code: *u8): *u8 {
+export function diag_code_details(code: *u8): *u8 {
   unsafe {
     return diag_entry_details_impl(code);
   }
@@ -189,7 +189,7 @@ function diag_code_details(code: *u8): *u8 {
 
 // set_file 直接调 should_color_impl（勿依赖同文件 public，避免 -E 符号冲突）
 #[no_mangle]
-function diag_set_file(path: *u8, source: *u8, source_len: i64): void {
+export function diag_set_file(path: *u8, source: *u8, source_len: i64): void {
   unsafe {
     let c: i32 = diag_should_color_impl();
     diag_ctx_set_all_impl(path, source, source_len, c);
@@ -198,7 +198,7 @@ function diag_set_file(path: *u8, source: *u8, source_len: i64): void {
 
 // report 无 code：直接 with_code_impl
 #[no_mangle]
-function diag_report(file: *u8, line: i32, col: i32, kind: *u8, msg: *u8, detail: *u8): void {
+export function diag_report(file: *u8, line: i32, col: i32, kind: *u8, msg: *u8, detail: *u8): void {
   unsafe {
     let z: *u8 = 0;
     diag_report_with_code_impl(file, line, col, kind, z, msg, detail);
@@ -209,7 +209,7 @@ function diag_report(file: *u8, line: i32, col: i32, kind: *u8, msg: *u8, detail
 // 布局与 DiagContextSnapshot 一致：file@0 source@8 len@16 color@24
 
 #[no_mangle]
-function diag_store_ptr_le(p: *u8, val: *u8): void {
+export function diag_store_ptr_le(p: *u8, val: *u8): void {
   if (p == 0 as *u8) {
     return;
   }
@@ -243,7 +243,7 @@ function diag_store_ptr_le(p: *u8, val: *u8): void {
 }
 
 #[no_mangle]
-function diag_store_usize_le(p: *u8, val: usize): void {
+export function diag_store_usize_le(p: *u8, val: usize): void {
   if (p == 0 as *u8) {
     return;
   }
@@ -277,7 +277,7 @@ function diag_store_usize_le(p: *u8, val: usize): void {
 }
 
 #[no_mangle]
-function diag_snap_store_ptr(snap: *u8, off: i32, val: *u8): void {
+export function diag_snap_store_ptr(snap: *u8, off: i32, val: *u8): void {
   if (snap == 0 as *u8) {
     return;
   }
@@ -288,7 +288,7 @@ function diag_snap_store_ptr(snap: *u8, off: i32, val: *u8): void {
 }
 
 #[no_mangle]
-function diag_snap_store_usize(snap: *u8, off: i32, val: usize): void {
+export function diag_snap_store_usize(snap: *u8, off: i32, val: usize): void {
   if (snap == 0 as *u8) {
     return;
   }
@@ -299,7 +299,7 @@ function diag_snap_store_usize(snap: *u8, off: i32, val: usize): void {
 }
 
 #[no_mangle]
-function diag_snap_store_i32(snap: *u8, off: i32, val: i32): void {
+export function diag_snap_store_i32(snap: *u8, off: i32, val: i32): void {
   if (snap == 0 as *u8) {
     return;
   }
@@ -331,7 +331,7 @@ function diag_snap_store_i32(snap: *u8, off: i32, val: i32): void {
 }
 
 #[no_mangle]
-function diag_snap_load_ptr(snap: *u8, off: i32): *u8 {
+export function diag_snap_load_ptr(snap: *u8, off: i32): *u8 {
   if (snap == 0 as *u8) {
     return 0 as *u8;
   }
@@ -354,7 +354,7 @@ function diag_snap_load_ptr(snap: *u8, off: i32): *u8 {
 }
 
 #[no_mangle]
-function diag_snap_load_usize(snap: *u8, off: i32): usize {
+export function diag_snap_load_usize(snap: *u8, off: i32): usize {
   if (snap == 0 as *u8) {
     return 0;
   }
@@ -377,7 +377,7 @@ function diag_snap_load_usize(snap: *u8, off: i32): usize {
 }
 
 #[no_mangle]
-function diag_snap_load_i32(snap: *u8, off: i32): i32 {
+export function diag_snap_load_i32(snap: *u8, off: i32): i32 {
   if (snap == 0 as *u8) {
     return 0;
   }
@@ -398,7 +398,7 @@ function diag_snap_load_i32(snap: *u8, off: i32): i32 {
 
 // -E：嵌套 path/source null if 会丢整函数；snap 保存用早退 helper
 #[no_mangle]
-function diag_push_snap_save(snapshot: *u8): void {
+export function diag_push_snap_save(snapshot: *u8): void {
   if (snapshot == 0 as *u8) {
     return;
   }
@@ -411,7 +411,7 @@ function diag_push_snap_save(snapshot: *u8): void {
 }
 
 #[no_mangle]
-function diag_push_file(snapshot: *u8, path: *u8, source: *u8, source_len: i64): void {
+export function diag_push_file(snapshot: *u8, path: *u8, source: *u8, source_len: i64): void {
   diag_push_snap_save(snapshot);
   unsafe {
     diag_push_file_apply_impl(path, source, source_len);
@@ -419,7 +419,7 @@ function diag_push_file(snapshot: *u8, path: *u8, source: *u8, source_len: i64):
 }
 
 #[no_mangle]
-function diag_restore(snapshot: *u8): void {
+export function diag_restore(snapshot: *u8): void {
   if (snapshot == 0 as *u8) {
     return;
   }
@@ -435,35 +435,35 @@ function diag_restore(snapshot: *u8): void {
 // ---- G-02f-338：color / json / print / report 门闩 ----
 
 #[no_mangle]
-function diag_should_color(): i32 {
+export function diag_should_color(): i32 {
   unsafe {
     return diag_should_color_impl();
   }
 }
 
 #[no_mangle]
-function diag_color_reset(): *u8 {
+export function diag_color_reset(): *u8 {
   unsafe {
     return diag_color_reset_impl();
   }
 }
 
 #[no_mangle]
-function diag_set_json_mode(enable: i32): void {
+export function diag_set_json_mode(enable: i32): void {
   unsafe {
     diag_set_json_mode_impl(enable);
   }
 }
 
 #[no_mangle]
-function diag_json_enabled(): i32 {
+export function diag_json_enabled(): i32 {
   unsafe {
     return diag_json_enabled_impl();
   }
 }
 
 #[no_mangle]
-function diag_extract_line(line_no: i32, line_start_out: *u8, line_len_out: *u8): i32 {
+export function diag_extract_line(line_no: i32, line_start_out: *u8, line_len_out: *u8): i32 {
   unsafe {
     return diag_extract_line_impl(line_no, line_start_out, line_len_out);
   }
@@ -471,117 +471,117 @@ function diag_extract_line(line_no: i32, line_start_out: *u8, line_len_out: *u8)
 }
 
 #[no_mangle]
-function diag_print_header(kind: *u8, code: *u8, msg: *u8, kind_color: *u8, reset: *u8): void {
+export function diag_print_header(kind: *u8, code: *u8, msg: *u8, kind_color: *u8, reset: *u8): void {
   unsafe {
     diag_print_header_impl(kind, code, msg, kind_color, reset);
   }
 }
 
 #[no_mangle]
-function diag_print_code_table(out: *u8): void {
+export function diag_print_code_table(out: *u8): void {
   unsafe {
     diag_print_code_table_impl(out);
   }
 }
 
 #[no_mangle]
-function diag_print_known_codes(out: *u8): void {
+export function diag_print_known_codes(out: *u8): void {
   unsafe {
     diag_print_known_codes_impl(out);
   }
 }
 
 #[no_mangle]
-function diag_print_code_explain(out: *u8, code: *u8): void {
+export function diag_print_code_explain(out: *u8, code: *u8): void {
   unsafe {
     diag_print_code_explain_impl(out, code);
   }
 }
 
 #[no_mangle]
-function diag_report_with_code(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void {
+export function diag_report_with_code(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void {
   unsafe {
     diag_report_with_code_impl(file, line, col, kind, code, msg, detail);
   }
 }
 
 #[no_mangle]
-function diag_report_human(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void {
+export function diag_report_human(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void {
   unsafe {
     diag_report_human_impl(file, line, col, kind, code, msg, detail);
   }
 }
 
 // ---- G-02f-342：code/json 残余门闩 ----
-extern "C" function diag_code_eq_impl(lhs: *u8, rhs: *u8): i32;
-extern "C" function diag_levenshtein_ci_impl(a: *u8, b: *u8): i32;
-extern "C" function diag_json_write_str_impl(out: *u8, s: *u8): void;
-extern "C" function diag_report_json_impl(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8): void;
-extern "C" function diag_json_severity_impl(kind: *u8): *u8;
-extern "C" function diag_code_suggest_impl(code: *u8, out: *u8, out_cap: i64): *u8;
+export extern "C" function diag_code_eq_impl(lhs: *u8, rhs: *u8): i32;
+export extern "C" function diag_levenshtein_ci_impl(a: *u8, b: *u8): i32;
+export extern "C" function diag_json_write_str_impl(out: *u8, s: *u8): void;
+export extern "C" function diag_report_json_impl(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8): void;
+export extern "C" function diag_json_severity_impl(kind: *u8): *u8;
+export extern "C" function diag_code_suggest_impl(code: *u8, out: *u8, out_cap: i64): *u8;
 
 #[no_mangle]
-function diag_code_eq(lhs: *u8, rhs: *u8): i32 {
+export function diag_code_eq(lhs: *u8, rhs: *u8): i32 {
   unsafe {
     return diag_code_eq_impl(lhs, rhs);
   }
 }
 
 #[no_mangle]
-function diag_levenshtein_ci(a: *u8, b: *u8): i32 {
+export function diag_levenshtein_ci(a: *u8, b: *u8): i32 {
   unsafe {
     return diag_levenshtein_ci_impl(a, b);
   }
 }
 
 #[no_mangle]
-function diag_json_write_str(out: *u8, s: *u8): void {
+export function diag_json_write_str(out: *u8, s: *u8): void {
   unsafe {
     diag_json_write_str_impl(out, s);
   }
 }
 
 #[no_mangle]
-function diag_report_json(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8): void {
+export function diag_report_json(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8): void {
   unsafe {
     diag_report_json_impl(file, line, col, kind, code, msg);
   }
 }
 
 #[no_mangle]
-function diag_json_severity(kind: *u8): *u8 {
+export function diag_json_severity(kind: *u8): *u8 {
   unsafe {
     return diag_json_severity_impl(kind);
   }
 }
 
 #[no_mangle]
-function diag_code_suggest(code: *u8, out: *u8, out_cap: i64): *u8 {
+export function diag_code_suggest(code: *u8, out: *u8, out_cap: i64): *u8 {
   unsafe {
     return diag_code_suggest_impl(code, out, out_cap);
   }
 }
 
 // ---- G-02f-386：ctx color / code_table_has / json state → seed impl ----
-extern "C" function diag_json_get_state_impl(): i32;
-extern "C" function diag_json_set_state_impl(v: i32): i32;
+export extern "C" function diag_json_get_state_impl(): i32;
+export extern "C" function diag_json_set_state_impl(v: i32): i32;
 
 #[no_mangle]
-function diag_ctx_get_use_color(): i32 {
+export function diag_ctx_get_use_color(): i32 {
   unsafe {
     return diag_ctx_get_use_color_impl();
   }
 }
 
 #[no_mangle]
-function diag_code_table_has(code: *u8): i32 {
+export function diag_code_table_has(code: *u8): i32 {
   unsafe {
     return diag_code_table_has_impl(code);
   }
 }
 
 #[no_mangle]
-function diag_json_get_state(): i32 {
+export function diag_json_get_state(): i32 {
   unsafe {
     return diag_json_get_state_impl();
   }
@@ -589,192 +589,192 @@ function diag_json_get_state(): i32 {
 }
 
 #[no_mangle]
-function diag_json_set_state(v: i32): i32 {
+export function diag_json_set_state(v: i32): i32 {
   unsafe {
     return diag_json_set_state_impl(v);
   }
 }
 
 // ---- G-02f-415：stdio / fprint 冷路径 + code_table_len → seed impl ----
-extern "C" function diag_io_fputc_impl(o: *u8, c: i32): i32;
-extern "C" function diag_io_fputs_impl(s: *u8, o: *u8): i32;
-extern "C" function diag_io_fputs_u04x_impl(o: *u8, c: u32): void;
-extern "C" function diag_io_fflush_impl(o: *u8): void;
-extern "C" function diag_io_fprint_line_col_impl(o: *u8, line: i32, col: i32): void;
-extern "C" function diag_io_fprint_loc_file_line_col_impl(o: *u8, pc: *u8, file: *u8, line: i32, col: i32, rs: *u8): void;
-extern "C" function diag_io_fprint_loc_file_line_impl(o: *u8, pc: *u8, file: *u8, line: i32, rs: *u8): void;
-extern "C" function diag_io_fprint_loc_file_impl(o: *u8, pc: *u8, file: *u8, rs: *u8): void;
-extern "C" function diag_io_fprint_loc_line_col_impl(o: *u8, pc: *u8, line: i32, col: i32, rs: *u8): void;
-extern "C" function diag_io_fprint_gutter_blank_impl(o: *u8, width: i32): void;
-extern "C" function diag_io_fprint_src_line_impl(o: *u8, line: i32, start: *u8, len: i32): void;
-extern "C" function diag_io_fprint_gutter_bar_impl(o: *u8, width: i32): void;
-extern "C" function diag_io_fprint_caret_mark_impl(o: *u8, cc: *u8, rs: *u8, detail: *u8): void;
-extern "C" function diag_code_table_len_impl(): i64;
-extern "C" function diag_io_fprint_unknown_code_impl(out: *u8, code: *u8): void;
-extern "C" function diag_io_fprint_code_table_hdr_impl(out: *u8): void;
-extern "C" function diag_io_fprint_code_table_row_impl(out: *u8, code: *u8, kind: *u8, summary: *u8): void;
+export extern "C" function diag_io_fputc_impl(o: *u8, c: i32): i32;
+export extern "C" function diag_io_fputs_impl(s: *u8, o: *u8): i32;
+export extern "C" function diag_io_fputs_u04x_impl(o: *u8, c: u32): void;
+export extern "C" function diag_io_fflush_impl(o: *u8): void;
+export extern "C" function diag_io_fprint_line_col_impl(o: *u8, line: i32, col: i32): void;
+export extern "C" function diag_io_fprint_loc_file_line_col_impl(o: *u8, pc: *u8, file: *u8, line: i32, col: i32, rs: *u8): void;
+export extern "C" function diag_io_fprint_loc_file_line_impl(o: *u8, pc: *u8, file: *u8, line: i32, rs: *u8): void;
+export extern "C" function diag_io_fprint_loc_file_impl(o: *u8, pc: *u8, file: *u8, rs: *u8): void;
+export extern "C" function diag_io_fprint_loc_line_col_impl(o: *u8, pc: *u8, line: i32, col: i32, rs: *u8): void;
+export extern "C" function diag_io_fprint_gutter_blank_impl(o: *u8, width: i32): void;
+export extern "C" function diag_io_fprint_src_line_impl(o: *u8, line: i32, start: *u8, len: i32): void;
+export extern "C" function diag_io_fprint_gutter_bar_impl(o: *u8, width: i32): void;
+export extern "C" function diag_io_fprint_caret_mark_impl(o: *u8, cc: *u8, rs: *u8, detail: *u8): void;
+export extern "C" function diag_code_table_len_impl(): i64;
+export extern "C" function diag_io_fprint_unknown_code_impl(out: *u8, code: *u8): void;
+export extern "C" function diag_io_fprint_code_table_hdr_impl(out: *u8): void;
+export extern "C" function diag_io_fprint_code_table_row_impl(out: *u8, code: *u8, kind: *u8, summary: *u8): void;
 
 #[no_mangle]
-function diag_io_fputc(o: *u8, c: i32): i32 {
+export function diag_io_fputc(o: *u8, c: i32): i32 {
   unsafe { return diag_io_fputc_impl(o, c); }
 }
 
 #[no_mangle]
-function diag_io_fputs(s: *u8, o: *u8): i32 {
+export function diag_io_fputs(s: *u8, o: *u8): i32 {
   unsafe { return diag_io_fputs_impl(s, o); }
 }
 
 #[no_mangle]
-function diag_io_fputs_u04x(o: *u8, c: u32): void {
+export function diag_io_fputs_u04x(o: *u8, c: u32): void {
   unsafe { diag_io_fputs_u04x_impl(o, c); }
 }
 
 #[no_mangle]
-function diag_io_fflush(o: *u8): void {
+export function diag_io_fflush(o: *u8): void {
   unsafe { diag_io_fflush_impl(o); }
 }
 
 #[no_mangle]
-function diag_io_fprint_line_col(o: *u8, line: i32, col: i32): void {
+export function diag_io_fprint_line_col(o: *u8, line: i32, col: i32): void {
   unsafe { diag_io_fprint_line_col_impl(o, line, col); }
 }
 
 #[no_mangle]
-function diag_io_fprint_loc_file_line_col(o: *u8, pc: *u8, file: *u8, line: i32, col: i32, rs: *u8): void {
+export function diag_io_fprint_loc_file_line_col(o: *u8, pc: *u8, file: *u8, line: i32, col: i32, rs: *u8): void {
   unsafe { diag_io_fprint_loc_file_line_col_impl(o, pc, file, line, col, rs); }
 }
 
 #[no_mangle]
-function diag_io_fprint_loc_file_line(o: *u8, pc: *u8, file: *u8, line: i32, rs: *u8): void {
+export function diag_io_fprint_loc_file_line(o: *u8, pc: *u8, file: *u8, line: i32, rs: *u8): void {
   unsafe { diag_io_fprint_loc_file_line_impl(o, pc, file, line, rs); }
 }
 
 #[no_mangle]
-function diag_io_fprint_loc_file(o: *u8, pc: *u8, file: *u8, rs: *u8): void {
+export function diag_io_fprint_loc_file(o: *u8, pc: *u8, file: *u8, rs: *u8): void {
   unsafe { diag_io_fprint_loc_file_impl(o, pc, file, rs); }
 }
 
 #[no_mangle]
-function diag_io_fprint_loc_line_col(o: *u8, pc: *u8, line: i32, col: i32, rs: *u8): void {
+export function diag_io_fprint_loc_line_col(o: *u8, pc: *u8, line: i32, col: i32, rs: *u8): void {
   unsafe { diag_io_fprint_loc_line_col_impl(o, pc, line, col, rs); }
 }
 
 #[no_mangle]
-function diag_io_fprint_gutter_blank(o: *u8, width: i32): void {
+export function diag_io_fprint_gutter_blank(o: *u8, width: i32): void {
   unsafe { diag_io_fprint_gutter_blank_impl(o, width); }
 }
 
 #[no_mangle]
-function diag_io_fprint_src_line(o: *u8, line: i32, start: *u8, len: i32): void {
+export function diag_io_fprint_src_line(o: *u8, line: i32, start: *u8, len: i32): void {
   unsafe { diag_io_fprint_src_line_impl(o, line, start, len); }
 }
 
 #[no_mangle]
-function diag_io_fprint_gutter_bar(o: *u8, width: i32): void {
+export function diag_io_fprint_gutter_bar(o: *u8, width: i32): void {
   unsafe { diag_io_fprint_gutter_bar_impl(o, width); }
 }
 
 #[no_mangle]
-function diag_io_fprint_caret_mark(o: *u8, cc: *u8, rs: *u8, detail: *u8): void {
+export function diag_io_fprint_caret_mark(o: *u8, cc: *u8, rs: *u8, detail: *u8): void {
   unsafe { diag_io_fprint_caret_mark_impl(o, cc, rs, detail); }
 }
 
 #[no_mangle]
-function diag_code_table_len(): i64 {
+export function diag_code_table_len(): i64 {
   unsafe { return diag_code_table_len_impl(); }
 }
 
 #[no_mangle]
-function diag_io_fprint_unknown_code(out: *u8, code: *u8): void {
+export function diag_io_fprint_unknown_code(out: *u8, code: *u8): void {
   unsafe { diag_io_fprint_unknown_code_impl(out, code); }
 }
 
 #[no_mangle]
-function diag_io_fprint_code_table_hdr(out: *u8): void {
+export function diag_io_fprint_code_table_hdr(out: *u8): void {
   unsafe { diag_io_fprint_code_table_hdr_impl(out); }
 }
 
 #[no_mangle]
-function diag_io_fprint_code_table_row(out: *u8, code: *u8, kind: *u8, summary: *u8): void {
+export function diag_io_fprint_code_table_row(out: *u8, code: *u8, kind: *u8, summary: *u8): void {
   unsafe { diag_io_fprint_code_table_row_impl(out, code, kind, summary); }
 }
 
 // ---- G-02f-420：ctx field get/set → seed impl pure forward ----
 #[no_mangle]
-function diag_ctx_get_file(): *u8 {
+export function diag_ctx_get_file(): *u8 {
   unsafe { return diag_ctx_get_file_impl(); }
 }
 
 #[no_mangle]
-function diag_ctx_get_source(): *u8 {
+export function diag_ctx_get_source(): *u8 {
   unsafe { return diag_ctx_get_source_impl(); }
 }
 
 #[no_mangle]
-function diag_ctx_get_source_len(): i64 {
+export function diag_ctx_get_source_len(): i64 {
   unsafe { return diag_ctx_get_source_len_impl(); }
 }
 
 #[no_mangle]
-function diag_ctx_set_all(path: *u8, source: *u8, source_len: i64, use_color: i32): void {
+export function diag_ctx_set_all(path: *u8, source: *u8, source_len: i64, use_color: i32): void {
   unsafe { diag_ctx_set_all_impl(path, source, source_len, use_color); }
 }
 
 // ---- G-02f-421：code table / entry / stdio handles → seed impl ----
-extern "C" function diag_code_table_code_at_impl(i: i64): *u8;
-extern "C" function diag_code_table_kind_at_impl(i: i64): *u8;
-extern "C" function diag_code_table_summary_at_impl(i: i64): *u8;
-extern "C" function diag_code_table_details_at_impl(i: i64): *u8;
-extern "C" function diag_entry_code_impl(code: *u8): *u8;
-extern "C" function diag_stderr_impl(): *u8;
-extern "C" function diag_stdout_impl(): *u8;
+export extern "C" function diag_code_table_code_at_impl(i: i64): *u8;
+export extern "C" function diag_code_table_kind_at_impl(i: i64): *u8;
+export extern "C" function diag_code_table_summary_at_impl(i: i64): *u8;
+export extern "C" function diag_code_table_details_at_impl(i: i64): *u8;
+export extern "C" function diag_entry_code_impl(code: *u8): *u8;
+export extern "C" function diag_stderr_impl(): *u8;
+export extern "C" function diag_stdout_impl(): *u8;
 
 #[no_mangle]
-function diag_code_table_code_at(i: i64): *u8 {
+export function diag_code_table_code_at(i: i64): *u8 {
   unsafe { return diag_code_table_code_at_impl(i); }
 }
 
 #[no_mangle]
-function diag_code_table_kind_at(i: i64): *u8 {
+export function diag_code_table_kind_at(i: i64): *u8 {
   unsafe { return diag_code_table_kind_at_impl(i); }
 }
 
 #[no_mangle]
-function diag_code_table_summary_at(i: i64): *u8 {
+export function diag_code_table_summary_at(i: i64): *u8 {
   unsafe { return diag_code_table_summary_at_impl(i); }
 }
 
 #[no_mangle]
-function diag_code_table_details_at(i: i64): *u8 {
+export function diag_code_table_details_at(i: i64): *u8 {
   unsafe { return diag_code_table_details_at_impl(i); }
 }
 
 #[no_mangle]
-function diag_entry_code(code: *u8): *u8 {
+export function diag_entry_code(code: *u8): *u8 {
   unsafe { return diag_entry_code_impl(code); }
 }
 
 #[no_mangle]
-function diag_entry_kind(code: *u8): *u8 {
+export function diag_entry_kind(code: *u8): *u8 {
   unsafe { return diag_entry_kind_impl(code); }
 }
 
 #[no_mangle]
-function diag_entry_summary(code: *u8): *u8 {
+export function diag_entry_summary(code: *u8): *u8 {
   unsafe { return diag_entry_summary_impl(code); }
 }
 
 #[no_mangle]
-function diag_entry_details(code: *u8): *u8 {
+export function diag_entry_details(code: *u8): *u8 {
   unsafe { return diag_entry_details_impl(code); }
 }
 
 #[no_mangle]
-function diag_stderr(): *u8 {
+export function diag_stderr(): *u8 {
   unsafe { return diag_stderr_impl(); }
 }
 
 #[no_mangle]
-function diag_stdout(): *u8 {
+export function diag_stdout(): *u8 {
   unsafe { return diag_stdout_impl(); }
 }

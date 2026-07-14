@@ -6,12 +6,12 @@
 // 🔒 open 经 libc。
 // G-02f-452：thin+rest PREFER_X_O；.x 薄门闩调 _impl，seed 宏重命名。
 
-extern "C" function driver_fs_open_read_path_impl(path: *u8, path_len: i32): i32;
-extern "C" function driver_fs_open_write_impl(path: *u8, path_len: i32): i32;
+export extern "C" function driver_fs_open_read_path_impl(path: *u8, path_len: i32): i32;
+export extern "C" function driver_fs_open_write_impl(path: *u8, path_len: i32): i32;
 
 /** 只读 open（薄门闩；实际实现 seed _impl）。 */
 #[no_mangle]
-function driver_fs_open_read_path(path: *u8, path_len: i32): i32 {
+export function driver_fs_open_read_path(path: *u8, path_len: i32): i32 {
   unsafe {
     return driver_fs_open_read_path_impl(path, path_len);
   }
@@ -20,7 +20,7 @@ function driver_fs_open_read_path(path: *u8, path_len: i32): i32 {
 
 /** 写 open CREAT|TRUNC（薄门闩；实际实现 seed _impl）。 */
 #[no_mangle]
-function driver_fs_open_write(path: *u8, path_len: i32): i32 {
+export function driver_fs_open_write(path: *u8, path_len: i32): i32 {
   unsafe {
     return driver_fs_open_write_impl(path, path_len);
   }

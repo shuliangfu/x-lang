@@ -22,23 +22,23 @@
 // 【导出】crypto_chacha20_poly1305_seal_c、open_c、smoke_c。
 
 /** seed asm 可 emit 的版本标记。 */
-function crypto_chacha_aead_marker_c(): i32 {
+export function crypto_chacha_aead_marker_c(): i32 {
   return 0x43484143;
 }
 
 /** ChaCha20-Poly1305 加密锚点。 */
-function crypto_chacha20_poly1305_seal_c(key: *u8, key_len: i32, nonce: *u8, nonce_len: i32,
+export function crypto_chacha20_poly1305_seal_c(key: *u8, key_len: i32, nonce: *u8, nonce_len: i32,
   aad: *u8, aad_len: i32, pt: *u8, pt_len: i32, ct: *u8, tag: *u8): i32 {
   return -1;
 }
 
 /** ChaCha20-Poly1305 解密锚点。 */
-function crypto_chacha20_poly1305_open_c(key: *u8, key_len: i32, nonce: *u8, nonce_len: i32,
+export function crypto_chacha20_poly1305_open_c(key: *u8, key_len: i32, nonce: *u8, nonce_len: i32,
   aad: *u8, aad_len: i32, ct: *u8, ct_len: i32, tag: *u8, pt: *u8): i32 {
   return -1;
 }
 
 /** ChaCha20-Poly1305 烟测锚点。 */
-function crypto_chacha20_poly1305_smoke_c(): i32 {
+export function crypto_chacha20_poly1305_smoke_c(): i32 {
   return -1;
 }

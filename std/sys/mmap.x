@@ -37,7 +37,7 @@ const freebsd_m = import("std.sys.freebsd");
 /**
  * v3 探测：mmap API 是否导出（恒 1）。
  */
-function mmap_available(): i32 {
+export function mmap_available(): i32 {
   return 1;
 }
 
@@ -46,7 +46,7 @@ function mmap_available(): i32 {
  * 调用方须 munmap(ptr, *out_size) 释放。
  */
 #[cfg(target_os = "macos")]
-function mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
+export function mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
   if (path == 0 || out_size == 0 || min_size == 0) {
     return 0;
   }
@@ -54,7 +54,7 @@ function mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
 }
 
 #[cfg(target_os = "freebsd")]
-function mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
+export function mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
   if (path == 0 || out_size == 0 || min_size == 0) {
     return 0;
   }
@@ -63,7 +63,7 @@ function mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
 
 #[cfg(target_os = "linux")]
 #[cfg(not(freestanding))]
-function mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
+export function mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
   if (path == 0 || out_size == 0 || min_size == 0) {
     return 0;
   }
@@ -72,7 +72,7 @@ function mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
 
 /** 解除 mmap。 */
 #[cfg(target_os = "macos")]
-function munmap(ptr: *u8, size: usize): i32 {
+export function munmap(ptr: *u8, size: usize): i32 {
   if (ptr == 0 || size == 0) {
     return -1;
   }
@@ -80,7 +80,7 @@ function munmap(ptr: *u8, size: usize): i32 {
 }
 
 #[cfg(target_os = "freebsd")]
-function munmap(ptr: *u8, size: usize): i32 {
+export function munmap(ptr: *u8, size: usize): i32 {
   if (ptr == 0 || size == 0) {
     return -1;
   }
@@ -89,7 +89,7 @@ function munmap(ptr: *u8, size: usize): i32 {
 
 #[cfg(target_os = "linux")]
 #[cfg(not(freestanding))]
-function munmap(ptr: *u8, size: usize): i32 {
+export function munmap(ptr: *u8, size: usize): i32 {
   if (ptr == 0 || size == 0) {
     return -1;
   }
@@ -98,7 +98,7 @@ function munmap(ptr: *u8, size: usize): i32 {
 
 /** 将映射区刷盘。 */
 #[cfg(target_os = "macos")]
-function msync(ptr: *u8, size: usize): i32 {
+export function msync(ptr: *u8, size: usize): i32 {
   if (ptr == 0 || size == 0) {
     return -1;
   }
@@ -106,7 +106,7 @@ function msync(ptr: *u8, size: usize): i32 {
 }
 
 #[cfg(target_os = "freebsd")]
-function msync(ptr: *u8, size: usize): i32 {
+export function msync(ptr: *u8, size: usize): i32 {
   if (ptr == 0 || size == 0) {
     return -1;
   }
@@ -115,7 +115,7 @@ function msync(ptr: *u8, size: usize): i32 {
 
 #[cfg(target_os = "linux")]
 #[cfg(not(freestanding))]
-function msync(ptr: *u8, size: usize): i32 {
+export function msync(ptr: *u8, size: usize): i32 {
   if (ptr == 0 || size == 0) {
     return -1;
   }
@@ -124,7 +124,7 @@ function msync(ptr: *u8, size: usize): i32 {
 
 /** Windows：mmap 尚未实现；占位 API 供 std.sys 门面 typeck 通过。 */
 #[cfg(target_os = "windows")]
-function mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
+export function mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
   if (out_size != 0) {
     out_size[0] = 0;
   }
@@ -135,7 +135,7 @@ function mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
 }
 
 #[cfg(target_os = "windows")]
-function munmap(ptr: *u8, size: usize): i32 {
+export function munmap(ptr: *u8, size: usize): i32 {
   if (ptr == 0 || size == 0) {
     return -1;
   }
@@ -143,7 +143,7 @@ function munmap(ptr: *u8, size: usize): i32 {
 }
 
 #[cfg(target_os = "windows")]
-function msync(ptr: *u8, size: usize): i32 {
+export function msync(ptr: *u8, size: usize): i32 {
   if (ptr == 0 || size == 0) {
     return -1;
   }

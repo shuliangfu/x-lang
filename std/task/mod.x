@@ -35,59 +35,59 @@ allow(padding) struct JoinSet {
 }
 
 /** 成功。 */
-function err_ok(): i32 { return 0; }
+export function err_ok(): i32 { return 0; }
 /** 空指针/非法句柄。 */
-function err_null(): i32 { return -1; }
+export function err_null(): i32 { return -1; }
 /** 容量已满。 */
-function err_full(): i32 { return -2; }
+export function err_full(): i32 { return -2; }
 /** 已取消。 */
-function err_cancelled(): i32 { return -3; }
+export function err_cancelled(): i32 { return -3; }
 /** 未 join 泄漏。 */
-function err_leak(): i32 { return -4; }
+export function err_leak(): i32 { return -4; }
 /** 其它非法状态。 */
-function err_invalid(): i32 { return -5; }
+export function err_invalid(): i32 { return -5; }
 
-extern function task_group_create_c(capacity: i32): i64;
-extern function task_group_free_c(handle: i64): void;
-extern function task_group_bind_context_c(handle: i64, ctx_handle: i64): void;
-extern function task_group_spawn_c(handle: i64, fn: *u8, seed: i32): i32;
-extern function task_group_join_c(handle: i64): i32;
-extern function task_group_pending_c(handle: i64): i32;
-extern function task_group_check_leak_c(handle: i64): i32;
-extern function task_group_cancel_c(handle: i64): void;
-extern function task_group_join_total_c(handle: i64): i64;
+export extern function task_group_create_c(capacity: i32): i64;
+export extern function task_group_free_c(handle: i64): void;
+export extern function task_group_bind_context_c(handle: i64, ctx_handle: i64): void;
+export extern function task_group_spawn_c(handle: i64, fn: *u8, seed: i32): i32;
+export extern function task_group_join_c(handle: i64): i32;
+export extern function task_group_pending_c(handle: i64): i32;
+export extern function task_group_check_leak_c(handle: i64): i32;
+export extern function task_group_cancel_c(handle: i64): void;
+export extern function task_group_join_total_c(handle: i64): i64;
 
-extern function join_set_create_c(capacity: i32): i64;
-extern function join_set_free_c(handle: i64): void;
-extern function join_set_spawn_c(handle: i64, fn: *u8, seed: i32): i32;
-extern function join_set_join_c(handle: i64): i32;
-extern function join_set_check_leak_c(handle: i64): i32;
+export extern function join_set_create_c(capacity: i32): i64;
+export extern function join_set_free_c(handle: i64): void;
+export extern function join_set_spawn_c(handle: i64, fn: *u8, seed: i32): i32;
+export extern function join_set_join_c(handle: i64): i32;
+export extern function join_set_check_leak_c(handle: i64): i32;
 
-extern function task_supervise_retry_c(fn: *u8, seed: i32, max_attempts: i32, backoff_ns: i64): i32;
-extern function task_echo_fn_c(): i32;
-extern function task_echo_fn_ptr_c(): *u8;
+export extern function task_supervise_retry_c(fn: *u8, seed: i32, max_attempts: i32, backoff_ns: i64): i32;
+export extern function task_echo_fn_c(): i32;
+export extern function task_echo_fn_ptr_c(): *u8;
 
 /** 烟测用回显任务入口。 */
-function echo(): i32 {
+export function echo(): i32 {
   unsafe { return task_echo_fn_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 烟测用回显任务函数指针。 */
-function echo_ptr(): *u8 {
+export function echo_ptr(): *u8 {
   unsafe { return task_echo_fn_ptr_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 创建 TaskGroup。 */
-function new(capacity: i32): TaskGroup {
+export function new(capacity: i32): TaskGroup {
   let h: i64 = 0;
   unsafe { h = task_group_create_c(capacity); }
   return TaskGroup { handle: h };
 }
 
 /** 释放 TaskGroup。 */
-function free(tg: *TaskGroup): void {
+export function free(tg: *TaskGroup): void {
   let zero: i64 = 0;
   if (tg == 0) { return; }
   if (tg.handle != zero) {
@@ -97,14 +97,14 @@ function free(tg: *TaskGroup): void {
 }
 
 /** 绑定 Context 以传播取消。 */
-function bind(tg: *TaskGroup, ctx: Context): void {
+export function bind(tg: *TaskGroup, ctx: Context): void {
   let zero: i64 = 0;
   if (tg == 0 || tg.handle == zero) { return; }
   unsafe { task_group_bind_context_c(tg.handle, ctx.handle); }
 }
 
 /** 提交任务（fn 为 C 协程入口指针）。 */
-function spawn(tg: *TaskGroup, fn: *u8, seed: i32): i32 {
+export function spawn(tg: *TaskGroup, fn: *u8, seed: i32): i32 {
   let zero: i64 = 0;
   if (tg == 0 || tg.handle == zero || fn == 0) { return err_null(); }
   unsafe { return task_group_spawn_c(tg.handle, fn, seed); }
@@ -112,7 +112,7 @@ function spawn(tg: *TaskGroup, fn: *u8, seed: i32): i32 {
 }
 
 /** 等待组内全部任务完成；返回结果之和。 */
-function join(tg: *TaskGroup): i32 {
+export function join(tg: *TaskGroup): i32 {
   let zero: i64 = 0;
   if (tg == 0 || tg.handle == zero) { return err_null(); }
   unsafe { return task_group_join_c(tg.handle); }
@@ -120,7 +120,7 @@ function join(tg: *TaskGroup): i32 {
 }
 
 /** 未 join 的 pending 任务数。 */
-function pending(tg: *TaskGroup): i32 {
+export function pending(tg: *TaskGroup): i32 {
   let zero: i64 = 0;
   if (tg == 0 || tg.handle == zero) { return err_null(); }
   unsafe { return task_group_pending_c(tg.handle); }
@@ -128,7 +128,7 @@ function pending(tg: *TaskGroup): i32 {
 }
 
 /** 结构化并发边界检查；泄漏返回 err_leak()。 */
-function check_leak(tg: *TaskGroup): i32 {
+export function check_leak(tg: *TaskGroup): i32 {
   let zero: i64 = 0;
   if (tg == 0 || tg.handle == zero) { return err_null(); }
   unsafe { return task_group_check_leak_c(tg.handle); }
@@ -136,14 +136,14 @@ function check_leak(tg: *TaskGroup): i32 {
 }
 
 /** 取消绑定 Context。 */
-function cancel(tg: *TaskGroup): void {
+export function cancel(tg: *TaskGroup): void {
   let zero: i64 = 0;
   if (tg == 0 || tg.handle == zero) { return; }
   unsafe { task_group_cancel_c(tg.handle); }
 }
 
 /** 上次 join 累计结果。 */
-function total(tg: *TaskGroup): i64 {
+export function total(tg: *TaskGroup): i64 {
   let zero: i64 = 0;
   if (tg == 0 || tg.handle == zero) { return zero; }
   unsafe { return task_group_join_total_c(tg.handle); }
@@ -151,14 +151,14 @@ function total(tg: *TaskGroup): i64 {
 }
 
 /** 创建 JoinSet。 */
-function set_new(capacity: i32): JoinSet {
+export function set_new(capacity: i32): JoinSet {
   let h: i64 = 0;
   unsafe { h = join_set_create_c(capacity); }
   return JoinSet { handle: h };
 }
 
 /** 释放 JoinSet。 */
-function set_free(js: *JoinSet): void {
+export function set_free(js: *JoinSet): void {
   let zero: i64 = 0;
   if (js == 0) { return; }
   if (js.handle != zero) {
@@ -168,7 +168,7 @@ function set_free(js: *JoinSet): void {
 }
 
 /** JoinSet 提交任务。 */
-function set_spawn(js: *JoinSet, fn: *u8, seed: i32): i32 {
+export function set_spawn(js: *JoinSet, fn: *u8, seed: i32): i32 {
   let zero: i64 = 0;
   if (js == 0 || js.handle == zero || fn == 0) { return err_null(); }
   unsafe { return join_set_spawn_c(js.handle, fn, seed); }
@@ -176,7 +176,7 @@ function set_spawn(js: *JoinSet, fn: *u8, seed: i32): i32 {
 }
 
 /** JoinSet 等待全部完成。 */
-function set_join(js: *JoinSet): i32 {
+export function set_join(js: *JoinSet): i32 {
   let zero: i64 = 0;
   if (js == 0 || js.handle == zero) { return err_null(); }
   unsafe { return join_set_join_c(js.handle); }
@@ -184,7 +184,7 @@ function set_join(js: *JoinSet): i32 {
 }
 
 /** JoinSet 泄漏检测。 */
-function set_check_leak(js: *JoinSet): i32 {
+export function set_check_leak(js: *JoinSet): i32 {
   let zero: i64 = 0;
   if (js == 0 || js.handle == zero) { return err_null(); }
   unsafe { return join_set_check_leak_c(js.handle); }
@@ -192,7 +192,7 @@ function set_check_leak(js: *JoinSet): i32 {
 }
 
 /** Supervisor：带退避的重试执行。 */
-function retry(fn: *u8, seed: i32, max_attempts: i32, backoff_ns: i64): i32 {
+export function retry(fn: *u8, seed: i32, max_attempts: i32, backoff_ns: i64): i32 {
   if (fn == 0) { return err_null(); }
   unsafe { return task_supervise_retry_c(fn, seed, max_attempts, backoff_ns); }
   return 0; // unreachable — typeck workaround

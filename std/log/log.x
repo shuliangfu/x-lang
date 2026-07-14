@@ -20,12 +20,12 @@
 // log_write_c / log_write_structured_kv_c：级别前缀与 OBS-003 行组装；
 // 实际 sink 写入在 runtime_log_os.c（compiler runtime；log_emit_bytes_c）。
 
-extern function log_apply_env_once_c(): void;
-extern function log_get_min_level_c(): i32;
-extern function log_emit_bytes_c(buf: *u8, len: i32): i32;
+export extern function log_apply_env_once_c(): void;
+export extern function log_get_min_level_c(): i32;
+export extern function log_emit_bytes_c(buf: *u8, len: i32): i32;
 
 /** 异步槽最大行宽（与 runtime_log_os.c LOG_ASYNC_SLOT_SIZE 一致）。 */
-const LOG_ASYNC_SLOT_SIZE: i32 = 512;
+export const LOG_ASYNC_SLOT_SIZE: i32 = 512;
 
 /** 级别前缀与名称字面量（模块级，避免 -E 局部数组/早 return _codegen 缺陷）。 */
 let g_log_pfx_dbg: u8[8] = [91, 68, 69, 66, 85, 71, 93, 32];
@@ -41,7 +41,7 @@ let g_log_obs_mid: u8[12] = [32, 99, 111, 109, 112, 111, 110, 101, 110, 116, 61,
 let g_log_sp: u8[1] = [32];
 
 /** 级别前缀字节长度。 */
-function log_prefix_len(level: i32): i32 {
+export function log_prefix_len(level: i32): i32 {
   if (level == 0) { return 8; }
   if (level == 1) { return 7; }
   if (level == 2) { return 7; }
@@ -50,7 +50,7 @@ function log_prefix_len(level: i32): i32 {
 }
 
 /** 将固定字节串复制到 out[0..n)；返回 n。 */
-function log_copy_lit(out: *u8, lit: *u8, n: i32): i32 {
+export function log_copy_lit(out: *u8, lit: *u8, n: i32): i32 {
   let i: i32 = 0;
   while (i < n) {
     out[i] = lit[i];
@@ -60,7 +60,7 @@ function log_copy_lit(out: *u8, lit: *u8, n: i32): i32 {
 }
 
 /** 将级别前缀写入 out；返回写入长度。 */
-function log_prefix_copy(level: i32, out: *u8): i32 {
+export function log_prefix_copy(level: i32, out: *u8): i32 {
   if (level == 0) { return log_copy_lit(out, &g_log_pfx_dbg[0], 8); }
   if (level == 1) { return log_copy_lit(out, &g_log_pfx_inf[0], 7); }
   if (level == 2) { return log_copy_lit(out, &g_log_pfx_wrn[0], 7); }
@@ -69,7 +69,7 @@ function log_prefix_copy(level: i32, out: *u8): i32 {
 }
 
 /** 返回级别名 C 串指针（debug/info/warn/error）。 */
-function log_level_name_ptr(level: i32): *u8 {
+export function log_level_name_ptr(level: i32): *u8 {
   if (level == 0) { return &g_log_name_dbg[0]; }
   if (level == 1) { return &g_log_name_inf[0]; }
   if (level == 2) { return &g_log_name_wrn[0]; }
@@ -78,7 +78,7 @@ function log_level_name_ptr(level: i32): *u8 {
 }
 
 /** 计算 NUL 结尾 C 串长度（不用 libc strlen，避免 -E 与 string.h 冲突）。 */
-function log_cstr_len(s: *u8): i32 {
+export function log_cstr_len(s: *u8): i32 {
   let i: i32 = 0;
   if (s == 0) { return 0; }
   while (s[i] != 0) {
@@ -88,7 +88,7 @@ function log_cstr_len(s: *u8): i32 {
 }
 
 /** 追加 C 串到 out；返回新 offset，失败 -1。 */
-function log_append_cstr(out: *u8, off: i32, cap: i32, s: *u8): i32 {
+export function log_append_cstr(out: *u8, off: i32, cap: i32, s: *u8): i32 {
   let n: i32 = 0;
   let i: i32 = 0;
   if (s == 0) { return off; }
@@ -102,7 +102,7 @@ function log_append_cstr(out: *u8, off: i32, cap: i32, s: *u8): i32 {
 }
 
 /** 追加固定字面节串。 */
-function log_append_lit(out: *u8, off: i32, cap: i32, lit: *u8, lit_len: i32): i32 {
+export function log_append_lit(out: *u8, off: i32, cap: i32, lit: *u8, lit_len: i32): i32 {
   let i: i32 = 0;
   if (off + lit_len >= cap) { return -1; }
   while (i < lit_len) {
@@ -113,7 +113,7 @@ function log_append_lit(out: *u8, off: i32, cap: i32, lit: *u8, lit_len: i32): i
 }
 
 /** 写一条人类可读日志："[LEVEL] " + ptr[0..len] + 换行。 */
-function log_write_c(level: i32, ptr: *u8, len: i32): i32 {
+export function log_write_c(level: i32, ptr: *u8, len: i32): i32 {
   let line: u8[512] = [];
   let pl: i32 = 0;
   let total: i32 = 0;
@@ -138,7 +138,7 @@ function log_write_c(level: i32, ptr: *u8, len: i32): i32 {
 }
 
 /** OBS-003 结构化行：shux: level=… component=… kv…。 */
-function log_write_structured_kv_c(component: *u8, level: i32, kv_body: *u8): i32 {
+export function log_write_structured_kv_c(component: *u8, level: i32, kv_body: *u8): i32 {
   let line: u8[1024] = [];
   let n: i32 = 0;
   let min_lvl: i32 = 0;

@@ -19,16 +19,16 @@
 // 【文件职责】PI/E/Tau 纯 .x 常量；libm 与烟测见 runtime_math_libm.c。
 
 /** 圆周率 π。 */
-function math_pi_c(): f64 {
+export function math_pi_c(): f64 {
   return 3.14159265358979323846 as f64;
 }
 
 /** 自然常数 e。 */
-function math_e_c(): f64 {
+export function math_e_c(): f64 {
   return 2.7182818284590452354 as f64;
 }
 
 /** 2π。 */
-function math_tau_c(): f64 {
+export function math_tau_c(): f64 {
   return math_pi_c() * 2.0;
 }

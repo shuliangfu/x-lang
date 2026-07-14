@@ -23,12 +23,12 @@
 // 【对标】Rust VecDeque + std.sync::Mutex 竞争烟测。
 
 /** F-queue v1 版本标记。 */
-function queue_f_queue_v1_marker_c(): i32 {
+export function queue_f_queue_v1_marker_c(): i32 {
   return 1;
 }
 
 /** F-queue v2 烟测逻辑下沉标记。 */
-function queue_f_queue_v2_marker_c(): i32 {
+export function queue_f_queue_v2_marker_c(): i32 {
   return 1;
 }
 

@@ -14,53 +14,53 @@ const tls_plat = import("std.net.tls_stub");
 /** F-04 v2：TCP idle 连接池（替代 tcp_pool.inc.c）。 */
 const tcp_pool_plat = import("std.net.tcp_pool");
 // ——— C 层：net_* .x + 胶层合并 net.o；Windows 需 ws2_32 ———
-extern function net_tcp_connect_c(addr_u32: u32, port_u32: u32, timeout_ms: u32): i32;
+export extern function net_tcp_connect_c(addr_u32: u32, port_u32: u32, timeout_ms: u32): i32;
 /** 阻塞 TCP 连接（bulk 传输快路径）；timeout_ms 毫秒（0=无超时）。 */
-extern function net_tcp_connect_blocking_c(addr_u32: u32, port_u32: u32, timeout_ms: u32): i32;
-extern function net_tcp_listen_c(addr_u32: u32, port_u32: u32): i32;
-extern function net_accept_c(listener_fd: i32, timeout_ms: u32): i32;
+export extern function net_tcp_connect_blocking_c(addr_u32: u32, port_u32: u32, timeout_ms: u32): i32;
+export extern function net_tcp_listen_c(addr_u32: u32, port_u32: u32): i32;
+export extern function net_accept_c(listener_fd: i32, timeout_ms: u32): i32;
 /** 阶段 2：批量接受，out_fds 至少 n 个，返回成功数量。 */
-extern function net_accept_many_c(listener_fd: i32, out_fds: *i32, n: i32, timeout_ms: u32): i32;
+export extern function net_accept_many_c(listener_fd: i32, out_fds: *i32, n: i32, timeout_ms: u32): i32;
 /** 多核易用：起 n_workers 个线程，每线程循环 accept_many 后立即 close；主线程阻塞直至 join（永不返回）。失败返回 -1。 */
-extern function net_run_accept_workers_c(listener_fd: i32, n_workers: i32, timeout_ms: u32): i32;
+export extern function net_run_accept_workers_c(listener_fd: i32, n_workers: i32, timeout_ms: u32): i32;
 /** 阶段 2：批量建连，out_fds 至少 n 个，返回成功数量。 */
-extern function net_connect_many_c(addr_u32: u32, port_u32: u32, out_fds: *i32, n: i32, timeout_ms: u32): i32;
-extern function net_close_socket_c(fd: i32): i32;
+export extern function net_connect_many_c(addr_u32: u32, port_u32: u32, out_fds: *i32, n: i32, timeout_ms: u32): i32;
+export extern function net_close_socket_c(fd: i32): i32;
 /** 设置 socket 阻塞/非阻塞；blocking：1=阻塞，0=非阻塞。0 成功，-1 失败。 */
-extern function net_set_blocking_c(fd: i32, blocking: i32): i32;
-extern function net_udp_bind_c(addr_u32: u32, port_u32: u32): i32;
-extern function net_udp_send_to_c(fd: i32, addr_u32: u32, port_u32: u32, buf: *u8, len: usize): i32;
-extern function net_udp_recv_from_c(fd: i32, buf: *u8, len: usize, timeout_ms: u32, out_addr_u32: *u32, out_port_u32: *u32): i32;
+export extern function net_set_blocking_c(fd: i32, blocking: i32): i32;
+export extern function net_udp_bind_c(addr_u32: u32, port_u32: u32): i32;
+export extern function net_udp_send_to_c(fd: i32, addr_u32: u32, port_u32: u32, buf: *u8, len: usize): i32;
+export extern function net_udp_recv_from_c(fd: i32, buf: *u8, len: usize, timeout_ms: u32, out_addr_u32: *u32, out_port_u32: *u32): i32;
 /** 阶段 5：UDP 批量接收，最多 2 段 (p0,l0),(p1,l1)，n 为 1..2；out_sizes/out_addrs/out_ports 至少 n 个元素。返回收到报文数，-1=错误。 */
-extern function net_udp_recv_many_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, n: i32, timeout_ms: u32, out_sizes: *i32, out_addrs: *u32, out_ports: *u32): i32;
+export extern function net_udp_recv_many_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, n: i32, timeout_ms: u32, out_sizes: *i32, out_addrs: *u32, out_ports: *u32): i32;
 /** 阶段 5：UDP 批量发送，n 条 (addr, port, buf, len)，n 为 1..2。返回发送报文数，-1=错误。 */
-extern function net_udp_send_many_c(fd: i32, a0: u32, port0: u32, p0: *u8, l0: usize, a1: u32, port1: u32, p1: *u8, l1: usize, n: i32): i32;
+export extern function net_udp_send_many_c(fd: i32, a0: u32, port0: u32, p0: *u8, l0: usize, a1: u32, port1: u32, p1: *u8, l1: usize, n: i32): i32;
 /** 阶段 5 切片化：UDP 批量接收，bufs 为 Buffer 数组（与 Buffer ABI 一致），n 为 1..8；out_sizes/out_addrs/out_ports 至少 n 个。返回收到报文数，-1=错误。 */
-extern function net_udp_recv_many_buf_c(fd: i32, bufs: *Buffer, n: i32, timeout_ms: u32, out_sizes: *i32, out_addrs: *u32, out_ports: *u32): i32;
+export extern function net_udp_recv_many_buf_c(fd: i32, bufs: *Buffer, n: i32, timeout_ms: u32, out_sizes: *i32, out_addrs: *u32, out_ports: *u32): i32;
 /** 阶段 5 切片化：UDP 批量发送，addrs/ports/bufs 各 n 个，n 为 1..8。返回发送报文数，-1=错误。 */
-extern function net_udp_send_many_buf_c(fd: i32, addrs: *u32, ports: *u32, bufs: *Buffer, n: i32): i32;
-extern function net_tcp_local_addr_c(fd: i32): i64;
-extern function net_tcp_peer_addr_c(fd: i32): i64;
-extern function net_tcp_connect_ipv6_c(addr_16: *u8, port_u32: u32, timeout_ms: u32): i32;
-extern function net_tcp_listen_ipv6_c(addr_16: *u8, port_u32: u32): i32;
-extern function net_resolve_ipv4_c(hostname: *u8): u32;
+export extern function net_udp_send_many_buf_c(fd: i32, addrs: *u32, ports: *u32, bufs: *Buffer, n: i32): i32;
+export extern function net_tcp_local_addr_c(fd: i32): i64;
+export extern function net_tcp_peer_addr_c(fd: i32): i64;
+export extern function net_tcp_connect_ipv6_c(addr_16: *u8, port_u32: u32, timeout_ms: u32): i32;
+export extern function net_tcp_listen_ipv6_c(addr_16: *u8, port_u32: u32): i32;
+export extern function net_resolve_ipv4_c(hostname: *u8): u32;
 /** STD-029：可诊断 IPv4 DNS；失败 -1 并写 out_err。 */
-extern function net_resolve_ipv4_ex_c(hostname: *u8, out_addr: *u32, out_err: *i32): i32;
+export extern function net_resolve_ipv4_ex_c(hostname: *u8, out_addr: *u32, out_err: *i32): i32;
 /** STD-029：可诊断 IPv6 DNS；失败 -1 并写 out_err；成功写 16 字节地址。 */
-extern function net_resolve_ipv6_ex_c(hostname: *u8, out_addr_16: *u8, out_err: *i32): i32;
+export extern function net_resolve_ipv6_ex_c(hostname: *u8, out_addr_16: *u8, out_err: *i32): i32;
 /** ZC-1：批量 provided recv 薄包装（Linux io_uring）。 */
-extern function net_stream_read_batch_provided_c(stream_fd: i32, n: i32, timeout_ms: u32, out_bids: *u32, out_lens: *u32): i32;
+export extern function net_stream_read_batch_provided_c(stream_fd: i32, n: i32, timeout_ms: u32, out_bids: *u32, out_lens: *u32): i32;
 /** ALPN 线格式（h2 + http/1.1）；由 net_alpn.x 提供（F-04 v10）。 */
-extern function net_tls_alpn_h2_http1_wire_c(out: *u8, out_cap: i32): i32;
+export extern function net_tls_alpn_h2_http1_wire_c(out: *u8, out_cap: i32): i32;
 // ——— Ipv4Addr：IPv4 地址四字节 a.b.c.d ———
-struct Ipv4Addr {
+export struct Ipv4Addr {
   a: u8
   b: u8
   c: u8
   d: u8
 }
 /** 将 Ipv4Addr 转为 C 层使用的 u32（大端：(a<<24)|(b<<16)|(c<<8)|d）。 */
-function addr_to_packed(addr: Ipv4Addr): u32 {
+export function addr_to_packed(addr: Ipv4Addr): u32 {
   let a: u32 = (addr.a as u32);
   let b: u32 = (addr.b as u32);
   let c: u32 = (addr.c as u32);
@@ -68,7 +68,7 @@ function addr_to_packed(addr: Ipv4Addr): u32 {
   return ((a << 24) | (b << 16) | (c << 8) | d) as u32;
 }
 /** 将 C 层返回的 u32（主机序）转为 Ipv4Addr。 */
-function packed_to_ipv4(u: u32): Ipv4Addr {
+export function packed_to_ipv4(u: u32): Ipv4Addr {
   let hi: u32 = ((u >> 24) & 255) as u32;
   let b1: u32 = ((u >> 16) & 255) as u32;
   let b2: u32 = ((u >> 8) & 255) as u32;
@@ -76,20 +76,20 @@ function packed_to_ipv4(u: u32): Ipv4Addr {
   return Ipv4Addr { a: (hi as u8), b: (b1 as u8), c: (b2 as u8), d: (lo as u8) };
 }
 // ——— SocketAddrV4：IPv4 地址 + 端口（用于 local_addr/peer_addr 等） ———
-struct SocketAddrV4 {
+export struct SocketAddrV4 {
   addr: Ipv4Addr
   port: u32
 }
 // ——— TcpStream：TCP 连接；fd 可与 io.handle_from_fd 统一，读写用 io.read_fd/write_fd ———
-struct TcpStream {
+export struct TcpStream {
   fd: i32
 }
 // ——— TcpListener：TCP 监听套接字 ———
-struct TcpListener {
+export struct TcpListener {
   fd: i32
 }
 /** 连接至 addr:port；timeout_ms 毫秒（0=无超时）。返回 TcpStream（失败 fd=-1）；Socket 为非阻塞。 */
-function connect(addr: Ipv4Addr, port: u32, timeout_ms: u32): TcpStream {
+export function connect(addr: Ipv4Addr, port: u32, timeout_ms: u32): TcpStream {
   let fd: i32 = 0;
   unsafe {
     fd = net_tcp_connect_c(addr_to_packed(addr), port, timeout_ms);
@@ -97,7 +97,7 @@ function connect(addr: Ipv4Addr, port: u32, timeout_ms: u32): TcpStream {
   return TcpStream { fd: fd };
 }
 /** 阻塞连接（sendfile / 大块 writev 快路径）；与 C bench 的 blocking connect 对齐。 */
-function connect_blocking(addr: Ipv4Addr, port: u32, timeout_ms: u32): TcpStream {
+export function connect_blocking(addr: Ipv4Addr, port: u32, timeout_ms: u32): TcpStream {
   let fd: i32 = 0;
   unsafe {
     fd = net_tcp_connect_blocking_c(addr_to_packed(addr), port, timeout_ms);
@@ -105,7 +105,7 @@ function connect_blocking(addr: Ipv4Addr, port: u32, timeout_ms: u32): TcpStream
   return TcpStream { fd: fd };
 }
 /** 在 addr:port 上监听；返回 TcpListener（失败 fd=-1）；Socket 为非阻塞。 */
-function listen(addr: Ipv4Addr, port: u32): TcpListener {
+export function listen(addr: Ipv4Addr, port: u32): TcpListener {
   let fd: i32 = 0;
   unsafe {
     fd = net_tcp_listen_c(addr_to_packed(addr), port);
@@ -113,7 +113,7 @@ function listen(addr: Ipv4Addr, port: u32): TcpListener {
   return TcpListener { fd: fd };
 }
 /** 从 listener 接受一个连接；timeout_ms 毫秒（0=无超时）。返回 TcpStream（失败 fd=-1）；Client 为非阻塞。 */
-function accept(listener: TcpListener, timeout_ms: u32): TcpStream {
+export function accept(listener: TcpListener, timeout_ms: u32): TcpStream {
   let fd: i32 = 0;
   unsafe {
     fd = net_accept_c(listener.fd, timeout_ms);
@@ -121,17 +121,17 @@ function accept(listener: TcpListener, timeout_ms: u32): TcpStream {
   return TcpStream { fd: fd };
 }
 /** 关闭 TcpStream；须用此而非 std.fs.fs_close，以便 Windows 下走 closesocket。返回 0 成功，-1 失败。 */
-function close_stream(stream: TcpStream): i32 {
+export function close_stream(stream: TcpStream): i32 {
   unsafe { return net_close_socket_c(stream.fd); }
   return 0; // unreachable — typeck workaround
 }
 /** bulk 传输快路径：切阻塞模式（sendfile / 大块 writev）；async 路径保持 connect 默认非阻塞。 */
-function set_blocking(stream: TcpStream, blocking: i32): i32 {
+export function set_blocking(stream: TcpStream, blocking: i32): i32 {
   unsafe { return net_set_blocking_c(stream.fd, blocking); }
   return 0; // unreachable — typeck workaround
 }
 /** 阶段 3 性能压榨：从 TcpStream 批量读，一次 submit 最多 4 段 (p0,l0)..(p3,l3)，n 为段数 1..4；timeout_ms 毫秒（0=无超时）。走 io_uring/readv。热路径建议打满 4 段减少 syscall。返回总字节数，-1=错误。 */
-function read_batch(stream: TcpStream, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize, n: i32, timeout_ms: u32): i32 {
+export function read_batch(stream: TcpStream, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize, n: i32, timeout_ms: u32): i32 {
   let h: usize = io_backend.handle_from_fd(stream.fd, 0);
   let bufs: Buffer[4] = [
     Buffer { ptr: p0, len: l0, handle: h },
@@ -142,7 +142,7 @@ function read_batch(stream: TcpStream, p0: *u8, l0: usize, p1: *u8, l1: usize, p
   return driver.submit_read_batch(bufs, n, timeout_ms);
 }
 /** 阶段 3 性能压榨：向 TcpStream 批量写，一次 submit 最多 4 段 (p0,l0)..(p3,l3)，n 为段数 1..4；timeout_ms 毫秒（0=无超时）。走 io_uring/writev。热路径建议打满 4 段减少 syscall。返回总字节数，-1=错误。 */
-function write_batch(stream: TcpStream, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize, n: i32, timeout_ms: u32): i32 {
+export function write_batch(stream: TcpStream, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize, n: i32, timeout_ms: u32): i32 {
   let h: usize = io_backend.handle_from_fd(stream.fd, 0);
   let bufs: Buffer[4] = [
     Buffer { ptr: p0, len: l0, handle: h },
@@ -153,30 +153,30 @@ function write_batch(stream: TcpStream, p0: *u8, l0: usize, p1: *u8, l1: usize, 
   return driver.submit_write_batch(bufs, n, timeout_ms);
 }
 /** 与 Zig/Rust 对齐：按「指针+段数」批量读；buffers 指向至少 n 个 Buffer（ptr/len 由调用方填充，handle 可忽略），n 为 1..16。一次 readv/io_uring 覆盖多段。返回总字节数，-1=错误。 */
-function read_batch_buf(stream: TcpStream, buffers: *Buffer, n: i32, timeout_ms: u32): i32 {
+export function read_batch_buf(stream: TcpStream, buffers: *Buffer, n: i32, timeout_ms: u32): i32 {
   let h: usize = io_backend.handle_from_fd(stream.fd, 0);
   return driver.submit_read_batch_buf(h, buffers, n, timeout_ms);
 }
 /** 与 Zig/Rust 对齐：按「指针+段数」批量写；buffers 同上。返回总字节数，-1=错误。 */
-function write_batch_buf(stream: TcpStream, buffers: *Buffer, n: i32, timeout_ms: u32): i32 {
+export function write_batch_buf(stream: TcpStream, buffers: *Buffer, n: i32, timeout_ms: u32): i32 {
   let h: usize = io_backend.handle_from_fd(stream.fd, 0);
   return driver.submit_write_batch_buf(h, buffers, n, timeout_ms);
 }
 /** 阶段 4 性能压榨：从 TcpStream 用已注册 fixed buffer 读；须先 io.register_fixed_buffers。buf_index 为池下标，offset+len 须 ≤ 该块长度。echo/代理热路径推荐：固定池 + read_fixed/write_fixed 零拷贝。返回读入字节数，0=EOF，-1=错误。 */
-function read_fixed(stream: TcpStream, buf_index: u32, offset: usize, len: usize, timeout_ms: u32): i32 {
+export function read_fixed(stream: TcpStream, buf_index: u32, offset: usize, len: usize, timeout_ms: u32): i32 {
   return io.read_fixed_fd(stream.fd, buf_index, offset, len, timeout_ms);
 }
 /** 阶段 4 性能压榨：向 TcpStream 用已注册 fixed buffer 写；buf_index/offset/len 同上。echo/代理热路径推荐与 read_fixed 配对使用。返回写入字节数，-1=错误。 */
-function write_fixed(stream: TcpStream, buf_index: u32, offset: usize, len: usize, timeout_ms: u32): i32 {
+export function write_fixed(stream: TcpStream, buf_index: u32, offset: usize, len: usize, timeout_ms: u32): i32 {
   return io.write_fixed_fd(stream.fd, buf_index, offset, len, timeout_ms);
 }
 /** ZC-1：批量 provided recv（n=1..4）；须先 io.register_provided_buffers。数据在 provided_buffer_ptr(bid)。 */
-function read_batch_provided(stream: TcpStream, n: i32, timeout_ms: u32, out_bids: *u32, out_lens: *u32): i32 {
+export function read_batch_provided(stream: TcpStream, n: i32, timeout_ms: u32, out_bids: *u32, out_lens: *u32): i32 {
   unsafe { return net_stream_read_batch_provided_c(stream.fd, n, timeout_ms, out_bids, out_lens); }
   return 0; // unreachable — typeck workaround
 }
 /** 关闭 TcpListener。返回 0 成功，-1 失败。 */
-function close_listener(listener: TcpListener): i32 {
+export function close_listener(listener: TcpListener): i32 {
   unsafe { return net_close_socket_c(listener.fd); }
   return 0; // unreachable — typeck workaround
 }
@@ -184,12 +184,12 @@ function close_listener(listener: TcpListener): i32 {
  * 多核易用：起 n_workers 个线程，每线程循环 accept_many 后立即 close（压测建连吞吐）；主线程阻塞直至 join（正常不返回）。
  * 若同时链接 std.thread，每个 worker 会自动 thread_set_affinity_self(worker_index) 绑核（Linux/Windows）。timeout_ms 建议 5000；n_workers 建议与核数一致。失败返回 -1。
  */
-function run_accept_workers(listener: TcpListener, n_workers: i32, timeout_ms: u32): i32 {
+export function run_accept_workers(listener: TcpListener, n_workers: i32, timeout_ms: u32): i32 {
   unsafe { return net_run_accept_workers_c(listener.fd, n_workers, timeout_ms); }
   return 0; // unreachable — typeck workaround
 }
 /** 获取 TcpStream 或 TcpListener 的本地地址与端口；失败返回 addr=0.0.0.0、port=0。 */
-function local_addr(stream: TcpStream): SocketAddrV4 {
+export function local_addr(stream: TcpStream): SocketAddrV4 {
   let pk: i64 = 0;
   unsafe {
     pk = net_tcp_local_addr_c(stream.fd);
@@ -200,7 +200,7 @@ function local_addr(stream: TcpStream): SocketAddrV4 {
   return SocketAddrV4 { addr: packed_to_ipv4(addr_u32), port: port_u32 };
 }
 /** 获取 TcpStream 的远端地址与端口；失败返回 addr=0.0.0.0、port=0。 */
-function peer_addr(stream: TcpStream): SocketAddrV4 {
+export function peer_addr(stream: TcpStream): SocketAddrV4 {
   let pk: i64 = 0;
   unsafe {
     pk = net_tcp_peer_addr_c(stream.fd);
@@ -211,7 +211,7 @@ function peer_addr(stream: TcpStream): SocketAddrV4 {
   return SocketAddrV4 { addr: packed_to_ipv4(addr_u32), port: port_u32 };
 }
 /** 获取 TcpListener 的本地地址与端口。 */
-function listener_local_addr(listener: TcpListener): SocketAddrV4 {
+export function listener_local_addr(listener: TcpListener): SocketAddrV4 {
   let pk: i64 = 0;
   unsafe {
     pk = net_tcp_local_addr_c(listener.fd);
@@ -222,11 +222,11 @@ function listener_local_addr(listener: TcpListener): SocketAddrV4 {
   return SocketAddrV4 { addr: packed_to_ipv4(addr_u32), port: port_u32 };
 }
 // ——— UDP ———
-struct UdpSocket {
+export struct UdpSocket {
   fd: i32
 }
 /** 在 addr:port 上绑定 UDP；addr 为 0.0.0.0 表示监听所有接口。返回 UdpSocket（失败 fd=-1）。非阻塞。 */
-function udp_bind(addr: Ipv4Addr, port: u32): UdpSocket {
+export function udp_bind(addr: Ipv4Addr, port: u32): UdpSocket {
   let fd: i32 = 0;
   unsafe {
     fd = net_udp_bind_c(addr_to_packed(addr), port);
@@ -234,42 +234,42 @@ function udp_bind(addr: Ipv4Addr, port: u32): UdpSocket {
   return UdpSocket { fd: fd };
 }
 /** 向 addr:port 发送 buf[0..len]。返回发送字节数，失败 -1。 */
-function send_to(sock: UdpSocket, addr: Ipv4Addr, port: u32, buf: *u8, len: usize): i32 {
+export function send_to(sock: UdpSocket, addr: Ipv4Addr, port: u32, buf: *u8, len: usize): i32 {
   unsafe { return net_udp_send_to_c(sock.fd, addr_to_packed(addr), port, buf, len); }
   return 0; // unreachable — typeck workaround
 }
 /** 从 sock 接收至 buf[0..len]，timeout_ms 毫秒（0=无超时）。返回接收字节数，0=无数据，-1=错误；成功时写入 *out_addr 与 *out_port。 */
-function recv_from(sock: UdpSocket, buf: *u8, len: usize, timeout_ms: u32, out_addr: *u32, out_port: *u32): i32 {
+export function recv_from(sock: UdpSocket, buf: *u8, len: usize, timeout_ms: u32, out_addr: *u32, out_port: *u32): i32 {
   unsafe { return net_udp_recv_from_c(sock.fd, buf, len, timeout_ms, out_addr, out_port); }
   return 0; // unreachable — typeck workaround
 }
 /** 阶段 5 性能压榨：UDP 批量接收，最多 2 段 (p0,l0),(p1,l1)，n 为 1..2；timeout_ms 毫秒（0=无超时）。out_sizes[i]=第 i 条字节数，out_addrs/out_ports 为发送方。Linux 走 recvmmsg。返回收到报文数，-1=错误。 */
-function udp_recv_many(sock: UdpSocket, p0: *u8, l0: usize, p1: *u8, l1: usize, n: i32, timeout_ms: u32, out_sizes: *i32, out_addrs: *u32, out_ports: *u32): i32 {
+export function udp_recv_many(sock: UdpSocket, p0: *u8, l0: usize, p1: *u8, l1: usize, n: i32, timeout_ms: u32, out_sizes: *i32, out_addrs: *u32, out_ports: *u32): i32 {
   unsafe { return net_udp_recv_many_c(sock.fd, p0, l0, p1, l1, n, timeout_ms, out_sizes, out_addrs, out_ports); }
   return 0; // unreachable — typeck workaround
 }
 /** 阶段 5 性能压榨：UDP 批量发送，n 条 (addr_i, port_i, p_i, l_i)，n 为 1..2。Linux 走 sendmmsg。返回发送报文数，-1=错误。 */
-function udp_send_many(sock: UdpSocket, a0: u32, port0: u32, p0: *u8, l0: usize, a1: u32, port1: u32, p1: *u8, l1: usize, n: i32): i32 {
+export function udp_send_many(sock: UdpSocket, a0: u32, port0: u32, p0: *u8, l0: usize, a1: u32, port1: u32, p1: *u8, l1: usize, n: i32): i32 {
   unsafe { return net_udp_send_many_c(sock.fd, a0, port0, p0, l0, a1, port1, p1, l1, n); }
   return 0; // unreachable — typeck workaround
 }
 /** 阶段 5 切片化：UDP 批量接收，bufs 为 Buffer 数组（ptr+len+handle），n 为 1..8；out_sizes/out_addrs/out_ports 至少 n 个。返回收到报文数，-1=错误。 */
-function udp_recv_many_buf(sock: UdpSocket, bufs: *Buffer, n: i32, timeout_ms: u32, out_sizes: *i32, out_addrs: *u32, out_ports: *u32): i32 {
+export function udp_recv_many_buf(sock: UdpSocket, bufs: *Buffer, n: i32, timeout_ms: u32, out_sizes: *i32, out_addrs: *u32, out_ports: *u32): i32 {
   unsafe { return net_udp_recv_many_buf_c(sock.fd, bufs, n, timeout_ms, out_sizes, out_addrs, out_ports); }
   return 0; // unreachable — typeck workaround
 }
 /** 阶段 5 切片化：UDP 批量发送，addrs[i]/ports[i]/bufs[i] 为第 i 条目标与负载，n 为 1..8。返回发送报文数，-1=错误。 */
-function udp_send_many_buf(sock: UdpSocket, addrs: *u32, ports: *u32, bufs: *Buffer, n: i32): i32 {
+export function udp_send_many_buf(sock: UdpSocket, addrs: *u32, ports: *u32, bufs: *Buffer, n: i32): i32 {
   unsafe { return net_udp_send_many_buf_c(sock.fd, addrs, ports, bufs, n); }
   return 0; // unreachable — typeck workaround
 }
 /** 关闭 UdpSocket。返回 0 成功，-1 失败。 */
-function close_udp(sock: UdpSocket): i32 {
+export function close_udp(sock: UdpSocket): i32 {
   unsafe { return net_close_socket_c(sock.fd); }
   return 0; // unreachable — typeck workaround
 }
 // ——— IPv6 ———
-struct Ipv6Addr {
+export struct Ipv6Addr {
   b0: u8
   b1: u8
   b2: u8
@@ -288,14 +288,14 @@ struct Ipv6Addr {
   b15: u8
 }
 /** IPv6 环回地址 ::1（与 connect_ipv6_ctx_fd 烟测一致）。 */
-function ipv6_loopback(): Ipv6Addr {
+export function ipv6_loopback(): Ipv6Addr {
   return Ipv6Addr {
     b0: 0, b1: 0, b2: 0, b3: 0, b4: 0, b5: 0, b6: 0, b7: 0,
     b8: 0, b9: 0, b10: 0, b11: 0, b12: 0, b13: 0, b14: 0, b15: 1
   };
 }
 /** 连接至 IPv6 addr:port；timeout_ms 毫秒（0=无超时）。返回 TcpStream（失败 fd=-1）。非阻塞。 */
-function connect_ipv6(addr: Ipv6Addr, port: u32, timeout_ms: u32): TcpStream {
+export function connect_ipv6(addr: Ipv6Addr, port: u32, timeout_ms: u32): TcpStream {
   let fd: i32 = 0;
   unsafe {
     fd = net_tcp_connect_ipv6_c(&addr.b0, port, timeout_ms);
@@ -303,7 +303,7 @@ function connect_ipv6(addr: Ipv6Addr, port: u32, timeout_ms: u32): TcpStream {
   return TcpStream { fd: fd };
 }
 /** 在 IPv6 addr:port 上监听。返回 TcpListener（失败 fd=-1）。非阻塞。 */
-function listen_ipv6(addr: Ipv6Addr, port: u32): TcpListener {
+export function listen_ipv6(addr: Ipv6Addr, port: u32): TcpListener {
   let fd: i32 = 0;
   unsafe {
     fd = net_tcp_listen_ipv6_c(&addr.b0, port);
@@ -312,7 +312,7 @@ function listen_ipv6(addr: Ipv6Addr, port: u32): TcpListener {
 }
 // ——— DNS：主机名解析为 IPv4（阻塞；hostname 须 NUL 结尾） ———
 /** 将 hostname（NUL 结尾字符串）解析为 IPv4 地址；失败返回 0.0.0.0。 */
-function resolve(hostname: *u8): Ipv4Addr {
+export function resolve(hostname: *u8): Ipv4Addr {
   let u: u32 = 0 as u32;
   unsafe {
     u = net_resolve_ipv4_c(hostname);
@@ -321,20 +321,20 @@ function resolve(hostname: *u8): Ipv4Addr {
 }
 
 /** resolve_ex 成功错误码。 */
-function resolve_err_ok(): i32 { return 0; }
+export function resolve_err_ok(): i32 { return 0; }
 /** 主机名不存在（EAI_NONAME）。 */
-function resolve_err_host_not_found(): i32 { return 1; }
+export function resolve_err_host_not_found(): i32 { return 1; }
 /** 无 A/AAAA 数据（EAI_NODATA）。 */
-function resolve_err_no_data(): i32 { return 2; }
+export function resolve_err_no_data(): i32 { return 2; }
 /** 临时失败（EAI_AGAIN）。 */
-function resolve_err_try_again(): i32 { return 3; }
+export function resolve_err_try_again(): i32 { return 3; }
 /** 其它系统错误。 */
-function resolve_err_system(): i32 { return 4; }
+export function resolve_err_system(): i32 { return 4; }
 
 /**
  * 可诊断 IPv4 DNS：成功返回 0 并写 *out_addr；失败返回 -1 并写 *out_err（STD-029）。
  */
-function resolve_ex(hostname: *u8, out_addr: *u32, out_err: *i32): i32 {
+export function resolve_ex(hostname: *u8, out_addr: *u32, out_err: *i32): i32 {
   unsafe { return net_resolve_ipv4_ex_c(hostname, out_addr, out_err); }
   return 0; // unreachable — typeck workaround
 }
@@ -342,14 +342,14 @@ function resolve_ex(hostname: *u8, out_addr: *u32, out_err: *i32): i32 {
 /**
  * 可诊断 IPv6 DNS：成功返回 0 并写 out_addr_16[0..16)；失败 -1 并写 *out_err（STD-029）。
  */
-function resolve_ipv6(hostname: *u8, out_addr_16: *u8, out_err: *i32): i32 {
+export function resolve_ipv6(hostname: *u8, out_addr_16: *u8, out_err: *i32): i32 {
   unsafe { return net_resolve_ipv6_ex_c(hostname, out_addr_16, out_err); }
   return 0; // unreachable — typeck workaround
 }
 // ——— 批量上限：与 C 侧 IO_NET_BATCH_MAX 一致，单次 accept_many/connect_many 最多请求数；去魔数便于维护 ———
-function batch_max(): i32 { return 64; }
+export function batch_max(): i32 { return 64; }
 // ——— accept_many：批量接受连接，写入 out[0..n]，返回实际接受数量；最多 batch_max()；timeout_ms 毫秒（0=无超时）；Linux 走 io_uring 真批量 + peek_batch 一次收割，否则循环单次 ———
-function accept_many(listener: TcpListener, out: TcpStream[], timeout_ms: u32): u32 {
+export function accept_many(listener: TcpListener, out: TcpStream[], timeout_ms: u32): u32 {
   if (out.length == 0) { return 0 as u32; }
   let fd_buf: i32[64];
   let n_req: i32 = (if (out.length > 64) { 64 } else { out.length }) as i32;
@@ -365,7 +365,7 @@ function accept_many(listener: TcpListener, out: TcpStream[], timeout_ms: u32): 
   return count as u32;
 }
 // ——— connect_many：向同一 addr:port 批量建连（如连接池），写入 out[0..n]，返回实际成功数量；最多 batch_max()；timeout_ms 毫秒（0=无超时）；Linux 走 io_uring 真批量 + peek_batch 一次收割，否则循环单次 ———
-function connect_many(addr: Ipv4Addr, port: u32, out: TcpStream[], timeout_ms: u32): u32 {
+export function connect_many(addr: Ipv4Addr, port: u32, out: TcpStream[], timeout_ms: u32): u32 {
   if (out.length == 0) { return 0 as u32; }
   let fd_buf: i32[64];
   let n_req: i32 = (if (out.length > 64) { 64 } else { out.length }) as i32;
@@ -382,7 +382,7 @@ function connect_many(addr: Ipv4Addr, port: u32, out: TcpStream[], timeout_ms: u
 }
 // ——— STD-092：Context 联动 connect/accept/stream 读写 ———
 /** 从 Context 推导 TCP 超时毫秒；已取消/过期返回对应 net_err_*（负值），否则返回 0 或正毫秒。 */
-function timeout_ms_from_ctx(ctx: Context): i32 {
+export function timeout_ms_from_ctx(ctx: Context): i32 {
   if (context.is_cancelled(ctx) != 0) {
     return err.net_err_cancelled();
   }
@@ -404,7 +404,7 @@ function timeout_ms_from_ctx(ctx: Context): i32 {
   return ms as i32;
 }
 /** 带 Context 的 IPv4 TCP 连接；取消/过期返回 net_err_*，成功返回 fd（失败 fd=-1）。 */
-function connect_ctx_fd(addr: Ipv4Addr, port: u32, ctx: Context): i32 {
+export function connect_ctx_fd(addr: Ipv4Addr, port: u32, ctx: Context): i32 {
   let tm: i32 = timeout_ms_from_ctx(ctx);
   if (tm < 0) {
     return tm;
@@ -413,7 +413,7 @@ function connect_ctx_fd(addr: Ipv4Addr, port: u32, ctx: Context): i32 {
   return 0; // unreachable — typeck workaround
 }
 /** 带 Context 的 IPv6 TCP 连接；语义同 connect_ctx_fd。 */
-function connect_ipv6_ctx_fd(addr: Ipv6Addr, port: u32, ctx: Context): i32 {
+export function connect_ipv6_ctx_fd(addr: Ipv6Addr, port: u32, ctx: Context): i32 {
   let tm: i32 = timeout_ms_from_ctx(ctx);
   if (tm < 0) {
     return tm;
@@ -422,7 +422,7 @@ function connect_ipv6_ctx_fd(addr: Ipv6Addr, port: u32, ctx: Context): i32 {
   return 0; // unreachable — typeck workaround
 }
 /** 带 Context 的 accept；取消/过期返回 net_err_*，成功返回 client fd。 */
-function accept_ctx_fd(listener: TcpListener, ctx: Context): i32 {
+export function accept_ctx_fd(listener: TcpListener, ctx: Context): i32 {
   let tm: i32 = timeout_ms_from_ctx(ctx);
   if (tm < 0) {
     return tm;
@@ -431,7 +431,7 @@ function accept_ctx_fd(listener: TcpListener, ctx: Context): i32 {
   return 0; // unreachable — typeck workaround
 }
 /** 带 Context 的 TcpStream 读；取消/过期返回 net_err_*。 */
-function read_ctx(stream: TcpStream, ptr: *u8, len: usize, ctx: Context): i32 {
+export function read_ctx(stream: TcpStream, ptr: *u8, len: usize, ctx: Context): i32 {
   let tm: i32 = timeout_ms_from_ctx(ctx);
   if (tm < 0) {
     return tm;
@@ -440,7 +440,7 @@ function read_ctx(stream: TcpStream, ptr: *u8, len: usize, ctx: Context): i32 {
   return driver.submit_read(buf, tm as u32);
 }
 /** 带 Context 的 TcpStream 写；语义同 read_ctx。 */
-function write_ctx(stream: TcpStream, ptr: *u8, len: usize, ctx: Context): i32 {
+export function write_ctx(stream: TcpStream, ptr: *u8, len: usize, ctx: Context): i32 {
   let tm: i32 = timeout_ms_from_ctx(ctx);
   if (tm < 0) {
     return tm;
@@ -450,7 +450,7 @@ function write_ctx(stream: TcpStream, ptr: *u8, len: usize, ctx: Context): i32 {
 }
 // 占位，表示本模块可 import
 /** TLS 桩：未链入 OpenSSL/mbedTLS 时 connect/read/write 返回此码。 */
-function TLS_NOT_IMPL(): i32 { return -9; }
+export function TLS_NOT_IMPL(): i32 { return -9; }
 
 /** TLS 会话：底层 TCP fd + C 层 ctx_handle（0 表示未建立）。 */
 allow(padding) struct TlsStream {
@@ -459,7 +459,7 @@ allow(padding) struct TlsStream {
 }
 
 /** TLS 后端是否可用；1 可用，0 桩。 */
-function tls_is_available(): bool {
+export function tls_is_available(): bool {
   let ok: i32 = 0;
   unsafe {
     ok = tls_plat.net_tls_is_available_c();
@@ -469,13 +469,13 @@ function tls_is_available(): bool {
 }
 
 /** TLS 后端名称（NUL 结尾）；桩时为 "stub"。 */
-function tls_backend_name(): *u8 {
+export function tls_backend_name(): *u8 {
   unsafe { return tls_plat.net_tls_backend_name_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 在已有 TCP 连接上执行 TLS 客户端握手；sni 可为 NUL 或主机名字符串。 */
-function tls_connect_client(stream: TcpStream, sni: *u8): TlsStream {
+export function tls_connect_client(stream: TcpStream, sni: *u8): TlsStream {
   let h: i64 = 0;
   unsafe {
     h = tls_plat.net_tls_connect_client_c(stream.fd, sni);
@@ -484,13 +484,13 @@ function tls_connect_client(stream: TcpStream, sni: *u8): TlsStream {
 }
 
 /** ALPN 线格式（h2 + http/1.1）；成功返回写入字节数（12）。 */
-function tls_alpn_h2_http1_wire(out: *u8, out_cap: i32): i32 {
+export function tls_alpn_h2_http1_wire(out: *u8, out_cap: i32): i32 {
   unsafe { return net_tls_alpn_h2_http1_wire_c(out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 带 ALPN 的 TLS 客户端握手；alpn_wire 为 RFC 7301 长度前缀列表。 */
-function tls_connect_client_alpn(stream: TcpStream, sni: *u8, alpn_wire: *u8, alpn_wire_len: i32): TlsStream {
+export function tls_connect_client_alpn(stream: TcpStream, sni: *u8, alpn_wire: *u8, alpn_wire_len: i32): TlsStream {
   let h: i64 = 0;
   unsafe {
     h = tls_plat.net_tls_connect_client_alpn_c(stream.fd, sni, alpn_wire, alpn_wire_len);
@@ -499,13 +499,13 @@ function tls_connect_client_alpn(stream: TcpStream, sni: *u8, alpn_wire: *u8, al
 }
 
 /** 读取协商后的 ALPN 协议名长度；可选写入 out。 */
-function tls_alpn_selected(tls: TlsStream, out: *u8, out_cap: i32): i32 {
+export function tls_alpn_selected(tls: TlsStream, out: *u8, out_cap: i32): i32 {
   unsafe { return tls_plat.net_tls_alpn_selected_c(tls.ctx_handle, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 协商协议是否为 h2。 */
-function tls_alpn_is_h2(tls: TlsStream): bool {
+export function tls_alpn_is_h2(tls: TlsStream): bool {
   let ok: i32 = 0;
   unsafe {
     ok = tls_plat.net_tls_alpn_is_h2_c(tls.ctx_handle);
@@ -515,62 +515,62 @@ function tls_alpn_is_h2(tls: TlsStream): bool {
 }
 
 /** 从 TLS 会话读解密数据；返回字节数，0=EOF，负值为错误（桩为 TLS_NOT_IMPL）。 */
-function tls_read(tls: TlsStream, buf: *u8, cap: i32): i32 {
+export function tls_read(tls: TlsStream, buf: *u8, cap: i32): i32 {
   unsafe { return tls_plat.net_tls_read_c(tls.ctx_handle, buf, cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 向 TLS 会话写明文；返回写入字节数，负值为错误。 */
-function tls_write(tls: TlsStream, buf: *u8, len: i32): i32 {
+export function tls_write(tls: TlsStream, buf: *u8, len: i32): i32 {
   unsafe { return tls_plat.net_tls_write_c(tls.ctx_handle, buf, len); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 关闭 TLS 会话；成功 0。 */
-function tls_close(tls: TlsStream): i32 {
+export function tls_close(tls: TlsStream): i32 {
   unsafe { return tls_plat.net_tls_close_c(tls.ctx_handle); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 读取 TLS 最后一次错误码（如 TLS_NOT_IMPL、参数 -2）。 */
-function tls_last_error(): i32 {
+export function tls_last_error(): i32 {
   unsafe { return tls_plat.net_tls_last_error_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** STD-164：TCP 连接 idle 复用池（F-04 v2 纯 .x；按 IPv4 addr:port 缓存 fd）。 */
-struct TcpConnPool {
+export struct TcpConnPool {
   handle: i64;
 }
 
 /** 创建 TCP 连接池；host 为 Ipv4Addr 数值（同 addr_to_packed）；max_idle 默认 1。 */
-function tcp_pool_new(host: u32, port: u32, max_idle: i32): TcpConnPool {
+export function tcp_pool_new(host: u32, port: u32, max_idle: i32): TcpConnPool {
   let _rc: TcpConnPool = 0;
   unsafe { _rc = TcpConnPool { handle: tcp_pool_plat.net_tcp_pool_create_c(host, port, max_idle) }; }
   return _rc;
 }
 
 /** 从池取连接（idle 复用或新建 TCP）；失败 -1。 */
-function tcp_pool_acquire(pool: *TcpConnPool, timeout_ms: u32): i32 {
+export function tcp_pool_acquire(pool: *TcpConnPool, timeout_ms: u32): i32 {
   unsafe { return tcp_pool_plat.net_tcp_pool_acquire_c(pool.handle, timeout_ms); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 归还 fd 到 idle 栈；栈满则 close。 */
-function tcp_pool_release(pool: *TcpConnPool, fd: i32): i32 {
+export function tcp_pool_release(pool: *TcpConnPool, fd: i32): i32 {
   unsafe { return tcp_pool_plat.net_tcp_pool_release_c(pool.handle, fd); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 关闭并清空 idle 连接（不销毁池对象）。 */
-function tcp_pool_drain(pool: *TcpConnPool): void {
+export function tcp_pool_drain(pool: *TcpConnPool): void {
   unsafe {
     tcp_pool_plat.net_tcp_pool_drain_c(pool.handle);
   }
 }
 
 /** 销毁连接池。 */
-function tcp_pool_destroy(pool: *TcpConnPool): void {
+export function tcp_pool_destroy(pool: *TcpConnPool): void {
   unsafe {
     tcp_pool_plat.net_tcp_pool_destroy_c(pool.handle);
   }
@@ -579,22 +579,22 @@ function tcp_pool_destroy(pool: *TcpConnPool): void {
 }
 
 /** 累计新建 TCP 连接次数。 */
-function tcp_pool_connect_count(pool: *TcpConnPool): i32 {
+export function tcp_pool_connect_count(pool: *TcpConnPool): i32 {
   unsafe { return tcp_pool_plat.net_tcp_pool_connect_count_c(pool.handle); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 当前 idle 连接数。 */
-function tcp_pool_idle_count(pool: *TcpConnPool): i32 {
+export function tcp_pool_idle_count(pool: *TcpConnPool): i32 {
   unsafe { return tcp_pool_plat.net_tcp_pool_idle_count_c(pool.handle); }
   return 0; // unreachable — typeck workaround
 }
 
 /** TCP 连接池烟测；0 通过。 */
-function tcp_pool_smoke(): i32 {
+export function tcp_pool_smoke(): i32 {
   unsafe { return tcp_pool_plat.net_tcp_pool_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 模块尾占位：transitive import 解析时末位 function 会丢失，须保留非 API 锚点。 */
-function net_module_anchor_c(): i32 { return 0; }
+export function net_module_anchor_c(): i32 { return 0; }

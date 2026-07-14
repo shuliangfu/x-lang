@@ -64,74 +64,74 @@ allow(padding) struct Win32FileAttrData {
   nFileSizeLow: u32;
 }
 
-extern "C" function CreateFileA(lpFileName: *u8, dwDesiredAccess: u32, dwShareMode: u32, lpSecurityAttributes: *u8, dwCreationDisposition: u32, dwFlagsAndAttributes: u32, hTemplateFile: *u8): *u8;
-extern "C" function CreateFileMappingA(hFile: *u8, lpAttributes: *u8, flProtect: u32, dwMaximumSizeHigh: u32, dwMaximumSizeLow: u32, lpName: *u8): *u8;
-extern "C" function MapViewOfFile(hFileMappingObject: *u8, dwDesiredAccess: u32, dwFileOffsetHigh: u32, dwFileOffsetLow: u32, dwNumberOfBytesToMap: u32): *u8;
-extern "C" function UnmapViewOfFile(lpBaseAddress: *u8): i32;
-extern "C" function ReadFile(hFile: *u8, lpBuffer: *u8, nNumberOfBytesToRead: u32, lpNumberOfBytesRead: *u32, lpOverlapped: *u8): i32;
-extern "C" function WriteFile(hFile: *u8, lpBuffer: *u8, nNumberOfBytesToWrite: u32, lpNumberOfBytesWritten: *u32, lpOverlapped: *u8): i32;
-extern "C" function CloseHandle(hObject: *u8): i32;
-extern "C" function GetFileSizeEx(hFile: *u8, lpFileSize: *LargeInteger): i32;
-extern "C" function GetSystemInfo(lpSystemInfo: *u8): void;
-extern "C" function FlushFileBuffers(hFile: *u8): i32;
-extern "C" function SetFilePointerEx(hFile: *u8, liDistanceToMove: LargeInteger, lpNewFilePointer: *LargeInteger, dwMoveMethod: u32): i32;
-extern "C" function SetEndOfFile(hFile: *u8): i32;
-extern "C" function GetFileAttributesExA(lpFileName: *u8, fInfoLevelId: i32, lpFileInformation: *Win32FileAttrData): i32;
-extern "C" function FindFirstFileA(lpFileName: *u8, lpFindFileData: *Win32FindDataA): *u8;
-extern "C" function FindNextFileA(hFindFile: *u8, lpFindFileData: *Win32FindDataA): i32;
-extern "C" function FindClose(hFindFile: *u8): i32;
-extern "C" function GetLastError(): u32;
-extern "C" function _open_osfhandle(osfhandle: i64, flags: i32): i32;
-extern "C" function _get_osfhandle(fd: i32): i64;
-extern "C" function _read(fd: i32, buf: *u8, count: u32): i32;
-extern "C" function _write(fd: i32, buf: *u8, count: u32): i32;
-extern "C" function _close(fd: i32): i32;
-extern "C" function _lseek(fd: i32, offset: i32, origin: i32): i32;
-extern "C" function _chmod(path: *u8, mode: i32): i32;
-extern "C" function _mkdir(path: *u8): i32;
-extern "C" function _rmdir(path: *u8): i32;
-extern "C" function DeleteFileA(lpFileName: *u8): i32;
-extern "C" function malloc(size: usize): *u8;
-extern "C" function free(ptr: *u8): void;
-extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
-extern "C" function strlen(s: *u8): usize;
-extern "C" function TransmitFile(hSocket: *u8, hFile: *u8, nNumberOfBytesToWrite: u32, nNumberOfBytesPerSend: u32, lpOverlapped: *u8, lpTransmitBuffers: *u8, dwReserved: u32): i32;
+export extern "C" function CreateFileA(lpFileName: *u8, dwDesiredAccess: u32, dwShareMode: u32, lpSecurityAttributes: *u8, dwCreationDisposition: u32, dwFlagsAndAttributes: u32, hTemplateFile: *u8): *u8;
+export extern "C" function CreateFileMappingA(hFile: *u8, lpAttributes: *u8, flProtect: u32, dwMaximumSizeHigh: u32, dwMaximumSizeLow: u32, lpName: *u8): *u8;
+export extern "C" function MapViewOfFile(hFileMappingObject: *u8, dwDesiredAccess: u32, dwFileOffsetHigh: u32, dwFileOffsetLow: u32, dwNumberOfBytesToMap: u32): *u8;
+export extern "C" function UnmapViewOfFile(lpBaseAddress: *u8): i32;
+export extern "C" function ReadFile(hFile: *u8, lpBuffer: *u8, nNumberOfBytesToRead: u32, lpNumberOfBytesRead: *u32, lpOverlapped: *u8): i32;
+export extern "C" function WriteFile(hFile: *u8, lpBuffer: *u8, nNumberOfBytesToWrite: u32, lpNumberOfBytesWritten: *u32, lpOverlapped: *u8): i32;
+export extern "C" function CloseHandle(hObject: *u8): i32;
+export extern "C" function GetFileSizeEx(hFile: *u8, lpFileSize: *LargeInteger): i32;
+export extern "C" function GetSystemInfo(lpSystemInfo: *u8): void;
+export extern "C" function FlushFileBuffers(hFile: *u8): i32;
+export extern "C" function SetFilePointerEx(hFile: *u8, liDistanceToMove: LargeInteger, lpNewFilePointer: *LargeInteger, dwMoveMethod: u32): i32;
+export extern "C" function SetEndOfFile(hFile: *u8): i32;
+export extern "C" function GetFileAttributesExA(lpFileName: *u8, fInfoLevelId: i32, lpFileInformation: *Win32FileAttrData): i32;
+export extern "C" function FindFirstFileA(lpFileName: *u8, lpFindFileData: *Win32FindDataA): *u8;
+export extern "C" function FindNextFileA(hFindFile: *u8, lpFindFileData: *Win32FindDataA): i32;
+export extern "C" function FindClose(hFindFile: *u8): i32;
+export extern "C" function GetLastError(): u32;
+export extern "C" function _open_osfhandle(osfhandle: i64, flags: i32): i32;
+export extern "C" function _get_osfhandle(fd: i32): i64;
+export extern "C" function _read(fd: i32, buf: *u8, count: u32): i32;
+export extern "C" function _write(fd: i32, buf: *u8, count: u32): i32;
+export extern "C" function _close(fd: i32): i32;
+export extern "C" function _lseek(fd: i32, offset: i32, origin: i32): i32;
+export extern "C" function _chmod(path: *u8, mode: i32): i32;
+export extern "C" function _mkdir(path: *u8): i32;
+export extern "C" function _rmdir(path: *u8): i32;
+export extern "C" function DeleteFileA(lpFileName: *u8): i32;
+export extern "C" function malloc(size: usize): *u8;
+export extern "C" function free(ptr: *u8): void;
+export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+export extern "C" function strlen(s: *u8): usize;
+export extern "C" function TransmitFile(hSocket: *u8, hFile: *u8, nNumberOfBytesToWrite: u32, nNumberOfBytesPerSend: u32, lpOverlapped: *u8, lpTransmitBuffers: *u8, dwReserved: u32): i32;
 
-const WIN32_INVALID_HANDLE: i64 = -1;
-const GENERIC_READ: u32 = 0x80000000;
-const GENERIC_WRITE: u32 = 0x40000000;
-const FILE_SHARE_READ: u32 = 1;
-const OPEN_EXISTING: u32 = 3;
-const OPEN_ALWAYS: u32 = 4;
-const CREATE_ALWAYS: u32 = 2;
-const FILE_ATTRIBUTE_NORMAL: u32 = 0x80;
-const FILE_FLAG_NO_BUFFERING: u32 = 0x20000000;
-const FILE_APPEND_DATA: u32 = 4;
-const PAGE_READONLY: u32 = 2;
-const PAGE_READWRITE: u32 = 4;
-const FILE_MAP_READ: u32 = 4;
-const FILE_MAP_WRITE: u32 = 2;
-const FILE_BEGIN: u32 = 0;
-const FILE_CURRENT: u32 = 1;
-const GetFileExInfoStandard: i32 = 0;
-const FILE_ATTRIBUTE_DIRECTORY: u32 = 16;
-const TF_USE_DEFAULT_WORKER: u32 = 0;
-const _O_RDONLY: i32 = 0;
-const _O_WRONLY: i32 = 1;
-const _O_APPEND: i32 = 8;
-const ERROR_INVALID_PARAMETER: u32 = 87;
-const FS_IOV_BUF_MAX: i32 = 16;
+export const WIN32_INVALID_HANDLE: i64 = -1;
+export const GENERIC_READ: u32 = 0x80000000;
+export const GENERIC_WRITE: u32 = 0x40000000;
+export const FILE_SHARE_READ: u32 = 1;
+export const OPEN_EXISTING: u32 = 3;
+export const OPEN_ALWAYS: u32 = 4;
+export const CREATE_ALWAYS: u32 = 2;
+export const FILE_ATTRIBUTE_NORMAL: u32 = 0x80;
+export const FILE_FLAG_NO_BUFFERING: u32 = 0x20000000;
+export const FILE_APPEND_DATA: u32 = 4;
+export const PAGE_READONLY: u32 = 2;
+export const PAGE_READWRITE: u32 = 4;
+export const FILE_MAP_READ: u32 = 4;
+export const FILE_MAP_WRITE: u32 = 2;
+export const FILE_BEGIN: u32 = 0;
+export const FILE_CURRENT: u32 = 1;
+export const GetFileExInfoStandard: i32 = 0;
+export const FILE_ATTRIBUTE_DIRECTORY: u32 = 16;
+export const TF_USE_DEFAULT_WORKER: u32 = 0;
+export const _O_RDONLY: i32 = 0;
+export const _O_WRONLY: i32 = 1;
+export const _O_APPEND: i32 = 8;
+export const ERROR_INVALID_PARAMETER: u32 = 87;
+export const FS_IOV_BUF_MAX: i32 = 16;
 
 /**
  * 记录 GetLastError 到模块级变量。
  */
-function fs_note_last_error_win(): void {
+export function fs_note_last_error_win(): void {
   unsafe { fs_saved_last_error = GetLastError() as i32; }
   fs_saved_last_error_set = 1;
 }
 
 /** CRT fd → HANDLE。 */
-function fs_win32_handle_from_fd(fd: i32): *u8 {
+export function fs_win32_handle_from_fd(fd: i32): *u8 {
   let h: i64 = 0;
   unsafe { h = _get_osfhandle(fd); }
   if (h == WIN32_INVALID_HANDLE || h <= 0) {
@@ -141,7 +141,7 @@ function fs_win32_handle_from_fd(fd: i32): *u8 {
 }
 
 /** 只读 mmap：CreateFileMapping + MapViewOfFile。 */
-function fs_mmap_ro_c(path: *u8, out_size: *usize): *u8 {
+export function fs_mmap_ro_c(path: *u8, out_size: *usize): *u8 {
   let hFile: *u8;
   let hMap: *u8;
   let li: LargeInteger;
@@ -173,7 +173,7 @@ function fs_mmap_ro_c(path: *u8, out_size: *usize): *u8 {
 }
 
 /** 可写 mmap。 */
-function fs_mmap_rw_c(path: *u8, out_size: *usize): *u8 {
+export function fs_mmap_rw_c(path: *u8, out_size: *usize): *u8 {
   let hFile: *u8;
   let hMap: *u8;
   let li: LargeInteger;
@@ -205,7 +205,7 @@ function fs_mmap_rw_c(path: *u8, out_size: *usize): *u8 {
 }
 
 /** UnmapViewOfFile。 */
-function fs_munmap_c(ptr: *u8, size: usize): i32 {
+export function fs_munmap_c(ptr: *u8, size: usize): i32 {
   if (size == 0) {
     return 0;
   }
@@ -216,7 +216,7 @@ function fs_munmap_c(ptr: *u8, size: usize): i32 {
 }
 
 /** 只读打开 → CRT fd。 */
-function fs_open_read_c(path: *u8): i32 {
+export function fs_open_read_c(path: *u8): i32 {
   let h: *u8;
   let fd: i32;
   if (path == 0) {
@@ -239,7 +239,7 @@ function fs_open_read_c(path: *u8): i32 {
 }
 
 /** 写打开截断（CREATE_ALWAYS）。 */
-function fs_open_write_c(path: *u8): i32 {
+export function fs_open_write_c(path: *u8): i32 {
   let h: *u8;
   let fd: i32;
   if (path == 0) {
@@ -258,7 +258,7 @@ function fs_open_write_c(path: *u8): i32 {
 }
 
 /** 无缓冲只读打开。 */
-function fs_open_read_direct_c(path: *u8): i32 {
+export function fs_open_read_direct_c(path: *u8): i32 {
   let h: *u8;
   let fd: i32;
   if (path == 0) {
@@ -277,18 +277,18 @@ function fs_open_read_direct_c(path: *u8): i32 {
 }
 
 /** 页大小对齐（GetSystemInfo）。 */
-function fs_direct_align_c(): u64 {
+export function fs_direct_align_c(): u64 {
   let si: u8[48];
   unsafe { GetSystemInfo(&si[0]); }
   let page: u32 = (si[4] as u32) | ((si[5] as u32) << 8) | ((si[6] as u32) << 16) | ((si[7] as u32) << 24);
   return page as u64;
 }
 
-function fs_fadvise_sequential_c(fd: i32): i32 { return 0; }
-function fs_fadvise_willneed_c(fd: i32, offset: i64, len: usize): i32 { return 0; }
+export function fs_fadvise_sequential_c(fd: i32): i32 { return 0; }
+export function fs_fadvise_willneed_c(fd: i32, offset: i64, len: usize): i32 { return 0; }
 
 /** ReadFile/WriteFile 循环复制。 */
-function fs_copy_file_range_c(fd_in: i32, fd_out: i32, len: usize): i64 {
+export function fs_copy_file_range_c(fd_in: i32, fd_out: i32, len: usize): i64 {
   let hIn: *u8 = fs_win32_handle_from_fd(fd_in);
   let hOut: *u8 = fs_win32_handle_from_fd(fd_out);
   let buf: *u8;
@@ -328,7 +328,7 @@ function fs_copy_file_range_c(fd_in: i32, fd_out: i32, len: usize): i64 {
 }
 
 /** 两段 ReadFile。 */
-function fs_readv2_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize): i64 {
+export function fs_readv2_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize): i64 {
   let h: *u8 = fs_win32_handle_from_fd(fd);
   let n0: u32 = 0;
   let n1: u32 = 0;
@@ -349,7 +349,7 @@ function fs_readv2_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize): i64 {
 }
 
 /** 两段 WriteFile。 */
-function fs_writev2_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize): i64 {
+export function fs_writev2_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize): i64 {
   let h: *u8 = fs_win32_handle_from_fd(fd);
   let n0: u32 = 0;
   let n1: u32 = 0;
@@ -370,7 +370,7 @@ function fs_writev2_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize): i64 {
 }
 
 /** TransmitFile 零拷贝到 socket fd。 */
-function fs_sendfile_c(out_fd: i32, in_fd: i32, count: usize): i64 {
+export function fs_sendfile_c(out_fd: i32, in_fd: i32, count: usize): i64 {
   let hFile: *u8 = fs_win32_handle_from_fd(in_fd);
   let s: *u8 = fs_win32_handle_from_fd(out_fd);
   let c: u32 = count as u32;
@@ -387,14 +387,14 @@ function fs_sendfile_c(out_fd: i32, in_fd: i32, count: usize): i64 {
 }
 
 /** Windows 无 splice：ReadFile/WriteFile 回退。 */
-function fs_pipe_splice_c(fd_in: i32, fd_out: i32, len: usize): i64 {
+export function fs_pipe_splice_c(fd_in: i32, fd_out: i32, len: usize): i64 {
   return fs_copy_file_range_c(fd_in, fd_out, len);
 }
 
-function fs_sync_range_c(fd: i32, offset: i64, len: usize): i32 { return 0; }
+export function fs_sync_range_c(fd: i32, offset: i64, len: usize): i32 { return 0; }
 
 /** SetFilePointerEx + SetEndOfFile 预分配。 */
-function fs_fallocate_c(fd: i32, offset: i64, len: i64): i32 {
+export function fs_fallocate_c(fd: i32, offset: i64, len: i64): i32 {
   let h: *u8;
   let cur: LargeInteger;
   let need: LargeInteger;
@@ -430,7 +430,7 @@ function fs_fallocate_c(fd: i32, offset: i64, len: i64): i32 {
 }
 
 /** 追加写打开。 */
-function fs_open_append_c(path: *u8): i32 {
+export function fs_open_append_c(path: *u8): i32 {
   let h: *u8;
   let fd: i32;
   if (path == 0) {
@@ -449,7 +449,7 @@ function fs_open_append_c(path: *u8): i32 {
 }
 
 /** 写打开不截断。 */
-function fs_open_create_c(path: *u8): i32 {
+export function fs_open_create_c(path: *u8): i32 {
   let h: *u8;
   let fd: i32;
   if (path == 0) {
@@ -467,7 +467,7 @@ function fs_open_create_c(path: *u8): i32 {
   return fd;
 }
 
-function fs_last_error_c(): i32 {
+export function fs_last_error_c(): i32 {
   if (fs_saved_last_error_set != 0) {
     return fs_saved_last_error;
   }
@@ -475,7 +475,7 @@ function fs_last_error_c(): i32 {
   return 0; // unreachable — typeck workaround
 }
 
-function fs_posix_read_c(fd: i32, buf: *u8, count: usize): i64 {
+export function fs_posix_read_c(fd: i32, buf: *u8, count: usize): i64 {
   let c: u32 = count as u32;
   if (count > 0x7fffffff) {
     c = 0x7fffffff;
@@ -484,7 +484,7 @@ function fs_posix_read_c(fd: i32, buf: *u8, count: usize): i64 {
   return 0; // unreachable — typeck workaround
 }
 
-function fs_posix_write_c(fd: i32, buf: *u8, count: usize): i64 {
+export function fs_posix_write_c(fd: i32, buf: *u8, count: usize): i64 {
   let c: u32 = count as u32;
   if (count > 0x7fffffff) {
     c = 0x7fffffff;
@@ -493,13 +493,13 @@ function fs_posix_write_c(fd: i32, buf: *u8, count: usize): i64 {
   return 0; // unreachable — typeck workaround
 }
 
-function fs_posix_close_c(fd: i32): i32 {
+export function fs_posix_close_c(fd: i32): i32 {
   unsafe { return _close(fd); }
   return 0; // unreachable — typeck workaround
 }
 
 /** Windows：lseek+read 模拟 pread（小文件/烟测足够）。 */
-function fs_posix_pread_c(fd: i32, buf: *u8, count: usize, offset: i64): i64 {
+export function fs_posix_pread_c(fd: i32, buf: *u8, count: usize, offset: i64): i64 {
   unsafe { if (_lseek(fd, offset as i32, 0) < 0) {
     return -1;
   } }
@@ -507,14 +507,14 @@ function fs_posix_pread_c(fd: i32, buf: *u8, count: usize, offset: i64): i64 {
 }
 
 /** Windows：lseek+write 模拟 pwrite。 */
-function fs_posix_pwrite_c(fd: i32, buf: *u8, count: usize, offset: i64): i64 {
+export function fs_posix_pwrite_c(fd: i32, buf: *u8, count: usize, offset: i64): i64 {
   unsafe { if (_lseek(fd, offset as i32, 0) < 0) {
     return -1;
   } }
   return fs_posix_write_c(fd, buf, count);
 }
 
-function fs_readv4_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize): i64 {
+export function fs_readv4_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize): i64 {
   let h: *u8 = fs_win32_handle_from_fd(fd);
   let n0: u32 = 0;
   let n1: u32 = 0;
@@ -530,7 +530,7 @@ function fs_readv4_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l
   return (n0 as i64) + (n1 as i64) + (n2 as i64) + (n3 as i64);
 }
 
-function fs_writev4_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize): i64 {
+export function fs_writev4_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize): i64 {
   let h: *u8 = fs_win32_handle_from_fd(fd);
   let n0: u32 = 0;
   let n1: u32 = 0;
@@ -546,7 +546,7 @@ function fs_writev4_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, 
   return (n0 as i64) + (n1 as i64) + (n2 as i64) + (n3 as i64);
 }
 
-function fs_readv_buf_c(fd: i32, bufs: *u8, n: i32): i64 {
+export function fs_readv_buf_c(fd: i32, bufs: *u8, n: i32): i64 {
   let b: *FsIovecBuf = bufs as *FsIovecBuf;
   let h: *u8;
   let total: i64 = 0;
@@ -577,7 +577,7 @@ function fs_readv_buf_c(fd: i32, bufs: *u8, n: i32): i64 {
   return total;
 }
 
-function fs_writev_buf_c(fd: i32, bufs: *u8, n: i32): i64 {
+export function fs_writev_buf_c(fd: i32, bufs: *u8, n: i32): i64 {
   let b: *FsIovecBuf = bufs as *FsIovecBuf;
   let h: *u8;
   let total: i64 = 0;
@@ -608,7 +608,7 @@ function fs_writev_buf_c(fd: i32, bufs: *u8, n: i32): i64 {
   return total;
 }
 
-function fs_sync_c(fd: i32): i32 {
+export function fs_sync_c(fd: i32): i32 {
   let h: *u8 = fs_win32_handle_from_fd(fd);
   if (h == 0) {
     return -1;
@@ -619,7 +619,7 @@ function fs_sync_c(fd: i32): i32 {
   return -1;
 }
 
-function fs_stat_c(path: *u8, out: *FsStatOut): i32 {
+export function fs_stat_c(path: *u8, out: *FsStatOut): i32 {
   let fad: Win32FileAttrData;
   if (path == 0 || out == 0) {
     return -1;
@@ -642,7 +642,7 @@ function fs_stat_c(path: *u8, out: *FsStatOut): i32 {
   return 0;
 }
 
-function fs_chmod_c(path: *u8, mode: u32): i32 {
+export function fs_chmod_c(path: *u8, mode: u32): i32 {
   if (path == 0) {
     return -1;
   }
@@ -653,7 +653,7 @@ function fs_chmod_c(path: *u8, mode: u32): i32 {
   return 0;
 }
 
-function fs_mkdir_c(path: *u8, mode: u32): i32 {
+export function fs_mkdir_c(path: *u8, mode: u32): i32 {
   if (path == 0) {
     return -1;
   }
@@ -664,7 +664,7 @@ function fs_mkdir_c(path: *u8, mode: u32): i32 {
   return 0;
 }
 
-function fs_unlink_c(path: *u8): i32 {
+export function fs_unlink_c(path: *u8): i32 {
   if (path == 0) {
     return -1;
   }
@@ -675,7 +675,7 @@ function fs_unlink_c(path: *u8): i32 {
   return 0;
 }
 
-function fs_rmdir_c(path: *u8): i32 {
+export function fs_rmdir_c(path: *u8): i32 {
   if (path == 0) {
     return -1;
   }
@@ -687,7 +687,7 @@ function fs_rmdir_c(path: *u8): i32 {
 }
 
 /** 打开目录：FindFirstFileA(path\\*)。 */
-function fs_dir_open_c(path: *u8): i64 {
+export function fs_dir_open_c(path: *u8): i64 {
   let pattern: u8[280];
   let h: *FsDirHandleWin;
   let find: *u8;
@@ -725,7 +725,7 @@ function fs_dir_open_c(path: *u8): i64 {
   return h as i64;
 }
 
-function fs_dir_read_c(handle: i64, name_out: *u8, name_cap: i32, is_dir_out: *i32): i32 {
+export function fs_dir_read_c(handle: i64, name_out: *u8, name_cap: i32, is_dir_out: *i32): i32 {
   let h: *FsDirHandleWin;
   let name: *u8;
   let nlen: usize;
@@ -761,7 +761,7 @@ function fs_dir_read_c(handle: i64, name_out: *u8, name_cap: i32, is_dir_out: *i
   return 0;
 }
 
-function fs_dir_close_c(handle: i64): i32 {
+export function fs_dir_close_c(handle: i64): i32 {
   let h: *FsDirHandleWin;
   if (handle < 0) {
     return -1;
@@ -772,6 +772,6 @@ function fs_dir_close_c(handle: i64): i32 {
   return 0;
 }
 
-function fs_win32_module_anchor(): i32 {
+export function fs_win32_module_anchor(): i32 {
   return 0;
 }

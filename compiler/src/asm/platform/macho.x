@@ -28,17 +28,17 @@ const codegen_outbuf_abi = import("codegen_outbuf_abi");
 const elf = import("platform.elf");
 
 /** 诊断：Mach-O 写出时遇到空外部符号名。 */
-extern function driver_diagnostic_asm_macho_empty_reloc(reloc_idx: i32): void;
+export extern function driver_diagnostic_asm_macho_empty_reloc(reloc_idx: i32): void;
 /** 诊断：写出 relocation_info 时未定义符号未在 und 池中找到。 */
-extern function driver_diagnostic_asm_macho_missing_und_reloc(reloc_idx: i32): void;
+export extern function driver_diagnostic_asm_macho_missing_und_reloc(reloc_idx: i32): void;
 /** elf sidecar：reloc_sym_names 行读写（定义在 ast_pool.c）。 */
-extern function pipeline_elf_ctx_reloc_sym_name_ptr(ctx: *u8, idx: i32): *u8;
-extern function pipeline_elf_ctx_reloc_sym_name_copy64(ctx: *u8, idx: i32, dst: *u8): void;
-extern function pipeline_elf_ctx_reloc_name_len(ctx: *u8, idx: i32): i32;
-extern function pipeline_elf_ctx_reloc_offset_at(ctx: *u8, idx: i32): i32;
+export extern function pipeline_elf_ctx_reloc_sym_name_ptr(ctx: *u8, idx: i32): *u8;
+export extern function pipeline_elf_ctx_reloc_sym_name_copy64(ctx: *u8, idx: i32, dst: *u8): void;
+export extern function pipeline_elf_ctx_reloc_name_len(ctx: *u8, idx: i32): i32;
+export extern function pipeline_elf_ctx_reloc_offset_at(ctx: *u8, idx: i32): i32;
 
 /** 向 out 追加 ptr[0..n-1]，返回 0 成功，-1 缓冲区满。 */
-function macho_append(out: *CodegenOutBuf, ptr: *u8, n: i32): i32 {
+export function macho_append(out: *CodegenOutBuf, ptr: *u8, n: i32): i32 {
   let i: i32 = 0;
   /** 与 elf.elf_append 上限一致，避免大型
   * .text+重定位表写出时中途截断返回 -1。 */
@@ -52,13 +52,13 @@ function macho_append(out: *CodegenOutBuf, ptr: *u8, n: i32): i32 {
 }
 
 /** reloc 符号名拷到栈上 u8[64]，供 elf_name_eq_arr_to_pool / macho_rel_name_eq。 */
-function macho_reloc_sym_name_buf(ctx: *ElfCodegenCtx, idx: i32, out: *u8): void {
+export function macho_reloc_sym_name_buf(ctx: *ElfCodegenCtx, idx: i32, out: *u8): void {
   pipeline_elf_ctx_reloc_sym_name_copy64(ctx as *u8, idx, out);
 }
 
 /** reloc r 是否在 ctx.syms 中有同名定义（有则 Mach-O r_symbolnum 指向该 nlist）。
 */
-function macho_reloc_sym_defined(ctx: *ElfCodegenCtx, r: i32): i32 {
+export function macho_reloc_sym_defined(ctx: *ElfCodegenCtx, r: i32): i32 {
   let m: i32 = 0;
   let sym_buf: u8[64] = [];
   macho_reloc_sym_name_buf(ctx, r, &sym_buf[0]);
@@ -75,7 +75,7 @@ function macho_reloc_sym_defined(ctx: *ElfCodegenCtx, r: i32): i32 {
 }
 
 /** 比较两段名字（与 elf_name_eq 同语义）；b 指向 und_names 中一行首字节。 */
-function macho_rel_name_eq(a: u8[64], a_len: i32, b_ptr: *u8, b_len: i32): i32 {
+export function macho_rel_name_eq(a: u8[64], a_len: i32, b_ptr: *u8, b_len: i32): i32 {
   if (a_len != b_len) {
     return 0;
   }
@@ -94,7 +94,7 @@ function macho_rel_name_eq(a: u8[64], a_len: i32, b_ptr: *u8, b_len: i32): i32 {
 * 一致。
 * 若已有前缀则返回 0，否则返回 1（须多写一字节 '_'）。
 */
-function macho_link_name_extra_byte(name_ptr: *u8): i32 {
+export function macho_link_name_extra_byte(name_ptr: *u8): i32 {
   if (name_ptr[0] != 95) {
     return 1;
   }
@@ -103,7 +103,7 @@ function macho_link_name_extra_byte(name_ptr: *u8): i32 {
 
 /** 将 Mach-O 64 位可重定位 .o 写入 out；写入前再次 resolve（与 asm_codegen_elf_o
 * 双保险，避免 cbz 0x34 占位残留）。返回写入字节数，失败 -1。 */
-function write_macho_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i32 {
+export function write_macho_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i32 {
   if (elf.elf_resolve_patches(ctx) != 0) {
     return -1;
   }

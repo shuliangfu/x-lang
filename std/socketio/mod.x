@@ -19,135 +19,135 @@
 // 【文件职责】导出 socketio.x（F-socketio v2 纯 .x 逻辑）；v2 connect 编排 std.http 握手 + std.websocket 升级 + 重连退避。
 // 【依赖】socketio.o + http.o；connect_ws / server_emit_event_ws 另需 net.o（net_ws_* extern）。
 
-extern function net_ws_connect_url_c(url: *u8, url_len: i32, key: *u8, key_len: i32, timeout_ms: u32, out_fd: *i32,
+export extern function net_ws_connect_url_c(url: *u8, url_len: i32, key: *u8, key_len: i32, timeout_ms: u32, out_fd: *i32,
   out_tls: *i64): i32;
-extern function net_ws_write_text_c(fd: i32, tls_ctx: i64, payload: *u8, payload_len: i32): i32;
-extern function net_ws_write_server_text_c(fd: i32, tls_ctx: i64, payload: *u8, payload_len: i32): i32;
-extern function net_ws_read_frame_c(fd: i32, tls_ctx: i64, out_opcode: *i32, out_payload: *u8, out_cap: i32,
+export extern function net_ws_write_text_c(fd: i32, tls_ctx: i64, payload: *u8, payload_len: i32): i32;
+export extern function net_ws_write_server_text_c(fd: i32, tls_ctx: i64, payload: *u8, payload_len: i32): i32;
+export extern function net_ws_read_frame_c(fd: i32, tls_ctx: i64, out_opcode: *i32, out_payload: *u8, out_cap: i32,
   out_payload_len: *i32, timeout_ms: u32): i32;
-extern function net_close_socket_c(fd: i32): i32;
-extern function net_tls_close_c(ctx_handle: i64): i32;
+export extern function net_close_socket_c(fd: i32): i32;
+export extern function net_tls_close_c(ctx_handle: i64): i32;
 
-extern function sio_eio_encode_packet_c(type: i32, payload: *u8, payload_len: i32, out: *u8, out_cap: i32): i32;
-extern function sio_eio_decode_packet_c(buf: *u8, len: i32, out_type: *i32, out_payload: *u8, out_cap: i32,
+export extern function sio_eio_encode_packet_c(type: i32, payload: *u8, payload_len: i32, out: *u8, out_cap: i32): i32;
+export extern function sio_eio_decode_packet_c(buf: *u8, len: i32, out_type: *i32, out_payload: *u8, out_cap: i32,
   out_payload_len: *i32): i32;
-extern function sio_encode_event_packet_c(event: *u8, event_len: i32, data: *u8, data_len: i32, out: *u8,
+export extern function sio_encode_event_packet_c(event: *u8, event_len: i32, data: *u8, data_len: i32, out: *u8,
   out_cap: i32): i32;
-extern function sio_encode_event_ns_packet_c(ns: *u8, ns_len: i32, event: *u8, event_len: i32, data: *u8,
+export extern function sio_encode_event_ns_packet_c(ns: *u8, ns_len: i32, event: *u8, event_len: i32, data: *u8,
   data_len: i32, out: *u8, out_cap: i32): i32;
-extern function sio_decode_event_packet_c(sio_pkt: *u8, len: i32, out_event: *u8, out_event_cap: i32, out_data: *u8,
+export extern function sio_decode_event_packet_c(sio_pkt: *u8, len: i32, out_event: *u8, out_event_cap: i32, out_data: *u8,
   out_data_cap: i32, out_data_len: *i32): i32;
-extern function sio_eio_extract_sid_c(open_payload: *u8, len: i32, out_sid: *u8, out_cap: i32): i32;
-extern function sio_packet_smoke_c(): i32;
-extern function sio_eio_version_c(): i32;
-extern function sio_transport_polling_c(): i32;
-extern function sio_transport_websocket_c(): i32;
-extern function sio_build_eio_url_c(base: *u8, base_len: i32, sid: *u8, sid_len: i32, transport: i32, out: *u8,
+export extern function sio_eio_extract_sid_c(open_payload: *u8, len: i32, out_sid: *u8, out_cap: i32): i32;
+export extern function sio_packet_smoke_c(): i32;
+export extern function sio_eio_version_c(): i32;
+export extern function sio_transport_polling_c(): i32;
+export extern function sio_transport_websocket_c(): i32;
+export extern function sio_build_eio_url_c(base: *u8, base_len: i32, sid: *u8, sid_len: i32, transport: i32, out: *u8,
   out_cap: i32): i32;
-extern function sio_http_extract_body_c(http: *u8, len: i32, out: *u8, out_cap: i32, out_len: *i32): i32;
-extern function sio_eio_open_has_websocket_c(open_payload: *u8, len: i32): i32;
-extern function sio_polling_handshake_parse_c(http: *u8, http_len: i32, out_sid: *u8, sid_cap: i32,
+export extern function sio_http_extract_body_c(http: *u8, len: i32, out: *u8, out_cap: i32, out_len: *i32): i32;
+export extern function sio_eio_open_has_websocket_c(open_payload: *u8, len: i32): i32;
+export extern function sio_polling_handshake_parse_c(http: *u8, http_len: i32, out_sid: *u8, sid_cap: i32,
   out_has_ws: *i32): i32;
-extern function sio_polling_handshake_c(base_url: *u8, base_len: i32, out_sid: *u8, sid_cap: i32, timeout_ms: u32,
+export extern function sio_polling_handshake_c(base_url: *u8, base_len: i32, out_sid: *u8, sid_cap: i32, timeout_ms: u32,
   out_has_ws: *i32): i32;
-extern function sio_polling_post_packet_c(base_url: *u8, base_len: i32, sid: *u8, sid_len: i32, packet: *u8,
+export extern function sio_polling_post_packet_c(base_url: *u8, base_len: i32, sid: *u8, sid_len: i32, packet: *u8,
   packet_len: i32, out_resp: *u8, out_cap: i32, timeout_ms: u32): i32;
-extern function sio_polling_smoke_c(): i32;
-extern function sio_sio_type_connect_c(): i32;
-extern function sio_sio_type_ack_c(): i32;
-extern function sio_encode_connect_ns_packet_c(ns: *u8, ns_len: i32, out: *u8, out_cap: i32): i32;
-extern function sio_encode_event_ack_packet_c(ack_id: i32, event: *u8, event_len: i32, data: *u8, data_len: i32,
+export extern function sio_polling_smoke_c(): i32;
+export extern function sio_sio_type_connect_c(): i32;
+export extern function sio_sio_type_ack_c(): i32;
+export extern function sio_encode_connect_ns_packet_c(ns: *u8, ns_len: i32, out: *u8, out_cap: i32): i32;
+export extern function sio_encode_event_ack_packet_c(ack_id: i32, event: *u8, event_len: i32, data: *u8, data_len: i32,
   out: *u8, out_cap: i32): i32;
-extern function sio_encode_ack_packet_c(ack_id: i32, data: *u8, data_len: i32, out: *u8, out_cap: i32): i32;
-extern function sio_parse_sio_packet_head_c(pkt: *u8, len: i32, out_type: *i32, out_id: *i32,
+export extern function sio_encode_ack_packet_c(ack_id: i32, data: *u8, data_len: i32, out: *u8, out_cap: i32): i32;
+export extern function sio_parse_sio_packet_head_c(pkt: *u8, len: i32, out_type: *i32, out_id: *i32,
   out_payload_off: *i32): i32;
-extern function sio_server_is_connect_ns_packet_c(pkt: *u8, len: i32, ns: *u8, ns_len: i32): i32;
-extern function sio_ns_ack_smoke_c(): i32;
-extern function sio_parse_connect_ns_packet_c(pkt: *u8, len: i32, out_ns: *u8, out_cap: i32): i32;
-extern function sio_ns_router_bytes_c(): i32;
-extern function sio_ns_router_init_c(r: *SioNsRouter): void;
-extern function sio_ns_router_register_c(r: *SioNsRouter, ns: *u8, ns_len: i32, slot_id: i32): i32;
-extern function sio_ns_router_lookup_c(r: *SioNsRouter, ns: *u8, ns_len: i32): i32;
-extern function sio_ns_router_route_connect_c(r: *SioNsRouter, pkt: *u8, len: i32): i32;
-extern function sio_ns_router_smoke_c(): i32;
-extern function sio_ns_sessions_bytes_c(): i32;
-extern function sio_ns_sessions_init_c(s: *SioNsSessions): void;
-extern function sio_ns_sessions_sync_router_c(s: *SioNsSessions, r: *SioNsRouter): i32;
-extern function sio_ns_sessions_connect_c(s: *SioNsSessions, r: *SioNsRouter, pkt: *u8, len: i32): i32;
-extern function sio_ns_sessions_disconnect_c(s: *SioNsSessions, slot_id: i32): i32;
-extern function sio_ns_sessions_active_c(s: *SioNsSessions, slot_id: i32): i32;
-extern function sio_ns_sessions_total_c(s: *SioNsSessions): i32;
-extern function sio_ns_sessions_smoke_c(): i32;
-extern function sio_ws_hub_bytes_c(): i32;
-extern function sio_ws_hub_init_c(h: *SioWsHub): void;
-extern function sio_ws_hub_register_c(h: *SioWsHub, fd: i32, tls_ctx: i64, sid: *u8, sid_len: i32): i32;
-extern function sio_ws_hub_unregister_c(h: *SioWsHub, conn_idx: i32): i32;
-extern function sio_ws_hub_find_by_sid_c(h: *SioWsHub, sid: *u8, sid_len: i32): i32;
-extern function sio_ws_hub_handle_connect_c(h: *SioWsHub, conn_idx: i32, r: *SioNsRouter, s: *SioNsSessions,
+export extern function sio_server_is_connect_ns_packet_c(pkt: *u8, len: i32, ns: *u8, ns_len: i32): i32;
+export extern function sio_ns_ack_smoke_c(): i32;
+export extern function sio_parse_connect_ns_packet_c(pkt: *u8, len: i32, out_ns: *u8, out_cap: i32): i32;
+export extern function sio_ns_router_bytes_c(): i32;
+export extern function sio_ns_router_init_c(r: *SioNsRouter): void;
+export extern function sio_ns_router_register_c(r: *SioNsRouter, ns: *u8, ns_len: i32, slot_id: i32): i32;
+export extern function sio_ns_router_lookup_c(r: *SioNsRouter, ns: *u8, ns_len: i32): i32;
+export extern function sio_ns_router_route_connect_c(r: *SioNsRouter, pkt: *u8, len: i32): i32;
+export extern function sio_ns_router_smoke_c(): i32;
+export extern function sio_ns_sessions_bytes_c(): i32;
+export extern function sio_ns_sessions_init_c(s: *SioNsSessions): void;
+export extern function sio_ns_sessions_sync_router_c(s: *SioNsSessions, r: *SioNsRouter): i32;
+export extern function sio_ns_sessions_connect_c(s: *SioNsSessions, r: *SioNsRouter, pkt: *u8, len: i32): i32;
+export extern function sio_ns_sessions_disconnect_c(s: *SioNsSessions, slot_id: i32): i32;
+export extern function sio_ns_sessions_active_c(s: *SioNsSessions, slot_id: i32): i32;
+export extern function sio_ns_sessions_total_c(s: *SioNsSessions): i32;
+export extern function sio_ns_sessions_smoke_c(): i32;
+export extern function sio_ws_hub_bytes_c(): i32;
+export extern function sio_ws_hub_init_c(h: *SioWsHub): void;
+export extern function sio_ws_hub_register_c(h: *SioWsHub, fd: i32, tls_ctx: i64, sid: *u8, sid_len: i32): i32;
+export extern function sio_ws_hub_unregister_c(h: *SioWsHub, conn_idx: i32): i32;
+export extern function sio_ws_hub_find_by_sid_c(h: *SioWsHub, sid: *u8, sid_len: i32): i32;
+export extern function sio_ws_hub_handle_connect_c(h: *SioWsHub, conn_idx: i32, r: *SioNsRouter, s: *SioNsSessions,
   pkt: *u8, len: i32): i32;
-extern function sio_ws_hub_emit_event_ns_c(h: *SioWsHub, slot_id: i32, ns: *u8, ns_len: i32, event: *u8,
+export extern function sio_ws_hub_emit_event_ns_c(h: *SioWsHub, slot_id: i32, ns: *u8, ns_len: i32, event: *u8,
   event_len: i32, data: *u8, data_len: i32): i32;
-extern function sio_ws_hub_smoke_c(): i32;
-extern function sio_ws_hub_snapshot_bytes_c(): i32;
-extern function sio_ws_hub_export_c(h: *SioWsHub, out: *u8, out_cap: i32): i32;
-extern function sio_ws_hub_import_c(h: *SioWsHub, buf: *u8, len: i32): i32;
-extern function sio_room_registry_bytes_c(): i32;
-extern function sio_room_registry_init_c(reg: *SioRoomRegistry): void;
-extern function sio_room_register_c(reg: *SioRoomRegistry, name: *u8, name_len: i32, room_id: i32): i32;
-extern function sio_room_join_c(reg: *SioRoomRegistry, room_id: i32, conn_idx: i32): i32;
-extern function sio_room_leave_c(reg: *SioRoomRegistry, room_id: i32, conn_idx: i32): i32;
-extern function sio_room_leave_all_c(reg: *SioRoomRegistry, conn_idx: i32): i32;
-extern function sio_room_member_count_c(reg: *SioRoomRegistry, room_id: i32): i32;
-extern function sio_room_broadcast_ns_c(reg: *SioRoomRegistry, h: *SioWsHub, room_id: i32, ns: *u8, ns_len: i32,
+export extern function sio_ws_hub_smoke_c(): i32;
+export extern function sio_ws_hub_snapshot_bytes_c(): i32;
+export extern function sio_ws_hub_export_c(h: *SioWsHub, out: *u8, out_cap: i32): i32;
+export extern function sio_ws_hub_import_c(h: *SioWsHub, buf: *u8, len: i32): i32;
+export extern function sio_room_registry_bytes_c(): i32;
+export extern function sio_room_registry_init_c(reg: *SioRoomRegistry): void;
+export extern function sio_room_register_c(reg: *SioRoomRegistry, name: *u8, name_len: i32, room_id: i32): i32;
+export extern function sio_room_join_c(reg: *SioRoomRegistry, room_id: i32, conn_idx: i32): i32;
+export extern function sio_room_leave_c(reg: *SioRoomRegistry, room_id: i32, conn_idx: i32): i32;
+export extern function sio_room_leave_all_c(reg: *SioRoomRegistry, conn_idx: i32): i32;
+export extern function sio_room_member_count_c(reg: *SioRoomRegistry, room_id: i32): i32;
+export extern function sio_room_broadcast_ns_c(reg: *SioRoomRegistry, h: *SioWsHub, room_id: i32, ns: *u8, ns_len: i32,
   event: *u8, event_len: i32, data: *u8, data_len: i32): i32;
-extern function sio_room_smoke_c(): i32;
-extern function sio_ws_hub_rebind_c(h: *SioWsHub, conn_idx: i32, fd: i32, tls_ctx: i64): i32;
-extern function sio_room_registry_snapshot_bytes_c(): i32;
-extern function sio_room_registry_export_c(reg: *SioRoomRegistry, out: *u8, out_cap: i32): i32;
-extern function sio_room_registry_import_c(reg: *SioRoomRegistry, buf: *u8, len: i32): i32;
-extern function sio_hub_sync_smoke_c(): i32;
-extern function sio_ws_hub_register_or_rebind_c(h: *SioWsHub, fd: i32, tls_ctx: i64, sid: *u8, sid_len: i32): i32;
-extern function sio_session_bundle_bytes_c(): i32;
-extern function sio_session_bundle_export_c(h: *SioWsHub, reg: *SioRoomRegistry, out: *u8, out_cap: i32): i32;
-extern function sio_session_bundle_import_c(h: *SioWsHub, reg: *SioRoomRegistry, buf: *u8, len: i32): i32;
-extern function sio_session_sync_smoke_c(): i32;
-extern function sio_ws_hub_append_from_c(dst: *SioWsHub, src: *SioWsHub): i32;
-extern function sio_room_registry_merge_offset_c(dst: *SioRoomRegistry, src: *SioRoomRegistry, conn_offset: i32): i32;
-extern function sio_cluster_sync_c(h: *SioWsHub, reg: *SioRoomRegistry, bundle_a: *u8, len_a: i32, bundle_b: *u8,
+export extern function sio_room_smoke_c(): i32;
+export extern function sio_ws_hub_rebind_c(h: *SioWsHub, conn_idx: i32, fd: i32, tls_ctx: i64): i32;
+export extern function sio_room_registry_snapshot_bytes_c(): i32;
+export extern function sio_room_registry_export_c(reg: *SioRoomRegistry, out: *u8, out_cap: i32): i32;
+export extern function sio_room_registry_import_c(reg: *SioRoomRegistry, buf: *u8, len: i32): i32;
+export extern function sio_hub_sync_smoke_c(): i32;
+export extern function sio_ws_hub_register_or_rebind_c(h: *SioWsHub, fd: i32, tls_ctx: i64, sid: *u8, sid_len: i32): i32;
+export extern function sio_session_bundle_bytes_c(): i32;
+export extern function sio_session_bundle_export_c(h: *SioWsHub, reg: *SioRoomRegistry, out: *u8, out_cap: i32): i32;
+export extern function sio_session_bundle_import_c(h: *SioWsHub, reg: *SioRoomRegistry, buf: *u8, len: i32): i32;
+export extern function sio_session_sync_smoke_c(): i32;
+export extern function sio_ws_hub_append_from_c(dst: *SioWsHub, src: *SioWsHub): i32;
+export extern function sio_room_registry_merge_offset_c(dst: *SioRoomRegistry, src: *SioRoomRegistry, conn_offset: i32): i32;
+export extern function sio_cluster_sync_c(h: *SioWsHub, reg: *SioRoomRegistry, bundle_a: *u8, len_a: i32, bundle_b: *u8,
   len_b: i32): i32;
-extern function sio_cluster_sync_smoke_c(): i32;
-extern function sio_cluster_adapter_bytes_c(): i32;
-extern function sio_cluster_adapter_init_c(a: *SioClusterAdapter, node_id: i32): void;
-extern function sio_cluster_adapter_publish_ns_c(a: *SioClusterAdapter, src_node_id: i32, room_id: i32, ns: *u8,
+export extern function sio_cluster_sync_smoke_c(): i32;
+export extern function sio_cluster_adapter_bytes_c(): i32;
+export extern function sio_cluster_adapter_init_c(a: *SioClusterAdapter, node_id: i32): void;
+export extern function sio_cluster_adapter_publish_ns_c(a: *SioClusterAdapter, src_node_id: i32, room_id: i32, ns: *u8,
   ns_len: i32, event: *u8, event_len: i32, data: *u8, data_len: i32): i32;
-extern function sio_cluster_adapter_drain_apply_c(a: *SioClusterAdapter, h: *SioWsHub, reg: *SioRoomRegistry,
+export extern function sio_cluster_adapter_drain_apply_c(a: *SioClusterAdapter, h: *SioWsHub, reg: *SioRoomRegistry,
   local_node_id: i32): i32;
-extern function sio_cluster_adapter_smoke_c(): i32;
-extern function sio_cluster_adapter_snapshot_bytes_c(): i32;
-extern function sio_cluster_adapter_export_c(a: *SioClusterAdapter, out: *u8, out_cap: i32): i32;
-extern function sio_cluster_adapter_import_merge_c(a: *SioClusterAdapter, buf: *u8, len: i32): i32;
-extern function sio_cluster_ring_sync_smoke_c(): i32;
-extern function sio_p3_complete_smoke_c(): i32;
-extern function sio_server_build_connect_ns_ack_c(ns: *u8, ns_len: i32, sid: *u8, sid_len: i32, out: *u8,
+export extern function sio_cluster_adapter_smoke_c(): i32;
+export extern function sio_cluster_adapter_snapshot_bytes_c(): i32;
+export extern function sio_cluster_adapter_export_c(a: *SioClusterAdapter, out: *u8, out_cap: i32): i32;
+export extern function sio_cluster_adapter_import_merge_c(a: *SioClusterAdapter, buf: *u8, len: i32): i32;
+export extern function sio_cluster_ring_sync_smoke_c(): i32;
+export extern function sio_p3_complete_smoke_c(): i32;
+export extern function sio_server_build_connect_ns_ack_c(ns: *u8, ns_len: i32, sid: *u8, sid_len: i32, out: *u8,
   out_cap: i32): i32;
-extern function sio_http_to_ws_base_c(http_base: *u8, len: i32, out: *u8, out_cap: i32): i32;
-extern function sio_build_ws_connect_url_c(http_base: *u8, base_len: i32, sid: *u8, sid_len: i32, out: *u8,
+export extern function sio_http_to_ws_base_c(http_base: *u8, len: i32, out: *u8, out_cap: i32): i32;
+export extern function sio_build_ws_connect_url_c(http_base: *u8, base_len: i32, sid: *u8, sid_len: i32, out: *u8,
   out_cap: i32): i32;
-extern function sio_eio_ws_upgrade_c(fd: i32, tls_ctx: i64, timeout_ms: u32): i32;
-extern function sio_encode_connect_packet_c(out: *u8, out_cap: i32): i32;
-extern function sio_reconnect_delay_ms_c(attempt: i32, cap_ms: i32): i32;
-extern function sio_connect_smoke_c(): i32;
-extern function sio_node_interop_smoke_c(): i32;
-extern function sio_server_build_open_packet_c(sid: *u8, sid_len: i32, out: *u8, out_cap: i32): i32;
-extern function sio_server_build_http_open_response_c(sid: *u8, sid_len: i32, out: *u8, out_cap: i32): i32;
-extern function sio_server_is_polling_handshake_c(path: *u8, len: i32): i32;
-extern function sio_server_is_connect_packet_c(pkt: *u8, len: i32): i32;
-extern function sio_server_smoke_c(): i32;
-extern function sio_server_emit_event_c(event: *u8, event_len: i32, data: *u8, data_len: i32, out: *u8,
+export extern function sio_eio_ws_upgrade_c(fd: i32, tls_ctx: i64, timeout_ms: u32): i32;
+export extern function sio_encode_connect_packet_c(out: *u8, out_cap: i32): i32;
+export extern function sio_reconnect_delay_ms_c(attempt: i32, cap_ms: i32): i32;
+export extern function sio_connect_smoke_c(): i32;
+export extern function sio_node_interop_smoke_c(): i32;
+export extern function sio_server_build_open_packet_c(sid: *u8, sid_len: i32, out: *u8, out_cap: i32): i32;
+export extern function sio_server_build_http_open_response_c(sid: *u8, sid_len: i32, out: *u8, out_cap: i32): i32;
+export extern function sio_server_is_polling_handshake_c(path: *u8, len: i32): i32;
+export extern function sio_server_is_connect_packet_c(pkt: *u8, len: i32): i32;
+export extern function sio_server_smoke_c(): i32;
+export extern function sio_server_emit_event_c(event: *u8, event_len: i32, data: *u8, data_len: i32, out: *u8,
   out_cap: i32): i32;
-extern function sio_server_build_http_event_response_c(event: *u8, event_len: i32, data: *u8, data_len: i32,
+export extern function sio_server_build_http_event_response_c(event: *u8, event_len: i32, data: *u8, data_len: i32,
   out: *u8, out_cap: i32): i32;
-extern function sio_server_emit_smoke_c(): i32;
+export extern function sio_server_emit_smoke_c(): i32;
 
 /** Socket.IO 客户端状态（sid 由调用方缓冲持有）。 */
 allow(padding) struct SioClient {
@@ -260,65 +260,65 @@ allow(padding) struct SioClusterAdapter {
 }
 
 /** Engine.IO open。 */
-function eio_type_open(): i32 { return 0; }
+export function eio_type_open(): i32 { return 0; }
 /** Engine.IO close。 */
-function eio_type_close(): i32 { return 1; }
+export function eio_type_close(): i32 { return 1; }
 /** Engine.IO ping。 */
-function eio_type_ping(): i32 { return 2; }
+export function eio_type_ping(): i32 { return 2; }
 /** Engine.IO pong。 */
-function eio_type_pong(): i32 { return 3; }
+export function eio_type_pong(): i32 { return 3; }
 /** Engine.IO message（Socket.IO 载荷）。 */
-function eio_type_message(): i32 { return 4; }
+export function eio_type_message(): i32 { return 4; }
 /** Engine.IO upgrade。 */
-function eio_type_upgrade(): i32 { return 5; }
+export function eio_type_upgrade(): i32 { return 5; }
 /** Engine.IO noop。 */
-function eio_type_noop(): i32 { return 6; }
+export function eio_type_noop(): i32 { return 6; }
 
 /** Socket.IO EVENT。 */
-function sio_type_event(): i32 { return 2; }
+export function sio_type_event(): i32 { return 2; }
 
 /** Socket.IO ACK（带 packet id 应答）。 */
-function sio_type_ack(): i32 { let _rc: i32 = 0; unsafe { _rc = sio_sio_type_ack_c(); } return _rc; }
+export function sio_type_ack(): i32 { let _rc: i32 = 0; unsafe { _rc = sio_sio_type_ack_c(); } return _rc; }
 
 /** Engine.IO 协议版本（4）。 */
-function eio_version(): i32 { let _rc: i32 = 0; unsafe { _rc = sio_eio_version_c(); } return _rc; }
+export function eio_version(): i32 { let _rc: i32 = 0; unsafe { _rc = sio_eio_version_c(); } return _rc; }
 
 /** 传输常量：HTTP long-polling。 */
-function transport_polling(): i32 { let _rc: i32 = 0; unsafe { _rc = sio_transport_polling_c(); } return _rc; }
+export function transport_polling(): i32 { let _rc: i32 = 0; unsafe { _rc = sio_transport_polling_c(); } return _rc; }
 
 /** 传输常量：WebSocket upgrade。 */
-function transport_websocket(): i32 { let _rc: i32 = 0; unsafe { _rc = sio_transport_websocket_c(); } return _rc; }
+export function transport_websocket(): i32 { let _rc: i32 = 0; unsafe { _rc = sio_transport_websocket_c(); } return _rc; }
 
 /** 构建 Engine.IO URL（polling 或 websocket；sid 可选）。 */
-function build_eio_url(base: *u8, base_len: i32, sid: *u8, sid_len: i32, transport: i32, out: *u8, out_cap: i32): i32 {
+export function build_eio_url(base: *u8, base_len: i32, sid: *u8, sid_len: i32, transport: i32, out: *u8, out_cap: i32): i32 {
   if (base == 0 || out == 0) { return -1; }
   unsafe { return sio_build_eio_url_c(base, base_len, sid, sid_len, transport, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 从 HTTP/1.x 响应提取 body。 */
-function http_extract_body(http: *u8, len: i32, out: *u8, out_cap: i32, out_len: *i32): i32 {
+export function http_extract_body(http: *u8, len: i32, out: *u8, out_cap: i32, out_len: *i32): i32 {
   if (http == 0 || out == 0 || out_len == 0) { return -1; }
   unsafe { return sio_http_extract_body_c(http, len, out, out_cap, out_len); }
   return 0; // unreachable — typeck workaround
 }
 
 /** open JSON 是否声明 websocket upgrade。 */
-function open_has_websocket(open_payload: *u8, len: i32): i32 {
+export function open_has_websocket(open_payload: *u8, len: i32): i32 {
   if (open_payload == 0) { return -1; }
   unsafe { return sio_eio_open_has_websocket_c(open_payload, len); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 解析 polling 握手 HTTP 响应；返回 sid 长度。 */
-function polling_handshake_parse(http: *u8, http_len: i32, out_sid: *u8, sid_cap: i32, out_has_ws: *i32): i32 {
+export function polling_handshake_parse(http: *u8, http_len: i32, out_sid: *u8, sid_cap: i32, out_has_ws: *i32): i32 {
   if (http == 0 || out_sid == 0) { return -1; }
   unsafe { return sio_polling_handshake_parse_c(http, http_len, out_sid, sid_cap, out_has_ws); }
   return 0; // unreachable — typeck workaround
 }
 
 /** Engine.IO polling 握手（HTTP GET）；需链入 std.http。 */
-function polling_handshake(base_url: *u8, base_len: i32, out_sid: *u8, sid_cap: i32, timeout_ms: u32,
+export function polling_handshake(base_url: *u8, base_len: i32, out_sid: *u8, sid_cap: i32, timeout_ms: u32,
   out_has_ws: *i32): i32 {
   if (base_url == 0 || out_sid == 0) { return -1; }
   unsafe { return sio_polling_handshake_c(base_url, base_len, out_sid, sid_cap, timeout_ms, out_has_ws); }
@@ -326,7 +326,7 @@ function polling_handshake(base_url: *u8, base_len: i32, out_sid: *u8, sid_cap: 
 }
 
 /** 经 polling POST 发送 EIO 包；返回 HTTP 响应字节数。 */
-function polling_post_packet(base_url: *u8, base_len: i32, sid: *u8, sid_len: i32, packet: *u8, packet_len: i32,
+export function polling_post_packet(base_url: *u8, base_len: i32, sid: *u8, sid_len: i32, packet: *u8, packet_len: i32,
   out_resp: *u8, out_cap: i32, timeout_ms: u32): i32 {
   if (base_url == 0 || sid == 0 || packet == 0 || out_resp == 0) { return -1; }
   unsafe { return sio_polling_post_packet_c(base_url, base_len, sid, sid_len, packet, packet_len, out_resp, out_cap,
@@ -335,56 +335,56 @@ function polling_post_packet(base_url: *u8, base_len: i32, sid: *u8, sid_len: i3
 }
 
 /** polling 传输层烟测（URL + canned HTTP；不依赖 live server）。 */
-function polling_smoke(): i32 {
+export function polling_smoke(): i32 {
   unsafe { return sio_polling_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** Socket.IO CONNECT 类型常量（0）。 */
-function sio_type_connect(): i32 { let _rc: i32 = 0; unsafe { _rc = sio_sio_type_connect_c(); } return _rc; }
+export function sio_type_connect(): i32 { let _rc: i32 = 0; unsafe { _rc = sio_sio_type_connect_c(); } return _rc; }
 
 /** http(s):// base 转为 ws(s):// 前缀。 */
-function http_to_ws_base(http_base: *u8, base_len: i32, out: *u8, out_cap: i32): i32 {
+export function http_to_ws_base(http_base: *u8, base_len: i32, out: *u8, out_cap: i32): i32 {
   if (http_base == 0 || out == 0) { return -1; }
   unsafe { return sio_http_to_ws_base_c(http_base, base_len, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 构建 WebSocket 升级 URL（须已有 sid）。 */
-function build_ws_connect_url(http_base: *u8, base_len: i32, sid: *u8, sid_len: i32, out: *u8, out_cap: i32): i32 {
+export function build_ws_connect_url(http_base: *u8, base_len: i32, sid: *u8, sid_len: i32, out: *u8, out_cap: i32): i32 {
   if (http_base == 0 || sid == 0 || out == 0) { return -1; }
   unsafe { return sio_build_ws_connect_url_c(http_base, base_len, sid, sid_len, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 编码 Socket.IO CONNECT 包（默认 namespace `40`）。 */
-function encode_connect_packet(out: *u8, out_cap: i32): i32 {
+export function encode_connect_packet(out: *u8, out_cap: i32): i32 {
   if (out == 0) { return -1; }
   unsafe { return sio_encode_connect_packet_c(out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 编码指定 namespace 的 CONNECT 包（例 `/chat` → `40/chat,`）。 */
-function encode_connect_ns_packet(ns: *u8, ns_len: i32, out: *u8, out_cap: i32): i32 {
+export function encode_connect_ns_packet(ns: *u8, ns_len: i32, out: *u8, out_cap: i32): i32 {
   if (out == 0) { return -1; }
   unsafe { return sio_encode_connect_ns_packet_c(ns, ns_len, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 重连退避毫秒（线性递增，带上限）。 */
-function reconnect_delay_ms(attempt: i32, cap_ms: i32): i32 {
+export function reconnect_delay_ms(attempt: i32, cap_ms: i32): i32 {
   unsafe { return sio_reconnect_delay_ms_c(attempt, cap_ms); }
   return 0; // unreachable — typeck workaround
 }
 
 /** connect v2 烟测（无 live server）。 */
-function connect_smoke(): i32 {
+export function connect_smoke(): i32 {
   unsafe { return sio_connect_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 初始化客户端状态。max_reconnect < 0 表示不限次数。 */
-function client_init(c: *SioClient, max_reconnect: i32): void {
+export function client_init(c: *SioClient, max_reconnect: i32): void {
   if (c == 0) { return; }
   c.sid_len = 0;
   c.transport = transport_polling();
@@ -394,7 +394,7 @@ function client_init(c: *SioClient, max_reconnect: i32): void {
 }
 
 /** polling 握手；成功返回 sid 长度并写 c.has_websocket。 */
-function connect_handshake(c: *SioClient, base_url: *u8, base_len: i32, sid_out: *u8, sid_cap: i32,
+export function connect_handshake(c: *SioClient, base_url: *u8, base_len: i32, sid_out: *u8, sid_cap: i32,
   timeout_ms: u32): i32 {
   let has_ws: i32 = 0;
   let sl: i32 = 0;
@@ -407,14 +407,14 @@ function connect_handshake(c: *SioClient, base_url: *u8, base_len: i32, sid_out:
 }
 
 /** 完成 polling→WebSocket Engine.IO 升级 probe（`2probe`/`3probe`/`5`）。 */
-function ws_finish_eio_upgrade(stream: SioWsStream, timeout_ms: u32): i32 {
+export function ws_finish_eio_upgrade(stream: SioWsStream, timeout_ms: u32): i32 {
   if (stream.fd < 0) { return -1; }
   unsafe { return sio_eio_ws_upgrade_c(stream.fd, stream.tls_ctx, timeout_ms); }
   return 0; // unreachable — typeck workaround
 }
 
 /** WebSocket 升级连接（须先 connect_handshake）；失败 fd=-1。 */
-function connect_ws(http_base: *u8, base_len: i32, sid: *u8, sid_len: i32, url_buf: *u8, url_cap: i32,
+export function connect_ws(http_base: *u8, base_len: i32, sid: *u8, sid_len: i32, url_buf: *u8, url_cap: i32,
   timeout_ms: u32): SioWsStream {
   let bad: SioWsStream = SioWsStream { fd: -1, tls_ctx: 0 };
   let fd: i32 = -1;
@@ -434,7 +434,7 @@ function connect_ws(http_base: *u8, base_len: i32, sid: *u8, sid_len: i32, url_b
 }
 
 /** 经 WebSocket 发送 Socket.IO CONNECT（`40`）。 */
-function send_connect_packet(stream: SioWsStream): i32 {
+export function send_connect_packet(stream: SioWsStream): i32 {
   let pkt: u8[8] = [];
   let n: i32 = encode_connect_packet(&pkt[0], 8);
   if (n <= 0) { return -1; }
@@ -444,7 +444,7 @@ function send_connect_packet(stream: SioWsStream): i32 {
 }
 
 /** 经 WebSocket 发送指定 namespace 的 CONNECT 包。 */
-function send_connect_ns_packet(stream: SioWsStream, ns: *u8, ns_len: i32): i32 {
+export function send_connect_ns_packet(stream: SioWsStream, ns: *u8, ns_len: i32): i32 {
   let pkt: u8[64] = [];
   let n: i32 = encode_connect_ns_packet(ns, ns_len, &pkt[0], 64);
   if (n <= 0) { return -1; }
@@ -454,7 +454,7 @@ function send_connect_ns_packet(stream: SioWsStream, ns: *u8, ns_len: i32): i32 
 }
 
 /** WebSocket 升级并按 namespace 发送 CONNECT（须先 polling 握手拿到 sid）。 */
-function connect_ws_ns(http_base: *u8, base_len: i32, sid: *u8, sid_len: i32, ns: *u8, ns_len: i32,
+export function connect_ws_ns(http_base: *u8, base_len: i32, sid: *u8, sid_len: i32, ns: *u8, ns_len: i32,
   url_buf: *u8, url_cap: i32, timeout_ms: u32): SioWsStream {
   let bad: SioWsStream = SioWsStream { fd: -1, tls_ctx: 0 };
   let stream: SioWsStream = bad;
@@ -475,7 +475,7 @@ function connect_ws_ns(http_base: *u8, base_len: i32, sid: *u8, sid_len: i32, ns
 }
 
 /** 读取 WebSocket TEXT 帧 payload（Engine.IO / Socket.IO 文本帧）。 */
-function ws_read_text(stream: SioWsStream, buf: *u8, cap: i32, timeout_ms: u32, out_len: *i32): i32 {
+export function ws_read_text(stream: SioWsStream, buf: *u8, cap: i32, timeout_ms: u32, out_len: *i32): i32 {
   let opcode: i32 = 0;
   if (buf == 0 || out_len == 0) { return -1; }
   if (stream.fd < 0) { return -1; }
@@ -484,7 +484,7 @@ function ws_read_text(stream: SioWsStream, buf: *u8, cap: i32, timeout_ms: u32, 
 }
 
 /** 关闭 WebSocket 会话（TLS + TCP）。 */
-function ws_close_stream(stream: SioWsStream): i32 {
+export function ws_close_stream(stream: SioWsStream): i32 {
   let zero: i64 = 0;
   if (stream.tls_ctx != zero) {
     unsafe { net_tls_close_c(stream.tls_ctx); }
@@ -498,7 +498,7 @@ function ws_close_stream(stream: SioWsStream): i32 {
  * WS + namespace CONNECT → emit EVENT → 读一帧并解析 reply event/data（npm WS live 用）。
  * 成功 0；reply_event/reply_data 为输出缓冲。
  */
-function client_ws_ns_event_roundtrip(http_base: *u8, base_len: i32, sid: *u8, sid_len: i32, ns: *u8, ns_len: i32,
+export function client_ws_ns_event_roundtrip(http_base: *u8, base_len: i32, sid: *u8, sid_len: i32, ns: *u8, ns_len: i32,
   event: *u8, event_len: i32, data: *u8, data_len: i32, url_buf: *u8, url_cap: i32, reply_event: *u8,
   reply_event_cap: i32, reply_data: *u8, reply_data_cap: i32, reply_data_len: *i32, timeout_ms: u32): i32 {
   let stream: SioWsStream = SioWsStream { fd: -1, tls_ctx: 0 };
@@ -541,7 +541,7 @@ function client_ws_ns_event_roundtrip(http_base: *u8, base_len: i32, sid: *u8, s
 }
 
 /** 构建无 sid 的 WebSocket EIO URL（transport=websocket）。 */
-function build_ws_eio_url_fresh(http_base: *u8, base_len: i32, out: *u8, out_cap: i32): i32 {
+export function build_ws_eio_url_fresh(http_base: *u8, base_len: i32, out: *u8, out_cap: i32): i32 {
   let ws: u8[128] = [];
   let wl: i32 = 0;
   let empty: u8[1] = [0];
@@ -552,7 +552,7 @@ function build_ws_eio_url_fresh(http_base: *u8, base_len: i32, out: *u8, out_cap
 }
 
 /** WebSocket 直连（无 polling sid）；读并丢弃 open 首帧后返回 stream。 */
-function connect_ws_fresh(http_base: *u8, base_len: i32, url_buf: *u8, url_cap: i32, timeout_ms: u32): SioWsStream {
+export function connect_ws_fresh(http_base: *u8, base_len: i32, url_buf: *u8, url_cap: i32, timeout_ms: u32): SioWsStream {
   let bad: SioWsStream = SioWsStream { fd: -1, tls_ctx: 0 };
   let fd: i32 = -1;
   let tls: i64 = 0;
@@ -579,7 +579,7 @@ function connect_ws_fresh(http_base: *u8, base_len: i32, url_buf: *u8, url_cap: 
 }
 
 /** WebSocket 直连 + namespace CONNECT（读并丢弃 CONNECT ACK）。 */
-function connect_ws_fresh_ns(http_base: *u8, base_len: i32, ns: *u8, ns_len: i32, url_buf: *u8, url_cap: i32,
+export function connect_ws_fresh_ns(http_base: *u8, base_len: i32, ns: *u8, ns_len: i32, url_buf: *u8, url_cap: i32,
   timeout_ms: u32): SioWsStream {
   let bad: SioWsStream = SioWsStream { fd: -1, tls_ctx: 0 };
   let stream: SioWsStream = bad;
@@ -599,7 +599,7 @@ function connect_ws_fresh_ns(http_base: *u8, base_len: i32, ns: *u8, ns_len: i32
 }
 
 /** WS 直连 + namespace CONNECT → emit → read（npm WS live）。 */
-function client_ws_fresh_ns_event_roundtrip(http_base: *u8, base_len: i32, ns: *u8, ns_len: i32, event: *u8,
+export function client_ws_fresh_ns_event_roundtrip(http_base: *u8, base_len: i32, ns: *u8, ns_len: i32, event: *u8,
   event_len: i32, data: *u8, data_len: i32, url_buf: *u8, url_cap: i32, reply_event: *u8, reply_event_cap: i32,
   reply_data: *u8, reply_data_cap: i32, reply_data_len: *i32, timeout_ms: u32): i32 {
   let stream: SioWsStream = SioWsStream { fd: -1, tls_ctx: 0 };
@@ -642,7 +642,7 @@ function client_ws_fresh_ns_event_roundtrip(http_base: *u8, base_len: i32, ns: *
 }
 
 /** WS 直连 + ns CONNECT → auth → mw_ping → read mw_pong（npm mw live）。 */
-function client_ws_fresh_ns_mw_roundtrip(http_base: *u8, base_len: i32, ns: *u8, ns_len: i32, auth_tok: *u8,
+export function client_ws_fresh_ns_mw_roundtrip(http_base: *u8, base_len: i32, ns: *u8, ns_len: i32, auth_tok: *u8,
   auth_tok_len: i32, ping_event: *u8, ping_event_len: i32, url_buf: *u8, url_cap: i32, reply_event: *u8,
   reply_event_cap: i32, reply_data: *u8, reply_data_cap: i32, reply_data_len: *i32, timeout_ms: u32): i32 {
   let stream: SioWsStream = SioWsStream { fd: -1, tls_ctx: 0 };
@@ -708,7 +708,7 @@ function client_ws_fresh_ns_mw_roundtrip(http_base: *u8, base_len: i32, ns: *u8,
  * 一站式 connect：polling 握手 + 优先 WebSocket（prefer_ws!=0 且 server 声明 upgrade）。
  * 成功返回 SioWsStream；仅 polling 或失败时 fd=-1（可继续 polling_post_packet）。
  */
-function connect(c: *SioClient, base_url: *u8, base_len: i32, sid_out: *u8, sid_cap: i32, url_buf: *u8, url_cap: i32,
+export function connect(c: *SioClient, base_url: *u8, base_len: i32, sid_out: *u8, sid_cap: i32, url_buf: *u8, url_cap: i32,
   timeout_ms: u32, prefer_ws: i32): SioWsStream {
   let bad: SioWsStream = SioWsStream { fd: -1, tls_ctx: 0 };
   let stream: SioWsStream = bad;
@@ -733,7 +733,7 @@ function connect(c: *SioClient, base_url: *u8, base_len: i32, sid_out: *u8, sid_
  * 一站式 connect + namespace CONNECT（prefer_ws!=0 且 server 声明 upgrade 时走 WS）。
  * ns 为空或 `/` 时等同 connect()。
  */
-function connect_ns(c: *SioClient, base_url: *u8, base_len: i32, sid_out: *u8, sid_cap: i32, ns: *u8, ns_len: i32,
+export function connect_ns(c: *SioClient, base_url: *u8, base_len: i32, sid_out: *u8, sid_cap: i32, ns: *u8, ns_len: i32,
   url_buf: *u8, url_cap: i32, timeout_ms: u32, prefer_ws: i32): SioWsStream {
   let bad: SioWsStream = SioWsStream { fd: -1, tls_ctx: 0 };
   let stream: SioWsStream = bad;
@@ -752,7 +752,7 @@ function connect_ns(c: *SioClient, base_url: *u8, base_len: i32, sid_out: *u8, s
 }
 
 /** 取下一次重连退避毫秒并递增 reconnect_attempt。 */
-function reconnect_delay(c: *SioClient, cap_ms: i32): i32 {
+export function reconnect_delay(c: *SioClient, cap_ms: i32): i32 {
   if (c == 0) { return -1; }
   let d: i32 = reconnect_delay_ms(c.reconnect_attempt, cap_ms);
   c.reconnect_attempt = c.reconnect_attempt + 1;
@@ -760,7 +760,7 @@ function reconnect_delay(c: *SioClient, cap_ms: i32): i32 {
 }
 
 /** 是否还可重连（max_reconnect < 0 为无限）。 */
-function can_reconnect(c: *SioClient): bool {
+export function can_reconnect(c: *SioClient): bool {
   if (c == 0) { return false; }
   if (c.max_reconnect < 0) { return true; }
   if (c.reconnect_attempt < c.max_reconnect) { return true; }
@@ -768,7 +768,7 @@ function can_reconnect(c: *SioClient): bool {
 }
 
 /** 连接成功后重置重连计数。 */
-function reconnect_reset(c: *SioClient): void {
+export function reconnect_reset(c: *SioClient): void {
   if (c == 0) { return; }
   c.reconnect_attempt = 0;
 }
@@ -777,7 +777,7 @@ function reconnect_reset(c: *SioClient): void {
  * 重连一步（须先 sleep reconnect_delay 返回值；耗尽 max_reconnect 时 fd=-1）。
  * 清空 sid_len 后再次 connect。
  */
-function reconnect_once(c: *SioClient, base_url: *u8, base_len: i32, sid_out: *u8, sid_cap: i32, url_buf: *u8,
+export function reconnect_once(c: *SioClient, base_url: *u8, base_len: i32, sid_out: *u8, sid_cap: i32, url_buf: *u8,
   url_cap: i32, timeout_ms: u32, prefer_ws: i32): SioWsStream {
   let bad: SioWsStream = SioWsStream { fd: -1, tls_ctx: 0 };
   if (c == 0) { return bad; }
@@ -787,7 +787,7 @@ function reconnect_once(c: *SioClient, base_url: *u8, base_len: i32, sid_out: *u
 }
 
 /** 经 WebSocket 发送 Socket.IO EVENT（Engine.IO message 帧）。 */
-function emit_event_ws(stream: SioWsStream, event: *u8, event_len: i32, data: *u8, data_len: i32): i32 {
+export function emit_event_ws(stream: SioWsStream, event: *u8, event_len: i32, data: *u8, data_len: i32): i32 {
   let frame: u8[256] = [];
   let n: i32 = 0;
   if (event == 0) { return -1; }
@@ -799,7 +799,7 @@ function emit_event_ws(stream: SioWsStream, event: *u8, event_len: i32, data: *u
 }
 
 /** 经 WebSocket 发送指定 namespace 的 EVENT（例 `/chat` → `42/chat,[...]`）。 */
-function emit_event_ws_ns(stream: SioWsStream, ns: *u8, ns_len: i32, event: *u8, event_len: i32, data: *u8,
+export function emit_event_ws_ns(stream: SioWsStream, ns: *u8, ns_len: i32, event: *u8, event_len: i32, data: *u8,
   data_len: i32): i32 {
   let frame: u8[256] = [];
   let n: i32 = 0;
@@ -812,7 +812,7 @@ function emit_event_ws_ns(stream: SioWsStream, ns: *u8, ns_len: i32, event: *u8,
 }
 
 /** 经 WebSocket 发送带 packet id 的 EVENT（ack_id<0 时等同 emit_event_ws）。 */
-function emit_event_ack_ws(stream: SioWsStream, ack_id: i32, event: *u8, event_len: i32, data: *u8,
+export function emit_event_ack_ws(stream: SioWsStream, ack_id: i32, event: *u8, event_len: i32, data: *u8,
   data_len: i32): i32 {
   let frame: u8[256] = [];
   let n: i32 = 0;
@@ -825,7 +825,7 @@ function emit_event_ack_ws(stream: SioWsStream, ack_id: i32, event: *u8, event_l
 }
 
 /** 经 WebSocket 发送 ACK 包（type=3 + id + JSON 数组）。 */
-function emit_ack_ws(stream: SioWsStream, ack_id: i32, data: *u8, data_len: i32): i32 {
+export function emit_ack_ws(stream: SioWsStream, ack_id: i32, data: *u8, data_len: i32): i32 {
   let frame: u8[256] = [];
   let n: i32 = 0;
   if (stream.fd < 0) { return -1; }
@@ -836,61 +836,61 @@ function emit_ack_ws(stream: SioWsStream, ack_id: i32, data: *u8, data_len: i32)
 }
 
 /** Node socket.io-client v4 金样烟测（无 live Node）。 */
-function node_golden_smoke(): i32 {
+export function node_golden_smoke(): i32 {
   unsafe { return sio_node_interop_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 构建 Engine.IO open 包（服务端；0 + JSON）。 */
-function server_build_open_packet(sid: *u8, sid_len: i32, out: *u8, out_cap: i32): i32 {
+export function server_build_open_packet(sid: *u8, sid_len: i32, out: *u8, out_cap: i32): i32 {
   if (sid == 0 || out == 0) { return -1; }
   unsafe { return sio_server_build_open_packet_c(sid, sid_len, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 构建 polling 握手 HTTP 200 响应（body 为 open 包）。 */
-function server_build_http_open_response(sid: *u8, sid_len: i32, out: *u8, out_cap: i32): i32 {
+export function server_build_http_open_response(sid: *u8, sid_len: i32, out: *u8, out_cap: i32): i32 {
   if (sid == 0 || out == 0) { return -1; }
   unsafe { return sio_server_build_http_open_response_c(sid, sid_len, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 检测 path/query 是否为 polling 初始握手（无 sid）。 */
-function server_is_polling_handshake(path: *u8, len: i32): i32 {
+export function server_is_polling_handshake(path: *u8, len: i32): i32 {
   if (path == 0) { return -1; }
   unsafe { return sio_server_is_polling_handshake_c(path, len); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 检测客户端 CONNECT 包（`40` 或 namespace）。 */
-function server_is_connect_packet(pkt: *u8, len: i32): i32 {
+export function server_is_connect_packet(pkt: *u8, len: i32): i32 {
   if (pkt == 0) { return -1; }
   unsafe { return sio_server_is_connect_packet_c(pkt, len); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 检测 CONNECT 是否匹配指定 namespace。 */
-function server_is_connect_ns_packet(pkt: *u8, len: i32, ns: *u8, ns_len: i32): i32 {
+export function server_is_connect_ns_packet(pkt: *u8, len: i32, ns: *u8, ns_len: i32): i32 {
   if (pkt == 0) { return -1; }
   unsafe { return sio_server_is_connect_ns_packet_c(pkt, len, ns, ns_len); }
   return 0; // unreachable — typeck workaround
 }
 
 /** server v2 烟测。 */
-function server_smoke(): i32 {
+export function server_smoke(): i32 {
   unsafe { return sio_server_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 服务端推送 Socket.IO EVENT（`42["event","data"]`）。 */
-function server_emit_event(event: *u8, event_len: i32, data: *u8, data_len: i32, out: *u8, out_cap: i32): i32 {
+export function server_emit_event(event: *u8, event_len: i32, data: *u8, data_len: i32, out: *u8, out_cap: i32): i32 {
   if (event == 0 || out == 0) { return -1; }
   unsafe { return sio_server_emit_event_c(event, event_len, data, data_len, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 构建 polling 推送 EVENT 的 HTTP 200 响应。 */
-function server_build_http_event_response(event: *u8, event_len: i32, data: *u8, data_len: i32, out: *u8,
+export function server_build_http_event_response(event: *u8, event_len: i32, data: *u8, data_len: i32, out: *u8,
   out_cap: i32): i32 {
   if (event == 0 || out == 0) { return -1; }
   unsafe { return sio_server_build_http_event_response_c(event, event_len, data, data_len, out, out_cap); }
@@ -898,13 +898,13 @@ function server_build_http_event_response(event: *u8, event_len: i32, data: *u8,
 }
 
 /** server emit 烟测。 */
-function server_emit_smoke(): i32 {
+export function server_emit_smoke(): i32 {
   unsafe { return sio_server_emit_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 经已握手的 WebSocket 服务端连接推送 EVENT（`42[...]`）。 */
-function server_emit_event_ws(fd: i32, tls_ctx: i64, event: *u8, event_len: i32, data: *u8, data_len: i32): i32 {
+export function server_emit_event_ws(fd: i32, tls_ctx: i64, event: *u8, event_len: i32, data: *u8, data_len: i32): i32 {
   let frame: u8[256] = [];
   let n: i32 = 0;
   if (event == 0) { return -1; }
@@ -916,7 +916,7 @@ function server_emit_event_ws(fd: i32, tls_ctx: i64, event: *u8, event_len: i32,
 }
 
 /** 经 WebSocket 服务端连接推送 namespace EVENT（`42/ns,[...]`）。 */
-function server_emit_event_ws_ns(fd: i32, tls_ctx: i64, ns: *u8, ns_len: i32, event: *u8, event_len: i32,
+export function server_emit_event_ws_ns(fd: i32, tls_ctx: i64, ns: *u8, ns_len: i32, event: *u8, event_len: i32,
   data: *u8, data_len: i32): i32 {
   let frame: u8[256] = [];
   let n: i32 = 0;
@@ -929,14 +929,14 @@ function server_emit_event_ws_ns(fd: i32, tls_ctx: i64, ns: *u8, ns_len: i32, ev
 }
 
 /** 构建 namespace CONNECT ACK（`40/chat,{"sid":"..."}`）。 */
-function server_build_connect_ns_ack(ns: *u8, ns_len: i32, sid: *u8, sid_len: i32, out: *u8, out_cap: i32): i32 {
+export function server_build_connect_ns_ack(ns: *u8, ns_len: i32, sid: *u8, sid_len: i32, out: *u8, out_cap: i32): i32 {
   if (sid == 0 || out == 0) { return -1; }
   unsafe { return sio_server_build_connect_ns_ack_c(ns, ns_len, sid, sid_len, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 编码带 packet id 的 EVENT 并封装为 EIO message 帧。 */
-function encode_event_ack_packet(ack_id: i32, event: *u8, event_len: i32, data: *u8, data_len: i32, out: *u8,
+export function encode_event_ack_packet(ack_id: i32, event: *u8, event_len: i32, data: *u8, data_len: i32, out: *u8,
   out_cap: i32): i32 {
   if (event == 0 || out == 0) { return -1; }
   unsafe { return sio_encode_event_ack_packet_c(ack_id, event, event_len, data, data_len, out, out_cap); }
@@ -944,159 +944,159 @@ function encode_event_ack_packet(ack_id: i32, event: *u8, event_len: i32, data: 
 }
 
 /** 编码 ACK 包（453["data"] 形式）。 */
-function encode_ack_packet(ack_id: i32, data: *u8, data_len: i32, out: *u8, out_cap: i32): i32 {
+export function encode_ack_packet(ack_id: i32, data: *u8, data_len: i32, out: *u8, out_cap: i32): i32 {
   if (out == 0) { return -1; }
   unsafe { return sio_encode_ack_packet_c(ack_id, data, data_len, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 解析 Socket.IO 包 type / 可选 id / payload 起始偏移（相对 SIO payload）。 */
-function parse_sio_packet_head(pkt: *u8, len: i32, out_type: *i32, out_id: *i32, out_payload_off: *i32): i32 {
+export function parse_sio_packet_head(pkt: *u8, len: i32, out_type: *i32, out_id: *i32, out_payload_off: *i32): i32 {
   if (pkt == 0 || out_type == 0 || out_payload_off == 0) { return -1; }
   unsafe { return sio_parse_sio_packet_head_c(pkt, len, out_type, out_id, out_payload_off); }
   return 0; // unreachable — typeck workaround
 }
 
 /** namespace / ACK / 带 id EVENT 烟测。 */
-function ns_ack_smoke(): i32 {
+export function ns_ack_smoke(): i32 {
   unsafe { return sio_ns_ack_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 从 CONNECT EIO 帧解析 namespace；成功返回路径字节数。 */
-function parse_connect_ns(pkt: *u8, len: i32, out_ns: *u8, out_cap: i32): i32 {
+export function parse_connect_ns(pkt: *u8, len: i32, out_ns: *u8, out_cap: i32): i32 {
   if (pkt == 0 || out_ns == 0) { return -1; }
   unsafe { return sio_parse_connect_ns_packet_c(pkt, len, out_ns, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 路由表 storage 字节数（与 SioNsRouter 一致）。 */
-function ns_router_bytes(): i32 {
+export function ns_router_bytes(): i32 {
   unsafe { return sio_ns_router_bytes_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 初始化多 namespace 路由表。 */
-function ns_router_init(r: *SioNsRouter): void {
+export function ns_router_init(r: *SioNsRouter): void {
   if (r == 0) { return; }
   unsafe { sio_ns_router_init_c(r); }
 }
 
 /** 注册 namespace → slot_id。 */
-function ns_router_register(r: *SioNsRouter, ns: *u8, ns_len: i32, slot_id: i32): i32 {
+export function ns_router_register(r: *SioNsRouter, ns: *u8, ns_len: i32, slot_id: i32): i32 {
   if (r == 0) { return -1; }
   unsafe { return sio_ns_router_register_c(r, ns, ns_len, slot_id); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 按 namespace 查 slot_id。 */
-function ns_router_lookup(r: *SioNsRouter, ns: *u8, ns_len: i32): i32 {
+export function ns_router_lookup(r: *SioNsRouter, ns: *u8, ns_len: i32): i32 {
   if (r == 0) { return -1; }
   unsafe { return sio_ns_router_lookup_c(r, ns, ns_len); }
   return 0; // unreachable — typeck workaround
 }
 
 /** CONNECT 包解析 namespace 并查路由 slot。 */
-function ns_router_route_connect(r: *SioNsRouter, pkt: *u8, len: i32): i32 {
+export function ns_router_route_connect(r: *SioNsRouter, pkt: *u8, len: i32): i32 {
   if (r == 0) { return -1; }
   unsafe { return sio_ns_router_route_connect_c(r, pkt, len); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 多 namespace 路由烟测。 */
-function ns_router_smoke(): i32 {
+export function ns_router_smoke(): i32 {
   unsafe { return sio_ns_router_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 并发会话表 storage 字节数（与 SioNsSessions 一致）。 */
-function ns_sessions_bytes(): i32 {
+export function ns_sessions_bytes(): i32 {
   unsafe { return sio_ns_sessions_bytes_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 初始化并发会话表。 */
-function ns_sessions_init(s: *SioNsSessions): void {
+export function ns_sessions_init(s: *SioNsSessions): void {
   if (s == 0) { return; }
   unsafe { sio_ns_sessions_init_c(s); }
 }
 
 /** 从路由表同步 slot 列表。 */
-function ns_sessions_sync_router(s: *SioNsSessions, r: *SioNsRouter): i32 {
+export function ns_sessions_sync_router(s: *SioNsSessions, r: *SioNsRouter): i32 {
   if (s == 0 || r == 0) { return -1; }
   unsafe { return sio_ns_sessions_sync_router_c(s, r); }
   return 0; // unreachable — typeck workaround
 }
 
 /** CONNECT 包路由并递增 active。 */
-function ns_sessions_connect(s: *SioNsSessions, r: *SioNsRouter, pkt: *u8, len: i32): i32 {
+export function ns_sessions_connect(s: *SioNsSessions, r: *SioNsRouter, pkt: *u8, len: i32): i32 {
   if (s == 0 || r == 0) { return -1; }
   unsafe { return sio_ns_sessions_connect_c(s, r, pkt, len); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 递减 slot active 计数。 */
-function ns_sessions_disconnect(s: *SioNsSessions, slot_id: i32): i32 {
+export function ns_sessions_disconnect(s: *SioNsSessions, slot_id: i32): i32 {
   if (s == 0) { return -1; }
   unsafe { return sio_ns_sessions_disconnect_c(s, slot_id); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 查询 slot active 数。 */
-function ns_sessions_active(s: *SioNsSessions, slot_id: i32): i32 {
+export function ns_sessions_active(s: *SioNsSessions, slot_id: i32): i32 {
   if (s == 0) { return -1; }
   unsafe { return sio_ns_sessions_active_c(s, slot_id); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 全部 namespace active 总数。 */
-function ns_sessions_total(s: *SioNsSessions): i32 {
+export function ns_sessions_total(s: *SioNsSessions): i32 {
   if (s == 0) { return -1; }
   unsafe { return sio_ns_sessions_total_c(s); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 多 namespace 并发会话烟测。 */
-function ns_sessions_smoke(): i32 {
+export function ns_sessions_smoke(): i32 {
   unsafe { return sio_ns_sessions_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** WS hub storage 字节数（与 C sio_ws_hub_t 一致）。 */
-function ws_hub_bytes(): i32 {
+export function ws_hub_bytes(): i32 {
   unsafe { return sio_ws_hub_bytes_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 初始化 WS hub。 */
-function ws_hub_init(h: *SioWsHub): void {
+export function ws_hub_init(h: *SioWsHub): void {
   if (h == 0) { return; }
   unsafe { sio_ws_hub_init_c(h); }
 }
 
 /** 注册 WS 连接并持久化 sid；返回槽位下标。 */
-function ws_hub_register(h: *SioWsHub, fd: i32, tls_ctx: i64, sid: *u8, sid_len: i32): i32 {
+export function ws_hub_register(h: *SioWsHub, fd: i32, tls_ctx: i64, sid: *u8, sid_len: i32): i32 {
   if (h == 0 || sid == 0) { return -1; }
   unsafe { return sio_ws_hub_register_c(h, fd, tls_ctx, sid, sid_len); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 注销 hub 槽位。 */
-function ws_hub_unregister(h: *SioWsHub, conn_idx: i32): i32 {
+export function ws_hub_unregister(h: *SioWsHub, conn_idx: i32): i32 {
   if (h == 0) { return -1; }
   unsafe { return sio_ws_hub_unregister_c(h, conn_idx); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 按 sid 查 hub 槽位。 */
-function ws_hub_find_by_sid(h: *SioWsHub, sid: *u8, sid_len: i32): i32 {
+export function ws_hub_find_by_sid(h: *SioWsHub, sid: *u8, sid_len: i32): i32 {
   if (h == 0 || sid == 0) { return -1; }
   unsafe { return sio_ws_hub_find_by_sid_c(h, sid, sid_len); }
   return 0; // unreachable — typeck workaround
 }
 
 /** CONNECT 路由 + sessions 计数 + 绑定 hub.slot_id。 */
-function ws_hub_handle_connect(h: *SioWsHub, conn_idx: i32, r: *SioNsRouter, s: *SioNsSessions, pkt: *u8,
+export function ws_hub_handle_connect(h: *SioWsHub, conn_idx: i32, r: *SioNsRouter, s: *SioNsSessions, pkt: *u8,
   len: i32): i32 {
   if (h == 0 || r == 0 || s == 0) { return -1; }
   unsafe { return sio_ws_hub_handle_connect_c(h, conn_idx, r, s, pkt, len); }
@@ -1104,7 +1104,7 @@ function ws_hub_handle_connect(h: *SioWsHub, conn_idx: i32, r: *SioNsRouter, s: 
 }
 
 /** 向 hub 内匹配 slot 的全部连接推送 namespace EVENT；返回成功写入数。 */
-function ws_hub_emit_to_slot(h: *SioWsHub, slot_id: i32, ns: *u8, ns_len: i32, event: *u8, event_len: i32,
+export function ws_hub_emit_to_slot(h: *SioWsHub, slot_id: i32, ns: *u8, ns_len: i32, event: *u8, event_len: i32,
   data: *u8, data_len: i32): i32 {
   if (h == 0 || event == 0) { return -1; }
   unsafe { return sio_ws_hub_emit_event_ns_c(h, slot_id, ns, ns_len, event, event_len, data, data_len); }
@@ -1112,80 +1112,80 @@ function ws_hub_emit_to_slot(h: *SioWsHub, slot_id: i32, ns: *u8, ns_len: i32, e
 }
 
 /** WS hub + CONNECT ACK 烟测。 */
-function ws_hub_smoke(): i32 {
+export function ws_hub_smoke(): i32 {
   unsafe { return sio_ws_hub_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** hub 快照字节数（二进制 SIOH 格式）。 */
-function ws_hub_snapshot_bytes(): i32 {
+export function ws_hub_snapshot_bytes(): i32 {
   unsafe { return sio_ws_hub_snapshot_bytes_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 导出 hub 会话快照（sid/slot_id；调用方可写 std.fs 持久化）。 */
-function ws_hub_export(h: *SioWsHub, out: *u8, out_cap: i32): i32 {
+export function ws_hub_export(h: *SioWsHub, out: *u8, out_cap: i32): i32 {
   if (h == 0 || out == 0) { return -1; }
   unsafe { return sio_ws_hub_export_c(h, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 从快照恢复 hub 元数据（fd=-1，须 re-register 绑定 fd）。 */
-function ws_hub_import(h: *SioWsHub, buf: *u8, len: i32): i32 {
+export function ws_hub_import(h: *SioWsHub, buf: *u8, len: i32): i32 {
   if (h == 0 || buf == 0) { return -1; }
   unsafe { return sio_ws_hub_import_c(h, buf, len); }
   return 0; // unreachable — typeck workaround
 }
 
 /** room 注册表字节数。 */
-function room_registry_bytes(): i32 {
+export function room_registry_bytes(): i32 {
   unsafe { return sio_room_registry_bytes_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 初始化 room 注册表。 */
-function room_registry_init(reg: *SioRoomRegistry): void {
+export function room_registry_init(reg: *SioRoomRegistry): void {
   if (reg == 0) { return; }
   unsafe { sio_room_registry_init_c(reg); }
 }
 
 /** 注册 room 名称与 id。 */
-function room_register(reg: *SioRoomRegistry, name: *u8, name_len: i32, room_id: i32): i32 {
+export function room_register(reg: *SioRoomRegistry, name: *u8, name_len: i32, room_id: i32): i32 {
   if (reg == 0 || name == 0) { return -1; }
   unsafe { return sio_room_register_c(reg, name, name_len, room_id); }
   return 0; // unreachable — typeck workaround
 }
 
 /** hub 连接加入 room。 */
-function room_join(reg: *SioRoomRegistry, room_id: i32, conn_idx: i32): i32 {
+export function room_join(reg: *SioRoomRegistry, room_id: i32, conn_idx: i32): i32 {
   if (reg == 0) { return -1; }
   unsafe { return sio_room_join_c(reg, room_id, conn_idx); }
   return 0; // unreachable — typeck workaround
 }
 
 /** hub 连接离开 room。 */
-function room_leave(reg: *SioRoomRegistry, room_id: i32, conn_idx: i32): i32 {
+export function room_leave(reg: *SioRoomRegistry, room_id: i32, conn_idx: i32): i32 {
   if (reg == 0) { return -1; }
   unsafe { return sio_room_leave_c(reg, room_id, conn_idx); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 从全部 room 移除 hub 连接（unregister 前）。 */
-function room_leave_all(reg: *SioRoomRegistry, conn_idx: i32): i32 {
+export function room_leave_all(reg: *SioRoomRegistry, conn_idx: i32): i32 {
   if (reg == 0) { return -1; }
   unsafe { return sio_room_leave_all_c(reg, conn_idx); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 查询 room 成员数。 */
-function room_member_count(reg: *SioRoomRegistry, room_id: i32): i32 {
+export function room_member_count(reg: *SioRoomRegistry, room_id: i32): i32 {
   if (reg == 0) { return -1; }
   unsafe { return sio_room_member_count_c(reg, room_id); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 向 room 内全部成员广播 namespace EVENT。 */
-function room_broadcast_ns(reg: *SioRoomRegistry, h: *SioWsHub, room_id: i32, ns: *u8, ns_len: i32, event: *u8,
+export function room_broadcast_ns(reg: *SioRoomRegistry, h: *SioWsHub, room_id: i32, ns: *u8, ns_len: i32, event: *u8,
   event_len: i32, data: *u8, data_len: i32): i32 {
   if (reg == 0 || h == 0 || event == 0) { return -1; }
   unsafe { return sio_room_broadcast_ns_c(reg, h, room_id, ns, ns_len, event, event_len, data, data_len); }
@@ -1193,118 +1193,118 @@ function room_broadcast_ns(reg: *SioRoomRegistry, h: *SioWsHub, room_id: i32, ns
 }
 
 /** room + hub 快照烟测。 */
-function room_smoke(): i32 {
+export function room_smoke(): i32 {
   unsafe { return sio_room_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** import 后重绑 hub 槽位 fd/tls（跨进程恢复 WS）。 */
-function ws_hub_rebind(h: *SioWsHub, conn_idx: i32, fd: i32, tls_ctx: i64): i32 {
+export function ws_hub_rebind(h: *SioWsHub, conn_idx: i32, fd: i32, tls_ctx: i64): i32 {
   if (h == 0 || fd < 0) { return -1; }
   unsafe { return sio_ws_hub_rebind_c(h, conn_idx, fd, tls_ctx); }
   return 0; // unreachable — typeck workaround
 }
 
 /** room 快照字节数（二进制 SIOR 格式）。 */
-function room_registry_snapshot_bytes(): i32 {
+export function room_registry_snapshot_bytes(): i32 {
   unsafe { return sio_room_registry_snapshot_bytes_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 导出 room 注册表快照（可与 hub 快照一并写 std.fs）。 */
-function room_registry_export(reg: *SioRoomRegistry, out: *u8, out_cap: i32): i32 {
+export function room_registry_export(reg: *SioRoomRegistry, out: *u8, out_cap: i32): i32 {
   if (reg == 0 || out == 0) { return -1; }
   unsafe { return sio_room_registry_export_c(reg, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 从快照恢复 room 注册表。 */
-function room_registry_import(reg: *SioRoomRegistry, buf: *u8, len: i32): i32 {
+export function room_registry_import(reg: *SioRoomRegistry, buf: *u8, len: i32): i32 {
   if (reg == 0 || buf == 0) { return -1; }
   unsafe { return sio_room_registry_import_c(reg, buf, len); }
   return 0; // unreachable — typeck workaround
 }
 
 /** hub + room 跨进程同步烟测。 */
-function hub_sync_smoke(): i32 {
+export function hub_sync_smoke(): i32 {
   unsafe { return sio_hub_sync_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 注册或按 sid 重绑（import 后重连保持 room 成员 slot）。 */
-function ws_hub_register_or_rebind(h: *SioWsHub, fd: i32, tls_ctx: i64, sid: *u8, sid_len: i32): i32 {
+export function ws_hub_register_or_rebind(h: *SioWsHub, fd: i32, tls_ctx: i64, sid: *u8, sid_len: i32): i32 {
   if (h == 0 || sid == 0 || fd < 0) { return -1; }
   unsafe { return sio_ws_hub_register_or_rebind_c(h, fd, tls_ctx, sid, sid_len); }
   return 0; // unreachable — typeck workaround
 }
 
 /** session 一体快照字节数（SIOS：hub + room）。 */
-function session_bundle_bytes(): i32 {
+export function session_bundle_bytes(): i32 {
   unsafe { return sio_session_bundle_bytes_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 导出 hub + room 一体快照。 */
-function session_bundle_export(h: *SioWsHub, reg: *SioRoomRegistry, out: *u8, out_cap: i32): i32 {
+export function session_bundle_export(h: *SioWsHub, reg: *SioRoomRegistry, out: *u8, out_cap: i32): i32 {
   if (h == 0 || reg == 0 || out == 0) { return -1; }
   unsafe { return sio_session_bundle_export_c(h, reg, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 从一体快照恢复 hub + room。 */
-function session_bundle_import(h: *SioWsHub, reg: *SioRoomRegistry, buf: *u8, len: i32): i32 {
+export function session_bundle_import(h: *SioWsHub, reg: *SioRoomRegistry, buf: *u8, len: i32): i32 {
   if (h == 0 || reg == 0 || buf == 0) { return -1; }
   unsafe { return sio_session_bundle_import_c(h, reg, buf, len); }
   return 0; // unreachable — typeck workaround
 }
 
 /** session 一体快照 + register_or_rebind 烟测。 */
-function session_sync_smoke(): i32 {
+export function session_sync_smoke(): i32 {
   unsafe { return sio_session_sync_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 将 src hub 槽追加到 dst（集群节点合并）。 */
-function ws_hub_append_from(dst: *SioWsHub, src: *SioWsHub): i32 {
+export function ws_hub_append_from(dst: *SioWsHub, src: *SioWsHub): i32 {
   if (dst == 0 || src == 0) { return -1; }
   unsafe { return sio_ws_hub_append_from_c(dst, src); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 合并 src room 表到 dst（conn_idx 加 offset）。 */
-function room_registry_merge_offset(dst: *SioRoomRegistry, src: *SioRoomRegistry, conn_offset: i32): i32 {
+export function room_registry_merge_offset(dst: *SioRoomRegistry, src: *SioRoomRegistry, conn_offset: i32): i32 {
   if (dst == 0 || src == 0 || conn_offset < 0) { return -1; }
   unsafe { return sio_room_registry_merge_offset_c(dst, src, conn_offset); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 集群合并两节点 session bundle。 */
-function cluster_sync(h: *SioWsHub, reg: *SioRoomRegistry, bundle_a: *u8, len_a: i32, bundle_b: *u8, len_b: i32): i32 {
+export function cluster_sync(h: *SioWsHub, reg: *SioRoomRegistry, bundle_a: *u8, len_a: i32, bundle_b: *u8, len_b: i32): i32 {
   if (h == 0 || reg == 0 || bundle_a == 0 || bundle_b == 0) { return -1; }
   unsafe { return sio_cluster_sync_c(h, reg, bundle_a, len_a, bundle_b, len_b); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 集群 session 合并烟测。 */
-function cluster_sync_smoke(): i32 {
+export function cluster_sync_smoke(): i32 {
   unsafe { return sio_cluster_sync_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** cluster adapter 字节数。 */
-function cluster_adapter_bytes(): i32 {
+export function cluster_adapter_bytes(): i32 {
   unsafe { return sio_cluster_adapter_bytes_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 初始化内存 cluster adapter（node_id 标识本节点）。 */
-function cluster_adapter_init(a: *SioClusterAdapter, node_id: i32): void {
+export function cluster_adapter_init(a: *SioClusterAdapter, node_id: i32): void {
   if (a == 0) { return; }
   unsafe { sio_cluster_adapter_init_c(a, node_id); }
 }
 
 /** 发布跨节点 room EVENT（对标 Redis adapter publish）。 */
-function cluster_adapter_publish_ns(a: *SioClusterAdapter, src_node_id: i32, room_id: i32, ns: *u8, ns_len: i32,
+export function cluster_adapter_publish_ns(a: *SioClusterAdapter, src_node_id: i32, room_id: i32, ns: *u8, ns_len: i32,
   event: *u8, event_len: i32, data: *u8, data_len: i32): i32 {
   if (a == 0 || event == 0) { return -1; }
   unsafe { return sio_cluster_adapter_publish_ns_c(a, src_node_id, room_id, ns, ns_len, event, event_len, data, data_len); }
@@ -1312,7 +1312,7 @@ function cluster_adapter_publish_ns(a: *SioClusterAdapter, src_node_id: i32, roo
 }
 
 /** 消费 adapter 队列并本地 room 广播。 */
-function cluster_adapter_drain_apply(a: *SioClusterAdapter, h: *SioWsHub, reg: *SioRoomRegistry,
+export function cluster_adapter_drain_apply(a: *SioClusterAdapter, h: *SioWsHub, reg: *SioRoomRegistry,
   local_node_id: i32): i32 {
   if (a == 0 || h == 0 || reg == 0) { return -1; }
   unsafe { return sio_cluster_adapter_drain_apply_c(a, h, reg, local_node_id); }
@@ -1320,51 +1320,51 @@ function cluster_adapter_drain_apply(a: *SioClusterAdapter, h: *SioWsHub, reg: *
 }
 
 /** cluster adapter 烟测。 */
-function cluster_adapter_smoke(): i32 {
+export function cluster_adapter_smoke(): i32 {
   unsafe { return sio_cluster_adapter_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** adapter 快照字节数（SIOA 格式）。 */
-function cluster_adapter_snapshot_bytes(): i32 {
+export function cluster_adapter_snapshot_bytes(): i32 {
   unsafe { return sio_cluster_adapter_snapshot_bytes_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 导出 adapter 快照（跨节点 ring 同步；可写 std.fs）。 */
-function cluster_adapter_export(a: *SioClusterAdapter, out: *u8, out_cap: i32): i32 {
+export function cluster_adapter_export(a: *SioClusterAdapter, out: *u8, out_cap: i32): i32 {
   if (a == 0 || out == 0) { return -1; }
   unsafe { return sio_cluster_adapter_export_c(a, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 从快照合并消息到 adapter。 */
-function cluster_adapter_import_merge(a: *SioClusterAdapter, buf: *u8, len: i32): i32 {
+export function cluster_adapter_import_merge(a: *SioClusterAdapter, buf: *u8, len: i32): i32 {
   if (a == 0 || buf == 0) { return -1; }
   unsafe { return sio_cluster_adapter_import_merge_c(a, buf, len); }
   return 0; // unreachable — typeck workaround
 }
 
 /** cluster ring 烟测（export → import_merge → drain）。 */
-function cluster_ring_sync_smoke(): i32 {
+export function cluster_ring_sync_smoke(): i32 {
   unsafe { return sio_cluster_ring_sync_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** P3 收口烟测（v9–v15 server/hub/room/cluster 金样串联）。 */
-function p3_complete_smoke(): i32 {
+export function p3_complete_smoke(): i32 {
   unsafe { return sio_p3_complete_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 编码 Engine.IO 包（type 字符 + payload）；返回写入字节数。 */
-function eio_encode_packet(type: i32, payload: *u8, payload_len: i32, out: *u8, out_cap: i32): i32 {
+export function eio_encode_packet(type: i32, payload: *u8, payload_len: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return sio_eio_encode_packet_c(type, payload, payload_len, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 解码 Engine.IO 包；成功 0。 */
-function eio_decode_packet(buf: *u8, len: i32, out_type: *i32, out_payload: *u8, out_cap: i32,
+export function eio_decode_packet(buf: *u8, len: i32, out_type: *i32, out_payload: *u8, out_cap: i32,
   out_payload_len: *i32): i32 {
   if (buf == 0 || out_type == 0 || out_payload_len == 0) { return -1; }
   unsafe { return sio_eio_decode_packet_c(buf, len, out_type, out_payload, out_cap, out_payload_len); }
@@ -1375,14 +1375,14 @@ function eio_decode_packet(buf: *u8, len: i32, out_type: *i32, out_payload: *u8,
  * 编码 Socket.IO EVENT 并封装为 EIO message 包（42["event","data"]）。
  * 返回完整 EIO 帧字节数。
  */
-function sio_encode_event(event: *u8, event_len: i32, data: *u8, data_len: i32, out: *u8, out_cap: i32): i32 {
+export function sio_encode_event(event: *u8, event_len: i32, data: *u8, data_len: i32, out: *u8, out_cap: i32): i32 {
   if (event == 0) { return -1; }
   unsafe { return sio_encode_event_packet_c(event, event_len, data, data_len, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 编码指定 namespace 的 EVENT EIO 包（例 `42/chat,["ping","x"]`）。 */
-function sio_encode_event_ns(ns: *u8, ns_len: i32, event: *u8, event_len: i32, data: *u8, data_len: i32,
+export function sio_encode_event_ns(ns: *u8, ns_len: i32, event: *u8, event_len: i32, data: *u8, data_len: i32,
   out: *u8, out_cap: i32): i32 {
   if (event == 0) { return -1; }
   unsafe { return sio_encode_event_ns_packet_c(ns, ns_len, event, event_len, data, data_len, out, out_cap); }
@@ -1390,7 +1390,7 @@ function sio_encode_event_ns(ns: *u8, ns_len: i32, event: *u8, event_len: i32, d
 }
 
 /** 从 Socket.IO EVENT 包（EIO payload，不含 leading '4'）解析 event 与 data。 */
-function sio_decode_event(sio_pkt: *u8, len: i32, out_event: *u8, out_event_cap: i32, out_data: *u8,
+export function sio_decode_event(sio_pkt: *u8, len: i32, out_event: *u8, out_event_cap: i32, out_data: *u8,
   out_data_cap: i32, out_data_len: *i32): i32 {
   if (sio_pkt == 0 || out_event == 0 || out_data == 0 || out_data_len == 0) { return -1; }
   unsafe { return sio_decode_event_packet_c(sio_pkt, len, out_event, out_event_cap, out_data, out_data_cap, out_data_len); }
@@ -1398,17 +1398,17 @@ function sio_decode_event(sio_pkt: *u8, len: i32, out_event: *u8, out_event_cap:
 }
 
 /** 从 open 包 JSON 提取 sid；成功返回 sid 长度。 */
-function eio_extract_sid(open_payload: *u8, len: i32, out_sid: *u8, out_cap: i32): i32 {
+export function eio_extract_sid(open_payload: *u8, len: i32, out_sid: *u8, out_cap: i32): i32 {
   if (open_payload == 0 || out_sid == 0) { return -1; }
   unsafe { return sio_eio_extract_sid_c(open_payload, len, out_sid, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
 /** C 层编解码烟测；0 通过。 */
-function socketio_packet_smoke(): i32 {
+export function socketio_packet_smoke(): i32 {
   unsafe { return sio_packet_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
 /** 模块 C 已链入时为 1。 */
-function socketio_is_implemented(): i32 { return 1; }
+export function socketio_is_implemented(): i32 { return 1; }

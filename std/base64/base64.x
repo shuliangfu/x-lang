@@ -25,13 +25,13 @@
 const types = import("core.types");
 
 /** 流状态魔数 'B4ST'。 */
-const SHU_B64_STREAM_MAGIC: u32 = 0x42345354;
+export const SHU_B64_STREAM_MAGIC: u32 = 0x42345354;
 
-extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
-extern "C" function memset(s: *u8, c: i32, n: usize): *u8;
+export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+export extern "C" function memset(s: *u8, c: i32, n: usize): *u8;
 
 /** 标准 Base64 编码字符（0..63）；seed asm 不支持全局 const u8[] 下标。 */
-function b64_std_enc_char(idx: i32): u8 {
+export function b64_std_enc_char(idx: i32): u8 {
   let r: u8 = 0 as u8;
   if (idx >= 0 && idx < 26) { r = (65 + idx) as u8; }
   else if (idx >= 26 && idx < 52) { r = (97 + idx - 26) as u8; }
@@ -42,7 +42,7 @@ function b64_std_enc_char(idx: i32): u8 {
 }
 
 /** URL 安全 Base64 编码字符（0..63）。 */
-function b64_url_enc_char(idx: i32): u8 {
+export function b64_url_enc_char(idx: i32): u8 {
   let r: u8 = 0 as u8;
   if (idx >= 0 && idx < 26) { r = (65 + idx) as u8; }
   else if (idx >= 26 && idx < 52) { r = (97 + idx - 26) as u8; }
@@ -53,7 +53,7 @@ function b64_url_enc_char(idx: i32): u8 {
 }
 
 /** 按 URL/标准变体选取编码字符。 */
-function b64_pick_enc_char(is_url: i32, idx: i32): u8 {
+export function b64_pick_enc_char(is_url: i32, idx: i32): u8 {
   if (is_url != 0) { return b64_url_enc_char(idx); }
   return b64_std_enc_char(idx);
 }
@@ -70,10 +70,10 @@ allow(padding) struct B64Stream {
 }
 
 /** B64Stream 布局字节数（allow(padding)；与 types.size_of<B64Stream>() 一致为 28）。 */
-const B64_STREAM_STATE_BYTES: i32 = 28;
+export const B64_STREAM_STATE_BYTES: i32 = 28;
 
 /** 标准表字符 → 6-bit 值；非法 255，`=` 为 254。 */
-function b64_decode_char_std(c: u8): u32 {
+export function b64_decode_char_std(c: u8): u32 {
   if (c >= 65 && c <= 90) { return (c - 65) as u32; }
   if (c >= 97 && c <= 122) { return (c - 97 + 26) as u32; }
   if (c >= 48 && c <= 57) { return (c - 48 + 52) as u32; }
@@ -84,7 +84,7 @@ function b64_decode_char_std(c: u8): u32 {
 }
 
 /** URL 表字符 → 6-bit 值；非法 255。 */
-function b64_decode_char_url(c: u8): u32 {
+export function b64_decode_char_url(c: u8): u32 {
   if (c >= 65 && c <= 90) { return (c - 65) as u32; }
   if (c >= 97 && c <= 122) { return (c - 97 + 26) as u32; }
   if (c >= 48 && c <= 57) { return (c - 48 + 52) as u32; }
@@ -94,7 +94,7 @@ function b64_decode_char_url(c: u8): u32 {
 }
 
 /** 校验并返回流状态指针；无效返回 0。 */
-function b64_stream_cast(state: *u8, state_cap: i32): *B64Stream {
+export function b64_stream_cast(state: *u8, state_cap: i32): *B64Stream {
   let need: i32 = B64_STREAM_STATE_BYTES;
   if (state == 0 || state_cap < need) { return 0 as *B64Stream; }
   let s: *B64Stream = state as *B64Stream;
@@ -103,7 +103,7 @@ function b64_stream_cast(state: *u8, state_cap: i32): *B64Stream {
 }
 
 /** 标准 Base64 编码；返回写入字节数，缓冲区不足 -1。 */
-function base64_encode_standard_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
+export function base64_encode_standard_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
   let need: i32 = 0;
   let si: i32 = 0;
   let oi: i32 = 0;
@@ -141,7 +141,7 @@ function base64_encode_standard_c(src: *u8, src_len: i32, out: *u8, out_cap: i32
 }
 
 /** URL 安全 Base64 编码（无 padding）；返回写入字节数。 */
-function base64_encode_url_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
+export function base64_encode_url_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
   let need: i32 = 0;
   let si: i32 = 0;
   let oi: i32 = 0;
@@ -177,7 +177,7 @@ function base64_encode_url_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i3
 }
 
 /** 标准 Base64 解码；返回写入字节数，非法 -1。 */
-function base64_decode_standard_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
+export function base64_decode_standard_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
   let out_len: i32 = 0;
   let si: i32 = 0;
   let oi: i32 = 0;
@@ -214,7 +214,7 @@ function base64_decode_standard_c(src: *u8, src_len: i32, out: *u8, out_cap: i32
 }
 
 /** URL 变体解码；返回写入字节数，非法 -1。 */
-function base64_decode_url_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
+export function base64_decode_url_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
   let out_len: i32 = 0;
   let si: i32 = 0;
   let oi: i32 = 0;
@@ -264,12 +264,12 @@ function base64_decode_url_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i3
 }
 
 /** 返回流状态缓冲最小字节数。 */
-function base64_stream_state_bytes_c(): i32 {
+export function base64_stream_state_bytes_c(): i32 {
   return B64_STREAM_STATE_BYTES;
 }
 
 /** 初始化 Base64 编码流；url 非 0 为 URL 变体；成功 0。 */
-function base64_stream_enc_init_c(state: *u8, state_cap: i32, url: i32): i32 {
+export function base64_stream_enc_init_c(state: *u8, state_cap: i32, url: i32): i32 {
   let need: i32 = B64_STREAM_STATE_BYTES;
   let s: *B64Stream = 0 as *B64Stream;
   if (state == 0 || state_cap < need) { return -1; }
@@ -282,7 +282,7 @@ function base64_stream_enc_init_c(state: *u8, state_cap: i32, url: i32): i32 {
 }
 
 /** 初始化 Base64 解码流；成功 0。 */
-function base64_stream_dec_init_c(state: *u8, state_cap: i32, url: i32): i32 {
+export function base64_stream_dec_init_c(state: *u8, state_cap: i32, url: i32): i32 {
   let need: i32 = B64_STREAM_STATE_BYTES;
   let s: *B64Stream = 0 as *B64Stream;
   if (state == 0 || state_cap < need) { return -1; }
@@ -295,7 +295,7 @@ function base64_stream_dec_init_c(state: *u8, state_cap: i32, url: i32): i32 {
 }
 
 /** 将 1–3 字节编码为 Base64 字符写入 out；返回写入字节数。 */
-function b64_stream_emit_triplet(s: *B64Stream, tri: *u8, n: i32, is_last: i32, out: *u8, out_cap: i32): i32 {
+export function b64_stream_emit_triplet(s: *B64Stream, tri: *u8, n: i32, is_last: i32, out: *u8, out_cap: i32): i32 {
   let v: u32 = 0;
   let need: i32 = 0;
   if (s == 0 || tri == 0 || out == 0 || n <= 0 || n > 3) { return -1; }
@@ -342,7 +342,7 @@ function b64_stream_emit_triplet(s: *B64Stream, tri: *u8, n: i32, is_last: i32, 
 }
 
 /** 流式 Base64 编码 update；is_last=1 时 flush padding。 */
-function base64_stream_enc_update_c(state: *u8, state_cap: i32, inp: *u8, in_len: i32, out: *u8,
+export function base64_stream_enc_update_c(state: *u8, state_cap: i32, inp: *u8, in_len: i32, out: *u8,
   out_cap: i32, is_last: i32, in_consumed: *i32): i32 {
   let s: *B64Stream = b64_stream_cast(state, state_cap);
   let used_in: i32 = 0;
@@ -404,7 +404,7 @@ function base64_stream_enc_update_c(state: *u8, state_cap: i32, inp: *u8, in_len
 }
 
 /** 将 4 个 Base64 字符解码为最多 3 字节。 */
-function b64_stream_decode_quad(s: *B64Stream, quad: *u8, n: i32, is_last: i32, out: *u8, out_cap: i32): i32 {
+export function b64_stream_decode_quad(s: *B64Stream, quad: *u8, n: i32, is_last: i32, out: *u8, out_cap: i32): i32 {
   let a: u32 = 0;
   let b: u32 = 0;
   let c: u32 = 0;
@@ -455,7 +455,7 @@ function b64_stream_decode_quad(s: *B64Stream, quad: *u8, n: i32, is_last: i32, 
 }
 
 /** 流式 Base64 解码 update；is_last=1 时 flush 尾部。 */
-function base64_stream_dec_update_c(state: *u8, state_cap: i32, inp: *u8, in_len: i32, out: *u8,
+export function base64_stream_dec_update_c(state: *u8, state_cap: i32, inp: *u8, in_len: i32, out: *u8,
   out_cap: i32, is_last: i32, in_consumed: *i32): i32 {
   let s: *B64Stream = b64_stream_cast(state, state_cap);
   let used_in: i32 = 0;
@@ -509,7 +509,7 @@ function base64_stream_dec_update_c(state: *u8, state_cap: i32, inp: *u8, in_len
 }
 
 /** STD-109：流式 base64 烟测（hello 分块 ≡ 块 API）；0 成功。 */
-function base64_stream_smoke_c(): i32 {
+export function base64_stream_smoke_c(): i32 {
   let plain: u8[5];
   let st: u8[32];
   let enc: u8[16];

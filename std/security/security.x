@@ -19,19 +19,19 @@
 // 【文件职责】
 // secure_zero、HKDF-SHA256、mlock/munlock、烟测；纯 .x 编译为 security.o。
 
-extern function memcpy(dst: *u8, src: *u8, n: usize): *u8;
-extern function memset(dst: *u8, c: i32, n: usize): *u8;
-extern function mlock(addr: *u8, len: usize): i32;
-extern function munlock(addr: *u8, len: usize): i32;
+export extern function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+export extern function memset(dst: *u8, c: i32, n: usize): *u8;
+export extern function mlock(addr: *u8, len: usize): i32;
+export extern function munlock(addr: *u8, len: usize): i32;
 
-extern function crypto_hmac_sha256_c(key: *u8, key_len: i32, msg: *u8, msg_len: i32, out: *u8): void;
-extern function crypto_mem_eq_c(a: *u8, b: *u8, len: i32): i32;
+export extern function crypto_hmac_sha256_c(key: *u8, key_len: i32, msg: *u8, msg_len: i32, out: *u8): void;
+export extern function crypto_mem_eq_c(a: *u8, b: *u8, len: i32): i32;
 
 /** SHA-256 输出长度。 */
-const SEC_SHA256_LEN: i32 = 32;
+export const SEC_SHA256_LEN: i32 = 32;
 
 /** F-std-zero-c：security_os_glue.c 已删除。 */
-function security_f_zero_c_marker_c(): i32 {
+export function security_f_zero_c_marker_c(): i32 {
   return 1;
 }
 
@@ -39,7 +39,7 @@ function security_f_zero_c_marker_c(): i32 {
  * 尝试 mlock；成功 1，不支持或失败 0。
  * 经 libc mlock（POSIX；Windows 链路由链接阶段解析）。
  */
-function security_mlock_c(p: *u8, len: i32): i32 {
+export function security_mlock_c(p: *u8, len: i32): i32 {
   if (p == 0 || len <= 0) { return 0; }
   if (unsafe { mlock(p, len) } == 0) { return 1; }
   return 0;
@@ -49,14 +49,14 @@ function security_mlock_c(p: *u8, len: i32): i32 {
  * 解除 mlock；成功 1，否则 0。
  * 经 libc munlock。
  */
-function security_munlock_c(p: *u8, len: i32): i32 {
+export function security_munlock_c(p: *u8, len: i32): i32 {
   if (p == 0 || len <= 0) { return 0; }
   if (unsafe { munlock(p, len) } == 0) { return 1; }
   return 0;
 }
 
 /** 安全清零：volatile 写避免编译器优化掉。 */
-function security_secure_zero_c(p: *u8, len: i32): void {
+export function security_secure_zero_c(p: *u8, len: i32): void {
   let i: i32 = 0;
   if (p == 0 || len <= 0) { return; }
   while (i < len) {
@@ -66,7 +66,7 @@ function security_secure_zero_c(p: *u8, len: i32): void {
 }
 
 /** HKDF-Extract：PRK = HMAC(salt, IKM)。 */
-function sec_hkdf_extract(salt: *u8, salt_len: i32, ikm: *u8, ikm_len: i32, prk: *u8): void {
+export function sec_hkdf_extract(salt: *u8, salt_len: i32, ikm: *u8, ikm_len: i32, prk: *u8): void {
   let zero_salt: u8[32];
   let s: *u8 = salt;
   let sl: i32 = salt_len;
@@ -83,7 +83,7 @@ function sec_hkdf_extract(salt: *u8, salt_len: i32, ikm: *u8, ikm_len: i32, prk:
 }
 
 /** HKDF-Expand：由 PRK 派生 okm_len 字节 OKM。 */
-function sec_hkdf_expand(prk: *u8, info: *u8, info_len: i32, okm: *u8, okm_len: i32): i32 {
+export function sec_hkdf_expand(prk: *u8, info: *u8, info_len: i32, okm: *u8, okm_len: i32): i32 {
   let t: u8[32];
   let block: u8[545];
   let n: i32 = 0;
@@ -119,7 +119,7 @@ function sec_hkdf_expand(prk: *u8, info: *u8, info_len: i32, okm: *u8, okm_len: 
 }
 
 /** HKDF-SHA256（RFC 5869）；成功 0，参数非法 -1。 */
-function security_hkdf_sha256_c(salt: *u8, salt_len: i32, ikm: *u8, ikm_len: i32,
+export function security_hkdf_sha256_c(salt: *u8, salt_len: i32, ikm: *u8, ikm_len: i32,
                                 info: *u8, info_len: i32, okm: *u8, okm_len: i32): i32 {
   let prk: u8[32];
   if (ikm == 0 || okm == 0 || ikm_len <= 0 || okm_len <= 0) { return -1; }
@@ -128,7 +128,7 @@ function security_hkdf_sha256_c(salt: *u8, salt_len: i32, ikm: *u8, ikm_len: i32
 }
 
 /** C 烟测：HKDF RFC5869 TC1 + secure_zero + mem_eq。 */
-function security_smoke_c(): i32 {
+export function security_smoke_c(): i32 {
   let ikm: u8[22] = [
     11, 11, 11, 11, 11, 11, 11, 11, 11, 11,
     11, 11, 11, 11, 11, 11, 11, 11, 11, 11,

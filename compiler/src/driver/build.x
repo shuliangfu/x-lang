@@ -23,17 +23,17 @@
 // 勿 import ast：-E 生成 driver_build_gen.c 时无需 AST 类型。
 
 /** main.x 实现；链接符号 main_run_compiler_x_path_impl。 */
-extern function main_run_compiler_x_path_impl(argc: i32, argv: *u8): i32;
+export extern function main_run_compiler_x_path_impl(argc: i32, argv: *u8): i32;
 
 /** C 侧 runtime.c：当前目录 build.x → driver_run_compiler_full，成功后 exec
 ./a.out。 */
-extern function driver_build_build_x(): i32;
+export extern function driver_build_build_x(): i32;
 
 /**
 * shux build 入口：子命令已从 argv 剥离后，argc==1
 * 表示除程序名外无额外参数。
 */
-function cmd_build(argc: i32, argv: *u8): i32 {
+export function cmd_build(argc: i32, argv: *u8): i32 {
   unsafe {
     if (argc < 2) {
       return driver_build_build_x();

@@ -6,12 +6,12 @@
 // G-02f-453：thin+rest PREFER_X_O；.x 薄门闩调 _impl，seed 宏重命名。
 //   driver_run_compiler_full 保留在 rest（char **argv 签名不匹配 .x 的 *u8）。
 
-extern "C" function driver_run_asm_backend_c_impl(input_path: *u8, out_path: *u8, lib_key: *u8, target: *u8,
+export extern "C" function driver_run_asm_backend_c_impl(input_path: *u8, out_path: *u8, lib_key: *u8, target: *u8,
                                                    argc: i32, argv: *u8): i32;
 
 /** 兼容旧 asm_backend_c 名（薄门闩；实际实现 seed _impl）。 */
 #[no_mangle]
-function driver_run_asm_backend_c(input_path: *u8, out_path: *u8, lib_key: *u8, target: *u8,
+export function driver_run_asm_backend_c(input_path: *u8, out_path: *u8, lib_key: *u8, target: *u8,
                                   argc: i32, argv: *u8): i32 {
   unsafe {
     return driver_run_asm_backend_c_impl(input_path, out_path, lib_key, target, argc, argv);

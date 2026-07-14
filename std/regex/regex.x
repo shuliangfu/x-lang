@@ -32,21 +32,21 @@
 //
 
 
-const REGEX_PROP_LETTER: i32 = 1;
-const REGEX_PROP_NUMBER: i32 = 2;
-const REGEX_PROP_WHITESPACE: i32 = 3;
+export const REGEX_PROP_LETTER: i32 = 1;
+export const REGEX_PROP_NUMBER: i32 = 2;
+export const REGEX_PROP_WHITESPACE: i32 = 3;
 
 /** C 字符串常量（解析器不支持 "..." as *u8）。 */
-const REG_LIT_LETTER: u8[7] = [76, 101, 116, 116, 101, 114, 0];
-const REG_LIT_NUMBER: u8[7] = [78, 117, 109, 98, 101, 114, 0];
-const REG_LIT_SPACE: u8[6] = [83, 112, 97, 99, 101, 0];
-const REG_LIT_WHITESPACE: u8[11] = [87, 104, 105, 116, 101, 115, 112, 97, 99, 101, 0];
+export const REG_LIT_LETTER: u8[7] = [76, 101, 116, 116, 101, 114, 0];
+export const REG_LIT_NUMBER: u8[7] = [78, 117, 109, 98, 101, 114, 0];
+export const REG_LIT_SPACE: u8[6] = [83, 112, 97, 99, 101, 0];
+export const REG_LIT_WHITESPACE: u8[11] = [87, 104, 105, 116, 101, 115, 112, 97, 99, 101, 0];
 
-const REGEX_MIN_CAP_SLOT_SIZE: usize = 8;
-const REGEX_MIN_IMPL_SIZE: usize = 48;
+export const REGEX_MIN_CAP_SLOT_SIZE: usize = 8;
+export const REGEX_MIN_IMPL_SIZE: usize = 48;
 
 /** STD-066：ASCII 分类表（0 未知，1 Letter，2 Number，3 Whitespace）。 */
-const REGEX_MIN_ASCII_CAT: u8[128] = [
+export const REGEX_MIN_ASCII_CAT: u8[128] = [
   0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -76,26 +76,26 @@ allow(padding) struct RegexMinImpl {
   caps: *RegexMinCapSlot;
 }
 
-extern "C" function malloc(size: usize): *u8;
-extern "C" function free(ptr: *u8): void;
-extern "C" function calloc(nmemb: usize, size: usize): *u8;
-extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
-extern "C" function memcmp(s1: *u8, s2: *u8, n: usize): i32;
-extern "C" function memchr(ptr: *u8, c: i32, n: usize): *u8;
-extern "C" function strlen(s: *u8): usize;
+export extern "C" function malloc(size: usize): *u8;
+export extern "C" function free(ptr: *u8): void;
+export extern "C" function calloc(nmemb: usize, size: usize): *u8;
+export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+export extern "C" function memcmp(s1: *u8, s2: *u8, n: usize): i32;
+export extern "C" function memchr(ptr: *u8, c: i32, n: usize): *u8;
+export extern "C" function strlen(s: *u8): usize;
 
 /** F-regex v1 版本标记；供聚合 gate 校验 regex.x 已参与 ld -r 合并。 */
-function regex_f_regex_v1_marker_c(): i32 {
+export function regex_f_regex_v1_marker_c(): i32 {
   return 1;
 }
 
 /** F-regex v2 逻辑全量 .x 标记（无 regex_min.inc.c）。 */
-function regex_f_regex_v2_marker_c(): i32 {
+export function regex_f_regex_v2_marker_c(): i32 {
   return 1;
 }
 
 /** 句柄转 RegexMinImpl 指针；非法 0。 */
-function regex_re_from_handle(re: *u8): *RegexMinImpl {
+export function regex_re_from_handle(re: *u8): *RegexMinImpl {
   if (re == 0) { return 0; }
   return re as *RegexMinImpl;
 }
@@ -105,7 +105,7 @@ function regex_re_from_handle(re: *u8): *RegexMinImpl {
 // STD-066：Unicode 属性与转义序列辅助
 // ---------------------------------------------------------------------------
 
-function regex_min_after_backslash(p: *u8, pat_end: *u8): *u8 {
+export function regex_min_after_backslash(p: *u8, pat_end: *u8): *u8 {
   if (p + 1 >= pat_end) { return pat_end; }
   if ((p[1] == 112 || p[1] == 80) && p + 2 < pat_end && p[2] == 123) {
     let q: *u8 = p + 3;
@@ -120,7 +120,7 @@ function regex_min_after_backslash(p: *u8, pat_end: *u8): *u8 {
 
 /** STD-066：校验 `\` 起始的转义序列完整合法。 */
 /** 校验反斜杠转义序列（含 \p{}/\P{}）是否完整合法；合法 1。 */
-function regex_min_escape_valid(p: *u8, pat_end: *u8): i32 {
+export function regex_min_escape_valid(p: *u8, pat_end: *u8): i32 {
   let q: *u8 = 0 as *u8;
   if (p >= pat_end || p[0] != 92) { return 0; }
   if (p + 1 >= pat_end) { return 0; }
@@ -139,7 +139,7 @@ function regex_min_escape_valid(p: *u8, pat_end: *u8): i32 {
 
 /** STD-066：解析属性名（L/N/W/S/Z 或 Letter/Number/Whitespace/Space）。 */
 /** 解析 Unicode 属性名 L/N/W 或 Letter/Number/Whitespace/Space；成功写 *out 并返回 1。 */
-function regex_min_parse_prop_name(name: *u8, name_len: i32, out: *i32): i32 {
+export function regex_min_parse_prop_name(name: *u8, name_len: i32, out: *i32): i32 {
   if (name == 0 || name_len <= 0 || out == 0) { return 0; }
   if (name_len == 1) {
     if (name[0] == 76) { out[0] = REGEX_PROP_LETTER; return 1; }
@@ -171,7 +171,7 @@ function regex_min_parse_prop_name(name: *u8, name_len: i32, out: *i32): i32 {
 
 /** STD-066：UTF-8 解码首 rune；失败返回 0。 */
 /** UTF-8 解码首 rune（1/2/3 字节）；失败返回 0，*out_rune/*out_len 写入。 */
-function regex_min_utf8_decode(s: *u8, s_end: *u8, out_rune: *u32, out_len: *i32): i32 {
+export function regex_min_utf8_decode(s: *u8, s_end: *u8, out_rune: *u32, out_len: *i32): i32 {
   let c0: u8 = 0;
   let c1: u8 = 0;
   let c2: u8 = 0;
@@ -205,7 +205,7 @@ function regex_min_utf8_decode(s: *u8, s_end: *u8, out_rune: *u32, out_len: *i32
 
 /** STD-066：rune 分类（v1 与 std.unicode 一致：非 ASCII 暂为 0）。 */
 /** 按 REGEX_MIN_ASCII_CAT 查 rune 分类；非 ASCII 返回 0。 */
-function regex_min_rune_category(rune: u32): i32 {
+export function regex_min_rune_category(rune: u32): i32 {
   if (rune < 128) {
     return REGEX_MIN_ASCII_CAT[rune] as i32;
   }
@@ -214,7 +214,7 @@ function regex_min_rune_category(rune: u32): i32 {
 
 /** STD-066：atom 是否为 `\p{...}` 或 `\P{...}`。 */
 /** 判断 atom 是否为 \p{PROP} 或 \P{PROP}；*out_negate/*out_prop 输出。 */
-function regex_min_atom_is_prop(atom_start: *u8, atom_end: *u8, out_negate: *i32,
+export function regex_min_atom_is_prop(atom_start: *u8, atom_end: *u8, out_negate: *i32,
     out_prop: *i32): i32 {
   let name_start: *u8 = 0 as *u8;
   let name_end: *u8 = 0 as *u8;
@@ -234,7 +234,7 @@ function regex_min_atom_is_prop(atom_start: *u8, atom_end: *u8, out_negate: *i32
 // STD-062：字面量快路径判定与 memchr/memcmp 搜索
 // ---------------------------------------------------------------------------
 
-function is_literal_only(pat: *u8, pat_len: i32): i32 {
+export function is_literal_only(pat: *u8, pat_len: i32): i32 {
   let i: i32 = 0;
   let next_off: i32 = 0;
   if (pat == 0 || pat_len <= 0) { return 0; }
@@ -262,7 +262,7 @@ function is_literal_only(pat: *u8, pat_len: i32): i32 {
 /** 全字面量模式：首字节 memchr + memcmp 子串搜索（STD-062）。 */
 /** 全字面量 memchr+memcmp 子串搜索；成功写 caps[0] 并返回 0。 */
 /** 主搜索入口：字面快路径 / first_lit 跳跃 / 全起点扫描。 */
-function regex_min_search_literal(state: *RegexMinImpl, text: *u8, len: i32): i32 {
+export function regex_min_search_literal(state: *RegexMinImpl, text: *u8, len: i32): i32 {
   let plen: i32 = 0;
   let first: u8 = 0;
   let i: i32 = 0;
@@ -297,7 +297,7 @@ function regex_min_search_literal(state: *RegexMinImpl, text: *u8, len: i32): i3
 // 编译期模式校验：括号平衡、量词位置、转义完整性
 // ---------------------------------------------------------------------------
 
-function regex_min_valid(pat: *u8, pat_len: i32): i32 {
+export function regex_min_valid(pat: *u8, pat_len: i32): i32 {
   let in_class: i32 = 0;
   let depth: i32 = 0;
   let i: i32 = 0;
@@ -367,7 +367,7 @@ function regex_min_valid(pat: *u8, pat_len: i32): i32 {
 
 /** 统计捕获组数并记录各 `(` 在 pat 内偏移。 */
 /** 扫描 pat 统计捕获组、分配 caps/group_pat_off；失败 0。 */
-function regex_min_build_capture_meta(r: *RegexMinImpl): i32 {
+export function regex_min_build_capture_meta(r: *RegexMinImpl): i32 {
   let in_class: i32 = 0;
   let depth: i32 = 0;
   let ng: i32 = 0;
@@ -459,7 +459,7 @@ function regex_min_build_capture_meta(r: *RegexMinImpl): i32 {
 
 /** 重置 capture 槽（新一次 match 尝试前）。 */
 /** 每次 search 尝试前重置全部 capture 槽 off=-1。 */
-function regex_min_cap_reset(re: *RegexMinImpl): void {
+export function regex_min_cap_reset(re: *RegexMinImpl): void {
   let i: i32 = 0;
   if (re == 0 || re.caps == 0 || re.ncap <= 0) { return; }
   i = 0;
@@ -473,7 +473,7 @@ function regex_min_cap_reset(re: *RegexMinImpl): void {
 
 /** 查找 atom 起始 `(` 对应的 capture 组号（1..ncap-1）。 */
 /** 由捕获组 `(` 指针查组号 1..ncap-1；无则 -1。 */
-function regex_min_group_index(re: *RegexMinImpl, atom_start: *u8): i32 {
+export function regex_min_group_index(re: *RegexMinImpl, atom_start: *u8): i32 {
   let i: i32 = 0;
   let ng: i32 = 0;
   if (re == 0 || re.group_pat_off == 0 || atom_start[0] != 40) {
@@ -490,7 +490,7 @@ function regex_min_group_index(re: *RegexMinImpl, atom_start: *u8): i32 {
 
 /** 判断单字节是否落在字符类 [cls_start, cls_end) 内（不含外层方括号）。 */
 /** 字符类匹配（支持 ^ 取反、\ 转义、a-z 范围）；命中 1。 */
-function regex_min_class_hit(cls_start: *u8, cls_end: *u8, ch: u8): i32 {
+export function regex_min_class_hit(cls_start: *u8, cls_end: *u8, ch: u8): i32 {
   let negate: i32 = 0;
   let p: *u8 = cls_start;
   let a: u8 = 0;
@@ -516,7 +516,7 @@ function regex_min_class_hit(cls_start: *u8, cls_end: *u8, ch: u8): i32 {
 
 /** 消费一个 atom；成功推进 *pat 并返回 1，失败返回 0。 */
 /** 消费一个 atom（转义/[]/()/^$/字面）；*pat 推进，失败 0。 */
-function regex_min_consume_atom(pat: * *u8, pat_end: *u8): i32 {
+export function regex_min_consume_atom(pat: * *u8, pat_end: *u8): i32 {
   let p: *u8 = pat[0];
   let q: *u8 = 0 as *u8;
   let depth: i32 = 0;
@@ -556,7 +556,7 @@ function regex_min_consume_atom(pat: * *u8, pat_end: *u8): i32 {
 }
 
 /** 提取模式首字节字面量（用于搜索跳跃）；首 atom 可零次（* / ?）时不跳跃。 */
-function first_lit(pat: *u8, pat_len: i32): i32 {
+export function first_lit(pat: *u8, pat_len: i32): i32 {
   let p: *u8 = 0 as *u8;
   let pat_end: *u8 = 0 as *u8;
   let atom_start: *u8 = 0 as *u8;
@@ -587,7 +587,7 @@ function first_lit(pat: *u8, pat_len: i32): i32 {
 }
 
 /** 找 start 之后第一个顶层 `|`；无则返回 pat_end。 */
-function regex_min_next_branch(start: *u8, pat_end: *u8): *u8 {
+export function regex_min_next_branch(start: *u8, pat_end: *u8): *u8 {
   let depth: i32 = 0;
   let in_class: i32 = 0;
   let p: *u8 = start;
@@ -616,7 +616,7 @@ function regex_min_next_branch(start: *u8, pat_end: *u8): *u8 {
 // match_here ↔ match_seq 互递归；atomic_nest>0 时量词按占有型处理（STD-124）
 // ---------------------------------------------------------------------------
 
-function regex_min_match_atom_char(atom_start: *u8, atom_end: *u8, str: * *u8, str_end: *u8,
+export function regex_min_match_atom_char(atom_start: *u8, atom_end: *u8, str: * *u8, str_end: *u8,
     haystack_start: *u8): i32 {
   let p: *u8 = 0 as *u8;
   let ch: u8 = 0;
@@ -677,7 +677,7 @@ function regex_min_match_atom_char(atom_start: *u8, atom_end: *u8, str: * *u8, s
 
 /** 匹配一次 atom 或分组（供量词重复）。 */
 /** 匹配单 atom 或捕获组/原子组 (?>...)；写捕获槽。 */
-function regex_min_match_piece(re: *RegexMinImpl, atom_start: *u8, atom_end: *u8, str: * *u8,
+export function regex_min_match_piece(re: *RegexMinImpl, atom_start: *u8, atom_end: *u8, str: * *u8,
     str_end: *u8, haystack_start: *u8): i32 {
   let inner_start: *u8 = 0 as *u8;
   let inner_end: *u8 = 0 as *u8;
@@ -718,7 +718,7 @@ function regex_min_match_piece(re: *RegexMinImpl, atom_start: *u8, atom_end: *u8
 
 /** 解析 atom 后的量词；无则 q=0；lazy 对 *?/+?；possessive 对 *+/++/?+。 */
 /** 读取 ? / * / + 及 ? / + 后缀（lazy/possessive）；无则 out_q=0。 */
-function regex_min_take_quantifier(pat: * *u8, pat_end: *u8, out_q: *u8, out_lazy: *i32,
+export function regex_min_take_quantifier(pat: * *u8, pat_end: *u8, out_q: *u8, out_lazy: *i32,
     out_possessive: *i32): i32 {
   let p: *u8 = pat[0];
   out_lazy[0] = 0;
@@ -770,7 +770,7 @@ function regex_min_take_quantifier(pat: * *u8, pat_end: *u8, out_q: *u8, out_laz
 
 /** 非贪婪 *?：先零次，再逐步增加重复。 */
 /** 非贪婪 *?：先零次再逐步增加重复（STD-065）。 */
-function regex_min_match_star_lazy(re: *RegexMinImpl, atom_start: *u8, atom_end: *u8,
+export function regex_min_match_star_lazy(re: *RegexMinImpl, atom_start: *u8, atom_end: *u8,
     pat: * *u8, pat_end: *u8, str: * *u8, str_end: *u8, haystack_start: *u8): i32 {
   let pat_save: *u8 = 0 as *u8;
   let s2: *u8 = 0 as *u8;
@@ -790,7 +790,7 @@ function regex_min_match_star_lazy(re: *RegexMinImpl, atom_start: *u8, atom_end:
 
 /** 贪婪 *：先尽量多重复，再回溯。 */
 /** 贪婪 *：先尽量多重复再回溯。 */
-function regex_min_match_star_greedy(re: *RegexMinImpl, atom_start: *u8, atom_end: *u8,
+export function regex_min_match_star_greedy(re: *RegexMinImpl, atom_start: *u8, atom_end: *u8,
     pat: * *u8, pat_end: *u8, str: * *u8, str_end: *u8, haystack_start: *u8): i32 {
   let pat_save: *u8 = 0 as *u8;
   let s2: *u8 = 0 as *u8;
@@ -807,7 +807,7 @@ function regex_min_match_star_greedy(re: *RegexMinImpl, atom_start: *u8, atom_en
 
 /** 非贪婪 +?：至少一次，其余尽量少重复。 */
 /** 非贪婪 +?：至少一次，其余尽量少。 */
-function regex_min_match_plus_lazy(re: *RegexMinImpl, atom_start: *u8, atom_end: *u8,
+export function regex_min_match_plus_lazy(re: *RegexMinImpl, atom_start: *u8, atom_end: *u8,
     pat: * *u8, pat_end: *u8, str: * *u8, str_end: *u8, haystack_start: *u8): i32 {
   let s2: *u8 = 0 as *u8;
   let pat_save: *u8 = 0 as *u8;
@@ -830,7 +830,7 @@ function regex_min_match_plus_lazy(re: *RegexMinImpl, atom_start: *u8, atom_end:
 
 /** 贪婪 +：至少一次，其余尽量多重复。 */
 /** 贪婪 +：至少一次，其余尽量多。 */
-function regex_min_match_plus_greedy(re: *RegexMinImpl, atom_start: *u8, atom_end: *u8,
+export function regex_min_match_plus_greedy(re: *RegexMinImpl, atom_start: *u8, atom_end: *u8,
     pat: * *u8, pat_end: *u8, str: * *u8, str_end: *u8, haystack_start: *u8): i32 {
   let s2: *u8 = 0 as *u8;
   let pat_save: *u8 = 0 as *u8;
@@ -850,7 +850,7 @@ function regex_min_match_plus_greedy(re: *RegexMinImpl, atom_start: *u8, atom_en
 
 /** 占有型 *+：尽量多重复，不回溯重复次数。 */
 /** 占有型 *+：尽量多吞，不回溯重复段（STD-099）。 */
-function regex_min_match_star_possessive(re: *RegexMinImpl, atom_start: *u8, atom_end: *u8,
+export function regex_min_match_star_possessive(re: *RegexMinImpl, atom_start: *u8, atom_end: *u8,
     pat: * *u8, pat_end: *u8, str: * *u8, str_end: *u8, haystack_start: *u8): i32 {
   let s2: *u8 = 0 as *u8;
   while (1 != 0) {
@@ -863,7 +863,7 @@ function regex_min_match_star_possessive(re: *RegexMinImpl, atom_start: *u8, ato
 
 /** 占有型 ++：至少一次，再多尽量吞，不回溯。 */
 /** 占有型 ++：至少一次后尽量多吞，不回溯。 */
-function regex_min_match_plus_possessive(re: *RegexMinImpl, atom_start: *u8, atom_end: *u8,
+export function regex_min_match_plus_possessive(re: *RegexMinImpl, atom_start: *u8, atom_end: *u8,
     pat: * *u8, pat_end: *u8, str: * *u8, str_end: *u8, haystack_start: *u8): i32 {
   let s2: *u8 = 0 as *u8;
   s2 = str[0];
@@ -879,7 +879,7 @@ function regex_min_match_plus_possessive(re: *RegexMinImpl, atom_start: *u8, ato
 
 /** 顺序匹配 pat[branch_start..branch_end)。 */
 /** 顺序匹配分支片段；处理 ? / * / + 各变体及 atomic_nest。 */
-function regex_min_match_seq(re: *RegexMinImpl, pat: * *u8, pat_end: *u8, str: * *u8,
+export function regex_min_match_seq(re: *RegexMinImpl, pat: * *u8, pat_end: *u8, str: * *u8,
     str_end: *u8, haystack_start: *u8): i32 {
   let pat_checkpoint: *u8 = 0 as *u8;
   let str_checkpoint: *u8 = 0 as *u8;
@@ -984,7 +984,7 @@ function regex_min_match_seq(re: *RegexMinImpl, pat: * *u8, pat_end: *u8, str: *
 
 /** 递归匹配：支持顶层 `|` 分支。 */
 /** 顶层 | 分支：依次尝试各 branch 直至 match_seq 成功。 */
-function regex_min_match_here(re: *RegexMinImpl, pat: * *u8, pat_end: *u8, str: * *u8,
+export function regex_min_match_here(re: *RegexMinImpl, pat: * *u8, pat_end: *u8, str: * *u8,
     str_end: *u8, haystack_start: *u8): i32 {
   let branch: *u8 = pat[0];
   let branch_end: *u8 = 0 as *u8;
@@ -1007,7 +1007,7 @@ function regex_min_match_here(re: *RegexMinImpl, pat: * *u8, pat_end: *u8, str: 
 }
 
 /** 在 str[0..len) 中搜索子串匹配（STD-062：字面量快路径 + 首字节跳跃）。 */
-function regex_min_search(re: *RegexMinImpl, text: *u8, len: i32): i32 {
+export function regex_min_search(re: *RegexMinImpl, text: *u8, len: i32): i32 {
   let pat: *u8 = 0 as *u8;
   let pat_end: *u8 = 0 as *u8;
   let s: *u8 = 0 as *u8;
@@ -1066,7 +1066,7 @@ function regex_min_search(re: *RegexMinImpl, text: *u8, len: i32): i32 {
 // opaque handle 为 *u8，内部 cast 为 *RegexMinImpl
 // ---------------------------------------------------------------------------
 
-function regex_compile_c(pat: *u8, pat_len: i32): *u8 {
+export function regex_compile_c(pat: *u8, pat_len: i32): *u8 {
   let r: *RegexMinImpl = 0 as *RegexMinImpl;
   if (pat == 0 || pat_len <= 0) { return 0; }
   if (regex_min_valid(pat, pat_len) == 0) { return 0; }
@@ -1090,14 +1090,14 @@ function regex_compile_c(pat: *u8, pat_len: i32): *u8 {
 
 /** 在 str[0..len) 中搜索匹配；成功 0，失败 -1。 */
 /** 对 haystack 执行子串匹配；成功 0，失败 -1。 */
-function regex_match_c(re: *u8, text: *u8, len: i32): i32 {
+export function regex_match_c(re: *u8, text: *u8, len: i32): i32 {
   if (re == 0 || text == 0) { return -1; }
   return regex_min_search(re as *RegexMinImpl, text, len);
 }
 
 /** 返回 capture 槽数（含 group 0 全匹配）。 */
 /** 返回 capture 槽数（含 group 0）。 */
-function regex_group_count_c(re: *u8): i32 {
+export function regex_group_count_c(re: *u8): i32 {
   let r: *RegexMinImpl = regex_re_from_handle(re);
   if (r == 0) { return -1; }
   return r.ncap;
@@ -1105,7 +1105,7 @@ function regex_group_count_c(re: *u8): i32 {
 
 /** 读 group 起始字节偏移；无有效 capture 返回 -1。 */
 /** 读上次 match 的 group 起始偏移；无效 -1。 */
-function regex_group_offset_c(re: *u8, group: i32): i32 {
+export function regex_group_offset_c(re: *u8, group: i32): i32 {
   let r: *RegexMinImpl = regex_re_from_handle(re);
   if (r == 0 || group < 0) { return -1; }
   if (r.cap_valid == 0 || r.caps == 0 || group >= r.ncap) { return -1; }
@@ -1114,7 +1114,7 @@ function regex_group_offset_c(re: *u8, group: i32): i32 {
 
 /** 读 group 匹配长度；无有效 capture 返回 -1。 */
 /** 读上次 match 的 group 长度；无效 -1。 */
-function regex_group_length_c(re: *u8, group: i32): i32 {
+export function regex_group_length_c(re: *u8, group: i32): i32 {
   let r: *RegexMinImpl = regex_re_from_handle(re);
   if (r == 0 || group < 0) { return -1; }
   if (r.cap_valid == 0 || r.caps == 0 || group >= r.ncap) { return -1; }
@@ -1123,7 +1123,7 @@ function regex_group_length_c(re: *u8, group: i32): i32 {
 }
 
 /** 释放 pat、caps、group_pat_off 与 re 本体。 */
-function regex_free_c(re: *u8): void {
+export function regex_free_c(re: *u8): void {
   let r: *RegexMinImpl = regex_re_from_handle(re);
   if (r == 0) { return; }
   unsafe { free(r.pat); }
@@ -1140,7 +1140,7 @@ function regex_free_c(re: *u8): void {
 // 返回值 0=全通过；非 0 为失败用例编号（与 regex_min.inc.c 一致）
 // ---------------------------------------------------------------------------
 
-function regex_min_smoke_c(): i32 {
+export function regex_min_smoke_c(): i32 {
   let re: *u8 = 0 as *u8;
   let pat1: u8[5] = [104, 101, 108, 108, 111];
   let hay1: u8[9] = [115, 97, 121, 32, 104, 101, 108, 108, 111];

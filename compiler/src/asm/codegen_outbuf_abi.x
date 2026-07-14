@@ -6,7 +6,7 @@
 
 /** 代码生成输出缓冲区：data 为已写内容，len 为长度。 */
 /* 9MiB：须与 codegen.x / runtime.c / ast_pool PIPELINE_CODEGEN_OUTBUF_CAP 同步。 */
-struct CodegenOutBuf {
+export struct CodegenOutBuf {
   data: u8[9437184];
   len: i32;
 }

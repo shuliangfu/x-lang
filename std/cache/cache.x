@@ -22,17 +22,17 @@
 //
 // 【对标】Go groupcache 子集、Java Caffeine 最小路径、HikariCP 池语义简化版。
 
-const CACHE_OK: i32 = 0;
-const CACHE_ERR_NULL: i32 = -1;
-const CACHE_ERR_NOT_FOUND: i32 = -2;
-const CACHE_ERR_FULL: i32 = -3;
-const CACHE_ERR_INVALID: i32 = -4;
+export const CACHE_OK: i32 = 0;
+export const CACHE_ERR_NULL: i32 = -1;
+export const CACHE_ERR_NOT_FOUND: i32 = -2;
+export const CACHE_ERR_FULL: i32 = -3;
+export const CACHE_ERR_INVALID: i32 = -4;
 
-const LRU_MAX_NODES: i32 = 64;
-const POOL_MAX_SLOTS: i32 = 32;
-const LRU_NODE_SIZE: usize = 40;
-const LRU_CACHE_MEM_SIZE: usize = 2600;
-const OBJ_POOL_MEM_SIZE: usize = 544;
+export const LRU_MAX_NODES: i32 = 64;
+export const POOL_MAX_SLOTS: i32 = 32;
+export const LRU_NODE_SIZE: usize = 40;
+export const LRU_CACHE_MEM_SIZE: usize = 2600;
+export const OBJ_POOL_MEM_SIZE: usize = 544;
 
 /** LRU 链表节点。 */
 allow(padding) struct LruNode {
@@ -73,35 +73,35 @@ allow(padding) struct ObjPoolMem {
   health_fail: i64;
 }
 
-extern function time_now_monotonic_ns_c(): i64;
-extern "C" function memset(s: *u8, c: i32, n: usize): *u8;
-extern "C" function calloc(nmemb: usize, size: usize): *u8;
-extern "C" function free(ptr: *u8): void;
+export extern function time_now_monotonic_ns_c(): i64;
+export extern "C" function memset(s: *u8, c: i32, n: usize): *u8;
+export extern "C" function calloc(nmemb: usize, size: usize): *u8;
+export extern "C" function free(ptr: *u8): void;
 
 /** F-cache v1 版本标记；供聚合 gate 校验 cache.x 已参与构建。 */
-function cache_f_cache_v1_marker_c(): i32 {
+export function cache_f_cache_v1_marker_c(): i32 {
   return 1;
 }
 
 /** F-cache v2 逻辑全量 .x 标记。 */
-function cache_f_cache_v2_marker_c(): i32 {
+export function cache_f_cache_v2_marker_c(): i32 {
   return 1;
 }
 
 /** 句柄转 LRU 指针；非法 0。 */
-function lru_from_handle(h: i64): *LruCacheMem {
+export function lru_from_handle(h: i64): *LruCacheMem {
   if (h == 0) { return 0; }
   return h as *LruCacheMem;
 }
 
 /** 句柄转对象池指针；非法 0。 */
-function pool_from_handle(h: i64): *ObjPoolMem {
+export function pool_from_handle(h: i64): *ObjPoolMem {
   if (h == 0) { return 0; }
   return h as *ObjPoolMem;
 }
 
 /** 从空闲槽分配节点索引；无空闲 -1。 */
-function lru_alloc_node(c: *LruCacheMem): i32 {
+export function lru_alloc_node(c: *LruCacheMem): i32 {
   let i: i32 = 0;
   while (i < LRU_MAX_NODES) {
     if (c.nodes[i].used == 0) { return i; }
@@ -111,7 +111,7 @@ function lru_alloc_node(c: *LruCacheMem): i32 {
 }
 
 /** 将节点 idx 移到 MRU（head）。 */
-function lru_touch(c: *LruCacheMem, idx: i32): void {
+export function lru_touch(c: *LruCacheMem, idx: i32): void {
   let p: i32 = 0;
   let n: i32 = 0;
   if (idx < 0 || c.nodes[idx].used == 0) { return; }
@@ -129,7 +129,7 @@ function lru_touch(c: *LruCacheMem, idx: i32): void {
 }
 
 /** 按 key 查找节点索引；不存在 -1。 */
-function lru_find(c: *LruCacheMem, key: i64): i32 {
+export function lru_find(c: *LruCacheMem, key: i64): i32 {
   let i: i32 = 0;
   while (i < LRU_MAX_NODES) {
     if (c.nodes[i].used != 0 && c.nodes[i].key == key) { return i; }
@@ -139,7 +139,7 @@ function lru_find(c: *LruCacheMem, key: i64): i32 {
 }
 
 /** 移除节点 idx。 */
-function lru_remove_node(c: *LruCacheMem, idx: i32): void {
+export function lru_remove_node(c: *LruCacheMem, idx: i32): void {
   let p: i32 = 0;
   let n: i32 = 0;
   if (idx < 0 || c.nodes[idx].used == 0) { return; }
@@ -159,7 +159,7 @@ function lru_remove_node(c: *LruCacheMem, idx: i32): void {
 }
 
 /** 淘汰 LRU 尾节点；0 成功，-1 空。 */
-function lru_evict_lru(c: *LruCacheMem): i32 {
+export function lru_evict_lru(c: *LruCacheMem): i32 {
   let idx: i32 = c.tail;
   if (idx < 0) { return -1; }
   lru_remove_node(c, idx);
@@ -168,7 +168,7 @@ function lru_evict_lru(c: *LruCacheMem): i32 {
 }
 
 /** 检查条目是否过期；过期删除返回 1。 */
-function lru_expire_if_needed(c: *LruCacheMem, idx: i32): i32 {
+export function lru_expire_if_needed(c: *LruCacheMem, idx: i32): i32 {
   let now: i64 = 0;
   if (idx < 0 || c.nodes[idx].used == 0) { return 0; }
   if (c.nodes[idx].expire_ns == 0) { return 0; }
@@ -181,7 +181,7 @@ function lru_expire_if_needed(c: *LruCacheMem, idx: i32): i32 {
 }
 
 /** 创建 LRU 缓存；capacity 须 1..LRU_MAX_NODES。 */
-function cache_lru_create_c(capacity: i32): i64 {
+export function cache_lru_create_c(capacity: i32): i64 {
   let c: *LruCacheMem = 0;
   if (capacity <= 0 || capacity > LRU_MAX_NODES) { return 0; }
   unsafe { c = calloc(1, LRU_CACHE_MEM_SIZE) as *LruCacheMem; }
@@ -193,13 +193,13 @@ function cache_lru_create_c(capacity: i32): i64 {
 }
 
 /** 释放 LRU 缓存。 */
-function cache_lru_free_c(handle: i64): void {
+export function cache_lru_free_c(handle: i64): void {
   let c: *LruCacheMem = lru_from_handle(handle);
   if (c != 0) { unsafe { free(c as *u8); } }
 }
 
 /** 读取键；0 成功，-2 未命中/过期。 */
-function cache_lru_get_c(handle: i64, key: i64, out_value: *i64): i32 {
+export function cache_lru_get_c(handle: i64, key: i64, out_value: *i64): i32 {
   let c: *LruCacheMem = lru_from_handle(handle);
   let idx: i32 = 0;
   if (c == 0 || out_value == 0) { return CACHE_ERR_NULL; }
@@ -219,7 +219,7 @@ function cache_lru_get_c(handle: i64, key: i64, out_value: *i64): i32 {
 }
 
 /** 写入键值；ttl_ns=0 永不过期。 */
-function cache_lru_put_c(handle: i64, key: i64, value: i64, ttl_ns: i64): i32 {
+export function cache_lru_put_c(handle: i64, key: i64, value: i64, ttl_ns: i64): i32 {
   let c: *LruCacheMem = lru_from_handle(handle);
   let idx: i32 = 0;
   let expire: i64 = 0;
@@ -251,7 +251,7 @@ function cache_lru_put_c(handle: i64, key: i64, value: i64, ttl_ns: i64): i32 {
 }
 
 /** 删除键；0 成功，-2 不存在。 */
-function cache_lru_remove_c(handle: i64, key: i64): i32 {
+export function cache_lru_remove_c(handle: i64, key: i64): i32 {
   let c: *LruCacheMem = lru_from_handle(handle);
   let idx: i32 = 0;
   if (c == 0) { return CACHE_ERR_NULL; }
@@ -262,7 +262,7 @@ function cache_lru_remove_c(handle: i64, key: i64): i32 {
 }
 
 /** 惰性清理所有过期条目；返回删除数。 */
-function cache_lru_purge_expired_c(handle: i64): i32 {
+export function cache_lru_purge_expired_c(handle: i64): i32 {
   let c: *LruCacheMem = lru_from_handle(handle);
   let i: i32 = 0;
   let n: i32 = 0;
@@ -277,7 +277,7 @@ function cache_lru_purge_expired_c(handle: i64): i32 {
 }
 
 /** 读取统计；任意 out 可为 0。 */
-function cache_lru_stats_c(handle: i64, hits: *i64, misses: *i64, evictions: *i64, size: *i32): void {
+export function cache_lru_stats_c(handle: i64, hits: *i64, misses: *i64, evictions: *i64, size: *i32): void {
   let c: *LruCacheMem = lru_from_handle(handle);
   if (c == 0) { return; }
   if (hits != 0) { *hits = c.hits; }
@@ -287,7 +287,7 @@ function cache_lru_stats_c(handle: i64, hits: *i64, misses: *i64, evictions: *i6
 }
 
 /** 创建对象池；max_slots 须 1..POOL_MAX_SLOTS。 */
-function cache_pool_create_c(max_slots: i32): i64 {
+export function cache_pool_create_c(max_slots: i32): i64 {
   let p: *ObjPoolMem = 0;
   if (max_slots <= 0 || max_slots > POOL_MAX_SLOTS) { return 0; }
   unsafe { p = calloc(1, OBJ_POOL_MEM_SIZE) as *ObjPoolMem; }
@@ -297,13 +297,13 @@ function cache_pool_create_c(max_slots: i32): i64 {
 }
 
 /** 释放对象池。 */
-function cache_pool_free_c(handle: i64): void {
+export function cache_pool_free_c(handle: i64): void {
   let p: *ObjPoolMem = pool_from_handle(handle);
   if (p != 0) { unsafe { free(p as *u8); } }
 }
 
 /** 向池注册空闲资源；0 成功。 */
-function cache_pool_add_c(handle: i64, resource: i64): i32 {
+export function cache_pool_add_c(handle: i64, resource: i64): i32 {
   let p: *ObjPoolMem = pool_from_handle(handle);
   let i: i32 = 0;
   if (p == 0 || resource == 0) { return CACHE_ERR_NULL; }
@@ -328,7 +328,7 @@ function cache_pool_add_c(handle: i64, resource: i64): i32 {
 }
 
 /** 获取空闲健康资源；0 成功，-2 无可用。 */
-function cache_pool_acquire_c(handle: i64, out_resource: *i64): i32 {
+export function cache_pool_acquire_c(handle: i64, out_resource: *i64): i32 {
   let p: *ObjPoolMem = pool_from_handle(handle);
   let i: i32 = 0;
   if (p == 0 || out_resource == 0) { return CACHE_ERR_NULL; }
@@ -347,7 +347,7 @@ function cache_pool_acquire_c(handle: i64, out_resource: *i64): i32 {
 }
 
 /** 归还资源；0 成功，-2 未知资源。 */
-function cache_pool_release_c(handle: i64, resource: i64): i32 {
+export function cache_pool_release_c(handle: i64, resource: i64): i32 {
   let p: *ObjPoolMem = pool_from_handle(handle);
   let i: i32 = 0;
   if (p == 0 || resource == 0) { return CACHE_ERR_NULL; }
@@ -371,7 +371,7 @@ function cache_pool_release_c(handle: i64, resource: i64): i32 {
 }
 
 /** 标记资源不健康；归还时丢弃。 */
-function cache_pool_mark_unhealthy_c(handle: i64, resource: i64): i32 {
+export function cache_pool_mark_unhealthy_c(handle: i64, resource: i64): i32 {
   let p: *ObjPoolMem = pool_from_handle(handle);
   let i: i32 = 0;
   if (p == 0 || resource == 0) { return CACHE_ERR_NULL; }
@@ -387,14 +387,14 @@ function cache_pool_mark_unhealthy_c(handle: i64, resource: i64): i32 {
 }
 
 /** 空闲资源数。 */
-function cache_pool_idle_c(handle: i64): i32 {
+export function cache_pool_idle_c(handle: i64): i32 {
   let p: *ObjPoolMem = pool_from_handle(handle);
   if (p == 0) { return CACHE_ERR_NULL; }
   return p.idle_count;
 }
 
 /** 池统计。 */
-function cache_pool_stats_c(handle: i64, idle: *i32, in_use: *i32, unhealthy: *i32, acquires: *i64): void {
+export function cache_pool_stats_c(handle: i64, idle: *i32, in_use: *i32, unhealthy: *i32, acquires: *i64): void {
   let p: *ObjPoolMem = pool_from_handle(handle);
   let i: i32 = 0;
   let used: i32 = 0;
@@ -415,7 +415,7 @@ function cache_pool_stats_c(handle: i64, idle: *i32, in_use: *i32, unhealthy: *i
 }
 
 /** C 烟测：LRU 淘汰 + TTL + 对象池 acquire/release/health。 */
-function cache_smoke_c(): i32 {
+export function cache_smoke_c(): i32 {
   let lru: i64 = 0;
   let pool: i64 = 0;
   let v: i64 = 0;

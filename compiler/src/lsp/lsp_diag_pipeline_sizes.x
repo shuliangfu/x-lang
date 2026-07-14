@@ -8,18 +8,18 @@
 
 /** 与历史 C `sizeof(struct ast_ASTArena)` 瘦布局一致。 */
 #[no_mangle]
-function lsp_diag_pipeline_sizeof_arena(): usize {
+export function lsp_diag_pipeline_sizeof_arena(): usize {
   return 16;
 }
 
 /** 与历史 C `sizeof(struct ast_Module)` 瘦布局一致。 */
 #[no_mangle]
-function lsp_diag_pipeline_sizeof_module(): usize {
+export function lsp_diag_pipeline_sizeof_module(): usize {
   return 40;
 }
 
 /** 与历史 C `sizeof(struct ast_PipelineDepCtx)` 瘦布局一致（非 4MiB 全量 dep ctx）。 */
 #[no_mangle]
-function lsp_diag_pipeline_sizeof_dep_ctx(): usize {
+export function lsp_diag_pipeline_sizeof_dep_ctx(): usize {
   return 1368;
 }

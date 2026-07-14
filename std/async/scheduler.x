@@ -21,6 +21,6 @@
 // 对外 API 在 mod.x。
 
 /** F-async v1 调度版本标记；供聚合 gate 校验 scheduler.x 已参与 ld -r 合并。 */
-function scheduler_f_async_scheduler_v1_marker_c(): i32 {
+export function scheduler_f_async_scheduler_v1_marker_c(): i32 {
   return 1;
 }

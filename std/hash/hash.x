@@ -23,32 +23,32 @@
 //
 // 【对标】Zig std.hash、Rust std::hash::Hasher。
 
-const HASHER_SIPHASH: i32 = 0;
-const HASHER_AHASH: i32 = 1;
-const HASHER_XXHASH: i32 = 2;
+export const HASHER_SIPHASH: i32 = 0;
+export const HASHER_AHASH: i32 = 1;
+export const HASHER_XXHASH: i32 = 2;
 
 /** C 字符串常量（解析器不支持 "..." as *u8）。 */
-const HAS_LIT_N1: u8[2] = [49, 0];
-const HAS_LIT_N2: u8[2] = [50, 0];
-const HAS_LIT_SHUX_HASH_ALGO: u8[15] = [83, 72, 85, 88, 95, 72, 65, 83, 72, 95, 65, 76, 71, 79, 0];
-const HAS_LIT_AHASH: u8[6] = [97, 104, 97, 115, 104, 0];
-const HAS_LIT_X: u8[2] = [120, 0];
-const HAS_LIT_XXHASH: u8[7] = [120, 120, 104, 97, 115, 104, 0];
+export const HAS_LIT_N1: u8[2] = [49, 0];
+export const HAS_LIT_N2: u8[2] = [50, 0];
+export const HAS_LIT_SHUX_HASH_ALGO: u8[15] = [83, 72, 85, 88, 95, 72, 65, 83, 72, 95, 65, 76, 71, 79, 0];
+export const HAS_LIT_AHASH: u8[6] = [97, 104, 97, 115, 104, 0];
+export const HAS_LIT_X: u8[2] = [120, 0];
+export const HAS_LIT_XXHASH: u8[7] = [120, 120, 104, 97, 115, 104, 0];
 
-const XXH64_PRIME1: u64 = 11400714785074694791 as u64;
-const XXH64_PRIME2: u64 = 14029467366897019727 as u64;
-const XXH64_PRIME3: u64 = 1609587929392839161 as u64;
-const XXH64_PRIME4: u64 = 9650029242287828579 as u64;
-const XXH64_PRIME5: u64 = 2870177450012600261 as u64;
+export const XXH64_PRIME1: u64 = 11400714785074694791 as u64;
+export const XXH64_PRIME2: u64 = 14029467366897019727 as u64;
+export const XXH64_PRIME3: u64 = 1609587929392839161 as u64;
+export const XXH64_PRIME4: u64 = 9650029242287828579 as u64;
+export const XXH64_PRIME5: u64 = 2870177450012600261 as u64;
 
-const FNV1A64_OFFSET: u64 = 14695981039346656037 as u64;
-const FNV1A64_PRIME: u64 = 1099511628211 as u64;
+export const FNV1A64_OFFSET: u64 = 14695981039346656037 as u64;
+export const FNV1A64_PRIME: u64 = 1099511628211 as u64;
 
-const HASH_SIP_CTX_SIZE: usize = 56;
-const HASH_UNIFIED_CTX_SIZE: usize = 200;
-const HASH_UNIFIED_SIP_OFF: usize = 8;
-const HASH_UNIFIED_FNV_OFF: usize = 64;
-const HASH_UNIFIED_XXH_OFF: usize = 72;
+export const HASH_SIP_CTX_SIZE: usize = 56;
+export const HASH_UNIFIED_CTX_SIZE: usize = 200;
+export const HASH_UNIFIED_SIP_OFF: usize = 8;
+export const HASH_UNIFIED_FNV_OFF: usize = 64;
+export const HASH_UNIFIED_XXH_OFF: usize = 72;
 
 /** SipHash-2-4 流式状态。 */
 allow(padding) struct HashSipCtx {
@@ -62,7 +62,7 @@ allow(padding) struct HashSipCtx {
 }
 
 /** xxHash64 流式状态。 */
-const HASH_XXH64_CTX_MEM64_OFF: usize = 40;
+export const HASH_XXH64_CTX_MEM64_OFF: usize = 40;
 
 allow(padding) struct HashXxh64Ctx {
   total_len: u64;
@@ -96,45 +96,45 @@ allow(padding) struct HashUnifiedCtx {
   xxh_seed: u64;
 }
 
-extern "C" function malloc(size: usize): *u8;
-extern "C" function free(ptr: *u8): void;
-extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
-extern "C" function getenv(name: *u8): *u8;
-extern "C" function strcmp(a: *u8, b: *u8): i32;
+export extern "C" function malloc(size: usize): *u8;
+export extern "C" function free(ptr: *u8): void;
+export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+export extern "C" function getenv(name: *u8): *u8;
+export extern "C" function strcmp(a: *u8, b: *u8): i32;
 
 /** libc FFI 须 unsafe；集中薄包装，避免 hash_*_c 重复写 unsafe 块。 */
-function hash_libc_memcpy(dst: *u8, src: *u8, n: usize): *u8 {
+export function hash_libc_memcpy(dst: *u8, src: *u8, n: usize): *u8 {
   unsafe { return memcpy(dst, src, n); }
   return 0; // unreachable — typeck workaround
 }
 
 /** xxHash64 流式 mem 区起始地址（offset 40 = mem64 字段）。 */
-function hash_xxh64_mem_base(s: *HashXxh64Ctx): *u8 {
+export function hash_xxh64_mem_base(s: *HashXxh64Ctx): *u8 {
   return (s as *u8) + HASH_XXH64_CTX_MEM64_OFF;
 }
 
 /** F-hash v1 版本标记；供 v1 聚合 gate 校验。 */
-function hash_f_hash_v1_marker_c(): i32 {
+export function hash_f_hash_v1_marker_c(): i32 {
   return 1;
 }
 
 /** F-hash v2 逻辑全量 .x 标记。 */
-function hash_f_hash_v2_marker_c(): i32 {
+export function hash_f_hash_v2_marker_c(): i32 {
   return 1;
 }
 
 /** 统一上下文内 SipHash 子视图（与 HashSipCtx 布局一致，offset 8）。 */
-function hash_unified_sip(u: *HashUnifiedCtx): *HashSipCtx {
+export function hash_unified_sip(u: *HashUnifiedCtx): *HashSipCtx {
   return (u as *u8 + HASH_UNIFIED_SIP_OFF) as *HashSipCtx;
 }
 
 /** 统一上下文内 xxHash 子视图（offset 72）。 */
-function hash_unified_xxh(u: *HashUnifiedCtx): *HashXxh64Ctx {
+export function hash_unified_xxh(u: *HashUnifiedCtx): *HashXxh64Ctx {
   return (u as *u8 + HASH_UNIFIED_XXH_OFF) as *HashXxh64Ctx;
 }
 
 /** aHash/FNV 写入委托：勿 &u.fnv（field 取址 CALL 实参 asm emit 失败）。 */
-function hash_unified_fnv_write_ptr_c(h: *u8, ptr: *u8, len: i32): void {
+export function hash_unified_fnv_write_ptr_c(h: *u8, ptr: *u8, len: i32): void {
   let u: *HashUnifiedCtx = h as *HashUnifiedCtx;
   let i: i32 = 0;
   if (h == 0 || ptr == 0 || len <= 0) { return; }
@@ -146,12 +146,12 @@ function hash_unified_fnv_write_ptr_c(h: *u8, ptr: *u8, len: i32): void {
 }
 
 /** 64 位循环左移（SipHash / xxHash 共用）。 */
-function hash_rotl64(x: u64, s: i32): u64 {
+export function hash_rotl64(x: u64, s: i32): u64 {
   return (x << s) | (x >> (64 - s));
 }
 
 /** SipHash-2-4 单轮（v 为 4 元 u64 工作数组；勿 *u64 形参 + 解引用赋值）。 */
-function hash_sipround_arr(v: u64[4]): void {
+export function hash_sipround_arr(v: u64[4]): void {
   let v0: u64 = v[0];
   let v1: u64 = v[1];
   let v2: u64 = v[2];
@@ -177,7 +177,7 @@ function hash_sipround_arr(v: u64[4]): void {
 }
 
 /** 小端读取 8 字节为 u64。 */
-function hash_read64le(p: *u8): u64 {
+export function hash_read64le(p: *u8): u64 {
   return (p[0] as u64)
     | ((p[1] as u64) << 8)
     | ((p[2] as u64) << 16)
@@ -189,7 +189,7 @@ function hash_read64le(p: *u8): u64 {
 }
 
 /** SipHash 压缩一块 64-bit 消息。 */
-function hash_sip_compress(ctx: *HashSipCtx, m: u64): void {
+export function hash_sip_compress(ctx: *HashSipCtx, m: u64): void {
   let v0: u64 = ctx.v0;
   let v1: u64 = ctx.v1;
   let v2: u64 = ctx.v2;
@@ -214,7 +214,7 @@ function hash_sip_compress(ctx: *HashSipCtx, m: u64): void {
 }
 
 /** 初始化 SipHash 向量（key 默认 0,0）。 */
-function hash_sip_init(ctx: *HashSipCtx): void {
+export function hash_sip_init(ctx: *HashSipCtx): void {
   ctx.v0 = 0x736f6d6570736575 as u64;
   ctx.v1 = 0x646f72616e646f6d as u64;
   ctx.v2 = 0x6c7967656e657261 as u64;
@@ -224,7 +224,7 @@ function hash_sip_init(ctx: *HashSipCtx): void {
 }
 
 /** 创建 Hasher 状态；默认 key (0,0)。失败返回 0。 */
-function hash_sip_new_c(): *u8 {
+export function hash_sip_new_c(): *u8 {
   unsafe {
     let ctx: *HashSipCtx = malloc(HASH_SIP_CTX_SIZE) as *HashSipCtx;
     if (ctx == 0) { return 0 as *u8; }
@@ -234,7 +234,7 @@ function hash_sip_new_c(): *u8 {
 }
 
 /** 写入任意字节到 SipHash 流。 */
-function hash_sip_write_bytes_c(h: *u8, ptr: *u8, len: i32): void {
+export function hash_sip_write_bytes_c(h: *u8, ptr: *u8, len: i32): void {
   let ctx: *HashSipCtx = h as *HashSipCtx;
   let i: i32 = 0;
   if (ctx == 0 || ptr == 0 || len <= 0) { return; }
@@ -262,7 +262,7 @@ function hash_sip_write_bytes_c(h: *u8, ptr: *u8, len: i32): void {
 }
 
 /** 写入 4 字节（小端）。 */
-function hash_sip_write_u32_c(h: *u8, x: u32): void {
+export function hash_sip_write_u32_c(h: *u8, x: u32): void {
   let b: u8[4];
   if (h == 0) { return; }
   b[0] = (x as u8);
@@ -273,7 +273,7 @@ function hash_sip_write_u32_c(h: *u8, x: u32): void {
 }
 
 /** 写入 8 字节（小端）。 */
-function hash_sip_write_u64_c(h: *u8, x: u64): void {
+export function hash_sip_write_u64_c(h: *u8, x: u64): void {
   let b: u8[8];
   if (h == 0) { return; }
   b[0] = (x as u8);
@@ -288,7 +288,7 @@ function hash_sip_write_u64_c(h: *u8, x: u64): void {
 }
 
 /** 完成 SipHash，返回 64-bit 摘要。 */
-function hash_sip_finish_c(h: *u8): u64 {
+export function hash_sip_finish_c(h: *u8): u64 {
   let ctx: *HashSipCtx = h as *HashSipCtx;
   let len_bits: u64 = 0;
   let i: i32 = 0;
@@ -326,14 +326,14 @@ function hash_sip_finish_c(h: *u8): u64 {
 }
 
 /** 释放 Hasher 状态。 */
-function hash_sip_free_c(h: *u8): void {
+export function hash_sip_free_c(h: *u8): void {
   unsafe {
     free(h);
   }
 }
 
 /** 一次性 SipHash-2-4（key 默认 0,0）。 */
-function hash_sip_bytes_c(ptr: *u8, len: i32): u64 {
+export function hash_sip_bytes_c(ptr: *u8, len: i32): u64 {
   let h: *u8 = hash_sip_new_c();
   let r: u64 = 0;
   if (h == 0) { return 0; }
@@ -344,7 +344,7 @@ function hash_sip_bytes_c(ptr: *u8, len: i32): u64 {
 }
 
 /** xxHash64 单轮混合。 */
-function hash_xxh64_round(acc: u64, input: u64): u64 {
+export function hash_xxh64_round(acc: u64, input: u64): u64 {
   acc = acc + input * XXH64_PRIME2;
   acc = hash_rotl64(acc, 31);
   acc = acc * XXH64_PRIME1;
@@ -352,7 +352,7 @@ function hash_xxh64_round(acc: u64, input: u64): u64 {
 }
 
 /** xxHash64 merge 轮。 */
-function hash_xxh64_merge_round(acc: u64, val: u64): u64 {
+export function hash_xxh64_merge_round(acc: u64, val: u64): u64 {
   val = hash_xxh64_round(0, val);
   acc = acc ^ val;
   acc = acc * XXH64_PRIME1 + XXH64_PRIME4;
@@ -360,7 +360,7 @@ function hash_xxh64_merge_round(acc: u64, val: u64): u64 {
 }
 
 /** xxHash64 雪崩终混。 */
-function hash_xxh64_avalanche(h64: u64): u64 {
+export function hash_xxh64_avalanche(h64: u64): u64 {
   h64 = h64 ^ (h64 >> 33);
   h64 = h64 * XXH64_PRIME2;
   h64 = h64 ^ (h64 >> 29);
@@ -370,7 +370,7 @@ function hash_xxh64_avalanche(h64: u64): u64 {
 }
 
 /** 重置 xxHash64 流式状态。 */
-function hash_xxh64_reset(s: *HashXxh64Ctx, seed: u64): void {
+export function hash_xxh64_reset(s: *HashXxh64Ctx, seed: u64): void {
   s.seed = seed;
   s.v1 = seed + XXH64_PRIME1 + XXH64_PRIME2;
   s.v2 = seed + XXH64_PRIME2;
@@ -382,7 +382,7 @@ function hash_xxh64_reset(s: *HashXxh64Ctx, seed: u64): void {
 }
 
 /** xxHash64 流式更新。 */
-function hash_xxh64_update(s: *HashXxh64Ctx, input: *u8, len: usize): void {
+export function hash_xxh64_update(s: *HashXxh64Ctx, input: *u8, len: usize): void {
   unsafe {
     let p: usize = 0;
     let buf: u8[32];
@@ -420,7 +420,7 @@ function hash_xxh64_update(s: *HashXxh64Ctx, input: *u8, len: usize): void {
 }
 
 /** xxHash64 流式完成。 */
-function hash_xxh64_digest(s: *HashXxh64Ctx): u64 {
+export function hash_xxh64_digest(s: *HashXxh64Ctx): u64 {
   let h64: u64 = 0;
   let p: *u8 = 0;
   let i: i32 = 0;
@@ -456,20 +456,20 @@ function hash_xxh64_digest(s: *HashXxh64Ctx): u64 {
 }
 
 /** xxHash 写入委托：首参为统一 Hasher 基址 *u8（经 HashUnifiedCtx 取 xxh 子视图）。 */
-function hash_unified_xxh_write_ptr_c(h: *u8, ptr: *u8, len: i32): void {
+export function hash_unified_xxh_write_ptr_c(h: *u8, ptr: *u8, len: i32): void {
   let u: *HashUnifiedCtx = h as *HashUnifiedCtx;
   hash_xxh64_update(hash_unified_xxh(u), ptr, len as usize);
 }
 
 /** xxHash 完成委托：经 hash_unified_xxh 取子视图，避免 h+offset 实参 typeck/asm 歧义。 */
-function hash_unified_xxh_digest_ptr_c(h: *u8): u64 {
+export function hash_unified_xxh_digest_ptr_c(h: *u8): u64 {
   let u: *HashUnifiedCtx = h as *HashUnifiedCtx;
   let r: u64 = hash_xxh64_digest(hash_unified_xxh(u));
   return r;
 }
 
 /** 一次性 xxHash64（指定 seed）。 */
-function hash_xxhash64_seed_bytes_c(ptr: *u8, len: i32, seed: u64): u64 {
+export function hash_xxhash64_seed_bytes_c(ptr: *u8, len: i32, seed: u64): u64 {
   let s: HashXxh64Ctx;
   hash_xxh64_reset(&s, seed);
   if (len > 0 && ptr != 0) {
@@ -479,13 +479,13 @@ function hash_xxhash64_seed_bytes_c(ptr: *u8, len: i32, seed: u64): u64 {
 }
 
 /** 一次性 xxHash64（seed=0）。 */
-function hash_xxhash64_bytes_c(ptr: *u8, len: i32): u64 {
+export function hash_xxhash64_bytes_c(ptr: *u8, len: i32): u64 {
   return hash_xxhash64_seed_bytes_c(ptr, len, 0);
 }
 
 
 /** 读取 SHUX_HASH_ALGO 环境变量；默认 HASHER_SIPHASH。 */
-function hash_default_algo_c(): i32 {
+export function hash_default_algo_c(): i32 {
   unsafe {
     let v: *u8 = getenv(&HAS_LIT_SHUX_HASH_ALGO[0]);
     if (v == 0 || v[0] == 0) { return HASHER_SIPHASH; }
@@ -498,17 +498,17 @@ function hash_default_algo_c(): i32 {
 }
 
 /** Map/Set 推荐 Hasher（SipHash，STD-148）。 */
-function hash_recommend_hasher_map_c(): i32 {
+export function hash_recommend_hasher_map_c(): i32 {
   return HASHER_SIPHASH;
 }
 
 /** 内部去重/快速路径推荐 Hasher（xxHash64，STD-148）。 */
-function hash_recommend_hasher_fast_c(): i32 {
+export function hash_recommend_hasher_fast_c(): i32 {
   return HASHER_XXHASH;
 }
 
 /** 按算法创建统一 Hasher；失败 0。 */
-function hash_unified_new_c(algo: i32): *u8 {
+export function hash_unified_new_c(algo: i32): *u8 {
   unsafe {
     let u: *HashUnifiedCtx = malloc(HASH_UNIFIED_CTX_SIZE) as *HashUnifiedCtx;
     if (u == 0) { return 0 as *u8; }
@@ -528,7 +528,7 @@ function hash_unified_new_c(algo: i32): *u8 {
 }
 
 /** 统一 Hasher 写入字节。 */
-function hash_unified_write_bytes_c(h: *u8, ptr: *u8, len: i32): void {
+export function hash_unified_write_bytes_c(h: *u8, ptr: *u8, len: i32): void {
   let u: *HashUnifiedCtx = h as *HashUnifiedCtx;
   if (u == 0 || ptr == 0 || len <= 0) { return; }
   if (u.algo == HASHER_SIPHASH) {
@@ -541,7 +541,7 @@ function hash_unified_write_bytes_c(h: *u8, ptr: *u8, len: i32): void {
 }
 
 /** 统一 Hasher 写入 u32（小端）。 */
-function hash_unified_write_u32_c(h: *u8, x: u32): void {
+export function hash_unified_write_u32_c(h: *u8, x: u32): void {
   let b: u8[4];
   b[0] = (x as u8);
   b[1] = ((x >> 8) as u8);
@@ -551,7 +551,7 @@ function hash_unified_write_u32_c(h: *u8, x: u32): void {
 }
 
 /** 统一 Hasher 完成并返回 u64 摘要。 */
-function hash_unified_finish_c(h: *u8): u64 {
+export function hash_unified_finish_c(h: *u8): u64 {
   let u: *HashUnifiedCtx = h as *HashUnifiedCtx;
   if (u == 0) { return 0; }
   if (u.algo == HASHER_SIPHASH) { return hash_sip_finish_c(hash_unified_sip(u) as *u8); }
@@ -561,14 +561,14 @@ function hash_unified_finish_c(h: *u8): u64 {
 }
 
 /** 释放统一 Hasher。 */
-function hash_unified_free_c(h: *u8): void {
+export function hash_unified_free_c(h: *u8): void {
   unsafe {
     free(h);
   }
 }
 
 /** STD-056 烟测：aHash("abc") 金样 + SipHash ≠ aHash。 */
-function hash_hasher_switch_smoke_c(): i32 {
+export function hash_hasher_switch_smoke_c(): i32 {
   let abc: u8[4] = [97, 98, 99, 0];
   let ha: *u8 = 0;
   let hs: *u8 = 0;
@@ -590,7 +590,7 @@ function hash_hasher_switch_smoke_c(): i32 {
 }
 
 /** STD-105 烟测：xxHash64 空串与 abc 金样。 */
-function hash_xxhash_smoke_c(): i32 {
+export function hash_xxhash_smoke_c(): i32 {
   let abc: u8[4] = [97, 98, 99, 0];
   if (hash_xxhash64_bytes_c(0, 0) != 0xef46db3751d8e999 as u64) { return 1; }
   if (hash_xxhash64_bytes_c(&abc[0], 3) != 0x44bc2cf5ad770999 as u64) { return 2; }
@@ -598,7 +598,7 @@ function hash_xxhash_smoke_c(): i32 {
 }
 
 /** STD-148 烟测：推荐 Hasher + 三族摘要互异。 */
-function hash_default_strategy_smoke_c(): i32 {
+export function hash_default_strategy_smoke_c(): i32 {
   let abc: u8[4] = [97, 98, 99, 0];
   let hs: *u8 = 0;
   let ha: *u8 = 0;

@@ -25,16 +25,16 @@
 const mem = import("core.mem");
 
 /** 密码学随机字节（链入 random.o）。 */
-extern function random_fill_bytes_c(buf: *u8, len: i32): i32;
+export extern function random_fill_bytes_c(buf: *u8, len: i32): i32;
 /** 墙钟毫秒（链入 time.o）。 */
-extern function time_now_wall_ms_c(): i64;
+export extern function time_now_wall_ms_c(): i64;
 
 /** v7 上次生成的 Unix 毫秒；同毫秒内 uuid_v7_seq 单调递增 rand_a。 */
 let uuid_v7_last_ms: i64 = -1;
 let uuid_v7_seq: u16 = 0;
 
 /** 十六进制字符 → 数值；-1 非法。 */
-function uuid_hex_val(c: u8): i32 {
+export function uuid_hex_val(c: u8): i32 {
   if (c >= 48 && c <= 57) { return (c - 48) as i32; }
   if (c >= 97 && c <= 102) { return (c - 97 + 10) as i32; }
   if (c >= 65 && c <= 70) { return (c - 65 + 10) as i32; }
@@ -42,19 +42,19 @@ function uuid_hex_val(c: u8): i32 {
 }
 
 /** 半字节 → 小写 hex ASCII。 */
-function uuid_nibble_hex(d: u8): u8 {
+export function uuid_nibble_hex(d: u8): u8 {
   if (d < 10) { return (d + 48) as u8; }
   return (d - 10 + 97) as u8;
 }
 
 /** 写入 UUID v4 随机版本与 variant 位。 */
-function uuid_apply_v4_variant(u: *u8): void {
+export function uuid_apply_v4_variant(u: *u8): void {
   u[6] = (u[6] & 15) | 64;
   u[8] = (u[8] & 63) | 128;
 }
 
 /** 生成 UUID v4；成功 0，随机失败 -1。 */
-function uuid_new_v4_c(out: *u8): i32 {
+export function uuid_new_v4_c(out: *u8): i32 {
   if (out == 0) { return -1; }
   unsafe { if (random_fill_bytes_c(out, 16) != 16) { return -1; } }
   uuid_apply_v4_variant(out);
@@ -62,7 +62,7 @@ function uuid_new_v4_c(out: *u8): i32 {
 }
 
 /** 生成 UUID v7（48-bit Unix 毫秒 + 12-bit 序号/随机 + 62-bit 随机）；成功 0。 */
-function uuid_new_v7_c(out: *u8): i32 {
+export function uuid_new_v7_c(out: *u8): i32 {
   let ms: i64 = 0;
   let rand_a: u16 = 0;
   let rand_buf: u8[2] = [0, 0];
@@ -106,7 +106,7 @@ function uuid_new_v7_c(out: *u8): i32 {
 }
 
 /** 解析 UUID 字符串（36 带连字符或 32 纯 hex）；成功 0。 */
-function uuid_parse_c(ptr: *u8, len: i32, out: *u8): i32 {
+export function uuid_parse_c(ptr: *u8, len: i32, out: *u8): i32 {
   let i: i32 = 0;
   let pos: i32 = 0;
   let digit: i32 = 0;
@@ -132,7 +132,7 @@ function uuid_parse_c(ptr: *u8, len: i32, out: *u8): i32 {
 }
 
 /** 格式化为标准小写连字符形式；返回 36，失败 -1。 */
-function uuid_format_c(u: *u8, out: *u8, out_cap: i32): i32 {
+export function uuid_format_c(u: *u8, out: *u8, out_cap: i32): i32 {
   let i: i32 = 0;
   let o: i32 = 0;
   if (u == 0 || out == 0 || out_cap < 37) { return -1; }
@@ -153,20 +153,20 @@ function uuid_format_c(u: *u8, out: *u8, out_cap: i32): i32 {
 }
 
 /** 128-bit 相等：1 相等，0 不等。 */
-function uuid_eq_c(a: *u8, b: *u8): i32 {
+export function uuid_eq_c(a: *u8, b: *u8): i32 {
   if (a == 0 || b == 0) { return 0; }
   if (mem.mem_compare(a, b, 16) == 0) { return 1; }
   return 0;
 }
 
 /** 取版本号 nibble（4/7/等）；非法布局仍返回位值。 */
-function uuid_version_c(u: *u8): i32 {
+export function uuid_version_c(u: *u8): i32 {
   if (u == 0) { return -1; }
   return ((u[6] >> 4) & 15) as i32;
 }
 
 /** C 烟测：已知向量 parse/format/eq/v4/v7（STD-075 门禁）。 */
-function uuid_smoke_c(): i32 {
+export function uuid_smoke_c(): i32 {
   let known: u8[37] = [
     53, 48, 48, 101, 56, 52, 48, 48, 45, 101, 50, 57, 98, 45, 52, 49, 100, 52,
     45, 97, 55, 49, 54, 45, 52, 52, 54, 54, 53, 53, 52, 52, 48, 48, 48, 48, 0

@@ -28,17 +28,17 @@ allow(padding) struct Result_i32 {
 }
 
 // 构造成功值：第一槽为值，第二槽为 0
-function ok(x: i32): Result_i32 {
+export function ok(x: i32): Result_i32 {
   return Result_i32 { value: x, _pad1: 0, err: 0, _pad2: 0 }
 }
 
 // 构造错误值：第二槽为错误码
-function err(e: i32): Result_i32 {
+export function err(e: i32): Result_i32 {
   return Result_i32 { value: 0, _pad1: 0, err: e, _pad2: 0 }
 }
 
 // 成功则返回值，否则返回默认值（if/else：seed shux-c C 解析器 return 内三元 ? : 与 expr? 歧义）
-function unwrap_or(r: Result_i32, default_val: i32): i32 {
+export function unwrap_or(r: Result_i32, default_val: i32): i32 {
   if (r.err == 0) {
     return r.value;
   }
@@ -46,27 +46,27 @@ function unwrap_or(r: Result_i32, default_val: i32): i32 {
 }
 
 // 是否为成功
-function is_ok(r: Result_i32): bool {
+export function is_ok(r: Result_i32): bool {
   return r.err == 0;
 }
 
 /** 泛型成功判定占位：v1 gate 符号锚点；具象路径用 is_ok。 */
-function is_ok_gen(r: Result_i32): bool {
+export function is_ok_gen(r: Result_i32): bool {
   return is_ok(r);
 }
 
 /** 泛型 unwrap_or 占位：v1 gate 符号锚点；具象路径用 unwrap_or。 */
-function unwrap_or_gen(r: Result_i32, default_val: i32): i32 {
+export function unwrap_or_gen(r: Result_i32, default_val: i32): i32 {
   return unwrap_or(r, default_val);
 }
 
 // 是否为错误
-function is_err(r: Result_i32): bool {
+export function is_err(r: Result_i32): bool {
   return r.err != 0;
 }
 
 // 成功则返回值，否则返回默认值（与 unwrap_or 同义，命名供“期望有默认”的调用方使用）
-function expect(r: Result_i32, default_val: i32): i32 {
+export function expect(r: Result_i32, default_val: i32): i32 {
   if (r.err == 0) {
     return r.value;
   }
@@ -74,7 +74,7 @@ function expect(r: Result_i32, default_val: i32): i32 {
 }
 
 // 成功则返回值，否则 panic（用于必须成功的场景）
-function expect_or_panic(r: Result_i32): i32 {
+export function expect_or_panic(r: Result_i32): i32 {
   if (r.err == 0) {
     return r.value;
   } else {
@@ -83,7 +83,7 @@ function expect_or_panic(r: Result_i32): i32 {
 }
 
 // 成功则返回本结果，否则返回 other（组合两个结果，取第一个 Ok）
-function or(r: Result_i32, other: Result_i32): Result_i32 {
+export function or(r: Result_i32, other: Result_i32): Result_i32 {
   if (r.err == 0) {
     return r;
   }
@@ -91,7 +91,7 @@ function or(r: Result_i32, other: Result_i32): Result_i32 {
 }
 
 // 失败则返回本结果，否则返回 other（串联：当前成功才继续）
-function and(r: Result_i32, other: Result_i32): Result_i32 {
+export function and(r: Result_i32, other: Result_i32): Result_i32 {
   if (r.err != 0) {
     return r;
   }
@@ -101,7 +101,7 @@ function and(r: Result_i32, other: Result_i32): Result_i32 {
 // ——— eager 组合子（CORE-003 map/and_then/or_else） ———
 
 /** 成功则 ok(mapped)，否则保持 err。 */
-function map(r: Result_i32, mapped: i32): Result_i32 {
+export function map(r: Result_i32, mapped: i32): Result_i32 {
   if (is_ok(r)) {
     return ok(mapped);
   }
@@ -109,7 +109,7 @@ function map(r: Result_i32, mapped: i32): Result_i32 {
 }
 
 /** 成功则返回 next，否则保持 err。 */
-function and_then(r: Result_i32, next: Result_i32): Result_i32 {
+export function and_then(r: Result_i32, next: Result_i32): Result_i32 {
   if (is_ok(r)) {
     return next;
   }
@@ -117,7 +117,7 @@ function and_then(r: Result_i32, next: Result_i32): Result_i32 {
 }
 
 /** 失败则返回 other，否则保持 ok。 */
-function or_else(r: Result_i32, other: Result_i32): Result_i32 {
+export function or_else(r: Result_i32, other: Result_i32): Result_i32 {
   if (is_err(r)) {
     return other;
   }
@@ -135,17 +135,17 @@ allow(padding) struct Result_u8 {
 }
 
 /** 构造成功 Result_u8。 */
-function ok_u8(x: u8): Result_u8 {
+export function ok_u8(x: u8): Result_u8 {
   return Result_u8 { value: x, _pad1: 0, _pad2: 0, _pad3: 0, err: 0, _pad4: 0 };
 }
 
 /** 构造错误 Result_u8。 */
-function err_u8(e: i32): Result_u8 {
+export function err_u8(e: i32): Result_u8 {
   return Result_u8 { value: 0, _pad1: 0, _pad2: 0, _pad3: 0, err: e, _pad4: 0 };
 }
 
 /** 成功则返回值，否则 default。 */
-function unwrap_or_u8(r: Result_u8, default_val: u8): u8 {
+export function unwrap_or_u8(r: Result_u8, default_val: u8): u8 {
   if (r.err == 0) {
     return r.value;
   }
@@ -153,17 +153,17 @@ function unwrap_or_u8(r: Result_u8, default_val: u8): u8 {
 }
 
 /** 是否为成功。 */
-function is_ok_u8(r: Result_u8): bool {
+export function is_ok_u8(r: Result_u8): bool {
   return r.err == 0;
 }
 
 /** 是否为错误。 */
-function is_err_u8(r: Result_u8): bool {
+export function is_err_u8(r: Result_u8): bool {
   return r.err != 0;
 }
 
 /** 成功则返回值，否则 panic。 */
-function expect_u8_or_panic(r: Result_u8): u8 {
+export function expect_u8_or_panic(r: Result_u8): u8 {
   if (r.err == 0) {
     return r.value;
   }
@@ -171,7 +171,7 @@ function expect_u8_or_panic(r: Result_u8): u8 {
 }
 
 /** 成功则 ok(mapped)，否则保持 err。 */
-function map_u8(r: Result_u8, mapped: u8): Result_u8 {
+export function map_u8(r: Result_u8, mapped: u8): Result_u8 {
   if (is_ok_u8(r)) {
     return ok_u8(mapped);
   }
@@ -179,7 +179,7 @@ function map_u8(r: Result_u8, mapped: u8): Result_u8 {
 }
 
 /** 失败则返回 other，否则保持 ok。 */
-function or_else_u8(r: Result_u8, other: Result_u8): Result_u8 {
+export function or_else_u8(r: Result_u8, other: Result_u8): Result_u8 {
   if (is_err_u8(r)) {
     return other;
   }
@@ -187,18 +187,18 @@ function or_else_u8(r: Result_u8, other: Result_u8): Result_u8 {
 }
 
 // ——— 兼容性别名 ———
-function ok_i32(x: i32): Result_i32 { return ok(x); }
-function err_i32(e: i32): Result_i32 { return err(e); }
-function unwrap_or_i32(r: Result_i32, default_val: i32): i32 { return unwrap_or(r, default_val); }
-function is_ok_i32(r: Result_i32): bool { return is_ok(r); }
-function is_err_i32(r: Result_i32): bool { return is_err(r); }
-function expect_i32(r: Result_i32, default_val: i32): i32 { return expect(r, default_val); }
-function expect_i32_or_panic(r: Result_i32): i32 { return expect_or_panic(r); }
-function or_i32(r: Result_i32, other: Result_i32): Result_i32 { return or(r, other); }
-function and_i32(r: Result_i32, other: Result_i32): Result_i32 { return and(r, other); }
-function map_i32(r: Result_i32, mapped: i32): Result_i32 { return map(r, mapped); }
-function and_then_i32(r: Result_i32, next: Result_i32): Result_i32 { return and_then(r, next); }
-function or_else_i32(r: Result_i32, other: Result_i32): Result_i32 { return or_else(r, other); }
+export function ok_i32(x: i32): Result_i32 { return ok(x); }
+export function err_i32(e: i32): Result_i32 { return err(e); }
+export function unwrap_or_i32(r: Result_i32, default_val: i32): i32 { return unwrap_or(r, default_val); }
+export function is_ok_i32(r: Result_i32): bool { return is_ok(r); }
+export function is_err_i32(r: Result_i32): bool { return is_err(r); }
+export function expect_i32(r: Result_i32, default_val: i32): i32 { return expect(r, default_val); }
+export function expect_i32_or_panic(r: Result_i32): i32 { return expect_or_panic(r); }
+export function or_i32(r: Result_i32, other: Result_i32): Result_i32 { return or(r, other); }
+export function and_i32(r: Result_i32, other: Result_i32): Result_i32 { return and(r, other); }
+export function map_i32(r: Result_i32, mapped: i32): Result_i32 { return map(r, mapped); }
+export function and_then_i32(r: Result_i32, next: Result_i32): Result_i32 { return and_then(r, next); }
+export function or_else_i32(r: Result_i32, other: Result_i32): Result_i32 { return or_else(r, other); }
 
 /** 模块尾占位：transitive import 解析时末位 function 会丢失，须保留非 API 锚点。 */
-function result_module_anchor(): i32 { return 0; }
+export function result_module_anchor(): i32 { return 0; }

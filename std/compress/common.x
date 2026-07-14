@@ -21,13 +21,13 @@
 // 【所属模块】std.compress（F-04 v7 纯 .x；零 .c/.h）
 
 /** gzip 流状态魔数（'GZST'）。 */
-const SHU_GZIP_STREAM_MAGIC: u32 = 0x475a5354;
+export const SHU_GZIP_STREAM_MAGIC: u32 = 0x475a5354;
 
 /** brotli 流状态魔数（'BRST'）。 */
-const SHU_BROTLI_STREAM_MAGIC: u32 = 0x42525354;
+export const SHU_BROTLI_STREAM_MAGIC: u32 = 0x42525354;
 
 /** zstd 流状态魔数（'ZSTR'）。 */
-const SHU_ZSTD_STREAM_MAGIC: u32 = 0x5a535452;
+export const SHU_ZSTD_STREAM_MAGIC: u32 = 0x5a535452;
 
 /** gzip 流状态头（后接 z_stream 或 stub 占位）；mode 0=compress 1=decompress。 */
 allow(padding) struct CompressStreamHdr {
@@ -38,6 +38,6 @@ allow(padding) struct CompressStreamHdr {
 }
 
 /** F-compress-common-zero-c 标记；供 zero-c track gate 校验。 */
-function compress_common_zero_c_marker_c(): i32 {
+export function compress_common_zero_c_marker_c(): i32 {
   return 1;
 }

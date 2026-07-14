@@ -18,7 +18,7 @@
 // 与 compiler/include/token.h 一致；与 C 并存，完成后删 lexer.c 留本文件。
 
 // Token 种类枚举（与 token.h TokenKind 顺序一致）
-enum TokenKind {
+export enum TokenKind {
   TOKEN_EOF,
   TOKEN_FUNCTION,
   TOKEN_LET,
@@ -188,6 +188,8 @@ enum TokenKind {
   TOKEN_AT,
   /** 字符串字面量 import("path") 等 */
   TOKEN_STRING,
+  /** export 关键字：放在枚举末尾，避免挤动 IDENT 等序数（thin 硬编码 IDENT=59） */
+  TOKEN_EXPORT,
 }
 
 // 单个 Token：类型 + 源码位置 + 字面量/标识符（.x 无
@@ -209,6 +211,6 @@ allow(padding) struct Token {
 * 注意：不得写成 let x: i32 = t.kind as i32（shux-c 在 let
 * 初始化里不支持「as」cast，会破坏 bootstrap-pipeline）。
 */
-function token_is_eof(t: Token): bool {
+export function token_is_eof(t: Token): bool {
   return t.kind == TokenKind.TOKEN_EOF;
 }

@@ -26,42 +26,42 @@
 const codegen_outbuf_abi = import("codegen_outbuf_abi");
 
 /** elf.x：大 struct 字段写入 sidecar（ast_pool.c）；键 = *ElfCodegenCtx 转 *u8。 */
-extern function pipeline_elf_ctx_append_patch(ctx: *u8, rel32_offset: i32, name: *u8, name_len:
+export extern function pipeline_elf_ctx_append_patch(ctx: *u8, rel32_offset: i32, name: *u8, name_len:
 i32, imm_bits: i32): i32;
-extern function pipeline_elf_ctx_append_reloc(ctx: *u8, offset: i32, name: *u8, name_len: i32): i32;
-extern function pipeline_elf_ctx_add_label(ctx: *u8, name: *u8, name_len: i32, offset: i32): i32;
-extern function pipeline_elf_ctx_ensure_label(ctx: *u8, name: *u8, name_len: i32): i32;
+export extern function pipeline_elf_ctx_append_reloc(ctx: *u8, offset: i32, name: *u8, name_len: i32): i32;
+export extern function pipeline_elf_ctx_add_label(ctx: *u8, name: *u8, name_len: i32, offset: i32): i32;
+export extern function pipeline_elf_ctx_ensure_label(ctx: *u8, name: *u8, name_len: i32): i32;
 /** macho/elf：reloc_sym_names 行读写 glue，避免大 ElfCodegenCtx 二维数组下标
 * typeck/asm 失败。 */
-extern function pipeline_elf_ctx_reloc_sym_name_ptr(ctx: *u8, idx: i32): *u8;
-extern function pipeline_elf_ctx_reloc_sym_name_copy64(ctx: *u8, idx: i32, dst: *u8): void;
-extern function pipeline_elf_ctx_reloc_name_len(ctx: *u8, idx: i32): i32;
+export extern function pipeline_elf_ctx_reloc_sym_name_ptr(ctx: *u8, idx: i32): *u8;
+export extern function pipeline_elf_ctx_reloc_sym_name_copy64(ctx: *u8, idx: i32, dst: *u8): void;
+export extern function pipeline_elf_ctx_reloc_name_len(ctx: *u8, idx: i32): i32;
 /** sidecar 读 patch_imm_bits，避免 .x 大 struct patches[] 字段偏移与 C
 * 写入不一致。 */
-extern function pipeline_elf_ctx_patch_imm_bits_at(ctx: *u8, patch_idx: i32): i32;
+export extern function pipeline_elf_ctx_patch_imm_bits_at(ctx: *u8, patch_idx: i32): i32;
 /** sidecar：heap reloc offset 读写（idx 可 >= 2048）。 */
-extern function pipeline_elf_ctx_reloc_offset_at(ctx: *u8, idx: i32): i32;
-extern function pipeline_elf_ctx_reloc_offset_set(ctx: *u8, idx: i32, offset: i32): void;
-extern function pipeline_elf_ctx_reloc_sidecar_reset(ctx: *u8): void;
+export extern function pipeline_elf_ctx_reloc_offset_at(ctx: *u8, idx: i32): i32;
+export extern function pipeline_elf_ctx_reloc_offset_set(ctx: *u8, idx: i32, offset: i32): void;
+export extern function pipeline_elf_ctx_reloc_sidecar_reset(ctx: *u8): void;
 /** 统一经 ast_pool C 实现解析 patch（与 append_patch 同布局，避免 gen C 与
 * PipelineElfCtxAccess 不一致）。 */
-extern function pipeline_elf_ctx_resolve_patches(ctx: *u8): i32;
-extern function pipeline_elf_ctx_reloc_shndx_at(ctx: *u8, idx: i32): i32;
-extern function pipeline_elf_ctx_sym_shndx_at(ctx: *u8, idx: i32): i32;
-extern function pipeline_elf_pgo_hot_enabled(): i32;
-extern function pipeline_elf_ctx_set_emit_hot(ctx: *u8, hot: i32): void;
-extern function pipeline_elf_ctx_append_bytes(ctx: *u8, ptr: *u8, n: i32): i32;
-extern function pipeline_elf_ctx_code_data_ptr(ctx: *u8): *u8;
-extern function pipeline_elf_write_o_pgo_to_buf(ctx: *u8, out: *CodegenOutBuf): i32;
+export extern function pipeline_elf_ctx_resolve_patches(ctx: *u8): i32;
+export extern function pipeline_elf_ctx_reloc_shndx_at(ctx: *u8, idx: i32): i32;
+export extern function pipeline_elf_ctx_sym_shndx_at(ctx: *u8, idx: i32): i32;
+export extern function pipeline_elf_pgo_hot_enabled(): i32;
+export extern function pipeline_elf_ctx_set_emit_hot(ctx: *u8, hot: i32): void;
+export extern function pipeline_elf_ctx_append_bytes(ctx: *u8, ptr: *u8, n: i32): i32;
+export extern function pipeline_elf_ctx_code_data_ptr(ctx: *u8): *u8;
+export extern function pipeline_elf_write_o_pgo_to_buf(ctx: *u8, out: *CodegenOutBuf): i32;
 /** 标准 ELF64 .o 写出：经 ast_pool.c 从 glue code_data 读机器码（X 直读 ctx.code_data[] 在 seed partial 会 __text 全零/损坏）。 */
-extern function pipeline_elf_write_o_standard_to_buf_c(ctx: *u8, out: *CodegenOutBuf): i32;
+export extern function pipeline_elf_write_o_standard_to_buf_c(ctx: *u8, out: *CodegenOutBuf): i32;
 /** 诊断：elf_resolve_patches 找不到目标标签时打印补丁名。 */
-extern function driver_diagnostic_asm_elf_unresolved_patch(name: *u8, name_len: i32): void;
+export extern function driver_diagnostic_asm_elf_unresolved_patch(name: *u8, name_len: i32): void;
 /** 诊断：补丁名在 labels 表中的匹配情况（sidecar 扫描）。 */
-extern function pipeline_elf_log_unresolved_patch(ctx: *ElfCodegenCtx, patch_idx: i32): void;
+export extern function pipeline_elf_log_unresolved_patch(ctx: *ElfCodegenCtx, patch_idx: i32): void;
 
 /** 局部标签：名称与在 .text 中的偏移（用于 jz/jmp 补丁）。 */
-struct ElfLabelEntry {
+export struct ElfLabelEntry {
   name: u8[64];
   name_len: i32;
   offset: i32;
@@ -69,7 +69,7 @@ struct ElfLabelEntry {
 
 /** 待补丁的 rel32：写入位置与目标标签名（补丁时查 LabelEntry 得到目标
 * offset）。x86：32 位 rel32；arm64：patch_imm_bits 26=B/BL，19=B.cond/CBZ/CBNZ。 */
-struct ElfPatchEntry {
+export struct ElfPatchEntry {
   rel32_offset: i32;
   name: u8[64];
   name_len: i32;
@@ -82,17 +82,17 @@ struct ElfPatchEntry {
 * 符号名字节放在 ElfCodegenCtx.reloc_sym_names[同下标]，避免经 -E 后
 * &relocs[i].name[0] 变成对「?:」临时 struct 取址（悬空）。
 */
-struct ElfRelocEntry {
+export struct ElfRelocEntry {
   offset: i32;
   name_len: i32;
 }
 
-struct ElfRelocSymName64 {
+export struct ElfRelocSymName64 {
   bytes: u8[64];
 }
 
 /** 导出符号（函数）：名称与在 .text 中的偏移。 */
-struct ElfSymEntry {
+export struct ElfSymEntry {
   name: u8[64];
   name_len: i32;
   offset: i32;
@@ -158,13 +158,13 @@ allow(padding) struct ElfCodegenCtx {
 * 「let lo = …; return lo as u8」双语句在 dep 路径上首函数仍可能未写入
 * funcs；单句 return … as u8 避免该边角。
 */
-function elf_to_u8(val: i32): u8 {
+export function elf_to_u8(val: i32): u8 {
   return val as u8;
 }
 
 /** 取 i64 按无符号 u32 解释后的第 byte_idx 字节（0..3）；避免高位为 1
 * 时有符号 >> 污染 ARM/x86 机器码。val 高于 32 位部分被截断。 */
-function elf_u32_byte_at(val: i64, byte_idx: i32): u8 {
+export function elf_u32_byte_at(val: i64, byte_idx: i32): u8 {
   let u: u32 = val as u32;
   if (byte_idx == 0) {
     return (u & 255) as u8;
@@ -183,7 +183,7 @@ function elf_u32_byte_at(val: i64, byte_idx: i32): u8 {
 * 用于 Mach-O strtab 前对 reloc 槽名缓冲清零；用 ptr[i] 写，避免嵌套 struct
 * 成员数组下标经 -E 到 C 时错误更新。
 */
-function elf_clear_u8_64(ptr: *u8): void {
+export function elf_clear_u8_64(ptr: *u8): void {
   let i: i32 = 0;
   while (i < 64) {
     ptr[i] = 0;
@@ -196,7 +196,7 @@ function elf_clear_u8_64(ptr: *u8): void {
 * 专用 *u8 + 下标赋值，避免形如 ctx.relocs[r].name[k] = name[k] 展开后在 C
 * 后端写成错误槽，导致 Darwin .o 中 UND 符号名为空串。
 */
-function elf_copy_u8_n(dst: *u8, src: *u8, n: i32): void {
+export function elf_copy_u8_n(dst: *u8, src: *u8, n: i32): void {
   let i: i32 = 0;
   while (i < n && i < 64) {
     dst[i] = src[i];
@@ -206,11 +206,11 @@ function elf_copy_u8_n(dst: *u8, src: *u8, n: i32): void {
 
 /** 多 Module 顺序写入同一 elf_ctx
 * 时，局部标签全局前缀计数器（ast_pool.c）。 */
-extern function pipeline_elf_label_mod_scope_reset(): void;
+export extern function pipeline_elf_label_mod_scope_reset(): void;
 
 /** 重置 elf_ctx，用于新一轮编码前。e_machine 不在此清零，由 backend
 * 在编码前设置。 */
-function elf_ctx_reset(ctx: *ElfCodegenCtx): void {
+export function elf_ctx_reset(ctx: *ElfCodegenCtx): void {
   ctx.code_len = 0;
   ctx.code_hot_len = 0;
   ctx.emit_hot = 0;
@@ -225,7 +225,7 @@ function elf_ctx_reset(ctx: *ElfCodegenCtx): void {
 }
 
 /** 当前 emit 段内已写字节数（PGO 路由 .text / .text.hot）。 */
-function elf_section_code_len(ctx: *ElfCodegenCtx): i32 {
+export function elf_section_code_len(ctx: *ElfCodegenCtx): i32 {
   if (pipeline_elf_pgo_hot_enabled() != 0 && ctx.emit_hot != 0) {
     return ctx.code_hot_len;
   }
@@ -233,13 +233,13 @@ function elf_section_code_len(ctx: *ElfCodegenCtx): i32 {
 }
 
 /** 向当前 emit 段追加 n 字节；经 C 路由 .text / .text.hot（PGO-Lite）。 */
-function append_elf_bytes(ctx: *ElfCodegenCtx, ptr: *u8, n: i32): i32 {
+export function append_elf_bytes(ctx: *ElfCodegenCtx, ptr: *u8, n: i32): i32 {
   return pipeline_elf_ctx_append_bytes(ctx as *u8, ptr, n);
 }
 
 /** Mach-O arm64 要求函数入口 4 字节对齐；在 is_func 标签前填充 0 字节至
 * code_len%4==0。 */
-function elf_pad_code_to_4(ctx: *ElfCodegenCtx): i32 {
+export function elf_pad_code_to_4(ctx: *ElfCodegenCtx): i32 {
   let pad: u8[1] = [0];
   while (elf_section_code_len(ctx) % 4 != 0) {
     if (append_elf_bytes(ctx, pad, 1) != 0) {
@@ -250,30 +250,30 @@ function elf_pad_code_to_4(ctx: *ElfCodegenCtx): i32 {
 }
 
 /** 记录标签：名称为 name[0..name_len-1]，当前段内偏移；同名则更新偏移。 */
-function elf_add_label(ctx: *ElfCodegenCtx, name: *u8, name_len: i32): i32 {
+export function elf_add_label(ctx: *ElfCodegenCtx, name: *u8, name_len: i32): i32 {
   return pipeline_elf_ctx_add_label(ctx as *u8, name, name_len, elf_section_code_len(ctx));
 }
 
 /** 前向跳转：补丁已记录但标签尚未落点时占位（offset=-1，enc_label 会 upsert
 * 真实偏移）。 */
-function elf_ensure_label_slot(ctx: *ElfCodegenCtx, name: *u8, name_len: i32): i32 {
+export function elf_ensure_label_slot(ctx: *ElfCodegenCtx, name: *u8, name_len: i32): i32 {
   return pipeline_elf_ctx_ensure_label(ctx as *u8, name, name_len);
 }
 
 /** 记录待补丁：rel32 应写入的位置与目标标签名（x86
 * 用，patch_imm_bits=0）。name 为符号名字节指针。 */
-function elf_add_patch(ctx: *ElfCodegenCtx, rel32_offset: i32, name: *u8, name_len: i32): i32 {
+export function elf_add_patch(ctx: *ElfCodegenCtx, rel32_offset: i32, name: *u8, name_len: i32): i32 {
   return elf_add_patch_with_bits(ctx, rel32_offset, name, name_len, 0);
 }
 
 /** 记录待补丁（arm64 用）：imm_bits 26=B/BL，19=CBZ/CBNZ/B.cond。 */
-function elf_add_patch_with_bits(ctx: *ElfCodegenCtx, rel32_offset: i32, name: *u8, name_len: i32,
+export function elf_add_patch_with_bits(ctx: *ElfCodegenCtx, rel32_offset: i32, name: *u8, name_len: i32,
 imm_bits: i32): i32 {
   return pipeline_elf_ctx_append_patch(ctx as *u8, rel32_offset, name, name_len, imm_bits);
 }
 
 /** 记录重定位：offset 为 .text 内 rel32 位置，name 为符号名字节指针。 */
-function elf_add_reloc(ctx: *ElfCodegenCtx, offset: i32, name: *u8, name_len: i32): i32 {
+export function elf_add_reloc(ctx: *ElfCodegenCtx, offset: i32, name: *u8, name_len: i32): i32 {
   return pipeline_elf_ctx_append_reloc(ctx as *u8, offset, name, name_len);
 }
 
@@ -282,7 +282,7 @@ function elf_add_reloc(ctx: *ElfCodegenCtx, offset: i32, name: *u8, name_len: i3
 * 中的起始指针（按顺序拼接，长度见 syms[sym_idx].name_len）。
 * 要求 0 <= sym_idx < ctx.num_syms。
 */
-function elf_sym_name_ptr(ctx: *ElfCodegenCtx, sym_idx: i32): *u8 {
+export function elf_sym_name_ptr(ctx: *ElfCodegenCtx, sym_idx: i32): *u8 {
   let off: i32 = 0;
   let i: i32 = 0;
   while (i < sym_idx) {
@@ -297,7 +297,7 @@ function elf_sym_name_ptr(ctx: *ElfCodegenCtx, sym_idx: i32): *u8 {
 * 偏移写入 offset。
 * name_len 与历史行为一致，实际最多拷贝 64 字节入池。
 */
-function elf_add_sym(ctx: *ElfCodegenCtx, name: *u8, name_len: i32, offset: i32): i32 {
+export function elf_add_sym(ctx: *ElfCodegenCtx, name: *u8, name_len: i32, offset: i32): i32 {
   if (ctx.num_syms >= 16384) {
     return -1;
   }
@@ -331,7 +331,7 @@ function elf_add_sym(ctx: *ElfCodegenCtx, name: *u8, name_len: i32, offset: i32)
 }
 
 /** 比较两段名字是否相等（按 name_len 长度）。 */
-function elf_name_eq(a: u8[64], a_len: i32, b: u8[64], b_len: i32): i32 {
+export function elf_name_eq(a: u8[64], a_len: i32, b: u8[64], b_len: i32): i32 {
   if (a_len != b_len) {
     return 0;
   }
@@ -349,7 +349,7 @@ function elf_name_eq(a: u8[64], a_len: i32, b: u8[64], b_len: i32): i32 {
 * 比较 u8[64] 名字与 sym_name_data 池中的一段（pool[0..pool_len-1]）是否相同。
 * 用于 relocs 与扁平符号名匹配。
 */
-function elf_name_eq_arr_to_pool(name: u8[64], name_len: i32, pool: *u8, pool_len: i32): i32 {
+export function elf_name_eq_arr_to_pool(name: u8[64], name_len: i32, pool: *u8, pool_len: i32): i32 {
   if (name_len != pool_len) {
     return 0;
   }
@@ -364,7 +364,7 @@ function elf_name_eq_arr_to_pool(name: u8[64], name_len: i32, pool: *u8, pool_le
 }
 
 /** reloc 目标是否已在 ctx.syms（本 .o 定义）中。 */
-function elf_reloc_target_is_defined(ctx: *ElfCodegenCtx, reloc_idx: i32): i32 {
+export function elf_reloc_target_is_defined(ctx: *ElfCodegenCtx, reloc_idx: i32): i32 {
   let m: i32 = 0;
   let r_sym_buf: u8[64] = [];
   pipeline_elf_ctx_reloc_sym_name_copy64(ctx as *u8, reloc_idx, &r_sym_buf[0]);
@@ -383,7 +383,7 @@ function elf_reloc_target_is_defined(ctx: *ElfCodegenCtx, reloc_idx: i32): i32 {
 * rel32 写成 udf。
 * 返回 19（cbz/cbnz/b.cond）、26（b/bl）或 0（未知，仍走 x86 rel32）。
 */
-function elf_infer_patch_imm_bits_from_code(ctx: *ElfCodegenCtx, rel32_offset: i32): i32 {
+export function elf_infer_patch_imm_bits_from_code(ctx: *ElfCodegenCtx, rel32_offset: i32): i32 {
   if (rel32_offset < 0 || rel32_offset + 3 >= ctx.code_len) {
     return 0;
   }
@@ -405,7 +405,7 @@ function elf_infer_patch_imm_bits_from_code(ctx: *ElfCodegenCtx, rel32_offset: i
 * 从 ctx.code_data 读 little-endian u32；分步移位，避免 -E 生成 C 时 `& 255 << 8`
 * 优先级错误。
 */
-function elf_read_u32_le(ctx: *ElfCodegenCtx, off: i32): i32 {
+export function elf_read_u32_le(ctx: *ElfCodegenCtx, off: i32): i32 {
   if (off < 0 || off + 3 >= ctx.code_len) {
     return 0;
   }
@@ -420,7 +420,7 @@ function elf_read_u32_le(ctx: *ElfCodegenCtx, off: i32): i32 {
 }
 
 /** 向 ctx.code_data 写 little-endian u32。 */
-function elf_write_u32_le(ctx: *ElfCodegenCtx, off: i32, word: i32): void {
+export function elf_write_u32_le(ctx: *ElfCodegenCtx, off: i32, word: i32): void {
   if (off < 0 || off + 3 >= ctx.code_len) {
     return;
   }
@@ -432,12 +432,12 @@ function elf_write_u32_le(ctx: *ElfCodegenCtx, off: i32, word: i32): void {
 
 /** 根据 patches 与 labels 将 .text 占位写回；实现委托 ast_pool.c（与 append_patch
 * 同一 ctx 视图）。 */
-function elf_resolve_patches(ctx: *ElfCodegenCtx): i32 {
+export function elf_resolve_patches(ctx: *ElfCodegenCtx): i32 {
   return pipeline_elf_ctx_resolve_patches(ctx as *u8);
 }
 
 /** 向 out 追加 ptr[0..n-1]，返回 0 成功，-1 缓冲区满。 */
-function elf_append(out: *CodegenOutBuf, ptr: *u8, n: i32): i32 {
+export function elf_append(out: *CodegenOutBuf, ptr: *u8, n: i32): i32 {
   let i: i32 = 0;
   while (i < n && out.len < 9437184) {
     out.data[out.len] = ptr[i];
@@ -451,6 +451,6 @@ function elf_append(out: *CodegenOutBuf, ptr: *u8, n: i32): i32 {
 }
 
 /** 将 ELF64 可重定位 .o 写入 out；调用前需已执行 elf_resolve_patches。返回写入字节数，失败返回 -1。 */
-function write_elf_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i32 {
+export function write_elf_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i32 {
   return pipeline_elf_write_o_standard_to_buf_c(ctx as *u8, out);
 }

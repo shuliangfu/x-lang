@@ -11,7 +11,7 @@
 // G-02f-212：binop@idx / pshufd / select + arm64 128 壳真迁；simd_enc 主路径闭合。
 
 // 占位：避免空 TU；产品不链本 .x 生成物。
-function simd_enc_x_doc_anchor(): i32 {
+export function simd_enc_x_doc_anchor(): i32 {
   return 0;
 }
 
@@ -51,9 +51,9 @@ function simd_enc_x_doc_anchor(): i32 {
 
 // G-02f-109：+ mul/vfmadd/rbx_rax4/pshufd/select 薄门闩。
 
-extern "C" function simd_arm64_ins_v1_from_v0_s_impl(dst: i32, src: i32): u32;
-extern "C" function simd_arm64_pshufd_imm8_128_rbp_impl(elf: *u8, lea_src: i32, lea_dst: i32, imm8: i32): i32;
-extern "C" function simd_arm64_select_128_rbp_impl(elf: *u8, lea_mask: i32, lea_a: i32, lea_b: i32): i32;
+export extern "C" function simd_arm64_ins_v1_from_v0_s_impl(dst: i32, src: i32): u32;
+export extern "C" function simd_arm64_pshufd_imm8_128_rbp_impl(elf: *u8, lea_src: i32, lea_dst: i32, imm8: i32): i32;
+export extern "C" function simd_arm64_select_128_rbp_impl(elf: *u8, lea_mask: i32, lea_a: i32, lea_b: i32): i32;
 
 /* ---- G-02f-109：simd_enc more ops 门闩 ---- */
 
@@ -73,7 +73,7 @@ extern "C" function simd_arm64_select_128_rbp_impl(elf: *u8, lea_mask: i32, lea_
 // G-02f-115：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
 
 #[no_mangle]
-function simd_arm64_ins_v1_from_v0_s(dst_lane: i32, src_lane: i32): u32 {
+export function simd_arm64_ins_v1_from_v0_s(dst_lane: i32, src_lane: i32): u32 {
   // Encoding: 0x6E040000 | ((dst_lane&3)<<19) | ((src_lane&3)<<13) | 0x401
   // Keep arithmetic form; seed C uses bitwise OR equivalent.
   let d: i32 = dst_lane & 3;
@@ -85,7 +85,7 @@ function simd_arm64_ins_v1_from_v0_s(dst_lane: i32, src_lane: i32): u32 {
 // G-02f-120：simd_arm64_rbp_lea_off_128half 真迁 .x
 
 #[no_mangle]
-function simd_arm64_rbp_lea_off_128half(slot: i32, half: i32, esz: i32): i32 {
+export function simd_arm64_rbp_lea_off_128half(slot: i32, half: i32, esz: i32): i32 {
   if (slot < 0) { return slot; }
   if (esz <= 0) { return slot; }
   if (half < 0) { return slot; }
@@ -95,7 +95,7 @@ function simd_arm64_rbp_lea_off_128half(slot: i32, half: i32, esz: i32): i32 {
 // G-02f-122：simd_append_disp32 真迁 .x（与 simd_append_u32_le 同 LE 编码）
 
 #[no_mangle]
-function simd_append_disp32(elf: *u8, disp: i32): i32 {
+export function simd_append_disp32(elf: *u8, disp: i32): i32 {
   let r: i32 = 0;
   unsafe { r = simd_append_u32_le(elf, disp as u32); }
   return r;
@@ -103,10 +103,10 @@ function simd_append_disp32(elf: *u8, disp: i32): i32 {
 
 // G-02f-123：simd_append / simd_append_u32_le 真迁 .x
 
-extern "C" function pipeline_elf_ctx_append_bytes(ctx: *u8, ptr: *u8, n: i32): i32;
+export extern "C" function pipeline_elf_ctx_append_bytes(ctx: *u8, ptr: *u8, n: i32): i32;
 
 #[no_mangle]
-function simd_append(elf: *u8, bytes: *u8, n: i32): i32 {
+export function simd_append(elf: *u8, bytes: *u8, n: i32): i32 {
   if (elf == 0) { return 0 - 1; }
   if (bytes == 0) { return 0 - 1; }
   if (n <= 0) { return 0 - 1; }
@@ -116,7 +116,7 @@ function simd_append(elf: *u8, bytes: *u8, n: i32): i32 {
 }
 
 #[no_mangle]
-function simd_append_u32_le(elf: *u8, word: u32): i32 {
+export function simd_append_u32_le(elf: *u8, word: u32): i32 {
   let b0: u8 = (word & 255) as u8;
   let b1: u8 = ((word / 256) & 255) as u8;
   let b2: u8 = ((word / 65536) & 255) as u8;
@@ -135,7 +135,7 @@ function simd_append_u32_le(elf: *u8, word: u32): i32 {
 // G-02f-124：simd 固定指令 / rbp+disp 真迁 .x
 
 #[no_mangle]
-function simd_x86_addps_xmm0_xmm1(elf: *u8): i32 {
+export function simd_x86_addps_xmm0_xmm1(elf: *u8): i32 {
   let b0: u8 = 15;
   let b1: u8 = 88;
   let b2: u8 = 193;
@@ -151,7 +151,7 @@ function simd_x86_addps_xmm0_xmm1(elf: *u8): i32 {
 }
 
 #[no_mangle]
-function simd_x86_mulps_xmm0_xmm1(elf: *u8): i32 {
+export function simd_x86_mulps_xmm0_xmm1(elf: *u8): i32 {
   let b0: u8 = 15;
   let b1: u8 = 89;
   let b2: u8 = 193;
@@ -167,7 +167,7 @@ function simd_x86_mulps_xmm0_xmm1(elf: *u8): i32 {
 }
 
 #[no_mangle]
-function simd_x86_paddd_xmm0_xmm1(elf: *u8): i32 {
+export function simd_x86_paddd_xmm0_xmm1(elf: *u8): i32 {
   let b0: u8 = 102;
   let b1: u8 = 15;
   let b2: u8 = 254;
@@ -186,7 +186,7 @@ function simd_x86_paddd_xmm0_xmm1(elf: *u8): i32 {
 }
 
 #[no_mangle]
-function simd_x86_psubd_xmm0_xmm1(elf: *u8): i32 {
+export function simd_x86_psubd_xmm0_xmm1(elf: *u8): i32 {
   let b0: u8 = 102;
   let b1: u8 = 15;
   let b2: u8 = 250;
@@ -205,7 +205,7 @@ function simd_x86_psubd_xmm0_xmm1(elf: *u8): i32 {
 }
 
 #[no_mangle]
-function simd_x86_pmulld_xmm0_xmm1(elf: *u8): i32 {
+export function simd_x86_pmulld_xmm0_xmm1(elf: *u8): i32 {
   let b0: u8 = 102;
   let b1: u8 = 15;
   let b2: u8 = 56;
@@ -227,7 +227,7 @@ function simd_x86_pmulld_xmm0_xmm1(elf: *u8): i32 {
 }
 
 #[no_mangle]
-function simd_x86_vpaddd_ymm0_ymm1(elf: *u8): i32 {
+export function simd_x86_vpaddd_ymm0_ymm1(elf: *u8): i32 {
   let b0: u8 = 197;
   let b1: u8 = 253;
   let b2: u8 = 254;
@@ -246,7 +246,7 @@ function simd_x86_vpaddd_ymm0_ymm1(elf: *u8): i32 {
 }
 
 #[no_mangle]
-function simd_x86_vpsubd_ymm0_ymm1(elf: *u8): i32 {
+export function simd_x86_vpsubd_ymm0_ymm1(elf: *u8): i32 {
   let b0: u8 = 197;
   let b1: u8 = 253;
   let b2: u8 = 250;
@@ -265,7 +265,7 @@ function simd_x86_vpsubd_ymm0_ymm1(elf: *u8): i32 {
 }
 
 #[no_mangle]
-function simd_x86_vpmulld_ymm0_ymm1(elf: *u8): i32 {
+export function simd_x86_vpmulld_ymm0_ymm1(elf: *u8): i32 {
   let b0: u8 = 197;
   let b1: u8 = 253;
   let b2: u8 = 64;
@@ -284,7 +284,7 @@ function simd_x86_vpmulld_ymm0_ymm1(elf: *u8): i32 {
 }
 
 #[no_mangle]
-function simd_x86_vfmadd231ps_xmm0_xmm1_xmm2(elf: *u8): i32 {
+export function simd_x86_vfmadd231ps_xmm0_xmm1_xmm2(elf: *u8): i32 {
   let b0: u8 = 196;
   let b1: u8 = 226;
   let b2: u8 = 113;
@@ -306,7 +306,7 @@ function simd_x86_vfmadd231ps_xmm0_xmm1_xmm2(elf: *u8): i32 {
 }
 
 #[no_mangle]
-function simd_x86_movups_xmm0_to_rbx_rax4(elf: *u8): i32 {
+export function simd_x86_movups_xmm0_to_rbx_rax4(elf: *u8): i32 {
   let b0: u8 = 197;
   let b1: u8 = 248;
   let b2: u8 = 17;
@@ -328,7 +328,7 @@ function simd_x86_movups_xmm0_to_rbx_rax4(elf: *u8): i32 {
 }
 
 #[no_mangle]
-function simd_x86_movups_xmm0_from_rbx_rax4(elf: *u8): i32 {
+export function simd_x86_movups_xmm0_from_rbx_rax4(elf: *u8): i32 {
   let b0: u8 = 197;
   let b1: u8 = 248;
   let b2: u8 = 16;
@@ -350,7 +350,7 @@ function simd_x86_movups_xmm0_from_rbx_rax4(elf: *u8): i32 {
 }
 
 #[no_mangle]
-function simd_x86_movups_xmm1_from_rbx_rax4(elf: *u8): i32 {
+export function simd_x86_movups_xmm1_from_rbx_rax4(elf: *u8): i32 {
   let b0: u8 = 197;
   let b1: u8 = 240;
   let b2: u8 = 16;
@@ -372,7 +372,7 @@ function simd_x86_movups_xmm1_from_rbx_rax4(elf: *u8): i32 {
 }
 
 #[no_mangle]
-function simd_x86_vmovups_ymm0_from_rbx_rax4(elf: *u8): i32 {
+export function simd_x86_vmovups_ymm0_from_rbx_rax4(elf: *u8): i32 {
   let b0: u8 = 196;
   let b1: u8 = 226;
   let b2: u8 = 125;
@@ -397,7 +397,7 @@ function simd_x86_vmovups_ymm0_from_rbx_rax4(elf: *u8): i32 {
 }
 
 #[no_mangle]
-function simd_x86_vmovups_ymm1_from_rbx_rax4(elf: *u8): i32 {
+export function simd_x86_vmovups_ymm1_from_rbx_rax4(elf: *u8): i32 {
   let b0: u8 = 196;
   let b1: u8 = 226;
   let b2: u8 = 117;
@@ -422,7 +422,7 @@ function simd_x86_vmovups_ymm1_from_rbx_rax4(elf: *u8): i32 {
 }
 
 #[no_mangle]
-function simd_x86_vmovups_ymm0_to_rbx_rax4(elf: *u8): i32 {
+export function simd_x86_vmovups_ymm0_to_rbx_rax4(elf: *u8): i32 {
   let b0: u8 = 196;
   let b1: u8 = 226;
   let b2: u8 = 125;
@@ -447,7 +447,7 @@ function simd_x86_vmovups_ymm0_to_rbx_rax4(elf: *u8): i32 {
 }
 
 #[no_mangle]
-function simd_x86_movups_xmm0_from_rbp(elf: *u8, disp: i32): i32 {
+export function simd_x86_movups_xmm0_from_rbp(elf: *u8, disp: i32): i32 {
   let b0: u8 = 15;
   let b1: u8 = 16;
   let b2: u8 = 133;
@@ -463,7 +463,7 @@ function simd_x86_movups_xmm0_from_rbp(elf: *u8, disp: i32): i32 {
 }
 
 #[no_mangle]
-function simd_x86_movups_xmm1_from_rbp(elf: *u8, disp: i32): i32 {
+export function simd_x86_movups_xmm1_from_rbp(elf: *u8, disp: i32): i32 {
   let b0: u8 = 15;
   let b1: u8 = 16;
   let b2: u8 = 141;
@@ -479,7 +479,7 @@ function simd_x86_movups_xmm1_from_rbp(elf: *u8, disp: i32): i32 {
 }
 
 #[no_mangle]
-function simd_x86_movups_xmm0_to_rbp(elf: *u8, disp: i32): i32 {
+export function simd_x86_movups_xmm0_to_rbp(elf: *u8, disp: i32): i32 {
   let b0: u8 = 15;
   let b1: u8 = 17;
   let b2: u8 = 133;
@@ -495,7 +495,7 @@ function simd_x86_movups_xmm0_to_rbp(elf: *u8, disp: i32): i32 {
 }
 
 #[no_mangle]
-function simd_x86_vmovups_ymm0_from_rbp(elf: *u8, disp: i32): i32 {
+export function simd_x86_vmovups_ymm0_from_rbp(elf: *u8, disp: i32): i32 {
   let b0: u8 = 197;
   let b1: u8 = 254;
   let b2: u8 = 16;
@@ -514,7 +514,7 @@ function simd_x86_vmovups_ymm0_from_rbp(elf: *u8, disp: i32): i32 {
 }
 
 #[no_mangle]
-function simd_x86_vmovups_ymm1_from_rbp(elf: *u8, disp: i32): i32 {
+export function simd_x86_vmovups_ymm1_from_rbp(elf: *u8, disp: i32): i32 {
   let b0: u8 = 197;
   let b1: u8 = 254;
   let b2: u8 = 16;
@@ -533,7 +533,7 @@ function simd_x86_vmovups_ymm1_from_rbp(elf: *u8, disp: i32): i32 {
 }
 
 #[no_mangle]
-function simd_x86_vmovups_ymm0_to_rbp(elf: *u8, disp: i32): i32 {
+export function simd_x86_vmovups_ymm0_to_rbp(elf: *u8, disp: i32): i32 {
   let b0: u8 = 197;
   let b1: u8 = 254;
   let b2: u8 = 17;
@@ -554,7 +554,7 @@ function simd_x86_vmovups_ymm0_to_rbp(elf: *u8, disp: i32): i32 {
 // G-02f-125：更多 simd 固定/disp 指令真迁 .x
 
 #[no_mangle]
-function simd_x86_movups_xmm2_from_rbp(elf: *u8, disp: i32): i32 {
+export function simd_x86_movups_xmm2_from_rbp(elf: *u8, disp: i32): i32 {
   let b0: u8 = 15;
   let b1: u8 = 16;
   let b2: u8 = 149;
@@ -570,7 +570,7 @@ function simd_x86_movups_xmm2_from_rbp(elf: *u8, disp: i32): i32 {
 }
 
 #[no_mangle]
-function simd_x86_pshufd_xmm0_imm8(elf: *u8, imm8: i32): i32 {
+export function simd_x86_pshufd_xmm0_imm8(elf: *u8, imm8: i32): i32 {
   let b0: u8 = 0x66;
   let b1: u8 = 0x0f;
   let b2: u8 = 0x70;
@@ -591,7 +591,7 @@ function simd_x86_pshufd_xmm0_imm8(elf: *u8, imm8: i32): i32 {
 
 
 #[no_mangle]
-function simd_x86_vpshufd_ymm0_imm8(elf: *u8, imm8: i32): i32 {
+export function simd_x86_vpshufd_ymm0_imm8(elf: *u8, imm8: i32): i32 {
   let b0: u8 = 0xc5;
   let b1: u8 = 0xfe;
   let b2: u8 = 0x70;
@@ -612,7 +612,7 @@ function simd_x86_vpshufd_ymm0_imm8(elf: *u8, imm8: i32): i32 {
 
 
 #[no_mangle]
-function simd_x86_vmovups_ymm2_from_rbp(elf: *u8, disp: i32): i32 {
+export function simd_x86_vmovups_ymm2_from_rbp(elf: *u8, disp: i32): i32 {
   let b0: u8 = 197;
   let b1: u8 = 254;
   let b2: u8 = 16;
@@ -631,7 +631,7 @@ function simd_x86_vmovups_ymm2_from_rbp(elf: *u8, disp: i32): i32 {
 }
 
 #[no_mangle]
-function simd_x86_pxor_xmm3_xmm3(elf: *u8): i32 {
+export function simd_x86_pxor_xmm3_xmm3(elf: *u8): i32 {
   let b0: u8 = 102;
   let b1: u8 = 15;
   let b2: u8 = 239;
@@ -650,7 +650,7 @@ function simd_x86_pxor_xmm3_xmm3(elf: *u8): i32 {
 }
 
 #[no_mangle]
-function simd_x86_pcmpgtd_xmm2_xmm3(elf: *u8): i32 {
+export function simd_x86_pcmpgtd_xmm2_xmm3(elf: *u8): i32 {
   let b0: u8 = 102;
   let b1: u8 = 15;
   let b2: u8 = 102;
@@ -669,7 +669,7 @@ function simd_x86_pcmpgtd_xmm2_xmm3(elf: *u8): i32 {
 }
 
 #[no_mangle]
-function simd_x86_pand_xmm0_xmm2(elf: *u8): i32 {
+export function simd_x86_pand_xmm0_xmm2(elf: *u8): i32 {
   let b0: u8 = 102;
   let b1: u8 = 15;
   let b2: u8 = 219;
@@ -688,7 +688,7 @@ function simd_x86_pand_xmm0_xmm2(elf: *u8): i32 {
 }
 
 #[no_mangle]
-function simd_x86_pandn_xmm2_xmm1(elf: *u8): i32 {
+export function simd_x86_pandn_xmm2_xmm1(elf: *u8): i32 {
   let b0: u8 = 102;
   let b1: u8 = 15;
   let b2: u8 = 223;
@@ -707,7 +707,7 @@ function simd_x86_pandn_xmm2_xmm1(elf: *u8): i32 {
 }
 
 #[no_mangle]
-function simd_x86_por_xmm0_xmm2(elf: *u8): i32 {
+export function simd_x86_por_xmm0_xmm2(elf: *u8): i32 {
   let b0: u8 = 102;
   let b1: u8 = 15;
   let b2: u8 = 235;
@@ -726,7 +726,7 @@ function simd_x86_por_xmm0_xmm2(elf: *u8): i32 {
 }
 
 #[no_mangle]
-function simd_x86_xorps_xmm3_xmm3(elf: *u8): i32 {
+export function simd_x86_xorps_xmm3_xmm3(elf: *u8): i32 {
   let b0: u8 = 15;
   let b1: u8 = 87;
   let b2: u8 = 219;
@@ -742,7 +742,7 @@ function simd_x86_xorps_xmm3_xmm3(elf: *u8): i32 {
 }
 
 #[no_mangle]
-function simd_x86_cmpgtps_xmm2_xmm3(elf: *u8): i32 {
+export function simd_x86_cmpgtps_xmm2_xmm3(elf: *u8): i32 {
   let b0: u8 = 15;
   let b1: u8 = 85;
   let b2: u8 = 211;
@@ -758,7 +758,7 @@ function simd_x86_cmpgtps_xmm2_xmm3(elf: *u8): i32 {
 }
 
 #[no_mangle]
-function simd_x86_andps_xmm0_xmm2(elf: *u8): i32 {
+export function simd_x86_andps_xmm0_xmm2(elf: *u8): i32 {
   let b0: u8 = 15;
   let b1: u8 = 84;
   let b2: u8 = 194;
@@ -774,7 +774,7 @@ function simd_x86_andps_xmm0_xmm2(elf: *u8): i32 {
 }
 
 #[no_mangle]
-function simd_x86_andnps_xmm2_xmm1(elf: *u8): i32 {
+export function simd_x86_andnps_xmm2_xmm1(elf: *u8): i32 {
   let b0: u8 = 15;
   let b1: u8 = 85;
   let b2: u8 = 209;
@@ -790,7 +790,7 @@ function simd_x86_andnps_xmm2_xmm1(elf: *u8): i32 {
 }
 
 #[no_mangle]
-function simd_x86_orps_xmm0_xmm2(elf: *u8): i32 {
+export function simd_x86_orps_xmm0_xmm2(elf: *u8): i32 {
   let b0: u8 = 15;
   let b1: u8 = 86;
   let b2: u8 = 194;
@@ -806,7 +806,7 @@ function simd_x86_orps_xmm0_xmm2(elf: *u8): i32 {
 }
 
 #[no_mangle]
-function simd_x86_vpxor_ymm3_ymm3(elf: *u8): i32 {
+export function simd_x86_vpxor_ymm3_ymm3(elf: *u8): i32 {
   let b0: u8 = 197;
   let b1: u8 = 245;
   let b2: u8 = 119;
@@ -825,7 +825,7 @@ function simd_x86_vpxor_ymm3_ymm3(elf: *u8): i32 {
 }
 
 #[no_mangle]
-function simd_x86_vpcmpgtd_ymm2_ymm3(elf: *u8): i32 {
+export function simd_x86_vpcmpgtd_ymm2_ymm3(elf: *u8): i32 {
   let b0: u8 = 197;
   let b1: u8 = 237;
   let b2: u8 = 102;
@@ -844,7 +844,7 @@ function simd_x86_vpcmpgtd_ymm2_ymm3(elf: *u8): i32 {
 }
 
 #[no_mangle]
-function simd_x86_vpand_ymm0_ymm2(elf: *u8): i32 {
+export function simd_x86_vpand_ymm0_ymm2(elf: *u8): i32 {
   let b0: u8 = 197;
   let b1: u8 = 229;
   let b2: u8 = 219;
@@ -863,7 +863,7 @@ function simd_x86_vpand_ymm0_ymm2(elf: *u8): i32 {
 }
 
 #[no_mangle]
-function simd_x86_vpandn_ymm2_ymm1(elf: *u8): i32 {
+export function simd_x86_vpandn_ymm2_ymm1(elf: *u8): i32 {
   let b0: u8 = 197;
   let b1: u8 = 229;
   let b2: u8 = 223;
@@ -882,7 +882,7 @@ function simd_x86_vpandn_ymm2_ymm1(elf: *u8): i32 {
 }
 
 #[no_mangle]
-function simd_x86_vpor_ymm0_ymm2(elf: *u8): i32 {
+export function simd_x86_vpor_ymm0_ymm2(elf: *u8): i32 {
   let b0: u8 = 197;
   let b1: u8 = 229;
   let b2: u8 = 235;
@@ -901,7 +901,7 @@ function simd_x86_vpor_ymm0_ymm2(elf: *u8): i32 {
 }
 
 #[no_mangle]
-function simd_x86_vxorps_ymm3_ymm3(elf: *u8): i32 {
+export function simd_x86_vxorps_ymm3_ymm3(elf: *u8): i32 {
   let b0: u8 = 197;
   let b1: u8 = 240;
   let b2: u8 = 87;
@@ -920,7 +920,7 @@ function simd_x86_vxorps_ymm3_ymm3(elf: *u8): i32 {
 }
 
 #[no_mangle]
-function simd_x86_vcmpgtps_ymm2_ymm3(elf: *u8): i32 {
+export function simd_x86_vcmpgtps_ymm2_ymm3(elf: *u8): i32 {
   let b0: u8 = 197;
   let b1: u8 = 232;
   let b2: u8 = 87;
@@ -939,7 +939,7 @@ function simd_x86_vcmpgtps_ymm2_ymm3(elf: *u8): i32 {
 }
 
 #[no_mangle]
-function simd_x86_vandps_ymm0_ymm2(elf: *u8): i32 {
+export function simd_x86_vandps_ymm0_ymm2(elf: *u8): i32 {
   let b0: u8 = 197;
   let b1: u8 = 224;
   let b2: u8 = 84;
@@ -958,7 +958,7 @@ function simd_x86_vandps_ymm0_ymm2(elf: *u8): i32 {
 }
 
 #[no_mangle]
-function simd_x86_vandnps_ymm2_ymm1(elf: *u8): i32 {
+export function simd_x86_vandnps_ymm2_ymm1(elf: *u8): i32 {
   let b0: u8 = 197;
   let b1: u8 = 232;
   let b2: u8 = 85;
@@ -977,7 +977,7 @@ function simd_x86_vandnps_ymm2_ymm1(elf: *u8): i32 {
 }
 
 #[no_mangle]
-function simd_x86_vorps_ymm0_ymm2(elf: *u8): i32 {
+export function simd_x86_vorps_ymm0_ymm2(elf: *u8): i32 {
   let b0: u8 = 197;
   let b1: u8 = 224;
   let b2: u8 = 86;
@@ -996,7 +996,7 @@ function simd_x86_vorps_ymm0_ymm2(elf: *u8): i32 {
 }
 
 #[no_mangle]
-function simd_x86_pshufd_xmm1_xmm0(elf: *u8, imm: u8): i32 {
+export function simd_x86_pshufd_xmm1_xmm0(elf: *u8, imm: u8): i32 {
   let b0: u8 = 0x66;
   let b1: u8 = 0x0f;
   let b2: u8 = 0x70;
@@ -1020,19 +1020,19 @@ function simd_x86_pshufd_xmm1_xmm0(elf: *u8, imm: u8): i32 {
 // feature bits from target_cpu.h
 // SSE2=1 SSE41=2 AVX2=8 FMA=128
 
-extern "C" function backend_enc_load_rbp_to_rax_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
-extern "C" function backend_enc_lea_rbp_to_rbx_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
+export extern "C" function backend_enc_load_rbp_to_rax_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
+export extern "C" function backend_enc_lea_rbp_to_rbx_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
 
 // G-02f-211：disp = -slot_off（lanes/esz 忽略）
 #[no_mangle]
-function simd_rbp_disp32(slot_off: i32, lanes: i32, esz: i32): i32 {
+export function simd_rbp_disp32(slot_off: i32, lanes: i32, esz: i32): i32 {
   if (slot_off < 0) { return 0; }
   return 0 - slot_off;
 }
 
 // G-02f-211：整型向量 add/sub 公共路径
 #[no_mangle]
-function simd_enc_try_hw_vector_iadd_isub_rbp(elf_ctx: *u8, slot_off_a: i32, slot_off_b: i32, slot_off_dst: i32, lanes: i32, esz: i32, ta: i32, cpu_features: u32, is_sub: i32): i32 {
+export function simd_enc_try_hw_vector_iadd_isub_rbp(elf_ctx: *u8, slot_off_a: i32, slot_off_b: i32, slot_off_dst: i32, lanes: i32, esz: i32, ta: i32, cpu_features: u32, is_sub: i32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   if (slot_off_a < 0) { return 0 - 1; }
   if (slot_off_b < 0) { return 0 - 1; }
@@ -1074,17 +1074,17 @@ function simd_enc_try_hw_vector_iadd_isub_rbp(elf_ctx: *u8, slot_off_a: i32, slo
 }
 
 #[no_mangle]
-function simd_enc_try_hw_vector_iadd_rbp(elf_ctx: *u8, slot_off_a: i32, slot_off_b: i32, slot_off_dst: i32, lanes: i32, esz: i32, ta: i32, cpu_features: u32): i32 {
+export function simd_enc_try_hw_vector_iadd_rbp(elf_ctx: *u8, slot_off_a: i32, slot_off_b: i32, slot_off_dst: i32, lanes: i32, esz: i32, ta: i32, cpu_features: u32): i32 {
   return simd_enc_try_hw_vector_iadd_isub_rbp(elf_ctx, slot_off_a, slot_off_b, slot_off_dst, lanes, esz, ta, cpu_features, 0);
 }
 
 #[no_mangle]
-function simd_enc_try_hw_vector_isub_rbp(elf_ctx: *u8, slot_off_a: i32, slot_off_b: i32, slot_off_dst: i32, lanes: i32, esz: i32, ta: i32, cpu_features: u32): i32 {
+export function simd_enc_try_hw_vector_isub_rbp(elf_ctx: *u8, slot_off_a: i32, slot_off_b: i32, slot_off_dst: i32, lanes: i32, esz: i32, ta: i32, cpu_features: u32): i32 {
   return simd_enc_try_hw_vector_iadd_isub_rbp(elf_ctx, slot_off_a, slot_off_b, slot_off_dst, lanes, esz, ta, cpu_features, 1);
 }
 
 #[no_mangle]
-function simd_enc_try_hw_vector_imul_rbp(elf_ctx: *u8, slot_off_a: i32, slot_off_b: i32, slot_off_dst: i32, lanes: i32, esz: i32, ta: i32, cpu_features: u32): i32 {
+export function simd_enc_try_hw_vector_imul_rbp(elf_ctx: *u8, slot_off_a: i32, slot_off_b: i32, slot_off_dst: i32, lanes: i32, esz: i32, ta: i32, cpu_features: u32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   if (slot_off_a < 0) { return 0 - 1; }
   if (slot_off_b < 0) { return 0 - 1; }
@@ -1117,7 +1117,7 @@ function simd_enc_try_hw_vector_imul_rbp(elf_ctx: *u8, slot_off_a: i32, slot_off
 }
 
 #[no_mangle]
-function simd_enc_try_hw_vector_fadd_rbp(elf_ctx: *u8, slot_off_a: i32, slot_off_b: i32, slot_off_dst: i32, lanes: i32, esz: i32, ta: i32, cpu_features: u32): i32 {
+export function simd_enc_try_hw_vector_fadd_rbp(elf_ctx: *u8, slot_off_a: i32, slot_off_b: i32, slot_off_dst: i32, lanes: i32, esz: i32, ta: i32, cpu_features: u32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   if (slot_off_a < 0) { return 0 - 1; }
   if (slot_off_b < 0) { return 0 - 1; }
@@ -1137,7 +1137,7 @@ function simd_enc_try_hw_vector_fadd_rbp(elf_ctx: *u8, slot_off_a: i32, slot_off
 }
 
 #[no_mangle]
-function simd_enc_try_hw_vector_fmul_rbp(elf_ctx: *u8, slot_off_a: i32, slot_off_b: i32, slot_off_dst: i32, lanes: i32, esz: i32, ta: i32, cpu_features: u32): i32 {
+export function simd_enc_try_hw_vector_fmul_rbp(elf_ctx: *u8, slot_off_a: i32, slot_off_b: i32, slot_off_dst: i32, lanes: i32, esz: i32, ta: i32, cpu_features: u32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   if (slot_off_a < 0) { return 0 - 1; }
   if (slot_off_b < 0) { return 0 - 1; }
@@ -1157,7 +1157,7 @@ function simd_enc_try_hw_vector_fmul_rbp(elf_ctx: *u8, slot_off_a: i32, slot_off
 }
 
 #[no_mangle]
-function simd_enc_try_hw_vector_fma_rbp(elf_ctx: *u8, slot_off_a: i32, slot_off_b: i32, slot_off_c: i32, slot_off_dst: i32, lanes: i32, esz: i32, ta: i32, cpu_features: u32): i32 {
+export function simd_enc_try_hw_vector_fma_rbp(elf_ctx: *u8, slot_off_a: i32, slot_off_b: i32, slot_off_c: i32, slot_off_dst: i32, lanes: i32, esz: i32, ta: i32, cpu_features: u32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   if (slot_off_a < 0) { return 0 - 1; }
   if (slot_off_b < 0) { return 0 - 1; }
@@ -1190,7 +1190,7 @@ function simd_enc_try_hw_vector_fma_rbp(elf_ctx: *u8, slot_off_a: i32, slot_off_
 
 // G-02f-211：xorps xmm0,xmm0
 #[no_mangle]
-function simd_enc_x86_xorps_xmm0_zero(elf_ctx: *u8): i32 {
+export function simd_enc_x86_xorps_xmm0_zero(elf_ctx: *u8): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   unsafe {
     let insn: u8[3] = [];
@@ -1201,19 +1201,19 @@ function simd_enc_x86_xorps_xmm0_zero(elf_ctx: *u8): i32 {
 }
 
 #[no_mangle]
-function simd_enc_x86_movups_xmm1_rbp_disp(elf_ctx: *u8, disp: i32): i32 {
+export function simd_enc_x86_movups_xmm1_rbp_disp(elf_ctx: *u8, disp: i32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   return simd_x86_movups_xmm1_from_rbp(elf_ctx, disp);
 }
 
 #[no_mangle]
-function simd_enc_x86_addps_xmm0_xmm1(elf_ctx: *u8): i32 {
+export function simd_enc_x86_addps_xmm0_xmm1(elf_ctx: *u8): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   return simd_x86_addps_xmm0_xmm1(elf_ctx);
 }
 
 #[no_mangle]
-function simd_enc_x86_horizontal_addps_xmm0(elf_ctx: *u8): i32 {
+export function simd_enc_x86_horizontal_addps_xmm0(elf_ctx: *u8): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   // 0xee=238, 0x55=85
   if (simd_x86_pshufd_xmm1_xmm0(elf_ctx, 238 as u8) != 0) { return 0 - 1; }
@@ -1223,7 +1223,7 @@ function simd_enc_x86_horizontal_addps_xmm0(elf_ctx: *u8): i32 {
 }
 
 #[no_mangle]
-function simd_enc_x86_movss_xmm0_rbp_disp(elf_ctx: *u8, disp: i32): i32 {
+export function simd_enc_x86_movss_xmm0_rbp_disp(elf_ctx: *u8, disp: i32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   let prefix: u8[3] = [];
   prefix[0] = 243; prefix[1] = 15; prefix[2] = 17;
@@ -1238,7 +1238,7 @@ function simd_enc_x86_movss_xmm0_rbp_disp(elf_ctx: *u8, disp: i32): i32 {
 }
 
 #[no_mangle]
-function simd_enc_f32_soa_col_movups_xmm1_at_idx(elf_ctx: *u8, off_col0: i32, off_i: i32, ta: i32): i32 {
+export function simd_enc_f32_soa_col_movups_xmm1_at_idx(elf_ctx: *u8, off_col0: i32, off_i: i32, ta: i32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   if (off_col0 < 0) { return 0 - 1; }
   if (off_i < 0) { return 0 - 1; }
@@ -1259,13 +1259,13 @@ function simd_enc_f32_soa_col_movups_xmm1_at_idx(elf_ctx: *u8, off_col0: i32, of
 
 /* ---- G-02f-212：binop@idx / pshufd / select ---- */
 
-extern "C" function backend_enc_lea_rbp_to_rax_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
+export extern "C" function backend_enc_lea_rbp_to_rax_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
 
 // feature: SSE2=1 SSE41=2 AVX2=8 NEON=256 FMA=128
 
 // G-02f-212：arm64 pshufd-imm8 128-bit half
 #[no_mangle]
-function simd_arm64_pshufd_imm8_128_rbp(elf_ctx: *u8, lea_src: i32, lea_dst: i32, imm8: i32, ta: i32): i32 {
+export function simd_arm64_pshufd_imm8_128_rbp(elf_ctx: *u8, lea_src: i32, lea_dst: i32, imm8: i32, ta: i32): i32 {
   let re3: i32 = 0;
   unsafe { re3 = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_src, ta); }
   if (re3 != 0) { return 0 - 1; }
@@ -1297,7 +1297,7 @@ function simd_arm64_pshufd_imm8_128_rbp(elf_ctx: *u8, lea_src: i32, lea_dst: i32
 
 // G-02f-212：arm64 select 128
 #[no_mangle]
-function simd_arm64_select_128_rbp(elf_ctx: *u8, lea_mask: i32, lea_a: i32, lea_b: i32, lea_dst: i32, is_f32: i32, ta: i32): i32 {
+export function simd_arm64_select_128_rbp(elf_ctx: *u8, lea_mask: i32, lea_a: i32, lea_b: i32, lea_dst: i32, is_f32: i32, ta: i32): i32 {
   let re5: i32 = 0;
   unsafe { re5 = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_mask, ta); }
   if (re5 != 0) { return 0 - 1; }
@@ -1326,7 +1326,7 @@ function simd_arm64_select_128_rbp(elf_ctx: *u8, lea_mask: i32, lea_a: i32, lea_
 
 // G-02f-212：select seq
 #[no_mangle]
-function simd_enc_emit_i32_select_xmm_seq(elf_ctx: *u8): i32 {
+export function simd_enc_emit_i32_select_xmm_seq(elf_ctx: *u8): i32 {
   if (simd_x86_pxor_xmm3_xmm3(elf_ctx) != 0) { return 0 - 1; }
   if (simd_x86_pcmpgtd_xmm2_xmm3(elf_ctx) != 0) { return 0 - 1; }
   if (simd_x86_pand_xmm0_xmm2(elf_ctx) != 0) { return 0 - 1; }
@@ -1336,7 +1336,7 @@ function simd_enc_emit_i32_select_xmm_seq(elf_ctx: *u8): i32 {
 }
 
 #[no_mangle]
-function simd_enc_emit_f32_select_xmm_seq(elf_ctx: *u8): i32 {
+export function simd_enc_emit_f32_select_xmm_seq(elf_ctx: *u8): i32 {
   if (simd_x86_xorps_xmm3_xmm3(elf_ctx) != 0) { return 0 - 1; }
   if (simd_x86_cmpgtps_xmm2_xmm3(elf_ctx) != 0) { return 0 - 1; }
   if (simd_x86_andps_xmm0_xmm2(elf_ctx) != 0) { return 0 - 1; }
@@ -1346,7 +1346,7 @@ function simd_enc_emit_f32_select_xmm_seq(elf_ctx: *u8): i32 {
 }
 
 #[no_mangle]
-function simd_enc_emit_i32_select_ymm_seq(elf_ctx: *u8): i32 {
+export function simd_enc_emit_i32_select_ymm_seq(elf_ctx: *u8): i32 {
   if (simd_x86_vpxor_ymm3_ymm3(elf_ctx) != 0) { return 0 - 1; }
   if (simd_x86_vpcmpgtd_ymm2_ymm3(elf_ctx) != 0) { return 0 - 1; }
   if (simd_x86_vpand_ymm0_ymm2(elf_ctx) != 0) { return 0 - 1; }
@@ -1356,7 +1356,7 @@ function simd_enc_emit_i32_select_ymm_seq(elf_ctx: *u8): i32 {
 }
 
 #[no_mangle]
-function simd_enc_emit_f32_select_ymm_seq(elf_ctx: *u8): i32 {
+export function simd_enc_emit_f32_select_ymm_seq(elf_ctx: *u8): i32 {
   if (simd_x86_vxorps_ymm3_ymm3(elf_ctx) != 0) { return 0 - 1; }
   if (simd_x86_vcmpgtps_ymm2_ymm3(elf_ctx) != 0) { return 0 - 1; }
   if (simd_x86_vandps_ymm0_ymm2(elf_ctx) != 0) { return 0 - 1; }
@@ -1367,7 +1367,7 @@ function simd_enc_emit_f32_select_ymm_seq(elf_ctx: *u8): i32 {
 
 // G-02f-212：indexed binop
 #[no_mangle]
-function simd_enc_try_hw_vector_binop_rbp_at_idx(elf_ctx: *u8, off_a: i32, off_b: i32, off_d: i32, off_i: i32, array_n: i32, binop_ko: i32, lanes: i32, esz: i32, ta: i32, cpu_features: u32): i32 {
+export function simd_enc_try_hw_vector_binop_rbp_at_idx(elf_ctx: *u8, off_a: i32, off_b: i32, off_d: i32, off_i: i32, array_n: i32, binop_ko: i32, lanes: i32, esz: i32, ta: i32, cpu_features: u32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   if (off_a < 0) { return 0 - 1; }
   if (off_b < 0) { return 0 - 1; }
@@ -1435,7 +1435,7 @@ function simd_enc_try_hw_vector_binop_rbp_at_idx(elf_ctx: *u8, off_a: i32, off_b
 
 // G-02f-212：pshufd rbp
 #[no_mangle]
-function simd_enc_try_pshufd_rbp(elf_ctx: *u8, slot_off_src: i32, slot_off_dst: i32, imm8: i32, lanes: i32, ta: i32, cpu_features: u32): i32 {
+export function simd_enc_try_pshufd_rbp(elf_ctx: *u8, slot_off_src: i32, slot_off_dst: i32, imm8: i32, lanes: i32, ta: i32, cpu_features: u32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   if (slot_off_src < 0) { return 0 - 1; }
   if (slot_off_dst < 0) { return 0 - 1; }
@@ -1480,7 +1480,7 @@ function simd_enc_try_pshufd_rbp(elf_ctx: *u8, slot_off_src: i32, slot_off_dst: 
 
 // G-02f-212：select rbp
 #[no_mangle]
-function simd_enc_try_hw_vector_select_rbp(elf_ctx: *u8, slot_off_mask: i32, slot_off_a: i32, slot_off_b: i32, slot_off_dst: i32, lanes: i32, is_f32: i32, ta: i32, cpu_features: u32): i32 {
+export function simd_enc_try_hw_vector_select_rbp(elf_ctx: *u8, slot_off_mask: i32, slot_off_a: i32, slot_off_b: i32, slot_off_dst: i32, lanes: i32, is_f32: i32, ta: i32, cpu_features: u32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   if (slot_off_mask < 0) { return 0 - 1; }
   if (slot_off_a < 0) { return 0 - 1; }

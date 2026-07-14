@@ -28,21 +28,21 @@
 const mem = import("core.mem");
 
 /** mbedTLS 结构体字节容量（Homebrew mbedtls 4.x + margin）。 */
-const SZ_SSL_CTX: usize = 896;
-const SZ_SSL_CONF: usize = 384;
-const SZ_X509_CRT: usize = 1408;
-const SZ_PK_CTX: usize = 640;
+export const SZ_SSL_CTX: usize = 896;
+export const SZ_SSL_CONF: usize = 384;
+export const SZ_X509_CRT: usize = 1408;
+export const SZ_PK_CTX: usize = 640;
 
 /** mbedTLS / PSA 常量。 */
-const MBEDTLS_SSL_IS_CLIENT: i32 = 0;
-const MBEDTLS_SSL_IS_SERVER: i32 = 1;
-const MBEDTLS_SSL_TRANSPORT_STREAM: i32 = 0;
-const MBEDTLS_SSL_PRESET_DEFAULT: i32 = 0;
-const MBEDTLS_SSL_VERIFY_NONE: i32 = 0;
-const MBEDTLS_ERR_SSL_WANT_READ: i32 = (0 - 26880);
-const MBEDTLS_ERR_SSL_WANT_WRITE: i32 = (0 - 26752);
-const PSA_SUCCESS: i32 = 0;
-const PSA_ERROR_BAD_STATE: i32 = (0 - 137);
+export const MBEDTLS_SSL_IS_CLIENT: i32 = 0;
+export const MBEDTLS_SSL_IS_SERVER: i32 = 1;
+export const MBEDTLS_SSL_TRANSPORT_STREAM: i32 = 0;
+export const MBEDTLS_SSL_PRESET_DEFAULT: i32 = 0;
+export const MBEDTLS_SSL_VERIFY_NONE: i32 = 0;
+export const MBEDTLS_ERR_SSL_WANT_READ: i32 = (0 - 26880);
+export const MBEDTLS_ERR_SSL_WANT_WRITE: i32 = (0 - 26752);
+export const PSA_SUCCESS: i32 = 0;
+export const PSA_ERROR_BAD_STATE: i32 = (0 - 137);
 
 /** ALPN 指针列表（h2 + http/1.1 + NULL / h2 + NULL）。 */
 allow(padding) struct AlpnPtr3 {
@@ -84,45 +84,45 @@ let shu_net_tls_mbedtls_marker: u8[8] = [109, 101, 100, 116, 108, 115, 0, 0];
 let ALPN_H2: u8[3] = [104, 50, 0];
 let ALPN_HTTP11: u8[9] = [104, 116, 116, 112, 47, 49, 46, 49, 0];
 
-extern "C" function calloc(nmemb: usize, size: usize): *u8;
-extern "C" function free(ptr: *u8): void;
-extern "C" function getenv(name: *u8): *u8;
-extern "C" function atoi(s: *u8): i32;
-extern "C" function strlen(s: *u8): usize;
+export extern "C" function calloc(nmemb: usize, size: usize): *u8;
+export extern "C" function free(ptr: *u8): void;
+export extern "C" function getenv(name: *u8): *u8;
+export extern "C" function atoi(s: *u8): i32;
+export extern "C" function strlen(s: *u8): usize;
 
-extern function net_set_blocking_c(fd: i32, blocking: i32): i32;
-extern function net_tcp_connect_blocking_c(addr_u32: u32, port_u32: u32, timeout_ms: u32): i32;
-extern function net_close_socket_c(fd: i32): i32;
+export extern function net_set_blocking_c(fd: i32, blocking: i32): i32;
+export extern function net_tcp_connect_blocking_c(addr_u32: u32, port_u32: u32, timeout_ms: u32): i32;
+export extern function net_close_socket_c(fd: i32): i32;
 
-extern function shu_mbedtls_ssl_bind_fd_c(ssl: *u8, fd_ptr: *i32): void;
+export extern function shu_mbedtls_ssl_bind_fd_c(ssl: *u8, fd_ptr: *i32): void;
 
-extern "C" function psa_crypto_init(): i32;
-extern "C" function mbedtls_ssl_config_init(conf: *u8): void;
-extern "C" function mbedtls_ssl_config_defaults(conf: *u8, endpoint: i32, transport: i32, preset: i32): i32;
-extern "C" function mbedtls_ssl_config_free(conf: *u8): void;
-extern "C" function mbedtls_ssl_conf_authmode(conf: *u8, mode: i32): void;
-extern "C" function mbedtls_ssl_conf_alpn_protocols(conf: *u8, protos: * *u8): i32;
-extern "C" function mbedtls_ssl_init(ssl: *u8): void;
-extern "C" function mbedtls_ssl_setup(ssl: *u8, conf: *u8): i32;
-extern "C" function mbedtls_ssl_set_hostname(ssl: *u8, name: *u8): i32;
-extern "C" function mbedtls_ssl_handshake(ssl: *u8): i32;
-extern "C" function mbedtls_ssl_get_alpn_protocol(ssl: *u8): *u8;
-extern "C" function mbedtls_ssl_close_notify(ssl: *u8): i32;
-extern "C" function mbedtls_ssl_free(ssl: *u8): void;
-extern "C" function mbedtls_ssl_read(ssl: *u8, buf: *u8, len: usize): i32;
-extern "C" function mbedtls_ssl_write(ssl: *u8, buf: *u8, len: usize): i32;
-extern "C" function mbedtls_x509_crt_init(crt: *u8): void;
-extern "C" function mbedtls_x509_crt_parse(crt: *u8, buf: *u8, buflen: usize): i32;
-extern "C" function mbedtls_x509_crt_free(crt: *u8): void;
-extern "C" function mbedtls_pk_init(pk: *u8): void;
-extern "C" function mbedtls_pk_parse_key(pk: *u8, key: *u8, keylen: usize, pwd: *u8, pwdlen: usize, f_rng: *u8, p_rng: *u8): i32;
-extern "C" function mbedtls_pk_free(pk: *u8): void;
-extern "C" function mbedtls_ssl_conf_own_cert(conf: *u8, cert: *u8, pk: *u8): i32;
+export extern "C" function psa_crypto_init(): i32;
+export extern "C" function mbedtls_ssl_config_init(conf: *u8): void;
+export extern "C" function mbedtls_ssl_config_defaults(conf: *u8, endpoint: i32, transport: i32, preset: i32): i32;
+export extern "C" function mbedtls_ssl_config_free(conf: *u8): void;
+export extern "C" function mbedtls_ssl_conf_authmode(conf: *u8, mode: i32): void;
+export extern "C" function mbedtls_ssl_conf_alpn_protocols(conf: *u8, protos: * *u8): i32;
+export extern "C" function mbedtls_ssl_init(ssl: *u8): void;
+export extern "C" function mbedtls_ssl_setup(ssl: *u8, conf: *u8): i32;
+export extern "C" function mbedtls_ssl_set_hostname(ssl: *u8, name: *u8): i32;
+export extern "C" function mbedtls_ssl_handshake(ssl: *u8): i32;
+export extern "C" function mbedtls_ssl_get_alpn_protocol(ssl: *u8): *u8;
+export extern "C" function mbedtls_ssl_close_notify(ssl: *u8): i32;
+export extern "C" function mbedtls_ssl_free(ssl: *u8): void;
+export extern "C" function mbedtls_ssl_read(ssl: *u8, buf: *u8, len: usize): i32;
+export extern "C" function mbedtls_ssl_write(ssl: *u8, buf: *u8, len: usize): i32;
+export extern "C" function mbedtls_x509_crt_init(crt: *u8): void;
+export extern "C" function mbedtls_x509_crt_parse(crt: *u8, buf: *u8, buflen: usize): i32;
+export extern "C" function mbedtls_x509_crt_free(crt: *u8): void;
+export extern "C" function mbedtls_pk_init(pk: *u8): void;
+export extern "C" function mbedtls_pk_parse_key(pk: *u8, key: *u8, keylen: usize, pwd: *u8, pwdlen: usize, f_rng: *u8, p_rng: *u8): i32;
+export extern "C" function mbedtls_pk_free(pk: *u8): void;
+export extern "C" function mbedtls_ssl_conf_own_cert(conf: *u8, cert: *u8, pk: *u8): i32;
 
 /**
  * handle 转 TlsMbedtlsSess*；0 返回 0。
  */
-function tls_mbedtls_sess_ptr(handle: i64): *TlsMbedtlsSess {
+export function tls_mbedtls_sess_ptr(handle: i64): *TlsMbedtlsSess {
   if (handle == 0) {
     return 0;
   }
@@ -132,7 +132,7 @@ function tls_mbedtls_sess_ptr(handle: i64): *TlsMbedtlsSess {
 /**
  * PSA 初始化；BAD_STATE 视为已初始化。
  */
-function tls_mbedtls_psa_init(): i32 {
+export function tls_mbedtls_psa_init(): i32 {
   let st: i32 = 0;
   unsafe { st = psa_crypto_init(); }
   if (st == PSA_SUCCESS || st == PSA_ERROR_BAD_STATE) {
@@ -144,28 +144,28 @@ function tls_mbedtls_psa_init(): i32 {
 /**
  * TLS 后端是否可用；mbedTLS 恒 1。
  */
-function net_tls_is_available_c(): i32 {
+export function net_tls_is_available_c(): i32 {
   return 1;
 }
 
 /**
  * TLS 后端名称（NUL 结尾）。
  */
-function net_tls_backend_name_c(): *u8 {
+export function net_tls_backend_name_c(): *u8 {
   return &TLS_BACKEND_NAME[0];
 }
 
 /**
  * 读取 TLS 最后一次错误码。
  */
-function net_tls_last_error_c(): i32 {
+export function net_tls_last_error_c(): i32 {
   return shu_tls_last_error;
 }
 
 /**
  * 释放会话 ssl/conf 并 free 结构体。
  */
-function tls_mbedtls_free_sess(sess: *TlsMbedtlsSess): void {
+export function tls_mbedtls_free_sess(sess: *TlsMbedtlsSess): void {
   if (sess == 0) {
     return;
   }
@@ -179,7 +179,7 @@ function tls_mbedtls_free_sess(sess: *TlsMbedtlsSess): void {
 /**
  * 阻塞直至 handshake 完成或失败。
  */
-function tls_mbedtls_handshake_loop(ssl: *u8): i32 {
+export function tls_mbedtls_handshake_loop(ssl: *u8): i32 {
   let ret: i32 = 0;
   loop {
     unsafe { ret = mbedtls_ssl_handshake(ssl); }
@@ -195,7 +195,7 @@ function tls_mbedtls_handshake_loop(ssl: *u8): i32 {
 /**
  * TLS 客户端握手（SNI）；失败返回 0。
  */
-function net_tls_connect_client_c(fd: i32, sni: *u8): i64 {
+export function net_tls_connect_client_c(fd: i32, sni: *u8): i64 {
   let sess: *TlsMbedtlsSess = 0 as *TlsMbedtlsSess;
   let ret: i32 = 0;
   shu_tls_last_error = 0;
@@ -254,7 +254,7 @@ function net_tls_connect_client_c(fd: i32, sni: *u8): i64 {
 /**
  * 带 ALPN（h2 + http/1.1）的 TLS 客户端握手。
  */
-function net_tls_connect_client_alpn_c(fd: i32, sni: *u8, alpn_wire: *u8, alpn_wire_len: i32): i64 {
+export function net_tls_connect_client_alpn_c(fd: i32, sni: *u8, alpn_wire: *u8, alpn_wire_len: i32): i64 {
   let sess: *TlsMbedtlsSess = 0 as *TlsMbedtlsSess;
   let ret: i32 = 0;
   shu_tls_last_error = 0;
@@ -319,7 +319,7 @@ function net_tls_connect_client_alpn_c(fd: i32, sni: *u8, alpn_wire: *u8, alpn_w
 /**
  * 读取协商 ALPN 协议名；返回长度，写入 out（可 NULL）。
  */
-function net_tls_alpn_selected_c(ctx_handle: i64, out: *u8, out_cap: i32): i32 {
+export function net_tls_alpn_selected_c(ctx_handle: i64, out: *u8, out_cap: i32): i32 {
   let sess: *TlsMbedtlsSess = tls_mbedtls_sess_ptr(ctx_handle);
   let sel: *u8 = 0 as *u8;
   let len: i32 = 0;
@@ -346,7 +346,7 @@ function net_tls_alpn_selected_c(ctx_handle: i64, out: *u8, out_cap: i32): i32 {
 /**
  * 协商协议是否为 h2。
  */
-function net_tls_alpn_is_h2_c(ctx_handle: i64): i32 {
+export function net_tls_alpn_is_h2_c(ctx_handle: i64): i32 {
   let buf: u8[4] = [0, 0, 0, 0];
   let n: i32 = net_tls_alpn_selected_c(ctx_handle, &buf[0], 4);
   if (n == 2 && buf[0] == 104 && buf[1] == 50) {
@@ -358,7 +358,7 @@ function net_tls_alpn_is_h2_c(ctx_handle: i64): i32 {
 /**
  * 关闭 TLS 会话。
  */
-function net_tls_close_c(ctx_handle: i64): i32 {
+export function net_tls_close_c(ctx_handle: i64): i32 {
   let sess: *TlsMbedtlsSess = tls_mbedtls_sess_ptr(ctx_handle);
   if (sess == 0) {
     return 0;
@@ -372,7 +372,7 @@ function net_tls_close_c(ctx_handle: i64): i32 {
 /**
  * TLS 读；失败 -1/-2。
  */
-function net_tls_read_c(ctx_handle: i64, buf: *u8, cap: i32): i32 {
+export function net_tls_read_c(ctx_handle: i64, buf: *u8, cap: i32): i32 {
   let sess: *TlsMbedtlsSess = tls_mbedtls_sess_ptr(ctx_handle);
   let n: i32 = 0;
   if (sess == 0) {
@@ -400,7 +400,7 @@ function net_tls_read_c(ctx_handle: i64, buf: *u8, cap: i32): i32 {
 /**
  * TLS 写；失败 -1/-2。
  */
-function net_tls_write_c(ctx_handle: i64, buf: *u8, len: i32): i32 {
+export function net_tls_write_c(ctx_handle: i64, buf: *u8, len: i32): i32 {
   let sess: *TlsMbedtlsSess = tls_mbedtls_sess_ptr(ctx_handle);
   let n: i32 = 0;
   if (sess == 0) {
@@ -426,7 +426,7 @@ function net_tls_write_c(ctx_handle: i64, buf: *u8, len: i32): i32 {
 }
 
 /** 127.0.0.1 主机序。 */
-const ADDR_LOOPBACK: u32 = 0x7f000001;
+export const ADDR_LOOPBACK: u32 = 0x7f000001;
 
 /** 烟测字面量。 */
 let LOCALHOST: u8[10] = [108, 111, 99, 97, 108, 104, 111, 115, 116, 0];
@@ -435,7 +435,7 @@ let ENV_SHUX_TLS_PORT: u8[20] = [83, 72, 85, 88, 95, 84, 76, 83, 95, 83, 77, 79,
 /**
  * mbedTLS 烟测：连接 SHUX_TLS_SMOKE_PORT 上 s_server 并完成握手。
  */
-function net_tls_mbedtls_smoke_c(): i32 {
+export function net_tls_mbedtls_smoke_c(): i32 {
   let port_env: *u8 = 0 as *u8;
   let port: i32 = 0;
   let fd: i32 = 0;
@@ -471,14 +471,14 @@ function net_tls_mbedtls_smoke_c(): i32 {
 /**
  * OpenSSL 烟测：mbedTLS 构建下不可用。
  */
-function net_tls_openssl_smoke_c(): i32 {
+export function net_tls_openssl_smoke_c(): i32 {
   return -9;
 }
 
 /**
  * 释放服务端上下文内部 mbedTLS 对象。
  */
-function tls_mbedtls_server_free(srv: *TlsMbedtlsServerCtx): void {
+export function tls_mbedtls_server_free(srv: *TlsMbedtlsServerCtx): void {
   if (srv == 0) {
     return;
   }
@@ -490,7 +490,7 @@ function tls_mbedtls_server_free(srv: *TlsMbedtlsServerCtx): void {
 /**
  * 从内存 PEM 创建 TLS 服务端上下文（ALPN h2）；失败返回 0。
  */
-function net_tls_server_ctx_create_mem_c(cert_pem: *u8, cert_len: i32, key_pem: *u8, key_len: i32): i64 {
+export function net_tls_server_ctx_create_mem_c(cert_pem: *u8, cert_len: i32, key_pem: *u8, key_len: i32): i64 {
   let srv: *TlsMbedtlsServerCtx = 0 as *TlsMbedtlsServerCtx;
   let ret: i32 = 0;
   shu_tls_last_error = 0;

@@ -19,17 +19,17 @@
 // 【文件职责】memcmp/memcpy/memchr/memmem 快路径；供 mod.x len≥阈值时调用。
 // memmem 便携实现（全平台一致，不依赖 GNU memmem）。
 
-extern "C" function memcmp(a: *u8, b: *u8, n: usize): i32;
-extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
-extern "C" function memchr(ptr: *u8, c: i32, n: usize): *u8;
+export extern "C" function memcmp(a: *u8, b: *u8, n: usize): i32;
+export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+export extern "C" function memchr(ptr: *u8, c: i32, n: usize): *u8;
 
 /** 返回 ptr + off；供 StrView 子视图与 arena concat。 */
-function shux_string_ptr_at_c(ptr: *u8, off: i32): *u8 {
+export function shux_string_ptr_at_c(ptr: *u8, off: i32): *u8 {
   return ptr + off;
 }
 
 /** 与 memcmp 一致：<0 / 0 / >0。 */
-function shux_string_memcmp_c(a: *u8, b: *u8, n: i32): i32 {
+export function shux_string_memcmp_c(a: *u8, b: *u8, n: i32): i32 {
   let r: i32 = 0;
   if (n <= 0) { return 0; }
   unsafe { r = memcmp(a, b, n); }
@@ -39,7 +39,7 @@ function shux_string_memcmp_c(a: *u8, b: *u8, n: i32): i32 {
 }
 
 /** 比较 a[off..off+n-1] 与 b[0..n-1]；相等 0，否则非 0。 */
-function shux_string_memcmp_at_c(a: *u8, off: i32, b: *u8, n: i32): i32 {
+export function shux_string_memcmp_at_c(a: *u8, off: i32, b: *u8, n: i32): i32 {
   let p: *u8 = 0 as *u8;
   if (n <= 0) { return 0; }
   p = a + off;
@@ -48,13 +48,13 @@ function shux_string_memcmp_at_c(a: *u8, off: i32, b: *u8, n: i32): i32 {
 }
 
 /** 块拷贝 dst[0..n-1] = src[0..n-1]；n<=0 不写。 */
-function shux_string_copy_c(dst: *u8, src: *u8, n: i32): void {
+export function shux_string_copy_c(dst: *u8, src: *u8, n: i32): void {
   if (n <= 0) { return; }
   unsafe { memcpy(dst, src, n); }
 }
 
 /** 在 ptr[0..n-1] 中找字节 c 首次出现；无则 -1。 */
-function shux_string_memchr_c(ptr: *u8, c: u8, n: i32): i32 {
+export function shux_string_memchr_c(ptr: *u8, c: u8, n: i32): i32 {
   let p: *u8 = 0 as *u8;
   if (n <= 0) { return -1; }
   unsafe { p = memchr(ptr, c as i32, n); }
@@ -63,7 +63,7 @@ function shux_string_memchr_c(ptr: *u8, c: u8, n: i32): i32 {
 }
 
 /** 在 ptr[0..n-1] 中找字节 c 最后一次出现；无则 -1。 */
-function shux_string_memrchr_c(ptr: *u8, c: u8, n: i32): i32 {
+export function shux_string_memrchr_c(ptr: *u8, c: u8, n: i32): i32 {
   let i: i32 = 0;
   if (n <= 0) { return -1; }
   i = n - 1;
@@ -75,7 +75,7 @@ function shux_string_memrchr_c(ptr: *u8, c: u8, n: i32): i32 {
 }
 
 /** 便携 memmem：hay 中找 needle 首次出现；无则 -1。 */
-function shux_string_portable_memmem(hay: *u8, hay_len: i32, needle: *u8, needle_len: i32): i32 {
+export function shux_string_portable_memmem(hay: *u8, hay_len: i32, needle: *u8, needle_len: i32): i32 {
   let i: i32 = 0;
   let j: i32 = 0;
   let ok: i32 = 0;
@@ -99,7 +99,7 @@ function shux_string_portable_memmem(hay: *u8, hay_len: i32, needle: *u8, needle
 }
 
 /** 在 hay 中找 needle 首次出现；无则 -1。needle_len==1 走 memchr。 */
-function shux_string_memmem_c(hay: *u8, hay_len: i32, needle: *u8, needle_len: i32): i32 {
+export function shux_string_memmem_c(hay: *u8, hay_len: i32, needle: *u8, needle_len: i32): i32 {
   if (needle_len <= 0) { return 0; }
   if (hay_len < needle_len) { return -1; }
   if (needle_len == 1) {

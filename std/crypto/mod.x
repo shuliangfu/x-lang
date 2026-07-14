@@ -19,36 +19,36 @@
 // 【文件职责】mem_eq、sha256、sha512、hmac_sha256、ed25519、aes_gcm、chacha20_poly1305。
 // 【依赖】core；实现见 core.x + aes_gcm.x + chacha20_poly1305.x + ed25519.x + 胶层（ld -r → crypto.o）。
 
-extern function crypto_mem_eq_c(a: *u8, b: *u8, len: i32): i32;
-extern function crypto_sha256_c(msg: *u8, len: i32, out: *u8): void;
-extern function crypto_sha512_c(msg: *u8, len: i32, out: *u8): void;
-extern function crypto_hmac_sha256_c(key: *u8, key_len: i32, msg: *u8, msg_len: i32, out: *u8): void;
-extern function crypto_hmac_sha512_c(key: *u8, key_len: i32, msg: *u8, msg_len: i32, out: *u8): void;
-extern function crypto_ed25519_public_from_seed_c(seed: *u8, pub: *u8): void;
-extern function crypto_ed25519_sign_c(seed: *u8, msg: *u8, msg_len: i32, sig: *u8): i32;
-extern function crypto_ed25519_verify_c(pub: *u8, msg: *u8, msg_len: i32, sig: *u8): i32;
-extern function crypto_ed25519_smoke_c(): i32;
-extern function crypto_aes_gcm_seal_c(key: *u8, key_len: i32, iv: *u8, iv_len: i32, aad: *u8,
+export extern function crypto_mem_eq_c(a: *u8, b: *u8, len: i32): i32;
+export extern function crypto_sha256_c(msg: *u8, len: i32, out: *u8): void;
+export extern function crypto_sha512_c(msg: *u8, len: i32, out: *u8): void;
+export extern function crypto_hmac_sha256_c(key: *u8, key_len: i32, msg: *u8, msg_len: i32, out: *u8): void;
+export extern function crypto_hmac_sha512_c(key: *u8, key_len: i32, msg: *u8, msg_len: i32, out: *u8): void;
+export extern function crypto_ed25519_public_from_seed_c(seed: *u8, pub: *u8): void;
+export extern function crypto_ed25519_sign_c(seed: *u8, msg: *u8, msg_len: i32, sig: *u8): i32;
+export extern function crypto_ed25519_verify_c(pub: *u8, msg: *u8, msg_len: i32, sig: *u8): i32;
+export extern function crypto_ed25519_smoke_c(): i32;
+export extern function crypto_aes_gcm_seal_c(key: *u8, key_len: i32, iv: *u8, iv_len: i32, aad: *u8,
   aad_len: i32, pt: *u8, pt_len: i32, ct: *u8, tag: *u8): i32;
-extern function crypto_aes_gcm_open_c(key: *u8, key_len: i32, iv: *u8, iv_len: i32, aad: *u8,
+export extern function crypto_aes_gcm_open_c(key: *u8, key_len: i32, iv: *u8, iv_len: i32, aad: *u8,
   aad_len: i32, ct: *u8, ct_len: i32, tag: *u8, pt: *u8): i32;
-extern function crypto_chacha20_poly1305_seal_c(key: *u8, key_len: i32, nonce: *u8, nonce_len: i32,
+export extern function crypto_chacha20_poly1305_seal_c(key: *u8, key_len: i32, nonce: *u8, nonce_len: i32,
   aad: *u8, aad_len: i32, pt: *u8, pt_len: i32, ct: *u8, tag: *u8): i32;
-extern function crypto_chacha20_poly1305_open_c(key: *u8, key_len: i32, nonce: *u8, nonce_len: i32,
+export extern function crypto_chacha20_poly1305_open_c(key: *u8, key_len: i32, nonce: *u8, nonce_len: i32,
   aad: *u8, aad_len: i32, ct: *u8, ct_len: i32, tag: *u8, pt: *u8): i32;
-extern function crypto_chacha20_poly1305_smoke_c(): i32;
+export extern function crypto_chacha20_poly1305_smoke_c(): i32;
 
 /** Ed25519 seed 长度（字节）。 */
-function ED25519_SEED_LEN(): i32 { return 32; }
+export function ED25519_SEED_LEN(): i32 { return 32; }
 /** AES-GCM 认证 tag 长度（字节）。 */
-const AES_GCM_TAG_LEN: i32 = 16;
+export const AES_GCM_TAG_LEN: i32 = 16;
 /** ChaCha20-Poly1305 密钥长度（字节）。 */
-function CHACHA20_POLY1305_KEY_LEN(): i32 { return 32; }
+export function CHACHA20_POLY1305_KEY_LEN(): i32 { return 32; }
 /** SHA-512 摘要长度（字节，STD-050）。 */
-const SHA512_DIGEST_LEN: i32 = 64;
+export const SHA512_DIGEST_LEN: i32 = 64;
 
 /** 常量时间比较 a[0..len] 与 b[0..len]；相等返回 1，否则 0。 */
-function mem_eq(a: *u8, b: *u8, len: i32): i32 {
+export function mem_eq(a: *u8, b: *u8, len: i32): i32 {
   let __gffi_r: i32 = 0;
   unsafe {
     __gffi_r = crypto_mem_eq_c(a, b, len);
@@ -57,66 +57,66 @@ function mem_eq(a: *u8, b: *u8, len: i32): i32 {
 }
 
 /** SHA-256 哈希，写入 out[0..32]。 */
-function sha256(msg: *u8, len: i32, out: *u8): void {
+export function sha256(msg: *u8, len: i32, out: *u8): void {
   unsafe {
     crypto_sha256_c(msg, len, out);
   }
 }
 
 /** SHA-512 哈希，写入 out[0..64]。 */
-function sha512(msg: *u8, len: i32, out: *u8): void {
+export function sha512(msg: *u8, len: i32, out: *u8): void {
   unsafe {
     crypto_sha512_c(msg, len, out);
   }
 }
 
 /** HMAC-SHA512(key, msg)，结果写入 out[0..64]（STD-050）。 */
-function hmac_sha512(key: *u8, key_len: i32, msg: *u8, msg_len: i32, out: *u8): void {
+export function hmac_sha512(key: *u8, key_len: i32, msg: *u8, msg_len: i32, out: *u8): void {
   unsafe {
     crypto_hmac_sha512_c(key, key_len, msg, msg_len, out);
   }
 }
 
 /** HMAC-SHA256(key, msg)，结果写入 out[0..32]。 */
-function hmac_sha256(key: *u8, key_len: i32, msg: *u8, msg_len: i32, out: *u8): void {
+export function hmac_sha256(key: *u8, key_len: i32, msg: *u8, msg_len: i32, out: *u8): void {
   unsafe {
     crypto_hmac_sha256_c(key, key_len, msg, msg_len, out);
   }
 }
 
 /** MAC 签名校验别名（256-bit，等同 hmac_sha256）。 */
-function mac_sign(key: *u8, key_len: i32, msg: *u8, msg_len: i32, out: *u8): void {
+export function mac_sign(key: *u8, key_len: i32, msg: *u8, msg_len: i32, out: *u8): void {
   hmac_sha256(key, key_len, msg, msg_len, out);
 }
 
 /** MAC 签名 512-bit（STD-050：等同 hmac_sha512；与 mac_sign 签名相同，tag 64B）。 */
-function mac_sign_512(key: *u8, key_len: i32, msg: *u8, msg_len: i32, out: *u8): void {
+export function mac_sign_512(key: *u8, key_len: i32, msg: *u8, msg_len: i32, out: *u8): void {
   hmac_sha512(key, key_len, msg, msg_len, out);
 }
 
 /** MAC 校验：重算 HMAC 与 tag[0..32] 常量时间比较；相等 1，否则 0。 */
-function mac_verify(key: *u8, key_len: i32, msg: *u8, msg_len: i32, tag: *u8): i32 {
+export function mac_verify(key: *u8, key_len: i32, msg: *u8, msg_len: i32, tag: *u8): i32 {
   let calc: u8[32] = [];
   hmac_sha256(key, key_len, msg, msg_len, &calc[0]);
   return mem_eq(&calc[0], tag, 32);
 }
 
 /** MAC 512-bit 校验：重算 HMAC-SHA512 与 tag[0..64] 比较（STD-050）。 */
-function mac_verify_512(key: *u8, key_len: i32, msg: *u8, msg_len: i32, tag: *u8): i32 {
+export function mac_verify_512(key: *u8, key_len: i32, msg: *u8, msg_len: i32, tag: *u8): i32 {
   let calc: u8[64] = [];
   hmac_sha512(key, key_len, msg, msg_len, &calc[0]);
   return mem_eq(&calc[0], tag, 64);
 }
 
 /** 由 32 字节 seed 导出 Ed25519 公钥至 pub[0..32]。 */
-function ed25519_public_from_seed(seed: *u8, pub: *u8): void {
+export function ed25519_public_from_seed(seed: *u8, pub: *u8): void {
   unsafe {
     crypto_ed25519_public_from_seed_c(seed, pub);
   }
 }
 
 /** 使用 seed 对 msg 签名；sig 写入 64 字节；成功 0，失败 -1。 */
-function ed25519_sign(seed: *u8, msg: *u8, msg_len: i32, sig: *u8): i32 {
+export function ed25519_sign(seed: *u8, msg: *u8, msg_len: i32, sig: *u8): i32 {
   let __gffi_r: i32 = 0;
   unsafe {
     __gffi_r = crypto_ed25519_sign_c(seed, msg, msg_len, sig);
@@ -125,7 +125,7 @@ function ed25519_sign(seed: *u8, msg: *u8, msg_len: i32, sig: *u8): i32 {
 }
 
 /** 验签；成功 0，失败 -1。 */
-function ed25519_verify(pub: *u8, msg: *u8, msg_len: i32, sig: *u8): i32 {
+export function ed25519_verify(pub: *u8, msg: *u8, msg_len: i32, sig: *u8): i32 {
   let __gffi_r: i32 = 0;
   unsafe {
     __gffi_r = crypto_ed25519_verify_c(pub, msg, msg_len, sig);
@@ -134,7 +134,7 @@ function ed25519_verify(pub: *u8, msg: *u8, msg_len: i32, sig: *u8): i32 {
 }
 
 /** Ed25519 C 层烟测（RFC 8032 TEST 1）；0 通过。 */
-function ed25519_smoke(): i32 {
+export function ed25519_smoke(): i32 {
   let __gffi_r: i32 = 0;
   unsafe {
     __gffi_r = crypto_ed25519_smoke_c();
@@ -143,7 +143,7 @@ function ed25519_smoke(): i32 {
 }
 
 /** AES-128-GCM 加密；key_len=16、iv_len=12、tag 16B；成功 0。 */
-function aes_gcm_seal(key: *u8, key_len: i32, iv: *u8, iv_len: i32, aad: *u8, aad_len: i32,
+export function aes_gcm_seal(key: *u8, key_len: i32, iv: *u8, iv_len: i32, aad: *u8, aad_len: i32,
   pt: *u8, pt_len: i32, ct: *u8, tag: *u8): i32 {
   let __gffi_r: i32 = 0;
   unsafe {
@@ -153,7 +153,7 @@ function aes_gcm_seal(key: *u8, key_len: i32, iv: *u8, iv_len: i32, aad: *u8, aa
 }
 
 /** AES-128-GCM 解密并校验 tag；成功 0，tag 错误 -1。 */
-function aes_gcm_open(key: *u8, key_len: i32, iv: *u8, iv_len: i32, aad: *u8, aad_len: i32,
+export function aes_gcm_open(key: *u8, key_len: i32, iv: *u8, iv_len: i32, aad: *u8, aad_len: i32,
   ct: *u8, ct_len: i32, tag: *u8, pt: *u8): i32 {
   let __gffi_r: i32 = 0;
   unsafe {
@@ -163,7 +163,7 @@ function aes_gcm_open(key: *u8, key_len: i32, iv: *u8, iv_len: i32, aad: *u8, aa
 }
 
 /** ChaCha20-Poly1305 加密；key_len=32、nonce_len=12、tag 16B；成功 0。 */
-function chacha20_poly1305_seal(key: *u8, key_len: i32, nonce: *u8, nonce_len: i32, aad: *u8,
+export function chacha20_poly1305_seal(key: *u8, key_len: i32, nonce: *u8, nonce_len: i32, aad: *u8,
   aad_len: i32, pt: *u8, pt_len: i32, ct: *u8, tag: *u8): i32 {
   let __gffi_r: i32 = 0;
   unsafe {
@@ -173,7 +173,7 @@ function chacha20_poly1305_seal(key: *u8, key_len: i32, nonce: *u8, nonce_len: i
 }
 
 /** ChaCha20-Poly1305 解密并校验 tag；成功 0，失败 -1。 */
-function chacha20_poly1305_open(key: *u8, key_len: i32, nonce: *u8, nonce_len: i32, aad: *u8,
+export function chacha20_poly1305_open(key: *u8, key_len: i32, nonce: *u8, nonce_len: i32, aad: *u8,
   aad_len: i32, ct: *u8, ct_len: i32, tag: *u8, pt: *u8): i32 {
   let __gffi_r: i32 = 0;
   unsafe {
@@ -183,7 +183,7 @@ function chacha20_poly1305_open(key: *u8, key_len: i32, nonce: *u8, nonce_len: i
 }
 
 /** ChaCha20-Poly1305 C 层烟测；0 通过。 */
-function chacha20_poly1305_smoke(): i32 {
+export function chacha20_poly1305_smoke(): i32 {
   let __gffi_r: i32 = 0;
   unsafe {
     __gffi_r = crypto_chacha20_poly1305_smoke_c();

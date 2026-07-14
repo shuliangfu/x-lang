@@ -6,32 +6,32 @@
 // 产品：./shux-c -E → seeds/seed_link_compat.from_x.c（+ C 尾段 + weak 抛光）。
 // C 尾：weak 空指针守卫调用、backend_fold 表达式分析、x86/arm/riscv emit、va_list asmf。
 
-extern "C" function lsp_io_lsp_alloc(size: usize): *u8;
-extern "C" function lsp_io_lsp_free(ptr: *u8): void;
-extern "C" function lsp_io_lsp_is_null(ptr: *u8): i32;
-extern "C" function lsp_main_impl(): i32;
-extern "C" function lsp_io_std_heap_std_heap_alloc(size: usize): *u8;
-extern "C" function lsp_io_std_heap_std_heap_alloc_zeroed(size: usize): *u8;
-extern "C" function lsp_io_std_heap_std_heap_free(ptr: *u8): void;
-extern "C" function std_sys_os_read_file_into(path: *u8, buf: *u8, cap: i32): i32;
-extern "C" function std_heap_free(ptr: *u8): void;
-extern "C" function pipeline_module_struct_layout_set_packed(module: *u8, idx: i32, v: i32): void;
-extern "C" function asm_ctx_local_offset_at(ctx: *u8, idx: i32): i32;
+export extern "C" function lsp_io_lsp_alloc(size: usize): *u8;
+export extern "C" function lsp_io_lsp_free(ptr: *u8): void;
+export extern "C" function lsp_io_lsp_is_null(ptr: *u8): i32;
+export extern "C" function lsp_main_impl(): i32;
+export extern "C" function lsp_io_std_heap_std_heap_alloc(size: usize): *u8;
+export extern "C" function lsp_io_std_heap_std_heap_alloc_zeroed(size: usize): *u8;
+export extern "C" function lsp_io_std_heap_std_heap_free(ptr: *u8): void;
+export extern "C" function std_sys_os_read_file_into(path: *u8, buf: *u8, cap: i32): i32;
+export extern "C" function std_heap_free(ptr: *u8): void;
+export extern "C" function pipeline_module_struct_layout_set_packed(module: *u8, idx: i32, v: i32): void;
+export extern "C" function asm_ctx_local_offset_at(ctx: *u8, idx: i32): i32;
 
-extern "C" function pipeline_expr_kind_ord_at(arena: *u8, er: i32): i32;
-extern "C" function pipeline_expr_field_access_base_ref(arena: *u8, er: i32): i32;
-extern "C" function pipeline_expr_var_name_len(arena: *u8, er: i32): i32;
-extern "C" function pipeline_expr_var_name_into(arena: *u8, er: i32, out: *u8): void;
-extern "C" function pipeline_module_num_funcs(mod: *u8): i32;
-extern "C" function pipeline_asm_module_func_name_len_at(mod: *u8, fi: i32): i32;
-extern "C" function pipeline_asm_module_func_name_copy64(mod: *u8, fi: i32, dst: *u8): void;
-extern "C" function pipeline_module_func_param_name_len_at(mod: *u8, func_idx: i32, param_ix: i32): i32;
-extern "C" function pipeline_module_func_param_name_copy32(mod: *u8, func_idx: i32, param_ix: i32, dst: *u8): void;
+export extern "C" function pipeline_expr_kind_ord_at(arena: *u8, er: i32): i32;
+export extern "C" function pipeline_expr_field_access_base_ref(arena: *u8, er: i32): i32;
+export extern "C" function pipeline_expr_var_name_len(arena: *u8, er: i32): i32;
+export extern "C" function pipeline_expr_var_name_into(arena: *u8, er: i32, out: *u8): void;
+export extern "C" function pipeline_module_num_funcs(mod: *u8): i32;
+export extern "C" function pipeline_asm_module_func_name_len_at(mod: *u8, fi: i32): i32;
+export extern "C" function pipeline_asm_module_func_name_copy64(mod: *u8, fi: i32, dst: *u8): void;
+export extern "C" function pipeline_module_func_param_name_len_at(mod: *u8, func_idx: i32, param_ix: i32): i32;
+export extern "C" function pipeline_module_func_param_name_copy32(mod: *u8, func_idx: i32, param_ix: i32, dst: *u8): void;
 
 /* ---- typeck/lsp name bridge ---- */
 
 #[no_mangle]
-function typeck_lsp_alloc(size: usize): *u8 {
+export function typeck_lsp_alloc(size: usize): *u8 {
   unsafe {
     let r: *u8 = lsp_io_lsp_alloc(size);
     return r;
@@ -40,14 +40,14 @@ function typeck_lsp_alloc(size: usize): *u8 {
 }
 
 #[no_mangle]
-function typeck_lsp_free(ptr: *u8): void {
+export function typeck_lsp_free(ptr: *u8): void {
   unsafe {
     lsp_io_lsp_free(ptr);
   }
 }
 
 #[no_mangle]
-function typeck_lsp_is_null(ptr: *u8): i32 {
+export function typeck_lsp_is_null(ptr: *u8): i32 {
   unsafe {
     let r: i32 = lsp_io_lsp_is_null(ptr);
     return r;
@@ -56,7 +56,7 @@ function typeck_lsp_is_null(ptr: *u8): i32 {
 }
 
 #[no_mangle]
-function typeck_lsp_main_impl(): i32 {
+export function typeck_lsp_main_impl(): i32 {
   unsafe {
     let r: i32 = lsp_main_impl();
     return r;
@@ -65,7 +65,7 @@ function typeck_lsp_main_impl(): i32 {
 }
 
 #[no_mangle]
-function typeck_std_heap_alloc(size: usize): *u8 {
+export function typeck_std_heap_alloc(size: usize): *u8 {
   unsafe {
     let r: *u8 = lsp_io_std_heap_std_heap_alloc(size);
     return r;
@@ -74,7 +74,7 @@ function typeck_std_heap_alloc(size: usize): *u8 {
 }
 
 #[no_mangle]
-function typeck_std_heap_alloc_zeroed(size: usize): *u8 {
+export function typeck_std_heap_alloc_zeroed(size: usize): *u8 {
   unsafe {
     let r: *u8 = lsp_io_std_heap_std_heap_alloc_zeroed(size);
     return r;
@@ -83,14 +83,14 @@ function typeck_std_heap_alloc_zeroed(size: usize): *u8 {
 }
 
 #[no_mangle]
-function typeck_std_heap_free(ptr: *u8): void {
+export function typeck_std_heap_free(ptr: *u8): void {
   unsafe {
     lsp_io_std_heap_std_heap_free(ptr);
   }
 }
 
 #[no_mangle]
-function std_sys_read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
+export function std_sys_read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
   unsafe {
     let r: i32 = std_sys_os_read_file_into(path, buf, cap);
     return r;
@@ -99,21 +99,21 @@ function std_sys_read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
 }
 
 #[no_mangle]
-function std_heap_free_u8_ptr(ptr: *u8): void {
+export function std_heap_free_u8_ptr(ptr: *u8): void {
   unsafe {
     std_heap_free(ptr);
   }
 }
 
 #[no_mangle]
-function ast_pipeline_module_struct_layout_set_packed(module: *u8, idx: i32, v: i32): void {
+export function ast_pipeline_module_struct_layout_set_packed(module: *u8, idx: i32, v: i32): void {
   unsafe {
     pipeline_module_struct_layout_set_packed(module, idx, v);
   }
 }
 
 #[no_mangle]
-function backend_asm_ctx_slot_offset(ctx: *u8, slot_idx: i32): i32 {
+export function backend_asm_ctx_slot_offset(ctx: *u8, slot_idx: i32): i32 {
   unsafe {
     let r: i32 = asm_ctx_local_offset_at(ctx, slot_idx);
     return r;
@@ -124,31 +124,31 @@ function backend_asm_ctx_slot_offset(ctx: *u8, slot_idx: i32): i32 {
 /* ---- weak fallback stubs for optional lsp_diag symbols (seed 抛光 weak) ---- */
 
 #[no_mangle]
-function lsp_diag_lsp_build_diagnostics_response(id_val: i32, source: *u8, source_len: i32, out_buf: *u8,
+export function lsp_diag_lsp_build_diagnostics_response(id_val: i32, source: *u8, source_len: i32, out_buf: *u8,
                                                   out_cap: i32): i32 {
   return 0 - 1;
 }
 
 #[no_mangle]
-function lsp_diag_lsp_build_semantic_tokens_response(id_val: i32, doc_buf: *u8, doc_len: i32, out_buf: *u8,
+export function lsp_diag_lsp_build_semantic_tokens_response(id_val: i32, doc_buf: *u8, doc_len: i32, out_buf: *u8,
                                                      out_cap: i32): i32 {
   return 0 - 1;
 }
 
 #[no_mangle]
-function lsp_diag_hover_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_buf: *u8,
+export function lsp_diag_hover_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_buf: *u8,
                            out_cap: i32): i32 {
   return 0 - 1;
 }
 
 #[no_mangle]
-function lsp_diag_references_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_lines: *i32,
+export function lsp_diag_references_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_lines: *i32,
                                 out_cols: *i32, max_refs: i32): i32 {
   return 0 - 1;
 }
 
 #[no_mangle]
-function lsp_diag_definition_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_line: *i32,
+export function lsp_diag_definition_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_line: *i32,
                                 out_col: *i32): i32 {
   return 0 - 1;
 }
@@ -158,7 +158,7 @@ function lsp_diag_definition_at(source: *u8, source_len: i32, line_0: i32, col_0
 #[no_mangle]
 // G-02f-132：VAR 是否为指定形参名
 #[no_mangle]
-function shux_expr_is_func_param_at(arena: *u8, mod: *u8, func_idx: i32, expr_ref: i32, param_ix: i32): i32 {
+export function shux_expr_is_func_param_at(arena: *u8, mod: *u8, func_idx: i32, expr_ref: i32, param_ix: i32): i32 {
   if (arena == 0) { return 0; }
   if (mod == 0) { return 0; }
   if (expr_ref <= 0) { return 0; }
@@ -186,7 +186,7 @@ function shux_expr_is_func_param_at(arena: *u8, mod: *u8, func_idx: i32, expr_re
 
 // G-02f-131：FIELD_ACCESS base 是否为 param0（kind 44）
 #[no_mangle]
-function shux_expr_is_param0_field_access(arena: *u8, mod: *u8, func_idx: i32, expr_ref: i32): i32 {
+export function shux_expr_is_param0_field_access(arena: *u8, mod: *u8, func_idx: i32, expr_ref: i32): i32 {
   if (arena == 0) { return 0; }
   if (mod == 0) { return 0; }
   if (func_idx < 0) { return 0; }
@@ -201,7 +201,7 @@ function shux_expr_is_param0_field_access(arena: *u8, mod: *u8, func_idx: i32, e
 
 // G-02f-131：按名查找 module 函数下标
 #[no_mangle]
-function shux_module_func_index_by_name(mod: *u8, name: *u8, name_len: i32): i32 {
+export function shux_module_func_index_by_name(mod: *u8, name: *u8, name_len: i32): i32 {
   if (mod == 0) { return 0 - 1; }
   if (name == 0) { return 0 - 1; }
   if (name_len <= 0) { return 0 - 1; }

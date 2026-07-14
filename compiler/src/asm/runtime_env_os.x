@@ -7,7 +7,7 @@
 // G-02f-103：+ env_build_key 薄门闩。
 
 
-function runtime_env_os_x_doc_anchor(): i32 {
+export function runtime_env_os_x_doc_anchor(): i32 {
   return 0;
 }
 
@@ -16,7 +16,7 @@ function runtime_env_os_x_doc_anchor(): i32 {
 // G-02f-123：env_build_key 真迁 .x
 
 #[no_mangle]
-function env_build_key(key: *u8, key_len: i32, key_buf: *u8): i32 {
+export function env_build_key(key: *u8, key_len: i32, key_buf: *u8): i32 {
   // ENV_KEY_MAX = 256
   if (key == 0) { return 0 - 1; }
   if (key_buf == 0) { return 0 - 1; }

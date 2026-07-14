@@ -22,12 +22,12 @@
 // 【对标】Rust std::backtrace。
 
 /** F-backtrace v1 版本标记。 */
-function backtrace_f_backtrace_v1_marker_c(): i32 {
+export function backtrace_f_backtrace_v1_marker_c(): i32 {
   return 1;
 }
 
 /** F-backtrace v2 逻辑下沉标记。 */
-function backtrace_f_backtrace_v2_marker_c(): i32 {
+export function backtrace_f_backtrace_v2_marker_c(): i32 {
   return 1;
 }
 

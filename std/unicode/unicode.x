@@ -23,12 +23,12 @@
 //
 // 【对标】Zig std.unicode、Rust char 分类（v1 拉丁 + 预组合 NFC 子集）。
 
-const U_CAT_LETTER: u8 = 1;
-const U_CAT_NUMBER: u8 = 2;
-const U_CAT_WHITESPACE: u8 = 3;
+export const U_CAT_LETTER: u8 = 1;
+export const U_CAT_NUMBER: u8 = 2;
+export const U_CAT_WHITESPACE: u8 = 3;
 
 /** ASCII 分类表：0 未知，1 Letter，2 Number，3 Whitespace；一次查表避免分支。 */
-const ASCII_CATEGORY_TABLE: u8[128] = [
+export const ASCII_CATEGORY_TABLE: u8[128] = [
   0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -39,26 +39,26 @@ const ASCII_CATEGORY_TABLE: u8[128] = [
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0,
 ];
 
-extern function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+export extern function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 
 /** F-unicode v1 版本标记；供 v1 聚合 gate 校验。 */
-function unicode_f_unicode_v1_marker_c(): i32 {
+export function unicode_f_unicode_v1_marker_c(): i32 {
   return 1;
 }
 
 /** F-unicode v2 逻辑全量 .x 标记。 */
-function unicode_f_unicode_v2_marker_c(): i32 {
+export function unicode_f_unicode_v2_marker_c(): i32 {
   return 1;
 }
 
 /** 查 ASCII 分类表；越界返回 0。 */
-function unicode_ascii_cat_lookup(rune: u32): u8 {
+export function unicode_ascii_cat_lookup(rune: u32): u8 {
   if (rune >= 128 as u32) { return 0 as u8; }
   return ASCII_CATEGORY_TABLE[rune] as u8;
 }
 
 /** ASCII 拉丁字母判定（替代 ctype isalpha）。 */
-function unicode_is_alpha_ascii(rune: u32): i32 {
+export function unicode_is_alpha_ascii(rune: u32): i32 {
   if ((rune >= 65 as u32 && rune <= 90 as u32)
     || (rune >= 97 as u32 && rune <= 122 as u32)) {
     return 1;
@@ -67,7 +67,7 @@ function unicode_is_alpha_ascii(rune: u32): i32 {
 }
 
 /** 读取 UTF-8 下一码点；返回消耗字节数，rune 写入 *out（失败返回 0）。 */
-function unicode_utf8_decode_at(s: *u8, len: i32, off: i32, out: *u32): i32 {
+export function unicode_utf8_decode_at(s: *u8, len: i32, off: i32, out: *u32): i32 {
   let c0: u8 = 0;
   let rune: u32 = 0;
   if (s == 0 || off < 0 || off >= len || out == 0) { return 0; }
@@ -101,7 +101,7 @@ function unicode_utf8_decode_at(s: *u8, len: i32, off: i32, out: *u32): i32 {
 }
 
 /** 将 rune 编码为 UTF-8；返回写入字节数。 */
-function unicode_utf8_encode(rune: u32, out: *u8, cap: i32): i32 {
+export function unicode_utf8_encode(rune: u32, out: *u8, cap: i32): i32 {
   if (out == 0 || cap <= 0) { return 0; }
   if (rune <= 0x7F) {
     out[0] = rune as u8;
@@ -129,7 +129,7 @@ function unicode_utf8_encode(rune: u32, out: *u8, cap: i32): i32 {
 }
 
 /** 拉丁字母 + U+0301 锐音符 → 预组合码点（v1 子集）；无映射返回 0。 */
-function unicode_nfc_compose_acute(base: u32): u32 {
+export function unicode_nfc_compose_acute(base: u32): u32 {
   if (base == 97 as u32) { return 0x00E1; }
   if (base == 65 as u32) { return 0x00C1; }
   if (base == 101 as u32) { return 0x00E9; }
@@ -146,7 +146,7 @@ function unicode_nfc_compose_acute(base: u32): u32 {
 }
 
 /** 是否为组合附标 U+0300..U+036F。 */
-function unicode_is_combining_mark(rune: u32): i32 {
+export function unicode_is_combining_mark(rune: u32): i32 {
   if (rune >= 0x0300 as u32 && rune <= 0x036F as u32) { return 1; }
   return 0;
 }
@@ -154,18 +154,18 @@ function unicode_is_combining_mark(rune: u32): i32 {
 /** Unicode 分类（简化）：0 未知，1 Letter，2 Number，3 Whitespace。ASCII 查表，非 ASCII 返回 0。 */
 /** mod.x extern category → bare name 调用；#[no_mangle] 让 .x 定义符号与调用端一致。 */
 #[no_mangle]
-function category(rune: u32): i32 {
+export function category(rune: u32): i32 {
   return unicode_ascii_cat_lookup(rune) as i32;
 }
 
 /** 是否为空白（\t \n \v \f \r 空格）。 */
-function is_whitespace(rune: u32): i32 {
+export function is_whitespace(rune: u32): i32 {
   if (unicode_ascii_cat_lookup(rune) == U_CAT_WHITESPACE) { return 1; }
   return 0;
 }
 
 /** 是否为 ASCII（rune <= 127）。 */
-function is_ascii(rune: u32): i32 {
+export function is_ascii(rune: u32): i32 {
   if (rune <= 127 as u32) { return 1; }
   return 0;
 }
@@ -173,7 +173,7 @@ function is_ascii(rune: u32): i32 {
 /** rune 转小写；非 ASCII 暂返回原 rune（内联 ASCII，无 ctype）。 */
 /** mod.x extern to_lower → bare name 调用；#[no_mangle] 让 .x 定义符号与调用端一致。 */
 #[no_mangle]
-function to_lower(rune: u32): u32 {
+export function to_lower(rune: u32): u32 {
   if (rune >= 65 as u32 && rune <= 90 as u32) { return rune + 32; }
   return rune;
 }
@@ -181,19 +181,19 @@ function to_lower(rune: u32): u32 {
 /** rune 转大写；非 ASCII 暂返回原 rune（内联 ASCII，无 ctype）。 */
 /** mod.x extern to_upper → bare name 调用；#[no_mangle] 让 .x 定义符号与调用端一致。 */
 #[no_mangle]
-function to_upper(rune: u32): u32 {
+export function to_upper(rune: u32): u32 {
   if (rune >= 97 as u32 && rune <= 122 as u32) { return rune - 32; }
   return rune;
 }
 
 /** 是否为 Unicode 增补平面码点（U+10000 及以上）。 */
-function is_supplementary(rune: u32): i32 {
+export function is_supplementary(rune: u32): i32 {
   if (rune > 0xFFFF as u32) { return 1; }
   return 0;
 }
 
 /** 缓冲 NFC（v1 拉丁预组合子集）；返回写入 out 的字节数，失败 -1。 */
-function nfc_buf(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
+export function nfc_buf(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
   let in_off: i32 = 0;
   let out_off: i32 = 0;
   let rune: u32 = 0;
@@ -238,7 +238,7 @@ function nfc_buf(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
 }
 
 /** 下一字素簇字节数（基字符 + U+0300..U+036F 附标）。 */
-function grapheme_next(s: *u8, len: i32, off: i32): i32 {
+export function grapheme_next(s: *u8, len: i32, off: i32): i32 {
   let rune: u32 = 0;
   let mark: u32 = 0;
   let n: i32 = 0;
@@ -260,12 +260,12 @@ function grapheme_next(s: *u8, len: i32, off: i32): i32 {
 }
 
 /** 单码点 case fold（v1 委托 to_lower）。 */
-function case_fold_rune(rune: u32): u32 {
+export function case_fold_rune(rune: u32): u32 {
   return to_lower(rune);
 }
 
 /** 缓冲 case fold 输出 UTF-8；返回写入字节数，失败 -1。 */
-function case_fold_buf(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
+export function case_fold_buf(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
   let in_off: i32 = 0;
   let out_off: i32 = 0;
   let rune: u32 = 0;
@@ -286,7 +286,7 @@ function case_fold_buf(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
 }
 
 /** STD-114 C 烟测：grapheme + case fold 金样。 */
-function grapheme_case_smoke(): i32 {
+export function grapheme_case_smoke(): i32 {
   let decomposed: u8[3] = [101, 0xCC, 0x81];
   let hello: u8[5] = [72, 101, 108, 108, 111];
   let fold: u8[8] = [];

@@ -33,10 +33,10 @@ allow(padding) struct PollFd { fd: i32; events: i16; revents: i16; }
 allow(padding) struct IoBatchBuf { ptr: *u8; len: usize; handle: usize; }
 
 /** 固定 buffer 池最大块数（与 io.c IO_FIXED_MAX 对齐）。 */
-const IO_FIXED_MAX: u32 = 8;
+export const IO_FIXED_MAX: u32 = 8;
 
 /** 切片式批量读最大段数（与 io.c IO_READV_BUF_MAX 对齐）。 */
-const IO_READV_BUF_MAX: i32 = 16;
+export const IO_READV_BUF_MAX: i32 = 16;
 
 /** 模块级固定 buffer 池（v1：单线程语义；多线程并发注册不隔离）。 */
 let io_fixed_ptr: [8]*u8 = [
@@ -49,30 +49,30 @@ let io_fixed_len: [8]usize = [
 ];
 let io_fixed_nr: u32 = 0;
 
-extern "C" function read(fd: i32, buf: *u8, count: usize): isize;
-extern "C" function write(fd: i32, buf: *u8, count: usize): isize;
-extern "C" function readv(fd: i32, iov: *Iovec, iovcnt: i32): isize;
-extern "C" function writev(fd: i32, iov: *Iovec, iovcnt: i32): isize;
-extern "C" function poll(fds: *PollFd, nfds: u64, timeout: i32): i32;
+export extern "C" function read(fd: i32, buf: *u8, count: usize): isize;
+export extern "C" function write(fd: i32, buf: *u8, count: usize): isize;
+export extern "C" function readv(fd: i32, iov: *Iovec, iovcnt: i32): isize;
+export extern "C" function writev(fd: i32, iov: *Iovec, iovcnt: i32): isize;
+export extern "C" function poll(fds: *PollFd, nfds: u64, timeout: i32): i32;
 
 /** libc FFI 须 unsafe；集中薄包装，避免各 io_* 重复写 unsafe 块。 */
-function io_libc_read(fd: i32, buf: *u8, count: usize): isize {
+export function io_libc_read(fd: i32, buf: *u8, count: usize): isize {
   unsafe { return read(fd, buf, count); }
   return 0; // unreachable — typeck workaround
 }
-function io_libc_write(fd: i32, buf: *u8, count: usize): isize {
+export function io_libc_write(fd: i32, buf: *u8, count: usize): isize {
   unsafe { return write(fd, buf, count); }
   return 0; // unreachable — typeck workaround
 }
-function io_libc_readv(fd: i32, iov: *Iovec, iovcnt: i32): isize {
+export function io_libc_readv(fd: i32, iov: *Iovec, iovcnt: i32): isize {
   unsafe { return readv(fd, iov, iovcnt); }
   return 0; // unreachable — typeck workaround
 }
-function io_libc_writev(fd: i32, iov: *Iovec, iovcnt: i32): isize {
+export function io_libc_writev(fd: i32, iov: *Iovec, iovcnt: i32): isize {
   unsafe { return writev(fd, iov, iovcnt); }
   return 0; // unreachable — typeck workaround
 }
-function io_libc_poll(fds: *PollFd, nfds: i32, timeout: i32): i32 {
+export function io_libc_poll(fds: *PollFd, nfds: i32, timeout: i32): i32 {
   unsafe { return poll(fds, nfds, timeout); }
   return 0; // unreachable — typeck workaround
 }
@@ -82,7 +82,7 @@ function io_libc_poll(fds: *PollFd, nfds: i32, timeout: i32): i32 {
  * timeout_ms 保留 ABI；v1 忽略，直接 libc read。
  * 返回读入字节数，0=EOF，-1=错误。
  */
-function io_read(fd: i32, buf: *u8, count: usize, timeout_ms: u32): isize {
+export function io_read(fd: i32, buf: *u8, count: usize, timeout_ms: u32): isize {
   if (timeout_ms > 0) {
     /* v1：超时未实现，仍走阻塞 read。 */
   }
@@ -93,7 +93,7 @@ function io_read(fd: i32, buf: *u8, count: usize, timeout_ms: u32): isize {
  * 同步写：fd 为 handle（1=stdout，≥2 为任意 fd）。
  * timeout_ms 保留 ABI；v1 忽略，直接 libc write。
  */
-function io_write(fd: i32, buf: *u8, count: usize, timeout_ms: u32): isize {
+export function io_write(fd: i32, buf: *u8, count: usize, timeout_ms: u32): isize {
   if (timeout_ms > 0) {
     /* v1：超时未实现。 */
   }
@@ -105,7 +105,7 @@ function io_write(fd: i32, buf: *u8, count: usize, timeout_ms: u32): isize {
  * 裸名 io_read_batch（net.o 弱桩覆盖）由 runtime_asm_io_stubs.o 强符号提供；
  * 本定义走模块前缀 std_io_sync_io_read_batch，匹配 backend.x 的 io_platform.io_read_batch 限定调用。
  */
-function io_read_batch(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize, n: i32, timeout_ms: u32): isize {
+export function io_read_batch(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize, n: i32, timeout_ms: u32): isize {
   if (n <= 0 || n > 4) {
     return -1;
   }
@@ -151,7 +151,7 @@ function io_read_batch(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8,
  * 裸名 io_write_batch（net.o 弱桩覆盖）由 runtime_asm_io_stubs.o 强符号提供；
  * 本定义走模块前缀 std_io_sync_io_write_batch，匹配 backend.x 的 io_platform.io_write_batch 限定调用。
  */
-function io_write_batch(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize, n: i32, timeout_ms: u32): isize {
+export function io_write_batch(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize, n: i32, timeout_ms: u32): isize {
   if (n <= 0 || n > 4) {
     return -1;
   }
@@ -195,7 +195,7 @@ function io_write_batch(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8
 /**
  * 切片式批量读：bufs 指向 n 个 IoBatchBuf（1..16）；timeout_ms=0 时 readv。
  */
-function io_read_batch_buf(fd: i32, bufs: *IoBatchBuf, n: i32, timeout_ms: u32): isize {
+export function io_read_batch_buf(fd: i32, bufs: *IoBatchBuf, n: i32, timeout_ms: u32): isize {
   if (n <= 0 || n > IO_READV_BUF_MAX || bufs == 0) {
     return -1;
   }
@@ -224,7 +224,7 @@ function io_read_batch_buf(fd: i32, bufs: *IoBatchBuf, n: i32, timeout_ms: u32):
 }
 
 /** 切片式批量写：语义同 io_read_batch_buf。 */
-function io_write_batch_buf(fd: i32, bufs: *IoBatchBuf, n: i32, timeout_ms: u32): isize {
+export function io_write_batch_buf(fd: i32, bufs: *IoBatchBuf, n: i32, timeout_ms: u32): isize {
   if (n <= 0 || n > IO_READV_BUF_MAX || bufs == 0) {
     return -1;
   }
@@ -256,14 +256,14 @@ function io_write_batch_buf(fd: i32, bufs: *IoBatchBuf, n: i32, timeout_ms: u32)
  * 注册单块固定 buffer（等同 nr=1 的 io_register_buffers_4）。
  * 返回 1 成功，0 失败。
  */
-function io_register_buffer(ptr: *u8, len: usize): i32 {
+export function io_register_buffer(ptr: *u8, len: usize): i32 {
   return io_register_buffers_4(ptr, len, 0, 0, 0, 0, 0, 0, 1);
 }
 
 /**
  * 注册固定 buffer 池（最多 4 块）；Linux io_uring fixed 已 stub，仅存 ptr/len 供 read_fixed。
  */
-function io_register_buffers_4(p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize, nr: u32): i32 {
+export function io_register_buffers_4(p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize, nr: u32): i32 {
   let i: u32 = 0;
   if (nr == 0 || nr > 4) {
     return 0;
@@ -298,7 +298,7 @@ function io_register_buffers_4(p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, 
 }
 
 /** 按指针+块数注册固定 buffer 池（1..8）；codegen 可能传 intptr。 */
-function io_register_buffers_buf(bufs: *IoBatchBuf, nr: i32): i32 {
+export function io_register_buffers_buf(bufs: *IoBatchBuf, nr: i32): i32 {
   if (nr <= 0 || nr > (IO_FIXED_MAX as i32) || bufs == 0) {
     return 0;
   }
@@ -317,14 +317,14 @@ function io_register_buffers_buf(bufs: *IoBatchBuf, nr: i32): i32 {
 }
 
 /** 注销固定 buffer 池。 */
-function io_unregister_buffers(): void {
+export function io_unregister_buffers(): void {
   io_fixed_nr = 0;
 }
 
 /**
  * 使用已注册固定 buffer 读：buf_index 为池下标；offset+len 须 ≤ 注册长度。
  */
-function io_read_fixed(fd: i32, buf_index: u32, offset: usize, len: usize, timeout_ms: u32): isize {
+export function io_read_fixed(fd: i32, buf_index: u32, offset: usize, len: usize, timeout_ms: u32): isize {
   if (buf_index >= io_fixed_nr) {
     return -1;
   }
@@ -338,7 +338,7 @@ function io_read_fixed(fd: i32, buf_index: u32, offset: usize, len: usize, timeo
 }
 
 /** 使用已注册固定 buffer 写。 */
-function io_write_fixed(fd: i32, buf_index: u32, offset: usize, len: usize, timeout_ms: u32): isize {
+export function io_write_fixed(fd: i32, buf_index: u32, offset: usize, len: usize, timeout_ms: u32): isize {
   if (buf_index >= io_fixed_nr) {
     return -1;
   }
@@ -355,7 +355,7 @@ function io_write_fixed(fd: i32, buf_index: u32, offset: usize, len: usize, time
  * 多 fd 就绪等待：fds 指向 n 个 i32（fd 数组），poll 等待任意可读。
  * 返回第一个就绪下标 0..n-1，超时/错误 -1。n 建议 ≤8。
  */
-function io_wait_readable(fds: *i32, n: i32, timeout_ms: u32): i32 {
+export function io_wait_readable(fds: *i32, n: i32, timeout_ms: u32): i32 {
   if (fds == 0 || n <= 0 || n > 8) {
     return -1;
   }

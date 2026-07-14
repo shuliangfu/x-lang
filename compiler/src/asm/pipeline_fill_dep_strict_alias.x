@@ -22,7 +22,7 @@
 // 替代 pipeline_fill_dep_strict_alias.c（F-09 终局去 C）。
 
 /** ast_pool.c glue；strict 链由 pipeline_glue_standalone.o 提供。 */
-extern function run_x_pipeline_fill_dep_import_path_c(
+export extern function run_x_pipeline_fill_dep_import_path_c(
   module: *u8,
   ctx: *u8,
   dep_j: i32
@@ -31,7 +31,7 @@ extern function run_x_pipeline_fill_dep_import_path_c(
 /**
  * orchestration 裸名 → C glue；与 pipeline.x 语义一致，供 relink strict 链使用。
  */
-function run_x_pipeline_fill_dep_import_path(module: *u8, ctx: *u8, dep_j: i32): i32 {
+export function run_x_pipeline_fill_dep_import_path(module: *u8, ctx: *u8, dep_j: i32): i32 {
   unsafe {
     return run_x_pipeline_fill_dep_import_path_c(module, ctx, dep_j);
   }

@@ -9,7 +9,7 @@
 //   Perf：纯字节循环，无热路径分支冗余
 
 
-function runtime_path_fast_x_doc_anchor(): i32 {
+export function runtime_path_fast_x_doc_anchor(): i32 {
   return 0;
 }
 
@@ -26,20 +26,20 @@ function runtime_path_fast_x_doc_anchor(): i32 {
 // G-02f-119：path pure helper 真迁 .x
 
 #[no_mangle]
-function path_sep_c(): u8 {
+export function path_sep_c(): u8 {
   // 产品 seed 在 Win 下为 '\\'；posix 验收路径为 '/'
   return 47 as u8;
 }
 
 #[no_mangle]
-function path_is_sep_c(c: u8): i32 {
+export function path_is_sep_c(c: u8): i32 {
   if (c == 47) { return 1; }
   if (c == 92) { return 1; }
   return 0;
 }
 
 #[no_mangle]
-function path_last_sep_c(path: *u8, path_len: i32): i32 {
+export function path_last_sep_c(path: *u8, path_len: i32): i32 {
   let i: i32 = path_len - 1;
   while (i >= 0) {
     if (path_is_sep_c(path[i]) != 0) { return i; }
@@ -51,7 +51,7 @@ function path_last_sep_c(path: *u8, path_len: i32): i32 {
 // G-02f-123：path_last_dot_c 真迁 .x
 
 #[no_mangle]
-function path_last_dot_c(path: *u8, start: i32, len: i32): i32 {
+export function path_last_dot_c(path: *u8, start: i32, len: i32): i32 {
   let i: i32 = start + len - 1;
   while (i >= start) {
     if (path[i] == 46) { return i - start; }
@@ -63,17 +63,17 @@ function path_last_dot_c(path: *u8, start: i32, len: i32): i32 {
 /* ---- G-02f-rest：rest→.x 迁移（原 seed 中 12 个 rest 函数） ---- */
 
 #[no_mangle]
-function std_path_empty_len(): i32 {
+export function std_path_empty_len(): i32 {
   return 0;
 }
 
 #[no_mangle]
-function std_path_sep(): u8 {
+export function std_path_sep(): u8 {
   return path_sep_c();
 }
 
 #[no_mangle]
-function std_path_join(out: *u8, out_max: i32, a: *u8, a_len: i32, b: *u8, b_len: i32): i32 {
+export function std_path_join(out: *u8, out_max: i32, a: *u8, a_len: i32, b: *u8, b_len: i32): i32 {
   let need_sep: i32 = 0;
   let total: i32 = 0;
   let k: i32 = 0;
@@ -105,7 +105,7 @@ function std_path_join(out: *u8, out_max: i32, a: *u8, a_len: i32, b: *u8, b_len
 }
 
 #[no_mangle]
-function std_path_dirname(path: *u8, path_len: i32, out: *u8, out_max: i32): i32 {
+export function std_path_dirname(path: *u8, path_len: i32, out: *u8, out_max: i32): i32 {
   let last: i32 = path_last_sep_c(path, path_len);
   let i: i32 = 0;
   if (last <= 0) { return 0; }
@@ -119,7 +119,7 @@ function std_path_dirname(path: *u8, path_len: i32, out: *u8, out_max: i32): i32
 }
 
 #[no_mangle]
-function std_path_basename(path: *u8, path_len: i32, out: *u8, out_max: i32): i32 {
+export function std_path_basename(path: *u8, path_len: i32, out: *u8, out_max: i32): i32 {
   let last: i32 = path_last_sep_c(path, path_len);
   let start: i32 = last + 1;
   let seg_len: i32 = path_len - start;
@@ -134,7 +134,7 @@ function std_path_basename(path: *u8, path_len: i32, out: *u8, out_max: i32): i3
 }
 
 #[no_mangle]
-function std_path_is_absolute(path: *u8, path_len: i32): i32 {
+export function std_path_is_absolute(path: *u8, path_len: i32): i32 {
   let c0: u8 = 0;
   let is_alpha: i32 = 0;
   if (path_len <= 0) { return 0; }
@@ -166,12 +166,12 @@ function std_path_is_absolute(path: *u8, path_len: i32): i32 {
 }
 
 #[no_mangle]
-function std_path_is_sep(c: u8): i32 {
+export function std_path_is_sep(c: u8): i32 {
   return path_is_sep_c(c);
 }
 
 #[no_mangle]
-function std_path_extension(path: *u8, path_len: i32, out: *u8, out_max: i32): i32 {
+export function std_path_extension(path: *u8, path_len: i32, out: *u8, out_max: i32): i32 {
   let last_sl: i32 = path_last_sep_c(path, path_len);
   let base_start: i32 = last_sl + 1;
   let base_len: i32 = path_len - base_start;
@@ -193,7 +193,7 @@ function std_path_extension(path: *u8, path_len: i32, out: *u8, out_max: i32): i
 }
 
 #[no_mangle]
-function std_path_stem(path: *u8, path_len: i32, out: *u8, out_max: i32): i32 {
+export function std_path_stem(path: *u8, path_len: i32, out: *u8, out_max: i32): i32 {
   let last_sl: i32 = path_last_sep_c(path, path_len);
   let base_start: i32 = last_sl + 1;
   let base_len: i32 = path_len - base_start;
@@ -217,7 +217,7 @@ function std_path_stem(path: *u8, path_len: i32, out: *u8, out_max: i32): i32 {
 }
 
 #[no_mangle]
-function std_path_extension_and_stem(path: *u8, path_len: i32, ext_out: *u8, ext_max: i32,
+export function std_path_extension_and_stem(path: *u8, path_len: i32, ext_out: *u8, ext_max: i32,
                                      stem_out: *u8, stem_max: i32): i32 {
   let last_sl: i32 = path_last_sep_c(path, path_len);
   let base_start: i32 = last_sl + 1;
@@ -254,7 +254,7 @@ function std_path_extension_and_stem(path: *u8, path_len: i32, ext_out: *u8, ext
 }
 
 #[no_mangle]
-function std_path_clean(path: *u8, path_len: i32, out: *u8, out_max: i32): i32 {
+export function std_path_clean(path: *u8, path_len: i32, out: *u8, out_max: i32): i32 {
   let seg_starts: i32[64] = [];
   let nseg: i32 = 0;
   let out_len: i32 = 0;
@@ -338,7 +338,7 @@ function std_path_clean(path: *u8, path_len: i32, out: *u8, out_max: i32): i32 {
 }
 
 #[no_mangle]
-function std_path_resolve(out: *u8, out_max: i32, base: *u8, base_len: i32,
+export function std_path_resolve(out: *u8, out_max: i32, base: *u8, base_len: i32,
                           ref: *u8, ref_len: i32): i32 {
   let dir_buf: u8[256] = [];
   let tmp: u8[512] = [];

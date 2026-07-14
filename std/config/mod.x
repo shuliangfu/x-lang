@@ -28,50 +28,50 @@ allow(padding) struct Config {
 }
 
 /** 成功。 */
-function err_ok(): i32 { return 0; }
+export function err_ok(): i32 { return 0; }
 /** 空指针参数。 */
-function err_null(): i32 { return -1; }
+export function err_null(): i32 { return -1; }
 /** 键不存在。 */
-function err_not_found(): i32 { return -2; }
+export function err_not_found(): i32 { return -2; }
 /** 值非法或解析失败。 */
-function err_invalid(): i32 { return -3; }
+export function err_invalid(): i32 { return -3; }
 /** 文件 IO 失败。 */
-function err_io(): i32 { return -4; }
+export function err_io(): i32 { return -4; }
 /** 条目数超限。 */
-function err_full(): i32 { return -5; }
+export function err_full(): i32 { return -5; }
 
 /** 值来源：未知 / 未记录。 */
-function source_unknown(): i32 { return 0; }
+export function source_unknown(): i32 { return 0; }
 /** 值来源：TOML 文件或缓冲。 */
-function source_toml(): i32 { return 1; }
+export function source_toml(): i32 { return 1; }
 /** 值来源：YAML 文件或缓冲。 */
-function source_yaml(): i32 { return 2; }
+export function source_yaml(): i32 { return 2; }
 /** 值来源：环境变量。 */
-function source_env(): i32 { return 3; }
+export function source_env(): i32 { return 3; }
 /** 值来源：显式 set_string / CLI 层。 */
-function source_set(): i32 { return 4; }
+export function source_set(): i32 { return 4; }
 
-extern function config_create_c(): i64;
-extern function config_free_c(handle: i64): void;
-extern function config_clear_c(handle: i64): void;
-extern function config_load_toml_buf_c(handle: i64, buf: *u8, len: i32, override: i32): i32;
-extern function config_load_toml_file_c(handle: i64, path: *u8, override: i32): i32;
-extern function config_load_env_prefix_c(handle: i64, prefix: *u8, prefix_len: i32, override: i32): i32;
-extern function config_merge_c(dst: i64, src: i64, override: i32): i32;
-extern function config_set_string_c(handle: i64, key: *u8, key_len: i32, val: *u8, val_len: i32): i32;
-extern function config_get_string_c(handle: i64, key: *u8, key_len: i32, out: *u8, out_cap: i32): i32;
-extern function config_get_i32_c(handle: i64, key: *u8, key_len: i32, out: *i32): i32;
-extern function config_get_bool_c(handle: i64, key: *u8, key_len: i32, out: *i32): i32;
-extern function config_get_source_c(handle: i64, key: *u8, key_len: i32, out_kind: *i32, out_label: *u8, label_cap: i32): i32;
-extern function config_get_i32_meta_c(handle: i64, key: *u8, key_len: i32, out: *i32, out_kind: *i32, out_label: *u8, label_cap: i32): i32;
-extern function config_get_bool_meta_c(handle: i64, key: *u8, key_len: i32, out: *i32, out_kind: *i32, out_label: *u8, label_cap: i32): i32;
-extern function config_get_string_meta_c(handle: i64, key: *u8, key_len: i32, out: *u8, out_cap: i32, out_kind: *i32, out_label: *u8, label_cap: i32): i32;
-extern function config_load_yaml_buf_c(handle: i64, buf: *u8, len: i32, override: i32): i32;
-extern function config_load_yaml_file_c(handle: i64, path: *u8, override: i32): i32;
-extern function config_yaml_smoke_c(): i32;
+export extern function config_create_c(): i64;
+export extern function config_free_c(handle: i64): void;
+export extern function config_clear_c(handle: i64): void;
+export extern function config_load_toml_buf_c(handle: i64, buf: *u8, len: i32, override: i32): i32;
+export extern function config_load_toml_file_c(handle: i64, path: *u8, override: i32): i32;
+export extern function config_load_env_prefix_c(handle: i64, prefix: *u8, prefix_len: i32, override: i32): i32;
+export extern function config_merge_c(dst: i64, src: i64, override: i32): i32;
+export extern function config_set_string_c(handle: i64, key: *u8, key_len: i32, val: *u8, val_len: i32): i32;
+export extern function config_get_string_c(handle: i64, key: *u8, key_len: i32, out: *u8, out_cap: i32): i32;
+export extern function config_get_i32_c(handle: i64, key: *u8, key_len: i32, out: *i32): i32;
+export extern function config_get_bool_c(handle: i64, key: *u8, key_len: i32, out: *i32): i32;
+export extern function config_get_source_c(handle: i64, key: *u8, key_len: i32, out_kind: *i32, out_label: *u8, label_cap: i32): i32;
+export extern function config_get_i32_meta_c(handle: i64, key: *u8, key_len: i32, out: *i32, out_kind: *i32, out_label: *u8, label_cap: i32): i32;
+export extern function config_get_bool_meta_c(handle: i64, key: *u8, key_len: i32, out: *i32, out_kind: *i32, out_label: *u8, label_cap: i32): i32;
+export extern function config_get_string_meta_c(handle: i64, key: *u8, key_len: i32, out: *u8, out_cap: i32, out_kind: *i32, out_label: *u8, label_cap: i32): i32;
+export extern function config_load_yaml_buf_c(handle: i64, buf: *u8, len: i32, override: i32): i32;
+export extern function config_load_yaml_file_c(handle: i64, path: *u8, override: i32): i32;
+export extern function config_yaml_smoke_c(): i32;
 
 /** 创建空配置；失败 handle=0。 */
-function new(): Config {
+export function new(): Config {
   unsafe {
     let h: i64 = config_create_c();
     return Config { handle: h };
@@ -79,7 +79,7 @@ function new(): Config {
 }
 
 /** 释放配置存储。 */
-function free(cfg: *Config): void {
+export function free(cfg: *Config): void {
   let zero: i64 = 0;
   if (cfg == 0) { return; }
   if (cfg.handle != zero) {
@@ -89,14 +89,14 @@ function free(cfg: *Config): void {
 }
 
 /** 清空所有键值。 */
-function clear(cfg: *Config): void {
+export function clear(cfg: *Config): void {
   let zero: i64 = 0;
   if (cfg == 0 || cfg.handle == zero) { return; }
   unsafe { config_clear_c(cfg.handle); }
 }
 
 /** 从内存 TOML 缓冲加载；override 非 0 时覆盖已有键。 */
-function load_toml_buf(cfg: *Config, buf: *u8, len: i32, override: i32): i32 {
+export function load_toml_buf(cfg: *Config, buf: *u8, len: i32, override: i32): i32 {
   let zero: i64 = 0;
   if (cfg == 0 || cfg.handle == zero || buf == 0) { return err_null(); }
   unsafe {
@@ -105,7 +105,7 @@ function load_toml_buf(cfg: *Config, buf: *u8, len: i32, override: i32): i32 {
 }
 
 /** 从 NUL 结尾路径加载 TOML 文件。 */
-function load_toml_file(cfg: *Config, path: *u8, override: i32): i32 {
+export function load_toml_file(cfg: *Config, path: *u8, override: i32): i32 {
   let zero: i64 = 0;
   if (cfg == 0 || cfg.handle == zero || path == 0) { return err_null(); }
   unsafe {
@@ -114,7 +114,7 @@ function load_toml_file(cfg: *Config, path: *u8, override: i32): i32 {
 }
 
 /** 加载环境变量前缀（如 APP_ → 键 PORT）；返回加载条数，失败负数。 */
-function load_env_prefix(cfg: *Config, prefix: *u8, prefix_len: i32, override: i32): i32 {
+export function load_env_prefix(cfg: *Config, prefix: *u8, prefix_len: i32, override: i32): i32 {
   let zero: i64 = 0;
   if (cfg == 0 || cfg.handle == zero || prefix == 0) { return err_null(); }
   unsafe {
@@ -123,7 +123,7 @@ function load_env_prefix(cfg: *Config, prefix: *u8, prefix_len: i32, override: i
 }
 
 /** 将 src 合并进 dst；override 非 0 时 src 覆盖同名键（CLI 层）。 */
-function merge(dst: *Config, src: *Config, override: i32): i32 {
+export function merge(dst: *Config, src: *Config, override: i32): i32 {
   let zero: i64 = 0;
   if (dst == 0 || src == 0 || dst.handle == zero || src.handle == zero) { return err_null(); }
   unsafe {
@@ -132,7 +132,7 @@ function merge(dst: *Config, src: *Config, override: i32): i32 {
 }
 
 /** 设置字符串键值（最高优先级）。 */
-function set_string(cfg: *Config, key: *u8, key_len: i32, val: *u8, val_len: i32): i32 {
+export function set_string(cfg: *Config, key: *u8, key_len: i32, val: *u8, val_len: i32): i32 {
   let zero: i64 = 0;
   if (cfg == 0 || cfg.handle == zero) { return err_null(); }
   unsafe {
@@ -141,7 +141,7 @@ function set_string(cfg: *Config, key: *u8, key_len: i32, val: *u8, val_len: i32
 }
 
 /** 读取字符串；返回长度，未找到 err_not_found()。 */
-function get_string(cfg: *Config, key: *u8, key_len: i32, out: *u8, out_cap: i32): i32 {
+export function get_string(cfg: *Config, key: *u8, key_len: i32, out: *u8, out_cap: i32): i32 {
   let zero: i64 = 0;
   if (cfg == 0 || cfg.handle == zero) { return err_null(); }
   unsafe {
@@ -150,7 +150,7 @@ function get_string(cfg: *Config, key: *u8, key_len: i32, out: *u8, out_cap: i32
 }
 
 /** 读取 i32 标量。 */
-function get_i32(cfg: *Config, key: *u8, key_len: i32, out: *i32): i32 {
+export function get_i32(cfg: *Config, key: *u8, key_len: i32, out: *i32): i32 {
   let zero: i64 = 0;
   if (cfg == 0 || cfg.handle == zero) { return err_null(); }
   unsafe {
@@ -159,7 +159,7 @@ function get_i32(cfg: *Config, key: *u8, key_len: i32, out: *i32): i32 {
 }
 
 /** 读取 bool 标量。 */
-function get_bool(cfg: *Config, key: *u8, key_len: i32, out: *i32): i32 {
+export function get_bool(cfg: *Config, key: *u8, key_len: i32, out: *i32): i32 {
   let zero: i64 = 0;
   if (cfg == 0 || cfg.handle == zero) { return err_null(); }
   unsafe {
@@ -168,7 +168,7 @@ function get_bool(cfg: *Config, key: *u8, key_len: i32, out: *i32): i32 {
 }
 
 /** 读取键值来源层（kind）与可选 label（如 env 全名或文件路径）。 */
-function get_source(cfg: *Config, key: *u8, key_len: i32, out_kind: *i32, out_label: *u8, label_cap: i32): i32 {
+export function get_source(cfg: *Config, key: *u8, key_len: i32, out_kind: *i32, out_label: *u8, label_cap: i32): i32 {
   let zero: i64 = 0;
   if (cfg == 0 || cfg.handle == zero) { return err_null(); }
   unsafe {
@@ -177,7 +177,7 @@ function get_source(cfg: *Config, key: *u8, key_len: i32, out_kind: *i32, out_la
 }
 
 /** 读取 i32 并附带来源 meta（out_kind 可传 0 跳过）。 */
-function get_i32_meta(cfg: *Config, key: *u8, key_len: i32, out: *i32, out_kind: *i32, out_label: *u8, label_cap: i32): i32 {
+export function get_i32_meta(cfg: *Config, key: *u8, key_len: i32, out: *i32, out_kind: *i32, out_label: *u8, label_cap: i32): i32 {
   let zero: i64 = 0;
   if (cfg == 0 || cfg.handle == zero) { return err_null(); }
   unsafe {
@@ -186,7 +186,7 @@ function get_i32_meta(cfg: *Config, key: *u8, key_len: i32, out: *i32, out_kind:
 }
 
 /** 读取 bool 并附带来源 meta。 */
-function get_bool_meta(cfg: *Config, key: *u8, key_len: i32, out: *i32, out_kind: *i32, out_label: *u8, label_cap: i32): i32 {
+export function get_bool_meta(cfg: *Config, key: *u8, key_len: i32, out: *i32, out_kind: *i32, out_label: *u8, label_cap: i32): i32 {
   let zero: i64 = 0;
   if (cfg == 0 || cfg.handle == zero) { return err_null(); }
   unsafe {
@@ -195,7 +195,7 @@ function get_bool_meta(cfg: *Config, key: *u8, key_len: i32, out: *i32, out_kind
 }
 
 /** 读取字符串并附带来源 meta；返回值同 get_string。 */
-function get_string_meta(cfg: *Config, key: *u8, key_len: i32, out: *u8, out_cap: i32, out_kind: *i32, out_label: *u8, label_cap: i32): i32 {
+export function get_string_meta(cfg: *Config, key: *u8, key_len: i32, out: *u8, out_cap: i32, out_kind: *i32, out_label: *u8, label_cap: i32): i32 {
   let zero: i64 = 0;
   if (cfg == 0 || cfg.handle == zero) { return err_null(); }
   unsafe {
@@ -204,12 +204,12 @@ function get_string_meta(cfg: *Config, key: *u8, key_len: i32, out: *u8, out_cap
 }
 
 /** 配置后端：TOML。 */
-function backend_toml(): i32 { return 1; }
+export function backend_toml(): i32 { return 1; }
 /** 配置后端：YAML（可选链入，与 TOML 共享键空间）。 */
-function backend_yaml(): i32 { return 2; }
+export function backend_yaml(): i32 { return 2; }
 
 /** 从内存 YAML 缓冲加载；override 非 0 时覆盖已有键。 */
-function load_yaml_buf(cfg: *Config, buf: *u8, len: i32, override: i32): i32 {
+export function load_yaml_buf(cfg: *Config, buf: *u8, len: i32, override: i32): i32 {
   let zero: i64 = 0;
   if (cfg == 0 || cfg.handle == zero || buf == 0) { return err_null(); }
   unsafe {
@@ -218,7 +218,7 @@ function load_yaml_buf(cfg: *Config, buf: *u8, len: i32, override: i32): i32 {
 }
 
 /** 从 NUL 结尾路径加载 YAML 文件。 */
-function load_yaml_file(cfg: *Config, path: *u8, override: i32): i32 {
+export function load_yaml_file(cfg: *Config, path: *u8, override: i32): i32 {
   let zero: i64 = 0;
   if (cfg == 0 || cfg.handle == zero || path == 0) { return err_null(); }
   unsafe {
@@ -227,7 +227,7 @@ function load_yaml_file(cfg: *Config, path: *u8, override: i32): i32 {
 }
 
 /** STD-119：YAML 后端 C 烟测；0 通过。 */
-function yaml_smoke(): i32 {
+export function yaml_smoke(): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = config_yaml_smoke_c(); }
   return _rc;

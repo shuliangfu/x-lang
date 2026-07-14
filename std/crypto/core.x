@@ -23,7 +23,7 @@
 // 【导出】crypto_mem_eq_c、crypto_sha256_c、crypto_hmac_sha256_c（与 mod.x extern 一致）。
 
 /** 常量时间比较 a[0..len) 与 b[0..len)；相等 1，否则 0。 */
-function crypto_mem_eq_c(a: *u8, b: *u8, len: i32): i32 {
+export function crypto_mem_eq_c(a: *u8, b: *u8, len: i32): i32 {
   let diff: u8 = 0 as u8;
   let i: i32 = 0;
   if (a == 0 || b == 0) {
@@ -39,16 +39,16 @@ function crypto_mem_eq_c(a: *u8, b: *u8, len: i32): i32 {
 }
 
 /** SHA-256 摘要锚点；实现在 runtime_crypto_inc_glue.c。 */
-function crypto_sha256_c(msg: *u8, len: i32, out: *u8): void {
+export function crypto_sha256_c(msg: *u8, len: i32, out: *u8): void {
   return;
 }
 
 /** HMAC-SHA256 锚点；实现在 runtime_crypto_inc_glue.c。 */
-function crypto_hmac_sha256_c(key: *u8, key_len: i32, msg: *u8, msg_len: i32, out: *u8): void {
+export function crypto_hmac_sha256_c(key: *u8, key_len: i32, msg: *u8, msg_len: i32, out: *u8): void {
   return;
 }
 
 /** seed asm 分单元标记（与 sync_f_sync_*_marker_c 同模式）。 */
-function crypto_f_sha256_marker_c(): i32 {
+export function crypto_f_sha256_marker_c(): i32 {
   return 0x53484132;
 }

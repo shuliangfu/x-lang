@@ -21,9 +21,9 @@
 //
 // 【依赖】libc getaddrinfo/freeaddrinfo；Unix + Windows hosted。
 
-const AF_INET: i32 = 2;
-const AF_INET6: i32 = 10;
-const SOCK_STREAM: i32 = 1;
+export const AF_INET: i32 = 2;
+export const AF_INET6: i32 = 10;
+export const SOCK_STREAM: i32 = 1;
 
 /** getaddrinfo hints / result 布局（64-bit hosted ABI）。 */
 allow(padding) struct AddrInfoHints {
@@ -65,21 +65,21 @@ allow(padding) struct SockAddrIn6 {
 
 /** 平台 AI_ADDRCONFIG 标志（分函数返回，避免多 cfg 同名 const 触发 typeck 异常）。 */
 #[cfg(target_os = "linux")]
-function net_dns_ai_addconfig_c(): i32 {
+export function net_dns_ai_addconfig_c(): i32 {
   return 32;
 }
 
 #[cfg(not(target_os = "linux"))]
-function net_dns_ai_addconfig_c(): i32 {
+export function net_dns_ai_addconfig_c(): i32 {
   return 1024;
 }
 
-extern "C" function getaddrinfo(node: *u8, service: *u8, hints_in: *u8, res: * *u8): i32;
-extern "C" function freeaddrinfo(res: *AddrInfo): void;
-extern "C" function ntohl(netlong: u32): u32;
+export extern "C" function getaddrinfo(node: *u8, service: *u8, hints_in: *u8, res: * *u8): i32;
+export extern "C" function freeaddrinfo(res: *AddrInfo): void;
+export extern "C" function ntohl(netlong: u32): u32;
 
 #[cfg(target_os = "windows")]
-extern "C" function WSAStartup(wVersionRequested: u16, lpWSAData: *u8): i32;
+export extern "C" function WSAStartup(wVersionRequested: u16, lpWSAData: *u8): i32;
 
 #[cfg(target_os = "windows")]
 let net_dns_wsa_done: i32 = 0;
@@ -88,7 +88,7 @@ let net_dns_wsa_done: i32 = 0;
  * Windows：一次性 WSAStartup。
  */
 #[cfg(target_os = "windows")]
-function net_dns_ensure_wsa_c(): i32 {
+export function net_dns_ensure_wsa_c(): i32 {
   let rc: i32 = 0;
   if (net_dns_wsa_done != 0) {
     return 0;
@@ -105,7 +105,7 @@ function net_dns_ensure_wsa_c(): i32 {
  * 将 getaddrinfo 错误映射为 STD-029 resolve_err_* 常量。
  */
 #[cfg(target_os = "linux")]
-function net_map_gai_error_c(err: i32): i32 {
+export function net_map_gai_error_c(err: i32): i32 {
   if (err == (0 - 2)) {
     return 1;
   }
@@ -119,7 +119,7 @@ function net_map_gai_error_c(err: i32): i32 {
 }
 
 #[cfg(target_os = "macos")]
-function net_map_gai_error_c(err: i32): i32 {
+export function net_map_gai_error_c(err: i32): i32 {
   if (err == 8) {
     return 1;
   }
@@ -133,7 +133,7 @@ function net_map_gai_error_c(err: i32): i32 {
 }
 
 #[cfg(target_os = "windows")]
-function net_map_gai_error_c(err: i32): i32 {
+export function net_map_gai_error_c(err: i32): i32 {
   if (err == 11001) {
     return 1;
   }
@@ -149,7 +149,7 @@ function net_map_gai_error_c(err: i32): i32 {
 /**
  * 清零 AddrInfoHints（48 字节 hosted 布局）。
  */
-function net_dns_zero_hints_buf_c(hints: *u8): void {
+export function net_dns_zero_hints_buf_c(hints: *u8): void {
   let i: i32 = 0;
   while (i < 48) {
     hints[i] = 0;
@@ -160,7 +160,7 @@ function net_dns_zero_hints_buf_c(hints: *u8): void {
 /**
  * 在 hints 缓冲（48 字节）写入 ai_flags / ai_family / ai_socktype（避免 let 初始化中的 as 触发 emit 失败）。
  */
-function net_dns_fill_hints_inet_c(hints: *u8, family: i32, flags: i32): void {
+export function net_dns_fill_hints_inet_c(hints: *u8, family: i32, flags: i32): void {
   let p_flags: *i32 = (hints + 0) as *i32;
   let p_family: *i32 = (hints + 4) as *i32;
   let p_socktype: *i32 = (hints + 8) as *i32;
@@ -174,7 +174,7 @@ function net_dns_fill_hints_inet_c(hints: *u8, family: i32, flags: i32): void {
  * Windows：解析前确保 WSA；非 Windows 恒为 0（顶层 cfg，避免函数体内 #[cfg] 触发 parse skip）。
  */
 #[cfg(target_os = "windows")]
-function net_dns_maybe_wsa_fail_c(): i32 {
+export function net_dns_maybe_wsa_fail_c(): i32 {
   if (net_dns_ensure_wsa_c() != 0) {
     return -1;
   }
@@ -182,14 +182,14 @@ function net_dns_maybe_wsa_fail_c(): i32 {
 }
 
 #[cfg(not(target_os = "windows"))]
-function net_dns_maybe_wsa_fail_c(): i32 {
+export function net_dns_maybe_wsa_fail_c(): i32 {
   return 0;
 }
 
 /**
  * hostname 解析为 IPv4 addr_u32；失败返回 0。
  */
-function net_resolve_ipv4_c(hostname: *u8): u32 {
+export function net_resolve_ipv4_c(hostname: *u8): u32 {
   let addr: u32 = 0;
   let err: i32 = 0;
   if (net_resolve_ipv4_ex_c(hostname, &addr, &err) != 0) {
@@ -201,7 +201,7 @@ function net_resolve_ipv4_c(hostname: *u8): u32 {
 /**
  * 可诊断 IPv4 DNS：成功 0 + *out_addr；失败 -1 + resolve_err_*。
  */
-function net_resolve_ipv4_ex_c(hostname: *u8, out_addr: *u32, out_err: *i32): i32 {
+export function net_resolve_ipv4_ex_c(hostname: *u8, out_addr: *u32, out_err: *i32): i32 {
   let hints_mem: u8[48] = [];
   let res_head: *u8 = 0 as *u8;
   let res: *AddrInfo = 0 as *AddrInfo;
@@ -247,7 +247,7 @@ function net_resolve_ipv4_ex_c(hostname: *u8, out_addr: *u32, out_err: *i32): i3
 /**
  * 可诊断 IPv6 DNS：成功 0 + out_addr_16；失败 -1 + resolve_err_*。
  */
-function net_resolve_ipv6_ex_c(hostname: *u8, out_addr_16: *u8, out_err: *i32): i32 {
+export function net_resolve_ipv6_ex_c(hostname: *u8, out_addr_16: *u8, out_err: *i32): i32 {
   let hints_mem: u8[48] = [];
   let res_head: *u8 = 0 as *u8;
   let res: *AddrInfo = 0 as *AddrInfo;

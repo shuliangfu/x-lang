@@ -20,32 +20,32 @@
 // f-427: lsp_hash_source（usize FNV hash；大常量 0x9e3779b97f4a7c15 / 2^32 用字节构造绕过 -E 截断；
 //   Ubuntu shux -E 不支持 u64，改用 usize 替代）
 
-function lsp_char_in_range(c: u8, lo: u8, hi: u8): i32 {
+export function lsp_char_in_range(c: u8, lo: u8, hi: u8): i32 {
   if (c < lo) { return 0; }
   if (c > hi) { return 0; }
   return 1;
 }
 
-function lsp_fmt_is_inline_ws(c: u8): i32 {
+export function lsp_fmt_is_inline_ws(c: u8): i32 {
   if (c == 32) { return 1; }
   if (c == 9) { return 1; }
   return 0;
 }
 
-function lsp_fmt_is_src_ws(c: u8): i32 {
+export function lsp_fmt_is_src_ws(c: u8): i32 {
   if (lsp_fmt_is_inline_ws(c) != 0) { return 1; }
   if (c == 13) { return 1; }
   return 0;
 }
 
-function lsp_store_i32(dst: *i32, value: i32): void {
+export function lsp_store_i32(dst: *i32, value: i32): void {
   if (dst == 0) { return; }
   unsafe {
     dst[0] = value;
   }
 }
 
-function lsp_match_bytes_at(buf: *u8, off: i32, lit: *u8, lit_len: i32): i32 {
+export function lsp_match_bytes_at(buf: *u8, off: i32, lit: *u8, lit_len: i32): i32 {
   let j: i32 = 0;
   while (j < lit_len) {
     if (buf[off + j] != lit[j]) {
@@ -57,7 +57,7 @@ function lsp_match_bytes_at(buf: *u8, off: i32, lit: *u8, lit_len: i32): i32 {
 }
 
 #[no_mangle]
-function lsp_fmt_is_atom_tail(c: u8): i32 {
+export function lsp_fmt_is_atom_tail(c: u8): i32 {
   if (lsp_char_in_range(c, 97 as u8, 122 as u8) != 0) { return 1; }
   if (lsp_char_in_range(c, 65 as u8, 90 as u8) != 0) { return 1; }
   if (lsp_char_in_range(c, 48 as u8, 57 as u8) != 0) { return 1; }
@@ -69,7 +69,7 @@ function lsp_fmt_is_atom_tail(c: u8): i32 {
 }
 
 #[no_mangle]
-function lsp_fmt_is_atom_head(c: u8): i32 {
+export function lsp_fmt_is_atom_head(c: u8): i32 {
   if (lsp_char_in_range(c, 97 as u8, 122 as u8) != 0) { return 1; }
   if (lsp_char_in_range(c, 65 as u8, 90 as u8) != 0) { return 1; }
   if (lsp_char_in_range(c, 48 as u8, 57 as u8) != 0) { return 1; }
@@ -81,7 +81,7 @@ function lsp_fmt_is_atom_head(c: u8): i32 {
 }
 
 #[no_mangle]
-function lsp_fmt_unary_lhs(prev: u8): i32 {
+export function lsp_fmt_unary_lhs(prev: u8): i32 {
   if (prev == 0) { return 1; }
   if (prev == 40) { return 1; }
   if (prev == 91) { return 1; }
@@ -106,7 +106,7 @@ function lsp_fmt_unary_lhs(prev: u8): i32 {
 }
 
 #[no_mangle]
-function lsp_fmt_last_out(out_buf: *u8, out_len: i32): u8 {
+export function lsp_fmt_last_out(out_buf: *u8, out_len: i32): u8 {
   let k: i32 = out_len - 1;
   while (k >= 0) {
     let c: u8 = out_buf[k];
@@ -117,7 +117,7 @@ function lsp_fmt_last_out(out_buf: *u8, out_len: i32): u8 {
 }
 
 #[no_mangle]
-function lsp_fmt_prev_src(doc: *u8, start: i32, j: i32): u8 {
+export function lsp_fmt_prev_src(doc: *u8, start: i32, j: i32): u8 {
   let k: i32 = j - 1;
   while (k >= 0) {
     let c: u8 = doc[start + k];
@@ -128,7 +128,7 @@ function lsp_fmt_prev_src(doc: *u8, start: i32, j: i32): u8 {
 }
 
 #[no_mangle]
-function lsp_fmt_src_ws_before(doc: *u8, start: i32, j: i32): i32 {
+export function lsp_fmt_src_ws_before(doc: *u8, start: i32, j: i32): i32 {
   let k: i32 = j - 1;
   if (k < 0) { return 0; }
   let c: u8 = doc[start + k];
@@ -136,7 +136,7 @@ function lsp_fmt_src_ws_before(doc: *u8, start: i32, j: i32): i32 {
 }
 
 #[no_mangle]
-function lsp_fmt_src_ws_after(doc: *u8, start: i32, len: i32, j: i32): i32 {
+export function lsp_fmt_src_ws_after(doc: *u8, start: i32, len: i32, j: i32): i32 {
   let k: i32 = j + 1;
   if (k >= len) { return 0; }
   let c: u8 = doc[start + k];
@@ -144,7 +144,7 @@ function lsp_fmt_src_ws_after(doc: *u8, start: i32, len: i32, j: i32): i32 {
 }
 
 #[no_mangle]
-function lsp_fmt_space_before(doc: *u8, start: i32, j: i32, out_buf: *u8, out_len: *i32, out_cap: i32): i32 {
+export function lsp_fmt_space_before(doc: *u8, start: i32, j: i32, out_buf: *u8, out_len: *i32, out_cap: i32): i32 {
   if (out_buf == 0) { return 0; }
   if (out_len == 0) { return 0; }
   if (lsp_fmt_src_ws_before(doc, start, j) != 0) { return 0; }
@@ -162,7 +162,7 @@ function lsp_fmt_space_before(doc: *u8, start: i32, j: i32, out_buf: *u8, out_le
 }
 
 #[no_mangle]
-function lsp_fmt_space_after(doc: *u8, start: i32, len: i32, j: i32, out_buf: *u8, out_len: *i32, out_cap: i32): i32 {
+export function lsp_fmt_space_after(doc: *u8, start: i32, len: i32, j: i32, out_buf: *u8, out_len: *i32, out_cap: i32): i32 {
   if (out_buf == 0) { return 0; }
   if (out_len == 0) { return 0; }
   if (lsp_fmt_src_ws_after(doc, start, len, j) != 0) { return 0; }
@@ -186,7 +186,7 @@ function lsp_fmt_space_after(doc: *u8, start: i32, len: i32, j: i32, out_buf: *u
 }
 
 #[no_mangle]
-function lsp_json_escape_ident(s: *u8, esc: *u8, esc_cap: i32): i32 {
+export function lsp_json_escape_ident(s: *u8, esc: *u8, esc_cap: i32): i32 {
   if (s == 0) { return 0; }
   if (esc == 0) { return 0; }
   if (esc_cap < 4) { return 0; }
@@ -221,7 +221,7 @@ function lsp_json_escape_ident(s: *u8, esc: *u8, esc_cap: i32): i32 {
 
 // G-02f-118：标识符列区间匹配（1-based，含首列）
 #[no_mangle]
-function col_in_ident_span(line: i32, col: i32, sl: i32, sc: i32, name: *u8): i32 {
+export function col_in_ident_span(line: i32, col: i32, sl: i32, sc: i32, name: *u8): i32 {
   if (name == 0) { return 0; }
   if (sl != line) { return 0; }
   if (sc <= 0) { return 0; }
@@ -238,7 +238,7 @@ function col_in_ident_span(line: i32, col: i32, sl: i32, sc: i32, name: *u8): i3
 
 // G-02f-122/255：在 body[0..len) 中从 start 起找 key，返回 key 结束后偏移，未找到 -1
 #[no_mangle]
-function lsp_find_key_after(body: *u8, len: i32, start: i32, key: *u8): i32 {
+export function lsp_find_key_after(body: *u8, len: i32, start: i32, key: *u8): i32 {
   if (body == 0) { return 0 - 1; }
   if (key == 0) { return 0 - 1; }
   if (len < 0) { return 0 - 1; }
@@ -270,7 +270,7 @@ function lsp_find_key_after(body: *u8, len: i32, start: i32, key: *u8): i32 {
 
 // G-02f-122：解析 key 对应的布尔值；1=true，0=false，未找到 -1
 #[no_mangle]
-function lsp_parse_bool_after(body: *u8, len: i32, start: i32, key: *u8, out_val: *i32): i32 {
+export function lsp_parse_bool_after(body: *u8, len: i32, start: i32, key: *u8, out_val: *i32): i32 {
   if (out_val == 0) { return 0 - 1; }
   let k: i32 = lsp_find_key_after(body, len, start, key);
   if (k < 0) { return 0 - 1; }
@@ -293,7 +293,7 @@ function lsp_parse_bool_after(body: *u8, len: i32, start: i32, key: *u8, out_val
 
 // G-02f-118：行 [start, start+len) 内是否出现块注释结束符 */
 #[no_mangle]
-function lsp_line_has_block_comment_end(doc: *u8, start: i32, len: i32): i32 {
+export function lsp_line_has_block_comment_end(doc: *u8, start: i32, len: i32): i32 {
   let i: i32 = 0;
   while (i + 1 < len) {
     if (doc[start + i] == 42) {
@@ -306,7 +306,7 @@ function lsp_line_has_block_comment_end(doc: *u8, start: i32, len: i32): i32 {
 
 // G-02f-122：是否为块注释行（/** 、* 续行，或处于未闭合块注释内）
 #[no_mangle]
-function lsp_line_is_block_comment(doc: *u8, content_start: i32, content_len: i32, in_block: i32): i32 {
+export function lsp_line_is_block_comment(doc: *u8, content_start: i32, content_len: i32, in_block: i32): i32 {
   if (doc == 0) { return 0; }
   if (content_len >= 2) {
     if (doc[content_start] == 47) {
@@ -324,7 +324,7 @@ function lsp_line_is_block_comment(doc: *u8, content_start: i32, content_len: i3
 //   line@+0 (i32) / col@+4 (i32) / name@+8 (*u8)
 
 // G-02f-133：从 *u8 偏移 off 处读取 4 字节小端 i32
-function lsp_load_i32_at(p: *u8, off: i32): i32 {
+export function lsp_load_i32_at(p: *u8, off: i32): i32 {
   let m: i32 = 256;
   let a: i32 = p[off] as i32;
   a = a + (p[off + 1] as i32) * m;
@@ -334,7 +334,7 @@ function lsp_load_i32_at(p: *u8, off: i32): i32 {
 }
 
 // G-02f-133：从 *u8 偏移 off 处读取 8 字节小端指针
-function lsp_load_ptr_at(p: *u8, off: i32): *u8 {
+export function lsp_load_ptr_at(p: *u8, off: i32): *u8 {
   if (p == 0) { return 0 as *u8; }
   let m: usize = 256;
   let m2: usize = m * m;
@@ -352,7 +352,7 @@ function lsp_load_ptr_at(p: *u8, off: i32): *u8 {
 
 // G-02f-133：函数名是否覆盖光标（ASTFunc: line@0 col@4 name@+8）
 #[no_mangle]
-function func_name_covers(f: *u8, line: i32, col: i32): i32 {
+export function func_name_covers(f: *u8, line: i32, col: i32): i32 {
   if (f == 0) { return 0; }
   let name: *u8 = lsp_load_ptr_at(f, 8);
   if (name == 0) { return 0; }
@@ -371,7 +371,7 @@ function func_name_covers(f: *u8, line: i32, col: i32): i32 {
 //   （等价 >> 32，但 SHUX .x 未见 >> 用于 usize，除法已验证 -E 正确）。
 //   字节序列 LE: 0x15, 0x7c, 0x4a, 0x7f, 0xb9, 0x79, 0x37, 0x9e
 #[no_mangle]
-function lsp_hash_source(src: *u8, len: i32): u32 {
+export function lsp_hash_source(src: *u8, len: i32): u32 {
   if (src == 0) { return 0 as u32; }
   let b256: usize = 256;
   let b256_2: usize = b256 * b256;

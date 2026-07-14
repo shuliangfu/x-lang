@@ -6,7 +6,7 @@
 // G-02f-431：15 函数全部 .x 真迁（memcmp → flat early-return byte 比较），-E 通过。
 
 #[no_mangle]
-function drv_eq_minus_o(buf: *u8, len: i32): i32 {
+export function drv_eq_minus_o(buf: *u8, len: i32): i32 {
   if (len != 2) {
     return 0;
   }
@@ -17,7 +17,7 @@ function drv_eq_minus_o(buf: *u8, len: i32): i32 {
 }
 
 #[no_mangle]
-function drv_eq_minus_L(buf: *u8, len: i32): i32 {
+export function drv_eq_minus_L(buf: *u8, len: i32): i32 {
   if (len != 2) {
     return 0;
   }
@@ -28,7 +28,7 @@ function drv_eq_minus_L(buf: *u8, len: i32): i32 {
 }
 
 #[no_mangle]
-function drv_eq_minus_O(buf: *u8, len: i32): i32 {
+export function drv_eq_minus_O(buf: *u8, len: i32): i32 {
   if (len != 2) {
     return 0;
   }
@@ -39,7 +39,7 @@ function drv_eq_minus_O(buf: *u8, len: i32): i32 {
 }
 
 #[no_mangle]
-function drv_eq_flto(buf: *u8, len: i32): i32 {
+export function drv_eq_flto(buf: *u8, len: i32): i32 {
   if (len != 5) {
     return 0;
   }
@@ -51,7 +51,7 @@ function drv_eq_flto(buf: *u8, len: i32): i32 {
 
 // G-02f-431：drv_eq_minus_freestanding 真迁（"-freestanding" 13 字节，flat early-return）。
 #[no_mangle]
-function drv_eq_minus_freestanding(buf: *u8, len: i32): i32 {
+export function drv_eq_minus_freestanding(buf: *u8, len: i32): i32 {
   if (len != 13) { return 0; }
   if (buf[0] != 45) { return 0; }
   if (buf[1] != 102) { return 0; }
@@ -71,7 +71,7 @@ function drv_eq_minus_freestanding(buf: *u8, len: i32): i32 {
 
 // G-02f-431：drv_eq_legacy_f32_abi 真迁（"-legacy-f32-abi" 15 字节）。
 #[no_mangle]
-function drv_eq_legacy_f32_abi(buf: *u8, len: i32): i32 {
+export function drv_eq_legacy_f32_abi(buf: *u8, len: i32): i32 {
   if (len != 15) { return 0; }
   if (buf[0] != 45) { return 0; }
   if (buf[1] != 108) { return 0; }
@@ -93,7 +93,7 @@ function drv_eq_legacy_f32_abi(buf: *u8, len: i32): i32 {
 
 // G-02f-431：drv_eq_fsanitize_address 真迁（"-fsanitize=address" 18 字节）。
 #[no_mangle]
-function drv_eq_fsanitize_address(buf: *u8, len: i32): i32 {
+export function drv_eq_fsanitize_address(buf: *u8, len: i32): i32 {
   if (len != 18) { return 0; }
   if (buf[0] != 45) { return 0; }
   if (buf[1] != 102) { return 0; }
@@ -118,7 +118,7 @@ function drv_eq_fsanitize_address(buf: *u8, len: i32): i32 {
 
 // G-02f-431：drv_eq_minus_backend 真迁（"-backend" 8 字节）。
 #[no_mangle]
-function drv_eq_minus_backend(buf: *u8, len: i32): i32 {
+export function drv_eq_minus_backend(buf: *u8, len: i32): i32 {
   if (len != 8) { return 0; }
   if (buf[0] != 45) { return 0; }
   if (buf[1] != 98) { return 0; }
@@ -133,7 +133,7 @@ function drv_eq_minus_backend(buf: *u8, len: i32): i32 {
 
 // G-02f-431：drv_eq_minus_target 真迁（"-target" 前缀，len>=7）。
 #[no_mangle]
-function drv_eq_minus_target(buf: *u8, len: i32): i32 {
+export function drv_eq_minus_target(buf: *u8, len: i32): i32 {
   if (len < 7) { return 0; }
   if (buf[0] != 45) { return 0; }
   if (buf[1] != 116) { return 0; }
@@ -147,7 +147,7 @@ function drv_eq_minus_target(buf: *u8, len: i32): i32 {
 
 // G-02f-431：drv_eq_minus_target_cpu 真迁（"-target-cpu" 前缀，len>=11）。
 #[no_mangle]
-function drv_eq_minus_target_cpu(buf: *u8, len: i32): i32 {
+export function drv_eq_minus_target_cpu(buf: *u8, len: i32): i32 {
   if (len < 11) { return 0; }
   if (buf[0] != 45) { return 0; }
   if (buf[1] != 116) { return 0; }
@@ -165,7 +165,7 @@ function drv_eq_minus_target_cpu(buf: *u8, len: i32): i32 {
 
 // G-02f-431：drv_eq_print_target_cpu 真迁（"--print-target-cpu" 18 或 "-print-target-cpu" 17）。
 #[no_mangle]
-function drv_eq_print_target_cpu(buf: *u8, len: i32): i32 {
+export function drv_eq_print_target_cpu(buf: *u8, len: i32): i32 {
   if (len == 18) {
     if (buf[0] != 45) { return 0; }
     if (buf[1] != 45) { return 0; }
@@ -211,7 +211,7 @@ function drv_eq_print_target_cpu(buf: *u8, len: i32): i32 {
 }
 
 #[no_mangle]
-function drv_eq_asm_word(buf: *u8, len: i32): i32 {
+export function drv_eq_asm_word(buf: *u8, len: i32): i32 {
   if (len != 3) {
     return 0;
   }
@@ -222,7 +222,7 @@ function drv_eq_asm_word(buf: *u8, len: i32): i32 {
 }
 
 #[no_mangle]
-function drv_eq_c_word(buf: *u8, len: i32): i32 {
+export function drv_eq_c_word(buf: *u8, len: i32): i32 {
   if (len != 1) {
     return 0;
   }
@@ -233,7 +233,7 @@ function drv_eq_c_word(buf: *u8, len: i32): i32 {
 }
 
 #[no_mangle]
-function drv_path_ends_x(buf: *u8, len: i32): i32 {
+export function drv_path_ends_x(buf: *u8, len: i32): i32 {
   if (len >= 2 && buf[(len - 2) as usize] == 46 && buf[(len - 1) as usize] == 120) {
     return 1;
   }
@@ -245,7 +245,7 @@ function drv_path_ends_x(buf: *u8, len: i32): i32 {
 }
 
 #[no_mangle]
-function drv_target_has_arm(buf: *u8, len: i32): i32 {
+export function drv_target_has_arm(buf: *u8, len: i32): i32 {
   let start: i32 = 0;
   while (start + 5 <= len) {
     if (buf[start as usize] == 97 && buf[(start + 1) as usize] == 114 &&

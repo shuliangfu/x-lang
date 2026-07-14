@@ -36,7 +36,7 @@ const macho = import("platform.macho");
 const coff = import("platform.coff");
 
 /** 汇编后端 full 入口：供 seed partial 生成时把 backend mega 与 peephole 一并落入生成体。 */
-function asm_codegen_ast(module: *ast.Module, arena: *ast.ASTArena, out: *codegen_outbuf_abi.CodegenOutBuf, ctx: *ast.PipelineDepCtx): i32 {
+export function asm_codegen_ast(module: *ast.Module, arena: *ast.ASTArena, out: *codegen_outbuf_abi.CodegenOutBuf, ctx: *ast.PipelineDepCtx): i32 {
   let err: i32 = backend.asm_codegen_ast(module, arena, out, ctx);
   let err2: i32 = peephole.peephole_run(out);
   return err + err2;
@@ -44,7 +44,7 @@ function asm_codegen_ast(module: *ast.Module, arena: *ast.ASTArena, out: *codege
 
 /** seed partial full ELF 入口：拉入 backend/peephole/platform 真实实现供后续导出。 */
 #[cfg(target_os = "linux")]
-function asm_codegen_elf_o(module: *ast.Module, arena: *ast.ASTArena, ctx: *ast.PipelineDepCtx, elf_ctx: *elf.ElfCodegenCtx, out: *codegen_outbuf_abi.CodegenOutBuf): i32 {
+export function asm_codegen_elf_o(module: *ast.Module, arena: *ast.ASTArena, ctx: *ast.PipelineDepCtx, elf_ctx: *elf.ElfCodegenCtx, out: *codegen_outbuf_abi.CodegenOutBuf): i32 {
   elf.elf_ctx_reset(elf_ctx);
   if (ctx.use_macho_o != 0 || ctx.use_coff_o != 0) { return -1; }
   let e1: i32 = backend.asm_codegen_ast_to_elf(module, arena, elf_ctx, ctx);
@@ -66,7 +66,7 @@ function asm_codegen_elf_o(module: *ast.Module, arena: *ast.ASTArena, ctx: *ast.
 }
 
 #[cfg(target_os = "windows")]
-function asm_codegen_elf_o(module: *ast.Module, arena: *ast.ASTArena, ctx: *ast.PipelineDepCtx, elf_ctx: *elf.ElfCodegenCtx, out: *codegen_outbuf_abi.CodegenOutBuf): i32 {
+export function asm_codegen_elf_o(module: *ast.Module, arena: *ast.ASTArena, ctx: *ast.PipelineDepCtx, elf_ctx: *elf.ElfCodegenCtx, out: *codegen_outbuf_abi.CodegenOutBuf): i32 {
   elf.elf_ctx_reset(elf_ctx);
   if (ctx.use_macho_o != 0 || ctx.use_coff_o != 0) {
     elf_ctx.macho_leading_underscore = 1;
@@ -96,7 +96,7 @@ function asm_codegen_elf_o(module: *ast.Module, arena: *ast.ASTArena, ctx: *ast.
 }
 
 #[cfg(target_os = "macos")]
-function asm_codegen_elf_o(module: *ast.Module, arena: *ast.ASTArena, ctx: *ast.PipelineDepCtx, elf_ctx: *elf.ElfCodegenCtx, out: *codegen_outbuf_abi.CodegenOutBuf): i32 {
+export function asm_codegen_elf_o(module: *ast.Module, arena: *ast.ASTArena, ctx: *ast.PipelineDepCtx, elf_ctx: *elf.ElfCodegenCtx, out: *codegen_outbuf_abi.CodegenOutBuf): i32 {
   elf.elf_ctx_reset(elf_ctx);
   if (ctx.use_macho_o != 0 || ctx.use_coff_o != 0) {
     elf_ctx.macho_leading_underscore = 1;

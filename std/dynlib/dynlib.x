@@ -22,37 +22,37 @@
 //
 // 【对标】Zig std.DynLib、Rust libloading。
 
-const DYNLIB_LAST_ERR_CAP: i32 = 256;
+export const DYNLIB_LAST_ERR_CAP: i32 = 256;
 
 /** 最近一次 open/sym 失败时的诊断文本（STD-096）。 */
 let g_dynlib_last_err: u8[256] = [];
 
-extern function dynlib_os_open_c(path: *u8): *u8;
-extern function dynlib_os_sym_c(lib: *u8, name: *u8): *u8;
-extern function dynlib_os_close_c(lib: *u8): void;
-extern function dynlib_os_copy_last_error_c(buf: *u8, cap: i32): i32;
-extern function dynlib_os_win_path_smoke_c(): i32;
-extern function memcpy(dst: *u8, src: *u8, n: usize): *u8;
-extern function memset(s: *u8, c: i32, n: usize): *u8;
+export extern function dynlib_os_open_c(path: *u8): *u8;
+export extern function dynlib_os_sym_c(lib: *u8, name: *u8): *u8;
+export extern function dynlib_os_close_c(lib: *u8): void;
+export extern function dynlib_os_copy_last_error_c(buf: *u8, cap: i32): i32;
+export extern function dynlib_os_win_path_smoke_c(): i32;
+export extern function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+export extern function memset(s: *u8, c: i32, n: usize): *u8;
 
 /** F-dynlib v1 版本标记。 */
-function dynlib_f_dynlib_v1_marker_c(): i32 {
+export function dynlib_f_dynlib_v1_marker_c(): i32 {
   return 1;
 }
 
 /** F-dynlib v2 逻辑下沉标记。 */
-function dynlib_f_dynlib_v2_marker_c(): i32 {
+export function dynlib_f_dynlib_v2_marker_c(): i32 {
   return 1;
 }
 
 /** 清空并可选从 OS 复制错误到 g_dynlib_last_err。 */
-function dynlib_note_os_error_c(): void {
+export function dynlib_note_os_error_c(): void {
   unsafe { memset(&g_dynlib_last_err[0], 0, DYNLIB_LAST_ERR_CAP); }
   unsafe { dynlib_os_copy_last_error_c(&g_dynlib_last_err[0], DYNLIB_LAST_ERR_CAP); }
 }
 
 /** 打开动态库 path（NUL 结尾）；失败返回 0。 */
-function dynlib_open_c(path: *u8): *u8 {
+export function dynlib_open_c(path: *u8): *u8 {
   let h: *u8 = 0 as *u8;
   if (path == 0 || path[0] == 0) {
     return 0 as *u8;
@@ -65,7 +65,7 @@ function dynlib_open_c(path: *u8): *u8 {
 }
 
 /** 取符号 name（NUL 结尾）；失败返回 0。 */
-function dynlib_sym_c(lib: *u8, name: *u8): *u8 {
+export function dynlib_sym_c(lib: *u8, name: *u8): *u8 {
   let p: *u8 = 0 as *u8;
   if (lib == 0 || name == 0) {
     return 0 as *u8;
@@ -78,7 +78,7 @@ function dynlib_sym_c(lib: *u8, name: *u8): *u8 {
 }
 
 /** 关闭动态库。 */
-function dynlib_close_c(lib: *u8): void {
+export function dynlib_close_c(lib: *u8): void {
   if (lib == 0) {
     return;
   }
@@ -86,7 +86,7 @@ function dynlib_close_c(lib: *u8): void {
 }
 
 /** 复制最近一次错误到 buf；返回写入字节数（不含 NUL），失败或无内容返回 0。 */
-function dynlib_last_error_copy_c(buf: *u8, cap: i32): i32 {
+export function dynlib_last_error_copy_c(buf: *u8, cap: i32): i32 {
   let n: i32 = 0;
   let i: i32 = 0;
   if (buf == 0 || cap <= 0) {
@@ -108,7 +108,7 @@ function dynlib_last_error_copy_c(buf: *u8, cap: i32): i32 {
 }
 
 /** C 烟测：打开不存在路径后 last_error 非空。 */
-function dynlib_last_error_smoke_c(): i32 {
+export function dynlib_last_error_smoke_c(): i32 {
   let bad: u8[48] = [
     47, 110, 111, 110, 101, 120, 105, 115, 116, 101, 110, 116, 47, 115, 104, 117, 120, 95, 100, 121,
     110, 108, 105, 98, 95, 109, 105, 115, 115, 105, 110, 103, 46, 115, 111, 0
@@ -129,7 +129,7 @@ function dynlib_last_error_smoke_c(): i32 {
 }
 
 /** STD-097：Windows 正斜杠路径烟测；POSIX 直接返回 0。 */
-function dynlib_win_path_smoke_c(): i32 {
+export function dynlib_win_path_smoke_c(): i32 {
   unsafe { return dynlib_os_win_path_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
