@@ -4,155 +4,642 @@
  *
  * Pure data: default ASM ld std module .o plan (order + flag kind + op).
  * IO/ensure/push stay in mega interpreter (shux_asm_ld_append_std_objs).
+ *
+ * G-02f-L：冷启动 / 回退 seed 与 .x 同构（if/else 短字面量，无 static 表），
+ * 便于 nm 全局符号 IDENTICAL；产品 PREFER_X_O 优先 .x（W-string-nul）。
  */
 #include <stddef.h>
 
-/* Ops — keep in sync with mega interpreter in runtime_link_abi.from_x.c */
-enum {
-  LABI_STD_OP_STD = 1,
-  LABI_STD_OP_IO_STUBS = 2,
-  LABI_STD_OP_PRIMARY_PANIC = 3,
-  LABI_STD_OP_PRIMARY_TIME_OS = 4,
-  LABI_STD_OP_PRIMARY_RANDOM_FILL = 5,
-  LABI_STD_OP_PRIMARY_ENV_OS = 6,
-  LABI_STD_OP_GLUE_THREAD = 10,
-  LABI_STD_OP_GLUE_SYNC_PAIR = 11,
-  LABI_STD_OP_GLUE_CRYPTO_PAIR = 12,
-  LABI_STD_OP_GLUE_LOG = 13,
-  LABI_STD_OP_GLUE_ATOMIC = 14,
-  LABI_STD_OP_GLUE_CHANNEL = 15,
-  LABI_STD_OP_GLUE_BACKTRACE = 16,
-  LABI_STD_OP_GLUE_MATH = 17,
-  LABI_STD_OP_GLUE_SQLITE = 18,
-  LABI_STD_OP_GLUE_DYNLIB = 19,
-  LABI_STD_OP_GLUE_HTTP = 20,
-  LABI_STD_OP_TASK_SPECIAL = 30
-};
-
-/* flag_kind for OP_STD:
- * 0 none
- * 1 have_process (local)
- * 2 have_thread
- * 3 have_sync
- * 4 have_crypto (local)
- * 5 have_log (local)
- * 6 have_atomic (local)
- * 7 have_channel
- * 8 have_backtrace (local)
- * 9 have_math
- * 10 have_sqlite
- * 11 have_elf
- * 12 have_dynlib
- * 13 have_http (local)
+/* Ops — keep in sync with mega interpreter in runtime_link_abi.from_x.c
+ * STD=1 IO_STUBS=2 PRIMARY_PANIC=3 TIME_OS=4 RANDOM_FILL=5 ENV_OS=6
+ * GLUE_THREAD=10 SYNC=11 CRYPTO=12 LOG=13 ATOMIC=14 CHANNEL=15 BACKTRACE=16
+ * MATH=17 SQLITE=18 DYNLIB=19 HTTP=20 TASK_SPECIAL=30
  */
-typedef struct LabiStdPlanStep {
-  int op;
-  const char *rel;
-  int flag_kind;
-} LabiStdPlanStep;
-
-static const LabiStdPlanStep g_labi_std_plan[] = {
-    {LABI_STD_OP_IO_STUBS, "compiler/runtime_asm_io_stubs.o", 0},
-    {LABI_STD_OP_STD, "std/process/process.o", 1},
-    {LABI_STD_OP_STD, "std/string/string.o", 0},
-    {LABI_STD_OP_STD, "std/path/path.o", 0},
-    {LABI_STD_OP_STD, "std/runtime/runtime.o", 0},
-    {LABI_STD_OP_PRIMARY_PANIC, "compiler/runtime_panic.o", 0},
-    {LABI_STD_OP_STD, "std/thread/thread.o", 2},
-    {LABI_STD_OP_GLUE_THREAD, "compiler/runtime_thread_glue.o", 0},
-    {LABI_STD_OP_PRIMARY_TIME_OS, "compiler/runtime_time_os.o", 0},
-    {LABI_STD_OP_STD, "std/time/time.o", 0},
-    {LABI_STD_OP_PRIMARY_RANDOM_FILL, "compiler/runtime_random_fill.o", 0},
-    {LABI_STD_OP_STD, "std/random/random.o", 0},
-    {LABI_STD_OP_PRIMARY_ENV_OS, "compiler/runtime_env_os.o", 0},
-    {LABI_STD_OP_STD, "std/env/env.o", 0},
-    {LABI_STD_OP_STD, "std/sync/sync.o", 3},
-    {LABI_STD_OP_GLUE_SYNC_PAIR, "compiler/runtime_sync_lock_diag_tls.o", 0},
-    {LABI_STD_OP_STD, "std/encoding/encoding.o", 0},
-    {LABI_STD_OP_STD, "std/base64/base64.o", 0},
-    {LABI_STD_OP_STD, "std/crypto/crypto.o", 4},
-    {LABI_STD_OP_GLUE_CRYPTO_PAIR, "compiler/runtime_ed25519_ref10_glue.o", 0},
-    {LABI_STD_OP_STD, "std/log/log.o", 5},
-    {LABI_STD_OP_GLUE_LOG, "compiler/runtime_log_os.o", 0},
-    {LABI_STD_OP_STD, "std/atomic/atomic.o", 6},
-    {LABI_STD_OP_GLUE_ATOMIC, "compiler/runtime_atomic_glue.o", 0},
-    {LABI_STD_OP_STD, "std/channel/channel.o", 7},
-    {LABI_STD_OP_GLUE_CHANNEL, "compiler/runtime_channel_glue.o", 0},
-    {LABI_STD_OP_STD, "std/backtrace/backtrace.o", 8},
-    {LABI_STD_OP_GLUE_BACKTRACE, "compiler/runtime_backtrace_platform.o", 0},
-    {LABI_STD_OP_STD, "std/hash/hash.o", 0},
-    {LABI_STD_OP_STD, "std/math/math.o", 9},
-    {LABI_STD_OP_GLUE_MATH, "compiler/runtime_math_libm.o", 0},
-    {LABI_STD_OP_STD, "std/sort/sort.o", 0},
-    {LABI_STD_OP_STD, "std/ffi/ffi.o", 0},
-    {LABI_STD_OP_STD, "std/db/sqlite/sqlite.o", 10},
-    {LABI_STD_OP_GLUE_SQLITE, "compiler/runtime_sqlite_glue.o", 0},
-    {LABI_STD_OP_STD, "std/elf/elf.o", 11},
-    {LABI_STD_OP_STD, "std/json/json.o", 0},
-    {LABI_STD_OP_STD, "std/csv/csv.o", 0},
-    {LABI_STD_OP_STD, "std/regex/regex.o", 0},
-    {LABI_STD_OP_STD, "std/unicode/unicode.o", 0},
-    {LABI_STD_OP_STD, "std/dynlib/dynlib.o", 12},
-    {LABI_STD_OP_GLUE_DYNLIB, "compiler/runtime_dynlib_os.o", 0},
-    {LABI_STD_OP_STD, "std/http/http.o", 13},
-    {LABI_STD_OP_GLUE_HTTP, "compiler/runtime_http_glue.o", 0},
-    {LABI_STD_OP_STD, "std/socketio/socketio.o", 0},
-    {LABI_STD_OP_STD, "std/tar/tar.o", 0},
-    {LABI_STD_OP_STD, "std/simd/simd.o", 0},
-    {LABI_STD_OP_STD, "std/context/context.o", 0},
-    {LABI_STD_OP_STD, "std/error/error.o", 0},
-    {LABI_STD_OP_STD, "std/datetime/datetime.o", 0},
-    {LABI_STD_OP_STD, "std/uuid/uuid.o", 0},
-    {LABI_STD_OP_STD, "std/url/url.o", 0},
-    {LABI_STD_OP_STD, "std/cli/cli.o", 0},
-    {LABI_STD_OP_STD, "std/security/security.o", 0},
-    {LABI_STD_OP_STD, "std/config/config.o", 0},
-    {LABI_STD_OP_STD, "std/cache/cache.o", 0},
-    {LABI_STD_OP_STD, "std/trace/trace.o", 0},
-    {LABI_STD_OP_TASK_SPECIAL, "std/task/task.o", 0},
-};
 
 int labi_std_plan_count(void) {
-  return (int)(sizeof g_labi_std_plan / sizeof g_labi_std_plan[0]);
+  return 58;
 }
 
 int labi_std_plan_step_at(int i, int *op_out, const char **rel_out, int *flag_kind_out) {
-  int n = labi_std_plan_count();
-  if (i < 0 || i >= n)
+  if (i < 0)
     return 0;
-  if (op_out)
-    *op_out = g_labi_std_plan[i].op;
-  if (rel_out)
-    *rel_out = g_labi_std_plan[i].rel;
-  if (flag_kind_out)
-    *flag_kind_out = g_labi_std_plan[i].flag_kind;
-  return 1;
+  if (i >= 58)
+    return 0;
+  if (i == 0) {
+    if (op_out)
+      *op_out = 2;
+    if (rel_out)
+      *rel_out = "compiler/runtime_asm_io_stubs.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  if (i == 1) {
+    if (op_out)
+      *op_out = 1;
+    if (rel_out)
+      *rel_out = "std/process/process.o";
+    if (flag_kind_out)
+      *flag_kind_out = 1;
+    return 1;
+  }
+  if (i == 2) {
+    if (op_out)
+      *op_out = 1;
+    if (rel_out)
+      *rel_out = "std/string/string.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  if (i == 3) {
+    if (op_out)
+      *op_out = 1;
+    if (rel_out)
+      *rel_out = "std/path/path.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  if (i == 4) {
+    if (op_out)
+      *op_out = 1;
+    if (rel_out)
+      *rel_out = "std/runtime/runtime.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  if (i == 5) {
+    if (op_out)
+      *op_out = 3;
+    if (rel_out)
+      *rel_out = "compiler/runtime_panic.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  if (i == 6) {
+    if (op_out)
+      *op_out = 1;
+    if (rel_out)
+      *rel_out = "std/thread/thread.o";
+    if (flag_kind_out)
+      *flag_kind_out = 2;
+    return 1;
+  }
+  if (i == 7) {
+    if (op_out)
+      *op_out = 10;
+    if (rel_out)
+      *rel_out = "compiler/runtime_thread_glue.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  if (i == 8) {
+    if (op_out)
+      *op_out = 4;
+    if (rel_out)
+      *rel_out = "compiler/runtime_time_os.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  if (i == 9) {
+    if (op_out)
+      *op_out = 1;
+    if (rel_out)
+      *rel_out = "std/time/time.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  if (i == 10) {
+    if (op_out)
+      *op_out = 5;
+    if (rel_out)
+      *rel_out = "compiler/runtime_random_fill.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  if (i == 11) {
+    if (op_out)
+      *op_out = 1;
+    if (rel_out)
+      *rel_out = "std/random/random.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  if (i == 12) {
+    if (op_out)
+      *op_out = 6;
+    if (rel_out)
+      *rel_out = "compiler/runtime_env_os.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  if (i == 13) {
+    if (op_out)
+      *op_out = 1;
+    if (rel_out)
+      *rel_out = "std/env/env.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  if (i == 14) {
+    if (op_out)
+      *op_out = 1;
+    if (rel_out)
+      *rel_out = "std/sync/sync.o";
+    if (flag_kind_out)
+      *flag_kind_out = 3;
+    return 1;
+  }
+  if (i == 15) {
+    if (op_out)
+      *op_out = 11;
+    if (rel_out)
+      *rel_out = "compiler/runtime_sync_lock_diag_tls.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  if (i == 16) {
+    if (op_out)
+      *op_out = 1;
+    if (rel_out)
+      *rel_out = "std/encoding/encoding.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  if (i == 17) {
+    if (op_out)
+      *op_out = 1;
+    if (rel_out)
+      *rel_out = "std/base64/base64.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  if (i == 18) {
+    if (op_out)
+      *op_out = 1;
+    if (rel_out)
+      *rel_out = "std/crypto/crypto.o";
+    if (flag_kind_out)
+      *flag_kind_out = 4;
+    return 1;
+  }
+  if (i == 19) {
+    if (op_out)
+      *op_out = 12;
+    if (rel_out)
+      *rel_out = "compiler/runtime_ed25519_ref10_glue.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  if (i == 20) {
+    if (op_out)
+      *op_out = 1;
+    if (rel_out)
+      *rel_out = "std/log/log.o";
+    if (flag_kind_out)
+      *flag_kind_out = 5;
+    return 1;
+  }
+  if (i == 21) {
+    if (op_out)
+      *op_out = 13;
+    if (rel_out)
+      *rel_out = "compiler/runtime_log_os.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  if (i == 22) {
+    if (op_out)
+      *op_out = 1;
+    if (rel_out)
+      *rel_out = "std/atomic/atomic.o";
+    if (flag_kind_out)
+      *flag_kind_out = 6;
+    return 1;
+  }
+  if (i == 23) {
+    if (op_out)
+      *op_out = 14;
+    if (rel_out)
+      *rel_out = "compiler/runtime_atomic_glue.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  if (i == 24) {
+    if (op_out)
+      *op_out = 1;
+    if (rel_out)
+      *rel_out = "std/channel/channel.o";
+    if (flag_kind_out)
+      *flag_kind_out = 7;
+    return 1;
+  }
+  if (i == 25) {
+    if (op_out)
+      *op_out = 15;
+    if (rel_out)
+      *rel_out = "compiler/runtime_channel_glue.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  if (i == 26) {
+    if (op_out)
+      *op_out = 1;
+    if (rel_out)
+      *rel_out = "std/backtrace/backtrace.o";
+    if (flag_kind_out)
+      *flag_kind_out = 8;
+    return 1;
+  }
+  if (i == 27) {
+    if (op_out)
+      *op_out = 16;
+    if (rel_out)
+      *rel_out = "compiler/runtime_backtrace_platform.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  if (i == 28) {
+    if (op_out)
+      *op_out = 1;
+    if (rel_out)
+      *rel_out = "std/hash/hash.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  if (i == 29) {
+    if (op_out)
+      *op_out = 1;
+    if (rel_out)
+      *rel_out = "std/math/math.o";
+    if (flag_kind_out)
+      *flag_kind_out = 9;
+    return 1;
+  }
+  if (i == 30) {
+    if (op_out)
+      *op_out = 17;
+    if (rel_out)
+      *rel_out = "compiler/runtime_math_libm.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  if (i == 31) {
+    if (op_out)
+      *op_out = 1;
+    if (rel_out)
+      *rel_out = "std/sort/sort.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  if (i == 32) {
+    if (op_out)
+      *op_out = 1;
+    if (rel_out)
+      *rel_out = "std/ffi/ffi.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  if (i == 33) {
+    if (op_out)
+      *op_out = 1;
+    if (rel_out)
+      *rel_out = "std/db/sqlite/sqlite.o";
+    if (flag_kind_out)
+      *flag_kind_out = 10;
+    return 1;
+  }
+  if (i == 34) {
+    if (op_out)
+      *op_out = 18;
+    if (rel_out)
+      *rel_out = "compiler/runtime_sqlite_glue.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  if (i == 35) {
+    if (op_out)
+      *op_out = 1;
+    if (rel_out)
+      *rel_out = "std/elf/elf.o";
+    if (flag_kind_out)
+      *flag_kind_out = 11;
+    return 1;
+  }
+  if (i == 36) {
+    if (op_out)
+      *op_out = 1;
+    if (rel_out)
+      *rel_out = "std/json/json.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  if (i == 37) {
+    if (op_out)
+      *op_out = 1;
+    if (rel_out)
+      *rel_out = "std/csv/csv.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  if (i == 38) {
+    if (op_out)
+      *op_out = 1;
+    if (rel_out)
+      *rel_out = "std/regex/regex.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  if (i == 39) {
+    if (op_out)
+      *op_out = 1;
+    if (rel_out)
+      *rel_out = "std/unicode/unicode.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  if (i == 40) {
+    if (op_out)
+      *op_out = 1;
+    if (rel_out)
+      *rel_out = "std/dynlib/dynlib.o";
+    if (flag_kind_out)
+      *flag_kind_out = 12;
+    return 1;
+  }
+  if (i == 41) {
+    if (op_out)
+      *op_out = 19;
+    if (rel_out)
+      *rel_out = "compiler/runtime_dynlib_os.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  if (i == 42) {
+    if (op_out)
+      *op_out = 1;
+    if (rel_out)
+      *rel_out = "std/http/http.o";
+    if (flag_kind_out)
+      *flag_kind_out = 13;
+    return 1;
+  }
+  if (i == 43) {
+    if (op_out)
+      *op_out = 20;
+    if (rel_out)
+      *rel_out = "compiler/runtime_http_glue.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  if (i == 44) {
+    if (op_out)
+      *op_out = 1;
+    if (rel_out)
+      *rel_out = "std/socketio/socketio.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  if (i == 45) {
+    if (op_out)
+      *op_out = 1;
+    if (rel_out)
+      *rel_out = "std/tar/tar.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  if (i == 46) {
+    if (op_out)
+      *op_out = 1;
+    if (rel_out)
+      *rel_out = "std/simd/simd.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  if (i == 47) {
+    if (op_out)
+      *op_out = 1;
+    if (rel_out)
+      *rel_out = "std/context/context.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  if (i == 48) {
+    if (op_out)
+      *op_out = 1;
+    if (rel_out)
+      *rel_out = "std/error/error.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  if (i == 49) {
+    if (op_out)
+      *op_out = 1;
+    if (rel_out)
+      *rel_out = "std/datetime/datetime.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  if (i == 50) {
+    if (op_out)
+      *op_out = 1;
+    if (rel_out)
+      *rel_out = "std/uuid/uuid.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  if (i == 51) {
+    if (op_out)
+      *op_out = 1;
+    if (rel_out)
+      *rel_out = "std/url/url.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  if (i == 52) {
+    if (op_out)
+      *op_out = 1;
+    if (rel_out)
+      *rel_out = "std/cli/cli.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  if (i == 53) {
+    if (op_out)
+      *op_out = 1;
+    if (rel_out)
+      *rel_out = "std/security/security.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  if (i == 54) {
+    if (op_out)
+      *op_out = 1;
+    if (rel_out)
+      *rel_out = "std/config/config.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  if (i == 55) {
+    if (op_out)
+      *op_out = 1;
+    if (rel_out)
+      *rel_out = "std/cache/cache.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  if (i == 56) {
+    if (op_out)
+      *op_out = 1;
+    if (rel_out)
+      *rel_out = "std/trace/trace.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  if (i == 57) {
+    if (op_out)
+      *op_out = 30;
+    if (rel_out)
+      *rel_out = "std/task/task.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  return 0;
 }
 
 /* Pure: count of OP_STD entries with std/ prefix (audit / unit). */
 int labi_std_default_std_rel_count(void) {
-  int n = labi_std_plan_count();
-  int i;
-  int c = 0;
-  for (i = 0; i < n; i++) {
-    if (g_labi_std_plan[i].op == LABI_STD_OP_STD)
-      c = c + 1;
-  }
-  return c;
+  return 41;
 }
 
 const char *labi_std_default_std_rel_at(int j) {
-  int n = labi_std_plan_count();
-  int i;
-  int c = 0;
   if (j < 0)
     return NULL;
-  for (i = 0; i < n; i++) {
-    if (g_labi_std_plan[i].op != LABI_STD_OP_STD)
-      continue;
-    if (c == j)
-      return g_labi_std_plan[i].rel;
-    c = c + 1;
-  }
+  if (j == 0)
+    return "std/process/process.o";
+  if (j == 1)
+    return "std/string/string.o";
+  if (j == 2)
+    return "std/path/path.o";
+  if (j == 3)
+    return "std/runtime/runtime.o";
+  if (j == 4)
+    return "std/thread/thread.o";
+  if (j == 5)
+    return "std/time/time.o";
+  if (j == 6)
+    return "std/random/random.o";
+  if (j == 7)
+    return "std/env/env.o";
+  if (j == 8)
+    return "std/sync/sync.o";
+  if (j == 9)
+    return "std/encoding/encoding.o";
+  if (j == 10)
+    return "std/base64/base64.o";
+  if (j == 11)
+    return "std/crypto/crypto.o";
+  if (j == 12)
+    return "std/log/log.o";
+  if (j == 13)
+    return "std/atomic/atomic.o";
+  if (j == 14)
+    return "std/channel/channel.o";
+  if (j == 15)
+    return "std/backtrace/backtrace.o";
+  if (j == 16)
+    return "std/hash/hash.o";
+  if (j == 17)
+    return "std/math/math.o";
+  if (j == 18)
+    return "std/sort/sort.o";
+  if (j == 19)
+    return "std/ffi/ffi.o";
+  if (j == 20)
+    return "std/db/sqlite/sqlite.o";
+  if (j == 21)
+    return "std/elf/elf.o";
+  if (j == 22)
+    return "std/json/json.o";
+  if (j == 23)
+    return "std/csv/csv.o";
+  if (j == 24)
+    return "std/regex/regex.o";
+  if (j == 25)
+    return "std/unicode/unicode.o";
+  if (j == 26)
+    return "std/dynlib/dynlib.o";
+  if (j == 27)
+    return "std/http/http.o";
+  if (j == 28)
+    return "std/socketio/socketio.o";
+  if (j == 29)
+    return "std/tar/tar.o";
+  if (j == 30)
+    return "std/simd/simd.o";
+  if (j == 31)
+    return "std/context/context.o";
+  if (j == 32)
+    return "std/error/error.o";
+  if (j == 33)
+    return "std/datetime/datetime.o";
+  if (j == 34)
+    return "std/uuid/uuid.o";
+  if (j == 35)
+    return "std/url/url.o";
+  if (j == 36)
+    return "std/cli/cli.o";
+  if (j == 37)
+    return "std/security/security.o";
+  if (j == 38)
+    return "std/config/config.o";
+  if (j == 39)
+    return "std/cache/cache.o";
+  if (j == 40)
+    return "std/trace/trace.o";
   return NULL;
 }
+
