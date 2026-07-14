@@ -40,18 +40,18 @@ extern "C" function getenv(name: *u8): *u8;
 /** libc 堆/环境 FFI 须 unsafe；薄包装供 heap_*_c 调用。 */
 export function heap_libc_malloc(size: usize): *u8 {
   unsafe { return malloc(size); }
-  return 0; // unreachable — typeck workaround
+  return 0 as *u8; // unreachable — typeck workaround
 }
 export function heap_libc_free(ptr: *u8): void {
   unsafe { free(ptr); }
 }
 export function heap_libc_realloc(ptr: *u8, new_size: usize): *u8 {
   unsafe { return realloc(ptr, new_size); }
-  return 0; // unreachable — typeck workaround
+  return 0 as *u8; // unreachable — typeck workaround
 }
 export function heap_libc_calloc(nmemb: usize, size: usize): *u8 {
   unsafe { return calloc(nmemb, size); }
-  return 0; // unreachable — typeck workaround
+  return 0 as *u8; // unreachable — typeck workaround
 }
 export function heap_libc_posix_memalign(memptr: * *void, alignment: usize, size: usize): i32 {
   unsafe { return posix_memalign(memptr, alignment, size); }
@@ -59,7 +59,7 @@ export function heap_libc_posix_memalign(memptr: * *void, alignment: usize, size
 }
 export function heap_libc_getenv(name: *u8): *u8 {
   unsafe { return getenv(name); }
-  return 0; // unreachable — typeck workaround
+  return 0 as *u8; // unreachable — typeck workaround
 }
 
 /** SHUX_HEAP_TRACE 环境变量名（NUL 结尾）。 */
@@ -128,7 +128,7 @@ export function heap_trace_note_free(): void {
  */
 export function heap_alloc_c(size: usize): *u8 {
   if (size == 0) {
-    return 0;
+    return 0 as *u8;
   }
   let p: *u8 = heap_libc_malloc(size);
   if (p != 0) {
@@ -157,7 +157,7 @@ export function heap_realloc_c(ptr: *u8, new_size: usize): *u8 {
     if (ptr != 0) {
       heap_libc_free(ptr);
     }
-    return 0;
+    return 0 as *u8;
   }
   return heap_libc_realloc(ptr, new_size);
 }
@@ -167,7 +167,7 @@ export function heap_realloc_c(ptr: *u8, new_size: usize): *u8 {
  */
 export function heap_alloc_zeroed_c(size: usize): *u8 {
   if (size == 0) {
-    return 0;
+    return 0 as *u8;
   }
   return heap_libc_calloc(1, size);
 }
@@ -177,7 +177,7 @@ export function heap_alloc_zeroed_c(size: usize): *u8 {
  */
 export function heap_alloc_i32_c(count: i32): *i32 {
   if (count <= 0) {
-    return 0;
+    return 0 as *i32;
   }
   let bytes: usize = (count as usize) * 4;
   return heap_libc_malloc(bytes) as *i32;
@@ -191,7 +191,7 @@ export function heap_realloc_i32_c(ptr: *i32, new_count: i32): *i32 {
     if (ptr != 0) {
       heap_libc_free(ptr as *u8);
     }
-    return 0;
+    return 0 as *i32;
   }
   let bytes: usize = (new_count as usize) * 4;
   return heap_libc_realloc(ptr as *u8, bytes) as *i32;
@@ -211,7 +211,7 @@ export function heap_free_i32_c(ptr: *i32): void {
  */
 export function heap_alloc_u8_c(count: i32): *u8 {
   if (count <= 0) {
-    return 0;
+    return 0 as *u8;
   }
   return heap_libc_malloc(count as usize);
 }
@@ -224,7 +224,7 @@ export function heap_realloc_u8_c(ptr: *u8, new_count: i32): *u8 {
     if (ptr != 0) {
       heap_libc_free(ptr);
     }
-    return 0;
+    return 0 as *u8;
   }
   return heap_libc_realloc(ptr, new_count);
 }
@@ -264,7 +264,7 @@ export function heap_copy_u8_at_c(dst: *u8, dst_offset: i32, src: *u8, count: i3
  */
 export function heap_alloc_f32_c(count: i32): *f32 {
   if (count <= 0) {
-    return 0;
+    return 0 as *f32;
   }
   let bytes: usize = (count as usize) * 4;
   return heap_libc_malloc(bytes) as *f32;
@@ -278,7 +278,7 @@ export function heap_realloc_f32_c(ptr: *f32, new_count: i32): *f32 {
     if (ptr != 0) {
       heap_libc_free(ptr as *u8);
     }
-    return 0;
+    return 0 as *f32;
   }
   let bytes: usize = (new_count as usize) * 4;
   return heap_libc_realloc(ptr as *u8, bytes) as *f32;
@@ -332,13 +332,13 @@ export function heap_alloc_aligned_c(align_bytes: usize, size: usize): *u8 {
   let obj_align: usize = align_bytes;
   let slot: *void = 0 as *void;
   if (size == 0) {
-    return 0;
+    return 0 as *u8;
   }
   if (obj_align < HEAP_PTR_SIZE) {
     obj_align = HEAP_PTR_SIZE;
   }
   if (heap_libc_posix_memalign(&slot, obj_align, size) != 0) {
-    return 0;
+    return 0 as *u8;
   }
   return slot as *u8;
 }
@@ -384,7 +384,7 @@ export function heap_arena64_bump_c(a: *Arena64, size: usize, obj_align: usize):
   let gap: usize = 0;
   let next: usize = 0;
   if (a == 0 || a.chunk == 0 || size == 0) {
-    return 0;
+    return 0 as *u8;
   }
   cur = a.off;
   rem = cur % obj_align;
@@ -393,7 +393,7 @@ export function heap_arena64_bump_c(a: *Arena64, size: usize, obj_align: usize):
   }
   next = cur + gap + size;
   if (next > a.cap) {
-    return 0;
+    return 0 as *u8;
   }
   let out: *u8 = a.chunk + cur + gap;
   a.off = next;
@@ -428,7 +428,7 @@ export function heap_arena64_deinit_c(a: *Arena64): void {
  */
 export function heap_alloc_u64_c(count: i32): *u64 {
   if (count <= 0) {
-    return 0;
+    return 0 as *u64;
   }
   let bytes: usize = (count) * 8;
   return heap_libc_malloc(bytes) as *u64;
@@ -451,7 +451,7 @@ export function heap_realloc_u64_c(ptr: *u64, new_count: i32): *u64 {
     if (ptr != 0) {
       heap_libc_free(ptr as *u8);
     }
-    return 0;
+    return 0 as *u64;
   }
   let bytes: usize = (new_count as usize) * 8;
   return heap_libc_realloc(ptr as *u8, bytes) as *u64;
@@ -473,7 +473,7 @@ export function heap_copy_u64_at_c(dst: *u64, dst_offset: i32, src: *u64, count:
  */
 export function heap_alloc_f64_c(count: i32): *f64 {
   if (count <= 0) {
-    return 0;
+    return 0 as *f64;
   }
   let bytes: usize = (count as usize) * 8;
   return heap_libc_malloc(bytes) as *f64;
@@ -487,7 +487,7 @@ export function heap_realloc_f64_c(ptr: *f64, new_count: i32): *f64 {
     if (ptr != 0) {
       heap_libc_free(ptr as *u8);
     }
-    return 0;
+    return 0 as *f64;
   }
   let bytes: usize = (new_count as usize) * 8;
   return heap_libc_realloc(ptr as *u8, bytes) as *f64;
