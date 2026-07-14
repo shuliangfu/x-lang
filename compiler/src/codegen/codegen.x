@@ -7528,7 +7528,11 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
         }
       }
       /* 顶层 let/const（入口与 dep 模块均 emit）：dep 模块 const 以裸名 emit 供本模块
-       * 函数体 EXPR_VAR 裸名引用；入口模块 main 调用 init_globals()，dep 模块不调用。 */
+       * 函数体 EXPR_VAR 裸名引用；入口模块 main 调用 init_globals()，dep 模块不调用。
+       * 【Why 根源】emit_type 对 TYPE_ARRAY 输出 elem*（形参退化）；顶层 u8[N] 须
+       *   `static uint8_t name[N] [= {…}]`，否则 init_globals 写 `p = (uint8_t[]){ }` 悬空 → SIGSEGV。
+       * 【Invariant】固定数组在声明处带维与初值；init_globals 跳过 TYPE_ARRAY。
+       * 【Asm/Perf】与局部 fixed array 同形 emit_local_fixed_array_*。 */
       if (module.num_top_level_lets > 0) {
         let ti: i32 = 0;
         while (ti < module.num_top_level_lets) {
@@ -7544,6 +7548,12 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
             tl_name_buf[tni] = pipeline_module_top_level_let_name_byte_at(module, ti, tni);
             tni = tni + 1;
           }
+          let tl_ty: i32 = pipeline_module_top_level_let_type_ref(module, ti);
+          let tl_init: i32 = pipeline_module_top_level_let_init_ref(module, ti);
+          let is_fixed_arr: i32 = 0;
+          if (!ast.ref_is_null(tl_ty) && pipeline_type_kind_ord_at(arena, tl_ty) == TypeKind.TYPE_ARRAY) {
+            is_fixed_arr = 1;
+          }
           if (is_const != 0) {
             let static_const: u8[15] = [115, 116, 97, 116, 105, 99, 32, 99, 111, 110, 115, 116, 32, 0, 0];
             if (emit_bytes_from_ptr(out, &static_const[0], 13) != 0) {
@@ -7555,8 +7565,14 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
               return -1;
             }
           }
-          if (emit_type(arena, out, pipeline_module_top_level_let_type_ref(module, ti), &prefix_buf[0], 0, ctx) != 0) {
-            return -1;
+          if (is_fixed_arr != 0) {
+            if (emit_local_fixed_array_elem_type(arena, out, tl_ty, ctx) != 0) {
+              return -1;
+            }
+          } else {
+            if (emit_type(arena, out, tl_ty, &prefix_buf[0], 0, ctx) != 0) {
+              return -1;
+            }
           }
           if (append_byte(out, 32) != 0) {
             return -1;
@@ -7564,13 +7580,39 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
           if (emit_bytes_from_ptr(out, &tl_name_buf[0], name_len) != 0) {
             return -1;
           }
-          if (is_const != 0 && !ast.ref_is_null(pipeline_module_top_level_let_init_ref(module, ti))) {
+          if (is_fixed_arr != 0) {
+            if (emit_local_fixed_array_suffix(arena, out, tl_ty) != 0) {
+              return -1;
+            }
+          }
+          /* 固定数组：声明处写初值（空 [] 则 BSS 零初始化，勿 compound lit 赋指针）。
+           * 非数组 const：保持声明处 = init；非数组 let：仍由 init_globals 赋值。 */
+          let want_decl_init: i32 = 0;
+          if (is_fixed_arr != 0 && !ast.ref_is_null(tl_init)) {
+            if (pipeline_expr_kind_ord_at(arena, tl_init) == (46 as i32)) {
+              if (pipeline_expr_array_lit_num_elems_at(arena, tl_init) > 0) {
+                want_decl_init = 1;
+              }
+            } else {
+              want_decl_init = 1;
+            }
+          }
+          if (is_const != 0 && is_fixed_arr == 0 && !ast.ref_is_null(tl_init)) {
+            want_decl_init = 1;
+          }
+          if (want_decl_init != 0) {
             let eq: u8[4] = [32, 61, 32, 0];
             if (emit_bytes_4(out, eq, 3) != 0) {
               return -1;
             }
-            if (emit_expr(arena, out, pipeline_module_top_level_let_init_ref(module, ti), ctx) != 0) {
-              return -1;
+            if (is_fixed_arr != 0) {
+              if (emit_braced_array_lit_init(arena, out, tl_init, ctx) != 0) {
+                return -1;
+              }
+            } else {
+              if (emit_expr(arena, out, tl_init, ctx) != 0) {
+                return -1;
+              }
             }
           }
           let sc: u8[3] = [59, 10, 0];
@@ -7628,6 +7670,12 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
               ti = ti + 1;
               continue;
             }
+            /* 固定数组已在声明处初值/BSS；勿 `arr = (T[]){ }` 悬空 */
+            let ig_ty: i32 = pipeline_module_top_level_let_type_ref(module, ti);
+            if (!ast.ref_is_null(ig_ty) && pipeline_type_kind_ord_at(arena, ig_ty) == TypeKind.TYPE_ARRAY) {
+              ti = ti + 1;
+              continue;
+            }
             if (emit_indent(out, 2) != 0) {
               return -1;
             }
@@ -7668,6 +7716,12 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
               let dti: i32 = 0;
               while (dti < dep_mod.num_top_level_lets) {
                 if (pipeline_module_top_level_let_is_const(dep_mod, dti) == 0) {
+                  let dig_ty: i32 = pipeline_module_top_level_let_type_ref(dep_mod, dti);
+                  if (dep_arena != 0 as *ASTArena && !ast.ref_is_null(dig_ty)
+                      && pipeline_type_kind_ord_at(dep_arena, dig_ty) == TypeKind.TYPE_ARRAY) {
+                    dti = dti + 1;
+                    continue;
+                  }
                   if (emit_indent(out, 2) != 0) {
                     return -1;
                   }

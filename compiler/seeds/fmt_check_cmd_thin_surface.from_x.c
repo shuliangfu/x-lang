@@ -1,4 +1,4 @@
-/* regen from fmt_check_cmd_thin.x -E (path_resolve_abs pure) */
+/* regen from fmt_check_cmd_thin.x -E (path_resolve_abs pure + path BSS slot) */
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/types.h>
@@ -54,8 +54,6 @@ extern void check_append_repo_lib_roots(uint8_t * path, uint8_t * check_argv, in
 extern void check_argv_append_default_libs_for_path(uint8_t * path, uint8_t * check_argv, int32_t * n);
 extern int32_t driver_run_fmt(int32_t argc, uint8_t * argv);
 extern int32_t driver_run_compiler_check(int32_t argc, uint8_t * argv);
-static uint8_t * g_check_current_file;
-static uint8_t * g_resolve_abs_buf;
 static uint8_t * g_fmt_lit_check_error;
 static uint8_t * g_fmt_lit_fmt_error;
 static uint8_t * g_fmt_lit_chk002;
@@ -73,8 +71,6 @@ static uint8_t * g_fmt_default_product_sub_1;
 static uint8_t * g_fmt_default_product_sub_2;
 static uint8_t * g_fmt_default_product_sub_3;
 static void init_globals(void) {
-  g_check_current_file = (uint8_t[]){ };
-  g_resolve_abs_buf = (uint8_t[]){ };
   g_fmt_lit_check_error = (uint8_t[]){99, 104, 101, 99, 107, 32, 101, 114, 114, 111, 114, 0 };
   g_fmt_lit_fmt_error = (uint8_t[]){102, 109, 116, 32, 101, 114, 114, 111, 114, 0 };
   g_fmt_lit_chk002 = (uint8_t[]){67, 72, 75, 48, 48, 50, 0 };
@@ -101,6 +97,7 @@ extern int32_t fmt_user_ignore_count_impl(void);
 extern int32_t fmt_file_list_n_impl(void);
 extern uint8_t * fmt_user_ignore_at_impl(int32_t i);
 extern int32_t fmt_file_list_store_impl(uint8_t * abs_path);
+extern uint8_t * fmt_check_path_bss_slot(int32_t which);
 int32_t driver_check_quiet_ok_get(void) {
   return 1;
 }
@@ -259,29 +256,31 @@ uint8_t * fmt_path_resolve_abs(uint8_t * path) {
   if ((path ==((uint8_t *)(0)))) {
     return ((uint8_t *)(0));
   }
-  if ((shux_path_is_absolute(path) !=0)) {
-    {
+  {
+    uint8_t * buf = fmt_check_path_bss_slot(1);
+    if ((buf ==((uint8_t *)(0)))) {
+      return ((uint8_t *)(0));
+    }
+    if ((shux_path_is_absolute(path) !=0)) {
       int32_t i = 0;
       while ((i < 511)) {
         uint8_t c = (path)[i];
-        (void)(((g_resolve_abs_buf)[i] = c));
+        (void)(((buf)[i] = c));
         if ((c ==0)) {
-          return &((g_resolve_abs_buf)[0]);
+          return buf;
         }
         (void)((i = (i + 1)));
       }
-      (void)(((g_resolve_abs_buf)[511] = 0));
+      (void)(((buf)[511] = 0));
+      return buf;
     }
-    return &((g_resolve_abs_buf)[0]);
-  }
-  {
-    uint8_t * p = getcwd(&((g_resolve_abs_buf)[0]), 512);
+    uint8_t * p = getcwd(buf, 512);
     if ((p ==((uint8_t *)(0)))) {
       return ((uint8_t *)(0));
     }
     int32_t n = 0;
     while ((n < 511)) {
-      if (((g_resolve_abs_buf)[n] ==0)) {
+      if (((buf)[n] ==0)) {
         break;
       }
       (void)((n = (n + 1)));
@@ -296,19 +295,20 @@ uint8_t * fmt_path_resolve_abs(uint8_t * path) {
     if ((((n + 1) + plen) >=512)) {
       return ((uint8_t *)(0));
     }
-    (void)(((g_resolve_abs_buf)[n] = 47));
+    (void)(((buf)[n] = 47));
     (void)((n = (n + 1)));
     int32_t j = 0;
     while ((j <=plen)) {
       uint8_t c2 = (path)[j];
-      (void)(((g_resolve_abs_buf)[(n + j)] = c2));
+      (void)(((buf)[(n + j)] = c2));
       if ((c2 ==0)) {
         break;
       }
       (void)((j = (j + 1)));
     }
+    return buf;
   }
-  return &((g_resolve_abs_buf)[0]);
+  return ((uint8_t *)(0));
 }
 int32_t driver_collect_mode_is_check(void) {
   {
@@ -442,31 +442,39 @@ void check_init_user_lib_flags(int32_t argc, uint8_t * argv, int32_t path_start)
   return;
 }
 void driver_check_set_current_file(uint8_t * path) {
-  if ((path ==((uint8_t *)(0)))) {
-    (void)(((g_check_current_file)[0] = 0));
-    return;
-  }
   {
+    uint8_t * buf = fmt_check_path_bss_slot(0);
+    if ((buf ==((uint8_t *)(0)))) {
+      return;
+    }
+    if ((path ==((uint8_t *)(0)))) {
+      (void)(((buf)[0] = 0));
+      return;
+    }
     int32_t i = 0;
     while ((i < 511)) {
       uint8_t c = (path)[i];
-      (void)(((g_check_current_file)[i] = c));
+      (void)(((buf)[i] = c));
       if ((c ==0)) {
         return;
       }
       (void)((i = (i + 1)));
     }
-    (void)(((g_check_current_file)[511] = 0));
+    (void)(((buf)[511] = 0));
   }
   (void)(0);
   return;
 }
 int32_t driver_check_print_collected_diagnostics(uint8_t * path) {
   {
+    uint8_t * buf = fmt_check_path_bss_slot(0);
     if ((path !=((uint8_t *)(0)))) {
       return lsp_diag_print_stderr_human(path);
     }
-    return lsp_diag_print_stderr_human(&((g_check_current_file)[0]));
+    if ((buf ==((uint8_t *)(0)))) {
+      return 0;
+    }
+    return lsp_diag_print_stderr_human(buf);
   }
   return 0;
 }

@@ -31,11 +31,9 @@ export extern "C" function fmt_user_ignore_count_impl(): i32;
 export extern "C" function fmt_file_list_n_impl(): i32;
 export extern "C" function fmt_user_ignore_at_impl(i: i32): *u8;
 export extern "C" function fmt_file_list_store_impl(abs_path: *u8): i32;
-
-// pure：当前 check 源路径（512B 小 BSS；单线程流水线；非 Cap 大数组）
-let g_check_current_file: u8[512] = [];
-// pure：resolve_abs 返回缓冲（与冷 seed static ab[512] 同语义；勿 free）
-let g_resolve_abs_buf: u8[512] = [];
+// Cap residual：可写路径 BSS 槽（0=current_file，1=resolve_abs）。
+// -E 顶层 u8[N] 现退化为悬空指针（codegen.x 已根修，codegen_gen 再生后可收回此槽）。
+export extern "C" function fmt_check_path_bss_slot(which: i32): *u8;
 
 let g_fmt_lit_check_error: u8[12] = [99, 104, 101, 99, 107, 32, 101, 114, 114, 111, 114, 0];
 let g_fmt_lit_fmt_error: u8[10] = [102, 109, 116, 32, 101, 114, 114, 111, 114, 0];
@@ -243,35 +241,37 @@ export function fmt_user_ignore_at(i: i32): *u8 {
   return 0 as *u8;
 }
 
-// pure：相对路径 getcwd+字节拼；绝对路径字节拷贝；512B 小 BSS（无 snprintf/rest _impl）
+// pure：相对路径 getcwd+字节拼；绝对路径字节拷贝；写 Cap residual BSS slot(1)
 #[no_mangle]
 export function fmt_path_resolve_abs(path: *u8): *u8 {
   if (path == 0 as *u8) {
     return 0 as *u8;
   }
-  if (shux_path_is_absolute(path) != 0) {
-    unsafe {
+  unsafe {
+    let buf: *u8 = fmt_check_path_bss_slot(1);
+    if (buf == 0 as *u8) {
+      return 0 as *u8;
+    }
+    if (shux_path_is_absolute(path) != 0) {
       let i: i32 = 0;
       while (i < 511) {
         let c: u8 = path[i];
-        g_resolve_abs_buf[i] = c;
+        buf[i] = c;
         if (c == 0) {
-          return &g_resolve_abs_buf[0];
+          return buf;
         }
         i = i + 1;
       }
-      g_resolve_abs_buf[511] = 0;
+      buf[511] = 0;
+      return buf;
     }
-    return &g_resolve_abs_buf[0];
-  }
-  unsafe {
-    let p: *u8 = getcwd(&g_resolve_abs_buf[0], 512);
+    let p: *u8 = getcwd(buf, 512);
     if (p == 0 as *u8) {
       return 0 as *u8;
     }
     let n: i32 = 0;
     while (n < 511) {
-      if (g_resolve_abs_buf[n] == 0) {
+      if (buf[n] == 0) {
         break;
       }
       n = n + 1;
@@ -286,19 +286,20 @@ export function fmt_path_resolve_abs(path: *u8): *u8 {
     if (n + 1 + plen >= 512) {
       return 0 as *u8;
     }
-    g_resolve_abs_buf[n] = 47;
+    buf[n] = 47;
     n = n + 1;
     let j: i32 = 0;
     while (j <= plen) {
       let c2: u8 = path[j];
-      g_resolve_abs_buf[n + j] = c2;
+      buf[n + j] = c2;
       if (c2 == 0) {
         break;
       }
       j = j + 1;
     }
+    return buf;
   }
-  return &g_resolve_abs_buf[0];
+  return 0 as *u8;
 }
 
 // ---- G-02f-383：collect_mode / user_passed_L → seed impl ----
@@ -459,35 +460,43 @@ export function check_init_user_lib_flags(argc: i32, argv: *u8, path_start: i32)
   }
 }
 
-// pure：写 512B 当前文件 BSS（字节拷贝，无 snprintf）
+// pure：写 current_file 到 Cap residual BSS slot(0)（字节拷贝，无 snprintf）
 #[no_mangle]
 export function driver_check_set_current_file(path: *u8): void {
-  if (path == 0 as *u8) {
-    g_check_current_file[0] = 0;
-    return;
-  }
   unsafe {
+    let buf: *u8 = fmt_check_path_bss_slot(0);
+    if (buf == 0 as *u8) {
+      return;
+    }
+    if (path == 0 as *u8) {
+      buf[0] = 0;
+      return;
+    }
     let i: i32 = 0;
     while (i < 511) {
       let c: u8 = path[i];
-      g_check_current_file[i] = c;
+      buf[i] = c;
       if (c == 0) {
         return;
       }
       i = i + 1;
     }
-    g_check_current_file[511] = 0;
+    buf[511] = 0;
   }
 }
 
-// pure：LSP human 打印；path 空则用当前文件 BSS
+// pure：LSP human 打印；path 空则用 current_file BSS slot(0)
 #[no_mangle]
 export function driver_check_print_collected_diagnostics(path: *u8): i32 {
   unsafe {
     if (path != 0 as *u8) {
       return lsp_diag_print_stderr_human(path);
     }
-    return lsp_diag_print_stderr_human(&g_check_current_file[0]);
+    let buf: *u8 = fmt_check_path_bss_slot(0);
+    if (buf == 0 as *u8) {
+      return 0;
+    }
+    return lsp_diag_print_stderr_human(buf);
   }
   return 0;
 }

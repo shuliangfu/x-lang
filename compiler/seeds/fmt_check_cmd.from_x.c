@@ -176,6 +176,16 @@ static int s_unformatted_count;
 static char s_ignore_paths[DRIVER_FMT_MAX_IGNORE][256];
 static int s_n_ignore;
 
+/* Cap residual：thin pure 可写路径 BSS（0=current_file，1=resolve_abs）。
+ * -E 顶层 u8[N] 退化为悬空指针；codegen.x 已根修，codegen_gen 再生后可收回。 */
+static char s_fmt_check_path_bss[2][512];
+
+char *fmt_check_path_bss_slot(int which) {
+    if (which < 0 || which > 1)
+        return s_fmt_check_path_bss[0];
+    return s_fmt_check_path_bss[which];
+}
+
 static char *s_file_list[DRIVER_FMT_MAX_FILES];
 static int s_n_files;
 
