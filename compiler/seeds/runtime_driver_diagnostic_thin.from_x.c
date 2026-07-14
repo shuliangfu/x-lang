@@ -1,6 +1,6 @@
 /* seeds/runtime_driver_diagnostic_thin.from_x.c
  * G-02f diagnostic R2 thin seed (cold / fallback); isomorphic polish of thin.x -E
- * pure: report_prefixed + pipe_note + getenv + 拼装/固定措辞
+ * pure: report_prefixed + pipe_note + debug_log/parser_diag + getenv + 拼装/固定措辞
  */
 /* g05_try_x_to_o prologue (G-02f-332/334) */
 #include <stddef.h>
@@ -36,10 +36,6 @@ extern void driver_diagnostic_codegen_emit_func_fail(uint8_t * module, int32_t f
 extern void driver_diagnostic_asm_print_current_func(void);
 extern void driver_diagnostic_asm_var_not_found(uint8_t * name, int32_t len, int32_t num_locals, uint8_t * first_slot, int32_t first_len);
 extern void driver_diagnostic_asm_fail_at(int32_t loc);
-extern void driver_debug_log(int32_t step);
-extern void parser_diag_tok_kind(int32_t k);
-extern void parser_diag_ident_len(int32_t len);
-extern void parser_diag_scan_fail(int32_t step);
 extern void driver_diagnostic_warn_pad_fields_same_cache_line(uint8_t * sname, int32_t sname_len, uint8_t * f0, int32_t f0_len, uint8_t * f1, int32_t f1_len);
 extern void driver_diagnostic_warn_hot_reorder_field(uint8_t * sname, int32_t sname_len, uint8_t * hot, int32_t hot_len, uint8_t * cold, int32_t cold_len);
 extern void driver_diagnostic_hint_unused_binding(int32_t line, int32_t col, uint8_t * name, int32_t name_len);
@@ -75,6 +71,11 @@ extern int32_t driver_parse_strict_enabled(void);
 extern void driver_diag_note(uint8_t * msg);
 extern void driver_diag_report_prefixed(int32_t line, int32_t col, uint8_t * msg);
 extern void driver_diag_pipe_note(int32_t kind, int32_t a, int32_t b);
+extern int32_t driver_diag_parse_debug_enabled(void);
+extern void driver_debug_log(int32_t step);
+extern void parser_diag_tok_kind(int32_t k);
+extern void parser_diag_ident_len(int32_t len);
+extern void parser_diag_scan_fail(int32_t step);
 extern uint8_t * driver_typeck_diag_scratch_expect(void);
 extern uint8_t * driver_typeck_diag_scratch_found(void);
 extern void driver_diag_fill_expr_part(uint8_t * dst, int32_t cap, uint8_t * expr_buf, int32_t expr_len);
@@ -110,7 +111,6 @@ int32_t driver_env_flag_truthy(uint8_t * name) {
   }
   return 0;
 }
-extern void driver_debug_log_impl(int32_t step);
 extern void driver_diagnostic_after_entry_parse_module_impl(uint8_t * module);
 extern void driver_diagnostic_asm_fail_at_impl(int32_t loc);
 extern void driver_diagnostic_asm_print_current_func_impl(void);
@@ -134,9 +134,6 @@ extern void driver_diagnostic_typeck_ret_fail_impl(int32_t stage, int32_t op_exp
 extern void driver_diagnostic_typeck_var_resolution_impl(int32_t expr_ref, uint8_t * name, int32_t name_len, int32_t func_idx, int32_t block_ref, int32_t source, int32_t type_ref);
 extern void driver_diagnostic_warn_hot_reorder_field_impl(uint8_t * sname, int32_t sname_len, uint8_t * hot, int32_t hot_len, uint8_t * cold, int32_t cold_len);
 extern void driver_diagnostic_warn_pad_fields_same_cache_line_impl(uint8_t * sname, int32_t sname_len, uint8_t * f0, int32_t f0_len, uint8_t * f1, int32_t f1_len);
-extern void parser_diag_ident_len_impl(int32_t len);
-extern void parser_diag_scan_fail_impl(int32_t step);
-extern void parser_diag_tok_kind_impl(int32_t k);
 extern void parser_diagnostic_parse_commit_shape_impl(int32_t byte_pos, int32_t num_funcs_so_far, uint8_t * name, int32_t name_len, int32_t phase, int32_t block_ref, int32_t pool_num_consts, int32_t pool_num_lets, int32_t pool_num_ifs, int32_t pool_num_regions, int32_t pool_num_stmt_order, int32_t block_num_consts, int32_t block_num_lets, int32_t block_num_ifs, int32_t block_num_regions, int32_t block_num_stmt_order, int32_t final_expr_ref);
 void driver_diagnostic_parse_fail(int32_t main_idx, int32_t num_funcs, int32_t arena_num_types) {
   {
@@ -281,34 +278,6 @@ void driver_diagnostic_asm_var_not_found(uint8_t * name, int32_t len, int32_t nu
 void driver_diagnostic_asm_fail_at(int32_t loc) {
   {
     (void)(driver_diagnostic_asm_fail_at_impl(loc));
-  }
-  (void)(0);
-  return;
-}
-void driver_debug_log(int32_t step) {
-  {
-    (void)(driver_debug_log_impl(step));
-  }
-  (void)(0);
-  return;
-}
-void parser_diag_tok_kind(int32_t k) {
-  {
-    (void)(parser_diag_tok_kind_impl(k));
-  }
-  (void)(0);
-  return;
-}
-void parser_diag_ident_len(int32_t len) {
-  {
-    (void)(parser_diag_ident_len_impl(len));
-  }
-  (void)(0);
-  return;
-}
-void parser_diag_scan_fail(int32_t step) {
-  {
-    (void)(parser_diag_scan_fail_impl(step));
   }
   (void)(0);
   return;
@@ -767,6 +736,50 @@ void driver_diag_pipe_note(int32_t kind, int32_t a, int32_t b) {
   }
   (void)(0);
   return;
+}
+int32_t driver_diag_parse_debug_enabled(void) {
+  {
+    if ((getenv((uint8_t[]){83, 72, 85, 88, 95, 68, 69, 66, 85, 71, 95, 80, 65, 82, 83, 69, 0 }) !=((uint8_t *)(0)))) {
+      return 1;
+    }
+  }
+  return driver_parse_strict_enabled();
+}
+void driver_debug_log(int32_t step) {
+  if ((driver_diag_parse_debug_enabled() ==0)) {
+    return;
+  }
+  uint8_t msg[128] = {};
+  int32_t at = driver_diag_append_cstr(&((msg)[0]), 128, 0, (uint8_t[]){112, 97, 114, 115, 101, 32, 100, 101, 98, 117, 103, 58, 32, 115, 116, 101, 112, 61, 0 });
+  (void)((at = driver_diag_append_i32(&((msg)[0]), 128, at, step)));
+  (void)(driver_diag_note(&((msg)[0])));
+}
+void parser_diag_tok_kind(int32_t k) {
+  if ((driver_diag_parse_debug_enabled() ==0)) {
+    return;
+  }
+  uint8_t msg[128] = {};
+  int32_t at = driver_diag_append_cstr(&((msg)[0]), 128, 0, (uint8_t[]){112, 97, 114, 115, 101, 32, 100, 101, 98, 117, 103, 58, 32, 114, 46, 116, 111, 107, 46, 107, 105, 110, 100, 61, 0 });
+  (void)((at = driver_diag_append_i32(&((msg)[0]), 128, at, k)));
+  (void)(driver_diag_note(&((msg)[0])));
+}
+void parser_diag_ident_len(int32_t len) {
+  if ((driver_diag_parse_debug_enabled() ==0)) {
+    return;
+  }
+  uint8_t msg[128] = {};
+  int32_t at = driver_diag_append_cstr(&((msg)[0]), 128, 0, (uint8_t[]){112, 97, 114, 115, 101, 32, 100, 101, 98, 117, 103, 58, 32, 102, 105, 114, 115, 116, 32, 105, 100, 101, 110, 116, 95, 108, 101, 110, 61, 0 });
+  (void)((at = driver_diag_append_i32(&((msg)[0]), 128, at, len)));
+  (void)(driver_diag_note(&((msg)[0])));
+}
+void parser_diag_scan_fail(int32_t step) {
+  if ((driver_diag_parse_debug_enabled() ==0)) {
+    return;
+  }
+  uint8_t msg[128] = {};
+  int32_t at = driver_diag_append_cstr(&((msg)[0]), 128, 0, (uint8_t[]){108, 105, 98, 114, 97, 114, 121, 32, 115, 99, 97, 110, 32, 102, 97, 105, 108, 101, 100, 32, 97, 116, 32, 115, 116, 101, 112, 61, 0 });
+  (void)((at = driver_diag_append_i32(&((msg)[0]), 128, at, step)));
+  (void)(driver_diag_note(&((msg)[0])));
 }
 uint8_t * driver_typeck_diag_scratch_expect(void) {
   {

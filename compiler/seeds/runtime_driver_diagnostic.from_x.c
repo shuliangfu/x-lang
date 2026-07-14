@@ -1,12 +1,13 @@
-/* G-02f-339～341 / R2 thin + Cap residual pure 深迁（续 report_prefixed/pipe_note）：
+/* G-02f-339～341 / R2 thin + Cap residual pure 深迁（续 debug_log/parser_diag）：
  * PREFER hybrid thin 由 src/runtime_driver_diagnostic_thin.x→-E；
  * rest SHUX_L2_RDD_THIN_FROM_X：无 thin 公共体；pure-dup 固定措辞/pipe orch/拼装/
- * env_debug_pipe/parse_strict_enabled/report_prefixed/pipe_note 剔除；
- * 仅 slice_marker + Cap residual（snprintf/va_list/debug_log/scratch）体。
+ * env_debug_pipe/parse_strict_enabled/report_prefixed/pipe_note/
+ * debug_log/parser_diag_tok_kind/ident_len/scan_fail 剔除；
+ * 仅 slice_marker + Cap residual（snprintf/va_list/scratch）体。
  * Generated from (G-02f-86/96 +copy/report_prefixed) src/runtime_driver_diagnostic.x (G-02f-180 P0-4 audit + va_list lock; G-02f-179 asm notes true .x; G-02f-178 padding true .x; G-02f-177 generic call true .x; G-02f-176 mismatch true .x; G-02f-175 return_unresolved/subexpr true .x; G-02f-30/31/73 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_driver_diagnostic.x > /tmp/rdd.c
  *         merge fixed-msg wrappers; polish slice strings; keep snprintf C.
- * .x covers: fixed typeck msgs, fail, no-ops, parse_strict pure + report_prefixed/pipe_note pure.
+ * .x covers: fixed typeck msgs, fail, no-ops, parse pure + report_prefixed/pipe_note + debug_log/parser_diag pure.
  */
 #include "runtime_driver_diagnostic.h"
 #include "runtime_driver_abi.h"
@@ -15,7 +16,7 @@
 #include "diag.h"
 #ifdef SHUX_L2_RDD_THIN_FROM_X
 /* pure 在 thin：copy_bytes/note/fill/build/env_debug_pipe/parse_strict/report_prefixed/pipe_note
- * — rest 勿 #define 到已剔除的 _impl；scratch 仍 residual */
+ * /debug_log/parser_diag_* — rest 勿 #define 到已剔除的 _impl；scratch 仍 residual */
 #define driver_typeck_diag_scratch_expect driver_typeck_diag_scratch_expect_impl
 #define driver_typeck_diag_scratch_found driver_typeck_diag_scratch_found_impl
 /* thin 提供 pure public：供 rest residual 调用 */
@@ -1428,11 +1429,10 @@ void driver_diagnostic_asm_fail_at_impl(int32_t loc)
 
 
 
+/* pure 权威：thin.x driver_debug_log / parser_diag_*（append+note，无 va_list）；
+ * 冷启动保留 reportf 体；FROM_X 无 pure-dup _impl（H↓）。 */
 #ifndef SHUX_L2_RDD_THIN_FROM_X
 void driver_debug_log(int32_t step)
-#else
-void driver_debug_log_impl(int32_t step)
-#endif
 {
     if (!getenv("SHUX_DEBUG_PARSE") && !driver_parse_strict_enabled())
         return;
@@ -1440,15 +1440,7 @@ void driver_debug_log_impl(int32_t step)
                  "parse debug: step=%d", (int)step);
 }
 
-
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-
-
-#ifndef SHUX_L2_RDD_THIN_FROM_X
 void parser_diag_tok_kind(int32_t k)
-#else
-void parser_diag_tok_kind_impl(int32_t k)
-#endif
 {
     if (!getenv("SHUX_DEBUG_PARSE") && !driver_parse_strict_enabled())
         return;
@@ -1456,15 +1448,7 @@ void parser_diag_tok_kind_impl(int32_t k)
                  "parse debug: r.tok.kind=%d", (int)k);
 }
 
-
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-
-
-#ifndef SHUX_L2_RDD_THIN_FROM_X
 void parser_diag_ident_len(int32_t len)
-#else
-void parser_diag_ident_len_impl(int32_t len)
-#endif
 {
     if (!getenv("SHUX_DEBUG_PARSE") && !driver_parse_strict_enabled())
         return;
@@ -1472,21 +1456,14 @@ void parser_diag_ident_len_impl(int32_t len)
                  "parse debug: first ident_len=%d", (int)len);
 }
 
-
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-
-
-#ifndef SHUX_L2_RDD_THIN_FROM_X
 void parser_diag_scan_fail(int32_t step)
-#else
-void parser_diag_scan_fail_impl(int32_t step)
-#endif
 {
     if (!getenv("SHUX_DEBUG_PARSE") && !driver_parse_strict_enabled())
         return;
     diag_reportf(NULL, 0, 0, "note", NULL,
                  "library scan failed at step=%d", (int)step);
 }
+#endif
 
 
 /* G-02f-116：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */

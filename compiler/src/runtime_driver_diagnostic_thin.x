@@ -1,14 +1,14 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-339～341/409/416 + Cap residual pure 深迁（续 report_prefixed/pipe_note）：runtime_driver_diagnostic R2 thin。
+// G-02f-339～341/409/416 + Cap residual pure 深迁（续 debug_log/parser_diag）：runtime_driver_diagnostic R2 thin。
 // 产品 PREFER_X_O：g05_try_x_to_o → thin.o + seeds/runtime_driver_diagnostic.from_x.c rest
 //   （-DSHUX_L2_RDD_THIN_FROM_X）ld -r → src/runtime_driver_diagnostic.o
 // prove IDENTICAL：thin.x ↔ seeds/runtime_driver_diagnostic_thin_surface.from_x.c
 // pure 真体：固定措辞 typeck + pipe orch + 拼装 pure（return/assign/call/struct/asm note
 //   + fill/build/note）+ append_*/copy_bytes + env_debug_pipe / parse_strict_enabled
-//   + report_prefixed（lsp/check/diag_report）+ pipe_note（append+note，无 va_list reportf）。
-// Cap residual：snprintf/va_list/debug_log/scratch 等 *_impl 仍 rest。
+//   + report_prefixed + pipe_note + debug_log/parser_diag_*（append+note，无 va_list reportf）。
+// Cap residual：snprintf/va_list/scratch 等 *_impl 仍 rest。
 // 本 TU：门闩 + pure 真体（f-339～341 + f-387 env pure + f-409 pipe pure + f-416 lsp_diag_get）
 
 export extern "C" function getenv(name: *u8): *u8;
@@ -32,7 +32,6 @@ function driver_env_flag_truthy(name: *u8): i32 {
   return 0;
 }
 
-export extern "C" function driver_debug_log_impl(step: i32): void;
 export extern "C" function driver_diagnostic_after_entry_parse_module_impl(module: *u8): void;
 export extern "C" function driver_diagnostic_asm_fail_at_impl(loc: i32): void;
 export extern "C" function driver_diagnostic_asm_print_current_func_impl(): void;
@@ -56,9 +55,6 @@ export extern "C" function driver_diagnostic_typeck_ret_fail_impl(stage: i32, op
 export extern "C" function driver_diagnostic_typeck_var_resolution_impl(expr_ref: i32, name: *u8, name_len: i32, func_idx: i32, block_ref: i32, source: i32, type_ref: i32): void;
 export extern "C" function driver_diagnostic_warn_hot_reorder_field_impl(sname: *u8, sname_len: i32, hot: *u8, hot_len: i32, cold: *u8, cold_len: i32): void;
 export extern "C" function driver_diagnostic_warn_pad_fields_same_cache_line_impl(sname: *u8, sname_len: i32, f0: *u8, f0_len: i32, f1: *u8, f1_len: i32): void;
-export extern "C" function parser_diag_ident_len_impl(len: i32): void;
-export extern "C" function parser_diag_scan_fail_impl(step: i32): void;
-export extern "C" function parser_diag_tok_kind_impl(k: i32): void;
 export extern "C" function parser_diagnostic_parse_commit_shape_impl(byte_pos: i32, num_funcs_so_far: i32, name: *u8, name_len: i32, phase: i32, block_ref: i32, pool_num_consts: i32, pool_num_lets: i32, pool_num_ifs: i32, pool_num_regions: i32, pool_num_stmt_order: i32, block_num_consts: i32, block_num_lets: i32, block_num_ifs: i32, block_num_regions: i32, block_num_stmt_order: i32, final_expr_ref: i32): void;
 
 #[no_mangle]
@@ -229,37 +225,7 @@ export function driver_diagnostic_asm_fail_at(loc: i32): void {
 }
 
 
-#[no_mangle]
-export function driver_debug_log(step: i32): void {
-  unsafe {
-    driver_debug_log_impl(step);
-  }
-}
-
-
-#[no_mangle]
-export function parser_diag_tok_kind(k: i32): void {
-  unsafe {
-    parser_diag_tok_kind_impl(k);
-  }
-}
-
-
-#[no_mangle]
-export function parser_diag_ident_len(len: i32): void {
-  unsafe {
-    parser_diag_ident_len_impl(len);
-  }
-}
-
-
-#[no_mangle]
-export function parser_diag_scan_fail(step: i32): void {
-  unsafe {
-    parser_diag_scan_fail_impl(step);
-  }
-}
-
+// pure：debug_log / parser_diag_* 见下方（parse debug + append+note）；门闩已剔除。
 
 #[no_mangle]
 export function driver_diagnostic_warn_pad_fields_same_cache_line(sname: *u8, sname_len: i32, f0: *u8, f0_len: i32, f1: *u8, f1_len: i32): void {
@@ -672,6 +638,65 @@ export function driver_diag_pipe_note(kind: i32, a: i32, b: i32): void {
     driver_diag_note(&msg[0]);
     return;
   }
+}
+
+// pure：与 seed Cap residual 同形 — getenv("SHUX_DEBUG_PARSE") 非空 或 parse_strict。
+// （C：!getenv && !parse_strict → return；故 getenv 任意非 NULL 即启用，含 "0"。）
+function driver_diag_parse_debug_enabled(): i32 {
+  unsafe {
+    if (getenv("SHUX_DEBUG_PARSE") != 0 as *u8) {
+      return 1;
+    }
+  }
+  return driver_parse_strict_enabled();
+}
+
+// pure：parse debug step note（append+note；无 va_list reportf）
+#[no_mangle]
+export function driver_debug_log(step: i32): void {
+  if (driver_diag_parse_debug_enabled() == 0) {
+    return;
+  }
+  let msg: u8[128] = [];
+  let at: i32 = driver_diag_append_cstr(&msg[0], 128, 0, "parse debug: step=");
+  at = driver_diag_append_i32(&msg[0], 128, at, step);
+  driver_diag_note(&msg[0]);
+}
+
+// pure：tok.kind note
+#[no_mangle]
+export function parser_diag_tok_kind(k: i32): void {
+  if (driver_diag_parse_debug_enabled() == 0) {
+    return;
+  }
+  let msg: u8[128] = [];
+  let at: i32 = driver_diag_append_cstr(&msg[0], 128, 0, "parse debug: r.tok.kind=");
+  at = driver_diag_append_i32(&msg[0], 128, at, k);
+  driver_diag_note(&msg[0]);
+}
+
+// pure：first ident_len note
+#[no_mangle]
+export function parser_diag_ident_len(len: i32): void {
+  if (driver_diag_parse_debug_enabled() == 0) {
+    return;
+  }
+  let msg: u8[128] = [];
+  let at: i32 = driver_diag_append_cstr(&msg[0], 128, 0, "parse debug: first ident_len=");
+  at = driver_diag_append_i32(&msg[0], 128, at, len);
+  driver_diag_note(&msg[0]);
+}
+
+// pure：library scan fail note
+#[no_mangle]
+export function parser_diag_scan_fail(step: i32): void {
+  if (driver_diag_parse_debug_enabled() == 0) {
+    return;
+  }
+  let msg: u8[128] = [];
+  let at: i32 = driver_diag_append_cstr(&msg[0], 128, 0, "library scan failed at step=");
+  at = driver_diag_append_i32(&msg[0], 128, at, step);
+  driver_diag_note(&msg[0]);
 }
 
 #[no_mangle]
