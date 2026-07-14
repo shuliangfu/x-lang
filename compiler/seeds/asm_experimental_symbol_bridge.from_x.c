@@ -290,18 +290,8 @@ __attribute__((weak)) int32_t std_io_driver_driver_read_ptr_len(void *fd) {
   return -1;
 }
 
-/**
- * strict 链：pipeline codegen_deps/entry 在非 asm 分支引用 codegen_x_ast；
- * build_asm/codegen.o 未链入时 weak 桩（asm 后端走 asm_codegen_ast）。
- */
-__attribute__((weak)) int32_t codegen_x_ast(void *module, void *arena, void *out_buf, void *ctx, int32_t dep_index) {
-  (void)module;
-  (void)arena;
-  (void)out_buf;
-  (void)ctx;
-  (void)dep_index;
-  return -1;
-}
+/* codegen_x_ast：唯一权威在 codegen.o。禁止 weak return(-1) 桩（双权威盖掉真实现）。
+ * C 后端路径必须链入真 codegen；asm 后端走 asm_codegen_ast，不依赖本符号桩。 */
 
 /** strict 链：load_and_sync 末尾 merge dep struct layout；typeck.o 未链入时 no-op。 */
 __attribute__((weak)) void typeck_merge_dep_struct_layouts_into_entry(void *module, void *arena, void *ctx) {

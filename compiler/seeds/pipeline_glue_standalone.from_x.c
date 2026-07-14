@@ -42,20 +42,8 @@ int32_t main_run_compiler_c(int32_t argc, uint8_t *argv) {
   return driver_run_compiler_full(argc, (char **)argv);
 }
 
-/**
- * build_asm/pipeline.o 非 asm 分支引用 codegen_x_ast；strict 链不链 build_asm/codegen.o 时 weak 桩。
- * 签名须与 pipeline_glue_types.inc 一致，避免与 pipeline_glue.c 内声明冲突。
- */
-__attribute__((weak)) int32_t codegen_x_ast(struct ast_Module *module, struct ast_ASTArena *arena,
-                                              struct codegen_CodegenOutBuf *out, struct ast_PipelineDepCtx *ctx,
-                                              int32_t dep_index) {
-  (void)module;
-  (void)arena;
-  (void)out;
-  (void)ctx;
-  (void)dep_index;
-  return -1;
-}
+/* codegen_x_ast：唯一权威在 codegen_x.o / build_asm/codegen.o。
+ * 禁止 weak return(-1) 桩（双权威：会盖掉真实现）。缺符号应链真 codegen，勿 silent fail。 */
 
 /** build_asm/pipeline.o partial 引用 parser.parse_into_init（裸名）；strict_core 提供 parser_parse_into_init。 */
 extern void parser_parse_into_init(struct ast_Module *module, struct ast_ASTArena *arena);

@@ -927,11 +927,8 @@ export function pipeline_typeck_check_allocator_region_assign_c(module: *u8, are
   return 0;
 }
 
-// G-02f-210：codegen_x_ast stub
-#[no_mangle]
-export function codegen_x_ast(module: *u8, arena: *u8, out_buf: *u8, ctx: *u8, dep_index: i32): i32 {
-  return 0 - 1;
-}
+// codegen_x_ast：唯一权威在 codegen.x / codegen_x.o。此处禁止 weak return(-1) 桩，
+// 否则产品链接多 weak 时可能盖掉真实现，导致全模块 -E 发射失败（dep_index=0 / out_len=0）。
 
 // G-02f-210：main entry thin bridges
 #[no_mangle]

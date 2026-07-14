@@ -561,19 +561,9 @@ __attribute__((weak)) int32_t main_run_compiler_c(int32_t argc, uint8_t *argv) {
 }
 #endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
-/* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
-/** pipeline 非 asm 分支 weak 桩（asm 路径不走此符号）。 */
-/* G-02f-210：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-__attribute__((weak)) int32_t codegen_x_ast(void *module, void *arena, void *out_buf, void *ctx, int32_t dep_index) {
-  (void)module;
-  (void)arena;
-  (void)out_buf;
-  (void)ctx;
-  (void)dep_index;
-  return -1;
-}
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+/* codegen_x_ast：唯一权威在 codegen_x.o（codegen.x）。
+ * 禁止在此提供 weak return(-1) 桩——产品链同时有 codegen_x.o 与本 glue 时，
+ * 多 weak 解析可能选中桩，导致全部 -E 失败（codegen failed at entry / out_len=0）。 */
 
 /** runtime 调用的裸名 parse_into_init → partial 导出的 parser_parse_into_init。 */
 extern void parser_parse_into_init(struct ast_Module *module, struct ast_ASTArena *arena);
