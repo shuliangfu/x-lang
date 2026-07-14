@@ -2008,12 +2008,17 @@ driver_build_x.o: src/driver/build.x scripts/driver_leaf_x_to_o.sh
 driver_run_x.o: src/driver/run.x scripts/driver_leaf_x_to_o.sh
 	@DRIVER_SUBCMD_DIRS="$(DRIVER_SUBCMD_DIRS)" BASE_CFLAGS="$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc" \
 	  bash scripts/driver_leaf_x_to_o.sh src/driver/run.x $@ 'run_eq_word:driver_run_eq_word,cmd_run:driver_cmd_run' seeds/driver_run_gen.linux.x86_64.c
-# Track L：compile 叶子退役（prove IDENTICAL）；emit 仍 pin seed（-E 局部大 struct 字段赋值误用 ->）
+# Track L：compile / emit 叶子退役（prove IDENTICAL；emit 依赖 codegen 字段访问 . vs -> 根修）
 DRIVER_COMPILE_RENAME = compile_dispatch_asm_backend:driver_compile_dispatch_asm_backend,compile_dispatch_emit_c_path:driver_compile_dispatch_emit_c_path,eq_minus_o:driver_eq_minus_o,eq_minus_L:driver_eq_minus_L,eq_minus_backend:driver_eq_minus_backend,eq_minus_target:driver_eq_minus_target,eq_minus_target_cpu:driver_eq_minus_target_cpu,eq_print_target_cpu:driver_eq_print_target_cpu,eq_minus_O:driver_eq_minus_O,eq_flto:driver_eq_flto,eq_minus_freestanding:driver_eq_minus_freestanding,eq_legacy_f32_abi:driver_eq_legacy_f32_abi,eq_fsanitize_address:driver_eq_fsanitize_address,eq_asm_word:driver_eq_asm_word,eq_c_word:driver_eq_c_word,path_ends_x:driver_path_ends_x,target_has_arm:driver_target_has_arm,run_compiler_full_x_post_parse:driver_run_compiler_full_x_post_parse,run_compiler_full_x:driver_run_compiler_full_x
+DRIVER_EMIT_RENAME = emit_copy_lib_roots_to_ctx:driver_emit_copy_lib_roots_to_ctx,run_x_emit_x:driver_run_x_emit_x,dispatch_x_emit_to_c:driver_dispatch_x_emit_to_c,emit_state_key:driver_emit_state_key,pipeline_dep_ctx_fill_for_emit:driver_pipeline_dep_ctx_fill_for_emit
 driver_compile_x.o: src/driver/compile.x scripts/driver_leaf_x_to_o.sh
 	@DRIVER_SUBCMD_DIRS="$(DRIVER_SUBCMD_DIRS) -L src/parser -L src/typeck -L src/codegen -L src/lsp -L src/preprocess -L src/driver" \
 	  BASE_CFLAGS="$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc" \
 	  bash scripts/driver_leaf_x_to_o.sh src/driver/compile.x $@ '$(DRIVER_COMPILE_RENAME)' seeds/driver_compile_gen.linux.x86_64.c
+driver_emit_x.o: src/driver/emit.x scripts/driver_leaf_x_to_o.sh
+	@DRIVER_SUBCMD_DIRS="$(DRIVER_SUBCMD_DIRS) -L src/parser -L src/typeck -L src/codegen -L src/lsp -L src/preprocess -L src/driver" \
+	  BASE_CFLAGS="$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc" \
+	  bash scripts/driver_leaf_x_to_o.sh src/driver/emit.x $@ '$(DRIVER_EMIT_RENAME)' seeds/driver_emit_gen.linux.x86_64.c
 
 # 考古：可选再生成工作区 *_gen.c（不进 DRIVER_SEED_PREREQS；叶子已退役）
 driver_fmt_gen.c: src/driver/fmt.x
@@ -2092,10 +2097,10 @@ driver_run_gen.c: src/driver/run.x
 	fi
 driver_emit_gen.c: src/driver/emit.x
 	@if [ -s driver_emit_gen.c ] && [ "$(SHUX_FORCE_REGEN_GEN)" != "1" ]; then \
-	  echo "driver_emit_gen.c: pinned ($$(wc -c < driver_emit_gen.c | tr -d ' ') bytes)"; \
+	  echo "driver_emit_gen.c: pinned ($$(wc -c < driver_emit_gen.c | tr -d ' ') bytes; Track L 退役，构建用 driver_emit_x.o)"; \
 	elif [ -f seeds/driver_emit_gen.linux.x86_64.c ] && [ ! -s driver_emit_gen.c ]; then \
 	  cp -f seeds/driver_emit_gen.linux.x86_64.c driver_emit_gen.c; \
-	  echo "driver_emit_gen.c: restored from seed"; \
+	  echo "driver_emit_gen.c: restored from seed (archaeology)"; \
 	else \
 	  tmp="$@.tmp"; \
 	  $(MAKE) $(SHUX_C) && \
@@ -2104,9 +2109,7 @@ driver_emit_gen.c: src/driver/emit.x
 	  if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
 	fi
 
-# driver_compile_x.o：见上文 Track L 叶子规则（.x→.o）；勿再从 pinned gen.c 覆盖
-driver_emit_x.o: driver_emit_gen.c
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -c driver_emit_gen.c -o $@
+# driver_emit_x.o：见上文 Track L 叶子规则（.x→.o）；勿再从 pinned gen.c 覆盖
 
 # asm_driver_*：driver_gen.c 为 extern 时由本桩提供符号（fmt/check/test 见 DRIVER_SUBCMD_OBJS）。
 # 链接顺序：须紧跟 preprocess_x.o 之后（先于 lsp_diag/std *.o），避免与 runtime_driver.o

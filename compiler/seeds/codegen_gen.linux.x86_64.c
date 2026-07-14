@@ -447,6 +447,7 @@ int32_t codegen_use_buf_wrapper(uint8_t * name, int32_t name_len, int32_t num_ar
 int32_t codegen_emit_io_driver_buf_call_name(struct codegen_CodegenOutBuf * out, uint8_t * name, int32_t name_len, int32_t num_args);
 int32_t codegen_try_emit_std_io_driver_buf_body(struct codegen_CodegenOutBuf * out, struct ast_Module * module, int32_t fi, uint8_t * prefix, int32_t prefix_len);
 int32_t codegen_field_access_base_is_pointer_ref(struct ast_ASTArena * arena, int32_t base_ref);
+int32_t codegen_field_access_base_type_resolved(struct ast_ASTArena * arena, int32_t base_ref);
 int32_t codegen_field_access_base_is_pointer_param(struct ast_ASTArena * arena, int32_t base_ref, struct ast_Module * mod, int32_t func_index);
 int32_t codegen_field_access_base_is_slice_param_name(struct ast_ASTArena * arena, int32_t base_ref);
 int32_t codegen_block_stmt_order_has_let(struct ast_ASTArena * arena, int32_t block_ref, int32_t let_idx);
@@ -1600,6 +1601,14 @@ SHUX_LIB_WEAK int32_t codegen_field_access_base_is_pointer_ref(struct ast_ASTAre
   if ((ty).kind == ast_TypeKind_TYPE_PTR) {   return 1;
  }
   return 0;
+}
+SHUX_LIB_WEAK int32_t codegen_field_access_base_type_resolved(struct ast_ASTArena * arena, int32_t base_ref) {
+  if (ast_ref_is_null(base_ref) || base_ref <= 0 || base_ref > (arena)->num_exprs) {   return 0;
+ }
+  struct ast_Expr base = ast_arena_expr_get(arena, base_ref);
+  if (ast_ref_is_null((base).resolved_type_ref) || (base).resolved_type_ref <= 0 || (base).resolved_type_ref > (arena)->num_types) {   return 0;
+ }
+  return 1;
 }
 SHUX_LIB_WEAK int32_t codegen_field_access_base_is_slice_param_name(struct ast_ASTArena * arena, int32_t base_ref) {
   if (ast_ref_is_null(base_ref) || base_ref <= 0 || base_ref > (arena)->num_exprs) {   return 0;
@@ -3890,7 +3899,12 @@ SHUX_LIB_WEAK int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct code
     if (is_ptr_base == 0 && (ctx) != ((struct ast_PipelineDepCtx *)(0)) && (ctx)->current_codegen_module != ((struct ast_Module *)(0)) && (ctx)->current_func_index >= 0) {
       is_ptr_base = codegen_field_access_base_is_pointer_param(arena, (e).field_access_base_ref, (ctx)->current_codegen_module, (ctx)->current_func_index);
     }
-    if (is_ptr_base != 0 || codegen_field_access_base_is_slice_param_name(arena, (e).field_access_base_ref) != 0) {   uint8_t arrow[3] = { 45, 62, 0 };
+    if (is_ptr_base == 0 && codegen_field_access_base_type_resolved(arena, (e).field_access_base_ref) == 0) {
+      if (codegen_field_access_base_is_slice_param_name(arena, (e).field_access_base_ref) != 0) {
+        is_ptr_base = 1;
+      }
+    }
+    if (is_ptr_base != 0) {   uint8_t arrow[3] = { 45, 62, 0 };
   if (codegen_emit_bytes_3(out, arrow, 2) != 0) {   return (-1);
  }
  } else {   uint8_t dot[2] = { 46, 0 };

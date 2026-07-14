@@ -1564,7 +1564,7 @@ export function codegen_try_emit_std_io_driver_buf_body(out: *CodegenOutBuf, mod
   return 0;
 }
 
-/** 从 arena 判断 base 是否为指针，或 slice 形参名 source/out_buf（按指针传）；局部 slice 值用 `.`。 */
+/** 从 arena 判断 base 是否为指针；有 resolved 且非 PTR 时明确返回 0（局部值 struct 必须用 `.`）。 */
 export function field_access_base_is_pointer_ref(arena: *ASTArena, base_ref: i32): i32 {
   if (ast.ref_is_null(base_ref) || base_ref <= 0 || base_ref > arena.num_exprs) {
     return 0;
@@ -1578,6 +1578,22 @@ export function field_access_base_is_pointer_ref(arena: *ASTArena, base_ref: i32
     return 1;
   }
   return 0;
+}
+
+/**
+ * base 是否已有有效 resolved_type_ref。
+ * 【Why】名字回退（slice_param_name）在类型已知时不得覆盖：局部 `let ctx: PipelineDepCtx` 值类型
+ * 若仍按名 `ctx` 强制 `->`，会生成非法 C（member reference type is not a pointer）。
+ */
+export function field_access_base_type_resolved(arena: *ASTArena, base_ref: i32): i32 {
+  if (ast.ref_is_null(base_ref) || base_ref <= 0 || base_ref > arena.num_exprs) {
+    return 0;
+  }
+  let base: Expr = ast.ast_arena_expr_get(arena, base_ref);
+  if (ast.ref_is_null(base.resolved_type_ref) || base.resolved_type_ref <= 0 || base.resolved_type_ref > arena.num_types) {
+    return 0;
+  }
+  return 1;
 }
 
 /**
@@ -1631,7 +1647,8 @@ export function field_access_base_is_pointer_param(arena: *ASTArena, base_ref: i
 
 /**
  * 回退：base 为已知指针/slice 形参名时字段访问输出 ->。
- * typeck 未填 resolved_type_ref 时仍能生成 (module->field) 等合法 C。
+ * 仅当 typeck 未填 resolved_type_ref 时由调用方启用；类型已解析时禁止用本表覆盖
+ * （见 field_access_base_type_resolved），否则局部值 `ctx`/`out` 会被误编成 `->`。
  */
 export function field_access_base_is_slice_param_name(arena: *ASTArena, base_ref: i32): i32 {
   if (ast.ref_is_null(base_ref) || base_ref <= 0 || base_ref > arena.num_exprs) {
@@ -4985,13 +5002,19 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
     if (!ast.ref_is_null(e.field_access_base_ref) && emit_expr(arena, out, e.field_access_base_ref, ctx) != 0) {
       return -1;
     }
-    /* base 为指针或 slice 时输出 ->，否则输出 .；类型由 arena+resolved_type_ref 判断；无类型时回退为形参名 source/out_buf 用 ->，从源头避免 (source).length 补丁。
-     * dep 模块 codegen 时 typeck 可能未填 resolved_type_ref，额外通过当前函数形参类型回退判断（field_access_base_is_pointer_param）。 */
+    /* base 为指针时输出 ->，否则输出 .。
+     * 优先级：resolved TYPE_PTR → 当前函数 *T 形参 →（仅类型未解析时）名字回退。
+     * 禁止在类型已解析为值类型时仍用 ctx/out 等名字强制 ->（emit 局部 PipelineDepCtx 曾因此 cc 失败）。 */
     let is_ptr_base: i32 = field_access_base_is_pointer_ref(arena, e.field_access_base_ref);
     if (is_ptr_base == 0 && ctx != 0 as *PipelineDepCtx && ctx.current_codegen_module != 0 as *Module && ctx.current_func_index >= 0) {
       is_ptr_base = field_access_base_is_pointer_param(arena, e.field_access_base_ref, ctx.current_codegen_module, ctx.current_func_index);
     }
-    if (is_ptr_base != 0 || field_access_base_is_slice_param_name(arena, e.field_access_base_ref) != 0) {
+    if (is_ptr_base == 0 && field_access_base_type_resolved(arena, e.field_access_base_ref) == 0) {
+      if (field_access_base_is_slice_param_name(arena, e.field_access_base_ref) != 0) {
+        is_ptr_base = 1;
+      }
+    }
+    if (is_ptr_base != 0) {
       let arrow: u8[3] = [45, 62, 0];
       if (emit_bytes_3(out, arrow, 2) != 0) {
         return -1;
