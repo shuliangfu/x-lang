@@ -90,6 +90,9 @@ MODULES=(
   # rt_dispatch_impl L2 thin 公共面：与产品 PREFER_X_O 同源（thin.x + hybrid rest seed）；prove 锁 thin 面 IDENTICAL
   # 产品 hybrid rest 仍见 seeds/rt_dispatch_impl.from_x.c（asm/emit/post_parse/full_x body）；入 runtime_driver_no_c.o
   "rt_dispatch_impl|src/runtime/rt_dispatch_impl.x|seeds/rt_dispatch_impl_surface.from_x.c||"
+  # rt_fmt_one L2 thin 公共面：与产品 PREFER_X_O 同源（thin.x + hybrid rest seed）；prove 锁 thin 面 IDENTICAL
+  # 产品 hybrid rest 仍见 seeds/rt_fmt_one.from_x.c（read/format/write body）；入 runtime_driver_no_c.o
+  "rt_fmt_one|src/runtime/rt_fmt_one.x|seeds/rt_fmt_one_surface.from_x.c||"
 )
 
 # 找 shux 二进制（优先 shux，fallback shux-c）
