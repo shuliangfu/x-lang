@@ -5,16 +5,16 @@
 // .x 吃满 write_io_net_abi_inline / write_fs_path_map_error_abi_inline
 //   （skip mask 过滤 + fputs 循环）。
 // 产品 PREFER_X_O：full .x + rest 在 FROM_X 下业务 T=0（marker + 巨型字串表数据）。
-// Cap-giant-string residual：行表在 rest seed；line_at/count 在 driver_abi
-// （.x 禁巨型 C 字串表；-E 体积/挂起风险）。
+// Cap-giant-string residual：行表在 rest seed；line_at/count + fputs 在 driver_abi
+// （.x 禁巨型 C 字串表；禁 FILE* 直调 fputs — Ubuntu 指针类型硬错误）。
 // 依赖：codegen_get_preamble_skip_mask（strict_glue / pipeline stubs）。
 
-export extern "C" function fputs(s: *u8, stream: *u8): i32;
 export extern "C" function codegen_get_preamble_skip_mask(): i32;
 export extern "C" function driver_preamble_io_net_line_at(i: i32): *u8;
 export extern "C" function driver_preamble_io_net_line_count(): i32;
 export extern "C" function driver_preamble_fs_path_line_at(i: i32): *u8;
 export extern "C" function driver_preamble_fs_path_line_count(): i32;
+export extern "C" function driver_preamble_fputs(s: *u8, stream: *u8): i32;
 
 // skip mask bits（与 CODEGEN_PREAMBLE_SKIP_* 一致）
 // 1=CORE_MACROS  2=DRIVER_HANDLE  4=UNDEF_REDEFINE  8=WEAK_IO_BATCH
@@ -68,9 +68,9 @@ export function write_io_net_abi_inline(cf: *u8): i32 {
       let rc: i32 = 0;
       unsafe {
         line = driver_preamble_io_net_line_at(i);
-        rc = fputs(line, cf);
+        rc = driver_preamble_fputs(line, cf);
       }
-      // fputs EOF == -1
+      // fputs EOF → residual 返回负值
       if (rc < 0) {
         return 1;
       }
@@ -93,7 +93,7 @@ export function write_fs_path_map_error_abi_inline(cf: *u8): i32 {
     let rc: i32 = 0;
     unsafe {
       line = driver_preamble_fs_path_line_at(i);
-      rc = fputs(line, cf);
+      rc = driver_preamble_fputs(line, cf);
     }
     if (rc < 0) {
       return 1;

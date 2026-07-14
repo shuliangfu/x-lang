@@ -140,6 +140,12 @@ int32_t driver_preamble_io_net_line_count(void);
 uint8_t *driver_preamble_fs_path_line_at(int32_t i);
 int32_t driver_preamble_fs_path_line_count(void);
 
+/**
+ * Cap residual：rt_preamble R2 fputs 经 opaque *u8（FILE*）。
+ * .x 禁 FILE* 类型；直接 fputs(*u8,*u8) 在 Ubuntu -Werror=incompatible-pointer-types 硬失败。
+ */
+int32_t driver_preamble_fputs(uint8_t *s, uint8_t *stream);
+
 /** pipeline 入口源码长度（大模块 typeck 跳过判定）。 */
 void driver_set_pipeline_entry_source_len(size_t len);
 size_t driver_pipeline_entry_source_len(void);

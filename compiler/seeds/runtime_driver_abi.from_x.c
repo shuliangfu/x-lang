@@ -1683,6 +1683,13 @@ int32_t driver_preamble_fs_path_line_count(void) {
     return driver_preamble_fs_path_lines_n;
 }
 
+/** Cap residual：opaque *u8 stream → FILE* fputs（EOF 时返回负值）。 */
+int32_t driver_preamble_fputs(uint8_t *s, uint8_t *stream) {
+    if (s == NULL || stream == NULL)
+        return -1;
+    return (int32_t)fputs((const char *)(void *)s, (FILE *)(void *)stream);
+}
+
 /**
  * 扫描预处理后源码是否含顶层 import（`import("` 或 `= import(`）。
  * 参数：src 预处理后缓冲；src_len 有效字节数。
