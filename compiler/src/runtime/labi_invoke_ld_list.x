@@ -1,13 +1,14 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-275 / P2 link_abi L6：invoke_ld 纯表（brew -L / compress -l* / tail flags）。
+// G-02f-275 / P2 link_abi L6：invoke_ld 纯表（brew -L / compress -l* / tail flags）→ R2 full。
 // 产品：PREFER_X_O → g05_try_x_to_o；冷启动 seeds/labi_invoke_ld_list.from_x.c。
-// hybrid 宏 SHUX_LABI_INVOKE_LD_LIST_FROM_X。
+// hybrid 宏 SHUX_LABI_INVOKE_LD_LIST_FROM_X（FROM_X rest 业务 H=0，仅 marker）。
 //
+// R2 full：.x 吃满 brew/compress/tail/driver/entry 纯表。
+// Cap residual：spawn/ld/cc IO 仍在 mega shux_asm_invoke_ld_platform / tail_libs（🔒）。
 // G-02f-L：真迁 if/else + let 绑定短字符串（依赖 W-string-nul；无全局表）。
 // 禁止「函数体仅 return "lit"」——parser 会 skip 整函数；用 let p + return p。
-// spawn/ld 路径仍在 mega shux_asm_invoke_ld_platform（🔒）。
 
 #[no_mangle]
 export function labi_ld_brew_lib_path_count(): i32 {

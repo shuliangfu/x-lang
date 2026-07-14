@@ -1,14 +1,22 @@
-/* seeds/labi_invoke_ld_list.from_x.c — G-02f-275 P2 link_abi L6 invoke_ld list pure
+/* seeds/labi_invoke_ld_list.from_x.c — G-02f-275 P2 link_abi L6 invoke_ld list pure → R2 full
  * Logic source: src/runtime/labi_invoke_ld_list.x
  * Hybrid: SHUX_LABI_INVOKE_LD_LIST_FROM_X + ld -r into runtime_link_abi.o
  *
- * Pure data: brew -L paths, compress -l* flags, common tail lib flags.
- * spawn/ld/cc IO stays in mega shux_asm_invoke_ld_platform / tail_libs.
+ * R2 full（2026-07-14）：公共业务符号由 full .x 提供：
+ *   labi_ld_brew_lib_path_{count,at}
+ *   labi_ld_compress_flag_{count,at} + labi_ld_flag_lz/zstd/brotli*
+ *   labi_ld_flag_lm/sqlite3/pthread/ldl/lc/lSystem/lws2_32/lbcrypt
+ *   labi_ld_driver_{clang,ld,gcc,cc} + labi_ld_mach_entry_main + labi_ld_flag_{e,o}
+ *   labi_ld_common_tail_flag_{count,at}
+ * Cap residual：spawn/ld/cc IO 仍在 mega shux_asm_invoke_ld_platform / tail_libs。
+ * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
+ * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
  *
- * G-02f-L：冷启动 / 回退 seed 与 .x 同构（if/else 短字面量，无 static 表），
- * 便于 nm 全局符号 IDENTICAL；产品 PREFER_X_O 优先 .x（W-string-nul）。
+ * Prove：seeds/labi_invoke_ld_list_surface.from_x.c（-E 同构）nm IDENTICAL。
  */
 #include <stddef.h>
+
+#ifndef SHUX_LABI_INVOKE_LD_LIST_FROM_X
 
 int labi_ld_brew_lib_path_count(void) {
   return 2;
@@ -87,4 +95,37 @@ const char *labi_ld_common_tail_flag_at(int i) {
   if (i == 6)
     return "-lSystem";
   return NULL;
+}
+
+#else
+int labi_ld_brew_lib_path_count(void);
+const char *labi_ld_brew_lib_path_at(int i);
+const char *labi_ld_flag_lz(void);
+const char *labi_ld_flag_lzstd(void);
+const char *labi_ld_flag_lbrotlienc(void);
+const char *labi_ld_flag_lbrotlidec(void);
+int labi_ld_compress_flag_count(void);
+const char *labi_ld_compress_flag_at(int i);
+const char *labi_ld_flag_lm(void);
+const char *labi_ld_flag_lsqlite3(void);
+const char *labi_ld_flag_pthread(void);
+const char *labi_ld_flag_lpthread(void);
+const char *labi_ld_flag_ldl(void);
+const char *labi_ld_flag_lc(void);
+const char *labi_ld_flag_lSystem(void);
+const char *labi_ld_flag_lws2_32(void);
+const char *labi_ld_flag_lbcrypt(void);
+const char *labi_ld_driver_clang(void);
+const char *labi_ld_driver_ld(void);
+const char *labi_ld_driver_gcc(void);
+const char *labi_ld_driver_cc(void);
+const char *labi_ld_mach_entry_main(void);
+const char *labi_ld_flag_e(void);
+const char *labi_ld_flag_o(void);
+int labi_ld_common_tail_flag_count(void);
+const char *labi_ld_common_tail_flag_at(int i);
+#endif
+
+int labi_invoke_ld_list_slice_marker(void) {
+  return 1;
 }

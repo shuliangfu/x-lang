@@ -374,11 +374,11 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           fi
         fi
         if [ -n "$_labi_l6_o" ]; then
-          # G-02f-L：PREFER_X_O=1 时优先 labi_invoke_ld_list.x → -E → cc；失败回退 seed C
+          # R2 labi_invoke_ld_list：PREFER_X_O=1 时 full .x（纯表真迁 H=0）；失败回退 seed 冷 C
           if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_labi_l6_x" ]; then
             if g05_try_x_to_o "$_labi_l6_x" "$_labi_l6_o"; then
               _labi_l6_ok=1
-              echo "g05_ensure: L6 invoke_ld list ← $_labi_l6_x (G-02f-L prefer .x)"
+              echo "g05_ensure: L6 invoke_ld list ← $_labi_l6_x (R2 full prefer .x)"
             fi
           fi
           if [ "$_labi_l6_ok" = "0" ] && [ -f "$_labi_l6_seed" ]; then
