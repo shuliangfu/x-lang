@@ -1644,7 +1644,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     fi
   fi
   # G-02f-9 / G-02f-352/361：backend_enc_dispatch.o
-  # 默认整 seed；PREFER 时 thin 109 arm64+ta shells + rest ld -r
+  # R2 thin full：PREFER_X_O=1 时 thin.x（120 公共门闩）+ seed-rest（FROM_X）ld -r
   _bed=seeds/backend_enc_dispatch.from_x.c
   _bed_thin_x=src/asm/backend_enc_dispatch_thin.x
   _bed_o=src/asm/backend_enc_dispatch.o
@@ -1661,10 +1661,10 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_L2_ENC_DISPATCH_THIN_FROM_X \
                -c -o "$_bed_rest_o" "$_bed" \
           && $CC -r -nostdlib -o "$_bed_o" "$_bed_thin_o" "$_bed_rest_o" 2>/dev/null; then
-          echo "g05_ensure: $_bed_o ← $_bed_thin_x + seed-rest (G-02f-352/419 L2 hybrid enc_dispatch thin)"
+          echo "g05_ensure: $_bed_o ← $_bed_thin_x + seed-rest (G-02f-352/419 R2 hybrid enc_dispatch thin)"
           _bed_done=1
         else
-          echo "g05_ensure: L2 hybrid enc_dispatch thin failed; fallback full seed" >&2
+          echo "g05_ensure: R2 hybrid enc_dispatch thin failed; fallback full seed" >&2
         fi
         rm -f "$_bed_thin_o" "$_bed_rest_o"
       fi

@@ -1,11 +1,12 @@
-/* G-02f-352～361：PREFER hybrid thin 由 src/asm/backend_enc_dispatch_thin.x；rest SHUX_L2_ENC_DISPATCH_THIN_FROM_X。
- */
-/* seeds/backend_enc_dispatch.from_x.c — G-02f-208 enc_dispatch *_arch closed; G-02f-9 product TU
+/* G-02f-352～361 / R2 thin full：PREFER hybrid thin 由 src/asm/backend_enc_dispatch_thin.x；
+ * rest SHUX_L2_ENC_DISPATCH_THIN_FROM_X（public 门闩→_impl；slice_marker + Cap residual 体）。
+ * seeds/backend_enc_dispatch.from_x.c — G-02f-208 enc_dispatch *_arch closed; G-02f-9 product TU
  * G-02f-130 true .x pure helpers.
  * G-02f-127 true .x pure helpers.
  * G-02f-100/101 enc helper gates.
  * Source intent: src/asm/backend_enc_dispatch.x (doc) + this seed (full C body).
- * Product: → src/asm/backend_enc_dispatch.o. Logic still C until full .x port.
+ * Product: → src/asm/backend_enc_dispatch.o.
+ * Cap residual: *_impl / enc C 尾 in rest.
  */
 /**
  * backend_enc_dispatch.c — backend_enc_*_arch 的 C 侧 ta 分派
@@ -2293,3 +2294,7 @@ int32_t arch_x86_64_enc_enc_cdqe_rax(struct platform_elf_ElfCodegenCtx *elf_ctx)
   return arch_x86_64_enc_enc_cdqe_rax_impl(elf_ctx);
 }
 #endif
+
+int backend_enc_dispatch_slice_marker(void) {
+    return 1;
+}
