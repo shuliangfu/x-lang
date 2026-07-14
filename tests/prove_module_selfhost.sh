@@ -57,8 +57,10 @@ MODULES=(
   # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：IO/ensure/push 在 mega append_std_objs
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_std_list.from_x.c 全 C 体
   "labi_std_list|src/runtime/labi_std_list.x|seeds/labi_std_list_surface.from_x.c||"
-  # labi_ondemand_list：L8b on_demand 符号组/rel 纯表；依赖 W-string-nul；产品 PREFER_X_O；本条锁 nm / 扩 N
-  "labi_ondemand_list|src/runtime/labi_ondemand_list.x|seeds/labi_ondemand_list.from_x.c||"
+  # labi_ondemand_list R2 full：.x 吃满 simple/kv/arrow/time/queue + rel_* 纯表；
+  # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：nm/push/ensure 在 mega append_on_demand
+  # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_ondemand_list.from_x.c 全 C 体
+  "labi_ondemand_list|src/runtime/labi_ondemand_list.x|seeds/labi_ondemand_list_surface.from_x.c||"
   # labi_ensure_list R2 full：.x 吃满 ensure catalog 纯表（26 条目 stem/out/seed/flags/step_at）；
   # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：spawn/cc IO 在 mega ensure_from_catalog
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_ensure_list.from_x.c 全 C 体

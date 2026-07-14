@@ -422,7 +422,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           fi
         fi
         if [ -n "$_labi_l8b_o" ]; then
-          # Track L：PREFER_X_O=1 时优先 labi_ondemand_list.x → -E → cc；失败回退 seed C
+          # R2 labi_ondemand_list：PREFER_X_O=1 时 full .x（on_demand 纯表真迁 H=0）；失败回退 seed 冷 C
           if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_labi_l8b_x" ]; then
             if g05_try_x_to_o "$_labi_l8b_x" "$_labi_l8b_o"; then
               _labi_l8b_ok=1

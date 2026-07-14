@@ -1,14 +1,17 @@
-/* seeds/labi_ondemand_list.from_x.c — G-02f-272 P2 link_abi L8b on_demand list pure
+/* seeds/labi_ondemand_list.from_x.c — G-02f-272 P2 link_abi L8b on_demand list pure → R2 full
  * Logic source: src/runtime/labi_ondemand_list.x
  * Hybrid: SHUX_LABI_ONDEMAND_LIST_FROM_X + ld -r into runtime_link_abi.o
  *
- * Pure data: co-emit / on-demand symbol groups → std rel paths.
- * Probe (nm) + push/ensure stay in mega shux_asm_ld_append_on_demand_user_objs.
+ * R2 full（2026-07-14）：公共业务符号由 full .x 提供（simple/kv/arrow/time/queue + rel_*）。
+ * Cap residual：nm 探针 + push/ensure 仍在 mega shux_asm_ld_append_on_demand_user_objs。
+ * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
+ * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
  *
- * G-02f-L：冷启动 / 回退 seed 与 .x 同构（if/else 短字面量，无 static 表），
- * 便于 nm 全局符号 IDENTICAL；产品 PREFER_X_O 优先 .x（W-string-nul）。
+ * Prove：seeds/labi_ondemand_list_surface.from_x.c（-E 同构）nm IDENTICAL。
  */
 #include <stddef.h>
+
+#ifndef SHUX_LABI_ONDEMAND_LIST_FROM_X
 
 /* Simple groups: string=0 core_types=1 encoding=2 base64=3 csv=4 schema=5 */
 
@@ -249,3 +252,48 @@ const char *labi_od_rel_thread_glue(void) { return "compiler/runtime_thread_glue
 const char *labi_od_rel_net_udp_batch(void) { return "compiler/runtime_net_udp_batch.o"; }
 const char *labi_od_rel_net_workers(void) { return "compiler/runtime_net_workers.o"; }
 const char *labi_od_rel_test_fn_invoke(void) { return "compiler/runtime_test_fn_invoke.o"; }
+
+#else
+int labi_od_simple_group_count(void);
+int labi_od_simple_group_sym_count(int g);
+const char *labi_od_simple_group_sym_at(int g, int i);
+const char *labi_od_simple_group_rel(int g);
+int labi_od_kv_sym_count(void);
+const char *labi_od_kv_sym_at(int i);
+const char *labi_od_kv_rel(void);
+const char *labi_od_kv_glue_rel(void);
+int labi_od_arrow_sym_count(void);
+const char *labi_od_arrow_sym_at(int i);
+const char *labi_od_arrow_rel(void);
+const char *labi_od_arrow_glue_rel(void);
+int labi_od_time_sym_count(void);
+const char *labi_od_time_sym_at(int i);
+const char *labi_od_time_rel(void);
+const char *labi_od_time_os_rel(void);
+int labi_od_queue_sym_count(void);
+const char *labi_od_queue_sym_at(int i);
+const char *labi_od_queue_rel(void);
+const char *labi_od_queue_contention_rel(void);
+const char *labi_od_rel_net(void);
+const char *labi_od_rel_thread(void);
+const char *labi_od_rel_heap(void);
+const char *labi_od_rel_set(void);
+const char *labi_od_rel_map(void);
+const char *labi_od_rel_async_scheduler(void);
+const char *labi_od_rel_core_mem(void);
+const char *labi_od_rel_sys_linux(void);
+const char *labi_od_rel_page_mmap(void);
+const char *labi_od_rel_sys(void);
+const char *labi_od_rel_core_slice(void);
+const char *labi_od_rel_test(void);
+const char *labi_od_rel_heap_user(void);
+const char *labi_od_rel_scheduler_glue(void);
+const char *labi_od_rel_thread_glue(void);
+const char *labi_od_rel_net_udp_batch(void);
+const char *labi_od_rel_net_workers(void);
+const char *labi_od_rel_test_fn_invoke(void);
+#endif
+
+int labi_ondemand_list_slice_marker(void) {
+  return 1;
+}
