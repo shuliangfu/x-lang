@@ -1,4 +1,5 @@
-/* G-02f-349：PREFER hybrid thin 由 src/asm/simd_loop_thin.x；rest SHUX_L2_SIMD_LOOP_THIN_FROM_X。
+/* G-02f-349 / R2 thin full：PREFER hybrid thin 由 src/asm/simd_loop_thin.x；
+ * rest SHUX_L2_SIMD_LOOP_THIN_FROM_X（public 门闩→_impl；slice_marker + Cap residual 体）。
  * seeds/simd_loop.from_x.c — G-02f-8 product SIMD loop peel TU
  * G-02f-215 runtime/f32-strip true .x; G-02f-214/213 peel/parse.
  * G-02f-133 true .x pure helpers.
@@ -12,7 +13,7 @@
  * G-02f-107 helper gates.
  * G-02f-106 helper gates.
  * Source intent: src/asm/simd_loop.x (doc) + this seed (full C body).
- * Product: → src/asm/simd_loop.o. Logic still C until full .x port.
+ * Product: → src/asm/simd_loop.o. Cap residual: *_impl / peel·emit C 尾 in rest.
  */
 /**
  * simd_loop.c — SIMD-S3：固定长度数组 index-add 循环剥离（无 cross-iteration carry）。
@@ -1047,4 +1048,8 @@ int32_t glue_try_simd_peel_index_add_while_elf_c(struct ast_ASTArena *arena,
     return glue_try_simd_peel_index_add_while_elf_c_impl(arena, elf_ctx, block_ref, loop_idx, ctx, ta);
 }
 #endif
+
+int simd_loop_slice_marker(void) {
+    return 1;
+}
 

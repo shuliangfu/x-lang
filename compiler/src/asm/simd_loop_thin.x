@@ -1,10 +1,11 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-349/384/403/404/411/412：simd_loop L2 thin — pure + parse + peel entry（22）。
+// G-02f-349/384/403/404/411/412：simd_loop R2 thin full — pure + parse + peel entry（22 公共面）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_SIMD_LOOP_THIN_FROM_X）ld -r → simd_loop.o
-// 对照：src/asm/simd_loop.x；默认仍整 seed rest。
-// Prove IDENTICAL：seeds/simd_loop_thin.from_x.c（本 thin 公共面 22；_impl 仍 U）
+// Prove IDENTICAL：seeds/simd_loop_thin_surface.from_x.c（本 thin 公共面；_impl 仍 U）
+// Cap residual：*_impl / peel·emit C 尾仍在 full seed rest。
+// 对照：src/asm/simd_loop.x；冷启动 full seed rest。
 //
 // FEAT: SSE2=1 SSE41=2 AVX2=8；GLUE_EXPR_MUL=6；VAR=3 ARRAY=10 I32=0
 //
