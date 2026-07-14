@@ -77,8 +77,11 @@ _X_FRONTEND="parser_x.o lexer_x.o typeck_x.o codegen_x.o x_frontend_link_alias.o
 _DRIVER_SUBCMD="driver_fmt_x.o driver_check_x.o driver_test_x.o driver_compile_x.o driver_build_x.o driver_run_x.o driver_emit_x.o"
 _GLUE_SUFFIX="build_asm/pipeline_glue_strict_minimal.o"
 
-# DRIVER_SEED_OBJS 展开（MAIN + runtime ABI + no_c runtime + x frontend + support + shims）
-_DRIVER_SEED_OBJS="$_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o src/runtime_pipeline_abi.o src/runtime_driver_no_c.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_X_FRONTEND $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o src/seed_link_compat.o"
+# Cap residual：与 Makefile RT_SEED_SLICE_OBJS / build_shux_asm asm_bootstrap_support_extra_link 同源。
+# runtime_driver_abi 始终 extern 这些符号；no_c runtime 在 SHUX_RT_*_FROM_X 下不内嵌 BSS。
+_RT_SEED_SLICE_OBJS="src/runtime/rt_arena_buf.o src/runtime/rt_emit_state.o src/runtime/rt_preamble.o src/runtime/rt_stack.o"
+# DRIVER_SEED_OBJS 展开（MAIN + runtime ABI + no_c runtime + rt slices + x frontend + support + shims）
+_DRIVER_SEED_OBJS="$_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o src/runtime_pipeline_abi.o src/runtime_driver_no_c.o $_RT_SEED_SLICE_OBJS src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_X_FRONTEND $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o src/seed_link_compat.o"
 
 # 最终链接 obj 序（与 make g05-export-relink 一致）
 G05_OBJS="$_DRIVER_SEED_OBJS driver_x.o $_PIPELINE_LINK_O lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $_DRIVER_SUBCMD src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $_USER_ASM_LINK $_GLUE_SUFFIX"

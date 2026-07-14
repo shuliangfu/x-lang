@@ -26,7 +26,8 @@ eval "$(bash scripts/g05_relink_env.sh)"
 CC="${G05_CC:-cc}"
 BASE_CFLAGS="-Wall -Wextra -I. -Iinclude -Isrc"
 # 与 Makefile RUNTIME_DRIVER_NO_C_CFLAGS 一致（runtime.c → runtime_driver_no_c.o）
-RUNTIME_DRIVER_NO_C_CFLAGS="-DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_PREPROCESS -DSHUX_USE_X_TYPECK -DSHUX_USE_X_CODEGEN -DSHUX_NO_C_FRONTEND -DSHUX_ASM_USE_COMPILER_IMPL_C"
+# Cap residual 数据在 RT_SEED_SLICE_OBJS（g05_relink_env）；runtime 开 SHUX_RT_*_FROM_X。
+RUNTIME_DRIVER_NO_C_CFLAGS="-DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_PREPROCESS -DSHUX_USE_X_TYPECK -DSHUX_USE_X_CODEGEN -DSHUX_NO_C_FRONTEND -DSHUX_ASM_USE_COMPILER_IMPL_C -DSHUX_RT_ARENA_BUF_FROM_X -DSHUX_RT_EMIT_STATE_FROM_X -DSHUX_RT_PREAMBLE_FROM_X -DSHUX_RT_STACK_FROM_X"
 
 if [ ! -f "${G05_BOOTSTRAP:-bootstrap_shuxc}" ] && [ ! -f shux ] && [ ! -f shux-c ]; then
   echo "g05_ensure_relink_prereqs: missing bootstrap binary (bootstrap_shuxc/shux/shux-c)" >&2
