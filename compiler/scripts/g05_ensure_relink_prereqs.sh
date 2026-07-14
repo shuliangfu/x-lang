@@ -138,6 +138,8 @@ g05_try_x_to_o() {
         -e '/^extern uint8_t \* calloc(/d' \
         -e '/^extern uint8_t \* malloc(/d' \
         -e '/^extern void free(/d' \
+        -e '/^extern uint8_t \* memcpy(/d' \
+        -e '/^extern void \* memcpy(/d' \
         -e '/^extern int32_t memcmp(/d' \
         -e '/^extern int memcmp(/d' \
         -e '/^extern char \* getenv(/d' \
@@ -1397,9 +1399,10 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         if [ -n "$_rio_thin_o" ] && [ -n "$_rio_rest_o" ] \
           && G05_X_O_WEAK=1 g05_try_x_to_o "$_rio_x" "$_rio_thin_o" \
           && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_L2_RIO_THIN_FROM_X \
+               -DSHUX_RUNTIME_IO_ABI_FROM_X \
                -c -o "$_rio_rest_o" "$_rio" \
           && $CC -r -nostdlib -o "$_rio_o" "$_rio_thin_o" "$_rio_rest_o" 2>/dev/null; then
-          echo "g05_ensure: $_rio_o ← $_rio_x + seed-rest (G-02f-334 L2 hybrid runtime_io_abi thin)"
+          echo "g05_ensure: $_rio_o ← $_rio_x + seed-rest (G-02f-334/rio R2 hybrid runtime_io_abi)"
           _rio_done=1
         else
           echo "g05_ensure: L2 hybrid runtime_io_abi failed; fallback full seed" >&2

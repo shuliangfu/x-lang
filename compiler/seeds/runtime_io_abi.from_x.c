@@ -511,3 +511,8 @@ int32_t std_sys_os_read_file_into(uint8_t *path, uint8_t *buf, int32_t cap) {
 }
 #endif
 
+/* R2：PREFER_X_O + FROM_X 下 rest 仅 Cap residual（4 平台 _impl）+ slice marker */
+int runtime_io_abi_slice_marker(void) {
+    return 1;
+}
+

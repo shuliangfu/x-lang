@@ -87,6 +87,10 @@ MODULES=(
   # rest 在 SHUX_L2_RDABI_THIN_FROM_X 下无 thin 公共体；Cap residual：*_impl/槽/path-read/spawn 在 full seed rest
   # prove 锁 thin surface IDENTICAL；冷/无 PREFER 仍可走 seeds/runtime_driver_abi.from_x.c 全 C 体
   "driver_abi|src/runtime_driver_abi_thin.x|seeds/runtime_driver_abi_thin_surface.from_x.c||"
+  # runtime_io_abi R2 full：.x 吃满 19 公共门闩 + 5 _impl 真迁（read/malloc/memcpy）；
+  # rest 在 SHUX_L2_RIO_THIN_FROM_X+FROM_X 下无 thin/impl 公共体；Cap residual：4 平台 _impl（mmap/fstat/O_*）
+  # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/runtime_io_abi.from_x.c 全 C 体
+  "runtime_io_abi|src/runtime_io_abi.x|seeds/runtime_io_abi_surface.from_x.c||"
   # fmt_check_cmd L2 thin 公共面：与产品 PREFER_X_O 同源（thin.x + full seed rest）；prove 锁 thin 面 IDENTICAL
   # full seed rest 仍持 _impl / walk·argv C 尾；产品 o 名 fmt_check_cmd_driver.o
   "fmt_check|src/driver/fmt_check_cmd_thin.x|seeds/fmt_check_cmd_thin.from_x.c||"
@@ -270,6 +274,8 @@ gen_x_o() {
         -e '/^extern uint8_t \* calloc(/d' \
         -e '/^extern uint8_t \* malloc(/d' \
         -e '/^extern void free(/d' \
+        -e '/^extern uint8_t \* memcpy(/d' \
+        -e '/^extern void \* memcpy(/d' \
         -e '/^extern int32_t memcmp(/d' \
         -e '/^extern int memcmp(/d' \
         -e '/^extern char \* getenv(/d' \
