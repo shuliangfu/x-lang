@@ -3394,14 +3394,18 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
     return 0;
   }
   let e: Expr = ast.ast_arena_expr_get(arena, expr_ref);
+  /* STRING_LIT(kind 59) → C `(uint8_t[]){ bytes... }`。
+   * W-string-nul：*u8 路径必须尾随 0（C 字符串 NUL）；空串已单独发 `0`。
+   * 内容上限 var_name[64] → slen≤64（旧 63 会丢第 64 字节）。
+   * slice 路径用 .length=slen 表达长度，数据侧同样补 NUL 便于 .data 当 cstr。 */
   if (pipeline_expr_kind_ord_at(arena, expr_ref) == 59) {
     let slen: i32 = e.var_name_len;
     let emit_slice: bool = false;
     if (slen < 0) {
       slen = 0;
     }
-    if (slen > 63) {
-      slen = 63;
+    if (slen > 64) {
+      slen = 64;
     }
     if (!ast.ref_is_null(e.resolved_type_ref) && e.resolved_type_ref > 0 && e.resolved_type_ref <= arena.num_types) {
       let sty: Type = ast.ast_arena_type_get(arena, e.resolved_type_ref);
@@ -3450,6 +3454,11 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           return -1;
         }
         si = si + 1;
+      }
+      /* trailing C NUL (not counted in slice .length) */
+      let nul_sep: u8[4] = [44, 32, 48, 0];
+      if (emit_bytes_4(out, nul_sep, 3) != 0) {
+        return -1;
       }
     }
     if (emit_slice) {

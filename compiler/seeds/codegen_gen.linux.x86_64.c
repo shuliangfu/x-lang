@@ -2743,11 +2743,12 @@ SHUX_LIB_WEAK int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct code
   if (expr_ref <= 0 || expr_ref > (arena)->num_exprs) {   return 0;
  }
   struct ast_Expr e = ast_arena_expr_get(arena, expr_ref);
+  /* STRING_LIT: *u8 path must trailing-NUL; slen cap 64 (var_name[64]). W-string-nul */
   if (pipeline_expr_kind_ord_at(arena, expr_ref) == 59) {   int32_t slen = (e).var_name_len;
   int emit_slice = 0;
   if (slen < 0) {   (slen = (0));
  }
-  if (slen > 63) {   (slen = (63));
+  if (slen > 64) {   (slen = (64));
  }
   if ((!ast_ref_is_null((e).resolved_type_ref)) && (e).resolved_type_ref > 0 && (e).resolved_type_ref <= (arena)->num_types) {   struct ast_Type sty = ast_arena_type_get(arena, (e).resolved_type_ref);
   if ((sty).kind == ast_TypeKind_TYPE_SLICE) {   (emit_slice = (1));
@@ -2781,6 +2782,11 @@ SHUX_LIB_WEAK int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct code
  }
     ++si;
   }
+  /* trailing C NUL (not counted in slice .length) */
+  { uint8_t nul_sep[4] = { 44, 32, 48, 0 };
+  if (codegen_emit_bytes_4(out, nul_sep, 3) != 0) {   return (-1);
+ }
+ }
  }
   if (emit_slice) {   uint8_t slice_tail[18] = { 32, 125, 44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 0, 0, 0, 0 };
   if (codegen_emit_bytes_from_ptr(out, (&((slice_tail)[0])), 14) != 0) {   return (-1);

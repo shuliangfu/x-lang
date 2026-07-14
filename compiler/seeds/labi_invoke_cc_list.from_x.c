@@ -4,49 +4,49 @@
  *
  * Pure data: linux harden flags, skip-native env names, invoke_cc rel paths.
  * fork/exec/spawn IO stays in mega shux_invoke_cc_impl.
+ *
+ * G-02f-L：冷启动 / 回退 seed 与 .x 同构（if/else 短字面量，无 static 表），
+ * 便于 nm 全局符号 IDENTICAL；产品 PREFER_X_O 优先 .x（W-string-nul）。
  */
 #include <stddef.h>
 #include <stdlib.h>
 
-/* ---- Linux release link harden argv tokens (order matters) ---- */
-static const char *const g_labi_linux_harden_flags[] = {
-    "-pie",
-    "-fpie",
-    "-Wl,-z,noexecstack",
-    "-Wl,-z,relro",
-    "-Wl,--allow-multiple-definition",
-};
-
 int labi_linux_harden_flag_count(void) {
-  return (int)(sizeof g_labi_linux_harden_flags / sizeof g_labi_linux_harden_flags[0]);
+  return 5;
 }
 
 const char *labi_linux_harden_flag_at(int i) {
-  int n = labi_linux_harden_flag_count();
-  if (i < 0 || i >= n)
+  if (i < 0)
     return NULL;
-  return g_labi_linux_harden_flags[i];
+  if (i == 0)
+    return "-pie";
+  if (i == 1)
+    return "-fpie";
+  if (i == 2)
+    return "-Wl,-z,noexecstack";
+  if (i == 3)
+    return "-Wl,-z,relro";
+  if (i == 4)
+    return "-Wl,--allow-multiple-definition";
+  return NULL;
 }
 
-/* ---- env names that force skip -march=native / -flto ---- */
-static const char *const g_labi_skip_native_envs[] = {
-    "CI",
-    "SHUX_CI_DOCKER",
-    "SHUX_NO_MARCH_NATIVE",
-};
-
 int labi_invoke_cc_skip_native_env_count(void) {
-  return (int)(sizeof g_labi_skip_native_envs / sizeof g_labi_skip_native_envs[0]);
+  return 3;
 }
 
 const char *labi_invoke_cc_skip_native_env_at(int i) {
-  int n = labi_invoke_cc_skip_native_env_count();
-  if (i < 0 || i >= n)
+  if (i < 0)
     return NULL;
-  return g_labi_skip_native_envs[i];
+  if (i == 0)
+    return "CI";
+  if (i == 1)
+    return "SHUX_CI_DOCKER";
+  if (i == 2)
+    return "SHUX_NO_MARCH_NATIVE";
+  return NULL;
 }
 
-/* getenv 🔒 — still pure policy table; used by invoke_cc / hybrid product path. */
 int invoke_cc_skip_native_tuning(void) {
   int n = labi_invoke_cc_skip_native_env_count();
   int i;
@@ -58,7 +58,6 @@ int invoke_cc_skip_native_tuning(void) {
   return 0;
 }
 
-/* ---- include_root-relative paths used by invoke_cc needs_* branches ---- */
 const char *labi_icc_rel_core_builtin_o(void) { return "core/builtin/builtin.o"; }
 const char *labi_icc_rel_core_builtin_abi_h(void) { return "core/builtin/builtin_abi.h"; }
 const char *labi_icc_rel_core_mem_o(void) { return "core/mem/mem.o"; }
@@ -72,29 +71,36 @@ const char *labi_icc_rel_json_o(void) { return "std/json/json.o"; }
 const char *labi_icc_rel_log_o(void) { return "std/log/log.o"; }
 const char *labi_icc_rel_socketio_o(void) { return "std/socketio/socketio.o"; }
 
-/* Indexed table for audit / unit (same 12 rels). */
-static const char *const g_labi_icc_needs_rels[] = {
-    "core/builtin/builtin.o",
-    "core/builtin/builtin_abi.h",
-    "core/mem/mem.o",
-    "core/slice/slice.o",
-    "std/db/kv/kv.o",
-    "std/db/arrow/arrow.o",
-    "std/csv/csv.o",
-    "std/error/error.o",
-    "std/heap/heap.o",
-    "std/json/json.o",
-    "std/log/log.o",
-    "std/socketio/socketio.o",
-};
-
 int labi_icc_needs_rel_count(void) {
-  return (int)(sizeof g_labi_icc_needs_rels / sizeof g_labi_icc_needs_rels[0]);
+  return 12;
 }
 
 const char *labi_icc_needs_rel_at(int i) {
-  int n = labi_icc_needs_rel_count();
-  if (i < 0 || i >= n)
+  if (i < 0)
     return NULL;
-  return g_labi_icc_needs_rels[i];
+  if (i == 0)
+    return "core/builtin/builtin.o";
+  if (i == 1)
+    return "core/builtin/builtin_abi.h";
+  if (i == 2)
+    return "core/mem/mem.o";
+  if (i == 3)
+    return "core/slice/slice.o";
+  if (i == 4)
+    return "std/db/kv/kv.o";
+  if (i == 5)
+    return "std/db/arrow/arrow.o";
+  if (i == 6)
+    return "std/csv/csv.o";
+  if (i == 7)
+    return "std/error/error.o";
+  if (i == 8)
+    return "std/heap/heap.o";
+  if (i == 9)
+    return "std/json/json.o";
+  if (i == 10)
+    return "std/log/log.o";
+  if (i == 11)
+    return "std/socketio/socketio.o";
+  return NULL;
 }

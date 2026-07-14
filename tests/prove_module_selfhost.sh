@@ -39,6 +39,8 @@ MODULES=(
   "labi_path_pure|src/runtime/labi_path_pure.x|seeds/labi_path_pure.from_x.c||"
   # labi_gates：L9 thin null-check 转发；产品 PREFER_X_O；冷启动 seed；本条锁 nm / 扩 N
   "labi_gates|src/runtime/labi_gates.x|seeds/labi_gates.from_x.c||"
+  # labi_invoke_cc_list：L5 短字面量表；依赖 W-string-nul；产品 PREFER_X_O；本条锁 nm / 扩 N
+  "labi_invoke_cc_list|src/runtime/labi_invoke_cc_list.x|seeds/labi_invoke_cc_list.from_x.c||"
   # hybrid thin+C-tail：seed 多 _impl/scratch；x 多 append_*（.x 真迁拼装）。CORE 锁公共 API 面不丢。
   "diagnostic|src/runtime_driver_diagnostic.x|seeds/runtime_driver_diagnostic.from_x.c||core:driver_diag_append_cstr,driver_diag_append_i32,driver_diag_append_name"
 )
@@ -136,30 +138,33 @@ gen_seed_o() {
   $CC $BASE_CFLAGS -I. -c -o "$out" "$seed" 2>"${TMP_DIR}/cc_err.txt"
 }
 
-# 已定义符号裸名（去 Mach-O 前导 _），一行一个
-# 跳过编译器局部常量（l_constinit.* / l_.str 等），只比业务符号
+# 已定义**全局**业务符号裸名（去 Mach-O 前导 _），一行一个
+# 只取 nm 大写类型（T/D/B/R/S/C…）：忽略局部 t/d/s（字符串池 l_constinit / l_.str、
+# static 表、ltmp）与 U（含 stack_chk 引用）。W-string-nul 后 .x 与 seed 字符串编码
+# 不同属预期，IDENTICAL 比公共 API 面而非 rodata 形名。
 defined_sym_names() {
   # LC_ALL=C：comm 要求字节序排序；locale sort 在 Ubuntu 会触发 “not in sorted order”
-  nm "$1" 2>/dev/null | awk '$1 != "" && $2 != "U" {
-    s=$3
-    if (s ~ /^_/) s=substr(s,2)
-    # Clang/GCC 局部：l_constinit.N、l_.str、.L* 等
-    if (s ~ /^l_/) next
-    if (s ~ /^\./) next
-    if (s ~ /^L\./) next
-    print s
-  }' | LC_ALL=C sort -u
+  nm "$1" 2>/dev/null | awk '
+    $2 ~ /^[A-Z]$/ && $2 != "U" {
+      s = $3
+      if (s ~ /^_/) s = substr(s, 2)
+      # 保险：仍丢编译器局部命名（极少数平台大写类型误标）
+      if (s ~ /^l_/) next
+      if (s ~ /^\./) next
+      if (s ~ /^L\./) next
+      if (s ~ /^ltmp/) next
+      print s
+    }' | LC_ALL=C sort -u
 }
 
-# nm 比较符号（只比较定义的符号，忽略未定义引用）— IDENTICAL 模式
+# nm 比较符号 — IDENTICAL 模式：全局业务符号集合相等（可退役 seed）
 compare_symbols() {
   local o1="$1"
   local o2="$2"
   local sym1="$TMP_DIR/sym1.txt"
   local sym2="$TMP_DIR/sym2.txt"
-  # 提取已定义符号（t/T/d/B/R = 定义，U = 未定义引用）
-  nm "$o1" | awk '$1 != "" && $2 != "U" {print $2, $3}' | sort >"$sym1"
-  nm "$o2" | awk '$1 != "" && $2 != "U" {print $2, $3}' | sort >"$sym2"
+  defined_sym_names "$o1" >"$sym1"
+  defined_sym_names "$o2" >"$sym2"
   diff "$sym1" "$sym2"
 }
 
