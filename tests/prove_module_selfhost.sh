@@ -99,9 +99,10 @@ MODULES=(
   # rest 在 SHUX_L2_SIMD_LOOP_THIN_FROM_X 下无 thin 公共体；Cap residual：*_impl / peel·emit 在 full seed rest
   # prove 锁 thin surface IDENTICAL；冷/无 PREFER 仍可走 seeds/simd_loop.from_x.c 全 C 体
   "simd_loop|src/asm/simd_loop_thin.x|seeds/simd_loop_thin_surface.from_x.c||"
-  # simd_enc L2 thin 公共面：与产品 PREFER_X_O 同源（thin.x + full seed rest）；prove 锁 thin 面 IDENTICAL
-  # full seed rest 仍持 _impl / encode C 尾；产品 o 名 simd_enc.o
-  "simd_enc|src/asm/simd_enc_thin.x|seeds/simd_enc_thin.from_x.c||"
+  # simd_enc R2 thin full：thin.x 吃满 74 公共门闩（pure+insn+try_hw forward→_impl）；
+  # rest 在 SHUX_L2_SIMD_ENC_THIN_FROM_X 下无 thin 公共体；Cap residual：*_impl / encode 在 full seed rest
+  # prove 锁 thin surface IDENTICAL；冷/无 PREFER 仍可走 seeds/simd_enc.from_x.c 全 C 体
+  "simd_enc|src/asm/simd_enc_thin.x|seeds/simd_enc_thin_surface.from_x.c||"
   # backend_enc_dispatch L2 thin 公共面：与产品 PREFER_X_O 同源（thin.x + full seed rest）；prove 锁 thin 面 IDENTICAL
   # full seed rest 仍持 _impl / enc C 尾；产品 o 名 backend_enc_dispatch.o
   "backend_enc_dispatch|src/asm/backend_enc_dispatch_thin.x|seeds/backend_enc_dispatch_thin.from_x.c||"

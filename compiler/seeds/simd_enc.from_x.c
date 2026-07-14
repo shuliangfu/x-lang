@@ -1,5 +1,6 @@
-/* seeds/simd_enc.from_x.c — G-02f-212 select/pshufd/binop; G-02f-211/7 product pure SIMD encode TU
- * G-02f-348：PREFER hybrid thin 由 src/asm/simd_enc_thin.x；rest SHUX_L2_SIMD_ENC_THIN_FROM_X。
+/* G-02f-348 / R2 thin full：PREFER hybrid thin 由 src/asm/simd_enc_thin.x；
+ * rest SHUX_L2_SIMD_ENC_THIN_FROM_X（public 门闩→_impl；slice_marker + Cap residual 体）。
+ * seeds/simd_enc.from_x.c — G-02f-212 select/pshufd/binop; G-02f-211/7 product pure SIMD encode TU
  * G-02f-125 true .x pure helpers.
  * G-02f-124 true .x pure helpers.
  * G-02f-123 true .x pure helpers.
@@ -13,7 +14,7 @@
  * G-02f-108 helper gates.
  * Source intent: src/asm/simd_enc.x (doc) + this seed (full C encode body).
  * Pure hardware-vector encode helpers; no OS #if. Product: → src/asm/simd_enc.o
- * Content from former src/asm/simd_enc.inc (logic still C until full .x port).
+ * Cap residual: *_impl / encode C 尾 in rest.
  */
 /**
  * simd_enc.c — SIMD-S3/S4：x86 SSE/AVX2 与 arm64 NEON 硬件向量编码（shuffle/select/add/…）。
@@ -1829,3 +1830,7 @@ int32_t simd_enc_f32_soa_col_movups_xmm1_at_idx(struct platform_elf_ElfCodegenCt
 }
 #endif
 
+
+int simd_enc_slice_marker(void) {
+    return 1;
+}

@@ -1578,7 +1578,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     fi
   fi
   # G-02f-7 / G-02f-348：simd_enc.o
-  # 默认整 seed；PREFER_X_O=1 时 simd_enc_thin.x（74：try_hw/arm64 closeout）+ seed-rest ld -r
+  # R2 thin full：PREFER_X_O=1 时 thin.x（74 公共门闩）+ seed-rest（FROM_X）ld -r
   _simd_enc=seeds/simd_enc.from_x.c
   _simd_enc_thin_x=src/asm/simd_enc_thin.x
   _simd_enc_o=src/asm/simd_enc.o
@@ -1596,10 +1596,10 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_L2_SIMD_ENC_THIN_FROM_X \
                -c -o "$_simd_enc_rest_o" "$_simd_enc" \
           && $CC -r -nostdlib -o "$_simd_enc_o" "$_simd_enc_thin_o" "$_simd_enc_rest_o" 2>/dev/null; then
-          echo "g05_ensure: $_simd_enc_o ← $_simd_enc_thin_x + seed-rest (G-02f-348/418 L2 hybrid simd_enc thin)"
+          echo "g05_ensure: $_simd_enc_o ← $_simd_enc_thin_x + seed-rest (G-02f-348/418 R2 hybrid simd_enc thin)"
           _simd_enc_done=1
         else
-          echo "g05_ensure: L2 hybrid simd_enc thin failed; fallback full seed" >&2
+          echo "g05_ensure: R2 hybrid simd_enc thin failed; fallback full seed" >&2
         fi
         rm -f "$_simd_enc_thin_o" "$_simd_enc_rest_o"
       fi

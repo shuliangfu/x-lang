@@ -1,10 +1,11 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-348/385/390–399/417/418：simd_enc L2 thin — pure + insn + try_hw forward（74 门闩）。
+// G-02f-348/385/390–399/417/418：simd_enc R2 thin full — pure + insn + try_hw forward（74 公共面）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_SIMD_ENC_THIN_FROM_X）ld -r → simd_enc.o
-// 完整逻辑对照：src/asm/simd_enc.x；产品默认仍整 seed。
-// Prove IDENTICAL：seeds/simd_enc_thin.from_x.c（本 thin 公共面 74；_impl 仍 U）
+// Prove IDENTICAL：seeds/simd_enc_thin_surface.from_x.c（本 thin 公共面；_impl 仍 U）
+// Cap residual：*_impl / encode C 尾仍在 full seed rest。
+// 对照：src/asm/simd_enc.x；冷启动 full seed rest。
 //
 
 // arm64 INS encoding: 0x6E040000 | ((dst&3)<<19) | ((src&3)<<13) | 0x401
