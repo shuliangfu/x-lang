@@ -2008,6 +2008,12 @@ driver_build_x.o: src/driver/build.x scripts/driver_leaf_x_to_o.sh
 driver_run_x.o: src/driver/run.x scripts/driver_leaf_x_to_o.sh
 	@DRIVER_SUBCMD_DIRS="$(DRIVER_SUBCMD_DIRS)" BASE_CFLAGS="$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc" \
 	  bash scripts/driver_leaf_x_to_o.sh src/driver/run.x $@ 'run_eq_word:driver_run_eq_word,cmd_run:driver_cmd_run' seeds/driver_run_gen.linux.x86_64.c
+# Track L：compile 叶子退役（prove IDENTICAL）；emit 仍 pin seed（-E 局部大 struct 字段赋值误用 ->）
+DRIVER_COMPILE_RENAME = compile_dispatch_asm_backend:driver_compile_dispatch_asm_backend,compile_dispatch_emit_c_path:driver_compile_dispatch_emit_c_path,eq_minus_o:driver_eq_minus_o,eq_minus_L:driver_eq_minus_L,eq_minus_backend:driver_eq_minus_backend,eq_minus_target:driver_eq_minus_target,eq_minus_target_cpu:driver_eq_minus_target_cpu,eq_print_target_cpu:driver_eq_print_target_cpu,eq_minus_O:driver_eq_minus_O,eq_flto:driver_eq_flto,eq_minus_freestanding:driver_eq_minus_freestanding,eq_legacy_f32_abi:driver_eq_legacy_f32_abi,eq_fsanitize_address:driver_eq_fsanitize_address,eq_asm_word:driver_eq_asm_word,eq_c_word:driver_eq_c_word,path_ends_x:driver_path_ends_x,target_has_arm:driver_target_has_arm,run_compiler_full_x_post_parse:driver_run_compiler_full_x_post_parse,run_compiler_full_x:driver_run_compiler_full_x
+driver_compile_x.o: src/driver/compile.x scripts/driver_leaf_x_to_o.sh
+	@DRIVER_SUBCMD_DIRS="$(DRIVER_SUBCMD_DIRS) -L src/parser -L src/typeck -L src/codegen -L src/lsp -L src/preprocess -L src/driver" \
+	  BASE_CFLAGS="$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc" \
+	  bash scripts/driver_leaf_x_to_o.sh src/driver/compile.x $@ '$(DRIVER_COMPILE_RENAME)' seeds/driver_compile_gen.linux.x86_64.c
 
 # 考古：可选再生成工作区 *_gen.c（不进 DRIVER_SEED_PREREQS；叶子已退役）
 driver_fmt_gen.c: src/driver/fmt.x
@@ -2098,8 +2104,7 @@ driver_emit_gen.c: src/driver/emit.x
 	  if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
 	fi
 
-driver_compile_x.o: driver_compile_gen.c
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -c driver_compile_gen.c -o $@
+# driver_compile_x.o：见上文 Track L 叶子规则（.x→.o）；勿再从 pinned gen.c 覆盖
 driver_emit_x.o: driver_emit_gen.c
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -c driver_emit_gen.c -o $@
 

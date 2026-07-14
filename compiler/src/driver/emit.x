@@ -119,21 +119,18 @@ function emit_copy_lib_roots_to_ctx(state_key: *u8, ctx: *PipelineDepCtx): void 
 }
 
 /**
-* -x -E emit 路径用 PipelineDepCtx 零基线（8 字段字面量 + 显式填 backend/index
-* 等）。
-*/
-function pipeline_dep_ctx_for_emit(use_asm: i32, target: i32): PipelineDepCtx {
-  let ctx: PipelineDepCtx = PipelineDepCtx {
-    ndep: 0,
-    entry_dir_buf: [],
-    entry_dir_len: 0,
-    num_lib_roots: 0
-  };
+ * -x -E emit 路径用 PipelineDepCtx 零基线。
+ * 【Why 不返回 by-value】shux -E 对大 struct 按值返回会把后续字段赋值误编成 `ctx->field`
+ * （ctx 为值而非指针），cc 失败；改 out-pointer 与 seed `driver_pipeline_dep_ctx_for_emit` 语义一致。
+ */
+function pipeline_dep_ctx_fill_for_emit(ctx: *PipelineDepCtx, use_asm: i32, target: i32): void {
+  ctx.ndep = 0;
+  ctx.entry_dir_len = 0;
+  ctx.num_lib_roots = 0;
   ctx.use_asm_backend = use_asm;
   ctx.target_arch = target;
   ctx.current_func_index = -1;
   ctx.current_func_single_empty_param_index = -1;
-  return ctx;
 }
 
 extern function driver_emit_lib_root_count(state: *u8): i32;
@@ -264,7 +261,13 @@ function run_x_emit_x(state: *DriverXEmitState): i32 {
   if (state.path_len >= 0 && state.path_len < 511) {
     state.path_buf[state.path_len] = 0 as u8;
   }
-  let ctx: PipelineDepCtx = pipeline_dep_ctx_for_emit(state.use_asm_backend, state.target_arch);
+  let ctx: PipelineDepCtx = PipelineDepCtx {
+    ndep: 0,
+    entry_dir_buf: [],
+    entry_dir_len: 0,
+    num_lib_roots: 0
+  };
+  pipeline_dep_ctx_fill_for_emit(&ctx, state.use_asm_backend, state.target_arch);
   if (ew_ensure_source_buffers(&ctx) != 0) {
     return 1;
   }
