@@ -1,4 +1,4 @@
-/* regen from fmt_check_cmd_thin.x -E (path_resolve_abs pure + path BSS slot) */
+/* regen from fmt_check_cmd_thin.x -E (append_repo + missing_diag pure) */
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/types.h>
@@ -49,6 +49,7 @@ extern void file_list_clear(void);
 extern int32_t fmt_try_walk_if_product_subdir(uint8_t * sub);
 extern void fmt_walk_cwd_fallback(void);
 extern void check_collect_default_product_dirs(void);
+extern void collect_paths_missing_diag_pure(uint8_t * path);
 extern void collect_paths_from_arg(uint8_t * arg);
 extern void check_append_repo_lib_roots(uint8_t * path, uint8_t * check_argv, int32_t * n);
 extern void check_argv_append_default_libs_for_path(uint8_t * path, uint8_t * check_argv, int32_t * n);
@@ -91,6 +92,7 @@ static void init_globals(void) {
 extern int32_t lsp_diag_print_stderr_human(uint8_t * path);
 extern int32_t driver_run_compiler_full(int32_t argc, uint8_t * argv);
 extern void driver_dep_seeded_clear_all(void);
+extern void diag_report_with_code(uint8_t * file, int32_t line, int32_t col, uint8_t * kind, uint8_t * code, uint8_t * msg, uint8_t * detail);
 extern int32_t driver_collect_mode_is_check_impl(void);
 extern int32_t check_user_passed_L_get_impl(void);
 extern int32_t fmt_user_ignore_count_impl(void);
@@ -620,8 +622,6 @@ void file_list_clear(void) {
   (void)(0);
   return;
 }
-extern void collect_paths_missing_diag_impl(uint8_t * path);
-extern void check_append_repo_lib_roots_impl(uint8_t * path, uint8_t * check_argv, int32_t * n);
 extern void check_argv_append_default_libs_for_path_impl(uint8_t * path, uint8_t * check_argv, int32_t * n);
 int32_t fmt_try_walk_if_product_subdir(uint8_t * sub) {
   if ((sub ==((uint8_t *)(0)))) {
@@ -699,6 +699,57 @@ void check_collect_default_product_dirs(void) {
   (void)(0);
   return;
 }
+void collect_paths_missing_diag_pure(uint8_t * path) {
+  {
+    uint8_t msg[600] = {};
+    (void)(((msg)[0] = 99));
+    (void)(((msg)[1] = 97));
+    (void)(((msg)[2] = 110));
+    (void)(((msg)[3] = 110));
+    (void)(((msg)[4] = 111));
+    (void)(((msg)[5] = 116));
+    (void)(((msg)[6] = 32));
+    (void)(((msg)[7] = 97));
+    (void)(((msg)[8] = 99));
+    (void)(((msg)[9] = 99));
+    (void)(((msg)[10] = 101));
+    (void)(((msg)[11] = 115));
+    (void)(((msg)[12] = 115));
+    (void)(((msg)[13] = 32));
+    (void)(((msg)[14] = 112));
+    (void)(((msg)[15] = 97));
+    (void)(((msg)[16] = 116));
+    (void)(((msg)[17] = 104));
+    (void)(((msg)[18] = 32));
+    (void)(((msg)[19] = 39));
+    int32_t at = 20;
+    if ((path !=((uint8_t *)(0)))) {
+      int32_t i = 0;
+      while ((i < 512)) {
+        uint8_t c = (path)[i];
+        if ((c ==0)) {
+          break;
+        }
+        if ((at >=598)) {
+          break;
+        }
+        (void)(((msg)[at] = c));
+        (void)((at = (at + 1)));
+        (void)((i = (i + 1)));
+      }
+    }
+    if ((at < 599)) {
+      (void)(((msg)[at] = 39));
+      (void)((at = (at + 1)));
+    }
+    (void)(((msg)[at] = 0));
+    uint8_t * kind = driver_collect_error_kind();
+    uint8_t * code = driver_collect_missing_path_code();
+    (void)(diag_report_with_code(path, 0, 0, kind, code, &((msg)[0]), ((uint8_t *)(0))));
+  }
+  (void)(0);
+  return;
+}
 void collect_paths_from_arg(uint8_t * arg) {
   if ((arg ==((uint8_t *)(0)))) {
     return;
@@ -706,7 +757,7 @@ void collect_paths_from_arg(uint8_t * arg) {
   {
     int32_t k = fmt_path_stat_kind(arg);
     if ((k < 0)) {
-      (void)(collect_paths_missing_diag_impl(arg));
+      (void)(collect_paths_missing_diag_pure(arg));
       return;
     }
     if ((k ==1)) {
@@ -722,8 +773,139 @@ void collect_paths_from_arg(uint8_t * arg) {
   return;
 }
 void check_append_repo_lib_roots(uint8_t * path, uint8_t * check_argv, int32_t * n) {
+  if ((check_argv ==((uint8_t *)(0)))) {
+    return;
+  }
+  if ((n ==((int32_t *)(0)))) {
+    return;
+  }
+  if ((check_user_passed_L_get() !=0)) {
+    return;
+  }
   {
-    (void)(check_append_repo_lib_roots_impl(path, check_argv, n));
+    uint8_t start[512] = {};
+    int32_t last_slash = (0 - 1);
+    int32_t k = 0;
+    uint8_t cur[512] = {};
+    int32_t ci = 0;
+    int32_t depth = 0;
+    if (((n)[0] >=58)) {
+      return;
+    }
+    if ((path ==((uint8_t *)(0)))) {
+      uint8_t * p0 = getcwd(&((start)[0]), 512);
+      if ((p0 ==((uint8_t *)(0)))) {
+        return;
+      }
+      (void)(check_try_append_lib_root(check_argv, n, &((start)[0])));
+      return;
+    }
+    if (((path)[0] ==0)) {
+      uint8_t * p1 = getcwd(&((start)[0]), 512);
+      if ((p1 ==((uint8_t *)(0)))) {
+        return;
+      }
+      (void)(check_try_append_lib_root(check_argv, n, &((start)[0])));
+      return;
+    }
+    if (((path)[0] ==47)) {
+      int32_t i = 0;
+      while ((i < 511)) {
+        uint8_t c = (path)[i];
+        (void)(((start)[i] = c));
+        if ((c ==0)) {
+          break;
+        }
+        (void)((i = (i + 1)));
+      }
+      (void)(((start)[511] = 0));
+    } else {
+      uint8_t * p2 = getcwd(&((start)[0]), 512);
+      if ((p2 ==((uint8_t *)(0)))) {
+        return;
+      }
+      int32_t sl = 0;
+      while ((sl < 511)) {
+        if (((start)[sl] ==0)) {
+          break;
+        }
+        (void)((sl = (sl + 1)));
+      }
+      int32_t plen = 0;
+      while ((plen < 512)) {
+        if (((path)[plen] ==0)) {
+          break;
+        }
+        (void)((plen = (plen + 1)));
+      }
+      if ((((sl + 1) + plen) >=512)) {
+        return;
+      }
+      (void)(((start)[sl] = 47));
+      (void)((sl = (sl + 1)));
+      int32_t j = 0;
+      while ((j <=plen)) {
+        uint8_t c2 = (path)[j];
+        (void)(((start)[(sl + j)] = c2));
+        if ((c2 ==0)) {
+          break;
+        }
+        (void)((j = (j + 1)));
+      }
+    }
+    while ((k < 512)) {
+      if (((start)[k] ==0)) {
+        break;
+      }
+      if (((start)[k] ==47)) {
+        (void)((last_slash = k));
+      }
+      (void)((k = (k + 1)));
+    }
+    if ((last_slash > 0)) {
+      (void)(((start)[last_slash] = 0));
+    } else {
+      if ((last_slash ==0)) {
+        (void)(((start)[1] = 0));
+      }
+    }
+    while ((ci < 512)) {
+      uint8_t cc = (start)[ci];
+      (void)(((cur)[ci] = cc));
+      if ((cc ==0)) {
+        break;
+      }
+      (void)((ci = (ci + 1)));
+    }
+    while ((depth < 8)) {
+      int32_t plash = (0 - 1);
+      int32_t pi = 0;
+      (void)(check_try_append_lib_root(check_argv, n, &((cur)[0])));
+      if (((cur)[0] ==47)) {
+        if (((cur)[1] ==0)) {
+          break;
+        }
+      }
+      while ((pi < 512)) {
+        if (((cur)[pi] ==0)) {
+          break;
+        }
+        if (((cur)[pi] ==47)) {
+          (void)((plash = pi));
+        }
+        (void)((pi = (pi + 1)));
+      }
+      if ((plash < 0)) {
+        break;
+      }
+      if ((plash ==0)) {
+        (void)(((cur)[0] = 47));
+        (void)(((cur)[1] = 0));
+      } else {
+        (void)(((cur)[plash] = 0));
+      }
+      (void)((depth = (depth + 1)));
+    }
   }
   (void)(0);
   return;

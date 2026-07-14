@@ -1,8 +1,9 @@
-/* R2 thin + Cap residual pure 深迁（续 path_resolve_abs pure）：
+/* R2 thin + Cap residual pure 深迁（续 append_repo + missing_diag pure）：
  * PREFER hybrid thin 由 src/driver/fmt_check_cmd_thin.x（lit/entry + pure 真体）；
  * rest SHUX_L2_FMT_CHECK_THIN_FROM_X：无 thin 公共体；pure-duplicate _impl 剔除
- * （含 set_current_file / print / cwd_fallback / try_walk / invoke/dep_clear / …）；
- * Cap residual：walk opendir/stat/argv/大 BSS / missing-diag / one_file_body 仍 rest。
+ * （含 set_current_file / print / cwd_fallback / try_walk / path_resolve_abs /
+ *  append_repo_lib_roots / missing_diag / invoke/dep_clear / …）；
+ * Cap residual：walk opendir/stat/argv/大 BSS / one_file_body 仍 rest。
  * 冷启动无宏：全 C 体（含 pure _impl + public 门闩）。
  * Regen thin surface: shux -E src/driver/fmt_check_cmd_thin.x → thin_surface.
  */
@@ -337,9 +338,10 @@ void check_try_append_lib_root(char **check_argv, int *n, const char *dir) {
 
 /**
  * 从 path 所在目录向上查找含 core/ + std/ 的仓库根并注入 -L。
+ * pure 权威：thin.x check_append_repo_lib_roots（getcwd+字节拼+dirname 上溯+try_append）；
+ * 冷启动保留 _impl + public；FROM_X 下剔除 pure-dup _impl（H↓）。
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-408：实现体始终 seed；public PREFER 时 thin forward */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 void check_append_repo_lib_roots_impl(const char *path, char **check_argv, int *n) {
     char start[512];
     char cur[512];
@@ -391,7 +393,6 @@ void check_append_repo_lib_roots_impl(const char *path, char **check_argv, int *
     }
 }
 
-#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 void check_append_repo_lib_roots(const char *path, char **check_argv, int *n) {
   check_append_repo_lib_roots_impl(path, check_argv, n);
 }
@@ -899,12 +900,16 @@ int fmt_path_stat_kind(const char *path) {
 }
 #endif
 
-/* Cap residual：format diag 🔒；pure orch（thin/cold）调此 impl */
+/* pure 权威：thin.x collect_paths_missing_diag_pure（字节拼 msg + diag_report_with_code）；
+ * 冷启动保留 _impl（reportf）；FROM_X 下剔除 pure-dup _impl（H↓）。
+ */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 void collect_paths_missing_diag_impl(const char *path) {
     diag_reportf_with_code(path, 0, 0, driver_collect_error_kind(),
                            driver_collect_missing_path_code(), NULL,
                            "cannot access path '%s'", path);
 }
+#endif
 
 /**
  * 解析路径参数：文件直接加入；目录递归收集。

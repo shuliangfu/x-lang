@@ -7,14 +7,15 @@
 //   check_collect_default_product_dirs / check_one_file 门闩 /
 //   try_append 早退 / parse_ignore 前缀 / invoke_compile·dep_clear 分派 /
 //   set_current_file + print_collected + cwd_fallback +
-//   try_walk_if_product_subdir + path_resolve_abs）进 thin.x；
+//   try_walk_if_product_subdir + path_resolve_abs +
+//   append_repo_lib_roots + missing_diag）进 thin.x；
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_FMT_CHECK_THIN_FROM_X）ld -r
 //   → fmt_check_cmd_driver.o
 // Prove IDENTICAL：seeds/fmt_check_cmd_thin_surface.from_x.c
-// Cap residual：walk opendir/stat/argv/大 BSS / missing-diag format /
+// Cap residual：walk opendir/stat/argv/大 BSS /
 //   check_one_file_body 等 *_impl 仍在 full seed rest；FROM_X 下 pure-duplicate
 //   _impl 已剔除（含 set_current_file / print / cwd_fallback / try_walk /
-//   path_resolve_abs；H↓）。
+//   path_resolve_abs / append_repo / missing_diag；H↓）。
 //
 // -E 约束：无 while 重赋值；无零参-only 不稳写法；6 参用扁平 if。
 //
@@ -25,6 +26,7 @@ export extern "C" function getcwd(buf: *u8, size: i32): *u8;
 export extern "C" function lsp_diag_print_stderr_human(path: *u8): i32;
 export extern "C" function driver_run_compiler_full(argc: i32, argv: *u8): i32;
 export extern "C" function driver_dep_seeded_clear_all(): void;
+export extern "C" function diag_report_with_code(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void;
 export extern "C" function driver_collect_mode_is_check_impl(): i32;
 export extern "C" function check_user_passed_L_get_impl(): i32;
 export extern "C" function fmt_user_ignore_count_impl(): i32;
@@ -657,9 +659,8 @@ export function file_list_clear(): void {
   }
 }
 
-// ---- G-02f-408：try_walk pure；collect orch + cwd_fallback pure；lib roots Cap ----
-export extern "C" function collect_paths_missing_diag_impl(path: *u8): void;
-export extern "C" function check_append_repo_lib_roots_impl(path: *u8, check_argv: *u8, n: *i32): void;
+// ---- G-02f-408：try_walk pure；collect orch + cwd_fallback pure；
+//      append_repo pure / missing_diag pure；argv_append Cap ----
 export extern "C" function check_argv_append_default_libs_for_path_impl(path: *u8, check_argv: *u8, n: *i32): void;
 
 // pure：getcwd + 字节拼接 cwd/sub + stat_kind public + walk（无 snprintf/rest _impl）
@@ -743,7 +744,59 @@ export function check_collect_default_product_dirs(): void {
   }
 }
 
-// pure 编排：null / stat_kind / missing diag🔒 / dir→walk / file→push
+// pure missing-diag：拼 "cannot access path '…'" + diag_report_with_code（无 reportf）
+function collect_paths_missing_diag_pure(path: *u8): void {
+  unsafe {
+    let msg: u8[600] = [];
+    // "cannot access path '"
+    msg[0] = 99;
+    msg[1] = 97;
+    msg[2] = 110;
+    msg[3] = 110;
+    msg[4] = 111;
+    msg[5] = 116;
+    msg[6] = 32;
+    msg[7] = 97;
+    msg[8] = 99;
+    msg[9] = 99;
+    msg[10] = 101;
+    msg[11] = 115;
+    msg[12] = 115;
+    msg[13] = 32;
+    msg[14] = 112;
+    msg[15] = 97;
+    msg[16] = 116;
+    msg[17] = 104;
+    msg[18] = 32;
+    msg[19] = 39;
+    let at: i32 = 20;
+    if (path != 0 as *u8) {
+      let i: i32 = 0;
+      while (i < 512) {
+        let c: u8 = path[i];
+        if (c == 0) {
+          break;
+        }
+        if (at >= 598) {
+          break;
+        }
+        msg[at] = c;
+        at = at + 1;
+        i = i + 1;
+      }
+    }
+    if (at < 599) {
+      msg[at] = 39;
+      at = at + 1;
+    }
+    msg[at] = 0;
+    let kind: *u8 = driver_collect_error_kind();
+    let code: *u8 = driver_collect_missing_path_code();
+    diag_report_with_code(path, 0, 0, kind, code, &msg[0], 0 as *u8);
+  }
+}
+
+// pure 编排：null / stat_kind / missing diag pure / dir→walk / file→push
 #[no_mangle]
 export function collect_paths_from_arg(arg: *u8): void {
   if (arg == 0 as *u8) {
@@ -752,7 +805,7 @@ export function collect_paths_from_arg(arg: *u8): void {
   unsafe {
     let k: i32 = fmt_path_stat_kind(arg);
     if (k < 0) {
-      collect_paths_missing_diag_impl(arg);
+      collect_paths_missing_diag_pure(arg);
       return;
     }
     if (k == 1) {
@@ -766,10 +819,147 @@ export function collect_paths_from_arg(arg: *u8): void {
   }
 }
 
+// pure：从 path 所在目录向上 8 层找含 core+std 的仓库根并 try_append（无 snprintf/rest _impl）
 #[no_mangle]
 export function check_append_repo_lib_roots(path: *u8, check_argv: *u8, n: *i32): void {
+  if (check_argv == 0 as *u8) {
+    return;
+  }
+  if (n == 0 as *i32) {
+    return;
+  }
+  if (check_user_passed_L_get() != 0) {
+    return;
+  }
   unsafe {
-    check_append_repo_lib_roots_impl(path, check_argv, n);
+    if (n[0] >= 58) {
+      return;
+    }
+    let start: u8[512] = [];
+    if (path == 0 as *u8) {
+      let p0: *u8 = getcwd(&start[0], 512);
+      if (p0 == 0 as *u8) {
+        return;
+      }
+      check_try_append_lib_root(check_argv, n, &start[0]);
+      return;
+    }
+    if (path[0] == 0) {
+      let p1: *u8 = getcwd(&start[0], 512);
+      if (p1 == 0 as *u8) {
+        return;
+      }
+      check_try_append_lib_root(check_argv, n, &start[0]);
+      return;
+    }
+    // 解析 start：绝对路径拷贝，相对路径 cwd/path
+    if (path[0] == 47) {
+      let i: i32 = 0;
+      while (i < 511) {
+        let c: u8 = path[i];
+        start[i] = c;
+        if (c == 0) {
+          break;
+        }
+        i = i + 1;
+      }
+      start[511] = 0;
+    } else {
+      let p2: *u8 = getcwd(&start[0], 512);
+      if (p2 == 0 as *u8) {
+        return;
+      }
+      let sl: i32 = 0;
+      while (sl < 511) {
+        if (start[sl] == 0) {
+          break;
+        }
+        sl = sl + 1;
+      }
+      let plen: i32 = 0;
+      while (plen < 512) {
+        if (path[plen] == 0) {
+          break;
+        }
+        plen = plen + 1;
+      }
+      if (sl + 1 + plen >= 512) {
+        return;
+      }
+      start[sl] = 47;
+      sl = sl + 1;
+      let j: i32 = 0;
+      while (j <= plen) {
+        let c2: u8 = path[j];
+        start[sl + j] = c2;
+        if (c2 == 0) {
+          break;
+        }
+        j = j + 1;
+      }
+    }
+    // 取目录部分：最后 '/' 截断（根 '/' 保留为 "/"）
+    let last_slash: i32 = 0 - 1;
+    let k: i32 = 0;
+    while (k < 512) {
+      if (start[k] == 0) {
+        break;
+      }
+      if (start[k] == 47) {
+        last_slash = k;
+      }
+      k = k + 1;
+    }
+    if (last_slash > 0) {
+      start[last_slash] = 0;
+    } else {
+      if (last_slash == 0) {
+        start[1] = 0;
+      }
+    }
+    // cur = start；向上 8 层 try_append
+    let cur: u8[512] = [];
+    let ci: i32 = 0;
+    while (ci < 512) {
+      let cc: u8 = start[ci];
+      cur[ci] = cc;
+      if (cc == 0) {
+        break;
+      }
+      ci = ci + 1;
+    }
+    let depth: i32 = 0;
+    while (depth < 8) {
+      check_try_append_lib_root(check_argv, n, &cur[0]);
+      // cur == "/"
+      if (cur[0] == 47) {
+        if (cur[1] == 0) {
+          break;
+        }
+      }
+      // parent = dirname(cur)
+      let plash: i32 = 0 - 1;
+      let pi: i32 = 0;
+      while (pi < 512) {
+        if (cur[pi] == 0) {
+          break;
+        }
+        if (cur[pi] == 47) {
+          plash = pi;
+        }
+        pi = pi + 1;
+      }
+      if (plash < 0) {
+        break;
+      }
+      if (plash == 0) {
+        cur[0] = 47;
+        cur[1] = 0;
+      } else {
+        cur[plash] = 0;
+      }
+      depth = depth + 1;
+    }
   }
 }
 
