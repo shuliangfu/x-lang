@@ -43,6 +43,8 @@ MODULES=(
   "labi_invoke_cc_list|src/runtime/labi_invoke_cc_list.x|seeds/labi_invoke_cc_list.from_x.c||"
   # labi_invoke_ld_list：L6 brew/compress/tail 短字面量表；依赖 W-string-nul；产品 PREFER_X_O；本条锁 nm / 扩 N
   "labi_invoke_ld_list|src/runtime/labi_invoke_ld_list.x|seeds/labi_invoke_ld_list.from_x.c||"
+  # labi_freestanding_list：L7 env/io_sym/ensure 短字面量表；依赖 W-string-nul；产品 PREFER_X_O；本条锁 nm / 扩 N
+  "labi_freestanding_list|src/runtime/labi_freestanding_list.x|seeds/labi_freestanding_list.from_x.c||"
   # hybrid thin+C-tail：seed 多 _impl/scratch；x 多 append_*（.x 真迁拼装）。CORE 锁公共 API 面不丢。
   "diagnostic|src/runtime_driver_diagnostic.x|seeds/runtime_driver_diagnostic.from_x.c||core:driver_diag_append_cstr,driver_diag_append_i32,driver_diag_append_name"
 )
