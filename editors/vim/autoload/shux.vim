@@ -13,7 +13,7 @@
 
 " 【Why】用 split() 而非多行 [...] 列表：Vim 9.1 在 -S 脚本模式下
 " \ 行继续符不可靠，单行 split() 兼容所有 Vim 版本
-let s:keywords = split('function let const if else while for loop break continue return defer match struct enum trait impl type import extern export packed soa align unsafe region with_arena as goto await self panic true false')
+let s:keywords = split('function let const if else while for loop break continue return defer match struct enum trait impl type import extern export packed soa align unsafe region with_arena as goto await async run spawn self panic true false')
 
 let s:types = split('i8 i16 i32 i64 isize u8 u16 u32 u64 usize f32 f64 bool void i32x4 i32x8 i32x16 u32x4 u32x8 u32x16')
 

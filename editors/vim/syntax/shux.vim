@@ -24,7 +24,7 @@ syn keyword shuxDecl function struct enum trait impl type import const let
 " 修饰符
 syn keyword shuxModifier export extern packed soa align
 " 其他
-syn keyword shuxKeyword region with_arena unsafe as await
+syn keyword shuxKeyword region with_arena unsafe as await async run spawn
 syn keyword shuxBoolean true false
 syn keyword shuxConstant self panic
 
