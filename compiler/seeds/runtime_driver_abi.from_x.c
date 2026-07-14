@@ -2497,3 +2497,433 @@ void driver_asm_work_cleanup(void) {
     free(g_asm_work_p[15]); /* msg */
     driver_asm_work_reset();
 }
+
+/* ========== Cap residual: rt_run_compiler_parsed R2 full ========== */
+
+#ifndef X_FULL_MAX_LIB_ROOTS
+#define X_FULL_MAX_LIB_ROOTS 16
+#endif
+#ifndef SHUX_TMP_PREFIX
+#if !defined(_WIN32) && !defined(_WIN64)
+#define SHUX_TMP_PREFIX "/tmp/shux_"
+#else
+#define SHUX_TMP_PREFIX "shux_"
+#endif
+#endif
+
+typedef struct DriverCompileParsedAbi {
+    const char *input_path;
+    const char *out_path;
+    const char *lib_roots_arr[X_FULL_MAX_LIB_ROOTS];
+    int n_lib_roots;
+    int want_asm_backend;
+    const char *target;
+    const char *opt_level;
+    int use_lto;
+} DriverCompileParsedAbi;
+
+extern int write_io_net_abi_inline(FILE *cf);
+extern int write_fs_path_map_error_abi_inline(FILE *cf);
+extern int shux_write_path_bytes(const char *path, const void *data, size_t len);
+extern void diag_reportf(const char *file, int line, int col, const char *kind, const char *detail,
+                         const char *fmt, ...);
+extern void diag_reportf_with_code(const char *file, int line, int col, const char *kind, const char *code,
+                                   const char *detail, const char *fmt, ...);
+extern void runtime_diag_errno_path(const char *file, const char *kind, const char *op, const char *path);
+extern void runtime_diag_errno_path_pair(const char *file, const char *kind, const char *op,
+                                         const char *from_path, const char *to_path);
+extern void driver_unlink_failed_output(const char *out_path);
+extern const char *shux_std_io_o_path(const char *argv0);
+extern const char *shux_rel_o_path_from_argv0(const char *argv0, const char *rel);
+extern const char *shux_runtime_panic_o_path(const char *argv0);
+extern const char *shux_repo_root_from_argv0(const char *argv0);
+extern int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char *target,
+                          const char *opt_level, int use_lto, const char *io_o, const char *fs_o,
+                          const char *process_o, const char *string_o, const char *heap_o, const char *path_o,
+                          const char *runtime_o, const char *runtime_panic_o, const char *net_o,
+                          const char *thread_o, const char *time_o, const char *random_o, const char *env_o,
+                          const char *sync_o, const char *encoding_o, const char *base64_o, const char *crypto_o,
+                          const char *log_o, const char *atomic_o, const char *channel_o, const char *backtrace_o,
+                          const char *hash_o, const char *math_o, const char *sort_o, const char *ffi_o,
+                          const char *db_o, const char *elf_o, const char *json_o, const char *csv_o,
+                          const char *regex_o, const char *compress_o, const char *unicode_o, const char *dynlib_o,
+                          const char *http_o, const char *tar_o, const char *simd_o, const char *context_o,
+                          const char *datetime_o, const char *uuid_o, const char *url_o, const char *cli_o,
+                          const char *security_o, const char *config_o, const char *cache_o, const char *trace_o,
+                          const char *task_o, const char *schema_o, const char *test_o, const char *include_root,
+                          const char *async_scheduler_o);
+extern void codegen_reset_preamble_skip_mask(void);
+extern void codegen_or_preamble_skip_mask(unsigned mask);
+#ifndef CODEGEN_PREAMBLE_SKIP_STD_IO_CORE_MACROS
+#define CODEGEN_PREAMBLE_SKIP_STD_IO_CORE_MACROS 1u
+#define CODEGEN_PREAMBLE_SKIP_STD_IO_UNDEF_REDEFINE 4u
+#endif
+
+uint8_t *driver_parsed_input_path(void *p) {
+    if (!p) return NULL;
+    return (uint8_t *)(void *)((DriverCompileParsedAbi *)p)->input_path;
+}
+uint8_t *driver_parsed_out_path(void *p) {
+    if (!p) return NULL;
+    return (uint8_t *)(void *)((DriverCompileParsedAbi *)p)->out_path;
+}
+uint8_t *driver_parsed_lib_roots(void *p) {
+    if (!p) return NULL;
+    return (uint8_t *)(void *)((DriverCompileParsedAbi *)p)->lib_roots_arr;
+}
+int32_t driver_parsed_n_lib_roots(void *p) {
+    if (!p) return 0;
+    return (int32_t)((DriverCompileParsedAbi *)p)->n_lib_roots;
+}
+int32_t driver_parsed_want_asm(void *p) {
+    if (!p) return 0;
+    return (int32_t)((DriverCompileParsedAbi *)p)->want_asm_backend;
+}
+uint8_t *driver_parsed_target(void *p) {
+    if (!p) return NULL;
+    return (uint8_t *)(void *)((DriverCompileParsedAbi *)p)->target;
+}
+static const char g_driver_parsed_opt_default[] = "2";
+uint8_t *driver_parsed_opt_level(void *p) {
+    const char *o;
+    if (!p) return (uint8_t *)(void *)g_driver_parsed_opt_default;
+    o = ((DriverCompileParsedAbi *)p)->opt_level;
+    if (!o) return (uint8_t *)(void *)g_driver_parsed_opt_default;
+    return (uint8_t *)(void *)o;
+}
+int32_t driver_parsed_use_lto(void *p) {
+    if (!p) return 0;
+    return (int32_t)((DriverCompileParsedAbi *)p)->use_lto;
+}
+
+int32_t driver_parsed_try_c_after_pp(uint8_t *input_path, uint8_t *src, size_t src_len,
+                                     uint8_t *lib_roots, int32_t n_lib, uint8_t *out_path,
+                                     int32_t argc, uint8_t *argv, uint8_t *opt_level,
+                                     int32_t use_lto, int32_t ndefines, uint8_t *defines) {
+    /*
+     * 产品 runtime_driver_no_c 为 SHUX_NO_C_FRONTEND：固定继续 .x pipeline。
+     * 冷启动全 C 体（seeds/rt_run_compiler_parsed.from_x.c 无 FROM_X）仍含完整 C 分支。
+     */
+    (void)input_path;
+    (void)src;
+    (void)src_len;
+    (void)lib_roots;
+    (void)n_lib;
+    (void)out_path;
+    (void)argc;
+    (void)argv;
+    (void)opt_level;
+    (void)use_lto;
+    (void)ndefines;
+    (void)defines;
+    return -2;
+}
+
+void driver_pipeline_dep_ctx_set_skip_codegen_dep_0(void *ctx, int32_t v) {
+    if (!ctx) return;
+    ((struct ast_PipelineDepCtx *)ctx)->skip_codegen_dep_0 = (int)v;
+}
+
+static char g_driver_parsed_tmp_c[64];
+
+uint8_t *driver_parsed_open_out_file(uint8_t *out_path, uint8_t *tmp_c_out64, int32_t *emit_stdout) {
+    char tmp[128];
+    int fd;
+    FILE *cf;
+    if (emit_stdout)
+        *emit_stdout = 0;
+    g_driver_parsed_tmp_c[0] = 0;
+    if (tmp_c_out64)
+        tmp_c_out64[0] = 0;
+    if (!out_path) {
+        if (emit_stdout)
+            *emit_stdout = 1;
+        return (uint8_t *)(void *)stdout;
+    }
+    snprintf(tmp, sizeof(tmp), "%sshux_x.XXXXXX", SHUX_TMP_PREFIX);
+    fd = mkstemp(tmp);
+    if (fd < 0) {
+        runtime_diag_errno_path((const char *)(void *)out_path, "build error", "mkstemp", tmp);
+        return NULL;
+    }
+    cf = fdopen(fd, "w");
+    if (!cf) {
+        runtime_diag_errno_path((const char *)(void *)out_path, "build error", "fdopen", tmp);
+        close(fd);
+        unlink(tmp);
+        return NULL;
+    }
+    snprintf(g_driver_parsed_tmp_c, sizeof(g_driver_parsed_tmp_c), "%s.c", tmp);
+    if (rename(tmp, g_driver_parsed_tmp_c) != 0) {
+        runtime_diag_errno_path_pair((const char *)(void *)out_path, "build error", "rename", tmp,
+                                     g_driver_parsed_tmp_c);
+        unlink(tmp);
+        fclose(cf);
+        return NULL;
+    }
+    if (tmp_c_out64) {
+        size_t n = strlen(g_driver_parsed_tmp_c);
+        if (n > 63)
+            n = 63;
+        memcpy(tmp_c_out64, g_driver_parsed_tmp_c, n);
+        tmp_c_out64[n] = 0;
+    }
+    return (uint8_t *)(void *)cf;
+}
+
+void driver_parsed_fclose(uint8_t *fp) {
+    if (!fp || fp == (uint8_t *)(void *)stdout)
+        return;
+    fclose((FILE *)(void *)fp);
+}
+
+int32_t driver_parsed_fclose_rc(uint8_t *fp) {
+    if (!fp || fp == (uint8_t *)(void *)stdout)
+        return 0;
+    return fclose((FILE *)(void *)fp) == 0 ? 0 : 1;
+}
+
+int32_t driver_parsed_write_out(uint8_t *fp, uint8_t *data, int32_t len) {
+    FILE *cf = (FILE *)(void *)fp;
+    size_t first_line = 0;
+    int need_preamble;
+    static const char min_preamble[] =
+        "/* generated */\n#include <stdint.h>\n#include <stddef.h>\n#include <stdlib.h>\n#include "
+        "<stdio.h>\n#include <string.h>\n";
+    if (!cf || !data || len < 0)
+        return 1;
+    while (first_line < (size_t)len && data[first_line] != '\n')
+        first_line++;
+    if (first_line < (size_t)len)
+        first_line++;
+    need_preamble =
+        (len > 0 && data[0] != '#' && (len < 2 || data[0] != '/' || data[1] != '*'));
+    if (need_preamble) {
+        if (fwrite(min_preamble, 1, sizeof(min_preamble) - 1, cf) != (size_t)(sizeof(min_preamble) - 1))
+            return 1;
+    }
+    if (fwrite(data, 1, first_line, cf) != first_line)
+        return 1;
+    if (write_io_net_abi_inline(cf) != 0)
+        return 1;
+    if (write_fs_path_map_error_abi_inline(cf) != 0)
+        return 1;
+    if (fwrite(data + first_line, 1, (size_t)len - first_line, cf) != (size_t)len - first_line)
+        return 1;
+    return 0;
+}
+
+int32_t driver_parsed_invoke_cc(uint8_t *tmp_c, uint8_t *out_path, uint8_t *opt_level, int32_t use_lto,
+                                uint8_t *argv0) {
+    const char *c_paths[1];
+    const char *a0 = (const char *)(void *)argv0;
+    const char *opt = opt_level ? (const char *)(void *)opt_level : "2";
+    const char *io_o = shux_std_io_o_path(a0);
+    const char *fs_o = NULL;
+    const char *process_o = shux_rel_o_path_from_argv0(a0, "std/process/process.o");
+    const char *string_o = shux_rel_o_path_from_argv0(a0, "std/string/string.o");
+    const char *heap_o = NULL;
+    const char *path_o = shux_rel_o_path_from_argv0(a0, "std/path/path.o");
+    const char *runtime_o = shux_rel_o_path_from_argv0(a0, "std/runtime/runtime.o");
+    const char *runtime_panic_o = shux_runtime_panic_o_path(a0);
+    const char *net_o = shux_rel_o_path_from_argv0(a0, "std/net/net.o");
+    const char *thread_o = shux_rel_o_path_from_argv0(a0, "std/thread/thread.o");
+    const char *time_o = shux_rel_o_path_from_argv0(a0, "std/time/time.o");
+    const char *random_o = shux_rel_o_path_from_argv0(a0, "std/random/random.o");
+    const char *env_o = shux_rel_o_path_from_argv0(a0, "std/env/env.o");
+    const char *sync_o = shux_rel_o_path_from_argv0(a0, "std/sync/sync.o");
+    const char *encoding_o = shux_rel_o_path_from_argv0(a0, "std/encoding/encoding.o");
+    const char *base64_o = shux_rel_o_path_from_argv0(a0, "std/base64/base64.o");
+    const char *crypto_o = shux_rel_o_path_from_argv0(a0, "std/crypto/crypto.o");
+    const char *log_o = shux_rel_o_path_from_argv0(a0, "std/log/log.o");
+    const char *atomic_o = shux_rel_o_path_from_argv0(a0, "std/atomic/atomic.o");
+    const char *channel_o = shux_rel_o_path_from_argv0(a0, "std/channel/channel.o");
+    const char *backtrace_o = shux_rel_o_path_from_argv0(a0, "std/backtrace/backtrace.o");
+    const char *hash_o = shux_rel_o_path_from_argv0(a0, "std/hash/hash.o");
+    const char *math_o = shux_rel_o_path_from_argv0(a0, "std/math/math.o");
+    const char *sort_o = shux_rel_o_path_from_argv0(a0, "std/sort/sort.o");
+    const char *ffi_o = shux_rel_o_path_from_argv0(a0, "std/ffi/ffi.o");
+    const char *db_o = shux_rel_o_path_from_argv0(a0, "std/db/sqlite/sqlite.o");
+    const char *elf_o = shux_rel_o_path_from_argv0(a0, "std/elf/elf.o");
+    const char *json_o = shux_rel_o_path_from_argv0(a0, "std/json/json.o");
+    const char *csv_o = shux_rel_o_path_from_argv0(a0, "std/csv/csv.o");
+    const char *regex_o = shux_rel_o_path_from_argv0(a0, "std/regex/regex.o");
+    const char *compress_o = NULL;
+    const char *unicode_o = shux_rel_o_path_from_argv0(a0, "std/unicode/unicode.o");
+    const char *dynlib_o = shux_rel_o_path_from_argv0(a0, "std/dynlib/dynlib.o");
+    const char *http_o = shux_rel_o_path_from_argv0(a0, "std/http/http.o");
+    const char *tar_o = shux_rel_o_path_from_argv0(a0, "std/tar/tar.o");
+    const char *simd_o = shux_rel_o_path_from_argv0(a0, "std/simd/simd.o");
+    const char *context_o = shux_rel_o_path_from_argv0(a0, "std/context/context.o");
+    const char *datetime_o = shux_rel_o_path_from_argv0(a0, "std/datetime/datetime.o");
+    const char *uuid_o = shux_rel_o_path_from_argv0(a0, "std/uuid/uuid.o");
+    const char *url_o = shux_rel_o_path_from_argv0(a0, "std/url/url.o");
+    const char *cli_o = shux_rel_o_path_from_argv0(a0, "std/cli/cli.o");
+    const char *security_o = shux_rel_o_path_from_argv0(a0, "std/security/security.o");
+    const char *config_o = shux_rel_o_path_from_argv0(a0, "std/config/config.o");
+    const char *cache_o = shux_rel_o_path_from_argv0(a0, "std/cache/cache.o");
+    const char *trace_o = shux_rel_o_path_from_argv0(a0, "std/trace/trace.o");
+    const char *task_o = shux_rel_o_path_from_argv0(a0, "std/task/task.o");
+    const char *schema_o = shux_rel_o_path_from_argv0(a0, "std/schema/schema.o");
+    const char *test_o = shux_rel_o_path_from_argv0(a0, "std/test/test.o");
+    int cc_ret;
+    if (!tmp_c || !out_path)
+        return 1;
+    c_paths[0] = (const char *)(void *)tmp_c;
+    cc_ret = shux_invoke_cc(c_paths, 1, (const char *)(void *)out_path, NULL, opt, (int)use_lto, io_o,
+                            fs_o, process_o, string_o, heap_o, path_o, runtime_o, runtime_panic_o, net_o,
+                            thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o, log_o,
+                            atomic_o, channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o, db_o, elf_o, json_o,
+                            csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, simd_o, context_o,
+                            datetime_o, uuid_o, url_o, cli_o, security_o, config_o, cache_o, trace_o, task_o,
+                            schema_o, test_o, shux_repo_root_from_argv0(a0), NULL);
+    if (cc_ret != 0) {
+        driver_unlink_failed_output((const char *)(void *)out_path);
+        diag_reportf_with_code(NULL, 0, 0, "build error", "BLD001", NULL,
+                               "cc failed, keeping generated C: %s", (const char *)(void *)tmp_c);
+        return 1;
+    }
+    if (!getenv("SHUX_KEEP_C"))
+        unlink((const char *)(void *)tmp_c);
+    else
+        diag_reportf(NULL, 0, 0, "note", NULL, "kept generated C: %s", (const char *)(void *)tmp_c);
+    return 0;
+}
+
+void driver_parsed_maybe_dump_prep(uint8_t *input_path, uint8_t *src, size_t src_len) {
+    if (!getenv("SHUX_DUMP_PREP") || !src)
+        return;
+    if (shux_write_path_bytes("/tmp/shux_prep_entry.bin", src, src_len) == 0) {
+        diag_reportf((const char *)(void *)input_path, 0, 0, "note", NULL,
+                     "dumped prep entry (%zu bytes) to /tmp/shux_prep_entry.bin", src_len);
+    }
+}
+
+int32_t driver_parsed_deps_has_std_io_core(uint8_t *dep_paths, int32_t n_deps) {
+    int32_t j;
+    char **dp = (char **)(void *)dep_paths;
+    if (!dp || n_deps <= 0)
+        return 0;
+    for (j = 0; j < n_deps; j++) {
+        if (dp[j] && strcmp(dp[j], "std.io.core") == 0)
+            return 1;
+    }
+    return 0;
+}
+
+void driver_parsed_apply_preamble_skip(uint8_t *dep_paths, int32_t n_deps) {
+    codegen_reset_preamble_skip_mask();
+    if (!driver_parsed_deps_has_std_io_core(dep_paths, n_deps)) {
+        codegen_or_preamble_skip_mask(CODEGEN_PREAMBLE_SKIP_STD_IO_CORE_MACROS |
+                                      CODEGEN_PREAMBLE_SKIP_STD_IO_UNDEF_REDEFINE);
+    }
+}
+
+/*
+ * parsed work 槽：
+ * p: 0 path 1 src 2 out_path 3 arena 4 module 5 entry 6 dsrc 7 dpath 8 dlens
+ *    9 dar 10 dmod 11 out_buf 12 pctx 13 kind 14 code 15 msg 16 lib 17 opt
+ *    18 argv 19 cf 20 tmp_c 21 target 22 defs
+ * i: 0 nlib 1 ndeps 2 nimp 3 main 4 want_asm 5 emit_stdout 6 ndef 7 use_lto
+ *    8 argc 9 ec 10 j 11 check 12 n_funcs
+ * z: 0 src_len 1 asz 2 msz
+ */
+#define DRIVER_PARSED_WORK_NP 24
+#define DRIVER_PARSED_WORK_NI 14
+#define DRIVER_PARSED_WORK_NZ 4
+static uint8_t *g_parsed_work_p[DRIVER_PARSED_WORK_NP];
+static int32_t g_parsed_work_i[DRIVER_PARSED_WORK_NI];
+static size_t g_parsed_work_z[DRIVER_PARSED_WORK_NZ];
+static char g_parsed_tmp_c_slot[64];
+
+void driver_parsed_work_reset(void) {
+    memset(g_parsed_work_p, 0, sizeof g_parsed_work_p);
+    memset(g_parsed_work_i, 0, sizeof g_parsed_work_i);
+    memset(g_parsed_work_z, 0, sizeof g_parsed_work_z);
+    g_parsed_tmp_c_slot[0] = 0;
+    g_driver_parsed_tmp_c[0] = 0;
+}
+
+uint8_t *driver_parsed_work_p_get(int32_t i) {
+    if (i < 0 || i >= DRIVER_PARSED_WORK_NP)
+        return NULL;
+    return g_parsed_work_p[i];
+}
+void driver_parsed_work_p_set(int32_t i, uint8_t *v) {
+    if (i < 0 || i >= DRIVER_PARSED_WORK_NP)
+        return;
+    g_parsed_work_p[i] = v;
+}
+int32_t driver_parsed_work_i_get(int32_t i) {
+    if (i < 0 || i >= DRIVER_PARSED_WORK_NI)
+        return 0;
+    return g_parsed_work_i[i];
+}
+void driver_parsed_work_i_set(int32_t i, int32_t v) {
+    if (i < 0 || i >= DRIVER_PARSED_WORK_NI)
+        return;
+    g_parsed_work_i[i] = v;
+}
+size_t driver_parsed_work_z_get(int32_t i) {
+    if (i < 0 || i >= DRIVER_PARSED_WORK_NZ)
+        return 0;
+    return g_parsed_work_z[i];
+}
+void driver_parsed_work_z_set(int32_t i, size_t v) {
+    if (i < 0 || i >= DRIVER_PARSED_WORK_NZ)
+        return;
+    g_parsed_work_z[i] = v;
+}
+
+void driver_parsed_work_cleanup(void) {
+    int32_t n = g_parsed_work_i[1]; /* ndeps */
+    int32_t emit_stdout = g_parsed_work_i[5];
+    int32_t i;
+    void *p;
+    void *ds = g_parsed_work_p[6];
+    void *dp = g_parsed_work_p[7];
+    void *dl = g_parsed_work_p[8];
+    void *da = g_parsed_work_p[9];
+    void *dm = g_parsed_work_p[10];
+    for (i = 0; i < n; i++) {
+        if (da) {
+            p = ((void **)da)[i];
+            free(p);
+        }
+        if (dm) {
+            p = ((void **)dm)[i];
+            free(p);
+        }
+        if (ds) {
+            p = ((void **)ds)[i];
+            free(p);
+        }
+        if (dp) {
+            p = ((void **)dp)[i];
+            free(p);
+        }
+    }
+    free(ds);
+    free(dp);
+    free(dl);
+    free(da);
+    free(dm);
+    free(g_parsed_work_p[11]); /* out_buf */
+    if (g_parsed_work_p[12])
+        pipeline_dep_ctx_heap_destroy((struct ast_PipelineDepCtx *)(void *)g_parsed_work_p[12]);
+    if (g_parsed_work_p[19] && !emit_stdout) {
+        driver_parsed_fclose(g_parsed_work_p[19]);
+        if (g_parsed_work_p[20] && g_parsed_work_p[20][0])
+            unlink((const char *)(void *)g_parsed_work_p[20]);
+        else if (g_driver_parsed_tmp_c[0])
+            unlink(g_driver_parsed_tmp_c);
+    }
+    free(g_parsed_work_p[3]);  /* arena */
+    free(g_parsed_work_p[4]);  /* module */
+    free(g_parsed_work_p[1]);  /* src */
+    free(g_parsed_work_p[13]); /* kind */
+    free(g_parsed_work_p[14]); /* code */
+    free(g_parsed_work_p[15]); /* msg */
+    free(g_parsed_work_p[20]); /* tmp_c heap copy if any */
+    driver_parsed_work_reset();
+}

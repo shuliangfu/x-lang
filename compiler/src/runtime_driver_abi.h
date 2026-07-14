@@ -333,4 +333,66 @@ void driver_asm_work_z_set(int32_t i, size_t v);
 /** 释放 work 槽内资源；不 unlink tmp（由 .x 在 ld 前后处理）。 */
 void driver_asm_work_cleanup(void);
 
+/*
+ * Cap residual：rt_run_compiler_parsed（R2 full）
+ *   - DriverCompileParsed 字段 get（.x 无布局）
+ *   - C 前端块（产品 NO_C 固定 -2 继续）
+ *   - FILE open/write/close + mkstemp .c + invoke_cc 整表（.x 禁 **u8 / 巨型字面量）
+ *   - pctx skip_codegen_dep_0
+ *   - parsed work 槽（与 asm/x_emit 独立）
+ */
+uint8_t *driver_parsed_input_path(void *p);
+uint8_t *driver_parsed_out_path(void *p);
+/** *u8 实为 const char**（内嵌 lib_roots_arr 首址）。 */
+uint8_t *driver_parsed_lib_roots(void *p);
+int32_t driver_parsed_n_lib_roots(void *p);
+int32_t driver_parsed_want_asm(void *p);
+uint8_t *driver_parsed_target(void *p);
+/** 缺省 "2"。 */
+uint8_t *driver_parsed_opt_level(void *p);
+int32_t driver_parsed_use_lto(void *p);
+
+/**
+ * 预处理后 C 前端（check/smoke/generic C 内联）。
+ * 返回 -2 继续 .x pipeline；>=0 为应直接返回的 rc。
+ * 产品 SHUX_NO_C_FRONTEND 固定 -2。
+ */
+int32_t driver_parsed_try_c_after_pp(uint8_t *input_path, uint8_t *src, size_t src_len,
+                                     uint8_t *lib_roots, int32_t n_lib, uint8_t *out_path,
+                                     int32_t argc, uint8_t *argv, uint8_t *opt_level,
+                                     int32_t use_lto, int32_t ndefines, uint8_t *defines);
+
+void driver_pipeline_dep_ctx_set_skip_codegen_dep_0(void *ctx, int32_t v);
+
+/**
+ * 打开输出：out_path==NULL → stdout（emit_stdout=1）；否则 mkstemp+rename .c。
+ * 成功返回 FILE* 作 *u8；tmp_c_out64 写 .c 路径；失败 NULL。
+ */
+uint8_t *driver_parsed_open_out_file(uint8_t *out_path, uint8_t *tmp_c_out64, int32_t *emit_stdout);
+void driver_parsed_fclose(uint8_t *fp);
+int32_t driver_parsed_fclose_rc(uint8_t *fp);
+/** 写 pipeline 产物：可选 min preamble + first_line + io_net + fs_path + rest。0 成功。 */
+int32_t driver_parsed_write_out(uint8_t *fp, uint8_t *data, int32_t len);
+/**
+ * 链 std .o 调 shux_invoke_cc；argv0 可为 NULL。
+ * 失败时 unlink out_path；成功且无 SHUX_KEEP_C 时 unlink tmp_c。
+ */
+int32_t driver_parsed_invoke_cc(uint8_t *tmp_c, uint8_t *out_path, uint8_t *opt_level,
+                                int32_t use_lto, uint8_t *argv0);
+void driver_parsed_maybe_dump_prep(uint8_t *input_path, uint8_t *src, size_t src_len);
+/** dep_paths 中是否含 "std.io.core"（strcmp）。 */
+int32_t driver_parsed_deps_has_std_io_core(uint8_t *dep_paths, int32_t n_deps);
+/** preamble skip：无 std.io.core 时 or 上 CORE_MACROS|UNDEF_REDEFINE。 */
+void driver_parsed_apply_preamble_skip(uint8_t *dep_paths, int32_t n_deps);
+
+void driver_parsed_work_reset(void);
+uint8_t *driver_parsed_work_p_get(int32_t i);
+void driver_parsed_work_p_set(int32_t i, uint8_t *v);
+int32_t driver_parsed_work_i_get(int32_t i);
+void driver_parsed_work_i_set(int32_t i, int32_t v);
+size_t driver_parsed_work_z_get(int32_t i);
+void driver_parsed_work_z_set(int32_t i, size_t v);
+/** 释放 work 资源；emit_stdout=0 时 fclose+unlink tmp_c（若仍持有）。 */
+void driver_parsed_work_cleanup(void);
+
 #endif /* SHUX_RUNTIME_DRIVER_ABI_H */

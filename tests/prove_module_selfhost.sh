@@ -160,6 +160,10 @@ MODULES=(
   # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual 在 driver_abi（FILE/pctx/host/defines/work）
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/rt_run_asm_backend.from_x.c 全 C 体
   "rt_run_asm_backend|src/runtime/rt_run_asm_backend.x|seeds/rt_run_asm_backend_surface.from_x.c||"
+  # rt_run_compiler_parsed R2 full：.x 吃满 driver_run_compiler_parsed（step 拆分 + work 槽）；
+  # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：Parsed/FILE/invoke_cc/work 在 driver_abi
+  # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/rt_run_compiler_parsed.from_x.c 全 C 体
+  "rt_run_compiler_parsed|src/runtime/rt_run_compiler_parsed.x|seeds/rt_run_compiler_parsed_surface.from_x.c||"
 )
 
 # 找 shux 二进制（优先 shux，fallback shux-c）

@@ -2,8 +2,12 @@
  * Logic source: src/runtime/rt_run_compiler_parsed.x
  * Hybrid: SHUX_RT_RUN_COMPILER_PARSED_FROM_X + ld -r into runtime_driver_no_c.o
  *
+ * R2 full（2026-07-14）：公共业务符号 driver_run_compiler_parsed 由 full .x 提供；
+ * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务符号 H=0）。
+ * Cap residual（driver_abi）：Parsed 字段/C 前端块/FILE+invoke_cc/work 槽。
+ * 冷启动/无 PREFER 时仍编译完整 C 体。
+ *
  * Scope: driver_run_compiler_parsed（argv 已解析后的 asm/C/pipeline 编排）。
- * 产品 rest 在 hybrid 下可无业务 T 符号。
  */
 #include <fcntl.h>
 #include <limits.h>
@@ -42,11 +46,6 @@
 #endif
 #ifndef PATH_MAX
 #define PATH_MAX 4096
-#endif
-
-/* G-02f-457：thin+rest PREFER_X_O；.x 薄门闩调 _impl，seed 宏重命名 */
-#ifdef SHUX_RT_RUN_COMPILER_PARSED_FROM_X
-#define driver_run_compiler_parsed    driver_run_compiler_parsed_impl
 #endif
 
 #define X_CODEGEN_OUTBUF_CAP (9 * 1024 * 1024)
@@ -141,6 +140,8 @@ extern void shux_emit_pipeline_glue_include(void);
  * argv 已解析后的编译执行：泛型降级、asm/C 分派、pipeline/cc。
  * 由 driver/compile.x 经 driver_run_compiler_dispatch_c 调用。
  */
+#ifndef SHUX_RT_RUN_COMPILER_PARSED_FROM_X
+
 int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
     /* 【Why 根源】-lib-name 仅 C 前端 RUN_CC_FUNC 路径需要（shux_compile_std_module.sh --bare-impl）；
      * x-pipeline 路径（shux-x）不编译 std 模块，用 NULL 走 path-based lib_name。 */
@@ -1056,6 +1057,11 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
     pipeline_dep_ctx_heap_destroy(pctx);
     return 0;
 }
+
+#else /* SHUX_RT_RUN_COMPILER_PARSED_FROM_X：产品 rest 仅 marker；业务体在 full .x */
+int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv);
+#endif /* SHUX_RT_RUN_COMPILER_PARSED_FROM_X */
+
 
 int labi_rt_run_compiler_parsed_slice_marker(void) {
   return 1;
