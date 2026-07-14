@@ -3,6 +3,7 @@
  */
 
 import * as vscode from 'vscode';
+import { t } from './i18n';
 
 /** 默认 import 库根（相对工作区根），与 package.json default 一致。 */
 export const DEFAULT_LIB_ROOTS = ['.', 'compiler/src', 'core', 'std'];
@@ -32,7 +33,7 @@ export function readStringArraySetting(
         return parsed as string[];
       }
     } catch {
-      outputChannel?.appendLine(`[Shux] ${label} 不是合法 JSON 数组，已使用默认值。`);
+      outputChannel?.appendLine(t('[Shux] {0} is not a valid JSON array, using default.', label));
     }
   }
   return fallback;
@@ -72,7 +73,7 @@ export function readEnvJsonSetting(
         return out;
       }
     } catch {
-      outputChannel?.appendLine('[Shux] compiler.envJson 不是合法 JSON，已忽略。');
+      outputChannel?.appendLine(t('[Shux] compiler.envJson is not valid JSON, ignored.'));
     }
   }
   return {};

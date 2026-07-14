@@ -13,8 +13,7 @@
     { "open": "[", "close": "]" },
     { "open": "(", "close": ")" },
     { "open": "\"", "close": "\"", "notIn": ["string", "comment"] },
-    { "open": "/**", "close": " */", "notIn": ["string", "comment"] },
-    { "open": "#", "close": "\n", "notIn": ["string"] }
+    { "open": "/**", "close": " */", "notIn": ["string", "comment"] }
   ],
   "surroundingPairs": [
     { "open": "{", "close": "}" },
@@ -24,7 +23,7 @@
   ],
   "folding": {
     "markers": {
-      "start": "^\\s*\\{|^\\s*/\\*\\*",
+      "start": "^\\s*\\{|^\\s*/\\*\\*|^\\s*(region|with_arena|unsafe)\\b",
       "end": "^\\s*\\}|^\\s*\\*/"
     },
     "offSide": false
@@ -33,7 +32,7 @@
     "increaseIndentPattern": "\\{[^}\"']*$|\\[\\s*$|^\\s*if\\b.*\\{[^}]*$|^\\s*(while|for|loop|match|defer)\\b|^\\s*else\\s+(if\\b.*)?\\{",
     "decreaseIndentPattern": "^\\s*\\}|^\\s*\\]|^\\s*\\)",
     "indentNextLinePattern": "=>\\s*$|->\\s*$",
-    "unIndentedLinePattern": "^\\s*//|^\\s*\\*|^\\s*#"
+    "unIndentedLinePattern": "^\\s*//|^\\s*\\*|^\\s*#(?!\\[)"
   },
   "onEnterRules": [
     {

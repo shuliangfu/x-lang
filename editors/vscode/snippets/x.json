@@ -13,7 +13,30 @@
     "body": [
       "extern function ${1:name}(${2:params}): ${3:i32};"
     ],
-    "description": "外部函数声明"
+    "description": "外部函数声明（默认 X ABI）"
+  },
+  "function_extern_c": {
+    "prefix": "externc",
+    "body": [
+      "extern \"C\" function ${1:name}(${2:params}): ${3:i32};"
+    ],
+    "description": "C ABI 外部函数声明"
+  },
+  "function_export": {
+    "prefix": "export",
+    "body": [
+      "export function ${1:name}(${2:params}): ${3:i32} {",
+      "\t$0",
+      "}"
+    ],
+    "description": "导出函数定义"
+  },
+  "function_export_c": {
+    "prefix": "exportc",
+    "body": [
+      "export extern \"C\" function ${1:name}(${2:params}): ${3:i32};"
+    ],
+    "description": "导出 C ABI 函数声明"
   },
   "function_main": {
     "prefix": "main",
@@ -29,19 +52,44 @@
     "prefix": "struct",
     "body": [
       "struct ${1:Name} {",
-      "\t${2:field}: ${3:i32};$0",
+      "\t${2:field}: ${3:i32},$0",
       "}"
     ],
-    "description": "结构体定义"
+    "description": "结构体定义（字段用逗号分隔）"
   },
-  "struct_allow": {
+  "struct_packed": {
+    "prefix": "packed",
+    "body": [
+      "packed struct ${1:Name} {",
+      "\t${2:field}: ${3:i32},$0",
+      "}"
+    ],
+    "description": "紧凑结构体（无 padding）"
+  },
+  "struct_allow_padding": {
     "prefix": "structp",
     "body": [
       "allow(padding) struct ${1:Name} {",
-      "\t${2:field}: ${3:i32};$0",
+      "\t${2:field}: ${3:i32},$0",
       "}"
     ],
     "description": "带 padding 的结构体"
+  },
+  "struct_soa": {
+    "prefix": "soa",
+    "body": [
+      "soa struct ${1:Name} {",
+      "\t${2:field}: ${3:i32},$0",
+      "}"
+    ],
+    "description": "SOA 结构体（结构数组布局）"
+  },
+  "type_alias": {
+    "prefix": "type",
+    "body": [
+      "type ${1:Name} = ${2:i32};"
+    ],
+    "description": "类型别名"
   },
   "enum": {
     "prefix": "enum",
@@ -157,6 +205,33 @@
     ],
     "description": "defer 块"
   },
+  "unsafe_block": {
+    "prefix": "unsafe",
+    "body": [
+      "unsafe {",
+      "\t$0",
+      "}"
+    ],
+    "description": "unsafe 块（C ABI 调用等）"
+  },
+  "region_block": {
+    "prefix": "region",
+    "body": [
+      "region ${1:ra} {",
+      "\t$0",
+      "}"
+    ],
+    "description": "region 借用域块"
+  },
+  "with_arena_block": {
+    "prefix": "with_arena",
+    "body": [
+      "with_arena(${1:4096}) {",
+      "\t$0",
+      "}"
+    ],
+    "description": "arena 分配域块"
+  },
   "return_result": {
     "prefix": "return",
     "body": [
@@ -198,6 +273,20 @@
       "${1:expr} as ${2:Type}"
     ],
     "description": "类型转换"
+  },
+  "attribute_no_mangle": {
+    "prefix": "nomangle",
+    "body": [
+      "#[no_mangle]"
+    ],
+    "description": "#[no_mangle] 属性（导出符号不修饰）"
+  },
+  "attribute_cfg": {
+    "prefix": "cfg",
+    "body": [
+      "#[cfg(target_os = \"${1:linux}\")]"
+    ],
+    "description": "#[cfg(...)] 条件编译属性"
   },
   "comment_doc": {
     "prefix": "/**",

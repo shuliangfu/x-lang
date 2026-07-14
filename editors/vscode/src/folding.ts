@@ -2,11 +2,11 @@
  * Shux FoldingRangeProvider — 语义代码折叠
  *
  * 支持折叠：
- * - 函数体（function ... { ... }）
- * - 结构体/枚举/trait 体（struct/enum/trait ... { ... }）
+ * - 函数体（function / export function ... { ... }）
+ * - 结构体/枚举/trait/impl 体（含 packed/soa/align/allow(padding) 前缀）
+ * - region / with_arena / unsafe 块
  * - 块注释（/* ... *\/）
- * - 通用 {} 块
- * - defer 块
+ * - 通用 {} 块（if/else/while/for/loop/match/defer）
  */
 
 import * as vscode from 'vscode';
@@ -28,7 +28,9 @@ export class ShuxFoldingRangeProvider implements vscode.FoldingRangeProvider {
     let inBlockComment = false;
     let commentStartLine = 0;
 
-    const blockStarters = /\b(function|struct|enum|trait|if|while|for|loop|match|defer)\b/;
+    // 【Why】覆盖所有 SHUX 块起始关键字：export 前缀 + 主体关键字
+    // 【Invariant】region/with_arena/unsafe 折叠为 Region kind，其余为默认
+    const blockStarters = /\b(function|struct|enum|trait|impl|type|if|else|while|for|loop|match|defer|region|with_arena|unsafe|export)\b/;
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
@@ -52,7 +54,6 @@ export class ShuxFoldingRangeProvider implements vscode.FoldingRangeProvider {
       }
 
       // { } 匹配
-      let lineKind = '';
       for (let j = 0; j < line.length; j++) {
         const ch = line[j];
         if (ch === '{') {
@@ -61,14 +62,13 @@ export class ShuxFoldingRangeProvider implements vscode.FoldingRangeProvider {
           const km = blockStarters.exec(pre);
           const kind = km ? km[1] : 'block';
           braceStack.push({ line: i, kind });
-          lineKind = kind;
         } else if (ch === '}') {
           const open = braceStack.pop();
           if (open && open.line < i) {
             // 根据关键字类型设置折叠 kind
             let foldKind: vscode.FoldingRangeKind | undefined;
-            if (open.kind === 'function') {
-              // no special kind — region is fine
+            if (open.kind === 'region' || open.kind === 'with_arena' || open.kind === 'unsafe') {
+              foldKind = vscode.FoldingRangeKind.Region;
             }
             ranges.push(new vscode.FoldingRange(open.line, i, foldKind));
           }

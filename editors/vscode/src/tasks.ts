@@ -12,6 +12,35 @@
 
 import * as vscode from 'vscode';
 import { DEFAULT_SERVER_PATH, resolveServerCommand } from './shuxPath';
+import { t } from './i18n';
+
+/**
+ * 读取 `shux.build.*` 配置，生成 build/run 子命令的额外参数。
+ *
+ * - `shux.build.optimizationLevel` → `-O<level>`（仅 >0 时追加）
+ * - `shux.build.debugInfo` → `-g`
+ * - `shux.build.outputName` → `-o <name>`（非空时追加）
+ *
+ * run 任务仅追加 `-O` / `-g`（不传 `-o`，避免覆盖 run 的临时输出路径）。
+ */
+function buildExtraArgs(forRun: boolean): string[] {
+  const config = vscode.workspace.getConfiguration('shux');
+  const args: string[] = [];
+  const opt = config.get<string>('build.optimizationLevel', '0');
+  if (opt !== '0') {
+    args.push(`-O${opt}`);
+  }
+  if (config.get<boolean>('build.debugInfo', false)) {
+    args.push('-g');
+  }
+  if (!forRun) {
+    const outputName = config.get<string>('build.outputName', '').trim();
+    if (outputName) {
+      args.push('-o', outputName);
+    }
+  }
+  return args;
+}
 
 export class ShuxTaskProvider implements vscode.TaskProvider {
   static ShuxType = 'shux';
@@ -22,19 +51,19 @@ export class ShuxTaskProvider implements vscode.TaskProvider {
     const config = vscode.workspace.getConfiguration('shux');
     const serverPath = config.get<string>('serverPath', DEFAULT_SERVER_PATH);
     const command = resolveServerCommand(serverPath);
+    const cwd = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 
     const tasks: vscode.Task[] = [];
     const kind: vscode.TaskDefinition = { type: ShuxTaskProvider.ShuxType };
 
     // ── 任务 1: shux build（项目级） ──
+    const buildArgs = ['build', ...buildExtraArgs(false)];
     const buildTask = new vscode.Task(
       { type: ShuxTaskProvider.ShuxType, task: 'build' },
       vscode.TaskScope.Workspace,
       'shux build',
       'Shux',
-      new vscode.ProcessExecution(command, ['build'], {
-        cwd: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
-      })
+      new vscode.ProcessExecution(command, buildArgs, { cwd })
     );
     buildTask.group = vscode.TaskGroup.Build;
     buildTask.isBackground = false;
@@ -50,14 +79,13 @@ export class ShuxTaskProvider implements vscode.TaskProvider {
     tasks.push(buildTask);
 
     // ── 任务 2: shux build <当前文件> ──
+    const buildFileArgs = ['build', '${file}', ...buildExtraArgs(false)];
     const buildFileTask = new vscode.Task(
       { type: ShuxTaskProvider.ShuxType, task: 'build-file' },
       vscode.TaskScope.Workspace,
-      'shux build (当前文件)',
+      t('shux build (current file)'),
       'Shux',
-      new vscode.ProcessExecution(command, ['build', '${file}'], {
-        cwd: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
-      })
+      new vscode.ProcessExecution(command, buildFileArgs, { cwd })
     );
     buildFileTask.group = vscode.TaskGroup.Build;
     buildFileTask.presentationOptions = {
@@ -71,14 +99,13 @@ export class ShuxTaskProvider implements vscode.TaskProvider {
     tasks.push(buildFileTask);
 
     // ── 任务 3: shux run <当前文件> ──
+    const runArgs = ['run', '${file}', ...buildExtraArgs(true)];
     const runTask = new vscode.Task(
       { type: ShuxTaskProvider.ShuxType, task: 'run' },
       vscode.TaskScope.Workspace,
-      'shux run (当前文件)',
+      t('shux run (current file)'),
       'Shux',
-      new vscode.ProcessExecution(command, ['run', '${file}'], {
-        cwd: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
-      })
+      new vscode.ProcessExecution(command, runArgs, { cwd })
     );
     runTask.group = vscode.TaskGroup.Test;
     runTask.presentationOptions = {
@@ -92,11 +119,9 @@ export class ShuxTaskProvider implements vscode.TaskProvider {
     const checkTask = new vscode.Task(
       { type: ShuxTaskProvider.ShuxType, task: 'check' },
       vscode.TaskScope.Workspace,
-      'shux check (当前文件)',
+      t('shux check (current file)'),
       'Shux',
-      new vscode.ProcessExecution(command, ['check', '${file}'], {
-        cwd: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
-      })
+      new vscode.ProcessExecution(command, ['check', '${file}'], { cwd })
     );
     checkTask.group = vscode.TaskGroup.Test;
     checkTask.presentationOptions = {

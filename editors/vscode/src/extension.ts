@@ -12,6 +12,9 @@ import { readEnvJsonSetting, readExtraArgsSetting, readLibRootsSetting } from '.
 import { getLibRootsEnvColon } from './importResolve';
 import { startShuxLanguageClient, stopShuxLanguageClient } from './lspClient';
 import { DEFAULT_SERVER_PATH, resolveServerCommand } from './shuxPath';
+import { t, initI18n, onLocaleConfigChanged } from './i18n';
+import { ShuxWorkspaceSymbolProvider, invalidateWorkspaceSymbolCache } from './workspaceSymbol';
+import { refreshShuxStatusBar } from './statusbar';
 
 let client: LanguageClient | undefined;
 let outputChannel: vscode.OutputChannel | undefined;
@@ -104,6 +107,8 @@ async function formatSuDocument(document: vscode.TextDocument): Promise<void> {
     tabSize: config.get<number>('format.tabSize', 2),
     insertSpaces: config.get<boolean>('format.insertSpaces', true),
   };
+  // 注入 maxLineLength 给 LSP formatter（LSP 服务端从 formatting options body 读取此字段）
+  (options as Record<string, unknown>).maxLineLength = config.get<number>('format.maxLineLength', 100);
 
   let edits: vscode.TextEdit[] | undefined;
   try {
@@ -156,10 +161,10 @@ async function loadHeavyFeatures(context: vscode.ExtensionContext): Promise<void
 
   if (!workspaceFolder) {
     outputChannel?.appendLine(
-      '[Shux] 无工作区文件夹：LSP 未启动。请 Open Folder 打开 shux 仓库根目录以启用诊断。'
+      t('[Shux] No workspace folder: LSP not started. Open Folder to the shux repo root to enable diagnostics.')
     );
     void vscode.window.showWarningMessage(
-      'Shux 需要打开文件夹才能启动语言服务（语法/类型诊断、跳转等）。请 Open Folder 打开项目根目录。'
+      t('Shux requires a folder to start the language service (diagnostics, jump, etc.). Open Folder to the project root.')
     );
   } else {
     const serverPath = config.get<string>('serverPath', DEFAULT_SERVER_PATH);
@@ -239,28 +244,46 @@ async function loadHeavyFeatures(context: vscode.ExtensionContext): Promise<void
     );
   }
 
-  if (isFeatureEnabled(config, 'formatOnBlur')) {
-    let lastXEditor: vscode.TextEditor | undefined;
-    let initialized = false;
-    setTimeout(() => {
-      initialized = true;
-    }, 500);
-
+  if (isFeatureEnabled(config, 'documentHighlight')) {
+    const { ShuxDocumentHighlightProvider } = await import('./documentHighlight');
     context.subscriptions.push(
-      vscode.window.onDidChangeActiveTextEditor(async (editor) => {
-        const prev = lastXEditor;
-        lastXEditor = editor?.document.languageId === 'x' ? editor : undefined;
-        if (!initialized || !prev || prev.document.isClosed || prev === editor) {
-          return;
+      vscode.languages.registerDocumentHighlightProvider(
+        { scheme: 'file', language: 'x' },
+        new ShuxDocumentHighlightProvider()
+      )
+    );
+  }
+
+  if (isFeatureEnabled(config, 'codeAction')) {
+    const { ShuxCodeActionProvider } = await import('./codeAction');
+    context.subscriptions.push(
+      vscode.languages.registerCodeActionsProvider(
+        { scheme: 'file', language: 'x' },
+        new ShuxCodeActionProvider(),
+        { providedCodeActionKinds: [vscode.CodeActionKind.QuickFix, vscode.CodeActionKind.Refactor] }
+      )
+    );
+  }
+
+  /** 全局符号搜索（Ctrl+T）— 扩展侧本地实现，受 shux.features.workspaceSymbol 开关控制 */
+  if (isFeatureEnabled(config, 'workspaceSymbol')) {
+    context.subscriptions.push(
+      vscode.languages.registerWorkspaceSymbolProvider(new ShuxWorkspaceSymbolProvider())
+    );
+
+    /** .x 文件保存时失效符号缓存，确保 Ctrl+T 搜索结果最新 */
+    context.subscriptions.push(
+      vscode.workspace.onDidSaveTextDocument((doc) => {
+        if (doc.languageId === 'x') {
+          invalidateWorkspaceSymbolCache(doc.uri);
         }
-        await formatSuDocument(prev.document);
       })
     );
   }
 
   registerConfigurationListener(context);
   heavyFeaturesReady = true;
-  outputChannel?.appendLine('[Shux] 编辑器增强与 LSP 已就绪。');
+  outputChannel?.appendLine(t('[Shux] Editor enhancements and LSP are ready.'));
 }
 
 function ensureHeavyFeatures(context: vscode.ExtensionContext): Promise<void> {
@@ -271,7 +294,7 @@ function ensureHeavyFeatures(context: vscode.ExtensionContext): Promise<void> {
     heavyFeaturesPromise = loadHeavyFeatures(context).catch((err: unknown) => {
       heavyFeaturesPromise = undefined;
       const message = err instanceof Error ? err.message : String(err);
-      outputChannel?.appendLine(`[Shux] 加载编辑器功能失败: ${message}`);
+      outputChannel?.appendLine(t('[Shux] Failed to load editor features: {0}', message));
       throw err;
     });
   }
@@ -301,7 +324,7 @@ function registerConfigurationListener(context: vscode.ExtensionContext): void {
 
         const prevSnapshot = serverConfigSnapshot;
         serverConfigSnapshot = newSnapshot;
-        outputChannel?.appendLine('[Shux] 检测到配置变更，正在应用...');
+        outputChannel?.appendLine(t('[Shux] Configuration change detected, applying...'));
 
         const newConfig = vscode.workspace.getConfiguration('shux');
         const prev = JSON.parse(prevSnapshot ?? '{}') as Record<string, unknown>;
@@ -319,6 +342,8 @@ function registerConfigurationListener(context: vscode.ExtensionContext): void {
           e.affectsConfiguration('shux.features')
         ) {
           codeLensProvider?.refresh();
+          /** features.statusBar* 子开关变更时刷新状态栏显示 */
+          refreshShuxStatusBar(vscode.window.activeTextEditor);
         }
 
         const restartKeysChanged =
@@ -331,14 +356,16 @@ function registerConfigurationListener(context: vscode.ExtensionContext): void {
           prev.restartOnCrash !== newConfig.get<boolean>('server.restartOnCrash', true);
 
         if (restartKeysChanged) {
+          const restartBtn = t('Restart Now');
+          const laterBtn = t('Later');
           void vscode.window
             .showInformationMessage(
-              'Shux 服务端配置已变更，需要重启语言服务才能生效。',
-              '立即重启',
-              '稍后'
+              t('Shux server config changed. Restart the language service to apply.'),
+              restartBtn,
+              laterBtn
             )
             .then((selection) => {
-              if (selection === '立即重启') {
+              if (selection === restartBtn) {
                 void vscode.commands.executeCommand('shux.restartServer');
               }
             });
@@ -376,10 +403,10 @@ function registerCommands(context: vscode.ExtensionContext): void {
       try {
         const wf = vscode.workspace.workspaceFolders?.[0];
         if (!wf) {
-          vscode.window.showWarningMessage('请先 Open Folder 打开工作区后再重启 LSP。');
+          vscode.window.showWarningMessage(t('Please Open Folder to open a workspace before restarting LSP.'));
           return;
         }
-        outputChannel?.appendLine('[Shux] 正在重启语言服务...');
+        outputChannel?.appendLine(t('[Shux] Restarting language server...'));
         await stopShuxLanguageClient(client);
         const config = vscode.workspace.getConfiguration('shux');
         client = await startShuxLanguageClient({
@@ -391,12 +418,12 @@ function registerCommands(context: vscode.ExtensionContext): void {
           outputChannel: outputChannel!,
           restartOnCrash: config.get<boolean>('server.restartOnCrash', true),
         });
-        outputChannel?.appendLine('[Shux] 语言服务已重启。');
-        vscode.window.showInformationMessage('Shux 语言服务已重启');
+        outputChannel?.appendLine(t('[Shux] Language server restarted.'));
+        vscode.window.showInformationMessage(t('Shux language service restarted.'));
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
-        outputChannel?.appendLine(`[Shux] 重启失败: ${message}`);
-        vscode.window.showErrorMessage(`Shux 重启失败: ${message}`);
+        outputChannel?.appendLine(t('[Shux] Restart failed: {0}', message));
+        vscode.window.showErrorMessage(t('Shux restart failed: {0}', message));
       }
     })
   );
@@ -411,12 +438,12 @@ function registerCommands(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('shux.refreshCodeLens', async () => {
       const editor = vscode.window.activeTextEditor;
       if (!editor || editor.document.languageId !== 'x') {
-        vscode.window.showWarningMessage('请先打开一个 .x 文件。');
+        vscode.window.showWarningMessage(t('Please open a .x file first.'));
         return;
       }
       await ensureHeavyFeatures(context);
       codeLensProvider?.refresh();
-      vscode.window.showInformationMessage('Shux CodeLens 已刷新。');
+      vscode.window.showInformationMessage(t('Shux CodeLens refreshed.'));
     })
   );
 
@@ -427,7 +454,7 @@ function registerCommands(context: vscode.ExtensionContext): void {
 
       const targetUri = uri ?? vscode.window.activeTextEditor?.document.uri;
       if (!targetUri) {
-        vscode.window.showWarningMessage('没有打开的文件可运行。');
+        vscode.window.showWarningMessage(t('No file to run.'));
         return;
       }
       const cfg = vscode.workspace.getConfiguration('shux');
@@ -448,6 +475,112 @@ function registerCommands(context: vscode.ExtensionContext): void {
         clear: false,
       };
       await vscode.tasks.executeTask(task);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('shux.buildFile', async (uri?: vscode.Uri) => {
+      const { ShuxTaskProvider } = await import('./tasks');
+      await ensureHeavyFeatures(context);
+
+      const targetUri = uri ?? vscode.window.activeTextEditor?.document.uri;
+      if (!targetUri) {
+        vscode.window.showWarningMessage(t('No file to build.'));
+        return;
+      }
+      const cfg = vscode.workspace.getConfiguration('shux');
+      const cmd = resolveServerCommand(cfg.get<string>('serverPath', DEFAULT_SERVER_PATH));
+
+      const task = new vscode.Task(
+        { type: ShuxTaskProvider.ShuxType, task: 'build-file' },
+        vscode.TaskScope.Workspace,
+        `shux build ${path.basename(targetUri.fsPath)}`,
+        'Shux',
+        new vscode.ProcessExecution(cmd, ['build', targetUri.fsPath], {
+          cwd: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? path.dirname(targetUri.fsPath),
+        })
+      );
+      task.group = vscode.TaskGroup.Build;
+      task.presentationOptions = {
+        reveal: vscode.TaskRevealKind.Always,
+        panel: vscode.TaskPanelKind.Shared,
+        clear: true,
+      };
+      task.problemMatchers = ['$shux-parse', '$shux-typeck'];
+      await vscode.tasks.executeTask(task);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('shux.checkFile', async (uri?: vscode.Uri) => {
+      const { ShuxTaskProvider } = await import('./tasks');
+      await ensureHeavyFeatures(context);
+
+      const targetUri = uri ?? vscode.window.activeTextEditor?.document.uri;
+      if (!targetUri) {
+        vscode.window.showWarningMessage(t('No file to check.'));
+        return;
+      }
+      const cfg = vscode.workspace.getConfiguration('shux');
+      const cmd = resolveServerCommand(cfg.get<string>('serverPath', DEFAULT_SERVER_PATH));
+
+      const task = new vscode.Task(
+        { type: ShuxTaskProvider.ShuxType, task: 'check' },
+        vscode.TaskScope.Workspace,
+        `shux check ${path.basename(targetUri.fsPath)}`,
+        'Shux',
+        new vscode.ProcessExecution(cmd, ['check', targetUri.fsPath], {
+          cwd: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? path.dirname(targetUri.fsPath),
+        })
+      );
+      task.group = vscode.TaskGroup.Test;
+      task.presentationOptions = {
+        reveal: vscode.TaskRevealKind.Silent,
+        panel: vscode.TaskPanelKind.Shared,
+        clear: true,
+      };
+      task.problemMatchers = ['$shux-parse', '$shux-typeck'];
+      await vscode.tasks.executeTask(task);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('shux.buildProject', async () => {
+      const { ShuxTaskProvider } = await import('./tasks');
+      await ensureHeavyFeatures(context);
+
+      const cfg = vscode.workspace.getConfiguration('shux');
+      const cmd = resolveServerCommand(cfg.get<string>('serverPath', DEFAULT_SERVER_PATH));
+
+      const task = new vscode.Task(
+        { type: ShuxTaskProvider.ShuxType, task: 'build' },
+        vscode.TaskScope.Workspace,
+        'shux build',
+        'Shux',
+        new vscode.ProcessExecution(cmd, ['build'], {
+          cwd: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
+        })
+      );
+      task.group = vscode.TaskGroup.Build;
+      task.presentationOptions = {
+        reveal: vscode.TaskRevealKind.Always,
+        panel: vscode.TaskPanelKind.Shared,
+        clear: true,
+      };
+      task.problemMatchers = ['$shux-parse', '$shux-typeck'];
+      await vscode.tasks.executeTask(task);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('shux.formatDocument', async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor || editor.document.languageId !== 'x') {
+        vscode.window.showWarningMessage(t('Please open a .x file first.'));
+        return;
+      }
+      await ensureHeavyFeatures(context);
+      await formatSuDocument(editor.document);
     })
   );
 }
@@ -480,10 +613,13 @@ function scheduleHeavyFeaturesOnSu(context: vscode.ExtensionContext): void {
 
 export function activate(context: vscode.ExtensionContext): void {
   outputChannel = vscode.window.createOutputChannel('Shux');
-  outputChannel.appendLine('[Shux] 扩展正在激活（轻量模式）...');
+  // 初始化 i18n（支持 shux.locale 配置覆盖）
+  initI18n(context);
+  context.subscriptions.push(onLocaleConfigChanged(context));
+  outputChannel.appendLine(t('[Shux] Extension activating (lightweight mode)...'));
   registerCommands(context);
   scheduleHeavyFeaturesOnSu(context);
-  outputChannel.appendLine('[Shux] 扩展已激活。打开 .x 文件时将立即加载 LSP。');
+  outputChannel.appendLine(t('[Shux] Extension activated. Open a .x file to load LSP immediately.'));
 }
 
 export function deactivate(): Thenable<void> | undefined {
@@ -491,7 +627,7 @@ export function deactivate(): Thenable<void> | undefined {
     clearTimeout(configChangeDebounce);
     configChangeDebounce = undefined;
   }
-  outputChannel?.appendLine('[Shux] 扩展已停用。');
+  outputChannel?.appendLine(t('[Shux] Extension deactivated.'));
   outputChannel?.dispose();
   return stopShuxLanguageClient(client);
 }

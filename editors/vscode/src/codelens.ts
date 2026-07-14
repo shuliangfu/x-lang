@@ -8,12 +8,27 @@
  */
 
 import * as vscode from 'vscode';
+import { t } from './i18n';
 
 /** 是否显示 function / extern function 上方的 fn 标签。 */
 function showFunctionLabels(): boolean {
   return vscode.workspace
     .getConfiguration('shux')
     .get<boolean>('features.codeLensFunctionLabels', false);
+}
+
+/** 是否显示 ▶ Run 按钮（受 features.codeLensRunButton 控制） */
+function showRunButton(): boolean {
+  return vscode.workspace
+    .getConfiguration('shux')
+    .get<boolean>('features.codeLensRunButton', true);
+}
+
+/** 是否显示 struct/enum/trait/impl/type 信息（受 features.codeLensStructInfo 控制） */
+function showStructInfo(): boolean {
+  return vscode.workspace
+    .getConfiguration('shux')
+    .get<boolean>('features.codeLensStructInfo', true);
 }
 
 export class ShuxCodeLensProvider implements vscode.CodeLensProvider {
@@ -28,26 +43,32 @@ export class ShuxCodeLensProvider implements vscode.CodeLensProvider {
     const text = document.getText();
     const lines = text.split('\n');
     const fnLabels = showFunctionLabels();
+    const runButton = showRunButton();
+    const structInfo = showStructInfo();
 
     // 函数定义正则（捕获函数名）
-    const mainRegex = /^\s*function\s+main\s*\(/;
-    const funcRegex = /^\s*function\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/;
-    const externRegex = /^\s*extern\s+function\s+(?!#).*?;/;
-    const structRegex = /^\s*(?:allow\(padding\)\s+)?struct\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\{/;
-    const enumRegex = /^\s*enum\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\{/;
+    // 【Why】支持 export 前缀、extern "C"/"X" ABI 修饰；struct 支持 packed/soa/align(N)/allow(padding) 前缀
+    const mainRegex = /^\s*(?:export\s+)?function\s+main\s*\(/;
+    const funcRegex = /^\s*(?:export\s+)?function\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/;
+    const externRegex = /^\s*(?:export\s+)?extern\s+(?:"C"|"X"\s+)?function\s+[a-zA-Z_][a-zA-Z0-9_]*\s*\([^)]*\)\s*(?::\s*\S+)?\s*;/;
+    const structRegex = /^\s*(?:export\s+)?(?:allow\(padding\)\s+|packed\s+|soa\s+|align\(\d+\)\s+)*struct\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\{/;
+    const enumRegex = /^\s*(?:export\s+)?enum\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\{/;
+    const traitRegex = /^\s*(?:export\s+)?trait\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\{/;
+    const implRegex = /^\s*impl\s+[a-zA-Z_][a-zA-Z0-9_]*\s+for\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\{/;
+    const typeRegex = /^\s*(?:export\s+)?type\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*=/;
 
     let funcCount = 0;
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
 
-      // main 函数 — "▶ Run"
-      if (mainRegex.test(line)) {
+      // main 函数 — "▶ Run"（受 shux.features.codeLensRunButton 控制）
+      if (runButton && mainRegex.test(line)) {
         const range = new vscode.Range(i, 0, i, 0);
         const lens = new vscode.CodeLens(range, {
           title: '▶ Run',
           command: 'shux.runFile',
-          tooltip: '运行此文件（shux <file>）',
+          tooltip: t('Run this file (shux <file>)'),
           arguments: [document.uri],
         });
         lenses.push(lens);
@@ -63,7 +84,7 @@ export class ShuxCodeLensProvider implements vscode.CodeLensProvider {
         const lens = new vscode.CodeLens(range, {
           title: 'fn',
           command: '',
-          tooltip: `函数: ${fm[1]}`,
+          tooltip: t('Function: {0}', fm[1]),
         });
         lenses.push(lens);
         funcCount++;
@@ -76,35 +97,76 @@ export class ShuxCodeLensProvider implements vscode.CodeLensProvider {
         const lens = new vscode.CodeLens(range, {
           title: 'extern fn',
           command: '',
-          tooltip: '外部函数声明',
+          tooltip: t('Extern function declaration'),
         });
         lenses.push(lens);
         continue;
       }
 
-      // struct
+      // struct（受 shux.features.codeLensStructInfo 控制）
       const sm = structRegex.exec(line);
-      if (sm) {
+      if (structInfo && sm) {
         const range = new vscode.Range(i, 0, i, 0);
         const len = this.extractStructFieldCount(lines, i);
         const lens = new vscode.CodeLens(range, {
           title: `${len} fields`,
           command: '',
-          tooltip: `结构体: ${sm[1]} — ${len} 个字段`,
+          tooltip: t('Struct: {0} — {1} fields', sm[1], len),
         });
         lenses.push(lens);
         continue;
       }
 
-      // enum
+      // enum（受 shux.features.codeLensStructInfo 控制）
       const em = enumRegex.exec(line);
-      if (em) {
+      if (structInfo && em) {
         const range = new vscode.Range(i, 0, i, 0);
         const len = this.extractEnumVariantCount(lines, i);
         const lens = new vscode.CodeLens(range, {
-          title: `${len} variants`,
+          title: t('{0} variants', len),
           command: '',
-          tooltip: `枚举: ${em[1]} — ${len} 个变体`,
+          tooltip: t('Enum: {0} — {1} variants', em[1], len),
+        });
+        lenses.push(lens);
+        continue;
+      }
+
+      // trait（受 shux.features.codeLensStructInfo 控制）
+      const tm = traitRegex.exec(line);
+      if (structInfo && tm) {
+        const range = new vscode.Range(i, 0, i, 0);
+        const len = this.extractTraitMethodCount(lines, i);
+        const lens = new vscode.CodeLens(range, {
+          title: t('{0} methods', len),
+          command: '',
+          tooltip: t('trait: {0} — {1} method declarations', tm[1], len),
+        });
+        lenses.push(lens);
+        continue;
+      }
+
+      // impl（受 shux.features.codeLensStructInfo 控制）
+      const im = implRegex.exec(line);
+      if (structInfo && im) {
+        const range = new vscode.Range(i, 0, i, 0);
+        const len = this.extractTraitMethodCount(lines, i);
+        const lens = new vscode.CodeLens(range, {
+          title: t('{0} methods', len),
+          command: '',
+          tooltip: t('impl for {0} — {1} method implementations', im[1], len),
+        });
+        lenses.push(lens);
+        continue;
+      }
+
+      // type alias（受 shux.features.codeLensStructInfo 控制）
+      const tp = typeRegex.exec(line);
+      if (structInfo && tp) {
+        const range = new vscode.Range(i, 0, i, 0);
+        const lens = new vscode.CodeLens(range, {
+          title: t('type'),
+          command: '',
+          tooltip: t('Type alias: {0}', tp[1]),
         });
         lenses.push(lens);
       }
@@ -132,9 +194,9 @@ export class ShuxCodeLensProvider implements vscode.CodeLensProvider {
     return count;
   }
 
-  /** 统计 enum 变体数 */
+  /** 统计 enum 变体数（支持 UPPER_SNAKE 与 PascalCase） */
   private extractEnumVariantCount(lines: string[], startLine: number): number {
-    const variantRegex = /^\s*[A-Z][A-Z0-9_]*\s*,?/;
+    const variantRegex = /^\s*[A-Z][a-zA-Z0-9_]*\s*,?/;
     let count = 0;
     let depth = 0;
     for (let i = startLine; i < lines.length; i++) {
@@ -147,6 +209,25 @@ export class ShuxCodeLensProvider implements vscode.CodeLensProvider {
         }
       }
       if (depth === 1 && variantRegex.test(line)) count++;
+    }
+    return count;
+  }
+
+  /** 统计 trait/impl 内方法数（function 定义行） */
+  private extractTraitMethodCount(lines: string[], startLine: number): number {
+    const methodRegex = /^\s*(?:export\s+)?function\s+[a-zA-Z_][a-zA-Z0-9_]*\s*\(/;
+    let count = 0;
+    let depth = 0;
+    for (let i = startLine; i < lines.length; i++) {
+      const line = lines[i];
+      for (let j = 0; j < line.length; j++) {
+        if (line[j] === '{') depth++;
+        else if (line[j] === '}') {
+          depth--;
+          if (depth === 0) return count;
+        }
+      }
+      if (depth === 1 && methodRegex.test(line)) count++;
     }
     return count;
   }

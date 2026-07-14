@@ -14,6 +14,8 @@ import {
   State,
   Trace,
 } from 'vscode-languageclient/node';
+import { t } from './i18n';
+import { setShuxLspStatus } from './statusbar';
 
 /** 用户主动 stop / 扩展 deactivate 时为 true，避免误触发崩溃重启 */
 let intentionalStop = false;
@@ -29,20 +31,20 @@ export type ShuxLspValidation =
  */
 export function validateShuxLanguageServer(command: string): ShuxLspValidation {
   if (!command.trim()) {
-    return { ok: false, message: 'shux.serverPath 为空。请设置为 compiler/shux 或 shux 的绝对路径。' };
+    return { ok: false, message: t('shux.serverPath is empty. Set it to compiler/shux or an absolute path to shux.') };
   }
 
   if (!fs.existsSync(command)) {
     return {
       ok: false,
-      message: `未找到 ${command}。请在仓库根目录执行：make -C compiler bootstrap-driver-seed`,
+      message: t('{0} not found. Run in repo root: make -C compiler bootstrap-driver-seed', command),
     };
   }
 
   try {
     fs.accessSync(command, fs.constants.X_OK);
   } catch {
-    return { ok: false, message: `shux 不可执行：${command}` };
+    return { ok: false, message: t('shux is not executable: {0}', command) };
   }
 
   /** shux --lsp 会阻塞读 stdin；超时说明进程正常进入 LSP 模式 */
@@ -55,8 +57,7 @@ export function validateShuxLanguageServer(command: string): ShuxLspValidation {
   if (combined.includes('unknown option') && combined.includes('--lsp')) {
     return {
       ok: false,
-      message:
-        '当前 shux 不支持 --lsp（常见为 shux-c）。请使用 bootstrap 构建的 compiler/shux 作为 shux.serverPath。',
+      message: t('Current shux does not support --lsp (commonly shux-c). Use bootstrap-built compiler/shux as shux.serverPath.'),
     };
   }
 
@@ -70,7 +71,7 @@ export function validateShuxLanguageServer(command: string): ShuxLspValidation {
   if (probe.status !== 0 && probe.status !== null) {
     return {
       ok: false,
-      message: `shux --lsp 探针异常退出 (code ${probe.status})。详见 Shux 输出通道。`,
+      message: t('shux --lsp probe exited abnormally (code {0}). See Shux output channel.', probe.status),
     };
   }
 
@@ -101,9 +102,9 @@ export async function startShuxLanguageClient(params: {
   if (!validation.ok) {
     params.outputChannel.appendLine(`[Shux] ${validation.message}`);
     void vscode.window
-      .showErrorMessage(`Shux 语言服务无法启动：${validation.message}`, '显示输出')
+      .showErrorMessage(t('Shux language server failed to start: {0}', validation.message), t('Show Output'))
       .then((choice) => {
-        if (choice === '显示输出') {
+        if (choice === t('Show Output')) {
           params.outputChannel.show(true);
         }
       });
@@ -135,16 +136,19 @@ export async function startShuxLanguageClient(params: {
   client.setTrace(params.trace);
 
   client.onDidChangeState((event) => {
+    /** 同步状态栏 LSP 连接指示器 */
+    setShuxLspStatus(event.newState === State.Running);
+
     if (
       params.restartOnCrash &&
       !intentionalStop &&
       event.oldState === State.Running &&
       event.newState === State.Stopped
     ) {
-      params.outputChannel.appendLine('[Shux] 语言服务意外退出，正在自动重启…');
+      params.outputChannel.appendLine(t('[Shux] Language server exited unexpectedly, auto-restarting...'));
       void client.start().catch((err: unknown) => {
         const message = err instanceof Error ? err.message : String(err);
-        params.outputChannel.appendLine(`[Shux] 自动重启失败: ${message}`);
+        params.outputChannel.appendLine(t('[Shux] Auto-restart failed: {0}', message));
       });
     }
   });
@@ -152,14 +156,14 @@ export async function startShuxLanguageClient(params: {
   try {
     await client.start();
     params.outputChannel.appendLine(
-      '[Shux] 语言服务已连接（Pull 诊断：parse/typeck 错误将显示在问题面板）。'
+      t('[Shux] Language service connected (Pull diagnostics: parse/typeck errors will show in Problems panel).')
     );
     return client;
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    params.outputChannel.appendLine(`[Shux] LSP 启动失败: ${message}`);
-    void vscode.window.showErrorMessage(`Shux LSP 启动失败: ${message}`, '显示输出').then((choice) => {
-      if (choice === '显示输出') {
+    params.outputChannel.appendLine(t('[Shux] LSP start failed: {0}', message));
+    void vscode.window.showErrorMessage(t('Shux LSP start failed: {0}', message), t('Show Output')).then((choice) => {
+      if (choice === t('Show Output')) {
         params.outputChannel.show(true);
       }
     });

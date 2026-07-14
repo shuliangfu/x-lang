@@ -1,8 +1,8 @@
 {
   "name": "vscode-shux",
   "displayName": "Shux Language",
-  "description": "Shux (.x) 完整开发体验：语法高亮、LSP、智能补全、参数提示、悬停、大纲、折叠、片段、任务、错误跳转、实时缩进、选区扩展与状态栏",
-  "version": "0.1.0",
+  "description": "Shux (.x) 完整开发体验：语法高亮、LSP、智能补全、参数提示、悬停、大纲、折叠、片段、任务、错误跳转、实时缩进、选区扩展、状态栏、语义高亮、CodeAction、DocumentHighlight、多语言",
+  "version": "0.3.0",
   "license": "MIT",
   "publisher": "shux",
   "icon": "icon.png",
@@ -18,7 +18,7 @@
   ],
   "keywords": [
     "shux",
-    "sx",
+    "x",
     "compiler",
     "lsp"
   ],
@@ -29,13 +29,13 @@
   "contributes": {
     "languages": [
       {
-        "id": "sx",
+        "id": "x",
         "extensions": [
           ".x"
         ],
         "aliases": [
           "Shux",
-          "sx"
+          "x"
         ],
         "configuration": "./language-configuration.json",
         "icon": {
@@ -46,7 +46,7 @@
     ],
     "grammars": [
       {
-        "language": "sx",
+        "language": "x",
         "scopeName": "source.x",
         "path": "./grammars/x.tmLanguage.json"
       }
@@ -54,10 +54,48 @@
     "configuration": {
       "title": "Shux",
       "properties": {
+        "shux.locale": {
+          "type": "string",
+          "default": "auto",
+          "enum": [
+            "auto",
+            "en",
+            "zh-cn",
+            "zh-tw",
+            "ja",
+            "ko",
+            "de",
+            "fr",
+            "es",
+            "ru",
+            "pt-br",
+            "it",
+            "tr",
+            "pl"
+          ],
+          "enumDescriptions": [
+            "%shux.config.locale.auto%",
+            "%shux.config.locale.en%",
+            "%shux.config.locale.zh-cn%",
+            "%shux.config.locale.zh-tw%",
+            "%shux.config.locale.ja%",
+            "%shux.config.locale.ko%",
+            "%shux.config.locale.de%",
+            "%shux.config.locale.fr%",
+            "%shux.config.locale.es%",
+            "%shux.config.locale.ru%",
+            "%shux.config.locale.pt-br%",
+            "%shux.config.locale.it%",
+            "%shux.config.locale.tr%",
+            "%shux.config.locale.pl%"
+          ],
+          "markdownDescription": "%shux.config.locale%",
+          "scope": "window"
+        },
         "shux.serverPath": {
           "type": "string",
           "default": "compiler/shux",
-          "markdownDescription": "Shux 编译器（`shux`）可执行文件路径，用于 LSP（诊断、跳转定义、查找引用、格式化）。可填 `shux`（PATH 查找；若工作区存在 `compiler/shux` 会自动使用）、相对工作区路径（如 `compiler/shux`）或绝对路径。",
+          "markdownDescription": "%shux.config.serverPath%",
           "scope": "machine-overridable"
         },
         "shux.server.trace": {
@@ -69,23 +107,23 @@
             "verbose"
           ],
           "enumDescriptions": [
-            "不记录 LSP 通信日志",
-            "记录请求/响应消息摘要",
-            "记录完整 JSON 通信内容"
+            "%shux.config.server.trace.off%",
+            "%shux.config.server.trace.messages%",
+            "%shux.config.server.trace.verbose%"
           ],
-          "markdownDescription": "LSP 客户端与服务端之间的通信日志级别。调试语言服务问题时设为 `verbose` 可查看完整 JSON 交互。日志输出到 VS Code 的 **Shux** 输出通道。",
+          "markdownDescription": "%shux.config.server.trace%",
           "scope": "window"
         },
         "shux.server.restartOnCrash": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "语言服务进程崩溃时是否自动重启。关闭后需要手动 **Shux: 重启语言服务** 命令来恢复。",
+          "markdownDescription": "%shux.config.server.restartOnCrash%",
           "scope": "window"
         },
         "shux.format.enabled": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "启用 Shux 代码格式化。关闭后 `.x` 文件的 **格式化文档** 命令不生效，同时禁用编辑器格式化快捷键。",
+          "markdownDescription": "%shux.config.format.enabled%",
           "scope": "resource"
         },
         "shux.format.tabSize": {
@@ -93,13 +131,13 @@
           "default": 2,
           "minimum": 1,
           "maximum": 16,
-          "markdownDescription": "每级缩进空格数。仅当 `shux.format.insertSpaces` 为 `true` 时生效。",
+          "markdownDescription": "%shux.config.format.tabSize%",
           "scope": "resource"
         },
         "shux.format.insertSpaces": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "使用空格缩进。设为 `false` 时使用 Tab（制表符）缩进。",
+          "markdownDescription": "%shux.config.format.insertSpaces%",
           "scope": "resource"
         },
         "shux.format.maxLineLength": {
@@ -107,97 +145,91 @@
           "default": 100,
           "minimum": 20,
           "maximum": 512,
-          "markdownDescription": "每行最大字符数。超出时格式化器会在合适位置折行。",
-          "scope": "resource"
-        },
-        "shux.format.insertFinalNewline": {
-          "type": "boolean",
-          "default": true,
-          "markdownDescription": "文件末尾插入一个换行符。启用后保存时保证文件末尾恰好有一个换行。",
-          "scope": "resource"
-        },
-        "shux.format.trimTrailingWhitespace": {
-          "type": "boolean",
-          "default": true,
-          "markdownDescription": "去除行尾多余空格和制表符。保存时自动清理。",
-          "scope": "resource"
-        },
-        "shux.format.trimFinalNewlines": {
-          "type": "boolean",
-          "default": true,
-          "markdownDescription": "压缩文件末尾多余空行。启用后末尾只保留至多一个换行符。",
-          "scope": "resource"
-        },
-        "shux.features.symbols": {
-          "type": "boolean",
-          "default": true,
-          "markdownDescription": "启用大纲视图与面包屑导航（DocumentSymbolProvider）。",
+          "markdownDescription": "%shux.config.format.maxLineLength%",
           "scope": "resource"
         },
         "shux.features.folding": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "启用语义代码折叠（FoldingRangeProvider）。",
-          "scope": "resource"
-        },
-        "shux.features.hover": {
-          "type": "boolean",
-          "default": true,
-          "markdownDescription": "启用悬停提示（HoverProvider，LSP 不可用时的本地回退）。",
+          "markdownDescription": "%shux.config.features.folding%",
           "scope": "resource"
         },
         "shux.features.codeLens": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "启用行内 CodeLens（▶ Run、struct/enum 字段数等）。",
+          "markdownDescription": "%shux.config.features.codeLens%",
           "scope": "resource"
         },
         "shux.features.codeLensFunctionLabels": {
           "type": "boolean",
           "default": false,
-          "markdownDescription": "在 `function` / `extern function` 定义行上方显示 `fn` / `extern fn` 标签。默认关闭；不影响 ▶ Run 与 struct/enum 提示。",
-          "scope": "resource"
-        },
-        "shux.features.signatureHelp": {
-          "type": "boolean",
-          "default": true,
-          "markdownDescription": "启用函数参数签名提示（SignatureHelpProvider）。",
-          "scope": "resource"
-        },
-        "shux.features.completion": {
-          "type": "boolean",
-          "default": true,
-          "markdownDescription": "启用智能补全（CompletionItemProvider）。",
+          "markdownDescription": "%shux.config.features.codeLensFunctionLabels%",
           "scope": "resource"
         },
         "shux.features.formatOnType": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "启用输入时实时缩进（OnTypeFormattingProvider）。",
+          "markdownDescription": "%shux.config.features.formatOnType%",
           "scope": "resource"
         },
         "shux.features.documentLinks": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "启用 import 路径可点击跳转（DocumentLinkProvider）。",
+          "markdownDescription": "%shux.config.features.documentLinks%",
           "scope": "resource"
         },
         "shux.features.statusBar": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "启用右下角符号统计状态栏。",
+          "markdownDescription": "%shux.config.features.statusBar%",
           "scope": "resource"
         },
         "shux.features.selectionRange": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "启用 Ctrl+Shift+→ 智能选区扩展（SelectionRangeProvider）。",
+          "markdownDescription": "%shux.config.features.selectionRange%",
           "scope": "resource"
         },
-        "shux.features.formatOnBlur": {
+        "shux.features.documentHighlight": {
           "type": "boolean",
-          "default": false,
-          "markdownDescription": "`.x` 编辑器失去焦点（切换标签页或文件）时自动格式化上一个文档。",
+          "default": true,
+          "markdownDescription": "%shux.config.features.documentHighlight%",
+          "scope": "resource"
+        },
+        "shux.features.codeAction": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "%shux.config.features.codeAction%",
+          "scope": "resource"
+        },
+        "shux.features.workspaceSymbol": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "%shux.config.features.workspaceSymbol%",
+          "scope": "resource"
+        },
+        "shux.features.statusBarDiagnostics": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "%shux.config.features.statusBarDiagnostics%",
+          "scope": "resource"
+        },
+        "shux.features.statusBarLspStatus": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "%shux.config.features.statusBarLspStatus%",
+          "scope": "resource"
+        },
+        "shux.features.codeLensRunButton": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "%shux.config.features.codeLensRunButton%",
+          "scope": "resource"
+        },
+        "shux.features.codeLensStructInfo": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "%shux.config.features.codeLensStructInfo%",
           "scope": "resource"
         },
         "shux.compiler.diagnosticLevel": {
@@ -210,12 +242,12 @@
             "info"
           ],
           "enumDescriptions": [
-            "关闭所有编译器诊断",
-            "仅显示错误",
-            "显示警告和错误（默认）",
-            "显示信息、警告和错误"
+            "%shux.config.compiler.diagnosticLevel.off%",
+            "%shux.config.compiler.diagnosticLevel.error%",
+            "%shux.config.compiler.diagnosticLevel.warning%",
+            "%shux.config.compiler.diagnosticLevel.info%"
           ],
-          "markdownDescription": "编译器诊断报告的最低级别。影响问题面板中 `.x` 文件的诊断标记。",
+          "markdownDescription": "%shux.config.compiler.diagnosticLevel%",
           "scope": "resource"
         },
         "shux.compiler.extraArgs": {
@@ -224,13 +256,13 @@
             "type": "string"
           },
           "default": [],
-          "markdownDescription": "传递给 `shux --lsp` 的额外命令行参数，如 `[\"--verbose\"]`。",
+          "markdownDescription": "%shux.config.compiler.extraArgs%",
           "scope": "resource"
         },
         "shux.compiler.targetDir": {
           "type": "string",
           "default": "",
-          "markdownDescription": "编译器输出目录（如 `build/`）。相对路径基于工作区根目录。留空使用编译器默认输出位置。",
+          "markdownDescription": "%shux.config.compiler.targetDir%",
           "scope": "resource"
         },
         "shux.compiler.libRoots": {
@@ -239,65 +271,142 @@
             "type": "string"
           },
           "default": [".", "compiler/src", "core", "std"],
-          "markdownDescription": "import 路径解析库根目录列表，与 shux -L 布局一致。用于 import 跳转与跨模块符号索引。",
+          "markdownDescription": "%shux.config.compiler.libRoots%",
           "scope": "resource"
         },
         "shux.compiler.envJson": {
           "type": "object",
           "default": {},
-          "markdownDescription": "传递给 `shux` 进程的环境变量，例如 `{ \"SHUX_PATH\": \"/opt/shux\" }`。",
+          "markdownDescription": "%shux.config.compiler.envJson%",
+          "scope": "resource"
+        },
+        "shux.build.optimizationLevel": {
+          "type": "string",
+          "default": "0",
+          "enum": ["0", "1", "2", "3"],
+          "enumDescriptions": [
+            "%shux.config.build.optimizationLevel.0%",
+            "%shux.config.build.optimizationLevel.1%",
+            "%shux.config.build.optimizationLevel.2%",
+            "%shux.config.build.optimizationLevel.3%"
+          ],
+          "markdownDescription": "%shux.config.build.optimizationLevel%",
+          "scope": "resource"
+        },
+        "shux.build.debugInfo": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "%shux.config.build.debugInfo%",
+          "scope": "resource"
+        },
+        "shux.build.outputName": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "%shux.config.build.outputName%",
+          "scope": "resource"
+        },
+        "shux.workspaceSymbol.maxFiles": {
+          "type": "integer",
+          "default": 2000,
+          "minimum": 100,
+          "maximum": 50000,
+          "markdownDescription": "%shux.config.workspaceSymbol.maxFiles%",
+          "scope": "resource"
+        },
+        "shux.workspaceSymbol.excludePatterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "**/node_modules/**",
+            "**/.git/**",
+            "**/out/**",
+            "**/dist/**",
+            "**/target/**",
+            "**/build/**"
+          ],
+          "markdownDescription": "%shux.config.workspaceSymbol.excludePatterns%",
           "scope": "resource"
         }
       }
     },
     "configurationDefaults": {
-      "[sx]": {
+      "[x]": {
         "editor.defaultFormatter": "shux.vscode-shux",
         "editor.formatOnSave": true,
         "editor.formatOnPaste": true,
         "editor.tabSize": 2,
         "editor.insertSpaces": true,
-        "editor.codeLens": true
+        "editor.codeLens": true,
+        "editor.semanticHighlighting.enabled": true
       }
     },
     "commands": [
       {
         "command": "shux.restartServer",
-        "title": "重启语言服务",
+        "title": "%shux.command.restartServer%",
         "category": "Shux"
       },
       {
         "command": "shux.showServerOutput",
-        "title": "显示语言服务输出",
+        "title": "%shux.command.showServerOutput%",
         "category": "Shux"
       },
       {
         "command": "shux.openSettings",
-        "title": "打开设置（工作区 settings.json）",
+        "title": "%shux.command.openSettings%",
         "category": "Shux"
       },
       {
         "command": "shux.runFile",
-        "title": "运行当前 .x 文件",
+        "title": "%shux.command.runFile%",
+        "category": "Shux"
+      },
+      {
+        "command": "shux.buildFile",
+        "title": "%shux.command.buildFile%",
+        "category": "Shux"
+      },
+      {
+        "command": "shux.checkFile",
+        "title": "%shux.command.checkFile%",
+        "category": "Shux"
+      },
+      {
+        "command": "shux.buildProject",
+        "title": "%shux.command.buildProject%",
+        "category": "Shux"
+      },
+      {
+        "command": "shux.formatDocument",
+        "title": "%shux.command.formatDocument%",
         "category": "Shux"
       },
       {
         "command": "shux.refreshCodeLens",
-        "title": "刷新 CodeLens",
+        "title": "%shux.command.refreshCodeLens%",
         "category": "Shux"
       }
     ],
     "snippets": [
       {
-        "language": "sx",
+        "language": "x",
         "path": "./snippets/x.json"
+      }
+    ],
+    "iconThemes": [
+      {
+        "id": "shux-icons",
+        "label": "Shux Icons",
+        "path": "./icons/shux-icon-theme.json"
       }
     ],
     "problemMatchers": [
       {
         "name": "shux-parse",
-        "label": "Shux: parse error",
-        "owner": "sx",
+        "label": "%shux.problemMatcher.parse%",
+        "owner": "x",
         "source": "shux",
         "fileLocation": "relative",
         "pattern": {
@@ -309,8 +418,8 @@
       },
       {
         "name": "shux-typeck",
-        "label": "Shux: typeck error",
-        "owner": "sx",
+        "label": "%shux.problemMatcher.typeck%",
+        "owner": "x",
         "source": "shux",
         "fileLocation": "relative",
         "pattern": {
@@ -322,8 +431,8 @@
       },
       {
         "name": "shux-generic",
-        "label": "Shux: generic error",
-        "owner": "sx",
+        "label": "%shux.problemMatcher.generic%",
+        "owner": "x",
         "source": "shux",
         "fileLocation": "relative",
         "pattern": {
@@ -344,7 +453,7 @@
         "properties": {
           "task": {
             "type": "string",
-            "description": "Shux 任务类型: build / build-file / run / check",
+            "description": "%shux.taskDefinition.task.description%",
             "enum": [
               "build",
               "build-file",
@@ -353,6 +462,47 @@
             ]
           }
         }
+      }
+    ],
+    "walkthroughs": [
+      {
+        "id": "shux.welcome",
+        "title": "%shux.walkthrough.welcome.title%",
+        "description": "%shux.walkthrough.welcome.description%",
+        "steps": [
+          {
+            "id": "open.project",
+            "title": "%shux.walkthrough.openProject.title%",
+            "description": "%shux.walkthrough.openProject.description%",
+            "media": {
+              "markdown": "%shux.walkthrough.openProject.media%"
+            }
+          },
+          {
+            "id": "build.compiler",
+            "title": "%shux.walkthrough.buildCompiler.title%",
+            "description": "%shux.walkthrough.buildCompiler.description%",
+            "media": {
+              "markdown": "%shux.walkthrough.buildCompiler.media%"
+            }
+          },
+          {
+            "id": "open.x.file",
+            "title": "%shux.walkthrough.openXFile.title%",
+            "description": "%shux.walkthrough.openXFile.description%",
+            "media": {
+              "markdown": "%shux.walkthrough.openXFile.media%"
+            }
+          },
+          {
+            "id": "run.file",
+            "title": "%shux.walkthrough.runFile.title%",
+            "description": "%shux.walkthrough.runFile.description%",
+            "media": {
+              "markdown": "%shux.walkthrough.runFile.media%"
+            }
+          }
+        ]
       }
     ]
   },

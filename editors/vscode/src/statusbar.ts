@@ -1,23 +1,11 @@
 /**
  * Shux 状态栏 — 在右下角显示「Shux」及对当前 `.x` 源的符号粗略统计。
  *
- * extension.activate() 示例：
- * ```
- * registerShuxStatusBar(context);
- * refreshShuxStatusBar(vscode.window.activeTextEditor);
- * context.subscriptions.push(
- *   vscode.window.onDidChangeActiveTextEditor((e) => refreshShuxStatusBar(e))
- * );
- * context.subscriptions.push(
- *   vscode.workspace.onDidChangeTextDocument((e) => {
- *     if (e.document.languageId === 'x') {
- *       refreshShuxStatusBar(vscode.window.activeTextEditor);
- *     }
- *   })
- * );
- * ```
+ * 统计范围：function / struct / enum / trait / impl / type
+ * 识别前缀：export、packed、soa、align(N)、allow(padding)
  */
 
+import * as vscode from 'vscode';
 import {
   ExtensionContext,
   StatusBarAlignment,
@@ -25,35 +13,32 @@ import {
   TextEditor,
   window,
 } from 'vscode';
+import { t } from './i18n';
 
 /** VSCode StatusBar：扩展侧持有单例，防止重复条目。 */
 let shuxStatusItem: StatusBarItem | undefined;
 
-/** 与普通函数声明行匹配的正则（与 symbols.ts 行首抽取策略一致）。 */
-const FUNC_HEAD = /^\s*function\s+[a-zA-Z_][a-zA-Z0-9_]*\s*\(/;
-/** 可选 `allow(padding)` 前缀的结构体起始行（与大纲逻辑对齐）。 */
+/** LSP 连接状态：由 lspClient.ts 状态变更时调用 setShuxLspStatus 更新 */
+let lspConnected = false;
+
+/** 【Why】所有正则统一识别 export/packed/soa/align/allow(padding) 前缀 */
+const FUNC_HEAD = /^\s*(?:export\s+)?function\s+[a-zA-Z_][a-zA-Z0-9_]*\s*\(/;
 const STRUCT_HEAD =
-  /^\s*(?:allow\(padding\)\s+)?struct\s+[a-zA-Z_][a-zA-Z0-9_]*\s*\{/;
-/** 枚举起始行。 */
-const ENUM_HEAD = /^\s*enum\s+[a-zA-Z_][a-zA-Z0-9_]*\s*\{/;
+  /^\s*(?:export\s+)?(?:allow\(padding\)\s+|packed\s+|soa\s+|align\(\d+\)\s+)*struct\s+[a-zA-Z_][a-zA-Z0-9_]*\s*\{/;
+const ENUM_HEAD = /^\s*(?:export\s+)?enum\s+[a-zA-Z_][a-zA-Z0-9_]*\s*\{/;
+const TRAIT_HEAD = /^\s*(?:export\s+)?trait\s+[a-zA-Z_][a-zA-Z0-9_]*\s*\{/;
+const IMPL_HEAD = /^\s*impl\s+[a-zA-Z_][a-zA-Z0-9_]*\s+for\s+[a-zA-Z_][a-zA-Z0-9_]*\s*\{/;
+const TYPE_HEAD = /^\s*(?:export\s+)?type\s+[a-zA-Z_][a-zA-Z0-9_]*\s*=/;
 
 /**
  * 将源码中的注释替换为等价长度的空白字符，保留换行，
  * 使基于 `^` 的行首正则不会匹配到注释中的关键字。
- *
- * @param source 文档全文。
- * @returns 去掉注释后的文本（仅用于正则统计，不改变换行个数）。
  */
 function stripXCommentsPreserveNewlines(source: string): string {
-  /** 输出缓冲区，与原串等长，逐字节填充。 */
   const outChars: string[] = new Array(source.length);
-  /** 是否在 `//` 行注释尾部。 */
   let lineComment = false;
-  /** 块注释 `/* … *\/` 嵌套深度。 */
   let blockDepth = 0;
-  /** 是否在双引号字符串中（支持 `\\\"`）。 */
   let inString = false;
-  /** 上一字符是否为反斜杠（字符串转义）。 */
   let escaped = false;
 
   for (let i = 0; i < source.length; i++) {
@@ -96,7 +81,6 @@ function stripXCommentsPreserveNewlines(source: string): string {
       continue;
     }
 
-    // 字符串开始
     if (c === '"') {
       inString = true;
       escaped = false;
@@ -104,7 +88,6 @@ function stripXCommentsPreserveNewlines(source: string): string {
       continue;
     }
 
-    // 行注释入口
     if (c === '/' && n === '/') {
       outChars[i] = ' ';
       outChars[i + 1] = ' ';
@@ -112,7 +95,6 @@ function stripXCommentsPreserveNewlines(source: string): string {
       i++;
       continue;
     }
-    // 块注释入口
     if (c === '/' && n === '*') {
       outChars[i] = ' ';
       outChars[i + 1] = ' ';
@@ -127,66 +109,74 @@ function stripXCommentsPreserveNewlines(source: string): string {
   return outChars.join('');
 }
 
-/**
- * 对清洗后的源码逐行计数：function / struct / enum。
- *
- * @param sanitized 已通过 `stripXCommentsPreserveNewlines` 的文本。
- */
+/** 对清洗后的源码逐行计数：function / struct / enum / trait / impl / type */
 function countXSymbolsPerLinePrefix(sanitized: string): {
   funcs: number;
   structs: number;
   enums: number;
+  traits: number;
+  impls: number;
+  types: number;
 } {
   let funcs = 0;
   let structs = 0;
   let enums = 0;
+  let traits = 0;
+  let impls = 0;
+  let types = 0;
   const lines = sanitized.split(/\r?\n/);
   for (const line of lines) {
     if (FUNC_HEAD.test(line)) funcs++;
     else if (STRUCT_HEAD.test(line)) structs++;
     else if (ENUM_HEAD.test(line)) enums++;
+    else if (TRAIT_HEAD.test(line)) traits++;
+    else if (IMPL_HEAD.test(line)) impls++;
+    else if (TYPE_HEAD.test(line)) types++;
   }
-  return { funcs, structs, enums };
+  return { funcs, structs, enums, traits, impls, types };
 }
 
 /**
  * 创建右下角 Shux 状态项并完成首次刷新（若当前有活动编辑器）。
- *
- * StatusBar：`alignment = Right`、`priority = 100`；
- * `text = ' Shux'`（按需求保留前导空格）；
- * `tooltip = 'Shux (.x)'`；
- * `show()` 后即加入 `context.subscriptions`。
- *
- * @param context VSCode 激活上下文。
  */
 export function registerShuxStatusBar(context: ExtensionContext): void {
   if (shuxStatusItem) {
-    /** 已在开发热重载下多次激活时重用同一项，防止泄漏。 */
     shuxStatusItem.dispose();
   }
-  /** 右下角状态条目 */
   const item = window.createStatusBarItem(StatusBarAlignment.Right, 100);
   shuxStatusItem = item;
   item.name = 'Shux';
-  /** 初始化展示（占位含前导空格，符合需求字面） */
   item.text = ' Shux';
   item.tooltip = 'Shux (.x)';
   item.show();
-
-  /** 扩展卸载时销毁状态条目 */
   context.subscriptions.push(item);
+  /** 诊断变更时刷新状态栏（更新错误/警告计数） */
+  context.subscriptions.push(
+    vscode.languages.onDidChangeDiagnostics(() => {
+      refreshShuxStatusBar(window.activeTextEditor);
+    })
+  );
+  refreshShuxStatusBar(window.activeTextEditor);
+}
 
-  /** 注册完成后立即对齐当前编辑器 */
+/**
+ * 设置 LSP 连接状态，由 lspClient.ts 在 onDidChangeState 时调用。
+ * @param connected true=LSP 已连接，false=未连接/已停止
+ */
+export function setShuxLspStatus(connected: boolean): void {
+  lspConnected = connected;
   refreshShuxStatusBar(window.activeTextEditor);
 }
 
 /**
  * 在活动编辑器或其文档发生变化时刷新状态栏计数。
  *
- * - 若为 `.x`：统计 `function`/`struct`/`enum`（排除注释）。
- * - 否则回退占位文本：` Shux`，tooltip：`Shux (.x)`。
+ * - 若为 `.x`：统计 function/struct/enum/trait/impl/type（排除注释）
+ * - 否则回退占位文本
  *
- * @param editor 当前活动编辑器，可为 undefined。
+ * 子开关（受 `shux.features.statusBar` 总开关约束）：
+ * - `shux.features.statusBarDiagnostics`：是否显示错误/警告计数
+ * - `shux.features.statusBarLspStatus`：是否显示 LSP 连接指示器
  */
 export function refreshShuxStatusBar(editor: TextEditor | undefined): void {
   const item = shuxStatusItem;
@@ -194,25 +184,36 @@ export function refreshShuxStatusBar(editor: TextEditor | undefined): void {
     return;
   }
 
-  /** 仅在 Shux 语言 ID 上做统计（与 contributes 对齐） */
+  const config = vscode.workspace.getConfiguration('shux');
+  const showLspStatus = config.get<boolean>('features.statusBarLspStatus', true);
+  const showDiagnostics = config.get<boolean>('features.statusBarDiagnostics', true);
+
+  /** LSP 状态指示器：未连接时显示 $(circle-slash)，已连接时不额外显示 */
+  const lspBadge = showLspStatus && !lspConnected ? '$(circle-slash) ' : '';
+
   if (!editor || editor.document.languageId !== 'x') {
-    /** 需求：非 .x 编辑器回退占位 */
-    item.text = ' Shux';
-    item.tooltip = 'Shux (.x)';
+    item.text = ` ${lspBadge}Shux`;
+    item.tooltip = lspConnected ? 'Shux (.x)' : `Shux (.x)\n${t('LSP not connected')}`;
     return;
   }
 
   const sanitized = stripXCommentsPreserveNewlines(editor.document.getText());
-  const { funcs, structs, enums } = countXSymbolsPerLinePrefix(sanitized);
+  const { funcs, structs, enums, traits, impls, types } = countXSymbolsPerLinePrefix(sanitized);
 
-  /**
-   * `$(symbol-namespace)`：使用内置图标前缀，前缀保留一个空格以保持版式，
-   * 后面展示三种符号计数。
-   */
-  item.text = ` $(symbol-namespace) Shux · fn ${funcs} · st ${structs} · en ${enums}`;
-  /** 悬停详细信息：分项列出 */
-  item.tooltip = `Shux (.x)
-函数: ${funcs}
-结构体: ${structs}
-枚举: ${enums}`;
+  /** 诊断计数：统计当前文件的 error / warning 数量 */
+  let errCount = 0;
+  let warnCount = 0;
+  if (showDiagnostics) {
+    const diags = vscode.languages.getDiagnostics(editor.document.uri);
+    for (const d of diags) {
+      if (d.severity === vscode.DiagnosticSeverity.Error) errCount++;
+      else if (d.severity === vscode.DiagnosticSeverity.Warning) warnCount++;
+    }
+  }
+  const diagBadge =
+    (errCount > 0 ? ` · $(error) ${errCount}` : '') +
+    (warnCount > 0 ? ` · $(warning) ${warnCount}` : '');
+
+  item.text = ` ${lspBadge}$(symbol-namespace) Shux · fn ${funcs} · st ${structs} · en ${enums} · tr ${traits} · im ${impls} · ty ${types}${diagBadge}`;
+  item.tooltip = `Shux (.x)\n${t('Functions: {0}', funcs)}\n${t('Structs: {0}', structs)}\n${t('Enums: {0}', enums)}\n${t('Traits: {0}', traits)}\n${t('Impls: {0}', impls)}\n${t('Types: {0}', types)}${errCount > 0 ? `\n${t('Errors: {0}', errCount)}` : ''}${warnCount > 0 ? `\n${t('Warnings: {0}', warnCount)}` : ''}${!lspConnected ? `\n${t('LSP not connected')}` : ''}`;
 }

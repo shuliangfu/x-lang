@@ -4,7 +4,9 @@
   "scopeName": "source.x",
   "patterns": [
     { "include": "#comments" },
+    { "include": "#attributes" },
     { "include": "#strings" },
+    { "include": "#lifetimes" },
     { "include": "#imports" },
     { "include": "#declarations" },
     { "include": "#keywords" },
@@ -16,8 +18,29 @@
     "comments": {
       "patterns": [
         { "name": "comment.line.double-slash", "match": "//.*$" },
-        { "name": "comment.line.number-sign", "match": "#.*$" },
+        { "name": "comment.line.number-sign", "match": "#(?!\\[).*$" },
         { "begin": "/\\*", "end": "\\*/", "name": "comment.block" }
+      ]
+    },
+
+    "attributes": {
+      "patterns": [
+        {
+          "comment": "属性 #[no_mangle] / #[cfg(...)] / #[repr(C)] / #[repr(compatible)] / #[soa] / #[alloc]",
+          "match": "#\\[([a-zA-Z_][a-zA-Z0-9_]*(?:\\([^)]*\\))?)\\]",
+          "captures": {
+            "0": { "name": "meta.attribute.shux" },
+            "1": { "name": "entity.other.attribute-name" }
+          }
+        },
+        {
+          "comment": "allow(padding) 直接前缀形式（非 #[...] 属性）",
+          "match": "\\ballow\\((padding)\\)",
+          "captures": {
+            "0": { "name": "meta.attribute.shux" },
+            "1": { "name": "constant.other.attribute" }
+          }
+        }
       ]
     },
 
@@ -28,6 +51,19 @@
           "patterns": [
             { "name": "constant.character.escape", "match": "\\\\." }
           ]
+        }
+      ]
+    },
+
+    "lifetimes": {
+      "patterns": [
+        {
+          "comment": "lifetime 标签：T[]<label> 中的 <label>（如 i32[]<ra>）",
+          "match": "(\\[\\])<([a-zA-Z_][a-zA-Z0-9_]*)>",
+          "captures": {
+            "1": { "name": "punctuation.section.brackets" },
+            "2": { "name": "storage.modifier.lifetime" }
+          }
         }
       ]
     },
@@ -47,23 +83,10 @@
       ]
     },
 
-    "attributes": {
-      "patterns": [
-        {
-          "comment": "结构体属性 allow(padding)",
-          "match": "\\ballow\\((padding)\\)",
-          "captures": {
-            "0": { "name": "meta.attribute.shux" },
-            "1": { "name": "constant.other.attribute" }
-          }
-        }
-      ]
-    },
-
     "struct-body": {
       "patterns": [
         {
-          "comment": "结构体定义体：字段名与类型分色",
+          "comment": "结构体定义体：字段名与类型分色（支持 allow(padding) 前缀）",
           "begin": "(\\b(?:allow\\(padding\\)\\s+)?)(struct)\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*\\{",
           "beginCaptures": {
             "1": { "name": "meta.attribute.shux" },
@@ -82,6 +105,7 @@
               }
             },
             { "include": "#types" },
+            { "include": "#lifetimes" },
             { "include": "#literals" },
             { "include": "#operators" }
           ]
@@ -118,6 +142,36 @@
         { "include": "#struct-body" },
         { "include": "#enum-body" },
         {
+          "comment": "export extern \"C\"/\"X\" function 声明",
+          "match": "\\b(export)\\s+(extern)\\s+(\"C\"|\"X\")\\s+(function)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": { "name": "storage.modifier" },
+            "2": { "name": "storage.modifier" },
+            "3": { "name": "keyword.other.abi" },
+            "4": { "name": "storage.type.function" },
+            "5": { "name": "entity.name.function" }
+          }
+        },
+        {
+          "comment": "extern \"C\"/\"X\" function 声明",
+          "match": "\\b(extern)\\s+(\"C\"|\"X\")\\s+(function)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": { "name": "storage.modifier" },
+            "2": { "name": "keyword.other.abi" },
+            "3": { "name": "storage.type.function" },
+            "4": { "name": "entity.name.function" }
+          }
+        },
+        {
+          "comment": "export function 声明",
+          "match": "\\b(export)\\s+(function)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": { "name": "storage.modifier" },
+            "2": { "name": "storage.type.function" },
+            "3": { "name": "entity.name.function" }
+          }
+        },
+        {
           "match": "\\b(function)\\s+([A-Za-z_][A-Za-z0-9_]*)",
           "captures": {
             "1": { "name": "storage.type.function" },
@@ -133,8 +187,8 @@
           }
         },
         {
-          "comment": "无花括号的 struct/enum/trait 声明（如前向声明）",
-          "match": "\\b(struct|enum|trait)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "comment": "struct/enum/trait/impl/type 声明（含 export 前缀的会被 #keywords 先匹配 export）",
+          "match": "\\b(struct|enum|trait|impl|type)\\s+([A-Za-z_][A-Za-z0-9_]*)",
           "captures": {
             "1": { "name": "storage.type" },
             "2": { "name": "entity.name.type" }
@@ -155,7 +209,7 @@
           }
         },
         {
-          "comment": "函数调用；排除 allow(padding) 属性",
+          "comment": "函数调用；排除 allow\b",
           "match": "\\b(?!allow\\b)([A-Za-z_][A-Za-z0-9_]*)\\s*\\(",
           "captures": {
             "1": { "name": "entity.name.function" }
@@ -189,10 +243,17 @@
         { "name": "storage.type", "match": "\\benum\\b" },
         { "name": "storage.type", "match": "\\btrait\\b" },
         { "name": "storage.type", "match": "\\bimpl\\b" },
+        { "name": "storage.type", "match": "\\btype\\b" },
         { "name": "storage.type.function", "match": "\\bfunction\\b" },
         { "name": "storage.type", "match": "\\blet\\b" },
         { "name": "storage.type", "match": "\\bconst\\b" },
         { "name": "storage.modifier", "match": "\\bextern\\b" },
+        { "name": "storage.modifier", "match": "\\bexport\\b" },
+        { "name": "storage.modifier", "match": "\\bpacked\\b" },
+        { "name": "storage.modifier", "match": "\\bsoa\\b" },
+        { "name": "storage.modifier", "match": "\\balign\\b" },
+        { "name": "keyword.control.region", "match": "\\bregion\\b" },
+        { "name": "keyword.control.arena", "match": "\\bwith_arena\\b" },
         { "name": "keyword.control", "match": "\\b(async|await)\\b" },
         { "name": "keyword.control", "match": "\\b(unsafe)\\b" },
         { "name": "keyword.control", "match": "\\b(if|else|match)\\b" },
@@ -200,6 +261,7 @@
         { "name": "keyword.control", "match": "\\b(break|continue)\\b" },
         { "name": "keyword.control", "match": "\\breturn\\b" },
         { "name": "keyword.control", "match": "\\b(defer|goto|panic)\\b" },
+        { "name": "keyword.control", "match": "\\b(run|spawn)\\b" },
         { "name": "keyword.control", "match": "\\bimport\\b" },
         { "name": "keyword.other", "match": "\\b(self|as)\\b" },
         { "name": "keyword.other", "match": "\\ballow\\b" },
@@ -210,7 +272,7 @@
     "types": {
       "patterns": [
         {
-          "match": "\\b(i32|i64|u8|u32|u64|usize|isize)\\b",
+          "match": "\\b(i8|i16|i32|i64|u8|u16|u32|u64|usize|isize)\\b",
           "name": "support.type.primitive"
         },
         {
@@ -235,6 +297,7 @@
           "name": "meta.type.generic",
           "patterns": [
             { "include": "#types" },
+            { "include": "#lifetimes" },
             { "include": "#literals" },
             { "name": "punctuation.separator", "match": "," }
           ]
