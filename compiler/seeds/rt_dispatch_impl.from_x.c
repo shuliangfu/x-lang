@@ -2,8 +2,17 @@
  * Logic source: src/runtime/rt_dispatch_impl.x
  * Hybrid: SHUX_RT_DISPATCH_IMPL_FROM_X + ld -r into runtime_driver_no_c.o
  *
+ * R2 full（2026-07-14）：公共业务符号由 full .x 提供：
+ *   driver_run_asm_backend_impl_c / driver_run_emit_c_path_impl_c /
+ *   driver_run_x_emit_c_from_compile_state /
+ *   driver_run_compiler_full_x_post_parse_impl_c /
+ *   driver_run_compiler_full_x_impl_c
+ * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务符号 H=0）。
+ * Cap residual（driver_abi）：lib_key→lib_roots 槽 + Parsed 填表。
+ * 冷启动/无 PREFER 时仍编译完整 C 体（含 sibling / 非 product ifdef）。
+ *
  * Scope: asm/emit/full_x/post_parse/x_emit_from_state 中型分派；
- * run_asm_backend / run_compiler_parsed / run_x_emit_c 巨石仍 mega rest。
+ * run_asm_backend / run_compiler_parsed / run_x_emit_c 巨石已 R2。
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -51,6 +60,8 @@ typedef struct DriverCompileParsed {
   const char *opt_level;
   int use_lto;
 } DriverCompileParsed;
+
+#ifndef SHUX_RT_DISPATCH_IMPL_FROM_X
 
 extern int driver_lib_roots_from_key(uint8_t *lib_key, const char **out_arr, char bufs[X_FULL_MAX_LIB_ROOTS][512]);
 extern void driver_set_pending_target_cpu_features(uint32_t features);
@@ -204,15 +215,6 @@ int32_t driver_run_compiler_full_x_post_parse_impl_c(DriverCompileStateSU *state
                                        state->use_lto, argc, argv);
 }
 
-/* G-02f-446：thin+rest PREFER_X_O
- *   thin .x provides 1 #[no_mangle] wrapper (calls *_impl in rest).
- *   rest seed C (compiled with -DSHUX_RT_DISPATCH_IMPL_FROM_X):
- *     - driver_run_compiler_full_x_impl_c renamed to *_impl via macro.
- *   No #ifndef guard needed (no real .x implementation; .x is thin-only). */
-#ifdef SHUX_RT_DISPATCH_IMPL_FROM_X
-#define driver_run_compiler_full_x_impl_c    driver_run_compiler_full_x_impl_c_impl
-#endif
-
 /** 完整编译 C 入口：堆 state + parse_argv + post_parse。 */
 int32_t driver_run_compiler_full_x_impl_c(int32_t argc, uint8_t *argv) {
   DriverCompileStateSU *state;
@@ -248,6 +250,16 @@ int32_t driver_run_compiler_full_x_impl_c(int32_t argc, uint8_t *argv) {
   driver_compile_state_free_c(state);
   return rc;
 }
+
+#else /* SHUX_RT_DISPATCH_IMPL_FROM_X：产品 rest 仅 marker；业务体在 full .x */
+int32_t driver_run_asm_backend_impl_c(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target,
+                                      int32_t argc, uint8_t *argv);
+int32_t driver_run_emit_c_path_impl_c(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target,
+                                      uint8_t *opt_level, int32_t use_lto, int32_t argc, uint8_t *argv);
+int32_t driver_run_x_emit_c_from_compile_state(void *state, int argc, char **argv);
+int32_t driver_run_compiler_full_x_post_parse_impl_c(void *state, int32_t argc, uint8_t *argv);
+int32_t driver_run_compiler_full_x_impl_c(int32_t argc, uint8_t *argv);
+#endif /* SHUX_RT_DISPATCH_IMPL_FROM_X */
 
 int labi_rt_dispatch_impl_slice_marker(void) {
   return 1;

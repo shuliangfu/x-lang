@@ -395,4 +395,26 @@ void driver_parsed_work_z_set(int32_t i, size_t v);
 /** 释放 work 资源；emit_stdout=0 时 fclose+unlink tmp_c（若仍持有）。 */
 void driver_parsed_work_cleanup(void);
 
+/*
+ * Cap residual：rt_dispatch_impl（R2 full）
+ *   - lib_key → lib_roots 静态槽（.x 禁局部 u8[N] / **u8 表）
+ *   - 填 DriverCompileParsed 调 driver_run_compiler_parsed（opaque 布局）
+ *   业务分派逻辑在 rt_dispatch_impl.x，不在 rest。
+ */
+/** 从 lib_key 填内部 16×512 槽；*n_out=根数；返回 *u8 实为 const char**。 */
+uint8_t *driver_dispatch_lib_roots_from_key(uint8_t *lib_key, int32_t *n_out);
+/** roots 为 driver_dispatch_lib_roots_from_key 返回值；取第 i 根（越界/空 → NULL）。 */
+uint8_t *driver_dispatch_lib_root_at(uint8_t *roots, int32_t i);
+/**
+ * 构造 Parsed（want_asm=0）并调 driver_run_compiler_parsed。
+ * lib_roots 为 const char**（可与 driver_dispatch_lib_roots_from_key 同址）。
+ * opt_level 空/NULL → 默认 "2"。
+ */
+int32_t driver_dispatch_run_compiler_parsed(uint8_t *input_path, uint8_t *out_path,
+                                           uint8_t *lib_roots, int32_t n_lib,
+                                           uint8_t *target, uint8_t *opt_level,
+                                           int32_t use_lto, int32_t argc, uint8_t *argv);
+/** 缺省 opt 字面量 "2"（.x 禁裸字串依赖时可用）。 */
+uint8_t *driver_dispatch_opt_default(void);
+
 #endif /* SHUX_RUNTIME_DRIVER_ABI_H */

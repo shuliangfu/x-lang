@@ -2927,3 +2927,53 @@ void driver_parsed_work_cleanup(void) {
     free(g_parsed_work_p[20]); /* tmp_c heap copy if any */
     driver_parsed_work_reset();
 }
+
+/* ========== Cap residual: rt_dispatch_impl R2 full ========== */
+
+extern int driver_lib_roots_from_key(uint8_t *lib_key, const char **out_arr,
+                                     char bufs[X_FULL_MAX_LIB_ROOTS][512]);
+extern int driver_run_compiler_parsed(void *p, int argc, char **argv);
+
+static char g_dispatch_lib_bufs[X_FULL_MAX_LIB_ROOTS][512];
+static const char *g_dispatch_lib_roots[X_FULL_MAX_LIB_ROOTS];
+static const char g_dispatch_opt_default[] = "2";
+
+uint8_t *driver_dispatch_lib_roots_from_key(uint8_t *lib_key, int32_t *n_out) {
+    int n = driver_lib_roots_from_key(lib_key, g_dispatch_lib_roots, g_dispatch_lib_bufs);
+    if (n_out)
+        *n_out = (int32_t)n;
+    return (uint8_t *)(void *)g_dispatch_lib_roots;
+}
+
+uint8_t *driver_dispatch_lib_root_at(uint8_t *roots, int32_t i) {
+    const char **arr;
+    if (!roots || i < 0 || i >= X_FULL_MAX_LIB_ROOTS)
+        return NULL;
+    arr = (const char **)(void *)roots;
+    return (uint8_t *)(void *)arr[i];
+}
+
+uint8_t *driver_dispatch_opt_default(void) {
+    return (uint8_t *)(void *)g_dispatch_opt_default;
+}
+
+int32_t driver_dispatch_run_compiler_parsed(uint8_t *input_path, uint8_t *out_path,
+                                            uint8_t *lib_roots, int32_t n_lib,
+                                            uint8_t *target, uint8_t *opt_level,
+                                            int32_t use_lto, int32_t argc, uint8_t *argv) {
+    DriverCompileParsedAbi p;
+    int n = n_lib;
+    memset(&p, 0, sizeof p);
+    p.input_path = (const char *)(void *)input_path;
+    p.out_path = out_path ? (const char *)(void *)out_path : NULL;
+    if (n > X_FULL_MAX_LIB_ROOTS)
+        n = X_FULL_MAX_LIB_ROOTS;
+    if (n > 0 && lib_roots)
+        memcpy(p.lib_roots_arr, lib_roots, (size_t)n * sizeof(const char *));
+    p.n_lib_roots = n;
+    p.want_asm_backend = 0;
+    p.target = (target && target[0]) ? (const char *)(void *)target : NULL;
+    p.opt_level = (opt_level && opt_level[0]) ? (const char *)(void *)opt_level : g_dispatch_opt_default;
+    p.use_lto = use_lto != 0;
+    return (int32_t)driver_run_compiler_parsed((void *)&p, (int)argc, (char **)(void *)argv);
+}

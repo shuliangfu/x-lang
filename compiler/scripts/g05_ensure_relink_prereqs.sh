@@ -1102,7 +1102,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           fi
         fi
         if [ -n "$_rt_di_o" ] && [ -f "$_rt_dispatch_impl_seed" ]; then
-          # G-02f-446：PREFER_X_O=1 时 thin .x + rest seed (-D) → cc -r 合并
+          # R2 full H=0：PREFER_X_O=1 时 full .x + rest seed (-D，仅 marker) → cc -r 合并
           if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_dispatch_impl_x" ]; then
             _rt_di_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_dispatch_impl_thin.XXXXXX") || true
             _rt_di_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_dispatch_impl_rest.XXXXXX") || true
@@ -1112,7 +1112,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
                    -c -o "$_rt_di_rest_o" "$_rt_dispatch_impl_seed" \
               && $CC -r -nostdlib -o "$_rt_di_o" "$_rt_di_thin_o" "$_rt_di_rest_o" 2>/dev/null; then
               _rt_di_ok=1
-              echo "g05_ensure: rest dispatch_impl ← thin .x + rest (G-02f-446 L2 prefer .x)"
+              echo "g05_ensure: rest dispatch_impl ← full .x + rest marker (R2 H=0)"
             fi
             rm -f "$_rt_di_thin_o" "$_rt_di_rest_o"
           fi

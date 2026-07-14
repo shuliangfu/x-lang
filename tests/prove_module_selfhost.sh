@@ -87,8 +87,9 @@ MODULES=(
   # rt_dispatch L2 thin 公共面：与产品 PREFER_X_O 同源（thin.x + hybrid rest seed）；prove 锁 thin 面 IDENTICAL
   # 产品 hybrid rest 仍见 seeds/rt_dispatch_thin.from_x.c（emit/full/sibling）；入 runtime_driver_no_c.o
   "rt_dispatch|src/runtime/rt_dispatch_thin.x|seeds/rt_dispatch_thin_surface.from_x.c||"
-  # rt_dispatch_impl L2 thin 公共面：与产品 PREFER_X_O 同源（thin.x + hybrid rest seed）；prove 锁 thin 面 IDENTICAL
-  # 产品 hybrid rest 仍见 seeds/rt_dispatch_impl.from_x.c（asm/emit/post_parse/full_x body）；入 runtime_driver_no_c.o
+  # rt_dispatch_impl R2 full：.x 吃满 asm/emit/post_parse/full_x/x_emit_from_state 5 公共；
+  # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：lib_roots 槽 + Parsed 填表在 driver_abi
+  # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/rt_dispatch_impl.from_x.c 全 C 体
   "rt_dispatch_impl|src/runtime/rt_dispatch_impl.x|seeds/rt_dispatch_impl_surface.from_x.c||"
   # rt_fmt_one L2 thin 公共面：与产品 PREFER_X_O 同源（thin.x + hybrid rest seed）；prove 锁 thin 面 IDENTICAL
   # 产品 hybrid rest 仍见 seeds/rt_fmt_one.from_x.c（read/format/write body）；入 runtime_driver_no_c.o

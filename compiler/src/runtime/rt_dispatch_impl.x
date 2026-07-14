@@ -1,17 +1,430 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-313/446 / P2 runtime rest：分派中型 impl_c 门闩。
-// 产品实现：seeds/rt_dispatch_impl.from_x.c；hybrid 宏 SHUX_RT_DISPATCH_IMPL_FROM_X。
-// G-02f-446：thin+rest PREFER_X_O；.x 薄门闩调 _impl，seed 宏重命名。
+// G-02f-313/446 → R2 full：分派中型 impl（asm/emit/post_parse/full_x/x_emit_from_state）。
+// 产品 PREFER_X_O：.x 吃满业务符号；FROM_X rest 仅 marker（业务 H=0）。
+// Cap residual（driver_abi）：lib_key→lib_roots 槽 + Parsed 填表调 run_compiler_parsed。
+// 产品路径对齐 RUNTIME_DRIVER_NO_C_CFLAGS：
+//   USE_X_DRIVER+PIPELINE + NO_C_FRONTEND + ASM_USE_COMPILER_IMPL_C
+//   （sibling / 非 product ifdef 仅冷启动 C seed 保留）。
+// 纪律：禁局部 u8[N] / let **u8；argv 经 get_argv_i；state 布局同 compile.x。
 
-export extern "C" function driver_run_compiler_full_x_impl_c_impl(argc: i32, argv: *u8): i32;
+/** 与 seeds DriverCompileStateSU / compile.x DriverCompileState 字段序一致。 */
+export struct RtDispatchState {
+  path_buf: u8[512];
+  path_len: i32;
+  out_path_buf: u8[512];
+  out_path_len: i32;
+  use_asm_backend: i32;
+  target_arch: i32;
+  target_buf: u8[512];
+  target_len: i32;
+  opt_level_buf: u8[8];
+  opt_level_len: i32;
+  use_lto: i32;
+  backend_asm_explicit: i32;
+  use_freestanding: i32;
+  parse_saw_target: i32;
+  target_cpu_buf: u8[64];
+  target_cpu_len: i32;
+  target_cpu_features: i32;
+  print_target_cpu: i32;
+  parse_saw_target_cpu: i32;
+}
 
-/** full_x 入口（薄门闩；实际实现 seed _impl）。 */
-#[no_mangle]
-export function driver_run_compiler_full_x_impl_c(argc: i32, argv: *u8): i32 {
+export extern "C" function getenv(name: *u8): *u8;
+export extern "C" function strlen(s: *u8): usize;
+export extern "C" function strcmp(a: *u8, b: *u8): i32;
+export extern "C" function driver_get_argv_i(argc: i32, argv: *u8, i: i32, buf: *u8, max: i32): i32;
+export extern "C" function malloc(n: usize): *u8;
+export extern "C" function free(p: *u8): void;
+
+export extern "C" function driver_set_pending_target_cpu_features(features: u32): void;
+export extern "C" function driver_run_asm_backend(
+  input_path: *u8, out_path: *u8, lib_roots: *u8, n_lib: i32,
+  target: *u8, argc: i32, argv: *u8): i32;
+export extern "C" function driver_check_only_get(): i32;
+export extern "C" function driver_source_has_top_level_import_path(path: *u8): i32;
+export extern "C" function driver_asm_entry_module_only_from_env(): i32;
+export extern "C" function driver_argv_has_emit_c_flag(argc: i32, argv: *u8): i32;
+export extern "C" function driver_asm_output_want_exe(path: *u8): i32;
+export extern "C" function driver_source_has_generic_syntax(path: *u8, path_len: i32): i32;
+export extern "C" function driver_freestanding_set(v: i32): void;
+export extern "C" function cfg_set_freestanding(v: i32): void;
+export extern "C" function driver_run_x_emit_c_set_emit_extern(v: i32): i32;
+export extern "C" function driver_run_x_emit_c_set_path(path: *u8, path_len: i32): i32;
+export extern "C" function driver_run_x_emit_c_set_lib(i: i32, buf: *u8, len: i32): i32;
+export extern "C" function driver_run_x_emit_c_set_n_lib_roots(n: i32): i32;
+export extern "C" function driver_run_x_emit_c(): i32;
+export extern "C" function runtime_try_handle_explain_cli(argc: i32, argv: *u8): i32;
+export extern "C" function driver_compile_argv_is_help_c(argc: i32, argv: *u8): i32;
+export extern "C" function driver_print_usage_c(): void;
+export extern "C" function driver_bump_stack_limit(): void;
+export extern "C" function driver_compile_state_alloc_c(): *RtDispatchState;
+export extern "C" function driver_compile_state_free_c(state: *RtDispatchState): void;
+export extern "C" function driver_compile_parse_argv_impl_c(
+  argc: i32, argv: *u8, state: *RtDispatchState): i32;
+export extern "C" function shu_target_cpu_print(out: *u8, features: u32): void;
+export extern "C" function driver_stdio_stdout(): *u8;
+
+export extern "C" function driver_dispatch_lib_roots_from_key(lib_key: *u8, n_out: *i32): *u8;
+export extern "C" function driver_dispatch_lib_root_at(roots: *u8, i: i32): *u8;
+export extern "C" function driver_dispatch_run_compiler_parsed(
+  input_path: *u8, out_path: *u8, lib_roots: *u8, n_lib: i32,
+  target: *u8, opt_level: *u8, use_lto: i32, argc: i32, argv: *u8): i32;
+export extern "C" function driver_dispatch_opt_default(): *u8;
+
+/** 字节拼 "SHUX_LTO"（禁裸字串依赖）。 */
+function rt_di_env_shux_lto(): *u8 {
+  let p: *u8 = 0 as *u8;
   unsafe {
-    return driver_run_compiler_full_x_impl_c_impl(argc, argv);
+    p = malloc(16 as usize);
+  }
+  if (p == 0 as *u8) {
+    return 0 as *u8;
+  }
+  p[0] = 83;
+  p[1] = 72;
+  p[2] = 85;
+  p[3] = 88;
+  p[4] = 95;
+  p[5] = 76;
+  p[6] = 84;
+  p[7] = 79;
+  p[8] = 0;
+  return p;
+}
+
+/** argv 是否含 "-E-extern"（经 get_argv_i 拷贝比较）。 */
+function rt_di_argv_has_e_extern(argc: i32, argv: *u8): i32 {
+  let k: i32 = 1;
+  let buf: *u8 = 0 as *u8;
+  let n: i32 = 0;
+  unsafe {
+    buf = malloc(32 as usize);
+  }
+  if (buf == 0 as *u8) {
+    return 0;
+  }
+  while (k < argc) {
+    unsafe {
+      n = driver_get_argv_i(argc, argv, k, buf, 31);
+    }
+    if (n == 9) {
+      if (buf[0] == 45 && buf[1] == 69 && buf[2] == 45 && buf[3] == 101 && buf[4] == 120
+          && buf[5] == 116 && buf[6] == 101 && buf[7] == 114 && buf[8] == 110) {
+        unsafe {
+          free(buf);
+        }
+        return 1;
+      }
+    }
+    k = k + 1;
+  }
+  unsafe {
+    free(buf);
   }
   return 0;
+}
+
+/** use_lto 或 SHUX_LTO=1 → 1。 */
+function rt_di_effective_use_lto(use_lto: i32): i32 {
+  let env_name: *u8 = 0 as *u8;
+  let env_val: *u8 = 0 as *u8;
+  if (use_lto != 0) {
+    return 1;
+  }
+  env_name = rt_di_env_shux_lto();
+  if (env_name == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    env_val = getenv(env_name);
+    free(env_name);
+  }
+  if (env_val == 0 as *u8) {
+    return 0;
+  }
+  if (env_val[0] == 49 && env_val[1] == 0) {
+    return 1;
+  }
+  return 0;
+}
+
+/** asm 后端：lib_key → lib_roots，委托 driver_run_asm_backend。 */
+#[no_mangle]
+export function driver_run_asm_backend_impl_c(
+  input_path: *u8, out_path: *u8, lib_key: *u8, target: *u8,
+  argc: i32, argv: *u8
+): i32 {
+  let n: i32 = 0;
+  let roots: *u8 = 0 as *u8;
+  let feat: u32 = 0;
+  let tgt: *u8 = 0 as *u8;
+  unsafe {
+    roots = driver_dispatch_lib_roots_from_key(lib_key, &n);
+  }
+  if (lib_key != 0 as *u8) {
+    let st: *RtDispatchState = lib_key as *RtDispatchState;
+    feat = st.target_cpu_features as u32;
+  }
+  unsafe {
+    driver_set_pending_target_cpu_features(feat);
+  }
+  if (target != 0 as *u8) {
+    if (target[0] != 0) {
+      tgt = target;
+    }
+  }
+  unsafe {
+    return driver_run_asm_backend(input_path, out_path, roots, n, tgt, argc, argv);
+  }
+  return 1;
+}
+
+/** C 后端：lib_key→lib_roots；产品 NO_C 不走 sibling；parsed。 */
+#[no_mangle]
+export function driver_run_emit_c_path_impl_c(
+  input_path: *u8, out_path: *u8, lib_key: *u8, target: *u8,
+  opt_level: *u8, use_lto: i32, argc: i32, argv: *u8
+): i32 {
+  let n: i32 = 0;
+  let roots: *u8 = 0 as *u8;
+  let tgt: *u8 = 0 as *u8;
+  let opt: *u8 = 0 as *u8;
+  let lto: i32 = 0;
+  unsafe {
+    roots = driver_dispatch_lib_roots_from_key(lib_key, &n);
+  }
+  if (target != 0 as *u8) {
+    if (target[0] != 0) {
+      tgt = target;
+    }
+  }
+  if (opt_level != 0 as *u8) {
+    if (opt_level[0] != 0) {
+      opt = opt_level;
+    }
+  }
+  if (opt == 0 as *u8) {
+    unsafe {
+      opt = driver_dispatch_opt_default();
+    }
+  }
+  lto = rt_di_effective_use_lto(use_lto);
+  // 产品 SHUX_NO_C_FRONTEND：不调用 try_compile_via_shu_c_sibling（冷 C seed 仍保留）。
+  unsafe {
+    return driver_dispatch_run_compiler_parsed(
+      input_path, out_path, roots, n, tgt, opt, lto, argc, argv);
+  }
+  return 1;
+}
+
+/** `-E`：compile state → emit state 槽 → driver_run_x_emit_c。 */
+#[no_mangle]
+export function driver_run_x_emit_c_from_compile_state(
+  state: *RtDispatchState, argc: i32, argv: *u8
+): i32 {
+  let want_extern: i32 = 0;
+  let n: i32 = 0;
+  let roots: *u8 = 0 as *u8;
+  let k: i32 = 0;
+  let row: *u8 = 0 as *u8;
+  let llen: usize = 0;
+  let dot: *u8 = 0 as *u8;
+  if (state == 0 as *RtDispatchState) {
+    return 1;
+  }
+  if (state.path_len <= 0) {
+    return 1;
+  }
+  want_extern = rt_di_argv_has_e_extern(argc, argv);
+  unsafe {
+    driver_run_x_emit_c_set_emit_extern(want_extern);
+    driver_run_x_emit_c_set_path(&state.path_buf[0], state.path_len);
+    roots = driver_dispatch_lib_roots_from_key(state as *u8, &n);
+  }
+  if (n <= 0) {
+    unsafe {
+      dot = malloc(4 as usize);
+    }
+    if (dot == 0 as *u8) {
+      return 1;
+    }
+    dot[0] = 46;
+    dot[1] = 0;
+    unsafe {
+      driver_run_x_emit_c_set_lib(0, dot, 1);
+      driver_run_x_emit_c_set_n_lib_roots(1);
+      free(dot);
+    }
+  } else {
+    k = 0;
+    while (k < n) {
+      unsafe {
+        row = driver_dispatch_lib_root_at(roots, k);
+      }
+      if (row == 0 as *u8) {
+        llen = 0 as usize;
+      } else {
+        unsafe {
+          llen = strlen(row);
+        }
+      }
+      unsafe {
+        driver_run_x_emit_c_set_lib(k, row, llen as i32);
+      }
+      k = k + 1;
+    }
+    unsafe {
+      driver_run_x_emit_c_set_n_lib_roots(n);
+    }
+  }
+  unsafe {
+    return driver_run_x_emit_c();
+  }
+  return 1;
+}
+
+/** parse 完成后后端选择 + 分派（产品：USE_X + ASM_IMPL_C 路径）。 */
+#[no_mangle]
+export function driver_run_compiler_full_x_post_parse_impl_c(
+  state: *RtDispatchState, argc: i32, argv: *u8
+): i32 {
+  let out_ptr: *u8 = 0 as *u8;
+  let target_ptr: *u8 = 0 as *u8;
+  let want_generic_check: i32 = 0;
+  let has_import: i32 = 0;
+  let entry_only: i32 = 0;
+  if (state == 0 as *RtDispatchState) {
+    return 1;
+  }
+  // 产品 SHUX_USE_X_DRIVER && SHUX_USE_X_PIPELINE：-E 走 x_emit
+  unsafe {
+    if (driver_argv_has_emit_c_flag(argc, argv) != 0) {
+      return driver_run_x_emit_c_from_compile_state(state, argc, argv);
+    }
+  }
+  unsafe {
+    if (driver_check_only_get() != 0) {
+      state.use_asm_backend = 0;
+    }
+  }
+  want_generic_check = 0;
+  if (state.out_path_len == 0) {
+    want_generic_check = 1;
+  } else {
+    unsafe {
+      if (driver_asm_output_want_exe(&state.out_path_buf[0]) != 0) {
+        want_generic_check = 1;
+      }
+    }
+  }
+  if (state.use_asm_backend != 0) {
+    if (want_generic_check != 0) {
+      unsafe {
+        if (driver_source_has_generic_syntax(&state.path_buf[0], state.path_len) != 0) {
+          state.use_asm_backend = 0;
+        }
+      }
+    }
+  }
+  if (state.out_path_len > 0) {
+    out_ptr = &state.out_path_buf[0];
+  }
+  if (state.target_len > 0) {
+    target_ptr = &state.target_buf[0];
+  }
+  // 产品 SHUX_ASM_USE_COMPILER_IMPL_C：无 import 时强制 explicit
+  if (state.out_path_len > 0) {
+    if (state.backend_asm_explicit == 0) {
+      unsafe {
+        has_import = driver_source_has_top_level_import_path(&state.path_buf[0]);
+      }
+      if (has_import == 0) {
+        state.backend_asm_explicit = 1;
+      }
+    }
+  }
+  if (state.use_asm_backend != 0) {
+    if (state.backend_asm_explicit == 0) {
+      unsafe {
+        entry_only = driver_asm_entry_module_only_from_env();
+        has_import = driver_source_has_top_level_import_path(&state.path_buf[0]);
+      }
+      if (entry_only == 0) {
+        if (has_import != 0) {
+          state.use_asm_backend = 0;
+        }
+      }
+    }
+  }
+  if (state.use_freestanding != 0) {
+    state.use_asm_backend = 1;
+    state.backend_asm_explicit = 1;
+    unsafe {
+      driver_freestanding_set(1);
+      cfg_set_freestanding(1);
+    }
+  }
+  if (state.use_asm_backend != 0) {
+    return driver_run_asm_backend_impl_c(
+      &state.path_buf[0], out_ptr, state as *u8, target_ptr, argc, argv);
+  }
+  return driver_run_emit_c_path_impl_c(
+    &state.path_buf[0], out_ptr, state as *u8, target_ptr,
+    &state.opt_level_buf[0], state.use_lto, argc, argv);
+}
+
+/** 完整编译 C 入口：堆 state + parse_argv + post_parse。 */
+#[no_mangle]
+export function driver_run_compiler_full_x_impl_c(argc: i32, argv: *u8): i32 {
+  let state: *RtDispatchState = 0 as *RtDispatchState;
+  let rc: i32 = 0;
+  let explain_rc: i32 = 0;
+  let out: *u8 = 0 as *u8;
+  unsafe {
+    explain_rc = runtime_try_handle_explain_cli(argc, argv);
+  }
+  if (explain_rc >= 0) {
+    return explain_rc;
+  }
+  unsafe {
+    if (driver_compile_argv_is_help_c(argc, argv) != 0) {
+      driver_print_usage_c();
+      return 0;
+    }
+  }
+  if (argc < 2) {
+    unsafe {
+      driver_print_usage_c();
+    }
+    return 0;
+  }
+  unsafe {
+    driver_bump_stack_limit();
+    state = driver_compile_state_alloc_c();
+  }
+  if (state == 0 as *RtDispatchState) {
+    return 1;
+  }
+  unsafe {
+    if (driver_compile_parse_argv_impl_c(argc, argv, state) != 0) {
+      driver_compile_state_free_c(state);
+      return 1;
+    }
+  }
+  if (state.print_target_cpu != 0) {
+    unsafe {
+      out = driver_stdio_stdout();
+      shu_target_cpu_print(out, state.target_cpu_features as u32);
+      driver_compile_state_free_c(state);
+    }
+    return 0;
+  }
+  rc = driver_run_compiler_full_x_post_parse_impl_c(state, argc, argv);
+  unsafe {
+    driver_compile_state_free_c(state);
+  }
+  return rc;
 }
