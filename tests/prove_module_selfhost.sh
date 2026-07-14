@@ -35,6 +35,8 @@ MODULES=(
   "token|src/lexer/token.x|token_gen.c||"
   # lsp_diag_pipeline_sizes：三枚 sizeof 门闩；产品 sizes_nostub PREFER_X_O；本条锁 nm / 扩 N
   "lsp_diag_pipeline_sizes|src/lsp/lsp_diag_pipeline_sizes.x|seeds/lsp_diag_pipeline_sizes.from_x.c||"
+  # labi_path_pure：路径纯串 L0；产品 hybrid 入 runtime_link_abi；本条锁 nm / 扩 N
+  "labi_path_pure|src/runtime/labi_path_pure.x|seeds/labi_path_pure.from_x.c||"
   # hybrid thin+C-tail：seed 多 _impl/scratch；x 多 append_*（.x 真迁拼装）。CORE 锁公共 API 面不丢。
   "diagnostic|src/runtime_driver_diagnostic.x|seeds/runtime_driver_diagnostic.from_x.c||core:driver_diag_append_cstr,driver_diag_append_i32,driver_diag_append_name"
 )

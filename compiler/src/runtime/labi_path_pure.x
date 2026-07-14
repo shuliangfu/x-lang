@@ -4,10 +4,13 @@
 // G-02f-267/429 / P2 link_abi L0：路径纯串（无 stat）。
 // 产品默认 seeds/runtime_link_abi.from_x.c；hybrid → seeds/labi_path_pure.from_x.c。
 // 符号：shux_path_last_sep / shux_path_has_sep / link_abi_ld_argv_entry_is_obj / shux_output_is_elf_o
-// G-02f-429：扁平化控制流（消除 &&/||/深层嵌套 if），使全部 4 函数可通过 shux -E。
+//       + shux_output_want_exe + labi_suffix_eq2/eq4 helpers
+// G-02f-429：扁平化控制流（消除 &&/||/深层嵌套 if），使全部函数可通过 shux -E。
+// G-02f-L：长度用 i32（对齐 rt_content.x），避免 usize 字面量/减法 typeck 阻 -E。
 
 // G-02f-429：后缀 2 字节匹配（flat early-return，参照 rt_content.x rt_eq2 模式）。
-export function labi_suffix_eq2(s: *u8, n: usize, a0: u8, a1: u8): i32 {
+#[no_mangle]
+export function labi_suffix_eq2(s: *u8, n: i32, a0: u8, a1: u8): i32 {
   if (n < 2) { return 0; }
   if (s[n - 2] != a0) { return 0; }
   if (s[n - 1] != a1) { return 0; }
@@ -15,7 +18,8 @@ export function labi_suffix_eq2(s: *u8, n: usize, a0: u8, a1: u8): i32 {
 }
 
 // G-02f-429：后缀 4 字节匹配（flat early-return，参照 rt_content.x rt_eq4 模式）。
-export function labi_suffix_eq4(s: *u8, n: usize, a0: u8, a1: u8, a2: u8, a3: u8): i32 {
+#[no_mangle]
+export function labi_suffix_eq4(s: *u8, n: i32, a0: u8, a1: u8, a2: u8, a3: u8): i32 {
   if (n < 4) { return 0; }
   if (s[n - 4] != a0) { return 0; }
   if (s[n - 3] != a1) { return 0; }
@@ -26,7 +30,7 @@ export function labi_suffix_eq4(s: *u8, n: usize, a0: u8, a1: u8, a2: u8, a3: u8
 
 #[no_mangle]
 export function link_abi_ld_argv_entry_is_obj(s: *u8): i32 {
-  let n: usize = 0;
+  let n: i32 = 0;
   if (s == 0 as *u8) { return 0; }
   if (s[0] == 0) { return 0; }
   while (s[n] != 0) { n = n + 1; }
@@ -37,7 +41,7 @@ export function link_abi_ld_argv_entry_is_obj(s: *u8): i32 {
 
 #[no_mangle]
 export function shux_output_is_elf_o(path: *u8): i32 {
-  let n: usize = 0;
+  let n: i32 = 0;
   if (path == 0 as *u8) { return 0; }
   while (path[n] != 0) { n = n + 1; }
   if (labi_suffix_eq2(path, n, 46, 111) != 0) { return 1; }
@@ -53,7 +57,7 @@ export function shux_output_is_elf_o(path: *u8): i32 {
 // 【Perf】最多 4 次 helper 调用（每次 ≤2 比较），首次命中即返回。
 #[no_mangle]
 export function shux_output_want_exe(path: *u8): i32 {
-  let n: usize = 0;
+  let n: i32 = 0;
   if (path == 0 as *u8) { return 0; }
   if (path[0] == 0) { return 0; }
   while (path[n] != 0) { n = n + 1; }
@@ -74,7 +78,7 @@ export function shux_path_has_sep(s: *u8): i32 {
   if (s == 0 as *u8) {
     return 0;
   }
-  let i: usize = 0;
+  let i: i32 = 0;
   while (s[i] != 0) {
     if (s[i] == 47) {
       return 1;
@@ -85,7 +89,7 @@ export function shux_path_has_sep(s: *u8): i32 {
 }
 
 // G-02f-429：shux_path_last_sep 真迁（POSIX '/' only）。
-// 【Why】C 原实现用 strrchr(s, '/') 返回 char*；.x 无 strrchr，手动逆序记录
+// 【Why】C 原实现用 strrchr(s, '/') 返回 char*；.x 无 strrchr，手动正序记录
 //   最后一次 '/' 的偏移。指针返回值通过 s as usize + off as *u8 构造
 //   （*u8 as usize 见 diag_thin.x:227；usize as *u8 见 lsp_load_ptr_at）。
 // 【Invariant】s == NULL → NULL；无 '/' → NULL；否则返回指向最后一个 '/' 的指针。
@@ -95,9 +99,9 @@ export function shux_path_last_sep(s: *u8): *u8 {
   if (s == 0 as *u8) {
     return 0 as *u8;
   }
-  let last: usize = 0;
+  let last: i32 = 0;
   let found: i32 = 0;
-  let i: usize = 0;
+  let i: i32 = 0;
   while (s[i] != 0) {
     if (s[i] == 47) {
       last = i;
@@ -109,5 +113,5 @@ export function shux_path_last_sep(s: *u8): *u8 {
     return 0 as *u8;
   }
   let base: usize = s as usize;
-  return (base + last) as *u8;
+  return (base + (last as usize)) as *u8;
 }
