@@ -5153,8 +5153,10 @@ int32_t codegen_emit_call_func_name(struct codegen_CodegenOutBuf * out, struct a
     if (func_ix >= 0) {
       if (dep_ix >= 0 && dep_ix < pipeline_dep_ctx_ndep(ctx)) {
         struct ast_Module * dep_mod = pipeline_dep_ctx_module_at(ctx, dep_ix);
-        if (dep_mod != 0 && func_ix < (dep_mod)->num_funcs) {
-          return codegen_emit_func_link_name(out, arena, dep_mod, func_ix);
+        /* 【Why】mangle 后缀 type_ref 在 dep 自己的 arena；用 caller arena 会错后缀或漏 mangle。 */
+        struct ast_ASTArena * dep_arena = pipeline_dep_ctx_arena_at(ctx, dep_ix);
+        if (dep_mod != 0 && dep_arena != 0 && func_ix < (dep_mod)->num_funcs) {
+          return codegen_emit_func_link_name(out, dep_arena, dep_mod, func_ix);
         }
       } else {
         if (current_module != 0 && func_ix < (current_module)->num_funcs) {
@@ -5162,15 +5164,13 @@ int32_t codegen_emit_call_func_name(struct codegen_CodegenOutBuf * out, struct a
         }
       }
     }
-    /* 【Why 根源】typeck 未设 call_resolved_func_index（.x pipeline typeck 暂不支持重载解析）。
-       按函数名 + 实参类型在目标模块中搜索匹配的重载，找到唯一匹配则发 mangled name。
-       【Invariant】仅读访问 arena/module；不修改任何状态。EXPR_METHOD_CALL 须用
-       method_call_num_args / pipeline_expr_method_call_arg_ref（与 EXPR_CALL 的 call_num_args /
-       pipeline_expr_call_arg_ref 是不同的 AST 字段/sidecar 池，混用会读到 0/空引用）。
-       【Asm/Perf】O(n_funcs * n_params) 线性扫描，仅 CALL 路径触发，非热路径。 */
+    /* typeck 未设 call_resolved：按名+实参类型/arity 在目标模块搜重载。 */
     struct ast_Module * search_mod = 0;
+    struct ast_ASTArena * search_arena = arena;
     if (dep_ix >= 0 && dep_ix < pipeline_dep_ctx_ndep(ctx)) {
       search_mod = pipeline_dep_ctx_module_at(ctx, dep_ix);
+      search_arena = pipeline_dep_ctx_arena_at(ctx, dep_ix);
+      if (search_arena == 0) search_arena = arena;
     } else {
       search_mod = current_module;
     }
@@ -5178,8 +5178,6 @@ int32_t codegen_emit_call_func_name(struct codegen_CodegenOutBuf * out, struct a
       struct ast_Expr call_e = ast_arena_expr_get(arena, expr_ref);
       int32_t is_method = ((call_e).kind == ast_ExprKind_EXPR_METHOD_CALL);
       int32_t call_nargs = is_method ? (call_e).method_call_num_args : (call_e).call_num_args;
-      fprintf(stderr, "DBG-EMIT name=%.*s search_mod=%p num_funcs=%d is_method=%d nargs=%d\n", fallback_len, (char*)fallback_name, (void*)search_mod, (search_mod)->num_funcs, is_method, call_nargs);
-      { int32_t dbg_fi = 0; while (dbg_fi < (search_mod)->num_funcs) { int32_t dbg_fl = pipeline_module_func_name_len_at(search_mod, dbg_fi); uint8_t dbg_fn[64] = {0}; pipeline_module_func_name_copy64(search_mod, dbg_fi, dbg_fn); fprintf(stderr, "DBG-EMIT  func[%d] name=%.*s len=%d\n", dbg_fi, dbg_fl, (char*)dbg_fn, dbg_fl); ++dbg_fi; } }
       int32_t found_fi = -1;
       int32_t found_count = 0;
       int32_t fi_s = 0;
@@ -5195,7 +5193,6 @@ int32_t codegen_emit_call_func_name(struct codegen_CodegenOutBuf * out, struct a
           }
           if (matched != 0) {
             int32_t np = pipeline_module_func_num_params_at(search_mod, fi_s);
-            fprintf(stderr, "DBG-EMIT  found name fi_s=%d np=%d nargs=%d\n", fi_s, np, call_nargs);
             if (np == call_nargs) {
               int32_t types_match = 1;
               int32_t pi = 0;
@@ -5203,17 +5200,26 @@ int32_t codegen_emit_call_func_name(struct codegen_CodegenOutBuf * out, struct a
                 int32_t arg_ref = is_method ? pipeline_expr_method_call_arg_ref(arena, expr_ref, pi) : pipeline_expr_call_arg_ref(arena, expr_ref, pi);
                 if (ast_ref_is_null(arg_ref)) { types_match = 0; } else {
                   int32_t arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
-                  /* EXPR_AS: use target type when operand not yet resolved (common after cast to usize). */
                   if (arg_ty <= 0 && pipeline_expr_kind_ord_at(arena, arg_ref) == 54) {
                     int32_t as_tgt = pipeline_expr_as_target_type_ref_at(arena, arg_ref);
                     if (as_tgt > 0) arg_ty = as_tgt;
                   }
+                  /* STRING_LIT(kind 59) → *u8 for overload match when typeck left ty unresolved */
+                  if (arg_ty <= 0 && pipeline_expr_kind_ord_at(arena, arg_ref) == 59) {
+                    /* synthetic: treat as u8_ptr suffix match via na special-case below */
+                    arg_ty = -59;
+                  }
                   int32_t param_ty = pipeline_module_func_param_type_ref_at(search_mod, fi_s, pi);
                   uint8_t sa[64] = { 0 };
                   uint8_t sb[64] = { 0 };
-                  int32_t na = codegen_type_ref_to_suffix(arena, arg_ty, (&((sa)[0])), 64);
-                  int32_t nb = codegen_type_ref_to_suffix(arena, param_ty, (&((sb)[0])), 64);
-                  fprintf(stderr, "DBG-EMIT   pi=%d arg_ty=%d param_ty=%d na=%d nb=%d sa=%.*s sb=%.*s\n", pi, arg_ty, param_ty, na, nb, na, (char*)sa, nb, (char*)sb);
+                  int32_t na = 0;
+                  int32_t nb = codegen_type_ref_to_suffix(search_arena, param_ty, (&((sb)[0])), 64);
+                  if (arg_ty == -59) {
+                    /* u8_ptr */
+                    sa[0]=117; sa[1]=56; sa[2]=95; sa[3]=112; sa[4]=116; sa[5]=114; na = 6;
+                  } else {
+                    na = codegen_type_ref_to_suffix(arena, arg_ty, (&((sa)[0])), 64);
+                  }
                   if (na != nb) { types_match = 0; } else {
                     if (na <= 0) { types_match = 0; } else {
                       int32_t k = 0;
@@ -5235,9 +5241,9 @@ int32_t codegen_emit_call_func_name(struct codegen_CodegenOutBuf * out, struct a
         fi_s = fi_s + 1;
       }
       if (found_count == 1 && found_fi >= 0) {
-        return codegen_emit_func_link_name(out, arena, search_mod, found_fi);
+        return codegen_emit_func_link_name(out, search_arena, search_mod, found_fi);
       }
-      /* arg types unresolved: unique same-name same-arity; if multiple prefer extern/no_mangle (libc free). */
+      /* arg types unresolved: unique same-name same-arity */
       if (found_count != 1 && call_nargs >= 0) {
         int32_t arity_fi = -1;
         int32_t arity_count = 0;
@@ -5268,10 +5274,10 @@ int32_t codegen_emit_call_func_name(struct codegen_CodegenOutBuf * out, struct a
           fi_s = fi_s + 1;
         }
         if (ext_count == 1 && ext_fi >= 0) {
-          return codegen_emit_func_link_name(out, arena, search_mod, ext_fi);
+          return codegen_emit_func_link_name(out, search_arena, search_mod, ext_fi);
         }
         if (arity_count == 1 && arity_fi >= 0) {
-          return codegen_emit_func_link_name(out, arena, search_mod, arity_fi);
+          return codegen_emit_func_link_name(out, search_arena, search_mod, arity_fi);
         }
       }
     }

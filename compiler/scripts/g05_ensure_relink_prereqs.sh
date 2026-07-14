@@ -363,18 +363,20 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           fi
         fi
         if [ -n "$_labi_l5_o" ]; then
-          # R2 labi_invoke_cc_list：PREFER_X_O=1 时 full .x（纯表真迁 H=0）；失败回退 seed 冷 C
-          if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_labi_l5_x" ]; then
+          # L5 labi_invoke_cc_list：默认冷 seed（rodata 字符串字面量）。
+          # 【Why】.x STRING_LIT 曾发栈 compound，return 后悬空 → invoke_cc argv 乱码。
+          # 仅当显式 SHUX_G05_PREFER_X_O_LABI=1 且 host STRING_LIT 已 rodata 时才 prefer .x。
+          if [ "${SHUX_G05_PREFER_X_O_LABI:-0}" = "1" ] && [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_labi_l5_x" ]; then
             if g05_try_x_to_o "$_labi_l5_x" "$_labi_l5_o"; then
               _labi_l5_ok=1
-              echo "g05_ensure: L5 invoke_cc list ← $_labi_l5_x (R2 full prefer .x)"
+              echo "g05_ensure: L5 invoke_cc list ← $_labi_l5_x (opt-in prefer .x)"
             fi
           fi
           if [ "$_labi_l5_ok" = "0" ] && [ -f "$_labi_l5_seed" ]; then
             # shellcheck disable=SC2086
             if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_labi_l5_o" "$_labi_l5_seed"; then
               _labi_l5_ok=1
-              echo "g05_ensure: L5 invoke_cc list ← $_labi_l5_seed (R2 cold seed slice)"
+              echo "g05_ensure: L5 invoke_cc list ← $_labi_l5_seed (cold seed rodata; default)"
             fi
           fi
         fi
