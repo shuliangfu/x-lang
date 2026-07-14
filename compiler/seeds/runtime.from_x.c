@@ -5501,7 +5501,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
     memset(arena, 0, arena_sz);
     memset(module, 0, module_sz);
     parser_parse_into_init(module, arena);
-    pctx->entry_already_parsed = 0;
+    pctx->entry_already_parsed = 1;
     if (n_deps > 0 && !driver_check_only_get() && want_asm_backend &&
         driver_deps_are_std_core_closure_only(dep_paths, n_deps))
         pctx->asm_entry_module_only = 1;
