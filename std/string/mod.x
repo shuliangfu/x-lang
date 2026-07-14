@@ -155,12 +155,13 @@ export function string_view_subview(v: StrView, off: i32, len: i32): StrView {
  * 分配路径仅为 arena chunk（posix_memalign 一次）；不做 per-concat heap_alloc。
  * arena 空间不足时返回 len=0 的空视图。
  */
-export function string_view_concat_arena(arena: *Arena64, left: StrView, right: StrView): StrView {
+export function string_view_concat_arena(arena: *heap_libc.Arena64, left: StrView, right: StrView): StrView {
   let n: i32 = left.len + right.len;
   if (n <= 0) {
     return view(left.ptr, 0);
   }
-  let p: *u8 = heap_libc.heap_arena64_alloc_c(arena as *heap_libc.Arena64, n as usize, 1 as usize);
+  // Arena64 定义在 std.heap.libc；参数用模块限定类型，避免裸 Arena64 未绑定导致 check_block 失败。
+  let p: *u8 = heap_libc.heap_arena64_alloc_c(arena, n as usize, 1 as usize);
   if (p == 0) {
     return view(0 as *u8, 0);
   }
