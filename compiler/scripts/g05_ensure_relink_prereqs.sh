@@ -1449,7 +1449,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     fi
   fi
   # G-02f-12 / G-02f-339：runtime_driver_diagnostic.o
-  # R2 thin + Cap residual pure 深迁：PREFER thin.x（门闩 + 固定措辞/pipe orch pure）+ seed-rest（FROM_X）ld -r
+  # R2 thin + Cap residual pure 深迁：PREFER thin.x（门闩 + 固定措辞/pipe orch/拼装 pure）+ seed-rest（FROM_X）ld -r
   _rdd=seeds/runtime_driver_diagnostic.from_x.c
   _rdd_thin_x=src/runtime_driver_diagnostic_thin.x
   _rdd_o=src/runtime_driver_diagnostic.o
