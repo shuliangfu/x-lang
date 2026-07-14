@@ -308,26 +308,38 @@ def patch_tail_debug_print(src: str) -> tuple[str, bool]:
 def patch_var_debug_print(src: str) -> tuple[str, bool]:
     """Add SHUX_DEBUG_VAR trace to typeck_check_expr_var func_param lookup."""
     marker = "SHUX_DEBUG_VAR"
-    # Find typeck_check_expr_var function (second occurrence = definition)
     fn_sig = "int32_t typeck_check_expr_var(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, struct ast_PipelineDepCtx * ctx) {"
     pos = src.find(fn_sig)
     if pos < 0:
         return src, False
-    pos = src.find(fn_sig, pos + 1)  # second occurrence = definition
+    pos = src.find(fn_sig, pos + 1)
     if pos < 0:
         return src, False
-    fn_end = src.find("\n}\n", pos)
+    # Find function end by counting braces
+    brace_at = src.find("{", pos)
+    if brace_at < 0:
+        return src, False
+    depth = 0
+    i = brace_at
+    fn_end = -1
+    while i < len(src):
+        if src[i] == "{":
+            depth += 1
+        elif src[i] == "}":
+            depth -= 1
+            if depth == 0:
+                fn_end = i + 1
+                break
+        i += 1
     if fn_end < 0:
         return src, False
     if marker in src[pos:fn_end]:
-        return src, False  # already patched
-    
+        return src, False
     target = "(func_ix = (pipeline_dep_ctx_current_func_index(ctx)));"
     tpos = src.find(target, pos)
     if tpos < 0 or tpos > fn_end:
         return src, False
-    
-    debug = '\n  if (getenv("SHUX_DEBUG_VAR")) { int32_t _pr = (func_ix >= 0 && func_ix < (module)->num_funcs) ? pipeline_module_func_param_type_ref_for_name(module, func_ix, vbuf, vnlen) : -99; fprintf(stderr, "DBG-VAR fix=%d vnlen=%d nfuncs=%d pr=%d\n", (int)func_ix, (int)vnlen, (int)(module)->num_funcs, (int)_pr); }'
+    debug = '\n  if (getenv("SHUX_DEBUG_VAR")) { int32_t _pr = (func_ix >= 0 && func_ix < (module)->num_funcs) ? pipeline_module_func_param_type_ref_for_name(module, func_ix, vbuf, vnlen) : -99; fprintf(stderr, "DBG-VAR fix=%d vnlen=%d nfuncs=%d pr=%d\\n", (int)func_ix, (int)vnlen, (int)(module)->num_funcs, (int)_pr); }'
     new_src = src[:tpos] + src[tpos:tpos+len(target)] + debug + src[tpos+len(target):]
     return new_src, True
 
