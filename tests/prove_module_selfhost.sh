@@ -72,6 +72,9 @@ MODULES=(
   # simd_enc L2 thin 公共面：与产品 PREFER_X_O 同源（thin.x + full seed rest）；prove 锁 thin 面 IDENTICAL
   # full seed rest 仍持 _impl / encode C 尾；产品 o 名 simd_enc.o
   "simd_enc|src/asm/simd_enc_thin.x|seeds/simd_enc_thin.from_x.c||"
+  # backend_enc_dispatch L2 thin 公共面：与产品 PREFER_X_O 同源（thin.x + full seed rest）；prove 锁 thin 面 IDENTICAL
+  # full seed rest 仍持 _impl / enc C 尾；产品 o 名 backend_enc_dispatch.o
+  "backend_enc_dispatch|src/asm/backend_enc_dispatch_thin.x|seeds/backend_enc_dispatch_thin.from_x.c||"
 )
 
 # 找 shux 二进制（优先 shux，fallback shux-c）

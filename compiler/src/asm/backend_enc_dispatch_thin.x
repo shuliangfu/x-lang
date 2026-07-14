@@ -5,6 +5,7 @@
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_ENC_DISPATCH_THIN_FROM_X）ld -r
 //   → backend_enc_dispatch.o
 // 对照：src/asm/backend_enc_dispatch.x；默认仍整 seed。
+// Prove IDENTICAL：seeds/backend_enc_dispatch_thin.from_x.c（本 thin 公共面 120；_impl 仍 U）
 //
 // SP：ADD/SUB 0x910003ff/0xd10003ff / STR 0xf90003e0；imm12 占 [21:10]。
 // RBP lane：LDUR 0xB8400000 / STUR 0xB8000000 + simm9 + Rn=x29。
