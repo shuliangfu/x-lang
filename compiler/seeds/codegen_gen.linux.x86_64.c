@@ -3287,7 +3287,6 @@ SHUX_LIB_WEAK int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct code
   if ((!ast_ref_is_null(callee_ref)) && callee_ref > 0 && callee_ref <= (arena)->num_exprs && ctx != ((struct ast_PipelineDepCtx *)(0)) && (ctx)->current_codegen_module != ((struct ast_Module *)(0))) {   uint8_t sym_buf[128] = { 0 };
   int32_t imp_j = -1;
   int32_t sym_len = pipeline_asm_resolve_whole_import_qualified_symbol_c(arena, (ctx)->current_codegen_module, callee_ref, (&((sym_buf)[0])), (&(imp_j)));
-  fprintf(stderr, "DBG-CALL sym=%.*s sym_len=%d imp_j=%d nargs=%d\n", sym_len, (char*)sym_buf, sym_len, imp_j, (e).call_num_args);
   if (sym_len > 0 && sym_len < 128) {
   /* 【Why 根源】sym_buf 是 "prefix_funcname" 整体符号（如 core_fmt_fmt_scalar_to_buf）。
      需拆分为 prefix + funcname，对 funcname 走 mangling 以支持函数重载。
@@ -3747,6 +3746,67 @@ SHUX_LIB_WEAK int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct code
   if ((callee_f4).kind == ast_ExprKind_EXPR_VAR && codegen_is_submit_batch_buf_call((callee_f4).var_name, (callee_f4).var_name_len) != 0) {   (need_4th = (1));
  }
  }
+  /* 末路 CALL：import 绑定 FIELD_ACCESS 须走 emit_call_func_name 重载 mangle。
+   * 旧逻辑 emit_expr_as_callee → import_module_field_symbol 只发 prefix+原名（std_fmt_print），
+   * 与定义端 print_u8_ptr_i32 不一致（hello fmt.print(msg,12) cc 失败）。 */
+  if (ctx != ((struct ast_PipelineDepCtx *)(0)) && (ctx)->current_codegen_module != ((struct ast_Module *)(0))
+      && (!ast_ref_is_null((e).call_callee_ref)) && (e).call_callee_ref > 0 && (e).call_callee_ref <= (arena)->num_exprs) {
+    struct ast_Expr callee_fb = ast_arena_expr_get(arena, (e).call_callee_ref);
+    if ((callee_fb).kind == ast_ExprKind_EXPR_FIELD_ACCESS && (callee_fb).field_access_field_len > 0
+        && (callee_fb).field_access_base_ref > 0 && (callee_fb).field_access_base_ref <= (arena)->num_exprs) {
+      struct ast_Expr base_fb = ast_arena_expr_get(arena, (callee_fb).field_access_base_ref);
+      if ((base_fb).kind == ast_ExprKind_EXPR_VAR && (base_fb).var_name_len > 0) {
+        struct ast_Module * cur_fb = (ctx)->current_codegen_module;
+        int32_t j_fb = 0;
+        int32_t nd_fb = pipeline_dep_ctx_ndep(ctx);
+        int32_t n_imp_fb = codegen_module_num_imports(cur_fb);
+        while (j_fb < n_imp_fb && j_fb < nd_fb) {
+          if (pipeline_module_import_kind_at(cur_fb, j_fb) == 1) {
+            int32_t bl = pipeline_module_import_binding_name_len(cur_fb, j_fb);
+            if (bl == (base_fb).var_name_len) {
+              int eqb = 1;
+              int32_t kk = 0;
+              while (kk < bl && kk < 64) {
+                if ((base_fb).var_name[kk] != pipeline_module_import_binding_name_byte_at(cur_fb, j_fb, kk)) { eqb = 0; break; }
+                kk = kk + 1;
+              }
+              if (eqb) {
+                uint8_t dpb[64] = { 0 };
+                int32_t dpl = codegen_module_import_path_len_at(cur_fb, j_fb, (&((dpb)[0])));
+                if (dpl > 0) {
+                  uint8_t pref[128] = { 0 };
+                  (void)(codegen_import_path_to_c_prefix_into((&((dpb)[0])), (&((pref)[0])), 128));
+                  int32_t pl = 0;
+                  while (pl < 128 && pref[pl] != 0) { pl = pl + 1; }
+                  if (pl > 0 && codegen_c_prefix_redundant_with_name((&((pref)[0])), pl, (&(((callee_fb).field_access_field_name)[0])), (callee_fb).field_access_field_len) == 0
+                      && codegen_emit_bytes_from_ptr(out, (&((pref)[0])), pl) != 0) { return (-1); }
+                  int32_t bix = codegen_find_dep_index_by_path(ctx, (&((dpb)[0])), dpl);
+                  struct ast_Module * dmod = cur_fb;
+                  if (bix >= 0 && bix < nd_fb) dmod = pipeline_dep_ctx_module_at(ctx, bix);
+                  if (codegen_emit_call_func_name(out, arena, ctx, expr_ref, dmod, (&(((callee_fb).field_access_field_name)[0])), (callee_fb).field_access_field_len) != 0) { return (-1); }
+                  if (codegen_append_byte(out, 40) != 0) { return (-1); }
+                  int32_t na = (e).call_num_args;
+                  int32_t ai = 0;
+                  while (ai < na) {
+                    if (ai > 0) { uint8_t cm[3] = { 44, 32, 0 }; if (codegen_emit_bytes_3(out, cm, 2) != 0) return (-1); }
+                    if (ast_ref_is_null(pipeline_expr_call_arg_ref(arena, expr_ref, ai))) {
+                      if (codegen_append_byte(out, 48) != 0) return (-1);
+                    } else if (codegen_emit_expr(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, ai), ctx) != 0) {
+                      return (-1);
+                    }
+                    ai = ai + 1;
+                  }
+                  if (codegen_append_byte(out, 41) != 0) { return (-1); }
+                  return 0;
+                }
+              }
+            }
+          }
+          j_fb = j_fb + 1;
+        }
+      }
+    }
+  }
   int32_t saved_callee_flag = 0;
   if (ctx != ((struct ast_PipelineDepCtx *)(0))) {   (saved_callee_flag = ((ctx)->emit_expr_as_callee));
   ((ctx)->emit_expr_as_callee = (1));
