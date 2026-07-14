@@ -2362,10 +2362,18 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
     let let_ty_ref: i32 = 0;
     lex_from_result_ptr_into(&lex, &r);
     lexer.lexer_next_into(&r, lex, source);
-    if (r.tok.kind != TokenKind.TOKEN_IDENT) {
+    /* discard 绑定 `let _`：lexer 发 TOKEN_UNDERSCORE（ident_len=0），须当作名 "_"。
+     * 【Why 根源】拒收会中断 parse_body_lets，函数失败后 skip 偶发把体前 let 误解析为顶层 static。 */
+    let is_discard_name: i32 = 0;
+    if (r.tok.kind == TokenKind.TOKEN_UNDERSCORE) {
+      is_discard_name = 1;
+    } else if (r.tok.kind != TokenKind.TOKEN_IDENT) {
       lex_out.pos = lex.pos; lex_out.line = lex.line; lex_out.col = lex.col; return false;
     }
     let name_len: i32 = r.tok.ident_len;
+    if (is_discard_name != 0) {
+      name_len = 1;
+    }
     if (name_len <= 0 || name_len > 63) {
       lex_out.pos = lex.pos; lex_out.line = lex.line; lex_out.col = lex.col; return false;
     }
@@ -2373,11 +2381,16 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
     let name_start: usize = r.token_start;
     let name_row: u8[64] = [];
     let ni: i32 = 0;
-    while (ni < name_len && ni < 64) {
-      if (name_start + ni < source.length) {
-        name_row[ni] = source[name_start + ni];
+    if (is_discard_name != 0) {
+      name_row[0] = 95;
+      ni = 1;
+    } else {
+      while (ni < name_len && ni < 64) {
+        if (name_start + ni < source.length) {
+          name_row[ni] = source[name_start + ni];
+        }
+        ni = ni + 1;
       }
-      ni = ni + 1;
     }
     let zi: i32 = ni;
     while (zi < 64) {
@@ -2551,18 +2564,35 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
           if (nlen < 0) {
             nlen = 0;
           }
-          se.var_name_len = nlen;
+          /* Decode escapes so AST holds semantic bytes (\n→0x0A), not raw source. */
           let q0: usize = r.token_start;
-          let k: i32 = 0;
-          while (k < nlen) {
-            if (q0 + (k as usize) < source.length) {
-              se.var_name[k] = source[q0 + (k as usize)];
+          let ri: i32 = 0;
+          let wi: i32 = 0;
+          while (ri < nlen && wi < 63) {
+            let c: u8 = 0;
+            if (q0 + (ri as usize) < source.length) {
+              c = source[q0 + (ri as usize)];
             }
-            k = k + 1;
+            if (c == 92 && (ri + 1) < nlen) {
+              let n: u8 = 0;
+              if (q0 + ((ri + 1) as usize) < source.length) {
+                n = source[q0 + ((ri + 1) as usize)];
+              }
+              if (n == 110) { se.var_name[wi] = 10; wi = wi + 1; ri = ri + 2; continue; }
+              if (n == 116) { se.var_name[wi] = 9; wi = wi + 1; ri = ri + 2; continue; }
+              if (n == 114) { se.var_name[wi] = 13; wi = wi + 1; ri = ri + 2; continue; }
+              if (n == 48) { se.var_name[wi] = 0; wi = wi + 1; ri = ri + 2; continue; }
+              if (n == 92 || n == 34) { se.var_name[wi] = n; wi = wi + 1; ri = ri + 2; continue; }
+              se.var_name[wi] = n; wi = wi + 1; ri = ri + 2; continue;
+            }
+            se.var_name[wi] = c;
+            wi = wi + 1;
+            ri = ri + 1;
           }
-          while (k < 64) {
-            se.var_name[k] = 0;
-            k = k + 1;
+          se.var_name_len = wi;
+          while (wi < 64) {
+            se.var_name[wi] = 0;
+            wi = wi + 1;
           }
           ast.ast_arena_expr_set(arena, str_ref, se);
           let_init_ref = str_ref;

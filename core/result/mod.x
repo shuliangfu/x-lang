@@ -77,9 +77,8 @@ export function expect(r: Result_i32, default_val: i32): i32 {
 export function expect_or_panic(r: Result_i32): i32 {
   if (r.err == 0) {
     return r.value;
-  } else {
-    return panic();
   }
+  return panic();
 }
 
 // 成功则返回本结果，否则返回 other（组合两个结果，取第一个 Ok）

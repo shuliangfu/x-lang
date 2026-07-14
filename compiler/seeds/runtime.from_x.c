@@ -508,6 +508,24 @@ int write_io_net_abi_inline(FILE *cf) {
         "#include <stddef.h>\n",
         "#include <stdint.h>\n",
         "#include <unistd.h>\n",
+        "#include <sys/uio.h>\n",
+        "#include <poll.h>\n",
+        /* std.io.sync 调用 shux_sys_*：与 unistd 解耦，内部 cast 到系统 iovec/pollfd。 */
+        "static inline ssize_t shux_sys_read(int32_t fd, uint8_t *buf, size_t count) {\n"
+        "  return read((int)fd, (void *)buf, count);\n"
+        "}\n",
+        "static inline ssize_t shux_sys_write(int32_t fd, uint8_t *buf, size_t count) {\n"
+        "  return write((int)fd, (const void *)buf, count);\n"
+        "}\n",
+        "static inline ssize_t shux_sys_readv(int32_t fd, uint8_t *iov, int32_t iovcnt) {\n"
+        "  return readv((int)fd, (const struct iovec *)(const void *)iov, (int)iovcnt);\n"
+        "}\n",
+        "static inline ssize_t shux_sys_writev(int32_t fd, uint8_t *iov, int32_t iovcnt) {\n"
+        "  return writev((int)fd, (const struct iovec *)(const void *)iov, (int)iovcnt);\n"
+        "}\n",
+        "static inline int32_t shux_sys_poll(uint8_t *fds, int32_t nfds, int32_t timeout) {\n"
+        "  return (int32_t)poll((struct pollfd *)(void *)fds, (nfds_t)nfds, (int)timeout);\n"
+        "}\n",
         "typedef struct { uint8_t *ptr; size_t len; size_t handle; } shu_batch_buf_t;\n",
         "extern int io_register_buffer(uint8_t *ptr, size_t len);\n",
         "extern int io_register_buffers_4(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3, unsigned nr);\n",
@@ -535,8 +553,10 @@ int write_io_net_abi_inline(FILE *cf) {
         "static inline int32_t shux_io_register_buf(intptr_t buf) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shux_io_register((uint8_t *)b->ptr, b->len, b->handle); }\n",
         "static inline int32_t shux_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return (shux_io_submit_read)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n",
         "static inline int32_t shux_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return (shux_io_submit_write)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n",
-        "static inline int32_t std_io_driver_submit_read(ptrdiff_t buf, uint32_t timeout_ms) { return shux_io_submit_read_buf((intptr_t)buf, (int32_t)timeout_ms); }\n",
-        "static inline int32_t std_io_driver_submit_write(ptrdiff_t buf, uint32_t timeout_ms) { return shux_io_submit_write_buf((intptr_t)buf, (int32_t)timeout_ms); }\n",
+        /* 勿定义 std_io_driver_submit_read/write 同名 inline：co-emit driver 会生成 Buffer 形参强符号。
+         * 仅提供 via_ptr 与短名宏；全名调用走 co-emit 定义。 */
+        "static inline int32_t std_io_driver_submit_read_via_ptr(ptrdiff_t buf, uint32_t timeout_ms) { return shux_io_submit_read_buf((intptr_t)buf, (int32_t)timeout_ms); }\n",
+        "static inline int32_t std_io_driver_submit_write_via_ptr(ptrdiff_t buf, uint32_t timeout_ms) { return shux_io_submit_write_buf((intptr_t)buf, (int32_t)timeout_ms); }\n",
         "#define shux_io_register(buf) shux_io_register_buf(buf)\n",
         "#define shux_io_submit_read(buf, timeout_m) shux_io_submit_read_buf(buf, timeout_m)\n",
         "#define shux_io_submit_write(buf, timeout_m) shux_io_submit_write_buf(buf, timeout_m)\n",
@@ -555,9 +575,9 @@ int write_io_net_abi_inline(FILE *cf) {
         "#define driver_read_ptr_len std_io_driver_driver_read_ptr_len\n",
         "#define driver_read_ptr std_io_driver_driver_read_ptr\n",
         "#define submit_register_fixed_buffers_buf std_io_driver_submit_register_fixed_buffers_buf\n",
-        "/* X codegen 在 std_io_driver_read/write 体内用短名 submit_read/submit_write(Buffer)；须转调 preamble 的 ptrdiff_t _buf 包装。 */\n",
-        "#define submit_read(buf, timeout_ms) std_io_driver_submit_read((ptrdiff_t)(uintptr_t)&(buf), (timeout_ms))\n",
-        "#define submit_write(buf, timeout_ms) std_io_driver_submit_write((ptrdiff_t)(uintptr_t)&(buf), (timeout_ms))\n",
+        "/* 短名 submit_read/write(Buffer lvalue)：转 via_ptr；全名 std_io_driver_submit_* 由 co-emit 定义。 */\n",
+        "#define submit_read(buf, timeout_ms) std_io_driver_submit_read_via_ptr((ptrdiff_t)(uintptr_t)&(buf), (timeout_ms))\n",
+        "#define submit_write(buf, timeout_ms) std_io_driver_submit_write_via_ptr((ptrdiff_t)(uintptr_t)&(buf), (timeout_ms))\n",
         "#define std_io_driver_read_ptr driver_read_ptr\n",
         "#define std_io_driver_read_ptr_len driver_read_ptr_len\n",
         "extern size_t std_io_handle_stdin(void);\n",
@@ -588,6 +608,42 @@ int write_io_net_abi_inline(FILE *cf) {
         "#define std_io_core_shux_io_submit_write_batch shux_io_submit_write_batch\n",
         "#define std_io_core_shux_io_read_fixed shux_io_read_fixed\n",
         "#define std_io_core_shux_io_write_fixed shux_io_write_fixed\n",
+        /* driver→core 前缀：core 未 co-emit 时映到 runtime 符号（与 io.o 一致）。 */
+        "#define std_io_core_shux_io_register_buffers_buf io_register_buffers_buf\n",
+        "#define std_io_core_shux_io_read_ptr_gen shux_io_read_ptr_gen\n",
+        "#define std_io_core_shux_io_read_ptr_gen_valid shux_io_read_ptr_gen_valid\n",
+        "#define std_io_core_shux_io_read_ptr_backend shux_io_read_ptr_backend\n",
+        "#define std_io_core_shux_io_read_ptr_slice shux_io_read_ptr_slice\n",
+        "#define std_io_core_shux_io_read_batch_buf(fd, bufs, n, t) io_read_batch_buf((fd), (const struct std_io_driver_Buffer *)(const void *)(bufs), (n), (t))\n",
+        "#define std_io_core_shux_io_write_batch_buf(fd, bufs, n, t) io_write_batch_buf((fd), (const struct std_io_driver_Buffer *)(const void *)(bufs), (n), (t))\n",
+        "#define std_io_core_shux_io_register_provided_buffers shux_io_register_provided_buffers\n",
+        "#define std_io_core_shux_io_provided_buffer_size shux_io_provided_buffer_size\n",
+        "#define std_io_core_shux_io_read_provided shux_io_read_provided\n",
+        "#define std_io_core_shux_io_read_batch_provided shux_io_read_batch_provided\n",
+        "#define std_io_core_shux_io_submit_read_async shux_io_submit_read_async\n",
+        "#define std_io_core_shux_io_complete_read_async shux_io_complete_read_async\n",
+        "#define std_io_core_shux_io_complete_read_async_slot shux_io_complete_read_async_slot\n",
+        "#define std_io_core_shux_io_submit_write_async shux_io_submit_write_async\n",
+        "#define std_io_core_shux_io_complete_write_async shux_io_complete_write_async\n",
+        "#define std_io_core_shux_io_complete_write_async_slot shux_io_complete_write_async_slot\n",
+        "#define std_io_core_shux_io_poll_async_completions shux_io_poll_async_completions\n",
+        "#define std_io_core_shux_io_uring_is_available_c shux_io_uring_is_available_c\n",
+        "extern int32_t shux_io_read_ptr_gen_valid(uint64_t saved);\n",
+        "extern int32_t shux_io_read_ptr_backend(void);\n",
+        "extern uint64_t shux_io_read_ptr_gen(void);\n",
+        "extern struct shux_slice_uint8_t shux_io_read_ptr_slice(size_t handle, uint32_t timeout_ms);\n",
+        "extern int32_t shux_io_register_provided_buffers(uint32_t nr, uint32_t bufsz);\n",
+        "extern uint32_t shux_io_provided_buffer_size(void);\n",
+        "extern int32_t shux_io_read_provided(size_t handle, uint32_t timeout_ms, uint32_t *out_bid, uint32_t *out_len);\n",
+        "extern int32_t shux_io_read_batch_provided(size_t handle, int32_t n, uint32_t timeout_ms, uint32_t *out_bids, uint32_t *out_lens);\n",
+        "extern int32_t shux_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle);\n",
+        "extern int32_t shux_io_complete_read_async(void);\n",
+        "extern int32_t shux_io_complete_read_async_slot(int32_t slot);\n",
+        "extern int32_t shux_io_submit_write_async(uint8_t *ptr, size_t len, size_t handle);\n",
+        "extern int32_t shux_io_complete_write_async(void);\n",
+        "extern int32_t shux_io_complete_write_async_slot(int32_t slot);\n",
+        "extern uint32_t shux_io_poll_async_completions(uint32_t timeout_ms);\n",
+        "extern int32_t shux_io_uring_is_available_c(void);\n",
         "#define std_io_driver_io_register_buffers_buf(bufs, nr) io_register_buffers_buf((intptr_t)(void *)(bufs), (int)(nr))\n",
         "extern int32_t std_io_driver_submit_read_batch_buf(size_t handle, struct std_io_driver_Buffer * bufs, int32_t n, uint32_t timeout_ms);\n",
         "extern int32_t std_io_driver_submit_write_batch_buf(size_t handle, struct std_io_driver_Buffer * bufs, int32_t n, uint32_t timeout_ms);\n",
@@ -627,18 +683,8 @@ int write_io_net_abi_inline(FILE *cf) {
         "#define std_io_driver_io_read_batch_buf io_read_batch_buf\n",
         "#define std_io_driver_io_write_batch_buf io_write_batch_buf\n",
         "#define std_io_driver_io_register_buffers_buf(bufs, nr) io_register_buffers_buf((intptr_t)(void *)(bufs), (int)(nr))\n",
-        "/* X 内联 std.io 时若 driver/mod 部分包装未 codegen，由弱符号补齐以免链接失败（handle_from_fd 由 mod codegen 定义，此处不再 weak）。 */\n",
-        "#ifndef __cplusplus\n",
-        "__attribute__((weak)) int32_t std_io_driver_submit_read_batch_buf(size_t handle, struct std_io_driver_Buffer *bufs, int32_t n, uint32_t timeout_ms) {\n",
-        "  (void)handle;(void)bufs;(void)n;(void)timeout_ms; return -1;\n",
-        "}\n",
-        "__attribute__((weak)) int32_t std_io_driver_submit_write_batch_buf(size_t handle, struct std_io_driver_Buffer *bufs, int32_t n, uint32_t timeout_ms) {\n",
-        "  (void)handle;(void)bufs;(void)n;(void)timeout_ms; return -1;\n",
-        "}\n",
-        "__attribute__((weak)) int32_t std_io_driver_submit_register_fixed_buffers_buf(struct std_io_driver_Buffer *bufs, uint32_t nr) {\n",
-        "  (void)bufs; return io_register_buffers_buf_i32((intptr_t)(void *)bufs, (int)nr);\n",
-        "}\n",
-        "#endif\n",
+        /* 单权威：submit_*_batch_buf / register_fixed 由 codegen co-emit 或 io.o 提供；
+         * 勿 weak 桩（与同 TU 强符号 redefinition）。上方已有 extern 声明。 */
         "struct std_net_Ipv4Addr { uint8_t a; uint8_t b; uint8_t c; uint8_t d; };\n",
         "struct std_net_Ipv6Addr { uint8_t b0,b1,b2,b3,b4,b5,b6,b7,b8,b9,b10,b11,b12,b13,b14,b15; };\n",
         "#define handle_from_fd std_io_handle_from_fd\n",
@@ -663,9 +709,9 @@ int write_io_net_abi_inline(FILE *cf) {
         "struct std_vec_Vec_i32 { int32_t *ptr; int32_t len; int32_t cap; };\n",
         "struct core_option_Option_i32 { int is_some; int32_t value; };\n",
         "struct core_result_Result_i32 { int32_t value; int32_t _pad1; int32_t err; int32_t _pad2; };\n",
-        "extern int32_t core_types_placeholder(int32_t, int32_t);\n",
+        "extern int32_t core_types_placeholder(void);\n",
         "#ifndef __cplusplus\n",
-        "__attribute__((weak)) int32_t core_types_placeholder(int32_t a, int32_t b) { (void)a;(void)b; return 0; }\n",
+        "__attribute__((weak)) int32_t core_types_placeholder(void) { return 0; }\n",
         "#endif\n",
         "extern int32_t std_heap_alloc_size_zero(void);\n",
         "extern int32_t std_runtime_runtime_ready(void);\n",
@@ -700,8 +746,8 @@ int write_io_net_abi_inline(FILE *cf) {
         /* #undef / 重绑 std_io_core_*（209–222）：X 内联 std.io.core 且 codegen 已 emit 时由 codegen 侧承担。 */
         if ((skip & CODEGEN_PREAMBLE_SKIP_STD_IO_UNDEF_REDEFINE) && i >= 105 && i < 119)
             skip_line = 1;
-        /* weak batch/register（230–240 含 #ifndef/#endif）：codegen 已 emit 强符号定义时跳过整段。 */
-        if ((skip & CODEGEN_PREAMBLE_SKIP_WEAK_IO_BATCH) && i >= 124 && i <= 134)
+        /* weak batch/register：codegen 已 emit 强符号时跳过（#ifndef..#endif，插入 core 扩展宏后下标 157..168）。 */
+        if ((skip & CODEGEN_PREAMBLE_SKIP_WEAK_IO_BATCH) && i >= 157 && i <= 168)
             skip_line = 1;
         if (!skip_line && fputs(lines[i], cf) == EOF)
             return 1;
@@ -2959,11 +3005,17 @@ int run_compiler_x_path(int argc, char **argv) {
     codegen_reset_preamble_skip_mask(); /* codegen.x emit 过程中 OR 重叠段 skip；pipeline 完成后写 preamble 时读取 */
     {
         int has_std_io_core = 0;
-        for (int j = 0; j < n_deps; j++)
-            if (dep_paths[j] && strcmp(dep_paths[j], "std.io.core") == 0) { has_std_io_core = 1; break; }
+        int has_std_io_driver = 0;
+        for (int j = 0; j < n_deps; j++) {
+            if (dep_paths[j] && strcmp(dep_paths[j], "std.io.core") == 0) has_std_io_core = 1;
+            if (dep_paths[j] && strcmp(dep_paths[j], "std.io.driver") == 0) has_std_io_driver = 1;
+        }
         if (!has_std_io_core)
             codegen_or_preamble_skip_mask(CODEGEN_PREAMBLE_SKIP_STD_IO_CORE_MACROS
                 | CODEGEN_PREAMBLE_SKIP_STD_IO_UNDEF_REDEFINE);
+        /* co-emit driver 时同 TU 已有 submit_*_batch_buf 强符号；跳过 preamble weak 桩。 */
+        if (has_std_io_driver)
+            codegen_or_preamble_skip_mask(CODEGEN_PREAMBLE_SKIP_WEAK_IO_BATCH);
     }
     /* 入口在 pipeline 内用 .x 重新解析以保持 Module 布局一致。 */
     memset(arena, 0, arena_sz);
@@ -5425,11 +5477,16 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
     codegen_reset_preamble_skip_mask();
     {
         int has_std_io_core = 0;
-        for (int j = 0; j < n_deps; j++)
-            if (dep_paths[j] && strcmp(dep_paths[j], "std.io.core") == 0) { has_std_io_core = 1; break; }
+        int has_std_io_driver = 0;
+        for (int j = 0; j < n_deps; j++) {
+            if (dep_paths[j] && strcmp(dep_paths[j], "std.io.core") == 0) has_std_io_core = 1;
+            if (dep_paths[j] && strcmp(dep_paths[j], "std.io.driver") == 0) has_std_io_driver = 1;
+        }
         if (!has_std_io_core)
             codegen_or_preamble_skip_mask(CODEGEN_PREAMBLE_SKIP_STD_IO_CORE_MACROS
                 | CODEGEN_PREAMBLE_SKIP_STD_IO_UNDEF_REDEFINE);
+        if (has_std_io_driver)
+            codegen_or_preamble_skip_mask(CODEGEN_PREAMBLE_SKIP_WEAK_IO_BATCH);
     }
     /*
      * emit-C 与 -backend asm 对齐：pipeline 内须完整 parse_into（entry_already_parsed=0）。

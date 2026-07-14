@@ -175,11 +175,10 @@ export function fmt_bool_to_buf(buf: *u8, cap: i32, b: bool): i32 {
     if (cap < 4) { return -1; }
     buf[0] = 116; buf[1] = 114; buf[2] = 117; buf[3] = 101;
     return 4;
-  } else {
-    if (cap < 5) { return -1; }
-    buf[0] = 102; buf[1] = 97; buf[2] = 108; buf[3] = 115; buf[4] = 101;
-    return 5;
   }
+  if (cap < 5) { return -1; }
+  buf[0] = 102; buf[1] = 97; buf[2] = 108; buf[3] = 115; buf[4] = 101;
+  return 5;
 }
 
 // ——— 十六进制（小写 a-f） ———

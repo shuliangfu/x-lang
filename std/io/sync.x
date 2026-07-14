@@ -49,31 +49,35 @@ let io_fixed_len: [8]usize = [
 ];
 let io_fixed_nr: u32 = 0;
 
-extern "C" function read(fd: i32, buf: *u8, count: usize): isize;
-extern "C" function write(fd: i32, buf: *u8, count: usize): isize;
-extern "C" function readv(fd: i32, iov: *Iovec, iovcnt: i32): isize;
-extern "C" function writev(fd: i32, iov: *Iovec, iovcnt: i32): isize;
-extern "C" function poll(fds: *PollFd, nfds: u64, timeout: i32): i32;
+/**
+ * 勿直接 extern "C" read/write/readv/writev/poll：与 unistd/sys/uio/poll 头冲突。
+ * preamble 提供 shux_sys_* 薄包装（内部 cast 到系统 iovec/pollfd，布局与 Iovec/PollFd 一致）。
+ */
+extern "C" function shux_sys_read(fd: i32, buf: *u8, count: usize): isize;
+extern "C" function shux_sys_write(fd: i32, buf: *u8, count: usize): isize;
+extern "C" function shux_sys_readv(fd: i32, iov: *u8, iovcnt: i32): isize;
+extern "C" function shux_sys_writev(fd: i32, iov: *u8, iovcnt: i32): isize;
+extern "C" function shux_sys_poll(fds: *u8, nfds: i32, timeout: i32): i32;
 
 /** libc FFI 须 unsafe；集中薄包装，避免各 io_* 重复写 unsafe 块。 */
 export function io_libc_read(fd: i32, buf: *u8, count: usize): isize {
-  unsafe { return read(fd, buf, count); }
+  unsafe { return shux_sys_read(fd, buf, count); }
   return 0 as isize; // unreachable — typeck workaround
 }
 export function io_libc_write(fd: i32, buf: *u8, count: usize): isize {
-  unsafe { return write(fd, buf, count); }
+  unsafe { return shux_sys_write(fd, buf, count); }
   return 0 as isize; // unreachable — typeck workaround
 }
 export function io_libc_readv(fd: i32, iov: *Iovec, iovcnt: i32): isize {
-  unsafe { return readv(fd, iov, iovcnt); }
+  unsafe { return shux_sys_readv(fd, iov as *u8, iovcnt); }
   return 0 as isize; // unreachable — typeck workaround
 }
 export function io_libc_writev(fd: i32, iov: *Iovec, iovcnt: i32): isize {
-  unsafe { return writev(fd, iov, iovcnt); }
+  unsafe { return shux_sys_writev(fd, iov as *u8, iovcnt); }
   return 0 as isize; // unreachable — typeck workaround
 }
 export function io_libc_poll(fds: *PollFd, nfds: i32, timeout: i32): i32 {
-  unsafe { return poll(fds, nfds, timeout); }
+  unsafe { return shux_sys_poll(fds as *u8, nfds, timeout); }
   return 0; // unreachable — typeck workaround
 }
 
@@ -299,20 +303,29 @@ export function io_register_buffers_4(p0: *u8, l0: usize, p1: *u8, l1: usize, p2
 
 /** 按指针+块数注册固定 buffer 池（1..8）；codegen 可能传 intptr。 */
 export function io_register_buffers_buf(bufs: *IoBatchBuf, nr: i32): i32 {
-  if (nr <= 0 || nr > (IO_FIXED_MAX as i32) || bufs == 0) {
+  /* 避免 `IO_FIXED_MAX as i32` / 全局数组下标在 dep typeck 下 check_block 失败（误报为前序函数）。 */
+  let max_n: i32 = 8;
+  if (nr <= 0 || nr > max_n || bufs == 0) {
     return 0;
   }
-  io_fixed_nr = 0;
   let i: i32 = 0;
   while (i < nr) {
-    if (bufs[i].ptr == 0) {
+    let p: *u8 = bufs[i].ptr;
+    let l: usize = bufs[i].len;
+    if (p == 0 as *u8) {
       return 0;
     }
-    io_fixed_ptr[i] = bufs[i].ptr;
-    io_fixed_len[i] = bufs[i].len;
+    if (i == 0) { io_fixed_ptr[0] = p; io_fixed_len[0] = l; }
+    if (i == 1) { io_fixed_ptr[1] = p; io_fixed_len[1] = l; }
+    if (i == 2) { io_fixed_ptr[2] = p; io_fixed_len[2] = l; }
+    if (i == 3) { io_fixed_ptr[3] = p; io_fixed_len[3] = l; }
+    if (i == 4) { io_fixed_ptr[4] = p; io_fixed_len[4] = l; }
+    if (i == 5) { io_fixed_ptr[5] = p; io_fixed_len[5] = l; }
+    if (i == 6) { io_fixed_ptr[6] = p; io_fixed_len[6] = l; }
+    if (i == 7) { io_fixed_ptr[7] = p; io_fixed_len[7] = l; }
     i = i + 1;
   }
-  io_fixed_nr = nr as u32;
+  io_fixed_nr = i as u32;
   return 1;
 }
 

@@ -99,9 +99,14 @@ export function print(x: i32): i32 {
   return io.print(&buf[0], n as usize);
 }
 export function println(x: i32): i32 {
-  let r: i32 = print(x);
+  /* 勿 print(x) 自调用重载：typeck 未写 call_resolved 时 C 会落到切片 print 形参。 */
+  let buf: u8[32] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let n: i32 = fmt.fmt_i32_to_buf(&buf[0], 32, x);
+  if (n < 0) { return -1; }
+  let r: i32 = io.print(&buf[0], n as usize);
   let nl: u8[1] = [10];
-  let _: i32 = io.print(&nl[0], 1);
+  let ign: i32 = io.print(&nl[0], 1);
   return r;
 }
 export function print(x: u32): i32 {
@@ -112,9 +117,14 @@ export function print(x: u32): i32 {
   return io.print(&buf[0], n as usize);
 }
 export function println(x: u32): i32 {
-  let r: i32 = print(x);
+  /* 勿 print(x) 自调用重载：typeck 未写 call_resolved 时 C 会落到切片 print 形参。 */
+  let buf: u8[32] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let n: i32 = fmt.fmt_u32_to_buf(&buf[0], 32, x);
+  if (n < 0) { return -1; }
+  let r: i32 = io.print(&buf[0], n as usize);
   let nl: u8[1] = [10];
-  let _: i32 = io.print(&nl[0], 1);
+  let ign: i32 = io.print(&nl[0], 1);
   return r;
 }
 export function print(x: i64): i32 {
@@ -125,9 +135,14 @@ export function print(x: i64): i32 {
   return io.print(&buf[0], n as usize);
 }
 export function println(x: i64): i32 {
-  let r: i32 = print(x);
+  /* 勿 print(x) 自调用重载：typeck 未写 call_resolved 时 C 会落到切片 print 形参。 */
+  let buf: u8[32] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let n: i32 = fmt.fmt_i64_to_buf(&buf[0], 32, x);
+  if (n < 0) { return -1; }
+  let r: i32 = io.print(&buf[0], n as usize);
   let nl: u8[1] = [10];
-  let _: i32 = io.print(&nl[0], 1);
+  let ign: i32 = io.print(&nl[0], 1);
   return r;
 }
 export function print(x: u64): i32 {
@@ -138,9 +153,14 @@ export function print(x: u64): i32 {
   return io.print(&buf[0], n as usize);
 }
 export function println(x: u64): i32 {
-  let r: i32 = print(x);
+  /* 勿 print(x) 自调用重载：typeck 未写 call_resolved 时 C 会落到切片 print 形参。 */
+  let buf: u8[32] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let n: i32 = fmt.fmt_u64_to_buf(&buf[0], 32, x);
+  if (n < 0) { return -1; }
+  let r: i32 = io.print(&buf[0], n as usize);
   let nl: u8[1] = [10];
-  let _: i32 = io.print(&nl[0], 1);
+  let ign: i32 = io.print(&nl[0], 1);
   return r;
 }
 export function print(x: usize): i32 {
@@ -151,9 +171,14 @@ export function print(x: usize): i32 {
   return io.print(&buf[0], n as usize);
 }
 export function println(x: usize): i32 {
-  let r: i32 = print(x);
+  /* 勿 print(x) 自调用重载：typeck 未写 call_resolved 时 C 会落到切片 print 形参。 */
+  let buf: u8[32] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let n: i32 = fmt.fmt_usize_to_buf(&buf[0], 32, x);
+  if (n < 0) { return -1; }
+  let r: i32 = io.print(&buf[0], n as usize);
   let nl: u8[1] = [10];
-  let _: i32 = io.print(&nl[0], 1);
+  let ign: i32 = io.print(&nl[0], 1);
   return r;
 }
 export function print(x: isize): i32 {
@@ -164,9 +189,14 @@ export function print(x: isize): i32 {
   return io.print(&buf[0], n as usize);
 }
 export function println(x: isize): i32 {
-  let r: i32 = print(x);
+  /* 勿 print(x) 自调用重载：typeck 未写 call_resolved 时 C 会落到切片 print 形参。 */
+  let buf: u8[32] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let n: i32 = fmt.fmt_isize_to_buf(&buf[0], 32, x);
+  if (n < 0) { return -1; }
+  let r: i32 = io.print(&buf[0], n as usize);
   let nl: u8[1] = [10];
-  let _: i32 = io.print(&nl[0], 1);
+  let ign: i32 = io.print(&nl[0], 1);
   return r;
 }
 export function print(x: bool): i32 {
@@ -176,9 +206,13 @@ export function print(x: bool): i32 {
   return io.print(&buf[0], n as usize);
 }
 export function println(x: bool): i32 {
-  let r: i32 = print(x);
+  /* 勿 print(x) 自调用重载：typeck 未写 call_resolved 时 C 会落到切片 print 形参。 */
+  let buf: u8[8] = [0, 0, 0, 0, 0, 0, 0, 0];
+  let n: i32 = fmt.fmt_bool_to_buf(&buf[0], 8, x);
+  if (n < 0) { return -1; }
+  let r: i32 = io.print(&buf[0], n as usize);
   let nl: u8[1] = [10];
-  let _: i32 = io.print(&nl[0], 1);
+  let ign: i32 = io.print(&nl[0], 1);
   return r;
 }
 export function print(x: f64): i32 {
@@ -191,87 +225,94 @@ export function print(x: f64): i32 {
   return io.print(&buf[0], n as usize);
 }
 export function println(x: f64): i32 {
-  let r: i32 = print(x);
+  /* 勿 print(x) 自调用重载：typeck 未写 call_resolved 时 C 会落到切片 print 形参。 */
+  let buf: u8[64] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let n: i32 = fmt.fmt_f64_to_buf(&buf[0], 64, x);
+  if (n < 0) { return -1; }
+  let r: i32 = io.print(&buf[0], n as usize);
   let nl: u8[1] = [10];
-  let _: i32 = io.print(&nl[0], 1);
+  let ign: i32 = io.print(&nl[0], 1);
   return r;
 }
 
 /** format 整数 overload 共用体：按形参类型调用 fmt_scalar_to_buf。 */
 export function format(buf: *u8, cap: i32, a: i32, b: i32): i32 {
-  let n1: i32 = fmt.fmt_scalar_to_buf(buf, cap, a);
+  let n1: i32 = fmt.fmt_i32_to_buf(buf, cap, a);
   if (n1 < 0) { return -1; }
-  let n2: i32 = fmt.fmt_scalar_to_buf(&buf[n1], cap - n1, b);
+  let n2: i32 = fmt.fmt_i32_to_buf(&buf[n1], cap - n1, b);
   if (n2 < 0) { return -1; }
   return n1 + n2;
 }
 export function format(buf: *u8, cap: i32, a: i32, b: u32): i32 {
-  let n1: i32 = fmt.fmt_scalar_to_buf(buf, cap, a);
+  let n1: i32 = fmt.fmt_i32_to_buf(buf, cap, a);
   if (n1 < 0) { return -1; }
-  let n2: i32 = fmt.fmt_scalar_to_buf(&buf[n1], cap - n1, b);
+  let n2: i32 = fmt.fmt_u32_to_buf(&buf[n1], cap - n1, b);
   if (n2 < 0) { return -1; }
   return n1 + n2;
 }
 export function format(buf: *u8, cap: i32, a: u32, b: i32): i32 {
-  let n1: i32 = fmt.fmt_scalar_to_buf(buf, cap, a);
+  let n1: i32 = fmt.fmt_u32_to_buf(buf, cap, a);
   if (n1 < 0) { return -1; }
-  let n2: i32 = fmt.fmt_scalar_to_buf(&buf[n1], cap - n1, b);
+  let n2: i32 = fmt.fmt_i32_to_buf(&buf[n1], cap - n1, b);
   if (n2 < 0) { return -1; }
   return n1 + n2;
 }
 export function format(buf: *u8, cap: i32, a: u32, b: u32): i32 {
-  let n1: i32 = fmt.fmt_scalar_to_buf(buf, cap, a);
+  let n1: i32 = fmt.fmt_u32_to_buf(buf, cap, a);
   if (n1 < 0) { return -1; }
-  let n2: i32 = fmt.fmt_scalar_to_buf(&buf[n1], cap - n1, b);
+  let n2: i32 = fmt.fmt_u32_to_buf(&buf[n1], cap - n1, b);
   if (n2 < 0) { return -1; }
   return n1 + n2;
 }
 export function format(buf: *u8, cap: i32, a: i64, b: i32): i32 {
-  let n1: i32 = fmt.fmt_scalar_to_buf(buf, cap, a);
+  let n1: i32 = fmt.fmt_i64_to_buf(buf, cap, a);
   if (n1 < 0) { return -1; }
-  let n2: i32 = fmt.fmt_scalar_to_buf(&buf[n1], cap - n1, b);
+  let n2: i32 = fmt.fmt_i32_to_buf(&buf[n1], cap - n1, b);
   if (n2 < 0) { return -1; }
   return n1 + n2;
 }
 export function format(buf: *u8, cap: i32, a: i32, b: i64): i32 {
-  let n1: i32 = fmt.fmt_scalar_to_buf(buf, cap, a);
+  let n1: i32 = fmt.fmt_i32_to_buf(buf, cap, a);
   if (n1 < 0) { return -1; }
-  let n2: i32 = fmt.fmt_scalar_to_buf(&buf[n1], cap - n1, b);
+  let n2: i32 = fmt.fmt_i64_to_buf(&buf[n1], cap - n1, b);
   if (n2 < 0) { return -1; }
   return n1 + n2;
 }
 export function format(buf: *u8, cap: i32, a: i64, b: i64): i32 {
-  let n1: i32 = fmt.fmt_scalar_to_buf(buf, cap, a);
+  let n1: i32 = fmt.fmt_i64_to_buf(buf, cap, a);
   if (n1 < 0) { return -1; }
-  let n2: i32 = fmt.fmt_scalar_to_buf(&buf[n1], cap - n1, b);
+  let n2: i32 = fmt.fmt_i64_to_buf(&buf[n1], cap - n1, b);
   if (n2 < 0) { return -1; }
   return n1 + n2;
 }
 export function format(buf: *u8, cap: i32, a: u64, b: u64): i32 {
-  let n1: i32 = fmt.fmt_scalar_to_buf(buf, cap, a);
+  let n1: i32 = fmt.fmt_u64_to_buf(buf, cap, a);
   if (n1 < 0) { return -1; }
-  let n2: i32 = fmt.fmt_scalar_to_buf(&buf[n1], cap - n1, b);
+  let n2: i32 = fmt.fmt_u64_to_buf(&buf[n1], cap - n1, b);
   if (n2 < 0) { return -1; }
   return n1 + n2;
 }
 export function format(buf: *u8, cap: i32, a: usize, b: usize): i32 {
-  let n1: i32 = fmt.fmt_scalar_to_buf(buf, cap, a);
+  let n1: i32 = fmt.fmt_usize_to_buf(buf, cap, a);
   if (n1 < 0) { return -1; }
-  let n2: i32 = fmt.fmt_scalar_to_buf(&buf[n1], cap - n1, b);
+  let n2: i32 = fmt.fmt_usize_to_buf(&buf[n1], cap - n1, b);
   if (n2 < 0) { return -1; }
   return n1 + n2;
 }
 export function format(buf: *u8, cap: i32, a: isize, b: i32): i32 {
-  let n1: i32 = fmt.fmt_scalar_to_buf(buf, cap, a);
+  let n1: i32 = fmt.fmt_isize_to_buf(buf, cap, a);
   if (n1 < 0) { return -1; }
-  let n2: i32 = fmt.fmt_scalar_to_buf(&buf[n1], cap - n1, b);
+  let n2: i32 = fmt.fmt_i32_to_buf(&buf[n1], cap - n1, b);
   if (n2 < 0) { return -1; }
   return n1 + n2;
 }
 export function format(buf: *u8, cap: i32, a: i32, b: usize): i32 {
-  let n1: i32 = fmt.fmt_scalar_to_buf(buf, cap, a);
+  let n1: i32 = fmt.fmt_i32_to_buf(buf, cap, a);
   if (n1 < 0) { return -1; }
-  let n2: i32 = fmt.fmt_scalar_to_buf(&buf[n1], cap - n1, b);
+  let n2: i32 = fmt.fmt_usize_to_buf(&buf[n1], cap - n1, b);
   if (n2 < 0) { return -1; }
   return n1 + n2;
 }
@@ -298,20 +339,20 @@ export function format(buf: *u8, cap: i32, x: f64, v: i32): i32 {
 }
 
 export function format(buf: *u8, cap: i32, a: i32, b: i32, c: i32): i32 {
-  let n1: i32 = fmt.fmt_scalar_to_buf(buf, cap, a);
+  let n1: i32 = fmt.fmt_i32_to_buf(buf, cap, a);
   if (n1 < 0) { return -1; }
-  let n2: i32 = fmt.fmt_scalar_to_buf(&buf[n1], cap - n1, b);
+  let n2: i32 = fmt.fmt_i32_to_buf(&buf[n1], cap - n1, b);
   if (n2 < 0) { return -1; }
-  let n3: i32 = fmt.fmt_scalar_to_buf(&buf[n1 + n2], cap - n1 - n2, c);
+  let n3: i32 = fmt.fmt_i32_to_buf(&buf[n1 + n2], cap - n1 - n2, c);
   if (n3 < 0) { return -1; }
   return n1 + n2 + n3;
 }
 export function format(buf: *u8, cap: i32, a: i32, b: u32, c: usize): i32 {
-  let n1: i32 = fmt.fmt_scalar_to_buf(buf, cap, a);
+  let n1: i32 = fmt.fmt_i32_to_buf(buf, cap, a);
   if (n1 < 0) { return -1; }
-  let n2: i32 = fmt.fmt_scalar_to_buf(&buf[n1], cap - n1, b);
+  let n2: i32 = fmt.fmt_u32_to_buf(&buf[n1], cap - n1, b);
   if (n2 < 0) { return -1; }
-  let n3: i32 = fmt.fmt_scalar_to_buf(&buf[n1 + n2], cap - n1 - n2, c);
+  let n3: i32 = fmt.fmt_usize_to_buf(&buf[n1 + n2], cap - n1 - n2, c);
   if (n3 < 0) { return -1; }
   return n1 + n2 + n3;
 }

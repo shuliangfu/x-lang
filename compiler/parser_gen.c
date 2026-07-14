@@ -52,7 +52,7 @@ struct ast_StmtOrderItem { uint8_t kind; int32_t idx; };
 struct ast_LabeledStmt { uint8_t label[32]; int32_t label_len; int32_t is_goto; uint8_t goto_target[32]; int32_t goto_target_len; int32_t return_expr_ref; };
 struct ast_Block { int32_t const_base; int32_t num_consts; int32_t let_base; int32_t num_lets; int32_t num_early_lets; int32_t loop_base; int32_t num_loops; int32_t for_loop_base; int32_t num_for_loops; int32_t if_base; int32_t num_if_stmts; int32_t region_base; int32_t num_regions; int32_t defer_base; int32_t num_defers; int32_t labeled_base; int32_t num_labeled_stmts; int32_t expr_stmt_base; int32_t num_expr_stmts; int32_t final_expr_ref; int32_t stmt_order_base; int32_t num_stmt_order; int32_t parent_block_ref; };
 struct ast_Param { uint8_t name[32]; int32_t name_len; int32_t type_ref; };
-struct ast_Func { uint8_t name[64]; int32_t name_len; int32_t param_base; int32_t num_params; int32_t num_generic_params; int32_t return_type_ref; int32_t body_ref; int32_t body_expr_ref; int32_t is_extern; int32_t is_async; };
+struct ast_Func { uint8_t name[64]; int32_t name_len; int32_t param_base; int32_t num_params; int32_t num_generic_params; int32_t return_type_ref; int32_t body_ref; int32_t body_expr_ref; int32_t is_extern; int32_t is_async; int32_t is_used; int32_t is_naked; int32_t is_entry; int32_t is_no_mangle; int32_t is_interrupt; int32_t abi_kind; int32_t is_variadic; int32_t is_export; };
 struct ast_StructLayout { uint8_t name[64]; int32_t name_len; int32_t field_base; int32_t num_fields; int32_t allow_padding; int32_t soa; int32_t packed; int32_t repr_compatible; int32_t is_export; };
 struct ast_Module { int32_t num_funcs; int32_t main_func_index; int32_t num_imports; int32_t num_top_level_lets; int32_t num_struct_layouts; int32_t pending_allow_padding; int32_t pending_soa_struct; int32_t pending_cfg_skip; int32_t pending_repr_c_struct; int32_t pending_repr_compatible_struct; int32_t pending_used; int32_t pending_naked; int32_t pending_entry; int32_t pending_no_mangle; int32_t pending_interrupt; int32_t pending_export; int32_t num_module_enums; };
 struct ast_ASTArena { int32_t num_types; int32_t num_exprs; int32_t num_blocks; int32_t num_funcs; };
@@ -1844,12 +1844,16 @@ void parser_parse_body_lets_into(struct ast_ASTArena * restrict arena, struct le
     int32_t let_ty_ref = 0;
     (void)(parser_lex_from_result_ptr_into((&(lex)), (&(r))));
     (void)(lexer_next_into((&(r)), lex, source));
-    (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_IDENT) {   ((lex_out)->pos = ((lex).pos));
+    int is_discard_name = 0;
+    (void)(({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_UNDERSCORE) {   (is_discard_name = (1));
+ } else if (((r).tok).kind != token_TokenKind_TOKEN_IDENT) {   ((lex_out)->pos = ((lex).pos));
   ((lex_out)->line = ((lex).line));
   ((lex_out)->col = ((lex).col));
   return;
  } else (__tmp = 0) ; __tmp; }));
     int32_t name_len = ((r).tok).ident_len;
+    if (is_discard_name != 0) {   (name_len = (1));
+ }
     (void)(({ int32_t __tmp = 0; if (name_len <= 0 || name_len > 63) {   ((lex_out)->pos = ((lex).pos));
   ((lex_out)->line = ((lex).line));
   ((lex_out)->col = ((lex).col));
@@ -1858,11 +1862,15 @@ void parser_parse_body_lets_into(struct ast_ASTArena * restrict arena, struct le
     size_t name_start = (r).token_start;
     uint8_t name_row[64] = { 0 };
     int32_t ni = 0;
+    if (is_discard_name != 0) {   ((name_row)[0] = ((uint8_t)(95)));
+  (ni = (1));
+ } else {
     while (ni < name_len && ni < 64) {
       (void)(({ uint8_t __tmp = 0; if (name_start + ni < (source)->length) {   ((ni < 0 || (ni) >= 64 ? (shux_panic_(1, 0), 0) : ((name_row)[ni] = (name_start + ni < 0 || (size_t)(name_start + ni) >= (source)->length ? (shux_panic_(1, 0), (source)->data[0]) : (source)->data[name_start + ni]), 0)));
  } else (__tmp = 0) ; __tmp; }));
       ++ni;
     }
+ }
     int32_t zi = ni;
     while (zi < 64) {
       ((name_row)[zi] = (0));
@@ -1992,18 +2000,32 @@ void parser_parse_body_lets_into(struct ast_ASTArena * restrict arena, struct le
     int32_t nlen = ((r).tok).ident_len;
     if (nlen > 63) { nlen = 63; }
     if (nlen < 0) { nlen = 0; }
-    ((se).var_name_len = (nlen));
     size_t q0 = (r).token_start;
-    int32_t k = 0;
-    while (k < nlen) {
-      if ((q0 + (size_t)k) < (size_t)(source)->length) {
-        ((se).var_name)[k] = (source)->data[q0 + (size_t)k];
+    int32_t ri = 0;
+    int32_t wi = 0;
+    while (ri < nlen && wi < 63) {
+      uint8_t c = 0;
+      if ((q0 + (size_t)ri) < (size_t)(source)->length) {
+        c = (source)->data[q0 + (size_t)ri];
       }
-      k = (k + 1);
+      if (c == 92 && (ri + 1) < nlen) {
+        uint8_t n = 0;
+        if ((q0 + (size_t)(ri + 1)) < (size_t)(source)->length) {
+          n = (source)->data[q0 + (size_t)(ri + 1)];
+        }
+        if (n == 110) { ((se).var_name)[wi] = 10; wi = wi + 1; ri = ri + 2; continue; }
+        if (n == 116) { ((se).var_name)[wi] = 9; wi = wi + 1; ri = ri + 2; continue; }
+        if (n == 114) { ((se).var_name)[wi] = 13; wi = wi + 1; ri = ri + 2; continue; }
+        if (n == 48) { ((se).var_name)[wi] = 0; wi = wi + 1; ri = ri + 2; continue; }
+        if (n == 92 || n == 34) { ((se).var_name)[wi] = n; wi = wi + 1; ri = ri + 2; continue; }
+        ((se).var_name)[wi] = n; wi = wi + 1; ri = ri + 2; continue;
+      }
+      ((se).var_name)[wi] = c; wi = wi + 1; ri = ri + 1;
     }
-    while (k < 64) {
-      ((se).var_name)[k] = 0;
-      k = (k + 1);
+    ((se).var_name_len = (wi));
+    while (wi < 64) {
+      ((se).var_name)[wi] = 0;
+      wi = wi + 1;
     }
     (void)(ast_arena_expr_set(arena, str_ref, se));
     (let_init_ref = (str_ref));
