@@ -147,6 +147,8 @@ g05_try_x_to_o() {
         -e '/^extern size_t strlen(/d' \
         -e '/^extern int32_t strcmp(/d' \
         -e '/^extern int strcmp(/d' \
+        -e '/^extern uint8_t \* strerror(/d' \
+        -e '/^extern char \* strerror(/d' \
         "$_xtmp"
   } >"${_xtmp}.full" && mv "${_xtmp}.full" "$_xtmp"
   # shellcheck disable=SC2086
@@ -854,7 +856,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           fi
         fi
         if [ -n "$_rt_diag_o" ] && [ -f "$_rt_diag_seed" ]; then
-          # G-02f-450：PREFER_X_O=1 时 thin .x + rest seed (-D) → cc -r 合并
+          # R2 full H=0：PREFER_X_O=1 时 full .x + rest seed (-D，仅 marker) → cc -r 合并
           if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_diag_x" ]; then
             _rt_diag_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_diag_thin.XXXXXX") || true
             _rt_diag_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_diag_rest.XXXXXX") || true
@@ -864,7 +866,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
                    -c -o "$_rt_diag_rest_o" "$_rt_diag_seed" \
               && $CC -r -nostdlib -o "$_rt_diag_o" "$_rt_diag_thin_o" "$_rt_diag_rest_o" 2>/dev/null; then
               _rt_diag_ok=1
-              echo "g05_ensure: rest diag_errno ← thin .x + rest (G-02f-450 L2 prefer .x)"
+              echo "g05_ensure: rest diag_errno ← full .x + rest marker (R2 full H=0)"
             fi
             rm -f "$_rt_diag_thin_o" "$_rt_diag_rest_o"
           fi
@@ -872,7 +874,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             # shellcheck disable=SC2086
             if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_diag_o" "$_rt_diag_seed"; then
               _rt_diag_ok=1
-              echo "g05_ensure: rest diag errno ← $_rt_diag_seed (G-02f-302 seed slice)"
+              echo "g05_ensure: rest diag errno ← $_rt_diag_seed (G-02f-302 seed slice cold)"
             fi
           fi
         fi
@@ -2335,6 +2337,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
                 -e '/^extern size_t strlen(/d' \
                 -e '/^extern int32_t strcmp(/d' \
                 -e '/^extern int strcmp(/d' \
+                -e '/^extern uint8_t \* strerror(/d' \
+                -e '/^extern char \* strerror(/d' \
                 "$_slc_thin_c"
           } >"${_slc_thin_c}.full" && mv "${_slc_thin_c}.full" "$_slc_thin_c"
           # shellcheck disable=SC2086

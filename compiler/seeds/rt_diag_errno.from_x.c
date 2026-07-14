@@ -2,7 +2,9 @@
  * Logic source: src/runtime/rt_diag_errno.x
  * Hybrid: SHUX_RT_DIAG_ERRNO_FROM_X + ld -r into runtime_driver_no_c.o
  *
- * Scope: kind→code map + errno/path/path_pair report + CLI usage note.
+ * R2 full：code_for_kind + errno{,_path,_path_pair} + cli_usage_note 由 .x 提供；
+ * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
+ * 冷启动/无 PREFER 时仍编译完整 C 体。
  */
 #include <errno.h>
 #include <stddef.h>
@@ -16,15 +18,7 @@ extern void diag_reportf_with_code(const char *file, int line, int col, const ch
 extern void diag_reportf(const char *file, int line, int col, const char *kind, const char *detail, const char *fmt,
                          ...);
 
-/* G-02f-450：thin+rest PREFER_X_O
- *   thin .x provides 1 #[no_mangle] wrapper (calls *_impl in rest).
- *   rest seed C (compiled with -DSHUX_RT_DIAG_ERRNO_FROM_X):
- *     - runtime_diag_code_for_kind renamed to *_impl via macro.
- *   Other functions (runtime_diag_errno{,_path,_path_pair}, runtime_diag_cli_usage_note)
- *   stay in rest (no .x counterpart; internal helpers calling *_impl). */
-#ifdef SHUX_RT_DIAG_ERRNO_FROM_X
-#define runtime_diag_code_for_kind    runtime_diag_code_for_kind_impl
-#endif
+#ifndef SHUX_RT_DIAG_ERRNO_FROM_X
 
 const char *runtime_diag_code_for_kind(const char *kind) {
   if (!kind)
@@ -94,6 +88,15 @@ void runtime_diag_cli_usage_note(const char *argv0) {
                "usage: %s [ -L <lib> ] [ -target <triple> ] [ -D <sym> ] [ -O 0|1|2|3|s ] [ -flto ] <file.x> [ -o <out> ]",
                argv0 ? argv0 : "shux");
 }
+
+#else
+const char *runtime_diag_code_for_kind(const char *kind);
+void runtime_diag_errno(const char *file, const char *kind, const char *op);
+void runtime_diag_errno_path(const char *file, const char *kind, const char *op, const char *path);
+void runtime_diag_errno_path_pair(const char *file, const char *kind, const char *op, const char *from_path,
+                                  const char *to_path);
+void runtime_diag_cli_usage_note(const char *argv0);
+#endif
 
 int labi_rt_diag_errno_slice_marker(void) {
   return 1;
