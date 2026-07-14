@@ -196,6 +196,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   _labi_l5_seed=seeds/labi_invoke_cc_list.from_x.c
   _labi_l5_x=src/runtime/labi_invoke_cc_list.x
   _labi_l6_seed=seeds/labi_invoke_ld_list.from_x.c
+  _labi_l6_x=src/runtime/labi_invoke_ld_list.x
   _labi_l7_seed=seeds/labi_freestanding_list.from_x.c
   _labi_l8_seed=seeds/labi_std_list.from_x.c
   _labi_l8b_seed=seeds/labi_ondemand_list.from_x.c
@@ -213,6 +214,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       || { [ -f "$_labi_l5_seed" ] && [ "$_labi_l5_seed" -nt "$_labi_o" ]; } \
       || { [ -f "$_labi_l5_x" ] && [ "$_labi_l5_x" -nt "$_labi_o" ]; } \
       || { [ -f "$_labi_l6_seed" ] && [ "$_labi_l6_seed" -nt "$_labi_o" ]; } \
+      || { [ -f "$_labi_l6_x" ] && [ "$_labi_l6_x" -nt "$_labi_o" ]; } \
       || { [ -f "$_labi_l7_seed" ] && [ "$_labi_l7_seed" -nt "$_labi_o" ]; } \
       || { [ -f "$_labi_l8_seed" ] && [ "$_labi_l8_seed" -nt "$_labi_o" ]; } \
       || { [ -f "$_labi_l8b_seed" ] && [ "$_labi_l8b_seed" -nt "$_labi_o" ]; } \
@@ -303,11 +305,20 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             fi
           fi
         fi
-        if [ -n "$_labi_l6_o" ] && [ -f "$_labi_l6_seed" ]; then
-          # shellcheck disable=SC2086
-          if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_labi_l6_o" "$_labi_l6_seed"; then
-            _labi_l6_ok=1
-            echo "g05_ensure: L6 invoke_ld list ← $_labi_l6_seed (G-02f-275 seed slice)"
+        if [ -n "$_labi_l6_o" ]; then
+          # G-02f-L：PREFER_X_O=1 时优先 labi_invoke_ld_list.x → -E → cc；失败回退 seed C
+          if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_labi_l6_x" ]; then
+            if g05_try_x_to_o "$_labi_l6_x" "$_labi_l6_o"; then
+              _labi_l6_ok=1
+              echo "g05_ensure: L6 invoke_ld list ← $_labi_l6_x (G-02f-L prefer .x)"
+            fi
+          fi
+          if [ "$_labi_l6_ok" = "0" ] && [ -f "$_labi_l6_seed" ]; then
+            # shellcheck disable=SC2086
+            if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_labi_l6_o" "$_labi_l6_seed"; then
+              _labi_l6_ok=1
+              echo "g05_ensure: L6 invoke_ld list ← $_labi_l6_seed (G-02f-275 seed slice)"
+            fi
           fi
         fi
         if [ -n "$_labi_l7_o" ] && [ -f "$_labi_l7_seed" ]; then
