@@ -60,6 +60,9 @@ MODULES=(
   # diagnostic L2 thin 公共面：与产品 PREFER_X_O 同源（thin.x + full seed rest）；prove 锁 thin 面 IDENTICAL
   # 全量 true-migrate 消息体仍见 runtime_driver_diagnostic.x；C 尾 _impl/va_list 仍在 full seed rest
   "diagnostic|src/runtime_driver_diagnostic_thin.x|seeds/runtime_driver_diagnostic_thin.from_x.c||"
+  # driver_abi L2 thin 公共面：与产品 PREFER_X_O 同源（thin.x + full seed rest）；prove 锁 thin 面 IDENTICAL
+  # full seed rest 仍持 _impl / 静态槽 / path-read 等 C 尾
+  "driver_abi|src/runtime_driver_abi_thin.x|seeds/runtime_driver_abi_thin.from_x.c||"
 )
 
 # 找 shux 二进制（优先 shux，fallback shux-c）
