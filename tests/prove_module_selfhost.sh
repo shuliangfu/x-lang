@@ -93,8 +93,9 @@ MODULES=(
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/runtime_io_abi.from_x.c 全 C 体
   "runtime_io_abi|src/runtime_io_abi.x|seeds/runtime_io_abi_surface.from_x.c||"
   # fmt_check R2 thin + Cap residual pure 深迁：thin.x 吃满 lit/entry + pure 真体
-  # （path_should_ignore / .x 后缀 / lint / file_list_push orch / walk process_child）；
-  # rest FROM_X 无 thin 公共体 + 无 pure-duplicate _impl；Cap residual：walk opendir/stat/argv/BSS
+  # （path_should_ignore / .x 后缀 / lint / file_list_push / process_child /
+  #  collect_paths_from_arg / check_collect_default_product_dirs）；
+  # rest FROM_X 无 pure-dup _impl；Cap residual：walk opendir/stat/argv/BSS/missing-diag/cwd
   # prove 锁 thin surface IDENTICAL；冷/无 PREFER 仍可走 seeds/fmt_check_cmd.from_x.c 全 C 体
   "fmt_check|src/driver/fmt_check_cmd_thin.x|seeds/fmt_check_cmd_thin_surface.from_x.c||"
   # simd_loop R2 full：.x 吃满 peel/parse/emit 公共业务；

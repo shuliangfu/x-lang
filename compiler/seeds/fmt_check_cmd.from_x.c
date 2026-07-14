@@ -1,7 +1,8 @@
-/* R2 thin + Cap residual pure 深迁：
+/* R2 thin + Cap residual pure 深迁（续 collect orch）：
  * PREFER hybrid thin 由 src/driver/fmt_check_cmd_thin.x（lit/entry + pure 真体）；
- * rest SHUX_L2_FMT_CHECK_THIN_FROM_X：无 thin 公共体；pure-duplicate _impl 剔除；
- * Cap residual：walk opendir/stat/argv/BSS getters / entry 体仍在 rest。
+ * rest SHUX_L2_FMT_CHECK_THIN_FROM_X：无 thin 公共体；pure-duplicate _impl 剔除
+ * （含 collect_paths_from_arg / check_collect_default_product_dirs）；
+ * Cap residual：walk opendir/stat/argv/BSS / missing-diag format / cwd fallback 仍 rest。
  * 冷启动无宏：全 C 体（含 pure _impl + public 门闩）。
  * Regen thin surface: shux -E src/driver/fmt_check_cmd_thin.x → thin_surface.
  */
@@ -807,6 +808,7 @@ int fmt_try_walk_if_product_subdir(const char *sub) {
 }
 #endif
 
+/* Cap residual：getcwd + walk 🔒；hybrid/cold 均由 pure orch 调 public 语义 */
 void fmt_walk_cwd_fallback_impl(void) {
     char cwd[512];
     if (!getcwd(cwd, sizeof cwd))
@@ -816,9 +818,10 @@ void fmt_walk_cwd_fallback_impl(void) {
 
 /**
  * 无路径参数时 check 的默认扫描范围（产品树，不含 tests 负例目录）。
- * G-02f-250：逻辑源 .x（编排 pure）；getcwd/stat 🔒。
+ * pure 编排权威：thin.x check_collect_default_product_dirs；
+ * 冷启动保留 _impl + public；getcwd/stat try_walk 🔒 Cap residual。
  */
-/* G-02f-408：实现体始终 seed；public PREFER 时 thin forward */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 void check_collect_default_product_dirs_impl(void) {
     int any_product = 0;
     int i;
@@ -826,14 +829,14 @@ void check_collect_default_product_dirs_impl(void) {
         const char *sub = fmt_default_product_sub_at(i);
         if (!sub)
             break;
-        if (fmt_try_walk_if_product_subdir_impl(sub))
+        /* 调 public：与 thin pure 同形 */
+        if (fmt_try_walk_if_product_subdir(sub))
             any_product = 1;
     }
     if (!any_product)
         fmt_walk_cwd_fallback_impl();
 }
 
-#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 void check_collect_default_product_dirs(void) {
   check_collect_default_product_dirs_impl();
 }
@@ -861,6 +864,7 @@ int fmt_path_stat_kind(const char *path) {
 }
 #endif
 
+/* Cap residual：format diag 🔒；pure orch（thin/cold）调此 impl */
 void collect_paths_missing_diag_impl(const char *path) {
     diag_reportf_with_code(path, 0, 0, driver_collect_error_kind(),
                            driver_collect_missing_path_code(), NULL,
@@ -869,20 +873,22 @@ void collect_paths_missing_diag_impl(const char *path) {
 
 /**
  * 解析路径参数：文件直接加入；目录递归收集。
- * G-02f-249：逻辑源 .x（编排 pure）；stat/diag 🔒。
+ * pure 编排权威：thin.x collect_paths_from_arg；
+ * 冷启动保留 _impl + public；stat/resolve/missing-diag 🔒 Cap residual。
  */
-/* G-02f-408：实现体始终 seed；public PREFER 时 thin forward */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 void collect_paths_from_arg_impl(const char *arg) {
     int k;
     if (!arg)
         return;
-    k = fmt_path_stat_kind_impl(arg);
+    /* 调 public Cap 门闩：与 thin pure 同形 */
+    k = fmt_path_stat_kind(arg);
     if (k < 0) {
         collect_paths_missing_diag_impl(arg);
         return;
     }
     if (k == 1) {
-        const char *base = fmt_path_resolve_abs_impl(arg);
+        const char *base = fmt_path_resolve_abs(arg);
         if (base)
             walk_dir_collect(base);
         return;
@@ -890,7 +896,6 @@ void collect_paths_from_arg_impl(const char *arg) {
     file_list_push(arg);
 }
 
-#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 void collect_paths_from_arg(const char *arg) {
   collect_paths_from_arg_impl(arg);
 }
@@ -996,13 +1001,14 @@ int driver_run_fmt_impl(int argc, char **argv) {
         if (argv[i][0] == '-')
             continue;
         any_path_arg = 1;
-        collect_paths_from_arg_impl(argv[i]);
+        /* public：hybrid thin pure / 冷 seed public→_impl */
+        collect_paths_from_arg(argv[i]);
     }
 
     if (!any_path_arg) {
         char cwd[512];
         if (getcwd(cwd, sizeof cwd))
-            walk_dir_collect_impl(cwd);
+            walk_dir_collect(cwd);
     }
 
     if (s_n_files == 0) {
@@ -1232,7 +1238,8 @@ int driver_run_compiler_check_impl(int argc, char **argv) {
         if (argv[i][0] == '-')
             continue;
         any_path = 1;
-        collect_paths_from_arg_impl(argv[i]);
+        /* public：hybrid thin pure / 冷 seed public→_impl */
+        collect_paths_from_arg(argv[i]);
     }
 
     /*
@@ -1240,7 +1247,7 @@ int driver_run_compiler_check_impl(int argc, char **argv) {
      * 有路径时仍由 collect_paths_from_arg 处理（可显式 shux check tests/...）。
      */
     if (!any_path)
-        check_collect_default_product_dirs_impl();
+        check_collect_default_product_dirs();
 
     if (s_n_files == 0) {
         if (any_path)

@@ -1,14 +1,15 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// fmt_check_cmd R2 thin + Cap residual pure 深迁：
+// fmt_check_cmd R2 thin + Cap residual pure 深迁（续）：
 //   lit/entry 门闩 + pure 业务真体（path_should_ignore / .x 后缀 / lint /
-//   file_list_push 编排 / walk process_child）进 thin.x；
+//   file_list_push / walk process_child / collect_paths_from_arg /
+//   check_collect_default_product_dirs）进 thin.x；
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_FMT_CHECK_THIN_FROM_X）ld -r
 //   → fmt_check_cmd_driver.o
 // Prove IDENTICAL：seeds/fmt_check_cmd_thin_surface.from_x.c
-// Cap residual：walk opendir/stat/argv/BSS getters 等 *_impl 仍在 full seed rest；
-// FROM_X 下 pure-duplicate _impl 已剔除（H↓）。
+// Cap residual：walk opendir/stat/argv/BSS / missing-diag format / cwd fallback
+//   等 *_impl 仍在 full seed rest；FROM_X 下 pure-duplicate _impl 已剔除（H↓）。
 //
 // -E 约束：无 while 重赋值；无零参-only 不稳写法；6 参用扁平 if。
 //
@@ -507,10 +508,10 @@ export function file_list_clear(): void {
   }
 }
 
-// ---- G-02f-408：collect/walk product dirs / lib roots → seed impl ----
+// ---- G-02f-408：try_walk Cap residual；collect orch pure 深迁；lib roots Cap ----
 export extern "C" function fmt_try_walk_if_product_subdir_impl(sub: *u8): i32;
-export extern "C" function check_collect_default_product_dirs_impl(): void;
-export extern "C" function collect_paths_from_arg_impl(arg: *u8): void;
+export extern "C" function fmt_walk_cwd_fallback_impl(): void;
+export extern "C" function collect_paths_missing_diag_impl(path: *u8): void;
 export extern "C" function check_append_repo_lib_roots_impl(path: *u8, check_argv: *u8, n: *i32): void;
 export extern "C" function check_argv_append_default_libs_for_path_impl(path: *u8, check_argv: *u8, n: *i32): void;
 
@@ -522,17 +523,48 @@ export function fmt_try_walk_if_product_subdir(sub: *u8): i32 {
   return 0;
 }
 
+// pure 编排：默认产品子目录 try_walk；全未命中则 cwd fallback 🔒
 #[no_mangle]
 export function check_collect_default_product_dirs(): void {
   unsafe {
-    check_collect_default_product_dirs_impl();
+    let any_product: i32 = 0;
+    let i: i32 = 0;
+    while (i < 64) {
+      let sub: *u8 = fmt_default_product_sub_at(i);
+      if (sub == 0 as *u8) {
+        break;
+      }
+      if (fmt_try_walk_if_product_subdir(sub) != 0) {
+        any_product = 1;
+      }
+      i = i + 1;
+    }
+    if (any_product == 0) {
+      fmt_walk_cwd_fallback_impl();
+    }
   }
 }
 
+// pure 编排：null / stat_kind / missing diag🔒 / dir→walk / file→push
 #[no_mangle]
 export function collect_paths_from_arg(arg: *u8): void {
+  if (arg == 0 as *u8) {
+    return;
+  }
   unsafe {
-    collect_paths_from_arg_impl(arg);
+    let k: i32 = fmt_path_stat_kind(arg);
+    if (k < 0) {
+      collect_paths_missing_diag_impl(arg);
+      return;
+    }
+    if (k == 1) {
+      let base: *u8 = fmt_path_resolve_abs(arg);
+      if (base != 0 as *u8) {
+        walk_dir_collect(base);
+      }
+      return;
+    }
+    file_list_push(arg);
   }
 }
 

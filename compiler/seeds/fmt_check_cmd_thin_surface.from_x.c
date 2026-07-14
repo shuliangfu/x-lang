@@ -2,11 +2,12 @@
  * fmt_check_cmd R2 thin + Cap residual pure 深迁 surface — isomorphic with src/driver/fmt_check_cmd_thin.x
  * Product PREFER_X_O: g05_try_x_to_o(thin.x) + full seed rest (-DSHUX_L2_FMT_CHECK_THIN_FROM_X) ld -r
  * Prove: thin.x vs this seed → nm IDENTICAL (public surface; Cap residual _impl are U)
- * Cap residual: walk opendir/stat/argv/BSS getters in seeds/fmt_check_cmd.from_x.c rest
- * pure 真迁：path_should_ignore / fmt_path_ends_with_dot_x / check_lint_fail_on_warnings /
- *   file_list_push orch / walk_dir_collect_process_child / check_one_finalize_rc
+ * Cap residual: walk opendir/stat/argv/BSS / missing-diag format / cwd fallback in rest
+ * pure 真迁：path_should_ignore / .x 后缀 / lint / file_list_push / process_child /
+ *   collect_paths_from_arg / check_collect_default_product_dirs / finalize_rc
  * Regen: ./shux -E ... thin.x | filter DBG + g05 prologue polish
  */
+/* g05_try_x_to_o prologue (G-02f-332/334) */
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/types.h>
@@ -495,8 +496,8 @@ void file_list_clear(void) {
   return;
 }
 extern int32_t fmt_try_walk_if_product_subdir_impl(uint8_t * sub);
-extern void check_collect_default_product_dirs_impl(void);
-extern void collect_paths_from_arg_impl(uint8_t * arg);
+extern void fmt_walk_cwd_fallback_impl(void);
+extern void collect_paths_missing_diag_impl(uint8_t * path);
 extern void check_append_repo_lib_roots_impl(uint8_t * path, uint8_t * check_argv, int32_t * n);
 extern void check_argv_append_default_libs_for_path_impl(uint8_t * path, uint8_t * check_argv, int32_t * n);
 int32_t fmt_try_walk_if_product_subdir(uint8_t * sub) {
@@ -507,14 +508,43 @@ int32_t fmt_try_walk_if_product_subdir(uint8_t * sub) {
 }
 void check_collect_default_product_dirs(void) {
   {
-    (void)(check_collect_default_product_dirs_impl());
+    int32_t any_product = 0;
+    int32_t i = 0;
+    while ((i < 64)) {
+      uint8_t * sub = fmt_default_product_sub_at(i);
+      if ((sub ==((uint8_t *)(0)))) {
+        break;
+      }
+      if ((fmt_try_walk_if_product_subdir(sub) !=0)) {
+        (void)((any_product = 1));
+      }
+      (void)((i = (i + 1)));
+    }
+    if ((any_product ==0)) {
+      (void)(fmt_walk_cwd_fallback_impl());
+    }
   }
   (void)(0);
   return;
 }
 void collect_paths_from_arg(uint8_t * arg) {
+  if ((arg ==((uint8_t *)(0)))) {
+    return;
+  }
   {
-    (void)(collect_paths_from_arg_impl(arg));
+    int32_t k = fmt_path_stat_kind(arg);
+    if ((k < 0)) {
+      (void)(collect_paths_missing_diag_impl(arg));
+      return;
+    }
+    if ((k ==1)) {
+      uint8_t * base = fmt_path_resolve_abs(arg);
+      if ((base !=((uint8_t *)(0)))) {
+        (void)(walk_dir_collect(base));
+      }
+      return;
+    }
+    (void)(file_list_push(arg));
   }
   (void)(0);
   return;
