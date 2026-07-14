@@ -1708,7 +1708,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     fi
   fi
   # G-02f-9 / G-02f-363：backend_try_inline_dispatch.o
-  # 默认整 seed；PREFER 时 thin pure 门闩 + rest ld -r
+  # R2 thin full：PREFER_X_O=1 时 thin.x（50 公共门闩）+ seed-rest（FROM_X）ld -r
   _bti=seeds/backend_try_inline_dispatch.from_x.c
   _bti_thin_x=src/asm/backend_try_inline_dispatch_thin.x
   _bti_o=src/asm/backend_try_inline_dispatch.o
@@ -1725,10 +1725,10 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_L2_TRY_INLINE_THIN_FROM_X \
                -c -o "$_bti_rest_o" "$_bti" \
           && $CC -r -nostdlib -o "$_bti_o" "$_bti_thin_o" "$_bti_rest_o" 2>/dev/null; then
-          echo "g05_ensure: $_bti_o ← $_bti_thin_x + seed-rest (G-02f-363/382 L2 hybrid try_inline thin)"
+          echo "g05_ensure: $_bti_o ← $_bti_thin_x + seed-rest (G-02f-363/382 R2 hybrid try_inline thin)"
           _bti_done=1
         else
-          echo "g05_ensure: L2 hybrid try_inline thin failed; fallback full seed" >&2
+          echo "g05_ensure: R2 hybrid try_inline thin failed; fallback full seed" >&2
         fi
         rm -f "$_bti_thin_o" "$_bti_rest_o"
       fi

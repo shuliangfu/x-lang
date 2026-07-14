@@ -1,9 +1,11 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-363/382：backend_try_inline_dispatch L2 thin — pure/forward 门闩（weak）。
-// PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_TRY_INLINE_THIN_FROM_X）ld -r
-//   → backend_try_inline_dispatch.o
+// G-02f-363/382：backend_try_inline_dispatch R2 thin full — pure/forward 公共门闩（50 公共面）。
+// PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_TRY_INLINE_THIN_FROM_X）ld -r → backend_try_inline_dispatch.o
+// Prove IDENTICAL：seeds/backend_try_inline_dispatch_thin_surface.from_x.c（本 thin 公共面；*_impl 仍 U）
+// Cap residual：*_impl / try_inline_* C 尾 in full seed rest。
+// 对照：src/asm/backend_try_inline_dispatch.x；冷启动 full seed rest。
 //
 
 export extern "C" function pipeline_asm_index_elem_byte_sz(arena: *u8, index_expr_ref: i32): i32;

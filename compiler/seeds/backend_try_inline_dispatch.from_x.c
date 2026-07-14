@@ -1,4 +1,5 @@
-/* G-02f-363/368：PREFER hybrid thin 由 src/asm/backend_try_inline_dispatch_thin.x；rest SHUX_L2_TRY_INLINE_THIN_FROM_X。
+/* G-02f-363/368 / R2 thin full：PREFER hybrid thin 由 src/asm/backend_try_inline_dispatch_thin.x；
+ * rest SHUX_L2_TRY_INLINE_THIN_FROM_X（public 门闩→_impl；slice_marker + Cap residual 体）。
  * seeds/backend_try_inline_dispatch.from_x.c — G-02f-196 local_slot/index pure; G-02f-184/185 lit stack pure; G-02f-9 product backend dispatch TU
  * G-02f-135 true .x pure helpers.
  * G-02f-134 true .x pure helpers.
@@ -14,7 +15,8 @@
  * G-02f-110 helper gates.
  * G-02f-109 helper gates.
  * Source intent: src/asm/backend_try_inline_dispatch.x (doc) + this seed (full C body).
- * Product: → src/asm/backend_try_inline_dispatch.o. Logic still C until full .x port.
+ * Product: → src/asm/backend_try_inline_dispatch.o.
+ * Cap residual: *_impl / try_inline_* C 尾 in rest.
  */
 /**
  * backend_try_inline_dispatch.c — try_inline_* 与 array/struct lit reserve 的 C 实现
@@ -2439,3 +2441,7 @@ int32_t try_inline_struct_lit_return_call_to_slot_elf(struct ast_ASTArena *arena
   return try_inline_struct_lit_return_call_to_slot_elf_impl(arena, elf_ctx, call_ref, ctx, ta, stack_slot_off);
 }
 #endif
+
+int backend_try_inline_dispatch_slice_marker(void) {
+    return 1;
+}
