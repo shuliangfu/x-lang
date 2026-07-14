@@ -131,6 +131,7 @@ gen_seed_o() {
 # 已定义符号裸名（去 Mach-O 前导 _），一行一个
 # 跳过编译器局部常量（l_constinit.* / l_.str 等），只比业务符号
 defined_sym_names() {
+  # LC_ALL=C：comm 要求字节序排序；locale sort 在 Ubuntu 会触发 “not in sorted order”
   nm "$1" 2>/dev/null | awk '$1 != "" && $2 != "U" {
     s=$3
     if (s ~ /^_/) s=substr(s,2)
@@ -139,7 +140,7 @@ defined_sym_names() {
     if (s ~ /^\./) next
     if (s ~ /^L\./) next
     print s
-  }' | sort -u
+  }' | LC_ALL=C sort -u
 }
 
 # nm 比较符号（只比较定义的符号，忽略未定义引用）— IDENTICAL 模式
@@ -176,7 +177,7 @@ compare_core_surface() {
       [ -n "$a" ] && echo "$a" >>"$allow_file"
     done
     IFS="$old_ifs"
-    sort -u "$allow_file" -o "$allow_file"
+    LC_ALL=C sort -u "$allow_file" -o "$allow_file"
   fi
 
   # x \ seed \ allow

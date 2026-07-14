@@ -465,56 +465,101 @@ def patch_var_debug_print(src: str) -> tuple[str, bool]:
     return new_src, True
 
 
+# Canonical STRING_LIT checker (align typeck.x + pipeline_glue):
+# - adopt expected type only when PTR/ARRAY/SLICE
+# - default *u8 (not u8[]), so m = "" / call(*u8) do not become TYPE_SLICE
+STRING_LIT_HELPER_BODY = (
+    "int32_t typeck_check_expr_string_lit(struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref) {\n"
+    "  int32_t u8r = 0;\n"
+    "  int32_t slice_u8 = 0;\n"
+    "  int32_t exp_kind = 0;\n"
+    "  (void)(({ int32_t __tmp = 0; if (arena == ((struct ast_ASTArena *)(0)) || expr_ref <= 0 || expr_ref > (arena)->num_exprs) {   return 0;\n"
+    " } else (__tmp = 0) ; __tmp; }));\n"
+    "  /* Only adopt expected type when it is pointer/slice/array (string target); never void/i64/func return. */\n"
+    "  (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null(return_type_ref)) && return_type_ref > 0 && return_type_ref <= (arena)->num_types) {\n"
+    "    exp_kind = pipeline_type_kind_ord_at(arena, return_type_ref);\n"
+    "    /* TYPE_PTR=9 TYPE_ARRAY=10 TYPE_SLICE=11 */\n"
+    "    if (exp_kind == 9 || exp_kind == 10 || exp_kind == 11) {\n"
+    "      (void)(pipeline_expr_set_resolved_type_ref(arena, expr_ref, return_type_ref));\n"
+    "      return 0;\n"
+    "    }\n"
+    " } else (__tmp = 0) ; __tmp; }));\n"
+    "  (u8r = (typeck_ensure_u8_type_ref(arena)));\n"
+    "  (void)(({ int32_t __tmp = 0; if (ast_ref_is_null(u8r)) {   return (-1);\n"
+    " } else (__tmp = 0) ; __tmp; }));\n"
+    "  /* Default *u8 (not u8[]): call-arg typeck still passes func return type as expected, so\n"
+    "   * string args to *u8 must not become TYPE_SLICE (codegen would emit shulang_slice compound). */\n"
+    "  (slice_u8 = (typeck_find_or_alloc_ptr_type_ref(arena, u8r)));\n"
+    "  (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null(slice_u8))) {   (void)(pipeline_expr_set_resolved_type_ref(arena, expr_ref, slice_u8));\n"
+    " } else (__tmp = 0) ; __tmp; }));\n"
+    "  return 0;\n"
+    "}\n"
+)
+
+
+def patch_string_lit_body(src: str) -> tuple[str, bool]:
+    """Rewrite existing typeck_check_expr_string_lit to *u8 default + PTR/ARRAY/SLICE only.
+
+    Old body (stale Ubuntu gen): adopt any return_type_ref + default u8[] →
+    m = \"\" reports found ? / wrong slice. Idempotent via marker comment.
+    """
+    good = "Only adopt expected type when it is pointer/slice/array"
+    if good in src:
+        return src, False
+    sig = "int32_t typeck_check_expr_string_lit(struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref) {"
+    pos = src.find(sig)
+    if pos < 0:
+        return src, False
+    # end of function: next top-level int32_t typeck_ after this body
+    end = src.find("\nint32_t typeck_", pos + len(sig))
+    if end < 0:
+        end = src.find("\nint32_t ", pos + len(sig))
+    if end < 0:
+        return src, False
+    return src[:pos] + STRING_LIT_HELPER_BODY + src[end + 1 :], True
+
+
 def patch_string_lit_dispatch(src: str) -> tuple[str, bool]:
     """Add EXPR_STRING_LIT (kind 59) handling to typeck_check_expr_impl.
 
     Seed lacks string_lit dispatch; assign/let of \"\" then leave resolved_type_ref=0
-    (found ?). Align with typeck.x + glue: prefer expected return_type_ref, else u8[].
-    Idempotent via marker typeck_check_expr_string_lit.
+    (found ?). Align with typeck.x + glue: expected PTR/ARRAY/SLICE else *u8.
+    Idempotent via marker typeck_check_expr_string_lit / ord_string_lit.
     """
+    changed = False
     marker = "typeck_check_expr_string_lit"
+
+    # Always upgrade body if present but stale (before early-return on dispatch).
+    src, body_did = patch_string_lit_body(src)
+    if body_did:
+        changed = True
+
     if marker in src and "ord_string_lit" in src:
-        return src, False
+        return src, changed
 
     # Insert helper before typeck_check_expr_impl definition if missing.
     if marker not in src:
-        helper = (
-            "int32_t typeck_check_expr_string_lit(struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref) {\n"
-            "  int32_t u8r = 0;\n"
-            "  int32_t slice_u8 = 0;\n"
-            "  (void)(({ int32_t __tmp = 0; if (arena == ((struct ast_ASTArena *)(0)) || expr_ref <= 0 || expr_ref > (arena)->num_exprs) {   return 0;\n"
-            " } else (__tmp = 0) ; __tmp; }));\n"
-            "  (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null(return_type_ref)) && return_type_ref > 0 && return_type_ref <= (arena)->num_types) {   (void)(pipeline_expr_set_resolved_type_ref(arena, expr_ref, return_type_ref));\n"
-            "  return 0;\n"
-            " } else (__tmp = 0) ; __tmp; }));\n"
-            "  (u8r = (typeck_ensure_u8_type_ref(arena)));\n"
-            "  (void)(({ int32_t __tmp = 0; if (ast_ref_is_null(u8r)) {   return (-1);\n"
-            " } else (__tmp = 0) ; __tmp; }));\n"
-            "  (slice_u8 = (typeck_find_or_alloc_slice_type_ref(arena, u8r)));\n"
-            "  (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null(slice_u8))) {   (void)(pipeline_expr_set_resolved_type_ref(arena, expr_ref, slice_u8));\n"
-            " } else (__tmp = 0) ; __tmp; }));\n"
-            "  return 0;\n"
-            "}\n"
-        )
+        helper = STRING_LIT_HELPER_BODY
         anchor = "int32_t typeck_check_expr_impl(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {"
         apos = src.find(anchor)
         if apos < 0:
-            return src, False
+            return src, changed
         src = src[:apos] + helper + src[apos:]
+        changed = True
 
     # Inject ord + dispatch into typeck_check_expr_impl body.
     impl_sig = "int32_t typeck_check_expr_impl(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {"
     pos = src.find(impl_sig)
     if pos < 0:
-        return src, False
+        return src, changed
     if "ord_string_lit" in src[pos:pos + 1200]:
-        return src, True if marker in src else False
+        return src, changed
 
     # Add local after ord_bool
     old_locals = "  int32_t ord_bool = 2;\n  int32_t ord_if = 25;"
     new_locals = "  int32_t ord_bool = 2;\n  int32_t ord_string_lit = 59;\n  int32_t ord_if = 25;"
     if old_locals not in src[pos:pos + 800]:
-        return src, False
+        return src, changed
     src = src[:pos] + src[pos:pos + 800].replace(old_locals, new_locals, 1) + src[pos + 800:]
 
     # After bool_lit check, dispatch string_lit
@@ -531,7 +576,7 @@ def patch_string_lit_dispatch(src: str) -> tuple[str, bool]:
         "  (void)(({ int32_t __tmp = 0; if (kind == ord_break || kind == ord_continue) {"
     )
     if old_bool not in src:
-        return src, False
+        return src, changed
     src = src.replace(old_bool, new_bool, 1)
     return src, True
 
@@ -608,7 +653,7 @@ def main() -> int:
         print("patch_typeck_gen_lang007: var debug print already ok or missing")
     src, did = patch_string_lit_dispatch(src)
     if did:
-        print("patch_typeck_gen_lang007: patched string_lit (kind 59) dispatch")
+        print("patch_typeck_gen_lang007: patched string_lit body/dispatch (*u8 default)")
         changed = True
     else:
         print("patch_typeck_gen_lang007: string_lit dispatch already ok or missing")
