@@ -1,11 +1,12 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-339～341/409/416：runtime_driver_diagnostic L2 thin — pure _impl 门闩子集（无字符串字面量）。
+// G-02f-339～341/409/416：runtime_driver_diagnostic L2 thin — pure _impl 门闩子集 + append_* 真迁。
 // 产品 PREFER_X_O：g05_try_x_to_o → thin.o + seeds/runtime_driver_diagnostic.from_x.c rest
 //   （-DSHUX_L2_RDD_THIN_FROM_X）ld -r → src/runtime_driver_diagnostic.o
-// 完整逻辑源仍见 src/runtime_driver_diagnostic.x（整文件 -E 仍 typeck/字符串阻）。
-// 本 TU 门闩数：77（f-339～341 + f-387 env + f-409 pipe/storage + f-416 lsp_diag_get）
+// prove IDENTICAL：thin.x ↔ seeds/runtime_driver_diagnostic_thin.from_x.c（公共面 79；_impl 为 U）
+// 完整 true-migrate 消息体仍见 src/runtime_driver_diagnostic.x；va_list/C 尾仍 full seed rest。
+// 本 TU 门闩数：77 + append_cstr/i32/name（f-339～341 + f-387 env + f-409 pipe/storage + f-416 lsp_diag_get）
 
 export extern "C" function driver_debug_log_impl(step: i32): void;
 export extern "C" function driver_diagnostic_after_entry_parse_module_impl(module: *u8): void;
