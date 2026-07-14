@@ -93,6 +93,9 @@ MODULES=(
   # rt_fmt_one L2 thin 公共面：与产品 PREFER_X_O 同源（thin.x + hybrid rest seed）；prove 锁 thin 面 IDENTICAL
   # 产品 hybrid rest 仍见 seeds/rt_fmt_one.from_x.c（read/format/write body）；入 runtime_driver_no_c.o
   "rt_fmt_one|src/runtime/rt_fmt_one.x|seeds/rt_fmt_one_surface.from_x.c||"
+  # rt_pipeline_elf_diag L2 thin 公共面：与产品 PREFER_X_O 同源（thin.x + hybrid rest seed）；prove 锁 thin 面 IDENTICAL
+  # 产品 hybrid rest 仍见 seeds/rt_pipeline_elf_diag.from_x.c（read-table/diag body）；入 runtime_driver_no_c.o
+  "rt_pipeline_elf_diag|src/runtime/rt_pipeline_elf_diag.x|seeds/rt_pipeline_elf_diag_surface.from_x.c||"
 )
 
 # 找 shux 二进制（优先 shux，fallback shux-c）
