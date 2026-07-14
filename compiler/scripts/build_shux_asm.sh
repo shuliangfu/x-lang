@@ -3590,29 +3590,22 @@ ensure_asm_gen_driver_x_objs() {
   fi
   dedupe_shux_slice_struct "$GEN_DIR/preprocess_gen.c"
 
-  if [ -f driver_fmt_gen.c ] && [ -s driver_fmt_gen.c ] && [ "${SHUX_FORCE_REGEN_GEN:-0}" != "1" ]; then
-  echo " pinned driver_fmt_gen.c -> $GEN_DIR/driver_fmt.c ($(wc -c <driver_fmt_gen.c | tr -d ' ') bytes)"
-  cp -f driver_fmt_gen.c "$GEN_DIR/driver_fmt.c"
-  else
-  "$SHUX_E" -L .. -L src -L src/lexer -L src/ast -E -E-extern src/driver/fmt.x >"$GEN_DIR/driver_fmt.c"
-  fi
-  if [ -f driver_check_gen.c ] && [ -s driver_check_gen.c ] && [ "${SHUX_FORCE_REGEN_GEN:-0}" != "1" ]; then
-  echo " pinned driver_check_gen.c -> $GEN_DIR/driver_check.c ($(wc -c <driver_check_gen.c | tr -d ' ') bytes)"
-  cp -f driver_check_gen.c "$GEN_DIR/driver_check.c"
-  else
-  "$SHUX_E" -L .. -L src -L src/lexer -L src/ast -E -E-extern src/driver/check.x >"$GEN_DIR/driver_check.c"
-  fi
-  if [ -f driver_test_gen.c ] && [ -s driver_test_gen.c ] && [ "${SHUX_FORCE_REGEN_GEN:-0}" != "1" ]; then
-  echo " pinned driver_test_gen.c -> $GEN_DIR/driver_test.c ($(wc -c <driver_test_gen.c | tr -d ' ') bytes)"
-  cp -f driver_test_gen.c "$GEN_DIR/driver_test.c"
-  else
-  "$SHUX_E" -L .. -L src -L src/lexer -L src/ast -E -E-extern src/driver/test.x >"$GEN_DIR/driver_test.c"
-  fi
-
-  echo " cc -c gen_driver/driver_*.o <- src/driver/*.x (-E-extern)"
-  "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -I. -c "$GEN_DIR/driver_fmt.c" -o "$GEN_DIR/driver_fmt_x.o"
-  "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -I. -c "$GEN_DIR/driver_check.c" -o "$GEN_DIR/driver_check_x.o"
-  "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -I. -c "$GEN_DIR/driver_test.c" -o "$GEN_DIR/driver_test_x.o"
+  # Track L：fmt/check/test 叶子退役 — 始终从 .x -E（不再 pin 工作区 driver_*_gen.c）
+  # 符号 rename 与 Makefile / prove_module_selfhost 一致；产物直接写 gen_driver/*.o
+  echo " Track L: driver_fmt/check/test_x.o <- src/driver/*.x (PREFER_X_O)"
+  DRIVER_SUBCMD_DIRS="-L .. -L src -L src/lexer -L src/ast" \
+    BASE_CFLAGS="$CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc" \
+    bash scripts/driver_leaf_x_to_o.sh src/driver/fmt.x "$GEN_DIR/driver_fmt_x.o" 'cmd_fmt:driver_cmd_fmt' seeds/driver_fmt_gen.linux.x86_64.c
+  DRIVER_SUBCMD_DIRS="-L .. -L src -L src/lexer -L src/ast" \
+    BASE_CFLAGS="$CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc" \
+    bash scripts/driver_leaf_x_to_o.sh src/driver/check.x "$GEN_DIR/driver_check_x.o" 'cmd_check:driver_cmd_check' seeds/driver_check_gen.linux.x86_64.c
+  DRIVER_SUBCMD_DIRS="-L .. -L src -L src/lexer -L src/ast" \
+    BASE_CFLAGS="$CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc" \
+    bash scripts/driver_leaf_x_to_o.sh src/driver/test.x "$GEN_DIR/driver_test_x.o" 'cmd_test:driver_cmd_test' seeds/driver_test_gen.linux.x86_64.c
+  # 同步工作区副本供后续链接行引用 compiler/driver_*_x.o
+  cp -f "$GEN_DIR/driver_fmt_x.o" driver_fmt_x.o 2>/dev/null || true
+  cp -f "$GEN_DIR/driver_check_x.o" driver_check_x.o 2>/dev/null || true
+  cp -f "$GEN_DIR/driver_test_x.o" driver_test_x.o 2>/dev/null || true
 
   # pipeline/driver/preprocess：优先复用 Makefile gen-x-driver-objs（与 bootstrap-driver-seed 同源依赖）
   if [ -f Makefile ] && command -v make >/dev/null 2>&1; then

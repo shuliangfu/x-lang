@@ -159,7 +159,9 @@ for entry in "${MODULES[@]}"; do
     continue
   fi
   seed_path=""
-  for s in "$seed" "seeds/$seed"; do
+  # Track L：工作区 *_gen.c 已非构建硬依赖；冷启动对照用 seeds/*_gen.linux.x86_64.c
+  _seed_base="${seed%.c}"
+  for s in "$seed" "seeds/$seed" "seeds/${_seed_base}.linux.x86_64.c" "seeds/${seed}"; do
     if [ -f "$s" ]; then
       seed_path="$s"
       break

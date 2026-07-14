@@ -1981,17 +1981,41 @@ lsp_io_x.o: lsp_io_gen.c src/lsp/lsp_io.x Makefile
 lsp_x.o: lsp_gen.c
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -c lsp_gen.c -o lsp_x.o
 
-# fmt/check/test/compile/build/run：独立 .x -E-extern 产出；asm_driver_* 仍由 runtime_driver_strict_glue_stubs.inc 提供
-DRIVER_SUBCMD_GEN = driver_fmt_gen.c driver_check_gen.c driver_test_gen.c driver_compile_gen.c driver_build_gen.c driver_run_gen.c driver_emit_gen.c
+# Driver 子命令 .o：
+#   Track L 已退役叶子：fmt/check/test/build/run → PREFER_X_O（.x→.o），构建不读工作区 pinned *_gen.c
+#   仍 pin：compile/emit（typeck 尚未全绿 / 未 prove）
+# 冷启动回退仅 seeds/*_gen.linux.x86_64.c（考古；物理删文件见 自举方法 §7.3）
+DRIVER_LEAF_OBJS = driver_fmt_x.o driver_check_x.o driver_test_x.o driver_build_x.o driver_run_x.o
+DRIVER_SUBCMD_GEN = driver_compile_gen.c driver_emit_gen.c
+# 兼容旧引用名：DRIVER_SUBCMD_GEN 现仅含未退役；考古 gen 规则仍保留于 FORCE_REGEN
+DRIVER_SUBCMD_GEN_ALL = driver_fmt_gen.c driver_check_gen.c driver_test_gen.c driver_compile_gen.c driver_build_gen.c driver_run_gen.c driver_emit_gen.c
 DRIVER_SUBCMD_OBJS = driver_fmt_x.o driver_check_x.o driver_test_x.o driver_compile_x.o driver_build_x.o driver_run_x.o driver_emit_x.o
 DRIVER_SUBCMD_DIRS = -L .. -L src -L src/lexer -L src/ast
 
+# Track L：叶子 .o 直接来自 .x（scripts/driver_leaf_x_to_o.sh）；rename 与 prove_module_selfhost / g05 一致
+driver_fmt_x.o: src/driver/fmt.x scripts/driver_leaf_x_to_o.sh
+	@DRIVER_SUBCMD_DIRS="$(DRIVER_SUBCMD_DIRS)" BASE_CFLAGS="$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc" \
+	  bash scripts/driver_leaf_x_to_o.sh src/driver/fmt.x $@ 'cmd_fmt:driver_cmd_fmt' seeds/driver_fmt_gen.linux.x86_64.c
+driver_check_x.o: src/driver/check.x scripts/driver_leaf_x_to_o.sh
+	@DRIVER_SUBCMD_DIRS="$(DRIVER_SUBCMD_DIRS)" BASE_CFLAGS="$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc" \
+	  bash scripts/driver_leaf_x_to_o.sh src/driver/check.x $@ 'cmd_check:driver_cmd_check' seeds/driver_check_gen.linux.x86_64.c
+driver_test_x.o: src/driver/test.x scripts/driver_leaf_x_to_o.sh
+	@DRIVER_SUBCMD_DIRS="$(DRIVER_SUBCMD_DIRS)" BASE_CFLAGS="$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc" \
+	  bash scripts/driver_leaf_x_to_o.sh src/driver/test.x $@ 'cmd_test:driver_cmd_test' seeds/driver_test_gen.linux.x86_64.c
+driver_build_x.o: src/driver/build.x scripts/driver_leaf_x_to_o.sh
+	@DRIVER_SUBCMD_DIRS="$(DRIVER_SUBCMD_DIRS)" BASE_CFLAGS="$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc" \
+	  bash scripts/driver_leaf_x_to_o.sh src/driver/build.x $@ 'cmd_build:build_cmd_build' seeds/driver_build_gen.linux.x86_64.c
+driver_run_x.o: src/driver/run.x scripts/driver_leaf_x_to_o.sh
+	@DRIVER_SUBCMD_DIRS="$(DRIVER_SUBCMD_DIRS)" BASE_CFLAGS="$(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc" \
+	  bash scripts/driver_leaf_x_to_o.sh src/driver/run.x $@ 'run_eq_word:driver_run_eq_word,cmd_run:driver_cmd_run' seeds/driver_run_gen.linux.x86_64.c
+
+# 考古：可选再生成工作区 *_gen.c（不进 DRIVER_SEED_PREREQS；叶子已退役）
 driver_fmt_gen.c: src/driver/fmt.x
 	@if [ -s driver_fmt_gen.c ] && [ "$(SHUX_FORCE_REGEN_GEN)" != "1" ]; then \
-	  echo "driver_fmt_gen.c: pinned ($$(wc -c < driver_fmt_gen.c | tr -d ' ') bytes)"; \
+	  echo "driver_fmt_gen.c: pinned ($$(wc -c < driver_fmt_gen.c | tr -d ' ') bytes; Track L 退役，构建用 driver_fmt_x.o)"; \
 	elif [ -f seeds/driver_fmt_gen.linux.x86_64.c ] && [ ! -s driver_fmt_gen.c ]; then \
 	  cp -f seeds/driver_fmt_gen.linux.x86_64.c driver_fmt_gen.c; \
-	  echo "driver_fmt_gen.c: restored from seed"; \
+	  echo "driver_fmt_gen.c: restored from seed (archaeology)"; \
 	else \
 	  tmp="$@.tmp"; \
 	  $(MAKE) $(SHUX_C) && \
@@ -2001,10 +2025,9 @@ driver_fmt_gen.c: src/driver/fmt.x
 	fi
 driver_check_gen.c: src/driver/check.x
 	@if [ -s driver_check_gen.c ] && [ "$(SHUX_FORCE_REGEN_GEN)" != "1" ]; then \
-	  echo "driver_check_gen.c: pinned ($$(wc -c < driver_check_gen.c | tr -d ' ') bytes)"; \
+	  echo "driver_check_gen.c: pinned (archaeology)"; \
 	elif [ -f seeds/driver_check_gen.linux.x86_64.c ] && [ ! -s driver_check_gen.c ]; then \
 	  cp -f seeds/driver_check_gen.linux.x86_64.c driver_check_gen.c; \
-	  echo "driver_check_gen.c: restored from seed"; \
 	else \
 	  tmp="$@.tmp"; \
 	  $(MAKE) $(SHUX_C) && \
@@ -2014,10 +2037,9 @@ driver_check_gen.c: src/driver/check.x
 	fi
 driver_test_gen.c: src/driver/test.x
 	@if [ -s driver_test_gen.c ] && [ "$(SHUX_FORCE_REGEN_GEN)" != "1" ]; then \
-	  echo "driver_test_gen.c: pinned ($$(wc -c < driver_test_gen.c | tr -d ' ') bytes)"; \
+	  echo "driver_test_gen.c: pinned (archaeology)"; \
 	elif [ -f seeds/driver_test_gen.linux.x86_64.c ] && [ ! -s driver_test_gen.c ]; then \
 	  cp -f seeds/driver_test_gen.linux.x86_64.c driver_test_gen.c; \
-	  echo "driver_test_gen.c: restored from seed"; \
 	else \
 	  tmp="$@.tmp"; \
 	  $(MAKE) $(SHUX_C) && \
@@ -2040,10 +2062,9 @@ driver_compile_gen.c: src/driver/compile.x
 	fi
 driver_build_gen.c: src/driver/build.x
 	@if [ -s driver_build_gen.c ] && [ "$(SHUX_FORCE_REGEN_GEN)" != "1" ]; then \
-	  echo "driver_build_gen.c: pinned ($$(wc -c < driver_build_gen.c | tr -d ' ') bytes)"; \
+	  echo "driver_build_gen.c: pinned (archaeology)"; \
 	elif [ -f seeds/driver_build_gen.linux.x86_64.c ] && [ ! -s driver_build_gen.c ]; then \
 	  cp -f seeds/driver_build_gen.linux.x86_64.c driver_build_gen.c; \
-	  echo "driver_build_gen.c: restored from seed"; \
 	else \
 	  tmp="$@.tmp"; \
 	  $(MAKE) $(SHUX_C) && \
@@ -2053,10 +2074,9 @@ driver_build_gen.c: src/driver/build.x
 	fi
 driver_run_gen.c: src/driver/run.x
 	@if [ -s driver_run_gen.c ] && [ "$(SHUX_FORCE_REGEN_GEN)" != "1" ]; then \
-	  echo "driver_run_gen.c: pinned ($$(wc -c < driver_run_gen.c | tr -d ' ') bytes)"; \
+	  echo "driver_run_gen.c: pinned (archaeology)"; \
 	elif [ -f seeds/driver_run_gen.linux.x86_64.c ] && [ ! -s driver_run_gen.c ]; then \
 	  cp -f seeds/driver_run_gen.linux.x86_64.c driver_run_gen.c; \
-	  echo "driver_run_gen.c: restored from seed"; \
 	else \
 	  tmp="$@.tmp"; \
 	  $(MAKE) $(SHUX_C) && \
@@ -2078,18 +2098,8 @@ driver_emit_gen.c: src/driver/emit.x
 	  if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
 	fi
 
-driver_fmt_x.o: driver_fmt_gen.c
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -c driver_fmt_gen.c -o $@
-driver_check_x.o: driver_check_gen.c
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -c driver_check_gen.c -o $@
-driver_test_x.o: driver_test_gen.c
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -c driver_test_gen.c -o $@
 driver_compile_x.o: driver_compile_gen.c
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -c driver_compile_gen.c -o $@
-driver_build_x.o: driver_build_gen.c
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -c driver_build_gen.c -o $@
-driver_run_x.o: driver_run_gen.c
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -c driver_run_gen.c -o $@
 driver_emit_x.o: driver_emit_gen.c
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -c driver_emit_gen.c -o $@
 

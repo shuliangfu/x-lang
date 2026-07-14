@@ -2438,39 +2438,40 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o x_frontend_link_alias.o "$_xfla"
     fi
   fi
-  # G-02f-458: driver_fmt_x.o 前端 *_gen.c PREFER_X_O 试点
-  # .x → shux -E → 符号重命名(cmd_fmt→driver_cmd_fmt) → cc -c → .o
-  # 回退：driver_fmt_gen.c（G-06 seed 生成器产物）
-  _fmt_x=src/driver/fmt.x
-  _fmt_gen=driver_fmt_gen.c
-  _fmt_o=driver_fmt_x.o
-  if [ ! -f "$_fmt_o" ] || { [ -f "$_fmt_x" ] && [ "$_fmt_x" -nt "$_fmt_o" ]; } \
-    || { [ -f "$_fmt_gen" ] && [ "$_fmt_gen" -nt "$_fmt_o" ]; }; then
-    _fmt_done=0
-    if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_fmt_x" ]; then
-      if G05_X_O_SYM_RENAME="cmd_fmt:driver_cmd_fmt" g05_try_x_to_o "$_fmt_x" "$_fmt_o"; then
-        echo "g05_ensure: $_fmt_o ← $_fmt_x (G-02f-458 frontend PREFER_X_O)"
-        _fmt_done=1
-      else
-        echo "g05_ensure: frontend PREFER_X_O failed for driver_fmt; fallback gen.c" >&2
+  # Track L：driver 叶子（fmt/check/test/build/run）构建链退役 — 仅 .x→.o 或 seeds/* 冷启动
+  # 不再读取工作区 pinned driver_*_gen.c；lsp_io_std_heap 仍可回退 workspace gen
+  for _leaf_pair in \
+    "src/driver/fmt.x|driver_fmt_x.o|cmd_fmt:driver_cmd_fmt|seeds/driver_fmt_gen.linux.x86_64.c" \
+    "src/driver/check.x|driver_check_x.o|cmd_check:driver_cmd_check|seeds/driver_check_gen.linux.x86_64.c" \
+    "src/driver/test.x|driver_test_x.o|cmd_test:driver_cmd_test|seeds/driver_test_gen.linux.x86_64.c" \
+    "src/driver/build.x|driver_build_x.o|cmd_build:build_cmd_build|seeds/driver_build_gen.linux.x86_64.c" \
+    "src/driver/run.x|driver_run_x.o|run_eq_word:driver_run_eq_word,cmd_run:driver_cmd_run|seeds/driver_run_gen.linux.x86_64.c"
+  do
+    _leaf_x="${_leaf_pair%%|*}"
+    _leaf_rest="${_leaf_pair#*|}"
+    _leaf_o="${_leaf_rest%%|*}"
+    _leaf_rest2="${_leaf_rest#*|}"
+    _leaf_rename="${_leaf_rest2%%|*}"
+    _leaf_seed="${_leaf_rest2#*|}"
+    if [ ! -f "$_leaf_o" ] || { [ -f "$_leaf_x" ] && [ "$_leaf_x" -nt "$_leaf_o" ]; }; then
+      if [ -f scripts/driver_leaf_x_to_o.sh ]; then
+        # shellcheck disable=SC2086
+        DRIVER_SUBCMD_DIRS="-L .. -L src -L src/lexer -L src/ast" \
+          BASE_CFLAGS="$BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS" \
+          bash scripts/driver_leaf_x_to_o.sh "$_leaf_x" "$_leaf_o" "$_leaf_rename" "$_leaf_seed" \
+          || echo "g05_ensure: Track L leaf failed for $_leaf_o" >&2
+      elif [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && G05_X_O_SYM_RENAME="$_leaf_rename" g05_try_x_to_o "$_leaf_x" "$_leaf_o"; then
+        echo "g05_ensure: $_leaf_o ← $_leaf_x (Track L PREFER_X_O)"
+      elif [ -f "$_leaf_seed" ]; then
+        echo "g05_ensure: cc -c $_leaf_seed → $_leaf_o (Track L cold seed)"
+        # shellcheck disable=SC2086
+        $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -c -o "$_leaf_o" "$_leaf_seed"
       fi
     fi
-    if [ "$_fmt_done" = "0" ] && [ -f "$_fmt_gen" ]; then
-      echo "g05_ensure: cc -c $_fmt_gen → $_fmt_o (driver_fmt gen.c seed)"
-      # shellcheck disable=SC2086
-      $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -c -o "$_fmt_o" "$_fmt_gen"
-    fi
-  fi
-  # G-02f-459: driver_check_x.o / driver_test_x.o / lsp_io_std_heap_x.o 前端 PREFER_X_O 扩展
-  # driver_check: cmd_check → driver_cmd_check
-  # driver_test:  cmd_test  → driver_cmd_test
-  # lsp_io_std_heap: std_heap_alloc/alloc_zeroed/free → lsp_io_std_heap_* 前缀
+  done
+  # lsp_io_std_heap 仍 pin workspace gen（未 Track L 退役）
   for _fe_pair in \
-    "src/driver/check.x|driver_check_gen.c|driver_check_x.o|cmd_check:driver_cmd_check" \
-    "src/driver/test.x|driver_test_gen.c|driver_test_x.o|cmd_test:driver_cmd_test" \
-    "src/lsp/lsp_io_std_heap.x|lsp_io_std_heap_gen.c|lsp_io_std_heap_x.o|std_heap_alloc:lsp_io_std_heap_std_heap_alloc,std_heap_alloc_zeroed:lsp_io_std_heap_std_heap_alloc_zeroed,std_heap_free:lsp_io_std_heap_std_heap_free" \
-    "src/driver/build.x|driver_build_gen.c|driver_build_x.o|cmd_build:build_cmd_build" \
-    "src/driver/run.x|driver_run_gen.c|driver_run_x.o|run_eq_word:driver_run_eq_word,cmd_run:driver_cmd_run"
+    "src/lsp/lsp_io_std_heap.x|lsp_io_std_heap_gen.c|lsp_io_std_heap_x.o|std_heap_alloc:lsp_io_std_heap_std_heap_alloc,std_heap_alloc_zeroed:lsp_io_std_heap_std_heap_alloc_zeroed,std_heap_free:lsp_io_std_heap_std_heap_free"
   do
     _fe_x="${_fe_pair%%|*}"
     _fe_rest="${_fe_pair#*|}"
