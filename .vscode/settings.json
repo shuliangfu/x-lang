@@ -81,17 +81,147 @@
   ],
   "clangd.checkUpdates": false,
 
-  // --- .x 文件专用编辑器行为（语言 ID 为 x） ---
+   // --- .x 文件专用编辑器行为（语言 ID 为 x） ---
   "[x]": {
+    // === 格式化 ===
     // 默认格式化器：Shux 扩展
     "editor.defaultFormatter": "shux.vscode-shux",
-    // 保存时自动格式化
+    // 保存时格式化（与 shux.format.enabled 配合）
     "editor.formatOnSave": true,
-    // 粘贴时自动格式化
+    // 保存模式：file=全文件 / modificationsIfAvailable=仅修改行（与 VCS 集成）
+    "editor.formatOnSaveMode": "file",
+    // 粘贴时格式化
     "editor.formatOnPaste": true,
-    // Tab 显示宽度（与 shux.format.tabSize 建议保持一致）
+    // 输入时全格式化（建议关，shux.features.formatOnType 提供更精细的局部缩进）
+    "editor.formatOnType": false,
+    // 自动修剪编辑器引入的多余空白（不影响用户手动对齐）
+    "editor.trimAutoWhitespace": true,
+
+    // === 缩进 ===
     "editor.tabSize": 2,
-    // 使用空格而非 Tab
-    "editor.insertSpaces": true
+    "editor.insertSpaces": true,
+    // 使用 Tab 停靠点（与 snippets 配合，按 Tab 跳占位符）
+    "editor.useTabStops": true,
+    // Tab 键触发 snippets 补全（on/off/onlySnippets）
+    "editor.tabCompletion": "onlySnippets",
+    // 高级自动缩进（按回车时智能继承上层缩进 + 闭合括号自动 dedent）
+    "editor.autoIndent": "advanced",
+
+    // === 括号 / 引号 / 包围 ===
+    // 自动闭合括号（always/languageDefined/beforeWhitespace/never）
+    "editor.autoClosingBrackets": "languageDefined",
+    // 自动闭合引号
+    "editor.autoClosingQuotes": "languageDefined",
+    // 选区包裹（输入 ( " [ 时自动包围选区）
+    "editor.autoSurround": "languageDefined",
+    // 括号匹配高亮（always/near/never）
+    "editor.matchBrackets": "always",
+    // 括号对着色（vscode 内置，比 bracket-pair-colorizer 扩展更快）
+    "editor.bracketPairColorization.enabled": true,
+    // 每种括号类型独立颜色池（() [] {} 互不混淆）
+    "editor.bracketPairColorization.independentColorPoolPerBracketType": true,
+
+    // === 导引线 ===
+    // 缩进导引线（垂直竖线）
+    "editor.guides.indentation": true,
+    // 高亮当前光标所在的缩进层级
+    "editor.guides.highlightActiveIndentation": true,
+    // 括号对导引线（off/always/active）
+    "editor.guides.bracketPairs": "active",
+    // 水平括号对导引线
+    "editor.guides.bracketPairsHorizontal": "active",
+    // 高亮当前光标所在的括号对
+    "editor.guides.highlightActiveBracketPair": true,
+
+    // === 补全 / 提示 ===
+    // 自动触发补全的时机（other=普通代码；comments/strings 默认关）
+    "editor.quickSuggestions": {
+      "other": "on",
+      "comments": "off",
+      "strings": "off"
+    },
+    // 补全默认选中项（recentlyUsedByPrefix=按前缀记忆最近使用）
+    "editor.suggestSelection": "recentlyUsedByPrefix",
+    // 回车接受补全（smart=仅在无歧义时接受）
+    "editor.acceptSuggestionOnEnter": "smart",
+    // 关闭基于当前文件单词的补全（LSP 已提供语义补全，避免噪声）
+    "editor.wordBasedSuggestions": "off",
+    // 不显示单词类补全项（让 LSP 的函数/类型/字段项优先）
+    "editor.suggest.showWords": false,
+    // 补全列表显示状态栏（显示文档来源/类型）
+    "editor.suggest.showStatusBar": true,
+    // 补全项预览（VS Code 2024+ 灰色 inline preview，类似 Copilot）
+    "editor.suggest.preview": true,
+    // 参数提示（函数调用的参数签名）
+    "editor.parameterHints.enabled": true,
+    // 悬停提示（类型/文档）
+    "editor.hover.enabled": "on",
+    // 悬停面板粘性（鼠标可移入悬停面板点击内部链接）
+    "editor.hover.sticky": true,
+    // 悬停显示在上方（避免遮挡下方代码）
+    "editor.hover.above": true,
+    // 内联建议（Copilot 风格；若装了 Copilot 才生效）
+    "editor.inlineSuggest.enabled": true,
+
+    // === CodeLens / 语义 / 高亮 ===
+    // 显示 CodeLens（须与 shux.features.codeLens 同时开启）
+    "editor.codeLens": true,
+    // 语义高亮（基于 LSP semanticTokens，比 regex 更准）
+    "editor.semanticHighlighting.enabled": true,
+    // 同符号出现高亮（singleFile=仅当前文件；multiFile=跨文件；off=关）
+    "editor.occurrencesHighlight": "singleFile",
+    // 选区相同文本高亮
+    "editor.selectionHighlight": true,
+    // 当前行高亮（all=行+边槽；line=仅行；gutter=仅边槽；none=关）
+    "editor.renderLineHighlight": "all",
+    // 颜色装饰器（如 #0066ff 显示色块）
+    "editor.colorDecorators": true,
+
+    // === 折叠 / 粘性滚动 ===
+    // 启用代码折叠
+    "editor.folding": true,
+    // 折叠策略：auto=综合（语法+LSP FoldingRangeProvider）；indentation=纯缩进
+    "editor.foldingStrategy": "auto",
+    // 折叠控件显示时机（always/mouseover）
+    "editor.showFoldingControls": "mouseover",
+    // 粘性滚动（function/struct 等作用域名固定在编辑器顶部）
+    "editor.stickyScroll.enabled": true,
+    // 粘性滚动最大占用的行数（避免大嵌套占满屏幕）
+    "editor.stickyScroll.maxLineCount": 5,
+    // 粘性滚动默认折叠模式（在多行作用域时只显示首行）
+    "editor.stickyScroll.scrollWithEditor": true,
+
+    // === 显示 / 排版 ===
+    // 标尺（与 shux.format.maxLineLength 对齐，提示 100 列边界）
+    "editor.rulers": [100],
+    // 自动换行（系统语言建议不换行，避免破坏结构）
+    "editor.wordWrap": "off",
+    // 空白字符渲染（selection=仅选区显示；all=全部；none=关）
+    "editor.renderWhitespace": "selection",
+    // 光标闪烁样式（smooth/blink/expand/phase/solid）
+    "editor.cursorBlinking": "smooth",
+    // 光标平滑移动动画（on/off/explicit）
+    "editor.cursorSmoothCaretAnimation": "on",
+    // 光标周围保持可见的行数（避免光标贴边）
+    "editor.cursorSurroundingLines": 5,
+    // 小地图（off=关闭；若 .x 文件较长可开启）
+    "editor.minimap.enabled": false,
+
+    // === 导航 / 编辑 ===
+    // 多定义跳转行为（goto/peekAndGo/gotoAndPeek）
+    "editor.gotoLocation.multipleDefinitions": "goto",
+    "editor.gotoLocation.multipleReferences": "peek",
+    // 同步编辑（重命名 HTML/JSON 标签等成对标识符；对 .x struct 字段改名时部分有用）
+    "editor.linkedEditing": true,
+    // 拖放选区（鼠标拖动文字到新位置）
+    "editor.dragAndDrop": true,
+    // 复制时带语法高亮（粘贴到富文本编辑器时保留颜色）
+    "editor.copyWithSyntaxHighlighting": true,
+    // 空选区时 Ctrl+C 复制整行（false=不复制；按个人偏好）
+    "editor.emptySelectionClipboard": true,
+    // 从选区填充搜索字符串（always/never/selection）
+    "editor.find.seedSearchStringFromSelection": "always",
+    // 大文件优化（>50MB 启用 token 化降级，避免卡顿）
+    "editor.largeFileOptimizations": true
   }
 }
