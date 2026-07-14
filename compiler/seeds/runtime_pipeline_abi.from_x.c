@@ -3433,6 +3433,17 @@ int32_t asm_asm_codegen_elf_o(uint8_t * m, uint8_t * a, uint8_t * c, uint8_t * e
 /* 更多 pipeline stub */
 #ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 int32_t pipeline_parse_set_main_from_buf_c(uint8_t * m, uint8_t * a, uint8_t * d, int32_t len) {
+  /* Root: delegate to real parser (parser_x.o), not no-op stub. Without this,
+   * shux_pipeline_run_x_pipeline_large_stack (used by -E/-x -E and asm paths)
+   * never parses, so num_funcs=0 → P001 "no functions". */
+  extern struct parser_ParseIntoResult parser_parse_into_buf(void *arena, void *module, uint8_t *data, int32_t len);
+  extern void parser_parse_into_set_main_index(void *module, int32_t main_idx);
+  struct parser_ParseIntoResult pr;
+  pr.ok = -1; pr.main_idx = -1;
+  pr = parser_parse_into_buf((void *)a, (void *)m, d, len);
+  if (pr.ok != 0)
+    return -1;
+  parser_parse_into_set_main_index((void *)m, pr.main_idx);
   return 0;
 }
 #endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
