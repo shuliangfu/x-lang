@@ -117,6 +117,9 @@ MODULES=(
   # rt_emit_flags L2 thin 公共面：与产品 PREFER_X_O 同源（thin.x + hybrid rest seed）；prove 锁 thin 面 IDENTICAL
   # 产品 hybrid rest 仍见 seeds/rt_emit_flags.from_x.c（has_emit body macro→_impl + set_use_lto/set_print_target_cpu）；入 runtime_driver_no_c.o
   "rt_emit_flags|src/runtime/rt_emit_flags.x|seeds/rt_emit_flags_surface.from_x.c||"
+  # rt_content L2 thin 公共面：与产品 PREFER_X_O 同源（thin.x + hybrid rest seed）；prove 锁 thin 面 IDENTICAL
+  # 产品 hybrid rest 仍见 seeds/rt_content.from_x.c（driver_source_has_* path wrappers + marker；content_has body 冷路径）；入 runtime_driver_no_c.o
+  "rt_content|src/runtime/rt_content.x|seeds/rt_content_surface.from_x.c||"
 )
 
 # 找 shux 二进制（优先 shux，fallback shux-c）
