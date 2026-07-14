@@ -4,12 +4,14 @@
 // fmt_check_cmd R2 thin + Cap residual pure 深迁（续）：
 //   lit/entry 门闩 + pure 业务真体（path_should_ignore / .x 后缀 / lint /
 //   file_list_push / walk process_child / collect_paths_from_arg /
-//   check_collect_default_product_dirs）进 thin.x；
+//   check_collect_default_product_dirs / check_one_file 门闩 /
+//   try_append 早退 / parse_ignore 前缀）进 thin.x；
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_FMT_CHECK_THIN_FROM_X）ld -r
 //   → fmt_check_cmd_driver.o
 // Prove IDENTICAL：seeds/fmt_check_cmd_thin_surface.from_x.c
-// Cap residual：walk opendir/stat/argv/BSS / missing-diag format / cwd fallback
-//   等 *_impl 仍在 full seed rest；FROM_X 下 pure-duplicate _impl 已剔除（H↓）。
+// Cap residual：walk opendir/stat/argv/BSS / missing-diag format / cwd fallback /
+//   check_one_file_body 等 *_impl 仍在 full seed rest；FROM_X 下 pure-duplicate
+//   _impl 已剔除（含 check_one_file_impl；H↓）。
 //
 // -E 约束：无 while 重赋值；无零参-only 不稳写法；6 参用扁平 if。
 //
@@ -358,16 +360,35 @@ export function fmt_path_stat_kind(path: *u8): i32 {
   return 0 - 1;
 }
 
-// ---- G-02f-406：lib roots / current file / one_file → seed impl ----
+// ---- pure 门闩 / try_append 早退；Cap：lib root body / one_file body / current file ----
 export extern "C" function check_try_append_lib_root_impl(check_argv: *u8, n: *i32, dir: *u8): void;
 export extern "C" function check_init_user_lib_flags_impl(argc: i32, argv: *u8, path_start: i32): void;
 export extern "C" function driver_check_set_current_file_impl(path: *u8): void;
 export extern "C" function driver_check_print_collected_diagnostics_impl(path: *u8): i32;
-export extern "C" function check_one_file_impl(path: *u8, argc: i32, argv: *u8): i32;
+export extern "C" function check_one_file_body_impl(path: *u8, argc: i32, argv: *u8): i32;
 
+// pure 早退：null/空 dir / 用户已传 -L / argv 槽满；stat+BSS 去重 🔒 _impl
 #[no_mangle]
 export function check_try_append_lib_root(check_argv: *u8, n: *i32, dir: *u8): void {
+  if (check_argv == 0 as *u8) {
+    return;
+  }
+  if (n == 0 as *i32) {
+    return;
+  }
+  if (dir == 0 as *u8) {
+    return;
+  }
+  if (dir[0] == 0) {
+    return;
+  }
+  if (check_user_passed_L_get() != 0) {
+    return;
+  }
   unsafe {
+    if (n[0] >= 58) {
+      return;
+    }
     check_try_append_lib_root_impl(check_argv, n, dir);
   }
 }
@@ -394,10 +415,20 @@ export function driver_check_print_collected_diagnostics(path: *u8): i32 {
   return 0;
 }
 
+// pure 门闩：null path/argv / argc<=0；单文件 check 体 🔒 body_impl
 #[no_mangle]
 export function check_one_file(path: *u8, argc: i32, argv: *u8): i32 {
+  if (path == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (argv == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (argc <= 0) {
+    return 0 - 1;
+  }
   unsafe {
-    return check_one_file_impl(path, argc, argv);
+    return check_one_file_body_impl(path, argc, argv);
   }
   return 0 - 1;
 }
@@ -494,8 +525,40 @@ export function walk_dir_collect(dir: *u8): void {
   }
 }
 
+// pure 前缀：null / 非 "--ignore=" 早退；写槽 🔒 _impl
 #[no_mangle]
 export function parse_ignore_opt(arg: *u8): void {
+  if (arg == 0 as *u8) {
+    return;
+  }
+  // "--ignore=" = 45,45,105,103,110,111,114,101,61
+  if (arg[0] != 45) {
+    return;
+  }
+  if (arg[1] != 45) {
+    return;
+  }
+  if (arg[2] != 105) {
+    return;
+  }
+  if (arg[3] != 103) {
+    return;
+  }
+  if (arg[4] != 110) {
+    return;
+  }
+  if (arg[5] != 111) {
+    return;
+  }
+  if (arg[6] != 114) {
+    return;
+  }
+  if (arg[7] != 101) {
+    return;
+  }
+  if (arg[8] != 61) {
+    return;
+  }
   unsafe {
     parse_ignore_opt_impl(arg);
   }

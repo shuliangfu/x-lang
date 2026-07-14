@@ -1,8 +1,8 @@
-/* R2 thin + Cap residual pure 深迁（续 collect orch）：
+/* R2 thin + Cap residual pure 深迁（续 one_file 门闩 / try_append / parse_ignore）：
  * PREFER hybrid thin 由 src/driver/fmt_check_cmd_thin.x（lit/entry + pure 真体）；
  * rest SHUX_L2_FMT_CHECK_THIN_FROM_X：无 thin 公共体；pure-duplicate _impl 剔除
- * （含 collect_paths_from_arg / check_collect_default_product_dirs）；
- * Cap residual：walk opendir/stat/argv/BSS / missing-diag format / cwd fallback 仍 rest。
+ * （含 collect_paths / default_dirs / check_one_file_impl）；
+ * Cap residual：walk opendir/stat/argv/BSS / missing-diag / cwd / one_file_body 仍 rest。
  * 冷启动无宏：全 C 体（含 pure _impl + public 门闩）。
  * Regen thin surface: shux -E src/driver/fmt_check_cmd_thin.x → thin_surface.
  */
@@ -274,7 +274,8 @@ int32_t check_user_passed_L_get(void) {
 
 /**
  * 若 dir 下同时存在 core/ 与 std/ 子目录，则作为仓库 lib 根注入 -L（去重）。
- * G-02f-248：早退 pure 在 .x；stat/dedup 体 🔒。
+ * pure 早退权威：thin.x check_try_append_lib_root；
+ * Cap residual：stat core/std + BSS 去重/入表 🔒（冷启动 public 亦做 pure 早退后调此 impl）。
  */
 void check_try_append_lib_root_impl(char **check_argv, int *n, const char *dir) {
     char core_path[560];
@@ -303,8 +304,7 @@ void check_try_append_lib_root_impl(char **check_argv, int *n, const char *dir) 
     check_argv[(*n)++] = s_check_lib_bufs[s_n_check_lib_bufs++];
 }
 
-/* G-02f-248：逻辑源 .x（早退 pure）；seed 保留同语义 C 供产品 cc */
-/* G-02f-406：实现体始终 seed；public PREFER 时 thin forward */
+/* pure 早退权威：thin.x；冷启动保留 public；Cap residual 调 public 同形 */
 #ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 void check_try_append_lib_root(char **check_argv, int *n, const char *dir) {
     if (!check_argv || !n || !dir)
@@ -337,7 +337,8 @@ void check_append_repo_lib_roots_impl(const char *path, char **check_argv, int *
         return;
     if (!path || !path[0]) {
         if (getcwd(start, sizeof start))
-            check_try_append_lib_root_impl(check_argv, n, start);
+            /* public：hybrid thin pure 早退 / 冷 seed public→_impl */
+            check_try_append_lib_root(check_argv, n, start);
         return;
     }
     if (path[0] == '/') {
@@ -358,7 +359,8 @@ void check_append_repo_lib_roots_impl(const char *path, char **check_argv, int *
     }
     snprintf(cur, sizeof cur, "%s", start);
     for (depth = 0; depth < 8; depth++) {
-        check_try_append_lib_root_impl(check_argv, n, cur);
+        /* public：hybrid thin pure 早退 / 冷 seed public→_impl */
+        check_try_append_lib_root(check_argv, n, cur);
         if (strcmp(cur, "/") == 0)
             break;
         snprintf(parent, sizeof parent, "%s", cur);
@@ -427,7 +429,8 @@ void check_argv_append_default_libs_for_path_impl(const char *path, char **check
     check_append_repo_lib_roots(path, check_argv, n);
     if (!getcwd(cwd_buf, sizeof cwd_buf))
         return;
-    check_try_append_lib_root_impl(check_argv, n, cwd_buf);
+    /* public：hybrid thin pure 早退 / 冷 seed public→_impl */
+    check_try_append_lib_root(check_argv, n, cwd_buf);
     if (path && strstr(path, "compiler/src/") && *n < 56) {
         snprintf(cs, sizeof cs, "%s/compiler/src", cwd_buf);
         if (stat(cs, &st) == 0 && S_ISDIR(st.st_mode)) {
@@ -906,7 +909,8 @@ void collect_paths_from_arg(const char *arg) {
 
 /**
  * 解析 --ignore=a,b,c 写入 s_ignore_paths。
- * G-02f-247：.x 前缀 pure；体写槽 🔒。
+ * pure 前缀权威：thin.x parse_ignore_opt；
+ * Cap residual：切 token 写 BSS 槽 🔒（冷启动 public 亦 pure 前缀后调此 impl）。
  */
 void parse_ignore_opt_impl(const char *arg) {
     char buf[512];
@@ -929,8 +933,7 @@ void parse_ignore_opt_impl(const char *arg) {
     }
 }
 
-/* G-02f-247：逻辑源 .x（前缀 pure）；seed 保留同语义 C 供产品 cc */
-/* G-02f-407：public PREFER 时 thin → existing impl */
+/* pure 前缀权威：thin.x；冷启动保留 public；Cap residual entry 调 public 同形 */
 #ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 void parse_ignore_opt(const char *arg) {
     if (!arg)
@@ -995,7 +998,8 @@ int driver_run_fmt_impl(int argc, char **argv) {
             continue;
         }
         if (strncmp(argv[i], "--ignore=", 9) == 0) {
-            parse_ignore_opt_impl(argv[i]);
+            /* public：hybrid thin pure 前缀 / 冷 seed public→_impl */
+            parse_ignore_opt(argv[i]);
             continue;
         }
         if (argv[i][0] == '-')
@@ -1177,15 +1181,15 @@ int check_one_file_body_impl(const char *path, int argc, char **argv) {
     return rc;
 }
 
-/* G-02f-250：逻辑源 .x（门闩）；seed 保留同语义 C 供产品 cc */
-/* G-02f-406：实现体始终 seed；public PREFER 时 thin forward */
+/* pure 门闩权威：thin.x check_one_file → body_impl；
+ * 冷启动保留 pure-dup check_one_file_impl；FROM_X 下剔除（H↓）。 */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 int check_one_file_impl(const char *path, int argc, char **argv) {
     if (!path || !argv || argc <= 0)
         return -1;
     return check_one_file_body_impl(path, argc, argv);
 }
 
-#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 int check_one_file(const char *path, int argc, char **argv) {
   return check_one_file_impl(path, argc, argv);
 }
@@ -1224,7 +1228,8 @@ int driver_run_compiler_check_impl(int argc, char **argv) {
             continue;
         }
         if (strncmp(argv[i], "--ignore=", 9) == 0) {
-            parse_ignore_opt_impl(argv[i]);
+            /* public：hybrid thin pure 前缀 / 冷 seed public→_impl */
+            parse_ignore_opt(argv[i]);
             continue;
         }
         if (strcmp(argv[i], "-L") == 0 || strcmp(argv[i], "-I") == 0 || strcmp(argv[i], "-o") == 0) {
@@ -1260,7 +1265,8 @@ int driver_run_compiler_check_impl(int argc, char **argv) {
     }
 
     for (i = 0; i < s_n_files; i++) {
-        if (check_one_file_impl(s_file_list[i], argc, argv) != 0) {
+        /* public：hybrid thin pure 门闩→body / 冷 seed public→_impl→body */
+        if (check_one_file(s_file_list[i], argc, argv) != 0) {
             failed = 1;
             if (fail_fast)
                 break;

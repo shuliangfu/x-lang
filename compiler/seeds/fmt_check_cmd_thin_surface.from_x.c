@@ -2,9 +2,9 @@
  * fmt_check_cmd R2 thin + Cap residual pure 深迁 surface — isomorphic with src/driver/fmt_check_cmd_thin.x
  * Product PREFER_X_O: g05_try_x_to_o(thin.x) + full seed rest (-DSHUX_L2_FMT_CHECK_THIN_FROM_X) ld -r
  * Prove: thin.x vs this seed → nm IDENTICAL (public surface; Cap residual _impl are U)
- * Cap residual: walk opendir/stat/argv/BSS / missing-diag format / cwd fallback in rest
+ * Cap residual: walk opendir/stat/argv/BSS / missing-diag / cwd / one_file_body in rest
  * pure 真迁：path_should_ignore / .x 后缀 / lint / file_list_push / process_child /
- *   collect_paths_from_arg / check_collect_default_product_dirs / finalize_rc
+ *   collect_paths / default_dirs / check_one_file 门闩 / try_append 早退 / parse_ignore 前缀
  * Regen: ./shux -E ... thin.x | filter DBG + g05 prologue polish
  */
 /* g05_try_x_to_o prologue (G-02f-332/334) */
@@ -364,9 +364,27 @@ extern void check_try_append_lib_root_impl(uint8_t * check_argv, int32_t * n, ui
 extern void check_init_user_lib_flags_impl(int32_t argc, uint8_t * argv, int32_t path_start);
 extern void driver_check_set_current_file_impl(uint8_t * path);
 extern int32_t driver_check_print_collected_diagnostics_impl(uint8_t * path);
-extern int32_t check_one_file_impl(uint8_t * path, int32_t argc, uint8_t * argv);
+extern int32_t check_one_file_body_impl(uint8_t * path, int32_t argc, uint8_t * argv);
 void check_try_append_lib_root(uint8_t * check_argv, int32_t * n, uint8_t * dir) {
+  if ((check_argv ==((uint8_t *)(0)))) {
+    return;
+  }
+  if ((n ==((int32_t *)(0)))) {
+    return;
+  }
+  if ((dir ==((uint8_t *)(0)))) {
+    return;
+  }
+  if (((dir)[0] ==0)) {
+    return;
+  }
+  if ((check_user_passed_L_get() !=0)) {
+    return;
+  }
   {
+    if (((n)[0] >=58)) {
+      return;
+    }
     (void)(check_try_append_lib_root_impl(check_argv, n, dir));
   }
   (void)(0);
@@ -393,8 +411,17 @@ int32_t driver_check_print_collected_diagnostics(uint8_t * path) {
   return 0;
 }
 int32_t check_one_file(uint8_t * path, int32_t argc, uint8_t * argv) {
+  if ((path ==((uint8_t *)(0)))) {
+    return (0 - 1);
+  }
+  if ((argv ==((uint8_t *)(0)))) {
+    return (0 - 1);
+  }
+  if ((argc <=0)) {
+    return (0 - 1);
+  }
   {
-    return check_one_file_impl(path, argc, argv);
+    return check_one_file_body_impl(path, argc, argv);
   }
   return (0 - 1);
 }
@@ -482,6 +509,36 @@ void walk_dir_collect(uint8_t * dir) {
   return;
 }
 void parse_ignore_opt(uint8_t * arg) {
+  if ((arg ==((uint8_t *)(0)))) {
+    return;
+  }
+  if (((arg)[0] !=45)) {
+    return;
+  }
+  if (((arg)[1] !=45)) {
+    return;
+  }
+  if (((arg)[2] !=105)) {
+    return;
+  }
+  if (((arg)[3] !=103)) {
+    return;
+  }
+  if (((arg)[4] !=110)) {
+    return;
+  }
+  if (((arg)[5] !=111)) {
+    return;
+  }
+  if (((arg)[6] !=114)) {
+    return;
+  }
+  if (((arg)[7] !=101)) {
+    return;
+  }
+  if (((arg)[8] !=61)) {
+    return;
+  }
   {
     (void)(parse_ignore_opt_impl(arg));
   }

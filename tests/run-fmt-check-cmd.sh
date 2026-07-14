@@ -66,7 +66,7 @@ echo "$bad_out" | grep -qiE 'not formatted|needs format|would reformat' || {
   echo "expected summary listing unformatted files, got: $bad_out" >&2
   exit 1
 }
-echo "$bad_out" | grep -qE 'shu_fmt_check_bad\.x|shu_fmt_check_bad' || {
+echo "$bad_out" | grep -qE 'shux_fmt_check_bad\.x|shux_fmt_check_bad' || {
   echo "expected path in fmt --check summary, got: $bad_out" >&2
   exit 1
 }
