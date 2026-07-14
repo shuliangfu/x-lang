@@ -5092,6 +5092,20 @@ int32_t codegen_type_ref_to_suffix(struct ast_ASTArena * arena, int32_t type_ref
   if (tk == ast_TypeKind_TYPE_BOOL) { uint8_t s[5] = {98, 111, 111, 108, 0}; return emit_suffix_bytes(buf, &s[0], 4); }
   if (tk == ast_TypeKind_TYPE_USIZE) { uint8_t s[6] = {117, 115, 105, 122, 101, 0}; return emit_suffix_bytes(buf, &s[0], 5); }
   if (tk == ast_TypeKind_TYPE_ISIZE) { uint8_t s[6] = {105, 115, 105, 122, 101, 0}; return emit_suffix_bytes(buf, &s[0], 5); }
+  /* slice：与 *T 区分，否则 overload mangle 后缀为空 → 与原名冲突 */
+  if (tk == ast_TypeKind_TYPE_SLICE) {
+    int32_t elem_ref = pipeline_type_elem_ref_at(arena, type_ref);
+    int32_t n = codegen_type_ref_to_suffix(arena, elem_ref, buf, buf_cap);
+    if (n > 0 && n + 6 < buf_cap) {
+      /* _slice */
+      buf[n]=95; buf[n+1]=115; buf[n+2]=108; buf[n+3]=105; buf[n+4]=99; buf[n+5]=101;
+      return n + 6;
+    }
+    if (n <= 0 && buf_cap > 5) {
+      buf[0]=115; buf[1]=108; buf[2]=105; buf[3]=99; buf[4]=101; return 5;
+    }
+    return n;
+  }
   return 0;
 }
 
@@ -5216,17 +5230,29 @@ int32_t codegen_emit_call_func_name(struct codegen_CodegenOutBuf * out, struct a
   if (ctx != 0 && arena != 0) {
     int32_t func_ix = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
     int32_t dep_ix = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
-    if (func_ix >= 0) {
-      if (dep_ix >= 0 && dep_ix < pipeline_dep_ctx_ndep(ctx)) {
-        struct ast_Module * dep_mod = pipeline_dep_ctx_module_at(ctx, dep_ix);
-        /* 【Why】mangle 后缀 type_ref 在 dep 自己的 arena；用 caller arena 会错后缀或漏 mangle。 */
-        struct ast_ASTArena * dep_arena = pipeline_dep_ctx_arena_at(ctx, dep_ix);
-        if (dep_mod != 0 && dep_arena != 0 && func_ix < (dep_mod)->num_funcs) {
-          return codegen_emit_func_link_name(out, dep_arena, dep_mod, func_ix);
-        }
-      } else {
-        if (current_module != 0 && func_ix < (current_module)->num_funcs) {
-          return codegen_emit_func_link_name(out, arena, current_module, func_ix);
+    /* 实参个数：resolved 指向 arity 不匹配的重载时勿盲信（print 常落到 slice 形）。 */
+    {
+      struct ast_Expr call_e0 = ast_arena_expr_get(arena, expr_ref);
+      int32_t is_m0 = ((call_e0).kind == ast_ExprKind_EXPR_METHOD_CALL);
+      int32_t nargs0 = is_m0 ? (call_e0).method_call_num_args : (call_e0).call_num_args;
+      if (func_ix >= 0) {
+        if (dep_ix >= 0 && dep_ix < pipeline_dep_ctx_ndep(ctx)) {
+          struct ast_Module * dep_mod = pipeline_dep_ctx_module_at(ctx, dep_ix);
+          struct ast_ASTArena * dep_arena = pipeline_dep_ctx_arena_at(ctx, dep_ix);
+          if (dep_mod != 0 && dep_arena != 0 && func_ix < (dep_mod)->num_funcs) {
+            if (pipeline_module_func_num_params_at(dep_mod, func_ix) == nargs0) {
+              return codegen_emit_func_link_name(out, dep_arena, dep_mod, func_ix);
+            }
+            /* arity 不匹配：fall through 按实参重搜 */
+            func_ix = -1;
+          }
+        } else {
+          if (current_module != 0 && func_ix < (current_module)->num_funcs) {
+            if (pipeline_module_func_num_params_at(current_module, func_ix) == nargs0) {
+              return codegen_emit_func_link_name(out, arena, current_module, func_ix);
+            }
+            func_ix = -1;
+          }
         }
       }
     }
