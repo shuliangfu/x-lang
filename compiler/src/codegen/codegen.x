@@ -4280,7 +4280,12 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           if (pre_fast_len > 0 && codegen_c_prefix_redundant_with_name(&pre_fast[0], pre_fast_len, &callee_fast.field_access_field_name[0], callee_fast.field_access_field_len) == 0 && emit_bytes_from_ptr(out, &pre_fast[0], pre_fast_len) != 0) {
             return -1;
           }
-          if (codegen_emit_call_func_name(out, arena, ctx, expr_ref, ctx.current_codegen_module, &callee_fast.field_access_field_name[0], callee_fast.field_access_field_len) != 0) {
+          /* 重载搜索须在 dep 模块（std.fmt），勿用 entry current_codegen_module。 */
+          let dep_mod_fast: *Module = pipeline_dep_ctx_module_at(ctx, dep_ix_fast);
+          if (dep_mod_fast == 0 as *Module) {
+            dep_mod_fast = ctx.current_codegen_module;
+          }
+          if (codegen_emit_call_func_name(out, arena, ctx, expr_ref, dep_mod_fast, &callee_fast.field_access_field_name[0], callee_fast.field_access_field_len) != 0) {
             return -1;
           }
         }

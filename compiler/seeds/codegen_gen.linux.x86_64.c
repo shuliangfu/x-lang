@@ -3354,8 +3354,14 @@ SHUX_LIB_WEAK int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct code
   }
   if (pre_fast_len > 0 && codegen_c_prefix_redundant_with_name((&((pre_fast)[0])), pre_fast_len, (&(((callee_fast).field_access_field_name)[0])), (callee_fast).field_access_field_len) == 0 && codegen_emit_bytes_from_ptr(out, (&((pre_fast)[0])), pre_fast_len) != 0) {   return (-1);
  }
-  if (codegen_emit_call_func_name(out, arena, ctx, expr_ref, (ctx)->current_codegen_module, (&(((callee_fast).field_access_field_name)[0])), (callee_fast).field_access_field_len) != 0) {   return (-1);
+  /* 【Why】须传 dep 模块（定义 print 重载处），勿传 entry current_codegen_module。
+     否则 overload 搜索找不到 *u8,i32，回落原名 std_fmt_print，与 print_u8_ptr_i32 定义冲突。 */
+  {
+    struct ast_Module * dep_mod_fast = pipeline_dep_ctx_module_at(ctx, dep_ix_fast);
+    if (dep_mod_fast == 0) dep_mod_fast = (ctx)->current_codegen_module;
+    if (codegen_emit_call_func_name(out, arena, ctx, expr_ref, dep_mod_fast, (&(((callee_fast).field_access_field_name)[0])), (callee_fast).field_access_field_len) != 0) {   return (-1);
  }
+  }
   if (codegen_append_byte(out, 40) != 0) {   return (-1);
  }
   int32_t ai_fast = 0;
