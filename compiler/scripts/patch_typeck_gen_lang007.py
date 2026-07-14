@@ -67,47 +67,70 @@ int32_t typeck_check_expr_deref(struct ast_Module * module, struct ast_ASTArena 
 """
 
 METHOD_CALL_BODY = """\
-int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx);
-int32_t typeck_check_expr_as(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, struct ast_PipelineDepCtx * ctx);
-int32_t typeck_check_expr_struct_lit_field(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx, int32_t field_i, int32_t num_fields);
-int32_t typeck_check_expr_struct_lit(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx);
-int32_t typeck_check_expr_index(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx);
-int typeck_expr_is_any_assign_kind(int32_t kind_ord);
-int32_t typeck_check_expr_impl_mega(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx);
-int32_t typeck_check_expr_impl(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx);
-int32_t typeck_check_expr(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx);
-int32_t typeck_func_body_tail_expr_ref_for_implicit_rule(struct ast_ASTArena * arena, int32_t body_ref);
-int typeck_func_body_has_implicit_return_tail(struct ast_ASTArena * arena, int32_t body_ref);
-int32_t typeck_loop_depth_push(struct ast_PipelineDepCtx * ctx);
-void typeck_loop_depth_pop(struct ast_PipelineDepCtx * ctx, int32_t saved);
-int32_t typeck_check_block_as_loop_body(struct ast_Module * module, struct ast_ASTArena * arena, int32_t body_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx);
-int32_t typeck_check_block_one_const(struct ast_Module * module, struct ast_ASTArena * arena, int32_t block_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx, int32_t idx);
-int32_t typeck_check_block_one_let(struct ast_Module * module, struct ast_ASTArena * arena, int32_t block_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx, int32_t idx);
-int32_t typeck_check_block_one_while(struct ast_Module * module, struct ast_ASTArena * arena, int32_t block_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx, int32_t idx);
-int32_t typeck_check_block_one_for(struct ast_Module * module, struct ast_ASTArena * arena, int32_t block_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx, int32_t idx);
-int32_t typeck_check_block_one_if(struct ast_Module * module, struct ast_ASTArena * arena, int32_t block_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx, int32_t idx);
-int32_t typeck_check_block_final(struct ast_Module * module, struct ast_ASTArena * arena, int32_t block_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx, int32_t fin0);
-int32_t typeck_check_block_one_region(struct ast_Module * module, struct ast_ASTArena * arena, int32_t block_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx, int32_t idx);
-int32_t typeck_check_block_stmt_order_one(struct ast_Module * module, struct ast_ASTArena * arena, int32_t block_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx, int32_t si, int32_t nso, int32_t nc, int32_t nl, int32_t nes, int32_t nlp, int32_t nfp, int32_t nif, int32_t nreg);
-int32_t typeck_check_block_legacy_consts(struct ast_Module * module, struct ast_ASTArena * arena, int32_t block_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx, int32_t i, int32_t nc);
-int32_t typeck_check_block_legacy_lets(struct ast_Module * module, struct ast_ASTArena * arena, int32_t block_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx, int32_t i, int32_t nl);
-int32_t typeck_check_block_legacy_whiles(struct ast_Module * module, struct ast_ASTArena * arena, int32_t block_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx, int32_t i, int32_t nlp);
-int32_t typeck_check_block_legacy_fors(struct ast_Module * module, struct ast_ASTArena * arena, int32_t block_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx, int32_t i, int32_t nfp);
-int32_t typeck_check_block_legacy_ifs(struct ast_Module * module, struct ast_ASTArena * arena, int32_t block_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx, int32_t i, int32_t nif);
-int32_t typeck_check_block_legacy_expr_stmts(struct ast_Module * module, struct ast_ASTArena * arena, int32_t block_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx, int32_t i, int32_t nes);
-int32_t typeck_check_block_impl(struct ast_Module * module, struct ast_ASTArena * arena, int32_t block_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx);
-int32_t typeck_check_block(struct ast_Module * module, struct ast_ASTArena * arena, int32_t block_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx);
-int32_t typeck_x_ast_check_one_func(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx, int32_t func_idx);
-int32_t typeck_x_ast_check_all_funcs_loop(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx, int32_t func_i, int32_t num_funcs);
-void typeck_patch_all_body_parent_links(struct ast_Module * module, struct ast_ASTArena * arena);
-int32_t typeck_x_ast_impl(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx);
-int32_t typeck_x_ast_library(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx);
-int32_t typeck_x_ast(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx);
-int32_t typeck_type_kind_ordinal(enum ast_TypeKind k) {
-  int32_t o = ((int32_t)(k));
-  (void)(({ int32_t __tmp = 0; if (o < ((int32_t)(ast_TypeKind_TYPE_I32)) || o > ((int32_t)(ast_TypeKind_TYPE_VOID))) {   return (-1);
- } else (__tmp = 0) ; __tmp; }));
-  return o;
+int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
+  /* W-heap-overload: glue method_call then re-dispatch binding overload by arg types. */
+  extern int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
+  extern int32_t pipeline_expr_method_call_base_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
+  extern int32_t pipeline_expr_method_call_name_len(struct ast_ASTArena *a, int32_t expr_ref);
+  extern void pipeline_expr_method_call_name_into(struct ast_ASTArena *a, int32_t expr_ref, uint8_t *out);
+  extern int32_t pipeline_expr_method_call_num_args_at(struct ast_ASTArena *a, int32_t expr_ref);
+  extern int32_t pipeline_typeck_import_binding_name_equal_strict_minimal(struct ast_Module *m, int32_t ii, uint8_t *nm, int32_t nlen);
+  extern int32_t pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
+      struct ast_Module *mod, struct ast_ASTArena *caller_arena, uint8_t *name, int32_t name_len,
+      int32_t from_dep_index, int32_t want_arity, int32_t call_expr_ref, int32_t is_method,
+      struct ast_PipelineDepCtx *ctx, int32_t *func_index_out);
+  int32_t rc;
+  int32_t base_ref;
+  int32_t base_kind;
+  int32_t base_nlen;
+  int32_t method_nlen;
+  int32_t num_args;
+  int32_t ii;
+  int32_t import_kind;
+  int32_t import_ret_ty;
+  int32_t func_ix;
+  int32_t dep_ix;
+  uint8_t method_nm[64];
+  uint8_t base_nm[64];
+  struct ast_Module *dm;
+  rc = pipeline_typeck_check_expr_method_call_c(module, arena, expr_ref, return_type_ref, ctx);
+  if (rc != 0 || !module || !arena || !ctx || expr_ref <= 0)
+    return rc;
+  base_ref = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
+  if (base_ref <= 0)
+    return rc;
+  base_kind = pipeline_expr_kind_ord_at(arena, base_ref);
+  if (base_kind != 3)
+    return rc;
+  method_nlen = pipeline_expr_method_call_name_len(arena, expr_ref);
+  if (method_nlen <= 0 || method_nlen > 63)
+    return rc;
+  pipeline_expr_method_call_name_into(arena, expr_ref, method_nm);
+  num_args = pipeline_expr_method_call_num_args_at(arena, expr_ref);
+  base_nlen = pipeline_expr_var_name_len(arena, base_ref);
+  if (base_nlen <= 0 || base_nlen > 63)
+    return rc;
+  pipeline_expr_var_name_into(arena, base_ref, base_nm);
+  for (ii = 0; ii < module->num_imports; ii++) {
+    import_kind = pipeline_module_import_kind_at(module, ii);
+    if (import_kind != 1)
+      continue;
+    if (!pipeline_typeck_import_binding_name_equal_strict_minimal(module, ii, base_nm, base_nlen))
+      continue;
+    dm = pipeline_dep_ctx_module_at(ctx, ii);
+    if (!dm)
+      break;
+    func_ix = -1;
+    import_ret_ty = pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
+        dm, arena, method_nm, method_nlen, ii, num_args, expr_ref, 1, ctx, &func_ix);
+    if (import_ret_ty > 0) {
+      dep_ix = ii;
+      (void)ast_expr_apply_call_resolve(arena, expr_ref, dep_ix, func_ix);
+      (void)pipeline_expr_set_resolved_type_ref(arena, expr_ref, import_ret_ty);
+    }
+    break;
+  }
+  return 0;
 }
 """
 
