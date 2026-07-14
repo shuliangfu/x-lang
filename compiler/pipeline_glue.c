@@ -1803,6 +1803,8 @@ static int32_t pipeline_asm_emit_lognot_elf_impl(struct ast_ASTArena *arena,
 /** X pool：ERR-01 Result `?` 传播（C ast.h AST_EXPR_TRY_PROPAGATE=57，X EXPR_SPAWN=57 后插入=58）。 */
 #define GLUE_EXPR_KIND_TRY_PROPAGATE 58
 #define GLUE_EXPR_KIND_C_TRY_PROPAGATE 57
+/** X/parser_asm/backend 权威：STRING_LIT 序数 59（与 GLUE_EXPR_STRING_LIT_ORD / PARSER_ASM_EXPR_STRING_LIT 一致）。 */
+#define GLUE_EXPR_STRING_LIT_ORD 59
 
 /**
  * pool/C parser 上的 await 表达式。
@@ -21836,6 +21838,13 @@ int32_t pipeline_typeck_check_expr_assign_c(struct ast_Module *module, struct as
       pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
       rt = lt;
     }
+    /** STRING_LIT(kind 59)：与 typeck.x 对齐。seed/impl 可能未给字面量定型，
+     *  回填 lhs 类型，避免 `m: *u8; m = ""` 误报 expected *u8, found ?。
+     *  codegen 依 kind=59 生成 (uint8_t[]){...}，不依赖 resolved 切片类型。 */
+    if (rhs_kind == GLUE_EXPR_STRING_LIT_ORD) {
+      pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
+      rt = lt;
+    }
   }
   if (ast_ref_is_null(lt) && !ast_ref_is_null(rt)) {
     lhs_kind = pipeline_expr_kind_ord_at(arena, left_ref);
@@ -25834,6 +25843,24 @@ int32_t pipeline_typeck_check_expr_impl_c(struct ast_Module *module, struct ast_
     return typeck_check_expr_int_lit(arena, expr_ref, return_type_ref);
   if (kind == (int32_t)ast_ExprKind_EXPR_BOOL_LIT)
     return typeck_check_expr_bool_lit(arena, expr_ref);
+  /** STRING_LIT(kind 59)：有期望类型时沿用（assign/let 回填 *u8 等）；否则默认 u8[]。 */
+  if (kind == GLUE_EXPR_STRING_LIT_ORD) {
+    int32_t u8r;
+    int32_t slice_u8;
+    extern int32_t typeck_ensure_u8_type_ref(struct ast_ASTArena *arena);
+    extern int32_t typeck_find_or_alloc_slice_type_ref(struct ast_ASTArena *w, int32_t elem_ref);
+    if (!ast_ref_is_null(return_type_ref) && return_type_ref > 0 && return_type_ref <= arena->num_types) {
+      pipeline_expr_set_resolved_type_ref(arena, expr_ref, return_type_ref);
+      return 0;
+    }
+    u8r = typeck_ensure_u8_type_ref(arena);
+    if (ast_ref_is_null(u8r))
+      return -1;
+    slice_u8 = typeck_find_or_alloc_slice_type_ref(arena, u8r);
+    if (!ast_ref_is_null(slice_u8))
+      pipeline_expr_set_resolved_type_ref(arena, expr_ref, slice_u8);
+    return 0;
+  }
   if (kind == (int32_t)ast_ExprKind_EXPR_BREAK || kind == (int32_t)ast_ExprKind_EXPR_CONTINUE)
     return typeck_check_expr_break_continue(module, arena, expr_ref, return_type_ref, ctx);
   if (kind == (int32_t)ast_ExprKind_EXPR_ENUM_VARIANT)

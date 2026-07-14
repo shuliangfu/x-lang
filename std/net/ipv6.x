@@ -61,7 +61,7 @@ allow(padding) struct SockAddrIn6 {
 #[cfg(not(target_os = "windows"))]
 allow(padding) struct PollFd { fd: i32; events: i16; revents: i16; }
 
-extern "C" function socket(domain: i32, type: i32, protocol: i32): i32;
+extern "C" function socket(domain: i32, sock_type: i32, protocol: i32): i32;
 extern "C" function connect(fd: i32, addr: *u8, addrlen: u32): i32;
 extern "C" function bind(fd: i32, addr: *u8, addrlen: u32): i32;
 extern "C" function listen(fd: i32, backlog: i32): i32;

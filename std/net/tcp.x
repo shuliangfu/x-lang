@@ -53,7 +53,7 @@ allow(padding) struct SockAddrIn {
 #[cfg(not(target_os = "windows"))]
 allow(padding) struct PollFd { fd: i32; events: i16; revents: i16; }
 
-extern "C" function socket(domain: i32, type: i32, protocol: i32): i32;
+extern "C" function socket(domain: i32, sock_type: i32, protocol: i32): i32;
 extern "C" function connect(fd: i32, addr: *u8, addrlen: u32): i32;
 extern "C" function bind(fd: i32, addr: *u8, addrlen: u32): i32;
 extern "C" function listen(fd: i32, backlog: i32): i32;
@@ -376,7 +376,11 @@ function net_tcp_connect_blocking_c(addr_u32: u32, port_u32: u32, timeout_ms: u3
     if (fd < 0) {
       return -1;
     }
-    if (unsafe { net_set_blocking_c(fd, 1) } != 0) {
+    /* 【Why】勿用 if (unsafe { call() } != 0)：codegen 把表达式 unsafe 落成
+     *  带 return 的 statement-expression，C 侧变成 void 与 int 比较。 */
+    let set_blk_rc: i32 = 0;
+    unsafe { set_blk_rc = net_set_blocking_c(fd, 1); }
+    if (set_blk_rc != 0) {
       unsafe { net_close_socket_c(fd); }
       return -1;
     }

@@ -42,7 +42,7 @@ allow(padding) struct SockAddrIn {
 #[cfg(not(target_os = "windows"))]
 allow(padding) struct PollFd { fd: i32; events: i16; revents: i16; }
 
-extern "C" function socket(domain: i32, type: i32, protocol: i32): i32;
+extern "C" function socket(domain: i32, sock_type: i32, protocol: i32): i32;
 extern "C" function bind(fd: i32, addr: *u8, addrlen: u32): i32;
 extern "C" function setsockopt(fd: i32, level: i32, optname: i32, optval: *i32, optlen: u32): i32;
 extern "C" function sendto(fd: i32, buf: *u8, len: usize, flags: i32, addr: *u8, addrlen: u32): i32;
