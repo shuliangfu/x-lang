@@ -120,8 +120,8 @@ MODULES=(
   # rt_content L2 thin 公共面：与产品 PREFER_X_O 同源（thin.x + hybrid rest seed）；prove 锁 thin 面 IDENTICAL
   # 产品 hybrid rest 仍见 seeds/rt_content.from_x.c（driver_source_has_* path wrappers + marker；content_has body 冷路径）；入 runtime_driver_no_c.o
   "rt_content|src/runtime/rt_content.x|seeds/rt_content_surface.from_x.c||"
-  # rt_util L2 thin 公共面：与产品 PREFER_X_O 同源（thin.x + hybrid rest seed）；prove 锁 thin 面 IDENTICAL
-  # 产品 hybrid rest 仍见 seeds/rt_util.from_x.c（driver_argv0_basename_is + cold unlink body）；入 runtime_driver_no_c.o
+  # rt_util R2 full：.x 吃满 unlink + argv0_basename；产品 rest 在 FROM_X 下业务符号 H=0
+  # prove 锁 full surface IDENTICAL（2 公共符号）；冷/无 PREFER 仍可走 seeds/rt_util.from_x.c 全 C 体
   "rt_util|src/runtime/rt_util.x|seeds/rt_util_surface.from_x.c||"
 )
 
