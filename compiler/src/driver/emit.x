@@ -101,15 +101,17 @@ function emit_state_key(state: *DriverXEmitState): *u8 {
   return state as *u8;
 }
 
-/** 将 emit lib_root 池灌入 PipelineDepCtx（-backend c 烟测路径）。 */
-function emit_copy_lib_roots_to_ctx(state: *DriverXEmitState, ctx: *PipelineDepCtx): void {
+/** 将 emit lib_root 池灌入 PipelineDepCtx（-backend c 烟测路径）。
+ * state_key 用 *u8（emit_state_key），避免 ( *DriverXEmitState, *PipelineDepCtx )
+ * 同传触发 WPO-S3「local + outer *Struct」误报（param 被视作 outer）。 */
+function emit_copy_lib_roots_to_ctx(state_key: *u8, ctx: *PipelineDepCtx): void {
   let k: i32 = 0;
-  let n: i32 = ew_lib_root_count(emit_state_key(state));
+  let n: i32 = ew_lib_root_count(state_key);
   let tmp: u8[256] = [];
   while (k < n) {
-    let llen: i32 = ew_lib_root_len(emit_state_key(state), k);
+    let llen: i32 = ew_lib_root_len(state_key, k);
     if (llen > 0) {
-      ew_lib_root_copy(emit_state_key(state), k, &tmp[0], 256);
+      ew_lib_root_copy(state_key, k, &tmp[0], 256);
       ew_append_lib_root(ctx, &tmp[0], llen);
     }
     k = k + 1;
@@ -221,11 +223,13 @@ function ew_pipeline_fail_code(rc: i32, path: *u8): void {
 function ew_print_x_smoke_summary(module: *u8, codegen_len: usize): void {
   unsafe { driver_print_x_smoke_summary(module, codegen_len); }
 }
-function ew_run_x_pipeline_impl(module_buf: *u8, arena_buf: *u8, source: *u8,
-source_len: usize, out: *CodegenOutBuf, ctx: *PipelineDepCtx): i32 {
-  unsafe { return pipeline_run_x_pipeline_impl(module_buf, arena_buf, source, source_len, out, ctx); }
-  return 0;
-}
+/**
+ * 注意：勿经本模块 local 包装再传 &out+&ctx。
+ * WPO-S3 call 路径对「本模块 local 函数」会解析到 *Struct 形参并误报
+ * 「local + outer struct」；main.x 对 extern pipeline_run_x_pipeline_impl 直调
+ * 不会命中该路径。真根因在 pipeline_glue 已修（同帧 &local 兄弟放行），
+ * 但检查函数嵌在 pipeline_x 静态副本中，须 mega 重编后 wrapper 才可恢复。
+ */
 function ew_set_path(path: *u8, path_len: i32): i32 {
   unsafe { return driver_run_x_emit_c_set_path(path, path_len); }
   return 0;
@@ -302,11 +306,15 @@ function run_x_emit_x(state: *DriverXEmitState): i32 {
     ctx.entry_dir_len = 1;
   }
   ctx.num_lib_roots = 0;
-  emit_copy_lib_roots_to_ctx(state, &ctx);
+  emit_copy_lib_roots_to_ctx(emit_state_key(state), &ctx);
   let out: CodegenOutBuf = CodegenOutBuf { data: [], len: 0 };
   let source_len: usize = out_len as usize;
-  let rc: i32 = ew_run_x_pipeline_impl(module_buf, arena_buf,
-  ew_preprocess_buf_ptr(&ctx), source_len, &out, &ctx);
+  let prep_src: *u8 = ew_preprocess_buf_ptr(&ctx);
+  let rc: i32 = 0;
+  /* 与 main.x 一致：unsafe 内直调 extern pipeline（勿经 local *Struct 包装） */
+  unsafe {
+    rc = pipeline_run_x_pipeline_impl(module_buf, arena_buf, prep_src, source_len, &out, &ctx);
+  }
   if (rc != 0) {
     ew_pipeline_fail_code(rc, &ctx.path_buf[0]);
     ew_free_source_buffers(&ctx);

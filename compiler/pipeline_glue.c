@@ -23835,6 +23835,7 @@ int32_t pipeline_typeck_check_call_struct_stack_escape_c(struct ast_Module *modu
     for (dst_j = 0; dst_j < num_args; dst_j++) {
       int32_t param_ref;
       int32_t elem_ref;
+      int32_t other_arg;
       if (dst_j == src_i)
         continue;
       param_ref = pipeline_module_func_param_type_ref_at(module, func_ix, dst_j);
@@ -23843,6 +23844,14 @@ int32_t pipeline_typeck_check_call_struct_stack_escape_c(struct ast_Module *modu
         continue;
       elem_ref = pipeline_type_elem_ref_at(arena, param_ref);
       if (elem_ref <= 0 || !typeck_type_is_named_struct_c(module, arena, elem_ref))
+        continue;
+      /**
+       * 另一实参若也是「本函数块局部」的取址，则两指针同帧栈寿命，不是 outer。
+       * 误报例：emit/main 中 pipeline(..., &out, &ctx) 两个本地 struct。
+       * 仅当另一 *Struct 来自更长寿命（参数/堆/外层）时才拒。
+       */
+      other_arg = pipeline_expr_call_arg_ref(arena, call_expr_ref, dst_j);
+      if (typeck_expr_is_addr_of_block_local_c(module, arena, ctx, other_arg))
         continue;
       line = pipeline_expr_line_at(arena, call_expr_ref);
       col = pipeline_expr_col_at(arena, call_expr_ref);
@@ -24722,6 +24731,7 @@ int32_t pipeline_typeck_check_call_slice_region_c(struct ast_Module *module, str
         int32_t elem_ref;
         int32_t line;
         int32_t col;
+        int32_t other_arg;
         if (dst_j == src_i)
           continue;
         param_ref2 = pipeline_module_func_param_type_ref_at(callee_mod, func_ix, dst_j);
@@ -24730,6 +24740,10 @@ int32_t pipeline_typeck_check_call_slice_region_c(struct ast_Module *module, str
           continue;
         elem_ref = pipeline_type_elem_ref_at(arena, param_ref2);
         if (elem_ref <= 0 || !typeck_type_is_named_struct_c(module, arena, elem_ref))
+          continue;
+        /* 同帧 &local 兄弟实参：非 outer（与 pipeline_typeck_check_call_struct_stack_escape_c 一致） */
+        other_arg = pipeline_expr_call_arg_ref(arena, call_expr_ref, dst_j);
+        if (typeck_expr_is_addr_of_block_local_c(module, arena, ctx, other_arg))
           continue;
         line = pipeline_expr_line_at(arena, call_expr_ref);
         col = pipeline_expr_col_at(arena, call_expr_ref);
