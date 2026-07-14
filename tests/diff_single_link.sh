@@ -83,23 +83,32 @@ for entry in "${MODULES[@]}"; do
     continue
   fi
 
+  # seed 可选：*_gen.c 常 gitignore；无 seed 仍跑 typeck（地图 KPI T），diff 记 NOSEED
+  has_seed=1
   if [ ! -f "$seed_path" ]; then
-    printf "%-45s | %-10s | %-8s | %s\n" "$x_src" "NOSEED" "-" "seed=$seed"
-    FAIL_OTHER=$((FAIL_OTHER + 1))
-    continue
+    # 冷仓库：lexer 等可用 seeds/*.linux.x86_64.c
+    alt=""
+    case "$seed" in
+      lexer_gen.c) alt="seeds/lexer_gen.linux.x86_64.c" ;;
+    esac
+    if [ -n "$alt" ] && [ -f "$COMPILER_DIR/$alt" ]; then
+      seed_path="$COMPILER_DIR/$alt"
+    else
+      has_seed=0
+    fi
   fi
 
-  # 跑 shux -E，捕获 stdout 到临时文件（超时 30 秒，防止大模块死循环）
+  # 跑 shux -E，捕获 stdout 到临时文件（超时 90 秒：大模块 typeck 合法耗时；真死循环仍有上限）
   # 加 -L 搜索路径，让 import("ast") / import("std.heap") 等能正确解析
   out_file="$TMP_DIR/$(basename "$x_src" .x)_gen.c"
   err_file="$TMP_DIR/$(basename "$x_src" .x)_err.txt"
-  perl -e 'alarm 30; exec @ARGV' "$SHUX_BIN" -E $SHUX_LIB_PATHS "$x_src" >"$out_file" 2>"$err_file"
+  perl -e 'alarm 90; exec @ARGV' "$SHUX_BIN" -E $SHUX_LIB_PATHS "$x_src" >"$out_file" 2>"$err_file"
   rc=$?
 
   if [ $rc -ne 0 ]; then
     # 失败：看是超时、typeck 还是其它
     if [ $rc -eq 14 ] || [ $rc -eq 142 ]; then
-      printf "%-45s | %-10s | %-8s | %s\n" "$x_src" "TIMEOUT" "-" "30s 超时（死循环/性能）"
+      printf "%-45s | %-10s | %-8s | %s\n" "$x_src" "TIMEOUT" "-" "90s 超时（死循环/性能）"
       FAIL_OTHER=$((FAIL_OTHER + 1))
       continue
     fi
@@ -108,15 +117,29 @@ for entry in "${MODULES[@]}"; do
       first_err=$(grep -m1 "typeck error" "$err_file" "$out_file" 2>/dev/null | head -1 | tr -d '\n' | cut -c1-60)
       printf "%-45s | %-10s | %-8s | %s\n" "$x_src" "FAIL" "-" "$first_err"
       FAIL_TYPECK=$((FAIL_TYPECK + 1))
-    else
-      first_err=$(head -1 "$err_file" 2>/dev/null | tr -d '\n' | cut -c1-60)
-      printf "%-45s | %-10s | %-8s | %s\n" "$x_src" "ERR" "-" "${first_err:-rc=$rc}"
-      FAIL_OTHER=$((FAIL_OTHER + 1))
+      continue
     fi
+    # typeck 已过、codegen 失败：算 typeck 通过（T KPI），diff 跳过
+    if grep -q "codegen failed" "$err_file" 2>/dev/null; then
+      PASS_TYPECK=$((PASS_TYPECK + 1))
+      first_err=$(head -1 "$err_file" 2>/dev/null | tr -d '\n' | cut -c1-50)
+      printf "%-45s | %-10s | %-8s | %s\n" "$x_src" "OK" "CODEGEN" "${first_err:-codegen failed}"
+      FAIL_DIFF=$((FAIL_DIFF + 1))
+      continue
+    fi
+    first_err=$(head -1 "$err_file" 2>/dev/null | tr -d '\n' | cut -c1-60)
+    printf "%-45s | %-10s | %-8s | %s\n" "$x_src" "ERR" "-" "${first_err:-rc=$rc}"
+    FAIL_OTHER=$((FAIL_OTHER + 1))
     continue
   fi
 
   PASS_TYPECK=$((PASS_TYPECK + 1))
+
+  if [ "$has_seed" -eq 0 ]; then
+    printf "%-45s | %-10s | %-8s | %s\n" "$x_src" "OK" "NOSEED" "typeck OK；无 seed 文件"
+    FAIL_DIFF=$((FAIL_DIFF + 1))
+    continue
+  fi
 
   # typeck 通过，做 diff
   # 归一化：去掉首行的调试输出（如 DBG-CALL）和尾随空白

@@ -6,25 +6,33 @@
 #
 # 用法：bash tests/prove_module_selfhost.sh [模块名...]
 #   不传参数 = 验证所有已配置模块
-#   传模块名 = 只验证指定模块（如：fmt check test build run）
+#   传模块名 = 只验证指定模块（如：fmt check test build run diagnostic）
 #
 # 输出：每个模块的 shux-E / cc-c / nm-diff 状态
+#
+# 模式（第 5 字段，可选）：
+#   （空）  IDENTICAL — 已定义符号完全一致 → 可退役 seed（计入 N）
+#   core:a,b,c  CORE — x 定义符号 ⊆ seed，允许 x 独有辅助符号 a,b,c
+#               （hybrid thin/C-tail seed 的中间门禁；不计 N 退役）
 
 set -u
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT/compiler" || exit 1
 
-# 模块配置（模块名|.x路径|seed路径|符号重命名映射）
+# 模块配置（模块名|.x路径|seed路径|符号重命名|模式）
 # 符号重命名映射格式：old1:new1,old2:new2,...
+# 模式：空 | core:x_only_sym1,x_only_sym2
 MODULES=(
-  "fmt|src/driver/fmt.x|driver_fmt_gen.c|cmd_fmt:driver_cmd_fmt"
-  "check|src/driver/check.x|driver_check_gen.c|cmd_check:driver_cmd_check"
-  "test|src/driver/test.x|driver_test_gen.c|cmd_test:driver_cmd_test"
-  "build|src/driver/build.x|driver_build_gen.c|cmd_build:build_cmd_build"
-  "run|src/driver/run.x|driver_run_gen.c|cmd_run:driver_cmd_run,run_eq_word:driver_run_eq_word"
-  "compile|src/driver/compile.x|driver_compile_gen.c|compile_dispatch_asm_backend:driver_compile_dispatch_asm_backend,compile_dispatch_emit_c_path:driver_compile_dispatch_emit_c_path,eq_minus_o:driver_eq_minus_o,eq_minus_L:driver_eq_minus_L,eq_minus_backend:driver_eq_minus_backend,eq_minus_target:driver_eq_minus_target,eq_minus_target_cpu:driver_eq_minus_target_cpu,eq_print_target_cpu:driver_eq_print_target_cpu,eq_minus_O:driver_eq_minus_O,eq_flto:driver_eq_flto,eq_minus_freestanding:driver_eq_minus_freestanding,eq_legacy_f32_abi:driver_eq_legacy_f32_abi,eq_fsanitize_address:driver_eq_fsanitize_address,eq_asm_word:driver_eq_asm_word,eq_c_word:driver_eq_c_word,path_ends_x:driver_path_ends_x,target_has_arm:driver_target_has_arm,run_compiler_full_x_post_parse:driver_run_compiler_full_x_post_parse,run_compiler_full_x:driver_run_compiler_full_x"
-  "emit|src/driver/emit.x|driver_emit_gen.c|emit_copy_lib_roots_to_ctx:driver_emit_copy_lib_roots_to_ctx,run_x_emit_x:driver_run_x_emit_x,dispatch_x_emit_to_c:driver_dispatch_x_emit_to_c,emit_state_key:driver_emit_state_key,pipeline_dep_ctx_fill_for_emit:driver_pipeline_dep_ctx_fill_for_emit"
-  "lsp_io_std_heap|src/lsp/lsp_io_std_heap.x|lsp_io_std_heap_gen.c|std_heap_alloc:lsp_io_std_heap_std_heap_alloc,std_heap_alloc_zeroed:lsp_io_std_heap_std_heap_alloc_zeroed,std_heap_free:lsp_io_std_heap_std_heap_free"
+  "fmt|src/driver/fmt.x|driver_fmt_gen.c|cmd_fmt:driver_cmd_fmt|"
+  "check|src/driver/check.x|driver_check_gen.c|cmd_check:driver_cmd_check|"
+  "test|src/driver/test.x|driver_test_gen.c|cmd_test:driver_cmd_test|"
+  "build|src/driver/build.x|driver_build_gen.c|cmd_build:build_cmd_build|"
+  "run|src/driver/run.x|driver_run_gen.c|cmd_run:driver_cmd_run,run_eq_word:driver_run_eq_word|"
+  "compile|src/driver/compile.x|driver_compile_gen.c|compile_dispatch_asm_backend:driver_compile_dispatch_asm_backend,compile_dispatch_emit_c_path:driver_compile_dispatch_emit_c_path,eq_minus_o:driver_eq_minus_o,eq_minus_L:driver_eq_minus_L,eq_minus_backend:driver_eq_minus_backend,eq_minus_target:driver_eq_minus_target,eq_minus_target_cpu:driver_eq_minus_target_cpu,eq_print_target_cpu:driver_eq_print_target_cpu,eq_minus_O:driver_eq_minus_O,eq_flto:driver_eq_flto,eq_minus_freestanding:driver_eq_minus_freestanding,eq_legacy_f32_abi:driver_eq_legacy_f32_abi,eq_fsanitize_address:driver_eq_fsanitize_address,eq_asm_word:driver_eq_asm_word,eq_c_word:driver_eq_c_word,path_ends_x:driver_path_ends_x,target_has_arm:driver_target_has_arm,run_compiler_full_x_post_parse:driver_run_compiler_full_x_post_parse,run_compiler_full_x:driver_run_compiler_full_x|"
+  "emit|src/driver/emit.x|driver_emit_gen.c|emit_copy_lib_roots_to_ctx:driver_emit_copy_lib_roots_to_ctx,run_x_emit_x:driver_run_x_emit_x,dispatch_x_emit_to_c:driver_dispatch_x_emit_to_c,emit_state_key:driver_emit_state_key,pipeline_dep_ctx_fill_for_emit:driver_pipeline_dep_ctx_fill_for_emit|"
+  "lsp_io_std_heap|src/lsp/lsp_io_std_heap.x|lsp_io_std_heap_gen.c|std_heap_alloc:lsp_io_std_heap_std_heap_alloc,std_heap_alloc_zeroed:lsp_io_std_heap_std_heap_alloc_zeroed,std_heap_free:lsp_io_std_heap_std_heap_free|"
+  # hybrid thin+C-tail：seed 多 _impl/scratch；x 多 append_*（.x 真迁拼装）。CORE 锁公共 API 面不丢。
+  "diagnostic|src/runtime_driver_diagnostic.x|seeds/runtime_driver_diagnostic.from_x.c||core:driver_diag_append_cstr,driver_diag_append_i32,driver_diag_append_name"
 )
 
 # 找 shux 二进制（优先 shux，fallback shux-c）
@@ -120,7 +128,21 @@ gen_seed_o() {
   $CC $BASE_CFLAGS -I. -c -o "$out" "$seed" 2>"${TMP_DIR}/cc_err.txt"
 }
 
-# nm 比较符号（只比较定义的符号，忽略未定义引用）
+# 已定义符号裸名（去 Mach-O 前导 _），一行一个
+# 跳过编译器局部常量（l_constinit.* / l_.str 等），只比业务符号
+defined_sym_names() {
+  nm "$1" 2>/dev/null | awk '$1 != "" && $2 != "U" {
+    s=$3
+    if (s ~ /^_/) s=substr(s,2)
+    # Clang/GCC 局部：l_constinit.N、l_.str、.L* 等
+    if (s ~ /^l_/) next
+    if (s ~ /^\./) next
+    if (s ~ /^L\./) next
+    print s
+  }' | sort -u
+}
+
+# nm 比较符号（只比较定义的符号，忽略未定义引用）— IDENTICAL 模式
 compare_symbols() {
   local o1="$1"
   local o2="$2"
@@ -132,18 +154,65 @@ compare_symbols() {
   diff "$sym1" "$sym2"
 }
 
+# CORE 模式：x 定义符号（除 allowlist）必须 ⊆ seed；seed 可多 thin/impl/C-tail
+# 输出：空=通过；否则列出缺失符号
+compare_core_surface() {
+  local x_o="$1"
+  local seed_o="$2"
+  local allow_csv="$3"
+  local x_syms="$TMP_DIR/core_x.txt"
+  local seed_syms="$TMP_DIR/core_seed.txt"
+  local allow_file="$TMP_DIR/core_allow.txt"
+  local missing="$TMP_DIR/core_missing.txt"
+
+  defined_sym_names "$x_o" >"$x_syms"
+  defined_sym_names "$seed_o" >"$seed_syms"
+  : >"$allow_file"
+  if [ -n "$allow_csv" ]; then
+    local old_ifs="$IFS"
+    IFS=','
+    for a in $allow_csv; do
+      a="${a#_}"
+      [ -n "$a" ] && echo "$a" >>"$allow_file"
+    done
+    IFS="$old_ifs"
+    sort -u "$allow_file" -o "$allow_file"
+  fi
+
+  # x \ seed \ allow
+  comm -23 "$x_syms" "$seed_syms" >"${missing}.raw"
+  if [ -s "$allow_file" ]; then
+    comm -23 "${missing}.raw" "$allow_file" >"$missing"
+  else
+    mv "${missing}.raw" "$missing"
+  fi
+
+  if [ -s "$missing" ]; then
+    echo "CORE missing from seed:"
+    cat "$missing"
+    return 1
+  fi
+  # 备注：seed 多 / x 仅 allowlist 不 fail
+  local seed_only x_only
+  seed_only=$(comm -13 "$x_syms" "$seed_syms" | wc -l | tr -d ' ')
+  x_only=$(comm -23 "$x_syms" "$seed_syms" | wc -l | tr -d ' ')
+  echo "seed+${seed_only} x_allow+${x_only}"
+  return 0
+}
+
 # 主逻辑
 printf "%-18s | %-8s | %-8s | %-10s | %s\n" "模块" "shux-E" "cc-c" "nm-diff" "备注"
 printf "%-18s-+-%-8s-+-%-8s-+-%-10s-+-%s\n" "$(printf '%0.s-' {1..18})" "$(printf '%0.s-' {1..8})" "$(printf '%0.s-' {1..8})" "$(printf '%0.s-' {1..10})" "$(printf '%0.s-' {1..30})"
 
 PASS=0
+CORE_PASS=0
 FAIL=0
 SKIP=0
 
 # 过滤模块（如果传了参数）
 SELECTED="${*:-}"
 for entry in "${MODULES[@]}"; do
-  IFS='|' read -r name xsrc seed sym_rename <<< "$entry"
+  IFS='|' read -r name xsrc seed sym_rename mode <<< "$entry"
 
   # 如果传了参数，只验证指定的模块
   if [ -n "$SELECTED" ]; then
@@ -193,27 +262,49 @@ for entry in "${MODULES[@]}"; do
   fi
 
   # nm 比较
-  diff_out=$(compare_symbols "$x_o" "$seed_o")
-  if [ -z "$diff_out" ]; then
-    printf "%-18s | %-8s | %-8s | %-10s | %s\n" "$name" "OK" "OK" "IDENTICAL" "可退役 seed"
-    PASS=$((PASS + 1))
+  if [[ "$mode" == core:* ]]; then
+    allow_csv="${mode#core:}"
+    core_out=$(compare_core_surface "$x_o" "$seed_o" "$allow_csv")
+    core_rc=$?
+    if [ "$core_rc" -eq 0 ]; then
+      printf "%-18s | %-8s | %-8s | %-10s | %s\n" "$name" "OK" "OK" "CORE_OK" "$core_out; hybrid 非退役"
+      CORE_PASS=$((CORE_PASS + 1))
+    else
+      printf "%-18s | %-8s | %-8s | %-10s | %s\n" "$name" "OK" "OK" "CORE_FAIL" "x 公共面缺失于 seed"
+      echo "$core_out" | head -8 | sed 's/^/    /'
+      FAIL=$((FAIL + 1))
+    fi
   else
-    diff_lines=$(echo "$diff_out" | wc -l | tr -d ' ')
-    printf "%-18s | %-8s | %-8s | %-10s | %s\n" "$name" "OK" "OK" "${diff_lines}行" "符号差异"
-    # 显示前 5 行差异
-    echo "$diff_out" | head -5 | sed 's/^/    /'
-    FAIL=$((FAIL + 1))
+    diff_out=$(compare_symbols "$x_o" "$seed_o")
+    if [ -z "$diff_out" ]; then
+      printf "%-18s | %-8s | %-8s | %-10s | %s\n" "$name" "OK" "OK" "IDENTICAL" "可退役 seed"
+      PASS=$((PASS + 1))
+    else
+      diff_lines=$(echo "$diff_out" | wc -l | tr -d ' ')
+      printf "%-18s | %-8s | %-8s | %-10s | %s\n" "$name" "OK" "OK" "${diff_lines}行" "符号差异"
+      # 显示前 5 行差异
+      echo "$diff_out" | head -5 | sed 's/^/    /'
+      FAIL=$((FAIL + 1))
+    fi
   fi
 done
 
 echo ""
 echo "=== 自举验证结果 ==="
-echo "总计：$((PASS + FAIL + SKIP))"
-echo "  符号一致（可退役 seed）：$PASS"
-echo "  符号差异：$FAIL"
+echo "总计：$((PASS + CORE_PASS + FAIL + SKIP))"
+echo "  符号一致（可退役 seed / KPI N）：$PASS"
+echo "  核心面 OK（hybrid CORE，不计 N）：$CORE_PASS"
+echo "  符号差异 / CORE 失败：$FAIL"
 echo "  跳过：$SKIP"
 echo ""
-echo "符号一致 = .x → .o 与 seed → .o 的已定义符号完全相同（功能层面自举）"
+echo "IDENTICAL = .x→.o 与 seed→.o 已定义符号完全相同（可退役）"
+echo "CORE_OK   = x 公共符号 ⊆ seed（允许 seed 多 thin/C-tail；x 独有列于 core: allowlist）"
 
 # 清理
 rm -rf "$TMP_DIR"
+
+# 有 FAIL 则非零退出（CI / 门禁）
+if [ "$FAIL" -gt 0 ]; then
+  exit 1
+fi
+exit 0
