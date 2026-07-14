@@ -7105,6 +7105,8 @@ static int32_t pipeline_dep_ctx_has_earlier_same_import_path_c(struct ast_Pipeli
 }
 
 /** 各 dep codegen while 循环；C glue。 */
+void pipeline_codegen_c_file_prologue_done_reset(void);
+
 int32_t run_x_pipeline_codegen_deps_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                        struct codegen_CodegenOutBuf *out_buf, struct ast_PipelineDepCtx *ctx,
                                        int32_t skip_asm_dep_codegen) {
@@ -7113,6 +7115,8 @@ int32_t run_x_pipeline_codegen_deps_c(struct ast_Module *module, struct ast_ASTA
 
   if (!module || !arena || !out_buf || !ctx)
     return -1;
+  /* 新一轮 -E/-o codegen：允许首个 codegen_x_ast 写 prologue。 */
+  pipeline_codegen_c_file_prologue_done_reset();
   ndep = pipeline_dep_ctx_ndep(ctx);
   j = 0;
   while (j < ndep) {
@@ -9875,17 +9879,21 @@ static int32_t pipeline_codegen_type_to_c_repr_inner(struct ast_ASTArena *arena,
         sp++;
     }
     plen = n - sp;
-    if (plen <= 0 || 21 + plen >= cap)
+    if (plen <= 0 || 18 + plen >= cap)
       return -1;
     {
-      static const uint8_t hdr[21] = {'s', 't', 'r', 'u', 'c', 't', ' ', 's', 'h', 'u',
-                                      'l', 'a', 'n', 'g', '_', 's', 'l', 'i', 'c', 'e', '_'};
-      for (hi = 0; hi < 21; hi++)
+      /* ABI 与 runtime_slice_glue / seeds 一致：struct shux_slice_<elemC> */
+      /* "struct shux_slice_" = 18 bytes */
+      static const uint8_t hdr[18] = {'s', 't', 'r', 'u', 'c', 't', ' ', 's', 'h', 'u',
+                                      'x', '_', 's', 'l', 'i', 'c', 'e', '_'};
+      if (18 + plen >= cap)
+        return -1;
+      for (hi = 0; hi < 18; hi++)
         scratch[hi] = hdr[hi];
     }
     for (pi = 0; pi < plen; pi++)
-      scratch[21 + pi] = eb[sp + pi];
-    return 21 + plen;
+      scratch[18 + pi] = eb[sp + pi];
+    return 18 + plen;
   }
   name_len = pipeline_type_named_name_into(arena, type_ref, nm);
   if (tk == 8 && name_len > 0) {
@@ -9929,6 +9937,65 @@ static int32_t pipeline_codegen_type_to_c_repr_inner(struct ast_ASTArena *arena,
 int32_t pipeline_codegen_type_to_c_repr(struct ast_ASTArena *arena, uint8_t *scratch, int32_t cap, int32_t type_ref,
                                         uint8_t *struct_prefix, int32_t struct_prefix_len) {
   return pipeline_codegen_type_to_c_repr_inner(arena, scratch, cap, type_ref, struct_prefix, struct_prefix_len);
+}
+
+/**
+ * 单文件 C co-emit：header + 全 dep 类型 + forward 只允许 emit 一次。
+ * pipeline 对每个 dep 与 entry 各调 codegen_x_ast；无此标志会中途再 #include、enum redefinition。
+ */
+static int g_codegen_c_file_prologue_done;
+
+/** 单文件内已完整 emit 的 struct tag（prefix+name）；防 co-emit 对同一 tag 二次 struct { }。 */
+#define PIPELINE_CODEGEN_STRUCT_TAG_MAX 256
+#define PIPELINE_CODEGEN_STRUCT_TAG_CAP 128
+static char g_codegen_struct_tags[PIPELINE_CODEGEN_STRUCT_TAG_MAX][PIPELINE_CODEGEN_STRUCT_TAG_CAP];
+static int g_codegen_struct_tag_n;
+
+int32_t pipeline_codegen_c_file_prologue_done_get(void) {
+  return g_codegen_c_file_prologue_done;
+}
+
+void pipeline_codegen_c_file_prologue_done_set(int32_t v) {
+  g_codegen_c_file_prologue_done = v != 0 ? 1 : 0;
+}
+
+void pipeline_codegen_c_file_prologue_done_reset(void) {
+  g_codegen_c_file_prologue_done = 0;
+  g_codegen_struct_tag_n = 0;
+}
+
+/**
+ * 尝试声明本单元首次完整 emit 该 C struct tag。
+ * 返回 1：首次，调用方应 emit 定义；0：已 emit，应跳过；-1：参数非法。
+ * tag = (prefix_len>0 ? prefix : "") + name。
+ */
+int32_t pipeline_codegen_struct_tag_try_claim(const uint8_t *prefix, int32_t prefix_len, const uint8_t *name,
+                                             int32_t name_len) {
+  char tag[PIPELINE_CODEGEN_STRUCT_TAG_CAP];
+  int32_t i;
+  int32_t tlen;
+  if (!name || name_len <= 0)
+    return -1;
+  if (prefix_len < 0)
+    prefix_len = 0;
+  if (!prefix)
+    prefix_len = 0;
+  tlen = prefix_len + name_len;
+  if (tlen <= 0 || tlen >= PIPELINE_CODEGEN_STRUCT_TAG_CAP)
+    return -1;
+  if (prefix_len > 0)
+    memcpy(tag, prefix, (size_t)prefix_len);
+  memcpy(tag + prefix_len, name, (size_t)name_len);
+  tag[tlen] = '\0';
+  for (i = 0; i < g_codegen_struct_tag_n; i++) {
+    if (strcmp(g_codegen_struct_tags[i], tag) == 0)
+      return 0;
+  }
+  if (g_codegen_struct_tag_n >= PIPELINE_CODEGEN_STRUCT_TAG_MAX)
+    return 0; /* 表满：保守跳过再 emit，避免 redefinition */
+  memcpy(g_codegen_struct_tags[g_codegen_struct_tag_n], tag, (size_t)tlen + 1);
+  g_codegen_struct_tag_n++;
+  return 1;
 }
 
 /** 前向声明：CodegenOutBuf 追加（layout 与 codegen.x 一致）。 */
@@ -10628,13 +10695,13 @@ int32_t pipeline_codegen_io_driver_buf_call_sym(uint8_t *name, int32_t name_len,
   sym_len = 0;
   if (num_args == 1 && name_len == 8 && codegen_name_prefix_eq(name, name_len, "register", 8)) {
     sym = "shux_io_register_buf";
-    sym_len = 19;
+    sym_len = 20;
   } else if (num_args == 2 && name_len == 11 && codegen_name_prefix_eq(name, name_len, "submit_read", 11)) {
     sym = "shux_io_submit_read_buf";
-    sym_len = 22;
+    sym_len = 23;
   } else if (num_args == 2 && name_len == 12 && codegen_name_prefix_eq(name, name_len, "submit_write", 12)) {
     sym = "shux_io_submit_write_buf";
-    sym_len = 23;
+    sym_len = 24;
   }
   if (!sym)
     return 0;

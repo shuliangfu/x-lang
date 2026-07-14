@@ -316,17 +316,19 @@ net-o-mbedtls:
 	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/hash/mod.x ../std/hash/hash.x
 
 # std.math：F-math v2 纯 .x（F-ZC）；libm 胶层在 runtime_math_libm.o（链接 exe 仍须 -lm）。
-# LANG-007 v2：shux-c -E → cc -c 库模块；fallback shux_compile_std_x.sh。
+# LANG-007 v2：优先 shux-c -E → cc -c；失败则 shux_compile_std_x.sh。
 ../std/math/math.o: ../std/math/math.x
-	@if [ -x ./shux-c ] && { \
+	@if [ -x ./shux-c ] && \
 	  ./shux-c -E -L .. ../std/math/math.x > ../std/math/math_core_gen.c && \
-	  $(CC) $(CFLAGS) -c -o ../std/math/math.o ../std/math/math_core_gen.c && \
+	  $(CC) $(CFLAGS) -c -o ../std/math/math.o ../std/math/math_core_gen.c; then \
 	  rm -f ../std/math/math_core_gen.c; \
-	elif [ -x ./shux_asm ]; then shux=./shux_asm; \
-	elif [ -x ./shux ]; then shux=./shux; \
-	else echo "make math.o: need shux-c or shux (F-math zero-c)" >&2; exit 0; fi; \
-	if [ ! -f ../std/math/math.o ]; then \
-	  sh scripts/shux_compile_std_x.sh auto ../std/math/math.x ../std/math/math.o; \
+	else \
+	  rm -f ../std/math/math_core_gen.c; \
+	  if [ -x ./shux_asm ] || [ -x ./shux ] || [ -x ./shux-c ]; then \
+	    sh scripts/shux_compile_std_x.sh auto ../std/math/math.x ../std/math/math.o; \
+	  else \
+	    echo "make math.o: need shux-c or shux (F-math zero-c)" >&2; exit 1; \
+	  fi; \
 	fi
 
 # std.sort：F-sort v1 纯 .x（sort.x）；无胶层 C。
@@ -986,8 +988,8 @@ runtime_scheduler_glue.o: seeds/runtime_scheduler_glue.from_x.c src/asm/runtime_
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -Isrc/asm -c seeds/runtime_scheduler_glue.from_x.c -o $@
 
 # F-ZC：HTTP 客户端/服务端胶层（含 http2/*.inc.c）；与 http.o 一并链入（G-02e-21）
-# G-02f-21：runtime_http_glue 产品 seed（#include http2/*.inc）
-runtime_http_glue.o: seeds/runtime_http_glue.from_x.c seeds/http/runtime_http_glue.x
+# G-02f-21：runtime_http_glue 产品 seed（#include http2/*.inc）；thin 在 src/asm/http/
+runtime_http_glue.o: seeds/runtime_http_glue.from_x.c src/asm/http/runtime_http_glue.x
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -Iseeds/http -c seeds/runtime_http_glue.from_x.c -o $@
 
 # F-ZC：mbedTLS BIO 胶层；net-o-mbedtls 时 ld -r 并入 tls_mbedtls.o（G-02e-18 .inc）

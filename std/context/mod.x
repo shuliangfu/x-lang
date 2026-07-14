@@ -52,28 +52,29 @@ extern function ctx_smoke_c(): i32;
 
 /** 根上下文：永不取消、无 deadline。 */
 export function background(): Context {
-  let _rc: Context = 0;
+  /* 须 struct 字面量零初始化：`= 0` 在 C 对 struct 非法（codegen 会发 `T _rc = 0`）。 */
+  let _rc: Context = Context { handle: 0 };
   unsafe { _rc = Context { handle: ctx_background_c() }; }
   return _rc;
 }
 
 /** 派生可取消子上下文；失败 handle=0。 */
 export function with_cancel(parent: Context): Context {
-  let _rc: Context = 0;
+  let _rc: Context = Context { handle: 0 };
   unsafe { _rc = Context { handle: ctx_with_cancel_c(parent.handle) }; }
   return _rc;
 }
 
 /** 派生带绝对 deadline（单调纳秒）的子上下文。 */
 export function with_deadline(parent: Context, deadline_ns: i64): Context {
-  let _rc: Context = 0;
+  let _rc: Context = Context { handle: 0 };
   unsafe { _rc = Context { handle: ctx_with_deadline_c(parent.handle, deadline_ns) }; }
   return _rc;
 }
 
 /** 派生相对超时子上下文（now + timeout_ns）。 */
 export function with_timeout(parent: Context, timeout_ns: i64): Context {
-  let _rc: Context = 0;
+  let _rc: Context = Context { handle: 0 };
   unsafe { _rc = Context { handle: ctx_with_timeout_c(parent.handle, timeout_ns) }; }
   return _rc;
 }

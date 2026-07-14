@@ -385,11 +385,10 @@ int32_t pipeline_typeck_field_layout_named_c(struct ast_Module *module, struct a
   pipeline_expr_field_access_name_into(arena, expr_ref, &fn_buf[0]);
   user_ev_tag = pipeline_module_enum_variant_tag_for_names(module, &layout_nm_buf[0], layout_nm_len, &fn_buf[0], fl2);
   if (user_ev_tag >= 0) {
-    i32r_ev = typeck_ensure_i32_type_ref(arena);
-    if (i32r_ev != 0) {
-      pipeline_expr_set_field_access_enum_variant(arena, expr_ref, user_ev_tag);
-      pipeline_expr_set_resolved_type_ref(arena, expr_ref, i32r_ev);
-    }
+    /* 用户 enum 变体：resolved 为枚举 TYPE_NAMED（非 i32 tag），使 return Method.GET 等与签名匹配。
+     * codegen 仍读 field_access_is_enum_variant + enum_variant_tag 发射整型判别值。 */
+    pipeline_expr_set_field_access_enum_variant(arena, expr_ref, user_ev_tag);
+    pipeline_expr_set_resolved_type_ref(arena, expr_ref, layout_named_ref);
     return 2;
   }
   vv = -1;

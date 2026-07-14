@@ -422,6 +422,88 @@ ptrdiff_t io_write_batch_buf(int32_t fd, const ShuxIoBatchBuf *bufs, int32_t n, 
   return total;
 }
 
+/*
+ * F-03 无 io.o：co-emit 跳过 core 部分函数体，preamble 仅 extern 声明。
+ * weak 桩补齐 hello 等 C 路径 -o 链接；真实实现由 co-emit / 强符号覆盖。
+ * 【Why 根源】codegen_should_skip_emit_std_io_core_io_dup 假定 io.o 提供
+ * shux_io_read_fixed 等，但 Makefile 注释已标明「无 io.o」，导致 U 符号。
+ */
+__attribute__((weak)) int32_t shux_io_read_ptr_backend(void) { return 0; }
+__attribute__((weak)) int32_t shux_io_read_fixed(size_t handle, uint32_t buf_index, size_t offset,
+                                                 size_t len, uint32_t timeout_ms) {
+  (void)handle; (void)buf_index; (void)offset; (void)len; (void)timeout_ms;
+  return -1;
+}
+__attribute__((weak)) int32_t shux_io_write_fixed(size_t handle, uint32_t buf_index, size_t offset,
+                                                  size_t len, uint32_t timeout_ms) {
+  (void)handle; (void)buf_index; (void)offset; (void)len; (void)timeout_ms;
+  return -1;
+}
+__attribute__((weak)) int32_t shux_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle) {
+  (void)ptr; (void)len; (void)handle;
+  return -1;
+}
+__attribute__((weak)) int io_register_buffers_4(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1,
+                                                uint8_t *p2, size_t l2, uint8_t *p3, size_t l3,
+                                                unsigned nr) {
+  (void)p0; (void)l0; (void)p1; (void)l1; (void)p2; (void)l2; (void)p3; (void)l3; (void)nr;
+  return -1;
+}
+__attribute__((weak)) void io_unregister_buffers(void) {}
+__attribute__((weak)) int io_wait_readable(int32_t *fds, int n, unsigned timeout_ms) {
+  (void)fds; (void)n; (void)timeout_ms;
+  return 0;
+}
+/* driver 层 batch/submit：co-emit 可能仅声明；弱桩避免 hello 无条件链全量 std 时 U */
+__attribute__((weak)) int32_t std_io_driver_submit_read_batch(void *buffers, int32_t n,
+                                                              uint32_t timeout_ms) {
+  (void)buffers; (void)n; (void)timeout_ms;
+  return -1;
+}
+__attribute__((weak)) int32_t std_io_driver_submit_write_batch(void *buffers, int32_t n,
+                                                               uint32_t timeout_ms) {
+  (void)buffers; (void)n; (void)timeout_ms;
+  return -1;
+}
+__attribute__((weak)) int32_t std_io_driver_submit_read_batch_buf(size_t handle, void *bufs,
+                                                                 int32_t n, uint32_t timeout_ms) {
+  (void)handle; (void)bufs; (void)n; (void)timeout_ms;
+  return -1;
+}
+__attribute__((weak)) int32_t std_io_driver_submit_write_batch_buf(size_t handle, void *bufs,
+                                                                  int32_t n, uint32_t timeout_ms) {
+  (void)handle; (void)bufs; (void)n; (void)timeout_ms;
+  return -1;
+}
+__attribute__((weak)) uint64_t std_io_driver_driver_read_ptr_gen(void) { return 0; }
+__attribute__((weak)) int32_t std_io_driver_driver_read_ptr_backend(void) { return 0; }
+/* sync 层：backend co-emit 转发到 std_io_sync_*；无定义时弱回退 */
+__attribute__((weak)) ptrdiff_t std_io_sync_io_read_fixed(int32_t fd, uint32_t buf_index, size_t offset,
+                                                          size_t len, uint32_t timeout_ms) {
+  (void)fd; (void)buf_index; (void)offset; (void)len; (void)timeout_ms;
+  return (ptrdiff_t)-1;
+}
+__attribute__((weak)) ptrdiff_t std_io_sync_io_write_fixed(int32_t fd, uint32_t buf_index, size_t offset,
+                                                           size_t len, uint32_t timeout_ms) {
+  (void)fd; (void)buf_index; (void)offset; (void)len; (void)timeout_ms;
+  return (ptrdiff_t)-1;
+}
+__attribute__((weak)) int32_t std_io_backend_io_read_ptr_backend(void) { return 0; }
+
+/* page_mmap / freestanding heap 引用 shux_sys_mmap；std/sys 未绿时 weak 回退到 libc mmap */
+#if defined(__unix__) || defined(__APPLE__)
+#ifndef _WIN32
+#include <sys/mman.h>
+__attribute__((weak)) void *shux_sys_mmap(void *addr, size_t length, int prot, int flags, int fd,
+                                          int64_t offset) {
+  return mmap(addr, length, prot, flags, fd, (off_t)offset);
+}
+__attribute__((weak)) int shux_sys_munmap(void *addr, size_t length) {
+  return munmap(addr, length);
+}
+#endif
+#endif
+
 #if defined(__linux__) && defined(__GLIBC__)
 #define SHUX_NET_UDP_GLUE_WEAK __attribute__((weak))
 /* G-02f-259：.c 已 seed 化为 runtime_net_udp_batch.from_x.c（同目录 #include） */

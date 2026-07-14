@@ -348,6 +348,9 @@ int32_t labi_ensure_catalog_flags(int32_t i) {
   if ((i ==0)) {
     return 1;
   }
+  if ((i ==20)) {
+    return 3;
+  }
   if ((i ==23)) {
     return 2;
   }

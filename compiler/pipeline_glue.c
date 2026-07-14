@@ -21324,10 +21324,12 @@ int32_t pipeline_typeck_diag_fmt_type_or_question_c(struct ast_ASTArena *arena, 
  * 较小整数向较宽整数隐式拓宽（对齐 typeck.c typeck_integer_widen_ok）。
  */
 static int32_t pipeline_typeck_integer_widen_ok_c(int32_t dest_kind, int32_t src_kind) {
+  /* 与 typeck.x::typeck_integer_widen_ok 单权威一致（含 i32→isize）。 */
   if (dest_kind == src_kind) {
     if (dest_kind == (int32_t)ast_TypeKind_TYPE_I32 || dest_kind == (int32_t)ast_TypeKind_TYPE_I64 ||
         dest_kind == (int32_t)ast_TypeKind_TYPE_U8 || dest_kind == (int32_t)ast_TypeKind_TYPE_U32 ||
-        dest_kind == (int32_t)ast_TypeKind_TYPE_U64 || dest_kind == (int32_t)ast_TypeKind_TYPE_USIZE)
+        dest_kind == (int32_t)ast_TypeKind_TYPE_U64 || dest_kind == (int32_t)ast_TypeKind_TYPE_USIZE ||
+        dest_kind == (int32_t)ast_TypeKind_TYPE_ISIZE)
       return 1;
     return 0;
   }
@@ -21335,8 +21337,9 @@ static int32_t pipeline_typeck_integer_widen_ok_c(int32_t dest_kind, int32_t src
     return dest_kind == (int32_t)ast_TypeKind_TYPE_U32 || dest_kind == (int32_t)ast_TypeKind_TYPE_U64 ||
            dest_kind == (int32_t)ast_TypeKind_TYPE_USIZE || dest_kind == (int32_t)ast_TypeKind_TYPE_I32;
   if (src_kind == (int32_t)ast_TypeKind_TYPE_I32)
+    /* i32→isize：与 typeck.x / i32→usize 对称（指针宽度有符号整型）。 */
     return dest_kind == (int32_t)ast_TypeKind_TYPE_I64 || dest_kind == (int32_t)ast_TypeKind_TYPE_U32 ||
-           dest_kind == (int32_t)ast_TypeKind_TYPE_USIZE;
+           dest_kind == (int32_t)ast_TypeKind_TYPE_USIZE || dest_kind == (int32_t)ast_TypeKind_TYPE_ISIZE;
   if (src_kind == (int32_t)ast_TypeKind_TYPE_U32 && dest_kind == (int32_t)ast_TypeKind_TYPE_U64)
     return 1;
   return 0;
@@ -21555,6 +21558,18 @@ int32_t pipeline_typeck_check_expr_return_c(struct ast_Module *module, struct as
       return -1;
     }
   }
+  /* 【Why 根源】return 0 在 *T 语境须先收窄为 null 指针，再 check_expr；
+   * 否则 int lit 默认 i32，check_expr 阶段即报 expected *u8 found i32
+   * （contextual_typing_p1 / typeck_ret_coerce_null_lit 应对齐 let 初值路径）。 */
+  if (!ast_ref_is_null(op_ref) && !ast_ref_is_null(return_type_ref)) {
+    op_kind = pipeline_expr_kind_ord_at(arena, op_ref);
+    if (op_kind == (int32_t)ast_ExprKind_EXPR_LIT) {
+      rt_kind = pipeline_type_kind_ord_at(arena, return_type_ref);
+      int_val = pipeline_expr_int_val_at(arena, op_ref);
+      if (int_val == 0 && rt_kind == (int32_t)ast_TypeKind_TYPE_PTR)
+        pipeline_expr_set_resolved_type_ref(arena, op_ref, return_type_ref);
+    }
+  }
   if (pipeline_typeck_check_expr_c(module, arena, op_ref, return_type_ref, ctx) != 0) {
     driver_diagnostic_typeck_ret_fail(1, op_ref, return_type_ref, 0);
     return -1;
@@ -21568,7 +21583,9 @@ int32_t pipeline_typeck_check_expr_return_c(struct ast_Module *module, struct as
         pipeline_expr_set_resolved_type_ref(arena, op_ref, return_type_ref);
       } else {
         int_val = pipeline_expr_int_val_at(arena, op_ref);
-        if (int_val >= 0) {
+        if (int_val == 0 && rt_kind == (int32_t)ast_TypeKind_TYPE_PTR)
+          pipeline_expr_set_resolved_type_ref(arena, op_ref, return_type_ref);
+        else if (int_val >= 0) {
           if (rt_kind == (int32_t)ast_TypeKind_TYPE_USIZE || rt_kind == (int32_t)ast_TypeKind_TYPE_U32 ||
               rt_kind == (int32_t)ast_TypeKind_TYPE_U64)
             pipeline_expr_set_resolved_type_ref(arena, op_ref, return_type_ref);
@@ -21820,24 +21837,27 @@ int32_t pipeline_typeck_check_expr_assign_c(struct ast_Module *module, struct as
   if (!ast_ref_is_null(lt) && lt > 0) {
     rhs_kind = pipeline_expr_kind_ord_at(arena, right_ref);
     if (rhs_kind == (int32_t)ast_ExprKind_EXPR_LIT) {
-      if (!pipeline_typeck_type_refs_equal_c(arena, lt, rt_after)) {
-        lt_kind = pipeline_type_kind_ord_at(arena, lt);
-        int_val = pipeline_expr_int_val_at(arena, right_ref);
-        if (lt_kind == (int32_t)ast_TypeKind_TYPE_U8 && int_val >= 0 && int_val <= 255)
-          pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
-        else if (expr_kind == (int32_t)ast_ExprKind_EXPR_ASSIGN && lt_kind == (int32_t)ast_TypeKind_TYPE_PTR &&
-                 int_val == 0)
-          pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
-        else if (expr_kind == (int32_t)ast_ExprKind_EXPR_ASSIGN && int_val >= 0 &&
-                 (lt_kind == (int32_t)ast_TypeKind_TYPE_USIZE || lt_kind == (int32_t)ast_TypeKind_TYPE_ISIZE ||
-                  lt_kind == (int32_t)ast_TypeKind_TYPE_U32 || lt_kind == (int32_t)ast_TypeKind_TYPE_U64))
-          pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
-        else if (expr_kind == (int32_t)ast_ExprKind_EXPR_ASSIGN && lt_kind == (int32_t)ast_TypeKind_TYPE_I64)
-          pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
-        else if (expr_kind == (int32_t)ast_ExprKind_EXPR_ASSIGN &&
-                 pipeline_typeck_lit_fits_named_i16_u16_c(arena, lt, int_val))
-          pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
-      }
+      /* 始终按 lhs 收窄整型字面量（含已 resolved 为 i32 的 0），对齐 let 初值。 */
+      lt_kind = pipeline_type_kind_ord_at(arena, lt);
+      int_val = pipeline_expr_int_val_at(arena, right_ref);
+      if (lt_kind == (int32_t)ast_TypeKind_TYPE_U8 && int_val >= 0 && int_val <= 255)
+        pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
+      else if (expr_kind == (int32_t)ast_ExprKind_EXPR_ASSIGN && lt_kind == (int32_t)ast_TypeKind_TYPE_PTR &&
+               int_val == 0)
+        pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
+      else if (expr_kind == (int32_t)ast_ExprKind_EXPR_ASSIGN &&
+               (lt_kind == (int32_t)ast_TypeKind_TYPE_ISIZE || lt_kind == (int32_t)ast_TypeKind_TYPE_I64 ||
+                lt_kind == (int32_t)ast_TypeKind_TYPE_I32))
+        /* isize/i64/i32：任意 i32 字面量（含负值）可赋给更宽/同宽有符号整型 */
+        pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
+      else if (expr_kind == (int32_t)ast_ExprKind_EXPR_ASSIGN && int_val >= 0 &&
+               (lt_kind == (int32_t)ast_TypeKind_TYPE_USIZE || lt_kind == (int32_t)ast_TypeKind_TYPE_U32 ||
+                lt_kind == (int32_t)ast_TypeKind_TYPE_U64))
+        pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
+      else if (expr_kind == (int32_t)ast_ExprKind_EXPR_ASSIGN &&
+               pipeline_typeck_lit_fits_named_i16_u16_c(arena, lt, int_val))
+        pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
+      (void)rt_after;
     }
   }
   rt = pipeline_typeck_expr_type_ref_c(arena, right_ref);
@@ -21887,16 +21907,24 @@ int32_t pipeline_typeck_check_expr_assign_c(struct ast_Module *module, struct as
   }
   if (!ast_ref_is_null(lt) && !ast_ref_is_null(rt)) {
     if (!pipeline_typeck_type_refs_equal_c(arena, lt, rt)) {
-      /* 标量整型赋值：算术 rhs 提升到 lhs 类型（与 let coerce_int_binop 一致）。 */
+      /* 整型隐式拓宽：i32→isize/i64/usize…（与 typeck.x typeck_integer_widen_ok 一致） */
       if (expr_kind == (int32_t)ast_ExprKind_EXPR_ASSIGN) {
+        int32_t rt_kind_w;
         lt_kind = pipeline_type_kind_ord_at(arena, lt);
-        rhs_kind = pipeline_expr_kind_ord_at(arena, right_ref);
-        if ((lt_kind == (int32_t)ast_TypeKind_TYPE_I32 || lt_kind == (int32_t)ast_TypeKind_TYPE_I64 ||
-             lt_kind == (int32_t)ast_TypeKind_TYPE_U64 || lt_kind == (int32_t)ast_TypeKind_TYPE_USIZE) &&
-            (rhs_kind == (int32_t)ast_ExprKind_EXPR_ADD || rhs_kind == (int32_t)ast_ExprKind_EXPR_SUB ||
-             rhs_kind == (int32_t)ast_ExprKind_EXPR_MUL || rhs_kind == (int32_t)ast_ExprKind_EXPR_DIV)) {
+        rt_kind_w = pipeline_type_kind_ord_at(arena, rt);
+        if (pipeline_typeck_integer_widen_ok_c(lt_kind, rt_kind_w)) {
           pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
           rt = lt;
+        } else {
+          rhs_kind = pipeline_expr_kind_ord_at(arena, right_ref);
+          if ((lt_kind == (int32_t)ast_TypeKind_TYPE_I32 || lt_kind == (int32_t)ast_TypeKind_TYPE_I64 ||
+               lt_kind == (int32_t)ast_TypeKind_TYPE_U64 || lt_kind == (int32_t)ast_TypeKind_TYPE_USIZE ||
+               lt_kind == (int32_t)ast_TypeKind_TYPE_ISIZE) &&
+              (rhs_kind == (int32_t)ast_ExprKind_EXPR_ADD || rhs_kind == (int32_t)ast_ExprKind_EXPR_SUB ||
+               rhs_kind == (int32_t)ast_ExprKind_EXPR_MUL || rhs_kind == (int32_t)ast_ExprKind_EXPR_DIV)) {
+            pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
+            rt = lt;
+          }
         }
       }
       if (!pipeline_typeck_type_refs_equal_c(arena, lt, rt)) {
@@ -26445,13 +26473,24 @@ int32_t pipeline_typeck_x_ast_library_c(struct ast_Module *module, struct ast_AS
 }
 
 /**
- * dep prerun 专用 typeck：仅 struct padding 校验 + parent link 补丁，不遍历函数体。
- * 避免 codegen.x 等大库模块在 dep prerun 阶段全量 check_block 失败（entry 阶段再完整 typeck）。
+ * dep prerun typeck：优先全量 library typeck（写 CALL resolved_func_index，供 overload mangle）。
+ * 【Why 根源】-E co-emit 只 typeck entry，dep 若仅 light typeck 则 body 内 alloc(al,size) 无 resolve，
+ *   codegen 发裸 std_heap_alloc → 与定义 std_heap_alloc_Allocator_usize 不一致。
+ * 大库全量失败时回退 padding+parent_link（与旧行为一致，避免 codegen.x 等 EMIT_HEAVY 炸 prerun）。
  */
+extern int32_t typeck_typeck_x_ast_library(struct ast_Module *module, struct ast_ASTArena *arena,
+                                            struct ast_PipelineDepCtx *ctx);
 int32_t pipeline_typeck_dep_prerun_module_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                             struct ast_PipelineDepCtx *ctx) {
+  int32_t tc;
   if (!module || !arena || !ctx)
     return -5;
+  pipeline_typeck_set_dep_ctx(ctx);
+  tc = typeck_typeck_x_ast_library(module, arena, ctx);
+  if (tc == 0)
+    return 0;
+  if (getenv("SHUX_DEBUG_PIPE"))
+    fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] dep prerun full typeck rc=%d, light fallback\n", (int)tc);
   if (pipeline_typeck_validate_struct_layouts_zero_padding_c(module, arena) != 0)
     return -7;
   pipeline_typeck_patch_all_body_parent_links_c(module, arena);

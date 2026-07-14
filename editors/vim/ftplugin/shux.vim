@@ -74,5 +74,21 @@ nnoremap <buffer> <silent> [f :call shux#JumpFunction('prev')<CR>
 nnoremap <buffer> <silent> ]s :call shux#JumpStruct('next')<CR>
 nnoremap <buffer> <silent> [s :call shux#JumpStruct('prev')<CR>
 
+" ==================== 新建文件自动加载 skeleton ====================
+" 【Why 逻辑根源】新建空 *.x 文件时自动插入版权头 + main 函数模板，
+" 避免每次手动复制。路径解析走 &rtp，兼容 Vim packages / vim-plug / packer。
+" 【Invariant】仅在 line('$')==1 且第 1 行为空时触发一次，不破坏已有内容。
+" 【Asm/Perf】仅在 BufRead 新文件时执行一次，O(1) 开销。
+if line('$') == 1 && empty(getline(1))
+  let s:shux_skeleton = globpath(&rtp, 'skeleton/shux.x', 0, 1)
+  if !empty(s:shux_skeleton)
+    execute '0r ' . s:shux_skeleton[0]
+    " 删除原空行（现已位于 buffer 末尾）
+    execute line('$') . 'delete _'
+    " 光标置于 main 函数体 return 行，便于用户立即编辑
+    call cursor(5, 3)
+  endif
+endif
+
 " ==================== 撤销设置 ====================
 let b:undo_ftplugin = "setl sw< ts< sts< et< ai< tw< fo< cms< com< mps< fdm< fdl< fdt< ofu<| silent! vunmap <buffer> af | silent! vunmap <buffer> if | silent! vunmap <buffer> ab | silent! vunmap <buffer> ib | silent! ounmap <buffer> af | silent! ounmap <buffer> if | silent! ounmap <buffer> ab | silent! ounmap <buffer> ib | silent! nunmap <buffer> gcc | silent! vunmap <buffer> gc | silent! nunmap <buffer> ]f | silent! nunmap <buffer> [f | silent! nunmap <buffer> ]s | silent! nunmap <buffer> [s | unlet! b:match_words b:shux_symbols b:shux_symbols_tick"

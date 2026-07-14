@@ -8,8 +8,8 @@
 | **编译器** | `shux` |
 | **源文件后缀** | `.x` |
 | **构建配置** | `build.x`（对标 Zig 的 `build.zig`） |
-| **当前主线** | **阶段 G 终局清场**（D+E+F v1 已闭合；物理删 C、零 seed、no-libc 硬绿） |
-| **进度视图** | [`自举进度.md`](analysis/自举进度.md)（单一事实来源，2026-06-24 起） |
+| **当前主线** | **Phase B + C 并行**（Cap 能力解锁 → R2 真迁 → M mega 去 pin；D+E-soft+F v1 已闭合） |
+| **进度视图** | [`analysis/自举进度.md`](analysis/自举进度.md)（单一事实来源） |
 
 ---
 
@@ -175,7 +175,6 @@ shux/
 ├── README.md                 # 本文件
 ├── LICENSE                   # AGPL-3.0-or-later 完整许可文本
 ├── NOTICE                    # 版权、SPDX 标识与第三方声明
-├── 自举进度.md               # 自举 / 终局 G 进度（维护时优先更新）
 ├── build.x                  # 构建配置（对标 build.zig）
 ├── NEXT.md                   # 完全自举路线图与 gate 命令
 ├── analysis/                 # 需求、架构、RFC、性能与安全分析
@@ -195,7 +194,7 @@ shux/
 ├── tests/                    # 回归测试与 gate 脚本
 ├── examples/                 # 示例与 cookbook
 ├── tools/                    # 格式化、测试运行器等
-├── editors/vscode/           # VS Code / Cursor 插件（LSP 客户端）
+├── editors/vscode/           # VS Code / Cursor / Trae 插件（LSP 客户端）
 └── mcp/                      # MCP 服务（开发辅助）
 ```
 
@@ -262,22 +261,68 @@ shux/
 | **用户编译** | `.x` → driver → asm/c 后端 → ld → 可执行文件 |
 | **自举构建** | seed（`shux-c` / `bootstrap_shuxc` + `*_gen`）→ `build_shux_asm.sh` → `shux_asm` → Stage2 验证 |
 
-### 自举状态（2026-06-24）
+### 自举状态（2026-07-14）
 
 > 详细数字与待办以 [`analysis/自举进度.md`](analysis/自举进度.md) 为准；下表为 README 摘要。
 
-| 维度 | 状态 |
-|------|------|
-| 语义自举（Stage 0） | ✅ `make -C compiler bootstrap-verify` |
-| 黄金自举（阶段 D） | ✅ Stage2 SHA256 一致（W3 clean 全链：`dea41cce…`，2723520 B） |
-| 编译器去 C（阶段 E，E-soft） | ✅ 默认 bootstrap **不链**前端 C；`compiler/` 仍保留 ~226 `.c` 待 G-02 物理删除 |
-| std 无 C（阶段 F，F-ZC） | ✅ `std/` **0 `.c` + 0 `.h`** |
-| **完全自举 D+E+F v1** | ✅ Linux x86_64 验收口径下已闭合 |
-| **阶段 G 终局清场** | 🟡 ~20%：G-06 ~92%；W2 ✅；W3 🟡 |
-| 前端运行时 `.x` | ✅ lexer / parser / ast / typeck / codegen / pipeline 默认 `*_x.o` |
-| W2（d01/e03/d03） | ✅ Docker 绿（`--w2-d03-only` 快路径 ~2s） |
-| W3（linux-a09 全链） | 🟡 bootstrap→gen2 + A-09/A-11/A-12 ✅；**al06 ✅**；A-10 / Stage2 hash 待闭合 |
-| 当前阻塞（摘要） | import 类型前缀 `vec.Vec_u8`；LSP seed pin；G-01 commit；G-03 no-libc |
+#### 近一个月进展（2026-06-14 → 2026-07-14）
+
+一个月前本仓库尚未建立自举进度跟踪体系（无 `analysis/自举进度.md`、无 Cap/R/L/M 方法论、README 仍是"开发时序文档"）。一个月内（4163 commits）关键变化：
+
+| 维度 | 一个月前 | 现在 | 变化 |
+|------|----------|------|------|
+| **方法论** | 阶段 G 清场 ~20% | Cap / R / L / M 四轨 + 四 KPI（T/N/R2/H/S/G） | 建立 [`自举方法.md`](自举方法.md)、[`自举步骤.md`](自举步骤.md)、[`自举进度.md`](analysis/自举进度.md)、[`当前进度.md`](当前进度.md) |
+| **T**（typeck） | 部分模块失败 | **18/18 满** | W-lsp-diag-expr / W-lexer-timeout / W-tail / W-isize 等 12 个根因波次全清 |
+| **N**（prove IDENTICAL） | 0（体系未建） | **49** | 9 个 labi_* + 12 个 rt_* + 7 个 backend/diagnostic thin prove 全绿 |
+| **R2**（真迁 H=0） | 0 | **15** full | `rt_util` / `rt_lib_root` / `rt_emit_flags` / `rt_emit_state` / `rt_content` / `rt_fs_open` / `rt_parse_diag` / `rt_fmt_one` / `rt_diag_errno` / `rt_stack` / `rt_argv` / `rt_entry` / `rt_pipeline_elf_diag` / `rt_compile` / `rt_run_exec` |
+| **W 波次** | 0 | **12 ✅** | W-string / W-keyword-param / W-unsafe-expr / W-extern-unsafe / W-tail / W-isize / W-heap-overload / W-escape / W-lexer-timeout / W-lsp-diag-expr / W-string-let / W-string-nul |
+| **Cap** | 0 解锁 | **1** ✅ | Cap-empty-str；⬜ Cap-string-pool / Cap-global-bss / Cap-va-reportf / Cap-regen-sync |
+| **门禁 G** | — | ✅ mac + Ubuntu 全绿 | seed 冷启动 / G-FFI-5 |
+
+> **核心结论**：一个月内完成了"从无进度跟踪体系 → 建立四轨方法论 + 四 KPI + 12 根因波次全清 + 15 切片 R2 full 真迁"。剩余瓶颈收敛到 **4 条 Cap + 3 个 mega pin**，不再是无序清场。
+
+#### 阶段总览
+
+| 阶段 | 含义 | 状态 |
+|------|------|------|
+| **D** | 黄金自举 Stage2 | ✅ v1 |
+| **E** | 编译器去 C（soft） | 🟡 默认 no_c；pinned seed + patch 仍在 ← **当前主线** |
+| **F** | std 无 C（F-ZC） | ✅ `std/` 0 `.c` + 0 `.h` |
+| **G** | 终局物理零 C / nostdlib 硬绿 | 🟡 非本周主线（先 E 三轨） |
+
+#### 四 KPI（Ubuntu x86_64，2026-07-14）
+
+| KPI | 含义 | 当前 | 健康方向 |
+|-----|------|------|----------|
+| **T** | typeck OK / 18 | **18/18** ✅ | 满 |
+| **N** | prove IDENTICAL 模块数 | **49**（附注） | 不再冲刺 |
+| **R2** | 产品 rest 业务符号已真迁（H=0） | **15** full | ↑ 主指标 |
+| **H** | hybrid rest 仍含业务 C 体的切片数 | 上述 15 切片 H=0；其余 runtime 多切片仍 rest C | ↓ 主指标 |
+| **S** | 构建链硬依赖的 pinned seed 面 | R2×15 产品 PREFER full .x；其余 hybrid 多 thin+rest；mega 仍 pin | ↓ |
+| **G** | 门禁：seed 冷启动 / G-FFI-5 | ✅ mac + Ubuntu | 全绿 |
+
+#### 当前主线（Phase B + C 并行）
+
+```
+当前 ──► Phase B 出口 ──► Phase C 出口 ──► v2==v3 ──► 自举语义完成
+  │           │                │
+  │           │                └─ mega pin 全关（typeck M4 + codegen + parser）
+  │           └─ Cap 4 条 + 批量 R2（H→0，除 syscall/crt 壳）
+  └─ T=18/18 ✅ / N=49 附注 / R2=15
+```
+
+| 轨 | 当前状态 | 下一步 |
+|----|----------|--------|
+| **Cap**（能力解锁） | ✅ Cap-empty-str；⬜ Cap-string-pool / Cap-global-bss / Cap-va-reportf / Cap-regen-sync | Cap-global-bss → rt_arena_buf |
+| **R**（真迁退役） | R2=15 full（H=0）；其余 hybrid 多切片仍 rest C | 批量 R2：runtime 其它 rest |
+| **M**（mega 去 pin） | 3 个仍 pin（typeck / codegen / parser） | typeck M2 试替换 smoke |
+| **L**（叶子 prove） | N=49 IDENTICAL（辅轨，不再冲刺） | 仅回归锁 |
+
+#### 当前阻塞
+
+1. **Phase B 出口未达**：产品 `runtime_driver_no_c` / labi 仍有业务 rest C（H 未降）— 根因：4 条 Cap 未解锁
+2. **Phase C 出口未达**：3 个 mega 仍 pin — 根因：typeck M2 试替换尚未 smoke 验证
+3. **typeck standalone 变量解析**：`shux-c -E src/runtime_driver_diagnostic.x` 仍报 `expected *u8, found ?`
 
 全景与验收：[`compiler/docs/SELFHOST.md`](compiler/docs/SELFHOST.md)、[`NEXT.md`](NEXT.md) §10 阶段 G、[`analysis/doc-selfhost-architecture-v1.md`](analysis/doc-selfhost-architecture-v1.md)。
 
@@ -292,8 +337,8 @@ shux/
 | M2 | import、core/std 最小子集、多目标 | ✅ |
 | M3 | 泛型、trait、模块系统、标准库扩展 | ✅ |
 | M4 | DCE、-O2/-Os、体积与性能基线 | ✅（部分） |
-| M5 | 自举（`.x` 编译器可编译自身） | ✅ D+E+F v1；🟡 阶段 G 终局 |
-| **当前主线** | **G 清场** + F-no-libc 硬绿 | 见 [`自举进度.md`](自举进度.md) §10 |
+| M5 | 自举（`.x` 编译器可编译自身） | ✅ D+E+F v1；🟡 Phase B+C 并行（Cap→R2→M 去 pin） |
+| **当前主线** | **Phase B + C 并行**（自举语义完成） | 见 [`自举进度.md`](自举进度.md) |
 
 ---
 
@@ -302,16 +347,20 @@ shux/
 | 文档 | 内容 |
 |------|------|
 | [`自举进度.md`](自举进度.md) | **自举 / 终局 G 进度（优先维护）** |
+| [`当前进度.md`](当前进度.md) | 当天工程阻塞与复现命令 |
+| [`自举方法.md`](自举方法.md) | Cap / R / L / M 方法论 |
 | [`NEXT.md`](NEXT.md) | 路线图、阶段 G 任务、gate 命令 |
 | [`docs/README.md`](docs/README.md) | 语言语法文档索引 |
+| [`analysis/自举进度.md`](analysis/自举进度.md) | 自举进度仪表盘（KPI / 前排 / 三轨） |
 | [`analysis/需求分析.md`](analysis/需求分析.md) | 总体目标、性能与安全策略 |
 | [`analysis/构架分析.md`](analysis/构架分析.md) | 仓库结构、编译器模块划分 |
 | [`analysis/语法与类型设计-高性能与内存安全.md`](analysis/语法与类型设计-高性能与内存安全.md) | 类型与语义设计原则 |
 | [`analysis/编译时自动内存管理和自动向量化.md`](analysis/编译时自动内存管理和自动向量化.md) | Arena、SROA、autovec 路线 |
 | [`analysis/安全与性能.md`](analysis/安全与性能.md) | 编译器与语言安全防线 |
 | [`analysis/性能压榨.md`](analysis/性能压榨.md) | 性能分层与自举前 perf 底线 |
+| [`analysis/IR核心设计.md`](analysis/IR核心设计.md) | 五层 IR 架构（Architecture Freeze v4.0，自举后启动） |
 | [`compiler/docs/SELFHOST.md`](compiler/docs/SELFHOST.md) | 自举运维与验收命令 |
-| [`editors/vscode/README.md`](editors/vscode/README.md) | VS Code / Cursor 插件与 LSP 配置 |
+| [`editors/vscode/README.md`](editors/vscode/README.md) | VS Code / Cursor / Trae 插件与 LSP 配置 |
 
 `analysis/` 下另有大量 RFC 与模块级设计（std-http、std-async、perf 等），按模块名检索即可。
 
@@ -344,7 +393,7 @@ shux/
 | D5 `bit_ops` | 负数算术右移 / 无符号逻辑右移 / 位域提取 / 位设置清除 | ✅ PASS (rc=130) |
 | D6 `mem_ops` | 手写 memset/memcpy / 数组下标访问 / 循环填充拷贝 | ✅ PASS (rc=8) |
 
-**D1–D6 小结：5/6 PASS**。D4 浮点为 P2 占位项（`tests/bench/diff/d4_float.x` 注释明确），待 ASM 后端浮点支持完善后激活。D2/D3 在 `shux_asm`（no_c 独立构建）上因 `&array[idx]` 等 typeck bug 编译失败，故差分测试以 `./compiler/shux`（seed）为准。
+**D1–D6 小结：5/6 PASS**。D4 浮点为 P2 占位项（`tests/bench/diff/d4_float.x` 注释明确），待 ASM 后端浮点支持完善后激活。
 
 #### PERF-001 性能门禁（wall time 中位数比对，公平比较）
 
@@ -367,7 +416,7 @@ shux/
 
 | 组件 | 路径 | 说明 |
 |------|------|------|
-| VS Code / Cursor 插件 | [`editors/vscode/`](editors/vscode/) | 语法高亮、LSP（`shux --lsp`）、格式化、任务、诊断 |
+| VS Code / Cursor / Trae 插件 | [`editors/vscode/`](editors/vscode/) | 语法高亮、LSP（`shux --lsp`）、格式化、任务、诊断；32 项配置、14 种 UI 语言、36 个 snippets |
 | 语言服务器 | `compiler/src/lsp/` | `lsp.x`、`lsp_diag.x` 等；需 `compiler/shux` 支持 `--lsp` |
 | MCP Server | [`mcp/`](mcp/) | IDE/AI 通过 MCP 调用解析与诊断 |
 
@@ -379,10 +428,10 @@ shux/
 
 1. 克隆后：`make -C compiler build-tool && ./shux-build.sh first-time`（或 `make -C compiler bootstrap-driver-bstrict`）。
 2. 日常改 `.x` 后：`./shux-build.sh build`（或 `cd compiler && ./build_tool ./shux`），再跑 `./tests/run-all.sh` / 相关 gate。
-3. 自举相关改动：`make -C compiler bootstrap-verify`；终局项对照 [`analysis/自举进度.md`](analysis/自举进度.md) §10。
-4. 提交规范：Conventional Commits（`feat:` / `fix:` / `perf:` 等），英文描述；详见 `.cursor/rules/03-操作规则.mdc`。
+3. 自举相关改动：`make -C compiler bootstrap-verify`；终局项对照 [`analysis/自举进度.md`](analysis/自举进度.md)。
+4. 提交规范：Conventional Commits（`feat:` / `fix:` / `perf:` 等），英文描述。
 
-**当前决议**（见 [`NEXT.md`](NEXT.md)）：标准库**新功能**暂停；**唯一主线 = 阶段 G 终局清场**（物理零 C、零 seed 冷启动、no-libc bootstrap 硬绿、`build.x` 替代 Makefile）。
+**当前决议**：标准库**新功能**暂停；**唯一主线 = 自举语义完成**（Phase B + C 并行：Cap 能力解锁 → R2 真迁退役 → M mega 去 pin）。自举完成后启动 IR Phase 0（架构已冻结 v4.0）。
 
 ---
 

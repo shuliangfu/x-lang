@@ -1805,7 +1805,9 @@ int shux_link_freestanding_enabled(int driver_freestanding) {
 enum {
   LABI_ENS_FLAG_NONE = 0,
   LABI_ENS_FLAG_PIE = 1,
-  LABI_ENS_FLAG_SQLITE = 2
+  LABI_ENS_FLAG_SQLITE = 2,
+  /* runtime_http_glue.from_x.c #include "http_*.inc" — need -I seeds/http */
+  LABI_ENS_FLAG_HTTP_SEEDS = 3
 };
 enum {
   LABI_ENS_ASM_IO_STUBS = 0,
@@ -1895,6 +1897,17 @@ static int link_abi_ensure_from_catalog(const char *argv0, int catalog_idx,
             rc = shux_cc_compile_sync_ex(src_c, out_o, inc0, inc1, inc2, 0, extra_flags);
         } else if (flags == LABI_ENS_FLAG_SQLITE) {
             const char *extra_flags[] = { "-DSHUX_DB_USE_SQLITE3", NULL };
+            rc = shux_cc_compile_sync_ex(src_c, out_o, inc0, inc1, inc2, 0, extra_flags);
+        } else if (flags == LABI_ENS_FLAG_HTTP_SEEDS) {
+            /* 【Why 根源】http2/http_*.inc 在 seeds/http/；无 -I 则 ensure 编 glue 失败，
+               C 路径 -o 链 http.o 时 U http2_*（hello 也无条件链 http.o）。 */
+            char http_inc[PATH_MAX];
+            const char *extra_flags[3];
+            if ((size_t)snprintf(http_inc, sizeof http_inc, "%s/seeds/http", comp) >= sizeof http_inc)
+                return -1;
+            extra_flags[0] = "-I";
+            extra_flags[1] = http_inc;
+            extra_flags[2] = NULL;
             rc = shux_cc_compile_sync_ex(src_c, out_o, inc0, inc1, inc2, 0, extra_flags);
         } else {
             rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
@@ -3668,11 +3681,13 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, runtime_panic_o);
         if (invoke_cc_argv_push_existing(argv, &i, argv_cap, net_o)) {
             (void)invoke_cc_append_net_tls_ld(argv, &i, argv_cap, net_o, include_root);
+            (void)shux_ensure_runtime_net_udp_batch_o(NULL);
             {
                 const char *rnub = shux_runtime_net_udp_batch_o_path(NULL);
                 if (rnub && rnub[0])
                     (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rnub);
             }
+            (void)shux_ensure_runtime_net_workers_o(NULL);
             {
                 const char *rnw = shux_runtime_net_workers_o_path(NULL);
                 if (rnw && rnw[0])
@@ -3694,6 +3709,7 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
                【Asm/Perf】Linux 上为 weak 符号，链接器选第一个定义，无运行时开销。 */
 #if defined(__linux__)
             {
+                (void)shux_ensure_runtime_asm_io_stubs_o(NULL);
                 const char *ris = shux_runtime_asm_io_stubs_o_path(NULL);
                 if (ris && ris[0])
                     (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, ris);
@@ -3886,6 +3902,8 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
 #endif
         }
         if (invoke_cc_argv_push_existing(argv, &i, argv_cap, http_o)) {
+            /* 与 asm ld 路径一致：缺 glue 时 ensure 编译，再 push（zlib 同模式）。 */
+            (void)shux_ensure_runtime_http_glue_o(NULL);
             {
                 const char *rhg = shux_runtime_http_glue_o_path(NULL);
                 if (rhg && rhg[0])
@@ -3920,9 +3938,12 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
             int task_linked = invoke_cc_argv_push_existing(argv, &i, argv_cap, task_o);
             (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, schema_o);
             if (invoke_cc_argv_push_existing(argv, &i, argv_cap, test_o)) {
-                const char *rtfi = shux_runtime_test_fn_invoke_o_path(NULL);
-                if (rtfi && rtfi[0])
-                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rtfi);
+                (void)shux_ensure_runtime_test_fn_invoke_o(NULL);
+                {
+                    const char *rtfi = shux_runtime_test_fn_invoke_o_path(NULL);
+                    if (rtfi && rtfi[0])
+                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rtfi);
+                }
             }
             /* 调用方未预检时，扫描生成 C 是否引用 runtime_drain 等 scheduler 符号。 */
             if (!sched_link) {
@@ -3940,6 +3961,7 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
                     if (i < argv_cap - 1)
                         argv[i++] = (char *)"-pthread";
 #endif
+                    (void)shux_ensure_runtime_scheduler_glue_o(NULL);
                     {
                         const char *rsg = shux_runtime_scheduler_glue_o_path(NULL);
                         if (rsg && rsg[0])
@@ -3951,6 +3973,7 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
                 if (i < argv_cap - 1)
                     argv[i++] = (char *)"-pthread";
 #endif
+                (void)shux_ensure_runtime_scheduler_glue_o(NULL);
                 {
                     const char *rsg = shux_runtime_scheduler_glue_o_path(NULL);
                     if (rsg && rsg[0])

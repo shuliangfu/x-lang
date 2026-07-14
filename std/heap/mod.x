@@ -202,7 +202,7 @@ export function arena64_empty(): Arena64 {
  * 成功返回 0，分配失败返回 -1。
  */
 export function arena64_init(a: *Arena64, cap: usize): i32 {
-  return heap_libc.heap_arena64_init_c(a as *heap_libc.Arena64, cap);
+  return heap_libc.heap_arena64_init_c(a as *heap_libc.LibcArena64, cap);
 }
 
 /**
@@ -210,12 +210,12 @@ export function arena64_init(a: *Arena64, cap: usize): i32 {
  * 空间不足返回 null。
  */
 export function arena64_alloc(a: *Arena64, size: usize, align_bytes: usize): *u8 {
-  return heap_libc.heap_arena64_alloc_c(a as *heap_libc.Arena64, size, align_bytes);
+  return heap_libc.heap_arena64_alloc_c(a as *heap_libc.LibcArena64, size, align_bytes);
 }
 
 /** 释放 arena chunk 并重置 off/cap。 */
 export function arena64_deinit(a: *Arena64): void {
-  heap_libc.heap_arena64_deinit_c(a as *heap_libc.Arena64);
+  heap_libc.heap_arena64_deinit_c(a as *heap_libc.LibcArena64);
 }
 
 /** 指针对 mod 取模；mod=64 验证 cache line 对齐。 */

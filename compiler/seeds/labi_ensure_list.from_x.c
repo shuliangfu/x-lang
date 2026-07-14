@@ -201,9 +201,11 @@ int labi_ensure_catalog_flags(int i) {
   if (i < 0)
     return 0;
   if (i == 0)
-    return 1;
+    return 1; /* LABI_ENS_FLAG_PIE */
+  if (i == 20)
+    return 3; /* LABI_ENS_HTTP_GLUE → LABI_ENS_FLAG_HTTP_SEEDS (-I seeds/http) */
   if (i == 23)
-    return 2;
+    return 2; /* LABI_ENS_FLAG_SQLITE */
   if (i >= 26)
     return 0;
   return 0;

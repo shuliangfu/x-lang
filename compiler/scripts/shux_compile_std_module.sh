@@ -155,4 +155,38 @@ else
   }
 fi
 
+# 【Why 根源】-x -E 对 std/*/mod.x 当前常产出裸符号 free/open/close 等，链入用户
+# exe 后覆盖 libc 同名符号（hello 在 hash_sip_free_c↔free 无限递归 SIGSEGV）。
+# 在 .o 落地后把与 libc 冲突的裸符号重命名为 std_<leaf>_*_api，避免污染。
+# 真前缀收敛后（codegen 对 entry 正确应用 path lib_name）本段可删。
+if command -v nm >/dev/null 2>&1 && command -v objcopy >/dev/null 2>&1 && [ -f "$out_o" ]; then
+  leaf=$(basename "$(dirname "$out_o")")
+  case "$leaf" in
+    ''|.) leaf=$(basename "$out_o" .o) ;;
+  esac
+  for clash in free open close malloc realloc calloc; do
+    if nm "$out_o" 2>/dev/null | grep -q " T ${clash}$"; then
+      objcopy --redefine-sym "${clash}=std_${leaf}_${clash}_api" "$out_o" 2>/dev/null || true
+    fi
+  done
+  # heap import-binding：mod 引用 std_heap_libc_heap_alloc_c，impl 有时只产出 heap_alloc_c
+  if nm "$out_o" 2>/dev/null | grep -q " U std_heap_libc_heap_alloc_c$" \
+     && nm "$out_o" 2>/dev/null | grep -q " T heap_alloc_c$"; then
+    alias_c="$tmp_dir/heap_alloc_alias.c"
+    alias_o="$tmp_dir/heap_alloc_alias.o"
+    printf '%s\n' \
+      '#include <stddef.h>' \
+      '#include <stdint.h>' \
+      'extern uint8_t *heap_alloc_c(size_t size);' \
+      'uint8_t *std_heap_libc_heap_alloc_c(size_t size) { return heap_alloc_c(size); }' \
+      >"$alias_c"
+    if cc -fPIE -c "$alias_c" -o "$alias_o" 2>/dev/null; then
+      merged="$tmp_dir/heap_merged.o"
+      if ld -r -o "$merged" "$out_o" "$alias_o" 2>/dev/null; then
+        mv "$merged" "$out_o"
+      fi
+    fi
+  fi
+fi
+
 echo "shux_compile_std_module.sh: OK ($idx files -> $out_o)"

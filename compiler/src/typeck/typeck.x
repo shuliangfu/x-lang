@@ -284,6 +284,8 @@ block_ref: i32, region_idx: i32, return_type_ref: i32, ctx: *PipelineDepCtx): i3
 export extern function pipeline_block_region_is_unsafe(arena: *ASTArena, br: i32, ri: i32): i32;
 /** M-4：Linear(T) use-once move（C glue，与 typeck.c 措辞一致）。 */
 export extern function pipeline_typeck_linear_reset_c(): void;
+/** 设置 typeck 活跃 module/ctx（type 别名展开等 glue 回落）。须在 typeck_x_ast* 入口调用。 */
+export extern function pipeline_typeck_set_active_ctx_c(module: *Module, ctx: *PipelineDepCtx): void;
 export extern function pipeline_typeck_linear_use_var_c(arena: *ASTArena, type_ref: i32, expr_ref: i32,
 name: *u8, name_len: i32): i32;
 export extern function pipeline_typeck_linear_accepts_init_c(arena: *ASTArena, decl_ref: i32, init_ref: i32): i32;
@@ -2494,6 +2496,23 @@ func_index_out: *i32): i32 {
     }
     return get_dep_return_type_in_caller_arena(from_dep_index, best_ret, caller_arena, ctx);
   }
+  /** 类型打分失败：优先同 arity 同名，避免 alloc(al,size) 落到 1 参 *u64 重载。 */
+  j = 0;
+  while (j < mod.num_funcs) {
+    if (pipeline_module_func_name_equal_at(mod, j, name, name_len) != 0) {
+      if (pipeline_module_func_num_params_at(mod, j) == num_args) {
+        if (func_index_out != 0 as * i32) {
+          func_index_out[0] = j;
+        }
+        if (from_dep_index < 0) {
+          return pipeline_module_func_return_type_at(mod, j);
+        }
+        return get_dep_return_type_in_caller_arena(from_dep_index,
+        pipeline_module_func_return_type_at(mod, j), caller_arena, ctx);
+      }
+    }
+    j = j + 1;
+  }
   /** 无按类型匹配时仍回退首同名（兼容旧行为 / 未解析实参）。 */
   if (first_idx >= 0) {
     if (func_index_out != 0 as * i32) {
@@ -2572,6 +2591,29 @@ call_expr_ref: i32, from_dep_index: i32, ctx: *PipelineDepCtx, func_index_out: *
       return best_ret;
     }
     return get_dep_return_type_in_caller_arena(from_dep_index, best_ret, caller_arena, ctx);
+  }
+  /**
+   * 【Why 根源】类型打分全失败时旧逻辑回退「首同名」不顾 arity：`alloc(al, size)` 会落到
+   *   `alloc(count: i32): *u64`（1 参）→ return 类型 *u8/*u64 冲突；codegen 亦无正确 mangle。
+   * 有 call 信息时优先回退「同名且 nparams==num_args」的首个候选。
+   */
+  if (has_call_info != 0) {
+    j = 0;
+    while (j < mod.num_funcs) {
+      if (expr_var_name_equal_func(callee_arena, callee_expr_ref, mod, j)) {
+        if (pipeline_module_func_num_params_at(mod, j) == num_args) {
+          if (func_index_out != 0 as * i32) {
+            func_index_out[0] = j;
+          }
+          if (from_dep_index < 0) {
+            return pipeline_module_func_return_type_at(mod, j);
+          }
+          return get_dep_return_type_in_caller_arena(from_dep_index,
+          pipeline_module_func_return_type_at(mod, j), caller_arena, ctx);
+        }
+      }
+      j = j + 1;
+    }
   }
   /** 无匹配重载时回退第一个同名函数（兼容旧行为）。 */
   if (first_idx >= 0) {
@@ -3242,9 +3284,11 @@ export function typeck_integer_widen_ok(dest_kind: i32, src_kind: i32): bool {
   let ord_u64: i32 = 4;
   let ord_i64: i32 = 5;
   let ord_usize: i32 = 6;
+  let ord_isize: i32 = 7;
   if (dest_kind == src_kind) {
     if (dest_kind == ord_i32 || dest_kind == ord_i64 || dest_kind == ord_u8 ||
-    dest_kind == ord_u32 || dest_kind == ord_u64 || dest_kind == ord_usize) {
+    dest_kind == ord_u32 || dest_kind == ord_u64 || dest_kind == ord_usize ||
+    dest_kind == ord_isize) {
       return true;
     }
     return false;
@@ -3256,7 +3300,9 @@ export function typeck_integer_widen_ok(dest_kind: i32, src_kind: i32): bool {
     return false;
   }
   if (src_kind == ord_i32) {
-    if (dest_kind == ord_i64 || dest_kind == ord_u32 || dest_kind == ord_usize) {
+    /** i32→isize：与 i32→usize 对称（指针宽度有符号整型；contextual_typing_p0 等）。 */
+    if (dest_kind == ord_i64 || dest_kind == ord_u32 || dest_kind == ord_usize ||
+    dest_kind == ord_isize) {
       return true;
     }
     return false;
@@ -4355,6 +4401,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
   let ord_u64: i32 = 4;
   let ord_i64: i32 = 5;
   let ord_usize: i32 = 6;
+  let ord_isize: i32 = 7;
   let ord_named: i32 = 8;
   let ord_ptr: i32 = 9;
   let ord_type_array: i32 = 10;
@@ -4432,9 +4479,9 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
         } else if (expr_kind == ord_assign && lt_kind == ord_ptr && int_val == 0) {
           pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
         } else if (expr_kind == ord_assign && int_val >= 0 &&
-        (lt_kind == ord_usize || lt_kind == ord_u32 || lt_kind == ord_u64)) {
+        (lt_kind == ord_usize || lt_kind == ord_isize || lt_kind == ord_u32 || lt_kind == ord_u64)) {
           pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
-        } else if (expr_kind == ord_assign && lt_kind == ord_i64) {
+        } else if (expr_kind == ord_assign && (lt_kind == ord_i64 || lt_kind == ord_isize)) {
           pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
         } else if (expr_kind == ord_assign && lt_kind == ord_named) {
           /* 【Why 根源】u16/i16 无独立 TypeKind（存为 TYPE_NAMED name="u16"/"i16"），
@@ -4607,6 +4654,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
   }
   /** 须在 check_expr 前 resolve import CALL（如 return result.ok_i32(...) C5/X9）。 */
   typeck_ret_fixup_unresolved_call(module, arena, op_ref, ctx);
+  /* return 0 → *T：先收窄再 check_expr，避免默认 i32 误报 found i32 */
+  typeck_ret_coerce_null_lit_to_expect(arena, op_ref, return_type_ref);
   if (check_expr(module, arena, op_ref, return_type_ref, ctx) != 0) {
     if (ast.ref_is_null(expr_type_ref(arena, op_ref))) {
       typeck_emit_return_unresolved_breadcrumb(arena, op_ref, line, col);
@@ -4632,6 +4681,22 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
             pipeline_expr_set_resolved_type_ref(arena, op_ref, return_type_ref);
           }
         }
+      }
+    }
+    /** return Method.GET / EXPR_ENUM_VARIANT：变体当前 resolved 为 i32 tag（与 C 布局一致）；
+     *  期望为用户 enum（TYPE_NAMED）时写回返回类型，与 let 初值 enum 路径一致，避免 expected Method found i32。 */
+    let ord_named_ret: i32 = 8;
+    let ord_i32_ret: i32 = 0;
+    let ord_enum_var_ret: i32 = 50;
+    let ord_field_ret: i32 = 44;
+    rt_kind = pipeline_type_kind_ord_at(arena, return_type_ref);
+    got = expr_type_ref(arena, op_ref);
+    if (rt_kind == ord_named_ret && !ast.ref_is_null(got)
+        && pipeline_type_kind_ord_at(arena, got) == ord_i32_ret) {
+      if (op_kind == ord_enum_var_ret
+          || (op_kind == ord_field_ret
+              && pipeline_expr_field_access_is_enum_variant(arena, op_ref) != 0)) {
+        pipeline_expr_set_resolved_type_ref(arena, op_ref, return_type_ref);
       }
     }
   }
@@ -6315,6 +6380,8 @@ export function typeck_x_ast_impl(module: *Module, arena: *ASTArena, ctx: *Pipel
   if (module == 0 as * Module || arena == 0 as * ASTArena || ctx == 0 as * PipelineDepCtx) {
     return -2;
   }
+  /** Root：type 别名展开依赖 g_typeck_active_module；入口须设置（parsed_module 路径可能未先 set）。 */
+  pipeline_typeck_set_active_ctx_c(module, ctx);
   mi = pipeline_module_main_func_index(module);
   if (pipeline_module_func_is_extern_at(module, mi) != 0
   && ast.ref_is_null(pipeline_module_func_body_ref_at(module, mi))) {
@@ -6358,6 +6425,7 @@ export function typeck_x_ast_library(module: *Module, arena: *ASTArena, ctx: *Pi
   if (module == 0 as * Module || arena == 0 as * ASTArena || ctx == 0 as * PipelineDepCtx) {
     return -5;
   }
+  pipeline_typeck_set_active_ctx_c(module, ctx);
   if (typeck_validate_struct_layouts_zero_padding(module, arena) != 0) {
     return -7;
   }

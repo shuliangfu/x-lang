@@ -193,12 +193,13 @@ export function ctx_glue_value_get_c(handle: i64, key_hash: u32, out: *i64): i32
 
 /** FNV-1a 32-bit：对 NUL 结尾 C 串求哈希。 */
 export function ctx_key_hash(key: *u8): u32 {
-  let h: u32 = 2166136261;
+  /* FNV-1a 32-bit：字面量须 as u32，否则 i32 默认字面量触发 assignment u32/i32 */
+  let h: u32 = 2166136261 as u32;
   let i: i32 = 0;
   if (key == 0) { return 0 as u32; }
   while (key[i] != 0) {
     h = h ^ (key[i] as u32);
-    h = h * 16777619;
+    h = h * (16777619 as u32);
     i = i + 1;
   }
   return h;

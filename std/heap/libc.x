@@ -77,8 +77,11 @@ let shu_heap_trace_bytes: u64 = 0;
 /** void* 指针对齐下限（hosted 64-bit 为 8 字节）。 */
 export const HEAP_PTR_SIZE: usize = 8;
 
-/** 与 std.heap/mod.x Arena64 布局一致（chunk/cap/off）。 */
-allow(padding) struct Arena64 {
+/** 与 std.heap/mod.x Arena64 布局一致（chunk/cap/off）。
+ *  命名不可与 mod.x 的 Arena64 同短名：multi-dep co-emit 会把 import 与本地
+ *  都解析成同一 bare 名，导致 C 侧 return type 与 struct literal 类型冲突
+ *  （struct Arena64 vs struct std_heap_libc_Arena64）。 */
+allow(padding) struct LibcArena64 {
   chunk: *u8;
   cap: usize;
   off: usize;
@@ -356,7 +359,7 @@ export function heap_ptr_mod_c(ptr: *u8, mod: usize): usize {
 /**
  * 初始化 Arena64；cap==0 时用 HEAP_ARENA64_DEFAULT_CAP；失败返回 -1。
  */
-export function heap_arena64_init_c(a: *Arena64, cap: usize): i32 {
+export function heap_arena64_init_c(a: *LibcArena64, cap: usize): i32 {
   if (a == 0) {
     return -1;
   }
@@ -378,7 +381,7 @@ export function heap_arena64_init_c(a: *Arena64, cap: usize): i32 {
 /**
  * arena bump 内核：obj_align 须 >0（由 heap_arena64_alloc_c 保证默认 8）。
  */
-export function heap_arena64_bump_c(a: *Arena64, size: usize, obj_align: usize): *u8 {
+export function heap_arena64_bump_c(a: *LibcArena64, size: usize, obj_align: usize): *u8 {
   let cur: usize = 0;
   let rem: usize = 0;
   let gap: usize = 0;
@@ -403,7 +406,7 @@ export function heap_arena64_bump_c(a: *Arena64, size: usize, obj_align: usize):
 /**
  * 从 arena bump 分配 size 字节；align 为对象对齐（0 视为 8）；空间不足返回 null。
  */
-export function heap_arena64_alloc_c(a: *Arena64, size: usize, align_bytes: usize): *u8 {
+export function heap_arena64_alloc_c(a: *LibcArena64, size: usize, align_bytes: usize): *u8 {
   if (align_bytes == 0) {
     return heap_arena64_bump_c(a, size, HEAP_PTR_SIZE);
   }
@@ -413,7 +416,7 @@ export function heap_arena64_alloc_c(a: *Arena64, size: usize, align_bytes: usiz
 /**
  * 释放 arena chunk 并重置 off/cap（经 heap_free_c 以参与 trace）。
  */
-export function heap_arena64_deinit_c(a: *Arena64): void {
+export function heap_arena64_deinit_c(a: *LibcArena64): void {
   if (a == 0) {
     return;
   }

@@ -2817,11 +2817,31 @@ int32_t driver_parsed_deps_has_std_io_core(uint8_t *dep_paths, int32_t n_deps) {
     return 0;
 }
 
+/** dep 闭包是否含 std.io.driver（co-emit 会 emit submit_*_batch_buf 强符号）。 */
+int32_t driver_parsed_deps_has_std_io_driver(uint8_t *dep_paths, int32_t n_deps) {
+    int32_t j;
+    char **dp = (char **)(void *)dep_paths;
+    if (!dp || n_deps <= 0)
+        return 0;
+    for (j = 0; j < n_deps; j++) {
+        if (dp[j] && strcmp(dp[j], "std.io.driver") == 0)
+            return 1;
+    }
+    return 0;
+}
+
 void driver_parsed_apply_preamble_skip(uint8_t *dep_paths, int32_t n_deps) {
     codegen_reset_preamble_skip_mask();
     if (!driver_parsed_deps_has_std_io_core(dep_paths, n_deps)) {
         codegen_or_preamble_skip_mask(CODEGEN_PREAMBLE_SKIP_STD_IO_CORE_MACROS |
                                       CODEGEN_PREAMBLE_SKIP_STD_IO_UNDEF_REDEFINE);
+    }
+    /* co-emit driver 时同 TU 已有强符号定义；weak 桩与之冲突（C 同 TU redefinition）。 */
+    if (driver_parsed_deps_has_std_io_driver(dep_paths, n_deps)) {
+#ifndef CODEGEN_PREAMBLE_SKIP_WEAK_IO_BATCH
+#define CODEGEN_PREAMBLE_SKIP_WEAK_IO_BATCH 8u
+#endif
+        codegen_or_preamble_skip_mask(CODEGEN_PREAMBLE_SKIP_WEAK_IO_BATCH);
     }
 }
 

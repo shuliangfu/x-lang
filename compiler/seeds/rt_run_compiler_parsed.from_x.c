@@ -835,11 +835,16 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
     codegen_reset_preamble_skip_mask();
     {
         int has_std_io_core = 0;
-        for (int j = 0; j < n_deps; j++)
-            if (dep_paths[j] && strcmp(dep_paths[j], "std.io.core") == 0) { has_std_io_core = 1; break; }
+        int has_std_io_driver = 0;
+        for (int j = 0; j < n_deps; j++) {
+            if (dep_paths[j] && strcmp(dep_paths[j], "std.io.core") == 0) has_std_io_core = 1;
+            if (dep_paths[j] && strcmp(dep_paths[j], "std.io.driver") == 0) has_std_io_driver = 1;
+        }
         if (!has_std_io_core)
             codegen_or_preamble_skip_mask(CODEGEN_PREAMBLE_SKIP_STD_IO_CORE_MACROS
                 | CODEGEN_PREAMBLE_SKIP_STD_IO_UNDEF_REDEFINE);
+        if (has_std_io_driver)
+            codegen_or_preamble_skip_mask(CODEGEN_PREAMBLE_SKIP_WEAK_IO_BATCH);
     }
     /*
      * emit-C 与 -backend asm 对齐：pipeline 内须完整 parse_into（entry_already_parsed=0）。
