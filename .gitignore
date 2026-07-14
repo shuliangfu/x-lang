@@ -63,9 +63,6 @@ deps/
 # Node（VSCode 扩展 editors/vscode 等）
 node_modules/
 
-# tree-sitter CLI 约定目录名 tree-sitter-{lang}；本地测试用符号链接，不入库
-editors/tree-sitter-shux
-
 # --- 开发环境 ---
 # clangd 本地配置（非仓库约定）
 .clangd
