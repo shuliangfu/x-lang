@@ -1,10 +1,15 @@
-/* G-02f-362 / R2 thin full：PREFER hybrid thin 由 src/asm/backend_arch_emit_dispatch_thin.x；
- * rest SHUX_L2_ARCH_EMIT_THIN_FROM_X（public 门闩→thin；slice_marker + Cap residual）。
- * seeds/backend_arch_emit_dispatch.from_x.c — G-02f-209 arch_emit ta shells; G-02f-9 product TU
- * Source intent: src/asm/backend_arch_emit_dispatch.x (doc) + this seed (full C body).
- * Product: → src/asm/backend_arch_emit_dispatch.o.
- * Cap residual: arch_*_emit_* C 尾在 asm_backend_partial / 冷 full seed 壳。
+/* G-02f-9 / R2 full（2026-07-14）：backend_arch_emit_dispatch 真迁
+ * Logic source: src/asm/backend_arch_emit_dispatch.x
+ * Product PREFER_X_O: g05_try_x_to_o(full.x) + rest (-DSHUX_BACKEND_ARCH_EMIT_DISPATCH_FROM_X) ld -r
+ *   → src/asm/backend_arch_emit_dispatch.o
+ * R2: full.x 吃满 47 ta 分派壳；FROM_X 下 rest 业务 T=0（仅 slice_marker）
+ * 冷启动/无 PREFER：本文件完整 C 体（含 L2 thin hybrid 的 public 体）
+ * L2 thin hybrid（SHUX_L2_ARCH_EMIT_THIN_FROM_X）仍作 full.x 失败时的回退路径。
+ * Cap residual: arch_*_emit_* 在 asm_backend_partial / 其它 TU。
+ *
+ * seeds/backend_arch_emit_dispatch.from_x.c — product arch_emit dispatch TU (cold full C)
  */
+#ifndef SHUX_BACKEND_ARCH_EMIT_DISPATCH_FROM_X
 /**
  * backend_arch_emit_dispatch.c — backend_arch_emit_* 的 C 侧 ta 分派
  *
@@ -856,7 +861,12 @@ int32_t backend_arch_emit_epilogue(struct codegen_CodegenOutBuf *out, int32_t fr
 }
 #endif
 
-
 int backend_arch_emit_dispatch_slice_marker(void) {
     return 1;
 }
+
+#else /* SHUX_BACKEND_ARCH_EMIT_DISPATCH_FROM_X：产品 rest 业务 H=0 */
+int backend_arch_emit_dispatch_slice_marker(void) {
+  return 0;
+}
+#endif /* SHUX_BACKEND_ARCH_EMIT_DISPATCH_FROM_X */

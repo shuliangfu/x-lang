@@ -1,9 +1,13 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-9：backend_arch_emit_dispatch 产品源迁 seeds/backend_arch_emit_dispatch.from_x.c。
-// G-02f-209：backend_arch_emit_* 短 ta 分派壳真迁 .x（arm64/riscv/x86 text emit）。
-// 产品：cc seeds/backend_arch_emit_dispatch.from_x.c → src/asm/backend_arch_emit_dispatch.o
+// R2 full（2026-07-14）：backend_arch_emit_dispatch 真迁
+// G-02f-9 / G-02f-209：backend_arch_emit_* 短 ta 分派壳（arm64/riscv/x86）吃满本 .x
+// 产品 PREFER_X_O：g05_try_x_to_o(本文件) + rest (-DSHUX_BACKEND_ARCH_EMIT_DISPATCH_FROM_X，仅 marker) ld -r
+//   → src/asm/backend_arch_emit_dispatch.o
+// FROM_X rest 业务 T=0（仅 slice_marker）；L2 thin hybrid 仅 full.x 失败回退
+// Cap residual：arch_*_emit_* C 尾在 asm_backend_partial / 冷 full seed 外 TU
+// Prove：seeds/backend_arch_emit_dispatch_surface.from_x.c 锁 full surface IDENTICAL
 
 export function backend_arch_emit_dispatch_x_doc_anchor(): i32 {
   return 0;
