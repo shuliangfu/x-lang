@@ -1,205 +1,130 @@
 /* seeds/labi_invoke_cc_list_surface.from_x.c
- * G-02f labi_invoke_cc_list R2 full surface — isomorphic with src/runtime/labi_invoke_cc_list.x
- * Product PREFER_X_O: g05_try_x_to_o(labi_invoke_cc_list.x) + mega rest under FROM_X
- * Prove: full.x vs this seed → nm IDENTICAL (harden/skip-native/icc rel pure table)
- * Cap residual: getenv 🔒 + mega shux_invoke_cc_impl fork/exec
- * Regen: ./shux -E ... src/runtime/labi_invoke_cc_list.x | filter DBG + polish prologue
+ * G-02f labi_invoke_cc_list R2 full surface — isomorphic with cold seed string tables.
+ *
+ * 【Why 根源】旧 surface 由 .x STRING_LIT 生成 `(uint8_t[]){...}; return p`：
+ *   C 块作用域 compound literal 为自动存储，return 后悬空。
+ *   labi_linux_harden_flag_at 被 invoke_cc 写入 argv → gcc 收到乱码路径。
+ * 【Invariant】全部返回 C 字符串字面量（rodata），与 labi_invoke_cc_list.from_x.c 冷路径一致。
  */
 #include <stdint.h>
 #include <stddef.h>
+#include <stdlib.h>
 #include <sys/types.h>
-extern int32_t labi_linux_harden_flag_count(void);
-extern uint8_t * labi_linux_harden_flag_at(int32_t i);
-extern int32_t labi_invoke_cc_skip_native_env_count(void);
-extern uint8_t * labi_invoke_cc_skip_native_env_at(int32_t i);
-extern int32_t invoke_cc_skip_native_tuning(void);
-extern uint8_t * labi_icc_rel_core_builtin_o(void);
-extern uint8_t * labi_icc_rel_core_builtin_abi_h(void);
-extern uint8_t * labi_icc_rel_core_mem_o(void);
-extern uint8_t * labi_icc_rel_core_slice_o(void);
-extern uint8_t * labi_icc_rel_db_kv_o(void);
-extern uint8_t * labi_icc_rel_db_arrow_o(void);
-extern uint8_t * labi_icc_rel_csv_o(void);
-extern uint8_t * labi_icc_rel_error_o(void);
-extern uint8_t * labi_icc_rel_heap_o(void);
-extern uint8_t * labi_icc_rel_json_o(void);
-extern uint8_t * labi_icc_rel_log_o(void);
-extern uint8_t * labi_icc_rel_socketio_o(void);
-extern int32_t labi_icc_needs_rel_count(void);
-extern uint8_t * labi_icc_needs_rel_at(int32_t i);
-extern uint8_t * getenv(uint8_t * name);
+
 int32_t labi_linux_harden_flag_count(void) {
   return 5;
 }
-uint8_t * labi_linux_harden_flag_at(int32_t i) {
-  if ((i < 0)) {
-    return ((uint8_t *)(0));
-  }
-  if ((i ==0)) {
-    uint8_t * p = (uint8_t[]){45, 112, 105, 101, 0 };
-    return p;
-  }
-  if ((i ==1)) {
-    uint8_t * p = (uint8_t[]){45, 102, 112, 105, 101, 0 };
-    return p;
-  }
-  if ((i ==2)) {
-    uint8_t * p = (uint8_t[]){45, 87, 108, 44, 45, 122, 44, 110, 111, 101, 120, 101, 99, 115, 116, 97, 99, 107, 0 };
-    return p;
-  }
-  if ((i ==3)) {
-    uint8_t * p = (uint8_t[]){45, 87, 108, 44, 45, 122, 44, 114, 101, 108, 114, 111, 0 };
-    return p;
-  }
-  if ((i ==4)) {
-    uint8_t * p = (uint8_t[]){45, 87, 108, 44, 45, 45, 97, 108, 108, 111, 119, 45, 109, 117, 108, 116, 105, 112, 108, 101, 45, 100, 101, 102, 105, 110, 105, 116, 105, 111, 110, 0 };
-    return p;
-  }
-  return ((uint8_t *)(0));
+
+uint8_t *labi_linux_harden_flag_at(int32_t i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return (uint8_t *)"-pie";
+  if (i == 1)
+    return (uint8_t *)"-fpie";
+  if (i == 2)
+    return (uint8_t *)"-Wl,-z,noexecstack";
+  if (i == 3)
+    return (uint8_t *)"-Wl,-z,relro";
+  if (i == 4)
+    return (uint8_t *)"-Wl,--allow-multiple-definition";
+  return NULL;
 }
+
 int32_t labi_invoke_cc_skip_native_env_count(void) {
   return 3;
 }
-uint8_t * labi_invoke_cc_skip_native_env_at(int32_t i) {
-  if ((i < 0)) {
-    return ((uint8_t *)(0));
-  }
-  if ((i ==0)) {
-    uint8_t * p = (uint8_t[]){67, 73, 0 };
-    return p;
-  }
-  if ((i ==1)) {
-    uint8_t * p = (uint8_t[]){83, 72, 85, 88, 95, 67, 73, 95, 68, 79, 67, 75, 69, 82, 0 };
-    return p;
-  }
-  if ((i ==2)) {
-    uint8_t * p = (uint8_t[]){83, 72, 85, 88, 95, 78, 79, 95, 77, 65, 82, 67, 72, 95, 78, 65, 84, 73, 86, 69, 0 };
-    return p;
-  }
-  return ((uint8_t *)(0));
+
+uint8_t *labi_invoke_cc_skip_native_env_at(int32_t i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return (uint8_t *)"CI";
+  if (i == 1)
+    return (uint8_t *)"SHUX_CI_DOCKER";
+  if (i == 2)
+    return (uint8_t *)"SHUX_NO_MARCH_NATIVE";
+  return NULL;
 }
+
 int32_t invoke_cc_skip_native_tuning(void) {
   int32_t n = labi_invoke_cc_skip_native_env_count();
-  int32_t i = 0;
-  while ((i < n)) {
-    uint8_t * name = labi_invoke_cc_skip_native_env_at(i);
-    if ((name !=((uint8_t *)(0)))) {
-      if (((name)[0] !=0)) {
-        uint8_t * v = ((uint8_t *)(0));
-        {
-          (void)((v = getenv(name)));
-        }
-        if ((v !=((uint8_t *)(0)))) {
-          return 1;
-        }
-      }
-    }
-    (void)((i = (i + 1)));
+  int32_t i;
+  for (i = 0; i < n; i++) {
+    uint8_t *name = labi_invoke_cc_skip_native_env_at(i);
+    if (name && name[0] && getenv((const char *)name) != NULL)
+      return 1;
   }
   return 0;
 }
-uint8_t * labi_icc_rel_core_builtin_o(void) {
-  uint8_t * p = (uint8_t[]){99, 111, 114, 101, 47, 98, 117, 105, 108, 116, 105, 110, 47, 98, 117, 105, 108, 116, 105, 110, 46, 111, 0 };
-  return p;
+
+uint8_t *labi_icc_rel_core_builtin_o(void) {
+  return (uint8_t *)"core/builtin/builtin.o";
 }
-uint8_t * labi_icc_rel_core_builtin_abi_h(void) {
-  uint8_t * p = (uint8_t[]){99, 111, 114, 101, 47, 98, 117, 105, 108, 116, 105, 110, 47, 98, 117, 105, 108, 116, 105, 110, 95, 97, 98, 105, 46, 104, 0 };
-  return p;
+uint8_t *labi_icc_rel_core_builtin_abi_h(void) {
+  return (uint8_t *)"core/builtin/builtin_abi.h";
 }
-uint8_t * labi_icc_rel_core_mem_o(void) {
-  uint8_t * p = (uint8_t[]){99, 111, 114, 101, 47, 109, 101, 109, 47, 109, 101, 109, 46, 111, 0 };
-  return p;
+uint8_t *labi_icc_rel_core_mem_o(void) {
+  return (uint8_t *)"core/mem/mem.o";
 }
-uint8_t * labi_icc_rel_core_slice_o(void) {
-  uint8_t * p = (uint8_t[]){99, 111, 114, 101, 47, 115, 108, 105, 99, 101, 47, 115, 108, 105, 99, 101, 46, 111, 0 };
-  return p;
+uint8_t *labi_icc_rel_core_slice_o(void) {
+  return (uint8_t *)"core/slice/slice.o";
 }
-uint8_t * labi_icc_rel_db_kv_o(void) {
-  uint8_t * p = (uint8_t[]){115, 116, 100, 47, 100, 98, 47, 107, 118, 47, 107, 118, 46, 111, 0 };
-  return p;
+uint8_t *labi_icc_rel_db_kv_o(void) {
+  return (uint8_t *)"std/db/kv/kv.o";
 }
-uint8_t * labi_icc_rel_db_arrow_o(void) {
-  uint8_t * p = (uint8_t[]){115, 116, 100, 47, 100, 98, 47, 97, 114, 114, 111, 119, 47, 97, 114, 114, 111, 119, 46, 111, 0 };
-  return p;
+uint8_t *labi_icc_rel_db_arrow_o(void) {
+  return (uint8_t *)"std/db/arrow/arrow.o";
 }
-uint8_t * labi_icc_rel_csv_o(void) {
-  uint8_t * p = (uint8_t[]){115, 116, 100, 47, 99, 115, 118, 47, 99, 115, 118, 46, 111, 0 };
-  return p;
+uint8_t *labi_icc_rel_csv_o(void) {
+  return (uint8_t *)"std/csv/csv.o";
 }
-uint8_t * labi_icc_rel_error_o(void) {
-  uint8_t * p = (uint8_t[]){115, 116, 100, 47, 101, 114, 114, 111, 114, 47, 101, 114, 114, 111, 114, 46, 111, 0 };
-  return p;
+uint8_t *labi_icc_rel_error_o(void) {
+  return (uint8_t *)"std/error/error.o";
 }
-uint8_t * labi_icc_rel_heap_o(void) {
-  uint8_t * p = (uint8_t[]){115, 116, 100, 47, 104, 101, 97, 112, 47, 104, 101, 97, 112, 46, 111, 0 };
-  return p;
+uint8_t *labi_icc_rel_heap_o(void) {
+  return (uint8_t *)"std/heap/heap.o";
 }
-uint8_t * labi_icc_rel_json_o(void) {
-  uint8_t * p = (uint8_t[]){115, 116, 100, 47, 106, 115, 111, 110, 47, 106, 115, 111, 110, 46, 111, 0 };
-  return p;
+uint8_t *labi_icc_rel_json_o(void) {
+  return (uint8_t *)"std/json/json.o";
 }
-uint8_t * labi_icc_rel_log_o(void) {
-  uint8_t * p = (uint8_t[]){115, 116, 100, 47, 108, 111, 103, 47, 108, 111, 103, 46, 111, 0 };
-  return p;
+uint8_t *labi_icc_rel_log_o(void) {
+  return (uint8_t *)"std/log/log.o";
 }
-uint8_t * labi_icc_rel_socketio_o(void) {
-  uint8_t * p = (uint8_t[]){115, 116, 100, 47, 115, 111, 99, 107, 101, 116, 105, 111, 47, 115, 111, 99, 107, 101, 116, 105, 111, 46, 111, 0 };
-  return p;
+uint8_t *labi_icc_rel_socketio_o(void) {
+  return (uint8_t *)"std/socketio/socketio.o";
 }
+
 int32_t labi_icc_needs_rel_count(void) {
   return 12;
 }
-uint8_t * labi_icc_needs_rel_at(int32_t i) {
-  if ((i < 0)) {
-    return ((uint8_t *)(0));
-  }
-  if ((i ==0)) {
-    uint8_t * p = (uint8_t[]){99, 111, 114, 101, 47, 98, 117, 105, 108, 116, 105, 110, 47, 98, 117, 105, 108, 116, 105, 110, 46, 111, 0 };
-    return p;
-  }
-  if ((i ==1)) {
-    uint8_t * p = (uint8_t[]){99, 111, 114, 101, 47, 98, 117, 105, 108, 116, 105, 110, 47, 98, 117, 105, 108, 116, 105, 110, 95, 97, 98, 105, 46, 104, 0 };
-    return p;
-  }
-  if ((i ==2)) {
-    uint8_t * p = (uint8_t[]){99, 111, 114, 101, 47, 109, 101, 109, 47, 109, 101, 109, 46, 111, 0 };
-    return p;
-  }
-  if ((i ==3)) {
-    uint8_t * p = (uint8_t[]){99, 111, 114, 101, 47, 115, 108, 105, 99, 101, 47, 115, 108, 105, 99, 101, 46, 111, 0 };
-    return p;
-  }
-  if ((i ==4)) {
-    uint8_t * p = (uint8_t[]){115, 116, 100, 47, 100, 98, 47, 107, 118, 47, 107, 118, 46, 111, 0 };
-    return p;
-  }
-  if ((i ==5)) {
-    uint8_t * p = (uint8_t[]){115, 116, 100, 47, 100, 98, 47, 97, 114, 114, 111, 119, 47, 97, 114, 114, 111, 119, 46, 111, 0 };
-    return p;
-  }
-  if ((i ==6)) {
-    uint8_t * p = (uint8_t[]){115, 116, 100, 47, 99, 115, 118, 47, 99, 115, 118, 46, 111, 0 };
-    return p;
-  }
-  if ((i ==7)) {
-    uint8_t * p = (uint8_t[]){115, 116, 100, 47, 101, 114, 114, 111, 114, 47, 101, 114, 114, 111, 114, 46, 111, 0 };
-    return p;
-  }
-  if ((i ==8)) {
-    uint8_t * p = (uint8_t[]){115, 116, 100, 47, 104, 101, 97, 112, 47, 104, 101, 97, 112, 46, 111, 0 };
-    return p;
-  }
-  if ((i ==9)) {
-    uint8_t * p = (uint8_t[]){115, 116, 100, 47, 106, 115, 111, 110, 47, 106, 115, 111, 110, 46, 111, 0 };
-    return p;
-  }
-  if ((i ==10)) {
-    uint8_t * p = (uint8_t[]){115, 116, 100, 47, 108, 111, 103, 47, 108, 111, 103, 46, 111, 0 };
-    return p;
-  }
-  if ((i ==11)) {
-    uint8_t * p = (uint8_t[]){115, 116, 100, 47, 115, 111, 99, 107, 101, 116, 105, 111, 47, 115, 111, 99, 107, 101, 116, 105, 111, 46, 111, 0 };
-    return p;
-  }
-  return ((uint8_t *)(0));
+
+uint8_t *labi_icc_needs_rel_at(int32_t i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return (uint8_t *)"core/builtin/builtin.o";
+  if (i == 1)
+    return (uint8_t *)"core/builtin/builtin_abi.h";
+  if (i == 2)
+    return (uint8_t *)"core/mem/mem.o";
+  if (i == 3)
+    return (uint8_t *)"core/slice/slice.o";
+  if (i == 4)
+    return (uint8_t *)"std/db/kv/kv.o";
+  if (i == 5)
+    return (uint8_t *)"std/db/arrow/arrow.o";
+  if (i == 6)
+    return (uint8_t *)"std/csv/csv.o";
+  if (i == 7)
+    return (uint8_t *)"std/error/error.o";
+  if (i == 8)
+    return (uint8_t *)"std/heap/heap.o";
+  if (i == 9)
+    return (uint8_t *)"std/json/json.o";
+  if (i == 10)
+    return (uint8_t *)"std/log/log.o";
+  if (i == 11)
+    return (uint8_t *)"std/socketio/socketio.o";
+  return NULL;
 }

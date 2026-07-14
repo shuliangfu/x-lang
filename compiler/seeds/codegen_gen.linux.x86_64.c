@@ -2854,7 +2854,7 @@ SHUX_LIB_WEAK int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct code
   if (expr_ref <= 0 || expr_ref > (arena)->num_exprs) {   return 0;
  }
   struct ast_Expr e = ast_arena_expr_get(arena, expr_ref);
-  /* STRING_LIT: *u8 path must trailing-NUL; slen cap 64 (var_name[64]). W-string-nul */
+  /* STRING_LIT: *u8 → ((uint8_t*)"\xHH...") rodata（勿栈 compound；return 悬空 → invoke_cc argv 乱码） */
   if (pipeline_expr_kind_ord_at(arena, expr_ref) == 59) {   int32_t slen = (e).var_name_len;
   int emit_slice = 0;
   if (slen < 0) {   (slen = (0));
@@ -2872,35 +2872,30 @@ SHUX_LIB_WEAK int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct code
  }
   if (codegen_emit_bytes_from_ptr(out, (&((slice_mid)[0])), 12) != 0) {   return (-1);
  }
- } else {   if (codegen_append_byte(out, 40) != 0) {   return (-1);
+ }
+  { uint8_t cast_open[14] = { 40, 40, 117, 105, 110, 116, 56, 95, 116, 32, 42, 41, 34, 0 };
+  if (codegen_emit_bytes_from_ptr(out, cast_open, 13) != 0) {   return (-1);
  }
  }
-  uint8_t u8ty[9] = { 117, 105, 110, 116, 56, 95, 116, 0, 0 };
-  if (codegen_emit_bytes_9(out, u8ty, 7) != 0) {   return (-1);
- }
-  uint8_t arr_head[5] = { 91, 93, 41, 123, 0 };
-  if (codegen_emit_bytes_5(out, arr_head, 4) != 0) {   return (-1);
- }
-  if (slen == 0) {   if (codegen_append_byte(out, 48) != 0) {   return (-1);
- }
- } else {   int32_t si = 0;
+  { int32_t si = 0;
   while (si < slen) {
-    if (si > 0) {   uint8_t comma[3] = { 44, 32, 0 };
-  if (codegen_emit_bytes_3(out, comma, 2) != 0) {   return (-1);
- }
- }
-    if (codegen_format_int(out, ((int32_t)((si < 0 || (si) >= 64 ? (shux_panic_(1, 0), ((e).var_name)[0]) : ((e).var_name)[si])))) != 0) {   return (-1);
- }
+    int32_t b = (int32_t)((si < 0 || (si) >= 64 ? (shux_panic_(1, 0), ((e).var_name)[0]) : ((e).var_name)[si]));
+    if (b < 0) b += 256;
+    if (b > 255) b &= 255;
+    if (codegen_append_byte(out, 92) != 0) {   return (-1); }
+    if (codegen_append_byte(out, 120) != 0) {   return (-1); }
+    { int32_t hi = b / 16; int32_t lo = b - hi * 16;
+      uint8_t hex[17] = { 48,49,50,51,52,53,54,55,56,57,97,98,99,100,101,102,0 };
+      if (codegen_append_byte(out, hex[hi]) != 0) {   return (-1); }
+      if (codegen_append_byte(out, hex[lo]) != 0) {   return (-1); }
+    }
     ++si;
   }
-  /* trailing C NUL (not counted in slice .length) */
-  { uint8_t nul_sep[4] = { 44, 32, 48, 0 };
-  if (codegen_emit_bytes_4(out, nul_sep, 3) != 0) {   return (-1);
- }
- }
- }
-  if (emit_slice) {   uint8_t slice_tail[18] = { 32, 125, 44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 0, 0, 0, 0 };
-  if (codegen_emit_bytes_from_ptr(out, (&((slice_tail)[0])), 14) != 0) {   return (-1);
+  }
+  if (codegen_append_byte(out, 34) != 0) {   return (-1); }
+  if (codegen_append_byte(out, 41) != 0) {   return (-1); }
+  if (emit_slice) {   uint8_t slice_tail[18] = { 32, 44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 0, 0, 0, 0, 0 };
+  if (codegen_emit_bytes_from_ptr(out, (&((slice_tail)[0])), 13) != 0) {   return (-1);
  }
   if (codegen_format_int(out, slen) != 0) {   return (-1);
  }
@@ -2910,8 +2905,7 @@ SHUX_LIB_WEAK int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct code
  }
   return 0;
  }
-  uint8_t close[4] = { 32, 125, 0, 0 };
-  return codegen_emit_bytes_4(out, close, 2);
+  return 0;
  }
   if ((e).kind == ast_ExprKind_EXPR_LIT) {   return codegen_format_int(out, (e).int_val);
  }

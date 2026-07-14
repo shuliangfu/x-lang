@@ -3590,10 +3590,14 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
     return 0;
   }
   let e: Expr = ast.ast_arena_expr_get(arena, expr_ref);
-  /* STRING_LIT(kind 59) → C `(uint8_t[]){ bytes... }`。
-   * W-string-nul：*u8 路径必须尾随 0（C 字符串 NUL）；空串已单独发 `0`。
-   * 内容上限 var_name[64] → slen≤64（旧 63 会丢第 64 字节）。
-   * slice 路径用 .length=slen 表达长度，数据侧同样补 NUL 便于 .data 当 cstr。 */
+  /* STRING_LIT(kind 59)。
+   * 【Why 根源】旧逻辑 *u8 发 `(uint8_t[]){ bytes, 0 }`：C 块作用域 compound literal
+   *   为自动存储；`let p = "x"; return p`（如 labi_linux_harden_flag_at）返回悬空指针，
+   *   invoke_cc 把野指针塞进 argv → gcc 收到乱码路径、链接失败。
+   * 【Invariant】*u8 路径发 `((uint8_t*)"\xHH...")`：C 字符串字面量在 rodata，生命周期稳定。
+   * slice 路径 .data 同理用 rodata 串，勿栈 compound。
+   * W-string-nul：*u8 串隐式 NUL；slice .length=slen 不含尾 NUL。
+   * 内容上限 var_name[64] → slen≤64。 */
   if (pipeline_expr_kind_ord_at(arena, expr_ref) == 59) {
     let slen: i32 = e.var_name_len;
     let emit_slice: bool = false;
@@ -3609,6 +3613,8 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         emit_slice = true;
       }
     }
+    /* 公共：((uint8_t*)"\xHH...") rodata 串 */
+    let cast_open: u8[14] = [40, 40, 117, 105, 110, 116, 56, 95, 116, 32, 42, 41, 34, 0];
     if (emit_slice) {
       let slice_mid: u8[13] = [41, 123, 32, 46, 100, 97, 116, 97, 32, 61, 32, 40, 0];
       if (append_byte(out, 40) != 0) {
@@ -3620,46 +3626,47 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       if (emit_bytes_from_ptr(out, &slice_mid[0], 12) != 0) {
         return -1;
       }
-    } else {
-      if (append_byte(out, 40) != 0) {
-        return -1;
-      }
     }
-    let u8ty: u8[9] = [117, 105, 110, 116, 56, 95, 116, 0, 0];
-    if (emit_bytes_9(out, u8ty, 7) != 0) {
+    if (emit_bytes_from_ptr(out, &cast_open[0], 13) != 0) {
       return -1;
     }
-    let arr_head: u8[5] = [91, 93, 41, 123, 0];
-    if (emit_bytes_5(out, arr_head, 4) != 0) {
+    let si: i32 = 0;
+    while (si < slen) {
+      let b: i32 = e.var_name[si] as i32;
+      if (b < 0) {
+        b = b + 256;
+      }
+      if (b > 255) {
+        b = b & 255;
+      }
+      /* \xHH */
+      if (append_byte(out, 92) != 0) {
+        return -1;
+      }
+      if (append_byte(out, 120) != 0) {
+        return -1;
+      }
+      let hi: i32 = b / 16;
+      let lo: i32 = b - hi * 16;
+      let hex: u8[17] = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 97, 98, 99, 100, 101, 102, 0];
+      if (append_byte(out, hex[hi]) != 0) {
+        return -1;
+      }
+      if (append_byte(out, hex[lo]) != 0) {
+        return -1;
+      }
+      si = si + 1;
+    }
+    /* close " )  for cast; slice adds , .length = N } */
+    if (append_byte(out, 34) != 0) {
       return -1;
     }
-    if (slen == 0) {
-      if (append_byte(out, 48) != 0) {
-        return -1;
-      }
-    } else {
-      let si: i32 = 0;
-      while (si < slen) {
-        if (si > 0) {
-          let comma: u8[3] = [44, 32, 0];
-          if (emit_bytes_3(out, comma, 2) != 0) {
-            return -1;
-          }
-        }
-        if (format_int(out, e.var_name[si] as i32) != 0) {
-          return -1;
-        }
-        si = si + 1;
-      }
-      /* trailing C NUL (not counted in slice .length) */
-      let nul_sep: u8[4] = [44, 32, 48, 0];
-      if (emit_bytes_4(out, nul_sep, 3) != 0) {
-        return -1;
-      }
+    if (append_byte(out, 41) != 0) {
+      return -1;
     }
     if (emit_slice) {
-      let slice_tail: u8[18] = [32, 125, 44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 0, 0, 0, 0];
-      if (emit_bytes_from_ptr(out, &slice_tail[0], 14) != 0) {
+      let slice_tail: u8[18] = [32, 44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 0, 0, 0, 0, 0];
+      if (emit_bytes_from_ptr(out, &slice_tail[0], 13) != 0) {
         return -1;
       }
       if (format_int(out, slen) != 0) {
@@ -3673,8 +3680,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       }
       return 0;
     }
-    let close: u8[4] = [32, 125, 0, 0];
-    return emit_bytes_4(out, close, 2);
+    return 0;
   }
   if (e.kind == ExprKind.EXPR_LIT) {
     return format_int(out, e.int_val);
