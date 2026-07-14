@@ -66,6 +66,9 @@ MODULES=(
   # fmt_check_cmd L2 thin 公共面：与产品 PREFER_X_O 同源（thin.x + full seed rest）；prove 锁 thin 面 IDENTICAL
   # full seed rest 仍持 _impl / walk·argv C 尾；产品 o 名 fmt_check_cmd_driver.o
   "fmt_check|src/driver/fmt_check_cmd_thin.x|seeds/fmt_check_cmd_thin.from_x.c||"
+  # simd_loop L2 thin 公共面：与产品 PREFER_X_O 同源（thin.x + full seed rest）；prove 锁 thin 面 IDENTICAL
+  # full seed rest 仍持 _impl / peel·emit C 尾；产品 o 名 simd_loop.o
+  "simd_loop|src/asm/simd_loop_thin.x|seeds/simd_loop_thin.from_x.c||"
 )
 
 # 找 shux 二进制（优先 shux，fallback shux-c）
