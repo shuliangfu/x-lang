@@ -41,7 +41,10 @@ export function security_f_zero_c_marker_c(): i32 {
  */
 export function security_mlock_c(p: *u8, len: i32): i32 {
   if (p == 0 || len <= 0) { return 0; }
-  if (unsafe { mlock(p, len) } == 0) { return 1; }
+  /* 【Why】勿用 if (unsafe { call() } == 0)：表达式 unsafe 落成 statement-expr，C 侧 void 与 int 比较 */
+  let rc: i32 = 0;
+  unsafe { rc = mlock(p, len); }
+  if (rc == 0) { return 1; }
   return 0;
 }
 
@@ -51,7 +54,9 @@ export function security_mlock_c(p: *u8, len: i32): i32 {
  */
 export function security_munlock_c(p: *u8, len: i32): i32 {
   if (p == 0 || len <= 0) { return 0; }
-  if (unsafe { munlock(p, len) } == 0) { return 1; }
+  let rc: i32 = 0;
+  unsafe { rc = munlock(p, len); }
+  if (rc == 0) { return 1; }
   return 0;
 }
 
@@ -147,7 +152,9 @@ export function security_smoke_c(): i32 {
   if (security_hkdf_sha256_c(&salt[0], 13, &ikm[0], 22, &info[0], 10, &okm[0], 42) != 0) {
     return 1;
   }
-  if (unsafe { crypto_mem_eq_c(&okm[0], &expect[0], 42) } != 1) { return 2; }
+  let eq_rc: i32 = 0;
+  unsafe { eq_rc = crypto_mem_eq_c(&okm[0], &expect[0], 42); }
+  if (eq_rc != 1) { return 2; }
   while (i < 8) {
     buf[i] = (i + 1) as u8;
     i = i + 1;

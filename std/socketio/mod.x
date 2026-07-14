@@ -424,7 +424,10 @@ export function connect_ws(http_base: *u8, base_len: i32, sid: *u8, sid_len: i32
   if (http_base == 0 || sid == 0 || url_buf == 0) { return bad; }
   n = build_ws_connect_url(http_base, base_len, sid, sid_len, url_buf, url_cap);
   if (n <= 0) { return bad; }
-  if (unsafe { net_ws_connect_url_c(url_buf, n, &key[0], 0, timeout_ms, &fd, &tls) } != 0) { return bad; }
+  /* 【Why】勿用 if (unsafe { call() } != 0)：表达式 unsafe → void 与 int 比较 */
+  let ws_rc: i32 = 0;
+  unsafe { ws_rc = net_ws_connect_url_c(url_buf, n, &key[0], 0, timeout_ms, &fd, &tls); }
+  if (ws_rc != 0) { return bad; }
   /* probe 可选：失败时仍尝试后续 Socket.IO CONNECT。 */
   if (ws_finish_eio_upgrade(SioWsStream { fd: fd, tls_ctx: tls }, timeout_ms) != 0) {
     let probe_skip: i32 = 0;
@@ -564,7 +567,9 @@ export function connect_ws_fresh(http_base: *u8, base_len: i32, url_buf: *u8, ur
   if (http_base == 0 || url_buf == 0) { return bad; }
   n = build_ws_eio_url_fresh(http_base, base_len, url_buf, url_cap);
   if (n <= 0) { return bad; }
-  if (unsafe { net_ws_connect_url_c(url_buf, n, &key[0], 0, timeout_ms, &fd, &tls) } != 0) { return bad; }
+  let ws_rc: i32 = 0;
+  unsafe { ws_rc = net_ws_connect_url_c(url_buf, n, &key[0], 0, timeout_ms, &fd, &tls); }
+  if (ws_rc != 0) { return bad; }
   stream.fd = fd;
   stream.tls_ctx = tls;
   if (ws_read_text(stream, &open_buf[0], 512, timeout_ms, &olen) != 0) {

@@ -211,7 +211,9 @@ export function ws_client_handshake_io(fd: i32, tls_ctx: i64, host: *u8, path: *
     use_key = &key_auto[0];
     use_key_len = 24;
   }
-  if (tls_ctx == 0 && unsafe { net_set_blocking_c(fd, 1) } != 0) {
+  let _uc_0_0: i32 = 0;
+  unsafe { _uc_0_0 = net_set_blocking_c(fd, 1); }
+  if (tls_ctx == 0 && _uc_0_0 != 0) {
     return -1;
   }
   req_len = codec.net_ws_handshake_request_c(host, path, use_key, &req[0], 512);
@@ -501,7 +503,9 @@ export function net_ws_server_handshake_c(fd: i32, tls_ctx: i64, timeout_ms: u32
   if (fd < 0) {
     return -1;
   }
-  if (tls_ctx == 0 && unsafe { net_set_blocking_c(fd, 1) } != 0) {
+  let _uc_1_0: i32 = 0;
+  unsafe { _uc_1_0 = net_set_blocking_c(fd, 1); }
+  if (tls_ctx == 0 && _uc_1_0 != 0) {
     return -1;
   }
   while (req_len < 2047) {

@@ -150,19 +150,27 @@ export function regex_min_parse_prop_name(name: *u8, name_len: i32, out: *i32): 
     }
     return 0;
   }
-  if (name_len == 6 && unsafe { memcmp(name, &REG_LIT_LETTER[0], 6) } == 0) {
+  let _uc_0_0: i32 = 0;
+  unsafe { _uc_0_0 = memcmp(name, &REG_LIT_LETTER[0], 6); }
+  if (name_len == 6 && _uc_0_0 == 0) {
     out[0] = REGEX_PROP_LETTER;
     return 1;
   }
-  if (name_len == 6 && unsafe { memcmp(name, &REG_LIT_NUMBER[0], 6) } == 0) {
+  let _uc_1_0: i32 = 0;
+  unsafe { _uc_1_0 = memcmp(name, &REG_LIT_NUMBER[0], 6); }
+  if (name_len == 6 && _uc_1_0 == 0) {
     out[0] = REGEX_PROP_NUMBER;
     return 1;
   }
-  if (name_len == 10 && unsafe { memcmp(name, &REG_LIT_WHITESPACE[0], 10) } == 0) {
+  let _uc_2_0: i32 = 0;
+  unsafe { _uc_2_0 = memcmp(name, &REG_LIT_WHITESPACE[0], 10); }
+  if (name_len == 10 && _uc_2_0 == 0) {
     out[0] = REGEX_PROP_WHITESPACE;
     return 1;
   }
-  if (name_len == 5 && unsafe { memcmp(name, &REG_LIT_SPACE[0], 5) } == 0) {
+  let _uc_3_0: i32 = 0;
+  unsafe { _uc_3_0 = memcmp(name, &REG_LIT_SPACE[0], 5); }
+  if (name_len == 5 && _uc_3_0 == 0) {
     out[0] = REGEX_PROP_WHITESPACE;
     return 1;
   }
@@ -279,7 +287,12 @@ export function regex_min_search_literal(state: *RegexMinImpl, text: *u8, len: i
     if (hit == 0) { return -1; }
     i = (hit - text) as i32;
     if (i + plen > len) { return -1; }
-    if (unsafe { memcmp(hit, state.pat, plen) } == 0) {
+    /* 【Why】勿用 let _uc_4_0: i32 = 0;
+    unsafe { _uc_4_0 = memcmp(...); }
+    if (_uc_4_0 == 0)：表达式 unsafe → void 与 int 比较 */
+    let cmp_rc: i32 = 0;
+    unsafe { cmp_rc = memcmp(hit, state.pat, plen); }
+    if (cmp_rc == 0) {
       if (state.caps != 0 && state.ncap > 0) {
         state.caps[0].off = i;
         state.caps[0].len = plen;

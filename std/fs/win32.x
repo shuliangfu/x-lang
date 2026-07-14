@@ -736,9 +736,14 @@ export function fs_dir_read_c(handle: i64, name_out: *u8, name_cap: i32, is_dir_
   while (h[0].has_next != 0) {
     if (h[0].first != 0) {
       h[0].first = 0;
-    } else if (unsafe { FindNextFileA(h[0].find, &h[0].fd) } == 0) {
-      h[0].has_next = 0;
-      return 0;
+    } else {
+      /* 【Why】勿用 if (unsafe { FindNextFileA(...) } == 0)：表达式 unsafe → void 与 int 比较 */
+      let next_rc: i32 = 0;
+      unsafe { next_rc = FindNextFileA(h[0].find, &h[0].fd); }
+      if (next_rc == 0) {
+        h[0].has_next = 0;
+        return 0;
+      }
     }
     name = &h[0].fd.cFileName[0];
     if (name[0] == 46 && (name[1] == 0 || (name[1] == 46 && name[2] == 0))) {

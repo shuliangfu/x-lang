@@ -216,7 +216,9 @@ export function sch_find_field(sch: *SchSchema, name: *u8): i32 {
   let i: i32 = 0;
   if (sch == 0 || name == 0) { return -1; }
   while (i < sch.field_count) {
-    if (unsafe { strcmp(&sch.fields[i].name[0], name) } == 0) { return i; }
+    let _u_rc_0: i32 = 0;
+    unsafe { _u_rc_0 = strcmp(&sch.fields[i].name[0], name); }
+    if (_u_rc_0 == 0) { return i; }
     i = i + 1;
   }
   return -1;
@@ -336,13 +338,24 @@ export function sch_parse_text(sch: *SchSchema, idx: i32, text: *u8): i32 {
     return SCH_OK;
   }
   if (fd_type == SCH_TYPE_BOOL) {
-    if (unsafe { strcmp(text, &SCH_LIT_TRUE[0]) } == 0 || unsafe { strcmp(text, &SCH_LIT_N1[0]) } == 0 ||
-        unsafe { strcmp(text, &SCH_LIT_YES[0]) } == 0) {
+    /* 【Why】勿用 if (unsafe {…}==0 || unsafe {…})：表达式 unsafe → void 与 int 比较 */
+    let c_true: i32 = 0;
+    let c_n1: i32 = 0;
+    let c_yes: i32 = 0;
+    unsafe { c_true = strcmp(text, &SCH_LIT_TRUE[0]); }
+    unsafe { c_n1 = strcmp(text, &SCH_LIT_N1[0]); }
+    unsafe { c_yes = strcmp(text, &SCH_LIT_YES[0]); }
+    if (c_true == 0 || c_n1 == 0 || c_yes == 0) {
       v.bool_v = 1;
       return SCH_OK;
     }
-    if (unsafe { strcmp(text, &SCH_LIT_FALSE[0]) } == 0 || unsafe { strcmp(text, &SCH_LIT_N0[0]) } == 0 ||
-        unsafe { strcmp(text, &SCH_LIT_NO[0]) } == 0) {
+    let c_false: i32 = 0;
+    let c_n0: i32 = 0;
+    let c_no: i32 = 0;
+    unsafe { c_false = strcmp(text, &SCH_LIT_FALSE[0]); }
+    unsafe { c_n0 = strcmp(text, &SCH_LIT_N0[0]); }
+    unsafe { c_no = strcmp(text, &SCH_LIT_NO[0]); }
+    if (c_false == 0 || c_n0 == 0 || c_no == 0) {
       v.bool_v = 0;
       return SCH_OK;
     }
@@ -467,7 +480,9 @@ export function sch_decode_json_scalar(sch: *SchSchema, cur: *JsonCursor, full_k
   if (sch == 0 || cur == 0 || full_key == 0) { return SCH_ERR_NULL; }
   idx = sch_find_field(sch, full_key);
   if (idx < 0) {
-    if (unsafe { json_cursor_skip_value_c(cur) } != 0) { return SCH_ERR_INVALID; }
+    let _u_rc_3: i32 = 0;
+    unsafe { _u_rc_3 = json_cursor_skip_value_c(cur); }
+    if (_u_rc_3 != 0) { return SCH_ERR_INVALID; }
     return SCH_OK;
   }
   vp = cur.ptr + cur.off;
@@ -481,44 +496,58 @@ export function sch_decode_json_scalar(sch: *SchSchema, cur: *JsonCursor, full_k
     out_buf[sl] = 0;
     sch.values[idx].present = 1;
     sch_strncpy(&sch.values[idx].str[0], &out_buf[0], SCH_VAL_MAX);
-    if (unsafe { json_cursor_skip_value_c(cur) } != 0) {
+    let _u_rc_4: i32 = 0;
+    unsafe { _u_rc_4 = json_cursor_skip_value_c(cur); }
+    if (_u_rc_4 != 0) {
       sch_set_error(sch, &sch.fields[idx].name[0], &SCH_LIT_JSON_VALUE_SKIP_FAILED[0]);
       return SCH_ERR_INVALID;
     }
     return SCH_OK;
   }
   if (sch.fields[idx].type == SCH_TYPE_I32) {
-    if (unsafe { json_parse_number_c(vp, vlen, &dv, &consumed) } != 0) {
+    let _u_rc_5: i32 = 0;
+    unsafe { _u_rc_5 = json_parse_number_c(vp, vlen, &dv, &consumed); }
+    if (_u_rc_5 != 0) {
       sch_set_error(sch, &sch.fields[idx].name[0], &SCH_LIT_EXPECTED_NUMBER[0]);
       return SCH_ERR_TYPE;
     }
     sch.values[idx].present = 1;
     sch.values[idx].i32_v = dv as i32;
-    if (unsafe { json_cursor_skip_value_c(cur) } != 0) {
+    let _u_rc_6: i32 = 0;
+    unsafe { _u_rc_6 = json_cursor_skip_value_c(cur); }
+    if (_u_rc_6 != 0) {
       sch_set_error(sch, &sch.fields[idx].name[0], &SCH_LIT_JSON_VALUE_SKIP_FAILED[0]);
       return SCH_ERR_INVALID;
     }
     return SCH_OK;
   }
   if (sch.fields[idx].type == SCH_TYPE_F64) {
-    if (unsafe { json_parse_number_c(vp, vlen, &sch.values[idx].f64_v, &consumed) } != 0) {
+    let _u_rc_7: i32 = 0;
+    unsafe { _u_rc_7 = json_parse_number_c(vp, vlen, &sch.values[idx].f64_v, &consumed); }
+    if (_u_rc_7 != 0) {
       sch_set_error(sch, &sch.fields[idx].name[0], &SCH_LIT_EXPECTED_NUMBER[0]);
       return SCH_ERR_TYPE;
     }
     sch.values[idx].present = 1;
-    if (unsafe { json_cursor_skip_value_c(cur) } != 0) {
+    let _u_rc_8: i32 = 0;
+    unsafe { _u_rc_8 = json_cursor_skip_value_c(cur); }
+    if (_u_rc_8 != 0) {
       sch_set_error(sch, &sch.fields[idx].name[0], &SCH_LIT_JSON_VALUE_SKIP_FAILED[0]);
       return SCH_ERR_INVALID;
     }
     return SCH_OK;
   }
   if (sch.fields[idx].type == SCH_TYPE_BOOL) {
-    if (unsafe { json_parse_bool_c(vp, vlen, &sch.values[idx].bool_v, &consumed) } != 1) {
+    let _u_rc_9: i32 = 0;
+    unsafe { _u_rc_9 = json_parse_bool_c(vp, vlen, &sch.values[idx].bool_v, &consumed); }
+    if (_u_rc_9 != 1) {
       sch_set_error(sch, &sch.fields[idx].name[0], &SCH_LIT_EXPECTED_BOOL[0]);
       return SCH_ERR_TYPE;
     }
     sch.values[idx].present = 1;
-    if (unsafe { json_cursor_skip_value_c(cur) } != 0) {
+    let _u_rc_10: i32 = 0;
+    unsafe { _u_rc_10 = json_cursor_skip_value_c(cur); }
+    if (_u_rc_10 != 0) {
       sch_set_error(sch, &sch.fields[idx].name[0], &SCH_LIT_JSON_VALUE_SKIP_FAILED[0]);
       return SCH_ERR_INVALID;
     }
@@ -549,7 +578,9 @@ export function sch_decode_json_object(sch: *SchSchema, cur: *JsonCursor, prefix
     }
     unsafe { vtype = json_cursor_value_type_c(cur); }
     if (vtype == 3) {
-      if (unsafe { json_cursor_enter_object_c(cur) } != 0) {
+      let _u_rc_11: i32 = 0;
+      unsafe { _u_rc_11 = json_cursor_enter_object_c(cur); }
+      if (_u_rc_11 != 0) {
         sch_set_error(sch, &full_key[0], &SCH_LIT_EXPECTED_OBJECT[0]);
         return SCH_ERR_INVALID;
       }
@@ -574,7 +605,9 @@ export function sch_decode_json_array(sch: *SchSchema, cur: *JsonCursor, prefix:
   let vtype: i32 = 0;
   let rc: i32 = 0;
   if (sch == 0 || cur == 0 || prefix == 0) { return SCH_ERR_NULL; }
-  if (unsafe { json_cursor_enter_array_c(cur) } != 0) {
+  let _u_rc_12: i32 = 0;
+  unsafe { _u_rc_12 = json_cursor_enter_array_c(cur); }
+  if (_u_rc_12 != 0) {
     sch_set_error(sch, prefix, &SCH_LIT_EXPECTED_ARRAY[0]);
     return SCH_ERR_INVALID;
   }
@@ -591,7 +624,9 @@ export function sch_decode_json_array(sch: *SchSchema, cur: *JsonCursor, prefix:
     }
     unsafe { vtype = json_cursor_value_type_c(cur); }
     if (vtype == 3) {
-      if (unsafe { json_cursor_enter_object_c(cur) } != 0) {
+      let _u_rc_13: i32 = 0;
+      unsafe { _u_rc_13 = json_cursor_enter_object_c(cur); }
+      if (_u_rc_13 != 0) {
         sch_set_error(sch, &elem_key[0], &SCH_LIT_EXPECTED_OBJECT[0]);
         return SCH_ERR_INVALID;
       }
@@ -664,7 +699,9 @@ export function schema_decode_json_c(handle: i64, json: *u8, json_len: i32): i32
   if (sch == 0 || json == 0 || json_len <= 0) { return SCH_ERR_NULL; }
   sch_clear_values(sch);
   unsafe { json_cursor_init_c(&cur, json, json_len); }
-  if (unsafe { json_cursor_enter_object_c(&cur) } != 0) {
+  let _u_rc_14: i32 = 0;
+  unsafe { _u_rc_14 = json_cursor_enter_object_c(&cur); }
+  if (_u_rc_14 != 0) {
     sch_set_error(sch, 0, &SCH_LIT_EXPECTED_JSON_OBJECT[0]);
     return SCH_ERR_INVALID;
   }
@@ -865,16 +902,22 @@ export function schema_smoke_c(): i32 {
   unsafe { json_len = strlen(json) as i32; }
   if (schema_decode_json_c(sch, json, json_len) != SCH_OK) { return 5; }
   if (schema_get_string_c(sch, &SCH_LIT_NAME[0], 4, &name[0], 64) <= 0) { return 6; }
-  if (unsafe { strcmp(&name[0], &SCH_LIT_ALICE[0]) } != 0) { return 7; }
+  let _u_rc_15: i32 = 0;
+  unsafe { _u_rc_15 = strcmp(&name[0], &SCH_LIT_ALICE[0]); }
+  if (_u_rc_15 != 0) { return 7; }
   if (schema_get_i32_c(sch, &SCH_LIT_AGE[0], 3, &age) != SCH_OK || age != 30) { return 8; }
   if (schema_get_bool_c(sch, &SCH_LIT_ACTIVE[0], 6, &active) != SCH_OK || active != 1) { return 9; }
   unsafe { csv_len = strlen(csv) as i32; }
   if (schema_decode_csv_row_c(sch, csv, csv_len, 0) != SCH_OK) { return 10; }
   if (schema_get_string_c(sch, &SCH_LIT_NAME[0], 4, &name[0], 64) <= 0) { return 11; }
-  if (unsafe { strcmp(&name[0], &SCH_LIT_BOB[0]) } != 0) { return 12; }
+  let _u_rc_16: i32 = 0;
+  unsafe { _u_rc_16 = strcmp(&name[0], &SCH_LIT_BOB[0]); }
+  if (_u_rc_16 != 0) { return 12; }
   if (schema_get_i32_c(sch, &SCH_LIT_AGE[0], 3, &age) != SCH_OK || age != 25) { return 13; }
   if (schema_get_bool_c(sch, &SCH_LIT_ACTIVE[0], 6, &active) != SCH_OK || active != 0) { return 14; }
-  if (unsafe { parse_row(csv, csv_len, 0, &starts[0], &lens[0], 4, &count) } < 0) { return 15; }
+  let _u_rc_17: i32 = 0;
+  unsafe { _u_rc_17 = parse_row(csv, csv_len, 0, &starts[0], &lens[0], 4, &count); }
+  if (_u_rc_17 < 0) { return 15; }
   if (count != 3) { return 15; }
   if (schema_map_columns_c(sch, csv, &starts[0], &lens[0], count) != SCH_OK) { return 16; }
   if (schema_decode_json_c(sch, &SCH_LIT_NAME_X[0], 14) != SCH_ERR_NOT_FOUND) { return 17; }
@@ -889,7 +932,9 @@ export function schema_smoke_c(): i32 {
   unsafe { nested_len = strlen(nested) as i32; }
   if (schema_decode_json_c(sch, nested, nested_len) != SCH_OK) { return 22; }
   if (schema_get_string_c(sch, &SCH_LIT_USER_NAME[0], 9, &name[0], 64) <= 0) { return 23; }
-  if (unsafe { strcmp(&name[0], &SCH_LIT_CAROL[0]) } != 0) { return 24; }
+  let _u_rc_18: i32 = 0;
+  unsafe { _u_rc_18 = strcmp(&name[0], &SCH_LIT_CAROL[0]); }
+  if (_u_rc_18 != 0) { return 24; }
   if (schema_get_i32_c(sch, &SCH_LIT_USER_AGE[0], 8, &age) != SCH_OK || age != 42) { return 25; }
   /* JSON array → 索引点分键 */
   schema_free_c(sch);
@@ -912,9 +957,13 @@ export function schema_smoke_c(): i32 {
   unsafe { arr_obj_len = strlen(arr_obj) as i32; }
   if (schema_decode_json_c(sch, arr_obj, arr_obj_len) != SCH_OK) { return 35; }
   if (schema_get_string_c(sch, &SCH_LIT_USERS_0_NAME[0], 12, &name[0], 64) <= 0) { return 36; }
-  if (unsafe { strcmp(&name[0], &SCH_LIT_ALICE[0]) } != 0) { return 37; }
+  let _u_rc_19: i32 = 0;
+  unsafe { _u_rc_19 = strcmp(&name[0], &SCH_LIT_ALICE[0]); }
+  if (_u_rc_19 != 0) { return 37; }
   if (schema_get_string_c(sch, &SCH_LIT_USERS_1_NAME[0], 12, &name[0], 64) <= 0) { return 38; }
-  if (unsafe { strcmp(&name[0], &SCH_LIT_BOB[0]) } != 0) { return 39; }
+  let _u_rc_20: i32 = 0;
+  unsafe { _u_rc_20 = strcmp(&name[0], &SCH_LIT_BOB[0]); }
+  if (_u_rc_20 != 0) { return 39; }
   schema_free_c(sch);
   return 0;
 }

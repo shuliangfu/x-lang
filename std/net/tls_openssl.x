@@ -135,8 +135,10 @@ export function net_tls_server_ctx_create_mem_c(cert_pem: *u8, cert_len: i32, ke
     shu_tls_last_error = -2;
     return 0 as i64;
   }
-  if (unsafe { OPENSSL_init_ssl(OPENSSL_INIT_LOAD_SSL_STRINGS | OPENSSL_INIT_LOAD_CRYPTO_STRINGS,
-      0 as *u8) } == 0) {
+  let _u_rc_0: i32 = 0;
+  unsafe { _u_rc_0 = OPENSSL_init_ssl(OPENSSL_INIT_LOAD_SSL_STRINGS | OPENSSL_INIT_LOAD_CRYPTO_STRINGS,
+      0 as *u8); }
+  if (_u_rc_0 == 0) {
     shu_tls_last_error = -1;
     return 0 as i64;
   }
@@ -166,9 +168,13 @@ export function net_tls_server_ctx_create_mem_c(cert_pem: *u8, cert_len: i32, ke
   unsafe { pkey = PEM_read_bio_PrivateKey(key_bio, 0 as * *u8, 0 as *u8, 0 as *u8); }
   unsafe { BIO_free(cert_bio); }
   unsafe { BIO_free(key_bio); }
-  if (cert == 0 || pkey == 0 ||
-      unsafe { SSL_CTX_use_certificate(srv.ctx, cert) } != 1 ||
-      unsafe { SSL_CTX_use_PrivateKey(srv.ctx, pkey) } != 1) {
+  let use_cert_rc: i32 = 0;
+  let use_key_rc: i32 = 0;
+  if (cert != 0 && pkey != 0) {
+    unsafe { use_cert_rc = SSL_CTX_use_certificate(srv.ctx, cert); }
+    unsafe { use_key_rc = SSL_CTX_use_PrivateKey(srv.ctx, pkey); }
+  }
+  if (cert == 0 || pkey == 0 || use_cert_rc != 1 || use_key_rc != 1) {
     if (cert != 0) { unsafe { X509_free(cert); } }
     if (pkey != 0) { unsafe { EVP_PKEY_free(pkey); } }
     unsafe { SSL_CTX_free(srv.ctx); }
@@ -251,8 +257,10 @@ export function net_tls_connect_client_c(fd: i32, sni: *u8): i64 {
     shu_tls_last_error = -1;
     return 0 as i64;
   }
-  if (unsafe { OPENSSL_init_ssl(OPENSSL_INIT_LOAD_SSL_STRINGS | OPENSSL_INIT_LOAD_CRYPTO_STRINGS,
-      0 as *u8) } == 0) {
+  let _u_rc_1: i32 = 0;
+  unsafe { _u_rc_1 = OPENSSL_init_ssl(OPENSSL_INIT_LOAD_SSL_STRINGS | OPENSSL_INIT_LOAD_CRYPTO_STRINGS,
+      0 as *u8); }
+  if (_u_rc_1 == 0) {
     shu_tls_last_error = -1;
     return 0 as i64;
   }
@@ -276,7 +284,9 @@ export function net_tls_connect_client_c(fd: i32, sni: *u8): i64 {
     return 0 as i64;
   }
   unsafe { SSL_set_fd(ssl, fd); }
-  if (unsafe { SSL_set_tlsext_host_name(ssl, sni) } != 1) {
+  let _u_rc_2: i32 = 0;
+  unsafe { _u_rc_2 = SSL_set_tlsext_host_name(ssl, sni); }
+  if (_u_rc_2 != 1) {
     unsafe { SSL_free(ssl); }
     unsafe { SSL_CTX_free(ctx); }
     unsafe { free(sess as *u8); }
@@ -316,8 +326,10 @@ export function net_tls_connect_client_alpn_c(fd: i32, sni: *u8, alpn_wire: *u8,
     shu_tls_last_error = -1;
     return 0 as i64;
   }
-  if (unsafe { OPENSSL_init_ssl(OPENSSL_INIT_LOAD_SSL_STRINGS | OPENSSL_INIT_LOAD_CRYPTO_STRINGS,
-      0 as *u8) } == 0) {
+  let _u_rc_3: i32 = 0;
+  unsafe { _u_rc_3 = OPENSSL_init_ssl(OPENSSL_INIT_LOAD_SSL_STRINGS | OPENSSL_INIT_LOAD_CRYPTO_STRINGS,
+      0 as *u8); }
+  if (_u_rc_3 == 0) {
     shu_tls_last_error = -1;
     return 0 as i64;
   }
@@ -333,7 +345,9 @@ export function net_tls_connect_client_alpn_c(fd: i32, sni: *u8, alpn_wire: *u8,
     return 0 as i64;
   }
   unsafe { SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0 as *u8); }
-  if (unsafe { SSL_CTX_set_alpn_protos(ctx, alpn_wire, alpn_wire_len as u32) } != 0) {
+  let _u_rc_4: i32 = 0;
+  unsafe { _u_rc_4 = SSL_CTX_set_alpn_protos(ctx, alpn_wire, alpn_wire_len as u32); }
+  if (_u_rc_4 != 0) {
     unsafe { SSL_CTX_free(ctx); }
     unsafe { free(sess as *u8); }
     shu_tls_last_error = -1;
@@ -347,7 +361,9 @@ export function net_tls_connect_client_alpn_c(fd: i32, sni: *u8, alpn_wire: *u8,
     return 0 as i64;
   }
   unsafe { SSL_set_fd(ssl, fd); }
-  if (unsafe { SSL_set_tlsext_host_name(ssl, sni) } != 1) {
+  let _u_rc_5: i32 = 0;
+  unsafe { _u_rc_5 = SSL_set_tlsext_host_name(ssl, sni); }
+  if (_u_rc_5 != 1) {
     unsafe { SSL_free(ssl); }
     unsafe { SSL_CTX_free(ctx); }
     unsafe { free(sess as *u8); }
@@ -531,9 +547,14 @@ export function net_tls_openssl_smoke_c(): i32 {
     return 6;
   }
   buf[n] = 0;
-  if (unsafe { strstr(&buf[0], &HTTP_TAG[0]) } == 0 &&
-      unsafe { strstr(&buf[0], &HTML_TAG[0]) } == 0 &&
-      unsafe { strstr(&buf[0], &HTML_TAG_U[0]) } == 0) {
+  /* 【Why】勿用 if (unsafe { strstr } == 0 && …)：表达式 unsafe → void 与指针比较 */
+  let hit_http: *u8 = 0;
+  let hit_html: *u8 = 0;
+  let hit_html_u: *u8 = 0;
+  unsafe { hit_http = strstr(&buf[0], &HTTP_TAG[0]); }
+  unsafe { hit_html = strstr(&buf[0], &HTML_TAG[0]); }
+  unsafe { hit_html_u = strstr(&buf[0], &HTML_TAG_U[0]); }
+  if (hit_http == 0 && hit_html == 0 && hit_html_u == 0) {
     net_tls_close_c(ctx);
     unsafe { net_close_socket_c(fd); }
     return 7;

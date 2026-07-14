@@ -421,7 +421,9 @@ export function sio_eio_open_has_websocket_c(open_payload: *u8, len: i32): i32 {
           return -1;
         }
     for (i = 0; i + 11 <= len; i = i + 1) {
-        if (unsafe { memcmp(open_payload + i, needle, 11) } == 0)
+        let _u_rc_0: i32 = 0;
+        unsafe { _u_rc_0 = memcmp(open_payload + i, needle, 11); }
+        if (_u_rc_0 == 0)
             {
               return 1;
             }
@@ -530,7 +532,9 @@ export function sio_polling_smoke_c(): i32 {
         {
           return 1;
         }
-    if (unsafe { memcmp(url, &SIO_LIT_HTTP_127_0_0_1_3000_SOCKET_IO_EIO_4_TRANSPORT_POLLING[0],  (n as usize)) } != 0)
+    let _u_rc_1: i32 = 0;
+    unsafe { _u_rc_1 = memcmp(url, &SIO_LIT_HTTP_127_0_0_1_3000_SOCKET_IO_EIO_4_TRANSPORT_POLLING[0],  (n as usize)); }
+    if (_u_rc_1 != 0)
         {
           return 2;
         }
@@ -548,7 +552,9 @@ export function sio_polling_smoke_c(): i32 {
         {
           return 5;
         }
-    if (unsafe { memcmp(sid_out, sid, 6) } != 0)
+    let _u_rc_2: i32 = 0;
+    unsafe { _u_rc_2 = memcmp(sid_out, sid, 6); }
+    if (_u_rc_2 != 0)
         {
           return 6;
         }
@@ -582,12 +588,16 @@ export function sio_http_to_ws_base_c(http_base: *u8, len: i32, out: *u8, out_ca
         {
           return -1;
         }
-    if (len >= 8 && unsafe { memcmp(http_base, https_p, 8) } == 0) {
+    let cmp_https: i32 = 0;
+    let cmp_http: i32 = 0;
+    unsafe { cmp_https = memcmp(http_base, https_p, 8); }
+    unsafe { cmp_http = memcmp(http_base, http_p, 7); }
+    if (len >= 8 && cmp_https == 0) {
         dst_p = wss_p;
         dst_len = 6;
         src_suffix = http_base + 8;
         suffix_len = len - 8;
-    } else if (len >= 7 && unsafe { memcmp(http_base, http_p, 7) } == 0) {
+    } else if (len >= 7 && cmp_http == 0) {
         dst_p = ws_p;
         dst_len = 5;
         src_suffix = http_base + 7;
@@ -637,19 +647,27 @@ export function sio_eio_ws_upgrade_c(fd: i32, tls_ctx: i64, timeout_ms: u32): i3
         {
           return -1;
         }
-    if (unsafe { net_ws_write_text_c(fd, tls_ctx, probe, 6) } != 0)
+    let _u_rc_3: i32 = 0;
+    unsafe { _u_rc_3 = net_ws_write_text_c(fd, tls_ctx, probe, 6); }
+    if (_u_rc_3 != 0)
         {
           return -1;
         }
-    if (unsafe { net_ws_read_frame_c(fd, tls_ctx, &opcode, buf, 16, &plen, timeout_ms) } != 0)
+    let _u_rc_4: i32 = 0;
+    unsafe { _u_rc_4 = net_ws_read_frame_c(fd, tls_ctx, &opcode, buf, 16, &plen, timeout_ms); }
+    if (_u_rc_4 != 0)
         {
           return -1;
         }
-    if (plen != 6 || unsafe { memcmp(buf, &SIO_LIT_N3PROBE[0], 6) } != 0)
+    let _uc_2_0: i32 = 0;
+    unsafe { _uc_2_0 = memcmp(buf, &SIO_LIT_N3PROBE[0], 6); }
+    if (plen != 6 || _uc_2_0 != 0)
         {
           return -1;
         }
-    if (unsafe { net_ws_write_text_c(fd, tls_ctx, upgrade, 1) } != 0)
+    let _u_rc_5: i32 = 0;
+    unsafe { _u_rc_5 = net_ws_write_text_c(fd, tls_ctx, upgrade, 1); }
+    if (_u_rc_5 != 0)
         {
           return -1;
         }
@@ -691,12 +709,16 @@ export function sio_connect_smoke_c(): i32 {
     let pkt: u8[8] = [];
     let n: i32 = 0;
     n = sio_http_to_ws_base_c(http_base, unsafe { ((strlen(http_base) as i32)) }, ws_base, 64);
-    if (n != 19 || unsafe { memcmp(ws_base, &SIO_LIT_WS_127_0_0_1_3000[0], 19) } != 0)
+    let _uc_3_0: i32 = 0;
+    unsafe { _uc_3_0 = memcmp(ws_base, &SIO_LIT_WS_127_0_0_1_3000[0], 19); }
+    if (n != 19 || _uc_3_0 != 0)
         {
           return 1;
         }
     n = sio_http_to_ws_base_c(https_base, unsafe { ((strlen(https_base) as i32)) }, ws_base, 64);
-    if (n != 22 || unsafe { memcmp(ws_base, &SIO_LIT_WSS_EXAMPLE_COM_8443[0], 22) } != 0)
+    let _uc_4_0: i32 = 0;
+    unsafe { _uc_4_0 = memcmp(ws_base, &SIO_LIT_WSS_EXAMPLE_COM_8443[0], 22); }
+    if (n != 22 || _uc_4_0 != 0)
         {
           return 2;
         }
@@ -742,7 +764,9 @@ export function sio_node_interop_smoke_c(): i32 {
     let node_evt_len: i32 = unsafe { ((strlen(node_ws_event) as i32)) };
 
     n = sio_polling_handshake_parse_c(node_http_open, unsafe { ((strlen(node_http_open) as i32)) }, sid, 16, &has_ws);
-    if (n != 6 || has_ws != 1 || unsafe { memcmp(sid, node_sid, 6) } != 0)
+    let _uc_5_0: i32 = 0;
+    unsafe { _uc_5_0 = memcmp(sid, node_sid, 6); }
+    if (n != 6 || has_ws != 1 || _uc_5_0 != 0)
         {
           return 1;
         }
@@ -763,7 +787,9 @@ export function sio_node_interop_smoke_c(): i32 {
           return 5;
         }
     n = sio_encode_event_packet_c(evt_name, 12, evt_data, 5, enc, 64);
-    if (n != node_evt_len || unsafe { memcmp(enc, node_ws_event,  (n as usize)) } != 0)
+    let _uc_6_0: i32 = 0;
+    unsafe { _uc_6_0 = memcmp(enc, node_ws_event,  (n as usize)); }
+    if (n != node_evt_len || _uc_6_0 != 0)
         {
           return 6;
         }
@@ -845,19 +871,25 @@ export function sio_server_is_polling_handshake_c(path: *u8, len: i32): i32 {
           return -1;
         }
     for (i = 0; i + 4 <= len; i = i + 1) {
-        if (unsafe { memcmp(path + i, eio, 4) } == 0)
+        let _u_rc_6: i32 = 0;
+        unsafe { _u_rc_6 = memcmp(path + i, eio, 4); }
+        if (_u_rc_6 == 0)
             {
               has_eio = 1;
             }
     }
     for (i = 0; i + 17 <= len; i = i + 1) {
-        if (unsafe { memcmp(path + i, tp, 17) } == 0)
+        let _u_rc_7: i32 = 0;
+        unsafe { _u_rc_7 = memcmp(path + i, tp, 17); }
+        if (_u_rc_7 == 0)
             {
               has_tp = 1;
             }
     }
     for (i = 0; i + 4 <= len; i = i + 1) {
-        if (unsafe { memcmp(path + i, sid_q, 4) } == 0)
+        let _u_rc_8: i32 = 0;
+        unsafe { _u_rc_8 = memcmp(path + i, sid_q, 4); }
+        if (_u_rc_8 == 0)
             {
               return 0;
             }
@@ -936,7 +968,11 @@ export function sio_server_emit_smoke_c(): i32 {
     let dlen: i32 = 0;
     let n: i32 = 0;
     n = sio_server_emit_event_c(evt, 4, payload, 6, frame, 64);
-    if (n != unsafe { ((strlen(expect) as i32)) } || unsafe { memcmp(frame, expect,  (n as usize)) } != 0)
+    let expect_len: i32 = 0;
+    let cmp_fr: i32 = 0;
+    unsafe { expect_len = strlen(expect) as i32; }
+    unsafe { cmp_fr = memcmp(frame, expect, (n as usize)); }
+    if (n != expect_len || cmp_fr != 0)
         {
           return 1;
         }
@@ -988,7 +1024,9 @@ export function sio_server_smoke_c(): i32 {
         {
           return 3;
         }
-    if (unsafe { memcmp(sid_out, sid, 6) } != 0 || has_ws != 1)
+    let _u_rc_9: i32 = 0;
+    unsafe { _u_rc_9 = memcmp(sid_out, sid, 6); }
+    if (_u_rc_9 != 0 || has_ws != 1)
         {
           return 4;
         }
@@ -1113,7 +1151,9 @@ export function sio_server_is_connect_ns_packet_c(pkt: *u8, len: i32, ns: *u8, n
         {
           return 0;
         }
-    if (unsafe { memcmp(&inner[1], ns, (ns_len as usize)) } != 0)
+    let _u_rc_10: i32 = 0;
+    unsafe { _u_rc_10 = memcmp(&inner[1], ns, (ns_len as usize)); }
+    if (_u_rc_10 != 0)
         {
           return 0;
         }
@@ -1187,7 +1227,11 @@ export function sio_ns_equal_c(a: *u8, alen: i32, b: *u8, blen: i32): i32 {
         blen = 1;
         b = root;
     }
-    return (alen == blen && unsafe { memcmp(a, b,  (alen as usize)) } == 0) ? 1 : 0;
+    let cmp_ab: i32 = 0;
+    if (alen == blen) {
+      unsafe { cmp_ab = memcmp(a, b, (alen as usize)); }
+    }
+    return (alen == blen && cmp_ab == 0) ? 1 : 0;
 }
 
 export function sio_ns_router_register_c(r: *SioNsRouterMem, ns: *u8, ns_len: i32, slot_id: i32): i32 {
@@ -1622,7 +1666,9 @@ export function sio_ws_hub_find_by_sid_c(h: *SioWsHubMem, sid: *u8, sid_len: i32
             {
               continue;
             }
-        if (unsafe { memcmp(sl.sid, sid,  (sid_len as usize)) } == 0)
+        let _u_rc_11: i32 = 0;
+        unsafe { _u_rc_11 = memcmp(sl.sid, sid,  (sid_len as usize)); }
+        if (_u_rc_11 == 0)
             {
               return i;
             }
@@ -1697,7 +1743,9 @@ export function sio_ws_hub_emit_event_ns_c(h: *SioWsHubMem, slot_id: i32, ns: *u
             {
               continue;
             }
-        if (unsafe { net_ws_write_server_text_c(sl.fd, sl.tls_ctx, frame, n) } == n)
+        let _u_rc_12: i32 = 0;
+        unsafe { _u_rc_12 = net_ws_write_server_text_c(sl.fd, sl.tls_ctx, frame, n); }
+        if (_u_rc_12 == n)
             {
               sent = sent + 1;
             }
@@ -1829,7 +1877,9 @@ export function sio_ws_hub_smoke_c(): i32 {
           return 7;
         }
     ack_len = sio_server_build_connect_ns_ack_c(ns_chat, 5, &SIO_LIT_SUB[0], 3, ack, 64);
-    if (ack_len != 21 || unsafe { memcmp(&ack[0], &expect_ack[0], 21) } != 0)
+    let _uc_7_0: i32 = 0;
+    unsafe { _uc_7_0 = memcmp(&ack[0], &expect_ack[0], 21); }
+    if (ack_len != 21 || _uc_7_0 != 0)
         {
           return 8;
         }
@@ -1868,7 +1918,9 @@ export function sio_ws_hub_emit_event_ns_conn_c(h: *SioWsHubMem, conn_idx: i32, 
         {
           return -1;
         }
-    if (unsafe { net_ws_write_server_text_c(sl.fd, sl.tls_ctx, frame, n) } == n)
+    let _u_rc_13: i32 = 0;
+    unsafe { _u_rc_13 = net_ws_write_server_text_c(sl.fd, sl.tls_ctx, frame, n); }
+    if (_u_rc_13 == n)
         {
           return 1;
         }
@@ -3236,7 +3288,11 @@ export function sio_ns_ack_smoke_c(): i32 {
     let dlen: i32 = 0;
     let n: i32 = 0;
     n = sio_encode_connect_ns_packet_c(ns_chat, 5, enc, 64);
-    if (n != unsafe { ((strlen(expect_ns) as i32)) } || unsafe { memcmp(&enc[0], expect_ns, (n as usize)) } != 0)
+    let expect_ns_len: i32 = 0;
+    let cmp_ns: i32 = 0;
+    unsafe { expect_ns_len = strlen(expect_ns) as i32; }
+    unsafe { cmp_ns = memcmp(&enc[0], expect_ns, (n as usize)); }
+    if (n != expect_ns_len || cmp_ns != 0)
         {
           return 1;
         }
@@ -3249,7 +3305,9 @@ export function sio_ns_ack_smoke_c(): i32 {
           return 3;
         }
     n = sio_encode_event_ack_packet_c(123, evt, 4, data, 4, enc, 64);
-    if (n != 20 || unsafe { memcmp(&enc[0], &expect_evt_ack[0], 20) } != 0)
+    let _uc_8_0: i32 = 0;
+    unsafe { _uc_8_0 = memcmp(&enc[0], &expect_evt_ack[0], 20); }
+    if (n != 20 || _uc_8_0 != 0)
         {
           return 4;
         }
@@ -3266,7 +3324,9 @@ export function sio_ns_ack_smoke_c(): i32 {
           return 7;
         }
     n = sio_encode_event_ns_packet_c(ns_chat, 5, evt, 4, &SIO_LIT_X[0], 1, enc, 64);
-    if (n != 21 || unsafe { memcmp(&enc[0], &expect_evt_ns[0], 21) } != 0)
+    let _uc_9_0: i32 = 0;
+    unsafe { _uc_9_0 = memcmp(&enc[0], &expect_evt_ns[0], 21); }
+    if (n != 21 || _uc_9_0 != 0)
         {
           return 11;
         }
@@ -3279,7 +3339,9 @@ export function sio_ns_ack_smoke_c(): i32 {
           return 13;
         }
     n = sio_encode_ack_packet_c(53, &SIO_LIT_OK[0], 2, enc, 64);
-    if (n != 10 || unsafe { memcmp(&enc[0], &expect_ack[0], 10) } != 0)
+    let _uc_10_0: i32 = 0;
+    unsafe { _uc_10_0 = memcmp(&enc[0], &expect_ack[0], 10); }
+    if (n != 10 || _uc_10_0 != 0)
         {
           return 8;
         }
@@ -3414,7 +3476,9 @@ export function sio_eio_extract_sid_c(open_payload: *u8, len: i32, out_sid: *u8,
           return -1;
         }
     for (i = 0; i + 7 <= len; i = i + 1) {
-        if (unsafe { memcmp(open_payload + i, needle, 7) } == 0) {
+        let _u_rc_14: i32 = 0;
+        unsafe { _u_rc_14 = memcmp(open_payload + i, needle, 7); }
+        if (_u_rc_14 == 0) {
             j = i + 7;
             sid_len = 0;
             while (j < len && open_payload[j] != (34 as u8)) {
@@ -3472,7 +3536,9 @@ export function sio_packet_smoke_c(): i32 {
         {
           return 4;
         }
-    if (unsafe { memcmp(&sid[0], sid_expect, 3) } != 0)
+    let _u_rc_15: i32 = 0;
+    unsafe { _u_rc_15 = memcmp(&sid[0], sid_expect, 3); }
+    if (_u_rc_15 != 0)
         {
           return 5;
         }
