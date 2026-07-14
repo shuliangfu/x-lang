@@ -1466,7 +1466,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_L2_RDD_THIN_FROM_X \
                -c -o "$_rdd_rest_o" "$_rdd" \
           && $CC -r -nostdlib -o "$_rdd_o" "$_rdd_thin_o" "$_rdd_rest_o" 2>/dev/null; then
-          echo "g05_ensure: $_rdd_o ← $_rdd_thin_x + seed-rest (R2 hybrid diagnostic debug_log/parser_diag pure deep)"
+          echo "g05_ensure: $_rdd_o ← $_rdd_thin_x + seed-rest (R2 hybrid diagnostic typeck debug/scratch pure deep)"
           _rdd_done=1
         else
           echo "g05_ensure: L2 hybrid runtime_driver_diagnostic failed; fallback full seed" >&2

@@ -80,8 +80,9 @@ MODULES=(
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_diag_pure.from_x.c 全 C 体
   "labi_diag_pure|src/runtime/labi_diag_pure.x|seeds/labi_diag_pure_surface.from_x.c||"
   # diagnostic R2 thin + Cap residual pure 深迁：thin.x 公共门闩 + 固定措辞/pipe orch + 拼装 pure + getenv
-  # + report_prefixed/pipe_note + debug_log/parser_diag_*（return/assign/call/struct/asm note + fill/build/note）；
-  # rest FROM_X 无 pure-dup _impl；Cap residual snprintf/va_list/scratch 在 full seed rest
+  # + report_prefixed/pipe_note + debug_log/parser_diag_* + typeck_block/fn/var debug + scratch BSS
+  # （return/assign/call/struct/asm note + fill/build/note）；rest FROM_X 无 pure-dup _impl；
+  # Cap residual snprintf/va_list 在 full seed rest
   # prove 锁 thin surface IDENTICAL；冷/无 PREFER 仍可走 seeds/runtime_driver_diagnostic.from_x.c 全 C 体
   "diagnostic|src/runtime_driver_diagnostic_thin.x|seeds/runtime_driver_diagnostic_thin_surface.from_x.c||"
   # driver_abi R2 thin + pure 深迁：thin.x 门闩 + pure 真体（scan/has/argv/target_os/fail/smoke/peek/
