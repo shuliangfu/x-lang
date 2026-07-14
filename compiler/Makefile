@@ -726,6 +726,11 @@ src/runtime.o: seeds/runtime.from_x.c src/runtime.x include/diag.h
 # E-03 v2：SHUX_LEGACY_PREPROCESS_C=1 时 runtime preprocess() 仍调 C preprocess_c_fallback。
 RUNTIME_DRIVER_CFLAGS = -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_PREPROCESS -DSHUX_ASM_USE_COMPILER_IMPL_C
 RUNTIME_DRIVER_NO_C_CFLAGS = -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_PREPROCESS -DSHUX_USE_X_TYPECK -DSHUX_USE_X_CODEGEN -DSHUX_NO_C_FRONTEND -DSHUX_ASM_USE_COMPILER_IMPL_C
+# Cap residual 数据/符号在 rt_* 切片（g05 同构）：driver_abi 始终 extern 引用；
+# 冷启动 bootstrap-driver-seed 必须链 RT_SEED_SLICE_OBJS，runtime 侧开 FROM_X 避免 static 副本漂移。
+RUNTIME_DRIVER_RT_SLICE_CFLAGS = -DSHUX_RT_ARENA_BUF_FROM_X -DSHUX_RT_EMIT_STATE_FROM_X -DSHUX_RT_PREAMBLE_FROM_X -DSHUX_RT_STACK_FROM_X
+RUNTIME_DRIVER_CFLAGS += $(RUNTIME_DRIVER_RT_SLICE_CFLAGS)
+RUNTIME_DRIVER_NO_C_CFLAGS += $(RUNTIME_DRIVER_RT_SLICE_CFLAGS)
 ifeq ($(SHUX_LEGACY_PREPROCESS_C),1)
 RUNTIME_DRIVER_CFLAGS += -DSHUX_LEGACY_PREPROCESS_C
 RUNTIME_DRIVER_NO_C_CFLAGS += -DSHUX_LEGACY_PREPROCESS_C
@@ -737,6 +742,22 @@ RUNTIME_PIPELINE_ABI_CFLAGS += -DSHUX_LEGACY_PREPROCESS_C
 endif
 src/runtime_driver.o: seeds/runtime.from_x.c src/runtime.x Makefile include/diag.h
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) $(RUNTIME_DRIVER_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime.from_x.c -o $@
+
+# G-02f Cap residual slices：driver_abi 跨 TU 数据/thread_fn（arena BSS、emit 扫描槽、preamble 表、stack_esc）。
+# 与 g05_ensure 产品路径同源 seed；冷启动 phase1 必须进 DRIVER_SEED_OBJS。
+src/runtime/rt_arena_buf.o: seeds/rt_arena_buf.from_x.c src/runtime/rt_arena_buf.x
+	@mkdir -p src/runtime
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/rt_arena_buf.from_x.c -o $@
+src/runtime/rt_emit_state.o: seeds/rt_emit_state.from_x.c src/runtime/rt_emit_state.x
+	@mkdir -p src/runtime
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/rt_emit_state.from_x.c -o $@
+src/runtime/rt_preamble.o: seeds/rt_preamble.from_x.c src/runtime/rt_preamble.x
+	@mkdir -p src/runtime
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/rt_preamble.from_x.c -o $@
+src/runtime/rt_stack.o: seeds/rt_stack.from_x.c src/runtime/rt_stack.x
+	@mkdir -p src/runtime
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/rt_stack.from_x.c -o $@
+RT_SEED_SLICE_OBJS = src/runtime/rt_arena_buf.o src/runtime/rt_emit_state.o src/runtime/rt_preamble.o src/runtime/rt_stack.o
 
 # G-02a: preprocess.c 已物理删除；preprocess_for_driver.o 不再编译（SHUX_LEGACY_PREPROCESS_C 路径已死）。
 # shux_x 用：仅 -DSHUX_USE_X_PIPELINE，提供 asm_codegen_ast、pipeline_parse_into_buf、main_entry（弱符号）等
@@ -1767,7 +1788,7 @@ MAIN_LINK_O = src/main_driver.o
 MAIN_LINK_REBUILD = src/main_driver.o
 MAIN_LINK_FLAGS =
 endif
-DRIVER_SEED_OBJS = $(MAIN_LINK_O) src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o src/runtime_pipeline_abi.o $(DRIVER_SEED_RUNTIME_O) src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $(PREPROCESS_LINK_O) $(LEXER_LINK_O) $(AST_LINK_O) $(DRIVER_SEED_X_FRONTEND_OBJS) $(DRIVER_SEED_FRONTEND_EXTRA) $(DRIVER_SEED_SUPPORT_EXTRA) src/x_seed_bridge.o src/seed_link_compat.o
+DRIVER_SEED_OBJS = $(MAIN_LINK_O) src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o src/runtime_pipeline_abi.o $(DRIVER_SEED_RUNTIME_O) $(RT_SEED_SLICE_OBJS) src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $(PREPROCESS_LINK_O) $(LEXER_LINK_O) $(AST_LINK_O) $(DRIVER_SEED_X_FRONTEND_OBJS) $(DRIVER_SEED_FRONTEND_EXTRA) $(DRIVER_SEED_SUPPORT_EXTRA) src/x_seed_bridge.o src/seed_link_compat.o
 DRIVER_SEED_X_OBJS = parser_x.o typeck_x.o codegen_x.o
 DRIVER_SEED_X_FRONTEND_OBJS = lexer_x.o $(DRIVER_SEED_X_OBJS) x_frontend_link_alias.o
 
