@@ -6620,10 +6620,13 @@ int32_t driver_run_compiler_full_x_post_parse_impl_c(DriverCompileStateSU *state
         return 1;
 #if defined(SHUX_USE_X_DRIVER) && defined(SHUX_USE_X_PIPELINE)
     /* G-06：`-E` 须出 C 文本（build_seed_asm_host / gen_bootstrap_gens），禁止默认 asm 后端。 */
-    if (driver_argv_has_emit_c_flag((int)argc, (char **)argv))
-        return driver_run_x_emit_c_from_compile_state(state, (int)argc, (char **)argv);
+    /* -E: use same path as check (driver_run_emit_c_path_impl_c) to ensure
+     * proper import resolution and dep slot setup. The x_emit_c path skips
+     * driver pre-parse and dep sync, causing XP003 on import+call programs. */
+    /* if (driver_argv_has_emit_c_flag((int)argc, (char **)argv))
+        return driver_run_x_emit_c_from_compile_state(state, (int)argc, (char **)argv); */
 #endif
-    if (driver_check_only_get())
+    if (driver_check_only_get() || driver_argv_has_emit_c_flag((int)argc, (char **)argv))
         state->use_asm_backend = 0;
     want_generic_check = 0;
     if (state->out_path_len == 0)
