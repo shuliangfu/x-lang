@@ -2977,3 +2977,42 @@ int32_t driver_dispatch_run_compiler_parsed(uint8_t *input_path, uint8_t *out_pa
     p.use_lto = use_lto != 0;
     return (int32_t)driver_run_compiler_parsed((void *)&p, (int)argc, (char **)(void *)argv);
 }
+
+/* ---------- Cap residual：rt_asm_stub R2（GAS 行表 + OutBuf append） ---------- */
+static const char *const g_asm_stub_gas_lines[] = {
+    ".text",         ".globl main", "main:",       "pushq %rbp", "movq %rsp, %rbp",
+    "subq $0, %rsp", "movl $42, %eax", "movq %rsp, %rbp", "popq %rbp", "ret",
+};
+static const int32_t g_asm_stub_gas_lines_n =
+    (int32_t)(sizeof g_asm_stub_gas_lines / sizeof g_asm_stub_gas_lines[0]);
+
+uint8_t *driver_asm_stub_gas_line_at(int32_t i) {
+    if (i < 0 || i >= g_asm_stub_gas_lines_n)
+        return NULL;
+    return (uint8_t *)(uintptr_t)g_asm_stub_gas_lines[i];
+}
+
+int32_t driver_asm_stub_gas_line_count(void) {
+    return g_asm_stub_gas_lines_n;
+}
+
+int32_t driver_asm_stub_out_append_cstr(void *out, uint8_t *s) {
+    struct driver_codegen_outbuf_abi *ob;
+    size_t n;
+    size_t len;
+    size_t cur;
+    if (!out || !s)
+        return -1;
+    ob = (struct driver_codegen_outbuf_abi *)out;
+    len = strlen((const char *)(void *)s);
+    cur = (size_t)ob->len;
+    if (cur > (size_t)X_CODEGEN_OUTBUF_CAP_ABI)
+        return -1;
+    if (cur + len + 1 > (size_t)X_CODEGEN_OUTBUF_CAP_ABI)
+        return -1;
+    memcpy(ob->data + cur, s, len);
+    ob->data[cur + len] = (unsigned char)'\n';
+    n = cur + len + 1;
+    ob->len = (int32_t)n;
+    return 0;
+}

@@ -417,4 +417,19 @@ int32_t driver_dispatch_run_compiler_parsed(uint8_t *input_path, uint8_t *out_pa
 /** 缺省 opt 字面量 "2"（.x 禁裸字串依赖时可用）。 */
 uint8_t *driver_dispatch_opt_default(void);
 
+/*
+ * Cap residual：rt_asm_stub（R2 full）
+ *   - 最小 GAS 行表 line_at/count（.x 禁巨型/多字串表依赖）
+ *   - CodegenOutBuf append_cstr（9MiB data[] 布局写）
+ *   业务循环在 rt_asm_stub.x，不在 rest。
+ */
+/** GAS 桩行表（main return 42）；越界 → NULL。 */
+uint8_t *driver_asm_stub_gas_line_at(int32_t i);
+int32_t driver_asm_stub_gas_line_count(void);
+/**
+ * 向 opaque CodegenOutBuf* 追加 cstr + '\\n' 并更新 len。
+ * 成功 0；out/s 空或溢出 → -1。
+ */
+int32_t driver_asm_stub_out_append_cstr(void *out, uint8_t *s);
+
 #endif /* SHUX_RUNTIME_DRIVER_ABI_H */

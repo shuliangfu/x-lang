@@ -1,8 +1,13 @@
-/* seeds/rt_asm_stub.from_x.c — G-02f-300 P2 runtime R9-lite (asm GAS stub)
+/* seeds/rt_asm_stub.from_x.c — G-02f-300 P2 runtime R9 → R2 full (asm GAS stub)
  * Logic source: src/runtime/rt_asm_stub.x
  * Hybrid: SHUX_RT_ASM_STUB_FROM_X + ld -r into runtime_driver_no_c.o
  *
- * Scope: weak minimal GAS codegen stub + thin want_exe gate.
+ * R2 full（2026-07-14）：want_exe + asm_codegen_ast 由 .x 提供；
+ * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务符号 H=0）。
+ * Cap residual（driver_abi）：GAS 行表 + CodegenOutBuf append。
+ * 冷启动/无 PREFER 时仍编译完整 C 体（含 SHUX_WEAK asm_codegen_ast）。
+ *
+ * Scope: weak minimal GAS codegen stub + want_exe gate.
  * Full elf/macho asm backend remains mega/backend.
  */
 #include <stddef.h>
@@ -26,15 +31,12 @@ struct codegen_CodegenOutBuf {
 
 extern int shux_output_want_exe(const char *path);
 
-/* G-02f-433：.x 真迁到 rt_asm_stub.x（转调 shux_output_want_exe，unsafe + trailing return） */
 #ifndef SHUX_RT_ASM_STUB_FROM_X
+
 /** compile.x extern：-o 后缀是否表示可执行（非 .o/.obj/.s）。 */
 int32_t driver_asm_output_want_exe(uint8_t *path) {
   return shux_output_want_exe(path ? (const char *)path : NULL);
 }
-#else
-int32_t driver_asm_output_want_exe(uint8_t *path);
-#endif
 
 /**
  * asm 后端 C 桩：-backend asm 时由 pipeline 调用，写出最小 GAS（main return 42）。
@@ -60,6 +62,11 @@ SHUX_WEAK int32_t asm_codegen_ast(void *module, void *arena, struct codegen_Code
   out->len = (int32_t)n;
   return 0;
 }
+
+#else
+int32_t driver_asm_output_want_exe(uint8_t *path);
+int32_t asm_codegen_ast(void *module, void *arena, struct codegen_CodegenOutBuf *out);
+#endif
 
 int labi_rt_asm_stub_slice_marker(void) {
   return 1;
