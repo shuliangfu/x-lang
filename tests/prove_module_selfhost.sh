@@ -55,6 +55,8 @@ MODULES=(
   "labi_path_io|src/runtime/labi_path_io.x|seeds/labi_path_io.from_x.c||"
   # labi_host_lit：L2 host #if 探测 thin 转发（#if body 在 mega rest _impl）；产品 PREFER_X_O；本条锁 nm / 扩 N
   "labi_host_lit|src/runtime/labi_host_lit.x|seeds/labi_host_lit.from_x.c||"
+  # labi_diag_pure：L1 code_for_kind 真迁 + reportf thin→_impl（body 在 mega rest）；产品 PREFER_X_O；本条锁 nm / 扩 N
+  "labi_diag_pure|src/runtime/labi_diag_pure.x|seeds/labi_diag_pure.from_x.c||"
   # hybrid thin+C-tail：seed 多 _impl/scratch；x 多 append_*（.x 真迁拼装）。CORE 锁公共 API 面不丢。
   "diagnostic|src/runtime_driver_diagnostic.x|seeds/runtime_driver_diagnostic.from_x.c||core:driver_diag_append_cstr,driver_diag_append_i32,driver_diag_append_name"
 )
@@ -138,6 +140,8 @@ gen_x_o() {
         -e '/^extern int32_t unlink(/d' \
         -e '/^extern int unlink(/d' \
         -e '/^extern size_t strlen(/d' \
+        -e '/^extern int32_t strcmp(/d' \
+        -e '/^extern int strcmp(/d' \
         "$tmp"
   } >"${tmp}.full" && mv "${tmp}.full" "$tmp"
 

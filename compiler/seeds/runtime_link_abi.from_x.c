@@ -310,7 +310,7 @@ int shux_spawn_sync(const char *prog, const char *const *argv) {
 
 
 /* G-02f-124：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-/* G-02f-268 L1 diag pure */
+/* G-02f-268 L1 diag pure：code_for_kind 真迁在 L1 leaf；rest 非 hybrid 自带 */
 #ifndef SHUX_LABI_DIAG_PURE_FROM_X
 const char * link_diag_code_for_kind(const char *kind) {
     if (!kind)
@@ -344,11 +344,8 @@ void link_diag_tool_status(const char *tool, int status) {
 
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-268 L1 diag pure */
-#ifndef SHUX_LABI_DIAG_PURE_FROM_X
-
-
-void link_diag_runtime_obj_resolve_fail(const char *obj_name, const char *hint) {
+/* G-02f-268 L1 diag pure：reportf body 常驻 _impl；public thin 在 L1 hybrid */
+void link_diag_runtime_obj_resolve_fail_impl(const char *obj_name, const char *hint) {
     if (!obj_name)
         obj_name = "runtime object";
     if (hint && hint[0] != '\0') {
@@ -361,23 +358,26 @@ void link_diag_runtime_obj_resolve_fail(const char *obj_name, const char *hint) 
                                obj_name);
     }
 }
+#ifndef SHUX_LABI_DIAG_PURE_FROM_X
+void link_diag_runtime_obj_resolve_fail(const char *obj_name, const char *hint) {
+    link_diag_runtime_obj_resolve_fail_impl(obj_name, hint);
+}
 #else
 void link_diag_runtime_obj_resolve_fail(const char *obj_name, const char *hint);
 #endif
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-268 L1 diag pure */
-#ifndef SHUX_LABI_DIAG_PURE_FROM_X
-
-
-
-
-void link_diag_runtime_source_missing(const char *obj_name, const char *source_path) {
+/* G-02f-268 L1 diag pure：reportf body 常驻 _impl */
+void link_diag_runtime_source_missing_impl(const char *obj_name, const char *source_path) {
     if (!obj_name)
         obj_name = "runtime object";
     diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
                            "%s source not found at %s",
                            obj_name, source_path ? source_path : "?");
+}
+#ifndef SHUX_LABI_DIAG_PURE_FROM_X
+void link_diag_runtime_source_missing(const char *obj_name, const char *source_path) {
+    link_diag_runtime_source_missing_impl(obj_name, source_path);
 }
 #else
 void link_diag_runtime_source_missing(const char *obj_name, const char *source_path);
@@ -386,11 +386,8 @@ void link_diag_runtime_source_missing(const char *obj_name, const char *source_p
 
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-268 L1 diag pure */
-#ifndef SHUX_LABI_DIAG_PURE_FROM_X
-
-
-void link_diag_runtime_source_missing_under(const char *obj_name, const char *base_dir,
+/* G-02f-268 L1 diag pure：reportf body 常驻 _impl */
+void link_diag_runtime_source_missing_under_impl(const char *obj_name, const char *base_dir,
                                                    const char *suffix) {
     if (!obj_name)
         obj_name = "runtime object";
@@ -398,23 +395,27 @@ void link_diag_runtime_source_missing_under(const char *obj_name, const char *ba
                            "%s source not found under %s%s",
                            obj_name, base_dir ? base_dir : "?", suffix ? suffix : "");
 }
+#ifndef SHUX_LABI_DIAG_PURE_FROM_X
+void link_diag_runtime_source_missing_under(const char *obj_name, const char *base_dir,
+                                                   const char *suffix) {
+    link_diag_runtime_source_missing_under_impl(obj_name, base_dir, suffix);
+}
 #else
 void link_diag_runtime_source_missing_under(const char *obj_name, const char *base_dir, const char *suffix);
 #endif
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-268 L1 diag pure */
-#ifndef SHUX_LABI_DIAG_PURE_FROM_X
-
-
-
-
-void link_diag_runtime_obj_missing(const char *obj_name, const char *out_o) {
+/* G-02f-268 L1 diag pure：reportf body 常驻 _impl */
+void link_diag_runtime_obj_missing_impl(const char *obj_name, const char *out_o) {
     if (!obj_name)
         obj_name = "runtime object";
     diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
                            "%s missing after cc -c (expected near %s)",
                            obj_name, out_o ? out_o : "?");
+}
+#ifndef SHUX_LABI_DIAG_PURE_FROM_X
+void link_diag_runtime_obj_missing(const char *obj_name, const char *out_o) {
+    link_diag_runtime_obj_missing_impl(obj_name, out_o);
 }
 #else
 void link_diag_runtime_obj_missing(const char *obj_name, const char *out_o);
@@ -496,9 +497,8 @@ void link_diag_errno_path(const char *kind, const char *op, const char *path) {
 __attribute__((unused))
 #endif
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-268 L1 diag pure */
-#ifndef SHUX_LABI_DIAG_PURE_FROM_X
-void link_diag_freestanding_missing(const char *obj_name, const char *symbol_name) {
+/* G-02f-268 L1 diag pure：reportf body 常驻 _impl */
+void link_diag_freestanding_missing_impl(const char *obj_name, const char *symbol_name) {
     if (symbol_name && symbol_name[0]) {
         diag_reportf_with_code(NULL, 0, 0, "link error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
                      "freestanding link missing %s (user references %s)",
@@ -510,6 +510,10 @@ void link_diag_freestanding_missing(const char *obj_name, const char *symbol_nam
                  "freestanding link missing %s",
                  obj_name ? obj_name : "runtime object");
 }
+#ifndef SHUX_LABI_DIAG_PURE_FROM_X
+void link_diag_freestanding_missing(const char *obj_name, const char *symbol_name) {
+    link_diag_freestanding_missing_impl(obj_name, symbol_name);
+}
 #else
 void link_diag_freestanding_missing(const char *obj_name, const char *symbol_name);
 #endif
@@ -517,32 +521,32 @@ void link_diag_freestanding_missing(const char *obj_name, const char *symbol_nam
 
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-268 L1 diag pure */
-#ifndef SHUX_LABI_DIAG_PURE_FROM_X
-
-
-void link_diag_freestanding_unsupported(void) {
+/* G-02f-268 L1 diag pure：长文案 body 常驻 _impl（>64 字面量） */
+void link_diag_freestanding_unsupported_impl(void) {
     diag_report_with_code(NULL, 0, 0, "link error", SHUX_DIAG_CODE_BUILD_BLD001,
                 "-freestanding / SHUX_FREESTANDING is only supported for Linux ELF x86_64 (-o prog, not .o/.obj on macOS/COFF)",
                 NULL);
+}
+#ifndef SHUX_LABI_DIAG_PURE_FROM_X
+void link_diag_freestanding_unsupported(void) {
+    link_diag_freestanding_unsupported_impl();
 }
 #else
 void link_diag_freestanding_unsupported(void);
 #endif
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-268 L1 diag pure */
-#ifndef SHUX_LABI_DIAG_PURE_FROM_X
-
-
-
-
-void link_diag_ld_debug_push(const char *rel, const char *stage, const char *path) {
+/* G-02f-268 L1 diag pure：reportf body 常驻 _impl */
+void link_diag_ld_debug_push_impl(const char *rel, const char *stage, const char *path) {
     diag_reportf(NULL, 0, 0, "note", NULL,
                  "ld debug: push %s %s=%s",
                  rel ? rel : "(null)",
                  stage ? stage : "path",
                  path ? path : "(null)");
+}
+#ifndef SHUX_LABI_DIAG_PURE_FROM_X
+void link_diag_ld_debug_push(const char *rel, const char *stage, const char *path) {
+    link_diag_ld_debug_push_impl(rel, stage, path);
 }
 #else
 void link_diag_ld_debug_push(const char *rel, const char *stage, const char *path);
@@ -551,11 +555,8 @@ void link_diag_ld_debug_push(const char *rel, const char *stage, const char *pat
 
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-268 L1 diag pure */
-#ifndef SHUX_LABI_DIAG_PURE_FROM_X
-
-
-void link_diag_ld_debug_argv(const char *label, const char *const *argv) {
+/* G-02f-268 L1 diag pure：reportf + argv 遍历 body 常驻 _impl */
+void link_diag_ld_debug_argv_impl(const char *label, const char *const *argv) {
     int di;
     diag_reportf(NULL, 0, 0, "note", NULL,
                  "ld debug: %s",
@@ -568,6 +569,10 @@ void link_diag_ld_debug_argv(const char *label, const char *const *argv) {
                      di,
                      argv[di]);
     }
+}
+#ifndef SHUX_LABI_DIAG_PURE_FROM_X
+void link_diag_ld_debug_argv(const char *label, const char *const *argv) {
+    link_diag_ld_debug_argv_impl(label, argv);
 }
 #else
 void link_diag_ld_debug_argv(const char *label, const char *const *argv);
