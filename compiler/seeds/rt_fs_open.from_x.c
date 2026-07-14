@@ -1,8 +1,10 @@
-/* seeds/rt_fs_open.from_x.c — G-02f-308 P2 runtime rest (path open thin OS)
+/* seeds/rt_fs_open.from_x.c — G-02f-308 P2 runtime rest (path open)
  * Logic source: src/runtime/rt_fs_open.x
  * Hybrid: SHUX_RT_FS_OPEN_FROM_X + ld -r into runtime_driver_no_c.o
  *
- * Scope: driver_fs_open_read_path / driver_fs_open_write（path 字节 → open fd）。
+ * R2 full（2026-07-14）：driver_fs_open_read_path / driver_fs_open_write
+ * 均由 .x 提供；FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
+ * 冷启动/无 PREFER 时仍编译完整 C 体。
  * 🔒 open / fcntl 经 libc。
  */
 #include <fcntl.h>
@@ -12,17 +14,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-/* G-02f-452：thin+rest PREFER_X_O
- *   thin .x provides 2 #[no_mangle] wrappers (call *_impl in rest).
- *   rest seed C (compiled with -DSHUX_RT_FS_OPEN_FROM_X):
- *     - driver_fs_open_read_path renamed to *_impl via macro.
- *     - driver_fs_open_write renamed to *_impl via macro.
- *   labi_rt_fs_open_slice_marker stays in rest (internal helper, no .x counterpart). */
-#ifdef SHUX_RT_FS_OPEN_FROM_X
-#define driver_fs_open_read_path    driver_fs_open_read_path_impl
-#define driver_fs_open_write    driver_fs_open_write_impl
-#endif
-
+#ifndef SHUX_RT_FS_OPEN_FROM_X
 /** path[0..path_len-1] 打开只读；失败 -1。 */
 int driver_fs_open_read_path(const uint8_t *path, int path_len) {
   if (!path || path_len <= 0 || path_len >= 512)
@@ -49,6 +41,10 @@ int driver_fs_open_write(const uint8_t *path, int path_len) {
 #endif
   return -1;
 }
+#else
+int driver_fs_open_read_path(const uint8_t *path, int path_len);
+int driver_fs_open_write(const uint8_t *path, int path_len);
+#endif
 
 int labi_rt_fs_open_slice_marker(void) {
   return 1;

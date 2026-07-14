@@ -1,10 +1,9 @@
 /* seeds/rt_fs_open_surface.from_x.c
- * G-02f rt_fs_open L2 thin surface — isomorphic with src/runtime/rt_fs_open.x
- * Product PREFER_X_O: g05_try_x_to_o(rt_fs_open.x) + hybrid rest seed
- *   seeds/rt_fs_open.from_x.c (-DSHUX_RT_FS_OPEN_FROM_X) ld -r into runtime_driver_no_c
- * Hybrid rest seed unchanged: open body (macro→_impl) + marker
- * Prove: thin.x vs this seed → nm IDENTICAL (public surface; _impl is U)
- * Regen: ./shux -E ... src/runtime/rt_fs_open.x | filter DBG + polish externs
+ * G-02f rt_fs_open R2 full surface — isomorphic with src/runtime/rt_fs_open.x
+ * Product PREFER_X_O: g05_try_x_to_o(rt_fs_open.x) + rest seed empty under FROM_X
+ * Prove: full.x vs this seed → nm IDENTICAL (path_copy + read_path + open_write)
+ * Regen: ./shux -E ... src/runtime/rt_fs_open.x | filter DBG + polish prologue
+ * Note: O_CREAT/O_TRUNC numeric from host cfg at regen; product .x uses target_os cfg.
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -17,17 +16,58 @@
 #include <fcntl.h>
 #include <errno.h>
 #endif
-extern int32_t driver_fs_open_read_path_impl(uint8_t * path, int32_t path_len);
-int32_t driver_fs_open_read_path(uint8_t * path, int32_t path_len) {
-  {
-    return driver_fs_open_read_path_impl(path, path_len);
+/* libc open via fcntl.h (prove/g05 strip -E extern int32_t open) */
+static const int32_t RT_FS_O_RDONLY = 0;
+static const int32_t RT_FS_O_WRONLY = 1;
+/* Host-portable: use fcntl.h macros when available so surface matches OS at cc. */
+#ifdef O_CREAT
+static const int32_t RT_FS_O_CREAT = O_CREAT;
+#else
+static const int32_t RT_FS_O_CREAT = 512;
+#endif
+#ifdef O_TRUNC
+static const int32_t RT_FS_O_TRUNC = O_TRUNC;
+#else
+static const int32_t RT_FS_O_TRUNC = 1024;
+#endif
+int32_t rt_fs_path_copy_nul(uint8_t * path, int32_t path_len, uint8_t * path_buf) {
+  int32_t i = 0;
+  if ((path == ((uint8_t *)(0)))) {
+    return 0;
   }
-  return -1;
+  if ((path_len <= 0)) {
+    return 0;
+  }
+  if ((path_len >= 512)) {
+    return 0;
+  }
+  while ((i < path_len)) {
+    (void)(((path_buf)[((size_t)(i))] = (path)[((size_t)(i))]));
+    (void)((i = (i + 1)));
+  }
+  (void)(((path_buf)[((size_t)(path_len))] = 0));
+  return 1;
 }
-extern int32_t driver_fs_open_write_impl(uint8_t * path, int32_t path_len);
-int32_t driver_fs_open_write(uint8_t * path, int32_t path_len) {
-  {
-    return driver_fs_open_write_impl(path, path_len);
+int32_t driver_fs_open_read_path(uint8_t * path, int32_t path_len) {
+  uint8_t path_buf[512] = {};
+  int32_t fd = (0 - 1);
+  if ((rt_fs_path_copy_nul(path, path_len, &((path_buf)[0])) == 0)) {
+    return (0 - 1);
   }
-  return -1;
+  {
+    (void)((fd = open((const char *)&((path_buf)[0]), RT_FS_O_RDONLY, 0)));
+  }
+  return fd;
+}
+int32_t driver_fs_open_write(uint8_t * path, int32_t path_len) {
+  uint8_t path_buf[512] = {};
+  int32_t fd = (0 - 1);
+  int32_t flags = ((RT_FS_O_WRONLY | RT_FS_O_CREAT) | RT_FS_O_TRUNC);
+  if ((rt_fs_path_copy_nul(path, path_len, &((path_buf)[0])) == 0)) {
+    return (0 - 1);
+  }
+  {
+    (void)((fd = open((const char *)&((path_buf)[0]), flags, 420)));
+  }
+  return fd;
 }

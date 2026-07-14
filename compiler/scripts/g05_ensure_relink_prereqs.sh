@@ -977,7 +977,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
                    -c -o "$_rt_fs_rest_o" "$_rt_fs_open_seed" \
               && $CC -r -nostdlib -o "$_rt_fs_o" "$_rt_fs_thin_o" "$_rt_fs_rest_o" 2>/dev/null; then
               _rt_fs_ok=1
-              echo "g05_ensure: rest fs open ← thin .x + rest (G-02f-452 L2 prefer .x)"
+              echo "g05_ensure: rest fs open ← thin .x + rest (R2 full H=0; G-02f-452 PREFER_X_O)"
             fi
             rm -f "$_rt_fs_thin_o" "$_rt_fs_rest_o"
           fi
