@@ -1,11 +1,66 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-270 / P2 link_abi L3：路径探活（stat / realpath）🔒 OS。
-// 产品实现：seeds/labi_path_io.from_x.c；hybrid 宏 SHUX_LABI_PATH_IO_FROM_X。
+// G-02f-270 / P2 link_abi L3：路径探活 thin shell（stat / realpath）🔒 OS。
+// 产品：PREFER_X_O → g05_try_x_to_o；冷启动 seeds/labi_path_io.from_x.c。
+// hybrid 宏 SHUX_LABI_PATH_IO_FROM_X。
 //
-// 符号：
-//   shux_path_is_nonempty_regular_file_impl / shux_path_is_nonempty_regular_file
-//   asm_link_obj_skip_missing
-//   shux_runtime_o_realpath_if_exists
-// 语言限制：依赖 libc stat/realpath；.x 为锚点，不宜 -E 替代。
+// Track L：真迁 null-check 门闩（与 labi_gates 同构）。
+//   - shux_path_is_nonempty_regular_file → _impl（stat 在 mega rest）
+//   - asm_link_obj_skip_missing：组合 nonempty
+//   - shux_runtime_o_realpath_if_exists → _impl（realpath+skip 在 mega rest）
+// 不做 struct stat 布局；不做 libc realpath 原型（避免 *u8 与 char* 冲突）。
+
+export extern "C" function shux_path_is_nonempty_regular_file_impl(path: *u8): i32;
+export extern "C" function shux_runtime_o_realpath_if_exists_impl(path: *u8, resolved: *u8): *u8;
+
+#[no_mangle]
+export function shux_path_is_nonempty_regular_file(path: *u8): i32 {
+  if (path == 0 as *u8) {
+    return 0;
+  }
+  if (path[0] == 0) {
+    return 0;
+  }
+  unsafe {
+    return shux_path_is_nonempty_regular_file_impl(path);
+  }
+  return 0;
+}
+
+#[no_mangle]
+export function asm_link_obj_skip_missing(path: *u8): *u8 {
+  if (path == 0 as *u8) {
+    return 0 as *u8;
+  }
+  if (path[0] == 0) {
+    return 0 as *u8;
+  }
+  if (shux_path_is_nonempty_regular_file(path) == 0) {
+    return 0 as *u8;
+  }
+  return path;
+}
+
+#[no_mangle]
+export function shux_runtime_o_realpath_if_exists(path: *u8, resolved: *u8): *u8 {
+  if (path == 0 as *u8) {
+    return 0 as *u8;
+  }
+  if (path[0] == 0) {
+    return 0 as *u8;
+  }
+  if (resolved == 0 as *u8) {
+    return 0 as *u8;
+  }
+  unsafe {
+    return shux_runtime_o_realpath_if_exists_impl(path, resolved);
+  }
+  return 0 as *u8;
+}
+
+/* Pure audit: number of L3 thin path-IO gates in this slice. */
+#[no_mangle]
+export function labi_path_io_count(): i32 {
+  return 3;
+}

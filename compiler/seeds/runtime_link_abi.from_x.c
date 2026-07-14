@@ -960,12 +960,24 @@ const char *shux_asm_ld_try_under_lib_roots(const char *rel, const char **lib_ro
  * 返回值：resolved 或 NULL。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-270 L3 path IO */
-#ifndef SHUX_LABI_PATH_IO_FROM_X
-const char * shux_runtime_o_realpath_if_exists(const char *path, char *resolved) {
+/* G-02f-270/L L3：realpath+skip 主体始终在 rest（thin shell 在 labi_path_io）。
+ * 注意：impl 调用 asm_link_obj_skip_missing（hybrid 时由 L3 提供）。 */
+const char *shux_runtime_o_realpath_if_exists_impl(const char *path, char *resolved) {
     if (!path || !path[0] || !resolved || realpath(path, resolved) == NULL)
         return NULL;
     return asm_link_obj_skip_missing(resolved);
+}
+
+/* G-02f-270 L3 path IO public thin（非 hybrid 时 rest 自带；hybrid 时由 L3 提供） */
+#ifndef SHUX_LABI_PATH_IO_FROM_X
+const char * shux_runtime_o_realpath_if_exists(const char *path, char *resolved) {
+    if (path == NULL)
+        return NULL;
+    if (path[0] == 0)
+        return NULL;
+    if (resolved == NULL)
+        return NULL;
+    return shux_runtime_o_realpath_if_exists_impl(path, resolved);
 }
 #else
 const char *shux_runtime_o_realpath_if_exists(const char *path, char *resolved);
@@ -3324,8 +3336,8 @@ int shux_generated_c_needs_async_scheduler(const char *c_path) {
   return 0;
 }
 /** G-02f-47/65：path 为已存在且 size>0 的常规文件。stat 在 _impl；.x 门闩。 */
-/* G-02f-270 L3 path IO */
-#ifndef SHUX_LABI_PATH_IO_FROM_X
+/* G-02f-270/L L3 path IO：stat 主体始终在 rest（与 gates _impl 同构）；
+ * 公共 thin shell 由 labi_path_io seed/.x 在 SHUX_LABI_PATH_IO_FROM_X 时提供。 */
 int shux_path_is_nonempty_regular_file_impl(const char *path) {
     struct stat st;
     if (!path || !path[0])
@@ -3336,9 +3348,6 @@ int shux_path_is_nonempty_regular_file_impl(const char *path) {
         return 0;
     return 1;
 }
-#else
-int shux_path_is_nonempty_regular_file_impl(const char *path);
-#endif
 
 
 /* G-02f-270 L3 path IO */
