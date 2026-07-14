@@ -78,6 +78,9 @@ MODULES=(
   # backend_arch_emit_dispatch L2 thin 公共面：与产品 PREFER_X_O 同源（thin.x + full seed rest）；prove 锁 thin 面 IDENTICAL
   # full seed rest 仍持 arch_*_emit_* C 尾；产品 o 名 backend_arch_emit_dispatch.o
   "backend_arch_emit_dispatch|src/asm/backend_arch_emit_dispatch_thin.x|seeds/backend_arch_emit_dispatch_thin.from_x.c||"
+  # backend_try_inline_dispatch L2 thin 公共面：与产品 PREFER_X_O 同源（thin.x + full seed rest）；prove 锁 thin 面 IDENTICAL
+  # full seed rest 仍持 try_inline_* / heavy C 尾；产品 o 名 backend_try_inline_dispatch.o
+  "backend_try_inline_dispatch|src/asm/backend_try_inline_dispatch_thin.x|seeds/backend_try_inline_dispatch_thin.from_x.c||"
 )
 
 # 找 shux 二进制（优先 shux，fallback shux-c）
