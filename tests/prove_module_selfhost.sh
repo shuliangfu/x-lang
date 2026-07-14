@@ -91,8 +91,9 @@ MODULES=(
   # rest 在 SHUX_L2_RIO_THIN_FROM_X+FROM_X 下无 thin/impl 公共体；Cap residual：4 平台 _impl（mmap/fstat/O_*）
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/runtime_io_abi.from_x.c 全 C 体
   "runtime_io_abi|src/runtime_io_abi.x|seeds/runtime_io_abi_surface.from_x.c||"
-  # fmt_check R2 thin full：thin.x 吃满 42 公共门闩（pure+lit+entry 透传 _impl）；
-  # rest 在 SHUX_L2_FMT_CHECK_THIN_FROM_X 下无 thin 公共体；Cap residual：*_impl/walk·argv/dirent·stat 在 full seed rest
+  # fmt_check R2 thin + Cap residual pure 深迁：thin.x 吃满 lit/entry + pure 真体
+  # （path_should_ignore / .x 后缀 / lint / file_list_push orch / walk process_child）；
+  # rest FROM_X 无 thin 公共体 + 无 pure-duplicate _impl；Cap residual：walk opendir/stat/argv/BSS
   # prove 锁 thin surface IDENTICAL；冷/无 PREFER 仍可走 seeds/fmt_check_cmd.from_x.c 全 C 体
   "fmt_check|src/driver/fmt_check_cmd_thin.x|seeds/fmt_check_cmd_thin_surface.from_x.c||"
   # simd_loop R2 full：.x 吃满 peel/parse/emit 公共业务；

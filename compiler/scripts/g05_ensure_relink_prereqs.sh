@@ -2552,8 +2552,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       fi
     fi
   fi
-  # G-02f-11 / G-02f-350/351：fmt_check_cmd_driver.o
-  # R2 thin full：PREFER_X_O=1 时 thin.x（42 公共门闩）+ seed-rest（FROM_X）ld -r
+  # G-02f-11 / fmt_check R2 thin + Cap residual pure 深迁：fmt_check_cmd_driver.o
+  # PREFER_X_O=1：thin.x（lit/entry+pure 真体）+ seed-rest（FROM_X，无 pure-dup _impl）ld -r
   _fcc=seeds/fmt_check_cmd.from_x.c
   _fcc_thin_x=src/driver/fmt_check_cmd_thin.x
   _fcc_o=src/driver/fmt_check_cmd_driver.o

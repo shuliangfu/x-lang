@@ -1,18 +1,9 @@
-/* G-02f-350/351 / R2 thin full：PREFER hybrid thin 由 src/driver/fmt_check_cmd_thin.x；
- * rest SHUX_L2_FMT_CHECK_THIN_FROM_X（public 门闩→_impl；slice_marker + Cap residual 体）。
- * Generated from src/driver/fmt_check_cmd.x (G-02f-31 true .x + C tail).
- * G-02f-116 true .x pure helpers.
- * G-02f-112 helper gates.
- * G-02f-107 helper gates.
- * G-02f-106 helper gates.
- * G-02f-97 pure helper gates.
- * G-02f-247: P1-8 open — collect lit + path_should_ignore pure + null bounds.
- * G-02f-248: file_list_push orch pure + lib_root early pure.
- * G-02f-249: walk entry filter pure + collect_paths_from_arg orch pure.
- * G-02f-250: default product dirs + check_one finalize pure; P1-8 soft near-close.
- * Regen: ./shux-c -E -L .. src/driver/fmt_check_cmd.x > /tmp/fcc.c
- *         merge quiet_ok; keep path walk / check argv / fmt CLI C.
- * .x covers: quiet_ok + path pure path + walk/collect orch + check_one finalize.
+/* R2 thin + Cap residual pure 深迁：
+ * PREFER hybrid thin 由 src/driver/fmt_check_cmd_thin.x（lit/entry + pure 真体）；
+ * rest SHUX_L2_FMT_CHECK_THIN_FROM_X：无 thin 公共体；pure-duplicate _impl 剔除；
+ * Cap residual：walk opendir/stat/argv/BSS getters / entry 体仍在 rest。
+ * 冷启动无宏：全 C 体（含 pure _impl + public 门闩）。
+ * Regen thin surface: shux -E src/driver/fmt_check_cmd_thin.x → thin_surface.
  */
 #include "win32_compat.h"
 #include "driver/fmt_check_cmd.h"
@@ -155,9 +146,12 @@ int shux_path_is_absolute(const char *path) {
 
 static char s_check_current_file[512];
 
+/* 冷启动 pure _impl / public 用；hybrid 时 thin.x 字节表权威 */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 static const char *s_builtin_ignore[] = {
     "/.git/", "/build_asm/", "/build/", "/node_modules/", "/.cursor/", "/compiler/build_asm/",
     "/compiler/build/", "/compiler/tests/", NULL};
+#endif
 
 /** check 全部成功时不打印 check OK（deno check 静默成功）。 */
 static int s_check_quiet_ok = 1;
@@ -463,14 +457,13 @@ void check_argv_append_default_libs_for_path(const char *path, char **check_argv
 /**
  * SHUX_LINT_CI_FAIL_ON=warn 时 warning 层诊断亦令 check 非零退出。
  */
-/* G-02f-116：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-/* G-02f-405：实现体始终 seed；public PREFER 时 thin forward */
+/* pure 权威：thin.x check_lint_fail_on_warnings；冷启动保留 _impl + public */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 int check_lint_fail_on_warnings_impl(void) {
   const char *v = getenv("SHUX_LINT_CI_FAIL_ON");
   return v && (strcmp(v, "warn") == 0 || strcmp(v, "warning") == 0);
 }
 
-#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 int check_lint_fail_on_warnings(void) {
   return check_lint_fail_on_warnings_impl();
 }
@@ -556,9 +549,9 @@ int driver_check_print_collected_diagnostics(const char *path) {
 
 /**
  * 路径是否应忽略（内置 + --ignore 子串匹配）。
- * G-02f-247：逻辑源 .x（真迁 pure）；seed 保留同语义 C 供产品 cc。
+ * pure 权威：thin.x path_should_ignore；冷启动保留 _impl + public 门闩。
  */
-/* G-02f-407：实现体始终 seed；public PREFER 时 thin forward */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 int path_should_ignore_impl(const char *path) {
     int i;
     int n;
@@ -580,7 +573,6 @@ int path_should_ignore_impl(const char *path) {
     return 0;
 }
 
-#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 int path_should_ignore(const char *path) {
   return path_should_ignore_impl(path);
 }
@@ -589,8 +581,8 @@ int path_should_ignore(const char *path) {
 
 
 
-/* G-02f-248：逻辑源 .x（真迁 .x 后缀）；seed 保留同语义 C 供产品 cc */
-/* G-02f-389：实现体始终 seed；public PREFER 时 thin forward */
+/* pure 权威：thin.x fmt_path_ends_with_dot_x；冷启动保留 _impl + public */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 int fmt_path_ends_with_dot_x_impl(const char *path) {
     size_t len;
     if (!path)
@@ -601,7 +593,6 @@ int fmt_path_ends_with_dot_x_impl(const char *path) {
     return path[len - 2] == '.' && path[len - 1] == 'x';
 }
 
-#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 int fmt_path_ends_with_dot_x(const char *path) {
     return fmt_path_ends_with_dot_x_impl(path);
 }
@@ -655,9 +646,10 @@ int fmt_file_list_store_impl(const char *abs_path) {
 
 /**
  * 将相对/绝对路径加入待处理列表（去重由调用方保证顺序）。
- * G-02f-248：逻辑源 .x（编排 pure）；getcwd/strdup 🔒。
+ * pure 编排权威：thin.x file_list_push；冷启动保留 _impl + public。
+ * Cap residual store：fmt_file_list_store_impl（strdup）始终 seed。
  */
-/* G-02f-407：实现体始终 seed；public PREFER 时 thin forward */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 int file_list_push_impl(const char *path) {
     const char *abs_path;
     if (!path)
@@ -674,7 +666,6 @@ int file_list_push_impl(const char *path) {
     return fmt_file_list_store_impl(abs_path);
 }
 
-#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 int file_list_push(const char *path) {
   return file_list_push_impl(path);
 }
@@ -698,8 +689,8 @@ int fmt_walk_skip_dot_name(const char *name) {
 void walk_dir_collect(const char *dir);
 void walk_dir_collect_impl(const char *dir);
 
-/* G-02f-249：逻辑源 .x（真迁 ignore/递归/.x 入表）；seed 保留同语义 C 供产品 cc */
-/* G-02f-407：实现体始终 seed；public PREFER 时 thin forward */
+/* pure 权威：thin.x walk_dir_collect_process_child；冷启动保留 _impl + public */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 void walk_dir_collect_process_child_impl(const char *child, int is_dir, int is_reg) {
     if (!child)
         return;
@@ -713,7 +704,6 @@ void walk_dir_collect_process_child_impl(const char *child, int is_dir, int is_r
         file_list_push_impl(child);
 }
 
-#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 void walk_dir_collect_process_child(const char *child, int is_dir, int is_reg) {
   walk_dir_collect_process_child_impl(child, is_dir, is_reg);
 }
@@ -721,11 +711,12 @@ void walk_dir_collect_process_child(const char *child, int is_dir, int is_reg) {
 
 /**
  * 递归遍历目录，收集 .x 文件。
- * G-02f-249：opendir 循环 🔒；过滤/递归编排 pure。
+ * Cap residual：opendir 循环 🔒；过滤/递归编排调 public walk_dir_collect_process_child
+ * （hybrid 时 thin pure；冷启动时 seed public→_impl）。
  *
  * 【Why 根源】dir 可能指向 fmt_path_resolve_abs_impl 的 static char ab[512] 静态缓冲区
  * （collect_paths_from_arg_impl → fmt_path_resolve_abs_impl → walk_dir_collect 传入）。
- * 循环中 file_list_push_impl → fmt_path_resolve_abs_impl 会覆盖该静态缓冲区，
+ * 循环中 file_list_push → fmt_path_resolve_abs_impl 会覆盖该静态缓冲区，
  * 导致 dir 指针内容变为上一个 .x 文件路径，snprintf 拼接出
  * "compiler/foo.x/bar.x" 这样的错误路径。拷贝到本地 dir_buf 隔离别名。
  * 【Invariant】dir_buf 在本函数栈帧内，不受下游调用影响。
@@ -760,7 +751,8 @@ void walk_dir_collect_impl(const char *dir) {
             else if (stat(child, &st) == 0 && S_ISREG(st.st_mode))
                 is_reg = 1;
         }
-        walk_dir_collect_process_child_impl(child, is_dir, is_reg);
+        /* 调 public：hybrid thin pure / 冷 seed public */
+        walk_dir_collect_process_child(child, is_dir, is_reg);
     }
     closedir(d);
 }
@@ -1088,6 +1080,7 @@ int check_one_need_fallback_diag(int rc, int nd, int nd_errors, int nd_warnings,
 #endif
 
 
+/* pure 权威：thin.x check_one_finalize_rc；冷启动保留 public 体 */
 #ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 int check_one_finalize_rc(int rc, int warn_count) {
     if (rc != 0)
@@ -1095,12 +1088,6 @@ int check_one_finalize_rc(int rc, int warn_count) {
     if (check_lint_fail_on_warnings_impl() && warn_count > 0)
         return 1;
     return rc;
-}
-#else
-int check_one_finalize_rc_lint_impl(int warn_count) {
-    if (check_lint_fail_on_warnings_impl() && warn_count > 0)
-        return 1;
-    return 0;
 }
 #endif
 

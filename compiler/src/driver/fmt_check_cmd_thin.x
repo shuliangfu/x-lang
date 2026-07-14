@@ -1,24 +1,27 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-350/383/389/405–410：fmt_check_cmd R2 thin full — pure + lit + entry 门闩（42 公共面）。
+// fmt_check_cmd R2 thin + Cap residual pure 深迁：
+//   lit/entry 门闩 + pure 业务真体（path_should_ignore / .x 后缀 / lint /
+//   file_list_push 编排 / walk process_child）进 thin.x；
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_FMT_CHECK_THIN_FROM_X）ld -r
 //   → fmt_check_cmd_driver.o
-// Prove IDENTICAL：seeds/fmt_check_cmd_thin_surface.from_x.c（本 thin 公共面；_impl 仍 U）
-// Cap residual：*_impl / walk·argv / dirent·stat C 尾仍在 full seed rest。
-// 对照：src/driver/fmt_check_cmd.x；冷启动 full seed rest。
+// Prove IDENTICAL：seeds/fmt_check_cmd_thin_surface.from_x.c
+// Cap residual：walk opendir/stat/argv/BSS getters 等 *_impl 仍在 full seed rest；
+// FROM_X 下 pure-duplicate _impl 已剔除（H↓）。
 //
 // -E 约束：无 while 重赋值；无零参-only 不稳写法；6 参用扁平 if。
 //
 
+export extern "C" function strstr(hay: *u8, needle: *u8): *u8;
+export extern "C" function getenv(name: *u8): *u8;
 export extern "C" function driver_collect_mode_is_check_impl(): i32;
 export extern "C" function check_user_passed_L_get_impl(): i32;
 export extern "C" function fmt_user_ignore_count_impl(): i32;
-export extern "C" function fmt_path_ends_with_dot_x_impl(path: *u8): i32;
 export extern "C" function fmt_file_list_n_impl(): i32;
 export extern "C" function fmt_user_ignore_at_impl(i: i32): *u8;
 export extern "C" function fmt_path_resolve_abs_impl(path: *u8): *u8;
-export extern "C" function check_one_finalize_rc_lint_impl(warn_count: i32): i32;
+export extern "C" function fmt_file_list_store_impl(abs_path: *u8): i32;
 
 let g_fmt_lit_check_error: u8[12] = [99, 104, 101, 99, 107, 32, 101, 114, 114, 111, 114, 0];
 let g_fmt_lit_fmt_error: u8[10] = [102, 109, 116, 32, 101, 114, 114, 111, 114, 0];
@@ -117,7 +120,7 @@ export function shux_path_is_absolute(path: *u8): i32 {
   return 0;
 }
 
-// rc==0 且 lint fail-on-warnings 时升失败
+// rc==0 且 lint fail-on-warnings 时升失败（pure：直接调 check_lint_fail_on_warnings）
 #[no_mangle]
 export function check_one_finalize_rc(rc: i32, warn_count: i32): i32 {
   if (rc != 0) {
@@ -126,8 +129,8 @@ export function check_one_finalize_rc(rc: i32, warn_count: i32): i32 {
   if (warn_count <= 0) {
     return 0;
   }
-  unsafe {
-    return check_one_finalize_rc_lint_impl(warn_count);
+  if (check_lint_fail_on_warnings() != 0) {
+    return 1;
   }
   return 0;
 }
@@ -260,10 +263,28 @@ export function fmt_user_ignore_count(): i32 {
   return 0;
 }
 
+// pure：路径是否以 ".x" 结尾（字节扫描，无 strlen）
 #[no_mangle]
 export function fmt_path_ends_with_dot_x(path: *u8): i32 {
+  if (path == 0 as *u8) {
+    return 0;
+  }
   unsafe {
-    return fmt_path_ends_with_dot_x_impl(path);
+    let i: i32 = 0;
+    while (i < 4096) {
+      if (path[i] == 0) {
+        if (i < 2) {
+          return 0;
+        }
+        if (path[i - 2] == 46) {
+          if (path[i - 1] == 120) {
+            return 1;
+          }
+        }
+        return 0;
+      }
+      i = i + 1;
+    }
   }
   return 0;
 }
@@ -276,16 +297,39 @@ export function fmt_file_list_n(): i32 {
   return 0;
 }
 
-// ---- G-02f-405：lint/invoke/dep_clear/path_stat → seed impl ----
-export extern "C" function check_lint_fail_on_warnings_impl(): i32;
+// ---- G-02f-405：lint pure / invoke·dep_clear·path_stat Cap residual ----
 export extern "C" function fmt_check_invoke_compile_impl(argc: i32, check_argv: *u8): i32;
 export extern "C" function fmt_check_dep_clear_impl(): void;
 export extern "C" function fmt_path_stat_kind_impl(path: *u8): i32;
 
+// pure：SHUX_LINT_CI_FAIL_ON=warn|warning
 #[no_mangle]
 export function check_lint_fail_on_warnings(): i32 {
   unsafe {
-    return check_lint_fail_on_warnings_impl();
+    let v: *u8 = getenv("SHUX_LINT_CI_FAIL_ON");
+    if (v == 0 as *u8) {
+      return 0;
+    }
+    if (v[0] == 119) {
+      if (v[1] == 97) {
+        if (v[2] == 114) {
+          if (v[3] == 110) {
+            if (v[4] == 0) {
+              return 1;
+            }
+            if (v[4] == 105) {
+              if (v[5] == 110) {
+                if (v[6] == 103) {
+                  if (v[7] == 0) {
+                    return 1;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   }
   return 0;
 }
@@ -357,34 +401,88 @@ export function check_one_file(path: *u8, argc: i32, argv: *u8): i32 {
   return 0 - 1;
 }
 
-// ---- G-02f-407：ignore / file_list / walk / parse_ignore → seed impl ----
-export extern "C" function path_should_ignore_impl(path: *u8): i32;
-export extern "C" function file_list_push_impl(path: *u8): i32;
-export extern "C" function walk_dir_collect_process_child_impl(child: *u8, is_dir: i32, is_reg: i32): void;
+// ---- pure ignore / file_list orch / walk process_child；Cap：walk opendir / parse_ignore 体 ----
 export extern "C" function walk_dir_collect_impl(dir: *u8): void;
 export extern "C" function parse_ignore_opt_impl(arg: *u8): void;
 export extern "C" function file_list_clear_impl(): void;
 
+// pure：内置 + --ignore 子串；null path → 忽略
 #[no_mangle]
 export function path_should_ignore(path: *u8): i32 {
+  if (path == 0 as *u8) {
+    return 1;
+  }
   unsafe {
-    return path_should_ignore_impl(path);
+    let i: i32 = 0;
+    while (i < 32) {
+      let b: *u8 = fmt_builtin_ignore_at(i);
+      if (b == 0 as *u8) {
+        break;
+      }
+      if (strstr(path, b) != 0 as *u8) {
+        return 1;
+      }
+      i = i + 1;
+    }
+    let n: i32 = fmt_user_ignore_count();
+    let j: i32 = 0;
+    while (j < n) {
+      let u: *u8 = fmt_user_ignore_at(j);
+      if (u != 0 as *u8) {
+        if (u[0] != 0) {
+          if (strstr(path, u) != 0 as *u8) {
+            return 1;
+          }
+        }
+      }
+      j = j + 1;
+    }
   }
   return 0;
 }
 
+// pure 编排：满员 / resolve / ignore / .x；strdup 入表 🔒 store_impl
 #[no_mangle]
 export function file_list_push(path: *u8): i32 {
+  if (path == 0 as *u8) {
+    return 0 - 1;
+  }
   unsafe {
-    return file_list_push_impl(path);
+    if (fmt_file_list_n() >= 8192) {
+      return 0 - 1;
+    }
+    let abs_path: *u8 = fmt_path_resolve_abs(path);
+    if (abs_path == 0 as *u8) {
+      return 0 - 1;
+    }
+    if (path_should_ignore(abs_path) != 0) {
+      return 0;
+    }
+    if (fmt_path_ends_with_dot_x(abs_path) == 0) {
+      return 0;
+    }
+    return fmt_file_list_store_impl(abs_path);
   }
   return 0 - 1;
 }
 
+// pure：ignore / 递归 / .x 入表
 #[no_mangle]
 export function walk_dir_collect_process_child(child: *u8, is_dir: i32, is_reg: i32): void {
-  unsafe {
-    walk_dir_collect_process_child_impl(child, is_dir, is_reg);
+  if (child == 0 as *u8) {
+    return;
+  }
+  if (path_should_ignore(child) != 0) {
+    return;
+  }
+  if (is_dir != 0) {
+    walk_dir_collect(child);
+    return;
+  }
+  if (is_reg != 0) {
+    if (fmt_path_ends_with_dot_x(child) != 0) {
+      file_list_push(child);
+    }
   }
 }
 

@@ -1,9 +1,11 @@
 /* seeds/fmt_check_cmd_thin_surface.from_x.c
- * G-02f fmt_check_cmd R2 thin full surface — isomorphic with src/driver/fmt_check_cmd_thin.x
+ * fmt_check_cmd R2 thin + Cap residual pure 深迁 surface — isomorphic with src/driver/fmt_check_cmd_thin.x
  * Product PREFER_X_O: g05_try_x_to_o(thin.x) + full seed rest (-DSHUX_L2_FMT_CHECK_THIN_FROM_X) ld -r
- * Prove: thin.x vs this seed → nm IDENTICAL (public surface; _impl are U)
- * Cap residual: *_impl / walk·argv / dirent·stat C 尾 in seeds/fmt_check_cmd.from_x.c rest
- * Regen: copy from thin.from_x.c or ./shux -E ... thin.x | filter DBG + polish externs
+ * Prove: thin.x vs this seed → nm IDENTICAL (public surface; Cap residual _impl are U)
+ * Cap residual: walk opendir/stat/argv/BSS getters in seeds/fmt_check_cmd.from_x.c rest
+ * pure 真迁：path_should_ignore / fmt_path_ends_with_dot_x / check_lint_fail_on_warnings /
+ *   file_list_push orch / walk_dir_collect_process_child / check_one_finalize_rc
+ * Regen: ./shux -E ... thin.x | filter DBG + g05 prologue polish
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -95,11 +97,10 @@ static void init_globals(void) {
 extern int32_t driver_collect_mode_is_check_impl(void);
 extern int32_t check_user_passed_L_get_impl(void);
 extern int32_t fmt_user_ignore_count_impl(void);
-extern int32_t fmt_path_ends_with_dot_x_impl(uint8_t * path);
 extern int32_t fmt_file_list_n_impl(void);
 extern uint8_t * fmt_user_ignore_at_impl(int32_t i);
 extern uint8_t * fmt_path_resolve_abs_impl(uint8_t * path);
-extern int32_t check_one_finalize_rc_lint_impl(int32_t warn_count);
+extern int32_t fmt_file_list_store_impl(uint8_t * abs_path);
 int32_t driver_check_quiet_ok_get(void) {
   return 1;
 }
@@ -173,8 +174,8 @@ int32_t check_one_finalize_rc(int32_t rc, int32_t warn_count) {
   if ((warn_count <=0)) {
     return 0;
   }
-  {
-    return check_one_finalize_rc_lint_impl(warn_count);
+  if ((check_lint_fail_on_warnings() !=0)) {
+    return 1;
   }
   return 0;
 }
@@ -279,8 +280,25 @@ int32_t fmt_user_ignore_count(void) {
   return 0;
 }
 int32_t fmt_path_ends_with_dot_x(uint8_t * path) {
+  if ((path ==((uint8_t *)(0)))) {
+    return 0;
+  }
   {
-    return fmt_path_ends_with_dot_x_impl(path);
+    int32_t i = 0;
+    while ((i < 4096)) {
+      if (((path)[i] ==0)) {
+        if ((i < 2)) {
+          return 0;
+        }
+        if (((path)[(i - 2)] ==46)) {
+          if (((path)[(i - 1)] ==120)) {
+            return 1;
+          }
+        }
+        return 0;
+      }
+      (void)((i = (i + 1)));
+    }
   }
   return 0;
 }
@@ -290,13 +308,35 @@ int32_t fmt_file_list_n(void) {
   }
   return 0;
 }
-extern int32_t check_lint_fail_on_warnings_impl(void);
 extern int32_t fmt_check_invoke_compile_impl(int32_t argc, uint8_t * check_argv);
 extern void fmt_check_dep_clear_impl(void);
 extern int32_t fmt_path_stat_kind_impl(uint8_t * path);
 int32_t check_lint_fail_on_warnings(void) {
   {
-    return check_lint_fail_on_warnings_impl();
+    uint8_t * v = getenv((uint8_t[]){83, 72, 85, 88, 95, 76, 73, 78, 84, 95, 67, 73, 95, 70, 65, 73, 76, 95, 79, 78, 0 });
+    if ((v ==((uint8_t *)(0)))) {
+      return 0;
+    }
+    if (((v)[0] ==119)) {
+      if (((v)[1] ==97)) {
+        if (((v)[2] ==114)) {
+          if (((v)[3] ==110)) {
+            if (((v)[4] ==0)) {
+              return 1;
+            }
+            if (((v)[4] ==105)) {
+              if (((v)[5] ==110)) {
+                if (((v)[6] ==103)) {
+                  if (((v)[7] ==0)) {
+                    return 1;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   }
   return 0;
 }
@@ -357,27 +397,78 @@ int32_t check_one_file(uint8_t * path, int32_t argc, uint8_t * argv) {
   }
   return (0 - 1);
 }
-extern int32_t path_should_ignore_impl(uint8_t * path);
-extern int32_t file_list_push_impl(uint8_t * path);
-extern void walk_dir_collect_process_child_impl(uint8_t * child, int32_t is_dir, int32_t is_reg);
 extern void walk_dir_collect_impl(uint8_t * dir);
 extern void parse_ignore_opt_impl(uint8_t * arg);
 extern void file_list_clear_impl(void);
 int32_t path_should_ignore(uint8_t * path) {
+  if ((path ==((uint8_t *)(0)))) {
+    return 1;
+  }
   {
-    return path_should_ignore_impl(path);
+    int32_t i = 0;
+    while ((i < 32)) {
+      uint8_t * b = fmt_builtin_ignore_at(i);
+      if ((b ==((uint8_t *)(0)))) {
+        break;
+      }
+      if ((strstr(path, b) !=((uint8_t *)(0)))) {
+        return 1;
+      }
+      (void)((i = (i + 1)));
+    }
+    int32_t n = fmt_user_ignore_count();
+    int32_t j = 0;
+    while ((j < n)) {
+      uint8_t * u = fmt_user_ignore_at(j);
+      if ((u !=((uint8_t *)(0)))) {
+        if (((u)[0] !=0)) {
+          if ((strstr(path, u) !=((uint8_t *)(0)))) {
+            return 1;
+          }
+        }
+      }
+      (void)((j = (j + 1)));
+    }
   }
   return 0;
 }
 int32_t file_list_push(uint8_t * path) {
+  if ((path ==((uint8_t *)(0)))) {
+    return (0 - 1);
+  }
   {
-    return file_list_push_impl(path);
+    uint8_t * abs_path = fmt_path_resolve_abs(path);
+    if ((fmt_file_list_n() >=8192)) {
+      return (0 - 1);
+    }
+    if ((abs_path ==((uint8_t *)(0)))) {
+      return (0 - 1);
+    }
+    if ((path_should_ignore(abs_path) !=0)) {
+      return 0;
+    }
+    if ((fmt_path_ends_with_dot_x(abs_path) ==0)) {
+      return 0;
+    }
+    return fmt_file_list_store_impl(abs_path);
   }
   return (0 - 1);
 }
 void walk_dir_collect_process_child(uint8_t * child, int32_t is_dir, int32_t is_reg) {
-  {
-    (void)(walk_dir_collect_process_child_impl(child, is_dir, is_reg));
+  if ((child ==((uint8_t *)(0)))) {
+    return;
+  }
+  if ((path_should_ignore(child) !=0)) {
+    return;
+  }
+  if ((is_dir !=0)) {
+    (void)(walk_dir_collect(child));
+    return;
+  }
+  if ((is_reg !=0)) {
+    if ((fmt_path_ends_with_dot_x(child) !=0)) {
+      (void)(file_list_push(child));
+    }
   }
   (void)(0);
   return;
