@@ -1798,10 +1798,10 @@ int shux_link_freestanding_enabled(int driver_freestanding) {
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-273 L4 ensure catalog pure */
-#ifndef SHUX_LABI_ENSURE_LIST_FROM_X
-#include "seeds/labi_ensure_list.from_x.c"
-#else
+/* G-02f-273 L4 ensure catalog pure
+ * LABI_ENS_* 索引/flags 必须始终可见：冷启动 #include labi_ensure_list 只提供
+ * catalog_* 实现（整数下标），hybrid FROM_X 由 .x 提供实现；下方 mega ensure
+ * 包装器两种路径都用枚举名（不可仅放在 #else 分支，否则 clean 冷启动 undeclared）。 */
 enum {
   LABI_ENS_FLAG_NONE = 0,
   LABI_ENS_FLAG_PIE = 1,
@@ -1836,6 +1836,9 @@ enum {
   LABI_ENS_ED25519_REF10_GLUE,
   LABI_ENS_COUNT
 };
+#ifndef SHUX_LABI_ENSURE_LIST_FROM_X
+#include "seeds/labi_ensure_list.from_x.c"
+#else
 int labi_ensure_catalog_count(void);
 int labi_ensure_catalog_step_at(int i, const char **stem_out, const char **out_base_out,
                                 const char **seed_base_out, int *flags_out,
