@@ -146,6 +146,10 @@ MODULES=(
   # （禁 let **u8 / 局部 u8[N]；malloc 扫描缓冲；strstr/strncmp；diag_report_with_code）
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/rt_compile.from_x.c 全 C 体
   "rt_compile|src/runtime/rt_compile.x|seeds/rt_compile_surface.from_x.c||"
+  # rt_run_exec R2 full：.x 吃满 want_asm/print_usage/test_status/print_cpu/scan/path/exec/run_test 8 公共；
+  # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：usage_write + compiled_body 在 driver_abi
+  # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/rt_run_exec.from_x.c 全 C 体
+  "rt_run_exec|src/runtime/rt_run_exec.x|seeds/rt_run_exec_surface.from_x.c||"
 )
 
 # 找 shux 二进制（优先 shux，fallback shux-c）

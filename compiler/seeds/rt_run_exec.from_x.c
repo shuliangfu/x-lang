@@ -2,11 +2,15 @@
  * Logic source: src/runtime/rt_run_exec.x
  * Hybrid: SHUX_RT_RUN_EXEC_FROM_X + ld -r into runtime_driver_no_c.o
  *
+ * R2 full（2026-07-14）：8 公共业务符号均由 .x 提供；
+ * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务符号 H=0）。
+ * Cap residual：driver_print_usage_write 在 driver_abi（巨型 usage 字面量）。
+ * 冷启动/无 PREFER 时仍编译完整 C 体。
+ *
  * f-297: want_asm_emit_to_file + print_usage
  * f-298: runtime_test_status_to_rc + print_target_cpu_features
- * f-299: exec pure path helpers + driver_exec_compiled (spawn 🔒 在本 seed)
- * f-311: driver_run_test（bash tests/run-all.sh；🔒 system）
- * main_entry / full emit orchestration remain mega rest.
+ * f-299: exec pure path helpers + driver_exec_compiled (spawn)
+ * f-311: driver_run_test（bash tests/run-all.sh；system）
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -29,10 +33,15 @@ extern void diag_reportf_with_code(const char *file, int line, int col, const ch
                                    const char *detail, const char *fmt, ...);
 extern void diag_reportf(const char *file, int line, int col, const char *kind, const char *detail, const char *fmt,
                          ...);
+extern void diag_report_with_code(const char *file, int line, int col, const char *kind, const char *code,
+                                  const char *msg, const char *detail);
 extern void shu_target_cpu_print(FILE *out, uint32_t features);
 extern int shu_waitpid_retry(pid_t pid, int *status_out);
 extern const char *shux_repo_root_from_argv0(const char *argv0);
 extern int system(const char *command);
+extern void driver_print_usage_write(void);
+
+#ifndef SHUX_RT_RUN_EXEC_FROM_X
 
 /**
  * 是否与 driver_run_compiler_full 默认一致：默认可走 asm 后端；
@@ -67,43 +76,10 @@ int driver_want_asm_emit_to_file(int argc, char **argv) {
 
 /**
  * 打印 shux 用法摘要（fd 1）。
- * B-strict / -nostartfiles 上用 write(1)，避免 stdout 未初始化。
+ * Cap residual driver_print_usage_write 持巨型字面量。
  */
 void driver_print_usage_c(void) {
-  static const char usage[] =
-      "Shux (shux) compiler\n"
-      "\n"
-      "Usage:\n"
-      "  shux [options] file.x          compile and run\n"
-      "  shux build [file.x] [-o exe]   compile (default a.out)\n"
-      "  shux run file.x                compile and run\n"
-      "  shux check [paths...]           parse + typeck only\n"
-      "  shux fmt [--check] [paths...]   format .x sources\n"
-      "  shux explain <CODE>             explain a diagnostic code\n"
-      "  shux test [script.sh]           run test script\n"
-      "\n"
-      "Common options:\n"
-      "  -backend asm|c    backend (default asm)\n"
-      "  -O <0|1|2|3|s>    optimization (default 2)\n"
-      "  -o <path>         output binary or .o\n"
-      "  -L <dir>          library search path\n"
-      "  -target <triple>  target (e.g. aarch64-linux-gnu)\n"
-      "  -target-cpu <cpu> native|generic|avx2|...\n"
-      "  --print-target-cpu  print host CPU features and exit\n"
-      "  --explain <CODE>   print diagnostic code explanation and exit\n"
-      "  -freestanding     nostdlib static link (Linux x86_64 ELF)\n"
-      "  -legacy-f32-abi   legacy SysV f32 CALL (f64 widen; default xmm ABI)\n"
-      "  -E                emit C (debug)\n"
-      "  -flto              link-time optimization (C backend)\n"
-      "  -h, --help         show this help\n"
-      "\n"
-      "Environment:\n"
-      "  SHUX_ABI_F32_XMM=0  same as -legacy-f32-abi (x86_64 SysV)\n"
-      "  SHUX_OPT          default -O level if omitted\n"
-      "\n"
-      "Release default: shux_asm -backend asm -O2 (f32 xmm ABI on unless legacy).\n"
-      "See compiler/docs/F32_XMM_ABI.md for f32 ABI and deprecation timeline.\n";
-  (void)write(STDOUT_FILENO, usage, sizeof(usage) - 1u);
+  driver_print_usage_write();
 }
 
 /* --- G-02f-298 --- */
@@ -146,9 +122,6 @@ const char *driver_exec_scan_out_path(int argc, char **argv) {
   return "a.out";
 }
 
-/* G-02f-434：.x 真迁到 rt_run_exec.x（flat early-return + helper 函数，
- *   消除 &&/||/嵌套 if → 修复 shux -E 丢弃函数体） */
-#ifndef SHUX_RT_RUN_EXEC_FROM_X
 /**
  * 路径是否为不应 exec 的对象/汇编产物（.o/.O/.obj/.s）。
  * 与 shux_output_want_exe 后缀规则对齐。
@@ -166,12 +139,9 @@ int driver_exec_path_is_non_exe(const char *exe) {
     return 1;
   return 0;
 }
-#else
-int driver_exec_path_is_non_exe(const char *exe);
-#endif
 
 /**
- * cmd_run：编译成功后 exec 产物。spawn/fork 为 🔒 OS 路径，留在本 seed。
+ * cmd_run：编译成功后 exec 产物。spawn/fork 为 🔒 OS 路径，留在本 seed（冷启动）。
  */
 int driver_exec_compiled(int argc, uint8_t *argv_opaque) {
   char **argv = (char **)argv_opaque;
@@ -237,6 +207,19 @@ int driver_run_test(int argc, char **argv) {
   diag_reportf(NULL, 0, 0, "info", NULL, "test script: %s", script);
   return runtime_test_status_to_rc(script, system(cmd));
 }
+
+#else /* SHUX_RT_RUN_EXEC_FROM_X：产品 rest 仅 marker；业务符号由 full .x 提供 */
+
+int driver_want_asm_emit_to_file(int argc, char **argv);
+void driver_print_usage_c(void);
+int runtime_test_status_to_rc(const char *script, int st);
+int32_t driver_print_target_cpu_features_c(int32_t features);
+const char *driver_exec_scan_out_path(int argc, char **argv);
+int driver_exec_path_is_non_exe(const char *exe);
+int driver_exec_compiled(int argc, uint8_t *argv_opaque);
+int driver_run_test(int argc, char **argv);
+
+#endif /* SHUX_RT_RUN_EXEC_FROM_X */
 
 int labi_rt_run_exec_slice_marker(void) {
   return 1;

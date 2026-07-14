@@ -1463,6 +1463,115 @@ char **driver_entry_fmt_argv_slot(void) {
 }
 
 /**
+ * Cap residual：rt_run_exec R2 full .x 的 usage 写 fd1。
+ * 巨型多行字面量留平台层（.x -E 对 \\n 长串易丢体/误编码）。
+ * 始终提供（不随 RDABI thin 宏剥离）。
+ */
+void driver_print_usage_write(void) {
+    static const char usage[] =
+        "Shux (shux) compiler\n"
+        "\n"
+        "Usage:\n"
+        "  shux [options] file.x          compile and run\n"
+        "  shux build [file.x] [-o exe]   compile (default a.out)\n"
+        "  shux run file.x                compile and run\n"
+        "  shux check [paths...]           parse + typeck only\n"
+        "  shux fmt [--check] [paths...]   format .x sources\n"
+        "  shux explain <CODE>             explain a diagnostic code\n"
+        "  shux test [script.sh]           run test script\n"
+        "\n"
+        "Common options:\n"
+        "  -backend asm|c    backend (default asm)\n"
+        "  -O <0|1|2|3|s>    optimization (default 2)\n"
+        "  -o <path>         output binary or .o\n"
+        "  -L <dir>          library search path\n"
+        "  -target <triple>  target (e.g. aarch64-linux-gnu)\n"
+        "  -target-cpu <cpu> native|generic|avx2|...\n"
+        "  --print-target-cpu  print host CPU features and exit\n"
+        "  --explain <CODE>   print diagnostic code explanation and exit\n"
+        "  -freestanding     nostdlib static link (Linux x86_64 ELF)\n"
+        "  -legacy-f32-abi   legacy SysV f32 CALL (f64 widen; default xmm ABI)\n"
+        "  -E                emit C (debug)\n"
+        "  -flto              link-time optimization (C backend)\n"
+        "  -h, --help         show this help\n"
+        "\n"
+        "Environment:\n"
+        "  SHUX_ABI_F32_XMM=0  same as -legacy-f32-abi (x86_64 SysV)\n"
+        "  SHUX_OPT          default -O level if omitted\n"
+        "\n"
+        "Release default: shux_asm -backend asm -O2 (f32 xmm ABI on unless legacy).\n"
+        "See compiler/docs/F32_XMM_ABI.md for f32 ABI and deprecation timeline.\n";
+    /* fwrite+fflush：避免本 TU 内先手写 extern write 再 #include <unistd.h> 触发 Darwin asm 冲突。 */
+    (void)fwrite(usage, 1, sizeof(usage) - 1u, stdout);
+    (void)fflush(stdout);
+}
+
+/**
+ * Cap residual：rt_run_exec R2 driver_exec_compiled 体。
+ * .x 禁 *u8→**u8 cast / let **u8（-E 整函数丢体）；scan+non_exe+spawn 在此。
+ * 始终提供（不随 RDABI thin 宏剥离）。
+ */
+#if !defined(_WIN32) && !defined(_WIN64)
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#endif
+extern void runtime_diag_errno_path(const char *file, const char *kind, const char *op, const char *path);
+extern const char *driver_exec_scan_out_path(int argc, char **argv);
+extern int driver_exec_path_is_non_exe(const char *exe);
+#if !defined(_WIN32) && !defined(_WIN64)
+extern int shu_waitpid_retry(pid_t pid, int *status_out);
+#endif
+
+int driver_exec_compiled_body(int argc, uint8_t *argv_opaque) {
+    char **argv = (char **)argv_opaque;
+    const char *exe;
+    if (!argv || argc < 1)
+        return 1;
+    exe = driver_exec_scan_out_path(argc, argv);
+    if (driver_exec_path_is_non_exe(exe))
+        return 0;
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+    {
+        char *av[2];
+        intptr_t rc;
+        av[0] = (char *)exe;
+        av[1] = NULL;
+        rc = _spawnvp(_P_WAIT, exe, (const char *const *)av);
+        if (rc == -1) {
+            runtime_diag_errno_path(NULL, "process error", "spawnvp (driver_exec_compiled)", exe);
+            return 1;
+        }
+        return (int)rc;
+    }
+#else
+    {
+        pid_t pid = fork();
+        if (pid < 0) {
+            runtime_diag_errno_path(NULL, "process error", "fork (driver_exec_compiled)", exe);
+            return 1;
+        }
+        if (pid == 0) {
+            char *av[2];
+            av[0] = (char *)exe;
+            av[1] = NULL;
+            execv(exe, av);
+            runtime_diag_errno_path(NULL, "process error", "execv (driver_exec_compiled)", exe);
+            _exit(127);
+        }
+        {
+            int st = 0;
+            if (shu_waitpid_retry(pid, &st) != 0)
+                return 1;
+            if (WIFEXITED(st))
+                return WEXITSTATUS(st);
+            return 1;
+        }
+    }
+#endif
+}
+
+/**
  * Cap-global-bss residual：rt_emit_state R2 full .x 写共享 emit 槽。
  * 数据定义在 seeds/rt_emit_state.from_x.c（跨 TU 非 static）；本层暴露槽/绑定。
  * 始终提供（不随 RDABI thin 宏剥离）。避免 .x 侧 **u8 赋值（-E 会丢函数）。

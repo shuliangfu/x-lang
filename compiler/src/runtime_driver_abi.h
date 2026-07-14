@@ -95,6 +95,18 @@ uint8_t *driver_entry_tmp2_slot(void);
 char **driver_entry_fmt_argv_slot(void);
 
 /**
+ * Cap residual：rt_run_exec R2 巨型 usage 字面量写 fd1。
+ * .x 禁含 \\n 的长字串字面量（-E 编码/丢体）；平台层持静态表。
+ */
+void driver_print_usage_write(void);
+
+/**
+ * Cap residual：rt_run_exec R2 driver_exec_compiled 体。
+ * .x 禁 *u8→**u8 cast / let **u8（-E 整函数丢体）；scan+non_exe+spawn 留平台层。
+ */
+int driver_exec_compiled_body(int argc, uint8_t *argv_opaque);
+
+/**
  * Cap-global-bss residual：rt_emit_state R2 经槽写共享 emit 状态。
  * .x export let 会变 static，不能跨 TU 导出 path_buf / lib_roots；数据在 rest seed。
  * 绑定类 API 避免 .x 侧 **u8 写指针（-E 会丢函数体）。
