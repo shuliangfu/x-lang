@@ -857,18 +857,145 @@ int32_t pipeline_typeck_find_func_index_in_module_by_name_strict_minimal(struct 
   }
   return first_match;
 }
+
+extern int32_t pipeline_expr_as_target_type_ref_at(struct ast_ASTArena *arena, int32_t expr_ref);
+extern int32_t pipeline_typeck_type_refs_equal_c(struct ast_ASTArena *arena, int32_t a, int32_t b);
+extern int32_t pipeline_type_kind_ord_at(struct ast_ASTArena *arena, int32_t type_ref);
+extern int32_t pipeline_module_func_param_type_ref_at(struct ast_Module *m, int32_t fi, int32_t pi);
+extern int32_t pipeline_expr_method_call_num_args_at(struct ast_ASTArena *arena, int32_t expr_ref);
+extern int32_t pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
+    struct ast_Module *mod, struct ast_ASTArena *caller_arena, uint8_t *name, int32_t name_len, int32_t from_dep_index,
+    int32_t want_arity, int32_t call_expr_ref, int32_t is_method, struct ast_PipelineDepCtx *ctx,
+    int32_t *func_index_out);
+
+/**
+ * W-heap-overload：在同名候选中按 CALL/METHOD_CALL 实参类型打分选最优。
+ * call_expr_ref 为 METHOD_CALL 或 CALL；args 经 method_call_* / call_* accessor。
+ * 跨模块形参经 get_dep_return_type 映到 caller 后再比。
+ */
+static int32_t pipeline_typeck_overload_arg_score_strict_minimal(struct ast_ASTArena *caller_arena,
+                                                                  int32_t call_expr_ref, int32_t is_method,
+                                                                  int32_t arg_i, int32_t param_ty_raw,
+                                                                  int32_t from_dep_index,
+                                                                  struct ast_PipelineDepCtx *ctx) {
+  int32_t arg_ref;
+  int32_t arg_ty;
+  int32_t param_ty;
+  int32_t as_tgt;
+  int32_t ak;
+  int32_t pk;
+  if (!caller_arena || call_expr_ref <= 0 || arg_i < 0)
+    return -1;
+  if (is_method)
+    arg_ref = pipeline_expr_method_call_arg_ref(caller_arena, call_expr_ref, arg_i);
+  else
+    arg_ref = pipeline_expr_call_arg_ref(caller_arena, call_expr_ref, arg_i);
+  if (arg_ref <= 0)
+    return -1;
+  param_ty = param_ty_raw;
+  if (from_dep_index >= 0) {
+    param_ty = pipeline_typeck_get_dep_return_type_in_caller_arena_c(from_dep_index, param_ty_raw, caller_arena, ctx);
+    if (param_ty == 0)
+      return -1;
+  }
+  if (param_ty <= 0)
+    return -1;
+  arg_ty = pipeline_expr_resolved_type_ref(caller_arena, arg_ref);
+  if (arg_ty > 0 && pipeline_typeck_type_refs_equal_c(caller_arena, arg_ty, param_ty) != 0)
+    return 1000;
+  /* EXPR_AS = 54 */
+  if (pipeline_expr_kind_ord_at(caller_arena, arg_ref) == 54) {
+    as_tgt = pipeline_expr_as_target_type_ref_at(caller_arena, arg_ref);
+    if (as_tgt > 0 && pipeline_typeck_type_refs_equal_c(caller_arena, as_tgt, param_ty) != 0)
+      return 1000;
+  }
+  if (arg_ty > 0) {
+    ak = pipeline_type_kind_ord_at(caller_arena, arg_ty);
+    pk = pipeline_type_kind_ord_at(caller_arena, param_ty);
+    if (ak == pk && ak != 0)
+      return 1;
+    return -1;
+  }
+  return -1;
+}
+
+static int32_t pipeline_typeck_pick_func_index_by_name_args_strict_minimal(
+    struct ast_Module *mod, struct ast_ASTArena *caller_arena, uint8_t *name, int32_t name_len,
+    int32_t from_dep_index, int32_t want_arity, int32_t call_expr_ref, int32_t is_method,
+    struct ast_PipelineDepCtx *ctx) {
+  int32_t j;
+  int32_t first_match = -1;
+  int32_t best_ix = -1;
+  int32_t best_score = -1;
+  int32_t num_args;
+  if (!mod || !name || name_len <= 0)
+    return -1;
+  num_args = want_arity;
+  if (call_expr_ref > 0 && caller_arena) {
+    if (is_method)
+      num_args = pipeline_expr_method_call_num_args_at(caller_arena, call_expr_ref);
+    else
+      num_args = pipeline_expr_call_num_args_at(caller_arena, call_expr_ref);
+  }
+  for (j = 0; j < mod->num_funcs; j++) {
+    int32_t nparams;
+    int32_t ai;
+    int32_t score;
+    int32_t matched;
+    if (!pipeline_module_func_name_equal_at(mod, j, name, name_len))
+      continue;
+    if (first_match < 0)
+      first_match = j;
+    nparams = pipeline_module_func_num_params_at(mod, j);
+    if (num_args >= 0 && nparams != num_args)
+      continue;
+    if (call_expr_ref <= 0 || !caller_arena) {
+      /* 仅 arity：取首个同 arity（旧行为）。 */
+      return j;
+    }
+    score = 0;
+    matched = 1;
+    for (ai = 0; ai < nparams; ai++) {
+      int32_t param_raw = pipeline_module_func_param_type_ref_at(mod, j, ai);
+      int32_t sc = pipeline_typeck_overload_arg_score_strict_minimal(
+          caller_arena, call_expr_ref, is_method, ai, param_raw, from_dep_index, ctx);
+      if (sc < 0) {
+        matched = 0;
+        break;
+      }
+      score += sc;
+    }
+    if (matched && score > best_score) {
+      best_score = score;
+      best_ix = j;
+    }
+  }
+  if (best_ix >= 0)
+    return best_ix;
+  return first_match;
+}
 #endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
 
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-140：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* W-heap-overload：call_expr_ref>0 时按实参类型分派（METHOD_CALL/CALL）。 */
 int32_t pipeline_typeck_find_func_return_type_in_module_by_name_strict_minimal(
     struct ast_Module *mod, struct ast_ASTArena *caller_arena, uint8_t *name, int32_t name_len, int32_t from_dep_index,
     int32_t want_arity, struct ast_PipelineDepCtx *ctx, int32_t *func_index_out) {
+  return pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
+      mod, caller_arena, name, name_len, from_dep_index, want_arity, 0, 0, ctx, func_index_out);
+}
+
+int32_t pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
+    struct ast_Module *mod, struct ast_ASTArena *caller_arena, uint8_t *name, int32_t name_len, int32_t from_dep_index,
+    int32_t want_arity, int32_t call_expr_ref, int32_t is_method, struct ast_PipelineDepCtx *ctx,
+    int32_t *func_index_out) {
   int32_t func_ix;
   int32_t ret_ty;
-  func_ix = pipeline_typeck_find_func_index_in_module_by_name_strict_minimal(mod, name, name_len, want_arity);
+  func_ix = pipeline_typeck_pick_func_index_by_name_args_strict_minimal(
+      mod, caller_arena, name, name_len, from_dep_index, want_arity, call_expr_ref, is_method, ctx);
   if (func_ix < 0)
     return 0;
   if (func_index_out)
@@ -1938,8 +2065,9 @@ __attribute__((weak)) int32_t pipeline_typeck_check_expr_method_call_c(struct as
         dm = pipeline_dep_ctx_module_at(ctx, ii);
         if (!dm)
           break;
-        import_ret_ty = pipeline_typeck_find_func_return_type_in_module_by_name_strict_minimal(
-            dm, arena, method_nm, method_nlen, ii, num_args, ctx, &func_ix);
+        /* W-heap-overload：METHOD_CALL 带实参类型分派（heap.alloc(usize) ≠ 首个 alloc(i32)）。 */
+        import_ret_ty = pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
+            dm, arena, method_nm, method_nlen, ii, num_args, expr_ref, 1, ctx, &func_ix);
         if (import_ret_ty > 0) {
           dep_ix = ii;
           break;
