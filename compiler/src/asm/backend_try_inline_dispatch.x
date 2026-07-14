@@ -4,13 +4,21 @@
 // G-02f-9：backend_try_inline_dispatch 产品源迁 seeds/backend_try_inline_dispatch.from_x.c。
 // G-02f-184/185：array/struct lit stack 字节 pure 真迁。
 // G-02f-196：index elem sz + local_var_slot_indirect pure；pipeline 薄包装。
-// 产品：cc seeds/backend_try_inline_dispatch.from_x.c → src/asm/backend_try_inline_dispatch.o
+// R2 full（2026-07-14）：产品 PREFER_X_O → 本文件 -E→.o + rest（SHUX_BACKEND_TRY_INLINE_DISPATCH_FROM_X 仅 marker）
+// 冷启动：seeds/backend_try_inline_dispatch.from_x.c 全 C；L2 thin 仅 g05 回退
+// R2 full：pipeline/asm_ctx extern 须在首次使用前声明，否则 -E 不发原型 → cc 隐式声明失败
 
 export function backend_try_inline_dispatch_x_doc_anchor(): i32 {
   return 0;
 }
 
 // G-02f-109：+ align/const fold/module lookup/param 薄门闩。
+
+// 前置：asm_local_var_slot_holds_indirect_ptr / getenv 等热路径先于中段 late-decl 使用
+export extern "C" function getenv(name: *u8): *u8;
+export extern "C" function pipeline_expr_resolved_type_ref(arena: *u8, er: i32): i32;
+export extern "C" function asm_ctx_scope_block_ref_at(asm_ctx: *u8): i32;
+export extern "C" function pipeline_block_resolve_var_type_ref(arena: *u8, br: i32, vname: *u8, vlen: i32): i32;
 
 export extern "C" function pipeline_module_num_struct_layouts_at(mod: *u8): i32;
 export extern "C" function pipeline_module_struct_layout_name_len(mod: *u8, idx: i32): i32;
@@ -362,9 +370,7 @@ export extern "C" function pipeline_module_struct_layout_field_name_len(mod: *u8
 export extern "C" function pipeline_module_struct_layout_field_name_into(mod: *u8, li: i32, j: i32, dst: *u8): void;
 export extern "C" function pipeline_module_struct_layout_field_offset_at(mod: *u8, li: i32, j: i32): i32;
 export extern "C" function pipeline_expr_field_access_base_ref(arena: *u8, er: i32): i32;
-export extern "C" function pipeline_expr_resolved_type_ref(arena: *u8, er: i32): i32;
-export extern "C" function asm_ctx_scope_block_ref_at(asm_ctx: *u8): i32;
-export extern "C" function pipeline_block_resolve_var_type_ref(arena: *u8, br: i32, vname: *u8, vlen: i32): i32;
+// pipeline_expr_resolved_type_ref / asm_ctx_scope_block_ref_at / pipeline_block_resolve_var_type_ref：见文件头 R2 full 前置 extern
 export extern "C" function pipeline_asm_emit_func_index_c(): i32;
 export extern "C" function pipeline_type_elem_ref_at(arena: *u8, tr: i32): i32;
 export extern "C" function typeck_get_field_offset_from_layout_deps(mod: *u8, pctx: *u8, tname: *u8, tlen: i32, fname: *u8, flen: i32): i32;
@@ -1364,7 +1370,7 @@ export function try_inline_var_field_sum_binop_elf(
 export extern "C" function pipeline_expr_struct_lit_field_offset_at(a: *u8, m: *u8, er: i32, fj: i32): i32;
 export extern "C" function pipeline_expr_struct_lit_field_store_sz(a: *u8, m: *u8, er: i32, fj: i32): i32;
 export extern "C" function backend_enc_call_stack_cleanup_arch(elf: *u8, nbytes: i32, ta: i32): i32;
-export extern "C" function getenv(name: *u8): *u8;
+// getenv：见文件头 R2 full 前置 extern
 export extern "C" function glue_wpo_mono_register_thunk(name: *u8, a0: i32, a1: i32, folded: i32): void;
 export extern "C" function codegen_wpo_mono_sym_format(name: *u8, nargs: i32, args: *i32, out: *u8, out_cap: i32): i32;
 

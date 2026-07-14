@@ -111,10 +111,10 @@ MODULES=(
   # rest 在 SHUX_L2_ARCH_EMIT_THIN_FROM_X 下无 thin 公共体；Cap residual：arch_*_emit_* 在 partial / 冷 full seed
   # prove 锁 thin surface IDENTICAL；冷/无 PREFER 仍可走 seeds/backend_arch_emit_dispatch.from_x.c 全 C 体
   "backend_arch_emit_dispatch|src/asm/backend_arch_emit_dispatch_thin.x|seeds/backend_arch_emit_dispatch_thin_surface.from_x.c||"
-  # backend_try_inline_dispatch R2 thin full：thin.x 吃满 50 公共门闩（pure/forward）；
-  # rest FROM_X 仅 *_impl Cap residual + slice_marker；
-  # prove 锁 thin surface IDENTICAL；冷/无 PREFER 仍可走 seeds/backend_try_inline_dispatch.from_x.c 全 C 体
-  "backend_try_inline_dispatch|src/asm/backend_try_inline_dispatch_thin.x|seeds/backend_try_inline_dispatch_thin_surface.from_x.c||"
+  # backend_try_inline_dispatch R2 full：.x 吃满 try_inline/glue 公共业务；
+  # 产品 rest 在 FROM_X 下业务 H=0（仅 slice_marker）；冷/无 PREFER 仍可走 seeds/backend_try_inline_dispatch.from_x.c 全 C 体
+  # prove 锁 full surface IDENTICAL；L2 thin seed 仅作 g05 full.x 失败回退
+  "backend_try_inline_dispatch|src/asm/backend_try_inline_dispatch.x|seeds/backend_try_inline_dispatch_surface.from_x.c||"
   # backend_call_dispatch R2 full：.x 吃满 CALL/emit/import 公共业务；
   # 产品 rest 在 FROM_X 下业务 H=0（仅 slice_marker）；冷/无 PREFER 仍可走 seeds/backend_call_dispatch.from_x.c 全 C 体
   # prove 锁 full surface IDENTICAL；L2 thin seed 仅作 g05 full.x 失败回退

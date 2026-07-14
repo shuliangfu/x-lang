@@ -1707,16 +1707,35 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       fi
     fi
   fi
-  # G-02f-9 / G-02f-363：backend_try_inline_dispatch.o
-  # R2 thin full：PREFER_X_O=1 时 thin.x（50 公共门闩）+ seed-rest（FROM_X）ld -r
+  # G-02f-9 / R2 full：backend_try_inline_dispatch.o
+  # PREFER：full.x 真迁业务 + rest (-DSHUX_BACKEND_TRY_INLINE_DISPATCH_FROM_X，仅 marker) ld -r
+  # full.x 失败时回退 L2 thin hybrid；再失败整 seed 冷路径
   _bti=seeds/backend_try_inline_dispatch.from_x.c
+  _bti_x=src/asm/backend_try_inline_dispatch.x
   _bti_thin_x=src/asm/backend_try_inline_dispatch_thin.x
   _bti_o=src/asm/backend_try_inline_dispatch.o
   if [ -f "$_bti" ]; then
     if [ ! -f "$_bti_o" ] || [ "$_bti" -nt "$_bti_o" ] \
+      || { [ -f "$_bti_x" ] && [ "$_bti_x" -nt "$_bti_o" ]; } \
       || { [ -f "$_bti_thin_x" ] && [ "$_bti_thin_x" -nt "$_bti_o" ]; }; then
       _bti_done=0
-      if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_bti_thin_x" ]; then
+      if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_bti_x" ]; then
+        _bti_x_o=$(mktemp "${TMPDIR:-/tmp}/g05_bti_x.XXXXXX") || true
+        _bti_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_bti_rest.XXXXXX") || true
+        # shellcheck disable=SC2086
+        if [ -n "$_bti_x_o" ] && [ -n "$_bti_rest_o" ] \
+          && g05_try_x_to_o "$_bti_x" "$_bti_x_o" \
+          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_BACKEND_TRY_INLINE_DISPATCH_FROM_X \
+               -c -o "$_bti_rest_o" "$_bti" \
+          && $CC -r -nostdlib -o "$_bti_o" "$_bti_x_o" "$_bti_rest_o" 2>/dev/null; then
+          echo "g05_ensure: $_bti_o ← $_bti_x + rest marker (R2 full try_inline H=0)"
+          _bti_done=1
+        else
+          echo "g05_ensure: R2 full try_inline failed; try L2 thin hybrid" >&2
+        fi
+        rm -f "$_bti_x_o" "$_bti_rest_o"
+      fi
+      if [ "$_bti_done" = "0" ] && [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_bti_thin_x" ]; then
         _bti_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_bti_thin.XXXXXX") || true
         _bti_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_bti_rest.XXXXXX") || true
         # shellcheck disable=SC2086
@@ -1725,15 +1744,15 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_L2_TRY_INLINE_THIN_FROM_X \
                -c -o "$_bti_rest_o" "$_bti" \
           && $CC -r -nostdlib -o "$_bti_o" "$_bti_thin_o" "$_bti_rest_o" 2>/dev/null; then
-          echo "g05_ensure: $_bti_o ← $_bti_thin_x + seed-rest (G-02f-363/382 R2 hybrid try_inline thin)"
+          echo "g05_ensure: $_bti_o ← $_bti_thin_x + seed-rest (L2 hybrid try_inline thin fallback)"
           _bti_done=1
         else
-          echo "g05_ensure: R2 hybrid try_inline thin failed; fallback full seed" >&2
+          echo "g05_ensure: L2 hybrid try_inline thin failed; fallback full seed" >&2
         fi
         rm -f "$_bti_thin_o" "$_bti_rest_o"
       fi
       if [ "$_bti_done" = "0" ]; then
-        echo "g05_ensure: backend_try_inline_dispatch.o ← backend_try_inline_dispatch.from_x (G-02f-9)"
+        echo "g05_ensure: backend_try_inline_dispatch.o ← backend_try_inline_dispatch.from_x (cold seed)"
         # shellcheck disable=SC2086
         $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_bti_o" "$_bti"
       fi
