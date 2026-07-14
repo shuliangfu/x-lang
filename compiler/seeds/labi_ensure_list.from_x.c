@@ -2,156 +2,232 @@
  * Logic source: src/runtime/labi_ensure_list.x
  * Hybrid: SHUX_LABI_ENSURE_LIST_FROM_X + ld -r into runtime_link_abi.o
  *
- * Pure catalog: runtime ensure targets (stem / out.o / seed / flags).
+ * Pure catalog: runtime ensure targets (stem / out.o / seed / flags / hint).
  * spawn/cc IO stays in mega link_abi_ensure_from_catalog.
+ *
+ * Track L：冷启动 / 回退 seed 与 .x 同构（if/else 短字面量，无 static 表；
+ * step_at 经 accessor 聚合，与 .x 一致），便于 nm 全局符号 IDENTICAL；
+ * 产品 PREFER_X_O 优先 .x（W-string-nul）。
  */
 #include <stddef.h>
 
-/* flags for catalog entries */
-enum {
-  LABI_ENS_FLAG_NONE = 0,
-  LABI_ENS_FLAG_PIE = 1,    /* -fPIE via shux_cc_compile_sync_ex */
-  LABI_ENS_FLAG_SQLITE = 2  /* -DSHUX_DB_USE_SQLITE3 */
-};
-
-/* Catalog ids — keep in sync with mega thin wrappers. */
-enum {
-  LABI_ENS_ASM_IO_STUBS = 0,
-  LABI_ENS_PROCESS_ARGV,
-  LABI_ENS_PROCESS_OS_GLUE,
-  LABI_ENS_RANDOM_FILL,
-  LABI_ENS_COMPRESS_ZLIB_GLUE,
-  LABI_ENS_TIME_OS,
-  LABI_ENS_QUEUE_CONTENTION,
-  LABI_ENS_DYNLIB_OS,
-  LABI_ENS_ENV_OS,
-  LABI_ENS_BACKTRACE_PLATFORM,
-  LABI_ENS_LOG_OS,
-  LABI_ENS_MATH_LIBM,
-  LABI_ENS_ATOMIC_GLUE,
-  LABI_ENS_CHANNEL_GLUE,
-  LABI_ENS_NET_UDP_BATCH,
-  LABI_ENS_NET_WORKERS,
-  LABI_ENS_SYNC_OS,
-  LABI_ENS_SYNC_LOCK_DIAG_TLS,
-  LABI_ENS_THREAD_GLUE,
-  LABI_ENS_SCHEDULER_GLUE,
-  LABI_ENS_HTTP_GLUE,
-  LABI_ENS_KV_MMAP_GLUE,
-  LABI_ENS_ARROW_SIMD_GLUE,
-  LABI_ENS_SQLITE_GLUE,
-  LABI_ENS_CRYPTO_INC_GLUE,
-  LABI_ENS_ED25519_REF10_GLUE,
-  LABI_ENS_COUNT
-};
-
-typedef struct LabiEnsureEntry {
-  const char *stem;       /* diag stem without .o (e.g. runtime_time_os) */
-  const char *out_base;   /* runtime_time_os.o */
-  const char *seed_base;  /* runtime_time_os.from_x.c under seeds/ */
-  int flags;
-  const char *resolve_hint; /* optional; empty => NULL to diag */
-} LabiEnsureEntry;
-
-static const LabiEnsureEntry g_labi_ens[] = {
-    {"runtime_asm_io_stubs", "runtime_asm_io_stubs.o", "runtime_asm_io_stubs.from_x.c",
-     LABI_ENS_FLAG_PIE, "try: make -C compiler runtime_asm_io_stubs.o"},
-    {"runtime_process_argv", "runtime_process_argv.o", "runtime_process_argv.from_x.c",
-     LABI_ENS_FLAG_NONE, "try: make -C compiler runtime_process_argv.o"},
-    {"runtime_process_os_glue", "runtime_process_os_glue.o", "runtime_process_os_glue.from_x.c",
-     LABI_ENS_FLAG_NONE, ""},
-    {"runtime_random_fill", "runtime_random_fill.o", "runtime_random_fill.from_x.c",
-     LABI_ENS_FLAG_NONE, ""},
-    {"runtime_compress_zlib_glue", "runtime_compress_zlib_glue.o", "runtime_compress_zlib_glue.from_x.c",
-     LABI_ENS_FLAG_NONE, ""},
-    {"runtime_time_os", "runtime_time_os.o", "runtime_time_os.from_x.c",
-     LABI_ENS_FLAG_NONE, ""},
-    {"runtime_queue_contention", "runtime_queue_contention.o", "runtime_queue_contention.from_x.c",
-     LABI_ENS_FLAG_NONE, ""},
-    {"runtime_dynlib_os", "runtime_dynlib_os.o", "runtime_dynlib_os.from_x.c",
-     LABI_ENS_FLAG_NONE, ""},
-    {"runtime_env_os", "runtime_env_os.o", "runtime_env_os.from_x.c",
-     LABI_ENS_FLAG_NONE, ""},
-    {"runtime_backtrace_platform", "runtime_backtrace_platform.o", "runtime_backtrace_platform.from_x.c",
-     LABI_ENS_FLAG_NONE, ""},
-    {"runtime_log_os", "runtime_log_os.o", "runtime_log_os.from_x.c",
-     LABI_ENS_FLAG_NONE, ""},
-    {"runtime_math_libm", "runtime_math_libm.o", "runtime_math_libm.from_x.c",
-     LABI_ENS_FLAG_NONE, ""},
-    {"runtime_atomic_glue", "runtime_atomic_glue.o", "runtime_atomic_glue.from_x.c",
-     LABI_ENS_FLAG_NONE, ""},
-    {"runtime_channel_glue", "runtime_channel_glue.o", "runtime_channel_glue.from_x.c",
-     LABI_ENS_FLAG_NONE, ""},
-    {"runtime_net_udp_batch", "runtime_net_udp_batch.o", "runtime_net_udp_batch.from_x.c",
-     LABI_ENS_FLAG_NONE, ""},
-    {"runtime_net_workers", "runtime_net_workers.o", "runtime_net_workers.from_x.c",
-     LABI_ENS_FLAG_NONE, ""},
-    {"runtime_sync_os", "runtime_sync_os.o", "runtime_sync_os.from_x.c",
-     LABI_ENS_FLAG_NONE, ""},
-    {"runtime_sync_lock_diag_tls", "runtime_sync_lock_diag_tls.o", "runtime_sync_lock_diag_tls.from_x.c",
-     LABI_ENS_FLAG_NONE, ""},
-    {"runtime_thread_glue", "runtime_thread_glue.o", "runtime_thread_glue.from_x.c",
-     LABI_ENS_FLAG_NONE, ""},
-    {"runtime_scheduler_glue", "runtime_scheduler_glue.o", "runtime_scheduler_glue.from_x.c",
-     LABI_ENS_FLAG_NONE, ""},
-    {"runtime_http_glue", "runtime_http_glue.o", "runtime_http_glue.from_x.c",
-     LABI_ENS_FLAG_NONE, ""},
-    {"runtime_kv_mmap_glue", "runtime_kv_mmap_glue.o", "runtime_kv_mmap_glue.from_x.c",
-     LABI_ENS_FLAG_NONE, ""},
-    {"runtime_arrow_simd_glue", "runtime_arrow_simd_glue.o", "runtime_arrow_simd_glue.from_x.c",
-     LABI_ENS_FLAG_NONE, ""},
-    {"runtime_sqlite_glue", "runtime_sqlite_glue.o", "runtime_sqlite_glue.from_x.c",
-     LABI_ENS_FLAG_SQLITE, ""},
-    {"runtime_crypto_inc_glue", "runtime_crypto_inc_glue.o", "runtime_crypto_inc_glue.from_x.c",
-     LABI_ENS_FLAG_NONE, ""},
-    {"runtime_ed25519_ref10_glue", "runtime_ed25519_ref10_glue.o", "runtime_ed25519_ref10_glue.from_x.c",
-     LABI_ENS_FLAG_NONE, ""},
-};
+/* flags: 0=NONE, 1=PIE (-fPIE), 2=SQLITE (-DSHUX_DB_USE_SQLITE3) */
 
 int labi_ensure_catalog_count(void) {
-  return LABI_ENS_COUNT;
+  return 26;
+}
+
+const char *labi_ensure_catalog_stem(int i) {
+  if (i < 0)
+    return NULL;
+
+  if (i == 0)
+    return "runtime_asm_io_stubs";
+  if (i == 1)
+    return "runtime_process_argv";
+  if (i == 2)
+    return "runtime_process_os_glue";
+  if (i == 3)
+    return "runtime_random_fill";
+  if (i == 4)
+    return "runtime_compress_zlib_glue";
+  if (i == 5)
+    return "runtime_time_os";
+  if (i == 6)
+    return "runtime_queue_contention";
+  if (i == 7)
+    return "runtime_dynlib_os";
+  if (i == 8)
+    return "runtime_env_os";
+  if (i == 9)
+    return "runtime_backtrace_platform";
+  if (i == 10)
+    return "runtime_log_os";
+  if (i == 11)
+    return "runtime_math_libm";
+  if (i == 12)
+    return "runtime_atomic_glue";
+  if (i == 13)
+    return "runtime_channel_glue";
+  if (i == 14)
+    return "runtime_net_udp_batch";
+  if (i == 15)
+    return "runtime_net_workers";
+  if (i == 16)
+    return "runtime_sync_os";
+  if (i == 17)
+    return "runtime_sync_lock_diag_tls";
+  if (i == 18)
+    return "runtime_thread_glue";
+  if (i == 19)
+    return "runtime_scheduler_glue";
+  if (i == 20)
+    return "runtime_http_glue";
+  if (i == 21)
+    return "runtime_kv_mmap_glue";
+  if (i == 22)
+    return "runtime_arrow_simd_glue";
+  if (i == 23)
+    return "runtime_sqlite_glue";
+  if (i == 24)
+    return "runtime_crypto_inc_glue";
+  if (i == 25)
+    return "runtime_ed25519_ref10_glue";
+  return NULL;
+}
+
+const char *labi_ensure_catalog_out_base(int i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return "runtime_asm_io_stubs.o";
+  if (i == 1)
+    return "runtime_process_argv.o";
+  if (i == 2)
+    return "runtime_process_os_glue.o";
+  if (i == 3)
+    return "runtime_random_fill.o";
+  if (i == 4)
+    return "runtime_compress_zlib_glue.o";
+  if (i == 5)
+    return "runtime_time_os.o";
+  if (i == 6)
+    return "runtime_queue_contention.o";
+  if (i == 7)
+    return "runtime_dynlib_os.o";
+  if (i == 8)
+    return "runtime_env_os.o";
+  if (i == 9)
+    return "runtime_backtrace_platform.o";
+  if (i == 10)
+    return "runtime_log_os.o";
+  if (i == 11)
+    return "runtime_math_libm.o";
+  if (i == 12)
+    return "runtime_atomic_glue.o";
+  if (i == 13)
+    return "runtime_channel_glue.o";
+  if (i == 14)
+    return "runtime_net_udp_batch.o";
+  if (i == 15)
+    return "runtime_net_workers.o";
+  if (i == 16)
+    return "runtime_sync_os.o";
+  if (i == 17)
+    return "runtime_sync_lock_diag_tls.o";
+  if (i == 18)
+    return "runtime_thread_glue.o";
+  if (i == 19)
+    return "runtime_scheduler_glue.o";
+  if (i == 20)
+    return "runtime_http_glue.o";
+  if (i == 21)
+    return "runtime_kv_mmap_glue.o";
+  if (i == 22)
+    return "runtime_arrow_simd_glue.o";
+  if (i == 23)
+    return "runtime_sqlite_glue.o";
+  if (i == 24)
+    return "runtime_crypto_inc_glue.o";
+  if (i == 25)
+    return "runtime_ed25519_ref10_glue.o";
+  return NULL;
+}
+
+const char *labi_ensure_catalog_seed_base(int i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return "runtime_asm_io_stubs.from_x.c";
+  if (i == 1)
+    return "runtime_process_argv.from_x.c";
+  if (i == 2)
+    return "runtime_process_os_glue.from_x.c";
+  if (i == 3)
+    return "runtime_random_fill.from_x.c";
+  if (i == 4)
+    return "runtime_compress_zlib_glue.from_x.c";
+  if (i == 5)
+    return "runtime_time_os.from_x.c";
+  if (i == 6)
+    return "runtime_queue_contention.from_x.c";
+  if (i == 7)
+    return "runtime_dynlib_os.from_x.c";
+  if (i == 8)
+    return "runtime_env_os.from_x.c";
+  if (i == 9)
+    return "runtime_backtrace_platform.from_x.c";
+  if (i == 10)
+    return "runtime_log_os.from_x.c";
+  if (i == 11)
+    return "runtime_math_libm.from_x.c";
+  if (i == 12)
+    return "runtime_atomic_glue.from_x.c";
+  if (i == 13)
+    return "runtime_channel_glue.from_x.c";
+  if (i == 14)
+    return "runtime_net_udp_batch.from_x.c";
+  if (i == 15)
+    return "runtime_net_workers.from_x.c";
+  if (i == 16)
+    return "runtime_sync_os.from_x.c";
+  if (i == 17)
+    return "runtime_sync_lock_diag_tls.from_x.c";
+  if (i == 18)
+    return "runtime_thread_glue.from_x.c";
+  if (i == 19)
+    return "runtime_scheduler_glue.from_x.c";
+  if (i == 20)
+    return "runtime_http_glue.from_x.c";
+  if (i == 21)
+    return "runtime_kv_mmap_glue.from_x.c";
+  if (i == 22)
+    return "runtime_arrow_simd_glue.from_x.c";
+  if (i == 23)
+    return "runtime_sqlite_glue.from_x.c";
+  if (i == 24)
+    return "runtime_crypto_inc_glue.from_x.c";
+  if (i == 25)
+    return "runtime_ed25519_ref10_glue.from_x.c";
+  return NULL;
+}
+
+int labi_ensure_catalog_flags(int i) {
+  if (i < 0)
+    return 0;
+  if (i == 0)
+    return 1;
+  if (i == 23)
+    return 2;
+  if (i >= 26)
+    return 0;
+  return 0;
 }
 
 int labi_ensure_catalog_step_at(int i, const char **stem_out, const char **out_base_out,
                                 const char **seed_base_out, int *flags_out,
                                 const char **hint_out) {
-  if (i < 0 || i >= LABI_ENS_COUNT)
+  const char *s;
+  if (i < 0 || i >= 26)
+    return 0;
+  s = labi_ensure_catalog_stem(i);
+  if (!s)
     return 0;
   if (stem_out)
-    *stem_out = g_labi_ens[i].stem;
+    *stem_out = s;
   if (out_base_out)
-    *out_base_out = g_labi_ens[i].out_base;
+    *out_base_out = labi_ensure_catalog_out_base(i);
   if (seed_base_out)
-    *seed_base_out = g_labi_ens[i].seed_base;
+    *seed_base_out = labi_ensure_catalog_seed_base(i);
   if (flags_out)
-    *flags_out = g_labi_ens[i].flags;
+    *flags_out = labi_ensure_catalog_flags(i);
   if (hint_out) {
-    const char *h = g_labi_ens[i].resolve_hint;
-    *hint_out = (h && h[0]) ? h : NULL;
+    if (i == 0)
+      *hint_out = "try: make -C compiler runtime_asm_io_stubs.o";
+    else if (i == 1)
+      *hint_out = "try: make -C compiler runtime_process_argv.o";
+    else
+      *hint_out = NULL;
   }
   return 1;
-}
-
-const char *labi_ensure_catalog_stem(int i) {
-  if (i < 0 || i >= LABI_ENS_COUNT)
-    return NULL;
-  return g_labi_ens[i].stem;
-}
-
-const char *labi_ensure_catalog_out_base(int i) {
-  if (i < 0 || i >= LABI_ENS_COUNT)
-    return NULL;
-  return g_labi_ens[i].out_base;
-}
-
-const char *labi_ensure_catalog_seed_base(int i) {
-  if (i < 0 || i >= LABI_ENS_COUNT)
-    return NULL;
-  return g_labi_ens[i].seed_base;
-}
-
-int labi_ensure_catalog_flags(int i) {
-  if (i < 0 || i >= LABI_ENS_COUNT)
-    return 0;
-  return g_labi_ens[i].flags;
 }

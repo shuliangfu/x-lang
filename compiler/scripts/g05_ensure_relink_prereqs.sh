@@ -193,6 +193,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   _labi_l2_seed=seeds/labi_host_lit.from_x.c
   _labi_l3_seed=seeds/labi_path_io.from_x.c
   _labi_l4_seed=seeds/labi_ensure_list.from_x.c
+  _labi_l4_x=src/runtime/labi_ensure_list.x
   _labi_l5_seed=seeds/labi_invoke_cc_list.from_x.c
   _labi_l5_x=src/runtime/labi_invoke_cc_list.x
   _labi_l6_seed=seeds/labi_invoke_ld_list.from_x.c
@@ -214,6 +215,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       || { [ -f "$_labi_l2_seed" ] && [ "$_labi_l2_seed" -nt "$_labi_o" ]; } \
       || { [ -f "$_labi_l3_seed" ] && [ "$_labi_l3_seed" -nt "$_labi_o" ]; } \
       || { [ -f "$_labi_l4_seed" ] && [ "$_labi_l4_seed" -nt "$_labi_o" ]; } \
+      || { [ -f "$_labi_l4_x" ] && [ "$_labi_l4_x" -nt "$_labi_o" ]; } \
       || { [ -f "$_labi_l5_seed" ] && [ "$_labi_l5_seed" -nt "$_labi_o" ]; } \
       || { [ -f "$_labi_l5_x" ] && [ "$_labi_l5_x" -nt "$_labi_o" ]; } \
       || { [ -f "$_labi_l6_seed" ] && [ "$_labi_l6_seed" -nt "$_labi_o" ]; } \
@@ -288,11 +290,20 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             echo "g05_ensure: L3 path IO ← $_labi_l3_seed (G-02f-270 seed slice)"
           fi
         fi
-        if [ -n "$_labi_l4_o" ] && [ -f "$_labi_l4_seed" ]; then
-          # shellcheck disable=SC2086
-          if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_labi_l4_o" "$_labi_l4_seed"; then
-            _labi_l4_ok=1
-            echo "g05_ensure: L4 ensure list ← $_labi_l4_seed (G-02f-273 seed slice)"
+        if [ -n "$_labi_l4_o" ]; then
+          # Track L：PREFER_X_O=1 时优先 labi_ensure_list.x → -E → cc；失败回退 seed C
+          if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_labi_l4_x" ]; then
+            if g05_try_x_to_o "$_labi_l4_x" "$_labi_l4_o"; then
+              _labi_l4_ok=1
+              echo "g05_ensure: L4 ensure list ← $_labi_l4_x (Track L prefer .x)"
+            fi
+          fi
+          if [ "$_labi_l4_ok" = "0" ] && [ -f "$_labi_l4_seed" ]; then
+            # shellcheck disable=SC2086
+            if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_labi_l4_o" "$_labi_l4_seed"; then
+              _labi_l4_ok=1
+              echo "g05_ensure: L4 ensure list ← $_labi_l4_seed (G-02f-273 seed slice)"
+            fi
           fi
         fi
         if [ -n "$_labi_l5_o" ]; then
