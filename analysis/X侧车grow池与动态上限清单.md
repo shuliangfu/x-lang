@@ -10,7 +10,8 @@
 cd compiler && make bootstrap-pipeline && make shux-sx && sh ./verify-selfhost-stage2.sh
 ```
 
-**最后验收**：2026-05-20 — `verify-selfhost-stage2.sh` 通过（shux-sx / shux-sx2 exit 42）。
+**最后验收**：2026-05-20 — `verify-selfhost-stage2.sh` 通过（shux-sx / shux-sx2 exit 42）。  
+**正确性审计**：2026-07-14 — §九 静默硬顶；`bash compiler/scripts/audit_static_limits.sh`。
 
 ---
 
@@ -186,4 +187,65 @@ X 自举与 C driver 镜像已对齐 **ast.x 瘦布局 + ast_pool.c sidecar**。
 | 新增 `pipeline_*` 供多模块 extern 调用 | `pipeline_glue.c` 转发、`fix_slim_arena_gen_c.pl`（若 gen2 需要） |
 | 完成清单 ID | 本文档第三节打 ✅ 或第五节标注 🚫/⏳ |
 
-**最后更新**：2026-05-20（阶段 A/B/C 全部完成；Stage2 已通过；P-B06 标注 ABI 不宜池化）。
+**最后更新**：2026-07-14 — 增补 §九 静默硬顶对表（MODULE_ENUM / field_base / param_base）；`audit_static_limits.sh`。
+
+---
+
+## 九、静默硬顶对表（2026-07-14 正确性审计）
+
+> **触发**：`TokenKind`≈132 > 原 `MODULE_ENUM_MAX_VARIANTS=64` → 变体静默丢弃 → `tok.kind = TokenKind.X` 报 `found ?`，与 layout 刷屏叠加为 lexer TIMEOUT。  
+> **原则**：**A 类**（列表个数、静默失败）必须对照源规模；**B 类**（`name[64]` 等语义长度）不盲抬；**C 类**（MiB 缓冲）按压测。
+
+### 9.1 源侧峰值（`compiler/src/**/*.x`）
+
+| 对象 | 峰值 | 对照硬顶 | 状态 |
+|------|------|----------|------|
+| enum **TokenKind** | **132** | MODULE 256 | 🟢 余量 124 |
+| enum ExprKind | 59 | MODULE 256 | 🟢 |
+| enum TypeKind | 17 | MODULE 256 | 🟢 |
+| struct 字段（Expr 等） | 52 | grow 池 | 🟢 |
+| 单次 struct lit 字段 | ≤8（typeck early return） | 设计：大 struct 多次 lit 合并 | 🟡 文档化，非盲抬 |
+
+**命令**：`bash compiler/scripts/audit_static_limits.sh`（enum 距 MODULE 顶 &lt;16 → FAIL）。
+
+### 9.2 A 类硬顶（列表个数 / 静默失败风险）
+
+| 宏 | 值 | 位置 | 用途 | 静默？ | 结论 |
+|----|-----|------|------|--------|------|
+| **`MODULE_ENUM_MAX_VARIANTS`** | **256**（原 64） | `ast_pool.c` `ModuleEnumEntry` | X parse 登记 enum 变体、typeck tag | 曾静默；**现 fprintf 诊断** | 🔴 已撞顶 → **已抬 + 可观测** |
+| **`AST_ENUM_MAX_VARIANTS`** | 32 | `ast.h` | legacy `ASTEnumDef` 文档常量 | N/A（**无数组定长引用**） | 🟢 非热路径；**勿当第二权威** |
+| `AST_STRUCT_MAX_FIELDS` | 64 | `ast.h` | C `field_offsets[64]` | 旧 C 布局 | 🟡 X 走 grow；C 路径少用 |
+| `SHUX_DRIVER_DEP_SLOT_MAX` | 32 | `runtime_pipeline_abi.h` | dep arena/module 槽 | 待撞顶实测 | 🟡 监控；优先诊断 |
+| `AST_MODULE_MAX_TYPE_ALIASES` | 32 | `ast.h` | type alias | 查是否仍用 | 🟡 |
+| `AST_MODULE_MAX_TRAITS/IMPLS` | 16/32 | `ast.h` | trait/impl | 查是否仍用 | 🟡 |
+| `AST_MAX_GENERIC_PARAMS` | 8 | `ast.h` | 泛型参数 | 语言设计 | 🟢 不抬 |
+| `TYPECK_LINEAR_MOVED_MAX` 等 | 128/8 | `pipeline_glue.c` | 分析栈 | 实测 | 🟡 |
+| typeck `struct_lit num_fields > 8` | 8 | `typeck.x` ensure layout | 单 lit 字段 | 有意 early return | 🟡 **说明意图**，非池容量 |
+
+### 9.3 哨兵类（0 = 未初始化 **且** 0 = 合法下标）
+
+| 字段 | 状态 | 修法 |
+|------|------|------|
+| `StructLayout.field_base` | ✅ 已修 | alloc/reset → **-1**；create 时 `field_base < 0` 才挂池 |
+| `Func.param_base` | ✅ 已修 | 同上（module + arena func 形参） |
+| `Expr.struct_lit_field_base` | 🟢 | 仅在 `num_fields==0` 时赋值，风险较低 |
+
+### 9.4 B/C 类（明确不抬）
+
+- 标识符/类型名 `u8[64]`、形参名 `u8[32]`、label 32、路径 512  
+- 源/预处理 4MiB、codegen out ~9MiB、ELF reloc 表  
+- ABI 寄存器临时 `k < 8`
+
+### 9.5 已落地改动（与本审计同步）
+
+| 项 | 改动 |
+|----|------|
+| enum 变体顶 | 64 → **256** |
+| append 失败 | `pipeline_module_enum_append_variant` **stderr 诊断**（enum 名 + 已登记数 + 被丢变体） |
+| field_base / param_base | **-1 哨兵** |
+| 审计脚本 | `compiler/scripts/audit_static_limits.sh` |
+
+### 9.6 何时必须再抬 MODULE_ENUM
+
+仅当 `audit_static_limits.sh` 报 **NEAR/OVER**，或自举路径 stderr 出现  
+`exceeds MODULE_ENUM_MAX_VARIANTS`。优先考虑 **grow 池化变体表** 而非无脑 512；短期抬到 512 可接受（每 enum 槽 ~34KB，模块内 enum 少）。

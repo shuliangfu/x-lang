@@ -72,6 +72,7 @@ node_modules/
 !.vscode/settings.json
 !.vscode/extensions.json
 .cursor/
+.grok/
 *.swp
 *.swo
 *~
