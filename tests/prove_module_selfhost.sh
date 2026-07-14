@@ -79,9 +79,10 @@ MODULES=(
   # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：ld_debug_argv char** 在 mega rest
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_diag_pure.from_x.c 全 C 体
   "labi_diag_pure|src/runtime/labi_diag_pure.x|seeds/labi_diag_pure_surface.from_x.c||"
-  # diagnostic L2 thin 公共面：与产品 PREFER_X_O 同源（thin.x + full seed rest）；prove 锁 thin 面 IDENTICAL
-  # 全量 true-migrate 消息体仍见 runtime_driver_diagnostic.x；C 尾 _impl/va_list 仍在 full seed rest
-  "diagnostic|src/runtime_driver_diagnostic_thin.x|seeds/runtime_driver_diagnostic_thin.from_x.c||"
+  # diagnostic R2 thin full：thin.x 吃满 79 公共门闩 + append_*（*u8 透传 _impl）；
+  # rest 在 SHUX_L2_RDD_THIN_FROM_X 下无 thin 公共体；Cap residual：*_impl/va_list/snprintf 在 full seed rest
+  # prove 锁 thin surface IDENTICAL；冷/无 PREFER 仍可走 seeds/runtime_driver_diagnostic.from_x.c 全 C 体
+  "diagnostic|src/runtime_driver_diagnostic_thin.x|seeds/runtime_driver_diagnostic_thin_surface.from_x.c||"
   # driver_abi L2 thin 公共面：与产品 PREFER_X_O 同源（thin.x + full seed rest）；prove 锁 thin 面 IDENTICAL
   # full seed rest 仍持 _impl / 静态槽 / path-read 等 C 尾
   "driver_abi|src/runtime_driver_abi_thin.x|seeds/runtime_driver_abi_thin.from_x.c||"

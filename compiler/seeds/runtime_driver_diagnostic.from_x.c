@@ -1,5 +1,5 @@
-/* G-02f-339～341：PREFER hybrid thin 由 src/runtime_driver_diagnostic_thin.x→-E；
- * rest 用 SHUX_L2_RDD_THIN_FROM_X（public 门闩→_impl）。
+/* G-02f-339～341 / R2 thin full：PREFER hybrid thin 由 src/runtime_driver_diagnostic_thin.x→-E；
+ * rest 用 SHUX_L2_RDD_THIN_FROM_X（public 门闩→_impl；仅 slice_marker + Cap residual 体）。
  * Generated from (G-02f-86/96 +copy/report_prefixed) src/runtime_driver_diagnostic.x (G-02f-180 P0-4 audit + va_list lock; G-02f-179 asm notes true .x; G-02f-178 padding true .x; G-02f-177 generic call true .x; G-02f-176 mismatch true .x; G-02f-175 return_unresolved/subexpr true .x; G-02f-30/31/73 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_driver_diagnostic.x > /tmp/rdd.c
  *         merge fixed-msg wrappers; polish slice strings; keep snprintf C.
@@ -1629,5 +1629,9 @@ void driver_diag_build_expected_found_impl(char *msg, int32_t msg_cap, const cha
         at += (size_t)snprintf(msg + at, (size_t)msg_cap - at, ", found ");
     if (fpart && at + 1 < (size_t)msg_cap)
         (void)snprintf(msg + at, (size_t)msg_cap - at, "%s", fpart);
+}
+
+int runtime_driver_diagnostic_slice_marker(void) {
+    return 1;
 }
 
