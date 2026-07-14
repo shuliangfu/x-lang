@@ -889,7 +889,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
                    -c -o "$_rt_est_rest_o" "$_rt_emit_st_seed" \
               && $CC -r -nostdlib -o "$_rt_est_o" "$_rt_est_thin_o" "$_rt_est_rest_o" 2>/dev/null; then
               _rt_est_ok=1
-              echo "g05_ensure: rest emit state ← thin .x + rest (G-02f-455 L2 prefer .x)"
+              echo "g05_ensure: rest emit state ← full .x + rest BSS+marker (R2 full H=0)"
             fi
             rm -f "$_rt_est_thin_o" "$_rt_est_rest_o"
           fi

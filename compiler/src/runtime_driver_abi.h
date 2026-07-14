@@ -75,6 +75,21 @@ void driver_run_on_large_stack_pthread(void *(*fn)(void *), void *arg);
  */
 void driver_run_stack_esc_gate_on_large_stack(void *arg);
 
+/**
+ * Cap-global-bss residual：rt_emit_state R2 经槽写共享 emit 状态。
+ * .x export let 会变 static，不能跨 TU 导出 path_buf / lib_roots；数据在 rest seed。
+ * 绑定类 API 避免 .x 侧 **u8 写指针（-E 会丢函数体）。
+ */
+uint8_t *driver_x_emit_path_buf_slot(void);
+uint8_t *driver_x_emit_lib_buf_slot(int i);
+uint8_t *driver_x_emit_scan_ab_slot(void);
+uint8_t *driver_x_emit_scan_nx_slot(void);
+void driver_x_emit_clear_c_path(void);
+void driver_x_emit_bind_c_path_to_buf(void);
+void driver_x_emit_bind_lib_root(int i);
+int32_t *driver_x_emit_n_lib_roots_slot(void);
+int32_t *driver_x_emit_want_extern_slot(void);
+
 /** pipeline 入口源码长度（大模块 typeck 跳过判定）。 */
 void driver_set_pipeline_entry_source_len(size_t len);
 size_t driver_pipeline_entry_source_len(void);

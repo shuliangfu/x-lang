@@ -1411,6 +1411,62 @@ void driver_run_stack_esc_gate_on_large_stack(void *arg) {
 }
 
 /**
+ * Cap-global-bss residual：rt_emit_state R2 full .x 写共享 emit 槽。
+ * 数据定义在 seeds/rt_emit_state.from_x.c（跨 TU 非 static）；本层暴露槽/绑定。
+ * 始终提供（不随 RDABI thin 宏剥离）。避免 .x 侧 **u8 赋值（-E 会丢函数）。
+ */
+#define X_EMIT_MAX_LIB_ROOTS_ABI 16
+extern const char *driver_x_emit_c_path;
+extern const char *driver_x_emit_lib_roots[X_EMIT_MAX_LIB_ROOTS_ABI];
+extern int driver_x_emit_n_lib_roots;
+extern char driver_x_emit_path_buf[512];
+extern char driver_x_emit_lib_bufs[X_EMIT_MAX_LIB_ROOTS_ABI][256];
+extern int driver_x_emit_c_want_extern;
+/* argv 扫描临时缓冲（.x 勿用局部 u8[512]，易被抬成坏 init_globals） */
+extern char driver_x_emit_scan_ab[512];
+extern char driver_x_emit_scan_nx[512];
+
+uint8_t *driver_x_emit_path_buf_slot(void) {
+    return (uint8_t *)driver_x_emit_path_buf;
+}
+
+uint8_t *driver_x_emit_lib_buf_slot(int i) {
+    if (i < 0 || i >= X_EMIT_MAX_LIB_ROOTS_ABI)
+        return NULL;
+    return (uint8_t *)driver_x_emit_lib_bufs[i];
+}
+
+uint8_t *driver_x_emit_scan_ab_slot(void) {
+    return (uint8_t *)driver_x_emit_scan_ab;
+}
+
+uint8_t *driver_x_emit_scan_nx_slot(void) {
+    return (uint8_t *)driver_x_emit_scan_nx;
+}
+
+void driver_x_emit_clear_c_path(void) {
+    driver_x_emit_c_path = NULL;
+}
+
+void driver_x_emit_bind_c_path_to_buf(void) {
+    driver_x_emit_c_path = driver_x_emit_path_buf;
+}
+
+void driver_x_emit_bind_lib_root(int i) {
+    if (i < 0 || i >= X_EMIT_MAX_LIB_ROOTS_ABI)
+        return;
+    driver_x_emit_lib_roots[i] = driver_x_emit_lib_bufs[i];
+}
+
+int32_t *driver_x_emit_n_lib_roots_slot(void) {
+    return (int32_t *)&driver_x_emit_n_lib_roots;
+}
+
+int32_t *driver_x_emit_want_extern_slot(void) {
+    return (int32_t *)&driver_x_emit_c_want_extern;
+}
+
+/**
  * 扫描预处理后源码是否含顶层 import（`import("` 或 `= import(`）。
  * 参数：src 预处理后缓冲；src_len 有效字节数。
  * 返回值：1 含顶层 import；0 否。

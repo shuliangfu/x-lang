@@ -123,6 +123,10 @@ MODULES=(
   # rt_emit_flags R2 full：.x 吃满 has_emit + set_use_lto + set_print_target_cpu；产品 rest 在 FROM_X 下业务符号 H=0
   # prove 锁 full surface IDENTICAL（3 公共符号）；冷/无 PREFER 仍可走 seeds/rt_emit_flags.from_x.c 全 C 体
   "rt_emit_flags|src/runtime/rt_emit_flags.x|seeds/rt_emit_flags_surface.from_x.c||"
+  # rt_emit_state R2 full：.x 吃满 set_path/set_lib/set_n/set_extern + argv_parse；产品 rest FROM_X 业务 T=0（仅 marker+BSS）
+  # Cap-global-bss residual：槽/绑定 API 在 driver_abi；共享 path_buf/lib_roots 数据在 rest seed
+  # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/rt_emit_state.from_x.c 全 C 体
+  "rt_emit_state|src/runtime/rt_emit_state.x|seeds/rt_emit_state_surface.from_x.c||"
   # rt_content R2 full：.x 吃满 content_has_* + driver_source_has_* path wrappers；产品 rest 在 FROM_X 下业务符号 H=0
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/rt_content.from_x.c 全 C 体
   "rt_content|src/runtime/rt_content.x|seeds/rt_content_surface.from_x.c||"

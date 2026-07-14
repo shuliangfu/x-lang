@@ -2,9 +2,10 @@
  * Logic source: src/runtime/rt_emit_state.x
  * Hybrid: SHUX_RT_EMIT_STATE_FROM_X + ld -r into runtime_driver_no_c.o
  *
- * f-303: shared emit state + setters
- * f-304: driver_argv_parse_x_emit_c（扫 -L / -x -E 灌入状态槽）
- * Full emit pipeline remains mega rest.
+ * R2 full：set_path/set_lib/set_n/set_extern + argv_parse 由 .x 提供；
+ * FROM_X 下本文件：始终保留 BSS 数据（跨 TU 共享；Cap-global-bss）+ 前向声明 + marker
+ * （产品 rest 业务 T=0）。冷启动/无 PREFER 时仍编译完整 C 体。
+ * Cap residual 槽函数在 runtime_driver_abi（平台层，供 .x 写槽）。
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -14,24 +15,20 @@
 
 extern int driver_get_argv_i(int argc, char **argv, int i, char *buf, int max);
 
-/* 与 seeds/runtime.from_x.c 原 static 同布局；hybrid 时 rest 以 extern 引用。 */
+/* 与 seeds/runtime.from_x.c 原 static 同布局；hybrid 时 rest 定义、mega 以 extern 引用。
+ * Cap-global-bss residual：大数组/共享指针必须非 static 跨 TU → 始终在 seed 定义
+ * （.x export let 会编成 static，不能替代本块）。 */
 const char *driver_x_emit_c_path;
 const char *driver_x_emit_lib_roots[X_EMIT_MAX_LIB_ROOTS];
 int driver_x_emit_n_lib_roots;
 char driver_x_emit_path_buf[512];
 char driver_x_emit_lib_bufs[X_EMIT_MAX_LIB_ROOTS][256];
 int driver_x_emit_c_want_extern;
+/* argv 扫描 scratch（Cap residual 槽经 driver_abi 暴露给 .x） */
+char driver_x_emit_scan_ab[512];
+char driver_x_emit_scan_nx[512];
 
-/* G-02f-455：thin+rest PREFER_X_O
- *   thin .x provides 1 #[no_mangle] wrapper (calls *_impl in rest).
- *   rest seed C (compiled with -DSHUX_RT_EMIT_STATE_FROM_X):
- *     - driver_run_x_emit_c_set_path renamed to *_impl via macro.
- *   Other functions stay in rest:
- *     - driver_argv_parse_x_emit_c uses char **argv (signature mismatch with .x *u8).
- *     - set_lib / set_n_lib_roots / set_emit_extern / labi_marker have no .x counterpart. */
-#ifdef SHUX_RT_EMIT_STATE_FROM_X
-#define driver_run_x_emit_c_set_path    driver_run_x_emit_c_set_path_impl
-#endif
+#ifndef SHUX_RT_EMIT_STATE_FROM_X
 
 int driver_run_x_emit_c_set_path(const uint8_t *path, int path_len) {
   driver_x_emit_c_path = NULL;
@@ -98,6 +95,14 @@ int driver_argv_parse_x_emit_c(int argc, char **argv) {
   }
   return 0;
 }
+
+#else
+int driver_run_x_emit_c_set_path(const uint8_t *path, int path_len);
+int driver_run_x_emit_c_set_lib(int i, const uint8_t *buf, int len);
+int driver_run_x_emit_c_set_n_lib_roots(int n);
+int driver_run_x_emit_c_set_emit_extern(int v);
+int driver_argv_parse_x_emit_c(int argc, char **argv);
+#endif
 
 int labi_rt_emit_state_slice_marker(void) {
   return 1;
