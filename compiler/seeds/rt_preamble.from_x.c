@@ -1,6 +1,11 @@
 /* seeds/rt_preamble.from_x.c — G-02f-265 P2 R3 preamble ABI 内联
- * Logic source: src/runtime/rt_preamble.x（数据表以本 seed 为准）
+ * Logic source: src/runtime/rt_preamble.x
  * Hybrid: SHUX_RT_PREAMBLE_FROM_X + ld -r into runtime_driver_no_c.o
+ *
+ * R2 full（2026-07-14）：write_io_net / write_fs_path_map_error 由 .x 提供；
+ * FROM_X 下本文件：巨型字符串表（Cap-giant-string residual 数据）+ 前向声明 + marker
+ * （产品 rest 业务 T=0）。冷启动/无 PREFER 时仍编译完整 C 体。
+ * Cap residual 行访问 API 在 runtime_driver_abi（平台层，供 .x 取表）。
  */
 #include <stdio.h>
 #include <stddef.h>
@@ -15,10 +20,9 @@
 
 extern unsigned codegen_get_preamble_skip_mask(void);
 
-/** 向生成 C 写入 std.io / std.net 内联 ABI（原 io_abi.h、net_abi.h 内容），不再依赖该二头文件。成功返回 0。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int write_io_net_abi_inline(FILE *cf) {
-    static const char *lines[] = {
+/* Cap-giant-string residual 数据：巨型 C 字面量表始终非 static 跨 TU
+ * （.x 禁巨型字串表；driver_abi 经 line_at/count 暴露给 .x）。 */
+const char *const driver_preamble_io_net_lines[] = {
         "#if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 201112L\n#error \"Generated code needs C11. Compile with -std=gnu11 or -std=c11.\"\n#endif\n",
         "#include <stddef.h>\n",
         "#include <stdint.h>\n",
@@ -202,35 +206,11 @@ int write_io_net_abi_inline(FILE *cf) {
         "extern struct std_string_String std_string_string_new(void);\n",
         "#define string_new std_string_string_new\n",
     };
-    /* lines[] 下标与 write_io_net_abi_inline 源行号对应：index = 源行号 - 106（首行 "#if !defined"）。 */
-    const unsigned skip = codegen_get_preamble_skip_mask();
-    for (size_t i = 0; i < sizeof(lines) / sizeof(lines[0]); i++) {
-        int skip_line = 0;
-        /* std_io_driver_handle_* 别名（166–169）：codegen 已 emit handle_stdin 等时跳过。 */
-        if ((skip & CODEGEN_PREAMBLE_SKIP_STD_IO_DRIVER_HANDLE) && i >= 60 && i < 64)
-            skip_line = 1;
-        /* std_io_core_io_* 宏（170–187）：无 std.io.core 内联时可整段省略。 */
-        if ((skip & CODEGEN_PREAMBLE_SKIP_STD_IO_CORE_MACROS) && i >= 64 && i < 82)
-            skip_line = 1;
-        /* #undef / 重绑 std_io_core_*（209–222）：X 内联 std.io.core 且 codegen 已 emit 时由 codegen 侧承担。 */
-        if ((skip & CODEGEN_PREAMBLE_SKIP_STD_IO_UNDEF_REDEFINE) && i >= 105 && i < 119)
-            skip_line = 1;
-        /* weak batch/register（230–240 含 #ifndef/#endif）：codegen 已 emit 强符号定义时跳过整段。 */
-        if ((skip & CODEGEN_PREAMBLE_SKIP_WEAK_IO_BATCH) && i >= 124 && i <= 134)
-            skip_line = 1;
-        if (!skip_line && fputs(lines[i], cf) == EOF)
-            return 1;
-    }
-    return 0;
-}
 
+const int32_t driver_preamble_io_net_lines_n =
+    (int32_t)(sizeof(driver_preamble_io_net_lines) / sizeof(driver_preamble_io_net_lines[0]));
 
-
-
-/** 向生成 C 写入 std.fs / std.path / std.map / std.error 内联 ABI（F-ZC Z9：不再 #include std/*_abi.h）。成功返回 0。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int write_fs_path_map_error_abi_inline(FILE *cf) {
-    static const char *lines[] = {
+const char *const driver_preamble_fs_path_lines[] = {
         "typedef struct std_fs_FsIovecBuf fs_iovec_buf_t;\n",
         "extern int32_t fs_open_read_c(uint8_t *path);\n",
         "extern uint64_t fs_direct_align_c(void);\n",
@@ -253,9 +233,49 @@ int write_fs_path_map_error_abi_inline(FILE *cf) {
         "extern int32_t std_error_error_ok(void);\n",
         "#define error_ok(_a, _b) std_error_error_ok()\n",
     };
-    for (size_t i = 0; i < sizeof(lines) / sizeof(lines[0]); i++) {
-        if (fputs(lines[i], cf) == EOF)
+
+const int32_t driver_preamble_fs_path_lines_n =
+    (int32_t)(sizeof(driver_preamble_fs_path_lines) / sizeof(driver_preamble_fs_path_lines[0]));
+
+#ifndef SHUX_RT_PREAMBLE_FROM_X
+
+/** 向生成 C 写入 std.io / std.net 内联 ABI。成功返回 0。 */
+int write_io_net_abi_inline(FILE *cf) {
+    const unsigned skip = codegen_get_preamble_skip_mask();
+    for (int32_t i = 0; i < driver_preamble_io_net_lines_n; i++) {
+        int skip_line = 0;
+        /* std_io_driver_handle_* 别名：codegen 已 emit handle_stdin 等时跳过。 */
+        if ((skip & CODEGEN_PREAMBLE_SKIP_STD_IO_DRIVER_HANDLE) && i >= 60 && i < 64)
+            skip_line = 1;
+        /* std_io_core_io_* 宏：无 std.io.core 内联时可整段省略。 */
+        if ((skip & CODEGEN_PREAMBLE_SKIP_STD_IO_CORE_MACROS) && i >= 64 && i < 82)
+            skip_line = 1;
+        /* #undef / 重绑 std_io_core_*：X 内联 std.io.core 且 codegen 已 emit 时由 codegen 侧承担。 */
+        if ((skip & CODEGEN_PREAMBLE_SKIP_STD_IO_UNDEF_REDEFINE) && i >= 105 && i < 119)
+            skip_line = 1;
+        /* weak batch/register：codegen 已 emit 强符号定义时跳过整段。 */
+        if ((skip & CODEGEN_PREAMBLE_SKIP_WEAK_IO_BATCH) && i >= 124 && i <= 134)
+            skip_line = 1;
+        if (!skip_line && fputs(driver_preamble_io_net_lines[i], cf) == EOF)
             return 1;
     }
     return 0;
+}
+
+/** 向生成 C 写入 std.fs / std.path / std.map / std.error 内联 ABI。成功返回 0。 */
+int write_fs_path_map_error_abi_inline(FILE *cf) {
+    for (int32_t i = 0; i < driver_preamble_fs_path_lines_n; i++) {
+        if (fputs(driver_preamble_fs_path_lines[i], cf) == EOF)
+            return 1;
+    }
+    return 0;
+}
+
+#else
+int write_io_net_abi_inline(FILE *cf);
+int write_fs_path_map_error_abi_inline(FILE *cf);
+#endif
+
+int labi_rt_preamble_slice_marker(void) {
+    return 1;
 }

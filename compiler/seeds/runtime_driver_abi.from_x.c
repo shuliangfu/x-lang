@@ -1654,6 +1654,36 @@ size_t driver_module_static_size(void) {
 }
 
 /**
+ * Cap-giant-string residual：rt_preamble R2 full .x 访问巨型 C 字串表。
+ * 数据定义在 seeds/rt_preamble.from_x.c（跨 TU 非 static）；本层暴露 line_at/count。
+ * 始终提供（不随 RDABI thin 宏剥离）。
+ */
+extern const char *const driver_preamble_io_net_lines[];
+extern const int32_t driver_preamble_io_net_lines_n;
+extern const char *const driver_preamble_fs_path_lines[];
+extern const int32_t driver_preamble_fs_path_lines_n;
+
+uint8_t *driver_preamble_io_net_line_at(int32_t i) {
+    if (i < 0 || i >= driver_preamble_io_net_lines_n)
+        return NULL;
+    return (uint8_t *)(uintptr_t)driver_preamble_io_net_lines[i];
+}
+
+int32_t driver_preamble_io_net_line_count(void) {
+    return driver_preamble_io_net_lines_n;
+}
+
+uint8_t *driver_preamble_fs_path_line_at(int32_t i) {
+    if (i < 0 || i >= driver_preamble_fs_path_lines_n)
+        return NULL;
+    return (uint8_t *)(uintptr_t)driver_preamble_fs_path_lines[i];
+}
+
+int32_t driver_preamble_fs_path_line_count(void) {
+    return driver_preamble_fs_path_lines_n;
+}
+
+/**
  * 扫描预处理后源码是否含顶层 import（`import("` 或 `= import(`）。
  * 参数：src 预处理后缓冲；src_len 有效字节数。
  * 返回值：1 含顶层 import；0 否。

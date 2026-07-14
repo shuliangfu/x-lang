@@ -115,6 +115,10 @@ MODULES=(
   # Cap-global-bss residual：槽 API 在 driver_abi；prove 锁 full surface IDENTICAL
   # 冷/无 PREFER 仍可走 seeds/rt_arena_buf.from_x.c 全 C 体
   "rt_arena_buf|src/runtime/rt_arena_buf.x|seeds/rt_arena_buf_surface.from_x.c||"
+  # rt_preamble R2 full：.x 吃满 write_io_net + write_fs_path_map_error（skip+fputs）；
+  # 产品 rest 在 FROM_X 下业务 H=0（marker+巨型字串表数据）；Cap-giant-string residual 在 driver_abi
+  # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/rt_preamble.from_x.c 全 C 体
+  "rt_preamble|src/runtime/rt_preamble.x|seeds/rt_preamble_surface.from_x.c||"
   # rt_stack R2 full：.x 吃满 thread_fn + large_stack；产品 rest 在 FROM_X 下业务符号 H=0（仅 marker）
   # Cap-fn-ptr residual：driver_run_stack_esc_gate_on_large_stack 在 driver_abi（平台层）
   # prove 锁 full surface IDENTICAL（2 公共符号）；冷/无 PREFER 仍可走 seeds/rt_stack.from_x.c 全 C 体
@@ -248,6 +252,8 @@ gen_x_o() {
         -e '/^extern char \* strerror(/d' \
         -e '/^extern int32_t system(/d' \
         -e '/^extern int system(/d' \
+        -e '/^extern int32_t fputs(/d' \
+        -e '/^extern int fputs(/d' \
         "$tmp"
   } >"${tmp}.full" && mv "${tmp}.full" "$tmp"
 

@@ -130,6 +130,16 @@ uint8_t *driver_module_static_slot(void);
 size_t driver_arena_static_size(void);
 size_t driver_module_static_size(void);
 
+/**
+ * Cap-giant-string residual：rt_preamble R2 巨型 C 字串表行访问。
+ * 数据定义在 seeds/rt_preamble.from_x.c（跨 TU 非 static 表）；.x 禁巨型字串表。
+ * write_* 业务循环在 .x；本层只暴露 line_at/count。
+ */
+uint8_t *driver_preamble_io_net_line_at(int32_t i);
+int32_t driver_preamble_io_net_line_count(void);
+uint8_t *driver_preamble_fs_path_line_at(int32_t i);
+int32_t driver_preamble_fs_path_line_count(void);
+
 /** pipeline 入口源码长度（大模块 typeck 跳过判定）。 */
 void driver_set_pipeline_entry_source_len(size_t len);
 size_t driver_pipeline_entry_source_len(void);

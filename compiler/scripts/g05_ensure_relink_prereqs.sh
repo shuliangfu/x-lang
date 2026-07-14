@@ -159,6 +159,8 @@ g05_try_x_to_o() {
         -e '/^extern char \* strerror(/d' \
         -e '/^extern int32_t system(/d' \
         -e '/^extern int system(/d' \
+        -e '/^extern int32_t fputs(/d' \
+        -e '/^extern int fputs(/d' \
         "$_xtmp"
   } >"${_xtmp}.full" && mv "${_xtmp}.full" "$_xtmp"
   # shellcheck disable=SC2086
@@ -548,6 +550,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   _rt_ef_seed=seeds/rt_emit_flags.from_x.c
   _rt_ef_x=src/runtime/rt_emit_flags.x
   _rt_pre_seed=seeds/rt_preamble.from_x.c
+  _rt_pre_x=src/runtime/rt_preamble.x
   _rt_compile_seed=seeds/rt_compile.from_x.c
   _rt_compile_x=src/runtime/rt_compile.x
   _rt_run_seed=seeds/rt_run_exec.from_x.c
@@ -595,6 +598,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       || { [ -f "$_rt_ef_seed" ] && [ "$_rt_ef_seed" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_ef_x" ] && [ "$_rt_ef_x" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_pre_seed" ] && [ "$_rt_pre_seed" -nt "$_rt_o" ]; } \
+      || { [ -f "$_rt_pre_x" ] && [ "$_rt_pre_x" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_compile_seed" ] && [ "$_rt_compile_seed" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_compile_x" ] && [ "$_rt_compile_x" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_run_seed" ] && [ "$_rt_run_seed" -nt "$_rt_o" ]; } \
@@ -774,10 +778,26 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           fi
         fi
         if [ -n "$_rt_p_o" ] && [ -f "$_rt_pre_seed" ]; then
-          # shellcheck disable=SC2086
-          if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_p_o" "$_rt_pre_seed"; then
-            _rt_pre_ok=1
-            echo "g05_ensure: R3 preamble ← $_rt_pre_seed (G-02f-265 seed slice)"
+          # R2 full：PREFER_X_O=1 时 full .x + rest seed（表+marker）→ cc -r 合并
+          if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_pre_x" ]; then
+            _rt_p_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_pre_thin.XXXXXX") || true
+            _rt_p_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_pre_rest.XXXXXX") || true
+            if [ -n "$_rt_p_thin_o" ] && [ -n "$_rt_p_rest_o" ] \
+              && g05_try_x_to_o "$_rt_pre_x" "$_rt_p_thin_o" \
+              && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_RT_PREAMBLE_FROM_X \
+                   -c -o "$_rt_p_rest_o" "$_rt_pre_seed" \
+              && $CC -r -nostdlib -o "$_rt_p_o" "$_rt_p_thin_o" "$_rt_p_rest_o" 2>/dev/null; then
+              _rt_pre_ok=1
+              echo "g05_ensure: R3 preamble ← full .x + rest tables/marker (R2 full H=0)"
+            fi
+            rm -f "$_rt_p_thin_o" "$_rt_p_rest_o"
+          fi
+          if [ "$_rt_pre_ok" = "0" ]; then
+            # shellcheck disable=SC2086
+            if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_p_o" "$_rt_pre_seed"; then
+              _rt_pre_ok=1
+              echo "g05_ensure: R3 preamble ← $_rt_pre_seed (G-02f-265 seed slice cold)"
+            fi
           fi
         fi
         if [ -n "$_rt_cmp_o" ] && [ -f "$_rt_compile_seed" ]; then
@@ -2358,6 +2378,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
                 -e '/^extern char \* strerror(/d' \
                 -e '/^extern int32_t system(/d' \
                 -e '/^extern int system(/d' \
+                -e '/^extern int32_t fputs(/d' \
+                -e '/^extern int fputs(/d' \
                 "$_slc_thin_c"
           } >"${_slc_thin_c}.full" && mv "${_slc_thin_c}.full" "$_slc_thin_c"
           # shellcheck disable=SC2086
