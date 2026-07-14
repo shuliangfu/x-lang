@@ -2,7 +2,9 @@
  * rest SHUX_L2_RDABI_THIN_FROM_X（无 pure-dup _impl；slice_marker + Cap residual 体）。
  * pure 深迁：scan/has/argv_collect/target_os/fail/smoke/peek/entry_len_i32/large_stack orch
  *   + getenv 门闩（force_c / asm skip / emit_heavy / module_only / metric / no_large_stack /
- *   sanitize_address env）在 thin.x；FROM_X 剔 pure-dup _impl。
+ *   sanitize_address env）
+ *   + 数值 env（parse_u32 + stack_limit_want_bytes + phase_timing_enabled）在 thin.x；
+ * FROM_X 剔 pure-dup _impl（H↓）。
  */
 /* Generated from src/runtime_driver_abi.x (G-02f-29/41/45..57/83 true .x + C tail).
  * G-02f-116 true .x pure helpers.
@@ -50,12 +52,12 @@ int32_t driver_target_arg_os_kind(const char *target);
 void driver_bump_stack_limit(void);
 void driver_set_pipeline_entry_source_len(size_t len);
 int compile_phase_timing_enabled(void);
+int32_t driver_compile_phase_timing_enabled(void);
 const char *driver_os_define_lit(int kind);
 void driver_run_thread_on_large_stack(void *(*fn)(void *), void *arg);
 int driver_argv_collect_defines(int argc, char **argv, const char **defines, int max_defines);
 int driver_source_has_top_level_import(const char *src, size_t src_len);
 #define compile_phase_now_sec compile_phase_now_sec_impl
-#define driver_compile_phase_timing_enabled driver_compile_phase_timing_enabled_impl
 #define driver_check_only_flag_slot driver_check_only_flag_slot_impl
 #define driver_check_diag_emitted_flag_slot driver_check_diag_emitted_flag_slot_impl
 #define driver_freestanding_flag_slot driver_freestanding_flag_slot_impl
@@ -813,13 +815,12 @@ static double g_compile_phase_start_sec[SHUX_COMPILE_PHASE_MAX];
 static int g_compile_phase_active[SHUX_COMPILE_PHASE_MAX];
 
 /** 是否启用 SHUX_COMPILE_PHASE_TIMING 阶段计时。 */
-/* G-02f-116：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-/* G-02f-402：getenv 体始终 seed；public PREFER 时 thin forward */
+/* pure 权威：thin.x compile_phase_timing_enabled（getenv 非空）；冷启动保留 _impl + public；FROM_X 无 pure-dup（H↓）。 */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 int compile_phase_timing_enabled_impl(void) {
   return getenv("SHUX_COMPILE_PHASE_TIMING") != NULL;
 }
 
-#ifndef SHUX_L2_RDABI_THIN_FROM_X
 int compile_phase_timing_enabled(void) {
   return compile_phase_timing_enabled_impl();
 }
@@ -918,11 +919,9 @@ void driver_compile_phase_timing_end(int32_t phase) {
 }
 #endif
 
+/* pure 权威：thin.x driver_compile_phase_timing_enabled；冷启动保留 public；FROM_X 无 pure-dup（H↓）。 */
 #ifndef SHUX_L2_RDABI_THIN_FROM_X
 int32_t driver_compile_phase_timing_enabled(void)
-#else
-int32_t driver_compile_phase_timing_enabled_impl(void)
-#endif
 {
   (void)(({   {
     char *e = getenv("SHUX_COMPILE_PHASE_TIMING");
@@ -934,6 +933,7 @@ int32_t driver_compile_phase_timing_enabled_impl(void)
  }));
   return 0;
 }
+#endif
 
 /* G-02f-244：逻辑源 .x（门闩 → index_ok pure）；seed 保留同语义 C 供产品 cc */
 #ifndef SHUX_L2_RDABI_THIN_FROM_X
@@ -1176,7 +1176,9 @@ int driver_peek_source_file(const char *path, char *content, size_t cap) {
  * NL-07 nostdlib：pthread 大栈桩无效，须把主线程软上限抬到 256MiB 以免 -o 编译栈溢出 SIGSEGV。
  * G-02f-244：want pure 在 .x；setrlimit / nostdlib 覆盖 🔒 在 to_impl。
  */
-/* G-02f-244：逻辑源 .x（真迁 parse）；seed 保留同语义 C 供产品 cc */
+/* pure 权威：thin.x driver_parse_u32_cstr + driver_stack_limit_want_bytes；
+ * 冷启动保留 _impl + public；FROM_X 无 pure-dup（H↓）。 */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 static int64_t driver_parse_u32_cstr(const char *s) {
     int64_t n = 0;
     int i = 0;
@@ -1193,7 +1195,6 @@ static int64_t driver_parse_u32_cstr(const char *s) {
     return n;
 }
 
-/* G-02f-400：getenv 体始终 seed；public PREFER 时 thin forward */
 int64_t driver_stack_limit_want_bytes_impl(void) {
     int64_t def = (int64_t)512 * 1024 * 1024;
     const char *e = getenv("SHUX_STACK_LIMIT_MB");
@@ -1206,7 +1207,6 @@ int64_t driver_stack_limit_want_bytes_impl(void) {
     return mb * (int64_t)(1024 * 1024);
 }
 
-#ifndef SHUX_L2_RDABI_THIN_FROM_X
 int64_t driver_stack_limit_want_bytes(void) {
     return driver_stack_limit_want_bytes_impl();
 }

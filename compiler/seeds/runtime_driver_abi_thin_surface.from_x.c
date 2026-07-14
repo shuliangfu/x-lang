@@ -583,7 +583,45 @@ void driver_run_fn_on_current_large_stack(uint8_t * fn, uint8_t * arg) {
 extern void driver_compile_phase_timing_begin_impl(int32_t phase);
 extern void driver_compile_phase_timing_end_impl(int32_t phase);
 extern void driver_compile_phase_timing_flush_impl(void);
-extern int32_t driver_compile_phase_timing_enabled_impl(void);
+/* pure helpers (isomorphic to thin.x free functions; nm 面含二者) */
+int32_t driver_env_nonnull(uint8_t * name) {
+  {
+    uint8_t * e = getenv((const char *)name);
+    if ((e ==((uint8_t *)(0)))) {
+      return 0;
+    }
+    return 1;
+  }
+  return 0;
+}
+int64_t driver_parse_u32_cstr(uint8_t * s) {
+  if ((s ==((uint8_t *)(0)))) {
+    return (0 - 1);
+  }
+  if (((s)[0] ==0)) {
+    return (0 - 1);
+  }
+  int64_t n = 0;
+  int32_t i = 0;
+  while ((i < 20)) {
+    if (((s)[i] ==0)) {
+      break;
+    }
+    int32_t c = ((int32_t)((s)[i]));
+    if ((c < 48)) {
+      return (0 - 1);
+    }
+    if ((c > 57)) {
+      return (0 - 1);
+    }
+    n = ((n * 10) + ((int64_t)((c - 48))));
+    i = (i + 1);
+  }
+  if ((i ==0)) {
+    return (0 - 1);
+  }
+  return n;
+}
 int32_t driver_compile_phase_index_ok(int32_t phase) {
   if ((phase < 0)) {
     return 0;
@@ -594,42 +632,39 @@ int32_t driver_compile_phase_index_ok(int32_t phase) {
   return 1;
 }
 int32_t driver_compile_phase_timing_enabled(void) {
-  {
-    return driver_compile_phase_timing_enabled_impl();
-  }
-  return 0;
+  return driver_env_nonnull((uint8_t[]){83, 72, 85, 88, 95, 67, 79, 77, 80, 73, 76, 69, 95, 80, 72, 65, 83, 69, 95, 84, 73, 77, 73, 78, 71, 0 });
 }
 void driver_compile_phase_timing_begin(int32_t phase) {
+  if ((driver_compile_phase_timing_enabled() ==0)) {
+    return;
+  }
+  if ((driver_compile_phase_index_ok(phase) ==0)) {
+    return;
+  }
   {
-    if ((driver_compile_phase_timing_enabled_impl() ==0)) {
-      return;
-    }
-    if ((driver_compile_phase_index_ok(phase) ==0)) {
-      return;
-    }
     (void)(driver_compile_phase_timing_begin_impl(phase));
   }
   (void)(0);
   return;
 }
 void driver_compile_phase_timing_end(int32_t phase) {
+  if ((driver_compile_phase_timing_enabled() ==0)) {
+    return;
+  }
+  if ((driver_compile_phase_index_ok(phase) ==0)) {
+    return;
+  }
   {
-    if ((driver_compile_phase_timing_enabled_impl() ==0)) {
-      return;
-    }
-    if ((driver_compile_phase_index_ok(phase) ==0)) {
-      return;
-    }
     (void)(driver_compile_phase_timing_end_impl(phase));
   }
   (void)(0);
   return;
 }
 void driver_compile_phase_timing_flush(void) {
+  if ((driver_compile_phase_timing_enabled() ==0)) {
+    return;
+  }
   {
-    if ((driver_compile_phase_timing_enabled_impl() ==0)) {
-      return;
-    }
     (void)(driver_compile_phase_timing_flush_impl());
   }
   (void)(0);
@@ -693,7 +728,6 @@ int32_t driver_pipeline_entry_source_len_i32(void) {
   return 0;
 }
 extern void driver_defines_set_at_impl(uint8_t * defines, int32_t i, uint8_t * s);
-extern int64_t driver_stack_limit_want_bytes_impl(void);
 extern int64_t driver_path_last_preprocess_len_impl(void);
 void driver_defines_set_at(uint8_t * defines, int32_t i, uint8_t * s) {
   {
@@ -703,10 +737,25 @@ void driver_defines_set_at(uint8_t * defines, int32_t i, uint8_t * s) {
   return;
 }
 int64_t driver_stack_limit_want_bytes(void) {
+  int64_t def = ((((int64_t)(512)) * ((int64_t)(1024))) * ((int64_t)(1024)));
   {
-    return driver_stack_limit_want_bytes_impl();
+    uint8_t * e = getenv("SHUX_STACK_LIMIT_MB");
+    if ((e ==((uint8_t *)(0)))) {
+      return def;
+    }
+    if (((e)[0] ==0)) {
+      return def;
+    }
+    int64_t mb = driver_parse_u32_cstr(e);
+    if ((mb < 64)) {
+      return def;
+    }
+    if ((mb > 8192)) {
+      return def;
+    }
+    return (mb * (((int64_t)(1024)) * ((int64_t)(1024))));
   }
-  return 0;
+  return def;
 }
 int64_t driver_path_last_preprocess_len(void) {
   {
@@ -715,11 +764,10 @@ int64_t driver_path_last_preprocess_len(void) {
   return 0;
 }
 extern void driver_bump_stack_limit_to_impl(int64_t want_bytes);
-extern int32_t compile_phase_timing_enabled_impl(void);
 extern uint8_t * driver_os_define_lit_impl(int32_t kind);
 void driver_bump_stack_limit(void) {
   {
-    (void)(driver_bump_stack_limit_to_impl(driver_stack_limit_want_bytes_impl()));
+    (void)(driver_bump_stack_limit_to_impl(driver_stack_limit_want_bytes()));
   }
   (void)(0);
   return;
@@ -732,10 +780,7 @@ void driver_set_pipeline_entry_source_len(int64_t len) {
   return;
 }
 int32_t compile_phase_timing_enabled(void) {
-  {
-    return compile_phase_timing_enabled_impl();
-  }
-  return 0;
+  return driver_env_nonnull((uint8_t[]){83, 72, 85, 88, 95, 67, 79, 77, 80, 73, 76, 69, 95, 80, 72, 65, 83, 69, 95, 84, 73, 77, 73, 78, 71, 0 });
 }
 uint8_t * driver_os_define_lit(int32_t kind) {
   {

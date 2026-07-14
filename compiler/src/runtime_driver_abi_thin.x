@@ -1,13 +1,14 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-343/344/345/387/388/400–402/413/414/416 + getenv pure 深迁：runtime_driver_abi R2 thin。
+// G-02f-343/344/345/387/388/400–402/413/414/416 + getenv/数值 env pure 深迁：runtime_driver_abi R2 thin。
 // 产品 PREFER_X_O：thin.o + full seed rest（-DSHUX_L2_RDABI_THIN_FROM_X）ld -r → runtime_driver_abi.o
 // prove IDENTICAL：thin.x ↔ seeds/runtime_driver_abi_thin_surface.from_x.c（公共面 61+；_impl 仍 U / rest）
 // pure 深迁：scan/has/argv_collect/target_os/fail/smoke/peek/entry_len_i32/large_stack orch
-//   + getenv 门闩（非空且非 '0' → 1）真体在 thin.x。
+//   + getenv 门闩（非空且非 '0' → 1）
+//   + 数值 env（parse_u32 + stack_limit_want_bytes + phase_timing_enabled 非空 getenv）真体在 thin.x。
 // Cap residual：uname / setrlimit / pthread 创建 / path-read / BSS 槽 / format print /
-//   数值 env（stack_limit_mb 等）/ debug_pipe reportf 仍 rest。
+//   debug_pipe reportf / gettimeofday phase_now 仍 rest。
 //
 
 export extern "C" function getenv(name: *u8): *u8;
@@ -43,6 +44,48 @@ function driver_env_flag_truthy(name: *u8): i32 {
     return 1;
   }
   return 0;
+}
+
+// pure：getenv 非空 → 1（phase timing：空串亦启用，与 seed 同形；≠ truthy）。
+function driver_env_nonnull(name: *u8): i32 {
+  unsafe {
+    let e: *u8 = getenv(name);
+    if (e == 0 as *u8) {
+      return 0;
+    }
+    return 1;
+  }
+  return 0;
+}
+
+// pure：十进制 u32 解析；非数字 / 空 → -1（与 seed driver_parse_u32_cstr 同形）。
+function driver_parse_u32_cstr(s: *u8): i64 {
+  if (s == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (s[0] == 0) {
+    return 0 - 1;
+  }
+  let n: i64 = 0;
+  let i: i32 = 0;
+  while (i < 20) {
+    if (s[i] == 0) {
+      break;
+    }
+    let c: i32 = s[i] as i32;
+    if (c < 48) {
+      return 0 - 1;
+    }
+    if (c > 57) {
+      return 0 - 1;
+    }
+    n = n * 10 + (c - 48) as i64;
+    i = i + 1;
+  }
+  if (i == 0) {
+    return 0 - 1;
+  }
+  return n;
 }
 
 // driver_check_quiet_ok_get：weak default 由 seed 提供，强符号由 fmt_check_cmd 提供。
@@ -466,11 +509,10 @@ export function driver_run_fn_on_current_large_stack(fn: *u8, arg: *u8): void {
   driver_large_stack_thread_mark(0);
 }
 
-// ---- G-02f-344：timing 全套 ----
+// ---- G-02f-344：timing 全套；enabled pure（FROM_X 无 pure-dup _impl）----
 export extern "C" function driver_compile_phase_timing_begin_impl(phase: i32): void;
 export extern "C" function driver_compile_phase_timing_end_impl(phase: i32): void;
 export extern "C" function driver_compile_phase_timing_flush_impl(): void;
-export extern "C" function driver_compile_phase_timing_enabled_impl(): i32;
 
 #[no_mangle]
 export function driver_compile_phase_index_ok(phase: i32): i32 {
@@ -483,46 +525,44 @@ export function driver_compile_phase_index_ok(phase: i32): i32 {
   return 1;
 }
 
+// pure：SHUX_COMPILE_PHASE_TIMING 非空 getenv（空串亦启用）
 #[no_mangle]
 export function driver_compile_phase_timing_enabled(): i32 {
-  unsafe {
-    return driver_compile_phase_timing_enabled_impl();
-  }
-  return 0;
+  return driver_env_nonnull("SHUX_COMPILE_PHASE_TIMING");
 }
 
 #[no_mangle]
 export function driver_compile_phase_timing_begin(phase: i32): void {
+  if (driver_compile_phase_timing_enabled() == 0) {
+    return;
+  }
+  if (driver_compile_phase_index_ok(phase) == 0) {
+    return;
+  }
   unsafe {
-    if (driver_compile_phase_timing_enabled_impl() == 0) {
-      return;
-    }
-    if (driver_compile_phase_index_ok(phase) == 0) {
-      return;
-    }
     driver_compile_phase_timing_begin_impl(phase);
   }
 }
 
 #[no_mangle]
 export function driver_compile_phase_timing_end(phase: i32): void {
+  if (driver_compile_phase_timing_enabled() == 0) {
+    return;
+  }
+  if (driver_compile_phase_index_ok(phase) == 0) {
+    return;
+  }
   unsafe {
-    if (driver_compile_phase_timing_enabled_impl() == 0) {
-      return;
-    }
-    if (driver_compile_phase_index_ok(phase) == 0) {
-      return;
-    }
     driver_compile_phase_timing_end_impl(phase);
   }
 }
 
 #[no_mangle]
 export function driver_compile_phase_timing_flush(): void {
+  if (driver_compile_phase_timing_enabled() == 0) {
+    return;
+  }
   unsafe {
-    if (driver_compile_phase_timing_enabled_impl() == 0) {
-      return;
-    }
     driver_compile_phase_timing_flush_impl();
   }
 }
@@ -609,9 +649,8 @@ export function driver_pipeline_entry_source_len_i32(): i32 {
   return 0;
 }
 
-// ---- G-02f-400：defines_set_at / stack_limit_want / path_last_preprocess_len → seed impl ----
+// ---- G-02f-400：defines_set_at / path_last_preprocess_len Cap；stack_limit_want pure ----
 export extern "C" function driver_defines_set_at_impl(defines: *u8, i: i32, s: *u8): void;
-export extern "C" function driver_stack_limit_want_bytes_impl(): i64;
 export extern "C" function driver_path_last_preprocess_len_impl(): i64;
 
 #[no_mangle]
@@ -621,12 +660,28 @@ export function driver_defines_set_at(defines: *u8, i: i32, s: *u8): void {
   }
 }
 
+// pure：默认 512MiB；SHUX_STACK_LIMIT_MB 在 [64,8192] 则取 mb*1MiB
 #[no_mangle]
 export function driver_stack_limit_want_bytes(): i64 {
+  let def: i64 = 512 as i64 * 1024 as i64 * 1024 as i64;
   unsafe {
-    return driver_stack_limit_want_bytes_impl();
+    let e: *u8 = getenv("SHUX_STACK_LIMIT_MB");
+    if (e == 0 as *u8) {
+      return def;
+    }
+    if (e[0] == 0) {
+      return def;
+    }
+    let mb: i64 = driver_parse_u32_cstr(e);
+    if (mb < 64) {
+      return def;
+    }
+    if (mb > 8192) {
+      return def;
+    }
+    return mb * (1024 as i64 * 1024 as i64);
   }
-  return 0;
+  return def;
 }
 
 #[no_mangle]
@@ -637,15 +692,14 @@ export function driver_path_last_preprocess_len(): i64 {
   return 0;
 }
 
-// ---- G-02f-402：bump_stack / set_entry_len / phase_timing / os_define_lit ----
+// ---- G-02f-402：bump_stack / set_entry_len / phase_timing enabled pure / os_define_lit ----
 export extern "C" function driver_bump_stack_limit_to_impl(want_bytes: i64): void;
-export extern "C" function compile_phase_timing_enabled_impl(): i32;
 export extern "C" function driver_os_define_lit_impl(kind: i32): *u8;
 
 #[no_mangle]
 export function driver_bump_stack_limit(): void {
   unsafe {
-    driver_bump_stack_limit_to_impl(driver_stack_limit_want_bytes_impl());
+    driver_bump_stack_limit_to_impl(driver_stack_limit_want_bytes());
   }
 }
 
@@ -656,12 +710,10 @@ export function driver_set_pipeline_entry_source_len(len: i64): void {
   }
 }
 
+// pure：与 driver_compile_phase_timing_enabled 同形（公共别名面）
 #[no_mangle]
 export function compile_phase_timing_enabled(): i32 {
-  unsafe {
-    return compile_phase_timing_enabled_impl();
-  }
-  return 0;
+  return driver_env_nonnull("SHUX_COMPILE_PHASE_TIMING");
 }
 
 #[no_mangle]
