@@ -92,6 +92,8 @@ MODULES=(
   "rt_dispatch_impl|src/runtime/rt_dispatch_impl.x|seeds/rt_dispatch_impl_surface.from_x.c||"
   # rt_fmt_one L2 thin 公共面：与产品 PREFER_X_O 同源（thin.x + hybrid rest seed）；prove 锁 thin 面 IDENTICAL
   # 产品 hybrid rest 仍见 seeds/rt_fmt_one.from_x.c（read/format/write body）；入 runtime_driver_no_c.o
+  # rt_fmt_one R2 full：.x 吃满 driver_fmt_one_file；产品 rest 在 FROM_X 下业务符号 H=0
+  # prove 锁 full surface IDENTICAL（driver_fmt_one_file + path helpers）；冷/无 PREFER 仍可走 seeds/rt_fmt_one.from_x.c 全 C 体
   "rt_fmt_one|src/runtime/rt_fmt_one.x|seeds/rt_fmt_one_surface.from_x.c||"
   # rt_pipeline_elf_diag L2 thin 公共面：与产品 PREFER_X_O 同源（thin.x + hybrid rest seed）；prove 锁 thin 面 IDENTICAL
   # 产品 hybrid rest 仍见 seeds/rt_pipeline_elf_diag.from_x.c（read-table/diag body）；入 runtime_driver_no_c.o
@@ -199,6 +201,8 @@ gen_x_o() {
         -e '/^extern uint8_t \* calloc(/d' \
         -e '/^extern uint8_t \* malloc(/d' \
         -e '/^extern void free(/d' \
+        -e '/^extern int32_t memcmp(/d' \
+        -e '/^extern int memcmp(/d' \
         -e '/^extern char \* getenv(/d' \
         -e '/^extern uint8_t \* getenv(/d' \
         -e '/^extern int32_t unlink(/d' \

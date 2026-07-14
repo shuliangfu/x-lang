@@ -2,8 +2,9 @@
  * Logic source: src/runtime/rt_fmt_one.x
  * Hybrid: SHUX_RT_FMT_ONE_FROM_X + ld -r into runtime_driver_no_c.o
  *
- * Scope: driver_fmt_one_file（读 .x → shu_format_x_document → 可选写回）。
- * 🔒 read/write/format 经 IO/LSP seeds。
+ * R2 full：driver_fmt_one_file 由 .x 提供；
+ * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
+ * 冷启动/无 PREFER 时仍编译完整 C 体（read → format → 可选写回）。
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -20,15 +21,7 @@ extern void diag_reportf_with_code(const char *file, int line, int col, const ch
 extern void diag_reportf(const char *file, int line, int col, const char *kind, const char *detail, const char *fmt,
                          ...);
 
-/* G-02f-447：thin+rest PREFER_X_O
- *   thin .x provides 1 #[no_mangle] wrapper (calls *_impl in rest).
- *   rest seed C (compiled with -DSHUX_RT_FMT_ONE_FROM_X):
- *     - driver_fmt_one_file renamed to *_impl via macro.
- *   No #ifndef guard needed (no real .x implementation; .x is thin-only). */
-#ifdef SHUX_RT_FMT_ONE_FROM_X
-#define driver_fmt_one_file    driver_fmt_one_file_impl
-#endif
-
+#ifndef SHUX_RT_FMT_ONE_FROM_X
 /**
  * shux fmt 单文件：读入 .x、按 LSP 规则格式化；内容变化时写回。
  * path 为字节路径（path_len 不含 NUL）；成功 0，失败 1。
@@ -91,6 +84,9 @@ int driver_fmt_one_file(const uint8_t *path, int path_len) {
   runtime_release_file_view(&raw_view);
   return 0;
 }
+#else
+int driver_fmt_one_file(const uint8_t *path, int path_len);
+#endif
 
 int labi_rt_fmt_one_slice_marker(void) {
   return 1;
