@@ -20,8 +20,8 @@
 // runtime_panic / runtime_abort / runtime_crash_evidence_collect_c；
 // 供 mod.x panic()/abort() 经 extern 调用；链接时须 runtime_panic.o。
 
-export extern function shux_panic_(has_msg: i32, msg_val: i32): void;
-export extern function shux_crash_evidence_collect_c(has_msg: i32, msg_val: i32): void;
+extern function shux_panic_(has_msg: i32, msg_val: i32): void;
+extern function shux_crash_evidence_collect_c(has_msg: i32, msg_val: i32): void;
 
 /** STD-028：panic 钩子收集（转发弱符号 shux_crash_evidence_collect_c）。 */
 export function runtime_crash_evidence_collect_c(has_msg: i32, msg_val: i32): void {

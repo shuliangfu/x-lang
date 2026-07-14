@@ -26,22 +26,22 @@
 // F-02 v2：直接 extern kernel32.dll；常规 -o exe 由链接器解析 IAT（无 win32.inc.c）。
 
 /** kernel32 GetStdHandle；n 为 STD_*_HANDLE 常量。 */
-export extern function GetStdHandle(nStdHandle: i32): *u8;
+extern function GetStdHandle(nStdHandle: i32): *u8;
 
 /** kernel32 WriteFile；非零表示成功。 */
-export extern function WriteFile(hFile: *u8, lpBuffer: *u8, nNumberOfBytesToWrite: u32, lpNumberOfBytesWritten: *u32, lpOverlapped: *u8): i32;
+extern function WriteFile(hFile: *u8, lpBuffer: *u8, nNumberOfBytesToWrite: u32, lpNumberOfBytesWritten: *u32, lpOverlapped: *u8): i32;
 
 /** kernel32 CreateFileA；失败返回 INVALID_HANDLE_VALUE。 */
-export extern function CreateFileA(lpFileName: *u8, dwDesiredAccess: u32, dwShareMode: u32, lpSecurityAttributes: *u8, dwCreationDisposition: u32, dwFlagsAndAttributes: u32, hTemplateFile: *u8): *u8;
+extern function CreateFileA(lpFileName: *u8, dwDesiredAccess: u32, dwShareMode: u32, lpSecurityAttributes: *u8, dwCreationDisposition: u32, dwFlagsAndAttributes: u32, hTemplateFile: *u8): *u8;
 
 /** kernel32 ReadFile；非零表示成功。 */
-export extern function ReadFile(hFile: *u8, lpBuffer: *u8, nNumberOfBytesToRead: u32, lpNumberOfBytesRead: *u32, lpOverlapped: *u8): i32;
+extern function ReadFile(hFile: *u8, lpBuffer: *u8, nNumberOfBytesToRead: u32, lpNumberOfBytesRead: *u32, lpOverlapped: *u8): i32;
 
 /** kernel32 CloseHandle；非零表示成功。 */
-export extern function CloseHandle(hObject: *u8): i32;
+extern function CloseHandle(hObject: *u8): i32;
 
 /** kernel32 ExitProcess；noreturn。 */
-export extern function ExitProcess(uExitCode: u32): void;
+extern function ExitProcess(uExitCode: u32): void;
 
 /** INVALID_HANDLE_VALUE（64 位下为 (void*)-1）。 */
 export const WIN32_INVALID_HANDLE: i64 = -1;

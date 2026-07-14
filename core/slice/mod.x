@@ -20,12 +20,12 @@
 
 const option = import("core.option");
 
-export extern function core_slice_i32_from_ptr_c(data: *i32, length: usize): []i32;
-export extern function core_subslice_i32_c(data: *i32, total_len: usize, start: usize, len: usize): []i32;
-export extern function core_slice_u8_from_ptr_c(data: *u8, length: usize): []u8;
-export extern function core_subslice_u8_c(data: *u8, total_len: usize, start: usize, len: usize): []u8;
-export extern function core_slice_u64_from_ptr_c(data: *u64, length: usize): []u64;
-export extern function core_subslice_u64_c(data: *u64, total_len: usize, start: usize, len: usize): []u64;
+extern function core_slice_i32_from_ptr_c(data: *i32, length: usize): []i32;
+extern function core_subslice_i32_c(data: *i32, total_len: usize, start: usize, len: usize): []i32;
+extern function core_slice_u8_from_ptr_c(data: *u8, length: usize): []u8;
+extern function core_subslice_u8_c(data: *u8, total_len: usize, start: usize, len: usize): []u8;
+extern function core_slice_u64_from_ptr_c(data: *u64, length: usize): []u64;
+extern function core_subslice_u64_c(data: *u64, total_len: usize, start: usize, len: usize): []u64;
 
 /** split_at 返回的左右子切片对（[]i32）。 */
 export struct Split_i32 {

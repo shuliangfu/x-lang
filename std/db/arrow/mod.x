@@ -45,35 +45,35 @@ export struct ArrowBatch {
   handle: i64;
 }
 
-export extern function arrow_column_i32_create_c(capacity: i32): i64;
-export extern function arrow_column_f32_create_c(capacity: i32): i64;
-export extern function arrow_column_f64_create_c(capacity: i32): i64;
-export extern function arrow_column_adopt_f32_c(ptr: *f32, len: i32, capacity: i32): i64;
-export extern function arrow_column_adopt_i32_c(ptr: *i32, len: i32, capacity: i32): i64;
-export extern function arrow_column_type_c(handle: i64): i32;
-export extern function arrow_column_len_c(handle: i64): i32;
-export extern function arrow_column_capacity_c(handle: i64): i32;
-export extern function arrow_column_data_owned_c(handle: i64): i32;
-export extern function arrow_column_null_bitmap_c(handle: i64): *u8;
-export extern function arrow_column_is_valid_c(handle: i64, index: i32): i32;
-export extern function arrow_column_i32_data_c(handle: i64): *i32;
-export extern function arrow_column_f32_data_c(handle: i64): *f32;
-export extern function arrow_column_f64_data_c(handle: i64): *f64;
-export extern function arrow_column_i32_append_c(handle: i64, val: i32): i32;
-export extern function arrow_column_i32_append_null_c(handle: i64, val: i32, is_valid: i32): i32;
-export extern function arrow_column_f32_append_c(handle: i64, val: f32): i32;
-export extern function arrow_column_f64_append_c(handle: i64, val: f64): i32;
-export extern function arrow_column_destroy_c(handle: i64): void;
-export extern function arrow_batch_create_c(max_cols: i32): i64;
-export extern function arrow_batch_add_column_c(batch: i64, col: i64): i32;
-export extern function arrow_batch_column_c(batch: i64, index: i32): i64;
-export extern function arrow_batch_len_c(batch: i64): i32;
-export extern function arrow_batch_destroy_c(batch: i64): void;
-export extern function arrow_column_i32_sum_valid_c(handle: i64, n: i32): i32;
-export extern function arrow_column_f32_sum_c(handle: i64, n: i32): f32;
-export extern function arrow_column_f32_sum_valid_c(handle: i64, n: i32): f32;
-export extern function arrow_column_f32_dot_c(handle_a: i64, handle_b: i64, n: i32): f32;
-export extern function arrow_smoke_c(): i32;
+extern function arrow_column_i32_create_c(capacity: i32): i64;
+extern function arrow_column_f32_create_c(capacity: i32): i64;
+extern function arrow_column_f64_create_c(capacity: i32): i64;
+extern function arrow_column_adopt_f32_c(ptr: *f32, len: i32, capacity: i32): i64;
+extern function arrow_column_adopt_i32_c(ptr: *i32, len: i32, capacity: i32): i64;
+extern function arrow_column_type_c(handle: i64): i32;
+extern function arrow_column_len_c(handle: i64): i32;
+extern function arrow_column_capacity_c(handle: i64): i32;
+extern function arrow_column_data_owned_c(handle: i64): i32;
+extern function arrow_column_null_bitmap_c(handle: i64): *u8;
+extern function arrow_column_is_valid_c(handle: i64, index: i32): i32;
+extern function arrow_column_i32_data_c(handle: i64): *i32;
+extern function arrow_column_f32_data_c(handle: i64): *f32;
+extern function arrow_column_f64_data_c(handle: i64): *f64;
+extern function arrow_column_i32_append_c(handle: i64, val: i32): i32;
+extern function arrow_column_i32_append_null_c(handle: i64, val: i32, is_valid: i32): i32;
+extern function arrow_column_f32_append_c(handle: i64, val: f32): i32;
+extern function arrow_column_f64_append_c(handle: i64, val: f64): i32;
+extern function arrow_column_destroy_c(handle: i64): void;
+extern function arrow_batch_create_c(max_cols: i32): i64;
+extern function arrow_batch_add_column_c(batch: i64, col: i64): i32;
+extern function arrow_batch_column_c(batch: i64, index: i32): i64;
+extern function arrow_batch_len_c(batch: i64): i32;
+extern function arrow_batch_destroy_c(batch: i64): void;
+extern function arrow_column_i32_sum_valid_c(handle: i64, n: i32): i32;
+extern function arrow_column_f32_sum_c(handle: i64, n: i32): f32;
+extern function arrow_column_f32_sum_valid_c(handle: i64, n: i32): f32;
+extern function arrow_column_f32_dot_c(handle_a: i64, handle_b: i64, n: i32): f32;
+extern function arrow_smoke_c(): i32;
 
 /** 创建 Int32 列。 */
 export function new_i32(capacity: i32): ArrowColumn {

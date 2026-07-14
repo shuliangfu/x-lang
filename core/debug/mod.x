@@ -123,7 +123,7 @@ export function capture_regs_x86_64(): RegSnapshot {
   return regs;
 }
 
-export extern function std_debug_write_stderr(buf: *u8, count: usize): isize;
+extern function std_debug_write_stderr(buf: *u8, count: usize): isize;
 
 /** panic 带位置信息：写 write(2) + 文件名 + 行号 + 寄存器快照。
  *  用于编译器内部致命错误的增强诊断。 */

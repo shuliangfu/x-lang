@@ -37,11 +37,11 @@
 // 单调/墙钟单次系统调用、无分配；目标延迟 ≤ Zig/Rust 同场景（见
 // analysis/std标准库全量清单与优先级.md 3.1）。
 
-export extern function time_now_monotonic_ns_c(): i64;
-export extern function time_now_wall_ns_c(): i64;
-export extern function time_sleep_ns_c(ns: i64): void;
-export extern function time_format_wall_rfc3339_c(buf: *u8, cap: i32): i32;
-export extern function time_wall_local_offset_min_c(): i32;
+extern function time_now_monotonic_ns_c(): i64;
+extern function time_now_wall_ns_c(): i64;
+extern function time_sleep_ns_c(ns: i64): void;
+extern function time_format_wall_rfc3339_c(buf: *u8, cap: i32): i32;
+extern function time_wall_local_offset_min_c(): i32;
 
 /** 单调时钟：纳秒（自任意起点，仅用于差值；对标 Rust Instant、Zig Timer）。 */
 export function now_monotonic_ns(): i64 {

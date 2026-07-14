@@ -19,13 +19,13 @@
 // 【文件职责】
 // secure_zero、HKDF-SHA256、mlock/munlock、烟测；纯 .x 编译为 security.o。
 
-export extern function memcpy(dst: *u8, src: *u8, n: usize): *u8;
-export extern function memset(dst: *u8, c: i32, n: usize): *u8;
-export extern function mlock(addr: *u8, len: usize): i32;
-export extern function munlock(addr: *u8, len: usize): i32;
+extern function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+extern function memset(dst: *u8, c: i32, n: usize): *u8;
+extern function mlock(addr: *u8, len: usize): i32;
+extern function munlock(addr: *u8, len: usize): i32;
 
-export extern function crypto_hmac_sha256_c(key: *u8, key_len: i32, msg: *u8, msg_len: i32, out: *u8): void;
-export extern function crypto_mem_eq_c(a: *u8, b: *u8, len: i32): i32;
+extern function crypto_hmac_sha256_c(key: *u8, key_len: i32, msg: *u8, msg_len: i32, out: *u8): void;
+extern function crypto_mem_eq_c(a: *u8, b: *u8, len: i32): i32;
 
 /** SHA-256 输出长度。 */
 export const SEC_SHA256_LEN: i32 = 32;

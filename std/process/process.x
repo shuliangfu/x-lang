@@ -20,10 +20,10 @@
 // OS syscall（getenv/spawn 等）见 compiler/src/asm/runtime_process_os_glue.c。
 
 /** 胶层：读取 codegen 写入的 argc。 */
-export extern function process_shux_argc_get(): i32;
+extern function process_shux_argc_get(): i32;
 
 /** 胶层：读取 argv[i]；越界返回 0。 */
-export extern function process_shux_argv_get(i: i32): *u8;
+extern function process_shux_argv_get(i: i32): *u8;
 
 /** 热路径：返回命令行参数个数（含 argv[0]）。 */
 export function process_args_count_c(): i32 { let _rc: i32 = 0; unsafe { _rc = process_shux_argc_get(); } return _rc; }

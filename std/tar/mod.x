@@ -30,16 +30,16 @@ export const TAR_TYPE_DIR: i32 = 53;
 /** Pax 扩展头 typeflag。 */
 export const TAR_TYPE_PAX: i32 = 120;
 
-export extern function tar_path_max_c(): i32;
-export extern function tar_read_header_c(buf: *u8, len: i32, name_out: *u8, name_cap: i32, size_out:
+extern function tar_path_max_c(): i32;
+extern function tar_read_header_c(buf: *u8, len: i32, name_out: *u8, name_cap: i32, size_out:
 *i32): i32;
-export extern function tar_write_header_c(buf: *u8, buf_cap: i32, name: *u8, name_len: i32, file_size:
+extern function tar_write_header_c(buf: *u8, buf_cap: i32, name: *u8, name_len: i32, file_size:
 i32): i32;
-export extern function tar_append_entry_c(buf: *u8, buf_cap: i32, off_io: *i32, name: *u8, name_len: i32,
+extern function tar_append_entry_c(buf: *u8, buf_cap: i32, off_io: *i32, name: *u8, name_len: i32,
 data: *u8, data_len: i32, is_dir: i32): i32;
-export extern function tar_next_entry_c(buf: *u8, buf_len: i32, pos_io: *i32, name_out: *u8, name_cap: i32,
+extern function tar_next_entry_c(buf: *u8, buf_len: i32, pos_io: *i32, name_out: *u8, name_cap: i32,
 size_out: *i32, type_out: *i32): i32;
-export extern function tar_read_entry_data_c(buf: *u8, buf_len: i32, entry_off: i32, out: *u8, out_cap: i32): i32;
+extern function tar_read_entry_data_c(buf: *u8, buf_len: i32, entry_off: i32, out: *u8, out_cap: i32): i32;
 
 export function read_header(buf: *u8, len: i32, name_out: *u8, name_cap: i32, size_out: *i32): i32 {
   unsafe { return tar_read_header_c(buf, len, name_out, name_cap, size_out); }

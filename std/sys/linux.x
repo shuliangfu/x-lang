@@ -26,43 +26,43 @@
 // - Linux arm64:  include/uapi/asm-generic/unistd.h
 
 /** freestanding open(2) 桩（x86_64 legacy open，flags/mode 见 rdi/rsi/rdx）。 */
-export extern function shux_sys_open(path: *u8, flags: i32, mode: i32): i32;
+extern function shux_sys_open(path: *u8, flags: i32, mode: i32): i32;
 
 /** freestanding read(2) 桩（x86_64 freestanding_io_x86_64.s）。 */
-export extern function shux_sys_read(fd: i32, buf: *u8, len: i32): i32;
+extern function shux_sys_read(fd: i32, buf: *u8, len: i32): i32;
 
 /** freestanding close(2) 桩。 */
-export extern function shux_sys_close(fd: i32): i32;
+extern function shux_sys_close(fd: i32): i32;
 
 /** freestanding exit(2) 桩（noreturn）。 */
-export extern function shux_sys_exit(code: i32): void;
+extern function shux_sys_exit(code: i32): void;
 
 /** freestanding write(2) 桩。 */
-export extern function shux_sys_write(fd: i32, buf: *u8, len: i32): i32;
+extern function shux_sys_write(fd: i32, buf: *u8, len: i32): i32;
 
 /** freestanding openat(2) 桩（x86_64 syscall 257）。 */
-export extern function shux_sys_openat(dirfd: i32, path: *u8, flags: i32, mode: i32): i32;
+extern function shux_sys_openat(dirfd: i32, path: *u8, flags: i32, mode: i32): i32;
 
 /** freestanding mmap(2) 桩（6 参；offset 低 32 位在 r9）。 */
-export extern function shux_sys_mmap(addr: *u8, len: usize, prot: i32, flags: i32, fd: i32, offset: i64): *u8;
+extern function shux_sys_mmap(addr: *u8, len: usize, prot: i32, flags: i32, fd: i32, offset: i64): *u8;
 
 /** freestanding munmap(2) 桩；成功 0，失败负 errno。 */
-export extern function shux_sys_munmap(addr: *u8, len: usize): i32;
+extern function shux_sys_munmap(addr: *u8, len: usize): i32;
 
 /** freestanding socket(2) 桩（x86_64 syscall 41）。 */
-export extern function shux_sys_socket(domain: i32, sock_type: i32, protocol: i32): i32;
+extern function shux_sys_socket(domain: i32, sock_type: i32, protocol: i32): i32;
 
 /** freestanding connect(2) 桩（syscall 42）。 */
-export extern function shux_sys_connect(sockfd: i32, addr: *u8, addrlen: i32): i32;
+extern function shux_sys_connect(sockfd: i32, addr: *u8, addrlen: i32): i32;
 
 /** freestanding accept(2) 桩（syscall 43）。 */
-export extern function shux_sys_accept(sockfd: i32, addr: *u8, addrlen: *i32): i32;
+extern function shux_sys_accept(sockfd: i32, addr: *u8, addrlen: *i32): i32;
 
 /** freestanding bind(2) 桩（syscall 49）。 */
-export extern function shux_sys_bind(sockfd: i32, addr: *u8, addrlen: i32): i32;
+extern function shux_sys_bind(sockfd: i32, addr: *u8, addrlen: i32): i32;
 
 /** freestanding listen(2) 桩（syscall 50）。 */
-export extern function shux_sys_listen(sockfd: i32, backlog: i32): i32;
+extern function shux_sys_listen(sockfd: i32, backlog: i32): i32;
 
 // --- x86_64（System V AMD64 ABI：rax=nr, rdi/rsi/rdx/...=args）---
 
@@ -408,19 +408,19 @@ export const LINUX_OPEN_MODE_0644: i32 = 420;
 
 /** Hosted Linux：libc open/ftruncate/lseek/mmap（常规 -o exe 链 libc；F-02 v1 替代 mmap.inc.c）。 */
 #[cfg(not(freestanding))]
-export extern "C" function open(path: *u8, flags: i32, mode: i32): i32;
+extern "C" function open(path: *u8, flags: i32, mode: i32): i32;
 #[cfg(not(freestanding))]
-export extern "C" function close(fd: i32): i32;
+extern "C" function close(fd: i32): i32;
 #[cfg(not(freestanding))]
-export extern "C" function lseek(fd: i32, offset: i64, whence: i32): i64;
+extern "C" function lseek(fd: i32, offset: i64, whence: i32): i64;
 #[cfg(not(freestanding))]
-export extern "C" function ftruncate(fd: i32, length: i64): i32;
+extern "C" function ftruncate(fd: i32, length: i64): i32;
 #[cfg(not(freestanding))]
-export extern "C" function mmap(addr: *u8, len: usize, prot: i32, flags: i32, fd: i32, offset: i64): *u8;
+extern "C" function mmap(addr: *u8, len: usize, prot: i32, flags: i32, fd: i32, offset: i64): *u8;
 #[cfg(not(freestanding))]
-export extern "C" function munmap(addr: *u8, len: usize): i32;
+extern "C" function munmap(addr: *u8, len: usize): i32;
 #[cfg(not(freestanding))]
-export extern "C" function msync(addr: *u8, len: usize, flags: i32): i32;
+extern "C" function msync(addr: *u8, len: usize, flags: i32): i32;
 
 /**
  * F-02 v1：文件 MAP_SHARED 可写 mmap（open + ftruncate + mmap；无 mmap.inc.c）。

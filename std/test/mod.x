@@ -21,22 +21,22 @@
 // 【文件职责】assert、assert_eq、assert_ne 返回
 // 0=通过/1=失败；run 执行测试函数。
 // 【依赖】core；F-test v2 逻辑在 test.x（F-ZC 纯 .x；fn-ptr 在 runtime_test_fn_invoke.o）。
-export extern function test_expect_c(cond: i32): i32;
-export extern function test_expect_eq_i32_c(a: i32, b: i32): i32;
-export extern function test_expect_eq_u32_c(a: u32, b: u32): i32;
-export extern function test_expect_ne_i32_c(a: i32, b: i32): i32;
-export extern function test_run_c(fn: usize): i32;
-export extern function test_bench_run_c(fn: usize, iters: i32): i64;
-export extern function test_bench_report_c(name: *u8, len: i32, ns: i64): i32;
-export extern function test_fuzz_seed_c(): u32;
-export extern function test_fuzz_next_c(state: *u32): u32;
-export extern function test_fuzz_run_c(fn: usize, iters: i32): i32;
-export extern function test_bench_run_noop_c(iters: i32): i64;
-export extern function test_fuzz_run_noop_c(iters: i32): i32;
-export extern function test_runner_reset_c(): void;
-export extern function test_runner_report_case_c(name: *u8, len: i32, exit_code: i32): i32;
-export extern function test_runner_report_skip_c(name: *u8, len: i32): i32;
-export extern function test_runner_finish_c(): i32;
+extern function test_expect_c(cond: i32): i32;
+extern function test_expect_eq_i32_c(a: i32, b: i32): i32;
+extern function test_expect_eq_u32_c(a: u32, b: u32): i32;
+extern function test_expect_ne_i32_c(a: i32, b: i32): i32;
+extern function test_run_c(fn: usize): i32;
+extern function test_bench_run_c(fn: usize, iters: i32): i64;
+extern function test_bench_report_c(name: *u8, len: i32, ns: i64): i32;
+extern function test_fuzz_seed_c(): u32;
+extern function test_fuzz_next_c(state: *u32): u32;
+extern function test_fuzz_run_c(fn: usize, iters: i32): i32;
+extern function test_bench_run_noop_c(iters: i32): i64;
+extern function test_fuzz_run_noop_c(iters: i32): i32;
+extern function test_runner_reset_c(): void;
+extern function test_runner_report_case_c(name: *u8, len: i32, exit_code: i32): i32;
+extern function test_runner_report_skip_c(name: *u8, len: i32): i32;
+extern function test_runner_finish_c(): i32;
 /** 断言 cond 为真；返回 0 通过，1 失败。 */
 export function assert(cond: i32): i32 { let _rc: i32 = 0; unsafe { _rc = test_expect_c(cond); } return _rc; }
 /** 断言 a == b（i32）；返回 0 通过，1 失败。 */

@@ -24,14 +24,14 @@
 // 后续：语言支持 &amp;fn 后可直接 spawn(.x 函数)；或 net 提供 listen_workers
 // 时内部使用本模块。
 // —— C 层：由 std/thread/thread_glue.c 提供（F-thread v1）——
-export extern function thread_self_c(): i64;
-export extern function thread_create_c(entry: usize, arg: usize): i64;
-export extern function thread_create_with_stack_c(entry: usize, arg: usize, stack_size: usize): i64;
-export extern function thread_join_c(thread_id: i64): i32;
-export extern function thread_set_affinity_self_c(cpu_index: i32): i32;
-export extern function thread_set_affinity_c(thread_id: i64, cpu_index: i32): i32;
-export extern function thread_set_qos_class_self_c(qos_class: i32): i32;
-export extern function thread_dummy_entry_ptr_c(): usize;
+extern function thread_self_c(): i64;
+extern function thread_create_c(entry: usize, arg: usize): i64;
+extern function thread_create_with_stack_c(entry: usize, arg: usize, stack_size: usize): i64;
+extern function thread_join_c(thread_id: i64): i32;
+extern function thread_set_affinity_self_c(cpu_index: i32): i32;
+extern function thread_set_affinity_c(thread_id: i64, cpu_index: i32): i32;
+extern function thread_set_qos_class_self_c(qos_class: i32): i32;
+extern function thread_dummy_entry_ptr_c(): usize;
 /** 返回当前线程 ID（用于区分线程、多核时每线程一 io_uring）。 */
 export function id(): i64 {
   unsafe { return thread_self_c(); }
@@ -97,12 +97,12 @@ export function dummy_entry_ptr(): usize {
 
 // —— STD-043：命名线程与固定 worker 线程池 ——
 
-export extern function thread_set_name_self_c(name: *u8, len: i32): i32;
-export extern function thread_pool_start_c(workers: i32): i32;
-export extern function thread_pool_submit_c(entry: usize, arg: usize): i32;
-export extern function thread_pool_drain_c(): i32;
-export extern function thread_pool_stop_c(): i32;
-export extern function thread_pool_pending_c(): i32;
+extern function thread_set_name_self_c(name: *u8, len: i32): i32;
+extern function thread_pool_start_c(workers: i32): i32;
+extern function thread_pool_submit_c(entry: usize, arg: usize): i32;
+extern function thread_pool_drain_c(): i32;
+extern function thread_pool_stop_c(): i32;
+extern function thread_pool_pending_c(): i32;
 
 /** 设置当前线程名（≤15 字节）；成功 0，不支持 -1。 */
 export function set_name_self(name: *u8, len: i32): i32 {

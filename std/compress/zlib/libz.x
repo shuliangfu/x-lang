@@ -30,10 +30,10 @@ export const Z_OK: i32 = 0;
 export const Z_DEFAULT_COMPRESSION: i32 = -1;
 
 /** libz：压缩为 zlib 格式。 */
-export extern function compress2(dest: *u8, destLen: *u64, source: *u8, sourceLen: u64, level: i32): i32;
+extern function compress2(dest: *u8, destLen: *u64, source: *u8, sourceLen: u64, level: i32): i32;
 
 /** libz：解压 zlib 流。 */
-export extern function uncompress(dest: *u8, destLen: *u64, source: *u8, sourceLen: u64): i32;
+extern function uncompress(dest: *u8, destLen: *u64, source: *u8, sourceLen: u64): i32;
 
 /** 链接 marker：runtime 据此追加 -lz（F-04 v4 自 compress.o 迁至 .x）。 */
 let shu_compress_zlib_marker: u8 = 1;

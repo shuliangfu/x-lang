@@ -28,7 +28,7 @@ const ws_io = import("std.net.ws_io");
 /** TLS 关闭（ws_close 用）。 */
 const tls = import("std.net.tls_stub");
 
-export extern function net_close_socket_c(fd: i32): i32;
+extern function net_close_socket_c(fd: i32): i32;
 
 /** WebSocket 会话（TCP fd + 可选 TLS ctx，0 表示 ws:// 明文）。 */
 allow(padding) struct WsStream {

@@ -19,23 +19,23 @@
 //
 // 【文件职责】start、write/write_bytes、finish、free；单次 bytes。Tier-S 稳定 API 始终 SipHash。
 // 【依赖】core；算法在 std/hash/hash.x（F-hash v2 纯 .x）。
-export extern function hash_sip_new_c(): *u8;
-export extern function hash_sip_write_u32_c(h: *u8, x: u32): void;
-export extern function hash_sip_write_u64_c(h: *u8, x: u64): void;
-export extern function hash_sip_write_bytes_c(h: *u8, ptr: *u8, len: i32): void;
-export extern function hash_sip_finish_c(h: *u8): u64;
-export extern function hash_sip_free_c(h: *u8): void;
-export extern function hash_sip_bytes_c(ptr: *u8, len: i32): u64;
-export extern function hash_default_algo_c(): i32;
-export extern function hash_unified_new_c(algo: i32): *u8;
-export extern function hash_unified_write_bytes_c(h: *u8, ptr: *u8, len: i32): void;
-export extern function hash_unified_write_u32_c(h: *u8, x: u32): void;
-export extern function hash_unified_finish_c(h: *u8): u64;
-export extern function hash_unified_free_c(h: *u8): void;
-export extern function hash_xxhash64_bytes_c(ptr: *u8, len: i32): u64;
-export extern function hash_xxhash64_seed_bytes_c(ptr: *u8, len: i32, seed: u64): u64;
-export extern function hash_recommend_hasher_map_c(): i32;
-export extern function hash_recommend_hasher_fast_c(): i32;
+extern function hash_sip_new_c(): *u8;
+extern function hash_sip_write_u32_c(h: *u8, x: u32): void;
+extern function hash_sip_write_u64_c(h: *u8, x: u64): void;
+extern function hash_sip_write_bytes_c(h: *u8, ptr: *u8, len: i32): void;
+extern function hash_sip_finish_c(h: *u8): u64;
+extern function hash_sip_free_c(h: *u8): void;
+extern function hash_sip_bytes_c(ptr: *u8, len: i32): u64;
+extern function hash_default_algo_c(): i32;
+extern function hash_unified_new_c(algo: i32): *u8;
+extern function hash_unified_write_bytes_c(h: *u8, ptr: *u8, len: i32): void;
+extern function hash_unified_write_u32_c(h: *u8, x: u32): void;
+extern function hash_unified_finish_c(h: *u8): u64;
+extern function hash_unified_free_c(h: *u8): void;
+extern function hash_xxhash64_bytes_c(ptr: *u8, len: i32): u64;
+extern function hash_xxhash64_seed_bytes_c(ptr: *u8, len: i32, seed: u64): u64;
+extern function hash_recommend_hasher_map_c(): i32;
+extern function hash_recommend_hasher_fast_c(): i32;
 
 /** SipHash（抗碰撞，Tier-S 默认）。 */
 export const HASHER_SIPHASH: i32 = 0;

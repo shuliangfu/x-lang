@@ -19,10 +19,10 @@
 // 【文件职责】encode/decode standard 与 URL；单遍、静态表、无堆分配；流式 enc/dec update。
 // 【依赖】core；与 std/base64/base64.x 同属一模块（F-base64 v1）。
 
-export extern function base64_encode_standard_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32;
-export extern function base64_encode_url_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32;
-export extern function base64_decode_standard_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32;
-export extern function base64_decode_url_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32;
+extern function base64_encode_standard_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32;
+extern function base64_encode_url_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32;
+extern function base64_decode_standard_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32;
+extern function base64_decode_url_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32;
 
 /** 标准 Base64 编码；返回写入字节数，缓冲区不足返回 -1。 */
 export function encode_standard(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
@@ -52,12 +52,12 @@ export function decode_url(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 
   return _rc;
 }
 
-export extern function base64_stream_state_bytes_c(): i32;
-export extern function base64_stream_enc_init_c(state: *u8, state_cap: i32, url: i32): i32;
-export extern function base64_stream_dec_init_c(state: *u8, state_cap: i32, url: i32): i32;
-export extern function base64_stream_enc_update_c(state: *u8, state_cap: i32, inp: *u8, in_len: i32, out: *u8,
+extern function base64_stream_state_bytes_c(): i32;
+extern function base64_stream_enc_init_c(state: *u8, state_cap: i32, url: i32): i32;
+extern function base64_stream_dec_init_c(state: *u8, state_cap: i32, url: i32): i32;
+extern function base64_stream_enc_update_c(state: *u8, state_cap: i32, inp: *u8, in_len: i32, out: *u8,
   out_cap: i32, is_last: i32, in_consumed: *i32): i32;
-export extern function base64_stream_dec_update_c(state: *u8, state_cap: i32, inp: *u8, in_len: i32, out: *u8,
+extern function base64_stream_dec_update_c(state: *u8, state_cap: i32, inp: *u8, in_len: i32, out: *u8,
   out_cap: i32, is_last: i32, in_consumed: *i32): i32;
 
 /** 流状态缓冲最小字节数（STD-109）。 */

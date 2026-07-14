@@ -41,12 +41,12 @@ let io_fixed_nr: u32 = 0 as u32;
 
 let io_wsa_ready: i32 = 0;
 
-export extern function _get_osfhandle(fd: i32): i64;
-export extern function _read(fd: i32, buf: *u8, count: u32): i32;
-export extern function _write(fd: i32, buf: *u8, count: u32): i32;
-export extern function ReadFile(hFile: *u8, lpBuffer: *u8, nNumberOfBytesToRead: u32, lpNumberOfBytesRead: *u32, lpOverlapped: *u8): i32;
-export extern function WriteFile(hFile: *u8, lpBuffer: *u8, nNumberOfBytesToWrite: u32, lpNumberOfBytesWritten: *u32, lpOverlapped: *u8): i32;
-export extern function WSAStartup(wVersionRequested: i32, lpWSAData: *u8): i32;
+extern function _get_osfhandle(fd: i32): i64;
+extern function _read(fd: i32, buf: *u8, count: u32): i32;
+extern function _write(fd: i32, buf: *u8, count: u32): i32;
+extern function ReadFile(hFile: *u8, lpBuffer: *u8, nNumberOfBytesToRead: u32, lpNumberOfBytesRead: *u32, lpOverlapped: *u8): i32;
+extern function WriteFile(hFile: *u8, lpBuffer: *u8, nNumberOfBytesToWrite: u32, lpNumberOfBytesWritten: *u32, lpOverlapped: *u8): i32;
+extern function WSAStartup(wVersionRequested: i32, lpWSAData: *u8): i32;
 
 /** fd 转 Win32 HANDLE（无效时回退 _read/_write）。 */
 export function io_win_fd_to_handle(fd: i32): *u8 {

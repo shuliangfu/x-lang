@@ -27,16 +27,16 @@ export const O_NONBLOCK: i32 = 2048;
 export const F_GETFL: i32 = 3;
 export const F_SETFL: i32 = 4;
 
-export extern "C" function close(fd: i32): i32;
+extern "C" function close(fd: i32): i32;
 
 #[cfg(not(target_os = "windows"))]
-export extern "C" function fcntl(fd: i32, cmd: i32, arg: i32): i32;
+extern "C" function fcntl(fd: i32, cmd: i32, arg: i32): i32;
 
 #[cfg(target_os = "windows")]
-export extern "C" function closesocket(fd: i32): i32;
+extern "C" function closesocket(fd: i32): i32;
 
 #[cfg(target_os = "windows")]
-export extern "C" function ioctlsocket(fd: i32, cmd: i32, arg: *u32): i32;
+extern "C" function ioctlsocket(fd: i32, cmd: i32, arg: *u32): i32;
 
 /**
  * 内部：切换阻塞/非阻塞（Unix）；blocking=1 阻塞。

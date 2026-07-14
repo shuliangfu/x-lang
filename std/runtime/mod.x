@@ -27,8 +27,8 @@
 // std::panic::panic!、std::process::abort、panic::set_hook；
 // Go: panic()、recover()、runtime.Goexit、runtime.NumCPU
 // 等。我们提供最小集：panic/abort/ready。
-export extern function runtime_panic(): void;
-export extern function runtime_abort(): void;
+extern function runtime_panic(): void;
+extern function runtime_abort(): void;
 /** 无参 panic：终止程序（noreturn）。用于断言失败、不可达分支等。对标
 * Rust panic!()、Zig @panic、Go panic()。 */
 export function panic(): void {
@@ -58,6 +58,6 @@ export function panic_hook_collect(has_msg: i32, msg_val: i32): void {
   unsafe { runtime_crash_evidence_collect_c(has_msg, msg_val); }
 }
 
-export extern function runtime_crash_evidence_collect_c(has_msg: i32, msg_val: i32): void;
+extern function runtime_crash_evidence_collect_c(has_msg: i32, msg_val: i32): void;
 /** 模块尾占位：transitive import 解析时末位 function 会丢失，须保留非 API 锚点。 */
 export function runtime_module_anchor(): i32 { return 0; }

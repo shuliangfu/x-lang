@@ -37,11 +37,11 @@ allow(padding) struct CliResult {
   positional0: u8[128];
 }
 
-export extern function cli_is_help_c(arg: *u8, len: i32): i32;
-export extern function cli_is_version_c(arg: *u8, len: i32): i32;
-export extern function cli_match_long_c(arg: *u8, len: i32, name: *u8, name_len: i32): i32;
-export extern function cli_match_short_c(arg: *u8, len: i32, c: u8): i32;
-export extern function cli_write_usage_c(prog: *u8, prog_len: i32, desc: *u8, desc_len: i32, out: *u8, out_cap: i32): i32;
+extern function cli_is_help_c(arg: *u8, len: i32): i32;
+extern function cli_is_version_c(arg: *u8, len: i32): i32;
+extern function cli_match_long_c(arg: *u8, len: i32, name: *u8, name_len: i32): i32;
+extern function cli_match_short_c(arg: *u8, len: i32, c: u8): i32;
+extern function cli_write_usage_c(prog: *u8, prog_len: i32, desc: *u8, desc_len: i32, out: *u8, out_cap: i32): i32;
 
 /** 成功完成解析。 */
 export function err_ok(): i32 { return 0; }

@@ -25,11 +25,11 @@
 // 【所属模块/组件】
 // 标准库 std.sync；用户通过 import("std.sync") 使用。依赖 core；实现见 sync.x + sync_os_glue.c +
 // sync_lock_diag_tls_glue.c。Unix 链接时需 -lpthread。
-export extern function sync_mutex_new_c(): *u8;
-export extern function sync_mutex_lock_c(m: *u8): i32;
-export extern function sync_mutex_try_lock_c(m: *u8): i32;
-export extern function sync_mutex_unlock_c(m: *u8): i32;
-export extern function sync_mutex_free_c(m: *u8): void;
+extern function sync_mutex_new_c(): *u8;
+extern function sync_mutex_lock_c(m: *u8): i32;
+extern function sync_mutex_try_lock_c(m: *u8): i32;
+extern function sync_mutex_unlock_c(m: *u8): i32;
+extern function sync_mutex_free_c(m: *u8): void;
 /** 创建新的互斥体；成功返回句柄（不透明指针），失败返回 0。对标
 * Mutex::new()。 */
 export function new_mutex(): *u8 {
@@ -67,19 +67,19 @@ export function free_mutex(m: *u8): void {
 
 /* --- STD-045：RwLock / Condvar --- */
 
-export extern function sync_rwlock_new_c(): *u8;
-export extern function sync_rwlock_read_lock_c(rw: *u8): i32;
-export extern function sync_rwlock_write_lock_c(rw: *u8): i32;
-export extern function sync_rwlock_read_unlock_c(rw: *u8): i32;
-export extern function sync_rwlock_write_unlock_c(rw: *u8): i32;
-export extern function sync_rwlock_free_c(rw: *u8): void;
-export extern function sync_condvar_new_c(): *u8;
-export extern function sync_condvar_wait_c(cv: *u8, mutex: *u8): i32;
-export extern function sync_condvar_signal_c(cv: *u8): i32;
-export extern function sync_condvar_broadcast_c(cv: *u8): i32;
-export extern function sync_condvar_free_c(cv: *u8): void;
-export extern function sync_rwlock_contention_smoke_c(): i32;
-export extern function sync_condvar_contention_smoke_c(): i32;
+extern function sync_rwlock_new_c(): *u8;
+extern function sync_rwlock_read_lock_c(rw: *u8): i32;
+extern function sync_rwlock_write_lock_c(rw: *u8): i32;
+extern function sync_rwlock_read_unlock_c(rw: *u8): i32;
+extern function sync_rwlock_write_unlock_c(rw: *u8): i32;
+extern function sync_rwlock_free_c(rw: *u8): void;
+extern function sync_condvar_new_c(): *u8;
+extern function sync_condvar_wait_c(cv: *u8, mutex: *u8): i32;
+extern function sync_condvar_signal_c(cv: *u8): i32;
+extern function sync_condvar_broadcast_c(cv: *u8): i32;
+extern function sync_condvar_free_c(cv: *u8): void;
+extern function sync_rwlock_contention_smoke_c(): i32;
+extern function sync_condvar_contention_smoke_c(): i32;
 
 /** 创建 RwLock；失败 0。 */
 export function new_rwlock(): *u8 {
@@ -174,13 +174,13 @@ export function condvar_contention_smoke(): i32 {
 
 /* --- STD-111：调试模式锁诊断 --- */
 
-export extern function sync_lock_diag_set_enabled_c(on: i32): void;
-export extern function sync_lock_diag_is_enabled_c(): i32;
-export extern function sync_lock_diag_mutex_set_id_c(m: *u8, id: i32): i32;
-export extern function sync_lock_diag_last_err_c(): i32;
-export extern function sync_lock_diag_clear_c(): void;
-export extern function sync_lock_diag_snapshot_c(out: *u8, cap: i32): i32;
-export extern function sync_lock_diag_smoke_c(): i32;
+extern function sync_lock_diag_set_enabled_c(on: i32): void;
+extern function sync_lock_diag_is_enabled_c(): i32;
+extern function sync_lock_diag_mutex_set_id_c(m: *u8, id: i32): i32;
+extern function sync_lock_diag_last_err_c(): i32;
+extern function sync_lock_diag_clear_c(): void;
+extern function sync_lock_diag_snapshot_c(out: *u8, cap: i32): i32;
+extern function sync_lock_diag_smoke_c(): i32;
 
 /** 递归加锁错误码 -1。 */
 export function lock_diag_err_recursive(): i32 { return -1; }

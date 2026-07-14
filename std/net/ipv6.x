@@ -61,26 +61,26 @@ allow(padding) struct SockAddrIn6 {
 #[cfg(not(target_os = "windows"))]
 allow(padding) struct PollFd { fd: i32; events: i16; revents: i16; }
 
-export extern "C" function socket(domain: i32, sock_type: i32, protocol: i32): i32;
-export extern "C" function connect(fd: i32, addr: *u8, addrlen: u32): i32;
-export extern "C" function bind(fd: i32, addr: *u8, addrlen: u32): i32;
-export extern "C" function listen(fd: i32, backlog: i32): i32;
-export extern "C" function setsockopt(fd: i32, level: i32, optname: i32, optval: *i32, optlen: u32): i32;
-export extern "C" function getsockopt(fd: i32, level: i32, optname: i32, optval: *i32, optlen: *u32): i32;
-export extern "C" function close(fd: i32): i32;
-export extern "C" function htons(hostshort: u16): u16;
+extern "C" function socket(domain: i32, sock_type: i32, protocol: i32): i32;
+extern "C" function connect(fd: i32, addr: *u8, addrlen: u32): i32;
+extern "C" function bind(fd: i32, addr: *u8, addrlen: u32): i32;
+extern "C" function listen(fd: i32, backlog: i32): i32;
+extern "C" function setsockopt(fd: i32, level: i32, optname: i32, optval: *i32, optlen: u32): i32;
+extern "C" function getsockopt(fd: i32, level: i32, optname: i32, optval: *i32, optlen: *u32): i32;
+extern "C" function close(fd: i32): i32;
+extern "C" function htons(hostshort: u16): u16;
 
 #[cfg(not(target_os = "windows"))]
-export extern "C" function fcntl(fd: i32, cmd: i32, arg: i32): i32;
+extern "C" function fcntl(fd: i32, cmd: i32, arg: i32): i32;
 
 #[cfg(not(target_os = "windows"))]
-export extern "C" function poll(fds: *u8, nfds: u64, timeout: i32): i32;
+extern "C" function poll(fds: *u8, nfds: u64, timeout: i32): i32;
 
 #[cfg(target_os = "linux")]
-export extern "C" function __errno_location(): *i32;
+extern "C" function __errno_location(): *i32;
 
 #[cfg(target_os = "macos")]
-export extern "C" function __error(): *i32;
+extern "C" function __error(): *i32;
 
 /** 平台无关 errno 指针获取：Linux 走 __errno_location，macOS/BSD 走 __error。
  * 【Why 根源治理】原 `#[cfg(not(windows))] extern __errno_location` 在 macOS 链接失败：
@@ -101,13 +101,13 @@ export function net_ipv6_errno_ptr(): *i32 {
 }
 
 #[cfg(target_os = "windows")]
-export extern "C" function WSAStartup(wVersionRequested: u16, lpWSAData: *u8): i32;
+extern "C" function WSAStartup(wVersionRequested: u16, lpWSAData: *u8): i32;
 
 #[cfg(target_os = "windows")]
-export extern "C" function ioctlsocket(fd: i32, cmd: i32, arg: *u32): i32;
+extern "C" function ioctlsocket(fd: i32, cmd: i32, arg: *u32): i32;
 
 #[cfg(target_os = "windows")]
-export extern "C" function closesocket(fd: i32): i32;
+extern "C" function closesocket(fd: i32): i32;
 
 #[cfg(target_os = "windows")]
 let net_ipv6_wsa_done: i32 = 0;
@@ -151,7 +151,7 @@ export function net_ipv6_sin_buf_ptr_c(p: *u8): *u8 {
 }
 
 /** IPv6 sockaddr 填充；实现见 net_import_alias.c（规避 asm u16 间接 store codegen 缺陷）。 */
-export extern function net_ipv6_set_addr_port_buf_c(sin: *u8, addr_16: *u8, port_u32: u32): void;
+extern function net_ipv6_set_addr_port_buf_c(sin: *u8, addr_16: *u8, port_u32: u32): void;
 
 /**
  * 设 socket 非阻塞（Unix）。

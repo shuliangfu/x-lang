@@ -80,28 +80,28 @@ allow(padding) struct ZstdOutBuffer {
 }
 
 /** libzstd：块压缩。 */
-export extern function ZSTD_compress(dst: *u8, dstCapacity: usize, src: *u8, srcSize: usize, compressionLevel: i32): usize;
+extern function ZSTD_compress(dst: *u8, dstCapacity: usize, src: *u8, srcSize: usize, compressionLevel: i32): usize;
 
 /** libzstd：块解压。 */
-export extern function ZSTD_decompress(dst: *u8, dstCapacity: usize, src: *u8, compressedSize: usize): usize;
+extern function ZSTD_decompress(dst: *u8, dstCapacity: usize, src: *u8, compressedSize: usize): usize;
 
 /** libzstd：返回值是否错误码。 */
-export extern function ZSTD_isError(code: usize): u32;
+extern function ZSTD_isError(code: usize): u32;
 
 /** libzstd：压缩/解压上下文。 */
-export extern function ZSTD_createCCtx(): *u8;
-export extern function ZSTD_freeCCtx(cctx: *u8): usize;
-export extern function ZSTD_createDCtx(): *u8;
-export extern function ZSTD_freeDCtx(dctx: *u8): usize;
+extern function ZSTD_createCCtx(): *u8;
+extern function ZSTD_freeCCtx(cctx: *u8): usize;
+extern function ZSTD_createDCtx(): *u8;
+extern function ZSTD_freeDCtx(dctx: *u8): usize;
 
 /** libzstd：设置压缩参数。 */
-export extern function ZSTD_CCtx_setParameter(cctx: *u8, param: i32, value: i32): usize;
+extern function ZSTD_CCtx_setParameter(cctx: *u8, param: i32, value: i32): usize;
 
 /** libzstd：流式压缩。 */
-export extern function ZSTD_compressStream2(cctx: *u8, output: *ZstdOutBuffer, input: *ZstdInBuffer, endOp: i32): usize;
+extern function ZSTD_compressStream2(cctx: *u8, output: *ZstdOutBuffer, input: *ZstdInBuffer, endOp: i32): usize;
 
 /** libzstd：流式解压。 */
-export extern function ZSTD_decompressStream(dctx: *u8, output: *ZstdOutBuffer, input: *ZstdInBuffer): usize;
+extern function ZSTD_decompressStream(dctx: *u8, output: *ZstdOutBuffer, input: *ZstdInBuffer): usize;
 
 /** 链接 marker：runtime 据此追加 -lzstd。 */
 let shu_compress_zstd_marker: u8 = 1;

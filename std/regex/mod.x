@@ -19,12 +19,12 @@
 //
 // 【文件职责】compile、match、free；STD-064 capture：group_count/offset/length。
 // 【依赖】std.heap；引擎在 std/regex/regex.x（F-regex v2 纯 .x）；全平台无 regex.h。
-export extern function regex_compile_c(pat: *u8, pat_len: i32): *u8;
-export extern function regex_match_c(re: *u8, str: *u8, len: i32): i32;
-export extern function regex_free_c(re: *u8): void;
-export extern function regex_group_count_c(re: *u8): i32;
-export extern function regex_group_offset_c(re: *u8, group: i32): i32;
-export extern function regex_group_length_c(re: *u8, group: i32): i32;
+extern function regex_compile_c(pat: *u8, pat_len: i32): *u8;
+extern function regex_match_c(re: *u8, str: *u8, len: i32): i32;
+extern function regex_free_c(re: *u8): void;
+extern function regex_group_count_c(re: *u8): i32;
+extern function regex_group_offset_c(re: *u8, group: i32): i32;
+extern function regex_group_length_c(re: *u8, group: i32): i32;
 
 /** 编译模式；失败返回 null。 */
 export function compile(pat: *u8, pat_len: i32): *u8 {

@@ -73,10 +73,10 @@ allow(padding) struct ObjPoolMem {
   health_fail: i64;
 }
 
-export extern function time_now_monotonic_ns_c(): i64;
-export extern "C" function memset(s: *u8, c: i32, n: usize): *u8;
-export extern "C" function calloc(nmemb: usize, size: usize): *u8;
-export extern "C" function free(ptr: *u8): void;
+extern function time_now_monotonic_ns_c(): i64;
+extern "C" function memset(s: *u8, c: i32, n: usize): *u8;
+extern "C" function calloc(nmemb: usize, size: usize): *u8;
+extern "C" function free(ptr: *u8): void;
 
 /** F-cache v1 版本标记；供聚合 gate 校验 cache.x 已参与构建。 */
 export function cache_f_cache_v1_marker_c(): i32 {

@@ -32,11 +32,11 @@ allow(padding) struct NetWorkerArg {
   worker_index: i32;
 }
 
-export extern function thread_create_c(entry: usize, arg: usize): i64;
+extern function thread_create_c(entry: usize, arg: usize): i64;
 
-export extern function thread_join_c(thread_id: i64): i32;
+extern function thread_join_c(thread_id: i64): i32;
 
-export extern function shu_net_worker_accept_entry_ptr_c(): usize;
+extern function shu_net_worker_accept_entry_ptr_c(): usize;
 
 /**
  * 取 NetWorkerArg 数组第 i 项指针（seed emit 不支持 &args[i] 直接作 call 实参）。

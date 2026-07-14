@@ -47,25 +47,25 @@ export function err_leak(): i32 { return -4; }
 /** 其它非法状态。 */
 export function err_invalid(): i32 { return -5; }
 
-export extern function task_group_create_c(capacity: i32): i64;
-export extern function task_group_free_c(handle: i64): void;
-export extern function task_group_bind_context_c(handle: i64, ctx_handle: i64): void;
-export extern function task_group_spawn_c(handle: i64, fn: *u8, seed: i32): i32;
-export extern function task_group_join_c(handle: i64): i32;
-export extern function task_group_pending_c(handle: i64): i32;
-export extern function task_group_check_leak_c(handle: i64): i32;
-export extern function task_group_cancel_c(handle: i64): void;
-export extern function task_group_join_total_c(handle: i64): i64;
+extern function task_group_create_c(capacity: i32): i64;
+extern function task_group_free_c(handle: i64): void;
+extern function task_group_bind_context_c(handle: i64, ctx_handle: i64): void;
+extern function task_group_spawn_c(handle: i64, fn: *u8, seed: i32): i32;
+extern function task_group_join_c(handle: i64): i32;
+extern function task_group_pending_c(handle: i64): i32;
+extern function task_group_check_leak_c(handle: i64): i32;
+extern function task_group_cancel_c(handle: i64): void;
+extern function task_group_join_total_c(handle: i64): i64;
 
-export extern function join_set_create_c(capacity: i32): i64;
-export extern function join_set_free_c(handle: i64): void;
-export extern function join_set_spawn_c(handle: i64, fn: *u8, seed: i32): i32;
-export extern function join_set_join_c(handle: i64): i32;
-export extern function join_set_check_leak_c(handle: i64): i32;
+extern function join_set_create_c(capacity: i32): i64;
+extern function join_set_free_c(handle: i64): void;
+extern function join_set_spawn_c(handle: i64, fn: *u8, seed: i32): i32;
+extern function join_set_join_c(handle: i64): i32;
+extern function join_set_check_leak_c(handle: i64): i32;
 
-export extern function task_supervise_retry_c(fn: *u8, seed: i32, max_attempts: i32, backoff_ns: i64): i32;
-export extern function task_echo_fn_c(): i32;
-export extern function task_echo_fn_ptr_c(): *u8;
+extern function task_supervise_retry_c(fn: *u8, seed: i32, max_attempts: i32, backoff_ns: i64): i32;
+extern function task_echo_fn_c(): i32;
+extern function task_echo_fn_ptr_c(): *u8;
 
 /** 烟测用回显任务入口。 */
 export function echo(): i32 {

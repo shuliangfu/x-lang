@@ -23,25 +23,25 @@
 const base64_mod = import("std.base64");
 const string_mod = import("std.string");
 
-export extern function encoding_utf8_valid_c(p: *u8, len: i32): i32;
-export extern function encoding_utf8_len_chars_c(p: *u8, len: i32): i32;
-export extern function encoding_utf8_encode_rune_c(r: u32, out: *u8): i32;
-export extern function encoding_utf8_decode_rune_c(p: *u8, len: i32, out_r: *u32): i32;
-export extern function encoding_ascii_is_alpha_c(c: u8): i32;
-export extern function encoding_ascii_is_digit_c(c: u8): i32;
-export extern function encoding_ascii_is_alnum_c(c: u8): i32;
-export extern function encoding_ascii_is_lower_c(c: u8): i32;
-export extern function encoding_ascii_is_upper_c(c: u8): i32;
-export extern function encoding_ascii_to_lower_c(c: u8): u8;
-export extern function encoding_ascii_to_upper_c(c: u8): u8;
-export extern function encoding_hex_encode_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32;
-export extern function encoding_hex_decode_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32;
-export extern function encoding_hex_encoded_len_c(src_len: i32): i32;
-export extern function encoding_base32_encode_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32;
-export extern function encoding_base32_decode_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32;
-export extern function encoding_percent_encode_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32;
-export extern function encoding_percent_decode_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32;
-export extern function encoding_extra_smoke_c(): i32;
+extern function encoding_utf8_valid_c(p: *u8, len: i32): i32;
+extern function encoding_utf8_len_chars_c(p: *u8, len: i32): i32;
+extern function encoding_utf8_encode_rune_c(r: u32, out: *u8): i32;
+extern function encoding_utf8_decode_rune_c(p: *u8, len: i32, out_r: *u32): i32;
+extern function encoding_ascii_is_alpha_c(c: u8): i32;
+extern function encoding_ascii_is_digit_c(c: u8): i32;
+extern function encoding_ascii_is_alnum_c(c: u8): i32;
+extern function encoding_ascii_is_lower_c(c: u8): i32;
+extern function encoding_ascii_is_upper_c(c: u8): i32;
+extern function encoding_ascii_to_lower_c(c: u8): u8;
+extern function encoding_ascii_to_upper_c(c: u8): u8;
+extern function encoding_hex_encode_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32;
+extern function encoding_hex_decode_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32;
+extern function encoding_hex_encoded_len_c(src_len: i32): i32;
+extern function encoding_base32_encode_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32;
+extern function encoding_base32_decode_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32;
+extern function encoding_percent_encode_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32;
+extern function encoding_percent_decode_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32;
+extern function encoding_extra_smoke_c(): i32;
 
 /** UTF-8 校验 ptr[0..len)；合法返回 1，非法返回 0。单遍、表驱动。 */
 export function utf8_valid(ptr: *u8, len: i32): i32 {

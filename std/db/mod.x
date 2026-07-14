@@ -38,10 +38,10 @@ export struct DbConn {
   handle: i64;
 }
 
-export extern function db_open_c(path: *u8): i64;
-export extern function db_close_c(handle: i64): i32;
-export extern function db_exec_c(handle: i64, sql: *u8): i32;
-export extern function db_changes_c(handle: i64): i32;
+extern function db_open_c(path: *u8): i64;
+extern function db_close_c(handle: i64): i32;
+extern function db_exec_c(handle: i64, sql: *u8): i32;
+extern function db_changes_c(handle: i64): i32;
 
 /** STD-120：import("std.db") 已废弃；恒 1。 */
 export function is_deprecated(): i32 {

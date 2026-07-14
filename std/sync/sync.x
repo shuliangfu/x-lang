@@ -31,27 +31,27 @@ export const SYNC_LOCK_DIAG_ERR_TABLE: i32 = -4;
 export const SYNC_LOCK_DIAG_MAX_META: i32 = 64;
 
 /** TLS 持有栈（runtime_sync_lock_diag_tls.c）。 */
-export extern function sync_lock_diag_tls_push_c(m: *u8, order_id: i32): i32;
-export extern function sync_lock_diag_tls_pop_c(): void;
-export extern function sync_lock_diag_tls_has_c(m: *u8): i32;
-export extern function sync_lock_diag_tls_max_order_c(): i32;
-export extern function sync_lock_diag_tls_count_c(): i32;
-export extern function sync_lock_diag_tls_clear_c(): void;
+extern function sync_lock_diag_tls_push_c(m: *u8, order_id: i32): i32;
+extern function sync_lock_diag_tls_pop_c(): void;
+extern function sync_lock_diag_tls_has_c(m: *u8): i32;
+extern function sync_lock_diag_tls_max_order_c(): i32;
+extern function sync_lock_diag_tls_count_c(): i32;
+extern function sync_lock_diag_tls_clear_c(): void;
 
 /** 诊断钩子（runtime_sync_lock_diag_tls.c 强符号，供 runtime_sync_os 调用）。 */
-export extern function sync_lock_diag_before_lock(m: *u8): i32;
-export extern function sync_lock_diag_after_lock(m: *u8): void;
-export extern function sync_lock_diag_before_unlock(m: *u8): i32;
-export extern function sync_lock_diag_after_unlock(m: *u8): void;
+extern function sync_lock_diag_before_lock(m: *u8): i32;
+extern function sync_lock_diag_after_lock(m: *u8): void;
+extern function sync_lock_diag_before_unlock(m: *u8): i32;
+extern function sync_lock_diag_after_unlock(m: *u8): void;
 
 /** 诊断配置与查询 API（runtime_sync_lock_diag_tls.c）。 */
-export extern function sync_lock_diag_set_enabled_c(on: i32): void;
-export extern function sync_lock_diag_is_enabled_c(): i32;
-export extern function sync_lock_diag_mutex_set_id_c(m: *u8, id: i32): i32;
-export extern function sync_lock_diag_last_err_c(): i32;
-export extern function sync_lock_diag_clear_c(): void;
-export extern function sync_lock_diag_snapshot_c(out: *u8, cap: i32): i32;
-export extern function sync_lock_diag_smoke_c(): i32;
+extern function sync_lock_diag_set_enabled_c(on: i32): void;
+extern function sync_lock_diag_is_enabled_c(): i32;
+extern function sync_lock_diag_mutex_set_id_c(m: *u8, id: i32): i32;
+extern function sync_lock_diag_last_err_c(): i32;
+extern function sync_lock_diag_clear_c(): void;
+extern function sync_lock_diag_snapshot_c(out: *u8, cap: i32): i32;
+extern function sync_lock_diag_smoke_c(): i32;
 
 /** F-sync v1 版本标记；供聚合 gate 校验 sync.x 已参与构建。 */
 export function sync_f_sync_v1_marker_c(): i32 {

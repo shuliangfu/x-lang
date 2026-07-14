@@ -167,7 +167,7 @@ allow(padding) struct SyncQueue_i32 {
 }
 
 /** C 层双线程竞争 push 烟测（queue.x + runtime_queue_contention.c）；0 通过，-1 失败。 */
-export extern function sync_queue_contention_smoke_c(): i32;
+extern function sync_queue_contention_smoke_c(): i32;
 
 /** 创建空 SyncQueue_i32；mutex 分配失败时 lock 为 null。 */
 export function sync_new(): SyncQueue_i32 {

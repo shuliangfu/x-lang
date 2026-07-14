@@ -232,17 +232,17 @@ allow(padding) struct SioClusterAdapterSnapshotMem {
 }
 
 
-export extern function http_get_timeout_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
-export extern function http_post_timeout_c(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32,
+extern function http_get_timeout_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
+extern function http_post_timeout_c(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32,
   timeout_ms: u32): i32;
-export extern function net_ws_write_text_c(fd: i32, tls_ctx: i64, payload: *u8, payload_len: i32): i32;
-export extern function net_ws_write_server_text_c(fd: i32, tls_ctx: i64, payload: *u8, payload_len: i32): i32;
-export extern function net_ws_read_frame_c(fd: i32, tls_ctx: i64, out_opcode: *i32, out_payload: *u8, out_cap: i32,
+extern function net_ws_write_text_c(fd: i32, tls_ctx: i64, payload: *u8, payload_len: i32): i32;
+extern function net_ws_write_server_text_c(fd: i32, tls_ctx: i64, payload: *u8, payload_len: i32): i32;
+extern function net_ws_read_frame_c(fd: i32, tls_ctx: i64, out_opcode: *i32, out_payload: *u8, out_cap: i32,
   out_payload_len: *i32, timeout_ms: u32): i32;
-export extern function memcpy(dst: *u8, src: *u8, n: usize): *u8;
-export extern function memcmp(a: *u8, b: *u8, n: usize): i32;
-export extern function memset(s: *u8, c: i32, n: usize): *u8;
-export extern function strlen(s: *u8): usize;
+extern function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+extern function memcmp(a: *u8, b: *u8, n: usize): i32;
+extern function memset(s: *u8, c: i32, n: usize): *u8;
+extern function strlen(s: *u8): usize;
 
 
 /** F-socketio v1 版本标记；供聚合 gate 校验 socketio.x 已参与编译。 */

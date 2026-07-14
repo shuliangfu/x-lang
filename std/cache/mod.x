@@ -60,22 +60,22 @@ export function err_full(): i32 { return -3; }
 /** 参数非法或重复。 */
 export function err_invalid(): i32 { return -4; }
 
-export extern function cache_lru_create_c(capacity: i32): i64;
-export extern function cache_lru_free_c(handle: i64): void;
-export extern function cache_lru_get_c(handle: i64, key: i64, out_value: *i64): i32;
-export extern function cache_lru_put_c(handle: i64, key: i64, value: i64, ttl_ns: i64): i32;
-export extern function cache_lru_remove_c(handle: i64, key: i64): i32;
-export extern function cache_lru_purge_expired_c(handle: i64): i32;
-export extern function cache_lru_stats_c(handle: i64, hits: *i64, misses: *i64, evictions: *i64, size: *i32): void;
+extern function cache_lru_create_c(capacity: i32): i64;
+extern function cache_lru_free_c(handle: i64): void;
+extern function cache_lru_get_c(handle: i64, key: i64, out_value: *i64): i32;
+extern function cache_lru_put_c(handle: i64, key: i64, value: i64, ttl_ns: i64): i32;
+extern function cache_lru_remove_c(handle: i64, key: i64): i32;
+extern function cache_lru_purge_expired_c(handle: i64): i32;
+extern function cache_lru_stats_c(handle: i64, hits: *i64, misses: *i64, evictions: *i64, size: *i32): void;
 
-export extern function cache_pool_create_c(max_slots: i32): i64;
-export extern function cache_pool_free_c(handle: i64): void;
-export extern function cache_pool_add_c(handle: i64, resource: i64): i32;
-export extern function cache_pool_acquire_c(handle: i64, out_resource: *i64): i32;
-export extern function cache_pool_release_c(handle: i64, resource: i64): i32;
-export extern function cache_pool_mark_unhealthy_c(handle: i64, resource: i64): i32;
-export extern function cache_pool_idle_c(handle: i64): i32;
-export extern function cache_pool_stats_c(handle: i64, idle: *i32, in_use: *i32, unhealthy: *i32, acquires: *i64): void;
+extern function cache_pool_create_c(max_slots: i32): i64;
+extern function cache_pool_free_c(handle: i64): void;
+extern function cache_pool_add_c(handle: i64, resource: i64): i32;
+extern function cache_pool_acquire_c(handle: i64, out_resource: *i64): i32;
+extern function cache_pool_release_c(handle: i64, resource: i64): i32;
+extern function cache_pool_mark_unhealthy_c(handle: i64, resource: i64): i32;
+extern function cache_pool_idle_c(handle: i64): i32;
+extern function cache_pool_stats_c(handle: i64, idle: *i32, in_use: *i32, unhealthy: *i32, acquires: *i64): void;
 
 /** 创建 LRU 缓存；capacity 默认上限 64。 */
 export function new_lru(capacity: i32): LruCache {

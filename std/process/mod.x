@@ -49,20 +49,20 @@
 // 结尾）；.x 侧传 *u8 表示该指针，调用方须自行构造指针数组。
 // - spawn_simple(program)、exec_simple(program) 内部使用 argv=[program,
 // NULL]，无需调用方构造 argv。
-export extern function process_args_count_c(): i32;
-export extern function process_arg_c(i: i32): *u8;
-export extern function process_getenv_c(name: *u8): *u8;
-export extern function process_setenv_c(name: *u8, value: *u8, overwrite: i32): i32;
-export extern function process_unsetenv_c(name: *u8): i32;
-export extern function process_getpid_c(): i32;
-export extern function process_getppid_c(): i32;
-export extern function process_getcwd_c(buf: *u8, buf_size: i32): i32;
-export extern function process_getcwd_ptr_c(): *u8;
-export extern function process_getcwd_cached_len_c(): i32;
-export extern function process_chdir_c(path: *u8): i32;
-export extern function process_self_exe_path_c(buf: *u8, buf_size: i32): i32;
-export extern function process_self_exe_path_ptr_c(): *u8;
-export extern function process_self_exe_path_cached_len_c(): i32;
+extern function process_args_count_c(): i32;
+extern function process_arg_c(i: i32): *u8;
+extern function process_getenv_c(name: *u8): *u8;
+extern function process_setenv_c(name: *u8, value: *u8, overwrite: i32): i32;
+extern function process_unsetenv_c(name: *u8): i32;
+extern function process_getpid_c(): i32;
+extern function process_getppid_c(): i32;
+extern function process_getcwd_c(buf: *u8, buf_size: i32): i32;
+extern function process_getcwd_ptr_c(): *u8;
+extern function process_getcwd_cached_len_c(): i32;
+extern function process_chdir_c(path: *u8): i32;
+extern function process_self_exe_path_c(buf: *u8, buf_size: i32): i32;
+extern function process_self_exe_path_ptr_c(): *u8;
+extern function process_self_exe_path_cached_len_c(): i32;
 
 /** spawn_io 重定向描述；fd < 0 表示继承对应 stdio（STD-023）。 */
 export struct SpawnIo {
@@ -71,12 +71,12 @@ export struct SpawnIo {
   stderr_fd: i32;
 }
 
-export extern function process_spawn_c(program: *u8, argv: *u8): i32;
-export extern function process_spawn_io_c(program: *u8, argv: *u8, io: *SpawnIo): i32;
-export extern function process_exec_c(program: *u8, argv: *u8): i32;
-export extern function process_waitpid_c(pid: i32): i32;
-export extern function process_spawn_simple_c(program: *u8): i32;
-export extern function process_exec_simple_c(program: *u8): i32;
+extern function process_spawn_c(program: *u8, argv: *u8): i32;
+extern function process_spawn_io_c(program: *u8, argv: *u8, io: *SpawnIo): i32;
+extern function process_exec_c(program: *u8, argv: *u8): i32;
+extern function process_waitpid_c(pid: i32): i32;
+extern function process_spawn_simple_c(program: *u8): i32;
+extern function process_exec_simple_c(program: *u8): i32;
 /** 终止进程，退出码为 code（noreturn；C 侧调用 exit(code)）。 */
 export function exit(code: i32): i32 {
   return 0;
@@ -223,7 +223,7 @@ export function exec_simple(program: *u8): i32 {
   unsafe { _rc = process_exec_simple_c(program); }
   return _rc;
 }
-export extern function process_pipe_c(read_fd: *i32, write_fd: *i32): i32;
+extern function process_pipe_c(read_fd: *i32, write_fd: *i32): i32;
 /** 创建管道（P3 扩展）；成功时 *read_fd 可读、*write_fd 可写，返回
 * 0；失败返回 -1。POSIX 可用；Windows 暂返回 -1。 */
 export function pipe(read_fd: *i32, write_fd: *i32): i32 {

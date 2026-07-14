@@ -25,8 +25,8 @@
 //
 // 底层拼写：f32x4 / i32x8 与 Vec4f / Vec8i 等价（parser + asm 后端）。
 
-export extern function simd_hw_available_c(): i32;
-export extern function simd_recommend_path_c(): i32;
+extern function simd_hw_available_c(): i32;
+extern function simd_recommend_path_c(): i32;
 
 /** lane-scalar 回退路径常量（与 simd.c SIMD_PATH_SCALAR 一致）。 */
 export function SIMD_PATH_SCALAR(): i32 { return 0; }

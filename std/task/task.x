@@ -49,23 +49,23 @@ allow(padding) struct JoinSetMem {
   join_total: i64;
 }
 
-export extern function shux_async_spawn_i32(fn: *u8, seed: i32): i32;
-export extern function shux_async_run_seed_reset(): void;
-export extern function shux_async_queue_reset(): void;
-export extern function shux_async_run_drain_until_idle(): i32;
-export extern function shux_async_run_seed_valid(): i32;
-export extern function shux_async_run_seed_take_i32(): i32;
-export extern function shux_async_bind_context_c(ctx_handle: i64): void;
-export extern function ctx_is_cancelled_c(handle: i64): i32;
-export extern function ctx_cancel_c(handle: i64): void;
-export extern function time_sleep_ns_c(ns: i64): void;
-export extern "C" function calloc(nmemb: usize, size: usize): *u8;
-export extern "C" function free(ptr: *u8): void;
+extern function shux_async_spawn_i32(fn: *u8, seed: i32): i32;
+extern function shux_async_run_seed_reset(): void;
+extern function shux_async_queue_reset(): void;
+extern function shux_async_run_drain_until_idle(): i32;
+extern function shux_async_run_seed_valid(): i32;
+extern function shux_async_run_seed_take_i32(): i32;
+extern function shux_async_bind_context_c(ctx_handle: i64): void;
+extern function ctx_is_cancelled_c(handle: i64): i32;
+extern function ctx_cancel_c(handle: i64): void;
+extern function time_sleep_ns_c(ns: i64): void;
+extern "C" function calloc(nmemb: usize, size: usize): *u8;
+extern "C" function free(ptr: *u8): void;
 
 /**
  * F-task v2：.x 尚不能同模块取函数址；scheduler 在链 task.o 时解析 task_echo_fn_c 符号。
  */
-export extern function shux_async_task_echo_fn_ptr_c(): *u8;
+extern function shux_async_task_echo_fn_ptr_c(): *u8;
 
 /** F-task v1 版本标记；供 v1 聚合 gate 校验。 */
 export function task_f_task_v1_marker_c(): i32 {

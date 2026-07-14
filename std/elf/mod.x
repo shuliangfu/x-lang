@@ -79,18 +79,18 @@ allow(padding) struct Elf64Rela {
   addend: i64
 }
 
-export extern function elf64_parse_hdr_c(ptr: *u8, len: i32, out: *Elf64Hdr): i32;
-export extern function elf64_read_phdr_c(ptr: *u8, len: i32, phoff: u64, phnum: i32, idx: i32, out: *Elf64Phdr): i32;
-export extern function elf64_read_shdr_c(ptr: *u8, len: i32, shoff: u64, shnum: i32, idx: i32, out: *Elf64Sec): i32;
-export extern function elf64_sec_name_c(ptr: *u8, len: i32, str_off: u64, str_size: u64, name_off: i32, buf: *u8, buf_len: i32): i32;
-export extern function elf64_find_section_c(ptr: *u8, len: i32, shoff: u64, shnum: i32, shstrndx: i32, want: *u8, out_idx: *i32): i32;
-export extern function elf64_read_sec_byte_c(ptr: *u8, len: i32, sec_off: u64, sec_size: u64, at: u64, out: *u8): i32;
-export extern function elf64_read_sym_c(ptr: *u8, len: i32, sym_off: u64, sym_size: u64, idx: i32, out: *Elf64Sym): i32;
-export extern function elf64_read_rela_c(ptr: *u8, len: i32, rela_off: u64, rela_size: u64, idx: i32, out: *Elf64Rela): i32;
-export extern function elf64_write_min_reloc_size_c(text_len: i32): i32;
-export extern function elf64_write_min_reloc_c(buf: *u8, cap: i32, text: *u8, text_len: i32, out_len: *i32): i32;
-export extern function elf64_write_smoke_c(): i32;
-export extern function elf64_parse_smoke_c(): i32;
+extern function elf64_parse_hdr_c(ptr: *u8, len: i32, out: *Elf64Hdr): i32;
+extern function elf64_read_phdr_c(ptr: *u8, len: i32, phoff: u64, phnum: i32, idx: i32, out: *Elf64Phdr): i32;
+extern function elf64_read_shdr_c(ptr: *u8, len: i32, shoff: u64, shnum: i32, idx: i32, out: *Elf64Sec): i32;
+extern function elf64_sec_name_c(ptr: *u8, len: i32, str_off: u64, str_size: u64, name_off: i32, buf: *u8, buf_len: i32): i32;
+extern function elf64_find_section_c(ptr: *u8, len: i32, shoff: u64, shnum: i32, shstrndx: i32, want: *u8, out_idx: *i32): i32;
+extern function elf64_read_sec_byte_c(ptr: *u8, len: i32, sec_off: u64, sec_size: u64, at: u64, out: *u8): i32;
+extern function elf64_read_sym_c(ptr: *u8, len: i32, sym_off: u64, sym_size: u64, idx: i32, out: *Elf64Sym): i32;
+extern function elf64_read_rela_c(ptr: *u8, len: i32, rela_off: u64, rela_size: u64, idx: i32, out: *Elf64Rela): i32;
+extern function elf64_write_min_reloc_size_c(text_len: i32): i32;
+extern function elf64_write_min_reloc_c(buf: *u8, cap: i32, text: *u8, text_len: i32, out_len: *i32): i32;
+extern function elf64_write_smoke_c(): i32;
+extern function elf64_parse_smoke_c(): i32;
 
 /** ELF 模块已实现（对接 elf.x）。 */
 export function is_implemented(): i32 { return 1; }

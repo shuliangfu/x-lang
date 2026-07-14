@@ -43,15 +43,15 @@ allow(padding) struct ArrowBatchMem {
   cols: *u64;
 }
 
-export extern "C" function calloc(nmemb: usize, size: usize): *u8;
-export extern "C" function free(ptr: *u8): void;
-export extern "C" function memset(s: *u8, c: i32, n: usize): *u8;
-export extern "C" function posix_memalign(memptr: * *void, alignment: usize, size: usize): i32;
+extern "C" function calloc(nmemb: usize, size: usize): *u8;
+extern "C" function free(ptr: *u8): void;
+extern "C" function memset(s: *u8, c: i32, n: usize): *u8;
+extern "C" function posix_memalign(memptr: * *void, alignment: usize, size: usize): i32;
 
-export extern function arrow_column_i32_sum_valid_c(handle: i64, n: i32): i32;
-export extern function arrow_column_f32_sum_c(handle: i64, n: i32): f32;
-export extern function arrow_column_f32_sum_valid_c(handle: i64, n: i32): f32;
-export extern function arrow_column_f32_dot_c(handle_a: i64, handle_b: i64, n: i32): f32;
+extern function arrow_column_i32_sum_valid_c(handle: i64, n: i32): i32;
+extern function arrow_column_f32_sum_c(handle: i64, n: i32): f32;
+extern function arrow_column_f32_sum_valid_c(handle: i64, n: i32): f32;
+extern function arrow_column_f32_dot_c(handle_a: i64, handle_b: i64, n: i32): f32;
 
 /**
  * 64B 对齐分配；失败返回 null。

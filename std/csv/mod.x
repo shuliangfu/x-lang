@@ -19,16 +19,16 @@
 // next_field / unescape / parse_row / write_row / stream：csv.x（F-csv v1）。
 // escape（mod 内简化版）仍可用；write_row 经 csv.x 的 csv_escape_c（含引号双写）。
 
-export extern function next_field(ptr: *u8, len: i32, offset: i32, out_start: *i32, out_len: *i32): i32;
-export extern function unescape(ptr: *u8, len: i32, buf: *u8, buf_cap: i32): i32;
-export extern function csv_test_quoted_first(out_start: *i32, out_len: *i32): i32;
-export extern function csv_test_quoted_second(offset: i32, out_start: *i32, out_len: *i32): i32;
-export extern function csv_test_unescape_ok(buf: *u8, buf_cap: i32): i32;
-export extern function csv_test_unescape_fail(): i32;
-export extern function parse_row(ptr: *u8, len: i32, offset: i32, field_starts: *i32, field_lens: *i32, max_fields: i32, out_count: *i32): i32;
-export extern function write_row(blob: *u8, starts: *i32, lens: *i32, count: i32, out: *u8, out_cap: i32): i32;
-export extern function csv_stream_smoke_c(): i32;
-export extern function csv_stream_writer_append_row_c(out: *u8, out_cap: i32, out_len: *i32, blob: *u8, starts: *i32, lens: *i32, count: i32): i32;
+extern function next_field(ptr: *u8, len: i32, offset: i32, out_start: *i32, out_len: *i32): i32;
+extern function unescape(ptr: *u8, len: i32, buf: *u8, buf_cap: i32): i32;
+extern function csv_test_quoted_first(out_start: *i32, out_len: *i32): i32;
+extern function csv_test_quoted_second(offset: i32, out_start: *i32, out_len: *i32): i32;
+extern function csv_test_unescape_ok(buf: *u8, buf_cap: i32): i32;
+extern function csv_test_unescape_fail(): i32;
+extern function parse_row(ptr: *u8, len: i32, offset: i32, field_starts: *i32, field_lens: *i32, max_fields: i32, out_count: *i32): i32;
+extern function write_row(blob: *u8, starts: *i32, lens: *i32, count: i32, out: *u8, out_cap: i32): i32;
+extern function csv_stream_smoke_c(): i32;
+extern function csv_stream_writer_append_row_c(out: *u8, out_cap: i32, out_len: *i32, blob: *u8, starts: *i32, lens: *i32, count: i32): i32;
 
 /** 将字段转义为带引号的 CSV 单元写入 buf；返回写入长度，失败 -1。 */
 export function escape(ptr: *u8, len: i32, buf: *u8, buf_cap: i32): i32 {

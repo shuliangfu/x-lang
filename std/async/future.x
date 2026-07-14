@@ -41,8 +41,8 @@ allow(padding) struct ShuxFutureSlot {
 }
 
 /** 未链 scheduler.o 时 drain/poll 弱桩（future_wait 仍可编译）。 */
-export extern function shux_async_run_drain_until_idle(): i32;
-export extern function shux_io_poll_async_completions(timeout_ms: u32): u32;
+extern function shux_async_run_drain_until_idle(): i32;
+extern function shux_io_poll_async_completions(timeout_ms: u32): u32;
 
 /** 模块级 Future 静态池（BSS 零初始化）。 */
 let g_shux_futures: ShuxFutureSlot[64] = [];

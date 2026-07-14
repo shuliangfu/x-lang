@@ -30,10 +30,10 @@
 // - 仅 Linux freestanding；hosted 仍用 heap.c / malloc
 
 /** freestanding mmap(2) 桩（6 参；offset 低 32 位在 r9）。 */
-export extern function shux_sys_mmap(addr: *u8, len: usize, prot: i32, flags: i32, fd: i32, offset: i64): *u8;
+extern function shux_sys_mmap(addr: *u8, len: usize, prot: i32, flags: i32, fd: i32, offset: i64): *u8;
 
 /** freestanding munmap(2) 桩；成功 0，失败负 errno。 */
-export extern function shux_sys_munmap(addr: *u8, len: usize): i32;
+extern function shux_sys_munmap(addr: *u8, len: usize): i32;
 
 /** 默认映射容量（64KiB）。bug ① 已修复（commit 853c5e1b）：字面量 const 跳过栈槽登记，引用走立即数。 */
 export const HEAP_CAP: usize = 65536;

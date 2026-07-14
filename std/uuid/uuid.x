@@ -25,9 +25,9 @@
 const mem = import("core.mem");
 
 /** 密码学随机字节（链入 random.o）。 */
-export extern function random_fill_bytes_c(buf: *u8, len: i32): i32;
+extern function random_fill_bytes_c(buf: *u8, len: i32): i32;
 /** 墙钟毫秒（链入 time.o）。 */
-export extern function time_now_wall_ms_c(): i64;
+extern function time_now_wall_ms_c(): i64;
 
 /** v7 上次生成的 Unix 毫秒；同毫秒内 uuid_v7_seq 单调递增 rand_a。 */
 let uuid_v7_last_ms: i64 = -1;

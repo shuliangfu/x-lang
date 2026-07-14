@@ -119,29 +119,29 @@ allow(padding) struct SchSchema {
   error_msg: u8[128];
 }
 
-export extern function json_cursor_init_c(cur: *JsonCursor, ptr: *u8, len: i32): void;
-export extern function json_cursor_enter_object_c(cur: *JsonCursor): i32;
-export extern function json_cursor_object_next_c(cur: *JsonCursor, key_buf: *u8, key_cap: i32,
+extern function json_cursor_init_c(cur: *JsonCursor, ptr: *u8, len: i32): void;
+extern function json_cursor_enter_object_c(cur: *JsonCursor): i32;
+extern function json_cursor_object_next_c(cur: *JsonCursor, key_buf: *u8, key_cap: i32,
   key_len: *i32): i32;
-export extern function json_cursor_skip_value_c(cur: *JsonCursor): i32;
-export extern function json_cursor_enter_array_c(cur: *JsonCursor): i32;
-export extern function json_cursor_array_has_elem_c(cur: *JsonCursor): i32;
-export extern function json_cursor_value_type_c(cur: *JsonCursor): i32;
-export extern function json_parse_string_c(ptr: *u8, len: i32, out: *u8, out_cap: i32,
+extern function json_cursor_skip_value_c(cur: *JsonCursor): i32;
+extern function json_cursor_enter_array_c(cur: *JsonCursor): i32;
+extern function json_cursor_array_has_elem_c(cur: *JsonCursor): i32;
+extern function json_cursor_value_type_c(cur: *JsonCursor): i32;
+extern function json_parse_string_c(ptr: *u8, len: i32, out: *u8, out_cap: i32,
   consumed: *i32): i32;
-export extern function json_parse_number_c(ptr: *u8, len: i32, out_val: *f64, consumed: *i32): i32;
-export extern function json_parse_bool_c(ptr: *u8, len: i32, out: *i32, consumed: *i32): i32;
-export extern function json_parse_null_c(ptr: *u8, len: i32, consumed: *i32): i32;
+extern function json_parse_number_c(ptr: *u8, len: i32, out_val: *f64, consumed: *i32): i32;
+extern function json_parse_bool_c(ptr: *u8, len: i32, out: *i32, consumed: *i32): i32;
+extern function json_parse_null_c(ptr: *u8, len: i32, consumed: *i32): i32;
 
-export extern function parse_row(ptr: *u8, len: i32, offset: i32, field_starts: *i32,
+extern function parse_row(ptr: *u8, len: i32, offset: i32, field_starts: *i32,
   field_lens: *i32, max_fields: i32, out_count: *i32): i32;
 
-export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
-export extern "C" function memset(s: *u8, c: i32, n: usize): *u8;
-export extern "C" function calloc(nmemb: usize, size: usize): *u8;
-export extern "C" function free(ptr: *u8): void;
-export extern "C" function strcmp(a: *u8, b: *u8): i32;
-export extern "C" function strlen(s: *u8): usize;
+extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+extern "C" function memset(s: *u8, c: i32, n: usize): *u8;
+extern "C" function calloc(nmemb: usize, size: usize): *u8;
+extern "C" function free(ptr: *u8): void;
+extern "C" function strcmp(a: *u8, b: *u8): i32;
+extern "C" function strlen(s: *u8): usize;
 
 /** F-schema v1 版本标记；供聚合 gate 校验 schema.x 已参与构建。 */
 export function schema_f_schema_v1_marker_c(): i32 {

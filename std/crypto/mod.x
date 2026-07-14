@@ -19,24 +19,24 @@
 // 【文件职责】mem_eq、sha256、sha512、hmac_sha256、ed25519、aes_gcm、chacha20_poly1305。
 // 【依赖】core；实现见 core.x + aes_gcm.x + chacha20_poly1305.x + ed25519.x + 胶层（ld -r → crypto.o）。
 
-export extern function crypto_mem_eq_c(a: *u8, b: *u8, len: i32): i32;
-export extern function crypto_sha256_c(msg: *u8, len: i32, out: *u8): void;
-export extern function crypto_sha512_c(msg: *u8, len: i32, out: *u8): void;
-export extern function crypto_hmac_sha256_c(key: *u8, key_len: i32, msg: *u8, msg_len: i32, out: *u8): void;
-export extern function crypto_hmac_sha512_c(key: *u8, key_len: i32, msg: *u8, msg_len: i32, out: *u8): void;
-export extern function crypto_ed25519_public_from_seed_c(seed: *u8, pub: *u8): void;
-export extern function crypto_ed25519_sign_c(seed: *u8, msg: *u8, msg_len: i32, sig: *u8): i32;
-export extern function crypto_ed25519_verify_c(pub: *u8, msg: *u8, msg_len: i32, sig: *u8): i32;
-export extern function crypto_ed25519_smoke_c(): i32;
-export extern function crypto_aes_gcm_seal_c(key: *u8, key_len: i32, iv: *u8, iv_len: i32, aad: *u8,
+extern function crypto_mem_eq_c(a: *u8, b: *u8, len: i32): i32;
+extern function crypto_sha256_c(msg: *u8, len: i32, out: *u8): void;
+extern function crypto_sha512_c(msg: *u8, len: i32, out: *u8): void;
+extern function crypto_hmac_sha256_c(key: *u8, key_len: i32, msg: *u8, msg_len: i32, out: *u8): void;
+extern function crypto_hmac_sha512_c(key: *u8, key_len: i32, msg: *u8, msg_len: i32, out: *u8): void;
+extern function crypto_ed25519_public_from_seed_c(seed: *u8, pub: *u8): void;
+extern function crypto_ed25519_sign_c(seed: *u8, msg: *u8, msg_len: i32, sig: *u8): i32;
+extern function crypto_ed25519_verify_c(pub: *u8, msg: *u8, msg_len: i32, sig: *u8): i32;
+extern function crypto_ed25519_smoke_c(): i32;
+extern function crypto_aes_gcm_seal_c(key: *u8, key_len: i32, iv: *u8, iv_len: i32, aad: *u8,
   aad_len: i32, pt: *u8, pt_len: i32, ct: *u8, tag: *u8): i32;
-export extern function crypto_aes_gcm_open_c(key: *u8, key_len: i32, iv: *u8, iv_len: i32, aad: *u8,
+extern function crypto_aes_gcm_open_c(key: *u8, key_len: i32, iv: *u8, iv_len: i32, aad: *u8,
   aad_len: i32, ct: *u8, ct_len: i32, tag: *u8, pt: *u8): i32;
-export extern function crypto_chacha20_poly1305_seal_c(key: *u8, key_len: i32, nonce: *u8, nonce_len: i32,
+extern function crypto_chacha20_poly1305_seal_c(key: *u8, key_len: i32, nonce: *u8, nonce_len: i32,
   aad: *u8, aad_len: i32, pt: *u8, pt_len: i32, ct: *u8, tag: *u8): i32;
-export extern function crypto_chacha20_poly1305_open_c(key: *u8, key_len: i32, nonce: *u8, nonce_len: i32,
+extern function crypto_chacha20_poly1305_open_c(key: *u8, key_len: i32, nonce: *u8, nonce_len: i32,
   aad: *u8, aad_len: i32, ct: *u8, ct_len: i32, tag: *u8, pt: *u8): i32;
-export extern function crypto_chacha20_poly1305_smoke_c(): i32;
+extern function crypto_chacha20_poly1305_smoke_c(): i32;
 
 /** Ed25519 seed 长度（字节）。 */
 export function ED25519_SEED_LEN(): i32 { return 32; }

@@ -25,30 +25,30 @@ export const SELECT_DIR_RECV: i32 = 0;
 /** select 方向：发送 case。 */
 export const SELECT_DIR_SEND: i32 = 1;
 
-export extern function channel_i32_bounded_c(cap: i32): *u8;
-export extern function channel_i32_unbounded_c(): *u8;
-export extern function channel_i32_send_c(ch: *u8, val: i32): i32;
-export extern function channel_i32_recv_c(ch: *u8, out: *i32): i32;
-export extern function channel_i32_try_send_c(ch: *u8, val: i32): i32;
-export extern function channel_i32_try_recv_c(ch: *u8, out: *i32): i32;
-export extern function channel_i32_close_c(ch: *u8): void;
-export extern function channel_i32_free_c(ch: *u8): void;
-export extern function channel_i32_is_closed_c(ch: *u8): i32;
+extern function channel_i32_bounded_c(cap: i32): *u8;
+extern function channel_i32_unbounded_c(): *u8;
+extern function channel_i32_send_c(ch: *u8, val: i32): i32;
+extern function channel_i32_recv_c(ch: *u8, out: *i32): i32;
+extern function channel_i32_try_send_c(ch: *u8, val: i32): i32;
+extern function channel_i32_try_recv_c(ch: *u8, out: *i32): i32;
+extern function channel_i32_close_c(ch: *u8): void;
+extern function channel_i32_free_c(ch: *u8): void;
+extern function channel_i32_is_closed_c(ch: *u8): i32;
 
-export extern function channel_select_chs_set_c(slots: *i64, idx: i32, ch: *u8): void;
-export extern function channel_select_dirs_set_c(dirs: *i32, idx: i32, dir: i32): void;
-export extern function channel_select_try_recv_2_c(ch0: *u8, ch1: *u8, out_val: *i32, out_index: *i32): i32;
-export extern function channel_select_recv_2_c(ch0: *u8, ch1: *u8, out_val: *i32, out_index: *i32): i32;
-export extern function channel_select_try_recv_n_c(chs_slots: *i64, n: i32, out_val: *i32, out_index: *i32): i32;
-export extern function channel_select_recv_n_c(chs_slots: *i64, n: i32, out_val: *i32, out_index: *i32): i32;
-export extern function channel_select_try_send_2_c(ch0: *u8, ch1: *u8, val: i32, out_index: *i32): i32;
-export extern function channel_select_send_2_c(ch0: *u8, ch1: *u8, val: i32, out_index: *i32): i32;
-export extern function channel_select_try_send_n_c(chs_slots: *i64, n: i32, val: i32, out_index: *i32): i32;
-export extern function channel_select_send_n_c(chs_slots: *i64, n: i32, val: i32, out_index: *i32): i32;
-export extern function channel_select_try_mixed_2_c(recv_ch: *u8, send_ch: *u8, send_val: i32, out_val: *i32, out_is_send: *i32): i32;
-export extern function channel_select_mixed_2_c(recv_ch: *u8, send_ch: *u8, send_val: i32, out_val: *i32, out_is_send: *i32): i32;
-export extern function channel_select_try_mixed_n_c(chs_slots: *i64, dirs: *i32, n: i32, send_val: i32, out_val: *i32, out_index: *i32, out_is_send: *i32): i32;
-export extern function channel_select_mixed_n_c(chs_slots: *i64, dirs: *i32, n: i32, send_val: i32, out_val: *i32, out_index: *i32, out_is_send: *i32): i32;
+extern function channel_select_chs_set_c(slots: *i64, idx: i32, ch: *u8): void;
+extern function channel_select_dirs_set_c(dirs: *i32, idx: i32, dir: i32): void;
+extern function channel_select_try_recv_2_c(ch0: *u8, ch1: *u8, out_val: *i32, out_index: *i32): i32;
+extern function channel_select_recv_2_c(ch0: *u8, ch1: *u8, out_val: *i32, out_index: *i32): i32;
+extern function channel_select_try_recv_n_c(chs_slots: *i64, n: i32, out_val: *i32, out_index: *i32): i32;
+extern function channel_select_recv_n_c(chs_slots: *i64, n: i32, out_val: *i32, out_index: *i32): i32;
+extern function channel_select_try_send_2_c(ch0: *u8, ch1: *u8, val: i32, out_index: *i32): i32;
+extern function channel_select_send_2_c(ch0: *u8, ch1: *u8, val: i32, out_index: *i32): i32;
+extern function channel_select_try_send_n_c(chs_slots: *i64, n: i32, val: i32, out_index: *i32): i32;
+extern function channel_select_send_n_c(chs_slots: *i64, n: i32, val: i32, out_index: *i32): i32;
+extern function channel_select_try_mixed_2_c(recv_ch: *u8, send_ch: *u8, send_val: i32, out_val: *i32, out_is_send: *i32): i32;
+extern function channel_select_mixed_2_c(recv_ch: *u8, send_ch: *u8, send_val: i32, out_val: *i32, out_is_send: *i32): i32;
+extern function channel_select_try_mixed_n_c(chs_slots: *i64, dirs: *i32, n: i32, send_val: i32, out_val: *i32, out_index: *i32, out_is_send: *i32): i32;
+extern function channel_select_mixed_n_c(chs_slots: *i64, dirs: *i32, n: i32, send_val: i32, out_val: *i32, out_index: *i32, out_is_send: *i32): i32;
 
 /** 创建容量为 cap 的有界 channel；失败返回 0。 */
 export function bounded(cap: i32): *u8 {

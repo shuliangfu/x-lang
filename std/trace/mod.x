@@ -38,15 +38,15 @@ export function err_full(): i32 { return -3; }
 /** 参数非法（如非栈顶 end）。 */
 export function err_invalid(): i32 { return -4; }
 
-export extern function create_c(): i64;
-export extern function free_c(handle: i64): void;
-export extern function trace_id_c(handle: i64, out16: *u8): void;
-export extern function current_span_c(handle: i64): i64;
-export extern function start_span_c(handle: i64, parent_id: i64, name: *u8, name_len: i32): i64;
-export extern function end_span_c(handle: i64, span_id: i64): i32;
-export extern function start_child_c(handle: i64, name: *u8, name_len: i32): i64;
-export extern function span_count_c(handle: i64): i32;
-export extern function export_text_c(handle: i64, out: *u8, out_cap: i32): i32;
+extern function create_c(): i64;
+extern function free_c(handle: i64): void;
+extern function trace_id_c(handle: i64, out16: *u8): void;
+extern function current_span_c(handle: i64): i64;
+extern function start_span_c(handle: i64, parent_id: i64, name: *u8, name_len: i32): i64;
+extern function end_span_c(handle: i64, span_id: i64): i32;
+extern function start_child_c(handle: i64, name: *u8, name_len: i32): i64;
+extern function span_count_c(handle: i64): i32;
+extern function export_text_c(handle: i64, out: *u8, out_cap: i32): i32;
 
 /** 创建新追踪会话。 */
 export function new(): Trace {
@@ -219,7 +219,7 @@ export function async_drain(ctx: Context, rt: *AsyncRuntime): i32 {
   return r;
 }
 
-export extern function hooks_smoke_c(): i32;
+extern function hooks_smoke_c(): i32;
 
 /** STD-118：挂钩路径 C 烟测；0 通过。 */
 export function hooks_smoke(): i32 {

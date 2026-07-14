@@ -27,12 +27,12 @@ allow(padding) struct Uuid {
   bytes: u8[16];
 }
 
-export extern function uuid_new_v4_c(out: *u8): i32;
-export extern function uuid_new_v7_c(out: *u8): i32;
-export extern function uuid_parse_c(ptr: *u8, len: i32, out: *u8): i32;
-export extern function uuid_format_c(u: *u8, out: *u8, out_cap: i32): i32;
-export extern function uuid_eq_c(a: *u8, b: *u8): i32;
-export extern function uuid_version_c(u: *u8): i32;
+extern function uuid_new_v4_c(out: *u8): i32;
+extern function uuid_new_v7_c(out: *u8): i32;
+extern function uuid_parse_c(ptr: *u8, len: i32, out: *u8): i32;
+extern function uuid_format_c(u: *u8, out: *u8, out_cap: i32): i32;
+extern function uuid_eq_c(a: *u8, b: *u8): i32;
+extern function uuid_version_c(u: *u8): i32;
 
 /** 生成 UUID v4；失败返回全零 Uuid。 */
 export function new_v4(): Uuid {

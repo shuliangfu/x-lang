@@ -18,16 +18,16 @@
 //
 // 从 ed25519.inc.c 迁出 crypto_ed25519_* 导出与烟测；ref10 曲线运算见 ed25519_ref10_glue.c。
 
-export extern function crypto_mem_eq_c(a: *u8, b: *u8, len: i32): i32;
+extern function crypto_mem_eq_c(a: *u8, b: *u8, len: i32): i32;
 
 /** ref10：由 seed 导出公钥与 64 字节私钥（glue 提供；符号 ed25519_ref10_* 避免与 mod.x 高层 API 冲突）。 */
-export extern function ed25519_ref10_create_keypair(public_key: *u8, private_key: *u8, seed: *u8): void;
+extern function ed25519_ref10_create_keypair(public_key: *u8, private_key: *u8, seed: *u8): void;
 
 /** ref10：对消息签名（glue 提供）。 */
-export extern function ed25519_ref10_sign(signature: *u8, message: *u8, message_len: usize, public_key: *u8, private_key: *u8): void;
+extern function ed25519_ref10_sign(signature: *u8, message: *u8, message_len: usize, public_key: *u8, private_key: *u8): void;
 
 /** ref10：验签；成功 1，失败 0（glue 提供）。 */
-export extern function ed25519_ref10_verify(signature: *u8, message: *u8, message_len: usize, public_key: *u8): i32;
+extern function ed25519_ref10_verify(signature: *u8, message: *u8, message_len: usize, public_key: *u8): i32;
 
 /** 由 32 字节 seed 导出 Ed25519 公钥至 pub[0..32]。 */
 export function crypto_ed25519_public_from_seed_c(seed: *u8, pub: *u8): void {

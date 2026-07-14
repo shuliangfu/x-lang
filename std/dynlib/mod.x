@@ -19,10 +19,10 @@
 // 【文件职责】open(path)、sym(lib, name)、close(lib)。按需链接。
 // 【依赖】core；与 std/dynlib/dynlib.x + runtime_dynlib_os.c 同属一模块（F-dynlib v2 / F-ZC）。
 
-export extern function dynlib_open_c(path: *u8): *u8;
-export extern function dynlib_sym_c(lib: *u8, name: *u8): *u8;
-export extern function dynlib_close_c(lib: *u8): void;
-export extern function dynlib_last_error_copy_c(buf: *u8, cap: i32): i32;
+extern function dynlib_open_c(path: *u8): *u8;
+extern function dynlib_sym_c(lib: *u8, name: *u8): *u8;
+extern function dynlib_close_c(lib: *u8): void;
+extern function dynlib_last_error_copy_c(buf: *u8, cap: i32): i32;
 
 /** 打开动态库 path（NUL 结尾）；失败返回 0。 */
 export function open(path: *u8): *u8 {

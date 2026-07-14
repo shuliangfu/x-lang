@@ -21,10 +21,10 @@
 // 闭区间）、flip/gen（CSPRNG）；以及 Rng / seed / step / fill（可复现 PRNG）。
 // 对标 Zig std.crypto / getentropy、Rust getrandom / OsRng；PRNG 对标 SplitMix64 种子流。
 
-export extern function random_fill_bytes_c(buf: *u8, len: i32): i32;
-export extern function random_u32_c(): u32;
-export extern function random_u64_c(): u64;
-export extern function random_rng_smoke_c(): i32;
+extern function random_fill_bytes_c(buf: *u8, len: i32): i32;
+extern function random_u32_c(): u32;
+extern function random_u64_c(): u64;
+extern function random_rng_smoke_c(): i32;
 
 /** 用密码学安全随机字节填满 buf[0..len)，返回写入的字节数（成功时为
  * len），失败时返回负值。对标 getrandom/OsRng.fill_bytes。 */

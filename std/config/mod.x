@@ -51,24 +51,24 @@ export function source_env(): i32 { return 3; }
 /** 值来源：显式 set_string / CLI 层。 */
 export function source_set(): i32 { return 4; }
 
-export extern function config_create_c(): i64;
-export extern function config_free_c(handle: i64): void;
-export extern function config_clear_c(handle: i64): void;
-export extern function config_load_toml_buf_c(handle: i64, buf: *u8, len: i32, override: i32): i32;
-export extern function config_load_toml_file_c(handle: i64, path: *u8, override: i32): i32;
-export extern function config_load_env_prefix_c(handle: i64, prefix: *u8, prefix_len: i32, override: i32): i32;
-export extern function config_merge_c(dst: i64, src: i64, override: i32): i32;
-export extern function config_set_string_c(handle: i64, key: *u8, key_len: i32, val: *u8, val_len: i32): i32;
-export extern function config_get_string_c(handle: i64, key: *u8, key_len: i32, out: *u8, out_cap: i32): i32;
-export extern function config_get_i32_c(handle: i64, key: *u8, key_len: i32, out: *i32): i32;
-export extern function config_get_bool_c(handle: i64, key: *u8, key_len: i32, out: *i32): i32;
-export extern function config_get_source_c(handle: i64, key: *u8, key_len: i32, out_kind: *i32, out_label: *u8, label_cap: i32): i32;
-export extern function config_get_i32_meta_c(handle: i64, key: *u8, key_len: i32, out: *i32, out_kind: *i32, out_label: *u8, label_cap: i32): i32;
-export extern function config_get_bool_meta_c(handle: i64, key: *u8, key_len: i32, out: *i32, out_kind: *i32, out_label: *u8, label_cap: i32): i32;
-export extern function config_get_string_meta_c(handle: i64, key: *u8, key_len: i32, out: *u8, out_cap: i32, out_kind: *i32, out_label: *u8, label_cap: i32): i32;
-export extern function config_load_yaml_buf_c(handle: i64, buf: *u8, len: i32, override: i32): i32;
-export extern function config_load_yaml_file_c(handle: i64, path: *u8, override: i32): i32;
-export extern function config_yaml_smoke_c(): i32;
+extern function config_create_c(): i64;
+extern function config_free_c(handle: i64): void;
+extern function config_clear_c(handle: i64): void;
+extern function config_load_toml_buf_c(handle: i64, buf: *u8, len: i32, override: i32): i32;
+extern function config_load_toml_file_c(handle: i64, path: *u8, override: i32): i32;
+extern function config_load_env_prefix_c(handle: i64, prefix: *u8, prefix_len: i32, override: i32): i32;
+extern function config_merge_c(dst: i64, src: i64, override: i32): i32;
+extern function config_set_string_c(handle: i64, key: *u8, key_len: i32, val: *u8, val_len: i32): i32;
+extern function config_get_string_c(handle: i64, key: *u8, key_len: i32, out: *u8, out_cap: i32): i32;
+extern function config_get_i32_c(handle: i64, key: *u8, key_len: i32, out: *i32): i32;
+extern function config_get_bool_c(handle: i64, key: *u8, key_len: i32, out: *i32): i32;
+extern function config_get_source_c(handle: i64, key: *u8, key_len: i32, out_kind: *i32, out_label: *u8, label_cap: i32): i32;
+extern function config_get_i32_meta_c(handle: i64, key: *u8, key_len: i32, out: *i32, out_kind: *i32, out_label: *u8, label_cap: i32): i32;
+extern function config_get_bool_meta_c(handle: i64, key: *u8, key_len: i32, out: *i32, out_kind: *i32, out_label: *u8, label_cap: i32): i32;
+extern function config_get_string_meta_c(handle: i64, key: *u8, key_len: i32, out: *u8, out_cap: i32, out_kind: *i32, out_label: *u8, label_cap: i32): i32;
+extern function config_load_yaml_buf_c(handle: i64, buf: *u8, len: i32, override: i32): i32;
+extern function config_load_yaml_file_c(handle: i64, path: *u8, override: i32): i32;
+extern function config_yaml_smoke_c(): i32;
 
 /** 创建空配置；失败 handle=0。 */
 export function new(): Config {

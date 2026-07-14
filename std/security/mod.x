@@ -25,10 +25,10 @@
 const crypto = import("std.crypto");
 const random = import("std.random");
 
-export extern function security_secure_zero_c(p: *u8, len: i32): void;
-export extern function security_mlock_c(p: *u8, len: i32): i32;
-export extern function security_munlock_c(p: *u8, len: i32): i32;
-export extern function security_hkdf_sha256_c(salt: *u8, salt_len: i32, ikm: *u8, ikm_len: i32,
+extern function security_secure_zero_c(p: *u8, len: i32): void;
+extern function security_mlock_c(p: *u8, len: i32): i32;
+extern function security_munlock_c(p: *u8, len: i32): i32;
+extern function security_hkdf_sha256_c(salt: *u8, salt_len: i32, ikm: *u8, ikm_len: i32,
   info: *u8, info_len: i32, okm: *u8, okm_len: i32): i32;
 
 /** 推荐 AES-256 密钥长度（字节）。 */

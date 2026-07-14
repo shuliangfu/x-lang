@@ -51,55 +51,55 @@ export function submit_write_sync(handle: usize, ptr: *u8, len: usize, timeout_m
 }
 
 // ─── A1/A2 协作调度（scheduler_glue.c）：无栈 ping-pong bench ───
-export extern function shux_async_coop_pingpong(rounds: i64): i64;
-export extern function shux_async_coop_pingpong_jmp(rounds: i64): i64;
+extern function shux_async_coop_pingpong(rounds: i64): i64;
+extern function shux_async_coop_pingpong_jmp(rounds: i64): i64;
 
 // ─── A3 CPS suspend/resume（scheduler_glue.c；SHUX_ASYNC_YIELD=1 时 await 边界 yield）───
-export extern function shux_async_cps_suspend(phase: *i32, next_phase: i32): i32;
+extern function shux_async_cps_suspend(phase: *i32, next_phase: i32): i32;
 /** IO-A5：await IO 边界 suspend；yield 时进 IO 等待队列。 */
-export extern function shux_async_cps_suspend_io(phase: *i32, next_phase: i32): i32;
-export extern function shux_async_run_i32(fn: *u8): i32;
+extern function shux_async_cps_suspend_io(phase: *i32, next_phase: i32): i32;
+extern function shux_async_run_i32(fn: *u8): i32;
 /** IO-A5 v5：push i32 seed 并 submit 协程（spawn C 侧等价）。 */
-export extern function shux_async_spawn_i32(fn: *u8, seed: i32): i32;
+extern function shux_async_spawn_i32(fn: *u8, seed: i32): i32;
 /** IO-A5 v4：poll + drain 直至就绪环与 IO 等待队列皆空；返回已完成任务结果之和。 */
-export extern function shux_async_run_drain_until_idle(): i32;
+extern function shux_async_run_drain_until_idle(): i32;
 /** run v4：实参 seed 队列（i32/u32/i64/usize）。 */
-export extern function shux_async_run_seed_reset(): void;
-export extern function shux_async_run_seed_push_i32(v: i32): void;
-export extern function shux_async_run_seed_push_u32(v: u32): void;
-export extern function shux_async_run_seed_push_i64(v: i64): void;
-export extern function shux_async_run_seed_push_usize(v: usize): void;
+extern function shux_async_run_seed_reset(): void;
+extern function shux_async_run_seed_push_i32(v: i32): void;
+extern function shux_async_run_seed_push_u32(v: u32): void;
+extern function shux_async_run_seed_push_i64(v: i64): void;
+extern function shux_async_run_seed_push_usize(v: usize): void;
 /** run v1 兼容：单 i32 实参 seed。 */
-export extern function shux_async_run_seed_set_i32(v: i32): void;
-export extern function shux_async_run_seed_valid(): i32;
-export extern function shux_async_run_seed_take_i32(): i32;
-export extern function shux_async_run_seed_take_u32(): u32;
-export extern function shux_async_run_seed_take_i64(): i64;
-export extern function shux_async_run_seed_take_usize(): usize;
+extern function shux_async_run_seed_set_i32(v: i32): void;
+extern function shux_async_run_seed_valid(): i32;
+extern function shux_async_run_seed_take_i32(): i32;
+extern function shux_async_run_seed_take_u32(): u32;
+extern function shux_async_run_seed_take_i64(): i64;
+extern function shux_async_run_seed_take_usize(): usize;
 
 // ─── A4 就绪队列（MPSC ring；per-worker 环 + worker_drain）───
 // DOD-CL-S2：C 侧 shux_async_task_queue_t 已 align(64) head/tail/slots（见 scheduler_glue.c）。
-export extern function shux_async_task_submit(fn: *u8): i32;
+extern function shux_async_task_submit(fn: *u8): i32;
 /** 提交到指定 worker 环（0..worker_count-1）。 */
-export extern function shux_async_task_submit_to(worker_id: u32, fn: *u8): i32;
-export extern function shux_async_scheduler_drain(): i32;
+extern function shux_async_task_submit_to(worker_id: u32, fn: *u8): i32;
+extern function shux_async_scheduler_drain(): i32;
 /** 单 worker consumer drain（A4 v2 多 consumer）。 */
-export extern function shux_async_worker_drain(worker_id: u32): i32;
-export extern function shux_async_worker_count(): u32;
-export extern function shux_async_worker_pending(worker_id: u32): u32;
-export extern function shux_async_queue_reset(): void;
-export extern function shux_async_scheduler_pending(): u32;
-export extern function shux_async_io_wake_all(): void;
-export extern function shux_async_io_waiters_pending(): u32;
+extern function shux_async_worker_drain(worker_id: u32): i32;
+extern function shux_async_worker_count(): u32;
+extern function shux_async_worker_pending(worker_id: u32): u32;
+extern function shux_async_queue_reset(): void;
+extern function shux_async_scheduler_pending(): u32;
+extern function shux_async_io_wake_all(): void;
+extern function shux_async_io_waiters_pending(): u32;
 /** IO-A5 v3：poll io_uring CQE（未链 io.o 时为 weak 桩）。 */
-export extern function shux_io_poll_async_completions(timeout_ms: u32): u32;
+extern function shux_io_poll_async_completions(timeout_ms: u32): u32;
 
 // ─── STD-090/093：Context 绑定与取消传播（scheduler_glue.c ctx_slots）───
-export extern function shux_async_bind_context_c(ctx_handle: i64): void;
-export extern function shux_async_unbind_context_c(): void;
-export extern function shux_async_current_context_c(): i64;
-export extern function shux_async_task_submit_with_ctx(fn: *u8, ctx_handle: i64): i32;
-export extern function shux_async_spawn_ctx_smoke_c(): i32;
+extern function shux_async_bind_context_c(ctx_handle: i64): void;
+extern function shux_async_unbind_context_c(): void;
+extern function shux_async_current_context_c(): i64;
+extern function shux_async_task_submit_with_ctx(fn: *u8, ctx_handle: i64): i32;
+extern function shux_async_spawn_ctx_smoke_c(): i32;
 
 /** drain 时 Context 已取消的哨兵（与 scheduler_glue.c SHUX_ASYNC_ERR_CTX_ABORT 一致）。 */
 export const SHUX_ASYNC_ERR_CTX_ABORT: i32 = -3;
@@ -375,7 +375,7 @@ export function fs_write_async(rt: *AsyncRuntime, fd: i32, ptr: *u8, len: usize,
   return await_write_fd(rt, fd, ptr, len, max_rounds);
 }
 
-export extern function shux_async_net_fs_smoke_c(): i32;
+extern function shux_async_net_fs_smoke_c(): i32;
 
 /** async net/fs fd 路径 C 烟测（pipe 模拟）；0 通过。 */
 export function net_fs_async_smoke(): i32 {
@@ -404,13 +404,13 @@ allow(padding) struct Future {
   handle: i64;
 }
 
-export extern function shux_async_future_create_c(): i64;
-export extern function shux_async_future_poll_c(handle: i64): i32;
-export extern function shux_async_future_complete_c(handle: i64, value: i32): void;
-export extern function shux_async_future_take_c(handle: i64, out: *i32): i32;
-export extern function shux_async_future_reset_c(): void;
-export extern function shux_async_future_wait_c(handle: i64, max_rounds: i32): i32;
-export extern function shux_async_future_smoke_c(): i32;
+extern function shux_async_future_create_c(): i64;
+extern function shux_async_future_poll_c(handle: i64): i32;
+extern function shux_async_future_complete_c(handle: i64, value: i32): void;
+extern function shux_async_future_take_c(handle: i64, out: *i32): i32;
+extern function shux_async_future_reset_c(): void;
+extern function shux_async_future_wait_c(handle: i64, max_rounds: i32): i32;
+extern function shux_async_future_smoke_c(): i32;
 
 /** 创建 pending Future；池满时 handle=0。 */
 export function future_new(): Future {

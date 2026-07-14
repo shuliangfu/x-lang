@@ -31,10 +31,10 @@ export const DT_IANA_ASIA_TOKYO: i32 = 5;
 export const DT_IANA_ASIA_SHANGHAI: i32 = 6;
 export const DT_IANA_COUNT: i32 = 7;
 
-export extern function time_now_wall_sec_c(): i64;
-export extern function time_now_wall_ns_c(): i64;
-export extern function time_wall_local_offset_min_c(): i32;
-export extern function memcmp(a: *u8, b: *u8, n: usize): i32;
+extern function time_now_wall_sec_c(): i64;
+extern function time_now_wall_ns_c(): i64;
+extern function time_wall_local_offset_min_c(): i32;
+extern function memcmp(a: *u8, b: *u8, n: usize): i32;
 
 /** F-datetime v1 版本标记。 */
 export function datetime_f_datetime_v1_marker_c(): i32 {

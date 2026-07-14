@@ -48,18 +48,18 @@ export struct KvStore {
   handle: i64;
 }
 
-export extern function db_kv_open_c(path: *u8, capacity_bytes: u64): i64;
-export extern function db_kv_close_c(handle: i64): i32;
-export extern function db_kv_sync_c(handle: i64): i32;
-export extern function db_kv_put_c(handle: i64, key: *u8, key_len: u32, val: *u8, val_len: u32): i32;
-export extern function db_kv_append_ts_c(handle: i64, key: *u8, key_len: u32, val: *u8, val_len: u32, ts_ns: u64): i32;
-export extern function db_kv_get_c(handle: i64, key: *u8, key_len: u32, out: *u8, out_cap: u32): i32;
-export extern function db_kv_wal_flush_c(handle: i64): i32;
-export extern function db_kv_compact_c(handle: i64): i32;
-export extern function db_kv_compact_gen_c(handle: i64): u64;
-export extern function db_kv_wal_bytes_c(handle: i64): u64;
-export extern function db_kv_sst_level_count_c(handle: i64): u32;
-export extern function db_kv_smoke_c(path: *u8): i32;
+extern function db_kv_open_c(path: *u8, capacity_bytes: u64): i64;
+extern function db_kv_close_c(handle: i64): i32;
+extern function db_kv_sync_c(handle: i64): i32;
+extern function db_kv_put_c(handle: i64, key: *u8, key_len: u32, val: *u8, val_len: u32): i32;
+extern function db_kv_append_ts_c(handle: i64, key: *u8, key_len: u32, val: *u8, val_len: u32, ts_ns: u64): i32;
+extern function db_kv_get_c(handle: i64, key: *u8, key_len: u32, out: *u8, out_cap: u32): i32;
+extern function db_kv_wal_flush_c(handle: i64): i32;
+extern function db_kv_compact_c(handle: i64): i32;
+extern function db_kv_compact_gen_c(handle: i64): u64;
+extern function db_kv_wal_bytes_c(handle: i64): u64;
+extern function db_kv_sst_level_count_c(handle: i64): u32;
+extern function db_kv_smoke_c(path: *u8): i32;
 
 /** mmap 子系统是否可用（委托 std.sys.mmap）。 */
 export function mmap_available(): i32 {

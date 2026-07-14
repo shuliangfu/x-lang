@@ -49,19 +49,19 @@ export function err_invalid(): i32 { return -4; }
 /** 字段数超限。 */
 export function err_full(): i32 { return -5; }
 
-export extern function schema_create_c(): i64;
-export extern function schema_free_c(handle: i64): void;
-export extern function schema_clear_c(handle: i64): void;
-export extern function schema_add_field_c(handle: i64, name: *u8, name_len: i32, type: i32, optional: i32, col_index: i32): i32;
-export extern function schema_decode_json_c(handle: i64, json: *u8, json_len: i32): i32;
-export extern function schema_decode_csv_row_c(handle: i64, row: *u8, row_len: i32, offset: i32): i32;
-export extern function schema_map_columns_c(handle: i64, row: *u8, col_starts: *i32, col_lens: *i32, count: i32): i32;
-export extern function schema_get_string_c(handle: i64, name: *u8, name_len: i32, out: *u8, out_cap: i32): i32;
-export extern function schema_get_i32_c(handle: i64, name: *u8, name_len: i32, out: *i32): i32;
-export extern function schema_get_bool_c(handle: i64, name: *u8, name_len: i32, out: *i32): i32;
-export extern function schema_get_f64_c(handle: i64, name: *u8, name_len: i32, out: *f64): i32;
-export extern function schema_last_error_field_c(handle: i64, out: *u8, out_cap: i32): i32;
-export extern function schema_last_error_message_c(handle: i64, out: *u8, out_cap: i32): i32;
+extern function schema_create_c(): i64;
+extern function schema_free_c(handle: i64): void;
+extern function schema_clear_c(handle: i64): void;
+extern function schema_add_field_c(handle: i64, name: *u8, name_len: i32, type: i32, optional: i32, col_index: i32): i32;
+extern function schema_decode_json_c(handle: i64, json: *u8, json_len: i32): i32;
+extern function schema_decode_csv_row_c(handle: i64, row: *u8, row_len: i32, offset: i32): i32;
+extern function schema_map_columns_c(handle: i64, row: *u8, col_starts: *i32, col_lens: *i32, count: i32): i32;
+extern function schema_get_string_c(handle: i64, name: *u8, name_len: i32, out: *u8, out_cap: i32): i32;
+extern function schema_get_i32_c(handle: i64, name: *u8, name_len: i32, out: *i32): i32;
+extern function schema_get_bool_c(handle: i64, name: *u8, name_len: i32, out: *i32): i32;
+extern function schema_get_f64_c(handle: i64, name: *u8, name_len: i32, out: *f64): i32;
+extern function schema_last_error_field_c(handle: i64, out: *u8, out_cap: i32): i32;
+extern function schema_last_error_message_c(handle: i64, out: *u8, out_cap: i32): i32;
 
 /** 创建空 Schema。 */
 export function new(): Schema {

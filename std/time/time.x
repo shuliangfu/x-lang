@@ -20,18 +20,18 @@
 // 底层 syscall 见 runtime_time_os.c（compiler runtime）。
 
 /** OS 胶层：单调纳秒。 */
-export extern function time_now_monotonic_ns_c(): i64;
+extern function time_now_monotonic_ns_c(): i64;
 /** OS 胶层：墙钟纳秒。 */
-export extern function time_now_wall_ns_c(): i64;
+extern function time_now_wall_ns_c(): i64;
 
 /** OS 胶层：睡眠纳秒。 */
-export extern function time_sleep_ns_c(ns: i64): void;
+extern function time_sleep_ns_c(ns: i64): void;
 
 /** OS 胶层：RFC3339 格式化。 */
-export extern function time_format_wall_rfc3339_c(buf: *u8, cap: i32): i32;
+extern function time_format_wall_rfc3339_c(buf: *u8, cap: i32): i32;
 
 /** OS 胶层：本地时区偏移（分钟）。 */
-export extern function time_wall_local_offset_min_c(): i32;
+extern function time_wall_local_offset_min_c(): i32;
 
 /** 单调：微秒。 */
 export function time_now_monotonic_us_c(): i64 {

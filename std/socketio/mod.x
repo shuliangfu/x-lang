@@ -19,135 +19,135 @@
 // 【文件职责】导出 socketio.x（F-socketio v2 纯 .x 逻辑）；v2 connect 编排 std.http 握手 + std.websocket 升级 + 重连退避。
 // 【依赖】socketio.o + http.o；connect_ws / server_emit_event_ws 另需 net.o（net_ws_* extern）。
 
-export extern function net_ws_connect_url_c(url: *u8, url_len: i32, key: *u8, key_len: i32, timeout_ms: u32, out_fd: *i32,
+extern function net_ws_connect_url_c(url: *u8, url_len: i32, key: *u8, key_len: i32, timeout_ms: u32, out_fd: *i32,
   out_tls: *i64): i32;
-export extern function net_ws_write_text_c(fd: i32, tls_ctx: i64, payload: *u8, payload_len: i32): i32;
-export extern function net_ws_write_server_text_c(fd: i32, tls_ctx: i64, payload: *u8, payload_len: i32): i32;
-export extern function net_ws_read_frame_c(fd: i32, tls_ctx: i64, out_opcode: *i32, out_payload: *u8, out_cap: i32,
+extern function net_ws_write_text_c(fd: i32, tls_ctx: i64, payload: *u8, payload_len: i32): i32;
+extern function net_ws_write_server_text_c(fd: i32, tls_ctx: i64, payload: *u8, payload_len: i32): i32;
+extern function net_ws_read_frame_c(fd: i32, tls_ctx: i64, out_opcode: *i32, out_payload: *u8, out_cap: i32,
   out_payload_len: *i32, timeout_ms: u32): i32;
-export extern function net_close_socket_c(fd: i32): i32;
-export extern function net_tls_close_c(ctx_handle: i64): i32;
+extern function net_close_socket_c(fd: i32): i32;
+extern function net_tls_close_c(ctx_handle: i64): i32;
 
-export extern function sio_eio_encode_packet_c(type: i32, payload: *u8, payload_len: i32, out: *u8, out_cap: i32): i32;
-export extern function sio_eio_decode_packet_c(buf: *u8, len: i32, out_type: *i32, out_payload: *u8, out_cap: i32,
+extern function sio_eio_encode_packet_c(type: i32, payload: *u8, payload_len: i32, out: *u8, out_cap: i32): i32;
+extern function sio_eio_decode_packet_c(buf: *u8, len: i32, out_type: *i32, out_payload: *u8, out_cap: i32,
   out_payload_len: *i32): i32;
-export extern function sio_encode_event_packet_c(event: *u8, event_len: i32, data: *u8, data_len: i32, out: *u8,
+extern function sio_encode_event_packet_c(event: *u8, event_len: i32, data: *u8, data_len: i32, out: *u8,
   out_cap: i32): i32;
-export extern function sio_encode_event_ns_packet_c(ns: *u8, ns_len: i32, event: *u8, event_len: i32, data: *u8,
+extern function sio_encode_event_ns_packet_c(ns: *u8, ns_len: i32, event: *u8, event_len: i32, data: *u8,
   data_len: i32, out: *u8, out_cap: i32): i32;
-export extern function sio_decode_event_packet_c(sio_pkt: *u8, len: i32, out_event: *u8, out_event_cap: i32, out_data: *u8,
+extern function sio_decode_event_packet_c(sio_pkt: *u8, len: i32, out_event: *u8, out_event_cap: i32, out_data: *u8,
   out_data_cap: i32, out_data_len: *i32): i32;
-export extern function sio_eio_extract_sid_c(open_payload: *u8, len: i32, out_sid: *u8, out_cap: i32): i32;
-export extern function sio_packet_smoke_c(): i32;
-export extern function sio_eio_version_c(): i32;
-export extern function sio_transport_polling_c(): i32;
-export extern function sio_transport_websocket_c(): i32;
-export extern function sio_build_eio_url_c(base: *u8, base_len: i32, sid: *u8, sid_len: i32, transport: i32, out: *u8,
+extern function sio_eio_extract_sid_c(open_payload: *u8, len: i32, out_sid: *u8, out_cap: i32): i32;
+extern function sio_packet_smoke_c(): i32;
+extern function sio_eio_version_c(): i32;
+extern function sio_transport_polling_c(): i32;
+extern function sio_transport_websocket_c(): i32;
+extern function sio_build_eio_url_c(base: *u8, base_len: i32, sid: *u8, sid_len: i32, transport: i32, out: *u8,
   out_cap: i32): i32;
-export extern function sio_http_extract_body_c(http: *u8, len: i32, out: *u8, out_cap: i32, out_len: *i32): i32;
-export extern function sio_eio_open_has_websocket_c(open_payload: *u8, len: i32): i32;
-export extern function sio_polling_handshake_parse_c(http: *u8, http_len: i32, out_sid: *u8, sid_cap: i32,
+extern function sio_http_extract_body_c(http: *u8, len: i32, out: *u8, out_cap: i32, out_len: *i32): i32;
+extern function sio_eio_open_has_websocket_c(open_payload: *u8, len: i32): i32;
+extern function sio_polling_handshake_parse_c(http: *u8, http_len: i32, out_sid: *u8, sid_cap: i32,
   out_has_ws: *i32): i32;
-export extern function sio_polling_handshake_c(base_url: *u8, base_len: i32, out_sid: *u8, sid_cap: i32, timeout_ms: u32,
+extern function sio_polling_handshake_c(base_url: *u8, base_len: i32, out_sid: *u8, sid_cap: i32, timeout_ms: u32,
   out_has_ws: *i32): i32;
-export extern function sio_polling_post_packet_c(base_url: *u8, base_len: i32, sid: *u8, sid_len: i32, packet: *u8,
+extern function sio_polling_post_packet_c(base_url: *u8, base_len: i32, sid: *u8, sid_len: i32, packet: *u8,
   packet_len: i32, out_resp: *u8, out_cap: i32, timeout_ms: u32): i32;
-export extern function sio_polling_smoke_c(): i32;
-export extern function sio_sio_type_connect_c(): i32;
-export extern function sio_sio_type_ack_c(): i32;
-export extern function sio_encode_connect_ns_packet_c(ns: *u8, ns_len: i32, out: *u8, out_cap: i32): i32;
-export extern function sio_encode_event_ack_packet_c(ack_id: i32, event: *u8, event_len: i32, data: *u8, data_len: i32,
+extern function sio_polling_smoke_c(): i32;
+extern function sio_sio_type_connect_c(): i32;
+extern function sio_sio_type_ack_c(): i32;
+extern function sio_encode_connect_ns_packet_c(ns: *u8, ns_len: i32, out: *u8, out_cap: i32): i32;
+extern function sio_encode_event_ack_packet_c(ack_id: i32, event: *u8, event_len: i32, data: *u8, data_len: i32,
   out: *u8, out_cap: i32): i32;
-export extern function sio_encode_ack_packet_c(ack_id: i32, data: *u8, data_len: i32, out: *u8, out_cap: i32): i32;
-export extern function sio_parse_sio_packet_head_c(pkt: *u8, len: i32, out_type: *i32, out_id: *i32,
+extern function sio_encode_ack_packet_c(ack_id: i32, data: *u8, data_len: i32, out: *u8, out_cap: i32): i32;
+extern function sio_parse_sio_packet_head_c(pkt: *u8, len: i32, out_type: *i32, out_id: *i32,
   out_payload_off: *i32): i32;
-export extern function sio_server_is_connect_ns_packet_c(pkt: *u8, len: i32, ns: *u8, ns_len: i32): i32;
-export extern function sio_ns_ack_smoke_c(): i32;
-export extern function sio_parse_connect_ns_packet_c(pkt: *u8, len: i32, out_ns: *u8, out_cap: i32): i32;
-export extern function sio_ns_router_bytes_c(): i32;
-export extern function sio_ns_router_init_c(r: *SioNsRouter): void;
-export extern function sio_ns_router_register_c(r: *SioNsRouter, ns: *u8, ns_len: i32, slot_id: i32): i32;
-export extern function sio_ns_router_lookup_c(r: *SioNsRouter, ns: *u8, ns_len: i32): i32;
-export extern function sio_ns_router_route_connect_c(r: *SioNsRouter, pkt: *u8, len: i32): i32;
-export extern function sio_ns_router_smoke_c(): i32;
-export extern function sio_ns_sessions_bytes_c(): i32;
-export extern function sio_ns_sessions_init_c(s: *SioNsSessions): void;
-export extern function sio_ns_sessions_sync_router_c(s: *SioNsSessions, r: *SioNsRouter): i32;
-export extern function sio_ns_sessions_connect_c(s: *SioNsSessions, r: *SioNsRouter, pkt: *u8, len: i32): i32;
-export extern function sio_ns_sessions_disconnect_c(s: *SioNsSessions, slot_id: i32): i32;
-export extern function sio_ns_sessions_active_c(s: *SioNsSessions, slot_id: i32): i32;
-export extern function sio_ns_sessions_total_c(s: *SioNsSessions): i32;
-export extern function sio_ns_sessions_smoke_c(): i32;
-export extern function sio_ws_hub_bytes_c(): i32;
-export extern function sio_ws_hub_init_c(h: *SioWsHub): void;
-export extern function sio_ws_hub_register_c(h: *SioWsHub, fd: i32, tls_ctx: i64, sid: *u8, sid_len: i32): i32;
-export extern function sio_ws_hub_unregister_c(h: *SioWsHub, conn_idx: i32): i32;
-export extern function sio_ws_hub_find_by_sid_c(h: *SioWsHub, sid: *u8, sid_len: i32): i32;
-export extern function sio_ws_hub_handle_connect_c(h: *SioWsHub, conn_idx: i32, r: *SioNsRouter, s: *SioNsSessions,
+extern function sio_server_is_connect_ns_packet_c(pkt: *u8, len: i32, ns: *u8, ns_len: i32): i32;
+extern function sio_ns_ack_smoke_c(): i32;
+extern function sio_parse_connect_ns_packet_c(pkt: *u8, len: i32, out_ns: *u8, out_cap: i32): i32;
+extern function sio_ns_router_bytes_c(): i32;
+extern function sio_ns_router_init_c(r: *SioNsRouter): void;
+extern function sio_ns_router_register_c(r: *SioNsRouter, ns: *u8, ns_len: i32, slot_id: i32): i32;
+extern function sio_ns_router_lookup_c(r: *SioNsRouter, ns: *u8, ns_len: i32): i32;
+extern function sio_ns_router_route_connect_c(r: *SioNsRouter, pkt: *u8, len: i32): i32;
+extern function sio_ns_router_smoke_c(): i32;
+extern function sio_ns_sessions_bytes_c(): i32;
+extern function sio_ns_sessions_init_c(s: *SioNsSessions): void;
+extern function sio_ns_sessions_sync_router_c(s: *SioNsSessions, r: *SioNsRouter): i32;
+extern function sio_ns_sessions_connect_c(s: *SioNsSessions, r: *SioNsRouter, pkt: *u8, len: i32): i32;
+extern function sio_ns_sessions_disconnect_c(s: *SioNsSessions, slot_id: i32): i32;
+extern function sio_ns_sessions_active_c(s: *SioNsSessions, slot_id: i32): i32;
+extern function sio_ns_sessions_total_c(s: *SioNsSessions): i32;
+extern function sio_ns_sessions_smoke_c(): i32;
+extern function sio_ws_hub_bytes_c(): i32;
+extern function sio_ws_hub_init_c(h: *SioWsHub): void;
+extern function sio_ws_hub_register_c(h: *SioWsHub, fd: i32, tls_ctx: i64, sid: *u8, sid_len: i32): i32;
+extern function sio_ws_hub_unregister_c(h: *SioWsHub, conn_idx: i32): i32;
+extern function sio_ws_hub_find_by_sid_c(h: *SioWsHub, sid: *u8, sid_len: i32): i32;
+extern function sio_ws_hub_handle_connect_c(h: *SioWsHub, conn_idx: i32, r: *SioNsRouter, s: *SioNsSessions,
   pkt: *u8, len: i32): i32;
-export extern function sio_ws_hub_emit_event_ns_c(h: *SioWsHub, slot_id: i32, ns: *u8, ns_len: i32, event: *u8,
+extern function sio_ws_hub_emit_event_ns_c(h: *SioWsHub, slot_id: i32, ns: *u8, ns_len: i32, event: *u8,
   event_len: i32, data: *u8, data_len: i32): i32;
-export extern function sio_ws_hub_smoke_c(): i32;
-export extern function sio_ws_hub_snapshot_bytes_c(): i32;
-export extern function sio_ws_hub_export_c(h: *SioWsHub, out: *u8, out_cap: i32): i32;
-export extern function sio_ws_hub_import_c(h: *SioWsHub, buf: *u8, len: i32): i32;
-export extern function sio_room_registry_bytes_c(): i32;
-export extern function sio_room_registry_init_c(reg: *SioRoomRegistry): void;
-export extern function sio_room_register_c(reg: *SioRoomRegistry, name: *u8, name_len: i32, room_id: i32): i32;
-export extern function sio_room_join_c(reg: *SioRoomRegistry, room_id: i32, conn_idx: i32): i32;
-export extern function sio_room_leave_c(reg: *SioRoomRegistry, room_id: i32, conn_idx: i32): i32;
-export extern function sio_room_leave_all_c(reg: *SioRoomRegistry, conn_idx: i32): i32;
-export extern function sio_room_member_count_c(reg: *SioRoomRegistry, room_id: i32): i32;
-export extern function sio_room_broadcast_ns_c(reg: *SioRoomRegistry, h: *SioWsHub, room_id: i32, ns: *u8, ns_len: i32,
+extern function sio_ws_hub_smoke_c(): i32;
+extern function sio_ws_hub_snapshot_bytes_c(): i32;
+extern function sio_ws_hub_export_c(h: *SioWsHub, out: *u8, out_cap: i32): i32;
+extern function sio_ws_hub_import_c(h: *SioWsHub, buf: *u8, len: i32): i32;
+extern function sio_room_registry_bytes_c(): i32;
+extern function sio_room_registry_init_c(reg: *SioRoomRegistry): void;
+extern function sio_room_register_c(reg: *SioRoomRegistry, name: *u8, name_len: i32, room_id: i32): i32;
+extern function sio_room_join_c(reg: *SioRoomRegistry, room_id: i32, conn_idx: i32): i32;
+extern function sio_room_leave_c(reg: *SioRoomRegistry, room_id: i32, conn_idx: i32): i32;
+extern function sio_room_leave_all_c(reg: *SioRoomRegistry, conn_idx: i32): i32;
+extern function sio_room_member_count_c(reg: *SioRoomRegistry, room_id: i32): i32;
+extern function sio_room_broadcast_ns_c(reg: *SioRoomRegistry, h: *SioWsHub, room_id: i32, ns: *u8, ns_len: i32,
   event: *u8, event_len: i32, data: *u8, data_len: i32): i32;
-export extern function sio_room_smoke_c(): i32;
-export extern function sio_ws_hub_rebind_c(h: *SioWsHub, conn_idx: i32, fd: i32, tls_ctx: i64): i32;
-export extern function sio_room_registry_snapshot_bytes_c(): i32;
-export extern function sio_room_registry_export_c(reg: *SioRoomRegistry, out: *u8, out_cap: i32): i32;
-export extern function sio_room_registry_import_c(reg: *SioRoomRegistry, buf: *u8, len: i32): i32;
-export extern function sio_hub_sync_smoke_c(): i32;
-export extern function sio_ws_hub_register_or_rebind_c(h: *SioWsHub, fd: i32, tls_ctx: i64, sid: *u8, sid_len: i32): i32;
-export extern function sio_session_bundle_bytes_c(): i32;
-export extern function sio_session_bundle_export_c(h: *SioWsHub, reg: *SioRoomRegistry, out: *u8, out_cap: i32): i32;
-export extern function sio_session_bundle_import_c(h: *SioWsHub, reg: *SioRoomRegistry, buf: *u8, len: i32): i32;
-export extern function sio_session_sync_smoke_c(): i32;
-export extern function sio_ws_hub_append_from_c(dst: *SioWsHub, src: *SioWsHub): i32;
-export extern function sio_room_registry_merge_offset_c(dst: *SioRoomRegistry, src: *SioRoomRegistry, conn_offset: i32): i32;
-export extern function sio_cluster_sync_c(h: *SioWsHub, reg: *SioRoomRegistry, bundle_a: *u8, len_a: i32, bundle_b: *u8,
+extern function sio_room_smoke_c(): i32;
+extern function sio_ws_hub_rebind_c(h: *SioWsHub, conn_idx: i32, fd: i32, tls_ctx: i64): i32;
+extern function sio_room_registry_snapshot_bytes_c(): i32;
+extern function sio_room_registry_export_c(reg: *SioRoomRegistry, out: *u8, out_cap: i32): i32;
+extern function sio_room_registry_import_c(reg: *SioRoomRegistry, buf: *u8, len: i32): i32;
+extern function sio_hub_sync_smoke_c(): i32;
+extern function sio_ws_hub_register_or_rebind_c(h: *SioWsHub, fd: i32, tls_ctx: i64, sid: *u8, sid_len: i32): i32;
+extern function sio_session_bundle_bytes_c(): i32;
+extern function sio_session_bundle_export_c(h: *SioWsHub, reg: *SioRoomRegistry, out: *u8, out_cap: i32): i32;
+extern function sio_session_bundle_import_c(h: *SioWsHub, reg: *SioRoomRegistry, buf: *u8, len: i32): i32;
+extern function sio_session_sync_smoke_c(): i32;
+extern function sio_ws_hub_append_from_c(dst: *SioWsHub, src: *SioWsHub): i32;
+extern function sio_room_registry_merge_offset_c(dst: *SioRoomRegistry, src: *SioRoomRegistry, conn_offset: i32): i32;
+extern function sio_cluster_sync_c(h: *SioWsHub, reg: *SioRoomRegistry, bundle_a: *u8, len_a: i32, bundle_b: *u8,
   len_b: i32): i32;
-export extern function sio_cluster_sync_smoke_c(): i32;
-export extern function sio_cluster_adapter_bytes_c(): i32;
-export extern function sio_cluster_adapter_init_c(a: *SioClusterAdapter, node_id: i32): void;
-export extern function sio_cluster_adapter_publish_ns_c(a: *SioClusterAdapter, src_node_id: i32, room_id: i32, ns: *u8,
+extern function sio_cluster_sync_smoke_c(): i32;
+extern function sio_cluster_adapter_bytes_c(): i32;
+extern function sio_cluster_adapter_init_c(a: *SioClusterAdapter, node_id: i32): void;
+extern function sio_cluster_adapter_publish_ns_c(a: *SioClusterAdapter, src_node_id: i32, room_id: i32, ns: *u8,
   ns_len: i32, event: *u8, event_len: i32, data: *u8, data_len: i32): i32;
-export extern function sio_cluster_adapter_drain_apply_c(a: *SioClusterAdapter, h: *SioWsHub, reg: *SioRoomRegistry,
+extern function sio_cluster_adapter_drain_apply_c(a: *SioClusterAdapter, h: *SioWsHub, reg: *SioRoomRegistry,
   local_node_id: i32): i32;
-export extern function sio_cluster_adapter_smoke_c(): i32;
-export extern function sio_cluster_adapter_snapshot_bytes_c(): i32;
-export extern function sio_cluster_adapter_export_c(a: *SioClusterAdapter, out: *u8, out_cap: i32): i32;
-export extern function sio_cluster_adapter_import_merge_c(a: *SioClusterAdapter, buf: *u8, len: i32): i32;
-export extern function sio_cluster_ring_sync_smoke_c(): i32;
-export extern function sio_p3_complete_smoke_c(): i32;
-export extern function sio_server_build_connect_ns_ack_c(ns: *u8, ns_len: i32, sid: *u8, sid_len: i32, out: *u8,
+extern function sio_cluster_adapter_smoke_c(): i32;
+extern function sio_cluster_adapter_snapshot_bytes_c(): i32;
+extern function sio_cluster_adapter_export_c(a: *SioClusterAdapter, out: *u8, out_cap: i32): i32;
+extern function sio_cluster_adapter_import_merge_c(a: *SioClusterAdapter, buf: *u8, len: i32): i32;
+extern function sio_cluster_ring_sync_smoke_c(): i32;
+extern function sio_p3_complete_smoke_c(): i32;
+extern function sio_server_build_connect_ns_ack_c(ns: *u8, ns_len: i32, sid: *u8, sid_len: i32, out: *u8,
   out_cap: i32): i32;
-export extern function sio_http_to_ws_base_c(http_base: *u8, len: i32, out: *u8, out_cap: i32): i32;
-export extern function sio_build_ws_connect_url_c(http_base: *u8, base_len: i32, sid: *u8, sid_len: i32, out: *u8,
+extern function sio_http_to_ws_base_c(http_base: *u8, len: i32, out: *u8, out_cap: i32): i32;
+extern function sio_build_ws_connect_url_c(http_base: *u8, base_len: i32, sid: *u8, sid_len: i32, out: *u8,
   out_cap: i32): i32;
-export extern function sio_eio_ws_upgrade_c(fd: i32, tls_ctx: i64, timeout_ms: u32): i32;
-export extern function sio_encode_connect_packet_c(out: *u8, out_cap: i32): i32;
-export extern function sio_reconnect_delay_ms_c(attempt: i32, cap_ms: i32): i32;
-export extern function sio_connect_smoke_c(): i32;
-export extern function sio_node_interop_smoke_c(): i32;
-export extern function sio_server_build_open_packet_c(sid: *u8, sid_len: i32, out: *u8, out_cap: i32): i32;
-export extern function sio_server_build_http_open_response_c(sid: *u8, sid_len: i32, out: *u8, out_cap: i32): i32;
-export extern function sio_server_is_polling_handshake_c(path: *u8, len: i32): i32;
-export extern function sio_server_is_connect_packet_c(pkt: *u8, len: i32): i32;
-export extern function sio_server_smoke_c(): i32;
-export extern function sio_server_emit_event_c(event: *u8, event_len: i32, data: *u8, data_len: i32, out: *u8,
+extern function sio_eio_ws_upgrade_c(fd: i32, tls_ctx: i64, timeout_ms: u32): i32;
+extern function sio_encode_connect_packet_c(out: *u8, out_cap: i32): i32;
+extern function sio_reconnect_delay_ms_c(attempt: i32, cap_ms: i32): i32;
+extern function sio_connect_smoke_c(): i32;
+extern function sio_node_interop_smoke_c(): i32;
+extern function sio_server_build_open_packet_c(sid: *u8, sid_len: i32, out: *u8, out_cap: i32): i32;
+extern function sio_server_build_http_open_response_c(sid: *u8, sid_len: i32, out: *u8, out_cap: i32): i32;
+extern function sio_server_is_polling_handshake_c(path: *u8, len: i32): i32;
+extern function sio_server_is_connect_packet_c(pkt: *u8, len: i32): i32;
+extern function sio_server_smoke_c(): i32;
+extern function sio_server_emit_event_c(event: *u8, event_len: i32, data: *u8, data_len: i32, out: *u8,
   out_cap: i32): i32;
-export extern function sio_server_build_http_event_response_c(event: *u8, event_len: i32, data: *u8, data_len: i32,
+extern function sio_server_build_http_event_response_c(event: *u8, event_len: i32, data: *u8, data_len: i32,
   out: *u8, out_cap: i32): i32;
-export extern function sio_server_emit_smoke_c(): i32;
+extern function sio_server_emit_smoke_c(): i32;
 
 /** Socket.IO 客户端状态（sid 由调用方缓冲持有）。 */
 allow(padding) struct SioClient {

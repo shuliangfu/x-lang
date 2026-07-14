@@ -25,17 +25,17 @@
 // 标准库 std.env；用户通过 import("std.env") 使用。依赖 core；与 std/env/env.x
 // 同属一模块。
 
-export extern function env_getenv_c(key: *u8, key_len: i32, out: *u8, out_cap: i32): i32;
-export extern function env_getenv_ptr_c(key: *u8, key_len: i32, out_len: *i32): *u8;
-export extern function env_getenv_z_c(key_z: *u8, out_len: *i32): *u8;
-export extern function env_getenv_exists_c(key: *u8, key_len: i32): i32;
-export extern function env_setenv_c(name: *u8, value: *u8, overwrite: i32): i32;
-export extern function env_unsetenv_c(name: *u8): i32;
-export extern function env_temp_dir_c(out: *u8, cap: i32): i32;
-export extern function env_iter_count_c(): i32;
-export extern function env_iter_at_c(index: i32, key_out: *u8, key_cap: i32, val_out: *u8, val_cap: i32): i32;
-export extern function args_iter_count_c(): i32;
-export extern function args_iter_at_c(i: i32): *u8;
+extern function env_getenv_c(key: *u8, key_len: i32, out: *u8, out_cap: i32): i32;
+extern function env_getenv_ptr_c(key: *u8, key_len: i32, out_len: *i32): *u8;
+extern function env_getenv_z_c(key_z: *u8, out_len: *i32): *u8;
+extern function env_getenv_exists_c(key: *u8, key_len: i32): i32;
+extern function env_setenv_c(name: *u8, value: *u8, overwrite: i32): i32;
+extern function env_unsetenv_c(name: *u8): i32;
+extern function env_temp_dir_c(out: *u8, cap: i32): i32;
+extern function env_iter_count_c(): i32;
+extern function env_iter_at_c(index: i32, key_out: *u8, key_cap: i32, val_out: *u8, val_cap: i32): i32;
+extern function args_iter_count_c(): i32;
+extern function args_iter_at_c(i: i32): *u8;
 
 /**
  * 取环境变量 key[0..key_len) 的值，写入 out[0..out_cap)，保证 NUL 结尾。

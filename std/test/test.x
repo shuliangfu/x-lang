@@ -20,12 +20,12 @@
 // expect、runner 计数、bench/fuzz、stderr 报告行；单调时钟经 time.o；fn 调用经 compiler runtime。
 // 纯 .x 编译为 test.o；对外 API 在 mod.x。
 
-export extern function time_now_monotonic_ns_c(): i64;
-export extern function test_call_i32_void_c(fn: usize): i32;
-export extern function env_getenv_c(key: *u8, key_len: i32, out: *u8, out_cap: i32): i32;
-export extern "C" function write(fd: i32, buf: *u8, count: usize): isize;
-export extern "C" function strtoul(nptr: *u8, endptr: *u8, base: i32): u32;
-export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+extern function time_now_monotonic_ns_c(): i64;
+extern function test_call_i32_void_c(fn: usize): i32;
+extern function env_getenv_c(key: *u8, key_len: i32, out: *u8, out_cap: i32): i32;
+extern "C" function write(fd: i32, buf: *u8, count: usize): isize;
+extern "C" function strtoul(nptr: *u8, endptr: *u8, base: i32): u32;
+extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 
 /** F-test v1 版本标记；供聚合 gate 校验 test.x 已参与构建。 */
 export function test_f_test_v1_marker_c(): i32 {

@@ -20,10 +20,10 @@
 // cstr_len / cstring_new / free / try_new / point pack-unpack / 烟测；
 // 回调 invoke 经句柄分发（F-ZC；非真实函数地址）。
 
-export extern "C" function malloc(n: usize): *u8;
-export extern "C" function free(p: *u8): void;
-export extern "C" function strlen(s: *u8): usize;
-export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+extern "C" function malloc(n: usize): *u8;
+extern "C" function free(p: *u8): void;
+extern "C" function strlen(s: *u8): usize;
+extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 
 /** 内置 arg*2 回调句柄（F-ZC handle dispatch；非 C 函数地址）。 */
 export const FFI_CB_HANDLE_DOUBLE_I32: usize = 1;

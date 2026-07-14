@@ -39,14 +39,14 @@ export function string_long_threshold(): i32 { return 32; }
 /** 块拷贝快路径阈值：长度 ≥ 此值时 from_slice/append_slice/copy_to/trim 走 C
 * memcpy；热路径内用字面量 8 避免调用。 */
 export function string_copy_threshold(): i32 { return 8; }
-export extern function shux_string_memcmp_c(a: *u8, b: *u8, n: i32): i32;
-export extern function shux_string_memmem_c(hay: *u8, hay_len: i32, needle: *u8, needle_len: i32): i32;
-export extern function shux_string_copy_c(dst: *u8, src: *u8, n: i32): void;
-export extern function shux_string_memchr_c(ptr: *u8, c: u8, n: i32): i32;
-export extern function shux_string_memrchr_c(ptr: *u8, c: u8, n: i32): i32;
-export extern function shux_string_memcmp_at_c(a: *u8, off: i32, b: *u8, n: i32): i32;
+extern function shux_string_memcmp_c(a: *u8, b: *u8, n: i32): i32;
+extern function shux_string_memmem_c(hay: *u8, hay_len: i32, needle: *u8, needle_len: i32): i32;
+extern function shux_string_copy_c(dst: *u8, src: *u8, n: i32): void;
+extern function shux_string_memchr_c(ptr: *u8, c: u8, n: i32): i32;
+extern function shux_string_memrchr_c(ptr: *u8, c: u8, n: i32): i32;
+extern function shux_string_memcmp_at_c(a: *u8, off: i32, b: *u8, n: i32): i32;
 /** 指针偏移 ptr+off；供 subview 与 arena concat 写入第二段。 */
-export extern function shux_string_ptr_at_c(ptr: *u8, off: i32): *u8;
+extern function shux_string_ptr_at_c(ptr: *u8, off: i32): *u8;
 /** C memcmp 包装：extern 须在 unsafe 块内调用。 */
 export function string_memcmp_c(a: *u8, b: *u8, n: i32): i32 {
   let rc: i32 = 0;

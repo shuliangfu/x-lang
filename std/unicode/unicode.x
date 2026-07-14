@@ -39,7 +39,7 @@ export const ASCII_CATEGORY_TABLE: u8[128] = [
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0,
 ];
 
-export extern function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+extern function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 
 /** F-unicode v1 版本标记；供 v1 聚合 gate 校验。 */
 export function unicode_f_unicode_v1_marker_c(): i32 {

@@ -14,44 +14,44 @@ const tls_plat = import("std.net.tls_stub");
 /** F-04 v2：TCP idle 连接池（替代 tcp_pool.inc.c）。 */
 const tcp_pool_plat = import("std.net.tcp_pool");
 // ——— C 层：net_* .x + 胶层合并 net.o；Windows 需 ws2_32 ———
-export extern function net_tcp_connect_c(addr_u32: u32, port_u32: u32, timeout_ms: u32): i32;
+extern function net_tcp_connect_c(addr_u32: u32, port_u32: u32, timeout_ms: u32): i32;
 /** 阻塞 TCP 连接（bulk 传输快路径）；timeout_ms 毫秒（0=无超时）。 */
-export extern function net_tcp_connect_blocking_c(addr_u32: u32, port_u32: u32, timeout_ms: u32): i32;
-export extern function net_tcp_listen_c(addr_u32: u32, port_u32: u32): i32;
-export extern function net_accept_c(listener_fd: i32, timeout_ms: u32): i32;
+extern function net_tcp_connect_blocking_c(addr_u32: u32, port_u32: u32, timeout_ms: u32): i32;
+extern function net_tcp_listen_c(addr_u32: u32, port_u32: u32): i32;
+extern function net_accept_c(listener_fd: i32, timeout_ms: u32): i32;
 /** 阶段 2：批量接受，out_fds 至少 n 个，返回成功数量。 */
-export extern function net_accept_many_c(listener_fd: i32, out_fds: *i32, n: i32, timeout_ms: u32): i32;
+extern function net_accept_many_c(listener_fd: i32, out_fds: *i32, n: i32, timeout_ms: u32): i32;
 /** 多核易用：起 n_workers 个线程，每线程循环 accept_many 后立即 close；主线程阻塞直至 join（永不返回）。失败返回 -1。 */
-export extern function net_run_accept_workers_c(listener_fd: i32, n_workers: i32, timeout_ms: u32): i32;
+extern function net_run_accept_workers_c(listener_fd: i32, n_workers: i32, timeout_ms: u32): i32;
 /** 阶段 2：批量建连，out_fds 至少 n 个，返回成功数量。 */
-export extern function net_connect_many_c(addr_u32: u32, port_u32: u32, out_fds: *i32, n: i32, timeout_ms: u32): i32;
-export extern function net_close_socket_c(fd: i32): i32;
+extern function net_connect_many_c(addr_u32: u32, port_u32: u32, out_fds: *i32, n: i32, timeout_ms: u32): i32;
+extern function net_close_socket_c(fd: i32): i32;
 /** 设置 socket 阻塞/非阻塞；blocking：1=阻塞，0=非阻塞。0 成功，-1 失败。 */
-export extern function net_set_blocking_c(fd: i32, blocking: i32): i32;
-export extern function net_udp_bind_c(addr_u32: u32, port_u32: u32): i32;
-export extern function net_udp_send_to_c(fd: i32, addr_u32: u32, port_u32: u32, buf: *u8, len: usize): i32;
-export extern function net_udp_recv_from_c(fd: i32, buf: *u8, len: usize, timeout_ms: u32, out_addr_u32: *u32, out_port_u32: *u32): i32;
+extern function net_set_blocking_c(fd: i32, blocking: i32): i32;
+extern function net_udp_bind_c(addr_u32: u32, port_u32: u32): i32;
+extern function net_udp_send_to_c(fd: i32, addr_u32: u32, port_u32: u32, buf: *u8, len: usize): i32;
+extern function net_udp_recv_from_c(fd: i32, buf: *u8, len: usize, timeout_ms: u32, out_addr_u32: *u32, out_port_u32: *u32): i32;
 /** 阶段 5：UDP 批量接收，最多 2 段 (p0,l0),(p1,l1)，n 为 1..2；out_sizes/out_addrs/out_ports 至少 n 个元素。返回收到报文数，-1=错误。 */
-export extern function net_udp_recv_many_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, n: i32, timeout_ms: u32, out_sizes: *i32, out_addrs: *u32, out_ports: *u32): i32;
+extern function net_udp_recv_many_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, n: i32, timeout_ms: u32, out_sizes: *i32, out_addrs: *u32, out_ports: *u32): i32;
 /** 阶段 5：UDP 批量发送，n 条 (addr, port, buf, len)，n 为 1..2。返回发送报文数，-1=错误。 */
-export extern function net_udp_send_many_c(fd: i32, a0: u32, port0: u32, p0: *u8, l0: usize, a1: u32, port1: u32, p1: *u8, l1: usize, n: i32): i32;
+extern function net_udp_send_many_c(fd: i32, a0: u32, port0: u32, p0: *u8, l0: usize, a1: u32, port1: u32, p1: *u8, l1: usize, n: i32): i32;
 /** 阶段 5 切片化：UDP 批量接收，bufs 为 Buffer 数组（与 Buffer ABI 一致），n 为 1..8；out_sizes/out_addrs/out_ports 至少 n 个。返回收到报文数，-1=错误。 */
-export extern function net_udp_recv_many_buf_c(fd: i32, bufs: *Buffer, n: i32, timeout_ms: u32, out_sizes: *i32, out_addrs: *u32, out_ports: *u32): i32;
+extern function net_udp_recv_many_buf_c(fd: i32, bufs: *Buffer, n: i32, timeout_ms: u32, out_sizes: *i32, out_addrs: *u32, out_ports: *u32): i32;
 /** 阶段 5 切片化：UDP 批量发送，addrs/ports/bufs 各 n 个，n 为 1..8。返回发送报文数，-1=错误。 */
-export extern function net_udp_send_many_buf_c(fd: i32, addrs: *u32, ports: *u32, bufs: *Buffer, n: i32): i32;
-export extern function net_tcp_local_addr_c(fd: i32): i64;
-export extern function net_tcp_peer_addr_c(fd: i32): i64;
-export extern function net_tcp_connect_ipv6_c(addr_16: *u8, port_u32: u32, timeout_ms: u32): i32;
-export extern function net_tcp_listen_ipv6_c(addr_16: *u8, port_u32: u32): i32;
-export extern function net_resolve_ipv4_c(hostname: *u8): u32;
+extern function net_udp_send_many_buf_c(fd: i32, addrs: *u32, ports: *u32, bufs: *Buffer, n: i32): i32;
+extern function net_tcp_local_addr_c(fd: i32): i64;
+extern function net_tcp_peer_addr_c(fd: i32): i64;
+extern function net_tcp_connect_ipv6_c(addr_16: *u8, port_u32: u32, timeout_ms: u32): i32;
+extern function net_tcp_listen_ipv6_c(addr_16: *u8, port_u32: u32): i32;
+extern function net_resolve_ipv4_c(hostname: *u8): u32;
 /** STD-029：可诊断 IPv4 DNS；失败 -1 并写 out_err。 */
-export extern function net_resolve_ipv4_ex_c(hostname: *u8, out_addr: *u32, out_err: *i32): i32;
+extern function net_resolve_ipv4_ex_c(hostname: *u8, out_addr: *u32, out_err: *i32): i32;
 /** STD-029：可诊断 IPv6 DNS；失败 -1 并写 out_err；成功写 16 字节地址。 */
-export extern function net_resolve_ipv6_ex_c(hostname: *u8, out_addr_16: *u8, out_err: *i32): i32;
+extern function net_resolve_ipv6_ex_c(hostname: *u8, out_addr_16: *u8, out_err: *i32): i32;
 /** ZC-1：批量 provided recv 薄包装（Linux io_uring）。 */
-export extern function net_stream_read_batch_provided_c(stream_fd: i32, n: i32, timeout_ms: u32, out_bids: *u32, out_lens: *u32): i32;
+extern function net_stream_read_batch_provided_c(stream_fd: i32, n: i32, timeout_ms: u32, out_bids: *u32, out_lens: *u32): i32;
 /** ALPN 线格式（h2 + http/1.1）；由 net_alpn.x 提供（F-04 v10）。 */
-export extern function net_tls_alpn_h2_http1_wire_c(out: *u8, out_cap: i32): i32;
+extern function net_tls_alpn_h2_http1_wire_c(out: *u8, out_cap: i32): i32;
 // ——— Ipv4Addr：IPv4 地址四字节 a.b.c.d ———
 export struct Ipv4Addr {
   a: u8

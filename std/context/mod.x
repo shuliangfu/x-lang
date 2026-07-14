@@ -37,18 +37,18 @@ export struct Context {
   handle: i64;
 }
 
-export extern function ctx_background_c(): i64;
-export extern function ctx_with_cancel_c(parent: i64): i64;
-export extern function ctx_with_deadline_c(parent: i64, deadline_ns: i64): i64;
-export extern function ctx_with_timeout_c(parent: i64, timeout_ns: i64): i64;
-export extern function ctx_cancel_c(handle: i64): void;
-export extern function ctx_is_cancelled_c(handle: i64): i32;
-export extern function ctx_deadline_ns_c(handle: i64): i64;
-export extern function ctx_remaining_ns_c(handle: i64): i64;
-export extern function ctx_set_value_c(handle: i64, key: *u8, value: i64): i32;
-export extern function ctx_get_value_c(handle: i64, key: *u8, out: *i64): i32;
-export extern function ctx_free_c(handle: i64): void;
-export extern function ctx_smoke_c(): i32;
+extern function ctx_background_c(): i64;
+extern function ctx_with_cancel_c(parent: i64): i64;
+extern function ctx_with_deadline_c(parent: i64, deadline_ns: i64): i64;
+extern function ctx_with_timeout_c(parent: i64, timeout_ns: i64): i64;
+extern function ctx_cancel_c(handle: i64): void;
+extern function ctx_is_cancelled_c(handle: i64): i32;
+extern function ctx_deadline_ns_c(handle: i64): i64;
+extern function ctx_remaining_ns_c(handle: i64): i64;
+extern function ctx_set_value_c(handle: i64, key: *u8, value: i64): i32;
+extern function ctx_get_value_c(handle: i64, key: *u8, out: *i64): i32;
+extern function ctx_free_c(handle: i64): void;
+extern function ctx_smoke_c(): i32;
 
 /** 根上下文：永不取消、无 deadline。 */
 export function background(): Context {

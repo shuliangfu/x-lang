@@ -29,7 +29,7 @@
 //          移除 free 调用，temp buffer 暂留（量与输入成正比，仅稳定排序路径）。
 
 /** libc 堆（稳定归并临时缓冲）。 */
-export extern "C" function malloc(size: usize): *u8;
+extern "C" function malloc(size: usize): *u8;
 
 /** 内建比较器 id（usize 承载；与 sort_cmp_*_fn_c 返回值一致，STD-060 v1）。 */
 export const SORT_CMP_I32_ASC: usize = 1;

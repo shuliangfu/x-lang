@@ -47,27 +47,27 @@ allow(padding) struct DateFields {
   nsec: i32;
 }
 
-export extern function datetime_now_utc_c(out_sec: *i64, out_nsec: *i32): void;
-export extern function datetime_utc_fields_c(sec: i64, y: *i32, mo: *i32, d: *i32, h: *i32, mi: *i32, s: *i32): void;
-export extern function datetime_from_utc_fields_c(y: i32, mo: i32, d: i32, h: i32, mi: i32, s: i32, nsec: i32, out_sec: *i64, out_nsec: *i32): i32;
-export extern function datetime_compare_c(a_sec: i64, a_nsec: i32, b_sec: i64, b_nsec: i32): i32;
-export extern function datetime_parse_rfc3339_c(ptr: *u8, len: i32, out_sec: *i64, out_nsec: *i32, out_offset_min: *i32): i32;
-export extern function datetime_format_rfc3339_c(sec: i64, nsec: i32, out: *u8, out_cap: i32): i32;
-export extern function datetime_format_rfc3339_nano_c(sec: i64, nsec: i32, out: *u8, out_cap: i32): i32;
-export extern function datetime_local_offset_min_c(): i32;
-export extern function datetime_local_fields_c(sec: i64, offset_min: i32, y: *i32, mo: *i32, d: *i32, h: *i32, mi: *i32, s: *i32): void;
-export extern function datetime_duration_between_ns_c(a_sec: i64, a_nsec: i32, b_sec: i64, b_nsec: i32): i64;
-export extern function datetime_add_duration_ns_c(sec: i64, nsec: i32, delta_ns: i64, out_sec: *i64, out_nsec: *i32): i32;
-export extern function datetime_timezone_from_name_c(name: *u8, name_len: i32, out_offset_min: *i32): i32;
-export extern function datetime_parse_offset_min_c(ptr: *u8, len: i32, out_offset_min: *i32): i32;
-export extern function datetime_from_zoned_fields_c(y: i32, mo: i32, d: i32, h: i32, mi: i32, s: i32, nsec: i32,
+extern function datetime_now_utc_c(out_sec: *i64, out_nsec: *i32): void;
+extern function datetime_utc_fields_c(sec: i64, y: *i32, mo: *i32, d: *i32, h: *i32, mi: *i32, s: *i32): void;
+extern function datetime_from_utc_fields_c(y: i32, mo: i32, d: i32, h: i32, mi: i32, s: i32, nsec: i32, out_sec: *i64, out_nsec: *i32): i32;
+extern function datetime_compare_c(a_sec: i64, a_nsec: i32, b_sec: i64, b_nsec: i32): i32;
+extern function datetime_parse_rfc3339_c(ptr: *u8, len: i32, out_sec: *i64, out_nsec: *i32, out_offset_min: *i32): i32;
+extern function datetime_format_rfc3339_c(sec: i64, nsec: i32, out: *u8, out_cap: i32): i32;
+extern function datetime_format_rfc3339_nano_c(sec: i64, nsec: i32, out: *u8, out_cap: i32): i32;
+extern function datetime_local_offset_min_c(): i32;
+extern function datetime_local_fields_c(sec: i64, offset_min: i32, y: *i32, mo: *i32, d: *i32, h: *i32, mi: *i32, s: *i32): void;
+extern function datetime_duration_between_ns_c(a_sec: i64, a_nsec: i32, b_sec: i64, b_nsec: i32): i64;
+extern function datetime_add_duration_ns_c(sec: i64, nsec: i32, delta_ns: i64, out_sec: *i64, out_nsec: *i32): i32;
+extern function datetime_timezone_from_name_c(name: *u8, name_len: i32, out_offset_min: *i32): i32;
+extern function datetime_parse_offset_min_c(ptr: *u8, len: i32, out_offset_min: *i32): i32;
+extern function datetime_from_zoned_fields_c(y: i32, mo: i32, d: i32, h: i32, mi: i32, s: i32, nsec: i32,
   offset_min: i32, out_sec: *i64, out_nsec: *i32): i32;
-export extern function datetime_iana_from_name_c(name: *u8, name_len: i32): i32;
-export extern function datetime_iana_offset_at_c(iana_id: i32, sec: i64): i32;
-export extern function datetime_from_iana_zoned_fields_c(iana_id: i32, y: i32, mo: i32, d: i32, h: i32, mi: i32, s: i32,
+extern function datetime_iana_from_name_c(name: *u8, name_len: i32): i32;
+extern function datetime_iana_offset_at_c(iana_id: i32, sec: i64): i32;
+extern function datetime_from_iana_zoned_fields_c(iana_id: i32, y: i32, mo: i32, d: i32, h: i32, mi: i32, s: i32,
   nsec: i32, out_sec: *i64, out_nsec: *i32): i32;
-export extern function datetime_iana_dst_smoke_c(): i32;
-export extern function datetime_timezone_smoke_c(): i32;
+extern function datetime_iana_dst_smoke_c(): i32;
+extern function datetime_timezone_smoke_c(): i32;
 
 /** 当前 UTC 时刻。 */
 export function now_utc(): DateTime {

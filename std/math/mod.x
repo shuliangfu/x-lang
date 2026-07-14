@@ -21,29 +21,29 @@
 // fenv 异常标志（STD-059/149）。
 // 【依赖】core；C 层 math_*_c 在 math.x / runtime_math_libm.c；链接时需 -lm。
 
-export extern function math_pi_c(): f64;
-export extern function math_e_c(): f64;
-export extern function math_tau_c(): f64;
-export extern function math_floor_c(x: f64): f64;
-export extern function math_ceil_c(x: f64): f64;
-export extern function math_trunc_c(x: f64): f64;
-export extern function math_round_c(x: f64): f64;
-export extern function math_sin_c(x: f64): f64;
-export extern function math_cos_c(x: f64): f64;
-export extern function math_tan_c(x: f64): f64;
-export extern function math_asin_c(x: f64): f64;
-export extern function math_acos_c(x: f64): f64;
-export extern function math_atan_c(x: f64): f64;
-export extern function math_atan2_c(y: f64, x: f64): f64;
-export extern function math_sqrt_c(x: f64): f64;
-export extern function math_cbrt_c(x: f64): f64;
-export extern function math_pow_c(base: f64, exp: f64): f64;
-export extern function math_exp_c(x: f64): f64;
-export extern function math_log_c(x: f64): f64;
-export extern function math_fabs_c(x: f64): f64;
-export extern function math_signum_c(x: f64): f64;
-export extern function math_fmin_c(a: f64, b: f64): f64;
-export extern function math_fmax_c(a: f64, b: f64): f64;
+extern function math_pi_c(): f64;
+extern function math_e_c(): f64;
+extern function math_tau_c(): f64;
+extern function math_floor_c(x: f64): f64;
+extern function math_ceil_c(x: f64): f64;
+extern function math_trunc_c(x: f64): f64;
+extern function math_round_c(x: f64): f64;
+extern function math_sin_c(x: f64): f64;
+extern function math_cos_c(x: f64): f64;
+extern function math_tan_c(x: f64): f64;
+extern function math_asin_c(x: f64): f64;
+extern function math_acos_c(x: f64): f64;
+extern function math_atan_c(x: f64): f64;
+extern function math_atan2_c(y: f64, x: f64): f64;
+extern function math_sqrt_c(x: f64): f64;
+extern function math_cbrt_c(x: f64): f64;
+extern function math_pow_c(base: f64, exp: f64): f64;
+extern function math_exp_c(x: f64): f64;
+extern function math_log_c(x: f64): f64;
+extern function math_fabs_c(x: f64): f64;
+extern function math_signum_c(x: f64): f64;
+extern function math_fmin_c(a: f64, b: f64): f64;
+extern function math_fmax_c(a: f64, b: f64): f64;
 
 /** 圆周率 π。 */
 export function pi(): f64 {
@@ -207,11 +207,11 @@ export function max(a: f64, b: f64): f64 {
 }
 
 // --- 特殊函数（STD-115）---
-export extern function math_erf_c(x: f64): f64;
-export extern function math_erfc_c(x: f64): f64;
-export extern function math_log1p_c(x: f64): f64;
-export extern function math_expm1_c(x: f64): f64;
-export extern function math_special_smoke_c(): i32;
+extern function math_erf_c(x: f64): f64;
+extern function math_erfc_c(x: f64): f64;
+extern function math_log1p_c(x: f64): f64;
+extern function math_expm1_c(x: f64): f64;
+extern function math_special_smoke_c(): i32;
 
 /** 误差函数 erf(x)。 */
 export function erf(x: f64): f64 {
@@ -257,10 +257,10 @@ export const FENV_INEXACT: i32 = 16;
 export const FENV_ALL: i32 = 31;
 export const FENV_NOT_IMPL: i32 = -9;
 
-export extern function math_fenv_available_c(): i32;
-export extern function math_fenv_test_c(mask: i32): i32;
-export extern function math_fenv_clear_c(mask: i32): i32;
-export extern function math_fenv_raise_c(mask: i32): i32;
+extern function math_fenv_available_c(): i32;
+extern function math_fenv_test_c(mask: i32): i32;
+extern function math_fenv_clear_c(mask: i32): i32;
+extern function math_fenv_raise_c(mask: i32): i32;
 
 /** 平台是否支持 fenv：1=是，0=stub。 */
 export function fenv_available(): i32 {

@@ -50,12 +50,12 @@ export const CTX_ERR_NULL: i32 = -1;
 let g_ctx_background_bytes: u8[152] = [];
 let g_ctx_background_init: i32 = 0;
 
-export extern function time_now_monotonic_ns_c(): i64;
-export extern function atomic_load_i32_c(ptr: *i32): i32;
-export extern function atomic_store_i32_c(ptr: *i32, val: i32): void;
-export extern "C" function memset(s: *u8, c: i32, n: usize): *u8;
-export extern "C" function calloc(nmemb: usize, size: usize): *u8;
-export extern "C" function free(ptr: *u8): void;
+extern function time_now_monotonic_ns_c(): i64;
+extern function atomic_load_i32_c(ptr: *i32): i32;
+extern function atomic_store_i32_c(ptr: *i32, val: i32): void;
+extern "C" function memset(s: *u8, c: i32, n: usize): *u8;
+extern "C" function calloc(nmemb: usize, size: usize): *u8;
+extern "C" function free(ptr: *u8): void;
 
 /** F-context v1 版本标记。 */
 export function ctx_f_context_v1_marker_c(): i32 {

@@ -27,13 +27,13 @@ export const DYNLIB_LAST_ERR_CAP: i32 = 256;
 /** 最近一次 open/sym 失败时的诊断文本（STD-096）。 */
 let g_dynlib_last_err: u8[256] = [];
 
-export extern function dynlib_os_open_c(path: *u8): *u8;
-export extern function dynlib_os_sym_c(lib: *u8, name: *u8): *u8;
-export extern function dynlib_os_close_c(lib: *u8): void;
-export extern function dynlib_os_copy_last_error_c(buf: *u8, cap: i32): i32;
-export extern function dynlib_os_win_path_smoke_c(): i32;
-export extern function memcpy(dst: *u8, src: *u8, n: usize): *u8;
-export extern function memset(s: *u8, c: i32, n: usize): *u8;
+extern function dynlib_os_open_c(path: *u8): *u8;
+extern function dynlib_os_sym_c(lib: *u8, name: *u8): *u8;
+extern function dynlib_os_close_c(lib: *u8): void;
+extern function dynlib_os_copy_last_error_c(buf: *u8, cap: i32): i32;
+extern function dynlib_os_win_path_smoke_c(): i32;
+extern function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+extern function memset(s: *u8, c: i32, n: usize): *u8;
 
 /** F-dynlib v1 版本标记。 */
 export function dynlib_f_dynlib_v1_marker_c(): i32 {

@@ -27,16 +27,16 @@ export const ENV_LIT_V_EQ_W: u8[4] = [86, 61, 87, 0];
 export const ENV_LIT_NOEQ: u8[5] = [78, 79, 69, 81, 0];
 export const ENV_LIT_EMPTY: u8[1] = [0];
 
-export extern "C" function strchr(s: *u8, c: i32): *u8;
-export extern "C" function strlen(s: *u8): usize;
-export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+extern "C" function strchr(s: *u8, c: i32): *u8;
+extern "C" function strlen(s: *u8): usize;
+extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 
-export extern function process_args_count_c(): i32;
-export extern function process_arg_c(i: i32): *u8;
+extern function process_args_count_c(): i32;
+extern function process_arg_c(i: i32): *u8;
 
-export extern function env_getenv_c(key: *u8, key_len: i32, out: *u8, out_cap: i32): i32;
-export extern function env_setenv_c(name: *u8, value: *u8, overwrite: i32): i32;
-export extern function env_unsetenv_c(name: *u8): i32;
+extern function env_getenv_c(key: *u8, key_len: i32, out: *u8, out_cap: i32): i32;
+extern function env_setenv_c(name: *u8, value: *u8, overwrite: i32): i32;
+extern function env_unsetenv_c(name: *u8): i32;
 
 /** args_iter 计数：委托 process argc。 */
 /** mod.x extern args_iter_count_c → bare name 调用；#[no_mangle] 让 .x 定义符号与调用端一致。 */

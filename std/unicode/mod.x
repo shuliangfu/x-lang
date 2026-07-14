@@ -19,17 +19,17 @@
 // 【文件职责】category、to_lower/to_upper、is_whitespace、is_ascii；
 // nfc_buf（v1 拉丁预组合）；grapheme_next、case_fold_*。
 // 【依赖】core、std.encoding；算法在 std/unicode/unicode.x（F-unicode v2 纯 .x）。
-export extern function category(rune: u32): i32;
-export extern function is_whitespace(rune: u32): i32;
-export extern function is_ascii(rune: u32): i32;
-export extern function to_lower(rune: u32): u32;
-export extern function to_upper(rune: u32): u32;
-export extern function is_supplementary(rune: u32): i32;
-export extern function nfc_buf(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32;
-export extern function grapheme_next(s: *u8, len: i32, off: i32): i32;
-export extern function case_fold_rune(rune: u32): u32;
-export extern function case_fold_buf(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32;
-export extern function grapheme_case_smoke(): i32;
+extern function category(rune: u32): i32;
+extern function is_whitespace(rune: u32): i32;
+extern function is_ascii(rune: u32): i32;
+extern function to_lower(rune: u32): u32;
+extern function to_upper(rune: u32): u32;
+extern function is_supplementary(rune: u32): i32;
+extern function nfc_buf(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32;
+extern function grapheme_next(s: *u8, len: i32, off: i32): i32;
+extern function case_fold_rune(rune: u32): u32;
+extern function case_fold_buf(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32;
+extern function grapheme_case_smoke(): i32;
 
 /** rune 编码为 UTF-8 所需的字节数（1..4）；非法高位 surrogate 区间按 3 处理。 */
 export function rune_utf8_len(rune: u32): i32 {

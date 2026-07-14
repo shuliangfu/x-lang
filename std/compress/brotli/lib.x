@@ -73,30 +73,30 @@ allow(padding) struct BrotliStream {
 }
 
 /** libbrotli：块压缩。 */
-export extern function BrotliEncoderCompress(quality: i32, lgwin: i32, mode: i32, input_size: usize,
+extern function BrotliEncoderCompress(quality: i32, lgwin: i32, mode: i32, input_size: usize,
   input_buffer: *u8, encoded_size: *usize, encoded_buffer: *u8): i32;
 
 /** libbrotli：块解压。 */
-export extern function BrotliDecoderDecompress(encoded_size: usize, encoded_buffer: *u8,
+extern function BrotliDecoderDecompress(encoded_size: usize, encoded_buffer: *u8,
   decoded_size: *usize, decoded_buffer: *u8): i32;
 
 /** libbrotli：创建/销毁编码器。 */
-export extern function BrotliEncoderCreateInstance(a: *u8, b: *u8, c: *u8): *u8;
-export extern function BrotliEncoderDestroyInstance(state: *u8): void;
+extern function BrotliEncoderCreateInstance(a: *u8, b: *u8, c: *u8): *u8;
+extern function BrotliEncoderDestroyInstance(state: *u8): void;
 
 /** libbrotli：创建/销毁解码器。 */
-export extern function BrotliDecoderCreateInstance(a: *u8, b: *u8, c: *u8): *u8;
-export extern function BrotliDecoderDestroyInstance(state: *u8): void;
+extern function BrotliDecoderCreateInstance(a: *u8, b: *u8, c: *u8): *u8;
+extern function BrotliDecoderDestroyInstance(state: *u8): void;
 
 /** libbrotli：流式压缩。 */
-export extern function BrotliEncoderCompressStream(state: *u8, op: i32, available_in: *usize,
+extern function BrotliEncoderCompressStream(state: *u8, op: i32, available_in: *usize,
   next_in: * *u8, available_out: *usize, next_out: * *u8, total_out: *usize): i32;
 
 /** libbrotli：编码器是否结束。 */
-export extern function BrotliEncoderIsFinished(state: *u8): i32;
+extern function BrotliEncoderIsFinished(state: *u8): i32;
 
 /** libbrotli：流式解压。 */
-export extern function BrotliDecoderDecompressStream(state: *u8, available_in: *usize, next_in: * *u8,
+extern function BrotliDecoderDecompressStream(state: *u8, available_in: *usize, next_in: * *u8,
   available_out: *usize, next_out: * *u8, total_out: *usize): i32;
 
 /** 链接 marker：runtime 据此追加 -lbrotlienc -lbrotlidec。 */

@@ -20,9 +20,9 @@
 // log_write_c / log_write_structured_kv_c：级别前缀与 OBS-003 行组装；
 // 实际 sink 写入在 runtime_log_os.c（compiler runtime；log_emit_bytes_c）。
 
-export extern function log_apply_env_once_c(): void;
-export extern function log_get_min_level_c(): i32;
-export extern function log_emit_bytes_c(buf: *u8, len: i32): i32;
+extern function log_apply_env_once_c(): void;
+extern function log_get_min_level_c(): i32;
+extern function log_emit_bytes_c(buf: *u8, len: i32): i32;
 
 /** 异步槽最大行宽（与 runtime_log_os.c LOG_ASYNC_SLOT_SIZE 一致）。 */
 export const LOG_ASYNC_SLOT_SIZE: i32 = 512;

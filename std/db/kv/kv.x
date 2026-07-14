@@ -92,17 +92,17 @@ allow(padding) struct KvStoreMem {
   arena_off: usize;
 }
 
-export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
-export extern "C" function memcmp(a: *u8, b: *u8, n: usize): i32;
-export extern "C" function memset(s: *u8, c: i32, n: usize): *u8;
-export extern "C" function calloc(nmemb: usize, size: usize): *u8;
-export extern "C" function free(ptr: *u8): void;
-export extern "C" function malloc(size: usize): *u8;
-export extern "C" function strlen(s: *u8): usize;
+extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+extern "C" function memcmp(a: *u8, b: *u8, n: usize): i32;
+extern "C" function memset(s: *u8, c: i32, n: usize): *u8;
+extern "C" function calloc(nmemb: usize, size: usize): *u8;
+extern "C" function free(ptr: *u8): void;
+extern "C" function malloc(size: usize): *u8;
+extern "C" function strlen(s: *u8): usize;
 
-export extern function shu_kv_mmap_file_c(path: *u8, min_size: usize, out_size: *usize): i64;
-export extern function shu_kv_munmap_c(addr: i64, len: usize): i32;
-export extern function shu_kv_msync_c(addr: i64, len: usize): i32;
+extern function shu_kv_mmap_file_c(path: *u8, min_size: usize, out_size: *usize): i64;
+extern function shu_kv_munmap_c(addr: i64, len: usize): i32;
+extern function shu_kv_msync_c(addr: i64, len: usize): i32;
 
 export function kv_hash_key(key: *u8, len: u32): u32 {
   let h: u32 = 2166136261;

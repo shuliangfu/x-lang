@@ -93,17 +93,17 @@ allow(padding) struct GzipStream {
 }
 
 /** libz：初始化 deflate（gzip windowBits）。 */
-export extern function deflateInit2(strm: *ZStream, level: i32, method: i32, windowBits: i32, memLevel: i32, strategy: i32): i32;
+extern function deflateInit2(strm: *ZStream, level: i32, method: i32, windowBits: i32, memLevel: i32, strategy: i32): i32;
 /** libz：deflate 压缩。 */
-export extern function deflate(strm: *ZStream, flush: i32): i32;
+extern function deflate(strm: *ZStream, flush: i32): i32;
 /** libz：释放 deflate 流。 */
-export extern function deflateEnd(strm: *ZStream): i32;
+extern function deflateEnd(strm: *ZStream): i32;
 /** libz：初始化 inflate（gzip windowBits）。 */
-export extern function inflateInit2(strm: *ZStream, windowBits: i32): i32;
+extern function inflateInit2(strm: *ZStream, windowBits: i32): i32;
 /** libz：inflate 解压。 */
-export extern function inflate(strm: *ZStream, flush: i32): i32;
+extern function inflate(strm: *ZStream, flush: i32): i32;
 /** libz：释放 inflate 流。 */
-export extern function inflateEnd(strm: *ZStream): i32;
+extern function inflateEnd(strm: *ZStream): i32;
 
 /**
  * 将 z_stream 的 zalloc/zfree/opaque 置空（默认分配器）。

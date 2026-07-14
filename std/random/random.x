@@ -19,7 +19,7 @@
 // 【文件职责】random_u32/u64、SplitMix64 PRNG 烟测；OS fill 见 runtime_random_fill.inc（compiler）。
 
 /** OS 胶层：密码学安全随机字节。 */
-export extern function random_fill_bytes_c(buf: *u8, len: i32): i32;
+extern function random_fill_bytes_c(buf: *u8, len: i32): i32;
 
 /** 生成密码学安全 u32；失败返回 0。 */
 export function random_u32_c(): u32 {

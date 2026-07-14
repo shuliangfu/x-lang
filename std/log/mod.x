@@ -20,15 +20,15 @@
 //
 // 【文件职责】set_min_level、log、structured_kv；输出到 stderr 和/或文件。
 // 【依赖】core；与 std/log/log.x 同属一模块（F-log v1 / F-ZC）；OS 胶层在 runtime_log_os.o。
-export extern function log_set_min_level_c(level: i32): void;
-export extern function log_write_c(level: i32, ptr: *u8, len: i32): i32;
-export extern function log_set_sink_mask_c(mask: i32): void;
-export extern function log_set_file_sink_c(path: *u8, len: i32): i32;
-export extern function log_close_file_sink_c(): void;
-export extern function log_write_structured_kv_c(comp: *u8, level: i32, kv: *u8): i32;
-export extern function log_set_rotate_c(max_bytes: i32, max_backups: i32): i32;
-export extern function log_set_async_enabled_c(enabled: i32): i32;
-export extern function log_async_flush_c(): i32;
+extern function log_set_min_level_c(level: i32): void;
+extern function log_write_c(level: i32, ptr: *u8, len: i32): i32;
+extern function log_set_sink_mask_c(mask: i32): void;
+extern function log_set_file_sink_c(path: *u8, len: i32): i32;
+extern function log_close_file_sink_c(): void;
+extern function log_write_structured_kv_c(comp: *u8, level: i32, kv: *u8): i32;
+extern function log_set_rotate_c(max_bytes: i32, max_backups: i32): i32;
+extern function log_set_async_enabled_c(enabled: i32): i32;
+extern function log_async_flush_c(): i32;
 
 /** stderr sink 掩码位。 */
 export const SINK_STDERR: i32 = 1;

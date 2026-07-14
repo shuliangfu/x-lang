@@ -38,15 +38,15 @@ allow(padding) struct Url {
   fragment: u8[256];
 }
 
-export extern function url_parse_c(url: *u8, len: i32, out: *Url): i32;
-export extern function url_build_c(u: *Url, out: *u8, out_cap: i32): i32;
-export extern function url_query_encode_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32;
-export extern function url_query_decode_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32;
-export extern function url_resolve_c(base: *Url, ref: *u8, ref_len: i32, out: *Url): i32;
-export extern function url_host_to_ipv6_c(host: *u8, host_len: i32, out_16: *u8): i32;
-export extern function url_format_ipv6_host_c(addr_16: *u8, out: *u8, out_cap: i32): i32;
-export extern function url_host_is_ipv6_c(host: *u8, host_len: i32): i32;
-export extern function url_ipv6_host_smoke_c(): i32;
+extern function url_parse_c(url: *u8, len: i32, out: *Url): i32;
+extern function url_build_c(u: *Url, out: *u8, out_cap: i32): i32;
+extern function url_query_encode_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32;
+extern function url_query_decode_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32;
+extern function url_resolve_c(base: *Url, ref: *u8, ref_len: i32, out: *Url): i32;
+extern function url_host_to_ipv6_c(host: *u8, host_len: i32, out_16: *u8): i32;
+extern function url_format_ipv6_host_c(addr_16: *u8, out: *u8, out_cap: i32): i32;
+extern function url_host_is_ipv6_c(host: *u8, host_len: i32): i32;
+extern function url_ipv6_host_smoke_c(): i32;
 
 /** 解析 URL；0 成功，-1 失败。 */
 export function parse(url: *u8, len: i32, out: *Url): i32 {

@@ -19,14 +19,14 @@
 // 【文件职责】cstr_len、cstring_new/free；FfiPoint pack/unpack；
 // invoke_cb usize 回调调用。
 // 【依赖】core；与 std/ffi/ffi.x 同属一模块（F-ZC 纯 .x）。
-export extern function ffi_cstr_len_c(ptr: *u8): i32;
-export extern function ffi_cstring_new_c(ptr: *u8, len: i32): *u8;
-export extern function ffi_cstring_free_c(ptr: *u8): void;
-export extern function ffi_cstring_try_new_c(ptr: *u8, len: i32, out: *usize): i32;
-export extern function ffi_point_pack_c(buf: *u8, cap: i32, x: i32, y: i32): i32;
-export extern function ffi_point_unpack_c(buf: *u8, cap: i32, out: *FfiPoint): i32;
-export extern function ffi_cb_double_i32_fn_c(): usize;
-export extern function ffi_invoke_i32_cb_c(cb: usize, arg: i32): i32;
+extern function ffi_cstr_len_c(ptr: *u8): i32;
+extern function ffi_cstring_new_c(ptr: *u8, len: i32): *u8;
+extern function ffi_cstring_free_c(ptr: *u8): void;
+extern function ffi_cstring_try_new_c(ptr: *u8, len: i32, out: *usize): i32;
+extern function ffi_point_pack_c(buf: *u8, cap: i32, x: i32, y: i32): i32;
+extern function ffi_point_unpack_c(buf: *u8, cap: i32, out: *FfiPoint): i32;
+extern function ffi_cb_double_i32_fn_c(): usize;
+extern function ffi_invoke_i32_cb_c(cb: usize, arg: i32): i32;
 
 /** 成功。 */
 export const FFI_OK: i32 = 0;

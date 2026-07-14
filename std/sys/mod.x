@@ -45,7 +45,7 @@ export const STDERR_FD: i32 = 2;
 
 /** Linux write(2) freestanding 桩（compiler/src/asm/freestanding_io_x86_64.s）。 */
 #[cfg(target_os = "linux")]
-export extern function shux_sys_write(fd: i32, buf: *u8, len: i32): i32;
+extern function shux_sys_write(fd: i32, buf: *u8, len: i32): i32;
 
 /**
  * v0：freestanding write 是否在 mod 层可用（Linux=1，macOS=0）。
