@@ -1,76 +1,24 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-7：simd_enc 产品源迁 seeds/simd_enc.from_x.c（纯编码，无 OS #if）。
-// 本文件为语义对照 / 后续真迁 .x 的入口说明；全量 opcode 表仍在 seed C。
-// 产品：cc seeds/simd_enc.from_x.c → src/asm/simd_enc.o
+// G-02f-7 / R2 full（2026-07-14）：simd_enc 真迁
+// Logic source for product PREFER_X_O：g05_try_x_to_o(本文件) + rest
+//   seeds/simd_enc.from_x.c (-DSHUX_SIMD_ENC_FROM_X) ld -r → src/asm/simd_enc.o
+// R2: full.x 吃满 pure/insn/try_hw 公共业务（74 公共面）；FROM_X rest 业务 H=0（仅 slice_marker）
+// 冷启动/无 PREFER：seeds/simd_enc.from_x.c 完整 C 体
+// L2 thin hybrid（simd_enc_thin.x + SHUX_L2_SIMD_ENC_THIN_FROM_X）仅作 full.x 失败回退
 //
 // 导出（C ABI，见 include/simd_enc.h）：
 //   simd_enc_try_hw_vector_*_rbp / pshufd / select / 低层 x86 enc helpers 等。
 // G-02f-211：try_hw fadd/fmul/fma/imul/iadd 与 x86 短壳真迁 .x。
 // G-02f-212：binop@idx / pshufd / select + arm64 128 壳真迁；simd_enc 主路径闭合。
 
-// 占位：避免空 TU；产品不链本 .x 生成物。
+#[no_mangle]
 export function simd_enc_x_doc_anchor(): i32 {
   return 0;
 }
 
-// G-02f-108：+ rbp/append/x86 movups/padd 薄门闩。
-
-
-/* ---- G-02f-108：simd_enc low-level helpers 门闩 ---- */
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// G-02f-109：+ mul/vfmadd/rbx_rax4/pshufd/select 薄门闩。
-
-export extern "C" function simd_arm64_ins_v1_from_v0_s_impl(dst: i32, src: i32): u32;
-export extern "C" function simd_arm64_pshufd_imm8_128_rbp_impl(elf: *u8, lea_src: i32, lea_dst: i32, imm8: i32): i32;
-export extern "C" function simd_arm64_select_128_rbp_impl(elf: *u8, lea_mask: i32, lea_a: i32, lea_b: i32): i32;
-
-/* ---- G-02f-109：simd_enc more ops 门闩 ---- */
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// G-02f-115：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
+// G-02f-115+：helper / try_hw 真迁 .x 函数体（产品 seed 冷路径仍保留 C 同语义）
 
 #[no_mangle]
 export function simd_arm64_ins_v1_from_v0_s(dst_lane: i32, src_lane: i32): u32 {

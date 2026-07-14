@@ -99,10 +99,10 @@ MODULES=(
   # 产品 rest 在 FROM_X 下业务 H=0（仅 slice_marker）；冷/无 PREFER 仍可走 seeds/simd_loop.from_x.c 全 C 体
   # prove 锁 full surface IDENTICAL；L2 thin seed 仅作 g05 full.x 失败回退
   "simd_loop|src/asm/simd_loop.x|seeds/simd_loop_surface.from_x.c||"
-  # simd_enc R2 thin full：thin.x 吃满 74 公共门闩（pure+insn+try_hw forward→_impl）；
-  # rest 在 SHUX_L2_SIMD_ENC_THIN_FROM_X 下无 thin 公共体；Cap residual：*_impl / encode 在 full seed rest
-  # prove 锁 thin surface IDENTICAL；冷/无 PREFER 仍可走 seeds/simd_enc.from_x.c 全 C 体
-  "simd_enc|src/asm/simd_enc_thin.x|seeds/simd_enc_thin_surface.from_x.c||"
+  # simd_enc R2 full：.x 吃满 pure/insn/try_hw 公共业务（74 公共面 + anchor）；
+  # 产品 rest 在 FROM_X 下业务 H=0（仅 slice_marker）；冷/无 PREFER 仍可走 seeds/simd_enc.from_x.c 全 C 体
+  # prove 锁 full surface IDENTICAL；L2 thin seed 仅作 g05 full.x 失败回退
+  "simd_enc|src/asm/simd_enc.x|seeds/simd_enc_surface.from_x.c||"
   # backend_enc_dispatch R2 full：.x 吃满 enc/ta 公共业务；
   # 产品 rest 在 FROM_X 下业务 H=0（仅 slice_marker）；冷/无 PREFER 仍可走 seeds/backend_enc_dispatch.from_x.c 全 C 体
   # prove 锁 full surface IDENTICAL；L2 thin seed 仅作 g05 full.x 失败回退
