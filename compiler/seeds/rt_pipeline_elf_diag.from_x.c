@@ -2,6 +2,10 @@
  * Logic source: src/runtime/rt_pipeline_elf_diag.x
  * Hybrid: SHUX_RT_PIPELINE_ELF_DIAG_FROM_X + ld -r into runtime_driver_no_c.o
  *
+ * R2 full（2026-07-14）：runtime_pipeline_elf_ctx_diag_note 由 .x 提供；
+ * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务符号 H=0）。
+ * 冷启动/无 PREFER 时仍编译完整 C 体。
+ *
  * Scope: runtime_pipeline_elf_ctx_diag_note（读表 + first patch / label match notes）。
  */
 #include <stddef.h>
@@ -35,14 +39,7 @@ extern void diag_reportf(const char *file, int line, int col, const char *kind, 
                          ...);
 extern void diag_report(const char *file, int line, int col, const char *kind, const char *msg, const char *detail);
 
-/* G-02f-445：thin+rest PREFER_X_O
- *   thin .x provides 1 #[no_mangle] wrapper (calls *_impl in rest).
- *   rest seed C (compiled with -DSHUX_RT_PIPELINE_ELF_DIAG_FROM_X):
- *     - runtime_pipeline_elf_ctx_diag_note renamed to *_impl via macro.
- *   No #ifndef guard needed (no real .x implementation; .x is thin-only). */
-#ifdef SHUX_RT_PIPELINE_ELF_DIAG_FROM_X
-#define runtime_pipeline_elf_ctx_diag_note    runtime_pipeline_elf_ctx_diag_note_impl
-#endif
+#ifndef SHUX_RT_PIPELINE_ELF_DIAG_FROM_X
 
 void runtime_pipeline_elf_ctx_diag_note(uint8_t *ctx_bytes) {
   RuntimePipelineElfCtxAccess *ctx;
@@ -83,3 +80,11 @@ void runtime_pipeline_elf_ctx_diag_note(uint8_t *ctx_bytes) {
 int labi_rt_pipeline_elf_diag_slice_marker(void) {
   return 1;
 }
+
+#else
+void runtime_pipeline_elf_ctx_diag_note(uint8_t *ctx_bytes);
+
+int labi_rt_pipeline_elf_diag_slice_marker(void) {
+  return 1;
+}
+#endif /* !SHUX_RT_PIPELINE_ELF_DIAG_FROM_X */

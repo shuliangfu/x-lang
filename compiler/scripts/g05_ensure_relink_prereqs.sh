@@ -921,7 +921,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
                    -c -o "$_rt_elfd_rest_o" "$_rt_elf_diag_seed" \
               && $CC -r -nostdlib -o "$_rt_elfd_o" "$_rt_elfd_thin_o" "$_rt_elfd_rest_o" 2>/dev/null; then
               _rt_elfd_ok=1
-              echo "g05_ensure: rest pipeline elf diag ← thin .x + rest (G-02f-445 L2 prefer .x)"
+              echo "g05_ensure: rest pipeline elf diag ← full .x + rest marker (R2 full H=0)"
             fi
             rm -f "$_rt_elfd_thin_o" "$_rt_elfd_rest_o"
           fi
