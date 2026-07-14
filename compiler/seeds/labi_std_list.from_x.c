@@ -1,14 +1,21 @@
-/* seeds/labi_std_list.from_x.c — G-02f-271 P2 link_abi L8 std list pure
+/* seeds/labi_std_list.from_x.c — G-02f-271 P2 link_abi L8 std list pure → R2 full
  * Logic source: src/runtime/labi_std_list.x
  * Hybrid: SHUX_LABI_STD_LIST_FROM_X + ld -r into runtime_link_abi.o
  *
- * Pure data: default ASM ld std module .o plan (order + flag kind + op).
- * IO/ensure/push stay in mega interpreter (shux_asm_ld_append_std_objs).
+ * R2 full（2026-07-14）：公共业务符号由 full .x 提供：
+ *   labi_std_plan_count
+ *   labi_std_plan_step_at
+ *   labi_std_default_std_rel_count
+ *   labi_std_default_std_rel_at
+ * Cap residual：IO/ensure/push 仍在 mega shux_asm_ld_append_std_objs。
+ * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
+ * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
  *
- * G-02f-L：冷启动 / 回退 seed 与 .x 同构（if/else 短字面量，无 static 表），
- * 便于 nm 全局符号 IDENTICAL；产品 PREFER_X_O 优先 .x（W-string-nul）。
+ * Prove：seeds/labi_std_list_surface.from_x.c（-E 同构）nm IDENTICAL。
  */
 #include <stddef.h>
+
+#ifndef SHUX_LABI_STD_LIST_FROM_X
 
 /* Ops — keep in sync with mega interpreter in runtime_link_abi.from_x.c
  * STD=1 IO_STUBS=2 PRIMARY_PANIC=3 TIME_OS=4 RANDOM_FILL=5 ENV_OS=6
@@ -641,5 +648,16 @@ const char *labi_std_default_std_rel_at(int j) {
   if (j == 40)
     return "std/trace/trace.o";
   return NULL;
+}
+
+#else
+int labi_std_plan_count(void);
+int labi_std_plan_step_at(int i, int *op_out, const char **rel_out, int *flag_kind_out);
+int labi_std_default_std_rel_count(void);
+const char *labi_std_default_std_rel_at(int j);
+#endif
+
+int labi_std_list_slice_marker(void) {
+  return 1;
 }
 

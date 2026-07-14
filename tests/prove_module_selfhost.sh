@@ -53,8 +53,10 @@ MODULES=(
   # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：ensure/cc/spawn IO 在 mega freestanding
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_freestanding_list.from_x.c 全 C 体
   "labi_freestanding_list|src/runtime/labi_freestanding_list.x|seeds/labi_freestanding_list_surface.from_x.c||"
-  # labi_std_list：L8 默认 std 链接计划表；plan_step_at 多 out（*i32/*usize）；产品 PREFER_X_O；本条锁 nm / 扩 N
-  "labi_std_list|src/runtime/labi_std_list.x|seeds/labi_std_list.from_x.c||"
+  # labi_std_list R2 full：.x 吃满 58 步 plan + default_std_rel 纯表；
+  # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：IO/ensure/push 在 mega append_std_objs
+  # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_std_list.from_x.c 全 C 体
+  "labi_std_list|src/runtime/labi_std_list.x|seeds/labi_std_list_surface.from_x.c||"
   # labi_ondemand_list：L8b on_demand 符号组/rel 纯表；依赖 W-string-nul；产品 PREFER_X_O；本条锁 nm / 扩 N
   "labi_ondemand_list|src/runtime/labi_ondemand_list.x|seeds/labi_ondemand_list.from_x.c||"
   # labi_ensure_list R2 full：.x 吃满 ensure catalog 纯表（26 条目 stem/out/seed/flags/step_at）；
