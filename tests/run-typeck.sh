@@ -84,9 +84,9 @@ expect_return_breadcrumb_error() {
   local file="$1"
   local shux="${2:-./compiler/shux-x}"
   local err
-  if "$shux" --help 2>/dev/null | grep -q 'check \[paths\.\.\.\]'; then
-    err=$(run_typeck_timeout "$shux" check -L . "$file" 2>&1) || true
-  else
+  # 产品 -o/默认编译路径稳定出 typeck 诊断；`check` 对 import 模块曾假绿（exit 0 无输出）。
+  err=$(run_typeck_timeout "$shux" -L . "$file" 2>&1) || true
+  if ! echo "$err" | grep -q "typeck error"; then
     err=$(run_typeck_timeout "$shux" -x -L . "$file" -o /tmp/shux_typeck_breadcrumb_fail 2>&1) || true
   fi
   # 允许 result.Result_i32 或短名 Result_i32（qualified type 诊断为正确形态）
