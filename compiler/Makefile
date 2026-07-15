@@ -86,12 +86,15 @@ MAIN_X_DEPS = src/main.x src/codegen/codegen.x src/ast/ast.x src/preprocess/prep
 PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 .PHONY: all std-objs clean test size-baseline perf-baseline bootstrap-token bootstrap-lexer bootstrap-parser bootstrap-parse-file bootstrap-typeck bootstrap-codegen bootstrap-driver bootstrap-driver-seed bootstrap-driver-bstrict bootstrap-driver-bstrict-relink bootstrap-driver-bstrict-windows bootstrap-driver-crt0 bootstrap-driver-asm bootstrap-driver-asm-only bootstrap-asm bootstrap_shuxc check-asm-o-quality check-6.4 bootstrap-self check-7.2 check-7.2-bstrict bootstrap-verify bootstrap-verify-seed bootstrap-verify-bstrict bootstrap-verify-stage2 bootstrap-verify-stage2-bstrict bootstrap-test build-tool build-tool-x build-via-tool first-time verify-selfhost-stage2 regen-lsp-gens-x shux-no-c-frontend gen-x-driver-objs build-user-asm-backend build-seed-user-asm-partial bootstrap-driver-seed-user-asm compile_commands.json
 
-# std.process：F 闭合 — mod.x + process.x 用 -E-extern 编译（裸符号），
-# ld -r 合并 runtime_process_argv.o + runtime_process_os_glue.o（提供 process_*_c 定义）。
-../std/process/process.o: ../std/process/mod.x ../std/process/process.x scripts/shux_compile_std_module.sh runtime_process_argv.o runtime_process_os_glue.o
-	@sh scripts/shux_compile_std_module.sh --bare-impl $@.core ../std/process/mod.x ../std/process/process.x && \
-	ld -r -o $@ $@.core runtime_process_argv.o runtime_process_os_glue.o && \
-	rm -f $@.core
+# std.process：F 闭合 — process.o 只提供 process_*_c（argv 薄封装 + OS glue）。
+# 用户 std_process_* API 由 -o 路径 co-emit std/process/mod.x（带 std_process_ 前缀）。
+# 【Why 不 -E mod.x/process.x】产品 -x -E 对无 main 库模块当前会在巨型 preamble 后截断
+# 函数体（16KiB/20KiB），且裸 getcwd/pipe 与 unistd 编译期冲突。截断修通后可改回
+# shux_compile_std_module --bare-impl process.x（mod.x 仍勿编入 .o，避免双定义）。
+../std/process/process.o: ../std/process/mod.x ../std/process/process.x seeds/runtime_process_args_thin.from_x.c runtime_process_argv.o runtime_process_os_glue.o
+	@$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_process_args_thin.from_x.c -o $@.args && \
+	ld -r -o $@ $@.args runtime_process_argv.o runtime_process_os_glue.o && \
+	rm -f $@.args
 
 # std.string：F 闭合 — mod.x + string.x 用 -E-extern 编译（裸符号），
 # ld -r 合并 runtime_string_fast.o（提供 string_*_c fast-path 定义）。
