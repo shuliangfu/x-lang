@@ -2424,6 +2424,7 @@ SHUX_LIB_WEAK int32_t codegen_should_skip_emit_struct_layout_for_abi_dup(uint8_t
   /* 泛型模板 Option<T>：C 无 monomorphize，勿 emit。 */
   uint8_t nm_option[7] = { 79, 112, 116, 105, 111, 110, 0 };
   uint8_t nm_result_i32[11] = { 82, 101, 115, 117, 108, 116, 95, 105, 51, 50, 0 };
+  uint8_t nm_result_u8[10] = { 82, 101, 115, 117, 108, 116, 95, 117, 56, 0 };
   if (name_len == 6 && codegen_symbuf_bytes_eq(name, name_len, (&((nm_buffer)[0])), 6) != 0) {   return 1;
  }
   if (name_len == 10 && codegen_symbuf_bytes_eq(name, name_len, (&((nm_completion)[0])), 10) != 0) {   return 1;
@@ -2436,8 +2437,10 @@ SHUX_LIB_WEAK int32_t codegen_should_skip_emit_struct_layout_for_abi_dup(uint8_t
  }
   if (name_len == 6 && codegen_symbuf_bytes_eq(name, name_len, (&((nm_option)[0])), 6) != 0) {   return 1;
  }
-  /* 仅 Result_i32：rt_preamble 已定义；Result_u8 等仍由 codegen emit。 */
+  /* rt_preamble 已定义 Result_i32 / Result_u8 — 避免 redefinition。 */
   if (name_len == 10 && codegen_symbuf_bytes_eq(name, name_len, (&((nm_result_i32)[0])), 10) != 0) {   return 1;
+ }
+  if (name_len == 9 && codegen_symbuf_bytes_eq(name, name_len, (&((nm_result_u8)[0])), 9) != 0) {   return 1;
  }
   return 0;
 }
