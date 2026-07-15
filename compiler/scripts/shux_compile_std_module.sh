@@ -84,40 +84,42 @@ for x_path in "$@"; do
   # --bare-impl 模式下，impl .x 用 -lib-name "" 产出裸符号（匹配 mod.x 的 extern 调用）；
   # 否则 impl .x 用路径提取前缀（匹配 mod.x 的 import binding 调用）。
   base_name=$(basename "$x_path")
-  if [ "$base_name" = "mod.x" ]; then
-    if ! "$SHUX_BIN" -x -E -L .. "$x_path" >"$gen_c" 2>"$tmp_dir/shuxc_${idx}.log"; then
-      echo "shux_compile_std_module.sh: shux-c -x -E failed for $x_path, trying -E fallback" >&2
-      cat "$tmp_dir/shuxc_${idx}.log" >&2
-      if ! "$SHUX_BIN" -E -L .. "$x_path" >"$gen_c" 2>"$tmp_dir/shuxc_${idx}.log"; then
-        echo "shux_compile_std_module.sh: shux-c -E also failed for $x_path" >&2
+  # 【Why 根源】产品 -x -E 对无 main 库模块常中途截断 out_buf（4KiB 对齐截断、
+  # 半个函数体）。-o *.o 路径 emit 完整 C（cc 可能因 Arena64 标签失败，但 SHUX_KEEP_C
+  # 保留完整源）。优先 -o + KEEP_C，失败再回退 -E。
+  emit_ok=0
+  lib_name_args=""
+  if [ "$base_name" != "mod.x" ] && [ "$BARE_IMPL" = "1" ] && [ "$LIB_NAME_SUPPORTED" = "1" ]; then
+    lib_name_args="-lib-name "
+  fi
+  # shellcheck: empty -lib-name needs quoted empty string
+  rm -f /tmp/shux_shux_x.*.c 2>/dev/null || true
+  if [ -n "$lib_name_args" ]; then
+    SHUX_KEEP_C=1 "$SHUX_BIN" -L .. -lib-name "" -o "$tmp_dir/try_${idx}.o" "$x_path" \
+      >"$tmp_dir/shuxc_${idx}.log" 2>&1 || true
+  else
+    SHUX_KEEP_C=1 "$SHUX_BIN" -L .. -o "$tmp_dir/try_${idx}.o" "$x_path" \
+      >"$tmp_dir/shuxc_${idx}.log" 2>&1 || true
+  fi
+  kept=$(ls -t /tmp/shux_shux_x.*.c 2>/dev/null | head -1)
+  if [ -n "$kept" ] && [ -f "$kept" ] && [ -s "$kept" ]; then
+    # 完整 C：以 } 结尾或花括号大致平衡则采用
+    if tail -c 80 "$kept" | grep -q '}' ; then
+      cp "$kept" "$gen_c"
+      emit_ok=1
+    fi
+  fi
+  if [ "$emit_ok" != "1" ]; then
+    # 回退 -E（可能截断；仍尝试）
+    if [ -n "$lib_name_args" ]; then
+      if ! "$SHUX_BIN" -x -E -lib-name "" -L .. "$x_path" >"$gen_c" 2>"$tmp_dir/shuxc_${idx}.log"; then
+        echo "shux_compile_std_module.sh: -o keep and -x -E failed for $x_path" >&2
         cat "$tmp_dir/shuxc_${idx}.log" >&2
         exit 1
       fi
-    fi
-  else
-    if [ "$BARE_IMPL" = "1" ]; then
-      # 【Why 根源】-lib-name "" 让新编译器产出裸符号（匹配 mod.x 的 extern 调用）。
-      # 旧 seed 不支持 -lib-name 但其无前缀逻辑也产出裸符号，故 LIB_NAME_SUPPORTED=0 时不加。
-      if [ "$LIB_NAME_SUPPORTED" = "1" ]; then
-        if ! "$SHUX_BIN" -x -E -lib-name "" -L .. "$x_path" >"$gen_c" 2>"$tmp_dir/shuxc_${idx}.log"; then
-          echo "shux_compile_std_module.sh: shux-c -x -E -lib-name failed for $x_path, trying -E fallback" >&2
-          cat "$tmp_dir/shuxc_${idx}.log" >&2
-          if ! "$SHUX_BIN" -E -lib-name "" -L .. "$x_path" >"$gen_c" 2>"$tmp_dir/shuxc_${idx}.log"; then
-            echo "shux_compile_std_module.sh: shux-c -E -lib-name also failed for $x_path" >&2
-            cat "$tmp_dir/shuxc_${idx}.log" >&2
-            exit 1
-          fi
-        fi
-      else
-        if ! "$SHUX_BIN" -x -E -L .. "$x_path" >"$gen_c" 2>"$tmp_dir/shuxc_${idx}.log"; then
-          echo "shux_compile_std_module.sh: shux-c -x -E failed for $x_path" >&2
-          cat "$tmp_dir/shuxc_${idx}.log" >&2
-          exit 1
-        fi
-      fi
     else
       if ! "$SHUX_BIN" -x -E -L .. "$x_path" >"$gen_c" 2>"$tmp_dir/shuxc_${idx}.log"; then
-        echo "shux_compile_std_module.sh: shux-c -x -E failed for $x_path" >&2
+        echo "shux_compile_std_module.sh: -o keep and -x -E failed for $x_path" >&2
         cat "$tmp_dir/shuxc_${idx}.log" >&2
         exit 1
       fi
