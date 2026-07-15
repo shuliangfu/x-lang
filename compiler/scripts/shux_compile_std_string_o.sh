@@ -36,12 +36,18 @@ s = p.read_text()
 extra = []
 if "std_heap_libc_LibcArena64" in s and "heap_libc_Arena64" in s and "#define heap_libc_Arena64" not in s:
     extra.append("#define heap_libc_Arena64 std_heap_libc_LibcArena64\n")
-# entry-only 库 -E 跳过 String/StrView 完整体（与 product preamble 双 emit 策略）；此处注入权威布局
-if "struct std_string_String" in s and "struct std_string_String {" not in s:
+# entry-only 库 -E 跳过 String/StrView 完整体（与 product preamble 双 emit 策略）；此处注入权威布局。
+# 兼容：裸 struct String / 仅前向 std_string_String 声明。
+need_string_body = (
+    ("struct std_string_String" in s and "struct std_string_String {" not in s)
+    or ("struct String" in s and "struct String {" not in s and "typedef struct std_string_String String" not in s)
+)
+if need_string_body:
     extra.append(
         "struct std_string_String { uint8_t data[256]; int32_t len; };\n"
         "typedef struct std_string_String String;\n"
         "struct std_string_StrView { uint8_t *ptr; int32_t len; };\n"
+        "typedef struct std_string_StrView StrView;\n"
     )
 # init_globals 可能引用 dep 全局（heap trace / mem fence）；库 .o 不定义它们 → 补 BSS
 if "shu_heap_trace_on" in s and "int32_t shu_heap_trace_on" not in s:
