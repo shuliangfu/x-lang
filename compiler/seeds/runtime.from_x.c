@@ -5502,6 +5502,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
     /* memset(module, 0, module_sz); */
     /* parser_parse_into_init(module, arena); */
     shux_pipeline_pctx_seed_dep_slots(pctx, dep_modules, dep_arenas, dep_paths, n_deps);
+    pctx->ndep = n_deps; /* prevent pipeline from reloading deps (already seeded) */
     pctx->entry_already_parsed = 1;
     if (n_deps > 0 && !driver_check_only_get() && want_asm_backend &&
         driver_deps_are_std_core_closure_only(dep_paths, n_deps))
