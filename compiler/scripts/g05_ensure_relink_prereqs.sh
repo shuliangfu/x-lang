@@ -809,6 +809,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         fi
         if [ -n "$_rt_cmp_o" ] && [ -f "$_rt_compile_seed" ]; then
           # G-02f-454：PREFER_X_O=1 时 thin .x + rest seed (-D) → cc -r 合并
+          # 门闩：.x -E 可能「假成功」缺关键 T 符号；FROM_X rest 仅前向声明 → 最终 link U。
+          # 合并后必须有 seed 权威入口，否则回退完整 seed 冷编。
           if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_compile_x" ]; then
             _rt_cmp_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_compile_thin.XXXXXX") || true
             _rt_cmp_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_compile_rest.XXXXXX") || true
@@ -816,9 +818,14 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
               && g05_try_x_to_o "$_rt_compile_x" "$_rt_cmp_thin_o" \
               && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_RT_COMPILE_FROM_X \
                    -c -o "$_rt_cmp_rest_o" "$_rt_compile_seed" \
-              && $CC -r -nostdlib -o "$_rt_cmp_o" "$_rt_cmp_thin_o" "$_rt_cmp_rest_o" 2>/dev/null; then
+              && $CC -r -nostdlib -o "$_rt_cmp_o" "$_rt_cmp_thin_o" "$_rt_cmp_rest_o" 2>/dev/null \
+              && nm "$_rt_cmp_o" 2>/dev/null | grep -q " T driver_compile_state_alloc_c$" \
+              && nm "$_rt_cmp_o" 2>/dev/null | grep -q " T driver_deps_are_std_core_closure_only$" \
+              && nm "$_rt_cmp_o" 2>/dev/null | grep -q " T driver_compile_parse_argv_impl_c$"; then
               _rt_compile_ok=1
               echo "g05_ensure: R6 compile ← full .x + rest marker (R2 full H=0)"
+            else
+              echo "g05_ensure: R6 compile .x hybrid incomplete (missing T exports) → seed fallback" >&2
             fi
             rm -f "$_rt_cmp_thin_o" "$_rt_cmp_rest_o"
           fi
