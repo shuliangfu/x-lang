@@ -513,6 +513,8 @@ int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOu
 void codegen_copy_func_name64_from_module(struct ast_Module * module, int32_t fi, uint8_t * dst);
 void codegen_copy_param_name32_from_module(struct ast_Module * module, int32_t fi, int32_t pi, uint8_t * dst);
 int32_t codegen_emit_func(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, struct ast_Module * module, int32_t fi, int is_entry, uint8_t * prefix, int32_t prefix_len, struct ast_PipelineDepCtx * ctx, int32_t call_init_globals);
+int32_t codegen_find_mono_type_for_generic_func(struct ast_ASTArena * arena, struct ast_Module * module, int32_t fi);
+int32_t codegen_try_emit_generic_identity_mono(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, struct ast_Module * module, int32_t fi, uint8_t * prefix, int32_t prefix_len, struct ast_PipelineDepCtx * ctx);
 int32_t codegen_emit_func_extern_declaration(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, struct ast_Module * module, int32_t fi, uint8_t * prefix, int32_t prefix_len, struct ast_PipelineDepCtx * ctx);
 /* 重载 mangling 辅助函数前向声明（对齐 codegen.c type_to_suffix/func_link_name）。 */
 int32_t codegen_type_ref_to_suffix(struct ast_ASTArena * arena, int32_t type_ref, uint8_t * buf, int32_t buf_cap);
@@ -5823,10 +5825,198 @@ SHUX_LIB_WEAK int32_t codegen_emit_func(struct ast_ASTArena * arena, struct code
  }
   return 0;
 }
+/* Bootstrap mono: find concrete type from CALL sites to generic func fi. */
+SHUX_LIB_WEAK int32_t codegen_find_mono_type_for_generic_func(struct ast_ASTArena * arena, struct ast_Module * module, int32_t fi) {
+  uint8_t fn_local[64];
+  int32_t fn_len;
+  int32_t ei;
+  if (arena == ((struct ast_ASTArena *)(0)) || module == ((struct ast_Module *)(0)) || fi < 0 || fi >= (module)->num_funcs) {
+    return 0;
+  }
+  memset(fn_local, 0, sizeof(fn_local));
+  (void)(codegen_copy_func_name64_from_module(module, fi, (&((fn_local)[0]))));
+  fn_len = pipeline_module_func_name_len_at(module, fi);
+  if (fn_len <= 0) {
+    return 0;
+  }
+  ei = 1;
+  while (ei <= (arena)->num_exprs) {
+    struct ast_Expr e = ast_arena_expr_get(arena, ei);
+    if ((e).kind == ast_ExprKind_EXPR_CALL) {
+      int32_t matched = 0;
+      if ((e).call_resolved_func_index == fi) {
+        matched = 1;
+      } else if ((!ast_ref_is_null((e).call_callee_ref)) && (e).call_callee_ref > 0 && (e).call_callee_ref <= (arena)->num_exprs) {
+        struct ast_Expr cal = ast_arena_expr_get(arena, (e).call_callee_ref);
+        if ((cal).kind == ast_ExprKind_EXPR_VAR && (cal).var_name_len == fn_len) {
+          int32_t eq = 1;
+          int32_t k = 0;
+          while (k < fn_len) {
+            if ((cal).var_name[k] != (fn_local)[k]) {
+              eq = 0;
+              k = fn_len;
+            } else {
+              k = k + 1;
+            }
+          }
+          matched = eq;
+        }
+      }
+      if (matched != 0) {
+        int32_t ty = (e).resolved_type_ref;
+        if (ty <= 0 && (e).call_num_args > 0) {
+          int32_t a0 = pipeline_expr_call_arg_ref(arena, ei, 0);
+          if (a0 > 0) {
+            ty = pipeline_expr_resolved_type_ref(arena, a0);
+          }
+        }
+        if (ty > 0) {
+          return ty;
+        }
+      }
+    }
+    ei = ei + 1;
+  }
+  return 0;
+}
+
+/* Identity-shaped generic monomorph: f<T>(x:T):T → concrete C under prefix+name. */
+SHUX_LIB_WEAK int32_t codegen_try_emit_generic_identity_mono(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, struct ast_Module * module, int32_t fi, uint8_t * prefix, int32_t prefix_len, struct ast_PipelineDepCtx * ctx) {
+  int32_t ret_ty;
+  int32_t p0_ty;
+  uint8_t ret_nm[64];
+  uint8_t p0_nm[64];
+  int32_t ret_nl;
+  int32_t p0_nl;
+  int32_t bi;
+  int32_t mono_ty;
+  int32_t pn_len;
+  uint8_t pn[32];
+  uint8_t fn_local[64];
+  int32_t fn_len;
+  uint8_t open_body[4];
+  uint8_t ret_kw[8];
+  uint8_t endb[3];
+  if (arena == ((struct ast_ASTArena *)(0)) || out == ((struct codegen_CodegenOutBuf *)(0)) || module == ((struct ast_Module *)(0))) {
+    return 0;
+  }
+  if (fi < 0 || fi >= (module)->num_funcs) {
+    return 0;
+  }
+  if (pipeline_module_func_num_generic_params_at(module, fi) <= 0) {
+    return 0;
+  }
+  if (pipeline_module_func_is_extern_at(module, fi) != 0) {
+    return 0;
+  }
+  if (pipeline_module_func_num_params_at(module, fi) != 1) {
+    return 0;
+  }
+  ret_ty = pipeline_module_func_return_type_at(module, fi);
+  p0_ty = pipeline_module_func_param_type_ref_at(module, fi, 0);
+  if (ret_ty <= 0 || p0_ty <= 0) {
+    return 0;
+  }
+  if (pipeline_type_kind_ord_at(arena, ret_ty) != ((int32_t)(ast_TypeKind_TYPE_NAMED))) {
+    return 0;
+  }
+  if (pipeline_type_kind_ord_at(arena, p0_ty) != ((int32_t)(ast_TypeKind_TYPE_NAMED))) {
+    return 0;
+  }
+  memset(ret_nm, 0, sizeof(ret_nm));
+  memset(p0_nm, 0, sizeof(p0_nm));
+  ret_nl = pipeline_type_named_name_into(arena, ret_ty, (&((ret_nm)[0])));
+  p0_nl = pipeline_type_named_name_into(arena, p0_ty, (&((p0_nm)[0])));
+  if (ret_nl <= 0 || ret_nl != p0_nl) {
+    return 0;
+  }
+  bi = 0;
+  while (bi < ret_nl) {
+    if ((ret_nm)[bi] != (p0_nm)[bi]) {
+      return 0;
+    }
+    bi = bi + 1;
+  }
+  mono_ty = codegen_find_mono_type_for_generic_func(arena, module, fi);
+  if (mono_ty <= 0) {
+    return 0;
+  }
+  pn_len = pipeline_module_func_param_name_len_at(module, fi, 0);
+  memset(pn, 0, sizeof(pn));
+  pipeline_module_func_param_name_copy32(module, fi, 0, (&((pn)[0])));
+  if (pn_len <= 0) {
+    (pn)[0] = 120;
+    pn_len = 1;
+  }
+  if (codegen_emit_type(arena, out, mono_ty, prefix, prefix_len, ctx) != 0) {
+    return (-1);
+  }
+  if (codegen_append_byte(out, 32) != 0) {
+    return (-1);
+  }
+  memset(fn_local, 0, sizeof(fn_local));
+  (void)(codegen_copy_func_name64_from_module(module, fi, (&((fn_local)[0]))));
+  fn_len = pipeline_module_func_name_len_at(module, fi);
+  if (prefix_len > 0 && codegen_c_prefix_redundant_with_name(prefix, prefix_len, (&((fn_local)[0])), fn_len) == 0) {
+    if (codegen_emit_bytes_from_ptr(out, prefix, prefix_len) != 0) {
+      return (-1);
+    }
+  }
+  if (codegen_emit_func_link_name(out, arena, module, fi) != 0) {
+    return (-1);
+  }
+  if (codegen_append_byte(out, 40) != 0) {
+    return (-1);
+  }
+  if (codegen_emit_type(arena, out, mono_ty, prefix, prefix_len, ctx) != 0) {
+    return (-1);
+  }
+  if (codegen_append_byte(out, 32) != 0) {
+    return (-1);
+  }
+  if (codegen_emit_bytes_from_ptr(out, (&((pn)[0])), pn_len) != 0) {
+    return (-1);
+  }
+  (open_body)[0] = 41;
+  (open_body)[1] = 32;
+  (open_body)[2] = 123;
+  (open_body)[3] = 10;
+  if (codegen_emit_bytes_from_ptr(out, (&((open_body)[0])), 4) != 0) {
+    return (-1);
+  }
+  if (codegen_emit_indent(out, 2) != 0) {
+    return (-1);
+  }
+  (ret_kw)[0] = 114;
+  (ret_kw)[1] = 101;
+  (ret_kw)[2] = 116;
+  (ret_kw)[3] = 117;
+  (ret_kw)[4] = 114;
+  (ret_kw)[5] = 110;
+  (ret_kw)[6] = 32;
+  (ret_kw)[7] = 0;
+  if (codegen_emit_bytes_from_ptr(out, (&((ret_kw)[0])), 7) != 0) {
+    return (-1);
+  }
+  if (codegen_emit_bytes_from_ptr(out, (&((pn)[0])), pn_len) != 0) {
+    return (-1);
+  }
+  (endb)[0] = 59;
+  (endb)[1] = 10;
+  (endb)[2] = 125;
+  if (codegen_emit_bytes_from_ptr(out, (&((endb)[0])), 3) != 0) {
+    return (-1);
+  }
+  if (codegen_append_byte(out, 10) != 0) {
+    return (-1);
+  }
+  return 1;
+}
+
 SHUX_LIB_WEAK int32_t codegen_emit_func_extern_declaration(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, struct ast_Module * module, int32_t fi, uint8_t * prefix, int32_t prefix_len, struct ast_PipelineDepCtx * ctx) {
   if (fi < 0 || fi >= (module)->num_funcs) {   return (-1);
  }
-  /* 未单态化泛型：emit 会产出 struct *_T 不完整类型，cc 必失败。 */
+  /* 未单态化泛型模板：无具体实例时勿 emit 非法 struct *_T 原型。identity mono 见定义路径。 */
   if (pipeline_module_func_num_generic_params_at(module, fi) > 0) {   return 0;
  }
   uint8_t fn_local[64] = { 0 };
@@ -6410,10 +6600,13 @@ SHUX_LIB_WEAK int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTAr
     uint8_t skip_name[64] = { 0 };
     (void)(codegen_copy_func_name64_from_module(module, i, (&((skip_name)[0]))));
     int32_t skip_nl = pipeline_module_func_name_len_at(module, i);
-    /* 未单态化泛型模板：勿 emit 体/原型（struct core_*_T 非法 C）。 */
-    if (pipeline_module_func_num_generic_params_at(module, i) > 0) {   ++i;
-  continue;
- }
+    /* 泛型：跳过未单态化模板；identity 形 bootstrap 单态化后发具体体。 */
+    if (pipeline_module_func_num_generic_params_at(module, i) > 0) {
+      int32_t mono_rc = codegen_try_emit_generic_identity_mono(arena, out, module, i, (&((prefix_buf)[0])), prefix_len, ctx);
+      if (mono_rc < 0) { return (-1); }
+      ++i;
+      continue;
+    }
     if (pipeline_module_func_is_extern_at(module, i) != 0) {   if (codegen_emit_func_extern_declaration(arena, out, module, i, (&((prefix_buf)[0])), prefix_len, ctx) != 0) {   return (-1);
  }
   ++i;

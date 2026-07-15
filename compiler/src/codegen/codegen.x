@@ -7695,12 +7695,183 @@ export function codegen_is_libc_conflicting_extern_name(name: *u8, name_len: i32
   return 0;
 }
 
+/**
+ * 【Why 根源】C 后端跳过 num_generic_params>0 模板后，调用点仍发 prefix+name（如 main_id），
+ *   若无单态化体则 cc 报 implicit declaration。历史 codegen.c 有 mono_instances；pipeline 仅有
+ *   call_num_type_args 计数 + typeck 返回类型 fixup，缺实例发射。
+ * 【Invariant】从同模块 CALL 推断 mono 类型：resolved_type_ref 优先，否则 arg0；name 或
+ *   call_resolved_func_index 匹配模板。
+ * 【Asm/Perf】线性扫 arena exprs；仅泛型定义路径调用，非热路径。
+ */
+export function codegen_find_mono_type_for_generic_func(arena: *ASTArena, module: *Module, fi: i32): i32 {
+  if (arena == 0 as *ASTArena || module == 0 as *Module || fi < 0 || fi >= module.num_funcs) {
+    return 0;
+  }
+  let fn_local: u8[64] = [];
+  codegen_copy_func_name64_from_module(module, fi, &fn_local[0]);
+  let fn_len: i32 = pipeline_module_func_name_len_at(module, fi);
+  if (fn_len <= 0) {
+    return 0;
+  }
+  let ei: i32 = 1;
+  while (ei <= arena.num_exprs) {
+    let e: Expr = ast.ast_arena_expr_get(arena, ei);
+    if (e.kind == ExprKind.EXPR_CALL) {
+      let matched: i32 = 0;
+      if (e.call_resolved_func_index == fi) {
+        matched = 1;
+      } else if (!ast.ref_is_null(e.call_callee_ref) && e.call_callee_ref > 0 && e.call_callee_ref <= arena.num_exprs) {
+        let cal: Expr = ast.ast_arena_expr_get(arena, e.call_callee_ref);
+        if (cal.kind == ExprKind.EXPR_VAR && cal.var_name_len == fn_len) {
+          let eq: i32 = 1;
+          let k: i32 = 0;
+          while (k < fn_len) {
+            if (cal.var_name[k] != fn_local[k]) {
+              eq = 0;
+              k = fn_len;
+            } else {
+              k = k + 1;
+            }
+          }
+          matched = eq;
+        }
+      }
+      if (matched != 0) {
+        let ty: i32 = e.resolved_type_ref;
+        if (ty <= 0 && e.call_num_args > 0) {
+          let a0: i32 = pipeline_expr_call_arg_ref(arena, ei, 0);
+          if (a0 > 0) {
+            ty = pipeline_expr_resolved_type_ref(arena, a0);
+          }
+        }
+        if (ty > 0) {
+          return ty;
+        }
+      }
+    }
+    ei = ei + 1;
+  }
+  return 0;
+}
+
+/**
+ * Bootstrap 单态化：identity 形泛型 `f<T>(x: T): T { return x; }`。
+ * 调用点已发 prefix+name（非 id_i32）；此处用具体 mono 类型发同名 C 函数，体为 return param。
+ * 返回 1=已 emit，0=不适用/无调用点（继续 skip 模板），-1=emit 失败。
+ */
+export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *CodegenOutBuf, module: *Module, fi: i32, prefix: *u8, prefix_len: i32, ctx: *PipelineDepCtx): i32 {
+  if (arena == 0 as *ASTArena || out == 0 as *CodegenOutBuf || module == 0 as *Module) {
+    return 0;
+  }
+  if (fi < 0 || fi >= module.num_funcs) {
+    return 0;
+  }
+  if (pipeline_module_func_num_generic_params_at(module, fi) <= 0) {
+    return 0;
+  }
+  if (pipeline_module_func_is_extern_at(module, fi) != 0) {
+    return 0;
+  }
+  if (pipeline_module_func_num_params_at(module, fi) != 1) {
+    return 0;
+  }
+  let ret_ty: i32 = pipeline_module_func_return_type_at(module, fi);
+  let p0_ty: i32 = pipeline_module_func_param_type_ref_at(module, fi, 0);
+  if (ret_ty <= 0 || p0_ty <= 0) {
+    return 0;
+  }
+  if (pipeline_type_kind_ord_at(arena, ret_ty) != TypeKind.TYPE_NAMED) {
+    return 0;
+  }
+  if (pipeline_type_kind_ord_at(arena, p0_ty) != TypeKind.TYPE_NAMED) {
+    return 0;
+  }
+  let ret_nm: u8[64] = [];
+  let p0_nm: u8[64] = [];
+  let ret_nl: i32 = pipeline_type_named_name_into(arena, ret_ty, &ret_nm[0]);
+  let p0_nl: i32 = pipeline_type_named_name_into(arena, p0_ty, &p0_nm[0]);
+  if (ret_nl <= 0 || ret_nl != p0_nl) {
+    return 0;
+  }
+  let bi: i32 = 0;
+  while (bi < ret_nl) {
+    if (ret_nm[bi] != p0_nm[bi]) {
+      return 0;
+    }
+    bi = bi + 1;
+  }
+  let mono_ty: i32 = codegen_find_mono_type_for_generic_func(arena, module, fi);
+  if (mono_ty <= 0) {
+    return 0;
+  }
+  let pn_len: i32 = pipeline_module_func_param_name_len_at(module, fi, 0);
+  let pn: u8[32] = [];
+  pipeline_module_func_param_name_copy32(module, fi, 0, &pn[0]);
+  if (pn_len <= 0) {
+    /* 无名形参：用 x */
+    pn[0] = 120;
+    pn_len = 1;
+  }
+  /* ret_type name(param) { return param; } — 与 CALL 站点 prefix+name 一致 */
+  if (emit_type(arena, out, mono_ty, prefix, prefix_len, ctx) != 0) {
+    return -1;
+  }
+  if (append_byte(out, 32) != 0) {
+    return -1;
+  }
+  let fn_local: u8[64] = [];
+  codegen_copy_func_name64_from_module(module, fi, &fn_local[0]);
+  let fn_len: i32 = pipeline_module_func_name_len_at(module, fi);
+  if (prefix_len > 0 && codegen_c_prefix_redundant_with_name(prefix, prefix_len, &fn_local[0], fn_len) == 0) {
+    if (emit_bytes_from_ptr(out, prefix, prefix_len) != 0) {
+      return -1;
+    }
+  }
+  if (codegen_emit_func_link_name(out, arena, module, fi) != 0) {
+    return -1;
+  }
+  if (append_byte(out, 40) != 0) {
+    return -1;
+  }
+  if (emit_type(arena, out, mono_ty, prefix, prefix_len, ctx) != 0) {
+    return -1;
+  }
+  if (append_byte(out, 32) != 0) {
+    return -1;
+  }
+  if (emit_bytes_from_ptr(out, &pn[0], pn_len) != 0) {
+    return -1;
+  }
+  let open_body: u8[4] = [41, 32, 123, 10];
+  if (emit_bytes_from_ptr(out, &open_body[0], 4) != 0) {
+    return -1;
+  }
+  if (emit_indent(out, 2) != 0) {
+    return -1;
+  }
+  let ret_kw: u8[8] = [114, 101, 116, 117, 114, 110, 32, 0];
+  if (emit_bytes_from_ptr(out, &ret_kw[0], 7) != 0) {
+    return -1;
+  }
+  if (emit_bytes_from_ptr(out, &pn[0], pn_len) != 0) {
+    return -1;
+  }
+  let end: u8[3] = [59, 10, 125];
+  if (emit_bytes_from_ptr(out, &end[0], 3) != 0) {
+    return -1;
+  }
+  if (append_byte(out, 10) != 0) {
+    return -1;
+  }
+  return 1;
+}
+
 export function emit_func_extern_declaration(arena: *ASTArena, out: *CodegenOutBuf, module: *Module, fi: i32, prefix: *u8, prefix_len: i32, ctx: *PipelineDepCtx): i32 {
   /* 自举：经 module.funcs[fi] 逐字段读，避免整 Func 按值拷贝截断。 */
   if (fi < 0 || fi >= module.num_funcs) {
     return -1;
   }
-  /* 未单态化泛型：emit 会产出 struct *_T 不完整类型，cc 必失败。 */
+  /* 未单态化泛型模板：无具体实例时勿 emit 非法 struct *_T 原型。identity mono 见定义路径。 */
   if (pipeline_module_func_num_generic_params_at(module, fi) > 0) {
     return 0;
   }
@@ -8350,8 +8521,12 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
     let skip_name: u8[64] = [];
     codegen_copy_func_name64_from_module(module, i, &skip_name[0]);
     let skip_nl: i32 = pipeline_module_func_name_len_at(module, i);
-    /* 未单态化泛型模板：勿 emit 体/原型（struct core_*_T 非法 C）。typeck 已跳过 check。 */
+    /* 泛型：跳过未单态化模板（struct *_T 非法 C）；identity 形 bootstrap 单态化后发具体体。 */
     if (pipeline_module_func_num_generic_params_at(module, i) > 0) {
+      let mono_rc: i32 = codegen_try_emit_generic_identity_mono(arena, out, module, i, &prefix_buf[0], prefix_len, ctx);
+      if (mono_rc < 0) {
+        return -1;
+      }
       i = i + 1;
       continue;
     }

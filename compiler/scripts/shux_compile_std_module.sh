@@ -66,8 +66,14 @@ trap 'rm -rf "$tmp_dir" 2>/dev/null || true' EXIT INT TERM
 LIB_NAME_SUPPORTED=0
 probe_x="$tmp_dir/probe.x"
 probe_c="$tmp_dir/probe.c"
+probe_err="$tmp_dir/probe.err"
 printf 'function probe_fn(): i32 { return 0; }\n' > "$probe_x"
-if "$SHUX_BIN" -x -E -lib-name "" "$probe_x" > "$probe_c" 2>/dev/null && grep -q 'probe_fn' "$probe_c"; then
+# 产品 x-pipeline 当前不识别 -lib-name（会当文件路径 → IO001）；仅 C 前端 RUN_CC 支持。
+# 误判会把 -lib-name 传给 x 路径，或跳过 bare 后处理 → 双前缀符号（std_sync_sync_mutex_*）。
+if "$SHUX_BIN" -x -E -lib-name "" "$probe_x" >"$probe_c" 2>"$probe_err" \
+  && grep -q 'probe_fn' "$probe_c" \
+  && ! grep -q 'cannot read file' "$probe_err" \
+  && ! grep -q 'IO001' "$probe_err"; then
   LIB_NAME_SUPPORTED=1
 fi
 
@@ -98,8 +104,13 @@ for x_path in "$@"; do
     SHUX_KEEP_C=1 "$SHUX_BIN" -L .. -o "$tmp_dir/try_${idx}.o" "$x_path" \
       >"$tmp_dir/shuxc_${idx}.log" 2>&1 || true
   fi
-  # 优先：-o 已直接产出可用 .o（无 Arena64 冲突时）
-  if [ -f "$tmp_dir/try_${idx}.o" ] && [ -s "$tmp_dir/try_${idx}.o" ]; then
+  # 优先：-o 已直接产出可用 .o（无 Arena64 冲突时）。
+  # bare-impl 且无 -lib-name：.o 内仍是路径前缀符号，须走 gen_c 后处理剥前缀，勿直接用 .o。
+  bare_need_strip=0
+  if [ "$base_name" != "mod.x" ] && [ "$BARE_IMPL" = "1" ] && [ "$LIB_NAME_SUPPORTED" != "1" ]; then
+    bare_need_strip=1
+  fi
+  if [ "$bare_need_strip" != "1" ] && [ -f "$tmp_dir/try_${idx}.o" ] && [ -s "$tmp_dir/try_${idx}.o" ]; then
     use_direct_o=1
     emit_ok=1
     obj="$tmp_dir/try_${idx}.o"
@@ -127,6 +138,25 @@ for x_path in "$@"; do
         cat "$tmp_dir/shuxc_${idx}.log" >&2
         exit 1
       fi
+    fi
+    if [ -s "$gen_c" ]; then
+      emit_ok=1
+    fi
+  fi
+  # bare-impl：产品 x-pipeline 无 -lib-name 时，codegen 用路径导出前缀
+  # （std/base64/base64.x → std_base64_base64_…）。mod.x 的 extern 是裸名
+  # base64_encode_standard_c。在 gen_c 齐备后剥前缀（须在 -E 回退之后）。
+  if [ "$bare_need_strip" = "1" ] && [ -f "$gen_c" ] && [ -s "$gen_c" ]; then
+    strip_pref=$(printf '%s' "$x_path" | sed -e 's|^\.\./||' -e 's|\.x$||' -e 's|/|_|g')
+    if [ -n "$strip_pref" ]; then
+      perl -i -pe "s/\\b\Q${strip_pref}_\E//g" "$gen_c" 2>/dev/null || \
+        sed -i.bak "s/${strip_pref}_//g" "$gen_c" 2>/dev/null || true
+      dir_pref=$(printf '%s' "$x_path" | sed -e 's|^\.\./||' -e 's|/[^/]*$||' -e 's|/|_|g')
+      if [ -n "$dir_pref" ] && [ "$dir_pref" != "$strip_pref" ]; then
+        perl -i -pe "s/\\b\Q${dir_pref}_\E//g" "$gen_c" 2>/dev/null || \
+          sed -i.bak "s/${dir_pref}_//g" "$gen_c" 2>/dev/null || true
+      fi
+      rm -f "${gen_c}.bak" 2>/dev/null || true
     fi
   fi
   # 已有直接 .o：跳过 gen_c 后处理与二次 cc
