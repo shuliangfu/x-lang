@@ -53,7 +53,20 @@ int runtime_report_precise_parse_failure_if_known(const char *input_path, const 
   }
   return 0;
 }
+#elif defined(SHUX_RT_PARSE_DIAG_PRECISE_BRIDGE)
+/*
+ * Hybrid PREFER_X_O + thin .x：-E 后符号常为
+ *   rt_parse_diag_runtime_report_precise_parse_failure_if_known
+ * 产品 ABI 须无前缀；仅 thin+rest 合并时定义桥接。
+ * PREFER_X_O=0 的 recovery-only merge 不定义本宏，避免与 runtime.from_x.c 内 precise 重定义。
+ */
+int rt_parse_diag_runtime_report_precise_parse_failure_if_known(const char *input_path, const char *src,
+                                                                size_t src_len);
+int runtime_report_precise_parse_failure_if_known(const char *input_path, const char *src, size_t src_len) {
+  return rt_parse_diag_runtime_report_precise_parse_failure_if_known(input_path, src, src_len);
+}
 #else
+/* FROM_X 且无 bridge：precise 由 runtime.from_x.c 或其它 TU 提供；本文件只出 recovery。 */
 int runtime_report_precise_parse_failure_if_known(const char *input_path, const char *src, size_t src_len);
 #endif
 
