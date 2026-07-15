@@ -4234,6 +4234,8 @@ SHUX_LIB_WEAK int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct code
   fprintf(stderr, "DBG-MC dep_path_fb=%.*s len=%d ndep=%d\n", dep_path_fb_len, (char*)dep_path_fb, dep_path_fb_len, pipeline_dep_ctx_ndep(ctx));
   { int32_t dbg_di = 0; while (dbg_di < pipeline_dep_ctx_ndep(ctx)) { uint8_t dbg_dp[64] = {0}; pipeline_dep_ctx_import_path_copy64(ctx, dbg_di, dbg_dp); int32_t dbg_dl = pipeline_dep_ctx_import_path_len(ctx, dbg_di); fprintf(stderr, "DBG-MC dep[%d] path=%.*s len=%d\n", dbg_di, dbg_dl, (char*)dbg_dp, dbg_dl); ++dbg_di; } }
   int32_t fb_dep_ix = codegen_find_dep_index_by_path(ctx, (&((dep_path_fb)[0])), dep_path_fb_len);
+  fprintf(stderr, "DBG fb_dep_ix=%d path=%.*s
+", fb_dep_ix, dep_path_fb_len, (char*)dep_path_fb);
   fprintf(stderr, "DBG-MC fb_dep_ix=%d method=%.*s nargs=%d\n", fb_dep_ix, (e).method_call_name_len, (char*)((e).method_call_name), (e).method_call_num_args);
   struct ast_Module * fb_dep_mod = 0;
   if (fb_dep_ix >= 0 && fb_dep_ix < pipeline_dep_ctx_ndep(ctx)) {
