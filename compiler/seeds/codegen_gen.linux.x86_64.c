@@ -6312,6 +6312,8 @@ SHUX_LIB_WEAK int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTAr
     if (ctx != ((struct ast_PipelineDepCtx *)(0))) {   (saved_func_idx = ((ctx)->current_func_index));
   ((ctx)->current_func_index = (i));
  }
+    /* Restore current_codegen_module to entry module before each function body. */
+    if (ctx != 0) { (ctx)->current_codegen_module = module; (ctx)->current_codegen_arena = arena; (ctx)->current_codegen_dep_index = dep_index; }
     if (codegen_emit_func(arena, out, module, i, is_entry, (&((prefix_buf)[0])), prefix_len, ctx, call_init_globals) != 0) {   (void)(driver_diagnostic_codegen_emit_func_fail(module, i));
   if (ctx != ((struct ast_PipelineDepCtx *)(0))) {   ((ctx)->current_func_index = (saved_func_idx));
  }
