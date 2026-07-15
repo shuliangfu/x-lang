@@ -3057,6 +3057,10 @@ int32_t typeck_check_expr_call_arg(struct ast_Module * module, struct ast_ASTAre
   return typeck_check_expr_call_arg(module, arena, expr_ref, return_type_ref, ctx, arg_i + 1, num_args);
 }
 int32_t typeck_check_expr_call_resolve(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, struct ast_PipelineDepCtx * ctx) {
+  /* 【Why 根源】对齐 W-heap-overload：同名多函数时按实参类型选 overload 并写
+   * call_resolved_func_index。旧路径 typeck_find_func_return_type_in_module_by_name
+   * 只取首同名，导致 pick(20 as i64) 链到 pick_i32（overload.x exit=2）。
+   * glue 已有 pipeline_typeck_pick_overload_func_index_for_call_c，此处接入。 */
   int32_t ord_addr_of = 51;
   int32_t ord_var = 3;
   int32_t minus_one = -1;
@@ -3065,30 +3069,47 @@ int32_t typeck_check_expr_call_resolve(struct ast_Module * module, struct ast_AS
   int32_t inner_c = 0;
   int32_t ret_ty = 0;
   int32_t cnml = 0;
+  int32_t picked = -1;
   uint8_t cnm[64] = { 0 };
-  (callee_ref = (pipeline_expr_call_callee_ref_at(arena, expr_ref)));
-  (void)(({ int32_t __tmp = 0; if (ast_ref_is_null(callee_ref)) {   return 0;
- } else (__tmp = 0) ; __tmp; }));
-  (callee_eff = (callee_ref));
-  (void)(({ int32_t __tmp = 0; if (pipeline_expr_kind_ord_at(arena, callee_eff) == ord_addr_of) {   (inner_c = (pipeline_expr_unary_operand_ref_at(arena, callee_eff)));
-  __tmp = ({ int32_t __tmp = 0; if ((!ast_ref_is_null(inner_c))) {   (callee_eff = (inner_c));
- } else (__tmp = 0) ; __tmp; });
- } else (__tmp = 0) ; __tmp; }));
-  (cnml = (0));
-  (void)(({ int32_t __tmp = 0; if (pipeline_expr_kind_ord_at(arena, callee_eff) == ord_var) {   (cnml = (pipeline_expr_var_name_len(arena, callee_eff)));
-  __tmp = ({ int32_t __tmp = 0; if (cnml > 0) {   (void)(pipeline_expr_var_name_into(arena, callee_eff, (&((cnm)[0]))));
- } else (__tmp = 0) ; __tmp; });
- } else (__tmp = 0) ; __tmp; }));
-  (ret_ty = (typeck_resolve_call_callee_return_type(module, arena, callee_eff, expr_ref, ctx)));
-  (void)(({ int32_t __tmp = 0; if (ret_ty == 0 && cnml > 0) {   (void)(typeck_i32_ptr_store(typeck_call_resolve_func_idx_slot(), 0));
-  (ret_ty = (typeck_find_func_return_type_in_module_by_name(module, arena, (&((cnm)[0])), cnml, minus_one, ctx, typeck_call_resolve_func_idx_slot())));
-  __tmp = ({ int32_t __tmp = 0; if (ret_ty != 0) {   (void)(ast_expr_apply_call_resolve(arena, expr_ref, minus_one, typeck_call_resolve_func_idx_peek()));
- } else (__tmp = 0) ; __tmp; });
- } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (cnml > 0 && pipeline_typeck_is_read_ptr_slice_callee_c((&((cnm)[0])), cnml) != 0) {   (ret_ty = (pipeline_typeck_read_ptr_slice_return_ref_c(arena)));
- } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (ret_ty != 0) {   (void)(pipeline_expr_set_resolved_type_ref(arena, expr_ref, ret_ty));
- } else (__tmp = 0) ; __tmp; }));
+  extern int32_t pipeline_typeck_pick_overload_func_index_for_call_c(struct ast_Module *m, struct ast_ASTArena *a, int32_t call_expr_ref);
+  extern int32_t pipeline_module_func_return_type_at(struct ast_Module *m, int32_t fi);
+  callee_ref = pipeline_expr_call_callee_ref_at(arena, expr_ref);
+  if (ast_ref_is_null(callee_ref))
+    return 0;
+  callee_eff = callee_ref;
+  if (pipeline_expr_kind_ord_at(arena, callee_eff) == ord_addr_of) {
+    inner_c = pipeline_expr_unary_operand_ref_at(arena, callee_eff);
+    if (!ast_ref_is_null(inner_c))
+      callee_eff = inner_c;
+  }
+  cnml = 0;
+  if (pipeline_expr_kind_ord_at(arena, callee_eff) == ord_var) {
+    cnml = pipeline_expr_var_name_len(arena, callee_eff);
+    if (cnml > 0)
+      pipeline_expr_var_name_into(arena, callee_eff, cnm);
+  }
+  /* 优先 overload 分派（同名>1 时） */
+  if (module != 0 && cnml > 0) {
+    picked = pipeline_typeck_pick_overload_func_index_for_call_c(module, arena, expr_ref);
+    if (picked >= 0) {
+      ast_expr_apply_call_resolve(arena, expr_ref, minus_one, picked);
+      ret_ty = pipeline_module_func_return_type_at(module, picked);
+      if (ret_ty != 0)
+        pipeline_expr_set_resolved_type_ref(arena, expr_ref, ret_ty);
+      return 0;
+    }
+  }
+  ret_ty = typeck_resolve_call_callee_return_type(module, arena, callee_eff, expr_ref, ctx);
+  if (ret_ty == 0 && cnml > 0) {
+    typeck_i32_ptr_store(typeck_call_resolve_func_idx_slot(), 0);
+    ret_ty = typeck_find_func_return_type_in_module_by_name(module, arena, cnm, cnml, minus_one, ctx, typeck_call_resolve_func_idx_slot());
+    if (ret_ty != 0)
+      ast_expr_apply_call_resolve(arena, expr_ref, minus_one, typeck_call_resolve_func_idx_peek());
+  }
+  if (cnml > 0 && pipeline_typeck_is_read_ptr_slice_callee_c(cnm, cnml) != 0)
+    ret_ty = pipeline_typeck_read_ptr_slice_return_ref_c(arena);
+  if (ret_ty != 0)
+    pipeline_expr_set_resolved_type_ref(arena, expr_ref, ret_ty);
   return 0;
 }
 int32_t typeck_check_expr_call(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
