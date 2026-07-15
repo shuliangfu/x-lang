@@ -88,42 +88,56 @@ for x_path in "$@"; do
   # 半个函数体）。-o *.o 路径 emit 完整 C（cc 可能因 Arena64 标签失败，但 SHUX_KEEP_C
   # 保留完整源）。优先 -o + KEEP_C，失败再回退 -E。
   emit_ok=0
-  lib_name_args=""
-  if [ "$base_name" != "mod.x" ] && [ "$BARE_IMPL" = "1" ] && [ "$LIB_NAME_SUPPORTED" = "1" ]; then
-    lib_name_args="-lib-name "
-  fi
+  use_direct_o=0
   # shellcheck: empty -lib-name needs quoted empty string
   rm -f /tmp/shux_shux_x.*.c 2>/dev/null || true
-  if [ -n "$lib_name_args" ]; then
+  if [ "$base_name" != "mod.x" ] && [ "$BARE_IMPL" = "1" ] && [ "$LIB_NAME_SUPPORTED" = "1" ]; then
     SHUX_KEEP_C=1 "$SHUX_BIN" -L .. -lib-name "" -o "$tmp_dir/try_${idx}.o" "$x_path" \
       >"$tmp_dir/shuxc_${idx}.log" 2>&1 || true
   else
     SHUX_KEEP_C=1 "$SHUX_BIN" -L .. -o "$tmp_dir/try_${idx}.o" "$x_path" \
       >"$tmp_dir/shuxc_${idx}.log" 2>&1 || true
   fi
-  kept=$(ls -t /tmp/shux_shux_x.*.c 2>/dev/null | head -1)
-  if [ -n "$kept" ] && [ -f "$kept" ] && [ -s "$kept" ]; then
-    # 完整 C：以 } 结尾或花括号大致平衡则采用
-    if tail -c 80 "$kept" | grep -q '}' ; then
-      cp "$kept" "$gen_c"
-      emit_ok=1
+  # 优先：-o 已直接产出可用 .o（无 Arena64 冲突时）
+  if [ -f "$tmp_dir/try_${idx}.o" ] && [ -s "$tmp_dir/try_${idx}.o" ]; then
+    use_direct_o=1
+    emit_ok=1
+    obj="$tmp_dir/try_${idx}.o"
+  fi
+  if [ "$emit_ok" != "1" ]; then
+    kept=$(ls -t /tmp/shux_shux_x.*.c 2>/dev/null | head -1)
+    if [ -n "$kept" ] && [ -f "$kept" ] && [ -s "$kept" ]; then
+      if tail -c 80 "$kept" | grep -q '}' ; then
+        cp "$kept" "$gen_c"
+        emit_ok=1
+      fi
     fi
   fi
   if [ "$emit_ok" != "1" ]; then
     # 回退 -E（可能截断；仍尝试）
-    if [ -n "$lib_name_args" ]; then
+    if [ "$base_name" != "mod.x" ] && [ "$BARE_IMPL" = "1" ] && [ "$LIB_NAME_SUPPORTED" = "1" ]; then
       if ! "$SHUX_BIN" -x -E -lib-name "" -L .. "$x_path" >"$gen_c" 2>"$tmp_dir/shuxc_${idx}.log"; then
-        echo "shux_compile_std_module.sh: -o keep and -x -E failed for $x_path" >&2
+        echo "shux_compile_std_module.sh: -o and -x -E failed for $x_path" >&2
         cat "$tmp_dir/shuxc_${idx}.log" >&2
         exit 1
       fi
     else
       if ! "$SHUX_BIN" -x -E -L .. "$x_path" >"$gen_c" 2>"$tmp_dir/shuxc_${idx}.log"; then
-        echo "shux_compile_std_module.sh: -o keep and -x -E failed for $x_path" >&2
+        echo "shux_compile_std_module.sh: -o and -x -E failed for $x_path" >&2
         cat "$tmp_dir/shuxc_${idx}.log" >&2
         exit 1
       fi
     fi
+  fi
+  # 已有直接 .o：跳过 gen_c 后处理与二次 cc
+  if [ "$use_direct_o" = "1" ]; then
+    if [ -z "$obj_files" ]; then
+      obj_files="$obj"
+    else
+      obj_files="$obj_files $obj"
+    fi
+    idx=$((idx + 1))
+    continue
   fi
   # 【Why 根源】-E 对跨模块 struct（如 heap_libc_Arena64）常只在「形参列表内」
   # 写出 `struct Foo`，未给文件级 forward。C 规定形参内的 struct 标签作用域仅限该
