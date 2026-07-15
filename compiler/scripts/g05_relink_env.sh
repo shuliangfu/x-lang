@@ -79,10 +79,10 @@ _GLUE_SUFFIX="build_asm/pipeline_glue_strict_minimal.o"
 
 # Cap residual：与 Makefile RT_SEED_SLICE_OBJS / build_shux_asm asm_bootstrap_support_extra_link 同源。
 # runtime_driver_abi 始终 extern 这些符号；no_c runtime 在 SHUX_RT_*_FROM_X 下不内嵌 BSS。
-# PREFER_X_O=1 时 runtime_driver_no_c.o 已通过 cc -r 合并全部 slice thin+rest，
-#   重复链接 slice .o 会导致符号冲突（Linux --allow-multiple-definition 静默；
-#   macOS 新版 ld 已移除 -multiply_defined,suppress 支持）。
-if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ]; then
+# macOS PREFER_X_O=1 时 runtime_driver_no_c.o 已通过 cc -r 合并全部 slice thin+rest，
+#   重复链接 slice .o 会导致符号冲突（macOS 新版 ld 已移除 -multiply_defined,suppress）。
+# Linux PREFER_X_O 可能 fallback 到 seed（thin.x 编译失败），需保留 slice .o 补充符号。
+if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ "$UNAME_S" = "Darwin" ]; then
   _RT_SEED_SLICE_OBJS=""
 else
   _RT_SEED_SLICE_OBJS="src/runtime/rt_arena_buf.o src/runtime/rt_emit_state.o src/runtime/rt_preamble.o src/runtime/rt_stack.o"
