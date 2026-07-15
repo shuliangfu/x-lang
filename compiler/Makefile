@@ -98,7 +98,7 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 
 # std.string：F 闭合 — 走 -o 完整 emit（-x -E 会截断 string 库模块函数体）。
 # Arena64 标签双名在 scripts/shux_compile_std_string_o.sh 内 #define 对齐；string.x 裸符号。
-../std/string/string.o: ../std/string/mod.x ../std/string/string.x scripts/shux_compile_std_string_o.sh
+../std/string/string.o: ../std/string/mod.x ../std/string/string.x | scripts/shux_compile_std_string_o.sh
 	@SHUX=./shux sh scripts/shux_compile_std_string_o.sh
 
 # std.path：保留 mod.x 作为 F-path v1 源码锚点；path.o 由 C provider 产出，
@@ -109,35 +109,35 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 	rm -f ../std/path/path_core.o
 
 # std.heap：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + libc + ops）。
-../std/heap/heap.o: ../std/heap/mod.x ../std/heap/libc.x ../std/heap/ops.x scripts/shux_compile_std_module.sh
+../std/heap/heap.o: ../std/heap/mod.x ../std/heap/libc.x ../std/heap/ops.x | scripts/shux_compile_std_module.sh
 	@sh scripts/shux_compile_std_module.sh $@ ../std/heap/mod.x ../std/heap/libc.x ../std/heap/ops.x
 
 # std.heap.page_mmap：F-no-libc NL-03 freestanding mmap bump 堆（单文件 .x -E + cc）。
 # 路径前缀 std_heap_page_mmap_*；传递依赖 std.sys.linux + core.mem 由 freestanding on_demand 链入。
-../std/heap/page_mmap.o: ../std/heap/page_mmap.x scripts/shux_compile_std_module.sh
+../std/heap/page_mmap.o: ../std/heap/page_mmap.x | scripts/shux_compile_std_module.sh
 	@sh scripts/shux_compile_std_module.sh $@ ../std/heap/page_mmap.x
 
 # std.sys：OS 原语门面（mod.x -E + cc；#[cfg(target_os)] 分平台）。
 # 路径前缀 std_sys_*；Linux 编译激活 linux import，传递依赖 std/sys/linux.o + core/mem/mem.o。
-../std/sys/sys.o: ../std/sys/mod.x scripts/shux_compile_std_module.sh
+../std/sys/sys.o: ../std/sys/mod.x | scripts/shux_compile_std_module.sh
 	@sh scripts/shux_compile_std_module.sh $@ ../std/sys/mod.x
 
 # std.sys.linux：Linux syscall 号表 + freestanding invoke（linux.x -E + cc）。
 # 路径前缀 std_sys_linux_*；含 hosted libc 函数（open/mmap），靠 --gc-sections 移除未引用者。
-../std/sys/linux.o: ../std/sys/linux.x scripts/shux_compile_std_module.sh
+../std/sys/linux.o: ../std/sys/linux.x | scripts/shux_compile_std_module.sh
 	@sh scripts/shux_compile_std_module.sh $@ ../std/sys/linux.x
 
 # core.mem：内存操作原语（mod.x -E + cc）。
 # 路径前缀 core_mem_*；align_up/mem_copy/mem_set 等纯 .x 实现，无 libc 依赖。
-../core/mem/mem.o: ../core/mem/mod.x scripts/shux_compile_std_module.sh
+../core/mem/mem.o: ../core/mem/mod.x | scripts/shux_compile_std_module.sh
 	@sh scripts/shux_compile_std_module.sh $@ ../core/mem/mod.x
 
 # std.map：F 闭合 — 纯 .x -E-extern + cc -c。
-../std/map/map.o: ../std/map/mod.x scripts/shux_compile_std_module.sh
+../std/map/map.o: ../std/map/mod.x | scripts/shux_compile_std_module.sh
 	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/map/mod.x
 
 # std.set：F 闭合 — 纯 .x -E-extern + cc -c。
-../std/set/set.o: ../std/set/mod.x scripts/shux_compile_std_module.sh
+../std/set/set.o: ../std/set/mod.x | scripts/shux_compile_std_module.sh
 	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/set/mod.x
 
 # std.runtime：保留 runtime.x 作为 F-runtime v1 源码锚点；runtime.o 仅提供
@@ -237,12 +237,12 @@ net-o-mbedtls:
 
 # std.time：F 闭合 — mod.x 内联派生函数（now_monotonic_us/sleep_ms/duration_ns 等），
 # 仅 5 个基础 OS extern 由 runtime_time_os.o 提供。无需 time.x / time_import_alias.c。
-../std/time/time.o: ../std/time/mod.x scripts/shux_compile_std_module.sh
+../std/time/time.o: ../std/time/mod.x | scripts/shux_compile_std_module.sh
 	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/time/mod.x
 
 # std.random：F 闭合 — mod.x（用户 API）+ random.x（impl 裸符号）用 -E-extern 编译；
 # CSPRNG OS 在 runtime_random_fill.o，最终 exe 链接时按需推入。
-../std/random/random.o: ../std/random/mod.x ../std/random/random.x scripts/shux_compile_std_module.sh
+../std/random/random.o: ../std/random/mod.x ../std/random/random.x | scripts/shux_compile_std_module.sh
 	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/random/mod.x ../std/random/random.x
 
 # std.env：F-env v2 纯 .x（F-ZC）；OS 胶层在 runtime_env_os.o。
@@ -255,7 +255,7 @@ net-o-mbedtls:
 
 # std.sync：F 闭合 — mod.x（用户 API）+ sync.x（impl 裸符号）用 -E-extern 编译；
 # OS/TLS 胶层在 runtime_sync_*.o，最终 exe 链接时按需推入。
-../std/sync/sync.o: ../std/sync/mod.x ../std/sync/sync.x scripts/shux_compile_std_module.sh
+../std/sync/sync.o: ../std/sync/mod.x ../std/sync/sync.x | scripts/shux_compile_std_module.sh
 	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/sync/mod.x ../std/sync/sync.x
 
 # std.queue：F-queue v2 纯 .x（F-ZC）；pthread 胶层在 runtime_queue_contention.o。
@@ -267,32 +267,32 @@ net-o-mbedtls:
 	sh scripts/shux_compile_std_x.sh auto ../std/queue/queue.x ../std/queue/queue.o
 
 # std.encoding：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + encoding）。
-../std/encoding/encoding.o: ../std/encoding/mod.x ../std/encoding/encoding.x scripts/shux_compile_std_module.sh
+../std/encoding/encoding.o: ../std/encoding/mod.x ../std/encoding/encoding.x | scripts/shux_compile_std_module.sh
 	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/encoding/mod.x ../std/encoding/encoding.x
 
 # std.base64：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + base64）。
-../std/base64/base64.o: ../std/base64/mod.x ../std/base64/base64.x scripts/shux_compile_std_module.sh
+../std/base64/base64.o: ../std/base64/mod.x ../std/base64/base64.x | scripts/shux_compile_std_module.sh
 	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/base64/mod.x ../std/base64/base64.x
 
 # std.crypto：F-闭合 — mod.x + 5 .x 用 -E-extern 编译（裸符号）。
 # mod.x 提供 extern 声明 + 公共 API；core/aes_gcm/chacha20_*/ed25519.x 提供裸符号实现。
-../std/crypto/crypto.o: ../std/crypto/mod.x ../std/crypto/core.x ../std/crypto/aes_gcm.x ../std/crypto/chacha20_poly1305.x ../std/crypto/chacha20_aead.x ../std/crypto/ed25519.x scripts/shux_compile_std_module.sh
+../std/crypto/crypto.o: ../std/crypto/mod.x ../std/crypto/core.x ../std/crypto/aes_gcm.x ../std/crypto/chacha20_poly1305.x ../std/crypto/chacha20_aead.x ../std/crypto/ed25519.x | scripts/shux_compile_std_module.sh
 	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/crypto/mod.x ../std/crypto/core.x ../std/crypto/aes_gcm.x ../std/crypto/chacha20_poly1305.x ../std/crypto/chacha20_aead.x ../std/crypto/ed25519.x
 
 # std.log：F-闭合 — mod.x + log.x 用 -E-extern 编译（裸符号）。
 # mod.x 提供 extern 声明 + 公共 API；log.x 提供 log_write_c 等裸符号实现。
-../std/log/log.o: ../std/log/mod.x ../std/log/log.x scripts/shux_compile_std_module.sh
+../std/log/log.o: ../std/log/mod.x ../std/log/log.x | scripts/shux_compile_std_module.sh
 	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/log/mod.x ../std/log/log.x
 
 
 # std.test：F 闭合 — mod.x（用户 API）+ test.x（impl 裸符号）用 -E-extern 编译；
 # fn-ptr 在 runtime_test_fn_invoke.o，最终 exe 链接时按需推入。
-../std/test/test.o: ../std/test/mod.x ../std/test/test.x scripts/shux_compile_std_module.sh
+../std/test/test.o: ../std/test/mod.x ../std/test/test.x | scripts/shux_compile_std_module.sh
 	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/test/mod.x ../std/test/test.x
 
 # std.atomic：F 闭合 — mod.x（用户 API）+ atomic.x（impl 裸符号）用 -E-extern 编译；
 # 原子胶层在 runtime_atomic_glue.o，最终 exe 链接时按需推入。
-../std/atomic/atomic.o: ../std/atomic/mod.x ../std/atomic/atomic.x scripts/shux_compile_std_module.sh
+../std/atomic/atomic.o: ../std/atomic/mod.x ../std/atomic/atomic.x | scripts/shux_compile_std_module.sh
 	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/atomic/mod.x ../std/atomic/atomic.x
 
 # std.channel：F-channel v2 纯 .x（F-ZC）；channel 胶层在 runtime_channel_glue.o；Unix 需 -lpthread。
@@ -312,7 +312,7 @@ net-o-mbedtls:
 	sh scripts/shux_compile_std_x.sh auto ../std/backtrace/backtrace.x ../std/backtrace/backtrace.o
 
 # std.hash：F 闭合 — mod.x（用户 API）+ hash.x（impl 裸符号）用 -E-extern 编译。
-../std/hash/hash.o: ../std/hash/mod.x ../std/hash/hash.x scripts/shux_compile_std_module.sh
+../std/hash/hash.o: ../std/hash/mod.x ../std/hash/hash.x | scripts/shux_compile_std_module.sh
 	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/hash/mod.x ../std/hash/hash.x
 
 # std.math：F-math v2 纯 .x（F-ZC）；libm 胶层在 runtime_math_libm.o（链接 exe 仍须 -lm）。
@@ -342,17 +342,17 @@ net-o-mbedtls:
 # G-01：core/ 零 C — 位运算/volatile/slice 已纯 .x（见 analysis/phase-g-full-selfhost-tasks-v1.md）
 
 # std.ffi：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + ffi）。
-../std/ffi/ffi.o: ../std/ffi/mod.x ../std/ffi/ffi.x scripts/shux_compile_std_module.sh
+../std/ffi/ffi.o: ../std/ffi/mod.x ../std/ffi/ffi.x | scripts/shux_compile_std_module.sh
 	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/ffi/mod.x ../std/ffi/ffi.x
 
 
 # std.context：F-闭合 — mod.x + context.x 用 -E-extern 编译（裸符号）。
 # mod.x 提供 is_cancelled/deadline_ns/remaining_ns 等公共 API；context.x 提供 ctx_*_c 实现。
-../std/context/context.o: ../std/context/mod.x ../std/context/context.x scripts/shux_compile_std_module.sh
+../std/context/context.o: ../std/context/mod.x ../std/context/context.x | scripts/shux_compile_std_module.sh
 	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/context/mod.x ../std/context/context.x
 
 # std.error：F-闭合 — mod.x 用 -E-extern 编译。提供 http_err_cancelled/timeout 等错误码 API。
-../std/error/error.o: ../std/error/mod.x scripts/shux_compile_std_module.sh
+../std/error/error.o: ../std/error/mod.x | scripts/shux_compile_std_module.sh
 	@sh scripts/shux_compile_std_module.sh $@ ../std/error/mod.x
 
 
@@ -508,10 +508,10 @@ sqlite-o-stub:
 
 # P4 std 模块（按需链接）
 # std.json：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + json）。
-../std/json/json.o: ../std/json/mod.x ../std/json/json.x scripts/shux_compile_std_module.sh
+../std/json/json.o: ../std/json/mod.x ../std/json/json.x | scripts/shux_compile_std_module.sh
 	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/json/mod.x ../std/json/json.x
 # std.csv：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + csv）。
-../std/csv/csv.o: ../std/csv/mod.x ../std/csv/csv.x scripts/shux_compile_std_module.sh
+../std/csv/csv.o: ../std/csv/mod.x ../std/csv/csv.x | scripts/shux_compile_std_module.sh
 	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/csv/mod.x ../std/csv/csv.x
 # std.regex：F-regex v2 纯 .x → regex.o（同 hash/schema）。
 ../std/regex/regex.o: ../std/regex/regex.x
@@ -532,11 +532,11 @@ compress-o-zlib compress-o-zlib-zstd compress-o-brotli compress-o-zlib-zstd-brot
 	sh scripts/shux_compile_std_x.sh auto ../std/unicode/unicode.x ../std/unicode/unicode.o
 # std.dynlib：F 闭合 — mod.x（用户 API）+ dynlib.x（impl 裸符号）用 -E-extern 编译；
 # dlopen 胶层在 runtime_dynlib_os.o，最终 exe 链接时按需推入。
-../std/dynlib/dynlib.o: ../std/dynlib/mod.x ../std/dynlib/dynlib.x scripts/shux_compile_std_module.sh
+../std/dynlib/dynlib.o: ../std/dynlib/mod.x ../std/dynlib/dynlib.x | scripts/shux_compile_std_module.sh
 	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/dynlib/mod.x ../std/dynlib/dynlib.x
 # std.http：F 闭合 — mod.x（用户 API）+ http.x（impl 裸符号）用 -E-extern 编译；
 # HTTP 胶层在 runtime_http_glue.o，最终 exe 链接时按需推入。
-../std/http/http.o: ../std/http/mod.x ../std/http/http.x scripts/shux_compile_std_module.sh
+../std/http/http.o: ../std/http/mod.x ../std/http/http.x | scripts/shux_compile_std_module.sh
 	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/http/mod.x ../std/http/http.x
 
 # std.socketio：F-socketio v2 纯 socketio.x；ld -r 合并为 socketio.o（P3 可选）。
@@ -553,7 +553,7 @@ compress-o-zlib compress-o-zlib-zstd compress-o-brotli compress-o-zlib-zstd-brot
 	$(LD) $(LD_RELFLAGS) -r -o $@ $$objs
 # std.tar：F-tar v2 纯 tar.x；import binding 别名桩 tar_import_alias.c。
 # std.tar：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + tar）。
-../std/tar/tar.o: ../std/tar/mod.x ../std/tar/tar.x scripts/shux_compile_std_module.sh
+../std/tar/tar.o: ../std/tar/mod.x ../std/tar/tar.x | scripts/shux_compile_std_module.sh
 	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/tar/mod.x ../std/tar/tar.x
 # std.simd：F-simd v1 + F-ZC 纯 simd.x → simd.o（无 glue；无 shux 时 exit 0）。
 ../std/simd/simd.o: ../std/simd/simd.x
