@@ -5360,6 +5360,13 @@ int32_t codegen_emit_call_func_name(struct codegen_CodegenOutBuf * out, struct a
         } else {
           if (current_module != 0 && func_ix < (current_module)->num_funcs) {
             if (pipeline_module_func_num_params_at(current_module, func_ix) == nargs0) {
+              if (ctx && (ctx)->current_codegen_prefix_len > 0) {
+                uint8_t _fn2[64] = {0}; codegen_copy_func_name64_from_module(current_module, func_ix, _fn2);
+                int32_t _fnl2 = pipeline_module_func_name_len_at(current_module, func_ix);
+                if (codegen_c_prefix_redundant_with_name((ctx)->current_codegen_prefix_mirror, (ctx)->current_codegen_prefix_len, _fn2, _fnl2) == 0) {
+                  if (codegen_emit_bytes_from_ptr(out, (ctx)->current_codegen_prefix_mirror, (ctx)->current_codegen_prefix_len) != 0) return (-1);
+                }
+              }
               return codegen_emit_func_link_name(out, arena, current_module, func_ix);
             }
             func_ix = -1;
