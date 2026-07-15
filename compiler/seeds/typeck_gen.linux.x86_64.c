@@ -2238,14 +2238,55 @@ int32_t typeck_coerce_init_named_call_to_decl(struct ast_ASTArena * arena, int32
  } else (__tmp = 0) ; __tmp; }));
   return 0;
 }
+/* TYPE_VECTOR lanes, or TYPE_NAMED i32x4/u32x16 spelling; else 0. */
+int32_t typeck_vector_lanes_of_type(struct ast_ASTArena * arena, int32_t type_ref) {
+  int32_t ord_type_vector = 13;
+  int32_t ord_type_named = 8;
+  int32_t tk = 0;
+  int32_t asz = 0;
+  uint8_t nm[64] = {0};
+  int32_t nlen = 0;
+  int32_t i = 0;
+  int32_t lanes = 0;
+  if (ast_ref_is_null(type_ref) || type_ref <= 0) return 0;
+  tk = pipeline_type_kind_ord_at(arena, type_ref);
+  if (tk == ord_type_vector) {
+    asz = pipeline_type_array_size_at(arena, type_ref);
+    return asz > 0 ? asz : 0;
+  }
+  if (tk != ord_type_named) return 0;
+  nlen = pipeline_type_named_name_into(arena, type_ref, nm);
+  i = 0;
+  while (i < nlen) {
+    if (nm[i] == 120) {
+      ++i; lanes = 0;
+      while (i < nlen && nm[i] >= 48 && nm[i] <= 57) {
+        lanes = lanes * 10 + ((int32_t)nm[i] - 48);
+        ++i;
+      }
+      if (lanes == 4 || lanes == 8 || lanes == 16) return lanes;
+      return 0;
+    }
+    ++i;
+  }
+  return 0;
+}
 int32_t typeck_coerce_init_array_vector_lit_to_decl(struct ast_ASTArena * arena, int32_t init_ref, int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind) {
   int32_t ord_type_array = 10;
-  int32_t ord_type_vector = 12;
+  /* TYPE_VECTOR=13 (TYPE_LINEAR=12); also TYPE_NAMED i32x4 spelling via lanes helper. */
+  int32_t ord_type_vector = 13;
   int32_t ord_expr_array_lit = 46;
+  int32_t lanes = 0;
   (void)(({ int32_t __tmp = 0; if (decl_kind == ord_type_array && init_kind == ord_expr_array_lit) {   (void)(pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref));
   return 1;
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (decl_kind == ord_type_vector && init_kind == ord_expr_array_lit) {   __tmp = ({ int32_t __tmp = 0; if (pipeline_expr_array_lit_num_elems_at(arena, init_ref) == pipeline_type_array_size_at(arena, decl_ty_ref)) {   (void)(pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref));
+  (void)(({ int32_t __tmp = 0; if (init_kind == ord_expr_array_lit) {
+  (lanes = typeck_vector_lanes_of_type(arena, decl_ty_ref));
+  __tmp = ({ int32_t __tmp = 0; if (lanes > 0 && pipeline_expr_array_lit_num_elems_at(arena, init_ref) == lanes) {
+  (void)(pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref));
+  return 1;
+ } else (__tmp = 0) ; __tmp; });
+  __tmp = ({ int32_t __tmp = 0; if (decl_kind == ord_type_vector && pipeline_expr_array_lit_num_elems_at(arena, init_ref) == pipeline_type_array_size_at(arena, decl_ty_ref)) {   (void)(pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref));
   return 1;
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
@@ -2254,12 +2295,18 @@ int32_t typeck_coerce_init_array_vector_lit_to_decl(struct ast_ASTArena * arena,
 int32_t typeck_coerce_init_vector_binop_to_decl(struct ast_ASTArena * arena, int32_t init_ref, int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind) {
   int32_t lref_c = 0;
   int32_t rref_c = 0;
-  int32_t ord_type_vector = 12;
+  int32_t ord_type_vector = 13;
   int32_t ord_add = 4;
   int32_t ord_sub = 5;
   int32_t ord_mul = 6;
   int32_t ord_div = 7;
-  (void)(({ int32_t __tmp = 0; if (decl_kind != ord_type_vector) {   return 0;
+  int32_t ord_expr_array_lit = 46;
+  int32_t lanes = 0;
+  (lanes = typeck_vector_lanes_of_type(arena, decl_ty_ref));
+  (void)(({ int32_t __tmp = 0; if (lanes <= 0 && decl_kind != ord_type_vector) {   return 0;
+ } else (__tmp = 0) ; __tmp; }));
+  if (lanes <= 0) (lanes = (pipeline_type_array_size_at(arena, decl_ty_ref)));
+  (void)(({ int32_t __tmp = 0; if (lanes <= 0) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (init_kind != ord_add && init_kind != ord_sub && init_kind != ord_mul && init_kind != ord_div) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
@@ -2267,7 +2314,15 @@ int32_t typeck_coerce_init_vector_binop_to_decl(struct ast_ASTArena * arena, int
   (rref_c = (pipeline_expr_binop_right_ref_at(arena, init_ref)));
   (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null(lref_c)) && (!ast_ref_is_null(rref_c))) {   int32_t lt_c = typeck_expr_type_ref(arena, lref_c);
   int32_t rt_c = typeck_expr_type_ref(arena, rref_c);
-  __tmp = ({ int32_t __tmp = 0; if ((!ast_ref_is_null(lt_c)) && (!ast_ref_is_null(rt_c)) && pipeline_type_kind_ord_at(arena, lt_c) == ord_type_vector && pipeline_type_kind_ord_at(arena, rt_c) == ord_type_vector && pipeline_type_array_size_at(arena, lt_c) == pipeline_type_array_size_at(arena, rt_c) && pipeline_type_array_size_at(arena, lt_c) == pipeline_type_array_size_at(arena, decl_ty_ref) && typeck_type_refs_equal(arena, pipeline_type_elem_ref_at(arena, lt_c), pipeline_type_elem_ref_at(arena, rt_c))) {   (void)(pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref));
+  int32_t lk_e = pipeline_expr_kind_ord_at(arena, lref_c);
+  int32_t rk_e = pipeline_expr_kind_ord_at(arena, rref_c);
+  /* [1,2,3,4]+[10,20,30,40]: stamp both ARRAY_LIT operands + binop as decl vector. */
+  __tmp = ({ int32_t __tmp = 0; if (lk_e == ord_expr_array_lit && rk_e == ord_expr_array_lit && pipeline_expr_array_lit_num_elems_at(arena, lref_c) == lanes && pipeline_expr_array_lit_num_elems_at(arena, rref_c) == lanes) {   (void)(pipeline_expr_set_resolved_type_ref(arena, lref_c, decl_ty_ref));
+  (void)(pipeline_expr_set_resolved_type_ref(arena, rref_c, decl_ty_ref));
+  (void)(pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref));
+  return 1;
+ } else (__tmp = 0) ; __tmp; });
+  __tmp = ({ int32_t __tmp = 0; if ((!ast_ref_is_null(lt_c)) && (!ast_ref_is_null(rt_c)) && typeck_vector_lanes_of_type(arena, lt_c) == lanes && typeck_vector_lanes_of_type(arena, rt_c) == lanes && typeck_type_refs_equal(arena, pipeline_type_elem_ref_at(arena, lt_c), pipeline_type_elem_ref_at(arena, rt_c))) {   (void)(pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref));
   return 1;
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
@@ -2796,6 +2851,7 @@ int32_t typeck_check_expr_assign(struct ast_Module * module, struct ast_ASTArena
   int32_t ord_u64 = 4;
   int32_t ord_i64 = 5;
   int32_t ord_usize = 6;
+  int32_t ord_isize = 7;
   int32_t ord_ptr = 9;
   int32_t ord_field = 44;
   int32_t ord_index = 47;
@@ -2850,7 +2906,8 @@ int32_t typeck_check_expr_assign(struct ast_Module * module, struct ast_ASTArena
  } else (__tmp = ({ int32_t __tmp = 0; if (expr_kind == ord_assign && lt_kind == ord_u32) {   (void)(pipeline_expr_set_resolved_type_ref(arena, right_ref, lt));
  } else (__tmp = ({ int32_t __tmp = 0; if (expr_kind == ord_assign && int_val >= 0 && (lt_kind == ord_usize || lt_kind == ord_u64)) {   (void)(pipeline_expr_set_resolved_type_ref(arena, right_ref, lt));
  } else (__tmp = ({ int32_t __tmp = 0; if (expr_kind == ord_assign && lt_kind == ord_i64) {   (void)(pipeline_expr_set_resolved_type_ref(arena, right_ref, lt));
- } else (__tmp = 0) ; __tmp; })) ; __tmp; })) ; __tmp; })) ; __tmp; })) ; __tmp; });
+ } else (__tmp = ({ int32_t __tmp = 0; if (expr_kind == ord_assign && lt_kind == ord_isize) {   (void)(pipeline_expr_set_resolved_type_ref(arena, right_ref, lt));
+ } else (__tmp = 0) ; __tmp; })) ; __tmp; })) ; __tmp; })) ; __tmp; })) ; __tmp; })) ; __tmp; });
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
@@ -2977,7 +3034,12 @@ int32_t typeck_check_expr_return(struct ast_Module * module, struct ast_ASTArena
   (rt_kind = (pipeline_type_kind_ord_at(arena, return_type_ref)));
   (void)(({ int32_t __tmp = 0; if (op_kind == ord_expr_array_lit && rt_kind == ord_type_array) {   (void)(pipeline_expr_set_resolved_type_ref(arena, op_ref, return_type_ref));
  } else (__tmp = 0) ; __tmp; }));
-  __tmp = ({ int32_t __tmp = 0; if (op_kind == ord_expr_array_lit && rt_kind == ord_type_vector) {   __tmp = ({ int32_t __tmp = 0; if (pipeline_expr_array_lit_num_elems_at(arena, op_ref) == pipeline_type_array_size_at(arena, return_type_ref)) {   (void)(pipeline_expr_set_resolved_type_ref(arena, op_ref, return_type_ref));
+  __tmp = ({ int32_t __tmp = 0; if (op_kind == ord_expr_array_lit) {
+  int32_t ret_lanes = typeck_vector_lanes_of_type(arena, return_type_ref);
+  __tmp = ({ int32_t __tmp = 0; if (ret_lanes > 0 && pipeline_expr_array_lit_num_elems_at(arena, op_ref) == ret_lanes) {
+  (void)(pipeline_expr_set_resolved_type_ref(arena, op_ref, return_type_ref));
+ } else if (rt_kind == ord_type_vector && pipeline_expr_array_lit_num_elems_at(arena, op_ref) == pipeline_type_array_size_at(arena, return_type_ref)) {
+  (void)(pipeline_expr_set_resolved_type_ref(arena, op_ref, return_type_ref));
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
@@ -3408,16 +3470,29 @@ int32_t typeck_check_expr_struct_lit(struct ast_Module * module, struct ast_ASTA
   int32_t name_len = 0;
   uint8_t name_buf[64] = { 0 };
   int32_t tr = 0;
+  int32_t ord_named = 8;
   (void)(({ int32_t __tmp = 0; if (typeck_check_expr_struct_lit_field(module, arena, expr_ref, return_type_ref, ctx, 0, num_fields) != 0) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
+  (name_len = (pipeline_expr_struct_lit_type_name_len(arena, expr_ref)));
+  /* Anonymous `{ a: 1, b: 2 }`：按 return/let 语境 stamp 为 expected named type（Pair 等）。 */
+  (void)(({ int32_t __tmp = 0; if (name_len <= 0) {
+  __tmp = ({ int32_t __tmp = 0; if ((!ast_ref_is_null(return_type_ref)) && pipeline_type_kind_ord_at(arena, return_type_ref) == ord_named) {
+  (void)(pipeline_expr_set_resolved_type_ref(arena, expr_ref, return_type_ref));
+ } else (__tmp = 0) ; __tmp; });
+  return 0;
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (typeck_ensure_struct_layout_from_struct_lit(module, arena, expr_ref) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-  (name_len = (pipeline_expr_struct_lit_type_name_len(arena, expr_ref)));
-  (void)(({ int32_t __tmp = 0; if (name_len <= 0 || name_len > 63) {   return 0;
+  (void)(({ int32_t __tmp = 0; if (name_len > 63) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
   (void)(pipeline_expr_struct_lit_type_name_into(arena, expr_ref, (&((name_buf)[0]))));
   (tr = (typeck_find_or_alloc_named_type_ref(arena, (&((name_buf)[0])), name_len)));
-  (void)(({ int32_t __tmp = 0; if (tr != 0) {   (void)(pipeline_expr_set_resolved_type_ref(arena, expr_ref, tr));
+  (void)(({ int32_t __tmp = 0; if (tr != 0) {
+  __tmp = ({ int32_t __tmp = 0; if ((!ast_ref_is_null(return_type_ref)) && pipeline_type_kind_ord_at(arena, return_type_ref) == ord_named) {
+  (void)(pipeline_expr_set_resolved_type_ref(arena, expr_ref, return_type_ref));
+ } else {
+  (void)(pipeline_expr_set_resolved_type_ref(arena, expr_ref, tr));
+ } ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
   return 0;
 }

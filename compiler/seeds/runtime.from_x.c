@@ -4935,7 +4935,9 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
     }
     size_t src_len = 0;
     pipeline_diag_emitted_reset();
-    char *src = shux_preprocess_with_path(raw_src_view.data, raw_src_view.length, input_path, NULL, 0, &src_len);
+    /* 必须传入 -D 收集结果；NULL/0 会使 #if FOO 永不成立（run-preprocess 假走 #else）。 */
+    char *src = shux_preprocess_with_path(raw_src_view.data, raw_src_view.length, input_path,
+                                          ndefines > 0 ? defines : NULL, ndefines, &src_len);
     runtime_release_file_view(&raw_src_view);
     if (!src && !pipeline_diag_emitted_get()) {
         diag_reportf_with_code(input_path, 0, 0, "preprocess error", SHUX_DIAG_CODE_PREPROCESS_PP002, NULL,

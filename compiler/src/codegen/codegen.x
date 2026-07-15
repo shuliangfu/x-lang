@@ -2324,6 +2324,28 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
       let i8_t: u8[7] = [105, 110, 116, 56, 95, 116, 0];
       return emit_bytes_8(out, i8_t, 6);
     }
+    /*
+     * 向量拼写 TYPE_NAMED（parser 部分路径未落 TYPE_VECTOR）：i32x4/u32x4/i32x8…
+     * 发 C typedef 名，禁 struct ast_i32x4 incomplete。
+     */
+    if (name_len == 5 && nm[0] == 105 && nm[1] == 51 && nm[2] == 50 && nm[3] == 120 && nm[4] == 52) {
+      return emit_vector_c_type_out(out, TypeKind.TYPE_I32 as i32, 4);
+    }
+    if (name_len == 5 && nm[0] == 105 && nm[1] == 51 && nm[2] == 50 && nm[3] == 120 && nm[4] == 56) {
+      return emit_vector_c_type_out(out, TypeKind.TYPE_I32 as i32, 8);
+    }
+    if (name_len == 5 && nm[0] == 117 && nm[1] == 51 && nm[2] == 50 && nm[3] == 120 && nm[4] == 52) {
+      return emit_vector_c_type_out(out, TypeKind.TYPE_U32 as i32, 4);
+    }
+    if (name_len == 5 && nm[0] == 117 && nm[1] == 51 && nm[2] == 50 && nm[3] == 120 && nm[4] == 56) {
+      return emit_vector_c_type_out(out, TypeKind.TYPE_U32 as i32, 8);
+    }
+    if (name_len == 6 && nm[0] == 105 && nm[1] == 51 && nm[2] == 50 && nm[3] == 120 && nm[4] == 49 && nm[5] == 54) {
+      return emit_vector_c_type_out(out, TypeKind.TYPE_I32 as i32, 16);
+    }
+    if (name_len == 6 && nm[0] == 117 && nm[1] == 51 && nm[2] == 50 && nm[3] == 120 && nm[4] == 49 && nm[5] == 54) {
+      return emit_vector_c_type_out(out, TypeKind.TYPE_U32 as i32, 16);
+    }
     /** 用户顶层 enum：C 无对应 tag 时按 int32_t 存储（与 typeck 布局一致）。 */
     if (ctx != 0 as *PipelineDepCtx && ctx.current_codegen_module != 0 as *Module
         && codegen_type_is_module_user_enum(ctx.current_codegen_module, arena, type_ref) != 0) {
@@ -5764,6 +5786,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
     let n: i32 = pipeline_expr_array_lit_num_elems_at(arena, expr_ref);
     let elem_type_ref: i32 = 0;
     let is_slice: i32 = 0;
+    let is_vector: i32 = 0;
     if (!ast.ref_is_null(e.resolved_type_ref) && e.resolved_type_ref > 0 && e.resolved_type_ref <= arena.num_types) {
       let ty: Type = ast.ast_arena_type_get(arena, e.resolved_type_ref);
       if (ty.kind == TypeKind.TYPE_SLICE) {
@@ -5771,7 +5794,52 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         elem_type_ref = ty.elem_type_ref;
       } else if (ty.kind == TypeKind.TYPE_ARRAY) {
         elem_type_ref = ty.elem_type_ref;
+      } else if (ty.kind == TypeKind.TYPE_VECTOR) {
+        /* 向量字面量须 (i32x4_t){...}；(int32_t[]){...} / (uint8_t[]){...} 不能初始化 vector 类型。 */
+        is_vector = 1;
+      } else if (ty.kind == TypeKind.TYPE_NAMED && ty.name_len >= 5) {
+        /* 误落 TYPE_NAMED 的 i32x4/u32x8 等拼写 */
+        let ni: i32 = 0;
+        while (ni < ty.name_len) {
+          if (ty.name[ni] == 120) {
+            is_vector = 1;
+            ni = ty.name_len;
+          } else {
+            ni = ni + 1;
+          }
+        }
       }
+    }
+    if (is_vector != 0) {
+      /* (vec_ty){ e0, e1, ... } compound literal */
+      if (append_byte(out, 40) != 0) {
+        return -1;
+      }
+      if (emit_type(arena, out, e.resolved_type_ref, 0 as *u8, 0, ctx) != 0) {
+        return -1;
+      }
+      if (append_byte(out, 41) != 0) {
+        return -1;
+      }
+      if (append_byte(out, 123) != 0) {
+        return -1;
+      }
+      let vai: i32 = 0;
+      while (vai < n) {
+        if (vai > 0) {
+          let comma: u8[3] = [44, 32, 0];
+          if (emit_bytes_3(out, comma, 2) != 0) {
+            return -1;
+          }
+        }
+        if (!ast.ref_is_null(pipeline_expr_array_lit_elem_ref(arena, expr_ref, vai))
+            && emit_expr(arena, out, pipeline_expr_array_lit_elem_ref(arena, expr_ref, vai), ctx) != 0) {
+          return -1;
+        }
+        vai = vai + 1;
+      }
+      let vclose: u8[4] = [32, 125, 0, 0];
+      return emit_bytes_4(out, vclose, 2);
     }
     if (elem_type_ref == 0 && n > 0) {
       let first_ref: i32 = pipeline_expr_array_lit_elem_ref(arena, expr_ref, 0);
@@ -6009,20 +6077,20 @@ export function emit_block_final_expr(arena: *ASTArena, out: *CodegenOutBuf, blo
     let blk: Block = ast.ast_arena_block_get(arena, block_ref);
     parent_br = blk.parent_block_ref;
   }
-  /* 嵌套块：值被丢弃，禁止包成函数 return */
+  /*
+   * 嵌套块 final：发 `expr;` 而非 return，亦勿 (void)(expr)。
+   * 【Why 根源】(void) 使 GNU 语句表达式 `({ ... })`（unsafe 块 / EXPR_BLOCK）值为 void，
+   *   破坏 `if (unsafe { memcmp(...) } != 0)`。纯语句体里 `expr;` 同样丢弃返回值。
+   */
   if (parent_br > 0) {
     if (emit_indent(out, indent) != 0) {
-      return -1;
-    }
-    let vcast: u8[8] = [40, 118, 111, 105, 100, 41, 40, 0];
-    if (emit_bytes_from_ptr(out, &vcast[0], 7) != 0) {
       return -1;
     }
     if (emit_expr(arena, out, final_ref, ctx) != 0) {
       return -1;
     }
-    let end: u8[4] = [41, 59, 10, 0];
-    return emit_bytes_from_ptr(out, &end[0], 3);
+    let end: u8[4] = [59, 10, 0, 0];
+    return emit_bytes_from_ptr(out, &end[0], 2);
   }
   return emit_return_stmt_with_context(arena, out, indent, final_ref, ctx, fn_ret_void);
 }
@@ -6292,7 +6360,47 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
               }
             }
           } else {
-            if (emit_expr(arena, out, linit_ref, ctx) != 0) {
+            /* 向量 TYPE_NAMED / TYPE_VECTOR：0 → { 0 }；ARRAY_LIT → 花括号初值（赋值语境） */
+            let use_vec_z: i32 = 0;
+            let use_vec_braced: i32 = 0;
+            if (!ast.ref_is_null(linit_ref) && linit_ref > 0 && linit_ref <= arena.num_exprs
+                && !ast.ref_is_null(let_type_ref)) {
+              let init_ez: Expr = ast.ast_arena_expr_get(arena, linit_ref);
+              let tk_z: i32 = pipeline_type_kind_ord_at(arena, let_type_ref);
+              let is_vec_ty: i32 = 0;
+              if (tk_z == TypeKind.TYPE_VECTOR) {
+                is_vec_ty = 1;
+              } else if (tk_z == TypeKind.TYPE_NAMED) {
+                let vzn: u8[64] = [];
+                let vzn_l: i32 = pipeline_type_named_name_into(arena, let_type_ref, &vzn[0]);
+                let vi: i32 = 0;
+                while (vi < vzn_l) {
+                  if (vzn[vi] == 120) {
+                    is_vec_ty = 1;
+                    vi = vzn_l;
+                  } else {
+                    vi = vi + 1;
+                  }
+                }
+              }
+              if (is_vec_ty != 0) {
+                if (init_ez.kind == ExprKind.EXPR_LIT && init_ez.int_val == 0) {
+                  use_vec_z = 1;
+                } else if (init_ez.kind == ExprKind.EXPR_ARRAY_LIT) {
+                  use_vec_braced = 1;
+                }
+              }
+            }
+            if (use_vec_z != 0) {
+              let vz: u8[6] = [123, 32, 48, 32, 125, 0];
+              if (emit_bytes_6(out, vz, 5) != 0) {
+                return -1;
+              }
+            } else if (use_vec_braced != 0) {
+              if (emit_braced_array_lit_init(arena, out, linit_ref, ctx) != 0) {
+                return -1;
+              }
+            } else if (emit_expr(arena, out, linit_ref, ctx) != 0) {
               return -1;
             }
           }
@@ -6458,25 +6566,44 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
           }
         }
       } else if (k == 6) {
-        /** M-3：region 块运行时等价嵌套 { }（零开销域标签）。 */
+        /**
+         * M-3：region 零开销域标签。
+         * 有 let/const 时包 { } 限定作用域；无局部时不包花括号。
+         * 【Why 根源】`unsafe { call() }` 常落 EXPR_BLOCK→region；若再包 { }，
+         *   GNU 语句表达式 `({ { call(); } })` 末尾为 compound → 值类型 void，
+         *   破坏 `if (unsafe { memcmp(...) } != 0)`。
+         */
         if (idx >= 0 && idx < ast.ast_block_num_regions(arena, block_ref)) {
           let reg_body: i32 = ast.ast_block_region_body_ref(arena, block_ref, idx);
-          if (emit_indent(out, indent) != 0) {
-            return -1;
+          let need_scope: i32 = 0;
+          if (!ast.ref_is_null(reg_body) && reg_body > 0 && reg_body <= arena.num_blocks) {
+            if (ast.ast_block_num_lets(arena, reg_body) > 0
+                || ast.ast_block_num_consts(arena, reg_body) > 0) {
+              need_scope = 1;
+            }
           }
-          let ob: u8[2] = [123, 10];
-          if (emit_bytes_2(out, ob, 2) != 0) {
-            return -1;
-          }
-          if (emit_block(arena, out, reg_body, indent + 2, ctx) != 0) {
-            return -1;
-          }
-          if (emit_indent(out, indent) != 0) {
-            return -1;
-          }
-          let cb: u8[3] = [125, 10, 0];
-          if (emit_bytes_3(out, cb, 2) != 0) {
-            return -1;
+          if (need_scope != 0) {
+            if (emit_indent(out, indent) != 0) {
+              return -1;
+            }
+            let ob: u8[2] = [123, 10];
+            if (emit_bytes_2(out, ob, 2) != 0) {
+              return -1;
+            }
+            if (emit_block(arena, out, reg_body, indent + 2, ctx) != 0) {
+              return -1;
+            }
+            if (emit_indent(out, indent) != 0) {
+              return -1;
+            }
+            let cb: u8[3] = [125, 10, 0];
+            if (emit_bytes_3(out, cb, 2) != 0) {
+              return -1;
+            }
+          } else {
+            if (emit_block(arena, out, reg_body, indent, ctx) != 0) {
+              return -1;
+            }
           }
         }
       }
@@ -7146,6 +7273,11 @@ export function codegen_emit_call_func_name(out: *CodegenOutBuf, arena: *ASTAren
               }
             }
           }
+        }
+        /* 重载：仅名+arity 可信不足，typeck 可能指向首个同名；须再按实参类型重搜。 */
+        if (ok_res != 0 && fallback_len > 0
+            && codegen_module_func_overload_count(res_mod, fallback_name, fallback_len) > 1) {
+          ok_res = 0;
         }
         if (ok_res != 0) {
           let res_arena: *ASTArena = codegen_arena_for_module(ctx, res_mod, arena);
@@ -8581,6 +8713,34 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
       asm_backend = 1;
     }
     skip = codegen_should_skip_emit_func_by_name(&skip_name[0], skip_nl);
+    /*
+     * 【Why 根源】C 后端 -o 会链入 std/string/string.o；dep 共 emit 再写 std_string_* 体 →
+     *   68× redefinition。asm 后端无 .o 预链，仍须 emit 体。
+     * 【Invariant】仅 dep（dep_index>=0 或 path 为 std.string）+ C 后端跳过；入口编 string 模块本身不跳。
+     */
+    if (skip == 0 && asm_backend == 0) {
+      let is_str_dep: i32 = 0;
+      if (dep_index >= 0 && dep_path_prefix_len >= 10) {
+        /* std.string or std/string */
+        if (dep_path_prefix[0] == 115 && dep_path_prefix[1] == 116 && dep_path_prefix[2] == 100
+            && (dep_path_prefix[3] == 46 || dep_path_prefix[3] == 47)
+            && dep_path_prefix[4] == 115 && dep_path_prefix[5] == 116 && dep_path_prefix[6] == 114
+            && dep_path_prefix[7] == 105 && dep_path_prefix[8] == 110 && dep_path_prefix[9] == 103) {
+          is_str_dep = 1;
+        }
+      }
+      if (is_str_dep == 0 && prefix_len >= 11
+          && prefix_buf[0] == 115 && prefix_buf[1] == 116 && prefix_buf[2] == 100
+          && prefix_buf[3] == 95 && prefix_buf[4] == 115 && prefix_buf[5] == 116
+          && prefix_buf[6] == 114 && prefix_buf[7] == 105 && prefix_buf[8] == 110
+          && prefix_buf[9] == 103 && prefix_buf[10] == 95
+          && dep_index >= 0) {
+        is_str_dep = 1;
+      }
+      if (is_str_dep != 0) {
+        skip = 1;
+      }
+    }
     /*
      * 【Why 根源】by_name 对裸名 placeholder / string_new 跳过，是为避免与 preamble 弱桩
      *   符号冲突。入口库带 prefix 时定义端为 core_mem_placeholder / std_string_string_new，

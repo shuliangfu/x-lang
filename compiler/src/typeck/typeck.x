@@ -3555,18 +3555,75 @@ decl_ty_ref: i32): i32 {
   return 1;
 }
 
+/**
+ * TYPE_VECTOR 车道数，或 TYPE_NAMED 拼写 i32x4/u32x8/i32x16 等解析出的车道数；非向量返回 0。
+ * 【Why 根源】parser 部分路径将 i32x4 落 TYPE_NAMED(kind=8) 而非 TYPE_VECTOR(13)，
+ *   仅认 kind=13 会导致 array lit / binop 永不 stamp resolved → C 发 (uint8_t[]){...}。
+ */
+export function typeck_vector_lanes_of_type(arena: *ASTArena, type_ref: i32): i32 {
+  let ord_type_vector: i32 = 13;
+  let ord_type_named: i32 = 8;
+  let tk: i32 = 0;
+  let asz: i32 = 0;
+  let nm: u8[64] = [];
+  let nlen: i32 = 0;
+  let i: i32 = 0;
+  let lanes: i32 = 0;
+  if (ast.ref_is_null(type_ref) || type_ref <= 0) {
+    return 0;
+  }
+  tk = pipeline_type_kind_ord_at(arena, type_ref);
+  if (tk == ord_type_vector) {
+    asz = pipeline_type_array_size_at(arena, type_ref);
+    if (asz > 0) {
+      return asz;
+    }
+    return 0;
+  }
+  if (tk != ord_type_named) {
+    return 0;
+  }
+  nlen = pipeline_type_named_name_into(arena, type_ref, &nm[0]);
+  /* 找 'x' 后的十进制车道：i32x4 / u32x16 / f32x4 */
+  i = 0;
+  while (i < nlen) {
+    if (nm[i] == 120) {
+      i = i + 1;
+      lanes = 0;
+      while (i < nlen && nm[i] >= 48 && nm[i] <= 57) {
+        lanes = lanes * 10 + (nm[i] as i32 - 48);
+        i = i + 1;
+      }
+      if (lanes == 4 || lanes == 8 || lanes == 16) {
+        return lanes;
+      }
+      return 0;
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
 /** let 初值：数组字面量或固定长度 vector 数组字面量。 */
 export function typeck_coerce_init_array_vector_lit_to_decl(arena: *ASTArena, init_ref: i32,
 decl_ty_ref: i32, decl_kind: i32, init_kind: i32): i32 {
   /** 局部字面量：模块 const / ExprKind cast 在 EMIT_HEAVY emit 会 Abort 或 backend 失败。 */
   let ord_type_array: i32 = 10;
-  let ord_type_vector: i32 = 12;
+  /* TYPE_VECTOR = 13（TYPE_LINEAR=12）；误写 12 导致 let v:i32x4=[..] 永不 stamp resolved。 */
+  let ord_type_vector: i32 = 13;
   let ord_expr_array_lit: i32 = 46;
+  let lanes: i32 = 0;
   if (decl_kind == ord_type_array && init_kind == ord_expr_array_lit) {
     return typeck_coerce_array_lit_elem_types_to_decl(arena, init_ref, decl_ty_ref);
   }
-  if (decl_kind == ord_type_vector && init_kind == ord_expr_array_lit) {
-    if (pipeline_expr_array_lit_num_elems_at(arena, init_ref) == pipeline_type_array_size_at(arena,
+  if (init_kind == ord_expr_array_lit) {
+    lanes = typeck_vector_lanes_of_type(arena, decl_ty_ref);
+    if (lanes > 0 && pipeline_expr_array_lit_num_elems_at(arena, init_ref) == lanes) {
+      pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
+      return 1;
+    }
+    if (decl_kind == ord_type_vector
+    && pipeline_expr_array_lit_num_elems_at(arena, init_ref) == pipeline_type_array_size_at(arena,
     decl_ty_ref)) {
       pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
       return 1;
@@ -3580,12 +3637,22 @@ export function typeck_coerce_init_vector_binop_to_decl(arena: *ASTArena, init_r
 decl_kind: i32, init_kind: i32): i32 {
   let lref_c: i32 = 0;
   let rref_c: i32 = 0;
-  let ord_type_vector: i32 = 12;
+  /* TYPE_VECTOR=13，非 TYPE_LINEAR(12)。 */
+  let ord_type_vector: i32 = 13;
   let ord_add: i32 = 4;
   let ord_sub: i32 = 5;
   let ord_mul: i32 = 6;
   let ord_div: i32 = 7;
-  if (decl_kind != ord_type_vector) {
+  let ord_expr_array_lit: i32 = 46;
+  let lanes: i32 = 0;
+  lanes = typeck_vector_lanes_of_type(arena, decl_ty_ref);
+  if (lanes <= 0 && decl_kind != ord_type_vector) {
+    return 0;
+  }
+  if (lanes <= 0) {
+    lanes = pipeline_type_array_size_at(arena, decl_ty_ref);
+  }
+  if (lanes <= 0) {
     return 0;
   }
   if (init_kind != ord_add && init_kind != ord_sub && init_kind != ord_mul && init_kind != ord_div) 
@@ -3597,11 +3664,20 @@ decl_kind: i32, init_kind: i32): i32 {
   if (!ast.ref_is_null(lref_c) && !ast.ref_is_null(rref_c)) {
     let lt_c: i32 = expr_type_ref(arena, lref_c);
     let rt_c: i32 = expr_type_ref(arena, rref_c);
+    let lk_e: i32 = pipeline_expr_kind_ord_at(arena, lref_c);
+    let rk_e: i32 = pipeline_expr_kind_ord_at(arena, rref_c);
+    /* `[1,2,3,4] + [10,20,30,40]`：两侧 ARRAY_LIT 车道数与声明一致时 stamp 为 vector。 */
+    if (lk_e == ord_expr_array_lit && rk_e == ord_expr_array_lit
+    && pipeline_expr_array_lit_num_elems_at(arena, lref_c) == lanes
+    && pipeline_expr_array_lit_num_elems_at(arena, rref_c) == lanes) {
+      pipeline_expr_set_resolved_type_ref(arena, lref_c, decl_ty_ref);
+      pipeline_expr_set_resolved_type_ref(arena, rref_c, decl_ty_ref);
+      pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
+      return 1;
+    }
     if (!ast.ref_is_null(lt_c) && !ast.ref_is_null(rt_c)
-    && pipeline_type_kind_ord_at(arena, lt_c) == ord_type_vector
-    && pipeline_type_kind_ord_at(arena, rt_c) == ord_type_vector
-    && pipeline_type_array_size_at(arena, lt_c) == pipeline_type_array_size_at(arena, rt_c)
-    && pipeline_type_array_size_at(arena, lt_c) == pipeline_type_array_size_at(arena, decl_ty_ref)
+    && typeck_vector_lanes_of_type(arena, lt_c) == lanes
+    && typeck_vector_lanes_of_type(arena, rt_c) == lanes
     && type_refs_equal(arena, pipeline_type_elem_ref_at(arena, lt_c),
     pipeline_type_elem_ref_at(arena, rt_c))) {
       pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
@@ -4362,6 +4438,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
   let ord_u64: i32 = 4;
   let ord_i64: i32 = 5;
   let ord_usize: i32 = 6;
+  let ord_isize: i32 = 7;
   let ord_named: i32 = 8;
   let ord_ptr: i32 = 9;
   let ord_type_array: i32 = 10;
@@ -4445,6 +4522,9 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
         (lt_kind == ord_usize || lt_kind == ord_u64)) {
           pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
         } else if (expr_kind == ord_assign && lt_kind == ord_i64) {
+          pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
+        } else if (expr_kind == ord_assign && lt_kind == ord_isize) {
+          /* isize 与 i64 同：字面量 0 等整型字面量收窄到声明类型。 */
           pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
         } else if (expr_kind == ord_assign && lt_kind == ord_named) {
           /* 【Why 根源】u16/i16 无独立 TypeKind（存为 TYPE_NAMED name="u16"/"i16"），
@@ -4650,6 +4730,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     let ord_type_array: i32 = 10;
     let ord_type_vector: i32 = 13;
     let ord_expr_array_lit: i32 = 46;
+    let ret_lanes: i32 = 0;
     op_kind = pipeline_expr_kind_ord_at(arena, op_ref);
     rt_kind = pipeline_type_kind_ord_at(arena, return_type_ref);
     if (op_kind == ord_expr_array_lit && rt_kind == ord_type_array) {
@@ -4657,8 +4738,12 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
         return - 1;
       }
     }
-    if (op_kind == ord_expr_array_lit && rt_kind == ord_type_vector) {
-      if (pipeline_expr_array_lit_num_elems_at(arena, op_ref) == pipeline_type_array_size_at(arena,
+    if (op_kind == ord_expr_array_lit) {
+      ret_lanes = typeck_vector_lanes_of_type(arena, return_type_ref);
+      if (ret_lanes > 0 && pipeline_expr_array_lit_num_elems_at(arena, op_ref) == ret_lanes) {
+        pipeline_expr_set_resolved_type_ref(arena, op_ref, return_type_ref);
+      } else if (rt_kind == ord_type_vector
+      && pipeline_expr_array_lit_num_elems_at(arena, op_ref) == pipeline_type_array_size_at(arena,
       return_type_ref)) {
         pipeline_expr_set_resolved_type_ref(arena, op_ref, return_type_ref);
       }

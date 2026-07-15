@@ -311,9 +311,13 @@ export function rt_cp_step_read_pp(): i32 {
   let src: *u8 = 0 as *u8;
   let src_len: usize = 0;
   let em: i32 = 0;
+  let ndef: i32 = 0;
+  let defs: *u8 = 0 as *u8;
   unsafe {
     path = driver_parsed_work_p_get(pp_path());
     raw = runtime_read_file_malloc(path, &raw_len);
+    ndef = driver_parsed_work_i_get(pi_ndef());
+    defs = driver_parsed_work_p_get(pp_defs());
   }
   if (raw == 0 as *u8) {
     rt_cp_diag(path, 1, 1, 1);
@@ -321,7 +325,8 @@ export function rt_cp_step_read_pp(): i32 {
   }
   unsafe {
     pipeline_diag_emitted_reset();
-    src = shux_preprocess_with_path(raw, raw_len, path, 0 as *u8, 0, &src_len);
+    /* 必须传入 -D 收集结果；NULL/0 会使 #if FOO 永不成立。 */
+    src = shux_preprocess_with_path(raw, raw_len, path, defs, ndef, &src_len);
     free(raw);
   }
   if (src == 0 as *u8) {

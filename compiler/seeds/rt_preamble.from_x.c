@@ -48,6 +48,22 @@ const char *const driver_preamble_io_net_lines[] = {
         "struct shux_slice_int32_t { int32_t *data; size_t length; };\n"
         "struct shux_slice_uint64_t { uint64_t *data; size_t length; };\n"
         "struct shux_slice_size_t { size_t *data; size_t length; };\n"
+        /* §10 向量：codegen 发 i32x4_t 等；与 emit_vector_c_type_out 对齐 */
+        "#if defined(__GNUC__) || defined(__clang__)\n"
+        "typedef int32_t i32x4_t __attribute__((vector_size(16)));\n"
+        "typedef int32_t i32x8_t __attribute__((vector_size(32)));\n"
+        "typedef int32_t i32x16_t __attribute__((vector_size(64)));\n"
+        "typedef uint32_t u32x4_t __attribute__((vector_size(16)));\n"
+        "typedef uint32_t u32x8_t __attribute__((vector_size(32)));\n"
+        "typedef uint32_t u32x16_t __attribute__((vector_size(64)));\n"
+        "#else\n"
+        "typedef struct { int32_t e[4]; } i32x4_t;\n"
+        "typedef struct { int32_t e[8]; } i32x8_t;\n"
+        "typedef struct { int32_t e[16]; } i32x16_t;\n"
+        "typedef struct { uint32_t e[4]; } u32x4_t;\n"
+        "typedef struct { uint32_t e[8]; } u32x8_t;\n"
+        "typedef struct { uint32_t e[16]; } u32x16_t;\n"
+        "#endif\n"
         "typedef struct { uint8_t *ptr; size_t len; size_t handle; } shu_batch_buf_t;\n",
         "extern int io_register_buffer(uint8_t *ptr, size_t len);\n",
         "extern int io_register_buffers_4(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3, unsigned nr);\n",
