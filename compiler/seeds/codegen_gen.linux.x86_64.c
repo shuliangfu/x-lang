@@ -1678,8 +1678,8 @@ SHUX_LIB_WEAK int32_t codegen_field_access_base_is_slice_param_name(struct ast_A
  }
   if ((base).var_name_len == 3 && ((base).var_name)[0] == 99 && (1 < 0 || (1) >= 64 ? (shux_panic_(1, 0), ((base).var_name)[0]) : ((base).var_name)[1]) == 116 && (2 < 0 || (2) >= 64 ? (shux_panic_(1, 0), ((base).var_name)[0]) : ((base).var_name)[2]) == 120) {   return 1;
  }
-  if ((base).var_name_len == 3 && ((base).var_name)[0] == 111 && (1 < 0 || (1) >= 64 ? (shux_panic_(1, 0), ((base).var_name)[0]) : ((base).var_name)[1]) == 117 && (2 < 0 || (2) >= 64 ? (shux_panic_(1, 0), ((base).var_name)[0]) : ((base).var_name)[2]) == 116) {   return 1;
- }
+  /* Removed: bare name 'out' treated as pointer. Local 'let out: Slice/Struct' value types
+   * are common; using -> on value types generates illegal C. Use resolved_type_ref instead. */
   if ((base).var_name_len == 7 && ((base).var_name)[0] == 99 && (1 < 0 || (1) >= 64 ? (shux_panic_(1, 0), ((base).var_name)[0]) : ((base).var_name)[1]) == 117 && (2 < 0 || (2) >= 64 ? (shux_panic_(1, 0), ((base).var_name)[0]) : ((base).var_name)[2]) == 114 && (3 < 0 || (3) >= 64 ? (shux_panic_(1, 0), ((base).var_name)[0]) : ((base).var_name)[3]) == 95 && (4 < 0 || (4) >= 64 ? (shux_panic_(1, 0), ((base).var_name)[0]) : ((base).var_name)[4]) == 109 && (5 < 0 || (5) >= 64 ? (shux_panic_(1, 0), ((base).var_name)[0]) : ((base).var_name)[5]) == 111 && (6 < 0 || (6) >= 64 ? (shux_panic_(1, 0), ((base).var_name)[0]) : ((base).var_name)[6]) == 100) {   return 1;
  }
   return 0;
