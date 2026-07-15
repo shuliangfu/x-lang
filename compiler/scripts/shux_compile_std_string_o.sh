@@ -36,19 +36,30 @@ s = p.read_text()
 extra = []
 if "std_heap_libc_LibcArena64" in s and "heap_libc_Arena64" in s and "#define heap_libc_Arena64" not in s:
     extra.append("#define heap_libc_Arena64 std_heap_libc_LibcArena64\n")
-# entry-only 库 -E 跳过 String/StrView 完整体（与 product preamble 双 emit 策略）；此处注入权威布局。
-# 兼容：裸 struct String / 仅前向 std_string_String 声明。
-need_string_body = (
-    ("struct std_string_String" in s and "struct std_string_String {" not in s)
-    or ("struct String" in s and "struct String {" not in s and "typedef struct std_string_String String" not in s)
-)
-if need_string_body:
-    extra.append(
-        "struct std_string_String { uint8_t data[256]; int32_t len; };\n"
-        "typedef struct std_string_String String;\n"
-        "struct std_string_StrView { uint8_t *ptr; int32_t len; };\n"
-        "typedef struct std_string_StrView StrView;\n"
-    )
+# entry-only 库 -E 跳过 String/StrView 完整体；此处注入权威布局。
+# 注意：codegen 可能发 `struct String`（tag）而非 typedef `String`——二者在 C 中不是同一类型。
+need_bare_string = "struct String" in s and "struct String {" not in s
+need_std_string = "struct std_string_String" in s and "struct std_string_String {" not in s
+need_bare_view = "struct StrView" in s and "struct StrView {" not in s
+need_std_view = "struct std_string_StrView" in s and "struct std_string_StrView {" not in s
+if need_bare_string:
+    extra.append("struct String { uint8_t data[256]; int32_t len; };\n")
+if need_std_string:
+    extra.append("struct std_string_String { uint8_t data[256]; int32_t len; };\n")
+if need_bare_view:
+    extra.append("struct StrView { uint8_t *ptr; int32_t len; };\n")
+if need_std_view:
+    extra.append("struct std_string_StrView { uint8_t *ptr; int32_t len; };\n")
+# 仅当源用裸标识符 String/StrView（非 struct String）时补 typedef
+if re.search(r"\bString\b", s) and "typedef " not in s.split("String")[0][-40:]:
+    if "typedef struct String String" not in s and need_bare_string:
+        extra.append("typedef struct String String;\n")
+    elif need_std_string and "typedef struct std_string_String String" not in s:
+        extra.append("typedef struct std_string_String String;\n")
+if re.search(r"\bStrView\b", s) and need_bare_view and "typedef struct StrView StrView" not in s:
+    extra.append("typedef struct StrView StrView;\n")
+elif re.search(r"\bStrView\b", s) and need_std_view and "typedef struct std_string_StrView StrView" not in s:
+    extra.append("typedef struct std_string_StrView StrView;\n")
 # init_globals 可能引用 dep 全局（heap trace / mem fence）；库 .o 不定义它们 → 补 BSS
 if "shu_heap_trace_on" in s and "int32_t shu_heap_trace_on" not in s:
     extra.append(
