@@ -1594,7 +1594,11 @@ int32_t try_inline_x_plus_k_call_elf_impl(struct ast_ASTArena *arena, struct pla
   if (clen <= 0 || clen > 63)
     return 0;
   pipeline_expr_var_name_into(arena, callee_ref, cname);
-  fi = glue_module_func_index_by_name(mod_ref, cname, clen);
+  /* 【Why 根源】必须优先 call_resolved_func_index（overload 分派结果）。
+   * 仅按名 first-match 会把 pick(20 as i64) 折成 pick_i32 的 +1（overload.x exit=2）。 */
+  fi = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
+  if (fi < 0)
+    fi = glue_module_func_index_by_name(mod_ref, cname, clen);
   if (fi < 0)
     return 0;
   k = backend_fold_func_x_plus_k_chain(arena, mod_ref, fi, 0);

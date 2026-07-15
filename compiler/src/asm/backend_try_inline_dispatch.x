@@ -1128,7 +1128,11 @@ export function try_inline_x_plus_k_call_elf(arena: *u8, elf_ctx: *u8, expr_ref:
     if (clen > 63) { return 0; }
     let cname: u8[64] = [];
     pipeline_expr_var_name_into(arena, callee_ref, &cname[0]);
-    let fi: i32 = glue_module_func_index_by_name(mod_ref, &cname[0], clen);
+    /* 【Why 根源】优先 call_resolved_func_index（overload）；勿按名 first-match。 */
+    let fi: i32 = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
+    if (fi < 0) {
+      fi = glue_module_func_index_by_name(mod_ref, &cname[0], clen);
+    }
     if (fi < 0) { return 0; }
     let k: i32 = backend_fold_func_x_plus_k_chain(arena, mod_ref, fi, 0);
     if (k < 0) { return 0; }
