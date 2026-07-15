@@ -2379,7 +2379,10 @@ SHUX_LIB_WEAK int32_t codegen_try_emit_slice_init_from_array_var(struct ast_ASTA
   if (codegen_format_int(out, arr_sz) != 0) {   return (-1);
  }
   uint8_t d3[4] = { 32, 125, 0, 0 };
-  return codegen_emit_bytes_4(out, d3, 2);
+  /* 成功须返回 1：调用方 else if (slice_init == 1) 才跳过 emit_expr；返回 0 会再发一遍 arr 名。 */
+  if (codegen_emit_bytes_4(out, d3, 2) != 0) {   return (-1);
+ }
+  return 1;
 }
 SHUX_LIB_WEAK int32_t codegen_emit_braced_array_lit_init(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t init_ref, struct ast_PipelineDepCtx * ctx) {
   if (ast_ref_is_null(init_ref) || init_ref <= 0 || init_ref > (arena)->num_exprs) {   uint8_t z[4] = { 123, 32, 48, 0 };

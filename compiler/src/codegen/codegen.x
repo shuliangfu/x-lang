@@ -2721,7 +2721,11 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
     return -1;
   }
   let d3: u8[4] = [32, 125, 0, 0];
-  return emit_bytes_4(out, d3, 2);
+  /* 成功须返回 1：调用方 else if (slice_init == 1) 才跳过 emit_expr；返回 0 会再发一遍 arr 名。 */
+  if (emit_bytes_4(out, d3, 2) != 0) {
+    return -1;
+  }
+  return 1;
 }
 
 /**

@@ -69,12 +69,12 @@ slice_simple_link_o() {
 }
 
 slice_simple_link_o tests/slice/main.x /tmp/shux_slice \
-  'struct shulang_slice_int32_t { int32_t *data; int64_t length; };' 20
+  'struct shux_slice_int32_t { int32_t *data; int64_t length; };' 20
 exitcode=0; /tmp/shux_slice >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 20 ] && { echo "expected 20 (slice s[1]), got $exitcode"; exit 1; }
 
 slice_simple_link_o tests/slice/data_field.x /tmp/shux_slice_data_field \
-  'struct shulang_slice_uint8_t { uint8_t *data; int64_t length; };' 0
+  'struct shux_slice_uint8_t { uint8_t *data; int64_t length; };' 0
 exitcode=0; /tmp/shux_slice_data_field >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 0 ] && { echo "expected exit 0 (data_field), got $exitcode"; exit 1; }
 
