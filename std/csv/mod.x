@@ -19,8 +19,8 @@
 // next_field / unescape / parse_row / write_row / stream：csv.x（F-csv v1）。
 // escape（mod 内简化版）仍可用；write_row 经 csv.x 的 csv_escape_c（含引号双写）。
 
-extern function next_field(ptr: *u8, len: i32, offset: i32, out_start: *i32, out_len: *i32): i32;
-extern function unescape(ptr: *u8, len: i32, buf: *u8, buf_cap: i32): i32;
+export extern function next_field(ptr: *u8, len: i32, offset: i32, out_start: *i32, out_len: *i32): i32;
+export extern function unescape(ptr: *u8, len: i32, buf: *u8, buf_cap: i32): i32;
 extern function csv_test_quoted_first(out_start: *i32, out_len: *i32): i32;
 extern function csv_test_quoted_second(offset: i32, out_start: *i32, out_len: *i32): i32;
 extern function csv_test_unescape_ok(buf: *u8, buf_cap: i32): i32;
