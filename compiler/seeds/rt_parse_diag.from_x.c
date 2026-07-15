@@ -71,6 +71,7 @@ typedef enum {
   RT_KW_RETURN,
   RT_KW_DEFER,
   RT_KW_REGION,
+  RT_KW_UNSAFE,
   RT_KW_FUNCTION,
   RT_KW_STRUCT,
   RT_KW_ENUM,
@@ -83,6 +84,7 @@ typedef enum {
   RT_KW_FALSE,
   RT_KW_IDENT,
   RT_KW_INT,
+  RT_KW_STRING,
   RT_PUNCT
 } RtKw;
 
@@ -175,6 +177,8 @@ static RtKw rt_classify_ident(const char *p, size_t n) {
     return RT_KW_DEFER;
   if (rt_kw_eq(p, n, "region"))
     return RT_KW_REGION;
+  if (rt_kw_eq(p, n, "unsafe"))
+    return RT_KW_UNSAFE;
   if (rt_kw_eq(p, n, "function"))
     return RT_KW_FUNCTION;
   if (rt_kw_eq(p, n, "struct"))
@@ -237,6 +241,21 @@ static int rt_next_tok(RtScan *s, RtTok *out) {
     out->ch = 0;
     return 1;
   }
+  if (c == '"') {
+    while (s->i < s->len) {
+      int n = rt_get(s);
+      if (n == '\\' && s->i < s->len)
+        rt_get(s);
+      else if (n == '"')
+        break;
+      else if (n == 0)
+        break;
+    }
+    out->end = s->i;
+    out->kw = RT_KW_STRING;
+    out->ch = 0;
+    return 1;
+  }
   out->kw = RT_PUNCT;
   out->ch = c;
   out->end = s->i;
@@ -260,8 +279,8 @@ static int rt_is_stmt_start(const RtTok *t) {
     return 0;
   if (t->kw == RT_KW_LET || t->kw == RT_KW_CONST || t->kw == RT_KW_IF || t->kw == RT_KW_WHILE
       || t->kw == RT_KW_FOR || t->kw == RT_KW_LOOP || t->kw == RT_KW_RETURN || t->kw == RT_KW_DEFER
-      || t->kw == RT_KW_REGION || t->kw == RT_KW_BREAK || t->kw == RT_KW_CONTINUE || t->kw == RT_KW_MATCH
-      || t->kw == RT_KW_FUNCTION)
+      || t->kw == RT_KW_REGION || t->kw == RT_KW_UNSAFE || t->kw == RT_KW_BREAK
+      || t->kw == RT_KW_CONTINUE || t->kw == RT_KW_MATCH || t->kw == RT_KW_FUNCTION)
     return 1;
   if (t->kw == RT_PUNCT && (t->ch == '}' || t->ch == '{'))
     return 1;
@@ -271,6 +290,19 @@ static int rt_is_stmt_start(const RtTok *t) {
 static int rt_is_top_start(const RtTok *t) {
   return t->kw == RT_KW_FUNCTION || t->kw == RT_KW_CONST || t->kw == RT_KW_STRUCT || t->kw == RT_KW_ENUM
          || t->kw == RT_KW_IMPORT || t->kw == RT_KW_EXTERN || t->kw == RT_KW_LET;
+}
+
+/** 恢复到下一条顶层声明起点；命中时回退扫描位置以便外层再处理。 */
+static void rt_recover_to_top_start(RtScan *sc) {
+  RtTok n;
+  while (rt_next_tok(sc, &n)) {
+    if (rt_is_top_start(&n)) {
+      sc->i = n.pos;
+      sc->line = n.line;
+      sc->col = n.col;
+      return;
+    }
+  }
 }
 
 /**
@@ -298,9 +330,53 @@ int runtime_report_parse_recovery_diagnostics(const char *input_path, const char
       continue;
     }
 
-    /* top-level const without ';' before next top item */
+    /* top-level const: import 绑定形 `const x = import("path")` 或普通 const 缺 ';' */
     if (depth == 0 && t.kw == RT_KW_CONST) {
-      /* consume until ; or top-start or { for function-like */
+      RtTok name_tok, eq_tok, rhs_tok;
+      if (!rt_next_tok(&sc, &name_tok))
+        break;
+      /* const x = <not import> → import 预扫描专项诊断（对齐已删 parser.c） */
+      if (name_tok.kw == RT_KW_IDENT) {
+        if (!rt_next_tok(&sc, &eq_tok))
+          break;
+        if (eq_tok.kw == RT_PUNCT && eq_tok.ch == '=') {
+          if (!rt_next_tok(&sc, &rhs_tok))
+            break;
+          if (rhs_tok.kw != RT_KW_IMPORT) {
+            rt_rec_fail(input_path, rhs_tok.line, rhs_tok.col,
+                        "expected const x = import(\"path\")");
+            errors++;
+            sc.i = rhs_tok.pos;
+            sc.line = rhs_tok.line;
+            sc.col = rhs_tok.col;
+            rt_recover_to_top_start(&sc);
+            continue;
+          }
+          /* const x = import(...)：跳过至 ';' 或下一条顶层 */
+          while (rt_next_tok(&sc, &n)) {
+            if (n.kw == RT_PUNCT && n.ch == ';')
+              break;
+            if (rt_is_top_start(&n)) {
+              rt_rec_fail(input_path, n.line, n.col,
+                          "expected ';' after const x = import(\"path\")");
+              errors++;
+              sc.i = n.pos;
+              sc.line = n.line;
+              sc.col = n.col;
+              break;
+            }
+          }
+          continue;
+        }
+        /* typed const: const name : Type = expr — 从 eq_tok 起找 ';' */
+        sc.i = eq_tok.pos;
+        sc.line = eq_tok.line;
+        sc.col = eq_tok.col;
+      } else {
+        sc.i = name_tok.pos;
+        sc.line = name_tok.line;
+        sc.col = name_tok.col;
+      }
       while (rt_next_tok(&sc, &n)) {
         if (n.kw == RT_PUNCT && n.ch == ';')
           break;
@@ -308,16 +384,7 @@ int runtime_report_parse_recovery_diagnostics(const char *input_path, const char
           depth++;
           break;
         }
-        if (rt_is_top_start(&n) && !(n.kw == RT_PUNCT)) {
-          rt_rec_fail(input_path, n.line, n.col, "expected ';' after top-level const");
-          errors++;
-          /* reprocess n as outer */
-          sc.i = n.pos;
-          sc.line = n.line;
-          sc.col = n.col;
-          break;
-        }
-        if (n.kw == RT_KW_FUNCTION) {
+        if (rt_is_top_start(&n)) {
           rt_rec_fail(input_path, n.line, n.col, "expected ';' after top-level const");
           errors++;
           sc.i = n.pos;
@@ -412,6 +479,23 @@ int runtime_report_parse_recovery_diagnostics(const char *input_path, const char
         rt_rec_fail(input_path, n.line, n.col, "expected '{' after defer");
         errors++;
         if (rt_is_stmt_start(&n)) {
+          sc.i = n.pos;
+          sc.line = n.line;
+          sc.col = n.col;
+        }
+      } else {
+        depth++;
+      }
+      continue;
+    }
+
+    if (t.kw == RT_KW_UNSAFE) {
+      if (!rt_next_tok(&sc, &n))
+        break;
+      if (!(n.kw == RT_PUNCT && n.ch == '{')) {
+        rt_rec_fail(input_path, n.line, n.col, "expected '{' after unsafe");
+        errors++;
+        if (rt_is_stmt_start(&n) || (n.kw == RT_PUNCT && n.ch == '{')) {
           sc.i = n.pos;
           sc.line = n.line;
           sc.col = n.col;
