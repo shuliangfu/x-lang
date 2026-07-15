@@ -80,11 +80,6 @@ export function csv_next_field_c(ptr: *u8, len: i32, offset: i32, out_start: *i3
   return offset;
 }
 
-/** codegen 链接名 std_csv_next_field。 */
-export function std_csv_next_field(ptr: *u8, len: i32, offset: i32, out_start: *i32, out_len: *i32): i32 {
-  return csv_next_field_c(ptr, len, offset, out_start, out_len);
-}
-
 /** tests/csv 引号字段探针（第一字段）。 */
 export function std_csv_csv_test_quoted_first(out_start: *i32, out_len: *i32): i32 {
   let q: u8[8];
@@ -125,8 +120,21 @@ export function csv_escape_c(ptr: *u8, len: i32, buf: *u8, buf_cap: i32): i32 {
   return i;
 }
 
-/** 引号字段 raw 内容 unescape（"" → "）。 */
-export function std_csv_unescape(ptr: *u8, len: i32, buf: *u8, buf_cap: i32): i32 {
+/**
+ * import std.csv 裸名 next_field。#[no_mangle] 让跨模块调用与定义符号一致。
+ * 勿再经 std_csv_next_field 中转：bare-impl 剥路径前缀后会与 no_mangle 同名 → redefinition。
+ */
+#[no_mangle]
+export function next_field(ptr: *u8, len: i32, offset: i32, out_start: *i32, out_len: *i32): i32 {
+  return csv_next_field_c(ptr, len, offset, out_start, out_len);
+}
+
+/**
+ * mod.x extern unescape。实现放在 no_mangle 上，避免再经 std_csv_unescape
+ * 中转后 bare-impl 剥前缀与 no_mangle 撞名 redefinition。
+ */
+#[no_mangle]
+export function unescape(ptr: *u8, len: i32, buf: *u8, buf_cap: i32): i32 {
   let i: i32 = 0;
   let j: i32 = 0;
   if (ptr == 0 || buf == 0 || buf_cap < 0) { return -1; }
@@ -150,7 +158,7 @@ export function std_csv_unescape(ptr: *u8, len: i32, buf: *u8, buf_cap: i32): i3
 export function std_csv_csv_test_unescape_ok(buf: *u8, buf_cap: i32): i32 {
   let raw: u8[4];
   raw[0] = 34; raw[1] = 34; raw[2] = 97; raw[3] = 0;
-  return std_csv_unescape(&raw[0], 3, buf, buf_cap);
+  return unescape(&raw[0], 3, buf, buf_cap);
 }
 
 /** tests/csv unescape 缓冲不足应 -1。 */
@@ -158,13 +166,7 @@ export function std_csv_csv_test_unescape_fail(): i32 {
   let tiny: u8[1];
   let raw: u8[4];
   raw[0] = 34; raw[1] = 34; raw[2] = 97; raw[3] = 0;
-  return std_csv_unescape(&raw[0], 3, &tiny[0], 1);
-}
-
-/** import std.csv 裸名 next_field。#[no_mangle] 让跨模块调用与定义符号一致。 */
-#[no_mangle]
-export function next_field(ptr: *u8, len: i32, offset: i32, out_start: *i32, out_len: *i32): i32 {
-  return std_csv_next_field(ptr, len, offset, out_start, out_len);
+  return unescape(&raw[0], 3, &tiny[0], 1);
 }
 
 export function csv_test_quoted_first(out_start: *i32, out_len: *i32): i32 {
@@ -327,10 +329,4 @@ export function csv_stream_smoke_c(): i32 {
   rc = csv_parse_row_c(&out[0], out_len, off, &field_starts[0], &field_lens[0], 4, &cnt);
   if (rc < out_len || cnt != 0) { return 6; }
   return 0;
-}
-
-/** mod.x extern unescape 链接名。#[no_mangle] 让跨模块调用与定义符号一致。 */
-#[no_mangle]
-export function unescape(ptr: *u8, len: i32, buf: *u8, buf_cap: i32): i32 {
-  return std_csv_unescape(ptr, len, buf, buf_cap);
 }
