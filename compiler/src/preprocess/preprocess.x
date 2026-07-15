@@ -195,7 +195,14 @@ export function pp_match_endif(buf: *u8, pos: i32, line_len: i32): bool {
 
 /**
  * 处理一条预处理指令对嵌套栈的影响；cond_val 为 #if/#elseif 条件真值（0/1）。
- * 成功 0，失败 -1。
+ * 成功 0；失败为负错误码（对齐已删 preprocess.c 文案）：
+ *  -2 #else without #if
+ *  -3 #endif without #if
+ *  -4 #elseif without #if
+ *  -5 #elseif after #else
+ *  -6 duplicate #else
+ *  -7 #if nesting too deep（push 失败）
+ *  -1 其它
  */
 export function preprocess_apply_directive_kind(kind: i32, cond_val: i32): i32 {
   let depth: i32 = pp_if_stack_len();
@@ -210,11 +217,15 @@ export function preprocess_apply_directive_kind(kind: i32, cond_val: i32): i32 {
     if (v != 0) {
       v = 1;
     }
-    return pp_if_stack_push(v);
+    let pr: i32 = pp_if_stack_push(v);
+    if (pr < 0) {
+      return -7;
+    }
+    return 0;
   }
   if (kind == 2) {
     if (depth == 0) {
-      return -1;
+      return -2;
     }
     let di: i32 = depth - 1;
     let top: i32 = pp_if_stack_at(di);
@@ -222,17 +233,21 @@ export function preprocess_apply_directive_kind(kind: i32, cond_val: i32): i32 {
       pp_if_stack_set_at(di, 0);
     } else if (top == 0) {
       pp_if_stack_set_at(di, 2);
+    } else if (top == 3) {
+      /* 已选过 then/elseif，#else 仍跳过 */
+    } else {
+      return -6;
     }
     return 0;
   }
   if (kind == 4) {
     if (depth == 0) {
-      return -1;
+      return -4;
     }
     let di2: i32 = depth - 1;
     let top2: i32 = pp_if_stack_at(di2);
     if (top2 == 2) {
-      return -1;
+      return -5;
     }
     if (top2 == 1) {
       pp_if_stack_set_at(di2, 3);
@@ -249,7 +264,7 @@ export function preprocess_apply_directive_kind(kind: i32, cond_val: i32): i32 {
     return 0;
   }
   if (depth == 0) {
-    return -1;
+    return -3;
   }
   pp_if_stack_pop();
   return 0;
@@ -436,8 +451,9 @@ export function preprocess_x(source: u8[], out_buf: u8[]): i32 {
           if (pp_kind_needs_cond(kind)) {
             cond_val = pp_eval_condition(&g_pp_cond[0], g_pp_sym_len);
           }
-          if (preprocess_apply_directive_kind(kind, cond_val) != 0) {
-            return -1;
+          let ar: i32 = preprocess_apply_directive_kind(kind, cond_val);
+          if (ar != 0) {
+            return ar;
           }
           if (out_len >= out_buf.length) {
             return -1;
@@ -501,8 +517,9 @@ export function preprocess_x_buf(source_buf: u8[4194304], source_len: isize, out
           if (pp_kind_needs_cond(kind)) {
             cond_val = pp_eval_condition(&g_pp_cond[0], g_pp_sym_len);
           }
-          if (preprocess_apply_directive_kind(kind, cond_val) != 0) {
-            return -1;
+          let ar: i32 = preprocess_apply_directive_kind(kind, cond_val);
+          if (ar != 0) {
+            return ar;
           }
           if (out_len >= out_cap) {
             return -1;

@@ -35,44 +35,62 @@ int32_t preprocess_parse_copy_cond_from_line(uint8_t cond[256], uint8_t line_buf
 void preprocess_parse_directive_into(struct preprocess_ParseDirectiveResult * out, uint8_t line_buf[512], int32_t line_len, uint8_t cond[256]);
 int32_t preprocess_x(struct shux_slice_uint8_t * source, struct shux_slice_uint8_t * out_buf);
 int32_t preprocess_x_buf(uint8_t source_buf[4194304], ptrdiff_t source_len, uint8_t out_buf[4194304], int32_t out_cap);
+/* 失败码：-2 else without #if；-3 endif without；-4 elseif without；-5 elseif after else；-6 duplicate else；-7 nesting */
 int32_t preprocess_apply_directive_kind(int32_t kind, int32_t cond_val) {
   int32_t depth = preprocess_if_stack_len();
-  (void)(({ int32_t __tmp = 0; if (kind == 1) {   int32_t v = cond_val;
-  (void)(({ int32_t __tmp = 0; if (depth > 0) {   int32_t parent = preprocess_if_stack_at(depth - 1);
-  __tmp = ({ int32_t __tmp = 0; if (parent == 0) {   (v = (0));
- } else (__tmp = 0) ; __tmp; });
- } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (v != 0) {   (v = (1));
- } else (__tmp = 0) ; __tmp; }));
-  return preprocess_if_stack_push(v);
- } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (kind == 2) {   (void)(({ int32_t __tmp = 0; if (depth == 0) {   return (-1);
- } else (__tmp = 0) ; __tmp; }));
-  int32_t di = depth - 1;
-  int32_t top = preprocess_if_stack_at(di);
-  (void)(({ int32_t __tmp = 0; if (top == 1) {   (void)(preprocess_if_stack_set_at(di, 0));
- } else (__tmp = ({ int32_t __tmp = 0; if (top == 0) {   (void)(preprocess_if_stack_set_at(di, 2));
- } else (__tmp = 0) ; __tmp; })) ; __tmp; }));
-  return 0;
- } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (kind == 4) {   (void)(({ int32_t __tmp = 0; if (depth == 0) {   return (-1);
- } else (__tmp = 0) ; __tmp; }));
-  int32_t di2 = depth - 1;
-  int32_t top2 = preprocess_if_stack_at(di2);
-  (void)(({ int32_t __tmp = 0; if (top2 == 2) {   return (-1);
- } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (top2 == 1) {   (void)(preprocess_if_stack_set_at(di2, 3));
- } else (__tmp = ({ int32_t __tmp = 0; if (top2 == 0) {   int32_t cv = cond_val;
-  __tmp = ({ int32_t __tmp = 0; if (cv != 0) {   (void)(preprocess_if_stack_set_at(di2, 1));
- } else {   (void)(preprocess_if_stack_set_at(di2, 0));
- } ; __tmp; });
- } else {   (void)(preprocess_if_stack_set_at(di2, 3));
- } ; __tmp; })) ; __tmp; }));
-  return 0;
- } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (depth == 0) {   return (-1);
- } else (__tmp = 0) ; __tmp; }));
-  (void)(preprocess_if_stack_pop());
+  if (kind == 1) {
+    int32_t v = cond_val;
+    if (depth > 0) {
+      int32_t parent = preprocess_if_stack_at(depth - 1);
+      if (parent == 0)
+        v = 0;
+    }
+    if (v != 0)
+      v = 1;
+    if (preprocess_if_stack_push(v) < 0)
+      return -7;
+    return 0;
+  }
+  if (kind == 2) {
+    int32_t di;
+    int32_t top;
+    if (depth == 0)
+      return -2;
+    di = depth - 1;
+    top = preprocess_if_stack_at(di);
+    if (top == 1)
+      preprocess_if_stack_set_at(di, 0);
+    else if (top == 0)
+      preprocess_if_stack_set_at(di, 2);
+    else if (top == 3)
+      ;
+    else
+      return -6;
+    return 0;
+  }
+  if (kind == 4) {
+    int32_t di2;
+    int32_t top2;
+    if (depth == 0)
+      return -4;
+    di2 = depth - 1;
+    top2 = preprocess_if_stack_at(di2);
+    if (top2 == 2)
+      return -5;
+    if (top2 == 1)
+      preprocess_if_stack_set_at(di2, 3);
+    else if (top2 == 0) {
+      if (cond_val != 0)
+        preprocess_if_stack_set_at(di2, 1);
+      else
+        preprocess_if_stack_set_at(di2, 0);
+    } else
+      preprocess_if_stack_set_at(di2, 3);
+    return 0;
+  }
+  if (depth == 0)
+    return -3;
+  preprocess_if_stack_pop();
   return 0;
 }
 int preprocess_line_keeping() {
@@ -190,7 +208,7 @@ int32_t preprocess_x(struct shux_slice_uint8_t * source, struct shux_slice_uint8
   __tmp = ({ int32_t __tmp = 0; if (kind != 0) {   int32_t cond_val = 0;
   (void)(({ int32_t __tmp = 0; if (kind == 1 || kind == 4) {   (cond_val = (preprocess_eval_condition_c((&((cond)[0])), (res).sym_len)));
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (preprocess_apply_directive_kind(kind, cond_val) != 0) {   return (-1);
+  (void)(({ int32_t __tmp = 0; if ((__tmp = preprocess_apply_directive_kind(kind, cond_val)) != 0) {   return __tmp;
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (out_len >= (out_buf)->length) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
@@ -241,7 +259,7 @@ int32_t preprocess_x_buf(uint8_t source_buf[4194304], ptrdiff_t source_len, uint
   __tmp = ({ int32_t __tmp = 0; if (kind != 0) {   int32_t cond_val = 0;
   (void)(({ int32_t __tmp = 0; if (kind == 1 || kind == 4) {   (cond_val = (preprocess_eval_condition_c((&((cond)[0])), (res).sym_len)));
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (preprocess_apply_directive_kind(kind, cond_val) != 0) {   return (-1);
+  (void)(({ int32_t __tmp = 0; if ((__tmp = preprocess_apply_directive_kind(kind, cond_val)) != 0) {   return __tmp;
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (out_len >= out_cap) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));

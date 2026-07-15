@@ -124,6 +124,7 @@ int pipeline_debug_body_func_match(const char *filter, const char *name);
 void pipeline_diag_preprocess_alloc_fail(const char *path_diag, const char *what);
 void pipeline_diag_preprocess_unclosed_if(const char *path_diag);
 void pipeline_diag_preprocess_fail(const char *path_diag);
+void pipeline_diag_preprocess_directive_code(const char *path_diag, int32_t code);
 void pipeline_diag_import_preprocess_fail(const char *import_path, const char *resolved_path);
 void shux_pipeline_pctx_update_dep_slots_no_reset(struct ast_PipelineDepCtx *ctx, void **dep_mods,
                                                         void **dep_ar, char **import_paths, int n);
@@ -217,6 +218,29 @@ void pipeline_diag_preprocess_fail(const char *path_diag) {
                  path_diag ? path_diag : "?");
 }
 #endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+
+/* 指令级失败码（preprocess_x_buf 负返回值）→ 历史 C 文案；始终链接（不进 FROM_X 薄迁，避免 hybrid 丢诊断）。 */
+void pipeline_diag_preprocess_directive_code(const char *path_diag, int32_t code) {
+    const char *msg = NULL;
+    if (code == -2)
+        msg = "#else without #if";
+    else if (code == -3)
+        msg = "#endif without #if";
+    else if (code == -4)
+        msg = "#elseif without #if";
+    else if (code == -5)
+        msg = "#elseif after #else";
+    else if (code == -6)
+        msg = "duplicate #else";
+    else if (code == -7)
+        msg = "#if nesting too deep";
+    else {
+        pipeline_diag_preprocess_fail(path_diag);
+        return;
+    }
+    pipeline_diag_emitted_note();
+    diag_report_with_code(path_diag, 0, 0, "preprocess error", SHUX_DIAG_CODE_PREPROCESS_PP002, msg, NULL);
+}
 
 /* G-02f-225：逻辑源 .x（真迁）；seed 保留 printf 细文案 */
 #ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
@@ -431,7 +455,7 @@ int shux_preprocess_raw_to_malloc_impl(const unsigned char *raw, size_t raw_len,
             if (preprocess_if_stack_len() != 0)
                 pipeline_diag_preprocess_unclosed_if(path_diag);
             else
-                pipeline_diag_preprocess_fail(path_diag);
+                pipeline_diag_preprocess_directive_code(path_diag, n);
         }
         return -1;
     }
