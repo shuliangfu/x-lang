@@ -6078,6 +6078,12 @@ SHUX_LIB_WEAK int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTAr
   }
  }
  }
+  /* Entry module (dep_index < 0) with no computed prefix: preserve lib_name from ctx. */
+  if (prefix_len == 0 && dep_index < 0 && ctx != ((struct ast_PipelineDepCtx *)(0)) && (ctx)->current_codegen_prefix_len > 0) {
+    prefix_len = (ctx)->current_codegen_prefix_len;
+    int32_t _pi = 0;
+    while (_pi < prefix_len && _pi < 128) { (prefix_buf)[_pi] = (ctx)->current_codegen_prefix_mirror[_pi]; _pi = _pi + 1; }
+  }
   if (ctx != ((struct ast_PipelineDepCtx *)(0))) {   ((ctx)->current_codegen_prefix_len = (0));
   int32_t px = 0;
   while (px < prefix_len && px < 63) {
