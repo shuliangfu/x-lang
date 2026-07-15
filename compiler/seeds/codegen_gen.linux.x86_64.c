@@ -6093,6 +6093,7 @@ SHUX_LIB_WEAK int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTAr
   ((px < 0 || (px) >= 64 ? (shux_panic_(1, 0), 0) : (((ctx)->current_codegen_prefix_mirror)[px] = ((uint8_t)(0)), 0)));
   ((ctx)->current_codegen_prefix_len = (px));
  }
+  {char _dbgpfx[] = {80,88,58,32,48,10,0}; _dbgpfx[4]=(char)((prefix_len%10)+48); fputs(_dbgpfx,stderr);}
   int32_t call_init_globals = 0;
   if ((module)->num_top_level_lets > 0) {   int32_t ti = 0;
   while (ti < (module)->num_top_level_lets) {
