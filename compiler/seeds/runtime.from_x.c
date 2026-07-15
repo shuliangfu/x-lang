@@ -2949,6 +2949,21 @@ int run_compiler_x_path(int argc, char **argv) {
         return 1;
     }
     shux_pipeline_fill_ctx_path_buffers(pctx, entry_dir_buf, lib_roots_arr, n_lib_roots);
+    /* Set codegen prefix from lib_name (e.g., core/mem/mod.x → core_mem) so functions
+     * get proper mangled names. Without this, -x -E via driver_run_compiler_parsed
+     * emits bare symbols (placeholder instead of core_mem_placeholder). */
+    {
+        extern const char *shux_entry_lib_name_from_path(const char *path);
+        const char *lib_name = shux_entry_lib_name_from_path(input_path);
+        if (lib_name && lib_name[0]) {
+            int32_t plen = (int32_t)strlen(lib_name);
+            if (plen > 0 && plen < 64) {
+                memcpy(pctx->current_codegen_prefix_mirror, lib_name, (size_t)plen);
+                pctx->current_codegen_prefix_mirror[plen] = 0;
+                pctx->current_codegen_prefix_len = plen;
+            }
+        }
+    }
     shux_pipeline_pctx_seed_dep_slots(pctx, dep_modules, dep_arenas, dep_paths, n_deps);
     /* 先对每个 dep 跑 pipeline 仅做 parse+typecheck，填充 dep_arenas/dep_modules，不写 C 到文件。 */
     driver_dep_seeded_clear_all();
