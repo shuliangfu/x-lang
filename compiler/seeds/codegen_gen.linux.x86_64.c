@@ -5206,6 +5206,7 @@ int32_t codegen_module_overload_param_sig_count(struct ast_ASTArena * arena, str
  * 【Asm/Perf】mangling 在 codegen 阶段一次性完成，链接时零开销。 */
 int32_t codegen_emit_func_link_name(struct codegen_CodegenOutBuf * out, struct ast_ASTArena * arena, struct ast_Module * module, int32_t fi) {
   if (module == 0 || fi < 0 || fi >= (module)->num_funcs) { return (-1); }
+  { char dbg[128]; int dl=0; dbg[dl++]='L'; dbg[dl++]='N'; dbg[dl++]=':'; dbg[dl++]=' '; uint8_t fnb[64]={0}; codegen_copy_func_name64_from_module(module, fi, fnb); int fl=pipeline_module_func_name_len_at(module, fi); int oc=codegen_module_func_overload_count(module, fnb, fl); if(fl>0&&fl<100){int z; for(z=0;z<fl&&dl<120;z++) dbg[dl++]=fnb[z];} dbg[dl++]=' '; dbg[dl++]='o'; dbg[dl++]='c'; dbg[dl++]='='; dbg[dl++]='0'+(oc/10); dbg[dl++]='0'+(oc%10); dbg[dl++]='\n'; write(2,dbg,dl); }
   uint8_t fn_local[64] = { 0 };
   codegen_copy_func_name64_from_module(module, fi, &fn_local[0]);
   int32_t fn_len = pipeline_module_func_name_len_at(module, fi);
