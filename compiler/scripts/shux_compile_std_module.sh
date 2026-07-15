@@ -211,9 +211,11 @@ if command -v nm >/dev/null 2>&1 && command -v objcopy >/dev/null 2>&1 && [ -f "
       objcopy --redefine-sym "${clash}=std_${leaf}_${clash}_api" "$out_o" 2>/dev/null || true
     fi
   done
-  # heap import-binding：mod 引用 std_heap_libc_heap_alloc_c，impl 有时只产出 heap_alloc_c
-  if nm "$out_o" 2>/dev/null | grep -q " U std_heap_libc_heap_alloc_c$" \
-     && nm "$out_o" 2>/dev/null | grep -q " T heap_alloc_c$"; then
+  # heap import-binding：impl 常产出裸 heap_alloc_c，用户/co-emit 与 http.o 等要
+  # std_heap_libc_heap_alloc_c。只要 .o 有 T heap_alloc_c 且缺 std 前缀名就补别名
+  # （勿仅依赖本 TU 的 U 引用——单文件 heap.o 落地时往往没有 U）。
+  if nm "$out_o" 2>/dev/null | grep -q " T heap_alloc_c$" \
+     && ! nm "$out_o" 2>/dev/null | grep -q " T std_heap_libc_heap_alloc_c$"; then
     alias_c="$tmp_dir/heap_alloc_alias.c"
     alias_o="$tmp_dir/heap_alloc_alias.o"
     printf '%s\n' \
