@@ -1490,6 +1490,55 @@ const char *shux_entry_lib_name_from_path_impl(const char *input_path) {
             }
         }
     }
+    /* core/xxx/mod.x → lib_prefix core_xxx；core/xxx/yyy.x → core_xxx_yyy。
+     * 【Why 根源】与 std/ 对称：codegen 用 import path 生成符号前缀
+     * （import("core.mem") → core_mem_）。-E-extern 编译 core/mem/mod.x 时
+     * lib_prefix 须为 core_mem，否则函数被 emit 为裸符号（placeholder），
+     * 而调用端期望 core_mem_placeholder，链接报 undefined reference。
+     * 此修复使 core/*.o 提供正确前缀符号，on-demand linking
+     * （link_abi_user_o_needs_core_mem）才能匹配。
+     * 【Invariant】仅影响路径含 "core/" 段的输入；其他路径不受影响。
+     * 【Asm/Perf】编译期决议，无运行期开销。 */
+    {
+        const char *core_seg = NULL;
+        for (const char *s = input_path; *s; s++) {
+            if ((s == input_path || s[-1] == '/' || s[-1] == '\\')
+                && strncmp(s, "core/", 5) == 0) {
+                core_seg = s + 5;
+                break;
+            }
+        }
+        if (core_seg) {
+            size_t off = 5;  /* "core_" 前缀 */
+            memcpy(stem_buf, "core_", 5);
+            const char *p = core_seg;
+            while (*p && off + 2 < sizeof(stem_buf)) {
+                const char *seg_start = p;
+                while (*p && *p != '/' && *p != '\\') p++;
+                size_t seg_len = (size_t)(p - seg_start);
+                if (seg_len >= 3 && memcmp(seg_start + seg_len - 3, ".su", 3) == 0)
+                    seg_len -= 3;
+                else if (seg_len >= 2 && memcmp(seg_start + seg_len - 2, ".x", 2) == 0)
+                    seg_len -= 2;
+                if (seg_len == 3 && memcmp(seg_start, "mod", 3) == 0) {
+                    /* mod 段跳过 */
+                } else if (seg_len > 0) {
+                    if (off > 5 && off + seg_len + 1 < sizeof(stem_buf)) {
+                        stem_buf[off++] = '_';
+                    }
+                    if (off + seg_len < sizeof(stem_buf)) {
+                        memcpy(stem_buf + off, seg_start, seg_len);
+                        off += seg_len;
+                    }
+                }
+                if (*p) p++;
+            }
+            if (off > 5) {
+                stem_buf[off] = '\0';
+                return stem_buf;
+            }
+        }
+    }
     /* std/json/json.x 等：basename 去 .x/.su 作为库前缀（json_ → json_*_c 符号）。 */
     base = strrchr(input_path, '/');
     if (!base)
