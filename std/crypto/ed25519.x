@@ -104,7 +104,8 @@ export function crypto_ed25519_smoke_c(): i32 {
   if (crypto_ed25519_verify_c(&pub[0], 0 as *u8, 0, &sig[0]) != 0) {
     return 4;
   }
-  sig[0] = sig[0] ^ 1;
+  /* u8 ^ i32 会得 i32；显式 as u8 避免 assign 收窄假红（诊断行号还会漂到前序 let）。 */
+  sig[0] = (sig[0] ^ (1 as u8)) as u8;
   if (crypto_ed25519_verify_c(&pub[0], 0 as *u8, 0, &sig[0]) != -1) {
     return 5;
   }

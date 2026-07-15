@@ -113,9 +113,11 @@ export function align_down(addr: usize, alignment: usize): usize {
 }
 
 // ——— volatile 读写与内存栅栏（CORE-017；G-01 纯 .x，无 mem.c） ———
-
-/** 编译器级栅栏辅助变量（compiler barrier）。 */
-let g_mem_fence_seq: u64 = 0 as u64;
+/*
+ * 勿再放顶层 let g_mem_fence_seq：import 合并后会进依赖方 init_globals() 赋值，
+ * 但 C 侧可能未 emit 同名 static 声明 → undeclared identifier（std.encoding -o）。
+ * compiler_fence 已空操作；完整 fence 待平台 intrinsic。
+ */
 
 /** volatile 读 u8；ptr 可为任意字节地址。 */
 export function volatile_load_u8(ptr: *u8): u8 {
