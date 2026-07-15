@@ -186,6 +186,21 @@ for x_path in "$@"; do
           printf 'struct %s;\n' "$sn" >>"$fwd_tmp"
         fi
       done <"$tmp_dir/structs_${idx}.txt"
+      # 双名对齐：entry 形参常 emit `struct heap_libc_Arena64`，dep 体为
+      # `struct std_heap_libc_LibcArena64`。#define 标签别名使 `struct heap_libc_Arena64`
+      # 展开为同一标签，避免 GCC 14 incompatible pointer types 当 error。
+      if grep -q 'std_heap_libc_LibcArena64' "$gen_c" \
+         && grep -q 'heap_libc_Arena64' "$gen_c"; then
+        # 勿再 emit incomplete `struct heap_libc_Arena64;`（会与 #define 冲突）
+        if [ -f "$fwd_tmp" ]; then
+          grep -v '^struct heap_libc_Arena64;$' "$fwd_tmp" >"$fwd_tmp.f" 2>/dev/null || true
+          mv "$fwd_tmp.f" "$fwd_tmp" 2>/dev/null || true
+        fi
+        printf '%s\n' \
+          '/* shux_compile_std_module: Arena64 tag alias (import path vs short) */' \
+          '#define heap_libc_Arena64 std_heap_libc_LibcArena64' \
+          >>"$fwd_tmp"
+      fi
       if [ -s "$fwd_tmp" ]; then
         # 插在最后一个 #include 之后；若无 include 则插文件首
         merged="$tmp_dir/gen_fwd_${idx}.c"
