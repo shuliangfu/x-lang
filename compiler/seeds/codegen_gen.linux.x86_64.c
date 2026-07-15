@@ -5459,9 +5459,6 @@ int32_t codegen_emit_call_func_name(struct codegen_CodegenOutBuf * out, struct a
         fi_s = fi_s + 1;
       }
       if (found_count == 1 && found_fi >= 0) {
-        if (ctx && search_mod == current_module && (ctx)->current_codegen_prefix_len > 0) {
-          if (codegen_emit_bytes_from_ptr(out, (ctx)->current_codegen_prefix_mirror, (ctx)->current_codegen_prefix_len) != 0) return (-1);
-        }
         return codegen_emit_func_link_name(out, search_arena, search_mod, found_fi);
       }
       /* arg types unresolved: unique same-name same-arity */
