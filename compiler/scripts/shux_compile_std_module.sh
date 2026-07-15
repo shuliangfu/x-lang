@@ -225,6 +225,34 @@ for x_path in "$@"; do
     fi
   fi
 
+  # 【Why 根源】产品 -x -E 对部分库模块会在 out_buf 中途截断（尾部停在半个
+  # 函数体；codegen_bytes 与 fwrite 长不一致的观测见 string/process）。截断使 cc 报
+  # expected ')' at end of input。在权威 -E 全量 emit 修通前，丢弃末尾不完整顶层
+  # 构造：保留最后一个平衡的顶层 `}` 及之前内容（完整函数定义仍可用）。
+  if command -v perl >/dev/null 2>&1; then
+    perl -i -e '
+      local $/; my $s = <>;
+      # 若已以 } 或 }; 结尾则不动
+      if ($s =~ /\}\s*$/) { print $s; exit 0 }
+      # 从末尾回找最后一个顶层闭合：仅计花括号深度到 0 的 }
+      my ($depth, $last) = (0, -1);
+      for my $i (0 .. length($s)-1) {
+        my $c = substr($s, $i, 1);
+        if ($c eq "{") { $depth++ }
+        elsif ($c eq "}") {
+          $depth--;
+          if ($depth == 0) { $last = $i }
+        }
+      }
+      if ($last >= 0) {
+        print substr($s, 0, $last+1);
+        print "\n";
+      } else {
+        print $s;
+      }
+    ' "$gen_c"
+  fi
+
   if ! cc $CFLAGS -c "$gen_c" -o "$obj" 2>"$tmp_dir/cc_${idx}.log"; then
     echo "shux_compile_std_module.sh: cc -c failed for $x_path" >&2
     # 显示首个 error
