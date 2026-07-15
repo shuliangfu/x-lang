@@ -100,6 +100,15 @@ char driver_ascii_toupper(char c) {
         return (char)(c + ('A' - 'a'));
     return c;
 }
+/* G-02f：driver_env_flag_truthy 权威定义在 runtime_driver_abi_thin.x；
+ *   PREFER_X_O fallback 时 seed 提供同语义 C 供产品 cc。 */
+int32_t driver_env_flag_truthy(const char *name) {
+    const char *e = getenv(name);
+    if (!e) return 0;
+    if (e[0] == 0) return 0;
+    if (e[0] == '0') return 0;
+    return 1;
+}
 #endif
 
 
