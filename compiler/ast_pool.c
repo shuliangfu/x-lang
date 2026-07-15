@@ -6347,6 +6347,10 @@ int32_t pipeline_typeck_parsed_module_c(struct ast_Module *module, struct ast_AS
   if (getenv("SHUX_DEBUG_PIPE"))
     fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] typeck_parsed_module_c main_idx=%d num_funcs=%d\n",
             (int)pipeline_module_main_func_index(module), (int)pipeline_module_num_funcs(module));
+  /* 【Why 根源】产品入口 typeck_parsed_module_c 原先未 set active module，
+   * pipeline_typeck_resolve_type_alias_ref_c 读 g_typeck_active_module=NULL 无法展开
+   * type P=Point / type Coord=i32，type_alias.x 假红。after_parse_ok 路径已 set。 */
+  pipeline_typeck_set_active_ctx_c(module, ctx);
   pipeline_typeck_set_dep_ctx(ctx);
   if (pipeline_module_main_func_index(module) < 0) {
     int32_t tc_lib = typeck_typeck_x_ast_library(module, arena, ctx);
