@@ -132,7 +132,7 @@ for x_path in "$@"; do
   # 真前缀收敛后（codegen entry 应用 path lib_name 且 std_always 不再 co-emit）本段可删。
   leaf_pre=$(basename "$(dirname "$out_o")")
   case "$leaf_pre" in
-    ''|.) leaf_pre=$(basename "$out_o" .o) ;;
+    ""|.) leaf_pre=$(basename "$out_o" .o) ;;
   esac
   # 去掉 .core 等中间后缀（Makefile: process.o.core）
   case "$leaf_pre" in
@@ -163,6 +163,52 @@ for x_path in "$@"; do
       fi
     fi
   done
+
+  # 【Why 根源】-E 对跨模块 struct（如 heap_libc_Arena64）常只在「形参列表内」
+  # 写出 `struct Foo`，未给文件级 forward。C 规定形参内的 struct 标签作用域仅限该
+  # 声明 → 原型与定义各得一个不同 incomplete 类型 → conflicting types for 'fn'。
+  # 在首个非预处理行前注入 `struct Foo;` 使整 TU 共享同一标签。
+  # codegen 对 dep struct 正确 emit forward 后本段可删。
+  if command -v perl >/dev/null 2>&1; then
+    fwd_tmp="$tmp_dir/fwd_${idx}.h"
+    perl -ne 'while (/struct\s+([A-Za-z_][A-Za-z0-9_]*)/g) { print "$1\n" if $1 ne "std_io_driver_Buffer" }' \
+      "$gen_c" 2>/dev/null | sort -u >"$tmp_dir/structs_${idx}.txt" || true
+    if [ -s "$tmp_dir/structs_${idx}.txt" ]; then
+      : >"$fwd_tmp"
+      while IFS= read -r sn; do
+        [ -n "$sn" ] || continue
+        # 已有完整定义或已有文件级 forward 则跳过
+        if grep -E "struct[[:space:]]+${sn}[[:space:]]*[{;]" "$gen_c" >/dev/null 2>&1; then
+          continue
+        fi
+        # 仅当只在形参/指针处出现（无 { 体）时补 forward
+        if grep -E "struct[[:space:]]+${sn}[[:space:]]*\*" "$gen_c" >/dev/null 2>&1; then
+          printf 'struct %s;\n' "$sn" >>"$fwd_tmp"
+        fi
+      done <"$tmp_dir/structs_${idx}.txt"
+      if [ -s "$fwd_tmp" ]; then
+        # 插在最后一个 #include 之后；若无 include 则插文件首
+        merged="$tmp_dir/gen_fwd_${idx}.c"
+        if grep -q '^#include' "$gen_c"; then
+          # 在最后一个 #include 行后插入
+          awk -v fwd="$fwd_tmp" '
+            /^#include/ { last=NR }
+            { lines[NR]=$0 }
+            END {
+              for (i=1;i<=NR;i++) {
+                print lines[i]
+                if (i==last) {
+                  while ((getline l < fwd) > 0) print l
+                  close(fwd)
+                }
+              }
+            }' "$gen_c" >"$merged" && mv "$merged" "$gen_c"
+        else
+          cat "$fwd_tmp" "$gen_c" >"$merged" && mv "$merged" "$gen_c"
+        fi
+      fi
+    fi
+  fi
 
   if ! cc $CFLAGS -c "$gen_c" -o "$obj" 2>"$tmp_dir/cc_${idx}.log"; then
     echo "shux_compile_std_module.sh: cc -c failed for $x_path" >&2
