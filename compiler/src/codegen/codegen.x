@@ -4224,8 +4224,15 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
     if (emit_bytes_4(out, colon, 3) != 0) {
       return -1;
     }
-    if (!ast.ref_is_null(e.if_else_ref) && emit_expr(arena, out, e.if_else_ref, ctx) != 0) {
-      return -1;
+    /* if 无 else：值位补 0（C 三元必须双侧）；与 historical seed 对齐。 */
+    if (!ast.ref_is_null(e.if_else_ref)) {
+      if (emit_expr(arena, out, e.if_else_ref, ctx) != 0) {
+        return -1;
+      }
+    } else {
+      if (append_byte(out, 48) != 0) {
+        return -1;
+      }
     }
     return append_byte(out, 41);
   }
@@ -5259,8 +5266,14 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
     if (emit_bytes_4(out, colon, 3) != 0) {
       return -1;
     }
-    if (!ast.ref_is_null(e.if_else_ref) && emit_expr(arena, out, e.if_else_ref, ctx) != 0) {
-      return -1;
+    if (!ast.ref_is_null(e.if_else_ref)) {
+      if (emit_expr(arena, out, e.if_else_ref, ctx) != 0) {
+        return -1;
+      }
+    } else {
+      if (append_byte(out, 48) != 0) {
+        return -1;
+      }
     }
     return append_byte(out, 41);
   }
@@ -5973,6 +5986,48 @@ export function emit_return_stmt_with_context(arena: *ASTArena, out: *CodegenOut
 }
 
 /**
+ * 块尾 final_expr 发射。
+ * 函数体：值表达式 → return expr;；嵌套块（while/if 体）：break/continue 如实发，其余 (void)(expr);
+ * 【Why 根源】原先一律 emit_return，导致 while { break } → return 0、while { 1 } → return 1。
+ */
+export function emit_block_final_expr(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32, final_ref: i32, indent: i32, ctx: *PipelineDepCtx, fn_ret_void: i32): i32 {
+  if (ast.ref_is_null(final_ref)) {
+    return 0;
+  }
+  let fe: Expr = ast.ast_arena_expr_get(arena, final_ref);
+  if (fe.kind == ExprKind.EXPR_BREAK) {
+    return emit_break_stmt(out, indent);
+  }
+  if (fe.kind == ExprKind.EXPR_CONTINUE) {
+    return emit_continue_stmt(out, indent);
+  }
+  if (fe.kind == ExprKind.EXPR_RETURN) {
+    return emit_return_stmt_with_context(arena, out, indent, fe.unary_operand_ref, ctx, fn_ret_void);
+  }
+  let parent_br: i32 = 0;
+  if (block_ref > 0 && block_ref <= arena.num_blocks) {
+    let blk: Block = ast.ast_arena_block_get(arena, block_ref);
+    parent_br = blk.parent_block_ref;
+  }
+  /* 嵌套块：值被丢弃，禁止包成函数 return */
+  if (parent_br > 0) {
+    if (emit_indent(out, indent) != 0) {
+      return -1;
+    }
+    let vcast: u8[8] = [40, 118, 111, 105, 100, 41, 40, 0];
+    if (emit_bytes_from_ptr(out, &vcast[0], 7) != 0) {
+      return -1;
+    }
+    if (emit_expr(arena, out, final_ref, ctx) != 0) {
+      return -1;
+    }
+    let end: u8[4] = [41, 59, 10, 0];
+    return emit_bytes_from_ptr(out, &end[0], 3);
+  }
+  return emit_return_stmt_with_context(arena, out, indent, final_ref, ctx, fn_ret_void);
+}
+
+/**
  * 写块体到 out：const/let 声明、while/for、表达式语句、最终表达式。
  * 当 num_stmt_order > 0 时按 stmt_order 源码顺序输出，保证 let/if/return 等顺序正确，避免递归或提前 return 等错误。
  */
@@ -6431,18 +6486,8 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
       return -1;
     }
     let final_ref: i32 = ast.ast_block_final_expr_ref(arena, block_ref);
-    if (!ast.ref_is_null(final_ref)) {
-      /* 块尾已输出 return；若 final_expr 本身是 EXPR_RETURN，emit_expr 会再打 return，剥壳只发 unary 操作数。 */
-      let fe_ordered: Expr = ast.ast_arena_expr_get(arena, final_ref);
-      if (fe_ordered.kind == ExprKind.EXPR_RETURN) {
-        if (emit_return_stmt_with_context(arena, out, indent, fe_ordered.unary_operand_ref, ctx, fn_ret_void) != 0) {
-          return -1;
-        }
-      } else {
-        if (emit_return_stmt_with_context(arena, out, indent, final_ref, ctx, fn_ret_void) != 0) {
-          return -1;
-        }
-      }
+    if (emit_block_final_expr(arena, out, block_ref, final_ref, indent, ctx, fn_ret_void) != 0) {
+      return -1;
     }
     return 0;
   }
@@ -6756,20 +6801,10 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
   if (emit_run_defers(arena, out, block_ref, indent, ctx) != 0) {
     return -1;
   }
-  /* 函数体块：最终表达式以 return expr;\n 形式输出 */
+  /* 函数体 / 嵌套块 final_expr：见 emit_block_final_expr */
   let final_ref_plain: i32 = ast.ast_block_final_expr_ref(arena, block_ref);
-  if (!ast.ref_is_null(final_ref_plain)) {
-    /* 同上：外层已写 return，内层勿再经由 emit_expr(EXPR_RETURN) 重复输出 return。 */
-    let fe_plain: Expr = ast.ast_arena_expr_get(arena, final_ref_plain);
-    if (fe_plain.kind == ExprKind.EXPR_RETURN) {
-      if (emit_return_stmt_with_context(arena, out, indent, fe_plain.unary_operand_ref, ctx, fn_ret_void) != 0) {
-        return -1;
-      }
-    } else {
-      if (emit_return_stmt_with_context(arena, out, indent, final_ref_plain, ctx, fn_ret_void) != 0) {
-        return -1;
-      }
-    }
+  if (emit_block_final_expr(arena, out, block_ref, final_ref_plain, indent, ctx, fn_ret_void) != 0) {
+    return -1;
   }
   return 0;
 }

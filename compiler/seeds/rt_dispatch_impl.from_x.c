@@ -208,6 +208,16 @@ int32_t driver_run_compiler_full_x_post_parse_impl_c(DriverCompileStateSU *state
     driver_freestanding_set(1);
     cfg_set_freestanding(1);
   }
+#if defined(__APPLE__)
+  /*
+   * Darwin 产品 -o 可执行：asm_codegen 在 arm64 上常 code_len=0（CG002）。
+   * 默认回退 C pipeline + host cc。freestanding 仍强制 asm。
+   * Ubuntu/Linux 金标路径不受影响。
+   */
+  if (state->use_asm_backend && !state->use_freestanding && state->out_path_len > 0 &&
+      driver_asm_output_want_exe(state->out_path_buf))
+    state->use_asm_backend = 0;
+#endif
   if (state->use_asm_backend) {
     return driver_run_asm_backend_impl_c(state->path_buf, out_ptr, (uint8_t *)state, target_ptr, argc, argv);
   }

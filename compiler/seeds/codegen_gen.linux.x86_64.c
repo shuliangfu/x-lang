@@ -476,6 +476,7 @@ int32_t codegen_emit_bytes_2(struct codegen_CodegenOutBuf * out, uint8_t buf[2],
 int32_t codegen_format_uint(struct codegen_CodegenOutBuf * out, int32_t val);
 int32_t codegen_format_int(struct codegen_CodegenOutBuf * out, int32_t val);
 int32_t codegen_emit_indent(struct codegen_CodegenOutBuf * out, int32_t indent);
+int32_t codegen_emit_block_final_expr(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t block_ref, int32_t final_ref, int32_t indent, struct ast_PipelineDepCtx * ctx, int32_t fn_ret_void);
 int32_t codegen_emit_break_stmt(struct codegen_CodegenOutBuf * out, int32_t indent);
 int32_t codegen_emit_continue_stmt(struct codegen_CodegenOutBuf * out, int32_t indent);
 int32_t codegen_emit_type_kind_ord(struct codegen_CodegenOutBuf * out, int32_t tk);
@@ -1874,6 +1875,46 @@ SHUX_LIB_WEAK int32_t codegen_emit_indent(struct codegen_CodegenOutBuf * out, in
   }
   return 0;
 }
+/* Nested vs function-body final_expr: break/continue as-is; nested discard (void)(e); fn body return e. */
+SHUX_LIB_WEAK int32_t codegen_emit_block_final_expr(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t block_ref, int32_t final_ref, int32_t indent, struct ast_PipelineDepCtx * ctx, int32_t fn_ret_void) {
+  struct ast_Expr fe;
+  int32_t parent_br;
+  struct ast_Block blk;
+  if (ast_ref_is_null(final_ref)) {
+    return 0;
+  }
+  fe = ast_arena_expr_get(arena, final_ref);
+  if ((fe).kind == ast_ExprKind_EXPR_BREAK) {
+    return codegen_emit_break_stmt(out, indent);
+  }
+  if ((fe).kind == ast_ExprKind_EXPR_CONTINUE) {
+    return codegen_emit_continue_stmt(out, indent);
+  }
+  if ((fe).kind == ast_ExprKind_EXPR_RETURN) {
+    return codegen_emit_return_stmt_with_context(arena, out, indent, (fe).unary_operand_ref, ctx, fn_ret_void);
+  }
+  parent_br = 0;
+  if (block_ref > 0 && block_ref <= (arena)->num_blocks) {
+    blk = pipeline_arena_block_get_copy(arena, block_ref);
+    parent_br = (blk).parent_block_ref;
+  }
+  if (parent_br > 0) {
+    uint8_t vcast[8] = { 40, 118, 111, 105, 100, 41, 40, 0 };
+    uint8_t endb[4] = { 41, 59, 10, 0 };
+    if (codegen_emit_indent(out, indent) != 0) {
+      return (-1);
+    }
+    if (codegen_emit_bytes_from_ptr(out, (&((vcast)[0])), 7) != 0) {
+      return (-1);
+    }
+    if (codegen_emit_expr(arena, out, final_ref, ctx) != 0) {
+      return (-1);
+    }
+    return codegen_emit_bytes_from_ptr(out, (&((endb)[0])), 3);
+  }
+  return codegen_emit_return_stmt_with_context(arena, out, indent, final_ref, ctx, fn_ret_void);
+}
+
 SHUX_LIB_WEAK int32_t codegen_emit_break_stmt(struct codegen_CodegenOutBuf * out, int32_t indent) {
   if (codegen_emit_indent(out, indent) != 0) {   return (-1);
  }
@@ -3341,8 +3382,11 @@ SHUX_LIB_WEAK int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct code
   uint8_t colon[4] = { 32, 58, 32, 0 };
   if (codegen_emit_bytes_4(out, colon, 3) != 0) {   return (-1);
  }
-  if ((!ast_ref_is_null((e).if_else_ref)) && codegen_emit_expr(arena, out, (e).if_else_ref, ctx) != 0) {   return (-1);
- }
+  if ((!ast_ref_is_null((e).if_else_ref))) {
+    if (codegen_emit_expr(arena, out, (e).if_else_ref, ctx) != 0) { return (-1); }
+  } else {
+    if (codegen_append_byte(out, 48) != 0) { return (-1); }
+  }
   return codegen_append_byte(out, 41);
  }
   if ((e).kind == ast_ExprKind_EXPR_CALL) {   int32_t callee_ref = (e).call_callee_ref;
@@ -4140,8 +4184,11 @@ SHUX_LIB_WEAK int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct code
   uint8_t colon[4] = { 32, 58, 32, 0 };
   if (codegen_emit_bytes_4(out, colon, 3) != 0) {   return (-1);
  }
-  if ((!ast_ref_is_null((e).if_else_ref)) && codegen_emit_expr(arena, out, (e).if_else_ref, ctx) != 0) {   return (-1);
- }
+  if ((!ast_ref_is_null((e).if_else_ref))) {
+    if (codegen_emit_expr(arena, out, (e).if_else_ref, ctx) != 0) { return (-1); }
+  } else {
+    if (codegen_append_byte(out, 48) != 0) { return (-1); }
+  }
   return codegen_append_byte(out, 41);
  }
   if ((e).kind == ast_ExprKind_EXPR_INDEX) {   if (codegen_append_byte(out, 40) != 0) {   return (-1);
@@ -4970,13 +5017,7 @@ SHUX_LIB_WEAK int32_t codegen_emit_block(struct ast_ASTArena * arena, struct cod
   if (codegen_emit_run_defers(arena, out, block_ref, indent, ctx) != 0) {   return (-1);
  }
   int32_t final_ref = ast_block_final_expr_ref(arena, block_ref);
-  if ((!ast_ref_is_null(final_ref))) {   struct ast_Expr fe_ordered = ast_arena_expr_get(arena, final_ref);
-  if ((fe_ordered).kind == ast_ExprKind_EXPR_RETURN) {   if (codegen_emit_return_stmt_with_context(arena, out, indent, (fe_ordered).unary_operand_ref, ctx, fn_ret_void) != 0) {   return (-1);
- }
- } else {   if (codegen_emit_return_stmt_with_context(arena, out, indent, final_ref, ctx, fn_ret_void) != 0) {   return (-1);
- }
- }
- }
+  if (codegen_emit_block_final_expr(arena, out, block_ref, final_ref, indent, ctx, fn_ret_void) != 0) { return (-1); }
   return 0;
  }
   int32_t i = 0;
@@ -5198,13 +5239,7 @@ SHUX_LIB_WEAK int32_t codegen_emit_block(struct ast_ASTArena * arena, struct cod
   if (codegen_emit_run_defers(arena, out, block_ref, indent, ctx) != 0) {   return (-1);
  }
   int32_t final_ref_plain = ast_block_final_expr_ref(arena, block_ref);
-  if ((!ast_ref_is_null(final_ref_plain))) {   struct ast_Expr fe_plain = ast_arena_expr_get(arena, final_ref_plain);
-  if ((fe_plain).kind == ast_ExprKind_EXPR_RETURN) {   if (codegen_emit_return_stmt_with_context(arena, out, indent, (fe_plain).unary_operand_ref, ctx, fn_ret_void) != 0) {   return (-1);
- }
- } else {   if (codegen_emit_return_stmt_with_context(arena, out, indent, final_ref_plain, ctx, fn_ret_void) != 0) {   return (-1);
- }
- }
- }
+  if (codegen_emit_block_final_expr(arena, out, block_ref, final_ref_plain, indent, ctx, fn_ret_void) != 0) { return (-1); }
   return 0;
 }
 SHUX_LIB_WEAK void codegen_copy_func_name64_from_module(struct ast_Module * module, int32_t fi, uint8_t * dst) {

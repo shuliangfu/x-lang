@@ -51,6 +51,18 @@ SHUX_LINK_BACKEND_ARGS=""
 case "$(basename "${RUN_SHUX}")" in
   shux_asm|shux_asm2|shux_asm_stage1) SHUX_LINK_BACKEND_ARGS="-backend asm" ;;
 esac
+# Darwin：产品 asm -o 在 arm64 上 CG002 empty text；-o 链接改走 -backend c。
+# Ubuntu/Linux 金标仍默认 -backend asm。显式 SHUX_LINK_BACKEND_ARGS 优先。
+case "$(uname -s 2>/dev/null)-$(uname -m 2>/dev/null)" in
+  Darwin-arm64|Darwin-aarch64)
+    if [ -z "${SHUX_FORCE_LINK_BACKEND:-}" ]; then
+      SHUX_LINK_BACKEND_ARGS="-backend c"
+    fi
+    ;;
+esac
+if [ -n "${SHUX_FORCE_LINK_BACKEND:-}" ]; then
+  SHUX_LINK_BACKEND_ARGS="-backend ${SHUX_FORCE_LINK_BACKEND}"
+fi
 # W3 / B-strict：stage2 shux_asm(2) 可用于 asm -o；未显式 SHUX_LINK_SHUX 时优先于 shux-c（seed -o 易 SIGSEGV）。
 # refresh-shux-asm-gate 后 shux_asm 常新于 shux_asm2（未跑 stage2）；勿用陈旧 gen2。
 if [ -z "${SHUX_LINK_SHUX:-}" ]; then
@@ -62,6 +74,17 @@ if [ -z "${SHUX_LINK_SHUX:-}" ]; then
     fi
   elif [ -x ./compiler/shux_asm ] && ci_native_shu ./compiler/shux_asm; then
     RUN_SHUX=./compiler/shux_asm
+  fi
+fi
+# 多数 run-*.sh 直接调用 $RUN_SHUX 而未透传 SHUX_LINK_BACKEND_ARGS。
+# Darwin 下注入 wrapper，保证 -backend c 落到产品 -o。
+if [ -n "${SHUX_LINK_BACKEND_ARGS:-}" ] && [ -z "${SHUX_NO_BACKEND_WRAP:-}" ]; then
+  _be_wrap="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/shux-backend-wrap.sh"
+  if [ -x "$_be_wrap" ] || [ -f "$_be_wrap" ]; then
+    chmod +x "$_be_wrap" 2>/dev/null || true
+    export SHUX_BACKEND_WRAP_REAL="${RUN_SHUX}"
+    export SHUX_BACKEND_WRAP_ARGS="${SHUX_LINK_BACKEND_ARGS}"
+    RUN_SHUX="$_be_wrap"
   fi
 fi
 export TYPECK_SHUX RUN_SHUX SHUX_LINK_BACKEND_ARGS

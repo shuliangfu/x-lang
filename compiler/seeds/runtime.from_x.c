@@ -4892,6 +4892,15 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
             driver_source_has_generic_syntax((const uint8_t *)input_path, plen))
             want_asm_backend = 0;
     }
+#if defined(__APPLE__)
+    /*
+     * Darwin 产品 -o 可执行：asm_codegen 在 arm64 上常 code_len=0（CG002 empty text）。
+     * 回退 C pipeline + host cc，与显式 -backend c 一致。Linux/Ubuntu 金标仍默认 asm。
+     * -o *.o/*.s 对象探针仍走 asm（不降级）。与 rt_run_compiler_parsed 同形（禁双权威漂移）。
+     */
+    if (want_asm_backend && out_path && shux_output_want_exe(out_path))
+        want_asm_backend = 0;
+#endif
     /*
      * 默认走 asm：一律走 X pipeline + asm_asm_codegen_*（有无 -o 均如此）；`-backend c` 已在上方关闭 want_asm_backend。
      * 无 \c out_path 时向 stdout 打汇编文本；否则写 \c .o / \c .s / 或可执行路径（参见 driver_run_asm_backend）。
@@ -6822,6 +6831,16 @@ int32_t driver_run_compiler_full_x_post_parse_impl_c(DriverCompileStateSU *state
         driver_freestanding_set(1);
         cfg_set_freestanding(1);
     }
+#if defined(__APPLE__)
+    /*
+     * Darwin 产品 -o 可执行：asm_codegen 在 arm64 上常 code_len=0（CG002）。
+     * 默认回退 C pipeline + host cc。freestanding 仍强制 asm。
+     * 与 rt_dispatch_impl 同形（禁双权威漂移）。Ubuntu 金标不受影响。
+     */
+    if (state->use_asm_backend && !state->use_freestanding && state->out_path_len > 0 &&
+        driver_asm_output_want_exe(state->out_path_buf))
+        state->use_asm_backend = 0;
+#endif
     if (state->use_asm_backend) {
         return driver_run_asm_backend_impl_c(state->path_buf, out_ptr, (uint8_t *)state, target_ptr, argc, argv);
     }
