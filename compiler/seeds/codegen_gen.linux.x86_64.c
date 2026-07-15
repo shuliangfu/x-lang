@@ -5247,6 +5247,8 @@ int32_t codegen_emit_func_link_name(struct codegen_CodegenOutBuf * out, struct a
  * 通过 codegen_emit_func_link_name 输出 mangled 名；解析失败时回退原名保证向后兼容。
  * 【Invariant】ctx/arena 须非空才查 resolved 索引；fallback_name 须非空。 */
 int32_t codegen_emit_call_func_name(struct codegen_CodegenOutBuf * out, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx, int32_t expr_ref, struct ast_Module * current_module, uint8_t * fallback_name, int32_t fallback_len) {
+  fprintf(stderr, "DBG-CFN: ctx=%p arena=%p cur_mod=%p fb=%.*s len=%d
+", (void*)ctx, (void*)arena, (void*)current_module, (int)fallback_len, fallback_name, (int)fallback_len);
   if (ctx != 0 && arena != 0) {
     int32_t func_ix = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
     int32_t dep_ix = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
