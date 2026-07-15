@@ -70,8 +70,13 @@ if "shu_heap_trace_on" in s and "int32_t shu_heap_trace_on" not in s:
         "uint64_t shu_heap_trace_bytes;\n"
         "uint64_t g_mem_fence_seq;\n"
     )
-# entry-only 对 heap 有 U；最小链若硬链 string.o 需弱桩（勿 #include stdlib：与 shux extern malloc 冲突）
-if "std_heap_libc_heap_arena64_alloc_c" in s and "__attribute__((weak)) uint8_t *std_heap_libc_heap_arena64_alloc_c" not in s:
+# entry-only 对 heap 有 U 且本 TU 无定义时才补弱桩（勿与 co-emit 的真体重定义）
+_has_arena_alloc_def = bool(re.search(
+    r"^(uint8_t\s*\*|int32_t|void)\s+std_heap_libc_heap_arena64_alloc_c\s*\(",
+    s, re.M))
+if ("std_heap_libc_heap_arena64_alloc_c" in s
+    and not _has_arena_alloc_def
+    and "__attribute__((weak)) uint8_t *std_heap_libc_heap_arena64_alloc_c" not in s):
     extra.append(
         "#ifndef SHUX_STRING_HEAP_WEAK\n"
         "#define SHUX_STRING_HEAP_WEAK\n"
