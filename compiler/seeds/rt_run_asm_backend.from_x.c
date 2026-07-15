@@ -105,6 +105,7 @@ extern void driver_x_pipeline_skip_codegen_set(int v);
 extern int asm_codegen_elf_o(void *module, void *arena, void *out_buf, void *elf_ctx, void *pctx);
 extern int shux_pipeline_dep_prerun_for_asm_module_o(void *mod, void *arena, const uint8_t *src, size_t len, void *out, void *ctx);
 extern int runtime_report_precise_parse_failure_if_known(const char *input_path, const char *src, size_t src_len);
+extern int runtime_report_parse_recovery_diagnostics(const char *input_path, const char *src, size_t src_len);
 extern void runtime_pipeline_elf_ctx_diag_note(uint8_t *ctx_bytes);
 extern void runtime_diag_errno_path(const char *file, const char *kind, const char *op, const char *path);
 extern void driver_unlink_failed_output(const char *out_path);
@@ -183,6 +184,12 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     struct parser_ParseIntoResult pr_imp = parser_parse_into_buf(arena, module, (uint8_t *)src, (int32_t)src_len);
     if (pr_imp.ok != 0) {
         if (runtime_report_precise_parse_failure_if_known(input_path, src, src_len)) {
+            free(arena);
+            free(module);
+            free(src);
+            return 1;
+        }
+        if (runtime_report_parse_recovery_diagnostics(input_path, src, src_len) > 0) {
             free(arena);
             free(module);
             free(src);
@@ -719,9 +726,12 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
                 diag_reportf_with_code(input_path, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP001, NULL,
                              ".x pipeline failed for '%s' (stage=parse_into/typeck_x_ast/codegen_x_ast)",
                              input_path ? input_path : "?");
-            else if (smoke_num_funcs <= 0)
-                diag_reportf_with_code(input_path, 0, 0, "parse error", SHUX_DIAG_CODE_PARSE_P001, NULL,
-                             "parse produced no functions for '%s'", input_path ? input_path : "?");
+            else if (smoke_num_funcs <= 0) {
+                /* multi-error recovery 优先；否则 P001 兜底 */
+                if (runtime_report_parse_recovery_diagnostics(input_path, src, src_len) <= 0)
+                    diag_reportf_with_code(input_path, 0, 0, "parse error", SHUX_DIAG_CODE_PARSE_P001, NULL,
+                                 "parse produced no functions for '%s'", input_path ? input_path : "?");
+            }
             else if (driver_check_only_get() && smoke_diag_emitted) {
                 /* check 已有更具体失败诊断时，不再冒充 parse/typeck 成功摘要。 */
             }

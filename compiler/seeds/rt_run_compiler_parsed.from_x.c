@@ -106,6 +106,7 @@ extern int driver_run_asm_backend(const char *input_path, const char *out_path, 
                                   const char *target, int argc, char **argv);
 extern int driver_try_compile_via_shu_c_sibling(int argc, char **argv);
 extern int runtime_report_precise_parse_failure_if_known(const char *input_path, const char *src, size_t src_len);
+extern int runtime_report_parse_recovery_diagnostics(const char *input_path, const char *src, size_t src_len);
 extern void driver_unlink_failed_output(const char *out_path);
 extern void driver_print_x_smoke_summary(void *module, size_t codegen_len);
 extern void driver_print_check_ok(const char *input_path);
@@ -646,6 +647,13 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
             free(src);
             return 1;
         }
+        /* multi-error recovery 诊断（check/run-parser 闸门） */
+        if (runtime_report_parse_recovery_diagnostics(input_path, src, src_len) > 0) {
+            free(arena);
+            free(module);
+            free(src);
+            return 1;
+        }
         diag_reportf_with_code(input_path, 0, 0, "parse error", SHUX_DIAG_CODE_PARSE_P001, NULL,
                      "parse failed for '%s' (pr.ok=%d main_idx=%d)",
                      input_path, (int)pr.ok, (int)pr.main_idx);
@@ -941,6 +949,38 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
         return 1;
     }
     if (driver_check_only_get()) {
+        int nfuncs_ck = driver_get_module_num_funcs(module);
+        int rec_n = 0;
+        /* 【Why 根源】check_only 时 out_buf 可空（无 codegen），不可据此当成功；
+         * 0 函数须报 parse 失败，并尽量给出 multi-error recovery 诊断。 */
+        if (nfuncs_ck <= 0) {
+            rec_n = runtime_report_parse_recovery_diagnostics(input_path, src, src_len);
+            if (rec_n <= 0)
+                diag_reportf_with_code(input_path, 0, 0, "parse error", SHUX_DIAG_CODE_PARSE_P001, NULL,
+                             "parse produced no functions for '%s'", input_path ? input_path : "?");
+            if (!emit_to_stdout) {
+                fclose(cf);
+                unlink(tmp_c);
+            }
+            free(arena);
+            free(module);
+            free(src);
+            free(out_buf);
+            pipeline_dep_ctx_heap_destroy(pctx);
+            return 1;
+        }
+        if (driver_check_diag_emitted_get()) {
+            if (!emit_to_stdout) {
+                fclose(cf);
+                unlink(tmp_c);
+            }
+            free(arena);
+            free(module);
+            free(src);
+            free(out_buf);
+            pipeline_dep_ctx_heap_destroy(pctx);
+            return 1;
+        }
         driver_print_check_ok(input_path);
         if (!emit_to_stdout) {
             fclose(cf);
