@@ -422,6 +422,8 @@ SHUX_LIB_WEAK int32_t pipeline_lsp_diag_parse_entry_buf(struct ast_Module * modu
 SHUX_LIB_WEAK int32_t pipeline_lsp_diag_typeck_after_load(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx) {
   if (module == ((struct ast_Module *)(0)) || arena == ((struct ast_ASTArena *)(0)) || ctx == ((struct ast_PipelineDepCtx *)(0))) {   return (-1);
  }
+  /* Skip dep reload if already seeded by driver (ndep > 0). */
+  if (pipeline_dep_ctx_ndep(ctx) > 0) { return 0; }
   if (pipeline_load_and_sync_direct_import_deps(module, arena, ctx) != 0) {   return (-1);
  }
   if (pipeline_run_x_pipeline_typecheck_entry(module, arena, ctx) != 0) {   return (-3);
