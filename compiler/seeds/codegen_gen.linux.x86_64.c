@@ -5247,7 +5247,7 @@ int32_t codegen_emit_func_link_name(struct codegen_CodegenOutBuf * out, struct a
  * 通过 codegen_emit_func_link_name 输出 mangled 名；解析失败时回退原名保证向后兼容。
  * 【Invariant】ctx/arena 须非空才查 resolved 索引；fallback_name 须非空。 */
 int32_t codegen_emit_call_func_name(struct codegen_CodegenOutBuf * out, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx, int32_t expr_ref, struct ast_Module * current_module, uint8_t * fallback_name, int32_t fallback_len) {
-  {static const char _cfndbg[] = {67,70,78,58,32,0,0,0,10}; _cfndbg[5]=(ctx!=0)+48; _cfndbg[6]=(arena!=0)+48; fputs(_cfndbg,stderr);}
+  {char _cfndbg[] = {67,70,78,58,32,48,48,10,0}; _cfndbg[5]=(ctx!=0)+48; _cfndbg[6]=(arena!=0)+48; fputs(_cfndbg,stderr);}
   if (ctx != 0 && arena != 0) {
     int32_t func_ix = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
     int32_t dep_ix = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
