@@ -951,25 +951,22 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
     if (driver_check_only_get()) {
         int nfuncs_ck = driver_get_module_num_funcs(module);
         int rec_n = 0;
-        /* 【Why 根源】check_only 时 out_buf 可空（无 codegen），不可据此当成功；
-         * 0 函数须报 parse 失败，并尽量给出 multi-error recovery 诊断。 */
+        int fail_ck = 0;
+        /* 【Why 根源】check_only 时 out_buf 可空（无 codegen），不可据此当成功。
+         * 始终跑 multi-error recovery（top_level 可能仍有 2 个 ok 函数）；
+         * 0 函数再兜底 P001。 */
+        rec_n = runtime_report_parse_recovery_diagnostics(input_path, src, src_len);
+        if (rec_n > 0)
+            fail_ck = 1;
         if (nfuncs_ck <= 0) {
-            rec_n = runtime_report_parse_recovery_diagnostics(input_path, src, src_len);
             if (rec_n <= 0)
                 diag_reportf_with_code(input_path, 0, 0, "parse error", SHUX_DIAG_CODE_PARSE_P001, NULL,
                              "parse produced no functions for '%s'", input_path ? input_path : "?");
-            if (!emit_to_stdout) {
-                fclose(cf);
-                unlink(tmp_c);
-            }
-            free(arena);
-            free(module);
-            free(src);
-            free(out_buf);
-            pipeline_dep_ctx_heap_destroy(pctx);
-            return 1;
+            fail_ck = 1;
         }
-        if (driver_check_diag_emitted_get()) {
+        if (driver_check_diag_emitted_get())
+            fail_ck = 1;
+        if (fail_ck) {
             if (!emit_to_stdout) {
                 fclose(cf);
                 unlink(tmp_c);

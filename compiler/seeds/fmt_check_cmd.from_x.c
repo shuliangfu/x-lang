@@ -1210,6 +1210,9 @@ int check_one_file_body_impl(const char *path, int argc, char **argv) {
         if (check_one_need_fallback_diag(rc, nd, nd_errors, nd_warnings, nd_infos, direct_diag_emitted))
             diag_reportf_with_code(path, 0, 0, "check error", "CHK001", NULL,
                                    "check failed: %s", path);
+        /* 【Why 根源】recovery/typeck 错误经 lsp_diag 打印时 compile rc 可能仍为 0（假绿）。 */
+        if (nd_errors > 0)
+            rc = 1;
         rc = check_one_finalize_rc(rc, nd_warnings);
     }
 
