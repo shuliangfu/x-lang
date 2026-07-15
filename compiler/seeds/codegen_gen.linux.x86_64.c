@@ -5394,6 +5394,37 @@ int32_t codegen_emit_call_func_name(struct codegen_CodegenOutBuf * out, struct a
       }
     }
   }
+  /* Fallback: search all dep modules for function by name+arity (import binding unresolved). */
+  if (ctx && fallback_len > 0) {
+    int32_t dep_di;
+    int32_t nd = pipeline_dep_ctx_ndep(ctx);
+    struct ast_Expr mc_e = ast_arena_expr_get(arena, expr_ref);
+    int32_t mc_nargs = ((mc_e).kind == ast_ExprKind_EXPR_METHOD_CALL) ? (mc_e).method_call_num_args : (mc_e).call_num_args;
+    for (dep_di = 0; dep_di < nd; dep_di++) {
+      struct ast_Module *dm = pipeline_dep_ctx_module_at(ctx, dep_di);
+      struct ast_ASTArena *da = pipeline_dep_ctx_arena_at(ctx, dep_di);
+      if (!dm || !da) continue;
+      int32_t fi_x = 0;
+      int32_t found_x = -1;
+      while (fi_x < (dm)->num_funcs) {
+        int32_t fn_x = pipeline_module_func_name_len_at(dm, fi_x);
+        if (fn_x == fallback_len && fn_x > 0) {
+          uint8_t fnm[64] = { 0 };
+          pipeline_module_func_name_copy64(dm, fi_x, fnm);
+          int32_t mx = 1;
+          int32_t bx = 0;
+          while (bx < fn_x) { if (fnm[bx] != fallback_name[bx]) { mx = 0; bx = fn_x; } else { bx = bx + 1; } }
+          if (mx != 0 && pipeline_module_func_num_params_at(dm, fi_x) == mc_nargs) {
+            found_x = fi_x;
+            break;
+          }
+        }
+        fi_x = fi_x + 1;
+      }
+      if (found_x >= 0)
+        return codegen_emit_func_link_name(out, da, dm, found_x);
+    }
+  }
   return codegen_emit_bytes_from_ptr(out, fallback_name, fallback_len);
 }
 SHUX_LIB_WEAK void codegen_copy_param_name32_from_module(struct ast_Module * module, int32_t fi, int32_t pi, uint8_t * dst) {
