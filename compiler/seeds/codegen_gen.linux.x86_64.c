@@ -6049,6 +6049,8 @@ SHUX_LIB_WEAK int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTAr
  }
   if (codegen_emit_skipped_dep_type_definitions(ctx, out) != 0) {   return (-1);
  }
+  /* Ensure current_codegen_module is the entry module after dep type definitions. */
+  if (ctx != 0) { (ctx)->current_codegen_module = module; (ctx)->current_codegen_arena = arena; }
   if (codegen_emit_dep_struct_forward_declarations(ctx, out) != 0) {   return (-1);
  }
   pipeline_codegen_c_file_prologue_done_set(1);
