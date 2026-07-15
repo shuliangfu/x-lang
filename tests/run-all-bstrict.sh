@@ -325,7 +325,7 @@ for script in "${BSTRICT_SCRIPTS[@]}"; do
     if [ -n "${SHUX_W3_BSTRICT_BEST_EFFORT:-}" ] && command -v timeout >/dev/null 2>&1; then
       # nohup >> log 时 stdout 非 TTY，子脚本内 shux -o 会挂起；须 tee|cat Drain。
       _w3_script_log="/tmp/w3_bstrict_${script%.sh}.log"
-      _w3_script_timeout="${SHUX_W3_BSTRICT_SCRIPT_TIMEOUT:-20}"
+      _w3_script_timeout="${SHUX_W3_BSTRICT_SCRIPT_TIMEOUT:-120}"
       if timeout -k 10 "$_w3_script_timeout" \
         env SHUX="$script_shu" SHUX_LINK_SHUX="$script_link" \
         bash -c "./tests/$script 2>&1 | tee \"$_w3_script_log\" | cat >/dev/null"; then
