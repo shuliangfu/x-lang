@@ -6401,24 +6401,14 @@ SHUX_LIB_WEAK int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTAr
   return 0;
 }
 SHUX_LIB_WEAK int32_t codegen_should_skip_emit_func_by_name(uint8_t * name, int32_t name_len) {
-  uint8_t ph11[11] = { 112, 108, 97, 99, 101, 104, 111, 108, 100, 101, 114 };
-  uint8_t ssp22[22] = { 115, 116, 100, 95, 115, 116, 114, 105, 110, 103, 95, 112, 108, 97, 99, 101, 104, 111, 108, 100, 101, 114 };
-  uint8_t sn10[10] = { 115, 116, 114, 105, 110, 103, 95, 110, 101, 119 };
-  uint8_t sssn22[22] = { 115, 116, 100, 95, 115, 116, 114, 105, 110, 103, 95, 115, 116, 114, 105, 110, 103, 95, 110, 101, 119, 0 };
+  /* Removed placeholder/string_new skip: #define placeholder/string_new
+   * have been removed from preamble, so these functions should be emitted
+   * normally (especially for core/mem/mod.x where placeholder is a real function). */
   uint8_t asm_seed_mega[25] = { 97, 115, 109, 95, 99, 111, 100, 101, 103, 101, 110, 95, 97, 115, 116, 95, 115, 101, 101, 100, 95, 109, 101, 103, 97 };
   uint8_t asm_to_elf_seed_mega[32] = { 97, 115, 109, 95, 99, 111, 100, 101, 103, 101, 110, 95, 97, 115, 116, 95, 116, 111, 95, 101, 108, 102, 95, 115, 101, 101, 100, 95, 109, 101, 103, 97 };
   if (name == ((uint8_t *)(0))) {   return 0;
  }
-  if (name_len == 11 && codegen_name_bytes_prefix_eq(name, name_len, (&((ph11)[0])), 11) != 0) {   return 1;
- }
-  if (name_len == 22 && codegen_name_bytes_prefix_eq(name, name_len, (&((ssp22)[0])), 22) != 0) {   return 1;
- }
-  if (name_len == 10 && codegen_name_bytes_prefix_eq(name, name_len, (&((sn10)[0])), 10) != 0) {   return 1;
- }
-  if (name_len == 22 && codegen_name_bytes_prefix_eq(name, name_len, (&((sssn22)[0])), 22) != 0) {   return 1;
- }
-  if (name_len == 21 && codegen_name_bytes_prefix_eq(name, name_len, (&((sssn22)[0])), 21) != 0) {   return 1;
- }
+  /* placeholder/string_new skip removed */
   if (pipeline_codegen_emit_seed_mega_enabled() == 0) {   if (name_len == 25 && codegen_name_bytes_prefix_eq(name, name_len, (&((asm_seed_mega)[0])), 25) != 0) {   return 1;
  }
   if (name_len == 32 && codegen_name_bytes_prefix_eq(name, name_len, (&((asm_to_elf_seed_mega)[0])), 32) != 0) {   return 1;
