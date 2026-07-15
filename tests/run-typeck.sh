@@ -89,7 +89,8 @@ expect_return_breadcrumb_error() {
   else
     err=$(run_typeck_timeout "$shux" -x -L . "$file" -o /tmp/shux_typeck_breadcrumb_fail 2>&1) || true
   fi
-  echo "$err" | grep -q "return expression type mismatch: expected i32, found Result_i32" || {
+  # 允许 result.Result_i32 或短名 Result_i32（qualified type 诊断为正确形态）
+  echo "$err" | grep -qE "return expression type mismatch: expected i32, found (result\.)?Result_i32" || {
     echo "expected return mismatch breadcrumb base error in $file; got: $err"
     exit 1
   }
