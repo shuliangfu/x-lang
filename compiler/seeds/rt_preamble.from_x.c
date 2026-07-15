@@ -252,10 +252,10 @@ const char *const driver_preamble_io_net_lines[] = {
         "#else\n"
         "extern int32_t std_string_placeholder(void);\n"
         "#endif\n",
-        "#define placeholder std_string_placeholder\n",
+        /* removed #define placeholder: clobbers entry module function names */
         "extern int32_t fmt_i32(int32_t);\n",
         "extern struct std_string_String std_string_string_new(void);\n",
-        "#define string_new std_string_string_new\n",
+        /* removed #define string_new: same collision risk */
     };
 
 const int32_t driver_preamble_io_net_lines_n =
