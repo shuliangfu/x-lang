@@ -2487,6 +2487,7 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
 export function codegen_type_dep_struct_owner_index(ctx: *PipelineDepCtx, bare_nm: *u8, bare_len: i32): i32 {
   let best_di: i32 = -1;
   let best_export: i32 = 0;
+  let best_nf: i32 = 0;
   let cur: i32 = -1;
   let di: i32 = 0;
   let nd: i32 = 0;
@@ -2501,6 +2502,7 @@ export function codegen_type_dep_struct_owner_index(ctx: *PipelineDepCtx, bare_n
       let li: i32 = 0;
       let hit: i32 = 0;
       let hit_export: i32 = 0;
+      let hit_nf: i32 = 0;
       while (li < dep_mod.num_struct_layouts) {
         let dep_name_len: i32 = pipeline_module_struct_layout_name_len(dep_mod, li);
         if (dep_name_len == bare_len) {
@@ -2517,6 +2519,7 @@ export function codegen_type_dep_struct_owner_index(ctx: *PipelineDepCtx, bare_n
           }
           if (eq) {
             hit = 1;
+            hit_nf = pipeline_module_struct_layout_num_fields(dep_mod, li);
             if (pipeline_module_struct_layout_is_export_at(dep_mod, li) != 0) {
               hit_export = 1;
             }
@@ -2526,16 +2529,29 @@ export function codegen_type_dep_struct_owner_index(ctx: *PipelineDepCtx, bare_n
         li = li + 1;
       }
       if (hit != 0) {
+        /* 【Why】0 字段同名 layout（污染/merge）不能抢 owner，否则完整定义被跳过 → incomplete type */
         if (best_di < 0) {
           best_di = di;
           best_export = hit_export;
-        } else if (hit_export != 0 && best_export == 0) {
-          /* 定义模块 export 覆盖污染/merge 的同名非 export layout */
+          best_nf = hit_nf;
+        } else if (hit_nf > 0 && best_nf <= 0) {
+          best_di = di;
+          best_export = hit_export;
+          best_nf = hit_nf;
+        } else if (hit_nf > 0 && best_nf > 0 && hit_export != 0 && best_export == 0) {
           best_di = di;
           best_export = 1;
-        } else if (hit_export == best_export && di == cur) {
-          /* 同 export 档：当前正在 emit 的 dep 优先（签名与 compound lit / struct_prefix 一致） */
+          best_nf = hit_nf;
+        } else if (hit_nf > 0 && best_nf > 0 && hit_export == best_export && di == cur) {
           best_di = di;
+          best_nf = hit_nf;
+        } else if (hit_export != 0 && best_export == 0 && hit_nf >= best_nf) {
+          best_di = di;
+          best_export = 1;
+          best_nf = hit_nf;
+        } else if (hit_export == best_export && di == cur && hit_nf >= best_nf) {
+          best_di = di;
+          best_nf = hit_nf;
         }
       }
     }

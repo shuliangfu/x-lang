@@ -2190,6 +2190,7 @@ SHUX_LIB_WEAK int32_t codegen_emit_type(struct ast_ASTArena * arena, struct code
 SHUX_LIB_WEAK int32_t codegen_type_dep_struct_owner_index(struct ast_PipelineDepCtx * ctx, uint8_t * bare_nm, int32_t bare_len) {
   int32_t best_di = -1;
   int32_t best_export = 0;
+  int32_t best_nf = 0;
   int32_t cur = -1;
   int32_t di = 0;
   int32_t nd = 0;
@@ -2204,6 +2205,7 @@ SHUX_LIB_WEAK int32_t codegen_type_dep_struct_owner_index(struct ast_PipelineDep
       int32_t li = 0;
       int32_t hit = 0;
       int32_t hit_export = 0;
+      int32_t hit_nf = 0;
       while (li < (dep_mod)->num_struct_layouts) {
         int32_t dep_name_len = pipeline_module_struct_layout_name_len(dep_mod, li);
         if (dep_name_len == bare_len) {
@@ -2220,6 +2222,7 @@ SHUX_LIB_WEAK int32_t codegen_type_dep_struct_owner_index(struct ast_PipelineDep
           }
           if (eq) {
             hit = 1;
+            hit_nf = pipeline_module_struct_layout_num_fields(dep_mod, li);
             if (pipeline_module_struct_layout_is_export_at(dep_mod, li) != 0) {
               hit_export = 1;
             }
@@ -2229,14 +2232,30 @@ SHUX_LIB_WEAK int32_t codegen_type_dep_struct_owner_index(struct ast_PipelineDep
         ++li;
       }
       if (hit != 0) {
+        /* 【Why】污染/merge 的 0 字段同名 layout 不能抢 owner，否则完整定义被跳过 → incomplete type。
+           优先：有字段 > export > 当前 dep。 */
         if (best_di < 0) {
           best_di = di;
           best_export = hit_export;
-        } else if (hit_export != 0 && best_export == 0) {
+          best_nf = hit_nf;
+        } else if (hit_nf > 0 && best_nf <= 0) {
+          best_di = di;
+          best_export = hit_export;
+          best_nf = hit_nf;
+        } else if (hit_nf > 0 && best_nf > 0 && hit_export != 0 && best_export == 0) {
           best_di = di;
           best_export = 1;
-        } else if (hit_export == best_export && di == cur) {
+          best_nf = hit_nf;
+        } else if (hit_nf > 0 && best_nf > 0 && hit_export == best_export && di == cur) {
           best_di = di;
+          best_nf = hit_nf;
+        } else if (hit_export != 0 && best_export == 0 && hit_nf >= best_nf) {
+          best_di = di;
+          best_export = 1;
+          best_nf = hit_nf;
+        } else if (hit_export == best_export && di == cur && hit_nf >= best_nf) {
+          best_di = di;
+          best_nf = hit_nf;
         }
       }
     }
@@ -4195,10 +4214,24 @@ SHUX_LIB_WEAK int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct code
   int32_t fn_len = pipeline_module_func_name_len_at(dep_mod, func_ix);
   if (fn_len > 0) {   (void)(pipeline_module_func_name_copy64(dep_mod, func_ix, (&((fn_name)[0]))));
  }
+  /* std.io.driver register/submit_read/submit_write：METHOD_CALL 走 shux_io_*_buf + &arg。 */
+  int32_t drv_buf_mc = 0;
+  if (codegen_path_is_std_io_driver_bytes((&((dep_path)[0]))) != 0 && fn_len > 0) {
+    drv_buf_mc = codegen_emit_io_driver_buf_call_name(out, (&((fn_name)[0])), fn_len, (e).method_call_num_args);
+    if (drv_buf_mc < 0) { return (-1); }
+  }
+  if (drv_buf_mc == 0) {
   if (pre_len > 0 && fn_len > 0 && codegen_c_prefix_redundant_with_name((&((pre_buf)[0])), pre_len, (&((fn_name)[0])), fn_len) == 0 && codegen_emit_bytes_from_ptr(out, (&((pre_buf)[0])), pre_len) != 0) {   return (-1);
  }
-  if (fn_len > 0 && codegen_emit_func_link_name(out, arena, dep_mod, func_ix) != 0) {   return (-1);
+  /* 【Why 根源】typeck 已解析的重载也须 mangle；dep 的 type_ref 只能在 dep_arena 查。
+     入口 arena 查后缀会得到空 → 退化为裸名 std_fmt_print（hello -o 假绿根因）。 */
+  {
+    struct ast_ASTArena * dep_arena_mc = pipeline_dep_ctx_arena_at(ctx, dep_ix);
+    if (dep_arena_mc == ((struct ast_ASTArena *)(0))) { dep_arena_mc = arena; }
+    if (fn_len > 0 && codegen_emit_func_link_name(out, dep_arena_mc, dep_mod, func_ix) != 0) {   return (-1);
  }
+  }
+  }
   if (codegen_append_byte(out, 40) != 0) {   return (-1);
  }
   int32_t n_dep = codegen_call_num_args_override((&((pre_buf)[0])), pre_len, (&((fn_name)[0])), fn_len, (e).method_call_num_args);
@@ -4208,6 +4241,10 @@ SHUX_LIB_WEAK int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct code
   if (codegen_emit_bytes_3(out, comma_dep, 2) != 0) {   return (-1);
  }
  }
+    if (drv_buf_mc != 0 && ai == 0) {
+      uint8_t cast_buf[19] = { 40, 105, 110, 116, 112, 116, 114, 95, 116, 41, 40, 118, 111, 105, 100, 42, 41, 38, 0 };
+      if (codegen_emit_bytes_from_ptr(out, (&((cast_buf)[0])), 18) != 0) { return (-1); }
+    }
     int32_t dep_arg = pipeline_expr_method_call_arg_ref(arena, expr_ref, ai);
     if (ast_ref_is_null(dep_arg)) {   if (codegen_append_byte(out, 48) != 0) {   return (-1);
  }
@@ -4227,14 +4264,17 @@ SHUX_LIB_WEAK int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct code
   while (pre_fb_len < 128 && (pre_fb_len < 0 || (pre_fb_len) >= 128 ? (shux_panic_(1, 0), (pre_fb)[0]) : (pre_fb)[pre_fb_len]) != 0) {
     ++pre_fb_len;
   }
+  /* std.io.driver register/submit_read/submit_write：METHOD_CALL binding 回退路径。 */
+  int32_t drv_buf_fb = 0;
+  if (codegen_path_is_std_io_driver_bytes((&((dep_path_fb)[0]))) != 0) {
+    drv_buf_fb = codegen_emit_io_driver_buf_call_name(out, (&(((e).method_call_name)[0])), (e).method_call_name_len, (e).method_call_num_args);
+    if (drv_buf_fb < 0) { return (-1); }
+  }
+  if (drv_buf_fb == 0) {
   if (pre_fb_len > 0 && codegen_c_prefix_redundant_with_name((&((pre_fb)[0])), pre_fb_len, (&(((e).method_call_name)[0])), (e).method_call_name_len) == 0 && codegen_emit_bytes_from_ptr(out, (&((pre_fb)[0])), pre_fb_len) != 0) {   return (-1);
  }
-  /* 【Why 根源】按 import path 匹配 dep 模块，用 codegen_emit_call_func_name 走 mangling。
-     【Invariant】用 codegen_find_dep_index_by_path 做路径精确匹配，避免格式不一致。 */
-  fprintf(stderr, "DBG-MC dep_path_fb=%.*s len=%d ndep=%d\n", dep_path_fb_len, (char*)dep_path_fb, dep_path_fb_len, pipeline_dep_ctx_ndep(ctx));
-  { int32_t dbg_di = 0; while (dbg_di < pipeline_dep_ctx_ndep(ctx)) { uint8_t dbg_dp[64] = {0}; pipeline_dep_ctx_import_path_copy64(ctx, dbg_di, dbg_dp); int32_t dbg_dl = pipeline_dep_ctx_import_path_len(ctx, dbg_di); fprintf(stderr, "DBG-MC dep[%d] path=%.*s len=%d\n", dbg_di, dbg_dl, (char*)dbg_dp, dbg_dl); ++dbg_di; } }
+  /* 【Why 根源】按 import path 匹配 dep 模块，用 codegen_emit_call_func_name 走 mangling。 */
   int32_t fb_dep_ix = codegen_find_dep_index_by_path(ctx, (&((dep_path_fb)[0])), dep_path_fb_len);
-  fprintf(stderr, "DBG-MC fb_dep_ix=%d method=%.*s nargs=%d\n", fb_dep_ix, (e).method_call_name_len, (char*)((e).method_call_name), (e).method_call_num_args);
   struct ast_Module * fb_dep_mod = 0;
   if (fb_dep_ix >= 0 && fb_dep_ix < pipeline_dep_ctx_ndep(ctx)) {
     fb_dep_mod = pipeline_dep_ctx_module_at(ctx, fb_dep_ix);
@@ -4276,6 +4316,7 @@ SHUX_LIB_WEAK int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct code
   }
   if (codegen_emit_call_func_name(out, arena, ctx, expr_ref, fb_dep_mod, (&(((e).method_call_name)[0])), (e).method_call_name_len) != 0) {   return (-1);
  }
+  }
   if (codegen_append_byte(out, 40) != 0) {   return (-1);
  }
   int32_t n_fb = codegen_call_num_args_override((&((pre_fb)[0])), pre_fb_len, (&(((e).method_call_name)[0])), (e).method_call_name_len, (e).method_call_num_args);
@@ -4285,6 +4326,10 @@ SHUX_LIB_WEAK int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct code
   if (codegen_emit_bytes_3(out, comma_fb, 2) != 0) {   return (-1);
  }
  }
+    if (drv_buf_fb != 0 && ai_fb == 0) {
+      uint8_t cast_buf_fb[19] = { 40, 105, 110, 116, 112, 116, 114, 95, 116, 41, 40, 118, 111, 105, 100, 42, 41, 38, 0 };
+      if (codegen_emit_bytes_from_ptr(out, (&((cast_buf_fb)[0])), 18) != 0) { return (-1); }
+    }
     int32_t arg_fb = pipeline_expr_method_call_arg_ref(arena, expr_ref, ai_fb);
     if (ast_ref_is_null(arg_fb)) {   if (codegen_append_byte(out, 48) != 0) {   return (-1);
  }
