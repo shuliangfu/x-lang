@@ -2151,7 +2151,14 @@ int32_t typeck_coerce_init_lit_to_decl(struct ast_ASTArena * arena, int32_t init
     pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
     return 1;
   }
-  if (int_val >= 0 && (decl_kind == ord_usize || decl_kind == ord_u32 || decl_kind == ord_u64)) {
+  /* 【Why 根源】int_val 存 i32；十进制 2147483648..4294967295 以位型落入负 i32
+   * （如 4294967295 → -1）。u32 目标须按位型接受全部 i32（C：uint32_t x=-1 → UINT32_MAX）。
+   * u64/usize 仍要求 int_val>=0：负位型在 C 中会符号扩展成全 1（非 0xffffffff）。 */
+  if (decl_kind == ord_u32) {
+    pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
+    return 1;
+  }
+  if (int_val >= 0 && (decl_kind == ord_usize || decl_kind == ord_u64)) {
     pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
     return 1;
   }
@@ -2840,9 +2847,10 @@ int32_t typeck_check_expr_assign(struct ast_Module * module, struct ast_ASTArena
   (int_val = (pipeline_expr_int_val_at(arena, right_ref)));
   __tmp = ({ int32_t __tmp = 0; if (lt_kind == ord_u8 && int_val >= 0 && int_val <= 255) {   (void)(pipeline_expr_set_resolved_type_ref(arena, right_ref, lt));
  } else (__tmp = ({ int32_t __tmp = 0; if (expr_kind == ord_assign && lt_kind == ord_ptr && int_val == 0) {   (void)(pipeline_expr_set_resolved_type_ref(arena, right_ref, lt));
- } else (__tmp = ({ int32_t __tmp = 0; if (expr_kind == ord_assign && int_val >= 0 && lt_kind == ord_usize || lt_kind == ord_u32 || lt_kind == ord_u64) {   (void)(pipeline_expr_set_resolved_type_ref(arena, right_ref, lt));
+ } else (__tmp = ({ int32_t __tmp = 0; if (expr_kind == ord_assign && lt_kind == ord_u32) {   (void)(pipeline_expr_set_resolved_type_ref(arena, right_ref, lt));
+ } else (__tmp = ({ int32_t __tmp = 0; if (expr_kind == ord_assign && int_val >= 0 && (lt_kind == ord_usize || lt_kind == ord_u64)) {   (void)(pipeline_expr_set_resolved_type_ref(arena, right_ref, lt));
  } else (__tmp = ({ int32_t __tmp = 0; if (expr_kind == ord_assign && lt_kind == ord_i64) {   (void)(pipeline_expr_set_resolved_type_ref(arena, right_ref, lt));
- } else (__tmp = 0) ; __tmp; })) ; __tmp; })) ; __tmp; })) ; __tmp; });
+ } else (__tmp = 0) ; __tmp; })) ; __tmp; })) ; __tmp; })) ; __tmp; })) ; __tmp; });
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));

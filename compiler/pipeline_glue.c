@@ -24915,9 +24915,15 @@ int32_t pipeline_typeck_coerce_init_lit_to_decl_c(struct ast_ASTArena *arena, in
     init_ex->resolved_type_ref = decl_ty_ref;
     return 1;
   }
+  /* 【Why 根源】int_val 存 i32；>INT_MAX 的 u32 十进制以位型落入负 i32。
+   * u32 接受全 i32 位型；u64/usize/isize 仍要求 int_val>=0（避免符号扩展）。 */
+  if (decl_kind == (int32_t)ast_TypeKind_TYPE_U32) {
+    init_ex->resolved_type_ref = decl_ty_ref;
+    return 1;
+  }
   if (int_val >= 0 &&
       (decl_kind == (int32_t)ast_TypeKind_TYPE_USIZE || decl_kind == (int32_t)ast_TypeKind_TYPE_ISIZE ||
-       decl_kind == (int32_t)ast_TypeKind_TYPE_U32 || decl_kind == (int32_t)ast_TypeKind_TYPE_U64)) {
+       decl_kind == (int32_t)ast_TypeKind_TYPE_U64)) {
     init_ex->resolved_type_ref = decl_ty_ref;
     return 1;
   }

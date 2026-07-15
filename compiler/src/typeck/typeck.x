@@ -3361,7 +3361,14 @@ decl_kind: i32, init_kind: i32): i32 {
     pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
     return 1;
   }
-  if (int_val >= 0 && (decl_kind == ord_usize || decl_kind == ord_u32 || decl_kind == ord_u64)) {
+  /* 【Why 根源】int_val 存 i32；十进制 2147483648..4294967295 以位型落入负 i32
+   * （如 4294967295 → -1）。u32 目标须按位型接受全部 i32（C：uint32_t x=-1 → UINT32_MAX）。
+   * u64/usize 仍要求 int_val>=0：负位型在 C 中会符号扩展成全 1（非 0xffffffff）。 */
+  if (decl_kind == ord_u32) {
+    pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
+    return 1;
+  }
+  if (int_val >= 0 && (decl_kind == ord_usize || decl_kind == ord_u64)) {
     pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
     return 1;
   }
@@ -4431,8 +4438,11 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
           pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
         } else if (expr_kind == ord_assign && lt_kind == ord_ptr && int_val == 0) {
           pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
+        } else if (expr_kind == ord_assign && lt_kind == ord_u32) {
+          /* 与 typeck_coerce_init_lit_to_decl：u32 接受 i32 全位型（含 >INT_MAX 十进制）。 */
+          pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
         } else if (expr_kind == ord_assign && int_val >= 0 &&
-        (lt_kind == ord_usize || lt_kind == ord_u32 || lt_kind == ord_u64)) {
+        (lt_kind == ord_usize || lt_kind == ord_u64)) {
           pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
         } else if (expr_kind == ord_assign && lt_kind == ord_i64) {
           pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
