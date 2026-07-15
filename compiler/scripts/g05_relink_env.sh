@@ -79,7 +79,14 @@ _GLUE_SUFFIX="build_asm/pipeline_glue_strict_minimal.o"
 
 # Cap residual：与 Makefile RT_SEED_SLICE_OBJS / build_shux_asm asm_bootstrap_support_extra_link 同源。
 # runtime_driver_abi 始终 extern 这些符号；no_c runtime 在 SHUX_RT_*_FROM_X 下不内嵌 BSS。
-_RT_SEED_SLICE_OBJS="src/runtime/rt_arena_buf.o src/runtime/rt_emit_state.o src/runtime/rt_preamble.o src/runtime/rt_stack.o"
+# PREFER_X_O=1 时 runtime_driver_no_c.o 已通过 cc -r 合并全部 slice thin+rest，
+#   重复链接 slice .o 会导致符号冲突（Linux --allow-multiple-definition 静默；
+#   macOS 新版 ld 已移除 -multiply_defined,suppress 支持）。
+if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ]; then
+  _RT_SEED_SLICE_OBJS=""
+else
+  _RT_SEED_SLICE_OBJS="src/runtime/rt_arena_buf.o src/runtime/rt_emit_state.o src/runtime/rt_preamble.o src/runtime/rt_stack.o"
+fi
 # DRIVER_SEED_OBJS 展开（MAIN + runtime ABI + no_c runtime + rt slices + x frontend + support + shims）
 _DRIVER_SEED_OBJS="$_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o src/runtime_pipeline_abi.o src/runtime_driver_no_c.o $_RT_SEED_SLICE_OBJS src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_X_FRONTEND $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o src/seed_link_compat.o"
 

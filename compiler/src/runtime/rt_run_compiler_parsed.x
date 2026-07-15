@@ -36,6 +36,11 @@ export extern "C" function codegen_set_dep_slots_for_x_pipeline(mods: *u8, paths
 export extern "C" function codegen_set_preamble_has_core_option_result(on: i32): void;
 export extern "C" function runtime_report_precise_parse_failure_if_known(
   input_path: *u8, src: *u8, src_len: usize): i32;
+/* 【Why】parser 宽容策略会吞掉 let 缺分号等错误，需词法级 recovery 扫描补出。
+ * 【Invariant】always linked（rt_parse_diag.from_x.c L60+，不受 FROM_X 控制）。
+ * 【Asm/Perf】仅 check 路径调用，非热路径；词法扫描 O(n)。 */
+export extern "C" function runtime_report_parse_recovery_diagnostics(
+  input_path: *u8, src: *u8, src_len: usize): i32;
 export extern "C" function pipeline_dep_ctx_heap_destroy(ctx: *u8): void;
 export extern "C" function shux_pipeline_run_x_pipeline_large_stack(
   module: *u8, arena: *u8, src: *u8, src_len: usize, out_buf: *u8, pctx: *u8): i32;
@@ -425,10 +430,16 @@ export function rt_cp_step_parse(): i32 {
     pr = driver_parse_into_buf_rc(arena, module, src, src_len as i32, &main_idx);
   }
   if (pr != 0) {
+    let rec_n: i32 = 0;
     unsafe {
       pr = runtime_report_precise_parse_failure_if_known(path, src, src_len);
     }
     if (pr == 0) {
+      unsafe {
+        rec_n = runtime_report_parse_recovery_diagnostics(path, src, src_len);
+      }
+    }
+    if (pr == 0 && rec_n == 0) {
       rt_cp_diag(path, 4, 9, 5);
     }
     unsafe {
@@ -821,10 +832,18 @@ export function rt_cp_step_pipeline(): i32 {
       }
     }
   }
-  /* NO_C product：check + std/core 闭包 → 仅 parse 门禁，跳过大 typeck */
+  /* NO_C product：check + std/core 闭包 → 仅 parse 门禁，跳过大 typeck。
+   * 但仍需跑 recovery 诊断：parser 宽容策略可能吞掉了 let 缺分号等多错误。 */
   if (check != 0) {
     if (n_deps > 0) {
       if (core_only != 0) {
+        let rec_n: i32 = 0;
+        unsafe {
+          rec_n = runtime_report_parse_recovery_diagnostics(path, src, src_len);
+        }
+        if (rec_n > 0) {
+          return 1;
+        }
         unsafe {
           driver_print_check_ok(path);
         }
@@ -851,6 +870,21 @@ export function rt_cp_step_pipeline(): i32 {
     }
   }
   if (check != 0) {
+    let rec_n: i32 = 0;
+    let nfuncs: i32 = 0;
+    unsafe {
+      rec_n = runtime_report_parse_recovery_diagnostics(path, src, src_len);
+    }
+    if (rec_n > 0) {
+      return 1;
+    }
+    unsafe {
+      nfuncs = driver_get_module_num_funcs(module);
+    }
+    if (nfuncs <= 0) {
+      rt_cp_diag(path, 4, 9, 5);
+      return 1;
+    }
     unsafe {
       driver_print_check_ok(path);
     }

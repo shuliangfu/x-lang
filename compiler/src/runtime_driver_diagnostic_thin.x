@@ -14,24 +14,9 @@
 
 export extern "C" function getenv(name: *u8): *u8;
 
-// pure：getenv 非空且首字节非 '0' → 1（与 seed Cap residual 同形）。
-// 调用点用字符串字面量（-E → 实参 compound lit；勿用全局 let u8[] → 悬空/NULL SIGSEGV）。
-function driver_env_flag_truthy(name: *u8): i32 {
-  unsafe {
-    let e: *u8 = getenv(name);
-    if (e == 0 as *u8) {
-      return 0;
-    }
-    if (e[0] == 0) {
-      return 0;
-    }
-    if (e[0] == 48) {
-      return 0;
-    }
-    return 1;
-  }
-  return 0;
-}
+// driver_env_flag_truthy 权威定义在 runtime_driver_abi_thin.x（G-02f 禁止功能重复实现）。
+// 此处仅 extern 声明引用，避免两 .o 产生重复全局符号。
+extern function driver_env_flag_truthy(name: *u8): i32;
 
 export extern "C" function driver_diagnostic_after_entry_parse_module_impl(module: *u8): void;
 export extern "C" function driver_diagnostic_asm_fail_at_impl(loc: i32): void;
