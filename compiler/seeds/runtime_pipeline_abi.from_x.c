@@ -452,10 +452,13 @@ int shux_preprocess_raw_to_malloc_impl(const unsigned char *raw, size_t raw_len,
     if (n < 0) {
         free(scratch);
         if (emit_diag) {
-            if (preprocess_if_stack_len() != 0)
+            /* 指令级负码（-2..-7）优先于「栈非空」：duplicate #else 等失败时栈上仍有 #if。 */
+            if (n <= -2)
+                pipeline_diag_preprocess_directive_code(path_diag, n);
+            else if (preprocess_if_stack_len() != 0)
                 pipeline_diag_preprocess_unclosed_if(path_diag);
             else
-                pipeline_diag_preprocess_directive_code(path_diag, n);
+                pipeline_diag_preprocess_fail(path_diag);
         }
         return -1;
     }
