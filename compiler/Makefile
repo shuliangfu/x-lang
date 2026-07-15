@@ -96,13 +96,10 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 	ld -r -o $@ $@.args runtime_process_argv.o runtime_process_os_glue.o && \
 	rm -f $@.args
 
-# std.string：F 闭合 — mod.x + string.x 用 -E-extern 编译（裸符号），
-# ld -r 合并 runtime_string_fast.o（提供 string_*_c fast-path 定义）。
-../std/string/string.o: ../std/string/mod.x ../std/string/string.x scripts/shux_compile_std_module.sh seeds/runtime_string_fast.from_x.c scripts/cc_inc_tu.sh
-	@$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_string_fast.from_x.c -o $@.fast && \
-	sh scripts/shux_compile_std_module.sh --bare-impl $@.core ../std/string/mod.x ../std/string/string.x && \
-	ld -r $(LD_R_MULTIDEF_FLAGS) -o $@ $@.core $@.fast && \
-	rm -f $@.core $@.fast
+# std.string：F 闭合 — 走 -o 完整 emit（-x -E 会截断 string 库模块函数体）。
+# Arena64 标签双名在 scripts/shux_compile_std_string_o.sh 内 #define 对齐；string.x 裸符号。
+../std/string/string.o: ../std/string/mod.x ../std/string/string.x scripts/shux_compile_std_string_o.sh
+	@SHUX=./shux sh scripts/shux_compile_std_string_o.sh
 
 # std.path：保留 mod.x 作为 F-path v1 源码锚点；path.o 由 C provider 产出，
 # 避免 bootstrap asm backend 在 dirname/last_slash 链上反复卡住。
