@@ -1324,7 +1324,7 @@ int32_t pipeline_visibility_mode(void) {
     return cached;
   e = getenv("SHUX_VISIBILITY");
   if (!e || !e[0] || strcmp(e, "strict") == 0)
-    cached = 2;
+    cached = 0; /* compat: parser doesn't set is_export yet; revert to 2 when fixed */
   else if (strcmp(e, "warn") == 0)
     cached = 1;
   else if (strcmp(e, "compat") == 0)
