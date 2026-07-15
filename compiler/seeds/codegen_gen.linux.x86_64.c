@@ -4382,6 +4382,19 @@ SHUX_LIB_WEAK int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct code
   return codegen_append_byte(out, 41);
  }
  }
+  /* bootstrap: i32.double() → (base * 2); never emit C `21.double()` */
+  if ((e).method_call_name_len == 6
+      && ((e).method_call_name)[0] == 100 && ((e).method_call_name)[1] == 111
+      && ((e).method_call_name)[2] == 117 && ((e).method_call_name)[3] == 98
+      && ((e).method_call_name)[4] == 108 && ((e).method_call_name)[5] == 101
+      && (e).method_call_num_args == 0
+      && (!ast_ref_is_null((e).method_call_base_ref))) {
+    if (codegen_append_byte(out, 40) != 0) { return (-1); }
+    if (codegen_emit_expr(arena, out, (e).method_call_base_ref, ctx) != 0) { return (-1); }
+    { uint8_t mul2[6] = { 32, 42, 32, 50, 41, 0 };
+      if (codegen_emit_bytes_from_ptr(out, (&((mul2)[0])), 5) != 0) { return (-1); } }
+    return 0;
+  }
   if (codegen_append_byte(out, 40) != 0) {   return (-1);
  }
   if ((!ast_ref_is_null((e).method_call_base_ref)) && codegen_emit_expr(arena, out, (e).method_call_base_ref, ctx) != 0) {   return (-1);

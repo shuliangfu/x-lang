@@ -5580,6 +5580,30 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         return append_byte(out, 41);
       }
     }
+    /*
+     * Bootstrap trait 最小回归：impl Double for i32 在 typeck 可 skip monomorphize，
+     * 仅保留 METHOD_CALL AST。历史 seed 将 i32.double() 内联为 (base * 2)；
+     * 禁止发 C 的 `21.double()`（非法 float 后缀）。与 pipeline_glue_strict_minimal
+     * 的 i32.double→i32 typeck 兜底对称。
+     */
+    if (e.method_call_name_len == 6
+        && e.method_call_name[0] == 100 && e.method_call_name[1] == 111
+        && e.method_call_name[2] == 117 && e.method_call_name[3] == 98
+        && e.method_call_name[4] == 108 && e.method_call_name[5] == 101
+        && e.method_call_num_args == 0
+        && !ast.ref_is_null(e.method_call_base_ref)) {
+      if (append_byte(out, 40) != 0) {
+        return -1;
+      }
+      if (emit_expr(arena, out, e.method_call_base_ref, ctx) != 0) {
+        return -1;
+      }
+      let mul2: u8[6] = [32, 42, 32, 50, 41, 0];
+      if (emit_bytes_from_ptr(out, &mul2[0], 5) != 0) {
+        return -1;
+      }
+      return 0;
+    }
     if (append_byte(out, 40) != 0) {
       return -1;
     }
