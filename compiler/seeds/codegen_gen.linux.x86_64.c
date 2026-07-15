@@ -4238,6 +4238,41 @@ SHUX_LIB_WEAK int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct code
   struct ast_Module * fb_dep_mod = 0;
   if (fb_dep_ix >= 0 && fb_dep_ix < pipeline_dep_ctx_ndep(ctx)) {
     fb_dep_mod = pipeline_dep_ctx_module_at(ctx, fb_dep_ix);
+    /* Direct search: find function in dep module by name+arity, emit mangled link name. */
+    if (fb_dep_mod) {
+      struct ast_ASTArena *fb_dep_arena = pipeline_dep_ctx_arena_at(ctx, fb_dep_ix);
+      int32_t mc_nargs2 = (e).method_call_num_args;
+      int32_t fi2 = 0;
+      int32_t found2 = -1;
+      while (fi2 < (fb_dep_mod)->num_funcs) {
+        int32_t fnl2 = pipeline_module_func_name_len_at(fb_dep_mod, fi2);
+        if (fnl2 == (e).method_call_name_len && fnl2 > 0) {
+          uint8_t fnm2[64] = {0};
+          pipeline_module_func_name_copy64(fb_dep_mod, fi2, fnm2);
+          int32_t mx2 = 1;
+          int32_t bx2 = 0;
+          while (bx2 < fnl2) { if (fnm2[bx2] != ((e).method_call_name)[bx2]) { mx2 = 0; bx2 = fnl2; } else { bx2 = bx2 + 1; } }
+          if (mx2 != 0 && pipeline_module_func_num_params_at(fb_dep_mod, fi2) == mc_nargs2) {
+            found2 = fi2;
+            break;
+          }
+        }
+        fi2 = fi2 + 1;
+      }
+      if (found2 >= 0 && fb_dep_arena) {
+        if (codegen_emit_func_link_name(out, fb_dep_arena, fb_dep_mod, found2) != 0) { return (-1); }
+        if (codegen_append_byte(out, 40) != 0) { return (-1); }
+        int32_t ai2 = 0;
+        while (ai2 < mc_nargs2) {
+          if (ai2 > 0) { uint8_t cm2[3] = {44, 32, 0}; if (codegen_emit_bytes_3(out, cm2, 2) != 0) { return (-1); } }
+          int32_t ar2 = pipeline_expr_method_call_arg_ref(arena, expr_ref, ai2);
+          if (ast_ref_is_null(ar2)) { if (codegen_append_byte(out, 48) != 0) { return (-1); } }
+          else { if (codegen_emit_expr(arena, out, ar2, ctx) != 0) { return (-1); } }
+          ai2 = ai2 + 1;
+        }
+        return codegen_append_byte(out, 41);
+      }
+    }
   }
   if (codegen_emit_call_func_name(out, arena, ctx, expr_ref, fb_dep_mod, (&(((e).method_call_name)[0])), (e).method_call_name_len) != 0) {   return (-1);
  }
@@ -5247,7 +5282,6 @@ int32_t codegen_emit_func_link_name(struct codegen_CodegenOutBuf * out, struct a
  * 通过 codegen_emit_func_link_name 输出 mangled 名；解析失败时回退原名保证向后兼容。
  * 【Invariant】ctx/arena 须非空才查 resolved 索引；fallback_name 须非空。 */
 int32_t codegen_emit_call_func_name(struct codegen_CodegenOutBuf * out, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx, int32_t expr_ref, struct ast_Module * current_module, uint8_t * fallback_name, int32_t fallback_len) {
-  {char _cfndbg[] = {67,70,78,58,32,48,48,10,0}; _cfndbg[5]=(ctx!=0)+48; _cfndbg[6]=(arena!=0)+48; fputs(_cfndbg,stderr);}
   if (ctx != 0 && arena != 0) {
     int32_t func_ix = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
     int32_t dep_ix = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
