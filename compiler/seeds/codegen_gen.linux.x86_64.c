@@ -5494,6 +5494,13 @@ int32_t codegen_emit_call_func_name(struct codegen_CodegenOutBuf * out, struct a
           return codegen_emit_func_link_name(out, search_arena, search_mod, ext_fi);
         }
         if (arity_count == 1 && arity_fi >= 0) {
+          if (ctx && search_mod == current_module && (ctx)->current_codegen_prefix_len > 0) {
+            uint8_t _fn[64] = {0}; codegen_copy_func_name64_from_module(search_mod, arity_fi, _fn);
+            int32_t _fnl = pipeline_module_func_name_len_at(search_mod, arity_fi);
+            if (codegen_c_prefix_redundant_with_name((ctx)->current_codegen_prefix_mirror, (ctx)->current_codegen_prefix_len, _fn, _fnl) == 0) {
+              if (codegen_emit_bytes_from_ptr(out, (ctx)->current_codegen_prefix_mirror, (ctx)->current_codegen_prefix_len) != 0) return (-1);
+            }
+          }
           return codegen_emit_func_link_name(out, search_arena, search_mod, arity_fi);
         }
       }
