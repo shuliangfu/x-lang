@@ -774,6 +774,33 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
     shux_pipeline_pctx_seed_dep_slots(pctx, dep_modules, dep_arenas, dep_paths, n_deps);
     pctx->skip_codegen_dep_0 = 0; /* 不再跳过 dep 0：io.o 仅提供 C 层，std.io.driver 的 .x 包装须由 codegen 生成。 */
     /*
+     * 【Why 根源】入口模块 codegen 前必须设置 current_codegen_prefix_mirror，否则 codegen
+     *   通过 codegen_emit_prefix_len_from_ctx(ctx) 读到空 prefix，库模块函数被发射为裸符号
+     *   （core_mem_placeholder → placeholder），调用端期望带前缀符号 → undefined reference。
+     *   与 runtime.from_x.c driver_run_compiler_c L5506-5520 完全对称（单一权威路径）。
+     * 【Invariant】lib_name 非空且 len ∈ [1,62] → prefix = lib_name + '_'（trailing underscore
+     *   匹配 codegen_import_path_to_c_prefix_into 行为）；否则 prefix 保持空（入口模块无前缀）。
+     * 【Perf】单次 strlen + memcpy，pipeline 调用前一次性设置，无热路径开销。
+     */
+    {
+        extern const char *shux_entry_lib_name_from_path(const char *path);
+        const char *lib_name = shux_entry_lib_name_from_path(input_path);
+        if (lib_name && lib_name[0]) {
+            int32_t plen = (int32_t)strlen(lib_name);
+            if (plen > 0 && plen < 63) {
+                memcpy(pctx->current_codegen_prefix_mirror, lib_name, (size_t)plen);
+                pctx->current_codegen_prefix_mirror[plen] = '_';  /* trailing underscore */
+                pctx->current_codegen_prefix_mirror[plen + 1] = 0;
+                pctx->current_codegen_prefix_len = plen + 1;
+                /* Pin entry prefix: dep codegen overwrites current_* only. */
+                memcpy(pctx->entry_module_import_path_mirror, lib_name, (size_t)plen);
+                pctx->entry_module_import_path_mirror[plen] = '_';
+                pctx->entry_module_import_path_mirror[plen + 1] = 0;
+                pctx->entry_module_import_path_len = plen + 1;
+            }
+        }
+    }
+    /*
      * 先对每个 dep 跑 parse+typecheck（逆拓扑序，与 emit-C 2104 / asm 1186 一致）。
      * 勿用正序多轮 prerun：coff→[elf,codegen,ast] 时正序先编 elf 导致 import 槽未就绪 ec=-5。
      */

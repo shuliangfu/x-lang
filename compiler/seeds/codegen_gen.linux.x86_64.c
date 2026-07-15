@@ -661,6 +661,15 @@ SHUX_LIB_WEAK int32_t codegen_emit_prefix_len_from_ctx(struct ast_PipelineDepCtx
   if (buf == ((uint8_t *)(0)) || buf_cap <= 0 || ctx == ((struct ast_PipelineDepCtx *)(0))) {   return 0;
  }
   ((buf)[0] = (((uint8_t)(0))));
+  if ((ctx)->current_codegen_dep_index < 0 && (ctx)->entry_module_import_path_len > 0) {
+    int32_t pi = 0;
+    while (pi < (ctx)->entry_module_import_path_len && pi < buf_cap - 1) {
+      ((buf)[pi] = ((pi < 0 || (pi) >= 64 ? (shux_panic_(1, 0), ((ctx)->entry_module_import_path_mirror)[0]) : ((ctx)->entry_module_import_path_mirror)[pi])));
+      ++pi;
+    }
+    ((buf)[pi] = (((uint8_t)(0))));
+    return pi;
+  }
   if ((ctx)->current_codegen_prefix_len > 0) {   int32_t pi = 0;
   while (pi < (ctx)->current_codegen_prefix_len && pi < buf_cap - 1) {
     ((buf)[pi] = ((pi < 0 || (pi) >= 64 ? (shux_panic_(1, 0), ((ctx)->current_codegen_prefix_mirror)[0]) : ((ctx)->current_codegen_prefix_mirror)[pi])));
@@ -2147,10 +2156,9 @@ SHUX_LIB_WEAK int32_t codegen_emit_type(struct ast_ASTArena * arena, struct code
  }
  } else   if (struct_prefix != ((uint8_t *)(0)) && struct_prefix_len > 0) {   if (codegen_emit_bytes_from_ptr(out, struct_prefix, struct_prefix_len) != 0) {   return (-1);
  }
- } else   if (ctx != ((struct ast_PipelineDepCtx *)(0)) && (ctx)->current_codegen_module != ((struct ast_Module *)(0)) && codegen_type_is_module_user_struct((ctx)->current_codegen_module, arena, type_ref) != 0) {   if ((ctx)->current_codegen_dep_index >= 0) {   uint8_t cur_pre[128] = { 0 };
+ } else   if (ctx != ((struct ast_PipelineDepCtx *)(0)) && (ctx)->current_codegen_module != ((struct ast_Module *)(0)) && codegen_type_is_module_user_struct((ctx)->current_codegen_module, arena, type_ref) != 0) {   uint8_t cur_pre[128] = { 0 };
   int32_t cur_pre_len = codegen_emit_prefix_len_from_ctx(ctx, (&((cur_pre)[0])), 128);
   if (cur_pre_len > 0 && codegen_emit_bytes_from_ptr(out, (&((cur_pre)[0])), cur_pre_len) != 0) {   return (-1);
- }
  }
  } else {   uint8_t ast_p[4] = { 97, 115, 116, 95 };
   if (codegen_emit_bytes_4(out, ast_p, 4) != 0) {   return (-1);
@@ -2445,6 +2453,12 @@ SHUX_LIB_WEAK int32_t codegen_should_skip_emit_struct_layout_for_abi_dup(uint8_t
  }
   if (name_len == 9 && codegen_symbuf_bytes_eq(name, name_len, (&((nm_result_u8)[0])), 9) != 0) {   return 1;
  }
+  /* rt_preamble: struct std_string_String / StrView — skip when entry is std.string. */
+  { uint8_t nm_string[7] = { 83, 116, 114, 105, 110, 103, 0 };
+    uint8_t nm_str_view[8] = { 83, 116, 114, 86, 105, 101, 119, 0 };
+    if (name_len == 6 && codegen_symbuf_bytes_eq(name, name_len, (&((nm_string)[0])), 6) != 0) {   return 1; }
+    if (name_len == 7 && codegen_symbuf_bytes_eq(name, name_len, (&((nm_str_view)[0])), 7) != 0) {   return 1; }
+  }
   return 0;
 }
 SHUX_LIB_WEAK int32_t codegen_type_is_module_user_struct(struct ast_Module * module, struct ast_ASTArena * arena, int32_t type_ref) {
@@ -4216,8 +4230,23 @@ SHUX_LIB_WEAK int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct code
  }
   if ((e).kind == ast_ExprKind_EXPR_METHOD_CALL) {   if (ctx != ((struct ast_PipelineDepCtx *)(0))) {   int32_t dep_ix = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
   int32_t func_ix = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
+  /* 【Why】错 call_resolved → 盲信会把 driver.submit_* 发成 std_fmt_append_*；须名+arity 校验。 */
   if (dep_ix >= 0 && func_ix >= 0 && dep_ix < pipeline_dep_ctx_ndep(ctx)) {   struct ast_Module * dep_mod = pipeline_dep_ctx_module_at(ctx, dep_ix);
-  if (dep_mod != ((struct ast_Module *)(0)) && func_ix < (dep_mod)->num_funcs) {   uint8_t dep_path[64] = { 0 };
+  if (dep_mod != ((struct ast_Module *)(0)) && func_ix < (dep_mod)->num_funcs) {
+  uint8_t fn_name[64] = { 0 };
+  int32_t fn_len = pipeline_module_func_name_len_at(dep_mod, func_ix);
+  int32_t mc_name_ok = 0;
+  if (fn_len > 0) {   (void)(pipeline_module_func_name_copy64(dep_mod, func_ix, (&((fn_name)[0]))));
+ }
+  if (fn_len > 0 && fn_len == (e).method_call_name_len && (e).method_call_name_len > 0) {
+    int32_t mi = 0; mc_name_ok = 1;
+    while (mi < fn_len) {
+      if (fn_name[mi] != ((e).method_call_name)[mi]) { mc_name_ok = 0; break; }
+      mi++;
+    }
+  }
+  if (mc_name_ok != 0 && pipeline_module_func_num_params_at(dep_mod, func_ix) == (e).method_call_num_args) {
+  uint8_t dep_path[64] = { 0 };
   (void)(pipeline_dep_ctx_import_path_copy64(ctx, dep_ix, (&((dep_path)[0]))));
   uint8_t pre_buf[128] = { 0 };
   (void)(codegen_import_path_to_c_prefix_into((&((dep_path)[0])), (&((pre_buf)[0])), 128));
@@ -4225,10 +4254,6 @@ SHUX_LIB_WEAK int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct code
   while (pre_len < 128 && (pre_len < 0 || (pre_len) >= 128 ? (shux_panic_(1, 0), (pre_buf)[0]) : (pre_buf)[pre_len]) != 0) {
     ++pre_len;
   }
-  uint8_t fn_name[64] = { 0 };
-  int32_t fn_len = pipeline_module_func_name_len_at(dep_mod, func_ix);
-  if (fn_len > 0) {   (void)(pipeline_module_func_name_copy64(dep_mod, func_ix, (&((fn_name)[0]))));
- }
   /* std.io.driver register/submit_read/submit_write：METHOD_CALL 走 shux_io_*_buf + &arg。 */
   int32_t drv_buf_mc = 0;
   if (codegen_path_is_std_io_driver_bytes((&((dep_path)[0]))) != 0 && fn_len > 0) {
@@ -4269,6 +4294,7 @@ SHUX_LIB_WEAK int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct code
     ++ai;
   }
   return codegen_append_byte(out, 41);
+ }
  }
  }
   uint8_t dep_path_fb[64] = { 0 };
@@ -4727,8 +4753,8 @@ SHUX_LIB_WEAK int32_t codegen_emit_block(struct ast_ASTArena * arena, struct cod
  }
   if (type_emitted == 0 && (!ast_ref_is_null((init_e).resolved_type_ref)) && (init_e).resolved_type_ref > 0 && (init_e).resolved_type_ref <= (arena)->num_types) {   struct ast_Type rt = ast_arena_type_get(arena, (init_e).resolved_type_ref);
   if ((rt).kind == ast_TypeKind_TYPE_NAMED && (rt).name_len >= 6) {   int32_t n0 = (rt).name_len - 6;
-  if ((n0 < 0 || (n0) >= 64 ? (shux_panic_(1, 0), ((rt).name)[0]) : ((rt).name)[n0]) == 83 && (n0 + 1 < 0 || (n0 + 1) >= 64 ? (shux_panic_(1, 0), ((rt).name)[0]) : ((rt).name)[n0 + 1]) == 116 && (n0 + 2 < 0 || (n0 + 2) >= 64 ? (shux_panic_(1, 0), ((rt).name)[0]) : ((rt).name)[n0 + 2]) == 114 && (n0 + 3 < 0 || (n0 + 3) >= 64 ? (shux_panic_(1, 0), ((rt).name)[0]) : ((rt).name)[n0 + 3]) == 105 && (n0 + 4 < 0 || (n0 + 4) >= 64 ? (shux_panic_(1, 0), ((rt).name)[0]) : ((rt).name)[n0 + 4]) == 110 && (n0 + 5 < 0 || (n0 + 5) >= 64 ? (shux_panic_(1, 0), ((rt).name)[0]) : ((rt).name)[n0 + 5]) == 103) {   uint8_t str_ty[14] = { 115, 116, 114, 117, 99, 116, 32, 83, 116, 114, 105, 110, 103, 0 };
-  if (codegen_emit_bytes_from_ptr(out, (&((str_ty)[0])), 13) != 0) {   return (-1);
+  if ((n0 < 0 || (n0) >= 64 ? (shux_panic_(1, 0), ((rt).name)[0]) : ((rt).name)[n0]) == 83 && (n0 + 1 < 0 || (n0 + 1) >= 64 ? (shux_panic_(1, 0), ((rt).name)[0]) : ((rt).name)[n0 + 1]) == 116 && (n0 + 2 < 0 || (n0 + 2) >= 64 ? (shux_panic_(1, 0), ((rt).name)[0]) : ((rt).name)[n0 + 2]) == 114 && (n0 + 3 < 0 || (n0 + 3) >= 64 ? (shux_panic_(1, 0), ((rt).name)[0]) : ((rt).name)[n0 + 3]) == 105 && (n0 + 4 < 0 || (n0 + 4) >= 64 ? (shux_panic_(1, 0), ((rt).name)[0]) : ((rt).name)[n0 + 4]) == 110 && (n0 + 5 < 0 || (n0 + 5) >= 64 ? (shux_panic_(1, 0), ((rt).name)[0]) : ((rt).name)[n0 + 5]) == 103) {   uint8_t str_ty[7] = { 83, 116, 114, 105, 110, 103, 0 };
+  if (codegen_emit_bytes_from_ptr(out, (&((str_ty)[0])), 6) != 0) {   return (-1);
  }
   if (codegen_append_byte(out, 32) != 0) {   return (-1);
  }
@@ -4737,8 +4763,8 @@ SHUX_LIB_WEAK int32_t codegen_emit_block(struct ast_ASTArena * arena, struct cod
  }
  }
   if (type_emitted == 0 && (init_e).kind == ast_ExprKind_EXPR_CALL && (!ast_ref_is_null((init_e).call_callee_ref)) && (init_e).call_callee_ref > 0 && (init_e).call_callee_ref <= (arena)->num_exprs) {   struct ast_Expr callee_let = ast_arena_expr_get(arena, (init_e).call_callee_ref);
-  if ((callee_let).kind == ast_ExprKind_EXPR_VAR) {   if (codegen_callee_var_is_string_new(callee_let) != 0) {   uint8_t str_ty[16] = { 115, 116, 114, 117, 99, 116, 32, 83, 116, 114, 105, 110, 103, 0, 0, 0 };
-  if (codegen_emit_bytes_from_ptr(out, (&((str_ty)[0])), 13) != 0) {   return (-1);
+  if ((callee_let).kind == ast_ExprKind_EXPR_VAR) {   if (codegen_callee_var_is_string_new(callee_let) != 0) {   uint8_t str_ty[7] = { 83, 116, 114, 105, 110, 103, 0 };
+  if (codegen_emit_bytes_from_ptr(out, (&((str_ty)[0])), 6) != 0) {   return (-1);
  }
   if (codegen_append_byte(out, 32) != 0) {   return (-1);
  }
@@ -4997,8 +5023,8 @@ SHUX_LIB_WEAK int32_t codegen_emit_block(struct ast_ASTArena * arena, struct cod
  }
   if (type_emitted == 0 && (!ast_ref_is_null((init_e).resolved_type_ref)) && (init_e).resolved_type_ref > 0 && (init_e).resolved_type_ref <= (arena)->num_types) {   struct ast_Type rt2 = ast_arena_type_get(arena, (init_e).resolved_type_ref);
   if ((rt2).kind == ast_TypeKind_TYPE_NAMED && (rt2).name_len >= 6) {   int32_t n02 = (rt2).name_len - 6;
-  if ((n02 < 0 || (n02) >= 64 ? (shux_panic_(1, 0), ((rt2).name)[0]) : ((rt2).name)[n02]) == 83 && (n02 + 1 < 0 || (n02 + 1) >= 64 ? (shux_panic_(1, 0), ((rt2).name)[0]) : ((rt2).name)[n02 + 1]) == 116 && (n02 + 2 < 0 || (n02 + 2) >= 64 ? (shux_panic_(1, 0), ((rt2).name)[0]) : ((rt2).name)[n02 + 2]) == 114 && (n02 + 3 < 0 || (n02 + 3) >= 64 ? (shux_panic_(1, 0), ((rt2).name)[0]) : ((rt2).name)[n02 + 3]) == 105 && (n02 + 4 < 0 || (n02 + 4) >= 64 ? (shux_panic_(1, 0), ((rt2).name)[0]) : ((rt2).name)[n02 + 4]) == 110 && (n02 + 5 < 0 || (n02 + 5) >= 64 ? (shux_panic_(1, 0), ((rt2).name)[0]) : ((rt2).name)[n02 + 5]) == 103) {   uint8_t str_ty2a[16] = { 115, 116, 114, 117, 99, 116, 32, 83, 116, 114, 105, 110, 103, 0, 0, 0 };
-  if (codegen_emit_bytes_from_ptr(out, (&((str_ty2a)[0])), 13) != 0) {   return (-1);
+  if ((n02 < 0 || (n02) >= 64 ? (shux_panic_(1, 0), ((rt2).name)[0]) : ((rt2).name)[n02]) == 83 && (n02 + 1 < 0 || (n02 + 1) >= 64 ? (shux_panic_(1, 0), ((rt2).name)[0]) : ((rt2).name)[n02 + 1]) == 116 && (n02 + 2 < 0 || (n02 + 2) >= 64 ? (shux_panic_(1, 0), ((rt2).name)[0]) : ((rt2).name)[n02 + 2]) == 114 && (n02 + 3 < 0 || (n02 + 3) >= 64 ? (shux_panic_(1, 0), ((rt2).name)[0]) : ((rt2).name)[n02 + 3]) == 105 && (n02 + 4 < 0 || (n02 + 4) >= 64 ? (shux_panic_(1, 0), ((rt2).name)[0]) : ((rt2).name)[n02 + 4]) == 110 && (n02 + 5 < 0 || (n02 + 5) >= 64 ? (shux_panic_(1, 0), ((rt2).name)[0]) : ((rt2).name)[n02 + 5]) == 103) {   uint8_t str_ty2a[7] = { 83, 116, 114, 105, 110, 103, 0 };
+  if (codegen_emit_bytes_from_ptr(out, (&((str_ty2a)[0])), 6) != 0) {   return (-1);
  }
   if (codegen_append_byte(out, 32) != 0) {   return (-1);
  }
@@ -5007,8 +5033,8 @@ SHUX_LIB_WEAK int32_t codegen_emit_block(struct ast_ASTArena * arena, struct cod
  }
  }
   if (type_emitted == 0 && (init_e).kind == ast_ExprKind_EXPR_CALL && (!ast_ref_is_null((init_e).call_callee_ref)) && (init_e).call_callee_ref > 0 && (init_e).call_callee_ref <= (arena)->num_exprs) {   struct ast_Expr callee_let2 = ast_arena_expr_get(arena, (init_e).call_callee_ref);
-  if ((callee_let2).kind == ast_ExprKind_EXPR_VAR) {   if (codegen_callee_var_is_string_new(callee_let2) != 0) {   uint8_t str_ty2[16] = { 115, 116, 114, 117, 99, 116, 32, 83, 116, 114, 105, 110, 103, 0, 0, 0 };
-  if (codegen_emit_bytes_from_ptr(out, (&((str_ty2)[0])), 13) != 0) {   return (-1);
+  if ((callee_let2).kind == ast_ExprKind_EXPR_VAR) {   if (codegen_callee_var_is_string_new(callee_let2) != 0) {   uint8_t str_ty2[7] = { 83, 116, 114, 105, 110, 103, 0 };
+  if (codegen_emit_bytes_from_ptr(out, (&((str_ty2)[0])), 6) != 0) {   return (-1);
  }
   if (codegen_append_byte(out, 32) != 0) {   return (-1);
  }
@@ -5338,37 +5364,59 @@ int32_t codegen_emit_func_link_name(struct codegen_CodegenOutBuf * out, struct a
   return 0;
 }
 
-/* 【Why 根源】CALL 端按 typeck 解析的 resolved_func_index/dep_index 查目标函数，
- * 通过 codegen_emit_func_link_name 输出 mangled 名；解析失败时回退原名保证向后兼容。
- * 【Invariant】ctx/arena 须非空才查 resolved 索引；fallback_name 须非空。 */
+/* 【Why 根源】CALL 端：resolved 仅在名+arity 一致时用；link_name 必须用目标模块 arena
+ * （错 arena → print_u8 而非 print_u8_ptr_usize）。与 codegen.x 同源。 */
+static struct ast_ASTArena *codegen_arena_for_module_c(struct ast_PipelineDepCtx *ctx,
+    struct ast_Module *module, struct ast_ASTArena *fallback) {
+  int32_t di, nd;
+  if (!ctx || !module) return fallback;
+  nd = pipeline_dep_ctx_ndep(ctx);
+  for (di = 0; di < nd; di++) {
+    if (pipeline_dep_ctx_module_at(ctx, di) == module) {
+      struct ast_ASTArena *da = pipeline_dep_ctx_arena_at(ctx, di);
+      return da ? da : fallback;
+    }
+  }
+  return fallback;
+}
+
 int32_t codegen_emit_call_func_name(struct codegen_CodegenOutBuf * out, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx, int32_t expr_ref, struct ast_Module * current_module, uint8_t * fallback_name, int32_t fallback_len) {
   if (ctx != 0 && arena != 0) {
     int32_t func_ix = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
     int32_t dep_ix = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
-    /* 实参个数：resolved 指向 arity 不匹配的重载时勿盲信（print 常落到 slice 形）。 */
+    /* 实参个数 + 名：resolved 指向错函数时勿盲信（uring_ok→print_u8_ptr_usize）。 */
     {
       struct ast_Expr call_e0 = ast_arena_expr_get(arena, expr_ref);
       int32_t is_m0 = ((call_e0).kind == ast_ExprKind_EXPR_METHOD_CALL);
       int32_t nargs0 = is_m0 ? (call_e0).method_call_num_args : (call_e0).call_num_args;
       if (func_ix >= 0) {
-        if (dep_ix >= 0 && dep_ix < pipeline_dep_ctx_ndep(ctx)) {
-          struct ast_Module * dep_mod = pipeline_dep_ctx_module_at(ctx, dep_ix);
-          struct ast_ASTArena * dep_arena = pipeline_dep_ctx_arena_at(ctx, dep_ix);
-          if (dep_mod != 0 && dep_arena != 0 && func_ix < (dep_mod)->num_funcs) {
-            if (pipeline_module_func_num_params_at(dep_mod, func_ix) == nargs0) {
-              return codegen_emit_func_link_name(out, dep_arena, dep_mod, func_ix);
+        struct ast_Module *res_mod = 0;
+        if (dep_ix >= 0 && dep_ix < pipeline_dep_ctx_ndep(ctx))
+          res_mod = pipeline_dep_ctx_module_at(ctx, dep_ix);
+        else
+          res_mod = current_module;
+        if (res_mod != 0 && func_ix < (res_mod)->num_funcs) {
+          int32_t ok_res = 1;
+          if (pipeline_module_func_num_params_at(res_mod, func_ix) != nargs0)
+            ok_res = 0;
+          if (ok_res && fallback_len > 0) {
+            int32_t rlen = pipeline_module_func_name_len_at(res_mod, func_ix);
+            if (rlen != fallback_len) ok_res = 0;
+            else {
+              uint8_t rnm[64] = {0};
+              int32_t ri;
+              pipeline_module_func_name_copy64(res_mod, func_ix, rnm);
+              for (ri = 0; ri < rlen; ri++) {
+                if (rnm[ri] != fallback_name[ri]) { ok_res = 0; break; }
+              }
             }
-            /* arity 不匹配：fall through 按实参重搜 */
-            func_ix = -1;
           }
-        } else {
-          if (current_module != 0 && func_ix < (current_module)->num_funcs) {
-            if (pipeline_module_func_num_params_at(current_module, func_ix) == nargs0) {
-              return codegen_emit_func_link_name(out, arena, current_module, func_ix);
-            }
-            func_ix = -1;
+          if (ok_res) {
+            struct ast_ASTArena *res_arena = codegen_arena_for_module_c(ctx, res_mod, arena);
+            return codegen_emit_func_link_name(out, res_arena, res_mod, func_ix);
           }
         }
+        func_ix = -1;
       }
     }
     /* typeck 未设 call_resolved：按名+实参类型/arity 在目标模块搜重载。 */
@@ -6082,11 +6130,17 @@ SHUX_LIB_WEAK int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTAr
   }
  }
  }
-  /* Entry module (dep_index < 0) with no computed prefix: preserve lib_name from ctx. */
-  if (prefix_len == 0 && dep_index < 0 && ctx != ((struct ast_PipelineDepCtx *)(0)) && (ctx)->current_codegen_prefix_len > 0) {
-    prefix_len = (ctx)->current_codegen_prefix_len;
-    int32_t _pi = 0;
-    while (_pi < prefix_len && _pi < 128) { (prefix_buf)[_pi] = (ctx)->current_codegen_prefix_mirror[_pi]; _pi = _pi + 1; }
+  /* Entry uses entry_module_import_path (C prefix pin); not current_* (dep-polluted). */
+  if (prefix_len == 0 && dep_index < 0 && ctx != ((struct ast_PipelineDepCtx *)(0))) {
+    if ((ctx)->entry_module_import_path_len > 0) {
+      int32_t pi = 0;
+      while (pi < (ctx)->entry_module_import_path_len && pi < 127) {
+        ((prefix_buf)[pi] = ((pi < 0 || (pi) >= 64 ? (shux_panic_(1, 0), ((ctx)->entry_module_import_path_mirror)[0]) : ((ctx)->entry_module_import_path_mirror)[pi])));
+        ++pi;
+      }
+      ((prefix_buf)[pi] = ((uint8_t)(0)));
+      (prefix_len = (pi));
+    }
   }
   if (ctx != ((struct ast_PipelineDepCtx *)(0))) {   ((ctx)->current_codegen_prefix_len = (0));
   int32_t px = 0;
@@ -6097,7 +6151,6 @@ SHUX_LIB_WEAK int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTAr
   ((px < 0 || (px) >= 64 ? (shux_panic_(1, 0), 0) : (((ctx)->current_codegen_prefix_mirror)[px] = ((uint8_t)(0)), 0)));
   ((ctx)->current_codegen_prefix_len = (px));
  }
-  {char _dbgpfx[] = {80,88,58,32,48,32,67,88,58,32,48,10,0}; _dbgpfx[4]=(char)((prefix_len%10)+48); _dbgpfx[10]=(ctx&&ctx->current_codegen_prefix_len>0)?49:48; fputs(_dbgpfx,stderr);}
   int32_t call_init_globals = 0;
   if ((module)->num_top_level_lets > 0) {   int32_t ti = 0;
   while (ti < (module)->num_top_level_lets) {
@@ -6358,6 +6411,14 @@ SHUX_LIB_WEAK int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTAr
     if (ctx != ((struct ast_PipelineDepCtx *)(0)) && (ctx)->use_asm_backend != 0) {   (asm_backend = (1));
  }
     (skip = (codegen_should_skip_emit_func_by_name((&((skip_name)[0])), skip_nl)));
+    /* core_mem_ prefix: do not skip placeholder (real export); keep skip for core_types_/std_string_ weak. */
+    if (skip != 0 && prefix_len >= 9 && (skip_nl == 11 || skip_nl == 10)) {
+      if ((prefix_buf)[0] == 99 && (prefix_buf)[1] == 111 && (prefix_buf)[2] == 114 && (prefix_buf)[3] == 101
+          && (prefix_buf)[4] == 95 && (prefix_buf)[5] == 109 && (prefix_buf)[6] == 101 && (prefix_buf)[7] == 109
+          && (prefix_buf)[8] == 95) {
+        (skip = (0));
+      }
+    }
     if (skip == 0 && prefix_len == 0 && asm_backend == 0) {   (skip = (codegen_should_skip_emit_func_core_read_ptr((&((skip_name)[0])), skip_nl)));
  }
     if (skip == 0 && prefix_len > 0 && asm_backend == 0) {   (skip = (codegen_should_skip_emit_func(((uint8_t *)(0)), (&((prefix_buf)[0])), prefix_len, (&((skip_name)[0])), skip_nl)));

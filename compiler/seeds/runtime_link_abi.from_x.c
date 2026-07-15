@@ -6348,14 +6348,11 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
             argv[la++] = exe_path;
             argv[la++] = o_path;
             link_abi_asm_ld_push_minimal_runtime_objs(link_eff, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, SHUX_LD_ARGV_CAP);
-            /** co-emit std.string 时 user.o 常引用 shux_string_*；最小链亦尝试链 string.o（~2KB，popen/nm 不可用时仍绿）。 */
-            link_abi_asm_ld_push_obj(NULL, link_eff, "std/string/string.o", lib_roots_eff, n_lib_roots_eff, ld_bank, argv,
-                                     &la, SHUX_LD_ARGV_CAP, NULL);
-            /** core.types 符号由 base64.o 提供（skip co-emit）；core-types gate 等最小链亦须链入。 */
-            link_abi_asm_ld_push_obj(NULL, link_eff, "std/base64/base64.o", lib_roots_eff, n_lib_roots_eff, ld_bank, argv,
-                                     &la, SHUX_LD_ARGV_CAP, NULL);
-            link_abi_asm_ld_push_obj(NULL, link_eff, "std/encoding/encoding.o", lib_roots_eff, n_lib_roots_eff, ld_bank, argv,
-                                     &la, SHUX_LD_ARGV_CAP, NULL);
+            /*
+             * user.o 无 UNDEF：co-emit 已自洽。勿再硬链 string.o/base64.o/encoding.o
+             * （string 入口-only 库 .o 对 heap 有 U，硬链会缺 std_heap_libc_*；且与 co-emit 体重复时 duplicate）。
+             * 有 UNDEF 时走下方 full append_std / on_demand。
+             */
             if (la < SHUX_LD_ARGV_CAP - 1)
                 argv[la++] = "-lc";
             argv[la] = NULL;

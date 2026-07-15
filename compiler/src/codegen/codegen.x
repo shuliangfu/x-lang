@@ -340,6 +340,19 @@ export function codegen_emit_prefix_len_from_ctx(ctx: *PipelineDepCtx, buf: *u8,
     return 0;
   }
   buf[0] = 0 as u8;
+  /*
+   * 入口库模块：优先 entry_module_import_path（driver 钉死的 C 前缀），避免
+   * current_codegen_prefix 被 dep codegen 覆写后污染入口局部/调用前缀。
+   */
+  if (ctx.current_codegen_dep_index < 0 && ctx.entry_module_import_path_len > 0) {
+    let pi: i32 = 0;
+    while (pi < ctx.entry_module_import_path_len && pi < buf_cap - 1) {
+      buf[pi] = ctx.entry_module_import_path_mirror[pi];
+      pi = pi + 1;
+    }
+    buf[pi] = 0 as u8;
+    return pi;
+  }
   if (ctx.current_codegen_prefix_len > 0) {
     let pi: i32 = 0;
     while (pi < ctx.current_codegen_prefix_len && pi < buf_cap - 1) {
@@ -2405,12 +2418,11 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
       }
     } else if (ctx != 0 as *PipelineDepCtx && ctx.current_codegen_module != 0 as *Module
         && codegen_type_is_module_user_struct(ctx.current_codegen_module, arena, type_ref) != 0) {
-      if (ctx.current_codegen_dep_index >= 0) {
-        let cur_pre: u8[128] = [];
-        let cur_pre_len: i32 = codegen_emit_prefix_len_from_ctx(ctx, &cur_pre[0], 128);
-        if (cur_pre_len > 0 && emit_bytes_from_ptr(out, &cur_pre[0], cur_pre_len) != 0) {
-          return -1;
-        }
+      /* dep 与入口库均经 codegen_emit_prefix_len_from_ctx（入口读 entry_module pin）。 */
+      let cur_pre: u8[128] = [];
+      let cur_pre_len: i32 = codegen_emit_prefix_len_from_ctx(ctx, &cur_pre[0], 128);
+      if (cur_pre_len > 0 && emit_bytes_from_ptr(out, &cur_pre[0], cur_pre_len) != 0) {
+        return -1;
       }
     } else {
       /* 无前缀时默认 ast_，生成 struct ast_ASTArena / struct ast_Type 等 */
@@ -2799,6 +2811,15 @@ export function codegen_should_skip_emit_struct_layout_for_abi_dup(name: *u8, na
   let nm_option_i32: u8[11] = [79, 112, 116, 105, 111, 110, 95, 105, 51, 50, 0];
   /* 泛型模板 Option<T>：C 无 monomorphize，勿 emit 非法/空 layout。 */
   let nm_option: u8[7] = [79, 112, 116, 105, 111, 110, 0];
+  /*
+   * rt_preamble / runtime.from_x 已 one-liner 定义：
+   *   struct std_string_String { ... }; typedef ... String;
+   *   struct std_string_StrView { ... };
+   * 入口编 std/string 时再 emit 完整 layout → redefinition of 'std_string_String'。
+   * 【Invariant】与 Error/Option_i32 同策略：preamble 权威，codegen 跳过裸名。
+   */
+  let nm_string: u8[7] = [83, 116, 114, 105, 110, 103, 0];
+  let nm_str_view: u8[8] = [83, 116, 114, 86, 105, 101, 119, 0];
   if (name_len == 6 && codegen_symbuf_bytes_eq(name, name_len, &nm_buffer[0], 6) != 0) {
     return 1;
   }
@@ -2818,6 +2839,12 @@ export function codegen_should_skip_emit_struct_layout_for_abi_dup(name: *u8, na
     return 1;
   }
   if (name_len == 6 && codegen_symbuf_bytes_eq(name, name_len, &nm_option[0], 6) != 0) {
+    return 1;
+  }
+  if (name_len == 6 && codegen_symbuf_bytes_eq(name, name_len, &nm_string[0], 6) != 0) {
+    return 1;
+  }
+  if (name_len == 7 && codegen_symbuf_bytes_eq(name, name_len, &nm_str_view[0], 7) != 0) {
     return 1;
   }
   return 0;
@@ -4274,11 +4301,42 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         return 0;
       }
     }
-    /* 优先吃 typeck 已解析好的 dep 槽位，避免在 dep 模块内再次按 import 表重猜而漏掉 binding 调用。 */
+    /* 优先吃 typeck 已解析好的 dep 槽位；但目标 dep 模块须含 field 名，否则盲信错 dep 前缀。 */
     if (!ast.ref_is_null(callee_ref) && callee_ref > 0 && callee_ref <= arena.num_exprs && ctx != 0 as *PipelineDepCtx && pipeline_dep_ctx_ndep(ctx) > 0) {
       let dep_ix_fast: i32 = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
       let callee_fast: Expr = ast.ast_arena_expr_get(arena, callee_ref);
       if (dep_ix_fast >= 0 && dep_ix_fast < pipeline_dep_ctx_ndep(ctx) && callee_fast.kind == ExprKind.EXPR_FIELD_ACCESS && callee_fast.field_access_field_len > 0) {
+        let dep_mod_chk: *Module = pipeline_dep_ctx_module_at(ctx, dep_ix_fast);
+        let field_in_dep: i32 = 0;
+        if (dep_mod_chk != 0 as *Module) {
+          let fi_c: i32 = 0;
+          while (fi_c < dep_mod_chk.num_funcs) {
+            let fl: i32 = pipeline_module_func_name_len_at(dep_mod_chk, fi_c);
+            if (fl == callee_fast.field_access_field_len && fl > 0) {
+              let fnc: u8[64] = [];
+              pipeline_module_func_name_copy64(dep_mod_chk, fi_c, &fnc[0]);
+              let eqc: i32 = 1;
+              let ic: i32 = 0;
+              while (ic < fl) {
+                if (fnc[ic] != callee_fast.field_access_field_name[ic]) {
+                  eqc = 0;
+                  ic = fl;
+                } else {
+                  ic = ic + 1;
+                }
+              }
+              if (eqc != 0) {
+                field_in_dep = 1;
+                fi_c = dep_mod_chk.num_funcs;
+              } else {
+                fi_c = fi_c + 1;
+              }
+            } else {
+              fi_c = fi_c + 1;
+            }
+          }
+        }
+        if (field_in_dep != 0) {
         let dep_path_fast: u8[64] = [];
         pipeline_dep_ctx_import_path_copy64(ctx, dep_ix_fast, &dep_path_fast[0]);
         let pre_fast: u8[128] = [];
@@ -4339,6 +4397,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           return -1;
         }
         return 0;
+        }
       }
     }
     if (!ast.ref_is_null(callee_ref) && callee_ref > 0 && callee_ref <= arena.num_exprs && ctx != 0 as *PipelineDepCtx && pipeline_dep_ctx_ndep(ctx) > 0 && ctx.current_codegen_module != 0 as *Module) {
@@ -4693,17 +4752,16 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
               }
               if (eq) {
                 let cur_pre: u8[128] = [];
-                let cur_dep_path_buf: u8[128] = [];
-                let cur_dep_plen: i32 = codegen_ctx_dep_path_for_current_codegen_module_into(ctx, &cur_dep_path_buf[0]);
-                if (cur_dep_plen > 0) {
-                  codegen_import_path_to_c_prefix_into(&cur_dep_path_buf[0], &cur_pre[0], 128);
-                } else {
-                  cur_pre[0] = 0 as u8;
-                }
-                let pl: i32 = 0;
-                while (pl < 128 && cur_pre[pl] != 0) {
-                  pl = pl + 1;
-                }
+                /*
+                 * 【Why 根源】入口库模块（dep_index=-1，如 core/mem）不在 dep 池，
+                 *   codegen_ctx_dep_path_for_current_codegen_module_into 返回 0。
+                 *   旧逻辑于是 pl=0 → 同模块调用 emit 裸名 mem_set，与定义端
+                 *   core_mem_mem_set 不匹配。codegen_emit_prefix_len_from_ctx 优先读
+                 *   driver 预设的 current_codegen_prefix_mirror（core_mem_），与
+                 *   emit_func / 声明端一致。
+                 * 【Invariant】extern 函数仍强制 pl=0（与 extern 声明裸/特定符号一致）。
+                 */
+                let pl: i32 = codegen_emit_prefix_len_from_ctx(ctx, &cur_pre[0], 128);
                 /* 【Why extern 裸名】同模块 extern function 调用也须用裸名，与声明符号一致 */
                 if (pipeline_module_func_is_extern_at(cur_mod, fi) != 0) {
                   pl = 0;
@@ -5345,9 +5403,39 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
     if (ctx != 0 as *PipelineDepCtx) {
       let dep_ix: i32 = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
       let func_ix: i32 = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
+      /*
+       * 【Why 根源】driver.xxx / core.xxx 常为 METHOD_CALL。typeck 在 dep typeck 失败
+       *   时仍可能写入错误 call_resolved（错 dep+错 func）→ 盲信会把
+       *   submit_write_batch_buf 发成 std_fmt_append_to_buf_*，uring_ok 发成
+       *   print_u8_ptr_usize()。必须校验「名+arity」与 method_call_name 一致，
+       *   否则落入下方 binding 回退（按 import path + method 名重搜）。
+       */
+      let mc_resolved_ok: i32 = 0;
       if (dep_ix >= 0 && func_ix >= 0 && dep_ix < pipeline_dep_ctx_ndep(ctx)) {
         let dep_mod: *Module = pipeline_dep_ctx_module_at(ctx, dep_ix);
         if (dep_mod != 0 as *Module && func_ix < dep_mod.num_funcs) {
+          let fn_name: u8[64] = [];
+          let fn_len: i32 = pipeline_module_func_name_len_at(dep_mod, func_ix);
+          let name_ok: i32 = 0;
+          if (fn_len > 0) {
+            pipeline_module_func_name_copy64(dep_mod, func_ix, &fn_name[0]);
+          }
+          if (fn_len > 0 && fn_len == e.method_call_name_len && e.method_call_name_len > 0) {
+            name_ok = 1;
+            let mi: i32 = 0;
+            while (mi < fn_len) {
+              if (fn_name[mi] != e.method_call_name[mi]) {
+                name_ok = 0;
+                mi = fn_len;
+              } else {
+                mi = mi + 1;
+              }
+            }
+          }
+          if (name_ok != 0 && pipeline_module_func_num_params_at(dep_mod, func_ix) == e.method_call_num_args) {
+            mc_resolved_ok = 1;
+          }
+          if (mc_resolved_ok != 0) {
           let dep_path: u8[64] = [];
           pipeline_dep_ctx_import_path_copy64(ctx, dep_ix, &dep_path[0]);
           let pre_buf: u8[128] = [];
@@ -5355,11 +5443,6 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           let pre_len: i32 = 0;
           while (pre_len < 128 && pre_buf[pre_len] != 0) {
             pre_len = pre_len + 1;
-          }
-          let fn_name: u8[64] = [];
-          let fn_len: i32 = pipeline_module_func_name_len_at(dep_mod, func_ix);
-          if (fn_len > 0) {
-            pipeline_module_func_name_copy64(dep_mod, func_ix, &fn_name[0]);
           }
           /* std.io.driver register/submit_read/submit_write：METHOD_CALL 也须走 shux_io_*_buf + &arg。
            * driver.submit_read(buf) 解析为 METHOD_CALL，非 FIELD_ACCESS+CALL。 */
@@ -5412,6 +5495,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
             ai = ai + 1;
           }
           return append_byte(out, 41);
+          }
         }
       }
       let dep_path_fb: u8[64] = [];
@@ -6023,14 +6107,19 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
               }
               type_emitted = 1;
             }
-            /* init 为返回 String 的 call（如 string_new）时，强制用 String 类型，与 preamble 一致；通过 callee 名或 resolved_type 名判断。 */
+            /*
+             * init 为返回 String 的 call（如 string_new）时，强制用 typedef 名 String。
+             * 【Why 根源】旧 emit `struct String`：preamble 是
+             *   `typedef struct std_string_String String`，`struct String` 为另一 incomplete tag。
+             * 【Invariant】与 preamble typedef 一致；勿再写 `struct String`。
+             */
             if (type_emitted == 0 && !ast.ref_is_null(init_e.resolved_type_ref) && init_e.resolved_type_ref > 0 && init_e.resolved_type_ref <= arena.num_types) {
               let rt: Type = ast.ast_arena_type_get(arena, init_e.resolved_type_ref);
               if (rt.kind == TypeKind.TYPE_NAMED && rt.name_len >= 6) {
                 let n0: i32 = rt.name_len - 6;
                 if (rt.name[n0] == 83 && rt.name[n0 + 1] == 116 && rt.name[n0 + 2] == 114 && rt.name[n0 + 3] == 105 && rt.name[n0 + 4] == 110 && rt.name[n0 + 5] == 103) {
-                  let str_ty: u8[14] = [115, 116, 114, 117, 99, 116, 32, 83, 116, 114, 105, 110, 103, 0];
-                  if (emit_bytes_from_ptr(out, &str_ty[0], 13) != 0) {
+                  let str_ty: u8[7] = [83, 116, 114, 105, 110, 103, 0];
+                  if (emit_bytes_from_ptr(out, &str_ty[0], 6) != 0) {
                     return -1;
                   }
                   if (append_byte(out, 32) != 0) {
@@ -6044,9 +6133,8 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
               let callee_let: Expr = ast.ast_arena_expr_get(arena, init_e.call_callee_ref);
               if (callee_let.kind == ExprKind.EXPR_VAR) {
                 if (codegen_callee_var_is_string_new(callee_let) != 0) {
-                  /* C 需 struct String，裸 String 非法（与上方 resolved_type 分支一致）。 */
-                  let str_ty: u8[14] = [115, 116, 114, 117, 99, 116, 32, 83, 116, 114, 105, 110, 103, 0];
-                  if (emit_bytes_from_ptr(out, &str_ty[0], 13) != 0) {
+                  let str_ty: u8[7] = [83, 116, 114, 105, 110, 103, 0];
+                  if (emit_bytes_from_ptr(out, &str_ty[0], 6) != 0) {
                     return -1;
                   }
                   if (append_byte(out, 32) != 0) {
@@ -6418,8 +6506,9 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
         if (rt2.kind == TypeKind.TYPE_NAMED && rt2.name_len >= 6) {
           let n02: i32 = rt2.name_len - 6;
           if (rt2.name[n02] == 83 && rt2.name[n02 + 1] == 116 && rt2.name[n02 + 2] == 114 && rt2.name[n02 + 3] == 105 && rt2.name[n02 + 4] == 110 && rt2.name[n02 + 5] == 103) {
-            let str_ty2a: u8[14] = [115, 116, 114, 117, 99, 116, 32, 83, 116, 114, 105, 110, 103, 0];
-            if (emit_bytes_from_ptr(out, &str_ty2a[0], 13) != 0) {
+            /* typedef String — 勿 struct String（incomplete）。 */
+            let str_ty2a: u8[7] = [83, 116, 114, 105, 110, 103, 0];
+            if (emit_bytes_from_ptr(out, &str_ty2a[0], 6) != 0) {
               return -1;
             }
             if (append_byte(out, 32) != 0) {
@@ -6433,8 +6522,8 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
         let callee_let2: Expr = ast.ast_arena_expr_get(arena, init_e.call_callee_ref);
         if (callee_let2.kind == ExprKind.EXPR_VAR) {
           if (codegen_callee_var_is_string_new(callee_let2) != 0) {
-            let str_ty2: u8[14] = [115, 116, 114, 117, 99, 116, 32, 83, 116, 114, 105, 110, 103, 0];
-            if (emit_bytes_from_ptr(out, &str_ty2[0], 13) != 0) {
+            let str_ty2: u8[7] = [83, 116, 114, 105, 110, 103, 0];
+            if (emit_bytes_from_ptr(out, &str_ty2[0], 6) != 0) {
               return -1;
             }
             if (append_byte(out, 32) != 0) {
@@ -6921,78 +7010,108 @@ export function codegen_emit_func_link_name(out: *CodegenOutBuf, arena: *ASTAren
 }
 
 /**
- * 【Why 根源】CALL 端输出目标函数 C 符号名：typeck 已解析时用 mangled 名，否则回退原名。
- * 【Invariant】resolved_func_index/resolved_dep_index 同时可用时走 mangled 路径，保证与定义/声明一致；
- * 未解析时用 fallback_name（callee.var_name 或 field_access_field_name），保持旧行为不回归。
+ * 【Why 根源】type_ref 是 arena 局部索引：目标模块函数的 param type_ref 必须用该模块
+ *   自己的 arena 做 suffix，否则 *u8+usize 会 mangle 成 print_u8（错 arena 把 PTR 看成
+ *   U8、第二参 suffix 空）→ 定义端 print_u8_ptr_usize、调用端 print_u8 链接失败。
+ * 【Invariant】优先按 Module* 在 dep 池回填 arena；找不到则用 fallback（调用方 arena）。
+ */
+export function codegen_arena_for_module(ctx: *PipelineDepCtx, module: *Module, fallback: *ASTArena): *ASTArena {
+  if (ctx == 0 as *PipelineDepCtx || module == 0 as *Module) {
+    return fallback;
+  }
+  let di: i32 = 0;
+  let nd: i32 = pipeline_dep_ctx_ndep(ctx);
+  while (di < nd) {
+    if (pipeline_dep_ctx_module_at(ctx, di) == module) {
+      let da: *ASTArena = pipeline_dep_ctx_arena_at(ctx, di);
+      if (da != 0 as *ASTArena) {
+        return da;
+      }
+      return fallback;
+    }
+    di = di + 1;
+  }
+  return fallback;
+}
+
+/**
+ * 【Why 根源】CALL 端输出目标函数 C 符号名。
+ *   1) typeck 的 call_resolved 仅在「名+arity」一致时可信；错 func_ix 会把 uring_ok
+ *      体误发成 std_io_print_u8_ptr_usize()（0 实参却挂 2 参符号）。
+ *   2) link_name 必须用目标模块 arena，否则 overload 后缀与定义端不一致（print_u8）。
+ *   3) 未解析时按名+类型 / 唯一 arity 搜索；再扫全部 dep；最后 fallback 原名。
+ * 【Invariant】arg 类型查调用方 arena；param 类型查 search_mod arena。
  */
 export function codegen_emit_call_func_name(out: *CodegenOutBuf, arena: *ASTArena, ctx: *PipelineDepCtx, expr_ref: i32, current_module: *Module, fallback_name: *u8, fallback_len: i32): i32 {
   if (ctx != 0 as *PipelineDepCtx && arena != 0 as *ASTArena) {
     let func_ix: i32 = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
     let dep_ix: i32 = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
-    /* 【Why 根源】type_ref 是 arena 局部索引：dep 模块函数的 param/return type_ref 必须用
-       dep 模块自己的 arena 查询，不能用当前编译模块的 arena，否则查到空类型后缀导致 mangle 失败。
-       【Invariant】mod_arena 与 search_mod/dep_mod 总是对应；arg_ty 仍用 arena（当前模块）。 */
-    let mod_arena: *ASTArena = arena;
-    if (dep_ix >= 0 && dep_ix < pipeline_dep_ctx_ndep(ctx)) {
-      mod_arena = pipeline_dep_ctx_arena_at(ctx, dep_ix);
-    } else if (current_module != 0 as *Module) {
-      /* binding 路径传 bind_dep_mod 作 current_module 且 dep_ix 未填时，按指针回填 dep arena。 */
-      let di_bind: i32 = 0;
-      while (di_bind < pipeline_dep_ctx_ndep(ctx)) {
-        if (pipeline_dep_ctx_module_at(ctx, di_bind) == current_module) {
-          mod_arena = pipeline_dep_ctx_arena_at(ctx, di_bind);
-          break;
-        }
-        di_bind = di_bind + 1;
-      }
+    let call_e0: Expr = ast.ast_arena_expr_get(arena, expr_ref);
+    let is_m0: i32 = 0;
+    if (call_e0.kind == ExprKind.EXPR_METHOD_CALL) {
+      is_m0 = 1;
     }
+    let nargs0: i32 = 0;
+    if (is_m0 != 0) {
+      nargs0 = call_e0.method_call_num_args;
+    } else {
+      nargs0 = call_e0.call_num_args;
+    }
+    /* resolved 仅在名+arity 匹配时采用；否则作废并重搜。 */
     if (func_ix >= 0) {
+      let res_mod: *Module = 0 as *Module;
       if (dep_ix >= 0 && dep_ix < pipeline_dep_ctx_ndep(ctx)) {
-        let dep_mod: *Module = pipeline_dep_ctx_module_at(ctx, dep_ix);
-        if (dep_mod != 0 as *Module && func_ix < dep_mod.num_funcs) {
-          return codegen_emit_func_link_name(out, mod_arena, dep_mod, func_ix);
-        }
+        res_mod = pipeline_dep_ctx_module_at(ctx, dep_ix);
       } else {
-        /* resolved_dep_index < 0：目标为本模块（或 binding 传入的 dep 模块） */
-        if (current_module != 0 as *Module && func_ix < current_module.num_funcs) {
-          return codegen_emit_func_link_name(out, mod_arena, current_module, func_ix);
+        res_mod = current_module;
+      }
+      if (res_mod != 0 as *Module && func_ix < res_mod.num_funcs) {
+        let ok_res: i32 = 1;
+        if (pipeline_module_func_num_params_at(res_mod, func_ix) != nargs0) {
+          ok_res = 0;
+        }
+        if (ok_res != 0 && fallback_len > 0) {
+          let rlen: i32 = pipeline_module_func_name_len_at(res_mod, func_ix);
+          if (rlen != fallback_len) {
+            ok_res = 0;
+          } else {
+            let rnm: u8[64] = [];
+            pipeline_module_func_name_copy64(res_mod, func_ix, &rnm[0]);
+            let ri: i32 = 0;
+            while (ri < rlen) {
+              if (rnm[ri] != fallback_name[ri]) {
+                ok_res = 0;
+                ri = rlen;
+              } else {
+                ri = ri + 1;
+              }
+            }
+          }
+        }
+        if (ok_res != 0) {
+          let res_arena: *ASTArena = codegen_arena_for_module(ctx, res_mod, arena);
+          return codegen_emit_func_link_name(out, res_arena, res_mod, func_ix);
         }
       }
+      func_ix = -1;
     }
-    /* 【Why 根源】typeck 未设 call_resolved_func_index（.x pipeline typeck 暂不支持重载解析）。
-       按函数名 + 实参类型在目标模块中搜索匹配的重载，找到唯一匹配则发 mangled name。
-       【Invariant】仅读访问 arena/module；不修改任何状态。EXPR_METHOD_CALL 须用
-       method_call_num_args / pipeline_expr_method_call_arg_ref（与 EXPR_CALL 的 call_num_args /
-       pipeline_expr_call_arg_ref 是不同的 AST 字段/sidecar 池，混用会读到 0/空引用）。
-       【Asm/Perf】O(n_funcs * n_params) 线性扫描，仅 CALL 路径触发，非热路径。 */
+    /* 目标模块：优先 dep_ix；否则 binding 传入的 current_module。arena 按 Module* 回填。 */
     let search_mod: *Module = 0 as *Module;
+    let search_arena: *ASTArena = arena;
     if (dep_ix >= 0 && dep_ix < pipeline_dep_ctx_ndep(ctx)) {
       search_mod = pipeline_dep_ctx_module_at(ctx, dep_ix);
+      search_arena = pipeline_dep_ctx_arena_at(ctx, dep_ix);
+      if (search_arena == 0 as *ASTArena) {
+        search_arena = arena;
+      }
     } else {
       search_mod = current_module;
-    }
-    if (search_mod != 0 as *Module && mod_arena == arena && search_mod != ctx.current_codegen_module) {
-      let di_s: i32 = 0;
-      while (di_s < pipeline_dep_ctx_ndep(ctx)) {
-        if (pipeline_dep_ctx_module_at(ctx, di_s) == search_mod) {
-          mod_arena = pipeline_dep_ctx_arena_at(ctx, di_s);
-          break;
-        }
-        di_s = di_s + 1;
-      }
+      search_arena = codegen_arena_for_module(ctx, search_mod, arena);
     }
     if (search_mod != 0 as *Module && fallback_len > 0) {
-      let call_e: Expr = ast.ast_arena_expr_get(arena, expr_ref);
-      let is_method: i32 = 0;
-      if (call_e.kind == ExprKind.EXPR_METHOD_CALL) {
-        is_method = 1;
-      }
-      let call_nargs: i32 = 0;
-      if (is_method != 0) {
-        call_nargs = call_e.method_call_num_args;
-      } else {
-        call_nargs = call_e.call_num_args;
-      }
+      let call_e: Expr = call_e0;
+      let is_method: i32 = is_m0;
+      let call_nargs: i32 = nargs0;
       let found_fi: i32 = -1;
       let found_count: i32 = 0;
       let fi_s: i32 = 0;
@@ -7027,18 +7146,34 @@ export function codegen_emit_call_func_name(out: *CodegenOutBuf, arena: *ASTAren
                   types_match = 0;
                 } else {
                   let arg_ty: i32 = pipeline_expr_resolved_type_ref(arena, arg_ref);
-                  /* EXPR_AS：operand 无 resolved 时用 as 目标类型（heap.alloc(n as usize)）。 */
+                  /* EXPR_AS：operand 无 resolved 时用 as 目标类型。 */
                   if (arg_ty <= 0 && pipeline_expr_kind_ord_at(arena, arg_ref) == 54) {
                     let as_tgt: i32 = pipeline_expr_as_target_type_ref_at(arena, arg_ref);
                     if (as_tgt > 0) {
                       arg_ty = as_tgt;
                     }
                   }
+                  /* STRING_LIT(kind 59) 无 resolved 时按 *u8 匹配 print(ptr,*u8)。 */
+                  let is_str_lit: i32 = 0;
+                  if (arg_ty <= 0 && pipeline_expr_kind_ord_at(arena, arg_ref) == 59) {
+                    is_str_lit = 1;
+                  }
                   let param_ty: i32 = pipeline_module_func_param_type_ref_at(search_mod, fi_s, pi);
                   let sa: u8[64] = [];
                   let sb: u8[64] = [];
-                  let na: i32 = codegen_type_ref_to_suffix(arena, arg_ty, &sa[0], 64);
-                  let nb: i32 = codegen_type_ref_to_suffix(mod_arena, param_ty, &sb[0], 64);
+                  let na: i32 = 0;
+                  let nb: i32 = codegen_type_ref_to_suffix(search_arena, param_ty, &sb[0], 64);
+                  if (is_str_lit != 0) {
+                    sa[0] = 117;
+                    sa[1] = 56;
+                    sa[2] = 95;
+                    sa[3] = 112;
+                    sa[4] = 116;
+                    sa[5] = 114;
+                    na = 6;
+                  } else {
+                    na = codegen_type_ref_to_suffix(arena, arg_ty, &sa[0], 64);
+                  }
                   if (na != nb) {
                     types_match = 0;
                   } else {
@@ -7069,15 +7204,14 @@ export function codegen_emit_call_func_name(out: *CodegenOutBuf, arena: *ASTAren
         fi_s = fi_s + 1;
       }
       if (found_count == 1 && found_fi >= 0) {
-        return codegen_emit_func_link_name(out, mod_arena, search_mod, found_fi);
+        return codegen_emit_func_link_name(out, search_arena, search_mod, found_fi);
       }
-      /* 【Why 根源】dep 模块函数体 typeck 未填实参 resolved_type_ref（arg_ty==0）导致类型匹配失败时，
-         按参数个数回退：若同名且参数个数匹配的唯一，用之。覆盖同模块 bump->alloc(al,size) 场景
-         （2 参 alloc 唯一即 alloc(Allocator,usize)）。同参数个数多重载时仍 fallback 原名（保守）。
-         【Invariant】仅当 found_count==0 触发；arity_count==1 才 emit，避免歧义。 */
-      if (found_count == 0) {
+      /* 类型未解析：同名同 arity 唯一则用；优先唯一 extern/no_mangle。 */
+      if (found_count != 1 && call_nargs >= 0) {
         let arity_fi: i32 = -1;
         let arity_count: i32 = 0;
+        let ext_fi: i32 = -1;
+        let ext_count: i32 = 0;
         let fi_a: i32 = 0;
         while (fi_a < search_mod.num_funcs) {
           let fn_len_a: i32 = pipeline_module_func_name_len_at(search_mod, fi_a);
@@ -7099,15 +7233,71 @@ export function codegen_emit_call_func_name(out: *CodegenOutBuf, arena: *ASTAren
               if (np_a == call_nargs) {
                 arity_fi = fi_a;
                 arity_count = arity_count + 1;
+                if (pipeline_module_func_is_extern_at(search_mod, fi_a) != 0 || pipeline_module_func_is_no_mangle_at(search_mod, fi_a) != 0) {
+                  ext_fi = fi_a;
+                  ext_count = ext_count + 1;
+                }
               }
             }
           }
           fi_a = fi_a + 1;
         }
+        if (ext_count == 1 && ext_fi >= 0) {
+          return codegen_emit_func_link_name(out, search_arena, search_mod, ext_fi);
+        }
         if (arity_count == 1 && arity_fi >= 0) {
-          return codegen_emit_func_link_name(out, mod_arena, search_mod, arity_fi);
+          return codegen_emit_func_link_name(out, search_arena, search_mod, arity_fi);
         }
       }
+    }
+  }
+  /* binding/dep 未钉死：扫全部 dep 找同名同 arity（首个命中）。 */
+  if (ctx != 0 as *PipelineDepCtx && fallback_len > 0 && arena != 0 as *ASTArena) {
+    let mc_e: Expr = ast.ast_arena_expr_get(arena, expr_ref);
+    let mc_nargs: i32 = 0;
+    if (mc_e.kind == ExprKind.EXPR_METHOD_CALL) {
+      mc_nargs = mc_e.method_call_num_args;
+    } else {
+      mc_nargs = mc_e.call_num_args;
+    }
+    let dep_di: i32 = 0;
+    let nd: i32 = pipeline_dep_ctx_ndep(ctx);
+    while (dep_di < nd) {
+      let dm: *Module = pipeline_dep_ctx_module_at(ctx, dep_di);
+      let da: *ASTArena = pipeline_dep_ctx_arena_at(ctx, dep_di);
+      if (dm != 0 as *Module && da != 0 as *ASTArena) {
+        let fi_x: i32 = 0;
+        let found_x: i32 = -1;
+        while (fi_x < dm.num_funcs) {
+          let fn_x: i32 = pipeline_module_func_name_len_at(dm, fi_x);
+          if (fn_x == fallback_len && fn_x > 0) {
+            let fnm: u8[64] = [];
+            pipeline_module_func_name_copy64(dm, fi_x, &fnm[0]);
+            let mx: i32 = 1;
+            let bx: i32 = 0;
+            while (bx < fn_x) {
+              if (fnm[bx] != fallback_name[bx]) {
+                mx = 0;
+                bx = fn_x;
+              } else {
+                bx = bx + 1;
+              }
+            }
+            if (mx != 0 && pipeline_module_func_num_params_at(dm, fi_x) == mc_nargs) {
+              found_x = fi_x;
+              fi_x = dm.num_funcs;
+            } else {
+              fi_x = fi_x + 1;
+            }
+          } else {
+            fi_x = fi_x + 1;
+          }
+        }
+        if (found_x >= 0) {
+          return codegen_emit_func_link_name(out, da, dm, found_x);
+        }
+      }
+      dep_di = dep_di + 1;
     }
   }
   /* 未解析：回退原名 */
@@ -7817,6 +8007,26 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
       }
     }
   }
+  /*
+   * 【Why 根源】入口库模块无 dep import path。driver 在 pipeline 前写入
+   *   entry_module_import_path_mirror 为 C 前缀（core_mem_ / std_string_）。
+   *   不可读 current_codegen_prefix_mirror：pipeline 先 codegen 各 dep，会把
+   *   current 覆写成最后 dep 的前缀（string 入口误成 core_mem_ → 全模块错前缀 +
+   *   incomplete struct String）。
+   * 【Invariant】仅 dep_index < 0 且 entry_module_import_path_len > 0 时采用；
+   *   dep 仍由 import path 重算。用户程序 entry_len=0 → 无前缀。
+   */
+  if (prefix_len == 0 && dep_index < 0 && ctx != 0 as *PipelineDepCtx) {
+    if (ctx.entry_module_import_path_len > 0) {
+      let pi: i32 = 0;
+      while (pi < ctx.entry_module_import_path_len && pi < 127) {
+        prefix_buf[pi] = ctx.entry_module_import_path_mirror[pi];
+        pi = pi + 1;
+      }
+      prefix_buf[pi] = 0 as u8;
+      prefix_len = pi;
+    }
+  }
   if (ctx != 0 as *PipelineDepCtx) {
     ctx.current_codegen_prefix_len = 0;
     let px: i32 = 0;
@@ -8137,6 +8347,27 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
       asm_backend = 1;
     }
     skip = codegen_should_skip_emit_func_by_name(&skip_name[0], skip_nl);
+    /*
+     * 【Why 根源】by_name 对裸名 placeholder / string_new 跳过，是为避免与 preamble 弱桩
+     *   符号冲突。入口库带 prefix 时定义端为 core_mem_placeholder / std_string_string_new，
+     *   与裸桩不冲突；若仍 skip，core.mem 等模块丢失真实 export → undefined reference。
+     * 【Invariant】仅解除 name_len==11（placeholder）与 name_len==10（string_new）在
+     *   prefix_len>0 时的 skip；std_string_placeholder 等已 mangle 名仍按原规则。
+     */
+    /*
+     * 【Why 根源】by_name 对裸名 placeholder 一律 skip，导致 core.mem 作为 dep 共 emit
+     *   时丢失 core_mem_placeholder 定义（user.o 其余 core_mem_* 齐、仅缺 placeholder →
+     *   on-demand 不拉 mem.o → undefined）。core_types_/std_string_ 仍须 skip 以免与
+     *   preamble weak 桩重定义。
+     * 【Invariant】prefix 以 core_mem_ 开头且 name 为 placeholder/string_new 时解除 skip。
+     */
+    if (skip != 0 && prefix_len >= 9 && (skip_nl == 11 || skip_nl == 10)) {
+      if (prefix_buf[0] == 99 && prefix_buf[1] == 111 && prefix_buf[2] == 114 && prefix_buf[3] == 101
+          && prefix_buf[4] == 95 && prefix_buf[5] == 109 && prefix_buf[6] == 101 && prefix_buf[7] == 109
+          && prefix_buf[8] == 95) {
+        skip = 0;
+      }
+    }
     if (skip == 0 && prefix_len == 0 && asm_backend == 0) {
       skip = codegen_should_skip_emit_func_core_read_ptr(&skip_name[0], skip_nl);
     }

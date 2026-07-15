@@ -14,19 +14,20 @@ SHUX="${SHUX:-$COMP/shux}"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT INT TERM
 
-# 1) mod.x → complete C via -o (cc may fail; keep C)
+# 1) mod.x → C：优先 -x -E（库模块 asm_entry_module_only：仅入口体，dep 为 extern，
+#    避免 string.o 内嵌 core_mem_*）。-o KEEP_C 曾 co-emit 整树并引用未声明 heap 全局。
 rm -f /tmp/shux_shux_x.*.c 2>/dev/null || true
-keep_before=$(ls /tmp/shux_shux_x.*.c 2>/dev/null | wc -l)
-SHUX_KEEP_C=1 "$SHUX" -L "$ROOT" -o "$tmp/mod.o" "$ROOT/std/string/mod.x" >"$tmp/mod.log" 2>&1 || true
-gen=$(ls -t /tmp/shux_shux_x.*.c 2>/dev/null | head -1)
-if [ -z "$gen" ] || [ ! -f "$gen" ]; then
-  echo "shux_compile_std_string_o: no kept C for mod.x" >&2
+if ! "$SHUX" -x -E -L "$ROOT" "$ROOT/std/string/mod.x" >"$tmp/mod.c" 2>"$tmp/mod.log"; then
+  echo "shux_compile_std_string_o: -x -E mod.x failed" >&2
   cat "$tmp/mod.log" >&2
   exit 1
 fi
-cp "$gen" "$tmp/mod.c"
+if [ ! -s "$tmp/mod.c" ]; then
+  echo "shux_compile_std_string_o: empty C for mod.x" >&2
+  exit 1
+fi
 
-# Arena64 tag unify + optional incomplete forwards for pointer-only tags
+# Arena64 + 库 -E 无完整 product preamble 时补 String/StrView（codegen ABI skip 依赖 preamble）
 python3 - "$tmp/mod.c" <<'PY'
 import sys, re
 from pathlib import Path
@@ -35,6 +36,42 @@ s = p.read_text()
 extra = []
 if "std_heap_libc_LibcArena64" in s and "heap_libc_Arena64" in s and "#define heap_libc_Arena64" not in s:
     extra.append("#define heap_libc_Arena64 std_heap_libc_LibcArena64\n")
+# entry-only 库 -E 跳过 String/StrView 完整体（与 product preamble 双 emit 策略）；此处注入权威布局
+if "struct std_string_String" in s and "struct std_string_String {" not in s:
+    extra.append(
+        "struct std_string_String { uint8_t data[256]; int32_t len; };\n"
+        "typedef struct std_string_String String;\n"
+        "struct std_string_StrView { uint8_t *ptr; int32_t len; };\n"
+    )
+# init_globals 可能引用 dep 全局（heap trace / mem fence）；库 .o 不定义它们 → 补 BSS
+if "shu_heap_trace_on" in s and "int32_t shu_heap_trace_on" not in s:
+    extra.append(
+        "int32_t shu_heap_trace_on;\n"
+        "uint64_t shu_heap_trace_alloc_count;\n"
+        "uint64_t shu_heap_trace_free_count;\n"
+        "uint64_t shu_heap_trace_realloc_count;\n"
+        "uint64_t shu_heap_trace_bytes;\n"
+        "uint64_t g_mem_fence_seq;\n"
+    )
+# entry-only 对 heap 有 U；最小链若硬链 string.o 需弱桩（勿 #include stdlib：与 shux extern malloc 冲突）
+if "std_heap_libc_heap_arena64_alloc_c" in s and "__attribute__((weak)) uint8_t *std_heap_libc_heap_arena64_alloc_c" not in s:
+    extra.append(
+        "#ifndef SHUX_STRING_HEAP_WEAK\n"
+        "#define SHUX_STRING_HEAP_WEAK\n"
+        "struct std_heap_libc_LibcArena64;\n"
+        "extern uint8_t *malloc(size_t size);\n"
+        "__attribute__((weak)) int32_t std_heap_libc_heap_arena64_init_c(struct std_heap_libc_LibcArena64 *a, size_t cap) {\n"
+        "  (void)a; (void)cap; return 0;\n"
+        "}\n"
+        "__attribute__((weak)) uint8_t *std_heap_libc_heap_arena64_bump_c(struct std_heap_libc_LibcArena64 *a, size_t size, size_t obj_align) {\n"
+        "  (void)a; (void)obj_align; return malloc(size ? size : 1);\n"
+        "}\n"
+        "__attribute__((weak)) uint8_t *std_heap_libc_heap_arena64_alloc_c(struct std_heap_libc_LibcArena64 *a, size_t size, size_t align_bytes) {\n"
+        "  (void)a; (void)align_bytes; return malloc(size ? size : 1);\n"
+        "}\n"
+        "__attribute__((weak)) void std_heap_libc_heap_arena64_deinit_c(struct std_heap_libc_LibcArena64 *a) { (void)a; }\n"
+        "#endif\n"
+    )
 if extra:
     last = None
     for m in re.finditer(r"^#include[^\n]*\n", s, re.M):
@@ -50,32 +87,23 @@ PY
 CFLAGS="-std=gnu11 -fPIE -ffunction-sections -fdata-sections -I$ROOT -I$COMP -I$COMP/include -I$COMP/src -Wno-unused-variable -Wno-unused-parameter -Wno-unused-function -Wno-sign-compare -Wno-incompatible-pointer-types"
 cc $CFLAGS -c "$tmp/mod.c" -o "$tmp/mod.o"
 
-# 2) string.x bare (fast-path names)
-SHUX_KEEP_C=1 "$SHUX" -L "$ROOT" -lib-name "" -o "$tmp/sx.o" "$ROOT/std/string/string.x" >"$tmp/sx.log" 2>&1 || true
-if [ ! -f "$tmp/sx.o" ]; then
-  # fallback: compile string.x -E if -o failed but maybe small enough
-  if "$SHUX" -x -E -lib-name "" -L "$ROOT" "$ROOT/std/string/string.x" >"$tmp/sx.c" 2>"$tmp/sx.err"; then
-    # trim incomplete tail if needed
-    if ! tail -c 1 "$tmp/sx.c" | grep -q '}'; then
-      python3 - "$tmp/sx.c" <<'PY'
-import sys
-from pathlib import Path
-s = Path(sys.argv[1]).read_text()
-depth = last = 0
-for i,c in enumerate(s):
-    if c=='{': depth+=1
-    elif c=='}':
-        depth-=1
-        if depth==0: last=i
-if last>0:
-    Path(sys.argv[1]).write_text(s[:last+1]+"\n")
-PY
+# 2) string.x bare ABI (shux_string_*_c) — 必须裸符号。
+# 【Why】产品 shux 为 SHUX_NO_C_FRONTEND 时 -lib-name 未接线（仅 C 前端 RUN_CC 解析），
+#   路径前缀会把 shux_string_copy_c 打成 std_string_string_shux_string_copy_c。
+# 权威裸实现与 path.o 同策略：seeds/runtime_string_fast.from_x.c（与 string.x 同语义）。
+# -lib-name 接线后可改回 shux -lib-name "" string.x。
+if [ -f "$COMP/seeds/runtime_string_fast.from_x.c" ]; then
+  cc $CFLAGS -c "$COMP/seeds/runtime_string_fast.from_x.c" -o "$tmp/sx.o"
+else
+  SHUX_KEEP_C=1 "$SHUX" -L "$ROOT" -lib-name "" -o "$tmp/sx.o" "$ROOT/std/string/string.x" >"$tmp/sx.log" 2>&1 || true
+  if [ ! -f "$tmp/sx.o" ]; then
+    if "$SHUX" -x -E -lib-name "" -L "$ROOT" "$ROOT/std/string/string.x" >"$tmp/sx.c" 2>"$tmp/sx.err"; then
+      cc $CFLAGS -c "$tmp/sx.c" -o "$tmp/sx.o"
+    else
+      echo "shux_compile_std_string_o: string.x bare failed (no seed, -lib-name unsupported)" >&2
+      cat "$tmp/sx.log" "$tmp/sx.err" 2>/dev/null >&2
+      exit 1
     fi
-    cc $CFLAGS -c "$tmp/sx.c" -o "$tmp/sx.o"
-  else
-    echo "shux_compile_std_string_o: string.x failed" >&2
-    cat "$tmp/sx.log" "$tmp/sx.err" 2>/dev/null >&2
-    exit 1
   fi
 fi
 

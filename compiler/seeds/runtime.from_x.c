@@ -683,8 +683,69 @@ int write_io_net_abi_inline(FILE *cf) {
         "#define std_io_driver_io_read_batch_buf io_read_batch_buf\n",
         "#define std_io_driver_io_write_batch_buf io_write_batch_buf\n",
         "#define std_io_driver_io_register_buffers_buf(bufs, nr) io_register_buffers_buf((intptr_t)(void *)(bufs), (int)(nr))\n",
-        /* 单权威：submit_*_batch_buf / register_fixed 由 codegen co-emit 或 io.o 提供；
-         * 勿 weak 桩（与同 TU 强符号 redefinition）。上方已有 extern 声明。 */
+        /*
+         * 【Why 根源】产品 -o 走 write_io_net_abi_inline，仅有 extern。hello 等 co-emit
+         *   整包 std.io 时，未用到的 read/batch 体仍链进 .o，引用 shux_io_submit_read /
+         *   std_io_driver_submit_* / io_* / ctx_*；macOS 又不能硬链 runtime_asm_io_stubs
+         *   （与 co-emit 的 std_io_write_stdout 等强符号冲突）。
+         * 【Invariant】weak：有 co-emit/io.o 强符号时选强；无则 stdio 占位，hello print 可链。
+         */
+        "#include <stdio.h>\n"
+        "#ifndef __cplusplus\n"
+        "__attribute__((weak)) int32_t shux_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m) {\n"
+        "  size_t r; (void)timeout_m; if (!ptr) return 0; if (handle != 0) return -1;\n"
+        "  r = fread(ptr, 1, len, stdin); if (r == 0 && ferror(stdin)) return -1; return (int32_t)r;\n"
+        "}\n"
+        "__attribute__((weak)) int32_t shux_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m) {\n"
+        "  FILE *fp; (void)timeout_m; if (!ptr || len == 0) return 0;\n"
+        "  if (handle == 1) fp = stdout; else if (handle == 2) fp = stderr; else return -1;\n"
+        "  return (fwrite(ptr, 1, len, fp) == len) ? (int32_t)len : -1;\n"
+        "}\n"
+        "__attribute__((weak)) int32_t shux_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle) {\n"
+        "  (void)ptr; (void)len; (void)handle; return -1;\n"
+        "}\n"
+        "__attribute__((weak)) int32_t shux_io_read_fixed(size_t h, uint32_t bi, size_t o, size_t l, uint32_t t) {\n"
+        "  (void)h;(void)bi;(void)o;(void)l;(void)t; return -1;\n"
+        "}\n"
+        "__attribute__((weak)) int32_t shux_io_write_fixed(size_t h, uint32_t bi, size_t o, size_t l, uint32_t t) {\n"
+        "  (void)h;(void)bi;(void)o;(void)l;(void)t; return -1;\n"
+        "}\n"
+        "__attribute__((weak)) int32_t shux_io_read_ptr_backend(void) { return 0; }\n"
+        "__attribute__((weak)) int io_register_buffers_4(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3, unsigned nr) {\n"
+        "  (void)p0;(void)l0;(void)p1;(void)l1;(void)p2;(void)l2;(void)p3;(void)l3;(void)nr; return -1;\n"
+        "}\n"
+        "__attribute__((weak)) int io_wait_readable(int32_t *fds, int n, unsigned timeout_ms) {\n"
+        "  (void)fds;(void)n;(void)timeout_ms; return -1;\n"
+        "}\n"
+        "__attribute__((weak)) ptrdiff_t io_read_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms) {\n"
+        "  (void)fd;(void)bufs;(void)n;(void)timeout_ms; return (ptrdiff_t)-1;\n"
+        "}\n"
+        "__attribute__((weak)) int32_t std_io_driver_submit_read_batch(struct std_io_driver_Buffer *bufs, int32_t n, uint32_t t) {\n"
+        "  (void)bufs;(void)n;(void)t; return -1;\n"
+        "}\n"
+        "__attribute__((weak)) int32_t std_io_driver_submit_write_batch(struct std_io_driver_Buffer *bufs, int32_t n, uint32_t t) {\n"
+        "  (void)bufs;(void)n;(void)t; return -1;\n"
+        "}\n"
+        "__attribute__((weak)) int32_t std_io_driver_submit_write_batch_buf(size_t h, struct std_io_driver_Buffer *bufs, int32_t n, uint32_t t) {\n"
+        "  (void)h;(void)bufs;(void)n;(void)t; return -1;\n"
+        "}\n"
+        "__attribute__((weak)) int32_t std_io_driver_submit_read_batch_buf(size_t h, struct std_io_driver_Buffer *bufs, int32_t n, uint32_t t) {\n"
+        "  (void)h;(void)bufs;(void)n;(void)t; return -1;\n"
+        "}\n"
+        "__attribute__((weak)) uint64_t std_io_driver_driver_read_ptr_gen(void) { return 0; }\n"
+        "typedef struct { int32_t _pad; } shux_ctx_handle_t;\n"
+        "__attribute__((weak)) shux_ctx_handle_t *ctx_background_c(void) { return 0; }\n"
+        "__attribute__((weak)) void ctx_cancel_c(shux_ctx_handle_t *c) { (void)c; }\n"
+        "__attribute__((weak)) int64_t ctx_deadline_ns_c(shux_ctx_handle_t *c) { (void)c; return 0; }\n"
+        "__attribute__((weak)) void ctx_free_c(shux_ctx_handle_t *c) { (void)c; }\n"
+        "__attribute__((weak)) void *ctx_get_value_c(shux_ctx_handle_t *c, void *k) { (void)c;(void)k; return 0; }\n"
+        "__attribute__((weak)) int32_t ctx_is_cancelled_c(shux_ctx_handle_t *c) { (void)c; return 0; }\n"
+        "__attribute__((weak)) int64_t ctx_remaining_ns_c(shux_ctx_handle_t *c) { (void)c; return 0; }\n"
+        "__attribute__((weak)) void ctx_set_value_c(shux_ctx_handle_t *c, void *k, void *v) { (void)c;(void)k;(void)v; }\n"
+        "__attribute__((weak)) shux_ctx_handle_t *ctx_with_cancel_c(shux_ctx_handle_t *p) { (void)p; return 0; }\n"
+        "__attribute__((weak)) shux_ctx_handle_t *ctx_with_deadline_c(shux_ctx_handle_t *p, int64_t ns) { (void)p;(void)ns; return 0; }\n"
+        "__attribute__((weak)) shux_ctx_handle_t *ctx_with_timeout_c(shux_ctx_handle_t *p, int64_t ns) { (void)p;(void)ns; return 0; }\n"
+        "#endif\n",
         "struct std_net_Ipv4Addr { uint8_t a; uint8_t b; uint8_t c; uint8_t d; };\n",
         "struct std_net_Ipv6Addr { uint8_t b0,b1,b2,b3,b4,b5,b6,b7,b8,b9,b10,b11,b12,b13,b14,b15; };\n",
         "#define handle_from_fd std_io_handle_from_fd\n",
@@ -5503,8 +5564,8 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
     /* parser_parse_into_init(module, arena); */
     shux_pipeline_pctx_seed_dep_slots(pctx, dep_modules, dep_arenas, dep_paths, n_deps);
     pctx->ndep = n_deps; /* prevent pipeline from reloading deps (already seeded) */
-    /* Set codegen prefix from lib_name (e.g., core/mem/mod.x → core_mem_).
-     * Trailing underscore matches codegen_import_path_to_c_prefix_into behavior. */
+    /* Set entry C prefix (core/mem → core_mem_). Also pin entry_module_import_path
+     * so dep codegen cannot pollute entry prefix (see codegen_x_ast entry inherit). */
     {
         extern const char *shux_entry_lib_name_from_path(const char *path);
         const char *lib_name = shux_entry_lib_name_from_path(input_path);
@@ -5515,9 +5576,16 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
                 pctx->current_codegen_prefix_mirror[plen] = '_';  /* trailing underscore */
                 pctx->current_codegen_prefix_mirror[plen + 1] = 0;
                 pctx->current_codegen_prefix_len = plen + 1;
+                memcpy(pctx->entry_module_import_path_mirror, lib_name, (size_t)plen);
+                pctx->entry_module_import_path_mirror[plen] = '_';
+                pctx->entry_module_import_path_mirror[plen + 1] = 0;
+                pctx->entry_module_import_path_len = plen + 1;
             }
         }
     }
+    /* 库模块：勿 co-emit dep 体（见 driver_run_x_emit_c 同注释）。 */
+    if (pr.main_idx < 0)
+        pctx->asm_entry_module_only = 1;
     pctx->entry_already_parsed = 1;
     if (n_deps > 0 && !driver_check_only_get() && want_asm_backend &&
         driver_deps_are_std_core_closure_only(dep_paths, n_deps))
@@ -7282,6 +7350,37 @@ int driver_run_x_emit_c(void) {
         else
             shux_pipeline_pctx_seed_dep_slots(pctx_e, dep_modules, dep_arenas, dep_paths, n_deps);
         pctx_e->use_asm_backend = 0; /* -E 须走 C codegen 写 stdout */
+        /*
+         * 【Why 根源】-x -E 走 driver_run_x_emit_c。入口库前缀须写入
+         *   entry_module_import_path_mirror（专用、不被 dep codegen 覆盖），
+         *   同时写 current_codegen_prefix_mirror（兼容）。codegen_x_ast(entry)
+         *   只读 entry_module_*，避免最后 dep 的 core_mem_ 污染 string 等入口。
+         * 【Invariant】lib_name = shux_entry_lib_name_from_path → C 前缀 = lib_name+'_'。
+         */
+        {
+            extern const char *shux_entry_lib_name_from_path(const char *path);
+            const char *lib_name = shux_entry_lib_name_from_path(input_path);
+            if (lib_name && lib_name[0]) {
+                int32_t plen = (int32_t)strlen(lib_name);
+                if (plen > 0 && plen < 63) {
+                    memcpy(pctx_e->current_codegen_prefix_mirror, lib_name, (size_t)plen);
+                    pctx_e->current_codegen_prefix_mirror[plen] = '_';
+                    pctx_e->current_codegen_prefix_mirror[plen + 1] = 0;
+                    pctx_e->current_codegen_prefix_len = plen + 1;
+                    memcpy(pctx_e->entry_module_import_path_mirror, lib_name, (size_t)plen);
+                    pctx_e->entry_module_import_path_mirror[plen] = '_';
+                    pctx_e->entry_module_import_path_mirror[plen + 1] = 0;
+                    pctx_e->entry_module_import_path_len = plen + 1;
+                }
+            }
+        }
+        /*
+         * 库模块（无 main）：dep 符号由并列 *.o 提供，勿 co-emit dep 函数体进本 TU。
+         * 否则 string.o 内嵌 core_mem_*，用户 co-emit 后再链 string.o → duplicate。
+         * pipeline 用 asm_entry_module_only 作 skip_asm_dep_codegen（C 路径同样生效）。
+         */
+        if (pr.main_idx < 0)
+            pctx_e->asm_entry_module_only = 1;
         /* 与 driver_run_compiler_parsed 一致：逆拓扑 dep prerun parse+typeck，再编入口+deps。 */
         driver_dep_seeded_clear_all();
         for (int j = n_deps - 1; j >= 0; j--) {

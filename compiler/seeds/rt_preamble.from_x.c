@@ -204,7 +204,64 @@ const char *const driver_preamble_io_net_lines[] = {
         "#define std_io_driver_io_read_batch_buf io_read_batch_buf\n",
         "#define std_io_driver_io_write_batch_buf io_write_batch_buf\n",
         "#define std_io_driver_io_register_buffers_buf(bufs, nr) io_register_buffers_buf((intptr_t)(void *)(bufs), (int)(nr))\n",
-        /* 单权威：submit_*_batch_buf 由 co-emit/io.o 提供；勿 weak 桩（同 TU redefinition）。 */
+        /*
+         * 【Why 根源】产品 -o 仅有 extern；co-emit 整包 std.io 时未用到的 read/batch 仍进 .o，
+         *   引用 shux_io_submit_read / std_io_driver_submit_* / io_* / ctx_*。macOS 不能硬链
+         *   runtime_asm_io_stubs（与 co-emit std_io_write_stdout 强符号冲突）。
+         * 【Invariant】weak：有强符号选强；无则 stdio/占位，hello print 可链。
+         */
+        "#include <stdio.h>\n"
+        "#ifndef __cplusplus\n"
+        "/* 仅补 co-emit 未定义的符号；勿桩 shux_io_submit_write / submit_read_batch_buf（同 TU 强定义）。 */\n"
+        "__attribute__((weak)) int32_t shux_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m) {\n"
+        "  size_t r; (void)timeout_m; if (!ptr) return 0; if (handle != 0) return -1;\n"
+        "  r = fread(ptr, 1, len, stdin); if (r == 0 && ferror(stdin)) return -1; return (int32_t)r;\n"
+        "}\n"
+        "__attribute__((weak)) int32_t shux_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle) {\n"
+        "  (void)ptr; (void)len; (void)handle; return -1;\n"
+        "}\n"
+        "__attribute__((weak)) int32_t shux_io_read_fixed(size_t h, uint32_t bi, size_t o, size_t l, uint32_t t) {\n"
+        "  (void)h;(void)bi;(void)o;(void)l;(void)t; return -1;\n"
+        "}\n"
+        "__attribute__((weak)) int32_t shux_io_write_fixed(size_t h, uint32_t bi, size_t o, size_t l, uint32_t t) {\n"
+        "  (void)h;(void)bi;(void)o;(void)l;(void)t; return -1;\n"
+        "}\n"
+        "__attribute__((weak)) int32_t shux_io_read_ptr_backend(void) { return 0; }\n"
+        "__attribute__((weak)) int io_register_buffers_4(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3, unsigned nr) {\n"
+        "  (void)p0;(void)l0;(void)p1;(void)l1;(void)p2;(void)l2;(void)p3;(void)l3;(void)nr; return -1;\n"
+        "}\n"
+        "__attribute__((weak)) int io_wait_readable(int32_t *fds, int n, unsigned timeout_ms) {\n"
+        "  (void)fds;(void)n;(void)timeout_ms; return -1;\n"
+        "}\n"
+        "__attribute__((weak)) ptrdiff_t io_read_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms) {\n"
+        "  (void)fd;(void)bufs;(void)n;(void)timeout_ms; return (ptrdiff_t)-1;\n"
+        "}\n"
+        "__attribute__((weak)) int32_t std_io_driver_submit_read_batch(struct std_io_driver_Buffer *bufs, int32_t n, uint32_t t) {\n"
+        "  (void)bufs;(void)n;(void)t; return -1;\n"
+        "}\n"
+        "__attribute__((weak)) int32_t std_io_driver_submit_write_batch(struct std_io_driver_Buffer *bufs, int32_t n, uint32_t t) {\n"
+        "  (void)bufs;(void)n;(void)t; return -1;\n"
+        "}\n"
+        "__attribute__((weak)) int32_t std_io_driver_submit_write_batch_buf(size_t h, struct std_io_driver_Buffer *bufs, int32_t n, uint32_t t) {\n"
+        "  (void)h;(void)bufs;(void)n;(void)t; return -1;\n"
+        "}\n"
+        "__attribute__((weak)) uint64_t std_io_driver_driver_read_ptr_gen(void) { return 0; }\n"
+        "__attribute__((weak)) int64_t ctx_background_c(void) { return 0; }\n"
+        "__attribute__((weak)) void ctx_cancel_c(int64_t c) { (void)c; }\n"
+        "__attribute__((weak)) int64_t ctx_deadline_ns_c(int64_t c) { (void)c; return 0; }\n"
+        "__attribute__((weak)) void ctx_free_c(int64_t c) { (void)c; }\n"
+        "__attribute__((weak)) int32_t ctx_get_value_c(int64_t h, uint8_t *key, int64_t *out) {\n"
+        "  (void)h;(void)key; if (out) *out = 0; return 0;\n"
+        "}\n"
+        "__attribute__((weak)) int32_t ctx_is_cancelled_c(int64_t c) { (void)c; return 0; }\n"
+        "__attribute__((weak)) int64_t ctx_remaining_ns_c(int64_t c) { (void)c; return 0; }\n"
+        "__attribute__((weak)) int32_t ctx_set_value_c(int64_t h, uint8_t *key, int64_t value) {\n"
+        "  (void)h;(void)key;(void)value; return 0;\n"
+        "}\n"
+        "__attribute__((weak)) int64_t ctx_with_cancel_c(int64_t p) { (void)p; return 0; }\n"
+        "__attribute__((weak)) int64_t ctx_with_deadline_c(int64_t p, int64_t ns) { (void)p;(void)ns; return 0; }\n"
+        "__attribute__((weak)) int64_t ctx_with_timeout_c(int64_t p, int64_t ns) { (void)p;(void)ns; return 0; }\n"
+        "#endif\n",
         "struct std_net_Ipv4Addr { uint8_t a; uint8_t b; uint8_t c; uint8_t d; };\n",
         "struct std_net_Ipv6Addr { uint8_t b0,b1,b2,b3,b4,b5,b6,b7,b8,b9,b10,b11,b12,b13,b14,b15; };\n",
         "#define handle_from_fd std_io_handle_from_fd\n",
@@ -233,10 +290,8 @@ const char *const driver_preamble_io_net_lines[] = {
         "struct core_result_Result_i32 { int32_t value; int32_t _pad1; int32_t err; int32_t _pad2; };\n",
         "struct core_result_Result_u8 { uint8_t value; uint8_t _pad1; uint8_t _pad2; uint8_t _pad3; int32_t err; int32_t _pad4; };\n",
         "extern void shux_panic_(int, int);\n",
+        /* 仅 extern：co-emit core.types 会生成强定义；同 TU weak+强定义 → redefinition。 */
         "extern int32_t core_types_placeholder(void);\n",
-        "#ifndef __cplusplus\n",
-        "__attribute__((weak)) int32_t core_types_placeholder(void) { return 0; }\n",
-        "#endif\n",
         "extern int32_t std_heap_alloc_size_zero(void);\n",
         "extern int32_t std_runtime_runtime_ready(void);\n",
         "#ifndef __cplusplus\n"
