@@ -25523,6 +25523,23 @@ int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module, stru
               pipeline_typeck_expr_apply_call_resolve_c(arena, expr_ref, dep_slot, bind_fn);
               break;
             }
+            /* Fallback: dep_slot path/module misalignment; search all dep slots for function. */
+            {
+              int32_t try_di;
+              int32_t nd = pipeline_dep_ctx_ndep(ctx);
+              for (try_di = 0; try_di < nd && ret_ty == 0; try_di++) {
+                if (try_di == dep_slot) continue;
+                struct ast_Module *try_dm = pipeline_dep_ctx_module_at(ctx, try_di);
+                if (!try_dm) continue;
+                bind_fn = 0;
+                ret_ty = pipeline_typeck_find_func_return_type_in_module_by_name_c(
+                    try_dm, arena, method_nm, method_nlen, try_di, ctx, &bind_fn);
+                if (ret_ty != 0) {
+                  dep_slot = try_di;
+                  pipeline_typeck_expr_apply_call_resolve_c(arena, expr_ref, dep_slot, bind_fn);
+                }
+              }
+            }
           }
         }
         j = j + 1;
