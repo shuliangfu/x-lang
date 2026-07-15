@@ -5503,16 +5503,18 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
     /* parser_parse_into_init(module, arena); */
     shux_pipeline_pctx_seed_dep_slots(pctx, dep_modules, dep_arenas, dep_paths, n_deps);
     pctx->ndep = n_deps; /* prevent pipeline from reloading deps (already seeded) */
-    /* Set codegen prefix from lib_name (e.g., core/mem/mod.x → core_mem). */
+    /* Set codegen prefix from lib_name (e.g., core/mem/mod.x → core_mem_).
+     * Trailing underscore matches codegen_import_path_to_c_prefix_into behavior. */
     {
         extern const char *shux_entry_lib_name_from_path(const char *path);
         const char *lib_name = shux_entry_lib_name_from_path(input_path);
         if (lib_name && lib_name[0]) {
             int32_t plen = (int32_t)strlen(lib_name);
-            if (plen > 0 && plen < 64) {
+            if (plen > 0 && plen < 63) {
                 memcpy(pctx->current_codegen_prefix_mirror, lib_name, (size_t)plen);
-                pctx->current_codegen_prefix_mirror[plen] = 0;
-                pctx->current_codegen_prefix_len = plen;
+                pctx->current_codegen_prefix_mirror[plen] = '_';  /* trailing underscore */
+                pctx->current_codegen_prefix_mirror[plen + 1] = 0;
+                pctx->current_codegen_prefix_len = plen + 1;
             }
         }
     }
