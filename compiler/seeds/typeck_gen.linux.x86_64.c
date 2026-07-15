@@ -2108,6 +2108,8 @@ int typeck_return_operand_matches(struct ast_ASTArena * arena, int32_t op_ref, i
   return 0;
 }
 int32_t typeck_coerce_init_lit_to_decl(struct ast_ASTArena * arena, int32_t init_ref, int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind) {
+  /* 【Why 根源】对齐 typeck.x：isize 字面量收窄 + u16/i16 TYPE_NAMED 范围检查。
+   * seed 曾缺 ord_isize，导致 let total: isize = 0 与 contextual_typing_p0 假红。 */
   int32_t int_val = 0;
   int32_t ord_expr_lit = 0;
   int32_t ord_u8 = 2;
@@ -2115,36 +2117,63 @@ int32_t typeck_coerce_init_lit_to_decl(struct ast_ASTArena * arena, int32_t init
   int32_t ord_u64 = 4;
   int32_t ord_i64 = 5;
   int32_t ord_usize = 6;
+  int32_t ord_isize = 7;
   int32_t ord_named = 8;
   int32_t ord_ptr = 9;
   int32_t ord_array = 10;
   int32_t ord_vector = 13;
   int32_t ord_f32 = 14;
   int32_t ord_f64 = 15;
-  (void)(({ int32_t __tmp = 0; if (init_kind != ord_expr_lit) {   return 0;
- } else (__tmp = 0) ; __tmp; }));
-  (int_val = (pipeline_expr_int_val_at(arena, init_ref)));
-  (void)(({ int32_t __tmp = 0; if (decl_kind == ord_ptr && int_val == 0) {   (void)(pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref));
-  return 1;
- } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (decl_kind == ord_array && int_val == 0) {   (void)(pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref));
-  return 1;
- } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (decl_kind == ord_u8 && int_val >= 0 && int_val <= 255) {   (void)(pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref));
-  return 1;
- } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (decl_kind == ord_i64) {   (void)(pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref));
-  return 1;
- } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (int_val >= 0 && decl_kind == ord_usize || decl_kind == ord_u32 || decl_kind == ord_u64) {   (void)(pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref));
-  return 1;
- } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (int_val == 0 && decl_kind == ord_f32 || decl_kind == ord_f64) {   (void)(pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref));
-  return 1;
- } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (int_val == 0 && decl_kind == ord_named || decl_kind == ord_vector) {   (void)(pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref));
-  return 1;
- } else (__tmp = 0) ; __tmp; }));
+  uint8_t nm16[64];
+  int32_t nlen16 = 0;
+  if (init_kind != ord_expr_lit)
+    return 0;
+  int_val = pipeline_expr_int_val_at(arena, init_ref);
+  if (decl_kind == ord_ptr && int_val == 0) {
+    pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
+    return 1;
+  }
+  if (decl_kind == ord_array && int_val == 0) {
+    pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
+    return 1;
+  }
+  if (decl_kind == ord_u8 && int_val >= 0 && int_val <= 255) {
+    pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
+    return 1;
+  }
+  if (decl_kind == ord_i64) {
+    pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
+    return 1;
+  }
+  if (decl_kind == ord_isize) {
+    pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
+    return 1;
+  }
+  if (int_val >= 0 && (decl_kind == ord_usize || decl_kind == ord_u32 || decl_kind == ord_u64)) {
+    pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
+    return 1;
+  }
+  if (decl_kind == ord_named) {
+    nlen16 = pipeline_type_named_name_into(arena, decl_ty_ref, nm16);
+    if (nlen16 == 3 && nm16[0] == 117 && nm16[1] == 49 && nm16[2] == 54
+        && int_val >= 0 && int_val <= 65535) {
+      pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
+      return 1;
+    }
+    if (nlen16 == 3 && nm16[0] == 105 && nm16[1] == 49 && nm16[2] == 54
+        && int_val >= -32768 && int_val <= 32767) {
+      pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
+      return 1;
+    }
+  }
+  if (int_val == 0 && (decl_kind == ord_f32 || decl_kind == ord_f64)) {
+    pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
+    return 1;
+  }
+  if (int_val == 0 && (decl_kind == ord_named || decl_kind == ord_vector)) {
+    pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
+    return 1;
+  }
   return 0;
 }
 int32_t typeck_coerce_init_float_lit_to_decl(struct ast_ASTArena * arena, int32_t init_ref, int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind) {
