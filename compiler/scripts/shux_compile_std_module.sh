@@ -123,6 +123,47 @@ for x_path in "$@"; do
       fi
     fi
   fi
+  # 【Why 根源】entry -x -E 对 std/*/mod.x 常产出裸 libc 名（getcwd/pipe/exit/free…）。
+  # preamble #include <unistd.h>/<stdlib.h> 后，cc 在编译期报 conflicting types
+  # （objcopy 只能在 .o 落地后改符号，救不了 getcwd 这类编译期冲突）。
+  # 在 cc 前把「独立标识符」重命名为 std_<leaf>_*_api：
+  #   - 不碰 process_getcwd_c / process_pipe_c 等已带模块前缀的 impl
+  #   - 与 post-cc objcopy 同名约定，用户 co-emit 的 std_process_getcwd 不受影响
+  # 真前缀收敛后（codegen entry 应用 path lib_name 且 std_always 不再 co-emit）本段可删。
+  leaf_pre=$(basename "$(dirname "$out_o")")
+  case "$leaf_pre" in
+    ''|.) leaf_pre=$(basename "$out_o" .o) ;;
+  esac
+  # 去掉 .core 等中间后缀（Makefile: process.o.core）
+  case "$leaf_pre" in
+    *.o) leaf_pre=$(basename "$leaf_pre" .o) ;;
+  esac
+  # process.o.core → dirname=process 已正确；out 为 /tmp/x.core 时用 x 文件路径推 leaf
+  if [ -z "$leaf_pre" ] || [ "$leaf_pre" = "." ]; then
+    leaf_pre=$(basename "$(dirname "$x_path")")
+  fi
+  # libc / POSIX 与 std 裸 export 易冲突的名字（编译期 + 链接期污染）
+  CLASH_SYMS="free open close malloc realloc calloc getcwd chdir pipe exit getenv setenv unsetenv getpid getppid waitpid exec"
+  for clash in $CLASH_SYMS; do
+    # 仅当 gen_c 出现「独立标识符」clash 时改写（词边界：非 [A-Za-z0-9_]）
+    if grep -E "(^|[^A-Za-z0-9_])${clash}([^A-Za-z0-9_]|$)" "$gen_c" >/dev/null 2>&1; then
+      # 用 perl 保证 Unicode/长文件安全；无 perl 时退回 sed
+      new_sym="std_${leaf_pre}_${clash}_api"
+      if command -v perl >/dev/null 2>&1; then
+        perl -i -pe "s/(?<![A-Za-z0-9_])${clash}(?![A-Za-z0-9_])/${new_sym}/g" "$gen_c"
+      else
+        # sed 词边界：GNU sed \b；BSD 用 [[:<:]] 不统一，用捕获组近似
+        sed -E -i.bak \
+          -e "s/(^|[^A-Za-z0-9_])${clash}([^A-Za-z0-9_]|$)/\\1${new_sym}\\2/g" \
+          "$gen_c" 2>/dev/null || \
+        sed -E \
+          -e "s/(^|[^A-Za-z0-9_])${clash}([^A-Za-z0-9_]|$)/\\1${new_sym}\\2/g" \
+          "$gen_c" >"$gen_c.ren" && mv "$gen_c.ren" "$gen_c"
+        rm -f "$gen_c.bak"
+      fi
+    fi
+  done
+
   if ! cc $CFLAGS -c "$gen_c" -o "$obj" 2>"$tmp_dir/cc_${idx}.log"; then
     echo "shux_compile_std_module.sh: cc -c failed for $x_path" >&2
     # 显示首个 error
@@ -158,13 +199,14 @@ fi
 # 【Why 根源】-x -E 对 std/*/mod.x 当前常产出裸符号 free/open/close 等，链入用户
 # exe 后覆盖 libc 同名符号（hello 在 hash_sip_free_c↔free 无限递归 SIGSEGV）。
 # 在 .o 落地后把与 libc 冲突的裸符号重命名为 std_<leaf>_*_api，避免污染。
+# 与上方 pre-cc 改名双保险：若某路径未走 pre-cc（旧 gen）仍可后处理。
 # 真前缀收敛后（codegen 对 entry 正确应用 path lib_name）本段可删。
 if command -v nm >/dev/null 2>&1 && command -v objcopy >/dev/null 2>&1 && [ -f "$out_o" ]; then
   leaf=$(basename "$(dirname "$out_o")")
   case "$leaf" in
     ''|.) leaf=$(basename "$out_o" .o) ;;
   esac
-  for clash in free open close malloc realloc calloc; do
+  for clash in free open close malloc realloc calloc getcwd chdir pipe exit getenv setenv unsetenv getpid getppid waitpid exec; do
     if nm "$out_o" 2>/dev/null | grep -q " T ${clash}$"; then
       objcopy --redefine-sym "${clash}=std_${leaf}_${clash}_api" "$out_o" 2>/dev/null || true
     fi
