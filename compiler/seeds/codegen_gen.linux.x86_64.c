@@ -5396,6 +5396,7 @@ int32_t codegen_emit_call_func_name(struct codegen_CodegenOutBuf * out, struct a
   }
   /* Fallback: search all dep modules for function by name+arity (import binding unresolved). */
   if (ctx && fallback_len > 0) {
+    fprintf(stderr, "DBG-FB: ctx=%p ndep=%d name=%.*s\n", (void*)ctx, (int)pipeline_dep_ctx_ndep(ctx), (int)fallback_len, fallback_name);
     int32_t dep_di;
     int32_t nd = pipeline_dep_ctx_ndep(ctx);
     struct ast_Expr mc_e = ast_arena_expr_get(arena, expr_ref);
