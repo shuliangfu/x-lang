@@ -839,6 +839,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         fi
         if [ -n "$_rt_run_o" ]; then
           # R2 full H=0：PREFER_X_O=1 时 full .x + rest seed (-D，仅 marker) → cc -r 合并
+          # 门闩：.x -E 假成功缺 driver_run_test 时不得标 FROM_X（否则 driver_test_x 链 U）。
           if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_run_exec_x" ]; then
             _rt_run_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_run_thin.XXXXXX") || true
             _rt_run_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_run_rest.XXXXXX") || true
@@ -846,9 +847,12 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
               && g05_try_x_to_o "$_rt_run_exec_x" "$_rt_run_thin_o" \
               && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_RT_RUN_EXEC_FROM_X \
                    -c -o "$_rt_run_rest_o" "$_rt_run_seed" \
-              && $CC -r -nostdlib -o "$_rt_run_o" "$_rt_run_thin_o" "$_rt_run_rest_o" 2>/dev/null; then
+              && $CC -r -nostdlib -o "$_rt_run_o" "$_rt_run_thin_o" "$_rt_run_rest_o" 2>/dev/null \
+              && nm "$_rt_run_o" 2>/dev/null | grep -q " T driver_run_test$"; then
               _rt_run_ok=1
               echo "g05_ensure: R7 run/exec ← full .x + rest marker (R2 full H=0)"
+            else
+              echo "g05_ensure: R7 run/exec .x hybrid incomplete (missing driver_run_test) → seed fallback" >&2
             fi
             rm -f "$_rt_run_thin_o" "$_rt_run_rest_o"
           fi
