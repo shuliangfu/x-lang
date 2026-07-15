@@ -728,10 +728,10 @@ int write_io_net_abi_inline(FILE *cf) {
         "#else\n"
         "extern int32_t std_string_placeholder(void);\n"
         "#endif\n",
-        "#define placeholder std_string_placeholder\n",
+        /* Removed #define placeholder: causes preprocessor collision when entry module also defines placeholder */
         "extern int32_t fmt_i32(int32_t);\n",
         "extern struct std_string_String std_string_string_new(void);\n",
-        "#define string_new std_string_string_new\n",
+        /* Removed #define string_new: same collision risk */
     };
     /* lines[] 下标与 write_io_net_abi_inline 源行号对应：index = 源行号 - 106（首行 "#if !defined"）。 */
     const unsigned skip = codegen_get_preamble_skip_mask();
