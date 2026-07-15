@@ -3718,8 +3718,8 @@ SHUX_LIB_WEAK int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct code
   /* 【Why extern 裸名】同模块 extern function 调用也须用裸名，与声明符号一致 */
   if (pipeline_module_func_is_extern_at(cur_mod, fi) != 0) {   pl = 0;
  }
-  /* Prefix already handled by codegen_emit_func_link_name via module context.
-   * Do NOT emit prefix here — causes double prefix (core_mem_core_mem_mem_set). */
+  if (pl > 0 && codegen_c_prefix_redundant_with_name((&((cur_pre)[0])), pl, (callee2).var_name, (callee2).var_name_len) == 0 && codegen_emit_bytes_from_ptr(out, (&((cur_pre)[0])), pl) != 0) {   return (-1);
+ }
   if (codegen_emit_call_func_name(out, arena, ctx, expr_ref, cur_mod, (&(((callee2).var_name)[0])), (callee2).var_name_len) != 0) {   return (-1);
  }
   if (codegen_append_byte(out, 40) != 0) {   return (-1);
