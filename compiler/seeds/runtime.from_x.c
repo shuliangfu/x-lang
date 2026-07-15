@@ -5498,9 +5498,9 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
     if (getenv("SHUX_DEBUG_PIPE"))
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "pipeline debug: before entry memset arena_sz=%zu", arena_sz);
-    memset(arena, 0, arena_sz);
-    memset(module, 0, module_sz);
-    parser_parse_into_init(module, arena);
+    /* preserve pre-parsed module/arena; do NOT re-zero (entry_already_parsed=1) */
+    /* memset(module, 0, module_sz); */
+    /* parser_parse_into_init(module, arena); */
     pctx->entry_already_parsed = 1;
     if (n_deps > 0 && !driver_check_only_get() && want_asm_backend &&
         driver_deps_are_std_core_closure_only(dep_paths, n_deps))
