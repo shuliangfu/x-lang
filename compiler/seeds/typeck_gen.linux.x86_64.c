@@ -3016,6 +3016,12 @@ int32_t typeck_check_expr_return(struct ast_Module * module, struct ast_ASTArena
   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   (void)(typeck_ret_coerce_null_lit_to_expect(arena, op_ref, return_type_ref));
+  /* return Method.POST: stamp enum FIELD_ACCESS like let init */
+  (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null(op_ref)) && (!ast_ref_is_null(return_type_ref))) {
+  int32_t rk_ret = pipeline_type_kind_ord_at(arena, return_type_ref);
+  int32_t ok_ret = pipeline_expr_kind_ord_at(arena, op_ref);
+  (void)(typeck_coerce_init_enum_field_to_decl(module, arena, op_ref, return_type_ref, rk_ret, ok_ret));
+ } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null(op_ref)) && (!ast_ref_is_null(return_type_ref))) {   (op_kind = (pipeline_expr_kind_ord_at(arena, op_ref)));
   __tmp = ({ int32_t __tmp = 0; if (op_kind == ord_lit) {   (rt_kind = (pipeline_type_kind_ord_at(arena, return_type_ref)));
   __tmp = ({ int32_t __tmp = 0; if (rt_kind == ord_i64) {   (void)(pipeline_expr_set_resolved_type_ref(arena, op_ref, return_type_ref));

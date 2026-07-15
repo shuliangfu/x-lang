@@ -4707,6 +4707,14 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     return - 1;
   }
   typeck_ret_coerce_null_lit_to_expect(arena, op_ref, return_type_ref);
+  /* return Method.POST：FIELD_ACCESS 枚举 variant 按返回类型 stamp（对齐 let 初值 coerce）。 */
+  if (!ast.ref_is_null(op_ref) && !ast.ref_is_null(return_type_ref)) {
+    let rk_ret: i32 = pipeline_type_kind_ord_at(arena, return_type_ref);
+    let ok_ret: i32 = pipeline_expr_kind_ord_at(arena, op_ref);
+    if (typeck_coerce_init_enum_field_to_decl(module, arena, op_ref, return_type_ref, rk_ret, ok_ret) != 0) {
+      /* stamped */
+    }
+  }
   if (!ast.ref_is_null(op_ref) && !ast.ref_is_null(return_type_ref)) {
     op_kind = pipeline_expr_kind_ord_at(arena, op_ref);
     if (op_kind == ord_lit) {
