@@ -5360,9 +5360,6 @@ int32_t codegen_emit_call_func_name(struct codegen_CodegenOutBuf * out, struct a
         } else {
           if (current_module != 0 && func_ix < (current_module)->num_funcs) {
             if (pipeline_module_func_num_params_at(current_module, func_ix) == nargs0) {
-              if (ctx && (ctx)->current_codegen_prefix_len > 0) {
-                if (codegen_emit_bytes_from_ptr(out, (ctx)->current_codegen_prefix_mirror, (ctx)->current_codegen_prefix_len) != 0) return (-1);
-              }
               return codegen_emit_func_link_name(out, arena, current_module, func_ix);
             }
             func_ix = -1;
@@ -5494,15 +5491,9 @@ int32_t codegen_emit_call_func_name(struct codegen_CodegenOutBuf * out, struct a
           fi_s = fi_s + 1;
         }
         if (ext_count == 1 && ext_fi >= 0) {
-          if (ctx && search_mod == current_module && (ctx)->current_codegen_prefix_len > 0) {
-            if (codegen_emit_bytes_from_ptr(out, (ctx)->current_codegen_prefix_mirror, (ctx)->current_codegen_prefix_len) != 0) return (-1);
-          }
           return codegen_emit_func_link_name(out, search_arena, search_mod, ext_fi);
         }
         if (arity_count == 1 && arity_fi >= 0) {
-          if (ctx && search_mod == current_module && (ctx)->current_codegen_prefix_len > 0) {
-            if (codegen_emit_bytes_from_ptr(out, (ctx)->current_codegen_prefix_mirror, (ctx)->current_codegen_prefix_len) != 0) return (-1);
-          }
           return codegen_emit_func_link_name(out, search_arena, search_mod, arity_fi);
         }
       }
