@@ -3572,21 +3572,34 @@ int32_t typeck_check_block_as_loop_body(struct ast_Module * module, struct ast_A
   return rc;
 }
 int32_t typeck_check_block_one_const(struct ast_Module * module, struct ast_ASTArena * arena, int32_t block_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx, int32_t idx) {
+  /* 【Why 根源】对齐 typeck.x：const 初值用声明类型作 check_expr 上下文，
+   * 并 coerce_init_expr_to_decl；seed 曾用 return_type_ref 且无 coerce，
+   * 导致 const MAX: u32 = 8 与 contextual_typing_p0 失败。 */
   int32_t cd_ir = ast_block_const_init_ref(arena, block_ref, idx);
   int32_t cd_tr = ast_block_const_type_ref(arena, block_ref, idx);
   int32_t init_ty = 0;
-  (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null(cd_ir))) {   __tmp = ({ int32_t __tmp = 0; if (pipeline_typeck_block_const_init_is_const_c(arena, block_ref, idx) == 0) {   int32_t err_line = pipeline_expr_line_at(arena, cd_ir);
-  int32_t err_col = pipeline_expr_col_at(arena, cd_ir);
-  (void)(pipeline_typeck_const_init_not_constant_c(err_line, err_col));
-  return (-1);
- } else (__tmp = 0) ; __tmp; });
- } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (typeck_check_expr(module, arena, cd_ir, return_type_ref, ctx) != 0) {   return (-1);
- } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null(cd_ir)) && (!ast_ref_is_null(cd_tr))) {   (init_ty = (typeck_expr_type_ref(arena, cd_ir)));
-  __tmp = ({ int32_t __tmp = 0; if ((!ast_ref_is_null(init_ty)) && (!typeck_type_refs_equal(arena, cd_tr, init_ty))) {   return (-1);
- } else (__tmp = 0) ; __tmp; });
- } else (__tmp = 0) ; __tmp; }));
+  int32_t init_ctx = 0;
+  int32_t err_line = 0;
+  int32_t err_col = 0;
+  if (!ast_ref_is_null(cd_ir)) {
+    if (pipeline_typeck_block_const_init_is_const_c(arena, block_ref, idx) == 0) {
+      err_line = pipeline_expr_line_at(arena, cd_ir);
+      err_col = pipeline_expr_col_at(arena, cd_ir);
+      pipeline_typeck_const_init_not_constant_c(err_line, err_col);
+      return -1;
+    }
+  }
+  init_ctx = return_type_ref;
+  if (!ast_ref_is_null(cd_tr))
+    init_ctx = cd_tr;
+  if (typeck_check_expr(module, arena, cd_ir, init_ctx, ctx) != 0)
+    return -1;
+  if (!ast_ref_is_null(cd_ir) && !ast_ref_is_null(cd_tr)) {
+    typeck_coerce_init_expr_to_decl(module, arena, cd_ir, cd_tr);
+    init_ty = typeck_expr_type_ref(arena, cd_ir);
+    if (!ast_ref_is_null(init_ty) && !typeck_type_refs_equal(arena, cd_tr, init_ty))
+      return -1;
+  }
   return 0;
 }
 int32_t typeck_check_block_one_let(struct ast_Module * module, struct ast_ASTArena * arena, int32_t block_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx, int32_t idx) {
