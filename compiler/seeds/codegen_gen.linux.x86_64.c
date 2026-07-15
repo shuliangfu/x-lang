@@ -1456,20 +1456,21 @@ SHUX_LIB_WEAK int32_t codegen_emit_io_driver_buf_call_name(struct codegen_Codege
   uint8_t reg8[8] = { 114, 101, 103, 105, 115, 116, 101, 114 };
   uint8_t rd11[11] = { 115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100 };
   uint8_t wr12[12] = { 115, 117, 98, 109, 105, 116, 95, 119, 114, 105, 116, 101 };
-  uint8_t sym_reg[19] = { 115, 104, 117, 95, 105, 111, 95, 114, 101, 103, 105, 115, 116, 101, 114, 95, 98, 117, 102 };
-  uint8_t sym_rd[22] = { 115, 104, 117, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100, 95, 98, 117, 102 };
-  uint8_t sym_wr[23] = { 115, 104, 117, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 119, 114, 105, 116, 101, 95, 98, 117, 102 };
+  /* shux_io_*_buf（须含 x；旧 seed 误写成 shu_io_* → implicit declaration） */
+  uint8_t sym_reg[20] = { 115, 104, 117, 120, 95, 105, 111, 95, 114, 101, 103, 105, 115, 116, 101, 114, 95, 98, 117, 102 };
+  uint8_t sym_rd[23] = { 115, 104, 117, 120, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100, 95, 98, 117, 102 };
+  uint8_t sym_wr[24] = { 115, 104, 117, 120, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 119, 114, 105, 116, 101, 95, 98, 117, 102 };
   if (name == ((uint8_t *)(0)) || name_len <= 0) {   return 0;
  }
-  if (num_args == 1 && name_len == 8 && codegen_name_bytes_prefix_eq(name, name_len, (&((reg8)[0])), 8) != 0) {   if (codegen_emit_bytes_from_ptr(out, (&((sym_reg)[0])), 19) != 0) {   return (-1);
+  if (num_args == 1 && name_len == 8 && codegen_name_bytes_prefix_eq(name, name_len, (&((reg8)[0])), 8) != 0) {   if (codegen_emit_bytes_from_ptr(out, (&((sym_reg)[0])), 20) != 0) {   return (-1);
  }
   return 1;
  }
-  if (num_args == 2 && name_len == 11 && codegen_name_bytes_prefix_eq(name, name_len, (&((rd11)[0])), 11) != 0) {   if (codegen_emit_bytes_from_ptr(out, (&((sym_rd)[0])), 22) != 0) {   return (-1);
+  if (num_args == 2 && name_len == 11 && codegen_name_bytes_prefix_eq(name, name_len, (&((rd11)[0])), 11) != 0) {   if (codegen_emit_bytes_from_ptr(out, (&((sym_rd)[0])), 23) != 0) {   return (-1);
  }
   return 1;
  }
-  if (num_args == 2 && name_len == 12 && codegen_name_bytes_prefix_eq(name, name_len, (&((wr12)[0])), 12) != 0) {   if (codegen_emit_bytes_from_ptr(out, (&((sym_wr)[0])), 23) != 0) {   return (-1);
+  if (num_args == 2 && name_len == 12 && codegen_name_bytes_prefix_eq(name, name_len, (&((wr12)[0])), 12) != 0) {   if (codegen_emit_bytes_from_ptr(out, (&((sym_wr)[0])), 24) != 0) {   return (-1);
  }
   return 1;
  }
@@ -2418,10 +2419,11 @@ SHUX_LIB_WEAK int32_t codegen_should_skip_emit_struct_layout_for_abi_dup(uint8_t
   uint8_t nm_completion[11] = { 67, 111, 109, 112, 108, 101, 116, 105, 111, 110, 0 };
   uint8_t nm_async_ctx[13] = { 65, 115, 121, 110, 99, 67, 111, 110, 116, 101, 120, 116, 0 };
   uint8_t nm_error[6] = { 69, 114, 114, 111, 114, 0 };
-  /* rt_preamble 已 one-liner 定义 Option_i32 — 再 emit 即 redefinition。 */
+  /* rt_preamble 已 one-liner 定义 Option_i32 / Result_i32 — 再 emit 即 redefinition。 */
   uint8_t nm_option_i32[11] = { 79, 112, 116, 105, 111, 110, 95, 105, 51, 50, 0 };
   /* 泛型模板 Option<T>：C 无 monomorphize，勿 emit。 */
   uint8_t nm_option[7] = { 79, 112, 116, 105, 111, 110, 0 };
+  uint8_t nm_result_i32[11] = { 82, 101, 115, 117, 108, 116, 95, 105, 51, 50, 0 };
   if (name_len == 6 && codegen_symbuf_bytes_eq(name, name_len, (&((nm_buffer)[0])), 6) != 0) {   return 1;
  }
   if (name_len == 10 && codegen_symbuf_bytes_eq(name, name_len, (&((nm_completion)[0])), 10) != 0) {   return 1;
@@ -2433,6 +2435,9 @@ SHUX_LIB_WEAK int32_t codegen_should_skip_emit_struct_layout_for_abi_dup(uint8_t
   if (name_len == 10 && codegen_symbuf_bytes_eq(name, name_len, (&((nm_option_i32)[0])), 10) != 0) {   return 1;
  }
   if (name_len == 6 && codegen_symbuf_bytes_eq(name, name_len, (&((nm_option)[0])), 6) != 0) {   return 1;
+ }
+  /* 仅 Result_i32：rt_preamble 已定义；Result_u8 等仍由 codegen emit。 */
+  if (name_len == 10 && codegen_symbuf_bytes_eq(name, name_len, (&((nm_result_i32)[0])), 10) != 0) {   return 1;
  }
   return 0;
 }

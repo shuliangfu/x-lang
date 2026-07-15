@@ -228,6 +228,9 @@ const char *const driver_preamble_io_net_lines[] = {
         "struct std_string_StrView { uint8_t *ptr; int32_t len; };\n",
         "struct std_vec_Vec_i32 { int32_t *ptr; int32_t len; int32_t cap; };\n",
         "struct core_option_Option_i32 { int is_some; int32_t value; };\n",
+        /* 与 runtime.from_x.c write_io_net_abi_inline 对齐：产品 SHUX_RT_PREAMBLE_FROM_X 路径必须含 Result_i32，
+           否则 stdlib-import 仅有 incomplete core_result_Result_i32（codegen 又被 core.types 幽灵 layout 抢走 owner）。 */
+        "struct core_result_Result_i32 { int32_t value; int32_t _pad1; int32_t err; int32_t _pad2; };\n",
         "extern void shux_panic_(int, int);\n",
         "extern int32_t core_types_placeholder(void);\n",
         "#ifndef __cplusplus\n",
