@@ -566,7 +566,7 @@ SHUX_LIB_WEAK int32_t main_entry(int32_t argc, uint8_t * argv) {
     ++k;
   }
   (void)(driver_run_x_emit_c_set_n_lib_roots(n_roots));
-  return driver_run_x_emit_c();
+  return driver_run_compiler_full(argc, argv);
  }
   return main_run_compiler_x_path_impl(argc, argv);
 }
