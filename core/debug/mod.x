@@ -89,53 +89,17 @@ export function debug_diag_store(a: i32, b: i32, ok: i32): void {
   debug_diag_last_ok = ok;
 }
 
-// === X4: panic 增强 — 寄存器快照 + 位置信息 ===
-
-/** 寄存器快照结构（x86_64）。 */
-#[repr(C)]
-export struct RegSnapshot {
-  rax: u64; rbx: u64; rcx: u64; rdx: u64;
-  rsi: u64; rdi: u64; rbp: u64; rsp: u64;
-  r8: u64; r9: u64; r10: u64; r11: u64;
-  r12: u64; r13: u64; r14: u64; r15: u64;
-  rip: u64; rflags: u64;
-}
-
-/** 捕获当前寄存器状态（x86_64 asm!）；须在 unsafe {} 内调用。 */
-export function capture_regs_x86_64(): RegSnapshot {
-  let regs: RegSnapshot = {
-    rax: 0, rbx: 0, rcx: 0, rdx: 0,
-    rsi: 0, rdi: 0, rbp: 0, rsp: 0,
-    r8: 0, r9: 0, r10: 0, r11: 0,
-    r12: 0, r13: 0, r14: 0, r15: 0,
-    rip: 0, rflags: 0
-  };
-  unsafe {
-    asm!("mov %%rax, %0" : "=m"(regs.rax));
-    asm!("mov %%rbx, %0" : "=m"(regs.rbx));
-    asm!("mov %%rcx, %0" : "=m"(regs.rcx));
-    asm!("mov %%rdx, %0" : "=m"(regs.rdx));
-    asm!("mov %%rsi, %0" : "=m"(regs.rsi));
-    asm!("mov %%rdi, %0" : "=m"(regs.rdi));
-    asm!("mov %%rbp, %0" : "=m"(regs.rbp));
-    asm!("mov %%rsp, %0" : "=m"(regs.rsp));
-  }
-  return regs;
-}
+// === X4: panic 增强（位置信息）===
+// RegSnapshot / capture_regs_x86_64 / debug_breakpoint(asm!) 暂移出：
+// 1) asm! 多操作数约束会误抬顶层 let；2) multi-dep co-emit 时 RegSnapshot 体可被漏发
+//    （仅 forward），产品 -o 对 core-types 红。待 asm!/struct-layout claim 修后再恢复。
 
 extern function std_debug_write_stderr(buf: *u8, count: usize): isize;
 
-/** panic 带位置信息：写 write(2) + 文件名 + 行号 + 寄存器快照。
+/** panic 带位置信息：写 write(2) + 文件名 + 行号。
  *  用于编译器内部致命错误的增强诊断。 */
 export function panic_with_location(file: *u8, line: i32, msg: i32): i32 {
   // 写位置信息到 stderr：简化版，仅写 msg 值
   // 完整版需解决数组零初始化 codegen 问题后启用
   return panic();
-}
-
-/** 触发调试器断点（x86_64: INT3; ARM64: BRK #0）。 */
-export function debug_breakpoint(): void {
-  unsafe {
-    asm!("int3");
-  }
 }
