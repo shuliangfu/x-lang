@@ -5285,6 +5285,17 @@ int32_t codegen_emit_call_func_name(struct codegen_CodegenOutBuf * out, struct a
       if (search_arena == 0) search_arena = arena;
     } else {
       search_mod = current_module;
+      if (ctx && search_mod) {
+        int32_t srch_di;
+        int32_t srch_nd = pipeline_dep_ctx_ndep(ctx);
+        for (srch_di = 0; srch_di < srch_nd; srch_di++) {
+          if (pipeline_dep_ctx_module_at(ctx, srch_di) == search_mod) {
+            struct ast_ASTArena *srch_da = pipeline_dep_ctx_arena_at(ctx, srch_di);
+            if (srch_da) { search_arena = srch_da; }
+            break;
+          }
+        }
+      }
     }
     if (search_mod != 0 && fallback_len > 0) {
       struct ast_Expr call_e = ast_arena_expr_get(arena, expr_ref);
