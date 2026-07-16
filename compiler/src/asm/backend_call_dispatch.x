@@ -6,11 +6,93 @@
 // R2 full（2026-07-14）：产品 PREFER_X_O → 本文件 -E→.o + rest（SHUX_BACKEND_CALL_DISPATCH_FROM_X 仅 marker）
 // 冷启动：seeds/backend_call_dispatch.from_x.c 全 C；L2 thin 仅 g05 回退
 
+// PLATFORM: SHARED — all export extern "C" hoisted before first use so -E emits
+// short-name prototypes matching call sites (late mid-file externs caused type-mangle
+// decls vs short calls → undeclared + cc fail). Product ABI = short pipeline_* names.
+export extern "C" function getenv(name: *u8): *u8;
+export extern "C" function pipeline_expr_var_name_into(arena: *u8, er: i32, out: *u8): void;
+export extern "C" function pipeline_expr_kind_ord_at(arena: *u8, er: i32): i32;
+export extern "C" function pipeline_expr_var_name_len_for_string_lit_c(arena: *u8, er: i32): i32;
+export extern "C" function pipeline_asm_call_param_type_ref_at_c(arena: *u8, call: i32, pix: i32): i32;
+export extern "C" function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
+export extern "C" function parser_get_module_import_path(mod: *u8, ix: i32, path_bytes: *u8): void;
+export extern "C" function pipeline_module_num_funcs(m: *u8): i32;
+export extern "C" function pipeline_asm_module_func_is_extern_at(m: *u8, i: i32): i32;
+export extern "C" function pipeline_module_func_name_equal_at(m: *u8, i: i32, name: *u8, nlen: i32): i32;
+export extern "C" function parser_get_module_num_imports(mod: *u8): i32;
+export extern "C" function pipeline_module_import_path_len(mod: *u8, idx: i32): i32;
+export extern "C" function pipeline_module_import_path_byte_at(mod: *u8, idx: i32, k: i32): u8;
+export extern "C" function pipeline_elf_ctx_append_bytes(ctx: *u8, ptr: *u8, n: i32): i32;
+export extern "C" function pipeline_asm_redirect_std_c_wrapper_sym(name: *u8, nlen: i32, out: *u8, cap: i32): i32;
+export extern "C" function backend_enc_call_arch(elf: *u8, name: *u8, nlen: i32, ta: i32): i32;
+export extern "C" function backend_enc_call_stack_cleanup_arch(elf: *u8, nbytes: i32, ta: i32): i32;
+export extern "C" function pipeline_asm_emit_call_sret_reg_shift_c(): i32;
+export extern "C" function backend_enc_store_x0_sp_offset_arch(elf: *u8, off_bytes: i32, ta: i32): i32;
+export extern "C" function pipeline_asm_emit_set_call_param_type_ref(tr: i32): void;
+export extern "C" function pipeline_asm_emit_call_arg_begin_c(): void;
+export extern "C" function pipeline_asm_emit_call_arg_end_c(): void;
+export extern "C" function pipeline_asm_emit_expr_elf_for_call_args(arena: *u8, elf: *u8, ar: i32, ctx: *u8, ta: i32): i32;
+export extern "C" function pipeline_asm_call_struct16_ret_needs_rax_deref_c(arena: *u8, call: i32): i32;
+export extern "C" function pipeline_asm_deref_struct16_rax_ptr_elf_c(elf: *u8, ta: i32): i32;
+export extern "C" function pipeline_expr_call_num_args_at(arena: *u8, er: i32): i32;
+export extern "C" function pipeline_expr_call_arg_ref(arena: *u8, er: i32, i: i32): i32;
+export extern "C" function backend_enc_mov_imm32_to_w0_arch(elf: *u8, imm: i32, ta: i32): i32;
+export extern "C" function backend_enc_mov_rax_to_arg_reg_arch(elf: *u8, k: i32, ta: i32): i32;
+export extern "C" function driver_get_current_dep_path_for_codegen(): *u8;
+export extern "C" function pipeline_asm_module_func_name_len_at(m: *u8, fi: i32): i32;
+export extern "C" function pipeline_asm_module_func_name_copy64(m: *u8, fi: i32, dst: *u8): void;
+export extern "C" function pipeline_module_func_num_params_at(m: *u8, fi: i32): i32;
+export extern "C" function pipeline_module_func_param_type_ref_at(m: *u8, fi: i32, pi: i32): i32;
+export extern "C" function pipeline_type_elem_ref_at(a: *u8, tr: i32): i32;
+export extern "C" function pipeline_asm_type_ref_byte_size_c(arena: *u8, pty: i32): i32;
+export extern "C" function backend_enc_store_rax_to_rbp_arch(elf: *u8, off: i32, ta: i32): i32;
+export extern "C" function backend_enc_store_rdx_to_rbp_arch(elf: *u8, off: i32, ta: i32): i32;
+export extern "C" function backend_enc_lea_rbp_to_rax_arch(elf: *u8, off: i32, ta: i32): i32;
+export extern "C" function backend_enc_call_stack_reserve_arch(elf: *u8, nbytes: i32, ta: i32): i32;
+export extern "C" function backend_enc_push_rax_arch(elf: *u8, ta: i32): i32;
+export extern "C" function backend_enc_mov_eax_to_xmm_arg_reg_arch(elf: *u8, k: i32, ta: i32): i32;
+export extern "C" function pipeline_expr_var_name_len(arena: *u8, er: i32): i32;
+export extern "C" function pipeline_expr_call_resolved_dep_index_at(arena: *u8, call: i32): i32;
+export extern "C" function pipeline_dep_ctx_ndep(dep: *u8): i32;
+export extern "C" function pipeline_dep_ctx_module_at(dep: *u8, j: i32): *u8;
+export extern "C" function pipeline_dep_ctx_import_path_copy64(dep: *u8, j: i32, path: *u8): void;
+export extern "C" function pipeline_module_func_is_extern_at(m: *u8, fi: i32): i32;
+export extern "C" function pipeline_typeck_resolve_call_func_index_for_emit_c(m: *u8, a: *u8, call: i32): i32;
+export extern "C" function asm_qual_sym_layer_reset(): void;
+export extern "C" function asm_qual_sym_layer_push(bytes: *u8, len: i32): i32;
+export extern "C" function asm_qual_sym_layer_count(): i32;
+export extern "C" function asm_qual_sym_layer_len(i: i32): i32;
+export extern "C" function asm_qual_sym_layer_copy(i: i32, dst: *u8, cap: i32): void;
+export extern "C" function pipeline_expr_field_access_name_len(arena: *u8, er: i32): i32;
+export extern "C" function pipeline_expr_field_access_name_into(arena: *u8, er: i32, out: *u8): void;
+export extern "C" function pipeline_expr_field_access_base_ref(arena: *u8, er: i32): i32;
+export extern "C" function pipeline_expr_call_callee_ref_at(arena: *u8, er: i32): i32;
+export extern "C" function pipeline_module_import_kind_at(m: *u8, j: i32): i32;
+export extern "C" function pipeline_codegen_call_num_args_override(pre: *u8, plen: i32, field: *u8, flen: i32, nargs: i32): i32;
+export extern "C" function try_inline_param0_single_field_call_elf(a: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32): i32;
+export extern "C" function try_inline_param0_field_sum_call_elf(a: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32): i32;
+export extern "C" function try_inline_x_plus_k_call_elf(a: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32): i32;
+export extern "C" function try_call_wpo_mono_symbol_elf(a: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32): i32;
+export extern "C" function try_call_wpo_mono_vector_lane_of_binop_call_elf(a: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32): i32;
+export extern "C" function try_inline_wpo_const_vector_lane_of_binop_call_elf(a: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32): i32;
+export extern "C" function try_inline_wpo_const_scalar_binop_call_elf(a: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32): i32;
+export extern "C" function pipeline_expr_method_call_base_ref_at(a: *u8, er: i32): i32;
+export extern "C" function pipeline_expr_method_call_num_args_at(a: *u8, er: i32): i32;
+export extern "C" function pipeline_expr_method_call_name_len(a: *u8, er: i32): i32;
+export extern "C" function pipeline_expr_method_call_name_into(a: *u8, er: i32, out: *u8): void;
+export extern "C" function pipeline_expr_method_call_arg_ref(a: *u8, er: i32, idx: i32): i32;
+export extern "C" function pipeline_asm_emit_expr_c(arena: *u8, out: *u8, er: i32, ctx: *u8, ta: i32): i32;
+export extern "C" function backend_arch_emit_mov_rax_to_arg_reg(out: *u8, i: i32, ta: i32): i32;
+export extern "C" function backend_arch_emit_push_rax(out: *u8, ta: i32): i32;
+export extern "C" function backend_arch_emit_ldr_sp_offset_to_wi(out: *u8, i: i32, ta: i32): i32;
+export extern "C" function backend_arch_emit_add_sp_imm(out: *u8, imm: i32, ta: i32): i32;
+export extern "C" function pipeline_module_import_binding_name_len(mod: *u8, ix: i32): i32;
+export extern "C" function pipeline_module_import_binding_name_byte_at(mod: *u8, ix: i32, i: i32): u8;
+
 export function backend_call_dispatch_x_doc_anchor(): i32 {
   return 0;
 }
 
-export extern "C" function getenv(name: *u8): *u8;
 
 // G-02f-184：CALL f32 xmm ABI 开关（原独立 pipeline_abi_f32_xmm）
 let g_pipeline_asm_emit_call_f32_xmm: i32 = 0;
@@ -48,11 +130,6 @@ export function pipeline_asm_emit_get_call_f32_xmm_c(): i32 {
 // G-02f-139：string_lit_into / import_path_to_c_prefix 真迁 .x
 // R2 full：pipeline_expr/type_kind 等 extern 须在首次使用前声明，否则 -E 不发原型 → cc 隐式声明失败
 
-export extern "C" function pipeline_expr_var_name_into(arena: *u8, er: i32, out: *u8): void;
-export extern "C" function pipeline_expr_kind_ord_at(arena: *u8, er: i32): i32;
-export extern "C" function pipeline_expr_var_name_len_for_string_lit_c(arena: *u8, er: i32): i32;
-export extern "C" function pipeline_asm_call_param_type_ref_at_c(arena: *u8, call: i32, pix: i32): i32;
-export extern "C" function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
 
 /* ---- G-02f-108 / G-02f-139：backend call dispatch helpers ---- */
 
@@ -111,13 +188,6 @@ export function glue_codegen_import_path_to_c_prefix_into(path: *u8, buf: *u8, b
 
 // G-02f-109：+ overload/export_c/import path/heap redirect 薄门闩。
 
-export extern "C" function parser_get_module_import_path(mod: *u8, ix: i32, path_bytes: *u8): void;
-export extern "C" function pipeline_module_num_funcs(m: *u8): i32;
-export extern "C" function pipeline_asm_module_func_is_extern_at(m: *u8, i: i32): i32;
-export extern "C" function pipeline_module_func_name_equal_at(m: *u8, i: i32, name: *u8, nlen: i32): i32;
-export extern "C" function parser_get_module_num_imports(mod: *u8): i32;
-export extern "C" function pipeline_module_import_path_len(mod: *u8, idx: i32): i32;
-export extern "C" function pipeline_module_import_path_byte_at(mod: *u8, idx: i32, k: i32): u8;
 
 /* ---- G-02f-109 / G-02f-133 / G-02f-134：call_dispatch more helpers ---- */
 
@@ -211,46 +281,15 @@ export function glue_asm_fill_c_prefix_from_module_import(mod: *u8, ix: i32, pre
 
 // G-02f-110：+ jmp/lea/arg slot/export/call cleanup 薄门闩。
 
-export extern "C" function pipeline_elf_ctx_append_bytes(ctx: *u8, ptr: *u8, n: i32): i32;
-export extern "C" function pipeline_asm_redirect_std_c_wrapper_sym(name: *u8, nlen: i32, out: *u8, cap: i32): i32;
-export extern "C" function backend_enc_call_arch(elf: *u8, name: *u8, nlen: i32, ta: i32): i32;
-export extern "C" function backend_enc_call_stack_cleanup_arch(elf: *u8, nbytes: i32, ta: i32): i32;
-export extern "C" function pipeline_asm_emit_call_sret_reg_shift_c(): i32;
-export extern "C" function backend_enc_store_x0_sp_offset_arch(elf: *u8, off_bytes: i32, ta: i32): i32;
-export extern "C" function pipeline_asm_emit_set_call_param_type_ref(tr: i32): void;
-export extern "C" function pipeline_asm_emit_call_arg_begin_c(): void;
-export extern "C" function pipeline_asm_emit_call_arg_end_c(): void;
-export extern "C" function pipeline_asm_emit_expr_elf_for_call_args(arena: *u8, elf: *u8, ar: i32, ctx: *u8, ta: i32): i32;
-export extern "C" function pipeline_asm_call_struct16_ret_needs_rax_deref_c(arena: *u8, call: i32): i32;
-export extern "C" function pipeline_asm_deref_struct16_rax_ptr_elf_c(elf: *u8, ta: i32): i32;
-export extern "C" function pipeline_expr_call_num_args_at(arena: *u8, er: i32): i32;
-export extern "C" function pipeline_expr_call_arg_ref(arena: *u8, er: i32, i: i32): i32;
-export extern "C" function backend_enc_mov_imm32_to_w0_arch(elf: *u8, imm: i32, ta: i32): i32;
-export extern "C" function backend_enc_mov_rax_to_arg_reg_arch(elf: *u8, k: i32, ta: i32): i32;
-export extern "C" function driver_get_current_dep_path_for_codegen(): *u8;
-export extern "C" function pipeline_asm_module_func_name_len_at(m: *u8, fi: i32): i32;
-export extern "C" function pipeline_asm_module_func_name_copy64(m: *u8, fi: i32, dst: *u8): void;
-export extern "C" function pipeline_module_func_num_params_at(m: *u8, fi: i32): i32;
-export extern "C" function pipeline_module_func_param_type_ref_at(m: *u8, fi: i32, pi: i32): i32;
-export extern "C" function pipeline_type_elem_ref_at(a: *u8, tr: i32): i32;
 // G-02f-145：spill / f32_xmm / build_call_export 真迁所需
-export extern "C" function pipeline_asm_type_ref_byte_size_c(arena: *u8, pty: i32): i32;
-export extern "C" function backend_enc_store_rax_to_rbp_arch(elf: *u8, off: i32, ta: i32): i32;
-export extern "C" function backend_enc_store_rdx_to_rbp_arch(elf: *u8, off: i32, ta: i32): i32;
-export extern "C" function backend_enc_lea_rbp_to_rax_arch(elf: *u8, off: i32, ta: i32): i32;
-export extern "C" function backend_enc_call_stack_reserve_arch(elf: *u8, nbytes: i32, ta: i32): i32;
-export extern "C" function backend_enc_push_rax_arch(elf: *u8, ta: i32): i32;
-export extern "C" function backend_enc_mov_eax_to_xmm_arg_reg_arch(elf: *u8, k: i32, ta: i32): i32;
-export extern "C" function pipeline_expr_var_name_len(arena: *u8, er: i32): i32;
-export extern "C" function pipeline_expr_call_resolved_dep_index_at(arena: *u8, call: i32): i32;
-export extern "C" function pipeline_dep_ctx_ndep(dep: *u8): i32;
-export extern "C" function pipeline_dep_ctx_module_at(dep: *u8, j: i32): *u8;
-export extern "C" function pipeline_dep_ctx_import_path_copy64(dep: *u8, j: i32, path: *u8): void;
-export extern "C" function pipeline_module_func_is_extern_at(m: *u8, fi: i32): i32;
-export extern "C" function pipeline_typeck_resolve_call_func_index_for_emit_c(m: *u8, a: *u8, call: i32): i32;
 /* ---- G-02f-110 / G-02f-141 / G-02f-142 / G-02f-145：call_dispatch emit helpers ---- */
 
 // LE i32 load/store（AsmFuncCtx.next_offset @4）
+/** Load little-endian i32 from p[off..off+4). Null p → 0.
+ * Used for AsmFuncCtx.next_offset @4 among call-arg emit helpers.
+ * Track-L: no_mangle keeps surface short name call_dispatch_load_i32_le.
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
 export function call_dispatch_load_i32_le(p: *u8, off: i32): i32 {
   if (p == 0) { return 0; }
   let m: i32 = 256;
@@ -261,6 +300,10 @@ export function call_dispatch_load_i32_le(p: *u8, off: i32): i32 {
   return a;
 }
 
+/** Store little-endian i32 v into p[off..off+4). Null p is a no-op.
+ * Track-L: no_mangle keeps surface short name call_dispatch_store_i32_le.
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
 export function call_dispatch_store_i32_le(p: *u8, off: i32, v: i32): void {
   if (p == 0) { return; }
   let u: u32 = v as u32;
@@ -271,6 +314,11 @@ export function call_dispatch_store_i32_le(p: *u8, off: i32, v: i32): void {
 }
 
 // LE 指针 load（AsmFuncCtx.module_ref@16 / dep_pipe@1256）
+/** Load little-endian pointer from p[off..off+8). Null p → null.
+ * Used for AsmFuncCtx module_ref @16 and dep_pipe @1256 (64-bit LE).
+ * Track-L: no_mangle keeps surface short name call_dispatch_load_ptr_le.
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
 export function call_dispatch_load_ptr_le(p: *u8, off: i32): *u8 {
   if (p == 0) { return 0 as *u8; }
   let m: usize = 256;
@@ -1037,34 +1085,6 @@ export function glue_asm_call_stack_cleanup_bytes(ta: i32, nargs: i32): i32 {
 }
 
 // G-02f-147：import / call emit 主路径
-export extern "C" function asm_qual_sym_layer_reset(): void;
-export extern "C" function asm_qual_sym_layer_push(bytes: *u8, len: i32): i32;
-export extern "C" function asm_qual_sym_layer_count(): i32;
-export extern "C" function asm_qual_sym_layer_len(i: i32): i32;
-export extern "C" function asm_qual_sym_layer_copy(i: i32, dst: *u8, cap: i32): void;
-export extern "C" function pipeline_expr_field_access_name_len(arena: *u8, er: i32): i32;
-export extern "C" function pipeline_expr_field_access_name_into(arena: *u8, er: i32, out: *u8): void;
-export extern "C" function pipeline_expr_field_access_base_ref(arena: *u8, er: i32): i32;
-export extern "C" function pipeline_expr_call_callee_ref_at(arena: *u8, er: i32): i32;
-export extern "C" function pipeline_module_import_kind_at(m: *u8, j: i32): i32;
-export extern "C" function pipeline_codegen_call_num_args_override(pre: *u8, plen: i32, field: *u8, flen: i32, nargs: i32): i32;
-export extern "C" function try_inline_param0_single_field_call_elf(a: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32): i32;
-export extern "C" function try_inline_param0_field_sum_call_elf(a: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32): i32;
-export extern "C" function try_inline_x_plus_k_call_elf(a: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32): i32;
-export extern "C" function try_call_wpo_mono_symbol_elf(a: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32): i32;
-export extern "C" function try_call_wpo_mono_vector_lane_of_binop_call_elf(a: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32): i32;
-export extern "C" function try_inline_wpo_const_vector_lane_of_binop_call_elf(a: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32): i32;
-export extern "C" function try_inline_wpo_const_scalar_binop_call_elf(a: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32): i32;
-export extern "C" function pipeline_expr_method_call_base_ref_at(a: *u8, er: i32): i32;
-export extern "C" function pipeline_expr_method_call_num_args_at(a: *u8, er: i32): i32;
-export extern "C" function pipeline_expr_method_call_name_len(a: *u8, er: i32): i32;
-export extern "C" function pipeline_expr_method_call_name_into(a: *u8, er: i32, out: *u8): void;
-export extern "C" function pipeline_expr_method_call_arg_ref(a: *u8, er: i32, idx: i32): i32;
-export extern "C" function pipeline_asm_emit_expr_c(arena: *u8, out: *u8, er: i32, ctx: *u8, ta: i32): i32;
-export extern "C" function backend_arch_emit_mov_rax_to_arg_reg(out: *u8, i: i32, ta: i32): i32;
-export extern "C" function backend_arch_emit_push_rax(out: *u8, ta: i32): i32;
-export extern "C" function backend_arch_emit_ldr_sp_offset_to_wi(out: *u8, i: i32, ta: i32): i32;
-export extern "C" function backend_arch_emit_add_sp_imm(out: *u8, imm: i32, ta: i32): i32;
 
 // G-02f-147：a.b.c.method whole-import 限定符号；FIELD_ACCESS=44 VAR=3
 #[no_mangle]
@@ -1611,9 +1631,6 @@ export function glue_asm_import_path_segment_count(path: *u8, plen: i32): i32 {
 
 // G-02f-121：call_dispatch pure helpers 真迁 .x
 
-export extern "C" function pipeline_module_import_path_byte_at(mod: *u8, ix: i32, off: i32): u8;
-export extern "C" function pipeline_module_import_binding_name_len(mod: *u8, ix: i32): i32;
-export extern "C" function pipeline_module_import_binding_name_byte_at(mod: *u8, ix: i32, i: i32): u8;
 // glue_call_param_type_ref_at / glue_call_param_is_f32_c already in this TU or linked
 
 #[no_mangle]
