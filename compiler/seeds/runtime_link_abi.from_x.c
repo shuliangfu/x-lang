@@ -6205,6 +6205,18 @@ void shux_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *us
                     && !shux_link_obj_needs_undef_sym(user_o, "std_http_client_new")
                     && !shux_link_obj_needs_undef_sym(user_o, "std_http_request_timeout_ms_for_ctx"))
                     break;
+                /*
+                 * log.o 预编带 preamble weak process_arg*_c → U process_shux_*。
+                 * 无条件硬链 → 纯 asm（binop_var 仅 U panic）在 run-log 建出 log.o 后
+                 * 全红（bstrict42）。与 crypto/http 同：仅 user 有 std_log_ 入口才推。
+                 */
+                if (fk == 5 /* log */
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_log_log")
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_log_level_info")
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_log_set_min_level")
+                    && !shux_link_obj_needs_undef_sym(user_o, "log_write_c")
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_log_structured_kv"))
+                    break;
             } else if (fk == 0 && rel && rel[0] && !labi_std_fk0_user_needs_rel(user_o, rel)) {
                 break;
             }
@@ -6323,10 +6335,11 @@ void shux_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *us
         }
     }
     /*
-     * thread/sync/atomic（及同类）C 路径预编 .o 内 preamble weak process_arg*_c → U process_shux_*。
+     * thread/sync/atomic/log（及同类）C 路径预编 .o 内 preamble weak process_arg*_c → U process_shux_*。
      * 已推且未推 process.o 时补 runtime_process_argv.o（勿与 process.o 双链）。
      */
-    if ((have_atomic || (flags && (flags->have_sync || flags->have_thread))) && !have_process) {
+    if ((have_atomic || have_log
+         || (flags && (flags->have_sync || flags->have_thread))) && !have_process) {
         (void)shux_ensure_runtime_process_argv_o(link_argv0);
         link_abi_asm_ld_push_obj(shux_runtime_process_argv_o_path(link_argv0), link_argv0,
             "compiler/runtime_process_argv.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
