@@ -368,23 +368,45 @@ gen_seed_o() {
   $CC $BASE_CFLAGS -I. -c -o "$out" "$seed" 2>"${TMP_DIR}/cc_err.txt"
 }
 
-# 已定义**全局**业务符号裸名（去 Mach-O 前导 _），一行一个
-# 只取 nm 大写类型（T/D/B/R/S/C…）：忽略局部 t/d/s（字符串池 l_constinit / l_.str、
-# static 表、ltmp）与 U（含 stack_chk 引用）。W-string-nul 后 .x 与 seed 字符串编码
-# 不同属预期，IDENTICAL 比公共 API 面而非 rodata 形名。
+# 已定义**强全局**业务符号裸名（去 Mach-O 前导 _），一行一个
+#
+# PLATFORM: SHARED — IDENTICAL 只比「强定义」API 面：
+#   · Linux ELF：nm 类型 T/D/B/R/S/C（排除 U / W weak / V）
+#   · macOS Mach-O：nm -m「external」且非 weak（Darwin 上 weak 常显示为 T，
+#     若用 plain nm 会把 -E preamble 的 weak 桩算进 x 面 → N 全红假象）
+# 忽略：局部 t/d/s、ltmp、l_ 字符串池。preamble 弱桩（args_iter_*/ctx_*/io_*…）
+# 不参与退役判据——与 g05 PREFER 入链语义一致（weak 可重叠）。
 defined_sym_names() {
+  local obj="$1"
   # LC_ALL=C：comm 要求字节序排序；locale sort 在 Ubuntu 会触发 “not in sorted order”
-  nm "$1" 2>/dev/null | awk '
-    $2 ~ /^[A-Z]$/ && $2 != "U" {
-      s = $3
-      if (s ~ /^_/) s = substr(s, 2)
-      # 保险：仍丢编译器局部命名（极少数平台大写类型误标）
-      if (s ~ /^l_/) next
-      if (s ~ /^\./) next
-      if (s ~ /^L\./) next
-      if (s ~ /^ltmp/) next
-      print s
-    }' | LC_ALL=C sort -u
+  if nm -m "$obj" >/dev/null 2>&1; then
+    # PLATFORM: MACOS — nm -m 可区分 weak external vs external
+    nm -m "$obj" 2>/dev/null | awk '
+      /undefined/ { next }
+      / non-external / { next }
+      / weak / { next }
+      / external / {
+        s = $NF
+        if (s ~ /^_/) s = substr(s, 2)
+        if (s ~ /^l_/) next
+        if (s ~ /^\./) next
+        if (s ~ /^L\./) next
+        if (s ~ /^ltmp/) next
+        print s
+      }' | LC_ALL=C sort -u
+  else
+    # PLATFORM: LINUX — 强定义字母类；W/V = weak，不计入 N
+    nm "$obj" 2>/dev/null | awk '
+      $2 ~ /^[TDBRSC]$/ {
+        s = $3
+        if (s ~ /^_/) s = substr(s, 2)
+        if (s ~ /^l_/) next
+        if (s ~ /^\./) next
+        if (s ~ /^L\./) next
+        if (s ~ /^ltmp/) next
+        print s
+      }' | LC_ALL=C sort -u
+  fi
 }
 
 # nm 比较符号 — IDENTICAL 模式：全局业务符号集合相等（可退役 seed）
