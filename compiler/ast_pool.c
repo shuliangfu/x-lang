@@ -11830,7 +11830,7 @@ static int32_t asm_skip_typeck_entry_whitelist(struct ast_Module *m, int32_t fun
   } k_keep[] = {
       /** parse_into_with_init_buf 真 emit 深栈 SIGSEGV；build 链由 parser.o / C alias 提供。 */
       {"pipeline_impl_run_all", 21, 1},
-      {"run_x_pipeline_impl", 20, 1},
+      {"run_x_pipeline_impl", 19, 1},
       {"pipeline_impl_should_skip_codegen", 33, 1},
       {"pipeline_impl_phase_parse_load", 30, 1},
       {"pipeline_impl_phase_parse_only", 30, 1},
@@ -11847,8 +11847,8 @@ static int32_t asm_skip_typeck_entry_whitelist(struct ast_Module *m, int32_t fun
       {"collect_imports_buf", 19, 1},
       {"parse_into_buf", 14, 1},
       /** 大入口（>150KiB）上 typeck/asm 入口完整 emit 会栈溢出；SKIP 桩即可，编库不跑这些符号。 */
-      {"typeck_x_ast", 13, 0},
-      {"typeck_x_ast_library", 21, 0},
+      {"typeck_x_ast", 12, 0},
+      {"typeck_x_ast_library", 20, 0},
       {"asm_codegen_ast", 15, 0},
       /** main.x build_asm/main.o：entry 须真 emit（WPO root + crt0 链）。 */
       {"entry", 5, 1},
@@ -11921,7 +11921,7 @@ int32_t asm_orchestration_extern_only_func(struct ast_Module *m, int32_t func_in
     return 1;
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"pipeline_impl_run_all", 21))
     return 1;
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"run_x_pipeline_impl", 20))
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"run_x_pipeline_impl", 19))
     return 1;
   return 0;
 }
@@ -12012,7 +12012,7 @@ static int32_t asm_module_is_typeck_selfhost(struct ast_Module *m) {
   if (pipeline_module_func_name_equal_at(m, 0, (uint8_t *)"type_kind_ordinal", 17))
     return 1;
   for (i = 0; i < m->num_funcs; i++) {
-    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"typeck_x_ast", 13))
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"typeck_x_ast", 12))
       return 1;
   }
   /** ENTRY_MODULE_ONLY 编 typeck.x：按已定义 func 规模识别（extern 占位不计入）。 */
@@ -12503,7 +12503,7 @@ static int32_t asm_pipeline_emit_heavy_safe_helper(struct ast_Module *m, int32_t
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"resolve_path_try_flat_import_under_lib", 38))
     return 1;
   /** 完整流水线编排：run_x_pipeline_impl X 真 emit（if(CALL)+last_rc_get 模式）。 */
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"run_x_pipeline_impl", 20))
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"run_x_pipeline_impl", 19))
     return 1;
   /** load/typecheck phase 编排 + last_rc sidecar。 */
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"run_x_pipeline_load_deps_after_parse", 37))
@@ -13641,15 +13641,15 @@ static int32_t asm_skip_heavy_typeck_mega_entry(struct ast_Module *m, int32_t fu
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_check_block_stmt_order_one", 33))
     return 1;
   /** 遍历全模块函数：槽位高；EMIT_HEAVY 第二遍 ret0 桩（子 helper check_one_func 仍 X）。 */
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_x_ast_impl", 18))
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_x_ast_impl", 17))
     return 1;
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_x_ast_library", 21))
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_x_ast_library", 20))
     return 1;
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_x_ast_check_all_funcs_loop", 34))
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_x_ast_check_all_funcs_loop", 33))
     return 1;
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_x_ast_check_one_func", 28))
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_x_ast_check_one_func", 27))
     return 1;
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_x_ast", 13))
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_x_ast", 12))
     return 1;
   /** type_kind_ordinal 在瘦 typeck #0 须真 emit；勿在此 mega 桩。 */
   return 0;
@@ -15275,6 +15275,9 @@ void pipeline_asm_wpo_reach_compute_for_elf(struct ast_Module *entry, struct ast
     return;
   /**
    * 用户库 module .o（无 main、无 entry）：须全量 export 进 .o，勿 WPO 误留 emit_n=1 空壳。
+   * PLATFORM: SHARED — compiler selfhost dogfood（typeck/pipeline/backend/driver_compile）
+   * 使用下方命名 WPO root；禁止走此 early-return（否则 typeck_wpo __text 全量 ~100KiB 压不进 baseline）。
+   * 历史债：2026-06-24 加用户库门时误伤 selfhost；typeck_wpo max 2048 从此红。
    */
   main_ix = pipeline_module_main_func_index(entry);
   if (main_ix < 0) {
@@ -15284,8 +15287,11 @@ void pipeline_asm_wpo_reach_compute_for_elf(struct ast_Module *entry, struct ast
       if (pipeline_module_func_name_equal_at(entry, fi, entry_nm, 5))
         break;
     }
-    if (fi >= nf)
-      return;
+    if (fi >= nf) {
+      if (!asm_module_is_typeck_selfhost(entry) && !asm_module_is_pipeline_selfhost(entry) &&
+          !asm_module_is_backend_selfhost(entry) && !asm_module_is_driver_compile_selfhost(entry))
+        return;
+    }
   }
   /**
    * build_shux_asm EMIT_HEAVY 第二遍：全 compiler 自举模块均可 WPO（root 按模块名设置）。
@@ -15331,23 +15337,23 @@ void pipeline_asm_wpo_reach_compute_for_elf(struct ast_Module *entry, struct ast
       }
     }
   }
-  /** pipeline.x 编排根：run_x_pipeline_impl（优于 main_func_index #0 占位符）。 */
+  /** pipeline.x 编排根：run_x_pipeline_impl（优于 main_func_index #0 占位符）。
+   * PLATFORM: SHARED — name must be "run_x_pipeline_impl" (strlen 19); historical "su" + len 20 never matched after SU→SX rename. */
   if (g_asm_wpo.root_id < 0 && asm_module_is_pipeline_selfhost(entry)) {
-    static const uint8_t pipe_impl_nm[21] = {'r', 'u', 'n', '_', 's', 'u', '_', 'p', 'i', 'p', 'e', 'l', 'i', 'n', 'e', '_', 'i', 'm', 'p', 'l', 0};
     nf = pipeline_module_num_funcs(entry);
     for (fi = 0; fi < nf; fi++) {
-      if (pipeline_module_func_name_equal_at(entry, fi, (uint8_t *)pipe_impl_nm, 20)) {
+      if (pipeline_module_func_name_equal_at(entry, fi, (uint8_t *)"run_x_pipeline_impl", 19)) {
         g_asm_wpo.root_id = asm_wpo_func_id_of(entry, fi);
         break;
       }
     }
   }
-  /** typeck.x 编排根：typeck_x_ast（S2 gate + pipeline typecheck 入口）。 */
+  /** typeck.x 编排根：typeck_x_ast（S2 gate + pipeline typecheck 入口）。
+   * PLATFORM: SHARED — name must be "typeck_x_ast" (strlen 12); historical "typeck_su_ast" + len 13 never matched. */
   if (g_asm_wpo.root_id < 0 && asm_module_is_typeck_selfhost(entry)) {
-    static uint8_t typeck_root_nm[14] = {'t', 'y', 'p', 'e', 'c', 'k', '_', 's', 'u', '_', 'a', 's', 't', 0};
     nf = pipeline_module_num_funcs(entry);
     for (fi = 0; fi < nf; fi++) {
-      if (pipeline_module_func_name_equal_at(entry, fi, typeck_root_nm, 13)) {
+      if (pipeline_module_func_name_equal_at(entry, fi, (uint8_t *)"typeck_x_ast", 12)) {
         g_asm_wpo.root_id = asm_wpo_func_id_of(entry, fi);
         break;
       }
@@ -15498,7 +15504,7 @@ int32_t pipeline_asm_wpo_pgo_is_hot_func(struct ast_Module *m, int32_t fi) {
 static int32_t asm_wpo_pipeline_strict_preserve_emit(struct ast_Module *m, int32_t fi) {
   if (!m || fi < 0 || !asm_module_is_pipeline_selfhost(m))
     return 0;
-  if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"run_x_pipeline_impl", 20))
+  if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"run_x_pipeline_impl", 19))
     return 1;
   if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"run_x_pipeline_parse_entry_if_needed", 37))
     return 1;
@@ -15573,9 +15579,9 @@ int32_t pipeline_asm_wpo_should_emit_func(struct ast_Module *m, int32_t fi) {
    * typeck.x WPO：S2 gate 关键 export + pipeline merge 须保留；其余走 reach DCE。
    */
   if (m == g_asm_wpo.entry && asm_module_is_typeck_selfhost(m)) {
-    if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"typeck_x_ast", 13))
+    if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"typeck_x_ast", 12))
       return 1;
-    if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"typeck_x_ast_library", 21))
+    if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"typeck_x_ast_library", 20))
       return 1;
     if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"check_block", 11))
       return 1;
