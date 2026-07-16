@@ -46,9 +46,12 @@ MODULES=(
   "src/lexer/lexer.x|lexer_gen.c"
   "src/preprocess/preprocess.x|preprocess_gen.c"
   "src/ast/ast.x|ast_gen.c"
-  "src/parser/parser.x|parser_gen.c"
-  "src/typeck/typeck.x|typeck_gen.c"
-  "src/codegen/codegen.x|codegen_gen.c"
+  # PLATFORM: SHARED — EMPTY-track plain -E surface only for mega frontends.
+  # Product cold pins stay seeds/{parser,typeck,codegen}_gen.linux.x86_64.c
+  # (full single-file with deps / product renames). Dual-authority by design.
+  "src/parser/parser.x|seeds/parser_empty_surface.from_x.c"
+  "src/typeck/typeck.x|seeds/typeck_empty_surface.from_x.c"
+  "src/codegen/codegen.x|seeds/codegen_empty_surface.from_x.c"
   # PLATFORM: SHARED — EMPTY-track plain -E surface only.
   # Product cold pins stay seeds/lsp{,_diag,_io}_gen.linux.x86_64.c (renames +
   # full types / C-04 -E-extern markers). Same dual-authority split as diagnostic thin:
@@ -221,7 +224,8 @@ for entry in "${MODULES[@]}"; do
   # EMPTY-track surface only: drop those platform-cfg dep lines from BOTH sides so
   # dual EMPTY is not blocked by std.heap cfg, without touching product cold seeds.
   case "$seed_key" in
-    lsp_empty_surface.from_x.c|lsp_diag_empty_surface.from_x.c|lsp_io_empty_surface.from_x.c)
+    lsp_empty_surface.from_x.c|lsp_diag_empty_surface.from_x.c|lsp_io_empty_surface.from_x.c|\
+    parser_empty_surface.from_x.c|typeck_empty_surface.from_x.c|codegen_empty_surface.from_x.c)
       for _side in "$norm_out" "$norm_seed"; do
         # Drop multi-line struct bodies + forward decls + freestanding page_heap
         # externs; collapse blank runs left by the drop so mac/Ubuntu match.
