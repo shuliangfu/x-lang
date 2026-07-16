@@ -400,6 +400,12 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
 else
   EXP_ALLOW_MULTIDEF="-Wl,--allow-multiple-definition"
 fi
+# parse_diag：与 Makefile RT_SEED_SLICE / g05 同源；runtime 仅声明 recovery 诊断。
+if [ ! -f src/runtime/rt_parse_diag.o ] || [ seeds/rt_parse_diag.from_x.c -nt src/runtime/rt_parse_diag.o ]; then
+  mkdir -p src/runtime
+  experimental_bootstrap_info "cc src/runtime/rt_parse_diag.o"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/rt_parse_diag.from_x.c -o src/runtime/rt_parse_diag.o
+fi
 "$CC" $CFLAGS $EXP_ALLOW_MULTIDEF -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -o shux_asm.experimental \
   src/asm/runtime_asm_build.o \
   "$GLUE_O" \
@@ -407,6 +413,7 @@ fi
   src/runtime_io_abi.o \
   src/runtime_proc_abi.o \
   src/runtime_driver_asm_strict.o \
+  src/runtime/rt_parse_diag.o \
   pipeline_x.o \
   pipeline_bootstrap_orchestration.o \
   preprocess_x.o \

@@ -3758,6 +3758,8 @@ ensure_runtime_driver_diagnostic_obj() {
 }
 
 # Cap residual：driver_abi 跨 TU 数据/thread_fn（与 Makefile RT_SEED_SLICE_OBJS 同源）。
+# 须含 rt_parse_diag：runtime_report_parse_recovery_diagnostics 权威体在 seeds/rt_parse_diag.from_x.c
+# （runtime.from_x.c 仅声明；缺链 → B-strict experimental link U 引用）。
 ensure_rt_seed_slice_objs() {
   mkdir -p src/runtime
   local pair seed o
@@ -3765,7 +3767,8 @@ ensure_rt_seed_slice_objs() {
     "rt_arena_buf:seeds/rt_arena_buf.from_x.c:src/runtime/rt_arena_buf.o" \
     "rt_emit_state:seeds/rt_emit_state.from_x.c:src/runtime/rt_emit_state.o" \
     "rt_preamble:seeds/rt_preamble.from_x.c:src/runtime/rt_preamble.o" \
-    "rt_stack:seeds/rt_stack.from_x.c:src/runtime/rt_stack.o"; do
+    "rt_stack:seeds/rt_stack.from_x.c:src/runtime/rt_stack.o" \
+    "rt_parse_diag:seeds/rt_parse_diag.from_x.c:src/runtime/rt_parse_diag.o"; do
     seed="${pair#*:}"
     seed="${seed%%:*}"
     o="${pair##*:}"
@@ -3793,7 +3796,7 @@ ensure_runtime_driver_asm_strict_obj() {
   echo " cc -c $o <- seeds/runtime.from_x.c (-DSHUX_ASM_USE_COMPILER_IMPL_C -DSHUX_NO_C_FRONTEND + RT_*_FROM_X)"
   local rt_flags="-DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_PREPROCESS -DSHUX_ASM_USE_COMPILER_IMPL_C -DSHUX_NO_C_FRONTEND"
   # 与 Makefile RUNTIME_DRIVER_RT_SLICE_CFLAGS 一致：数据在 rt_* 切片，runtime 仅声明。
-  rt_flags="$rt_flags -DSHUX_RT_ARENA_BUF_FROM_X -DSHUX_RT_EMIT_STATE_FROM_X -DSHUX_RT_PREAMBLE_FROM_X -DSHUX_RT_STACK_FROM_X"
+  rt_flags="$rt_flags -DSHUX_RT_ARENA_BUF_FROM_X -DSHUX_RT_EMIT_STATE_FROM_X -DSHUX_RT_PREAMBLE_FROM_X -DSHUX_RT_STACK_FROM_X -DSHUX_RT_PARSE_DIAG_FROM_X"
   if [ "${SHUX_LEGACY_PREPROCESS_C:-0}" = "1" ]; then
   rt_flags="$rt_flags -DSHUX_LEGACY_PREPROCESS_C"
   fi
@@ -3833,9 +3836,9 @@ ensure_asm_bootstrap_support_extra_objs() {
 }
 
 # experimental / strict runtime 链：heap_*_c 在 runtime_driver_strict_glue_stubs.o（G-02e-14）。
-# RT Cap residual slices：driver_abi 始终 extern 引用（arena/emit/preamble/stack_esc）。
+# RT Cap residual slices：与 Makefile RT_SEED_SLICE_OBJS 同源（含 parse_diag recovery）。
 asm_bootstrap_support_extra_link() {
-  echo "src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o $BUILD_DIR/typeck_c_module_stubs.o src/runtime_driver_strict_glue_stubs.o src/runtime/rt_arena_buf.o src/runtime/rt_emit_state.o src/runtime/rt_preamble.o src/runtime/rt_stack.o"
+  echo "src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o $BUILD_DIR/typeck_c_module_stubs.o src/runtime_driver_strict_glue_stubs.o src/runtime/rt_arena_buf.o src/runtime/rt_emit_state.o src/runtime/rt_preamble.o src/runtime/rt_stack.o src/runtime/rt_parse_diag.o"
 }
 
 # 确保 typeck_f64_bits.o 存在（pipeline_x / parser 浮点字面量位拆分）。
