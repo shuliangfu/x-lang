@@ -1,17 +1,18 @@
-/* G-02f-339..341 / R2 thin + Cap residual pure deep-migrate (skip/commit_fail/warn/hint wave):
+/* G-02f-339..341 / R2 thin + Cap residual pure deep-migrate (wave2 skip/warn + wave3 binop/commit_shape):
  * PREFER hybrid thin from src/runtime_driver_diagnostic_thin.x -E;
  * rest SHUX_L2_RDD_THIN_FROM_X: no thin public bodies; pure-dup fixed-msg/pipe orch/assemble/
  * env_debug_pipe/parse_strict_enabled/report_prefixed/pipe_note/
  * debug_log/parser_diag_xxx/typeck_block/fn/var/scratch +
  * parse_fail/codegen_fail/typeck_func_fail/ptr_field/ret_fail +
  * parse_skip/parse_commit_fail/parse_func_generic/parser_onefunc_param_ref +
- * typeck_import_const/warn_pad/warn_hot/hint_unused dropped;
- * only slice_marker + Cap residual (commit_shape/binop/asm BSS/void* module) bodies.
+ * typeck_import_const/warn_pad/warn_hot/hint_unused +
+ * typeck_binop_operands/parse_commit_shape/parser_diagnostic_parse_commit_shape dropped;
+ * only slice_marker + Cap residual (asm BSS/void* module/emit_func/va_list report) bodies.
  * Generated from (G-02f-86/96 +copy/report_prefixed) src/runtime_driver_diagnostic.x.
  * Regen: ./shux-c -E -L .. src/runtime_driver_diagnostic.x > /tmp/rdd.c
  *         merge fixed-msg wrappers; polish slice strings; keep snprintf C.
  * .x covers: fixed typeck msgs, fail, no-ops, parse pure + report_prefixed/pipe_note +
- *   debug_log/parser_diag + typeck debug/scratch + residual pure (incl. skip/warn/hint).
+ *   debug_log/parser_diag + typeck debug/scratch + residual pure (incl. skip/warn/binop/shape).
  */
 #include "runtime_driver_diagnostic.h"
 #include "runtime_driver_abi.h"
@@ -23,7 +24,9 @@
  * plus debug_log/parser_diag_xxx/typeck_block/fn/var/scratch +
  * parse_fail/codegen_fail/typeck_func_fail/ptr_field/ret_fail +
  * parse_skip/parse_commit_fail/parse_func_generic/parser_onefunc_param_ref +
- * typeck_import_const/warn_pad/warn_hot/hint_unused — rest must not #define dropped _impl */
+ * typeck_import_const/warn_pad/warn_hot/hint_unused +
+ * typeck_binop_operands/parse_commit_shape/parser_diagnostic_parse_commit_shape
+ * — rest must not #define dropped _impl */
 /* thin supplies pure public for rest residual callers */
 int driver_diag_env_debug_pipe(void);
 int32_t driver_parse_strict_enabled(void);
@@ -92,7 +95,8 @@ void driver_diagnostic_hint_unused_binding(int32_t line, int32_t col, const uint
 extern int32_t pipeline_module_num_funcs(void *module);
 extern int32_t pipeline_module_func_is_extern_at(void *module, int32_t fi);
 #else
-/* pure public from thin (no pure-dup _impl): parse_fail / typeck residual / skip / commit_fail / warn / hint / generic / param / import */
+/* pure public from thin (no pure-dup _impl): parse_fail / typeck residual / skip / commit_fail /
+ * warn / hint / generic / param / import / binop / commit_shape (+ parser alias) */
 void driver_diagnostic_parse_fail(int32_t main_idx, int32_t num_funcs, int32_t arena_num_types);
 void driver_diagnostic_parse_skip_function(int32_t byte_pos, int32_t num_funcs_so_far, int32_t name_len, const uint8_t *name);
 void driver_diagnostic_typeck_func_fail(int32_t func_idx, const uint8_t *name, int32_t name_len, int32_t kind);
@@ -377,9 +381,9 @@ void driver_diagnostic_typeck_ret_fail(int32_t stage, int32_t op_expr_ref, int32
 #endif
 
 
+/* pure authority: thin.x driver_diagnostic_typeck_binop_operands; cold keeps C body;
+ * FROM_X no pure-dup _impl (H↓ / rest T↓). */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-
-
 #ifndef SHUX_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_binop_operands(int32_t expr_ref, int32_t left_ref, int32_t right_ref,
                                              int32_t left_kind, int32_t right_kind,
@@ -387,14 +391,6 @@ void driver_diagnostic_typeck_binop_operands(int32_t expr_ref, int32_t left_ref,
                                              int32_t left_ty_ref, int32_t right_ty_ref,
                                              const uint8_t *left_ty, int32_t left_ty_len,
                                              const uint8_t *right_ty, int32_t right_ty_len)
-#else
-void driver_diagnostic_typeck_binop_operands_impl(int32_t expr_ref, int32_t left_ref, int32_t right_ref,
-                                             int32_t left_kind, int32_t right_kind,
-                                             int32_t left_block_ref, int32_t right_block_ref,
-                                             int32_t left_ty_ref, int32_t right_ty_ref,
-                                             const uint8_t *left_ty, int32_t left_ty_len,
-                                             const uint8_t *right_ty, int32_t right_ty_len)
-#endif
 {
     char left_buf[112];
     char right_buf[112];
@@ -407,6 +403,7 @@ void driver_diagnostic_typeck_binop_operands_impl(int32_t expr_ref, int32_t left
                  (int)expr_ref, (int)left_ref, (int)left_kind, (int)left_block_ref, (int)left_ty_ref, left_buf[0] ? left_buf : "?",
                  (int)right_ref, (int)right_kind, (int)right_block_ref, (int)right_ty_ref, right_buf[0] ? right_buf : "?");
 }
+#endif
 
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
@@ -1037,6 +1034,8 @@ void driver_diagnostic_parse_func_generic(int32_t byte_pos, int32_t num_funcs_so
  * 环境变量 SHUX_DEBUG_PARSE_COMMIT=1。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* pure authority: thin.x driver_diagnostic_parse_commit_shape; cold keeps C body;
+ * FROM_X no pure-dup _impl (H↓ / rest T↓). */
 #ifndef SHUX_L2_RDD_THIN_FROM_X
 void driver_diagnostic_parse_commit_shape(int32_t byte_pos, int32_t num_funcs_so_far, const uint8_t *name, int32_t name_len,
                                           int32_t phase, int32_t block_ref, int32_t pool_num_consts,
@@ -1044,14 +1043,6 @@ void driver_diagnostic_parse_commit_shape(int32_t byte_pos, int32_t num_funcs_so
                                           int32_t pool_num_stmt_order, int32_t block_num_consts, int32_t block_num_lets,
                                           int32_t block_num_ifs, int32_t block_num_regions, int32_t block_num_stmt_order,
                                           int32_t final_expr_ref)
-#else
-void driver_diagnostic_parse_commit_shape_impl(int32_t byte_pos, int32_t num_funcs_so_far, const uint8_t *name, int32_t name_len,
-                                          int32_t phase, int32_t block_ref, int32_t pool_num_consts,
-                                          int32_t pool_num_lets, int32_t pool_num_ifs, int32_t pool_num_regions,
-                                          int32_t pool_num_stmt_order, int32_t block_num_consts, int32_t block_num_lets,
-                                          int32_t block_num_ifs, int32_t block_num_regions, int32_t block_num_stmt_order,
-                                          int32_t final_expr_ref)
-#endif
 {
     char namebuf[72];
     const char *phase_name;
@@ -1066,11 +1057,11 @@ void driver_diagnostic_parse_commit_shape_impl(int32_t byte_pos, int32_t num_fun
                  (int)block_num_consts, (int)block_num_lets, (int)block_num_ifs, (int)block_num_regions,
                  (int)block_num_stmt_order, (int)final_expr_ref, namebuf[0] ? namebuf : "?");
 }
+#endif
 
-
+/* pure authority: thin.x parser_diagnostic_parse_commit_shape (zero-logic alias of driver_*);
+ * cold keeps C forward; FROM_X no pure-dup _impl. */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-
-
 #ifndef SHUX_L2_RDD_THIN_FROM_X
 void parser_diagnostic_parse_commit_shape(int32_t byte_pos, int32_t num_funcs_so_far, const uint8_t *name, int32_t name_len,
                                           int32_t phase, int32_t block_ref, int32_t pool_num_consts,
@@ -1078,20 +1069,13 @@ void parser_diagnostic_parse_commit_shape(int32_t byte_pos, int32_t num_funcs_so
                                           int32_t pool_num_stmt_order, int32_t block_num_consts, int32_t block_num_lets,
                                           int32_t block_num_ifs, int32_t block_num_regions, int32_t block_num_stmt_order,
                                           int32_t final_expr_ref)
-#else
-void parser_diagnostic_parse_commit_shape_impl(int32_t byte_pos, int32_t num_funcs_so_far, const uint8_t *name, int32_t name_len,
-                                          int32_t phase, int32_t block_ref, int32_t pool_num_consts,
-                                          int32_t pool_num_lets, int32_t pool_num_ifs, int32_t pool_num_regions,
-                                          int32_t pool_num_stmt_order, int32_t block_num_consts, int32_t block_num_lets,
-                                          int32_t block_num_ifs, int32_t block_num_regions, int32_t block_num_stmt_order,
-                                          int32_t final_expr_ref)
-#endif
 {
     driver_diagnostic_parse_commit_shape(byte_pos, num_funcs_so_far, name, name_len, phase, block_ref, pool_num_consts,
                                          pool_num_lets, pool_num_ifs, pool_num_regions, pool_num_stmt_order,
                                          block_num_consts, block_num_lets, block_num_ifs, block_num_regions,
                                          block_num_stmt_order, final_expr_ref);
 }
+#endif
 
 
 

@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // G-02f-339..341/409/416 + Cap residual pure deep-migrate
-// (parse_fail / codegen_fail / typeck residual + skip/commit_fail/warn/hint/generic/param/import):
+// (parse_fail / codegen_fail / typeck residual + skip/commit_fail/warn/hint/generic/param/import
+//  + binop + commit_shape wave3):
 // runtime_driver_diagnostic R2 thin.
 // Product PREFER_X_O: g05_try_x_to_o -> thin.o + seeds/runtime_driver_diagnostic.from_x.c rest
 //   (-DSHUX_L2_RDD_THIN_FROM_X) ld -r -> src/runtime_driver_diagnostic.o
@@ -11,8 +12,9 @@
 //   + parse_fail (XP001) + codegen_fail note + typeck_func_fail (XT001)
 //   + typeck_ptr_field / typeck_ret_fail debug notes (getenv gate + append+note)
 //   + parse_skip / parse_commit_fail (XP002) / parse_func_generic / parser_onefunc_param_ref
-//   + typeck_import_const_must_be_qualified / warn_pad / warn_hot / hint_unused (append; no va_list).
-// Cap residual: remaining rest snprintf/va_list/BSS/void* *_impl (commit_shape/binop/asm/module/...).
+//   + typeck_import_const_must_be_qualified / warn_pad / warn_hot / hint_unused (append; no va_list)
+//   + typeck_binop_operands / parse_commit_shape / parser_diagnostic_parse_commit_shape (wave3).
+// Cap residual: remaining rest va_list/BSS/void* module *_impl (asm BSS / emit_func / module / ...).
 // This TU: thin gates + pure bodies (f-339..341 + f-387 env + f-409 pipe + f-416 lsp_diag_get)
 
 export extern "C" function getenv(name: *u8): *u8;
@@ -26,38 +28,12 @@ export extern "C" function driver_diagnostic_asm_fail_at_impl(loc: i32): void;
 export extern "C" function driver_diagnostic_asm_print_current_func_impl(): void;
 export extern "C" function driver_diagnostic_asm_var_not_found_impl(name: *u8, len: i32, num_locals: i32, first_slot: *u8, first_len: i32): void;
 export extern "C" function driver_diagnostic_codegen_emit_func_fail_impl(module: *u8, func_index: i32): void;
-export extern "C" function driver_diagnostic_parse_commit_shape_impl(byte_pos: i32, num_funcs_so_far: i32, name: *u8, name_len: i32, phase: i32, block_ref: i32, pool_num_consts: i32, pool_num_lets: i32, pool_num_ifs: i32, pool_num_regions: i32, pool_num_stmt_order: i32, block_num_consts: i32, block_num_lets: i32, block_num_ifs: i32, block_num_regions: i32, block_num_stmt_order: i32, final_expr_ref: i32): void;
-export extern "C" function driver_diagnostic_typeck_binop_operands_impl(expr_ref: i32, left_ref: i32, right_ref: i32, left_kind: i32, right_kind: i32, left_block_ref: i32, right_block_ref: i32, left_ty_ref: i32, right_ty_ref: i32, left_ty: *u8, left_ty_len: i32, right_ty: *u8, right_ty_len: i32): void;
-export extern "C" function parser_diagnostic_parse_commit_shape_impl(byte_pos: i32, num_funcs_so_far: i32, name: *u8, name_len: i32, phase: i32, block_ref: i32, pool_num_consts: i32, pool_num_lets: i32, pool_num_ifs: i32, pool_num_regions: i32, pool_num_stmt_order: i32, block_num_consts: i32, block_num_lets: i32, block_num_ifs: i32, block_num_regions: i32, block_num_stmt_order: i32, final_expr_ref: i32): void;
 
-// pure bodies for parse_fail / skip / commit_fail / warn / hint / generic / param / import
-// are defined after append_* helpers (see Cap residual pure deep-migrate section below).
-
-#[no_mangle]
-export function driver_diagnostic_typeck_binop_operands(expr_ref: i32, left_ref: i32, right_ref: i32, left_kind: i32, right_kind: i32, left_block_ref: i32, right_block_ref: i32, left_ty_ref: i32, right_ty_ref: i32, left_ty: *u8, left_ty_len: i32, right_ty: *u8, right_ty_len: i32): void {
-  unsafe {
-    driver_diagnostic_typeck_binop_operands_impl(expr_ref, left_ref, right_ref, left_kind, right_kind, left_block_ref, right_block_ref, left_ty_ref, right_ty_ref, left_ty, left_ty_len, right_ty, right_ty_len);
-  }
-}
-
+// pure bodies for parse_fail / skip / commit_fail / warn / hint / generic / param / import /
+// binop / commit_shape are defined after append_* helpers (Cap residual pure deep-migrate).
 
 // pure: typeck_block/fn/var debug below (getenv gate + append+note); thin gate removed.
-
-
-#[no_mangle]
-export function driver_diagnostic_parse_commit_shape(byte_pos: i32, num_funcs_so_far: i32, name: *u8, name_len: i32, phase: i32, block_ref: i32, pool_num_consts: i32, pool_num_lets: i32, pool_num_ifs: i32, pool_num_regions: i32, pool_num_stmt_order: i32, block_num_consts: i32, block_num_lets: i32, block_num_ifs: i32, block_num_regions: i32, block_num_stmt_order: i32, final_expr_ref: i32): void {
-  unsafe {
-    driver_diagnostic_parse_commit_shape_impl(byte_pos, num_funcs_so_far, name, name_len, phase, block_ref, pool_num_consts, pool_num_lets, pool_num_ifs, pool_num_regions, pool_num_stmt_order, block_num_consts, block_num_lets, block_num_ifs, block_num_regions, block_num_stmt_order, final_expr_ref);
-  }
-}
-
-
-#[no_mangle]
-export function parser_diagnostic_parse_commit_shape(byte_pos: i32, num_funcs_so_far: i32, name: *u8, name_len: i32, phase: i32, block_ref: i32, pool_num_consts: i32, pool_num_lets: i32, pool_num_ifs: i32, pool_num_regions: i32, pool_num_stmt_order: i32, block_num_consts: i32, block_num_lets: i32, block_num_ifs: i32, block_num_regions: i32, block_num_stmt_order: i32, final_expr_ref: i32): void {
-  unsafe {
-    parser_diagnostic_parse_commit_shape_impl(byte_pos, num_funcs_so_far, name, name_len, phase, block_ref, pool_num_consts, pool_num_lets, pool_num_ifs, pool_num_regions, pool_num_stmt_order, block_num_consts, block_num_lets, block_num_ifs, block_num_regions, block_num_stmt_order, final_expr_ref);
-  }
-}
+// pure: typeck_binop_operands / parse_commit_shape / parser_diagnostic_parse_commit_shape (wave3).
 
 
 #[no_mangle]
@@ -980,7 +956,7 @@ export function driver_diagnostic_asm_macho_missing_und_reloc(reloc_idx: i32): v
   driver_diag_note(&msg[0]);
 }
 
-// ---- Cap residual pure deep-migrate (this wave): skip / commit_fail / generic / param / import / warn / hint ----
+// ---- Cap residual pure deep-migrate: skip / commit_fail / generic / param / import / warn / hint (wave2) ----
 
 /** Parse skip note when a function cannot be committed. Gate: SHUX_DEBUG_PARSE non-NULL
  * or SHUX_PARSE_STRICT truthy (same as driver_diag_parse_debug_enabled).
@@ -1253,6 +1229,118 @@ export function driver_diagnostic_hint_unused_binding(line: i32, col: i32, name:
     }
     diag_report(0 as *u8, ln, cl, "info", &msg[0], 0 as *u8);
   }
+}
+
+// ---- Cap residual pure deep-migrate wave3: binop operands + parse_commit_shape ----
+
+/** Optional binop operand debug note when getenv("SHUX_TYPECK_BINOP") is set.
+ * Assembles left/right refs, kinds, block refs, type refs, and type name fragments via
+ * fill_expr_part (? fallback) + append_cstr/append_i32 + driver_diag_note. No va_list reportf.
+ * Message text must match cold seed reportf format (field order fixed).
+ * PLATFORM: SHARED — pure authority in thin.x; cold seed keeps C body; FROM_X no pure-dup _impl. */
+#[no_mangle]
+export function driver_diagnostic_typeck_binop_operands(expr_ref: i32, left_ref: i32, right_ref: i32, left_kind: i32, right_kind: i32, left_block_ref: i32, right_block_ref: i32, left_ty_ref: i32, right_ty_ref: i32, left_ty: *u8, left_ty_len: i32, right_ty: *u8, right_ty_len: i32): void {
+  unsafe {
+    if (getenv("SHUX_TYPECK_BINOP") == 0 as *u8) {
+      return;
+    }
+  }
+  let left_buf: u8[112] = [];
+  let right_buf: u8[112] = [];
+  // Match cold seed: empty / missing type name -> "?".
+  driver_diag_fill_expr_part(&left_buf[0], 112, left_ty, left_ty_len);
+  driver_diag_fill_expr_part(&right_buf[0], 112, right_ty, right_ty_len);
+  let msg: u8[384] = [];
+  // Split long cstrs: product codegen string-lit cap ~63 bytes.
+  let at: i32 = driver_diag_append_cstr(&msg[0], 384, 0, "typeck binop debug: expr=");
+  at = driver_diag_append_i32(&msg[0], 384, at, expr_ref);
+  at = driver_diag_append_cstr(&msg[0], 384, at, " left_ref=");
+  at = driver_diag_append_i32(&msg[0], 384, at, left_ref);
+  at = driver_diag_append_cstr(&msg[0], 384, at, " left_kind=");
+  at = driver_diag_append_i32(&msg[0], 384, at, left_kind);
+  at = driver_diag_append_cstr(&msg[0], 384, at, " left_block=");
+  at = driver_diag_append_i32(&msg[0], 384, at, left_block_ref);
+  at = driver_diag_append_cstr(&msg[0], 384, at, " left_ty_ref=");
+  at = driver_diag_append_i32(&msg[0], 384, at, left_ty_ref);
+  at = driver_diag_append_cstr(&msg[0], 384, at, " left_ty=");
+  at = driver_diag_append_cstr(&msg[0], 384, at, &left_buf[0]);
+  at = driver_diag_append_cstr(&msg[0], 384, at, " right_ref=");
+  at = driver_diag_append_i32(&msg[0], 384, at, right_ref);
+  at = driver_diag_append_cstr(&msg[0], 384, at, " right_kind=");
+  at = driver_diag_append_i32(&msg[0], 384, at, right_kind);
+  at = driver_diag_append_cstr(&msg[0], 384, at, " right_block=");
+  at = driver_diag_append_i32(&msg[0], 384, at, right_block_ref);
+  at = driver_diag_append_cstr(&msg[0], 384, at, " right_ty_ref=");
+  at = driver_diag_append_i32(&msg[0], 384, at, right_ty_ref);
+  at = driver_diag_append_cstr(&msg[0], 384, at, " right_ty=");
+  at = driver_diag_append_cstr(&msg[0], 384, at, &right_buf[0]);
+  driver_diag_note(&msg[0]);
+}
+
+/** Optional parse-commit shape debug when getenv("SHUX_DEBUG_PARSE_COMMIT") is set.
+ * phase: 0=pre_fill, 1=post_block, else unknown. Prints pool vs block counts and final_expr_ref.
+ * Assembles via fill_expr_part for name (? fallback) + append_* + driver_diag_note. No va_list.
+ * PLATFORM: SHARED — pure authority in thin.x; cold seed keeps C body; FROM_X no pure-dup _impl. */
+#[no_mangle]
+export function driver_diagnostic_parse_commit_shape(byte_pos: i32, num_funcs_so_far: i32, name: *u8, name_len: i32, phase: i32, block_ref: i32, pool_num_consts: i32, pool_num_lets: i32, pool_num_ifs: i32, pool_num_regions: i32, pool_num_stmt_order: i32, block_num_consts: i32, block_num_lets: i32, block_num_ifs: i32, block_num_regions: i32, block_num_stmt_order: i32, final_expr_ref: i32): void {
+  unsafe {
+    if (getenv("SHUX_DEBUG_PARSE_COMMIT") == 0 as *u8) {
+      return;
+    }
+  }
+  let namebuf: u8[72] = [];
+  driver_diag_fill_expr_part(&namebuf[0], 72, name, name_len);
+  // Inline phase tag (avoid *u8-returning helper — -E may omit its body).
+  let phase_name: *u8 = "unknown";
+  if (phase == 0) {
+    phase_name = "pre_fill";
+  } else {
+    if (phase == 1) {
+      phase_name = "post_block";
+    }
+  }
+  let msg: u8[512] = [];
+  let at: i32 = driver_diag_append_cstr(&msg[0], 512, 0, "parse commit debug: byte=");
+  at = driver_diag_append_i32(&msg[0], 512, at, byte_pos);
+  at = driver_diag_append_cstr(&msg[0], 512, at, " num_funcs=");
+  at = driver_diag_append_i32(&msg[0], 512, at, num_funcs_so_far);
+  at = driver_diag_append_cstr(&msg[0], 512, at, " phase=");
+  at = driver_diag_append_cstr(&msg[0], 512, at, phase_name);
+  at = driver_diag_append_cstr(&msg[0], 512, at, " block=");
+  at = driver_diag_append_i32(&msg[0], 512, at, block_ref);
+  at = driver_diag_append_cstr(&msg[0], 512, at, " pool(c=");
+  at = driver_diag_append_i32(&msg[0], 512, at, pool_num_consts);
+  at = driver_diag_append_cstr(&msg[0], 512, at, " l=");
+  at = driver_diag_append_i32(&msg[0], 512, at, pool_num_lets);
+  at = driver_diag_append_cstr(&msg[0], 512, at, " if=");
+  at = driver_diag_append_i32(&msg[0], 512, at, pool_num_ifs);
+  at = driver_diag_append_cstr(&msg[0], 512, at, " reg=");
+  at = driver_diag_append_i32(&msg[0], 512, at, pool_num_regions);
+  at = driver_diag_append_cstr(&msg[0], 512, at, " so=");
+  at = driver_diag_append_i32(&msg[0], 512, at, pool_num_stmt_order);
+  at = driver_diag_append_cstr(&msg[0], 512, at, ") block(c=");
+  at = driver_diag_append_i32(&msg[0], 512, at, block_num_consts);
+  at = driver_diag_append_cstr(&msg[0], 512, at, " l=");
+  at = driver_diag_append_i32(&msg[0], 512, at, block_num_lets);
+  at = driver_diag_append_cstr(&msg[0], 512, at, " if=");
+  at = driver_diag_append_i32(&msg[0], 512, at, block_num_ifs);
+  at = driver_diag_append_cstr(&msg[0], 512, at, " reg=");
+  at = driver_diag_append_i32(&msg[0], 512, at, block_num_regions);
+  at = driver_diag_append_cstr(&msg[0], 512, at, " so=");
+  at = driver_diag_append_i32(&msg[0], 512, at, block_num_stmt_order);
+  at = driver_diag_append_cstr(&msg[0], 512, at, " fin=");
+  at = driver_diag_append_i32(&msg[0], 512, at, final_expr_ref);
+  at = driver_diag_append_cstr(&msg[0], 512, at, ") name=");
+  at = driver_diag_append_cstr(&msg[0], 512, at, &namebuf[0]);
+  driver_diag_note(&msg[0]);
+}
+
+/** Parser-facing alias of driver_diagnostic_parse_commit_shape (same args / same body path).
+ * G.7: zero business logic — single authority is driver_diagnostic_parse_commit_shape.
+ * PLATFORM: SHARED — pure thin public; cold seed forwards; FROM_X no pure-dup _impl. */
+#[no_mangle]
+export function parser_diagnostic_parse_commit_shape(byte_pos: i32, num_funcs_so_far: i32, name: *u8, name_len: i32, phase: i32, block_ref: i32, pool_num_consts: i32, pool_num_lets: i32, pool_num_ifs: i32, pool_num_regions: i32, pool_num_stmt_order: i32, block_num_consts: i32, block_num_lets: i32, block_num_ifs: i32, block_num_regions: i32, block_num_stmt_order: i32, final_expr_ref: i32): void {
+  driver_diagnostic_parse_commit_shape(byte_pos, num_funcs_so_far, name, name_len, phase, block_ref, pool_num_consts, pool_num_lets, pool_num_ifs, pool_num_regions, pool_num_stmt_order, block_num_consts, block_num_lets, block_num_ifs, block_num_regions, block_num_stmt_order, final_expr_ref);
 }
 
 // ---- G-02f-416:lsp_diag_enabled getter -> seed impl ----
