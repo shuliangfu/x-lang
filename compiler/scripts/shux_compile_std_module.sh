@@ -105,8 +105,9 @@ for x_path in "$@"; do
       Linux|Darwin) BACKEND_ARGS="-backend c" ;;
     esac
   fi
+  # PLATFORM: SHARED — NEVER rm /tmp/shux_shux_x.*.c globally: bstrict concurrent
+  # user -o and std compile race-delete each other's KEEP_C temps (mac L4 true-cold).
   # shellcheck: empty -lib-name needs quoted empty string
-  rm -f /tmp/shux_shux_x.*.c 2>/dev/null || true
   if [ "$base_name" != "mod.x" ] && [ "$BARE_IMPL" = "1" ] && [ "$LIB_NAME_SUPPORTED" = "1" ]; then
     SHUX_KEEP_C=1 "$SHUX_BIN" $BACKEND_ARGS -L .. -lib-name "" -o "$tmp_dir/try_${idx}.o" "$x_path" \
       >"$tmp_dir/shuxc_${idx}.log" 2>&1 || true
@@ -126,11 +127,14 @@ for x_path in "$@"; do
   if [ "$base_name" != "mod.x" ] && [ "$BARE_IMPL" = "1" ]; then
     bare_need_strip=1
   fi
-  # 先认 KEEP_C 完整源（-backend c 库模块常无 main → 链失败但 C 齐）
-  kept0=$(ls -t /tmp/shux_shux_x.*.c 2>/dev/null | head -1)
+  # KEEP_C 路径：从本 invocation 的 log 取路径（勿 ls /tmp 抢别人的 temp）
+  kept0=$(grep -E 'kept generated C:|keeping generated C:' "$tmp_dir/shuxc_${idx}.log" 2>/dev/null \
+    | sed -n 's/.*generated C: //p' | tail -1)
   if [ -n "$kept0" ] && [ -f "$kept0" ] && [ -s "$kept0" ] && tail -c 80 "$kept0" | grep -q '}'; then
     cp "$kept0" "$gen_c"
     emit_ok=1
+    # 只删本路径，勿通配
+    rm -f "$kept0" 2>/dev/null || true
   fi
   if [ "$emit_ok" != "1" ] && [ -f "$tmp_dir/try_${idx}.o" ] && [ -s "$tmp_dir/try_${idx}.o" ]; then
     if [ "$bare_need_strip" = "1" ]; then
@@ -198,24 +202,27 @@ for x_path in "$@"; do
     fi
   fi
   if [ "$emit_ok" != "1" ]; then
-    kept=$(ls -t /tmp/shux_shux_x.*.c 2>/dev/null | head -1)
+    kept=$(grep -E 'kept generated C:|keeping generated C:' "$tmp_dir/shuxc_${idx}.log" 2>/dev/null \
+      | sed -n 's/.*generated C: //p' | tail -1)
     if [ -n "$kept" ] && [ -f "$kept" ] && [ -s "$kept" ]; then
       if tail -c 80 "$kept" | grep -q '}' ; then
         cp "$kept" "$gen_c"
         emit_ok=1
+        rm -f "$kept" 2>/dev/null || true
       fi
     fi
   fi
   # bare-impl 需剥前缀且无完整 C：再试 -backend c KEEP_C
   if [ "$emit_ok" != "1" ] && [ "$bare_need_strip" = "1" ]; then
-    rm -f /tmp/shux_shux_x.*.c 2>/dev/null || true
     SHUX_KEEP_C=1 "$SHUX_BIN" -backend c -L .. -o "$tmp_dir/try_c_${idx}.o" "$x_path" \
       >"$tmp_dir/shuxc_c_${idx}.log" 2>&1 || true
-    kept=$(ls -t /tmp/shux_shux_x.*.c 2>/dev/null | head -1)
+    kept=$(grep -E 'kept generated C:|keeping generated C:' "$tmp_dir/shuxc_c_${idx}.log" 2>/dev/null \
+      | sed -n 's/.*generated C: //p' | tail -1)
     if [ -n "$kept" ] && [ -f "$kept" ] && [ -s "$kept" ]; then
       if tail -c 80 "$kept" | grep -q '}' ; then
         cp "$kept" "$gen_c"
         emit_ok=1
+        rm -f "$kept" 2>/dev/null || true
       fi
     fi
   fi

@@ -16,7 +16,7 @@ trap 'rm -rf "$tmp"' EXIT INT TERM
 
 # 1) mod.x → C：优先 -x -E（库模块 asm_entry_module_only：仅入口体，dep 为 extern，
 #    避免 string.o 内嵌 core_mem_*）。-o KEEP_C 曾 co-emit 整树并引用未声明 heap 全局。
-rm -f /tmp/shux_shux_x.*.c 2>/dev/null || true
+# PLATFORM: SHARED — do not rm global /tmp/shux_shux_x.*.c (races with concurrent -o).
 if ! "$SHUX" -x -E -L "$ROOT" "$ROOT/std/string/mod.x" >"$tmp/mod.c" 2>"$tmp/mod.log"; then
   echo "shux_compile_std_string_o: -x -E mod.x failed" >&2
   cat "$tmp/mod.log" >&2

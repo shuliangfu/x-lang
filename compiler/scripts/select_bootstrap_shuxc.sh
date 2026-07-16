@@ -39,11 +39,18 @@ can_run() {
   tmp="/tmp/shux_can_run_$$.x"
   out="/tmp/shux_can_run_out_$$.c"
   printf '%s\n' 'function main(): i32 { return 0; }' >"$tmp"
-  if "$1" -c "$tmp" >/dev/null 2>&1; then
+  # PLATFORM: SHARED — L4 true-cold wipes all .o; pin seeds often need -L for -c/-E smoke.
+  # Try bare first (self-contained binary), then repo lib roots (driver leaf / std resolve).
+  if "$1" -c "$tmp" >/dev/null 2>&1 \
+    || "$1" -L .. -L . -L src -L src/lexer -L src/ast -c "$tmp" >/dev/null 2>&1; then
     rm -f "$tmp" "$out" 2>/dev/null || true
     return 0
   fi
   if "$1" -E "$tmp" >"$out" 2>/dev/null && [ -s "$out" ]; then
+    rm -f "$tmp" "$out" 2>/dev/null || true
+    return 0
+  fi
+  if "$1" -L .. -L . -L src -E "$tmp" >"$out" 2>/dev/null && [ -s "$out" ]; then
     rm -f "$tmp" "$out" 2>/dev/null || true
     return 0
   fi
