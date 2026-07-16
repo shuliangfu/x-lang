@@ -3827,7 +3827,14 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
             }
             if (needs_runtime) {
                 (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, runtime_o);
+                /* PLATFORM: SHARED — L4 冷树可无 runtime_panic.o；仅 push_existing 会静默跳过 → UNDEF shux_panic_。 */
+                (void)shux_ensure_runtime_panic_o(NULL);
                 (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, runtime_panic_o);
+                {
+                    const char *rp = shux_runtime_panic_o_path(NULL);
+                    if (rp && rp[0])
+                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rp);
+                }
             }
             if (needs_win32) {
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
@@ -4160,8 +4167,17 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
                 (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, path_o);
             if (need_runtime)
                 (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, runtime_o);
-            if (need_panic || need_runtime)
+            /* PLATFORM: SHARED — need_panic 时必须 ensure 再建链；cold 缺 .o 时 push_existing 静默 skip
+             * 会 UNDEF shux_panic_（run-panic L4）。path 可能为空串（文件尚不存在），ensure 后再取 path。 */
+            if (need_panic || need_runtime) {
+                (void)shux_ensure_runtime_panic_o(NULL);
                 (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, runtime_panic_o);
+                {
+                    const char *rp = shux_runtime_panic_o_path(NULL);
+                    if (rp && rp[0])
+                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rp);
+                }
+            }
             if (need_net && invoke_cc_argv_push_existing(argv, &i, argv_cap, net_o)) {
                 (void)invoke_cc_append_net_tls_ld(argv, &i, argv_cap, net_o, include_root);
                 (void)shux_ensure_runtime_net_udp_batch_o(NULL);
