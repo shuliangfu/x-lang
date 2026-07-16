@@ -51,12 +51,18 @@ elif [ "${SHUX_STAGE2_SKIP_SECOND_BUILD:-0}" = "1" ] && [ -x ./shux_asm_stage1 ]
 else
   echo "── Step 2: 第二遍 build_shux_asm（SHUX=shux_asm_stage1，Stage2 round2 driver_compile_link 链）──"
   # CI=1 时 build_shux_asm 设 SHUX_ASM_CI_ACCEPT_EXPERIMENTAL_ONLY，跳过 strict 重链；Stage2 须全量 B-strict。
+  # PLATFORM: LINUX Stage2 round2 — default WPO opt-in can shrink pipeline.o export list
+  # (0–36 syms) and break strict re-link; dogfood WPO is orthogonal to gen1→gen2 parity.
+  # SKIP_MAIN / SKIP_WPO / STRICT_LINK_PIPELINE_WPO=0 match proven green gate (b5470cde+).
   env -u CI \
     SHUX_ASM_CI_SKIP_FAST=1 \
     SHUX_ASM_CI_ACCEPT_EXPERIMENTAL_ONLY= \
     SHUX_ASM_CI_SKIP_SECOND_PASS= \
     SHUX_ASM_EXPERIMENTAL_SKIP_GEN=1 \
     SHUX_ASM_BOOTSTRAP_ROUND2=1 \
+    SHUX_ASM_SKIP_MAIN_O_REBUILD="${SHUX_ASM_SKIP_MAIN_O_REBUILD:-1}" \
+    SHUX_ASM_SKIP_WPO_DOGFOOD="${SHUX_ASM_SKIP_WPO_DOGFOOD:-1}" \
+    SHUX_ASM_STRICT_LINK_PIPELINE_WPO="${SHUX_ASM_STRICT_LINK_PIPELINE_WPO:-0}" \
     SHUX=./shux_asm_stage1 \
     ./scripts/build_shux_asm.sh 2>&1 | tee /tmp/build_shux_asm2.log
   if ! grep -qE 'asm_only_strict|B-strict OK' /tmp/build_shux_asm2.log; then

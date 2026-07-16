@@ -5,12 +5,16 @@
 # NL-07 v6: argc/argv live in r12/r13; bootstrap stubs clobber rdi/rsi — restore before each call.
 # NL-07 v7: keep SysV 16B stack alignment before C calls (do not extra sub $8).
 #
-# Exit path (2026-07-16, fixed Stage2):
-#   Hosted/dynamic g05 product links real glibc stdout; -E large output needs fflush before
-#   SYS_exit or glibc buffers drop the tail (~24KiB false truncate on udp cold path).
-#   Freestanding Stage2 gen2 also links bootstrap_nostdlib_stubs FILE* {int fd} for stdout
-#   while a static glibc _IO_fflush may still be in the image — calling fflush on the stub
-#   FILE* SIGSEGVs. Authority: bootstrap_flush_stdio_and_exit (null/stub-safe, then exit).
+# Exit path (2026-07-16, Stage2 + g05 dual topology):
+#   Freestanding (build_shux_asm / Stage2 gen2): links bootstrap_nostdlib_stubs — call
+#   bootstrap_flush_stdio_and_exit (skips fflush on stub FILE*{fd}; static glibc _IO_fflush
+#   on that stub SIGSEGVs).
+#   Hosted/dynamic g05 product: does NOT link bootstrap_nostdlib_stubs (would hijack
+#   stdout/malloc). Weak ref resolves to 0 → fflush@PLT real glibc streams then SYS_exit
+#   (keeps -E buffer tail; historical 24KiB udp cold truncate).
+#   PLATFORM: LINUX x86_64 only.
+
+	.weak	bootstrap_flush_stdio_and_exit
 
 	.text
 	.globl	_start
@@ -28,8 +32,23 @@ _start:
 	mov	%r12d, %edi
 	mov	%r13, %rsi
 	call	main_entry
-	/* main_entry return → edi; helper never returns. */
-	mov	%eax, %edi
+	mov	%eax, %r12d
+	/* Weak: non-zero only when bootstrap_nostdlib_stubs is in the link. */
+	movabs	$bootstrap_flush_stdio_and_exit, %rax
+	test	%rax, %rax
+	jz	.Lhosted_fflush_exit
+	mov	%r12d, %edi
 	call	bootstrap_flush_stdio_and_exit
+	/* noreturn; keep fallthrough safe */
+	jmp	1f
+.Lhosted_fflush_exit:
+	/* g05 dynamic: real glibc stdout/stderr */
+	mov	stdout(%rip), %rdi
+	call	fflush@PLT
+	mov	stderr(%rip), %rdi
+	call	fflush@PLT
+	mov	%r12d, %edi
+	mov	$60, %eax
+	syscall
 1:	jmp	1b
 	.size	_start, .-_start
