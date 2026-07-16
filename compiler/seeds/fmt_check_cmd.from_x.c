@@ -1,12 +1,13 @@
-/* R2 thin + Cap residual pure 深迁（续 lib_bufs n BSS pure）：
+/* R2 thin + Cap residual pure 深迁（续 ignore path slots pure）：
  * PREFER hybrid thin 由 src/driver/fmt_check_cmd_thin.x（lit/entry + pure 真体）；
  * rest SHUX_L2_FMT_CHECK_THIN_FROM_X：无 thin 公共体；pure-duplicate _impl 剔除
  * （含 set_current_file / print / cwd_fallback / try_walk / path_resolve_abs /
  *  append_repo_lib_roots / missing_diag / invoke/dep_clear /
  *  collect_mode is_check / user_passed_L_get / init_user_lib_flags /
- *  file_list_n / user_ignore_count / lib_bufs_n / …）；
- * Cap residual：walk opendir/stat/argv/大 BSS（ignore path slots/file_list ptrs/
- *  lib path slots）/ one_file_body 仍 rest。
+ *  file_list_n / user_ignore_count / lib_bufs_n / user_ignore_at /
+ *  parse_ignore_opt / …）；
+ * Cap residual：walk opendir/stat/argv/大 BSS（file_list ptrs/lib path slots）/
+ *  one_file_body 仍 rest。
  * 冷启动无宏：全 C 体（含 pure _impl + public 门闩）。
  * Regen thin surface: shux -E src/driver/fmt_check_cmd_thin.x → thin_surface.
  */
@@ -184,9 +185,10 @@ int32_t driver_check_quiet_ok_get(void) {
 static char s_unformatted_paths[DRIVER_FMT_MAX_FILES][512];
 static int s_unformatted_count;
 
-static char s_ignore_paths[DRIVER_FMT_MAX_IGNORE][256];
-/* Cap residual pure：hybrid thin owns s_n_ignore; cold keeps static. Cap residual: s_ignore_paths[]. */
+/* Cap residual pure：hybrid thin owns s_n_ignore + s_ignore_paths slots
+ * (g_fmt_user_ignore_paths 32×256 flat); cold keeps statics. */
 #ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
+static char s_ignore_paths[DRIVER_FMT_MAX_IGNORE][256];
 static int s_n_ignore;
 #endif
 
@@ -304,9 +306,9 @@ const char *fmt_builtin_ignore_at(int i) {
 }
 #endif
 
-/* pure 权威：thin.x fmt_user_ignore_count / fmt_user_ignore_count_set；
+/* pure 权威：thin.x fmt_user_ignore_count / count_set / at / parse_ignore_opt；
  * 冷启动保留 _impl + public；FROM_X 下剔除 pure-dup _impl（H↓）。
- * Cap residual：s_ignore_paths[] + parse token 写槽 + at 读槽 始终 seed。
+ * Hybrid thin owns ignore path slots (32×256); cold keeps s_ignore_paths[][].
  */
 #ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 int fmt_user_ignore_count_impl(void) {
@@ -320,16 +322,13 @@ int fmt_user_ignore_count(void) {
 void fmt_user_ignore_count_set(int32_t v) {
     s_n_ignore = v < 0 ? 0 : (int)v;
 }
-#endif
 
-/* Cap residual：读 s_ignore_paths[i]；n 走 public get（hybrid thin / 冷 seed）。 */
 const char *fmt_user_ignore_at_impl(int i) {
     if (i < 0 || i >= fmt_user_ignore_count())
         return NULL;
     return s_ignore_paths[i];
 }
 
-#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 const char *fmt_user_ignore_at(int i) {
     return fmt_user_ignore_at_impl(i);
 }
@@ -1037,10 +1036,11 @@ void collect_paths_from_arg(const char *arg) {
 
 
 /**
- * 解析 --ignore=a,b,c 写入 s_ignore_paths。
- * pure 前缀权威：thin.x parse_ignore_opt；
- * Cap residual：切 token 写 BSS 槽 🔒；n 走 public get/set（hybrid thin / 冷 seed）。
+ * 解析 --ignore=a,b,c 写入 ignore path slots。
+ * pure 权威：thin.x parse_ignore_opt（前缀 + token 写槽）；
+ * 冷启动保留 _impl + public；FROM_X 下剔除 pure-dup（H↓）。
  */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 void parse_ignore_opt_impl(const char *arg) {
     char buf[512];
     char *p;
@@ -1065,8 +1065,6 @@ void parse_ignore_opt_impl(const char *arg) {
     }
 }
 
-/* pure 前缀权威：thin.x；冷启动保留 public；Cap residual entry 调 public 同形 */
-#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 void parse_ignore_opt(const char *arg) {
     if (!arg)
         return;

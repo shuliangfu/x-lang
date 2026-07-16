@@ -21,14 +21,18 @@
 //   + wave BSS pure：lib_bufs n 进 thin（fmt_check_lib_bufs_n / n_set / reset）；
 //     Cap residual：s_check_lib_bufs[] 路径槽 + try_append/argv_append 写槽 仍 rest；
 //     FROM_X rest 无 pure-dup lib_bufs_reset _impl。
+//   + wave BSS pure：user ignore path slots 进 thin（32×256 flat BSS + at + parse_ignore）；
+//     Cap residual：file_list ptrs / lib path slots / walk opendir / path_stat 仍 rest；
+//     FROM_X rest 无 pure-dup user_ignore_at / parse_ignore_opt _impl。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_FMT_CHECK_THIN_FROM_X）ld -r
 //   → fmt_check_cmd_driver.o
 // Prove IDENTICAL：seeds/fmt_check_cmd_thin_surface.from_x.c
-// Cap residual：walk opendir/stat/argv/大 BSS（ignore path slots / file_list ptrs /
-//   lib path slots）/ check_one_file_body 等 *_impl 仍在 full seed rest；FROM_X 下
-//   pure-duplicate _impl 已剔除（含 set_current_file / print / cwd_fallback /
-//   try_walk / path_resolve_abs / append_repo / missing_diag / collect_mode /
-//   user_passed_L / init / file_list_n / user_ignore_count / lib_bufs_n；H↓）。
+// Cap residual：walk opendir/stat/argv/大 BSS（file_list ptrs / lib path slots）/
+//   check_one_file_body 等 *_impl 仍在 full seed rest；FROM_X 下 pure-duplicate
+//   _impl 已剔除（含 set_current_file / print / cwd_fallback / try_walk /
+//   path_resolve_abs / append_repo / missing_diag / collect_mode / user_passed_L /
+//   init / file_list_n / user_ignore_count / lib_bufs_n / user_ignore_at /
+//   parse_ignore_opt；H↓）。
 //
 // -E 约束：无 while 重赋值；无零参-only 不稳写法；6 参用扁平 if。
 //
@@ -40,7 +44,6 @@ export extern "C" function lsp_diag_print_stderr_human(path: *u8): i32;
 export extern "C" function driver_run_compiler_full(argc: i32, argv: *u8): i32;
 export extern "C" function driver_dep_seeded_clear_all(): void;
 export extern "C" function diag_report_with_code(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void;
-export extern "C" function fmt_user_ignore_at_impl(i: i32): *u8;
 export extern "C" function fmt_file_list_store_impl(abs_path: *u8): i32;
 // Cap residual：可写路径 BSS 槽（0=current_file，1=resolve_abs）。
 // -E 顶层 u8[N] 现退化为悬空指针（codegen.x 已根修，codegen_gen 再生后可收回此槽）。
@@ -51,12 +54,16 @@ export extern "C" function shux_ptr_slot_get(arr: *u8, i: i32): *u8;
 // ---- Cap residual pure: collect_mode + user_passed_L + file_list/ignore/lib_bufs n ----
 // DRIVER_COLLECT_MODE_FMT=1, DRIVER_COLLECT_MODE_CHECK=2 (match seed enum).
 // Hybrid thin owns cells; cold seed keeps C static + _impl. PLATFORM: SHARED.
-// Counters pure; Cap residual path tables (ignore/file_list/lib bufs) stay rest.
+// Counters pure; Cap residual path tables (file_list/lib bufs) stay rest.
+// User ignore path slots (32×256) pure under hybrid (see g_fmt_user_ignore_paths).
 let g_fmt_collect_mode: i32[1] = [1];
 let g_fmt_user_passed_L: i32[1] = [0];
 let g_fmt_file_list_n: i32[1] = [0];
 let g_fmt_user_ignore_n: i32[1] = [0];
 let g_fmt_check_lib_bufs_n: i32[1] = [0];
+// User --ignore path slots: 32 entries × 256 bytes (match DRIVER_FMT_MAX_IGNORE × seed).
+// PLATFORM: SHARED. Pure under PREFER hybrid; cold seed keeps s_ignore_paths[][].
+let g_fmt_user_ignore_paths: u8[8192] = [];
 
 let g_fmt_lit_check_error: u8[12] = [99, 104, 101, 99, 107, 32, 101, 114, 114, 111, 114, 0];
 let g_fmt_lit_fmt_error: u8[10] = [102, 109, 116, 32, 101, 114, 114, 111, 114, 0];
@@ -252,10 +259,19 @@ export function fmt_default_product_sub_at(i: i32): *u8 {
   return 0 as *u8;
 }
 
+/** Return pointer to user --ignore path slot i (256B each in flat BSS).
+ * Pure under PREFER hybrid. Bounds: i in [0, g_fmt_user_ignore_n). PLATFORM: SHARED. */
 #[no_mangle]
 export function fmt_user_ignore_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
   unsafe {
-    return fmt_user_ignore_at_impl(i);
+    if (i >= g_fmt_user_ignore_n[0]) {
+      return 0 as *u8;
+    }
+    let base: *u8 = &g_fmt_user_ignore_paths[0];
+    return base + (i * 256);
   }
   return 0 as *u8;
 }
@@ -648,9 +664,8 @@ export function check_one_file(path: *u8, argc: i32, argv: *u8): i32 {
   return 0 - 1;
 }
 
-// ---- pure ignore / file_list orch / walk process_child；Cap：walk opendir / parse_ignore 体 ----
+// ---- pure ignore / file_list orch / walk process_child；Cap：walk opendir ----
 export extern "C" function walk_dir_collect_impl(dir: *u8): void;
-export extern "C" function parse_ignore_opt_impl(arg: *u8): void;
 export extern "C" function file_list_clear_impl(): void;
 
 // pure：内置 + --ignore 子串；null path → 忽略
@@ -740,7 +755,8 @@ export function walk_dir_collect(dir: *u8): void {
   }
 }
 
-// pure 前缀：null / 非 "--ignore=" 早退；写槽 🔒 _impl
+/** Parse --ignore=a,b,c into pure user-ignore path slots (max 32 × 256B).
+ * Prefix gate + comma token walk + byte copy (no snprintf). PLATFORM: SHARED. */
 #[no_mangle]
 export function parse_ignore_opt(arg: *u8): void {
   if (arg == 0 as *u8) {
@@ -774,8 +790,45 @@ export function parse_ignore_opt(arg: *u8): void {
   if (arg[8] != 61) {
     return;
   }
+  // -E hoists all let in a block to the top: do not bind end=p after mutating p.
+  // Scan with end; copy [start,end); then p=end and optional comma skip.
   unsafe {
-    parse_ignore_opt_impl(arg);
+    let p: i32 = 9;
+    let n: i32 = fmt_user_ignore_count();
+    let base: *u8 = &g_fmt_user_ignore_paths[0];
+    while (n < 32) {
+      if (arg[p] == 0) {
+        break;
+      }
+      let start: i32 = p;
+      let end: i32 = p;
+      while (arg[end] != 0) {
+        if (arg[end] == 44) {
+          break;
+        }
+        end = end + 1;
+      }
+      if (start < end) {
+        let slot: *u8 = base + (n * 256);
+        let k: i32 = 0;
+        while (k < 255) {
+          if ((start + k) >= end) {
+            break;
+          }
+          slot[k] = arg[start + k];
+          k = k + 1;
+        }
+        slot[k] = 0;
+        n = n + 1;
+        fmt_user_ignore_count_set(n);
+      }
+      p = end;
+      if (arg[p] == 44) {
+        p = p + 1;
+      } else {
+        break;
+      }
+    }
   }
 }
 

@@ -1,4 +1,4 @@
-/* regen from fmt_check_cmd_thin.x -E (lib_bufs n BSS pure) */
+/* regen from fmt_check_cmd_thin.x -E (ignore path slots pure) */
 /* prove prologue (g05_try_x_to_o aligned + uio/poll) */
 #include <stddef.h>
 #include <stdint.h>
@@ -404,6 +404,7 @@ static int32_t g_fmt_user_passed_L[1] = {0};
 static int32_t g_fmt_file_list_n[1] = {0};
 static int32_t g_fmt_user_ignore_n[1] = {0};
 static int32_t g_fmt_check_lib_bufs_n[1] = {0};
+static uint8_t g_fmt_user_ignore_paths[8192];
 static uint8_t g_fmt_lit_check_error[12] = {99, 104, 101, 99, 107, 32, 101, 114, 114, 111, 114, 0};
 static uint8_t g_fmt_lit_fmt_error[10] = {102, 109, 116, 32, 101, 114, 114, 111, 114, 0};
 static uint8_t g_fmt_lit_chk002[7] = {67, 72, 75, 48, 48, 50, 0};
@@ -426,7 +427,6 @@ extern int32_t lsp_diag_print_stderr_human(uint8_t * path);
 extern int32_t driver_run_compiler_full(int32_t argc, uint8_t * argv);
 extern void driver_dep_seeded_clear_all(void);
 extern void diag_report_with_code(uint8_t * file, int32_t line, int32_t col, uint8_t * kind, uint8_t * code, uint8_t * msg, uint8_t * detail);
-extern uint8_t * fmt_user_ignore_at_impl(int32_t i);
 extern int32_t fmt_file_list_store_impl(uint8_t * abs_path);
 extern uint8_t * fmt_check_path_bss_slot(int32_t which);
 extern uint8_t * shux_ptr_slot_get(uint8_t * arr, int32_t i);
@@ -575,7 +575,16 @@ uint8_t * fmt_default_product_sub_at(int32_t i) {
   return ((uint8_t *)(0));
 }
 uint8_t * fmt_user_ignore_at(int32_t i) {
-  return fmt_user_ignore_at_impl(i);
+  if ((i < 0)) {
+    return ((uint8_t *)(0));
+  }
+  {
+    uint8_t * base = &((g_fmt_user_ignore_paths)[0]);
+    if ((i >=(g_fmt_user_ignore_n)[0])) {
+      return ((uint8_t *)(0));
+    }
+    return (base + (i * 256));
+  }
   return ((uint8_t *)(0));
 }
 uint8_t * fmt_path_resolve_abs(uint8_t * path) {
@@ -724,8 +733,6 @@ void fmt_check_lib_bufs_n_set(int32_t v) {
 }
 void fmt_check_lib_bufs_reset(void) {
   (void)(fmt_check_lib_bufs_n_set(0));
-  (void)(0);
-  return;
 }
 extern int32_t fmt_path_stat_kind_impl(uint8_t * path);
 int32_t check_lint_fail_on_warnings(void) {
@@ -873,7 +880,6 @@ int32_t check_one_file(uint8_t * path, int32_t argc, uint8_t * argv) {
   return (0 - 1);
 }
 extern void walk_dir_collect_impl(uint8_t * dir);
-extern void parse_ignore_opt_impl(uint8_t * arg);
 extern void file_list_clear_impl(void);
 int32_t path_should_ignore(uint8_t * path) {
   if ((path ==((uint8_t *)(0)))) {
@@ -984,7 +990,44 @@ void parse_ignore_opt(uint8_t * arg) {
   if (((arg)[8] !=61)) {
     return;
   }
-  (void)(parse_ignore_opt_impl(arg));
+  {
+    int32_t p = 9;
+    int32_t n = fmt_user_ignore_count();
+    uint8_t * base = &((g_fmt_user_ignore_paths)[0]);
+    while ((n < 32)) {
+      int32_t start = p;
+      int32_t end = p;
+      if (((arg)[p] ==0)) {
+        break;
+      }
+      while (((arg)[end] !=0)) {
+        if (((arg)[end] ==44)) {
+          break;
+        }
+        (void)((end = (end + 1)));
+      }
+      if ((start < end)) {
+        uint8_t * slot = (base + (n * 256));
+        int32_t k = 0;
+        while ((k < 255)) {
+          if (((start + k) >=end)) {
+            break;
+          }
+          (void)(((slot)[k] = (arg)[(start + k)]));
+          (void)((k = (k + 1)));
+        }
+        (void)(((slot)[k] = 0));
+        (void)((n = (n + 1)));
+        (void)(fmt_user_ignore_count_set(n));
+      }
+      (void)((p = end));
+      if (((arg)[p] ==44)) {
+        (void)((p = (p + 1)));
+      } else {
+        break;
+      }
+    }
+  }
   (void)(0);
   return;
 }
