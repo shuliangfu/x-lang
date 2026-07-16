@@ -12087,7 +12087,11 @@ static int32_t asm_module_is_driver_compile_selfhost(struct ast_Module *m) {
   int32_t i;
   int32_t has_parse_argv;
   int32_t has_entry;
-  if (!m || m->num_funcs < 8 || m->num_funcs > 48)
+  /**
+   * compile.x：~26 defined + many export extern (FFI) → num_funcs often ~60–80.
+   * PLATFORM: SHARED — do not use a tight >48 cap (was false-negative after Cap-T001 extern growth).
+   */
+  if (!m || m->num_funcs < 8 || m->num_funcs > 120)
     return 0;
   if (asm_module_is_backend_selfhost(m) || asm_module_is_typeck_selfhost(m) ||
       asm_module_is_pipeline_selfhost(m) || asm_module_is_parser_selfhost(m))
