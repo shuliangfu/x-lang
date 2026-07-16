@@ -3797,9 +3797,12 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
             if (needs_random) {
                 (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, random_o);
                 {
-                    /* 【Why】random_fill_bytes_c 是 extern C 桩，实现在 runtime_random_fill.o；
-                     * shux-c 链路径需显式链入，否则 _random_fill_bytes_c undefined。
-                     * 【Invariant】shux_runtime_random_fill_o_path 返回静态缓冲，同 needs_time 模式。 */
+                    /* PLATFORM: SHARED — random_fill_bytes_c 在 runtime_random_fill.o。
+                     * 此 early 路径会先 push random.o；若仅 push_existing glue 而不 ensure，
+                     * L4 冷树缺 .o 时 silent skip，且下方 need_random 因去重 push 返回 0
+                     * 永远进不了 ensure → UNDEF random_fill_bytes_c（mac/Ubuntu 同）。
+                     * 权威：链 random 必先 ensure 再 push fill。 */
+                    (void)shux_ensure_runtime_random_fill_o(NULL);
                     const char *rrf = shux_runtime_random_fill_o_path(NULL);
                     if (rrf && rrf[0])
                         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rrf);
@@ -3815,6 +3818,8 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
             if (needs_time) {
                 (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, time_o);
                 {
+                    /* PLATFORM: SHARED — 同 needs_random：early push 后 ensure，防 L4 冷缺 time_os。 */
+                    (void)shux_ensure_runtime_time_os_o(NULL);
                     const char *rto = shux_runtime_time_os_o_path(NULL);
                     if (rto && rto[0])
                         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rto);
@@ -4198,7 +4203,10 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
                         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rtg);
                 }
             }
-            if (need_time && invoke_cc_argv_push_existing(argv, &i, argv_cap, time_o)) {
+            /* PLATFORM: SHARED — push 与 ensure 解耦：needs_* early 路径已 push 时
+             * invoke_cc_argv_push_existing 因去重返回 0，不得跳过 glue ensure。 */
+            if (need_time) {
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, time_o);
                 (void)shux_ensure_runtime_time_os_o(NULL);
                 {
                     const char *rto = shux_runtime_time_os_o_path(NULL);
@@ -4206,7 +4214,8 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
                         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rto);
                 }
             }
-            if (need_random && invoke_cc_argv_push_existing(argv, &i, argv_cap, random_o)) {
+            if (need_random) {
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, random_o);
                 (void)shux_ensure_runtime_random_fill_o(NULL);
                 {
                     const char *rrf = shux_runtime_random_fill_o_path(NULL);
