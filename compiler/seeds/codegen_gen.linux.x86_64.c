@@ -2539,6 +2539,31 @@ SHUX_LIB_WEAK int32_t codegen_should_skip_emit_struct_layout_for_abi_dup(uint8_t
     if (name_len == 6 && codegen_symbuf_bytes_eq(name, name_len, (&((nm_string)[0])), 6) != 0) {   return 1; }
     if (name_len == 7 && codegen_symbuf_bytes_eq(name, name_len, (&((nm_str_view)[0])), 7) != 0) {   return 1; }
   }
+  /* ErrorChain + std.net one-liners + heap/fs Iovec — 与 codegen.x 同权威（preamble）。 */
+  {
+    uint8_t nm_error_chain[11] = { 69, 114, 114, 111, 114, 67, 104, 97, 105, 110, 0 };
+    uint8_t nm_tcp_stream[10] = { 84, 99, 112, 83, 116, 114, 101, 97, 109, 0 };
+    uint8_t nm_tcp_listener[12] = { 84, 99, 112, 76, 105, 115, 116, 101, 110, 101, 114, 0 };
+    uint8_t nm_udp_socket[10] = { 85, 100, 112, 83, 111, 99, 107, 101, 116, 0 };
+    uint8_t nm_ipv4[9] = { 73, 112, 118, 52, 65, 100, 100, 114, 0 };
+    uint8_t nm_ipv6[9] = { 73, 112, 118, 54, 65, 100, 100, 114, 0 };
+    uint8_t nm_sock_v4[13] = { 83, 111, 99, 107, 101, 116, 65, 100, 100, 114, 86, 52, 0 };
+    uint8_t nm_allocator[10] = { 65, 108, 108, 111, 99, 97, 116, 111, 114, 0 };
+    uint8_t nm_arena64[8] = { 65, 114, 101, 110, 97, 54, 52, 0 };
+    uint8_t nm_fs_iovec[11] = { 70, 115, 73, 111, 118, 101, 99, 66, 117, 102, 0 };
+    uint8_t nm_iovec[6] = { 73, 111, 118, 101, 99, 0 };
+    if (name_len == 10 && codegen_symbuf_bytes_eq(name, name_len, (&((nm_error_chain)[0])), 10) != 0) { return 1; }
+    if (name_len == 9 && codegen_symbuf_bytes_eq(name, name_len, (&((nm_tcp_stream)[0])), 9) != 0) { return 1; }
+    if (name_len == 11 && codegen_symbuf_bytes_eq(name, name_len, (&((nm_tcp_listener)[0])), 11) != 0) { return 1; }
+    if (name_len == 9 && codegen_symbuf_bytes_eq(name, name_len, (&((nm_udp_socket)[0])), 9) != 0) { return 1; }
+    if (name_len == 8 && codegen_symbuf_bytes_eq(name, name_len, (&((nm_ipv4)[0])), 8) != 0) { return 1; }
+    if (name_len == 8 && codegen_symbuf_bytes_eq(name, name_len, (&((nm_ipv6)[0])), 8) != 0) { return 1; }
+    if (name_len == 12 && codegen_symbuf_bytes_eq(name, name_len, (&((nm_sock_v4)[0])), 12) != 0) { return 1; }
+    if (name_len == 9 && codegen_symbuf_bytes_eq(name, name_len, (&((nm_allocator)[0])), 9) != 0) { return 1; }
+    if (name_len == 7 && codegen_symbuf_bytes_eq(name, name_len, (&((nm_arena64)[0])), 7) != 0) { return 1; }
+    if (name_len == 10 && codegen_symbuf_bytes_eq(name, name_len, (&((nm_fs_iovec)[0])), 10) != 0) { return 1; }
+    if (name_len == 5 && codegen_symbuf_bytes_eq(name, name_len, (&((nm_iovec)[0])), 5) != 0) { return 1; }
+  }
   return 0;
 }
 SHUX_LIB_WEAK int32_t codegen_type_is_module_user_struct(struct ast_Module * module, struct ast_ASTArena * arena, int32_t type_ref) {
