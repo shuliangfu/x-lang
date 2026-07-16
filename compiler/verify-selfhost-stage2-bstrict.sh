@@ -467,8 +467,19 @@ ROOT_HASH="$(cd .. && pwd)"
 chmod +x "$ROOT_HASH/tests/run-stage2-hash-gate.sh" 2>/dev/null || true
 if [ -x ./shux_asm_stage1 ] && [ -x ./shux_asm2 ]; then
   # run-stage2-hash-gate.sh 会 cd 到仓库根；路径须相对根目录。
-  # D-03 v1：默认 STRICT=1（A-09 Docker Linux 已绿；显式 SHUX_STAGE2_HASH_STRICT=0 可 track-only）。
-  SHUX_STAGE2_HASH_STRICT="${SHUX_STAGE2_HASH_STRICT:-1}" \
+  # PLATFORM: LINUX — D-03 default STRICT=1 (freestanding gen1==gen2 gold).
+  # PLATFORM: DARWIN — stage1 is g05 product, stage2 is experimental bootstrap after
+  # round2; topologies differ so SHA256 match is track-only. Hard gate = Step 3
+  # behavior parity (rv=42). Explicit SHUX_STAGE2_HASH_STRICT=1 still overrides.
+  case "$(uname -s 2>/dev/null)-$(uname -m 2>/dev/null)" in
+    Darwin-*)
+      _s2_hash_strict="${SHUX_STAGE2_HASH_STRICT:-0}"
+      ;;
+    *)
+      _s2_hash_strict="${SHUX_STAGE2_HASH_STRICT:-1}"
+      ;;
+  esac
+  SHUX_STAGE2_HASH_STRICT="$_s2_hash_strict" \
     "$ROOT_HASH/tests/run-stage2-hash-gate.sh" compiler/shux_asm_stage1 compiler/shux_asm2
 else
   echo "verify-stage2-bstrict: skip hash gate (shux_asm_stage1/shux_asm2 missing)" >&2
