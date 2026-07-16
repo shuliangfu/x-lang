@@ -26,8 +26,17 @@ if [ -n "${MSYSTEM:-}" ] || case "$(uname -s 2>/dev/null)" in MINGW*|MSYS*) true
     HELLO_BACKEND=""
   fi
 elif [ -n "${SHUX_LINK_SHUX:-}" ] && [ -x "${SHUX_LINK_SHUX}" ]; then
-  HELLO_COMPILE_SHUX="${SHUX_LINK_SHUX}"
-  HELLO_BACKEND=""
+  # 产品冷链：SHUX 已是 shux_asm→shux 时勿改绑 pin shux-c（bstrict 默认 SHUX_LINK_SHUX）。
+  case "$(basename "${SHUX:-}")" in
+    shux|shux_asm|shux_asm2|shux_asm_stage1)
+      HELLO_COMPILE_SHUX="$SHUX"
+      HELLO_BACKEND="-backend c"
+      ;;
+    *)
+      HELLO_COMPILE_SHUX="${SHUX_LINK_SHUX}"
+      HELLO_BACKEND=""
+      ;;
+  esac
 fi
 case "${SHUX##*/}" in
   shux_stage1|shux_stage2)
