@@ -356,288 +356,396 @@ export extern "C" function arch_x86_64_enc_enc_xor_rbx_rax(elf_ctx: *u8): i32;
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_label_arch(elf_ctx: *u8, name: *u8, name_len: i32, is_func: i32, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_label(elf_ctx, name, name_len, is_func); }
   if (ta == 2) { return arch_riscv64_enc_enc_label(elf_ctx, name, name_len, is_func); }
   return arch_x86_64_enc_enc_label(elf_ctx, name, name_len, is_func);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_prologue_arch(elf_ctx: *u8, frame_sz: i32, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_prologue(elf_ctx, frame_sz); }
   if (ta == 2) { return arch_riscv64_enc_enc_prologue(elf_ctx, frame_sz); }
   return arch_x86_64_enc_enc_prologue(elf_ctx, frame_sz);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_epilogue_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_epilogue(elf_ctx); }
   if (ta == 2) { return arch_riscv64_enc_enc_epilogue(elf_ctx); }
   return arch_x86_64_enc_enc_epilogue(elf_ctx);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_ret_imm32_arch(elf_ctx: *u8, imm32: i32, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_ret_imm32(elf_ctx, imm32); }
   if (ta == 2) { return arch_riscv64_enc_enc_ret_imm32(elf_ctx, imm32); }
   return arch_x86_64_enc_enc_ret_imm32(elf_ctx, imm32);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_mov_imm32_to_rbx_arch(elf_ctx: *u8, imm32: i32, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_mov_imm32_to_rbx(elf_ctx, imm32); }
   if (ta == 2) { return arch_riscv64_enc_enc_mov_imm32_to_rbx(elf_ctx, imm32); }
   return arch_x86_64_enc_enc_mov_imm32_to_rbx(elf_ctx, imm32);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_mov_imm64_to_rax_arch(elf_ctx: *u8, lo: i32, hi: i32, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_mov_imm64_to_rax(elf_ctx, lo, hi); }
   if (ta == 2) { return arch_riscv64_enc_enc_mov_imm64_to_rax(elf_ctx, lo, hi); }
   return arch_x86_64_enc_enc_mov_imm64_to_rax(elf_ctx, lo, hi);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_push_rax_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_push_rax(elf_ctx); }
   if (ta == 2) { return arch_riscv64_enc_enc_push_rax(elf_ctx); }
   return arch_x86_64_enc_enc_push_rax(elf_ctx);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_push_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_push_rbx(elf_ctx); }
   if (ta == 2) { return arch_riscv64_enc_enc_push_rbx(elf_ctx); }
   return arch_x86_64_enc_enc_push_rbx(elf_ctx);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_pop_rax_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_pop_rax(elf_ctx); }
   if (ta == 2) { return arch_riscv64_enc_enc_pop_rax(elf_ctx); }
   return arch_x86_64_enc_enc_pop_rax(elf_ctx);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_pop_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_pop_rbx(elf_ctx); }
   if (ta == 2) { return arch_riscv64_enc_enc_pop_rbx(elf_ctx); }
   return arch_x86_64_enc_enc_pop_rbx(elf_ctx);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_add_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_add_rax_rbx(elf_ctx); }
   if (ta == 2) { return arch_riscv64_enc_enc_add_rax_rbx(elf_ctx); }
   return arch_x86_64_enc_enc_add_rax_rbx(elf_ctx);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_sub_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_sub_rax_rbx(elf_ctx); }
   if (ta == 2) { return -1; }
   return arch_x86_64_enc_enc_sub_rax_rbx(elf_ctx);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_sub_rbx_rax_then_mov_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_sub_rbx_rax_then_mov(elf_ctx); }
   if (ta == 2) { return arch_riscv64_enc_enc_sub_rbx_rax_then_mov(elf_ctx); }
   return arch_x86_64_enc_enc_sub_rbx_rax_then_mov(elf_ctx);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_imul_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_imul_rbx_rax(elf_ctx); }
   if (ta == 2) { return arch_riscv64_enc_enc_imul_rbx_rax(elf_ctx); }
   return arch_x86_64_enc_enc_imul_rbx_rax(elf_ctx);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_mov_rax_to_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_mov_rax_to_rbx(elf_ctx); }
   if (ta == 2) { return arch_riscv64_enc_enc_mov_rax_to_rbx(elf_ctx); }
   return arch_x86_64_enc_enc_mov_rax_to_rbx(elf_ctx);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_not_eax_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_not_eax(elf_ctx); }
   if (ta == 2) { return arch_riscv64_enc_enc_not_eax(elf_ctx); }
   return arch_x86_64_enc_enc_not_eax(elf_ctx);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_and_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_and_rbx_rax(elf_ctx); }
   if (ta == 2) { return arch_riscv64_enc_enc_and_rbx_rax(elf_ctx); }
   return arch_x86_64_enc_enc_and_rbx_rax(elf_ctx);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_or_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_or_rbx_rax(elf_ctx); }
   if (ta == 2) { return arch_riscv64_enc_enc_or_rbx_rax(elf_ctx); }
   return arch_x86_64_enc_enc_or_rbx_rax(elf_ctx);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_xor_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_xor_rbx_rax(elf_ctx); }
   if (ta == 2) { return arch_riscv64_enc_enc_xor_rbx_rax(elf_ctx); }
   return arch_x86_64_enc_enc_xor_rbx_rax(elf_ctx);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_mov_rbx_to_ecx_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_mov_rbx_to_ecx(elf_ctx); }
   if (ta == 2) { return arch_riscv64_enc_enc_mov_rbx_to_ecx(elf_ctx); }
   return arch_x86_64_enc_enc_mov_rbx_to_ecx(elf_ctx);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_shl_cl_eax_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_shl_cl_eax(elf_ctx); }
   if (ta == 2) { return arch_riscv64_enc_enc_shl_cl_eax(elf_ctx); }
   return arch_x86_64_enc_enc_shl_cl_eax(elf_ctx);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_shr_cl_eax_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_shr_cl_eax(elf_ctx); }
   if (ta == 2) { return arch_riscv64_enc_enc_shr_cl_eax(elf_ctx); }
   return arch_x86_64_enc_enc_shr_cl_eax(elf_ctx);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_sar_cl_eax_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_sar_cl_eax(elf_ctx); }
   if (ta == 2) { return arch_riscv64_enc_enc_sar_cl_eax(elf_ctx); }
   return arch_x86_64_enc_enc_sar_cl_eax(elf_ctx);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_shl_cl_rax_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_shl_cl_eax(elf_ctx); }
   if (ta == 2) { return arch_riscv64_enc_enc_shl_cl_eax(elf_ctx); }
   return arch_x86_64_enc_enc_shl_cl_rax(elf_ctx);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_shr_cl_rax_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_shr_cl_eax(elf_ctx); }
   if (ta == 2) { return arch_riscv64_enc_enc_shr_cl_eax(elf_ctx); }
   return arch_x86_64_enc_enc_shr_cl_rax(elf_ctx);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_sar_cl_rax_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_sar_cl_eax(elf_ctx); }
   if (ta == 2) { return arch_riscv64_enc_enc_sar_cl_eax(elf_ctx); }
   return arch_x86_64_enc_enc_sar_cl_rax(elf_ctx);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_cltd_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_cltd(elf_ctx); }
   if (ta == 2) { return arch_riscv64_enc_enc_cltd(elf_ctx); }
   return arch_x86_64_enc_enc_cltd(elf_ctx);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_mov_edx_to_eax_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_mov_edx_to_eax(elf_ctx); }
   if (ta == 2) { return arch_riscv64_enc_enc_mov_edx_to_eax(elf_ctx); }
   return arch_x86_64_enc_enc_mov_edx_to_eax(elf_ctx);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_neg_eax_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_neg_eax(elf_ctx); }
   if (ta == 2) { return arch_riscv64_enc_enc_neg_eax(elf_ctx); }
   return arch_x86_64_enc_enc_neg_eax(elf_ctx);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_test_eax_eax_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_test_eax_eax(elf_ctx); }
   if (ta == 2) { return arch_riscv64_enc_enc_test_eax_eax(elf_ctx); }
   return arch_x86_64_enc_enc_test_eax_eax(elf_ctx);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_test_rbx_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_test_rbx_rbx(elf_ctx); }
   if (ta == 2) { return arch_riscv64_enc_enc_test_rbx_rbx(elf_ctx); }
   return arch_x86_64_enc_enc_test_rbx_rbx(elf_ctx);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_setz_movzbl_eax_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_setz_movzbl_eax(elf_ctx); }
   if (ta == 2) { return arch_riscv64_enc_enc_setz_movzbl_eax(elf_ctx); }
   return arch_x86_64_enc_enc_setz_movzbl_eax(elf_ctx);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_cmp_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_cmp_rbx_rax(elf_ctx); }
   if (ta == 2) { return arch_riscv64_enc_enc_cmp_rbx_rax(elf_ctx); }
   return arch_x86_64_enc_enc_cmp_rbx_rax(elf_ctx);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_cmp_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_cmp_rax_rbx(elf_ctx); }
   if (ta == 2) { return -1; }
   return arch_x86_64_enc_enc_cmp_rax_rbx(elf_ctx);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_cmp_setcc_movzbl_arch(elf_ctx: *u8, cc: i32, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_cmp_setcc_movzbl(elf_ctx, cc); }
   if (ta == 2) { return arch_riscv64_enc_enc_cmp_setcc_movzbl(elf_ctx, cc); }
   return arch_x86_64_enc_enc_cmp_setcc_movzbl(elf_ctx, cc);
+  }
 }
 
 #[no_mangle]
 export function backend_enc_cmp_w0_imm12_arch(elf_ctx: *u8, imm12: i32, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_cmp_w0_imm12(elf_ctx, imm12); }
   if (ta == 2) { return arch_riscv64_enc_enc_cmp_rbx_rax(elf_ctx); }
   return arch_x86_64_enc_enc_cmp_eax_imm32(elf_ctx, imm12);
+  }
 }
 
 #[no_mangle]
@@ -649,177 +757,243 @@ export function backend_enc_cset_w0_from_cc_arch(elf_ctx: *u8, cc: i32, ta: i32)
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_store_rax_to_rbp_arch(elf_ctx: *u8, offset: i32, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_store_rax_to_rbp(elf_ctx, offset); }
   if (ta == 2) { return arch_riscv64_enc_enc_store_rax_to_rbp(elf_ctx, offset); }
   return arch_x86_64_enc_enc_store_rax_to_rbp(elf_ctx, offset);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_load_rbp_to_rax_arch(elf_ctx: *u8, offset: i32, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_load_rbp_to_rax(elf_ctx, offset); }
   if (ta == 2) { return arch_riscv64_enc_enc_load_rbp_to_rax(elf_ctx, offset); }
   return arch_x86_64_enc_enc_load_rbp_to_rax(elf_ctx, offset);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_lea_rbp_to_rax_arch(elf_ctx: *u8, offset: i32, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_lea_rbp_to_rax(elf_ctx, offset); }
   if (ta == 2) { return arch_riscv64_enc_enc_lea_rbp_to_rax(elf_ctx, offset); }
   return arch_x86_64_enc_enc_lea_rbp_to_rax(elf_ctx, offset);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_lea_rbp_to_rbx_arch(elf_ctx: *u8, offset: i32, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_lea_rbp_to_rbx(elf_ctx, offset); }
   if (ta == 2) { return arch_riscv64_enc_enc_lea_rbp_to_rbx(elf_ctx, offset); }
   return arch_x86_64_enc_enc_lea_rbp_to_rbx(elf_ctx, offset);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_rax_plus_rbx_scale4_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_rax_plus_rbx_scale4(elf_ctx); }
   if (ta == 2) { return arch_riscv64_enc_enc_rax_plus_rbx_scale4(elf_ctx); }
   return arch_x86_64_enc_enc_rax_plus_rbx_scale4(elf_ctx);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_rax_plus_rbx_scale1_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_rax_plus_rbx_scale1(elf_ctx); }
   if (ta == 2) { return arch_riscv64_enc_enc_rax_plus_rbx_scale1(elf_ctx); }
   return arch_x86_64_enc_enc_rax_plus_rbx_scale1(elf_ctx);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_rax_plus_rbx_scale8_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_rax_plus_rbx_scale8(elf_ctx); }
   if (ta == 2) { return arch_riscv64_enc_enc_rax_plus_rbx_scale8(elf_ctx); }
   return arch_x86_64_enc_enc_rax_plus_rbx_scale8(elf_ctx);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_store_rax_to_rbx_indirect_arch(elf_ctx: *u8, elem_sz: i32, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_store_rax_to_rbx_indirect(elf_ctx, elem_sz); }
   if (ta == 2) { return arch_riscv64_enc_enc_store_rax_to_rbx_indirect(elf_ctx, elem_sz); }
   return arch_x86_64_enc_enc_store_rax_to_rbx_indirect(elf_ctx, elem_sz);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_load_zext8_from_rax_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_load_zext8_from_rax(elf_ctx); }
   if (ta == 2) { return arch_riscv64_enc_enc_load_zext8_from_rax(elf_ctx); }
   return arch_x86_64_enc_enc_load_zext8_from_rax(elf_ctx);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_add_imm_to_rax_arch(elf_ctx: *u8, imm: i32, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_add_imm_to_rax(elf_ctx, imm); }
   if (ta == 2) { return arch_riscv64_enc_enc_add_imm_to_rax(elf_ctx, imm); }
   return arch_x86_64_enc_enc_add_imm_to_rax(elf_ctx, imm);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_add_imm_to_rbx_arch(elf_ctx: *u8, imm: i32, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_add_imm_to_rbx(elf_ctx, imm); }
   if (ta == 2) { return arch_riscv64_enc_enc_add_imm_to_rbx(elf_ctx, imm); }
   return arch_x86_64_enc_enc_add_imm_to_rbx(elf_ctx, imm);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_load_rbp_index_scratch_arch(elf_ctx: *u8, offset: i32, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_load_rbp_to_x2(elf_ctx, offset); }
   if (ta == 2) { return arch_riscv64_enc_enc_load_rbp_to_a2(elf_ctx, offset); }
   return arch_x86_64_enc_enc_load_rbp_to_ecx(elf_ctx, offset);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_load_64_from_rax_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_load_64_from_rax(elf_ctx); }
   if (ta == 2) { return arch_riscv64_enc_enc_load_64_from_rax(elf_ctx); }
   return arch_x86_64_enc_enc_load_64_from_rax(elf_ctx);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_store_rax_to_rbx_offset_arch(elf_ctx: *u8, offset: i32, store_size: i32, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_store_rax_to_rbx_offset(elf_ctx, offset, store_size); }
   if (ta == 2) { return arch_riscv64_enc_enc_store_rax_to_rbx_offset(elf_ctx, offset, store_size); }
   return arch_x86_64_enc_enc_store_rax_to_rbx_offset(elf_ctx, offset, store_size);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_mov_rbx_to_rax_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_mov_rbx_to_rax(elf_ctx); }
   if (ta == 2) { return arch_riscv64_enc_enc_mov_rbx_to_rax(elf_ctx); }
   return arch_x86_64_enc_enc_mov_rbx_to_rax(elf_ctx);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_jz_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_jz(elf_ctx, label, label_len); }
   if (ta == 2) { return arch_riscv64_enc_enc_jz(elf_ctx, label, label_len); }
   return arch_x86_64_enc_enc_jz(elf_ctx, label, label_len);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_jeq_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_jeq(elf_ctx, label, label_len); }
   if (ta == 2) { return arch_riscv64_enc_enc_jeq(elf_ctx, label, label_len); }
   return arch_x86_64_enc_enc_jeq(elf_ctx, label, label_len);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_jge_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_jge(elf_ctx, label, label_len); }
   if (ta == 2) { return arch_riscv64_enc_enc_jge(elf_ctx, label, label_len); }
   return arch_x86_64_enc_enc_jge(elf_ctx, label, label_len);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_jnz_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_jnz(elf_ctx, label, label_len); }
   if (ta == 2) { return arch_riscv64_enc_enc_jnz(elf_ctx, label, label_len); }
   return arch_x86_64_enc_enc_jnz(elf_ctx, label, label_len);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_jmp_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_jmp(elf_ctx, label, label_len); }
   if (ta == 2) { return arch_riscv64_enc_enc_jmp(elf_ctx, label, label_len); }
   return arch_x86_64_enc_enc_jmp(elf_ctx, label, label_len);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_mov_rax_to_arg_reg_arch(elf_ctx: *u8, k: i32, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_mov_rax_to_arg_reg(elf_ctx, k); }
   if (ta == 2) { return arch_riscv64_enc_enc_mov_rax_to_arg_reg(elf_ctx, k); }
   return arch_x86_64_enc_enc_mov_rax_to_arg_reg(elf_ctx, k);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_call_arch(elf_ctx: *u8, name: *u8, name_len: i32, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return backend_enc_arm64_call_c(elf_ctx, name, name_len); }
   if (ta == 2) { return arch_riscv64_enc_enc_call(elf_ctx, name, name_len); }
   return arch_x86_64_enc_enc_call(elf_ctx, name, name_len);
+  }
 }
 
 /* ---- G-02f-206b：残短 ta 壳 + idiv/rem ---- */
@@ -852,24 +1026,33 @@ export extern "C" function arch_x86_64_enc_enc_xor_edx_edx(elf_ctx: *u8): i32;
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_store_x_reg_to_rbp_arch(elf_ctx: *u8, reg: i32, offset: i32, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_store_x_reg_to_rbp(elf_ctx, reg, offset); }
   return 0 - 1;
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_jne_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_jne(elf_ctx, label, label_len); }
   return backend_enc_jnz_arch(elf_ctx, label, label_len, ta);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_call_stack_cleanup_arch(elf_ctx: *u8, nbytes: i32, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (nbytes <= 0) { return 0; }
   if (ta == 1) { return backend_enc_arm64_add_sp_imm12_c(elf_ctx, nbytes); }
   if (ta == 2) { return arch_riscv64_enc_enc_add_sp_imm12(elf_ctx, nbytes); }
   return arch_x86_64_enc_enc_add_rsp_imm(elf_ctx, nbytes);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
@@ -890,83 +1073,113 @@ export function backend_enc_store_x0_sp_offset_arch(elf_ctx: *u8, off_bytes: i32
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_index_scratch_add_secondary_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_u32_le(elf_ctx, 184746050); }
   if (ta == 2) { return arch_riscv64_enc_enc_add_a2_a3(elf_ctx); }
   return arch_x86_64_enc_enc_add_ecx_edx(elf_ctx);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_index_scratch_sub_secondary_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_u32_le(elf_ctx, 1258487874); }
   if (ta == 2) { return arch_riscv64_enc_enc_sub_a2_a3(elf_ctx); }
   return arch_x86_64_enc_enc_sub_ecx_edx(elf_ctx);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_index_scratch_rsub_secondary_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_u32_le(elf_ctx, 1258422370); }
   if (ta == 2) { return arch_riscv64_enc_enc_rsub_a2_a3(elf_ctx); }
   return arch_x86_64_enc_enc_rsub_ecx_edx(elf_ctx);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_rbx_index_rsub_secondary_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_u32_le(elf_ctx, 1258356833); }
   if (ta == 2) { return arch_riscv64_enc_enc_rsub_rbx_a3(elf_ctx); }
   return arch_x86_64_enc_enc_rsub_ebx_edx(elf_ctx);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_rbx_index_add_secondary_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_u32_le(elf_ctx, 184746017); }
   if (ta == 2) { return arch_riscv64_enc_enc_add_rbx_a3(elf_ctx); }
   return arch_x86_64_enc_enc_add_ebx_edx(elf_ctx);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_rbx_index_sub_secondary_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_u32_le(elf_ctx, 1258487841); }
   if (ta == 2) { return arch_riscv64_enc_enc_sub_rbx_a3(elf_ctx); }
   return arch_x86_64_enc_enc_sub_ebx_edx(elf_ctx);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_index_scratch_mul_secondary_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_u32_le(elf_ctx, 453213250); }
   if (ta == 2) { return arch_riscv64_enc_enc_mul_a2_a3(elf_ctx); }
   return arch_x86_64_enc_enc_imul_ecx_edx(elf_ctx);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_rbx_index_mul_secondary_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_u32_le(elf_ctx, 453213217); }
   if (ta == 2) { return arch_riscv64_enc_enc_mul_rbx_a3(elf_ctx); }
   return arch_x86_64_enc_enc_imul_ebx_edx(elf_ctx);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_idiv_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_idiv_rbx(elf_ctx); }
   if (ta == 2) { return arch_riscv64_enc_enc_idiv_rbx(elf_ctx); }
   if (arch_x86_64_enc_enc_cltd(elf_ctx) != 0) { return 0 - 1; }
   return arch_x86_64_enc_enc_idiv_rbx(elf_ctx);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
 #[no_mangle]
 export function backend_enc_div_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_idiv_rbx(elf_ctx); }
   if (ta == 2) { return arch_riscv64_enc_enc_idiv_rbx(elf_ctx); }
   if (arch_x86_64_enc_enc_xor_edx_edx(elf_ctx) != 0) { return 0 - 1; }
   return arch_x86_64_enc_enc_div_rbx(elf_ctx);
+  }
 }
 
 // G-02f-206：ta 分派壳真迁 .x
@@ -1028,44 +1241,65 @@ export extern "C" function arch_x86_64_enc_enc_imul_imm_to_ebx(elf_ctx: *u8, lit
 // G-02f-207：x86-only
 #[no_mangle]
 export function backend_enc_store_rdx_to_rbp_arch(elf_ctx: *u8, offset: i32, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta != 0) { return 0 - 1; }
   return arch_x86_64_enc_enc_store_rdx_to_rbp(elf_ctx, offset);
+  }
 }
 
 #[no_mangle]
 export function backend_enc_load_qword_from_rbx_to_rax_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta != 0) { return 0 - 1; }
   return arch_x86_64_enc_enc_load_qword_from_rbx_to_rax(elf_ctx);
+  }
 }
 
 #[no_mangle]
 export function backend_enc_load_qword_rbx8_to_rdx_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta != 0) { return 0 - 1; }
   return arch_x86_64_enc_enc_load_qword_rbx8_to_rdx(elf_ctx);
+  }
 }
 
 #[no_mangle]
 export function backend_enc_load_rbp_to_rdx_arch(elf_ctx: *u8, offset: i32, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta != 0) { return 0 - 1; }
   return arch_x86_64_enc_enc_load_rbp_to_rdx(elf_ctx, offset);
+  }
 }
 
 #[no_mangle]
 export function backend_enc_mov_rdx_to_arg_reg_arch(elf_ctx: *u8, k: i32, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta != 0) { return 0 - 1; }
   return arch_x86_64_enc_enc_mov_rdx_to_arg_reg(elf_ctx, k);
+  }
 }
 
 #[no_mangle]
 export function backend_enc_mov_arg_reg_to_rax_arch(elf_ctx: *u8, k: i32, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 0) { return arch_x86_64_enc_enc_mov_arg_reg_to_rax(elf_ctx, k); }
   return 0 - 1;
+  }
 }
 
 #[no_mangle]
 export function backend_enc_load_rbp_pos_to_rax_arch(elf_ctx: *u8, off_pos: i32, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 0) { return arch_x86_64_enc_enc_load_rbp_pos_to_rax(elf_ctx, off_pos); }
   return 0 - 1;
+  }
 }
 
 #[no_mangle]
@@ -1083,6 +1317,8 @@ export function backend_enc_jl_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta
 // G-02f-207：load 32 from [rax]
 #[no_mangle]
 export function backend_enc_load_32_from_rax_arch(elf_ctx: *u8, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) {
     if (arch_arm64_enc_enc_load_32_from_rax(elf_ctx) != 0) { return 0 - 1; }
     return 0;
@@ -1093,6 +1329,7 @@ export function backend_enc_load_32_from_rax_arch(elf_ctx: *u8, ta: i32): i32 {
   }
   if (arch_x86_64_enc_enc_load_32_from_rax(elf_ctx) != 0) { return 0 - 1; }
   return 0;
+  }
 }
 
 #[no_mangle]
@@ -1103,6 +1340,8 @@ export function backend_enc_load_i32_indirect_to_rax_arch(elf_ctx: *u8, ta: i32)
 // G-02f-207：load rbp → rbx（含 x86 disp8/disp32）
 #[no_mangle]
 export function backend_enc_load_rbp_to_rbx_arch(elf_ctx: *u8, offset: i32, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_load_rbp_to_rbx(elf_ctx, offset); }
   if (ta == 2) { return arch_riscv64_enc_enc_load_rbp_to_rbx(elf_ctx, offset); }
   if (elf_ctx == 0) { return 0 - 1; }
@@ -1129,6 +1368,7 @@ export function backend_enc_load_rbp_to_rbx_arch(elf_ctx: *u8, offset: i32, ta: 
     return pipeline_elf_ctx_append_bytes(elf_ctx, &b[0], 7);
   }
   return 0 - 1;
+  }
 }
 
 // G-02f-207：store eax → rbp
@@ -1163,6 +1403,8 @@ export function backend_enc_store_eax_to_rbp_arch(elf_ctx: *u8, offset: i32, ta:
 // G-02f-207：lane load
 #[no_mangle]
 export function backend_enc_load_rbp_lane_to_rax_arch(elf_ctx: *u8, offset: i32, esz: i32, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 0) {
     if (esz == 4) { return arch_x86_64_enc_enc_load_rbp_to_eax32(elf_ctx, offset); }
   }
@@ -1170,19 +1412,25 @@ export function backend_enc_load_rbp_lane_to_rax_arch(elf_ctx: *u8, offset: i32,
     if (esz == 4) { return arm64_enc_load_w0_from_rbp_c(elf_ctx, offset); }
   }
   return backend_enc_load_rbp_to_rax_arch(elf_ctx, offset, ta);
+  }
 }
 
 #[no_mangle]
 export function backend_enc_load_rbp_lane_to_rbx_arch(elf_ctx: *u8, offset: i32, esz: i32, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 0) {
     if (esz == 4) { return arch_x86_64_enc_enc_load_rbp_to_ebx32(elf_ctx, offset); }
   }
   return backend_enc_load_rbp_to_rbx_arch(elf_ctx, offset, ta);
+  }
 }
 
 // G-02f-207：arm64 ldr x0,[x29,#pos] — 0xf9400000 | (imm12<<10) | (29<<5) ≈ 4181722016 base
 #[no_mangle]
 export function backend_enc_load_x29_pos_to_rax_arch(elf_ctx: *u8, off_pos: i32, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) {
     let off: i32 = off_pos;
     if (off < 0) { off = 0; }
@@ -1191,11 +1439,14 @@ export function backend_enc_load_x29_pos_to_rax_arch(elf_ctx: *u8, off_pos: i32,
     return arch_arm64_enc_enc_u32_le(elf_ctx, (4181722016 | ((imm12 as u32) * 1024)) as i32);
   }
   return 0 - 1;
+  }
 }
 
 // G-02f-207：rbx + index_scratch * esz
 #[no_mangle]
 export function backend_enc_rbx_plus_index_scratch_scaled_arch(elf_ctx: *u8, esz: i32, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (esz == 1) {
     if (ta == 1) { return arch_arm64_enc_enc_rbx_plus_x2_scale1(elf_ctx); }
     if (ta == 2) { return arch_riscv64_enc_enc_rbx_plus_a2_scale1(elf_ctx); }
@@ -1209,11 +1460,14 @@ export function backend_enc_rbx_plus_index_scratch_scaled_arch(elf_ctx: *u8, esz
   if (ta == 1) { return arch_arm64_enc_enc_rbx_plus_x2_scale8(elf_ctx); }
   if (ta == 2) { return arch_riscv64_enc_enc_rbx_plus_a2_scale8(elf_ctx); }
   return arch_x86_64_enc_enc_lea_rbx_plus_rcx_scale8(elf_ctx);
+  }
 }
 
 // G-02f-207：add imm → index_scratch
 #[no_mangle]
 export function backend_enc_add_imm_to_index_scratch_arch(elf_ctx: *u8, imm: i32, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) {
     if (imm == 0) { return 0; }
     let imm12: i32 = imm;
@@ -1222,10 +1476,13 @@ export function backend_enc_add_imm_to_index_scratch_arch(elf_ctx: *u8, imm: i32
   }
   if (ta == 2) { return arch_riscv64_enc_enc_add_imm_to_a2(elf_ctx, imm); }
   return arch_x86_64_enc_enc_add_imm_to_ecx(elf_ctx, imm);
+  }
 }
 
 #[no_mangle]
 export function backend_enc_sub_imm_from_index_scratch_arch(elf_ctx: *u8, imm: i32, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) {
     if (imm == 0) { return 0; }
     let imm12: i32 = imm;
@@ -1234,10 +1491,13 @@ export function backend_enc_sub_imm_from_index_scratch_arch(elf_ctx: *u8, imm: i
   }
   if (ta == 2) { return arch_riscv64_enc_enc_sub_imm_from_a2(elf_ctx, imm); }
   return arch_x86_64_enc_enc_sub_imm_from_ecx(elf_ctx, imm);
+  }
 }
 
 #[no_mangle]
 export function backend_enc_add_imm_to_rbx_index_arch(elf_ctx: *u8, imm: i32, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (imm == 0) { return 0; }
   if (ta == 1) {
     let imm12: i32 = imm;
@@ -1246,10 +1506,13 @@ export function backend_enc_add_imm_to_rbx_index_arch(elf_ctx: *u8, imm: i32, ta
   }
   if (ta == 2) { return arch_riscv64_enc_enc_add_imm_to_rbx(elf_ctx, imm); }
   return arch_x86_64_enc_enc_add_imm_to_ebx_index(elf_ctx, imm);
+  }
 }
 
 #[no_mangle]
 export function backend_enc_sub_imm_from_rbx_index_arch(elf_ctx: *u8, imm: i32, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (imm == 0) { return 0; }
   if (ta == 1) {
     let imm12: i32 = imm;
@@ -1258,10 +1521,13 @@ export function backend_enc_sub_imm_from_rbx_index_arch(elf_ctx: *u8, imm: i32, 
   }
   if (ta == 2) { return arch_riscv64_enc_enc_sub_imm_from_rbx_index(elf_ctx, imm); }
   return arch_x86_64_enc_enc_sub_imm_from_ebx_index(elf_ctx, imm);
+  }
 }
 
 #[no_mangle]
 export function backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx: *u8, offset: i32, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (ta == 1) {
     let simm9: i32 = 0 - offset;
     if (simm9 < 0 - 256) { simm9 = 0 - 256; }
@@ -1270,10 +1536,13 @@ export function backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx: *u8, 
   }
   if (ta == 2) { return arch_riscv64_enc_enc_load_rbp_to_a3(elf_ctx, offset); }
   return arch_x86_64_enc_enc_load_rbp_to_edx(elf_ctx, offset);
+  }
 }
 
 #[no_mangle]
 export function backend_enc_mul_imm_to_index_scratch_arch(elf_ctx: *u8, lit: i32, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (lit <= 1) { return 0; }
   if (lit > 65535) { return 0 - 1; }
   if (ta == 1) {
@@ -1282,10 +1551,13 @@ export function backend_enc_mul_imm_to_index_scratch_arch(elf_ctx: *u8, lit: i32
   }
   if (ta == 2) { return arch_riscv64_enc_enc_mul_imm_to_a2(elf_ctx, lit); }
   return arch_x86_64_enc_enc_imul_imm_to_ecx(elf_ctx, lit);
+  }
 }
 
 #[no_mangle]
 export function backend_enc_mul_imm_to_rbx_arch(elf_ctx: *u8, lit: i32, ta: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   if (lit <= 1) { return 0; }
   if (lit > 65535) { return 0 - 1; }
   if (ta == 1) {
@@ -1294,6 +1566,7 @@ export function backend_enc_mul_imm_to_rbx_arch(elf_ctx: *u8, lit: i32, ta: i32)
   }
   if (ta == 2) { return arch_riscv64_enc_enc_mul_imm_to_rbx(elf_ctx, lit); }
   return arch_x86_64_enc_enc_imul_imm_to_ebx(elf_ctx, lit);
+  }
 }
 
 /* ---- G-02f-208：x86 f32/xmm 编码壳 ---- */
@@ -1399,8 +1672,11 @@ export function backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx: *u8, k: i32, ta
 // arm64 cmp w0,#imm12 — 0x7100001f | (imm12<<10)；与 arch/arm64_enc.x enc_cmp_w0_imm12 一致
 #[no_mangle]
 export function arch_arm64_enc_enc_cmp_w0_imm12(elf_ctx: *u8, imm12: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  unsafe {
   let imm: i32 = imm12 & 4095;
   return arch_arm64_enc_enc_u32_le(elf_ctx, (1895825439 | (imm * 1024)) as i32);
+  }
 }
 
 // arm64 cset w0,cond — 0x1a9f07e0 | (cond<<12)
