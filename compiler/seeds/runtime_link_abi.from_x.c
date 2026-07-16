@@ -6134,9 +6134,22 @@ void shux_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *us
                 flag_out = flags ? &flags->have_dynlib : NULL;
             else if (fk == 13)
                 flag_out = &have_http;
-            /* fk==0 且对 heap 等有 U 的模块：仅 user 需要时链入 */
-            if (fk == 0 && rel && rel[0] && !labi_std_fk0_user_needs_rel(user_o, rel))
+            /* 残缺预编 .o 勿无条件硬链：仅 user.o 有对应 UNDEF 时推入 */
+            if (rel && rel[0] && user_o && user_o[0]) {
+                if (fk == 0 && !labi_std_fk0_user_needs_rel(user_o, rel))
+                    break;
+                if (fk == 4 /* crypto */ && !shux_link_obj_needs_undef_sym(user_o, "std_crypto_mem_eq")
+                    && !shux_link_obj_needs_undef_sym(user_o, "crypto_mem_eq_c")
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_crypto_sha256"))
+                    break;
+                if (fk == 1 /* process */ && !shux_link_obj_needs_undef_sym(user_o, "process_shux_argv_get")
+                    && !shux_link_obj_needs_undef_sym(user_o, "process_arg_c")
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_process_exit")
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_process_args"))
+                    break;
+            } else if (fk == 0 && rel && rel[0] && !labi_std_fk0_user_needs_rel(user_o, rel)) {
                 break;
+            }
             if (rel && rel[0])
                 link_abi_asm_ld_push_obj(NULL, link_argv0, rel, lib_roots, n_lib_roots, bank, argv, la, max_la, flag_out);
             break;
