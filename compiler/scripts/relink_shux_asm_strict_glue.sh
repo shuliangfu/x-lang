@@ -791,6 +791,12 @@ ensure_asm_backend_seed_helper_partial_obj() {
   if [ ! -f "$SEED" ] || [ ! -s "$SEED" ]; then
   return 1
   fi
+  # Stale: older helper exports were T-only and dropped seed W text stubs
+  # (backend_emit_expr / loop_body / if_then) → strict WPO final link UNDEF.
+  if [ -f "$SYMS" ] && ! grep -qxF 'backend_emit_expr' "$SYMS" 2>/dev/null; then
+  strict_glue_warn "stale asm_backend_seed_helper export (missing W text stubs); regen"
+  rm -f "$SYMS" "$PARTIAL"
+  fi
   if [ ! -f "$SYMS" ] || [ "$SEED" -nt "$SYMS" ] || [ ! -f "$EXCLUDE" ] || [ "$EXCLUDE" -nt "$SYMS" ]; then
   cat >"$EXCLUDE" <<'EOF'
 backend_asm_codegen_ast
@@ -798,11 +804,14 @@ backend_asm_codegen_ast_to_elf
 backend_emit_expr_elf
 backend_emit_block_body_elf
 EOF
-  nm "$SEED" 2>/dev/null | awk '/ T / {print $3}' | sort -u >"$SYMS.all"
+  # PLATFORM: SHARED — seed pin keeps text-path emit helpers as weak (W) stubs;
+  # WPO path replaces only thin T entrypoints. Must export T+W or compat_stubs
+  # UNDEFs backend_emit_expr / loop_body / if_then under STRICT_LINK_BUILD_ASM_BACKEND_WPO.
+  nm "$SEED" 2>/dev/null | awk '/ [TW] / {print $3}' | sort -u >"$SYMS.all"
   sort -u "$EXCLUDE" -o "$EXCLUDE"
   comm -23 "$SYMS.all" "$EXCLUDE" >"$SYMS"
   rm -f "$SYMS.all"
-  strict_glue_info "seed helper export: $(wc -l <"$SYMS" | tr -d ' ') symbols (seed minus wpo thin entry)"
+  strict_glue_info "seed helper export: $(wc -l <"$SYMS" | tr -d ' ') symbols (seed T+W minus wpo thin entry)"
   fi
   if [ ! -f "$PARTIAL" ] || [ "$SEED" -nt "$PARTIAL" ] || [ "$SYMS" -nt "$PARTIAL" ]; then
   strict_glue_info "ld partial export $SYMS seed asm_backend_partial.o -> $PARTIAL"
@@ -1845,6 +1854,7 @@ LINK_START_S=$(date +%s 2>/dev/null || echo 0)
   "$LSP_DIAG_SEED_O" \
   $ST_LSP_X_OBJS \
   \
+  src/lsp/lsp_diag_pipeline_ctx.o \
   src/lsp/lsp_diag_pipeline_sizes.o \
   $ST_LAYOUT_PARTIAL \
   $ST_PARSER_X_TAIL \
