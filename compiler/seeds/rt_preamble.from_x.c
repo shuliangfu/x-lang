@@ -324,7 +324,9 @@ const char *const driver_preamble_io_net_lines[] = {
         /* 仅 forward：完整体由 std/map 发射；preamble 全量定义与 map.o -o 双权威 → redefinition */
         "struct std_map_Map_i32_i32;\n",
         "typedef struct std_io_driver_Buffer std_net_Buffer;\n",
+        /* Error + ErrorChain：与 codegen_should_skip_emit_struct_layout 同权威（缺则 incomplete type） */
         "struct std_error_Error { int32_t code; };\n",
+        "struct std_error_ErrorChain { int32_t depth; int32_t c0; int32_t c1; int32_t c2; int32_t c3; };\n",
         "struct std_string_String { uint8_t data[256]; int32_t len; };\n",
         "typedef struct std_string_String String;\n",
         "struct std_string_StrView { uint8_t *ptr; int32_t len; };\n",
