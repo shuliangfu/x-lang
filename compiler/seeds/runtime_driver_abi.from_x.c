@@ -13,7 +13,9 @@
  *   + wave4 Cap residual pure：defines_set_at（G.7 shux_ptr_slot_set）+ os_define_lit
  *     字面量表在 thin.x；FROM_X 无 pure-dup set_at/os_lit _impl；
  *   + wave5 Cap residual pure：phase timing BSS + begin/end 在 thin.x；FROM_X 无 pure-dup
- *     begin/end _impl；flush reportf floats 仍 rest Cap（经 thin acc_ms_get + clear）；
+ *     begin/end _impl；
+ *   + wave6 Cap residual pure：phase_timing_flush 在 thin.x（whole-ms append + diag_report）；
+ *     FROM_X 无 pure-dup flush _impl；
  * FROM_X 剔 pure-dup _impl（H↓）。
  */
 /* Generated from src/runtime_driver_abi.x (G-02f-29/41/45..57/83 true .x + C tail).
@@ -925,19 +927,21 @@ void driver_compile_phase_timing_end_impl(int32_t phase) {
 #endif
 
 /** 打印 parse/typeck/codegen/total 毫秒汇总行并清零；SHUX_COMPILE_PHASE_TIMING 启用时生效。
- * Cap residual：diag_reportf floats 仍 rest；acc 经 driver_compile_phase_acc_ms_get（thin/cold twin）。 */
+ * wave6 pure：hybrid thin owns flush（whole-ms append + diag_report）；cold keeps integer-ms twin；
+ * FROM_X 无 pure-dup flush _impl。acc 经 driver_compile_phase_acc_ms_get（thin/cold twin）。 */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_compile_phase_timing_flush_impl(void) {
-    double a0 = driver_compile_phase_acc_ms_get(0);
-    double a1 = driver_compile_phase_acc_ms_get(1);
-    double a2 = driver_compile_phase_acc_ms_get(2);
-    double total = a0 + a1 + a2;
+    int a0 = (int)driver_compile_phase_acc_ms_get(0);
+    int a1 = (int)driver_compile_phase_acc_ms_get(1);
+    int a2 = (int)driver_compile_phase_acc_ms_get(2);
+    int total = a0 + a1 + a2;
+    /* PLATFORM: SHARED — whole-ms twin of thin pure (wave6); no reportf floats. */
     diag_reportf(NULL, 0, 0, "note", NULL,
-                 "compile phase timing: parse_ms=%.3f typeck_ms=%.3f codegen_ms=%.3f total_ms=%.3f",
+                 "compile phase timing: parse_ms=%d typeck_ms=%d codegen_ms=%d total_ms=%d",
                  a0, a1, a2, total);
     driver_compile_phase_timing_clear();
 }
 
-#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_compile_phase_timing_flush(void) {
   (void)(({   {
     if ((driver_compile_phase_timing_enabled() ==0)) {

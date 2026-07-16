@@ -1107,7 +1107,6 @@ void driver_run_fn_on_current_large_stack(uint8_t * fn, uint8_t * arg) {
   (void)(driver_call_fn_void_arg_impl(fn, arg));
   (void)(driver_large_stack_thread_mark(0));
 }
-extern void driver_compile_phase_timing_flush_impl(void);
 int32_t driver_compile_phase_index_ok(int32_t phase) {
   if ((phase < 0)) {
     return 0;
@@ -1162,9 +1161,23 @@ void driver_compile_phase_timing_flush(void) {
   if ((driver_compile_phase_timing_enabled() ==0)) {
     return;
   }
-  (void)(driver_compile_phase_timing_flush_impl());
-  (void)(0);
-  return;
+  {
+    int32_t a0 = ((int32_t)(driver_compile_phase_acc_ms_get(0)));
+    int32_t a1 = ((int32_t)(driver_compile_phase_acc_ms_get(1)));
+    int32_t a2 = ((int32_t)(driver_compile_phase_acc_ms_get(2)));
+    int32_t total = ((a0 + a1) + a2);
+    uint8_t msg[192] = {};
+    int32_t at = driver_diag_append_cstr(&((msg)[0]), 192, 0, ((uint8_t *)"\x63\x6f\x6d\x70\x69\x6c\x65\x20\x70\x68\x61\x73\x65\x20\x74\x69\x6d\x69\x6e\x67\x3a\x20\x70\x61\x72\x73\x65\x5f\x6d\x73\x3d"));
+    (void)((at = driver_diag_append_i32(&((msg)[0]), 192, at, a0)));
+    (void)((at = driver_diag_append_cstr(&((msg)[0]), 192, at, ((uint8_t *)"\x20\x74\x79\x70\x65\x63\x6b\x5f\x6d\x73\x3d"))));
+    (void)((at = driver_diag_append_i32(&((msg)[0]), 192, at, a1)));
+    (void)((at = driver_diag_append_cstr(&((msg)[0]), 192, at, ((uint8_t *)"\x20\x63\x6f\x64\x65\x67\x65\x6e\x5f\x6d\x73\x3d"))));
+    (void)((at = driver_diag_append_i32(&((msg)[0]), 192, at, a2)));
+    (void)((at = driver_diag_append_cstr(&((msg)[0]), 192, at, ((uint8_t *)"\x20\x74\x6f\x74\x61\x6c\x5f\x6d\x73\x3d"))));
+    (void)((at = driver_diag_append_i32(&((msg)[0]), 192, at, total)));
+    (void)(diag_report(((uint8_t *)(0)), 0, 0, ((uint8_t *)"\x6e\x6f\x74\x65"), &((msg)[0]), ((uint8_t *)(0))));
+  }
+  (void)(driver_compile_phase_timing_clear());
 }
 int32_t driver_ascii_toupper(int32_t c) {
   if ((c < 97)) {

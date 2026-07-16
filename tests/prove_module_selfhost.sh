@@ -98,9 +98,10 @@ MODULES=(
   # + wave1 Cap residual pure：9× flag-slot BSS 进 thin；+ wave2 path/len BSS pure（dep path ·
   #   entry_source_len · path_last_preprocess_len）；+ wave3 format print pure（check_ok/fail/smoke
   #   append+diag_report*）；+ wave4 defines_set_at（shux_ptr_slot_set）+ os_define_lit pure；
-  #   + wave5 phase timing BSS + begin/end pure（flush reportf floats 仍 Cap）；
-  #   rest FROM_X 无 pure-dup flag_slot/path-len/format/set_at/os_lit/begin/end _impl；
-  # Cap residual：uname/setrlimit/pthread/path-read IO/debug_pipe/gettimeofday/phase_flush floats
+  #   + wave5 phase timing BSS + begin/end pure；
+  #   + wave6 phase_timing_flush pure（whole-ms append+diag_report；no reportf floats）；
+  #   rest FROM_X 无 pure-dup flag_slot/path-len/format/set_at/os_lit/begin/end/flush _impl；
+  # Cap residual：uname/setrlimit/pthread/path-read IO/debug_pipe/gettimeofday
   # prove 锁 thin surface IDENTICAL；冷/无 PREFER 仍可走 seeds/runtime_driver_abi.from_x.c 全 C 体
   "driver_abi|src/runtime_driver_abi_thin.x|seeds/runtime_driver_abi_thin_surface.from_x.c||"
   # runtime_io_abi R2 full：.x 吃满 19 公共门闩 + 5 _impl 真迁（read/malloc/memcpy）；

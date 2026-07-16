@@ -18,9 +18,11 @@
 //   + wave4 Cap residual pure：defines_set_at（G.7 shux_ptr_slot_set）+ os_define_lit
 //     string-lit table；FROM_X rest 无 pure-dup set_at/os_lit _impl。
 //   + wave5 Cap residual pure：phase timing BSS + begin/end（f64 acc/start + active i32）
-//     真迁 thin；FROM_X rest 无 pure-dup begin/end _impl；flush reportf floats 仍 rest Cap。
+//     真迁 thin；FROM_X rest 无 pure-dup begin/end _impl。
+//   + wave6 Cap residual pure：phase_timing_flush 真迁 thin（whole-ms i32 via append_* +
+//     diag_report；no va_list reportf floats）；FROM_X rest 无 pure-dup flush _impl。
 // Cap residual：uname / setrlimit / pthread 创建 / path-read IO /
-//   debug_pipe reportf note / gettimeofday phase_now / phase_timing_flush floats 仍 rest。
+//   debug_pipe reportf note / gettimeofday phase_now 仍 rest。
 //
 
 export extern "C" function getenv(name: *u8): *u8;
@@ -673,8 +675,7 @@ export function driver_run_fn_on_current_large_stack(fn: *u8, arg: *u8): void {
   driver_large_stack_thread_mark(0);
 }
 
-// ---- G-02f-344 / wave5：timing BSS + begin/end pure；flush Cap reportf 仍 rest ----
-export extern "C" function driver_compile_phase_timing_flush_impl(): void;
+// ---- G-02f-344 / wave5–6：timing BSS + begin/end + flush pure ----
 
 #[no_mangle]
 export function driver_compile_phase_index_ok(phase: i32): i32 {
@@ -751,15 +752,32 @@ export function driver_compile_phase_timing_end(phase: i32): void {
   g_compile_phase_active[phase] = 0;
 }
 
-/** Print phase timing note (Cap: diag_reportf floats in rest) then clear thin BSS. */
+/** Print compile phase timing note then clear thin BSS.
+ * Wave6 pure: whole milliseconds via driver_diag_append_* + diag_report (no va_list reportf).
+ * Fractional sub-ms is truncated (f64→i32); sufficient for SHUX_COMPILE_PHASE_TIMING notes.
+ * PLATFORM: SHARED — pure authority in thin; cold seed keeps integer-ms twin; FROM_X no pure-dup. */
 #[no_mangle]
 export function driver_compile_phase_timing_flush(): void {
   if (driver_compile_phase_timing_enabled() == 0) {
     return;
   }
   unsafe {
-    driver_compile_phase_timing_flush_impl();
+    let a0: i32 = driver_compile_phase_acc_ms_get(0) as i32;
+    let a1: i32 = driver_compile_phase_acc_ms_get(1) as i32;
+    let a2: i32 = driver_compile_phase_acc_ms_get(2) as i32;
+    let total: i32 = a0 + a1 + a2;
+    let msg: u8[192] = [];
+    let at: i32 = driver_diag_append_cstr(&msg[0], 192, 0, "compile phase timing: parse_ms=");
+    at = driver_diag_append_i32(&msg[0], 192, at, a0);
+    at = driver_diag_append_cstr(&msg[0], 192, at, " typeck_ms=");
+    at = driver_diag_append_i32(&msg[0], 192, at, a1);
+    at = driver_diag_append_cstr(&msg[0], 192, at, " codegen_ms=");
+    at = driver_diag_append_i32(&msg[0], 192, at, a2);
+    at = driver_diag_append_cstr(&msg[0], 192, at, " total_ms=");
+    at = driver_diag_append_i32(&msg[0], 192, at, total);
+    diag_report(0 as *u8, 0, 0, "note", &msg[0], 0 as *u8);
   }
+  driver_compile_phase_timing_clear();
 }
 
 // ---- G-02f-345：ascii_toupper / typeck_skip / sanitize_get ----
