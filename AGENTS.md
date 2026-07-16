@@ -49,6 +49,12 @@
 
 - 每次修改前先读相关代码，理解上下文（含该块是哪一平台 / 是否 SHARED）
 - 修改后必须在真实环境验证（Ubuntu x86_64 为金标准；SHARED 另加 macOS）
-- 提交前清理所有 `.o` 文件并重新编译
+- **真冷测（L4，谈自举 / 结案默认）**：
+  - **删除** `compiler` / `std` / `core` 下**全部** `.o`（禁止只删「相关」`.o` 冒充冷测）
+  - **删除并本波重编** `shux` / `shux_asm` / `shux-c` / `bootstrap_shuxc`
+  - 再 `bootstrap-driver-seed` + g05 → 产品矩阵 → `SHUX_BSTRICT_SKIP_BUILD=1` 全量 bstrict
+  - 旧 `.o` / 旧二进制会藏 ensure/链接/std 入链等隐性错误；细则见 skill  
+    `~/.grok/skills/shux-selfhost-product-gate/SKILL.md` §3 与 `references/true-cold-test.md`
+- 日常探针可用 L2/L3；**宣称冷测绿 / 可自举必须 L4**
 - 修改 `pipeline_glue.c` 或 `ast_pool.c` 后需在 Ubuntu 重建 `pipeline_x.o`
 - 修改 `pipeline_glue_strict_minimal` seed 后重建 `build_asm/pipeline_glue_strict_minimal.o` + g05
