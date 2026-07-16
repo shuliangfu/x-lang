@@ -1553,7 +1553,17 @@ void driver_run_on_large_stack_pthread(uint8_t * fn, uint8_t * arg) {
   (void)(driver_run_thread_on_large_stack(fn, arg));
 }
 int64_t driver_pipeline_entry_source_len_load_and_maybe_debug(void) {
-  return (g_pipeline_entry_source_len)[0];
+  {
+    int64_t len = (g_pipeline_entry_source_len)[0];
+    if ((driver_env_flag_truthy(((uint8_t *)"\x53\x48\x55\x58\x5f\x44\x45\x42\x55\x47\x5f\x50\x49\x50\x45")) !=0)) {
+      uint8_t msg[96] = {0};
+      int32_t at = driver_diag_append_cstr(&((msg)[0]), 96, 0, ((uint8_t *)"\x70\x69\x70\x65\x6c\x69\x6e\x65\x20\x64\x65\x62\x75\x67\x3a\x20\x65\x6e\x74\x72\x79\x5f\x73\x6f\x75\x72\x63\x65\x5f\x6c\x65\x6e\x5f\x67\x6c\x6f\x62\x61\x6c\x3d"));
+      (void)((at = driver_abi_append_i64(&((msg)[0]), 96, at, len)));
+      (void)(diag_report(((uint8_t *)(0)), 0, 0, ((uint8_t *)"\x6e\x6f\x74\x65"), &((msg)[0]), ((uint8_t *)(0))));
+    }
+    return len;
+  }
+  return 0;
 }
 int64_t driver_pipeline_entry_source_len(void) {
   return driver_pipeline_entry_source_len_load_and_maybe_debug();

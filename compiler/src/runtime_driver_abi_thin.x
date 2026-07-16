@@ -35,7 +35,10 @@
 //   + wave12 Cap residual pure：pthread 创建 经永久 OS 面
 //     shux_driver_run_thread_on_large_stack_pthread（no pthread_attr/posix_memalign in .x）；
 //     FROM_X rest 无 pure-dup pthread _impl。
-// Cap residual：debug_pipe reportf note 仍 rest（非 OS _impl pure 叶）。
+//   + wave13 Cap residual pure：entry_source_len load debug note 真迁 thin
+//     （SHUX_DEBUG_PIPE truthy → append_* + diag_report；no va_list reportf）；
+//     FROM_X rest 无 pure-dup load_and_maybe_debug _impl；cold keeps integer note twin。
+// Cap residual pure leaf closed for driver_abi debug_pipe note（OS rest _impl already 0）。
 //
 
 export extern "C" function getenv(name: *u8): *u8;
@@ -81,7 +84,7 @@ let g_driver_on_large_stack_thread_flag: i32[1] = [0];
 // dep path: single *u8 cell (import logic path pointer; no owned buffer).
 // entry_source_len / path_last_preprocess_len: i64[1] so store/load use [0] without &scalar.
 // Rest path_read_impl writes preprocess len via driver_path_last_preprocess_len_store.
-// Hybrid pure load of entry_source_len skips SHUX_DEBUG_PIPE reportf (cold seed keeps note).
+// Wave13 pure: load_and_maybe_debug emits SHUX_DEBUG_PIPE note via append + diag_report.
 let g_driver_current_dep_path: *u8 = 0 as *u8;
 let g_pipeline_entry_source_len: i64[1] = [0];
 let g_driver_path_last_preprocess_len: i64[1] = [0];
@@ -1273,15 +1276,29 @@ export function driver_run_on_large_stack_pthread(fn: *u8, arg: *u8): void {
   driver_run_thread_on_large_stack(fn, arg);
 }
 
-/** Load pipeline entry source length from thin BSS.
- * Wave2 pure: hybrid skips SHUX_DEBUG_PIPE reportf (cold seed load_impl still notes).
- * PLATFORM: SHARED — hybrid pure authority for the length cell. */
+/** Load pipeline entry source length from thin BSS; optionally emit a debug note.
+ * Wave13 pure: when SHUX_DEBUG_PIPE is truthy (non-empty and not '0'), assemble
+ * "pipeline debug: entry_source_len_global=<len>" via driver_diag_append_cstr +
+ * driver_abi_append_i64 + diag_report (no va_list diag_reportf). Env gate reuses
+ * driver_env_flag_truthy (same shape as driver_diag_env_debug_pipe / G.7).
+ * Cold seed keeps an integer-note twin under #ifndef FROM_X.
+ * PLATFORM: SHARED — hybrid pure authority for the length cell + debug note. */
 #[no_mangle]
 export function driver_pipeline_entry_source_len_load_and_maybe_debug(): i64 {
-  return g_pipeline_entry_source_len[0];
+  unsafe {
+    let len: i64 = g_pipeline_entry_source_len[0];
+    if (driver_env_flag_truthy("SHUX_DEBUG_PIPE") != 0) {
+      let msg: u8[96] = [0];
+      let at: i32 = driver_diag_append_cstr(&msg[0], 96, 0, "pipeline debug: entry_source_len_global=");
+      at = driver_abi_append_i64(&msg[0], 96, at, len);
+      diag_report(0 as *u8, 0, 0, "note", &msg[0], 0 as *u8);
+    }
+    return len;
+  }
+  return 0;
 }
 
-/** Query entry source length (same as load_and_maybe_debug under hybrid pure).
+/** Query entry source length (delegates to load_and_maybe_debug; may emit debug note).
  * PLATFORM: SHARED. */
 #[no_mangle]
 export function driver_pipeline_entry_source_len(): i64 {

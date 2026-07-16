@@ -106,8 +106,9 @@ MODULES=(
   #   + wave10 uname host defines pure orch（→ shux_driver_argv_append_uname OS surface；no utsname in .x）；
   #   + wave11 path-read pure orch（→ shux_driver_path_read_preprocess_malloc OS surface；no file-view in .x）；
   #   + wave12 pthread pure orch（→ shux_driver_run_thread_on_large_stack_pthread OS surface；no pthread_attr in .x）；
-  #   rest FROM_X 无 pure-dup flag_slot/path-len/format/set_at/os_lit/begin/end/flush/now_sec/call_fn/setrlimit/uname/path_read/pthread _impl；
-  # Cap residual：debug_pipe reportf note（非 OS _impl pure 叶；OS Cap rest _impl=0）
+  #   + wave13 entry_source_len load debug note pure（SHUX_DEBUG_PIPE truthy → append_*+diag_report；no reportf）；
+  #   rest FROM_X 无 pure-dup flag_slot/path-len/format/set_at/os_lit/begin/end/flush/now_sec/call_fn/setrlimit/uname/path_read/pthread/load_debug _impl；
+  # Cap residual pure leaf closed for driver_abi debug_pipe note（OS Cap rest _impl=0）
   # prove 锁 thin surface IDENTICAL；冷/无 PREFER 仍可走 seeds/runtime_driver_abi.from_x.c 全 C 体
   "driver_abi|src/runtime_driver_abi_thin.x|seeds/runtime_driver_abi_thin_surface.from_x.c||"
   # runtime_io_abi R2 full：.x 吃满 19 公共门闩 + 5 _impl 真迁（read/malloc/memcpy）；

@@ -28,6 +28,9 @@
  *     FROM_X rest 无 pure-dup path_read _impl；file view + preprocess 不进 .x；
  *   + wave12 Cap residual pure：pthread 创建 → 永久 OS 面 shux_driver_run_thread_on_large_stack_pthread；
  *     FROM_X rest 无 pure-dup pthread _impl；pthread_attr/posix_memalign 不进 .x；
+ *   + wave13 Cap residual pure：entry_source_len load debug note 在 thin.x
+ *     （SHUX_DEBUG_PIPE truthy → append_* + diag_report；no va_list reportf）；
+ *     FROM_X rest 无 pure-dup load_and_maybe_debug _impl；cold keeps integer-note twin；
  * FROM_X 剔 pure-dup _impl（H↓）。
  */
 /* Generated from src/runtime_driver_abi.x (G-02f-29/41/45..57/83 true .x + C tail).
@@ -554,11 +557,16 @@ void driver_pipeline_entry_source_len_store(size_t len) {
     driver_pipeline_entry_source_len_store_impl(len);
 }
 
-/* G-02f-416：cold getenv/reportf；hybrid thin pure-loads BSS (no reportf). */
+/* wave13 pure：hybrid thin owns load+debug note (append + diag_report); cold keeps integer twin.
+ * PLATFORM: SHARED — truthy SHUX_DEBUG_PIPE (non-empty and != '0') matches thin driver_env_flag_truthy. */
 size_t driver_pipeline_entry_source_len_load_and_maybe_debug_impl(void) {
-    if (getenv("SHUX_DEBUG_PIPE"))
+    const char *e = getenv("SHUX_DEBUG_PIPE");
+    if (e != NULL && e[0] != '\0' && e[0] != '0') {
+        /* Integer twin of thin pure note text (no float; matches driver_abi_append_i64 decimal). */
         diag_reportf(NULL, 0, 0, "note", NULL,
-                     "pipeline debug: entry_source_len_global=%zu", g_pipeline_entry_source_len);
+                     "pipeline debug: entry_source_len_global=%lld",
+                     (long long)g_pipeline_entry_source_len);
+    }
     return g_pipeline_entry_source_len;
 }
 
