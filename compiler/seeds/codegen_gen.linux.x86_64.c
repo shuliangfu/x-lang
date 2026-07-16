@@ -4622,6 +4622,18 @@ SHUX_LIB_WEAK int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct code
       (sl_pfx)[4] = 110; (sl_pfx)[5] = 101; (sl_pfx)[6] = 116; (sl_pfx)[7] = 95;
       (sl_pfx)[8] = 0;
       (sl_plen = (8));
+    } else if ((e).struct_lit_struct_name_len == 10 && (((e).struct_lit_struct_name)[0]) == 70 && (((e).struct_lit_struct_name)[1]) == 115) {
+      /* FsIovecBuf → std_fs_ (preamble + mod.x; 勿 entry 前缀 readv_writev_buf_) */
+      (sl_pfx)[0] = 115; (sl_pfx)[1] = 116; (sl_pfx)[2] = 100; (sl_pfx)[3] = 95;
+      (sl_pfx)[4] = 102; (sl_pfx)[5] = 115; (sl_pfx)[6] = 95; (sl_pfx)[7] = 0;
+      (sl_plen = (7));
+    } else if ((e).struct_lit_struct_name_len == 5 && (((e).struct_lit_struct_name)[0]) == 73 && (((e).struct_lit_struct_name)[1]) == 111) {
+      /* Iovec → std_io_sync_ */
+      (sl_pfx)[0] = 115; (sl_pfx)[1] = 116; (sl_pfx)[2] = 100; (sl_pfx)[3] = 95;
+      (sl_pfx)[4] = 105; (sl_pfx)[5] = 111; (sl_pfx)[6] = 95;
+      (sl_pfx)[7] = 115; (sl_pfx)[8] = 121; (sl_pfx)[9] = 110; (sl_pfx)[10] = 99;
+      (sl_pfx)[11] = 95; (sl_pfx)[12] = 0;
+      (sl_plen = (12));
     }
     /* other abi_dup names: keep sl_pfx from ctx (do not force std_net_) */
   }
