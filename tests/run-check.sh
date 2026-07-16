@@ -3,20 +3,11 @@
 set -e
 cd "$(dirname "$0")/.."
 SHUX=${SHUX:-./compiler/shux}
-# run-all 默认 C 流水线：fmt/check 用 shux-c（seed 对部分 fmt 产物 check 仍不完整）。
+# run-all 默认 C 流水线：仅 RUN_ALL_USE_C 显式要求时改绑 shux-c。
+# 旧逻辑在 SHUX_RUN_ALL_BOOTSTRAP_SHUX 下把 shux/shux_asm 改成 pin shux-c：
+# 冷 L2 后 shux-c 常为 seed 拷贝，对 fmt 产物 CHK001，而产品 shux_asm check 已静默绿。
 if [ -n "${RUN_ALL_USE_C:-}" ] && [ -x ./compiler/shux-c ]; then
   SHUX=./compiler/shux-c
-elif [ -n "${SHUX_RUN_ALL_BOOTSTRAP_SHUX:-}" ] && [ -x ./compiler/shux-c ]; then
-  # bootstrap run-all-bstrict：shux_asm 的 check 会打印 parse OK/typeck OK；与 -o 一致走 shux-c 静默 check。
-  case "$(basename "${SHUX:-./compiler/shux}")" in
-    shux|shux_asm) SHUX=./compiler/shux-c ;;
-    *)
-      case "$(uname -m 2>/dev/null)" in
-        x86_64|amd64) ;;
-        *) SHUX=./compiler/shux-c ;;
-      esac
-      ;;
-  esac
 fi
 export SHUX
 ./tests/run-comment-prefix.sh
