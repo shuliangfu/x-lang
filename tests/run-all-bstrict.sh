@@ -70,6 +70,8 @@ elif [ -n "${SHUX_RUN_ALL_BOOTSTRAP_SHUX:-}" ]; then
   # shellcheck source=lib/build-std-c-o.sh
   . "$(dirname "$0")/lib/build-std-c-o.sh"
   echo "run-all-bstrict: ensure std C .o for bootstrap -o linking ..."
+  # PLATFORM: SHARED — C -o prelinks these; missing .o → silent push_existing skip → UNDEF.
+  # error.o required by tests/error (std_error_ok) and http; was omitted → Ubuntu L4 red.
   BSTRICT_STD_O=(
     ../std/process/process.o ../std/string/string.o ../std/path/path.o
     ../std/runtime/runtime.o ../std/net/net.o ../std/thread/thread.o
@@ -80,7 +82,7 @@ elif [ -n "${SHUX_RUN_ALL_BOOTSTRAP_SHUX:-}" ]; then
     ../std/math/math.o ../std/sort/sort.o ../std/ffi/ffi.o ../std/json/json.o
     ../std/csv/csv.o ../std/unicode/unicode.o
     ../std/dynlib/dynlib.o ../std/http/http.o ../std/tar/tar.o ../std/queue/queue.o
-    ../std/test/test.o
+    ../std/error/error.o ../std/test/test.o
   )
   for o in "${BSTRICT_STD_O[@]}"; do
     if ensure_std_c_o "$o"; then
