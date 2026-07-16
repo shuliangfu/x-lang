@@ -251,7 +251,9 @@ ensure_parser_parse_bootstrap_asm_obj() {
 
   compile_parser_parse_bootstrap_cc_obj() {
   experimental_bootstrap_info "cc parser_asm_parse_bootstrap_obj.inc -> $PARSER_PARSE_BOOT_O"
-  if ! sh scripts/cc_inc_tu.sh "$PBOOT_C_SRC" "$PARSER_PARSE_BOOT_O"; then
+  # PLATFORM: SHARED — match parser_asm_thin_c: -Isrc/asm for parser_asm_stretch_audit_gate.h
+  # (default cc_inc_tu only has -I. -Iinclude -Isrc; bare #include "parser_asm_stretch_audit_gate.h" fails).
+  if ! sh scripts/cc_inc_tu.sh "$PBOOT_C_SRC" "$PARSER_PARSE_BOOT_O" -Isrc/lexer -Isrc/asm; then
   experimental_bootstrap_warn "cc parser_parse_bootstrap.o failed"
   rm -f "$PARSER_PARSE_BOOT_O"
   return 1
