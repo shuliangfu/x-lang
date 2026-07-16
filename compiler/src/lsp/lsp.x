@@ -438,9 +438,8 @@ export function lsp_parse_id(body: *u8, len: i32, id_buf: *u8, id_buf_len: i32):
   return -1;
 }
 
-/** 向 stdout（fd 1）发送 LSP 响应：Content-Length: <body_len>\r\n\r\n + body。 */
 /**
- * Send one LSP response on fd with Content-Length framing via lsp_write_all.
+ * Send one LSP response on fd (stdout=1) with Content-Length framing via lsp_write_all.
  * PLATFORM: SHARED — Cap-T001 whole-body unsafe (C write glue).
  */
 export function lsp_send_response(fd: i32, body: *u8, body_len: i32): i32 {
@@ -510,9 +509,9 @@ export function lsp_send_response(fd: i32, body: *u8, body_len: i32): i32 {
 
 /** LSP 主循环：从 stdin 读消息，根据 method 分发，向 stdout 写响应；收到 exit
 * 后返回 0。body/doc 按需动态分配，无固定缓冲上限。 */
-/** LSP 主循环实现；typeck_lsp_main 由 lsp_state.c 在大栈 pthread 上包装调用。 */
 /**
  * LSP main loop: read messages, dispatch methods, write JSON-RPC responses.
+ * Host may wrap this on a large-stack pthread (see lsp_state.c typeck_lsp_main).
  * PLATFORM: SHARED — Cap-T001 whole-body unsafe (C glue + lsp_io surface).
  */
 export function lsp_main_impl(): i32 {
