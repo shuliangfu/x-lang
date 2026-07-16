@@ -4189,20 +4189,30 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
                     argv[i++] = (char *)labi_ld_flag_lws2_32();
 #endif
             }
+            /* PLATFORM: SHARED — ensure glue before push_existing (cold tree may lack .o). */
             if (need_thread && invoke_cc_argv_push_existing(argv, &i, argv_cap, thread_o)) {
-                const char *rtg = shux_runtime_thread_glue_o_path(NULL);
-                if (rtg && rtg[0])
-                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rtg);
+                (void)shux_ensure_runtime_thread_glue_o(NULL);
+                {
+                    const char *rtg = shux_runtime_thread_glue_o_path(NULL);
+                    if (rtg && rtg[0])
+                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rtg);
+                }
             }
             if (need_time && invoke_cc_argv_push_existing(argv, &i, argv_cap, time_o)) {
-                const char *rto = shux_runtime_time_os_o_path(NULL);
-                if (rto && rto[0])
-                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rto);
+                (void)shux_ensure_runtime_time_os_o(NULL);
+                {
+                    const char *rto = shux_runtime_time_os_o_path(NULL);
+                    if (rto && rto[0])
+                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rto);
+                }
             }
             if (need_random && invoke_cc_argv_push_existing(argv, &i, argv_cap, random_o)) {
-                const char *rrf = shux_runtime_random_fill_o_path(NULL);
-                if (rrf && rrf[0])
-                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rrf);
+                (void)shux_ensure_runtime_random_fill_o(NULL);
+                {
+                    const char *rrf = shux_runtime_random_fill_o_path(NULL);
+                    if (rrf && rrf[0])
+                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rrf);
+                }
 #if defined(_WIN32) || defined(_WIN64)
                 if (i < argv_cap - 1)
                     argv[i++] = (char *)labi_ld_flag_lbcrypt();
@@ -4211,6 +4221,7 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
             if (need_env) {
                 /* mod.x co-emit 提供 std_env_*；env.o 可选。argv glue 已在上方统一推入。 */
                 (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, env_o);
+                (void)shux_ensure_runtime_env_os_o(NULL);
                 {
                     const char *reo = shux_runtime_env_os_o_path(NULL);
                     if (reo && reo[0])
@@ -4240,27 +4251,37 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
                 (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, base64_o);
             if (need_crypto) {
                 (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, crypto_o);
+                (void)shux_ensure_runtime_ed25519_ref10_glue_o(NULL);
                 {
                     const char *red = shux_runtime_ed25519_ref10_glue_o_path(NULL);
                     if (red && red[0])
                         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, red);
-                    {
-                        const char *rci = shux_runtime_crypto_inc_glue_o_path(NULL);
-                        if (rci && rci[0])
-                            (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rci);
-                    }
+                }
+                (void)shux_ensure_runtime_crypto_inc_glue_o(NULL);
+                {
+                    const char *rci = shux_runtime_crypto_inc_glue_o_path(NULL);
+                    if (rci && rci[0])
+                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rci);
                 }
             }
             if (need_log && invoke_cc_argv_push_existing(argv, &i, argv_cap,
                     shux_rel_o_path_from_argv0(include_root, labi_icc_rel_log_o()))) {
-                const char *rlo = shux_runtime_log_os_o_path(NULL);
-                if (rlo && rlo[0])
-                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rlo);
+                (void)shux_ensure_runtime_log_os_o(NULL);
+                {
+                    const char *rlo = shux_runtime_log_os_o_path(NULL);
+                    if (rlo && rlo[0])
+                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rlo);
+                }
             }
+            /* PLATFORM: SHARED — mac cold bstrict: U atomic_*_c from atomic.o when
+             * runtime_atomic_glue.o missing; ensure then push (same as channel/sync). */
             if (need_atomic && invoke_cc_argv_push_existing(argv, &i, argv_cap, atomic_o)) {
-                const char *rag = shux_runtime_atomic_glue_o_path(NULL);
-                if (rag && rag[0])
-                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rag);
+                (void)shux_ensure_runtime_atomic_glue_o(NULL);
+                {
+                    const char *rag = shux_runtime_atomic_glue_o_path(NULL);
+                    if (rag && rag[0])
+                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rag);
+                }
             }
             if (need_channel) {
                 /* marker channel.o 可选；API 由 co-emit mod.x，实现由 runtime_channel_glue.o */
@@ -4297,9 +4318,12 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
             if (need_hash)
                 (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, hash_o);
             if (need_math && invoke_cc_argv_push_existing(argv, &i, argv_cap, math_o)) {
-                const char *rml = shux_runtime_math_libm_o_path(NULL);
-                if (rml && rml[0])
-                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rml);
+                (void)shux_ensure_runtime_math_libm_o(NULL);
+                {
+                    const char *rml = shux_runtime_math_libm_o_path(NULL);
+                    if (rml && rml[0])
+                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rml);
+                }
                 if (i < argv_cap - 1)
                     argv[i++] = (char *)"-lm";
             }
@@ -4322,9 +4346,12 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
             if (need_ffi)
                 (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, ffi_o);
             if (need_db && invoke_cc_argv_push_existing(argv, &i, argv_cap, db_o)) {
-                const char *rsg = shux_runtime_sqlite_glue_o_path(NULL);
-                if (rsg && rsg[0])
-                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rsg);
+                (void)shux_ensure_runtime_sqlite_glue_o(NULL);
+                {
+                    const char *rsg = shux_runtime_sqlite_glue_o_path(NULL);
+                    if (rsg && rsg[0])
+                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rsg);
+                }
                 if (i < argv_cap - 1)
                     argv[i++] = (char *)"-lsqlite3";
             }
@@ -4412,9 +4439,12 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
                     (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, unicode_o);
             }
             if (need_dynlib && invoke_cc_argv_push_existing(argv, &i, argv_cap, dynlib_o)) {
-                const char *rdo = shux_runtime_dynlib_os_o_path(NULL);
-                if (rdo && rdo[0])
-                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rdo);
+                (void)shux_ensure_runtime_dynlib_os_o(NULL);
+                {
+                    const char *rdo = shux_runtime_dynlib_os_o_path(NULL);
+                    if (rdo && rdo[0])
+                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rdo);
+                }
 #if defined(__linux__)
                 if (i < argv_cap - 1)
                     argv[i++] = (char *)"-ldl";
