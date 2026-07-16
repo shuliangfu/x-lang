@@ -6186,6 +6186,17 @@ void shux_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *us
                     && !shux_link_obj_needs_undef_sym(user_o, "std_atomic_store_i64_ptr_i64")
                     && !shux_link_obj_needs_undef_sym(user_o, "atomic_store_i32_c"))
                     break;
+                /*
+                 * http.o 对 context/error/heap 有 U；无条件硬链 → 纯 asm（binop 仅 U panic）
+                 * 也拖入 http → ld 缺 std_context_* / std_error_http_* / std_heap_*（bstrict29）。
+                 * 与 crypto/sync 同：仅 user 有 std_http_ 入口 UNDEF 才推。
+                 */
+                if (fk == 13 /* http */
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_http_get")
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_http_request")
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_http_client_new")
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_http_request_timeout_ms_for_ctx"))
+                    break;
             } else if (fk == 0 && rel && rel[0] && !labi_std_fk0_user_needs_rel(user_o, rel)) {
                 break;
             }
