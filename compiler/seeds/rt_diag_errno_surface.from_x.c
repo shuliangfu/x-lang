@@ -3,6 +3,9 @@
  * Product PREFER_X_O: g05_try_x_to_o(rt_diag_errno.x) + rest seed empty under FROM_X
  * Prove: full.x vs this seed → nm IDENTICAL (code_for_kind + errno family + cli_usage)
  * Regen: ./shux -E ... src/runtime/rt_diag_errno.x | filter DBG + polish prologue
+ * Track-L (2026-07-16): helpers rt_diag_get_errno / rt_diag_ensure_codes / rt_diag_append
+ * keep short names; .x has #[no_mangle] (was module-prefix mangle).
+ * PLATFORM: SHARED — symbol contract; Ubuntu gold + mac prove.
  */
 #include <stddef.h>
 #include <stdint.h>

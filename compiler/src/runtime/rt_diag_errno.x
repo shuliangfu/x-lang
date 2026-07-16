@@ -25,9 +25,15 @@ export let g_rt_diag_io001: *u8 = 0 as *u8;
 export let g_rt_diag_prc001: *u8 = 0 as *u8;
 export let g_rt_diag_bld001: *u8 = 0 as *u8;
 
+/** Read the thread-local errno for Linux.
+ * Calls libc `__errno_location` and returns `*p`, or 0 if the pointer is null.
+ * Track-L: #[no_mangle] keeps the short surface name (not rt_diag_errno_rt_diag_get_errno).
+ * PLATFORM: LINUX — errno TLS via __errno_location; macOS uses the sibling below. */
 #[cfg(target_os = "linux")]
+#[no_mangle]
 export function rt_diag_get_errno(): i32 {
   let p: *i32 = 0 as *i32;
+  // FFI: TLS errno lives behind a function pointer from libc.
   unsafe {
     p = __errno_location();
   }
@@ -37,9 +43,15 @@ export function rt_diag_get_errno(): i32 {
   return p[0];
 }
 
+/** Read the thread-local errno for macOS/Darwin.
+ * Calls libc `__error` and returns `*p`, or 0 if the pointer is null.
+ * Track-L: #[no_mangle] keeps the short surface name (not module-prefixed mangle).
+ * PLATFORM: MACOS — errno TLS via __error; Linux uses the sibling above. */
 #[cfg(target_os = "macos")]
+#[no_mangle]
 export function rt_diag_get_errno(): i32 {
   let p: *i32 = 0 as *i32;
+  // FFI: Darwin errno accessor (not __errno_location).
   unsafe {
     p = __error();
   }
@@ -49,12 +61,19 @@ export function rt_diag_get_errno(): i32 {
   return p[0];
 }
 
-/** 一次分配 IO001/PRC001/BLD001，供 code_for_kind 返回稳定 *u8。 */
+/** One-shot malloc of stable diagnostic code strings: "IO001", "PRC001", "BLD001".
+ * After the first successful ensure, `g_rt_diag_codes_ready` is 1 and pointers are
+ * read-only for the process lifetime (avoids returning stack/compound-literal *u8 from -E).
+ * Each code is allocated as an 8-byte NUL-terminated buffer (ASCII digits written bytewise).
+ * Track-L: #[no_mangle] matches surface short name rt_diag_ensure_codes.
+ * PLATFORM: SHARED — link-name contract; verify with mac + Ubuntu prove. */
+#[no_mangle]
 export function rt_diag_ensure_codes(): void {
   let p: *u8 = 0 as *u8;
   if (g_rt_diag_codes_ready != 0) {
     return;
   }
+  // "IO001" — I/O family diagnostic code.
   unsafe {
     p = malloc(8 as usize);
   }
@@ -67,6 +86,7 @@ export function rt_diag_ensure_codes(): void {
     p[5] = 0;
     g_rt_diag_io001 = p;
   }
+  // "PRC001" — process family diagnostic code.
   unsafe {
     p = malloc(8 as usize);
   }
@@ -80,6 +100,7 @@ export function rt_diag_ensure_codes(): void {
     p[6] = 0;
     g_rt_diag_prc001 = p;
   }
+  // "BLD001" — build family diagnostic code (default for unknown kinds).
   unsafe {
     p = malloc(8 as usize);
   }
@@ -96,13 +117,22 @@ export function rt_diag_ensure_codes(): void {
   g_rt_diag_codes_ready = 1;
 }
 
-/** 把 src 接到 dst 尾（cap 含尾 0）；返回新长度（不含 0）。 */
+/** Append NUL-terminated `src` onto `dst` within capacity `cap` (cap includes room for the trailing NUL).
+ * Returns the new length of `dst` excluding the trailing NUL.
+ * - null `dst` → 0
+ * - null `src` → length of existing `dst` content (or 0 if no NUL found within cap)
+ * - if `dst` is already full (no room for a char + NUL), force-NUL at cap-1 and return cap-1
+ * - copy stops at src NUL or when only one byte remains for the destination NUL
+ * Track-L: #[no_mangle] keeps short surface name (not rt_diag_errno_rt_diag_append).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
 export function rt_diag_append(dst: *u8, cap: i32, src: *u8): i32 {
   let i: i32 = 0;
   let j: i32 = 0;
   if (dst == 0 as *u8) {
     return 0;
   }
+  // Null src: report current string length only (scan for existing NUL).
   if (src == 0 as *u8) {
     while (i < cap) {
       if (dst[i as usize] == 0) {
@@ -112,16 +142,19 @@ export function rt_diag_append(dst: *u8, cap: i32, src: *u8): i32 {
     }
     return 0;
   }
+  // Find end of existing dst content.
   while (i < cap) {
     if (dst[i as usize] == 0) {
       break;
     }
     i = i + 1;
   }
+  // Overflow: clamp with a forced NUL at the last index.
   if (i >= cap) {
     dst[(cap - 1) as usize] = 0;
     return cap - 1;
   }
+  // Copy src bytes while leaving space for the destination terminator.
   j = 0;
   while (i + 1 < cap) {
     let c: u8 = src[j as usize];
