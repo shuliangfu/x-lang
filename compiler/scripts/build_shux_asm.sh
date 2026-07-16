@@ -5025,6 +5025,13 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   ST_RC=$?
   set -e
   fi
+  # PLATFORM: SHARED — experimental bootstrap sets LINK_MODE=asm_only_experimental
+  # first, then strict re-link may succeed and MUST upgrade to asm_only_strict.
+  # Do NOT gate the upgrade on LINK_MODE!=experimental (that blocked Linux freestanding
+  # Stage2 after the Darwin keep-path: bootstrap already marked experimental).
+  # PLATFORM: DARWIN only — when strict fails, set STRICT_KEPT_EXPERIMENTAL=1 and keep
+  # experimental; that flag alone skips the strict-OK upgrade. Linux still hard-fails.
+  STRICT_KEPT_EXPERIMENTAL=0
   if [ "$ST_RC" -ne 0 ]; then
   build_shux_asm_error "strict link failed (rc=$ST_RC)"
   if [ -s "$BUILD_DIR/.asm_strict_link_err" ]; then
@@ -5040,10 +5047,11 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   LINK_OK=1
   LINK_MODE=asm_only_experimental
   ST_RC=0
+  STRICT_KEPT_EXPERIMENTAL=1
   build_shux_asm_info "B-strict OK (experimental bootstrap) - LINK_MODE=asm_only_experimental, Darwin strict residual non-blocking"
   fi
   fi
-  if [ "$ST_RC" -eq 0 ] && [ "${LINK_MODE:-}" != "asm_only_experimental" ]; then
+  if [ "$ST_RC" -eq 0 ] && [ "${STRICT_KEPT_EXPERIMENTAL:-0}" != "1" ]; then
   LINK_OK=1
   if [ "$ST_USES_ASM_PIPELINE" -eq 1 ]; then
   build_shux_asm_info "shux_asm strict OK (pipeline.o + C orchestration, __text=${PTEXT}B)"
@@ -5114,8 +5122,8 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   PAR2=$(asm_o_text_bytes "$BUILD_DIR/parser.o" 2>/dev/null || echo 0)
   BACK2=$(asm_o_text_bytes "$BUILD_DIR/backend.o" 2>/dev/null || echo 0)
   build_shux_asm_info "strict self-compile __text typeck=${TCK2}B parser=${PAR2}B backend=${BACK2}B"
-  elif [ "${LINK_MODE:-}" = "asm_only_experimental" ] && [ "${LINK_OK:-0}" -eq 1 ]; then
-  # Darwin experimental keep path already set LINK_OK + B-strict OK above.
+  elif [ "${STRICT_KEPT_EXPERIMENTAL:-0}" = "1" ]; then
+  # PLATFORM: DARWIN — keep path already set LINK_OK + experimental B-strict OK above.
   :
   else
   if [ -n "${SHUX_ASM_EXPERIMENTAL_SKIP_GEN:-}" ]; then
