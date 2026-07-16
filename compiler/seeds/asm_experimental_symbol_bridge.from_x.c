@@ -329,3 +329,18 @@ __attribute__((weak)) void ast_arena_init(void *arena) {
 __attribute__((weak)) void ast_ast_arena_init(void *arena) {
   ast_arena_init(arena);
 }
+
+/**
+ * Darwin 冷链：user_asm_seed_bridge 经 weak_import 调用 platform_macho_write_macho_o_to_buf。
+ * 静态链时 weak_import 无定义对象 → ld 硬失败（Linux 未定义 weak 可置 0）。
+ * 【Why 单独立桩于本 TU】不可写在 user_asm_seed_bridge 同文件（同 TU 会静态绑本地 stub，
+ * 遮蔽日后真 Mach-O writer）。本 weak 在独立 .o；真 macho 强符号链入时覆盖。
+ * build_asm/macho.o 当前常为 CI text stub，不含本符号，故冷/experimental 须本桩。
+ */
+#if defined(__APPLE__)
+__attribute__((weak)) int32_t platform_macho_write_macho_o_to_buf(void *elf_ctx, void *out_buf) {
+  (void)elf_ctx;
+  (void)out_buf;
+  return -1;
+}
+#endif

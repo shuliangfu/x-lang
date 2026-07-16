@@ -419,8 +419,6 @@ fi
   preprocess_x.o \
   "src/runtime_driver_strict_glue_stubs.o" \
   driver_fmt_x.o driver_check_x.o driver_test_x.o driver_build_x.o driver_run_x.o driver_compile_x.o driver_emit_x.o \
-  src/runtime_io_abi.o \
-  src/runtime_io_abi.o \
   "$BUILD_DIR/x_seed_bridge.o" \
   "$BUILD_DIR/seed_host/asm_backend_partial.o" \
   src/asm/user_asm_seed_bridge.o \
@@ -434,7 +432,6 @@ fi
   "$BUILD_DIR/asm_experimental_symbol_bridge.o" \
   ${PARSER_PARSE_BOOT_O:+"$PARSER_PARSE_BOOT_O"} \
   $ST_LSP_DIAG_STUB \
-  src/runtime_driver_strict_glue_stubs.o \
   "$SEED_O/async_liveness.o" \
   "$SEED_O/async_cps_codegen.o" \
   "$SEED_O/ast_seed.o" \

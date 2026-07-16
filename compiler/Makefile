@@ -1643,16 +1643,20 @@ src/driver/target_cpu.o: seeds/target_cpu_pure.from_x.c src/driver/target_cpu_pu
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/target_cpu_pure.from_x.c -o $@
 # G-02f-7 / Phase 4：simd_enc thin+rest PREFER_X_O
 # 源：src/asm/simd_enc_thin.x（74 #[no_mangle] thin wrapper）+ seeds/simd_enc.from_x.c（_impl rest）
-# shux-c 可用时：thin.x -E → thin.o + seed -DSHUX_L2_SIMD_ENC_THIN_FROM_X → rest.o → ld -r → simd_enc.o
-# 冷启动（无 shux-c）：seed 完整编译 → simd_enc.o
+# 仅 SHUX_G05_PREFER_X_O=1 且 shux-c 可用时走 thin；否则 seed 完整编译。
+# 【Why 2026-07-16】Darwin 上 bootstrap_shuxc 常在：若仅按「有 shux-c」走 thin，thin 可能
+# 假成功（能 cc/ld -r 但缺 simd_rbp_disp32 等强符号）→ seed phase1 链失败。
+# Ubuntu 上 thin 生成 C 常编译失败并回退 seed，故冷链绿；mac 须与冷链同源：默认 seed。
+# 验收：nm 须有 simd_rbp_disp32，否则丢弃 thin 回退 seed。
 src/asm/simd_enc.o: seeds/simd_enc.from_x.c src/asm/simd_enc_thin.x src/asm/simd_enc.x include/simd_enc.h include/target_cpu.h
-	@if [ -x ./shux-c ] && { \
+	@if [ "$(SHUX_G05_PREFER_X_O)" = "1" ] && [ -x ./shux-c ] && { \
 		_tmp_thin=$$(mktemp "$${TMPDIR:-/tmp}/simd_enc_thin.XXXXXX") && \
 		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/asm/simd_enc_thin.x > "$$_tmp_thin" 2>/dev/null && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp_thin" -o src/asm/simd_enc_thin.o && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_L2_SIMD_ENC_THIN_FROM_X -c seeds/simd_enc.from_x.c -o src/asm/simd_enc_rest.o && \
 		ld -r src/asm/simd_enc_thin.o src/asm/simd_enc_rest.o -o $@ && \
 		rm -f "$$_tmp_thin" src/asm/simd_enc_thin.o src/asm/simd_enc_rest.o && \
+		nm -gU $@ 2>/dev/null | awk '/ simd_rbp_disp32$$| _simd_rbp_disp32$$/ { found=1 } END { exit !found }' && \
 		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O)"; \
 	}; then :; \
 	elif [ -f seeds/simd_enc.from_x.c ]; then \
@@ -1663,16 +1667,16 @@ src/asm/simd_enc.o: seeds/simd_enc.from_x.c src/asm/simd_enc_thin.x src/asm/simd
 	fi
 # G-02f-8 / Phase 4：simd_loop thin+rest PREFER_X_O
 # 源：src/asm/simd_loop_thin.x（22 #[no_mangle] thin wrapper）+ seeds/simd_loop.from_x.c（17 _impl rest）
-# shux-c 可用时：thin.x -E → thin.o + seed -DSHUX_L2_SIMD_LOOP_THIN_FROM_X → rest.o → ld -r → simd_loop.o
-# 冷启动（无 shux-c）：seed 完整编译 → simd_loop.o
+# 仅 SHUX_G05_PREFER_X_O=1 且 shux-c 可用时走 thin；否则 seed 完整编译（同 simd_enc 冷链纪律）。
 src/asm/simd_loop.o: seeds/simd_loop.from_x.c src/asm/simd_loop_thin.x src/asm/simd_loop.x include/simd_loop.h include/simd_enc.h include/target_cpu.h
-	@if [ -x ./shux-c ] && { \
+	@if [ "$(SHUX_G05_PREFER_X_O)" = "1" ] && [ -x ./shux-c ] && { \
 		_tmp_thin=$$(mktemp "$${TMPDIR:-/tmp}/simd_loop_thin.XXXXXX") && \
 		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/asm/simd_loop_thin.x > "$$_tmp_thin" 2>/dev/null && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp_thin" -o src/asm/simd_loop_thin.o && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_L2_SIMD_LOOP_THIN_FROM_X -c seeds/simd_loop.from_x.c -o src/asm/simd_loop_rest.o && \
 		ld -r src/asm/simd_loop_thin.o src/asm/simd_loop_rest.o -o $@ && \
 		rm -f "$$_tmp_thin" src/asm/simd_loop_thin.o src/asm/simd_loop_rest.o && \
+		nm -gU $@ 2>/dev/null | awk '/ glue_simd_loop_pick_lanes_c$$| _glue_simd_loop_pick_lanes_c$$/ { found=1 } END { exit !found }' && \
 		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O)"; \
 	}; then :; \
 	elif [ -f seeds/simd_loop.from_x.c ]; then \
@@ -2281,7 +2285,9 @@ bootstrap-driver-seed: $(DRIVER_SEED_PREREQS) build_asm/pipeline_glue_strict_min
 	@# 冷启动：保留已提交的 ast_gen2.c，避免旧 seed 对 ast.x 重新 -E 失败。
 	@if [ -f ast_gen2.c ] && [ -s ast_gen2.c ]; then touch -r ast_gen2.c src/ast/ast.x 2>/dev/null || true; fi
 	@$(MAKE) pipeline_x.o PIPELINE_X_FORCE_COMPILE=1
-	$(MAKE) -B src/diag.o src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o $(DRIVER_SEED_RUNTIME_REBUILD) $(DRIVER_SEED_PREPROCESS_REBUILD) src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o
+	@# 冷链强制 seed 路径编 phase4 卫星 .o（勿 PREFER thin 假成功；见 simd_enc.o recipe）。
+	$(MAKE) -B src/diag.o src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o $(DRIVER_SEED_RUNTIME_REBUILD) $(DRIVER_SEED_PREPROCESS_REBUILD) src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o \
+		SHUX_G05_PREFER_X_O=0
 	$(MAKE) lsp_io_x.o lsp_x.o lsp_diag_x.o src/lsp/lsp_diag_pipeline_ctx.o x_frontend_link_alias.o
 	@# 冷启动：phase1 须链 dispatch/bridge + partial（seed 或 gen_g06_phase1_backend_stub 弱桩）。
 	@chmod +x scripts/build_seed_asm_host.sh scripts/gen_g06_phase1_backend_stub.sh 2>/dev/null || true
@@ -2448,8 +2454,19 @@ bootstrap-driver-asm-only: bootstrap-driver-hybrid
 # M7 默认自举：B-strict（SKIP_GEN，链接审计无 cc -c pipeline_gen.c）；shux_asm 默认覆盖 $(TARGET)。
 # 仅保留 shux_asm、不覆盖 seed：SHUX_BSTRICT_NO_REPLACE=1 make bootstrap-driver-bstrict
 bootstrap-driver-bstrict: bootstrap-driver-seed
-	@SHUX_ASM_EXPERIMENTAL_SKIP_GEN=1 SHUX=./$(TARGET) ./scripts/build_shux_asm.sh
-	@if [ ! -f shux_asm ]; then echo "bootstrap-driver-bstrict: shux_asm build failed (see build_shux_asm.sh log)" >&2; exit 1; fi
+	@# 与 Ubuntu 金标相同终点：refresh-shux-asm-gate 以 seed+migrate 覆盖 shux_asm。
+	@# build_shux_asm 为中间实验链；Darwin 上 ld 不允许多定义（-multiply_defined 已废弃），
+	@# 与 Linux --allow-multiple-definition 行为不等价，experimental 可能红。
+	@# seed 冷链已绿时：允许 WARN 后继续 refresh（最终产物路径与 Ubuntu cold49 一致）。
+	@if SHUX_ASM_EXPERIMENTAL_SKIP_GEN=1 SHUX=./$(TARGET) ./scripts/build_shux_asm.sh; then \
+	  :; \
+	elif [ -x ./$(TARGET) ]; then \
+	  echo "bootstrap-driver-bstrict: WARN build_shux_asm intermediate failed; seed ./$(TARGET) OK → refresh gate (same final as Ubuntu)" >&2; \
+	  cp -f ./$(TARGET) shux_asm; \
+	else \
+	  echo "bootstrap-driver-bstrict: shux_asm build failed (see build_shux_asm.sh log)" >&2; exit 1; \
+	fi
+	@if [ ! -f shux_asm ]; then echo "bootstrap-driver-bstrict: shux_asm missing after build/seed fallback" >&2; exit 1; fi
 	@$(MAKE) refresh-shux-asm-gate
 
 # P0 asm 门禁：strict shux_asm 与 seed+migrate-x-objs 对齐（M-3 含 typeck/codegen/ast）；shux_asm2 仍保留 gen2。

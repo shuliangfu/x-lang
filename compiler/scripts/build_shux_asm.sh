@@ -3112,9 +3112,15 @@ refresh_bstrict_link_variants() {
   BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK="src/asm/asm_backend_compat_stubs.o"
   BSTRICT_BACKEND_X86_64_ENC_LINK="src/asm/backend_x86_64_enc_c.o"
   if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
-  BSTRICT_EXPERIMENTAL_GLUE_OBJ="$BUILD_DIR/pipeline_glue_strict_minimal.o"
+  # Darwin ld 不允许多定义（-multiply_defined 已废弃）。filtered pipeline 与
+  # pipeline_glue_strict_minimal 共享 pipeline_* 符号 → 只链其一：
+  # 优先 filtered pipeline（去 seed partial 重叠），不另链 minimal glue。
+  BSTRICT_EXPERIMENTAL_GLUE_OBJ=""
   if ensure_bstrict_pipeline_filtered_obj 2>/dev/null; then
   BSTRICT_PIPELINE_LINK_O="$BUILD_DIR/bstrict_pipeline_filtered.o"
+  else
+  BSTRICT_EXPERIMENTAL_GLUE_OBJ="$BUILD_DIR/pipeline_glue_strict_minimal.o"
+  BSTRICT_PIPELINE_LINK_O="pipeline_x.o"
   fi
   if [ -s "$BUILD_DIR/seed_host/asm_backend_partial.o" ]; then
   ensure_asm_backend_compat_stubs_obj >/dev/null 2>&1 || true
@@ -4411,19 +4417,27 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   ensure_runtime_driver_asm_strict_obj
   ensure_asm_bootstrap_support_extra_objs
   BSTRICT_SEED_SUPPORT=$(asm_bootstrap_support_extra_link)
+  # Darwin：BOOT_ENTRY=runtime_asm_build 与 strict_glue_stubs 共享 asm_driver_* 强符号。
+  if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+  BSTRICT_SEED_SUPPORT=$(echo "$BSTRICT_SEED_SUPPORT" | sed 's|src/runtime_driver_strict_glue_stubs\.o||g')
+  fi
   BOOT_DRIVER_TAIL=$(bootstrap_link_tail_driver)
   ensure_asm_pipeline_glue_standalone_obj
   ensure_asm_pipeline_glue_strict_minimal_obj
   refresh_bstrict_link_variants
+  # Darwin ld 不再尊重 -multiply_defined；重复 .o 硬失败。
+  # minimal glue 与 filtered pipeline 重叠 → Darwin 在 refresh_bstrict_link_variants 已二选一。
   BSTRICT_MINIMAL_GLUE_COMPANION=""
-  if [ "$BSTRICT_EXPERIMENTAL_GLUE_OBJ" != "$BUILD_DIR/pipeline_glue_strict_minimal.o" ]; then
+  if [ "$(uname -s 2>/dev/null)" != "Darwin" ] \
+    && [ -n "$BSTRICT_EXPERIMENTAL_GLUE_OBJ" ] \
+    && [ "$BSTRICT_EXPERIMENTAL_GLUE_OBJ" != "$BUILD_DIR/pipeline_glue_strict_minimal.o" ]; then
   BSTRICT_MINIMAL_GLUE_COMPANION="$BUILD_DIR/pipeline_glue_strict_minimal.o"
   fi
   ASM_GLUE_DUP_LDFLAGS=$(asm_glue_duplicate_ldflags)
   # shellcheck disable=SC2086
   "$CC" $CFLAGS $BOOT_ENTRY_LDFLAGS $ASM_GLUE_DUP_LDFLAGS -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -o shux_asm \
   $BOOT_ENTRY_OBJ \
-  "$BSTRICT_EXPERIMENTAL_GLUE_OBJ" \
+  ${BSTRICT_EXPERIMENTAL_GLUE_OBJ:+"$BSTRICT_EXPERIMENTAL_GLUE_OBJ"} \
   $BSTRICT_MINIMAL_GLUE_COMPANION \
   src/runtime_io_abi.o \
   src/runtime_link_abi.o \
@@ -4436,10 +4450,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   "$BSTRICT_PIPELINE_LINK_O" \
   pipeline_bootstrap_orchestration.o \
   preprocess_x.o \
-  "src/runtime_driver_strict_glue_stubs.o" \
   driver_fmt_x.o driver_check_x.o driver_test_x.o driver_build_x.o driver_run_x.o driver_compile_x.o driver_emit_x.o \
-  src/runtime_io_abi.o \
-  src/runtime_io_abi.o \
   "$BUILD_DIR/x_seed_bridge.o" \
   "$BUILD_DIR/seed_link_compat.o" \
   "$BUILD_DIR/seed_host/asm_backend_partial.o" \
@@ -4457,7 +4468,6 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   \
   "$BUILD_DIR/asm_experimental_symbol_bridge.o" \
   "$BUILD_DIR/asm_shux_lsp_diag_stub.o" \
-  src/runtime_driver_strict_glue_stubs.o \
   $ASM_SEED_FRONTEND_LINK \
   "$SEED_O/async_liveness.o" \
   "$SEED_O/async_cps_codegen.o" \

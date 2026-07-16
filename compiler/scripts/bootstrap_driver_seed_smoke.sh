@@ -18,9 +18,12 @@ cd "$(dirname "$0")/.."
 ulimit -s 65532 2>/dev/null || ulimit -s 16384 2>/dev/null || ulimit -s hard 2>/dev/null || true
 
 TARGET="${1:-./shux}"
-SMOKE_SRC="/tmp/shux_bootstrap_seed_smoke.$$.x"
-SMOKE_OUT="/tmp/shux_bootstrap_seed_smoke_out.$$"
-PINNED_TMP="/tmp/shux_bootstrap_seed_pinned.$$"
+# 【Why】路径中不可含「.数字.」：codegen 用源文件 stem 作 C 符号前缀，
+# `/tmp/foo.$$.x` → stem `foo.12345` → `extern int32_t foo.12345_main` 非法 C。
+# Ubuntu 上 fresh smoke 亦曾失败靠 pinned 回退；Darwin pinned 常不可用，须路径自绿。
+SMOKE_SRC="/tmp/shux_bootstrap_seed_smoke_$$.x"
+SMOKE_OUT="/tmp/shux_bootstrap_seed_smoke_out_$$"
+PINNED_TMP="/tmp/shux_bootstrap_seed_pinned_$$"
 AUDIT_DIR="${SHUX_BOOTSTRAP_AUDIT_DIR:-../logs}"
 
 maybe_codesign() {

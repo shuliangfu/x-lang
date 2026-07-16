@@ -28,9 +28,8 @@ export const IPPROTO_UDP: i32 = 17;
 export const SOL_SOCKET: i32 = 1;
 export const SO_REUSEADDR: i32 = 2;
 export const O_NONBLOCK: i32 = 2048;
-export const POLLIN: i16 = 1;
-export const POLLERR: i16 = 8;
-export const POLLHUP: i16 = 16;
+/* 勿 export const POLLIN/POLLERR/POLLHUP：poll.h 已 #define 同名宏 → 生成 C 非法。
+ * 事件位用字面量（POLLIN=1, POLLERR|POLLHUP=24），与 std.io.sync / std.fs.posix 一致。 */
 
 /** IPv4 sockaddr 前缀。 */
 allow(padding) struct SockAddrIn {
@@ -56,8 +55,9 @@ extern "C" function ntohs(netshort: u16): u16;
 #[cfg(not(target_os = "windows"))]
 extern "C" function fcntl(fd: i32, cmd: i32, arg: i32): i32;
 
+/* 勿 bare poll：与 poll.h 原型冲突。权威走 preamble shux_sys_poll（与 std.io.sync 一致）。 */
 #[cfg(not(target_os = "windows"))]
-extern "C" function poll(fds: *u8, nfds: u64, timeout: i32): i32;
+extern "C" function shux_sys_poll(fds: *u8, nfds: i32, timeout: i32): i32;
 
 #[cfg(target_os = "linux")]
 extern "C" function __errno_location(): *i32;
@@ -183,13 +183,13 @@ export function net_udp_poll_readable_c(fd: i32, timeout_ms: u32): i32 {
   let to: i32 = (0 - 1);
   let n: i32 = 0;
   p_fd[0] = fd;
-  p_events[0] = POLLIN;
+  p_events[0] = 1 as i16; /* POLLIN */
   p_revents[0] = 0 as i16;
   if (timeout_ms != 0) {
     to = timeout_ms as i32;
   }
-  unsafe { n = poll(pfd_ptr, 1 as u64, to); }
-  if (n <= 0 || (p_revents[0] & (POLLERR | POLLHUP)) != 0) {
+  unsafe { n = shux_sys_poll(pfd_ptr, 1, to); }
+  if (n <= 0 || (p_revents[0] & (24 as i16)) != 0) { /* POLLERR|POLLHUP */
     return -1;
   }
   return 0;
