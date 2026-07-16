@@ -92,6 +92,7 @@ for entry in "${MODULES[@]}"; do
     lexer_gen.c) alt="seeds/lexer_gen.linux.x86_64.c" ;;
     token_gen.c) alt="seeds/token_gen.linux.x86_64.c" ;;
     preprocess_gen.c) alt="seeds/preprocess_gen.linux.x86_64.c" ;;
+    ast_gen.c) alt="seeds/ast_gen.linux.x86_64.c" ;;
     parser_gen.c) alt="seeds/parser_gen.linux.x86_64.c" ;;
     typeck_gen.c) alt="seeds/typeck_gen.linux.x86_64.c" ;;
     codegen_gen.c) alt="seeds/codegen_gen.linux.x86_64.c" ;;
@@ -189,6 +190,21 @@ for entry in "${MODULES[@]}"; do
       fi
     done
     IFS="$old_ifs"
+  fi
+  # PLATFORM: SHARED — preprocess cold seed injects shux_slice layout (by-value
+  # preprocess_x args); -E names the type in signatures but does not emit the
+  # struct body. Inject the definition line so EMPTY matches the product pin.
+  # Match the full definition (not bare "struct shux_slice_uint8_t" in protos).
+  if [ "$seed_key" = "preprocess_gen.c" ]; then
+    if ! grep -q 'struct shux_slice_uint8_t { uint8_t \*data; size_t length; };' "$norm_out"; then
+      awk '
+        { print }
+        /^void shux_panic_\(int has_msg, int msg_val\);$/ && !done {
+          print "struct shux_slice_uint8_t { uint8_t *data; size_t length; };"
+          done=1
+        }
+      ' "$norm_out" >"${norm_out}.slice" && mv "${norm_out}.slice" "$norm_out"
+    fi
   fi
   sed 's/[[:space:]]*$//' "$seed_path" >"$norm_seed"
 
