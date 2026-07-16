@@ -26,6 +26,8 @@
  *     FROM_X rest 无 pure-dup append_uname _impl；struct utsname 不进 .x；
  *   + wave11 Cap residual pure：path-read IO → 永久 OS 面 shux_driver_path_read_preprocess_malloc；
  *     FROM_X rest 无 pure-dup path_read _impl；file view + preprocess 不进 .x；
+ *   + wave12 Cap residual pure：pthread 创建 → 永久 OS 面 shux_driver_run_thread_on_large_stack_pthread；
+ *     FROM_X rest 无 pure-dup pthread _impl；pthread_attr/posix_memalign 不进 .x；
  * FROM_X 剔 pure-dup _impl（H↓）。
  */
 /* Generated from src/runtime_driver_abi.x (G-02f-29/41/45..57/83 true .x + C tail).
@@ -165,7 +167,7 @@ const char *driver_os_define_lit(int kind);
 int shux_driver_argv_append_uname(const char **defines, int ndefines, int max_defines);
 int32_t driver_target_arg_os_kind(const char *target);
 void driver_run_thread_on_large_stack(void *(*fn)(void *), void *arg);
-void driver_run_thread_on_large_stack_pthread_impl(void *(*fn)(void *), void *arg);
+void shux_driver_run_thread_on_large_stack_pthread(void *(*fn)(void *), void *arg);
 void shux_driver_call_fn_void_arg(void *(*fn)(void *), void *arg);
 int32_t driver_pipeline_no_large_stack_env(void);
 int driver_source_scan_top_level_import(const char *src, size_t src_len);
@@ -1387,10 +1389,15 @@ void driver_run_fn_on_current_large_stack(void *(*fn)(void *), void *arg)
 #endif
 
 /**
- * pthread 创建/join 体 🔒；调用方已做 null / 早退 pure。
- * 默认 256MiB，可用 SHUX_STACK_LIMIT_MB 覆盖。
+ * Permanent OS large-stack pthread create/join surface.
+ * PLATFORM: POSIX — pthread_attr / posix_memalign / pthread_create+join
+ *            (hides OS layouts from .x pure orch); falls back to current-stack path.
+ * Default stack 256MiB; SHUX_STACK_LIMIT_MB (64..8192) overrides.
+ * Always present under FROM_X (thin driver_run_thread_on_large_stack pure orch calls this;
+ * no pure-dup driver_run_thread_on_large_stack_pthread_impl).
+ * G.7: single authority for driver large-stack pthread body used after pure early exits.
  */
-void driver_run_thread_on_large_stack_pthread_impl(void *(*fn)(void *), void *arg) {
+void shux_driver_run_thread_on_large_stack_pthread(void *(*fn)(void *), void *arg) {
     pthread_attr_t attr;
     pthread_t tid;
     void *stk = NULL;
@@ -1440,9 +1447,9 @@ void driver_run_thread_on_large_stack_pthread_impl(void *(*fn)(void *), void *ar
 }
 
 /**
- * 在大栈 pthread 上执行 fn(arg)；早退 pure 后进 pthread 体。
+ * 在大栈 pthread 上执行 fn(arg)；早退 pure 后进永久 OS pthread 面。
  * macOS 主线程 RLIMIT_STACK 硬顶约 8MiB，深递归 pipeline/typeck 须与大 pipeline 同路径。
- * G-02f-246/414：实现体始终 seed；public PREFER 时 thin pure forward；pthread 创建 🔒。
+ * G-02f-246/414 / wave12：public PREFER 时 thin pure orch；冷启动 twin 调同一 OS surface。
  */
 #ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_run_thread_on_large_stack_impl(void *(*fn)(void *), void *arg) {
@@ -1465,7 +1472,7 @@ void driver_run_thread_on_large_stack_impl(void *(*fn)(void *), void *arg) {
         driver_run_fn_on_current_large_stack(fn, arg);
         return;
     }
-    driver_run_thread_on_large_stack_pthread_impl(fn, arg);
+    shux_driver_run_thread_on_large_stack_pthread(fn, arg);
 }
 #endif
 #ifndef SHUX_L2_RDABI_THIN_FROM_X

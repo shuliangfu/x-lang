@@ -38,8 +38,8 @@ export extern "C" function shux_driver_wall_clock_sec(): f64;
 export extern "C" function shux_read_file_into_path(path: *u8, buf: *u8, cap: i64): i32;
 export extern "C" function driver_pipeline_fail_code_rc_impl(rc: i32): void;
 export extern "C" function driver_pipeline_fail_code_path_impl(path: *u8): void;
-/* large_stack：G-02f-246 早退 pure；pthread 创建 🔒 */
-export extern "C" function driver_run_thread_on_large_stack_pthread_impl(fn: *u8, arg: *u8): void;
+/* large_stack：G-02f-246 早退 pure；wave12 pthread 创建 → permanent OS surface */
+export extern "C" function shux_driver_run_thread_on_large_stack_pthread(fn: *u8, arg: *u8): void;
 /** Permanent OS indirect call surface (.x cannot safely call through fn pointers). */
 export extern "C" function shux_driver_call_fn_void_arg(fn: *u8, arg: *u8): void;
 export extern "C" function bootstrap_nostdlib_pthread_is_stub(): i32;
@@ -533,8 +533,9 @@ export function driver_run_fn_on_current_large_stack(fn: *u8, arg: *u8): void {
   driver_large_stack_thread_mark(0);
 }
 
-/** Large-stack orchestrator: pure early exits; pthread body residual.
- * Wave8: already-on-large-stack path uses permanent OS call surface (no call_fn _impl). */
+/** Large-stack orchestrator: pure early exits; pthread create via permanent OS surface.
+ * Wave8: already-on-large-stack path uses permanent OS call surface (no call_fn _impl).
+ * Wave12 pure: pthread body via shux_driver_run_thread_on_large_stack_pthread (no pthread _impl residual). */
 #[no_mangle]
 export function driver_run_thread_on_large_stack(fn: *u8, arg: *u8): void {
   if (fn == 0 as *u8) {
@@ -558,7 +559,7 @@ export function driver_run_thread_on_large_stack(fn: *u8, arg: *u8): void {
     return;
   }
   unsafe {
-    driver_run_thread_on_large_stack_pthread_impl(fn, arg);
+    shux_driver_run_thread_on_large_stack_pthread(fn, arg);
   }
 }
 

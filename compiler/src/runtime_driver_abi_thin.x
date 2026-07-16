@@ -32,7 +32,10 @@
 //   + wave11 Cap residual pure：path-read IO 经永久 OS 面
 //     shux_driver_path_read_preprocess_malloc（no file-view/preprocess in .x）；
 //     FROM_X rest 无 pure-dup path_read _impl。
-// Cap residual：pthread 创建 / debug_pipe reportf note 仍 rest。
+//   + wave12 Cap residual pure：pthread 创建 经永久 OS 面
+//     shux_driver_run_thread_on_large_stack_pthread（no pthread_attr/posix_memalign in .x）；
+//     FROM_X rest 无 pure-dup pthread _impl。
+// Cap residual：debug_pipe reportf note 仍 rest（非 OS _impl pure 叶）。
 //
 
 export extern "C" function getenv(name: *u8): *u8;
@@ -48,6 +51,10 @@ export extern "C" function shux_driver_bump_stack_limit(want_bytes: i64): void;
 /** Permanent OS path-read + preprocess surface (seed rest).
  * PLATFORM: SHARED — runtime file view + shux_preprocess; hides IO/preprocess ABI from .x. */
 export extern "C" function shux_driver_path_read_preprocess_malloc(path: *u8): *u8;
+/** Permanent OS large-stack pthread create/join surface (seed rest).
+ * PLATFORM: POSIX pthread_attr / posix_memalign / pthread_create+join; hides OS layouts from .x.
+ * Default stack 256MiB; SHUX_STACK_LIMIT_MB (64..8192) overrides. Falls back to current-stack path. */
+export extern "C" function shux_driver_run_thread_on_large_stack_pthread(fn: *u8, arg: *u8): void;
 // Wave3 format print pure: reuse diagnostic append authority (G.7) + fixed-arity diag report.
 export extern "C" function diag_report(file: *u8, line: i32, col: i32, kind: *u8, msg: *u8, detail: *u8): void;
 export extern "C" function diag_report_with_code(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void;
@@ -163,7 +170,6 @@ export extern "C" function driver_get_module_main_func_index(m: *u8): i32;
 export extern "C" function shux_read_file_into_path(path: *u8, buf: *u8, cap: i64): i32;
 export extern "C" function free(p: *u8): void;
 export extern "C" function bootstrap_nostdlib_pthread_is_stub(): i32;
-export extern "C" function driver_run_thread_on_large_stack_pthread_impl(fn: *u8, arg: *u8): void;
 
 // pure: return address of module BSS flag cell (cold seed keeps C static + flag_slot).
 #[no_mangle]
@@ -1227,9 +1233,10 @@ export function driver_source_has_top_level_import_path(path: *u8): i32 {
   return 0;
 }
 
-/** Orchestrate large-stack run: early pure exits, else pthread body residual.
- * Wave8 pure: already-on-large-stack path uses shux_driver_call_fn_void_arg (no call_fn _impl).
- * PLATFORM: SHARED pure orch; pthread create remains Cap residual in seed rest. */
+/** Orchestrate large-stack run: pure early exits; pthread create via permanent OS surface.
+ * Wave8: already-on-large-stack path uses shux_driver_call_fn_void_arg (no call_fn _impl).
+ * Wave12 pure: pthread body via shux_driver_run_thread_on_large_stack_pthread (no pthread _impl residual).
+ * PLATFORM: SHARED pure orch; pthread_attr / memalign / create+join stay in seed rest. */
 #[no_mangle]
 export function driver_run_thread_on_large_stack(fn: *u8, arg: *u8): void {
   if (fn == 0 as *u8) {
@@ -1253,7 +1260,7 @@ export function driver_run_thread_on_large_stack(fn: *u8, arg: *u8): void {
     return;
   }
   unsafe {
-    driver_run_thread_on_large_stack_pthread_impl(fn, arg);
+    shux_driver_run_thread_on_large_stack_pthread(fn, arg);
   }
 }
 

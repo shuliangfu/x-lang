@@ -515,7 +515,7 @@ extern int32_t driver_get_module_main_func_index(uint8_t * m);
 extern int32_t shux_read_file_into_path(uint8_t * path, uint8_t * buf, int64_t cap);
 extern void free(uint8_t * p);
 extern int32_t bootstrap_nostdlib_pthread_is_stub(void);
-extern void driver_run_thread_on_large_stack_pthread_impl(uint8_t * fn, uint8_t * arg);
+extern void shux_driver_run_thread_on_large_stack_pthread(uint8_t * fn, uint8_t * arg);
 int32_t * driver_check_only_flag_slot(void) {
   return &((g_driver_check_only_flag)[0]);
 }
@@ -1544,7 +1544,7 @@ void driver_run_thread_on_large_stack(uint8_t * fn, uint8_t * arg) {
     (void)(driver_run_fn_on_current_large_stack(fn, arg));
     return;
   }
-  (void)(driver_run_thread_on_large_stack_pthread_impl(fn, arg));
+  (void)(shux_driver_run_thread_on_large_stack_pthread(fn, arg));
 }
 void driver_run_on_large_stack_pthread(uint8_t * fn, uint8_t * arg) {
   if ((fn ==((uint8_t *)(0)))) {
