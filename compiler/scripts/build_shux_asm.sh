@@ -674,14 +674,15 @@ rebuild_main_o_for_cli() {
   if ! nm "$tmp" 2>/dev/null | grep -q ' entry$'; then
   return 1
   fi
-  # WPO on：main.x 仅 entry export 时 __text 约 656B（cap 见 wpo-main-o.tsv 768B）。
-  if [ -z "$wpo_arg" ] && [ "$txt" -gt 768 ] 2>/dev/null; then
+  # WPO on：main.x entry-only（cap 见 wpo-main-o.tsv / SHUX_WPO_MAIN_MAX_TEXT；2026-07 ~1610B）。
+  local main_wpo_max="${SHUX_WPO_MAIN_MAX_TEXT:-2048}"
+  if [ -z "$wpo_arg" ] && [ "$txt" -gt "$main_wpo_max" ] 2>/dev/null; then
   return 1
   fi
   return 0
   }
 
-  build_shux_asm_info "recompile main.o (ENTRY_MODULE_ONLY + ENTRY_EMIT_HEAVY + WPO DCE prefer-on)"
+  build_shux_asm_info "recompile main.o (ENTRY_MODULE_ONLY + WPO DCE prefer-on, max __text=${SHUX_WPO_MAIN_MAX_TEXT:-2048}B)"
   set +e
   # SHUX_WPO_MAIN_REBUILD_ONLY：post-strict 仅允许指定编译器（须为新链出的 ./shux_asm）。
   if [ -n "${SHUX_WPO_MAIN_REBUILD_ONLY:-}" ]; then
