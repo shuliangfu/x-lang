@@ -4,6 +4,8 @@
  * Prove: full.x vs this seed → nm IDENTICAL (code_for_kind + 8 report + count)
  * Cap residual: link_diag_ld_debug_argv → mega _impl (char**)
  * Regen: ./shux -E ... src/runtime/labi_diag_pure.x | filter DBG + polish prologue
+ * Track-L (2026-07-16): labi_diag_append keeps short name; .x has #[no_mangle] (was module mangle).
+ * PLATFORM: SHARED — symbol contract; Ubuntu gold + mac prove.
  */
 #include <stddef.h>
 #include <stdint.h>

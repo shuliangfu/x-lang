@@ -20,7 +20,10 @@ export extern "C" function diag_report_with_code(
 /** Cap residual：char** argv 遍历在 mega rest _impl。 */
 export extern "C" function link_diag_ld_debug_argv_impl(label: *u8, argv: *u8): void;
 
-/** 把 src 接到 dst 尾（cap 含尾 0）；返回新长度（不含 0）。 */
+/** 把 src 接到 dst 尾（cap 含尾 0）；返回新长度（不含 0）。
+ * Track-L：#[no_mangle] 与 surface 短名一致，禁止模块前缀 mangle（labi_diag_pure_labi_diag_append）。
+ * PLATFORM: SHARED — 链接名契约；双端 prove 同验。 */
+#[no_mangle]
 export function labi_diag_append(dst: *u8, cap: i32, src: *u8): i32 {
   let i: i32 = 0;
   let j: i32 = 0;
