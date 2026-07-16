@@ -81,15 +81,15 @@ _GLUE_SUFFIX="build_asm/pipeline_glue_strict_minimal.o"
 
 # Cap residual：与 Makefile RT_SEED_SLICE_OBJS / build_shux_asm asm_bootstrap_support_extra_link 同源。
 # runtime_driver_abi 始终 extern 这些符号；no_c runtime 在 SHUX_RT_*_FROM_X 下不内嵌 BSS 定义。
-# 历史：macOS PREFER_X_O=1 曾假定 runtime_driver_no_c.o 已 cc -r 合并 slice；
-# 但 no_c 对 driver_x_emit_* / write_io_net_abi_inline 等仍为 U 时，空 slice 会链失败却假绿（旧 binary 残留）。
-# 根治：始终链入 RT slice .o（若 no_c 已内嵌同名强符号，需先修 no_c 合并策略；当前 nm 为 U）。
+# PLATFORM: SHARED — nm on runtime_driver_no_c.o shows U for driver_arena_buf /
+# write_io_net_abi_inline / driver_x_emit_c_* / runtime_report_* after true L4 wipe.
+# Always link RT seed slices (same list as Makefile). Omitting them (922487e5) made
+# L2/L3 look green only when an old binary residual remained; L4 g05 link UNDEF.
+# Do NOT empty this when no_c is U; if no_c ever merges strong defs, fix no_c merge
+# first — do not leave slices empty as a "dup-symbol" workaround.
 # 含 rt_parse_diag：runtime_report_parse_recovery_diagnostics（冷启动 no_c 为 U）
-# RT seed slices: omit when runtime_driver_no_c.o already defines the same strong
-# symbols (current no_c); listing both → duplicate symbol at g05 link.
-# Re-enable if nm shows U on no_c for those slice symbols.
-_RT_SEED_SLICE_OBJS=""
-# DRIVER_SEED_OBJS 展开（MAIN + runtime ABI + no_c + process argv + x frontend + support + shims）
+_RT_SEED_SLICE_OBJS="src/runtime/rt_arena_buf.o src/runtime/rt_emit_state.o src/runtime/rt_preamble.o src/runtime/rt_stack.o src/runtime/rt_parse_diag.o"
+# DRIVER_SEED_OBJS 展开（MAIN + runtime ABI + no_c + process argv + rt slices + x frontend + support + shims）
 # PLATFORM: SHARED — runtime_process_argv.o provides process_shux_argc/argv_get
 # (Makefile DRIVER_SEED_OBJS). Without it g05 link fails U process_shux_* from
 # runtime_link_abi.o process_args_*_c.
