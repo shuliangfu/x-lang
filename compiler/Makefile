@@ -638,8 +638,9 @@ src/main.o: seeds/main.from_x.c src/main_c_entry.x
 
 # G-02f-12 / Phase 4：runtime_io_abi PREFER_X_O（rest→.x 迁移）
 # 5 个 _impl 真迁 .x（read/malloc/memcpy）；4 个保留 seed（mmap/fstat/O_* flags/平台 #ifdef）
+# PLATFORM: SHARED 冷链纪律 — 仅 SHUX_G05_PREFER_X_O=1 才 thin（同 simd_enc；见下 runtime_driver_abi）。
 src/runtime_io_abi.o: seeds/runtime_io_abi.from_x.c src/runtime_io_abi.x src/runtime_io_abi.h
-	@if [ -x ./shux-c ] && { \
+	@if [ "$(SHUX_G05_PREFER_X_O)" = "1" ] && [ -x ./shux-c ] && { \
 		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/rio.XXXXXX") && \
 		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/runtime_io_abi.x > "$$_tmp" 2>/dev/null && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/runtime_io_abi_x.o && \
@@ -661,8 +662,13 @@ src/runtime_link_abi.o: seeds/runtime_link_abi.from_x.c src/runtime_link_abi.x s
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_link_abi.from_x.c -o $@
 
 # G-02f-12 / Phase 4：runtime_driver_abi thin+rest PREFER_X_O
+# PLATFORM: SHARED 冷链 — bootstrap-driver-seed 传 SHUX_G05_PREFER_X_O=0 必须走 seed。
+# 【Why 2026-07-16 铁证】Darwin 冷测：select_bootstrap 先恢复 shux-c，若仅「有 shux-c 就 thin」，
+# thin 会 emit process_args_count_c → U process_shux_argc_get，而 phase1 未链 runtime_process_argv.o
+# → mac phase1 UNDEF；Ubuntu 上 thin -E/cc 常失败回退 seed 故假绿。须与 simd_enc 同源门控。
+# 链闭包：DRIVER_SEED_OBJS 含 runtime_process_argv.o（PREFER=1 时亦须能解析 process_shux_*）。
 src/runtime_driver_abi.o: seeds/runtime_driver_abi.from_x.c src/runtime_driver_abi_thin.x src/runtime_driver_abi.x src/runtime_driver_abi.h
-	@if [ -x ./shux-c ] && { \
+	@if [ "$(SHUX_G05_PREFER_X_O)" = "1" ] && [ -x ./shux-c ] && { \
 		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/rdabi.XXXXXX") && \
 		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/runtime_driver_abi_thin.x > "$$_tmp" 2>/dev/null && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/runtime_driver_abi_thin.o && \
@@ -698,8 +704,9 @@ src/async/async_asm_pool.o: seeds/async_asm_pool.from_x.c scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh seeds/async_asm_pool.from_x.c $@
 
 # G-02f-12 / Phase 4：runtime_driver_diagnostic thin+rest PREFER_X_O
+# PLATFORM: SHARED 冷链 — 仅 SHUX_G05_PREFER_X_O=1 才 thin（同 simd_enc / runtime_driver_abi）。
 src/runtime_driver_diagnostic.o: seeds/runtime_driver_diagnostic.from_x.c src/runtime_driver_diagnostic_thin.x src/runtime_driver_diagnostic.x src/runtime_driver_diagnostic.h include/diag.h
-	@if [ -x ./shux-c ] && { \
+	@if [ "$(SHUX_G05_PREFER_X_O)" = "1" ] && [ -x ./shux-c ] && { \
 		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/rdd.XXXXXX") && \
 		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/runtime_driver_diagnostic_thin.x > "$$_tmp" 2>/dev/null && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/runtime_driver_diagnostic_thin.o && \
@@ -1796,7 +1803,9 @@ MAIN_LINK_O = src/main_driver.o
 MAIN_LINK_REBUILD = src/main_driver.o
 MAIN_LINK_FLAGS =
 endif
-DRIVER_SEED_OBJS = $(MAIN_LINK_O) src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o src/runtime_pipeline_abi.o $(DRIVER_SEED_RUNTIME_O) $(RT_SEED_SLICE_OBJS) src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $(PREPROCESS_LINK_O) $(LEXER_LINK_O) $(AST_LINK_O) $(DRIVER_SEED_X_FRONTEND_OBJS) $(DRIVER_SEED_FRONTEND_EXTRA) $(DRIVER_SEED_SUPPORT_EXTRA) src/x_seed_bridge.o src/seed_link_compat.o
+# PLATFORM: SHARED — process_shux_argc/argv_get 权威在 runtime_process_argv.o；
+# PREFER thin 的 process_args_* 与 std/process 均依赖之；phase1/final seed 链必须显式入闭包。
+DRIVER_SEED_OBJS = $(MAIN_LINK_O) src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o src/runtime_pipeline_abi.o $(DRIVER_SEED_RUNTIME_O) $(RT_SEED_SLICE_OBJS) runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $(PREPROCESS_LINK_O) $(LEXER_LINK_O) $(AST_LINK_O) $(DRIVER_SEED_X_FRONTEND_OBJS) $(DRIVER_SEED_FRONTEND_EXTRA) $(DRIVER_SEED_SUPPORT_EXTRA) src/x_seed_bridge.o src/seed_link_compat.o
 DRIVER_SEED_X_OBJS = parser_x.o typeck_x.o codegen_x.o
 DRIVER_SEED_X_FRONTEND_OBJS = lexer_x.o $(DRIVER_SEED_X_OBJS) x_frontend_link_alias.o
 
@@ -2267,7 +2276,7 @@ DRIVER_SEED_LINK_BASE = $(DRIVER_SEED_OBJS) driver_x.o pipeline_x.o lsp_x.o lsp_
 BOOTSTRAP_DRIVER_SEED_LINK_BASE = $(DRIVER_SEED_OBJS) driver_x.o $(BOOTSTRAP_DRIVER_SEED_PIPELINE_LINK_O) lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(PIPELINE_LIBS)
 
 # lsp_io_std_heap：Track L 退役，产品链只依赖 lsp_io_std_heap_x.o（.x→.o），不 pin workspace gen
-DRIVER_SEED_PREREQS = $(SHUX_C) pipeline_x.o parser_x.o lexer_x.o typeck_x.o codegen_x.o x_frontend_link_alias.o driver_x.o preprocess_x.o lsp_io_gen.c lsp_gen.c lsp_diag_gen.c $(DRIVER_SUBCMD_GEN) $(MAIN_LINK_REBUILD) src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o $(DRIVER_SEED_RUNTIME_O) $(RT_SEED_SLICE_OBJS) src/driver/fmt_check_cmd_driver.o $(PREPROCESS_LINK_O) $(LEXER_LINK_O) $(AST_LINK_O) $(DRIVER_SEED_FRONTEND_EXTRA) $(DRIVER_SEED_SUPPORT_EXTRA) src/x_seed_bridge.o src/seed_link_compat.o src/runtime_driver_strict_glue_stubs.o $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(DRIVER_SUBCMD_OBJS) $(USER_ASM_SEED_OBJS)
+DRIVER_SEED_PREREQS = $(SHUX_C) pipeline_x.o parser_x.o lexer_x.o typeck_x.o codegen_x.o x_frontend_link_alias.o driver_x.o preprocess_x.o lsp_io_gen.c lsp_gen.c lsp_diag_gen.c $(DRIVER_SUBCMD_GEN) $(MAIN_LINK_REBUILD) src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o $(DRIVER_SEED_RUNTIME_O) $(RT_SEED_SLICE_OBJS) runtime_process_argv.o src/driver/fmt_check_cmd_driver.o $(PREPROCESS_LINK_O) $(LEXER_LINK_O) $(AST_LINK_O) $(DRIVER_SEED_FRONTEND_EXTRA) $(DRIVER_SEED_SUPPORT_EXTRA) src/x_seed_bridge.o src/seed_link_compat.o src/runtime_driver_strict_glue_stubs.o $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(DRIVER_SUBCMD_OBJS) $(USER_ASM_SEED_OBJS)
 
 # legacy shux-c 复用 bootstrap-driver-seed 的现有权威闭包，避免手写对象清单与 pinned seed 漂移。
 LEGACY_SHUX_C_LINK_BASE := $(BOOTSTRAP_DRIVER_SEED_LINK_BASE)
