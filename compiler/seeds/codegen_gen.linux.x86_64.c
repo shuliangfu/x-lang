@@ -455,6 +455,7 @@ int32_t codegen_try_emit_std_io_driver_buf_body(struct codegen_CodegenOutBuf * o
 int32_t codegen_field_access_base_is_pointer_ref(struct ast_ASTArena * arena, int32_t base_ref);
 int32_t codegen_field_access_base_type_resolved(struct ast_ASTArena * arena, int32_t base_ref);
 int32_t codegen_field_access_base_is_pointer_param(struct ast_ASTArena * arena, int32_t base_ref, struct ast_Module * mod, int32_t func_index);
+int32_t codegen_field_access_base_is_pointer_local(struct ast_ASTArena * arena, int32_t base_ref, struct ast_PipelineDepCtx * ctx);
 int32_t codegen_field_access_base_param_type_known(struct ast_ASTArena * arena, int32_t base_ref, struct ast_Module * mod, int32_t func_index);
 int32_t codegen_field_access_base_is_slice_param_name(struct ast_ASTArena * arena, int32_t base_ref);
 int32_t codegen_block_stmt_order_has_let(struct ast_ASTArena * arena, int32_t block_ref, int32_t let_idx);
@@ -1610,6 +1611,47 @@ SHUX_LIB_WEAK int32_t codegen_field_access_base_is_pointer_param(struct ast_ASTA
       }
     }
     ++pi;
+  }
+  return 0;
+}
+/* 局部 let s: *T：无 resolved_type 时按 body 块 let 注解判 *T → C 用 ->（与 codegen.x 同权威） */
+SHUX_LIB_WEAK int32_t codegen_field_access_base_is_pointer_local(struct ast_ASTArena * arena, int32_t base_ref, struct ast_PipelineDepCtx * ctx) {
+  struct ast_Expr base;
+  int32_t br, nlets, li;
+  if (arena == ((struct ast_ASTArena *)(0)) || ctx == ((struct ast_PipelineDepCtx *)(0))) return 0;
+  if (ast_ref_is_null(base_ref) || base_ref <= 0 || base_ref > (arena)->num_exprs) return 0;
+  base = ast_arena_expr_get(arena, base_ref);
+  if ((base).kind != ast_ExprKind_EXPR_VAR || (base).var_name_len <= 0) return 0;
+  br = 0;
+  if ((ctx)->current_codegen_module != ((struct ast_Module *)(0)) && (ctx)->current_func_index >= 0) {
+    br = pipeline_module_func_body_ref_at((ctx)->current_codegen_module, (ctx)->current_func_index);
+  }
+  if (ast_ref_is_null(br) || br <= 0 || br > (arena)->num_blocks) {
+    br = (ctx)->current_block_ref;
+  }
+  if (ast_ref_is_null(br) || br <= 0 || br > (arena)->num_blocks) return 0;
+  nlets = ast_block_num_lets(arena, br);
+  li = 0;
+  while (li < nlets) {
+    int32_t nl = pipeline_block_let_name_len(arena, br, li);
+    if (nl == (base).var_name_len && nl > 0) {
+      uint8_t nb[64] = { 0 };
+      int eq = 1;
+      int32_t j = 0;
+      pipeline_block_let_name_copy64(arena, br, li, (&((nb)[0])));
+      while (j < nl && j < 64) {
+        if (nb[j] != (base).var_name[j]) { eq = 0; break; }
+        ++j;
+      }
+      if (eq) {
+        int32_t tr = pipeline_block_let_type_ref(arena, br, li);
+        if ((!ast_ref_is_null(tr)) && tr > 0 && tr <= (arena)->num_types) {
+          struct ast_Type lty = ast_arena_type_get(arena, tr);
+          if ((lty).kind == ast_TypeKind_TYPE_PTR) return 1;
+        }
+      }
+    }
+    ++li;
   }
   return 0;
 }
@@ -4305,6 +4347,9 @@ SHUX_LIB_WEAK int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct code
     if ((ctx) != ((struct ast_PipelineDepCtx *)(0)) && (ctx)->current_codegen_module != ((struct ast_Module *)(0)) && (ctx)->current_func_index >= 0) {
       if (is_ptr_base == 0) {
         is_ptr_base = codegen_field_access_base_is_pointer_param(arena, (e).field_access_base_ref, (ctx)->current_codegen_module, (ctx)->current_func_index);
+      }
+      if (is_ptr_base == 0) {
+        is_ptr_base = codegen_field_access_base_is_pointer_local(arena, (e).field_access_base_ref, ctx);
       }
       param_type_known = codegen_field_access_base_param_type_known(arena, (e).field_access_base_ref, (ctx)->current_codegen_module, (ctx)->current_func_index);
     }
