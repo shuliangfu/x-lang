@@ -27,7 +27,9 @@
 //     shux_driver_call_fn_void_arg（.x 无法安全间接调用）；FROM_X rest 无 pure-dup call_fn _impl。
 //   + wave9 Cap residual pure：bump_stack_limit orch pure；setrlimit 经永久 OS 面
 //     shux_driver_bump_stack_limit（no struct rlimit in .x）；FROM_X rest 无 pure-dup setrlimit _impl。
-// Cap residual：uname / pthread 创建 / path-read IO /
+//   + wave10 Cap residual pure：uname host defines 经永久 OS 面
+//     shux_driver_argv_append_uname（no struct utsname in .x）；FROM_X rest 无 pure-dup uname _impl。
+// Cap residual：pthread 创建 / path-read IO /
 //   debug_pipe reportf note 仍 rest。
 //
 
@@ -149,7 +151,9 @@ export extern "C" function driver_check_quiet_ok_get(): i32;
 
 export extern "C" function driver_argv_at(argv: *u8, i: i32): *u8;
 export extern "C" function shux_cstr_offset(s: *u8, off: i32): *u8;
-export extern "C" function driver_argv_collect_append_uname_impl(defines: *u8, ndefines: i32, max_defines: i32): i32;
+/** Permanent OS uname host-define surface (seed rest).
+ * PLATFORM: POSIX uname(struct utsname) — hides utsname layout from .x; appends SHUX_OS_*/SHUX_ARCH_*. */
+export extern "C" function shux_driver_argv_append_uname(defines: *u8, ndefines: i32, max_defines: i32): i32;
 export extern "C" function driver_get_module_num_funcs(m: *u8): i32;
 export extern "C" function driver_get_module_main_func_index(m: *u8): i32;
 export extern "C" function shux_read_file_into_path(path: *u8, buf: *u8, cap: i64): i32;
@@ -1051,7 +1055,10 @@ export function driver_get_current_dep_path_for_codegen(): *u8 {
   return driver_current_dep_path_load();
 }
 
-// G-02f-245 pure 深迁：主循环 pure；uname 🔒
+/** Collect -D / -target defines from argv; append host uname defines when room.
+ * Wave10 pure orch: main loop pure; host OS/arch via permanent OS surface
+ * shux_driver_argv_append_uname (no struct utsname in .x; no append_uname _impl residual).
+ * PLATFORM: SHARED pure orch; uname layout stays in seed rest. */
 #[no_mangle]
 export function driver_argv_collect_defines(argc: i32, argv: *u8, defines: *u8, max_defines: i32): i32 {
   if (argv == 0 as *u8) { return 0; }
@@ -1130,7 +1137,7 @@ export function driver_argv_collect_defines(argc: i32, argv: *u8, defines: *u8, 
   }
   if (ndefines + 2 <= max_defines) {
     unsafe {
-      ndefines = driver_argv_collect_append_uname_impl(defines, ndefines, max_defines);
+      ndefines = shux_driver_argv_append_uname(defines, ndefines, max_defines);
     }
   }
   return ndefines;

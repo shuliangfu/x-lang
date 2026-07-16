@@ -22,6 +22,8 @@
  *     FROM_X rest 无 pure-dup call_fn _impl；
  *   + wave9 Cap residual pure：bump_stack_limit orch pure；setrlimit 永久 OS 面 shux_driver_bump_stack_limit；
  *     FROM_X rest 无 pure-dup setrlimit/to_impl _impl；
+ *   + wave10 Cap residual pure：uname host defines → 永久 OS 面 shux_driver_argv_append_uname；
+ *     FROM_X rest 无 pure-dup append_uname _impl；struct utsname 不进 .x；
  * FROM_X 剔 pure-dup _impl（H↓）。
  */
 /* Generated from src/runtime_driver_abi.x (G-02f-29/41/45..57/83 true .x + C tail).
@@ -157,7 +159,7 @@ void shux_driver_bump_stack_limit(int64_t want_bytes);
 int64_t driver_stack_limit_want_bytes(void);
 void driver_defines_set_at(const char **defines, int i, const char *s);
 const char *driver_os_define_lit(int kind);
-int driver_argv_collect_append_uname_impl(const char **defines, int ndefines, int max_defines);
+int shux_driver_argv_append_uname(const char **defines, int ndefines, int max_defines);
 int32_t driver_target_arg_os_kind(const char *target);
 void driver_run_thread_on_large_stack(void *(*fn)(void *), void *arg);
 void driver_run_thread_on_large_stack_pthread_impl(void *(*fn)(void *), void *arg);
@@ -1078,8 +1080,15 @@ int32_t driver_target_arg_os_kind(const char *target) {
 }
 #endif
 
-/* G-02f-245：uname + SHUX_OS_/SHUX_ARCH_ 🔒 */
-int driver_argv_collect_append_uname_impl(const char **defines, int ndefines, int max_defines) {
+/**
+ * Permanent OS uname host-define surface (SHUX_OS_* / SHUX_ARCH_*).
+ * PLATFORM: POSIX — uname(struct utsname) + static define buffers; hides utsname from .x.
+ *            WINDOWS — may no-op via uname stub if present; same signature.
+ * Always present under FROM_X (thin argv_collect pure orch calls this;
+ * no pure-dup driver_argv_collect_append_uname_impl).
+ * G.7: single authority for host OS/arch define append used by argv_collect.
+ */
+int shux_driver_argv_append_uname(const char **defines, int ndefines, int max_defines) {
     struct utsname u;
     static char shu_os_def[80], shu_arch_def[80];
     if (!defines)
@@ -1144,7 +1153,7 @@ int driver_argv_collect_defines_impl(int argc, char **argv, const char **defines
         }
     }
     if (ndefines + 2 <= max_defines)
-        ndefines = driver_argv_collect_append_uname_impl(defines, ndefines, max_defines);
+        ndefines = shux_driver_argv_append_uname(defines, ndefines, max_defines);
     return ndefines;
 }
 #endif

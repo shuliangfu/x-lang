@@ -55,12 +55,14 @@ export extern "C" function driver_pipeline_entry_source_len_store(len: i64): voi
 export extern "C" function driver_pipeline_entry_source_len_load_and_maybe_debug(): i64;
 /* bump：G-02f-244 / wave9 want pure → permanent OS setrlimit surface */
 export extern "C" function shux_driver_bump_stack_limit(want_bytes: i64): void;
-/* argv_collect：G-02f-245 主循环 pure；uname 🔒 */
+/* argv_collect：G-02f-245 主循环 pure；wave10 uname → permanent OS surface */
 export extern "C" function driver_argv_at(argv: *u8, i: i32): *u8;
 export extern "C" function driver_defines_set_at(defines: *u8, i: i32, s: *u8): void;
 export extern "C" function shux_cstr_offset(s: *u8, off: i32): *u8;
 export extern "C" function driver_os_define_lit(kind: i32): *u8;
-export extern "C" function driver_argv_collect_append_uname_impl(defines: *u8, ndefines: i32, max_defines: i32): i32;
+/** Permanent OS uname host-define surface.
+ * PLATFORM: POSIX uname — hides struct utsname from .x. */
+export extern "C" function shux_driver_argv_append_uname(defines: *u8, ndefines: i32, max_defines: i32): i32;
 export extern "C" function driver_large_stack_thread_trampoline_impl(v: *u8): *u8;
 /* run_fn_on_current：G-02f-246 编排 pure；call 🔒 */
 
@@ -991,7 +993,7 @@ export function driver_argv_collect_defines(argc: i32, argv: *u8, defines: *u8, 
   }
   if (ndefines + 2 <= max_defines) {
     unsafe {
-      ndefines = driver_argv_collect_append_uname_impl(defines, ndefines, max_defines);
+      ndefines = shux_driver_argv_append_uname(defines, ndefines, max_defines);
     }
   }
   return ndefines;

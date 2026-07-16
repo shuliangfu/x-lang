@@ -506,7 +506,7 @@ int64_t driver_parse_u32_cstr(uint8_t * s) {
 extern int32_t driver_check_quiet_ok_get(void);
 extern uint8_t * driver_argv_at(uint8_t * argv, int32_t i);
 extern uint8_t * shux_cstr_offset(uint8_t * s, int32_t off);
-extern int32_t driver_argv_collect_append_uname_impl(uint8_t * defines, int32_t ndefines, int32_t max_defines);
+extern int32_t shux_driver_argv_append_uname(uint8_t * defines, int32_t ndefines, int32_t max_defines);
 extern int32_t driver_get_module_num_funcs(uint8_t * m);
 extern int32_t driver_get_module_main_func_index(uint8_t * m);
 extern int32_t shux_read_file_into_path(uint8_t * path, uint8_t * buf, int64_t cap);
@@ -1445,7 +1445,7 @@ int32_t driver_argv_collect_defines(int32_t argc, uint8_t * argv, uint8_t * defi
     }
   }
   if (((ndefines + 2) <=max_defines)) {
-    (void)((ndefines = driver_argv_collect_append_uname_impl(defines, ndefines, max_defines)));
+    (void)((ndefines = shux_driver_argv_append_uname(defines, ndefines, max_defines)));
   }
   return ndefines;
 }
