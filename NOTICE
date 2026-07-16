@@ -7,14 +7,100 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 This product includes software developed as part of the Shux project
 <https://github.com/shuliangfu/shux>.
 
-Unless otherwise noted, files in this repository are licensed under the
-GNU Affero General Public License version 3 or later (AGPL-3.0-or-later).
-The complete license text is in the LICENSE file at the repository root.
+================================================================================
+1. Default repository license
+================================================================================
 
-Recommended .x source file header
-----------------------------------
-Attach the following block at the top of each .x source file, before any
-module-specific description comments:
+Unless a path or file states otherwise in this NOTICE (or carries its own
+SPDX-License-Identifier / LICENSE file), material in this repository is
+licensed under the GNU Affero General Public License version 3 or later
+(AGPL-3.0-or-later). The complete license text is in the LICENSE file at
+the repository root.
+
+Product source of record is .x (and related non-C project files). Transitional
+C / seed C under compiler/ is temporary bootstrap material and will be removed
+after self-hosting; it is still covered by the default AGPL-3.0-or-later grant
+unless a more specific third-party notice below applies.
+
+================================================================================
+2. Copyright holder and contact
+================================================================================
+
+  Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+  Project: https://github.com/shuliangfu/shux
+
+Commercial licensing (exemption from AGPL-3.0 copyleft for proprietary
+embedding, closed-source distribution, or modified network services without
+providing corresponding source): contact the copyright holder at the address
+above. Dual commercial terms are offered only by the copyright holder for
+code they own or have rights to relicense.
+
+================================================================================
+3. Subpackage / component licenses (same repo)
+================================================================================
+
+  Path                              License              Notes
+  --------------------------------  -------------------  --------------------------
+  Repository root (default)         AGPL-3.0-or-later    LICENSE + this NOTICE
+  compiler/, core/, std/, docs/,    AGPL-3.0-or-later    Product toolchain & libs
+    tests/, examples/, tools/, ...
+  editors/tree-sitter-shux/         AGPL-3.0-or-later    Grammar + bindings;
+                                                         local LICENSE pointer
+  editors/vscode/                   MIT                  See editors/vscode/LICENSE
+  editors/vim/                      AGPL-3.0-or-later    Default (no separate
+                                                         LICENSE file)
+
+If package metadata and this NOTICE ever disagree, this NOTICE and the
+component LICENSE file control; metadata must be corrected to match.
+
+================================================================================
+4. Third-party components included in this repository
+================================================================================
+
+The following third-party software is included or redistributed under licenses
+other than AGPL-3.0-or-later:
+
+------------------------------------------------------------------------------
+4.1  orlp ed25519 (portable Ed25519 / ref10-style field arithmetic)
+------------------------------------------------------------------------------
+
+  Name:        orlp/ed25519 (portable C implementation)
+  Location:    compiler/seeds/crypto/ed25519/
+  Used by:     compiler/seeds/runtime_ed25519_ref10_glue.from_x.c
+               (std.crypto Ed25519 backend glue; temporary until full .x port)
+  Copyright:   Copyright (c) 2015 Orson Peters <orsonpeters@gmail.com>
+  License:     zlib License
+  Full text:   compiler/seeds/crypto/ed25519/LICENSE-zlib.txt
+
+  Upstream (historical): https://github.com/orlp/ed25519
+
+  Alterations in Shux (plainly marked for zlib condition 2):
+    - Integrated as a single translation unit via .inc includes
+    - Exported symbol renames (ed25519_ref10_*, sha512 → ed25519_ref10_sha512, …)
+      to avoid clashing with higher-level std.crypto APIs
+    - Build/glue wrappers; algorithmic core retained from upstream
+
+  zlib conditions (summary): as-is warranty disclaimer; do not misrepresent
+  origin; mark altered versions; do not remove this notice from source
+  distributions. Acknowledgment in documentation is appreciated but not
+  required.
+
+------------------------------------------------------------------------------
+4.2  System libraries linked at build/runtime (not redistributed as source)
+------------------------------------------------------------------------------
+
+  Typical link-time dependencies (platform packages; not vendored here), e.g.:
+    - zlib, libzstd, libbrotli, libsqlite3, liburing (Linux), system libc
+
+  These are not re-shipped as source in this tree. Downstream redistributors
+  must comply with the licenses of any system libraries they link or bundle.
+
+================================================================================
+5. Recommended product .x source header
+================================================================================
+
+Attach the following block at the top of each product .x source file, before
+any module-specific description comments:
 
     // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
     // SPDX-License-Identifier: AGPL-3.0-or-later
@@ -32,19 +118,24 @@ module-specific description comments:
     // You should have received a copy of the GNU Affero General Public License
     // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+Minimum acceptable short form (SPDX + copyright only):
+
+    // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+    // SPDX-License-Identifier: AGPL-3.0-or-later
+
 For the FSF canonical template, see "How to Apply These Terms to Your New
 Programs" at the end of LICENSE.
 
-Third-Party Notices
-===================
+Helper: tools/add_x_license_header.sh (compiler/src, core, std).
 
-The following third-party components are included in or distributed with
-this project under licenses other than AGPL-3.0-or-later:
+================================================================================
+6. SPDX identifiers used in this project
+================================================================================
 
-  (none)
+  AGPL-3.0-or-later   Default project license
+  MIT                 editors/vscode (and its package.json)
+  Zlib                orlp ed25519 under compiler/seeds/crypto/ed25519/
 
-Contact
-=======
-
-  Shuliang Fu <admin@shuliangfu.com>
-  https://github.com/shuliangfu/shux
+================================================================================
+End of NOTICE
+================================================================================

@@ -50,4 +50,11 @@ tree-sitter test
 
 ## License
 
-AGPL-3.0-or-later
+**AGPL-3.0-or-later** (same as the Shux repository default).
+
+- This directory: [`LICENSE`](LICENSE) (pointer to repo-root terms)
+- Full text: [`../../LICENSE`](../../LICENSE)
+- Notices / third-party: [`../../NOTICE`](../../NOTICE)
+
+Package metadata (`package.json`, `Cargo.toml`, `pyproject.toml`) must stay
+aligned with this SPDX identifier.

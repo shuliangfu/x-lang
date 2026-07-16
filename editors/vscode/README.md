@@ -412,6 +412,6 @@ editors/vscode/
 
 ## Links
 
-- **Repository**: <https://github.com/shuxliangfu/shux>
+- **Repository**: <https://github.com/shuliangfu/shux>
 - **License**: MIT
 - **Roadmap**: See [完善功能.md](./完善功能.md) for feature completion status and LSP enhancement plans (post-bootstrap)

@@ -437,16 +437,24 @@ shux/
 
 ## 十三、许可证
 
-本项目采用 ** GNU Affero通用公共许可证v3.0 或更高版本** （ AGPL-3.0或更高版本）授权。
+本项目默认采用 **GNU Affero 通用公共许可证 v3.0 或更高版本**（AGPL-3.0-or-later）授权；路径级例外与第三方组件以 [`NOTICE`](NOTICE) 为准。
 
-- 完整许可文本： [`LICENSE`] （许可证）
-- 版权与第三方声明： [`NOTICE`] (NOTICE)
+- 完整许可文本：[`LICENSE`](LICENSE)
+- 版权、组件矩阵与第三方声明：[`NOTICE`](NOTICE)
+
+主要例外 / 第三方（详见 NOTICE）：
+
+| 组件 | 许可 |
+|------|------|
+| 默认（编译器、core、std、tree-sitter grammar 等） | AGPL-3.0-or-later |
+| `editors/vscode` | MIT（[`editors/vscode/LICENSE`](editors/vscode/LICENSE)） |
+| Vendored orlp ed25519（`compiler/seeds/crypto/ed25519/`） | zlib |
 
 ### 商业授权
 
-若你的使用场景需要**不受 AGPL-3.0 copyleft 约束** （例如将 Shux 编译器、工具链或衍生作品嵌入闭源产品，或作为网络服务运行修改版而不向远程用户提供对应源码 ） ，请联系作者洽谈 **商业许可 ** ：
+若你的使用场景需要**不受 AGPL-3.0 copyleft 约束**（例如将 Shux 编译器、工具链或衍生作品嵌入闭源产品，或作为网络服务运行修改版而不向远程用户提供对应源码），请联系作者洽谈 **商业许可**：
 
-- Shuliang Fu — [admin@shuliangfu.com] (mailto: admin@shuliangfu.com)
+- Shuliang Fu — [admin@shuliangfu.com](mailto:admin@shuliangfu.com)
 
 ----
 

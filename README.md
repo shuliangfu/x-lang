@@ -437,10 +437,18 @@ Install plugin: see [`editors/vscode/README.md`](editors/vscode/README.md) (VSIX
 
 ## 13. License
 
-This project is licensed under **GNU Affero General Public License v3.0 or later** (AGPL-3.0-or-later).
+This project is licensed under **GNU Affero General Public License v3.0 or later** (AGPL-3.0-or-later), unless a path states otherwise in [`NOTICE`](NOTICE).
 
 - Full license text: [`LICENSE`](LICENSE)
-- Copyright and third-party notices: [`NOTICE`](NOTICE)
+- Copyright, component matrix, and third-party notices: [`NOTICE`](NOTICE)
+
+Notable exceptions / third parties (details in NOTICE):
+
+| Component | License |
+|-----------|---------|
+| Default (compiler, core, std, tree-sitter grammar, …) | AGPL-3.0-or-later |
+| `editors/vscode` | MIT ([`editors/vscode/LICENSE`](editors/vscode/LICENSE)) |
+| Vendored orlp ed25519 (`compiler/seeds/crypto/ed25519/`) | zlib |
 
 ### Commercial License
 

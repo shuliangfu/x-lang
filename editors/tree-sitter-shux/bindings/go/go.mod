@@ -1,4 +1,4 @@
-module github.com/tree-sitter/tree-sitter-shux
+module github.com/shuliangfu/shux/editors/tree-sitter-shux/bindings/go
 
 go 1.22
 
