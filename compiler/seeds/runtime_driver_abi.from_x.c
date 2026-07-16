@@ -20,6 +20,8 @@
  *     FROM_X 无 pure-dup now_sec _impl；gettimeofday/time 永久 OS 面 shux_driver_wall_clock_sec；
  *   + wave8 Cap residual pure：call_fn 编排 pure；间接调用永久 OS 面 shux_driver_call_fn_void_arg；
  *     FROM_X rest 无 pure-dup call_fn _impl；
+ *   + wave9 Cap residual pure：bump_stack_limit orch pure；setrlimit 永久 OS 面 shux_driver_bump_stack_limit；
+ *     FROM_X rest 无 pure-dup setrlimit/to_impl _impl；
  * FROM_X 剔 pure-dup _impl（H↓）。
  */
 /* Generated from src/runtime_driver_abi.x (G-02f-29/41/45..57/83 true .x + C tail).
@@ -151,7 +153,7 @@ void driver_print_x_smoke_parse_empty_impl(void);
 void driver_print_x_smoke_typeck_ok_impl(void);
 #endif
 void driver_bump_stack_limit(void);
-void driver_bump_stack_limit_to_impl(int64_t want_bytes);
+void shux_driver_bump_stack_limit(int64_t want_bytes);
 int64_t driver_stack_limit_want_bytes(void);
 void driver_defines_set_at(const char **defines, int i, const char *s);
 const char *driver_os_define_lit(int kind);
@@ -1275,7 +1277,15 @@ int64_t driver_stack_limit_want_bytes(void) {
 }
 #endif
 
-void driver_bump_stack_limit_to_impl(int64_t want_bytes) {
+/**
+ * Permanent OS RLIMIT_STACK raise surface.
+ * PLATFORM: POSIX — getrlimit/setrlimit (struct rlimit hidden from .x);
+ *            WINDOWS — no-op (want_bytes unused).
+ * Always present under FROM_X (thin driver_bump_stack_limit pure orch calls this;
+ * no pure-dup driver_bump_stack_limit_to_impl).
+ * G.7: single authority for stack soft-limit raise used by large-stack paths.
+ */
+void shux_driver_bump_stack_limit(int64_t want_bytes) {
     #ifndef _WIN32
     struct rlimit rl;
     rlim_t want = (rlim_t)want_bytes;
@@ -1294,11 +1304,11 @@ void driver_bump_stack_limit_to_impl(int64_t want_bytes) {
     #endif
 }
 
-/* G-02f-244：逻辑源 .x（want pure → to_impl）；seed 保留同语义 C 供产品 cc */
-/* G-02f-402：public PREFER 时 thin → want_impl + to_impl */
+/* G-02f-244 / wave9：逻辑源 .x（want pure → permanent OS surface）；seed 冷 twin */
+/* G-02f-402：public PREFER 时 thin owns driver_bump_stack_limit orch */
 #ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_bump_stack_limit(void) {
-    driver_bump_stack_limit_to_impl(driver_stack_limit_want_bytes_impl());
+    shux_driver_bump_stack_limit(driver_stack_limit_want_bytes_impl());
 }
 #endif
 

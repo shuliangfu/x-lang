@@ -1268,9 +1268,9 @@ int64_t driver_stack_limit_want_bytes(void) {
   }
   return def;
 }
-extern void driver_bump_stack_limit_to_impl(int64_t want_bytes);
+extern void shux_driver_bump_stack_limit(int64_t want_bytes);
 void driver_bump_stack_limit(void) {
-  (void)(driver_bump_stack_limit_to_impl(driver_stack_limit_want_bytes()));
+  (void)(shux_driver_bump_stack_limit(driver_stack_limit_want_bytes()));
   (void)(0);
   return;
 }

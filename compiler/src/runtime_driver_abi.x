@@ -53,8 +53,8 @@ export extern "C" function driver_path_read_preprocess_malloc(path: *u8): *u8;
 export extern "C" function driver_path_last_preprocess_len(): i64;
 export extern "C" function driver_pipeline_entry_source_len_store(len: i64): void;
 export extern "C" function driver_pipeline_entry_source_len_load_and_maybe_debug(): i64;
-/* bump：G-02f-244 want pure → to_impl(setrlimit) */
-export extern "C" function driver_bump_stack_limit_to_impl(want_bytes: i64): void;
+/* bump：G-02f-244 / wave9 want pure → permanent OS setrlimit surface */
+export extern "C" function shux_driver_bump_stack_limit(want_bytes: i64): void;
 /* argv_collect：G-02f-245 主循环 pure；uname 🔒 */
 export extern "C" function driver_argv_at(argv: *u8, i: i32): *u8;
 export extern "C" function driver_defines_set_at(defines: *u8, i: i32, s: *u8): void;
@@ -633,7 +633,7 @@ export function driver_pipeline_entry_source_len(): i64 {
   return 0;
 }
 
-/* ---- G-02f-54 / G-02f-244：抬高 RLIMIT_STACK（want pure + setrlimit 🔒）---- */
+/* ---- G-02f-54 / G-02f-244 / wave9：抬高 RLIMIT_STACK（want pure + permanent OS setrlimit）---- */
 
 // G-02f-244：解析无符号十进制串；非法返回 -1
 export function driver_parse_u32_cstr(s: *u8): i64 {
@@ -693,11 +693,15 @@ export function driver_stack_limit_want_bytes(): i64 {
   return def;
 }
 
+/** Raise RLIMIT_STACK soft limit using env-derived want bytes.
+ * Wave9 pure: want pure; setrlimit via permanent OS surface shux_driver_bump_stack_limit
+ * (no struct rlimit layout in .x).
+ * PLATFORM: SHARED pure orch; OS body stays in seed rest. */
 #[no_mangle]
 export function driver_bump_stack_limit(): void {
   let want: i64 = driver_stack_limit_want_bytes();
   unsafe {
-    driver_bump_stack_limit_to_impl(want);
+    shux_driver_bump_stack_limit(want);
   }
 }
 

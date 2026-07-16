@@ -25,7 +25,9 @@
 //     shux_driver_wall_clock_sec；no struct timeval in .x）；FROM_X rest 无 pure-dup now_sec _impl。
 //   + wave8 Cap residual pure：call_fn 编排 pure；间接 fn 调用经永久 OS 面
 //     shux_driver_call_fn_void_arg（.x 无法安全间接调用）；FROM_X rest 无 pure-dup call_fn _impl。
-// Cap residual：uname / setrlimit / pthread 创建 / path-read IO /
+//   + wave9 Cap residual pure：bump_stack_limit orch pure；setrlimit 经永久 OS 面
+//     shux_driver_bump_stack_limit（no struct rlimit in .x）；FROM_X rest 无 pure-dup setrlimit _impl。
+// Cap residual：uname / pthread 创建 / path-read IO /
 //   debug_pipe reportf note 仍 rest。
 //
 
@@ -36,6 +38,9 @@ export extern "C" function shux_driver_wall_clock_sec(): f64;
 /** Permanent OS indirect call surface (seed rest). Invokes fn(arg) when fn != null.
  * PLATFORM: SHARED — .x cannot safely perform indirect function calls; hide cast in rest. */
 export extern "C" function shux_driver_call_fn_void_arg(fn: *u8, arg: *u8): void;
+/** Permanent OS RLIMIT_STACK raise surface (seed rest).
+ * PLATFORM: POSIX getrlimit/setrlimit; WINDOWS no-op — hides struct rlimit from .x. */
+export extern "C" function shux_driver_bump_stack_limit(want_bytes: i64): void;
 export extern "C" function driver_path_read_preprocess_malloc_impl(path: *u8): *u8;
 // Wave3 format print pure: reuse diagnostic append authority (G.7) + fixed-arity diag report.
 export extern "C" function diag_report(file: *u8, line: i32, col: i32, kind: *u8, msg: *u8, detail: *u8): void;
@@ -918,13 +923,14 @@ export function driver_stack_limit_want_bytes(): i64 {
   return def;
 }
 
-// ---- G-02f-402：bump_stack / set_entry_len / phase_timing enabled pure / os_define_lit wave4 ----
-export extern "C" function driver_bump_stack_limit_to_impl(want_bytes: i64): void;
-
+// ---- G-02f-402 / wave9：bump_stack orch pure / set_entry_len / phase_timing enabled pure / os_define_lit wave4 ----
+/** Raise RLIMIT_STACK soft limit using env-derived want bytes.
+ * Wave9 pure: want pure in thin; setrlimit via permanent OS surface shux_driver_bump_stack_limit.
+ * PLATFORM: SHARED pure orch; OS layout stays in seed rest; FROM_X no pure-dup setrlimit _impl. */
 #[no_mangle]
 export function driver_bump_stack_limit(): void {
   unsafe {
-    driver_bump_stack_limit_to_impl(driver_stack_limit_want_bytes());
+    shux_driver_bump_stack_limit(driver_stack_limit_want_bytes());
   }
 }
 
