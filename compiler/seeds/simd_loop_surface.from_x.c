@@ -5,6 +5,9 @@
  * R2: full.x 吃满 peel/parse/emit 公共业务；FROM_X rest 仅 slice_marker（业务 H=0）
  * Prove: full.x vs this seed → nm IDENTICAL
  * Regen: ./shux -E ... src/asm/simd_loop.x | filter DBG + polish prologue
+ * Track-L (2026-07-16): glue_simd_hw_env_disabled keeps short name; .x has #[no_mangle]
+ * (was module-prefix mangle simd_loop_glue_simd_hw_env_disabled).
+ * PLATFORM: SHARED — symbol contract; Ubuntu gold + mac prove.
  */
 #include <stddef.h>
 #include <stdint.h>

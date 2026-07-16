@@ -360,20 +360,26 @@ export function glue_emit_full_const_peel_c(elf_ctx: *u8, binop_ko: i32, off_a: 
   return 1;
 }
 
-// getenv SHUX_SIMD_HW disable: name bytes
-// S H U X _ S I M D _ H W \0
-// 83 72 85 88 95 83 73 77 68 95 72 87
-
+/** Return 1 if SIMD hardware peel/emit should be disabled via env.
+ * Looks up getenv("SHUX_SIMD_HW"); if the value starts with ASCII '0', treat HW SIMD as off.
+ * Missing env or other values leave HW SIMD enabled (return 0).
+ * Env name is built as byte array (no string-literal dependency in this TU):
+ *   S H U X _ S I M D _ H W \0  →  83 72 85 88 95 83 73 77 68 95 72 87 0
+ * Track-L: #[no_mangle] keeps surface short name (not simd_loop_glue_simd_hw_env_disabled).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. Env semantics are host getenv. */
+#[no_mangle]
 export function glue_simd_hw_env_disabled(): i32 {
   unsafe {
     let name: u8[16] = [];
+    // Build "SHUX_SIMD_HW" without a string lit (stable -E / seed parity).
     name[0] = 83; name[1] = 72; name[2] = 85; name[3] = 88;
     name[4] = 95; name[5] = 83; name[6] = 73; name[7] = 77;
     name[8] = 68; name[9] = 95; name[10] = 72; name[11] = 87;
     name[12] = 0;
     let p: *u8 = getenv(&name[0]);
     if (p == 0) { return 0; }
-    if (p[0] == 48) { return 1; } // '0'
+    // First byte '0' (ASCII 48) → explicitly disable HW SIMD.
+    if (p[0] == 48) { return 1; }
   }
   return 0;
 }
