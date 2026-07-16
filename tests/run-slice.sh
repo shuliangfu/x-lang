@@ -23,14 +23,26 @@ LINK_SHUX="$RUN_SHUX"
 # 【Why】shux-c 不支持 -backend 参数；默认空，仅 shux_asm/shux_asm2 需显式 -backend asm。
 SLICE_LINK_BACKEND_ARGS="${SHUX_LINK_BACKEND_ARGS:-}"
 
-# bstrict：-o 优先 shux_asm2（与 run-struct 一致）。
+# bstrict：-o 优先 shux_asm(2)，但**禁止清空** SLICE_LINK_BACKEND_ARGS。
+# 旧逻辑置空后 Linux 默认 asm，失败再拼 -E 回退 → 20KiB 截断 + slice 结构体重定义假路径。
+# 保留 bootstrap-link-shux / SHUX_FORCE_LINK_BACKEND 注入的 -backend c。
 if [ -n "${SHUX_RUN_ALL_BOOTSTRAP_SHUX:-}" ] && [ -x ./compiler/shux_asm2 ]; then
   LINK_SHUX=./compiler/shux_asm2
-  SLICE_LINK_BACKEND_ARGS=""
 elif [ -n "${SHUX_RUN_ALL_BOOTSTRAP_SHUX:-}" ] && [ -x ./compiler/shux_asm ]; then
   LINK_SHUX=./compiler/shux_asm
-  SLICE_LINK_BACKEND_ARGS=""
 fi
+# 产品 shux_asm -o：Linux 默认 asm 对 slice 不完整；无显式 backend 时走 -backend c（与 Darwin 矩阵一致）。
+case "$(basename "$LINK_SHUX")" in
+  shux|shux_asm|shux_asm2|shux_asm_stage1)
+    if [ -z "$SLICE_LINK_BACKEND_ARGS" ]; then
+      if [ -n "${SHUX_FORCE_LINK_BACKEND:-}" ]; then
+        SLICE_LINK_BACKEND_ARGS="-backend ${SHUX_FORCE_LINK_BACKEND}"
+      else
+        SLICE_LINK_BACKEND_ARGS="-backend c"
+      fi
+    fi
+    ;;
+esac
 
 # core/slice C 实现（length.x 等）；勿强编 process.o（arm64 shux-c 无 asm backend）。
 if [ -z "${SHUX_SKIP_SUBSCRIPT_MAKE:-}" ]; then
@@ -53,19 +65,21 @@ slice_simple_link_o() {
       return 0
     fi
   fi
-  local tmpc emit_shux=./compiler/shux-c
-  [ -x "$emit_shux" ] || emit_shux=./compiler/shux
-  # 【Why】macOS mkstemp 要求 X 在模板末尾；原 /tmp/...XXXXXX.c 中 .c 在 X 之后导致失败。
-  # 用不带 .c 后缀的临时文件，cc 用 -x c 指定 C 语言即可编译。
-  tmpc=$(mktemp /tmp/shux_slice_simple_XXXXXX)
-  {
-    echo '#include <stdint.h>'
-    echo '#include <stddef.h>'
-    echo "$struct_decl"
-    "$emit_shux" -E "$x" 2>/dev/null | tail -n +2
-  } >"$tmpc"
-  ${CC:-cc} -O0 -x c -o "$out" "$tmpc"
-  rm -f "$tmpc"
+  # 禁止：手写 struct + -E 截断拼装（20KiB 截断 / int64_t vs size_t 双定义）。
+  # 回退仅允许产品 -backend c -o（完整 KEEP_C 链）；失败则硬红。
+  set +e
+  $LINK_SHUX -backend c "$x" -o "$out" 2>&1
+  ec=$?
+  set -e
+  if [ "$ec" -eq 0 ] && [ -x "$out" ]; then
+    exitcode=0
+    "$out" >/dev/null 2>&1 || exitcode=$?
+    if [ "$exitcode" -ne 134 ] && [ "$exitcode" -eq "$want_exit" ]; then
+      return 0
+    fi
+  fi
+  echo "slice_simple_link_o FAIL: $x (product -backend c -o; no -E splice fallback)" >&2
+  return 1
 }
 
 slice_simple_link_o tests/slice/main.x /tmp/shux_slice \
@@ -88,15 +102,13 @@ slice_dep_link_or_check() {
     return 1
   fi
   set +e
-  $RUN_SHUX -L . "$x" -o "$out" 2>/tmp/shux_slice_dep_link.log
+  # 与 simple 路径一致：产品 -o 带 backend（默认 c），禁止静默 SKIP 假绿
+  $LINK_SHUX $SLICE_LINK_BACKEND_ARGS -L . "$x" -o "$out" 2>/tmp/shux_slice_dep_link.log
   local ec=$?
   set -e
   if [ "$ec" -ne 0 ] || [ ! -x "$out" ]; then
-    if [ -n "${SHUX_RUN_ALL_BOOTSTRAP_SHUX:-}" ]; then
-      echo "slice: SKIP runnable $label (bootstrap dep link; check OK)"
-      return 0
-    fi
     tail -8 /tmp/shux_slice_dep_link.log 2>/dev/null >&2 || true
+    echo "slice_dep_link FAIL: $label (check OK but -o failed)" >&2
     return 1
   fi
   exitcode=0
