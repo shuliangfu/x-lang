@@ -889,7 +889,7 @@ int32_t driver_check_diag_emitted_get(void) {
   return 0;
 }
 extern double shux_driver_wall_clock_sec(void);
-extern void driver_call_fn_void_arg_impl(uint8_t * fn, uint8_t * arg);
+extern void shux_driver_call_fn_void_arg(uint8_t * fn, uint8_t * arg);
 int32_t driver_abi_append_i64(uint8_t * dst, int32_t cap, int32_t at, int64_t val) {
   {
     int32_t d0 = 0;
@@ -1104,7 +1104,7 @@ void driver_run_fn_on_current_large_stack(uint8_t * fn, uint8_t * arg) {
   }
   (void)(driver_large_stack_thread_mark(1));
   (void)(driver_bump_stack_limit());
-  (void)(driver_call_fn_void_arg_impl(fn, arg));
+  (void)(shux_driver_call_fn_void_arg(fn, arg));
   (void)(driver_large_stack_thread_mark(0));
 }
 int32_t driver_compile_phase_index_ok(int32_t phase) {
@@ -1532,7 +1532,7 @@ void driver_run_thread_on_large_stack(uint8_t * fn, uint8_t * arg) {
     return;
   }
   if ((driver_is_large_stack_thread() !=0)) {
-    (void)(driver_call_fn_void_arg_impl(fn, arg));
+    (void)(shux_driver_call_fn_void_arg(fn, arg));
     return;
   }
   (void)(driver_bump_stack_limit());

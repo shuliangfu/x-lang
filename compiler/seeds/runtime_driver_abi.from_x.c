@@ -18,6 +18,8 @@
  *     FROM_X 无 pure-dup flush _impl；
  *   + wave7 Cap residual pure：compile_phase_now_sec 在 thin.x（→ shux_driver_wall_clock_sec）；
  *     FROM_X 无 pure-dup now_sec _impl；gettimeofday/time 永久 OS 面 shux_driver_wall_clock_sec；
+ *   + wave8 Cap residual pure：call_fn 编排 pure；间接调用永久 OS 面 shux_driver_call_fn_void_arg；
+ *     FROM_X rest 无 pure-dup call_fn _impl；
  * FROM_X 剔 pure-dup _impl（H↓）。
  */
 /* Generated from src/runtime_driver_abi.x (G-02f-29/41/45..57/83 true .x + C tail).
@@ -157,7 +159,7 @@ int driver_argv_collect_append_uname_impl(const char **defines, int ndefines, in
 int32_t driver_target_arg_os_kind(const char *target);
 void driver_run_thread_on_large_stack(void *(*fn)(void *), void *arg);
 void driver_run_thread_on_large_stack_pthread_impl(void *(*fn)(void *), void *arg);
-void driver_call_fn_void_arg_impl(void *(*fn)(void *), void *arg);
+void shux_driver_call_fn_void_arg(void *(*fn)(void *), void *arg);
 int32_t driver_pipeline_no_large_stack_env(void);
 int driver_source_scan_top_level_import(const char *src, size_t src_len);
 char *driver_path_read_preprocess_malloc(const char *path);
@@ -1322,8 +1324,13 @@ void * driver_large_stack_thread_trampoline(void *v) {
     return r;
 }
 
-/** fn 指针调用 🔒（.x 无法安全间接调用） */
-void driver_call_fn_void_arg_impl(void *(*fn)(void *), void *arg) {
+/**
+ * Permanent OS indirect call surface.
+ * PLATFORM: SHARED — invokes fn(arg) when fn != NULL.
+ * Always present under FROM_X (thin pure orch calls this; no pure-dup call_fn _impl).
+ * G.7: single authority for void*(void*) style driver callbacks (.x cannot cast safely).
+ */
+void shux_driver_call_fn_void_arg(void *(*fn)(void *), void *arg) {
     if (fn)
         (void)fn(arg);
 }
@@ -1351,7 +1358,7 @@ void driver_run_fn_on_current_large_stack(void *(*fn)(void *), void *arg)
         return;
     driver_large_stack_thread_mark(1);
     driver_bump_stack_limit();
-    driver_call_fn_void_arg_impl(fn, arg);
+    shux_driver_call_fn_void_arg(fn, arg);
     driver_large_stack_thread_mark(0);
 }
 #endif
@@ -1419,7 +1426,7 @@ void driver_run_thread_on_large_stack_impl(void *(*fn)(void *), void *arg) {
     if (fn == NULL)
         return;
     if (driver_is_large_stack_thread()) {
-        driver_call_fn_void_arg_impl(fn, arg);
+        shux_driver_call_fn_void_arg(fn, arg);
         return;
     }
     driver_bump_stack_limit();

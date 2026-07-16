@@ -101,8 +101,9 @@ MODULES=(
   #   + wave5 phase timing BSS + begin/end pure；
   #   + wave6 phase_timing_flush pure（whole-ms append+diag_report；no reportf floats）；
   #   + wave7 compile_phase_now_sec pure（→ shux_driver_wall_clock_sec OS surface）；
-  #   rest FROM_X 无 pure-dup flag_slot/path-len/format/set_at/os_lit/begin/end/flush/now_sec _impl；
-  # Cap residual：uname/setrlimit/pthread/path-read IO/debug_pipe/call_fn
+  #   + wave8 call_fn pure orch（→ shux_driver_call_fn_void_arg OS surface；.x 无间接调用）；
+  #   rest FROM_X 无 pure-dup flag_slot/path-len/format/set_at/os_lit/begin/end/flush/now_sec/call_fn _impl；
+  # Cap residual：uname/setrlimit/pthread/path-read IO/debug_pipe
   # prove 锁 thin surface IDENTICAL；冷/无 PREFER 仍可走 seeds/runtime_driver_abi.from_x.c 全 C 体
   "driver_abi|src/runtime_driver_abi_thin.x|seeds/runtime_driver_abi_thin_surface.from_x.c||"
   # runtime_io_abi R2 full：.x 吃满 19 公共门闩 + 5 _impl 真迁（read/malloc/memcpy）；

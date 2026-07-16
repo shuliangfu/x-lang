@@ -40,7 +40,8 @@ export extern "C" function driver_pipeline_fail_code_rc_impl(rc: i32): void;
 export extern "C" function driver_pipeline_fail_code_path_impl(path: *u8): void;
 /* large_stack：G-02f-246 早退 pure；pthread 创建 🔒 */
 export extern "C" function driver_run_thread_on_large_stack_pthread_impl(fn: *u8, arg: *u8): void;
-export extern "C" function driver_call_fn_void_arg_impl(fn: *u8, arg: *u8): void;
+/** Permanent OS indirect call surface (.x cannot safely call through fn pointers). */
+export extern "C" function shux_driver_call_fn_void_arg(fn: *u8, arg: *u8): void;
 export extern "C" function bootstrap_nostdlib_pthread_is_stub(): i32;
 export extern "C" function driver_get_module_num_funcs(m: *u8): i32;
 export extern "C" function driver_get_module_main_func_index(m: *u8): i32;
@@ -513,7 +514,8 @@ export function driver_pipeline_no_large_stack_env(): i32 {
   return 0;
 }
 
-// G-02f-246：当前线程 mark+bump+call；fn 指针调用 🔒
+/** Run fn(arg) on current thread under large-stack mark + bump.
+ * Wave8 pure orch: indirect call via shux_driver_call_fn_void_arg permanent OS surface. */
 #[no_mangle]
 export function driver_run_fn_on_current_large_stack(fn: *u8, arg: *u8): void {
   if (fn == 0 as *u8) {
@@ -522,12 +524,13 @@ export function driver_run_fn_on_current_large_stack(fn: *u8, arg: *u8): void {
   driver_large_stack_thread_mark(1);
   driver_bump_stack_limit();
   unsafe {
-    driver_call_fn_void_arg_impl(fn, arg);
+    shux_driver_call_fn_void_arg(fn, arg);
   }
   driver_large_stack_thread_mark(0);
 }
 
-// G-02f-246：早退 pure（已在大栈 / nostdlib 桩 / NO_LARGE_STACK）→ pthread 体 🔒
+/** Large-stack orchestrator: pure early exits; pthread body residual.
+ * Wave8: already-on-large-stack path uses permanent OS call surface (no call_fn _impl). */
 #[no_mangle]
 export function driver_run_thread_on_large_stack(fn: *u8, arg: *u8): void {
   if (fn == 0 as *u8) {
@@ -535,7 +538,7 @@ export function driver_run_thread_on_large_stack(fn: *u8, arg: *u8): void {
   }
   if (driver_is_large_stack_thread() != 0) {
     unsafe {
-      driver_call_fn_void_arg_impl(fn, arg);
+      shux_driver_call_fn_void_arg(fn, arg);
     }
     return;
   }

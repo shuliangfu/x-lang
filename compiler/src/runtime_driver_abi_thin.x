@@ -23,14 +23,19 @@
 //     diag_report；no va_list reportf floats）；FROM_X rest 无 pure-dup flush _impl。
 //   + wave7 Cap residual pure：compile_phase_now_sec 真迁 thin（calls permanent OS
 //     shux_driver_wall_clock_sec；no struct timeval in .x）；FROM_X rest 无 pure-dup now_sec _impl。
+//   + wave8 Cap residual pure：call_fn 编排 pure；间接 fn 调用经永久 OS 面
+//     shux_driver_call_fn_void_arg（.x 无法安全间接调用）；FROM_X rest 无 pure-dup call_fn _impl。
 // Cap residual：uname / setrlimit / pthread 创建 / path-read IO /
-//   debug_pipe reportf note / call_fn 仍 rest。
+//   debug_pipe reportf note 仍 rest。
 //
 
 export extern "C" function getenv(name: *u8): *u8;
 /** Permanent OS wall-clock surface (seed rest). Returns seconds as f64.
  * PLATFORM: POSIX gettimeofday / WINDOWS time — hides timeval layout from .x. */
 export extern "C" function shux_driver_wall_clock_sec(): f64;
+/** Permanent OS indirect call surface (seed rest). Invokes fn(arg) when fn != null.
+ * PLATFORM: SHARED — .x cannot safely perform indirect function calls; hide cast in rest. */
+export extern "C" function shux_driver_call_fn_void_arg(fn: *u8, arg: *u8): void;
 export extern "C" function driver_path_read_preprocess_malloc_impl(path: *u8): *u8;
 // Wave3 format print pure: reuse diagnostic append authority (G.7) + fixed-arity diag report.
 export extern "C" function diag_report(file: *u8, line: i32, col: i32, kind: *u8, msg: *u8, detail: *u8): void;
@@ -519,8 +524,7 @@ export function driver_check_diag_emitted_get(): i32 {
   return 0;
 }
 
-// ---- G-02f-343 gates (direct _impl; seed rest keeps full logic wrappers optional) ----
-export extern "C" function driver_call_fn_void_arg_impl(fn: *u8, arg: *u8): void;
+// ---- G-02f-343 gates (permanent OS surfaces; pure orch above) ----
 
 /** Append non-negative i64 decimal into dst (for size_t-style fields such as codegen_bytes).
  * Values in [0, INT_MAX] delegate to driver_diag_append_i32 (G.7 reuse). Larger values use a
@@ -668,7 +672,10 @@ export function compile_phase_now_sec(): f64 {
   return 0.0;
 }
 
-// G-02f-246 pure 深迁：mark + bump + call 编排；call 🔒
+/** Run fn(arg) on the current thread under large-stack mark + stack limit bump.
+ * Wave8 pure orch: null gate + mark/bump; indirect call via permanent OS surface
+ * shux_driver_call_fn_void_arg (no call_fn _impl residual).
+ * PLATFORM: SHARED — pure authority in thin; cold seed keeps C twin; FROM_X no pure-dup. */
 #[no_mangle]
 export function driver_run_fn_on_current_large_stack(fn: *u8, arg: *u8): void {
   if (fn == 0 as *u8) {
@@ -677,7 +684,7 @@ export function driver_run_fn_on_current_large_stack(fn: *u8, arg: *u8): void {
   driver_large_stack_thread_mark(1);
   driver_bump_stack_limit();
   unsafe {
-    driver_call_fn_void_arg_impl(fn, arg);
+    shux_driver_call_fn_void_arg(fn, arg);
   }
   driver_large_stack_thread_mark(0);
 }
@@ -1200,7 +1207,9 @@ export function driver_source_has_top_level_import_path(path: *u8): i32 {
   return 0;
 }
 
-// G-02f-246 pure 深迁：早退 pure → pthread 体 🔒
+/** Orchestrate large-stack run: early pure exits, else pthread body residual.
+ * Wave8 pure: already-on-large-stack path uses shux_driver_call_fn_void_arg (no call_fn _impl).
+ * PLATFORM: SHARED pure orch; pthread create remains Cap residual in seed rest. */
 #[no_mangle]
 export function driver_run_thread_on_large_stack(fn: *u8, arg: *u8): void {
   if (fn == 0 as *u8) {
@@ -1208,7 +1217,7 @@ export function driver_run_thread_on_large_stack(fn: *u8, arg: *u8): void {
   }
   if (driver_is_large_stack_thread() != 0) {
     unsafe {
-      driver_call_fn_void_arg_impl(fn, arg);
+      shux_driver_call_fn_void_arg(fn, arg);
     }
     return;
   }
