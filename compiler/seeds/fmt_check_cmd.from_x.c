@@ -1,4 +1,4 @@
-/* R2 thin + Cap residual pure 深迁（续 file_list path slots + store/clear pure）：
+/* R2 thin + Cap residual pure 深迁（续 run_check full orch pure）：
  * PREFER hybrid thin 由 src/driver/fmt_check_cmd_thin.x（lit/entry + pure 真体）；
  * rest SHUX_L2_FMT_CHECK_THIN_FROM_X：无 thin 公共体；pure-duplicate _impl 剔除
  * （含 set_current_file / print / cwd_fallback / try_walk / path_resolve_abs /
@@ -6,9 +6,10 @@
  *  collect_mode is_check / user_passed_L_get / init_user_lib_flags /
  *  file_list_n / user_ignore_count / lib_bufs_n / user_ignore_at /
  *  parse_ignore_opt / try_append_lib_root / argv_append /
- *  fmt_file_list_store / file_list_clear / fmt_file_list_at / …）；
- * Cap residual：walk opendir/stat / one_file_body / run_fmt / run_check 仍 rest
- *  （ALWAYS residual 5）。
+ *  fmt_file_list_store / file_list_clear / fmt_file_list_at /
+ *  driver_run_compiler_check / …）；
+ * Cap residual：walk opendir/stat / one_file_body / run_fmt 仍 rest
+ *  （ALWAYS residual 4）。
  * 冷启动无宏：全 C 体（含 pure _impl + public 门闩）。
  * Regen thin surface: shux -E src/driver/fmt_check_cmd_thin.x → thin_surface.
  */
@@ -174,13 +175,15 @@ static const char *s_builtin_ignore[] = {
     "/compiler/build/", "/compiler/tests/", NULL};
 #endif
 
+/**
+ * 供 runtime.c 查询：check 子命令是否抑制逐文件 check OK 行。
+ * pure 权威：thin.x driver_check_quiet_ok_get（恒 1）；冷启动同语义。
+ * Cap residual pure：run_check 冷体用 s_check_quiet_ok；hybrid 无此 static。
+ */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 /** check 全部成功时不打印 check OK（deno check 静默成功）。 */
 static int s_check_quiet_ok = 1;
 
-/**
- * 供 runtime.c 查询：check 子命令是否抑制逐文件 check OK 行。
- */
-#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 int32_t driver_check_quiet_ok_get(void) {
   return 1;
 }
@@ -1379,8 +1382,10 @@ int check_one_file(const char *path, int argc, char **argv) {
 
 /**
  * 运行 shux check（deno check 语义：多文件/目录，失败打印诊断）。
- * G-02f-410：实现体始终 seed；public PREFER 时 thin pure forward。
+ * pure 权威：thin.x driver_run_compiler_check（full orch + public APIs）；
+ * 冷启动保留 _impl + public；FROM_X 下剔除 pure-dup _impl（H↓；ALWAYS residual 5→4）。
  */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 int driver_run_compiler_check_impl(int argc, char **argv) {
     int i;
     int fail_fast = 0;
@@ -1471,7 +1476,7 @@ int driver_run_compiler_check_impl(int argc, char **argv) {
 
     return 0;
 }
-#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
+
 int driver_run_compiler_check(int argc, char **argv) {
     return driver_run_compiler_check_impl(argc, argv);
 }

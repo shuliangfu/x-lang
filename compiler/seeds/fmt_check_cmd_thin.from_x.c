@@ -1,4 +1,4 @@
-/* regen from fmt_check_cmd_thin.x -E (file_list path slots + store/clear pure) */
+/* regen from fmt_check_cmd_thin.x -E (run_check full orch pure) */
 /* prove prologue (g05_try_x_to_o aligned + uio/poll) */
 #include <stddef.h>
 #include <stdint.h>
@@ -372,6 +372,8 @@ extern void fmt_user_ignore_count_set(int32_t v);
 extern int32_t fmt_path_ends_with_dot_x(uint8_t * path);
 extern int32_t fmt_file_list_n(void);
 extern void fmt_file_list_n_set(int32_t v);
+extern uint8_t * fmt_file_list_at(int32_t i);
+extern int32_t fmt_file_list_store(uint8_t * abs_path);
 extern int32_t fmt_check_lib_bufs_n(void);
 extern void fmt_check_lib_bufs_n_set(int32_t v);
 extern void fmt_check_lib_bufs_reset(void);
@@ -414,6 +416,15 @@ static uint8_t g_fmt_lit_fmt_error[10] = {102, 109, 116, 32, 101, 114, 114, 111,
 static uint8_t g_fmt_lit_chk002[7] = {67, 72, 75, 48, 48, 50, 0};
 static uint8_t g_fmt_lit_fmt001[7] = {70, 77, 84, 48, 48, 49, 0};
 static uint8_t g_fmt_lit_dash_L[3] = {45, 76, 0};
+static uint8_t g_fmt_lit_cmd_check[6] = {99, 104, 101, 99, 107, 0};
+static uint8_t g_fmt_lit_fail_fast[12] = {45, 45, 102, 97, 105, 108, 45, 102, 97, 115, 116, 0};
+static uint8_t g_fmt_lit_ignore_eq[10] = {45, 45, 105, 103, 110, 111, 114, 101, 61, 0};
+static uint8_t g_fmt_lit_dash_I[3] = {45, 73, 0};
+static uint8_t g_fmt_lit_dash_o[3] = {45, 111, 0};
+static uint8_t g_fmt_lit_dash_O[3] = {45, 79, 0};
+static uint8_t g_fmt_lit_backend[9] = {45, 98, 97, 99, 107, 101, 110, 100, 0};
+static uint8_t g_fmt_lit_no_x_paths[38] = {110, 111, 32, 46, 120, 32, 102, 105, 108, 101, 115, 32, 102, 111, 117, 110, 100, 32, 117, 110, 100, 101, 114, 32, 103, 105, 118, 101, 110, 32, 112, 97, 116, 104, 40, 115, 41, 0};
+static uint8_t g_fmt_lit_no_x_cwd[39] = {110, 111, 32, 46, 120, 32, 102, 105, 108, 101, 115, 32, 102, 111, 117, 110, 100, 32, 105, 110, 32, 99, 117, 114, 114, 101, 110, 116, 32, 100, 105, 114, 101, 99, 116, 111, 114, 121, 0};
 static uint8_t g_fmt_builtin_ignore_0[8] = {47, 46, 103, 105, 116, 47, 0, 0};
 static uint8_t g_fmt_builtin_ignore_1[12] = {47, 98, 117, 105, 108, 100, 95, 97, 115, 109, 47, 0};
 static uint8_t g_fmt_builtin_ignore_2[8] = {47, 98, 117, 105, 108, 100, 47, 0};
@@ -1607,12 +1618,106 @@ void check_argv_append_default_libs_for_path(uint8_t * path, uint8_t * check_arg
   return;
 }
 extern int32_t driver_run_fmt_impl(int32_t argc, uint8_t * argv);
-extern int32_t driver_run_compiler_check_impl(int32_t argc, uint8_t * argv);
 int32_t driver_run_fmt(int32_t argc, uint8_t * argv) {
   return driver_run_fmt_impl(argc, argv);
   return 0;
 }
 int32_t driver_run_compiler_check(int32_t argc, uint8_t * argv) {
-  return driver_run_compiler_check_impl(argc, argv);
+  (void)(driver_collect_mode_set(2));
+  (void)(file_list_clear());
+  int32_t path_start = 1;
+  int32_t fail_fast = 0;
+  int32_t any_path = 0;
+  int32_t failed = 0;
+  if ((argc >=2)) {
+    if ((argv !=((uint8_t *)(0)))) {
+      uint8_t * a1 = shux_ptr_slot_get(argv, 1);
+      if ((a1 !=((uint8_t *)(0)))) {
+        if ((strcmp(a1, &((g_fmt_lit_cmd_check)[0])) ==0)) {
+          (void)((path_start = 2));
+        }
+      }
+    }
+  }
+  (void)(check_init_user_lib_flags(argc, argv, path_start));
+  {
+    int32_t i = path_start;
+    while ((i < argc)) {
+      int32_t step = 1;
+      if ((argv !=((uint8_t *)(0)))) {
+        uint8_t * a = shux_ptr_slot_get(argv, i);
+        if ((a !=((uint8_t *)(0)))) {
+          if ((strcmp(a, &((g_fmt_lit_fail_fast)[0])) ==0)) {
+            (void)((fail_fast = 1));
+          } else {
+            if ((strncmp(a, &((g_fmt_lit_ignore_eq)[0]), 9) ==0)) {
+              (void)(parse_ignore_opt(a));
+            } else {
+              if ((strcmp(a, &((g_fmt_lit_dash_L)[0])) ==0)) {
+                (void)((step = 2));
+              } else {
+                if ((strcmp(a, &((g_fmt_lit_dash_I)[0])) ==0)) {
+                  (void)((step = 2));
+                } else {
+                  if ((strcmp(a, &((g_fmt_lit_dash_o)[0])) ==0)) {
+                    (void)((step = 2));
+                  } else {
+                    if ((strcmp(a, &((g_fmt_lit_backend)[0])) ==0)) {
+                      (void)((step = 2));
+                    } else {
+                      if ((strcmp(a, &((g_fmt_lit_dash_O)[0])) ==0)) {
+                        (void)((step = 2));
+                      } else {
+                        if (((a)[0] !=45)) {
+                          (void)((any_path = 1));
+                          (void)(collect_paths_from_arg(a));
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      (void)((i = (i + step)));
+    }
+  }
+  if ((any_path ==0)) {
+    (void)(check_collect_default_product_dirs());
+  }
+  if ((fmt_file_list_n() ==0)) {
+    {
+      uint8_t * kind = &((g_fmt_lit_check_error)[0]);
+      uint8_t * code = &((g_fmt_lit_chk002)[0]);
+      if ((any_path !=0)) {
+        (void)(diag_report_with_code(((uint8_t *)(0)), 0, 0, kind, code, &((g_fmt_lit_no_x_paths)[0]), ((uint8_t *)(0))));
+      } else {
+        (void)(diag_report_with_code(((uint8_t *)(0)), 0, 0, kind, code, &((g_fmt_lit_no_x_cwd)[0]), ((uint8_t *)(0))));
+      }
+    }
+    return 1;
+  }
+  {
+    int32_t n = fmt_file_list_n();
+    int32_t j = 0;
+    while ((j < n)) {
+      uint8_t * path = fmt_file_list_at(j);
+      if ((path !=((uint8_t *)(0)))) {
+        if ((check_one_file(path, argc, argv) !=0)) {
+          (void)((failed = 1));
+          if ((fail_fast !=0)) {
+            break;
+          }
+        }
+      }
+      (void)((j = (j + 1)));
+    }
+  }
+  (void)(file_list_clear());
+  if ((failed !=0)) {
+    return 1;
+  }
   return 0;
 }

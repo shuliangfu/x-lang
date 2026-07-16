@@ -36,15 +36,19 @@
 //     at/store byte-copy + clear n=0）；FROM_X 无 pure-dup store_impl / clear_impl；
 //     Cap residual：walk / path_stat / one_file_body / run_fmt / run_check 仍 rest
 //     （ALWAYS residual 7→5）。
+//   + wave Cap residual pure：driver_run_compiler_check full orch（mode/clear/init/
+//     argv scan + collect + one_file public + empty-list diags；quiet success）；
+//     FROM_X 无 pure-dup run_check_impl；Cap residual：walk / path_stat /
+//     one_file_body / run_fmt 仍 rest（ALWAYS residual 5→4）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_FMT_CHECK_THIN_FROM_X）ld -r
 //   → fmt_check_cmd_driver.o
 // Prove IDENTICAL：seeds/fmt_check_cmd_thin_surface.from_x.c
-// Cap residual：walk opendir/stat / check_one_file_body / run_fmt / run_check
+// Cap residual：walk opendir/stat / check_one_file_body / run_fmt
 //   等 *_impl 仍在 full seed rest；FROM_X 下 pure-duplicate _impl 已剔除（含
 //   set_current_file / print / cwd_fallback / try_walk / path_resolve_abs /
 //   append_repo / missing_diag / collect_mode / user_passed_L / init / file_list_n /
 //   user_ignore_count / lib_bufs_n / user_ignore_at / parse_ignore_opt /
-//   try_append_lib_root / argv_append / file_list store+clear；H↓）。
+//   try_append_lib_root / argv_append / file_list store+clear / run_check；H↓）。
 //
 // -E 约束：无 while 重赋值；无零参-only 不稳写法；6 参用扁平 if。
 //
@@ -52,6 +56,8 @@
 export extern "C" function strstr(hay: *u8, needle: *u8): *u8;
 export extern "C" function getenv(name: *u8): *u8;
 export extern "C" function getcwd(buf: *u8, size: i32): *u8;
+export extern "C" function strcmp(a: *u8, b: *u8): i32;
+export extern "C" function strncmp(a: *u8, b: *u8, n: i32): i32;
 export extern "C" function lsp_diag_print_stderr_human(path: *u8): i32;
 export extern "C" function driver_run_compiler_full(argc: i32, argv: *u8): i32;
 export extern "C" function driver_dep_seeded_clear_all(): void;
@@ -89,6 +95,16 @@ let g_fmt_lit_chk002: u8[7] = [67, 72, 75, 48, 48, 50, 0];
 let g_fmt_lit_fmt001: u8[7] = [70, 77, 84, 48, 48, 49, 0];
 // ASCII "-L" for check_argv injection (try_append pure).
 let g_fmt_lit_dash_L: u8[3] = [45, 76, 0];
+// run_check argv flag / empty-list message lits (strcmp/strncmp; no string syntax).
+let g_fmt_lit_cmd_check: u8[6] = [99, 104, 101, 99, 107, 0];
+let g_fmt_lit_fail_fast: u8[12] = [45, 45, 102, 97, 105, 108, 45, 102, 97, 115, 116, 0];
+let g_fmt_lit_ignore_eq: u8[10] = [45, 45, 105, 103, 110, 111, 114, 101, 61, 0];
+let g_fmt_lit_dash_I: u8[3] = [45, 73, 0];
+let g_fmt_lit_dash_o: u8[3] = [45, 111, 0];
+let g_fmt_lit_dash_O: u8[3] = [45, 79, 0];
+let g_fmt_lit_backend: u8[9] = [45, 98, 97, 99, 107, 101, 110, 100, 0];
+let g_fmt_lit_no_x_paths: u8[38] = [110, 111, 32, 46, 120, 32, 102, 105, 108, 101, 115, 32, 102, 111, 117, 110, 100, 32, 117, 110, 100, 101, 114, 32, 103, 105, 118, 101, 110, 32, 112, 97, 116, 104, 40, 115, 41, 0];
+let g_fmt_lit_no_x_cwd: u8[39] = [110, 111, 32, 46, 120, 32, 102, 105, 108, 101, 115, 32, 102, 111, 117, 110, 100, 32, 105, 110, 32, 99, 117, 114, 114, 101, 110, 116, 32, 100, 105, 114, 101, 99, 116, 111, 114, 121, 0];
 
 let g_fmt_builtin_ignore_0: u8[8] = [47, 46, 103, 105, 116, 47, 0, 0];
 let g_fmt_builtin_ignore_1: u8[12] = [47, 98, 117, 105, 108, 100, 95, 97, 115, 109, 47, 0];
@@ -1494,9 +1510,8 @@ export function check_argv_append_default_libs_for_path(path: *u8, check_argv: *
   }
 }
 
-// ---- G-02f-410：fmt/check entry → seed impl ----
+// ---- G-02f-410：fmt entry → seed impl；check entry pure under hybrid ----
 export extern "C" function driver_run_fmt_impl(argc: i32, argv: *u8): i32;
-export extern "C" function driver_run_compiler_check_impl(argc: i32, argv: *u8): i32;
 
 #[no_mangle]
 export function driver_run_fmt(argc: i32, argv: *u8): i32 {
@@ -1506,10 +1521,120 @@ export function driver_run_fmt(argc: i32, argv: *u8): i32 {
   return 0;
 }
 
+/** Run `shux check` (deno check: multi-file/dir; failures print diagnostics).
+ * Pure under PREFER hybrid:
+ *   1) collect mode CHECK + file_list_clear (pure);
+ *   2) path_start: argv[1]=="check" → 2 else 1 (main.x vs shux-c drop subcmd);
+ *   3) check_init_user_lib_flags (pure) then argv scan:
+ *      --fail-fast / --ignore= / -L|-I|-o|-backend|-O (skip value) / other -flags /
+ *      path → collect_paths_from_arg (pure orch; Cap residual walk/stat);
+ *   4) no path → check_collect_default_product_dirs (pure orch);
+ *   5) empty list → diag CHK002 with path/cwd message;
+ *   6) each path → public check_one_file (Cap residual body_impl under hybrid);
+ *   7) quiet success (no check OK line) — matches driver_check_quiet_ok_get()==1.
+ * No driver_run_compiler_check_impl under hybrid (ALWAYS residual 5→4).
+ * PLATFORM: SHARED — dual-host prove + check matrix. */
 #[no_mangle]
 export function driver_run_compiler_check(argc: i32, argv: *u8): i32 {
+  // DRIVER_COLLECT_MODE_CHECK = 2 (match seed enum).
+  driver_collect_mode_set(2);
+  file_list_clear();
+  let path_start: i32 = 1;
+  let fail_fast: i32 = 0;
+  let any_path: i32 = 0;
+  let failed: i32 = 0;
   unsafe {
-    return driver_run_compiler_check_impl(argc, argv);
+    if (argc >= 2) {
+      if (argv != 0 as *u8) {
+        let a1: *u8 = shux_ptr_slot_get(argv, 1);
+        if (a1 != 0 as *u8) {
+          if (strcmp(a1, &g_fmt_lit_cmd_check[0]) == 0) {
+            path_start = 2;
+          }
+        }
+      }
+    }
   }
+  check_init_user_lib_flags(argc, argv, path_start);
+  unsafe {
+    let i: i32 = path_start;
+    while (i < argc) {
+      let step: i32 = 1;
+      if (argv != 0 as *u8) {
+        let a: *u8 = shux_ptr_slot_get(argv, i);
+        if (a != 0 as *u8) {
+          if (strcmp(a, &g_fmt_lit_fail_fast[0]) == 0) {
+            fail_fast = 1;
+          } else {
+            if (strncmp(a, &g_fmt_lit_ignore_eq[0], 9) == 0) {
+              parse_ignore_opt(a);
+            } else {
+              if (strcmp(a, &g_fmt_lit_dash_L[0]) == 0) {
+                step = 2;
+              } else {
+                if (strcmp(a, &g_fmt_lit_dash_I[0]) == 0) {
+                  step = 2;
+                } else {
+                  if (strcmp(a, &g_fmt_lit_dash_o[0]) == 0) {
+                    step = 2;
+                  } else {
+                    if (strcmp(a, &g_fmt_lit_backend[0]) == 0) {
+                      step = 2;
+                    } else {
+                      if (strcmp(a, &g_fmt_lit_dash_O[0]) == 0) {
+                        step = 2;
+                      } else {
+                        if (a[0] != 45) {
+                          any_path = 1;
+                          collect_paths_from_arg(a);
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      i = i + step;
+    }
+  }
+  if (any_path == 0) {
+    check_collect_default_product_dirs();
+  }
+  if (fmt_file_list_n() == 0) {
+    unsafe {
+      let kind: *u8 = &g_fmt_lit_check_error[0];
+      let code: *u8 = &g_fmt_lit_chk002[0];
+      if (any_path != 0) {
+        diag_report_with_code(0 as *u8, 0, 0, kind, code, &g_fmt_lit_no_x_paths[0], 0 as *u8);
+      } else {
+        diag_report_with_code(0 as *u8, 0, 0, kind, code, &g_fmt_lit_no_x_cwd[0], 0 as *u8);
+      }
+    }
+    return 1;
+  }
+  unsafe {
+    let n: i32 = fmt_file_list_n();
+    let j: i32 = 0;
+    while (j < n) {
+      let path: *u8 = fmt_file_list_at(j);
+      if (path != 0 as *u8) {
+        if (check_one_file(path, argc, argv) != 0) {
+          failed = 1;
+          if (fail_fast != 0) {
+            break;
+          }
+        }
+      }
+      j = j + 1;
+    }
+  }
+  file_list_clear();
+  if (failed != 0) {
+    return 1;
+  }
+  // Quiet success: seed always sets s_check_quiet_ok=1; no check OK line.
   return 0;
 }
