@@ -29,6 +29,9 @@
 // 大 struct 按值拷贝在自举 typeck 上字段类型为 ?（check_block failed）。统一走 pipeline_* 标量读
 //（与 typeck.x 同源），kind 用 ordinal 字面量（与 ast.x 序一致）。
 
+// Cap-T001 / LANG-007 S0: all export paths that call C/pipeline externs use
+// whole-body unsafe as the FFI gate (PLATFORM: SHARED). Product still may pin C; this is M1 typeck.
+
 /** 与 pipeline.x 经 -E 导出名 pipeline_lsp_diag_parse_typeck_buf 一致；仅用 extern
 * 引用，避免 import pipeline。 */
 export extern function pipeline_lsp_diag_parse_typeck_buf(module: *Module, arena: *ASTArena, source_data:
@@ -85,14 +88,23 @@ export extern function lsp_diag_format_diagnostics_json(out: *u8, out_cap: i32):
 export extern function lsp_build_response_with_result(id_val: i32, result_ptr: *u8, result_len: i32,
 out_buf: *u8, out_cap: i32): i32;
 
-/** 单独成函数，避免 -E 产物错误丢弃 pipeline_lsp_diag_parse_typeck_buf 调用。 */
+/**
+ * Run parse+typeck on a mutable source buffer for LSP diagnostics.
+ * Resets pooled arena/module/ctx, fills lib roots, then calls pipeline glue.
+ * Split out so -E does not drop the pipeline_lsp_diag_parse_typeck_buf call.
+ * PLATFORM: SHARED — LANG-007 S0 whole-body unsafe FFI gate (Cap-T001).
+ */
 export function lsp_diag_run_pipeline_on_buf(mut_buf: *u8, sl: i32): i32 {
-  lsp_diag_x_reset_parse_buffers();
-  let arena: *ASTArena = lsp_diag_x_arena_ptr();
-  let module: *Module = lsp_diag_x_module_ptr();
-  let ctx: *PipelineDepCtx = lsp_diag_x_ctx_ptr();
-  lsp_diag_prepare_pipeline_ctx(ctx);
-  return pipeline_lsp_diag_parse_typeck_buf(module, arena, mut_buf, sl, ctx);
+  // PLATFORM: SHARED — Cap-T001: all callees below are C/pipeline externs.
+  unsafe {
+    lsp_diag_x_reset_parse_buffers();
+    let arena: *ASTArena = lsp_diag_x_arena_ptr();
+    let module: *Module = lsp_diag_x_module_ptr();
+    let ctx: *PipelineDepCtx = lsp_diag_x_ctx_ptr();
+    lsp_diag_prepare_pipeline_ctx(ctx);
+    return pipeline_lsp_diag_parse_typeck_buf(module, arena, mut_buf, sl, ctx);
+  }
+  return 0;
 }
 
 /**
@@ -101,6 +113,9 @@ export function lsp_diag_run_pipeline_on_buf(mut_buf: *u8, sl: i32): i32 {
 */
 export function lsp_build_diagnostics_response(id_val: i32, source: *u8, source_len: i32, out_buf: *u8,
 out_cap: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: whole-body unsafe FFI gate (Cap-T001).
+  // C glue / pipeline_* / heap externs only; no second evaluation path.
+  unsafe {
   if (source == 0 as *u8 || out_buf == 0 as *u8 || out_cap <= 0) {
     return -1;
   }
@@ -143,6 +158,8 @@ out_cap: i32): i32 {
   out_cap);
   std_heap_free(diag_buf);
   return resp_len;
+  }
+  return 0;
 }
 
 /* ============ hover（arena 全量扫描，无递归） ============ */
@@ -152,6 +169,9 @@ out_cap: i32): i32 {
 * 返回 type_ref（在调用方 arena 中有效）；未找到返回 0。
 */
 export function lsp_find_type_ref_at_pos(arena: *ASTArena, line_1: i32, col_1: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: whole-body unsafe FFI gate (Cap-T001).
+  // C glue / pipeline_* / heap externs only; no second evaluation path.
+  unsafe {
   if (arena == 0 as *ASTArena) {
     return 0;
   }
@@ -168,6 +188,8 @@ export function lsp_find_type_ref_at_pos(arena: *ASTArena, line_1: i32, col_1: i
     ei = ei + 1;
   }
   return 0;
+  }
+  return 0;
 }
 
 /**
@@ -178,6 +200,9 @@ export function lsp_find_type_ref_at_pos(arena: *ASTArena, line_1: i32, col_1: i
 */
 export function lsp_diag_hover_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_buf: *u8,
 out_cap: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: whole-body unsafe FFI gate (Cap-T001).
+  // C glue / pipeline_* / heap externs only; no second evaluation path.
+  unsafe {
   if (source == 0 as *u8 || out_buf == 0 as *u8 || out_cap <= 0 || source_len < 0) {
     return 0;
   }
@@ -255,6 +280,8 @@ out_cap: i32): i32 {
   /* fallback */
   if (out_cap >= 2) { out_buf[0] = 63; return 1; }
   return 0;
+  }
+  return 0;
 }
 
 /* ============ references（arena 全量扫描） ============ */
@@ -266,6 +293,9 @@ out_cap: i32): i32 {
 */
 export function lsp_collect_call_refs(arena: *ASTArena, func_index: i32, out_lines: *i32, out_cols: *i32,
 max_refs: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: whole-body unsafe FFI gate (Cap-T001).
+  // C glue / pipeline_* / heap externs only; no second evaluation path.
+  unsafe {
   if (arena == 0 as *ASTArena || out_lines == 0 as *i32 || out_cols == 0 as *i32 || max_refs <= 0) {
     return 0;
   }
@@ -284,6 +314,8 @@ max_refs: i32): i32 {
     ei = ei + 1;
   }
   return count;
+  }
+  return 0;
 }
 
 /**
@@ -293,6 +325,9 @@ max_refs: i32): i32 {
 */
 export function lsp_diag_references_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_lines:
 *i32, out_cols: *i32, max_refs: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: whole-body unsafe FFI gate (Cap-T001).
+  // C glue / pipeline_* / heap externs only; no second evaluation path.
+  unsafe {
   if (source == 0 as *u8 || out_lines == 0 as *i32 || out_cols == 0 as *i32 || max_refs <= 0 ||
   source_len < 0) {
     return 0;
@@ -344,6 +379,8 @@ export function lsp_diag_references_at(source: *u8, source_len: i32, line_0: i32
     oi = oi + 1;
   }
   return out_n;
+  }
+  return 0;
 }
 
 /* ============ definition（parse_into_buf + 源码扫描 function 名） ============ */
@@ -440,6 +477,9 @@ export function lsp_source_find_function_def(source: *u8, sl: i32, name: *u8, na
 */
 export function lsp_func_def_pos_in_source(source: *u8, sl: i32, module: *Module, func_index: i32,
 out_line: *i32, out_col: *i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: whole-body unsafe FFI gate (Cap-T001).
+  // C glue / pipeline_* / heap externs only; no second evaluation path.
+  unsafe {
   if (module == 0 as *Module || func_index < 0 || func_index >= module.num_funcs) {
     return 0;
   }
@@ -450,6 +490,8 @@ out_line: *i32, out_col: *i32): i32 {
   let nm: u8[64] = [];
   pipeline_module_func_name_copy64(module, func_index, &nm[0]);
   return lsp_source_find_function_def(source, sl, &nm[0], nl, out_line, out_col);
+  }
+  return 0;
 }
 
 /**
@@ -458,6 +500,9 @@ out_line: *i32, out_col: *i32): i32 {
 */
 export function lsp_diag_definition_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_line:
 *i32, out_col: *i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: whole-body unsafe FFI gate (Cap-T001).
+  // C glue / pipeline_* / heap externs only; no second evaluation path.
+  unsafe {
   if (source == 0 as *u8 || out_line == 0 as *i32 || out_col == 0 as *i32 || source_len < 0) {
     return 0;
   }
@@ -518,6 +563,8 @@ export function lsp_diag_definition_at(source: *u8, source_len: i32, line_0: i32
   }
   std_heap_free(mut_buf);
   return 0;
+  }
+  return 0;
 }
 
 /* ============ semanticTokens（arena 全量扫描，产出 LSP delta 五元组） ============ */
@@ -528,6 +575,9 @@ export function lsp_diag_definition_at(source: *u8, source_len: i32, line_0: i32
 * 写入 out_data（i32 数组），返回写入的 i32 个数（= 5 * token_count）。
 */
 export function lsp_collect_semantic_tokens(arena: *ASTArena, out_data: *i32, out_cap: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: whole-body unsafe FFI gate (Cap-T001).
+  // C glue / pipeline_* / heap externs only; no second evaluation path.
+  unsafe {
   if (arena == 0 as *ASTArena || out_data == 0 as *i32 || out_cap < 5) {
     return 0;
   }
@@ -612,6 +662,8 @@ export function lsp_collect_semantic_tokens(arena: *ASTArena, out_data: *i32, ou
     ei = ei + 1;
   }
   return count;
+  }
+  return 0;
 }
 
 /**
@@ -622,6 +674,9 @@ export function lsp_collect_semantic_tokens(arena: *ASTArena, out_data: *i32, ou
 */
 export function lsp_build_semantic_tokens_response(id_val: i32, doc_buf: *u8, doc_len: i32, out_buf: *u8,
 out_cap: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: whole-body unsafe FFI gate (Cap-T001).
+  // C glue / pipeline_* / heap externs only; no second evaluation path.
+  unsafe {
   if (doc_buf == 0 as *u8 || out_buf == 0 as *u8 || out_cap <= 0 || doc_len < 0) {
     return -1;
   }
@@ -717,7 +772,10 @@ out_cap: i32): i32 {
       - 1; }
     ti = ti + 1;
   }
-  /* 关闭 data]}} */
+  /* 关闭 data]  }
+  return 0;
+}
+} */
 if (pj < json_cap) { json_ptr[pj] = 93; pj = pj + 1; }
 if (pj < json_cap) { json_ptr[pj] = 125; pj = pj + 1; }
 if (pj < json_cap) { json_ptr[pj] = 125; pj = pj + 1; }
