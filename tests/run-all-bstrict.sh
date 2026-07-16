@@ -303,6 +303,10 @@ for script in "${BSTRICT_SCRIPTS[@]}"; do
       # struct/field-index 等 asm -o 用 shux-c 易 SIGSEGV；与 run-struct 一致走 stage2 asm。
       script_link="$script_shu"
       ;;
+    run-typeck.sh|run-check.sh|run-lexer.sh)
+      # typeck/check/lexer 验收产品 SHUX（bstrict 已 cp shux_asm→shux）。
+      # 勿因脚本内出现 `-o` 字样就改绑 pin shux-c（冷启动后 shux-c 常为空诊断/seed 拷贝）。
+      ;;
     *)
       # 仍直接用 $SHUX -o 且未 source bootstrap-link-shux 的脚本：refresh 后 seed shux asm 不可用。
       if [ -x ./compiler/shux-c ] && grep -qE '[[:space:]]-o[[:space:]]' "tests/$script" \
