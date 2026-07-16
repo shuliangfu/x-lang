@@ -86,11 +86,25 @@ for entry in "${MODULES[@]}"; do
   # seed 可选：*_gen.c 常 gitignore；无 seed 仍跑 typeck（地图 KPI T），diff 记 NOSEED
   has_seed=1
   if [ ! -f "$seed_path" ]; then
-    # 冷仓库：lexer 等可用 seeds/*.linux.x86_64.c
+    # 冷仓库：*_gen.c 常 gitignore；回落 seeds/*.linux.x86_64.c（与 Makefile pin 同源）
     alt=""
     case "$seed" in
       lexer_gen.c) alt="seeds/lexer_gen.linux.x86_64.c" ;;
       token_gen.c) alt="seeds/token_gen.linux.x86_64.c" ;;
+      preprocess_gen.c) alt="seeds/preprocess_gen.linux.x86_64.c" ;;
+      parser_gen.c) alt="seeds/parser_gen.linux.x86_64.c" ;;
+      typeck_gen.c) alt="seeds/typeck_gen.linux.x86_64.c" ;;
+      codegen_gen.c) alt="seeds/codegen_gen.linux.x86_64.c" ;;
+      lsp_gen.c) alt="seeds/lsp_gen.linux.x86_64.c" ;;
+      lsp_diag_gen.c) alt="seeds/lsp_diag_gen.linux.x86_64.c" ;;
+      lsp_io_gen.c) alt="seeds/lsp_io_gen.linux.x86_64.c" ;;
+      driver_fmt_gen.c) alt="seeds/driver_fmt_gen.linux.x86_64.c" ;;
+      driver_check_gen.c) alt="seeds/driver_check_gen.linux.x86_64.c" ;;
+      driver_test_gen.c) alt="seeds/driver_test_gen.linux.x86_64.c" ;;
+      driver_compile_gen.c) alt="seeds/driver_compile_gen.linux.x86_64.c" ;;
+      driver_build_gen.c) alt="seeds/driver_build_gen.linux.x86_64.c" ;;
+      driver_run_gen.c) alt="seeds/driver_run_gen.linux.x86_64.c" ;;
+      driver_emit_gen.c) alt="seeds/driver_emit_gen.linux.x86_64.c" ;;
     esac
     if [ -n "$alt" ] && [ -f "$COMPILER_DIR/$alt" ]; then
       seed_path="$COMPILER_DIR/$alt"
@@ -144,9 +158,35 @@ for entry in "${MODULES[@]}"; do
 
   # typeck 通过，做 diff
   # 归一化：去掉首行的调试输出（如 DBG-CALL）和尾随空白
+  # driver 叶：产品链 rename bare 名 → driver_cmd_* / build_cmd_*（与 driver_leaf_x_to_o 一致）；
+  # EMPTY 比较对 -E 输出做同 rename，seed 冷启动仍带产品链接符号名。
   norm_out="$TMP_DIR/$(basename "$x_src" .x)_norm.out"
   norm_seed="$TMP_DIR/$(basename "$x_src" .x)_norm.seed"
   grep -v '^DBG-' "$out_file" | sed 's/[[:space:]]*$//' >"$norm_out"
+  seed_base="$(basename "$seed_path")"
+  # 若 seed_path 是 seeds/*.linux…，basename 含 .linux 后缀；统一用 MODULES 里 seed 字段
+  seed_key="$(basename "$seed")"
+  rename_map=""
+  case "$seed_key" in
+    driver_fmt_gen.c) rename_map="cmd_fmt:driver_cmd_fmt" ;;
+    driver_check_gen.c) rename_map="cmd_check:driver_cmd_check" ;;
+    driver_test_gen.c) rename_map="cmd_test:driver_cmd_test" ;;
+    driver_build_gen.c) rename_map="cmd_build:build_cmd_build" ;;
+    driver_run_gen.c) rename_map="run_eq_word:driver_run_eq_word,cmd_run:driver_cmd_run" ;;
+  esac
+  if [ -n "$rename_map" ]; then
+    old_ifs="$IFS"
+    IFS=','
+    # shellcheck disable=SC2086
+    for pair in $rename_map; do
+      old="${pair%%:*}"
+      new="${pair#*:}"
+      if [ -n "$old" ] && [ -n "$new" ] && [ "$old" != "$new" ]; then
+        perl -i -pe "s/\\b${old}\\b/${new}/g" "$norm_out"
+      fi
+    done
+    IFS="$old_ifs"
+  fi
   sed 's/[[:space:]]*$//' "$seed_path" >"$norm_seed"
 
   diff_lines=$(diff "$norm_seed" "$norm_out" | wc -l | tr -d ' ')
