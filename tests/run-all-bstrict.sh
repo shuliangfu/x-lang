@@ -16,11 +16,16 @@ if [ ! -f compiler/shux_asm ] || [ ! -x compiler/shux_asm ]; then
 fi
 
 # run-bootstrap-bstrict-ci.sh 已构建 shux_asm 时跳过重复全量编译。
+# PLATFORM: SHARED — product gate must use this-SHA g05 shux_asm.
+# Preferring leftover Stage2 freestanding shux_asm2 (static ~5MB) over product
+# shux_asm is a July-14-class wrong-binary path (SEGV on std -E / false red).
+# Opt-in only: SHUX_BSTRICT_USE_ASM2=1 when intentionally validating gen2.
 if [ -n "${SHUX_BSTRICT_SKIP_BUILD:-}" ]; then
-  echo "run-all-bstrict: SHUX_BSTRICT_SKIP_BUILD=1, cp shux_asm(2) -> shux ..."
-  if [ -x compiler/shux_asm2 ]; then
+  if [ -n "${SHUX_BSTRICT_USE_ASM2:-}" ] && [ -x compiler/shux_asm2 ]; then
+    echo "run-all-bstrict: SHUX_BSTRICT_SKIP_BUILD=1 + USE_ASM2, cp shux_asm2 -> shux ..."
     cp -f compiler/shux_asm2 compiler/shux
   else
+    echo "run-all-bstrict: SHUX_BSTRICT_SKIP_BUILD=1, cp shux_asm -> shux (product; not Stage2 asm2) ..."
     cp -f compiler/shux_asm compiler/shux
   fi
 else
@@ -307,17 +312,16 @@ for script in "${BSTRICT_SCRIPTS[@]}"; do
       esac
       ;;
     run-asm-*.sh)
-      # 优先本波 gen2 / shux_asm；experimental 仅作无当前产物时的回退。
-      # 【Why】旧 shux_asm.experimental（可数周未更新）曾盖住本波 shux_asm →
-      # Darwin arm64 上 CG002 empty text，单独 SHUX=./compiler/shux_asm 却绿 → 假红。
-      if [ -x ./compiler/shux_asm2 ]; then
+      # 默认本波产品 shux_asm；gen2 仅 SHUX_BSTRICT_USE_ASM2=1。
+      # 【Why】Stage2 freestanding 残留 shux_asm2 曾冒充产品 → std -E SEGV / 假红（14 号类）。
+      # 旧 shux_asm.experimental 也曾盖住本波 shux_asm → Darwin CG002 假红。
+      if [ -n "${SHUX_BSTRICT_USE_ASM2:-}" ] && [ -x ./compiler/shux_asm2 ]; then
         script_shu=./compiler/shux_asm2
       elif [ -x ./compiler/shux_asm ]; then
         script_shu=./compiler/shux_asm
       elif [ -x ./compiler/shux_asm.experimental ]; then
         script_shu=./compiler/shux_asm.experimental
       fi
-      # struct/field-index 等 asm -o 用 shux-c 易 SIGSEGV；与 run-struct 一致走 stage2 asm。
       script_link="$script_shu"
       ;;
     run-typeck.sh|run-check.sh|run-lexer.sh|run-stdlib-import.sh|run-import.sh|run-hello.sh|run-option.sh|run-defer.sh|run-crypto.sh)
@@ -349,8 +353,9 @@ for script in "${BSTRICT_SCRIPTS[@]}"; do
     _max_attempts=1
   fi
   while [ "$attempt" -le "$_max_attempts" ]; do
-    # 前序脚本内 make -C compiler 会把 shux 刷回 seed；-o 须保持 shux_asm2（gen2）快照。
-    if [ -x compiler/shux_asm2 ]; then
+    # 前序脚本内 make -C compiler 会把 shux 刷回 seed；-o 须保持本波产品快照。
+    # 默认 shux_asm；仅 SHUX_BSTRICT_USE_ASM2=1 时用 gen2（禁 Stage2 freestanding 残留冒充）。
+    if [ -n "${SHUX_BSTRICT_USE_ASM2:-}" ] && [ -x compiler/shux_asm2 ]; then
       cp -f compiler/shux_asm2 compiler/shux 2>/dev/null || true
     else
       cp -f compiler/shux_asm compiler/shux 2>/dev/null || true
