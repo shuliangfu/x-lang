@@ -2815,6 +2815,23 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   done
 fi
 
+# --- Darwin bridge (PLATFORM: MACOS) ---
+# g05_relink_env USER_ASM_LINK lists build_asm/asm_experimental_symbol_bridge.o for
+# Darwin (weak platform_macho_write_macho_o_to_buf). bootstrap-driver-seed does not
+# always emit it; after true L4 wipe g05 would MISSING and stop. Build from seed when
+# listed in G05_OBJS — same source as build_shux_asm ensure_asm_experimental_symbol_bridge_obj.
+case " $G05_OBJS " in
+  *" build_asm/asm_experimental_symbol_bridge.o "*)
+    if [ ! -f build_asm/asm_experimental_symbol_bridge.o ] \
+      && [ -f seeds/asm_experimental_symbol_bridge.from_x.c ]; then
+      mkdir -p build_asm
+      echo "g05_ensure: asm_experimental_symbol_bridge.o ← seed (Darwin cold L4)"
+      bash scripts/cc_inc_tu.sh seeds/asm_experimental_symbol_bridge.from_x.c \
+        build_asm/asm_experimental_symbol_bridge.o
+    fi
+    ;;
+esac
+
 # --- 齐备检查 ---
 mkdir -p build_asm/seed_host
 miss=0
