@@ -662,9 +662,11 @@ export function fmt_check_lib_buf_store(i: i32, path: *u8): i32 {
 // PLATFORM: POSIX — no struct stat layout (mac st_mode@4 vs Linux@24).
 // Directory: opendir success → 1; else access(F_OK)==0 → 0; else -1.
 // Matches seed S_ISDIR / exists semantics for product fmt/check path trees.
-export extern "C" function opendir(name: *u8): *u8;
-export extern "C" function closedir(dirp: *u8): i32;
-export extern "C" function access(path: *u8, mode: i32): i32;
+// G.7: *u8 FFI wrappers (static inline in g05/prove prologue + surface pin) avoid
+// DIR* vs uint8_t* redecl errors under Ubuntu -Wall (do not call libc opendir bare).
+export extern "C" function shux_fmt_opendir(name: *u8): *u8;
+export extern "C" function shux_fmt_closedir(dirp: *u8): i32;
+export extern "C" function shux_fmt_access(path: *u8, mode: i32): i32;
 
 // pure：SHUX_LINT_CI_FAIL_ON=warn|warning
 #[no_mangle]
@@ -730,13 +732,13 @@ export function fmt_path_stat_kind(path: *u8): i32 {
     return 0 - 1;
   }
   unsafe {
-    let d: *u8 = opendir(path);
+    let d: *u8 = shux_fmt_opendir(path);
     if (d != 0 as *u8) {
-      closedir(d);
+      shux_fmt_closedir(d);
       return 1;
     }
     // F_OK = 0: existence only (no read bit required).
-    if (access(path, 0) == 0) {
+    if (shux_fmt_access(path, 0) == 0) {
       return 0;
     }
   }

@@ -1,5 +1,5 @@
-/* regen from fmt_check_cmd_thin.x -E (path_stat pure) */
-/* prove prologue (g05_try_x_to_o aligned + uio/poll + dirent) */
+/* regen from fmt_check_cmd_thin.x -E (path_stat pure + shux_fmt_* wrappers) */
+/* prove prologue (g05_try_x_to_o aligned + uio/poll + dirent wrappers) */
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/types.h>
@@ -13,6 +13,15 @@
 #include <sys/uio.h>
 #include <poll.h>
 #include <dirent.h>
+static inline uint8_t *shux_fmt_opendir(uint8_t *name) {
+  return (uint8_t *)opendir((const char *)name);
+}
+static inline int32_t shux_fmt_closedir(uint8_t *dirp) {
+  return dirp ? (int32_t)closedir((DIR *)(void *)dirp) : (int32_t)-1;
+}
+static inline int32_t shux_fmt_access(uint8_t *path, int32_t mode) {
+  return path ? (int32_t)access((const char *)path, (int)mode) : (int32_t)-1;
+}
 #endif
 #if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 201112L
 #error "Generated code needs C11. Compile with -std=gnu11 or -std=c11."
@@ -899,12 +908,12 @@ int32_t fmt_path_stat_kind(uint8_t * path) {
     return (0 - 1);
   }
   {
-    uint8_t * d = opendir(path);
+    uint8_t * d = shux_fmt_opendir(path);
     if ((d !=((uint8_t *)(0)))) {
-      (void)(closedir(d));
+      (void)(shux_fmt_closedir(d));
       return 1;
     }
-    if ((access(path, 0) ==0)) {
+    if ((shux_fmt_access(path, 0) ==0)) {
       return 0;
     }
   }

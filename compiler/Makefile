@@ -783,19 +783,22 @@ src/driver/fmt_check_cmd.o: seeds/fmt_check_cmd.from_x.c src/driver/fmt_check_cm
 	@if [ -x ./shux-c ] && { \
 		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/fcc.XXXXXX") && \
 		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/driver/fmt_check_cmd_thin.x > "$$_tmp.raw" 2>/dev/null && \
-		{ echo '/* makefile fmt_check thin prologue (g05-aligned + dirent) */'; \
+		{ echo '/* makefile fmt_check thin prologue (g05-aligned + dirent wrappers) */'; \
 		  echo '#include <stddef.h>'; echo '#include <stdint.h>'; echo '#include <sys/types.h>'; \
 		  echo '#include <stdlib.h>'; echo '#include <string.h>'; echo '#include <stdio.h>'; \
 		  echo '#ifndef _WIN32'; echo '#include <unistd.h>'; echo '#include <fcntl.h>'; echo '#include <errno.h>'; \
-		  echo '#include <sys/uio.h>'; echo '#include <poll.h>'; echo '#include <dirent.h>'; echo '#endif'; \
+		  echo '#include <sys/uio.h>'; echo '#include <poll.h>'; echo '#include <dirent.h>'; \
+		  echo 'static inline uint8_t *shux_fmt_opendir(uint8_t *name) { return (uint8_t *)opendir((const char *)name); }'; \
+		  echo 'static inline int32_t shux_fmt_closedir(uint8_t *dirp) { return dirp ? (int32_t)closedir((DIR *)(void *)dirp) : (int32_t)-1; }'; \
+		  echo 'static inline int32_t shux_fmt_access(uint8_t *path, int32_t mode) { return path ? (int32_t)access((const char *)path, (int)mode) : (int32_t)-1; }'; \
+		  echo '#endif'; \
 		  sed -e '/^#include /d' -e '/^extern char \* getcwd(/d' -e '/^extern uint8_t \* getcwd(/d' \
 		      -e '/^extern char \* getenv(/d' -e '/^extern uint8_t \* getenv(/d' \
 		      -e '/^extern int32_t strcmp(/d' -e '/^extern int strcmp(/d' \
 		      -e '/^extern int32_t strncmp(/d' -e '/^extern int strncmp(/d' \
 		      -e '/^extern uint8_t \* strstr(/d' -e '/^extern char \* strstr(/d' \
-		      -e '/^extern uint8_t \* opendir(/d' -e '/^extern void \* opendir(/d' \
-		      -e '/^extern int32_t closedir(/d' -e '/^extern int closedir(/d' \
-		      -e '/^extern int32_t access(/d' -e '/^extern int access(/d' "$$_tmp.raw"; \
+		      -e '/^extern uint8_t \* shux_fmt_opendir(/d' -e '/^extern int32_t shux_fmt_closedir(/d' \
+		      -e '/^extern int32_t shux_fmt_access(/d' "$$_tmp.raw"; \
 		} > "$$_tmp" && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/driver/fmt_check_cmd_thin.o && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_L2_FMT_CHECK_THIN_FROM_X -c seeds/fmt_check_cmd.from_x.c -o src/driver/fmt_check_cmd_rest.o && \
@@ -814,19 +817,22 @@ src/driver/fmt_check_cmd_driver.o: seeds/fmt_check_cmd.from_x.c src/driver/fmt_c
 	@if [ -x ./shux-c ] && { \
 		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/fccd.XXXXXX") && \
 		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/driver/fmt_check_cmd_thin.x > "$$_tmp.raw" 2>/dev/null && \
-		{ echo '/* makefile fmt_check thin prologue (g05-aligned + dirent) */'; \
+		{ echo '/* makefile fmt_check thin prologue (g05-aligned + dirent wrappers) */'; \
 		  echo '#include <stddef.h>'; echo '#include <stdint.h>'; echo '#include <sys/types.h>'; \
 		  echo '#include <stdlib.h>'; echo '#include <string.h>'; echo '#include <stdio.h>'; \
 		  echo '#ifndef _WIN32'; echo '#include <unistd.h>'; echo '#include <fcntl.h>'; echo '#include <errno.h>'; \
-		  echo '#include <sys/uio.h>'; echo '#include <poll.h>'; echo '#include <dirent.h>'; echo '#endif'; \
+		  echo '#include <sys/uio.h>'; echo '#include <poll.h>'; echo '#include <dirent.h>'; \
+		  echo 'static inline uint8_t *shux_fmt_opendir(uint8_t *name) { return (uint8_t *)opendir((const char *)name); }'; \
+		  echo 'static inline int32_t shux_fmt_closedir(uint8_t *dirp) { return dirp ? (int32_t)closedir((DIR *)(void *)dirp) : (int32_t)-1; }'; \
+		  echo 'static inline int32_t shux_fmt_access(uint8_t *path, int32_t mode) { return path ? (int32_t)access((const char *)path, (int)mode) : (int32_t)-1; }'; \
+		  echo '#endif'; \
 		  sed -e '/^#include /d' -e '/^extern char \* getcwd(/d' -e '/^extern uint8_t \* getcwd(/d' \
 		      -e '/^extern char \* getenv(/d' -e '/^extern uint8_t \* getenv(/d' \
 		      -e '/^extern int32_t strcmp(/d' -e '/^extern int strcmp(/d' \
 		      -e '/^extern int32_t strncmp(/d' -e '/^extern int strncmp(/d' \
 		      -e '/^extern uint8_t \* strstr(/d' -e '/^extern char \* strstr(/d' \
-		      -e '/^extern uint8_t \* opendir(/d' -e '/^extern void \* opendir(/d' \
-		      -e '/^extern int32_t closedir(/d' -e '/^extern int closedir(/d' \
-		      -e '/^extern int32_t access(/d' -e '/^extern int access(/d' "$$_tmp.raw"; \
+		      -e '/^extern uint8_t \* shux_fmt_opendir(/d' -e '/^extern int32_t shux_fmt_closedir(/d' \
+		      -e '/^extern int32_t shux_fmt_access(/d' "$$_tmp.raw"; \
 		} > "$$_tmp" && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/driver/fmt_check_cmd_driver_thin.o && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_L2_FMT_CHECK_THIN_FROM_X -DSHUX_USE_X_PIPELINE -c seeds/fmt_check_cmd.from_x.c -o src/driver/fmt_check_cmd_driver_rest.o && \
