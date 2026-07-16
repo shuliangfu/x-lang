@@ -3758,9 +3758,20 @@ int32_t typeck_check_block_one_let(struct ast_Module * module, struct ast_ASTAre
       return -1;
   }
   pipeline_type_stamp_block_let_region_c(arena, block_ref, idx, ctx);
+  /* stamp 可能换新 type_ref；须重读 let 声明类型（对齐 typeck.x） */
+  ld_tr = ast_block_let_type_ref(arena, block_ref, idx);
   if (!ast_ref_is_null(ld_ir) && !ast_ref_is_null(ld_tr)) {
     typeck_coerce_init_expr_to_decl(module, arena, ld_ir, ld_tr);
     init_ty = typeck_expr_type_ref(arena, ld_ir);
+    /* 与赋值路径 typeck_integer_widen_ok 对齐：let b0: u32 = b[0]（u8）须隐式拓宽。 */
+    if (!ast_ref_is_null(init_ty) && !typeck_type_refs_equal(arena, ld_tr, init_ty)) {
+      int32_t decl_k = pipeline_type_kind_ord_at(arena, ld_tr);
+      int32_t init_k = pipeline_type_kind_ord_at(arena, init_ty);
+      if (typeck_integer_widen_ok(decl_k, init_k)) {
+        pipeline_expr_set_resolved_type_ref(arena, ld_ir, ld_tr);
+        init_ty = ld_tr;
+      }
+    }
     if (!ast_ref_is_null(init_ty) && !typeck_type_refs_equal(arena, ld_tr, init_ty)
         && pipeline_typeck_linear_accepts_init_c(arena, ld_tr, init_ty) == 0) {
       eb = driver_typeck_diag_scratch_expect();
