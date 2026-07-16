@@ -214,18 +214,42 @@ MODULES=(
   "rt_run_compiler_parsed|src/runtime/rt_run_compiler_parsed.x|seeds/rt_run_compiler_parsed_surface.from_x.c||"
 )
 
-# 找 shux 二进制（优先 shux，fallback shux-c）
+# 找 shux 二进制：优先 $SHUX（文档/进度验收），再 shux_asm / shux / shux-c
+# 注意：本脚本已 cd 到 compiler/，故 $SHUX=./compiler/shux_asm 需映射到 $REPO_ROOT
 SHUX_BIN=""
-for bin in ./shux ./shux-c ./bootstrap_shuxc; do
-  if [ -x "$bin" ]; then
-    SHUX_BIN="$bin"
-    break
+if [ -n "${SHUX:-}" ]; then
+  _shux_cand="$SHUX"
+  case "$_shux_cand" in
+    /*) ;;
+    ./*|../*) _shux_cand="$REPO_ROOT/${_shux_cand#./}" ;;
+    *)
+      if [ -x "$_shux_cand" ]; then
+        :
+      elif [ -x "$REPO_ROOT/$_shux_cand" ]; then
+        _shux_cand="$REPO_ROOT/$_shux_cand"
+      elif [ -x "./$_shux_cand" ]; then
+        _shux_cand="./$_shux_cand"
+      fi
+      ;;
+  esac
+  if [ -x "$_shux_cand" ]; then
+    SHUX_BIN="$_shux_cand"
   fi
-done
+  unset _shux_cand
+fi
 if [ -z "$SHUX_BIN" ]; then
-  echo "prove: no shux/shux-c/bootstrap_shuxc found in compiler/" >&2
+  for bin in ./shux_asm ./shux ./shux-c ./bootstrap_shuxc; do
+    if [ -x "$bin" ]; then
+      SHUX_BIN="$bin"
+      break
+    fi
+  done
+fi
+if [ -z "$SHUX_BIN" ]; then
+  echo "prove: no shux_asm/shux/shux-c found in compiler/ (set SHUX=...)" >&2
   exit 127
 fi
+echo "prove: SHUX_BIN=$SHUX_BIN" >&2
 
 CC="${CC:-cc}"
 BASE_CFLAGS="-Wall -Wextra -I. -Iinclude -Isrc"
@@ -234,16 +258,23 @@ mkdir -p "$TMP_DIR"
 
 SHUX_LIB_PATHS="-L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/lsp -L src/driver -L src/preprocess"
 
-# 生成 .x 版 .o（模拟 g05_try_x_to_o 逻辑）
+# 最近一次 gen_x_o 失败原因（供主循环打印；勿 2>/dev/null 吞掉）
+GEN_X_O_LAST_ERR=""
+
+# 生成 .x 版 .o（模拟 g05_try_x_to_o 逻辑；prologue 须与 g05 同源）
 gen_x_o() {
   local xsrc="$1"
   local xout="$2"
   local sym_rename="$3"
 
   local tmp="$TMP_DIR/$(basename "$xsrc" .x)_x.c"
+  local e_err="$TMP_DIR/$(basename "$xsrc" .x)_E.err"
+  GEN_X_O_LAST_ERR=""
 
-  # shux -E（超时 30s 防死循环）
-  if ! perl -e 'alarm 30; exec @ARGV' "$SHUX_BIN" -E $SHUX_LIB_PATHS "$xsrc" >"$tmp" 2>/dev/null || [ ! -s "$tmp" ]; then
+  # shux -E（超时 30s 防死循环）；stderr 落盘
+  # shellcheck disable=SC2086
+  if ! perl -e 'alarm 30; exec @ARGV' "$SHUX_BIN" -E $SHUX_LIB_PATHS "$xsrc" >"$tmp" 2>"$e_err" || [ ! -s "$tmp" ]; then
+    GEN_X_O_LAST_ERR="shux -E fail: $(tr '\n' ' ' <"$e_err" | head -c 160)"
     return 1
   fi
 
@@ -264,9 +295,9 @@ gen_x_o() {
     IFS="$old_ifs"
   fi
 
-  # POSIX prologue + 删 -E 自带 #include 和 libc extern（与 g05 一致）
+  # POSIX prologue + 删 -E 自带 #include 和 libc extern（与 g05_try_x_to_o 一致）
   {
-    echo '/* prove prologue (g05_try_x_to_o aligned) */'
+    echo '/* prove prologue (g05_try_x_to_o aligned + uio/poll) */'
     echo '#include <stddef.h>'
     echo '#include <stdint.h>'
     echo '#include <sys/types.h>'
@@ -277,6 +308,10 @@ gen_x_o() {
     echo '#include <unistd.h>'
     echo '#include <fcntl.h>'
     echo '#include <errno.h>'
+    # PLATFORM: POSIX — -E preamble 内联 shux_sys_readv/writev/poll；
+    # sed 会删 -E 自带 #include，故在此补齐（权威：g05_try_x_to_o）。
+    echo '#include <sys/uio.h>'
+    echo '#include <poll.h>'
     echo '#endif'
     sed -e '/^#include /d' \
         -e '/^extern ssize_t read(/d' \
@@ -319,7 +354,11 @@ gen_x_o() {
   } >"${tmp}.full" && mv "${tmp}.full" "$tmp"
 
   # cc -c
-  $CC $BASE_CFLAGS -x c -c -o "$xout" "$tmp" 2>"${TMP_DIR}/cc_err.txt"
+  if ! $CC $BASE_CFLAGS -x c -c -o "$xout" "$tmp" 2>"${TMP_DIR}/cc_err.txt"; then
+    GEN_X_O_LAST_ERR="cc -c fail: $(tr '\n' ' ' <"${TMP_DIR}/cc_err.txt" | head -c 160)"
+    return 1
+  fi
+  return 0
 }
 
 # 生成 seed 版 .o
@@ -454,7 +493,7 @@ for entry in "${MODULES[@]}"; do
 
   # 生成 .x 版 .o
   if ! gen_x_o "$xsrc" "$x_o" "$sym_rename"; then
-    printf "%-18s | %-8s | %-8s | %-10s | %s\n" "$name" "FAIL" "-" "-" "shux -E 或 cc -c 失败"
+    printf "%-18s | %-8s | %-8s | %-10s | %s\n" "$name" "FAIL" "-" "-" "${GEN_X_O_LAST_ERR:-shux -E 或 cc -c 失败}"
     FAIL=$((FAIL + 1))
     continue
   fi

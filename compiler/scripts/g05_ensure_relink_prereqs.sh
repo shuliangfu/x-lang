@@ -117,7 +117,7 @@ g05_try_x_to_o() {
   fi
   # G-02f-332/334：-E 缺 ssize_t / open 原型；前置 POSIX 头，并删掉 -E 里冲突的 libc extern
   {
-    echo '/* g05_try_x_to_o prologue (G-02f-332/334) */'
+    echo '/* g05_try_x_to_o prologue (G-02f-332/334 + uio/poll) */'
     echo '#include <stddef.h>'
     echo '#include <stdint.h>'
     echo '#include <sys/types.h>'
@@ -128,6 +128,10 @@ g05_try_x_to_o() {
     echo '#include <unistd.h>'
     echo '#include <fcntl.h>'
     echo '#include <errno.h>'
+    # PLATFORM: POSIX — -E preamble 内联 shux_sys_readv/writev/poll 需原型；
+    # 下方 sed 会删掉 -E 自带 #include <poll.h> 等，故在 prologue 补齐。
+    echo '#include <sys/uio.h>'
+    echo '#include <poll.h>'
     echo '#endif'
     # 去掉 -E 自带 #include 与 libc 再声明（与上方头冲突）
     sed -e '/^#include /d' \
@@ -2478,7 +2482,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             "$_slc_thin_c" && rm -f "${_slc_thin_c}.bak"
           # Add POSIX headers + strip conflicting libc externs (same as g05_try_x_to_o)
           {
-            echo '/* g05 seed_link_compat thin prologue (G-02f-440) */'
+            echo '/* g05 seed_link_compat thin prologue (G-02f-440 + uio/poll) */'
             echo '#include <stddef.h>'
             echo '#include <stdint.h>'
             echo '#include <sys/types.h>'
@@ -2489,6 +2493,9 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             echo '#include <unistd.h>'
             echo '#include <fcntl.h>'
             echo '#include <errno.h>'
+            # PLATFORM: POSIX — 与 g05_try_x_to_o 同源：readv/writev/poll 原型
+            echo '#include <sys/uio.h>'
+            echo '#include <poll.h>'
             echo '#endif'
             sed -e '/^#include /d' \
                 -e '/^extern ssize_t read(/d' \
