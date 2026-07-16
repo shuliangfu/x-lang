@@ -95,25 +95,41 @@ for x_path in "$@"; do
   # 保留完整源）。优先 -o + KEEP_C，失败再回退 -E。
   emit_ok=0
   use_direct_o=0
+  # 产品 std .o：Linux 默认 asm 对 string 等库模块体不完整（运行时 SIGSEGV）；强制 -backend c。
+  # -o 无 main 时链失败但 SHUX_KEEP_C 保留完整 C；再 cc -c 落地。
+  BACKEND_ARGS=""
+  if [ -n "${SHUX_FORCE_LINK_BACKEND:-}" ]; then
+    BACKEND_ARGS="-backend ${SHUX_FORCE_LINK_BACKEND}"
+  else
+    case "$(uname -s 2>/dev/null)" in
+      Linux|Darwin) BACKEND_ARGS="-backend c" ;;
+    esac
+  fi
   # shellcheck: empty -lib-name needs quoted empty string
   rm -f /tmp/shux_shux_x.*.c 2>/dev/null || true
   if [ "$base_name" != "mod.x" ] && [ "$BARE_IMPL" = "1" ] && [ "$LIB_NAME_SUPPORTED" = "1" ]; then
-    SHUX_KEEP_C=1 "$SHUX_BIN" -L .. -lib-name "" -o "$tmp_dir/try_${idx}.o" "$x_path" \
+    SHUX_KEEP_C=1 "$SHUX_BIN" $BACKEND_ARGS -L .. -lib-name "" -o "$tmp_dir/try_${idx}.o" "$x_path" \
       >"$tmp_dir/shuxc_${idx}.log" 2>&1 || true
   else
-    SHUX_KEEP_C=1 "$SHUX_BIN" -L .. -o "$tmp_dir/try_${idx}.o" "$x_path" \
+    SHUX_KEEP_C=1 "$SHUX_BIN" $BACKEND_ARGS -L .. -o "$tmp_dir/try_${idx}.o" "$x_path" \
       >"$tmp_dir/shuxc_${idx}.log" 2>&1 || true
   fi
   # 优先：-o 已直接产出可用 .o（无 Arena64 冲突时）。
   # bare-impl 且无 -lib-name：
   #   - 产品 C 后端 -o/KEEP_C 常带路径前缀（std_crypto_core_*）→ 须 gen_c 剥前缀
-  #   - 产品 Linux 默认 asm -o 已产裸符号（crypto_mem_eq_c）→ 直接用 .o，勿退 -E
+  #   - 若 KEEP_C 完整则优先 C 路径；asm 裸 .o 仅作次选
   # 旧逻辑一律拒绝 direct .o 再走 -x -E，而 -E 对 preamble 在 ~20KiB 处截断 → crypto.o 假死。
   bare_need_strip=0
   if [ "$base_name" != "mod.x" ] && [ "$BARE_IMPL" = "1" ] && [ "$LIB_NAME_SUPPORTED" != "1" ]; then
     bare_need_strip=1
   fi
-  if [ -f "$tmp_dir/try_${idx}.o" ] && [ -s "$tmp_dir/try_${idx}.o" ]; then
+  # 先认 KEEP_C 完整源（-backend c 库模块常无 main → 链失败但 C 齐）
+  kept0=$(ls -t /tmp/shux_shux_x.*.c 2>/dev/null | head -1)
+  if [ -n "$kept0" ] && [ -f "$kept0" ] && [ -s "$kept0" ] && tail -c 80 "$kept0" | grep -q '}'; then
+    cp "$kept0" "$gen_c"
+    emit_ok=1
+  fi
+  if [ "$emit_ok" != "1" ] && [ -f "$tmp_dir/try_${idx}.o" ] && [ -s "$tmp_dir/try_${idx}.o" ]; then
     if [ "$bare_need_strip" = "1" ]; then
       strip_pref_probe=$(printf '%s' "$x_path" | sed -e 's|^\.\./||' -e 's|\.x$||' -e 's|/|_|g')
       has_prefixed=0
@@ -187,7 +203,7 @@ for x_path in "$@"; do
       fi
     fi
   fi
-  # bare-impl 需剥前缀且无完整 C：用 -backend c 再试（-o 常因无 main 失败但 SHUX_KEEP_C 留完整源）
+  # bare-impl 需剥前缀且无完整 C：再试 -backend c KEEP_C
   if [ "$emit_ok" != "1" ] && [ "$bare_need_strip" = "1" ]; then
     rm -f /tmp/shux_shux_x.*.c 2>/dev/null || true
     SHUX_KEEP_C=1 "$SHUX_BIN" -backend c -L .. -o "$tmp_dir/try_c_${idx}.o" "$x_path" \

@@ -96,10 +96,11 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 	ld -r -o $@ $@.args runtime_process_argv.o runtime_process_os_glue.o && \
 	rm -f $@.args
 
-# std.string：F 闭合 — 走 -o 完整 emit（-x -E 会截断 string 库模块函数体）。
-# Arena64 标签双名在 scripts/shux_compile_std_string_o.sh 内 #define 对齐；string.x 裸符号。
-../std/string/string.o: ../std/string/mod.x ../std/string/string.x | scripts/shux_compile_std_string_o.sh
-	@SHUX=./shux sh scripts/shux_compile_std_string_o.sh
+# std.string：F 闭合 — 产品 -o 完整 emit（-x -E 会截断函数体）。
+# 用 shux_compile_std_module（与 crypto 等同路径）；优先 shux_asm/shux 产品宿主。
+../std/string/string.o: ../std/string/mod.x ../std/string/string.x | scripts/shux_compile_std_module.sh
+	@SHUX=$${SHUX:-./shux_asm}; [ -x "$$SHUX" ] || SHUX=./shux; \
+	SHUX=$$SHUX sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/string/mod.x ../std/string/string.x
 
 # std.path：保留 mod.x 作为 F-path v1 源码锚点；path.o 由 C provider 产出，
 # 避免 bootstrap asm backend 在 dirname/last_slash 链上反复卡住。
