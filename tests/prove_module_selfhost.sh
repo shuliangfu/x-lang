@@ -113,7 +113,8 @@ MODULES=(
   # （path_should_ignore / .x 后缀 / lint / file_list_push / process_child /
   #  collect_paths / default_dirs / check_one_file 门闩 / try_append 早退 / parse_ignore 前缀 /
   #  invoke_compile·dep_clear / set_current_file / print_collected / cwd_fallback / try_walk /
-  #  path_resolve_abs / append_repo / missing_diag / collect_mode / user_passed_L / init / file_list_n）；
+  #  path_resolve_abs / append_repo / missing_diag / collect_mode / user_passed_L / init /
+  #  file_list_n / user_ignore_count）；
   # rest FROM_X 无 pure-dup _impl；Cap residual：walk/stat/argv/大 BSS（file_list ptrs）/one_file_body
   # prove 锁 thin surface IDENTICAL；冷/无 PREFER 仍可走 seeds/fmt_check_cmd.from_x.c 全 C 体
   "fmt_check|src/driver/fmt_check_cmd_thin.x|seeds/fmt_check_cmd_thin_surface.from_x.c||"

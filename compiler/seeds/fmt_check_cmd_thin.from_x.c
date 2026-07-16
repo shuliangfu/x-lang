@@ -1,4 +1,4 @@
-/* regen from fmt_check_cmd_thin.x -E (file_list n BSS pure) */
+/* regen from fmt_check_cmd_thin.x -E (user ignore n BSS pure) */
 /* prove prologue (g05_try_x_to_o aligned + uio/poll) */
 #include <stddef.h>
 #include <stdint.h>
@@ -368,6 +368,7 @@ extern void driver_collect_mode_set(int32_t v);
 extern int32_t check_user_passed_L_get(void);
 extern void check_user_passed_L_set(int32_t v);
 extern int32_t fmt_user_ignore_count(void);
+extern void fmt_user_ignore_count_set(int32_t v);
 extern int32_t fmt_path_ends_with_dot_x(uint8_t * path);
 extern int32_t fmt_file_list_n(void);
 extern void fmt_file_list_n_set(int32_t v);
@@ -398,6 +399,7 @@ extern int32_t driver_run_compiler_check(int32_t argc, uint8_t * argv);
 static int32_t g_fmt_collect_mode[1] = {1};
 static int32_t g_fmt_user_passed_L[1] = {0};
 static int32_t g_fmt_file_list_n[1] = {0};
+static int32_t g_fmt_user_ignore_n[1] = {0};
 static uint8_t g_fmt_lit_check_error[12] = {99, 104, 101, 99, 107, 32, 101, 114, 114, 111, 114, 0};
 static uint8_t g_fmt_lit_fmt_error[10] = {102, 109, 116, 32, 101, 114, 114, 111, 114, 0};
 static uint8_t g_fmt_lit_chk002[7] = {67, 72, 75, 48, 48, 50, 0};
@@ -420,7 +422,6 @@ extern int32_t lsp_diag_print_stderr_human(uint8_t * path);
 extern int32_t driver_run_compiler_full(int32_t argc, uint8_t * argv);
 extern void driver_dep_seeded_clear_all(void);
 extern void diag_report_with_code(uint8_t * file, int32_t line, int32_t col, uint8_t * kind, uint8_t * code, uint8_t * msg, uint8_t * detail);
-extern int32_t fmt_user_ignore_count_impl(void);
 extern uint8_t * fmt_user_ignore_at_impl(int32_t i);
 extern int32_t fmt_file_list_store_impl(uint8_t * abs_path);
 extern uint8_t * fmt_check_path_bss_slot(int32_t which);
@@ -657,8 +658,17 @@ void check_user_passed_L_set(int32_t v) {
   return;
 }
 int32_t fmt_user_ignore_count(void) {
-  return fmt_user_ignore_count_impl();
+  return (g_fmt_user_ignore_n)[0];
   return 0;
+}
+void fmt_user_ignore_count_set(int32_t v) {
+  if ((v < 0)) {
+    (void)(((g_fmt_user_ignore_n)[0] = 0));
+  } else {
+    (void)(((g_fmt_user_ignore_n)[0] = v));
+  }
+  (void)(0);
+  return;
 }
 int32_t fmt_path_ends_with_dot_x(uint8_t * path) {
   if ((path ==((uint8_t *)(0)))) {

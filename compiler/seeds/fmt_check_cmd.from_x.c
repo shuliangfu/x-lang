@@ -1,11 +1,12 @@
-/* R2 thin + Cap residual pure 深迁（续 file_list n BSS pure）：
+/* R2 thin + Cap residual pure 深迁（续 user ignore n BSS pure）：
  * PREFER hybrid thin 由 src/driver/fmt_check_cmd_thin.x（lit/entry + pure 真体）；
  * rest SHUX_L2_FMT_CHECK_THIN_FROM_X：无 thin 公共体；pure-duplicate _impl 剔除
  * （含 set_current_file / print / cwd_fallback / try_walk / path_resolve_abs /
  *  append_repo_lib_roots / missing_diag / invoke/dep_clear /
  *  collect_mode is_check / user_passed_L_get / init_user_lib_flags /
- *  file_list_n / …）；
- * Cap residual：walk opendir/stat/argv/大 BSS（ignore/file_list ptrs/lib bufs）/ one_file_body 仍 rest。
+ *  file_list_n / user_ignore_count / …）；
+ * Cap residual：walk opendir/stat/argv/大 BSS（ignore path slots/file_list ptrs/lib bufs）/
+ *  one_file_body 仍 rest。
  * 冷启动无宏：全 C 体（含 pure _impl + public 门闩）。
  * Regen thin surface: shux -E src/driver/fmt_check_cmd_thin.x → thin_surface.
  */
@@ -83,6 +84,7 @@ void driver_collect_mode_set(int32_t v);
 int32_t check_user_passed_L_get(void);
 void check_user_passed_L_set(int32_t v);
 int fmt_user_ignore_count(void);
+void fmt_user_ignore_count_set(int32_t v);
 int fmt_path_ends_with_dot_x(const char *path);
 int fmt_file_list_n(void);
 void fmt_file_list_n_set(int32_t v);
@@ -180,7 +182,10 @@ static char s_unformatted_paths[DRIVER_FMT_MAX_FILES][512];
 static int s_unformatted_count;
 
 static char s_ignore_paths[DRIVER_FMT_MAX_IGNORE][256];
+/* Cap residual pure：hybrid thin owns s_n_ignore; cold keeps static. Cap residual: s_ignore_paths[]. */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 static int s_n_ignore;
+#endif
 
 /* Cap residual：thin pure 可写路径 BSS（0=current_file，1=resolve_abs）。
  * -E 顶层 u8[N] 退化为悬空指针；codegen.x 已根修，codegen_gen 再生后可收回。 */
@@ -275,19 +280,27 @@ const char *fmt_builtin_ignore_at(int i) {
 }
 #endif
 
-/* G-02f-389：实现体始终 seed；public PREFER 时 thin forward */
+/* pure 权威：thin.x fmt_user_ignore_count / fmt_user_ignore_count_set；
+ * 冷启动保留 _impl + public；FROM_X 下剔除 pure-dup _impl（H↓）。
+ * Cap residual：s_ignore_paths[] + parse token 写槽 + at 读槽 始终 seed。
+ */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 int fmt_user_ignore_count_impl(void) {
     return s_n_ignore;
 }
 
-#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 int fmt_user_ignore_count(void) {
     return fmt_user_ignore_count_impl();
 }
+
+void fmt_user_ignore_count_set(int32_t v) {
+    s_n_ignore = v < 0 ? 0 : (int)v;
+}
 #endif
 
+/* Cap residual：读 s_ignore_paths[i]；n 走 public get（hybrid thin / 冷 seed）。 */
 const char *fmt_user_ignore_at_impl(int i) {
-    if (i < 0 || i >= s_n_ignore)
+    if (i < 0 || i >= fmt_user_ignore_count())
         return NULL;
     return s_ignore_paths[i];
 }
@@ -988,25 +1001,28 @@ void collect_paths_from_arg(const char *arg) {
 /**
  * 解析 --ignore=a,b,c 写入 s_ignore_paths。
  * pure 前缀权威：thin.x parse_ignore_opt；
- * Cap residual：切 token 写 BSS 槽 🔒（冷启动 public 亦 pure 前缀后调此 impl）。
+ * Cap residual：切 token 写 BSS 槽 🔒；n 走 public get/set（hybrid thin / 冷 seed）。
  */
 void parse_ignore_opt_impl(const char *arg) {
     char buf[512];
     char *p;
     char *tok;
+    int n;
     if (!arg || strncmp(arg, "--ignore=", 9) != 0)
         return;
     snprintf(buf, sizeof buf, "%s", arg + 9);
     p = buf;
-    while (p && *p && s_n_ignore < DRIVER_FMT_MAX_IGNORE) {
+    n = fmt_user_ignore_count();
+    while (p && *p && n < DRIVER_FMT_MAX_IGNORE) {
         tok = p;
         while (*p && *p != ',')
             p++;
         if (*p)
             *p++ = '\0';
         if (tok[0]) {
-            snprintf(s_ignore_paths[s_n_ignore], sizeof s_ignore_paths[0], "%s", tok);
-            s_n_ignore++;
+            snprintf(s_ignore_paths[n], sizeof s_ignore_paths[0], "%s", tok);
+            n++;
+            fmt_user_ignore_count_set(n);
         }
     }
 }
@@ -1060,7 +1076,8 @@ int driver_run_fmt_impl(int argc, char **argv) {
     int formatted = 0;
     int check_mode = 0;
 
-    s_n_ignore = 0;
+    /* public n：hybrid thin pure BSS / 冷 seed static */
+    fmt_user_ignore_count_set(0);
     s_unformatted_count = 0;
     /* public set：hybrid thin pure BSS / 冷 seed static */
     driver_collect_mode_set(DRIVER_COLLECT_MODE_FMT);
