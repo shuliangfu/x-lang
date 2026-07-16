@@ -71,6 +71,39 @@ ensure_std_c_o() {
       ;;
   esac
   make -C compiler -q "$make_rel" 2>/dev/null || make -C compiler "$make_rel"
+  # PLATFORM: SHARED — multi-file bare-impl std .o can be mtime-fresh yet lack
+  # mod.x wrappers (only preamble / bare *_c). L4 cold mac then UNDEF on -o.
+  # Reject partial objects and force one rebuild.
+  case "$repo_rel" in
+    std/test/test.o)
+      if ! nm "$repo_rel" 2>/dev/null | grep -q 'std_test_expect'; then
+        echo "ensure_std_c_o: $repo_rel missing std_test_expect — force rebuild" >&2
+        rm -f "$repo_rel"
+        make -C compiler "$make_rel" || return 1
+      fi
+      ;;
+    std/crypto/crypto.o)
+      if ! nm "$repo_rel" 2>/dev/null | grep -q 'std_crypto_sha256'; then
+        echo "ensure_std_c_o: $repo_rel missing std_crypto_sha256 — force rebuild" >&2
+        rm -f "$repo_rel"
+        make -C compiler "$make_rel" || return 1
+      fi
+      ;;
+    std/error/error.o)
+      if ! nm "$repo_rel" 2>/dev/null | grep -q 'std_error_ok'; then
+        echo "ensure_std_c_o: $repo_rel missing std_error_ok — force rebuild" >&2
+        rm -f "$repo_rel"
+        make -C compiler "$make_rel" || return 1
+      fi
+      ;;
+    std/base64/base64.o)
+      if ! nm "$repo_rel" 2>/dev/null | grep -q 'std_base64_encode_standard'; then
+        echo "ensure_std_c_o: $repo_rel missing std_base64_encode_standard — force rebuild" >&2
+        rm -f "$repo_rel"
+        make -C compiler "$make_rel" || return 1
+      fi
+      ;;
+  esac
 }
 
 # F-ZC：确保 runtime_time_os.o 存在；C 烟测链 time.o 时须一并链接。
