@@ -6224,6 +6224,42 @@ void shux_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *us
                     && !shux_link_obj_needs_undef_sym(user_o, "log_write_c")
                     && !shux_link_obj_needs_undef_sym(user_o, "std_log_structured_kv"))
                     break;
+                /*
+                 * channel/backtrace/math/sqlite/elf/dynlib：预编 .o 常带 preamble weak
+                 * process_arg*_c → U process_shux_*。无条件硬链会毒化纯 asm（bstrict44：
+                 * 预建 dynlib.o 后 binop_var 红）。与 log/crypto 同：仅 user 有入口 UNDEF 才推。
+                 */
+                if (fk == 7 /* channel */
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_channel_send")
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_channel_recv")
+                    && !shux_link_obj_needs_undef_sym(user_o, "channel_send")
+                    && !shux_link_obj_needs_undef_sym(user_o, "channel_recv"))
+                    break;
+                if (fk == 8 /* backtrace */
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_backtrace_capture")
+                    && !shux_link_obj_needs_undef_sym(user_o, "backtrace_capture"))
+                    break;
+                if (fk == 9 /* math */
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_math_sin")
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_math_cos")
+                    && !shux_link_obj_needs_undef_sym(user_o, "math_sin")
+                    && !shux_link_obj_needs_undef_sym(user_o, "math_cos"))
+                    break;
+                if (fk == 10 /* sqlite */
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_db_sqlite")
+                    && !shux_link_obj_needs_undef_sym(user_o, "sqlite3_open")
+                    && !shux_link_obj_needs_undef_sym(user_o, "db_sqlite_open"))
+                    break;
+                if (fk == 11 /* elf */
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_elf_parse")
+                    && !shux_link_obj_needs_undef_sym(user_o, "elf_parse"))
+                    break;
+                if (fk == 12 /* dynlib */
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_dynlib_open")
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_dynlib_sym")
+                    && !shux_link_obj_needs_undef_sym(user_o, "dynlib_open_c")
+                    && !shux_link_obj_needs_undef_sym(user_o, "dynlib_open"))
+                    break;
             } else if (fk == 0 && rel && rel[0] && !labi_std_fk0_user_needs_rel(user_o, rel)) {
                 break;
             }
@@ -6342,11 +6378,14 @@ void shux_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *us
         }
     }
     /*
-     * thread/sync/atomic/log（及同类）C 路径预编 .o 内 preamble weak process_arg*_c → U process_shux_*。
+     * thread/sync/atomic/log/dynlib/… 预编 .o 内 preamble weak process_arg*_c → U process_shux_*。
      * 已推且未推 process.o 时补 runtime_process_argv.o（勿与 process.o 双链）。
      */
-    if ((have_atomic || have_log
-         || (flags && (flags->have_sync || flags->have_thread))) && !have_process) {
+    if ((have_atomic || have_log || have_backtrace
+         || (flags && (flags->have_sync || flags->have_thread || flags->have_dynlib
+                       || flags->have_channel || flags->have_math || flags->have_elf
+                       || flags->have_sqlite)))
+        && !have_process) {
         (void)shux_ensure_runtime_process_argv_o(link_argv0);
         link_abi_asm_ld_push_obj(shux_runtime_process_argv_o_path(link_argv0), link_argv0,
             "compiler/runtime_process_argv.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
