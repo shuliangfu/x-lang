@@ -55,20 +55,31 @@ std_math_special_run_x_smoke() {
   return 0
 }
 
-# C 烟测：special_smoke_ok.c + math.o + runtime_math_libm.o + -lm。
+# C 烟测：special_smoke_ok.c + math.o + runtime_math_libm.o + process_argv + -lm。
+# PLATFORM: SHARED — math.o from math.x -E+cc always embeds rt_preamble weak
+# process_args_* which UNDEF process_shux_{argc,argv}_get (in runtime_process_argv.o).
+# Without that .o, L4 cold Ubuntu/mac link fails: process_args_count_c undefined.
 std_math_special_run_c_smoke() {
   local math_o="$1"
   local src="tests/std-math/special_smoke_ok.c"
   local out="/tmp/shux_std_math_special_c_$$"
   local rt_o="compiler/runtime_math_libm.o"
+  local pav_o="compiler/runtime_process_argv.o"
   if [ ! -f "$rt_o" ]; then
     make -C compiler -q runtime_math_libm.o 2>/dev/null || make -C compiler runtime_math_libm.o >/dev/null 2>&1 || true
+  fi
+  if [ ! -f "$pav_o" ]; then
+    make -C compiler -q runtime_process_argv.o 2>/dev/null || make -C compiler runtime_process_argv.o >/dev/null 2>&1 || true
   fi
   if [ ! -f "$rt_o" ]; then
     echo "std-math-special FAIL: missing $rt_o" >&2
     return 1
   fi
-  if ! ${CC:-cc} -std=c11 -O1 -o "$out" "$src" "$math_o" "$rt_o" -lm 2>/dev/null; then
+  if [ ! -f "$pav_o" ]; then
+    echo "std-math-special FAIL: missing $pav_o" >&2
+    return 1
+  fi
+  if ! ${CC:-cc} -std=c11 -O1 -o "$out" "$src" "$math_o" "$rt_o" "$pav_o" -lm 2>/dev/null; then
     echo "std-math-special FAIL: compile C smoke" >&2
     return 1
   fi
