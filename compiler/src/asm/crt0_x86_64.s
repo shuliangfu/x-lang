@@ -23,8 +23,14 @@ _start:
 	call	main_entry
 	/* 【Why 2026-07-16】不可直接 SYS_exit：seed 动态链 glibc 时 fwrite(stdout)
 	 * 走 glibc 缓冲；未 fflush 则 -E 等大输出在 ~缓冲边界截断（udp 冷链 24KiB 假截断）。
-	 * bootstrap_flush_stdio_and_exit 先 fflush(stdout/stderr) 再 sys_exit。 */
-	mov	%eax, %edi
-	call	bootstrap_flush_stdio_and_exit
+	 * 先 glibc fflush(stdout/stderr)，再 SYS_exit。stdout/stderr 为 FILE* 指针。 */
+	mov	%eax, %r12d
+	mov	stdout(%rip), %rdi
+	call	fflush@PLT
+	mov	stderr(%rip), %rdi
+	call	fflush@PLT
+	mov	%r12d, %edi
+	mov	$60, %eax
+	syscall
 1:	jmp	1b
 	.size	_start, .-_start
