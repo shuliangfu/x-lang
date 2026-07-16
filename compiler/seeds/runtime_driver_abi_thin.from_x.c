@@ -888,7 +888,7 @@ int32_t driver_check_diag_emitted_get(void) {
   }
   return 0;
 }
-extern double compile_phase_now_sec_impl(void);
+extern double shux_driver_wall_clock_sec(void);
 extern void driver_call_fn_void_arg_impl(uint8_t * fn, uint8_t * arg);
 int32_t driver_abi_append_i64(uint8_t * dst, int32_t cap, int32_t at, int64_t val) {
   {
@@ -1095,7 +1095,7 @@ void driver_print_check_ok(uint8_t * input_path) {
   return;
 }
 double compile_phase_now_sec(void) {
-  return compile_phase_now_sec_impl();
+  return shux_driver_wall_clock_sec();
   return 0.0;
 }
 void driver_run_fn_on_current_large_stack(uint8_t * fn, uint8_t * arg) {

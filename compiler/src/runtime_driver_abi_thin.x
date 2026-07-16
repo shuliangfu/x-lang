@@ -21,11 +21,16 @@
 //     真迁 thin；FROM_X rest 无 pure-dup begin/end _impl。
 //   + wave6 Cap residual pure：phase_timing_flush 真迁 thin（whole-ms i32 via append_* +
 //     diag_report；no va_list reportf floats）；FROM_X rest 无 pure-dup flush _impl。
+//   + wave7 Cap residual pure：compile_phase_now_sec 真迁 thin（calls permanent OS
+//     shux_driver_wall_clock_sec；no struct timeval in .x）；FROM_X rest 无 pure-dup now_sec _impl。
 // Cap residual：uname / setrlimit / pthread 创建 / path-read IO /
-//   debug_pipe reportf note / gettimeofday phase_now 仍 rest。
+//   debug_pipe reportf note / call_fn 仍 rest。
 //
 
 export extern "C" function getenv(name: *u8): *u8;
+/** Permanent OS wall-clock surface (seed rest). Returns seconds as f64.
+ * PLATFORM: POSIX gettimeofday / WINDOWS time — hides timeval layout from .x. */
+export extern "C" function shux_driver_wall_clock_sec(): f64;
 export extern "C" function driver_path_read_preprocess_malloc_impl(path: *u8): *u8;
 // Wave3 format print pure: reuse diagnostic append authority (G.7) + fixed-arity diag report.
 export extern "C" function diag_report(file: *u8, line: i32, col: i32, kind: *u8, msg: *u8, detail: *u8): void;
@@ -515,7 +520,6 @@ export function driver_check_diag_emitted_get(): i32 {
 }
 
 // ---- G-02f-343 gates (direct _impl; seed rest keeps full logic wrappers optional) ----
-export extern "C" function compile_phase_now_sec_impl(): f64;
 export extern "C" function driver_call_fn_void_arg_impl(fn: *u8, arg: *u8): void;
 
 /** Append non-negative i64 decimal into dst (for size_t-style fields such as codegen_bytes).
@@ -653,10 +657,13 @@ export function driver_print_check_ok(input_path: *u8): void {
   }
 }
 
+/** Wall-clock seconds for compile-phase timing (begin/end).
+ * Wave7 pure: forwards to permanent OS surface shux_driver_wall_clock_sec (no timeval in .x).
+ * PLATFORM: SHARED pure authority in thin; OS layout stays in seed rest; FROM_X no pure-dup. */
 #[no_mangle]
 export function compile_phase_now_sec(): f64 {
   unsafe {
-    return compile_phase_now_sec_impl();
+    return shux_driver_wall_clock_sec();
   }
   return 0.0;
 }

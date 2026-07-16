@@ -16,6 +16,8 @@
  *     begin/end _impl；
  *   + wave6 Cap residual pure：phase_timing_flush 在 thin.x（whole-ms append + diag_report）；
  *     FROM_X 无 pure-dup flush _impl；
+ *   + wave7 Cap residual pure：compile_phase_now_sec 在 thin.x（→ shux_driver_wall_clock_sec）；
+ *     FROM_X 无 pure-dup now_sec _impl；gettimeofday/time 永久 OS 面 shux_driver_wall_clock_sec；
  * FROM_X 剔 pure-dup _impl（H↓）。
  */
 /* Generated from src/runtime_driver_abi.x (G-02f-29/41/45..57/83 true .x + C tail).
@@ -74,7 +76,7 @@ int driver_source_has_top_level_import(const char *src, size_t src_len);
 /* wave5: phase timing BSS pure in thin — flush Cap reads via getters. */
 double driver_compile_phase_acc_ms_get(int32_t phase);
 void driver_compile_phase_timing_clear(void);
-#define compile_phase_now_sec compile_phase_now_sec_impl
+/* wave7: compile_phase_now_sec pure in thin → shux_driver_wall_clock_sec (no pure-dup _impl). */
 /* wave1: flag-slot BSS pure in thin — no public→_impl rename (rest drops pure-dup slots). */
 /* wave2: path/len BSS pure in thin — path_read rest writes len via thin store. */
 #define driver_path_read_preprocess_malloc driver_path_read_preprocess_malloc_impl
@@ -853,13 +855,13 @@ int compile_phase_timing_enabled(void) {
 
 
 
-/** 单调 wall-clock 秒（gettimeofday）。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_L2_RDABI_THIN_FROM_X
-double compile_phase_now_sec(void)
-#else
-double compile_phase_now_sec_impl(void)
-#endif
+/**
+ * Permanent OS wall-clock surface (seconds as double).
+ * PLATFORM: POSIX — gettimeofday; WINDOWS — time(NULL) (usec=0).
+ * Always present under FROM_X (thin compile_phase_now_sec calls this; no pure-dup _impl).
+ * G.7: single authority for wall clock used by phase timing.
+ */
+double shux_driver_wall_clock_sec(void)
 {
     struct timeval tv;
     #ifndef _WIN32
@@ -869,6 +871,15 @@ double compile_phase_now_sec_impl(void)
 #endif
     return (double)tv.tv_sec + (double)tv.tv_usec * 1e-6;
 }
+
+/** Wall-clock seconds for phase timing (cold twin of thin pure wave7). */
+/* G-02f-165 / wave7：hybrid thin owns public; cold seed keeps thin twin via OS surface. */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
+double compile_phase_now_sec(void)
+{
+    return shux_driver_wall_clock_sec();
+}
+#endif
 
 
 

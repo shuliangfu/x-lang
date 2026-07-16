@@ -33,7 +33,8 @@ export extern "C" function driver_print_check_ok_impl(input_path: *u8): void;
 export extern "C" function driver_compile_phase_timing_begin_impl(phase: i32): void;
 export extern "C" function driver_compile_phase_timing_end_impl(phase: i32): void;
 export extern "C" function driver_compile_phase_timing_flush_impl(): void;
-export extern "C" function compile_phase_now_sec_impl(): f64;
+/** Permanent OS wall-clock surface (seed rest). PLATFORM: POSIX/WINDOWS. */
+export extern "C" function shux_driver_wall_clock_sec(): f64;
 export extern "C" function shux_read_file_into_path(path: *u8, buf: *u8, cap: i64): i32;
 export extern "C" function driver_pipeline_fail_code_rc_impl(rc: i32): void;
 export extern "C" function driver_pipeline_fail_code_path_impl(path: *u8): void;
@@ -1070,12 +1071,15 @@ export function driver_source_scan_top_level_import(src: *u8, src_len: i64): i32
 
 /* ---- G-02f-94 / G-02f-246：large_stack trampoline 门闩（解包 🔒）；run_fn 见上文 pure ---- */
 
-/* ---- G-02f-104：phase clock 门闩（gettimeofday 🔒）---- */
+/* ---- G-02f-104 / wave7：phase clock pure via permanent OS wall_clock surface ---- */
 
+/** Wall-clock seconds for compile-phase timing.
+ * Wave7 pure: shux_driver_wall_clock_sec (no timeval layout in .x).
+ * PLATFORM: SHARED pure; OS surface in seed rest. */
 #[no_mangle]
 export function compile_phase_now_sec(): f64 {
   unsafe {
-    return compile_phase_now_sec_impl();
+    return shux_driver_wall_clock_sec();
   }
   return 0.0;
 }
