@@ -3,6 +3,7 @@
  * Product PREFER_X_O: g05_try_x_to_o(rt_fmt_one.x) + rest seed empty under FROM_X
  * Prove: full.x vs this seed → nm IDENTICAL (driver_fmt_one_file + path helpers)
  * Regen: ./shux -E ... src/runtime/rt_fmt_one.x | filter DBG + polish prologue
+ * Track-L (2026-07-16): path helpers keep short names; .x has #[no_mangle] (was module mangle)
  */
 #include <stddef.h>
 #include <stdint.h>

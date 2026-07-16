@@ -17,7 +17,9 @@ export extern "C" function shux_write_path_bytes(path: *u8, data: *u8, len: usiz
 export extern "C" function diag_report_with_code(
   file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void;
 
-/** path[0..path_len) → path_buf 尾 0；path_len 须 < 512。成功 1 / 失败 0。 */
+/** path[0..path_len) → path_buf 尾 0；path_len 须 < 512。成功 1 / 失败 0。
+ * Track-L：#[no_mangle] 与 surface 短名一致，禁止模块前缀 mangle（rt_fmt_one_rt_fmt_path_*）。 */
+#[no_mangle]
 export function rt_fmt_path_copy_nul(path: *u8, path_len: i32, path_buf: *u8): i32 {
   let i: i32 = 0;
   if (path == 0 as *u8) {
@@ -38,6 +40,7 @@ export function rt_fmt_path_copy_nul(path: *u8, path_len: i32, path_buf: *u8): i
 }
 
 /** 后缀是否为 ".x"。 */
+#[no_mangle]
 export function rt_fmt_path_ends_x(path_buf: *u8, path_len: i32): i32 {
   if (path_len < 2) {
     return 0;
