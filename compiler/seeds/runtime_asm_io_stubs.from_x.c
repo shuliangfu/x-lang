@@ -276,6 +276,14 @@ int32_t std_io_read_ptr_len(void) {
   return std_io_ptr_len();
 }
 
+/* preamble / co-emit 使用 shux_io_read_ptr*；与 io_read_ptr* 同实现（无 io.o 时）。 */
+int32_t shux_io_read_ptr_len(void) {
+  return io_read_ptr_len();
+}
+uint8_t *shux_io_read_ptr(size_t handle, unsigned timeout_ms) {
+  return io_read_ptr((unsigned)handle, timeout_ms);
+}
+
 /** M-5：u8[] slice ABI（与 mod.x / read_ptr.x ShuxSliceU8 一致）。 */
 typedef struct ShuxSliceU8 {
   uint8_t *data;
