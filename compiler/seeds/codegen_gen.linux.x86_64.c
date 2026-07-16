@@ -5446,7 +5446,13 @@ int32_t codegen_type_ref_to_suffix(struct ast_ASTArena * arena, int32_t type_ref
     return n;
   }
   if (tk == ast_TypeKind_TYPE_NAMED) {
+    /* '.' → '_' so C link names stay legal (heap.Arena64 → heap_Arena64); align codegen.x */
     int32_t nl = pipeline_type_named_name_into(arena, type_ref, buf);
+    int32_t si = 0;
+    while (si < nl && si < buf_cap) {
+      if (buf[si] == 46) { buf[si] = 95; }
+      si = si + 1;
+    }
     if (nl > 0 && nl < buf_cap) { return nl; }
     return 0;
   }
