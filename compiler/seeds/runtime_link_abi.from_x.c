@@ -4169,6 +4169,11 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
                     if (rnw && rnw[0])
                         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rnw);
                 }
+                /*
+                 * workers.x → U thread_create_c / thread_join_c（net.o 内，非用户 C use_line）。
+                 * 与 asm on_demand（labi 在 have_net 后推 thread）同权威：C 后端链 net 时亦 need_thread。
+                 */
+                need_thread = 1;
 #if defined(__linux__)
                 {
                     (void)shux_ensure_runtime_asm_io_stubs_o(NULL);
