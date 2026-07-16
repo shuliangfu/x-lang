@@ -12097,7 +12097,7 @@ static int32_t asm_module_is_driver_compile_selfhost(struct ast_Module *m) {
   for (i = 0; i < m->num_funcs; i++) {
     if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"driver_compile_parse_argv", 25))
       has_parse_argv = 1;
-    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"run_compiler_full_x", 20))
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"run_compiler_full_x", 19))
       has_entry = 1;
     /** gen.o 路径可能注册 dispatch；单编 compile.x 时常缺失，作可选辅助。 */
     if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"compile_dispatch_asm_backend", 28))
@@ -12551,13 +12551,13 @@ static int32_t asm_driver_compile_emit_heavy_safe_helper(struct ast_Module *m, i
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"driver_compile_parse_argv_scan_c", 31))
     return 0;
   /** run_compiler_full_x / post_parse：堆 state + dispatch X 真 emit（勿 thin→impl_c）。 */
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"run_compiler_full_x", 20))
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"run_compiler_full_x", 19))
     return 1;
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"run_compiler_full_x_post_parse", 31))
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"run_compiler_full_x_post_parse", 30))
     return 1;
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"driver_run_compiler_full_x", 27))
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"driver_run_compiler_full_x", 26))
     return 1;
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"driver_run_compiler_full_x_post_parse", 38))
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"driver_run_compiler_full_x_post_parse", 37))
     return 1;
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"path_ends_x", 12))
     return 1;
@@ -15370,6 +15370,28 @@ void pipeline_asm_wpo_reach_compute_for_elf(struct ast_Module *entry, struct ast
       }
     }
   }
+  /**
+   * driver/compile.x dogfood root：compile_dispatch_asm_backend（薄 bl→C，~145B）。
+   * PLATFORM: SHARED — full parse_argv / run_compiler_full_x live in driver_compile_emit_heavy.o.
+   * Prefer thin dispatch over run_compiler_full_x so build_asm/driver_compile.o stays WPO-compressed.
+   */
+  if (g_asm_wpo.root_id < 0 && asm_module_is_driver_compile_selfhost(entry)) {
+    nf = pipeline_module_num_funcs(entry);
+    for (fi = 0; fi < nf; fi++) {
+      if (pipeline_module_func_name_equal_at(entry, fi, (uint8_t *)"compile_dispatch_asm_backend", 28)) {
+        g_asm_wpo.root_id = asm_wpo_func_id_of(entry, fi);
+        break;
+      }
+    }
+    if (g_asm_wpo.root_id < 0) {
+      for (fi = 0; fi < nf; fi++) {
+        if (pipeline_module_func_name_equal_at(entry, fi, (uint8_t *)"run_compiler_full_x", 19)) {
+          g_asm_wpo.root_id = asm_wpo_func_id_of(entry, fi);
+          break;
+        }
+      }
+    }
+  }
   main_ix = pipeline_module_main_func_index(entry);
   /** main_func_index 仅当其确实指向名为 main 的函数时作 fallback（勿用 #0 误根）。 */
   if (g_asm_wpo.root_id < 0 && main_ix >= 0 &&
@@ -15562,11 +15584,17 @@ int32_t pipeline_asm_wpo_should_emit_func(struct ast_Module *m, int32_t fi) {
   if (m == g_asm_wpo.entry && asm_module_is_main_driver_selfhost(m))
     return 0;
   /**
-   * build_asm/driver_compile.o WPO 压缩：仅保留 WPO reach 内 export（~145B，常为 compile_dispatch_asm_backend）；
+   * build_asm/driver_compile.o WPO 压缩：仅 export 薄 dispatch（~145B）；
    * parse_argv / run_compiler_full_x 由 driver_compile_emit_heavy.o + link.o 提供。
+   * PLATFORM: SHARED — must keep dispatch before blanket skip (else valid WPO emits empty .text).
    */
-  if (m == g_asm_wpo.entry && asm_module_is_driver_compile_selfhost(m))
+  if (m == g_asm_wpo.entry && asm_module_is_driver_compile_selfhost(m)) {
+    if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"compile_dispatch_asm_backend", 28))
+      return 1;
+    if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"compile_dispatch_emit_c_path", 28))
+      return 1;
     return 0;
+  }
   /**
    * pipeline.x WPO：gate/strict 关键 export 须保留；其余走 reach DCE（勿 blanket return 0）。
    */
