@@ -88,7 +88,8 @@ MODULES=(
   #   pure (append; rest T 23→15)
   # + binop/commit_shape(+parser alias) pure (append; rest T 15→12)
   # + after_entry_parse_module/codegen_emit_func_fail pure (pipeline API+append; rest T 12→10);
-  # Cap residual: asm BSS / va_list report / lsp_diag_get still rest
+  # + asm BSS store/set/trace/print/var/fail pure (module BSS+append; rest T 10→4);
+  # Cap residual: va_list report_x_pipeline_code + lsp_diag_get_enabled_impl + marker still rest
   # rest FROM_X no pure-dup _impl for pure set; prove locks thin surface IDENTICAL
   # cold/no PREFER still full C seeds/runtime_driver_diagnostic.from_x.c
   "diagnostic|src/runtime_driver_diagnostic_thin.x|seeds/runtime_driver_diagnostic_thin_surface.from_x.c||"

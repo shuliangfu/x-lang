@@ -15,19 +15,15 @@
 //   + typeck_import_const_must_be_qualified / warn_pad / warn_hot / hint_unused (append; no va_list)
 //   + typeck_binop_operands / parse_commit_shape / parser_diagnostic_parse_commit_shape (wave3)
 //   + after_entry_parse_module / codegen_emit_func_fail (wave4; pipeline API + append; no va_list).
-// Cap residual: remaining rest va_list/BSS *_impl (asm BSS store/trace/print/var/fail + report + lsp).
-// This TU: thin gates + pure bodies (f-339..341 + f-387 env + f-409 pipe + f-416 lsp_diag_get)
+//   + asm BSS store/set/trace/print/var/fail_at (wave5; module BSS + append+note; no va_list).
+// Cap residual: rest va_list report_x_pipeline_code + lsp_diag_get_enabled_impl + marker.
+// This TU: thin gates + pure bodies (f-339..341 + f-387 env + f-409 pipe + f-416 lsp_diag_get + wave5)
 
 export extern "C" function getenv(name: *u8): *u8;
 
 // Authority for driver_env_flag_truthy is runtime_driver_abi_thin.x (G.7 single implementation).
 // Extern declaration only here to avoid duplicate global symbols across .o files.
 extern function driver_env_flag_truthy(name: *u8): i32;
-
-// Cap residual still seed: asm BSS consumers (print/var/fail_at) keep rest *_impl.
-export extern "C" function driver_diagnostic_asm_fail_at_impl(loc: i32): void;
-export extern "C" function driver_diagnostic_asm_print_current_func_impl(): void;
-export extern "C" function driver_diagnostic_asm_var_not_found_impl(name: *u8, len: i32, num_locals: i32, first_slot: *u8, first_len: i32): void;
 
 // Pipeline module read APIs (authoritative in pipeline_glue / ast_pool — G.7; not reimplemented here).
 // Used by pure after_entry_parse_module + codegen_emit_func_fail (wave4).
@@ -37,48 +33,28 @@ export extern "C" function pipeline_module_func_name_len_at(module: *u8, fi: i32
 export extern "C" function pipeline_module_func_name_byte_at(module: *u8, fi: i32, bi: i32): u8;
 
 // pure bodies for parse_fail / skip / commit_fail / warn / hint / generic / param / import /
-// binop / commit_shape / after_entry_module / emit_func_fail are after append_* helpers.
+// binop / commit_shape / after_entry_module / emit_func_fail / asm BSS are after append_* helpers.
 
 // pure: typeck_block/fn/var debug below (getenv gate + append+note); thin gate removed.
 // pure: typeck_binop_operands / parse_commit_shape / parser_diagnostic_parse_commit_shape (wave3).
 // pure: after_entry_parse_module / codegen_emit_func_fail (wave4).
+// pure: asm BSS + print/var/fail_at/trace (wave5).
 
 // pure:driver_diagnostic_codegen_fail defined after append_* helpers.
 
-
-#[no_mangle]
-export function driver_diagnostic_asm_print_current_func(): void {
-  unsafe {
-    driver_diagnostic_asm_print_current_func_impl();
-  }
-}
-
-
-#[no_mangle]
-export function driver_diagnostic_asm_var_not_found(name: *u8, len: i32, num_locals: i32, first_slot: *u8, first_len: i32): void {
-  unsafe {
-    driver_diagnostic_asm_var_not_found_impl(name, len, num_locals, first_slot, first_len);
-  }
-}
-
-
-#[no_mangle]
-export function driver_diagnostic_asm_fail_at(loc: i32): void {
-  unsafe {
-    driver_diagnostic_asm_fail_at_impl(loc);
-  }
-}
-
+// ---- Wave5 Cap residual pure: asm backend diagnostic BSS (PLATFORM: SHARED) ----
+// Authority lives in this thin TU under PREFER hybrid; cold seed keeps C static BSS.
+// last_expr_kind starts at -1 (unset), matching cold seed semantics.
+let g_asm_last_expr_kind: i32 = -1;
+// Current function name buffer for fail_at / var_not_found / print notes (cap 64 usable).
+let g_asm_current_func: u8[72] = [];
+let g_asm_current_func_len: i32 = 0;
 
 // pure: debug_log / parser_diag_* / warn / hint below (append+note; thin gate removed).
 
 // ---- G-02f-340 pure full bodies ----
 export extern "C" function driver_check_only_get(): i32;
 export extern "C" function driver_check_diag_emitted_get(): i32;
-// G-02f-409:storage / pipe shells -> seed *_impl
-export extern "C" function driver_diagnostic_asm_last_expr_kind_set_impl(k: i32): void;
-export extern "C" function driver_diagnostic_asm_current_func_store_impl(name: *u8, len: i32): void;
-export extern "C" function driver_diagnostic_asm_current_func_maybe_trace_impl(): void;
 
 #[no_mangle]
 export function driver_diagnostic_entry_already(v: i32): void {
@@ -96,41 +72,7 @@ export function driver_diagnostic_typeck_fail(): void {
   }
 }
 
-#[no_mangle]
-export function driver_diagnostic_asm_last_expr_kind_set(k: i32): void {
-  unsafe {
-    driver_diagnostic_asm_last_expr_kind_set_impl(k);
-  }
-}
-
-#[no_mangle]
-export function driver_diagnostic_asm_current_func_store(name: *u8, len: i32): void {
-  unsafe {
-    driver_diagnostic_asm_current_func_store_impl(name, len);
-  }
-}
-
-#[no_mangle]
-export function driver_diagnostic_asm_current_func_maybe_trace(): void {
-  unsafe {
-    driver_diagnostic_asm_current_func_maybe_trace_impl();
-  }
-}
-
-#[no_mangle]
-export function driver_diagnostic_asm_set_last_expr_kind(k: i32): void {
-  unsafe {
-    driver_diagnostic_asm_last_expr_kind_set_impl(k);
-  }
-}
-
-#[no_mangle]
-export function driver_diagnostic_asm_set_current_func(name: *u8, len: i32): void {
-  unsafe {
-    driver_diagnostic_asm_current_func_store_impl(name, len);
-    driver_diagnostic_asm_current_func_maybe_trace_impl();
-  }
-}
+// Wave5 pure asm BSS consumers are defined after append_* + driver_diag_note (below).
 
 #[no_mangle]
 export function driver_diag_append_cstr(dst: *u8, cap: i32, at: i32, src: *u8): i32 {
@@ -550,6 +492,145 @@ export function driver_diag_note(msg: *u8): void {
     if (m == 0) { m = ""; }
     diag_report(0 as *u8, 0, 0, "note", m, 0 as *u8);
   }
+}
+
+// ---- Wave5 Cap residual pure: asm BSS consumers (append/note available) ----
+
+/** Record last ExprKind ordinal seen by asm backend (for fail_at notes).
+ * PLATFORM: SHARED — pure module BSS in thin; cold seed keeps C static. */
+#[no_mangle]
+export function driver_diagnostic_asm_last_expr_kind_set(k: i32): void {
+  g_asm_last_expr_kind = k;
+}
+
+/** Alias of last_expr_kind_set (historical dual surface; zero-logic, G.7 single store). */
+#[no_mangle]
+export function driver_diagnostic_asm_set_last_expr_kind(k: i32): void {
+  g_asm_last_expr_kind = k;
+}
+
+/** Store current asm codegen function name into module BSS for later notes.
+ * Caps usable length to 64 (buffer size 72). Null or empty name clears length.
+ * PLATFORM: SHARED — pure in thin; FROM_X rest has no BSS _impl. */
+#[no_mangle]
+export function driver_diagnostic_asm_current_func_store(name: *u8, len: i32): void {
+  let n: i32 = 0;
+  if (len > 0) {
+    if (len <= 64) {
+      n = len;
+    }
+  }
+  g_asm_current_func_len = n;
+  if (name != 0 as *u8) {
+    if (n > 0) {
+      let i: i32 = 0;
+      while (i < n) {
+        g_asm_current_func[i] = name[i];
+        i = i + 1;
+      }
+    }
+  }
+}
+
+/** If SHUX_ASM_FUNC_TRACE is truthy and a current func name is stored, emit a note.
+ * Uses driver_env_flag_truthy (G.7 abi authority) + append+note (no va_list reportf).
+ * PLATFORM: SHARED — pure in thin. */
+#[no_mangle]
+export function driver_diagnostic_asm_current_func_maybe_trace(): void {
+  // PLATFORM: SHARED — LANG-007 S0: extern driver_env_flag_truthy requires unsafe.
+  unsafe {
+    if (driver_env_flag_truthy("SHUX_ASM_FUNC_TRACE") == 0) {
+      return;
+    }
+  }
+  if (g_asm_current_func_len <= 0) {
+    return;
+  }
+  let msg: u8[160] = [];
+  let at: i32 = driver_diag_append_cstr(&msg[0], 160, 0, "asm trace: ");
+  at = driver_diag_append_name(&msg[0], 160, at, &g_asm_current_func[0], g_asm_current_func_len);
+  driver_diag_note(&msg[0]);
+}
+
+/** Store name then maybe_trace (historical set_current_func surface; composes pure authorities). */
+#[no_mangle]
+export function driver_diagnostic_asm_set_current_func(name: *u8, len: i32): void {
+  driver_diagnostic_asm_current_func_store(name, len);
+  driver_diagnostic_asm_current_func_maybe_trace();
+}
+
+/** Note which function failed during asm codegen (SHUX_ASM_DEBUG paths).
+ * Assembles fixed prefix + stored name via append; no va_list. PLATFORM: SHARED. */
+#[no_mangle]
+export function driver_diagnostic_asm_print_current_func(): void {
+  let msg: u8[200] = [];
+  let at: i32 = 0;
+  if (g_asm_current_func_len > 0) {
+    at = driver_diag_append_cstr(&msg[0], 200, 0, "asm codegen failed in func=");
+    at = driver_diag_append_name(&msg[0], 200, at, &g_asm_current_func[0], g_asm_current_func_len);
+  } else {
+    at = driver_diag_append_cstr(&msg[0], 200, 0, "asm codegen failed (func unknown)");
+  }
+  driver_diag_note(&msg[0]);
+}
+
+/** EXPR_VAR not found in asm local_offset map. Optional first_slot helps compare tables.
+ * Assembles via append_cstr/name/i32 + note (no va_list). PLATFORM: SHARED. */
+#[no_mangle]
+export function driver_diagnostic_asm_var_not_found(name: *u8, len: i32, num_locals: i32, first_slot: *u8, first_len: i32): void {
+  let namebuf: u8[65] = [];
+  let firstbuf: u8[65] = [];
+  let _n: i32 = driver_diag_copy_bytes(&namebuf[0], 65, name, len);
+  let _f: i32 = driver_diag_copy_bytes(&firstbuf[0], 65, first_slot, first_len);
+  let msg: u8[320] = [];
+  let at: i32 = driver_diag_append_cstr(&msg[0], 320, 0, "asm codegen EXPR_VAR not in ctx: \"");
+  at = driver_diag_append_cstr(&msg[0], 320, at, &namebuf[0]);
+  at = driver_diag_append_cstr(&msg[0], 320, at, "\" (func: ");
+  if (g_asm_current_func_len > 0) {
+    at = driver_diag_append_name(&msg[0], 320, at, &g_asm_current_func[0], g_asm_current_func_len);
+  } else {
+    at = driver_diag_append_cstr(&msg[0], 320, at, "?");
+  }
+  at = driver_diag_append_cstr(&msg[0], 320, at, ", num_locals=");
+  at = driver_diag_append_i32(&msg[0], 320, at, num_locals);
+  if (num_locals > 0) {
+    if (first_slot != 0 as *u8) {
+      if (first_len > 0) {
+        if (first_len <= 64) {
+          at = driver_diag_append_cstr(&msg[0], 320, at, ", first_slot=\"");
+          at = driver_diag_append_cstr(&msg[0], 320, at, &firstbuf[0]);
+          at = driver_diag_append_cstr(&msg[0], 320, at, "\" len=");
+          at = driver_diag_append_i32(&msg[0], 320, at, first_len);
+        }
+      }
+    }
+  }
+  at = driver_diag_append_cstr(&msg[0], 320, at, ")");
+  driver_diag_note(&msg[0]);
+}
+
+/** Asm backend fail site note before returning -1. loc encodes stage (1=text..8=epilogue).
+ * Includes last_expr_kind and optional current func name. PLATFORM: SHARED — pure thin. */
+#[no_mangle]
+export function driver_diagnostic_asm_fail_at(loc: i32): void {
+  let msg: u8[240] = [];
+  let at: i32 = 0;
+  if (g_asm_current_func_len > 0) {
+    at = driver_diag_append_cstr(&msg[0], 240, 0, "asm codegen func=");
+    at = driver_diag_append_name(&msg[0], 240, at, &g_asm_current_func[0], g_asm_current_func_len);
+    at = driver_diag_append_cstr(&msg[0], 240, at, " fail_at=");
+    at = driver_diag_append_i32(&msg[0], 240, at, loc);
+    at = driver_diag_append_cstr(&msg[0], 240, at, " (last_expr_kind=");
+    at = driver_diag_append_i32(&msg[0], 240, at, g_asm_last_expr_kind);
+    at = driver_diag_append_cstr(&msg[0], 240, at, ")");
+  } else {
+    at = driver_diag_append_cstr(&msg[0], 240, 0, "asm codegen fail_at=");
+    at = driver_diag_append_i32(&msg[0], 240, at, loc);
+    at = driver_diag_append_cstr(&msg[0], 240, at, " (last_expr_kind=");
+    at = driver_diag_append_i32(&msg[0], 240, at, g_asm_last_expr_kind);
+    at = driver_diag_append_cstr(&msg[0], 240, at, ")");
+  }
+  driver_diag_note(&msg[0]);
 }
 
 // pure: LSP collect or check-only mark then diag_report (same full.x G-02f-163; no snprintf)

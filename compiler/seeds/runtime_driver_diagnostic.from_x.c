@@ -1,5 +1,5 @@
 /* G-02f-339..341 / R2 thin + Cap residual pure deep-migrate
- * (wave2 skip/warn + wave3 binop/commit_shape + wave4 after_entry_module/emit_func_fail):
+ * (wave2..wave5: skip/warn + binop/shape + module/emit + asm BSS store/trace/print/var/fail):
  * PREFER hybrid thin from src/runtime_driver_diagnostic_thin.x -E;
  * rest SHUX_L2_RDD_THIN_FROM_X: no thin public bodies; pure-dup fixed-msg/pipe orch/assemble/
  * env_debug_pipe/parse_strict_enabled/report_prefixed/pipe_note/
@@ -8,8 +8,9 @@
  * parse_skip/parse_commit_fail/parse_func_generic/parser_onefunc_param_ref +
  * typeck_import_const/warn_pad/warn_hot/hint_unused +
  * typeck_binop_operands/parse_commit_shape/parser_diagnostic_parse_commit_shape +
- * after_entry_parse_module/codegen_emit_func_fail dropped;
- * only slice_marker + Cap residual (asm BSS / va_list report / lsp_diag_get) bodies.
+ * after_entry_parse_module/codegen_emit_func_fail +
+ * asm last_expr/store/trace/print/var/fail_at dropped;
+ * only slice_marker + Cap residual (va_list report / lsp_diag_get) bodies.
  * Generated from (G-02f-86/96 +copy/report_prefixed) src/runtime_driver_diagnostic.x.
  * Regen: ./shux-c -E -L .. src/runtime_driver_diagnostic.x > /tmp/rdd.c
  *         merge fixed-msg wrappers; polish slice strings; keep snprintf C.
@@ -27,7 +28,9 @@
  * parse_fail/codegen_fail/typeck_func_fail/ptr_field/ret_fail +
  * parse_skip/parse_commit_fail/parse_func_generic/parser_onefunc_param_ref +
  * typeck_import_const/warn_pad/warn_hot/hint_unused +
- * typeck_binop_operands/parse_commit_shape/parser_diagnostic_parse_commit_shape
+ * typeck_binop_operands/parse_commit_shape/parser_diagnostic_parse_commit_shape +
+ * after_entry_parse_module/codegen_emit_func_fail +
+ * asm last_expr/store/trace/print/var/fail_at
  * — rest must not #define dropped _impl */
 /* thin supplies pure public for rest residual callers */
 int driver_diag_env_debug_pipe(void);
@@ -1253,27 +1256,24 @@ void driver_diagnostic_asm_macho_missing_und_reloc(int32_t reloc_idx)
 
 
 
+/* pure authority wave5: thin.x module BSS + store/set/trace/print/var/fail_at (append+note).
+ * Cold keeps C static BSS + reportf bodies; FROM_X rest no pure-dup _impl (H↓). */
+#ifndef SHUX_L2_RDD_THIN_FROM_X
 /** asm 后端：记录当前正在 emit 的 ExprKind 序数，供 fail_at 时打印。 */
 static int driver_diagnostic_asm_last_expr_kind = -1;
-/** 供 .x 写 last_expr_kind（G-02f-163/409）。实现体始终 seed；public PREFER 时 thin pure forward。 */
 void driver_diagnostic_asm_last_expr_kind_set_impl(int32_t k) {
     driver_diagnostic_asm_last_expr_kind = (int)k;
 }
-/* G-02f-163/409：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
 void driver_diagnostic_asm_last_expr_kind_set(int32_t k) {
     driver_diagnostic_asm_last_expr_kind_set_impl(k);
 }
 void driver_diagnostic_asm_set_last_expr_kind(int32_t k) {
     driver_diagnostic_asm_last_expr_kind_set_impl(k);
 }
-#endif
-
 
 /** asm 后端：记录当前正在 codegen 的函数名，供 var_not_found 时打印。 */
 static uint8_t driver_diagnostic_asm_current_func[72];
 static int driver_diagnostic_asm_current_func_len = 0;
-/** 供 .x 写 current_func 缓冲（G-02f-163/409）。实现体始终 seed；public PREFER 时 thin pure forward。 */
 void driver_diagnostic_asm_current_func_store_impl(const uint8_t *name, int32_t len) {
     driver_diagnostic_asm_current_func_len = (len > 0 && len <= 64) ? (int)len : 0;
     if (name && driver_diagnostic_asm_current_func_len > 0) {
@@ -1281,7 +1281,6 @@ void driver_diagnostic_asm_current_func_store_impl(const uint8_t *name, int32_t 
             driver_diagnostic_asm_current_func[i] = name[i];
     }
 }
-/** SHUX_ASM_FUNC_TRACE 冷路径（va_list reportf 仍留 C）；public PREFER 时 thin pure forward。 */
 void driver_diagnostic_asm_current_func_maybe_trace_impl(void) {
     const char *trace = getenv("SHUX_ASM_FUNC_TRACE");
     if (trace && trace[0] != '\0' && trace[0] != '0' && driver_diagnostic_asm_current_func_len > 0) {
@@ -1290,8 +1289,6 @@ void driver_diagnostic_asm_current_func_maybe_trace_impl(void) {
                      (const char *)driver_diagnostic_asm_current_func);
     }
 }
-/* G-02f-163/409：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
 void driver_diagnostic_asm_current_func_store(const uint8_t *name, int32_t len) {
     driver_diagnostic_asm_current_func_store_impl(name, len);
 }
@@ -1302,16 +1299,9 @@ void driver_diagnostic_asm_set_current_func(const uint8_t *name, int32_t len) {
     driver_diagnostic_asm_current_func_store_impl(name, len);
     driver_diagnostic_asm_current_func_maybe_trace_impl();
 }
-#endif
-
 
 /** backend_asm_codegen_ast_to_elf 返回 -1 时打印当前函数名（SHUX_ASM_DEBUG）。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
 void driver_diagnostic_asm_print_current_func(void)
-#else
-void driver_diagnostic_asm_print_current_func_impl(void)
-#endif
 {
     if (driver_diagnostic_asm_current_func_len > 0)
         diag_reportf(NULL, 0, 0, "note", NULL,
@@ -1322,19 +1312,9 @@ void driver_diagnostic_asm_print_current_func_impl(void)
         diag_report(NULL, 0, 0, "note", "asm codegen failed (func unknown)", NULL);
 }
 
-
-
-
-
-/** asm 后端：EXPR_VAR 在 local_offset 未找到时由 backend.x 调用；若 num_locals>0 可传首槽名 first_slot/first_len 便于对比。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+/** asm 后端：EXPR_VAR 在 local_offset 未找到时由 backend.x 调用。 */
 void driver_diagnostic_asm_var_not_found(const uint8_t *name, int32_t len, int32_t num_locals,
     const uint8_t *first_slot, int32_t first_len)
-#else
-void driver_diagnostic_asm_var_not_found_impl(const uint8_t *name, int32_t len, int32_t num_locals,
-    const uint8_t *first_slot, int32_t first_len)
-#endif
 {
     char namebuf[65];
     char firstbuf[65];
@@ -1358,16 +1338,8 @@ void driver_diagnostic_asm_var_not_found_impl(const uint8_t *name, int32_t len, 
     }
 }
 
-
-
-
-/** asm 后端：返回 -1 前调用，loc 表示失败位置（1=section_text 2=globl 3=label 4=prologue 5=block_body 6=block_inits 7=emit_expr 8=epilogue），便于定位 rc=-6。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+/** asm 后端：返回 -1 前调用，loc 表示失败位置。 */
 void driver_diagnostic_asm_fail_at(int32_t loc)
-#else
-void driver_diagnostic_asm_fail_at_impl(int32_t loc)
-#endif
 {
     const char *func_name = "?";
     int func_name_len = 1;
@@ -1385,6 +1357,7 @@ void driver_diagnostic_asm_fail_at_impl(int32_t loc)
                  "asm codegen fail_at=%d (last_expr_kind=%d)",
                  (int)loc, driver_diagnostic_asm_last_expr_kind);
 }
+#endif
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 
