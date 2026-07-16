@@ -456,9 +456,22 @@ ensure_pipeline_x_o_fresh() {
   make bootstrap-pipeline pipeline_x.o
   fi
   if [ -f pipeline_x.o ]; then
+  # PLATFORM: SHARED — re-promote when pipeline.o missing, older, or reduced to WPO-helpers-only
+  # (few T / bare resolve_path_*) after a prior dogfood overwrite of full pipeline_x.
+  _need_promote=0
   if [ ! -f "$BUILD_DIR/pipeline.o" ] || [ "pipeline_x.o" -nt "$BUILD_DIR/pipeline.o" ]; then
+  _need_promote=1
+  else
+  _po_t=$(nm "$BUILD_DIR/pipeline.o" 2>/dev/null | awk '/ T / {c++} END{print c+0}')
+  _px_t=$(nm pipeline_x.o 2>/dev/null | awk '/ T / {c++} END{print c+0}')
+  if [ "${_px_t:-0}" -gt 80 ] 2>/dev/null && [ "${_po_t:-0}" -lt 80 ] 2>/dev/null; then
+  _need_promote=1
+  fi
+  fi
+  if [ "$_need_promote" -eq 1 ]; then
   strict_glue_info "promote pipeline_x.o -> $BUILD_DIR/pipeline.o"
   cp -f pipeline_x.o "$BUILD_DIR/pipeline.o"
+  rm -f "$BUILD_DIR/pipeline_strict_link_partial.o" "$BUILD_DIR/pipeline_strict_link_export.txt" 2>/dev/null || true
   fi
   mkdir -p "$BUILD_DIR/gen_driver"
   cp -f pipeline_x.o "$BUILD_DIR/gen_driver/pipeline_x.o"
@@ -888,10 +901,11 @@ ensure_asm_backend_compat_stubs_obj() {
 }
 
 # 与 build_shux_asm.sh 一致：pipeline_glue_standalone 引用 simd_enc / simd_loop / target_cpu。
+# PLATFORM: SHARED — G-02e: f32 xmm ABI folded into backend_call_dispatch (no pipeline_abi_f32_xmm.c).
 ensure_simd_glue_link_objs() {
-  if [ ! -f src/asm/pipeline_abi_f32_xmm.o ] || [ src/asm/pipeline_abi_f32_xmm.c -nt src/asm/pipeline_abi_f32_xmm.o ]; then
-  strict_glue_info "cc -c src/asm/pipeline_abi_f32_xmm.c -> src/asm/pipeline_abi_f32_xmm.o"
-  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/asm/pipeline_abi_f32_xmm.o src/asm/pipeline_abi_f32_xmm.c
+  if [ ! -f src/asm/backend_call_dispatch.o ] || [ seeds/backend_call_dispatch.from_x.c -nt src/asm/backend_call_dispatch.o ]; then
+  strict_glue_info "cc -c seeds/backend_call_dispatch.from_x.c -> src/asm/backend_call_dispatch.o (G-02e f32 xmm)"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/backend_call_dispatch.from_x.c -o src/asm/backend_call_dispatch.o
   fi
   if [ ! -f src/driver/target_cpu.o ] || [ seeds/target_cpu_pure.from_x.c -nt src/driver/target_cpu.o ]; then
   strict_glue_info "cc -c seeds/target_cpu_pure.from_x.c -> src/driver/target_cpu.o"
@@ -959,12 +973,21 @@ if [ "${STRICT_LINK_BUILD_ASM_BACKEND_WPO:-}" != "0" ] && asm_backend_wpo_strict
 fi
 
 # WPO strict 链：pipeline_wpo.o 依赖 resolve_path_* 等 helper；CI 跳过 pipeline second pass 时 build_asm/pipeline.o 与 wpo 符号重叠、partial 为空。
+# PLATFORM: SHARED — do NOT overwrite a full selfhosted pipeline.o (pipeline_x promote, often 1000+ T
+# symbols with pipeline_resolve_path_* names) with a WPO-helpers-only object. Bare resolve_path_* live
+# in pipeline_wpo.o / helpers partial; overwriting full pipeline.o made strict_link residual 0 after
+# WPO subtract (Stage2 WPO 2h tip L4 residual after Cap pure).
 rebuild_pipeline_o_wpo_strict_helpers_if_needed() {
   local po="$BUILD_DIR/pipeline.o"
-  local comp tmp pt
+  local comp tmp pt n_t
   [ "${STRICT_LINK_BUILD_ASM_WPO:-0}" -eq 1 ] || return 0
   asm_pipeline_wpo_strict_reach_ok || return 0
   [ -f "$po" ] || return 1
+  n_t=$(nm "$po" 2>/dev/null | awk '/ T / {c++} END{print c+0}')
+  if [ "${n_t:-0}" -gt 80 ] 2>/dev/null; then
+  strict_glue_info "pipeline.o already full (T=${n_t}); WPO helpers from pipeline_wpo.o only"
+  return 0
+  fi
   if nm "$po" 2>/dev/null | grep -qE ' T (_)?resolve_path_try_one_lib_root$'; then
   return 0
   fi
@@ -1320,7 +1343,8 @@ else
   strict_glue_info "typeck not selfhosted yet (__text=$(asm_o_text_bytes "$BUILD_DIR/typeck.o")B)"
 fi
 
-BSTRICT_DISPATCH="src/asm/backend_enc_dispatch.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o src/asm/pipeline_abi_f32_xmm.o"
+# PLATFORM: SHARED — G-02e: f32 xmm lives in backend_call_dispatch; match build_shux_asm BSTRICT_DISPATCH_OBJS.
+BSTRICT_DISPATCH="src/asm/backend_enc_dispatch.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o"
 ST_DRIVER_COMPILE_O="driver_compile_x.o"
 # asm driver 替换须 STRICT_LINK_BUILD_ASM_DRIVER=1；默认仍用 C-gen（link.o 链入后 strict check 仍待修 arm64 对齐/ABI）。
 if [ "${STRICT_LINK_BUILD_ASM_DRIVER:-0}" -eq 1 ] && [ -f "$BUILD_DIR/driver_compile_link.o" ]; then
@@ -1471,7 +1495,8 @@ if [ ! -f "$BUILD_DIR/seed_link_compat.o" ] || [ "seeds/seed_link_compat.from_x.
   $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/seed_link_compat.from_x.c -o "$BUILD_DIR/seed_link_compat.o"
 fi
 ST_STRICT_COMPANIONS="src/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS src/asm/user_asm_seed_bridge.o $BUILD_DIR/asm_backend_compat_stubs.o $BSTRICT_DISPATCH src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_x.o driver_fmt_x.o driver_check_x.o driver_test_x.o driver_build_x.o driver_run_x.o $ST_DRIVER_COMPILE_O driver_emit_x.o $ST_BSTRICT_LINK_EXTRA"
-ST_STRICT_COMPANIONS="$ST_STRICT_COMPANIONS src/codegen/codegen_pipeline_stubs.o src/typeck/typeck_f64_bits.o src/lexer/cfg_eval.o"
+# G-02e: codegen_pipeline_stubs folded into runtime_driver_strict_glue_stubs (linked separately).
+ST_STRICT_COMPANIONS="$ST_STRICT_COMPANIONS src/typeck/typeck_f64_bits.o src/lexer/cfg_eval.o"
 if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
   ST_STRICT_COMPANIONS="$ST_STRICT_COMPANIONS $BUILD_DIR/backend_seed_mega_fallback.o"
 fi
@@ -1533,25 +1558,13 @@ ensure_runtime_driver_abi_obj
 ensure_runtime_pipeline_abi_obj
 
 # 与 build_shux_asm.sh strict 链一致：driver_get_argv_i / shux_read_file_into_path / invoke_ld。
-ensure_runtime_abi_obj() {
-  local o="src/runtime_abi.o"
-  if [ ! -f "$o" ] || [ "src/runtime_abi.c" -nt "$o" ]; then
-  strict_glue_info "cc -c $o <- src/runtime_abi.c"
-  "$CC" $CFLAGS -c -o "$o" src/runtime_abi.c
-  fi
-}
+# PLATFORM: SHARED — G-02e: runtime_abi.c / runtime_proc_abi.c merged into runtime_link_abi;
+#   std_fs_shim / std_sys_shim merged into runtime_io_abi. Authority matches build_shux_asm.sh.
 ensure_runtime_io_abi_obj() {
   local o="src/runtime_io_abi.o"
   if [ ! -f "$o" ] || [ "seeds/runtime_io_abi.from_x.c" -nt "$o" ]; then
   strict_glue_info "cc -c $o <- seeds/runtime_io_abi.from_x.c"
   $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_io_abi.from_x.c -o "$o"
-  fi
-}
-ensure_runtime_proc_abi_obj() {
-  local o="src/runtime_proc_abi.o"
-  if [ ! -f "$o" ] || [ "src/runtime_proc_abi.c" -nt "$o" ]; then
-  strict_glue_info "cc -c $o <- src/runtime_proc_abi.c"
-  "$CC" $CFLAGS -c -o "$o" src/runtime_proc_abi.c
   fi
 }
 ensure_runtime_link_abi_obj() {
@@ -1604,7 +1617,8 @@ ensure_lexer_obj() {
 
 # G-02a: typeck.c 已物理删除；ensure_typeck_obj 已移除（typeck_x.o + typeck_c_module_stubs.o 提供）。
 
-# G-02a: codegen.c 已物理删除；ensure_codegen_obj 已移除（codegen_x.o + codegen_pipeline_stubs.o 提供）。
+# G-02a: codegen.c 已物理删除；ensure_codegen_obj 已移除（codegen_x.o + runtime_driver_strict_glue_stubs）。
+# G-02e: codegen_pipeline_stubs.c 已并入 runtime_driver_strict_glue_stubs.from_x.c。
 
 ensure_runtime_c_import_obj() {
   local o="src/runtime_c_import.o"
@@ -1622,13 +1636,8 @@ ensure_runtime_pipeline_abi_shux_c_stubs_obj() {
     $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_driver_strict_glue_stubs.from_x.c -o "$o"
   fi
 }
-ensure_codegen_pipeline_stubs_obj() {
-  local o="src/codegen/codegen_pipeline_stubs.o"
-  if [ ! -f "$o" ] || [ "src/codegen/codegen_pipeline_stubs.c" -nt "$o" ]; then
-  strict_glue_info "cc -c $o <- src/codegen/codegen_pipeline_stubs.c"
-  "$CC" $CFLAGS -c -o "$o" src/codegen/codegen_pipeline_stubs.c
-  fi
-}
+# G-02e: codegen_pipeline_stubs / std_fs_shim deleted — use ensure_runtime_driver_strict_glue_stubs_obj
+# and ensure_runtime_io_abi_obj (authority in build_shux_asm.sh).
 
 ensure_runtime_driver_strict_glue_stubs_obj() {
   local o="$BUILD_DIR/runtime_driver_strict_glue_stubs.o"
@@ -1642,14 +1651,6 @@ ensure_runtime_asm_build_obj() {
   if [ ! -f "$o" ] || [ "seeds/runtime_asm_build.from_x.c" -nt "$o" ]; then
   strict_glue_info "cc -c $o <- seeds/runtime_asm_build.from_x.c"
   $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_asm_build.from_x.c -o "$o"
-  fi
-}
-
-ensure_std_fs_shim_obj() {
-  local o="src/std_fs_shim.o"
-  if [ ! -f "$o" ] || [ "src/std_fs_shim.c" -nt "$o" ]; then
-  strict_glue_info "cc -c $o <- src/std_fs_shim.c"
-  "$CC" $CFLAGS -c -o "$o" src/std_fs_shim.c
   fi
 }
 
@@ -1743,16 +1744,12 @@ ensure_cfg_eval_obj() {
   "$ld_cmd" $LD_RELFLAGS -r -o "$o" src/lexer/cfg_eval_x.o src/lexer/cfg_eval_link_alias.o
   fi
 }
-ensure_runtime_abi_obj
 ensure_runtime_io_abi_obj
-ensure_runtime_proc_abi_obj
 ensure_runtime_link_abi_obj
 ensure_runtime_pipeline_abi_obj
 ensure_runtime_driver_obj
 ensure_runtime_driver_strict_glue_stubs_obj
-ensure_codegen_pipeline_stubs_obj
 ensure_runtime_asm_build_obj
-ensure_std_fs_shim_obj
 ensure_x_seed_bridge_obj
 ensure_ast_pool_l5_bridge_obj
 ensure_asm_experimental_symbol_bridge_obj
@@ -1809,11 +1806,10 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
 fi
 dbg_event B "invoke final link"
 LINK_START_S=$(date +%s 2>/dev/null || echo 0)
+# PLATFORM: SHARED — G-02e link line: no runtime_abi/proc_abi/std_fs_shim .o (see build_shux_asm.sh).
 "$CC" ${CFLAGS} $ST_ALLOW_MULTIDEF -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -o shux_asm.strict_glue \
   src/asm/runtime_asm_build.o \
-  src/runtime_abi.o \
   src/runtime_io_abi.o \
-  src/runtime_proc_abi.o \
   src/runtime_link_abi.o \
   src/runtime_driver.o \
   src/diag.o \
@@ -1829,7 +1825,6 @@ LINK_START_S=$(date +%s 2>/dev/null || echo 0)
   $ST_AST_BARE_ALIAS \
   $ST_WPO_ALIAS \
   $ST_RUNTIME_PARTIAL \
-  src/std_fs_shim.o \
   src/asm/asm_experimental_symbol_bridge.o \
   "$BUILD_DIR/asm_shux_lsp_diag_stub.o" \
   $ST_TYPECK_LSP_STUB \

@@ -102,13 +102,7 @@ if [ ! -f src/asm/runtime_asm_build.o ] || [ "seeds/runtime_asm_build.from_x.c" 
 fi
 
 # B-strict shux_asm：driver_run_compiler_full 走 impl_c（与 build_shux_asm.sh 一致）。
-ensure_runtime_abi_obj() {
-  local o="src/runtime_abi.o"
-  if [ ! -f "$o" ] || [ "src/runtime_abi.c" -nt "$o" ]; then
-  experimental_bootstrap_info "cc $o <- src/runtime_abi.c"
-  "$CC" $CFLAGS -c -o "$o" src/runtime_abi.c
-  fi
-}
+# PLATFORM: SHARED — G-02e: runtime_abi.c / runtime_proc_abi.c merged into runtime_link_abi.
 ensure_runtime_io_abi_obj() {
   local o="src/runtime_io_abi.o"
   if [ ! -f "$o" ] || [ "seeds/runtime_io_abi.from_x.c" -nt "$o" ]; then
@@ -116,17 +110,16 @@ ensure_runtime_io_abi_obj() {
   $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_io_abi.from_x.c -o "$o"
   fi
 }
-ensure_runtime_proc_abi_obj() {
-  local o="src/runtime_proc_abi.o"
-  if [ ! -f "$o" ] || [ "src/runtime_proc_abi.c" -nt "$o" ]; then
-  experimental_bootstrap_info "cc $o <- src/runtime_proc_abi.c"
-  "$CC" $CFLAGS -c -o "$o" src/runtime_proc_abi.c
+ensure_runtime_link_abi_obj() {
+  local o="src/runtime_link_abi.o"
+  if [ ! -f "$o" ] || [ "seeds/runtime_link_abi.from_x.c" -nt "$o" ]; then
+  experimental_bootstrap_info "cc $o <- seeds/runtime_link_abi.from_x.c"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_link_abi.from_x.c -o "$o"
   fi
 }
 ensure_runtime_driver_asm_strict_obj() {
-  ensure_runtime_abi_obj
   ensure_runtime_io_abi_obj
-  ensure_runtime_proc_abi_obj
+  ensure_runtime_link_abi_obj
   local o="src/runtime_driver_asm_strict.o"
   if [ ! -f "$o" ] || [ "seeds/runtime.from_x.c" -nt "$o" ]; then
   experimental_bootstrap_info "cc $o <- seeds/runtime.from_x.c (-DSHUX_ASM_USE_COMPILER_IMPL_C)"
@@ -406,12 +399,12 @@ if [ ! -f src/runtime/rt_parse_diag.o ] || [ seeds/rt_parse_diag.from_x.c -nt sr
   experimental_bootstrap_info "cc src/runtime/rt_parse_diag.o"
   $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/rt_parse_diag.from_x.c -o src/runtime/rt_parse_diag.o
 fi
+# PLATFORM: SHARED — G-02e: no runtime_abi/proc_abi .o; link runtime_link_abi instead.
 "$CC" $CFLAGS $EXP_ALLOW_MULTIDEF -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -o shux_asm.experimental \
   src/asm/runtime_asm_build.o \
   "$GLUE_O" \
-  src/runtime_abi.o \
   src/runtime_io_abi.o \
-  src/runtime_proc_abi.o \
+  src/runtime_link_abi.o \
   src/runtime_driver_asm_strict.o \
   src/runtime/rt_parse_diag.o \
   pipeline_x.o \

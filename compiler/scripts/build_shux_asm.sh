@@ -1671,8 +1671,13 @@ ensure_pipeline_wpo_helpers_partial_obj() {
   if ! asm_pipeline_wpo_strict_reach_ok; then
   return 1
   fi
-  if [ "${STRICT_LINK_BUILD_ASM_WPO:-0}" -eq 1 ] && [ -f "$BUILD_DIR/pipeline.o" ] && \
-  ! nm "$BUILD_DIR/pipeline.o" 2>/dev/null | grep -qE ' T (_)?resolve_path_try_one_lib_root$'; then
+  # PLATFORM: SHARED — do not overwrite full selfhosted pipeline.o (pipeline_x, 1000+ T
+  # with pipeline_resolve_path_*) with WPO-helpers-only; bare resolve_path_* come from pipeline_wpo.o.
+  if [ "${STRICT_LINK_BUILD_ASM_WPO:-0}" -eq 1 ] && [ -f "$BUILD_DIR/pipeline.o" ]; then
+  _po_n=$(nm "$BUILD_DIR/pipeline.o" 2>/dev/null | awk '/ T / {c++} END{print c+0}')
+  if [ "${_po_n:-0}" -gt 80 ] 2>/dev/null; then
+  :
+  elif ! nm "$BUILD_DIR/pipeline.o" 2>/dev/null | grep -qE ' T (_)?resolve_path_try_one_lib_root$'; then
   local comp tmp pt
   tmp="$BUILD_DIR/pipeline.wpo_strict_helpers.o"
   for comp in ./shux_asm.experimental ./shux_asm ./shux ./shux-x; do
@@ -1693,6 +1698,7 @@ ensure_pipeline_wpo_helpers_partial_obj() {
   fi
   rm -f "$tmp" 2>/dev/null || true
   done
+  fi
   fi
   if [ ! -f "$SYMS" ] || [ "$WPO_E" -nt "$SYMS" ] || [ "seeds/pipeline_asm_orchestration_alias.from_x.c" -nt "$SYMS" ] || \
   { ensure_pipeline_glue_standalone_export_syms_txt && [ "$BUILD_DIR/.pipeline_glue_standalone_export_syms.txt" -nt "$SYMS" ]; }; then
