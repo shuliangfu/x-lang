@@ -90,6 +90,7 @@ for entry in "${MODULES[@]}"; do
     alt=""
     case "$seed" in
       lexer_gen.c) alt="seeds/lexer_gen.linux.x86_64.c" ;;
+      token_gen.c) alt="seeds/token_gen.linux.x86_64.c" ;;
     esac
     if [ -n "$alt" ] && [ -f "$COMPILER_DIR/$alt" ]; then
       seed_path="$COMPILER_DIR/$alt"
