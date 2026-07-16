@@ -6151,7 +6151,7 @@ void shux_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *us
                  * 【Why 根源】sync/atomic 预编 .o 经 -backend c 带 preamble weak process_arg*_c，
                  *   对 process_shux_* 有 U。无条件硬链 → 纯 asm（binop_var 等仅 U shux_panic_）
                  *   也拖入 sync/atomic → ld 缺 process_shux_argc_get（bstrict26）。
-                 * 【Invariant】与 crypto/process 同：仅 user.o 有 std_sync_*/std_atomic_* UNDEF 才推。
+                 * 【Invariant】与 crypto/process 同：仅 user.o 有 std_sync_ 或 std_atomic_ 前缀 UNDEF 才推。
                  */
                 if (fk == 3 /* sync */
                     && !shux_link_obj_needs_undef_sym(user_o, "std_sync_mutex_lock")
