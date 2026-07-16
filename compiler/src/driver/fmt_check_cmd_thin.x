@@ -24,15 +24,19 @@
 //   + wave BSS pure：user ignore path slots 进 thin（32×256 flat BSS + at + parse_ignore）；
 //     Cap residual：file_list ptrs / lib path slots / walk opendir / path_stat 仍 rest；
 //     FROM_X rest 无 pure-dup user_ignore_at / parse_ignore_opt _impl。
+//   + wave Cap residual pure：lib path slots + full try_append（8×512 BSS + at/store +
+//     path_stat public + shux_ptr_slot_set argv）；FROM_X 无 pure-dup try_append_impl；
+//     Cap residual：file_list ptrs / walk / stat / store / clear / argv_append / one_file /
+//     run_fmt / run_check 仍 rest（ALWAYS residual 9→8）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_FMT_CHECK_THIN_FROM_X）ld -r
 //   → fmt_check_cmd_driver.o
 // Prove IDENTICAL：seeds/fmt_check_cmd_thin_surface.from_x.c
-// Cap residual：walk opendir/stat/argv/大 BSS（file_list ptrs / lib path slots）/
-//   check_one_file_body 等 *_impl 仍在 full seed rest；FROM_X 下 pure-duplicate
-//   _impl 已剔除（含 set_current_file / print / cwd_fallback / try_walk /
-//   path_resolve_abs / append_repo / missing_diag / collect_mode / user_passed_L /
-//   init / file_list_n / user_ignore_count / lib_bufs_n / user_ignore_at /
-//   parse_ignore_opt；H↓）。
+// Cap residual：walk opendir/stat/argv/大 BSS（file_list ptrs）/ check_one_file_body
+//   等 *_impl 仍在 full seed rest；FROM_X 下 pure-duplicate _impl 已剔除（含
+//   set_current_file / print / cwd_fallback / try_walk / path_resolve_abs /
+//   append_repo / missing_diag / collect_mode / user_passed_L / init / file_list_n /
+//   user_ignore_count / lib_bufs_n / user_ignore_at / parse_ignore_opt /
+//   try_append_lib_root；H↓）。
 //
 // -E 约束：无 while 重赋值；无零参-only 不稳写法；6 参用扁平 if。
 //
@@ -48,14 +52,15 @@ export extern "C" function fmt_file_list_store_impl(abs_path: *u8): i32;
 // Cap residual：可写路径 BSS 槽（0=current_file，1=resolve_abs）。
 // -E 顶层 u8[N] 现退化为悬空指针（codegen.x 已根修，codegen_gen 再生后可收回此槽）。
 export extern "C" function fmt_check_path_bss_slot(which: i32): *u8;
-// G.7: load argv[i] / char** slot (pipeline authority pair with shux_ptr_slot_set).
+// G.7: load/store argv[i] / char** slot (pipeline authority pair).
 export extern "C" function shux_ptr_slot_get(arr: *u8, i: i32): *u8;
+export extern "C" function shux_ptr_slot_set(arr: *u8, i: i32, p: *u8): void;
 
 // ---- Cap residual pure: collect_mode + user_passed_L + file_list/ignore/lib_bufs n ----
 // DRIVER_COLLECT_MODE_FMT=1, DRIVER_COLLECT_MODE_CHECK=2 (match seed enum).
 // Hybrid thin owns cells; cold seed keeps C static + _impl. PLATFORM: SHARED.
-// Counters pure; Cap residual path tables (file_list/lib bufs) stay rest.
-// User ignore path slots (32×256) pure under hybrid (see g_fmt_user_ignore_paths).
+// Counters pure; Cap residual path table file_list ptrs stay rest.
+// User ignore path slots (32×256) + check -L lib path slots (8×512) pure under hybrid.
 let g_fmt_collect_mode: i32[1] = [1];
 let g_fmt_user_passed_L: i32[1] = [0];
 let g_fmt_file_list_n: i32[1] = [0];
@@ -64,11 +69,16 @@ let g_fmt_check_lib_bufs_n: i32[1] = [0];
 // User --ignore path slots: 32 entries × 256 bytes (match DRIVER_FMT_MAX_IGNORE × seed).
 // PLATFORM: SHARED. Pure under PREFER hybrid; cold seed keeps s_ignore_paths[][].
 let g_fmt_user_ignore_paths: u8[8192] = [];
+// Check -L lib path slots: 8 entries × 512 bytes (match seed s_check_lib_bufs).
+// PLATFORM: SHARED. Pure under PREFER hybrid; cold seed keeps s_check_lib_bufs[][].
+let g_fmt_check_lib_bufs: u8[4096] = [];
 
 let g_fmt_lit_check_error: u8[12] = [99, 104, 101, 99, 107, 32, 101, 114, 114, 111, 114, 0];
 let g_fmt_lit_fmt_error: u8[10] = [102, 109, 116, 32, 101, 114, 114, 111, 114, 0];
 let g_fmt_lit_chk002: u8[7] = [67, 72, 75, 48, 48, 50, 0];
 let g_fmt_lit_fmt001: u8[7] = [70, 77, 84, 48, 48, 49, 0];
+// ASCII "-L" for check_argv injection (try_append pure).
+let g_fmt_lit_dash_L: u8[3] = [45, 76, 0];
 
 let g_fmt_builtin_ignore_0: u8[8] = [47, 46, 103, 105, 116, 47, 0, 0];
 let g_fmt_builtin_ignore_1: u8[12] = [47, 98, 117, 105, 108, 100, 95, 97, 115, 109, 47, 0];
@@ -476,10 +486,60 @@ export function fmt_check_lib_bufs_n_set(v: i32): void {
 }
 
 /** Reset check -L lib path buffer count to 0 (per-file / init). Pure under hybrid.
- * Cap residual keeps s_check_lib_bufs[] path slots. PLATFORM: SHARED. */
+ * Path slots live in pure g_fmt_check_lib_bufs under hybrid. PLATFORM: SHARED. */
 #[no_mangle]
 export function fmt_check_lib_bufs_reset(): void {
   fmt_check_lib_bufs_n_set(0);
+}
+
+/** Return pointer to check -L lib path slot i (512B each in flat BSS).
+ * Pure under PREFER hybrid. Bounds: i in [0, 8). PLATFORM: SHARED. */
+#[no_mangle]
+export function fmt_check_lib_buf_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i >= 8) {
+    return 0 as *u8;
+  }
+  unsafe {
+    let base: *u8 = &g_fmt_check_lib_bufs[0];
+    return base + (i * 512);
+  }
+  return 0 as *u8;
+}
+
+/** Copy path into check -L lib path slot i (max 511 bytes + NUL).
+ * Returns 1 on success, 0 on bad index/null. Pure under hybrid.
+ * Cap residual argv_append uses this with public n get/set. PLATFORM: SHARED. */
+#[no_mangle]
+export function fmt_check_lib_buf_store(i: i32, path: *u8): i32 {
+  if (i < 0) {
+    return 0;
+  }
+  if (i >= 8) {
+    return 0;
+  }
+  if (path == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    let slot: *u8 = fmt_check_lib_buf_at(i);
+    if (slot == 0 as *u8) {
+      return 0;
+    }
+    let k: i32 = 0;
+    while (k < 511) {
+      let c: u8 = path[k];
+      slot[k] = c;
+      if (c == 0) {
+        return 1;
+      }
+      k = k + 1;
+    }
+    slot[511] = 0;
+  }
+  return 1;
 }
 
 // ---- lint pure / invoke·dep_clear pure 分派；path_stat Cap residual ----
@@ -542,11 +602,13 @@ export function fmt_path_stat_kind(path: *u8): i32 {
   return 0 - 1;
 }
 
-// ---- pure 门闩 / try_append 早退 / current file + print pure；Cap：lib root body / one_file body ----
-export extern "C" function check_try_append_lib_root_impl(check_argv: *u8, n: *i32, dir: *u8): void;
+// ---- pure try_append full + current file/print pure；Cap：one_file body ----
 export extern "C" function check_one_file_body_impl(path: *u8, argc: i32, argv: *u8): i32;
 
-// pure 早退：null/空 dir / 用户已传 -L / argv 槽满；stat+BSS 去重 🔒 _impl
+/** If dir has both core/ and std/ subdirs, inject -L dir into check_argv (deduped).
+ * Pure under PREFER hybrid: early gates + byte-build core/std paths + public
+ * fmt_path_stat_kind (Cap residual OS) + pure lib path slots + G.7 shux_ptr_slot_set.
+ * No try_append_impl under hybrid (ALWAYS residual 9→8). PLATFORM: SHARED. */
 #[no_mangle]
 export function check_try_append_lib_root(check_argv: *u8, n: *i32, dir: *u8): void {
   if (check_argv == 0 as *u8) {
@@ -568,7 +630,82 @@ export function check_try_append_lib_root(check_argv: *u8, n: *i32, dir: *u8): v
     if (n[0] >= 58) {
       return;
     }
-    check_try_append_lib_root_impl(check_argv, n, dir);
+    // Build dir+"/core" and dir+"/std" (no snprintf).
+    let core_path: u8[560] = [];
+    let std_path: u8[560] = [];
+    let di: i32 = 0;
+    while (di < 512) {
+      let c: u8 = dir[di];
+      if (c == 0) {
+        break;
+      }
+      core_path[di] = c;
+      std_path[di] = c;
+      di = di + 1;
+    }
+    // Need room for "/core\0" (5+1) and "/std\0" (4+1).
+    if ((di + 6) >= 560) {
+      return;
+    }
+    core_path[di] = 47;
+    core_path[di + 1] = 99;
+    core_path[di + 2] = 111;
+    core_path[di + 3] = 114;
+    core_path[di + 4] = 101;
+    core_path[di + 5] = 0;
+    std_path[di] = 47;
+    std_path[di + 1] = 115;
+    std_path[di + 2] = 116;
+    std_path[di + 3] = 100;
+    std_path[di + 4] = 0;
+    // Cap residual OS: directory = 1.
+    if (fmt_path_stat_kind(&core_path[0]) != 1) {
+      return;
+    }
+    if (fmt_path_stat_kind(&std_path[0]) != 1) {
+      return;
+    }
+    let nb: i32 = fmt_check_lib_bufs_n();
+    let i: i32 = 0;
+    while (i < nb) {
+      let slot: *u8 = fmt_check_lib_buf_at(i);
+      if (slot != 0 as *u8) {
+        // Byte-eq slot vs dir (NUL-terminated).
+        let eq: i32 = 1;
+        let j: i32 = 0;
+        while (j < 512) {
+          let a: u8 = slot[j];
+          let b: u8 = dir[j];
+          if (a != b) {
+            eq = 0;
+            break;
+          }
+          if (a == 0) {
+            break;
+          }
+          j = j + 1;
+        }
+        if (eq != 0) {
+          return;
+        }
+      }
+      i = i + 1;
+    }
+    if (nb >= 8) {
+      return;
+    }
+    if (fmt_check_lib_buf_store(nb, dir) == 0) {
+      return;
+    }
+    let slot2: *u8 = fmt_check_lib_buf_at(nb);
+    if (slot2 == 0 as *u8) {
+      return;
+    }
+    let ni: i32 = n[0];
+    shux_ptr_slot_set(check_argv, ni, &g_fmt_lit_dash_L[0]);
+    shux_ptr_slot_set(check_argv, ni + 1, slot2);
+    n[0] = ni + 2;
+    fmt_check_lib_bufs_n_set(nb + 1);
   }
 }
 

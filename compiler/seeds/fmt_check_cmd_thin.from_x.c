@@ -1,4 +1,4 @@
-/* regen from fmt_check_cmd_thin.x -E (ignore path slots pure) */
+/* regen from fmt_check_cmd_thin.x -E (lib path slots + try_append pure) */
 /* prove prologue (g05_try_x_to_o aligned + uio/poll) */
 #include <stddef.h>
 #include <stdint.h>
@@ -375,6 +375,8 @@ extern void fmt_file_list_n_set(int32_t v);
 extern int32_t fmt_check_lib_bufs_n(void);
 extern void fmt_check_lib_bufs_n_set(int32_t v);
 extern void fmt_check_lib_bufs_reset(void);
+extern uint8_t * fmt_check_lib_buf_at(int32_t i);
+extern int32_t fmt_check_lib_buf_store(int32_t i, uint8_t * path);
 extern int32_t check_lint_fail_on_warnings(void);
 extern int32_t fmt_check_invoke_compile(int32_t argc, uint8_t * check_argv);
 extern void fmt_check_dep_clear(void);
@@ -405,10 +407,12 @@ static int32_t g_fmt_file_list_n[1] = {0};
 static int32_t g_fmt_user_ignore_n[1] = {0};
 static int32_t g_fmt_check_lib_bufs_n[1] = {0};
 static uint8_t g_fmt_user_ignore_paths[8192];
+static uint8_t g_fmt_check_lib_bufs[4096];
 static uint8_t g_fmt_lit_check_error[12] = {99, 104, 101, 99, 107, 32, 101, 114, 114, 111, 114, 0};
 static uint8_t g_fmt_lit_fmt_error[10] = {102, 109, 116, 32, 101, 114, 114, 111, 114, 0};
 static uint8_t g_fmt_lit_chk002[7] = {67, 72, 75, 48, 48, 50, 0};
 static uint8_t g_fmt_lit_fmt001[7] = {70, 77, 84, 48, 48, 49, 0};
+static uint8_t g_fmt_lit_dash_L[3] = {45, 76, 0};
 static uint8_t g_fmt_builtin_ignore_0[8] = {47, 46, 103, 105, 116, 47, 0, 0};
 static uint8_t g_fmt_builtin_ignore_1[12] = {47, 98, 117, 105, 108, 100, 95, 97, 115, 109, 47, 0};
 static uint8_t g_fmt_builtin_ignore_2[8] = {47, 98, 117, 105, 108, 100, 47, 0};
@@ -430,6 +434,7 @@ extern void diag_report_with_code(uint8_t * file, int32_t line, int32_t col, uin
 extern int32_t fmt_file_list_store_impl(uint8_t * abs_path);
 extern uint8_t * fmt_check_path_bss_slot(int32_t which);
 extern uint8_t * shux_ptr_slot_get(uint8_t * arr, int32_t i);
+extern void shux_ptr_slot_set(uint8_t * arr, int32_t i, uint8_t * p);
 int32_t driver_check_quiet_ok_get(void) {
   return 1;
 }
@@ -734,6 +739,47 @@ void fmt_check_lib_bufs_n_set(int32_t v) {
 void fmt_check_lib_bufs_reset(void) {
   (void)(fmt_check_lib_bufs_n_set(0));
 }
+uint8_t * fmt_check_lib_buf_at(int32_t i) {
+  if ((i < 0)) {
+    return ((uint8_t *)(0));
+  }
+  if ((i >=8)) {
+    return ((uint8_t *)(0));
+  }
+  {
+    uint8_t * base = &((g_fmt_check_lib_bufs)[0]);
+    return (base + (i * 512));
+  }
+  return ((uint8_t *)(0));
+}
+int32_t fmt_check_lib_buf_store(int32_t i, uint8_t * path) {
+  if ((i < 0)) {
+    return 0;
+  }
+  if ((i >=8)) {
+    return 0;
+  }
+  if ((path ==((uint8_t *)(0)))) {
+    return 0;
+  }
+  {
+    uint8_t * slot = fmt_check_lib_buf_at(i);
+    if ((slot ==((uint8_t *)(0)))) {
+      return 0;
+    }
+    int32_t k = 0;
+    while ((k < 511)) {
+      uint8_t c = (path)[k];
+      (void)(((slot)[k] = c));
+      if ((c ==0)) {
+        return 1;
+      }
+      (void)((k = (k + 1)));
+    }
+    (void)(((slot)[511] = 0));
+  }
+  return 1;
+}
 extern int32_t fmt_path_stat_kind_impl(uint8_t * path);
 int32_t check_lint_fail_on_warnings(void) {
   {
@@ -777,7 +823,6 @@ int32_t fmt_path_stat_kind(uint8_t * path) {
   return fmt_path_stat_kind_impl(path);
   return (0 - 1);
 }
-extern void check_try_append_lib_root_impl(uint8_t * check_argv, int32_t * n, uint8_t * dir);
 extern int32_t check_one_file_body_impl(uint8_t * path, int32_t argc, uint8_t * argv);
 void check_try_append_lib_root(uint8_t * check_argv, int32_t * n, uint8_t * dir) {
   if ((check_argv ==((uint8_t *)(0)))) {
@@ -795,10 +840,83 @@ void check_try_append_lib_root(uint8_t * check_argv, int32_t * n, uint8_t * dir)
   if ((check_user_passed_L_get() !=0)) {
     return;
   }
-  if (((n)[0] >=58)) {
-    return;
+  {
+    uint8_t core_path[560] = {};
+    uint8_t std_path[560] = {};
+    int32_t di = 0;
+    int32_t nb = fmt_check_lib_bufs_n();
+    int32_t i = 0;
+    uint8_t * slot2 = fmt_check_lib_buf_at(nb);
+    int32_t ni = (n)[0];
+    if (((n)[0] >=58)) {
+      return;
+    }
+    while ((di < 512)) {
+      uint8_t c = (dir)[di];
+      if ((c ==0)) {
+        break;
+      }
+      (void)(((core_path)[di] = c));
+      (void)(((std_path)[di] = c));
+      (void)((di = (di + 1)));
+    }
+    if (((di + 6) >=560)) {
+      return;
+    }
+    (void)(((core_path)[di] = 47));
+    (void)(((core_path)[(di + 1)] = 99));
+    (void)(((core_path)[(di + 2)] = 111));
+    (void)(((core_path)[(di + 3)] = 114));
+    (void)(((core_path)[(di + 4)] = 101));
+    (void)(((core_path)[(di + 5)] = 0));
+    (void)(((std_path)[di] = 47));
+    (void)(((std_path)[(di + 1)] = 115));
+    (void)(((std_path)[(di + 2)] = 116));
+    (void)(((std_path)[(di + 3)] = 100));
+    (void)(((std_path)[(di + 4)] = 0));
+    if ((fmt_path_stat_kind(&((core_path)[0])) !=1)) {
+      return;
+    }
+    if ((fmt_path_stat_kind(&((std_path)[0])) !=1)) {
+      return;
+    }
+    while ((i < nb)) {
+      uint8_t * slot = fmt_check_lib_buf_at(i);
+      if ((slot !=((uint8_t *)(0)))) {
+        int32_t eq = 1;
+        int32_t j = 0;
+        while ((j < 512)) {
+          uint8_t a = (slot)[j];
+          uint8_t b = (dir)[j];
+          if ((a !=b)) {
+            (void)((eq = 0));
+            break;
+          }
+          if ((a ==0)) {
+            break;
+          }
+          (void)((j = (j + 1)));
+        }
+        if ((eq !=0)) {
+          return;
+        }
+      }
+      (void)((i = (i + 1)));
+    }
+    if ((nb >=8)) {
+      return;
+    }
+    if ((fmt_check_lib_buf_store(nb, dir) ==0)) {
+      return;
+    }
+    if ((slot2 ==((uint8_t *)(0)))) {
+      return;
+    }
+    (void)(shux_ptr_slot_set(check_argv, ni, &((g_fmt_lit_dash_L)[0])));
+    (void)(shux_ptr_slot_set(check_argv, (ni + 1), slot2));
+    (void)(((n)[0] = (ni + 2)));
+    (void)(fmt_check_lib_bufs_n_set((nb + 1)));
   }
-  (void)(check_try_append_lib_root_impl(check_argv, n, dir));
   (void)(0);
   return;
 }
