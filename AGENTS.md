@@ -35,10 +35,20 @@
    - 所有 ABI 面、类型前缀、符号名只能收敛，不能复制
    - seed 与 `.x` / glue 镜像若必须并存：**同 commit 同语义**，禁止长期分叉
 
+5. **平台边界必须标注（macOS / Ubuntu / Windows / 共用）。**
+   - 代码中凡平台分支、ABI、链接差异、seed pin、syscall 差异，注释写清  
+     `PLATFORM: SHARED | POSIX | LINUX|UBUNTU | MACOS|DARWIN | WINDOWS`
+   - **SHARED** 改动：macOS 与 Ubuntu **双端**验证；谈自举前双端冷编译 + 全量 `run-all-bstrict`
+   - **禁止**把 macOS `-dead_strip` 下的绿当成 Linux 全链已过（UNDEF 常只在 Ubuntu 暴露）
+   - **禁止**无注释的跨平台假设（修 A 打坏 B）
+   - 细则见 skill  
+     `~/.grok/skills/shux-selfhost-product-gate/SKILL.md` → **G.8**  
+     与 `references/platform-boundaries.md`
+
 ## 执行纪律
 
-- 每次修改前先读相关代码，理解上下文
-- 修改后必须在真实环境验证（Ubuntu x86_64 为金标准）
+- 每次修改前先读相关代码，理解上下文（含该块是哪一平台 / 是否 SHARED）
+- 修改后必须在真实环境验证（Ubuntu x86_64 为金标准；SHARED 另加 macOS）
 - 提交前清理所有 `.o` 文件并重新编译
 - 修改 `pipeline_glue.c` 或 `ast_pool.c` 后需在 Ubuntu 重建 `pipeline_x.o`
 - 修改 `pipeline_glue_strict_minimal` seed 后重建 `build_asm/pipeline_glue_strict_minimal.o` + g05

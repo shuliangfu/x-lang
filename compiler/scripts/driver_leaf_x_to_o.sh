@@ -100,6 +100,22 @@ if SHUX_BIN=$(pick_shux); then
 fi
 
 if [ -n "$COLD_SEED" ] && [ -f "$COLD_SEED" ]; then
+  # PLATFORM: SHARED — cold seed may contain extern decls (malloc/free/calloc/etc.)
+  # that conflict with system headers on macOS (void* vs uint8_t* return). Strip
+  # them before compiling, same as PREFER_X_O path and lsp_io_std_heap_gen.c rule.
+  _seed_tmp="$(mktemp "${TMPDIR:-/tmp}/cold_seed.XXXXXX.c")"
+  sed -e '/^extern uint8_t \* malloc(/d' \
+      -e '/^extern void free(/d' \
+      -e '/^extern uint8_t \* calloc(/d' \
+      "$COLD_SEED" > "$_seed_tmp"
+  # shellcheck disable=SC2086
+  if $CC $BASE_CFLAGS -c -o "$OUT_O" "$_seed_tmp" 2>/dev/null; then
+    rm -f "$_seed_tmp"
+    echo "driver_leaf_x_to_o: $OUT_O <- $COLD_SEED (cold seed, stripped externs)"
+    exit 0
+  fi
+  rm -f "$_seed_tmp"
+  # Fallback: try unstripped (Linux often has no conflict)
   # shellcheck disable=SC2086
   $CC $BASE_CFLAGS -c -o "$OUT_O" "$COLD_SEED"
   echo "driver_leaf_x_to_o: $OUT_O <- $COLD_SEED (cold seed)"

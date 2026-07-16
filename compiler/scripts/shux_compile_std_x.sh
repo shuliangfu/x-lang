@@ -34,6 +34,22 @@ if [ "$shux_bin" = "auto" ]; then
     exit 1
   fi
 fi
+# PLATFORM: SHARED (host -E+cc path; required on MACOS when -backend asm code_len=0)
+# rt_preamble injects weak args_iter_* for programs that do not link std.env.
+# env.x provides strong #[no_mangle] args_iter_* in the same TU. Clang rejects
+# weak+strong redefinition (Linux cold usually stays on asm .o and never hits this).
+# Authority: strip only the preamble weak defs when a non-weak def exists in gen.c.
+shux_strip_conflicting_weak_args_iter() {
+  _gen="$1"
+  [ -f "$_gen" ] || return 0
+  if grep -qE '__attribute__\(\(weak\)\).*args_iter_count_c' "$_gen" 2>/dev/null \
+    && grep -qE '^int32_t args_iter_count_c\(' "$_gen" 2>/dev/null; then
+    sed -e '/__attribute__((weak)) int32_t args_iter_count_c(void)/d' \
+        -e '/__attribute__((weak)) uint8_t \*args_iter_at_c(int32_t/d' \
+        "$_gen" >"$_gen.strip" && mv "$_gen.strip" "$_gen"
+  fi
+}
+
 case "$(basename "$shux_bin")" in
   shux-c)
     # -o may use ASM backend which fails on some .x files (pointer arith, arrays).
@@ -51,6 +67,7 @@ case "$(basename "$shux_bin")" in
         rm -f "$gen_c.bak"
       fi
     fi
+    shux_strip_conflicting_weak_args_iter "$gen_c"
     cc -Wall -Wextra -I. -Iinclude -Isrc -c -o "$out_o" "$gen_c" || { rm -f "$gen_c"; exit 1; }
     rm -f "$gen_c"
     ;;
@@ -76,6 +93,7 @@ case "$(basename "$shux_bin")" in
             rm -f "$gen_c.bak"
           fi
         fi
+        shux_strip_conflicting_weak_args_iter "$gen_c"
         cc -Wall -Wextra -I. -Iinclude -Isrc -c -o "$out_o" "$gen_c" || { rm -f "$gen_c"; exit 1; }
         rm -f "$gen_c"
       else

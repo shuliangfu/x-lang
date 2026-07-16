@@ -44,11 +44,11 @@ case "$(basename "$LINK_SHUX")" in
     ;;
 esac
 
-# core/slice C 实现（length.x 等）；勿强编 process.o（arm64 shux-c 无 asm backend）。
-if [ -z "${SHUX_SKIP_SUBSCRIPT_MAKE:-}" ]; then
-  make -C compiler -q ../core/slice/slice.o 2>/dev/null \
-    || make -C compiler ../core/slice/slice.o 2>/dev/null || true
-fi
+# core/slice C 实现（length.x / subslice_split_chunks 等依赖 runtime_slice_glue）。
+# PLATFORM: SHARED — 始终确保 slice.o 存在。SHUX_SKIP_SUBSCRIPT_MAKE 只跳过 shux-c
+# 重建（防 seed 挂起），不得跳过本 glue；冷树缺 slice.o 时 -o 会 UNDEF core_subslice_*。
+make -C compiler -q ../core/slice/slice.o 2>/dev/null \
+  || make -C compiler ../core/slice/slice.o 2>/dev/null || true
 
 # main.x / data_field.x：asm slice 栈槽问题或 exit 不符时回退 seed -E+cc。
 slice_simple_link_o() {
