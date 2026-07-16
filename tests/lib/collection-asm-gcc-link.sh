@@ -24,14 +24,17 @@ collection_ensure_std_objs() {
   local kind="$1"
   case "$kind" in
     set)
-      make -C compiler -q ../std/heap/heap.o ../std/set/set.o 2>/dev/null \
-        || make -C compiler ../std/heap/heap.o ../std/set/set.o
+      make -C compiler -q ../std/heap/heap.o ../std/heap/page_mmap.o ../std/set/set.o 2>/dev/null \
+        || make -C compiler ../std/heap/heap.o ../std/heap/page_mmap.o ../std/set/set.o
       ;;
     heap)
-      make -C compiler -q ../std/heap/heap.o 2>/dev/null || make -C compiler ../std/heap/heap.o
+      make -C compiler -q ../std/heap/heap.o ../std/heap/page_mmap.o 2>/dev/null \
+        || make -C compiler ../std/heap/heap.o ../std/heap/page_mmap.o
       ;;
     map)
-      make -C compiler -q ../std/map/map.o 2>/dev/null || make -C compiler ../std/map/map.o
+      # map.o → heap；heap.o → page_mmap + process_shux_*（与 run-map/run-heap 一致）
+      make -C compiler -q ../std/map/map.o ../std/heap/heap.o ../std/heap/page_mmap.o 2>/dev/null \
+        || make -C compiler ../std/map/map.o ../std/heap/heap.o ../std/heap/page_mmap.o
       ;;
     *)
       echo "collection_asm_gcc_link: unknown kind $kind" >&2
@@ -58,13 +61,13 @@ collection_asm_gcc_link() {
 
   case "$kind" in
     set)
-      extra_objs=(std/heap/heap.o std/set/set.o)
+      extra_objs=(std/heap/heap.o std/heap/page_mmap.o std/set/set.o core/mem/mem.o)
       ;;
     heap)
-      extra_objs=(std/heap/heap.o)
+      extra_objs=(std/heap/heap.o std/heap/page_mmap.o core/mem/mem.o)
       ;;
     map)
-      extra_objs=(std/map/map.o)
+      extra_objs=(std/map/map.o std/heap/heap.o std/heap/page_mmap.o core/mem/mem.o)
       ;;
   esac
 

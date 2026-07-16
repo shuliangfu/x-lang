@@ -1,21 +1,23 @@
 #!/usr/bin/env bash
-# 测试 std.map（empty_size）：typeck + map.o 符号烟测
+# 测试 std.map（empty_size）：typeck + 产品 -o / collection 回退链
+# 权威链接与 run-set/run-heap 一致：collection_link_exe（禁手写残缺 gcc 清单）
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q shux-c 2>/dev/null || SHUX_LEGACY_C_FRONTEND=1 make -C compiler shux-c 2>/dev/null || make -C compiler -q 2>/dev/null || make -C compiler
-SHUX="${SHUX:-}"
-if [ -z "$SHUX" ]; then
-  for cand in ./compiler/shux-c ./compiler/shux; do
-    if [ -x "$cand" ]; then SHUX="$cand"; break; fi
-  done
-fi
-if [ -z "$SHUX" ] || [ ! -x "$SHUX" ]; then
-  echo "map test SKIP (no shux/shux-c)"
-  exit 0
-fi
-# shellcheck source=tests/lib/build-std-c-o.sh
+# shellcheck source=lib/build-std-c-o.sh
 . "$(dirname "$0")/lib/build-std-c-o.sh"
-make -C compiler -q ../std/map/map.o 2>/dev/null || make -C compiler ../std/map/map.o
+make -C compiler -q ../std/map/map.o ../std/heap/heap.o 2>/dev/null \
+  || make -C compiler ../std/map/map.o ../std/heap/heap.o
+# heap.o 传递依赖：page_mmap + process argv（std 模块编译会带入 process_* UNDEF）
+make -C compiler -q ../std/heap/page_mmap.o 2>/dev/null \
+  || make -C compiler ../std/heap/page_mmap.o
+ensure_runtime_panic_o
+ensure_runtime_process_argv_o
+# shellcheck source=lib/bootstrap-link-shux.sh
+. "$(dirname "$0")/lib/bootstrap-link-shux.sh"
+# shellcheck source=lib/collection-asm-gcc-link.sh
+. "$(dirname "$0")/lib/collection-asm-gcc-link.sh"
+SHUX=${SHUX:-./compiler/shux}
+LINK_SHUX="${SHUX_LINK_SHUX:-${RUN_SHUX:-$SHUX}}"
 if ! "$SHUX" check -L . tests/map/main.x 2>&1; then
   echo "map test: typeck failed"
   exit 1
@@ -24,23 +26,12 @@ if ! nm std/map/map.o 2>/dev/null | grep -q 'std_map_empty_size'; then
   echo "map test: missing std_map_empty_size in map.o"
   exit 1
 fi
-# 链入 map.o + heap.o + mem.o 烟测：empty_size() 恒 0
-# map.o → heap；heap.o → core_mem_*，缺 mem.o 则 Undefined _core_mem_mem_*。
 exe="/tmp/shux_map_$$"
-smoke_c="/tmp/shux_map_smoke_$$.c"
-cat > "$smoke_c" <<'EOF'
-#include <stdint.h>
-extern int32_t std_map_empty_size(void);
-int main(void) {
-  return (int)std_map_empty_size();
-}
-EOF
-if ! gcc -fPIE -o "$exe" "$smoke_c" std/map/map.o std/heap/heap.o core/mem/mem.o 2>&1; then
+if ! collection_link_exe "$LINK_SHUX" tests/map/main.x "$exe" map 2>&1; then
   echo "map test: link failed"
-  rm -f "$exe" "$smoke_c"
+  rm -f "$exe"
   exit 1
 fi
-rm -f "$smoke_c"
 exitcode=0
 "$exe" 2>/dev/null || exitcode=$?
 rm -f "$exe"
