@@ -21,7 +21,10 @@ export const RT_FS_O_CREAT: i32 = 512;
 #[cfg(target_os = "macos")]
 export const RT_FS_O_TRUNC: i32 = 1024;
 
-/** path[0..path_len) 拷到 path_buf 并写尾 0；成功 1 / 失败 0。path_len 须 < 512。 */
+/** path[0..path_len) 拷到 path_buf 并写尾 0；成功 1 / 失败 0。path_len 须 < 512。
+ * Track-L：#[no_mangle] 与 surface 短名一致，禁止模块前缀 mangle（rt_fs_open_rt_fs_path_*）。
+ * PLATFORM: SHARED — 链接名契约；双端 prove 同验。 */
+#[no_mangle]
 export function rt_fs_path_copy_nul(path: *u8, path_len: i32, path_buf: *u8): i32 {
   let i: i32 = 0;
   if (path == 0 as *u8) {
