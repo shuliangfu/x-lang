@@ -1,11 +1,13 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-314/444 → R2 full：-x -E emit 主体。
-// .x 吃满 driver_run_x_emit_c；产品 PREFER 下 rest 仅 marker（业务 H=0）。
-// Cap residual（driver_abi）：stdout/OutBuf/指针表/parse/diag/typeck 槽 + work 槽
-//   （避免巨型函数 50+ 局部被 -E 抬 static/丢体；禁 **u8）。
-// 步骤函数拆分：read_pp / parse / load_deps / prerun / finish。
+// G-02f-314/444 → R2 full: -x -E emit body.
+// .x owns driver_run_x_emit_c; product PREFER rest is marker only (business H=0).
+// Cap residual (driver_abi): stdout/OutBuf/ptr tables/parse/diag/typeck + work slots
+//   (avoid 50+ locals lifted static / body drop under -E; ban **u8).
+// Steps: read_pp / parse / load_deps / prerun / finish.
+// PLATFORM: SHARED — surface short names are the link-name contract (Track L).
+// Comment rule: never put star-slash sequences inside block comments.
 
 export extern "C" function malloc(n: usize): *u8;
 export extern "C" function free(p: *u8): void;
@@ -118,151 +120,355 @@ export extern "C" function driver_x_emit_work_cleanup(): void;
 export extern "C" function typeck_set_allow_legacy_extern_calls(allow: i32): i32;
 
 /* work pointer indices */
-function wp_path(): i32 { return 0; }
-function wp_src(): i32 { return 1; }
-function wp_arena(): i32 { return 3; }
-function wp_module(): i32 { return 4; }
-function wp_entry(): i32 { return 5; }
-function wp_dsrc(): i32 { return 6; }
-function wp_dpath(): i32 { return 7; }
-function wp_dlens(): i32 { return 8; }
-function wp_dar(): i32 { return 9; }
-function wp_dmod(): i32 { return 10; }
-function wp_out(): i32 { return 11; }
-function wp_pctx(): i32 { return 12; }
-function wp_kind(): i32 { return 19; }
-function wp_code(): i32 { return 20; }
-function wp_msg(): i32 { return 21; }
-function wp_lib(): i32 { return 24; }
+/** Work-slot index for entry path pointer.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_wp_path).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function wp_path(): i32 { return 0; }
+/** Work-slot index for preprocess source buffer.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_wp_src).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function wp_src(): i32 { return 1; }
+/** Work-slot index for main parse arena.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_wp_arena).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function wp_arena(): i32 { return 3; }
+/** Work-slot index for main module pointer.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_wp_module).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function wp_module(): i32 { return 4; }
+/** Work-slot index for entry-dir buffer.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_wp_entry).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function wp_entry(): i32 { return 5; }
+/** Work-slot index for dep source pointer table.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_wp_dsrc).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function wp_dsrc(): i32 { return 6; }
+/** Work-slot index for dep path pointer table.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_wp_dpath).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function wp_dpath(): i32 { return 7; }
+/** Work-slot index for dep source-length table.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_wp_dlens).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function wp_dlens(): i32 { return 8; }
+/** Work-slot index for dep arena pointer table.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_wp_dar).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function wp_dar(): i32 { return 9; }
+/** Work-slot index for dep module pointer table.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_wp_dmod).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function wp_dmod(): i32 { return 10; }
+/** Work-slot index for codegen OutBuf.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_wp_out).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function wp_out(): i32 { return 11; }
+/** Work-slot index for pipeline dep context.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_wp_pctx).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function wp_pctx(): i32 { return 12; }
+/** Work-slot index for diagnostic kind scratch buffer.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_wp_kind).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function wp_kind(): i32 { return 19; }
+/** Work-slot index for diagnostic code scratch buffer.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_wp_code).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function wp_code(): i32 { return 20; }
+/** Work-slot index for diagnostic message scratch buffer.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_wp_msg).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function wp_msg(): i32 { return 21; }
+/** Work-slot index for lib-roots pointer table.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_wp_lib).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function wp_lib(): i32 { return 24; }
 
-function wi_nlib(): i32 { return 1; }
-function wi_ndeps(): i32 { return 2; }
-function wi_asm(): i32 { return 3; }
-function wi_nimp(): i32 { return 4; }
-function wi_main(): i32 { return 5; }
+/** Work-int index for n_lib_roots.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_wi_nlib).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function wi_nlib(): i32 { return 1; }
+/** Work-int index for n_deps.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_wi_ndeps).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function wi_ndeps(): i32 { return 2; }
+/** Work-int index for asm-direct / use_asm flag.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_wi_asm).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function wi_asm(): i32 { return 3; }
+/** Work-int index for module import count.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_wi_nimp).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function wi_nimp(): i32 { return 4; }
+/** Work-int index for main function index.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_wi_main).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function wi_main(): i32 { return 5; }
 
-function wz_slen(): i32 { return 0; }
-function wz_asz(): i32 { return 2; }
-function wz_msz(): i32 { return 3; }
+/** Work-size index for source length.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_wz_slen).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function wz_slen(): i32 { return 0; }
+/** Work-size index for arena sizeof.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_wz_asz).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function wz_asz(): i32 { return 2; }
+/** Work-size index for module sizeof.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_wz_msz).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function wz_msz(): i32 { return 3; }
 
-function rt_xe_fill_kind_io(k: *u8): void {
+/** Fill kind buffer with io error (byte writes; no string lit).
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_rt_xe_fill_kind_io).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function rt_xe_fill_kind_io(k: *u8): void {
   k[0] = 105; k[1] = 111; k[2] = 32; k[3] = 101; k[4] = 114; k[5] = 114;
   k[6] = 111; k[7] = 114; k[8] = 0;
 }
-function rt_xe_fill_code_io001(c: *u8): void {
+/** Fill code buffer with IO001.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_rt_xe_fill_code_io001).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function rt_xe_fill_code_io001(c: *u8): void {
   c[0] = 73; c[1] = 79; c[2] = 48; c[3] = 48; c[4] = 49; c[5] = 0;
 }
-function rt_xe_fill_kind_pp(k: *u8): void {
+/** Fill kind buffer with preprocess error.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_rt_xe_fill_kind_pp).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function rt_xe_fill_kind_pp(k: *u8): void {
   k[0] = 112; k[1] = 114; k[2] = 101; k[3] = 112; k[4] = 114; k[5] = 111;
   k[6] = 99; k[7] = 101; k[8] = 115; k[9] = 115; k[10] = 32; k[11] = 101;
   k[12] = 114; k[13] = 114; k[14] = 111; k[15] = 114; k[16] = 0;
 }
-function rt_xe_fill_code_pp002(c: *u8): void {
+/** Fill code buffer with PP002.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_rt_xe_fill_code_pp002).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function rt_xe_fill_code_pp002(c: *u8): void {
   c[0] = 80; c[1] = 80; c[2] = 48; c[3] = 48; c[4] = 50; c[5] = 0;
 }
-function rt_xe_fill_kind_pipe(k: *u8): void {
+/** Fill kind buffer with pipeline error.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_rt_xe_fill_kind_pipe).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function rt_xe_fill_kind_pipe(k: *u8): void {
   k[0] = 112; k[1] = 105; k[2] = 112; k[3] = 101; k[4] = 108; k[5] = 105;
   k[6] = 110; k[7] = 101; k[8] = 32; k[9] = 101; k[10] = 114; k[11] = 114;
   k[12] = 111; k[13] = 114; k[14] = 0;
 }
-function rt_xe_fill_code_xp003(c: *u8): void {
+/** Fill code buffer with XP003.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_rt_xe_fill_code_xp003).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function rt_xe_fill_code_xp003(c: *u8): void {
   c[0] = 88; c[1] = 80; c[2] = 48; c[3] = 48; c[4] = 51; c[5] = 0;
 }
-function rt_xe_fill_code_xp005(c: *u8): void {
+/** Fill code buffer with XP005.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_rt_xe_fill_code_xp005).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function rt_xe_fill_code_xp005(c: *u8): void {
   c[0] = 88; c[1] = 80; c[2] = 48; c[3] = 48; c[4] = 53; c[5] = 0;
 }
-function rt_xe_fill_code_xp006(c: *u8): void {
+/** Fill code buffer with XP006.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_rt_xe_fill_code_xp006).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function rt_xe_fill_code_xp006(c: *u8): void {
   c[0] = 88; c[1] = 80; c[2] = 48; c[3] = 48; c[4] = 54; c[5] = 0;
 }
-function rt_xe_fill_code_xp007(c: *u8): void {
+/** Fill code buffer with XP007.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_rt_xe_fill_code_xp007).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function rt_xe_fill_code_xp007(c: *u8): void {
   c[0] = 88; c[1] = 80; c[2] = 48; c[3] = 48; c[4] = 55; c[5] = 0;
 }
-function rt_xe_fill_code_xp008(c: *u8): void {
+/** Fill code buffer with XP008.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_rt_xe_fill_code_xp008).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function rt_xe_fill_code_xp008(c: *u8): void {
   c[0] = 88; c[1] = 80; c[2] = 48; c[3] = 48; c[4] = 56; c[5] = 0;
 }
-function rt_xe_fill_kind_parse(k: *u8): void {
+/** Fill kind buffer with parse error.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_rt_xe_fill_kind_parse).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function rt_xe_fill_kind_parse(k: *u8): void {
   k[0] = 112; k[1] = 97; k[2] = 114; k[3] = 115; k[4] = 101; k[5] = 32;
   k[6] = 101; k[7] = 114; k[8] = 114; k[9] = 111; k[10] = 114; k[11] = 0;
 }
-function rt_xe_fill_code_p001(c: *u8): void {
+/** Fill code buffer with P001.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_rt_xe_fill_code_p001).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function rt_xe_fill_code_p001(c: *u8): void {
   c[0] = 80; c[1] = 48; c[2] = 48; c[3] = 49; c[4] = 0;
 }
-function rt_xe_fill_kind_cg(k: *u8): void {
+/** Fill kind buffer with codegen error.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_rt_xe_fill_kind_cg).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function rt_xe_fill_kind_cg(k: *u8): void {
   k[0] = 99; k[1] = 111; k[2] = 100; k[3] = 101; k[4] = 103; k[5] = 101;
   k[6] = 110; k[7] = 32; k[8] = 101; k[9] = 114; k[10] = 114; k[11] = 111;
   k[12] = 114; k[13] = 0;
 }
-function rt_xe_fill_code_cg004(c: *u8): void {
+/** Fill code buffer with CG004.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_rt_xe_fill_code_cg004).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function rt_xe_fill_code_cg004(c: *u8): void {
   c[0] = 67; c[1] = 71; c[2] = 48; c[3] = 48; c[4] = 52; c[5] = 0;
 }
-function rt_xe_msg_cannot_read(m: *u8): void {
+/** Fill message buffer with cannot read file.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_rt_xe_msg_cannot_read).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function rt_xe_msg_cannot_read(m: *u8): void {
   m[0] = 99; m[1] = 97; m[2] = 110; m[3] = 110; m[4] = 111; m[5] = 116;
   m[6] = 32; m[7] = 114; m[8] = 101; m[9] = 97; m[10] = 100; m[11] = 32;
   m[12] = 102; m[13] = 105; m[14] = 108; m[15] = 101; m[16] = 0;
 }
-function rt_xe_msg_pp_failed(m: *u8): void {
+/** Fill message buffer with preprocess failed.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_rt_xe_msg_pp_failed).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function rt_xe_msg_pp_failed(m: *u8): void {
   m[0] = 112; m[1] = 114; m[2] = 101; m[3] = 112; m[4] = 114; m[5] = 111;
   m[6] = 99; m[7] = 101; m[8] = 115; m[9] = 115; m[10] = 32; m[11] = 102;
   m[12] = 97; m[13] = 105; m[14] = 108; m[15] = 101; m[16] = 100; m[17] = 0;
 }
-function rt_xe_msg_alloc_failed(m: *u8): void {
+/** Fill message buffer with .x pipeline allocation failed.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_rt_xe_msg_alloc_failed).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function rt_xe_msg_alloc_failed(m: *u8): void {
   m[0] = 46; m[1] = 120; m[2] = 32; m[3] = 112; m[4] = 105; m[5] = 112;
   m[6] = 101; m[7] = 108; m[8] = 105; m[9] = 110; m[10] = 101; m[11] = 32;
   m[12] = 97; m[13] = 108; m[14] = 108; m[15] = 111; m[16] = 99; m[17] = 97;
   m[18] = 116; m[19] = 105; m[20] = 111; m[21] = 110; m[22] = 32; m[23] = 102;
   m[24] = 97; m[25] = 105; m[26] = 108; m[27] = 101; m[28] = 100; m[29] = 0;
 }
-function rt_xe_msg_src_too_large(m: *u8): void {
+/** Fill message buffer with .x -E source too large.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_rt_xe_msg_src_too_large).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function rt_xe_msg_src_too_large(m: *u8): void {
   m[0] = 46; m[1] = 120; m[2] = 32; m[3] = 45; m[4] = 69; m[5] = 32;
   m[6] = 115; m[7] = 111; m[8] = 117; m[9] = 114; m[10] = 99; m[11] = 101;
   m[12] = 32; m[13] = 116; m[14] = 111; m[15] = 111; m[16] = 32; m[17] = 108;
   m[18] = 97; m[19] = 114; m[20] = 103; m[21] = 101; m[22] = 0;
 }
-function rt_xe_msg_parse_failed(m: *u8): void {
+/** Fill message buffer with .x -E parse failed.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_rt_xe_msg_parse_failed).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function rt_xe_msg_parse_failed(m: *u8): void {
   m[0] = 46; m[1] = 120; m[2] = 32; m[3] = 45; m[4] = 69; m[5] = 32;
   m[6] = 112; m[7] = 97; m[8] = 114; m[9] = 115; m[10] = 101; m[11] = 32;
   m[12] = 102; m[13] = 97; m[14] = 105; m[15] = 108; m[16] = 101; m[17] = 100;
   m[18] = 0;
 }
-function rt_xe_msg_dep_alloc(m: *u8): void {
+/** Fill message buffer with dep alloc failed.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_rt_xe_msg_dep_alloc).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function rt_xe_msg_dep_alloc(m: *u8): void {
   m[0] = 100; m[1] = 101; m[2] = 112; m[3] = 32; m[4] = 97; m[5] = 108;
   m[6] = 108; m[7] = 111; m[8] = 99; m[9] = 32; m[10] = 102; m[11] = 97;
   m[12] = 105; m[13] = 108; m[14] = 101; m[15] = 100; m[16] = 0;
 }
-function rt_xe_msg_out_ctx_alloc(m: *u8): void {
+/** Fill message buffer with out/ctx alloc failed.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_rt_xe_msg_out_ctx_alloc).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function rt_xe_msg_out_ctx_alloc(m: *u8): void {
   m[0] = 111; m[1] = 117; m[2] = 116; m[3] = 47; m[4] = 99; m[5] = 116;
   m[6] = 120; m[7] = 32; m[8] = 97; m[9] = 108; m[10] = 108; m[11] = 111;
   m[12] = 99; m[13] = 32; m[14] = 102; m[15] = 97; m[16] = 105; m[17] = 108;
   m[18] = 101; m[19] = 100; m[20] = 0;
 }
-function rt_xe_msg_dep_prerun(m: *u8): void {
+/** Fill message buffer with dep prerun failed.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_rt_xe_msg_dep_prerun).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function rt_xe_msg_dep_prerun(m: *u8): void {
   m[0] = 100; m[1] = 101; m[2] = 112; m[3] = 32; m[4] = 112; m[5] = 114;
   m[6] = 101; m[7] = 114; m[8] = 117; m[9] = 110; m[10] = 32; m[11] = 102;
   m[12] = 97; m[13] = 105; m[14] = 108; m[15] = 101; m[16] = 100; m[17] = 0;
 }
-function rt_xe_msg_pipe_failed(m: *u8): void {
+/** Fill message buffer with .x pipeline failed.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_rt_xe_msg_pipe_failed).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function rt_xe_msg_pipe_failed(m: *u8): void {
   m[0] = 46; m[1] = 120; m[2] = 32; m[3] = 112; m[4] = 105; m[5] = 112;
   m[6] = 101; m[7] = 108; m[8] = 105; m[9] = 110; m[10] = 101; m[11] = 32;
   m[12] = 102; m[13] = 97; m[14] = 105; m[15] = 108; m[16] = 101; m[17] = 100;
   m[18] = 0;
 }
-function rt_xe_msg_no_funcs(m: *u8): void {
+/** Fill message buffer with no functions.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_rt_xe_msg_no_funcs).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function rt_xe_msg_no_funcs(m: *u8): void {
   m[0] = 110; m[1] = 111; m[2] = 32; m[3] = 102; m[4] = 117; m[5] = 110;
   m[6] = 99; m[7] = 116; m[8] = 105; m[9] = 111; m[10] = 110; m[11] = 115;
   m[12] = 0;
 }
-function rt_xe_msg_empty_buf(m: *u8): void {
+/** Fill message buffer with cg buf empty.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_rt_xe_msg_empty_buf).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function rt_xe_msg_empty_buf(m: *u8): void {
   m[0] = 99; m[1] = 103; m[2] = 32; m[3] = 98; m[4] = 117; m[5] = 102;
   m[6] = 32; m[7] = 101; m[8] = 109; m[9] = 112; m[10] = 116; m[11] = 121;
   m[12] = 0;
 }
-function rt_xe_msg_expected_lit(m: *u8): void {
+/** Fill message buffer with expected literal.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_rt_xe_msg_expected_lit).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function rt_xe_msg_expected_lit(m: *u8): void {
   m[0] = 101; m[1] = 120; m[2] = 112; m[3] = 101; m[4] = 99; m[5] = 116;
   m[6] = 101; m[7] = 100; m[8] = 32; m[9] = 108; m[10] = 105; m[11] = 116;
   m[12] = 101; m[13] = 114; m[14] = 97; m[15] = 108; m[16] = 0;
 }
 
-function rt_xe_diag(path: *u8, kind_fn: i32, code_fn: i32, msg_fn: i32): void {
+/** Dispatch kind/code/msg fillers by selector ids, then diag_report_with_code. kind_fn/code_fn/msg_fn are integer selectors (not function pointers) for Cap residual. Uses work slots wp_kind/wp_code/wp_msg.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_rt_xe_diag).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function rt_xe_diag(path: *u8, kind_fn: i32, code_fn: i32, msg_fn: i32): void {
   let k: *u8 = 0 as *u8;
   let c: *u8 = 0 as *u8;
   let m: *u8 = 0 as *u8;
@@ -305,7 +511,10 @@ function rt_xe_diag(path: *u8, kind_fn: i32, code_fn: i32, msg_fn: i32): void {
   }
 }
 
-/** 读源 + preprocess；成功 0 / 失败 1。结果写入 work 槽。 */
+/** Step: read source + preprocess into work slots. Returns 0 ok / 1 fail.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_rt_xe_step_read_pp).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
 export function rt_xe_step_read_pp(): i32 {
   let path: *u8 = 0 as *u8;
   let raw: *u8 = 0 as *u8;
@@ -343,7 +552,10 @@ export function rt_xe_step_read_pp(): i32 {
   return 0;
 }
 
-/** 分配 arena/module + parse_into；成功 0 / 失败 1。 */
+/** Step: parse main module into arena/module work slots. Returns 0 ok / 1 fail.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_rt_xe_step_parse).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
 export function rt_xe_step_parse(): i32 {
   let path: *u8 = 0 as *u8;
   let src: *u8 = 0 as *u8;
@@ -437,7 +649,10 @@ export function rt_xe_step_parse(): i32 {
   return 0;
 }
 
-/** 装 dep 路径表 + 分配 dep arena/module；成功 0 / 失败 1。 */
+/** Step: load direct/transitive deps into work tables. Returns 0 ok / 1 fail.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_rt_xe_step_load_deps).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
 export function rt_xe_step_load_deps(): i32 {
   let path: *u8 = 0 as *u8;
   let module: *u8 = 0 as *u8;
@@ -596,7 +811,10 @@ export function rt_xe_step_load_deps(): i32 {
   return 0;
 }
 
-/** 逆拓扑 dep prerun；成功 0 / 失败 1。 */
+/** Step: dep prerun (parse/typeck) + publish slots. Returns 0 ok / 1 fail.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_rt_xe_step_prerun).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
 export function rt_xe_step_prerun(): i32 {
   let path: *u8 = 0 as *u8;
   let entry: *u8 = 0 as *u8;
@@ -793,7 +1011,10 @@ export function rt_xe_step_prerun(): i32 {
   return 0;
 }
 
-/** 设 typeck 槽 + 跑 pipeline + 写 stdout；返回 emit rc。 */
+/** Step: run x pipeline large-stack + write C to stdout. Returns 0 ok / 1 fail.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_rt_xe_step_finish).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
 export function rt_xe_step_finish(): i32 {
   let path: *u8 = 0 as *u8;
   let src: *u8 = 0 as *u8;
@@ -890,10 +1111,9 @@ export function rt_xe_step_finish(): i32 {
   return 1;
 }
 
-/**
- * 执行 -x -E：读源 → preprocess → parse → dep prerun → pipeline → stdout。
- * 成功 0，失败 1。
- */
+/** Public entry: run -x -E emit pipeline via work slots and five steps. Resets work, seeds path/lib, then read_pp, parse, load_deps, prerun, finish.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_run_x_emit_driver_run_x_emit_c).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
 #[no_mangle]
 export function driver_run_x_emit_c(): i32 {
   let path: *u8 = 0 as *u8;
