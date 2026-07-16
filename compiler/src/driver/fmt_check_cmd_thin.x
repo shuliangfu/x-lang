@@ -744,11 +744,18 @@ export function check_collect_default_product_dirs(): void {
   }
 }
 
-// pure missing-diag：拼 "cannot access path '…'" + diag_report_with_code（无 reportf）
-function collect_paths_missing_diag_pure(path: *u8): void {
+/** Report a missing/inaccessible path diagnostic (no printf/reportf).
+ * Builds the message "cannot access path '<path>'" byte-by-byte into a local
+ * buffer (max 600), then calls diag_report_with_code with collect kind/code.
+ * `path` may be null (message still ends with empty quotes). Side effect only.
+ * Track-L: #[no_mangle] keeps surface short name collect_paths_missing_diag_pure
+ * (without it, codegen emits driver_collect_paths_missing_diag_pure).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function collect_paths_missing_diag_pure(path: *u8): void {
   unsafe {
     let msg: u8[600] = [];
-    // "cannot access path '"
+    // ASCII: "cannot access path '"
     msg[0] = 99;
     msg[1] = 97;
     msg[2] = 110;
@@ -770,6 +777,7 @@ function collect_paths_missing_diag_pure(path: *u8): void {
     msg[18] = 32;
     msg[19] = 39;
     let at: i32 = 20;
+    // Append path bytes (cap) then closing quote and NUL.
     if (path != 0 as *u8) {
       let i: i32 = 0;
       while (i < 512) {
