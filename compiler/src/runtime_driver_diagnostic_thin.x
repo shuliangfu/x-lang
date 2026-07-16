@@ -16,8 +16,9 @@
 //   + typeck_binop_operands / parse_commit_shape / parser_diagnostic_parse_commit_shape (wave3)
 //   + after_entry_parse_module / codegen_emit_func_fail (wave4; pipeline API + append; no va_list).
 //   + asm BSS store/set/trace/print/var/fail_at (wave5; module BSS + append+note; no va_list).
-// Cap residual: rest va_list report_x_pipeline_code + lsp_diag_get_enabled_impl + marker.
-// This TU: thin gates + pure bodies (f-339..341 + f-387 env + f-409 pipe + f-416 lsp_diag_get + wave5)
+//   + wave6: slice_marker pure; lsp_diag_get_enabled is G.7 extern (runtime_lsp_glue owner);
+//     FROM_X rest drops dead va_list report_x (pure XP001/XP002 cover callers) → rest T=0.
+// This TU: thin gates + pure bodies (f-339..341 + f-387 env + f-409 pipe + wave5 + wave6)
 
 export extern "C" function getenv(name: *u8): *u8;
 
@@ -39,8 +40,12 @@ export extern "C" function pipeline_module_func_name_byte_at(module: *u8, fi: i3
 // pure: typeck_binop_operands / parse_commit_shape / parser_diagnostic_parse_commit_shape (wave3).
 // pure: after_entry_parse_module / codegen_emit_func_fail (wave4).
 // pure: asm BSS + print/var/fail_at/trace (wave5).
+// pure: slice_marker (wave6); lsp_diag_get_enabled is extern C (G.7 glue owner).
 
 // pure:driver_diagnostic_codegen_fail defined after append_* helpers.
+
+// G.7: flag + getter live in runtime_lsp_glue / lsp_diag_stubs_no_c (not this residual rest).
+export extern "C" function lsp_diag_get_enabled(): i32;
 
 // ---- Wave5 Cap residual pure: asm backend diagnostic BSS (PLATFORM: SHARED) ----
 // Authority lives in this thin TU under PREFER hybrid; cold seed keeps C static BSS.
@@ -1509,13 +1514,12 @@ export function driver_diagnostic_codegen_emit_func_fail(module: *u8, func_index
   }
 }
 
-// ---- G-02f-416:lsp_diag_enabled getter -> seed impl ----
-export extern "C" function lsp_diag_get_enabled_impl(): i32;
+// wave6: lsp_diag_get_enabled is export-extern at file head (G.7 glue authority).
+// No local definition — avoids dual authority with runtime_lsp_glue.
 
+/** Hybrid ld -r slice marker (return 1). Pure authority under PREFER; cold seed keeps C.
+ * PLATFORM: SHARED — FROM_X rest has no pure-dup marker. */
 #[no_mangle]
-export function lsp_diag_get_enabled(): i32 {
-  unsafe {
-    return lsp_diag_get_enabled_impl();
-  }
-  return 0;
+export function runtime_driver_diagnostic_slice_marker(): i32 {
+  return 1;
 }

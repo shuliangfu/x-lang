@@ -73,6 +73,11 @@ static int s_diag_count;
 
 int lsp_diag_enabled = 0;
 
+/* PLATFORM: SHARED — G.7 mirror of runtime_lsp_glue getter (no-c frontend path). */
+int lsp_diag_get_enabled(void) {
+    return lsp_diag_enabled ? 1 : 0;
+}
+
 void lsp_diag_clear(void) {
     s_diag_count = 0;
 }

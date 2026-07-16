@@ -1,5 +1,5 @@
 /* G-02f-339..341 / R2 thin + Cap residual pure deep-migrate
- * (wave2..wave5: skip/warn + binop/shape + module/emit + asm BSS store/trace/print/var/fail):
+ * (wave2..wave6: skip/warn + binop/shape + module/emit + asm BSS + rest close):
  * PREFER hybrid thin from src/runtime_driver_diagnostic_thin.x -E;
  * rest SHUX_L2_RDD_THIN_FROM_X: no thin public bodies; pure-dup fixed-msg/pipe orch/assemble/
  * env_debug_pipe/parse_strict_enabled/report_prefixed/pipe_note/
@@ -9,8 +9,10 @@
  * typeck_import_const/warn_pad/warn_hot/hint_unused +
  * typeck_binop_operands/parse_commit_shape/parser_diagnostic_parse_commit_shape +
  * after_entry_parse_module/codegen_emit_func_fail +
- * asm last_expr/store/trace/print/var/fail_at dropped;
- * only slice_marker + Cap residual (va_list report / lsp_diag_get) bodies.
+ * asm last_expr/store/trace/print/var/fail_at + slice_marker dropped;
+ * wave6: va_list report_x cold-only (FROM_X dead — pure XP001/XP002 cover callers);
+ * lsp_diag_get_enabled authority moved to runtime_lsp_glue (G.7 with flag owner).
+ * FROM_X rest T=0 (empty TU of public business symbols).
  * Generated from (G-02f-86/96 +copy/report_prefixed) src/runtime_driver_diagnostic.x.
  * Regen: ./shux-c -E -L .. src/runtime_driver_diagnostic.x > /tmp/rdd.c
  *         merge fixed-msg wrappers; polish slice strings; keep snprintf C.
@@ -152,15 +154,8 @@ extern int32_t pipeline_module_num_funcs(void *module);
 extern int32_t pipeline_module_func_is_extern_at(void *module, int32_t fi);
 #endif
 
-/** 供 .x 读 lsp_diag_enabled（G-02f-163/416）。实现体始终 seed；public PREFER 时 thin pure forward。 */
-int lsp_diag_get_enabled_impl(void) {
-    return lsp_diag_enabled ? 1 : 0;
-}
-#ifndef SHUX_L2_RDD_THIN_FROM_X
-int lsp_diag_get_enabled(void) {
-    return lsp_diag_get_enabled_impl();
-}
-#endif
+/* wave6: lsp_diag_get_enabled authority is runtime_lsp_glue / stubs (G.7 with flag).
+ * diagnostic no longer defines getter or _impl (cold + FROM_X). */
 
 /* pure 权威：thin.x driver_diag_report_prefixed；冷启动保留全 C 体；FROM_X 无 pure-dup _impl（H↓）。 */
 #ifndef SHUX_L2_RDD_THIN_FROM_X
@@ -177,6 +172,9 @@ void driver_diag_report_prefixed(int32_t line, int32_t col, const char *msg)
 #endif
 
 
+/* wave6: va_list report_x is cold-seed only. Under FROM_X, pure thin XP001/XP002 cover
+ * the only historical callers; no external UNDEF references. PLATFORM: SHARED cold path. */
+#ifndef SHUX_L2_RDD_THIN_FROM_X
 void driver_diag_report_x_pipeline_code_impl(const char *code, const char *fmt, va_list ap) {
     char buf[256];
 
@@ -199,6 +197,7 @@ void driver_diag_report_x_pipeline_code(const char *code, const char *fmt, ...) 
     va_end(ap);
   }
 }
+#endif
 /* G-02f-121：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* pure 权威：thin.x driver_diag_copy_bytes；冷启动全 C；FROM_X 无 pure-dup _impl */
 #ifndef SHUX_L2_RDD_THIN_FROM_X
@@ -1529,7 +1528,10 @@ void driver_diag_build_expected_found(char *msg, int32_t msg_cap, const char *pr
 #endif
 
 
+/* pure authority: thin.x runtime_driver_diagnostic_slice_marker; cold keeps C; FROM_X no pure-dup. */
+#ifndef SHUX_L2_RDD_THIN_FROM_X
 int runtime_driver_diagnostic_slice_marker(void) {
     return 1;
 }
+#endif
 

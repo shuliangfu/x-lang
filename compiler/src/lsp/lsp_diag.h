@@ -15,6 +15,9 @@
 /** 非零时 parser/typeck 应调用 lsp_diag_add 而非写 stderr（由 lsp_diagnostics_collect 置 1，结束后置 0）。 */
 extern int lsp_diag_enabled;
 
+/** G.7: read lsp_diag_enabled as 0/1 (authority next to the flag in runtime_lsp_glue / stubs). */
+int lsp_diag_get_enabled(void);
+
 /** 清空当前收集的诊断条数。 */
 void lsp_diag_clear(void);
 

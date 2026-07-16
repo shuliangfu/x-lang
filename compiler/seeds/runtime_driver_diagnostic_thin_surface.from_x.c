@@ -421,7 +421,7 @@ extern void driver_diagnostic_parse_commit_shape(int32_t byte_pos, int32_t num_f
 extern void parser_diagnostic_parse_commit_shape(int32_t byte_pos, int32_t num_funcs_so_far, uint8_t * name, int32_t name_len, int32_t phase, int32_t block_ref, int32_t pool_num_consts, int32_t pool_num_lets, int32_t pool_num_ifs, int32_t pool_num_regions, int32_t pool_num_stmt_order, int32_t block_num_consts, int32_t block_num_lets, int32_t block_num_ifs, int32_t block_num_regions, int32_t block_num_stmt_order, int32_t final_expr_ref);
 extern void driver_diagnostic_after_entry_parse_module(uint8_t * module);
 extern void driver_diagnostic_codegen_emit_func_fail(uint8_t * module, int32_t func_index);
-extern int32_t lsp_diag_get_enabled(void);
+extern int32_t runtime_driver_diagnostic_slice_marker(void);
 static int32_t g_asm_last_expr_kind;
 static uint8_t g_asm_current_func[72];
 static int32_t g_asm_current_func_len;
@@ -437,6 +437,7 @@ extern int32_t pipeline_module_num_funcs(uint8_t * module);
 extern int32_t pipeline_module_func_is_extern_at(uint8_t * module, int32_t fi);
 extern int32_t pipeline_module_func_name_len_at(uint8_t * module, int32_t fi);
 extern uint8_t pipeline_module_func_name_byte_at(uint8_t * module, int32_t fi, int32_t bi);
+extern int32_t lsp_diag_get_enabled(void);
 extern int32_t driver_check_only_get(void);
 extern int32_t driver_check_diag_emitted_get(void);
 void driver_diagnostic_entry_already(int32_t v) {
@@ -1658,8 +1659,6 @@ void driver_diagnostic_codegen_emit_func_fail(uint8_t * module, int32_t func_ind
   (void)(0);
   return;
 }
-extern int32_t lsp_diag_get_enabled_impl(void);
-int32_t lsp_diag_get_enabled(void) {
-  return lsp_diag_get_enabled_impl();
-  return 0;
+int32_t runtime_driver_diagnostic_slice_marker(void) {
+  return 1;
 }

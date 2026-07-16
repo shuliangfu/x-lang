@@ -346,6 +346,12 @@ void lsp_diag_prepare_pipeline_ctx(void *ctx_void) {
 
 int lsp_diag_enabled = 0;
 
+/* PLATFORM: SHARED — G.7 single authority with the flag owner (was diagnostic rest residual).
+ * Thin diagnostic TU only declares this; pure readers call here. */
+int lsp_diag_get_enabled(void) {
+    return lsp_diag_enabled ? 1 : 0;
+}
+
 void lsp_diag_clear(void) {
     s_diag_count = 0;
 }
