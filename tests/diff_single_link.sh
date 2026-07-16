@@ -216,6 +216,41 @@ for entry in "${MODULES[@]}"; do
   fi
   sed 's/[[:space:]]*$//' "$seed_path" >"$norm_seed"
 
+  # PLATFORM: LINUX|MACOS — std.heap page_mmap freestanding types/externs appear in
+  # plain -E on Linux (Ubuntu gold pin includes them) but not always on Darwin.
+  # EMPTY-track surface only: drop those platform-cfg dep lines from BOTH sides so
+  # dual EMPTY is not blocked by std.heap cfg, without touching product cold seeds.
+  case "$seed_key" in
+    lsp_empty_surface.from_x.c|lsp_diag_empty_surface.from_x.c|lsp_io_empty_surface.from_x.c)
+      for _side in "$norm_out" "$norm_seed"; do
+        # Drop multi-line struct bodies + forward decls + freestanding page_heap
+        # externs; collapse blank runs left by the drop so mac/Ubuntu match.
+        awk '
+          BEGIN { skip=0; blank=0 }
+          /^struct std_heap_page_mmap_/ {
+            if ($0 ~ /;[[:space:]]*$/) next
+            skip=1
+            next
+          }
+          skip {
+            if ($0 ~ /^}/) { skip=0; next }
+            next
+          }
+          /std_heap_page_mmap_/ { next }
+          /std_heap_freestanding_page_heap_/ { next }
+          /std_heap_page_heap_ok/ { next }
+          /^[[:space:]]*$/ {
+            if (blank) next
+            blank=1
+            print ""
+            next
+          }
+          { blank=0; print }
+        ' "$_side" >"${_side}.pm" && mv "${_side}.pm" "$_side"
+      done
+      ;;
+  esac
+
   diff_lines=$(diff "$norm_seed" "$norm_out" | wc -l | tr -d ' ')
 
   if [ "$diff_lines" -eq 0 ]; then

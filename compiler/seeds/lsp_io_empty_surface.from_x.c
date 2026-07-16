@@ -23,6 +23,12 @@ struct std_heap_HeapTraceStats {
   uint64_t bytes_allocated;
 };
 
+struct std_heap_page_mmap_PageMmapHeap {
+  uint8_t * base;
+  size_t cap;
+  size_t off;
+};
+
 struct std_heap_libc_LibcArena64 {
   uint8_t * chunk;
   size_t cap;
@@ -58,6 +64,7 @@ struct std_io_Buffer;
 struct std_heap_Arena64;
 struct std_heap_HeapTraceStats;
 struct std_heap_Allocator;
+struct std_heap_page_mmap_PageMmapHeap;
 struct std_heap_libc_LibcArena64;
 struct std_error_Error;
 struct std_error_ErrorChain;
@@ -2150,6 +2157,10 @@ extern float * std_heap_realloc_f32_ptr_i32(float * ptr, int32_t new_count);
 extern void std_heap_free_f32_ptr(float * ptr);
 extern void std_heap_copy_f32_ptr_i32_f32_ptr_i32(float * dst, int32_t dst_offset, float * src, int32_t count);
 extern int32_t std_heap_alloc_size_zero(void);
+extern int32_t std_heap_page_heap_ok(void);
+extern int32_t std_heap_freestanding_page_heap_init(struct std_heap_page_mmap_PageMmapHeap * h);
+extern uint8_t * std_heap_freestanding_page_heap_alloc(struct std_heap_page_mmap_PageMmapHeap * h, size_t size, size_t align_bytes);
+extern void std_heap_freestanding_page_heap_deinit(struct std_heap_page_mmap_PageMmapHeap * h);
 extern int32_t std_heap_heap_module_anchor(void);
 extern ssize_t read_message(int32_t fd, uint8_t * body_out, int32_t body_cap, uint8_t * state_buf);
 extern int32_t parse_content_length_in_buf(uint8_t * state_buf, int32_t off, int32_t header_end);

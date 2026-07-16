@@ -9,6 +9,18 @@ struct std_heap_HeapTraceStats {
   uint64_t bytes_allocated;
 };
 
+struct std_heap_page_mmap_PageMmapHeap {
+  uint8_t * base;
+  size_t cap;
+  size_t off;
+};
+
+struct std_heap_page_mmap_LibcArena64 {
+  uint8_t * chunk;
+  size_t cap;
+  size_t off;
+};
+
 struct std_heap_libc_LibcArena64 {
   uint8_t * chunk;
   size_t cap;
@@ -54,6 +66,8 @@ enum std_io_driver_IO_Result { std_io_driver_IO_Result_Ok, std_io_driver_IO_Resu
 struct std_heap_Arena64;
 struct std_heap_HeapTraceStats;
 struct std_heap_Allocator;
+struct std_heap_page_mmap_PageMmapHeap;
+struct std_heap_page_mmap_LibcArena64;
 struct std_heap_libc_LibcArena64;
 struct std_io_ReadOnlySlice;
 struct std_io_WriteOnlySlice;
