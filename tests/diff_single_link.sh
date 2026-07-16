@@ -43,7 +43,9 @@ MODULES=(
   # Full diagnostic.x vs hybrid from_x.c is dual-authority by design and never EMPTY.
   "src/runtime_driver_diagnostic_thin.x|seeds/runtime_driver_diagnostic_thin_surface.from_x.c"
   "src/lexer/token.x|token_gen.c"
-  "src/lexer/lexer.x|lexer_gen.c"
+  # PLATFORM: SHARED — EMPTY-track plain -E surface. Product cold pin stays
+  # seeds/lexer_gen.linux.x86_64.c (full single-file + renames).
+  "src/lexer/lexer.x|seeds/lexer_empty_surface.from_x.c"
   "src/preprocess/preprocess.x|preprocess_gen.c"
   "src/ast/ast.x|ast_gen.c"
   # PLATFORM: SHARED — EMPTY-track plain -E surface only for mega frontends.
@@ -225,7 +227,8 @@ for entry in "${MODULES[@]}"; do
   # dual EMPTY is not blocked by std.heap cfg, without touching product cold seeds.
   case "$seed_key" in
     lsp_empty_surface.from_x.c|lsp_diag_empty_surface.from_x.c|lsp_io_empty_surface.from_x.c|\
-    parser_empty_surface.from_x.c|typeck_empty_surface.from_x.c|codegen_empty_surface.from_x.c)
+    parser_empty_surface.from_x.c|typeck_empty_surface.from_x.c|codegen_empty_surface.from_x.c|\
+    lexer_empty_surface.from_x.c)
       for _side in "$norm_out" "$norm_seed"; do
         # Drop multi-line struct bodies + forward decls + freestanding page_heap
         # externs; collapse blank runs left by the drop so mac/Ubuntu match.

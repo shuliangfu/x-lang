@@ -4243,7 +4243,36 @@ int32_t pipeline_module_enum_variant_tag_for_names(struct ast_Module *m, uint8_t
   return -1;
 }
 
-/** 若 expr 为 TypeName.Variant（base=VAR），写入 is_enum_variant 与 enum_variant_tag。 */
+/**
+ * Extract enum type name for Enum.Variant or import.Enum.Variant field access.
+ * PLATFORM: SHARED — typeck + codegen both need qualified import.Enum.Variant
+ * (e.g. token.TokenKind.TOKEN_EOF). Bare Enum.Variant is base=VAR; import path is
+ * base=FIELD_ACCESS(binding, EnumName). Returns enum name length or 0.
+ */
+static int32_t pipeline_enum_name_from_field_access_base(struct ast_Expr *base, uint8_t *ename_out) {
+  int32_t elen;
+  if (!base || !ename_out)
+    return 0;
+  /* Case 1: EnumName.Variant */
+  if (base->kind == ast_ExprKind_EXPR_VAR && base->var_name_len > 0) {
+    elen = base->var_name_len;
+    if (elen > 63)
+      elen = 63;
+    memcpy(ename_out, base->var_name, (size_t)elen);
+    return elen;
+  }
+  /* Case 2: import_binding.EnumName.Variant — enum name is the field on the binding. */
+  if (base->kind == ast_ExprKind_EXPR_FIELD_ACCESS && base->field_access_field_len > 0) {
+    elen = base->field_access_field_len;
+    if (elen > 63)
+      elen = 63;
+    memcpy(ename_out, base->field_access_field_name, (size_t)elen);
+    return elen;
+  }
+  return 0;
+}
+
+/** 若 expr 为 TypeName.Variant 或 import.TypeName.Variant，写入 is_enum_variant 与 tag。 */
 void pipeline_expr_try_mark_enum_field_access(struct ast_Module *m, struct ast_ASTArena *a, int32_t expr_ref) {
   struct ast_Expr *e;
   struct ast_Expr *base;
@@ -4258,12 +4287,9 @@ void pipeline_expr_try_mark_enum_field_access(struct ast_Module *m, struct ast_A
   if (!e || e->kind != ast_ExprKind_EXPR_FIELD_ACCESS || e->field_access_is_enum_variant != 0)
     return;
   base = pipeline_arena_expr_ptr(a, e->field_access_base_ref);
-  if (!base || base->kind != ast_ExprKind_EXPR_VAR || base->var_name_len <= 0)
+  elen = pipeline_enum_name_from_field_access_base(base, ename);
+  if (elen <= 0)
     return;
-  elen = base->var_name_len;
-  if (elen > 63)
-    elen = 63;
-  memcpy(ename, base->var_name, (size_t)elen);
   vlen = e->field_access_field_len;
   if (vlen <= 0 || vlen > 63)
     return;
@@ -4275,7 +4301,10 @@ void pipeline_expr_try_mark_enum_field_access(struct ast_Module *m, struct ast_A
   e->enum_variant_tag = tag;
 }
 
-/* Codegen-time enum variant marking: search current + dep modules */
+/* Codegen-time enum variant marking: search current + dep modules.
+ * PLATFORM: SHARED — must mark import.Enum.Variant (token.TokenKind.TOKEN_*) so
+ * emit_expr outputs a tag integer instead of illegal C `(token.TokenKind).TOKEN_*`.
+ * Lexer -E residual was entry emission fail without this path. */
 void pipeline_codegen_try_mark_enum_field_access(struct ast_Module *m, struct ast_ASTArena *a,
                                                   int32_t expr_ref, struct ast_PipelineDepCtx *dep_ctx) {
   struct ast_Expr *e;
@@ -4291,11 +4320,9 @@ void pipeline_codegen_try_mark_enum_field_access(struct ast_Module *m, struct as
   if (!e || e->kind != ast_ExprKind_EXPR_FIELD_ACCESS || e->field_access_is_enum_variant != 0)
     return;
   base = pipeline_arena_expr_ptr(a, e->field_access_base_ref);
-  if (!base || base->kind != ast_ExprKind_EXPR_VAR || base->var_name_len <= 0)
+  elen = pipeline_enum_name_from_field_access_base(base, ename);
+  if (elen <= 0)
     return;
-  elen = base->var_name_len;
-  if (elen > 63) elen = 63;
-  memcpy(ename, base->var_name, (size_t)elen);
   vlen = e->field_access_field_len;
   if (vlen <= 0 || vlen > 63) return;
   memcpy(vname, e->field_access_field_name, (size_t)vlen);
@@ -4305,7 +4332,7 @@ void pipeline_codegen_try_mark_enum_field_access(struct ast_Module *m, struct as
     e->enum_variant_tag = tag;
     return;
   }
-  /* Search dep modules */
+  /* Search dep modules (import.Enum lives on the dep sidecar). */
   if (dep_ctx) {
     int32_t ndep = pipeline_dep_ctx_ndep(dep_ctx);
     int32_t di;

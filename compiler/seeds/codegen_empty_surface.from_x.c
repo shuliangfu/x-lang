@@ -2327,7 +2327,7 @@ static void init_globals(void) {
   skip_dep = ((uint8_t *)(0));
   is_entry = ((i ==(module->main_func_index)) || ((module->num_funcs) ==1));
   saved_func_idx = -(1);
-  _tail = (struct Expr){ .kind = (ExprKind.EXPR_LIT), .resolved_type_ref = 0, .line = 0, .col = 0, .as_operand_ref = 0, .as_target_type_ref = 0, .call_resolved_func_index = -(1), .call_resolved_dep_index = -(1) };
+  _tail = (struct Expr){ .kind = 0, .resolved_type_ref = 0, .line = 0, .col = 0, .as_operand_ref = 0, .as_target_type_ref = 0, .call_resolved_func_index = -(1), .call_resolved_dep_index = -(1) };
   f0 = (struct Func){ .name = name0, .name_len = 0, .param_base = 0, .num_params = 0, .num_generic_params = 0, .return_type_ref = 0, .body_ref = 0, .body_expr_ref = 0, .is_extern = 0, .is_async = 0 };
   ref = 0;
   ref = 0;

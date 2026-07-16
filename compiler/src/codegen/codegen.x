@@ -103,6 +103,8 @@ export extern function pipeline_module_enum_name_byte_at(module: *Module, idx: i
 export extern function pipeline_module_enum_num_variants(module: *Module, idx: i32): i32;
 export extern function pipeline_module_enum_variant_name_len(module: *Module, idx: i32, variant_idx: i32): i32;
 export extern function pipeline_module_enum_variant_name_byte_at(module: *Module, idx: i32, variant_idx: i32, off: i32): u8;
+/** Codegen-time: mark Enum.Variant / import.Enum.Variant (sets is_enum_variant + tag). */
+export extern function pipeline_codegen_try_mark_enum_field_access(module: *Module, arena: *ASTArena, expr_ref: i32, dep_ctx: *PipelineDepCtx): void;
 export extern function pipeline_module_top_level_let_is_const(module: *Module, idx: i32): i32;
 export extern function pipeline_module_top_level_let_name_len(module: *Module, idx: i32): i32;
 export extern function pipeline_module_top_level_let_name_byte_at(module: *Module, idx: i32, off: i32): u8;
@@ -5512,6 +5514,13 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
   }
   /* 字段访问：(base).field 或 (base)->field（base 为指针/slice 时用 ->，C 中 slice 按指针传） */
   if (e.kind == ExprKind.EXPR_FIELD_ACCESS) {
+    /* PLATFORM: SHARED — mark Enum.Variant / import.Enum.Variant on this arena
+     * before re-reading e (seed call site must pass emit_expr arena, not a
+     * possibly-stale current_codegen_arena). */
+    if (ctx != 0 as *PipelineDepCtx && ctx.current_codegen_module != 0 as *Module) {
+      pipeline_codegen_try_mark_enum_field_access(ctx.current_codegen_module, arena, expr_ref, ctx);
+      e = ast.ast_arena_expr_get(arena, expr_ref);
+    }
     if (e.field_access_is_enum_variant != 0) {
       /** 枚举变体：输出 typeck 填好的 tag 整数字面量（C 侧无 enum 声明时仍合法）。 */
       return format_int(out, e.enum_variant_tag);
