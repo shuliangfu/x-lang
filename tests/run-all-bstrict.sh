@@ -289,13 +289,11 @@ for script in "${BSTRICT_SCRIPTS[@]}"; do
       esac
       ;;
     run-vector.sh)
-      # shux_asm 用户 -o 缺 std/string/string.o（vec_add_verify 需 shux_string_memcmp_c）；-o 走 shux-c。
+      # 产品冷链：-o 用 shux_asm + -backend c（须已有 std/string/string.o）。
+      # 旧逻辑强绑 pin shux-c → 冷 L2 后静默 compile fail、无 FAIL 文案。
       case "$(uname -m 2>/dev/null)" in
         x86_64|amd64)
-          if [ -x ./compiler/shux-c ]; then
-            script_shu=./compiler/shux-c
-            script_link=./compiler/shux-c
-          fi
+          script_link="${SHUX_LINK_SHUX:-$script_shu}"
           ;;
         *)
           echo "run-all-bstrict: skip $script on $(uname -m) (user asm -o incomplete; Linux x86_64 covers)"
