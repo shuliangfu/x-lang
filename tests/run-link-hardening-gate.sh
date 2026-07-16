@@ -50,7 +50,8 @@ if ! "$SHUX_BIN" -L . "$SRC" -o "$EXE" >/dev/null 2>&1; then
 fi
 
 # PIE：ELF Type 须为 DYN（Position-Independent Executable）
-ELF_TYPE="$(readelf -h "$EXE" 2>/dev/null | awk '/Type:/ {print $2}')"
+# 强制 C locale：zh_CN 等环境下 readelf 输出「类型:」而非 Type:，awk 会空匹配成假红。
+ELF_TYPE="$(LC_ALL=C readelf -h "$EXE" 2>/dev/null | awk '/Type:/ {print $2}')"
 if [ "$ELF_TYPE" != "DYN" ]; then
   echo "link-hardening gate FAIL: expected Type DYN (PIE), got ${ELF_TYPE:-?}" >&2
   rm -f "$EXE"
@@ -58,7 +59,7 @@ if [ "$ELF_TYPE" != "DYN" ]; then
 fi
 
 # NX：GNU_STACK 段 Flg 不得含 E（不可执行栈）
-STACK_FLG="$(readelf -l -W "$EXE" 2>/dev/null | awk '/GNU_STACK/ {getline; print $NF; exit}')"
+STACK_FLG="$(LC_ALL=C readelf -l -W "$EXE" 2>/dev/null | awk '/GNU_STACK/ {getline; print $NF; exit}')"
 case "$STACK_FLG" in
   *E*)
     echo "link-hardening gate FAIL: GNU_STACK executable (Flg=$STACK_FLG)" >&2
