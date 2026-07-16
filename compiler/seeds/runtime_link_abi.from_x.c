@@ -4136,9 +4136,11 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
                         argv[i++] = (char *)"-pthread";
 #endif
                 }
-                /* process.o 已 ld -r 含 argv glue；否则在 need_env / preamble process_shux_* 时链 glue。
+                /* process.o 已 ld -r 含 argv glue；否则链 runtime_process_argv.o（constructor 绑 CRT argc）。
+                 * need_process 但 process.o 缺失时也必须推 glue，否则 co-emit 的 process_shux_argc_get
+                 * 只读 BSS=0 → args_count()<1（bstrict31 run-process args）。
                  * 禁止 process.o + runtime_process_argv.o 双链（process_shux_* 强符号重复）。 */
-                if (!pushed_process_o && (need_env || need_process_argv_glue)) {
+                if (!pushed_process_o && (need_process || need_env || need_process_argv_glue)) {
                     (void)shux_ensure_runtime_process_argv_o(NULL);
                     {
                         const char *rpa = shux_runtime_process_argv_o_path(NULL);

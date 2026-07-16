@@ -46,36 +46,42 @@ void shux_process_argv_bind_from_crt_impl(void) {
   shux_process_argv = *_NSGetArgv();
 #elif defined(__linux__)
   {
+    /* /proc/self/cmdline 常不支持 SEEK_END/ftell（得 0）→ 旧逻辑 silent no-op → argc 永 0
+     * （bstrict31 run-process args）。分块读入，不依赖 seek。 */
     FILE *f;
-    char *cmdline;
-    size_t n;
+    char *cmdline = NULL;
+    size_t cap = 0;
+    size_t n = 0;
     int argc;
     char **argv;
     char *p;
+    char chunk[4096];
+    size_t nr;
     f = fopen("/proc/self/cmdline", "rb");
     if (!f)
       return;
-    if (fseek(f, 0, SEEK_END) != 0) {
-      fclose(f);
-      return;
-    }
-    n = (size_t)ftell(f);
-    if (n == 0 || n > 1024 * 1024) {
-      fclose(f);
-      return;
-    }
-    rewind(f);
-    cmdline = (char *)malloc(n + 1);
-    if (!cmdline) {
-      fclose(f);
-      return;
-    }
-    if (fread(cmdline, 1, n, f) != n) {
-      free(cmdline);
-      fclose(f);
-      return;
+    while ((nr = fread(chunk, 1, sizeof chunk, f)) > 0) {
+      char *grown;
+      if (n + nr + 1 > 1024 * 1024) {
+        free(cmdline);
+        fclose(f);
+        return;
+      }
+      grown = (char *)realloc(cmdline, n + nr + 1);
+      if (!grown) {
+        free(cmdline);
+        fclose(f);
+        return;
+      }
+      cmdline = grown;
+      memcpy(cmdline + n, chunk, nr);
+      n += nr;
     }
     fclose(f);
+    if (!cmdline || n == 0) {
+      free(cmdline);
+      return;
+    }
     cmdline[n] = '\0';
     argc = 0;
     for (p = cmdline; p < cmdline + n; p++) {
@@ -105,6 +111,8 @@ void shux_process_argv_bind_from_crt_impl(void) {
       }
       shux_process_argc = argc;
       shux_process_argv = argv;
+      /* cmdline 缓冲由 argv[] 指向，勿 free */
+      (void)cap;
     }
   }
 #endif
