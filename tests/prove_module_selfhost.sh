@@ -84,8 +84,10 @@ MODULES=(
   # diagnostic R2 thin + Cap residual pure deep-migrate: thin.x gates + fixed-msg/pipe orch + assemble pure + getenv
   # + report_prefixed/pipe_note + debug_log/parser_diag_* + typeck_block/fn/var + scratch BSS
   # + parse_fail/codegen_fail/typeck_func_fail/ptr_field/ret_fail pure (append+note/code; rest T 28→23)
-  # rest FROM_X no pure-dup _impl; Cap residual snprintf/va_list skip/commit/asm/warn still rest
-  # prove locks thin surface IDENTICAL; cold/no PREFER still full C seeds/runtime_driver_diagnostic.from_x.c
+  # + parse_skip/commit_fail XP002/func_generic/onefunc_param/import_const/warn_pad/warn_hot/hint_unused
+  #   pure (append; rest T 23→15); Cap residual commit_shape/binop/asm BSS/void* module still rest
+  # rest FROM_X no pure-dup _impl for pure set; prove locks thin surface IDENTICAL
+  # cold/no PREFER still full C seeds/runtime_driver_diagnostic.from_x.c
   "diagnostic|src/runtime_driver_diagnostic_thin.x|seeds/runtime_driver_diagnostic_thin_surface.from_x.c||"
   # driver_abi R2 thin + pure 深迁：thin.x 门闩 + pure 真体（scan/has/argv/target_os/fail/smoke/peek/
   # entry_i32/large_stack orch + getenv 门闩 + 数值 env stack_limit_want/parse_u32/phase_timing_enabled）；
