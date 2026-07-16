@@ -30,11 +30,16 @@ export struct RtEmitFlagsState {
   parse_saw_target_cpu: i32;
 }
 
-/** argv 项是否恰好为 "-E"。 */
+/** Return 1 iff NUL-terminated argv token `s` is exactly the two-byte flag "-E".
+ * Compares bytes: 45 ('-'), 69 ('E'), 0. Null `s` is not a match.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_emit_flags_rt_argv_is_minus_E).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
 export function rt_argv_is_minus_E(s: *u8): i32 {
   if (s == 0 as *u8) {
     return 0;
   }
+  // Exact match for "-E\0" via explicit byte checks (no strcmp).
   if (s[0] != 45) {
     return 0;
   }
@@ -47,11 +52,16 @@ export function rt_argv_is_minus_E(s: *u8): i32 {
   return 1;
 }
 
-/** argv 项是否恰好为 "-E-extern"。 */
+/** Return 1 iff argv token `s` is exactly "-E-extern" (emit-extern flag).
+ * Byte sequence: '-' 'E' '-' 'e' 'x' 't' 'e' 'r' 'n' NUL (45,69,45,101,120,116,101,114,110,0).
+ * Track-L: #[no_mangle] keeps surface short name (not module-prefixed mangle).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
 export function rt_argv_is_minus_E_extern(s: *u8): i32 {
   if (s == 0 as *u8) {
     return 0;
   }
+  // Exact match for "-E-extern\0" — nine payload bytes + terminator.
   if (s[0] != 45) {
     return 0;
   }
@@ -85,7 +95,12 @@ export function rt_argv_is_minus_E_extern(s: *u8): i32 {
   return 1;
 }
 
-/** 从 argv[i..] 扫描 -E / -E-extern（尾递归，i 为形参勿局部 while 累加）。 */
+/** Scan argv[i..argc) for -E or -E-extern; return 1 if either appears.
+ * Uses tail recursion with `i` as a parameter (not a local while-index) so codegen
+ * does not mis-lift argv indexing into init_globals.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_emit_flags_rt_scan_argv_emit).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
 export function rt_scan_argv_emit(argc: i32, argv: **u8, i: i32): i32 {
   if (i >= argc) {
     return 0;
@@ -96,6 +111,7 @@ export function rt_scan_argv_emit(argc: i32, argv: **u8, i: i32): i32 {
   if (rt_argv_is_minus_E_extern(argv[i]) != 0) {
     return 1;
   }
+  // Tail step: advance index via recursive call (param, not mutated local).
   return rt_scan_argv_emit(argc, argv, i + 1);
 }
 
