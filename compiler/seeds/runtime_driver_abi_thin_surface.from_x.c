@@ -1,4 +1,3 @@
-/* regen from runtime_driver_abi_thin.x -E (wave1 flag-slot BSS pure) */
 #include <stdint.h>
 #if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 201112L
 #error "Generated code needs C11. Compile with -std=gnu11 or -std=c11."
@@ -355,6 +354,11 @@ extern int32_t * driver_x_pipeline_skip_typeck_flag_slot(void);
 extern int32_t * driver_x_pipeline_skip_codegen_flag_slot(void);
 extern int32_t * driver_skip_codegen_dep_0_flag_slot(void);
 extern int32_t * driver_large_stack_thread_flag_slot(void);
+extern void driver_current_dep_path_store(uint8_t * path);
+extern uint8_t * driver_current_dep_path_load(void);
+extern void driver_pipeline_entry_source_len_store(int64_t len);
+extern void driver_path_last_preprocess_len_store(int64_t len);
+extern int64_t driver_path_last_preprocess_len(void);
 extern uint8_t * driver_path_read_preprocess_malloc(uint8_t * path);
 extern void driver_fmt_check_only_set(int32_t v);
 extern void driver_large_stack_thread_mark(int32_t on);
@@ -365,9 +369,6 @@ extern int32_t driver_x_pipeline_skip_typeck_get(void);
 extern int32_t driver_freestanding_get(void);
 extern int32_t driver_check_only_get(void);
 extern void driver_set_current_dep_path_for_codegen(uint8_t * path);
-extern void driver_current_dep_path_store(uint8_t * path);
-extern uint8_t * driver_current_dep_path_load(void);
-extern void driver_pipeline_entry_source_len_store(int64_t len);
 extern int32_t driver_argv_is_D_alone(uint8_t * arg);
 extern int32_t driver_argv_is_D_inline(uint8_t * arg);
 extern int32_t driver_argv_is_target_flag(uint8_t * arg);
@@ -404,7 +405,6 @@ extern int32_t driver_asm_parse_metric_only_from_env(void);
 extern int32_t driver_pipeline_entry_source_len_i32(void);
 extern void driver_defines_set_at(uint8_t * defines, int32_t i, uint8_t * s);
 extern int64_t driver_stack_limit_want_bytes(void);
-extern int64_t driver_path_last_preprocess_len(void);
 extern void driver_bump_stack_limit(void);
 extern void driver_set_pipeline_entry_source_len(int64_t len);
 extern int32_t compile_phase_timing_enabled(void);
@@ -430,13 +430,14 @@ static int32_t g_driver_x_pipeline_skip_typeck_flag[1] = {0};
 static int32_t g_driver_x_pipeline_skip_codegen_flag[1] = {0};
 static int32_t g_driver_skip_codegen_dep_0_flag[1] = {0};
 static int32_t g_driver_on_large_stack_thread_flag[1] = {0};
+static uint8_t * g_driver_current_dep_path;
+static int64_t g_pipeline_entry_source_len[1] = {0};
+static int64_t g_driver_path_last_preprocess_len[1] = {0};
 static void init_globals(void) {
+  g_driver_current_dep_path = ((uint8_t *)(0));
 }
 extern uint8_t * getenv(uint8_t * name);
 extern uint8_t * driver_path_read_preprocess_malloc_impl(uint8_t * path);
-extern void driver_current_dep_path_store_impl(uint8_t * path);
-extern uint8_t * driver_current_dep_path_load_impl(void);
-extern void driver_pipeline_entry_source_len_store_impl(int64_t len);
 int32_t driver_env_flag_truthy(uint8_t * name) {
   {
     uint8_t * e = getenv(name);
@@ -533,6 +534,21 @@ int32_t * driver_skip_codegen_dep_0_flag_slot(void) {
 int32_t * driver_large_stack_thread_flag_slot(void) {
   return &((g_driver_on_large_stack_thread_flag)[0]);
 }
+void driver_current_dep_path_store(uint8_t * path) {
+  (void)((g_driver_current_dep_path = path));
+}
+uint8_t * driver_current_dep_path_load(void) {
+  return g_driver_current_dep_path;
+}
+void driver_pipeline_entry_source_len_store(int64_t len) {
+  (void)(((g_pipeline_entry_source_len)[0] = len));
+}
+void driver_path_last_preprocess_len_store(int64_t len) {
+  (void)(((g_driver_path_last_preprocess_len)[0] = len));
+}
+int64_t driver_path_last_preprocess_len(void) {
+  return (g_driver_path_last_preprocess_len)[0];
+}
 uint8_t * driver_path_read_preprocess_malloc(uint8_t * path) {
   return driver_path_read_preprocess_malloc_impl(path);
   return ((uint8_t *)(0));
@@ -612,23 +628,7 @@ int32_t driver_check_only_get(void) {
   return 0;
 }
 void driver_set_current_dep_path_for_codegen(uint8_t * path) {
-  (void)(driver_current_dep_path_store_impl(path));
-  (void)(0);
-  return;
-}
-void driver_current_dep_path_store(uint8_t * path) {
-  (void)(driver_current_dep_path_store_impl(path));
-  (void)(0);
-  return;
-}
-uint8_t * driver_current_dep_path_load(void) {
-  return driver_current_dep_path_load_impl();
-  return ((uint8_t *)(0));
-}
-void driver_pipeline_entry_source_len_store(int64_t len) {
-  (void)(driver_pipeline_entry_source_len_store_impl(len));
-  (void)(0);
-  return;
+  (void)(driver_current_dep_path_store(path));
 }
 int32_t driver_argv_is_D_alone(uint8_t * arg) {
   if ((arg ==((uint8_t *)(0)))) {
@@ -1009,7 +1009,6 @@ int32_t driver_pipeline_entry_source_len_i32(void) {
   return 0;
 }
 extern void driver_defines_set_at_impl(uint8_t * defines, int32_t i, uint8_t * s);
-extern int64_t driver_path_last_preprocess_len_impl(void);
 void driver_defines_set_at(uint8_t * defines, int32_t i, uint8_t * s) {
   (void)(driver_defines_set_at_impl(defines, i, s));
   (void)(0);
@@ -1036,10 +1035,6 @@ int64_t driver_stack_limit_want_bytes(void) {
   }
   return def;
 }
-int64_t driver_path_last_preprocess_len(void) {
-  return driver_path_last_preprocess_len_impl();
-  return 0;
-}
 extern void driver_bump_stack_limit_to_impl(int64_t want_bytes);
 extern uint8_t * driver_os_define_lit_impl(int32_t kind);
 void driver_bump_stack_limit(void) {
@@ -1048,9 +1043,7 @@ void driver_bump_stack_limit(void) {
   return;
 }
 void driver_set_pipeline_entry_source_len(int64_t len) {
-  (void)(driver_pipeline_entry_source_len_store_impl(len));
-  (void)(0);
-  return;
+  (void)(driver_pipeline_entry_source_len_store(len));
 }
 int32_t compile_phase_timing_enabled(void) {
   return driver_env_nonnull(((uint8_t *)"\x53\x48\x55\x58\x5f\x43\x4f\x4d\x50\x49\x4c\x45\x5f\x50\x48\x41\x53\x45\x5f\x54\x49\x4d\x49\x4e\x47"));
@@ -1059,7 +1052,6 @@ uint8_t * driver_os_define_lit(int32_t kind) {
   return driver_os_define_lit_impl(kind);
   return ((uint8_t *)(0));
 }
-extern uint8_t * driver_get_current_dep_path_for_codegen_impl(void);
 void driver_pipeline_fail_code(int32_t rc, uint8_t * path) {
   (void)(driver_pipeline_fail_code_rc_impl(rc));
   if ((rc !=(0 - 7))) {
@@ -1109,8 +1101,7 @@ int32_t driver_peek_source_file(uint8_t * path, uint8_t * content, int64_t cap) 
   return (0 - 1);
 }
 uint8_t * driver_get_current_dep_path_for_codegen(void) {
-  return driver_get_current_dep_path_for_codegen_impl();
-  return ((uint8_t *)(0));
+  return driver_current_dep_path_load();
 }
 int32_t driver_argv_collect_defines(int32_t argc, uint8_t * argv, uint8_t * defines, int32_t max_defines) {
   if ((argv ==((uint8_t *)(0)))) {
@@ -1303,10 +1294,8 @@ void driver_run_on_large_stack_pthread(uint8_t * fn, uint8_t * arg) {
   }
   (void)(driver_run_thread_on_large_stack(fn, arg));
 }
-extern int64_t driver_pipeline_entry_source_len_load_and_maybe_debug_impl(void);
 int64_t driver_pipeline_entry_source_len_load_and_maybe_debug(void) {
-  return driver_pipeline_entry_source_len_load_and_maybe_debug_impl();
-  return 0;
+  return (g_pipeline_entry_source_len)[0];
 }
 int64_t driver_pipeline_entry_source_len(void) {
   return driver_pipeline_entry_source_len_load_and_maybe_debug();

@@ -5,6 +5,8 @@
  *   sanitize_address env）
  *   + 数值 env（parse_u32 + stack_limit_want_bytes + phase_timing_enabled）在 thin.x；
  *   + wave1 Cap residual pure：9× flag-slot BSS 权威在 thin.x；FROM_X 无 pure-dup flag_slot _impl；
+ *   + wave2 Cap residual pure：path/len BSS 权威在 thin.x（dep path · entry_source_len ·
+ *     path_last_preprocess_len）；FROM_X 无 pure-dup path/len store/load _impl；
  * FROM_X 剔 pure-dup _impl（H↓）。
  */
 /* Generated from src/runtime_driver_abi.x (G-02f-29/41/45..57/83 true .x + C tail).
@@ -46,9 +48,11 @@ int32_t driver_pipeline_entry_source_len_i32(void);
 void driver_defines_set_at(const char **defines, int i, const char *s);
 int64_t driver_stack_limit_want_bytes(void);
 int64_t driver_path_last_preprocess_len(void);
+void driver_path_last_preprocess_len_store(int64_t len);
 void driver_current_dep_path_store(const char *path);
 const char *driver_current_dep_path_load(void);
 void driver_pipeline_entry_source_len_store(size_t len);
+size_t driver_pipeline_entry_source_len_load_and_maybe_debug(void);
 int32_t driver_target_arg_os_kind(const char *target);
 void driver_bump_stack_limit(void);
 void driver_set_pipeline_entry_source_len(size_t len);
@@ -60,6 +64,7 @@ int driver_argv_collect_defines(int argc, char **argv, const char **defines, int
 int driver_source_has_top_level_import(const char *src, size_t src_len);
 #define compile_phase_now_sec compile_phase_now_sec_impl
 /* wave1: flag-slot BSS pure in thin — no public→_impl rename (rest drops pure-dup slots). */
+/* wave2: path/len BSS pure in thin — path_read rest writes len via thin store. */
 #define driver_path_read_preprocess_malloc driver_path_read_preprocess_malloc_impl
 #endif
 
@@ -497,78 +502,60 @@ void driver_large_stack_thread_mark(int on) {
 }
 #endif
 
+/* wave2 pure：hybrid thin owns entry_source_len BSS; cold seed keeps static + store/load. */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 /** 当前 pipeline 入口源码长度；供 .x 按体积跳过大库 merge/typeck。 */
 static size_t g_pipeline_entry_source_len;
 
-/* G-02f-45 */
-/* G-02f-243：逻辑源 .x（真迁 saturate）；seed 保留同语义 C 供产品 cc */
-/* G-02f-388：实现体始终 seed（读 static g_pipeline_entry_source_len）；public PREFER 时 thin forward */
-#ifndef SHUX_L2_RDABI_THIN_FROM_X
+/* G-02f-45 / G-02f-243 / G-02f-388：冷路径读 static；FROM_X 权威 = thin.x */
 int32_t driver_pipeline_entry_source_len_i32_impl(void) {
     if (g_pipeline_entry_source_len > (size_t)0x7fffffff)
         return 0x7fffffff;
     return (int32_t)g_pipeline_entry_source_len;
 }
-#endif
 
-#ifndef SHUX_L2_RDABI_THIN_FROM_X
 int32_t driver_pipeline_entry_source_len_i32(void) {
     return driver_pipeline_entry_source_len_i32_impl();
 }
-#endif
 
-
-
-
-
-/* G-02f-401：实现体始终 seed；public PREFER 时 thin forward */
 void driver_pipeline_entry_source_len_store_impl(size_t len) {
     g_pipeline_entry_source_len = len;
 }
 
-#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_pipeline_entry_source_len_store(size_t len) {
     driver_pipeline_entry_source_len_store_impl(len);
 }
-#endif
 
-/* G-02f-416：getenv/reportf 体始终 seed；public PREFER 时 thin pure forward */
+/* G-02f-416：cold getenv/reportf；hybrid thin pure-loads BSS (no reportf). */
 size_t driver_pipeline_entry_source_len_load_and_maybe_debug_impl(void) {
     if (getenv("SHUX_DEBUG_PIPE"))
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "pipeline debug: entry_source_len_global=%zu", g_pipeline_entry_source_len);
     return g_pipeline_entry_source_len;
 }
-#ifndef SHUX_L2_RDABI_THIN_FROM_X
+
 size_t driver_pipeline_entry_source_len_load_and_maybe_debug(void) {
     return driver_pipeline_entry_source_len_load_and_maybe_debug_impl();
 }
-#endif
 
 /**
  * 记录 pipeline 入口源码字节数（大栈 pthread 进入 pipeline 前调用）。
  * 参数：len 预处理后的入口源码长度。
  */
-/* G-02f-402：public PREFER 时 thin → store_impl */
-#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_set_pipeline_entry_source_len(size_t len) {
   {
     driver_pipeline_entry_source_len_store_impl(len);
   }
 }
-#endif
 
 /**
  * 查询当前记录的入口源码长度；SHUX_DEBUG_PIPE=1 时打印。
  * 返回值：最近一次 driver_set_pipeline_entry_source_len 写入的长度。
  */
-/* G-02f-416：public PREFER 时 thin pure forward */
-#ifndef SHUX_L2_RDABI_THIN_FROM_X
 size_t driver_pipeline_entry_source_len_impl(void) {
     return driver_pipeline_entry_source_len_load_and_maybe_debug_impl();
 }
-#endif
-#ifndef SHUX_L2_RDABI_THIN_FROM_X
+
 size_t driver_pipeline_entry_source_len(void) {
     return driver_pipeline_entry_source_len_impl();
 }
@@ -747,26 +734,24 @@ int32_t driver_skip_codegen_dep_0_get(void) {
 }
 #endif
 
+/* wave2 pure：hybrid thin owns dep-path BSS; cold seed keeps static + store/load. */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 /** 当前 codegen 的 dep 逻辑路径（如 std.io.driver），供 .x codegen 前缀 C 符号。 */
 static const char *driver_current_dep_path_for_codegen;
 
 /* G-02f-46: dep path store/load + print_check_ok diag impl */
-/* G-02f-401：实现体始终 seed；public PREFER 时 thin forward */
 void driver_current_dep_path_store_impl(const char *path) {
     driver_current_dep_path_for_codegen = path;
 }
 
-#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_current_dep_path_store(const char *path) {
     driver_current_dep_path_store_impl(path);
 }
-#endif
 
 const char *driver_current_dep_path_load_impl(void) {
     return driver_current_dep_path_for_codegen;
 }
 
-#ifndef SHUX_L2_RDABI_THIN_FROM_X
 const char *driver_current_dep_path_load(void) {
     return driver_current_dep_path_load_impl();
 }
@@ -807,6 +792,7 @@ void driver_print_x_smoke_typeck_ok_impl(void) {
 /**
  * 设置当前 dep 路径；pipeline codegen 循环每 dep 调用。
  * 参数：path import 逻辑路径或 NULL 清槽。
+ * wave2 pure：hybrid thin owns; cold keeps store wrapper.
  */
 #ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_set_current_dep_path_for_codegen(const char *path) {
@@ -815,12 +801,10 @@ void driver_set_current_dep_path_for_codegen(const char *path) {
   }
  }));
 }
-#endif
-/* G-02f-413：实现体始终 seed；public PREFER 时 thin pure forward */
+/* G-02f-413：cold get → load_impl；FROM_X pure = thin load. */
 const char *driver_get_current_dep_path_for_codegen_impl(void) {
     return driver_current_dep_path_load_impl();
 }
-#ifndef SHUX_L2_RDABI_THIN_FROM_X
 const char *driver_get_current_dep_path_for_codegen(void) {
     return driver_get_current_dep_path_for_codegen_impl();
 }
@@ -2098,15 +2082,31 @@ int driver_source_has_top_level_import(const char *src, size_t src_len) {
 /**
  * 读入口 .x 并预处理；返回 malloc 缓冲，长度经 driver_path_last_preprocess_len。
  * G-02f-244：IO 🔒；编排在 .x（scan pure + free）。
+ * wave2：len BSS 权威 hybrid=thin / cold=seed static；本函数经 store 写入（禁直写 static）。
  */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 static size_t g_driver_path_last_preprocess_len;
+
+void driver_path_last_preprocess_len_store(int64_t len) {
+    g_driver_path_last_preprocess_len = (size_t)len;
+}
+
+int64_t driver_path_last_preprocess_len_impl(void) {
+    return (int64_t)g_driver_path_last_preprocess_len;
+}
+
+int64_t driver_path_last_preprocess_len(void) {
+    return driver_path_last_preprocess_len_impl();
+}
+#endif
 
 char *driver_path_read_preprocess_malloc(const char *path) {
     ShuxRuntimeFileView raw_view;
     size_t src_len = 0;
     char *src;
 
-    g_driver_path_last_preprocess_len = 0;
+    /* PLATFORM: SHARED — always write len via store API (thin BSS under FROM_X). */
+    driver_path_last_preprocess_len_store(0);
     if (!path)
         return NULL;
     if (runtime_read_file_view(path, &raw_view) != 0)
@@ -2115,20 +2115,9 @@ char *driver_path_read_preprocess_malloc(const char *path) {
     runtime_release_file_view(&raw_view);
     if (!src)
         return NULL;
-    g_driver_path_last_preprocess_len = src_len;
+    driver_path_last_preprocess_len_store((int64_t)src_len);
     return src;
 }
-
-/* G-02f-400：实现体始终 seed（读 static）；public PREFER 时 thin forward */
-int64_t driver_path_last_preprocess_len_impl(void) {
-    return (int64_t)g_driver_path_last_preprocess_len;
-}
-
-#ifndef SHUX_L2_RDABI_THIN_FROM_X
-int64_t driver_path_last_preprocess_len(void) {
-    return driver_path_last_preprocess_len_impl();
-}
-#endif
 
 /* G-02f-244/414：实现体始终 seed（IO/preprocess）；public PREFER 时 thin pure forward */
 #ifndef SHUX_L2_RDABI_THIN_FROM_X
@@ -2142,7 +2131,7 @@ int driver_source_has_top_level_import_path_impl(const char *path) {
     src = driver_path_read_preprocess_malloc(path);
     if (!src)
         return 0;
-    len = driver_path_last_preprocess_len_impl();
+    len = driver_path_last_preprocess_len();
     has = driver_source_has_top_level_import_impl(src, (size_t)len);
     free(src);
     return has;

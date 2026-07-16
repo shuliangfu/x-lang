@@ -10,15 +10,14 @@
 //   + wave1 Cap residual pure：9× i32 flag-slot BSS 进 thin（check_only / diag_emitted /
 //     freestanding / sanitize / fmt_check_only / skip_typeck / skip_codegen / skip_dep0 /
 //     large_stack_thread）；FROM_X rest 无 pure-dup flag_slot _impl。
-// Cap residual：uname / setrlimit / pthread 创建 / path-read / 路径·len BSS 槽 / format print /
-//   debug_pipe reportf / gettimeofday phase_now 仍 rest。
+//   + wave2 Cap residual pure：path/len BSS 进 thin（dep path *u8 · entry_source_len i64 ·
+//     path_last_preprocess_len i64）；FROM_X rest 无 pure-dup path/len store/load _impl。
+// Cap residual：uname / setrlimit / pthread 创建 / path-read IO / format print /
+//   debug_pipe reportf note / gettimeofday phase_now 仍 rest。
 //
 
 export extern "C" function getenv(name: *u8): *u8;
 export extern "C" function driver_path_read_preprocess_malloc_impl(path: *u8): *u8;
-export extern "C" function driver_current_dep_path_store_impl(path: *u8): void;
-export extern "C" function driver_current_dep_path_load_impl(): *u8;
-export extern "C" function driver_pipeline_entry_source_len_store_impl(len: i64): void;
 
 // ---- Wave1 Cap residual pure: driver flag-slot BSS (PLATFORM: SHARED) ----
 // Authority lives in this thin TU under PREFER hybrid; cold seed keeps C static BSS.
@@ -33,6 +32,15 @@ let g_driver_x_pipeline_skip_typeck_flag: i32[1] = [0];
 let g_driver_x_pipeline_skip_codegen_flag: i32[1] = [0];
 let g_driver_skip_codegen_dep_0_flag: i32[1] = [0];
 let g_driver_on_large_stack_thread_flag: i32[1] = [0];
+
+// ---- Wave2 Cap residual pure: path/len BSS (PLATFORM: SHARED) ----
+// dep path: single *u8 cell (import logic path pointer; no owned buffer).
+// entry_source_len / path_last_preprocess_len: i64[1] so store/load use [0] without &scalar.
+// Rest path_read_impl writes preprocess len via driver_path_last_preprocess_len_store.
+// Hybrid pure load of entry_source_len skips SHUX_DEBUG_PIPE reportf (cold seed keeps note).
+let g_driver_current_dep_path: *u8 = 0 as *u8;
+let g_pipeline_entry_source_len: i64[1] = [0];
+let g_driver_path_last_preprocess_len: i64[1] = [0];
 
 // pure：getenv 非空且首字节非 '0' → 1（与 seed Cap residual 同形）。
 // 调用点用字符串字面量（-E → 实参 compound lit，生命周期覆盖 call；勿用全局 let u8[]：
@@ -161,6 +169,43 @@ export function driver_large_stack_thread_flag_slot(): *i32 {
   return &g_driver_on_large_stack_thread_flag[0];
 }
 
+/** Store current codegen dep path pointer into thin BSS (no copy; caller owns string).
+ * PLATFORM: SHARED — hybrid pure authority; cold seed keeps C static + store_impl. */
+#[no_mangle]
+export function driver_current_dep_path_store(path: *u8): void {
+  g_driver_current_dep_path = path;
+}
+
+/** Load current codegen dep path pointer from thin BSS (may be null).
+ * PLATFORM: SHARED — hybrid pure authority. */
+#[no_mangle]
+export function driver_current_dep_path_load(): *u8 {
+  return g_driver_current_dep_path;
+}
+
+/** Store pipeline entry source byte length into thin BSS.
+ * Parameters: len — preprocess-or-entry source size in bytes (saturated by callers if needed).
+ * PLATFORM: SHARED — hybrid pure authority. */
+#[no_mangle]
+export function driver_pipeline_entry_source_len_store(len: i64): void {
+  g_pipeline_entry_source_len[0] = len;
+}
+
+/** Store last path_read_preprocess result length into thin BSS.
+ * Called by rest path_read_impl after preprocess (and reset to 0 on entry/fail paths).
+ * PLATFORM: SHARED — hybrid pure authority; cold seed keeps C static + store. */
+#[no_mangle]
+export function driver_path_last_preprocess_len_store(len: i64): void {
+  g_driver_path_last_preprocess_len[0] = len;
+}
+
+/** Return last path_read_preprocess length from thin BSS.
+ * PLATFORM: SHARED — hybrid pure authority. */
+#[no_mangle]
+export function driver_path_last_preprocess_len(): i64 {
+  return g_driver_path_last_preprocess_len[0];
+}
+
 #[no_mangle]
 export function driver_path_read_preprocess_malloc(path: *u8): *u8 {
   unsafe { return driver_path_read_preprocess_malloc_impl(path); }
@@ -251,33 +296,11 @@ export function driver_check_only_get(): i32 {
   return 0;
 }
 
+/** Alias for driver_current_dep_path_store (pipeline codegen loop per-dep).
+ * PLATFORM: SHARED — pure forward to path BSS store. */
 #[no_mangle]
 export function driver_set_current_dep_path_for_codegen(path: *u8): void {
-  unsafe {
-    driver_current_dep_path_store_impl(path);
-  }
-}
-
-#[no_mangle]
-export function driver_current_dep_path_store(path: *u8): void {
-  unsafe {
-    driver_current_dep_path_store_impl(path);
-  }
-}
-
-#[no_mangle]
-export function driver_current_dep_path_load(): *u8 {
-  unsafe {
-    return driver_current_dep_path_load_impl();
-  }
-  return 0 as *u8;
-}
-
-#[no_mangle]
-export function driver_pipeline_entry_source_len_store(len: i64): void {
-  unsafe {
-    driver_pipeline_entry_source_len_store_impl(len);
-  }
+  driver_current_dep_path_store(path);
 }
 
 // G-02f-245 pure 深迁：target → OS kind（字节 contains，无 strstr）
@@ -649,9 +672,8 @@ export function driver_pipeline_entry_source_len_i32(): i32 {
   return 0;
 }
 
-// ---- G-02f-400：defines_set_at / path_last_preprocess_len Cap；stack_limit_want pure ----
+// ---- G-02f-400：defines_set_at Cap；path_last_preprocess_len pure (wave2 BSS) ----
 export extern "C" function driver_defines_set_at_impl(defines: *u8, i: i32, s: *u8): void;
-export extern "C" function driver_path_last_preprocess_len_impl(): i64;
 
 #[no_mangle]
 export function driver_defines_set_at(defines: *u8, i: i32, s: *u8): void {
@@ -684,14 +706,6 @@ export function driver_stack_limit_want_bytes(): i64 {
   return def;
 }
 
-#[no_mangle]
-export function driver_path_last_preprocess_len(): i64 {
-  unsafe {
-    return driver_path_last_preprocess_len_impl();
-  }
-  return 0;
-}
-
 // ---- G-02f-402：bump_stack / set_entry_len / phase_timing enabled pure / os_define_lit ----
 export extern "C" function driver_bump_stack_limit_to_impl(want_bytes: i64): void;
 export extern "C" function driver_os_define_lit_impl(kind: i32): *u8;
@@ -703,11 +717,11 @@ export function driver_bump_stack_limit(): void {
   }
 }
 
+/** Alias for driver_pipeline_entry_source_len_store (large-stack entry before pipeline).
+ * PLATFORM: SHARED — pure forward to entry-len BSS store. */
 #[no_mangle]
 export function driver_set_pipeline_entry_source_len(len: i64): void {
-  unsafe {
-    driver_pipeline_entry_source_len_store_impl(len);
-  }
+  driver_pipeline_entry_source_len_store(len);
 }
 
 // pure：与 driver_compile_phase_timing_enabled 同形（公共别名面）
@@ -725,7 +739,6 @@ export function driver_os_define_lit(kind: i32): *u8 {
 }
 
 // ---- G-02f-413：fail_code / smoke / peek / get_dep / argv_defines → seed impl ----
-export extern "C" function driver_get_current_dep_path_for_codegen_impl(): *u8;
 
 // G-02f-413 pure 深迁：rc/path 编排；format 🔒
 #[no_mangle]
@@ -782,12 +795,11 @@ export function driver_peek_source_file(path: *u8, content: *u8, cap: i64): i32 
   return 0 - 1;
 }
 
+/** Alias for driver_current_dep_path_load (codegen prefix reads current dep).
+ * PLATFORM: SHARED — pure forward to path BSS load. */
 #[no_mangle]
 export function driver_get_current_dep_path_for_codegen(): *u8 {
-  unsafe {
-    return driver_get_current_dep_path_for_codegen_impl();
-  }
-  return 0 as *u8;
+  return driver_current_dep_path_load();
 }
 
 // G-02f-245 pure 深迁：主循环 pure；uname 🔒
@@ -989,18 +1001,16 @@ export function driver_run_on_large_stack_pthread(fn: *u8, arg: *u8): void {
   driver_run_thread_on_large_stack(fn, arg);
 }
 
-// ---- G-02f-416：entry_source_len load/query → seed impl ----
-export extern "C" function driver_pipeline_entry_source_len_load_and_maybe_debug_impl(): i64;
-
+/** Load pipeline entry source length from thin BSS.
+ * Wave2 pure: hybrid skips SHUX_DEBUG_PIPE reportf (cold seed load_impl still notes).
+ * PLATFORM: SHARED — hybrid pure authority for the length cell. */
 #[no_mangle]
 export function driver_pipeline_entry_source_len_load_and_maybe_debug(): i64 {
-  unsafe {
-    return driver_pipeline_entry_source_len_load_and_maybe_debug_impl();
-  }
-  return 0;
+  return g_pipeline_entry_source_len[0];
 }
 
-// G-02f-416 pure 深迁：query → load（debug Cap residual 在 load_impl）
+/** Query entry source length (same as load_and_maybe_debug under hybrid pure).
+ * PLATFORM: SHARED. */
 #[no_mangle]
 export function driver_pipeline_entry_source_len(): i64 {
   return driver_pipeline_entry_source_len_load_and_maybe_debug();
