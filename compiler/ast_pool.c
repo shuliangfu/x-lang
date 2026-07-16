@@ -12074,7 +12074,7 @@ static int32_t asm_module_is_main_driver_selfhost(struct ast_Module *m) {
   for (i = 0; i < m->num_funcs; i++) {
     if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"entry", 5))
       has_entry = 1;
-    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"run_compiler_x_path_impl", 25))
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"run_compiler_x_path_impl", 24))
       has_run_path = 1;
   }
   return has_entry != 0 && has_run_path != 0;
