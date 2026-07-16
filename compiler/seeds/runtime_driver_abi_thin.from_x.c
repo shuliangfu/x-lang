@@ -443,6 +443,7 @@ extern void diag_report(uint8_t * file, int32_t line, int32_t col, uint8_t * kin
 extern void diag_report_with_code(uint8_t * file, int32_t line, int32_t col, uint8_t * kind, uint8_t * code, uint8_t * msg, uint8_t * detail);
 extern int32_t driver_diag_append_cstr(uint8_t * dst, int32_t cap, int32_t at, uint8_t * src);
 extern int32_t driver_diag_append_i32(uint8_t * dst, int32_t cap, int32_t at, int32_t val);
+extern void shux_ptr_slot_set(uint8_t * arr, int32_t i, uint8_t * p);
 int32_t driver_env_flag_truthy(uint8_t * name) {
   {
     uint8_t * e = getenv(name);
@@ -1203,9 +1204,14 @@ int32_t driver_pipeline_entry_source_len_i32(void) {
   }
   return 0;
 }
-extern void driver_defines_set_at_impl(uint8_t * defines, int32_t i, uint8_t * s);
 void driver_defines_set_at(uint8_t * defines, int32_t i, uint8_t * s) {
-  (void)(driver_defines_set_at_impl(defines, i, s));
+  if ((defines ==((uint8_t *)(0)))) {
+    return;
+  }
+  if ((i < 0)) {
+    return;
+  }
+  (void)(shux_ptr_slot_set(defines, i, s));
   (void)(0);
   return;
 }
@@ -1231,7 +1237,6 @@ int64_t driver_stack_limit_want_bytes(void) {
   return def;
 }
 extern void driver_bump_stack_limit_to_impl(int64_t want_bytes);
-extern uint8_t * driver_os_define_lit_impl(int32_t kind);
 void driver_bump_stack_limit(void) {
   (void)(driver_bump_stack_limit_to_impl(driver_stack_limit_want_bytes()));
   (void)(0);
@@ -1244,7 +1249,18 @@ int32_t compile_phase_timing_enabled(void) {
   return driver_env_nonnull(((uint8_t *)"\x53\x48\x55\x58\x5f\x43\x4f\x4d\x50\x49\x4c\x45\x5f\x50\x48\x41\x53\x45\x5f\x54\x49\x4d\x49\x4e\x47"));
 }
 uint8_t * driver_os_define_lit(int32_t kind) {
-  return driver_os_define_lit_impl(kind);
+  if ((kind ==1)) {
+    return ((uint8_t *)"\x4f\x53\x5f\x4c\x49\x4e\x55\x58");
+  }
+  if ((kind ==2)) {
+    return ((uint8_t *)"\x4f\x53\x5f\x4d\x41\x43\x4f\x53");
+  }
+  if ((kind ==3)) {
+    return ((uint8_t *)"\x4f\x53\x5f\x46\x52\x45\x45\x42\x53\x44");
+  }
+  if ((kind ==4)) {
+    return ((uint8_t *)"\x4f\x53\x5f\x57\x49\x4e\x44\x4f\x57\x53");
+  }
   return ((uint8_t *)(0));
 }
 void driver_pipeline_fail_code(int32_t rc, uint8_t * path) {

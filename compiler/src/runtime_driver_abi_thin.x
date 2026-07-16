@@ -15,6 +15,8 @@
 //   + wave3 Cap residual pure：format print（check_ok / fail rc·path / smoke parse·typeck）
 //     via driver_diag_append_* + diag_report*（no va_list reportf）；FROM_X rest 无 pure-dup
 //     print/fail format _impl。
+//   + wave4 Cap residual pure：defines_set_at（G.7 shux_ptr_slot_set）+ os_define_lit
+//     string-lit table；FROM_X rest 无 pure-dup set_at/os_lit _impl。
 // Cap residual：uname / setrlimit / pthread 创建 / path-read IO /
 //   debug_pipe reportf note / gettimeofday phase_now / phase_timing_flush floats 仍 rest。
 //
@@ -26,6 +28,8 @@ export extern "C" function diag_report(file: *u8, line: i32, col: i32, kind: *u8
 export extern "C" function diag_report_with_code(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void;
 export extern "C" function driver_diag_append_cstr(dst: *u8, cap: i32, at: i32, src: *u8): i32;
 export extern "C" function driver_diag_append_i32(dst: *u8, cap: i32, at: i32, val: i32): i32;
+// Wave4: G.7 reuse pipeline pointer-slot authority for defines[i] = s (arr is **u8 as *u8).
+export extern "C" function shux_ptr_slot_set(arr: *u8, i: i32, p: *u8): void;
 
 // ---- Wave1 Cap residual pure: driver flag-slot BSS (PLATFORM: SHARED) ----
 // Authority lives in this thin TU under PREFER hybrid; cold seed keeps C static BSS.
@@ -799,13 +803,21 @@ export function driver_pipeline_entry_source_len_i32(): i32 {
   return 0;
 }
 
-// ---- G-02f-400：defines_set_at Cap；path_last_preprocess_len pure (wave2 BSS) ----
-export extern "C" function driver_defines_set_at_impl(defines: *u8, i: i32, s: *u8): void;
-
+// ---- G-02f-400 / wave4 pure：defines_set_at via shux_ptr_slot_set (G.7); path_last pure wave2 ----
+/** Store defines[i] = s for argv -D table (defines is opaque *u8 for **char).
+ * Null defines or negative i is a no-op. Uses pipeline shux_ptr_slot_set as the single
+ * pointer-slot write authority (G.7) — no second **write path in driver rest.
+ * PLATFORM: SHARED — pure authority in thin; cold seed keeps C _impl; FROM_X no pure-dup. */
 #[no_mangle]
 export function driver_defines_set_at(defines: *u8, i: i32, s: *u8): void {
+  if (defines == 0 as *u8) {
+    return;
+  }
+  if (i < 0) {
+    return;
+  }
   unsafe {
-    driver_defines_set_at_impl(defines, i, s);
+    shux_ptr_slot_set(defines, i, s);
   }
 }
 
@@ -833,9 +845,8 @@ export function driver_stack_limit_want_bytes(): i64 {
   return def;
 }
 
-// ---- G-02f-402：bump_stack / set_entry_len / phase_timing enabled pure / os_define_lit ----
+// ---- G-02f-402：bump_stack / set_entry_len / phase_timing enabled pure / os_define_lit wave4 ----
 export extern "C" function driver_bump_stack_limit_to_impl(want_bytes: i64): void;
-export extern "C" function driver_os_define_lit_impl(kind: i32): *u8;
 
 #[no_mangle]
 export function driver_bump_stack_limit(): void {
@@ -857,10 +868,22 @@ export function compile_phase_timing_enabled(): i32 {
   return driver_env_nonnull("SHUX_COMPILE_PHASE_TIMING");
 }
 
+/** Map target OS kind (1..4) to a static define literal pointer (OS_LINUX/…).
+ * kind 0 or unknown → null. Wave4 pure: string-lit table in thin (same text as cold seed).
+ * PLATFORM: SHARED — pure authority in thin; cold seed keeps C _impl; FROM_X no pure-dup. */
 #[no_mangle]
 export function driver_os_define_lit(kind: i32): *u8 {
-  unsafe {
-    return driver_os_define_lit_impl(kind);
+  if (kind == 1) {
+    return "OS_LINUX";
+  }
+  if (kind == 2) {
+    return "OS_MACOS";
+  }
+  if (kind == 3) {
+    return "OS_FREEBSD";
+  }
+  if (kind == 4) {
+    return "OS_WINDOWS";
   }
   return 0 as *u8;
 }

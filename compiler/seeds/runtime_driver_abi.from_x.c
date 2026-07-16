@@ -10,6 +10,8 @@
  *   + wave3 Cap residual pure：format print 权威在 thin.x（check_ok / fail rc·path /
  *     smoke parse·typeck：append_* + diag_report*，无 va_list reportf）；FROM_X 无 pure-dup
  *     print/fail format _impl；
+ *   + wave4 Cap residual pure：defines_set_at（G.7 shux_ptr_slot_set）+ os_define_lit
+ *     字面量表在 thin.x；FROM_X 无 pure-dup set_at/os_lit _impl；
  * FROM_X 剔 pure-dup _impl（H↓）。
  */
 /* Generated from src/runtime_driver_abi.x (G-02f-29/41/45..57/83 true .x + C tail).
@@ -970,20 +972,21 @@ void driver_compile_phase_timing_begin(int32_t phase) {
  * 参数：defines 至少 max_defines 个槽；返回 ndefines。
  * G-02f-245：主循环逻辑源 .x pure；uname 🔒。
  */
-/* G-02f-400：实现体始终 seed；public PREFER 时 thin forward */
+/* wave4 pure：hybrid thin owns defines_set_at (shux_ptr_slot_set) + os_define_lit table;
+ * cold keeps _impl + public; FROM_X rest drops pure-dup set_at/os_lit _impl. */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_defines_set_at_impl(const char **defines, int i, const char *s) {
     if (!defines || i < 0)
         return;
     defines[i] = s;
 }
 
-#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_defines_set_at(const char **defines, int i, const char *s) {
     driver_defines_set_at_impl(defines, i, s);
 }
 #endif
 
-/* G-02f-402：字符串字面量体始终 seed；public PREFER 时 thin forward */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 const char *driver_os_define_lit_impl(int kind) {
     if (kind == 1)
         return "OS_LINUX";
@@ -996,7 +999,6 @@ const char *driver_os_define_lit_impl(int kind) {
     return NULL;
 }
 
-#ifndef SHUX_L2_RDABI_THIN_FROM_X
 const char *driver_os_define_lit(int kind) {
     return driver_os_define_lit_impl(kind);
 }
