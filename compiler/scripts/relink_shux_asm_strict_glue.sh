@@ -1464,7 +1464,8 @@ elif [ ! -f src/asm/pipeline_fill_dep_strict_alias.o ] \
   strict_glue_info "cc -c seeds/pipeline_fill_dep_strict_alias.from_x.c"
   sh scripts/cc_inc_tu.sh seeds/pipeline_fill_dep_strict_alias.from_x.c src/asm/pipeline_fill_dep_strict_alias.o
 fi
-ST_BSTRICT_LINK_EXTRA="src/std_sys_shim.o src/asm/parser_asm_parse_expr_link.o src/asm/pipeline_fill_dep_strict_alias.o"
+# PLATFORM: SHARED — G-02e: std_sys_shim folded into runtime_io_abi (match build_shux_asm ST_BSTRICT_LINK_EXTRA).
+ST_BSTRICT_LINK_EXTRA="src/asm/parser_asm_parse_expr_link.o src/asm/pipeline_fill_dep_strict_alias.o"
 ensure_ast_asm_bare_link_alias_obj
 ST_AST_BARE_ALIAS=""
 if ! echo " $ASM_TRY_OBJS " | grep -q 'ast_asm_bare_link_alias.o'; then
@@ -1755,6 +1756,15 @@ ensure_ast_pool_l5_bridge_obj
 ensure_asm_experimental_symbol_bridge_obj
 ensure_lsp_codegen_extern_obj
 ensure_lsp_pipeline_ctx_obj
+# PLATFORM: SHARED — match build_shux_asm ensure_lsp_diag_pipeline_sizes_obj (seed weak sizes).
+ensure_lsp_diag_pipeline_sizes_obj() {
+  local o="src/lsp/lsp_diag_pipeline_sizes.o"
+  if [ ! -f "$o" ] || [ "seeds/lsp_diag_pipeline_sizes_weak.from_x.c" -nt "$o" ]; then
+  strict_glue_info "cc_inc_tu seeds/lsp_diag_pipeline_sizes_weak.from_x.c -> $o"
+  sh scripts/cc_inc_tu.sh seeds/lsp_diag_pipeline_sizes_weak.from_x.c "$o" -I. -Iinclude -Isrc
+  fi
+}
+ensure_lsp_diag_pipeline_sizes_obj
 if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
   ensure_backend_seed_mega_fallback_obj
 fi
