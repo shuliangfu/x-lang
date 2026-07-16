@@ -3,17 +3,10 @@
 set -e
 cd "$(dirname "$0")/.."
 SHUX=${SHUX:-./compiler/shux}
-# bootstrap seed / shux_asm：fmt/check 须静默，走 shux-c（与 run-check 一致）。
-if [ -n "${SHUX_RUN_ALL_BOOTSTRAP_SHUX:-}" ] && [ -x ./compiler/shux-c ]; then
-  case "$(basename "${SHUX:-./compiler/shux}")" in
-    shux|shux_asm) SHUX=./compiler/shux-c ;;
-    *)
-      case "$(uname -m 2>/dev/null)" in
-        x86_64|amd64) ;;
-        *) SHUX=./compiler/shux-c ;;
-      esac
-      ;;
-  esac
+# 产品冷链：fmt/check 用当前 SHUX（shux_asm→shux 已静默 check）。
+# 旧逻辑在 SHUX_RUN_ALL_BOOTSTRAP_SHUX 下强绑 pin shux-c → CHK001 假红。
+if [ -n "${RUN_ALL_USE_C:-}" ] && [ -x ./compiler/shux-c ]; then
+  SHUX=./compiler/shux-c
 fi
 # MSYS2/MinGW：shux-c.exe 已修复 _O_BINARY 二进制模式（CRLF 不再导致 read mismatch），
 # 直接用 shux-c 执行 fmt/check；不再回退到 seed shux（seed 无 _O_BINARY 修复）。
