@@ -45,15 +45,20 @@
 //     public fmt_one_file loop + check-mode summary lits；verbose fixed lit）；
 //     FROM_X 无 pure-dup run_fmt_impl；Cap residual：walk / path_stat /
 //     one_file_body 仍 rest（ALWAYS residual 4→3）。
+//   + wave Cap residual pure：check_one_file full body（file view + diag/lsp collect +
+//     check_argv build + inject "check" + append_default_libs + invoke + print +
+//     fallback CHK001 fixed lit + finalize）；FROM_X 无 pure-dup body_impl；
+//     Cap residual：walk opendir / path_stat 仍 rest（ALWAYS residual 3→2）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_FMT_CHECK_THIN_FROM_X）ld -r
 //   → fmt_check_cmd_driver.o
 // Prove IDENTICAL：seeds/fmt_check_cmd_thin_surface.from_x.c
-// Cap residual：walk opendir/stat / check_one_file_body
+// Cap residual：walk opendir/stat
 //   等 *_impl 仍在 full seed rest；FROM_X 下 pure-duplicate _impl 已剔除（含
 //   set_current_file / print / cwd_fallback / try_walk / path_resolve_abs /
 //   append_repo / missing_diag / collect_mode / user_passed_L / init / file_list_n /
 //   user_ignore_count / lib_bufs_n / user_ignore_at / parse_ignore_opt /
-//   try_append_lib_root / argv_append / file_list store+clear / run_check / run_fmt；H↓）。
+//   try_append_lib_root / argv_append / file_list store+clear / run_check / run_fmt /
+//   check_one_file body；H↓）。
 //
 // -E 约束：无 while 重赋值；无零参-only 不稳写法；6 参用扁平 if。
 //
@@ -68,6 +73,17 @@ export extern "C" function driver_run_compiler_full(argc: i32, argv: *u8): i32;
 export extern "C" function driver_dep_seeded_clear_all(): void;
 export extern "C" function diag_report_with_code(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void;
 export extern "C" function diag_report(file: *u8, line: i32, col: i32, kind: *u8, msg: *u8, detail: *u8): void;
+export extern "C" function diag_set_file(path: *u8, source: *u8, source_len: i64): void;
+export extern "C" function diag_push_file(snapshot: *u8, path: *u8, source: *u8, source_len: i64): void;
+export extern "C" function diag_restore(snapshot: *u8): void;
+export extern "C" function runtime_read_file_view(path: *u8, out: *u8): i32;
+export extern "C" function runtime_release_file_view(view: *u8): void;
+export extern "C" function lsp_diag_collect_begin(): void;
+export extern "C" function lsp_diag_collect_end(): void;
+export extern "C" function lsp_diag_count_severity(severity: i32): i32;
+export extern "C" function driver_check_diag_emitted_reset(): void;
+export extern "C" function driver_check_diag_emitted_get(): i32;
+export extern "C" function driver_check_only_set(v: i32): void;
 // Cap residual：单文件 fmt 真体（read/format/write）；orch 调 public 面。
 export extern "C" function driver_fmt_one_file(path: *u8, path_len: i32): i32;
 export extern "C" function driver_fmt_check_only_set(v: i32): void;
@@ -102,7 +118,10 @@ let g_fmt_file_list_paths: u8[4194304] = [];
 let g_fmt_lit_check_error: u8[12] = [99, 104, 101, 99, 107, 32, 101, 114, 114, 111, 114, 0];
 let g_fmt_lit_fmt_error: u8[10] = [102, 109, 116, 32, 101, 114, 114, 111, 114, 0];
 let g_fmt_lit_chk002: u8[7] = [67, 72, 75, 48, 48, 50, 0];
+let g_fmt_lit_chk001: u8[7] = [67, 72, 75, 48, 48, 49, 0];
 let g_fmt_lit_fmt001: u8[7] = [70, 77, 84, 48, 48, 49, 0];
+// Fallback CHK001 message prefix "check failed: " (no varargs reportf).
+let g_fmt_lit_check_failed_prefix: u8[15] = [99, 104, 101, 99, 107, 32, 102, 97, 105, 108, 101, 100, 58, 32, 0];
 // ASCII "-L" for check_argv injection (try_append pure).
 let g_fmt_lit_dash_L: u8[3] = [45, 76, 0];
 // run_check argv flag / empty-list message lits (strcmp/strncmp; no string syntax).
@@ -696,8 +715,7 @@ export function fmt_path_stat_kind(path: *u8): i32 {
   return 0 - 1;
 }
 
-// ---- pure try_append full + current file/print pure；Cap：one_file body ----
-export extern "C" function check_one_file_body_impl(path: *u8, argc: i32, argv: *u8): i32;
+// ---- pure try_append full + current file/print pure；one_file body pure ----
 
 /** If dir has both core/ and std/ subdirs, inject -L dir into check_argv (deduped).
  * Pure under PREFER hybrid: early gates + byte-build core/std paths + public
@@ -877,7 +895,23 @@ export function driver_check_print_collected_diagnostics(path: *u8): i32 {
   return 0;
 }
 
-// pure 门闩：null path/argv / argc<=0；单文件 check 体 🔒 body_impl
+/** Run check on one .x path (deno check single-file body).
+ * Pure under PREFER hybrid:
+ *   1) runtime_read_file_view into 32B stack ABI (ShuxRuntimeFileView layout) +
+ *      diag_set_file from view data/len (or null/0 on read fail);
+ *   2) lsp_diag_collect_begin + driver_check_diag_emitted_reset +
+ *      driver_check_set_current_file (pure BSS) + fmt_check_lib_bufs_reset;
+ *   3) build check_argv[64] via G.7 shux_ptr_slot_* on 512B stack:
+ *      argv[0], inject lit "check" (product X pipeline; cold seed keeps #ifdef),
+ *      copy flags from argv[2..] (-L|-I|-o|-backend|-O take value; --fail-fast),
+ *      check_argv_append_default_libs_for_path (pure) + path;
+ *   4) driver_check_only_set(1) → fmt_check_invoke_compile → set(0);
+ *   5) diag_push_file snapshot + lsp_diag_print + count severity +
+ *      check_one_need_fallback_diag → fixed lit CHK001 "check failed: <path>";
+ *      nd_errors>0 forces rc=1; check_one_finalize_rc (lint warnings);
+ *   6) lsp_diag_collect_end + release view + fmt_check_dep_clear.
+ * No check_one_file_body_impl under hybrid (ALWAYS residual 3→2).
+ * PLATFORM: SHARED — dual-host prove + check matrix. */
 #[no_mangle]
 export function check_one_file(path: *u8, argc: i32, argv: *u8): i32 {
   if (path == 0 as *u8) {
@@ -890,7 +924,156 @@ export function check_one_file(path: *u8, argc: i32, argv: *u8): i32 {
     return 0 - 1;
   }
   unsafe {
-    return check_one_file_body_impl(path, argc, argv);
+    // ShuxRuntimeFileView ABI: data@0 length@8 needs_free@16 needs_munmap@20 (24B; pad 32).
+    let view: u8[32] = [];
+    let z: i32 = 0;
+    while (z < 32) {
+      view[z] = 0;
+      z = z + 1;
+    }
+    let have_diag_view: i32 = 0;
+    let view_data: *u8 = 0 as *u8;
+    let view_len: i64 = 0;
+    if (runtime_read_file_view(path, &view[0]) == 0) {
+      // Slot 0 = data (*u8); slot 1 = length bit-pattern as size_t on LP64.
+      view_data = shux_ptr_slot_get(&view[0], 0);
+      let len_bits: *u8 = shux_ptr_slot_get(&view[0], 1);
+      view_len = len_bits as i64;
+      diag_set_file(path, view_data, view_len);
+      have_diag_view = 1;
+    } else {
+      diag_set_file(path, 0 as *u8, 0);
+    }
+    lsp_diag_collect_begin();
+    driver_check_diag_emitted_reset();
+    driver_check_set_current_file(path);
+    fmt_check_lib_bufs_reset();
+
+    // char* check_argv[64] as 64×8 pointer slots on stack.
+    let check_argv: u8[512] = [];
+    let n: i32 = 0;
+    let a0: *u8 = shux_ptr_slot_get(argv, 0);
+    shux_ptr_slot_set(&check_argv[0], 0, a0);
+    n = 1;
+    // Product path always X pipeline: inject subcommand "check".
+    shux_ptr_slot_set(&check_argv[0], n, &g_fmt_lit_cmd_check[0]);
+    n = n + 1;
+    let i: i32 = 2;
+    while (i < argc) {
+      if (n >= 60) {
+        break;
+      }
+      let ai: *u8 = shux_ptr_slot_get(argv, i);
+      if (ai != 0 as *u8) {
+        if (ai[0] == 45) {
+          shux_ptr_slot_set(&check_argv[0], n, ai);
+          n = n + 1;
+          // -L / -I / -o / -backend / -O take a following value.
+          let take_val: i32 = 0;
+          if (strcmp(ai, &g_fmt_lit_dash_L[0]) == 0) {
+            take_val = 1;
+          } else {
+            if (strcmp(ai, &g_fmt_lit_dash_I[0]) == 0) {
+              take_val = 1;
+            } else {
+              if (strcmp(ai, &g_fmt_lit_dash_o[0]) == 0) {
+                take_val = 1;
+              } else {
+                if (strcmp(ai, &g_fmt_lit_backend[0]) == 0) {
+                  take_val = 1;
+                } else {
+                  if (strcmp(ai, &g_fmt_lit_dash_O[0]) == 0) {
+                    take_val = 1;
+                  }
+                }
+              }
+            }
+          }
+          if (take_val != 0) {
+            if ((i + 1) < argc) {
+              if (n < 60) {
+                i = i + 1;
+                let av: *u8 = shux_ptr_slot_get(argv, i);
+                shux_ptr_slot_set(&check_argv[0], n, av);
+                n = n + 1;
+              }
+            }
+          }
+        } else {
+          if (strcmp(ai, &g_fmt_lit_fail_fast[0]) == 0) {
+            shux_ptr_slot_set(&check_argv[0], n, ai);
+            n = n + 1;
+          }
+        }
+      }
+      i = i + 1;
+    }
+    check_argv_append_default_libs_for_path(path, &check_argv[0], &n);
+    if (n < 64) {
+      shux_ptr_slot_set(&check_argv[0], n, path);
+      n = n + 1;
+    }
+
+    driver_check_only_set(1);
+    let rc: i32 = fmt_check_invoke_compile(n, &check_argv[0]);
+    driver_check_only_set(0);
+
+    // DiagContextSnapshot: file@0 source@8 len@16 color@24 → 32B stack.
+    let snap: u8[32] = [];
+    let si: i32 = 0;
+    while (si < 32) {
+      snap[si] = 0;
+      si = si + 1;
+    }
+    if (have_diag_view != 0) {
+      diag_push_file(&snap[0], path, view_data, view_len);
+    } else {
+      diag_push_file(&snap[0], path, 0 as *u8, 0);
+    }
+    let nd: i32 = lsp_diag_print_stderr_human(path);
+    let nd_errors: i32 = lsp_diag_count_severity(1);
+    let nd_warnings: i32 = lsp_diag_count_severity(2);
+    let nd_infos: i32 = lsp_diag_count_severity(3);
+    let direct_diag: i32 = driver_check_diag_emitted_get();
+    diag_restore(&snap[0]);
+    if (check_one_need_fallback_diag(rc, nd, nd_errors, nd_warnings, nd_infos, direct_diag) != 0) {
+      // "check failed: " + path (no reportf).
+      let msg: u8[600] = [];
+      let at: i32 = 0;
+      let pfx: *u8 = &g_fmt_lit_check_failed_prefix[0];
+      let pi: i32 = 0;
+      while (pi < 14) {
+        msg[at] = pfx[pi];
+        at = at + 1;
+        pi = pi + 1;
+      }
+      let qi: i32 = 0;
+      while (qi < 512) {
+        let c: u8 = path[qi];
+        if (c == 0) {
+          break;
+        }
+        if (at >= 598) {
+          break;
+        }
+        msg[at] = c;
+        at = at + 1;
+        qi = qi + 1;
+      }
+      msg[at] = 0;
+      diag_report_with_code(path, 0, 0, &g_fmt_lit_check_error[0], &g_fmt_lit_chk001[0], &msg[0], 0 as *u8);
+    }
+    if (nd_errors > 0) {
+      rc = 1;
+    }
+    rc = check_one_finalize_rc(rc, nd_warnings);
+
+    lsp_diag_collect_end();
+    if (have_diag_view != 0) {
+      runtime_release_file_view(&view[0]);
+    }
+    fmt_check_dep_clear();
+    return rc;
   }
   return 0 - 1;
 }
@@ -1673,7 +1856,7 @@ export function driver_run_fmt(argc: i32, argv: *u8): i32 {
  *      path → collect_paths_from_arg (pure orch; Cap residual walk/stat);
  *   4) no path → check_collect_default_product_dirs (pure orch);
  *   5) empty list → diag CHK002 with path/cwd message;
- *   6) each path → public check_one_file (Cap residual body_impl under hybrid);
+ *   6) each path → public check_one_file (pure body under hybrid);
  *   7) quiet success (no check OK line) — matches driver_check_quiet_ok_get()==1.
  * No driver_run_compiler_check_impl under hybrid (ALWAYS residual 5→4 with run_fmt pure).
  * PLATFORM: SHARED — dual-host prove + check matrix. */

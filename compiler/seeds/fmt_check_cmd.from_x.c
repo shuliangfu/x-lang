@@ -1,4 +1,4 @@
-/* R2 thin + Cap residual pure 深迁（续 run_fmt full orch pure）：
+/* R2 thin + Cap residual pure 深迁（续 check_one_file full body pure）：
  * PREFER hybrid thin 由 src/driver/fmt_check_cmd_thin.x（lit/entry + pure 真体）；
  * rest SHUX_L2_FMT_CHECK_THIN_FROM_X：无 thin 公共体；pure-duplicate _impl 剔除
  * （含 set_current_file / print / cwd_fallback / try_walk / path_resolve_abs /
@@ -7,9 +7,9 @@
  *  file_list_n / user_ignore_count / lib_bufs_n / user_ignore_at /
  *  parse_ignore_opt / try_append_lib_root / argv_append /
  *  fmt_file_list_store / file_list_clear / fmt_file_list_at /
- *  driver_run_compiler_check / driver_run_fmt / …）；
- * Cap residual：walk opendir/stat / one_file_body 仍 rest
- *  （ALWAYS residual 3）。
+ *  driver_run_compiler_check / driver_run_fmt / check_one_file body / …）；
+ * Cap residual：walk opendir/stat 仍 rest
+ *  （ALWAYS residual 2）。
  * 冷启动无宏：全 C 体（含 pure _impl + public 门闩）。
  * Regen thin surface: shux -E src/driver/fmt_check_cmd_thin.x → thin_surface.
  */
@@ -1283,8 +1283,11 @@ int check_one_finalize_rc(int rc, int warn_count) {
 
 /**
  * 对单个 .x 运行 check；复用 driver_run_compiler_full。
- * G-02f-250：主体 🔒；结果判定 pure。
+ * pure 权威：thin.x check_one_file（full body + public APIs）；
+ * 冷启动保留 body_impl + public；FROM_X 下剔除 pure-dup body_impl（H↓；ALWAYS residual 3→2）。
+ * G-02f-250：冷路径主体 🔒；hybrid 结果判定与编排均 pure。
  */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 int check_one_file_body_impl(const char *path, int argc, char **argv) {
     char *check_argv[64];
     ShuxRuntimeFileView diag_view = {0};
@@ -1367,9 +1370,8 @@ int check_one_file_body_impl(const char *path, int argc, char **argv) {
     return rc;
 }
 
-/* pure 门闩权威：thin.x check_one_file → body_impl；
+/* pure 门闩权威：thin.x check_one_file full body；
  * 冷启动保留 pure-dup check_one_file_impl；FROM_X 下剔除（H↓）。 */
-#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 int check_one_file_impl(const char *path, int argc, char **argv) {
     if (!path || !argv || argc <= 0)
         return -1;

@@ -1,4 +1,4 @@
-/* regen from fmt_check_cmd_thin.x -E (run_fmt full orch pure) */
+/* regen from fmt_check_cmd_thin.x -E (check_one_file full body pure) */
 /* prove prologue (g05_try_x_to_o aligned + uio/poll) */
 #include <stddef.h>
 #include <stdint.h>
@@ -414,7 +414,9 @@ static uint8_t g_fmt_file_list_paths[4194304];
 static uint8_t g_fmt_lit_check_error[12] = {99, 104, 101, 99, 107, 32, 101, 114, 114, 111, 114, 0};
 static uint8_t g_fmt_lit_fmt_error[10] = {102, 109, 116, 32, 101, 114, 114, 111, 114, 0};
 static uint8_t g_fmt_lit_chk002[7] = {67, 72, 75, 48, 48, 50, 0};
+static uint8_t g_fmt_lit_chk001[7] = {67, 72, 75, 48, 48, 49, 0};
 static uint8_t g_fmt_lit_fmt001[7] = {70, 77, 84, 48, 48, 49, 0};
+static uint8_t g_fmt_lit_check_failed_prefix[15] = {99, 104, 101, 99, 107, 32, 102, 97, 105, 108, 101, 100, 58, 32, 0};
 static uint8_t g_fmt_lit_dash_L[3] = {45, 76, 0};
 static uint8_t g_fmt_lit_cmd_check[6] = {99, 104, 101, 99, 107, 0};
 static uint8_t g_fmt_lit_fail_fast[12] = {45, 45, 102, 97, 105, 108, 45, 102, 97, 115, 116, 0};
@@ -452,6 +454,17 @@ extern int32_t driver_run_compiler_full(int32_t argc, uint8_t * argv);
 extern void driver_dep_seeded_clear_all(void);
 extern void diag_report_with_code(uint8_t * file, int32_t line, int32_t col, uint8_t * kind, uint8_t * code, uint8_t * msg, uint8_t * detail);
 extern void diag_report(uint8_t * file, int32_t line, int32_t col, uint8_t * kind, uint8_t * msg, uint8_t * detail);
+extern void diag_set_file(uint8_t * path, uint8_t * source, int64_t source_len);
+extern void diag_push_file(uint8_t * snapshot, uint8_t * path, uint8_t * source, int64_t source_len);
+extern void diag_restore(uint8_t * snapshot);
+extern int32_t runtime_read_file_view(uint8_t * path, uint8_t * out);
+extern void runtime_release_file_view(uint8_t * view);
+extern void lsp_diag_collect_begin(void);
+extern void lsp_diag_collect_end(void);
+extern int32_t lsp_diag_count_severity(int32_t severity);
+extern void driver_check_diag_emitted_reset(void);
+extern int32_t driver_check_diag_emitted_get(void);
+extern void driver_check_only_set(int32_t v);
 extern int32_t driver_fmt_one_file(uint8_t * path, int32_t path_len);
 extern void driver_fmt_check_only_set(int32_t v);
 extern int32_t driver_fmt_check_only_get(void);
@@ -885,7 +898,6 @@ int32_t fmt_path_stat_kind(uint8_t * path) {
   return fmt_path_stat_kind_impl(path);
   return (0 - 1);
 }
-extern int32_t check_one_file_body_impl(uint8_t * path, int32_t argc, uint8_t * argv);
 void check_try_append_lib_root(uint8_t * check_argv, int32_t * n, uint8_t * dir) {
   if ((check_argv ==((uint8_t *)(0)))) {
     return;
@@ -1056,7 +1068,147 @@ int32_t check_one_file(uint8_t * path, int32_t argc, uint8_t * argv) {
   if ((argc <=0)) {
     return (0 - 1);
   }
-  return check_one_file_body_impl(path, argc, argv);
+  {
+    uint8_t view[32] = {};
+    int32_t z = 0;
+    while ((z < 32)) {
+      (void)(((view)[z] = 0));
+      (void)((z = (z + 1)));
+    }
+    int32_t have_diag_view = 0;
+    uint8_t * view_data = ((uint8_t *)(0));
+    int64_t view_len = 0;
+    if ((runtime_read_file_view(path, &((view)[0])) ==0)) {
+      uint8_t * len_bits = shux_ptr_slot_get(&((view)[0]), 1);
+      (void)((view_data = shux_ptr_slot_get(&((view)[0]), 0)));
+      (void)((view_len = ((int64_t)(len_bits))));
+      (void)(diag_set_file(path, view_data, view_len));
+      (void)((have_diag_view = 1));
+    } else {
+      (void)(diag_set_file(path, ((uint8_t *)(0)), 0));
+    }
+    (void)(lsp_diag_collect_begin());
+    (void)(driver_check_diag_emitted_reset());
+    (void)(driver_check_set_current_file(path));
+    (void)(fmt_check_lib_bufs_reset());
+    uint8_t check_argv[512] = {};
+    int32_t n = 0;
+    uint8_t * a0 = shux_ptr_slot_get(argv, 0);
+    (void)(shux_ptr_slot_set(&((check_argv)[0]), 0, a0));
+    (void)((n = 1));
+    (void)(shux_ptr_slot_set(&((check_argv)[0]), n, &((g_fmt_lit_cmd_check)[0])));
+    (void)((n = (n + 1)));
+    int32_t i = 2;
+    while ((i < argc)) {
+      uint8_t * ai = shux_ptr_slot_get(argv, i);
+      if ((n >=60)) {
+        break;
+      }
+      if ((ai !=((uint8_t *)(0)))) {
+        if (((ai)[0] ==45)) {
+          int32_t take_val = 0;
+          (void)(shux_ptr_slot_set(&((check_argv)[0]), n, ai));
+          (void)((n = (n + 1)));
+          if ((strcmp(ai, &((g_fmt_lit_dash_L)[0])) ==0)) {
+            (void)((take_val = 1));
+          } else {
+            if ((strcmp(ai, &((g_fmt_lit_dash_I)[0])) ==0)) {
+              (void)((take_val = 1));
+            } else {
+              if ((strcmp(ai, &((g_fmt_lit_dash_o)[0])) ==0)) {
+                (void)((take_val = 1));
+              } else {
+                if ((strcmp(ai, &((g_fmt_lit_backend)[0])) ==0)) {
+                  (void)((take_val = 1));
+                } else {
+                  if ((strcmp(ai, &((g_fmt_lit_dash_O)[0])) ==0)) {
+                    (void)((take_val = 1));
+                  }
+                }
+              }
+            }
+          }
+          if ((take_val !=0)) {
+            if (((i + 1) < argc)) {
+              if ((n < 60)) {
+                uint8_t * av = shux_ptr_slot_get(argv, i);
+                (void)((i = (i + 1)));
+                (void)(shux_ptr_slot_set(&((check_argv)[0]), n, av));
+                (void)((n = (n + 1)));
+              }
+            }
+          }
+        } else {
+          if ((strcmp(ai, &((g_fmt_lit_fail_fast)[0])) ==0)) {
+            (void)(shux_ptr_slot_set(&((check_argv)[0]), n, ai));
+            (void)((n = (n + 1)));
+          }
+        }
+      }
+      (void)((i = (i + 1)));
+    }
+    (void)(check_argv_append_default_libs_for_path(path, &((check_argv)[0]), &(n)));
+    if ((n < 64)) {
+      (void)(shux_ptr_slot_set(&((check_argv)[0]), n, path));
+      (void)((n = (n + 1)));
+    }
+    (void)(driver_check_only_set(1));
+    int32_t rc = fmt_check_invoke_compile(n, &((check_argv)[0]));
+    (void)(driver_check_only_set(0));
+    uint8_t snap[32] = {};
+    int32_t si = 0;
+    while ((si < 32)) {
+      (void)(((snap)[si] = 0));
+      (void)((si = (si + 1)));
+    }
+    if ((have_diag_view !=0)) {
+      (void)(diag_push_file(&((snap)[0]), path, view_data, view_len));
+    } else {
+      (void)(diag_push_file(&((snap)[0]), path, ((uint8_t *)(0)), 0));
+    }
+    int32_t nd = lsp_diag_print_stderr_human(path);
+    int32_t nd_errors = lsp_diag_count_severity(1);
+    int32_t nd_warnings = lsp_diag_count_severity(2);
+    int32_t nd_infos = lsp_diag_count_severity(3);
+    int32_t direct_diag = driver_check_diag_emitted_get();
+    (void)(diag_restore(&((snap)[0])));
+    if ((check_one_need_fallback_diag(rc, nd, nd_errors, nd_warnings, nd_infos, direct_diag) !=0)) {
+      uint8_t msg[600] = {};
+      int32_t at = 0;
+      uint8_t * pfx = &((g_fmt_lit_check_failed_prefix)[0]);
+      int32_t pi = 0;
+      while ((pi < 14)) {
+        (void)(((msg)[at] = (pfx)[pi]));
+        (void)((at = (at + 1)));
+        (void)((pi = (pi + 1)));
+      }
+      int32_t qi = 0;
+      while ((qi < 512)) {
+        uint8_t c = (path)[qi];
+        if ((c ==0)) {
+          break;
+        }
+        if ((at >=598)) {
+          break;
+        }
+        (void)(((msg)[at] = c));
+        (void)((at = (at + 1)));
+        (void)((qi = (qi + 1)));
+      }
+      (void)(((msg)[at] = 0));
+      (void)(diag_report_with_code(path, 0, 0, &((g_fmt_lit_check_error)[0]), &((g_fmt_lit_chk001)[0]), &((msg)[0]), ((uint8_t *)(0))));
+    }
+    if ((nd_errors > 0)) {
+      (void)((rc = 1));
+    }
+    (void)((rc = check_one_finalize_rc(rc, nd_warnings)));
+    (void)(lsp_diag_collect_end());
+    if ((have_diag_view !=0)) {
+      (void)(runtime_release_file_view(&((view)[0])));
+    }
+    (void)(fmt_check_dep_clear());
+    return rc;
+  }
   return (0 - 1);
 }
 extern void walk_dir_collect_impl(uint8_t * dir);
