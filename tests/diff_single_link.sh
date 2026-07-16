@@ -39,7 +39,9 @@ SHUX_LIB_PATHS="-L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -L src
 # 核心前端模块（.x 源 → seed C）
 # 格式：.x相对路径|seed相对路径
 MODULES=(
-  "src/runtime_driver_diagnostic.x|seeds/runtime_driver_diagnostic.from_x.c"
+  # PLATFORM: SHARED — product hybrid: thin.x (PREFER) + full seed rest; prove + EMPTY track thin surface.
+  # Full diagnostic.x vs hybrid from_x.c is dual-authority by design and never EMPTY.
+  "src/runtime_driver_diagnostic_thin.x|seeds/runtime_driver_diagnostic_thin_surface.from_x.c"
   "src/lexer/token.x|token_gen.c"
   "src/lexer/lexer.x|lexer_gen.c"
   "src/preprocess/preprocess.x|preprocess_gen.c"
