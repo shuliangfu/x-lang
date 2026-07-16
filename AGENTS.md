@@ -45,6 +45,15 @@
      `~/.grok/skills/shux-selfhost-product-gate/SKILL.md` → **G.8**  
      与 `references/platform-boundaries.md`
 
+6. **`.x` 源码注释：详细、英文、覆盖每个方法与复杂逻辑（2026-07-16 起）。**
+   - 写/改 **任何 `.x`**：每个 `function` / `export function` 必须有**详细英文 docblock**（用途、参数、返回值、契约/容量/空指针、必要时 `PLATFORM` / `#[no_mangle]` 原因）
+   - **所有复杂逻辑**（多步算法、缓冲/cap、unsafe/FFI、平台分支、错误路径、非显然分支）必须在体内或紧邻处写**详细英文注释**
+   - **从现在起禁止在 `.x` 新增中文注释**；触碰旧中文 docblock 且改行为时，同 commit 改为英文
+   - 进度文档 / commit message / 对话可用中文；**源码注释以英文为准**
+   - 细则见 skill  
+     `~/.grok/skills/shux-selfhost-product-gate/SKILL.md` → **G.9**  
+     与 `references/x-english-comments.md`
+
 ## 执行纪律
 
 - 每次修改前先读相关代码，理解上下文（含该块是哪一平台 / 是否 SHARED）
