@@ -1512,14 +1512,26 @@ void *__memcpy_chk(void *dest, const void *src, size_t len, size_t destlen) {
 /* int fflush(FILE *stream); — 有 libc 时用 glibc；勿在此 no-op 盖掉 */
 
 /**
- * crt0 在 main_entry 返回后调用：fflush 标准流再 sys_exit。
- * 声明 glibc fflush（若本闭包无定义则 U 解析到 libc）。
+ * crt0 exit path after main_entry: flush stdio when safe, then sys_exit (never returns).
+ *
+ * PLATFORM: LINUX (freestanding + hosted hybrid) —
+ * - Hosted/dynamic (g05 product): stdout/stderr are real glibc FILE*; must fflush or
+ *   buffered -E output truncates at ~buffer boundary (historical 24KiB udp cold cut).
+ * - Freestanding Stage2 gen2: our stdout/stderr point at bootstrap_stdout_file /
+ *   bootstrap_stderr_file ({int fd} only). Writes use write(fd) (unbuffered). A static
+ *   glibc _IO_fflush may still be linked; calling it on the stub FILE* SIGSEGVs
+ *   (Stage2 smoke: gen2 dies in fflush after main_entry returns 0).
+ *
+ * Authority: only this helper from crt0_x86_64.s — do not call fflush@PLT on raw
+ * stdout from asm (G.7 single exit-flush path).
  */
 extern int fflush(FILE *stream);
 void bootstrap_flush_stdio_and_exit(int code) {
-  if (stdout)
+  /* Skip fflush for bootstrap stub FILE* (pointer identity). Hosted glibc stdout
+   * is a different object, so fflush still runs there. */
+  if (stdout && stdout != &bootstrap_stdout_file)
     (void)fflush(stdout);
-  if (stderr)
+  if (stderr && stderr != &bootstrap_stderr_file)
     (void)fflush(stderr);
   shux_sys_exit(code);
 }
