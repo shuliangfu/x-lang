@@ -2421,7 +2421,19 @@ param_ty_raw: i32, from_dep_index: i32, ctx: *PipelineDepCtx): i32 {
       return 1000;
     }
   }
-  /** 弱匹配：实参类型已解析且与形参 kind 相同（含指针 elem 由 type_refs_equal 覆盖失败时不再放宽）。 */
+  /*
+   * 【Why 根源】整型字面量默认 i32；对 i64/u32 形参若给 -1，store(*i64,1000) 全候选淘汰
+   *   → 回退首同名 i32（atomic 生成 store_i32(&(y))）。与 glue strict_minimal 同策。
+   * 【Invariant】EXPR_LIT=0 弱匹配整数 TypeKind（I32=0,U8=2,U32=3,U64=4,I64=5,USIZE=6,ISIZE=7）分 100。
+   */
+  if (pipeline_expr_kind_ord_at(caller_arena, arg_ref) == 0) {
+    let pk_lit: i32 = pipeline_type_kind_ord_at(caller_arena, param_ty);
+    if (pk_lit == 0 || pk_lit == 2 || pk_lit == 3 || pk_lit == 4 || pk_lit == 5 || pk_lit == 6
+        || pk_lit == 7) {
+      return 100;
+    }
+  }
+  /** 弱匹配：实参类型已解析且与形参 kind 相同；指针须 elem 相等（见下）。 */
   if (arg_ty > 0) {
     let ak: i32 = pipeline_type_kind_ord_at(caller_arena, arg_ty);
     let pk: i32 = pipeline_type_kind_ord_at(caller_arena, param_ty);
@@ -2432,6 +2444,18 @@ param_ty_raw: i32, from_dep_index: i32, ctx: *PipelineDepCtx): i32 {
       if (ae > 0 && pe > 0 && pipeline_typeck_type_refs_equal_c(caller_arena, ae, pe) != 0) {
         return 1000;
       }
+    }
+    /*
+     * TYPE_PTR=9：*i64 与 *i32 同 kind 不得弱匹配 1，否则 store(&y_i64, lit) 以
+     *   ptr弱1+lit精确1000 胜过 *i64 路径；与 glue strict_minimal 对齐。
+     */
+    if (ak == 9 && pk == 9) {
+      let ae2: i32 = pipeline_type_elem_ref_at(caller_arena, arg_ty);
+      let pe2: i32 = pipeline_type_elem_ref_at(caller_arena, param_ty);
+      if (ae2 > 0 && pe2 > 0 && pipeline_typeck_type_refs_equal_c(caller_arena, ae2, pe2) != 0) {
+        return 1000;
+      }
+      return -1;
     }
     if (ak == pk && ak != 0) {
       return 1;

@@ -918,6 +918,19 @@ static int32_t pipeline_typeck_overload_arg_score_strict_minimal(struct ast_ASTA
     if (as_tgt > 0 && pipeline_typeck_type_refs_equal_c(caller_arena, as_tgt, param_ty) != 0)
       return 1000;
   }
+  /*
+   * 【Why 根源】整型字面量默认解析为 i32；若此处对 i64/u32/… 形参给 -1，则
+   *   store(*i64, 1000) / fetch_add(*u32, 8) 全部候选被淘汰 → 回退首同名 i32
+   *   （atomic 生成 std_atomic_store_i32_ptr_i32(&(y),1000) → 指针类型错误）。
+   * 【Invariant】EXPR_LIT(0) 可弱匹配任意整数 TypeKind（I32/U8/U32/U64/I64/USIZE/ISIZE）；
+   *   分 100 < 精确 1000，故 *i64 精确 + lit 弱 = 1100 胜过误匹配。
+   * 不把非 lit 的 i32 变量自动抬到 i64（避免静默变宽）。
+   */
+  if (pipeline_expr_kind_ord_at(caller_arena, arg_ref) == 0) {
+    pk = pipeline_type_kind_ord_at(caller_arena, param_ty);
+    if (pk == 0 || pk == 2 || pk == 3 || pk == 4 || pk == 5 || pk == 6 || pk == 7)
+      return 100;
+  }
   if (arg_ty > 0) {
     ak = pipeline_type_kind_ord_at(caller_arena, arg_ty);
     pk = pipeline_type_kind_ord_at(caller_arena, param_ty);
