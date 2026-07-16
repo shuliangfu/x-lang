@@ -1826,6 +1826,12 @@ ensure_rt_seed_slice_objs() {
 }
 ensure_rt_seed_slice_objs
 ST_RT_SEED_SLICES="src/runtime/rt_arena_buf.o src/runtime/rt_emit_state.o src/runtime/rt_preamble.o src/runtime/rt_stack.o src/runtime/rt_parse_diag.o"
+# PLATFORM: SHARED — process_shux_argc/argv_get authority (product asm_bootstrap_support_extra_link).
+if [ ! -f runtime_process_argv.o ] || [ seeds/runtime_process_argv.from_x.c -nt runtime_process_argv.o ]; then
+  strict_glue_info "cc -c runtime_process_argv.o <- seeds/runtime_process_argv.from_x.c"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_process_argv.from_x.c -o runtime_process_argv.o
+fi
+ST_RT_SEED_SLICES="$ST_RT_SEED_SLICES runtime_process_argv.o"
 
 strict_glue_info "linking shux_asm.strict_glue (glue_standalone + build_asm pipeline.o ...)"
 dbg_event C "begin link-phase setup"
