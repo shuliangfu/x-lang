@@ -161,7 +161,10 @@ argv: *u8
   if (input_path == 0 as *u8) {
     return 1;
   }
-  return driver_run_asm_backend_impl_c(input_path, out_path, lib_key, target, argc, argv);
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit2）。
+  unsafe {
+    return driver_run_asm_backend_impl_c(input_path, out_path, lib_key, target, argc, argv);
+  }
 }
 
 /**
@@ -180,7 +183,10 @@ argv: *u8
   if (input_path == 0 as *u8) {
     return 1;
   }
-  return driver_run_emit_c_path_impl_c(input_path, out_path, lib_key, target, opt_level, use_lto, argc, argv);
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit2）。
+  unsafe {
+    return driver_run_emit_c_path_impl_c(input_path, out_path, lib_key, target, opt_level, use_lto, argc, argv);
+  }
 }
 
 /** sidecar 键：state 指针。 */
@@ -190,7 +196,10 @@ export function driver_compile_state_key(state: *DriverCompileState): *u8 {
 
 /** 无 -L 时默认库根 "."（与 runtime driver_run_compiler_full 一致）；委托 C 原语。 */
 export function driver_compile_ensure_default_lib(key: *u8): void {
-  driver_compile_ensure_default_lib_c(key);
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit2）。
+  unsafe {
+    driver_compile_ensure_default_lib_c(key);
+  }
 }
 
 export function eq_minus_o(buf: *u8, len: i32): i32 {
@@ -340,12 +349,16 @@ export function target_has_arm(buf: *u8, len: i32): i32 {
  * 重置 DriverCompileState 与 lib_root sidecar；委托 C（*T 形参 field 写入勿 X emit）。
  */
 export function driver_compile_parse_argv_init(state: *DriverCompileState): void {
-  driver_compile_parse_argv_init_c(state);
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit2）。
+  unsafe {
+    driver_compile_parse_argv_init_c(state);
+  }
 }
 
 /**
  * 处理 argv[i] 一项；side-effect 分支经 C glue（EMIT_HEAVY 勿 X 写 state embedded buf）。
  * 返回下一 argv 下标；len<0 时跳过当前项。
+ * PLATFORM: SHARED — 本函数体大量调用 C glue extern；整层 unsafe 作 FFI 门闩（Cap-T001）。
  */
 export function driver_compile_parse_argv_step(
   argc: i32,
@@ -355,59 +368,61 @@ export function driver_compile_parse_argv_step(
   arg_buf: *u8,
   arg_cap: i32
 ): i32 {
-  let len: i32 = driver_get_argv_i(argc, argv, i, arg_buf, arg_cap);
-  if (len < 0) {
+  unsafe {
+    let len: i32 = driver_get_argv_i(argc, argv, i, arg_buf, arg_cap);
+    if (len < 0) {
+      return i + 1;
+    }
+    if (eq_minus_o(arg_buf, len) != 0 && i + 1 < argc) {
+      driver_compile_argv_apply_minus_o_next_c(state, argc, argv, i);
+      return i + 2;
+    }
+    if (eq_minus_L(arg_buf, len) != 0 && i + 1 < argc) {
+      driver_compile_argv_apply_minus_L_next_c(state, argc, argv, i, arg_buf, arg_cap);
+      return i + 2;
+    }
+    if (eq_minus_O(arg_buf, len) != 0 && i + 1 < argc) {
+      driver_compile_argv_apply_minus_O_next_c(state, argc, argv, i);
+      return i + 2;
+    }
+    if (eq_flto(arg_buf, len) != 0) {
+      driver_compile_argv_set_use_lto_c(state);
+      return i + 1;
+    }
+    if (eq_minus_freestanding(arg_buf, len) != 0) {
+      driver_compile_argv_set_use_freestanding_c(state);
+      return i + 1;
+    }
+    if (eq_legacy_f32_abi(arg_buf, len) != 0) {
+      driver_compile_argv_set_legacy_f32_abi_c();
+      return i + 1;
+    }
+    if (eq_fsanitize_address(arg_buf, len) != 0) {
+      driver_compile_argv_set_sanitize_address_c();
+      return i + 1;
+    }
+    if (eq_minus_backend(arg_buf, len) != 0 && i + 1 < argc) {
+      driver_compile_argv_apply_backend_next_c(state, argc, argv, i, arg_buf, arg_cap);
+      return i + 2;
+    }
+    if (eq_minus_target(arg_buf, len) != 0 && i + 1 < argc) {
+      driver_compile_argv_apply_target_next_c(state, argc, argv, i);
+      return i + 2;
+    }
+    if (eq_minus_target_cpu(arg_buf, len) != 0 && i + 1 < argc) {
+      driver_compile_argv_apply_target_cpu_next_c(state, argc, argv, i);
+      return i + 2;
+    }
+    if (eq_print_target_cpu(arg_buf, len) != 0) {
+      driver_compile_argv_set_print_target_cpu_c(state);
+      return i + 1;
+    }
+    if (arg_buf[0] != 45 && path_ends_x(arg_buf, len) != 0) {
+      driver_compile_argv_copy_path_c(state, arg_buf, len);
+      return i + 1;
+    }
     return i + 1;
   }
-  if (eq_minus_o(arg_buf, len) != 0 && i + 1 < argc) {
-    driver_compile_argv_apply_minus_o_next_c(state, argc, argv, i);
-    return i + 2;
-  }
-  if (eq_minus_L(arg_buf, len) != 0 && i + 1 < argc) {
-    driver_compile_argv_apply_minus_L_next_c(state, argc, argv, i, arg_buf, arg_cap);
-    return i + 2;
-  }
-  if (eq_minus_O(arg_buf, len) != 0 && i + 1 < argc) {
-    driver_compile_argv_apply_minus_O_next_c(state, argc, argv, i);
-    return i + 2;
-  }
-  if (eq_flto(arg_buf, len) != 0) {
-    driver_compile_argv_set_use_lto_c(state);
-    return i + 1;
-  }
-  if (eq_minus_freestanding(arg_buf, len) != 0) {
-    driver_compile_argv_set_use_freestanding_c(state);
-    return i + 1;
-  }
-  if (eq_legacy_f32_abi(arg_buf, len) != 0) {
-    driver_compile_argv_set_legacy_f32_abi_c();
-    return i + 1;
-  }
-  if (eq_fsanitize_address(arg_buf, len) != 0) {
-    driver_compile_argv_set_sanitize_address_c();
-    return i + 1;
-  }
-  if (eq_minus_backend(arg_buf, len) != 0 && i + 1 < argc) {
-    driver_compile_argv_apply_backend_next_c(state, argc, argv, i, arg_buf, arg_cap);
-    return i + 2;
-  }
-  if (eq_minus_target(arg_buf, len) != 0 && i + 1 < argc) {
-    driver_compile_argv_apply_target_next_c(state, argc, argv, i);
-    return i + 2;
-  }
-  if (eq_minus_target_cpu(arg_buf, len) != 0 && i + 1 < argc) {
-    driver_compile_argv_apply_target_cpu_next_c(state, argc, argv, i);
-    return i + 2;
-  }
-  if (eq_print_target_cpu(arg_buf, len) != 0) {
-    driver_compile_argv_set_print_target_cpu_c(state);
-    return i + 1;
-  }
-  if (arg_buf[0] != 45 && path_ends_x(arg_buf, len) != 0) {
-    driver_compile_argv_copy_path_c(state, arg_buf, len);
-    return i + 1;
-  }
-  return i + 1;
 }
 
 /**
@@ -424,19 +439,22 @@ export function driver_compile_parse_argv_loop(argc: i32, argv: *u8, state: *Dri
 
 /** path_len 校验、target_arch 解析、默认 lib_root。 */
 export function driver_compile_parse_argv_finalize(state: *DriverCompileState): i32 {
-  driver_compile_resolve_target_cpu_c(state);
-  if (state.print_target_cpu != 0) {
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit2）。
+  unsafe {
+    driver_compile_resolve_target_cpu_c(state);
+    if (state.print_target_cpu != 0) {
+      return 0;
+    }
+    if (state.path_len <= 0) {
+      return 1;
+    }
+    state.target_arch = driver_resolve_target_arch(state.target_arch, state.parse_saw_target);
+    /** B-02：#[cfg] 与 -target triple 联动（cross 编译剪枝）。 */
+    cfg_sync_compile_target_from_state_c(state);
+    /** finalize 直调 C：ensure_default_lib X 体在 EMIT_HEAVY 第二遍仍可能 ret0 桩。 */
+    driver_compile_ensure_default_lib_c(driver_compile_state_key(state));
     return 0;
   }
-  if (state.path_len <= 0) {
-    return 1;
-  }
-  state.target_arch = driver_resolve_target_arch(state.target_arch, state.parse_saw_target);
-  /** B-02：#[cfg] 与 -target triple 联动（cross 编译剪枝）。 */
-  cfg_sync_compile_target_from_state_c(state);
-  /** finalize 直调 C：ensure_default_lib X 体在 EMIT_HEAVY 第二遍仍可能 ret0 桩。 */
-  driver_compile_ensure_default_lib_c(driver_compile_state_key(state));
-  return 0;
 }
 
 /**
@@ -457,97 +475,103 @@ export function driver_compile_parse_argv(argc: i32, argv: *u8, state: *DriverCo
  * parse 完成后：check-only / 泛型检测 / import 降级 / asm 与 C 后端分派（X 真 emit）。
  */
 export function run_compiler_full_x_post_parse(state: *DriverCompileState, argc: i32, argv: *u8): i32 {
-  let one: i32 = 1;
-  let zero: i32 = 0;
-  if (state == 0 as *DriverCompileState) {
-    return one;
-  }
-  if (driver_check_only_get() != 0) {
-    /** shux-c check 走 C typeck；B-strict shux_asm 由 post_parse_impl_c 保留 asm backend。 */
-    state.use_asm_backend = zero;
-  }
-  let want_generic_check: i32 = zero;
-  if (state.out_path_len == zero) {
-    want_generic_check = one;
-  } else if (driver_asm_output_want_exe(&state.out_path_buf[0]) != 0) {
-    want_generic_check = one;
-  }
-  if (state.use_asm_backend != 0 && want_generic_check != 0) {
-    if (driver_source_has_generic_syntax(&state.path_buf[0], state.path_len) != 0) {
+  // PLATFORM: SHARED — LANG-007 S0：本函数多处 C extern；整层 unsafe 作 FFI 门闩（Cap-T001）。
+  unsafe {
+    let one: i32 = 1;
+    let zero: i32 = 0;
+    if (state == 0 as *DriverCompileState) {
+      return one;
+    }
+    if (driver_check_only_get() != 0) {
+      /** shux-c check 走 C typeck；B-strict shux_asm 由 post_parse_impl_c 保留 asm backend。 */
       state.use_asm_backend = zero;
     }
-    /** 复合赋值（+= 等）已由 lexer.x/parser.x 支持；勿再降级 C 后端。 */
+    let want_generic_check: i32 = zero;
+    if (state.out_path_len == zero) {
+      want_generic_check = one;
+    } else if (driver_asm_output_want_exe(&state.out_path_buf[0]) != 0) {
+      want_generic_check = one;
+    }
+    if (state.use_asm_backend != 0 && want_generic_check != 0) {
+      if (driver_source_has_generic_syntax(&state.path_buf[0], state.path_len) != 0) {
+        state.use_asm_backend = zero;
+      }
+      /** 复合赋值（+= 等）已由 lexer.x/parser.x 支持；勿再降级 C 后端。 */
+    }
+    if (state.use_asm_backend != 0 && state.out_path_len > 0 &&
+        driver_asm_output_want_exe(&state.out_path_buf[0]) != 0) {
+      /** 同上：exe 输出路径亦保留 asm。 */
+    }
+    let out_ptr: *u8 = 0 as *u8;
+    if (state.out_path_len > 0) {
+      out_ptr = &state.out_path_buf[0];
+    }
+    let target_ptr: *u8 = 0 as *u8;
+    if (state.target_len > 0) {
+      target_ptr = &state.target_buf[0];
+    }
+    /** 无 import 的单文件 -o 默认 asm；有 import 允许降级 C（与 post_parse_impl_c 一致）。 */
+    if (state.out_path_len > 0 && state.backend_asm_explicit == 0 &&
+        driver_source_has_top_level_import_path(&state.path_buf[0], state.path_len) == 0) {
+      state.backend_asm_explicit = one;
+    }
+    if (state.use_asm_backend != 0 && state.backend_asm_explicit == 0 &&
+        driver_asm_entry_module_only_from_env() == 0 &&
+        driver_source_has_top_level_import_path(&state.path_buf[0], state.path_len) != 0) {
+      state.use_asm_backend = zero;
+    }
+    /** `-freestanding` 须走 asm + nostdlib 链；禁止被 import/泛型等逻辑降级到 C 后端。 */
+    if (state.use_freestanding != 0) {
+      state.use_asm_backend = one;
+      state.backend_asm_explicit = one;
+      driver_compile_argv_set_use_freestanding_c(state);
+    }
+    let lib_key: *u8 = driver_compile_state_key(state);
+    if (state.use_asm_backend != 0) {
+      return compile_dispatch_asm_backend(&state.path_buf[0], out_ptr, lib_key, target_ptr, argc, argv);
+    }
+    return compile_dispatch_emit_c_path(
+      &state.path_buf[0],
+      out_ptr,
+      lib_key,
+      target_ptr,
+      &state.opt_level_buf[0],
+      state.use_lto,
+      argc,
+      argv
+    );
   }
-  if (state.use_asm_backend != 0 && state.out_path_len > 0 &&
-      driver_asm_output_want_exe(&state.out_path_buf[0]) != 0) {
-    /** 同上：exe 输出路径亦保留 asm。 */
-  }
-  let out_ptr: *u8 = 0 as *u8;
-  if (state.out_path_len > 0) {
-    out_ptr = &state.out_path_buf[0];
-  }
-  let target_ptr: *u8 = 0 as *u8;
-  if (state.target_len > 0) {
-    target_ptr = &state.target_buf[0];
-  }
-  /** 无 import 的单文件 -o 默认 asm；有 import 允许降级 C（与 post_parse_impl_c 一致）。 */
-  if (state.out_path_len > 0 && state.backend_asm_explicit == 0 &&
-      driver_source_has_top_level_import_path(&state.path_buf[0], state.path_len) == 0) {
-    state.backend_asm_explicit = one;
-  }
-  if (state.use_asm_backend != 0 && state.backend_asm_explicit == 0 &&
-      driver_asm_entry_module_only_from_env() == 0 &&
-      driver_source_has_top_level_import_path(&state.path_buf[0], state.path_len) != 0) {
-    state.use_asm_backend = zero;
-  }
-  /** `-freestanding` 须走 asm + nostdlib 链；禁止被 import/泛型等逻辑降级到 C 后端。 */
-  if (state.use_freestanding != 0) {
-    state.use_asm_backend = one;
-    state.backend_asm_explicit = one;
-    driver_compile_argv_set_use_freestanding_c(state);
-  }
-  let lib_key: *u8 = driver_compile_state_key(state);
-  if (state.use_asm_backend != 0) {
-    return compile_dispatch_asm_backend(&state.path_buf[0], out_ptr, lib_key, target_ptr, argc, argv);
-  }
-  return compile_dispatch_emit_c_path(
-    &state.path_buf[0],
-    out_ptr,
-    lib_key,
-    target_ptr,
-    &state.opt_level_buf[0],
-    state.use_lto,
-    argc,
-    argv
-  );
 }
 
 /**
  * 完整编译入口（.x）：堆上 state + parse_argv + post_parse（EMIT_HEAVY X 真 emit）。
+ * PLATFORM: SHARED — LANG-007 S0：入口多 C extern；整层 unsafe 作 FFI 门闩（Cap-T001）。
  */
 export function run_compiler_full_x(argc: i32, argv: *u8): i32 {
-  let one: i32 = 1;
-  let zero: i32 = 0;
-  if (driver_compile_argv_is_help_c(argc, argv) != 0) {
-    driver_print_usage_c();
-    return zero;
-  }
-  driver_bump_stack_limit();
-  let state: *DriverCompileState = driver_compile_state_alloc_c();
-  if (state == 0 as *DriverCompileState) {
-    return one;
-  }
-  if (driver_compile_parse_argv(argc, argv, state) != 0) {
+  unsafe {
+    let one: i32 = 1;
+    let zero: i32 = 0;
+    if (driver_compile_argv_is_help_c(argc, argv) != 0) {
+      driver_print_usage_c();
+      return zero;
+    }
+    driver_bump_stack_limit();
+    let state: *DriverCompileState = driver_compile_state_alloc_c();
+    if (state == 0 as *DriverCompileState) {
+      return one;
+    }
+    if (driver_compile_parse_argv(argc, argv, state) != 0) {
+      driver_compile_state_free_c(state);
+      return one;
+    }
+    /** `--print-target-cpu`：勿进入 post_parse（无输入 .x 路径）。 */
+    if (state.print_target_cpu != 0) {
+      let rcpu: i32 = driver_print_target_cpu_features_c(state.target_cpu_features);
+      driver_compile_state_free_c(state);
+      return rcpu;
+    }
+    let r: i32 = run_compiler_full_x_post_parse(state, argc, argv);
     driver_compile_state_free_c(state);
-    return one;
+    return r;
   }
-  /** `--print-target-cpu`：勿进入 post_parse（无输入 .x 路径）。 */
-  if (state.print_target_cpu != 0) {
-    let rcpu: i32 = driver_print_target_cpu_features_c(state.target_cpu_features);
-    driver_compile_state_free_c(state);
-    return rcpu;
-  }
-  let r: i32 = run_compiler_full_x_post_parse(state, argc, argv);
-  driver_compile_state_free_c(state);
-  return r;
 }
