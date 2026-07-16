@@ -18,14 +18,17 @@
 //   + wave BSS pure：user ignore n 进 thin（fmt_user_ignore_count / count_set）；
 //     Cap residual：s_ignore_paths[] 槽 + parse token 写槽 + at 读槽 仍 rest；
 //     FROM_X rest 无 pure-dup user_ignore_count _impl。
+//   + wave BSS pure：lib_bufs n 进 thin（fmt_check_lib_bufs_n / n_set / reset）；
+//     Cap residual：s_check_lib_bufs[] 路径槽 + try_append/argv_append 写槽 仍 rest；
+//     FROM_X rest 无 pure-dup lib_bufs_reset _impl。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_FMT_CHECK_THIN_FROM_X）ld -r
 //   → fmt_check_cmd_driver.o
 // Prove IDENTICAL：seeds/fmt_check_cmd_thin_surface.from_x.c
-// Cap residual：walk opendir/stat/argv/大 BSS（ignore path slots / file_list ptrs / lib bufs）/
-//   check_one_file_body 等 *_impl 仍在 full seed rest；FROM_X 下 pure-duplicate
-//   _impl 已剔除（含 set_current_file / print / cwd_fallback / try_walk /
-//   path_resolve_abs / append_repo / missing_diag / collect_mode / user_passed_L /
-//   init / file_list_n / user_ignore_count；H↓）。
+// Cap residual：walk opendir/stat/argv/大 BSS（ignore path slots / file_list ptrs /
+//   lib path slots）/ check_one_file_body 等 *_impl 仍在 full seed rest；FROM_X 下
+//   pure-duplicate _impl 已剔除（含 set_current_file / print / cwd_fallback /
+//   try_walk / path_resolve_abs / append_repo / missing_diag / collect_mode /
+//   user_passed_L / init / file_list_n / user_ignore_count / lib_bufs_n；H↓）。
 //
 // -E 约束：无 while 重赋值；无零参-only 不稳写法；6 参用扁平 if。
 //
@@ -42,19 +45,18 @@ export extern "C" function fmt_file_list_store_impl(abs_path: *u8): i32;
 // Cap residual：可写路径 BSS 槽（0=current_file，1=resolve_abs）。
 // -E 顶层 u8[N] 现退化为悬空指针（codegen.x 已根修，codegen_gen 再生后可收回此槽）。
 export extern "C" function fmt_check_path_bss_slot(which: i32): *u8;
-// Cap residual：reset s_n_check_lib_bufs only (lib path buffers stay rest).
-export extern "C" function fmt_check_lib_bufs_reset_impl(): void;
 // G.7: load argv[i] / char** slot (pipeline authority pair with shux_ptr_slot_set).
 export extern "C" function shux_ptr_slot_get(arr: *u8, i: i32): *u8;
 
-// ---- Cap residual pure: collect_mode + user_passed_L + file_list n + ignore n BSS ----
+// ---- Cap residual pure: collect_mode + user_passed_L + file_list/ignore/lib_bufs n ----
 // DRIVER_COLLECT_MODE_FMT=1, DRIVER_COLLECT_MODE_CHECK=2 (match seed enum).
 // Hybrid thin owns cells; cold seed keeps C static + _impl. PLATFORM: SHARED.
-// file_list n / ignore n: hybrid thin authority; Cap residual path tables rest.
+// Counters pure; Cap residual path tables (ignore/file_list/lib bufs) stay rest.
 let g_fmt_collect_mode: i32[1] = [1];
 let g_fmt_user_passed_L: i32[1] = [0];
 let g_fmt_file_list_n: i32[1] = [0];
 let g_fmt_user_ignore_n: i32[1] = [0];
+let g_fmt_check_lib_bufs_n: i32[1] = [0];
 
 let g_fmt_lit_check_error: u8[12] = [99, 104, 101, 99, 107, 32, 101, 114, 114, 111, 114, 0];
 let g_fmt_lit_fmt_error: u8[10] = [102, 109, 116, 32, 101, 114, 114, 111, 114, 0];
@@ -434,6 +436,36 @@ export function fmt_file_list_n_set(v: i32): void {
   }
 }
 
+/** Return check -L lib path buffer slot count. Pure BSS under PREFER hybrid.
+ * PLATFORM: SHARED — same counter as cold seed s_n_check_lib_bufs. */
+#[no_mangle]
+export function fmt_check_lib_bufs_n(): i32 {
+  unsafe {
+    return g_fmt_check_lib_bufs_n[0];
+  }
+  return 0;
+}
+
+/** Set check -L lib path buffer slot count (try_append ++ / reset 0).
+ * Cap residual path table writers call this. PLATFORM: SHARED. */
+#[no_mangle]
+export function fmt_check_lib_bufs_n_set(v: i32): void {
+  unsafe {
+    if (v < 0) {
+      g_fmt_check_lib_bufs_n[0] = 0;
+    } else {
+      g_fmt_check_lib_bufs_n[0] = v;
+    }
+  }
+}
+
+/** Reset check -L lib path buffer count to 0 (per-file / init). Pure under hybrid.
+ * Cap residual keeps s_check_lib_bufs[] path slots. PLATFORM: SHARED. */
+#[no_mangle]
+export function fmt_check_lib_bufs_reset(): void {
+  fmt_check_lib_bufs_n_set(0);
+}
+
 // ---- lint pure / invoke·dep_clear pure 分派；path_stat Cap residual ----
 export extern "C" function fmt_path_stat_kind_impl(path: *u8): i32;
 
@@ -524,15 +556,13 @@ export function check_try_append_lib_root(check_argv: *u8, n: *i32, dir: *u8): v
   }
 }
 
-/** Scan argv[path_start..) for "-L"; set user_passed_L and reset Cap lib-buf count.
+/** Scan argv[path_start..) for "-L"; set user_passed_L and reset lib-buf count.
  * Pure under PREFER hybrid: G.7 shux_ptr_slot_get for argv[i]; byte-eq "-L" (45,76,0).
- * Cap residual: fmt_check_lib_bufs_reset_impl only. PLATFORM: SHARED. */
+ * lib_bufs n pure (fmt_check_lib_bufs_reset); Cap residual keeps path slots. PLATFORM: SHARED. */
 #[no_mangle]
 export function check_init_user_lib_flags(argc: i32, argv: *u8, path_start: i32): void {
   check_user_passed_L_set(0);
-  unsafe {
-    fmt_check_lib_bufs_reset_impl();
-  }
+  fmt_check_lib_bufs_reset();
   if (argv == 0 as *u8) {
     return;
   }

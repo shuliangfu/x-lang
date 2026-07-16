@@ -1,12 +1,12 @@
-/* R2 thin + Cap residual pure 深迁（续 user ignore n BSS pure）：
+/* R2 thin + Cap residual pure 深迁（续 lib_bufs n BSS pure）：
  * PREFER hybrid thin 由 src/driver/fmt_check_cmd_thin.x（lit/entry + pure 真体）；
  * rest SHUX_L2_FMT_CHECK_THIN_FROM_X：无 thin 公共体；pure-duplicate _impl 剔除
  * （含 set_current_file / print / cwd_fallback / try_walk / path_resolve_abs /
  *  append_repo_lib_roots / missing_diag / invoke/dep_clear /
  *  collect_mode is_check / user_passed_L_get / init_user_lib_flags /
- *  file_list_n / user_ignore_count / …）；
- * Cap residual：walk opendir/stat/argv/大 BSS（ignore path slots/file_list ptrs/lib bufs）/
- *  one_file_body 仍 rest。
+ *  file_list_n / user_ignore_count / lib_bufs_n / …）；
+ * Cap residual：walk opendir/stat/argv/大 BSS（ignore path slots/file_list ptrs/
+ *  lib path slots）/ one_file_body 仍 rest。
  * 冷启动无宏：全 C 体（含 pure _impl + public 门闩）。
  * Regen thin surface: shux -E src/driver/fmt_check_cmd_thin.x → thin_surface.
  */
@@ -88,6 +88,9 @@ void fmt_user_ignore_count_set(int32_t v);
 int fmt_path_ends_with_dot_x(const char *path);
 int fmt_file_list_n(void);
 void fmt_file_list_n_set(int32_t v);
+int fmt_check_lib_bufs_n(void);
+void fmt_check_lib_bufs_n_set(int32_t v);
+void fmt_check_lib_bufs_reset(void);
 int check_lint_fail_on_warnings(void);
 int fmt_check_invoke_compile(int argc, char **check_argv);
 void fmt_check_dep_clear(void);
@@ -205,7 +208,11 @@ static int s_n_files;
 
 /** check 默认 -L：cwd；用户未传 -L 时按路径追加（见 check_argv_append_default_libs_for_path）。 */
 static char s_check_lib_bufs[8][512];
+/* Cap residual pure：hybrid thin owns s_n_check_lib_bufs; cold keeps static.
+ * Cap residual: s_check_lib_bufs[] path slots. */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 static int s_n_check_lib_bufs;
+#endif
 
 /* Cap residual pure：hybrid thin owns s_user_passed_L / s_collect_mode; cold keeps statics. */
 #ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
@@ -225,10 +232,27 @@ enum {
 };
 #endif
 
-/* Cap residual: reset only n_check_lib_bufs (lib path buffers stay rest). Always seed. */
-void fmt_check_lib_bufs_reset_impl(void) {
-    s_n_check_lib_bufs = 0;
+/* pure 权威：thin.x fmt_check_lib_bufs_n / n_set / reset；
+ * 冷启动保留 _impl + public；FROM_X 下剔除 pure-dup（H↓）。
+ * Cap residual：s_check_lib_bufs[] 写槽始终 seed。
+ */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
+int fmt_check_lib_bufs_n_impl(void) {
+    return s_n_check_lib_bufs;
 }
+
+int fmt_check_lib_bufs_n(void) {
+    return fmt_check_lib_bufs_n_impl();
+}
+
+void fmt_check_lib_bufs_n_set(int32_t v) {
+    s_n_check_lib_bufs = v < 0 ? 0 : (int)v;
+}
+
+void fmt_check_lib_bufs_reset(void) {
+    fmt_check_lib_bufs_n_set(0);
+}
+#endif
 
 /* pure 权威：thin.x driver_collect_mode_is_check / driver_collect_mode_set；
  * 冷启动保留 _impl + public；FROM_X 下剔除 pure-dup _impl（H↓）。 */
@@ -340,6 +364,7 @@ void check_try_append_lib_root_impl(char **check_argv, int *n, const char *dir) 
     char std_path[560];
     struct stat st;
     int i;
+    int nb;
 
     if (!check_argv || !n || !dir || !dir[0])
         return;
@@ -352,15 +377,18 @@ void check_try_append_lib_root_impl(char **check_argv, int *n, const char *dir) 
         return;
     if (stat(std_path, &st) != 0 || !S_ISDIR(st.st_mode))
         return;
-    for (i = 0; i < s_n_check_lib_bufs; i++) {
+    /* public n：hybrid thin pure BSS / 冷 seed static；path slots Cap residual */
+    nb = fmt_check_lib_bufs_n();
+    for (i = 0; i < nb; i++) {
         if (strcmp(s_check_lib_bufs[i], dir) == 0)
             return;
     }
-    if (s_n_check_lib_bufs >= 8)
+    if (nb >= 8)
         return;
-    snprintf(s_check_lib_bufs[s_n_check_lib_bufs], sizeof s_check_lib_bufs[0], "%s", dir);
+    snprintf(s_check_lib_bufs[nb], sizeof s_check_lib_bufs[0], "%s", dir);
     check_argv[(*n)++] = "-L";
-    check_argv[(*n)++] = s_check_lib_bufs[s_n_check_lib_bufs++];
+    check_argv[(*n)++] = s_check_lib_bufs[nb];
+    fmt_check_lib_bufs_n_set(nb + 1);
 }
 
 /* pure 早退权威：thin.x；冷启动保留 public；Cap residual 调 public 同形 */
@@ -449,13 +477,13 @@ void check_append_repo_lib_roots(const char *path, char **check_argv, int *n) {
 /**
  * 扫描 argv：用户是否已传 -L（有则不再注入默认库根）。
  * pure 权威：thin.x check_init_user_lib_flags（shux_ptr_slot_get + user_passed_L BSS +
- *   fmt_check_lib_bufs_reset_impl Cap）；冷启动保留 _impl + public；FROM_X 剔除 pure-dup。
+ *   fmt_check_lib_bufs_reset pure）；冷启动保留 _impl + public；FROM_X 剔除 pure-dup。
  */
 #ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 void check_init_user_lib_flags_impl(int argc, char **argv, int path_start) {
     int i;
     check_user_passed_L_set(0);
-    fmt_check_lib_bufs_reset_impl();
+    fmt_check_lib_bufs_reset();
     for (i = path_start; i < argc; i++) {
         if (argv[i] && strcmp(argv[i], "-L") == 0) {
             check_user_passed_L_set(1);
@@ -482,6 +510,7 @@ void check_argv_append_default_libs_for_path_impl(const char *path, char **check
     char cwd_buf[512];
     char cs[560];
     struct stat st;
+    int nb;
 
     if (check_user_passed_L_get() || *n >= 58)
         return;
@@ -493,16 +522,25 @@ void check_argv_append_default_libs_for_path_impl(const char *path, char **check
     if (path && strstr(path, "compiler/src/") && *n < 56) {
         snprintf(cs, sizeof cs, "%s/compiler/src", cwd_buf);
         if (stat(cs, &st) == 0 && S_ISDIR(st.st_mode)) {
-            snprintf(s_check_lib_bufs[s_n_check_lib_bufs], sizeof s_check_lib_bufs[0], "%s", cs);
-            check_argv[(*n)++] = "-L";
-            check_argv[(*n)++] = s_check_lib_bufs[s_n_check_lib_bufs++];
+            /* public n + Cap residual path slots */
+            nb = fmt_check_lib_bufs_n();
+            if (nb < 8) {
+                snprintf(s_check_lib_bufs[nb], sizeof s_check_lib_bufs[0], "%s", cs);
+                check_argv[(*n)++] = "-L";
+                check_argv[(*n)++] = s_check_lib_bufs[nb];
+                fmt_check_lib_bufs_n_set(nb + 1);
+            }
         }
         if (strstr(path, "compiler/src/asm/") && *n < 56) {
             snprintf(cs, sizeof cs, "%s/compiler/src/asm", cwd_buf);
             if (stat(cs, &st) == 0 && S_ISDIR(st.st_mode)) {
-                snprintf(s_check_lib_bufs[s_n_check_lib_bufs], sizeof s_check_lib_bufs[0], "%s", cs);
-                check_argv[(*n)++] = "-L";
-                check_argv[(*n)++] = s_check_lib_bufs[s_n_check_lib_bufs++];
+                nb = fmt_check_lib_bufs_n();
+                if (nb < 8) {
+                    snprintf(s_check_lib_bufs[nb], sizeof s_check_lib_bufs[0], "%s", cs);
+                    check_argv[(*n)++] = "-L";
+                    check_argv[(*n)++] = s_check_lib_bufs[nb];
+                    fmt_check_lib_bufs_n_set(nb + 1);
+                }
             }
         }
     }
@@ -1224,8 +1262,9 @@ int check_one_file_body_impl(const char *path, int argc, char **argv) {
     /* public：hybrid thin pure BSS / 冷 seed public→_impl */
     driver_check_set_current_file(path);
 
-    /* 每个文件独立构建 check_argv；-L 缓冲须按文件重置，否则跨文件 dedup 会漏注入仓库根。 */
-    fmt_check_lib_bufs_reset_impl();
+    /* 每个文件独立构建 check_argv；-L 缓冲须按文件重置，否则跨文件 dedup 会漏注入仓库根。
+     * public reset：hybrid thin pure BSS / 冷 seed static。 */
+    fmt_check_lib_bufs_reset();
 
     check_argv[n++] = argv[0];
 #ifdef SHUX_USE_X_PIPELINE

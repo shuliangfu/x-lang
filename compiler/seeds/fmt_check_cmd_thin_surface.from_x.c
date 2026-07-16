@@ -1,4 +1,4 @@
-/* regen from fmt_check_cmd_thin.x -E (user ignore n BSS pure) */
+/* regen from fmt_check_cmd_thin.x -E (lib_bufs n BSS pure) */
 /* prove prologue (g05_try_x_to_o aligned + uio/poll) */
 #include <stddef.h>
 #include <stdint.h>
@@ -372,6 +372,9 @@ extern void fmt_user_ignore_count_set(int32_t v);
 extern int32_t fmt_path_ends_with_dot_x(uint8_t * path);
 extern int32_t fmt_file_list_n(void);
 extern void fmt_file_list_n_set(int32_t v);
+extern int32_t fmt_check_lib_bufs_n(void);
+extern void fmt_check_lib_bufs_n_set(int32_t v);
+extern void fmt_check_lib_bufs_reset(void);
 extern int32_t check_lint_fail_on_warnings(void);
 extern int32_t fmt_check_invoke_compile(int32_t argc, uint8_t * check_argv);
 extern void fmt_check_dep_clear(void);
@@ -400,6 +403,7 @@ static int32_t g_fmt_collect_mode[1] = {1};
 static int32_t g_fmt_user_passed_L[1] = {0};
 static int32_t g_fmt_file_list_n[1] = {0};
 static int32_t g_fmt_user_ignore_n[1] = {0};
+static int32_t g_fmt_check_lib_bufs_n[1] = {0};
 static uint8_t g_fmt_lit_check_error[12] = {99, 104, 101, 99, 107, 32, 101, 114, 114, 111, 114, 0};
 static uint8_t g_fmt_lit_fmt_error[10] = {102, 109, 116, 32, 101, 114, 114, 111, 114, 0};
 static uint8_t g_fmt_lit_chk002[7] = {67, 72, 75, 48, 48, 50, 0};
@@ -425,7 +429,6 @@ extern void diag_report_with_code(uint8_t * file, int32_t line, int32_t col, uin
 extern uint8_t * fmt_user_ignore_at_impl(int32_t i);
 extern int32_t fmt_file_list_store_impl(uint8_t * abs_path);
 extern uint8_t * fmt_check_path_bss_slot(int32_t which);
-extern void fmt_check_lib_bufs_reset_impl(void);
 extern uint8_t * shux_ptr_slot_get(uint8_t * arr, int32_t i);
 int32_t driver_check_quiet_ok_get(void) {
   return 1;
@@ -706,6 +709,24 @@ void fmt_file_list_n_set(int32_t v) {
   (void)(0);
   return;
 }
+int32_t fmt_check_lib_bufs_n(void) {
+  return (g_fmt_check_lib_bufs_n)[0];
+  return 0;
+}
+void fmt_check_lib_bufs_n_set(int32_t v) {
+  if ((v < 0)) {
+    (void)(((g_fmt_check_lib_bufs_n)[0] = 0));
+  } else {
+    (void)(((g_fmt_check_lib_bufs_n)[0] = v));
+  }
+  (void)(0);
+  return;
+}
+void fmt_check_lib_bufs_reset(void) {
+  (void)(fmt_check_lib_bufs_n_set(0));
+  (void)(0);
+  return;
+}
 extern int32_t fmt_path_stat_kind_impl(uint8_t * path);
 int32_t check_lint_fail_on_warnings(void) {
   {
@@ -776,7 +797,7 @@ void check_try_append_lib_root(uint8_t * check_argv, int32_t * n, uint8_t * dir)
 }
 void check_init_user_lib_flags(int32_t argc, uint8_t * argv, int32_t path_start) {
   (void)(check_user_passed_L_set(0));
-  (void)(fmt_check_lib_bufs_reset_impl());
+  (void)(fmt_check_lib_bufs_reset());
   if ((argv ==((uint8_t *)(0)))) {
     return;
   }
