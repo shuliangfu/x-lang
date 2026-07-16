@@ -772,9 +772,13 @@ export function fs_writev_buf_c(fd: i32, bufs: *u8, n: i32): i64 {
 }
 
 /** 路径 stat。
- * 【Why 内联 fill】typeck 禁止「局部 struct 地址 + 外层 out*」同调 fill；在此直接写 out 字段。 */
-export function fs_stat_c(path: *u8, out: *FsStatOut): i32 {
+ * 【Why 内联 fill】typeck 禁止「局部 struct 地址 + 外层 out*」同调 fill；在此直接写 out 字段。
+ * 【Why out: *u8】与 mod.x FsStatOut 布局一致，但 mangle 为不同 C 类型名
+ * （std_fs_posix_FsStatOut vs std_fs_FsStatOut）；跨模块边界用 *u8（同 fs_readv_buf_c），
+ * 本函数内再 as *FsStatOut 写字段，避免 incompatible-pointer-types。 */
+export function fs_stat_c(path: *u8, out: *u8): i32 {
   let st: PosixStatBuf;
+  let o: *FsStatOut = out as *FsStatOut;
   if (path == 0 || out == 0) {
     return -1;
   }
@@ -783,15 +787,15 @@ export function fs_stat_c(path: *u8, out: *FsStatOut): i32 {
     return -1;
   }
   let st_mode: u32 = st.st_mode as u32;
-  out.size = st.st_size;
-  out.mode = st_mode & 4095;
-  out.is_dir = 0;
-  out.is_file = 0;
-  out.mtime_sec = st.st_mtime;
+  o.size = st.st_size;
+  o.mode = st_mode & 4095;
+  o.is_dir = 0;
+  o.is_file = 0;
+  o.mtime_sec = st.st_mtime;
   if ((st_mode & S_IFMT) == S_IFDIR) {
-    out.is_dir = 1;
+    o.is_dir = 1;
   } else if ((st_mode & S_IFMT) == S_IFREG) {
-    out.is_file = 1;
+    o.is_file = 1;
   }
   return 0;
 }

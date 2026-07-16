@@ -66,65 +66,73 @@ extern function shux_sys_listen(sockfd: i32, backlog: i32): i32;
 
 // --- x86_64（System V AMD64 ABI：rax=nr, rdi/rsi/rdx/...=args）---
 
+/*
+ * 【Why 命名 linux_syscall_nr_*】mangle 为 std_sys_linux_<name>。
+ * 若子模块用短名 syscall_nr_*，则 std.sys.linux.syscall_nr_write_amd64 与
+ * mod 薄转发 std.sys.linux_syscall_nr_write_amd64 同崩为
+ * std_sys_linux_syscall_nr_write_amd64 → redefinition + 自递归体。
+ * 加 linux_ 前缀后：子模块 = std_sys_linux_linux_syscall_nr_*，
+ * mod 转发 = std_sys_linux_syscall_nr_*（与 linux_syscall_table_available 同模式）。
+ */
 /** Linux x86_64 read(2) 系统调用号。 */
-export function syscall_nr_read_amd64(): i64 {
+export function linux_syscall_nr_read_amd64(): i64 {
   return 0;
 }
 
 /** Linux x86_64 write(2) 系统调用号（freestanding_io_x86_64.s 使用）。 */
-export function syscall_nr_write_amd64(): i64 {
+export function linux_syscall_nr_write_amd64(): i64 {
   return 1;
 }
 
 /** Linux x86_64 open(2) 系统调用号。 */
-export function syscall_nr_open_amd64(): i64 {
+export function linux_syscall_nr_open_amd64(): i64 {
   return 2;
 }
 
 /** Linux x86_64 close(2) 系统调用号。 */
-export function syscall_nr_close_amd64(): i64 {
+export function linux_syscall_nr_close_amd64(): i64 {
   return 3;
 }
 
 /** Linux x86_64 exit(2) 系统调用号。 */
-export function syscall_nr_exit_amd64(): i64 {
+export function linux_syscall_nr_exit_amd64(): i64 {
   return 60;
 }
 
 /** Linux x86_64 mmap(2) 系统调用号。 */
-export function syscall_nr_mmap_amd64(): i64 {
+export function linux_syscall_nr_mmap_amd64(): i64 {
   return 9;
 }
 
 // --- aarch64（AAPCS64：x8=nr, x0-x5=args）---
 
 /** Linux aarch64 read(2) 系统调用号。 */
-export function syscall_nr_read_arm64(): i64 {
+export function linux_syscall_nr_read_arm64(): i64 {
   return 63;
 }
 
 /** Linux aarch64 write(2) 系统调用号。 */
-export function syscall_nr_write_arm64(): i64 {
+export function linux_syscall_nr_write_arm64(): i64 {
   return 64;
 }
 
 /** Linux aarch64 openat(2) 系统调用号（arm64 无 legacy open）。 */
-export function syscall_nr_openat_arm64(): i64 {
+export function linux_syscall_nr_openat_arm64(): i64 {
   return 56;
 }
 
 /** Linux aarch64 close(2) 系统调用号。 */
-export function syscall_nr_close_arm64(): i64 {
+export function linux_syscall_nr_close_arm64(): i64 {
   return 57;
 }
 
 /** Linux aarch64 exit(2) 系统调用号。 */
-export function syscall_nr_exit_arm64(): i64 {
+export function linux_syscall_nr_exit_arm64(): i64 {
   return 93;
 }
 
 /** Linux aarch64 mmap(2) 系统调用号。 */
-export function syscall_nr_mmap_arm64(): i64 {
+export function linux_syscall_nr_mmap_arm64(): i64 {
   return 222;
 }
 

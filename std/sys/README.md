@@ -28,7 +28,7 @@
 ```x
 const linux = import("std.sys.linux");
 // x86_64 write = 1；aarch64 write = 64
-let nr: i64 = linux.syscall_nr_write_amd64();
+let nr: i64 = linux.linux_syscall_nr_write_amd64();
 ```
 
 或通过 `import("std.sys")` 的 `linux_syscall_nr_write_amd64()` 薄转发。

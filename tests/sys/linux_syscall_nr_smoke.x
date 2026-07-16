@@ -7,17 +7,17 @@ function main(): i32 {
     return 1;
   }
   // x86_64：与 freestanding_io_x86_64.s mov $1, %eax 一致
-  if (linux.syscall_nr_write_amd64() != 1) {
+  if (linux.linux_syscall_nr_write_amd64() != 1) {
     return 3;
   }
-  if (linux.syscall_nr_exit_amd64() != 60) {
+  if (linux.linux_syscall_nr_exit_amd64() != 60) {
     return 4;
   }
   // aarch64：与内核 unistd.h 一致
-  if (linux.syscall_nr_write_arm64() != 64) {
+  if (linux.linux_syscall_nr_write_arm64() != 64) {
     return 5;
   }
-  if (linux.syscall_nr_openat_arm64() != 56) {
+  if (linux.linux_syscall_nr_openat_arm64() != 56) {
     return 6;
   }
   return 0;

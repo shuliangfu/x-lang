@@ -268,7 +268,8 @@ allow(padding) struct FsStatOut {
   mtime_sec: i64;
 }
 
-export function fs_stat_c(path: *u8, out: *FsStatOut): i32 { return fs_platform.fs_stat_c(path, out); }
+/* 跨模块边界传 *u8（与 fs_readv_buf_c 同模式）：避免 std_fs_FsStatOut* vs std_fs_posix_FsStatOut* 指针类型冲突。 */
+export function fs_stat_c(path: *u8, out: *FsStatOut): i32 { return fs_platform.fs_stat_c(path, out as *u8); }
 export function fs_chmod_c(path: *u8, mode: u32): i32 { return fs_platform.fs_chmod_c(path, mode); }
 export function fs_mkdir_c(path: *u8, mode: u32): i32 { return fs_platform.fs_mkdir_c(path, mode); }
 export function fs_unlink_c(path: *u8): i32 { return fs_platform.fs_unlink_c(path); }

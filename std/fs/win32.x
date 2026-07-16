@@ -619,8 +619,10 @@ export function fs_sync_c(fd: i32): i32 {
   return -1;
 }
 
-export function fs_stat_c(path: *u8, out: *FsStatOut): i32 {
+/** out: *u8 — 与 mod.x FsStatOut 跨模块 *u8 边界一致（见 posix.fs_stat_c）。 */
+export function fs_stat_c(path: *u8, out: *u8): i32 {
   let fad: Win32FileAttrData;
+  let o: *FsStatOut = out as *FsStatOut;
   if (path == 0 || out == 0) {
     return -1;
   }
@@ -628,17 +630,17 @@ export function fs_stat_c(path: *u8, out: *FsStatOut): i32 {
     fs_note_last_error_win();
     return -1;
   } }
-  out[0].size = ((fad.nFileSizeHigh as i64) << 32) | (fad.nFileSizeLow as i64);
+  o[0].size = ((fad.nFileSizeHigh as i64) << 32) | (fad.nFileSizeLow as i64);
   if ((fad.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0) {
-    out[0].mode = 493;
-    out[0].is_dir = 1;
-    out[0].is_file = 0;
+    o[0].mode = 493;
+    o[0].is_dir = 1;
+    o[0].is_file = 0;
   } else {
-    out[0].mode = 420;
-    out[0].is_dir = 0;
-    out[0].is_file = 1;
+    o[0].mode = 420;
+    o[0].is_dir = 0;
+    o[0].is_file = 1;
   }
-  out[0].mtime_sec = 0;
+  o[0].mtime_sec = 0;
   return 0;
 }
 

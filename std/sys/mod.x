@@ -150,13 +150,13 @@ export function linux_syscall_table_available(): i32 {
 /** Linux x86_64 write(2) 号；与 freestanding_io_x86_64.s 一致。 */
 #[cfg(target_os = "linux")]
 export function linux_syscall_nr_write_amd64(): i64 {
-  return linux.syscall_nr_write_amd64();
+  return linux.linux_syscall_nr_write_amd64();
 }
 
 /** Linux aarch64 write(2) 号。 */
 #[cfg(target_os = "linux")]
 export function linux_syscall_nr_write_arm64(): i64 {
-  return linux.syscall_nr_write_arm64();
+  return linux.linux_syscall_nr_write_arm64();
 }
 
 /**
