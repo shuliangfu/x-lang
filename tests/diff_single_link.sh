@@ -83,34 +83,33 @@ for entry in "${MODULES[@]}"; do
     continue
   fi
 
-  # seed 可选：*_gen.c 常 gitignore；无 seed 仍跑 typeck（地图 KPI T），diff 记 NOSEED
+  # seed：EMPTY 权威优先 seeds/*.linux.x86_64.c（git 入库 pin），勿被工作区
+  # gitignore 的旧 *_gen.c 盖住（Ubuntu 假 diff 真例：driver_test_gen.c 7 月 14 考古）。
+  # 无 durable seed 时再用本地 *_gen.c；皆无则 NOSEED（仍计 T）。
   has_seed=1
-  if [ ! -f "$seed_path" ]; then
-    # 冷仓库：*_gen.c 常 gitignore；回落 seeds/*.linux.x86_64.c（与 Makefile pin 同源）
-    alt=""
-    case "$seed" in
-      lexer_gen.c) alt="seeds/lexer_gen.linux.x86_64.c" ;;
-      token_gen.c) alt="seeds/token_gen.linux.x86_64.c" ;;
-      preprocess_gen.c) alt="seeds/preprocess_gen.linux.x86_64.c" ;;
-      parser_gen.c) alt="seeds/parser_gen.linux.x86_64.c" ;;
-      typeck_gen.c) alt="seeds/typeck_gen.linux.x86_64.c" ;;
-      codegen_gen.c) alt="seeds/codegen_gen.linux.x86_64.c" ;;
-      lsp_gen.c) alt="seeds/lsp_gen.linux.x86_64.c" ;;
-      lsp_diag_gen.c) alt="seeds/lsp_diag_gen.linux.x86_64.c" ;;
-      lsp_io_gen.c) alt="seeds/lsp_io_gen.linux.x86_64.c" ;;
-      driver_fmt_gen.c) alt="seeds/driver_fmt_gen.linux.x86_64.c" ;;
-      driver_check_gen.c) alt="seeds/driver_check_gen.linux.x86_64.c" ;;
-      driver_test_gen.c) alt="seeds/driver_test_gen.linux.x86_64.c" ;;
-      driver_compile_gen.c) alt="seeds/driver_compile_gen.linux.x86_64.c" ;;
-      driver_build_gen.c) alt="seeds/driver_build_gen.linux.x86_64.c" ;;
-      driver_run_gen.c) alt="seeds/driver_run_gen.linux.x86_64.c" ;;
-      driver_emit_gen.c) alt="seeds/driver_emit_gen.linux.x86_64.c" ;;
-    esac
-    if [ -n "$alt" ] && [ -f "$COMPILER_DIR/$alt" ]; then
-      seed_path="$COMPILER_DIR/$alt"
-    else
-      has_seed=0
-    fi
+  alt=""
+  case "$seed" in
+    lexer_gen.c) alt="seeds/lexer_gen.linux.x86_64.c" ;;
+    token_gen.c) alt="seeds/token_gen.linux.x86_64.c" ;;
+    preprocess_gen.c) alt="seeds/preprocess_gen.linux.x86_64.c" ;;
+    parser_gen.c) alt="seeds/parser_gen.linux.x86_64.c" ;;
+    typeck_gen.c) alt="seeds/typeck_gen.linux.x86_64.c" ;;
+    codegen_gen.c) alt="seeds/codegen_gen.linux.x86_64.c" ;;
+    lsp_gen.c) alt="seeds/lsp_gen.linux.x86_64.c" ;;
+    lsp_diag_gen.c) alt="seeds/lsp_diag_gen.linux.x86_64.c" ;;
+    lsp_io_gen.c) alt="seeds/lsp_io_gen.linux.x86_64.c" ;;
+    driver_fmt_gen.c) alt="seeds/driver_fmt_gen.linux.x86_64.c" ;;
+    driver_check_gen.c) alt="seeds/driver_check_gen.linux.x86_64.c" ;;
+    driver_test_gen.c) alt="seeds/driver_test_gen.linux.x86_64.c" ;;
+    driver_compile_gen.c) alt="seeds/driver_compile_gen.linux.x86_64.c" ;;
+    driver_build_gen.c) alt="seeds/driver_build_gen.linux.x86_64.c" ;;
+    driver_run_gen.c) alt="seeds/driver_run_gen.linux.x86_64.c" ;;
+    driver_emit_gen.c) alt="seeds/driver_emit_gen.linux.x86_64.c" ;;
+  esac
+  if [ -n "$alt" ] && [ -f "$COMPILER_DIR/$alt" ]; then
+    seed_path="$COMPILER_DIR/$alt"
+  elif [ ! -f "$seed_path" ]; then
+    has_seed=0
   fi
 
   # 跑 shux -E，捕获 stdout 到临时文件（超时 90 秒：大模块 typeck 合法耗时；真死循环仍有上限）
