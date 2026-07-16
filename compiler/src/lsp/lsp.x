@@ -26,6 +26,9 @@
 // semanticTokens、rename、shutdown、exit、$/cancelRequest、workspace/didChangeConfiguration。
 // 高性能：诊断有文档哈希缓存（不变则跳过重解析）。
 
+// Cap-T001 / LANG-007 S0: exports that call C glue or lsp_io surface use
+// whole-body unsafe (PLATFORM: SHARED). M1 typeck for T KPI.
+
 const lsp_io = import("lsp_io");
 
 /** 单条消息 body 安全上限（1MiB）；顶层 let 须在任意 extern/function 之前，供
@@ -436,7 +439,14 @@ export function lsp_parse_id(body: *u8, len: i32, id_buf: *u8, id_buf_len: i32):
 }
 
 /** 向 stdout（fd 1）发送 LSP 响应：Content-Length: <body_len>\r\n\r\n + body。 */
+/**
+ * Send one LSP response on fd with Content-Length framing via lsp_write_all.
+ * PLATFORM: SHARED — Cap-T001 whole-body unsafe (C write glue).
+ */
 export function lsp_send_response(fd: i32, body: *u8, body_len: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: whole-body unsafe FFI gate (Cap-T001).
+  // Covers export-extern C glue and lsp_io import surface calls.
+  unsafe {
   let header: u8[64] = [];
   header[0] = 67;
   header[1] = 111;
@@ -494,12 +504,21 @@ export function lsp_send_response(fd: i32, body: *u8, body_len: i32): i32 {
     }
   }
   return 0;
+  }
+  return 0;
 }
 
 /** LSP 主循环：从 stdin 读消息，根据 method 分发，向 stdout 写响应；收到 exit
 * 后返回 0。body/doc 按需动态分配，无固定缓冲上限。 */
 /** LSP 主循环实现；typeck_lsp_main 由 lsp_state.c 在大栈 pthread 上包装调用。 */
+/**
+ * LSP main loop: read messages, dispatch methods, write JSON-RPC responses.
+ * PLATFORM: SHARED — Cap-T001 whole-body unsafe (C glue + lsp_io surface).
+ */
 export function lsp_main_impl(): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: whole-body unsafe FFI gate (Cap-T001).
+  // Covers export-extern C glue and lsp_io import surface calls.
+  unsafe {
   let stdin_fd: i32 = 0;
   let stdout_fd: i32 = 1;
   let line_buf: u8[256] = [];
@@ -751,5 +770,7 @@ export function lsp_main_impl(): i32 {
   lsp_io.lsp_free(diag_ptr);
   lsp_io.lsp_free(ref_ptr);
   lsp_io.lsp_free(format_ptr);
+  return 0;
+  }
   return 0;
 }
