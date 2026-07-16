@@ -10302,18 +10302,14 @@ int32_t pipeline_codegen_is_std_io_driver_bridge_name(uint8_t *name, int32_t nam
     return 1;
   if ((name_len == 13 || name_len == 14) && codegen_name_prefix_eq(name, name_len, "wait_readable", 13))
     return 1;
-  if ((name_len == 22 || name_len == 23) && codegen_name_prefix_eq(name, name_len, "register_fixed_buffers", 22))
+  /* register_fixed_buffers only (exact prefix); not submit_write_batch_buf (also len 22) */
+  if (name_len == 22 && codegen_name_prefix_eq(name, name_len, "register_fixed_buffers", 22))
     return 1;
-  if ((name_len == 17 || name_len == 18) && codegen_name_prefix_eq(name, name_len, "submit_read_batch", 17))
-    return 1;
-  if ((name_len == 18 || name_len == 19) && codegen_name_prefix_eq(name, name_len, "submit_write_batch", 18))
-    return 1;
-  if ((name_len == 33 || name_len == 34) && codegen_name_prefix_eq(name, name_len, "submit_register_fixed_buffers_buf", 33))
-    return 1;
-  if ((name_len == 21 || name_len == 22) && codegen_name_prefix_eq(name, name_len, "submit_read_batch_buf", 21))
-    return 1;
-  if ((name_len == 22 || name_len == 23) && codegen_name_prefix_eq(name, name_len, "submit_write_batch_buf", 22))
-    return 1;
+  /*
+   * submit_*_batch(_buf) / submit_register_fixed_buffers_buf：不得 skip。
+   * 与 codegen.x / seed bridge 对齐：call 端仍要 std_io_driver_submit_*_batch 真体；
+   * skip 后仅剩 undef（或 weak -1 假红 run-io-driver）。
+   */
   return 0;
 }
 

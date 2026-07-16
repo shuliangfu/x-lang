@@ -1177,30 +1177,31 @@ SHUX_LIB_WEAK int32_t codegen_name_bytes_prefix_eq(uint8_t * name, int32_t name_
   }
   return 1;
 }
+/*
+ * 与 codegen.x 同权威：仅 skip register/submit_read/submit_write/wait_readable/register_fixed_buffers。
+ * 【Why 禁止】`name_len == N || name_len == N+1 && eq` 无括号时，name_len==N 恒真：
+ *   submit_write_batch (18) / submit_write_batch_buf (22) 会被误 skip → undefined reference。
+ * submit_*_batch(_buf) 必须 co-emit（preamble 注释：勿 weak 返回 -1）。
+ */
 SHUX_LIB_WEAK int32_t codegen_is_std_io_driver_bridge_name(uint8_t * name, int32_t name_len) {
   if (name == ((uint8_t *)(0))) {   return 0;
  }
   uint8_t nm8[8] = { 114, 101, 103, 105, 115, 116, 101, 114 };
-  if (name_len == 8 || name_len == 9 && codegen_name_bytes_prefix_eq(name, name_len, (&((nm8)[0])), 8) != 0) {   return 1;
+  if ((name_len == 8 || name_len == 9) && codegen_name_bytes_prefix_eq(name, name_len, (&((nm8)[0])), 8) != 0) {   return 1;
  }
   uint8_t nm11[11] = { 115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100 };
-  if (name_len == 11 || name_len == 12 && codegen_name_bytes_prefix_eq(name, name_len, (&((nm11)[0])), 11) != 0) {   return 1;
+  if ((name_len == 11 || name_len == 12) && codegen_name_bytes_prefix_eq(name, name_len, (&((nm11)[0])), 11) != 0) {   return 1;
  }
   uint8_t nm12[12] = { 115, 117, 98, 109, 105, 116, 95, 119, 114, 105, 116, 101 };
-  if (name_len == 12 || name_len == 13 && codegen_name_bytes_prefix_eq(name, name_len, (&((nm12)[0])), 12) != 0) {   return 1;
+  if ((name_len == 12 || name_len == 13) && codegen_name_bytes_prefix_eq(name, name_len, (&((nm12)[0])), 12) != 0) {   return 1;
  }
   uint8_t nm13[13] = { 119, 97, 105, 116, 95, 114, 101, 97, 100, 97, 98, 108, 101 };
-  if (name_len == 13 || name_len == 14 && codegen_name_bytes_prefix_eq(name, name_len, (&((nm13)[0])), 13) != 0) {   return 1;
+  if ((name_len == 13 || name_len == 14) && codegen_name_bytes_prefix_eq(name, name_len, (&((nm13)[0])), 13) != 0) {   return 1;
  }
   uint8_t nm22[22] = { 114, 101, 103, 105, 115, 116, 101, 114, 95, 102, 105, 120, 101, 100, 95, 98, 117, 102, 102, 101, 114, 115 };
-  if (name_len == 22 || name_len == 23 && codegen_name_bytes_prefix_eq(name, name_len, (&((nm22)[0])), 22) != 0) {   return 1;
+  if (name_len == 22 && codegen_name_bytes_prefix_eq(name, name_len, (&((nm22)[0])), 22) != 0) {   return 1;
  }
-  uint8_t nm17[17] = { 115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100, 95, 98, 97, 116, 99, 104 };
-  if (name_len == 17 || name_len == 18 && codegen_name_bytes_prefix_eq(name, name_len, (&((nm17)[0])), 17) != 0) {   return 1;
- }
-  uint8_t nm18w[18] = { 115, 117, 98, 109, 105, 116, 95, 119, 114, 105, 116, 101, 95, 98, 97, 116, 99, 104 };
-  if (name_len == 18 || name_len == 19 && codegen_name_bytes_prefix_eq(name, name_len, (&((nm18w)[0])), 18) != 0) {   return 1;
- }
+  /* submit_*_batch / *_batch_buf：不得 skip（与 codegen.x 一致） */
   return 0;
 }
 SHUX_LIB_WEAK int32_t codegen_should_skip_emit_std_io_core_io_dup(uint8_t * dep_path, uint8_t * name, int32_t name_len) {
