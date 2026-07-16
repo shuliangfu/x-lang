@@ -20,9 +20,9 @@ static inline void shux_panic_(int has_msg, int msg_val) {
   if (has_msg) (void)fprintf(stderr, "%d\n", msg_val);
   abort();
 }
-extern uint8_t * malloc(size_t size);
-extern void free(uint8_t * ptr);
-extern uint8_t * calloc(size_t nmemb, size_t size);
+/* PLATFORM: SHARED — do NOT redeclare malloc/free/calloc after <stdlib.h>.
+ * Linux/glibc: void* prototypes; uint8_t* redecls are conflicting types and
+ * fail seed cc -c. Bodies call libc via the standard headers above. */
 uint8_t * lsp_io_std_heap_std_heap_alloc(size_t size);
 uint8_t * lsp_io_std_heap_std_heap_alloc_zeroed(size_t size);
 void lsp_io_std_heap_std_heap_free(uint8_t * ptr);
