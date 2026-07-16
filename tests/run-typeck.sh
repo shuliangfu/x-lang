@@ -194,10 +194,12 @@ else
   expect_typeck_error tests/typeck/struct_repr_compatible_fail.x "no matching overload" "$TYPECK_SHUX"
   expect_typeck_error tests/typeck/result_try_bad.x "enclosing function to return the same Result type" "$TYPECK_SHUX"
   expect_typeck_error tests/typeck/import_const_bare_fail.x "must be qualified" "$TYPECK_SHUX"
-  if [ -x ./compiler/shux-x ]; then
-    err_ret_x=$(run_typeck_timeout ./compiler/shux-x -x tests/typeck/return_operand_type_mismatch.x -o /tmp/shux_typeck_ret_fail_defaults.o 2>&1) || true
+  # 负例宿主：优先当前 TYPECK_SHUX/产品链；避免 pin shux-x 空诊断
+  _ret_host="${TYPECK_SHUX:-${SHUX:-./compiler/shux}}"
+  if [ -x "$_ret_host" ]; then
+    err_ret_x=$(run_typeck_timeout "$_ret_host" tests/typeck/return_operand_type_mismatch.x -o /tmp/shux_typeck_ret_fail_defaults.o 2>&1) || true
     echo "$err_ret_x" | grep -q "typeck error" || {
-      echo "expected ./compiler/shux-x -x return_operand_type_mismatch typeck error; got: $err_ret_x"
+      echo "expected $_ret_host return_operand_type_mismatch typeck error; got: $err_ret_x"
       exit 1
     }
   fi
@@ -206,7 +208,19 @@ else
     echo "$out_pos" | grep -q "typeck OK" || { echo "missing typeck OK for $f: $out_pos"; exit 1; }
   done
 fi
-if [ -x ./compiler/shux-x ]; then
-  expect_return_breadcrumb_error tests/typeck/return_import_call_type_mismatch.x ./compiler/shux-x
+# breadcrumb 负例：优先产品 SHUX/shux_asm（真 typeck 诊断）。
+# 旧逻辑硬绑 pin shux-x：冷启动后 shux-x 常为 seed 拷贝，空 stderr → 假红/空 got。
+_bc_host=""
+if [ -n "${SHUX:-}" ] && [ -x "$SHUX" ]; then
+  _bc_host="$SHUX"
+elif [ -x ./compiler/shux_asm ]; then
+  _bc_host=./compiler/shux_asm
+elif [ -x ./compiler/shux ]; then
+  _bc_host=./compiler/shux
+elif [ -x ./compiler/shux-x ]; then
+  _bc_host=./compiler/shux-x
+fi
+if [ -n "$_bc_host" ]; then
+  expect_return_breadcrumb_error tests/typeck/return_import_call_type_mismatch.x "$_bc_host"
 fi
 echo "typeck test OK"
