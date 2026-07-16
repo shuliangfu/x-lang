@@ -12,6 +12,8 @@
  *     print/fail format _impl；
  *   + wave4 Cap residual pure：defines_set_at（G.7 shux_ptr_slot_set）+ os_define_lit
  *     字面量表在 thin.x；FROM_X 无 pure-dup set_at/os_lit _impl；
+ *   + wave5 Cap residual pure：phase timing BSS + begin/end 在 thin.x；FROM_X 无 pure-dup
+ *     begin/end _impl；flush reportf floats 仍 rest Cap（经 thin acc_ms_get + clear）；
  * FROM_X 剔 pure-dup _impl（H↓）。
  */
 /* Generated from src/runtime_driver_abi.x (G-02f-29/41/45..57/83 true .x + C tail).
@@ -67,6 +69,9 @@ const char *driver_os_define_lit(int kind);
 void driver_run_thread_on_large_stack(void *(*fn)(void *), void *arg);
 int driver_argv_collect_defines(int argc, char **argv, const char **defines, int max_defines);
 int driver_source_has_top_level_import(const char *src, size_t src_len);
+/* wave5: phase timing BSS pure in thin — flush Cap reads via getters. */
+double driver_compile_phase_acc_ms_get(int32_t phase);
+void driver_compile_phase_timing_clear(void);
 #define compile_phase_now_sec compile_phase_now_sec_impl
 /* wave1: flag-slot BSS pure in thin — no public→_impl rename (rest drops pure-dup slots). */
 /* wave2: path/len BSS pure in thin — path_read rest writes len via thin store. */
@@ -825,9 +830,12 @@ const char *driver_get_current_dep_path_for_codegen(void) {
 /** OBS-001：编译阶段耗时；phase 0=parse 1=typeck 2=codegen。 */
 #define SHUX_COMPILE_PHASE_MAX 3
 
+/* wave5 pure：hybrid thin owns phase timing BSS; cold seed keeps statics + begin/end _impl. */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 static double g_compile_phase_acc_ms[SHUX_COMPILE_PHASE_MAX];
 static double g_compile_phase_start_sec[SHUX_COMPILE_PHASE_MAX];
 static int g_compile_phase_active[SHUX_COMPILE_PHASE_MAX];
+#endif
 
 /** 是否启用 SHUX_COMPILE_PHASE_TIMING 阶段计时。 */
 /* pure 权威：thin.x compile_phase_timing_enabled（getenv 非空）；冷启动保留 _impl + public；FROM_X 无 pure-dup（H↓）。 */
@@ -874,36 +882,59 @@ int32_t driver_compile_phase_index_ok(int32_t phase) {
 }
 #endif
 
+/* wave5：cold seed getters twin thin pure surface (hybrid uses thin symbols). */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
+double driver_compile_phase_acc_ms_get(int32_t phase) {
+    if (!driver_compile_phase_index_ok(phase))
+        return 0.0;
+    return g_compile_phase_acc_ms[phase];
+}
+
+void driver_compile_phase_timing_clear(void) {
+    memset(g_compile_phase_acc_ms, 0, sizeof(g_compile_phase_acc_ms));
+    memset(g_compile_phase_active, 0, sizeof(g_compile_phase_active));
+}
+#endif
+
 /**
  * 标记编译阶段开始；由 pipeline.x run_x_pipeline_impl 调用。
  * 参数：phase 0..2。
+ * wave5 pure：hybrid thin owns begin；cold keeps _impl；FROM_X 无 pure-dup。
  */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_compile_phase_timing_begin_impl(int32_t phase) {
     if (!driver_compile_phase_index_ok(phase))
         return;
     g_compile_phase_start_sec[phase] = compile_phase_now_sec();
     g_compile_phase_active[phase] = 1;
 }
+#endif
 
 /**
  * 累加阶段耗时（毫秒）；同 phase 可多次 begin/end 叠加。
  * 参数：phase 0..2。
+ * wave5 pure：hybrid thin owns end；cold keeps _impl；FROM_X 无 pure-dup。
  */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_compile_phase_timing_end_impl(int32_t phase) {
     if (!driver_compile_phase_index_ok(phase) || !g_compile_phase_active[phase])
         return;
     g_compile_phase_acc_ms[phase] += (compile_phase_now_sec() - g_compile_phase_start_sec[phase]) * 1000.0;
     g_compile_phase_active[phase] = 0;
 }
+#endif
 
-/** 打印 parse/typeck/codegen/total 毫秒汇总行并清零；SHUX_COMPILE_PHASE_TIMING 启用时生效。 */
+/** 打印 parse/typeck/codegen/total 毫秒汇总行并清零；SHUX_COMPILE_PHASE_TIMING 启用时生效。
+ * Cap residual：diag_reportf floats 仍 rest；acc 经 driver_compile_phase_acc_ms_get（thin/cold twin）。 */
 void driver_compile_phase_timing_flush_impl(void) {
-    double total = g_compile_phase_acc_ms[0] + g_compile_phase_acc_ms[1] + g_compile_phase_acc_ms[2];
+    double a0 = driver_compile_phase_acc_ms_get(0);
+    double a1 = driver_compile_phase_acc_ms_get(1);
+    double a2 = driver_compile_phase_acc_ms_get(2);
+    double total = a0 + a1 + a2;
     diag_reportf(NULL, 0, 0, "note", NULL,
                  "compile phase timing: parse_ms=%.3f typeck_ms=%.3f codegen_ms=%.3f total_ms=%.3f",
-                 g_compile_phase_acc_ms[0], g_compile_phase_acc_ms[1], g_compile_phase_acc_ms[2], total);
-    memset(g_compile_phase_acc_ms, 0, sizeof(g_compile_phase_acc_ms));
-    memset(g_compile_phase_active, 0, sizeof(g_compile_phase_active));
+                 a0, a1, a2, total);
+    driver_compile_phase_timing_clear();
 }
 
 #ifndef SHUX_L2_RDABI_THIN_FROM_X

@@ -391,6 +391,8 @@ extern double compile_phase_now_sec(void);
 extern void driver_run_fn_on_current_large_stack(uint8_t * fn, uint8_t * arg);
 extern int32_t driver_compile_phase_index_ok(int32_t phase);
 extern int32_t driver_compile_phase_timing_enabled(void);
+extern double driver_compile_phase_acc_ms_get(int32_t phase);
+extern void driver_compile_phase_timing_clear(void);
 extern void driver_compile_phase_timing_begin(int32_t phase);
 extern void driver_compile_phase_timing_end(int32_t phase);
 extern void driver_compile_phase_timing_flush(void);
@@ -434,6 +436,9 @@ static int32_t g_driver_on_large_stack_thread_flag[1] = {0};
 static uint8_t * g_driver_current_dep_path;
 static int64_t g_pipeline_entry_source_len[1] = {0};
 static int64_t g_driver_path_last_preprocess_len[1] = {0};
+static double g_compile_phase_acc_ms[3] = {0.0, 0.0, 0.0};
+static double g_compile_phase_start_sec[3] = {0.0, 0.0, 0.0};
+static int32_t g_compile_phase_active[3] = {0, 0, 0};
 static void init_globals(void) {
   g_driver_current_dep_path = ((uint8_t *)(0));
 }
@@ -1102,8 +1107,6 @@ void driver_run_fn_on_current_large_stack(uint8_t * fn, uint8_t * arg) {
   (void)(driver_call_fn_void_arg_impl(fn, arg));
   (void)(driver_large_stack_thread_mark(0));
 }
-extern void driver_compile_phase_timing_begin_impl(int32_t phase);
-extern void driver_compile_phase_timing_end_impl(int32_t phase);
 extern void driver_compile_phase_timing_flush_impl(void);
 int32_t driver_compile_phase_index_ok(int32_t phase) {
   if ((phase < 0)) {
@@ -1117,6 +1120,20 @@ int32_t driver_compile_phase_index_ok(int32_t phase) {
 int32_t driver_compile_phase_timing_enabled(void) {
   return driver_env_nonnull(((uint8_t *)"\x53\x48\x55\x58\x5f\x43\x4f\x4d\x50\x49\x4c\x45\x5f\x50\x48\x41\x53\x45\x5f\x54\x49\x4d\x49\x4e\x47"));
 }
+double driver_compile_phase_acc_ms_get(int32_t phase) {
+  if ((driver_compile_phase_index_ok(phase) ==0)) {
+    return 0.0;
+  }
+  return (g_compile_phase_acc_ms)[phase];
+}
+void driver_compile_phase_timing_clear(void) {
+  (void)(((g_compile_phase_acc_ms)[0] = 0.0));
+  (void)(((g_compile_phase_acc_ms)[1] = 0.0));
+  (void)(((g_compile_phase_acc_ms)[2] = 0.0));
+  (void)(((g_compile_phase_active)[0] = 0));
+  (void)(((g_compile_phase_active)[1] = 0));
+  (void)(((g_compile_phase_active)[2] = 0));
+}
 void driver_compile_phase_timing_begin(int32_t phase) {
   if ((driver_compile_phase_timing_enabled() ==0)) {
     return;
@@ -1124,9 +1141,8 @@ void driver_compile_phase_timing_begin(int32_t phase) {
   if ((driver_compile_phase_index_ok(phase) ==0)) {
     return;
   }
-  (void)(driver_compile_phase_timing_begin_impl(phase));
-  (void)(0);
-  return;
+  (void)(((g_compile_phase_start_sec)[phase] = compile_phase_now_sec()));
+  (void)(((g_compile_phase_active)[phase] = 1));
 }
 void driver_compile_phase_timing_end(int32_t phase) {
   if ((driver_compile_phase_timing_enabled() ==0)) {
@@ -1135,9 +1151,12 @@ void driver_compile_phase_timing_end(int32_t phase) {
   if ((driver_compile_phase_index_ok(phase) ==0)) {
     return;
   }
-  (void)(driver_compile_phase_timing_end_impl(phase));
-  (void)(0);
-  return;
+  if (((g_compile_phase_active)[phase] ==0)) {
+    return;
+  }
+  double now = compile_phase_now_sec();
+  (void)(((g_compile_phase_acc_ms)[phase] = ((g_compile_phase_acc_ms)[phase] + ((now - (g_compile_phase_start_sec)[phase]) * ((double)(1000))))));
+  (void)(((g_compile_phase_active)[phase] = 0));
 }
 void driver_compile_phase_timing_flush(void) {
   if ((driver_compile_phase_timing_enabled() ==0)) {

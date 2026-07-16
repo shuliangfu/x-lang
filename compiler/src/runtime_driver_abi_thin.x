@@ -17,6 +17,8 @@
 //     print/fail format _impl。
 //   + wave4 Cap residual pure：defines_set_at（G.7 shux_ptr_slot_set）+ os_define_lit
 //     string-lit table；FROM_X rest 无 pure-dup set_at/os_lit _impl。
+//   + wave5 Cap residual pure：phase timing BSS + begin/end（f64 acc/start + active i32）
+//     真迁 thin；FROM_X rest 无 pure-dup begin/end _impl；flush reportf floats 仍 rest Cap。
 // Cap residual：uname / setrlimit / pthread 创建 / path-read IO /
 //   debug_pipe reportf note / gettimeofday phase_now / phase_timing_flush floats 仍 rest。
 //
@@ -53,6 +55,14 @@ let g_driver_on_large_stack_thread_flag: i32[1] = [0];
 let g_driver_current_dep_path: *u8 = 0 as *u8;
 let g_pipeline_entry_source_len: i64[1] = [0];
 let g_driver_path_last_preprocess_len: i64[1] = [0];
+
+// ---- Wave5 Cap residual pure: compile phase timing BSS (PLATFORM: SHARED) ----
+// phase 0=parse 1=typeck 2=codegen. Hybrid thin owns acc_ms/start_sec/active cells;
+// cold seed keeps C static BSS. flush Cap (diag_reportf floats) reads via
+// driver_compile_phase_acc_ms_get + driver_compile_phase_timing_clear.
+let g_compile_phase_acc_ms: f64[3] = [0.0, 0.0, 0.0];
+let g_compile_phase_start_sec: f64[3] = [0.0, 0.0, 0.0];
+let g_compile_phase_active: i32[3] = [0, 0, 0];
 
 // pure：getenv 非空且首字节非 '0' → 1（与 seed Cap residual 同形）。
 // 调用点用字符串字面量（-E → 实参 compound lit，生命周期覆盖 call；勿用全局 let u8[]：
@@ -663,9 +673,7 @@ export function driver_run_fn_on_current_large_stack(fn: *u8, arg: *u8): void {
   driver_large_stack_thread_mark(0);
 }
 
-// ---- G-02f-344：timing 全套；enabled pure（FROM_X 无 pure-dup _impl）----
-export extern "C" function driver_compile_phase_timing_begin_impl(phase: i32): void;
-export extern "C" function driver_compile_phase_timing_end_impl(phase: i32): void;
+// ---- G-02f-344 / wave5：timing BSS + begin/end pure；flush Cap reportf 仍 rest ----
 export extern "C" function driver_compile_phase_timing_flush_impl(): void;
 
 #[no_mangle]
@@ -685,6 +693,31 @@ export function driver_compile_phase_timing_enabled(): i32 {
   return driver_env_nonnull("SHUX_COMPILE_PHASE_TIMING");
 }
 
+/** Load accumulated phase ms from thin BSS (0 if phase out of range).
+ * PLATFORM: SHARED — pure authority in thin; cold seed keeps C twin; FROM_X rest flush Cap uses this. */
+#[no_mangle]
+export function driver_compile_phase_acc_ms_get(phase: i32): f64 {
+  if (driver_compile_phase_index_ok(phase) == 0) {
+    return 0.0;
+  }
+  return g_compile_phase_acc_ms[phase];
+}
+
+/** Clear phase timing accumulators and active flags (same cells as cold seed memset).
+ * PLATFORM: SHARED — pure authority in thin; cold seed keeps C twin; FROM_X rest flush Cap uses this. */
+#[no_mangle]
+export function driver_compile_phase_timing_clear(): void {
+  g_compile_phase_acc_ms[0] = 0.0;
+  g_compile_phase_acc_ms[1] = 0.0;
+  g_compile_phase_acc_ms[2] = 0.0;
+  g_compile_phase_active[0] = 0;
+  g_compile_phase_active[1] = 0;
+  g_compile_phase_active[2] = 0;
+}
+
+/** Mark compile phase start (wall-clock via compile_phase_now_sec Cap).
+ * Wave5 pure: stores start_sec + active in thin BSS (no begin_impl).
+ * PLATFORM: SHARED — pure authority in thin; cold seed keeps C _impl; FROM_X no pure-dup. */
 #[no_mangle]
 export function driver_compile_phase_timing_begin(phase: i32): void {
   if (driver_compile_phase_timing_enabled() == 0) {
@@ -693,11 +726,13 @@ export function driver_compile_phase_timing_begin(phase: i32): void {
   if (driver_compile_phase_index_ok(phase) == 0) {
     return;
   }
-  unsafe {
-    driver_compile_phase_timing_begin_impl(phase);
-  }
+  g_compile_phase_start_sec[phase] = compile_phase_now_sec();
+  g_compile_phase_active[phase] = 1;
 }
 
+/** Accumulate phase duration into acc_ms (ms) and clear active.
+ * Wave5 pure: f64 arithmetic on thin BSS (no end_impl).
+ * PLATFORM: SHARED — pure authority in thin; cold seed keeps C _impl; FROM_X no pure-dup. */
 #[no_mangle]
 export function driver_compile_phase_timing_end(phase: i32): void {
   if (driver_compile_phase_timing_enabled() == 0) {
@@ -706,11 +741,17 @@ export function driver_compile_phase_timing_end(phase: i32): void {
   if (driver_compile_phase_index_ok(phase) == 0) {
     return;
   }
-  unsafe {
-    driver_compile_phase_timing_end_impl(phase);
+  if (g_compile_phase_active[phase] == 0) {
+    return;
   }
+  let now: f64 = compile_phase_now_sec();
+  // PLATFORM: SHARED — use (1000 as f64); decimal f64 lit 1000.0 lowers to 0.0 under -E.
+  g_compile_phase_acc_ms[phase] =
+    g_compile_phase_acc_ms[phase] + (now - g_compile_phase_start_sec[phase]) * (1000 as f64);
+  g_compile_phase_active[phase] = 0;
 }
 
+/** Print phase timing note (Cap: diag_reportf floats in rest) then clear thin BSS. */
 #[no_mangle]
 export function driver_compile_phase_timing_flush(): void {
   if (driver_compile_phase_timing_enabled() == 0) {
