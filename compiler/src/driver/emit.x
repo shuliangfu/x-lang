@@ -14,11 +14,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// emit.x — -x -E 与单文件 C/asm 烟测 emit 路径（从 main.x 迁出以瘦身 entry）
-// 符号前缀 driver_：run_x_emit_x → driver_run_x_emit_x，dispatch_x_emit_to_c →
-// driver_dispatch_x_emit_to_c
-
-// 勿 import ast/codegen/sys：-E 生成 driver_emit_gen.c 时内联类型定义避免递归加载。
+// emit.x — -x -E and single-file C/asm smoke emit path (split from main.x).
+// Public surface renames (prove/g05): run_x_emit_x → driver_run_x_emit_x, etc.
+// Track L: ew_* helpers use #[no_mangle] so surface stays ew_* (not driver_ew_*).
+// Do not import ast/codegen/sys: -E of driver_emit_gen.c inlines types (no recursive load).
+// PLATFORM: SHARED — surface short names are the link-name contract (Track L).
+// Comment rule: never put star-slash sequences inside block comments.
 
 /** 内联类型定义（原 import("ast") 提供；字段布局须与 ast_PipelineDepCtx 一致）。 */
 allow(padding) struct PipelineDepCtx {
@@ -153,100 +154,169 @@ export extern function driver_run_x_emit_c(): i32;
 export extern function ast_pipeline_ctx_append_lib_root(ctx: *PipelineDepCtx, path: *u8, len: i32): i32;
 
 /**
-* -E unsafe wrappers：typeck 要求 extern 调用须在 unsafe 块内。
-* helper 内 unsafe 块仅含单条 extern 调用 + return，无 let+if 组合，
-* 避免 shux -E 丢弃函数体。
-*/
+ * -E unsafe wrappers: typeck requires extern calls inside unsafe.
+ * Each helper body is a single extern call + return (no let+if) so -E keeps the body.
+ * Track-L: #[no_mangle] keeps surface short name ew_* (not driver_ew_*).
+ * PLATFORM: SHARED — link-name contract; dual-host prove.
+ */
+
+/** Thin unsafe wrap of std_sys_read_file_into. Returns bytes read or <0 on error. */
+#[no_mangle]
 export function ew_std_sys_read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
   unsafe { return std_sys_read_file_into(path, buf, cap); }
   return 0;
 }
+
+/** Thin unsafe wrap of fs_posix_write_c. PLATFORM: POSIX write. */
+#[no_mangle]
 export function ew_fs_posix_write_c(fd: i32, buf: *u8, count: usize): isize {
   unsafe { return fs_posix_write_c(fd, buf, count); }
   return 0 as isize;
 }
+
+/** Thin unsafe wrap of fs_posix_close_c. PLATFORM: POSIX close. */
+#[no_mangle]
 export function ew_fs_posix_close_c(fd: i32): i32 {
   unsafe { return fs_posix_close_c(fd); }
   return 0;
 }
+
+/** Thin unsafe wrap of preprocess_x_buf. Returns out length or <0. */
+#[no_mangle]
 export function ew_preprocess_x_buf(source_buf: *u8, source_len: isize, out_buf: *u8, out_cap: i32): i32 {
   unsafe { return preprocess_x_buf(source_buf, source_len, out_buf, out_cap); }
   return 0;
 }
+
+/** Ensure PipelineDepCtx heap source buffers (glue). Returns 0 ok, non-zero fail. */
+#[no_mangle]
 export function ew_ensure_source_buffers(ctx: *PipelineDepCtx): i32 {
   unsafe { return pipeline_dep_ctx_ensure_source_buffers(ctx); }
   return 0;
 }
+
+/** Free PipelineDepCtx heap source buffers (glue). */
+#[no_mangle]
 export function ew_free_source_buffers(ctx: *PipelineDepCtx): void {
   unsafe { pipeline_dep_ctx_free_source_buffers(ctx); }
 }
+
+/** Pointer to loaded source buffer inside ctx (glue). */
+#[no_mangle]
 export function ew_loaded_buf_ptr(ctx: *PipelineDepCtx): *u8 {
   unsafe { return pipeline_dep_ctx_loaded_buf_ptr(ctx); }
   return 0 as *u8;
 }
+
+/** Pointer to preprocess output buffer inside ctx (glue). */
+#[no_mangle]
 export function ew_preprocess_buf_ptr(ctx: *PipelineDepCtx): *u8 {
   unsafe { return pipeline_dep_ctx_preprocess_buf_ptr(ctx); }
   return 0 as *u8;
 }
+
+/** Set loaded_len on ctx (glue). */
+#[no_mangle]
 export function ew_set_loaded_len(ctx: *PipelineDepCtx, n: isize): void {
   unsafe { pipeline_dep_ctx_set_loaded_len(ctx, n); }
 }
+
+/** Count of emit-side -L lib roots for state key. */
+#[no_mangle]
 export function ew_lib_root_count(state: *u8): i32 {
   unsafe { return driver_emit_lib_root_count(state); }
   return 0;
 }
+
+/** Length of lib root i for state key. */
+#[no_mangle]
 export function ew_lib_root_len(state: *u8, i: i32): i32 {
   unsafe { return driver_emit_lib_root_len(state, i); }
   return 0;
 }
+
+/** Copy lib root i into dst[0..cap). */
+#[no_mangle]
 export function ew_lib_root_copy(state: *u8, i: i32, dst: *u8, cap: i32): void {
   unsafe { driver_emit_lib_root_copy(state, i, dst, cap); }
 }
+
+/** Open path for write; returns fd or <0. */
+#[no_mangle]
 export function ew_fs_open_write(path: *u8, path_len: i32): i32 {
   unsafe { return driver_fs_open_write(path, path_len); }
   return 0;
 }
+
+/** Process-wide arena buffer pointer (driver_abi). */
+#[no_mangle]
 export function ew_arena_buf(): *u8 {
   unsafe { return driver_arena_buf(); }
   return 0 as *u8;
 }
+
+/** Process-wide module buffer pointer (driver_abi). */
+#[no_mangle]
 export function ew_module_buf(): *u8 {
   unsafe { return driver_module_buf(); }
   return 0 as *u8;
 }
+
+/** Report pipeline failure code for path. */
+#[no_mangle]
 export function ew_pipeline_fail_code(rc: i32, path: *u8): void {
   unsafe { driver_pipeline_fail_code(rc, path); }
 }
+
+/** Print -x smoke summary (module + codegen length). */
+#[no_mangle]
 export function ew_print_x_smoke_summary(module: *u8, codegen_len: usize): void {
   unsafe { driver_print_x_smoke_summary(module, codegen_len); }
 }
+
 /**
- * 注意：勿经本模块 local 包装再传 &out+&ctx。
- * WPO-S3 call 路径对「本模块 local 函数」会解析到 *Struct 形参并误报
- * 「local + outer struct」；main.x 对 extern pipeline_run_x_pipeline_impl 直调
- * 不会命中该路径。真根因在 pipeline_glue 已修（同帧 &local 兄弟放行），
- * 但检查函数嵌在 pipeline_x 静态副本中，须 mega 重编后 wrapper 才可恢复。
+ * Note: do not wrap pipeline_run_x_pipeline_impl through a local that takes
+ * &out+&ctx as *Struct params — WPO-S3 mis-flags local+outer; call extern
+ * pipeline_run_x_pipeline_impl directly from unsafe (see run_x_emit_x).
  */
+
+/** Set C-side emit path for multi-file dispatch. */
+#[no_mangle]
 export function ew_set_path(path: *u8, path_len: i32): i32 {
   unsafe { return driver_run_x_emit_c_set_path(path, path_len); }
   return 0;
 }
+
+/** Set C-side lib root i for multi-file dispatch. */
+#[no_mangle]
 export function ew_set_lib(i: i32, buf: *u8, len: i32): i32 {
   unsafe { return driver_run_x_emit_c_set_lib(i, buf, len); }
   return 0;
 }
+
+/** Set C-side lib root count for multi-file dispatch. */
+#[no_mangle]
 export function ew_set_n_lib_roots(n: i32): i32 {
   unsafe { return driver_run_x_emit_c_set_n_lib_roots(n); }
   return 0;
 }
+
+/** Set emit-extern-imports flag for multi-file dispatch. */
+#[no_mangle]
 export function ew_set_emit_extern(v: i32): i32 {
   unsafe { return driver_run_x_emit_c_set_emit_extern(v); }
   return 0;
 }
+
+/** Run C-side multi-file emit (deps + main). */
+#[no_mangle]
 export function ew_run_x_emit_c(): i32 {
   unsafe { return driver_run_x_emit_c(); }
   return 0;
 }
+
+/** Append -L lib root onto PipelineDepCtx (ast/glue). */
+#[no_mangle]
 export function ew_append_lib_root(ctx: *PipelineDepCtx, path: *u8, len: i32): i32 {
   unsafe { return ast_pipeline_ctx_append_lib_root(ctx, path, len); }
   return 0;
