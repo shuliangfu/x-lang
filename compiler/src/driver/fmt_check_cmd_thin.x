@@ -28,15 +28,19 @@
 //     path_stat public + shux_ptr_slot_set argv）；FROM_X 无 pure-dup try_append_impl；
 //     Cap residual：file_list ptrs / walk / stat / store / clear / argv_append / one_file /
 //     run_fmt / run_check 仍 rest（ALWAYS residual 9→8）。
+//   + wave Cap residual pure：full argv_append（getcwd + try_append cwd + compiler/src
+//     (+asm) path_stat + lib slots + shux_ptr_slot_set）；FROM_X 无 pure-dup argv_append_impl；
+//     Cap residual：file_list ptrs / walk / stat / store / clear / one_file / run_fmt /
+//     run_check 仍 rest（ALWAYS residual 8→7）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_FMT_CHECK_THIN_FROM_X）ld -r
 //   → fmt_check_cmd_driver.o
 // Prove IDENTICAL：seeds/fmt_check_cmd_thin_surface.from_x.c
-// Cap residual：walk opendir/stat/argv/大 BSS（file_list ptrs）/ check_one_file_body
+// Cap residual：walk opendir/stat/大 BSS（file_list ptrs）/ check_one_file_body
 //   等 *_impl 仍在 full seed rest；FROM_X 下 pure-duplicate _impl 已剔除（含
 //   set_current_file / print / cwd_fallback / try_walk / path_resolve_abs /
 //   append_repo / missing_diag / collect_mode / user_passed_L / init / file_list_n /
 //   user_ignore_count / lib_bufs_n / user_ignore_at / parse_ignore_opt /
-//   try_append_lib_root；H↓）。
+//   try_append_lib_root / argv_append；H↓）。
 //
 // -E 约束：无 while 重赋值；无零参-only 不稳写法；6 参用扁平 if。
 //
@@ -977,8 +981,7 @@ export function file_list_clear(): void {
 }
 
 // ---- G-02f-408：try_walk pure；collect orch + cwd_fallback pure；
-//      append_repo pure / missing_diag pure；argv_append Cap ----
-export extern "C" function check_argv_append_default_libs_for_path_impl(path: *u8, check_argv: *u8, n: *i32): void;
+//      append_repo pure / missing_diag pure；argv_append full pure ----
 
 // pure：getcwd + 字节拼接 cwd/sub + stat_kind public + walk（无 snprintf/rest _impl）
 #[no_mangle]
@@ -1288,10 +1291,150 @@ export function check_append_repo_lib_roots(path: *u8, check_argv: *u8, n: *i32)
   }
 }
 
+/** Inject default -L roots for a check argv before the user source path.
+ * Pure under PREFER hybrid:
+ *   1) early gates (user_passed_L / n cap) via pure getters;
+ *   2) public check_append_repo_lib_roots (pure under hybrid);
+ *   3) getcwd + public check_try_append_lib_root(cwd);
+ *   4) if path contains "compiler/src/", byte-build cwd+"/compiler/src"
+ *      (+ "/asm" when path also has "compiler/src/asm/"), then public
+ *      fmt_path_stat_kind (Cap residual OS) + pure lib path slots +
+ *      G.7 shux_ptr_slot_set for "-L" injection (no snprintf / no _impl).
+ * No check_argv_append_default_libs_for_path_impl under hybrid
+ * (ALWAYS residual 8→7). PLATFORM: SHARED. */
 #[no_mangle]
 export function check_argv_append_default_libs_for_path(path: *u8, check_argv: *u8, n: *i32): void {
+  if (check_argv == 0 as *u8) {
+    return;
+  }
+  if (n == 0 as *i32) {
+    return;
+  }
+  if (check_user_passed_L_get() != 0) {
+    return;
+  }
   unsafe {
-    check_argv_append_default_libs_for_path_impl(path, check_argv, n);
+    if (n[0] >= 58) {
+      return;
+    }
+    check_append_repo_lib_roots(path, check_argv, n);
+    let cwd: u8[512] = [];
+    let p: *u8 = getcwd(&cwd[0], 512);
+    if (p == 0 as *u8) {
+      return;
+    }
+    check_try_append_lib_root(check_argv, n, &cwd[0]);
+    if (path == 0 as *u8) {
+      return;
+    }
+    // ASCII "compiler/src/\0"
+    let needle_src: u8[14] = [99, 111, 109, 112, 105, 108, 101, 114, 47, 115, 114, 99, 47, 0];
+    if (strstr(path, &needle_src[0]) == 0 as *u8) {
+      return;
+    }
+    if (n[0] >= 56) {
+      return;
+    }
+    // Build cwd+"/compiler/src" (no snprintf).
+    let cs: u8[560] = [];
+    let ci: i32 = 0;
+    while (ci < 511) {
+      let c: u8 = cwd[ci];
+      if (c == 0) {
+        break;
+      }
+      cs[ci] = c;
+      ci = ci + 1;
+    }
+    // Need room for "/compiler/src\0" (14 bytes).
+    if ((ci + 14) >= 560) {
+      return;
+    }
+    cs[ci] = 47;
+    cs[ci + 1] = 99;
+    cs[ci + 2] = 111;
+    cs[ci + 3] = 109;
+    cs[ci + 4] = 112;
+    cs[ci + 5] = 105;
+    cs[ci + 6] = 108;
+    cs[ci + 7] = 101;
+    cs[ci + 8] = 114;
+    cs[ci + 9] = 47;
+    cs[ci + 10] = 115;
+    cs[ci + 11] = 114;
+    cs[ci + 12] = 99;
+    cs[ci + 13] = 0;
+    // Cap residual OS: directory = 1. Match seed: inject without core/std dedup.
+    if (fmt_path_stat_kind(&cs[0]) == 1) {
+      let nb: i32 = fmt_check_lib_bufs_n();
+      if (nb < 8) {
+        if (fmt_check_lib_buf_store(nb, &cs[0]) != 0) {
+          let slot: *u8 = fmt_check_lib_buf_at(nb);
+          if (slot != 0 as *u8) {
+            let ni: i32 = n[0];
+            shux_ptr_slot_set(check_argv, ni, &g_fmt_lit_dash_L[0]);
+            shux_ptr_slot_set(check_argv, ni + 1, slot);
+            n[0] = ni + 2;
+            fmt_check_lib_bufs_n_set(nb + 1);
+          }
+        }
+      }
+    }
+    // ASCII "compiler/src/asm/\0"
+    let needle_asm: u8[18] = [99, 111, 109, 112, 105, 108, 101, 114, 47, 115, 114, 99, 47, 97, 115, 109, 47, 0];
+    if (strstr(path, &needle_asm[0]) == 0 as *u8) {
+      return;
+    }
+    if (n[0] >= 56) {
+      return;
+    }
+    // Build cwd+"/compiler/src/asm" (reuse cs).
+    let ai: i32 = 0;
+    while (ai < 511) {
+      let c2: u8 = cwd[ai];
+      if (c2 == 0) {
+        break;
+      }
+      cs[ai] = c2;
+      ai = ai + 1;
+    }
+    // Need room for "/compiler/src/asm\0" (18 bytes).
+    if ((ai + 18) >= 560) {
+      return;
+    }
+    cs[ai] = 47;
+    cs[ai + 1] = 99;
+    cs[ai + 2] = 111;
+    cs[ai + 3] = 109;
+    cs[ai + 4] = 112;
+    cs[ai + 5] = 105;
+    cs[ai + 6] = 108;
+    cs[ai + 7] = 101;
+    cs[ai + 8] = 114;
+    cs[ai + 9] = 47;
+    cs[ai + 10] = 115;
+    cs[ai + 11] = 114;
+    cs[ai + 12] = 99;
+    cs[ai + 13] = 47;
+    cs[ai + 14] = 97;
+    cs[ai + 15] = 115;
+    cs[ai + 16] = 109;
+    cs[ai + 17] = 0;
+    if (fmt_path_stat_kind(&cs[0]) == 1) {
+      let nb2: i32 = fmt_check_lib_bufs_n();
+      if (nb2 < 8) {
+        if (fmt_check_lib_buf_store(nb2, &cs[0]) != 0) {
+          let slot2: *u8 = fmt_check_lib_buf_at(nb2);
+          if (slot2 != 0 as *u8) {
+            let ni2: i32 = n[0];
+            shux_ptr_slot_set(check_argv, ni2, &g_fmt_lit_dash_L[0]);
+            shux_ptr_slot_set(check_argv, ni2 + 1, slot2);
+            n[0] = ni2 + 2;
+            fmt_check_lib_bufs_n_set(nb2 + 1);
+          }
+        }
+      }
+    }
   }
 }
 

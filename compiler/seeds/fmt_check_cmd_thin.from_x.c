@@ -1,4 +1,4 @@
-/* regen from fmt_check_cmd_thin.x -E (lib path slots + try_append pure) */
+/* regen from fmt_check_cmd_thin.x -E (argv_append full pure) */
 /* prove prologue (g05_try_x_to_o aligned + uio/poll) */
 #include <stddef.h>
 #include <stdint.h>
@@ -1154,7 +1154,6 @@ void file_list_clear(void) {
   (void)(0);
   return;
 }
-extern void check_argv_append_default_libs_for_path_impl(uint8_t * path, uint8_t * check_argv, int32_t * n);
 int32_t fmt_try_walk_if_product_subdir(uint8_t * sub) {
   if ((sub ==((uint8_t *)(0)))) {
     return 0;
@@ -1443,7 +1442,131 @@ void check_append_repo_lib_roots(uint8_t * path, uint8_t * check_argv, int32_t *
   return;
 }
 void check_argv_append_default_libs_for_path(uint8_t * path, uint8_t * check_argv, int32_t * n) {
-  (void)(check_argv_append_default_libs_for_path_impl(path, check_argv, n));
+  if ((check_argv ==((uint8_t *)(0)))) {
+    return;
+  }
+  if ((n ==((int32_t *)(0)))) {
+    return;
+  }
+  if ((check_user_passed_L_get() !=0)) {
+    return;
+  }
+  {
+    uint8_t cwd[512] = {};
+    uint8_t * p = getcwd(&((cwd)[0]), 512);
+    uint8_t needle_src[14] = {99, 111, 109, 112, 105, 108, 101, 114, 47, 115, 114, 99, 47, 0};
+    uint8_t cs[560] = {};
+    int32_t ci = 0;
+    uint8_t needle_asm[18] = {99, 111, 109, 112, 105, 108, 101, 114, 47, 115, 114, 99, 47, 97, 115, 109, 47, 0};
+    int32_t ai = 0;
+    if (((n)[0] >=58)) {
+      return;
+    }
+    (void)(check_append_repo_lib_roots(path, check_argv, n));
+    if ((p ==((uint8_t *)(0)))) {
+      return;
+    }
+    (void)(check_try_append_lib_root(check_argv, n, &((cwd)[0])));
+    if ((path ==((uint8_t *)(0)))) {
+      return;
+    }
+    if ((strstr(path, &((needle_src)[0])) ==((uint8_t *)(0)))) {
+      return;
+    }
+    if (((n)[0] >=56)) {
+      return;
+    }
+    while ((ci < 511)) {
+      uint8_t c = (cwd)[ci];
+      if ((c ==0)) {
+        break;
+      }
+      (void)(((cs)[ci] = c));
+      (void)((ci = (ci + 1)));
+    }
+    if (((ci + 14) >=560)) {
+      return;
+    }
+    (void)(((cs)[ci] = 47));
+    (void)(((cs)[(ci + 1)] = 99));
+    (void)(((cs)[(ci + 2)] = 111));
+    (void)(((cs)[(ci + 3)] = 109));
+    (void)(((cs)[(ci + 4)] = 112));
+    (void)(((cs)[(ci + 5)] = 105));
+    (void)(((cs)[(ci + 6)] = 108));
+    (void)(((cs)[(ci + 7)] = 101));
+    (void)(((cs)[(ci + 8)] = 114));
+    (void)(((cs)[(ci + 9)] = 47));
+    (void)(((cs)[(ci + 10)] = 115));
+    (void)(((cs)[(ci + 11)] = 114));
+    (void)(((cs)[(ci + 12)] = 99));
+    (void)(((cs)[(ci + 13)] = 0));
+    if ((fmt_path_stat_kind(&((cs)[0])) ==1)) {
+      int32_t nb = fmt_check_lib_bufs_n();
+      if ((nb < 8)) {
+        if ((fmt_check_lib_buf_store(nb, &((cs)[0])) !=0)) {
+          uint8_t * slot = fmt_check_lib_buf_at(nb);
+          if ((slot !=((uint8_t *)(0)))) {
+            int32_t ni = (n)[0];
+            (void)(shux_ptr_slot_set(check_argv, ni, &((g_fmt_lit_dash_L)[0])));
+            (void)(shux_ptr_slot_set(check_argv, (ni + 1), slot));
+            (void)(((n)[0] = (ni + 2)));
+            (void)(fmt_check_lib_bufs_n_set((nb + 1)));
+          }
+        }
+      }
+    }
+    if ((strstr(path, &((needle_asm)[0])) ==((uint8_t *)(0)))) {
+      return;
+    }
+    if (((n)[0] >=56)) {
+      return;
+    }
+    while ((ai < 511)) {
+      uint8_t c2 = (cwd)[ai];
+      if ((c2 ==0)) {
+        break;
+      }
+      (void)(((cs)[ai] = c2));
+      (void)((ai = (ai + 1)));
+    }
+    if (((ai + 18) >=560)) {
+      return;
+    }
+    (void)(((cs)[ai] = 47));
+    (void)(((cs)[(ai + 1)] = 99));
+    (void)(((cs)[(ai + 2)] = 111));
+    (void)(((cs)[(ai + 3)] = 109));
+    (void)(((cs)[(ai + 4)] = 112));
+    (void)(((cs)[(ai + 5)] = 105));
+    (void)(((cs)[(ai + 6)] = 108));
+    (void)(((cs)[(ai + 7)] = 101));
+    (void)(((cs)[(ai + 8)] = 114));
+    (void)(((cs)[(ai + 9)] = 47));
+    (void)(((cs)[(ai + 10)] = 115));
+    (void)(((cs)[(ai + 11)] = 114));
+    (void)(((cs)[(ai + 12)] = 99));
+    (void)(((cs)[(ai + 13)] = 47));
+    (void)(((cs)[(ai + 14)] = 97));
+    (void)(((cs)[(ai + 15)] = 115));
+    (void)(((cs)[(ai + 16)] = 109));
+    (void)(((cs)[(ai + 17)] = 0));
+    if ((fmt_path_stat_kind(&((cs)[0])) ==1)) {
+      int32_t nb2 = fmt_check_lib_bufs_n();
+      if ((nb2 < 8)) {
+        if ((fmt_check_lib_buf_store(nb2, &((cs)[0])) !=0)) {
+          uint8_t * slot2 = fmt_check_lib_buf_at(nb2);
+          if ((slot2 !=((uint8_t *)(0)))) {
+            int32_t ni2 = (n)[0];
+            (void)(shux_ptr_slot_set(check_argv, ni2, &((g_fmt_lit_dash_L)[0])));
+            (void)(shux_ptr_slot_set(check_argv, (ni2 + 1), slot2));
+            (void)(((n)[0] = (ni2 + 2)));
+            (void)(fmt_check_lib_bufs_n_set((nb2 + 1)));
+          }
+        }
+      }
+    }
+  }
   (void)(0);
   return;
 }

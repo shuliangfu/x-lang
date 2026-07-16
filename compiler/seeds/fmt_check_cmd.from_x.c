@@ -1,13 +1,13 @@
-/* R2 thin + Cap residual pure 深迁（续 lib path slots + try_append pure）：
+/* R2 thin + Cap residual pure 深迁（续 argv_append full pure）：
  * PREFER hybrid thin 由 src/driver/fmt_check_cmd_thin.x（lit/entry + pure 真体）；
  * rest SHUX_L2_FMT_CHECK_THIN_FROM_X：无 thin 公共体；pure-duplicate _impl 剔除
  * （含 set_current_file / print / cwd_fallback / try_walk / path_resolve_abs /
  *  append_repo_lib_roots / missing_diag / invoke/dep_clear /
  *  collect_mode is_check / user_passed_L_get / init_user_lib_flags /
  *  file_list_n / user_ignore_count / lib_bufs_n / user_ignore_at /
- *  parse_ignore_opt / try_append_lib_root / …）；
- * Cap residual：walk opendir/stat/argv/大 BSS（file_list ptrs）/ one_file_body /
- *  store/clear / argv_append / run_fmt / run_check 仍 rest（ALWAYS residual 8）。
+ *  parse_ignore_opt / try_append_lib_root / argv_append / …）；
+ * Cap residual：walk opendir/stat/大 BSS（file_list ptrs）/ one_file_body /
+ *  store/clear / run_fmt / run_check 仍 rest（ALWAYS residual 7）。
  * 冷启动无宏：全 C 体（含 pure _impl + public 门闩）。
  * Regen thin surface: shux -E src/driver/fmt_check_cmd_thin.x → thin_surface.
  */
@@ -518,9 +518,13 @@ void check_init_user_lib_flags(int argc, char **argv, int path_start) {
 /**
  * 按待检查文件路径注入默认 -L（在单文件路径之前）。
  * 始终注入仓库根；compiler/src 下文件再追加 compiler/src 库根（裸 import lexer/token）。
+ * pure 权威：thin.x check_argv_append_default_libs_for_path（getcwd + try_append public +
+ *   path_stat public + pure lib path slots + shux_ptr_slot_set）；
+ * 冷启动保留 _impl + public；FROM_X 下剔除 pure-dup _impl（H↓）。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-408：实现体始终 seed；public PREFER 时 thin forward */
+/* G-02f-408：冷启动 _impl；hybrid thin pure 全量 */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 void check_argv_append_default_libs_for_path_impl(const char *path, char **check_argv, int *n) {
     char cwd_buf[512];
     char cs[560];
@@ -559,7 +563,6 @@ void check_argv_append_default_libs_for_path_impl(const char *path, char **check
     }
 }
 
-#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 void check_argv_append_default_libs_for_path(const char *path, char **check_argv, int *n) {
   check_argv_append_default_libs_for_path_impl(path, check_argv, n);
 }
