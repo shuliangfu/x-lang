@@ -7,24 +7,32 @@
 // pure 深迁：scan/has/argv_collect/target_os/fail/smoke/peek/entry_len_i32/large_stack orch
 //   + getenv 门闩（非空且非 '0' → 1）
 //   + 数值 env（parse_u32 + stack_limit_want_bytes + phase_timing_enabled 非空 getenv）真体在 thin.x。
-// Cap residual：uname / setrlimit / pthread 创建 / path-read / BSS 槽 / format print /
+//   + wave1 Cap residual pure：9× i32 flag-slot BSS 进 thin（check_only / diag_emitted /
+//     freestanding / sanitize / fmt_check_only / skip_typeck / skip_codegen / skip_dep0 /
+//     large_stack_thread）；FROM_X rest 无 pure-dup flag_slot _impl。
+// Cap residual：uname / setrlimit / pthread 创建 / path-read / 路径·len BSS 槽 / format print /
 //   debug_pipe reportf / gettimeofday phase_now 仍 rest。
 //
 
 export extern "C" function getenv(name: *u8): *u8;
-export extern "C" function driver_check_only_flag_slot_impl(): *i32;
-export extern "C" function driver_check_diag_emitted_flag_slot_impl(): *i32;
-export extern "C" function driver_freestanding_flag_slot_impl(): *i32;
-export extern "C" function driver_sanitize_address_flag_slot_impl(): *i32;
-export extern "C" function driver_fmt_check_only_flag_slot_impl(): *i32;
-export extern "C" function driver_x_pipeline_skip_typeck_flag_slot_impl(): *i32;
-export extern "C" function driver_x_pipeline_skip_codegen_flag_slot_impl(): *i32;
-export extern "C" function driver_skip_codegen_dep_0_flag_slot_impl(): *i32;
-export extern "C" function driver_large_stack_thread_flag_slot_impl(): *i32;
 export extern "C" function driver_path_read_preprocess_malloc_impl(path: *u8): *u8;
 export extern "C" function driver_current_dep_path_store_impl(path: *u8): void;
 export extern "C" function driver_current_dep_path_load_impl(): *u8;
 export extern "C" function driver_pipeline_entry_source_len_store_impl(len: i64): void;
+
+// ---- Wave1 Cap residual pure: driver flag-slot BSS (PLATFORM: SHARED) ----
+// Authority lives in this thin TU under PREFER hybrid; cold seed keeps C static BSS.
+// Use i32[1] so &g[0] is a stable *i32 (scalar let address form is less portable in -E).
+// nostdlib: plain BSS (not TLS) — see seed comment on large_stack_thread flag.
+let g_driver_check_only_flag: i32[1] = [0];
+let g_driver_check_diag_emitted_flag: i32[1] = [0];
+let g_driver_freestanding_flag: i32[1] = [0];
+let g_driver_sanitize_address_flag: i32[1] = [0];
+let g_driver_fmt_check_only_flag: i32[1] = [0];
+let g_driver_x_pipeline_skip_typeck_flag: i32[1] = [0];
+let g_driver_x_pipeline_skip_codegen_flag: i32[1] = [0];
+let g_driver_skip_codegen_dep_0_flag: i32[1] = [0];
+let g_driver_on_large_stack_thread_flag: i32[1] = [0];
 
 // pure：getenv 非空且首字节非 '0' → 1（与 seed Cap residual 同形）。
 // 调用点用字符串字面量（-E → 实参 compound lit，生命周期覆盖 call；勿用全局 let u8[]：
@@ -107,58 +115,50 @@ export extern "C" function free(p: *u8): void;
 export extern "C" function bootstrap_nostdlib_pthread_is_stub(): i32;
 export extern "C" function driver_run_thread_on_large_stack_pthread_impl(fn: *u8, arg: *u8): void;
 
+// pure: return address of module BSS flag cell (cold seed keeps C static + flag_slot).
 #[no_mangle]
 export function driver_check_only_flag_slot(): *i32 {
-  unsafe { return driver_check_only_flag_slot_impl(); }
-  return 0 as *i32;
+  return &g_driver_check_only_flag[0];
 }
 
 #[no_mangle]
 export function driver_check_diag_emitted_flag_slot(): *i32 {
-  unsafe { return driver_check_diag_emitted_flag_slot_impl(); }
-  return 0 as *i32;
+  return &g_driver_check_diag_emitted_flag[0];
 }
 
 #[no_mangle]
 export function driver_freestanding_flag_slot(): *i32 {
-  unsafe { return driver_freestanding_flag_slot_impl(); }
-  return 0 as *i32;
+  return &g_driver_freestanding_flag[0];
 }
 
 #[no_mangle]
 export function driver_sanitize_address_flag_slot(): *i32 {
-  unsafe { return driver_sanitize_address_flag_slot_impl(); }
-  return 0 as *i32;
+  return &g_driver_sanitize_address_flag[0];
 }
 
 #[no_mangle]
 export function driver_fmt_check_only_flag_slot(): *i32 {
-  unsafe { return driver_fmt_check_only_flag_slot_impl(); }
-  return 0 as *i32;
+  return &g_driver_fmt_check_only_flag[0];
 }
 
 #[no_mangle]
 export function driver_x_pipeline_skip_typeck_flag_slot(): *i32 {
-  unsafe { return driver_x_pipeline_skip_typeck_flag_slot_impl(); }
-  return 0 as *i32;
+  return &g_driver_x_pipeline_skip_typeck_flag[0];
 }
 
 #[no_mangle]
 export function driver_x_pipeline_skip_codegen_flag_slot(): *i32 {
-  unsafe { return driver_x_pipeline_skip_codegen_flag_slot_impl(); }
-  return 0 as *i32;
+  return &g_driver_x_pipeline_skip_codegen_flag[0];
 }
 
 #[no_mangle]
 export function driver_skip_codegen_dep_0_flag_slot(): *i32 {
-  unsafe { return driver_skip_codegen_dep_0_flag_slot_impl(); }
-  return 0 as *i32;
+  return &g_driver_skip_codegen_dep_0_flag[0];
 }
 
 #[no_mangle]
 export function driver_large_stack_thread_flag_slot(): *i32 {
-  unsafe { return driver_large_stack_thread_flag_slot_impl(); }
-  return 0 as *i32;
+  return &g_driver_on_large_stack_thread_flag[0];
 }
 
 #[no_mangle]

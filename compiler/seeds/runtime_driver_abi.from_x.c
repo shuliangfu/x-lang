@@ -4,6 +4,7 @@
  *   + getenv 门闩（force_c / asm skip / emit_heavy / module_only / metric / no_large_stack /
  *   sanitize_address env）
  *   + 数值 env（parse_u32 + stack_limit_want_bytes + phase_timing_enabled）在 thin.x；
+ *   + wave1 Cap residual pure：9× flag-slot BSS 权威在 thin.x；FROM_X 无 pure-dup flag_slot _impl；
  * FROM_X 剔 pure-dup _impl（H↓）。
  */
 /* Generated from src/runtime_driver_abi.x (G-02f-29/41/45..57/83 true .x + C tail).
@@ -58,15 +59,7 @@ void driver_run_thread_on_large_stack(void *(*fn)(void *), void *arg);
 int driver_argv_collect_defines(int argc, char **argv, const char **defines, int max_defines);
 int driver_source_has_top_level_import(const char *src, size_t src_len);
 #define compile_phase_now_sec compile_phase_now_sec_impl
-#define driver_check_only_flag_slot driver_check_only_flag_slot_impl
-#define driver_check_diag_emitted_flag_slot driver_check_diag_emitted_flag_slot_impl
-#define driver_freestanding_flag_slot driver_freestanding_flag_slot_impl
-#define driver_sanitize_address_flag_slot driver_sanitize_address_flag_slot_impl
-#define driver_fmt_check_only_flag_slot driver_fmt_check_only_flag_slot_impl
-#define driver_x_pipeline_skip_typeck_flag_slot driver_x_pipeline_skip_typeck_flag_slot_impl
-#define driver_x_pipeline_skip_codegen_flag_slot driver_x_pipeline_skip_codegen_flag_slot_impl
-#define driver_skip_codegen_dep_0_flag_slot driver_skip_codegen_dep_0_flag_slot_impl
-#define driver_large_stack_thread_flag_slot driver_large_stack_thread_flag_slot_impl
+/* wave1: flag-slot BSS pure in thin — no public→_impl rename (rest drops pure-dup slots). */
 #define driver_path_read_preprocess_malloc driver_path_read_preprocess_malloc_impl
 #endif
 
@@ -154,8 +147,11 @@ int32_t driver_compile_phase_timing_enabled(void);
 int32_t driver_compile_phase_index_ok(int32_t phase);
 
 /** shux check：非 0 时 typeck 通过后跳过 codegen 与链接（C 与 X pipeline 共用）。 */
+/* wave1 pure：hybrid thin owns BSS; cold seed keeps statics + flag_slot. */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 static int driver_check_only_flag;
 static int driver_check_diag_emitted_flag;
+#endif
 
 /**
  * 设置 check-only 模式。
@@ -224,7 +220,9 @@ int32_t driver_check_diag_emitted_get(void) {
 #endif
 
 /** `-freestanding` / SHUX_FREESTANDING：用户程序 nostdlib 静态链（S4）。 */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 static int driver_freestanding_flag;
+#endif
 
 /** 设置 freestanding 链接模式。 */
 #ifndef SHUX_L2_RDABI_THIN_FROM_X
@@ -253,7 +251,9 @@ int32_t driver_freestanding_get(void) {
 #endif
 
 /** M-6：`-fsanitize=address` 时强制数组/切片 INDEX 边界检查。 */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 static int driver_sanitize_address_flag;
+#endif
 
 /** 设置 sanitize=address 标志。 */
 #ifndef SHUX_L2_RDABI_THIN_FROM_X
@@ -295,7 +295,9 @@ int32_t driver_sanitize_address_get(void) {
 }
 #endif
 
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 static int driver_fmt_check_only_flag;
+#endif
 
 /** shux fmt --check：仅校验格式，不写回。 */
 #ifndef SHUX_L2_RDABI_THIN_FROM_X
@@ -353,7 +355,9 @@ void driver_print_check_ok(const char *input_path) {
 #endif
 
 /** 非 0 时 pipeline_impl_typecheck 跳过 .x typeck。 */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 static int driver_x_pipeline_skip_typeck_flag;
+#endif
 
 /** 供 pipeline.x 读取：是否跳过 X typeck。 */
 #ifndef SHUX_L2_RDABI_THIN_FROM_X
@@ -382,7 +386,9 @@ void driver_x_pipeline_skip_typeck_set(int32_t v) {
 #endif
 
 /** 非 0 时 pipeline_impl_run_all 跳过 .x C codegen。 */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 static int driver_x_pipeline_skip_codegen_flag;
+#endif
 
 /** 供 pipeline.x 读取：是否跳过 X C codegen。 */
 #ifndef SHUX_L2_RDABI_THIN_FROM_X
@@ -447,12 +453,15 @@ int32_t driver_typeck_force_c_enabled(void) {
  *                stage1 工作纯属巧合：编译器把 driver_is_large_stack_thread 内联为 `mov %fs:-16,%eax`。
  * 【Invariant 状态不变量】nostdlib 路径下进程内只有 1 个执行流，单变量即正确反映"在大栈线程上下文"标志。
  * 【Asm/Perf 性能预期】普通 static int 在 BSS 中，访问为 RIP-relative 一次 load，比 TLS 间接访问快且无 %fs 依赖。 */
+/* wave1 pure：hybrid thin owns large_stack flag BSS; cold seed keeps static + slot. */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 static int g_driver_on_large_stack_thread;
 
 /* G-02f-45 */
 int32_t *driver_large_stack_thread_flag_slot(void) {
     return (int32_t *)&g_driver_on_large_stack_thread;
 }
+#endif
 
 
 /**
@@ -696,9 +705,11 @@ int32_t driver_asm_parse_metric_only_from_env(void) {
 #endif
 
 /** -o 可执行文件路径：非 0 时 pipeline 跳过 dep 0 的 codegen。 */
+/* wave1 pure：hybrid thin owns flag BSS; cold seed keeps statics + flag_slot bodies. */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 static int driver_skip_codegen_dep_0_flag;
 
-/* G-02f-41: flag slot implementations */
+/* G-02f-41: flag slot implementations (cold full C; FROM_X pure authority = thin.x) */
 int32_t *driver_check_only_flag_slot(void) { return (int32_t *)&driver_check_only_flag; }
 int32_t *driver_check_diag_emitted_flag_slot(void) { return (int32_t *)&driver_check_diag_emitted_flag; }
 int32_t *driver_freestanding_flag_slot(void) { return (int32_t *)&driver_freestanding_flag; }
@@ -707,6 +718,7 @@ int32_t *driver_fmt_check_only_flag_slot(void) { return (int32_t *)&driver_fmt_c
 int32_t *driver_x_pipeline_skip_typeck_flag_slot(void) { return (int32_t *)&driver_x_pipeline_skip_typeck_flag; }
 int32_t *driver_x_pipeline_skip_codegen_flag_slot(void) { return (int32_t *)&driver_x_pipeline_skip_codegen_flag; }
 int32_t *driver_skip_codegen_dep_0_flag_slot(void) { return (int32_t *)&driver_skip_codegen_dep_0_flag; }
+#endif
 
 
 /** 设置 skip_codegen_dep_0 标志（driver -o exe 路径）。 */
