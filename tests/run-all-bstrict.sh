@@ -36,8 +36,22 @@ export SHUX_BSTRICT_RUN_ALL=1
 if [ -n "${SHUX_W3_BSTRICT_BEST_EFFORT:-}" ]; then
   export SHUX_W3_SKIP_STD_ENSURE=1
 fi
-# refresh 后 shux/shux_asm 为 seed 链；-o 链接用 shux-c（与 run-option/run-pool-limits 分流一致）。
-export SHUX_LINK_SHUX=./compiler/shux-c
+# -o 链接宿主：产品冷链用本波 shux（已 cp 自 shux_asm），配合 SHUX_FORCE_LINK_BACKEND=c。
+# 旧默认 pin shux-c：冷 L2 后常为 seed 拷贝，import/hello/types 等 -o 假红或空产物。
+if [ -z "${SHUX_LINK_SHUX:-}" ]; then
+  if [ -x ./compiler/shux_asm ]; then
+    export SHUX_LINK_SHUX=./compiler/shux_asm
+  elif [ -x ./compiler/shux ]; then
+    export SHUX_LINK_SHUX=./compiler/shux
+  elif [ -x ./compiler/shux-c ]; then
+    export SHUX_LINK_SHUX=./compiler/shux-c
+  fi
+fi
+if [ -z "${SHUX_FORCE_LINK_BACKEND:-}" ]; then
+  case "$(basename "${SHUX_LINK_SHUX:-}")" in
+    shux|shux_asm|shux_asm2|shux_asm_stage1) export SHUX_FORCE_LINK_BACKEND=c ;;
+  esac
+fi
 # CI 全量（SHUX_CI_NO_SKIP=1）须跑 parse 烟测；本地可 SHUX_SKIP_PARSE_SMOKE=1 规避 seed 链 SIGSEGV。
 if [ -z "${SHUX_CI_NO_SKIP:-}" ]; then
   export SHUX_SKIP_PARSE_SMOKE=1
