@@ -128,6 +128,9 @@ export extern "C" function shux_load_direct_fail_cleanup(dep_sources: *u8, dep_p
 /* merge_direct_then_transitive_dep_paths：G-02f-234 下方真迁 */
 export extern "C" function shux_module_import_path_cstr(module: *u8, idx: i32, buf: *u8, cap: i32): void;
 export extern "C" function shux_ptr_slot_set(arr: *u8, i: i32, p: *u8): void;
+/** Load pointer slot i from a char**/void* array base (G.7 pair with shux_ptr_slot_set).
+ * Returns null if arr is null or i < 0. PLATFORM: SHARED — argv/path slot load. */
+export extern "C" function shux_ptr_slot_get(arr: *u8, i: i32): *u8;
 export extern "C" function shux_i32_store(p: *i32, v: i32): void;
 /* merge_direct_then_transitive_deps：G-02f-235 下方真迁 */
 export extern "C" function shux_size_slot_get(arr: *u8, i: i32): i64;

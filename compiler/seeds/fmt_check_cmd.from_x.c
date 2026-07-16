@@ -1,9 +1,10 @@
-/* R2 thin + Cap residual pure 深迁（续 append_repo + missing_diag pure）：
+/* R2 thin + Cap residual pure 深迁（续 collect_mode + user_passed_L + init pure）：
  * PREFER hybrid thin 由 src/driver/fmt_check_cmd_thin.x（lit/entry + pure 真体）；
  * rest SHUX_L2_FMT_CHECK_THIN_FROM_X：无 thin 公共体；pure-duplicate _impl 剔除
  * （含 set_current_file / print / cwd_fallback / try_walk / path_resolve_abs /
- *  append_repo_lib_roots / missing_diag / invoke/dep_clear / …）；
- * Cap residual：walk opendir/stat/argv/大 BSS / one_file_body 仍 rest。
+ *  append_repo_lib_roots / missing_diag / invoke/dep_clear /
+ *  collect_mode is_check / user_passed_L_get / init_user_lib_flags / …）；
+ * Cap residual：walk opendir/stat/argv/大 BSS（ignore/file_list/lib bufs）/ one_file_body 仍 rest。
  * 冷启动无宏：全 C 体（含 pure _impl + public 门闩）。
  * Regen thin surface: shux -E src/driver/fmt_check_cmd_thin.x → thin_surface.
  */
@@ -77,7 +78,9 @@ int check_one_finalize_rc(int rc, int warn_count);
 const char *driver_collect_error_kind(void);
 const char *driver_collect_missing_path_code(void);
 int32_t driver_collect_mode_is_check(void);
+void driver_collect_mode_set(int32_t v);
 int32_t check_user_passed_L_get(void);
+void check_user_passed_L_set(int32_t v);
 int fmt_user_ignore_count(void);
 int fmt_path_ends_with_dot_x(const char *path);
 int fmt_file_list_n(void);
@@ -193,6 +196,9 @@ static int s_n_files;
 /** check 默认 -L：cwd；用户未传 -L 时按路径追加（见 check_argv_append_default_libs_for_path）。 */
 static char s_check_lib_bufs[8][512];
 static int s_n_check_lib_bufs;
+
+/* Cap residual pure：hybrid thin owns s_user_passed_L / s_collect_mode; cold keeps statics. */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 static int s_user_passed_L;
 
 typedef enum DriverCollectMode {
@@ -201,16 +207,32 @@ typedef enum DriverCollectMode {
 } DriverCollectMode;
 
 static DriverCollectMode s_collect_mode = DRIVER_COLLECT_MODE_FMT;
+#else
+/* Hybrid: thin owns mode/user_passed_L; rest still needs enum constants for mode_set. */
+enum {
+    DRIVER_COLLECT_MODE_FMT = 1,
+    DRIVER_COLLECT_MODE_CHECK = 2
+};
+#endif
 
-/* G-02f-247：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-/* G-02f-383：实现体始终 seed；public PREFER 时 thin forward */
+/* Cap residual: reset only n_check_lib_bufs (lib path buffers stay rest). Always seed. */
+void fmt_check_lib_bufs_reset_impl(void) {
+    s_n_check_lib_bufs = 0;
+}
+
+/* pure 权威：thin.x driver_collect_mode_is_check / driver_collect_mode_set；
+ * 冷启动保留 _impl + public；FROM_X 下剔除 pure-dup _impl（H↓）。 */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 int32_t driver_collect_mode_is_check_impl(void) {
     return s_collect_mode == DRIVER_COLLECT_MODE_CHECK ? 1 : 0;
 }
 
-#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 int32_t driver_collect_mode_is_check(void) {
     return driver_collect_mode_is_check_impl();
+}
+
+void driver_collect_mode_set(int32_t v) {
+    s_collect_mode = (DriverCollectMode)v;
 }
 #endif
 
@@ -274,15 +296,19 @@ const char *fmt_user_ignore_at(int i) {
 
 
 
-/* G-02f-248：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-/* G-02f-383：实现体始终 seed；public PREFER 时 thin forward */
+/* pure 权威：thin.x check_user_passed_L_get / check_user_passed_L_set；
+ * 冷启动保留 _impl + public；FROM_X 下剔除 pure-dup _impl（H↓）。 */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 int32_t check_user_passed_L_get_impl(void) {
     return s_user_passed_L ? 1 : 0;
 }
 
-#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 int32_t check_user_passed_L_get(void) {
     return check_user_passed_L_get_impl();
+}
+
+void check_user_passed_L_set(int32_t v) {
+    s_user_passed_L = v ? 1 : 0;
 }
 #endif
 
@@ -299,7 +325,8 @@ void check_try_append_lib_root_impl(char **check_argv, int *n, const char *dir) 
 
     if (!check_argv || !n || !dir || !dir[0])
         return;
-    if (s_user_passed_L || *n >= 58)
+    /* public get：hybrid thin pure BSS / 冷 seed static */
+    if (check_user_passed_L_get() || *n >= 58)
         return;
     snprintf(core_path, sizeof core_path, "%s/core", dir);
     snprintf(std_path, sizeof std_path, "%s/std", dir);
@@ -348,7 +375,7 @@ void check_append_repo_lib_roots_impl(const char *path, char **check_argv, int *
     char parent[512];
     int depth;
 
-    if (s_user_passed_L || *n >= 58)
+    if (check_user_passed_L_get() || *n >= 58)
         return;
     if (!path || !path[0]) {
         if (getcwd(start, sizeof start))
@@ -403,22 +430,22 @@ void check_append_repo_lib_roots(const char *path, char **check_argv, int *n) {
 
 /**
  * 扫描 argv：用户是否已传 -L（有则不再注入默认库根）。
+ * pure 权威：thin.x check_init_user_lib_flags（shux_ptr_slot_get + user_passed_L BSS +
+ *   fmt_check_lib_bufs_reset_impl Cap）；冷启动保留 _impl + public；FROM_X 剔除 pure-dup。
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-406：实现体始终 seed；public PREFER 时 thin forward */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 void check_init_user_lib_flags_impl(int argc, char **argv, int path_start) {
     int i;
-    s_user_passed_L = 0;
-    s_n_check_lib_bufs = 0;
+    check_user_passed_L_set(0);
+    fmt_check_lib_bufs_reset_impl();
     for (i = path_start; i < argc; i++) {
         if (argv[i] && strcmp(argv[i], "-L") == 0) {
-            s_user_passed_L = 1;
+            check_user_passed_L_set(1);
             return;
         }
     }
 }
 
-#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 void check_init_user_lib_flags(int argc, char **argv, int path_start) {
   check_init_user_lib_flags_impl(argc, argv, path_start);
 }
@@ -438,7 +465,7 @@ void check_argv_append_default_libs_for_path_impl(const char *path, char **check
     char cs[560];
     struct stat st;
 
-    if (s_user_passed_L || *n >= 58)
+    if (check_user_passed_L_get() || *n >= 58)
         return;
     check_append_repo_lib_roots(path, check_argv, n);
     if (!getcwd(cwd_buf, sizeof cwd_buf))
@@ -1019,7 +1046,8 @@ int driver_run_fmt_impl(int argc, char **argv) {
 
     s_n_ignore = 0;
     s_unformatted_count = 0;
-    s_collect_mode = DRIVER_COLLECT_MODE_FMT;
+    /* public set：hybrid thin pure BSS / 冷 seed static */
+    driver_collect_mode_set(DRIVER_COLLECT_MODE_FMT);
     file_list_clear_impl();
 
     for (i = 1; i < argc; i++) {
@@ -1163,7 +1191,7 @@ int check_one_file_body_impl(const char *path, int argc, char **argv) {
     driver_check_set_current_file(path);
 
     /* 每个文件独立构建 check_argv；-L 缓冲须按文件重置，否则跨文件 dedup 会漏注入仓库根。 */
-    s_n_check_lib_bufs = 0;
+    fmt_check_lib_bufs_reset_impl();
 
     check_argv[n++] = argv[0];
 #ifdef SHUX_USE_X_PIPELINE
@@ -1254,14 +1282,16 @@ int driver_run_compiler_check_impl(int argc, char **argv) {
     int path_start = 1;
 
     s_check_quiet_ok = 1;
-    s_collect_mode = DRIVER_COLLECT_MODE_CHECK;
+    /* public set：hybrid thin pure BSS / 冷 seed static */
+    driver_collect_mode_set(DRIVER_COLLECT_MODE_CHECK);
     file_list_clear_impl();
 
     /* main.x 传入 argv[1]=check；shux-c 已 drop 子命令时 argv[1] 为首个路径。 */
     if (argc >= 2 && argv[1] && strcmp(argv[1], "check") == 0)
         path_start = 2;
 
-    check_init_user_lib_flags_impl(argc, argv, path_start);
+    /* public：hybrid thin pure init / 冷 seed public→_impl */
+    check_init_user_lib_flags(argc, argv, path_start);
 
     for (i = path_start; i < argc; i++) {
         if (!argv[i])

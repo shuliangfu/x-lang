@@ -1,4 +1,5 @@
-/* regen from fmt_check_cmd_thin.x -E (append_repo + missing_diag pure) */
+/* regen from fmt_check_cmd_thin.x -E (collect_mode + user_passed_L + init pure) */
+/* prove prologue (g05_try_x_to_o aligned + uio/poll) */
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/types.h>
@@ -9,8 +10,344 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <sys/uio.h>
+#include <poll.h>
 #endif
-
+#if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 201112L
+#error "Generated code needs C11. Compile with -std=gnu11 or -std=c11."
+#endif
+static inline ssize_t shux_sys_read(int32_t fd, uint8_t *buf, size_t count) {
+  return read((int)fd, (void *)buf, count);
+}
+static inline ssize_t shux_sys_write(int32_t fd, uint8_t *buf, size_t count) {
+  return write((int)fd, (const void *)buf, count);
+}
+static inline ssize_t shux_sys_readv(int32_t fd, uint8_t *iov, int32_t iovcnt) {
+  return readv((int)fd, (const struct iovec *)(const void *)iov, (int)iovcnt);
+}
+static inline ssize_t shux_sys_writev(int32_t fd, uint8_t *iov, int32_t iovcnt) {
+  return writev((int)fd, (const struct iovec *)(const void *)iov, (int)iovcnt);
+}
+static inline int32_t shux_sys_poll(uint8_t *fds, int32_t nfds, int32_t timeout) {
+  return (int32_t)poll((struct pollfd *)(void *)fds, (nfds_t)nfds, (int)timeout);
+}
+static inline ssize_t shux_sys_pread(int32_t fd, uint8_t *buf, size_t count, int64_t offset) {
+  return pread((int)fd, (void *)buf, count, (off_t)offset);
+}
+static inline ssize_t shux_sys_pwrite(int32_t fd, uint8_t *buf, size_t count, int64_t offset) {
+  return pwrite((int)fd, (const void *)buf, count, (off_t)offset);
+}
+static inline int32_t shux_fs_unlink(uint8_t *path) {
+  return (int32_t)unlink((const char *)path);
+}
+static inline int32_t shux_fs_rmdir(uint8_t *path) {
+  return (int32_t)rmdir((const char *)path);
+}
+struct shux_slice_uint8_t { uint8_t *data; size_t length; };
+struct shux_slice_int32_t { int32_t *data; size_t length; };
+struct shux_slice_uint64_t { uint64_t *data; size_t length; };
+struct shux_slice_size_t { size_t *data; size_t length; };
+#if defined(__GNUC__) || defined(__clang__)
+typedef int32_t i32x4_t __attribute__((vector_size(16)));
+typedef int32_t i32x8_t __attribute__((vector_size(32)));
+typedef int32_t i32x16_t __attribute__((vector_size(64)));
+typedef uint32_t u32x4_t __attribute__((vector_size(16)));
+typedef uint32_t u32x8_t __attribute__((vector_size(32)));
+typedef uint32_t u32x16_t __attribute__((vector_size(64)));
+#else
+typedef struct { int32_t e[4]; } i32x4_t;
+typedef struct { int32_t e[8]; } i32x8_t;
+typedef struct { int32_t e[16]; } i32x16_t;
+typedef struct { uint32_t e[4]; } u32x4_t;
+typedef struct { uint32_t e[8]; } u32x8_t;
+typedef struct { uint32_t e[16]; } u32x16_t;
+#endif
+typedef struct { uint8_t *ptr; size_t len; size_t handle; } shu_batch_buf_t;
+extern int io_register_buffer(uint8_t *ptr, size_t len);
+extern int io_register_buffers_4(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3, unsigned nr);
+__attribute__((weak)) int io_register_buffers_buf_c(const shu_batch_buf_t *bufs, int nr) { (void)bufs; (void)nr; return -1; }
+static inline int io_register_buffers_buf_i32(intptr_t bufs, int nr) { return io_register_buffers_buf_c((const shu_batch_buf_t *)(uintptr_t)bufs, nr); }
+#define io_register_buffers_buf(bufs, nr) io_register_buffers_buf_i32((intptr_t)(void *)(bufs), (nr))
+extern void io_unregister_buffers(void);
+extern ptrdiff_t io_read(int fd, uint8_t *buf, size_t count, unsigned timeout_ms);
+extern ptrdiff_t io_write(int fd, uint8_t *buf, size_t count, unsigned timeout_ms);
+extern ptrdiff_t io_read_batch(int fd, uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3, int n, unsigned timeout_ms);
+extern ptrdiff_t io_write_batch(int fd, uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3, int n, unsigned timeout_ms);
+extern ptrdiff_t io_read_fixed(int fd, unsigned buf_index, size_t offset, size_t len, unsigned timeout_ms);
+extern ptrdiff_t io_write_fixed(int fd, unsigned buf_index, size_t offset, size_t len, unsigned timeout_ms);
+extern int io_wait_readable(int32_t *fds, int n, unsigned timeout_ms);
+extern uint8_t *io_read_ptr(size_t handle, unsigned timeout_ms);
+extern int io_read_ptr_len(void);
+extern int32_t shux_io_register(uint8_t *ptr, size_t len, size_t handle);
+extern int32_t shux_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);
+extern int32_t shux_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);
+extern int32_t shux_io_read_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_m);
+extern int32_t shux_io_write_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_m);
+extern uint8_t *shux_io_read_ptr(size_t handle, unsigned timeout_ms);
+extern int32_t shux_io_read_ptr_len(void);
+typedef struct { void *ptr; size_t len; size_t handle; } shu_buffer_abi_t;
+static inline int32_t shux_io_register_buf(intptr_t buf) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shux_io_register((uint8_t *)b->ptr, b->len, b->handle); }
+static inline int32_t shux_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return (shux_io_submit_read)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }
+static inline int32_t shux_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return (shux_io_submit_write)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }
+static inline int32_t std_io_driver_submit_read_via_ptr(ptrdiff_t buf, uint32_t timeout_ms) { return shux_io_submit_read_buf((intptr_t)buf, (int32_t)timeout_ms); }
+static inline int32_t std_io_driver_submit_write_via_ptr(ptrdiff_t buf, uint32_t timeout_ms) { return shux_io_submit_write_buf((intptr_t)buf, (int32_t)timeout_ms); }
+#define shux_io_register(buf) shux_io_register_buf(buf)
+#define shux_io_submit_read(buf, timeout_m) shux_io_submit_read_buf(buf, timeout_m)
+#define shux_io_submit_write(buf, timeout_m) shux_io_submit_write_buf(buf, timeout_m)
+/* 撤销宏：X codegen 会生成同名函数定义(shux_io_register/submit_read/submit_write)，宏与多参签名冲突，在函数体前必须 undef。 */
+#undef shux_io_register
+#undef shux_io_submit_read
+#undef shux_io_submit_write
+struct std_io_driver_Buffer { void *ptr; size_t len; size_t handle; };
+typedef struct std_io_driver_Buffer std_io_Buffer;
+#define std_io_Buffer std_io_driver_Buffer
+extern ptrdiff_t io_read_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms);
+extern ptrdiff_t io_write_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms);
+extern int32_t std_io_driver_submit_register_fixed_buffers_buf(struct std_io_driver_Buffer * bufs, uint32_t nr);
+#define std_io_driver_driver_read_ptr_len shux_io_read_ptr_len
+#define std_io_driver_driver_read_ptr shux_io_read_ptr
+#define driver_read_ptr_len std_io_driver_driver_read_ptr_len
+#define driver_read_ptr std_io_driver_driver_read_ptr
+#define submit_register_fixed_buffers_buf std_io_driver_submit_register_fixed_buffers_buf
+/* 短名 submit_read/write → via_ptr；全名 std_io_driver_submit_* 由 co-emit 定义。 */
+#define submit_read(buf, timeout_ms) std_io_driver_submit_read_via_ptr((ptrdiff_t)(uintptr_t)&(buf), (timeout_ms))
+#define submit_write(buf, timeout_ms) std_io_driver_submit_write_via_ptr((ptrdiff_t)(uintptr_t)&(buf), (timeout_ms))
+#define std_io_driver_read_ptr driver_read_ptr
+#define std_io_driver_read_ptr_len driver_read_ptr_len
+extern size_t std_io_handle_stdin(void);
+extern size_t std_io_handle_stdout(void);
+extern size_t std_io_handle_stderr(void);
+extern size_t std_io_handle_from_fd(int32_t fd, int32_t unused);
+extern size_t std_io_driver_handle_from_fd(int32_t fd, int32_t unused);
+extern int32_t std_io_write_stdout(uint8_t *ptr, size_t len);
+#define std_io_driver_handle_stdin std_io_handle_stdin
+#define std_io_driver_handle_stdout std_io_handle_stdout
+#define std_io_driver_handle_stderr std_io_handle_stderr
+#define std_io_driver_write_stdout std_io_write_stdout
+/* std.io.core 体内调 extern io_*；codegen 前缀为 std_io_core_io_*，映射到 preamble 已声明的 io_*。 */
+#define std_io_core_io_read io_read
+#define std_io_core_io_write io_write
+#define std_io_core_io_read_batch io_read_batch
+#define std_io_core_io_write_batch io_write_batch
+#define std_io_core_io_read_fixed io_read_fixed
+#define std_io_core_io_write_fixed io_write_fixed
+#define std_io_core_shux_io_register shux_io_register
+#define std_io_core_shux_io_register_buffers shux_io_register_buffers
+#define std_io_core_shux_io_unregister_buffers shux_io_unregister_buffers
+#define std_io_core_shux_io_submit_read shux_io_submit_read
+#define std_io_core_shux_io_read_ptr shux_io_read_ptr
+#define std_io_core_shux_io_read_ptr_len shux_io_read_ptr_len
+#define std_io_core_shux_io_submit_write shux_io_submit_write
+#define std_io_core_shux_io_submit_read_batch shux_io_submit_read_batch
+#define std_io_core_shux_io_submit_write_batch shux_io_submit_write_batch
+#define std_io_core_shux_io_read_fixed shux_io_read_fixed
+#define std_io_core_shux_io_write_fixed shux_io_write_fixed
+#define std_io_core_shux_io_register_buffers_buf io_register_buffers_buf
+#define std_io_core_shux_io_read_ptr_gen shux_io_read_ptr_gen
+#define std_io_core_shux_io_read_ptr_gen_valid shux_io_read_ptr_gen_valid
+#define std_io_core_shux_io_read_ptr_backend shux_io_read_ptr_backend
+#define std_io_core_shux_io_read_ptr_slice shux_io_read_ptr_slice
+#define std_io_core_shux_io_read_batch_buf(fd, bufs, n, t) io_read_batch_buf((fd), (const struct std_io_driver_Buffer *)(const void *)(bufs), (n), (t))
+#define std_io_core_shux_io_write_batch_buf(fd, bufs, n, t) io_write_batch_buf((fd), (const struct std_io_driver_Buffer *)(const void *)(bufs), (n), (t))
+#define std_io_core_shux_io_register_provided_buffers shux_io_register_provided_buffers
+#define std_io_core_shux_io_provided_buffer_size shux_io_provided_buffer_size
+#define std_io_core_shux_io_read_provided shux_io_read_provided
+#define std_io_core_shux_io_read_batch_provided shux_io_read_batch_provided
+#define std_io_core_shux_io_submit_read_async shux_io_submit_read_async
+#define std_io_core_shux_io_complete_read_async shux_io_complete_read_async
+#define std_io_core_shux_io_complete_read_async_slot shux_io_complete_read_async_slot
+#define std_io_core_shux_io_submit_write_async shux_io_submit_write_async
+#define std_io_core_shux_io_complete_write_async shux_io_complete_write_async
+#define std_io_core_shux_io_complete_write_async_slot shux_io_complete_write_async_slot
+#define std_io_core_shux_io_poll_async_completions shux_io_poll_async_completions
+#define std_io_core_shux_io_uring_is_available_c shux_io_uring_is_available_c
+extern int32_t shux_io_read_ptr_gen_valid(uint64_t saved);
+extern int32_t shux_io_read_ptr_backend(void);
+extern uint64_t shux_io_read_ptr_gen(void);
+extern struct shux_slice_uint8_t shux_io_read_ptr_slice(size_t handle, uint32_t timeout_ms);
+extern int32_t shux_io_register_provided_buffers(uint32_t nr, uint32_t bufsz);
+extern uint32_t shux_io_provided_buffer_size(void);
+extern int32_t shux_io_read_provided(size_t handle, uint32_t timeout_ms, uint32_t *out_bid, uint32_t *out_len);
+extern int32_t shux_io_read_batch_provided(size_t handle, int32_t n, uint32_t timeout_ms, uint32_t *out_bids, uint32_t *out_lens);
+extern int32_t shux_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle);
+extern int32_t shux_io_complete_read_async(void);
+extern int32_t shux_io_complete_read_async_slot(int32_t slot);
+extern int32_t shux_io_submit_write_async(uint8_t *ptr, size_t len, size_t handle);
+extern int32_t shux_io_complete_write_async(void);
+extern int32_t shux_io_complete_write_async_slot(int32_t slot);
+extern uint32_t shux_io_poll_async_completions(uint32_t timeout_ms);
+extern int32_t shux_io_uring_is_available_c(void);
+#define std_io_driver_io_register_buffers_buf(bufs, nr) io_register_buffers_buf((intptr_t)(void *)(bufs), (int)(nr))
+extern int32_t std_io_driver_submit_read_batch_buf(size_t handle, struct std_io_driver_Buffer * bufs, int32_t n, uint32_t timeout_ms);
+extern int32_t std_io_driver_submit_write_batch_buf(size_t handle, struct std_io_driver_Buffer * bufs, int32_t n, uint32_t timeout_ms);
+#define std_io_submit_read_batch_buf std_io_driver_submit_read_batch_buf
+#define std_io_submit_write_batch_buf std_io_driver_submit_write_batch_buf
+extern int32_t std_io_read_fixed_fd_impl(int32_t fd, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_ms);
+extern int32_t std_io_write_fixed_fd_impl(int32_t fd, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_ms);
+/* X 生成代码可能调用 std_io_* / std_net_* 带前缀名且首参为 stream/listener 结构体；以下宏统一转为 .fd 再调 _impl。C 路径下 std.io 仍定义 std_io_read_fixed_fd，故仅 X 需宏。 */
+struct std_net_TcpStream { int32_t fd; };
+struct std_net_TcpListener { int32_t fd; };
+struct std_net_UdpSocket { int32_t fd; };
+#if defined(__clang__)
+#define shux_io_net_fd(x) _Generic((x), struct std_net_TcpStream: (x).fd, struct std_net_TcpListener: (x).fd, struct std_net_UdpSocket: (x).fd, default: (int32_t)(x))
+#elif defined(__GNUC__)
+/* 仅用 *(int32_t*)&(x)：int32_t 与仅含 .fd 的 struct 首字节相同，且避免 __builtin_types_compatible_p 在部分环境报错、三元分支被全量类型检查。调用方须传 lvalue。 */
+#define shux_io_net_fd(x) (*(int32_t*)(void*)&(x))
+#else
+#define shux_io_net_fd(x) _Generic((x), struct std_net_TcpStream: (x).fd, struct std_net_TcpListener: (x).fd, struct std_net_UdpSocket: (x).fd, default: (int32_t)(x))
+#endif
+#define std_io_read_fixed_fd(x, a, b, c, d) std_io_read_fixed_fd_impl(shux_io_net_fd(x), a, b, c, d)
+#define std_io_write_fixed_fd(x, a, b, c, d) std_io_write_fixed_fd_impl(shux_io_net_fd(x), a, b, c, d)
+/* X 内联 std.io 会生成函数定义；撤销与定义/extern 冲突的宏，并补齐 batch 注册符号映射。 */
+#undef std_io_driver_io_register_buffers_buf
+#undef std_io_read_fixed_fd
+#undef std_io_write_fixed_fd
+#undef std_io_core_shux_io_register_buffers
+#undef std_io_core_shux_io_unregister_buffers
+#undef std_io_core_shux_io_read_fixed
+#undef std_io_core_shux_io_write_fixed
+#undef std_io_core_shux_io_wait_readable
+#define std_io_core_shux_io_register_buffers io_register_buffers_4
+#define std_io_core_shux_io_unregister_buffers io_unregister_buffers
+#define std_io_core_shux_io_read_fixed shux_io_read_fixed
+#define std_io_core_shux_io_write_fixed shux_io_write_fixed
+#define std_io_core_shux_io_wait_readable io_wait_readable
+/* codegen 体内调 std_io_driver_io_*；#undef 后重绑到 preamble/io.o 的 io_*。 */
+#define std_io_driver_io_read_batch_buf io_read_batch_buf
+#define std_io_driver_io_write_batch_buf io_write_batch_buf
+#define std_io_driver_io_register_buffers_buf(bufs, nr) io_register_buffers_buf((intptr_t)(void *)(bufs), (int)(nr))
+#ifndef __cplusplus
+/* 仅补 co-emit 未定义的符号；勿桩 shux_io_submit_write / submit_read_batch_buf（同 TU 强定义）。 */
+__attribute__((weak)) int32_t shux_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m) {
+  size_t r; (void)timeout_m; if (!ptr) return 0; if (handle != 0) return -1;
+  r = fread(ptr, 1, len, stdin); if (r == 0 && ferror(stdin)) return -1; return (int32_t)r;
+}
+__attribute__((weak)) int32_t shux_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle) {
+  (void)ptr; (void)len; (void)handle; return -1;
+}
+__attribute__((weak)) int32_t shux_io_read_fixed(size_t h, uint32_t bi, size_t o, size_t l, uint32_t t) {
+  (void)h;(void)bi;(void)o;(void)l;(void)t; return -1;
+}
+__attribute__((weak)) int32_t shux_io_write_fixed(size_t h, uint32_t bi, size_t o, size_t l, uint32_t t) {
+  (void)h;(void)bi;(void)o;(void)l;(void)t; return -1;
+}
+__attribute__((weak)) int32_t shux_io_read_ptr_backend(void) { return 0; }
+__attribute__((weak)) int io_register_buffers_4(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3, unsigned nr) {
+  (void)p0;(void)l0;(void)p1;(void)l1;(void)p2;(void)l2;(void)p3;(void)l3;(void)nr; return -1;
+}
+__attribute__((weak)) int io_wait_readable(int32_t *fds, int n, unsigned timeout_ms) {
+  (void)fds;(void)n;(void)timeout_ms; return -1;
+}
+__attribute__((weak)) ptrdiff_t io_read_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms) {
+  (void)fd;(void)bufs;(void)n;(void)timeout_ms; return (ptrdiff_t)-1;
+}
+__attribute__((weak)) ptrdiff_t io_write_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms) {
+  (void)fd;(void)bufs;(void)n;(void)timeout_ms; return (ptrdiff_t)-1;
+}
+extern int32_t process_shux_argc_get(void);
+extern uint8_t *process_shux_argv_get(int32_t i);
+__attribute__((weak)) int32_t process_args_count_c(void) { return process_shux_argc_get(); }
+__attribute__((weak)) uint8_t *process_arg_c(int32_t i) { return process_shux_argv_get(i); }
+__attribute__((weak)) int32_t args_iter_count_c(void) { return process_args_count_c(); }
+__attribute__((weak)) uint8_t *args_iter_at_c(int32_t i) { return process_arg_c(i); }
+__attribute__((weak)) uint64_t std_io_driver_driver_read_ptr_gen(void) { return 0; }
+__attribute__((weak)) int64_t ctx_background_c(void) { return 0; }
+__attribute__((weak)) void ctx_cancel_c(int64_t c) { (void)c; }
+__attribute__((weak)) int64_t ctx_deadline_ns_c(int64_t c) { (void)c; return 0; }
+__attribute__((weak)) void ctx_free_c(int64_t c) { (void)c; }
+__attribute__((weak)) int32_t ctx_get_value_c(int64_t h, uint8_t *key, int64_t *out) {
+  (void)h;(void)key; if (out) *out = 0; return 0;
+}
+__attribute__((weak)) int32_t ctx_is_cancelled_c(int64_t c) { (void)c; return 0; }
+__attribute__((weak)) int64_t ctx_remaining_ns_c(int64_t c) { (void)c; return 0; }
+__attribute__((weak)) int32_t ctx_set_value_c(int64_t h, uint8_t *key, int64_t value) {
+  (void)h;(void)key;(void)value; return 0;
+}
+__attribute__((weak)) int64_t ctx_with_cancel_c(int64_t p) { (void)p; return 0; }
+__attribute__((weak)) int64_t ctx_with_deadline_c(int64_t p, int64_t ns) { (void)p;(void)ns; return 0; }
+__attribute__((weak)) int64_t ctx_with_timeout_c(int64_t p, int64_t ns) { (void)p;(void)ns; return 0; }
+#endif
+struct std_net_Ipv4Addr { uint8_t a; uint8_t b; uint8_t c; uint8_t d; };
+struct std_net_Ipv6Addr { uint8_t b0,b1,b2,b3,b4,b5,b6,b7,b8,b9,b10,b11,b12,b13,b14,b15; };
+#define handle_from_fd std_io_handle_from_fd
+#define submit_read_batch_buf std_io_submit_read_batch_buf
+#define submit_write_batch_buf std_io_submit_write_batch_buf
+#define read_fixed_fd(x, a, b, c, d) std_io_read_fixed_fd_impl(shux_io_net_fd(x), a, b, c, d)
+#define write_fixed_fd(x, a, b, c, d) std_io_write_fixed_fd_impl(shux_io_net_fd(x), a, b, c, d)
+/* 实际符号用 _real；仅定义 std_net_net_* 宏。
+ * 【Why 勿 #define net_close_socket_c / net_run_accept_workers_c】
+ * link_only 路径会 emit `extern int32_t net_close_socket_c(...)`；
+ * 若宏同名，extern 声明被展开 → expected parameter declarator。 */
+extern int32_t net_close_socket_c_real(int32_t fd);
+extern int32_t net_run_accept_workers_c_real(int32_t listener_fd, int32_t n_workers, uint32_t timeout_ms);
+extern int32_t net_close_socket_c(int32_t fd);
+extern int32_t net_run_accept_workers_c(int32_t listener_fd, int32_t n_workers, uint32_t timeout_ms);
+#define std_net_net_close_socket_c(x) net_close_socket_c_real(shux_io_net_fd(x))
+#define std_net_net_run_accept_workers_c(x, n, t) net_run_accept_workers_c_real(shux_io_net_fd(x), n, t)
+#define STD_FS_FS_IOVEC_BUF_DEFINED
+struct std_fs_FsIovecBuf { void *ptr; size_t len; size_t handle; };
+#define std_fs_posix_FsIovecBuf std_fs_FsIovecBuf
+struct std_io_sync_Iovec { uint8_t *base; size_t len; };
+#define std_fs_posix_Iovec std_io_sync_Iovec
+struct std_map_Map_i32_i32;
+typedef struct std_io_driver_Buffer std_net_Buffer;
+struct std_error_Error { int32_t code; };
+struct std_error_ErrorChain { int32_t depth; int32_t c0; int32_t c1; int32_t c2; int32_t c3; };
+struct std_string_String { uint8_t data[256]; int32_t len; };
+typedef struct std_string_String String;
+struct std_string_StrView { uint8_t *ptr; int32_t len; };
+struct std_heap_Arena64 { uint8_t *chunk; size_t cap; size_t off; };
+struct std_heap_Allocator { int32_t kind; struct std_heap_Arena64 *arena; };
+struct std_vec_Vec_i32;
+struct core_option_Option_i32 { int is_some; int32_t value; };
+struct core_option_Option_u8 { int is_some; uint8_t value; uint8_t _pad0; uint8_t _pad1; uint8_t _pad2; };
+struct core_option_Option_u64 { int is_some; int32_t _pad; uint64_t value; };
+struct core_option_Option_ptr_u8 { int is_some; int32_t _pad; uint8_t *value; };
+struct core_result_Result_i32 { int32_t value; int32_t _pad1; int32_t err; int32_t _pad2; };
+struct core_result_Result_u8 { uint8_t value; uint8_t _pad1; uint8_t _pad2; uint8_t _pad3; int32_t err; int32_t _pad4; };
+extern void shux_panic_(int, int);
+extern int32_t core_types_placeholder(void);
+extern int32_t std_heap_alloc_size_zero(void);
+extern int32_t std_runtime_runtime_ready(void);
+#ifndef __cplusplus
+__attribute__((weak)) int32_t std_vec_vec_len_empty(void) { return 0; }
+__attribute__((weak)) int32_t std_vec_len_empty(void) { return 0; }
+#else
+extern int32_t std_vec_vec_len_empty(void);
+extern int32_t std_vec_len_empty(void);
+#endif
+#define vec_len_empty std_vec_vec_len_empty
+#define alloc_size_zero std_heap_alloc_size_zero
+#define runtime_ready std_runtime_runtime_ready
+#ifndef __cplusplus
+__attribute__((weak)) int32_t std_string_placeholder(void) { return 0; }
+#else
+extern int32_t std_string_placeholder(void);
+#endif
+extern int32_t fmt_i32(int32_t);
+extern struct std_string_String std_string_string_new(void);
+typedef struct std_fs_FsIovecBuf fs_iovec_buf_t;
+extern int32_t fs_open_read_c(uint8_t *path);
+extern uint64_t fs_direct_align_c(void);
+extern int32_t fs_fadvise_sequential_c(int32_t fd);
+extern int32_t fs_fadvise_willneed_c(int32_t fd, int64_t offset, size_t len);
+extern int64_t fs_copy_file_range_c(int32_t fd_in, int32_t fd_out, size_t len);
+extern int64_t fs_sendfile_c(int32_t out_fd, int32_t in_fd, size_t count);
+extern int64_t fs_pipe_splice_c(int32_t fd_in, int32_t fd_out, size_t len);
+extern int32_t fs_sync_range_c(int32_t fd, int64_t offset, size_t len);
+extern int32_t fs_sync_c(int32_t fd);
+extern int32_t fs_fallocate_c(int32_t fd, int64_t offset, int64_t len);
+extern int32_t fs_last_error_c(void);
+extern int64_t fs_readv_buf_c(int32_t fd, const fs_iovec_buf_t *bufs, int n);
+extern int64_t fs_writev_buf_c(int32_t fd, const fs_iovec_buf_t *bufs, int n);
+extern int32_t std_path_empty_len(void);
+#define empty_len() std_path_empty_len()
+extern int32_t map_i32_i32_find_c(const int32_t *keys, const uint8_t *occupied, int32_t cap, int32_t key);
+extern int32_t std_map_empty_size(void);
+#define empty_size(_a, _b) std_map_empty_size()
+extern int32_t std_error_error_ok(void);
+#define error_ok(_a, _b) std_error_error_ok()
+void shux_panic_(int has_msg, int msg_val);
 extern int32_t driver_check_quiet_ok_get(void);
 extern int32_t fmt_walk_skip_dot_name(uint8_t * name);
 extern int32_t check_one_need_fallback_diag(int32_t rc, int32_t nd, int32_t nd_errors, int32_t nd_warnings, int32_t nd_infos, int32_t direct_diag);
@@ -27,7 +364,9 @@ extern uint8_t * fmt_default_product_sub_at(int32_t i);
 extern uint8_t * fmt_user_ignore_at(int32_t i);
 extern uint8_t * fmt_path_resolve_abs(uint8_t * path);
 extern int32_t driver_collect_mode_is_check(void);
+extern void driver_collect_mode_set(int32_t v);
 extern int32_t check_user_passed_L_get(void);
+extern void check_user_passed_L_set(int32_t v);
 extern int32_t fmt_user_ignore_count(void);
 extern int32_t fmt_path_ends_with_dot_x(uint8_t * path);
 extern int32_t fmt_file_list_n(void);
@@ -55,51 +394,37 @@ extern void check_append_repo_lib_roots(uint8_t * path, uint8_t * check_argv, in
 extern void check_argv_append_default_libs_for_path(uint8_t * path, uint8_t * check_argv, int32_t * n);
 extern int32_t driver_run_fmt(int32_t argc, uint8_t * argv);
 extern int32_t driver_run_compiler_check(int32_t argc, uint8_t * argv);
-static uint8_t * g_fmt_lit_check_error;
-static uint8_t * g_fmt_lit_fmt_error;
-static uint8_t * g_fmt_lit_chk002;
-static uint8_t * g_fmt_lit_fmt001;
-static uint8_t * g_fmt_builtin_ignore_0;
-static uint8_t * g_fmt_builtin_ignore_1;
-static uint8_t * g_fmt_builtin_ignore_2;
-static uint8_t * g_fmt_builtin_ignore_3;
-static uint8_t * g_fmt_builtin_ignore_4;
-static uint8_t * g_fmt_builtin_ignore_5;
-static uint8_t * g_fmt_builtin_ignore_6;
-static uint8_t * g_fmt_builtin_ignore_7;
-static uint8_t * g_fmt_default_product_sub_0;
-static uint8_t * g_fmt_default_product_sub_1;
-static uint8_t * g_fmt_default_product_sub_2;
-static uint8_t * g_fmt_default_product_sub_3;
+static int32_t g_fmt_collect_mode[1] = {1};
+static int32_t g_fmt_user_passed_L[1] = {0};
+static uint8_t g_fmt_lit_check_error[12] = {99, 104, 101, 99, 107, 32, 101, 114, 114, 111, 114, 0};
+static uint8_t g_fmt_lit_fmt_error[10] = {102, 109, 116, 32, 101, 114, 114, 111, 114, 0};
+static uint8_t g_fmt_lit_chk002[7] = {67, 72, 75, 48, 48, 50, 0};
+static uint8_t g_fmt_lit_fmt001[7] = {70, 77, 84, 48, 48, 49, 0};
+static uint8_t g_fmt_builtin_ignore_0[8] = {47, 46, 103, 105, 116, 47, 0, 0};
+static uint8_t g_fmt_builtin_ignore_1[12] = {47, 98, 117, 105, 108, 100, 95, 97, 115, 109, 47, 0};
+static uint8_t g_fmt_builtin_ignore_2[8] = {47, 98, 117, 105, 108, 100, 47, 0};
+static uint8_t g_fmt_builtin_ignore_3[15] = {47, 110, 111, 100, 101, 95, 109, 111, 100, 117, 108, 101, 115, 47, 0};
+static uint8_t g_fmt_builtin_ignore_4[11] = {47, 46, 99, 117, 114, 115, 111, 114, 47, 0, 0};
+static uint8_t g_fmt_builtin_ignore_5[21] = {47, 99, 111, 109, 112, 105, 108, 101, 114, 47, 98, 117, 105, 108, 100, 95, 97, 115, 109, 47, 0};
+static uint8_t g_fmt_builtin_ignore_6[17] = {47, 99, 111, 109, 112, 105, 108, 101, 114, 47, 98, 117, 105, 108, 100, 47, 0};
+static uint8_t g_fmt_builtin_ignore_7[17] = {47, 99, 111, 109, 112, 105, 108, 101, 114, 47, 116, 101, 115, 116, 115, 47, 0};
+static uint8_t g_fmt_default_product_sub_0[13] = {99, 111, 109, 112, 105, 108, 101, 114, 47, 115, 114, 99, 0};
+static uint8_t g_fmt_default_product_sub_1[5] = {99, 111, 114, 101, 0};
+static uint8_t g_fmt_default_product_sub_2[4] = {115, 116, 100, 0};
+static uint8_t g_fmt_default_product_sub_3[9] = {101, 120, 97, 109, 112, 108, 101, 115, 0};
 static void init_globals(void) {
-  g_fmt_lit_check_error = (uint8_t[]){99, 104, 101, 99, 107, 32, 101, 114, 114, 111, 114, 0 };
-  g_fmt_lit_fmt_error = (uint8_t[]){102, 109, 116, 32, 101, 114, 114, 111, 114, 0 };
-  g_fmt_lit_chk002 = (uint8_t[]){67, 72, 75, 48, 48, 50, 0 };
-  g_fmt_lit_fmt001 = (uint8_t[]){70, 77, 84, 48, 48, 49, 0 };
-  g_fmt_builtin_ignore_0 = (uint8_t[]){47, 46, 103, 105, 116, 47, 0, 0 };
-  g_fmt_builtin_ignore_1 = (uint8_t[]){47, 98, 117, 105, 108, 100, 95, 97, 115, 109, 47, 0 };
-  g_fmt_builtin_ignore_2 = (uint8_t[]){47, 98, 117, 105, 108, 100, 47, 0 };
-  g_fmt_builtin_ignore_3 = (uint8_t[]){47, 110, 111, 100, 101, 95, 109, 111, 100, 117, 108, 101, 115, 47, 0 };
-  g_fmt_builtin_ignore_4 = (uint8_t[]){47, 46, 99, 117, 114, 115, 111, 114, 47, 0, 0 };
-  g_fmt_builtin_ignore_5 = (uint8_t[]){47, 99, 111, 109, 112, 105, 108, 101, 114, 47, 98, 117, 105, 108, 100, 95, 97, 115, 109, 47, 0 };
-  g_fmt_builtin_ignore_6 = (uint8_t[]){47, 99, 111, 109, 112, 105, 108, 101, 114, 47, 98, 117, 105, 108, 100, 47, 0 };
-  g_fmt_builtin_ignore_7 = (uint8_t[]){47, 99, 111, 109, 112, 105, 108, 101, 114, 47, 116, 101, 115, 116, 115, 47, 0 };
-  g_fmt_default_product_sub_0 = (uint8_t[]){99, 111, 109, 112, 105, 108, 101, 114, 47, 115, 114, 99, 0 };
-  g_fmt_default_product_sub_1 = (uint8_t[]){99, 111, 114, 101, 0 };
-  g_fmt_default_product_sub_2 = (uint8_t[]){115, 116, 100, 0 };
-  g_fmt_default_product_sub_3 = (uint8_t[]){101, 120, 97, 109, 112, 108, 101, 115, 0 };
 }
 extern int32_t lsp_diag_print_stderr_human(uint8_t * path);
 extern int32_t driver_run_compiler_full(int32_t argc, uint8_t * argv);
 extern void driver_dep_seeded_clear_all(void);
 extern void diag_report_with_code(uint8_t * file, int32_t line, int32_t col, uint8_t * kind, uint8_t * code, uint8_t * msg, uint8_t * detail);
-extern int32_t driver_collect_mode_is_check_impl(void);
-extern int32_t check_user_passed_L_get_impl(void);
 extern int32_t fmt_user_ignore_count_impl(void);
 extern int32_t fmt_file_list_n_impl(void);
 extern uint8_t * fmt_user_ignore_at_impl(int32_t i);
 extern int32_t fmt_file_list_store_impl(uint8_t * abs_path);
 extern uint8_t * fmt_check_path_bss_slot(int32_t which);
+extern void fmt_check_lib_bufs_reset_impl(void);
+extern uint8_t * shux_ptr_slot_get(uint8_t * arr, int32_t i);
 int32_t driver_check_quiet_ok_get(void) {
   return 1;
 }
@@ -191,18 +516,14 @@ uint8_t * driver_fmt_check_lit_fmt001(void) {
   return &((g_fmt_lit_fmt001)[0]);
 }
 uint8_t * driver_collect_error_kind(void) {
-  {
-    if ((driver_collect_mode_is_check_impl() !=0)) {
-      return &((g_fmt_lit_check_error)[0]);
-    }
+  if ((driver_collect_mode_is_check() !=0)) {
+    return &((g_fmt_lit_check_error)[0]);
   }
   return &((g_fmt_lit_fmt_error)[0]);
 }
 uint8_t * driver_collect_missing_path_code(void) {
-  {
-    if ((driver_collect_mode_is_check_impl() !=0)) {
-      return &((g_fmt_lit_chk002)[0]);
-    }
+  if ((driver_collect_mode_is_check() !=0)) {
+    return &((g_fmt_lit_chk002)[0]);
   }
   return &((g_fmt_lit_fmt001)[0]);
 }
@@ -249,9 +570,7 @@ uint8_t * fmt_default_product_sub_at(int32_t i) {
   return ((uint8_t *)(0));
 }
 uint8_t * fmt_user_ignore_at(int32_t i) {
-  {
-    return fmt_user_ignore_at_impl(i);
-  }
+  return fmt_user_ignore_at_impl(i);
   return ((uint8_t *)(0));
 }
 uint8_t * fmt_path_resolve_abs(uint8_t * path) {
@@ -313,21 +632,31 @@ uint8_t * fmt_path_resolve_abs(uint8_t * path) {
   return ((uint8_t *)(0));
 }
 int32_t driver_collect_mode_is_check(void) {
-  {
-    return driver_collect_mode_is_check_impl();
+  if (((g_fmt_collect_mode)[0] ==2)) {
+    return 1;
   }
   return 0;
+}
+void driver_collect_mode_set(int32_t v) {
+  (void)(((g_fmt_collect_mode)[0] = v));
+  (void)(0);
+  return;
 }
 int32_t check_user_passed_L_get(void) {
-  {
-    return check_user_passed_L_get_impl();
-  }
+  return (g_fmt_user_passed_L)[0];
   return 0;
 }
-int32_t fmt_user_ignore_count(void) {
-  {
-    return fmt_user_ignore_count_impl();
+void check_user_passed_L_set(int32_t v) {
+  if ((v !=0)) {
+    (void)(((g_fmt_user_passed_L)[0] = 1));
+  } else {
+    (void)(((g_fmt_user_passed_L)[0] = 0));
   }
+  (void)(0);
+  return;
+}
+int32_t fmt_user_ignore_count(void) {
+  return fmt_user_ignore_count_impl();
   return 0;
 }
 int32_t fmt_path_ends_with_dot_x(uint8_t * path) {
@@ -354,15 +683,13 @@ int32_t fmt_path_ends_with_dot_x(uint8_t * path) {
   return 0;
 }
 int32_t fmt_file_list_n(void) {
-  {
-    return fmt_file_list_n_impl();
-  }
+  return fmt_file_list_n_impl();
   return 0;
 }
 extern int32_t fmt_path_stat_kind_impl(uint8_t * path);
 int32_t check_lint_fail_on_warnings(void) {
   {
-    uint8_t * v = getenv((uint8_t[]){83, 72, 85, 88, 95, 76, 73, 78, 84, 95, 67, 73, 95, 70, 65, 73, 76, 95, 79, 78, 0 });
+    uint8_t * v = getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x4c\x49\x4e\x54\x5f\x43\x49\x5f\x46\x41\x49\x4c\x5f\x4f\x4e"));
     if ((v ==((uint8_t *)(0)))) {
       return 0;
     }
@@ -390,26 +717,19 @@ int32_t check_lint_fail_on_warnings(void) {
   return 0;
 }
 int32_t fmt_check_invoke_compile(int32_t argc, uint8_t * check_argv) {
-  {
-    return driver_run_compiler_full(argc, check_argv);
-  }
+  return driver_run_compiler_full(argc, check_argv);
   return 0;
 }
 void fmt_check_dep_clear(void) {
-  {
-    (void)(driver_dep_seeded_clear_all());
-  }
+  (void)(driver_dep_seeded_clear_all());
   (void)(0);
   return;
 }
 int32_t fmt_path_stat_kind(uint8_t * path) {
-  {
-    return fmt_path_stat_kind_impl(path);
-  }
+  return fmt_path_stat_kind_impl(path);
   return (0 - 1);
 }
 extern void check_try_append_lib_root_impl(uint8_t * check_argv, int32_t * n, uint8_t * dir);
-extern void check_init_user_lib_flags_impl(int32_t argc, uint8_t * argv, int32_t path_start);
 extern int32_t check_one_file_body_impl(uint8_t * path, int32_t argc, uint8_t * argv);
 void check_try_append_lib_root(uint8_t * check_argv, int32_t * n, uint8_t * dir) {
   if ((check_argv ==((uint8_t *)(0)))) {
@@ -427,21 +747,39 @@ void check_try_append_lib_root(uint8_t * check_argv, int32_t * n, uint8_t * dir)
   if ((check_user_passed_L_get() !=0)) {
     return;
   }
-  {
-    if (((n)[0] >=58)) {
-      return;
-    }
-    (void)(check_try_append_lib_root_impl(check_argv, n, dir));
+  if (((n)[0] >=58)) {
+    return;
   }
+  (void)(check_try_append_lib_root_impl(check_argv, n, dir));
   (void)(0);
   return;
 }
 void check_init_user_lib_flags(int32_t argc, uint8_t * argv, int32_t path_start) {
-  {
-    (void)(check_init_user_lib_flags_impl(argc, argv, path_start));
+  (void)(check_user_passed_L_set(0));
+  (void)(fmt_check_lib_bufs_reset_impl());
+  if ((argv ==((uint8_t *)(0)))) {
+    return;
   }
-  (void)(0);
-  return;
+  if ((path_start < 0)) {
+    return;
+  }
+  {
+    int32_t i = path_start;
+    while ((i < argc)) {
+      uint8_t * a = shux_ptr_slot_get(argv, i);
+      if ((a !=((uint8_t *)(0)))) {
+        if (((a)[0] ==45)) {
+          if (((a)[1] ==76)) {
+            if (((a)[2] ==0)) {
+              (void)(check_user_passed_L_set(1));
+              return;
+            }
+          }
+        }
+      }
+      (void)((i = (i + 1)));
+    }
+  }
 }
 void driver_check_set_current_file(uint8_t * path) {
   {
@@ -490,9 +828,7 @@ int32_t check_one_file(uint8_t * path, int32_t argc, uint8_t * argv) {
   if ((argc <=0)) {
     return (0 - 1);
   }
-  {
-    return check_one_file_body_impl(path, argc, argv);
-  }
+  return check_one_file_body_impl(path, argc, argv);
   return (0 - 1);
 }
 extern void walk_dir_collect_impl(uint8_t * dir);
@@ -572,9 +908,7 @@ void walk_dir_collect_process_child(uint8_t * child, int32_t is_dir, int32_t is_
   return;
 }
 void walk_dir_collect(uint8_t * dir) {
-  {
-    (void)(walk_dir_collect_impl(dir));
-  }
+  (void)(walk_dir_collect_impl(dir));
   (void)(0);
   return;
 }
@@ -609,16 +943,12 @@ void parse_ignore_opt(uint8_t * arg) {
   if (((arg)[8] !=61)) {
     return;
   }
-  {
-    (void)(parse_ignore_opt_impl(arg));
-  }
+  (void)(parse_ignore_opt_impl(arg));
   (void)(0);
   return;
 }
 void file_list_clear(void) {
-  {
-    (void)(file_list_clear_impl());
-  }
+  (void)(file_list_clear_impl());
   (void)(0);
   return;
 }
@@ -911,23 +1241,17 @@ void check_append_repo_lib_roots(uint8_t * path, uint8_t * check_argv, int32_t *
   return;
 }
 void check_argv_append_default_libs_for_path(uint8_t * path, uint8_t * check_argv, int32_t * n) {
-  {
-    (void)(check_argv_append_default_libs_for_path_impl(path, check_argv, n));
-  }
+  (void)(check_argv_append_default_libs_for_path_impl(path, check_argv, n));
   (void)(0);
   return;
 }
 extern int32_t driver_run_fmt_impl(int32_t argc, uint8_t * argv);
 extern int32_t driver_run_compiler_check_impl(int32_t argc, uint8_t * argv);
 int32_t driver_run_fmt(int32_t argc, uint8_t * argv) {
-  {
-    return driver_run_fmt_impl(argc, argv);
-  }
+  return driver_run_fmt_impl(argc, argv);
   return 0;
 }
 int32_t driver_run_compiler_check(int32_t argc, uint8_t * argv) {
-  {
-    return driver_run_compiler_check_impl(argc, argv);
-  }
+  return driver_run_compiler_check_impl(argc, argv);
   return 0;
 }

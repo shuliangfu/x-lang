@@ -2790,6 +2790,13 @@ void shux_ptr_slot_set(void **arr, int32_t i, void *p) {
     arr[i] = p;
 }
 
+/* G.7 expand set authority: load pointer array slot i (argv/paths). PLATFORM: SHARED. */
+void *shux_ptr_slot_get(void **arr, int32_t i) {
+    if (!arr || i < 0)
+        return NULL;
+    return arr[i];
+}
+
 void shux_i32_store(int32_t *p, int32_t v) {
     if (p)
         *p = v;

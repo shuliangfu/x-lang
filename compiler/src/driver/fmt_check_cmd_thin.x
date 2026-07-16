@@ -9,13 +9,16 @@
 //   set_current_file + print_collected + cwd_fallback +
 //   try_walk_if_product_subdir + path_resolve_abs +
 //   append_repo_lib_roots + missing_diag）进 thin.x；
+//   + wave BSS pure：collect_mode + user_passed_L 进 thin；
+//     check_init_user_lib_flags pure（G.7 shux_ptr_slot_get + lib_bufs_reset Cap）；
+//     FROM_X rest 无 pure-dup is_check / user_passed_L_get / init_user_lib_flags _impl。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_FMT_CHECK_THIN_FROM_X）ld -r
 //   → fmt_check_cmd_driver.o
 // Prove IDENTICAL：seeds/fmt_check_cmd_thin_surface.from_x.c
-// Cap residual：walk opendir/stat/argv/大 BSS /
+// Cap residual：walk opendir/stat/argv/大 BSS（ignore paths / file_list / lib bufs）/
 //   check_one_file_body 等 *_impl 仍在 full seed rest；FROM_X 下 pure-duplicate
 //   _impl 已剔除（含 set_current_file / print / cwd_fallback / try_walk /
-//   path_resolve_abs / append_repo / missing_diag；H↓）。
+//   path_resolve_abs / append_repo / missing_diag / collect_mode / user_passed_L / init；H↓）。
 //
 // -E 约束：无 while 重赋值；无零参-only 不稳写法；6 参用扁平 if。
 //
@@ -27,8 +30,6 @@ export extern "C" function lsp_diag_print_stderr_human(path: *u8): i32;
 export extern "C" function driver_run_compiler_full(argc: i32, argv: *u8): i32;
 export extern "C" function driver_dep_seeded_clear_all(): void;
 export extern "C" function diag_report_with_code(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void;
-export extern "C" function driver_collect_mode_is_check_impl(): i32;
-export extern "C" function check_user_passed_L_get_impl(): i32;
 export extern "C" function fmt_user_ignore_count_impl(): i32;
 export extern "C" function fmt_file_list_n_impl(): i32;
 export extern "C" function fmt_user_ignore_at_impl(i: i32): *u8;
@@ -36,6 +37,16 @@ export extern "C" function fmt_file_list_store_impl(abs_path: *u8): i32;
 // Cap residual：可写路径 BSS 槽（0=current_file，1=resolve_abs）。
 // -E 顶层 u8[N] 现退化为悬空指针（codegen.x 已根修，codegen_gen 再生后可收回此槽）。
 export extern "C" function fmt_check_path_bss_slot(which: i32): *u8;
+// Cap residual：reset s_n_check_lib_bufs only (lib path buffers stay rest).
+export extern "C" function fmt_check_lib_bufs_reset_impl(): void;
+// G.7: load argv[i] / char** slot (pipeline authority pair with shux_ptr_slot_set).
+export extern "C" function shux_ptr_slot_get(arr: *u8, i: i32): *u8;
+
+// ---- Cap residual pure: collect_mode + user_passed_L BSS (PLATFORM: SHARED) ----
+// DRIVER_COLLECT_MODE_FMT=1, DRIVER_COLLECT_MODE_CHECK=2 (match seed enum).
+// Hybrid thin owns cells; cold seed keeps C static + _impl.
+let g_fmt_collect_mode: i32[1] = [1];
+let g_fmt_user_passed_L: i32[1] = [0];
 
 let g_fmt_lit_check_error: u8[12] = [99, 104, 101, 99, 107, 32, 101, 114, 114, 111, 114, 0];
 let g_fmt_lit_fmt_error: u8[10] = [102, 109, 116, 32, 101, 114, 114, 111, 114, 0];
@@ -171,20 +182,16 @@ export function driver_fmt_check_lit_fmt001(): *u8 {
 
 #[no_mangle]
 export function driver_collect_error_kind(): *u8 {
-  unsafe {
-    if (driver_collect_mode_is_check_impl() != 0) {
-      return &g_fmt_lit_check_error[0];
-    }
+  if (driver_collect_mode_is_check() != 0) {
+    return &g_fmt_lit_check_error[0];
   }
   return &g_fmt_lit_fmt_error[0];
 }
 
 #[no_mangle]
 export function driver_collect_missing_path_code(): *u8 {
-  unsafe {
-    if (driver_collect_mode_is_check_impl() != 0) {
-      return &g_fmt_lit_chk002[0];
-    }
+  if (driver_collect_mode_is_check() != 0) {
+    return &g_fmt_lit_chk002[0];
   }
   return &g_fmt_lit_fmt001[0];
 }
@@ -304,21 +311,48 @@ export function fmt_path_resolve_abs(path: *u8): *u8 {
   return 0 as *u8;
 }
 
-// ---- G-02f-383：collect_mode / user_passed_L → seed impl ----
+/** Return 1 when collect mode is check (value 2), else 0 (fmt mode=1).
+ * Pure BSS authority under PREFER hybrid. PLATFORM: SHARED. */
 #[no_mangle]
 export function driver_collect_mode_is_check(): i32 {
   unsafe {
-    return driver_collect_mode_is_check_impl();
+    if (g_fmt_collect_mode[0] == 2) {
+      return 1;
+    }
   }
   return 0;
 }
 
+/** Set collect mode (1=fmt, 2=check). Rest run_fmt/run_check call this under hybrid.
+ * PLATFORM: SHARED — same enum as cold seed DriverCollectMode. */
+#[no_mangle]
+export function driver_collect_mode_set(v: i32): void {
+  unsafe {
+    g_fmt_collect_mode[0] = v;
+  }
+}
+
+/** Return 1 if user already passed -L (skip default lib-root injection).
+ * Pure BSS authority under PREFER hybrid. PLATFORM: SHARED. */
 #[no_mangle]
 export function check_user_passed_L_get(): i32 {
   unsafe {
-    return check_user_passed_L_get_impl();
+    return g_fmt_user_passed_L[0];
   }
   return 0;
+}
+
+/** Store user-passed -L flag (0/1). Used by pure init and cold twin under hybrid.
+ * PLATFORM: SHARED. */
+#[no_mangle]
+export function check_user_passed_L_set(v: i32): void {
+  unsafe {
+    if (v != 0) {
+      g_fmt_user_passed_L[0] = 1;
+    } else {
+      g_fmt_user_passed_L[0] = 0;
+    }
+  }
 }
 
 // ---- G-02f-389：ignore count / .x 后缀 / file list n → seed impl ----
@@ -426,7 +460,6 @@ export function fmt_path_stat_kind(path: *u8): i32 {
 
 // ---- pure 门闩 / try_append 早退 / current file + print pure；Cap：lib root body / one_file body ----
 export extern "C" function check_try_append_lib_root_impl(check_argv: *u8, n: *i32, dir: *u8): void;
-export extern "C" function check_init_user_lib_flags_impl(argc: i32, argv: *u8, path_start: i32): void;
 export extern "C" function check_one_file_body_impl(path: *u8, argc: i32, argv: *u8): i32;
 
 // pure 早退：null/空 dir / 用户已传 -L / argv 槽满；stat+BSS 去重 🔒 _impl
@@ -455,10 +488,38 @@ export function check_try_append_lib_root(check_argv: *u8, n: *i32, dir: *u8): v
   }
 }
 
+/** Scan argv[path_start..) for "-L"; set user_passed_L and reset Cap lib-buf count.
+ * Pure under PREFER hybrid: G.7 shux_ptr_slot_get for argv[i]; byte-eq "-L" (45,76,0).
+ * Cap residual: fmt_check_lib_bufs_reset_impl only. PLATFORM: SHARED. */
 #[no_mangle]
 export function check_init_user_lib_flags(argc: i32, argv: *u8, path_start: i32): void {
+  check_user_passed_L_set(0);
   unsafe {
-    check_init_user_lib_flags_impl(argc, argv, path_start);
+    fmt_check_lib_bufs_reset_impl();
+  }
+  if (argv == 0 as *u8) {
+    return;
+  }
+  if (path_start < 0) {
+    return;
+  }
+  unsafe {
+    let i: i32 = path_start;
+    while (i < argc) {
+      let a: *u8 = shux_ptr_slot_get(argv, i);
+      if (a != 0 as *u8) {
+        // ASCII "-L"
+        if (a[0] == 45) {
+          if (a[1] == 76) {
+            if (a[2] == 0) {
+              check_user_passed_L_set(1);
+              return;
+            }
+          }
+        }
+      }
+      i = i + 1;
+    }
   }
 }
 
