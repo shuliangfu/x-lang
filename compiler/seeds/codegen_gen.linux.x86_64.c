@@ -4574,7 +4574,7 @@ SHUX_LIB_WEAK int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct code
     ++sk;
   }
  }
-  /* preamble ABI types: compound lit uses correct std_*/core_* prefix (codegen.x + Result). */
+  /* preamble ABI types: compound lit uses correct std_ or core_result_ prefix (codegen.x + Result). */
   if (codegen_should_skip_emit_struct_layout_for_abi_dup((&(((e).struct_lit_struct_name)[0])), (e).struct_lit_struct_name_len) != 0) {
     (bare_user_lit = (0));
     if ((e).struct_lit_struct_name_len == 6 && (((e).struct_lit_struct_name)[0]) == 66) {
