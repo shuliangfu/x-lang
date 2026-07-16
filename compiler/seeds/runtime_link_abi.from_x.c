@@ -3690,10 +3690,21 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
         argv[i++] = (char *)"-o";
         argv[i++] = (char *)out_path;
         /*
-         * 死代码剥离：preamble / co-emit 常带 std_io_*_ctx 等「可能用」体，其 U 引用
-         * context/error；hello 等未调用路径须 GC 掉，否则会假依赖链 context.o→atomic。
-         * 【Invariant】与 freestanding asm 的 --gc-sections 同权威：可达性从 main 起。
+         * 死代码剥离：preamble / co-emit 常带 std_io_*_ctx / read_batch 等「可能用」体，
+         * 其 U 引用 context/error/driver；hello 与 io.print 等未调用路径须 GC 掉，
+         * 否则会假依赖链 context.o→atomic，或直接 ld UNDEF（bstrict27 run-io）。
+         *
+         * 【Invariant】与 freestanding asm / std 模块编译同权威：
+         *   - 编译：-ffunction-sections -fdata-sections（每函数独立 section）
+         *   - 链接：--gc-sections / Darwin -dead_strip（从 main 可达性剔除）
+         * 仅传 --gc-sections 而无 function-sections 时，整块 .text 要么全留要么
+         * （偶发）全丢；io 的 print 落在 .text 会拖死整段 U，hello 因全内联进
+         * .text.startup 才碰巧绿。二者必须成对，禁止只加链接侧 GC。
          */
+        if (i < argv_cap - 2) {
+            argv[i++] = (char *)"-ffunction-sections";
+            argv[i++] = (char *)"-fdata-sections";
+        }
 #if defined(__APPLE__)
         if (i < argv_cap - 1)
             argv[i++] = (char *)"-Wl,-dead_strip";
@@ -6040,10 +6051,14 @@ static int labi_std_fk0_user_needs_rel(const char *user_o, const char *rel) {
             || shux_link_obj_needs_undef_sym(user_o, "std_hash_fnv1a");
     if (strstr(rel, "std/error/error.o"))
         return shux_link_obj_needs_undef_sym(user_o, "std_error_http_err_timeout")
-            || shux_link_obj_needs_undef_sym(user_o, "std_error_ok");
+            || shux_link_obj_needs_undef_sym(user_o, "std_error_ok")
+            || shux_link_obj_needs_undef_sym(user_o, "std_error_io_err_timeout")
+            || shux_link_obj_needs_undef_sym(user_o, "std_error_io_err_cancelled");
     if (strstr(rel, "std/context/context.o"))
         return shux_link_obj_needs_undef_sym(user_o, "std_context_background")
-            || shux_link_obj_needs_undef_sym(user_o, "std_context_deadline_ns");
+            || shux_link_obj_needs_undef_sym(user_o, "std_context_deadline_ns")
+            || shux_link_obj_needs_undef_sym(user_o, "std_context_is_cancelled")
+            || shux_link_obj_needs_undef_sym(user_o, "std_context_remaining_ns");
     /* 其它 fk==0：默认不硬链，避免残缺 .o 毒化纯 asm / 无 import 用户程序。
      * 需要时由 on_demand 或上方专用探针推入。 */
     return 0;
