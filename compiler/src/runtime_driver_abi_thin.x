@@ -29,8 +29,10 @@
 //     shux_driver_bump_stack_limit（no struct rlimit in .x）；FROM_X rest 无 pure-dup setrlimit _impl。
 //   + wave10 Cap residual pure：uname host defines 经永久 OS 面
 //     shux_driver_argv_append_uname（no struct utsname in .x）；FROM_X rest 无 pure-dup uname _impl。
-// Cap residual：pthread 创建 / path-read IO /
-//   debug_pipe reportf note 仍 rest。
+//   + wave11 Cap residual pure：path-read IO 经永久 OS 面
+//     shux_driver_path_read_preprocess_malloc（no file-view/preprocess in .x）；
+//     FROM_X rest 无 pure-dup path_read _impl。
+// Cap residual：pthread 创建 / debug_pipe reportf note 仍 rest。
 //
 
 export extern "C" function getenv(name: *u8): *u8;
@@ -43,7 +45,9 @@ export extern "C" function shux_driver_call_fn_void_arg(fn: *u8, arg: *u8): void
 /** Permanent OS RLIMIT_STACK raise surface (seed rest).
  * PLATFORM: POSIX getrlimit/setrlimit; WINDOWS no-op — hides struct rlimit from .x. */
 export extern "C" function shux_driver_bump_stack_limit(want_bytes: i64): void;
-export extern "C" function driver_path_read_preprocess_malloc_impl(path: *u8): *u8;
+/** Permanent OS path-read + preprocess surface (seed rest).
+ * PLATFORM: SHARED — runtime file view + shux_preprocess; hides IO/preprocess ABI from .x. */
+export extern "C" function shux_driver_path_read_preprocess_malloc(path: *u8): *u8;
 // Wave3 format print pure: reuse diagnostic append authority (G.7) + fixed-arity diag report.
 export extern "C" function diag_report(file: *u8, line: i32, col: i32, kind: *u8, msg: *u8, detail: *u8): void;
 export extern "C" function diag_report_with_code(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void;
@@ -244,9 +248,12 @@ export function driver_path_last_preprocess_len(): i64 {
   return g_driver_path_last_preprocess_len[0];
 }
 
+/** Pure orch: path-read + preprocess via permanent OS surface.
+ * Wave11 pure: forwards to shux_driver_path_read_preprocess_malloc (no path_read _impl residual).
+ * PLATFORM: SHARED pure orch; file view + preprocess stay in seed rest. */
 #[no_mangle]
 export function driver_path_read_preprocess_malloc(path: *u8): *u8 {
-  unsafe { return driver_path_read_preprocess_malloc_impl(path); }
+  unsafe { return shux_driver_path_read_preprocess_malloc(path); }
   return 0 as *u8;
 }
 

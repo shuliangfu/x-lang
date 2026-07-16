@@ -24,6 +24,8 @@
  *     FROM_X rest 无 pure-dup setrlimit/to_impl _impl；
  *   + wave10 Cap residual pure：uname host defines → 永久 OS 面 shux_driver_argv_append_uname；
  *     FROM_X rest 无 pure-dup append_uname _impl；struct utsname 不进 .x；
+ *   + wave11 Cap residual pure：path-read IO → 永久 OS 面 shux_driver_path_read_preprocess_malloc；
+ *     FROM_X rest 无 pure-dup path_read _impl；file view + preprocess 不进 .x；
  * FROM_X 剔 pure-dup _impl（H↓）。
  */
 /* Generated from src/runtime_driver_abi.x (G-02f-29/41/45..57/83 true .x + C tail).
@@ -85,7 +87,8 @@ void driver_compile_phase_timing_clear(void);
 /* wave7: compile_phase_now_sec pure in thin → shux_driver_wall_clock_sec (no pure-dup _impl). */
 /* wave1: flag-slot BSS pure in thin — no public→_impl rename (rest drops pure-dup slots). */
 /* wave2: path/len BSS pure in thin — path_read rest writes len via thin store. */
-#define driver_path_read_preprocess_malloc driver_path_read_preprocess_malloc_impl
+/* wave11: path_read body is permanent OS surface shux_driver_path_read_preprocess_malloc
+ * (no pure-dup path_read _impl rename under FROM_X). */
 #endif
 
 #include <stdio.h>
@@ -166,6 +169,7 @@ void driver_run_thread_on_large_stack_pthread_impl(void *(*fn)(void *), void *ar
 void shux_driver_call_fn_void_arg(void *(*fn)(void *), void *arg);
 int32_t driver_pipeline_no_large_stack_env(void);
 int driver_source_scan_top_level_import(const char *src, size_t src_len);
+char *shux_driver_path_read_preprocess_malloc(const char *path);
 char *driver_path_read_preprocess_malloc(const char *path);
 int64_t driver_path_last_preprocess_len(void);
 void driver_pipeline_entry_source_len_store(size_t len);
@@ -2182,7 +2186,15 @@ int64_t driver_path_last_preprocess_len(void) {
 }
 #endif
 
-char *driver_path_read_preprocess_malloc(const char *path) {
+/**
+ * Permanent OS path-read + preprocess surface.
+ * PLATFORM: SHARED — runtime_read_file_view + shux_preprocess + thin/cold len store API;
+ *            hides ShuxRuntimeFileView and preprocess ABI from .x pure orch.
+ * Always present under FROM_X (thin driver_path_read_preprocess_malloc pure orch calls this;
+ * no pure-dup driver_path_read_preprocess_malloc_impl).
+ * G.7: single authority for entry-path read+preprocess used by has_top_level_import_path.
+ */
+char *shux_driver_path_read_preprocess_malloc(const char *path) {
     ShuxRuntimeFileView raw_view;
     size_t src_len = 0;
     char *src;
@@ -2200,6 +2212,13 @@ char *driver_path_read_preprocess_malloc(const char *path) {
     driver_path_last_preprocess_len_store((int64_t)src_len);
     return src;
 }
+
+/* G-02f-244/414：冷启动 public twin；PREFER/FROM_X 时 thin owns public pure orch */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
+char *driver_path_read_preprocess_malloc(const char *path) {
+    return shux_driver_path_read_preprocess_malloc(path);
+}
+#endif
 
 /* G-02f-244/414：实现体始终 seed（IO/preprocess）；public PREFER 时 thin pure forward */
 #ifndef SHUX_L2_RDABI_THIN_FROM_X

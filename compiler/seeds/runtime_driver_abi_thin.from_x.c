@@ -443,7 +443,10 @@ static void init_globals(void) {
   g_driver_current_dep_path = ((uint8_t *)(0));
 }
 extern uint8_t * getenv(uint8_t * name);
-extern uint8_t * driver_path_read_preprocess_malloc_impl(uint8_t * path);
+extern double shux_driver_wall_clock_sec(void);
+extern void shux_driver_call_fn_void_arg(uint8_t * fn, uint8_t * arg);
+extern void shux_driver_bump_stack_limit(int64_t want_bytes);
+extern uint8_t * shux_driver_path_read_preprocess_malloc(uint8_t * path);
 extern void diag_report(uint8_t * file, int32_t line, int32_t col, uint8_t * kind, uint8_t * msg, uint8_t * detail);
 extern void diag_report_with_code(uint8_t * file, int32_t line, int32_t col, uint8_t * kind, uint8_t * code, uint8_t * msg, uint8_t * detail);
 extern int32_t driver_diag_append_cstr(uint8_t * dst, int32_t cap, int32_t at, uint8_t * src);
@@ -556,7 +559,7 @@ int64_t driver_path_last_preprocess_len(void) {
   return (g_driver_path_last_preprocess_len)[0];
 }
 uint8_t * driver_path_read_preprocess_malloc(uint8_t * path) {
-  return driver_path_read_preprocess_malloc_impl(path);
+  return shux_driver_path_read_preprocess_malloc(path);
   return ((uint8_t *)(0));
 }
 void driver_fmt_check_only_set(int32_t v) {
@@ -888,8 +891,6 @@ int32_t driver_check_diag_emitted_get(void) {
   }
   return 0;
 }
-extern double shux_driver_wall_clock_sec(void);
-extern void shux_driver_call_fn_void_arg(uint8_t * fn, uint8_t * arg);
 int32_t driver_abi_append_i64(uint8_t * dst, int32_t cap, int32_t at, int64_t val) {
   {
     int32_t d0 = 0;
@@ -1268,7 +1269,6 @@ int64_t driver_stack_limit_want_bytes(void) {
   }
   return def;
 }
-extern void shux_driver_bump_stack_limit(int64_t want_bytes);
 void driver_bump_stack_limit(void) {
   (void)(shux_driver_bump_stack_limit(driver_stack_limit_want_bytes()));
   (void)(0);

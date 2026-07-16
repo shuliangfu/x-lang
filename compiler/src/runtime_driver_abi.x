@@ -49,7 +49,9 @@ export extern "C" function driver_print_x_smoke_parse_ok_impl(num_funcs: i32, ma
 export extern "C" function driver_print_x_smoke_parse_empty_impl(): void;
 export extern "C" function driver_print_x_smoke_typeck_ok_impl(): void;
 /* scan_top_level_import：G-02f-243；path：G-02f-244 下方真迁编排 */
-export extern "C" function driver_path_read_preprocess_malloc(path: *u8): *u8;
+/** Permanent OS path-read + preprocess surface (seed rest under hybrid).
+ * PLATFORM: SHARED — file view + shux_preprocess; hides IO layout from .x pure orch. */
+export extern "C" function shux_driver_path_read_preprocess_malloc(path: *u8): *u8;
 export extern "C" function driver_path_last_preprocess_len(): i64;
 export extern "C" function driver_pipeline_entry_source_len_store(len: i64): void;
 export extern "C" function driver_pipeline_entry_source_len_load_and_maybe_debug(): i64;
@@ -601,14 +603,16 @@ export function driver_source_has_top_level_import(src: *u8, src_len: i64): i32 
   return driver_source_scan_top_level_import(src, src_len);
 }
 
-// G-02f-244：read+preprocess 🔒 → scan pure → free
+/** Top-level import probe for a path: read+preprocess → scan → free.
+ * Wave11 pure orch: IO via permanent OS surface shux_driver_path_read_preprocess_malloc.
+ * PLATFORM: SHARED pure orch; file view + preprocess stay in seed rest. */
 #[no_mangle]
 export function driver_source_has_top_level_import_path(path: *u8): i32 {
   if (path == 0 as *u8) {
     return 0;
   }
   unsafe {
-    let src: *u8 = driver_path_read_preprocess_malloc(path);
+    let src: *u8 = shux_driver_path_read_preprocess_malloc(path);
     if (src == 0 as *u8) {
       return 0;
     }
