@@ -1,13 +1,15 @@
-/* G-02f-339～341 / R2 thin + Cap residual pure 深迁（续 typeck debug/scratch）：
- * PREFER hybrid thin 由 src/runtime_driver_diagnostic_thin.x -E；
- * rest SHUX_L2_RDD_THIN_FROM_X：无 thin 公共体；pure-dup 固定措辞/pipe orch/拼装/
+/* G-02f-339..341 / R2 thin + Cap residual pure deep-migrate (parse_fail / codegen_fail / typeck residual):
+ * PREFER hybrid thin from src/runtime_driver_diagnostic_thin.x -E;
+ * rest SHUX_L2_RDD_THIN_FROM_X: no thin public bodies; pure-dup fixed-msg/pipe orch/assemble/
  * env_debug_pipe/parse_strict_enabled/report_prefixed/pipe_note/
- * debug_log/parser_diag_xxx/typeck_block_enter/fn_enter/var_resolution/scratch 剔除；
- * 仅 slice_marker + Cap residual（snprintf/va_list）体。
- * Generated from (G-02f-86/96 +copy/report_prefixed) src/runtime_driver_diagnostic.x (G-02f-180 P0-4 audit + va_list lock; G-02f-179 asm notes true .x; G-02f-178 padding true .x; G-02f-177 generic call true .x; G-02f-176 mismatch true .x; G-02f-175 return_unresolved/subexpr true .x; G-02f-30/31/73 true .x + C tail).
+ * debug_log/parser_diag_xxx/typeck_block/fn/var/scratch +
+ * parse_fail/codegen_fail/typeck_func_fail/ptr_field/ret_fail dropped;
+ * only slice_marker + Cap residual (snprintf/va_list skip/commit/asm/warn) bodies.
+ * Generated from (G-02f-86/96 +copy/report_prefixed) src/runtime_driver_diagnostic.x.
  * Regen: ./shux-c -E -L .. src/runtime_driver_diagnostic.x > /tmp/rdd.c
  *         merge fixed-msg wrappers; polish slice strings; keep snprintf C.
- * .x covers: fixed typeck msgs, fail, no-ops, parse pure + report_prefixed/pipe_note + debug_log/parser_diag + typeck debug/scratch pure.
+ * .x covers: fixed typeck msgs, fail, no-ops, parse pure + report_prefixed/pipe_note +
+ *   debug_log/parser_diag + typeck debug/scratch + parse_fail/codegen_fail/typeck residual pure.
  */
 #include "runtime_driver_diagnostic.h"
 #include "runtime_driver_abi.h"
@@ -15,9 +17,10 @@
 #include "lsp/lsp_diag.h"
 #include "diag.h"
 #ifdef SHUX_L2_RDD_THIN_FROM_X
-/* pure 在 thin：copy_bytes/note/fill/build/env_debug_pipe/parse_strict/report_prefixed/pipe_note
- * plus debug_log/parser_diag_xxx/typeck_block/fn/var/scratch — rest 勿 #define 到已剔除的 _impl */
-/* thin 提供 pure public：供 rest residual 调用 */
+/* pure in thin: copy_bytes/note/fill/build/env_debug_pipe/parse_strict/report_prefixed/pipe_note
+ * plus debug_log/parser_diag_xxx/typeck_block/fn/var/scratch +
+ * parse_fail/codegen_fail/typeck_func_fail/ptr_field/ret_fail — rest must not #define dropped _impl */
+/* thin supplies pure public for rest residual callers */
 int driver_diag_env_debug_pipe(void);
 int32_t driver_parse_strict_enabled(void);
 int driver_diag_copy_bytes(char *dst, size_t dst_size, const uint8_t *src, int32_t src_len);
@@ -85,7 +88,8 @@ void driver_diagnostic_hint_unused_binding(int32_t line, int32_t col, const uint
 extern int32_t pipeline_module_num_funcs(void *module);
 extern int32_t pipeline_module_func_is_extern_at(void *module, int32_t fi);
 #else
-void driver_diagnostic_parse_fail_impl(int32_t main_idx, int32_t num_funcs, int32_t arena_num_types);
+/* pure public from thin (no pure-dup _impl): parse_fail / typeck_func_fail / ptr_field / ret_fail / codegen_fail */
+void driver_diagnostic_parse_fail(int32_t main_idx, int32_t num_funcs, int32_t arena_num_types);
 void driver_diagnostic_parse_skip_function(int32_t byte_pos, int32_t num_funcs_so_far, int32_t name_len, const uint8_t *name);
 void driver_diagnostic_typeck_func_fail(int32_t func_idx, const uint8_t *name, int32_t name_len, int32_t kind);
 void driver_diagnostic_typeck_ptr_field(int32_t bt_kind, int32_t inner_kind, int32_t inner_nlen, int32_t base_resolved_ref, int32_t num_struct_layouts);
@@ -206,16 +210,16 @@ int driver_diag_copy_bytes(char *dst, size_t dst_size, const uint8_t *src, int32
 
 
 
+/* pure authority: thin.x driver_diagnostic_parse_fail (append_i32 + XP001);
+ * cold keeps C body; FROM_X no pure-dup _impl (H↓). */
 #ifndef SHUX_L2_RDD_THIN_FROM_X
 void driver_diagnostic_parse_fail(int32_t main_idx, int32_t num_funcs, int32_t arena_num_types)
-#else
-void driver_diagnostic_parse_fail_impl(int32_t main_idx, int32_t num_funcs, int32_t arena_num_types)
-#endif
 {
     driver_diag_report_x_pipeline_code("XP001",
                                         ".x parse failed (main_idx=%d, num_funcs=%d, arena_num_types=%d)",
                                         (int)main_idx, (int)num_funcs, (int)arena_num_types);
 }
+#endif
 
 
 
@@ -301,15 +305,13 @@ void driver_diagnostic_typeck_fail(void) {
 #endif
 
 /**
- * .x typeck：标注失败函数（下标 + 名称）与失败类别；在 driver_diagnostic_typeck_fail 一行之前打印，便于定位大模块。
- * kind：5 = check_block 失败；-6 = 非 void 函数块末隐式尾表达式。
+ * .x typeck: label failed function (index + name) and failure kind before typeck_fail line.
+ * kind: 5 = check_block failed; -6 = non-void function implicit tail expression.
+ * pure authority: thin.x driver_diagnostic_typeck_func_fail (append + XT001);
+ * cold keeps C body; FROM_X no pure-dup _impl (H↓).
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 #ifndef SHUX_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_func_fail(int32_t func_idx, const uint8_t *name, int32_t name_len, int32_t kind)
-#else
-void driver_diagnostic_typeck_func_fail_impl(int32_t func_idx, const uint8_t *name, int32_t name_len, int32_t kind)
-#endif
 {
     char namebuf[72];
     int nl = (name && name_len > 0 && name_len <= 64) ? (int)name_len : 0;
@@ -334,19 +336,17 @@ void driver_diagnostic_typeck_func_fail_impl(int32_t func_idx, const uint8_t *na
         driver_diag_report_prefixed(0, 0, "typeck error: return value must use explicit return statement (e.g. return 0;)");
     }
 }
+#endif
 
 
 
 
-/** 诊断：FIELD_ACCESS 时 base 的类型与 *T 指向名；SHUX_TYPECK_PTR=1 时打印（含模块已登记的 struct_layouts 条数）。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/** FIELD_ACCESS base type debug; SHUX_TYPECK_PTR=1 enables note.
+ * pure authority: thin.x driver_diagnostic_typeck_ptr_field (append+note);
+ * cold keeps C body; FROM_X no pure-dup _impl (H↓). */
 #ifndef SHUX_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_ptr_field(int32_t bt_kind, int32_t inner_kind, int32_t inner_nlen, int32_t base_resolved_ref,
                                       int32_t num_struct_layouts)
-#else
-void driver_diagnostic_typeck_ptr_field_impl(int32_t bt_kind, int32_t inner_kind, int32_t inner_nlen, int32_t base_resolved_ref,
-                                      int32_t num_struct_layouts)
-#endif
 {
     if (!getenv("SHUX_TYPECK_PTR"))
         return;
@@ -354,17 +354,16 @@ void driver_diagnostic_typeck_ptr_field_impl(int32_t bt_kind, int32_t inner_kind
                  "typeck ptr debug: FIELD_ACCESS bt_kind=%d inner_kind=%d inner_nlen=%d base_resolved_ref=%d num_struct_layouts=%d",
                  (int)bt_kind, (int)inner_kind, (int)inner_nlen, (int)base_resolved_ref, (int)num_struct_layouts);
 }
+#endif
 
 
 
 
-/** 诊断：EXPR_RETURN 失败；SHUX_TYPECK_RET=1 时额外打印 ref 调试。stage 1=operand check_expr -1；2=got 与期望 return_type_ref 不一致。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/** EXPR_RETURN fail debug; SHUX_TYPECK_RET=1 prints refs. stage 1=operand check -1; 2=got vs expect mismatch.
+ * pure authority: thin.x driver_diagnostic_typeck_ret_fail (append+note);
+ * cold keeps C body; FROM_X no pure-dup _impl (H↓). */
 #ifndef SHUX_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_ret_fail(int32_t stage, int32_t op_expr_ref, int32_t expect_ty_ref, int32_t got_ty_ref)
-#else
-void driver_diagnostic_typeck_ret_fail_impl(int32_t stage, int32_t op_expr_ref, int32_t expect_ty_ref, int32_t got_ty_ref)
-#endif
 {
     if (getenv("SHUX_TYPECK_RET")) {
         diag_reportf(NULL, 0, 0, "note", NULL,
@@ -372,6 +371,7 @@ void driver_diagnostic_typeck_ret_fail_impl(int32_t stage, int32_t op_expr_ref, 
                      (int)stage, (int)op_expr_ref, (int)expect_ty_ref, (int)got_ty_ref);
     }
 }
+#endif
 
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
@@ -1162,18 +1162,17 @@ void driver_diagnostic_after_dep_codegen(int32_t j, int32_t out_len) {
 }
 #endif
 
-/** codegen 失败时打印是第几个 dep（is_dep!=0）还是当前模块（is_dep==0），便于定位 -6。需要时取消注释 fprintf。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/** codegen fail note: which dep (is_dep!=0) or entry module (is_dep==0).
+ * pure authority: thin.x driver_diagnostic_codegen_fail (append+note);
+ * cold keeps C body; FROM_X no pure-dup _impl (H↓). */
 #ifndef SHUX_L2_RDD_THIN_FROM_X
 void driver_diagnostic_codegen_fail(int32_t dep_index, int32_t is_dep)
-#else
-void driver_diagnostic_codegen_fail_impl(int32_t dep_index, int32_t is_dep)
-#endif
 {
     diag_reportf(NULL, 0, 0, "note", NULL,
                  "codegen failed at %s (dep_index=%d)",
                  is_dep ? "dependency emission" : "entry module emission", (int)dep_index);
 }
+#endif
 
 
 
