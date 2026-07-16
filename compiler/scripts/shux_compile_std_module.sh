@@ -119,8 +119,11 @@ for x_path in "$@"; do
   #   - 产品 C 后端 -o/KEEP_C 常带路径前缀（std_crypto_core_*）→ 须 gen_c 剥前缀
   #   - 若 KEEP_C 完整则优先 C 路径；asm 裸 .o 仅作次选
   # 旧逻辑一律拒绝 direct .o 再走 -x -E，而 -E 对 preamble 在 ~20KiB 处截断 → crypto.o 假死。
+  # bare-impl 子文件（core.x 等）：mod.x 以裸名 crypto_mem_eq_c 声明，
+  # 产品 C 后端常仍 emit 路径前缀 std_crypto_core_*（即便 -lib-name "" / LIB_NAME_SUPPORTED）。
+  # 必须剥前缀，否则 ld 得 U crypto_mem_eq_c 与 T std_crypto_core_crypto_mem_eq_c 双轨。
   bare_need_strip=0
-  if [ "$base_name" != "mod.x" ] && [ "$BARE_IMPL" = "1" ] && [ "$LIB_NAME_SUPPORTED" != "1" ]; then
+  if [ "$base_name" != "mod.x" ] && [ "$BARE_IMPL" = "1" ]; then
     bare_need_strip=1
   fi
   # 先认 KEEP_C 完整源（-backend c 库模块常无 main → 链失败但 C 齐）
