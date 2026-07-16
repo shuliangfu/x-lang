@@ -724,7 +724,9 @@ RUNTIME_DRIVER_CFLAGS = -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_P
 RUNTIME_DRIVER_NO_C_CFLAGS = -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_PREPROCESS -DSHUX_USE_X_TYPECK -DSHUX_USE_X_CODEGEN -DSHUX_NO_C_FRONTEND -DSHUX_ASM_USE_COMPILER_IMPL_C
 # Cap residual 数据/符号在 rt_* 切片（g05 同构）：driver_abi 始终 extern 引用；
 # 冷启动 bootstrap-driver-seed 必须链 RT_SEED_SLICE_OBJS，runtime 侧开 FROM_X 避免 static 副本漂移。
-RUNTIME_DRIVER_RT_SLICE_CFLAGS = -DSHUX_RT_ARENA_BUF_FROM_X -DSHUX_RT_EMIT_STATE_FROM_X -DSHUX_RT_PREAMBLE_FROM_X -DSHUX_RT_STACK_FROM_X
+# parse_diag：runtime_report_parse_recovery_diagnostics 权威在 seeds/rt_parse_diag.from_x.c；
+# no_c 仅 U 引用，冷启动/g05 必须链 RT slice（缺则 bootstrap-driver-seed 链失败）。
+RUNTIME_DRIVER_RT_SLICE_CFLAGS = -DSHUX_RT_ARENA_BUF_FROM_X -DSHUX_RT_EMIT_STATE_FROM_X -DSHUX_RT_PREAMBLE_FROM_X -DSHUX_RT_STACK_FROM_X -DSHUX_RT_PARSE_DIAG_FROM_X
 RUNTIME_DRIVER_CFLAGS += $(RUNTIME_DRIVER_RT_SLICE_CFLAGS)
 RUNTIME_DRIVER_NO_C_CFLAGS += $(RUNTIME_DRIVER_RT_SLICE_CFLAGS)
 ifeq ($(SHUX_LEGACY_PREPROCESS_C),1)
@@ -753,7 +755,11 @@ src/runtime/rt_preamble.o: seeds/rt_preamble.from_x.c src/runtime/rt_preamble.x
 src/runtime/rt_stack.o: seeds/rt_stack.from_x.c src/runtime/rt_stack.x
 	@mkdir -p src/runtime
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/rt_stack.from_x.c -o $@
-RT_SEED_SLICE_OBJS = src/runtime/rt_arena_buf.o src/runtime/rt_emit_state.o src/runtime/rt_preamble.o src/runtime/rt_stack.o
+# multi-error recovery 诊断（G-02f-307）；勿仅靠 no_c 内嵌 merge——冷启动 phase1 须显式链入。
+src/runtime/rt_parse_diag.o: seeds/rt_parse_diag.from_x.c src/runtime/rt_parse_diag.x
+	@mkdir -p src/runtime
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/rt_parse_diag.from_x.c -o $@
+RT_SEED_SLICE_OBJS = src/runtime/rt_arena_buf.o src/runtime/rt_emit_state.o src/runtime/rt_preamble.o src/runtime/rt_stack.o src/runtime/rt_parse_diag.o
 
 # G-02a: preprocess.c 已物理删除；preprocess_for_driver.o 不再编译（SHUX_LEGACY_PREPROCESS_C 路径已死）。
 # shux_x 用：仅 -DSHUX_USE_X_PIPELINE，提供 asm_codegen_ast、pipeline_parse_into_buf、main_entry（弱符号）等
