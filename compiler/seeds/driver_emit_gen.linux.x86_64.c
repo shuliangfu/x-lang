@@ -1,15 +1,7 @@
-/* driver_emit_gen seed from emit.x (Track L 2026-07-14; ./. field fix) */
-#include <stddef.h>
 #include <stdint.h>
+#include <stddef.h>
 #include <sys/types.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-#ifndef _WIN32
-#include <unistd.h>
-#include <fcntl.h>
-#include <errno.h>
-#endif
+void shux_panic_(int has_msg, int msg_val);
 struct PipelineDepCtx {
   int32_t ndep;
   uint8_t entry_dir_buf[512];
@@ -143,146 +135,100 @@ extern int32_t driver_run_x_emit_c_set_emit_extern(int32_t v);
 extern int32_t driver_run_x_emit_c(void);
 extern int32_t ast_pipeline_ctx_append_lib_root(struct PipelineDepCtx * ctx, uint8_t * path, int32_t len);
 int32_t ew_std_sys_read_file_into(uint8_t * path, uint8_t * buf, int32_t cap) {
-  {
-    return std_sys_read_file_into(path, buf, cap);
-  }
+  return std_sys_read_file_into(path, buf, cap);
   return 0;
 }
 ssize_t ew_fs_posix_write_c(int32_t fd, uint8_t * buf, size_t count) {
-  {
-    return fs_posix_write_c(fd, buf, count);
-  }
+  return fs_posix_write_c(fd, buf, count);
   return ((ssize_t)(0));
 }
 int32_t ew_fs_posix_close_c(int32_t fd) {
-  {
-    return fs_posix_close_c(fd);
-  }
+  return fs_posix_close_c(fd);
   return 0;
 }
 int32_t ew_preprocess_x_buf(uint8_t * source_buf, ssize_t source_len, uint8_t * out_buf, int32_t out_cap) {
-  {
-    return preprocess_x_buf(source_buf, source_len, out_buf, out_cap);
-  }
+  return preprocess_x_buf(source_buf, source_len, out_buf, out_cap);
   return 0;
 }
 int32_t ew_ensure_source_buffers(struct PipelineDepCtx * ctx) {
-  {
-    return pipeline_dep_ctx_ensure_source_buffers(ctx);
-  }
+  return pipeline_dep_ctx_ensure_source_buffers(ctx);
   return 0;
 }
 void ew_free_source_buffers(struct PipelineDepCtx * ctx) {
-  {
-    (void)(pipeline_dep_ctx_free_source_buffers(ctx));
-  }
+  (void)(pipeline_dep_ctx_free_source_buffers(ctx));
   (void)(0);
   return;
 }
 uint8_t * ew_loaded_buf_ptr(struct PipelineDepCtx * ctx) {
-  {
-    return pipeline_dep_ctx_loaded_buf_ptr(ctx);
-  }
+  return pipeline_dep_ctx_loaded_buf_ptr(ctx);
   return ((uint8_t *)(0));
 }
 uint8_t * ew_preprocess_buf_ptr(struct PipelineDepCtx * ctx) {
-  {
-    return pipeline_dep_ctx_preprocess_buf_ptr(ctx);
-  }
+  return pipeline_dep_ctx_preprocess_buf_ptr(ctx);
   return ((uint8_t *)(0));
 }
 void ew_set_loaded_len(struct PipelineDepCtx * ctx, ssize_t n) {
-  {
-    (void)(pipeline_dep_ctx_set_loaded_len(ctx, n));
-  }
+  (void)(pipeline_dep_ctx_set_loaded_len(ctx, n));
   (void)(0);
   return;
 }
 int32_t ew_lib_root_count(uint8_t * state) {
-  {
-    return driver_emit_lib_root_count(state);
-  }
+  return driver_emit_lib_root_count(state);
   return 0;
 }
 int32_t ew_lib_root_len(uint8_t * state, int32_t i) {
-  {
-    return driver_emit_lib_root_len(state, i);
-  }
+  return driver_emit_lib_root_len(state, i);
   return 0;
 }
 void ew_lib_root_copy(uint8_t * state, int32_t i, uint8_t * dst, int32_t cap) {
-  {
-    (void)(driver_emit_lib_root_copy(state, i, dst, cap));
-  }
+  (void)(driver_emit_lib_root_copy(state, i, dst, cap));
   (void)(0);
   return;
 }
 int32_t ew_fs_open_write(uint8_t * path, int32_t path_len) {
-  {
-    return driver_fs_open_write(path, path_len);
-  }
+  return driver_fs_open_write(path, path_len);
   return 0;
 }
 uint8_t * ew_arena_buf(void) {
-  {
-    return driver_arena_buf();
-  }
+  return driver_arena_buf();
   return ((uint8_t *)(0));
 }
 uint8_t * ew_module_buf(void) {
-  {
-    return driver_module_buf();
-  }
+  return driver_module_buf();
   return ((uint8_t *)(0));
 }
 void ew_pipeline_fail_code(int32_t rc, uint8_t * path) {
-  {
-    (void)(driver_pipeline_fail_code(rc, path));
-  }
+  (void)(driver_pipeline_fail_code(rc, path));
   (void)(0);
   return;
 }
 void ew_print_x_smoke_summary(uint8_t * module, size_t codegen_len) {
-  {
-    (void)(driver_print_x_smoke_summary(module, codegen_len));
-  }
+  (void)(driver_print_x_smoke_summary(module, codegen_len));
   (void)(0);
   return;
 }
 int32_t ew_set_path(uint8_t * path, int32_t path_len) {
-  {
-    return driver_run_x_emit_c_set_path(path, path_len);
-  }
+  return driver_run_x_emit_c_set_path(path, path_len);
   return 0;
 }
 int32_t ew_set_lib(int32_t i, uint8_t * buf, int32_t len) {
-  {
-    return driver_run_x_emit_c_set_lib(i, buf, len);
-  }
+  return driver_run_x_emit_c_set_lib(i, buf, len);
   return 0;
 }
 int32_t ew_set_n_lib_roots(int32_t n) {
-  {
-    return driver_run_x_emit_c_set_n_lib_roots(n);
-  }
+  return driver_run_x_emit_c_set_n_lib_roots(n);
   return 0;
 }
 int32_t ew_set_emit_extern(int32_t v) {
-  {
-    return driver_run_x_emit_c_set_emit_extern(v);
-  }
+  return driver_run_x_emit_c_set_emit_extern(v);
   return 0;
 }
 int32_t ew_run_x_emit_c(void) {
-  {
-    return driver_run_x_emit_c();
-  }
+  return driver_run_x_emit_c();
   return 0;
 }
 int32_t ew_append_lib_root(struct PipelineDepCtx * ctx, uint8_t * path, int32_t len) {
-  {
-    return ast_pipeline_ctx_append_lib_root(ctx, path, len);
-  }
+  return ast_pipeline_ctx_append_lib_root(ctx, path, len);
   return 0;
 }
 int32_t driver_run_x_emit_x(struct DriverXEmitState * state) {
@@ -336,9 +282,7 @@ int32_t driver_run_x_emit_x(struct DriverXEmitState * state) {
   size_t source_len = ((size_t)(out_len));
   uint8_t * prep_src = ew_preprocess_buf_ptr(&(ctx));
   int32_t rc = 0;
-  {
-    (void)((rc = pipeline_run_x_pipeline_impl(module_buf, arena_buf, prep_src, source_len, &(out), &(ctx))));
-  }
+  (void)((rc = pipeline_run_x_pipeline_impl(module_buf, arena_buf, prep_src, source_len, &(out), &(ctx))));
   if ((rc !=0)) {
     (void)(ew_pipeline_fail_code(rc, &(((ctx.path_buf))[0])));
     (void)(ew_free_source_buffers(&(ctx)));

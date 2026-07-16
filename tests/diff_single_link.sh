@@ -172,6 +172,10 @@ for entry in "${MODULES[@]}"; do
     driver_test_gen.c) rename_map="cmd_test:driver_cmd_test" ;;
     driver_build_gen.c) rename_map="cmd_build:build_cmd_build" ;;
     driver_run_gen.c) rename_map="run_eq_word:driver_run_eq_word,cmd_run:driver_cmd_run" ;;
+    # PLATFORM: SHARED — same maps as Makefile DRIVER_COMPILE_RENAME / DRIVER_EMIT_RENAME
+    # and g05 driver_leaf_x_to_o (product link symbols stay driver_* on cold seed).
+    driver_compile_gen.c) rename_map="compile_dispatch_asm_backend:driver_compile_dispatch_asm_backend,compile_dispatch_emit_c_path:driver_compile_dispatch_emit_c_path,eq_minus_o:driver_eq_minus_o,eq_minus_L:driver_eq_minus_L,eq_minus_backend:driver_eq_minus_backend,eq_minus_target:driver_eq_minus_target,eq_minus_target_cpu:driver_eq_minus_target_cpu,eq_print_target_cpu:driver_eq_print_target_cpu,eq_minus_O:driver_eq_minus_O,eq_flto:driver_eq_flto,eq_minus_freestanding:driver_eq_minus_freestanding,eq_legacy_f32_abi:driver_eq_legacy_f32_abi,eq_fsanitize_address:driver_eq_fsanitize_address,eq_asm_word:driver_eq_asm_word,eq_c_word:driver_eq_c_word,path_ends_x:driver_path_ends_x,target_has_arm:driver_target_has_arm,run_compiler_full_x_post_parse:driver_run_compiler_full_x_post_parse,run_compiler_full_x:driver_run_compiler_full_x" ;;
+    driver_emit_gen.c) rename_map="emit_copy_lib_roots_to_ctx:driver_emit_copy_lib_roots_to_ctx,run_x_emit_x:driver_run_x_emit_x,dispatch_x_emit_to_c:driver_dispatch_x_emit_to_c,emit_state_key:driver_emit_state_key,pipeline_dep_ctx_fill_for_emit:driver_pipeline_dep_ctx_fill_for_emit" ;;
   esac
   if [ -n "$rename_map" ]; then
     old_ifs="$IFS"
