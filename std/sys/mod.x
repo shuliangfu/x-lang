@@ -43,9 +43,9 @@ export const STDOUT_FD: i32 = 1;
 /** 标准错误 fd（POSIX）。 */
 export const STDERR_FD: i32 = 2;
 
-/** Linux write(2) freestanding 桩（compiler/src/asm/freestanding_io_x86_64.s）。 */
+/** Linux write(2) 桩（与 rt_preamble / freestanding_io 同 ABI：usize + isize）。 */
 #[cfg(target_os = "linux")]
-extern function shux_sys_write(fd: i32, buf: *u8, len: i32): i32;
+extern function shux_sys_write(fd: i32, buf: *u8, count: usize): isize;
 
 /**
  * v0：freestanding write 是否在 mod 层可用（Linux=1，macOS=0）。
@@ -77,7 +77,7 @@ export function write(fd: i32, buf: *u8, len: i32): i32 {
     return -1;
   }
   unsafe {
-    return shux_sys_write(fd, buf, len);
+    return shux_sys_write(fd, buf, len as usize) as i32;
   }
 }
 

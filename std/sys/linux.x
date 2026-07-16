@@ -28,8 +28,8 @@
 /** freestanding open(2) 桩（x86_64 legacy open，flags/mode 见 rdi/rsi/rdx）。 */
 extern function shux_sys_open(path: *u8, flags: i32, mode: i32): i32;
 
-/** freestanding read(2) 桩（x86_64 freestanding_io_x86_64.s）。 */
-extern function shux_sys_read(fd: i32, buf: *u8, len: i32): i32;
+/** freestanding/hosted read(2) 桩（与 rt_preamble / fs.posix / io.sync 同 ABI：usize + isize）。 */
+extern function shux_sys_read(fd: i32, buf: *u8, count: usize): isize;
 
 /** freestanding close(2) 桩。 */
 extern function shux_sys_close(fd: i32): i32;
@@ -37,8 +37,8 @@ extern function shux_sys_close(fd: i32): i32;
 /** freestanding exit(2) 桩（noreturn）。 */
 extern function shux_sys_exit(code: i32): void;
 
-/** freestanding write(2) 桩。 */
-extern function shux_sys_write(fd: i32, buf: *u8, len: i32): i32;
+/** freestanding/hosted write(2) 桩（与 preamble 同 ABI）。 */
+extern function shux_sys_write(fd: i32, buf: *u8, count: usize): isize;
 
 /** freestanding openat(2) 桩（x86_64 syscall 257）。 */
 extern function shux_sys_openat(dirfd: i32, path: *u8, flags: i32, mode: i32): i32;
@@ -154,7 +154,7 @@ export function linux_syscall_read(fd: i32, buf: *u8, len: i32): i32 {
     return -1;
   }
   unsafe {
-    return shux_sys_read(fd, buf, len);
+    return shux_sys_read(fd, buf, len as usize) as i32;
   }
 }
 
@@ -178,7 +178,7 @@ export function linux_syscall_write(fd: i32, buf: *u8, len: i32): i32 {
     return -1;
   }
   unsafe {
-    return shux_sys_write(fd, buf, len);
+    return shux_sys_write(fd, buf, len as usize) as i32;
   }
 }
 
@@ -265,7 +265,7 @@ export function linux_read_file_openat(dirfd: i32, path: *u8, buf: *u8, cap: i32
     let dst: *u8 = (buf as *u8) + total;
     let r: i32 = 0;
     unsafe {
-      r = shux_sys_read(fd, dst, chunk);
+      r = shux_sys_read(fd, dst, chunk as usize) as i32;
     }
     if (r < 0) {
       linux_syscall_close(fd);
@@ -313,7 +313,7 @@ export function linux_read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
     let dst: *u8 = (buf as *u8) + total;
     let r: i32 = 0;
     unsafe {
-      r = shux_sys_read(fd, dst, chunk);
+      r = shux_sys_read(fd, dst, chunk as usize) as i32;
     }
     if (r < 0) {
       linux_syscall_close(fd);
