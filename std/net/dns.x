@@ -86,9 +86,11 @@ let net_dns_wsa_done: i32 = 0;
 
 /**
  * Windows：一次性 WSAStartup。
+ * 不 export：同模块内部使用。产品轨对 `#[cfg] export function` 的 skip 仍不完整时，
+ * 无 export 才能可靠 cfg-skip，避免 Linux typeck 误检本函数（bstrict28 / §0.21）。
  */
 #[cfg(target_os = "windows")]
-export function net_dns_ensure_wsa_c(): i32 {
+function net_dns_ensure_wsa_c(): i32 {
   let rc: i32 = 0;
   if (net_dns_wsa_done != 0) {
     return 0;
@@ -172,9 +174,10 @@ export function net_dns_fill_hints_inet_c(hints: *u8, family: i32, flags: i32): 
 
 /**
  * Windows：解析前确保 WSA；非 Windows 恒为 0（顶层 cfg，避免函数体内 #[cfg] 触发 parse skip）。
+ * Windows 侧不 export（仅同文件调用）；跨平台对外符号由 not-windows 与各 resolve API 承担。
  */
 #[cfg(target_os = "windows")]
-export function net_dns_maybe_wsa_fail_c(): i32 {
+function net_dns_maybe_wsa_fail_c(): i32 {
   if (net_dns_ensure_wsa_c() != 0) {
     return -1;
   }
