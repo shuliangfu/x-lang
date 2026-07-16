@@ -6686,10 +6686,16 @@ SHUX_LIB_WEAK int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTAr
  }
     ++ti;
   }
-  /* dep module non-const top-level let init */
+  /* dep module non-const top-level let init（跳过 link_only：.o 权威、本 TU 无 static） */
   int32_t dep_i = 0;
   int32_t ndep = pipeline_dep_ctx_ndep(ctx);
   while (dep_i < ndep) {
+    uint8_t dep_lo_path[64] = { 0 };
+    int32_t dep_lo_len = codegen_dep_import_path_len_at(ctx, dep_i, (&((dep_lo_path)[0])));
+    if (dep_lo_len > 0 && pipeline_codegen_std_dep_link_only((&((dep_lo_path)[0]))) != 0) {
+      ++dep_i;
+      continue;
+    }
     struct ast_Module * dep_mod = pipeline_dep_ctx_module_at(ctx, dep_i);
     if (dep_mod != ((struct ast_Module *)(0))) {
       struct ast_ASTArena * dep_arena = pipeline_dep_ctx_arena_at(ctx, dep_i);
@@ -6727,12 +6733,19 @@ SHUX_LIB_WEAK int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTAr
  }
  }
  }
-  /* entry module with 0 own lets but dep has non-const lets: emit init_globals */
+  /* entry 无自有 let、但 dep 有非 const let：仅 co-emit dep 才并入 init_globals。
+   * link_only（预编 .o）dep 勿写 shu_heap_trace_* 等未在本 TU 声明的符号。 */
   if (dep_index < 0 && (module)->num_top_level_lets == 0) {
     int32_t dep_any = 0;
     int32_t dep_si = 0;
     int32_t dep_sn = pipeline_dep_ctx_ndep(ctx);
     while (dep_si < dep_sn) {
+      uint8_t dep_scan_path[64] = { 0 };
+      int32_t dep_scan_plen = codegen_dep_import_path_len_at(ctx, dep_si, (&((dep_scan_path)[0])));
+      if (dep_scan_plen > 0 && pipeline_codegen_std_dep_link_only((&((dep_scan_path)[0]))) != 0) {
+        ++dep_si;
+        continue;
+      }
       struct ast_Module * dsm = pipeline_dep_ctx_module_at(ctx, dep_si);
       if (dsm) { int32_t dt = 0; while (dt < (dsm)->num_top_level_lets) { if (pipeline_module_top_level_let_is_const(dsm, dt) == 0) { dep_any = 1; break; } ++dt; } }
       if (dep_any) break;
@@ -6745,6 +6758,12 @@ SHUX_LIB_WEAK int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTAr
       if (codegen_emit_bytes_3(out, br, 2) != 0) { return (-1); }
       int32_t di2 = 0;
       while (di2 < dep_sn) {
+        uint8_t dep_lo2[64] = { 0 };
+        int32_t dep_lo2_len = codegen_dep_import_path_len_at(ctx, di2, (&((dep_lo2)[0])));
+        if (dep_lo2_len > 0 && pipeline_codegen_std_dep_link_only((&((dep_lo2)[0]))) != 0) {
+          ++di2;
+          continue;
+        }
         struct ast_Module * dm2 = pipeline_dep_ctx_module_at(ctx, di2);
         if (dm2) {
           struct ast_ASTArena * da2 = pipeline_dep_ctx_arena_at(ctx, di2);

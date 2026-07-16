@@ -8799,6 +8799,12 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
           let dep_scan_i: i32 = 0;
           let dep_ndep: i32 = pipeline_dep_ctx_ndep(ctx);
           while (dep_scan_i < dep_ndep) {
+            let scan_path: u8[64] = [];
+            let scan_plen: i32 = codegen_dep_import_path_len_at(ctx, dep_scan_i, &scan_path[0]);
+            if (scan_plen > 0 && pipeline_codegen_std_dep_link_only(&scan_path[0]) != 0) {
+              dep_scan_i = dep_scan_i + 1;
+              continue;
+            }
             let dep_scan_mod: *Module = pipeline_dep_ctx_module_at(ctx, dep_scan_i);
             if (dep_scan_mod != 0 as *Module) {
               let dep_ti: i32 = 0;
@@ -8869,13 +8875,19 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
             ti = ti + 1;
           }
           /* dep 模块非 const 顶层 let：仅可执行入口（有 main）且 co-emit 时统一赋值。
-           * 库模块多文件编译不在此赋值（dep 未在本 TU 声明 static）。 */
+           * link_only 预编 .o 的 dep 不在本 TU 声明 static，禁止写 shu_heap_trace_*。 */
           let dep_i: i32 = 0;
           let ndep: i32 = 0;
           if (module.main_func_index >= 0) {
             ndep = pipeline_dep_ctx_ndep(ctx);
           }
           while (dep_i < ndep) {
+            let lo_path: u8[64] = [];
+            let lo_plen: i32 = codegen_dep_import_path_len_at(ctx, dep_i, &lo_path[0]);
+            if (lo_plen > 0 && pipeline_codegen_std_dep_link_only(&lo_path[0]) != 0) {
+              dep_i = dep_i + 1;
+              continue;
+            }
             let dep_mod: *Module = pipeline_dep_ctx_module_at(ctx, dep_i);
             if (dep_mod != 0 as *Module) {
               let dep_arena: *ASTArena = pipeline_dep_ctx_arena_at(ctx, dep_i);
