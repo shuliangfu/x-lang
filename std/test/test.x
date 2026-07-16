@@ -166,17 +166,20 @@ export function test_io_write_stderr(buf: *u8, len: i32): i32 {
   return 0;
 }
 
-/** 读 SHUX_FUZZ_SEED 或默认 0xABCDEF01。 */
+/** 读 SHUX_FUZZ_SEED 或默认 0xABCDEF01。
+ * PLATFORM: SHARED — 大十六进制字面量 typeck 为 i64；返回 u32 必须 `as u32`
+ *（mac arm64 冷 typeck 硬失败；Ubuntu 曾宽松放过，双端须同一写法）。 */
 export function test_fuzz_seed_c(): u32 {
   let key: u8[15] = [83, 72, 85, 88, 95, 70, 85, 90, 90, 95, 83, 69, 69, 68, 0];
   let buf: u8[64];
   let n: i32 = 0;
+  let v: u32 = 0;
   unsafe { n = env_getenv_c(&key[0], 14, &buf[0], 64); }
   if (n > 0) {
-    unsafe { return strtoul(&buf[0], 0, 0); }
-  return 0 as u32; // unreachable — typeck workaround
+    unsafe { v = strtoul(&buf[0], 0 as *u8, 0); }
+    return v;
   }
-  return 0xABCDEF01;
+  return 0xABCDEF01 as u32;
 }
 
 /** 写 bench 报告行：shux: [SHUX_BENCH] name=… ns=… */
