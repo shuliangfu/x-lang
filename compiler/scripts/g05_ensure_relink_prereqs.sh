@@ -27,7 +27,8 @@ CC="${G05_CC:-cc}"
 BASE_CFLAGS="-Wall -Wextra -I. -Iinclude -Isrc"
 # 与 Makefile RUNTIME_DRIVER_NO_C_CFLAGS 一致（runtime.c → runtime_driver_no_c.o）
 # Cap residual 数据在 RT_SEED_SLICE_OBJS（g05_relink_env）；runtime 开 SHUX_RT_*_FROM_X。
-RUNTIME_DRIVER_NO_C_CFLAGS="-DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_PREPROCESS -DSHUX_USE_X_TYPECK -DSHUX_USE_X_CODEGEN -DSHUX_NO_C_FRONTEND -DSHUX_ASM_USE_COMPILER_IMPL_C -DSHUX_RT_ARENA_BUF_FROM_X -DSHUX_RT_EMIT_STATE_FROM_X -DSHUX_RT_PREAMBLE_FROM_X -DSHUX_RT_STACK_FROM_X"
+# 须含 PARSE_DIAG_FROM_X：parse_diag 只在 src/runtime/rt_parse_diag.o，禁止再 merge 进 no_c（否则 Darwin 双符号）。
+RUNTIME_DRIVER_NO_C_CFLAGS="-DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_PREPROCESS -DSHUX_USE_X_TYPECK -DSHUX_USE_X_CODEGEN -DSHUX_NO_C_FRONTEND -DSHUX_ASM_USE_COMPILER_IMPL_C -DSHUX_RT_ARENA_BUF_FROM_X -DSHUX_RT_EMIT_STATE_FROM_X -DSHUX_RT_PREAMBLE_FROM_X -DSHUX_RT_STACK_FROM_X -DSHUX_RT_PARSE_DIAG_FROM_X"
 
 if [ ! -f "${G05_BOOTSTRAP:-bootstrap_shuxc}" ] && [ ! -f shux ] && [ ! -f shux-c ]; then
   echo "g05_ensure_relink_prereqs: missing bootstrap binary (bootstrap_shuxc/shux/shux-c)" >&2
@@ -1386,28 +1387,11 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       fi
       if [ "$_rt_done" = "0" ]; then
         # PREFER_X_O=0 / hybrid 失败回退：runtime.from_x.c 单 TU。
-        # multi-error recovery 权威在 seeds/rt_parse_diag.from_x.c（always-linked 段）；
-        # 不 merge 该 slice 时 shux check multi_error_* 会假绿 exit 0。
-        # 用 -DSHUX_RT_PARSE_DIAG_FROM_X 只取 recovery（precise 已在 main TU）。
+        # multi-error recovery 权威在 seeds/rt_parse_diag.from_x.c → 单独链 rt_parse_diag.o
+        # （g05_relink_env RT_SEED_SLICE）；NO_C 已带 SHUX_RT_PARSE_DIAG_FROM_X，禁止再 merge。
         echo "g05_ensure: runtime_driver_no_c.o ← seed + NO_C (G-02f-14)"
-        _rt_main_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_main.XXXXXX") || true
-        _rt_pd_rec_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_pd_rec.XXXXXX") || true
-        _rt_fallback_ok=0
-        if [ -n "$_rt_main_o" ] && [ -n "$_rt_pd_rec_o" ] && [ -f "$_rt_parse_diag_seed" ]; then
-          # shellcheck disable=SC2086
-          if $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_main_o" "$_rt" \
-            && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_RT_PARSE_DIAG_FROM_X \
-                 -c -o "$_rt_pd_rec_o" "$_rt_parse_diag_seed" \
-            && $CC -r -nostdlib -o "$_rt_o" "$_rt_main_o" "$_rt_pd_rec_o" 2>/dev/null; then
-            _rt_fallback_ok=1
-            echo "g05_ensure: + parse_diag recovery (PREFER_X_O=0 / multi-error check gate)"
-          fi
-        fi
-        if [ "$_rt_fallback_ok" = "0" ]; then
-          # shellcheck disable=SC2086
-          $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_o" "$_rt"
-        fi
-        rm -f "$_rt_main_o" "$_rt_pd_rec_o"
+        # shellcheck disable=SC2086
+        $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_o" "$_rt"
       fi
     fi
   fi

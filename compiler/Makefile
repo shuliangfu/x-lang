@@ -32,11 +32,12 @@ endif
 # 宿主 OS/架构（runtime_panic / freestanding / crt0 规则共用）
 UNAME_S := $(shell uname -s 2>/dev/null || echo Unknown)
 UNAME_M := $(shell uname -m 2>/dev/null || echo unknown)
+# Product pin seeds (*.linux.x86_64.c) are host-portable generated C (not machine code).
+# Cold start on Darwin/Windows must fall back to these when local -E fails (old bootstrap_shuxc
+# typeck/unsafe lag). Historically gated to Linux host only → mac cold bootstrap-driver-seed red.
 SEED_LINUX_X86_64_OK := 0
-ifeq ($(UNAME_S),Linux)
-  ifneq (,$(filter x86_64 amd64,$(UNAME_M)))
+ifneq ($(wildcard seeds/parser_gen.linux.x86_64.c),)
   SEED_LINUX_X86_64_OK := 1
-  endif
 endif
 ALPINE := $(shell test -f /etc/alpine-release && echo 1)
 # Darwin：ld -r 须显式 -arch（与 cc 默认 triple 一致）。
