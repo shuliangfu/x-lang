@@ -1614,12 +1614,18 @@ ensure_pipeline_o_strict_link_partial_obj() {
   if [ -f "$SYMS" ] && grep -qE '_pipeline_should_skip_x_typeck|pipeline_should_skip_x_typeck' "$SYMS" 2>/dev/null; then
   rm -f "$PARTIAL" "$SYMS"
   fi
+  # Stale: T-only export dropped X weak resolve_path_* (WPO bridge UNDEF).
+  if [ -f "$SYMS" ] && ! grep -qxF 'pipeline_resolve_path_try_one_lib_root' "$SYMS" 2>/dev/null; then
+  build_shux_asm_warn "stale pipeline_strict_link export (missing W resolve_path); regen"
+  rm -f "$SYMS" "$PARTIAL"
+  fi
   if [ ! -f "$SYMS" ] || [ "$0" -nt "$SYMS" ] || [ "$PO" -nt "$SYMS" ] || [ "ast_pool.c" -nt "$SYMS" ] || \
   { [ -f "$WPO_E" ] && [ "$WPO_E" -nt "$SYMS" ]; } || \
   { [ -f "$BUILD_DIR/pipeline_x_glue_support_export.txt" ] && [ "$BUILD_DIR/pipeline_x_glue_support_export.txt" -nt "$SYMS" ]; }; then
-  nm "$PO" 2>/dev/null | awk '/ T / {print $3}' | grep -vE \
+  # PLATFORM: SHARED — pipeline.x emits resolve_path helpers as weak (W); bridge needs them.
+  nm "$PO" 2>/dev/null | awk '/ [TW] / {print $3}' | grep -vE \
   '_run_x_pipeline_(impl|parse_entry_do_parse|parse_entry_if_needed|typecheck_entry)$|^_?(parse_into_with_init_buf|parse_into_with_init|pipeline_run_x_pipeline_impl|pipeline_should_skip_x_typeck|preprocess_if_stack_.*|backend_ctx_push_loop_labels|backend_ctx_pop_loop_labels|backend_try_fold_count_up_while_elf)$' \
-  >"$SYMS"
+  | sort -u >"$SYMS"
   # S5 WPO：pipeline_wpo.o / helpers partial 已定义的符号须从 partial 剔除，避免 multiple definition。
   if [ "${STRICT_LINK_BUILD_ASM_WPO:-0}" -eq 1 ] && asm_pipeline_wpo_strict_reach_ok; then
   if asm_pipeline_wpo_strict_link_full_ok; then
@@ -1632,6 +1638,7 @@ ensure_pipeline_o_strict_link_partial_obj() {
   fi
   if [ -s "$BUILD_DIR/.pipeline_wpo_export_syms.txt" ]; then
   sort -u "$BUILD_DIR/.pipeline_wpo_export_syms.txt" -o "$BUILD_DIR/.pipeline_wpo_export_syms.txt"
+  sort -u "$SYMS" -o "$SYMS"
   comm -23 "$SYMS" "$BUILD_DIR/.pipeline_wpo_export_syms.txt" >"$SYMS.wpo" 2>/dev/null && mv -f "$SYMS.wpo" "$SYMS"
   echo " pipeline_strict_link: minus pipeline_wpo exports ($(wc -l <"$BUILD_DIR/.pipeline_wpo_export_syms.txt" | tr -d ' ') syms)"
   fi

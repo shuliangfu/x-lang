@@ -336,12 +336,19 @@ ensure_pipeline_o_strict_link_partial_obj() {
   rm -f "$PARTIAL" "$SYMS"
   fi
   rebuild_pipeline_o_wpo_strict_helpers_if_needed || true
+  # Stale: T-only export dropped X weak resolve_path_* (WPO bridge UNDEF).
+  if [ -f "$SYMS" ] && ! grep -qxF 'pipeline_resolve_path_try_one_lib_root' "$SYMS" 2>/dev/null; then
+  strict_glue_warn "stale pipeline_strict_link export (missing W resolve_path); regen"
+  rm -f "$SYMS" "$PARTIAL"
+  fi
   if [ ! -f "$SYMS" ] || [ "$0" -nt "$SYMS" ] || [ "$PO" -nt "$SYMS" ] || [ "ast_pool.c" -nt "$SYMS" ] || \
   { [ -f "$WPO_E" ] && [ "$WPO_E" -nt "$SYMS" ]; } || \
   { [ -f "$BUILD_DIR/.pipeline_glue_strict_minimal_export_syms.txt" ] && [ "$BUILD_DIR/.pipeline_glue_strict_minimal_export_syms.txt" -nt "$SYMS" ]; }; then
-  nm "$PO" 2>/dev/null | awk '/ T / {print $3}' | grep -vE \
+  # PLATFORM: SHARED — pipeline.x emits resolve_path helpers as weak (W); bridge needs them.
+  # T-only export dropped pipeline_resolve_path_try_one_lib_root → UNDEF from typecheck emit bridge.
+  nm "$PO" 2>/dev/null | awk '/ [TW] / {print $3}' | grep -vE \
   '^(_)?(run_x_pipeline_(impl|parse_entry_do_parse|parse_entry_if_needed|typecheck_entry)|parse_into_with_init_buf|parse_into_with_init|pipeline_run_x_pipeline_impl|preprocess_if_stack_.*|backend_ctx_push_loop_labels|backend_ctx_pop_loop_labels|backend_try_fold_count_up_while_elf)$' \
-  >"$SYMS"
+  | sort -u >"$SYMS"
   if [ "${STRICT_LINK_BUILD_ASM_WPO:-0}" -eq 1 ] && asm_pipeline_wpo_strict_reach_ok; then
   if asm_pipeline_wpo_strict_link_full_ok; then
   nm "$WPO_E" 2>/dev/null | awk '/ T / {print $3}' | sort -u >"$BUILD_DIR/.pipeline_wpo_export_syms.txt"
@@ -353,15 +360,18 @@ ensure_pipeline_o_strict_link_partial_obj() {
   fi
   if [ -s "$BUILD_DIR/.pipeline_wpo_export_syms.txt" ]; then
   sort -u "$BUILD_DIR/.pipeline_wpo_export_syms.txt" -o "$BUILD_DIR/.pipeline_wpo_export_syms.txt"
+  sort -u "$SYMS" -o "$SYMS"
   comm -23 "$SYMS" "$BUILD_DIR/.pipeline_wpo_export_syms.txt" >"$SYMS.wpo" 2>/dev/null && mv -f "$SYMS.wpo" "$SYMS"
   echo " pipeline_strict_link: minus pipeline_wpo exports ($(wc -l <"$BUILD_DIR/.pipeline_wpo_export_syms.txt" | tr -d ' ') syms)"
   fi
   fi
   if ensure_pipeline_glue_strict_minimal_export_syms_txt; then
+  sort -u "$SYMS" -o "$SYMS"
+  sort -u "$BUILD_DIR/.pipeline_glue_strict_minimal_export_syms.txt" -o "$BUILD_DIR/.pipeline_glue_strict_minimal_export_syms.txt"
   comm -23 "$SYMS" "$BUILD_DIR/.pipeline_glue_strict_minimal_export_syms.txt" >"$SYMS.strict_minimal" 2>/dev/null \
   && mv -f "$SYMS.strict_minimal" "$SYMS"
   fi
-  strict_glue_info "nm pipeline.o -> $SYMS ($(wc -l <"$SYMS" | tr -d ' ') symbols, minus parse/typecheck/impl entry)"
+  strict_glue_info "nm pipeline.o -> $SYMS ($(wc -l <"$SYMS" | tr -d ' ') symbols T+W, minus parse/typecheck/impl entry)"
   fi
   if [ ! -s "$SYMS" ]; then
   strict_glue_error "pipeline_strict_link has 0 symbols after WPO subtract; cannot build partial"
@@ -1068,6 +1078,7 @@ if [ ! -f "$BUILD_DIR/pipeline_glue_strict_minimal.o" ] || [ "seeds/pipeline_glu
   strict_glue_info "cc seeds/pipeline_glue_strict_minimal.from_x.c → pipeline_glue_strict_minimal.o (G-02f-11)"
   $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/pipeline_glue_strict_minimal.from_x.c -o "$BUILD_DIR/pipeline_glue_strict_minimal.o"
 fi
+ST_MINIMAL_GLUE_COMPANION=""
 if asm_strict_typeck_x_glue_via_pipeline_x; then
   ST_GLUE_OBJ="$BUILD_DIR/pipeline_glue_strict_minimal.o"
   strict_glue_info "ST_GLUE glue_strict_minimal + pipeline_x glue support (X orch)"
@@ -1075,6 +1086,13 @@ else
   strict_glue_info "cc pipeline_glue_standalone.o <- ast_pool.c"
   sh scripts/cc_inc_tu.sh seeds/pipeline_glue_standalone.from_x.c "$BUILD_DIR/pipeline_glue_standalone.o" $PIPELINE_GEN_CFLAGS -I"$BUILD_DIR"
   ST_GLUE_OBJ="$BUILD_DIR/pipeline_glue_standalone.o"
+  # PLATFORM: SHARED — match build_shux_asm BSTRICT_MINIMAL_GLUE_COMPANION (Linux).
+  # typeck_x.o (non-selfhosted path) UNDEFs pipeline_typeck_*_strict_minimal; standalone
+  # does not define them. Darwin skips companion (multiply_defined / filtered complement).
+  if [ "$(uname -s 2>/dev/null)" != "Darwin" ] && [ -f "$BUILD_DIR/pipeline_glue_strict_minimal.o" ]; then
+  ST_MINIMAL_GLUE_COMPANION="$BUILD_DIR/pipeline_glue_strict_minimal.o"
+  strict_glue_info "companion pipeline_glue_strict_minimal.o (typeck_x *_strict_minimal)"
+  fi
 fi
 
 # 收集非空 build_asm/*.o 并经 filter_strict_asm_objs 筛选（与 build_shux_asm strict 链一致）。
@@ -1787,6 +1805,28 @@ if [ -f "$BUILD_DIR/backend_x86_64_enc_c.o" ]; then
 fi
 ST_STRICT_COMPANIONS="$ST_STRICT_COMPANIONS $ST_X86_64_ENC_FALLBACK"
 
+# PLATFORM: SHARED — RT Cap residual slices (Makefile RT_SEED_SLICE_OBJS); product
+# g05/build_shux_asm links them via asm_bootstrap_support_extra_link. runtime_driver_abi
+# needs driver_preamble_fs_path_lines{,_n} from rt_preamble.o.
+ensure_rt_seed_slice_objs() {
+  local pair src o
+  for pair in \
+    "seeds/rt_arena_buf.from_x.c:src/runtime/rt_arena_buf.o" \
+    "seeds/rt_emit_state.from_x.c:src/runtime/rt_emit_state.o" \
+    "seeds/rt_preamble.from_x.c:src/runtime/rt_preamble.o" \
+    "seeds/rt_stack.from_x.c:src/runtime/rt_stack.o" \
+    "seeds/rt_parse_diag.from_x.c:src/runtime/rt_parse_diag.o"; do
+  src="${pair%%:*}"
+  o="${pair##*:}"
+  if [ ! -f "$o" ] || [ "$src" -nt "$o" ]; then
+  strict_glue_info "cc -c $o <- $src (RT seed slice)"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c "$src" -o "$o"
+  fi
+  done
+}
+ensure_rt_seed_slice_objs
+ST_RT_SEED_SLICES="src/runtime/rt_arena_buf.o src/runtime/rt_emit_state.o src/runtime/rt_preamble.o src/runtime/rt_stack.o src/runtime/rt_parse_diag.o"
+
 strict_glue_info "linking shux_asm.strict_glue (glue_standalone + build_asm pipeline.o ...)"
 dbg_event C "begin link-phase setup"
 # Linux strict 链：runtime_panic + liburing（与 build_shux_asm PIPELINE_LIBS 一致）。
@@ -1838,6 +1878,8 @@ LINK_START_S=$(date +%s 2>/dev/null || echo 0)
   "$BUILD_DIR/runtime_driver_strict_glue_stubs.o" \
   $ST_RUNTIME_PANIC \
   "$ST_GLUE_OBJ" \
+  $ST_MINIMAL_GLUE_COMPANION \
+  $ST_RT_SEED_SLICES \
   $ASM_TRY_OBJS \
   $PARSER_ASM_PARTIAL \
   "$PARSER_ASM_THIN_C" \
