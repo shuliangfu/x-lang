@@ -6,6 +6,8 @@
  *   + debug_log/parser_diag + typeck_block/fn/var debug + scratch BSS
  * Cap residual: snprintf/va_list _impl 在 rest
  * Regen: ./shux -E ... thin.x | filter DBG + g05 prologue polish
+ * Track-L (2026-07-16): drop driver_env_flag_truthy body — authority is runtime_driver_abi_thin
+ *   (.x already extern-only; surface had stale dual-def residual after Cap-T001)
  */
 /* g05_try_x_to_o prologue (G-02f-332/334) */
 #include <stddef.h>
@@ -106,22 +108,7 @@ static void init_globals(void) {
   g_type_diag_scratch_expect = (uint8_t[]){ };
   g_type_diag_scratch_found = (uint8_t[]){ };
 }
-int32_t driver_env_flag_truthy(uint8_t * name) {
-  {
-    uint8_t * e = getenv(name);
-    if ((e ==((uint8_t *)(0)))) {
-      return 0;
-    }
-    if (((e)[0] ==0)) {
-      return 0;
-    }
-    if (((e)[0] ==48)) {
-      return 0;
-    }
-    return 1;
-  }
-  return 0;
-}
+/* driver_env_flag_truthy: extern-only (see header Track-L note); no body here. */
 extern void driver_diagnostic_after_entry_parse_module_impl(uint8_t * module);
 extern void driver_diagnostic_asm_fail_at_impl(int32_t loc);
 extern void driver_diagnostic_asm_print_current_func_impl(void);
