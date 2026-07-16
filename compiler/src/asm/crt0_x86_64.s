@@ -21,8 +21,10 @@ _start:
 	mov	%r12d, %edi
 	mov	%r13, %rsi
 	call	main_entry
+	/* 【Why 2026-07-16】不可直接 SYS_exit：seed 动态链 glibc 时 fwrite(stdout)
+	 * 走 glibc 缓冲；未 fflush 则 -E 等大输出在 ~缓冲边界截断（udp 冷链 24KiB 假截断）。
+	 * bootstrap_flush_stdio_and_exit 先 fflush(stdout/stderr) 再 sys_exit。 */
 	mov	%eax, %edi
-	mov	$60, %eax
-	syscall
+	call	bootstrap_flush_stdio_and_exit
 1:	jmp	1b
 	.size	_start, .-_start

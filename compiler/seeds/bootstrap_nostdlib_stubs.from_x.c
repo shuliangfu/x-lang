@@ -480,9 +480,11 @@ char *strdup(const char *s) {
     return p;
 }
 
-/** 进程退出；转 shux_sys_exit。 */
+void bootstrap_flush_stdio_and_exit(int code);
+
+/** 进程退出；先 flush stdio（与 crt0 同源），再 sys_exit。 */
 void exit(int code) {
-    shux_sys_exit(code);
+    bootstrap_flush_stdio_and_exit(code);
 }
 
 /**
@@ -1500,10 +1502,26 @@ void *__memcpy_chk(void *dest, const void *src, size_t len, size_t destlen) {
   return memcpy(dest, src, len);
 }
 
-/** 刷新流；bootstrap 无用户缓冲，恒成功。 */
-int fflush(FILE *stream) {
-  (void)stream;
-  return 0;
+/**
+ * 刷新流。
+ * 【Why 2026-07-16】不可再提供恒成功 no-op：seed 常动态链 glibc，stdout 写走 glibc fwrite
+ * 缓冲；若本 TU 强符号 fflush 盖掉 glibc，crt0 又直接 sys_exit，则 -E 等大输出尾部丢失
+ * （Linux 冷链 std/net/udp.x → 恰截在 24KiB）。不定义本符号时链接器用 glibc fflush。
+ * 纯 nostdlib 无缓冲路径不依赖 fflush。
+ */
+/* int fflush(FILE *stream); — 有 libc 时用 glibc；勿在此 no-op 盖掉 */
+
+/**
+ * crt0 在 main_entry 返回后调用：fflush 标准流再 sys_exit。
+ * 声明 glibc fflush（若本闭包无定义则 U 解析到 libc）。
+ */
+extern int fflush(FILE *stream);
+void bootstrap_flush_stdio_and_exit(int code) {
+  if (stdout)
+    (void)fflush(stdout);
+  if (stderr)
+    (void)fflush(stderr);
+  shux_sys_exit(code);
 }
 
 /** 写单字符到流。 */
