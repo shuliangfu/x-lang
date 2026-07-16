@@ -317,16 +317,26 @@ for script in "${BSTRICT_SCRIPTS[@]}"; do
       # struct/field-index 等 asm -o 用 shux-c 易 SIGSEGV；与 run-struct 一致走 stage2 asm。
       script_link="$script_shu"
       ;;
-    run-typeck.sh|run-check.sh|run-lexer.sh)
-      # typeck/check/lexer 验收产品 SHUX（bstrict 已 cp shux_asm→shux）。
-      # 勿因脚本内出现 `-o` 字样就改绑 pin shux-c（冷启动后 shux-c 常为空诊断/seed 拷贝）。
+    run-typeck.sh|run-check.sh|run-lexer.sh|run-stdlib-import.sh|run-import.sh|run-hello.sh|run-option.sh|run-defer.sh|run-crypto.sh)
+      # 产品冷链验收：保留 script_shu=产品 shux（bstrict 已 cp shux_asm→shux）。
+      # 禁止因脚本含 `-o` 就改绑 pin shux-c（CHK001 / 空产物假红）。
+      script_link="${SHUX_LINK_SHUX:-$script_shu}"
       ;;
     *)
-      # 仍直接用 $SHUX -o 且未 source bootstrap-link-shux 的脚本：refresh 后 seed shux asm 不可用。
+      # 历史：未 source bootstrap-link 且含 -o 时改绑 shux-c。
+      # 产品冷链默认已把 SHUX_LINK_SHUX 指到 shux_asm；仅当 link 仍是 pin 且脚本明确需要时才改。
       if [ -x ./compiler/shux-c ] && grep -qE '[[:space:]]-o[[:space:]]' "tests/$script" \
          && ! grep -q 'bootstrap-link-shux' "tests/$script"; then
-        script_shu=./compiler/shux-c
-        script_link=./compiler/shux-c
+        case "$(basename "${SHUX_LINK_SHUX:-}")" in
+          shux-c)
+            script_shu=./compiler/shux-c
+            script_link=./compiler/shux-c
+            ;;
+          *)
+            # 产品 link 宿主：保持 script_shu（shux_asm 拷贝）
+            script_link="${SHUX_LINK_SHUX:-$script_shu}"
+            ;;
+        esac
       fi
       ;;
   esac

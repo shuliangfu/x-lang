@@ -8,19 +8,32 @@ cd "$(dirname "$0")/.."
 
 # 可执行链接优先 shux-c；无 shux-c 时回退 SHU / shux。
 stdlib_import_pick_link_shu() {
-  if [ -x ./compiler/shux-c ]; then
-    echo "./compiler/shux-c"
-    return 0
+  # 产品冷链：优先 SHUX / SHUX_LINK_SHUX（shux_asm）；勿默认 pin shux-c
+  if [ -n "${SHUX_LINK_SHUX:-}" ] && [ -x "${SHUX_LINK_SHUX}" ]; then
+    case "$(basename "$SHUX_LINK_SHUX")" in
+      shux-c) ;;
+      *) echo "$SHUX_LINK_SHUX"; return 0 ;;
+    esac
   fi
   if [ -n "${SHUX:-}" ] && [ -x "$SHUX" ]; then
-    echo "$SHUX"
+    case "$(basename "$SHUX")" in
+      shux-c) ;;
+      *) echo "$SHUX"; return 0 ;;
+    esac
+  fi
+  if [ -x ./compiler/shux_asm ]; then
+    echo "./compiler/shux_asm"
     return 0
   fi
   if [ -x ./compiler/shux ]; then
     echo "./compiler/shux"
     return 0
   fi
-  echo "./compiler/shux-c"
+  if [ -x ./compiler/shux-c ]; then
+    echo "./compiler/shux-c"
+    return 0
+  fi
+  echo "./compiler/shux"
 }
 
 if [ -n "$SHUX" ]; then
@@ -34,12 +47,20 @@ else
   SHUX=./compiler/shux-c
 fi
 
-# typeck / 烟测：跨平台以 shux-c 为准（bootstrap shux 对 core.option 等 dep 可能误报）
+# typeck / 烟测：产品冷链用 SHUX；仅 RUN_ALL_USE_C 时绑 shux-c
 CHECK_SHUX="$SHUX"
-if [ -x ./compiler/shux-c ]; then
+if [ -n "${RUN_ALL_USE_C:-}" ] && [ -x ./compiler/shux-c ]; then
   CHECK_SHUX=./compiler/shux-c
 fi
 LINK_SHUX="$(stdlib_import_pick_link_shu)"
+# 产品 -o 默认 -backend c（Linux asm 不完整）
+STDLIB_IMPORT_BACKEND=""
+case "$(basename "$LINK_SHUX")" in
+  shux|shux_asm|shux_asm2|shux_asm_stage1)
+    STDLIB_IMPORT_BACKEND="${SHUX_FORCE_LINK_BACKEND:+-backend $SHUX_FORCE_LINK_BACKEND}"
+    [ -n "$STDLIB_IMPORT_BACKEND" ] || STDLIB_IMPORT_BACKEND="-backend c"
+    ;;
+esac
 
 # main.x 不 import std.process；process.o 需 asm backend，arm64 shux-c 上可选。
 make -C compiler -q ../std/process/process.o 2>/dev/null \
@@ -76,8 +97,8 @@ fi
 if [ "$LINK_SHUX" != "$CHECK_SHUX" ] && [ -n "$LINK_SHUX" ]; then
   echo "stdlib-import: link via $(basename "$LINK_SHUX") (check via $(basename "$CHECK_SHUX"))"
 fi
-if ! $LINK_SHUX -L . tests/stdlib-import/main.x -o /tmp/shux_stdlib_import >/dev/null 2>&1; then
-  echo "stdlib-import: compile failed (link via ${LINK_SHUX##*/})" >&2
+if ! $LINK_SHUX $STDLIB_IMPORT_BACKEND -L . tests/stdlib-import/main.x -o /tmp/shux_stdlib_import >/dev/null 2>&1; then
+  echo "stdlib-import: compile failed (link via ${LINK_SHUX##*/} $STDLIB_IMPORT_BACKEND)" >&2
   exit 1
 fi
 /tmp/shux_stdlib_import
