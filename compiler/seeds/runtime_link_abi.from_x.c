@@ -4217,10 +4217,17 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
                         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, reo);
                 }
             }
+            /* PLATFORM: SHARED — cold tree often lacks runtime_sync_*.o; push_existing alone
+             * is a silent no-op when missing → U sync_mutex_*_c from sync.o (mac bstrict).
+             * Authority: ensure (same as process_argv / net glue) then push. */
             if (need_sync && invoke_cc_argv_push_existing(argv, &i, argv_cap, sync_o)) {
-                const char *rsld = shux_runtime_sync_lock_diag_tls_o_path(NULL);
-                if (rsld && rsld[0])
-                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rsld);
+                (void)shux_ensure_runtime_sync_lock_diag_tls_o(NULL);
+                {
+                    const char *rsld = shux_runtime_sync_lock_diag_tls_o_path(NULL);
+                    if (rsld && rsld[0])
+                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rsld);
+                }
+                (void)shux_ensure_runtime_sync_os_o(NULL);
                 {
                     const char *rso = shux_runtime_sync_os_o_path(NULL);
                     if (rso && rso[0])
@@ -6188,10 +6195,14 @@ void shux_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *us
                     && !shux_link_obj_needs_undef_sym(user_o, "thread_create_c")
                     && !shux_link_obj_needs_undef_sym(user_o, "thread_join_c"))
                     break;
+                /* PLATFORM: SHARED — gate names must match std/sync export symbols
+                 * (std_sync_lock / std_sync_new_mutex / …), not stale mutex_* mangling.
+                 * Wrong probes → never push sync.o → never set have_sync → glue ensure skipped. */
                 if (fk == 3 /* sync */
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_sync_mutex_lock")
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_sync_mutex_new")
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_sync_condvar_wait")
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_sync_lock")
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_sync_new_mutex")
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_sync_try_lock")
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_sync_wait")
                     && !shux_link_obj_needs_undef_sym(user_o, "sync_mutex_lock_c"))
                     break;
                 if (fk == 6 /* atomic */
