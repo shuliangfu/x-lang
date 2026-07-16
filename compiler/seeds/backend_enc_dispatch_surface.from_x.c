@@ -5,6 +5,7 @@
  * R2: full.x 吃满 enc/ta 公共业务；FROM_X rest 仅 slice_marker（业务 H=0）
  * Prove: full.x vs this seed → nm IDENTICAL
  * Regen: ./shux -E ... src/asm/backend_enc_dispatch.x | filter DBG + polish prologue
+ * Track-L (2026-07-16): riscv call/mov_rax_to_arg_reg 对齐 .x #[no_mangle] 短名（去 type-suffix mangle 快照）
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -138,8 +139,8 @@ extern int32_t arch_arm64_enc_enc_add_sp_imm12(uint8_t * elf_ctx, int32_t imm);
 extern int32_t arch_arm64_enc_enc_sub_sp_imm12(uint8_t * elf_ctx, int32_t imm);
 extern int32_t arch_arm64_enc_enc_str_x0_sp_offset(uint8_t * elf_ctx, int32_t off_bytes);
 extern int32_t arch_arm64_enc_enc_call(uint8_t * elf_ctx, uint8_t * name, int32_t name_len);
-extern int32_t arch_riscv64_enc_enc_call_u8_ptr_u8_ptr_i32_reti32(uint8_t * elf_ctx, uint8_t * name, int32_t name_len);
-extern int32_t arch_riscv64_enc_enc_mov_rax_to_arg_reg_u8_ptr_i32_reti32(uint8_t * elf_ctx, int32_t k);
+extern int32_t arch_riscv64_enc_enc_call(uint8_t * elf_ctx, uint8_t * name, int32_t name_len);
+extern int32_t arch_riscv64_enc_enc_mov_rax_to_arg_reg(uint8_t * elf_ctx, int32_t k);
 extern int32_t backend_enc_append_u8_c(uint8_t * elf_ctx, int32_t byte);
 extern int32_t arch_x86_64_enc_enc_cdqe_rax(uint8_t * elf_ctx);
 int32_t backend_enc_dispatch_x_doc_anchor(void) {
@@ -390,7 +391,7 @@ extern int32_t arch_riscv64_enc_enc_add_imm_to_rax(uint8_t * elf_ctx, int32_t im
 extern int32_t arch_riscv64_enc_enc_add_imm_to_rbx(uint8_t * elf_ctx, int32_t imm);
 extern int32_t arch_riscv64_enc_enc_add_rax_rbx(uint8_t * elf_ctx);
 extern int32_t arch_riscv64_enc_enc_and_rbx_rax(uint8_t * elf_ctx);
-extern int32_t arch_riscv64_enc_enc_call_u8_ptr_u8_ptr_i32_reti32(uint8_t * elf_ctx, uint8_t * name, int32_t name_len);
+extern int32_t arch_riscv64_enc_enc_call(uint8_t * elf_ctx, uint8_t * name, int32_t name_len);
 extern int32_t arch_riscv64_enc_enc_cltd(uint8_t * elf_ctx);
 extern int32_t arch_riscv64_enc_enc_cmp_rbx_rax(uint8_t * elf_ctx);
 extern int32_t arch_riscv64_enc_enc_cmp_setcc_movzbl(uint8_t * elf_ctx, int32_t cc);
@@ -411,7 +412,7 @@ extern int32_t arch_riscv64_enc_enc_load_zext8_from_rax(uint8_t * elf_ctx);
 extern int32_t arch_riscv64_enc_enc_mov_edx_to_eax(uint8_t * elf_ctx);
 extern int32_t arch_riscv64_enc_enc_mov_imm32_to_rbx(uint8_t * elf_ctx, int32_t imm32);
 extern int32_t arch_riscv64_enc_enc_mov_imm64_to_rax(uint8_t * elf_ctx, int32_t lo, int32_t hi);
-extern int32_t arch_riscv64_enc_enc_mov_rax_to_arg_reg_u8_ptr_i32_reti32(uint8_t * elf_ctx, int32_t k);
+extern int32_t arch_riscv64_enc_enc_mov_rax_to_arg_reg(uint8_t * elf_ctx, int32_t k);
 extern int32_t arch_riscv64_enc_enc_mov_rax_to_rbx(uint8_t * elf_ctx);
 extern int32_t arch_riscv64_enc_enc_mov_rbx_to_ecx(uint8_t * elf_ctx);
 extern int32_t arch_riscv64_enc_enc_mov_rbx_to_rax(uint8_t * elf_ctx);
@@ -1011,7 +1012,7 @@ int32_t backend_enc_mov_rax_to_arg_reg_arch(uint8_t * elf_ctx, int32_t k, int32_
     return arch_arm64_enc_enc_mov_rax_to_arg_reg(elf_ctx, k);
   }
   if ((ta ==2)) {
-    return arch_riscv64_enc_enc_mov_rax_to_arg_reg_u8_ptr_i32_reti32(elf_ctx, k);
+    return arch_riscv64_enc_enc_mov_rax_to_arg_reg(elf_ctx, k);
   }
   return arch_x86_64_enc_enc_mov_rax_to_arg_reg(elf_ctx, k);
 }
@@ -1020,7 +1021,7 @@ int32_t backend_enc_call_arch(uint8_t * elf_ctx, uint8_t * name, int32_t name_le
     return backend_enc_arm64_call_c(elf_ctx, name, name_len);
   }
   if ((ta ==2)) {
-    return arch_riscv64_enc_enc_call_u8_ptr_u8_ptr_i32_reti32(elf_ctx, name, name_len);
+    return arch_riscv64_enc_enc_call(elf_ctx, name, name_len);
   }
   return arch_x86_64_enc_enc_call(elf_ctx, name, name_len);
 }
@@ -1752,7 +1753,7 @@ int32_t arch_arm64_enc_enc_str_x0_sp_offset(uint8_t * elf_ctx, int32_t off_bytes
 int32_t arch_arm64_enc_enc_call(uint8_t * elf_ctx, uint8_t * name, int32_t name_len) {
   return backend_enc_arm64_call_c(elf_ctx, name, name_len);
 }
-int32_t arch_riscv64_enc_enc_call_u8_ptr_u8_ptr_i32_reti32(uint8_t * elf_ctx, uint8_t * name, int32_t name_len) {
+int32_t arch_riscv64_enc_enc_call(uint8_t * elf_ctx, uint8_t * name, int32_t name_len) {
   if ((elf_ctx ==0)) {
     return (0 - 1);
   }
@@ -1764,7 +1765,7 @@ int32_t arch_riscv64_enc_enc_call_u8_ptr_u8_ptr_i32_reti32(uint8_t * elf_ctx, ui
   }
   return (0 - 1);
 }
-int32_t arch_riscv64_enc_enc_mov_rax_to_arg_reg_u8_ptr_i32_reti32(uint8_t * elf_ctx, int32_t k) {
+int32_t arch_riscv64_enc_enc_mov_rax_to_arg_reg(uint8_t * elf_ctx, int32_t k) {
   if ((elf_ctx ==0)) {
     return (0 - 1);
   }
