@@ -11,6 +11,13 @@
    - 遇到问题先从全局视角分析根因，而不是从当前报错点就近修补
    - 理清数据流和模块边界，确认修复点应该在系统的哪一层
    - 一个问题如果在不同模块有多个表现，说明根因在更底层
+   - **防「修这里坏那里」**（强制细则见 skill  
+     `~/.grok/skills/shux-selfhost-product-gate/SKILL.md` → **「上帝视角纪律」**；  
+     现场地图见 `问题分析文档.md` §0.17 / §0.18）：
+     - 动手前五问：产生 / 存储 / 消费 / 同模式爆炸半径 / 最小回归集
+     - **一条债一层一个 commit**；禁止批量改 std、改测试期望、soft-skip 糊绿顶编译器债
+     - seed 与 `.x` / glue 副本同 commit；改后 Ubuntu 重建对应 `.o` + g05
+     - 探针 + 邻域矩阵绿后才扩全量 bstrict
 
 3. **禁止功能重复实现。**
    - 同一功能只能有一个权威实现
@@ -28,3 +35,4 @@
 - 修改后必须在真实环境验证（Ubuntu x86_64 为金标准）
 - 提交前清理所有 `.o` 文件并重新编译
 - 修改 `pipeline_glue.c` 或 `ast_pool.c` 后需在 Ubuntu 重建 `pipeline_x.o`
+- 修改 `pipeline_glue_strict_minimal` seed 后重建 `build_asm/pipeline_glue_strict_minimal.o` + g05
