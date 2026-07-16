@@ -4,10 +4,19 @@ set -e
 cd "$(dirname "$0")/.."
 ROOT=$(pwd)
 SHUX=${SHUX:-./compiler/shux}
-# shellcheck source=lib/bootstrap-link-shux.sh
-. "$(dirname "$0")/lib/bootstrap-link-shux.sh"
-# fmt/check 用 RUN_SHUX（bootstrap 下为 shux-c，与 run-import 一致）
-SHUX="$RUN_SHUX"
+# fmt/check 必须用真实编译器二进制，禁止 bootstrap-link 的 -backend wrap。
+# wrap 把 -backend c 注入 `check`/`fmt` 后 pin/产品路径会 CHK001 假红；
+# 冷 L2 产品 shux_asm→shux 已对 fmt 产物静默 check 绿。
+case "$(basename "$SHUX")" in
+  shux-backend-wrap.sh|shux-min-link.sh)
+    SHUX="${SHUX_BACKEND_WRAP_REAL:-${SHUX_MIN_LINK_REAL:-./compiler/shux}}"
+    ;;
+esac
+if [ ! -x "$SHUX" ] && [ -x ./compiler/shux_asm ]; then
+  SHUX=./compiler/shux_asm
+elif [ ! -x "$SHUX" ] && [ -x ./compiler/shux ]; then
+  SHUX=./compiler/shux
+fi
 run_one_case() {
   local CASE=$1
   local TMP=$2
