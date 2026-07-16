@@ -96,8 +96,9 @@ MODULES=(
   # driver_abi R2 thin + pure 深迁：thin.x 门闩 + pure 真体（scan/has/argv/target_os/fail/smoke/peek/
   # entry_i32/large_stack orch + getenv 门闩 + 数值 env stack_limit_want/parse_u32/phase_timing_enabled）；
   # + wave1 Cap residual pure：9× flag-slot BSS 进 thin；+ wave2 path/len BSS pure（dep path ·
-  #   entry_source_len · path_last_preprocess_len）；rest FROM_X 无 pure-dup flag_slot/path-len _impl；
-  # Cap residual：uname/setrlimit/pthread/path-read IO/format/debug_pipe/gettimeofday
+  #   entry_source_len · path_last_preprocess_len）；+ wave3 format print pure（check_ok/fail/smoke
+  #   append+diag_report*）；rest FROM_X 无 pure-dup flag_slot/path-len/format _impl；
+  # Cap residual：uname/setrlimit/pthread/path-read IO/debug_pipe/gettimeofday/phase_flush floats
   # prove 锁 thin surface IDENTICAL；冷/无 PREFER 仍可走 seeds/runtime_driver_abi.from_x.c 全 C 体
   "driver_abi|src/runtime_driver_abi_thin.x|seeds/runtime_driver_abi_thin_surface.from_x.c||"
   # runtime_io_abi R2 full：.x 吃满 19 公共门闩 + 5 _impl 真迁（read/malloc/memcpy）；

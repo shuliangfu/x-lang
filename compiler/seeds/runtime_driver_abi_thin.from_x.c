@@ -385,6 +385,7 @@ extern void driver_check_diag_emitted_note(void);
 extern void driver_check_diag_emitted_reset(void);
 extern int32_t driver_fmt_check_only_get(void);
 extern int32_t driver_check_diag_emitted_get(void);
+extern int32_t driver_abi_append_i64(uint8_t * dst, int32_t cap, int32_t at, int64_t val);
 extern void driver_print_check_ok(uint8_t * input_path);
 extern double compile_phase_now_sec(void);
 extern void driver_run_fn_on_current_large_stack(uint8_t * fn, uint8_t * arg);
@@ -438,6 +439,10 @@ static void init_globals(void) {
 }
 extern uint8_t * getenv(uint8_t * name);
 extern uint8_t * driver_path_read_preprocess_malloc_impl(uint8_t * path);
+extern void diag_report(uint8_t * file, int32_t line, int32_t col, uint8_t * kind, uint8_t * msg, uint8_t * detail);
+extern void diag_report_with_code(uint8_t * file, int32_t line, int32_t col, uint8_t * kind, uint8_t * code, uint8_t * msg, uint8_t * detail);
+extern int32_t driver_diag_append_cstr(uint8_t * dst, int32_t cap, int32_t at, uint8_t * src);
+extern int32_t driver_diag_append_i32(uint8_t * dst, int32_t cap, int32_t at, int32_t val);
 int32_t driver_env_flag_truthy(uint8_t * name) {
   {
     uint8_t * e = getenv(name);
@@ -496,11 +501,6 @@ extern int32_t driver_check_quiet_ok_get(void);
 extern uint8_t * driver_argv_at(uint8_t * argv, int32_t i);
 extern uint8_t * shux_cstr_offset(uint8_t * s, int32_t off);
 extern int32_t driver_argv_collect_append_uname_impl(uint8_t * defines, int32_t ndefines, int32_t max_defines);
-extern void driver_pipeline_fail_code_rc_impl(int32_t rc);
-extern void driver_pipeline_fail_code_path_impl(uint8_t * path);
-extern void driver_print_x_smoke_parse_ok_impl(int32_t num_funcs, int32_t main_ix, int64_t codegen_len);
-extern void driver_print_x_smoke_parse_empty_impl(void);
-extern void driver_print_x_smoke_typeck_ok_impl(void);
 extern int32_t driver_get_module_num_funcs(uint8_t * m);
 extern int32_t driver_get_module_main_func_index(uint8_t * m);
 extern int32_t shux_read_file_into_path(uint8_t * path, uint8_t * buf, int64_t cap);
@@ -882,14 +882,209 @@ int32_t driver_check_diag_emitted_get(void) {
   }
   return 0;
 }
-extern void driver_print_check_ok_impl(uint8_t * input_path);
 extern double compile_phase_now_sec_impl(void);
 extern void driver_call_fn_void_arg_impl(uint8_t * fn, uint8_t * arg);
-void driver_print_check_ok(uint8_t * input_path) {
-  if ((driver_check_quiet_ok_get() !=0)) {
-    return;
+int32_t driver_abi_append_i64(uint8_t * dst, int32_t cap, int32_t at, int64_t val) {
+  {
+    int32_t d0 = 0;
+    int32_t d1 = 0;
+    int32_t d2 = 0;
+    int32_t d3 = 0;
+    int32_t d4 = 0;
+    int32_t d5 = 0;
+    int32_t d6 = 0;
+    int32_t d7 = 0;
+    int32_t d8 = 0;
+    int32_t d9 = 0;
+    int32_t d10 = 0;
+    int32_t d11 = 0;
+    int32_t d12 = 0;
+    int32_t d13 = 0;
+    int32_t d14 = 0;
+    int32_t d15 = 0;
+    int32_t d16 = 0;
+    int32_t d17 = 0;
+    int32_t d18 = 0;
+    int32_t d19 = 0;
+    int32_t dn = 0;
+    int64_t t = val;
+    int32_t i = (dn - 1);
+    if ((dst ==((uint8_t *)(0)))) {
+      return at;
+    }
+    if ((val < 0)) {
+      if (((at + 1) >=cap)) {
+        return at;
+      }
+      (void)(((dst)[at] = 45));
+      (void)((at = (at + 1)));
+      (void)((val = (0 - val)));
+    }
+    if ((val <=2147483647)) {
+      return driver_diag_append_i32(dst, cap, at, ((int32_t)(val)));
+    }
+    while ((t > 0)) {
+      int32_t dig = ((int32_t)((t % 10)));
+      if ((dn >=20)) {
+        break;
+      }
+      if ((dn ==0)) {
+        (void)((d0 = dig));
+      }
+      if ((dn ==1)) {
+        (void)((d1 = dig));
+      }
+      if ((dn ==2)) {
+        (void)((d2 = dig));
+      }
+      if ((dn ==3)) {
+        (void)((d3 = dig));
+      }
+      if ((dn ==4)) {
+        (void)((d4 = dig));
+      }
+      if ((dn ==5)) {
+        (void)((d5 = dig));
+      }
+      if ((dn ==6)) {
+        (void)((d6 = dig));
+      }
+      if ((dn ==7)) {
+        (void)((d7 = dig));
+      }
+      if ((dn ==8)) {
+        (void)((d8 = dig));
+      }
+      if ((dn ==9)) {
+        (void)((d9 = dig));
+      }
+      if ((dn ==10)) {
+        (void)((d10 = dig));
+      }
+      if ((dn ==11)) {
+        (void)((d11 = dig));
+      }
+      if ((dn ==12)) {
+        (void)((d12 = dig));
+      }
+      if ((dn ==13)) {
+        (void)((d13 = dig));
+      }
+      if ((dn ==14)) {
+        (void)((d14 = dig));
+      }
+      if ((dn ==15)) {
+        (void)((d15 = dig));
+      }
+      if ((dn ==16)) {
+        (void)((d16 = dig));
+      }
+      if ((dn ==17)) {
+        (void)((d17 = dig));
+      }
+      if ((dn ==18)) {
+        (void)((d18 = dig));
+      }
+      if ((dn ==19)) {
+        (void)((d19 = dig));
+      }
+      (void)((t = (t / 10)));
+      (void)((dn = (dn + 1)));
+    }
+    if ((dn ==0)) {
+      (void)((d0 = 0));
+      (void)((dn = 1));
+    }
+    while ((i >=0)) {
+      int32_t dig2 = 0;
+      if (((at + 1) >=cap)) {
+        break;
+      }
+      if ((i ==0)) {
+        (void)((dig2 = d0));
+      }
+      if ((i ==1)) {
+        (void)((dig2 = d1));
+      }
+      if ((i ==2)) {
+        (void)((dig2 = d2));
+      }
+      if ((i ==3)) {
+        (void)((dig2 = d3));
+      }
+      if ((i ==4)) {
+        (void)((dig2 = d4));
+      }
+      if ((i ==5)) {
+        (void)((dig2 = d5));
+      }
+      if ((i ==6)) {
+        (void)((dig2 = d6));
+      }
+      if ((i ==7)) {
+        (void)((dig2 = d7));
+      }
+      if ((i ==8)) {
+        (void)((dig2 = d8));
+      }
+      if ((i ==9)) {
+        (void)((dig2 = d9));
+      }
+      if ((i ==10)) {
+        (void)((dig2 = d10));
+      }
+      if ((i ==11)) {
+        (void)((dig2 = d11));
+      }
+      if ((i ==12)) {
+        (void)((dig2 = d12));
+      }
+      if ((i ==13)) {
+        (void)((dig2 = d13));
+      }
+      if ((i ==14)) {
+        (void)((dig2 = d14));
+      }
+      if ((i ==15)) {
+        (void)((dig2 = d15));
+      }
+      if ((i ==16)) {
+        (void)((dig2 = d16));
+      }
+      if ((i ==17)) {
+        (void)((dig2 = d17));
+      }
+      if ((i ==18)) {
+        (void)((dig2 = d18));
+      }
+      if ((i ==19)) {
+        (void)((dig2 = d19));
+      }
+      (void)(((dst)[at] = ((uint8_t)((48 + dig2)))));
+      (void)((at = (at + 1)));
+      (void)((i = (i - 1)));
+    }
+    if ((at < cap)) {
+      (void)(((dst)[at] = 0));
+    }
+    return at;
   }
-  (void)(driver_print_check_ok_impl(input_path));
+  return at;
+}
+void driver_print_check_ok(uint8_t * input_path) {
+  {
+    uint8_t msg[512] = {};
+    int32_t at = driver_diag_append_cstr(&((msg)[0]), 512, 0, ((uint8_t *)"\x63\x68\x65\x63\x6b\x20\x4f\x4b\x3a\x20"));
+    if ((driver_check_quiet_ok_get() !=0)) {
+      return;
+    }
+    if ((input_path !=((uint8_t *)(0)))) {
+      (void)((at = driver_diag_append_cstr(&((msg)[0]), 512, at, input_path)));
+    } else {
+      (void)((at = driver_diag_append_cstr(&((msg)[0]), 512, at, ((uint8_t *)"\x3f"))));
+    }
+    (void)(diag_report(((uint8_t *)(0)), 0, 0, ((uint8_t *)"\x69\x6e\x66\x6f"), &((msg)[0]), ((uint8_t *)(0))));
+  }
   (void)(0);
   return;
 }
@@ -1053,14 +1248,22 @@ uint8_t * driver_os_define_lit(int32_t kind) {
   return ((uint8_t *)(0));
 }
 void driver_pipeline_fail_code(int32_t rc, uint8_t * path) {
-  (void)(driver_pipeline_fail_code_rc_impl(rc));
-  if ((rc !=(0 - 7))) {
-    return;
+  {
+    uint8_t msg[96] = {};
+    int32_t at = driver_diag_append_cstr(&((msg)[0]), 96, 0, ((uint8_t *)"\x70\x69\x70\x65\x6c\x69\x6e\x65\x20\x66\x61\x69\x6c\x65\x64\x20\x72\x63\x3d"));
+    (void)((at = driver_diag_append_i32(&((msg)[0]), 96, at, rc)));
+    (void)(diag_report_with_code(((uint8_t *)(0)), 0, 0, ((uint8_t *)"\x70\x69\x70\x65\x6c\x69\x6e\x65\x20\x65\x72\x72\x6f\x72"), ((uint8_t *)"\x58\x50\x30\x30\x33"), &((msg)[0]), ((uint8_t *)(0))));
+    if ((rc !=(0 - 7))) {
+      return;
+    }
+    if ((path ==((uint8_t *)(0)))) {
+      return;
+    }
+    uint8_t msg2[512] = {};
+    int32_t at2 = driver_diag_append_cstr(&((msg2)[0]), 512, 0, ((uint8_t *)"\x72\x65\x73\x6f\x6c\x76\x65\x20\x70\x61\x74\x68\x20\x74\x72\x69\x65\x64\x3a\x20"));
+    (void)((at2 = driver_diag_append_cstr(&((msg2)[0]), 512, at2, path)));
+    (void)(diag_report_with_code(((uint8_t *)(0)), 0, 0, ((uint8_t *)"\x70\x69\x70\x65\x6c\x69\x6e\x65\x20\x65\x72\x72\x6f\x72"), ((uint8_t *)"\x58\x50\x30\x30\x34"), &((msg2)[0]), ((uint8_t *)(0))));
   }
-  if ((path ==((uint8_t *)(0)))) {
-    return;
-  }
-  (void)(driver_pipeline_fail_code_path_impl(path));
   (void)(0);
   return;
 }
@@ -1071,15 +1274,22 @@ void driver_print_x_smoke_summary(uint8_t * module, int64_t codegen_len) {
   {
     int32_t num_funcs = driver_get_module_num_funcs(module);
     int32_t main_ix = driver_get_module_main_func_index(module);
+    uint8_t msg[160] = {};
+    int32_t at = driver_diag_append_cstr(&((msg)[0]), 160, 0, ((uint8_t *)"\x70\x61\x72\x73\x65\x20\x4f\x4b\x3a\x20\x6e\x75\x6d\x5f\x66\x75\x6e\x63\x73\x3d"));
     if ((driver_check_diag_emitted_get() !=0)) {
       return;
     }
-    (void)(driver_print_x_smoke_parse_ok_impl(num_funcs, main_ix, codegen_len));
+    (void)((at = driver_diag_append_i32(&((msg)[0]), 160, at, num_funcs)));
+    (void)((at = driver_diag_append_cstr(&((msg)[0]), 160, at, ((uint8_t *)"\x20\x6d\x61\x69\x6e\x5f\x69\x64\x78\x3d"))));
+    (void)((at = driver_diag_append_i32(&((msg)[0]), 160, at, main_ix)));
+    (void)((at = driver_diag_append_cstr(&((msg)[0]), 160, at, ((uint8_t *)"\x20\x63\x6f\x64\x65\x67\x65\x6e\x5f\x62\x79\x74\x65\x73\x3d"))));
+    (void)((at = driver_abi_append_i64(&((msg)[0]), 160, at, codegen_len)));
+    (void)(diag_report(((uint8_t *)(0)), 0, 0, ((uint8_t *)"\x69\x6e\x66\x6f"), &((msg)[0]), ((uint8_t *)(0))));
     if ((num_funcs <=0)) {
-      (void)(driver_print_x_smoke_parse_empty_impl());
+      (void)(diag_report_with_code(((uint8_t *)(0)), 0, 0, ((uint8_t *)"\x70\x61\x72\x73\x65\x20\x65\x72\x72\x6f\x72"), ((uint8_t *)"\x50\x30\x30\x31"), ((uint8_t *)"\x70\x61\x72\x73\x65\x20\x70\x72\x6f\x64\x75\x63\x65\x64\x20\x6e\x6f\x20\x66\x75\x6e\x63\x74\x69\x6f\x6e\x73\x20\x69\x6e\x20\x6d\x6f\x64\x75\x6c\x65"), ((uint8_t *)(0))));
       return;
     }
-    (void)(driver_print_x_smoke_typeck_ok_impl());
+    (void)(diag_report(((uint8_t *)(0)), 0, 0, ((uint8_t *)"\x69\x6e\x66\x6f"), ((uint8_t *)"\x74\x79\x70\x65\x63\x6b\x20\x4f\x4b"), ((uint8_t *)(0))));
   }
   (void)(0);
   return;

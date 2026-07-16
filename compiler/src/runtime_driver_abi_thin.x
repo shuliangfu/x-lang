@@ -12,12 +12,20 @@
 //     large_stack_thread）；FROM_X rest 无 pure-dup flag_slot _impl。
 //   + wave2 Cap residual pure：path/len BSS 进 thin（dep path *u8 · entry_source_len i64 ·
 //     path_last_preprocess_len i64）；FROM_X rest 无 pure-dup path/len store/load _impl。
-// Cap residual：uname / setrlimit / pthread 创建 / path-read IO / format print /
-//   debug_pipe reportf note / gettimeofday phase_now 仍 rest。
+//   + wave3 Cap residual pure：format print（check_ok / fail rc·path / smoke parse·typeck）
+//     via driver_diag_append_* + diag_report*（no va_list reportf）；FROM_X rest 无 pure-dup
+//     print/fail format _impl。
+// Cap residual：uname / setrlimit / pthread 创建 / path-read IO /
+//   debug_pipe reportf note / gettimeofday phase_now / phase_timing_flush floats 仍 rest。
 //
 
 export extern "C" function getenv(name: *u8): *u8;
 export extern "C" function driver_path_read_preprocess_malloc_impl(path: *u8): *u8;
+// Wave3 format print pure: reuse diagnostic append authority (G.7) + fixed-arity diag report.
+export extern "C" function diag_report(file: *u8, line: i32, col: i32, kind: *u8, msg: *u8, detail: *u8): void;
+export extern "C" function diag_report_with_code(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void;
+export extern "C" function driver_diag_append_cstr(dst: *u8, cap: i32, at: i32, src: *u8): i32;
+export extern "C" function driver_diag_append_i32(dst: *u8, cap: i32, at: i32, val: i32): i32;
 
 // ---- Wave1 Cap residual pure: driver flag-slot BSS (PLATFORM: SHARED) ----
 // Authority lives in this thin TU under PREFER hybrid; cold seed keeps C static BSS.
@@ -111,11 +119,6 @@ export extern "C" function driver_check_quiet_ok_get(): i32;
 export extern "C" function driver_argv_at(argv: *u8, i: i32): *u8;
 export extern "C" function shux_cstr_offset(s: *u8, off: i32): *u8;
 export extern "C" function driver_argv_collect_append_uname_impl(defines: *u8, ndefines: i32, max_defines: i32): i32;
-export extern "C" function driver_pipeline_fail_code_rc_impl(rc: i32): void;
-export extern "C" function driver_pipeline_fail_code_path_impl(path: *u8): void;
-export extern "C" function driver_print_x_smoke_parse_ok_impl(num_funcs: i32, main_ix: i32, codegen_len: i64): void;
-export extern "C" function driver_print_x_smoke_parse_empty_impl(): void;
-export extern "C" function driver_print_x_smoke_typeck_ok_impl(): void;
 export extern "C" function driver_get_module_num_funcs(m: *u8): i32;
 export extern "C" function driver_get_module_main_func_index(m: *u8): i32;
 export extern "C" function shux_read_file_into_path(path: *u8, buf: *u8, cap: i64): i32;
@@ -496,17 +499,141 @@ export function driver_check_diag_emitted_get(): i32 {
 }
 
 // ---- G-02f-343 gates (direct _impl; seed rest keeps full logic wrappers optional) ----
-export extern "C" function driver_print_check_ok_impl(input_path: *u8): void;
 export extern "C" function compile_phase_now_sec_impl(): f64;
 export extern "C" function driver_call_fn_void_arg_impl(fn: *u8, arg: *u8): void;
 
+/** Append non-negative i64 decimal into dst (for size_t-style fields such as codegen_bytes).
+ * Values in [0, INT_MAX] delegate to driver_diag_append_i32 (G.7 reuse). Larger values use a
+ * local 20-digit stack so message text matches cold seed %zu for typical module sizes.
+ * PLATFORM: SHARED — local helper for wave3 format print pure only. */
+function driver_abi_append_i64(dst: *u8, cap: i32, at: i32, val: i64): i32 {
+  unsafe {
+    if (dst == 0 as *u8) {
+      return at;
+    }
+    if (val < 0) {
+      // Smoke/codegen lengths are non-negative; keep sign for defensive completeness.
+      if (at + 1 >= cap) {
+        return at;
+      }
+      dst[at] = 45;
+      at = at + 1;
+      val = 0 - val;
+    }
+    if (val <= 2147483647) {
+      return driver_diag_append_i32(dst, cap, at, val as i32);
+    }
+    // Digit stack (least-significant first); up to 20 decimal digits for i64.
+    let d0: i32 = 0;
+    let d1: i32 = 0;
+    let d2: i32 = 0;
+    let d3: i32 = 0;
+    let d4: i32 = 0;
+    let d5: i32 = 0;
+    let d6: i32 = 0;
+    let d7: i32 = 0;
+    let d8: i32 = 0;
+    let d9: i32 = 0;
+    let d10: i32 = 0;
+    let d11: i32 = 0;
+    let d12: i32 = 0;
+    let d13: i32 = 0;
+    let d14: i32 = 0;
+    let d15: i32 = 0;
+    let d16: i32 = 0;
+    let d17: i32 = 0;
+    let d18: i32 = 0;
+    let d19: i32 = 0;
+    let dn: i32 = 0;
+    let t: i64 = val;
+    while (t > 0) {
+      if (dn >= 20) {
+        break;
+      }
+      let dig: i32 = (t % 10) as i32;
+      if (dn == 0) { d0 = dig; }
+      if (dn == 1) { d1 = dig; }
+      if (dn == 2) { d2 = dig; }
+      if (dn == 3) { d3 = dig; }
+      if (dn == 4) { d4 = dig; }
+      if (dn == 5) { d5 = dig; }
+      if (dn == 6) { d6 = dig; }
+      if (dn == 7) { d7 = dig; }
+      if (dn == 8) { d8 = dig; }
+      if (dn == 9) { d9 = dig; }
+      if (dn == 10) { d10 = dig; }
+      if (dn == 11) { d11 = dig; }
+      if (dn == 12) { d12 = dig; }
+      if (dn == 13) { d13 = dig; }
+      if (dn == 14) { d14 = dig; }
+      if (dn == 15) { d15 = dig; }
+      if (dn == 16) { d16 = dig; }
+      if (dn == 17) { d17 = dig; }
+      if (dn == 18) { d18 = dig; }
+      if (dn == 19) { d19 = dig; }
+      t = t / 10;
+      dn = dn + 1;
+    }
+    if (dn == 0) {
+      d0 = 0;
+      dn = 1;
+    }
+    let i: i32 = dn - 1;
+    while (i >= 0) {
+      if (at + 1 >= cap) {
+        break;
+      }
+      let dig2: i32 = 0;
+      if (i == 0) { dig2 = d0; }
+      if (i == 1) { dig2 = d1; }
+      if (i == 2) { dig2 = d2; }
+      if (i == 3) { dig2 = d3; }
+      if (i == 4) { dig2 = d4; }
+      if (i == 5) { dig2 = d5; }
+      if (i == 6) { dig2 = d6; }
+      if (i == 7) { dig2 = d7; }
+      if (i == 8) { dig2 = d8; }
+      if (i == 9) { dig2 = d9; }
+      if (i == 10) { dig2 = d10; }
+      if (i == 11) { dig2 = d11; }
+      if (i == 12) { dig2 = d12; }
+      if (i == 13) { dig2 = d13; }
+      if (i == 14) { dig2 = d14; }
+      if (i == 15) { dig2 = d15; }
+      if (i == 16) { dig2 = d16; }
+      if (i == 17) { dig2 = d17; }
+      if (i == 18) { dig2 = d18; }
+      if (i == 19) { dig2 = d19; }
+      dst[at] = (48 + dig2) as u8;
+      at = at + 1;
+      i = i - 1;
+    }
+    if (at < cap) {
+      dst[at] = 0;
+    }
+    return at;
+  }
+  return at;
+}
+
+/** Emit quiet-gated "check OK: <path>" info line (deno check stays silent when quiet).
+ * Assembles via driver_diag_append_cstr then diag_report; no va_list diag_reportf.
+ * Message text matches cold seed reportf format. PLATFORM: SHARED — pure authority in thin;
+ * cold seed keeps C _impl; FROM_X rest drops pure-dup format _impl. */
 #[no_mangle]
 export function driver_print_check_ok(input_path: *u8): void {
   unsafe {
     if (driver_check_quiet_ok_get() != 0) {
       return;
     }
-    driver_print_check_ok_impl(input_path);
+    let msg: u8[512] = [];
+    let at: i32 = driver_diag_append_cstr(&msg[0], 512, 0, "check OK: ");
+    if (input_path != 0 as *u8) {
+      at = driver_diag_append_cstr(&msg[0], 512, at, input_path);
+    } else {
+      at = driver_diag_append_cstr(&msg[0], 512, at, "?");
+    }
+    diag_report(0 as *u8, 0, 0, "info", &msg[0], 0 as *u8);
   }
 }
 
@@ -740,22 +867,34 @@ export function driver_os_define_lit(kind: i32): *u8 {
 
 // ---- G-02f-413：fail_code / smoke / peek / get_dep / argv_defines → seed impl ----
 
-// G-02f-413 pure 深迁：rc/path 编排；format 🔒
+/** Emit XP003 "pipeline failed rc=N"; when rc==-7 also XP004 "resolve path tried: P".
+ * Wave3 pure: append_i32/cstr + diag_report_with_code (codes XP003/XP004 match cold seed
+ * SHUX_DIAG_CODE_X_PIPELINE_*). No va_list reportf. PLATFORM: SHARED — pure authority in thin;
+ * cold seed keeps C format _impl; FROM_X rest drops pure-dup. */
 #[no_mangle]
 export function driver_pipeline_fail_code(rc: i32, path: *u8): void {
   unsafe {
-    driver_pipeline_fail_code_rc_impl(rc);
+    let msg: u8[96] = [];
+    let at: i32 = driver_diag_append_cstr(&msg[0], 96, 0, "pipeline failed rc=");
+    at = driver_diag_append_i32(&msg[0], 96, at, rc);
+    diag_report_with_code(0 as *u8, 0, 0, "pipeline error", "XP003", &msg[0], 0 as *u8);
     if (rc != 0 - 7) {
       return;
     }
     if (path == 0 as *u8) {
       return;
     }
-    driver_pipeline_fail_code_path_impl(path);
+    let msg2: u8[512] = [];
+    let at2: i32 = driver_diag_append_cstr(&msg2[0], 512, 0, "resolve path tried: ");
+    at2 = driver_diag_append_cstr(&msg2[0], 512, at2, path);
+    diag_report_with_code(0 as *u8, 0, 0, "pipeline error", "XP004", &msg2[0], 0 as *u8);
   }
 }
 
-// G-02f-244 pure 深迁：smoke 编排；print format 🔒
+/** Emit smoke summary: parse OK line; if no funcs, P001 empty-module error and return;
+ * else typeck OK. Wave3 pure: assemble via append_* + diag_report / diag_report_with_code;
+ * no va_list reportf. Prefix strings match cold seed for run-import gate grep.
+ * PLATFORM: SHARED — pure authority in thin; cold seed keeps C format _impl; FROM_X no pure-dup. */
 #[no_mangle]
 export function driver_print_x_smoke_summary(module: *u8, codegen_len: i64): void {
   if (module == 0 as *u8) {
@@ -767,12 +906,20 @@ export function driver_print_x_smoke_summary(module: *u8, codegen_len: i64): voi
     }
     let num_funcs: i32 = driver_get_module_num_funcs(module);
     let main_ix: i32 = driver_get_module_main_func_index(module);
-    driver_print_x_smoke_parse_ok_impl(num_funcs, main_ix, codegen_len);
+    let msg: u8[160] = [];
+    let at: i32 = driver_diag_append_cstr(&msg[0], 160, 0, "parse OK: num_funcs=");
+    at = driver_diag_append_i32(&msg[0], 160, at, num_funcs);
+    at = driver_diag_append_cstr(&msg[0], 160, at, " main_idx=");
+    at = driver_diag_append_i32(&msg[0], 160, at, main_ix);
+    at = driver_diag_append_cstr(&msg[0], 160, at, " codegen_bytes=");
+    at = driver_abi_append_i64(&msg[0], 160, at, codegen_len);
+    diag_report(0 as *u8, 0, 0, "info", &msg[0], 0 as *u8);
     if (num_funcs <= 0) {
-      driver_print_x_smoke_parse_empty_impl();
+      diag_report_with_code(0 as *u8, 0, 0, "parse error", "P001",
+        "parse produced no functions in module", 0 as *u8);
       return;
     }
-    driver_print_x_smoke_typeck_ok_impl();
+    diag_report(0 as *u8, 0, 0, "info", "typeck OK", 0 as *u8);
   }
 }
 

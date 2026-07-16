@@ -7,6 +7,9 @@
  *   + wave1 Cap residual pure：9× flag-slot BSS 权威在 thin.x；FROM_X 无 pure-dup flag_slot _impl；
  *   + wave2 Cap residual pure：path/len BSS 权威在 thin.x（dep path · entry_source_len ·
  *     path_last_preprocess_len）；FROM_X 无 pure-dup path/len store/load _impl；
+ *   + wave3 Cap residual pure：format print 权威在 thin.x（check_ok / fail rc·path /
+ *     smoke parse·typeck：append_* + diag_report*，无 va_list reportf）；FROM_X 无 pure-dup
+ *     print/fail format _impl；
  * FROM_X 剔 pure-dup _impl（H↓）。
  */
 /* Generated from src/runtime_driver_abi.x (G-02f-29/41/45..57/83 true .x + C tail).
@@ -126,7 +129,14 @@ int32_t driver_pipeline_entry_source_len_i32(void);
 int32_t *driver_large_stack_thread_flag_slot(void);
 void driver_current_dep_path_store(const char *path);
 const char *driver_current_dep_path_load(void);
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_print_check_ok_impl(const char *input_path);
+void driver_pipeline_fail_code_rc_impl(int32_t rc);
+void driver_pipeline_fail_code_path_impl(const uint8_t *path);
+void driver_print_x_smoke_parse_ok_impl(int32_t num_funcs, int32_t main_ix, int64_t codegen_len);
+void driver_print_x_smoke_parse_empty_impl(void);
+void driver_print_x_smoke_typeck_ok_impl(void);
+#endif
 void driver_bump_stack_limit(void);
 void driver_bump_stack_limit_to_impl(int64_t want_bytes);
 int64_t driver_stack_limit_want_bytes(void);
@@ -138,11 +148,6 @@ void driver_run_thread_on_large_stack(void *(*fn)(void *), void *arg);
 void driver_run_thread_on_large_stack_pthread_impl(void *(*fn)(void *), void *arg);
 void driver_call_fn_void_arg_impl(void *(*fn)(void *), void *arg);
 int32_t driver_pipeline_no_large_stack_env(void);
-void driver_pipeline_fail_code_rc_impl(int32_t rc);
-void driver_pipeline_fail_code_path_impl(const uint8_t *path);
-void driver_print_x_smoke_parse_ok_impl(int32_t num_funcs, int32_t main_ix, int64_t codegen_len);
-void driver_print_x_smoke_parse_empty_impl(void);
-void driver_print_x_smoke_typeck_ok_impl(void);
 int driver_source_scan_top_level_import(const char *src, size_t src_len);
 char *driver_path_read_preprocess_malloc(const char *path);
 int64_t driver_path_last_preprocess_len(void);
@@ -757,6 +762,8 @@ const char *driver_current_dep_path_load(void) {
 }
 #endif
 
+/* wave3 pure：hybrid thin owns format print (append + diag_report*); cold keeps reportf _impl. */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_print_check_ok_impl(const char *input_path) {
     diag_reportf(NULL, 0, 0, "info", NULL,
                  "check OK: %s", input_path ? input_path : "?");
@@ -786,6 +793,7 @@ void driver_print_x_smoke_parse_empty_impl(void) {
 void driver_print_x_smoke_typeck_ok_impl(void) {
     diag_report(NULL, 0, 0, "info", "typeck OK", NULL);
 }
+#endif
 
 
 
