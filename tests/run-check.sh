@@ -64,7 +64,11 @@ chmod +x tests/run-types-gate.sh 2>/dev/null || true
 if [ -n "${SHUX_BOOTSTRAP_MIN:-}" ]; then
   echo "check: skip run-types-gate link (bootstrap-min; gold/W3 覆盖)"
 else
-  _types_gate_shux="${SHUX_LINK_SHUX:-./compiler/shux-c}"
+  # 产品冷链：types gate 用当前 SHUX；勿默认 pin shux-c（CHK001 假红）
+  _types_gate_shux="$SHUX"
+  if [ -n "${RUN_ALL_USE_C:-}" ] && [ -x ./compiler/shux-c ]; then
+    _types_gate_shux=./compiler/shux-c
+  fi
   [ -x "$_types_gate_shux" ] || _types_gate_shux="$SHUX"
   SHUX="$_types_gate_shux" ./tests/run-types-gate.sh
 fi
