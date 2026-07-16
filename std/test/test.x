@@ -23,7 +23,9 @@
 extern function time_now_monotonic_ns_c(): i64;
 extern function test_call_i32_void_c(fn: usize): i32;
 extern function env_getenv_c(key: *u8, key_len: i32, out: *u8, out_cap: i32): i32;
-extern "C" function write(fd: i32, buf: *u8, count: usize): isize;
+/* 禁裸 write：preamble 已 #include <unistd.h>，再 extern write 会与 libc 签名冲突。
+ * 权威：rt_preamble shux_sys_write 内联包装。 */
+extern "C" function shux_sys_write(fd: i32, buf: *u8, count: usize): isize;
 extern "C" function strtoul(nptr: *u8, endptr: *u8, base: i32): u32;
 extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 
@@ -159,7 +161,7 @@ export function test_io_append_name(out: *u8, pos: i32, cap: i32, name: *u8, len
 export function test_io_write_stderr(buf: *u8, len: i32): i32 {
   let r: isize = 0 as isize;
   if (buf == 0 || len <= 0) { return -1; }
-  unsafe { r = write(2, buf, len as usize); }
+  unsafe { r = shux_sys_write(2, buf, len as usize); }
   if (r != len as isize) { return -1; }
   return 0;
 }
