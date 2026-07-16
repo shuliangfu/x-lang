@@ -4,6 +4,10 @@
  * Cap residual: driver_dispatch_* in driver_abi
  * Prove: full.x vs this seed → nm IDENTICAL
  * Regen: ./shux -E ... | filter DBG + polish libc redecls
+ * Track-L (2026-07-16): helpers rt_di_env_shux_lto / rt_di_argv_has_e_extern /
+ * rt_di_effective_use_lto keep short names; .x has #[no_mangle] export
+ * (was module-prefix mangle on non-export functions).
+ * PLATFORM: SHARED — symbol contract; Ubuntu gold + mac prove.
  */
 #include <stddef.h>
 #include <stdint.h>

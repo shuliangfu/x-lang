@@ -74,8 +74,12 @@ export extern "C" function driver_dispatch_run_compiler_parsed(
   target: *u8, opt_level: *u8, use_lto: i32, argc: i32, argv: *u8): i32;
 export extern "C" function driver_dispatch_opt_default(): *u8;
 
-/** 字节拼 "SHUX_LTO"（禁裸字串依赖）。 */
-function rt_di_env_shux_lto(): *u8 {
+/** Allocate a heap C string "SHUX_LTO\0" (byte-built; no string-literal dependency).
+ * Returns malloc'd pointer or null on OOM. Caller must free when done.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_dispatch_impl_rt_di_env_shux_lto).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function rt_di_env_shux_lto(): *u8 {
   let p: *u8 = 0 as *u8;
   unsafe {
     p = malloc(16 as usize);
@@ -83,6 +87,7 @@ function rt_di_env_shux_lto(): *u8 {
   if (p == 0 as *u8) {
     return 0 as *u8;
   }
+  // S H U X _ L T O \0
   p[0] = 83;
   p[1] = 72;
   p[2] = 85;
@@ -95,8 +100,13 @@ function rt_di_env_shux_lto(): *u8 {
   return p;
 }
 
-/** argv 是否含 "-E-extern"（经 get_argv_i 拷贝比较）。 */
-function rt_di_argv_has_e_extern(argc: i32, argv: *u8): i32 {
+/** Return 1 if any argv[1..] token equals "-E-extern" (exactly 9 payload bytes).
+ * Copies each arg via driver_get_argv_i into a 32-byte malloc buffer, then compares
+ * bytes for '-' 'E' '-' 'e' 'x' 't' 'e' 'r' 'n'. Frees the buffer before return.
+ * Track-L: #[no_mangle] keeps surface short name (not module-prefixed mangle).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function rt_di_argv_has_e_extern(argc: i32, argv: *u8): i32 {
   let k: i32 = 1;
   let buf: *u8 = 0 as *u8;
   let n: i32 = 0;
@@ -110,6 +120,7 @@ function rt_di_argv_has_e_extern(argc: i32, argv: *u8): i32 {
     unsafe {
       n = driver_get_argv_i(argc, argv, k, buf, 31);
     }
+    // n==9 means nine significant bytes (no room for longer tokens to false-match).
     if (n == 9) {
       if (buf[0] == 45 && buf[1] == 69 && buf[2] == 45 && buf[3] == 101 && buf[4] == 120
           && buf[5] == 116 && buf[6] == 101 && buf[7] == 114 && buf[8] == 110) {
@@ -127,8 +138,12 @@ function rt_di_argv_has_e_extern(argc: i32, argv: *u8): i32 {
   return 0;
 }
 
-/** use_lto 或 SHUX_LTO=1 → 1。 */
-function rt_di_effective_use_lto(use_lto: i32): i32 {
+/** Effective LTO enable: explicit use_lto, or getenv("SHUX_LTO") equal to "1".
+ * Frees the temporary env-name buffer from rt_di_env_shux_lto after getenv.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_dispatch_impl_rt_di_effective_use_lto).
+ * PLATFORM: SHARED — link-name contract; env semantics via host getenv. */
+#[no_mangle]
+export function rt_di_effective_use_lto(use_lto: i32): i32 {
   let env_name: *u8 = 0 as *u8;
   let env_val: *u8 = 0 as *u8;
   if (use_lto != 0) {
@@ -145,6 +160,7 @@ function rt_di_effective_use_lto(use_lto: i32): i32 {
   if (env_val == 0 as *u8) {
     return 0;
   }
+  // Exact "1\0" only (ASCII 49 then NUL).
   if (env_val[0] == 49 && env_val[1] == 0) {
     return 1;
   }
