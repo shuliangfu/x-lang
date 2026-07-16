@@ -10,6 +10,7 @@
 #else
 #include <fcntl.h>
 #include <netinet/in.h>
+#include <poll.h>
 #include <sys/socket.h>
 #include <unistd.h>
 #endif
@@ -17,6 +18,23 @@
 /* 前向声明：net_tcp_set_addr_port_buf_c / net_udp_set_addr_port_buf_c 由 runtime_net_addr_fast.c 提供。 */
 extern void net_tcp_set_addr_port_buf_c(uint8_t *sin, uint32_t addr_u32, uint32_t port_u32);
 extern void net_udp_set_addr_port_buf_c(uint8_t *sin, uint32_t addr_u32, uint32_t port_u32);
+
+/*
+ * 【Why 根源】std/net 下 .x 经 -backend asm 出 .o 时，extern shux_sys_poll 为真 U 符号；
+ * C 前端 user TU 靠 preamble static inline，不会导出给 net.o。
+ * 权威体放 net.o 合并的 sock_fast（与 net_close_socket_c 同层），asm/C 两路径可链。
+ * 语义对齐 rt_preamble.from_x.c / std.io.sync：poll(pollfd*, nfds, timeout)。
+ */
+int32_t shux_sys_poll(uint8_t *fds, int32_t nfds, int32_t timeout) {
+#if defined(_WIN32) || defined(_WIN64)
+    /* Winsock：WSAPoll；nfds/timeout 与 POSIX poll 对齐（timeout ms，-1 无限）。 */
+    if (fds == 0 || nfds <= 0)
+        return -1;
+    return (int32_t)WSAPoll((WSAPOLLFD *)(void *)fds, (ULONG)nfds, (INT)timeout);
+#else
+    return (int32_t)poll((struct pollfd *)(void *)fds, (nfds_t)nfds, (int)timeout);
+#endif
+}
 
 /* 【Why 根源】Windows Winsock 须先 WSAStartup 才能 socket/bind/listen。
  * 从 net_import_alias.c 迁入（F-闭合消除 *_import_alias.c 命名）。

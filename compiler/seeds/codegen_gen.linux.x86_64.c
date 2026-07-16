@@ -525,6 +525,7 @@ int32_t codegen_module_func_overload_count(struct ast_Module * module, uint8_t *
 int32_t codegen_func_param_sig_equal(struct ast_ASTArena * arena, struct ast_Module * mod_a, int32_t fi_a, struct ast_Module * mod_b, int32_t fi_b);
 int32_t codegen_module_overload_param_sig_count(struct ast_ASTArena * arena, struct ast_Module * module, int32_t fi);
 int32_t codegen_emit_func_link_name(struct codegen_CodegenOutBuf * out, struct ast_ASTArena * arena, struct ast_Module * module, int32_t fi);
+int32_t codegen_func_c_symbol_prefix_len(struct ast_Module * module, int32_t fi, int32_t prefix_len);
 int32_t codegen_emit_call_func_name(struct codegen_CodegenOutBuf * out, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx, int32_t expr_ref, struct ast_Module * current_module, uint8_t * fallback_name, int32_t fallback_len);
 int32_t codegen_emit_import_dep_function_declarations(struct ast_Module * module, struct codegen_CodegenOutBuf * out, struct ast_PipelineDepCtx * ctx);
 int32_t codegen_emit_dep_struct_forward_declarations(struct ast_PipelineDepCtx * ctx, struct codegen_CodegenOutBuf * out);
@@ -3519,6 +3520,10 @@ SHUX_LIB_WEAK int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct code
   int32_t mangled_emitted = 0;
   if (fn_len_q > 0 && fn_len_q <= sym_len && dep_mod_q != 0) {
     int32_t pre_len_q = sym_len - fn_len_q;
+    {
+      int32_t fi_q = codegen_find_module_func_index_by_name(dep_mod_q, fn_ptr_q, fn_len_q);
+      if (fi_q >= 0) { pre_len_q = codegen_func_c_symbol_prefix_len(dep_mod_q, fi_q, pre_len_q); }
+    }
     if (pre_len_q > 0) {
       if (codegen_emit_bytes_from_ptr(out, (&((sym_buf)[0])), pre_len_q) != 0) {   return (-1);
  }
@@ -3528,8 +3533,27 @@ SHUX_LIB_WEAK int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct code
     mangled_emitted = 1;
   }
   if (mangled_emitted == 0) {
-    if (codegen_emit_bytes_from_ptr(out, (&((sym_buf)[0])), sym_len) != 0) {   return (-1);
+    /* #[no_mangle] fallback：whole-symbol 未拆成功时，若尾部 fn 在任 dep 上为 no_mangle 则裸名 */
+    int32_t bare_ok = 0;
+    if (fn_len_q > 0 && fn_len_q <= sym_len && ctx != 0) {
+      int32_t di = 0;
+      int32_t nd = pipeline_dep_ctx_ndep(ctx);
+      while (di < nd && bare_ok == 0) {
+        struct ast_Module * dm = pipeline_dep_ctx_module_at(ctx, di);
+        if (dm != 0 && fn_ptr_q != 0) {
+          int32_t fi = codegen_find_module_func_index_by_name(dm, fn_ptr_q, fn_len_q);
+          if (fi >= 0 && pipeline_module_func_is_no_mangle_at(dm, fi) != 0) {
+            if (codegen_emit_bytes_from_ptr(out, fn_ptr_q, fn_len_q) != 0) { return (-1); }
+            bare_ok = 1;
+          }
+        }
+        di = di + 1;
+      }
+    }
+    if (bare_ok == 0) {
+      if (codegen_emit_bytes_from_ptr(out, (&((sym_buf)[0])), sym_len) != 0) {   return (-1);
  }
+    }
   }
   if (codegen_append_byte(out, 40) != 0) {   return (-1);
  }
@@ -3562,13 +3586,15 @@ SHUX_LIB_WEAK int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct code
   while (pre_fast_len < 128 && (pre_fast_len < 0 || (pre_fast_len) >= 128 ? (shux_panic_(1, 0), (pre_fast)[0]) : (pre_fast)[pre_fast_len]) != 0) {
     ++pre_fast_len;
   }
-  if (pre_fast_len > 0 && codegen_c_prefix_redundant_with_name((&((pre_fast)[0])), pre_fast_len, (&(((callee_fast).field_access_field_name)[0])), (callee_fast).field_access_field_len) == 0 && codegen_emit_bytes_from_ptr(out, (&((pre_fast)[0])), pre_fast_len) != 0) {   return (-1);
- }
-  /* 【Why】须传 dep 模块（定义 print 重载处），勿传 entry current_codegen_module。
-     否则 overload 搜索找不到 *u8,i32，回落原名 std_fmt_print，与 print_u8_ptr_i32 定义冲突。 */
   {
     struct ast_Module * dep_mod_fast = pipeline_dep_ctx_module_at(ctx, dep_ix_fast);
     if (dep_mod_fast == 0) dep_mod_fast = (ctx)->current_codegen_module;
+    {
+      int32_t fi_f = codegen_find_module_func_index_by_name(dep_mod_fast, (&(((callee_fast).field_access_field_name)[0])), (callee_fast).field_access_field_len);
+      if (fi_f >= 0) { pre_fast_len = codegen_func_c_symbol_prefix_len(dep_mod_fast, fi_f, pre_fast_len); }
+    }
+    if (pre_fast_len > 0 && codegen_c_prefix_redundant_with_name((&((pre_fast)[0])), pre_fast_len, (&(((callee_fast).field_access_field_name)[0])), (callee_fast).field_access_field_len) == 0 && codegen_emit_bytes_from_ptr(out, (&((pre_fast)[0])), pre_fast_len) != 0) {   return (-1);
+ }
     if (codegen_emit_call_func_name(out, arena, ctx, expr_ref, dep_mod_fast, (&(((callee_fast).field_access_field_name)[0])), (callee_fast).field_access_field_len) != 0) {   return (-1);
  }
   }
@@ -3622,8 +3648,6 @@ SHUX_LIB_WEAK int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct code
   while (pre_len < 128 && (pre_len < 0 || (pre_len) >= 128 ? (shux_panic_(1, 0), (pre_buf)[0]) : (pre_buf)[pre_len]) != 0) {
     ++pre_len;
   }
-  if (pre_len > 0 && codegen_c_prefix_redundant_with_name((&((pre_buf)[0])), pre_len, (&(((callee).field_access_field_name)[0])), (callee).field_access_field_len) == 0 && codegen_emit_bytes_from_ptr(out, (&((pre_buf)[0])), pre_len) != 0) {   return (-1);
- }
   /* 【Why 根源】按 import path 找到目标 dep 模块（函数定义所在），传给 codegen_emit_call_func_name
      做重载搜索。传 cur_mod 会搜索错误模块（函数在 core.fmt 但 cur_mod 是 std.fmt）。
      【Invariant】dep_path_bind 来自 binding 的 import 路径；dep_mod_bind 为 NULL 时回退 cur_mod。 */
@@ -3632,6 +3656,13 @@ SHUX_LIB_WEAK int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct code
   if (bind_dep_ix >= 0 && bind_dep_ix < pipeline_dep_ctx_ndep(ctx)) {
     bind_dep_mod = pipeline_dep_ctx_module_at(ctx, bind_dep_ix);
   }
+  /* #[no_mangle] 目标：binding.field 调用用裸名 */
+  {
+    int32_t fi_b = codegen_find_module_func_index_by_name(bind_dep_mod, (&(((callee).field_access_field_name)[0])), (callee).field_access_field_len);
+    if (fi_b >= 0) { pre_len = codegen_func_c_symbol_prefix_len(bind_dep_mod, fi_b, pre_len); }
+  }
+  if (pre_len > 0 && codegen_c_prefix_redundant_with_name((&((pre_buf)[0])), pre_len, (&(((callee).field_access_field_name)[0])), (callee).field_access_field_len) == 0 && codegen_emit_bytes_from_ptr(out, (&((pre_buf)[0])), pre_len) != 0) {   return (-1);
+ }
   if ((callee).field_access_field_len > 0 && codegen_emit_call_func_name(out, arena, ctx, expr_ref, bind_dep_mod, (&(((callee).field_access_field_name)[0])), (callee).field_access_field_len) != 0) {   return (-1);
  }
   if (codegen_append_byte(out, 40) != 0) {   return (-1);
@@ -3764,8 +3795,8 @@ SHUX_LIB_WEAK int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct code
   while (pre_len < 128 && (pre_len < 0 || (pre_len) >= 128 ? (shux_panic_(1, 0), (pre_buf)[0]) : (pre_buf)[pre_len]) != 0) {
     ++pre_len;
   }
-  /* 【Why extern 裸名】dep 池匹配到 extern function 时，调用站点须用裸名 */
-  if (pipeline_module_func_is_extern_at(dep_mod, fi) != 0) {   pre_len = 0;
+  /* 【Why extern/no_mangle 裸名】dep 池匹配到时，调用站点须用裸名 */
+  if (pipeline_module_func_is_extern_at(dep_mod, fi) != 0 || pipeline_module_func_is_no_mangle_at(dep_mod, fi) != 0) {   pre_len = 0;
  }
   int32_t drv_buf_call = 0;
   if (codegen_path_is_std_io_driver_bytes((&((dep_path_call)[0]))) != 0) {   (drv_buf_call = (codegen_emit_io_driver_buf_call_name(out, (&(((callee).var_name)[0])), (callee).var_name_len, (e).call_num_args)));
@@ -3880,8 +3911,8 @@ SHUX_LIB_WEAK int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct code
   while (pl < 128 && (pl < 0 || (pl) >= 128 ? (shux_panic_(1, 0), (cur_pre)[0]) : (cur_pre)[pl]) != 0) {
     ++pl;
   }
-  /* 【Why extern 裸名】同模块 extern function 调用也须用裸名，与声明符号一致 */
-  if (pipeline_module_func_is_extern_at(cur_mod, fi) != 0) {   pl = 0;
+  /* 【Why extern/no_mangle 裸名】同模块调用须与定义/声明符号一致 */
+  if (pipeline_module_func_is_extern_at(cur_mod, fi) != 0 || pipeline_module_func_is_no_mangle_at(cur_mod, fi) != 0) {   pl = 0;
  }
   if (pl > 0 && codegen_c_prefix_redundant_with_name((&((cur_pre)[0])), pl, (callee2).var_name, (callee2).var_name_len) == 0 && codegen_emit_bytes_from_ptr(out, (&((cur_pre)[0])), pl) != 0) {   return (-1);
  }
@@ -4426,8 +4457,11 @@ SHUX_LIB_WEAK int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct code
     if (drv_buf_mc < 0) { return (-1); }
   }
   if (drv_buf_mc == 0) {
-  if (pre_len > 0 && fn_len > 0 && codegen_c_prefix_redundant_with_name((&((pre_buf)[0])), pre_len, (&((fn_name)[0])), fn_len) == 0 && codegen_emit_bytes_from_ptr(out, (&((pre_buf)[0])), pre_len) != 0) {   return (-1);
+  {
+    int32_t call_pre = codegen_func_c_symbol_prefix_len(dep_mod, func_ix, pre_len);
+    if (call_pre > 0 && fn_len > 0 && codegen_c_prefix_redundant_with_name((&((pre_buf)[0])), call_pre, (&((fn_name)[0])), fn_len) == 0 && codegen_emit_bytes_from_ptr(out, (&((pre_buf)[0])), call_pre) != 0) {   return (-1);
  }
+  }
   /* 【Why 根源】typeck 已解析的重载也须 mangle；dep 的 type_ref 只能在 dep_arena 查。
      入口 arena 查后缀会得到空 → 退化为裸名 std_fmt_print（hello -o 假绿根因）。 */
   {
@@ -5613,6 +5647,13 @@ int32_t codegen_module_overload_param_sig_count(struct ast_ASTArena * arena, str
   return c;
 }
 
+/* #[no_mangle]：C 链接符号裸名，不加 import path 前缀（与 link_name 原名一致）。 */
+int32_t codegen_func_c_symbol_prefix_len(struct ast_Module * module, int32_t fi, int32_t prefix_len) {
+  if (prefix_len <= 0) { return 0; }
+  if (module != 0 && fi >= 0 && pipeline_module_func_is_no_mangle_at(module, fi) != 0) { return 0; }
+  return prefix_len;
+}
+
 /* 【Why 根源】发射函数链接名：单定义用原名；重载 >1 时追加 _t1_t2；签名也冲突时追加 _ret_T。
  * 【Invariant】out 须非空；与 emit_func/emit_func_extern_declaration/CALL 三端一致。
  * 【Asm/Perf】mangling 在 codegen 阶段一次性完成，链接时零开销。 */
@@ -5921,7 +5962,9 @@ SHUX_LIB_WEAK int32_t codegen_emit_func(struct ast_ASTArena * arena, struct code
  }
   if (emit_c_main_symbol) {   if (codegen_emit_bytes_4(out, main_name, 4) != 0) {   return (-1);
  }
- } else {   if (prefix_len > 0 && codegen_c_prefix_redundant_with_name(prefix, prefix_len, (&((fn_local)[0])), fn_len) == 0 && codegen_emit_bytes_from_ptr(out, prefix, prefix_len) != 0) {   return (-1);
+ } else {
+  int32_t sym_pre = codegen_func_c_symbol_prefix_len(module, fi, prefix_len);
+  if (sym_pre > 0 && codegen_c_prefix_redundant_with_name(prefix, sym_pre, (&((fn_local)[0])), fn_len) == 0 && codegen_emit_bytes_from_ptr(out, prefix, sym_pre) != 0) {   return (-1);
  }
   if (codegen_emit_func_link_name(out, arena, module, fi) != 0) {   return (-1);
  }
@@ -6237,9 +6280,12 @@ SHUX_LIB_WEAK int32_t codegen_try_emit_generic_identity_mono(struct ast_ASTArena
   memset(fn_local, 0, sizeof(fn_local));
   (void)(codegen_copy_func_name64_from_module(module, fi, (&((fn_local)[0]))));
   fn_len = pipeline_module_func_name_len_at(module, fi);
-  if (prefix_len > 0 && codegen_c_prefix_redundant_with_name(prefix, prefix_len, (&((fn_local)[0])), fn_len) == 0) {
-    if (codegen_emit_bytes_from_ptr(out, prefix, prefix_len) != 0) {
-      return (-1);
+  {
+    int32_t mono_sym_pre = codegen_func_c_symbol_prefix_len(module, fi, prefix_len);
+    if (mono_sym_pre > 0 && codegen_c_prefix_redundant_with_name(prefix, mono_sym_pre, (&((fn_local)[0])), fn_len) == 0) {
+      if (codegen_emit_bytes_from_ptr(out, prefix, mono_sym_pre) != 0) {
+        return (-1);
+      }
     }
   }
   if (codegen_emit_func_link_name(out, arena, module, fi) != 0) {
@@ -6335,6 +6381,7 @@ SHUX_LIB_WEAK int32_t codegen_emit_func_extern_declaration(struct ast_ASTArena *
     }
     if (!_starts) { name_prefix_len = 0; }
  }
+  name_prefix_len = codegen_func_c_symbol_prefix_len(module, fi, name_prefix_len);
   if (name_prefix_len > 0 && codegen_c_prefix_redundant_with_name(prefix, name_prefix_len, (&((fn_local)[0])), fn_len) == 0 && codegen_emit_bytes_from_ptr(out, prefix, name_prefix_len) != 0) {   return (-1);
  }
   if (codegen_emit_func_link_name(out, arena, module, fi) != 0) {   return (-1);

@@ -154,9 +154,9 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 	@objs=""; \
 	shux="$${SHUX:-}"; \
 	if [ -z "$$shux" ] || [ ! -x "$$shux" ]; then \
-	  if [ -x ./shux-c ]; then shux=./shux-c; \
-	  elif [ -x ./shux_asm ]; then shux=./shux_asm; \
+	  if [ -x ./shux_asm ]; then shux=./shux_asm; \
 	  elif [ -x ./shux ]; then shux=./shux; \
+	  elif [ -x ./shux-c ]; then shux=./shux-c; \
 	  else shux=; fi; \
 	fi; \
 	if [ -n "$$shux" ]; then \

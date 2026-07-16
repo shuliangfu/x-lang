@@ -53,8 +53,9 @@ export function io_read_provided(fd: i32, timeout_ms: u32, out_bid: *u32, out_le
   return -1 as isize;
 }
 
-/** 批量 provided recv：v1 不支持。 */
-#[no_mangle]
+/** 批量 provided recv：v1 不支持。
+ * 勿 #[no_mangle]：C 前端 path 前缀 + CALL 多路径尚未全裸名时，裸定义会与
+ * std_io_stubs_* 调用点分裂。裸符号由 runtime_asm_io_stubs 弱桩提供给 net C 胶层。 */
 export function io_read_batch_provided(fd: i32, n: i32, timeout_ms: u32, out_bids: *u32, out_lens: *u32): isize {
   if (fd >= 0 || n > 0 || timeout_ms >= 0 || out_bids != 0 || out_lens != 0) {
   }

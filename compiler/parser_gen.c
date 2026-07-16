@@ -180,6 +180,11 @@ extern void pipeline_module_func_set_body_expr_ref(struct ast_Module * restrict 
 extern void pipeline_module_func_set_is_extern(struct ast_Module * restrict module, int32_t fi, int32_t is_extern);
 extern void pipeline_module_func_set_is_async(struct ast_Module * restrict module, int32_t fi, int32_t is_async);
 extern void pipeline_module_func_set_is_export(struct ast_Module * restrict module, int32_t fi, int32_t is_export);
+extern void pipeline_module_func_set_is_used(struct ast_Module * restrict module, int32_t fi, int32_t is_used);
+extern void pipeline_module_func_set_is_naked(struct ast_Module * restrict module, int32_t fi, int32_t is_naked);
+extern void pipeline_module_func_set_is_entry(struct ast_Module * restrict module, int32_t fi, int32_t is_entry);
+extern void pipeline_module_func_set_is_no_mangle(struct ast_Module * restrict module, int32_t fi, int32_t is_no_mangle);
+extern void pipeline_module_func_set_is_interrupt(struct ast_Module * restrict module, int32_t fi, int32_t is_interrupt);
 extern void pipeline_module_struct_layout_set_is_export(struct ast_Module * restrict module, int32_t idx, int32_t is_export);
 extern void pipeline_module_enum_set_is_export(struct ast_Module * restrict module, int32_t idx, int32_t is_export);
 extern void pipeline_module_top_level_let_set_is_export(struct ast_Module * restrict module, int32_t idx, int32_t is_export);
@@ -3653,6 +3658,16 @@ int32_t parser_module_register_arena_func(struct ast_Module * restrict module, i
   (void)(pipeline_module_func_set_is_async(module, fi, (f).is_async));
   (void)(pipeline_module_func_set_is_export(module, fi, (module)->pending_export));
   ((module)->pending_export = (0));
+  (void)(pipeline_module_func_set_is_used(module, fi, (module)->pending_used));
+  ((module)->pending_used = (0));
+  (void)(pipeline_module_func_set_is_naked(module, fi, (module)->pending_naked));
+  ((module)->pending_naked = (0));
+  (void)(pipeline_module_func_set_is_entry(module, fi, (module)->pending_entry));
+  ((module)->pending_entry = (0));
+  (void)(pipeline_module_func_set_is_no_mangle(module, fi, (module)->pending_no_mangle));
+  ((module)->pending_no_mangle = (0));
+  (void)(pipeline_module_func_set_is_interrupt(module, fi, (module)->pending_interrupt));
+  ((module)->pending_interrupt = (0));
   (void)(pipeline_module_func_ref_set(module, fi, func_ref));
   return fi;
 }
@@ -3944,6 +3959,17 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * restrict a
  } else (__tmp = (struct lexer_Lexer){0}) ; __tmp; }));
   continue;
  } else (__tmp = 0) ; __tmp; }));
+  /* #[cfg(false)] allow(padding) struct: consume allow, keep pending_cfg_skip */
+  (void)(({ int32_t __tmp = 0; {
+  struct parser_TrySkipAllowResult try_cfg_allow = { 0 };
+  (void)(parser_parse_into_try_skip_allow_into((&(try_cfg_allow)), lex, r, source));
+  if ((try_cfg_allow).skipped != 0) {
+    (void)(parser_lex_from_try_skip_into((&(lex)), try_cfg_allow));
+    (void)(({ struct lexer_Lexer __tmp2 = (struct lexer_Lexer){0}; if ((lex).pos == (iter_start).pos && (lex).pos < (source)->length) {   __tmp2 = (lex = ((struct lexer_Lexer){ .pos = (lex).pos + 1, .line = (lex).line, .col = (lex).col + 1 }));
+ } else (__tmp2 = (struct lexer_Lexer){0}) ; __tmp2; }));
+    continue;
+  }
+ } ; __tmp; }));
   ((module)->pending_cfg_skip = (0));
  } else (__tmp = 0) ; __tmp; }));
     (void)(({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_STRUCT) {   int32_t ap_struct = (module)->pending_allow_padding;
@@ -4878,6 +4904,16 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * restrict a
     (void)(pipeline_module_func_set_is_async(module, fi, (func_is_async_storage)[0]));
     (void)(pipeline_module_func_set_is_export(module, fi, (module)->pending_export));
     ((module)->pending_export = (0));
+    (void)(pipeline_module_func_set_is_used(module, fi, (module)->pending_used));
+    ((module)->pending_used = (0));
+    (void)(pipeline_module_func_set_is_naked(module, fi, (module)->pending_naked));
+    ((module)->pending_naked = (0));
+    (void)(pipeline_module_func_set_is_entry(module, fi, (module)->pending_entry));
+    ((module)->pending_entry = (0));
+    (void)(pipeline_module_func_set_is_no_mangle(module, fi, (module)->pending_no_mangle));
+    ((module)->pending_no_mangle = (0));
+    (void)(pipeline_module_func_set_is_interrupt(module, fi, (module)->pending_interrupt));
+    ((module)->pending_interrupt = (0));
     (void)(({ int32_t __tmp = 0; if ((is_main_storage)[0] != 0) {   (main_idx = (fi));
  } else (__tmp = 0) ; __tmp; }));
     (void)(parser_lex_from_onefunc_next_into((&(lex)), (&(res))));
@@ -5162,6 +5198,17 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * restri
  } else (__tmp = (struct lexer_Lexer){0}) ; __tmp; }));
   continue;
  } else (__tmp = 0) ; __tmp; }));
+  /* #[cfg(false)] allow(padding) struct: consume allow, keep pending_cfg_skip (parse_into_buf) */
+  (void)(({ int32_t __tmp = 0; {
+  struct parser_TrySkipAllowResult try_cfg_allow_buf = { 0 };
+  (void)(parser_parse_into_try_skip_allow_into_buf((&(try_cfg_allow_buf)), lex, r, data, len));
+  if ((try_cfg_allow_buf).skipped != 0) {
+    (void)(parser_lex_from_try_skip_into((&(lex)), try_cfg_allow_buf));
+    (void)(({ struct lexer_Lexer __tmp2 = (struct lexer_Lexer){0}; if ((lex).pos == (iter_start_buf).pos && (lex).pos < ((size_t)(len))) {   __tmp2 = (lex = ((struct lexer_Lexer){ .pos = (lex).pos + 1, .line = (lex).line, .col = (lex).col + 1 }));
+ } else (__tmp2 = (struct lexer_Lexer){0}) ; __tmp2; }));
+    continue;
+  }
+ } ; __tmp; }));
   ((module)->pending_cfg_skip = (0));
  } else (__tmp = 0) ; __tmp; }));
     (void)(({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_STRUCT) {   struct lexer_Lexer lex_kw = iter_start_buf;
@@ -5947,6 +5994,16 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * restri
     (void)(pipeline_module_func_set_is_async(module, fi_mod, (func_is_async_buf)[0]));
     (void)(pipeline_module_func_set_is_export(module, fi_mod, (module)->pending_export));
     ((module)->pending_export = (0));
+    (void)(pipeline_module_func_set_is_used(module, fi_mod, (module)->pending_used));
+    ((module)->pending_used = (0));
+    (void)(pipeline_module_func_set_is_naked(module, fi_mod, (module)->pending_naked));
+    ((module)->pending_naked = (0));
+    (void)(pipeline_module_func_set_is_entry(module, fi_mod, (module)->pending_entry));
+    ((module)->pending_entry = (0));
+    (void)(pipeline_module_func_set_is_no_mangle(module, fi_mod, (module)->pending_no_mangle));
+    ((module)->pending_no_mangle = (0));
+    (void)(pipeline_module_func_set_is_interrupt(module, fi_mod, (module)->pending_interrupt));
+    ((module)->pending_interrupt = (0));
     int32_t p_copy = 0;
     uint8_t * mod_pool_buf = parser_onefunc_result_pool_ptr((&(res)));
     while (p_copy < (res).num_params) {

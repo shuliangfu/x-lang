@@ -4632,7 +4632,37 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
                   }
                 }
                 if (drv_buf_bind == 0) {
-                  if (pre_len > 0 && codegen_c_prefix_redundant_with_name(&pre_buf[0], pre_len, &callee.field_access_field_name[0], callee.field_access_field_len) == 0 && emit_bytes_from_ptr(out, &pre_buf[0], pre_len) != 0) {
+                  /* #[no_mangle] 目标：binding.field 调用也用裸名 */
+                  let bind_pre: i32 = pre_len;
+                  if (dep_mod_bind != 0 as *Module && callee.field_access_field_len > 0) {
+                    let fi_b: i32 = 0;
+                    while (fi_b < dep_mod_bind.num_funcs) {
+                      let fl: i32 = pipeline_module_func_name_len_at(dep_mod_bind, fi_b);
+                      if (fl == callee.field_access_field_len && fl > 0) {
+                        let fnb: u8[64] = [];
+                        pipeline_module_func_name_copy64(dep_mod_bind, fi_b, &fnb[0]);
+                        let eqb: i32 = 1;
+                        let bi_b: i32 = 0;
+                        while (bi_b < fl) {
+                          if (fnb[bi_b] != callee.field_access_field_name[bi_b]) {
+                            eqb = 0;
+                            bi_b = fl;
+                          } else {
+                            bi_b = bi_b + 1;
+                          }
+                        }
+                        if (eqb != 0) {
+                          bind_pre = codegen_func_c_symbol_prefix_len(dep_mod_bind, fi_b, pre_len);
+                          fi_b = dep_mod_bind.num_funcs;
+                        } else {
+                          fi_b = fi_b + 1;
+                        }
+                      } else {
+                        fi_b = fi_b + 1;
+                      }
+                    }
+                  }
+                  if (bind_pre > 0 && codegen_c_prefix_redundant_with_name(&pre_buf[0], bind_pre, &callee.field_access_field_name[0], callee.field_access_field_len) == 0 && emit_bytes_from_ptr(out, &pre_buf[0], bind_pre) != 0) {
                     return -1;
                   }
                   if (callee.field_access_field_len > 0 && codegen_emit_call_func_name(out, arena, ctx, expr_ref, dep_mod_bind, &callee.field_access_field_name[0], callee.field_access_field_len) != 0) {
@@ -4784,7 +4814,8 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
                   while (pre_len < 128 && pre_buf[pre_len] != 0) {
                     pre_len = pre_len + 1;
                   }
-                  if (callee_is_extern != 0) {
+                  /* extern / #[no_mangle]：CALL 用裸名，与定义/声明端一致 */
+                  if (callee_is_extern != 0 || pipeline_module_func_is_no_mangle_at(dep_mod, fi) != 0) {
                     pre_len = 0;
                   }
                   let drv_buf_call: i32 = 0;
@@ -4937,8 +4968,9 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
                  * 【Invariant】extern 函数仍强制 pl=0（与 extern 声明裸/特定符号一致）。
                  */
                 let pl: i32 = codegen_emit_prefix_len_from_ctx(ctx, &cur_pre[0], 128);
-                /* 【Why extern 裸名】同模块 extern function 调用也须用裸名，与声明符号一致 */
-                if (pipeline_module_func_is_extern_at(cur_mod, fi) != 0) {
+                /* 【Why extern/no_mangle 裸名】同模块调用须与定义/声明符号一致 */
+                if (pipeline_module_func_is_extern_at(cur_mod, fi) != 0
+                    || pipeline_module_func_is_no_mangle_at(cur_mod, fi) != 0) {
                   pl = 0;
                 }
                 if (pl > 0 && codegen_c_prefix_redundant_with_name(&cur_pre[0], pl, callee2.var_name, callee2.var_name_len) == 0 && emit_bytes_from_ptr(out, &cur_pre[0], pl) != 0) {
@@ -5646,7 +5678,9 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
             }
           }
           if (drv_buf_mc == 0) {
-            if (pre_len > 0 && fn_len > 0 && codegen_c_prefix_redundant_with_name(&pre_buf[0], pre_len, &fn_name[0], fn_len) == 0 && emit_bytes_from_ptr(out, &pre_buf[0], pre_len) != 0) {
+            /* #[no_mangle] CALL 不加 path 前缀，与定义端裸名一致 */
+            let call_pre: i32 = codegen_func_c_symbol_prefix_len(dep_mod, func_ix, pre_len);
+            if (call_pre > 0 && fn_len > 0 && codegen_c_prefix_redundant_with_name(&pre_buf[0], call_pre, &fn_name[0], fn_len) == 0 && emit_bytes_from_ptr(out, &pre_buf[0], call_pre) != 0) {
               return -1;
             }
             /* 【Why 根源】typeck 已解析的重载函数也须 mangle：emit_bytes_from_ptr 只发原名，
@@ -7351,6 +7385,22 @@ export function codegen_module_overload_param_sig_count(arena: *ASTArena, module
 }
 
 /**
+ * #[no_mangle]：C 链接符号为裸名，不加 import path 前缀。
+ * 与 codegen_emit_func_link_name 的「原名」规则对齐；定义 / 声明 / CALL 三端共用。
+ * 【Why 根源】仅跳过 overload mangle 仍写 std_net_tcp_* 前缀时，workers C 胶层
+ * 引用的 net_accept_many_c 在 Linux 全量 .o 链接下 U 无法解析（mac dead_strip 掩盖）。
+ */
+export function codegen_func_c_symbol_prefix_len(module: *Module, fi: i32, prefix_len: i32): i32 {
+  if (prefix_len <= 0) {
+    return 0;
+  }
+  if (module != 0 as *Module && fi >= 0 && pipeline_module_func_is_no_mangle_at(module, fi) != 0) {
+    return 0;
+  }
+  return prefix_len;
+}
+
+/**
  * 【Why 根源】输出函数的 C 链接符号名：无 overload 时用原名，否则 mangled（name_t1_t2）。
  * 与 codegen.c func_link_name 对齐。#[no_mangle] 函数始终用原名。
  * 【Invariant】须在所有函数符号生成点（定义/声明/CALL）统一调用，保证三者一致。
@@ -7806,7 +7856,9 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
       return -1;
     }
   } else {
-    if (prefix_len > 0 && codegen_c_prefix_redundant_with_name(prefix, prefix_len, &fn_local[0], fn_len) == 0 && emit_bytes_from_ptr(out, prefix, prefix_len) != 0) {
+    /* #[no_mangle] 不加 path 前缀，与 C ABI 胶层（net_accept_many_c 等）一致 */
+    let sym_pre: i32 = codegen_func_c_symbol_prefix_len(module, fi, prefix_len);
+    if (sym_pre > 0 && codegen_c_prefix_redundant_with_name(prefix, sym_pre, &fn_local[0], fn_len) == 0 && emit_bytes_from_ptr(out, prefix, sym_pre) != 0) {
       return -1;
     }
     /* 重载函数 mangle：同名 >1 时输出 name_t1_t2，与 extern 声明/CALL 三端一致（对齐 codegen.c func_link_name）。 */
@@ -8218,8 +8270,9 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
   let fn_local: u8[64] = [];
   codegen_copy_func_name64_from_module(module, fi, &fn_local[0]);
   let fn_len: i32 = pipeline_module_func_name_len_at(module, fi);
-  if (prefix_len > 0 && codegen_c_prefix_redundant_with_name(prefix, prefix_len, &fn_local[0], fn_len) == 0) {
-    if (emit_bytes_from_ptr(out, prefix, prefix_len) != 0) {
+  let mono_sym_pre: i32 = codegen_func_c_symbol_prefix_len(module, fi, prefix_len);
+  if (mono_sym_pre > 0 && codegen_c_prefix_redundant_with_name(prefix, mono_sym_pre, &fn_local[0], fn_len) == 0) {
+    if (emit_bytes_from_ptr(out, prefix, mono_sym_pre) != 0) {
       return -1;
     }
   }
@@ -8339,6 +8392,8 @@ export function emit_func_extern_declaration(arena: *ASTArena, out: *CodegenOutB
       name_prefix_len = 0;
     }
   }
+  /* #[no_mangle]：声明端与定义端同为 C ABI 裸名 */
+  name_prefix_len = codegen_func_c_symbol_prefix_len(module, fi, name_prefix_len);
   if (name_prefix_len > 0 && codegen_c_prefix_redundant_with_name(prefix, name_prefix_len, &fn_local[0], fn_len) == 0 && emit_bytes_from_ptr(out, prefix, name_prefix_len) != 0) {
     return -1;
   }
