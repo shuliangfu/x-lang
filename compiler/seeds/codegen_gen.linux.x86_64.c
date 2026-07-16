@@ -4574,6 +4574,54 @@ SHUX_LIB_WEAK int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct code
     ++sk;
   }
  }
+  /* preamble ABI types: compound lit uses std_* prefix, not entry module prefix (codegen.x). */
+  if (codegen_should_skip_emit_struct_layout_for_abi_dup((&(((e).struct_lit_struct_name)[0])), (e).struct_lit_struct_name_len) != 0) {
+    (bare_user_lit = (0));
+    if ((e).struct_lit_struct_name_len == 6 && (((e).struct_lit_struct_name)[0]) == 66) {
+      /* Buffer → std_io_driver_ */
+      (sl_pfx)[0] = 115; (sl_pfx)[1] = 116; (sl_pfx)[2] = 100; (sl_pfx)[3] = 95;
+      (sl_pfx)[4] = 105; (sl_pfx)[5] = 111; (sl_pfx)[6] = 95; (sl_pfx)[7] = 100;
+      (sl_pfx)[8] = 114; (sl_pfx)[9] = 105; (sl_pfx)[10] = 118; (sl_pfx)[11] = 101;
+      (sl_pfx)[12] = 114; (sl_pfx)[13] = 95; (sl_pfx)[14] = 0;
+      (sl_plen = (14));
+    } else if ((e).struct_lit_struct_name_len == 5 && (((e).struct_lit_struct_name)[0]) == 69) {
+      /* Error → std_error_ */
+      (sl_pfx)[0] = 115; (sl_pfx)[1] = 116; (sl_pfx)[2] = 100; (sl_pfx)[3] = 95;
+      (sl_pfx)[4] = 101; (sl_pfx)[5] = 114; (sl_pfx)[6] = 114; (sl_pfx)[7] = 111;
+      (sl_pfx)[8] = 114; (sl_pfx)[9] = 95; (sl_pfx)[10] = 0;
+      (sl_plen = (10));
+    } else if ((e).struct_lit_struct_name_len == 6 && (((e).struct_lit_struct_name)[0]) == 83 && (((e).struct_lit_struct_name)[1]) == 116 && (((e).struct_lit_struct_name)[2]) == 114 && (((e).struct_lit_struct_name)[3]) == 105) {
+      /* String → std_string_ */
+      (sl_pfx)[0] = 115; (sl_pfx)[1] = 116; (sl_pfx)[2] = 100; (sl_pfx)[3] = 95;
+      (sl_pfx)[4] = 115; (sl_pfx)[5] = 116; (sl_pfx)[6] = 114; (sl_pfx)[7] = 105;
+      (sl_pfx)[8] = 110; (sl_pfx)[9] = 103; (sl_pfx)[10] = 95; (sl_pfx)[11] = 0;
+      (sl_plen = (11));
+    } else if ((e).struct_lit_struct_name_len == 7 && (((e).struct_lit_struct_name)[0]) == 83 && (((e).struct_lit_struct_name)[3]) == 86) {
+      /* StrView → std_string_ */
+      (sl_pfx)[0] = 115; (sl_pfx)[1] = 116; (sl_pfx)[2] = 100; (sl_pfx)[3] = 95;
+      (sl_pfx)[4] = 115; (sl_pfx)[5] = 116; (sl_pfx)[6] = 114; (sl_pfx)[7] = 105;
+      (sl_pfx)[8] = 110; (sl_pfx)[9] = 103; (sl_pfx)[10] = 95; (sl_pfx)[11] = 0;
+      (sl_plen = (11));
+    } else if ((e).struct_lit_struct_name_len == 10 && (((e).struct_lit_struct_name)[0]) == 70 && (((e).struct_lit_struct_name)[1]) == 115) {
+      /* FsIovecBuf → std_fs_ */
+      (sl_pfx)[0] = 115; (sl_pfx)[1] = 116; (sl_pfx)[2] = 100; (sl_pfx)[3] = 95;
+      (sl_pfx)[4] = 102; (sl_pfx)[5] = 115; (sl_pfx)[6] = 95; (sl_pfx)[7] = 0;
+      (sl_plen = (7));
+    } else if ((e).struct_lit_struct_name_len == 5 && (((e).struct_lit_struct_name)[0]) == 73 && (((e).struct_lit_struct_name)[1]) == 111) {
+      /* Iovec → std_io_sync_ */
+      (sl_pfx)[0] = 115; (sl_pfx)[1] = 116; (sl_pfx)[2] = 100; (sl_pfx)[3] = 95;
+      (sl_pfx)[4] = 105; (sl_pfx)[5] = 111; (sl_pfx)[6] = 95;
+      (sl_pfx)[7] = 115; (sl_pfx)[8] = 121; (sl_pfx)[9] = 110; (sl_pfx)[10] = 99;
+      (sl_pfx)[11] = 95; (sl_pfx)[12] = 0;
+      (sl_plen = (12));
+    } else {
+      /* net types → std_net_ */
+      (sl_pfx)[0] = 115; (sl_pfx)[1] = 116; (sl_pfx)[2] = 100; (sl_pfx)[3] = 95;
+      (sl_pfx)[4] = 110; (sl_pfx)[5] = 101; (sl_pfx)[6] = 116; (sl_pfx)[7] = 95;
+      (sl_pfx)[8] = 0;
+      (sl_plen = (8));
+    }
+  }
   uint8_t open[9] = { 40, 115, 116, 114, 117, 99, 116, 32, 0 };
   if (codegen_emit_bytes_9(out, open, 8) != 0) {   return (-1);
  }
