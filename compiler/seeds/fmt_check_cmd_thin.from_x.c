@@ -1,4 +1,4 @@
-/* regen from fmt_check_cmd_thin.x -E (argv_append full pure) */
+/* regen from fmt_check_cmd_thin.x -E (file_list path slots + store/clear pure) */
 /* prove prologue (g05_try_x_to_o aligned + uio/poll) */
 #include <stddef.h>
 #include <stdint.h>
@@ -408,6 +408,7 @@ static int32_t g_fmt_user_ignore_n[1] = {0};
 static int32_t g_fmt_check_lib_bufs_n[1] = {0};
 static uint8_t g_fmt_user_ignore_paths[8192];
 static uint8_t g_fmt_check_lib_bufs[4096];
+static uint8_t g_fmt_file_list_paths[4194304];
 static uint8_t g_fmt_lit_check_error[12] = {99, 104, 101, 99, 107, 32, 101, 114, 114, 111, 114, 0};
 static uint8_t g_fmt_lit_fmt_error[10] = {102, 109, 116, 32, 101, 114, 114, 111, 114, 0};
 static uint8_t g_fmt_lit_chk002[7] = {67, 72, 75, 48, 48, 50, 0};
@@ -431,7 +432,6 @@ extern int32_t lsp_diag_print_stderr_human(uint8_t * path);
 extern int32_t driver_run_compiler_full(int32_t argc, uint8_t * argv);
 extern void driver_dep_seeded_clear_all(void);
 extern void diag_report_with_code(uint8_t * file, int32_t line, int32_t col, uint8_t * kind, uint8_t * code, uint8_t * msg, uint8_t * detail);
-extern int32_t fmt_file_list_store_impl(uint8_t * abs_path);
 extern uint8_t * fmt_check_path_bss_slot(int32_t which);
 extern uint8_t * shux_ptr_slot_get(uint8_t * arr, int32_t i);
 extern void shux_ptr_slot_set(uint8_t * arr, int32_t i, uint8_t * p);
@@ -723,6 +723,45 @@ void fmt_file_list_n_set(int32_t v) {
   (void)(0);
   return;
 }
+uint8_t * fmt_file_list_at(int32_t i) {
+  if ((i < 0)) {
+    return ((uint8_t *)(0));
+  }
+  {
+    uint8_t * base = &((g_fmt_file_list_paths)[0]);
+    if ((i >=(g_fmt_file_list_n)[0])) {
+      return ((uint8_t *)(0));
+    }
+    return (base + (i * 512));
+  }
+  return ((uint8_t *)(0));
+}
+int32_t fmt_file_list_store(uint8_t * abs_path) {
+  if ((abs_path ==((uint8_t *)(0)))) {
+    return (0 - 1);
+  }
+  {
+    int32_t n = (g_fmt_file_list_n)[0];
+    if ((n >=8192)) {
+      return (0 - 1);
+    }
+    uint8_t * base = &((g_fmt_file_list_paths)[0]);
+    uint8_t * slot = (base + (n * 512));
+    int32_t k = 0;
+    while ((k < 511)) {
+      uint8_t c = (abs_path)[k];
+      (void)(((slot)[k] = c));
+      if ((c ==0)) {
+        (void)(fmt_file_list_n_set((n + 1)));
+        return 0;
+      }
+      (void)((k = (k + 1)));
+    }
+    (void)(((slot)[511] = 0));
+    (void)(fmt_file_list_n_set((n + 1)));
+  }
+  return 0;
+}
 int32_t fmt_check_lib_bufs_n(void) {
   return (g_fmt_check_lib_bufs_n)[0];
   return 0;
@@ -998,7 +1037,6 @@ int32_t check_one_file(uint8_t * path, int32_t argc, uint8_t * argv) {
   return (0 - 1);
 }
 extern void walk_dir_collect_impl(uint8_t * dir);
-extern void file_list_clear_impl(void);
 int32_t path_should_ignore(uint8_t * path) {
   if ((path ==((uint8_t *)(0)))) {
     return 1;
@@ -1049,7 +1087,7 @@ int32_t file_list_push(uint8_t * path) {
     if ((fmt_path_ends_with_dot_x(abs_path) ==0)) {
       return 0;
     }
-    return fmt_file_list_store_impl(abs_path);
+    return fmt_file_list_store(abs_path);
   }
   return (0 - 1);
 }
@@ -1150,9 +1188,7 @@ void parse_ignore_opt(uint8_t * arg) {
   return;
 }
 void file_list_clear(void) {
-  (void)(file_list_clear_impl());
-  (void)(0);
-  return;
+  (void)(fmt_file_list_n_set(0));
 }
 int32_t fmt_try_walk_if_product_subdir(uint8_t * sub) {
   if ((sub ==((uint8_t *)(0)))) {

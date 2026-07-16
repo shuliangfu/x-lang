@@ -1,13 +1,14 @@
-/* R2 thin + Cap residual pure 深迁（续 argv_append full pure）：
+/* R2 thin + Cap residual pure 深迁（续 file_list path slots + store/clear pure）：
  * PREFER hybrid thin 由 src/driver/fmt_check_cmd_thin.x（lit/entry + pure 真体）；
  * rest SHUX_L2_FMT_CHECK_THIN_FROM_X：无 thin 公共体；pure-duplicate _impl 剔除
  * （含 set_current_file / print / cwd_fallback / try_walk / path_resolve_abs /
  *  append_repo_lib_roots / missing_diag / invoke/dep_clear /
  *  collect_mode is_check / user_passed_L_get / init_user_lib_flags /
  *  file_list_n / user_ignore_count / lib_bufs_n / user_ignore_at /
- *  parse_ignore_opt / try_append_lib_root / argv_append / …）；
- * Cap residual：walk opendir/stat/大 BSS（file_list ptrs）/ one_file_body /
- *  store/clear / run_fmt / run_check 仍 rest（ALWAYS residual 7）。
+ *  parse_ignore_opt / try_append_lib_root / argv_append /
+ *  fmt_file_list_store / file_list_clear / fmt_file_list_at / …）；
+ * Cap residual：walk opendir/stat / one_file_body / run_fmt / run_check 仍 rest
+ *  （ALWAYS residual 5）。
  * 冷启动无宏：全 C 体（含 pure _impl + public 门闩）。
  * Regen thin surface: shux -E src/driver/fmt_check_cmd_thin.x → thin_surface.
  */
@@ -89,6 +90,8 @@ void fmt_user_ignore_count_set(int32_t v);
 int fmt_path_ends_with_dot_x(const char *path);
 int fmt_file_list_n(void);
 void fmt_file_list_n_set(int32_t v);
+const char *fmt_file_list_at(int i);
+int fmt_file_list_store(const char *abs_path);
 int fmt_check_lib_bufs_n(void);
 void fmt_check_lib_bufs_n_set(int32_t v);
 void fmt_check_lib_bufs_reset(void);
@@ -204,9 +207,10 @@ char *fmt_check_path_bss_slot(int which) {
     return s_fmt_check_path_bss[which];
 }
 
-static char *s_file_list[DRIVER_FMT_MAX_FILES];
-/* Cap residual pure：hybrid thin owns s_n_files; cold keeps static. Cap residual: s_file_list[]. */
+/* Cap residual pure：hybrid thin owns s_n_files + path slots (8192×512 flat);
+ * cold keeps static n + pointer table + strdup/free. */
 #ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
+static char *s_file_list[DRIVER_FMT_MAX_FILES];
 static int s_n_files;
 #endif
 
@@ -717,9 +721,9 @@ int fmt_path_ends_with_dot_x(const char *path) {
 }
 #endif
 
-/* pure 权威：thin.x fmt_file_list_n / fmt_file_list_n_set；
- * 冷启动保留 _impl + public；FROM_X 下剔除 pure-dup _impl（H↓）。
- * Cap residual：s_file_list[] + store strdup / clear free 始终 seed。
+/* pure 权威：thin.x fmt_file_list_n / n_set / at / store / clear；
+ * 冷启动保留 _impl + public；FROM_X 下剔除 pure-dup（H↓）。
+ * Cap residual pure：hybrid thin owns 8192×512 path slots；cold keeps s_file_list[] + strdup.
  */
 #ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 int fmt_file_list_n_impl(void) {
@@ -732,6 +736,29 @@ int fmt_file_list_n(void) {
 
 void fmt_file_list_n_set(int32_t v) {
     s_n_files = v < 0 ? 0 : (int)v;
+}
+
+const char *fmt_file_list_at(int i) {
+    int n = fmt_file_list_n();
+    if (i < 0 || i >= n)
+        return NULL;
+    return s_file_list[i];
+}
+
+/* Cold Cap residual path: strdup into s_file_list[]; hybrid pure uses flat BSS store. */
+int fmt_file_list_store_impl(const char *abs_path) {
+    int n = fmt_file_list_n();
+    if (!abs_path || n >= DRIVER_FMT_MAX_FILES)
+        return -1;
+    s_file_list[n] = strdup(abs_path);
+    if (!s_file_list[n])
+        return -1;
+    fmt_file_list_n_set(n + 1);
+    return 0;
+}
+
+int fmt_file_list_store(const char *abs_path) {
+    return fmt_file_list_store_impl(abs_path);
 }
 #endif
 
@@ -763,22 +790,10 @@ const char *fmt_path_resolve_abs(const char *path) {
 }
 #endif
 
-/* Cap residual：strdup 入 s_file_list[]；n 走 public get/set（hybrid thin / 冷 seed）。 */
-int fmt_file_list_store_impl(const char *abs_path) {
-    int n = fmt_file_list_n();
-    if (!abs_path || n >= DRIVER_FMT_MAX_FILES)
-        return -1;
-    s_file_list[n] = strdup(abs_path);
-    if (!s_file_list[n])
-        return -1;
-    fmt_file_list_n_set(n + 1);
-    return 0;
-}
-
 /**
  * 将相对/绝对路径加入待处理列表（去重由调用方保证顺序）。
  * pure 编排权威：thin.x file_list_push；冷启动保留 _impl + public。
- * Cap residual store：fmt_file_list_store_impl（strdup）始终 seed。
+ * store：public fmt_file_list_store（hybrid thin pure / 冷 seed→strdup _impl）。
  */
 #ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 int file_list_push_impl(const char *path) {
@@ -794,7 +809,7 @@ int file_list_push_impl(const char *path) {
         return 0;
     if (!fmt_path_ends_with_dot_x(abs_path))
         return 0;
-    return fmt_file_list_store_impl(abs_path);
+    return fmt_file_list_store(abs_path);
 }
 
 int file_list_push(const char *path) {
@@ -1095,11 +1110,11 @@ void parse_ignore_opt(const char *arg) {
 
 
 /**
- * 释放文件列表。
- * Cap residual：free s_file_list[] 槽；n 走 public get/set（hybrid thin / 冷 seed）。
+ * Clear collected file list.
+ * pure 权威：thin.x file_list_clear（n=0；hybrid flat slots 无 free）；
+ * 冷启动 free s_file_list[] + n=0；FROM_X 下剔除 pure-dup clear_impl（H↓）。
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-407：实现体始终 seed；public PREFER 时 thin forward */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 void file_list_clear_impl(void) {
     int i;
     int n = fmt_file_list_n();
@@ -1108,7 +1123,6 @@ void file_list_clear_impl(void) {
     fmt_file_list_n_set(0);
 }
 
-#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 void file_list_clear(void) {
   file_list_clear_impl();
 }
@@ -1134,7 +1148,8 @@ int driver_run_fmt_impl(int argc, char **argv) {
     s_unformatted_count = 0;
     /* public set：hybrid thin pure BSS / 冷 seed static */
     driver_collect_mode_set(DRIVER_COLLECT_MODE_FMT);
-    file_list_clear_impl();
+    /* public clear：hybrid thin pure n=0 / 冷 seed free+n=0 */
+    file_list_clear();
 
     for (i = 1; i < argc; i++) {
         if (!argv[i])
@@ -1178,9 +1193,14 @@ int driver_run_fmt_impl(int argc, char **argv) {
     }
 
     for (i = 0; i < fmt_file_list_n(); i++) {
-        const char *path = s_file_list[i];
-        int plen = (int)strlen(path);
-        int rc = driver_fmt_one_file((const uint8_t *)path, plen);
+        /* public at：hybrid thin pure flat slots / 冷 seed s_file_list[] */
+        const char *path = fmt_file_list_at(i);
+        int plen;
+        int rc;
+        if (!path)
+            continue;
+        plen = (int)strlen(path);
+        rc = driver_fmt_one_file((const uint8_t *)path, plen);
         if (rc != 0) {
             if (driver_fmt_check_only_get() && s_unformatted_count < DRIVER_FMT_MAX_FILES) {
                 snprintf(s_unformatted_paths[s_unformatted_count], sizeof s_unformatted_paths[0], "%s", path);
@@ -1195,7 +1215,7 @@ int driver_run_fmt_impl(int argc, char **argv) {
     }
 
     driver_fmt_check_only_set(0);
-    file_list_clear_impl();
+    file_list_clear();
 
     if (failed && check_mode) {
         int j;
@@ -1372,7 +1392,8 @@ int driver_run_compiler_check_impl(int argc, char **argv) {
     s_check_quiet_ok = 1;
     /* public set：hybrid thin pure BSS / 冷 seed static */
     driver_collect_mode_set(DRIVER_COLLECT_MODE_CHECK);
-    file_list_clear_impl();
+    /* public clear：hybrid thin pure n=0 / 冷 seed free+n=0 */
+    file_list_clear();
 
     /* main.x 传入 argv[1]=check；shux-c 已 drop 子命令时 argv[1] 为首个路径。 */
     if (argc >= 2 && argv[1] && strcmp(argv[1], "check") == 0)
@@ -1427,8 +1448,11 @@ int driver_run_compiler_check_impl(int argc, char **argv) {
     }
 
     for (i = 0; i < fmt_file_list_n(); i++) {
-        /* public：hybrid thin pure 门闩→body / 冷 seed public→_impl→body */
-        if (check_one_file(s_file_list[i], argc, argv) != 0) {
+        /* public at + one_file：hybrid thin pure at / 冷 seed s_file_list */
+        const char *path = fmt_file_list_at(i);
+        if (!path)
+            continue;
+        if (check_one_file(path, argc, argv) != 0) {
             failed = 1;
             if (fail_fast)
                 break;
@@ -1436,7 +1460,7 @@ int driver_run_compiler_check_impl(int argc, char **argv) {
         checked++;
     }
 
-    file_list_clear_impl();
+    file_list_clear();
 
     if (failed)
         return 1;
