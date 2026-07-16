@@ -1,12 +1,15 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-291～296 / R2 full：compile helpers（deps/flags/apply/init/scan/impl/alloc）。
-// 产品 PREFER_X_O：full .x + rest 在 FROM_X 下仅 marker（业务 H=0）。
-// 布局与 compile.x DriverCompileState / seeds DriverCompileStateSU 同构。
-// 纪律：无 let **u8 / 无局部 u8[N] / 无 || / 诊断 diag_report_with_code（-E 易丢体）。
+// G-02f-291～296 / R2 full: compile helpers (deps/flags/apply/init/scan/impl/alloc).
+// Product PREFER_X_O: full .x + FROM_X rest is marker only (business H=0).
+// Layout matches compile.x DriverCompileState / seeds DriverCompileStateSU.
+// Discipline: no let **u8 / no local u8[N] / no || / diag_report_with_code (-E body drop).
+// PLATFORM: SHARED — surface short names are the link-name contract (Track L).
+// Comment rule: never put star-slash sequences inside block comments.
 
-/** 与 seeds/rt_compile.from_x.c DriverCompileStateSU 字段序一致。 */
+/** Layout matches seeds/rt_compile.from_x.c DriverCompileStateSU field order.
+ * PLATFORM: SHARED — ABI layout must stay seed/.x aligned. */
 export struct RtCompileState {
   path_buf: u8[512];
   path_len: i32;
@@ -66,7 +69,11 @@ export extern "C" function strstr(hay: *u8, needle: *u8): *u8;
 export extern "C" function strncmp(a: *u8, b: *u8, n: usize): i32;
 export extern "C" function strcmp(a: *u8, b: *u8): i32;
 
-function rt_cmp_starts_with_n(s: *u8, pref: *u8, n: usize): i32 {
+/** Return 1 if s starts with pref[0..n) via strncmp. Null s/pref → 0.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_compile_rt_cmp_starts_with_n).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function rt_cmp_starts_with_n(s: *u8, pref: *u8, n: usize): i32 {
   if (s == 0 as *u8) {
     return 0;
   }
@@ -81,7 +88,11 @@ function rt_cmp_starts_with_n(s: *u8, pref: *u8, n: usize): i32 {
   return 0;
 }
 
-function rt_cmp_eq(s: *u8, lit: *u8): i32 {
+/** Return 1 if s equals lit via strcmp. Null s/lit → 0.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_compile_rt_cmp_eq).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function rt_cmp_eq(s: *u8, lit: *u8): i32 {
   if (s == 0 as *u8) {
     return 0;
   }
@@ -96,7 +107,11 @@ function rt_cmp_eq(s: *u8, lit: *u8): i32 {
   return 0;
 }
 
-function rt_cmp_contains(hay: *u8, needle: *u8): i32 {
+/** Return 1 if hay contains needle (strstr). Null hay/needle → 0.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_compile_rt_cmp_contains).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function rt_cmp_contains(hay: *u8, needle: *u8): i32 {
   let p: *u8 = 0 as *u8;
   if (hay == 0 as *u8) {
     return 0;
@@ -113,7 +128,9 @@ function rt_cmp_contains(hay: *u8, needle: *u8): i32 {
   return 0;
 }
 
-/** dep 列表是否全为 std./core. 闭包。 */
+/** Return 1 iff every dep path is a std.* or core.* closure name.
+ * Track-L: #[no_mangle] keeps public short name.
+ * PLATFORM: SHARED — link-name contract. */
 #[no_mangle]
 export function driver_deps_are_std_core_closure_only(dep_paths: **u8, n_deps: i32): i32 {
   let k: i32 = 0;
@@ -309,7 +326,11 @@ export function driver_compile_argv_set_sanitize_address_c(): void {
   }
 }
 
-function rt_help_token_is(buf: *u8, len: i32): i32 {
+/** Return 1 if buf[0..len) is "-h" or "--help" (byte compares, no string lit).
+ * Track-L: #[no_mangle] keeps surface short name (not rt_compile_rt_help_token_is).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function rt_help_token_is(buf: *u8, len: i32): i32 {
   if (buf == 0 as *u8) {
     return 0;
   }
@@ -338,8 +359,11 @@ function rt_help_token_is(buf: *u8, len: i32): i32 {
   return 0;
 }
 
-/** 尾递归扫 argv[i..] 是否 -h/--help。 */
-function rt_is_help_at(argc: i32, argv: **u8, i: i32, buf: *u8): i32 {
+/** Tail-recurse argv[i..] for -h/--help. buf is caller scratch (min 16 bytes).
+ * Track-L: #[no_mangle] keeps surface short name (not rt_compile_rt_is_help_at).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function rt_is_help_at(argc: i32, argv: **u8, i: i32, buf: *u8): i32 {
   let len: i32 = 0;
   if (i >= argc) {
     return 0;
@@ -356,7 +380,9 @@ function rt_is_help_at(argc: i32, argv: **u8, i: i32, buf: *u8): i32 {
   return rt_is_help_at(argc, argv, i + 1, buf);
 }
 
-/** 扫描 argv 是否含 -h / --help（malloc 小缓冲，禁局部 u8[N]）。 */
+/** Scan argv for -h / --help (malloc small buf; no local u8[N]).
+ * Track-L: #[no_mangle] keeps public short name.
+ * PLATFORM: SHARED — link-name contract. */
 #[no_mangle]
 export function driver_compile_argv_is_help_c(argc: i32, argv: **u8): i32 {
   let buf: *u8 = 0 as *u8;
@@ -691,8 +717,11 @@ export function driver_compile_parse_argv_step_c(
   return i + 1;
 }
 
-/** 尾递归扫 argv[i..]。 */
-function rt_parse_argv_scan_at(
+/** Tail-recurse argv[i..] via parse_argv_step; arg_buf is caller 512 scratch.
+ * Track-L: #[no_mangle] keeps surface short name (not rt_compile_rt_parse_argv_scan_at).
+ * PLATFORM: SHARED — link-name contract; dual-host prove. */
+#[no_mangle]
+export function rt_parse_argv_scan_at(
   argc: i32, argv: **u8, state: *RtCompileState, i: i32, arg_buf: *u8): void {
   let ni: i32 = 0;
   if (i >= argc) {
@@ -708,7 +737,9 @@ function rt_parse_argv_scan_at(
   rt_parse_argv_scan_at(argc, argv, state, ni, arg_buf);
 }
 
-/** argv 扫描（malloc 512 缓冲，禁局部 u8[N] / while+argv）。 */
+/** Scan argv (malloc 512 buffer; no local u8[N] / while+argv).
+ * Track-L: #[no_mangle] keeps public short name.
+ * PLATFORM: SHARED — link-name contract. */
 #[no_mangle]
 export function driver_compile_parse_argv_scan_c(argc: i32, argv: **u8, state: *RtCompileState): void {
   let arg_buf: *u8 = 0 as *u8;
