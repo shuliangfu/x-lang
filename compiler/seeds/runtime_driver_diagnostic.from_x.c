@@ -1,4 +1,5 @@
-/* G-02f-339..341 / R2 thin + Cap residual pure deep-migrate (wave2 skip/warn + wave3 binop/commit_shape):
+/* G-02f-339..341 / R2 thin + Cap residual pure deep-migrate
+ * (wave2 skip/warn + wave3 binop/commit_shape + wave4 after_entry_module/emit_func_fail):
  * PREFER hybrid thin from src/runtime_driver_diagnostic_thin.x -E;
  * rest SHUX_L2_RDD_THIN_FROM_X: no thin public bodies; pure-dup fixed-msg/pipe orch/assemble/
  * env_debug_pipe/parse_strict_enabled/report_prefixed/pipe_note/
@@ -6,13 +7,14 @@
  * parse_fail/codegen_fail/typeck_func_fail/ptr_field/ret_fail +
  * parse_skip/parse_commit_fail/parse_func_generic/parser_onefunc_param_ref +
  * typeck_import_const/warn_pad/warn_hot/hint_unused +
- * typeck_binop_operands/parse_commit_shape/parser_diagnostic_parse_commit_shape dropped;
- * only slice_marker + Cap residual (asm BSS/void* module/emit_func/va_list report) bodies.
+ * typeck_binop_operands/parse_commit_shape/parser_diagnostic_parse_commit_shape +
+ * after_entry_parse_module/codegen_emit_func_fail dropped;
+ * only slice_marker + Cap residual (asm BSS / va_list report / lsp_diag_get) bodies.
  * Generated from (G-02f-86/96 +copy/report_prefixed) src/runtime_driver_diagnostic.x.
  * Regen: ./shux-c -E -L .. src/runtime_driver_diagnostic.x > /tmp/rdd.c
  *         merge fixed-msg wrappers; polish slice strings; keep snprintf C.
  * .x covers: fixed typeck msgs, fail, no-ops, parse pure + report_prefixed/pipe_note +
- *   debug_log/parser_diag + typeck debug/scratch + residual pure (incl. skip/warn/binop/shape).
+ *   debug_log/parser_diag + typeck debug/scratch + residual pure (incl. skip/warn/binop/shape/module).
  */
 #include "runtime_driver_diagnostic.h"
 #include "runtime_driver_abi.h"
@@ -1082,13 +1084,12 @@ void parser_diagnostic_parse_commit_shape(int32_t byte_pos, int32_t num_funcs_so
 
 /**
  * 诊断：entry 解析后 num_funcs / num_defined / num_extern 分项（A-11 typeck 截断：target num_defined=146）。
+ * pure authority: thin.x driver_diagnostic_after_entry_parse_module (pipeline API + append+note);
+ * cold keeps C body; FROM_X no pure-dup _impl (H↓ / rest T↓ wave4).
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 #ifndef SHUX_L2_RDD_THIN_FROM_X
 void driver_diagnostic_after_entry_parse_module(void *module)
-#else
-void driver_diagnostic_after_entry_parse_module_impl(void *module)
-#endif
 {
     int32_t nf, i, ndef, next;
     if (!getenv("SHUX_DEBUG_PIPE") || !module)
@@ -1119,6 +1120,7 @@ void driver_diagnostic_after_entry_parse_module_impl(void *module)
                      (int)ntl);
     }
 }
+#endif
 
 
 
@@ -1158,13 +1160,12 @@ void driver_diagnostic_codegen_fail(int32_t dep_index, int32_t is_dep)
 
 
 
-/** codegen emit_func 失败时打印函数下标与名称（pipeline_glue / ast_pool 提供读 API）。 */
+/** codegen emit_func 失败时打印函数下标与名称（pipeline_glue / ast_pool 提供读 API）。
+ * pure authority: thin.x driver_diagnostic_codegen_emit_func_fail (pipeline name API + append+CG003);
+ * cold keeps C body; FROM_X no pure-dup _impl (H↓ / rest T↓ wave4). */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 #ifndef SHUX_L2_RDD_THIN_FROM_X
 void driver_diagnostic_codegen_emit_func_fail(void *module, int32_t func_index)
-#else
-void driver_diagnostic_codegen_emit_func_fail_impl(void *module, int32_t func_index)
-#endif
 {
     extern int32_t pipeline_module_func_name_len_at(void *m, int32_t fi);
     extern uint8_t pipeline_module_func_name_byte_at(void *m, int32_t fi, int32_t bi);
@@ -1184,6 +1185,7 @@ void driver_diagnostic_codegen_emit_func_fail_impl(void *module, int32_t func_in
                                out_i > 0 ? namebuf : "?", (int)func_index);
     }
 }
+#endif
 
 
 

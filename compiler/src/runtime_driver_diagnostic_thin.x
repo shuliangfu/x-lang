@@ -3,7 +3,7 @@
 //
 // G-02f-339..341/409/416 + Cap residual pure deep-migrate
 // (parse_fail / codegen_fail / typeck residual + skip/commit_fail/warn/hint/generic/param/import
-//  + binop + commit_shape wave3):
+//  + binop + commit_shape wave3 + after_entry_module + emit_func_fail wave4):
 // runtime_driver_diagnostic R2 thin.
 // Product PREFER_X_O: g05_try_x_to_o -> thin.o + seeds/runtime_driver_diagnostic.from_x.c rest
 //   (-DSHUX_L2_RDD_THIN_FROM_X) ld -r -> src/runtime_driver_diagnostic.o
@@ -13,8 +13,9 @@
 //   + typeck_ptr_field / typeck_ret_fail debug notes (getenv gate + append+note)
 //   + parse_skip / parse_commit_fail (XP002) / parse_func_generic / parser_onefunc_param_ref
 //   + typeck_import_const_must_be_qualified / warn_pad / warn_hot / hint_unused (append; no va_list)
-//   + typeck_binop_operands / parse_commit_shape / parser_diagnostic_parse_commit_shape (wave3).
-// Cap residual: remaining rest va_list/BSS/void* module *_impl (asm BSS / emit_func / module / ...).
+//   + typeck_binop_operands / parse_commit_shape / parser_diagnostic_parse_commit_shape (wave3)
+//   + after_entry_parse_module / codegen_emit_func_fail (wave4; pipeline API + append; no va_list).
+// Cap residual: remaining rest va_list/BSS *_impl (asm BSS store/trace/print/var/fail + report + lsp).
 // This TU: thin gates + pure bodies (f-339..341 + f-387 env + f-409 pipe + f-416 lsp_diag_get)
 
 export extern "C" function getenv(name: *u8): *u8;
@@ -23,35 +24,26 @@ export extern "C" function getenv(name: *u8): *u8;
 // Extern declaration only here to avoid duplicate global symbols across .o files.
 extern function driver_env_flag_truthy(name: *u8): i32;
 
-export extern "C" function driver_diagnostic_after_entry_parse_module_impl(module: *u8): void;
+// Cap residual still seed: asm BSS consumers (print/var/fail_at) keep rest *_impl.
 export extern "C" function driver_diagnostic_asm_fail_at_impl(loc: i32): void;
 export extern "C" function driver_diagnostic_asm_print_current_func_impl(): void;
 export extern "C" function driver_diagnostic_asm_var_not_found_impl(name: *u8, len: i32, num_locals: i32, first_slot: *u8, first_len: i32): void;
-export extern "C" function driver_diagnostic_codegen_emit_func_fail_impl(module: *u8, func_index: i32): void;
+
+// Pipeline module read APIs (authoritative in pipeline_glue / ast_pool — G.7; not reimplemented here).
+// Used by pure after_entry_parse_module + codegen_emit_func_fail (wave4).
+export extern "C" function pipeline_module_num_funcs(module: *u8): i32;
+export extern "C" function pipeline_module_func_is_extern_at(module: *u8, fi: i32): i32;
+export extern "C" function pipeline_module_func_name_len_at(module: *u8, fi: i32): i32;
+export extern "C" function pipeline_module_func_name_byte_at(module: *u8, fi: i32, bi: i32): u8;
 
 // pure bodies for parse_fail / skip / commit_fail / warn / hint / generic / param / import /
-// binop / commit_shape are defined after append_* helpers (Cap residual pure deep-migrate).
+// binop / commit_shape / after_entry_module / emit_func_fail are after append_* helpers.
 
 // pure: typeck_block/fn/var debug below (getenv gate + append+note); thin gate removed.
 // pure: typeck_binop_operands / parse_commit_shape / parser_diagnostic_parse_commit_shape (wave3).
-
-
-#[no_mangle]
-export function driver_diagnostic_after_entry_parse_module(module: *u8): void {
-  unsafe {
-    driver_diagnostic_after_entry_parse_module_impl(module);
-  }
-}
-
+// pure: after_entry_parse_module / codegen_emit_func_fail (wave4).
 
 // pure:driver_diagnostic_codegen_fail defined after append_* helpers.
-
-#[no_mangle]
-export function driver_diagnostic_codegen_emit_func_fail(module: *u8, func_index: i32): void {
-  unsafe {
-    driver_diagnostic_codegen_emit_func_fail_impl(module, func_index);
-  }
-}
 
 
 #[no_mangle]
@@ -1341,6 +1333,99 @@ export function driver_diagnostic_parse_commit_shape(byte_pos: i32, num_funcs_so
 #[no_mangle]
 export function parser_diagnostic_parse_commit_shape(byte_pos: i32, num_funcs_so_far: i32, name: *u8, name_len: i32, phase: i32, block_ref: i32, pool_num_consts: i32, pool_num_lets: i32, pool_num_ifs: i32, pool_num_regions: i32, pool_num_stmt_order: i32, block_num_consts: i32, block_num_lets: i32, block_num_ifs: i32, block_num_regions: i32, block_num_stmt_order: i32, final_expr_ref: i32): void {
   driver_diagnostic_parse_commit_shape(byte_pos, num_funcs_so_far, name, name_len, phase, block_ref, pool_num_consts, pool_num_lets, pool_num_ifs, pool_num_regions, pool_num_stmt_order, block_num_consts, block_num_lets, block_num_ifs, block_num_regions, block_num_stmt_order, final_expr_ref);
+}
+
+// ---- Cap residual pure deep-migrate wave4: after_entry_parse_module + codegen_emit_func_fail ----
+
+/** Optional pipeline debug after entry parse when getenv("SHUX_DEBUG_PIPE") is set (any value;
+ * match cold seed: non-NULL env enables, including "0"). Counts num_funcs / defined / extern via
+ * pipeline_module_* APIs (G.7: do not reimplement module walk). Reads num_top_level_lets from
+ * shared ast_Module layout offset 12 (i32 field index 3: after num_funcs/main/imports) — same
+ * thin cast the cold seed uses; not a second layout authority.
+ * Assembles notes via append_cstr/append_i32 + driver_diag_note. No va_list reportf.
+ * PLATFORM: SHARED — pure authority in thin.x; cold seed keeps C body; FROM_X no pure-dup _impl. */
+#[no_mangle]
+export function driver_diagnostic_after_entry_parse_module(module: *u8): void {
+  unsafe {
+    if (getenv("SHUX_DEBUG_PIPE") == 0 as *u8) {
+      return;
+    }
+    if (module == 0 as *u8) {
+      return;
+    }
+    let nf: i32 = pipeline_module_num_funcs(module);
+    let ndef: i32 = 0;
+    let next: i32 = 0;
+    let i: i32 = 0;
+    while (i < nf) {
+      if (pipeline_module_func_is_extern_at(module, i) != 0) {
+        next = next + 1;
+      } else {
+        ndef = ndef + 1;
+      }
+      i = i + 1;
+    }
+    let msg: u8[200] = [];
+    let at: i32 = driver_diag_append_cstr(&msg[0], 200, 0, "pipeline debug: after_entry_parse num_funcs=");
+    at = driver_diag_append_i32(&msg[0], 200, at, nf);
+    at = driver_diag_append_cstr(&msg[0], 200, at, " num_defined=");
+    at = driver_diag_append_i32(&msg[0], 200, at, ndef);
+    at = driver_diag_append_cstr(&msg[0], 200, at, " num_extern=");
+    at = driver_diag_append_i32(&msg[0], 200, at, next);
+    driver_diag_note(&msg[0]);
+    // ast_Module shared prefix: [num_funcs, main_func_index, num_imports, num_top_level_lets]
+    // PLATFORM: SHARED — LE i32 at byte offset 12; keep in sync with C struct layout.
+    let m: *u8 = module;
+    let ntl: i32 = (m[12] as i32)
+      | ((m[13] as i32) << 8)
+      | ((m[14] as i32) << 16)
+      | ((m[15] as i32) << 24);
+    let msg2: u8[120] = [];
+    let at2: i32 = driver_diag_append_cstr(&msg2[0], 120, 0, "pipeline debug: after_entry_parse num_top_level_lets=");
+    at2 = driver_diag_append_i32(&msg2[0], 120, at2, ntl);
+    driver_diag_note(&msg2[0]);
+  }
+}
+
+/** CG003 when codegen fails to emit one function. Reads name via pipeline_module_func_name_*
+ * (G.7 authority; not a second name path). Assembles
+ * "failed to emit function 'NAME' (idx=N)" with append; empty name -> "?".
+ * Path: check-only note + diag_report_with_code("codegen error","CG003",msg). No va_list reportf.
+ * PLATFORM: SHARED — pure authority in thin.x; cold seed keeps C body; FROM_X no pure-dup _impl. */
+#[no_mangle]
+export function driver_diagnostic_codegen_emit_func_fail(module: *u8, func_index: i32): void {
+  unsafe {
+    if (module == 0 as *u8) {
+      return;
+    }
+    if (func_index < 0) {
+      return;
+    }
+    let nl: i32 = pipeline_module_func_name_len_at(module, func_index);
+    let namebuf: u8[80] = [];
+    let out_i: i32 = 0;
+    let k: i32 = 0;
+    while (k < nl && k < 72) {
+      namebuf[out_i] = pipeline_module_func_name_byte_at(module, func_index, k);
+      out_i = out_i + 1;
+      k = k + 1;
+    }
+    namebuf[out_i] = 0;
+    let msg: u8[200] = [];
+    let at: i32 = driver_diag_append_cstr(&msg[0], 200, 0, "failed to emit function '");
+    if (out_i > 0) {
+      at = driver_diag_append_cstr(&msg[0], 200, at, &namebuf[0]);
+    } else {
+      at = driver_diag_append_cstr(&msg[0], 200, at, "?");
+    }
+    at = driver_diag_append_cstr(&msg[0], 200, at, "' (idx=");
+    at = driver_diag_append_i32(&msg[0], 200, at, func_index);
+    at = driver_diag_append_cstr(&msg[0], 200, at, ")");
+    if (driver_check_only_get() != 0) {
+      driver_check_diag_emitted_note();
+    }
+    diag_report_with_code(0 as *u8, 0, 0, "codegen error", "CG003", &msg[0], 0 as *u8);
+  }
 }
 
 // ---- G-02f-416:lsp_diag_enabled getter -> seed impl ----

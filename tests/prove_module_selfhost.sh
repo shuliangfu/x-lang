@@ -86,7 +86,9 @@ MODULES=(
   # + parse_fail/codegen_fail/typeck_func_fail/ptr_field/ret_fail pure (append+note/code; rest T 28→23)
   # + parse_skip/commit_fail XP002/func_generic/onefunc_param/import_const/warn_pad/warn_hot/hint_unused
   #   pure (append; rest T 23→15)
-  # + binop/commit_shape(+parser alias) pure (append; rest T 15→12); Cap residual asm BSS/void* module/va_list still rest
+  # + binop/commit_shape(+parser alias) pure (append; rest T 15→12)
+  # + after_entry_parse_module/codegen_emit_func_fail pure (pipeline API+append; rest T 12→10);
+  # Cap residual: asm BSS / va_list report / lsp_diag_get still rest
   # rest FROM_X no pure-dup _impl for pure set; prove locks thin surface IDENTICAL
   # cold/no PREFER still full C seeds/runtime_driver_diagnostic.from_x.c
   "diagnostic|src/runtime_driver_diagnostic_thin.x|seeds/runtime_driver_diagnostic_thin_surface.from_x.c||"
