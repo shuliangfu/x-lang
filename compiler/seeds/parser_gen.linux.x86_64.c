@@ -31,12 +31,12 @@ static inline int32_t shux_io_submit_write_buf(intptr_t buf, int32_t timeout_m) 
 typedef struct { uint8_t *ptr; size_t len; size_t handle; } shu_batch_buf_t;
 __attribute__((weak)) int io_register_buffers_buf_c(const shu_batch_buf_t *bufs, int nr) { (void)bufs; (void)nr; return -1; }
 static inline int io_register_buffers_buf_i32(intptr_t bufs, int nr) { return io_register_buffers_buf_c((const shu_batch_buf_t *)(uintptr_t)bufs, nr); }
-enum token_TokenKind { token_TokenKind_TOKEN_EOF, token_TokenKind_TOKEN_FUNCTION, token_TokenKind_TOKEN_LET, token_TokenKind_TOKEN_CONST, token_TokenKind_TOKEN_IF, token_TokenKind_TOKEN_ELSE, token_TokenKind_TOKEN_WHILE, token_TokenKind_TOKEN_LOOP, token_TokenKind_TOKEN_FOR, token_TokenKind_TOKEN_BREAK, token_TokenKind_TOKEN_CONTINUE, token_TokenKind_TOKEN_RETURN, token_TokenKind_TOKEN_PANIC, token_TokenKind_TOKEN_DEFER, token_TokenKind_TOKEN_TRY, token_TokenKind_TOKEN_CATCH, token_TokenKind_TOKEN_REGION, token_TokenKind_TOKEN_WITH_ARENA, token_TokenKind_TOKEN_MATCH, token_TokenKind_TOKEN_STRUCT, token_TokenKind_TOKEN_TYPE, token_TokenKind_TOKEN_PACKED, token_TokenKind_TOKEN_SOA, token_TokenKind_TOKEN_ATTR_SOA, token_TokenKind_TOKEN_ATTR_CFG, token_TokenKind_TOKEN_ATTR_REPR_C, token_TokenKind_TOKEN_ATTR_REPR_COMPATIBLE, token_TokenKind_TOKEN_ATTR_ALLOC, token_TokenKind_TOKEN_ATTR_LINK_SECTION, token_TokenKind_TOKEN_ATTR_NAKED, token_TokenKind_TOKEN_ATTR_ENTRY, token_TokenKind_TOKEN_ATTR_USED, token_TokenKind_TOKEN_ATTR_NO_MANGLE, token_TokenKind_TOKEN_ATTR_LINK_NAME, token_TokenKind_TOKEN_ATTR_MAX_STACK, token_TokenKind_TOKEN_ATTR_INTERRUPT, token_TokenKind_TOKEN_ATTR_SEND, token_TokenKind_TOKEN_ATTR_SYNC, token_TokenKind_TOKEN_ATTR_GLOBAL_ALLOCATOR, token_TokenKind_TOKEN_ATTR_COLD, token_TokenKind_TOKEN_ATTR_INLINE_NEVER, token_TokenKind_TOKEN_ATTR_INLINE_ALWAYS, token_TokenKind_TOKEN_ATTR_EXPORT_NAME, token_TokenKind_TOKEN_ATTR_PANIC_HANDLER, token_TokenKind_TOKEN_ATTR_THREAD_LOCAL, token_TokenKind_TOKEN_ATTR_PERCPU, token_TokenKind_TOKEN_ALIGN, token_TokenKind_TOKEN_ENUM, token_TokenKind_TOKEN_GOTO, token_TokenKind_TOKEN_TRAIT, token_TokenKind_TOKEN_IMPL, token_TokenKind_TOKEN_SELF, token_TokenKind_TOKEN_UNDERSCORE, token_TokenKind_TOKEN_IMPORT, token_TokenKind_TOKEN_EXTERN, token_TokenKind_TOKEN_ASYNC, token_TokenKind_TOKEN_AWAIT, token_TokenKind_TOKEN_RUN, token_TokenKind_TOKEN_SPAWN, token_TokenKind_TOKEN_IDENT, token_TokenKind_TOKEN_I32, token_TokenKind_TOKEN_BOOL, token_TokenKind_TOKEN_U8, token_TokenKind_TOKEN_U32, token_TokenKind_TOKEN_U64, token_TokenKind_TOKEN_I64, token_TokenKind_TOKEN_USIZE, token_TokenKind_TOKEN_ISIZE, token_TokenKind_TOKEN_I32X4, token_TokenKind_TOKEN_I32X8, token_TokenKind_TOKEN_I32X16, token_TokenKind_TOKEN_U32X4, token_TokenKind_TOKEN_U32X8, token_TokenKind_TOKEN_U32X16, token_TokenKind_TOKEN_F32X4, token_TokenKind_TOKEN_TRUE, token_TokenKind_TOKEN_FALSE, token_TokenKind_TOKEN_F32, token_TokenKind_TOKEN_F64, token_TokenKind_TOKEN_VOID, token_TokenKind_TOKEN_INT, token_TokenKind_TOKEN_FLOAT, token_TokenKind_TOKEN_LPAREN, token_TokenKind_TOKEN_RPAREN, token_TokenKind_TOKEN_LBRACE, token_TokenKind_TOKEN_RBRACE, token_TokenKind_TOKEN_LBRACKET, token_TokenKind_TOKEN_RBRACKET, token_TokenKind_TOKEN_ARROW, token_TokenKind_TOKEN_FATARROW, token_TokenKind_TOKEN_COMMA, token_TokenKind_TOKEN_COLON, token_TokenKind_TOKEN_DOT, token_TokenKind_TOKEN_DOTDOT, token_TokenKind_TOKEN_SEMICOLON, token_TokenKind_TOKEN_PLUS, token_TokenKind_TOKEN_MINUS, token_TokenKind_TOKEN_STAR, token_TokenKind_TOKEN_SLASH, token_TokenKind_TOKEN_PERCENT, token_TokenKind_TOKEN_AMP, token_TokenKind_TOKEN_PIPE, token_TokenKind_TOKEN_CARET, token_TokenKind_TOKEN_LSHIFT, token_TokenKind_TOKEN_RSHIFT, token_TokenKind_TOKEN_PLUS_EQ, token_TokenKind_TOKEN_MINUS_EQ, token_TokenKind_TOKEN_STAR_EQ, token_TokenKind_TOKEN_SLASH_EQ, token_TokenKind_TOKEN_PERCENT_EQ, token_TokenKind_TOKEN_AMP_EQ, token_TokenKind_TOKEN_PIPE_EQ, token_TokenKind_TOKEN_CARET_EQ, token_TokenKind_TOKEN_LSHIFT_EQ, token_TokenKind_TOKEN_RSHIFT_EQ, token_TokenKind_TOKEN_TILDE, token_TokenKind_TOKEN_ASSIGN, token_TokenKind_TOKEN_EQ, token_TokenKind_TOKEN_NE, token_TokenKind_TOKEN_LT, token_TokenKind_TOKEN_GT, token_TokenKind_TOKEN_LE, token_TokenKind_TOKEN_GE, token_TokenKind_TOKEN_AMPAMP, token_TokenKind_TOKEN_PIPEPIPE, token_TokenKind_TOKEN_BANG, token_TokenKind_TOKEN_QUESTION, token_TokenKind_TOKEN_AS, token_TokenKind_TOKEN_AT, token_TokenKind_TOKEN_STRING };
+enum token_TokenKind { token_TokenKind_TOKEN_EOF, token_TokenKind_TOKEN_FUNCTION, token_TokenKind_TOKEN_LET, token_TokenKind_TOKEN_CONST, token_TokenKind_TOKEN_IF, token_TokenKind_TOKEN_ELSE, token_TokenKind_TOKEN_WHILE, token_TokenKind_TOKEN_LOOP, token_TokenKind_TOKEN_FOR, token_TokenKind_TOKEN_BREAK, token_TokenKind_TOKEN_CONTINUE, token_TokenKind_TOKEN_RETURN, token_TokenKind_TOKEN_PANIC, token_TokenKind_TOKEN_DEFER, token_TokenKind_TOKEN_TRY, token_TokenKind_TOKEN_CATCH, token_TokenKind_TOKEN_REGION, token_TokenKind_TOKEN_WITH_ARENA, token_TokenKind_TOKEN_MATCH, token_TokenKind_TOKEN_STRUCT, token_TokenKind_TOKEN_TYPE, token_TokenKind_TOKEN_PACKED, token_TokenKind_TOKEN_SOA, token_TokenKind_TOKEN_ATTR_SOA, token_TokenKind_TOKEN_ATTR_CFG, token_TokenKind_TOKEN_ATTR_REPR_C, token_TokenKind_TOKEN_ATTR_REPR_COMPATIBLE, token_TokenKind_TOKEN_ATTR_ALLOC, token_TokenKind_TOKEN_ATTR_LINK_SECTION, token_TokenKind_TOKEN_ATTR_NAKED, token_TokenKind_TOKEN_ATTR_ENTRY, token_TokenKind_TOKEN_ATTR_USED, token_TokenKind_TOKEN_ATTR_NO_MANGLE, token_TokenKind_TOKEN_ATTR_LINK_NAME, token_TokenKind_TOKEN_ATTR_MAX_STACK, token_TokenKind_TOKEN_ATTR_INTERRUPT, token_TokenKind_TOKEN_ATTR_SEND, token_TokenKind_TOKEN_ATTR_SYNC, token_TokenKind_TOKEN_ATTR_GLOBAL_ALLOCATOR, token_TokenKind_TOKEN_ATTR_COLD, token_TokenKind_TOKEN_ATTR_INLINE_NEVER, token_TokenKind_TOKEN_ATTR_INLINE_ALWAYS, token_TokenKind_TOKEN_ATTR_EXPORT_NAME, token_TokenKind_TOKEN_ATTR_PANIC_HANDLER, token_TokenKind_TOKEN_ATTR_THREAD_LOCAL, token_TokenKind_TOKEN_ATTR_PERCPU, token_TokenKind_TOKEN_ALIGN, token_TokenKind_TOKEN_ENUM, token_TokenKind_TOKEN_GOTO, token_TokenKind_TOKEN_TRAIT, token_TokenKind_TOKEN_IMPL, token_TokenKind_TOKEN_SELF, token_TokenKind_TOKEN_UNDERSCORE, token_TokenKind_TOKEN_IMPORT, token_TokenKind_TOKEN_EXTERN, token_TokenKind_TOKEN_ASYNC, token_TokenKind_TOKEN_AWAIT, token_TokenKind_TOKEN_RUN, token_TokenKind_TOKEN_SPAWN, token_TokenKind_TOKEN_IDENT, token_TokenKind_TOKEN_I32, token_TokenKind_TOKEN_BOOL, token_TokenKind_TOKEN_U8, token_TokenKind_TOKEN_U32, token_TokenKind_TOKEN_U64, token_TokenKind_TOKEN_I64, token_TokenKind_TOKEN_USIZE, token_TokenKind_TOKEN_ISIZE, token_TokenKind_TOKEN_I32X4, token_TokenKind_TOKEN_I32X8, token_TokenKind_TOKEN_I32X16, token_TokenKind_TOKEN_U32X4, token_TokenKind_TOKEN_U32X8, token_TokenKind_TOKEN_U32X16, token_TokenKind_TOKEN_F32X4, token_TokenKind_TOKEN_TRUE, token_TokenKind_TOKEN_FALSE, token_TokenKind_TOKEN_F32, token_TokenKind_TOKEN_F64, token_TokenKind_TOKEN_VOID, token_TokenKind_TOKEN_INT, token_TokenKind_TOKEN_FLOAT, token_TokenKind_TOKEN_LPAREN, token_TokenKind_TOKEN_RPAREN, token_TokenKind_TOKEN_LBRACE, token_TokenKind_TOKEN_RBRACE, token_TokenKind_TOKEN_LBRACKET, token_TokenKind_TOKEN_RBRACKET, token_TokenKind_TOKEN_ARROW, token_TokenKind_TOKEN_FATARROW, token_TokenKind_TOKEN_COMMA, token_TokenKind_TOKEN_COLON, token_TokenKind_TOKEN_DOT, token_TokenKind_TOKEN_DOTDOT, token_TokenKind_TOKEN_ELLIPSIS, token_TokenKind_TOKEN_SEMICOLON, token_TokenKind_TOKEN_PLUS, token_TokenKind_TOKEN_MINUS, token_TokenKind_TOKEN_STAR, token_TokenKind_TOKEN_SLASH, token_TokenKind_TOKEN_PERCENT, token_TokenKind_TOKEN_AMP, token_TokenKind_TOKEN_PIPE, token_TokenKind_TOKEN_CARET, token_TokenKind_TOKEN_LSHIFT, token_TokenKind_TOKEN_RSHIFT, token_TokenKind_TOKEN_PLUS_EQ, token_TokenKind_TOKEN_MINUS_EQ, token_TokenKind_TOKEN_STAR_EQ, token_TokenKind_TOKEN_SLASH_EQ, token_TokenKind_TOKEN_PERCENT_EQ, token_TokenKind_TOKEN_AMP_EQ, token_TokenKind_TOKEN_PIPE_EQ, token_TokenKind_TOKEN_CARET_EQ, token_TokenKind_TOKEN_LSHIFT_EQ, token_TokenKind_TOKEN_RSHIFT_EQ, token_TokenKind_TOKEN_TILDE, token_TokenKind_TOKEN_ASSIGN, token_TokenKind_TOKEN_EQ, token_TokenKind_TOKEN_NE, token_TokenKind_TOKEN_LT, token_TokenKind_TOKEN_GT, token_TokenKind_TOKEN_LE, token_TokenKind_TOKEN_GE, token_TokenKind_TOKEN_AMPAMP, token_TokenKind_TOKEN_PIPEPIPE, token_TokenKind_TOKEN_BANG, token_TokenKind_TOKEN_QUESTION, token_TokenKind_TOKEN_AS, token_TokenKind_TOKEN_AT, token_TokenKind_TOKEN_STRING, token_TokenKind_TOKEN_EXPORT };
 struct token_Token { enum token_TokenKind kind; int32_t line; int32_t col; int64_t int_val; double float_val; uint8_t * ident; int32_t ident_len; };
 struct lexer_Lexer { size_t pos; int32_t line; int32_t col; };
 struct lexer_LexerResult { struct lexer_Lexer next_lex; struct token_Token tok; size_t token_start; };
 enum ast_TypeKind { ast_TypeKind_TYPE_I32, ast_TypeKind_TYPE_BOOL, ast_TypeKind_TYPE_U8, ast_TypeKind_TYPE_U32, ast_TypeKind_TYPE_U64, ast_TypeKind_TYPE_I64, ast_TypeKind_TYPE_USIZE, ast_TypeKind_TYPE_ISIZE, ast_TypeKind_TYPE_NAMED, ast_TypeKind_TYPE_PTR, ast_TypeKind_TYPE_ARRAY, ast_TypeKind_TYPE_SLICE, ast_TypeKind_TYPE_LINEAR, ast_TypeKind_TYPE_VECTOR, ast_TypeKind_TYPE_F32, ast_TypeKind_TYPE_F64, ast_TypeKind_TYPE_VOID };
-enum ast_ExprKind { ast_ExprKind_EXPR_LIT, ast_ExprKind_EXPR_FLOAT_LIT, ast_ExprKind_EXPR_BOOL_LIT, ast_ExprKind_EXPR_VAR, ast_ExprKind_EXPR_ADD, ast_ExprKind_EXPR_SUB, ast_ExprKind_EXPR_MUL, ast_ExprKind_EXPR_DIV, ast_ExprKind_EXPR_MOD, ast_ExprKind_EXPR_SHL, ast_ExprKind_EXPR_SHR, ast_ExprKind_EXPR_BITAND, ast_ExprKind_EXPR_BITOR, ast_ExprKind_EXPR_BITXOR, ast_ExprKind_EXPR_EQ, ast_ExprKind_EXPR_NE, ast_ExprKind_EXPR_LT, ast_ExprKind_EXPR_LE, ast_ExprKind_EXPR_GT, ast_ExprKind_EXPR_GE, ast_ExprKind_EXPR_LOGAND, ast_ExprKind_EXPR_LOGOR, ast_ExprKind_EXPR_NEG, ast_ExprKind_EXPR_BITNOT, ast_ExprKind_EXPR_LOGNOT, ast_ExprKind_EXPR_IF, ast_ExprKind_EXPR_BLOCK, ast_ExprKind_EXPR_TERNARY, ast_ExprKind_EXPR_ASSIGN, ast_ExprKind_EXPR_ADD_ASSIGN, ast_ExprKind_EXPR_SUB_ASSIGN, ast_ExprKind_EXPR_MUL_ASSIGN, ast_ExprKind_EXPR_DIV_ASSIGN, ast_ExprKind_EXPR_MOD_ASSIGN, ast_ExprKind_EXPR_BITAND_ASSIGN, ast_ExprKind_EXPR_BITOR_ASSIGN, ast_ExprKind_EXPR_BITXOR_ASSIGN, ast_ExprKind_EXPR_SHL_ASSIGN, ast_ExprKind_EXPR_SHR_ASSIGN, ast_ExprKind_EXPR_BREAK, ast_ExprKind_EXPR_CONTINUE, ast_ExprKind_EXPR_RETURN, ast_ExprKind_EXPR_PANIC, ast_ExprKind_EXPR_MATCH, ast_ExprKind_EXPR_FIELD_ACCESS, ast_ExprKind_EXPR_STRUCT_LIT, ast_ExprKind_EXPR_ARRAY_LIT, ast_ExprKind_EXPR_INDEX, ast_ExprKind_EXPR_CALL, ast_ExprKind_EXPR_METHOD_CALL, ast_ExprKind_EXPR_ENUM_VARIANT, ast_ExprKind_EXPR_ADDR_OF, ast_ExprKind_EXPR_DEREF, ast_ExprKind_EXPR_BINOP, ast_ExprKind_EXPR_AS, ast_ExprKind_EXPR_AWAIT, ast_ExprKind_EXPR_RUN, ast_ExprKind_EXPR_SPAWN, ast_ExprKind_EXPR_TRY_PROPAGATE, ast_ExprKind_EXPR_STRING_LIT};
+enum ast_ExprKind { ast_ExprKind_EXPR_LIT, ast_ExprKind_EXPR_FLOAT_LIT, ast_ExprKind_EXPR_BOOL_LIT, ast_ExprKind_EXPR_VAR, ast_ExprKind_EXPR_ADD, ast_ExprKind_EXPR_SUB, ast_ExprKind_EXPR_MUL, ast_ExprKind_EXPR_DIV, ast_ExprKind_EXPR_MOD, ast_ExprKind_EXPR_SHL, ast_ExprKind_EXPR_SHR, ast_ExprKind_EXPR_BITAND, ast_ExprKind_EXPR_BITOR, ast_ExprKind_EXPR_BITXOR, ast_ExprKind_EXPR_EQ, ast_ExprKind_EXPR_NE, ast_ExprKind_EXPR_LT, ast_ExprKind_EXPR_LE, ast_ExprKind_EXPR_GT, ast_ExprKind_EXPR_GE, ast_ExprKind_EXPR_LOGAND, ast_ExprKind_EXPR_LOGOR, ast_ExprKind_EXPR_NEG, ast_ExprKind_EXPR_BITNOT, ast_ExprKind_EXPR_LOGNOT, ast_ExprKind_EXPR_IF, ast_ExprKind_EXPR_BLOCK, ast_ExprKind_EXPR_TERNARY, ast_ExprKind_EXPR_ASSIGN, ast_ExprKind_EXPR_ADD_ASSIGN, ast_ExprKind_EXPR_SUB_ASSIGN, ast_ExprKind_EXPR_MUL_ASSIGN, ast_ExprKind_EXPR_DIV_ASSIGN, ast_ExprKind_EXPR_MOD_ASSIGN, ast_ExprKind_EXPR_BITAND_ASSIGN, ast_ExprKind_EXPR_BITOR_ASSIGN, ast_ExprKind_EXPR_BITXOR_ASSIGN, ast_ExprKind_EXPR_SHL_ASSIGN, ast_ExprKind_EXPR_SHR_ASSIGN, ast_ExprKind_EXPR_BREAK, ast_ExprKind_EXPR_CONTINUE, ast_ExprKind_EXPR_RETURN, ast_ExprKind_EXPR_PANIC, ast_ExprKind_EXPR_MATCH, ast_ExprKind_EXPR_FIELD_ACCESS, ast_ExprKind_EXPR_STRUCT_LIT, ast_ExprKind_EXPR_ARRAY_LIT, ast_ExprKind_EXPR_INDEX, ast_ExprKind_EXPR_CALL, ast_ExprKind_EXPR_METHOD_CALL, ast_ExprKind_EXPR_ENUM_VARIANT, ast_ExprKind_EXPR_ADDR_OF, ast_ExprKind_EXPR_DEREF, ast_ExprKind_EXPR_BINOP, ast_ExprKind_EXPR_AS, ast_ExprKind_EXPR_AWAIT, ast_ExprKind_EXPR_RUN, ast_ExprKind_EXPR_SPAWN, ast_ExprKind_EXPR_TRY_PROPAGATE, ast_ExprKind_EXPR_STRING_LIT };
 enum ast_ImportKind { ast_ImportKind_IMPORT_WHOLE, ast_ImportKind_IMPORT_BINDING, ast_ImportKind_IMPORT_SELECT };
 struct ast_Type { enum ast_TypeKind kind; uint8_t name[64]; int32_t name_len; int32_t elem_type_ref; int32_t array_size; uint8_t region_label[64]; int32_t region_label_len; };
 struct ast_Expr { enum ast_ExprKind kind; int32_t resolved_type_ref; int32_t line; int32_t col; int64_t int_val; double float_val; uint8_t var_name[64]; int32_t var_name_len; int32_t binop_left_ref; int32_t binop_right_ref; int32_t unary_operand_ref; int32_t if_cond_ref; int32_t if_then_ref; int32_t if_else_ref; int32_t block_ref; int32_t match_matched_ref; int32_t match_arm_base; int32_t match_num_arms; int32_t field_access_base_ref; uint8_t field_access_field_name[64]; int32_t field_access_field_len; int32_t field_access_is_enum_variant; int32_t field_access_offset; int32_t field_access_soa_stride; int32_t index_base_ref; int32_t index_index_ref; int32_t index_base_is_slice; int32_t call_callee_ref; int32_t call_arg_base; int32_t call_num_args; int32_t call_num_type_args; int32_t method_call_base_ref; uint8_t method_call_name[64]; int32_t method_call_name_len; int32_t method_call_arg_base; int32_t method_call_num_args; int32_t const_folded_val; int32_t const_folded_valid; int32_t index_proven_in_bounds; uint8_t struct_lit_struct_name[64]; int32_t struct_lit_struct_name_len; int32_t struct_lit_field_base; int32_t struct_lit_num_fields; int32_t array_lit_elem_base; int32_t array_lit_num_elems; int32_t float_bits_lo; int32_t float_bits_hi; int32_t enum_variant_tag; int32_t as_operand_ref; int32_t as_target_type_ref; int32_t call_resolved_func_index; int32_t call_resolved_dep_index; };
@@ -179,6 +179,10 @@ extern void pipeline_module_func_set_body_ref(struct ast_Module * restrict modul
 extern void pipeline_module_func_set_body_expr_ref(struct ast_Module * restrict module, int32_t fi, int32_t body_expr_ref);
 extern void pipeline_module_func_set_is_extern(struct ast_Module * restrict module, int32_t fi, int32_t is_extern);
 extern void pipeline_module_func_set_is_async(struct ast_Module * restrict module, int32_t fi, int32_t is_async);
+extern void pipeline_module_func_set_is_export(struct ast_Module * restrict module, int32_t fi, int32_t is_export);
+extern void pipeline_module_struct_layout_set_is_export(struct ast_Module * restrict module, int32_t idx, int32_t is_export);
+extern void pipeline_module_enum_set_is_export(struct ast_Module * restrict module, int32_t idx, int32_t is_export);
+extern void pipeline_module_top_level_let_set_is_export(struct ast_Module * restrict module, int32_t idx, int32_t is_export);
 extern void pipeline_module_func_set_num_params(struct ast_Module * restrict module, int32_t fi, int32_t n);
 extern void pipeline_module_func_set_num_generic_params(struct ast_Module * restrict module, int32_t fi, int32_t n);
 extern int32_t pipeline_block_append_const(struct ast_ASTArena * restrict arena, int32_t br, uint8_t * restrict name, int32_t name_len, int32_t type_ref, int32_t init_ref);
@@ -200,6 +204,7 @@ extern int32_t pipeline_onefunc_if_then_body_ref(uint8_t * restrict out, int32_t
 extern int32_t pipeline_onefunc_if_else_body_ref(uint8_t * restrict out, int32_t i);
 extern int32_t pipeline_onefunc_num_if_stmts(uint8_t * restrict out);
 extern int32_t pipeline_onefunc_append_region(uint8_t * restrict out, uint8_t * restrict label, int32_t label_len, int32_t body_ref);
+extern int32_t pipeline_onefunc_append_unsafe(uint8_t *out, int32_t body_ref);
 extern int32_t pipeline_onefunc_append_with_arena(uint8_t * restrict out, int32_t cap_ref, int32_t body_ref);
 extern int32_t pipeline_onefunc_num_regions(uint8_t * restrict out);
 extern void pipeline_block_fill_regions_from_onefunc(struct ast_ASTArena * restrict arena, int32_t br, uint8_t * restrict out, int32_t count);
@@ -735,6 +740,8 @@ int32_t parser_lexer_token_run_len(enum token_TokenKind kind) {
   (void)(({ int32_t __tmp = 0; if (kind == token_TokenKind_TOKEN_IMPORT) {   return 6;
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (kind == token_TokenKind_TOKEN_EXTERN) {   return 6;
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (kind == token_TokenKind_TOKEN_EXPORT) {   return 6;
  } else (__tmp = 0) ; __tmp; }));
   int32_t ko = ((int32_t)(kind));
   (void)(({ int32_t __tmp = 0; if (ko == 29) {   return 5;
@@ -1609,8 +1616,7 @@ void parser_parse_block_into(struct ast_ASTArena * restrict arena, struct lexer_
  } else (__tmp = 0) ; __tmp; }));
   (b = (ast_arena_block_get(arena, block_ref)));
   (lex_cur = ((block_res_unsafe).next_lex));
-  (void)(lexer_next_into((&(r)), lex_cur, source));
-  (stmt_tok_ready = (1));
+  (stmt_tok_ready = (0));
   continue;
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
@@ -1982,8 +1988,8 @@ void parser_parse_body_lets_into(struct ast_ASTArena * restrict arena, struct le
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
     (void)(({ int32_t __tmp = 0; if (init_handled == 0) {   __tmp = ({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_STRING) {
-  /* Root: build EXPR_STRING_LIT directly (token_start is after opening quote).
-   * Decode \n/\t/\r/\\/\" so AST holds semantic bytes, not source escapes. */
+  /* Root fix: build EXPR_STRING_LIT directly. token_start is after opening quote;
+   * re-parse via parse_expr_into from token_start fails and drops the whole function. */
   int32_t str_ref = ast_arena_expr_alloc(arena);
   (void)(({ int32_t __tmp = 0; if (str_ref != 0) {
     struct ast_Expr se = ast_arena_expr_get(arena, str_ref);
@@ -2728,6 +2734,29 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * restrict out, 
   (void)(lexer_next_into((&(r)), lex, source));
   (stmt_tok_ready = (1));
   continue;
+ } else (__tmp = 0) ; __tmp; }));
+    (void)(({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_IDENT && ((r).tok).ident_len == 6) {   uint8_t unsafe_nm_fn[64] = { 0 };
+  (void)(parser_copy_slice_to_name64(source, (r).token_start, ((r).tok).ident_len, (&((unsafe_nm_fn)[0]))));
+  __tmp = ({ int32_t __tmp = 0; if ((unsafe_nm_fn)[0] == 117 && (1 < 0 || (1) >= 64 ? (shux_panic_(1, 0), (unsafe_nm_fn)[0]) : (unsafe_nm_fn)[1]) == 110 && (2 < 0 || (2) >= 64 ? (shux_panic_(1, 0), (unsafe_nm_fn)[0]) : (unsafe_nm_fn)[2]) == 115 && (3 < 0 || (3) >= 64 ? (shux_panic_(1, 0), (unsafe_nm_fn)[0]) : (unsafe_nm_fn)[3]) == 97 && (4 < 0 || (4) >= 64 ? (shux_panic_(1, 0), (unsafe_nm_fn)[0]) : (unsafe_nm_fn)[4]) == 102 && (5 < 0 || (5) >= 64 ? (shux_panic_(1, 0), (unsafe_nm_fn)[0]) : (unsafe_nm_fn)[5]) == 101) {   (void)(parser_lex_from_next_into((&(lex)), r));
+  (void)(lexer_next_into((&(r)), lex, source));
+  (void)(({ int32_t __tmp = 0; if (((r).tok).kind != token_TokenKind_TOKEN_LBRACE) {   (void)(parser_set_onefunc_fail(out, lex));
+  return;
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(parser_lex_from_next_into((&(lex)), r));
+  struct parser_ParseBlockResult block_res_unsafe_fn = (struct parser_ParseBlockResult){ .ok = 0, .block_ref = 0, .next_lex = lex };
+  (void)(parser_parse_block_into(arena, lex, source, ret_type_ref, (&(block_res_unsafe_fn))));
+  (void)(({ int32_t __tmp = 0; if ((!(block_res_unsafe_fn).ok)) {   (void)(parser_set_onefunc_fail(out, lex));
+  return;
+ } else (__tmp = 0) ; __tmp; }));
+  int32_t unsafe_idx_fn = pipeline_onefunc_append_unsafe(parser_onefunc_result_pool_ptr(out), (block_res_unsafe_fn).block_ref);
+  (void)(({ int32_t __tmp = 0; if (unsafe_idx_fn < 0) {   (void)(parser_set_onefunc_fail(out, lex));
+  return;
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(parser_onefunc_push_src_stmt(out, 6, unsafe_idx_fn));
+  (lex = ((block_res_unsafe_fn).next_lex));
+  (stmt_tok_ready = (0));
+  continue;
+ } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
     (void)(({ int32_t __tmp = 0; if (parser_token_is_label_start(r, source)) {   struct lexer_LexerResult colon_fn = (struct lexer_LexerResult){ .next_lex = (r).next_lex, .tok = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
   (void)(lexer_next_into((&(colon_fn)), (r).next_lex, source));
@@ -3622,6 +3651,8 @@ int32_t parser_module_register_arena_func(struct ast_Module * restrict module, i
   (void)(pipeline_module_func_set_body_expr_ref(module, fi, (f).body_expr_ref));
   (void)(pipeline_module_func_set_is_extern(module, fi, (f).is_extern));
   (void)(pipeline_module_func_set_is_async(module, fi, (f).is_async));
+  (void)(pipeline_module_func_set_is_export(module, fi, (module)->pending_export));
+  ((module)->pending_export = (0));
   (void)(pipeline_module_func_ref_set(module, fi, func_ref));
   return fi;
 }
@@ -3842,6 +3873,47 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * restrict a
   continue;
  } else (__tmp = 0) ; __tmp; }));
     (void)(({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_ATTR_REPR_COMPATIBLE) {   ((module)->pending_repr_compatible_struct = (1));
+  (void)(parser_lex_from_next_into((&(lex)), r));
+  (void)(({ struct lexer_Lexer __tmp = (struct lexer_Lexer){0}; if ((lex).pos == (iter_start).pos && (lex).pos < (source)->length) {   __tmp = (lex = ((struct lexer_Lexer){ .pos = (lex).pos + 1, .line = (lex).line, .col = (lex).col + 1 }));
+ } else (__tmp = (struct lexer_Lexer){0}) ; __tmp; }));
+  continue;
+ } else (__tmp = 0) ; __tmp; }));
+    (void)(({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_ATTR_ALLOC) {   (void)(parser_lex_from_next_into((&(lex)), r));
+  (void)(({ struct lexer_Lexer __tmp = (struct lexer_Lexer){0}; if ((lex).pos == (iter_start).pos && (lex).pos < (source)->length) {   __tmp = (lex = ((struct lexer_Lexer){ .pos = (lex).pos + 1, .line = (lex).line, .col = (lex).col + 1 }));
+ } else (__tmp = (struct lexer_Lexer){0}) ; __tmp; }));
+  continue;
+ } else (__tmp = 0) ; __tmp; }));
+    (void)(({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_ATTR_USED) {   ((module)->pending_used = (1));
+  (void)(parser_lex_from_next_into((&(lex)), r));
+  (void)(({ struct lexer_Lexer __tmp = (struct lexer_Lexer){0}; if ((lex).pos == (iter_start).pos && (lex).pos < (source)->length) {   __tmp = (lex = ((struct lexer_Lexer){ .pos = (lex).pos + 1, .line = (lex).line, .col = (lex).col + 1 }));
+ } else (__tmp = (struct lexer_Lexer){0}) ; __tmp; }));
+  continue;
+ } else (__tmp = 0) ; __tmp; }));
+    (void)(({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_ATTR_NAKED) {   ((module)->pending_naked = (1));
+  (void)(parser_lex_from_next_into((&(lex)), r));
+  (void)(({ struct lexer_Lexer __tmp = (struct lexer_Lexer){0}; if ((lex).pos == (iter_start).pos && (lex).pos < (source)->length) {   __tmp = (lex = ((struct lexer_Lexer){ .pos = (lex).pos + 1, .line = (lex).line, .col = (lex).col + 1 }));
+ } else (__tmp = (struct lexer_Lexer){0}) ; __tmp; }));
+  continue;
+ } else (__tmp = 0) ; __tmp; }));
+    (void)(({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_ATTR_ENTRY) {   ((module)->pending_entry = (1));
+  (void)(parser_lex_from_next_into((&(lex)), r));
+  (void)(({ struct lexer_Lexer __tmp = (struct lexer_Lexer){0}; if ((lex).pos == (iter_start).pos && (lex).pos < (source)->length) {   __tmp = (lex = ((struct lexer_Lexer){ .pos = (lex).pos + 1, .line = (lex).line, .col = (lex).col + 1 }));
+ } else (__tmp = (struct lexer_Lexer){0}) ; __tmp; }));
+  continue;
+ } else (__tmp = 0) ; __tmp; }));
+    (void)(({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_ATTR_NO_MANGLE) {   ((module)->pending_no_mangle = (1));
+  (void)(parser_lex_from_next_into((&(lex)), r));
+  (void)(({ struct lexer_Lexer __tmp = (struct lexer_Lexer){0}; if ((lex).pos == (iter_start).pos && (lex).pos < (source)->length) {   __tmp = (lex = ((struct lexer_Lexer){ .pos = (lex).pos + 1, .line = (lex).line, .col = (lex).col + 1 }));
+ } else (__tmp = (struct lexer_Lexer){0}) ; __tmp; }));
+  continue;
+ } else (__tmp = 0) ; __tmp; }));
+    (void)(({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_ATTR_INTERRUPT) {   ((module)->pending_interrupt = (1));
+  (void)(parser_lex_from_next_into((&(lex)), r));
+  (void)(({ struct lexer_Lexer __tmp = (struct lexer_Lexer){0}; if ((lex).pos == (iter_start).pos && (lex).pos < (source)->length) {   __tmp = (lex = ((struct lexer_Lexer){ .pos = (lex).pos + 1, .line = (lex).line, .col = (lex).col + 1 }));
+ } else (__tmp = (struct lexer_Lexer){0}) ; __tmp; }));
+  continue;
+ } else (__tmp = 0) ; __tmp; }));
+    (void)(({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_EXPORT) {   ((module)->pending_export = (1));
   (void)(parser_lex_from_next_into((&(lex)), r));
   (void)(({ struct lexer_Lexer __tmp = (struct lexer_Lexer){0}; if ((lex).pos == (iter_start).pos && (lex).pos < (source)->length) {   __tmp = (lex = ((struct lexer_Lexer){ .pos = (lex).pos + 1, .line = (lex).line, .col = (lex).col + 1 }));
  } else (__tmp = (struct lexer_Lexer){0}) ; __tmp; }));
@@ -4804,6 +4876,8 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * restrict a
     (void)(pipeline_module_func_set_body_ref(module, fi, block_ref));
     (void)(pipeline_module_func_set_is_extern(module, fi, 0));
     (void)(pipeline_module_func_set_is_async(module, fi, (func_is_async_storage)[0]));
+    (void)(pipeline_module_func_set_is_export(module, fi, (module)->pending_export));
+    ((module)->pending_export = (0));
     (void)(({ int32_t __tmp = 0; if ((is_main_storage)[0] != 0) {   (main_idx = (fi));
  } else (__tmp = 0) ; __tmp; }));
     (void)(parser_lex_from_onefunc_next_into((&(lex)), (&(res))));
@@ -5017,6 +5091,47 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * restri
   continue;
  } else (__tmp = 0) ; __tmp; }));
     (void)(({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_ATTR_REPR_COMPATIBLE) {   ((module)->pending_repr_compatible_struct = (1));
+  (void)(parser_lex_from_next_into((&(lex)), r));
+  (void)(({ struct lexer_Lexer __tmp = (struct lexer_Lexer){0}; if ((lex).pos == (iter_start_buf).pos && (lex).pos < ((size_t)(len))) {   __tmp = (lex = ((struct lexer_Lexer){ .pos = (lex).pos + 1, .line = (lex).line, .col = (lex).col + 1 }));
+ } else (__tmp = (struct lexer_Lexer){0}) ; __tmp; }));
+  continue;
+ } else (__tmp = 0) ; __tmp; }));
+    (void)(({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_ATTR_ALLOC) {   (void)(parser_lex_from_next_into((&(lex)), r));
+  (void)(({ struct lexer_Lexer __tmp = (struct lexer_Lexer){0}; if ((lex).pos == (iter_start_buf).pos && (lex).pos < ((size_t)(len))) {   __tmp = (lex = ((struct lexer_Lexer){ .pos = (lex).pos + 1, .line = (lex).line, .col = (lex).col + 1 }));
+ } else (__tmp = (struct lexer_Lexer){0}) ; __tmp; }));
+  continue;
+ } else (__tmp = 0) ; __tmp; }));
+    (void)(({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_ATTR_USED) {   ((module)->pending_used = (1));
+  (void)(parser_lex_from_next_into((&(lex)), r));
+  (void)(({ struct lexer_Lexer __tmp = (struct lexer_Lexer){0}; if ((lex).pos == (iter_start_buf).pos && (lex).pos < ((size_t)(len))) {   __tmp = (lex = ((struct lexer_Lexer){ .pos = (lex).pos + 1, .line = (lex).line, .col = (lex).col + 1 }));
+ } else (__tmp = (struct lexer_Lexer){0}) ; __tmp; }));
+  continue;
+ } else (__tmp = 0) ; __tmp; }));
+    (void)(({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_ATTR_NAKED) {   ((module)->pending_naked = (1));
+  (void)(parser_lex_from_next_into((&(lex)), r));
+  (void)(({ struct lexer_Lexer __tmp = (struct lexer_Lexer){0}; if ((lex).pos == (iter_start_buf).pos && (lex).pos < ((size_t)(len))) {   __tmp = (lex = ((struct lexer_Lexer){ .pos = (lex).pos + 1, .line = (lex).line, .col = (lex).col + 1 }));
+ } else (__tmp = (struct lexer_Lexer){0}) ; __tmp; }));
+  continue;
+ } else (__tmp = 0) ; __tmp; }));
+    (void)(({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_ATTR_ENTRY) {   ((module)->pending_entry = (1));
+  (void)(parser_lex_from_next_into((&(lex)), r));
+  (void)(({ struct lexer_Lexer __tmp = (struct lexer_Lexer){0}; if ((lex).pos == (iter_start_buf).pos && (lex).pos < ((size_t)(len))) {   __tmp = (lex = ((struct lexer_Lexer){ .pos = (lex).pos + 1, .line = (lex).line, .col = (lex).col + 1 }));
+ } else (__tmp = (struct lexer_Lexer){0}) ; __tmp; }));
+  continue;
+ } else (__tmp = 0) ; __tmp; }));
+    (void)(({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_ATTR_NO_MANGLE) {   ((module)->pending_no_mangle = (1));
+  (void)(parser_lex_from_next_into((&(lex)), r));
+  (void)(({ struct lexer_Lexer __tmp = (struct lexer_Lexer){0}; if ((lex).pos == (iter_start_buf).pos && (lex).pos < ((size_t)(len))) {   __tmp = (lex = ((struct lexer_Lexer){ .pos = (lex).pos + 1, .line = (lex).line, .col = (lex).col + 1 }));
+ } else (__tmp = (struct lexer_Lexer){0}) ; __tmp; }));
+  continue;
+ } else (__tmp = 0) ; __tmp; }));
+    (void)(({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_ATTR_INTERRUPT) {   ((module)->pending_interrupt = (1));
+  (void)(parser_lex_from_next_into((&(lex)), r));
+  (void)(({ struct lexer_Lexer __tmp = (struct lexer_Lexer){0}; if ((lex).pos == (iter_start_buf).pos && (lex).pos < ((size_t)(len))) {   __tmp = (lex = ((struct lexer_Lexer){ .pos = (lex).pos + 1, .line = (lex).line, .col = (lex).col + 1 }));
+ } else (__tmp = (struct lexer_Lexer){0}) ; __tmp; }));
+  continue;
+ } else (__tmp = 0) ; __tmp; }));
+    (void)(({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_EXPORT) {   ((module)->pending_export = (1));
   (void)(parser_lex_from_next_into((&(lex)), r));
   (void)(({ struct lexer_Lexer __tmp = (struct lexer_Lexer){0}; if ((lex).pos == (iter_start_buf).pos && (lex).pos < ((size_t)(len))) {   __tmp = (lex = ((struct lexer_Lexer){ .pos = (lex).pos + 1, .line = (lex).line, .col = (lex).col + 1 }));
  } else (__tmp = (struct lexer_Lexer){0}) ; __tmp; }));
@@ -5830,6 +5945,8 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * restri
     (void)(pipeline_module_func_set_body_expr_ref(module, fi_mod, 0));
     (void)(pipeline_module_func_set_is_extern(module, fi_mod, 0));
     (void)(pipeline_module_func_set_is_async(module, fi_mod, (func_is_async_buf)[0]));
+    (void)(pipeline_module_func_set_is_export(module, fi_mod, (module)->pending_export));
+    ((module)->pending_export = (0));
     int32_t p_copy = 0;
     uint8_t * mod_pool_buf = parser_onefunc_result_pool_ptr((&(res)));
     while (p_copy < (res).num_params) {
