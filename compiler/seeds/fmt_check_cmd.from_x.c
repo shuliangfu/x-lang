@@ -1,10 +1,11 @@
-/* R2 thin + Cap residual pure 深迁（续 collect_mode + user_passed_L + init pure）：
+/* R2 thin + Cap residual pure 深迁（续 file_list n BSS pure）：
  * PREFER hybrid thin 由 src/driver/fmt_check_cmd_thin.x（lit/entry + pure 真体）；
  * rest SHUX_L2_FMT_CHECK_THIN_FROM_X：无 thin 公共体；pure-duplicate _impl 剔除
  * （含 set_current_file / print / cwd_fallback / try_walk / path_resolve_abs /
  *  append_repo_lib_roots / missing_diag / invoke/dep_clear /
- *  collect_mode is_check / user_passed_L_get / init_user_lib_flags / …）；
- * Cap residual：walk opendir/stat/argv/大 BSS（ignore/file_list/lib bufs）/ one_file_body 仍 rest。
+ *  collect_mode is_check / user_passed_L_get / init_user_lib_flags /
+ *  file_list_n / …）；
+ * Cap residual：walk opendir/stat/argv/大 BSS（ignore/file_list ptrs/lib bufs）/ one_file_body 仍 rest。
  * 冷启动无宏：全 C 体（含 pure _impl + public 门闩）。
  * Regen thin surface: shux -E src/driver/fmt_check_cmd_thin.x → thin_surface.
  */
@@ -84,6 +85,7 @@ void check_user_passed_L_set(int32_t v);
 int fmt_user_ignore_count(void);
 int fmt_path_ends_with_dot_x(const char *path);
 int fmt_file_list_n(void);
+void fmt_file_list_n_set(int32_t v);
 int check_lint_fail_on_warnings(void);
 int fmt_check_invoke_compile(int argc, char **check_argv);
 void fmt_check_dep_clear(void);
@@ -191,7 +193,10 @@ char *fmt_check_path_bss_slot(int which) {
 }
 
 static char *s_file_list[DRIVER_FMT_MAX_FILES];
+/* Cap residual pure：hybrid thin owns s_n_files; cold keeps static. Cap residual: s_file_list[]. */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 static int s_n_files;
+#endif
 
 /** check 默认 -L：cwd；用户未传 -L 时按路径追加（见 check_argv_append_default_libs_for_path）。 */
 static char s_check_lib_bufs[8][512];
@@ -645,14 +650,21 @@ int fmt_path_ends_with_dot_x(const char *path) {
 }
 #endif
 
-/* G-02f-389：实现体始终 seed；public PREFER 时 thin forward */
+/* pure 权威：thin.x fmt_file_list_n / fmt_file_list_n_set；
+ * 冷启动保留 _impl + public；FROM_X 下剔除 pure-dup _impl（H↓）。
+ * Cap residual：s_file_list[] + store strdup / clear free 始终 seed。
+ */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 int fmt_file_list_n_impl(void) {
     return s_n_files;
 }
 
-#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 int fmt_file_list_n(void) {
     return fmt_file_list_n_impl();
+}
+
+void fmt_file_list_n_set(int32_t v) {
+    s_n_files = v < 0 ? 0 : (int)v;
 }
 #endif
 
@@ -684,13 +696,15 @@ const char *fmt_path_resolve_abs(const char *path) {
 }
 #endif
 
+/* Cap residual：strdup 入 s_file_list[]；n 走 public get/set（hybrid thin / 冷 seed）。 */
 int fmt_file_list_store_impl(const char *abs_path) {
-    if (!abs_path || s_n_files >= DRIVER_FMT_MAX_FILES)
+    int n = fmt_file_list_n();
+    if (!abs_path || n >= DRIVER_FMT_MAX_FILES)
         return -1;
-    s_file_list[s_n_files] = strdup(abs_path);
-    if (!s_file_list[s_n_files])
+    s_file_list[n] = strdup(abs_path);
+    if (!s_file_list[n])
         return -1;
-    s_n_files++;
+    fmt_file_list_n_set(n + 1);
     return 0;
 }
 
@@ -1013,14 +1027,16 @@ void parse_ignore_opt(const char *arg) {
 
 /**
  * 释放文件列表。
+ * Cap residual：free s_file_list[] 槽；n 走 public get/set（hybrid thin / 冷 seed）。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-407：实现体始终 seed；public PREFER 时 thin forward */
 void file_list_clear_impl(void) {
     int i;
-    for (i = 0; i < s_n_files; i++)
+    int n = fmt_file_list_n();
+    for (i = 0; i < n; i++)
         free(s_file_list[i]);
-    s_n_files = 0;
+    fmt_file_list_n_set(0);
 }
 
 #ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
@@ -1080,7 +1096,8 @@ int driver_run_fmt_impl(int argc, char **argv) {
             walk_dir_collect(cwd);
     }
 
-    if (s_n_files == 0) {
+    /* public n：hybrid thin pure BSS / 冷 seed static */
+    if (fmt_file_list_n() == 0) {
         if (any_path_arg)
             diag_report_with_code(NULL, 0, 0, "fmt error", "FMT001",
                                   "no .x files found under given path(s)", NULL);
@@ -1090,7 +1107,7 @@ int driver_run_fmt_impl(int argc, char **argv) {
         return 1;
     }
 
-    for (i = 0; i < s_n_files; i++) {
+    for (i = 0; i < fmt_file_list_n(); i++) {
         const char *path = s_file_list[i];
         int plen = (int)strlen(path);
         int rc = driver_fmt_one_file((const uint8_t *)path, plen);
@@ -1327,7 +1344,8 @@ int driver_run_compiler_check_impl(int argc, char **argv) {
     if (!any_path)
         check_collect_default_product_dirs();
 
-    if (s_n_files == 0) {
+    /* public n：hybrid thin pure BSS / 冷 seed static */
+    if (fmt_file_list_n() == 0) {
         if (any_path)
             diag_report_with_code(NULL, 0, 0, "check error", "CHK002",
                                   "no .x files found under given path(s)", NULL);
@@ -1337,7 +1355,7 @@ int driver_run_compiler_check_impl(int argc, char **argv) {
         return 1;
     }
 
-    for (i = 0; i < s_n_files; i++) {
+    for (i = 0; i < fmt_file_list_n(); i++) {
         /* public：hybrid thin pure 门闩→body / 冷 seed public→_impl→body */
         if (check_one_file(s_file_list[i], argc, argv) != 0) {
             failed = 1;

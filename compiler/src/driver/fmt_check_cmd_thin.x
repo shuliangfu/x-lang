@@ -12,13 +12,17 @@
 //   + wave BSS pure：collect_mode + user_passed_L 进 thin；
 //     check_init_user_lib_flags pure（G.7 shux_ptr_slot_get + lib_bufs_reset Cap）；
 //     FROM_X rest 无 pure-dup is_check / user_passed_L_get / init_user_lib_flags _impl。
+//   + wave BSS pure：file_list n 进 thin（fmt_file_list_n / n_set）；
+//     Cap residual：s_file_list 指针表 + store strdup + clear free 仍 rest；
+//     FROM_X rest 无 pure-dup file_list_n _impl。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_FMT_CHECK_THIN_FROM_X）ld -r
 //   → fmt_check_cmd_driver.o
 // Prove IDENTICAL：seeds/fmt_check_cmd_thin_surface.from_x.c
-// Cap residual：walk opendir/stat/argv/大 BSS（ignore paths / file_list / lib bufs）/
+// Cap residual：walk opendir/stat/argv/大 BSS（ignore paths / file_list ptrs / lib bufs）/
 //   check_one_file_body 等 *_impl 仍在 full seed rest；FROM_X 下 pure-duplicate
 //   _impl 已剔除（含 set_current_file / print / cwd_fallback / try_walk /
-//   path_resolve_abs / append_repo / missing_diag / collect_mode / user_passed_L / init；H↓）。
+//   path_resolve_abs / append_repo / missing_diag / collect_mode / user_passed_L /
+//   init / file_list_n；H↓）。
 //
 // -E 约束：无 while 重赋值；无零参-only 不稳写法；6 参用扁平 if。
 //
@@ -31,7 +35,6 @@ export extern "C" function driver_run_compiler_full(argc: i32, argv: *u8): i32;
 export extern "C" function driver_dep_seeded_clear_all(): void;
 export extern "C" function diag_report_with_code(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void;
 export extern "C" function fmt_user_ignore_count_impl(): i32;
-export extern "C" function fmt_file_list_n_impl(): i32;
 export extern "C" function fmt_user_ignore_at_impl(i: i32): *u8;
 export extern "C" function fmt_file_list_store_impl(abs_path: *u8): i32;
 // Cap residual：可写路径 BSS 槽（0=current_file，1=resolve_abs）。
@@ -42,11 +45,13 @@ export extern "C" function fmt_check_lib_bufs_reset_impl(): void;
 // G.7: load argv[i] / char** slot (pipeline authority pair with shux_ptr_slot_set).
 export extern "C" function shux_ptr_slot_get(arr: *u8, i: i32): *u8;
 
-// ---- Cap residual pure: collect_mode + user_passed_L BSS (PLATFORM: SHARED) ----
+// ---- Cap residual pure: collect_mode + user_passed_L + file_list n BSS (PLATFORM: SHARED) ----
 // DRIVER_COLLECT_MODE_FMT=1, DRIVER_COLLECT_MODE_CHECK=2 (match seed enum).
 // Hybrid thin owns cells; cold seed keeps C static + _impl.
+// file_list n: hybrid thin authority; Cap residual s_file_list[] + store/clear rest.
 let g_fmt_collect_mode: i32[1] = [1];
 let g_fmt_user_passed_L: i32[1] = [0];
+let g_fmt_file_list_n: i32[1] = [0];
 
 let g_fmt_lit_check_error: u8[12] = [99, 104, 101, 99, 107, 32, 101, 114, 114, 111, 114, 0];
 let g_fmt_lit_fmt_error: u8[10] = [102, 109, 116, 32, 101, 114, 114, 111, 114, 0];
@@ -355,7 +360,7 @@ export function check_user_passed_L_set(v: i32): void {
   }
 }
 
-// ---- G-02f-389：ignore count / .x 后缀 / file list n → seed impl ----
+// ---- G-02f-389：ignore count / .x 后缀 → seed impl；file_list n pure BSS ----
 #[no_mangle]
 export function fmt_user_ignore_count(): i32 {
   unsafe {
@@ -390,12 +395,26 @@ export function fmt_path_ends_with_dot_x(path: *u8): i32 {
   return 0;
 }
 
+/** Return collected .x path count. Pure BSS under PREFER hybrid. PLATFORM: SHARED. */
 #[no_mangle]
 export function fmt_file_list_n(): i32 {
   unsafe {
-    return fmt_file_list_n_impl();
+    return g_fmt_file_list_n[0];
   }
   return 0;
+}
+
+/** Set collected .x path count (store ++ / clear 0). Rest Cap store/clear call this.
+ * PLATFORM: SHARED — same counter as cold seed s_n_files. */
+#[no_mangle]
+export function fmt_file_list_n_set(v: i32): void {
+  unsafe {
+    if (v < 0) {
+      g_fmt_file_list_n[0] = 0;
+    } else {
+      g_fmt_file_list_n[0] = v;
+    }
+  }
 }
 
 // ---- lint pure / invoke·dep_clear pure 分派；path_stat Cap residual ----

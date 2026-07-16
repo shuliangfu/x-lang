@@ -109,12 +109,12 @@ MODULES=(
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/runtime_io_abi.from_x.c 全 C 体
   "runtime_io_abi|src/runtime_io_abi.x|seeds/runtime_io_abi_surface.from_x.c||"
   # fmt_check R2 thin + Cap residual pure 深迁（含 append_repo + missing_diag +
-  #  collect_mode/user_passed_L BSS + init_user_lib_flags pure）：thin.x 吃满 lit/entry + pure 真体
+  #  collect_mode/user_passed_L BSS + init + file_list n BSS pure）：thin.x 吃满 lit/entry + pure 真体
   # （path_should_ignore / .x 后缀 / lint / file_list_push / process_child /
   #  collect_paths / default_dirs / check_one_file 门闩 / try_append 早退 / parse_ignore 前缀 /
   #  invoke_compile·dep_clear / set_current_file / print_collected / cwd_fallback / try_walk /
-  #  path_resolve_abs / append_repo_lib_roots / missing_diag / collect_mode / user_passed_L / init）；
-  # rest FROM_X 无 pure-dup _impl；Cap residual：walk/stat/argv/大 BSS/one_file_body
+  #  path_resolve_abs / append_repo / missing_diag / collect_mode / user_passed_L / init / file_list_n）；
+  # rest FROM_X 无 pure-dup _impl；Cap residual：walk/stat/argv/大 BSS（file_list ptrs）/one_file_body
   # prove 锁 thin surface IDENTICAL；冷/无 PREFER 仍可走 seeds/fmt_check_cmd.from_x.c 全 C 体
   "fmt_check|src/driver/fmt_check_cmd_thin.x|seeds/fmt_check_cmd_thin_surface.from_x.c||"
   # simd_loop R2 full：.x 吃满 peel/parse/emit 公共业务；
