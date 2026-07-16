@@ -49,16 +49,19 @@
 //     check_argv build + inject "check" + append_default_libs + invoke + print +
 //     fallback CHK001 fixed lit + finalize）；FROM_X 无 pure-dup body_impl；
 //     Cap residual：walk opendir / path_stat 仍 rest（ALWAYS residual 3→2）。
+//   + wave Cap residual pure：fmt_path_stat_kind（opendir dir probe + access F_OK；
+//     no struct stat layout）；FROM_X 无 pure-dup path_stat_impl；
+//     Cap residual：walk opendir 仍 rest（ALWAYS residual 2→1）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_FMT_CHECK_THIN_FROM_X）ld -r
 //   → fmt_check_cmd_driver.o
 // Prove IDENTICAL：seeds/fmt_check_cmd_thin_surface.from_x.c
-// Cap residual：walk opendir/stat
+// Cap residual：walk opendir
 //   等 *_impl 仍在 full seed rest；FROM_X 下 pure-duplicate _impl 已剔除（含
 //   set_current_file / print / cwd_fallback / try_walk / path_resolve_abs /
 //   append_repo / missing_diag / collect_mode / user_passed_L / init / file_list_n /
 //   user_ignore_count / lib_bufs_n / user_ignore_at / parse_ignore_opt /
 //   try_append_lib_root / argv_append / file_list store+clear / run_check / run_fmt /
-//   check_one_file body；H↓）。
+//   check_one_file body / path_stat；H↓）。
 //
 // -E 约束：无 while 重赋值；无零参-only 不稳写法；6 参用扁平 if。
 //
@@ -655,8 +658,13 @@ export function fmt_check_lib_buf_store(i: i32, path: *u8): i32 {
   return 1;
 }
 
-// ---- lint pure / invoke·dep_clear pure 分派；path_stat Cap residual ----
-export extern "C" function fmt_path_stat_kind_impl(path: *u8): i32;
+// ---- lint pure / invoke·dep_clear pure 分派；path_stat pure (POSIX probe) ----
+// PLATFORM: POSIX — no struct stat layout (mac st_mode@4 vs Linux@24).
+// Directory: opendir success → 1; else access(F_OK)==0 → 0; else -1.
+// Matches seed S_ISDIR / exists semantics for product fmt/check path trees.
+export extern "C" function opendir(name: *u8): *u8;
+export extern "C" function closedir(dirp: *u8): i32;
+export extern "C" function access(path: *u8, mode: i32): i32;
 
 // pure：SHUX_LINT_CI_FAIL_ON=warn|warning
 #[no_mangle]
@@ -707,10 +715,30 @@ export function fmt_check_dep_clear(): void {
   }
 }
 
+/** Classify path for fmt/check collect: -1 inaccessible, 1 directory, 0 file/other.
+ * Pure under PREFER hybrid without struct stat (G.8 platform layout hazard):
+ *   1) null path → -1;
+ *   2) opendir(path) success → closedir + return 1 (directory);
+ *   3) access(path, F_OK=0)==0 → return 0 (exists, non-dir for our purposes);
+ *   4) else → -1.
+ * Cold seed keeps libc stat+S_ISDIR under #ifndef FROM_X.
+ * No fmt_path_stat_kind_impl under hybrid (ALWAYS residual 2→1).
+ * PLATFORM: POSIX — dual-host prove; Windows cold seed remains C rest. */
 #[no_mangle]
 export function fmt_path_stat_kind(path: *u8): i32 {
+  if (path == 0 as *u8) {
+    return 0 - 1;
+  }
   unsafe {
-    return fmt_path_stat_kind_impl(path);
+    let d: *u8 = opendir(path);
+    if (d != 0 as *u8) {
+      closedir(d);
+      return 1;
+    }
+    // F_OK = 0: existence only (no read bit required).
+    if (access(path, 0) == 0) {
+      return 0;
+    }
   }
   return 0 - 1;
 }
@@ -719,7 +747,7 @@ export function fmt_path_stat_kind(path: *u8): i32 {
 
 /** If dir has both core/ and std/ subdirs, inject -L dir into check_argv (deduped).
  * Pure under PREFER hybrid: early gates + byte-build core/std paths + public
- * fmt_path_stat_kind (Cap residual OS) + pure lib path slots + G.7 shux_ptr_slot_set.
+ * fmt_path_stat_kind (pure POSIX probe) + pure lib path slots + G.7 shux_ptr_slot_set.
  * No try_append_impl under hybrid (ALWAYS residual 9→8). PLATFORM: SHARED. */
 #[no_mangle]
 export function check_try_append_lib_root(check_argv: *u8, n: *i32, dir: *u8): void {
@@ -770,7 +798,7 @@ export function check_try_append_lib_root(check_argv: *u8, n: *i32, dir: *u8): v
     std_path[di + 2] = 116;
     std_path[di + 3] = 100;
     std_path[di + 4] = 0;
-    // Cap residual OS: directory = 1.
+    // Pure path_stat: directory = 1.
     if (fmt_path_stat_kind(&core_path[0]) != 1) {
       return;
     }
@@ -1572,7 +1600,7 @@ export function check_append_repo_lib_roots(path: *u8, check_argv: *u8, n: *i32)
  *   3) getcwd + public check_try_append_lib_root(cwd);
  *   4) if path contains "compiler/src/", byte-build cwd+"/compiler/src"
  *      (+ "/asm" when path also has "compiler/src/asm/"), then public
- *      fmt_path_stat_kind (Cap residual OS) + pure lib path slots +
+ *      fmt_path_stat_kind (pure POSIX probe) + pure lib path slots +
  *      G.7 shux_ptr_slot_set for "-L" injection (no snprintf / no _impl).
  * No check_argv_append_default_libs_for_path_impl under hybrid
  * (ALWAYS residual 8→7). PLATFORM: SHARED. */
@@ -1638,7 +1666,7 @@ export function check_argv_append_default_libs_for_path(path: *u8, check_argv: *
     cs[ci + 11] = 114;
     cs[ci + 12] = 99;
     cs[ci + 13] = 0;
-    // Cap residual OS: directory = 1. Match seed: inject without core/std dedup.
+    // Pure path_stat: directory = 1. Match seed: inject without core/std dedup.
     if (fmt_path_stat_kind(&cs[0]) == 1) {
       let nb: i32 = fmt_check_lib_bufs_n();
       if (nb < 8) {

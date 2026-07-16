@@ -1,4 +1,4 @@
-/* R2 thin + Cap residual pure 深迁（续 check_one_file full body pure）：
+/* R2 thin + Cap residual pure 深迁（续 path_stat pure）：
  * PREFER hybrid thin 由 src/driver/fmt_check_cmd_thin.x（lit/entry + pure 真体）；
  * rest SHUX_L2_FMT_CHECK_THIN_FROM_X：无 thin 公共体；pure-duplicate _impl 剔除
  * （含 set_current_file / print / cwd_fallback / try_walk / path_resolve_abs /
@@ -7,9 +7,10 @@
  *  file_list_n / user_ignore_count / lib_bufs_n / user_ignore_at /
  *  parse_ignore_opt / try_append_lib_root / argv_append /
  *  fmt_file_list_store / file_list_clear / fmt_file_list_at /
- *  driver_run_compiler_check / driver_run_fmt / check_one_file body / …）；
- * Cap residual：walk opendir/stat 仍 rest
- *  （ALWAYS residual 2）。
+ *  driver_run_compiler_check / driver_run_fmt / check_one_file body /
+ *  fmt_path_stat_kind / …）；
+ * Cap residual：walk opendir 仍 rest
+ *  （ALWAYS residual 1）。
  * 冷启动无宏：全 C 体（含 pure _impl + public 门闩）。
  * Regen thin surface: shux -E src/driver/fmt_check_cmd_thin.x → thin_surface.
  */
@@ -1011,7 +1012,9 @@ void check_collect_default_product_dirs(void) {
 
 
 /* G-02f-249：-1 不可访问；1 目录；0 文件/其它 */
-/* G-02f-405：实现体始终 seed；public PREFER 时 thin forward */
+/* pure 权威：thin.x fmt_path_stat_kind（opendir + access F_OK；无 struct stat 布局）；
+ * 冷启动保留 libc stat + S_ISDIR；FROM_X 下剔除 pure-dup（H↓；ALWAYS residual 2→1）。 */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 int fmt_path_stat_kind_impl(const char *path) {
     struct stat st;
     if (!path)
@@ -1023,7 +1026,6 @@ int fmt_path_stat_kind_impl(const char *path) {
     return 0;
 }
 
-#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 int fmt_path_stat_kind(const char *path) {
   return fmt_path_stat_kind_impl(path);
 }

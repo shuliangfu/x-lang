@@ -132,6 +132,8 @@ g05_try_x_to_o() {
     # 下方 sed 会删掉 -E 自带 #include <poll.h> 等，故在 prologue 补齐。
     echo '#include <sys/uio.h>'
     echo '#include <poll.h>'
+    # PLATFORM: POSIX — fmt_check path_stat pure uses opendir/closedir/access.
+    echo '#include <dirent.h>'
     echo '#endif'
     # 去掉 -E 自带 #include 与 libc 再声明（与上方头冲突）
     sed -e '/^#include /d' \
@@ -171,6 +173,13 @@ g05_try_x_to_o() {
         -e '/^extern int system(/d' \
         -e '/^extern int32_t fputs(/d' \
         -e '/^extern int fputs(/d' \
+        -e '/^extern uint8_t \* opendir(/d' \
+        -e '/^extern void \* opendir(/d' \
+        -e '/^extern DIR \* opendir(/d' \
+        -e '/^extern int32_t closedir(/d' \
+        -e '/^extern int closedir(/d' \
+        -e '/^extern int32_t access(/d' \
+        -e '/^extern int access(/d' \
         "$_xtmp"
   } >"${_xtmp}.full" && mv "${_xtmp}.full" "$_xtmp"
   # shellcheck disable=SC2086

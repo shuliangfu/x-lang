@@ -1,5 +1,5 @@
-/* regen from fmt_check_cmd_thin.x -E (check_one_file full body pure) */
-/* prove prologue (g05_try_x_to_o aligned + uio/poll) */
+/* regen from fmt_check_cmd_thin.x -E (path_stat pure) */
+/* prove prologue (g05_try_x_to_o aligned + uio/poll + dirent) */
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/types.h>
@@ -12,6 +12,7 @@
 #include <errno.h>
 #include <sys/uio.h>
 #include <poll.h>
+#include <dirent.h>
 #endif
 #if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 201112L
 #error "Generated code needs C11. Compile with -std=gnu11 or -std=c11."
@@ -855,7 +856,6 @@ int32_t fmt_check_lib_buf_store(int32_t i, uint8_t * path) {
   }
   return 1;
 }
-extern int32_t fmt_path_stat_kind_impl(uint8_t * path);
 int32_t check_lint_fail_on_warnings(void) {
   {
     uint8_t * v = getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x4c\x49\x4e\x54\x5f\x43\x49\x5f\x46\x41\x49\x4c\x5f\x4f\x4e"));
@@ -895,7 +895,19 @@ void fmt_check_dep_clear(void) {
   return;
 }
 int32_t fmt_path_stat_kind(uint8_t * path) {
-  return fmt_path_stat_kind_impl(path);
+  if ((path ==((uint8_t *)(0)))) {
+    return (0 - 1);
+  }
+  {
+    uint8_t * d = opendir(path);
+    if ((d !=((uint8_t *)(0)))) {
+      (void)(closedir(d));
+      return 1;
+    }
+    if ((access(path, 0) ==0)) {
+      return 0;
+    }
+  }
   return (0 - 1);
 }
 void check_try_append_lib_root(uint8_t * check_argv, int32_t * n, uint8_t * dir) {
