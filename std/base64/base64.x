@@ -268,26 +268,29 @@ export function base64_stream_state_bytes_c(): i32 {
   return B64_STREAM_STATE_BYTES;
 }
 
-/** 初始化 Base64 编码流；url 非 0 为 URL 变体；成功 0。 */
+/** 初始化 Base64 编码流；url 非 0 为 URL 变体；成功 0。
+ * 【Why 不先 let s=0 再赋值】typeck：unsafe 块后对 *Struct 做 `s = p as *T` 会
+ * 使本函数返回类型塌成 `?`，调用方 XT001；且 codegen 把前两 let 误升为 top-level
+ * init_globals、函数体整段丢失 → base64.o 缺 enc_init/dec_init（run-core-types 红）。
+ * 权威写法：校验 + memset 后 `let s: *B64Stream = state as *B64Stream`（一次绑定）。
+ */
 export function base64_stream_enc_init_c(state: *u8, state_cap: i32, url: i32): i32 {
   let need: i32 = B64_STREAM_STATE_BYTES;
-  let s: *B64Stream = 0 as *B64Stream;
   if (state == 0 || state_cap < need) { return -1; }
   unsafe { memset(state, 0, need); }
-  s = state as *B64Stream;
+  let s: *B64Stream = state as *B64Stream;
   s.magic = 0x42345354;
   s.is_url = (url != 0) ? 1 : 0;
   s.is_enc = 1;
   return 0;
 }
 
-/** 初始化 Base64 解码流；成功 0。 */
+/** 初始化 Base64 解码流；成功 0。见 enc_init：勿 unsafe 后对 *Struct 再赋值。 */
 export function base64_stream_dec_init_c(state: *u8, state_cap: i32, url: i32): i32 {
   let need: i32 = B64_STREAM_STATE_BYTES;
-  let s: *B64Stream = 0 as *B64Stream;
   if (state == 0 || state_cap < need) { return -1; }
   unsafe { memset(state, 0, need); }
-  s = state as *B64Stream;
+  let s: *B64Stream = state as *B64Stream;
   s.magic = 0x42345354;
   s.is_url = (url != 0) ? 1 : 0;
   s.is_enc = 0;
