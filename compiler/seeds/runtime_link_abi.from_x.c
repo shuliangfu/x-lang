@@ -35,6 +35,7 @@ void shux_append_linux_link_harden_impl(char *argv[], int *la, int cap);
 int shu_resolve_compiler_dir(const char *argv0, char *out_dir, size_t out_dir_sz);
 int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const char *target, int use_macho_o, int use_coff_o, const char *link_argv0, const char **lib_roots, int n_lib_roots, int driver_freestanding);
 void shux_asm_ld_append_std_objs(const char *link_argv0, const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags);
+void shux_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *user_o, const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags);
 void shux_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char *user_o, const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags);
 int invoke_cc_append_net_tls_ld(char *argv[], int *i, int argv_cap, const char *net_o, const char *repo_root);
 void ensure_std_net_o_auto_tls(const char *repo_root);
@@ -6003,7 +6004,58 @@ const char *labi_std_default_std_rel_at(int j);
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-271：列表纯 plan + 本函数 IO 解释器 */
+/* 产品冷链：fk==0 的 std/*.o 勿无条件硬链（string 等对 heap 有 U，会毒化纯 asm 测试）。
+ * 仅当 user.o 有对应 UNDEF 时才推入；完整 on_demand 在 append_on_demand_user_objs。 */
+static int labi_std_fk0_user_needs_rel(const char *user_o, const char *rel) {
+    if (!rel || !rel[0])
+        return 0;
+    if (!user_o || !user_o[0])
+        return 1; /* 无 user 信息时保守保留旧行为 */
+    if (strstr(rel, "std/string/string.o"))
+        return shux_link_obj_needs_undef_sym(user_o, "std_string_string_empty")
+            || shux_link_obj_needs_undef_sym(user_o, "std_string_new")
+            || shux_link_obj_needs_undef_sym(user_o, "shux_string_memcmp_c")
+            || shux_link_obj_needs_undef_sym(user_o, "shux_string_memmem_c");
+    if (strstr(rel, "std/encoding/encoding.o"))
+        return shux_link_obj_needs_undef_sym(user_o, "std_encoding_utf8_valid")
+            || shux_link_obj_needs_undef_sym(user_o, "std_encoding_ascii_is_alpha");
+    if (strstr(rel, "std/base64/base64.o"))
+        return shux_link_obj_needs_undef_sym(user_o, "std_base64_encode_standard")
+            || shux_link_obj_needs_undef_sym(user_o, "std_base64_decode_standard");
+    if (strstr(rel, "std/http/http.o"))
+        return shux_link_obj_needs_undef_sym(user_o, "std_http_get")
+            || shux_link_obj_needs_undef_sym(user_o, "std_http_request")
+            || shux_link_obj_needs_undef_sym(user_o, "std_http_client_new");
+    if (strstr(rel, "std/json/json.o"))
+        return shux_link_obj_needs_undef_sym(user_o, "std_json_parse")
+            || shux_link_obj_needs_undef_sym(user_o, "std_json_stringify");
+    if (strstr(rel, "std/csv/csv.o"))
+        return shux_link_obj_needs_undef_sym(user_o, "std_csv_next_field")
+            || shux_link_obj_needs_undef_sym(user_o, "std_csv_parse_line");
+    if (strstr(rel, "std/path/path.o"))
+        return shux_link_obj_needs_undef_sym(user_o, "std_path_join")
+            || shux_link_obj_needs_undef_sym(user_o, "std_path_dirname");
+    if (strstr(rel, "std/hash/hash.o"))
+        return shux_link_obj_needs_undef_sym(user_o, "std_hash_sip_hash")
+            || shux_link_obj_needs_undef_sym(user_o, "std_hash_fnv1a");
+    if (strstr(rel, "std/error/error.o"))
+        return shux_link_obj_needs_undef_sym(user_o, "std_error_http_err_timeout")
+            || shux_link_obj_needs_undef_sym(user_o, "std_error_ok");
+    if (strstr(rel, "std/context/context.o"))
+        return shux_link_obj_needs_undef_sym(user_o, "std_context_background")
+            || shux_link_obj_needs_undef_sym(user_o, "std_context_deadline_ns");
+    /* 其它 fk==0：仍按磁盘存在硬链（兼容旧行为） */
+    return 1;
+}
+
 void shux_asm_ld_append_std_objs(const char *link_argv0, const char **lib_roots, int n_lib_roots,
+    ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags) {
+    /* 兼容旧调用：无 user_o 时走硬链。新调用经 wrapper 传入 o_path。 */
+    shux_asm_ld_append_std_objs_for_user(link_argv0, NULL, lib_roots, n_lib_roots, bank, argv, la, max_la, flags);
+}
+
+void shux_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *user_o,
+    const char **lib_roots, int n_lib_roots,
     ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags) {
     const char *p;
     char io_stubs_o[PATH_MAX];
@@ -6081,6 +6133,9 @@ void shux_asm_ld_append_std_objs(const char *link_argv0, const char **lib_roots,
                 flag_out = flags ? &flags->have_dynlib : NULL;
             else if (fk == 13)
                 flag_out = &have_http;
+            /* fk==0 且对 heap 等有 U 的模块：仅 user 需要时链入 */
+            if (fk == 0 && rel && rel[0] && !labi_std_fk0_user_needs_rel(user_o, rel))
+                break;
             if (rel && rel[0])
                 link_abi_asm_ld_push_obj(NULL, link_argv0, rel, lib_roots, n_lib_roots, bank, argv, la, max_la, flag_out);
             break;
@@ -6823,7 +6878,7 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
             argv[la++] = labi_ld_flag_o();
             argv[la++] = exe_path;
             argv[la++] = o_path;
-            shux_asm_ld_append_std_objs(link_eff, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
+            shux_asm_ld_append_std_objs_for_user(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
             shux_asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
             shux_asm_ld_append_mach_tail_libs(compress_o, o_path, &ldflags, (const char **)argv, &la, SHUX_LD_ARGV_CAP, 0);
             argv[la] = NULL;
@@ -6841,7 +6896,7 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
             argv[la++] = labi_ld_flag_o();
             argv[la++] = exe_path;
             argv[la++] = o_path;
-            shux_asm_ld_append_std_objs(link_eff, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
+            shux_asm_ld_append_std_objs_for_user(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
             shux_asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
             shux_asm_ld_append_mach_tail_libs(compress_o, o_path, &ldflags, (const char **)argv, &la, SHUX_LD_ARGV_CAP, 1);
             argv[la] = NULL;
@@ -6866,7 +6921,7 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
             argv[la++] = "/entry:_main";
             argv[la++] = out_opt;
             argv[la++] = o_path;
-            shux_asm_ld_append_std_objs(link_eff, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
+            shux_asm_ld_append_std_objs_for_user(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
             shux_asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
             argv[la++] = "ws2_32.lib";
             argv[la] = NULL;
@@ -7051,7 +7106,7 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
         argv[la++] = "-o";
         argv[la++] = exe_path;
         argv[la++] = o_path;
-        shux_asm_ld_append_std_objs(link_eff, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
+        shux_asm_ld_append_std_objs_for_user(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
         shux_asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
         if (link_abi_user_o_needs_libc_heap(o_path))
             ldflags.have_libc_heap = 1;
