@@ -1844,6 +1844,8 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
         out.ok = false;
         return;
       }
+      /** parse_block_into 期望 lex_after_lbrace（与 while/loop/for 一致）。 */
+      lex_cur = r.next_lex;
       let block_res_def: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex_cur };
       parse_block_into(arena, lex_cur, source, type_ref, &block_res_def);
       if (!block_res_def.ok) {
@@ -1857,8 +1859,7 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
       }
       b = ast.ast_arena_block_get(arena, block_ref);
       lex_cur = block_res_def.next_lex;
-      lexer.lexer_next_into(&r, lex_cur, source);
-      lex_cur = parser_realign_lex_after_compound_stmt(lex_cur, r, source);
+      /** 体已同步整条 defer 语句；勿 compound realign（会把体内 expr 泄漏到外层）。 */
       stmt_tok_ready = false;
       continue;
     }
@@ -3571,6 +3572,8 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         if (r.tok.kind != TokenKind.TOKEN_LBRACE) {
           set_onefunc_fail(out, lex); return;
         }
+        /** parse_block_into 期望 lex_after_lbrace（与 while/loop 一致）。 */
+        lex = r.next_lex;
         let block_res_def_fn: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex };
         parse_block_into(arena, lex, source, ret_type_ref, &block_res_def_fn);
         if (!block_res_def_fn.ok) {
@@ -3581,8 +3584,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
           set_onefunc_fail(out, lex); return;
         }
         lex = block_res_def_fn.next_lex;
-        lexer.lexer_next_into(&r, lex, source);
-        stmt_tok_ready = true;
+        stmt_tok_ready = false;
         continue;
       }
       /** MEM-C1：with_arena(cap) { body } — OneFunc 侧车，落 Block 时 fill_regions。 */

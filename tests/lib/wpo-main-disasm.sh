@@ -4,6 +4,19 @@
 #   wpo_main_asm /path/to/binary
 #   wpo_main_calls_pat /path/to/binary 'scale|lane0'
 
+# 是否应跑 AArch64 asm 反汇编门禁（x10 spill / ldur 等）。
+# Darwin 产品 -o 强制 C backend（asm arm64 常 CG002 code_len=0），spill 形态不适用；
+# 功能 exit-code 门禁仍由各 run-asm-*.sh 执行。金标 Linux x86_64 不走本门禁（指令形态不同）。
+wpo_asm_disasm_gate_host() {
+  case "$(uname -s 2>/dev/null)" in
+    Darwin|darwin) return 1 ;;
+  esac
+  case "$(uname -m 2>/dev/null)" in
+    arm64|aarch64) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 # 返回可执行文件 _main 反汇编文本（macOS otool / Linux objdump --disassemble）。
 wpo_main_asm() {
   local exe="$1"

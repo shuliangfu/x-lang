@@ -52,12 +52,13 @@ export function diag_collect(code: i32, detail: i32): void {
   let _d: i32 = detail;
 }
 
+/** runtime.x 实现：转发到 shux_crash_evidence_collect_c C 桩（须在 use 前声明）。 */
+extern function runtime_crash_evidence_collect_c(has_msg: i32, msg_val: i32): void;
+
 /** 用户/测试可调用：登记 panic 钩子参数（has_msg/msg_val 透传 runtime）。 */
 export function panic_hook_collect(has_msg: i32, msg_val: i32): void {
-  /** 【Why 根源】runtime.x 提供实现：runtime_crash_evidence_collect_c 转发到 shux_crash_evidence_collect_c C 桩。 */
   unsafe { runtime_crash_evidence_collect_c(has_msg, msg_val); }
 }
 
-extern function runtime_crash_evidence_collect_c(has_msg: i32, msg_val: i32): void;
 /** 模块尾占位：transitive import 解析时末位 function 会丢失，须保留非 API 锚点。 */
 export function runtime_module_anchor(): i32 { return 0; }

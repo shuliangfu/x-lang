@@ -1,0 +1,1288 @@
+{
+    "root": {
+        "data": {
+            "id": "m00001",
+            "created": 1784118466206,
+            "text": "LSP · Async",
+            "note": "LSP 诊断与 async CPS。",
+            "expandState": "expand"
+        },
+        "children": [
+            {
+                "data": {
+                    "id": "m00002",
+                    "created": 1784118466207,
+                    "text": "LSP 层 (lsp/)",
+                    "expandState": "expand"
+                },
+                "children": [
+                    {
+                        "data": {
+                            "id": "m00003",
+                            "created": 1784118466208,
+                            "text": "lsp.x (LSP 主入口)",
+                            "expandState": "collapse",
+                            "hyperlink": "compiler/src/lsp/lsp.x",
+                            "hyperlinkTitle": "compiler/src/lsp/lsp.x"
+                        },
+                        "children": [
+                            {
+                                "data": {
+                                    "id": "m00004",
+                                    "created": 1784118466209,
+                                    "text": "typeck_lsp_main",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/lsp/lsp.x",
+                                    "hyperlinkTitle": "compiler/src/lsp/lsp.x"
+                                },
+                                "children": []
+                            }
+                        ]
+                    },
+                    {
+                        "data": {
+                            "id": "m00005",
+                            "created": 1784118466210,
+                            "text": "lsp_diag.x (LSP 诊断)",
+                            "expandState": "collapse",
+                            "hyperlink": "compiler/src/lsp/lsp_diag.x",
+                            "hyperlinkTitle": "compiler/src/lsp/lsp_diag.x"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "m00006",
+                            "created": 1784118466211,
+                            "text": "lsp_diag_pipeline_sizes.x (管线大小诊断)",
+                            "expandState": "collapse",
+                            "hyperlink": "compiler/src/lsp/lsp_diag_pipeline_sizes.x",
+                            "hyperlinkTitle": "compiler/src/lsp/lsp_diag_pipeline_sizes.x"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "m00007",
+                            "created": 1784118466212,
+                            "text": "lsp_diag_pipeline_ctx.x (管线上下文诊断)",
+                            "expandState": "collapse",
+                            "hyperlink": "compiler/src/lsp/lsp_diag_pipeline_ctx.x",
+                            "hyperlinkTitle": "compiler/src/lsp/lsp_diag_pipeline_ctx.x"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "m00008",
+                            "created": 1784118466213,
+                            "text": "lsp_diag_stubs_no_c.x (无 C 诊断桩)",
+                            "expandState": "collapse",
+                            "hyperlink": "compiler/src/lsp/lsp_diag_stubs_no_c.x",
+                            "hyperlinkTitle": "compiler/src/lsp/lsp_diag_stubs_no_c.x"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "m00009",
+                            "created": 1784118466214,
+                            "text": "lsp_io.x (LSP IO)",
+                            "expandState": "collapse",
+                            "hyperlink": "compiler/src/lsp/lsp_io.x",
+                            "hyperlinkTitle": "compiler/src/lsp/lsp_io.x"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "m00010",
+                            "created": 1784118466215,
+                            "text": "lsp_io_std_heap.x (标准堆 IO)",
+                            "expandState": "collapse",
+                            "hyperlink": "compiler/src/lsp/lsp_io_std_heap.x",
+                            "hyperlinkTitle": "compiler/src/lsp/lsp_io_std_heap.x"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "m00011",
+                            "created": 1784118466216,
+                            "text": "lsp_fmt_pure_thin.x (纯格式化 thin)",
+                            "expandState": "collapse",
+                            "hyperlink": "compiler/src/lsp/lsp_fmt_pure_thin.x",
+                            "hyperlinkTitle": "compiler/src/lsp/lsp_fmt_pure_thin.x"
+                        },
+                        "children": []
+                    }
+                ]
+            },
+            {
+                "data": {
+                    "id": "m00012",
+                    "created": 1784118466217,
+                    "text": "Async 层 (async/)",
+                    "expandState": "expand"
+                },
+                "children": [
+                    {
+                        "data": {
+                            "id": "m00013",
+                            "created": 1784118466218,
+                            "text": "async_liveness.x (async 存活分析)",
+                            "expandState": "collapse",
+                            "hyperlink": "compiler/src/async/async_liveness.x",
+                            "hyperlinkTitle": "compiler/src/async/async_liveness.x"
+                        },
+                        "children": [
+                            {
+                                "data": {
+                                    "id": "m00014",
+                                    "created": 1784118466219,
+                                    "text": "expr_has_await / expr_count_await",
+                                    "expandState": "collapse"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00015",
+                                    "created": 1784118466220,
+                                    "text": "expr_has_io_read_await / expr_has_io_write_await",
+                                    "expandState": "collapse"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00016",
+                                    "created": 1784118466221,
+                                    "text": "block_has_await / block_count_await",
+                                    "expandState": "collapse"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00017",
+                                    "created": 1784118466222,
+                                    "text": "expr_refs_var / block_refs_var / block_rest_refs_var",
+                                    "expandState": "collapse"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00018",
+                                    "created": 1784118466223,
+                                    "text": "analyze_block_linear",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_liveness.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_liveness.x"
+                                },
+                                "children": []
+                            }
+                        ]
+                    },
+                    {
+                        "data": {
+                            "id": "m00019",
+                            "created": 1784118466224,
+                            "text": "async_cps_codegen.x (CPS 代码生成)",
+                            "expandState": "collapse",
+                            "hyperlink": "compiler/src/codegen/codegen.x",
+                            "hyperlinkTitle": "compiler/src/codegen/codegen.x"
+                        },
+                        "children": []
+                    }
+                ]
+            },
+            {
+                "data": {
+                    "id": "m00020",
+                    "created": 1784118466225,
+                    "text": "方法索引（自动扫描 export/function · 点击链接到源文件）\n共 86 个符号",
+                    "expandState": "expand",
+                    "note": "与上方架构树对照。同名跨文件见 99-dual-authority-audit.km。"
+                },
+                "children": [
+                    {
+                        "data": {
+                            "id": "m00021",
+                            "created": 1784118466226,
+                            "text": "lsp.x  (39 方法)",
+                            "expandState": "collapse",
+                            "hyperlink": "compiler/src/lsp/lsp.x",
+                            "hyperlinkTitle": "compiler/src/lsp/lsp.x",
+                            "note": "compiler/src/lsp/lsp.x"
+                        },
+                        "children": [
+                            {
+                                "data": {
+                                    "id": "m00022",
+                                    "created": 1784118466227,
+                                    "text": "lsp_state_buf_ptr",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/lsp/lsp.x",
+                                    "hyperlinkTitle": "compiler/src/lsp/lsp.x",
+                                    "note": "compiler/src/lsp/lsp.x :: lsp_state_buf_ptr"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00023",
+                                    "created": 1784118466228,
+                                    "text": "lsp_write_all",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/lsp/lsp.x",
+                                    "hyperlinkTitle": "compiler/src/lsp/lsp.x",
+                                    "note": "compiler/src/lsp/lsp.x :: lsp_write_all"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00024",
+                                    "created": 1784118466229,
+                                    "text": "lsp_build_initialize_result",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/lsp/lsp.x",
+                                    "hyperlinkTitle": "compiler/src/lsp/lsp.x",
+                                    "note": "compiler/src/lsp/lsp.x :: lsp_build_initialize_result"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00025",
+                                    "created": 1784118466230,
+                                    "text": "lsp_build_diagnostics_response",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/lsp/lsp.x",
+                                    "hyperlinkTitle": "compiler/src/lsp/lsp.x",
+                                    "note": "compiler/src/lsp/lsp.x :: lsp_build_diagnostics_response"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00026",
+                                    "created": 1784118466231,
+                                    "text": "lsp_build_definition_response",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/lsp/lsp.x",
+                                    "hyperlinkTitle": "compiler/src/lsp/lsp.x",
+                                    "note": "compiler/src/lsp/lsp.x :: lsp_build_definition_response"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00027",
+                                    "created": 1784118466232,
+                                    "text": "lsp_build_references_response",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/lsp/lsp.x",
+                                    "hyperlinkTitle": "compiler/src/lsp/lsp.x",
+                                    "note": "compiler/src/lsp/lsp.x :: lsp_build_references_response"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00028",
+                                    "created": 1784118466233,
+                                    "text": "lsp_build_hover_response",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/lsp/lsp.x",
+                                    "hyperlinkTitle": "compiler/src/lsp/lsp.x",
+                                    "note": "compiler/src/lsp/lsp.x :: lsp_build_hover_response"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00029",
+                                    "created": 1784118466234,
+                                    "text": "lsp_build_formatting_response",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/lsp/lsp.x",
+                                    "hyperlinkTitle": "compiler/src/lsp/lsp.x",
+                                    "note": "compiler/src/lsp/lsp.x :: lsp_build_formatting_response"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00030",
+                                    "created": 1784118466235,
+                                    "text": "lsp_build_completion_response",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/lsp/lsp.x",
+                                    "hyperlinkTitle": "compiler/src/lsp/lsp.x",
+                                    "note": "compiler/src/lsp/lsp.x :: lsp_build_completion_response"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00031",
+                                    "created": 1784118466236,
+                                    "text": "lsp_build_document_symbol_response",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/lsp/lsp.x",
+                                    "hyperlinkTitle": "compiler/src/lsp/lsp.x",
+                                    "note": "compiler/src/lsp/lsp.x :: lsp_build_document_symbol_response"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00032",
+                                    "created": 1784118466237,
+                                    "text": "lsp_build_semantic_tokens_response",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/lsp/lsp.x",
+                                    "hyperlinkTitle": "compiler/src/lsp/lsp.x",
+                                    "note": "compiler/src/lsp/lsp.x :: lsp_build_semantic_tokens_response"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00033",
+                                    "created": 1784118466238,
+                                    "text": "lsp_build_rename_response",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/lsp/lsp.x",
+                                    "hyperlinkTitle": "compiler/src/lsp/lsp.x",
+                                    "note": "compiler/src/lsp/lsp.x :: lsp_build_rename_response"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00034",
+                                    "created": 1784118466239,
+                                    "text": "lsp_diag_invalidate_cache",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/lsp/lsp.x",
+                                    "hyperlinkTitle": "compiler/src/lsp/lsp.x",
+                                    "note": "compiler/src/lsp/lsp.x :: lsp_diag_invalidate_cache"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00035",
+                                    "created": 1784118466240,
+                                    "text": "lsp_build_response_with_result",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/lsp/lsp.x",
+                                    "hyperlinkTitle": "compiler/src/lsp/lsp.x",
+                                    "note": "compiler/src/lsp/lsp.x :: lsp_build_response_with_result"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00036",
+                                    "created": 1784118466241,
+                                    "text": "lsp_set_document_from_body",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/lsp/lsp.x",
+                                    "hyperlinkTitle": "compiler/src/lsp/lsp.x",
+                                    "note": "compiler/src/lsp/lsp.x :: lsp_set_document_from_body"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00037",
+                                    "created": 1784118466242,
+                                    "text": "lsp_get_document_ptr",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/lsp/lsp.x",
+                                    "hyperlinkTitle": "compiler/src/lsp/lsp.x",
+                                    "note": "compiler/src/lsp/lsp.x :: lsp_get_document_ptr"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00038",
+                                    "created": 1784118466243,
+                                    "text": "lsp_get_document_len",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/lsp/lsp.x",
+                                    "hyperlinkTitle": "compiler/src/lsp/lsp.x",
+                                    "note": "compiler/src/lsp/lsp.x :: lsp_get_document_len"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00039",
+                                    "created": 1784118466244,
+                                    "text": "lsp_body_contains_initialize",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/lsp/lsp.x",
+                                    "hyperlinkTitle": "compiler/src/lsp/lsp.x",
+                                    "note": "compiler/src/lsp/lsp.x :: lsp_body_contains_initialize"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00040",
+                                    "created": 1784118466245,
+                                    "text": "lsp_body_contains_initialized",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/lsp/lsp.x",
+                                    "hyperlinkTitle": "compiler/src/lsp/lsp.x",
+                                    "note": "compiler/src/lsp/lsp.x :: lsp_body_contains_initialized"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00041",
+                                    "created": 1784118466246,
+                                    "text": "lsp_body_contains_shutdown",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/lsp/lsp.x",
+                                    "hyperlinkTitle": "compiler/src/lsp/lsp.x",
+                                    "note": "compiler/src/lsp/lsp.x :: lsp_body_contains_shutdown"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00042",
+                                    "created": 1784118466247,
+                                    "text": "lsp_body_contains_did_open",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/lsp/lsp.x",
+                                    "hyperlinkTitle": "compiler/src/lsp/lsp.x",
+                                    "note": "compiler/src/lsp/lsp.x :: lsp_body_contains_did_open"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00043",
+                                    "created": 1784118466248,
+                                    "text": "lsp_body_contains_did_change",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/lsp/lsp.x",
+                                    "hyperlinkTitle": "compiler/src/lsp/lsp.x",
+                                    "note": "compiler/src/lsp/lsp.x :: lsp_body_contains_did_change"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00044",
+                                    "created": 1784118466249,
+                                    "text": "lsp_body_contains_did_save",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/lsp/lsp.x",
+                                    "hyperlinkTitle": "compiler/src/lsp/lsp.x",
+                                    "note": "compiler/src/lsp/lsp.x :: lsp_body_contains_did_save"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00045",
+                                    "created": 1784118466250,
+                                    "text": "lsp_body_contains_diagnostic",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/lsp/lsp.x",
+                                    "hyperlinkTitle": "compiler/src/lsp/lsp.x",
+                                    "note": "compiler/src/lsp/lsp.x :: lsp_body_contains_diagnostic"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00046",
+                                    "created": 1784118466251,
+                                    "text": "lsp_body_contains_completion",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/lsp/lsp.x",
+                                    "hyperlinkTitle": "compiler/src/lsp/lsp.x",
+                                    "note": "compiler/src/lsp/lsp.x :: lsp_body_contains_completion"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00047",
+                                    "created": 1784118466252,
+                                    "text": "lsp_body_contains_document_symbol",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/lsp/lsp.x",
+                                    "hyperlinkTitle": "compiler/src/lsp/lsp.x",
+                                    "note": "compiler/src/lsp/lsp.x :: lsp_body_contains_document_symbol"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00048",
+                                    "created": 1784118466253,
+                                    "text": "lsp_body_contains_semantic_tokens",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/lsp/lsp.x",
+                                    "hyperlinkTitle": "compiler/src/lsp/lsp.x",
+                                    "note": "compiler/src/lsp/lsp.x :: lsp_body_contains_semantic_tokens"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00049",
+                                    "created": 1784118466254,
+                                    "text": "lsp_body_contains_rename",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/lsp/lsp.x",
+                                    "hyperlinkTitle": "compiler/src/lsp/lsp.x",
+                                    "note": "compiler/src/lsp/lsp.x :: lsp_body_contains_rename"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00050",
+                                    "created": 1784118466255,
+                                    "text": "lsp_body_contains_did_close",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/lsp/lsp.x",
+                                    "hyperlinkTitle": "compiler/src/lsp/lsp.x",
+                                    "note": "compiler/src/lsp/lsp.x :: lsp_body_contains_did_close"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00051",
+                                    "created": 1784118466256,
+                                    "text": "lsp_body_contains_cancel",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/lsp/lsp.x",
+                                    "hyperlinkTitle": "compiler/src/lsp/lsp.x",
+                                    "note": "compiler/src/lsp/lsp.x :: lsp_body_contains_cancel"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00052",
+                                    "created": 1784118466257,
+                                    "text": "lsp_body_contains_did_change_config",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/lsp/lsp.x",
+                                    "hyperlinkTitle": "compiler/src/lsp/lsp.x",
+                                    "note": "compiler/src/lsp/lsp.x :: lsp_body_contains_did_change_config"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00053",
+                                    "created": 1784118466258,
+                                    "text": "lsp_body_contains_definition",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/lsp/lsp.x",
+                                    "hyperlinkTitle": "compiler/src/lsp/lsp.x",
+                                    "note": "compiler/src/lsp/lsp.x :: lsp_body_contains_definition"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00054",
+                                    "created": 1784118466259,
+                                    "text": "lsp_body_contains_references",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/lsp/lsp.x",
+                                    "hyperlinkTitle": "compiler/src/lsp/lsp.x",
+                                    "note": "compiler/src/lsp/lsp.x :: lsp_body_contains_references"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00055",
+                                    "created": 1784118466260,
+                                    "text": "lsp_body_contains_hover",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/lsp/lsp.x",
+                                    "hyperlinkTitle": "compiler/src/lsp/lsp.x",
+                                    "note": "compiler/src/lsp/lsp.x :: lsp_body_contains_hover"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00056",
+                                    "created": 1784118466261,
+                                    "text": "lsp_body_contains_formatting",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/lsp/lsp.x",
+                                    "hyperlinkTitle": "compiler/src/lsp/lsp.x",
+                                    "note": "compiler/src/lsp/lsp.x :: lsp_body_contains_formatting"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00057",
+                                    "created": 1784118466262,
+                                    "text": "lsp_body_contains_exit",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/lsp/lsp.x",
+                                    "hyperlinkTitle": "compiler/src/lsp/lsp.x",
+                                    "note": "compiler/src/lsp/lsp.x :: lsp_body_contains_exit"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00058",
+                                    "created": 1784118466263,
+                                    "text": "lsp_parse_id",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/lsp/lsp.x",
+                                    "hyperlinkTitle": "compiler/src/lsp/lsp.x",
+                                    "note": "compiler/src/lsp/lsp.x :: lsp_parse_id"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00059",
+                                    "created": 1784118466264,
+                                    "text": "lsp_send_response",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/lsp/lsp.x",
+                                    "hyperlinkTitle": "compiler/src/lsp/lsp.x",
+                                    "note": "compiler/src/lsp/lsp.x :: lsp_send_response"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00060",
+                                    "created": 1784118466265,
+                                    "text": "lsp_main_impl",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/lsp/lsp.x",
+                                    "hyperlinkTitle": "compiler/src/lsp/lsp.x",
+                                    "note": "compiler/src/lsp/lsp.x :: lsp_main_impl"
+                                },
+                                "children": []
+                            }
+                        ]
+                    },
+                    {
+                        "data": {
+                            "id": "m00061",
+                            "created": 1784118466266,
+                            "text": "async_liveness.x  (36 方法)",
+                            "expandState": "collapse",
+                            "hyperlink": "compiler/src/async/async_liveness.x",
+                            "hyperlinkTitle": "compiler/src/async/async_liveness.x",
+                            "note": "compiler/src/async/async_liveness.x"
+                        },
+                        "children": [
+                            {
+                                "data": {
+                                    "id": "m00062",
+                                    "created": 1784118466267,
+                                    "text": "async_liveness_x_doc_anchor",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_liveness.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_liveness.x",
+                                    "note": "compiler/src/async/async_liveness.x :: async_liveness_x_doc_anchor"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00063",
+                                    "created": 1784118466268,
+                                    "text": "async_live_load_func_name",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_liveness.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_liveness.x",
+                                    "note": "compiler/src/async/async_liveness.x :: async_live_load_func_name"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00064",
+                                    "created": 1784118466269,
+                                    "text": "async_liveness_callee_is_io_read",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_liveness.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_liveness.x",
+                                    "note": "compiler/src/async/async_liveness.x :: async_liveness_callee_is_io_read"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00065",
+                                    "created": 1784118466270,
+                                    "text": "async_liveness_callee_is_io_write",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_liveness.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_liveness.x",
+                                    "note": "compiler/src/async/async_liveness.x :: async_liveness_callee_is_io_write"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00066",
+                                    "created": 1784118466271,
+                                    "text": "async_live_load_i32",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_liveness.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_liveness.x",
+                                    "note": "compiler/src/async/async_liveness.x :: async_live_load_i32"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00067",
+                                    "created": 1784118466272,
+                                    "text": "async_live_load_ptr",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_liveness.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_liveness.x",
+                                    "note": "compiler/src/async/async_liveness.x :: async_live_load_ptr"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00068",
+                                    "created": 1784118466273,
+                                    "text": "async_live_ptr_at",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_liveness.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_liveness.x",
+                                    "note": "compiler/src/async/async_liveness.x :: async_live_ptr_at"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00069",
+                                    "created": 1784118466274,
+                                    "text": "async_live_expr_kind",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_liveness.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_liveness.x",
+                                    "note": "compiler/src/async/async_liveness.x :: async_live_expr_kind"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00070",
+                                    "created": 1784118466275,
+                                    "text": "async_live_is_binop_kind",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_liveness.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_liveness.x",
+                                    "note": "compiler/src/async/async_liveness.x :: async_live_is_binop_kind"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00071",
+                                    "created": 1784118466276,
+                                    "text": "async_live_is_unary_kind",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_liveness.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_liveness.x",
+                                    "note": "compiler/src/async/async_liveness.x :: async_live_is_unary_kind"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00072",
+                                    "created": 1784118466277,
+                                    "text": "expr_has_await",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_liveness.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_liveness.x",
+                                    "note": "compiler/src/async/async_liveness.x :: expr_has_await"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00073",
+                                    "created": 1784118466278,
+                                    "text": "expr_count_await",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_liveness.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_liveness.x",
+                                    "note": "compiler/src/async/async_liveness.x :: expr_count_await"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00074",
+                                    "created": 1784118466279,
+                                    "text": "block_count_await",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_liveness.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_liveness.x",
+                                    "note": "compiler/src/async/async_liveness.x :: block_count_await"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00075",
+                                    "created": 1784118466280,
+                                    "text": "block_has_await",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_liveness.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_liveness.x",
+                                    "note": "compiler/src/async/async_liveness.x :: block_has_await"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00076",
+                                    "created": 1784118466281,
+                                    "text": "expr_has_io_read_await",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_liveness.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_liveness.x",
+                                    "note": "compiler/src/async/async_liveness.x :: expr_has_io_read_await"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00077",
+                                    "created": 1784118466282,
+                                    "text": "expr_has_io_write_await",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_liveness.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_liveness.x",
+                                    "note": "compiler/src/async/async_liveness.x :: expr_has_io_write_await"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00078",
+                                    "created": 1784118466283,
+                                    "text": "block_has_io_read_await",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_liveness.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_liveness.x",
+                                    "note": "compiler/src/async/async_liveness.x :: block_has_io_read_await"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00079",
+                                    "created": 1784118466284,
+                                    "text": "block_has_io_write_await",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_liveness.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_liveness.x",
+                                    "note": "compiler/src/async/async_liveness.x :: block_has_io_write_await"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00080",
+                                    "created": 1784118466285,
+                                    "text": "async_live_cstr_eq",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_liveness.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_liveness.x",
+                                    "note": "compiler/src/async/async_liveness.x :: async_live_cstr_eq"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00081",
+                                    "created": 1784118466286,
+                                    "text": "async_live_cstr_copy64",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_liveness.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_liveness.x",
+                                    "note": "compiler/src/async/async_liveness.x :: async_live_cstr_copy64"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00082",
+                                    "created": 1784118466287,
+                                    "text": "async_live_def_row",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_liveness.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_liveness.x",
+                                    "note": "compiler/src/async/async_liveness.x :: async_live_def_row"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00083",
+                                    "created": 1784118466288,
+                                    "text": "async_live_load_def_name",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_liveness.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_liveness.x",
+                                    "note": "compiler/src/async/async_liveness.x :: async_live_load_def_name"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00084",
+                                    "created": 1784118466289,
+                                    "text": "expr_refs_var",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_liveness.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_liveness.x",
+                                    "note": "compiler/src/async/async_liveness.x :: expr_refs_var"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00085",
+                                    "created": 1784118466290,
+                                    "text": "block_refs_var",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_liveness.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_liveness.x",
+                                    "note": "compiler/src/async/async_liveness.x :: block_refs_var"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00086",
+                                    "created": 1784118466291,
+                                    "text": "block_rest_refs_var",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_liveness.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_liveness.x",
+                                    "note": "compiler/src/async/async_liveness.x :: block_rest_refs_var"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00087",
+                                    "created": 1784118466292,
+                                    "text": "frame_live_load_n",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_liveness.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_liveness.x",
+                                    "note": "compiler/src/async/async_liveness.x :: frame_live_load_n"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00088",
+                                    "created": 1784118466293,
+                                    "text": "frame_live_store_n",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_liveness.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_liveness.x",
+                                    "note": "compiler/src/async/async_liveness.x :: frame_live_store_n"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00089",
+                                    "created": 1784118466294,
+                                    "text": "frame_live_row_ptr",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_liveness.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_liveness.x",
+                                    "note": "compiler/src/async/async_liveness.x :: frame_live_row_ptr"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00090",
+                                    "created": 1784118466295,
+                                    "text": "frame_live_name_eq",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_liveness.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_liveness.x",
+                                    "note": "compiler/src/async/async_liveness.x :: frame_live_name_eq"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00091",
+                                    "created": 1784118466296,
+                                    "text": "frame_live_add",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_liveness.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_liveness.x",
+                                    "note": "compiler/src/async/async_liveness.x :: frame_live_add"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00092",
+                                    "created": 1784118466297,
+                                    "text": "frame_live_at_await",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_liveness.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_liveness.x",
+                                    "note": "compiler/src/async/async_liveness.x :: frame_live_at_await"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00093",
+                                    "created": 1784118466298,
+                                    "text": "async_live_analyze_at_await",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_liveness.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_liveness.x",
+                                    "note": "compiler/src/async/async_liveness.x :: async_live_analyze_at_await"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00094",
+                                    "created": 1784118466299,
+                                    "text": "analyze_block_linear",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_liveness.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_liveness.x",
+                                    "note": "compiler/src/async/async_liveness.x :: analyze_block_linear"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00095",
+                                    "created": 1784118466300,
+                                    "text": "frame_mangle_ident",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_liveness.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_liveness.x",
+                                    "note": "compiler/src/async/async_liveness.x :: frame_mangle_ident"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00096",
+                                    "created": 1784118466301,
+                                    "text": "frame_build_tag",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_liveness.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_liveness.x",
+                                    "note": "compiler/src/async/async_liveness.x :: frame_build_tag"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00097",
+                                    "created": 1784118466302,
+                                    "text": "live_name_cmp",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_liveness.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_liveness.x",
+                                    "note": "compiler/src/async/async_liveness.x :: live_name_cmp"
+                                },
+                                "children": []
+                            }
+                        ]
+                    },
+                    {
+                        "data": {
+                            "id": "m00098",
+                            "created": 1784118466303,
+                            "text": "async_cps_codegen.x  (11 方法)",
+                            "expandState": "collapse",
+                            "hyperlink": "compiler/src/async/async_cps_codegen.x",
+                            "hyperlinkTitle": "compiler/src/async/async_cps_codegen.x",
+                            "note": "compiler/src/async/async_cps_codegen.x"
+                        },
+                        "children": [
+                            {
+                                "data": {
+                                    "id": "m00099",
+                                    "created": 1784118466304,
+                                    "text": "emit_hoisted_lets_impl",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_cps_codegen.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_cps_codegen.x",
+                                    "note": "compiler/src/async/async_cps_codegen.x :: emit_hoisted_lets_impl"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00100",
+                                    "created": 1784118466305,
+                                    "text": "async_cps_codegen_x_doc_anchor",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_cps_codegen.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_cps_codegen.x",
+                                    "note": "compiler/src/async/async_cps_codegen.x :: async_cps_codegen_x_doc_anchor"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00101",
+                                    "created": 1784118466306,
+                                    "text": "async_cps_load_func_name",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_cps_codegen.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_cps_codegen.x",
+                                    "note": "compiler/src/async/async_cps_codegen.x :: async_cps_load_func_name"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00102",
+                                    "created": 1784118466307,
+                                    "text": "emit_hoisted_lets",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_cps_codegen.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_cps_codegen.x",
+                                    "note": "compiler/src/async/async_cps_codegen.x :: emit_hoisted_lets"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00103",
+                                    "created": 1784118466308,
+                                    "text": "async_cps_callee_is_io",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_cps_codegen.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_cps_codegen.x",
+                                    "note": "compiler/src/async/async_cps_codegen.x :: async_cps_callee_is_io"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00104",
+                                    "created": 1784118466309,
+                                    "text": "expr_references_run_async_impl",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_cps_codegen.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_cps_codegen.x",
+                                    "note": "compiler/src/async/async_cps_codegen.x :: expr_references_run_async_impl"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00105",
+                                    "created": 1784118466310,
+                                    "text": "block_has_run_async_ref_impl",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_cps_codegen.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_cps_codegen.x",
+                                    "note": "compiler/src/async/async_cps_codegen.x :: block_has_run_async_ref_impl"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00106",
+                                    "created": 1784118466311,
+                                    "text": "expr_references_run_async",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_cps_codegen.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_cps_codegen.x",
+                                    "note": "compiler/src/async/async_cps_codegen.x :: expr_references_run_async"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00107",
+                                    "created": 1784118466312,
+                                    "text": "block_has_run_async_ref",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_cps_codegen.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_cps_codegen.x",
+                                    "note": "compiler/src/async/async_cps_codegen.x :: block_has_run_async_ref"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00108",
+                                    "created": 1784118466313,
+                                    "text": "async_cps_callee_is_future_wait_by_name",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_cps_codegen.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_cps_codegen.x",
+                                    "note": "compiler/src/async/async_cps_codegen.x :: async_cps_callee_is_future_wait_by_name"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00109",
+                                    "created": 1784118466314,
+                                    "text": "async_cps_callee_is_future_wait",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/async/async_cps_codegen.x",
+                                    "hyperlinkTitle": "compiler/src/async/async_cps_codegen.x",
+                                    "note": "compiler/src/async/async_cps_codegen.x :: async_cps_callee_is_future_wait"
+                                },
+                                "children": []
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    },
+    "template": "default",
+    "theme": "fresh-blue",
+    "version": "1.4.43"
+}

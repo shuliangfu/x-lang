@@ -29,12 +29,13 @@ const types = import("core.types");
 
 /** gzip 流状态字节数（GzipStreamHdr + ZStream）。 */
 export function gzip_stream_state_bytes(): i32 {
-  return types.size_of<GzipStream>();
+  /* LP64 保守上界：hdr 16 + z_stream ~112 ≈ 128。勿 types.size_of<T>（monomorphize 缺口）。 */
+  return 128;
 }
 
 /** gzip 流头字节数。 */
 export function gzip_stream_hdr_bytes(): i32 {
-  return types.size_of<GzipStreamHdr>();
+  return 16;
 }
 
 /** gzip 流状态魔数（'GZST'，与 compress_common.h 一致）。 */

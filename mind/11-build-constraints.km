@@ -1,0 +1,376 @@
+{
+    "root": {
+        "data": {
+            "id": "n0001",
+            "created": 1784118410328,
+            "text": "构建 · 数据流 · 关键约束",
+            "note": "g05/Makefile 拓扑与编译硬约束。",
+            "expandState": "expand"
+        },
+        "children": [
+            {
+                "data": {
+                    "id": "n0002",
+                    "created": 1784118410329,
+                    "text": "构建系统",
+                    "expandState": "expand"
+                },
+                "children": [
+                    {
+                        "data": {
+                            "id": "n0003",
+                            "created": 1784118410330,
+                            "text": "g05 脚本 (产品路径零 make)",
+                            "expandState": "collapse"
+                        },
+                        "children": [
+                            {
+                                "data": {
+                                    "id": "n0004",
+                                    "created": 1784118410331,
+                                    "text": "g05_prepare_and_relink.sh (编排入口)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/scripts/g05_prepare_and_relink.sh",
+                                    "hyperlinkTitle": "compiler/scripts/g05_prepare_and_relink.sh"
+                                },
+                                "children": [
+                                    {
+                                        "data": {
+                                            "id": "n0005",
+                                            "created": 1784118410332,
+                                            "text": "g05_ensure_relink_prereqs.sh (确保 .o 就绪)",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/scripts/g05_ensure_relink_prereqs.sh",
+                                            "hyperlinkTitle": "compiler/scripts/g05_ensure_relink_prereqs.sh"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0006",
+                                            "created": 1784118410333,
+                                            "text": "g05_relink_env.sh (环境/链接列表)",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/scripts/g05_relink_env.sh",
+                                            "hyperlinkTitle": "compiler/scripts/g05_relink_env.sh"
+                                        },
+                                        "children": [
+                                            {
+                                                "data": {
+                                                    "id": "n0007",
+                                                    "created": 1784118410334,
+                                                    "text": "macOS → build_asm/bootstrap_seed_pipeline_filtered.o",
+                                                    "expandState": "collapse",
+                                                    "hyperlink": "compiler/scripts/g05_relink_env.sh",
+                                                    "hyperlinkTitle": "compiler/scripts/g05_relink_env.sh"
+                                                },
+                                                "children": []
+                                            },
+                                            {
+                                                "data": {
+                                                    "id": "n0008",
+                                                    "created": 1784118410335,
+                                                    "text": "Linux → pipeline_x.o",
+                                                    "expandState": "collapse",
+                                                    "hyperlink": "compiler/scripts/g05_relink_env.sh",
+                                                    "hyperlinkTitle": "compiler/scripts/g05_relink_env.sh"
+                                                },
+                                                "children": []
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0009",
+                                            "created": 1784118410336,
+                                            "text": "g05_relink_shux.sh (链接 shux)",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/scripts/g05_relink_shux.sh",
+                                            "hyperlinkTitle": "compiler/scripts/g05_relink_shux.sh"
+                                        },
+                                        "children": []
+                                    }
+                                ]
+                            },
+                            {
+                                "data": {
+                                    "id": "n0010",
+                                    "created": 1784118410337,
+                                    "text": "g05_build_shux_asm.sh (构建 shux_asm)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/scripts/g05_build_shux_asm.sh",
+                                    "hyperlinkTitle": "compiler/scripts/g05_build_shux_asm.sh"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "n0011",
+                                    "created": 1784118410338,
+                                    "text": "build_tool (构建工具)",
+                                    "expandState": "collapse"
+                                },
+                                "children": []
+                            }
+                        ]
+                    },
+                    {
+                        "data": {
+                            "id": "n0012",
+                            "created": 1784118410339,
+                            "text": "macOS relink 拓扑",
+                            "expandState": "collapse"
+                        },
+                        "children": [
+                            {
+                                "data": {
+                                    "id": "n0013",
+                                    "created": 1784118410340,
+                                    "text": "pipeline_glue.c → pipeline_gen.c → pipeline_x.o",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/pipeline_glue.c",
+                                    "hyperlinkTitle": "compiler/pipeline_glue.c"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "n0014",
+                                    "created": 1784118410341,
+                                    "text": "pipeline_x.o → ld -r -exported_symbols_list → bootstrap_seed_pipeline_filtered.o",
+                                    "expandState": "collapse"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "n0015",
+                                    "created": 1784118410342,
+                                    "text": "bootstrap_seed_pipeline_filtered.o + typeck_x.o + codegen_x.o + ... → shux",
+                                    "expandState": "collapse"
+                                },
+                                "children": []
+                            }
+                        ]
+                    },
+                    {
+                        "data": {
+                            "id": "n0016",
+                            "created": 1784118410343,
+                            "text": "Linux relink 拓扑",
+                            "expandState": "collapse"
+                        },
+                        "children": [
+                            {
+                                "data": {
+                                    "id": "n0017",
+                                    "created": 1784118410344,
+                                    "text": "pipeline_glue.c → pipeline_gen.c → pipeline_x.o",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/pipeline_glue.c",
+                                    "hyperlinkTitle": "compiler/pipeline_glue.c"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "n0018",
+                                    "created": 1784118410345,
+                                    "text": "pipeline_x.o + typeck_x.o + codegen_x.o + ... → shux",
+                                    "expandState": "collapse"
+                                },
+                                "children": []
+                            }
+                        ]
+                    },
+                    {
+                        "data": {
+                            "id": "n0019",
+                            "created": 1784118410346,
+                            "text": "Makefile (冷启动)",
+                            "expandState": "collapse"
+                        },
+                        "children": [
+                            {
+                                "data": {
+                                    "id": "n0020",
+                                    "created": 1784118410347,
+                                    "text": "bootstrap-driver-bstrict",
+                                    "expandState": "collapse"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "n0021",
+                                    "created": 1784118410348,
+                                    "text": "bootstrap-verify",
+                                    "expandState": "collapse"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "n0022",
+                                    "created": 1784118410349,
+                                    "text": "shux-c / shux_asm",
+                                    "expandState": "collapse"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "n0023",
+                                    "created": 1784118410350,
+                                    "text": "migrate-x-objs",
+                                    "expandState": "collapse"
+                                },
+                                "children": []
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "data": {
+                    "id": "n0024",
+                    "created": 1784118410351,
+                    "text": "核心数据流",
+                    "expandState": "expand"
+                },
+                "children": [
+                    {
+                        "data": {
+                            "id": "n0025",
+                            "created": 1784118410352,
+                            "text": "源码 → preprocess_x_buf → lexer_next → parse_into → AST",
+                            "expandState": "collapse"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "n0026",
+                            "created": 1784118410353,
+                            "text": "AST → pipeline_typeck_parsed_module → typeck 检查",
+                            "expandState": "collapse"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "n0027",
+                            "created": 1784118410354,
+                            "text": "typeck 后 → emit_func (C 路径) / asm_asm_codegen_elf_o (ASM 路径)",
+                            "expandState": "collapse"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "n0028",
+                            "created": 1784118410355,
+                            "text": "C 路径 → .c 文件 → cc → 可执行文件",
+                            "expandState": "collapse"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "n0029",
+                            "created": 1784118410356,
+                            "text": "ASM 路径 → ELF .o → ld → 可执行文件",
+                            "expandState": "collapse"
+                        },
+                        "children": []
+                    }
+                ]
+            },
+            {
+                "data": {
+                    "id": "n0030",
+                    "created": 1784118410357,
+                    "text": "关键约束",
+                    "expandState": "expand"
+                },
+                "children": [
+                    {
+                        "data": {
+                            "id": "n0031",
+                            "created": 1784118410358,
+                            "text": "shux -E 只能对 0 imports 的 .x 文件运行",
+                            "expandState": "collapse"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "n0032",
+                            "created": 1784118410359,
+                            "text": "shux -E 会丢弃含 && / || 的函数体; 需扁平化为 helper",
+                            "expandState": "collapse"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "n0033",
+                            "created": 1784118410360,
+                            "text": "shux -E 在 32-bit 平台跳过 u64; Ubuntu x86_64 用 usize",
+                            "expandState": "collapse"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "n0034",
+                            "created": 1784118410361,
+                            "text": "EXPR_BLOCK (ord=26): unsafe { return ...; } 解析为 block 表达式",
+                            "expandState": "collapse"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "n0035",
+                            "created": 1784118410362,
+                            "text": "EXPR_PANIC (ord=42): panic() 调用, noreturn 语义",
+                            "expandState": "collapse"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "n0036",
+                            "created": 1784118410363,
+                            "text": "macOS relink 必须重建 bootstrap_seed_pipeline_filtered.o (3 层)",
+                            "expandState": "collapse"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "n0037",
+                            "created": 1784118410364,
+                            "text": "产品 G05: 51 objs (链入图不变)",
+                            "expandState": "collapse"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "n0038",
+                            "created": 1784118410365,
+                            "text": "PREFER_X_O: 50/50 (44 rt + 6 frontend)",
+                            "expandState": "collapse"
+                        },
+                        "children": []
+                    }
+                ]
+            }
+        ]
+    },
+    "template": "default",
+    "theme": "fresh-blue",
+    "version": "1.4.43"
+}

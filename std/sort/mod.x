@@ -27,24 +27,28 @@ export struct KeyTag {
   tag: i32
 }
 
-/** 原地对 ptr[0..len] 升序排序（i32）；不稳定。 */
+/** 原地对 ptr[0..len] 升序排序（i32）；不稳定。
+ * 【Why】勿 sort_impl.sort 重载：跨模块 *u8/*i32 打分失败时回退首同名 i32（误调 abort）。
+ * 权威实现为 sort.x 的 sort_qsort_* / sort_stable_*_impl（唯一名）。 */
 export function sort(ptr: *i32, len: i32): void {
-  sort_impl.sort(ptr, len);
+  if (ptr == 0 || len <= 1) { return; }
+  sort_impl.sort_qsort_i32(ptr, 0, len - 1);
 }
 
 /** 原地对 ptr[0..len] 升序排序（u8）；不稳定。 */
 export function sort(ptr: *u8, len: i32): void {
-  sort_impl.sort(ptr, len);
+  if (ptr == 0 || len <= 1) { return; }
+  sort_impl.sort_qsort_u8(ptr, 0, len - 1);
 }
 
 /** 原地稳定升序排序 ptr[0..len]（i32）。 */
 export function stable(ptr: *i32, len: i32): void {
-  sort_impl.stable(ptr, len);
+  sort_impl.sort_stable_i32_impl(ptr, len, 1);
 }
 
 /** 原地稳定升序排序 ptr[0..len]（u8）。 */
 export function stable(ptr: *u8, len: i32): void {
-  sort_impl.stable(ptr, len);
+  sort_impl.sort_stable_u8_impl(ptr, len, 1);
 }
 
 /** 原地稳定排序 ptr[0..len]（i32）；cmp_fn 为 usize 承载的 C 比较器。 */

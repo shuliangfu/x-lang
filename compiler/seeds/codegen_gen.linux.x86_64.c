@@ -58,7 +58,7 @@ enum ast_TypeKind { ast_TypeKind_TYPE_I32, ast_TypeKind_TYPE_BOOL, ast_TypeKind_
 enum ast_ExprKind { ast_ExprKind_EXPR_LIT, ast_ExprKind_EXPR_FLOAT_LIT, ast_ExprKind_EXPR_BOOL_LIT, ast_ExprKind_EXPR_VAR, ast_ExprKind_EXPR_ADD, ast_ExprKind_EXPR_SUB, ast_ExprKind_EXPR_MUL, ast_ExprKind_EXPR_DIV, ast_ExprKind_EXPR_MOD, ast_ExprKind_EXPR_SHL, ast_ExprKind_EXPR_SHR, ast_ExprKind_EXPR_BITAND, ast_ExprKind_EXPR_BITOR, ast_ExprKind_EXPR_BITXOR, ast_ExprKind_EXPR_EQ, ast_ExprKind_EXPR_NE, ast_ExprKind_EXPR_LT, ast_ExprKind_EXPR_LE, ast_ExprKind_EXPR_GT, ast_ExprKind_EXPR_GE, ast_ExprKind_EXPR_LOGAND, ast_ExprKind_EXPR_LOGOR, ast_ExprKind_EXPR_NEG, ast_ExprKind_EXPR_BITNOT, ast_ExprKind_EXPR_LOGNOT, ast_ExprKind_EXPR_IF, ast_ExprKind_EXPR_BLOCK, ast_ExprKind_EXPR_TERNARY, ast_ExprKind_EXPR_ASSIGN, ast_ExprKind_EXPR_ADD_ASSIGN, ast_ExprKind_EXPR_SUB_ASSIGN, ast_ExprKind_EXPR_MUL_ASSIGN, ast_ExprKind_EXPR_DIV_ASSIGN, ast_ExprKind_EXPR_MOD_ASSIGN, ast_ExprKind_EXPR_BITAND_ASSIGN, ast_ExprKind_EXPR_BITOR_ASSIGN, ast_ExprKind_EXPR_BITXOR_ASSIGN, ast_ExprKind_EXPR_SHL_ASSIGN, ast_ExprKind_EXPR_SHR_ASSIGN, ast_ExprKind_EXPR_BREAK, ast_ExprKind_EXPR_CONTINUE, ast_ExprKind_EXPR_RETURN, ast_ExprKind_EXPR_PANIC, ast_ExprKind_EXPR_MATCH, ast_ExprKind_EXPR_FIELD_ACCESS, ast_ExprKind_EXPR_STRUCT_LIT, ast_ExprKind_EXPR_ARRAY_LIT, ast_ExprKind_EXPR_INDEX, ast_ExprKind_EXPR_CALL, ast_ExprKind_EXPR_METHOD_CALL, ast_ExprKind_EXPR_ENUM_VARIANT, ast_ExprKind_EXPR_ADDR_OF, ast_ExprKind_EXPR_DEREF, ast_ExprKind_EXPR_BINOP, ast_ExprKind_EXPR_AS, ast_ExprKind_EXPR_AWAIT, ast_ExprKind_EXPR_RUN, ast_ExprKind_EXPR_SPAWN, ast_ExprKind_EXPR_TRY_PROPAGATE, ast_ExprKind_EXPR_STRING_LIT };
 enum ast_ImportKind { ast_ImportKind_IMPORT_WHOLE, ast_ImportKind_IMPORT_BINDING, ast_ImportKind_IMPORT_SELECT };
 struct ast_Type { enum ast_TypeKind kind; uint8_t name[64]; int32_t name_len; int32_t elem_type_ref; int32_t array_size; uint8_t region_label[64]; int32_t region_label_len; };
-struct ast_Expr { enum ast_ExprKind kind; int32_t resolved_type_ref; int32_t line; int32_t col; int32_t int_val; double float_val; uint8_t var_name[64]; int32_t var_name_len; int32_t binop_left_ref; int32_t binop_right_ref; int32_t unary_operand_ref; int32_t if_cond_ref; int32_t if_then_ref; int32_t if_else_ref; int32_t block_ref; int32_t match_matched_ref; int32_t match_arm_base; int32_t match_num_arms; int32_t field_access_base_ref; uint8_t field_access_field_name[64]; int32_t field_access_field_len; int32_t field_access_is_enum_variant; int32_t field_access_offset; int32_t field_access_soa_stride; int32_t index_base_ref; int32_t index_index_ref; int32_t index_base_is_slice; int32_t call_callee_ref; int32_t call_arg_base; int32_t call_num_args; int32_t call_num_type_args; int32_t method_call_base_ref; uint8_t method_call_name[64]; int32_t method_call_name_len; int32_t method_call_arg_base; int32_t method_call_num_args; int32_t const_folded_val; int32_t const_folded_valid; int32_t index_proven_in_bounds; uint8_t struct_lit_struct_name[64]; int32_t struct_lit_struct_name_len; int32_t struct_lit_field_base; int32_t struct_lit_num_fields; int32_t array_lit_elem_base; int32_t array_lit_num_elems; int32_t float_bits_lo; int32_t float_bits_hi; int32_t enum_variant_tag; int32_t as_operand_ref; int32_t as_target_type_ref; int32_t call_resolved_func_index; int32_t call_resolved_dep_index; };
+struct ast_Expr { enum ast_ExprKind kind; int32_t resolved_type_ref; int32_t line; int32_t col; int64_t int_val; double float_val; uint8_t var_name[64]; int32_t var_name_len; int32_t binop_left_ref; int32_t binop_right_ref; int32_t unary_operand_ref; int32_t if_cond_ref; int32_t if_then_ref; int32_t if_else_ref; int32_t block_ref; int32_t match_matched_ref; int32_t match_arm_base; int32_t match_num_arms; int32_t field_access_base_ref; uint8_t field_access_field_name[64]; int32_t field_access_field_len; int32_t field_access_is_enum_variant; int32_t field_access_offset; int32_t field_access_soa_stride; int32_t index_base_ref; int32_t index_index_ref; int32_t index_base_is_slice; int32_t call_callee_ref; int32_t call_arg_base; int32_t call_num_args; int32_t call_num_type_args; int32_t method_call_base_ref; uint8_t method_call_name[64]; int32_t method_call_name_len; int32_t method_call_arg_base; int32_t method_call_num_args; int32_t const_folded_val; int32_t const_folded_valid; int32_t index_proven_in_bounds; uint8_t struct_lit_struct_name[64]; int32_t struct_lit_struct_name_len; int32_t struct_lit_field_base; int32_t struct_lit_num_fields; int32_t array_lit_elem_base; int32_t array_lit_num_elems; int32_t float_bits_lo; int32_t float_bits_hi; int32_t enum_variant_tag; int32_t as_operand_ref; int32_t as_target_type_ref; int32_t call_resolved_func_index; int32_t call_resolved_dep_index; };
 struct ast_ConstDecl { uint8_t name[64]; int32_t name_len; int32_t type_ref; int32_t init_ref; };
 struct ast_LetDecl { uint8_t name[64]; int32_t name_len; int32_t type_ref; int32_t init_ref; };
 struct ast_WhileLoop { int32_t cond_ref; int32_t body_ref; };
@@ -474,7 +474,8 @@ int32_t codegen_emit_bytes_4(struct codegen_CodegenOutBuf * out, uint8_t buf[4],
 int32_t codegen_emit_bytes_3(struct codegen_CodegenOutBuf * out, uint8_t buf[3], int32_t len);
 int32_t codegen_emit_bytes_2(struct codegen_CodegenOutBuf * out, uint8_t buf[2], int32_t len);
 int32_t codegen_format_uint(struct codegen_CodegenOutBuf * out, int32_t val);
-int32_t codegen_format_int(struct codegen_CodegenOutBuf * out, int32_t val);
+int32_t codegen_format_int(struct codegen_CodegenOutBuf * out, int64_t val);
+int32_t codegen_format_uint64(struct codegen_CodegenOutBuf * out, uint64_t val);
 int32_t codegen_emit_indent(struct codegen_CodegenOutBuf * out, int32_t indent);
 int32_t codegen_emit_block_final_expr(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t block_ref, int32_t final_ref, int32_t indent, struct ast_PipelineDepCtx * ctx, int32_t fn_ret_void);
 int32_t codegen_emit_break_stmt(struct codegen_CodegenOutBuf * out, int32_t indent);
@@ -1340,7 +1341,7 @@ SHUX_LIB_WEAK int32_t codegen_should_skip_emit_func(uint8_t * dep_path, uint8_t 
   if (ok_drv_only != 0 && codegen_is_std_io_driver_bridge_name(name, name_len) != 0) {   return 1;
  }
  }
-  if (prefix != ((uint8_t *)(0)) && prefix_len == 14 && name != ((uint8_t *)(0))) {   if (codegen_should_skip_emit_std_io_trivial_handle(((uint8_t *)(0)), name, name_len) != 0) {   return 1;
+  if (prefix != ((uint8_t *)(0)) && prefix_len == 14 && name != ((uint8_t *)(0)) && codegen_name_bytes_prefix_eq(prefix, prefix_len, (&((pref_abi14)[0])), 14) != 0) {   if (codegen_should_skip_emit_std_io_trivial_handle(((uint8_t *)(0)), name, name_len) != 0) {   return 1;
  }
  }
   if (dep_path != ((uint8_t *)(0)) && name != ((uint8_t *)(0))) {   if (codegen_should_skip_emit_std_io_core_io_dup(dep_path, name, name_len) != 0) {   return 1;
@@ -1847,24 +1848,33 @@ SHUX_LIB_WEAK int32_t codegen_format_uint(struct codegen_CodegenOutBuf * out, in
  }
   return 0;
 }
-SHUX_LIB_WEAK int32_t codegen_format_int(struct codegen_CodegenOutBuf * out, int32_t val) {
-  if (val >= 0) {   return codegen_format_uint(out, val);
- }
-  int32_t u = 0 - val;
-  if (u < 0) {   if (codegen_append_byte(out, 45) != 0) {   return (-1);
- }
-  uint8_t d[11] = { 50, 49, 52, 55, 52, 56, 51, 54, 52, 56, 0 };
-  int32_t i = 0;
-  while (i < 10) {
-    if (codegen_append_byte_u8(out, (i < 0 || (i) >= 11 ? (shux_panic_(1, 0), (d)[0]) : (d)[i])) != 0) {   return (-1);
- }
-    ++i;
+SHUX_LIB_WEAK int32_t codegen_format_uint64(struct codegen_CodegenOutBuf * out, uint64_t val) {
+  if (val >= 10ULL) {
+    uint64_t q = val / 10ULL;
+    uint64_t r = val % 10ULL;
+    if (codegen_format_uint64(out, q) != 0) { return (-1); }
+    if (codegen_append_byte(out, 48 + (int32_t)r) != 0) { return (-1); }
+    return 0;
   }
+  if (codegen_append_byte(out, 48 + (int32_t)val) != 0) { return (-1); }
   return 0;
- }
-  if (codegen_append_byte(out, 45) != 0) {   return (-1);
- }
-  return codegen_format_uint(out, u);
+}
+SHUX_LIB_WEAK int32_t codegen_format_int(struct codegen_CodegenOutBuf * out, int64_t val) {
+  if (val >= 0) { return codegen_format_uint64(out, (uint64_t)val); }
+  int64_t u = 0 - val;
+  if (u < 0) {
+    /* INT64_MIN */
+    if (codegen_append_byte(out, 45) != 0) { return (-1); }
+    uint8_t d[20] = { 57, 50, 50, 51, 51, 55, 50, 48, 51, 54, 56, 53, 52, 55, 55, 53, 56, 48, 56, 0 };
+    int32_t i = 0;
+    while (i < 19) {
+      if (codegen_append_byte_u8(out, d[i]) != 0) { return (-1); }
+      ++i;
+    }
+    return 0;
+  }
+  if (codegen_append_byte(out, 45) != 0) { return (-1); }
+  return codegen_format_uint64(out, (uint64_t)u);
 }
 SHUX_LIB_WEAK int32_t codegen_emit_indent(struct codegen_CodegenOutBuf * out, int32_t indent) {
   int32_t i = 0;
@@ -2145,6 +2155,16 @@ SHUX_LIB_WEAK int32_t codegen_emit_type(struct ast_ASTArena * arena, struct code
   if (name_len == 6 && (nm)[0] == 66 && (1 < 0 || (1) >= 64 ? (shux_panic_(1, 0), (nm)[0]) : (nm)[1]) == 117 && (2 < 0 || (2) >= 64 ? (shux_panic_(1, 0), (nm)[0]) : (nm)[2]) == 102 && (3 < 0 || (3) >= 64 ? (shux_panic_(1, 0), (nm)[0]) : (nm)[3]) == 102 && (4 < 0 || (4) >= 64 ? (shux_panic_(1, 0), (nm)[0]) : (nm)[4]) == 101 && (5 < 0 || (5) >= 64 ? (shux_panic_(1, 0), (nm)[0]) : (nm)[5]) == 114) {   uint8_t io_buf[22] = { 115, 116, 114, 117, 99, 116, 32, 115, 116, 100, 95, 105, 111, 95, 66, 117, 102, 102, 101, 114, 0, 0 };
   return codegen_emit_bytes_from_ptr(out, (&((io_buf)[0])), 20);
  }
+  /* core.option monomorphs Option_* → always struct core_option_<name> */
+  if (name_len >= 8 && (nm)[0] == 79 && (nm)[1] == 112 && (nm)[2] == 116 && (nm)[3] == 105 && (nm)[4] == 111 && (nm)[5] == 110 && (nm)[6] == 95) {
+    uint8_t opt_head[20] = { 115, 116, 114, 117, 99, 116, 32, 99, 111, 114, 101, 95, 111, 112, 116, 105, 111, 110, 95, 0 };
+    if (codegen_emit_bytes_from_ptr(out, (&((opt_head)[0])), 19) != 0) { return (-1); }
+    { int32_t oi = 0; while (oi < name_len && oi < 64) {
+      if (codegen_append_byte_u8(out, (nm)[oi]) != 0) { return (-1); }
+      oi = oi + 1;
+    } }
+    return 0;
+  }
   /* u16 */
   if (name_len == 3 && (nm)[0] == 117 && (nm)[1] == 49 && (nm)[2] == 54) {   uint8_t u16_t[9] = { 117, 105, 110, 116, 49, 54, 95, 116, 0 };
   return codegen_emit_bytes_8(out, u16_t, 8);
@@ -2489,8 +2509,8 @@ SHUX_LIB_WEAK int32_t codegen_should_skip_emit_struct_layout_for_abi_dup(uint8_t
   uint8_t nm_completion[11] = { 67, 111, 109, 112, 108, 101, 116, 105, 111, 110, 0 };
   uint8_t nm_async_ctx[13] = { 65, 115, 121, 110, 99, 67, 111, 110, 116, 101, 120, 116, 0 };
   uint8_t nm_error[6] = { 69, 114, 114, 111, 114, 0 };
-  /* rt_preamble 已 one-liner 定义 Option_i32 / Result_i32 — 再 emit 即 redefinition。 */
-  uint8_t nm_option_i32[11] = { 79, 112, 116, 105, 111, 110, 95, 105, 51, 50, 0 };
+  /* rt_preamble 已 one-liner 定义 Option_i32/u8/u64/ptr_u8 与 Result_* — 再 emit 即 redefinition。 */
+  uint8_t nm_option_us[8] = { 79, 112, 116, 105, 111, 110, 95, 0 }; /* Option_ */
   /* 泛型模板 Option<T>：C 无 monomorphize，勿 emit。 */
   uint8_t nm_option[7] = { 79, 112, 116, 105, 111, 110, 0 };
   uint8_t nm_result_i32[11] = { 82, 101, 115, 117, 108, 116, 95, 105, 51, 50, 0 };
@@ -2503,7 +2523,8 @@ SHUX_LIB_WEAK int32_t codegen_should_skip_emit_struct_layout_for_abi_dup(uint8_t
  }
   if (name_len == 5 && codegen_symbuf_bytes_eq(name, name_len, (&((nm_error)[0])), 5) != 0) {   return 1;
  }
-  if (name_len == 10 && codegen_symbuf_bytes_eq(name, name_len, (&((nm_option_i32)[0])), 10) != 0) {   return 1;
+  /* 凡裸名 Option_*：preamble 权威 */
+  if (name_len > 7 && codegen_symbuf_bytes_eq(name, 7, (&((nm_option_us)[0])), 7) != 0) {   return 1;
  }
   if (name_len == 6 && codegen_symbuf_bytes_eq(name, name_len, (&((nm_option)[0])), 6) != 0) {   return 1;
  }
@@ -4213,10 +4234,18 @@ SHUX_LIB_WEAK int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct code
  }
   if (codegen_append_byte(out, 41) != 0) {   return (-1);
  }
-  if ((e).index_base_is_slice != 0) {   uint8_t dot[6] = { 46, 100, 97, 116, 97, 0 };
-  if (codegen_emit_bytes_6(out, dot, 5) != 0) {   return (-1);
- }
- }
+  { int32_t need_slice_data = (e).index_base_is_slice;
+    if (need_slice_data == 0 && (!ast_ref_is_null((e).index_base_ref))) {
+      int32_t base_ty = pipeline_expr_resolved_type_ref(arena, (e).index_base_ref);
+      if ((!ast_ref_is_null(base_ty)) && base_ty > 0 && base_ty <= (arena)->num_types
+          && pipeline_type_kind_ord_at(arena, base_ty) == 11) {
+        need_slice_data = 1;
+      }
+    }
+    if (need_slice_data != 0) {   uint8_t dot[6] = { 46, 100, 97, 116, 97, 0 };
+      if (codegen_emit_bytes_6(out, dot, 5) != 0) {   return (-1); }
+    }
+  }
   if (codegen_append_byte(out, 91) != 0) {   return (-1);
  }
   if ((!ast_ref_is_null((e).index_index_ref)) && codegen_emit_expr(arena, out, (e).index_index_ref, ctx) != 0) {   return (-1);
@@ -4552,8 +4581,13 @@ SHUX_LIB_WEAK int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct code
  }
     int32_t init_ref = pipeline_expr_struct_lit_init_ref(arena, expr_ref, fi);
     if ((!ast_ref_is_null(init_ref))) {   struct ast_Expr init_e = ast_arena_expr_get(arena, init_ref);
-  if ((init_e).kind == ast_ExprKind_EXPR_ARRAY_LIT && (init_e).array_lit_num_elems == 0) {   uint8_t zero_init[6] = { 123, 32, 48, 32, 125, 0 };
+  /* 数组字段：须 `.arr = { e0, e1, ... }`，禁止 emit_expr → `(T[]){...}`（无法初始化 T arr[N]） */
+  if ((init_e).kind == ast_ExprKind_EXPR_ARRAY_LIT) {
+  if ((init_e).array_lit_num_elems == 0) {   uint8_t zero_init[6] = { 123, 32, 48, 32, 125, 0 };
   if (codegen_emit_bytes_6(out, zero_init, 5) != 0) {   return (-1);
+ }
+ } else {   if (codegen_emit_braced_array_lit_init(arena, out, init_ref, ctx) != 0) {   return (-1);
+ }
  }
  } else {   if (codegen_emit_expr(arena, out, init_ref, ctx) != 0) {   return (-1);
  }
@@ -6414,6 +6448,23 @@ SHUX_LIB_WEAK int32_t codegen_x_ast_emit_header(struct codegen_CodegenOutBuf * o
   uint8_t h[108] = { 35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 115, 116, 100, 105, 110, 116, 46, 104, 62, 10, 35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 115, 116, 100, 100, 101, 102, 46, 104, 62, 10, 35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 115, 121, 115, 47, 116, 121, 112, 101, 115, 46, 104, 62, 10, 118, 111, 105, 100, 32, 115, 104, 117, 120, 95, 112, 97, 110, 105, 99, 95, 40, 105, 110, 116, 32, 104, 97, 115, 95, 109, 115, 103, 44, 32, 105, 110, 116, 32, 109, 115, 103, 95, 118, 97, 108, 41, 59, 10, 0 };
   return codegen_emit_bytes_from_ptr(out, (&((h)[0])), 107);
 }
+extern int32_t pipeline_codegen_std_dep_link_only(uint8_t *path);
+static int codegen_entry_is_same_std_pkg(struct ast_PipelineDepCtx *ctx, const uint8_t *dep_path) {
+  char want[72];
+  int i = 0, w = 0;
+  if (!ctx || !dep_path || ctx->entry_module_import_path_len <= 0)
+    return 0;
+  while (dep_path[i] && w < 70) {
+    want[w++] = (dep_path[i] == '.') ? '_' : (char)dep_path[i];
+    i++;
+  }
+  if (w < 70)
+    want[w++] = '_';
+  want[w] = 0;
+  if (ctx->entry_module_import_path_len != w)
+    return 0;
+  return memcmp(ctx->entry_module_import_path_mirror, want, (size_t)w) == 0;
+}
 SHUX_LIB_WEAK int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, struct ast_PipelineDepCtx * ctx, int32_t dep_index) {
   if (ctx != ((struct ast_PipelineDepCtx *)(0))) {   ((ctx)->current_codegen_module = (module));
   ((ctx)->current_codegen_arena = (arena));
@@ -6424,6 +6475,10 @@ SHUX_LIB_WEAK int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTAr
   uint8_t dep_path_prefix[64] = { 0 };
   int32_t dep_path_prefix_len = 0;
   if (dep_index >= 0 && ctx != ((struct ast_PipelineDepCtx *)(0))) {   (dep_path_prefix_len = (codegen_dep_import_path_len_at(ctx, dep_index, (&((dep_path_prefix)[0])))));
+  if (dep_path_prefix_len > 0 && pipeline_codegen_std_dep_link_only((&((dep_path_prefix)[0]))) != 0 &&
+      !codegen_entry_is_same_std_pkg(ctx, (&((dep_path_prefix)[0])))) {
+    return 0;
+  }
  }
   if (dep_index >= 0 && ctx != ((struct ast_PipelineDepCtx *)(0)) && dep_path_prefix_len > 0) {   if (codegen_path_is_std_io_core_bytes((&((dep_path_prefix)[0]))) == 0) {   (void)(codegen_import_path_to_c_prefix_into((&((dep_path_prefix)[0])), (&((prefix_buf)[0])), 128));
   while (prefix_len < 128 && (prefix_len < 0 || (prefix_len) >= 128 ? (shux_panic_(1, 0), (prefix_buf)[0]) : (prefix_buf)[prefix_len]) != 0) {
@@ -6723,22 +6778,49 @@ SHUX_LIB_WEAK int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTAr
     if (ctx != ((struct ast_PipelineDepCtx *)(0)) && (ctx)->use_asm_backend != 0) {   (asm_backend = (1));
  }
     (skip = (codegen_should_skip_emit_func_by_name((&((skip_name)[0])), skip_nl)));
-    /* C backend links string.o: do not co-emit std.string dep bodies (68× redefinition). */
+    /* C backend links string.o/error.o/context.o: do not co-emit those dep bodies (redefinition). */
     if (skip == 0 && asm_backend == 0) {
-      int32_t is_str_dep = 0;
+      int32_t is_prelinked_dep = 0;
       if (dep_index >= 0 && dep_path_prefix_len >= 10
           && (dep_path_prefix)[0] == 115 && (dep_path_prefix)[1] == 116 && (dep_path_prefix)[2] == 100
           && ((dep_path_prefix)[3] == 46 || (dep_path_prefix)[3] == 47)
           && (dep_path_prefix)[4] == 115 && (dep_path_prefix)[5] == 116 && (dep_path_prefix)[6] == 114
           && (dep_path_prefix)[7] == 105 && (dep_path_prefix)[8] == 110 && (dep_path_prefix)[9] == 103)
-        is_str_dep = 1;
-      if (is_str_dep == 0 && dep_index >= 0 && prefix_len >= 11
+        is_prelinked_dep = 1; /* std.string / std/string */
+      /* std.error / std/error */
+      if (is_prelinked_dep == 0 && dep_index >= 0 && dep_path_prefix_len >= 9
+          && (dep_path_prefix)[0] == 115 && (dep_path_prefix)[1] == 116 && (dep_path_prefix)[2] == 100
+          && ((dep_path_prefix)[3] == 46 || (dep_path_prefix)[3] == 47)
+          && (dep_path_prefix)[4] == 101 && (dep_path_prefix)[5] == 114 && (dep_path_prefix)[6] == 114
+          && (dep_path_prefix)[7] == 111 && (dep_path_prefix)[8] == 114)
+        is_prelinked_dep = 1;
+      /* std.context / std/context */
+      if (is_prelinked_dep == 0 && dep_index >= 0 && dep_path_prefix_len >= 11
+          && (dep_path_prefix)[0] == 115 && (dep_path_prefix)[1] == 116 && (dep_path_prefix)[2] == 100
+          && ((dep_path_prefix)[3] == 46 || (dep_path_prefix)[3] == 47)
+          && (dep_path_prefix)[4] == 99 && (dep_path_prefix)[5] == 111 && (dep_path_prefix)[6] == 110
+          && (dep_path_prefix)[7] == 116 && (dep_path_prefix)[8] == 101 && (dep_path_prefix)[9] == 120
+          && (dep_path_prefix)[10] == 116)
+        is_prelinked_dep = 1;
+      if (is_prelinked_dep == 0 && dep_index >= 0 && prefix_len >= 11
           && (prefix_buf)[0] == 115 && (prefix_buf)[1] == 116 && (prefix_buf)[2] == 100
           && (prefix_buf)[3] == 95 && (prefix_buf)[4] == 115 && (prefix_buf)[5] == 116
           && (prefix_buf)[6] == 114 && (prefix_buf)[7] == 105 && (prefix_buf)[8] == 110
           && (prefix_buf)[9] == 103 && (prefix_buf)[10] == 95)
-        is_str_dep = 1;
-      if (is_str_dep != 0) skip = 1;
+        is_prelinked_dep = 1; /* std_string_ */
+      if (is_prelinked_dep == 0 && dep_index >= 0 && prefix_len >= 10
+          && (prefix_buf)[0] == 115 && (prefix_buf)[1] == 116 && (prefix_buf)[2] == 100
+          && (prefix_buf)[3] == 95 && (prefix_buf)[4] == 101 && (prefix_buf)[5] == 114
+          && (prefix_buf)[6] == 114 && (prefix_buf)[7] == 111 && (prefix_buf)[8] == 114
+          && (prefix_buf)[9] == 95)
+        is_prelinked_dep = 1; /* std_error_ */
+      if (is_prelinked_dep == 0 && dep_index >= 0 && prefix_len >= 12
+          && (prefix_buf)[0] == 115 && (prefix_buf)[1] == 116 && (prefix_buf)[2] == 100
+          && (prefix_buf)[3] == 95 && (prefix_buf)[4] == 99 && (prefix_buf)[5] == 111
+          && (prefix_buf)[6] == 110 && (prefix_buf)[7] == 116 && (prefix_buf)[8] == 101
+          && (prefix_buf)[9] == 120 && (prefix_buf)[10] == 116 && (prefix_buf)[11] == 95)
+        is_prelinked_dep = 1; /* std_context_ */
+      if (is_prelinked_dep != 0) skip = 1;
     }
     /* core_mem_ prefix: do not skip placeholder (real export); keep skip for core_types_/std_string_ weak. */
     if (skip != 0 && prefix_len >= 9 && (skip_nl == 11 || skip_nl == 10)) {

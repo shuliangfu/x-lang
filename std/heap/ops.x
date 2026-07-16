@@ -31,7 +31,8 @@ export function heap_mem_set_c(ptr: *u8, byte: u8, n: i32): void {
   if (n <= 0) {
     return;
   }
-  mem.mem_set(ptr, byte, n);
+  /* core.mem.mem_set 第三参为 usize；与 i32 API 面在此收敛，避免 typeck XT001 */
+  mem.mem_set(ptr, byte, n as usize);
 }
 
 /**
@@ -41,7 +42,7 @@ export function heap_mem_compare_c(a: *u8, b: *u8, n: i32): i32 {
   if (n <= 0) {
     return 0;
   }
-  return mem.mem_compare(a, b, n);
+  return mem.mem_compare(a, b, n as usize);
 }
 
 /**

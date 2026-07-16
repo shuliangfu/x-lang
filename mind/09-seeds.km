@@ -1,0 +1,454 @@
+{
+    "root": {
+        "data": {
+            "id": "n0001",
+            "created": 1784118410328,
+            "text": "种子层 seeds",
+            "note": "Mega/Thin/Glue/Runtime seed。与 .x 对照查双权威。",
+            "expandState": "expand"
+        },
+        "children": [
+            {
+                "data": {
+                    "id": "n0002",
+                    "created": 1784118410329,
+                    "text": "种子层 (seeds/)",
+                    "expandState": "expand"
+                },
+                "children": [
+                    {
+                        "data": {
+                            "id": "n0003",
+                            "created": 1784118410330,
+                            "text": "Mega Seed (大种子)",
+                            "expandState": "collapse"
+                        },
+                        "children": [
+                            {
+                                "data": {
+                                    "id": "n0004",
+                                    "created": 1784118410331,
+                                    "text": "runtime.from_x.c (~7.6k LOC, 79 wrap)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/seeds/runtime.from_x.c",
+                                    "hyperlinkTitle": "compiler/seeds/runtime.from_x.c"
+                                },
+                                "children": [
+                                    {
+                                        "data": {
+                                            "id": "n0005",
+                                            "created": 1784118410332,
+                                            "text": "23 切片 + rest; PREFER_X_O hybrid",
+                                            "expandState": "collapse"
+                                        },
+                                        "children": []
+                                    }
+                                ]
+                            },
+                            {
+                                "data": {
+                                    "id": "n0006",
+                                    "created": 1784118410333,
+                                    "text": "runtime_link_abi.from_x.c (~7.2k LOC, 78 wrap)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/seeds/runtime_link_abi.from_x.c",
+                                    "hyperlinkTitle": "compiler/seeds/runtime_link_abi.from_x.c"
+                                },
+                                "children": [
+                                    {
+                                        "data": {
+                                            "id": "n0007",
+                                            "created": 1784118410334,
+                                            "text": "L0-L9 十册 hybrid",
+                                            "expandState": "collapse"
+                                        },
+                                        "children": []
+                                    }
+                                ]
+                            },
+                            {
+                                "data": {
+                                    "id": "n0008",
+                                    "created": 1784118410335,
+                                    "text": "parser_asm_thin_c.from_x.c (~22k LOC, 10 wrap)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/seeds/parser_asm_thin_c.from_x.c",
+                                    "hyperlinkTitle": "compiler/seeds/parser_asm_thin_c.from_x.c"
+                                },
+                                "children": [
+                                    {
+                                        "data": {
+                                            "id": "n0009",
+                                            "created": 1784118410336,
+                                            "text": "P1-P7+P9-P20 全齐 + omit empty rest",
+                                            "expandState": "collapse"
+                                        },
+                                        "children": []
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "data": {
+                            "id": "n0010",
+                            "created": 1784118410337,
+                            "text": "Thin Seed (薄种子)",
+                            "expandState": "collapse"
+                        },
+                        "children": [
+                            {
+                                "data": {
+                                    "id": "n0011",
+                                    "created": 1784118410338,
+                                    "text": "diag.from_x.c (诊断, 0.9k LOC)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/seeds/diag.from_x.c",
+                                    "hyperlinkTitle": "compiler/seeds/diag.from_x.c"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "n0012",
+                                    "created": 1784118410339,
+                                    "text": "target_cpu_pure.from_x.c (CPU 探测, 0.6k LOC)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/seeds/target_cpu_pure.from_x.c",
+                                    "hyperlinkTitle": "compiler/seeds/target_cpu_pure.from_x.c"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "n0013",
+                                    "created": 1784118410340,
+                                    "text": "async_liveness.from_x.c (async 存活, 0.9k LOC)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/seeds/async_liveness.from_x.c",
+                                    "hyperlinkTitle": "compiler/seeds/async_liveness.from_x.c"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "n0014",
+                                    "created": 1784118410341,
+                                    "text": "runtime_pipeline_abi.from_x.c (管线 ABI, 2.9k LOC)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/seeds/runtime_pipeline_abi.from_x.c",
+                                    "hyperlinkTitle": "compiler/seeds/runtime_pipeline_abi.from_x.c"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "n0015",
+                                    "created": 1784118410342,
+                                    "text": "runtime_lsp_glue.from_x.c (LSP 胶水, 3.4k LOC)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/seeds/runtime_lsp_glue.from_x.c",
+                                    "hyperlinkTitle": "compiler/seeds/runtime_lsp_glue.from_x.c"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "n0016",
+                                    "created": 1784118410343,
+                                    "text": "fmt_check_cmd.from_x.c (fmt 检查, 0.9k LOC)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/seeds/fmt_check_cmd.from_x.c",
+                                    "hyperlinkTitle": "compiler/seeds/fmt_check_cmd.from_x.c"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "n0017",
+                                    "created": 1784118410344,
+                                    "text": "simd_enc.from_x.c (SIMD 编码, 0.9-1.3k LOC)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/seeds/simd_enc.from_x.c",
+                                    "hyperlinkTitle": "compiler/seeds/simd_enc.from_x.c"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "n0018",
+                                    "created": 1784118410345,
+                                    "text": "simd_loop.from_x.c (SIMD 循环)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/asm/simd_loop_thin.x",
+                                    "hyperlinkTitle": "compiler/src/asm/simd_loop_thin.x"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "n0019",
+                                    "created": 1784118410346,
+                                    "text": "backend_call_dispatch.from_x.c (call 分派, 1.9k LOC)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/seeds/backend_call_dispatch.from_x.c",
+                                    "hyperlinkTitle": "compiler/seeds/backend_call_dispatch.from_x.c"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "n0020",
+                                    "created": 1784118410347,
+                                    "text": "backend_try_inline.from_x.c (try_inline, 2.1k LOC)",
+                                    "expandState": "collapse"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "n0021",
+                                    "created": 1784118410348,
+                                    "text": "backend_enc_dispatch.from_x.c (enc 分派, 1.8k LOC)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/seeds/backend_enc_dispatch.from_x.c",
+                                    "hyperlinkTitle": "compiler/seeds/backend_enc_dispatch.from_x.c"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "n0022",
+                                    "created": 1784118410349,
+                                    "text": "pipeline_glue_strict_minimal.from_x.c (严格最小 glue, 2.3k LOC)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/seeds/pipeline_glue_strict_minimal.from_x.c",
+                                    "hyperlinkTitle": "compiler/seeds/pipeline_glue_strict_minimal.from_x.c"
+                                },
+                                "children": []
+                            }
+                        ]
+                    },
+                    {
+                        "data": {
+                            "id": "n0023",
+                            "created": 1784118410350,
+                            "text": "Glue Seed (胶水种子, 10 TU)",
+                            "expandState": "collapse"
+                        },
+                        "children": [
+                            {
+                                "data": {
+                                    "id": "n0024",
+                                    "created": 1784118410351,
+                                    "text": "asm_backend_compat_stubs.from_x.c",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/seeds/asm_backend_compat_stubs.from_x.c",
+                                    "hyperlinkTitle": "compiler/seeds/asm_backend_compat_stubs.from_x.c"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "n0025",
+                                    "created": 1784118410352,
+                                    "text": "seed_link_compat.from_x.c",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/seeds/seed_link_compat.from_x.c",
+                                    "hyperlinkTitle": "compiler/seeds/seed_link_compat.from_x.c"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "n0026",
+                                    "created": 1784118410353,
+                                    "text": "backend_x86_64_enc_c.from_x.c",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/seeds/backend_x86_64_enc_c.from_x.c",
+                                    "hyperlinkTitle": "compiler/seeds/backend_x86_64_enc_c.from_x.c"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "n0027",
+                                    "created": 1784118410354,
+                                    "text": "user_asm_seed_bridge.from_x.c",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/seeds/user_asm_seed_bridge.from_x.c",
+                                    "hyperlinkTitle": "compiler/seeds/user_asm_seed_bridge.from_x.c"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "n0028",
+                                    "created": 1784118410355,
+                                    "text": "rt_arena_buf.from_x.c",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/seeds/rt_arena_buf.from_x.c",
+                                    "hyperlinkTitle": "compiler/seeds/rt_arena_buf.from_x.c"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "n0029",
+                                    "created": 1784118410356,
+                                    "text": "rt_run_x_emit.from_x.c",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/seeds/rt_run_x_emit.from_x.c",
+                                    "hyperlinkTitle": "compiler/seeds/rt_run_x_emit.from_x.c"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "n0030",
+                                    "created": 1784118410357,
+                                    "text": "rt_pipeline_elf_diag.from_x.c",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/seeds/rt_pipeline_elf_diag.from_x.c",
+                                    "hyperlinkTitle": "compiler/seeds/rt_pipeline_elf_diag.from_x.c"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "n0031",
+                                    "created": 1784118410358,
+                                    "text": "rt_dispatch_impl.from_x.c",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/seeds/rt_dispatch_impl.from_x.c",
+                                    "hyperlinkTitle": "compiler/seeds/rt_dispatch_impl.from_x.c"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "n0032",
+                                    "created": 1784118410359,
+                                    "text": "rt_fmt_one.from_x.c",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/seeds/rt_fmt_one.from_x.c",
+                                    "hyperlinkTitle": "compiler/seeds/rt_fmt_one.from_x.c"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "n0033",
+                                    "created": 1784118410360,
+                                    "text": "rt_parse_diag.from_x.c",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/seeds/rt_parse_diag.from_x.c",
+                                    "hyperlinkTitle": "compiler/seeds/rt_parse_diag.from_x.c"
+                                },
+                                "children": []
+                            }
+                        ]
+                    },
+                    {
+                        "data": {
+                            "id": "n0034",
+                            "created": 1784118410361,
+                            "text": "Runtime Seed (16 TU)",
+                            "expandState": "collapse"
+                        },
+                        "children": [
+                            {
+                                "data": {
+                                    "id": "n0035",
+                                    "created": 1784118410362,
+                                    "text": "rt_argv / rt_lib_root / rt_asm_stub / rt_run_exec",
+                                    "expandState": "collapse"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "n0036",
+                                    "created": 1784118410363,
+                                    "text": "rt_util / rt_content / rt_stack / rt_diag_errno",
+                                    "expandState": "collapse"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "n0037",
+                                    "created": 1784118410364,
+                                    "text": "rt_emit_flags / rt_fs_open / rt_dispatch_thin / rt_compile",
+                                    "expandState": "collapse"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "n0038",
+                                    "created": 1784118410365,
+                                    "text": "rt_emit_state / rt_entry / rt_run_asm_backend / rt_run_compiler_parsed",
+                                    "expandState": "collapse"
+                                },
+                                "children": []
+                            }
+                        ]
+                    },
+                    {
+                        "data": {
+                            "id": "n0039",
+                            "created": 1784118410366,
+                            "text": "Seed 前言",
+                            "expandState": "collapse"
+                        },
+                        "children": [
+                            {
+                                "data": {
+                                    "id": "n0040",
+                                    "created": 1784118410367,
+                                    "text": "rt_preamble.from_x.c (C 前言)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/seeds/rt_preamble.from_x.c",
+                                    "hyperlinkTitle": "compiler/seeds/rt_preamble.from_x.c"
+                                },
+                                "children": [
+                                    {
+                                        "data": {
+                                            "id": "n0041",
+                                            "created": 1784118410368,
+                                            "text": "struct 定义 (core_option_Option_i32 等)",
+                                            "expandState": "collapse"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0042",
+                                            "created": 1784118410369,
+                                            "text": "extern void shux_panic_(int, int)",
+                                            "expandState": "collapse"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0043",
+                                            "created": 1784118410370,
+                                            "text": "extern int32_t core_types_placeholder",
+                                            "expandState": "collapse"
+                                        },
+                                        "children": []
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    },
+    "template": "default",
+    "theme": "fresh-blue",
+    "version": "1.4.43"
+}

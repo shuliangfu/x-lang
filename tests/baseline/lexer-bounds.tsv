@@ -2,5 +2,5 @@
 # 列：item_id	kind	anchor	src	notes
 bound_ident	case	long_ident_8192	generated	8192-byte ident check
 bound_num	case	long_decimal_i64	generated	400-digit i64 literal
-lexer_c	file	lexer.c	compiler/src/lexer/lexer.c	str_buf[512]
+lexer_glue	file	str_buf[512]	compiler/seeds/runtime_lexer_glue.from_x.c	STRING decode bound (lexer.c deleted)
 gate	script	run-lexer-bounds-gate.sh	tests/run-lexer-bounds-gate.sh	门禁

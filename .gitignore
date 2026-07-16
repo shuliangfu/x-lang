@@ -273,3 +273,23 @@ logs/bootstrap-postlink.*
 # shux-x 二进制备份（手动恢复用，非仓库资产）
 compiler/shux-x-backup
 compiler/shux-x-default-backup
+
+# --- 编译物 / 本地残留（禁止入库）---
+# 手工改 gen 的旁路副本、fixed 中间件
+*.fixed_all
+**/*.fixed_all
+compiler/*.fixed_*
+# 运行日志与冷启动/门禁输出目录（scp 回来的日志可放 logs/ 本地看）
+logs/
+# g05 / bootstrap 本机同步出的额外二进制别名
+compiler/shux-c
+compiler/bootstrap_shuxc
+# Darwin 本地 seed 目标（Linux 金标 .o 若需 pin 用 seeds 例外规则）
+compiler/seeds/asm_backend_partial.darwin.*.o
+# std 预编 .o 与库产物（*.o 已全局忽略；显式声明 std/core）
+std/**/*.o
+core/**/*.o
+# 生成的用户程序与 /tmp 风格 scratch 勿误加
+/tmp/
+*.dSYM/
+**/*.dSYM/

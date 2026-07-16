@@ -44,6 +44,18 @@ const char *const driver_preamble_io_net_lines[] = {
         "static inline int32_t shux_sys_poll(uint8_t *fds, int32_t nfds, int32_t timeout) {\n"
         "  return (int32_t)poll((struct pollfd *)(void *)fds, (nfds_t)nfds, (int)timeout);\n"
         "}\n",
+        "static inline ssize_t shux_sys_pread(int32_t fd, uint8_t *buf, size_t count, int64_t offset) {\n"
+        "  return pread((int)fd, (void *)buf, count, (off_t)offset);\n"
+        "}\n",
+        "static inline ssize_t shux_sys_pwrite(int32_t fd, uint8_t *buf, size_t count, int64_t offset) {\n"
+        "  return pwrite((int)fd, (const void *)buf, count, (off_t)offset);\n"
+        "}\n",
+        "static inline int32_t shux_fs_unlink(uint8_t *path) {\n"
+        "  return (int32_t)unlink((const char *)path);\n"
+        "}\n",
+        "static inline int32_t shux_fs_rmdir(uint8_t *path) {\n"
+        "  return (int32_t)rmdir((const char *)path);\n"
+        "}\n",
         "struct shux_slice_uint8_t { uint8_t *data; size_t length; };\n"
         "struct shux_slice_int32_t { int32_t *data; size_t length; };\n"
         "struct shux_slice_uint64_t { uint64_t *data; size_t length; };\n"
@@ -252,15 +264,21 @@ const char *const driver_preamble_io_net_lines[] = {
         "__attribute__((weak)) ptrdiff_t io_read_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms) {\n"
         "  (void)fd;(void)bufs;(void)n;(void)timeout_ms; return (ptrdiff_t)-1;\n"
         "}\n"
-        "__attribute__((weak)) int32_t std_io_driver_submit_read_batch(struct std_io_driver_Buffer *bufs, int32_t n, uint32_t t) {\n"
-        "  (void)bufs;(void)n;(void)t; return -1;\n"
+        "__attribute__((weak)) ptrdiff_t io_write_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms) {\n"
+        "  (void)fd;(void)bufs;(void)n;(void)timeout_ms; return (ptrdiff_t)-1;\n"
         "}\n"
-        "__attribute__((weak)) int32_t std_io_driver_submit_write_batch(struct std_io_driver_Buffer *bufs, int32_t n, uint32_t t) {\n"
-        "  (void)bufs;(void)n;(void)t; return -1;\n"
-        "}\n"
-        "__attribute__((weak)) int32_t std_io_driver_submit_write_batch_buf(size_t h, struct std_io_driver_Buffer *bufs, int32_t n, uint32_t t) {\n"
-        "  (void)h;(void)bufs;(void)n;(void)t; return -1;\n"
-        "}\n"
+        /* std.env mod.x extern args_iter_*_c：env.o 当前 mangling 为 std_env_env_args_iter_*，no_mangle 未生效。
+         * weak 委派 process_shux_*（runtime_process_argv.o 权威：constructor 从 CRT 绑 argc/argv）。
+         * 禁止 return 0 空桩：Darwin 上 user TU weak 先于 runtime weak，空桩会盖过真体并 dead_strip
+         * 掉 getter，导致 env_iter / args_iter 恒见 argc=0。process.o 强符号仍可覆盖本 weak。 */
+        "extern int32_t process_shux_argc_get(void);\n"
+        "extern uint8_t *process_shux_argv_get(int32_t i);\n"
+        "__attribute__((weak)) int32_t process_args_count_c(void) { return process_shux_argc_get(); }\n"
+        "__attribute__((weak)) uint8_t *process_arg_c(int32_t i) { return process_shux_argv_get(i); }\n"
+        "__attribute__((weak)) int32_t args_iter_count_c(void) { return process_args_count_c(); }\n"
+        "__attribute__((weak)) uint8_t *args_iter_at_c(int32_t i) { return process_arg_c(i); }\n"
+        /* submit_read/write_batch(_buf)：勿 weak stub。co-emit driver.x 真体为权威；同 TU weak+strong 重定义，
+         * 且 stub 返回 -1 使 run-io-driver r4 假红。 */
         "__attribute__((weak)) uint64_t std_io_driver_driver_read_ptr_gen(void) { return 0; }\n"
         "__attribute__((weak)) int64_t ctx_background_c(void) { return 0; }\n"
         "__attribute__((weak)) void ctx_cancel_c(int64_t c) { (void)c; }\n"
@@ -285,22 +303,42 @@ const char *const driver_preamble_io_net_lines[] = {
         "#define submit_write_batch_buf std_io_submit_write_batch_buf\n",
         "#define read_fixed_fd(x, a, b, c, d) std_io_read_fixed_fd_impl(shux_io_net_fd(x), a, b, c, d)\n",
         "#define write_fixed_fd(x, a, b, c, d) std_io_write_fixed_fd_impl(shux_io_net_fd(x), a, b, c, d)\n",
-        "/* 实际符号用 _real 后缀，避免宏 net_close_socket_c(x) 展开时再触发自身。 */\n",
+        "/* 实际符号用 _real；仅定义 std_net_net_* 宏。\n"
+        " * 【Why 勿 #define net_close_socket_c / net_run_accept_workers_c】\n"
+        " * link_only 路径会 emit `extern int32_t net_close_socket_c(...)`；\n"
+        " * 若宏同名，extern 声明被展开 → expected parameter declarator。 */\n",
         "extern int32_t net_close_socket_c_real(int32_t fd);\n",
         "extern int32_t net_run_accept_workers_c_real(int32_t listener_fd, int32_t n_workers, uint32_t timeout_ms);\n",
-        "#define net_close_socket_c(x) net_close_socket_c_real(shux_io_net_fd(x))\n",
+        "extern int32_t net_close_socket_c(int32_t fd);\n",
+        "extern int32_t net_run_accept_workers_c(int32_t listener_fd, int32_t n_workers, uint32_t timeout_ms);\n",
         "#define std_net_net_close_socket_c(x) net_close_socket_c_real(shux_io_net_fd(x))\n",
-        "#define net_run_accept_workers_c(x, n, t) net_run_accept_workers_c_real(shux_io_net_fd(x), n, t)\n",
         "#define std_net_net_run_accept_workers_c(x, n, t) net_run_accept_workers_c_real(shux_io_net_fd(x), n, t)\n",
-        "#define STD_FS_FS_IOVEC_BUF_DEFINED\nstruct std_fs_FsIovecBuf { void *ptr; size_t len; size_t handle; };\n",
-        "struct std_map_Map_i32_i32 { int32_t *keys; int32_t *vals; uint8_t *occupied; int32_t cap; int32_t len; };\n",
+        /* FsIovecBuf / Iovec：preamble 为 ABI 权威。
+         * 勿用 typedef 吸收 posix 前缀——codegen 发 (struct std_fs_posix_Iovec){...}
+         * 与 struct std_fs_posix_FsIovecBuf * 时，typedef 只建别名不建 tag → incomplete type。
+         * #define 标签别名：struct std_fs_posix_X → struct 权威 tag。 */
+        "#define STD_FS_FS_IOVEC_BUF_DEFINED\nstruct std_fs_FsIovecBuf { void *ptr; size_t len; size_t handle; };\n"
+        "#define std_fs_posix_FsIovecBuf std_fs_FsIovecBuf\n"
+        "struct std_io_sync_Iovec { uint8_t *base; size_t len; };\n"
+        "#define std_fs_posix_Iovec std_io_sync_Iovec\n",
+        /* 仅 forward：完整体由 std/map 发射；preamble 全量定义与 map.o -o 双权威 → redefinition */
+        "struct std_map_Map_i32_i32;\n",
         "typedef struct std_io_driver_Buffer std_net_Buffer;\n",
         "struct std_error_Error { int32_t code; };\n",
         "struct std_string_String { uint8_t data[256]; int32_t len; };\n",
         "typedef struct std_string_String String;\n",
         "struct std_string_StrView { uint8_t *ptr; int32_t len; };\n",
-        "struct std_vec_Vec_i32 { int32_t *ptr; int32_t len; int32_t cap; };\n",
+        /* heap.Allocator 须在 Vec 之前完整（codegen 现按模块序 emit，vec 先于 heap 布局） */
+        "struct std_heap_Arena64 { uint8_t *chunk; size_t cap; size_t off; };\n",
+        "struct std_heap_Allocator { int32_t kind; struct std_heap_Arena64 *arena; };\n",
+        /* Vec 完整体由 std/vec 发射（含 al）；勿在此写 3 字段旧布局 */
+        "struct std_vec_Vec_i32;\n",
+        /* core.option 具象 monomorph：preamble 权威完整布局，避免 co-emit 顺序
+         * （core.slice 函数体在 option 体之前）时 incomplete Option_u8/u64。 */
         "struct core_option_Option_i32 { int is_some; int32_t value; };\n",
+        "struct core_option_Option_u8 { int is_some; uint8_t value; uint8_t _pad0; uint8_t _pad1; uint8_t _pad2; };\n",
+        "struct core_option_Option_u64 { int is_some; int32_t _pad; uint64_t value; };\n",
+        "struct core_option_Option_ptr_u8 { int is_some; int32_t _pad; uint8_t *value; };\n",
         /* 与 runtime.from_x.c write_io_net_abi_inline 对齐：产品 SHUX_RT_PREAMBLE_FROM_X 路径必须含 Result_*，
            否则 multi-dep（core.types 幽灵 layout 抢 owner）时 incomplete core_result_Result_*。 */
         "struct core_result_Result_i32 { int32_t value; int32_t _pad1; int32_t err; int32_t _pad2; };\n",
@@ -312,8 +350,10 @@ const char *const driver_preamble_io_net_lines[] = {
         "extern int32_t std_runtime_runtime_ready(void);\n",
         "#ifndef __cplusplus\n"
         "__attribute__((weak)) int32_t std_vec_vec_len_empty(void) { return 0; }\n"
+        "__attribute__((weak)) int32_t std_vec_len_empty(void) { return 0; }\n"
         "#else\n"
         "extern int32_t std_vec_vec_len_empty(void);\n"
+        "extern int32_t std_vec_len_empty(void);\n"
         "#endif\n",
         "#define vec_len_empty std_vec_vec_len_empty\n",
         "#define alloc_size_zero std_heap_alloc_size_zero\n",

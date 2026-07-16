@@ -1,0 +1,725 @@
+{
+    "root": {
+        "data": {
+            "id": "m00001",
+            "created": 1784118466206,
+            "text": "IR 层",
+            "note": "SHIR/SMIR/MIR/SLIR/VMIR 与 pass。",
+            "expandState": "expand"
+        },
+        "children": [
+            {
+                "data": {
+                    "id": "m00002",
+                    "created": 1784118466207,
+                    "text": "IR 层 (ir/)",
+                    "expandState": "expand"
+                },
+                "children": [
+                    {
+                        "data": {
+                            "id": "m00003",
+                            "created": 1784118466208,
+                            "text": "mod.x (IR 模块入口)",
+                            "expandState": "collapse",
+                            "hyperlink": "compiler/src/ir/mod.x",
+                            "hyperlinkTitle": "compiler/src/ir/mod.x"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "m00004",
+                            "created": 1784118466209,
+                            "text": "inst.x (指令定义)",
+                            "expandState": "collapse",
+                            "hyperlink": "compiler/src/ir/inst.x",
+                            "hyperlinkTitle": "compiler/src/ir/inst.x"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "m00005",
+                            "created": 1784118466210,
+                            "text": "opcode.x (操作码)",
+                            "expandState": "collapse",
+                            "hyperlink": "compiler/src/ir/opcode.x",
+                            "hyperlinkTitle": "compiler/src/ir/opcode.x"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "m00006",
+                            "created": 1784118466211,
+                            "text": "effect.x (副作用分析)",
+                            "expandState": "collapse",
+                            "hyperlink": "compiler/src/ir/effect.x",
+                            "hyperlinkTitle": "compiler/src/ir/effect.x"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "m00007",
+                            "created": 1784118466212,
+                            "text": "contract.x (契约)",
+                            "expandState": "collapse",
+                            "hyperlink": "compiler/src/ir/contract.x",
+                            "hyperlinkTitle": "compiler/src/ir/contract.x"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "m00008",
+                            "created": 1784118466213,
+                            "text": "abi.x (ABI 信息)",
+                            "expandState": "collapse",
+                            "hyperlink": "compiler/src/ir/abi.x",
+                            "hyperlinkTitle": "compiler/src/ir/abi.x"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "m00009",
+                            "created": 1784118466214,
+                            "text": "SHIR — 高层 IR (ir/shir/)",
+                            "expandState": "collapse"
+                        },
+                        "children": [
+                            {
+                                "data": {
+                                    "id": "m00010",
+                                    "created": 1784118466215,
+                                    "text": "mod.x (模块)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ir/mod.x",
+                                    "hyperlinkTitle": "compiler/src/ir/mod.x"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00011",
+                                    "created": 1784118466216,
+                                    "text": "lower.x (降低)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ir/shir/lower.x",
+                                    "hyperlinkTitle": "compiler/src/ir/shir/lower.x"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00012",
+                                    "created": 1784118466217,
+                                    "text": "verify.x (验证)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ir/verify.x",
+                                    "hyperlinkTitle": "compiler/src/ir/verify.x"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00013",
+                                    "created": 1784118466218,
+                                    "text": "interp.x (解释执行)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ir/verify/interp.x",
+                                    "hyperlinkTitle": "compiler/src/ir/verify/interp.x"
+                                },
+                                "children": []
+                            }
+                        ]
+                    },
+                    {
+                        "data": {
+                            "id": "m00014",
+                            "created": 1784118466219,
+                            "text": "SMIR — 标量 IR (ir/smir/)",
+                            "expandState": "collapse"
+                        },
+                        "children": [
+                            {
+                                "data": {
+                                    "id": "m00015",
+                                    "created": 1784118466220,
+                                    "text": "mod.x (模块)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ir/mod.x",
+                                    "hyperlinkTitle": "compiler/src/ir/mod.x"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00016",
+                                    "created": 1784118466221,
+                                    "text": "ssa.x (SSA 构建)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ir/smir/ssa.x",
+                                    "hyperlinkTitle": "compiler/src/ir/smir/ssa.x"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00017",
+                                    "created": 1784118466222,
+                                    "text": "inline.x (内联)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ir/smir/inline.x",
+                                    "hyperlinkTitle": "compiler/src/ir/smir/inline.x"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00018",
+                                    "created": 1784118466223,
+                                    "text": "alias.x (别名分析)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ir/smir/alias.x",
+                                    "hyperlinkTitle": "compiler/src/ir/smir/alias.x"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00019",
+                                    "created": 1784118466224,
+                                    "text": "verify.x (验证)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ir/verify.x",
+                                    "hyperlinkTitle": "compiler/src/ir/verify.x"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00020",
+                                    "created": 1784118466225,
+                                    "text": "ownership.x (所有权)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ir/smir/ownership.x",
+                                    "hyperlinkTitle": "compiler/src/ir/smir/ownership.x"
+                                },
+                                "children": []
+                            }
+                        ]
+                    },
+                    {
+                        "data": {
+                            "id": "m00021",
+                            "created": 1784118466226,
+                            "text": "MIR — 机器 IR (ir/mir/)",
+                            "expandState": "collapse"
+                        },
+                        "children": [
+                            {
+                                "data": {
+                                    "id": "m00022",
+                                    "created": 1784118466227,
+                                    "text": "mod.x (模块)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ir/mod.x",
+                                    "hyperlinkTitle": "compiler/src/ir/mod.x"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00023",
+                                    "created": 1784118466228,
+                                    "text": "regalloc.x (寄存器分配)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ir/mir/regalloc.x",
+                                    "hyperlinkTitle": "compiler/src/ir/mir/regalloc.x"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00024",
+                                    "created": 1784118466229,
+                                    "text": "spill.x (溢出)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ir/mir/spill.x",
+                                    "hyperlinkTitle": "compiler/src/ir/mir/spill.x"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00025",
+                                    "created": 1784118466230,
+                                    "text": "sched.x (调度)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ir/vmir/sched.x",
+                                    "hyperlinkTitle": "compiler/src/ir/vmir/sched.x"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00026",
+                                    "created": 1784118466231,
+                                    "text": "microarch.x (微架构)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ir/mir/microarch.x",
+                                    "hyperlinkTitle": "compiler/src/ir/mir/microarch.x"
+                                },
+                                "children": []
+                            }
+                        ]
+                    },
+                    {
+                        "data": {
+                            "id": "m00027",
+                            "created": 1784118466232,
+                            "text": "SLIR — 稀疏 IR (ir/slir/)",
+                            "expandState": "collapse"
+                        },
+                        "children": [
+                            {
+                                "data": {
+                                    "id": "m00028",
+                                    "created": 1784118466233,
+                                    "text": "mod.x (模块)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ir/mod.x",
+                                    "hyperlinkTitle": "compiler/src/ir/mod.x"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00029",
+                                    "created": 1784118466234,
+                                    "text": "cost.x (代价模型)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ir/slir/cost.x",
+                                    "hyperlinkTitle": "compiler/src/ir/slir/cost.x"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00030",
+                                    "created": 1784118466235,
+                                    "text": "conflict.x (冲突)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ir/slir/conflict.x",
+                                    "hyperlinkTitle": "compiler/src/ir/slir/conflict.x"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00031",
+                                    "created": 1784118466236,
+                                    "text": "soa.x (SoA 转换)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ir/slir/soa.x",
+                                    "hyperlinkTitle": "compiler/src/ir/slir/soa.x"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00032",
+                                    "created": 1784118466237,
+                                    "text": "egraph.x (e-graph)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ir/slir/egraph.x",
+                                    "hyperlinkTitle": "compiler/src/ir/slir/egraph.x"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00033",
+                                    "created": 1784118466238,
+                                    "text": "saturate.x (饱和)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ir/slir/saturate.x",
+                                    "hyperlinkTitle": "compiler/src/ir/slir/saturate.x"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00034",
+                                    "created": 1784118466239,
+                                    "text": "rules.x (规则)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ir/slir/rules.x",
+                                    "hyperlinkTitle": "compiler/src/ir/slir/rules.x"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00035",
+                                    "created": 1784118466240,
+                                    "text": "extract.x (提取)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ir/slir/extract.x",
+                                    "hyperlinkTitle": "compiler/src/ir/slir/extract.x"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00036",
+                                    "created": 1784118466241,
+                                    "text": "superopt.x (超优化)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ir/slir/superopt.x",
+                                    "hyperlinkTitle": "compiler/src/ir/slir/superopt.x"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00037",
+                                    "created": 1784118466242,
+                                    "text": "verify.x (验证)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ir/verify.x",
+                                    "hyperlinkTitle": "compiler/src/ir/verify.x"
+                                },
+                                "children": []
+                            }
+                        ]
+                    },
+                    {
+                        "data": {
+                            "id": "m00038",
+                            "created": 1784118466243,
+                            "text": "VMIR — 虚拟机 IR (ir/vmir/)",
+                            "expandState": "collapse"
+                        },
+                        "children": [
+                            {
+                                "data": {
+                                    "id": "m00039",
+                                    "created": 1784118466244,
+                                    "text": "mod.x (模块)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ir/mod.x",
+                                    "hyperlinkTitle": "compiler/src/ir/mod.x"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00040",
+                                    "created": 1784118466245,
+                                    "text": "dag.x (DAG)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ir/vmir/dag.x",
+                                    "hyperlinkTitle": "compiler/src/ir/vmir/dag.x"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00041",
+                                    "created": 1784118466246,
+                                    "text": "isel.x (指令选择)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ir/vmir/isel.x",
+                                    "hyperlinkTitle": "compiler/src/ir/vmir/isel.x"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00042",
+                                    "created": 1784118466247,
+                                    "text": "sched.x (调度)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ir/vmir/sched.x",
+                                    "hyperlinkTitle": "compiler/src/ir/vmir/sched.x"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00043",
+                                    "created": 1784118466248,
+                                    "text": "machine_inst.x (机器指令)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ir/vmir/machine_inst.x",
+                                    "hyperlinkTitle": "compiler/src/ir/vmir/machine_inst.x"
+                                },
+                                "children": []
+                            }
+                        ]
+                    },
+                    {
+                        "data": {
+                            "id": "m00044",
+                            "created": 1784118466249,
+                            "text": "Pass 管线 (ir/pass/)",
+                            "expandState": "collapse"
+                        },
+                        "children": [
+                            {
+                                "data": {
+                                    "id": "m00045",
+                                    "created": 1784118466250,
+                                    "text": "mod.x (模块)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ir/mod.x",
+                                    "hyperlinkTitle": "compiler/src/ir/mod.x"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00046",
+                                    "created": 1784118466251,
+                                    "text": "registry.x (注册表)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ir/pass/registry.x",
+                                    "hyperlinkTitle": "compiler/src/ir/pass/registry.x"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00047",
+                                    "created": 1784118466252,
+                                    "text": "pipeline.x (管线)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/pipeline/pipeline.x",
+                                    "hyperlinkTitle": "compiler/src/pipeline/pipeline.x"
+                                },
+                                "children": []
+                            }
+                        ]
+                    },
+                    {
+                        "data": {
+                            "id": "m00048",
+                            "created": 1784118466253,
+                            "text": "C 发射 (ir/c_emit/)",
+                            "expandState": "collapse"
+                        },
+                        "children": [
+                            {
+                                "data": {
+                                    "id": "m00049",
+                                    "created": 1784118466254,
+                                    "text": "mod.x (模块)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ir/mod.x",
+                                    "hyperlinkTitle": "compiler/src/ir/mod.x"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00050",
+                                    "created": 1784118466255,
+                                    "text": "contract_annot.x (契约注解)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ir/c_emit/contract_annot.x",
+                                    "hyperlinkTitle": "compiler/src/ir/c_emit/contract_annot.x"
+                                },
+                                "children": []
+                            }
+                        ]
+                    },
+                    {
+                        "data": {
+                            "id": "m00051",
+                            "created": 1784118466256,
+                            "text": "目标信息 (ir/target/)",
+                            "expandState": "collapse"
+                        },
+                        "children": [
+                            {
+                                "data": {
+                                    "id": "m00052",
+                                    "created": 1784118466257,
+                                    "text": "mod.x (模块)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ir/mod.x",
+                                    "hyperlinkTitle": "compiler/src/ir/mod.x"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00053",
+                                    "created": 1784118466258,
+                                    "text": "x86_64.x",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ir/target/x86_64.x",
+                                    "hyperlinkTitle": "compiler/src/ir/target/x86_64.x"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00054",
+                                    "created": 1784118466259,
+                                    "text": "arm64.x",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ir/target/arm64.x",
+                                    "hyperlinkTitle": "compiler/src/ir/target/arm64.x"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00055",
+                                    "created": 1784118466260,
+                                    "text": "cost_model.x (代价模型)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ir/target/cost_model.x",
+                                    "hyperlinkTitle": "compiler/src/ir/target/cost_model.x"
+                                },
+                                "children": []
+                            }
+                        ]
+                    },
+                    {
+                        "data": {
+                            "id": "m00056",
+                            "created": 1784118466261,
+                            "text": "验证 (ir/verify/)",
+                            "expandState": "collapse"
+                        },
+                        "children": [
+                            {
+                                "data": {
+                                    "id": "m00057",
+                                    "created": 1784118466262,
+                                    "text": "mod.x (模块)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ir/mod.x",
+                                    "hyperlinkTitle": "compiler/src/ir/mod.x"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00058",
+                                    "created": 1784118466263,
+                                    "text": "perf_oracle.x (性能预言机)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ir/verify/perf_oracle.x",
+                                    "hyperlinkTitle": "compiler/src/ir/verify/perf_oracle.x"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00059",
+                                    "created": 1784118466264,
+                                    "text": "interp.x (解释执行)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ir/verify/interp.x",
+                                    "hyperlinkTitle": "compiler/src/ir/verify/interp.x"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00060",
+                                    "created": 1784118466265,
+                                    "text": "diff_test.x (差分测试)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ir/verify/diff_test.x",
+                                    "hyperlinkTitle": "compiler/src/ir/verify/diff_test.x"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "m00061",
+                                    "created": 1784118466266,
+                                    "text": "fuzz.x (模糊测试)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ir/verify/fuzz.x",
+                                    "hyperlinkTitle": "compiler/src/ir/verify/fuzz.x"
+                                },
+                                "children": []
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "data": {
+                    "id": "m00062",
+                    "created": 1784118466267,
+                    "text": "方法索引（自动扫描 export/function · 点击链接到源文件）\n共 0 个符号",
+                    "expandState": "expand",
+                    "note": "与上方架构树对照。同名跨文件见 99-dual-authority-audit.km。"
+                },
+                "children": [
+                    {
+                        "data": {
+                            "id": "m00063",
+                            "created": 1784118466268,
+                            "text": "mod.x  (0 方法)",
+                            "expandState": "collapse",
+                            "hyperlink": "compiler/src/ir/mod.x",
+                            "hyperlinkTitle": "compiler/src/ir/mod.x",
+                            "note": "compiler/src/ir/mod.x"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "m00064",
+                            "created": 1784118466269,
+                            "text": "inst.x  (0 方法)",
+                            "expandState": "collapse",
+                            "hyperlink": "compiler/src/ir/inst.x",
+                            "hyperlinkTitle": "compiler/src/ir/inst.x",
+                            "note": "compiler/src/ir/inst.x"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "m00065",
+                            "created": 1784118466270,
+                            "text": "opcode.x  (0 方法)",
+                            "expandState": "collapse",
+                            "hyperlink": "compiler/src/ir/opcode.x",
+                            "hyperlinkTitle": "compiler/src/ir/opcode.x",
+                            "note": "compiler/src/ir/opcode.x"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "m00066",
+                            "created": 1784118466271,
+                            "text": "mod.x  (0 方法)",
+                            "expandState": "collapse",
+                            "hyperlink": "compiler/src/ir/pass/mod.x",
+                            "hyperlinkTitle": "compiler/src/ir/pass/mod.x",
+                            "note": "compiler/src/ir/pass/mod.x"
+                        },
+                        "children": []
+                    }
+                ]
+            }
+        ]
+    },
+    "template": "default",
+    "theme": "fresh-blue",
+    "version": "1.4.43"
+}

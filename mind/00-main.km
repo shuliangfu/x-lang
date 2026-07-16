@@ -1,0 +1,420 @@
+{
+    "root": {
+        "data": {
+            "id": "n0001",
+            "created": 1784118410328,
+            "text": "SHUX 编译器（主图索引）",
+            "note": "主图只做导航。方法级细节在 mind/0x-*.km；查重复实现用 99-dual-authority-audit.km。",
+            "expandState": "expand"
+        },
+        "children": [
+            {
+                "data": {
+                    "id": "n0002",
+                    "created": 1784118410329,
+                    "text": "入口 · 驱动 · 子命令\n→ mind/01-entry-driver.km",
+                    "hyperlink": "mind/01-entry-driver.km",
+                    "hyperlinkTitle": "mind/01-entry-driver.km",
+                    "note": "CLI 入口、compile 驱动、build/run/check/test/fmt 子命令。查：谁调用 driver_run_compiler_full。",
+                    "expandState": "expand"
+                },
+                "children": [
+                    {
+                        "data": {
+                            "id": "n0003",
+                            "created": 1784118410330,
+                            "text": "打开详细图: mind/01-entry-driver.km",
+                            "hyperlink": "mind/01-entry-driver.km",
+                            "hyperlinkTitle": "mind/01-entry-driver.km",
+                            "expandState": "collapse"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "n0004",
+                            "created": 1784118410331,
+                            "text": "CLI 入口、compile 驱动、build/run/check/test/fmt 子命令。查：谁调用 driver_run_compiler_full。",
+                            "expandState": "collapse"
+                        },
+                        "children": []
+                    }
+                ]
+            },
+            {
+                "data": {
+                    "id": "n0005",
+                    "created": 1784118410332,
+                    "text": "管线 · pipeline_glue\n→ mind/02-pipeline-glue.km",
+                    "hyperlink": "mind/02-pipeline-glue.km",
+                    "hyperlinkTitle": "mind/02-pipeline-glue.km",
+                    "note": "pipeline 编排 + pipeline_glue.c 跨层 ABI。查：glue 是否重复 typeck/codegen 逻辑。",
+                    "expandState": "expand"
+                },
+                "children": [
+                    {
+                        "data": {
+                            "id": "n0006",
+                            "created": 1784118410333,
+                            "text": "打开详细图: mind/02-pipeline-glue.km",
+                            "hyperlink": "mind/02-pipeline-glue.km",
+                            "hyperlinkTitle": "mind/02-pipeline-glue.km",
+                            "expandState": "collapse"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "n0007",
+                            "created": 1784118410334,
+                            "text": "pipeline 编排 + pipeline_glue.c 跨层 ABI。查：glue 是否重复 typeck/codegen 逻辑。",
+                            "expandState": "collapse"
+                        },
+                        "children": []
+                    }
+                ]
+            },
+            {
+                "data": {
+                    "id": "n0008",
+                    "created": 1784118410335,
+                    "text": "前端：预处理 · 词法 · 语法 · 类型检查\n→ mind/03-frontend.km",
+                    "hyperlink": "mind/03-frontend.km",
+                    "hyperlinkTitle": "mind/03-frontend.km",
+                    "note": "preprocess → lexer → parser → typeck。查：表达式解析/类型相等是否多路径。",
+                    "expandState": "expand"
+                },
+                "children": [
+                    {
+                        "data": {
+                            "id": "n0009",
+                            "created": 1784118410336,
+                            "text": "打开详细图: mind/03-frontend.km",
+                            "hyperlink": "mind/03-frontend.km",
+                            "hyperlinkTitle": "mind/03-frontend.km",
+                            "expandState": "collapse"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "n0010",
+                            "created": 1784118410337,
+                            "text": "preprocess → lexer → parser → typeck。查：表达式解析/类型相等是否多路径。",
+                            "expandState": "collapse"
+                        },
+                        "children": []
+                    }
+                ]
+            },
+            {
+                "data": {
+                    "id": "n0011",
+                    "created": 1784118410338,
+                    "text": "AST 层\n→ mind/04-ast.km",
+                    "hyperlink": "mind/04-ast.km",
+                    "hyperlinkTitle": "mind/04-ast.km",
+                    "note": "ASTArena/Module/Expr/Block 与访问器。",
+                    "expandState": "expand"
+                },
+                "children": [
+                    {
+                        "data": {
+                            "id": "n0012",
+                            "created": 1784118410339,
+                            "text": "打开详细图: mind/04-ast.km",
+                            "hyperlink": "mind/04-ast.km",
+                            "hyperlinkTitle": "mind/04-ast.km",
+                            "expandState": "collapse"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "n0013",
+                            "created": 1784118410340,
+                            "text": "ASTArena/Module/Expr/Block 与访问器。",
+                            "expandState": "collapse"
+                        },
+                        "children": []
+                    }
+                ]
+            },
+            {
+                "data": {
+                    "id": "n0014",
+                    "created": 1784118410341,
+                    "text": "C 代码生成\n→ mind/05-codegen-c.km",
+                    "hyperlink": "mind/05-codegen-c.km",
+                    "hyperlinkTitle": "mind/05-codegen-c.km",
+                    "note": "codegen.x 发射 C 文本。",
+                    "expandState": "expand"
+                },
+                "children": [
+                    {
+                        "data": {
+                            "id": "n0015",
+                            "created": 1784118410342,
+                            "text": "打开详细图: mind/05-codegen-c.km",
+                            "hyperlink": "mind/05-codegen-c.km",
+                            "hyperlinkTitle": "mind/05-codegen-c.km",
+                            "expandState": "collapse"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "n0016",
+                            "created": 1784118410343,
+                            "text": "codegen.x 发射 C 文本。",
+                            "expandState": "collapse"
+                        },
+                        "children": []
+                    }
+                ]
+            },
+            {
+                "data": {
+                    "id": "n0017",
+                    "created": 1784118410344,
+                    "text": "ASM 后端 · 编码 · SIMD · thin\n→ mind/06-asm.km",
+                    "hyperlink": "mind/06-asm.km",
+                    "hyperlinkTitle": "mind/06-asm.km",
+                    "note": "asm backend / enc / simd / pthin。",
+                    "expandState": "expand"
+                },
+                "children": [
+                    {
+                        "data": {
+                            "id": "n0018",
+                            "created": 1784118410345,
+                            "text": "打开详细图: mind/06-asm.km",
+                            "hyperlink": "mind/06-asm.km",
+                            "hyperlinkTitle": "mind/06-asm.km",
+                            "expandState": "collapse"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "n0019",
+                            "created": 1784118410346,
+                            "text": "asm backend / enc / simd / pthin。",
+                            "expandState": "collapse"
+                        },
+                        "children": []
+                    }
+                ]
+            },
+            {
+                "data": {
+                    "id": "n0020",
+                    "created": 1784118410347,
+                    "text": "IR 层\n→ mind/07-ir.km",
+                    "hyperlink": "mind/07-ir.km",
+                    "hyperlinkTitle": "mind/07-ir.km",
+                    "note": "SHIR/SMIR/MIR/SLIR/VMIR 与 pass。",
+                    "expandState": "expand"
+                },
+                "children": [
+                    {
+                        "data": {
+                            "id": "n0021",
+                            "created": 1784118410348,
+                            "text": "打开详细图: mind/07-ir.km",
+                            "hyperlink": "mind/07-ir.km",
+                            "hyperlinkTitle": "mind/07-ir.km",
+                            "expandState": "collapse"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "n0022",
+                            "created": 1784118410349,
+                            "text": "SHIR/SMIR/MIR/SLIR/VMIR 与 pass。",
+                            "expandState": "collapse"
+                        },
+                        "children": []
+                    }
+                ]
+            },
+            {
+                "data": {
+                    "id": "n0023",
+                    "created": 1784118410350,
+                    "text": "运行时 · ABI · 链接 · OS 桩\n→ mind/08-runtime-abi.km",
+                    "hyperlink": "mind/08-runtime-abi.km",
+                    "hyperlinkTitle": "mind/08-runtime-abi.km",
+                    "note": "runtime 分派、ABI 面、链接 labi、OS glue。查：runtime.x vs seed 双权威。",
+                    "expandState": "expand"
+                },
+                "children": [
+                    {
+                        "data": {
+                            "id": "n0024",
+                            "created": 1784118410351,
+                            "text": "打开详细图: mind/08-runtime-abi.km",
+                            "hyperlink": "mind/08-runtime-abi.km",
+                            "hyperlinkTitle": "mind/08-runtime-abi.km",
+                            "expandState": "collapse"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "n0025",
+                            "created": 1784118410352,
+                            "text": "runtime 分派、ABI 面、链接 labi、OS glue。查：runtime.x vs seed 双权威。",
+                            "expandState": "collapse"
+                        },
+                        "children": []
+                    }
+                ]
+            },
+            {
+                "data": {
+                    "id": "n0026",
+                    "created": 1784118410353,
+                    "text": "种子层 seeds\n→ mind/09-seeds.km",
+                    "hyperlink": "mind/09-seeds.km",
+                    "hyperlinkTitle": "mind/09-seeds.km",
+                    "note": "Mega/Thin/Glue/Runtime seed。与 .x 对照查双权威。",
+                    "expandState": "expand"
+                },
+                "children": [
+                    {
+                        "data": {
+                            "id": "n0027",
+                            "created": 1784118410354,
+                            "text": "打开详细图: mind/09-seeds.km",
+                            "hyperlink": "mind/09-seeds.km",
+                            "hyperlinkTitle": "mind/09-seeds.km",
+                            "expandState": "collapse"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "n0028",
+                            "created": 1784118410355,
+                            "text": "Mega/Thin/Glue/Runtime seed。与 .x 对照查双权威。",
+                            "expandState": "collapse"
+                        },
+                        "children": []
+                    }
+                ]
+            },
+            {
+                "data": {
+                    "id": "n0029",
+                    "created": 1784118410356,
+                    "text": "LSP · Async\n→ mind/10-lsp-async.km",
+                    "hyperlink": "mind/10-lsp-async.km",
+                    "hyperlinkTitle": "mind/10-lsp-async.km",
+                    "note": "LSP 诊断与 async CPS。",
+                    "expandState": "expand"
+                },
+                "children": [
+                    {
+                        "data": {
+                            "id": "n0030",
+                            "created": 1784118410357,
+                            "text": "打开详细图: mind/10-lsp-async.km",
+                            "hyperlink": "mind/10-lsp-async.km",
+                            "hyperlinkTitle": "mind/10-lsp-async.km",
+                            "expandState": "collapse"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "n0031",
+                            "created": 1784118410358,
+                            "text": "LSP 诊断与 async CPS。",
+                            "expandState": "collapse"
+                        },
+                        "children": []
+                    }
+                ]
+            },
+            {
+                "data": {
+                    "id": "n0032",
+                    "created": 1784118410359,
+                    "text": "构建 · 数据流 · 关键约束\n→ mind/11-build-constraints.km",
+                    "hyperlink": "mind/11-build-constraints.km",
+                    "hyperlinkTitle": "mind/11-build-constraints.km",
+                    "note": "g05/Makefile 拓扑与编译硬约束。",
+                    "expandState": "expand"
+                },
+                "children": [
+                    {
+                        "data": {
+                            "id": "n0033",
+                            "created": 1784118410360,
+                            "text": "打开详细图: mind/11-build-constraints.km",
+                            "hyperlink": "mind/11-build-constraints.km",
+                            "hyperlinkTitle": "mind/11-build-constraints.km",
+                            "expandState": "collapse"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "n0034",
+                            "created": 1784118410361,
+                            "text": "g05/Makefile 拓扑与编译硬约束。",
+                            "expandState": "collapse"
+                        },
+                        "children": []
+                    }
+                ]
+            },
+            {
+                "data": {
+                    "id": "n0035",
+                    "created": 1784118410362,
+                    "text": "双权威 / 重复实现审计\n→ mind/99-dual-authority-audit.km",
+                    "hyperlink": "mind/99-dual-authority-audit.km",
+                    "hyperlinkTitle": "mind/99-dual-authority-audit.km",
+                    "note": "专查同功能多实现，不要按文件堆砌",
+                    "expandState": "expand"
+                },
+                "children": [
+                    {
+                        "data": {
+                            "id": "n0036",
+                            "created": 1784118410363,
+                            "text": "打开审计图: mind/99-dual-authority-audit.km",
+                            "hyperlink": "mind/99-dual-authority-audit.km",
+                            "hyperlinkTitle": "mind/99-dual-authority-audit.km",
+                            "expandState": "collapse"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "n0037",
+                            "created": 1784118410364,
+                            "text": "按「能力」横切对照：同一功能的 .x / seed / glue / C 是否多套实现",
+                            "expandState": "collapse"
+                        },
+                        "children": []
+                    }
+                ]
+            },
+            {
+                "data": {
+                    "id": "djz5id1cevs0",
+                    "created": 1784119303278,
+                    "text": "topic"
+                },
+                "children": []
+            }
+        ]
+    },
+    "template": "default",
+    "theme": "fresh-blue",
+    "version": "1.4.43"
+}

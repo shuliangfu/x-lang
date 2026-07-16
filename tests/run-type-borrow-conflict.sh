@@ -23,13 +23,8 @@ if [ -z "$SHUX_BIN" ]; then
 fi
 
 if [ -z "$SHUX_BIN" ] || ! type_borrow_native_shu "$SHUX_BIN"; then
-  if [ -n "${SHUX_BSTRICT_RUN_ALL:-}" ] || [ -n "${SHUX_TYPE_BORROW_FAIL:-}" ]; then
-    echo "type-borrow-conflict FAIL: no native shux (host=$(uname -s)/$(uname -m 2>/dev/null))" >&2
-    exit 1
-  fi
-  echo "type-borrow-conflict SKIP (no native shux, host=$(uname -s)/$(uname -m 2>/dev/null))"
-  echo "type-borrow-conflict OK"
-  exit 0
+  echo "type-borrow-conflict FAIL: no native shux (host=$(uname -s)/$(uname -m 2>/dev/null))" >&2
+  exit 1
 fi
 
 make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c

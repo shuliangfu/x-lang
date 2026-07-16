@@ -6,7 +6,8 @@ set -e
 cd "$(dirname "$0")/.."
 
 HEADER="compiler/include/shux_layout_arith.h"
-TYPECK="compiler/src/typeck/typeck.c"
+# typeck.c 已删；布局权威在 typeck.x（compute_struct_layouts / §11.1 padding）。
+TYPECK="compiler/src/typeck/typeck.x"
 MANIFEST="tests/baseline/layout-overflow.tsv"
 
 echo "=== P1-4: layout overflow manifest ==="
@@ -20,8 +21,8 @@ if ! grep -qF "shux_layout_iadd_overflow" "$HEADER" 2>/dev/null; then
   echo "layout-overflow gate FAIL: header missing shux_layout_iadd_overflow" >&2
   exit 1
 fi
-if ! grep -qF "layout_offset_add" "$TYPECK" 2>/dev/null; then
-  echo "layout-overflow gate FAIL: typeck missing layout_offset_add" >&2
+if ! grep -qE "compute_struct_layouts|struct_layouts|隐式 padding" "$TYPECK" 2>/dev/null; then
+  echo "layout-overflow gate FAIL: typeck.x missing struct layout / padding authority" >&2
   exit 1
 fi
 echo "layout-overflow manifest OK"

@@ -211,13 +211,10 @@ net-o-mbedtls:
 	  echo "net-o-mbedtls: need shux_asm, shux, or shux-c"; exit 1; \
 	fi
 
-# std.thread：F-thread v2 纯 .x（F-ZC）；pthread 胶层在 runtime_thread_glue.o；Unix 需 -lpthread。
-../std/thread/thread.o: ../std/thread/thread.x
-	@if [ -x ./shux_asm ]; then shux=./shux_asm; \
-	elif [ -x ./shux ]; then shux=./shux; \
-	elif [ -x ./shux-c ]; then shux=./shux-c; \
-	else echo "make thread.o: need shux-c or shux (F-thread zero-c)" >&2; exit 0; fi; \
-	sh scripts/shux_compile_std_x.sh auto ../std/thread/thread.x ../std/thread/thread.o
+# std.thread：mod.x 提供 std_thread_* 包装；pthread 胶层在 runtime_thread_glue.o（thread_*_c）。
+# 【Why 勿只编 thread.x】thread.x 仅 marker，link_only 时缺 _std_thread_create 等。
+../std/thread/thread.o: ../std/thread/mod.x ../std/thread/thread.x | scripts/shux_compile_std_module.sh
+	@sh scripts/shux_compile_std_module.sh $@ ../std/thread/mod.x
 
 # std.async：F-async v2 纯 .x（F-ZC）；调度胶层在 runtime_scheduler_glue.o；Unix 按需 -pthread。
 ../std/async/scheduler.o: ../std/async/scheduler.x
@@ -258,13 +255,10 @@ net-o-mbedtls:
 ../std/sync/sync.o: ../std/sync/mod.x ../std/sync/sync.x | scripts/shux_compile_std_module.sh
 	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/sync/mod.x ../std/sync/sync.x
 
-# std.queue：F-queue v2 纯 .x（F-ZC）；pthread 胶层在 runtime_queue_contention.o。
-../std/queue/queue.o: ../std/queue/queue.x
-	@if [ -x ./shux_asm ]; then shux=./shux_asm; \
-	elif [ -x ./shux ]; then shux=./shux; \
-	elif [ -x ./shux-c ]; then shux=./shux-c; \
-	else echo "make queue.o: need shux-c or shux (F-queue zero-c)" >&2; exit 0; fi; \
-	sh scripts/shux_compile_std_x.sh auto ../std/queue/queue.x ../std/queue/queue.o
+# std.queue：F 闭合 — mod.x 用户 API（Queue_i32/u8）；queue.x 为 F-queue marker。
+# pthread 胶层在 runtime_queue_contention.o（链接按需）。
+../std/queue/queue.o: ../std/queue/mod.x ../std/queue/queue.x | scripts/shux_compile_std_module.sh
+	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/queue/mod.x ../std/queue/queue.x
 
 # std.encoding：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + encoding）。
 ../std/encoding/encoding.o: ../std/encoding/mod.x ../std/encoding/encoding.x | scripts/shux_compile_std_module.sh

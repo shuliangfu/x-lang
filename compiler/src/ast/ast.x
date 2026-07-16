@@ -134,7 +134,8 @@ allow(padding) struct Expr {
   resolved_type_ref: i32;
   line: i32;
   col: i32;
-  int_val: i32;
+  /** EXPR_LIT/BOOL 等整型载荷；i64 以容纳 INT64_MAX 等大字面量。 */
+  int_val: i64;
   float_val: f64;
   var_name: u8[64];
   var_name_len: i32;

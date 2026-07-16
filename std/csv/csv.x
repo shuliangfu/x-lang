@@ -121,19 +121,17 @@ export function csv_escape_c(ptr: *u8, len: i32, buf: *u8, buf_cap: i32): i32 {
 }
 
 /**
- * import std.csv 裸名 next_field。#[no_mangle] 让跨模块调用与定义符号一致。
- * 勿再经 std_csv_next_field 中转：bare-impl 剥路径前缀后会与 no_mangle 同名 → redefinition。
+ * import std.csv 的 next_field → 符号 std_csv_next_field（与调用端 mangle 一致）。
+ * 产品轨 csv 走预编 csv.o（pipeline 跳过 co-emit）；勿 #[no_mangle] 成裸 next_field，
+ * 否则用户 TU 生成 std_csv_next_field 调用 → undefined。
  */
-#[no_mangle]
 export function next_field(ptr: *u8, len: i32, offset: i32, out_start: *i32, out_len: *i32): i32 {
   return csv_next_field_c(ptr, len, offset, out_start, out_len);
 }
 
 /**
- * mod.x extern unescape。实现放在 no_mangle 上，避免再经 std_csv_unescape
- * 中转后 bare-impl 剥前缀与 no_mangle 撞名 redefinition。
+ * unescape → std_csv_unescape（同上，与调用端 mangle 一致）。
  */
-#[no_mangle]
 export function unescape(ptr: *u8, len: i32, buf: *u8, buf_cap: i32): i32 {
   let i: i32 = 0;
   let j: i32 = 0;

@@ -732,7 +732,8 @@ __attribute__((weak)) int32_t parser_copy_module_import_path64(struct ast_Module
   return 0;
 }
 
-#define PREPROCESS_MAX_DEFINES 32
+/** 旧硬顶 32：pool-limits deep_if_nest 需 40 层 -DL；uname 等还会再占几槽。 */
+#define PREPROCESS_MAX_DEFINES 128
 static char g_preprocess_defines[PREPROCESS_MAX_DEFINES][64];
 static int g_preprocess_ndefines;
 static uint8_t g_typeck_scratch64[16][64];

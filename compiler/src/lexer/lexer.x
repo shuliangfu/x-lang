@@ -1629,17 +1629,17 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
     let start: usize = l.pos;
     let line0: i32 = l.line;
     let col0: i32 = l.col;
-    let ival: i32 = 0;
+    let ival: i64 = 0;
     l = advance_one(l, c);
     if (c == 48 && l.pos < data.length && (data[l.pos] == 120 || data[l.pos] == 88)) {
       l = advance_one(l, data[l.pos]);
-      let hval: u32 = (0 as u32);
+      let hval: u64 = (0 as u64);
       while (l.pos < data.length && is_hex_digit(data[l.pos])) {
         let hd: u8 = data[l.pos];
-        hval = hval * 16 + (hex_digit_value(hd) as u32);
+        hval = hval * 16 + (hex_digit_value(hd) as u64);
         l = advance_one(l, hd);
       }
-      let tok: Token = Token { kind: TokenKind.TOKEN_INT, line: line0, col: col0, int_val: hval as i32,
+      let tok: Token = Token { kind: TokenKind.TOKEN_INT, line: line0, col: col0, int_val: hval as i64,
         float_val: 0.0, ident: 0, ident_len: 0 };
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
@@ -2093,17 +2093,17 @@ export function lexer_next_body(l: Lexer, data: u8[]): LexerResult {
     let start: usize = l.pos;
     let line0: i32 = l.line;
     let col0: i32 = l.col;
-    let ival: i32 = 0;
+    let ival: i64 = 0;
     l = advance_one(l, c);
     if (c == 48 && l.pos < data.length && (data[l.pos] == 120 || data[l.pos] == 88)) {
       l = advance_one(l, data[l.pos]);
-      let hval: u32 = (0 as u32);
+      let hval: u64 = (0 as u64);
       while (l.pos < data.length && is_hex_digit(data[l.pos])) {
         let hd: u8 = data[l.pos];
-        hval = hval * 16 + (hex_digit_value(hd) as u32);
+        hval = hval * 16 + (hex_digit_value(hd) as u64);
         l = advance_one(l, hd);
       }
-      let tok: Token = Token { kind: TokenKind.TOKEN_INT, line: line0, col: col0, int_val: hval as i32,
+      let tok: Token = Token { kind: TokenKind.TOKEN_INT, line: line0, col: col0, int_val: hval as i64,
         float_val: 0.0, ident: 0, ident_len: 0 }
       return LexerResult { next_lex: l, tok: tok, token_start: start };
     }

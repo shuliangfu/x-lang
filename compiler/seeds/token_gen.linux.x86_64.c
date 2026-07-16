@@ -7,7 +7,7 @@ struct Token {
   int32_t kind;
   int32_t line;
   int32_t col;
-  int32_t int_val;
+  int64_t int_val;
   double float_val;
   uint8_t * ident;
   int32_t ident_len;

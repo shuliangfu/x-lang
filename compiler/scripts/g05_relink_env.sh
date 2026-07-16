@@ -78,15 +78,11 @@ _DRIVER_SUBCMD="driver_fmt_x.o driver_check_x.o driver_test_x.o driver_compile_x
 _GLUE_SUFFIX="build_asm/pipeline_glue_strict_minimal.o"
 
 # Cap residual：与 Makefile RT_SEED_SLICE_OBJS / build_shux_asm asm_bootstrap_support_extra_link 同源。
-# runtime_driver_abi 始终 extern 这些符号；no_c runtime 在 SHUX_RT_*_FROM_X 下不内嵌 BSS。
-# macOS PREFER_X_O=1 时 runtime_driver_no_c.o 已通过 cc -r 合并全部 slice thin+rest，
-#   重复链接 slice .o 会导致符号冲突（macOS 新版 ld 已移除 -multiply_defined,suppress）。
-# Linux PREFER_X_O 可能 fallback 到 seed（thin.x 编译失败），需保留 slice .o 补充符号。
-if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ "$UNAME_S" = "Darwin" ]; then
-  _RT_SEED_SLICE_OBJS=""
-else
-  _RT_SEED_SLICE_OBJS="src/runtime/rt_arena_buf.o src/runtime/rt_emit_state.o src/runtime/rt_preamble.o src/runtime/rt_stack.o"
-fi
+# runtime_driver_abi 始终 extern 这些符号；no_c runtime 在 SHUX_RT_*_FROM_X 下不内嵌 BSS 定义。
+# 历史：macOS PREFER_X_O=1 曾假定 runtime_driver_no_c.o 已 cc -r 合并 slice；
+# 但 no_c 对 driver_x_emit_* / write_io_net_abi_inline 等仍为 U 时，空 slice 会链失败却假绿（旧 binary 残留）。
+# 根治：始终链入 RT slice .o（若 no_c 已内嵌同名强符号，需先修 no_c 合并策略；当前 nm 为 U）。
+_RT_SEED_SLICE_OBJS="src/runtime/rt_arena_buf.o src/runtime/rt_emit_state.o src/runtime/rt_preamble.o src/runtime/rt_stack.o"
 # DRIVER_SEED_OBJS 展开（MAIN + runtime ABI + no_c runtime + rt slices + x frontend + support + shims）
 _DRIVER_SEED_OBJS="$_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o src/runtime_pipeline_abi.o src/runtime_driver_no_c.o $_RT_SEED_SLICE_OBJS src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_X_FRONTEND $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o src/seed_link_compat.o"
 

@@ -2947,6 +2947,93 @@ int link_abi_generated_c_contains_substr(const char *c_path, const char *needle)
     return link_abi_generated_c_contains_any_substr(c_path, needles, 1);
 }
 
+/**
+ * 生成 C 是否含 needle，且命中行不是 `extern` 声明 / `#define` 宏头。
+ * 【Why】rt_preamble 恒注入 `extern ... std_context_background(` 与
+ * `#define std_net_net_close_socket_c`；裸 substr 会让 hello 假链 context/net。
+ * 仅当某行出现真实调用/定义体时才视为 need。
+ */
+int link_abi_generated_c_contains_substr_use_line(const char *c_path, const char *needle) {
+    ShuxRuntimeFileView view;
+    size_t needle_len;
+    size_t off;
+    if (!c_path || !c_path[0] || !needle || !needle[0])
+        return 0;
+    needle_len = strlen(needle);
+    if (runtime_read_file_view(c_path, &view) != 0)
+        return 0;
+    if (view.length < needle_len) {
+        runtime_release_file_view(&view);
+        return 0;
+    }
+    for (off = 0; off + needle_len <= view.length; off++) {
+        size_t line_start;
+        size_t line_end;
+        size_t k;
+        int is_extern = 0;
+        int is_define = 0;
+        int is_comment = 0;
+        if (memcmp(view.data + off, needle, needle_len) != 0)
+            continue;
+        line_start = off;
+        while (line_start > 0 && view.data[line_start - 1] != '\n')
+            line_start--;
+        line_end = off + needle_len;
+        while (line_end < view.length && view.data[line_end] != '\n')
+            line_end++;
+        /* 跳过行首空白后的 extern / #define / // */
+        k = line_start;
+        while (k < line_end && (view.data[k] == ' ' || view.data[k] == '\t'))
+            k++;
+        if (k + 6 <= line_end && memcmp(view.data + k, "extern", 6) == 0)
+            is_extern = 1;
+        if (k < line_end && view.data[k] == '#') {
+            size_t k2 = k + 1;
+            while (k2 < line_end && (view.data[k2] == ' ' || view.data[k2] == '\t'))
+                k2++;
+            if (k2 + 6 <= line_end && memcmp(view.data + k2, "define", 6) == 0)
+                is_define = 1;
+        }
+        if (k + 2 <= line_end && view.data[k] == '/' && view.data[k + 1] == '/')
+            is_comment = 1;
+        if (k + 2 <= line_end && view.data[k] == '/' && view.data[k + 1] == '*')
+            is_comment = 1;
+        /* preamble 类型声明：struct/typedef std_string_* / std_net_* 不是真实引用 */
+        if (k + 6 <= line_end && memcmp(view.data + k, "struct", 6) == 0)
+            is_extern = 1; /* 复用 skip 标志 */
+        if (k + 7 <= line_end && memcmp(view.data + k, "typedef", 7) == 0)
+            is_extern = 1;
+        /* weak placeholder 体：仅当本行含 placeholder（如 std_string_placeholder）才跳过 */
+        {
+            size_t li;
+            for (li = k; li + 11 <= line_end; li++) {
+                if (memcmp(view.data + li, "placeholder", 11) == 0) {
+                    is_extern = 1;
+                    break;
+                }
+            }
+        }
+        if (!is_extern && !is_define && !is_comment) {
+            runtime_release_file_view(&view);
+            return 1;
+        }
+    }
+    runtime_release_file_view(&view);
+    return 0;
+}
+
+int link_abi_generated_c_contains_any_substr_use_line(const char *c_path, const char **needles, int n_needles) {
+    int i;
+    if (!c_path || !needles || n_needles <= 0)
+        return 0;
+    for (i = 0; i < n_needles; i++) {
+        if (needles[i] && needles[i][0] &&
+            link_abi_generated_c_contains_substr_use_line(c_path, needles[i]))
+            return 1;
+    }
+    return 0;
+}
+
 
 /**
  * 生成的 .c 是否引用 libc 堆符号（F-03 v2：libc.x 经 codegen 生成 extern malloc 等，按需 -lc）。
@@ -3079,7 +3166,111 @@ int link_abi_generated_c_needs_core_builtin(const char *c_path) {
 
 /** 扫描生成 C 是否引用 core.mem volatile/fence 符号（G-01：纯 .x，不再链 mem.o）。 */
 int link_abi_generated_c_needs_core_mem(const char *c_path) {
+  (void)c_path;
   return 0;
+}
+
+/**
+ * 产品轨 std 模块：预编 std/*.o 为符号权威时，禁止 pipeline co-emit 函数体。
+ * 与 ast_pool pipeline_codegen_std_dep_link_only 同形；放 link_abi 保证产品二进制必有符号
+ * （Darwin 上 pipeline_x.o 与 glue standalone 双定义时 glue 可能未胜出）。
+ */
+int pipeline_codegen_std_dep_link_only(uint8_t *path) {
+  static const char *const k[] = {
+      "std.base64", "std.json", "std.csv", "std.heap", "std.heap.libc", "std.http",
+      "std.crypto", "std.encoding", "std.log", "std.net", "std.regex",
+      /* 勿 link_only std.unicode：unicode.o 为 std.unicode.unicode 内部符号
+       *（std_unicode_unicode_*），与 mod.x API（std_unicode_category）不一致；
+       * co-emit mod 再导出 + unicode.x 体为权威。 */
+      "std.dynlib", "std.tar",
+      /* 勿 link_only std.channel / std.backtrace：*.o 仅为 marker，API 在 mod.x 包装
+       * channel_i32_*_c / backtrace_*_c（runtime_*_glue / platform）。 */
+      "std.atomic", "std.sync", "std.thread",
+      "std.time", "std.random",
+      /* 勿 link_only std.env：env.o 来自 env.x 内部符号（std_env_env_*），与 mod.x API
+       *（std_env_getenv）不一致；co-emit mod.x + runtime_env_os.o 的 env_*_c 为权威。 */
+      "std.math", "std.hash",
+      /* 勿 link_only std.sort：sort.o 仅为 std.sort.sort 实现（std_sort_sort_*），
+       * 对外 API 在 mod.x 重载包装；co-emit mod+sort.x 为权威。 */
+      "std.ffi",
+      "std.db", "std.test",
+      /* 勿 link_only std.compress：纯 .x、无 compress.o；link_only 只留 extern → 未定义符号 */
+      /* set/map/queue/vec：预编 .o 权威；-o co-emit 重载/布局易与 preamble 漂移 */
+      "std.set", "std.map", "std.queue", "std.vec",
+      /* path：path.o = runtime_path_fast 权威；co-emit mod.x 再链 path.o → duplicate */
+      "std.path",
+      /* error：error.o 权威；co-emit 现仅 extern，须链 .o 补符号 */
+      "std.error", NULL};
+  int i;
+  size_t n;
+  size_t plen;
+  if (!path || !path[0])
+    return 0;
+  /* 安全取长：dep path 缓冲可能无尾 0（仅靠 len）；仍兼容 C 字符串 */
+  plen = 0;
+  while (plen < 64 && path[plen] != 0)
+    plen++;
+  for (i = 0; k[i]; i++) {
+    n = strlen(k[i]);
+    if (n > plen)
+      continue;
+    if (memcmp(path, k[i], n) == 0 && (n == plen || path[n] == '.' || path[n] == 0)) {
+      if (getenv("SHUX_DEBUG_PIPE"))
+        fprintf(stderr, "shux: [link_only] hit exact/prefix key=%s path=%s -> 1\n", k[i], path);
+      return 1;
+    }
+  }
+  /* 前缀兜底：std.heap* / std.json* 等 */
+  if (plen >= 8 && memcmp(path, "std.heap", 8) == 0)
+    return 1;
+  if (plen >= 8 && memcmp(path, "std.json", 8) == 0)
+    return 1;
+  if (plen >= 7 && memcmp(path, "std.csv", 7) == 0)
+    return 1;
+  if (plen >= 10 && memcmp(path, "std.base64", 10) == 0)
+    return 1;
+  if (getenv("SHUX_DEBUG_PIPE"))
+    fprintf(stderr, "shux: [link_only] miss path=%s plen=%zu -> 0\n", path, plen);
+  return 0;
+}
+
+/**
+ * 生成 C 是否已 co-emit 提供 core.mem 强定义（与 mere extern/call 区分）。
+ * 【Why】import("core.mem") 走 pipeline co-emit 会把 core_mem_* 函数体写进用户 TU；
+ *   heap on_demand 若再硬链 core/mem/mem.o → 31× duplicate。
+ * 【Invariant】co-emit 定义形如 `void core_mem_mem_copy(` / `int32_t core_mem_placeholder(void) {`，
+ *   非 `extern ...;`。仅当已提供定义时跳过 mem.o；仅引用时仍链 mem.o。
+ */
+int link_abi_generated_c_provides_core_mem(const char *c_path) {
+    if (!c_path || !c_path[0])
+        return 0;
+    /* 定义行（无 extern 前缀）：co-emit 权威形态 */
+    if (link_abi_generated_c_contains_substr(c_path, "void core_mem_mem_copy(") != 0)
+        return 1;
+    if (link_abi_generated_c_contains_substr(c_path, "int32_t core_mem_placeholder(void) {") != 0)
+        return 1;
+    if (link_abi_generated_c_contains_substr(c_path, "int32_t core_mem_align_of_i32(void) {") != 0)
+        return 1;
+    return 0;
+}
+
+/**
+ * 生成 C 是否已 co-emit 提供 std.heap 强定义。
+ * 【Why】import std.string 等会 co-emit heap_libc 体；再链 heap.o → 46× duplicate
+ *   （std_heap_libc_heap_alloc_c 等）。与 provides_core_mem 同形。
+ * 【Invariant】定义行：`uint8_t * std_heap_libc_heap_alloc_c(size_t size) {`；
+ *   extern 行带 `extern` 前缀，不匹配 body 花括号形态。
+ */
+int link_abi_generated_c_provides_std_heap(const char *c_path) {
+    if (!c_path || !c_path[0])
+        return 0;
+    if (link_abi_generated_c_contains_substr(c_path, "uint8_t * std_heap_libc_heap_alloc_c(size_t size) {") != 0)
+        return 1;
+    if (link_abi_generated_c_contains_substr(c_path, "void std_heap_libc_heap_free_c(uint8_t * ptr) {") != 0)
+        return 1;
+    if (link_abi_generated_c_contains_substr(c_path, "std_heap_libc_heap_alloc_c(size_t size) {") != 0)
+        return 1;
+    return 0;
 }
 
 /** 扫描生成 C 是否引用 std.db.kv 符号（按需链 std/db/kv/kv.o）。 */
@@ -3497,6 +3688,18 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
 #endif
         argv[i++] = (char *)"-o";
         argv[i++] = (char *)out_path;
+        /*
+         * 死代码剥离：preamble / co-emit 常带 std_io_*_ctx 等「可能用」体，其 U 引用
+         * context/error；hello 等未调用路径须 GC 掉，否则会假依赖链 context.o→atomic。
+         * 【Invariant】与 freestanding asm 的 --gc-sections 同权威：可达性从 main 起。
+         */
+#if defined(__APPLE__)
+        if (i < argv_cap - 1)
+            argv[i++] = (char *)"-Wl,-dead_strip";
+#elif defined(__linux__)
+        if (i < argv_cap - 1)
+            argv[i++] = (char *)"-Wl,--gc-sections";
+#endif
         if (include_root && include_root[0]) {
             argv[i++] = (char *)"-I";
             argv[i++] = (char *)include_root;
@@ -3668,295 +3871,609 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
             perror("cc/gcc");
             _exit(127);
         }
-        if (invoke_cc_argv_push_existing(argv, &i, argv_cap, process_o)) {
+        /*
+         * 【权威】std/*.o 仅在生成 C 真正引用「模块 API」时链入。
+         * 禁止裸前缀 std_net_/std_context_/std_string_：rt_preamble 恒注入类型/宏/extern，
+         * hello 也会假阳性 → 链 net.o/context.o → 再拖 thread/atomic（与用户无关）。
+         * 针脚与 ASM 路径 link_abi_user_o_needs_std_net 等同权威（具体 API 名）。
+         * 配合上方 -dead_strip/--gc-sections：co-emit 的未引用 io_ctx 体不迫使链 context。
+         */
+        {
+            int need_process = 0, need_string = 0, need_path = 0, need_runtime = 0;
+            /* preamble weak process_args_* 转发 process_shux_*_get；export_dynamic（backtrace）
+             * 等会保活 weak → 须链 runtime_process_argv.o（或 process.o 已含 glue）。 */
+            int need_process_argv_glue = 0;
+            int need_net = 0, need_thread = 0, need_time = 0, need_random = 0, need_env = 0;
+            int need_sync = 0, need_encoding = 0, need_base64 = 0, need_crypto = 0;
+            int need_log = 0, need_atomic = 0, need_channel = 0, need_backtrace = 0;
+            int need_hash = 0, need_math = 0, need_sort = 0, need_ffi = 0, need_db = 0;
+            int need_elf = 0, need_json = 0, need_csv = 0, need_regex = 0, need_compress = 0, need_unicode = 0;
+            int need_dynlib = 0, need_http = 0, need_tar = 0, need_simd = 0, need_context = 0;
+            int need_error = 0, need_datetime = 0, need_uuid = 0, need_url = 0, need_cli = 0;
+            int need_security = 0, need_config = 0, need_cache = 0, need_trace = 0;
+            int need_task = 0, need_schema = 0, need_test = 0, need_socketio = 0;
+            int need_set = 0, need_map = 0, need_queue = 0;
+            int need_panic = 0;
+            /* 使用 use_line：忽略 preamble 的 extern/#define 行，只认真实引用 */
+            static const char *net_api[] = {
+                "std_net_listen", "std_net_connect", "std_net_udp_bind", "std_net_udp_recv",
+                "std_net_udp_send", "std_net_addr_to_u32", "std_net_close_udp",
+                "net_tcp_connect_c", "net_tcp_listen_c", "net_udp_bind_c",
+                "net_udp_recv_many_buf_c", "net_udp_send_many_buf_c",
+                "net_udp_send_c", "net_dns_resolve_c", "net_sock_create_c",
+                "net_stream_write_batch_c", "net_close_socket_c_real",
+                "net_run_accept_workers_c_real"
+            };
+            /* string：用 std_string_ 前缀 + use_line（已跳过 struct/typedef/extern/placeholder） */
+            static const char *context_api[] = {
+                "std_context_background(", "std_context_with_cancel(",
+                "std_context_with_deadline(", "std_context_with_timeout(",
+                "std_context_cancel(", "std_context_set_value(",
+                "std_context_get_value(", "std_context_free(",
+                "std_context_is_cancelled(", "std_context_deadline_ns(",
+                "std_context_remaining_ns("
+            };
+            static const char *crypto_api[] = {
+                "std_crypto_", "core_crypto_mem_eq", "core_crypto_sha",
+                "crypto_sha", "ed25519_"
+            };
+            int jscan;
+            for (jscan = 0; jscan < n; jscan++) {
+                const char *cp = c_paths[jscan];
+                if (!cp)
+                    continue;
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_process_") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "shux_process_spawn") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "shux_process_wait") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "process_spawn") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "process_exec"))
+                    need_process = 1;
+                /* 含 preamble 转发桩对 process_shux_*_get 的引用（非 use_line：定义体内亦须认） */
+                if (link_abi_generated_c_contains_substr(cp, "process_shux_argc_get") ||
+                    link_abi_generated_c_contains_substr(cp, "process_shux_argv_get"))
+                    need_process_argv_glue = 1;
+                /* std_string_* API 或 string.o 内 bare C 辅助（vec_add_verify 等直接 extern shux_string_memcmp_c） */
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_string_") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "shux_string_"))
+                    need_string = 1;
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_path_") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "path_join") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "path_dirname"))
+                    need_path = 1;
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_runtime_"))
+                    need_runtime = 1;
+                if (link_abi_generated_c_contains_any_substr_use_line(cp, net_api, (int)(sizeof net_api / sizeof net_api[0])))
+                    need_net = 1;
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_thread_") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "thread_create_c") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "thread_join_c"))
+                    need_thread = 1;
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_time_") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "time_now_") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "time_sleep_"))
+                    need_time = 1;
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_random_") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "random_fill_"))
+                    need_random = 1;
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_env_") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "env_get_") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "env_set_"))
+                    need_env = 1;
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_sync_") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "sync_mutex_") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "sync_rwlock_"))
+                    need_sync = 1;
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_encoding_"))
+                    need_encoding = 1;
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_base64_") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "base64_encode") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "base64_decode"))
+                    need_base64 = 1;
+                if (link_abi_generated_c_contains_any_substr_use_line(cp, crypto_api, (int)(sizeof crypto_api / sizeof crypto_api[0])))
+                    need_crypto = 1;
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_log_") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "log_write_c") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "log_info_"))
+                    need_log = 1;
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_atomic_") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "atomic_load_i32_c") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "atomic_store_i32_c") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "atomic_fetch_"))
+                    need_atomic = 1;
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_channel_") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "channel_send") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "channel_recv"))
+                    need_channel = 1;
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_backtrace_") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "backtrace_capture"))
+                    need_backtrace = 1;
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_hash_") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "hash_fnv") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "hash_sip"))
+                    need_hash = 1;
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_math_") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "math_sin") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "math_cos"))
+                    need_math = 1;
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_sort_") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "sort_i32") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "sort_stable"))
+                    need_sort = 1;
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_ffi_") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "ffi_call"))
+                    need_ffi = 1;
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_db_") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "sqlite3_") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "db_sqlite_"))
+                    need_db = 1;
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_elf_") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "elf_parse"))
+                    need_elf = 1;
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_json_") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "json_parse_"))
+                    need_json = 1;
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_csv_") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "csv_next_field"))
+                    need_csv = 1;
+                /* set/map：link_only 后用户 C 仅有 extern/call；按需链预编 .o */
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_set_"))
+                    need_set = 1;
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_map_"))
+                    need_map = 1;
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_queue_"))
+                    need_queue = 1;
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_regex_") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "regex_match"))
+                    need_regex = 1;
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_compress_") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "compress_gzip") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "compress_zstd") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "compress_brotli"))
+                    need_compress = 1;
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_unicode_") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "unicode_utf8"))
+                    need_unicode = 1;
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_dynlib_") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "dynlib_open"))
+                    need_dynlib = 1;
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_http_") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "http_request") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "http2_"))
+                    need_http = 1;
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_tar_") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "tar_open") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "tar_extract"))
+                    need_tar = 1;
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_simd_"))
+                    need_simd = 1;
+                /*
+                 * context：use_line 会命中 co-emit 的 std_io_timeout_from_ctx 体内
+                 * std_context_is_cancelled 调用；靠 -dead_strip 去掉未引用体后，
+                 * 若仍 need 链 context 会拖 atomic。策略：仅用户入口 API 触发 need；
+                 * io 体里的 is_cancelled/deadline/remaining 不单独成 need（依赖 GC）。
+                 */
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_context_background(") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "std_context_with_cancel(") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "std_context_with_deadline(") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "std_context_with_timeout(") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "std_context_cancel(") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "std_context_set_value(") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "std_context_get_value(") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "std_context_free("))
+                    need_context = 1;
+                (void)context_api; /* 文档表；入口 API 已逐条 use_line */
+                /* 含 std_error_ok / chain_* / is_* 等；勿只扫 new/format（tests/error 用 ok） */
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_error_") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "error_wrap_"))
+                    need_error = 1;
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_datetime_"))
+                    need_datetime = 1;
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_uuid_") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "uuid_v4") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "uuid_parse"))
+                    need_uuid = 1;
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_url_") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "url_parse") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "url_join"))
+                    need_url = 1;
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_cli_") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "cli_parse"))
+                    need_cli = 1;
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_security_"))
+                    need_security = 1;
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_config_"))
+                    need_config = 1;
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_cache_"))
+                    need_cache = 1;
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_trace_"))
+                    need_trace = 1;
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_task_"))
+                    need_task = 1;
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_schema_"))
+                    need_schema = 1;
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_test_") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "test_call_"))
+                    need_test = 1;
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_socketio_") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "socketio_emit") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "socketio_on"))
+                    need_socketio = 1;
+                /* panic：co-emit 已有 void shux_panic_(...) 体则不链 panic.o */
+                if (link_abi_generated_c_contains_substr_use_line(cp, "shux_panic_(") &&
+                    !link_abi_generated_c_contains_substr(cp, "void shux_panic_(int has_msg, int msg_val) {") &&
+                    !link_abi_generated_c_contains_substr(cp, "void shux_panic_(int has_msg, int msg_val){"))
+                    need_panic = 1;
+            }
+            /* co-emit 已有函数体时勿再链同模块 .o（防 duplicate）。anchor 体 = co-emit 标志。 */
+            if (need_string) {
+                int has = 0;
+                for (jscan = 0; jscan < n; jscan++)
+                    if (link_abi_generated_c_contains_substr(c_paths[jscan], "std_string_string_module_anchor(void) {") ||
+                        link_abi_generated_c_contains_substr(c_paths[jscan], "int32_t std_string_new("))
+                        has = 1;
+                /* string 常部分 co-emit；只要引用就链 string.o（.o 与部分 T 若冲突再另修） */
+                (void)has;
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, string_o);
+            }
+            {
+                int pushed_process_o = 0;
+                if (need_process && invoke_cc_argv_push_existing(argv, &i, argv_cap, process_o)) {
+                    pushed_process_o = 1;
 #if defined(__linux__)
-            if (i < argv_cap - 1)
-                argv[i++] = (char *)"-pthread";
+                    if (i < argv_cap - 1)
+                        argv[i++] = (char *)"-pthread";
 #endif
-        }
-        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, string_o);
-        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, heap_o);
-        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, path_o);
-        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, runtime_o);
-        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, runtime_panic_o);
-        if (invoke_cc_argv_push_existing(argv, &i, argv_cap, net_o)) {
-            (void)invoke_cc_append_net_tls_ld(argv, &i, argv_cap, net_o, include_root);
-            (void)shux_ensure_runtime_net_udp_batch_o(NULL);
-            {
-                const char *rnub = shux_runtime_net_udp_batch_o_path(NULL);
-                if (rnub && rnub[0])
-                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rnub);
+                }
+                /* process.o 已 ld -r 含 argv glue；否则在 need_env / preamble process_shux_* 时链 glue。
+                 * 禁止 process.o + runtime_process_argv.o 双链（process_shux_* 强符号重复）。 */
+                if (!pushed_process_o && (need_env || need_process_argv_glue)) {
+                    (void)shux_ensure_runtime_process_argv_o(NULL);
+                    {
+                        const char *rpa = shux_runtime_process_argv_o_path(NULL);
+                        if (rpa && rpa[0])
+                            (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rpa);
+                    }
+                }
             }
-            (void)shux_ensure_runtime_net_workers_o(NULL);
-            {
-                const char *rnw = shux_runtime_net_workers_o_path(NULL);
-                if (rnw && rnw[0])
-                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rnw);
-            }
-            /* 【Why 逻辑根源】net.o 引用 io_uring_* weak 符号（io_uring_connect /
-               io_uring_accept / io_uring_accept_many / io_uring_connect_many /
-               io_uring_prefetch_fd）及 shu_net_udp_recvmmsg2_c / shu_net_udp_sendmmsg2_c /
-               shu_net_udp_recvmmsg_buf_c / shu_net_udp_sendmmsg_buf_c 等 weak 符号。
-               这些符号定义在 runtime_asm_io_stubs.o（seeds/runtime_asm_io_stubs.from_x.c）。
-               若不链入此 .o，Linux 链接器报 undefined reference to 'io_uring_*' /
-               'shu_net_udp_*'。
-               macOS 上 Mach-O 不支持 weak 符号，io_stubs.o 中 std_io_write_stdout 等
-               符号变为强定义，会覆盖 std.io 模块的实现，导致 write_stdout 等测试回归。
-               故仅 Linux 需链入 io_stubs.o；macOS 上 net.o 的 io_uring 引用由
-               net_import_alias.c 的 C 桥桩或系统库解析。
-               【Invariant】Linux: net_o 链入时 runtime_asm_io_stubs.o 必须同时链入；
-               macOS: 不链入 io_stubs.o，避免 std_io_* 强符号冲突。
-               【Asm/Perf】Linux 上为 weak 符号，链接器选第一个定义，无运行时开销。 */
+            if (heap_o && heap_o[0])
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, heap_o);
+            if (need_path)
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, path_o);
+            if (need_runtime)
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, runtime_o);
+            if (need_panic || need_runtime)
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, runtime_panic_o);
+            if (need_net && invoke_cc_argv_push_existing(argv, &i, argv_cap, net_o)) {
+                (void)invoke_cc_append_net_tls_ld(argv, &i, argv_cap, net_o, include_root);
+                (void)shux_ensure_runtime_net_udp_batch_o(NULL);
+                {
+                    const char *rnub = shux_runtime_net_udp_batch_o_path(NULL);
+                    if (rnub && rnub[0])
+                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rnub);
+                }
+                (void)shux_ensure_runtime_net_workers_o(NULL);
+                {
+                    const char *rnw = shux_runtime_net_workers_o_path(NULL);
+                    if (rnw && rnw[0])
+                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rnw);
+                }
 #if defined(__linux__)
-            {
-                (void)shux_ensure_runtime_asm_io_stubs_o(NULL);
-                const char *ris = shux_runtime_asm_io_stubs_o_path(NULL);
-                if (ris && ris[0])
-                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, ris);
-            }
+                {
+                    (void)shux_ensure_runtime_asm_io_stubs_o(NULL);
+                    const char *ris = shux_runtime_asm_io_stubs_o_path(NULL);
+                    if (ris && ris[0])
+                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, ris);
+                }
 #endif
 #if defined(_WIN32) || defined(_WIN64)
-            /* 【Why 根源】net.o / net_import_alias.c / runtime_net_udp_batch.o /
-               runtime_net_workers.o 引用 socket/bind/listen/accept/connect/
-               recv/send/setsockopt/ioctlsocket/closesocket/htons/htonl 等
-               winsock 符号；MinGW 不自动链 ws2_32。
-               【Invariant】仅 Windows 需 -lws2_32；Linux/macOS 走 libc。 */
-            if (i < argv_cap - 1)
-                argv[i++] = (char *)labi_ld_flag_lws2_32();
+                if (i < argv_cap - 1)
+                    argv[i++] = (char *)labi_ld_flag_lws2_32();
 #endif
-        }
-        if (invoke_cc_argv_push_existing(argv, &i, argv_cap, thread_o)) {
-            {
+            }
+            if (need_thread && invoke_cc_argv_push_existing(argv, &i, argv_cap, thread_o)) {
                 const char *rtg = shux_runtime_thread_glue_o_path(NULL);
                 if (rtg && rtg[0])
                     (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rtg);
             }
-        }
-        if (invoke_cc_argv_push_existing(argv, &i, argv_cap, time_o)) {
-            {
+            if (need_time && invoke_cc_argv_push_existing(argv, &i, argv_cap, time_o)) {
                 const char *rto = shux_runtime_time_os_o_path(NULL);
                 if (rto && rto[0])
                     (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rto);
             }
-        }
-        if (invoke_cc_argv_push_existing(argv, &i, argv_cap, random_o)) {
-            {
+            if (need_random && invoke_cc_argv_push_existing(argv, &i, argv_cap, random_o)) {
                 const char *rrf = shux_runtime_random_fill_o_path(NULL);
                 if (rrf && rrf[0])
                     (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rrf);
-            }
 #if defined(_WIN32) || defined(_WIN64)
-            if (i < argv_cap - 1)
-                argv[i++] = (char *)labi_ld_flag_lbcrypt();
+                if (i < argv_cap - 1)
+                    argv[i++] = (char *)labi_ld_flag_lbcrypt();
 #endif
-        }
-        if (invoke_cc_argv_push_existing(argv, &i, argv_cap, env_o)) {
-            {
-                const char *reo = shux_runtime_env_os_o_path(NULL);
-                if (reo && reo[0])
-                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, reo);
             }
-        }
-        if (invoke_cc_argv_push_existing(argv, &i, argv_cap, sync_o)) {
-            {
+            if (need_env) {
+                /* mod.x co-emit 提供 std_env_*；env.o 可选。argv glue 已在上方统一推入。 */
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, env_o);
+                {
+                    const char *reo = shux_runtime_env_os_o_path(NULL);
+                    if (reo && reo[0])
+                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, reo);
+                }
+            }
+            if (need_sync && invoke_cc_argv_push_existing(argv, &i, argv_cap, sync_o)) {
                 const char *rsld = shux_runtime_sync_lock_diag_tls_o_path(NULL);
                 if (rsld && rsld[0])
                     (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rsld);
+                {
+                    const char *rso = shux_runtime_sync_os_o_path(NULL);
+                    if (rso && rso[0])
+                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rso);
+                }
             }
-            {
-                const char *rso = shux_runtime_sync_os_o_path(NULL);
-                if (rso && rso[0])
-                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rso);
+            if (need_encoding)
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, encoding_o);
+            if (need_base64)
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, base64_o);
+            if (need_crypto) {
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, crypto_o);
+                {
+                    const char *red = shux_runtime_ed25519_ref10_glue_o_path(NULL);
+                    if (red && red[0])
+                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, red);
+                    {
+                        const char *rci = shux_runtime_crypto_inc_glue_o_path(NULL);
+                        if (rci && rci[0])
+                            (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rci);
+                    }
+                }
             }
-        }
-        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, encoding_o);
-        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, base64_o);
-        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, crypto_o);
-        {
-            const char *red = shux_runtime_ed25519_ref10_glue_o_path(NULL);
-            if (red && red[0])
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, red);
-            {
-                const char *rci = shux_runtime_crypto_inc_glue_o_path(NULL);
-                if (rci && rci[0])
-                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rci);
-            }
-        }
-        if (invoke_cc_argv_push_existing(argv, &i, argv_cap,
-                shux_rel_o_path_from_argv0(include_root, labi_icc_rel_log_o()))) {
-            {
+            if (need_log && invoke_cc_argv_push_existing(argv, &i, argv_cap,
+                    shux_rel_o_path_from_argv0(include_root, labi_icc_rel_log_o()))) {
                 const char *rlo = shux_runtime_log_os_o_path(NULL);
                 if (rlo && rlo[0])
                     (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rlo);
             }
-        }
-        if (invoke_cc_argv_push_existing(argv, &i, argv_cap, atomic_o)) {
-            {
+            if (need_atomic && invoke_cc_argv_push_existing(argv, &i, argv_cap, atomic_o)) {
                 const char *rag = shux_runtime_atomic_glue_o_path(NULL);
                 if (rag && rag[0])
                     (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rag);
             }
-        }
-        if (invoke_cc_argv_push_existing(argv, &i, argv_cap, channel_o)) {
-            {
-                const char *rcg = shux_runtime_channel_glue_o_path(NULL);
-                if (rcg && rcg[0])
-                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rcg);
+            if (need_channel) {
+                /* marker channel.o 可选；API 由 co-emit mod.x，实现由 runtime_channel_glue.o */
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, channel_o);
+                (void)shux_ensure_runtime_channel_glue_o(NULL);
+                {
+                    const char *rcg = shux_runtime_channel_glue_o_path(NULL);
+                    if (rcg && rcg[0])
+                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rcg);
+                }
             }
-        }
-        if (invoke_cc_argv_push_existing(argv, &i, argv_cap, backtrace_o)) {
-            {
-                const char *rbp = shux_runtime_backtrace_platform_o_path(NULL);
-                if (rbp && rbp[0])
-                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rbp);
-            }
+            if (need_backtrace) {
+                /* marker backtrace.o 可选；API 由 co-emit mod.x，平台由 runtime_backtrace_platform.o */
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, backtrace_o);
+                (void)shux_ensure_runtime_backtrace_platform_o(NULL);
+                {
+                    const char *rbp = shux_runtime_backtrace_platform_o_path(NULL);
+                    if (rbp && rbp[0])
+                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rbp);
+                }
 #if defined(__linux__)
-            if (i < argv_cap - 1)
-                argv[i++] = (char *)"-rdynamic";
-            if (i < argv_cap - 1)
-                argv[i++] = (char *)"-ldl";
+                if (i < argv_cap - 1)
+                    argv[i++] = (char *)"-rdynamic";
+                if (i < argv_cap - 1)
+                    argv[i++] = (char *)"-ldl";
 #elif defined(__APPLE__)
-            if (i < argv_cap - 2)
-                argv[i++] = (char *)"-Wl,-export_dynamic";
+                if (i < argv_cap - 2)
+                    argv[i++] = (char *)"-Wl,-export_dynamic";
 #elif defined(_WIN32) || defined(_WIN64)
-            /* 【Why 根源】runtime_backtrace_platform.o 引用 SymSetOptions/SymInitialize/
-               SymFromAddr/UnDecorateSymbolName 等 DbgHelp 符号；MinGW 不自动链 dbghelp。
-               【Invariant】仅 Windows 需显式 -ldbghelp；Linux/macOS 走 -ldl/-rdynamic。 */
-            if (i < argv_cap - 1)
-                argv[i++] = (char *)"-ldbghelp";
+                if (i < argv_cap - 1)
+                    argv[i++] = (char *)"-ldbghelp";
 #endif
-        }
-        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, hash_o);
-        if (invoke_cc_argv_push_existing(argv, &i, argv_cap, math_o)) {
-            {
+            }
+            if (need_hash)
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, hash_o);
+            if (need_math && invoke_cc_argv_push_existing(argv, &i, argv_cap, math_o)) {
                 const char *rml = shux_runtime_math_libm_o_path(NULL);
                 if (rml && rml[0])
                     (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rml);
+                if (i < argv_cap - 1)
+                    argv[i++] = (char *)"-lm";
             }
-            if (i < argv_cap - 1)
-                argv[i++] = (char *)"-lm";
-        }
-        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, sort_o);
-        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, ffi_o);
-        if (invoke_cc_argv_push_existing(argv, &i, argv_cap, db_o)) {
-            {
-                const char *rsg = shux_runtime_sqlite_glue_o_path(NULL);
-                if (rsg && rsg[0])
-                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rsg);
-            }
-            if (i < argv_cap - 1)
-                argv[i++] = (char *)"-lsqlite3";
-        }
-        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, elf_o);
-        /* shux_rel_o_path_from_argv0 用静态缓冲；须在 push 时按 rel 重解析，勿用 runtime.c 早先保存的 json_o 指针。 */
-        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
-            shux_rel_o_path_from_argv0(include_root, labi_icc_rel_json_o()));
-        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
-            shux_rel_o_path_from_argv0(include_root, labi_icc_rel_csv_o()));
-        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, regex_o);
-        if (invoke_cc_argv_push_existing(argv, &i, argv_cap, compress_o))
-            invoke_cc_append_compress_ld(argv, &i, argv_cap, compress_o, NULL);
-        else {
-            /* F-06 v1 / F-04 v7：无 compress.o，扫描生成 C 按需 -lz/-lzstd/-lbrotli* */
-            int needs_zlib = 0;
-            int needs_zstd = 0;
-            int needs_brotli = 0;
-            int j;
-            for (j = 0; j < n; j++) {
-                if (link_abi_generated_c_needs_zlib(c_paths[j]))
-                    needs_zlib = 1;
-                if (link_abi_generated_c_needs_zstd(c_paths[j]))
-                    needs_zstd = 1;
-                if (link_abi_generated_c_needs_brotli(c_paths[j]))
-                    needs_brotli = 1;
-            }
-            if (needs_zlib || needs_zstd || needs_brotli) {
-                ld_append_brew_lib_paths((const char **)argv, &i, argv_cap);
-                if (needs_zlib && i < argv_cap - 1) {
-                    argv[i++] = (char *)"-lz";
-                    /* zlib 宏包装桩：deflateInit2/inflateInit2 是宏，需真实函数符号 */
-                    (void)shux_ensure_runtime_compress_zlib_glue_o(NULL);
-                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
-                        shux_runtime_compress_zlib_glue_o_path(NULL));
-                }
-                if (needs_zstd && i < argv_cap - 1)
-                    argv[i++] = (char *)"-lzstd";
-                if (needs_brotli && i < argv_cap - 1) {
-                    if (i < argv_cap - 1)
-                        argv[i++] = (char *)"-lbrotlienc";
-                    if (i < argv_cap - 1)
-                        argv[i++] = (char *)"-lbrotlidec";
-                }
-            }
-        }
-        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, unicode_o);
-        if (invoke_cc_argv_push_existing(argv, &i, argv_cap, dynlib_o)) {
-            {
-                const char *rdo = shux_runtime_dynlib_os_o_path(NULL);
-                if (rdo && rdo[0])
-                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rdo);
-            }
-#if defined(__linux__)
-            if (i < argv_cap - 1)
-                argv[i++] = (char *)"-ldl";
-#endif
-        }
-        if (invoke_cc_argv_push_existing(argv, &i, argv_cap, http_o)) {
-            /* 与 asm ld 路径一致：缺 glue 时 ensure 编译，再 push（zlib 同模式）。 */
-            (void)shux_ensure_runtime_http_glue_o(NULL);
-            {
-                const char *rhg = shux_runtime_http_glue_o_path(NULL);
-                if (rhg && rhg[0])
-                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rhg);
-            }
-#if defined(_WIN32) || defined(_WIN64)
-            /* 【Why 根源】runtime_http_glue.o 引用 socket/connect/recv/send/
-               WSAStartup/WSACleanup/getaddrinfo/freeaddrinfo 等 winsock 符号；
-               MinGW 不自动链 ws2_32。net_o 链入块已推 -lws2_32，但 http 可能独立链入。
-               【Invariant】仅 Windows 需 -lws2_32；Linux/macOS 走 libc。 */
-            if (i < argv_cap - 1)
-                argv[i++] = (char *)labi_ld_flag_lws2_32();
-#endif
-        }
-        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, shux_rel_o_path_from_argv0(include_root, labi_icc_rel_socketio_o()));
-        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, tar_o);
-        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, simd_o);
-        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, context_o);
-        /* F-闭合：error.o 提供 std_error_http_err_cancelled/timeout 等，http.o 依赖 */
-        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, shux_rel_o_path_from_argv0(include_root, labi_icc_rel_error_o()));
-        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, datetime_o);
-        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, uuid_o);
-        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, url_o);
-        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, cli_o);
-        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, security_o);
-        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, config_o);
-        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, cache_o);
-        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, trace_o);
-        {
-            const char *sched_link = async_scheduler_o;
-            int j;
-            int task_linked = invoke_cc_argv_push_existing(argv, &i, argv_cap, task_o);
-            (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, schema_o);
-            if (invoke_cc_argv_push_existing(argv, &i, argv_cap, test_o)) {
-                (void)shux_ensure_runtime_test_fn_invoke_o(NULL);
-                {
-                    const char *rtfi = shux_runtime_test_fn_invoke_o_path(NULL);
-                    if (rtfi && rtfi[0])
-                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rtfi);
-                }
-            }
-            /* 调用方未预检时，扫描生成 C 是否引用 runtime_drain 等 scheduler 符号。 */
-            if (!sched_link) {
-                for (j = 0; j < n; j++) {
-                    if (shux_generated_c_needs_async_scheduler(c_paths[j])) {
-                        sched_link = shux_std_async_scheduler_o_path(include_root);
+            /* sort.o：仅当未 co-emit 实现时链入（co-emit 定义形如 void std_sort_sort_…） */
+            if (need_sort) {
+                int have_sort_body = 0;
+                for (jscan = 0; jscan < n; jscan++) {
+                    const char *cp = c_paths[jscan];
+                    if (!cp)
+                        continue;
+                    if (link_abi_generated_c_contains_substr(cp, "void std_sort_sort_") != 0 ||
+                        link_abi_generated_c_contains_substr(cp, "void std_sort_sort(") != 0) {
+                        have_sort_body = 1;
                         break;
                     }
                 }
+                if (!have_sort_body)
+                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, sort_o);
             }
-            if (task_linked) {
-                const char *sched = scheduler_o_for_task_link(task_o, sched_link);
-                if (invoke_cc_argv_push_existing(argv, &i, argv_cap, sched)) {
+            if (need_ffi)
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, ffi_o);
+            if (need_db && invoke_cc_argv_push_existing(argv, &i, argv_cap, db_o)) {
+                const char *rsg = shux_runtime_sqlite_glue_o_path(NULL);
+                if (rsg && rsg[0])
+                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rsg);
+                if (i < argv_cap - 1)
+                    argv[i++] = (char *)"-lsqlite3";
+            }
+            if (need_elf)
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, elf_o);
+            if (need_json)
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
+                    shux_rel_o_path_from_argv0(include_root, labi_icc_rel_json_o()));
+            if (need_csv)
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
+                    shux_rel_o_path_from_argv0(include_root, labi_icc_rel_csv_o()));
+            /*
+             * set.o U：std_heap_libc_heap_alloc_*_c / std_heap_map_find / std_hash_bytes。
+             * 现有 heap_import 探针不含 *_i32_c 等符号，故 need_set 时显式链 heap+hash+mem。
+             */
+            if (need_set && invoke_cc_argv_push_existing(argv, &i, argv_cap,
+                    shux_rel_o_path_from_argv0(include_root, "std/set/set.o"))) {
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
+                    shux_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o()));
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
+                    shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o()));
+                /* set.o → U _std_hash_bytes；need_hash 推送已在上方，此处显式补链 */
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, hash_o);
+            }
+            if (need_map && invoke_cc_argv_push_existing(argv, &i, argv_cap,
+                    shux_rel_o_path_from_argv0(include_root, "std/map/map.o"))) {
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
+                    shux_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o()));
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
+                    shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o()));
+            }
+            if (need_queue && invoke_cc_argv_push_existing(argv, &i, argv_cap,
+                    shux_rel_o_path_from_argv0(include_root, "std/queue/queue.o"))) {
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
+                    shux_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o()));
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
+                    shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o()));
+            }
+            if (need_regex)
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, regex_o);
+            /* compress.o 仅 need_compress；库路径仍可按生成 C 的 zlib/zstd/brotli 引用按需 -l* */
+            if (need_compress && invoke_cc_argv_push_existing(argv, &i, argv_cap, compress_o))
+                invoke_cc_append_compress_ld(argv, &i, argv_cap, compress_o, NULL);
+            else {
+                int needs_zlib = 0, needs_zstd = 0, needs_brotli = 0, j;
+                for (j = 0; j < n; j++) {
+                    if (link_abi_generated_c_needs_zlib(c_paths[j]))
+                        needs_zlib = 1;
+                    if (link_abi_generated_c_needs_zstd(c_paths[j]))
+                        needs_zstd = 1;
+                    if (link_abi_generated_c_needs_brotli(c_paths[j]))
+                        needs_brotli = 1;
+                }
+                if (needs_zlib || needs_zstd || needs_brotli) {
+                    ld_append_brew_lib_paths((const char **)argv, &i, argv_cap);
+                    if (needs_zlib && i < argv_cap - 1) {
+                        argv[i++] = (char *)"-lz";
+                        (void)shux_ensure_runtime_compress_zlib_glue_o(NULL);
+                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
+                            shux_runtime_compress_zlib_glue_o_path(NULL));
+                    }
+                    if (needs_zstd && i < argv_cap - 1)
+                        argv[i++] = (char *)"-lzstd";
+                    if (needs_brotli && i < argv_cap - 1) {
+                        argv[i++] = (char *)"-lbrotlienc";
+                        if (i < argv_cap - 1)
+                            argv[i++] = (char *)"-lbrotlidec";
+                    }
+                }
+            }
+            /* unicode.o：co-emit mod+unicode.x 时勿再链，否则 std_unicode_unicode_* 双定义 */
+            if (need_unicode) {
+                int have_unicode_body = 0;
+                for (jscan = 0; jscan < n; jscan++) {
+                    const char *cp = c_paths[jscan];
+                    if (!cp)
+                        continue;
+                    if (link_abi_generated_c_contains_substr(cp, "int32_t std_unicode_category(") != 0 ||
+                        link_abi_generated_c_contains_substr(cp, "int32_t std_unicode_unicode_category(") != 0) {
+                        have_unicode_body = 1;
+                        break;
+                    }
+                }
+                if (!have_unicode_body)
+                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, unicode_o);
+            }
+            if (need_dynlib && invoke_cc_argv_push_existing(argv, &i, argv_cap, dynlib_o)) {
+                const char *rdo = shux_runtime_dynlib_os_o_path(NULL);
+                if (rdo && rdo[0])
+                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rdo);
+#if defined(__linux__)
+                if (i < argv_cap - 1)
+                    argv[i++] = (char *)"-ldl";
+#endif
+            }
+            if (need_http && invoke_cc_argv_push_existing(argv, &i, argv_cap, http_o)) {
+                (void)shux_ensure_runtime_http_glue_o(NULL);
+                {
+                    const char *rhg = shux_runtime_http_glue_o_path(NULL);
+                    if (rhg && rhg[0])
+                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rhg);
+                }
+#if defined(_WIN32) || defined(_WIN64)
+                if (i < argv_cap - 1)
+                    argv[i++] = (char *)labi_ld_flag_lws2_32();
+#endif
+                need_error = 1; /* http 依赖 error.o 符号 */
+            }
+            if (need_socketio)
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
+                    shux_rel_o_path_from_argv0(include_root, labi_icc_rel_socketio_o()));
+            if (need_tar)
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, tar_o);
+            if (need_simd)
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, simd_o);
+            if (need_context)
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, context_o);
+            if (need_error)
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
+                    shux_rel_o_path_from_argv0(include_root, labi_icc_rel_error_o()));
+            if (need_datetime)
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, datetime_o);
+            if (need_uuid)
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, uuid_o);
+            if (need_url)
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, url_o);
+            if (need_cli)
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, cli_o);
+            if (need_security)
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, security_o);
+            if (need_config)
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, config_o);
+            if (need_cache)
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, cache_o);
+            if (need_trace)
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, trace_o);
+            {
+                const char *sched_link = async_scheduler_o;
+                int j;
+                int task_linked = 0;
+                if (need_task)
+                    task_linked = invoke_cc_argv_push_existing(argv, &i, argv_cap, task_o);
+                if (need_schema)
+                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, schema_o);
+                if (need_test && invoke_cc_argv_push_existing(argv, &i, argv_cap, test_o)) {
+                    (void)shux_ensure_runtime_test_fn_invoke_o(NULL);
+                    {
+                        const char *rtfi = shux_runtime_test_fn_invoke_o_path(NULL);
+                        if (rtfi && rtfi[0])
+                            (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rtfi);
+                    }
+                }
+                if (!sched_link) {
+                    for (j = 0; j < n; j++) {
+                        if (shux_generated_c_needs_async_scheduler(c_paths[j])) {
+                            sched_link = shux_std_async_scheduler_o_path(include_root);
+                            break;
+                        }
+                    }
+                }
+                if (task_linked) {
+                    const char *sched = scheduler_o_for_task_link(task_o, sched_link);
+                    if (invoke_cc_argv_push_existing(argv, &i, argv_cap, sched)) {
+#if defined(__linux__)
+                        if (i < argv_cap - 1)
+                            argv[i++] = (char *)"-pthread";
+#endif
+                        (void)shux_ensure_runtime_scheduler_glue_o(NULL);
+                        {
+                            const char *rsg = shux_runtime_scheduler_glue_o_path(NULL);
+                            if (rsg && rsg[0])
+                                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rsg);
+                        }
+                    }
+                } else if (sched_link && invoke_cc_argv_push_existing(argv, &i, argv_cap, sched_link)) {
 #if defined(__linux__)
                     if (i < argv_cap - 1)
                         argv[i++] = (char *)"-pthread";
@@ -3968,29 +4485,49 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
                             (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rsg);
                     }
                 }
-            } else if (invoke_cc_argv_push_existing(argv, &i, argv_cap, sched_link)) {
-#if defined(__linux__)
-                if (i < argv_cap - 1)
-                    argv[i++] = (char *)"-pthread";
-#endif
-                (void)shux_ensure_runtime_scheduler_glue_o(NULL);
-                {
-                    const char *rsg = shux_runtime_scheduler_glue_o_path(NULL);
-                    if (rsg && rsg[0])
-                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rsg);
-                }
             }
         }
-        /* F-06 v1：heap.o 按需链入 — runtime.c 不再硬编码 heap.o 路径；invoke_cc 扫描
-         * 已入链 std 各 .o 的 undefined 符号，若引用 std.heap API（std_heap_alloc_usize 等）
-         * 则按需解析 heap.o 路径并链入。
-         * 【Why 根源】F-闭合删除 *_import_alias.c C 桩后，std/string.o、std/http.o 等内部
-         *   直接引用 std_heap_* API，不再经 C 桩内联；heap.o 必须按需链入以提供符号定义。
-         * 【Invariant】须在所有 std 各 .o push 之后、-lc 之前；argv 反映当前已推入的 .o。
-         * 【Asm/Perf】nm -u 子进程 O(n×m)，n=argv 中 .o 数，m=heap API 符号数；仅链接期一次。 */
-        if (link_abi_link_needs_std_heap_import(NULL, (const char **)argv, i)) {
-            const char *heap_o_ondemand = shux_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o());
-            (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, heap_o_ondemand);
+        /* F-06 v1：heap.o 按需链入。
+         * 【Why】① 已入链 std/*.o 的 U（nm）；② 用户生成 C 的真实引用（use_line）。
+         * 仅扫 argv 会漏：C 后端是「源码直链」，此时用户 .c 尚未成 .o，nm 不可见。
+         * link_only 后 tests/heap 仅有 extern std_heap_alloc_size_zero → 须②。 */
+        {
+            int need_heap_from_c = 0;
+            int cj;
+            if (link_abi_link_needs_std_heap_import(NULL, (const char **)argv, i))
+                need_heap_from_c = 1;
+            for (cj = 0; cj < n && !need_heap_from_c; cj++) {
+                const char *cp = c_paths[cj];
+                if (!cp)
+                    continue;
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_heap_alloc_size_zero") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "std_heap_alloc_usize") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "std_heap_default_alloc") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "std_heap_heap_alloc") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "std_heap_alloc_Allocator") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "std_heap_free_Allocator") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "std_heap_map_find") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "std_heap_libc_heap_alloc"))
+                    need_heap_from_c = 1;
+            }
+            if (need_heap_from_c) {
+                int c_provides_core_mem = 0;
+                int c_provides_std_heap = 0;
+                for (cj = 0; cj < n; cj++) {
+                    if (link_abi_generated_c_provides_core_mem(c_paths[cj]))
+                        c_provides_core_mem = 1;
+                    if (link_abi_generated_c_provides_std_heap(c_paths[cj]))
+                        c_provides_std_heap = 1;
+                }
+                if (!c_provides_core_mem) {
+                    const char *mem_o_ondemand = shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o());
+                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, mem_o_ondemand);
+                }
+                if (!c_provides_std_heap) {
+                    const char *heap_o_ondemand = shux_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o());
+                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, heap_o_ondemand);
+                }
+            }
         }
 #if defined(__linux__) || defined(__APPLE__)
         /* Unix 上 thread.o 使用 CPU_ZERO/CPU_SET（sched.h）；用 -pthread 让 cc 以正确顺序拉取 libpthread/libc */
@@ -4066,20 +4603,23 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
         return -1;
     }
 #endif
-    /* 阶段 8：非调试（-O0）时对产出执行 strip，减小体积（避免传 -s 给 cc 触发 ld 的 obsolete 警告） */
+    /* 阶段 8：非 -O0 时 strip 减体积。必须用 strip -x（仅剥局部符号）：
+     * 裸 strip 在 Darwin 会去掉 _main 等全局符号，导致 LC_MAIN 仍可跑但 nm/otool
+     * 无 _main: 标签 → run-asm-* 反汇编门禁假红、调试符号丢失。禁止 -s 给 cc（obsolete）。 */
     if (strcmp(opt_level, "0") != 0) {
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
         {
-            const char *sargv[3];
+            const char *sargv[4];
             sargv[0] = "strip";
-            sargv[1] = out_path;
-            sargv[2] = NULL;
+            sargv[1] = "-x";
+            sargv[2] = out_path;
+            sargv[3] = NULL;
             (void)_spawnvp(_P_WAIT, "strip", (const char *const *)sargv);
         }
 #else
         pid_t spid = fork();
         if (spid == 0) {
-            execlp("strip", "strip", out_path, (char *)NULL);
+            execlp("strip", "strip", "-x", out_path, (char *)NULL);
             _exit(127);
         }
         if (spid > 0) {
@@ -4323,7 +4863,12 @@ const char *shux_rel_o_path_from_argv0(const char *argv0, const char *rel) {
 }
 
 /** 扫描用户 .o 未定义符号；nm 失败时返回 0（勿臆测缺符号，避免 on_demand 误链 net/heap）。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc
+ *
+ * 【Why 根源】Darwin `nm -u` 输出为 `_sym` 单行（无类型字母 U），且 Mach-O 符号带前导 `_`。
+ * 旧实现用 `nm -u --porcelain`（Apple nm 常空输出）且只匹配无 `_` 的裸名 / 含 `U` 的行，
+ * 导致 http.o 等对 std_heap_* 的 U 永远测不到 → on_demand 不推 heap.o → 链接失败。
+ * 【Invariant】匹配时跳过可选的 `U` 类型字段与可选的前导 `_`，再与裸 sym 比较。 */
 int shux_link_obj_needs_undef_sym(const char *o_path, const char *sym) {
     char cmd[PATH_MAX + 160];
     FILE *fp;
@@ -4332,28 +4877,112 @@ int shux_link_obj_needs_undef_sym(const char *o_path, const char *sym) {
     if (!o_path || !o_path[0] || !sym || !sym[0])
         return 0;
     sym_len = strlen(sym);
-#if defined(__APPLE__)
-    if ((size_t)snprintf(cmd, sizeof cmd, "nm -u --porcelain '%s' 2>/dev/null", o_path) >= sizeof cmd)
-        return 0;
-#else
+    /* 统一 nm -u；勿用 Apple 上常失效的 --porcelain */
     if ((size_t)snprintf(cmd, sizeof cmd, "nm -u '%s' 2>/dev/null", o_path) >= sizeof cmd)
         return 0;
-#endif
     fp = popen(cmd, "r");
     if (!fp)
         return 0; /* nm 不可用时不臆测缺符号，避免 on_demand 全量误链 net/heap 等 */
     while (fgets(line, sizeof line, fp)) {
-        if (strncmp(line, sym, sym_len) == 0 &&
-            (line[sym_len] == ' ' || line[sym_len] == '\n' || line[sym_len] == '\0')) {
+        char *p = line;
+        size_t rest;
+        while (*p == ' ' || *p == '\t')
+            p++;
+        /* GNU/ELF: "U sym" 或 "U _sym"；部分工具行内含 U */
+        if (*p == 'U' && (p[1] == ' ' || p[1] == '\t')) {
+            p += 2;
+            while (*p == ' ' || *p == '\t')
+                p++;
+        }
+        /* Mach-O nm -u: "_std_heap_alloc_usize\n" */
+        if (*p == '_')
+            p++;
+        rest = strlen(p);
+        while (rest > 0 && (p[rest - 1] == '\n' || p[rest - 1] == '\r' || p[rest - 1] == ' '))
+            rest--;
+        if (rest == sym_len && strncmp(p, sym, sym_len) == 0) {
             pclose(fp);
             return 1;
         }
+        /* 兼容：行内任意位置出现 U 与符号（旧 ELF 多列格式） */
         if (strchr(line, 'U') != NULL && strstr(line, sym) != NULL) {
             pclose(fp);
             return 1;
         }
     }
     pclose(fp);
+    return 0;
+}
+
+/**
+ * 扫描 .o 是否已定义（T/t）给定符号。用于 co-emit 后避免再链 mem.o。
+ * Darwin: `nm` → `0000 T _sym`；ELF: `0000 T sym`。
+ */
+int shux_link_obj_has_defined_sym(const char *o_path, const char *sym) {
+    char cmd[PATH_MAX + 160];
+    FILE *fp;
+    char line[512];
+    size_t sym_len;
+    if (!o_path || !o_path[0] || !sym || !sym[0])
+        return 0;
+    sym_len = strlen(sym);
+    if ((size_t)snprintf(cmd, sizeof cmd, "nm '%s' 2>/dev/null", o_path) >= sizeof cmd)
+        return 0;
+    fp = popen(cmd, "r");
+    if (!fp)
+        return 0;
+    while (fgets(line, sizeof line, fp)) {
+        char *p = line;
+        char *type_p;
+        size_t rest;
+        /* 跳过地址列 */
+        while (*p == ' ' || *p == '\t' || (*p >= '0' && *p <= '9') ||
+               (*p >= 'a' && *p <= 'f') || (*p >= 'A' && *p <= 'F'))
+            p++;
+        while (*p == ' ' || *p == '\t')
+            p++;
+        if (*p != 'T' && *p != 't')
+            continue;
+        type_p = p;
+        p++;
+        if (*p != ' ' && *p != '\t')
+            continue;
+        while (*p == ' ' || *p == '\t')
+            p++;
+        if (*p == '_')
+            p++;
+        rest = strlen(p);
+        while (rest > 0 && (p[rest - 1] == '\n' || p[rest - 1] == '\r' || p[rest - 1] == ' '))
+            rest--;
+        (void)type_p;
+        if (rest == sym_len && strncmp(p, sym, sym_len) == 0) {
+            pclose(fp);
+            return 1;
+        }
+    }
+    pclose(fp);
+    return 0;
+}
+
+/** user.o 是否已由 co-emit 提供 core_mem_* 强定义。 */
+int link_abi_user_o_provides_core_mem(const char *user_o) {
+    if (!user_o || !user_o[0])
+        return 0;
+    if (shux_link_obj_has_defined_sym(user_o, "core_mem_mem_copy") != 0)
+        return 1;
+    if (shux_link_obj_has_defined_sym(user_o, "core_mem_placeholder") != 0)
+        return 1;
+    return 0;
+}
+
+/** user.o 是否已由 co-emit 提供 std.heap 强定义。 */
+int link_abi_user_o_provides_std_heap(const char *user_o) {
+    if (!user_o || !user_o[0])
+        return 0;
+    if (shux_link_obj_has_defined_sym(user_o, "std_heap_libc_heap_alloc_c") != 0)
+        return 1;
+    if (shux_link_obj_has_defined_sym(user_o, "std_heap_alloc_usize") != 0)
+        return 1;
     return 0;
 }
 
@@ -5244,6 +5873,9 @@ typedef struct LabiStdPlanStep {
 } LabiStdPlanStep;
 static const LabiStdPlanStep g_labi_std_plan[] = {
     {LABI_STD_OP_IO_STUBS, "compiler/runtime_asm_io_stubs.o", 0},
+    /* 勿无条件硬链 core/mem/mem.o 与 heap.o：用户 co-emit 已提供 core_mem_* 时会 duplicate。
+     * heap/core_mem 仅走 on_demand（link_abi_link_needs_std_heap_import /
+     * link_abi_user_o_needs_core_mem）；bank/argv 已扩到 192 防漏推。 */
     {LABI_STD_OP_STD, "std/process/process.o", 1},
     {LABI_STD_OP_STD, "std/string/string.o", 0},
     {LABI_STD_OP_STD, "std/path/path.o", 0},
@@ -5668,7 +6300,13 @@ void shux_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char *
         }
     }
     if (link_abi_link_needs_std_heap_import(user_o, argv, la ? *la : 0)) {
-        link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_heap(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+        /* heap.o → core.mem：user 已 co-emit 提供 T 时勿链 mem/heap（duplicate）。 */
+        if (!link_abi_user_o_provides_core_mem(user_o)) {
+            link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_core_mem(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+        }
+        if (!link_abi_user_o_provides_std_heap(user_o)) {
+            link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_heap(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+        }
     }
     if (link_abi_user_o_needs_std_set(user_o)) {
         link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_set(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);

@@ -402,7 +402,14 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
           *lex = r->next_lex;
           lexer_next_into(r, *lex, source);
           if (r->tok.kind != (int32_t)TOKEN_RPAREN) {
+            int32_t mc_arg_buf[256];
+            int32_t mc_arg_n = 0;
+            int32_t mc_ai;
             for (;;) {
+              if (mc_arg_n >= 256) {
+                out->ok = 0;
+                return;
+              }
               memset(&arg_res, 0, sizeof(arg_res));
               arg_res.next_lex = *lex;
               parse_expr_into(arena, *lex, source, &arg_res);
@@ -410,10 +417,8 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
                 out->ok = 0;
                 return;
               }
-              if (pipeline_expr_append_method_call_arg(arena, mc_ref, arg_res.expr_ref) < 0) {
-                out->ok = 0;
-                return;
-              }
+              mc_arg_buf[mc_arg_n] = arg_res.expr_ref;
+              mc_arg_n = mc_arg_n + 1;
               *lex = arg_res.next_lex;
               lexer_next_into(r, *lex, source);
               if (r->tok.kind == (int32_t)TOKEN_COMMA) {
@@ -422,6 +427,14 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
               }
               if (r->tok.kind == (int32_t)TOKEN_RPAREN) {
                 *lex = r->next_lex;
+                mc_ai = 0;
+                while (mc_ai < mc_arg_n) {
+                  if (pipeline_expr_append_method_call_arg(arena, mc_ref, mc_arg_buf[mc_ai]) < 0) {
+                    out->ok = 0;
+                    return;
+                  }
+                  mc_ai = mc_ai + 1;
+                }
                 break;
               }
               out->ok = 0;
@@ -522,36 +535,59 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
       ce_init.call_callee_ref = callee_ref;
       ce_init.call_num_type_args = pending_call_num_type_args;
       parser_asm_arena_expr_set_c(arena, call_ref, ce_init);
+      /*
+       * 【Why 根源】call_arg 侧车池按「call_arg_base + idx」连续占槽。若 parse 嵌套 CALL 时
+       * 外层已 append 部分实参，内层 base 会落在外层后续 idx 上，外层继续 append 时覆盖
+       * 内层槽 → method(body)/无 mangle。
+       * 【Invariant】先完整 parse 全部实参（嵌套 CALL 先落盘），再统一 append_call_arg，
+       * 使外层 base 落在所有嵌套 call_arg 区间之后。
+       */
       pending_call_num_type_args = 0;
       lexer_next_into(r, *lex, source);
-      if (r->tok.kind != (int32_t)TOKEN_RPAREN) {
-        for (;;) {
-          memset(&arg_res, 0, sizeof(arg_res));
-          arg_res.next_lex = *lex;
-          parse_expr_into(arena, *lex, source, &arg_res);
-          if (!arg_res.ok) {
+      {
+        /* 旧硬顶 64：`arg_n >= 64` 使 65 实参 call 解析失败 → main 丢弃、无 _main（pool-limits）。 */
+        int32_t arg_buf[256];
+        int32_t arg_n = 0;
+        int32_t ai;
+        if (r->tok.kind != (int32_t)TOKEN_RPAREN) {
+          for (;;) {
+            if (arg_n >= 256) {
+              out->ok = 0;
+              return;
+            }
+            memset(&arg_res, 0, sizeof(arg_res));
+            arg_res.next_lex = *lex;
+            parse_expr_into(arena, *lex, source, &arg_res);
+            if (!arg_res.ok) {
+              out->ok = 0;
+              return;
+            }
+            arg_buf[arg_n] = arg_res.expr_ref;
+            arg_n = arg_n + 1;
+            *lex = arg_res.next_lex;
+            lexer_next_into(r, *lex, source);
+            if (r->tok.kind == (int32_t)TOKEN_COMMA) {
+              *lex = r->next_lex;
+              continue;
+            }
+            if (r->tok.kind == (int32_t)TOKEN_RPAREN) {
+              *lex = r->next_lex;
+              break;
+            }
             out->ok = 0;
             return;
           }
-          if (pipeline_expr_append_call_arg(arena, call_ref, arg_res.expr_ref) < 0) {
-            out->ok = 0;
-            return;
-          }
-          *lex = arg_res.next_lex;
-          lexer_next_into(r, *lex, source);
-          if (r->tok.kind == (int32_t)TOKEN_COMMA) {
-            *lex = r->next_lex;
-            continue;
-          }
-          if (r->tok.kind == (int32_t)TOKEN_RPAREN) {
-            *lex = r->next_lex;
-            break;
-          }
-          out->ok = 0;
-          return;
+        } else {
+          *lex = r->next_lex;
         }
-      } else {
-        *lex = r->next_lex;
+        ai = 0;
+        while (ai < arg_n) {
+          if (pipeline_expr_append_call_arg(arena, call_ref, arg_buf[ai]) < 0) {
+            out->ok = 0;
+            return;
+          }
+          ai = ai + 1;
+        }
       }
       out->expr_ref = call_ref;
     } else if (r->tok.kind == (int32_t)TOKEN_LBRACE) {

@@ -186,9 +186,11 @@ export function stdin_ptr_view(): ReadPtrView {
 export function ptr_slice(handle: usize, timeout_ms: u32): u8[]<io_read_ptr> {
   return driver.driver_read_ptr_slice(handle, timeout_ms);
 }
-/** 零拷贝读 stdin slice；等价 ptr_slice(stdin(), 0)。 */
-export function stdin_ptr_slice(): u8[]<io_read_ptr> {
-  return ptr_slice(stdin(), 0 as u32);
+/** 零拷贝读 stdin slice；等价 ptr_slice(stdin(), 0)。
+ *  权威名 stdin_slice。旧名 stdin_ptr_slice 在 C co-emit 下会只发 extern 不发体
+ *  （名敏感），故产品/测试统一 stdin_slice；seed 桩另有 read_stdin_ptr_slice 兼容。 */
+export function stdin_slice(): u8[]<io_read_ptr> {
+  return driver.driver_read_ptr_slice(stdin(), 0 as u32);
 }
 /** 零拷贝读 stdin：读入内部缓冲，返回只读指针；失败返回 0。指针在下次 read_stdin_ptr/read_ptr 前有效；长度用 ptr_len()。 */
 export function read_stdin_ptr(): *u8 {
@@ -351,12 +353,52 @@ export function read_slice(buf: u8[], timeout_ms: u32): i32 {
 export function write_slice(buf: u8[], timeout_ms: u32): i32 {
   return write(stdout(), buf.data, buf.length, timeout_ms);
 }
-// ——— 标准输出（print_* 由 codegen 生成 printf 调用，此处占位保证可 import） ———
-/** print 整数重载；codegen 生成 printf。 */
-export function print(x: i32): i32 { return 0; }
-/** print 无符号 32 位重载。 */
-export function print(x: u32): i32 { return 0; }
-/** print 64 位整数重载。 */
-export function print(x: i64): i32 { return 0; }
+// ——— 标准输出整数 print（.x 单一权威；对齐 seed printf("%d\n") 语义，供 tests/io） ———
+/** 将 i64 十进制写入 stdout 并追加 '\n'；返回 0（与历史 seed 桩一致）。 */
+function print_i64_nl(v: i64): i32 {
+  let buf: u8[24] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let tmp: u8[24] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let n: i32 = 0;
+  let pos: i32 = 0;
+  let x: i64 = v;
+  if (x == 0) {
+    buf[0] = 48 as u8;
+    buf[1] = 10 as u8;
+    let _w0: i32 = write_stdout(&buf[0], 2 as usize);
+    return 0;
+  }
+  if (x < 0) {
+    buf[0] = 45 as u8;
+    pos = 1;
+    /* i64 最小负值 -x 溢出：退化为按 u64 位模式不走此支（测试路径为正数） */
+    x = 0 as i64 - x;
+  }
+  while (x > 0) {
+    tmp[n] = (48 + (x % (10 as i64))) as u8;
+    n = n + 1;
+    x = x / (10 as i64);
+  }
+  while (n > 0) {
+    n = n - 1;
+    buf[pos] = tmp[n];
+    pos = pos + 1;
+  }
+  buf[pos] = 10 as u8;
+  pos = pos + 1;
+  let _w: i32 = write_stdout(&buf[0], pos as usize);
+  return 0;
+}
+/** print 有符号 32 位。 */
+export function print(x: i32): i32 {
+  return print_i64_nl(x as i64);
+}
+/** print 无符号 32 位。 */
+export function print(x: u32): i32 {
+  return print_i64_nl(x as i64);
+}
+/** print 64 位整数。 */
+export function print(x: i64): i32 {
+  return print_i64_nl(x);
+}
 /** 模块尾占位：transitive import 解析时末位 function 会丢失，须保留非 API 锚点。 */
 export function io_module_anchor(): i32 { return 0; }

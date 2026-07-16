@@ -208,12 +208,13 @@ void crypto_hmac_sha256_c(const uint8_t * restrict key, int32_t key_len,
   crypto_sha256_c(outer, 96, out);
 }
 
-/* ed25519_ref10_glue.c 提供 sha512()；须在 Makefile 中与 crypto_inc_glue.o 一并 ld -r。 */
-int sha512(const unsigned char *message, size_t message_len, unsigned char *out);
+/* ed25519_ref10_glue 经 #define 导出 ed25519_ref10_sha512（避免与 std.crypto 裸 sha512 冲突）。
+ * 分 TU 链接时必须调 mangled 名。 */
+int ed25519_ref10_sha512(const unsigned char *message, size_t message_len, unsigned char *out);
 
 /* ---------- SHA-512 / HMAC-SHA512（LibTomCrypt ref，ed25519/sha512.inc） ---------- */
 
-/** SHA-512 摘要；委托 ref10 同单元 sha512()（FIPS 180-4 金样正确）。 */
+/** SHA-512 摘要；委托 ref10 ed25519_ref10_sha512()（FIPS 180-4 金样正确）。 */
 CRYPTO_HOT
 void crypto_sha512_c(const uint8_t * restrict msg, int32_t len, uint8_t * restrict out) {
   if (!out || len < 0) {
@@ -222,7 +223,7 @@ void crypto_sha512_c(const uint8_t * restrict msg, int32_t len, uint8_t * restri
     }
     return;
   }
-  sha512(msg, (size_t)len, out);
+  ed25519_ref10_sha512(msg, (size_t)len, out);
 }
 
 /** HMAC-SHA512（RFC 4231，block=128）。 */

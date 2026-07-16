@@ -290,12 +290,15 @@ for script in "${BSTRICT_SCRIPTS[@]}"; do
       esac
       ;;
     run-asm-*.sh)
+      # 优先本波 gen2 / shux_asm；experimental 仅作无当前产物时的回退。
+      # 【Why】旧 shux_asm.experimental（可数周未更新）曾盖住本波 shux_asm →
+      # Darwin arm64 上 CG002 empty text，单独 SHUX=./compiler/shux_asm 却绿 → 假红。
       if [ -x ./compiler/shux_asm2 ]; then
         script_shu=./compiler/shux_asm2
-      elif [ -x ./compiler/shux_asm.experimental ]; then
-        script_shu=./compiler/shux_asm.experimental
       elif [ -x ./compiler/shux_asm ]; then
         script_shu=./compiler/shux_asm
+      elif [ -x ./compiler/shux_asm.experimental ]; then
+        script_shu=./compiler/shux_asm.experimental
       fi
       # struct/field-index 等 asm -o 用 shux-c 易 SIGSEGV；与 run-struct 一致走 stage2 asm。
       script_link="$script_shu"

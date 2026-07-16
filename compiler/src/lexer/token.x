@@ -199,7 +199,8 @@ export allow(padding) struct Token {
   kind: TokenKind;
   line: i32;
   col: i32;
-  int_val: i32;
+  /** 整型字面量全宽值（含 i64 范围；勿再截成 i32）。 */
+  int_val: i64;
   float_val: f64;
   ident: *u8;
   ident_len: i32;

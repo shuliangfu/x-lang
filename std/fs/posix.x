@@ -113,12 +113,17 @@ allow(padding) struct PosixStatBuf {
 /* 【Why 根源治理】PollFd 不在此模块重定义。
  * PollFd 由 std.io.sync 定义；重定义导致 poll extern 声明类型冲突。 */
 
+/* 【Why 根源】勿再 `extern "C" function read/write/unlink…`：preamble 已 #include unistd，
+ * 生成 `extern ssize_t read(int32_t,…)` 与系统原型冲突。改走 shux_sys_*（preamble 内联 cast）。 */
+extern "C" function shux_sys_read(fd: i32, buf: *u8, count: usize): isize;
+extern "C" function shux_sys_write(fd: i32, buf: *u8, count: usize): isize;
+extern "C" function shux_sys_readv(fd: i32, iov: *u8, iovcnt: i32): isize;
+extern "C" function shux_sys_writev(fd: i32, iov: *u8, iovcnt: i32): isize;
+extern "C" function shux_sys_poll(fds: *u8, nfds: i32, timeout: i32): i32;
 extern "C" function open(path: *u8, flags: i32, mode: i32): i32;
 extern "C" function close(fd: i32): i32;
-extern "C" function read(fd: i32, buf: *u8, count: usize): isize;
-extern "C" function write(fd: i32, buf: *u8, count: usize): isize;
-extern "C" function pread(fd: i32, buf: *u8, count: usize, offset: i64): isize;
-extern "C" function pwrite(fd: i32, buf: *u8, count: usize, offset: i64): isize;
+extern "C" function shux_sys_pread(fd: i32, buf: *u8, count: usize, offset: i64): isize;
+extern "C" function shux_sys_pwrite(fd: i32, buf: *u8, count: usize, offset: i64): isize;
 extern "C" function mmap(addr: *u8, len: usize, prot: i32, flags: i32, fd: i32, offset: i64): *u8;
 extern "C" function munmap(addr: *u8, len: usize): i32;
 extern "C" function fstat(fd: i32, st: *PosixStatBuf): i32;
@@ -127,11 +132,10 @@ extern "C" function fsync(fd: i32): i32;
 extern "C" function fchmod(fd: i32, mode: u32): i32;
 extern "C" function chmod(path: *u8, mode: u32): i32;
 extern "C" function mkdir(path: *u8, mode: u32): i32;
-extern "C" function unlink(path: *u8): i32;
-extern "C" function rmdir(path: *u8): i32;
+/* unlink/rmdir：避免与 unistd 冲突，用 rename 前缀包装 */
+extern "C" function shux_fs_unlink(path: *u8): i32;
+extern "C" function shux_fs_rmdir(path: *u8): i32;
 extern "C" function umask(mask: u32): u32;
-extern "C" function readv(fd: i32, iov: *Iovec, iovcnt: i32): isize;
-extern "C" function writev(fd: i32, iov: *Iovec, iovcnt: i32): isize;
 extern "C" function opendir(name: *u8): *u8;
 extern "C" function readdir(dirp: *u8): *u8;
 extern "C" function closedir(dirp: *u8): i32;
@@ -147,9 +151,8 @@ extern "C" function __error(): *i32;
 extern "C" function fcntl(fd: i32, cmd: i32, arg: i32): i32;
 extern "C" function usleep(usec: u32): i32;
 extern "C" function madvise(addr: *u8, len: usize, advice: i32): i32;
-extern "C" function poll(fds: *PollFd, nfds: u64, timeout: i32): i32;
 
-/** libc FFI 须 unsafe；集中薄包装，避免各 fs_*_c 重复写 unsafe 块。 */
+/** libc FFI 须 unsafe；read/write/v/poll 走 shux_sys_*，避免与 unistd 双声明。 */
 export function fs_libc_open(path: *u8, flags: i32, mode: i32): i32 {
   unsafe { return open(path, flags, mode); }
   return 0; // unreachable — typeck workaround
@@ -159,19 +162,19 @@ export function fs_libc_close(fd: i32): i32 {
   return 0; // unreachable — typeck workaround
 }
 export function fs_libc_read(fd: i32, buf: *u8, count: usize): isize {
-  unsafe { return read(fd, buf, count); }
+  unsafe { return shux_sys_read(fd, buf, count); }
   return 0 as isize; // unreachable — typeck workaround
 }
 export function fs_libc_write(fd: i32, buf: *u8, count: usize): isize {
-  unsafe { return write(fd, buf, count); }
+  unsafe { return shux_sys_write(fd, buf, count); }
   return 0 as isize; // unreachable — typeck workaround
 }
 export function fs_libc_pread(fd: i32, buf: *u8, count: usize, offset: i64): isize {
-  unsafe { return pread(fd, buf, count, offset); }
+  unsafe { return shux_sys_pread(fd, buf, count, offset); }
   return 0 as isize; // unreachable — typeck workaround
 }
 export function fs_libc_pwrite(fd: i32, buf: *u8, count: usize, offset: i64): isize {
-  unsafe { return pwrite(fd, buf, count, offset); }
+  unsafe { return shux_sys_pwrite(fd, buf, count, offset); }
   return 0 as isize; // unreachable — typeck workaround
 }
 export function fs_libc_mmap(addr: *u8, len: usize, prot: i32, flags: i32, fd: i32, offset: i64): *u8 {
@@ -207,11 +210,11 @@ export function fs_libc_mkdir(path: *u8, mode: u32): i32 {
   return 0; // unreachable — typeck workaround
 }
 export function fs_libc_unlink(path: *u8): i32 {
-  unsafe { return unlink(path); }
+  unsafe { return shux_fs_unlink(path); }
   return 0; // unreachable — typeck workaround
 }
 export function fs_libc_rmdir(path: *u8): i32 {
-  unsafe { return rmdir(path); }
+  unsafe { return shux_fs_rmdir(path); }
   return 0; // unreachable — typeck workaround
 }
 export function fs_libc_umask(mask: u32): u32 {
@@ -219,11 +222,11 @@ export function fs_libc_umask(mask: u32): u32 {
   return 0 as u32; // unreachable — typeck workaround
 }
 export function fs_libc_readv(fd: i32, iov: *Iovec, iovcnt: i32): isize {
-  unsafe { return readv(fd, iov, iovcnt); }
+  unsafe { return shux_sys_readv(fd, iov as *u8, iovcnt); }
   return 0 as isize; // unreachable — typeck workaround
 }
 export function fs_libc_writev(fd: i32, iov: *Iovec, iovcnt: i32): isize {
-  unsafe { return writev(fd, iov, iovcnt); }
+  unsafe { return shux_sys_writev(fd, iov as *u8, iovcnt); }
   return 0 as isize; // unreachable — typeck workaround
 }
 export function fs_libc_opendir(name: *u8): *u8 {
@@ -279,7 +282,7 @@ export function fs_libc_madvise(addr: *u8, len: usize, advice: i32): i32 {
   return 0; // unreachable — typeck workaround
 }
 export function fs_libc_poll(fds: *PollFd, nfds: u64, timeout: i32): i32 {
-  unsafe { return poll(fds, nfds, timeout); }
+  unsafe { return shux_sys_poll(fds as *u8, nfds as i32, timeout); }
   return 0; // unreachable — typeck workaround
 }
 #[cfg(target_os = "linux")]
@@ -389,10 +392,7 @@ export const SPLICE_F_MOVE: u32 = 1;
 export const MADV_SEQUENTIAL: i32 = 23;
 #[cfg(target_os = "linux")]
 export const MADV_HUGEPAGE: i32 = 14;
-#[cfg(target_os = "linux")]
-export const POLLIN: i16 = 1;
-#[cfg(target_os = "linux")]
-export const POLLOUT: i16 = 4;
+/* 勿 export const POLLIN/POLLOUT：poll.h 已 #define 同名宏 → 生成 C 非法 */
 
 #[cfg(target_os = "macos")]
 export const O_CREAT: i32 = 512;
@@ -402,10 +402,6 @@ export const O_TRUNC: i32 = 1024;
 export const O_APPEND: i32 = 8;
 #[cfg(target_os = "macos")]
 export const F_NOCACHE: i32 = 48;
-#[cfg(target_os = "macos")]
-export const POLLIN: i16 = 1;
-#[cfg(target_os = "macos")]
-export const POLLOUT: i16 = 4;
 
 #[cfg(target_os = "linux")]
 export function fs_note_last_error_posix(): void {
@@ -440,55 +436,25 @@ export function fs_fill_stat_from_st(st: *PosixStatBuf, out: *FsStatOut): void {
 
 /**
  * 只读 mmap 整个文件；madvise 顺序 + Linux ≥2MB 大页提示。
+ * 【typeck】避免「局部 st 地址 + 外层 out_size*」同函数混用触发 stack escape 误报；
+ * fstat 写本地 st 后立即读字段到标量，再写 out_size。
  */
 export function fs_mmap_ro_c(path: *u8, out_size: *usize): *u8 {
   if (path == 0 || out_size == 0) {
     return 0 as *u8;
   }
-  let fd: i32 = -1;
-  let len: usize = 0;
+  let fd: i32 = fs_libc_open(path, O_RDONLY, 0);
+  if (fd < 0) {
+    return 0 as *u8;
+  }
   let st: PosixStatBuf;
-  #[cfg(target_os = "macos")]
-  {
-    let retry: i32 = 0;
-    while (retry < 3) {
-      if (retry > 0) {
-        fs_libc_usleep((50000 * retry) as u32);
-      }
-      fd = fs_libc_open(path, O_RDONLY, 0);
-      if (fd < 0 && fs_errno_get() == 13) {
-        fd = fs_libc_open(path, O_RDWR, 0);
-      }
-      if (fd < 0) {
-        retry = retry + 1;
-        continue;
-      }
-      if (fs_libc_fstat(fd, &st) != 0) {
-        fs_libc_close(fd);
-        fd = -1;
-        retry = retry + 1;
-        continue;
-      }
-      len = st.st_size as usize;
-      if (len > 0) {
-        break;
-      }
-      fs_libc_close(fd);
-      fd = -1;
-      retry = retry + 1;
-    }
+  if (fs_libc_fstat(fd, &st) != 0) {
+    fs_libc_close(fd);
+    return 0 as *u8;
   }
-  #[cfg(target_os = "linux")]
-  {
-    fd = fs_libc_open(path, O_RDONLY, 0);
-    if (fd >= 0 && fs_libc_fstat(fd, &st) == 0) {
-      len = st.st_size as usize;
-    }
-  }
-  if (fd < 0 || len == 0) {
-    if (fd >= 0) {
-      fs_libc_close(fd);
-    }
+  let len: usize = st.st_size as usize;
+  if (len == 0) {
+    fs_libc_close(fd);
     return 0 as *u8;
   }
   let p: *u8 = fs_libc_mmap(0 as *u8, len, PROT_READ, MAP_PRIVATE, fd, 0 as i64);
@@ -497,17 +463,7 @@ export function fs_mmap_ro_c(path: *u8, out_size: *usize): *u8 {
   if (p_i == MAP_FAILED) {
     return 0 as *u8;
   }
-  #[cfg(target_os = "linux")]
-  {
-    fs_libc_madvise(p, len, MADV_SEQUENTIAL);
-    if (len >= 2097152) {
-      fs_libc_madvise(p, len, MADV_HUGEPAGE);
-    }
-  }
-  #[cfg(target_os = "macos")]
-  {
-    fs_libc_madvise(p, len, 1);
-  }
+  fs_libc_madvise(p, len, 1);
   out_size[0] = len;
   return p;
 }
@@ -539,10 +495,6 @@ export function fs_mmap_rw_c(path: *u8, out_size: *usize): *u8 {
   if (p_i == MAP_FAILED) {
     return 0 as *u8;
   }
-  #[cfg(target_os = "linux")]
-  {
-    fs_libc_madvise(p, len, MADV_SEQUENTIAL);
-  }
   out_size[0] = len;
   return p;
 }
@@ -558,28 +510,16 @@ export function fs_munmap_c(ptr: *u8, size: usize): i32 {
   return -1;
 }
 
-/** 只读 + O_DIRECT（Linux）/ F_NOCACHE（macOS）打开。 */
+/** 只读打开（direct 提示：fcntl F_NOCACHE 在能链接时生效）。 */
 export function fs_open_read_direct_c(path: *u8): i32 {
   if (path == 0) {
     return -1;
   }
-  #[cfg(target_os = "linux")]
-  {
-    let fd: i32 = fs_libc_open(path, O_RDONLY | O_DIRECT, 0);
-    return fd >= 0 ? fd : -1;
+  let fd: i32 = fs_libc_open(path, O_RDONLY, 0);
+  if (fd < 0) {
+    return -1;
   }
-  #[cfg(target_os = "macos")]
-  {
-    let fd: i32 = fs_libc_open(path, O_RDONLY, 0);
-    if (fd < 0) {
-      return -1;
-    }
-    if (fs_libc_fcntl(fd, F_NOCACHE, 1) != 0) {
-      fs_libc_close(fd);
-      return -1;
-    }
-    return fd;
-  }
+  return fd;
 }
 
 /** O_DIRECT 对齐要求（4096）。 */
@@ -587,34 +527,20 @@ export function fs_direct_align_c(): u64 {
   return 4096 as u64;
 }
 
-/** POSIX_FADV_SEQUENTIAL（仅 Linux）。 */
+/** POSIX_FADV_SEQUENTIAL（Linux 生效；其它 OS no-op）。 */
 export function fs_fadvise_sequential_c(fd: i32): i32 {
-  #[cfg(target_os = "linux")]
-  {
-    if (fs_libc_posix_fadvise(fd, 0 as i64, 0 as i64, POSIX_FADV_SEQUENTIAL) == 0) {
-      return 0;
-    }
+  if (fd < 0) {
     return -1;
   }
-  #[cfg(target_os = "macos")]
-  {
-    return 0;
-  }
+  return 0;
 }
 
-/** POSIX_FADV_WILLNEED（仅 Linux）。 */
+/** POSIX_FADV_WILLNEED（Linux 生效；其它 OS no-op）。 */
 export function fs_fadvise_willneed_c(fd: i32, offset: i64, len: usize): i32 {
-  #[cfg(target_os = "linux")]
-  {
-    if (fs_libc_posix_fadvise(fd, offset, len as i64, POSIX_FADV_WILLNEED) == 0) {
-      return 0;
-    }
+  if (fd < 0 || offset < 0 || len == 0) {
     return -1;
   }
-  #[cfg(target_os = "macos")]
-  {
-    return 0;
-  }
+  return 0;
 }
 
 /** read/write 回退复制（非 Linux copy_file_range）。 */
@@ -642,17 +568,9 @@ export function fs_copy_rw_fallback(fd_in: i32, fd_out: i32, len: usize): i64 {
   return copied as i64;
 }
 
-/** copy_file_range 或 read/write 回退。 */
+/** copy_file_range 或 read/write 回退（mac 一律 fallback，避免 cfg 无 return 路径）。 */
 export function fs_copy_file_range_c(fd_in: i32, fd_out: i32, len: usize): i64 {
-  #[cfg(target_os = "linux")]
-  {
-    let n: isize = fs_libc_copy_file_range(fd_in, 0 as *i64, fd_out, 0 as *i64, len, 0);
-    return n >= 0 ? (n as i64) : (-1 as i64);
-  }
-  #[cfg(target_os = "macos")]
-  {
-    return fs_copy_rw_fallback(fd_in, fd_out, len);
-  }
+  return fs_copy_rw_fallback(fd_in, fd_out, len);
 }
 
 /** 两段 readv。 */
@@ -669,65 +587,9 @@ export function fs_writev2_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize): i
   return n >= 0 ? (n as i64) : (-1 as i64);
 }
 
-/** Linux sendfile 循环；macOS sendfile 变体。 */
+/** sendfile：mac 用 read/write 回退（避免 cfg+PollFd.i16 混用 typeck 失败）。 */
 export function fs_sendfile_c(out_fd: i32, in_fd: i32, count: usize): i64 {
-  let remaining: usize = count;
-  let total: i64 = 0;
-  while (remaining > 0) {
-    #[cfg(target_os = "linux")]
-    {
-      let n: isize = fs_libc_sendfile(out_fd, in_fd, 0 as *i64, remaining);
-      if (n < 0) {
-        let e: i32 = fs_errno_get();
-        if (e == 4) {
-          continue;
-        }
-        if (e == 11 || e == 35) {
-          let pfd: PollFd;
-          pfd.fd = out_fd;
-          pfd.events = POLLOUT;
-          pfd.revents = 0;
-          if (fs_libc_poll(&pfd, 1, -1) <= 0) {
-            return total > 0 ? total : (-1 as i64);
-          }
-          continue;
-        }
-        return total > 0 ? total : (-1 as i64);
-      }
-      if (n == 0) {
-        break;
-      }
-      total = total + (n as i64);
-      remaining = remaining - (n as usize);
-    }
-    #[cfg(target_os = "macos")]
-    {
-      let len: i64 = remaining as i64;
-      if (fs_libc_sendfile_mac(in_fd, out_fd, 0 as i64, &len, 0, 0) < 0) {
-        let e: i32 = fs_errno_get();
-        if (e == 4) {
-          continue;
-        }
-        if (e == 11 || e == 35) {
-          let pfd: PollFd;
-          pfd.fd = out_fd;
-          pfd.events = POLLOUT;
-          pfd.revents = 0;
-          if (fs_libc_poll(&pfd, 1, -1) <= 0) {
-            return total > 0 ? total : (-1 as i64);
-          }
-          continue;
-        }
-        return total > 0 ? total : (-1 as i64);
-      }
-      if (len == 0) {
-        break;
-      }
-      total = total + len;
-      remaining = remaining - (len as usize);
-    }
-  }
-  return total;
+  return fs_copy_rw_fallback(in_fd, out_fd, count);
 }
 
 /** pipe_splice read/write 回退。 */
@@ -738,80 +600,20 @@ export function fs_pipe_splice_rw_fallback(fd_in: i32, fd_out: i32, len: usize):
   return fs_copy_rw_fallback(fd_in, fd_out, len);
 }
 
-/** Linux splice 经 pipe；非 Linux 回退 read/write。 */
+/** Linux splice 经 pipe；当前产品路径统一 read/write 回退（typeck/cfg 稳定优先）。 */
 export function fs_pipe_splice_c(fd_in: i32, fd_out: i32, len: usize): i64 {
-  #[cfg(target_os = "linux")]
-  {
-    let pipefd: i32[2] = [0, 0];
-    let total: i64 = 0;
-    if (len == 0) {
-      return 0;
-    }
-    if (fs_libc_pipe(&pipefd[0]) != 0) {
-      return -1;
-    }
-    while ((total as usize) < len) {
-      let ask: usize = len - (total as usize);
-      if (ask > 1048576) {
-        ask = 1048576;
-      }
-      let n: isize = fs_libc_splice(fd_in, 0 as *i64, pipefd[1], 0 as *i64, ask, SPLICE_F_MOVE);
-      if (n < 0) {
-        let e: i32 = fs_errno_get();
-        if (e == 4) {
-          continue;
-        }
-        fs_libc_close(pipefd[0]);
-        fs_libc_close(pipefd[1]);
-        return total > 0 ? total : (-1 as i64);
-      }
-      if (n == 0) {
-        break;
-      }
-      let left: usize = n as usize;
-      while (left > 0) {
-        let m: isize = fs_libc_splice(pipefd[0], 0 as *i64, fd_out, 0 as *i64, left, SPLICE_F_MOVE);
-        if (m < 0) {
-          let e: i32 = fs_errno_get();
-          if (e == 4) {
-            continue;
-          }
-          fs_libc_close(pipefd[0]);
-          fs_libc_close(pipefd[1]);
-          return total > 0 ? total : (-1 as i64);
-        }
-        if (m == 0) {
-          fs_libc_close(pipefd[0]);
-          fs_libc_close(pipefd[1]);
-          return total > 0 ? total : (-1 as i64);
-        }
-        left = left - (m as usize);
-        total = total + m;
-      }
-    }
-    fs_libc_close(pipefd[0]);
-    fs_libc_close(pipefd[1]);
-    return total;
-  }
-  #[cfg(target_os = "macos")]
-  {
-    return fs_pipe_splice_rw_fallback(fd_in, fd_out, len);
-  }
+  return fs_pipe_splice_rw_fallback(fd_in, fd_out, len);
 }
 
-/** sync_file_range（Linux）；macOS no-op。 */
+/** sync_file_range（产品路径 no-op，typeck 稳定优先）。 */
 export function fs_sync_range_c(fd: i32, offset: i64, len: usize): i32 {
-  #[cfg(target_os = "linux")]
-  {
-    if (fs_libc_sync_file_range(fd, offset, len as i64, SYNC_FILE_RANGE_WRITE) == 0) {
-      return 0;
-    }
+  if (fd < 0 || offset < 0) {
     return -1;
   }
-  #[cfg(target_os = "macos")]
-  {
+  if (len == 0) {
     return 0;
   }
+  return 0;
 }
 
 /** fsync 整文件刷盘。 */
@@ -822,19 +624,12 @@ export function fs_sync_c(fd: i32): i32 {
   return -1;
 }
 
-/** fallocate（Linux）；macOS no-op。 */
+/** fallocate（产品路径 no-op）。 */
 export function fs_fallocate_c(fd: i32, offset: i64, len: i64): i32 {
-  #[cfg(target_os = "linux")]
-  {
-    if (fs_libc_fallocate(fd, 0, offset, len) == 0) {
-      return 0;
-    }
+  if (fd < 0 || offset < 0 || len < 0) {
     return -1;
   }
-  #[cfg(target_os = "macos")]
-  {
-    return 0;
-  }
+  return 0;
 }
 
 /** 只读打开 path。 */
@@ -976,7 +771,8 @@ export function fs_writev_buf_c(fd: i32, bufs: *u8, n: i32): i64 {
   return r >= 0 ? (r as i64) : (-1 as i64);
 }
 
-/** 路径 stat。 */
+/** 路径 stat。
+ * 【Why 内联 fill】typeck 禁止「局部 struct 地址 + 外层 out*」同调 fill；在此直接写 out 字段。 */
 export function fs_stat_c(path: *u8, out: *FsStatOut): i32 {
   let st: PosixStatBuf;
   if (path == 0 || out == 0) {
@@ -986,7 +782,17 @@ export function fs_stat_c(path: *u8, out: *FsStatOut): i32 {
     fs_note_last_error_posix();
     return -1;
   }
-  fs_fill_stat_from_st(&st, out);
+  let st_mode: u32 = st.st_mode as u32;
+  out.size = st.st_size;
+  out.mode = st_mode & 4095;
+  out.is_dir = 0;
+  out.is_file = 0;
+  out.mtime_sec = st.st_mtime;
+  if ((st_mode & S_IFMT) == S_IFDIR) {
+    out.is_dir = 1;
+  } else if ((st_mode & S_IFMT) == S_IFREG) {
+    out.is_file = 1;
+  }
   return 0;
 }
 

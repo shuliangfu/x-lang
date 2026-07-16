@@ -29,12 +29,13 @@ const types = import("core.types");
 
 /** brotli 流状态字节数。 */
 export function brotli_stream_state_bytes(): i32 {
-  return types.size_of<BrotliStream>();
+  /* LP64：hdr 16 + 2×ptr 16 = 32。勿 types.size_of<T>（monomorphize 缺口）。 */
+  return 32;
 }
 
 /** brotli 流头字节数。 */
 export function brotli_stream_hdr_bytes(): i32 {
-  return types.size_of<BrotliStreamHdr>();
+  return 16;
 }
 
 /** brotli 流状态魔数（'BRST'，与 compress_common.h 一致）。 */

@@ -23,11 +23,8 @@
 // - libz：compress2、uncompress（hosted 路径由链接器解析 -lz）
 // - runtime_link_abi：shu_compress_zlib_marker 触发按需 -lz
 
-/** zlib 成功码。 */
-export const Z_OK: i32 = 0;
-
-/** compress2 默认压缩级别。 */
-export const Z_DEFAULT_COMPRESSION: i32 = -1;
+/* 勿 export 裸 Z_OK / Z_DEFAULT_COMPRESSION：与 gzip/libz.x 同名 static const 同 TU 会 redefinition。
+ * 字面量与 libz 头一致：Z_OK=0，Z_DEFAULT_COMPRESSION=-1。 */
 
 /** libz：压缩为 zlib 格式。 */
 extern function compress2(dest: *u8, destLen: *u64, source: *u8, sourceLen: u64, level: i32): i32;
@@ -48,8 +45,8 @@ export function compress_deflate_c(in: *u8, in_len: i32, out: *u8, out_cap: i32)
   }
   let dest_len: u64 = out_cap as u64;
   let ret: i32 = 0;
-  unsafe { ret = compress2(out, &dest_len, in, in_len as u64, Z_DEFAULT_COMPRESSION); }
-  if (ret == Z_OK) {
+  unsafe { ret = compress2(out, &dest_len, in, in_len as u64, -1); }
+  if (ret == 0) {
     return dest_len as i32;
   }
   return -1;
@@ -66,7 +63,7 @@ export function compress_inflate_c(in: *u8, in_len: i32, out: *u8, out_cap: i32)
   let dest_len: u64 = out_cap as u64;
   let ret: i32 = 0;
   unsafe { ret = uncompress(out, &dest_len, in, in_len as u64); }
-  if (ret == Z_OK) {
+  if (ret == 0) {
     return dest_len as i32;
   }
   return -1;

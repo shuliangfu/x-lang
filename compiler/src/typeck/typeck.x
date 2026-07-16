@@ -269,6 +269,9 @@ export extern function pipeline_typeck_check_slice_region_assign_c(arena: *ASTAr
 expect_ref: i32, src_ref: i32): i32;
 export extern function pipeline_typeck_check_return_slice_region_c(arena: *ASTArena, ret_site_ref: i32,
 op_ref: i32, func_return_ref: i32): i32;
+/** M-3 AL-06：region 作用域内 return 未标注 T[] — 与 operand stamp 无关的 scope 路径。 */
+export extern function pipeline_typeck_check_return_slice_region_in_scope_c(arena: *ASTArena,
+site_expr_ref: i32, return_type_ref: i32, ctx: *PipelineDepCtx): i32;
 /** M-3：CALL 实参 slice 域检查；region 块 typeck / let stamp。 */
 /** LANG-007 v2：S0 内 extern 调用须在 unsafe { }（pipeline_glue.c）。 */
 export extern function pipeline_typeck_check_extern_call_unsafe_boundary_c(module: *Module, arena: *ASTArena,
@@ -2422,6 +2425,14 @@ param_ty_raw: i32, from_dep_index: i32, ctx: *PipelineDepCtx): i32 {
   if (arg_ty > 0) {
     let ak: i32 = pipeline_type_kind_ord_at(caller_arena, arg_ty);
     let pk: i32 = pipeline_type_kind_ord_at(caller_arena, param_ty);
+    /** TYPE_ARRAY=10 → TYPE_PTR=9：`buf: u8[N]` 传 `*u8` 须可赋，否则 overload 全灭回退首同名。 */
+    if (ak == 10 && pk == 9) {
+      let ae: i32 = pipeline_type_elem_ref_at(caller_arena, arg_ty);
+      let pe: i32 = pipeline_type_elem_ref_at(caller_arena, param_ty);
+      if (ae > 0 && pe > 0 && pipeline_typeck_type_refs_equal_c(caller_arena, ae, pe) != 0) {
+        return 1000;
+      }
+    }
     if (ak == pk && ak != 0) {
       return 1;
     }
@@ -4769,6 +4780,10 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
   if (!ast.ref_is_null(return_type_ref) && !ast.ref_is_null(op_ref)) {
     let expect_kind: i32 = 0;
     let got_kind: i32 = 0;
+    /** M-3 AL-06：须先于类型匹配失败路径 — region 内 return 未标注 T[] 即逃逸（不依赖 operand 类型）。 */
+    if (pipeline_typeck_check_return_slice_region_in_scope_c(arena, expr_ref, return_type_ref, ctx) != 0) {
+      return - 1;
+    }
     typeck_ret_coerce_integral_to_expect_i32(arena, op_ref, return_type_ref);
     typeck_ret_coerce_integral_widen(arena, op_ref, return_type_ref);
     got = expr_type_ref(arena, op_ref);
@@ -4794,7 +4809,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
       driver_diagnostic_typeck_ret_fail(2, op_ref, return_type_ref, got);
       return - 1;
     }
-    /** M-3：return slice 域逃逸 / 不一致。 */
+    /** M-3：return slice 域逃逸 / 不一致（operand 已 stamp 的标签路径）。 */
     if (pipeline_typeck_check_return_slice_region_c(arena, expr_ref, op_ref, return_type_ref) != 0) {
       return - 1;
     }
@@ -5427,6 +5442,46 @@ return_type_ref: i32, ctx: *PipelineDepCtx, field_i: i32, num_fields: i32): i32 
 }
 
 /**
+ * STRUCT_LIT 字段初值按 layout 声明类型 coerce（对齐 let/const 的 typeck_coerce_init_expr_to_decl）。
+ * 【Why 根源】仅 check_expr 不 stamp 字段类型时，array lit 无 resolved → C 发 (uint8_t[]){...}
+ * 无法初始化 int32_t arr[N]（BLD001 / -Wint-conversion）。
+ */
+export function typeck_coerce_struct_lit_field_inits_to_layout(module: *Module, arena: *ASTArena,
+expr_ref: i32): i32 {
+  let num_fields: i32 = 0;
+  let name_len: i32 = 0;
+  let j: i32 = 0;
+  let flen: i32 = 0;
+  let init_r: i32 = 0;
+  let ftr: i32 = 0;
+  let name_buf: *u8 = typeck_scratch64_slot(4);
+  let field_buf: *u8 = typeck_scratch64_slot(5);
+  if (expr_ref <= 0 || expr_ref > arena.num_exprs) {
+    return 0;
+  }
+  num_fields = pipeline_expr_struct_lit_num_fields(arena, expr_ref);
+  name_len = pipeline_expr_struct_lit_type_name_len(arena, expr_ref);
+  if (num_fields <= 0 || name_len <= 0 || name_len > 63) {
+    return 0;
+  }
+  pipeline_expr_struct_lit_type_name_into(arena, expr_ref, name_buf);
+  while (j < num_fields) {
+    flen = pipeline_expr_struct_lit_field_name_len(arena, expr_ref, j);
+    if (flen > 0 && flen <= 63) {
+      pipeline_expr_struct_lit_field_name_into(arena, expr_ref, j, field_buf);
+      ftr = get_field_type_ref_from_layout(module, name_buf, name_len, field_buf, flen);
+      init_r = pipeline_expr_struct_lit_init_ref(arena, expr_ref, j);
+      if (!ast.ref_is_null(init_r) && init_r > 0 && init_r <= arena.num_exprs
+      && !ast.ref_is_null(ftr) && ftr > 0) {
+        typeck_coerce_init_expr_to_decl(module, arena, init_r, ftr);
+      }
+    }
+    j = j + 1;
+  }
+  return 0;
+}
+
+/**
  * EXPR_STRUCT_LIT：检查各字段 init、登记 layout、写 named resolved_type（EMIT_HEAVY X emit）。
  */
 export function typeck_check_expr_struct_lit(
@@ -5456,6 +5511,8 @@ export function typeck_check_expr_struct_lit(
   if (ensure_struct_layout_from_struct_lit(module, arena, expr_ref) != 0) {
     return - 1;
   }
+  /** 已有/刚登记 layout 后：字段 array lit 等按声明类型 stamp resolved。 */
+  typeck_coerce_struct_lit_field_inits_to_layout(module, arena, expr_ref);
   if (name_len > 63) {
     return 0;
   }
@@ -5857,11 +5914,22 @@ return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
       return - 1;
     }
   }
-  /** M-3：region 块内未标注 T[] 继承当前域标签。 */
+  /** M-3：region 块内未标注 T[] 继承当前域标签（换新 type_ref，禁 in-place 改共享池）。 */
   pipeline_type_stamp_block_let_region_c(arena, block_ref, idx, ctx);
+  /** stamp 后 let.type_ref 可能已换，须重读。 */
+  ld_tr = ast.ast_block_let_type_ref(arena, block_ref, idx);
   if (!ast.ref_is_null(ld_ir) && !ast.ref_is_null(ld_tr)) {
     typeck_coerce_init_expr_to_decl(module, arena, ld_ir, ld_tr);
     init_ty = expr_type_ref(arena, ld_ir);
+    /** 与赋值路径 typeck_integer_widen_ok 对齐：let b0: u32 = b[0]（u8）须隐式拓宽。 */
+    if (!ast.ref_is_null(init_ty) && !type_refs_equal(arena, ld_tr, init_ty)) {
+      let decl_k: i32 = pipeline_type_kind_ord_at(arena, ld_tr);
+      let init_k: i32 = pipeline_type_kind_ord_at(arena, init_ty);
+      if (typeck_integer_widen_ok(decl_k, init_k)) {
+        pipeline_expr_set_resolved_type_ref(arena, ld_ir, ld_tr);
+        init_ty = ld_tr;
+      }
+    }
     if (!ast.ref_is_null(init_ty) && !type_refs_equal(arena, ld_tr, init_ty)
         && pipeline_typeck_linear_accepts_init_c(arena, ld_tr, init_ty) == 0) {
       eb = driver_typeck_diag_scratch_expect();

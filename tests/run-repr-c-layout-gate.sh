@@ -5,18 +5,19 @@
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_REPR_C_LAYOUT_FAIL:-0}
+# 默认硬失败（禁止软绿 exit 0）；仅 SHUX_REPR_C_LAYOUT_FAIL=0 时软退。
+FAIL=${SHUX_REPR_C_LAYOUT_FAIL:-1}
 GOOD="tests/lexer/repr_c_layout_smoke.x"
 BAD="/tmp/shux_repr_c_layout_bad.$$.x"
 OUT="/tmp/shux_repr_c_layout.$$.out"
-SHUX="${SHUX:-./compiler/shux-c}"
+SHUX="${SHUX:-./compiler/shux_asm}"
 
 if [ ! -x "$SHUX" ]; then
   SHUX="./compiler/shux"
 fi
 if [ ! -x "$SHUX" ]; then
-  echo "repr-c-layout-gate: SKIP (no shux/shux-c)"
-  exit 0
+  echo "repr-c-layout-gate FAIL: no product SHUX (shux_asm/shux)" >&2
+  exit 1
 fi
 
 # 负例：无 repr(C)/allow(padding) 时 u8+u32 应 typeck 失败（隐式 padding）

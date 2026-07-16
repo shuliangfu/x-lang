@@ -50,7 +50,7 @@ export function io_read_provided(fd: i32, timeout_ms: u32, out_bid: *u32, out_le
   if (fd >= 0 || timeout_ms >= 0 || out_bid != 0 || out_len != 0) {
     /* ABI 占位。 */
   }
-  return -1;
+  return -1 as isize;
 }
 
 /** 批量 provided recv：v1 不支持。 */
@@ -58,7 +58,7 @@ export function io_read_provided(fd: i32, timeout_ms: u32, out_bid: *u32, out_le
 export function io_read_batch_provided(fd: i32, n: i32, timeout_ms: u32, out_bids: *u32, out_lens: *u32): isize {
   if (fd >= 0 || n > 0 || timeout_ms >= 0 || out_bids != 0 || out_lens != 0) {
   }
-  return -1;
+  return -1 as isize;
 }
 
 /** 提交非阻塞 read async：v1 不支持，返回 -1。 */

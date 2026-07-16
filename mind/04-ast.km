@@ -1,0 +1,3097 @@
+{
+    "root": {
+        "data": {
+            "id": "n0261",
+            "created": 1784118749821,
+            "text": "AST Layer",
+            "expandState": "expand",
+            "note": "ASTArena/Module/Expr/Block 与访问器。"
+        },
+        "children": [
+            {
+                "data": {
+                    "id": "n0258",
+                    "created": 1784118749818,
+                    "text": "AST 层 (ast/ast.x)",
+                    "expandState": "expand",
+                    "hyperlink": "compiler/src/ast/ast.x",
+                    "hyperlinkTitle": "compiler/src/ast/ast.x"
+                },
+                "children": [
+                    {
+                        "data": {
+                            "id": "n0245",
+                            "created": 1784118749805,
+                            "text": "ASTArena",
+                            "expandState": "collapse"
+                        },
+                        "children": [
+                            {
+                                "data": {
+                                    "id": "n0244",
+                                    "created": 1784118749804,
+                                    "text": "num_blocks / num_exprs",
+                                    "expandState": "collapse"
+                                },
+                                "children": []
+                            }
+                        ]
+                    },
+                    {
+                        "data": {
+                            "id": "n0249",
+                            "created": 1784118749809,
+                            "text": "Module",
+                            "expandState": "collapse"
+                        },
+                        "children": [
+                            {
+                                "data": {
+                                    "id": "n0246",
+                                    "created": 1784118749806,
+                                    "text": "struct_layouts",
+                                    "expandState": "collapse"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "n0247",
+                                    "created": 1784118749807,
+                                    "text": "func_table",
+                                    "expandState": "collapse"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "n0248",
+                                    "created": 1784118749808,
+                                    "text": "enum_table",
+                                    "expandState": "collapse"
+                                },
+                                "children": []
+                            }
+                        ]
+                    },
+                    {
+                        "data": {
+                            "id": "n0252",
+                            "created": 1784118749812,
+                            "text": "Expr",
+                            "expandState": "collapse"
+                        },
+                        "children": [
+                            {
+                                "data": {
+                                    "id": "n0250",
+                                    "created": 1784118749810,
+                                    "text": "kind (表达式种类 ord)",
+                                    "expandState": "collapse"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "n0251",
+                                    "created": 1784118749811,
+                                    "text": "block_ref",
+                                    "expandState": "collapse"
+                                },
+                                "children": []
+                            }
+                        ]
+                    },
+                    {
+                        "data": {
+                            "id": "n0253",
+                            "created": 1784118749813,
+                            "text": "Block",
+                            "expandState": "collapse"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "n0254",
+                            "created": 1784118749814,
+                            "text": "Func",
+                            "expandState": "collapse"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "n0255",
+                            "created": 1784118749815,
+                            "text": "ast_ref_is_null",
+                            "expandState": "collapse"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "n0256",
+                            "created": 1784118749816,
+                            "text": "ast_module_free",
+                            "expandState": "collapse"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "n0257",
+                            "created": 1784118749817,
+                            "text": "ast_pipeline_ctx_append_lib_root",
+                            "expandState": "collapse"
+                        },
+                        "children": []
+                    }
+                ]
+            },
+            {
+                "data": {
+                    "id": "n0260",
+                    "created": 1784118749820,
+                    "text": "方法索引（自动扫描 export/function · 点击链接到源文件）\n共 231 个符号",
+                    "expandState": "expand",
+                    "note": "与上方架构树对照。同名跨文件见 mind/99-dual-authority-audit.km。"
+                },
+                "children": [
+                    {
+                        "data": {
+                            "id": "n0259",
+                            "created": 1784118749819,
+                            "text": "ast.x  (231 方法)",
+                            "expandState": "collapse",
+                            "hyperlink": "compiler/src/ast/ast.x",
+                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                            "note": "compiler/src/ast/ast.x"
+                        },
+                        "children": [
+                            {
+                                "data": {
+                                    "id": "n0015",
+                                    "created": 1784118749575,
+                                    "text": "ast_arena_* (14)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ast/ast.x",
+                                    "hyperlinkTitle": "compiler/src/ast/ast.x"
+                                },
+                                "children": [
+                                    {
+                                        "data": {
+                                            "id": "n0001",
+                                            "created": 1784118749561,
+                                            "text": "ast_arena_init",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: ast_arena_init"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0002",
+                                            "created": 1784118749562,
+                                            "text": "ast_arena_type_alloc",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: ast_arena_type_alloc"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0003",
+                                            "created": 1784118749563,
+                                            "text": "ast_arena_expr_alloc",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: ast_arena_expr_alloc"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0004",
+                                            "created": 1784118749564,
+                                            "text": "ast_arena_block_alloc",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: ast_arena_block_alloc"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0005",
+                                            "created": 1784118749565,
+                                            "text": "ast_arena_type_get",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: ast_arena_type_get"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0006",
+                                            "created": 1784118749566,
+                                            "text": "ast_arena_type_set",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: ast_arena_type_set"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0007",
+                                            "created": 1784118749567,
+                                            "text": "ast_arena_expr_get",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: ast_arena_expr_get"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0008",
+                                            "created": 1784118749568,
+                                            "text": "ast_arena_expr_set",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: ast_arena_expr_set"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0009",
+                                            "created": 1784118749569,
+                                            "text": "ast_arena_block_get",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: ast_arena_block_get"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0010",
+                                            "created": 1784118749570,
+                                            "text": "ast_arena_patch_block_parent_links",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: ast_arena_patch_block_parent_links"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0011",
+                                            "created": 1784118749571,
+                                            "text": "ast_arena_block_set",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: ast_arena_block_set"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0012",
+                                            "created": 1784118749572,
+                                            "text": "ast_arena_func_alloc",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: ast_arena_func_alloc"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0013",
+                                            "created": 1784118749573,
+                                            "text": "ast_arena_func_get",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: ast_arena_func_get"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0014",
+                                            "created": 1784118749574,
+                                            "text": "ast_arena_func_set",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: ast_arena_func_set"
+                                        },
+                                        "children": []
+                                    }
+                                ]
+                            },
+                            {
+                                "data": {
+                                    "id": "n0043",
+                                    "created": 1784118749603,
+                                    "text": "ast_block_* (27)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ast/ast.x",
+                                    "hyperlinkTitle": "compiler/src/ast/ast.x"
+                                },
+                                "children": [
+                                    {
+                                        "data": {
+                                            "id": "n0016",
+                                            "created": 1784118749576,
+                                            "text": "ast_block_final_expr_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: ast_block_final_expr_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0017",
+                                            "created": 1784118749577,
+                                            "text": "ast_block_num_consts",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: ast_block_num_consts"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0018",
+                                            "created": 1784118749578,
+                                            "text": "ast_block_num_lets",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: ast_block_num_lets"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0019",
+                                            "created": 1784118749579,
+                                            "text": "ast_block_num_loops",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: ast_block_num_loops"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0020",
+                                            "created": 1784118749580,
+                                            "text": "ast_block_num_for_loops",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: ast_block_num_for_loops"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0021",
+                                            "created": 1784118749581,
+                                            "text": "ast_block_num_if_stmts",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: ast_block_num_if_stmts"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0022",
+                                            "created": 1784118749582,
+                                            "text": "ast_block_num_regions",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: ast_block_num_regions"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0023",
+                                            "created": 1784118749583,
+                                            "text": "ast_block_region_body_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: ast_block_region_body_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0024",
+                                            "created": 1784118749584,
+                                            "text": "ast_block_num_expr_stmts",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: ast_block_num_expr_stmts"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0025",
+                                            "created": 1784118749585,
+                                            "text": "ast_block_num_stmt_order",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: ast_block_num_stmt_order"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0026",
+                                            "created": 1784118749586,
+                                            "text": "ast_block_stmt_order_kind",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: ast_block_stmt_order_kind"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0027",
+                                            "created": 1784118749587,
+                                            "text": "ast_block_stmt_order_idx",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: ast_block_stmt_order_idx"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0028",
+                                            "created": 1784118749588,
+                                            "text": "ast_block_const_init_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: ast_block_const_init_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0029",
+                                            "created": 1784118749589,
+                                            "text": "ast_block_const_type_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: ast_block_const_type_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0030",
+                                            "created": 1784118749590,
+                                            "text": "ast_block_let_init_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: ast_block_let_init_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0031",
+                                            "created": 1784118749591,
+                                            "text": "ast_block_let_type_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: ast_block_let_type_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0032",
+                                            "created": 1784118749592,
+                                            "text": "ast_block_expr_stmt_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: ast_block_expr_stmt_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0033",
+                                            "created": 1784118749593,
+                                            "text": "ast_block_while_cond_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: ast_block_while_cond_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0034",
+                                            "created": 1784118749594,
+                                            "text": "ast_block_while_body_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: ast_block_while_body_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0035",
+                                            "created": 1784118749595,
+                                            "text": "ast_block_for_init_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: ast_block_for_init_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0036",
+                                            "created": 1784118749596,
+                                            "text": "ast_block_for_cond_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: ast_block_for_cond_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0037",
+                                            "created": 1784118749597,
+                                            "text": "ast_block_for_step_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: ast_block_for_step_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0038",
+                                            "created": 1784118749598,
+                                            "text": "ast_block_for_body_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: ast_block_for_body_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0039",
+                                            "created": 1784118749599,
+                                            "text": "ast_block_if_cond_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: ast_block_if_cond_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0040",
+                                            "created": 1784118749600,
+                                            "text": "ast_block_if_then_body_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: ast_block_if_then_body_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0041",
+                                            "created": 1784118749601,
+                                            "text": "ast_block_if_else_body_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: ast_block_if_else_body_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0042",
+                                            "created": 1784118749602,
+                                            "text": "ast_block_resolve_var_to_type_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: ast_block_resolve_var_to_type_ref"
+                                        },
+                                        "children": []
+                                    }
+                                ]
+                            },
+                            {
+                                "data": {
+                                    "id": "n0046",
+                                    "created": 1784118749606,
+                                    "text": "ast_expr_* (2)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ast/ast.x",
+                                    "hyperlinkTitle": "compiler/src/ast/ast.x"
+                                },
+                                "children": [
+                                    {
+                                        "data": {
+                                            "id": "n0044",
+                                            "created": 1784118749604,
+                                            "text": "ast_expr_apply_call_resolve",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: ast_expr_apply_call_resolve"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0045",
+                                            "created": 1784118749605,
+                                            "text": "ast_expr_disallows_implicit_tail",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: ast_expr_disallows_implicit_tail"
+                                        },
+                                        "children": []
+                                    }
+                                ]
+                            },
+                            {
+                                "data": {
+                                    "id": "n0047",
+                                    "created": 1784118749607,
+                                    "text": "ast_name_bytes_equal",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ast/ast.x",
+                                    "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                    "note": "ast.x :: ast_name_bytes_equal"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "n0048",
+                                    "created": 1784118749608,
+                                    "text": "ast_placeholder",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ast/ast.x",
+                                    "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                    "note": "ast.x :: ast_placeholder"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "n0051",
+                                    "created": 1784118749611,
+                                    "text": "ast_pool_* (2)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ast/ast.x",
+                                    "hyperlinkTitle": "compiler/src/ast/ast.x"
+                                },
+                                "children": [
+                                    {
+                                        "data": {
+                                            "id": "n0049",
+                                            "created": 1784118749609,
+                                            "text": "ast_pool_block_on_alloc",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: ast_pool_block_on_alloc"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0050",
+                                            "created": 1784118749610,
+                                            "text": "ast_pool_onefunc_reset",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: ast_pool_onefunc_reset"
+                                        },
+                                        "children": []
+                                    }
+                                ]
+                            },
+                            {
+                                "data": {
+                                    "id": "n0054",
+                                    "created": 1784118749614,
+                                    "text": "expr_init_* (2)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ast/ast.x",
+                                    "hyperlinkTitle": "compiler/src/ast/ast.x"
+                                },
+                                "children": [
+                                    {
+                                        "data": {
+                                            "id": "n0052",
+                                            "created": 1784118749612,
+                                            "text": "expr_init_match_enum",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: expr_init_match_enum"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0053",
+                                            "created": 1784118749613,
+                                            "text": "expr_init_call_resolve",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: expr_init_call_resolve"
+                                        },
+                                        "children": []
+                                    }
+                                ]
+                            },
+                            {
+                                "data": {
+                                    "id": "n0055",
+                                    "created": 1784118749615,
+                                    "text": "expr_layout_prime_call_resolved",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ast/ast.x",
+                                    "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                    "note": "ast.x :: expr_layout_prime_call_resolved"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "n0056",
+                                    "created": 1784118749616,
+                                    "text": "func_layout_prime_generic_params",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ast/ast.x",
+                                    "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                    "note": "ast.x :: func_layout_prime_generic_params"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "n0057",
+                                    "created": 1784118749617,
+                                    "text": "implicit_tail_expr_disallowed_by_glue",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ast/ast.x",
+                                    "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                    "note": "ast.x :: implicit_tail_expr_disallowed_by_glue"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "n0074",
+                                    "created": 1784118749634,
+                                    "text": "pipeline_arena_* (16)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ast/ast.x",
+                                    "hyperlinkTitle": "compiler/src/ast/ast.x"
+                                },
+                                "children": [
+                                    {
+                                        "data": {
+                                            "id": "n0058",
+                                            "created": 1784118749618,
+                                            "text": "pipeline_arena_type_alloc",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_arena_type_alloc"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0059",
+                                            "created": 1784118749619,
+                                            "text": "pipeline_arena_expr_alloc",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_arena_expr_alloc"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0060",
+                                            "created": 1784118749620,
+                                            "text": "pipeline_arena_block_alloc",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_arena_block_alloc"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0061",
+                                            "created": 1784118749621,
+                                            "text": "pipeline_arena_func_alloc",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_arena_func_alloc"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0062",
+                                            "created": 1784118749622,
+                                            "text": "pipeline_arena_type_get_copy",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_arena_type_get_copy"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0063",
+                                            "created": 1784118749623,
+                                            "text": "pipeline_arena_type_set_copy",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_arena_type_set_copy"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0064",
+                                            "created": 1784118749624,
+                                            "text": "pipeline_arena_expr_get_copy",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_arena_expr_get_copy"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0065",
+                                            "created": 1784118749625,
+                                            "text": "pipeline_arena_expr_set_copy",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_arena_expr_set_copy"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0066",
+                                            "created": 1784118749626,
+                                            "text": "pipeline_arena_block_get_copy",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_arena_block_get_copy"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0067",
+                                            "created": 1784118749627,
+                                            "text": "pipeline_arena_block_set_copy",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_arena_block_set_copy"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0068",
+                                            "created": 1784118749628,
+                                            "text": "pipeline_arena_func_get_copy",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_arena_func_get_copy"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0069",
+                                            "created": 1784118749629,
+                                            "text": "pipeline_arena_func_set_copy",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_arena_func_set_copy"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0070",
+                                            "created": 1784118749630,
+                                            "text": "pipeline_arena_type_cap",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_arena_type_cap"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0071",
+                                            "created": 1784118749631,
+                                            "text": "pipeline_arena_expr_cap",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_arena_expr_cap"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0072",
+                                            "created": 1784118749632,
+                                            "text": "pipeline_arena_block_cap",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_arena_block_cap"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0073",
+                                            "created": 1784118749633,
+                                            "text": "pipeline_arena_func_cap",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_arena_func_cap"
+                                        },
+                                        "children": []
+                                    }
+                                ]
+                            },
+                            {
+                                "data": {
+                                    "id": "n0113",
+                                    "created": 1784118749673,
+                                    "text": "pipeline_block_* (38)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ast/ast.x",
+                                    "hyperlinkTitle": "compiler/src/ast/ast.x"
+                                },
+                                "children": [
+                                    {
+                                        "data": {
+                                            "id": "n0075",
+                                            "created": 1784118749635,
+                                            "text": "pipeline_block_append_const",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_block_append_const"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0076",
+                                            "created": 1784118749636,
+                                            "text": "pipeline_block_append_let",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_block_append_let"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0077",
+                                            "created": 1784118749637,
+                                            "text": "pipeline_block_append_if",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_block_append_if"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0078",
+                                            "created": 1784118749638,
+                                            "text": "pipeline_block_append_region",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_block_append_region"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0079",
+                                            "created": 1784118749639,
+                                            "text": "pipeline_block_append_unsafe",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_block_append_unsafe"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0080",
+                                            "created": 1784118749640,
+                                            "text": "pipeline_block_region_body_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_block_region_body_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0081",
+                                            "created": 1784118749641,
+                                            "text": "pipeline_block_append_expr_stmt",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_block_append_expr_stmt"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0082",
+                                            "created": 1784118749642,
+                                            "text": "pipeline_block_append_stmt_order",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_block_append_stmt_order"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0083",
+                                            "created": 1784118749643,
+                                            "text": "pipeline_block_const_init_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_block_const_init_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0084",
+                                            "created": 1784118749644,
+                                            "text": "pipeline_block_const_type_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_block_const_type_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0085",
+                                            "created": 1784118749645,
+                                            "text": "pipeline_block_const_name_len",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_block_const_name_len"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0086",
+                                            "created": 1784118749646,
+                                            "text": "pipeline_block_const_name_copy64",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_block_const_name_copy64"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0087",
+                                            "created": 1784118749647,
+                                            "text": "pipeline_block_let_init_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_block_let_init_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0088",
+                                            "created": 1784118749648,
+                                            "text": "pipeline_block_let_type_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_block_let_type_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0089",
+                                            "created": 1784118749649,
+                                            "text": "pipeline_block_let_name_len",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_block_let_name_len"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0090",
+                                            "created": 1784118749650,
+                                            "text": "pipeline_block_let_name_copy64",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_block_let_name_copy64"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0091",
+                                            "created": 1784118749651,
+                                            "text": "pipeline_block_expr_stmt_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_block_expr_stmt_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0092",
+                                            "created": 1784118749652,
+                                            "text": "pipeline_block_stmt_order_kind",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_block_stmt_order_kind"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0093",
+                                            "created": 1784118749653,
+                                            "text": "pipeline_block_stmt_order_idx",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_block_stmt_order_idx"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0094",
+                                            "created": 1784118749654,
+                                            "text": "pipeline_block_if_cond_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_block_if_cond_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0095",
+                                            "created": 1784118749655,
+                                            "text": "pipeline_block_if_then_body_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_block_if_then_body_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0096",
+                                            "created": 1784118749656,
+                                            "text": "pipeline_block_if_else_body_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_block_if_else_body_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0097",
+                                            "created": 1784118749657,
+                                            "text": "pipeline_block_resolve_var_type_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_block_resolve_var_type_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0098",
+                                            "created": 1784118749658,
+                                            "text": "pipeline_block_fill_ifs_from_onefunc",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_block_fill_ifs_from_onefunc"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0099",
+                                            "created": 1784118749659,
+                                            "text": "pipeline_block_fill_stmt_order_from_onefunc",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_block_fill_stmt_order_from_onefunc"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0100",
+                                            "created": 1784118749660,
+                                            "text": "pipeline_block_fill_expr_stmts_from_onefunc",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_block_fill_expr_stmts_from_onefunc"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0101",
+                                            "created": 1784118749661,
+                                            "text": "pipeline_block_append_while",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_block_append_while"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0102",
+                                            "created": 1784118749662,
+                                            "text": "pipeline_block_append_for",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_block_append_for"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0103",
+                                            "created": 1784118749663,
+                                            "text": "pipeline_block_while_cond_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_block_while_cond_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0104",
+                                            "created": 1784118749664,
+                                            "text": "pipeline_block_while_body_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_block_while_body_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0105",
+                                            "created": 1784118749665,
+                                            "text": "pipeline_block_for_init_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_block_for_init_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0106",
+                                            "created": 1784118749666,
+                                            "text": "pipeline_block_for_cond_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_block_for_cond_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0107",
+                                            "created": 1784118749667,
+                                            "text": "pipeline_block_for_step_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_block_for_step_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0108",
+                                            "created": 1784118749668,
+                                            "text": "pipeline_block_for_body_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_block_for_body_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0109",
+                                            "created": 1784118749669,
+                                            "text": "pipeline_block_fill_whiles_from_onefunc",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_block_fill_whiles_from_onefunc"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0110",
+                                            "created": 1784118749670,
+                                            "text": "pipeline_block_fill_fors_from_onefunc",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_block_fill_fors_from_onefunc"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0111",
+                                            "created": 1784118749671,
+                                            "text": "pipeline_block_append_labeled",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_block_append_labeled"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0112",
+                                            "created": 1784118749672,
+                                            "text": "pipeline_block_labeled_return_expr_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_block_labeled_return_expr_ref"
+                                        },
+                                        "children": []
+                                    }
+                                ]
+                            },
+                            {
+                                "data": {
+                                    "id": "n0118",
+                                    "created": 1784118749678,
+                                    "text": "pipeline_ctx_* (4)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ast/ast.x",
+                                    "hyperlinkTitle": "compiler/src/ast/ast.x"
+                                },
+                                "children": [
+                                    {
+                                        "data": {
+                                            "id": "n0114",
+                                            "created": 1784118749674,
+                                            "text": "pipeline_ctx_append_lib_root",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_ctx_append_lib_root"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0115",
+                                            "created": 1784118749675,
+                                            "text": "pipeline_ctx_lib_root_count",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_ctx_lib_root_count"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0116",
+                                            "created": 1784118749676,
+                                            "text": "pipeline_ctx_lib_root_len",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_ctx_lib_root_len"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0117",
+                                            "created": 1784118749677,
+                                            "text": "pipeline_ctx_lib_root_copy",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_ctx_lib_root_copy"
+                                        },
+                                        "children": []
+                                    }
+                                ]
+                            },
+                            {
+                                "data": {
+                                    "id": "n0129",
+                                    "created": 1784118749689,
+                                    "text": "pipeline_dep_* (10)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ast/ast.x",
+                                    "hyperlinkTitle": "compiler/src/ast/ast.x"
+                                },
+                                "children": [
+                                    {
+                                        "data": {
+                                            "id": "n0119",
+                                            "created": 1784118749679,
+                                            "text": "pipeline_dep_ctx_set_module",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_dep_ctx_set_module"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0120",
+                                            "created": 1784118749680,
+                                            "text": "pipeline_dep_ctx_set_arena",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_dep_ctx_set_arena"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0121",
+                                            "created": 1784118749681,
+                                            "text": "pipeline_dep_ctx_module_at",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_dep_ctx_module_at"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0122",
+                                            "created": 1784118749682,
+                                            "text": "pipeline_dep_ctx_arena_at",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_dep_ctx_arena_at"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0123",
+                                            "created": 1784118749683,
+                                            "text": "pipeline_dep_ctx_set_import_path",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_dep_ctx_set_import_path"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0124",
+                                            "created": 1784118749684,
+                                            "text": "pipeline_dep_ctx_import_path_len",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_dep_ctx_import_path_len"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0125",
+                                            "created": 1784118749685,
+                                            "text": "pipeline_dep_ctx_import_path_byte_at",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_dep_ctx_import_path_byte_at"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0126",
+                                            "created": 1784118749686,
+                                            "text": "pipeline_dep_ctx_import_path_copy64",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_dep_ctx_import_path_copy64"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0127",
+                                            "created": 1784118749687,
+                                            "text": "pipeline_dep_ctx_ndep",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_dep_ctx_ndep"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0128",
+                                            "created": 1784118749688,
+                                            "text": "pipeline_dep_ctx_set_ndep",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_dep_ctx_set_ndep"
+                                        },
+                                        "children": []
+                                    }
+                                ]
+                            },
+                            {
+                                "data": {
+                                    "id": "n0152",
+                                    "created": 1784118749712,
+                                    "text": "pipeline_expr_* (22)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ast/ast.x",
+                                    "hyperlinkTitle": "compiler/src/ast/ast.x"
+                                },
+                                "children": [
+                                    {
+                                        "data": {
+                                            "id": "n0130",
+                                            "created": 1784118749690,
+                                            "text": "pipeline_expr_append_call_arg",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_expr_append_call_arg"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0131",
+                                            "created": 1784118749691,
+                                            "text": "pipeline_expr_call_arg_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_expr_call_arg_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0132",
+                                            "created": 1784118749692,
+                                            "text": "pipeline_expr_call_num_args_at",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_expr_call_num_args_at"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0133",
+                                            "created": 1784118749693,
+                                            "text": "pipeline_expr_call_num_type_args_at",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_expr_call_num_type_args_at"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0134",
+                                            "created": 1784118749694,
+                                            "text": "pipeline_expr_append_method_call_arg",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_expr_append_method_call_arg"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0135",
+                                            "created": 1784118749695,
+                                            "text": "pipeline_expr_method_call_arg_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_expr_method_call_arg_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0136",
+                                            "created": 1784118749696,
+                                            "text": "pipeline_expr_append_match_arm",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_expr_append_match_arm"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0137",
+                                            "created": 1784118749697,
+                                            "text": "pipeline_expr_match_num_arms_at",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_expr_match_num_arms_at"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0138",
+                                            "created": 1784118749698,
+                                            "text": "pipeline_expr_match_arm_result_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_expr_match_arm_result_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0139",
+                                            "created": 1784118749699,
+                                            "text": "pipeline_expr_match_arm_is_wildcard",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_expr_match_arm_is_wildcard"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0140",
+                                            "created": 1784118749700,
+                                            "text": "pipeline_expr_match_arm_lit_val",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_expr_match_arm_lit_val"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0141",
+                                            "created": 1784118749701,
+                                            "text": "pipeline_expr_match_arm_is_enum_variant",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_expr_match_arm_is_enum_variant"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0142",
+                                            "created": 1784118749702,
+                                            "text": "pipeline_expr_match_arm_variant_index",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_expr_match_arm_variant_index"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0143",
+                                            "created": 1784118749703,
+                                            "text": "pipeline_expr_match_arm_set_wildcard",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_expr_match_arm_set_wildcard"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0144",
+                                            "created": 1784118749704,
+                                            "text": "pipeline_expr_match_arm_set_lit_val",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_expr_match_arm_set_lit_val"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0145",
+                                            "created": 1784118749705,
+                                            "text": "pipeline_expr_match_arm_set_enum_variant",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_expr_match_arm_set_enum_variant"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0146",
+                                            "created": 1784118749706,
+                                            "text": "pipeline_expr_append_struct_lit_field",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_expr_append_struct_lit_field"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0147",
+                                            "created": 1784118749707,
+                                            "text": "pipeline_expr_append_array_lit_elem",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_expr_append_array_lit_elem"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0148",
+                                            "created": 1784118749708,
+                                            "text": "pipeline_expr_array_lit_elem_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_expr_array_lit_elem_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0149",
+                                            "created": 1784118749709,
+                                            "text": "pipeline_expr_array_lit_num_elems_at",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_expr_array_lit_num_elems_at"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0150",
+                                            "created": 1784118749710,
+                                            "text": "pipeline_expr_init_call_resolve_at_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_expr_init_call_resolve_at_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0151",
+                                            "created": 1784118749711,
+                                            "text": "pipeline_expr_apply_call_resolve",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_expr_apply_call_resolve"
+                                        },
+                                        "children": []
+                                    }
+                                ]
+                            },
+                            {
+                                "data": {
+                                    "id": "n0216",
+                                    "created": 1784118749776,
+                                    "text": "pipeline_module_* (63)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ast/ast.x",
+                                    "hyperlinkTitle": "compiler/src/ast/ast.x"
+                                },
+                                "children": [
+                                    {
+                                        "data": {
+                                            "id": "n0153",
+                                            "created": 1784118749713,
+                                            "text": "pipeline_module_import_alloc",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_import_alloc"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0154",
+                                            "created": 1784118749714,
+                                            "text": "pipeline_module_import_set_path",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_import_set_path"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0155",
+                                            "created": 1784118749715,
+                                            "text": "pipeline_module_import_path_len",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_import_path_len"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0156",
+                                            "created": 1784118749716,
+                                            "text": "pipeline_module_import_path_copy",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_import_path_copy"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0157",
+                                            "created": 1784118749717,
+                                            "text": "pipeline_module_import_path_byte_at",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_import_path_byte_at"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0158",
+                                            "created": 1784118749718,
+                                            "text": "pipeline_module_import_set_kind",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_import_set_kind"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0159",
+                                            "created": 1784118749719,
+                                            "text": "pipeline_module_import_kind_at",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_import_kind_at"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0160",
+                                            "created": 1784118749720,
+                                            "text": "pipeline_module_import_set_binding_name",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_import_set_binding_name"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0161",
+                                            "created": 1784118749721,
+                                            "text": "pipeline_module_import_binding_name_len",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_import_binding_name_len"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0162",
+                                            "created": 1784118749722,
+                                            "text": "pipeline_module_import_binding_name_byte_at",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_import_binding_name_byte_at"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0163",
+                                            "created": 1784118749723,
+                                            "text": "pipeline_module_import_set_select_count",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_import_set_select_count"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0164",
+                                            "created": 1784118749724,
+                                            "text": "pipeline_module_import_append_select_name",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_import_append_select_name"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0165",
+                                            "created": 1784118749725,
+                                            "text": "pipeline_module_import_select_count_at",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_import_select_count_at"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0166",
+                                            "created": 1784118749726,
+                                            "text": "pipeline_module_import_set_select_name",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_import_set_select_name"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0167",
+                                            "created": 1784118749727,
+                                            "text": "pipeline_module_import_select_name_len",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_import_select_name_len"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0168",
+                                            "created": 1784118749728,
+                                            "text": "pipeline_module_import_select_name_byte_at",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_import_select_name_byte_at"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0169",
+                                            "created": 1784118749729,
+                                            "text": "pipeline_module_struct_layout_alloc",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_struct_layout_alloc"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0170",
+                                            "created": 1784118749730,
+                                            "text": "pipeline_module_struct_layout_reset_slot",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_struct_layout_reset_slot"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0171",
+                                            "created": 1784118749731,
+                                            "text": "pipeline_module_struct_layout_set_name",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_struct_layout_set_name"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0172",
+                                            "created": 1784118749732,
+                                            "text": "pipeline_module_struct_layout_set_field",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_struct_layout_set_field"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0173",
+                                            "created": 1784118749733,
+                                            "text": "pipeline_module_struct_layout_name_len",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_struct_layout_name_len"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0174",
+                                            "created": 1784118749734,
+                                            "text": "pipeline_module_struct_layout_name_into",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_struct_layout_name_into"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0175",
+                                            "created": 1784118749735,
+                                            "text": "pipeline_module_struct_layout_field_name_into",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_struct_layout_field_name_into"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0176",
+                                            "created": 1784118749736,
+                                            "text": "pipeline_module_struct_layout_num_fields",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_struct_layout_num_fields"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0177",
+                                            "created": 1784118749737,
+                                            "text": "pipeline_module_struct_layout_set_num_fields",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_struct_layout_set_num_fields"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0178",
+                                            "created": 1784118749738,
+                                            "text": "pipeline_module_struct_layout_field_type_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_struct_layout_field_type_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0179",
+                                            "created": 1784118749739,
+                                            "text": "pipeline_module_struct_layout_field_name_len",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_struct_layout_field_name_len"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0180",
+                                            "created": 1784118749740,
+                                            "text": "pipeline_module_top_level_let_alloc",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_top_level_let_alloc"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0181",
+                                            "created": 1784118749741,
+                                            "text": "pipeline_module_top_level_let_set",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_top_level_let_set"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0182",
+                                            "created": 1784118749742,
+                                            "text": "pipeline_module_top_level_let_name_len",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_top_level_let_name_len"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0183",
+                                            "created": 1784118749743,
+                                            "text": "pipeline_module_top_level_let_name_byte_at",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_top_level_let_name_byte_at"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0184",
+                                            "created": 1784118749744,
+                                            "text": "pipeline_module_top_level_let_type_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_top_level_let_type_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0185",
+                                            "created": 1784118749745,
+                                            "text": "pipeline_module_top_level_let_init_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_top_level_let_init_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0186",
+                                            "created": 1784118749746,
+                                            "text": "pipeline_module_top_level_let_is_const",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_top_level_let_is_const"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0187",
+                                            "created": 1784118749747,
+                                            "text": "pipeline_module_enum_alloc",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_enum_alloc"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0188",
+                                            "created": 1784118749748,
+                                            "text": "pipeline_module_enum_set_name",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_enum_set_name"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0189",
+                                            "created": 1784118749749,
+                                            "text": "pipeline_module_enum_name_len",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_enum_name_len"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0190",
+                                            "created": 1784118749750,
+                                            "text": "pipeline_module_enum_name_byte_at",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_enum_name_byte_at"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0191",
+                                            "created": 1784118749751,
+                                            "text": "pipeline_module_struct_layout_name_byte_at",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_struct_layout_name_byte_at"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0192",
+                                            "created": 1784118749752,
+                                            "text": "pipeline_module_struct_layout_set_allow_padding",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_struct_layout_set_allow_padding"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0193",
+                                            "created": 1784118749753,
+                                            "text": "pipeline_module_struct_layout_allow_padding_at",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_struct_layout_allow_padding_at"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0194",
+                                            "created": 1784118749754,
+                                            "text": "pipeline_module_struct_layout_set_soa",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_struct_layout_set_soa"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0195",
+                                            "created": 1784118749755,
+                                            "text": "pipeline_module_struct_layout_set_packed",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_struct_layout_set_packed"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0196",
+                                            "created": 1784118749756,
+                                            "text": "pipeline_module_struct_layout_packed_at",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_struct_layout_packed_at"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0197",
+                                            "created": 1784118749757,
+                                            "text": "pipeline_module_struct_layout_soa_at",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_struct_layout_soa_at"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0198",
+                                            "created": 1784118749758,
+                                            "text": "pipeline_module_struct_layout_field_offset_at",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_struct_layout_field_offset_at"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0199",
+                                            "created": 1784118749759,
+                                            "text": "pipeline_module_struct_layout_set_field_offset",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_struct_layout_set_field_offset"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0200",
+                                            "created": 1784118749760,
+                                            "text": "pipeline_module_func_alloc_slot",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_func_alloc_slot"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0201",
+                                            "created": 1784118749761,
+                                            "text": "pipeline_module_func_ref_at",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_func_ref_at"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0202",
+                                            "created": 1784118749762,
+                                            "text": "pipeline_module_func_ref_set",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_func_ref_set"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0203",
+                                            "created": 1784118749763,
+                                            "text": "pipeline_module_func_set_return_type",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_func_set_return_type"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0204",
+                                            "created": 1784118749764,
+                                            "text": "pipeline_module_func_set_body_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_func_set_body_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0205",
+                                            "created": 1784118749765,
+                                            "text": "pipeline_module_func_set_body_expr_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_func_set_body_expr_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0206",
+                                            "created": 1784118749766,
+                                            "text": "pipeline_module_func_set_is_extern",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_func_set_is_extern"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0207",
+                                            "created": 1784118749767,
+                                            "text": "pipeline_module_func_set_is_variadic",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_func_set_is_variadic"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0208",
+                                            "created": 1784118749768,
+                                            "text": "pipeline_module_func_is_variadic_at",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_func_is_variadic_at"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0209",
+                                            "created": 1784118749769,
+                                            "text": "pipeline_module_func_set_num_params",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_func_set_num_params"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0210",
+                                            "created": 1784118749770,
+                                            "text": "pipeline_module_func_set_num_generic_params",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_func_set_num_generic_params"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0211",
+                                            "created": 1784118749771,
+                                            "text": "pipeline_module_func_return_type_at",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_func_return_type_at"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0212",
+                                            "created": 1784118749772,
+                                            "text": "pipeline_module_func_num_generic_params_at",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_func_num_generic_params_at"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0213",
+                                            "created": 1784118749773,
+                                            "text": "pipeline_module_func_name_equal_at",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_func_name_equal_at"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0214",
+                                            "created": 1784118749774,
+                                            "text": "pipeline_module_func_name_byte_at",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_func_name_byte_at"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0215",
+                                            "created": 1784118749775,
+                                            "text": "pipeline_module_func_body_expr_ref_at",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_module_func_body_expr_ref_at"
+                                        },
+                                        "children": []
+                                    }
+                                ]
+                            },
+                            {
+                                "data": {
+                                    "id": "n0242",
+                                    "created": 1784118749802,
+                                    "text": "pipeline_onefunc_* (25)",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ast/ast.x",
+                                    "hyperlinkTitle": "compiler/src/ast/ast.x"
+                                },
+                                "children": [
+                                    {
+                                        "data": {
+                                            "id": "n0217",
+                                            "created": 1784118749777,
+                                            "text": "pipeline_onefunc_append_const_name",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_onefunc_append_const_name"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0218",
+                                            "created": 1784118749778,
+                                            "text": "pipeline_onefunc_const_name_len",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_onefunc_const_name_len"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0219",
+                                            "created": 1784118749779,
+                                            "text": "pipeline_onefunc_const_name_byte_at",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_onefunc_const_name_byte_at"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0220",
+                                            "created": 1784118749780,
+                                            "text": "pipeline_onefunc_const_init_val",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_onefunc_const_init_val"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0221",
+                                            "created": 1784118749781,
+                                            "text": "pipeline_onefunc_num_consts",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_onefunc_num_consts"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0222",
+                                            "created": 1784118749782,
+                                            "text": "pipeline_onefunc_append_let",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_onefunc_append_let"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0223",
+                                            "created": 1784118749783,
+                                            "text": "pipeline_onefunc_let_name_len",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_onefunc_let_name_len"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0224",
+                                            "created": 1784118749784,
+                                            "text": "pipeline_onefunc_let_name_byte_at",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_onefunc_let_name_byte_at"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0225",
+                                            "created": 1784118749785,
+                                            "text": "pipeline_onefunc_let_init_val",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_onefunc_let_init_val"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0226",
+                                            "created": 1784118749786,
+                                            "text": "pipeline_onefunc_let_init_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_onefunc_let_init_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0227",
+                                            "created": 1784118749787,
+                                            "text": "pipeline_onefunc_let_type_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_onefunc_let_type_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0228",
+                                            "created": 1784118749788,
+                                            "text": "pipeline_onefunc_num_lets",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_onefunc_num_lets"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0229",
+                                            "created": 1784118749789,
+                                            "text": "pipeline_onefunc_const_name_copy64",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_onefunc_const_name_copy64"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0230",
+                                            "created": 1784118749790,
+                                            "text": "pipeline_onefunc_let_name_copy64",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_onefunc_let_name_copy64"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0231",
+                                            "created": 1784118749791,
+                                            "text": "pipeline_onefunc_copy_sidecar",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_onefunc_copy_sidecar"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0232",
+                                            "created": 1784118749792,
+                                            "text": "pipeline_onefunc_append_while",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_onefunc_append_while"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0233",
+                                            "created": 1784118749793,
+                                            "text": "pipeline_onefunc_while_cond_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_onefunc_while_cond_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0234",
+                                            "created": 1784118749794,
+                                            "text": "pipeline_onefunc_while_body_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_onefunc_while_body_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0235",
+                                            "created": 1784118749795,
+                                            "text": "pipeline_onefunc_num_whiles",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_onefunc_num_whiles"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0236",
+                                            "created": 1784118749796,
+                                            "text": "pipeline_onefunc_append_for",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_onefunc_append_for"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0237",
+                                            "created": 1784118749797,
+                                            "text": "pipeline_onefunc_for_init_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_onefunc_for_init_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0238",
+                                            "created": 1784118749798,
+                                            "text": "pipeline_onefunc_for_cond_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_onefunc_for_cond_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0239",
+                                            "created": 1784118749799,
+                                            "text": "pipeline_onefunc_for_step_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_onefunc_for_step_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0240",
+                                            "created": 1784118749800,
+                                            "text": "pipeline_onefunc_for_body_ref",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_onefunc_for_body_ref"
+                                        },
+                                        "children": []
+                                    },
+                                    {
+                                        "data": {
+                                            "id": "n0241",
+                                            "created": 1784118749801,
+                                            "text": "pipeline_onefunc_num_fors",
+                                            "expandState": "collapse",
+                                            "hyperlink": "compiler/src/ast/ast.x",
+                                            "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                            "note": "ast.x :: pipeline_onefunc_num_fors"
+                                        },
+                                        "children": []
+                                    }
+                                ]
+                            },
+                            {
+                                "data": {
+                                    "id": "n0243",
+                                    "created": 1784118749803,
+                                    "text": "ref_is_null",
+                                    "expandState": "collapse",
+                                    "hyperlink": "compiler/src/ast/ast.x",
+                                    "hyperlinkTitle": "compiler/src/ast/ast.x",
+                                    "note": "ast.x :: ref_is_null"
+                                },
+                                "children": []
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    },
+    "template": "default",
+    "theme": "fresh-blue",
+    "version": "1.4.43"
+}

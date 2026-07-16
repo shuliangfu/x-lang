@@ -720,18 +720,7 @@ int write_io_net_abi_inline(FILE *cf) {
         "__attribute__((weak)) ptrdiff_t io_read_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms) {\n"
         "  (void)fd;(void)bufs;(void)n;(void)timeout_ms; return (ptrdiff_t)-1;\n"
         "}\n"
-        "__attribute__((weak)) int32_t std_io_driver_submit_read_batch(struct std_io_driver_Buffer *bufs, int32_t n, uint32_t t) {\n"
-        "  (void)bufs;(void)n;(void)t; return -1;\n"
-        "}\n"
-        "__attribute__((weak)) int32_t std_io_driver_submit_write_batch(struct std_io_driver_Buffer *bufs, int32_t n, uint32_t t) {\n"
-        "  (void)bufs;(void)n;(void)t; return -1;\n"
-        "}\n"
-        "__attribute__((weak)) int32_t std_io_driver_submit_write_batch_buf(size_t h, struct std_io_driver_Buffer *bufs, int32_t n, uint32_t t) {\n"
-        "  (void)h;(void)bufs;(void)n;(void)t; return -1;\n"
-        "}\n"
-        "__attribute__((weak)) int32_t std_io_driver_submit_read_batch_buf(size_t h, struct std_io_driver_Buffer *bufs, int32_t n, uint32_t t) {\n"
-        "  (void)h;(void)bufs;(void)n;(void)t; return -1;\n"
-        "}\n"
+        /* submit_*_batch(_buf)：co-emit driver.x 为唯一权威；勿 weak stub（同 TU 重定义 + 假 -1）。 */
         "__attribute__((weak)) uint64_t std_io_driver_driver_read_ptr_gen(void) { return 0; }\n"
         "typedef struct { int32_t _pad; } shux_ctx_handle_t;\n"
         "__attribute__((weak)) shux_ctx_handle_t *ctx_background_c(void) { return 0; }\n"
@@ -756,18 +745,28 @@ int write_io_net_abi_inline(FILE *cf) {
         "/* 实际符号用 _real 后缀，避免宏 net_close_socket_c(x) 展开时再触发自身。 */\n",
         "extern int32_t net_close_socket_c_real(int32_t fd);\n",
         "extern int32_t net_run_accept_workers_c_real(int32_t listener_fd, int32_t n_workers, uint32_t timeout_ms);\n",
-        "#define net_close_socket_c(x) net_close_socket_c_real(shux_io_net_fd(x))\n",
+        "/* 勿 #define bare net_close_socket_c / net_run_accept_workers_c：与 extern 同名会吃掉声明。 */\n",
+        "extern int32_t net_close_socket_c(int32_t fd);\n",
+        "extern int32_t net_run_accept_workers_c(int32_t listener_fd, int32_t n_workers, uint32_t timeout_ms);\n",
         "#define std_net_net_close_socket_c(x) net_close_socket_c_real(shux_io_net_fd(x))\n",
-        "#define net_run_accept_workers_c(x, n, t) net_run_accept_workers_c_real(shux_io_net_fd(x), n, t)\n",
         "#define std_net_net_run_accept_workers_c(x, n, t) net_run_accept_workers_c_real(shux_io_net_fd(x), n, t)\n",
-        "#define STD_FS_FS_IOVEC_BUF_DEFINED\nstruct std_fs_FsIovecBuf { void *ptr; size_t len; size_t handle; };\n",
-        "struct std_map_Map_i32_i32 { int32_t *keys; int32_t *vals; uint8_t *occupied; int32_t cap; int32_t len; };\n",
+        /* 与 rt_preamble 同：#define 标签别名，吸收 codegen 的 std_fs_posix_* tag */
+        "#define STD_FS_FS_IOVEC_BUF_DEFINED\nstruct std_fs_FsIovecBuf { void *ptr; size_t len; size_t handle; };\n"
+        "#define std_fs_posix_FsIovecBuf std_fs_FsIovecBuf\n"
+        "struct std_io_sync_Iovec { uint8_t *base; size_t len; };\n"
+        "#define std_fs_posix_Iovec std_io_sync_Iovec\n",
+        /* 仅 forward：完整体由 std/map 发射；preamble 全量定义与 map.o -o 双权威 → redefinition */
+        "struct std_map_Map_i32_i32;\n",
         "typedef struct std_io_driver_Buffer std_net_Buffer;\n",
         "struct std_error_Error { int32_t code; };\n",
         "struct std_string_String { uint8_t data[256]; int32_t len; };\n",
         "typedef struct std_string_String String;\n",
         "struct std_string_StrView { uint8_t *ptr; int32_t len; };\n",
-        "struct std_vec_Vec_i32 { int32_t *ptr; int32_t len; int32_t cap; };\n",
+        /* heap.Allocator 须在 Vec 之前完整（codegen 现按模块序 emit，vec 先于 heap 布局） */
+        "struct std_heap_Arena64 { uint8_t *chunk; size_t cap; size_t off; };\n",
+        "struct std_heap_Allocator { int32_t kind; struct std_heap_Arena64 *arena; };\n",
+        /* Vec 完整体由 std/vec 发射（含 al）；勿在此写 3 字段旧布局 */
+        "struct std_vec_Vec_i32;\n",
         "struct core_option_Option_i32 { int is_some; int32_t value; };\n",
         "struct core_result_Result_i32 { int32_t value; int32_t _pad1; int32_t err; int32_t _pad2; };\n",
         "extern int32_t core_types_placeholder(void);\n",
@@ -778,8 +777,10 @@ int write_io_net_abi_inline(FILE *cf) {
         "extern int32_t std_runtime_runtime_ready(void);\n",
         "#ifndef __cplusplus\n"
         "__attribute__((weak)) int32_t std_vec_vec_len_empty(void) { return 0; }\n"
+        "__attribute__((weak)) int32_t std_vec_len_empty(void) { return 0; }\n"
         "#else\n"
         "extern int32_t std_vec_vec_len_empty(void);\n"
+        "extern int32_t std_vec_len_empty(void);\n"
         "#endif\n",
         "#define vec_len_empty std_vec_vec_len_empty\n",
         "#define alloc_size_zero std_heap_alloc_size_zero\n",

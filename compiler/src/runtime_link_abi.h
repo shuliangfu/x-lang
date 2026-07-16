@@ -12,8 +12,10 @@
 #include <stddef.h>
 
 #ifndef SHUX_ASM_LD_PATH_BANK_SLOTS
-/** ASM ld argv 路径 bank 槽位数（须 ≥ append_std_objs 链入的 std+glue 总量）。 */
-#define SHUX_ASM_LD_PATH_BANK_SLOTS 96
+/** ASM ld argv 路径 bank 槽位数（须 ≥ append_std_objs 链入的 std+glue+on_demand 总量）。
+ * 全量 bstrict ensure 后 std/*.o 可达 40+，再加 glue/on_demand/尾部 -l，96 易顶满导致
+ * core/mem/mem.o 等尾部 on_demand 静默丢弃 → heap.o 链入后仍缺 core_mem_*。 */
+#define SHUX_ASM_LD_PATH_BANK_SLOTS 192
 #endif
 #ifndef SHUX_LINK_ABI_PATH_MAX
 #define SHUX_LINK_ABI_PATH_MAX 4096
@@ -22,8 +24,8 @@
 #define SHUX_INVOKE_CC_MAX_C_FILES 64
 #endif
 #ifndef SHUX_LD_ARGV_CAP
-/** ASM ld/gcc 子进程 argv 槽位上限（须 ≥ std 模块 + -l 参数）。 */
-#define SHUX_LD_ARGV_CAP 96
+/** ASM ld/gcc 子进程 argv 槽位上限（须 ≥ std 模块 + glue + on_demand + -l 参数）。 */
+#define SHUX_LD_ARGV_CAP 192
 #endif
 
 /** ASM 链接子进程内向 argv[] 填入的冗长路径存这里（execvp 前须保持有效）。 */

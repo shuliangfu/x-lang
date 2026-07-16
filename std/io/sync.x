@@ -111,7 +111,7 @@ export function io_write(fd: i32, buf: *u8, count: usize, timeout_ms: u32): isiz
  */
 export function io_read_batch(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize, n: i32, timeout_ms: u32): isize {
   if (n <= 0 || n > 4) {
-    return -1;
+    return -1 as isize;
   }
   if (n == 1) {
     return io_read(fd, p0, l0, timeout_ms);
@@ -134,19 +134,19 @@ export function io_read_batch(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p
   }
   let total: isize = 0;
   let r0: isize = io_read(fd, p0, l0, timeout_ms);
-  if (r0 < 0) { return -1; }
+  if (r0 < 0) { return -1 as isize; }
   total = total + r0;
   if (n == 1) { return total; }
   let r1: isize = io_read(fd, p1, l1, timeout_ms);
-  if (r1 < 0) { return -1; }
+  if (r1 < 0) { return -1 as isize; }
   total = total + r1;
   if (n == 2) { return total; }
   let r2: isize = io_read(fd, p2, l2, timeout_ms);
-  if (r2 < 0) { return -1; }
+  if (r2 < 0) { return -1 as isize; }
   total = total + r2;
   if (n == 3) { return total; }
   let r3: isize = io_read(fd, p3, l3, timeout_ms);
-  if (r3 < 0) { return -1; }
+  if (r3 < 0) { return -1 as isize; }
   return total + r3;
 }
 
@@ -157,7 +157,7 @@ export function io_read_batch(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p
  */
 export function io_write_batch(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize, n: i32, timeout_ms: u32): isize {
   if (n <= 0 || n > 4) {
-    return -1;
+    return -1 as isize;
   }
   if (n == 1) {
     return io_write(fd, p0, l0, timeout_ms);
@@ -180,19 +180,19 @@ export function io_write_batch(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, 
   }
   let total: isize = 0;
   let r0: isize = io_write(fd, p0, l0, timeout_ms);
-  if (r0 < 0) { return -1; }
+  if (r0 < 0) { return -1 as isize; }
   total = total + r0;
   if (n == 1) { return total; }
   let r1: isize = io_write(fd, p1, l1, timeout_ms);
-  if (r1 < 0) { return -1; }
+  if (r1 < 0) { return -1 as isize; }
   total = total + r1;
   if (n == 2) { return total; }
   let r2: isize = io_write(fd, p2, l2, timeout_ms);
-  if (r2 < 0) { return -1; }
+  if (r2 < 0) { return -1 as isize; }
   total = total + r2;
   if (n == 3) { return total; }
   let r3: isize = io_write(fd, p3, l3, timeout_ms);
-  if (r3 < 0) { return -1; }
+  if (r3 < 0) { return -1 as isize; }
   return total + r3;
 }
 
@@ -201,7 +201,7 @@ export function io_write_batch(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, 
  */
 export function io_read_batch_buf(fd: i32, bufs: *IoBatchBuf, n: i32, timeout_ms: u32): isize {
   if (n <= 0 || n > IO_READV_BUF_MAX || bufs == 0) {
-    return -1;
+    return -1 as isize;
   }
   if (n == 1) {
     return io_read(fd, bufs[0].ptr, bufs[0].len, timeout_ms);
@@ -220,7 +220,7 @@ export function io_read_batch_buf(fd: i32, bufs: *IoBatchBuf, n: i32, timeout_ms
   let i2: i32 = 0;
   while (i2 < n) {
     let r: isize = io_read(fd, bufs[i2].ptr, bufs[i2].len, timeout_ms);
-    if (r < 0) { return -1; }
+    if (r < 0) { return -1 as isize; }
     total = total + r;
     i2 = i2 + 1;
   }
@@ -230,7 +230,7 @@ export function io_read_batch_buf(fd: i32, bufs: *IoBatchBuf, n: i32, timeout_ms
 /** 切片式批量写：语义同 io_read_batch_buf。 */
 export function io_write_batch_buf(fd: i32, bufs: *IoBatchBuf, n: i32, timeout_ms: u32): isize {
   if (n <= 0 || n > IO_READV_BUF_MAX || bufs == 0) {
-    return -1;
+    return -1 as isize;
   }
   if (n == 1) {
     return io_write(fd, bufs[0].ptr, bufs[0].len, timeout_ms);
@@ -249,7 +249,7 @@ export function io_write_batch_buf(fd: i32, bufs: *IoBatchBuf, n: i32, timeout_m
   let i2: i32 = 0;
   while (i2 < n) {
     let r: isize = io_write(fd, bufs[i2].ptr, bufs[i2].len, timeout_ms);
-    if (r < 0) { return -1; }
+    if (r < 0) { return -1 as isize; }
     total = total + r;
     i2 = i2 + 1;
   }
@@ -339,12 +339,12 @@ export function io_unregister_buffers(): void {
  */
 export function io_read_fixed(fd: i32, buf_index: u32, offset: usize, len: usize, timeout_ms: u32): isize {
   if (buf_index >= io_fixed_nr) {
-    return -1;
+    return -1 as isize;
   }
   let base: *u8 = io_fixed_ptr[buf_index];
   let cap: usize = io_fixed_len[buf_index];
   if (base == 0 || offset > cap || len > cap - offset) {
-    return -1;
+    return -1 as isize;
   }
   let addr: *u8 = base + offset;
   return io_read(fd, addr, len, timeout_ms);
@@ -353,12 +353,12 @@ export function io_read_fixed(fd: i32, buf_index: u32, offset: usize, len: usize
 /** 使用已注册固定 buffer 写。 */
 export function io_write_fixed(fd: i32, buf_index: u32, offset: usize, len: usize, timeout_ms: u32): isize {
   if (buf_index >= io_fixed_nr) {
-    return -1;
+    return -1 as isize;
   }
   let base: *u8 = io_fixed_ptr[buf_index];
   let cap: usize = io_fixed_len[buf_index];
   if (base == 0 || offset > cap || len > cap - offset) {
-    return -1;
+    return -1 as isize;
   }
   let addr: *u8 = base + offset;
   return io_write(fd, addr, len, timeout_ms);
@@ -376,8 +376,8 @@ export function io_wait_readable(fds: *i32, n: i32, timeout_ms: u32): i32 {
   let i: i32 = 0;
   while (i < n) {
     pfd[i].fd = fds[i];
-    pfd[i].events = 1; /* POLLIN */
-    pfd[i].revents = 0;
+    pfd[i].events = 1 as i16; /* POLLIN */
+    pfd[i].revents = 0 as i16;
     i = i + 1;
   }
   let to: i32 = -1;

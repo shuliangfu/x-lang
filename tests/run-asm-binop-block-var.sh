@@ -7,12 +7,9 @@ cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
 SHUX=${SHUX:-./compiler/shux}
 
-# x10/x11 spill 与 ldur 门禁仅 arm64 宿主（otool/objdump 反汇编为 AArch64 指令形态）。
+# x10/x11 spill 与 ldur 门禁：仅非 Darwin 的 arm64（Darwin 产品 -o 走 C，见 wpo_asm_disasm_gate_host）。
 asm_disasm_gate_host() {
-  case "$(uname -m 2>/dev/null)" in
-    arm64|aarch64) return 0 ;;
-    *) return 1 ;;
-  esac
+  wpo_asm_disasm_gate_host
 }
 
 # 提取 _main 反汇编（macOS otool / Linux objdump）。

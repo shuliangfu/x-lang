@@ -49,17 +49,16 @@ export struct Split_u64 {
 /** 返回 []i32 切片的长度（元素个数）。 */
 export function len_i32(s: []i32): usize { return s.length; }
 
-/** 边界内返回 some(s[i])，越界返回 option.none_i32()。 */
+/** 边界内返回 some(s.data[i])，越界返回 option.none_i32()。 */
 export function get_i32(s: []i32, i: usize): Option_i32 {
-  if (i < s.length) {
-    return option.some_i32(s[i]);
-  } else {
+  if (i >= s.length) {
     return option.none_i32();
   }
+  return option.some_i32(s.data[i]);
 }
 
-/** 直接返回 s[i]；调用方须保证 i < s.length。 */
-export function get_i32_unchecked(s: []i32, i: usize): i32 { return s[i]; }
+/** 直接返回 s.data[i]；调用方须保证 i < s.length。 */
+export function get_i32_unchecked(s: []i32, i: usize): i32 { return s.data[i]; }
 
 /** 是否为空切片。 */
 export function is_empty_i32(s: []i32): i32 {
@@ -80,8 +79,9 @@ export function last_i32(s: []i32): Option_i32 {
 
 /** 零拷贝子切片：从 start 起取 len 个元素；(offset, count) 语义。 */
 export function subslice_i32(s: []i32, start: usize, len: usize): []i32 {
-  unsafe { return core_subslice_i32_c(s.data, s.length, start, len); }
-  return 0; // unreachable — typeck workaround
+  let r: []i32;
+  unsafe { r = core_subslice_i32_c(s.data, s.length, start, len); }
+  return r;
 }
 
 /** 在 at 处拆分为左右两段；at 超出 length 时 left 为整段、right 为空。 */
@@ -104,13 +104,15 @@ export function chunks_len_i32(s: []i32, chunk_size: usize): usize {
 /** 取第 index 个 chunk（每块 chunk_size 元素）；越界 index 返回空切片。 */
 export function chunk_i32(s: []i32, chunk_size: usize, index: usize): []i32 {
   if (chunk_size == 0 as usize) {
-    unsafe { return core_slice_i32_from_ptr_c(s.data, 0 as usize); }
-  return 0; // unreachable — typeck workaround
+    let empty0: []i32;
+    unsafe { empty0 = core_slice_i32_from_ptr_c(s.data, 0 as usize); }
+    return empty0;
   }
   let off: usize = index * chunk_size;
   if (off >= s.length) {
-    unsafe { return core_slice_i32_from_ptr_c(s.data, 0 as usize); }
-  return 0; // unreachable — typeck workaround
+    let empty1: []i32;
+    unsafe { empty1 = core_slice_i32_from_ptr_c(s.data, 0 as usize); }
+    return empty1;
   }
   let n: usize = chunk_size;
   if (off + n > s.length) { n = s.length - off; }
@@ -121,17 +123,16 @@ export function chunk_i32(s: []i32, chunk_size: usize, index: usize): []i32 {
 /** 返回 []u8 切片的长度。 */
 export function len_u8(s: []u8): usize { return s.length; }
 
-/** 边界内返回 some(s[i])，越界返回 option.none_u8()。 */
+/** 边界内返回 some(s.data[i])，越界返回 option.none_u8()。 */
 export function get_u8(s: []u8, i: usize): Option_u8 {
-  if (i < s.length) {
-    return option.some_u8(s[i]);
-  } else {
+  if (i >= s.length) {
     return option.none_u8();
   }
+  return option.some_u8(s.data[i]);
 }
 
-/** 直接返回 s[i]；调用方须保证 i < s.length。 */
-export function get_u8_unchecked(s: []u8, i: usize): u8 { return s[i]; }
+/** 直接返回 s.data[i]；调用方须保证 i < s.length。 */
+export function get_u8_unchecked(s: []u8, i: usize): u8 { return s.data[i]; }
 
 /** 是否为空切片。 */
 export function is_empty_u8(s: []u8): i32 {
@@ -146,8 +147,9 @@ export function first_u8(s: []u8): Option_u8 {
 
 /** 零拷贝 subslice（[]u8）。 */
 export function subslice_u8(s: []u8, start: usize, len: usize): []u8 {
-  unsafe { return core_subslice_u8_c(s.data, s.length, start, len); }
-  return 0; // unreachable — typeck workaround
+  let r: []u8;
+  unsafe { r = core_subslice_u8_c(s.data, s.length, start, len); }
+  return r;
 }
 
 /** 在 at 处拆分（[]u8）。 */
@@ -170,13 +172,15 @@ export function chunks_len_u8(s: []u8, chunk_size: usize): usize {
 /** 取第 index 个 chunk（[]u8）。 */
 export function chunk_u8(s: []u8, chunk_size: usize, index: usize): []u8 {
   if (chunk_size == 0 as usize) {
-    unsafe { return core_slice_u8_from_ptr_c(s.data, 0 as usize); }
-  return 0; // unreachable — typeck workaround
+    let empty0: []u8;
+    unsafe { empty0 = core_slice_u8_from_ptr_c(s.data, 0 as usize); }
+    return empty0;
   }
   let off: usize = index * chunk_size;
   if (off >= s.length) {
-    unsafe { return core_slice_u8_from_ptr_c(s.data, 0 as usize); }
-  return 0; // unreachable — typeck workaround
+    let empty1: []u8;
+    unsafe { empty1 = core_slice_u8_from_ptr_c(s.data, 0 as usize); }
+    return empty1;
   }
   let n: usize = chunk_size;
   if (off + n > s.length) { n = s.length - off; }
@@ -187,13 +191,12 @@ export function chunk_u8(s: []u8, chunk_size: usize, index: usize): []u8 {
 /** 返回 []u64 切片的长度。 */
 export function len_u64(s: []u64): usize { return s.length; }
 
-/** 边界内返回 some(s[i])，越界返回 option.none_u64()。 */
+/** 边界内返回 some(s.data[i])，越界返回 option.none_u64()。 */
 export function get_u64(s: []u64, i: usize): Option_u64 {
-  if (i < s.length) {
-    return option.some_u64(s[i]);
-  } else {
+  if (i >= s.length) {
     return option.none_u64();
   }
+  return option.some_u64(s.data[i]);
 }
 
 /** 是否为空切片（[]u64）。 */
@@ -215,8 +218,9 @@ export function last_u64(s: []u64): Option_u64 {
 
 /** 零拷贝 subslice（[]u64）。 */
 export function subslice_u64(s: []u64, start: usize, len: usize): []u64 {
-  unsafe { return core_subslice_u64_c(s.data, s.length, start, len); }
-  return 0; // unreachable — typeck workaround
+  let r: []u64;
+  unsafe { r = core_subslice_u64_c(s.data, s.length, start, len); }
+  return r;
 }
 
 /** 在 at 处拆分（[]u64）。 */
@@ -239,13 +243,15 @@ export function chunks_len_u64(s: []u64, chunk_size: usize): usize {
 /** 取第 index 个 chunk（[]u64）。 */
 export function chunk_u64(s: []u64, chunk_size: usize, index: usize): []u64 {
   if (chunk_size == 0 as usize) {
-    unsafe { return core_slice_u64_from_ptr_c(s.data, 0 as usize); }
-  return 0; // unreachable — typeck workaround
+    let empty0: []u64;
+    unsafe { empty0 = core_slice_u64_from_ptr_c(s.data, 0 as usize); }
+    return empty0;
   }
   let off: usize = index * chunk_size;
   if (off >= s.length) {
-    unsafe { return core_slice_u64_from_ptr_c(s.data, 0 as usize); }
-  return 0; // unreachable — typeck workaround
+    let empty1: []u64;
+    unsafe { empty1 = core_slice_u64_from_ptr_c(s.data, 0 as usize); }
+    return empty1;
   }
   let n: usize = chunk_size;
   if (off + n > s.length) { n = s.length - off; }

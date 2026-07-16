@@ -55,6 +55,8 @@ export extern function pipeline_codegen_emit_struct_field_type(arena: *ASTArena,
 export extern function pipeline_codegen_emit_struct_field_decl(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, field_name: *u8, field_name_len: i32, struct_prefix: *u8, struct_prefix_len: i32): i32;
 /** build_seed_asm_host：SHUX_EMIT_SEED_MEGA=1 时勿跳过 seed_mega emit。 */
 export extern function pipeline_codegen_emit_seed_mega_enabled(): i32;
+/** C 后端浮点字面量发射（host snprintf；float_val + float_bits 回退）。 */
+export extern function pipeline_codegen_emit_float_lit_c(out: *CodegenOutBuf, float_val: f64, bits_lo: i32, bits_hi: i32): i32;
 /** runtime_driver_diagnostic.c：emit_func 失败时打印函数名下标，便于定位 -E codegen fail。 */
 export extern function driver_diagnostic_codegen_emit_func_fail(module: *Module, func_index: i32): void;
 /** glue：按槽读 Module.struct_layouts，避免 X 对大 StructLayout 按值拷贝读字段不稳。 */
@@ -1075,19 +1077,12 @@ export function codegen_is_std_io_driver_bridge_name(name: *u8, name_len: i32): 
   }
   /* register_fixed_buffers — 22 */
   let nm22: u8[22] = [114, 101, 103, 105, 115, 116, 101, 114, 95, 102, 105, 120, 101, 100, 95, 98, 117, 102, 102, 101, 114, 115];
-  if ((name_len == 22 || name_len == 23) && codegen_name_bytes_prefix_eq(name, name_len, &nm22[0], 22) != 0) {
+  if (name_len == 22 && codegen_name_bytes_prefix_eq(name, name_len, &nm22[0], 22) != 0) {
     return 1;
   }
-  /* submit_read_batch — 17（标识符 submit_read_batch，非 21） */
-  let nm17: u8[17] = [115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100, 95, 98, 97, 116, 99, 104];
-  if ((name_len == 17 || name_len == 18) && codegen_name_bytes_prefix_eq(name, name_len, &nm17[0], 17) != 0) {
-    return 1;
-  }
-  /* submit_write_batch — 18（write 比 read 多 1 字符） */
-  let nm18w: u8[18] = [115, 117, 98, 109, 105, 116, 95, 119, 114, 105, 116, 101, 95, 98, 97, 116, 99, 104];
-  if ((name_len == 18 || name_len == 19) && codegen_name_bytes_prefix_eq(name, name_len, &nm18w[0], 18) != 0) {
-    return 1;
-  }
+  /* 【Why 根源】submit_*_batch 不得 skip co-emit：call 端仍用 std_io_driver_submit_*_batch，
+   * 跳过则只剩 preamble weak 返回 -1（run-io-driver r4=-1）。
+   * register/submit_read/submit_write 由 call 端改写 shux_io_*_buf，可 skip 本体。 */
   return 0;
 }
 
@@ -1285,8 +1280,13 @@ export function codegen_should_skip_emit_func(dep_path: *u8, prefix: *u8, prefix
       return 1;
     }
   }
-  /* dep 误标为 std.io.driver 时 mod 的 handle_* 会以 std_io_driver_handle_* 再生成一次，与 std_io_handle_* 重复。 */
-  if (prefix != 0 as *u8 && prefix_len == 14 && name != 0 as *u8) {
+  /* dep 误标为 std.io.driver 时 mod 的 handle_* 会以 std_io_driver_handle_* 再生成一次，与 std_io_handle_* 重复。
+   * 【Why 根源】仅凭 prefix_len==14 会误伤 std_heap_libc_（同为 14 字节）：
+   * trivial_handle 在 name_len==12 时又因 X→C 丢括号变成「任意 12 字符名即 skip」，
+   * 导致 heap_alloc_c 只留 extern、无函数体 → heap.o 缺 std_heap_libc_heap_alloc_c。
+   * 【Invariant】必须 prefix 确为 std_io_driver_ 才走 handle skip。 */
+  if (prefix != 0 as *u8 && prefix_len == 14 && name != 0 as *u8
+      && codegen_name_bytes_prefix_eq(prefix, prefix_len, &pref_abi14[0], 14) != 0) {
     if (codegen_should_skip_emit_std_io_trivial_handle(0 as *u8, name, name_len) != 0) {
       return 1;
     }
@@ -1670,6 +1670,59 @@ export function field_access_base_is_pointer_param(arena: *ASTArena, base_ref: i
   return 0;
 }
 
+/* 局部 let s: *T：无 resolved_type 时按 body 块 let 注解判 *T → C 用 -> */
+export function field_access_base_is_pointer_local(arena: *ASTArena, base_ref: i32, ctx: *PipelineDepCtx): i32 {
+  if (arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx) {
+    return 0;
+  }
+  if (ast.ref_is_null(base_ref) || base_ref <= 0 || base_ref > arena.num_exprs) {
+    return 0;
+  }
+  let base: Expr = ast.ast_arena_expr_get(arena, base_ref);
+  if (base.kind != ExprKind.EXPR_VAR || base.var_name_len <= 0) {
+    return 0;
+  }
+  let br: i32 = 0;
+  if (ctx.current_codegen_module != 0 as *Module && ctx.current_func_index >= 0) {
+    br = pipeline_module_func_body_ref_at(ctx.current_codegen_module, ctx.current_func_index);
+  }
+  if (ast.ref_is_null(br) || br <= 0 || br > arena.num_blocks) {
+    br = ctx.current_block_ref;
+  }
+  if (ast.ref_is_null(br) || br <= 0 || br > arena.num_blocks) {
+    return 0;
+  }
+  let nlets: i32 = ast.ast_block_num_lets(arena, br);
+  let li: i32 = 0;
+  while (li < nlets) {
+    let nl: i32 = pipeline_block_let_name_len(arena, br, li);
+    if (nl == base.var_name_len && nl > 0) {
+      let nb: u8[64] = [];
+      pipeline_block_let_name_copy64(arena, br, li, &nb[0]);
+      let eq: bool = true;
+      let j: i32 = 0;
+      while (j < nl && j < 64) {
+        if (nb[j] != base.var_name[j]) {
+          eq = false;
+          break;
+        }
+        j = j + 1;
+      }
+      if (eq) {
+        let tr: i32 = pipeline_block_let_type_ref(arena, br, li);
+        if (!ast.ref_is_null(tr) && tr > 0 && tr <= arena.num_types) {
+          let lty: Type = ast.ast_arena_type_get(arena, tr);
+          if (lty.kind == TypeKind.TYPE_PTR) {
+            return 1;
+          }
+        }
+      }
+    }
+    li = li + 1;
+  }
+  return 0;
+}
+
 /**
  * base 是否匹配当前函数某形参且该形参 type_ref 有效（值类型或指针均可）。
  * 【Why 根源】dep co-emit 时 EXPR_VAR 常无 resolved_type_ref；名字回退把 "ctx" 一律当 *T → 生成
@@ -1965,20 +2018,39 @@ export function format_uint(out: *CodegenOutBuf, val: i32): i32 {
   return 0;
 }
 
-/** 将 i32 整数的十进制表示写入 out（含负号；INT_MIN 特判）。 */
-export function format_int(out: *CodegenOutBuf, val: i32): i32 {
-  if (val >= 0) {
-    return format_uint(out, val);
+/** 非负 u64 十进制（EXPR_LIT 可超过 i32）。 */
+export function format_uint64(out: *CodegenOutBuf, val: u64): i32 {
+  if (val >= (10 as u64)) {
+    let q: u64 = val / (10 as u64);
+    let r: u64 = val % (10 as u64);
+    if (format_uint64(out, q) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 48 + (r as i32)) != 0) {
+      return -1;
+    }
+    return 0;
   }
-  let u: i32 = 0 - val;
+  if (append_byte(out, 48 + (val as i32)) != 0) {
+    return -1;
+  }
+  return 0;
+}
+
+/** 将 i64 整数的十进制表示写入 out（含负号；INT64_MIN 特判）。 */
+export function format_int(out: *CodegenOutBuf, val: i64): i32 {
+  if (val >= 0) {
+    return format_uint64(out, val as u64);
+  }
+  let u: i64 = 0 - val;
   if (u < 0) {
+    /* INT64_MIN：0 - val 仍溢出；直接写 "-9223372036854775808" */
     if (append_byte(out, 45) != 0) {
       return -1;
     }
-    let d: u8[11] = [50, 49, 52, 55, 52, 56, 51, 54, 52, 56, 0];
+    let d: u8[20] = [57, 50, 50, 51, 51, 55, 50, 48, 51, 54, 56, 53, 52, 55, 55, 53, 56, 48, 56, 0];
     let i: i32 = 0;
-    while (i < 10) {
-      /** u8 元素直接 append_byte_u8，勿 let b: i32 = d[i]（while 体内 mid-let 与 u8→i32 在 typeck 不通过）。 */
+    while (i < 19) {
       if (append_byte_u8(out, d[i]) != 0) {
         return -1;
       }
@@ -1989,7 +2061,7 @@ export function format_int(out: *CodegenOutBuf, val: i32): i32 {
   if (append_byte(out, 45) != 0) {
     return -1;
   }
-  return format_uint(out, u);
+  return format_uint64(out, u as u64);
 }
 
 /** 写 indent 个空格。 */
@@ -2306,6 +2378,28 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
         && nm[4] == 101 && nm[5] == 114) {
       let io_buf: u8[22] = [115, 116, 114, 117, 99, 116, 32, 115, 116, 100, 95, 105, 111, 95, 66, 117, 102, 102, 101, 114, 0, 0];
       return emit_bytes_from_ptr(out, &io_buf[0], 20);
+    }
+    /*
+     * core.option 具象 Option_*：定义模块前缀恒为 core_option_。
+     * 【Why 根源】dep 池按 type_ref 查不到跨模块 monomorph 时，旧逻辑用当前模块 struct_prefix
+     *   （如 core_slice_）生成 incomplete `struct core_slice_Option_i32`，而 co-emit 的
+     *   some/none 体是 `struct core_option_Option_i32` → length.x 等链接/编译失败。
+     * 【Invariant】裸名以 Option_ 开头的 TYPE_NAMED 一律 `struct core_option_<name>`。
+     */
+    if (name_len >= 8 && nm[0] == 79 && nm[1] == 112 && nm[2] == 116 && nm[3] == 105
+        && nm[4] == 111 && nm[5] == 110 && nm[6] == 95) {
+      let opt_head: u8[20] = [115, 116, 114, 117, 99, 116, 32, 99, 111, 114, 101, 95, 111, 112, 116, 105, 111, 110, 95, 0];
+      if (emit_bytes_from_ptr(out, &opt_head[0], 19) != 0) {
+        return -1;
+      }
+      let oi: i32 = 0;
+      while (oi < name_len && oi < 64) {
+        if (append_byte_u8(out, nm[oi]) != 0) {
+          return -1;
+        }
+        oi = oi + 1;
+      }
+      return 0;
     }
     /* u16/i16/i8 无独立 TypeKind（存为 TYPE_NAMED），映射到 stdint.h 的 uint16_t/int16_t/int8_t。
      * 【Why 根源】AST 枚举无 TYPE_U16/TYPE_I16/TYPE_I16，窄整型存为 TYPE_NAMED name="u16"/"i16"/"i8"，
@@ -2829,8 +2923,11 @@ export function codegen_should_skip_emit_struct_layout_for_abi_dup(name: *u8, na
   /* preamble 已定义 struct std_error_Error / ErrorChain — 勿再 emit。 */
   let nm_error: u8[6] = [69, 114, 114, 111, 114, 0];
   let nm_error_chain: u8[11] = [69, 114, 114, 111, 114, 67, 104, 97, 105, 110, 0];
-  /* rt_preamble write_io_net_abi_inline 已 one-liner 定义 Option_i32 — 再 emit 即 redefinition。 */
-  let nm_option_i32: u8[11] = [79, 112, 116, 105, 111, 110, 95, 105, 51, 50, 0];
+  /*
+   * rt_preamble 已 one-liner 定义 Option_i32/u8/u64/ptr_u8（slice get_* 等消费端在 option 体前需要完整类型）。
+   * 凡裸名 Option_* 一律 skip — preamble 权威，co-emit 再 emit → redefinition（stdlib-import/option）。
+   */
+  let nm_option_us: u8[8] = [79, 112, 116, 105, 111, 110, 95, 0];
   /* 泛型模板 Option<T>：C 无 monomorphize，勿 emit 非法/空 layout。 */
   let nm_option: u8[7] = [79, 112, 116, 105, 111, 110, 0];
   /*
@@ -2842,6 +2939,17 @@ export function codegen_should_skip_emit_struct_layout_for_abi_dup(name: *u8, na
    */
   let nm_string: u8[7] = [83, 116, 114, 105, 110, 103, 0];
   let nm_str_view: u8[8] = [83, 116, 114, 86, 105, 101, 119, 0];
+  /*
+   * rt_preamble write_io_net_abi_inline 已 one-liner：
+   *   std_net_TcpStream/Listener/UdpSocket/Ipv4Addr/Ipv6Addr
+   * import std.net 再 emit layout → redefinition。preamble 为 ABI 权威。
+   */
+  let nm_tcp_stream: u8[10] = [84, 99, 112, 83, 116, 114, 101, 97, 109, 0];
+  let nm_tcp_listener: u8[12] = [84, 99, 112, 76, 105, 115, 116, 101, 110, 101, 114, 0];
+  let nm_udp_socket: u8[10] = [85, 100, 112, 83, 111, 99, 107, 101, 116, 0];
+  let nm_ipv4: u8[9] = [73, 112, 118, 52, 65, 100, 100, 114, 0];
+  let nm_ipv6: u8[9] = [73, 112, 118, 54, 65, 100, 100, 114, 0];
+  let nm_sock_v4: u8[13] = [83, 111, 99, 107, 101, 116, 65, 100, 100, 114, 86, 52, 0];
   if (name_len == 6 && codegen_symbuf_bytes_eq(name, name_len, &nm_buffer[0], 6) != 0) {
     return 1;
   }
@@ -2857,7 +2965,8 @@ export function codegen_should_skip_emit_struct_layout_for_abi_dup(name: *u8, na
   if (name_len == 10 && codegen_symbuf_bytes_eq(name, name_len, &nm_error_chain[0], 10) != 0) {
     return 1;
   }
-  if (name_len == 10 && codegen_symbuf_bytes_eq(name, name_len, &nm_option_i32[0], 10) != 0) {
+  /* Option_*（len>7 且前缀 Option_） */
+  if (name_len > 7 && codegen_symbuf_bytes_eq(name, 7, &nm_option_us[0], 7) != 0) {
     return 1;
   }
   if (name_len == 6 && codegen_symbuf_bytes_eq(name, name_len, &nm_option[0], 6) != 0) {
@@ -2868,6 +2977,43 @@ export function codegen_should_skip_emit_struct_layout_for_abi_dup(name: *u8, na
   }
   if (name_len == 7 && codegen_symbuf_bytes_eq(name, name_len, &nm_str_view[0], 7) != 0) {
     return 1;
+  }
+  if (name_len == 9 && codegen_symbuf_bytes_eq(name, name_len, &nm_tcp_stream[0], 9) != 0) {
+    return 1;
+  }
+  if (name_len == 11 && codegen_symbuf_bytes_eq(name, name_len, &nm_tcp_listener[0], 11) != 0) {
+    return 1;
+  }
+  if (name_len == 9 && codegen_symbuf_bytes_eq(name, name_len, &nm_udp_socket[0], 9) != 0) {
+    return 1;
+  }
+  if (name_len == 8 && codegen_symbuf_bytes_eq(name, name_len, &nm_ipv4[0], 8) != 0) {
+    return 1;
+  }
+  if (name_len == 8 && codegen_symbuf_bytes_eq(name, name_len, &nm_ipv6[0], 8) != 0) {
+    return 1;
+  }
+  if (name_len == 12 && codegen_symbuf_bytes_eq(name, name_len, &nm_sock_v4[0], 12) != 0) {
+    return 1;
+  }
+  /* preamble 权威：Allocator/Arena64/FsIovecBuf/Iovec — 勿 co-emit redefinition */
+  {
+    let nm_allocator: u8[10] = [65, 108, 108, 111, 99, 97, 116, 111, 114, 0];
+    let nm_arena64: u8[8] = [65, 114, 101, 110, 97, 54, 52, 0];
+    let nm_fs_iovec: u8[11] = [70, 115, 73, 111, 118, 101, 99, 66, 117, 102, 0];
+    let nm_iovec: u8[6] = [73, 111, 118, 101, 99, 0];
+    if (name_len == 9 && codegen_symbuf_bytes_eq(name, name_len, &nm_allocator[0], 9) != 0) {
+      return 1;
+    }
+    if (name_len == 7 && codegen_symbuf_bytes_eq(name, name_len, &nm_arena64[0], 7) != 0) {
+      return 1;
+    }
+    if (name_len == 10 && codegen_symbuf_bytes_eq(name, name_len, &nm_fs_iovec[0], 10) != 0) {
+      return 1;
+    }
+    if (name_len == 5 && codegen_symbuf_bytes_eq(name, name_len, &nm_iovec[0], 5) != 0) {
+      return 1;
+    }
   }
   return 0;
 }
@@ -4980,15 +5126,10 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
     }
     return 0;
   }
-  /* 浮点字面量：简单输出 0.0 或整部.小数（无 sprintf 时用最小实现）。 */
+  /* 浮点字面量：须 emit 真实值（旧 stub 非零也写 0.0 → fmt 的 10.0/用户 1.5 全坏）。
+   * 委托 C helper（host snprintf）；权威实现见 codegen_gen.c。 */
   if (e.kind == ExprKind.EXPR_FLOAT_LIT) {
-    if (e.float_val == 0.0) {
-      let z: u8[4] = [48, 46, 48, 0];
-      return emit_bytes_4(out, z, 3);
-    }
-    /* 非零暂用 0.0 占位，后续可接 format_float 实现 */
-    let z: u8[4] = [48, 46, 48, 0];
-    return emit_bytes_4(out, z, 3);
+    return pipeline_codegen_emit_float_lit_c(out, e.float_val, e.float_bits_lo, e.float_bits_hi);
   }
   /* 二元运算：MUL/DIV/MOD/SHL/SHR/BITAND/BITOR/BITXOR/EQ/NE/LT/LE/GT/GE/LOGAND/LOGOR，统一 ( left op right )。 */
   if (e.kind == ExprKind.EXPR_MUL) {
@@ -5310,7 +5451,20 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
     if (append_byte(out, 41) != 0) {
       return -1;
     }
-    if (e.index_base_is_slice != 0) {
+    /*
+     * 【Why 根源】typeck 写 index_base_is_slice；co-emit dep 或 soft typeck 时标志可能为 0。
+     *   再查 base 的 resolved TYPE_SLICE(11)，避免对 fat pointer 发非法 `(s)[i]`。
+     */
+    let need_slice_data: i32 = e.index_base_is_slice;
+    if (need_slice_data == 0 && !ast.ref_is_null(e.index_base_ref)) {
+      let base_ty: i32 = pipeline_expr_resolved_type_ref(arena, e.index_base_ref);
+      if (!ast.ref_is_null(base_ty) && base_ty > 0 && base_ty <= arena.num_types) {
+        if (pipeline_type_kind_ord_at(arena, base_ty) == 11) {
+          need_slice_data = 1;
+        }
+      }
+    }
+    if (need_slice_data != 0) {
       let dot: u8[6] = [46, 100, 97, 116, 97, 0];
       if (emit_bytes_6(out, dot, 5) != 0) {
         return -1;
@@ -5373,6 +5527,9 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
     if (ctx != 0 as *PipelineDepCtx && ctx.current_codegen_module != 0 as *Module && ctx.current_func_index >= 0) {
       if (is_ptr_base == 0) {
         is_ptr_base = field_access_base_is_pointer_param(arena, e.field_access_base_ref, ctx.current_codegen_module, ctx.current_func_index);
+      }
+      if (is_ptr_base == 0) {
+        is_ptr_base = field_access_base_is_pointer_local(arena, e.field_access_base_ref, ctx);
       }
       param_type_known = field_access_base_param_type_known(arena, e.field_access_base_ref, ctx.current_codegen_module, ctx.current_func_index);
     }
@@ -5719,6 +5876,54 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         sk = sk + 1;
       }
     }
+    /* preamble ABI 类型：compound lit 用 std_* 前缀，勿 entry 前缀。 */
+    if (codegen_should_skip_emit_struct_layout_for_abi_dup(&e.struct_lit_struct_name[0], e.struct_lit_struct_name_len) != 0) {
+      bare_user_lit = 0;
+      if (e.struct_lit_struct_name_len == 6 && e.struct_lit_struct_name[0] == 66) {
+        /* Buffer → std_io_driver_ */
+        sl_pfx[0] = 115; sl_pfx[1] = 116; sl_pfx[2] = 100; sl_pfx[3] = 95;
+        sl_pfx[4] = 105; sl_pfx[5] = 111; sl_pfx[6] = 95; sl_pfx[7] = 100;
+        sl_pfx[8] = 114; sl_pfx[9] = 105; sl_pfx[10] = 118; sl_pfx[11] = 101;
+        sl_pfx[12] = 114; sl_pfx[13] = 95; sl_pfx[14] = 0;
+        sl_plen = 14;
+      } else if (e.struct_lit_struct_name_len == 5 && e.struct_lit_struct_name[0] == 69) {
+        /* Error → std_error_ */
+        sl_pfx[0] = 115; sl_pfx[1] = 116; sl_pfx[2] = 100; sl_pfx[3] = 95;
+        sl_pfx[4] = 101; sl_pfx[5] = 114; sl_pfx[6] = 114; sl_pfx[7] = 111;
+        sl_pfx[8] = 114; sl_pfx[9] = 95; sl_pfx[10] = 0;
+        sl_plen = 10;
+      } else if (e.struct_lit_struct_name_len == 6 && e.struct_lit_struct_name[0] == 83 && e.struct_lit_struct_name[1] == 116 && e.struct_lit_struct_name[2] == 114 && e.struct_lit_struct_name[3] == 105) {
+        /* String → std_string_ */
+        sl_pfx[0] = 115; sl_pfx[1] = 116; sl_pfx[2] = 100; sl_pfx[3] = 95;
+        sl_pfx[4] = 115; sl_pfx[5] = 116; sl_pfx[6] = 114; sl_pfx[7] = 105;
+        sl_pfx[8] = 110; sl_pfx[9] = 103; sl_pfx[10] = 95; sl_pfx[11] = 0;
+        sl_plen = 11;
+      } else if (e.struct_lit_struct_name_len == 7 && e.struct_lit_struct_name[0] == 83 && e.struct_lit_struct_name[3] == 86) {
+        /* StrView → std_string_ */
+        sl_pfx[0] = 115; sl_pfx[1] = 116; sl_pfx[2] = 100; sl_pfx[3] = 95;
+        sl_pfx[4] = 115; sl_pfx[5] = 116; sl_pfx[6] = 114; sl_pfx[7] = 105;
+        sl_pfx[8] = 110; sl_pfx[9] = 103; sl_pfx[10] = 95; sl_pfx[11] = 0;
+        sl_plen = 11;
+      } else if (e.struct_lit_struct_name_len == 10 && e.struct_lit_struct_name[0] == 70 && e.struct_lit_struct_name[1] == 115) {
+        /* FsIovecBuf → std_fs_ */
+        sl_pfx[0] = 115; sl_pfx[1] = 116; sl_pfx[2] = 100; sl_pfx[3] = 95;
+        sl_pfx[4] = 102; sl_pfx[5] = 115; sl_pfx[6] = 95; sl_pfx[7] = 0;
+        sl_plen = 7;
+      } else if (e.struct_lit_struct_name_len == 5 && e.struct_lit_struct_name[0] == 73 && e.struct_lit_struct_name[1] == 111) {
+        /* Iovec → std_io_sync_ */
+        sl_pfx[0] = 115; sl_pfx[1] = 116; sl_pfx[2] = 100; sl_pfx[3] = 95;
+        sl_pfx[4] = 105; sl_pfx[5] = 111; sl_pfx[6] = 95;
+        sl_pfx[7] = 115; sl_pfx[8] = 121; sl_pfx[9] = 110; sl_pfx[10] = 99;
+        sl_pfx[11] = 95; sl_pfx[12] = 0;
+        sl_plen = 12;
+      } else {
+        /* net types → std_net_ */
+        sl_pfx[0] = 115; sl_pfx[1] = 116; sl_pfx[2] = 100; sl_pfx[3] = 95;
+        sl_pfx[4] = 110; sl_pfx[5] = 101; sl_pfx[6] = 116; sl_pfx[7] = 95;
+        sl_pfx[8] = 0;
+        sl_plen = 8;
+      }
+    }
     let open: u8[9] = [40, 115, 116, 114, 117, 99, 116, 32, 0];
     if (emit_bytes_9(out, open, 8) != 0) {
       return -1;
@@ -5761,14 +5966,23 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       if (emit_bytes_4(out, eq, 3) != 0) {
         return -1;
       }
-      /* 结构体字段为数组且初值为空 [] 时，C 不允许 .field = (ty[]){ }，改为 .field = { 0 } 零初始化 */
+      /* 结构体数组字段初值必须用花括号 `{ e0, e1, ... }`，不能 emit_expr 成 `(T[]){...}`：
+       * C 指定初始化器里 `.arr = (int32_t[]){...}` 是指针/复合字面量，无法初始化 `int32_t arr[N]`
+       * （error: incompatible pointer to integer conversion initializing 'int32_t'）。
+       * 空 [] → `{ 0 }`；非空 ARRAY_LIT → emit_braced_array_lit_init。 */
       let init_ref: i32 = pipeline_expr_struct_lit_init_ref(arena, expr_ref, fi);
       if (!ast.ref_is_null(init_ref)) {
         let init_e: Expr = ast.ast_arena_expr_get(arena, init_ref);
-        if (init_e.kind == ExprKind.EXPR_ARRAY_LIT && init_e.array_lit_num_elems == 0) {
-          let zero_init: u8[6] = [123, 32, 48, 32, 125, 0];
-          if (emit_bytes_6(out, zero_init, 5) != 0) {
-            return -1;
+        if (init_e.kind == ExprKind.EXPR_ARRAY_LIT) {
+          if (init_e.array_lit_num_elems == 0) {
+            let zero_init: u8[6] = [123, 32, 48, 32, 125, 0];
+            if (emit_bytes_6(out, zero_init, 5) != 0) {
+              return -1;
+            }
+          } else {
+            if (emit_braced_array_lit_init(arena, out, init_ref, ctx) != 0) {
+              return -1;
+            }
           }
         } else {
           if (emit_expr(arena, out, init_ref, ctx) != 0) {
@@ -6972,9 +7186,14 @@ export function codegen_type_ref_to_suffix(arena: *ASTArena, type_ref: i32, buf:
     }
     return n;
   }
-  /* NAMED: 用类型名 */
+  /* NAMED: 用类型名；'.' → '_'（C 链接符合法，heap.Arena64 → heap_Arena64） */
   if (tk == (TypeKind.TYPE_NAMED as i32)) {
     let nl: i32 = pipeline_type_named_name_into(arena, type_ref, buf);
+    let si: i32 = 0;
+    while (si < nl && si < buf_cap) {
+      if (buf[si] == 46) { buf[si] = 95; }
+      si = si + 1;
+    }
     if (nl > 0 && nl < buf_cap) {
       return nl;
     }
@@ -7353,8 +7572,16 @@ export function codegen_emit_call_func_name(out: *CodegenOutBuf, arena: *ASTAren
                   let sa: u8[64] = [];
                   let sb: u8[64] = [];
                   let na: i32 = 0;
-                  let nb: i32 = codegen_type_ref_to_suffix(search_arena, param_ty, &sb[0], 64);
-                  if (is_str_lit != 0) {
+                  let nb: i32 = 0;
+                  /** TYPE_ARRAY(10)→TYPE_PTR(9)：`buf: u8[N]` 对 `*u8` 按 elem 比后缀，否则 overload 全灭回退首同名。 */
+                  if (is_str_lit == 0 && arg_ty > 0
+                      && pipeline_type_kind_ord_at(arena, arg_ty) == 10
+                      && pipeline_type_kind_ord_at(search_arena, param_ty) == 9) {
+                    let ae: i32 = pipeline_type_elem_ref_at(arena, arg_ty);
+                    let pe: i32 = pipeline_type_elem_ref_at(search_arena, param_ty);
+                    na = codegen_type_ref_to_suffix(arena, ae, &sa[0], 64);
+                    nb = codegen_type_ref_to_suffix(search_arena, pe, &sb[0], 64);
+                  } else if (is_str_lit != 0) {
                     sa[0] = 117;
                     sa[1] = 56;
                     sa[2] = 95;
@@ -7362,8 +7589,10 @@ export function codegen_emit_call_func_name(out: *CodegenOutBuf, arena: *ASTAren
                     sa[4] = 116;
                     sa[5] = 114;
                     na = 6;
+                    nb = codegen_type_ref_to_suffix(search_arena, param_ty, &sb[0], 64);
                   } else {
                     na = codegen_type_ref_to_suffix(arena, arg_ty, &sa[0], 64);
+                    nb = codegen_type_ref_to_suffix(search_arena, param_ty, &sb[0], 64);
                   }
                   if (na != nb) {
                     types_match = 0;
@@ -8334,6 +8563,8 @@ export function codegen_x_ast_emit_header(out: *CodegenOutBuf): i32 {
  * dep_index >= 0 表示当前为第 dep_index 个 dep，用 dep 池 import 路径算 C 前缀；-1 表示主模块。
  * 返回 0 成功，-1 失败。
  */
+export extern function pipeline_codegen_std_dep_link_only(path: *u8): i32;
+
 export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOutBuf, ctx: *PipelineDepCtx, dep_index: i32): i32 {
   /* 供 CALL 未在 dep 解析时判断是否本模块函数并加当前 C 前缀 */
   if (ctx != 0 as *PipelineDepCtx) {
@@ -8348,6 +8579,10 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
   let dep_path_prefix_len: i32 = 0;
   if (dep_index >= 0 && ctx != 0 as *PipelineDepCtx) {
     dep_path_prefix_len = codegen_dep_import_path_len_at(ctx, dep_index, &dep_path_prefix[0]);
+    /* 产品轨：std 预编 .o 权威时勿 co-emit dep 体（json/base64/csv/heap…），否则 dual-authority */
+    if (dep_path_prefix_len > 0 && pipeline_codegen_std_dep_link_only(&dep_path_prefix[0]) != 0) {
+      return 0;
+    }
   }
   if (dep_index >= 0 && ctx != 0 as *PipelineDepCtx && dep_path_prefix_len > 0) {
     /* std.io.core 不加前缀，生成 shux_io_register 等符号，与 prepend 的 #define std_io_core_* 一致。 */
@@ -8553,8 +8788,14 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
           }
           ti = ti + 1;
         }
-        /* 入口模块也检查 dep 模块是否有非 const 顶层 let */
-        if (dep_index < 0 && any_let == 0) {
+        /*
+         * 入口模块且有 main 时，才把 dep 的非 const 顶层 let 并入 init_globals
+         * （co-emit 单文件：dep 会先 emit static 声明，main 再统一赋值）。
+         * 库模块多文件 -E（如 std/heap/mod.x）：dep 仅 extern、本 TU 无 dep static，
+         * 若仍扫描 dep let 会生成 `shu_heap_trace_on = -1` 等未声明标识符（cc -c 失败）。
+         * dep 自身的 let 由编译该 dep 文件时的 init_globals 负责。
+         */
+        if (dep_index < 0 && any_let == 0 && module.main_func_index >= 0) {
           let dep_scan_i: i32 = 0;
           let dep_ndep: i32 = pipeline_dep_ctx_ndep(ctx);
           while (dep_scan_i < dep_ndep) {
@@ -8627,11 +8868,13 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
             }
             ti = ti + 1;
           }
-          /* dep 模块非 const 顶层 let 也由入口模块 init_globals 统一初始化，
-           * 避免 dep 模块各自 emit init_globals 导致 C redefinition error。
-           * dep 模块 static 变量已在上方声明（裸名），此处用相同裸名赋值。 */
+          /* dep 模块非 const 顶层 let：仅可执行入口（有 main）且 co-emit 时统一赋值。
+           * 库模块多文件编译不在此赋值（dep 未在本 TU 声明 static）。 */
           let dep_i: i32 = 0;
-          let ndep: i32 = pipeline_dep_ctx_ndep(ctx);
+          let ndep: i32 = 0;
+          if (module.main_func_index >= 0) {
+            ndep = pipeline_dep_ctx_ndep(ctx);
+          }
           while (dep_i < ndep) {
             let dep_mod: *Module = pipeline_dep_ctx_module_at(ctx, dep_i);
             if (dep_mod != 0 as *Module) {
@@ -8714,30 +8957,65 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
     }
     skip = codegen_should_skip_emit_func_by_name(&skip_name[0], skip_nl);
     /*
-     * 【Why 根源】C 后端 -o 会链入 std/string/string.o；dep 共 emit 再写 std_string_* 体 →
-     *   68× redefinition。asm 后端无 .o 预链，仍须 emit 体。
-     * 【Invariant】仅 dep（dep_index>=0 或 path 为 std.string）+ C 后端跳过；入口编 string 模块本身不跳。
+     * 【Why 根源】C 后端 -o 会链入 std/{string,error,context}/*.o；dep 共 emit 再写体 →
+     *   数十× redefinition（hello 曾 68×）。asm 后端无 .o 预链，仍须 emit 体。
+     * 【Invariant】仅 dep（dep_index>=0）+ C 后端跳过；入口编该模块本身不跳。
      */
     if (skip == 0 && asm_backend == 0) {
-      let is_str_dep: i32 = 0;
+      let is_prelinked_dep: i32 = 0;
       if (dep_index >= 0 && dep_path_prefix_len >= 10) {
         /* std.string or std/string */
         if (dep_path_prefix[0] == 115 && dep_path_prefix[1] == 116 && dep_path_prefix[2] == 100
             && (dep_path_prefix[3] == 46 || dep_path_prefix[3] == 47)
             && dep_path_prefix[4] == 115 && dep_path_prefix[5] == 116 && dep_path_prefix[6] == 114
             && dep_path_prefix[7] == 105 && dep_path_prefix[8] == 110 && dep_path_prefix[9] == 103) {
-          is_str_dep = 1;
+          is_prelinked_dep = 1;
         }
       }
-      if (is_str_dep == 0 && prefix_len >= 11
+      if (is_prelinked_dep == 0 && dep_index >= 0 && dep_path_prefix_len >= 9) {
+        /* std.error or std/error */
+        if (dep_path_prefix[0] == 115 && dep_path_prefix[1] == 116 && dep_path_prefix[2] == 100
+            && (dep_path_prefix[3] == 46 || dep_path_prefix[3] == 47)
+            && dep_path_prefix[4] == 101 && dep_path_prefix[5] == 114 && dep_path_prefix[6] == 114
+            && dep_path_prefix[7] == 111 && dep_path_prefix[8] == 114) {
+          is_prelinked_dep = 1;
+        }
+      }
+      if (is_prelinked_dep == 0 && dep_index >= 0 && dep_path_prefix_len >= 11) {
+        /* std.context or std/context */
+        if (dep_path_prefix[0] == 115 && dep_path_prefix[1] == 116 && dep_path_prefix[2] == 100
+            && (dep_path_prefix[3] == 46 || dep_path_prefix[3] == 47)
+            && dep_path_prefix[4] == 99 && dep_path_prefix[5] == 111 && dep_path_prefix[6] == 110
+            && dep_path_prefix[7] == 116 && dep_path_prefix[8] == 101 && dep_path_prefix[9] == 120
+            && dep_path_prefix[10] == 116) {
+          is_prelinked_dep = 1;
+        }
+      }
+      if (is_prelinked_dep == 0 && prefix_len >= 11
           && prefix_buf[0] == 115 && prefix_buf[1] == 116 && prefix_buf[2] == 100
           && prefix_buf[3] == 95 && prefix_buf[4] == 115 && prefix_buf[5] == 116
           && prefix_buf[6] == 114 && prefix_buf[7] == 105 && prefix_buf[8] == 110
           && prefix_buf[9] == 103 && prefix_buf[10] == 95
           && dep_index >= 0) {
-        is_str_dep = 1;
+        is_prelinked_dep = 1;
       }
-      if (is_str_dep != 0) {
+      if (is_prelinked_dep == 0 && prefix_len >= 10
+          && prefix_buf[0] == 115 && prefix_buf[1] == 116 && prefix_buf[2] == 100
+          && prefix_buf[3] == 95 && prefix_buf[4] == 101 && prefix_buf[5] == 114
+          && prefix_buf[6] == 114 && prefix_buf[7] == 111 && prefix_buf[8] == 114
+          && prefix_buf[9] == 95
+          && dep_index >= 0) {
+        is_prelinked_dep = 1;
+      }
+      if (is_prelinked_dep == 0 && prefix_len >= 12
+          && prefix_buf[0] == 115 && prefix_buf[1] == 116 && prefix_buf[2] == 100
+          && prefix_buf[3] == 95 && prefix_buf[4] == 99 && prefix_buf[5] == 111
+          && prefix_buf[6] == 110 && prefix_buf[7] == 116 && prefix_buf[8] == 101
+          && prefix_buf[9] == 120 && prefix_buf[10] == 116 && prefix_buf[11] == 95
+          && dep_index >= 0) {
+        is_prelinked_dep = 1;
+      }
+      if (is_prelinked_dep != 0) {
         skip = 1;
       }
     }

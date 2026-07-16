@@ -20,7 +20,7 @@ struct parser_asm_token {
   int32_t kind;
   int32_t line;
   int32_t col;
-  int32_t int_val;
+  int64_t int_val;
   double float_val;
   uint8_t *ident;
   int32_t ident_len;
@@ -63,8 +63,7 @@ struct parser_asm_ast_expr {
   int32_t resolved_type_ref;
   int32_t line;
   int32_t col;
-  int32_t int_val;
-  int32_t _expr_pad_before_f64;
+  int64_t int_val;
   double float_val;
   uint8_t var_name[64];
   int32_t var_name_len;
@@ -119,8 +118,7 @@ struct ast_Expr {
   int32_t resolved_type_ref;
   int32_t line;
   int32_t col;
-  int32_t int_val;
-  int32_t _expr_pad_before_f64;
+  int64_t int_val;
   double float_val;
   uint8_t var_name[64];
   int32_t var_name_len;

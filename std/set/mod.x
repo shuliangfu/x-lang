@@ -23,6 +23,7 @@
 // 【依赖】std.heap（alloc/free/realloc 重载、map_find）。
 
 const heap = import("std.heap");
+const heap_libc = import("std.heap.libc");
 const hash_mod = import("std.hash");
 
 /** 集合：keys/occupied 堆分配，cap 槽位，len 已用；调用方须在不用时 deinit。 */
@@ -60,11 +61,11 @@ export function with_capacity(s: *Set_i32, capacity: i32): i32 {
     s.len = 0;
     return 0;
   }
-  let k: *i32 = heap.alloc(capacity);
-  let o: *u8 = heap.alloc(capacity);
+  let k: *i32 = heap_libc.heap_alloc_i32_c(capacity);
+  let o: *u8 = heap_libc.heap_alloc_u8_c(capacity);
   if (k == 0 || o == 0) {
-    if (k != 0) { heap.free(k); }
-    if (o != 0) { heap.free(o); }
+    if (k != 0) { heap_libc.heap_free_i32_c(k); }
+    if (o != 0) { heap_libc.heap_free_u8_c(o); }
     return -1;
   }
   let i: i32 = 0;
@@ -95,8 +96,8 @@ export function grow(s: *Set_i32, new_cap: i32): i32 {
       i = i + 1;
     }
   }
-  heap.free(old_keys);
-  heap.free(old_occupied);
+  heap_libc.heap_free_i32_c(old_keys);
+  heap_libc.heap_free_u8_c(old_occupied);
   return 0;
 }
 
@@ -178,8 +179,8 @@ export function reserve(s: *Set_i32, new_cap: i32): i32 {
 
 /** 释放堆内存；调用后不可再使用。 */
 export function deinit(s: *Set_i32): void {
-  if (s.keys != 0) { heap.free(s.keys); s.keys = 0; }
-  if (s.occupied != 0) { heap.free(s.occupied); s.occupied = 0; }
+  if (s.keys != 0) { heap_libc.heap_free_i32_c(s.keys); s.keys = 0; }
+  if (s.occupied != 0) { heap_libc.heap_free_u8_c(s.occupied); s.occupied = 0; }
   s.cap = 0;
   s.len = 0;
 }
@@ -279,11 +280,11 @@ export function with_capacity(s: *Set_u64, capacity: i32): i32 {
     s.len = 0;
     return 0;
   }
-  let k: *u64 = heap.alloc(capacity);
-  let o: *u8 = heap.alloc(capacity);
+  let k: *u64 = heap_libc.heap_alloc_u64_c(capacity);
+  let o: *u8 = heap_libc.heap_alloc_u8_c(capacity);
   if (k == 0 || o == 0) {
-    if (k != 0) { heap.free(k); }
-    if (o != 0) { heap.free(o); }
+    if (k != 0) { heap_libc.heap_free_u64_c(k); }
+    if (o != 0) { heap_libc.heap_free_u8_c(o); }
     return -1;
   }
   let i: i32 = 0;
@@ -314,8 +315,8 @@ export function grow(s: *Set_u64, new_cap: i32): i32 {
       i = i + 1;
     }
   }
-  heap.free(old_keys);
-  heap.free(old_occupied);
+  heap_libc.heap_free_u64_c(old_keys);
+  heap_libc.heap_free_u8_c(old_occupied);
   return 0;
 }
 
@@ -375,8 +376,8 @@ export function len(s: Set_u64): i32 { return s.len; }
 
 /** 释放 Set_u64。 */
 export function deinit(s: *Set_u64): void {
-  if (s.keys != 0) { heap.free(s.keys); s.keys = 0; }
-  if (s.occupied != 0) { heap.free(s.occupied); s.occupied = 0; }
+  if (s.keys != 0) { heap_libc.heap_free_u64_c(s.keys); s.keys = 0; }
+  if (s.occupied != 0) { heap_libc.heap_free_u8_c(s.occupied); s.occupied = 0; }
   s.cap = 0;
   s.len = 0;
 }
@@ -416,13 +417,13 @@ export function str_with_capacity(s: *Set_str, capacity: i32): i32 {
     return 0;
   }
   let kcap: i32 = str_key_cap();
-  let keys: *u8 = heap.alloc(capacity * kcap);
-  let lens: *i32 = heap.alloc(capacity);
-  let occ: *u8 = heap.alloc(capacity);
+  let keys: *u8 = heap_libc.heap_alloc_u8_c(capacity * kcap);
+  let lens: *i32 = heap_libc.heap_alloc_i32_c(capacity);
+  let occ: *u8 = heap_libc.heap_alloc_u8_c(capacity);
   if (keys == 0 || lens == 0 || occ == 0) {
-    if (keys != 0) { heap.free(keys); }
-    if (lens != 0) { heap.free(lens); }
-    if (occ != 0) { heap.free(occ); }
+    if (keys != 0) { heap_libc.heap_free_u8_c(keys); }
+    if (lens != 0) { heap_libc.heap_free_i32_c(lens); }
+    if (occ != 0) { heap_libc.heap_free_u8_c(occ); }
     return -1;
   }
   let i: i32 = 0;
@@ -493,9 +494,9 @@ export function str_grow(s: *Set_str, new_cap: i32): i32 {
     }
     i = i + 1;
   }
-  heap.free(old_keys);
-  heap.free(old_lens);
-  heap.free(old_occ);
+  heap_libc.heap_free_u8_c(old_keys);
+  heap_libc.heap_free_i32_c(old_lens);
+  heap_libc.heap_free_u8_c(old_occ);
   return 0;
 }
 
@@ -562,9 +563,9 @@ export function str_len(s: Set_str): i32 { return s.len; }
 
 /** 释放堆内存。 */
 export function str_deinit(s: *Set_str): void {
-  if (s.keys != 0) { heap.free(s.keys); s.keys = 0; }
-  if (s.lens != 0) { heap.free(s.lens); s.lens = 0; }
-  if (s.occupied != 0) { heap.free(s.occupied); s.occupied = 0; }
+  if (s.keys != 0) { heap_libc.heap_free_u8_c(s.keys); s.keys = 0; }
+  if (s.lens != 0) { heap_libc.heap_free_i32_c(s.lens); s.lens = 0; }
+  if (s.occupied != 0) { heap_libc.heap_free_u8_c(s.occupied); s.occupied = 0; }
   s.cap = 0;
   s.len = 0;
 }

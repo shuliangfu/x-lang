@@ -2459,6 +2459,15 @@ int32_t pipeline_block_let_type_ref(struct ast_ASTArena *a, int32_t br, int32_t 
   return ld ? (int32_t)ld->type_ref : 0;
 }
 
+/** M-3：region 内 stamp 须换新 type_ref，禁止 in-place 改共享 T[] 池节点。 */
+int32_t pipeline_block_set_let_type_ref(struct ast_ASTArena *a, int32_t br, int32_t li, int32_t type_ref) {
+  struct ast_LetDecl *ld = block_let_at(a, br, li);
+  if (!ld)
+    return -1;
+  ld->type_ref = type_ref;
+  return 0;
+}
+
 int32_t pipeline_block_let_name_len(struct ast_ASTArena *a, int32_t br, int32_t li) {
   struct ast_LetDecl *ld = block_let_at(a, br, li);
   return ld ? (int32_t)ld->name_len : 0;
@@ -5015,7 +5024,9 @@ void pipeline_expr_on_call_created(struct ast_ASTArena *a, int32_t expr_ref) {
 }
 
 /**
- * 解析每个 CALL 实参表达式前调用：grow 侧车池至 call_arg_base + call_num_args，使后续嵌套 CALL 的 base 落在外层 reserved 区间之后。
+ * 解析/append 前：grow 侧车池至 call_arg_base + call_num_args。
+ * 权威调用序见 parser_asm_primary_slice：先 parse 完全部实参，再统一 append
+ * （避免嵌套 CALL 与外层 call_arg 槽交错覆盖）。
  */
 int32_t pipeline_expr_prepare_call_arg_slot(struct ast_ASTArena *a, int32_t expr_ref) {
   struct ast_Expr *ex;
@@ -6742,6 +6753,7 @@ extern int32_t codegen_codegen_x_ast(struct ast_Module *module, struct ast_ASTAr
                                       struct codegen_CodegenOutBuf *out_buf, struct ast_PipelineDepCtx *ctx,
                                       int32_t dep_index);
 int32_t pipeline_codegen_dep_skip_x_bootstrap_partial(uint8_t *path);
+int32_t pipeline_codegen_std_dep_link_only(uint8_t *path);
 int32_t ast_ast_block_final_expr_ref(struct ast_ASTArena *a, int32_t br);
 
 static int pipeline_debug_name_eq_buf_lit(const uint8_t *buf, int32_t len, const char *lit) {
@@ -6913,6 +6925,15 @@ int32_t run_x_pipeline_codegen_one_dep_emit(struct ast_Module *dep_mod, struct c
   if (pipeline_codegen_dep_skip_x_bootstrap_partial(dep_path_buf) != 0) {
     if (getenv("SHUX_DEBUG_PIPE"))
       fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] skip dep emit j=%d path=%s\n", (int)dep_j, (char *)dep_path_buf);
+    return 0;
+  }
+  /** 产品轨：std 模块有预编 *.o 时勿 co-emit（.o 权威）。
+   * 【Why】co-emit wrapper（std_json_* 调 json_*_c）+ 链 json.o → 双权威 duplicate；
+   *   仅 co-emit 则缺 _c 桩。base64/csv/heap/http 同形。core.mem 仍 co-emit（mem 测自洽）。 */
+  if (pipeline_codegen_std_dep_link_only(dep_path_buf) != 0) {
+    if (getenv("SHUX_DEBUG_PIPE"))
+      fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] skip dep emit (prebuilt .o) j=%d path=%s\n", (int)dep_j,
+              (char *)dep_path_buf);
     return 0;
   }
   /** asm_entry_module_only / skip_asm_dep_codegen：dep 符号由并列 *.o 提供，勿 co-emit 进 entry 的 C/asm。 */
@@ -7111,6 +7132,12 @@ static int32_t pipeline_dep_ctx_has_earlier_same_import_path_c(struct ast_Pipeli
 /** 各 dep codegen while 循环；C glue。 */
 void pipeline_codegen_c_file_prologue_done_reset(void);
 
+/** entry arena：dep 先于 entry emit，跨模块泛型 mono 须扫 entry 上 CALL。 */
+static struct ast_ASTArena *g_codegen_entry_arena_for_mono;
+struct ast_ASTArena *pipeline_codegen_entry_arena_for_mono_get(void) {
+  return g_codegen_entry_arena_for_mono;
+}
+
 int32_t run_x_pipeline_codegen_deps_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                        struct codegen_CodegenOutBuf *out_buf, struct ast_PipelineDepCtx *ctx,
                                        int32_t skip_asm_dep_codegen) {
@@ -7119,6 +7146,7 @@ int32_t run_x_pipeline_codegen_deps_c(struct ast_Module *module, struct ast_ASTA
 
   if (!module || !arena || !out_buf || !ctx)
     return -1;
+  g_codegen_entry_arena_for_mono = arena;
   /* 新一轮 -E/-o codegen：允许首个 codegen_x_ast 写 prologue。 */
   pipeline_codegen_c_file_prologue_done_reset();
   ndep = pipeline_dep_ctx_ndep(ctx);
@@ -10343,6 +10371,13 @@ int32_t pipeline_codegen_dep_skip_asm_user_std_io(uint8_t *path) {
     return 1;
   return 0;
 }
+
+/**
+ * 产品轨 std link_only：唯一权威在 seeds/runtime_link_abi.from_x.c。
+ * 此处勿再维护第二份表（双权威必然漂移；std.env 曾因表不一致假红）。
+ * 声明见文件前部 extern；实现由 runtime_link_abi.o 提供。
+ */
+/* pipeline_codegen_std_dep_link_only — defined in runtime_link_abi.from_x.c */
 
 /**
  * bootstrap -E / asm partial：compiler 前端模块符号已由 *_x.o 链入，勿整库 X C codegen（ast 等大库 emit 失败）。

@@ -409,7 +409,8 @@ int runtime_report_parse_recovery_diagnostics(const char *input_path, const char
       continue;
     }
 
-    /* function without '{' before next top-level item: `function broken(): i32` then `function ok` */
+    /* function without '{' before next top-level item: `function broken(): i32` then `function ok`.
+     * 【Why 根源】`extern function f(): T;` 合法无体声明：`)` 后到 `;` 为签名，不得误报缺 `{`。 */
     if (depth == 0 && t.kw == RT_KW_FUNCTION) {
       int saw_rparen = 0;
       while (rt_next_tok(&sc, &n)) {
@@ -423,6 +424,9 @@ int runtime_report_parse_recovery_diagnostics(const char *input_path, const char
           depth++;
           break;
         }
+        /* 无体声明：extern / 前向声明以 ';' 结束签名 */
+        if (saw_rparen && n.kw == RT_PUNCT && n.ch == ';')
+          break;
         if (saw_rparen && rt_is_top_start(&n)) {
           rt_rec_fail(input_path, n.line, n.col, "expected '{' before function body");
           errors++;
@@ -440,21 +444,48 @@ int runtime_report_parse_recovery_diagnostics(const char *input_path, const char
     if (depth == 0)
       continue;
 
-    /* in body: let without semicolon */
+    /* in body: let without semicolon.
+     * 【Why 根源】check_only 成功路径始终跑 recovery；`let x = unsafe { ... }` / `if` / `match`
+     * 等表达式头曾被 rt_is_stmt_start 误判为「下一条语句缺 ;」。用 nest+saw_eq 区分初始化表达式。 */
     if (t.kw == RT_KW_LET) {
+      int saw_eq = 0;
+      int nest = 0; /* ()[]{} 相对嵌套：init 内的 unsafe/if 块不得当 stmt 边界 */
       while (rt_next_tok(&sc, &n)) {
-        if (n.kw == RT_PUNCT && n.ch == ';')
+        if (n.kw == RT_PUNCT && n.ch == ';' && nest == 0)
           break;
-        if (n.kw == RT_PUNCT && n.ch == '}') {
-          /* missing ; before } — still an error */
-          rt_rec_fail(input_path, n.line, n.col, "expected ';' after let");
-          errors++;
-          sc.i = n.pos;
-          sc.line = n.line;
-          sc.col = n.col;
-          break;
+        if (n.kw == RT_PUNCT && (n.ch == '(' || n.ch == '[' || n.ch == '{')) {
+          nest++;
+          continue;
         }
-        if (rt_is_stmt_start(&n) && n.kw != RT_KW_LET) {
+        if (n.kw == RT_PUNCT && (n.ch == ')' || n.ch == ']' || n.ch == '}')) {
+          if (nest > 0) {
+            nest--;
+            continue;
+          }
+          if (n.ch == '}') {
+            /* missing ; before } — still an error */
+            rt_rec_fail(input_path, n.line, n.col, "expected ';' after let");
+            errors++;
+            sc.i = n.pos;
+            sc.line = n.line;
+            sc.col = n.col;
+            break;
+          }
+          continue;
+        }
+        if (n.kw == RT_PUNCT && n.ch == '=' && nest == 0) {
+          saw_eq = 1;
+          continue;
+        }
+        if (nest == 0 && rt_is_stmt_start(&n) && n.kw != RT_KW_LET) {
+          /* 初始化表达式头：unsafe/if/match/region/loop 等在 `=` 后合法 */
+          if (saw_eq
+              && (n.kw == RT_KW_IF || n.kw == RT_KW_MATCH || n.kw == RT_KW_UNSAFE
+                  || n.kw == RT_KW_REGION || n.kw == RT_KW_LOOP || n.kw == RT_KW_FOR
+                  || n.kw == RT_KW_WHILE
+                  || (n.kw == RT_PUNCT && n.ch == '{'))) {
+            continue;
+          }
           /* next statement without semicolon */
           rt_rec_fail(input_path, n.line, n.col, "expected ';' after let");
           errors++;

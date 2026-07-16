@@ -121,8 +121,10 @@ export function fmt_u64_to_buf(buf: *u8, cap: i32, u: u64): i32 {
 export function fmt_i64_to_buf(buf: *u8, cap: i32, x: i64): i32 {
   let digits: u8[10] = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57];
   if (cap < 1) { return -1; }
-  /** INT64_MIN 字面量；须先于 `0 - x` 判定，避免一元取负溢出。 */
-  let i64_min: i64 = 0 - 9223372036854775807 - 1;
+  /** INT64_MIN：勿写 9223372036854775807（int_val 仅 i32，字面量会截断成 -1 → 0 被误判为 MIN）。
+   * 用 u64 位移构造 0x8000_0000_0000_0000 再 as i64。 */
+  let one_u: u64 = 1;
+  let i64_min: i64 = (one_u << 63) as i64;
   if (x == i64_min) {
     if (cap < 20) { return -1; }
     let s: u8[20] = [45, 57, 50, 50, 51, 51, 55, 50, 48, 51, 54, 56, 53, 52, 55, 55, 53, 56, 48, 56];

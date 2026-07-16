@@ -156,7 +156,7 @@ struct lexer_Lexer {
 };
 struct lexer_LexerResult {
   int32_t tok;
-  int32_t int_val;
+  int64_t int_val;
   double float_val;
   struct lexer_Lexer next_lex;
 };

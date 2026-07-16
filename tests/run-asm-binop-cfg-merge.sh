@@ -9,12 +9,9 @@ SHUX=${SHUX:-./compiler/shux}
 
 ulimit -s 65532 2>/dev/null || ulimit -s 16384 2>/dev/null || true
 
-# ldur / AArch64 形态反汇编门禁仅 arm64 宿主（与 run-asm-binop-block-var.sh 一致）。
+# ldur / AArch64 形态反汇编门禁（Darwin 产品 -o 走 C，见 wpo_asm_disasm_gate_host）。
 asm_disasm_gate_host() {
-  case "$(uname -m 2>/dev/null)" in
-    arm64|aarch64) return 0 ;;
-    *) return 1 ;;
-  esac
+  wpo_asm_disasm_gate_host
 }
 
 # 提取 _main 反汇编（macOS otool / Linux objdump）。

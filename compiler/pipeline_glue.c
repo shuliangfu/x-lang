@@ -23834,11 +23834,12 @@ int32_t pipeline_typeck_check_allocator_region_return_c(struct ast_ASTArena *are
 }
 
 /**
- * M-3 AL-06：region 内 return 未标注域 slice — 禁止 slice 域逃出 region（scan 路径，不依赖 typeck 已 stamp）。
+ * M-3 AL-06：region 内 return 未标注域 slice — 禁止 slice 域逃出 region
+ *（scan + typeck.x 共用；不依赖 operand 已 stamp，只要在 scope 内 return 未标注 T[]）。
  */
-static int32_t pipeline_typeck_check_return_slice_region_in_scope_c(struct ast_ASTArena *arena, int32_t site_expr_ref,
-                                                                  int32_t return_type_ref,
-                                                                  struct ast_PipelineDepCtx *ctx) {
+int32_t pipeline_typeck_check_return_slice_region_in_scope_c(struct ast_ASTArena *arena, int32_t site_expr_ref,
+                                                            int32_t return_type_ref,
+                                                            struct ast_PipelineDepCtx *ctx) {
   int32_t line;
   int32_t col;
   int32_t rlen;
@@ -24234,10 +24235,20 @@ int32_t pipeline_dep_ctx_scope_region_len_at(struct ast_PipelineDepCtx *ctx) {
 }
 
 /** M-3：为块内 let 声明类型（未标注域的 T[]）打上当前 ctx region 标签。 */
+int32_t pipeline_block_set_let_type_ref(struct ast_ASTArena *arena, int32_t block_ref, int32_t let_idx,
+                                        int32_t type_ref);
+
+/**
+ * M-3：region 内未标注 T[] 继承当前域标签。
+ * 【Why 根源】禁止 in-place 改共享 type 节点（否则函数返回类型 T[] 与 let 共享时被连带 stamp，
+ * 逃逸检查失效，且可破坏其它引用）。须 find_or_alloc 新 T[]<label> 并写回 let.type_ref。
+ */
 int32_t pipeline_type_stamp_block_let_region_c(struct ast_ASTArena *arena, int32_t block_ref, int32_t let_idx,
                                              struct ast_PipelineDepCtx *ctx) {
   int32_t ty_ref;
   int32_t rlen;
+  int32_t elem;
+  int32_t stamped;
   if (!arena || !ctx || block_ref <= 0 || let_idx < 0)
     return 0;
   rlen = pipeline_dep_ctx_scope_region_len_at(ctx);
@@ -24248,7 +24259,15 @@ int32_t pipeline_type_stamp_block_let_region_c(struct ast_ASTArena *arena, int32
     return 0;
   if (pipeline_type_region_label_len_at(arena, ty_ref) > 0)
     return 0;
-  return pipeline_type_set_region_label_at(arena, ty_ref, ctx->typeck_scope_region_label, rlen);
+  elem = pipeline_type_elem_ref_at(arena, ty_ref);
+  if (elem <= 0)
+    return 0;
+  stamped = pipeline_type_find_or_alloc_slice(arena, elem, ctx->typeck_scope_region_label, rlen);
+  if (stamped <= 0)
+    return -1;
+  if (stamped == ty_ref)
+    return 0;
+  return pipeline_block_set_let_type_ref(arena, block_ref, let_idx, stamped);
 }
 
 /** 统计模块内同名非 extern 函数个数（>1 时须 overload 分派 + mangled 符号）。 */
@@ -24294,6 +24313,13 @@ static int32_t pipeline_typeck_call_arg_assignable_c(struct ast_ASTArena *arena,
       return 1;
     /** M-3：slice 元素相同即可匹配 overload（域在 CALL 后单独查）。 */
     if (param_kind == (int32_t)ast_TypeKind_TYPE_SLICE && arg_kind_ord == (int32_t)ast_TypeKind_TYPE_SLICE) {
+      int32_t pe = pipeline_type_elem_ref_at(arena, param_ref);
+      int32_t ae = pipeline_type_elem_ref_at(arena, arg_ty);
+      if (pe > 0 && ae > 0 && pipeline_typeck_type_refs_equal_c(arena, pe, ae))
+        return 1;
+    }
+    /** array/T → *T 衰减：`buf: u8[N]` 调用 `to_buf(buf: *u8, ...)`。 */
+    if (param_kind == (int32_t)ast_TypeKind_TYPE_PTR && arg_kind_ord == (int32_t)ast_TypeKind_TYPE_ARRAY) {
       int32_t pe = pipeline_type_elem_ref_at(arena, param_ref);
       int32_t ae = pipeline_type_elem_ref_at(arena, arg_ty);
       if (pe > 0 && ae > 0 && pipeline_typeck_type_refs_equal_c(arena, pe, ae))
@@ -25577,13 +25603,17 @@ int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module, stru
 /**
  * 泛型 identity 模式 bootstrap fixup：返回类型名与首形参类型名相同且为 TYPE_NAMED 时，
  * 用首个实参 resolved 类型单态化（id<T>(x:T):T，parser 未存 type_args 时的兜底）。
+ * 【Why 根源】跨模块 import 时 callee 为 FIELD_ACCESS（foo.id）或 resolved 在 dep；
+ * 旧实现仅扫本模块 VAR，导致 return 仍为 foo.T（run-multi-file-generic）。
  */
 static int32_t glue_generic_call_fixup_resolved_type_c(struct ast_Module *module, struct ast_ASTArena *arena,
-                                                       int32_t call_expr_ref) {
+                                                       int32_t call_expr_ref, struct ast_PipelineDepCtx *ctx) {
   int32_t ord_var = 3;
+  int32_t ord_field = 44;
   int32_t ord_named = (int32_t)ast_TypeKind_TYPE_NAMED;
   int32_t callee_ref;
   int32_t callee_eff;
+  int32_t callee_kind;
   int32_t func_idx;
   int32_t ret_ty;
   int32_t param_ty;
@@ -25596,40 +25626,117 @@ static int32_t glue_generic_call_fixup_resolved_type_c(struct ast_Module *module
   uint8_t cnm[64];
   int32_t cnml;
   int32_t j;
+  int32_t dep_ix;
+  struct ast_Module *search_mod;
+  struct ast_ASTArena *search_arena;
 
   if (!module || !arena || call_expr_ref <= 0)
     return 0;
+  /* 已是非 NAMED 返回类型则无需 fixup */
+  {
+    int32_t cur = pipeline_expr_resolved_type_ref(arena, call_expr_ref);
+    if (cur > 0 && pipeline_type_kind_ord_at(arena, cur) != ord_named)
+      return 0;
+  }
   callee_ref = pipeline_expr_call_callee_ref_at(arena, call_expr_ref);
   callee_eff = callee_ref;
-  if (pipeline_expr_kind_ord_at(arena, callee_eff) != ord_var)
+  callee_kind = pipeline_expr_kind_ord_at(arena, callee_eff);
+  cnml = 0;
+  search_mod = module;
+  search_arena = arena;
+  dep_ix = pipeline_expr_call_resolved_dep_index_at(arena, call_expr_ref);
+  func_idx = pipeline_expr_call_resolved_func_index_at(arena, call_expr_ref);
+  if (callee_kind == ord_var) {
+    cnml = pipeline_expr_var_name_len(arena, callee_eff);
+    if (cnml <= 0 || cnml > 63)
+      return 0;
+    pipeline_expr_var_name_into(arena, callee_eff, cnm);
+  } else if (callee_kind == ord_field) {
+    /* foo.id：field 名为函数名；dep 优先 call_resolved，否则扫 import binding */
+    cnml = pipeline_expr_field_access_name_len(arena, callee_eff);
+    if (cnml <= 0 || cnml > 63)
+      return 0;
+    pipeline_expr_field_access_name_into(arena, callee_eff, cnm);
+  } else {
     return 0;
-  cnml = pipeline_expr_var_name_len(arena, callee_eff);
-  if (cnml <= 0 || cnml > 63)
-    return 0;
-  pipeline_expr_var_name_into(arena, callee_eff, cnm);
-  func_idx = -1;
-  j = 0;
-  while (j < (int32_t)module->num_funcs) {
-    if (pipeline_module_func_name_equal_at(module, j, cnm, cnml) != 0) {
-      func_idx = j;
-      break;
+  }
+  if (dep_ix >= 0 && ctx && dep_ix < pipeline_dep_ctx_ndep(ctx)) {
+    struct ast_Module *dm = pipeline_dep_ctx_module_at(ctx, dep_ix);
+    struct ast_ASTArena *da = pipeline_dep_ctx_arena_at(ctx, dep_ix);
+    if (dm) {
+      search_mod = dm;
+      if (da)
+        search_arena = da;
     }
-    j = j + 1;
+  }
+  if (func_idx < 0) {
+    j = 0;
+    while (j < (int32_t)search_mod->num_funcs) {
+      if (pipeline_module_func_name_equal_at(search_mod, j, cnm, cnml) != 0) {
+        func_idx = j;
+        break;
+      }
+      j = j + 1;
+    }
+  }
+  /* 本模块未命中：扫 dep（bare id 经 whole/select 或 binding 误解析时） */
+  if (func_idx < 0 && ctx) {
+    int32_t nd = pipeline_dep_ctx_ndep(ctx);
+    int32_t di;
+    for (di = 0; di < nd && func_idx < 0; di++) {
+      struct ast_Module *dm = pipeline_dep_ctx_module_at(ctx, di);
+      if (!dm)
+        continue;
+      j = 0;
+      while (j < (int32_t)dm->num_funcs) {
+        if (pipeline_module_func_name_equal_at(dm, j, cnm, cnml) != 0) {
+          func_idx = j;
+          search_mod = dm;
+          {
+            struct ast_ASTArena *da = pipeline_dep_ctx_arena_at(ctx, di);
+            if (da)
+              search_arena = da;
+          }
+          break;
+        }
+        j = j + 1;
+      }
+    }
   }
   if (func_idx < 0)
     return 0;
-  ret_ty = pipeline_module_func_return_type_at(module, func_idx);
-  if (ret_ty <= 0 || pipeline_type_kind_ord_at(arena, ret_ty) != ord_named)
+  ret_ty = pipeline_module_func_return_type_at(search_mod, func_idx);
+  /* 返回类型在 search_arena；与 caller 比较时用 kind/name */
+  if (ret_ty <= 0 || pipeline_type_kind_ord_at(search_arena, ret_ty) != ord_named)
     return 0;
-  if (pipeline_module_func_num_params_at(module, func_idx) < 1)
+  if (pipeline_module_func_num_params_at(search_mod, func_idx) < 1)
     return 0;
-  param_ty = pipeline_module_func_param_type_ref_at(module, func_idx, 0);
-  if (param_ty <= 0 || pipeline_type_kind_ord_at(arena, param_ty) != ord_named)
+  param_ty = pipeline_module_func_param_type_ref_at(search_mod, func_idx, 0);
+  if (param_ty <= 0 || pipeline_type_kind_ord_at(search_arena, param_ty) != ord_named)
     return 0;
-  ret_nlen = pipeline_type_named_name_into(arena, ret_ty, ret_nm);
-  param_nlen = pipeline_type_named_name_into(arena, param_ty, param_nm);
+  ret_nlen = pipeline_type_named_name_into(search_arena, ret_ty, ret_nm);
+  param_nlen = pipeline_type_named_name_into(search_arena, param_ty, param_nm);
   if (ret_nlen <= 0 || param_nlen <= 0 || !glue_slice_equal_c(ret_nm, ret_nlen, param_nm, param_nlen))
     return 0;
+  /* 短名 T 或 qualified foo.T 均视为 type param identity */
+  {
+    int32_t is_tparam = 0;
+    if (ret_nlen == 1 && ret_nm[0] == (uint8_t)'T')
+      is_tparam = 1;
+    else {
+      int32_t k;
+      for (k = ret_nlen - 1; k >= 0; k--) {
+        if (ret_nm[k] == (uint8_t)'.') {
+          if (ret_nlen - (k + 1) == 1 && ret_nm[k + 1] == (uint8_t)'T')
+            is_tparam = 1;
+          break;
+        }
+      }
+    }
+    if (!is_tparam && ret_nlen > 0) {
+      /* 仍要求 ret/param 同名（原逻辑） */
+    }
+  }
   arg0 = pipeline_expr_call_arg_ref(arena, call_expr_ref, 0);
   if (arg0 <= 0)
     return 0;
@@ -25679,7 +25786,7 @@ static void pipeline_typeck_bootstrap_expr_fixup_c(struct ast_Module *module, st
     return;
   }
   if (kind == ord_call)
-    (void)glue_generic_call_fixup_resolved_type_c(module, arena, expr_ref);
+    (void)glue_generic_call_fixup_resolved_type_c(module, arena, expr_ref, 0);
 }
 
 /**
@@ -25815,7 +25922,7 @@ int32_t pipeline_typeck_check_expr_call_c(struct ast_Module *module, struct ast_
     if (ret_ty != 0)
       (void)(pipeline_expr_set_resolved_type_ref(arena, expr_ref, ret_ty));
   }
-  (void)glue_generic_call_fixup_resolved_type_c(module, arena, expr_ref);
+  (void)glue_generic_call_fixup_resolved_type_c(module, arena, expr_ref, ctx);
   return 0;
 }
 

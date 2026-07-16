@@ -496,6 +496,23 @@ extern int32_t pipeline_block_stmt_order_kind(struct ast_ASTArena *arena, int32_
 extern int32_t pipeline_block_stmt_order_idx(struct ast_ASTArena *arena, int32_t block_ref, int32_t idx);
 extern int32_t pipeline_block_region_body_ref(struct ast_ASTArena *arena, int32_t block_ref, int32_t idx);
 extern int32_t pipeline_block_region_is_unsafe(struct ast_ASTArena *arena, int32_t block_ref, int32_t idx);
+extern int32_t pipeline_block_region_with_arena_cap_ref(struct ast_ASTArena *arena, int32_t block_ref, int32_t idx);
+extern int32_t pipeline_block_region_label_len(struct ast_ASTArena *arena, int32_t block_ref, int32_t idx);
+extern void pipeline_block_region_label_copy64(struct ast_ASTArena *arena, int32_t block_ref, int32_t idx,
+                                              uint8_t *out64);
+extern int32_t pipeline_dep_ctx_scope_region_push_c(struct ast_PipelineDepCtx *ctx, uint8_t *label,
+                                                   int32_t label_len);
+extern void pipeline_dep_ctx_scope_region_pop_c(struct ast_PipelineDepCtx *ctx);
+extern int32_t pipeline_dep_ctx_scope_region_len_at(struct ast_PipelineDepCtx *ctx);
+/* 若 filtered/ast_pool 已导出则覆盖；否则 stamp 安全 no-op（禁 in-place 改共享 T[]）。 */
+__attribute__((weak)) int32_t pipeline_block_set_let_type_ref(struct ast_ASTArena *arena, int32_t block_ref,
+                                                              int32_t let_idx, int32_t type_ref) {
+  (void)arena;
+  (void)block_ref;
+  (void)let_idx;
+  (void)type_ref;
+  return -1;
+}
 extern struct parser_ParseIntoResult pipeline_parse_into_with_init_c(struct ast_ASTArena *arena, struct ast_Module *module,
                                                                      struct shux_slice_uint8_t *source);
 extern int32_t pipeline_parse_into_with_init_slice_scalars_sidecar(struct ast_ASTArena *arena, struct ast_Module *module,
@@ -904,6 +921,22 @@ static int32_t pipeline_typeck_overload_arg_score_strict_minimal(struct ast_ASTA
   if (arg_ty > 0) {
     ak = pipeline_type_kind_ord_at(caller_arena, arg_ty);
     pk = pipeline_type_kind_ord_at(caller_arena, param_ty);
+    /* TYPE_ARRAY=10 → TYPE_PTR=9：buf:u8[N] 传 *u8 时须计为可赋，否则全部 overload 评分失败回退首同名(i32)。 */
+    if (ak == 10 && pk == 9) {
+      int32_t ae = pipeline_type_elem_ref_at(caller_arena, arg_ty);
+      int32_t pe = pipeline_type_elem_ref_at(caller_arena, param_ty);
+      if (ae > 0 && pe > 0 && pipeline_typeck_type_refs_equal_c(caller_arena, ae, pe) != 0)
+        return 1000;
+    }
+    /* TYPE_PTR=9：*u8 与 *i32 同 kind 但元素不同，不得给分，否则 best 平局回退首同名(i32)
+     *（sort_impl.sort(*u8) 误调 sort_i32 → abort）。须比 elem。 */
+    if (ak == 9 && pk == 9) {
+      int32_t ae = pipeline_type_elem_ref_at(caller_arena, arg_ty);
+      int32_t pe = pipeline_type_elem_ref_at(caller_arena, param_ty);
+      if (ae > 0 && pe > 0 && pipeline_typeck_type_refs_equal_c(caller_arena, ae, pe) != 0)
+        return 1000;
+      return -1;
+    }
     if (ak == pk && ak != 0)
       return 1;
     return -1;
@@ -1119,26 +1152,12 @@ __attribute__((weak)) int32_t pipeline_typeck_type_refs_equal_c(struct ast_ASTAr
   case ast_TypeKind_TYPE_LINEAR:
     return pipeline_typeck_type_refs_equal_c(arena, pipeline_type_elem_ref_at(arena, a),
                                              pipeline_type_elem_ref_at(arena, b));
-  case ast_TypeKind_TYPE_SLICE: {
-    int32_t alen;
-    int32_t blen;
-    uint8_t abuf[64];
-    uint8_t bbuf[64];
-    if (!pipeline_typeck_type_refs_equal_c(arena, pipeline_type_elem_ref_at(arena, a),
-                                           pipeline_type_elem_ref_at(arena, b)))
-      return 0;
-    alen = pipeline_type_region_label_len_at(arena, a);
-    blen = pipeline_type_region_label_len_at(arena, b);
-    if (alen > 0 && blen > 0) {
-      if (alen != blen)
-        return 0;
-      if (pipeline_type_region_label_into(arena, a, abuf) != alen
-          || pipeline_type_region_label_into(arena, b, bbuf) != blen)
-        return 0;
-      return memcmp(abuf, bbuf, (size_t)alen) == 0;
-    }
-    return 1;
-  }
+  case ast_TypeKind_TYPE_SLICE:
+    /* 【Why 根源】typeck.x：类型相等只比 elem；域标签由
+     * pipeline_typeck_check_slice_region_assign_c 单独报 slice region mismatch/escape。
+     * 若在 equal 里比 region，会误报 assignment type mismatch 并跳过 region 文案。 */
+    return pipeline_typeck_type_refs_equal_c(arena, pipeline_type_elem_ref_at(arena, a),
+                                             pipeline_type_elem_ref_at(arena, b));
   case ast_TypeKind_TYPE_ARRAY:
   case ast_TypeKind_TYPE_VECTOR:
     if (pipeline_type_array_size_at(arena, a) != pipeline_type_array_size_at(arena, b))
@@ -1852,15 +1871,33 @@ __attribute__((weak)) int32_t pipeline_typeck_block_const_init_is_const_c(struct
 
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
-/* G-02f-210：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* M-3：region 内未标注 T[] 继承当前域；换新 type_ref，禁止 in-place 改共享池节点。 */
 __attribute__((weak)) int32_t pipeline_type_stamp_block_let_region_c(struct ast_ASTArena *arena, int32_t block_ref,
                                                                      int32_t let_idx,
                                                                      struct ast_PipelineDepCtx *ctx) {
-  (void)arena;
-  (void)block_ref;
-  (void)let_idx;
-  (void)ctx;
-  return 0;
+  int32_t ty_ref;
+  int32_t rlen;
+  int32_t elem;
+  int32_t stamped;
+  if (!arena || !ctx || block_ref <= 0 || let_idx < 0)
+    return 0;
+  rlen = pipeline_dep_ctx_scope_region_len_at(ctx);
+  if (rlen <= 0)
+    return 0;
+  ty_ref = pipeline_block_let_type_ref(arena, block_ref, let_idx);
+  if (ty_ref <= 0 || pipeline_type_kind_ord_at(arena, ty_ref) != (int32_t)ast_TypeKind_TYPE_SLICE)
+    return 0;
+  if (pipeline_type_region_label_len_at(arena, ty_ref) > 0)
+    return 0;
+  elem = pipeline_type_elem_ref_at(arena, ty_ref);
+  if (elem <= 0)
+    return 0;
+  stamped = pipeline_type_find_or_alloc_slice(arena, elem, ctx->typeck_scope_region_label, rlen);
+  if (stamped <= 0)
+    return -1;
+  if (stamped == ty_ref)
+    return 0;
+  return pipeline_block_set_let_type_ref(arena, block_ref, let_idx, stamped);
 }
 #endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
@@ -2194,6 +2231,33 @@ __attribute__((weak)) int32_t pipeline_typeck_check_return_slice_region_c(struct
   }
   return 0;
 }
+
+/**
+ * M-3 AL-06：region 作用域内 return 未标注 T[] — 与 operand stamp 无关。
+ * typeck.x 在类型匹配失败前调用；产品链须导出此符号（非 full pipeline_glue standalone）。
+ */
+__attribute__((weak)) int32_t pipeline_typeck_check_return_slice_region_in_scope_c(struct ast_ASTArena *arena,
+                                                                                  int32_t site_expr_ref,
+                                                                                  int32_t return_type_ref,
+                                                                                  struct ast_PipelineDepCtx *ctx) {
+  int32_t line;
+  int32_t col;
+  int32_t rlen;
+  if (!arena || !ctx || site_expr_ref <= 0 || return_type_ref <= 0)
+    return 0;
+  if (pipeline_dep_ctx_scope_region_len_at(ctx) <= 0)
+    return 0;
+  if (pipeline_type_kind_ord_at(arena, return_type_ref) != (int32_t)ast_TypeKind_TYPE_SLICE)
+    return 0;
+  if (pipeline_type_region_label_len_at(arena, return_type_ref) > 0)
+    return 0;
+  pipeline_typeck_expr_diag_line_col_strict_minimal(arena, site_expr_ref, &line, &col);
+  rlen = pipeline_dep_ctx_scope_region_len_at(ctx);
+  lsp_diag_report_typeck((int)line, (int)col,
+                         "slice region escape: cannot return <%.*s> slice as unbound T[]", (int)rlen,
+                         (const char *)ctx->typeck_scope_region_label);
+  return -1;
+}
 #endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
@@ -2339,12 +2403,15 @@ __attribute__((weak)) int32_t pipeline_typeck_check_call_slice_region_c(struct a
 
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
-/* G-02f-216：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* M-3 / MEM-C1：region 推 scope；with_arena 与 unsafe 分支对齐 full pipeline_glue。 */
 __attribute__((weak)) int32_t pipeline_typeck_check_block_one_region_c(struct ast_Module *module,
                                                                        struct ast_ASTArena *arena, int32_t block_ref,
                                                                        int32_t region_idx, int32_t return_type_ref,
                                                                        struct ast_PipelineDepCtx *ctx) {
+  uint8_t label[64];
+  int32_t label_len;
   int32_t body_ref;
+  int32_t wa_cap;
   int32_t rc;
   extern int32_t pipeline_typeck_unsafe_depth_push_c(struct ast_PipelineDepCtx *ctx);
   extern void pipeline_typeck_unsafe_depth_pop_c(struct ast_PipelineDepCtx *ctx, int32_t saved);
@@ -2359,7 +2426,20 @@ __attribute__((weak)) int32_t pipeline_typeck_check_block_one_region_c(struct as
     pipeline_typeck_unsafe_depth_pop_c(ctx, saved_ud);
     return rc;
   }
-  return typeck_check_block(module, arena, body_ref, return_type_ref, ctx);
+  wa_cap = pipeline_block_region_with_arena_cap_ref(arena, block_ref, region_idx);
+  if (wa_cap > 0) {
+    /* with_arena 体：不推 region 标签；内层 region 再推。 */
+    return typeck_check_block(module, arena, body_ref, return_type_ref, ctx);
+  }
+  label_len = pipeline_block_region_label_len(arena, block_ref, region_idx);
+  if (label_len <= 0)
+    return typeck_check_block(module, arena, body_ref, return_type_ref, ctx);
+  pipeline_block_region_label_copy64(arena, block_ref, region_idx, label);
+  if (pipeline_dep_ctx_scope_region_push_c(ctx, label, label_len) != 0)
+    return -1;
+  rc = typeck_check_block(module, arena, body_ref, return_type_ref, ctx);
+  pipeline_dep_ctx_scope_region_pop_c(ctx);
+  return rc;
 }
 #endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
