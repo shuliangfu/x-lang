@@ -40,15 +40,20 @@
 //     argv scan + collect + one_file public + empty-list diags；quiet success）；
 //     FROM_X 无 pure-dup run_check_impl；Cap residual：walk / path_stat /
 //     one_file_body / run_fmt 仍 rest（ALWAYS residual 5→4）。
+//   + wave Cap residual pure：driver_run_fmt full orch（mode FMT + ignore n=0 + clear +
+//     argv --check/--fail-fast/--ignore= + collect/cwd walk + empty FMT001 +
+//     public fmt_one_file loop + check-mode summary lits；verbose fixed lit）；
+//     FROM_X 无 pure-dup run_fmt_impl；Cap residual：walk / path_stat /
+//     one_file_body 仍 rest（ALWAYS residual 4→3）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_FMT_CHECK_THIN_FROM_X）ld -r
 //   → fmt_check_cmd_driver.o
 // Prove IDENTICAL：seeds/fmt_check_cmd_thin_surface.from_x.c
-// Cap residual：walk opendir/stat / check_one_file_body / run_fmt
+// Cap residual：walk opendir/stat / check_one_file_body
 //   等 *_impl 仍在 full seed rest；FROM_X 下 pure-duplicate _impl 已剔除（含
 //   set_current_file / print / cwd_fallback / try_walk / path_resolve_abs /
 //   append_repo / missing_diag / collect_mode / user_passed_L / init / file_list_n /
 //   user_ignore_count / lib_bufs_n / user_ignore_at / parse_ignore_opt /
-//   try_append_lib_root / argv_append / file_list store+clear / run_check；H↓）。
+//   try_append_lib_root / argv_append / file_list store+clear / run_check / run_fmt；H↓）。
 //
 // -E 约束：无 while 重赋值；无零参-only 不稳写法；6 参用扁平 if。
 //
@@ -62,6 +67,11 @@ export extern "C" function lsp_diag_print_stderr_human(path: *u8): i32;
 export extern "C" function driver_run_compiler_full(argc: i32, argv: *u8): i32;
 export extern "C" function driver_dep_seeded_clear_all(): void;
 export extern "C" function diag_report_with_code(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void;
+export extern "C" function diag_report(file: *u8, line: i32, col: i32, kind: *u8, msg: *u8, detail: *u8): void;
+// Cap residual：单文件 fmt 真体（read/format/write）；orch 调 public 面。
+export extern "C" function driver_fmt_one_file(path: *u8, path_len: i32): i32;
+export extern "C" function driver_fmt_check_only_set(v: i32): void;
+export extern "C" function driver_fmt_check_only_get(): i32;
 // Cap residual：可写路径 BSS 槽（0=current_file，1=resolve_abs）。
 // -E 顶层 u8[N] 现退化为悬空指针（codegen.x 已根修，codegen_gen 再生后可收回此槽）。
 export extern "C" function fmt_check_path_bss_slot(which: i32): *u8;
@@ -105,6 +115,15 @@ let g_fmt_lit_dash_O: u8[3] = [45, 79, 0];
 let g_fmt_lit_backend: u8[9] = [45, 98, 97, 99, 107, 101, 110, 100, 0];
 let g_fmt_lit_no_x_paths: u8[38] = [110, 111, 32, 46, 120, 32, 102, 105, 108, 101, 115, 32, 102, 111, 117, 110, 100, 32, 117, 110, 100, 101, 114, 32, 103, 105, 118, 101, 110, 32, 112, 97, 116, 104, 40, 115, 41, 0];
 let g_fmt_lit_no_x_cwd: u8[39] = [110, 111, 32, 46, 120, 32, 102, 105, 108, 101, 115, 32, 102, 111, 117, 110, 100, 32, 105, 110, 32, 99, 117, 114, 114, 101, 110, 116, 32, 100, 105, 114, 101, 99, 116, 111, 114, 121, 0];
+// run_fmt flag / summary / verbose lits (no string syntax; no varargs diag_reportf).
+let g_fmt_lit_dash_check: u8[8] = [45, 45, 99, 104, 101, 99, 107, 0];
+let g_fmt_lit_note: u8[5] = [110, 111, 116, 101, 0];
+let g_fmt_lit_info: u8[5] = [105, 110, 102, 111, 0];
+let g_fmt_lit_needs_formatting: u8[18] = [110, 101, 101, 100, 115, 32, 102, 111, 114, 109, 97, 116, 116, 105, 110, 103, 0];
+let g_fmt_lit_found_not_formatted: u8[26] = [102, 111, 117, 110, 100, 32, 110, 111, 116, 32, 102, 111, 114, 109, 97, 116, 116, 101, 100, 32, 102, 105, 108, 101, 115, 0];
+let g_fmt_lit_run_shux_fmt: u8[37] = [114, 117, 110, 32, 96, 115, 104, 117, 120, 32, 102, 109, 116, 96, 32, 116, 111, 32, 102, 111, 114, 109, 97, 116, 32, 116, 104, 101, 115, 101, 32, 102, 105, 108, 101, 115, 0];
+let g_fmt_lit_fmt_verbose_env: u8[17] = [83, 72, 85, 88, 95, 70, 77, 84, 95, 86, 69, 82, 66, 79, 83, 69, 0];
+let g_fmt_lit_formatted_files: u8[17] = [70, 111, 114, 109, 97, 116, 116, 101, 100, 32, 102, 105, 108, 101, 115, 0];
 
 let g_fmt_builtin_ignore_0: u8[8] = [47, 46, 103, 105, 116, 47, 0, 0];
 let g_fmt_builtin_ignore_1: u8[12] = [47, 98, 117, 105, 108, 100, 95, 97, 115, 109, 47, 0];
@@ -1510,13 +1529,137 @@ export function check_argv_append_default_libs_for_path(path: *u8, check_argv: *
   }
 }
 
-// ---- G-02f-410：fmt entry → seed impl；check entry pure under hybrid ----
-export extern "C" function driver_run_fmt_impl(argc: i32, argv: *u8): i32;
+// ---- G-02f-410：fmt + check entry pure under hybrid ----
 
+/** Run `shux fmt` (deno fmt: multi-file/dir; optional --check lists unformatted).
+ * Pure under PREFER hybrid:
+ *   1) ignore n=0 + collect mode FMT + file_list_clear (pure);
+ *   2) argv scan from 1: --check (set check_only) / --fail-fast / --ignore= /
+ *      other -flags skip / path → collect_paths_from_arg (Cap residual walk/stat);
+ *   3) no path → getcwd + walk_dir_collect public (Cap residual opendir body);
+ *   4) empty list → diag FMT001 with path/cwd message;
+ *   5) each path → driver_fmt_one_file (Cap residual one-file body);
+ *      on fail in --check: per-file note "needs formatting" (path as diag file);
+ *   6) clear check_only + file_list; on --check failures: summary "found not
+ *      formatted files" + note "run `shux fmt`…"; optional SHUX_FMT_VERBOSE lit.
+ * No varargs diag_reportf; fixed lits satisfy run-fmt-check-cmd greps.
+ * No driver_run_fmt_impl under hybrid (ALWAYS residual 4→3).
+ * PLATFORM: SHARED — dual-host prove + fmt matrix. */
 #[no_mangle]
 export function driver_run_fmt(argc: i32, argv: *u8): i32 {
+  // DRIVER_COLLECT_MODE_FMT = 1 (match seed enum).
+  fmt_user_ignore_count_set(0);
+  driver_collect_mode_set(1);
+  file_list_clear();
+  let fail_fast: i32 = 0;
+  let any_path: i32 = 0;
+  let failed: i32 = 0;
+  let formatted: i32 = 0;
+  let check_mode: i32 = 0;
   unsafe {
-    return driver_run_fmt_impl(argc, argv);
+    let i: i32 = 1;
+    while (i < argc) {
+      if (argv != 0 as *u8) {
+        let a: *u8 = shux_ptr_slot_get(argv, i);
+        if (a != 0 as *u8) {
+          if (strcmp(a, &g_fmt_lit_dash_check[0]) == 0) {
+            driver_fmt_check_only_set(1);
+            check_mode = 1;
+          } else {
+            if (strcmp(a, &g_fmt_lit_fail_fast[0]) == 0) {
+              fail_fast = 1;
+            } else {
+              if (strncmp(a, &g_fmt_lit_ignore_eq[0], 9) == 0) {
+                parse_ignore_opt(a);
+              } else {
+                if (a[0] != 45) {
+                  any_path = 1;
+                  collect_paths_from_arg(a);
+                }
+              }
+            }
+          }
+        }
+      }
+      i = i + 1;
+    }
+  }
+  if (any_path == 0) {
+    let cwd: u8[512] = [];
+    unsafe {
+      let p: *u8 = getcwd(&cwd[0], 512);
+      if (p != 0 as *u8) {
+        walk_dir_collect(&cwd[0]);
+      }
+    }
+  }
+  if (fmt_file_list_n() == 0) {
+    unsafe {
+      let kind: *u8 = &g_fmt_lit_fmt_error[0];
+      let code: *u8 = &g_fmt_lit_fmt001[0];
+      if (any_path != 0) {
+        diag_report_with_code(0 as *u8, 0, 0, kind, code, &g_fmt_lit_no_x_paths[0], 0 as *u8);
+      } else {
+        diag_report_with_code(0 as *u8, 0, 0, kind, code, &g_fmt_lit_no_x_cwd[0], 0 as *u8);
+      }
+    }
+    return 1;
+  }
+  unsafe {
+    let n: i32 = fmt_file_list_n();
+    let j: i32 = 0;
+    while (j < n) {
+      let path: *u8 = fmt_file_list_at(j);
+      if (path != 0 as *u8) {
+        let plen: i32 = 0;
+        while (plen < 512) {
+          if (path[plen] == 0) {
+            break;
+          }
+          plen = plen + 1;
+        }
+        let rc: i32 = driver_fmt_one_file(path, plen);
+        if (rc != 0) {
+          failed = 1;
+          if (check_mode != 0) {
+            // Path as diag file so path appears; msg matches run-fmt-check-cmd greps.
+            diag_report(path, 0, 0, &g_fmt_lit_note[0], &g_fmt_lit_needs_formatting[0], 0 as *u8);
+          }
+          if (fail_fast != 0) {
+            break;
+          }
+        } else {
+          if (check_mode == 0) {
+            formatted = formatted + 1;
+          }
+        }
+      }
+      j = j + 1;
+    }
+  }
+  unsafe {
+    driver_fmt_check_only_set(0);
+  }
+  file_list_clear();
+  if (failed != 0) {
+    if (check_mode != 0) {
+      unsafe {
+        diag_report_with_code(0 as *u8, 0, 0, &g_fmt_lit_fmt_error[0], &g_fmt_lit_fmt001[0], &g_fmt_lit_found_not_formatted[0], 0 as *u8);
+        diag_report(0 as *u8, 0, 0, &g_fmt_lit_note[0], &g_fmt_lit_run_shux_fmt[0], 0 as *u8);
+      }
+      return 1;
+    }
+    return 1;
+  }
+  if (check_mode == 0) {
+    if (formatted > 0) {
+      unsafe {
+        let ev: *u8 = getenv(&g_fmt_lit_fmt_verbose_env[0]);
+        if (ev != 0 as *u8) {
+          diag_report(0 as *u8, 0, 0, &g_fmt_lit_info[0], &g_fmt_lit_formatted_files[0], 0 as *u8);
+        }
+      }
+    }
   }
   return 0;
 }
@@ -1532,7 +1675,7 @@ export function driver_run_fmt(argc: i32, argv: *u8): i32 {
  *   5) empty list → diag CHK002 with path/cwd message;
  *   6) each path → public check_one_file (Cap residual body_impl under hybrid);
  *   7) quiet success (no check OK line) — matches driver_check_quiet_ok_get()==1.
- * No driver_run_compiler_check_impl under hybrid (ALWAYS residual 5→4).
+ * No driver_run_compiler_check_impl under hybrid (ALWAYS residual 5→4 with run_fmt pure).
  * PLATFORM: SHARED — dual-host prove + check matrix. */
 #[no_mangle]
 export function driver_run_compiler_check(argc: i32, argv: *u8): i32 {

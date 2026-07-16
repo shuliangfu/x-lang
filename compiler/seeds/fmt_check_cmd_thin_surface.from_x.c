@@ -1,4 +1,4 @@
-/* regen from fmt_check_cmd_thin.x -E (run_check full orch pure) */
+/* regen from fmt_check_cmd_thin.x -E (run_fmt full orch pure) */
 /* prove prologue (g05_try_x_to_o aligned + uio/poll) */
 #include <stddef.h>
 #include <stdint.h>
@@ -425,6 +425,14 @@ static uint8_t g_fmt_lit_dash_O[3] = {45, 79, 0};
 static uint8_t g_fmt_lit_backend[9] = {45, 98, 97, 99, 107, 101, 110, 100, 0};
 static uint8_t g_fmt_lit_no_x_paths[38] = {110, 111, 32, 46, 120, 32, 102, 105, 108, 101, 115, 32, 102, 111, 117, 110, 100, 32, 117, 110, 100, 101, 114, 32, 103, 105, 118, 101, 110, 32, 112, 97, 116, 104, 40, 115, 41, 0};
 static uint8_t g_fmt_lit_no_x_cwd[39] = {110, 111, 32, 46, 120, 32, 102, 105, 108, 101, 115, 32, 102, 111, 117, 110, 100, 32, 105, 110, 32, 99, 117, 114, 114, 101, 110, 116, 32, 100, 105, 114, 101, 99, 116, 111, 114, 121, 0};
+static uint8_t g_fmt_lit_dash_check[8] = {45, 45, 99, 104, 101, 99, 107, 0};
+static uint8_t g_fmt_lit_note[5] = {110, 111, 116, 101, 0};
+static uint8_t g_fmt_lit_info[5] = {105, 110, 102, 111, 0};
+static uint8_t g_fmt_lit_needs_formatting[18] = {110, 101, 101, 100, 115, 32, 102, 111, 114, 109, 97, 116, 116, 105, 110, 103, 0};
+static uint8_t g_fmt_lit_found_not_formatted[26] = {102, 111, 117, 110, 100, 32, 110, 111, 116, 32, 102, 111, 114, 109, 97, 116, 116, 101, 100, 32, 102, 105, 108, 101, 115, 0};
+static uint8_t g_fmt_lit_run_shux_fmt[37] = {114, 117, 110, 32, 96, 115, 104, 117, 120, 32, 102, 109, 116, 96, 32, 116, 111, 32, 102, 111, 114, 109, 97, 116, 32, 116, 104, 101, 115, 101, 32, 102, 105, 108, 101, 115, 0};
+static uint8_t g_fmt_lit_fmt_verbose_env[17] = {83, 72, 85, 88, 95, 70, 77, 84, 95, 86, 69, 82, 66, 79, 83, 69, 0};
+static uint8_t g_fmt_lit_formatted_files[17] = {70, 111, 114, 109, 97, 116, 116, 101, 100, 32, 102, 105, 108, 101, 115, 0};
 static uint8_t g_fmt_builtin_ignore_0[8] = {47, 46, 103, 105, 116, 47, 0, 0};
 static uint8_t g_fmt_builtin_ignore_1[12] = {47, 98, 117, 105, 108, 100, 95, 97, 115, 109, 47, 0};
 static uint8_t g_fmt_builtin_ignore_2[8] = {47, 98, 117, 105, 108, 100, 47, 0};
@@ -443,6 +451,10 @@ extern int32_t lsp_diag_print_stderr_human(uint8_t * path);
 extern int32_t driver_run_compiler_full(int32_t argc, uint8_t * argv);
 extern void driver_dep_seeded_clear_all(void);
 extern void diag_report_with_code(uint8_t * file, int32_t line, int32_t col, uint8_t * kind, uint8_t * code, uint8_t * msg, uint8_t * detail);
+extern void diag_report(uint8_t * file, int32_t line, int32_t col, uint8_t * kind, uint8_t * msg, uint8_t * detail);
+extern int32_t driver_fmt_one_file(uint8_t * path, int32_t path_len);
+extern void driver_fmt_check_only_set(int32_t v);
+extern int32_t driver_fmt_check_only_get(void);
 extern uint8_t * fmt_check_path_bss_slot(int32_t which);
 extern uint8_t * shux_ptr_slot_get(uint8_t * arr, int32_t i);
 extern void shux_ptr_slot_set(uint8_t * arr, int32_t i, uint8_t * p);
@@ -1617,9 +1629,115 @@ void check_argv_append_default_libs_for_path(uint8_t * path, uint8_t * check_arg
   (void)(0);
   return;
 }
-extern int32_t driver_run_fmt_impl(int32_t argc, uint8_t * argv);
 int32_t driver_run_fmt(int32_t argc, uint8_t * argv) {
-  return driver_run_fmt_impl(argc, argv);
+  (void)(fmt_user_ignore_count_set(0));
+  (void)(driver_collect_mode_set(1));
+  (void)(file_list_clear());
+  int32_t fail_fast = 0;
+  int32_t any_path = 0;
+  int32_t failed = 0;
+  int32_t formatted = 0;
+  int32_t check_mode = 0;
+  {
+    int32_t i = 1;
+    while ((i < argc)) {
+      if ((argv !=((uint8_t *)(0)))) {
+        uint8_t * a = shux_ptr_slot_get(argv, i);
+        if ((a !=((uint8_t *)(0)))) {
+          if ((strcmp(a, &((g_fmt_lit_dash_check)[0])) ==0)) {
+            (void)(driver_fmt_check_only_set(1));
+            (void)((check_mode = 1));
+          } else {
+            if ((strcmp(a, &((g_fmt_lit_fail_fast)[0])) ==0)) {
+              (void)((fail_fast = 1));
+            } else {
+              if ((strncmp(a, &((g_fmt_lit_ignore_eq)[0]), 9) ==0)) {
+                (void)(parse_ignore_opt(a));
+              } else {
+                if (((a)[0] !=45)) {
+                  (void)((any_path = 1));
+                  (void)(collect_paths_from_arg(a));
+                }
+              }
+            }
+          }
+        }
+      }
+      (void)((i = (i + 1)));
+    }
+  }
+  if ((any_path ==0)) {
+    uint8_t cwd[512] = {};
+    {
+      uint8_t * p = getcwd(&((cwd)[0]), 512);
+      if ((p !=((uint8_t *)(0)))) {
+        (void)(walk_dir_collect(&((cwd)[0])));
+      }
+    }
+  }
+  if ((fmt_file_list_n() ==0)) {
+    {
+      uint8_t * kind = &((g_fmt_lit_fmt_error)[0]);
+      uint8_t * code = &((g_fmt_lit_fmt001)[0]);
+      if ((any_path !=0)) {
+        (void)(diag_report_with_code(((uint8_t *)(0)), 0, 0, kind, code, &((g_fmt_lit_no_x_paths)[0]), ((uint8_t *)(0))));
+      } else {
+        (void)(diag_report_with_code(((uint8_t *)(0)), 0, 0, kind, code, &((g_fmt_lit_no_x_cwd)[0]), ((uint8_t *)(0))));
+      }
+    }
+    return 1;
+  }
+  {
+    int32_t n = fmt_file_list_n();
+    int32_t j = 0;
+    while ((j < n)) {
+      uint8_t * path = fmt_file_list_at(j);
+      if ((path !=((uint8_t *)(0)))) {
+        int32_t plen = 0;
+        while ((plen < 512)) {
+          if (((path)[plen] ==0)) {
+            break;
+          }
+          (void)((plen = (plen + 1)));
+        }
+        int32_t rc = driver_fmt_one_file(path, plen);
+        if ((rc !=0)) {
+          (void)((failed = 1));
+          if ((check_mode !=0)) {
+            (void)(diag_report(path, 0, 0, &((g_fmt_lit_note)[0]), &((g_fmt_lit_needs_formatting)[0]), ((uint8_t *)(0))));
+          }
+          if ((fail_fast !=0)) {
+            break;
+          }
+        } else {
+          if ((check_mode ==0)) {
+            (void)((formatted = (formatted + 1)));
+          }
+        }
+      }
+      (void)((j = (j + 1)));
+    }
+  }
+  (void)(driver_fmt_check_only_set(0));
+  (void)(file_list_clear());
+  if ((failed !=0)) {
+    if ((check_mode !=0)) {
+      (void)(diag_report_with_code(((uint8_t *)(0)), 0, 0, &((g_fmt_lit_fmt_error)[0]), &((g_fmt_lit_fmt001)[0]), &((g_fmt_lit_found_not_formatted)[0]), ((uint8_t *)(0))));
+      (void)(diag_report(((uint8_t *)(0)), 0, 0, &((g_fmt_lit_note)[0]), &((g_fmt_lit_run_shux_fmt)[0]), ((uint8_t *)(0))));
+      return 1;
+    }
+    return 1;
+  }
+  if ((check_mode ==0)) {
+    if ((formatted > 0)) {
+      {
+        uint8_t * ev = getenv(&((g_fmt_lit_fmt_verbose_env)[0]));
+        if ((ev !=((uint8_t *)(0)))) {
+          (void)(diag_report(((uint8_t *)(0)), 0, 0, &((g_fmt_lit_info)[0]), &((g_fmt_lit_formatted_files)[0]), ((uint8_t *)(0))));
+        }
+      }
+    }
+  }
   return 0;
 }
 int32_t driver_run_compiler_check(int32_t argc, uint8_t * argv) {

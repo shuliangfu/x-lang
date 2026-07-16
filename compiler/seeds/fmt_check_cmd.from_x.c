@@ -1,4 +1,4 @@
-/* R2 thin + Cap residual pure 深迁（续 run_check full orch pure）：
+/* R2 thin + Cap residual pure 深迁（续 run_fmt full orch pure）：
  * PREFER hybrid thin 由 src/driver/fmt_check_cmd_thin.x（lit/entry + pure 真体）；
  * rest SHUX_L2_FMT_CHECK_THIN_FROM_X：无 thin 公共体；pure-duplicate _impl 剔除
  * （含 set_current_file / print / cwd_fallback / try_walk / path_resolve_abs /
@@ -7,9 +7,9 @@
  *  file_list_n / user_ignore_count / lib_bufs_n / user_ignore_at /
  *  parse_ignore_opt / try_append_lib_root / argv_append /
  *  fmt_file_list_store / file_list_clear / fmt_file_list_at /
- *  driver_run_compiler_check / …）；
- * Cap residual：walk opendir/stat / one_file_body / run_fmt 仍 rest
- *  （ALWAYS residual 4）。
+ *  driver_run_compiler_check / driver_run_fmt / …）；
+ * Cap residual：walk opendir/stat / one_file_body 仍 rest
+ *  （ALWAYS residual 3）。
  * 冷启动无宏：全 C 体（含 pure _impl + public 门闩）。
  * Regen thin surface: shux -E src/driver/fmt_check_cmd_thin.x → thin_surface.
  */
@@ -190,8 +190,11 @@ int32_t driver_check_quiet_ok_get(void) {
 #endif
 
 
+/* 冷启动 run_fmt_impl 用；hybrid pure orch 按文件 note，无此表 */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 static char s_unformatted_paths[DRIVER_FMT_MAX_FILES][512];
 static int s_unformatted_count;
+#endif
 
 /* Cap residual pure：hybrid thin owns s_n_ignore + s_ignore_paths slots
  * (g_fmt_user_ignore_paths 32×256 flat); cold keeps statics. */
@@ -1136,8 +1139,10 @@ void file_list_clear(void) {
 
 /**
  * 运行 shux fmt（deno fmt 语义）。
- * G-02f-410：实现体始终 seed；public PREFER 时 thin pure forward。
+ * pure 权威：thin.x driver_run_fmt（full orch + public APIs）；
+ * 冷启动保留 _impl + public；FROM_X 下剔除 pure-dup _impl（H↓；ALWAYS residual 4→3）。
  */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 int driver_run_fmt_impl(int argc, char **argv) {
     int i;
     int fail_fast = 0;
@@ -1242,7 +1247,6 @@ int driver_run_fmt_impl(int argc, char **argv) {
 
     return 0;
 }
-#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 int driver_run_fmt(int argc, char **argv) {
     return driver_run_fmt_impl(argc, argv);
 }
