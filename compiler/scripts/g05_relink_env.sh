@@ -85,9 +85,15 @@ _GLUE_SUFFIX="build_asm/pipeline_glue_strict_minimal.o"
 # 但 no_c 对 driver_x_emit_* / write_io_net_abi_inline 等仍为 U 时，空 slice 会链失败却假绿（旧 binary 残留）。
 # 根治：始终链入 RT slice .o（若 no_c 已内嵌同名强符号，需先修 no_c 合并策略；当前 nm 为 U）。
 # 含 rt_parse_diag：runtime_report_parse_recovery_diagnostics（冷启动 no_c 为 U）
-_RT_SEED_SLICE_OBJS="src/runtime/rt_arena_buf.o src/runtime/rt_emit_state.o src/runtime/rt_preamble.o src/runtime/rt_stack.o src/runtime/rt_parse_diag.o"
-# DRIVER_SEED_OBJS 展开（MAIN + runtime ABI + no_c runtime + rt slices + x frontend + support + shims）
-_DRIVER_SEED_OBJS="$_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o src/runtime_pipeline_abi.o src/runtime_driver_no_c.o $_RT_SEED_SLICE_OBJS src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_X_FRONTEND $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o src/seed_link_compat.o"
+# RT seed slices: omit when runtime_driver_no_c.o already defines the same strong
+# symbols (current no_c); listing both → duplicate symbol at g05 link.
+# Re-enable if nm shows U on no_c for those slice symbols.
+_RT_SEED_SLICE_OBJS=""
+# DRIVER_SEED_OBJS 展开（MAIN + runtime ABI + no_c + process argv + x frontend + support + shims）
+# PLATFORM: SHARED — runtime_process_argv.o provides process_shux_argc/argv_get
+# (Makefile DRIVER_SEED_OBJS). Without it g05 link fails U process_shux_* from
+# runtime_link_abi.o process_args_*_c.
+_DRIVER_SEED_OBJS="$_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o src/runtime_pipeline_abi.o src/runtime_driver_no_c.o $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_X_FRONTEND $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o src/seed_link_compat.o"
 
 # 最终链接 obj 序（与 make g05-export-relink 一致）
 G05_OBJS="$_DRIVER_SEED_OBJS driver_x.o $_PIPELINE_LINK_O lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $_DRIVER_SUBCMD src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $_USER_ASM_LINK $_GLUE_SUFFIX"

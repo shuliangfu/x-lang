@@ -18,12 +18,19 @@
 // 职责：消费 Token 流，解析最小程序「function main(): i32 { return <int>; }」，并产出 .x AST（Arena + Module）。
 // 依赖：lexer、token、ast（Arena/Module/Type/Expr/Block/Func）。
 // 全部逻辑在 .x：不调 C 构建 AST，为完全自举第一步。
+//
+// Cap-T001 / LANG-007 S0 (M1 T KPI): FFI wrappers that call export-extern glue use
+// whole-body unsafe. TokenKind/Token uses token.* qualify. Arena heap uses bare
+// libc calloc/free (no std.heap import) to keep mega typeck off that dep graph.
+// PLATFORM: SHARED — product still pins parser seed until M2.
 
 const lexer = import("lexer");
 const token = import("token");
 const ast = import("ast");
-/** 极简 parse(return <expr>) 非字面量时用堆上 ASTArena，`pipeline_sizeof_arena()` 与 driver 静态缓冲同口径。 */
-const heap = import("std.heap");
+/** Arena heap for non-literal parse paths: hosted libc via bare extern (no std.heap import).
+ * PLATFORM: SHARED — Cap-T001 whole-body callers wrap these; M1 T typeck avoids std.heap dep graph. */
+extern "C" function calloc(nmemb: usize, size: usize): *u8;
+extern "C" function free(ptr: *u8): void;
 
 /** parser 联调 main 仅需最小文件 IO，避免拉入 std.fs 全平台定义污染 bootstrap 生成。 */
 export extern "C" function std_fs_open(path: *u8): i32;
@@ -34,7 +41,11 @@ export extern "C" function std_fs_close(fd: i32): i32;
 /** 单行 extern bl→parser_parse_peek_function_name_buf_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_parse_peek_function_name_buf_glue(lex: Lexer, data: *u8, len: i32, out: *u8): i32;
 export function parse_peek_function_name_buf(lex: Lexer, data: *u8, len: i32, out: *u8): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return parser_parse_peek_function_name_buf_glue(lex, data, len, out);
+  }
+  return 0;  // unreachable — typeck after unsafe block
 }
 
 
@@ -82,7 +93,10 @@ export extern function pipeline_arena_func_copy_slot_from_module(arena: *ASTAren
 export extern function pipeline_module_reset_parse_counters_c(module: *Module): void;
 
 export function pipeline_module_reset_parse_counters(module: *Module): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   pipeline_module_reset_parse_counters_c(module);
+  }
 }
 /** 与 C `pipeline_sizeof_arena` 一致：`sizeof(ast_ASTArena)`；堆/静态 arena 缓冲须 ≥此值。 */
 export extern function pipeline_sizeof_arena(): usize;
@@ -325,7 +339,10 @@ export struct CollectImportsResult {
 /** 从 CollectImportsResult 取 lex 写入 out；C glue 避免嵌套 .lex.pos FIELD_ACCESS 在 typeck 上为 ?。 */
 export extern function parser_lex_copy_from_collect_imports(out: *Lexer, res: CollectImportsResult): void;
 export function copy_lex_from_import_into(out: *Lexer, res: CollectImportsResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_lex_copy_from_collect_imports(out, res);
+  }
 }
 
 /** 从 LexerResult 取 next_lex 写入 out；C glue 同上。 */
@@ -333,7 +350,10 @@ export extern function parser_lex_from_lexer_result_val_into(out: *Lexer, r: Lex
 /** 单行 extern bl→parser_lex_from_next_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_lex_from_next_into_glue(out: *Lexer, r: LexerResult): void;
 export function lex_from_next_into(out: *Lexer, r: LexerResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_lex_from_next_into_glue(out, r);
+  }
 }
 
 /** 从 *LexerResult 取 next_lex 写入 out_lex；C glue 避免 *T 链式 FIELD_ACCESS 在 typeck 上为 ?。 */
@@ -341,7 +361,10 @@ export extern function parser_lex_from_lexer_result_ptr_into(out: *Lexer, r: *Le
 /** 单行 extern bl→parser_lex_from_result_ptr_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_lex_from_result_ptr_into_glue(out_lex: *Lexer, r: *LexerResult): void;
 export function lex_from_result_ptr_into(out_lex: *Lexer, r: *LexerResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_lex_from_result_ptr_into_glue(out_lex, r);
+  }
 }
 
 export function lexer_copy_into(out_lex: *Lexer, src_lex: Lexer): void {
@@ -374,7 +397,10 @@ export extern function parser_lex_from_onefunc_result_ptr_into(out: *Lexer, res:
 /** 单行 extern bl→parser_lex_from_onefunc_next_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_lex_from_onefunc_next_into_glue(out: *Lexer, res: *OneFuncResult): void;
 export function lex_from_onefunc_next_into(out: *Lexer, res: *OneFuncResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_lex_from_onefunc_next_into_glue(out, res);
+  }
 }
 
 
@@ -392,59 +418,59 @@ export function lexer_pos_before_run(end_pos: usize, run_len: i32): usize {
  */
 /**
  * token_start==0 时按 kind 推断关键字/字面量字节长度，供 lex_at_token_from_result 回溯起点。
- * 形参 TokenKind（勿 Token 按值）；TOKEN_ASYNC 用 i32 ordinal 29（EMIT_HEAVY enum emit 曾失败）。
+ * 形参 token.TokenKind（勿 Token 按值）；TOKEN_ASYNC 用 i32 ordinal 29（EMIT_HEAVY enum emit 曾失败）。
  */
-export function lexer_token_run_len(kind: TokenKind): i32 {
-  if (kind == TokenKind.TOKEN_RETURN) {
+export function lexer_token_run_len(kind: token.TokenKind): i32 {
+  if (kind == token.TokenKind.TOKEN_RETURN) {
     return 6;
   }
-  if (kind == TokenKind.TOKEN_FUNCTION) {
+  if (kind == token.TokenKind.TOKEN_FUNCTION) {
     return 8;
   }
-  if (kind == TokenKind.TOKEN_CONST) {
+  if (kind == token.TokenKind.TOKEN_CONST) {
     return 5;
   }
-  if (kind == TokenKind.TOKEN_WHILE) {
+  if (kind == token.TokenKind.TOKEN_WHILE) {
     return 5;
   }
-  if (kind == TokenKind.TOKEN_FALSE) {
+  if (kind == token.TokenKind.TOKEN_FALSE) {
     return 5;
   }
-  if (kind == TokenKind.TOKEN_STRUCT) {
+  if (kind == token.TokenKind.TOKEN_STRUCT) {
     return 6;
   }
-  if (kind == TokenKind.TOKEN_IMPORT) {
+  if (kind == token.TokenKind.TOKEN_IMPORT) {
     return 6;
   }
-  if (kind == TokenKind.TOKEN_EXTERN) {
+  if (kind == token.TokenKind.TOKEN_EXTERN) {
     return 6;
   }
-  if (kind == TokenKind.TOKEN_EXPORT) {
+  if (kind == token.TokenKind.TOKEN_EXPORT) {
     return 6;
   }
   let ko: i32 = kind as i32;
   if (ko == 29) {
     return 5;
   }
-  if (kind == TokenKind.TOKEN_LET) {
+  if (kind == token.TokenKind.TOKEN_LET) {
     return 3;
   }
-  if (kind == TokenKind.TOKEN_IF) {
+  if (kind == token.TokenKind.TOKEN_IF) {
     return 2;
   }
-  if (kind == TokenKind.TOKEN_FOR) {
+  if (kind == token.TokenKind.TOKEN_FOR) {
     return 3;
   }
-  if (kind == TokenKind.TOKEN_ELSE) {
+  if (kind == token.TokenKind.TOKEN_ELSE) {
     return 4;
   }
-  if (kind == TokenKind.TOKEN_TRUE) {
+  if (kind == token.TokenKind.TOKEN_TRUE) {
     return 4;
   }
-  if (kind == TokenKind.TOKEN_ENUM) {
+  if (kind == token.TokenKind.TOKEN_ENUM) {
     return 4;
   }
-  if (kind == TokenKind.TOKEN_MATCH) {
+  if (kind == token.TokenKind.TOKEN_MATCH) {
     return 5;
   }
   return 1;
@@ -459,7 +485,10 @@ export function lexer_token_run_len(kind: TokenKind): i32 {
 /** 单行 extern bl→parser_lex_at_token_from_result_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_lex_at_token_from_result_glue(r: LexerResult): Lexer;
 export function lex_at_token_from_result(r: LexerResult): Lexer {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return parser_lex_at_token_from_result_glue(r);
+  }
 }
 
 
@@ -472,7 +501,10 @@ export extern function parser_parser_rewind_lex_for_following_stmt_glue(lex_in: 
 /** parse_block return 尾：RBRACE 时置 block_break，否则 advance lex（C 实现，避 X→C continue 失效）。 */
 export extern function parser_asm_parse_block_return_end_tail_glue(r: *LexerResult, lex_cur: *Lexer, source: u8[], stmt_tok_ready: *bool, block_break: *i32): void;
 export function parser_rewind_lex_for_following_stmt(lex_in: Lexer, r: LexerResult): Lexer {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return parser_parser_rewind_lex_for_following_stmt_glue(lex_in, r);
+  }
 }
 
 /**
@@ -491,19 +523,19 @@ export function parser_realign_lex_after_compound_stmt(lex_in: Lexer, r_in: Lexe
  * 之前只回扫 `if`，会把 `while (...) { ... }` / `for (...) { ... }` 误落入 expr_stmt。
  */
 export function parser_rewind_lex_for_lparen_control_stmt(lex_in: Lexer, r_in: LexerResult, source: u8[]): Lexer {
-  if (r_in.tok.kind == TokenKind.TOKEN_LPAREN) {
+  if (r_in.tok.kind == token.TokenKind.TOKEN_LPAREN) {
     let lp_base: Lexer = lex_at_token_from_result(r_in);
     let back_lp: i32 = 2;
     while (back_lp <= 128) {
       let lex_lp: Lexer = Lexer { pos: lexer_pos_before_run(lp_base.pos, back_lp), line: r_in.tok.line, col: r_in.tok.col };
       let r_lp: LexerResult = LexerResult {
         next_lex: lex_lp,
-        tok: Token { kind: TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 },
+        tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 },
         token_start: 0
       };
       lexer.lexer_next_into(&r_lp, lex_lp, source);
-      if (r_lp.tok.kind == TokenKind.TOKEN_IF || r_lp.tok.kind == TokenKind.TOKEN_WHILE
-      || r_lp.tok.kind == TokenKind.TOKEN_FOR) {
+      if (r_lp.tok.kind == token.TokenKind.TOKEN_IF || r_lp.tok.kind == token.TokenKind.TOKEN_WHILE
+      || r_lp.tok.kind == token.TokenKind.TOKEN_FOR) {
         return parser_rewind_lex_for_following_stmt(lex_in, r_lp);
       }
       back_lp = back_lp + 1;
@@ -545,8 +577,12 @@ export function parser_return_kw_immediately_before(source: u8[], ident_start: u
 
 /** parser_match_kw_immediately_before 的 buf 变体。 */
 export function parser_match_kw_immediately_before_buf(data: *u8, len: i32, ident_start: usize): bool {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   return parser_match_kw_immediately_before(slice, ident_start);
+  }
+  return false;  // unreachable — typeck after unsafe block
 }
 
 
@@ -558,14 +594,22 @@ export function parser_match_kw_immediately_before_buf(data: *u8, len: i32, iden
 /** 单行 extern bl→parser_advance_past_stmt_semicolon_into_glue（X 真 emit 调 lexer_next_into → elf_ec=-1）。 */
 export extern function parser_advance_past_stmt_semicolon_into_glue(r_out: *LexerResult, lex: Lexer, source: u8[]): i32;
 export function advance_past_stmt_semicolon_into(r_out: *LexerResult, lex: Lexer, source: u8[]): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return parser_advance_past_stmt_semicolon_into_glue(r_out, lex, source);
+  }
+  return 0;  // unreachable — typeck after unsafe block
 }
 
 
 /** advance_past_stmt_semicolon_into 的 buf 变体：parser_slice_from_buf + bl advance_past_stmt_semicolon_into。 */
 export function advance_past_stmt_semicolon_into_buf(r_out: *LexerResult, lex: Lexer, data: *u8, len: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   return advance_past_stmt_semicolon_into(r_out, lex, slice);
+  }
+  return 0;  // unreachable — typeck after unsafe block
 }
 
 
@@ -575,14 +619,22 @@ export function advance_past_stmt_semicolon_into_buf(r_out: *LexerResult, lex: L
 /** 单行 extern bl→parser_advance_past_cond_rparen_into_glue（X 真 emit 调 lexer_next_into → elf_ec=-1）。 */
 export extern function parser_advance_past_cond_rparen_into_glue(r_out: *LexerResult, lex: Lexer, source: u8[]): i32;
 export function advance_past_cond_rparen_into(r_out: *LexerResult, lex: Lexer, source: u8[]): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return parser_advance_past_cond_rparen_into_glue(r_out, lex, source);
+  }
+  return 0;  // unreachable — typeck after unsafe block
 }
 
 
 /** advance_past_cond_rparen_into 的 buf 变体：parser_slice_from_buf + bl advance_past_cond_rparen_into。 */
 export function advance_past_cond_rparen_into_buf(r_out: *LexerResult, lex: Lexer, data: *u8, len: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   return advance_past_cond_rparen_into(r_out, lex, slice);
+  }
+  return 0;  // unreachable — typeck after unsafe block
 }
 
 
@@ -608,23 +660,26 @@ export function onefunc_result_layout_prime(): void {
 
 /** 写失败结果到 out，避免 ABI 下 OneFuncResult 按值返回/赋值错误；调用方仅用 out.ok 与 out.next_lex。 */
 export function set_onefunc_fail(out: *OneFuncResult, next_lex: Lexer): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_diagnostic_parse_skip((next_lex.pos) as i32, -1, out.name_len, &out.name[0]);
   out.ok = false;
   out.next_lex = next_lex;
+  }
 }
 
 export function onefunc_finish_after_return_lex(out: *OneFuncResult, impl_snap: *OneFuncResult, source: u8[],
 lex_after_expr: Lexer, func_name: *u8, func_name_len: i32, return_expr_ref: i32): bool {
-  let r_tail: LexerResult = LexerResult { next_lex: lex_after_expr, tok: Token { kind: TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
+  let r_tail: LexerResult = LexerResult { next_lex: lex_after_expr, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
   let lex_tail: Lexer = lex_after_expr;
   if (advance_past_stmt_semicolon_into(&r_tail, lex_after_expr, source) == 0) {
     return false;
   }
-  if (r_tail.tok.kind == TokenKind.TOKEN_SEMICOLON) {
+  if (r_tail.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
     lex_from_result_ptr_into(&lex_tail, &r_tail);
     lexer.lexer_next_into(&r_tail, lex_tail, source);
   }
-  if (r_tail.tok.kind != TokenKind.TOKEN_RBRACE) {
+  if (r_tail.tok.kind != token.TokenKind.TOKEN_RBRACE) {
     return false;
   }
   lex_from_next_into(&lex_tail, r_tail);
@@ -719,6 +774,8 @@ export function onefunc_result_layout_prime_f(): void {
 
 /** 将 src 逐字段拷到 dst，避免 *dst = src 在部分解析器下被误解析；用于 parse_one_function_impl 成功路径写回。 */
 export function copy_onefunc_into(dst: *OneFuncResult, src: *OneFuncResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   /* 字面量常省略 func_return_type_ref（视作 0）：保留 dst 已由 parse_one_function_impl 填入的 ): Ty arena ref */
   let preserved_func_ret_ty: i32 = dst.func_return_type_ref;
   /** const/let/if/while/for/stmt_order 在侧车池：先复制池再写标量计数。 */
@@ -775,6 +832,7 @@ export function copy_onefunc_into(dst: *OneFuncResult, src: *OneFuncResult): voi
     dst.func_return_type_ref = preserved_func_ret_ty;
   }
   /* src_stmt_order_* / src_body_expr_* 由 parse_one_function_impl 直接写 out，不由本函数覆盖 */
+  }
 }
 
 /** 供 parse_one_function_impl 用的空快照（结构字面量 ≤8 字段，见 onefunc_result_layout_prime）。 */
@@ -793,6 +851,8 @@ export function onefunc_scratch_empty(): OneFuncResult {
  * 将 out 上已解析的侧车池（let/if/stmt_order）合并进 snap，供 onefunc_finish_impl_to_out 写回。
  */
 export function onefunc_merge_pool_out_to_snap(snap: *OneFuncResult, out: *OneFuncResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   pipeline_onefunc_copy_sidecar(onefunc_result_pool_ptr(snap), onefunc_result_pool_ptr(out));
   snap.num_params = out.num_params;
   snap.num_generic_params = out.num_generic_params;
@@ -807,6 +867,7 @@ export function onefunc_merge_pool_out_to_snap(snap: *OneFuncResult, out: *OneFu
   /* while/for 写入 out 侧车池，合并后同步计数到 snap */
   snap.num_loops = pipeline_onefunc_num_whiles(onefunc_result_pool_ptr(snap));
   snap.num_for_loops = pipeline_onefunc_num_fors(onefunc_result_pool_ptr(snap));
+  }
 }
 
 /**
@@ -834,39 +895,57 @@ export function onefunc_finish_impl_to_out(
   copy_onefunc_into(out, snap);
 }
 export function onefunc_res_wire_dummy_head(res: *OneFuncResult, lex: Lexer, name64: u8[64]): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let _w: OneFuncResult = OneFuncResult { ok: false, next_lex: lex, name: name64, name_len: 0, num_params: 0 };
   ast_pool_onefunc_reset(onefunc_result_pool_ptr(&_w));
   copy_onefunc_into(res, &_w);
+  }
 }
 
 export function onefunc_res_wire_dummy_const_let(res: *OneFuncResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let _w: OneFuncResult = OneFuncResult { num_consts: 0, num_lets: 0 };
   ast_pool_onefunc_reset(onefunc_result_pool_ptr(&_w));
   copy_onefunc_into(res, &_w);
+  }
 }
 
 export function onefunc_res_wire_dummy_if_mul(res: *OneFuncResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let _w: OneFuncResult = OneFuncResult { has_if_expr: false, if_cond_true: false, if_then_val: 0, if_else_val: 0, if_cond_expr_ref: 0, has_mul: false, mul_right_val: 0 };
   ast_pool_onefunc_reset(onefunc_result_pool_ptr(&_w));
   copy_onefunc_into(res, &_w);
+  }
 }
 
 export function onefunc_res_wire_dummy_call_binop(res: *OneFuncResult, name64: u8[64]): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let _w: OneFuncResult = OneFuncResult { has_binop: false, binop_right_val: 0, binop_left_param_idx: -1, binop_right_param_idx: -1, has_unary_neg: false, return_val: 0, has_call_expr: false, call_callee_name: name64 };
   ast_pool_onefunc_reset(onefunc_result_pool_ptr(&_w));
   copy_onefunc_into(res, &_w);
+  }
 }
 
 export function onefunc_res_wire_dummy_loop_call(res: *OneFuncResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let _w: OneFuncResult = OneFuncResult { call_callee_len: 0, return_var_name_len: 0, return_expr_ref: 0, call_num_args: 0, num_loops: 0 };
   ast_pool_onefunc_reset(onefunc_result_pool_ptr(&_w));
   copy_onefunc_into(res, &_w);
+  }
 }
 
 export function onefunc_res_wire_dummy_for_if(res: *OneFuncResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let _w: OneFuncResult = OneFuncResult { num_for_loops: 0, num_if_stmts: 0 };
   ast_pool_onefunc_reset(onefunc_result_pool_ptr(&_w));
   copy_onefunc_into(res, &_w);
+  }
 }
 
 /**
@@ -874,6 +953,8 @@ export function onefunc_res_wire_dummy_for_if(res: *OneFuncResult): void {
  * 避免 import 方重复分段 wire 且在 -E-extern 下只需声明本函数一条 extern。
  */
 export function onefunc_alloc_wired_for_parse(lex: Lexer): OneFuncResult {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let dummy_name: u8[64] = [];
   let res: OneFuncResult = onefunc_scratch_empty();
   ast_pool_onefunc_reset(onefunc_result_pool_ptr(&res));
@@ -884,6 +965,7 @@ export function onefunc_alloc_wired_for_parse(lex: Lexer): OneFuncResult {
   onefunc_res_wire_dummy_loop_call(&res);
   onefunc_res_wire_dummy_for_if(&res);
   return res;
+  }
 }
 
 /** 将 return 路径专用字段写入 snap（return_expr_ref_storage 等非结构体字段）。 */
@@ -909,10 +991,13 @@ export function onefunc_snap_set_return_path(
  * 向 out 追加一条源码顺序记录；与 C parser push_stmt_order 对齐（kind 0–5，idx 为对应池下标）。
  */
 export function onefunc_push_src_stmt(out: *OneFuncResult, kind: u8, idx: i32): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   /** 动态池追加源码顺序；失败时静默（与旧 96 上限行为一致）。 */
   let _so: i32 = pipeline_onefunc_push_stmt_order(onefunc_result_pool_ptr(out), kind, idx);
   if (_so >= 0) {
     out.num_src_stmt_order = pipeline_onefunc_num_src_stmt_order(onefunc_result_pool_ptr(out));
+  }
   }
 }
 
@@ -931,7 +1016,10 @@ export struct ParseExprResult {
 /** 单行 extern bl→parser_expr_set_common_zeros_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_expr_set_common_zeros_glue(e: *ast.Expr): void;
 export function expr_set_common_zeros(e: *ast.Expr): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_expr_set_common_zeros_glue(e);
+  }
 }
 
 
@@ -1024,7 +1112,10 @@ export function parser_should_wrap_func_tail_in_return(arena: *ASTArena, res: *O
 /** 单行 extern bl→parser_parse_match_subject_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_parse_match_subject_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
 export function parse_match_subject_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_parse_match_subject_into_glue(arena, lex, source, out);
+  }
 }
 
 
@@ -1035,7 +1126,10 @@ export function parse_match_subject_into(arena: *ASTArena, lex: Lexer, source: u
 /** 单行 extern bl→parser_parse_match_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_parse_match_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
 export function parse_match_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_parse_match_into_glue(arena, lex, source, out);
+  }
 }
 
 
@@ -1045,7 +1139,10 @@ export function parse_match_into(arena: *ASTArena, lex: Lexer, source: u8[], out
 /** 单行 extern bl→parser_parse_at_simd_builtin_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_parse_at_simd_builtin_into_glue(arena: *ASTArena, r0: LexerResult, source: u8[], out: *ParseExprResult): void;
 export function parse_at_simd_builtin_into(arena: *ASTArena, r0: LexerResult, source: u8[], out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_parse_at_simd_builtin_into_glue(arena, r0, source, out);
+  }
 }
 
 
@@ -1055,13 +1152,19 @@ export function parse_at_simd_builtin_into(arena: *ASTArena, r0: LexerResult, so
 /** 单行 extern bl→parser_parse_primary_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_parse_primary_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
 export function parse_primary_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_parse_primary_into_glue(arena, lex, source, out);
+  }
 }
 
 /** 单行 extern bl→parser_parse_as_suffix_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_parse_as_suffix_into_glue(arena: *ASTArena, source: u8[], out: *ParseExprResult): void;
 export function parse_as_suffix_into(arena: *ASTArena, source: u8[], out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_parse_as_suffix_into_glue(arena, source, out);
+  }
 }
 
 
@@ -1071,7 +1174,10 @@ export function parse_as_suffix_into(arena: *ASTArena, source: u8[], out: *Parse
 /** 单行 extern bl→parser_parse_unary_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_parse_unary_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
 export function parse_unary_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_parse_unary_into_glue(arena, lex, source, out);
+  }
 }
 
 
@@ -1081,7 +1187,10 @@ export function parse_unary_into(arena: *ASTArena, lex: Lexer, source: u8[], out
 /** 单行 extern bl→parser_parse_cast_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_parse_cast_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
 export function parse_cast_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_parse_cast_into_glue(arena, lex, source, out);
+  }
 }
 
 
@@ -1091,7 +1200,10 @@ export function parse_cast_into(arena: *ASTArena, lex: Lexer, source: u8[], out:
 /** 单行 extern bl→parser_parse_term_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_parse_term_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
 export function parse_term_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_parse_term_into_glue(arena, lex, source, out);
+  }
 }
 
 
@@ -1101,7 +1213,10 @@ export function parse_term_into(arena: *ASTArena, lex: Lexer, source: u8[], out:
 /** 单行 extern bl→parser_parse_addsub_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_parse_addsub_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
 export function parse_addsub_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_parse_addsub_into_glue(arena, lex, source, out);
+  }
 }
 
 
@@ -1111,7 +1226,10 @@ export function parse_addsub_into(arena: *ASTArena, lex: Lexer, source: u8[], ou
 /** 单行 extern bl→parser_parse_shift_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_parse_shift_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
 export function parse_shift_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_parse_shift_into_glue(arena, lex, source, out);
+  }
 }
 
 
@@ -1121,7 +1239,10 @@ export function parse_shift_into(arena: *ASTArena, lex: Lexer, source: u8[], out
 /** 单行 extern bl→parser_parse_relcompare_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_parse_relcompare_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
 export function parse_relcompare_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_parse_relcompare_into_glue(arena, lex, source, out);
+  }
 }
 
 
@@ -1131,7 +1252,10 @@ export function parse_relcompare_into(arena: *ASTArena, lex: Lexer, source: u8[]
 /** 单行 extern bl→parser_parse_compare_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_parse_compare_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
 export function parse_compare_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_parse_compare_into_glue(arena, lex, source, out);
+  }
 }
 
 
@@ -1141,7 +1265,10 @@ export function parse_compare_into(arena: *ASTArena, lex: Lexer, source: u8[], o
 /** 单行 extern bl→parser_parse_bitand_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_parse_bitand_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
 export function parse_bitand_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_parse_bitand_into_glue(arena, lex, source, out);
+  }
 }
 
 
@@ -1151,7 +1278,10 @@ export function parse_bitand_into(arena: *ASTArena, lex: Lexer, source: u8[], ou
 /** 单行 extern bl→parser_parse_bitxor_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_parse_bitxor_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
 export function parse_bitxor_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_parse_bitxor_into_glue(arena, lex, source, out);
+  }
 }
 
 
@@ -1161,7 +1291,10 @@ export function parse_bitxor_into(arena: *ASTArena, lex: Lexer, source: u8[], ou
 /** 单行 extern bl→parser_parse_bitor_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_parse_bitor_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
 export function parse_bitor_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_parse_bitor_into_glue(arena, lex, source, out);
+  }
 }
 
 
@@ -1171,7 +1304,10 @@ export function parse_bitor_into(arena: *ASTArena, lex: Lexer, source: u8[], out
 /** 单行 extern bl→parser_parse_logand_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_parse_logand_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
 export function parse_logand_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_parse_logand_into_glue(arena, lex, source, out);
+  }
 }
 
 
@@ -1181,7 +1317,10 @@ export function parse_logand_into(arena: *ASTArena, lex: Lexer, source: u8[], ou
 /** 单行 extern bl→parser_parse_logor_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_parse_logor_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
 export function parse_logor_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_parse_logor_into_glue(arena, lex, source, out);
+  }
 }
 
 
@@ -1192,51 +1331,57 @@ export function parse_logor_into(arena: *ASTArena, lex: Lexer, source: u8[], out
 /** 单行 extern bl→parser_parse_ternary_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_parse_ternary_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
 export function parse_ternary_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_parse_ternary_into_glue(arena, lex, source, out);
+  }
 }
 
 
 /** 判断是否为复合赋值 token（+= … >>=）；10 路 if 链（勿 || 长链，EMIT_HEAVY 曾 elf_ec=-1）。 */
-export function is_compound_assign_token(kind: TokenKind): bool {
-  if (kind == TokenKind.TOKEN_PLUS_EQ) {
+export function is_compound_assign_token(kind: token.TokenKind): bool {
+  if (kind == token.TokenKind.TOKEN_PLUS_EQ) {
     return true;
   }
-  if (kind == TokenKind.TOKEN_MINUS_EQ) {
+  if (kind == token.TokenKind.TOKEN_MINUS_EQ) {
     return true;
   }
-  if (kind == TokenKind.TOKEN_STAR_EQ) {
+  if (kind == token.TokenKind.TOKEN_STAR_EQ) {
     return true;
   }
-  if (kind == TokenKind.TOKEN_SLASH_EQ) {
+  if (kind == token.TokenKind.TOKEN_SLASH_EQ) {
     return true;
   }
-  if (kind == TokenKind.TOKEN_PERCENT_EQ) {
+  if (kind == token.TokenKind.TOKEN_PERCENT_EQ) {
     return true;
   }
-  if (kind == TokenKind.TOKEN_AMP_EQ) {
+  if (kind == token.TokenKind.TOKEN_AMP_EQ) {
     return true;
   }
-  if (kind == TokenKind.TOKEN_PIPE_EQ) {
+  if (kind == token.TokenKind.TOKEN_PIPE_EQ) {
     return true;
   }
-  if (kind == TokenKind.TOKEN_CARET_EQ) {
+  if (kind == token.TokenKind.TOKEN_CARET_EQ) {
     return true;
   }
-  if (kind == TokenKind.TOKEN_LSHIFT_EQ) {
+  if (kind == token.TokenKind.TOKEN_LSHIFT_EQ) {
     return true;
   }
-  if (kind == TokenKind.TOKEN_RSHIFT_EQ) {
+  if (kind == token.TokenKind.TOKEN_RSHIFT_EQ) {
     return true;
   }
   return false;
 }
 
-/** 映射实现见 pipeline_glue.c（C 内比对 TokenKind），避免 .x typeck 对 `return ExprKind.*` 失败。 */
-export extern function compound_assign_token_to_expr_kind_from_glue(kind: TokenKind): ExprKind;
+/** 映射实现见 pipeline_glue.c（C 内比对 token.TokenKind），避免 .x typeck 对 `return ExprKind.*` 失败。 */
+export extern function compound_assign_token_to_expr_kind_from_glue(kind: token.TokenKind): ExprKind;
 
 /** 复合赋值 token 映射到 ExprKind；EMIT_HEAVY 仍走 C glue（X return ExprKind.* 曾 elf_ec=-1）。 */
-export function compound_assign_token_to_expr_kind(kind: TokenKind): ExprKind {
+export function compound_assign_token_to_expr_kind(kind: token.TokenKind): ExprKind {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return compound_assign_token_to_expr_kind_from_glue(kind);
+  }
 }
 
 
@@ -1249,7 +1394,11 @@ export extern function pipeline_expr_ref_is_assign_lvalue(arena: *ASTArena, expr
  * 非左值时遇到 = 不消费赋值符，由上层继续解析（与 parse_assign 一致）。
  */
 export function expr_ref_is_assign_lvalue(arena: *ASTArena, expr_ref: i32): bool {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return pipeline_expr_ref_is_assign_lvalue(arena, expr_ref);
+  }
+  return false;  // unreachable — typeck after unsafe block
 }
 
 
@@ -1260,7 +1409,10 @@ export function expr_ref_is_assign_lvalue(arena: *ASTArena, expr_ref: i32): bool
 /** 单行 extern bl→parser_parse_assign_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_parse_assign_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
 export function parse_assign_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_parse_assign_into_glue(arena, lex, source, out);
+  }
 }
 
 
@@ -1277,7 +1429,10 @@ export function parse_expr_into(arena: *ASTArena, lex: Lexer, source: u8[], out:
 /** 单行 extern bl→parser_finish_struct_lit_from_type_ident_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 extern function parser_finish_struct_lit_from_type_ident_into_glue(arena: *ASTArena, lit_ref: i32, lex_in_brace: Lexer, source: u8[], out: *ParseExprResult): void;
 function finish_struct_lit_from_type_ident_into(arena: *ASTArena, lit_ref: i32, lex_in_brace: Lexer, source: u8[], out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_finish_struct_lit_from_type_ident_into_glue(arena, lit_ref, lex_in_brace, source, out);
+  }
 }
 
 
@@ -1288,7 +1443,10 @@ function finish_struct_lit_from_type_ident_into(arena: *ASTArena, lit_ref: i32, 
 /** 单行 extern bl→parser_parse_cond_expr_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 extern function parser_parse_cond_expr_into_glue(arena: *ASTArena, lex_start: Lexer, source: u8[], out: *ParseExprResult): void;
 function parse_cond_expr_into(arena: *ASTArena, lex_start: Lexer, source: u8[], out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_parse_cond_expr_into_glue(arena, lex_start, source, out);
+  }
 }
 
 
@@ -1300,8 +1458,11 @@ function parse_expr_with_leading_int_as_into(arena: *ASTArena, lex_start: Lexer,
 
 /** parse_expr_with_leading_int_as_into 的 buf 变体。 */
 function parse_expr_with_leading_int_as_into_buf(arena: *ASTArena, lex_start: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   parse_expr_with_leading_int_as_into(arena, lex_start, slice, out);
+  }
 }
 
 
@@ -1319,7 +1480,11 @@ struct ParseBlockResult {
 /** 单行 extern bl→parser_fill_block_const_let_from_res_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 extern function parser_fill_block_const_let_from_res_glue(arena: *ASTArena, block_ref: i32, res: *OneFuncResult, type_ref: i32): bool;
 function fill_block_const_let_from_res(arena: *ASTArena, block_ref: i32, res: *OneFuncResult, type_ref: i32): bool {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return parser_fill_block_const_let_from_res_glue(arena, block_ref, res, type_ref);
+  }
+  return false;  // unreachable — typeck after unsafe block
 }
 
 
@@ -1329,7 +1494,11 @@ function fill_block_const_let_from_res(arena: *ASTArena, block_ref: i32, res: *O
 /** 单行 extern bl→parser_append_block_lets_from_res_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 extern function parser_append_block_lets_from_res_glue(arena: *ASTArena, block_ref: i32, res: *OneFuncResult, let_base: i32, type_ref: i32): bool;
 function append_block_lets_from_res(arena: *ASTArena, block_ref: i32, res: *OneFuncResult, let_base: i32, type_ref: i32): bool {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return parser_append_block_lets_from_res_glue(arena, block_ref, res, let_base, type_ref);
+  }
+  return false;  // unreachable — typeck after unsafe block
 }
 
 
@@ -1342,7 +1511,11 @@ extern function parser_parse_if_stmt_into_glue(arena: *ASTArena, lex_at_if: Lexe
 /** 单行 extern bl→parser_realign_lex_after_if_stmt_onefunc_glue（if 后 lex 回扫，field cond 修复）。 */
 extern function parser_realign_lex_after_if_stmt_onefunc_glue(lex: *Lexer, source: u8[]): void;
 function parse_if_stmt_into(arena: *ASTArena, lex_at_if: Lexer, source: u8[], type_ref: i32, out_cond: *i32, out_then: *i32, out_else: *i32, lex_out: *Lexer): bool {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return parser_parse_if_stmt_into_glue(arena, lex_at_if, source, type_ref, out_cond, out_then, out_else, lex_out);
+  }
+  return false;  // unreachable — typeck after unsafe block
 }
 
 
@@ -1353,7 +1526,7 @@ function parse_if_stmt_into(arena: *ASTArena, lex_at_if: Lexer, source: u8[], ty
 export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, source: u8[], type_ref: i32, out: *ParseBlockResult): void {
   /** 堆上 OneFuncResult scratch：勿在栈上分配 temp+blk_dummy（~96KiB），递归块解析会栈溢出导致块内 expr;/if 静默失败。 */
   let scratch_sz: usize = pipeline_sizeof_onefunc_result();
-  let scratch_raw: *u8 = heap.alloc_zero(scratch_sz);
+  let scratch_raw: *u8 = calloc(1, scratch_sz);
   if (scratch_raw == 0 as *u8) {
     out.ok = false;
     return;
@@ -1415,7 +1588,7 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
     }
     li = li + 1;
   }
-  let r_peek_blk: LexerResult = LexerResult { next_lex: lex_cur, tok: Token { kind: TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
+  let r_peek_blk: LexerResult = LexerResult { next_lex: lex_cur, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
   /*
    * 块体主循环：与 parse_one_function_impl 交错处理 while/for/if/return/expr;，避免仅批处理 loop 导致
    * * `{ if (...) { ... } i = i + 1; }` 在 if 后失败；且 if/while/for 须 lex_from_next 消费关键字后再读 `(`。
@@ -1442,7 +1615,7 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
      * 若下一 token 恰好是 `}`，必须在刷新 r 之后立刻 break，
      * 否则会把真实块尾误落入 expr_stmt 分支，导致上层 onefunc skip。
      */
-    if (r.tok.kind == TokenKind.TOKEN_RBRACE) {
+    if (r.tok.kind == token.TokenKind.TOKEN_RBRACE) {
       break;
     }
     /*
@@ -1450,7 +1623,7 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
      * 无此检查时 EOF 会落入 expr_stmt 分支，依赖 parse_expr_into 对 EOF 返回 ok=false；
      * 但 if 分支可能因 C 侧 scan_sync 返回未推进的 lex_cur 导致无限重解析 if（不经过 EOF）。
      */
-    if (r.tok.kind == TokenKind.TOKEN_EOF) {
+    if (r.tok.kind == token.TokenKind.TOKEN_EOF) {
       out.ok = false;
       return;
     }
@@ -1458,19 +1631,19 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
      * parse_if 偶发将 lex 落在下一 if 的 `(`；若落入 expr 分支会把 `(N != 0)` 记入 stmt_order，
      * 块内连续 if（尤其块首 let 后）只 codegen 前几条。回扫至 TOKEN_IF 后走 if 分支。
      */
-    if (r.tok.kind == TokenKind.TOKEN_LPAREN) {
+    if (r.tok.kind == token.TokenKind.TOKEN_LPAREN) {
       lex_cur = parser_rewind_lex_for_lparen_control_stmt(lex_cur, r, source);
       lexer.lexer_next_into(&r, lex_cur, source);
     }
     /** while/if 体中途 let/const：与 parse_one_function_impl 主循环一致，否则 driver_argv_parse_x_path 等失败。 */
-    if (r.tok.kind == TokenKind.TOKEN_LET || r.tok.kind == TokenKind.TOKEN_CONST) {
+    if (r.tok.kind == token.TokenKind.TOKEN_LET || r.tok.kind == token.TokenKind.TOKEN_CONST) {
       let let_base_mid: i32 = b.num_lets;
       /** 须清侧车池 len，勿只写 temp.num_lets=0（否则 append 误读旧 let）。 */
       ast_pool_onefunc_reset(onefunc_result_pool_ptr(temp));
       temp.num_lets = 0;
       temp.num_consts = 0;
       let kw_back_mid: i32 = 3;
-      if (r.tok.kind == TokenKind.TOKEN_CONST) {
+      if (r.tok.kind == token.TokenKind.TOKEN_CONST) {
         kw_back_mid = 5;
       }
       let lex_mid_let: Lexer = Lexer { pos: lexer_pos_before_run(r.next_lex.pos, kw_back_mid), line: r.tok.line, col: r.tok.col };
@@ -1508,16 +1681,16 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
       }
       let colon_blk: LexerResult = LexerResult {
         next_lex: r.next_lex,
-        tok: Token { kind: TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 },
+        tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 },
         token_start: 0
       };
       lexer.lexer_next_into(&colon_blk, r.next_lex, source);
       lex_cur = colon_blk.next_lex;
       lexer.lexer_next_into(&r, lex_cur, source);
-      if (r.tok.kind == TokenKind.TOKEN_GOTO) {
+      if (r.tok.kind == token.TokenKind.TOKEN_GOTO) {
         lex_from_next_into(&lex_cur, r);
         lexer.lexer_next_into(&r, lex_cur, source);
-        if (r.tok.kind != TokenKind.TOKEN_IDENT) {
+        if (r.tok.kind != token.TokenKind.TOKEN_IDENT) {
           out.ok = false;
           return;
         }
@@ -1530,7 +1703,7 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
         copy_slice_to_param32(source, goto_start_blk, goto_len_blk, &goto_row_blk[0]);
         lex_from_next_into(&lex_cur, r);
         lexer.lexer_next_into(&r, lex_cur, source);
-        if (r.tok.kind == TokenKind.TOKEN_SEMICOLON) {
+        if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
           lex_cur = r.next_lex;
           lexer.lexer_next_into(&r, lex_cur, source);
         }
@@ -1544,14 +1717,14 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
         pipeline_block_labeled_set_names(arena, block_ref, li_goto, &label_row_blk[0], label_len_blk, &goto_row_blk[0], goto_len_blk);
         continue;
       }
-      if (r.tok.kind != TokenKind.TOKEN_RETURN) {
+      if (r.tok.kind != token.TokenKind.TOKEN_RETURN) {
         out.ok = false;
         return;
       }
       lex_from_next_into(&lex_cur, r);
       let ret_val_lbl: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex_cur };
       lexer.lexer_next_into(&r, lex_cur, source);
-      if (r.tok.kind != TokenKind.TOKEN_SEMICOLON && r.tok.kind != TokenKind.TOKEN_RBRACE) {
+      if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON && r.tok.kind != token.TokenKind.TOKEN_RBRACE) {
         parse_expr_into(arena, lex_cur, source, &ret_val_lbl);
         if (!ret_val_lbl.ok) {
           out.ok = false;
@@ -1560,11 +1733,11 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
         lex_cur = ret_val_lbl.next_lex;
         lexer.lexer_next_into(&r, lex_cur, source);
       }
-      if (r.tok.kind != TokenKind.TOKEN_SEMICOLON && r.tok.kind != TokenKind.TOKEN_RBRACE) {
+      if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON && r.tok.kind != token.TokenKind.TOKEN_RBRACE) {
         out.ok = false;
         return;
       }
-      if (r.tok.kind == TokenKind.TOKEN_SEMICOLON) {
+      if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
         lex_cur = r.next_lex;
         lexer.lexer_next_into(&r, lex_cur, source);
       }
@@ -1582,12 +1755,12 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
       pipeline_block_labeled_set_names(arena, block_ref, li_ret, &label_row_ret[0], label_len_blk, 0 as *u8, 0);
       continue;
     }
-    if (r.tok.kind == TokenKind.TOKEN_RETURN) {
+    if (r.tok.kind == token.TokenKind.TOKEN_RETURN) {
       lex_from_next_into(&lex_cur, r);
       let ret_val_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex_cur };
       let return_ends_block: bool = false;
       lexer.lexer_next_into(&r, lex_cur, source);
-      if (r.tok.kind != TokenKind.TOKEN_SEMICOLON) {
+      if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON) {
         parse_expr_into(arena, lex_cur, source, &ret_val_res);
         if (!ret_val_res.ok) {
           out.ok = false;
@@ -1597,11 +1770,11 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
         lexer.lexer_next_into(&r, lex_cur, source);
       }
       /** `return if (t) { 42 }` 等可无分号、直接以 `}` 结束块体。 */
-      if (r.tok.kind != TokenKind.TOKEN_SEMICOLON && r.tok.kind != TokenKind.TOKEN_RBRACE) {
+      if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON && r.tok.kind != token.TokenKind.TOKEN_RBRACE) {
         out.ok = false;
         return;
       }
-      if (r.tok.kind == TokenKind.TOKEN_SEMICOLON) {
+      if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
         lex_cur = r.next_lex;
         lexer.lexer_next_into(&r, lex_cur, source);
       }
@@ -1620,7 +1793,7 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
       }
       ast.ast_arena_expr_set(arena, ret_ref, re);
       b = ast.ast_arena_block_get(arena, block_ref);
-      return_ends_block = r.tok.kind == TokenKind.TOKEN_RBRACE;
+      return_ends_block = r.tok.kind == token.TokenKind.TOKEN_RBRACE;
       if (return_ends_block) {
         b.final_expr_ref = ret_ref;
         ast.ast_arena_block_set(arena, block_ref, b);
@@ -1641,10 +1814,10 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
       /** 无论 pb_break 与否都 continue：0=tail 已 advance；1=勿落块尾 expr 解析（RBRACE 上 parse_expr 失败）。 */
       continue;
     }
-    if (r.tok.kind == TokenKind.TOKEN_LOOP) {
+    if (r.tok.kind == token.TokenKind.TOKEN_LOOP) {
       lex_from_next_into(&lex_cur, r);
       lexer.lexer_next_into(&r, lex_cur, source);
-      if (r.tok.kind != TokenKind.TOKEN_LBRACE) {
+      if (r.tok.kind != token.TokenKind.TOKEN_LBRACE) {
         out.ok = false;
         return;
       }
@@ -1679,10 +1852,10 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
       stmt_tok_ready = false;
       continue;
     }
-    if (r.tok.kind == TokenKind.TOKEN_WHILE) {
+    if (r.tok.kind == token.TokenKind.TOKEN_WHILE) {
       lex_from_next_into(&lex_cur, r);
       lexer.lexer_next_into(&r, lex_cur, source);
-      if (r.tok.kind != TokenKind.TOKEN_LPAREN) {
+      if (r.tok.kind != token.TokenKind.TOKEN_LPAREN) {
         out.ok = false;
         return;
       }
@@ -1701,7 +1874,7 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
       return;
     }
     /** 与 parse_one_function_impl 一致：advance 已写 r，勿再用旧 lex_cur 重复 lexer_next（否则 if 块内 while 误判非 {）。 */
-    if (r.tok.kind != TokenKind.TOKEN_LBRACE) {
+    if (r.tok.kind != token.TokenKind.TOKEN_LBRACE) {
       out.ok = false;
       return;
     }
@@ -1731,17 +1904,17 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
     stmt_tok_ready = false;
     continue;
     }
-    if (r.tok.kind == TokenKind.TOKEN_FOR) {
+    if (r.tok.kind == token.TokenKind.TOKEN_FOR) {
       lex_from_next_into(&lex_cur, r);
       lexer.lexer_next_into(&r, lex_cur, source);
-      if (r.tok.kind != TokenKind.TOKEN_LPAREN) {
+      if (r.tok.kind != token.TokenKind.TOKEN_LPAREN) {
         out.ok = false;
         return;
       }
     lex_cur = r.next_lex;
     let init_ref: i32 = 0;
     lexer.lexer_next_into(&r, lex_cur, source);
-    if (r.tok.kind != TokenKind.TOKEN_SEMICOLON) {
+    if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON) {
       let expr_res_fi: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex_cur };
       parse_expr_into(arena, lex_cur, source, &expr_res_fi);
       if (!expr_res_fi.ok) {
@@ -1752,14 +1925,14 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
       lex_cur = expr_res_fi.next_lex;
       lexer.lexer_next_into(&r, lex_cur, source);
     }
-    if (r.tok.kind != TokenKind.TOKEN_SEMICOLON) {
+    if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON) {
       out.ok = false;
       return;
     }
     lex_cur = r.next_lex;
     let cond_ref: i32 = 0;
     lexer.lexer_next_into(&r, lex_cur, source);
-    if (r.tok.kind != TokenKind.TOKEN_SEMICOLON) {
+    if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON) {
       let expr_res_fc: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex_cur };
       parse_expr_into(arena, lex_cur, source, &expr_res_fc);
       if (!expr_res_fc.ok) {
@@ -1770,14 +1943,14 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
       lex_cur = expr_res_fc.next_lex;
       lexer.lexer_next_into(&r, lex_cur, source);
     }
-    if (r.tok.kind != TokenKind.TOKEN_SEMICOLON) {
+    if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON) {
       out.ok = false;
       return;
     }
     lex_cur = r.next_lex;
     let step_ref: i32 = 0;
     lexer.lexer_next_into(&r, lex_cur, source);
-    if (r.tok.kind != TokenKind.TOKEN_RPAREN) {
+    if (r.tok.kind != token.TokenKind.TOKEN_RPAREN) {
       let expr_res_fs: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex_cur };
       parse_expr_into(arena, lex_cur, source, &expr_res_fs);
       if (!expr_res_fs.ok) {
@@ -1788,13 +1961,13 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
       lex_cur = expr_res_fs.next_lex;
       lexer.lexer_next_into(&r, lex_cur, source);
     }
-    if (r.tok.kind != TokenKind.TOKEN_RPAREN) {
+    if (r.tok.kind != token.TokenKind.TOKEN_RPAREN) {
       out.ok = false;
       return;
     }
     lex_cur = r.next_lex;
     lexer.lexer_next_into(&r, lex_cur, source);
-    if (r.tok.kind != TokenKind.TOKEN_LBRACE) {
+    if (r.tok.kind != token.TokenKind.TOKEN_LBRACE) {
       out.ok = false;
       return;
     }
@@ -1837,10 +2010,10 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
     continue;
     }
     /** MEM-B0：defer { body } — 块退出时逆序执行（与 parser.c parse_defer_start 对齐）。 */
-    if (r.tok.kind == TokenKind.TOKEN_DEFER) {
+    if (r.tok.kind == token.TokenKind.TOKEN_DEFER) {
       lex_from_next_into(&lex_cur, r);
       lexer.lexer_next_into(&r, lex_cur, source);
-      if (r.tok.kind != TokenKind.TOKEN_LBRACE) {
+      if (r.tok.kind != token.TokenKind.TOKEN_LBRACE) {
         out.ok = false;
         return;
       }
@@ -1863,11 +2036,11 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
       stmt_tok_ready = false;
       continue;
     }
-    if (r.tok.kind == TokenKind.TOKEN_WITH_ARENA) {
+    if (r.tok.kind == token.TokenKind.TOKEN_WITH_ARENA) {
       /** MEM-C1：with_arena(cap) { body }；X stmt_order kind=6（与 region 共用 idx 池，cap_ref>0 区分）。 */
       lex_from_next_into(&lex_cur, r);
       lexer.lexer_next_into(&r, lex_cur, source);
-      if (r.tok.kind != TokenKind.TOKEN_LPAREN) {
+      if (r.tok.kind != token.TokenKind.TOKEN_LPAREN) {
         out.ok = false;
         return;
       }
@@ -1882,13 +2055,13 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
       cap_ref = cap_res.expr_ref;
       lex_cur = cap_res.next_lex;
       lexer.lexer_next_into(&r, lex_cur, source);
-      if (r.tok.kind != TokenKind.TOKEN_RPAREN) {
+      if (r.tok.kind != token.TokenKind.TOKEN_RPAREN) {
         out.ok = false;
         return;
       }
       lex_from_next_into(&lex_cur, r);
       lexer.lexer_next_into(&r, lex_cur, source);
-      if (r.tok.kind != TokenKind.TOKEN_LBRACE) {
+      if (r.tok.kind != token.TokenKind.TOKEN_LBRACE) {
         out.ok = false;
         return;
       }
@@ -1915,11 +2088,11 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
       stmt_tok_ready = false;
       continue;
     }
-    if (r.tok.kind == TokenKind.TOKEN_REGION) {
+    if (r.tok.kind == token.TokenKind.TOKEN_REGION) {
       /** M-3：region label { body }；X stmt_order kind=6。 */
       lex_from_next_into(&lex_cur, r);
       lexer.lexer_next_into(&r, lex_cur, source);
-      if (r.tok.kind != TokenKind.TOKEN_IDENT) {
+      if (r.tok.kind != token.TokenKind.TOKEN_IDENT) {
         out.ok = false;
         return;
       }
@@ -1928,7 +2101,7 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
       let reg_label_len_blk: i32 = r.tok.ident_len;
       lex_from_next_into(&lex_cur, r);
       lexer.lexer_next_into(&r, lex_cur, source);
-      if (r.tok.kind != TokenKind.TOKEN_LBRACE) {
+      if (r.tok.kind != token.TokenKind.TOKEN_LBRACE) {
         out.ok = false;
         return;
       }
@@ -1956,7 +2129,7 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
       stmt_tok_ready = false;
       continue;
     }
-    if (r.tok.kind == TokenKind.TOKEN_IDENT && r.tok.ident_len == 6) {
+    if (r.tok.kind == token.TokenKind.TOKEN_IDENT && r.tok.ident_len == 6) {
       /** LANG-007 v2：unsafe { body }（保留 IDENT，避免 TOKEN 枚举漂移；复用 regions 池）。 */
       let unsafe_nm: u8[64] = [];
       copy_slice_to_name64(source, r.token_start, r.tok.ident_len, &unsafe_nm[0]);
@@ -1964,7 +2137,7 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
       && unsafe_nm[4] == 102 && unsafe_nm[5] == 101) {
         lex_from_next_into(&lex_cur, r);
         lexer.lexer_next_into(&r, lex_cur, source);
-        if (r.tok.kind != TokenKind.TOKEN_LBRACE) {
+        if (r.tok.kind != token.TokenKind.TOKEN_LBRACE) {
           out.ok = false;
           return;
         }
@@ -1995,7 +2168,7 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
         continue;
       }
     }
-    if (r.tok.kind == TokenKind.TOKEN_IF) {
+    if (r.tok.kind == token.TokenKind.TOKEN_IF) {
       let if_start: Lexer = lex_at_token_from_result(r);
       let if_cond: i32 = 0;
       let if_then: i32 = 0;
@@ -2036,9 +2209,9 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
     }
     lex_cur = expr_stmt_res.next_lex;
     /** if 分支 `{ 10 }`：先窥视下一 token，为 `}` 则作块尾 final_expr（勿落 expr_stmt，否则 EXPR_BLOCK 无值）。 */
-    let rpeek_fe: LexerResult = LexerResult { next_lex: lex_cur, tok: Token { kind: TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
+    let rpeek_fe: LexerResult = LexerResult { next_lex: lex_cur, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
     lexer.lexer_next_into(&rpeek_fe, lex_cur, source);
-    if (rpeek_fe.tok.kind == TokenKind.TOKEN_RBRACE) {
+    if (rpeek_fe.tok.kind == token.TokenKind.TOKEN_RBRACE) {
       b.final_expr_ref = expr_stmt_res.expr_ref;
       ast.ast_arena_block_set(arena, block_ref, b);
       /** 块尾 `}` 窥视成功时须同步 r，否则 out.next_lex 落后、后续 if-expr 漏读 else（else 分支恒 0）。 */
@@ -2047,7 +2220,7 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
     }
     /** 与 parse_one_function_impl 一致：advance 消费 `;` 后 peek 下一 token，勿再 lexer_next 吞 return。 */
     if (advance_past_stmt_semicolon_into(&r, lex_cur, source) == 0) {
-      if (r.tok.kind == TokenKind.TOKEN_RBRACE) {
+      if (r.tok.kind == token.TokenKind.TOKEN_RBRACE) {
         b.final_expr_ref = expr_stmt_res.expr_ref;
         ast.ast_arena_block_set(arena, block_ref, b);
         break;
@@ -2055,14 +2228,14 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
       out.ok = false;
       return;
     }
-    if (r.tok.kind == TokenKind.TOKEN_RBRACE) {
+    if (r.tok.kind == token.TokenKind.TOKEN_RBRACE) {
       b.final_expr_ref = expr_stmt_res.expr_ref;
       ast.ast_arena_block_set(arena, block_ref, b);
       break;
     }
-    if (r.tok.kind == TokenKind.TOKEN_SEMICOLON) {
+    if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
       lex_from_result_ptr_into(&lex_cur, &r);
-      let after_semi_blk: LexerResult = LexerResult { next_lex: lex_cur, tok: Token { kind: TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
+      let after_semi_blk: LexerResult = LexerResult { next_lex: lex_cur, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
       lexer.lexer_next_into(&after_semi_blk, lex_cur, source);
       r = after_semi_blk;
     }
@@ -2135,7 +2308,10 @@ export function wrap_block_ref_as_expr(arena: *ASTArena, block_ref: i32, type_re
 /** 单行 extern bl→parser_parse_if_expr_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_parse_if_expr_into_glue(arena: *ASTArena, lex_at_if: Lexer, source: u8[], type_ref: i32, out: *ParseExprResult): void;
 export function parse_if_expr_into(arena: *ASTArena, lex_at_if: Lexer, source: u8[], type_ref: i32, out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_parse_if_expr_into_glue(arena, lex_at_if, source, type_ref, out);
+  }
 }
 
 
@@ -2146,57 +2322,59 @@ export function parse_if_expr_into(arena: *ASTArena, lex_at_if: Lexer, source: u
  * `return_val` 在解析器常量折叠命中时填入，否则成功仍可为 0（联调只看 ok）。
  */
 export function parse(source: u8[]): ParseResult {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let arena_heap_bytes: usize = pipeline_sizeof_arena();
   let lex: Lexer = lexer.lexer_init();
-  let r: LexerResult = LexerResult { next_lex: lex, tok: Token { kind: TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
+  let r: LexerResult = LexerResult { next_lex: lex, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
   lexer.lexer_next_into(&r, lex, source);
-  if (r.tok.kind != TokenKind.TOKEN_FUNCTION) {
+  if (r.tok.kind != token.TokenKind.TOKEN_FUNCTION) {
     return ParseResult { ok: false, return_val: 0 }
   }
   lex_from_next_into(&lex, r);
   lexer.lexer_next_into(&r, lex, source);
-  if (r.tok.kind != TokenKind.TOKEN_IDENT) {
+  if (r.tok.kind != token.TokenKind.TOKEN_IDENT) {
     return ParseResult { ok: false, return_val: 0 }
   }
   lex_from_next_into(&lex, r);
   lexer.lexer_next_into(&r, lex, source);
-  if (r.tok.kind != TokenKind.TOKEN_LPAREN) {
+  if (r.tok.kind != token.TokenKind.TOKEN_LPAREN) {
     return ParseResult { ok: false, return_val: 0 }
   }
   lex_from_next_into(&lex, r);
   lexer.lexer_next_into(&r, lex, source);
-  if (r.tok.kind != TokenKind.TOKEN_RPAREN) {
+  if (r.tok.kind != token.TokenKind.TOKEN_RPAREN) {
     return ParseResult { ok: false, return_val: 0 }
   }
   lex_from_next_into(&lex, r);
   lexer.lexer_next_into(&r, lex, source);
-  if (r.tok.kind != TokenKind.TOKEN_COLON) {
+  if (r.tok.kind != token.TokenKind.TOKEN_COLON) {
     return ParseResult { ok: false, return_val: 0 }
   }
   lex_from_next_into(&lex, r);
   lexer.lexer_next_into(&r, lex, source);
-  if (r.tok.kind != TokenKind.TOKEN_I32) {
+  if (r.tok.kind != token.TokenKind.TOKEN_I32) {
     return ParseResult { ok: false, return_val: 0 }
   }
   lex_from_next_into(&lex, r);
   lexer.lexer_next_into(&r, lex, source);
-  if (r.tok.kind != TokenKind.TOKEN_LBRACE) {
+  if (r.tok.kind != token.TokenKind.TOKEN_LBRACE) {
     return ParseResult { ok: false, return_val: 0 }
   }
   lex_from_next_into(&lex, r);
   lexer.lexer_next_into(&r, lex, source);
-  if (r.tok.kind != TokenKind.TOKEN_RETURN) {
+  if (r.tok.kind != token.TokenKind.TOKEN_RETURN) {
     return ParseResult { ok: false, return_val: 0 }
   }
   lex_from_next_into(&lex, r);
   let lex_at_expr_start: Lexer = lex;
   lexer.lexer_next_into(&r, lex, source);
   let ret_val: i32 = 0;
-  if (r.tok.kind == TokenKind.TOKEN_INT) {
+  if (r.tok.kind == token.TokenKind.TOKEN_INT) {
     ret_val = r.tok.int_val;
     lex_from_next_into(&lex, r);
   } else {
-    let raw_arena: *u8 = heap.alloc_zero(arena_heap_bytes);
+    let raw_arena: *u8 = calloc(1, arena_heap_bytes);
     if (raw_arena == 0 as *u8) {
       return ParseResult { ok: false, return_val: 0 }
     }
@@ -2205,7 +2383,7 @@ export function parse(source: u8[]): ParseResult {
     let expr_out: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex };
     parse_expr_into(heap_arena, lex_at_expr_start, source, &expr_out);
     if (!expr_out.ok || expr_out.expr_ref <= 0) {
-      heap.free(raw_arena);
+      free(raw_arena);
       return ParseResult { ok: false, return_val: 0 }
     }
     let e_read: Expr = ast.ast_arena_expr_get(heap_arena, expr_out.expr_ref);
@@ -2213,23 +2391,24 @@ export function parse(source: u8[]): ParseResult {
       ret_val = e_read.const_folded_val;
     }
     lex = expr_out.next_lex;
-    heap.free(raw_arena);
+    free(raw_arena);
   }
   lexer.lexer_next_into(&r, lex, source);
-  if (r.tok.kind != TokenKind.TOKEN_SEMICOLON) {
+  if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON) {
     return ParseResult { ok: false, return_val: 0 }
   }
   lex_from_next_into(&lex, r);
   lexer.lexer_next_into(&r, lex, source);
-  if (r.tok.kind != TokenKind.TOKEN_RBRACE) {
+  if (r.tok.kind != token.TokenKind.TOKEN_RBRACE) {
     return ParseResult { ok: false, return_val: 0 }
   }
   lex_from_next_into(&lex, r);
   lexer.lexer_next_into(&r, lex, source);
-  if (r.tok.kind != TokenKind.TOKEN_EOF) {
+  if (r.tok.kind != token.TokenKind.TOKEN_EOF) {
     return ParseResult { ok: false, return_val: 0 }
   }
   return ParseResult { ok: true, return_val: ret_val }
+  }
 }
 
 /**
@@ -2238,14 +2417,22 @@ export function parse(source: u8[]): ParseResult {
 /** 单行 extern bl→parser_first_token_kind_glue（X 真 emit 调 lexer_next_into → elf_ec=-1）。 */
 export extern function parser_first_token_kind_glue(source: u8[]): i32;
 export function first_token_kind(source: u8[]): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return parser_first_token_kind_glue(source);
+  }
+  return 0;  // unreachable — typeck after unsafe block
 }
 
 
 /** first_token_kind 的 buf 变体：parser_slice_from_buf + bl first_token_kind。 */
 export function first_token_kind_buf(data: *u8, len: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   return first_token_kind(slice);
+  }
+  return 0;  // unreachable — typeck after unsafe block
 }
 
 
@@ -2255,14 +2442,22 @@ export function first_token_kind_buf(data: *u8, len: i32): i32 {
 /** 单行 extern bl→parser_diag_first_ident_len_glue（X 真 emit 调 lexer_next_into → elf_ec=-1）。 */
 export extern function parser_diag_first_ident_len_glue(source: u8[]): i32;
 export function diag_first_ident_len(source: u8[]): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return parser_diag_first_ident_len_glue(source);
+  }
+  return 0;  // unreachable — typeck after unsafe block
 }
 
 
 /** diag_first_ident_len 的 buf 变体：parser_slice_from_buf + bl diag_first_ident_len。 */
 export function diag_first_ident_len_buf(data: *u8, len: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   return diag_first_ident_len(slice);
+  }
+  return 0;  // unreachable — typeck after unsafe block
 }
 
 
@@ -2272,7 +2467,10 @@ export function diag_first_ident_len_buf(data: *u8, len: i32): i32 {
 /** 单行 extern bl→parser_diag_skip_let_const_into_glue（X 真 emit 内调 lexer_next_into → elf_ec=-1）。 */
 export extern function parser_diag_skip_let_const_into_glue(out: *LexerResult, lex: Lexer, source: u8[]): void;
 export function diag_skip_let_const_into(out: *LexerResult, lex: Lexer, source: u8[]): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_diag_skip_let_const_into_glue(out, lex, source);
+  }
 }
 
 
@@ -2280,21 +2478,30 @@ export function diag_skip_let_const_into(out: *LexerResult, lex: Lexer, source: 
 /** 单行 extern bl→parser_diag_skip_let_const_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_diag_skip_let_const_glue(lex: Lexer, source: u8[]): LexerResult;
 export function diag_skip_let_const(lex: Lexer, source: u8[]): LexerResult {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return parser_diag_skip_let_const_glue(lex, source);
+  }
 }
 
 
 /** 与 diag_skip_let_const 等价，接受 (data: *u8, len)；parser_slice_from_buf + bl diag_skip_let_const。 */
 export function diag_skip_let_const_buf(lex: Lexer, data: *u8, len: i32): LexerResult {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   return diag_skip_let_const(lex, slice);
+  }
 }
 
 
 /** diag_skip_let_const_into 的 buf 变体：parser_slice_from_buf + bl diag_skip_let_const_into。 */
 export function diag_skip_let_const_into_buf(out: *LexerResult, lex: Lexer, data: *u8, len: i32): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   diag_skip_let_const_into(out, lex, slice);
+  }
 }
 
 
@@ -2304,7 +2511,10 @@ export function diag_skip_let_const_into_buf(out: *LexerResult, lex: Lexer, data
 /** 单行 extern bl→parser_body_skip_let_const_then_if_into_glue（X 真 emit 内调 lexer_next_into → elf_ec=-1）。 */
 export extern function parser_body_skip_let_const_then_if_into_glue(out: *LexerResult, lex: Lexer, source: u8[]): void;
 export function body_skip_let_const_then_if_into(out: *LexerResult, lex: Lexer, source: u8[]): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_body_skip_let_const_then_if_into_glue(out, lex, source);
+  }
 }
 
 
@@ -2317,7 +2527,11 @@ export extern function parser_parse_body_let_bracket_compound_init_ref_glue(aren
                                                   lex_out: *Lexer, r_out: *LexerResult): i32;
 export function parse_body_let_bracket_compound_init_ref(arena: *ASTArena, bracket_start: usize, lex: Lexer, source: u8[],
                                                   lex_out: *Lexer, r_out: *LexerResult): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return parser_parse_body_let_bracket_compound_init_ref_glue(arena, bracket_start, lex, source, lex_out, r_out);
+  }
+  return 0;  // unreachable — typeck after unsafe block
 }
 
 
@@ -2328,7 +2542,11 @@ export function parse_body_let_bracket_compound_init_ref(arena: *ASTArena, brack
 /** 单行 extern bl→parser_parse_type_ref_for_arena_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_parse_type_ref_for_arena_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out_lex: *Lexer): i32;
 export function parse_type_ref_for_arena_into(arena: *ASTArena, lex: Lexer, source: u8[], out_lex: *Lexer): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return parser_parse_type_ref_for_arena_into_glue(arena, lex, source, out_lex);
+  }
+  return 0;  // unreachable — typeck after unsafe block
 }
 
 /**
@@ -2340,12 +2558,14 @@ export function parse_type_ref_for_arena_into(arena: *ASTArena, lex: Lexer, sour
  */
 /** 将 parse_body_lets 结果写入 lex_out 指针；成功返回 true，失败返回 false，避免 let-init 失败被上层静默吞掉。 */
 function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *OneFuncResult, lex_out: *Lexer): bool {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let pool: *u8 = onefunc_result_pool_ptr(out);
-  let r: LexerResult = LexerResult { next_lex: lex, tok: Token { kind: TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
+  let r: LexerResult = LexerResult { next_lex: lex, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
   let expr_tmp: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex };
   lexer.lexer_next_into(&r, lex, source);
   /** 块首非 let/const（如 return/if/while）时勿消费该 token，留给 parse_one_function_impl 主循环处理。 */
-  if (r.tok.kind != TokenKind.TOKEN_LET && r.tok.kind != TokenKind.TOKEN_CONST) {
+  if (r.tok.kind != token.TokenKind.TOKEN_LET && r.tok.kind != token.TokenKind.TOKEN_CONST) {
     lex = lex_at_token_from_result(r);
     lex_out.pos = lex.pos;
     lex_out.line = lex.line;
@@ -2353,10 +2573,10 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
     return true;
   }
   while (1 == 1) {
-    if (r.tok.kind != TokenKind.TOKEN_LET && r.tok.kind != TokenKind.TOKEN_CONST) {
+    if (r.tok.kind != token.TokenKind.TOKEN_LET && r.tok.kind != token.TokenKind.TOKEN_CONST) {
       break;
     }
-    let is_let: bool = r.tok.kind == TokenKind.TOKEN_LET;
+    let is_let: bool = r.tok.kind == token.TokenKind.TOKEN_LET;
     /** 当前 let 槽初值/类型；解析完成后 append 到侧车池（无 256 上限）。 */
     let let_init_val: i32 = 0;
     let let_init_ref: i32 = 0;
@@ -2366,9 +2586,9 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
     /* discard 绑定 `let _`：lexer 发 TOKEN_UNDERSCORE（ident_len=0），须当作名 "_"。
      * 【Why 根源】拒收会中断 parse_body_lets，函数失败后 skip 偶发把体前 let 误解析为顶层 static。 */
     let is_discard_name: i32 = 0;
-    if (r.tok.kind == TokenKind.TOKEN_UNDERSCORE) {
+    if (r.tok.kind == token.TokenKind.TOKEN_UNDERSCORE) {
       is_discard_name = 1;
-    } else if (r.tok.kind != TokenKind.TOKEN_IDENT) {
+    } else if (r.tok.kind != token.TokenKind.TOKEN_IDENT) {
       lex_out.pos = lex.pos; lex_out.line = lex.line; lex_out.col = lex.col; return false;
     }
     let name_len: i32 = r.tok.ident_len;
@@ -2403,7 +2623,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
     }
     lex_from_result_ptr_into(&lex, &r);
     lexer.lexer_next_into(&r, lex, source);
-    if (r.tok.kind != TokenKind.TOKEN_COLON) {
+    if (r.tok.kind != token.TokenKind.TOKEN_COLON) {
       lex_out.pos = lex.pos; lex_out.line = lex.line; lex_out.col = lex.col; return false;
     }
     lex_from_result_ptr_into(&lex, &r);
@@ -2415,14 +2635,14 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
     lexer.lexer_next_into(&r, lex, source);
     /** let x: T; 可选省略 `=`：栈零填，等价 let buf: u8[N] = []（const 仍须 =）。 */
     let let_omit_init: bool = false;
-    if (r.tok.kind != TokenKind.TOKEN_ASSIGN) {
+    if (r.tok.kind != token.TokenKind.TOKEN_ASSIGN) {
       if (!is_let) {
         lex_out.pos = lex.pos; lex_out.line = lex.line; lex_out.col = lex.col; return false;
       }
-      if (r.tok.kind != TokenKind.TOKEN_SEMICOLON && r.tok.kind != TokenKind.TOKEN_LET
-          && r.tok.kind != TokenKind.TOKEN_CONST && r.tok.kind != TokenKind.TOKEN_RETURN
-          && r.tok.kind != TokenKind.TOKEN_IF && r.tok.kind != TokenKind.TOKEN_WHILE
-          && r.tok.kind != TokenKind.TOKEN_FOR && r.tok.kind != TokenKind.TOKEN_RBRACE) {
+      if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON && r.tok.kind != token.TokenKind.TOKEN_LET
+          && r.tok.kind != token.TokenKind.TOKEN_CONST && r.tok.kind != token.TokenKind.TOKEN_RETURN
+          && r.tok.kind != token.TokenKind.TOKEN_IF && r.tok.kind != token.TokenKind.TOKEN_WHILE
+          && r.tok.kind != token.TokenKind.TOKEN_FOR && r.tok.kind != token.TokenKind.TOKEN_RBRACE) {
         lex_out.pos = lex.pos; lex_out.line = lex.line; lex_out.col = lex.col; return false;
       }
       let_omit_init = true;
@@ -2437,7 +2657,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
     }
     let cast_init_semi_done: bool = false;
     let init_handled: i32 = 0;
-    if (!let_omit_init && r.tok.kind == TokenKind.TOKEN_LBRACKET) {
+    if (!let_omit_init && r.tok.kind == token.TokenKind.TOKEN_LBRACKET) {
       /** 记录 `[` 起点，供 `[..] + [..]` 等复合初值回退 parse_expr_into 整段解析。 */
       let bracket_start: usize = r.token_start;
       if (bracket_start == 0) {
@@ -2455,8 +2675,8 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
         ae0.col = 0;
         expr_set_common_zeros(&ae0);
         ast.ast_arena_expr_set(arena, arr_ref, ae0);
-        while (r.tok.kind != TokenKind.TOKEN_RBRACKET) {
-          if (r.tok.kind == TokenKind.TOKEN_INT) {
+        while (r.tok.kind != token.TokenKind.TOKEN_RBRACKET) {
+          if (r.tok.kind == token.TokenKind.TOKEN_INT) {
             let er: i32 = ast.ast_arena_expr_alloc(arena);
             if (er != 0) {
               let ee: Expr = ast.ast_arena_expr_get(arena, er);
@@ -2471,7 +2691,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
             }
             lex_from_result_ptr_into(&lex, &r);
             lexer.lexer_next_into(&r, lex, source);
-          } else if (r.tok.kind == TokenKind.TOKEN_FLOAT) {
+          } else if (r.tok.kind == token.TokenKind.TOKEN_FLOAT) {
             /** f32/f64 数组元素：Vec4f let 初值 [1.0, ...] 等与 C parse_expr TOKEN_FLOAT 对齐。 */
             let er: i32 = parser_alloc_float_lit(arena, r.tok.float_val);
             if (er != 0) {
@@ -2479,21 +2699,21 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
             }
             lex_from_result_ptr_into(&lex, &r);
             lexer.lexer_next_into(&r, lex, source);
-          } else if (r.tok.kind == TokenKind.TOKEN_COMMA) {
+          } else if (r.tok.kind == token.TokenKind.TOKEN_COMMA) {
             lex_from_result_ptr_into(&lex, &r);
             lexer.lexer_next_into(&r, lex, source);
             /** 尾逗号：`, ]` 与 C parse_expr 一致（多行 i32[64] let 初值）。 */
-            if (r.tok.kind == TokenKind.TOKEN_RBRACKET) {
+            if (r.tok.kind == token.TokenKind.TOKEN_RBRACKET) {
               break;
             }
-          } else if (r.tok.kind == TokenKind.TOKEN_RBRACKET) {
+          } else if (r.tok.kind == token.TokenKind.TOKEN_RBRACKET) {
             break;
           } else {
             break;
           }
         }
         /* 空 [] 亦合法：driver_argv_parse_x_path 等 let arg_buf: u8[512] = [] 依赖此路径。 */
-        if (r.tok.kind == TokenKind.TOKEN_RBRACKET) {
+        if (r.tok.kind == token.TokenKind.TOKEN_RBRACKET) {
           let_init_ref = arr_ref;
           lex_from_result_ptr_into(&lex, &r);
           lexer.lexer_next_into(&r, lex, source);
@@ -2503,11 +2723,11 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
        * 复合初值：`let c: i32x4 = [1,2,3,4] + [10,20,30,40];`
        * 须在 `if (arr_ref != 0)` 外解析，避免 shux-c 将 ParseExprResult 误判为块表达式类型。
        */
-      let arr_init_plain: bool = r.tok.kind == TokenKind.TOKEN_SEMICOLON || r.tok.kind == TokenKind.TOKEN_LET
-          || r.tok.kind == TokenKind.TOKEN_CONST || r.tok.kind == TokenKind.TOKEN_RETURN
-          || r.tok.kind == TokenKind.TOKEN_IF || r.tok.kind == TokenKind.TOKEN_WHILE
-          || r.tok.kind == TokenKind.TOKEN_FOR || r.tok.kind == TokenKind.TOKEN_RBRACE;
-      if (is_let && (r.tok.kind == TokenKind.TOKEN_AS || !arr_init_plain)) {
+      let arr_init_plain: bool = r.tok.kind == token.TokenKind.TOKEN_SEMICOLON || r.tok.kind == token.TokenKind.TOKEN_LET
+          || r.tok.kind == token.TokenKind.TOKEN_CONST || r.tok.kind == token.TokenKind.TOKEN_RETURN
+          || r.tok.kind == token.TokenKind.TOKEN_IF || r.tok.kind == token.TokenKind.TOKEN_WHILE
+          || r.tok.kind == token.TokenKind.TOKEN_FOR || r.tok.kind == token.TokenKind.TOKEN_RBRACE;
+      if (is_let && (r.tok.kind == token.TokenKind.TOKEN_AS || !arr_init_plain)) {
         let reparsed_ref: i32 =
             parse_body_let_bracket_compound_init_ref(arena, bracket_start, lex, source, &lex, &r);
         if (reparsed_ref == 0) {
@@ -2521,7 +2741,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
       init_handled = 1;
     }
     if (init_handled == 0) {
-      if (r.tok.kind == TokenKind.TOKEN_IDENT) {
+      if (r.tok.kind == token.TokenKind.TOKEN_IDENT) {
         /* RHS 以 ident 开头：从 ident 起点 parse_expr_into（含 foo()、foo(a,b)、buffers[0].handle、单变量、Type { } 字面量） */
         let rhs_ilen: i32 = r.tok.ident_len;
         /** 须用 token_start（与 let 绑定名一致）；next_lex.pos - len 在部分 lexer 状态下会偏一字节，导致 `Point { }` 后跟 return 时解析错位与 typeck 隐式尾返回。 */
@@ -2542,7 +2762,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
       }
     }
     if (init_handled == 0) {
-      if (r.tok.kind == TokenKind.TOKEN_STRING) {
+      if (r.tok.kind == token.TokenKind.TOKEN_STRING) {
         /**
          * 【Why 根源】不可对 TOKEN_STRING 再 parse_expr_into：
          * lexer 的 token_start 指向开引号**后**首字节；以 token_start 为起点重扫时
@@ -2601,10 +2821,10 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
         lex_from_result_ptr_into(&lex, &r);
         lexer.lexer_next_into(&r, lex, source);
         parser_rewind_lex_for_following_stmt_into(&lex, lex, r);
-        if (r.tok.kind == TokenKind.TOKEN_SEMICOLON) {
+        if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
           let after_semi_str: LexerResult = LexerResult {
             next_lex: r.next_lex,
-            tok: Token { kind: TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 },
+            tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 },
             token_start: 0
           };
           lexer.lexer_next_into(&after_semi_str, r.next_lex, source);
@@ -2616,7 +2836,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
       }
     }
     if (init_handled == 0) {
-      if (r.tok.kind == TokenKind.TOKEN_TRUE || r.tok.kind == TokenKind.TOKEN_FALSE) {
+      if (r.tok.kind == token.TokenKind.TOKEN_TRUE || r.tok.kind == token.TokenKind.TOKEN_FALSE) {
         /* bool 字面量：创建 EXPR_BOOL_LIT 表达式并写入 arena，使 typeck 可以检查 let/const x: i32 = true 的类型不匹配 */
         let bool_ref: i32 = ast.ast_arena_expr_alloc(arena);
         if (bool_ref != 0) {
@@ -2626,7 +2846,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
           be.line = 0;
           be.col = 0;
           be.int_val = 0;
-          if (r.tok.kind == TokenKind.TOKEN_TRUE) {
+          if (r.tok.kind == token.TokenKind.TOKEN_TRUE) {
             be.int_val = 1;
           }
           ast.expr_init_match_enum(&be);
@@ -2661,7 +2881,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
       }
     }
     if (init_handled == 0) {
-      if (r.tok.kind == TokenKind.TOKEN_FLOAT) {
+      if (r.tok.kind == token.TokenKind.TOKEN_FLOAT) {
         /** f32/f64 初值：浮点字面量（与 parser.c TOKEN_FLOAT / typeck f32 规则对齐）。 */
         let_init_ref = parser_alloc_float_lit(arena, r.tok.float_val);
         lex_from_result_ptr_into(&lex, &r);
@@ -2670,7 +2890,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
       }
     }
     if (init_handled == 0) {
-      if (r.tok.kind == TokenKind.TOKEN_INT) {
+      if (r.tok.kind == token.TokenKind.TOKEN_INT) {
         /*
          * 初值：纯 int 字面量 | `0 as *T` | `0 - x` 等复合表达式。
          * * 仅 `as` 走 parse_expr_into 会漏掉 `0 - val`（format_int 的 let u: i32 = 0 - val）。
@@ -2683,11 +2903,11 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
         let int_lex: Lexer = Lexer { pos: int_start, line: lex.line, col: lex.col };
         lex_from_result_ptr_into(&lex, &r);
         lexer.lexer_next_into(&r, lex, source);
-        let int_init_plain: bool = r.tok.kind == TokenKind.TOKEN_SEMICOLON || r.tok.kind == TokenKind.TOKEN_LET
-            || r.tok.kind == TokenKind.TOKEN_CONST || r.tok.kind == TokenKind.TOKEN_RETURN
-            || r.tok.kind == TokenKind.TOKEN_IF || r.tok.kind == TokenKind.TOKEN_WHILE
-            || r.tok.kind == TokenKind.TOKEN_FOR || r.tok.kind == TokenKind.TOKEN_RBRACE;
-        if (r.tok.kind == TokenKind.TOKEN_AS || !int_init_plain) {
+        let int_init_plain: bool = r.tok.kind == token.TokenKind.TOKEN_SEMICOLON || r.tok.kind == token.TokenKind.TOKEN_LET
+            || r.tok.kind == token.TokenKind.TOKEN_CONST || r.tok.kind == token.TokenKind.TOKEN_RETURN
+            || r.tok.kind == token.TokenKind.TOKEN_IF || r.tok.kind == token.TokenKind.TOKEN_WHILE
+            || r.tok.kind == token.TokenKind.TOKEN_FOR || r.tok.kind == token.TokenKind.TOKEN_RBRACE;
+        if (r.tok.kind == token.TokenKind.TOKEN_AS || !int_init_plain) {
           parse_expr_result_reset(&expr_tmp, int_lex);
           parse_expr_into(arena, int_lex, source, &expr_tmp);
           if (!expr_tmp.ok) {
@@ -2703,8 +2923,8 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
       }
     }
     if (init_handled == 0) {
-      if (r.tok.kind == TokenKind.TOKEN_MINUS || r.tok.kind == TokenKind.TOKEN_BANG
-          || r.tok.kind == TokenKind.TOKEN_LPAREN || r.tok.kind == TokenKind.TOKEN_TILDE) {
+      if (r.tok.kind == token.TokenKind.TOKEN_MINUS || r.tok.kind == token.TokenKind.TOKEN_BANG
+          || r.tok.kind == token.TokenKind.TOKEN_LPAREN || r.tok.kind == token.TokenKind.TOKEN_TILDE) {
         /*
          * 一元 -、!、~ 或括号表达式初值（如 let u: i32 = -1、(x + 1)）；
          * * 仅认 TOKEN_INT/IDENT/[ 时会误判 semicolon 并提前 return，let 未入账、-1 落为 expr_stmt。
@@ -2727,7 +2947,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
       }
     }
     if (init_handled == 0) {
-      if (r.tok.kind == TokenKind.TOKEN_AMP) {
+      if (r.tok.kind == token.TokenKind.TOKEN_AMP) {
         /*
          * 取址初值：`let p: *u8 = &c as *u8` 等；须 parse_expr_into 整段（与 TOKEN_INT 复合初值一致）。
          */
@@ -2752,7 +2972,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
       }
     }
     if (init_handled == 0) {
-      if (r.tok.kind == TokenKind.TOKEN_IF) {
+      if (r.tok.kind == token.TokenKind.TOKEN_IF) {
         /** let x: T = if (c) { a } else { b }：须建成 EXPR_IF 初值，勿留 init_ref=0 落成字面量 0。 */
         let if_lex: Lexer = lex_at_token_from_result(r);
         parse_expr_result_reset(&expr_tmp, if_lex);
@@ -2768,7 +2988,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
       }
     }
     if (init_handled == 0) {
-      if (r.tok.kind == TokenKind.TOKEN_MATCH) {
+      if (r.tok.kind == token.TokenKind.TOKEN_MATCH) {
         /** let y: i32 = match x { … }; 与 return match 共用 parse_match_into。 */
         let match_lex: Lexer = lex_at_token_from_result(r);
         parse_expr_result_reset(&expr_tmp, match_lex);
@@ -2784,8 +3004,8 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
       }
     }
     if (init_handled == 0) {
-      if (r.tok.kind == TokenKind.TOKEN_AWAIT || r.tok.kind == TokenKind.TOKEN_RUN
-          || r.tok.kind == TokenKind.TOKEN_SPAWN) {
+      if (r.tok.kind == token.TokenKind.TOKEN_AWAIT || r.tok.kind == token.TokenKind.TOKEN_RUN
+          || r.tok.kind == token.TokenKind.TOKEN_SPAWN) {
         /**
          * async 一元初值：`let mid: i32 = await kick;` / `run f()` / `spawn f()`；
          * 须 parse_expr_into 整段，否则 init_ref 留 0 落成栈槽 0（WPO-S3 await asm exit 7 回归）。
@@ -2811,9 +3031,9 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
      * 遇 `return`/`if`/`while`/`for`/`}` 等时不得写 r.next_lex 到 lex：否则跳过关键字首 token，
      * * parse_one_function_impl 会从 `return p.x` 的 `p` 起解析，把 `p.x` 误作 expr_stmt、final_expr 被清空后 typeck 报 implicit tail return。 */
     if (!cast_init_semi_done) {
-      if (r.tok.kind == TokenKind.TOKEN_SEMICOLON) {
+      if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
         lex_from_result_ptr_into(&lex, &r);
-        let after_semi: LexerResult = LexerResult { next_lex: lex, tok: Token { kind: TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
+        let after_semi: LexerResult = LexerResult { next_lex: lex, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
         lexer.lexer_next_into(&after_semi, lex, source);
         /**
          * 分号后窥视下一条语句：lex 须回指该 token 首字节，供 parse_block_into / parse_one_function_impl
@@ -2823,13 +3043,13 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
         let lex_after_semi: Lexer = lex_at_token_from_result(after_semi);
         lexer_copy_into(&lex, lex_after_semi);
         lexer.lexer_next_into(&r, lex, source);
-      } else if (r.tok.kind != TokenKind.TOKEN_LET && r.tok.kind != TokenKind.TOKEN_CONST
-          && r.tok.kind != TokenKind.TOKEN_RETURN && r.tok.kind != TokenKind.TOKEN_IF
-          && r.tok.kind != TokenKind.TOKEN_WHILE && r.tok.kind != TokenKind.TOKEN_FOR
-          && r.tok.kind != TokenKind.TOKEN_RBRACE) {
+      } else if (r.tok.kind != token.TokenKind.TOKEN_LET && r.tok.kind != token.TokenKind.TOKEN_CONST
+          && r.tok.kind != token.TokenKind.TOKEN_RETURN && r.tok.kind != token.TokenKind.TOKEN_IF
+          && r.tok.kind != token.TokenKind.TOKEN_WHILE && r.tok.kind != token.TokenKind.TOKEN_FOR
+          && r.tok.kind != token.TokenKind.TOKEN_RBRACE) {
         /*
-         * 初值已为表达式（如 `Token { … }`）且后继为块内下一条语句/表达式（常见 IDENT 结构体字面量），
-         * 勿在此 return：须先 append。否则 `lexer_next` 的 `{ let t: Token = Token { }; LexerResult { tok: t } }`
+         * 初值已为表达式（如 `token.Token { … }`）且后继为块内下一条语句/表达式（常见 IDENT 结构体字面量），
+         * 勿在此 return：须先 append。否则 `lexer_next` 的 `{ let t: token.Token = token.Token { }; LexerResult { tok: t } }`
          * 中 `t` 未入账、asm 报 EXPR_VAR not in ctx。
          */
         if (is_let) {
@@ -2856,6 +3076,8 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
       out.num_consts = pipeline_onefunc_num_consts(pool);
     }
   }
+  return false;  // unreachable — typeck after unsafe block
+  }
   lex_out.pos = lex.pos; lex_out.line = lex.line; lex_out.col = lex.col;
   return true;
 }
@@ -2864,21 +3086,30 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
 /** 单行 extern bl→parser_body_skip_let_const_then_if_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_body_skip_let_const_then_if_glue(lex: Lexer, source: u8[]): LexerResult;
 export function body_skip_let_const_then_if(lex: Lexer, source: u8[]): LexerResult {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return parser_body_skip_let_const_then_if_glue(lex, source);
+  }
 }
 
 
 /** 与 body_skip_let_const_then_if 等价，接受 (data: *u8, len)；parser_slice_from_buf + bl body_skip_let_const_then_if。 */
 export function body_skip_let_const_then_if_buf(lex: Lexer, data: *u8, len: i32): LexerResult {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   return body_skip_let_const_then_if(lex, slice);
+  }
 }
 
 
 /** body_skip_let_const_then_if_into 的 buf 变体：parser_slice_from_buf + bl into。 */
 export function body_skip_let_const_then_if_into_buf(out: *LexerResult, lex: Lexer, data: *u8, len: i32): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   body_skip_let_const_then_if_into(out, lex, slice);
+  }
 }
 
 
@@ -2888,7 +3119,10 @@ export function body_skip_let_const_then_if_into_buf(out: *LexerResult, lex: Lex
 /** 单行 extern bl→parser_skip_balanced_parens_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_skip_balanced_parens_glue(lex: Lexer, source: u8[]): Lexer;
 export function skip_balanced_parens(lex: Lexer, source: u8[]): Lexer {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return parser_skip_balanced_parens_glue(lex, source);
+  }
 }
 
 
@@ -2896,7 +3130,10 @@ export function skip_balanced_parens(lex: Lexer, source: u8[]): Lexer {
 /** 单行 extern bl→parser_skip_balanced_parens_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_skip_balanced_parens_into_glue(out: *Lexer, lex: Lexer, source: u8[]): void;
 export function skip_balanced_parens_into(out: *Lexer, lex: Lexer, source: u8[]): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_skip_balanced_parens_into_glue(out, lex, source);
+  }
 }
 
 
@@ -2906,12 +3143,12 @@ export function skip_balanced_parens_into_buf(out: *Lexer, lex: Lexer, data: *u8
   let depth: i32 = 1;
   while (depth > 0) {
     let r: LexerResult = lexer.lexer_next_buf(lex, data, len);
-    if (r.tok.kind == TokenKind.TOKEN_LPAREN) { depth = depth + 1; }
-    else if (r.tok.kind == TokenKind.TOKEN_RPAREN) {
+    if (r.tok.kind == token.TokenKind.TOKEN_LPAREN) { depth = depth + 1; }
+    else if (r.tok.kind == token.TokenKind.TOKEN_RPAREN) {
       depth = depth - 1;
       if (depth == 0) { out.pos = r.next_lex.pos; out.line = r.next_lex.line; out.col = r.next_lex.col; return; }
     }
-    if (r.tok.kind == TokenKind.TOKEN_EOF) { out.pos = lex.pos; out.line = lex.line; out.col = lex.col; return; }
+    if (r.tok.kind == token.TokenKind.TOKEN_EOF) { out.pos = lex.pos; out.line = lex.line; out.col = lex.col; return; }
     lex_from_next_into(&lex, r);
   }
   out.pos = lex.pos; out.line = lex.line; out.col = lex.col;
@@ -2921,8 +3158,11 @@ export function skip_balanced_parens_into_buf(out: *Lexer, lex: Lexer, data: *u8
 
 /** skip_balanced_parens_buf：parser_slice_from_buf + bl skip_balanced_parens。 */
 export function skip_balanced_parens_buf(lex: Lexer, data: *u8, len: i32): Lexer {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   return skip_balanced_parens(lex, slice);
+  }
 }
 
 
@@ -2932,7 +3172,10 @@ export function skip_balanced_parens_buf(lex: Lexer, data: *u8, len: i32): Lexer
 /** 单行 extern bl→parser_skip_balanced_braces_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_skip_balanced_braces_glue(lex: Lexer, source: u8[]): Lexer;
 export function skip_balanced_braces(lex: Lexer, source: u8[]): Lexer {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return parser_skip_balanced_braces_glue(lex, source);
+  }
 }
 
 
@@ -2940,7 +3183,10 @@ export function skip_balanced_braces(lex: Lexer, source: u8[]): Lexer {
 /** 单行 extern bl→parser_skip_balanced_braces_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_skip_balanced_braces_into_glue(out: *Lexer, lex: Lexer, source: u8[]): void;
 export function skip_balanced_braces_into(out: *Lexer, lex: Lexer, source: u8[]): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_skip_balanced_braces_into_glue(out, lex, source);
+  }
 }
 
 
@@ -2949,12 +3195,12 @@ export function skip_balanced_braces_into_buf(out: *Lexer, lex: Lexer, data: *u8
   let depth: i32 = 1;
   while (depth > 0) {
     let r: LexerResult = lexer.lexer_next_buf(lex, data, len);
-    if (r.tok.kind == TokenKind.TOKEN_LBRACE) { depth = depth + 1; }
-    else if (r.tok.kind == TokenKind.TOKEN_RBRACE) {
+    if (r.tok.kind == token.TokenKind.TOKEN_LBRACE) { depth = depth + 1; }
+    else if (r.tok.kind == token.TokenKind.TOKEN_RBRACE) {
       depth = depth - 1;
       if (depth == 0) { out.pos = r.next_lex.pos; out.line = r.next_lex.line; out.col = r.next_lex.col; return; }
     }
-    if (r.tok.kind == TokenKind.TOKEN_EOF) { out.pos = lex.pos; out.line = lex.line; out.col = lex.col; return; }
+    if (r.tok.kind == token.TokenKind.TOKEN_EOF) { out.pos = lex.pos; out.line = lex.line; out.col = lex.col; return; }
     lex_from_next_into(&lex, r);
   }
   out.pos = lex.pos; out.line = lex.line; out.col = lex.col;
@@ -2965,8 +3211,11 @@ export function skip_balanced_braces_into_buf(out: *Lexer, lex: Lexer, data: *u8
 /** 与 skip_balanced_braces 等价，接受 (data: *u8, len) 供 buf 路径使用。 */
 /** skip_balanced_braces_buf：parser_slice_from_buf + bl skip_balanced_braces。 */
 export function skip_balanced_braces_buf(lex: Lexer, data: *u8, len: i32): Lexer {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   return skip_balanced_braces(lex, slice);
+  }
 }
 
 
@@ -2977,46 +3226,67 @@ export function skip_balanced_braces_buf(lex: Lexer, data: *u8, len: i32): Lexer
 /** 单行 extern bl→parser_skip_one_function_full_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_skip_one_function_full_into_glue(out: *Lexer, lex: Lexer, source: u8[]): void;
 export function skip_one_function_full_into(out: *Lexer, lex: Lexer, source: u8[]): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_skip_one_function_full_into_glue(out, lex, source);
+  }
 }
 
 /** B-01/B-19：跳过一条顶层 const 声明（含 const import）；lex 位于 const 前。 */
 export extern function parser_skip_one_top_level_const_into_glue(out: *Lexer, lex: Lexer, source: u8[]): void;
 export function skip_one_top_level_const_into(out: *Lexer, lex: Lexer, source: u8[]): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_skip_one_top_level_const_into_glue(out, lex, source);
+  }
 }
 
 /** buf 路径：跳过一条顶层 const 声明。 */
 export extern function parser_skip_one_top_level_const_into_buf_glue(out: *Lexer, lex: Lexer, data: *u8, len: i32): void;
 export function skip_one_top_level_const_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_skip_one_top_level_const_into_buf_glue(out, lex, data, len);
+  }
 }
 
 /** B-01/B-19：跳过一条顶层 let 声明；lex 位于 let 前。 */
 export extern function parser_skip_one_top_level_let_into_buf_glue(out: *Lexer, lex: Lexer, data: *u8, len: i32): void;
 export function skip_one_top_level_let_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_skip_one_top_level_let_into_buf_glue(out, lex, data, len);
+  }
 }
 
 /** 单行 extern bl→parser_skip_one_function_full_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_skip_one_function_full_glue(lex: Lexer, source: u8[]): Lexer;
 export function skip_one_function_full(lex: Lexer, source: u8[]): Lexer {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return parser_skip_one_function_full_glue(lex, source);
+  }
 }
 
 
 /** skip_one_function_full_buf 的 _into_buf 变体；parser_slice_from_buf + bl skip_one_function_full_into（13al 模式）。 */
 export function skip_one_function_full_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   skip_one_function_full_into(out, lex, slice);
+  }
 }
 
 
 /** 与 skip_one_function_full 等价，接受 (data: *u8, len) 供 parse_into_buf 使用。 */
 /** skip_one_function_full_buf：parser_slice_from_buf + bl skip_one_function_full。 */
 export function skip_one_function_full_buf(lex: Lexer, data: *u8, len: i32): Lexer {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   return skip_one_function_full(lex, slice);
+  }
 }
 
 
@@ -3028,7 +3298,10 @@ export function skip_one_function_full_buf(lex: Lexer, data: *u8, len: i32): Lex
 /** 单行 extern bl→parser_skip_one_if_core_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_skip_one_if_core_glue(lex: Lexer, source: u8[]): LexerResult;
 export function skip_one_if_core(lex: Lexer, source: u8[]): LexerResult {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return parser_skip_one_if_core_glue(lex, source);
+  }
 }
 
 
@@ -3040,7 +3313,10 @@ export function skip_one_if_core(lex: Lexer, source: u8[]): LexerResult {
 /** 单行 extern bl→parser_skip_one_if_statement_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_skip_one_if_statement_glue(lex: Lexer, source: u8[]): LexerResult;
 export function skip_one_if_statement(lex: Lexer, source: u8[]): LexerResult {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return parser_skip_one_if_statement_glue(lex, source);
+  }
 }
 
 
@@ -3048,7 +3324,10 @@ export function skip_one_if_statement(lex: Lexer, source: u8[]): LexerResult {
 /** 单行 extern bl→parser_skip_one_if_statement_into_glue（X 真 emit 内调 lexer_next_into → elf_ec=-1）。 */
 export extern function parser_skip_one_if_statement_into_glue(out: *LexerResult, lex: Lexer, source: u8[]): void;
 export function skip_one_if_statement_into(out: *LexerResult, lex: Lexer, source: u8[]): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_skip_one_if_statement_into_glue(out, lex, source);
+  }
 }
 
 
@@ -3056,36 +3335,51 @@ export function skip_one_if_statement_into(out: *LexerResult, lex: Lexer, source
 /** 单行 extern bl→parser_skip_one_if_core_into_glue（X 真 emit 内调 lexer_next_into → elf_ec=-1）。 */
 export extern function parser_skip_one_if_core_into_glue(out: *LexerResult, lex: Lexer, source: u8[]): void;
 export function skip_one_if_core_into(out: *LexerResult, lex: Lexer, source: u8[]): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_skip_one_if_core_into_glue(out, lex, source);
+  }
 }
 
 
 /** 与 skip_one_if_core 等价，接受 (data: *u8, len) 供 buf 路径使用。 */
 /** skip_one_if_core_buf：parser_slice_from_buf + bl skip_one_if_core。 */
 export function skip_one_if_core_buf(lex: Lexer, data: *u8, len: i32): LexerResult {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   return skip_one_if_core(lex, slice);
+  }
 }
 
 
 /** skip_one_if_statement_buf：parser_slice_from_buf + bl skip_one_if_statement。 */
 export function skip_one_if_statement_buf(lex: Lexer, data: *u8, len: i32): LexerResult {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   return skip_one_if_statement(lex, slice);
+  }
 }
 
 
 /** skip_one_if_core_into 的 buf 变体：parser_slice_from_buf + bl skip_one_if_core_into。 */
 export function skip_one_if_core_into_buf(out: *LexerResult, lex: Lexer, data: *u8, len: i32): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   skip_one_if_core_into(out, lex, slice);
+  }
 }
 
 
 /** skip_one_if_statement_into 的 buf 变体：parser_slice_from_buf + bl skip_one_if_statement_into。 */
 export function skip_one_if_statement_into_buf(out: *LexerResult, lex: Lexer, data: *u8, len: i32): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   skip_one_if_statement_into(out, lex, slice);
+  }
 }
 
 
@@ -3097,14 +3391,20 @@ export function skip_one_if_statement_into_buf(out: *LexerResult, lex: Lexer, da
 /** 单行 extern bl→parser_diag_lex_after_imports_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_diag_lex_after_imports_glue(source: u8[]): Lexer;
 export function diag_lex_after_imports(source: u8[]): Lexer {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return parser_diag_lex_after_imports_glue(source);
+  }
 }
 
 
 /** diag_lex_after_imports 的 buf 变体：parser_slice_from_buf + bl diag_lex_after_imports。 */
 export function diag_lex_after_imports_buf(data: *u8, len: i32): Lexer {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   return diag_lex_after_imports(slice);
+  }
 }
 
 
@@ -3112,33 +3412,47 @@ export function diag_lex_after_imports_buf(data: *u8, len: i32): Lexer {
 /** 单行 extern bl→parser_diag_after_imports_then_structs_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_diag_after_imports_then_structs_glue(lex: Lexer, source: u8[]): LexerResult;
 export function diag_after_imports_then_structs(lex: Lexer, source: u8[]): LexerResult {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return parser_diag_after_imports_then_structs_glue(lex, source);
+  }
 }
 
 
 /** diag_after_imports_then_structs 的 buf 变体：parser_slice_from_buf + bl diag_after_imports_then_structs。 */
 export function diag_after_imports_then_structs_buf(lex: Lexer, data: *u8, len: i32): LexerResult {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   return diag_after_imports_then_structs(lex, slice);
+  }
 }
 
 
 /** 单行 extern bl→parser_diag_fail_at_token_kind_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_diag_fail_at_token_kind_glue(source: u8[]): i32;
 export function diag_fail_at_token_kind(source: u8[]): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return parser_diag_fail_at_token_kind_glue(source);
+  }
+  return 0;  // unreachable — typeck after unsafe block
 }
 
 
 /** diag_fail_at_token_kind 的 buf 变体：parser_slice_from_buf + bl diag_fail_at_token_kind。 */
 export function diag_fail_at_token_kind_buf(data: *u8, len: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   return diag_fail_at_token_kind(slice);
+  }
+  return 0;  // unreachable — typeck after unsafe block
 }
 
 /** 零函数模块通常可作为库模块返回成功；但若首个失败 token 已明确是字符串字面量，则应收为真正 parse fail。 */
 export function parse_into_result_empty_module_or_fail_tok(fail_tok: i32): ParseIntoResult {
-  if (fail_tok == (TokenKind.TOKEN_STRING as i32)) {
+  if (fail_tok == (token.TokenKind.TOKEN_STRING as i32)) {
     return ParseIntoResult { ok: -2, main_idx: -1 }
   }
   return ParseIntoResult { ok: 0, main_idx: -1 }
@@ -3174,20 +3488,28 @@ export function copy_slice_to_name64_at_end(source: u8[], end_pos: usize, nlen: 
 /** 单行 extern bl→parser_struct_field_name_from_tok_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_struct_field_name_from_tok_glue(r: LexerResult, source: u8[], out: *u8): i32;
 export function struct_field_name_from_tok(r: LexerResult, source: u8[], out: *u8): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return parser_struct_field_name_from_tok_glue(r, source, out);
+  }
+  return 0;  // unreachable — typeck after unsafe block
 }
 
 
 /** struct_field_name_from_tok 的 buf 变体：parser_slice_from_buf + bl struct_field_name_from_tok。 */
 export function struct_field_name_from_tok_buf(r: LexerResult, data: *u8, len: i32, out: *u8): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   return struct_field_name_from_tok(r, slice, out);
+  }
+  return 0;  // unreachable — typeck after unsafe block
 }
 
 
 /** 续字段解析：下一 token 是否为字段名起点；SOA/PACKED 用整型 ordinal（EMIT_HEAVY enum 成员 emit 曾失败）。 */
-export function struct_field_name_tok_kind(k: TokenKind): bool {
-  if (k == TokenKind.TOKEN_IDENT) {
+export function struct_field_name_tok_kind(k: token.TokenKind): bool {
+  if (k == token.TokenKind.TOKEN_IDENT) {
     return true;
   }
   let ko: i32 = k as i32;
@@ -3204,7 +3526,7 @@ export function struct_field_name_tok_kind(k: TokenKind): bool {
  * 字段列表是否继续：下一字段可为 ident 或 align(N) 前缀（DOD-CL Ring64 head/tail 等）。
  * 勿仅用 struct_field_name_tok_kind，否则 `align(64) tail:` 第二字段解析失败且 layout 仅 nf=1。
  */
-export function struct_field_continues_tok_kind(k: TokenKind): bool {
+export function struct_field_continues_tok_kind(k: token.TokenKind): bool {
   if (struct_field_name_tok_kind(k)) {
     return true;
   }
@@ -3221,16 +3543,16 @@ export function struct_field_continues_tok_kind(k: TokenKind): bool {
  * 与 parser.c parse_block 内 `peek IDENT && peek_next COLON → parse_label_start` 对齐。
  */
 export function parser_token_is_label_start(r: LexerResult, source: u8[]): bool {
-  if (r.tok.kind != TokenKind.TOKEN_IDENT) {
+  if (r.tok.kind != token.TokenKind.TOKEN_IDENT) {
     return false;
   }
   let nx: LexerResult = LexerResult {
     next_lex: r.next_lex,
-    tok: Token { kind: TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 },
+    tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 },
     token_start: 0
   };
   lexer.lexer_next_into(&nx, r.next_lex, source);
-  return nx.tok.kind == TokenKind.TOKEN_COLON;
+  return nx.tok.kind == token.TokenKind.TOKEN_COLON;
 }
 
 /** 从 source 的 [start..start+nlen) 复制到 out[0..31]；out 为 *u8 原因同 copy_slice_to_name64。 */
@@ -3333,12 +3655,12 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
   let name_start: usize = (0 as usize);
   let func_name_len_storage: i32[1] = [];
   /* 用 lexer_next_into 取首 token，避免 LexerResult 按值返回/赋值的 ABI 导致 r.tok 读错 */
-  let r: LexerResult = LexerResult { next_lex: lex, tok: Token { kind: TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
+  let r: LexerResult = LexerResult { next_lex: lex, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
   lexer.lexer_next_into(&r, lex, source);
   /* parse_into 调用时已消费 "function"，首 token 为 IDENT（函数名）；否则首 token 须为 FUNCTION 再消费得 IDENT */
-  if (r.tok.kind == TokenKind.TOKEN_IDENT) {
+  if (r.tok.kind == token.TokenKind.TOKEN_IDENT) {
     /* 调用方已消费 FUNCTION，r 即为函数名 token，直接用作 name */
-  } else if (r.tok.kind == TokenKind.TOKEN_SPAWN) {
+  } else if (r.tok.kind == token.TokenKind.TOKEN_SPAWN) {
     /* std.process function spawn(...)：async spawn 关键字在 function 声明位置作函数名 */
     func_name_len_storage[0] = 5;
     dummy_name[0] = 115;
@@ -3349,12 +3671,12 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
     lex_from_next_into(&lex, r);
     /* 跳过下方 IDENT 分支的 copy；直接进入参数列表 */
   } else {
-    if (r.tok.kind != TokenKind.TOKEN_FUNCTION) {
+    if (r.tok.kind != token.TokenKind.TOKEN_FUNCTION) {
       set_onefunc_fail(out, lex); return;
     }
     lex_from_next_into(&lex, r);
     lexer.lexer_next_into(&r, lex, source);
-    if (r.tok.kind == TokenKind.TOKEN_SPAWN) {
+    if (r.tok.kind == token.TokenKind.TOKEN_SPAWN) {
       func_name_len_storage[0] = 5;
       dummy_name[0] = 115;
       dummy_name[1] = 112;
@@ -3362,7 +3684,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       dummy_name[3] = 119;
       dummy_name[4] = 110;
       lex_from_next_into(&lex, r);
-    } else if (r.tok.kind != TokenKind.TOKEN_IDENT) {
+    } else if (r.tok.kind != token.TokenKind.TOKEN_IDENT) {
       set_onefunc_fail(out, lex); return;
     } else {
       func_name_len_storage[0] = r.tok.ident_len;
@@ -3375,7 +3697,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
     }
   }
   if (func_name_len_storage[0] == 0) {
-    if (r.tok.kind != TokenKind.TOKEN_IDENT) {
+    if (r.tok.kind != token.TokenKind.TOKEN_IDENT) {
       set_onefunc_fail(out, lex); return;
     }
     func_name_len_storage[0] = r.tok.ident_len;
@@ -3388,22 +3710,22 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
   }
   lexer.lexer_next_into(&r, lex, source);
   /** 泛型函数 `function id<T>(...)`：跳过 `<...>` 再读 `(`。 */
-  if (r.tok.kind == TokenKind.TOKEN_LT) {
+  if (r.tok.kind == token.TokenKind.TOKEN_LT) {
     let generic_n: i32 = 0;
     parser_skip_generic_angle_list_count_into_glue(&lex, &generic_n, lex, source);
     out.num_generic_params = generic_n;
     lexer.lexer_next_into(&r, lex, source);
   }
-  if (r.tok.kind != TokenKind.TOKEN_LPAREN) {
+  if (r.tok.kind != token.TokenKind.TOKEN_LPAREN) {
     set_onefunc_fail(out, lex); return;
   }
   lex_from_next_into(&lex, r);
   lexer.lexer_next_into(&r, lex, source);
-  if (r.tok.kind == TokenKind.TOKEN_RPAREN) {
+  if (r.tok.kind == token.TokenKind.TOKEN_RPAREN) {
     lex_from_next_into(&lex, r);
   } else {
     while (1 == 1) {
-      if (r.tok.kind != TokenKind.TOKEN_IDENT) {
+      if (r.tok.kind != token.TokenKind.TOKEN_IDENT) {
         set_onefunc_fail(out_ref, lex); return;
       }
       let plen: i32 = r.tok.ident_len;
@@ -3422,7 +3744,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       out.num_params = param_idx + 1;
       lex_from_next_into(&lex, r);
       lexer.lexer_next_into(&r, lex, source);
-      if (r.tok.kind != TokenKind.TOKEN_COLON) {
+      if (r.tok.kind != token.TokenKind.TOKEN_COLON) {
         set_onefunc_fail(out_ref, lex); return;
       }
       lex_from_next_into(&lex, r);
@@ -3437,24 +3759,24 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       0, param_idx, type_ref_param);
       lexer.lexer_next_into(&r, lex, source);
       /* 若上面已 consume 则 r 已推进；否则需与原逻辑一致，此处类型已写入侧车池。 */
-      if (r.tok.kind == TokenKind.TOKEN_RPAREN) {
+      if (r.tok.kind == token.TokenKind.TOKEN_RPAREN) {
         lex_from_next_into(&lex, r);
         break;
       }
-      if (r.tok.kind != TokenKind.TOKEN_COMMA) {
+      if (r.tok.kind != token.TokenKind.TOKEN_COMMA) {
         set_onefunc_fail(out_ref, lex); return;
       }
       lex_from_next_into(&lex, r);
       lexer.lexer_next_into(&r, lex, source);
       /** 允许形参列表尾逗号：`a: T,)`（与 extern 解析一致）。 */
-      if (r.tok.kind == TokenKind.TOKEN_RPAREN) {
+      if (r.tok.kind == token.TokenKind.TOKEN_RPAREN) {
         lex_from_next_into(&lex, r);
         break;
       }
     }
   }
   lexer.lexer_next_into(&r, lex, source);
-  if (r.tok.kind != TokenKind.TOKEN_COLON) {
+  if (r.tok.kind != token.TokenKind.TOKEN_COLON) {
     set_onefunc_fail(out_ref, lex); return;
   }
   lex_from_next_into(&lex, r);
@@ -3473,11 +3795,11 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
     }
   }
   lexer.lexer_next_into(&r, lex, source);
-  if (r.tok.kind != TokenKind.TOKEN_LBRACE) {
+  if (r.tok.kind != token.TokenKind.TOKEN_LBRACE) {
     set_onefunc_fail(out, lex); return;
   }
   /* 消费 {，解析 body 内 let/const 并填充 out.num_lets、let_init_refs 等，再同步到 impl_snap，得到 return/int 等 token */
-  if (r.tok.kind == TokenKind.TOKEN_LBRACE) {
+  if (r.tok.kind == token.TokenKind.TOKEN_LBRACE) {
     lex_from_next_into(&lex, r);
     /* 与 C 侧 parse_block 一致：在函数体里按源码累计 stmt_order（含 let 与 while 之间的 expr;） */
     out.num_src_stmt_order = 0;
@@ -3503,7 +3825,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
      * parse_body_lets 可能已停在 return/match/while 首 token；仅 peek 到 r，勿 lexer_next 推进 lex：
      * 否则会吞掉 return，stmt 循环从 match 开扫，`let x; return match x` 整函数 num_funcs=0。
      */
-    let r_peek: LexerResult = LexerResult { next_lex: lex, tok: Token { kind: TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
+    let r_peek: LexerResult = LexerResult { next_lex: lex, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
     lexer.lexer_next_into(&r_peek, lex, source);
     r = r_peek;
     lex = parser_rewind_lex_for_following_stmt(lex, r_peek);
@@ -3518,7 +3840,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
        * if (struct.field) 后 lex 偶发落在 `return r3.value` 的 r3；回扫至 return 关键字，
        * 避免落入 expr_stmt 分支导致 num_funcs=0。
        */
-      if (r.tok.kind == TokenKind.TOKEN_IDENT) {
+      if (r.tok.kind == token.TokenKind.TOKEN_IDENT) {
         let ret_id_start: usize = r.token_start;
         if (ret_id_start == 0) {
           ret_id_start = lexer_pos_before_run(r.next_lex.pos, r.tok.ident_len);
@@ -3527,7 +3849,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
           let ret_kw_lex: Lexer = Lexer { pos: ret_id_start - 7, line: r.tok.line, col: r.tok.col };
           let r_ret_kw: LexerResult = LexerResult {
             next_lex: ret_kw_lex,
-            tok: Token { kind: TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 },
+            tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 },
             token_start: 0
           };
           lexer.lexer_next_into(&r_ret_kw, ret_kw_lex, source);
@@ -3536,17 +3858,17 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         }
       }
       /* 块尾 } 或 return 结束 stmt 循环；勿把语句首 int（如 0 as *u8;、if (0 as *u8)）误判为块尾裸表达式。 */
-      if (r.tok.kind == TokenKind.TOKEN_RETURN || r.tok.kind == TokenKind.TOKEN_RBRACE
-          || r.tok.kind == TokenKind.TOKEN_MATCH || r.tok.kind == TokenKind.TOKEN_EOF) {
+      if (r.tok.kind == token.TokenKind.TOKEN_RETURN || r.tok.kind == token.TokenKind.TOKEN_RBRACE
+          || r.tok.kind == token.TokenKind.TOKEN_MATCH || r.tok.kind == token.TokenKind.TOKEN_EOF) {
         break;
       }
       /* if/while/for 之后仍可跟 let/const：首段仅 parse_body_lets_into({ 后…) 吃掉连续 let，此处不认 TOKEN_LET 会落入 expr 分支失败 */
-      if (r.tok.kind == TokenKind.TOKEN_LET || r.tok.kind == TokenKind.TOKEN_CONST) {
+      if (r.tok.kind == token.TokenKind.TOKEN_LET || r.tok.kind == token.TokenKind.TOKEN_CONST) {
         let n_before_mid: i32 = pipeline_onefunc_num_lets(onefunc_result_pool_ptr(out));
         /* expr; 后进 let：上一轮 lex_from_result_ptr 把 lex 指在 r.next_lex（关键字已跨过），不能直接作 parse_body_lets 起点。
          * 关键字 token_start 常为 0，lex_at_token_from_result 亦非多字符关键字；用语义长度回溯到「let」「const」首字节。 */
         let kw_back: i32 = 3;
-        if (r.tok.kind == TokenKind.TOKEN_CONST) {
+        if (r.tok.kind == token.TokenKind.TOKEN_CONST) {
           kw_back = 5;
         }
         let lex_mid_let: Lexer = Lexer { pos: lexer_pos_before_run(r.next_lex.pos, kw_back), line: r.tok.line, col: r.tok.col };
@@ -3566,10 +3888,10 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       /*
        * defer { block }：与 parser.c parse_defer_start 对齐；写入 OneFunc 侧车，落 Block 时 fill_defers。
        */
-      if (r.tok.kind == TokenKind.TOKEN_DEFER) {
+      if (r.tok.kind == token.TokenKind.TOKEN_DEFER) {
         lex_from_next_into(&lex, r);
         lexer.lexer_next_into(&r, lex, source);
-        if (r.tok.kind != TokenKind.TOKEN_LBRACE) {
+        if (r.tok.kind != token.TokenKind.TOKEN_LBRACE) {
           set_onefunc_fail(out, lex); return;
         }
         /** parse_block_into 期望 lex_after_lbrace（与 while/loop 一致）。 */
@@ -3588,10 +3910,10 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         continue;
       }
       /** MEM-C1：with_arena(cap) { body } — OneFunc 侧车，落 Block 时 fill_regions。 */
-      if (r.tok.kind == TokenKind.TOKEN_WITH_ARENA) {
+      if (r.tok.kind == token.TokenKind.TOKEN_WITH_ARENA) {
         lex_from_next_into(&lex, r);
         lexer.lexer_next_into(&r, lex, source);
-        if (r.tok.kind != TokenKind.TOKEN_LPAREN) {
+        if (r.tok.kind != token.TokenKind.TOKEN_LPAREN) {
           set_onefunc_fail(out, lex); return;
         }
         lex_from_next_into(&lex, r);
@@ -3602,12 +3924,12 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         }
         lex = cap_res_fn.next_lex;
         lexer.lexer_next_into(&r, lex, source);
-        if (r.tok.kind != TokenKind.TOKEN_RPAREN) {
+        if (r.tok.kind != token.TokenKind.TOKEN_RPAREN) {
           set_onefunc_fail(out, lex); return;
         }
         lex_from_next_into(&lex, r);
         lexer.lexer_next_into(&r, lex, source);
-        if (r.tok.kind != TokenKind.TOKEN_LBRACE) {
+        if (r.tok.kind != token.TokenKind.TOKEN_LBRACE) {
           set_onefunc_fail(out, lex); return;
         }
         lex_from_next_into(&lex, r);
@@ -3627,10 +3949,10 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         continue;
       }
       /** M-3：region label { body } — OneFunc 侧车暂存，落 Block 时 fill_regions。 */
-      if (r.tok.kind == TokenKind.TOKEN_REGION) {
+      if (r.tok.kind == token.TokenKind.TOKEN_REGION) {
         lex_from_next_into(&lex, r);
         lexer.lexer_next_into(&r, lex, source);
-        if (r.tok.kind != TokenKind.TOKEN_IDENT) {
+        if (r.tok.kind != token.TokenKind.TOKEN_IDENT) {
           set_onefunc_fail(out, lex); return;
         }
         let reg_nm_fn: u8[64] = [];
@@ -3638,7 +3960,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         let reg_nlen_fn: i32 = r.tok.ident_len;
         lex_from_next_into(&lex, r);
         lexer.lexer_next_into(&r, lex, source);
-        if (r.tok.kind != TokenKind.TOKEN_LBRACE) {
+        if (r.tok.kind != token.TokenKind.TOKEN_LBRACE) {
           set_onefunc_fail(out, lex); return;
         }
         /** parse_block_into 要求 lex 位于 `{` 之后（与 while 分支 lex = r.next_lex 一致）。 */
@@ -3659,14 +3981,14 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         continue;
       }
       /** LANG-007 v2：unsafe { body } — OneFunc 侧车暂存，落 Block 时复用 regions 池。 */
-      if (r.tok.kind == TokenKind.TOKEN_IDENT && r.tok.ident_len == 6) {
+      if (r.tok.kind == token.TokenKind.TOKEN_IDENT && r.tok.ident_len == 6) {
         let unsafe_nm_fn: u8[64] = [];
         copy_slice_to_name64(source, r.token_start, r.tok.ident_len, &unsafe_nm_fn[0]);
         if (unsafe_nm_fn[0] == 117 && unsafe_nm_fn[1] == 110 && unsafe_nm_fn[2] == 115 && unsafe_nm_fn[3] == 97
         && unsafe_nm_fn[4] == 102 && unsafe_nm_fn[5] == 101) {
           lex_from_next_into(&lex, r);
           lexer.lexer_next_into(&r, lex, source);
-          if (r.tok.kind != TokenKind.TOKEN_LBRACE) {
+          if (r.tok.kind != token.TokenKind.TOKEN_LBRACE) {
             set_onefunc_fail(out, lex); return;
           }
           /** parse_block_into 要求 lex 位于 `{` 之后，与 region/while 分支保持一致。 */
@@ -3698,24 +4020,24 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       if (parser_token_is_label_start(r, source)) {
         let colon_fn: LexerResult = LexerResult {
           next_lex: r.next_lex,
-          tok: Token { kind: TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 },
+          tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 },
           token_start: 0
         };
         lexer.lexer_next_into(&colon_fn, r.next_lex, source);
         lex = colon_fn.next_lex;
         lexer.lexer_next_into(&r, lex, source);
-        if (r.tok.kind == TokenKind.TOKEN_RETURN) {
+        if (r.tok.kind == token.TokenKind.TOKEN_RETURN) {
           break;
         }
-        if (r.tok.kind == TokenKind.TOKEN_GOTO) {
+        if (r.tok.kind == token.TokenKind.TOKEN_GOTO) {
           lex_from_next_into(&lex, r);
           lexer.lexer_next_into(&r, lex, source);
-          if (r.tok.kind != TokenKind.TOKEN_IDENT) {
+          if (r.tok.kind != token.TokenKind.TOKEN_IDENT) {
             set_onefunc_fail(out, lex); return;
           }
           lex_from_next_into(&lex, r);
           lexer.lexer_next_into(&r, lex, source);
-          if (r.tok.kind == TokenKind.TOKEN_SEMICOLON) {
+          if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
             lex_from_next_into(&lex, r);
             lexer.lexer_next_into(&r, lex, source);
           }
@@ -3724,10 +4046,10 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         }
         set_onefunc_fail(out, lex); return;
       }
-      if (r.tok.kind == TokenKind.TOKEN_LOOP) {
+      if (r.tok.kind == token.TokenKind.TOKEN_LOOP) {
         lex_from_next_into(&lex, r);
         lexer.lexer_next_into(&r, lex, source);
-        if (r.tok.kind != TokenKind.TOKEN_LBRACE) {
+        if (r.tok.kind != token.TokenKind.TOKEN_LBRACE) {
           set_onefunc_fail(out, lex); return;
         }
         lex = r.next_lex;
@@ -3753,10 +4075,10 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         stmt_tok_ready = false;
         continue;
       }
-      if (r.tok.kind == TokenKind.TOKEN_WHILE) {
+      if (r.tok.kind == token.TokenKind.TOKEN_WHILE) {
         lex_from_next_into(&lex, r);
         lexer.lexer_next_into(&r, lex, source);
-        if (r.tok.kind != TokenKind.TOKEN_LPAREN) {
+        if (r.tok.kind != token.TokenKind.TOKEN_LPAREN) {
           set_onefunc_fail(out, lex); return;
         }
         lex = r.next_lex;
@@ -3771,7 +4093,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         if (advance_past_cond_rparen_into(&r, lex, source) == 0) {
           set_onefunc_fail(out, lex); return;
         }
-        if (r.tok.kind != TokenKind.TOKEN_LBRACE) {
+        if (r.tok.kind != token.TokenKind.TOKEN_LBRACE) {
           set_onefunc_fail(out, lex); return;
         }
         lex = r.next_lex;
@@ -3795,16 +4117,16 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         stmt_tok_ready = false;
         continue;
       }
-      if (r.tok.kind == TokenKind.TOKEN_FOR) {
+      if (r.tok.kind == token.TokenKind.TOKEN_FOR) {
         lex_from_next_into(&lex, r);
         lexer.lexer_next_into(&r, lex, source);
-        if (r.tok.kind != TokenKind.TOKEN_LPAREN) {
+        if (r.tok.kind != token.TokenKind.TOKEN_LPAREN) {
           set_onefunc_fail(out, lex); return;
         }
         lex = r.next_lex;
         let init_ref: i32 = 0;
         lexer.lexer_next_into(&r, lex, source);
-        if (r.tok.kind != TokenKind.TOKEN_SEMICOLON) {
+        if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON) {
           let expr_res_fi: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex };
           parse_expr_into(arena, lex, source, &expr_res_fi);
           /* 须有完整表达式（含赋值等），否则 step 留 0、typeck 跳过 for-step 报错，与 shux-c 不一致 */
@@ -3815,13 +4137,13 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
           lex = expr_res_fi.next_lex;
           lexer.lexer_next_into(&r, lex, source);
         }
-        if (r.tok.kind != TokenKind.TOKEN_SEMICOLON) {
+        if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON) {
           set_onefunc_fail(out, lex); return;
         }
         lex = r.next_lex;
         let for_cond_ref: i32 = 0;
         lexer.lexer_next_into(&r, lex, source);
-        if (r.tok.kind != TokenKind.TOKEN_SEMICOLON) {
+        if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON) {
           let expr_res_fc: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex };
           parse_expr_into(arena, lex, source, &expr_res_fc);
           if (!expr_res_fc.ok) {
@@ -3831,13 +4153,13 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
           lex = expr_res_fc.next_lex;
           lexer.lexer_next_into(&r, lex, source);
         }
-        if (r.tok.kind != TokenKind.TOKEN_SEMICOLON) {
+        if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON) {
           set_onefunc_fail(out, lex); return;
         }
         lex = r.next_lex;
         let step_ref: i32 = 0;
         lexer.lexer_next_into(&r, lex, source);
-        if (r.tok.kind != TokenKind.TOKEN_RPAREN) {
+        if (r.tok.kind != token.TokenKind.TOKEN_RPAREN) {
           let expr_res_fs: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex };
           parse_expr_into(arena, lex, source, &expr_res_fs);
           if (!expr_res_fs.ok) {
@@ -3847,12 +4169,12 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
           lex = expr_res_fs.next_lex;
           lexer.lexer_next_into(&r, lex, source);
         }
-        if (r.tok.kind != TokenKind.TOKEN_RPAREN) {
+        if (r.tok.kind != token.TokenKind.TOKEN_RPAREN) {
           set_onefunc_fail(out, lex); return;
         }
         lex = r.next_lex;
         lexer.lexer_next_into(&r, lex, source);
-        if (r.tok.kind != TokenKind.TOKEN_LBRACE) {
+        if (r.tok.kind != token.TokenKind.TOKEN_LBRACE) {
           set_onefunc_fail(out, lex); return;
         }
         lex = r.next_lex;
@@ -3892,11 +4214,11 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
        * parse_if 偶发将 lex 落在下一 if 的 `(`；若落入 expr 分支会把 `(N != 0)` 记入 stmt_order，
        * 函数体内连续 if/while/for 只 codegen 前几条。回扫至真实控制流关键字后走对应分支。
        */
-      if (r.tok.kind == TokenKind.TOKEN_LPAREN) {
+      if (r.tok.kind == token.TokenKind.TOKEN_LPAREN) {
         lex = parser_rewind_lex_for_lparen_control_stmt(lex, r, source);
         lexer.lexer_next_into(&r, lex, source);
       }
-      if (r.tok.kind == TokenKind.TOKEN_IF) {
+      if (r.tok.kind == token.TokenKind.TOKEN_IF) {
         let if_start_fn: Lexer = lex_at_token_from_result(r);
         let if_cref: i32 = 0;
         let if_then_ref: i32 = 0;
@@ -3920,7 +4242,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       lex_from_result_ptr_into(&lex, &r);
       let stmt_start: Lexer = lex_at_token_from_result(r);
       let expr_stmt_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: stmt_start };
-      if (r.tok.kind == TokenKind.TOKEN_INT) {
+      if (r.tok.kind == token.TokenKind.TOKEN_INT) {
         parse_cond_expr_into(arena, stmt_start, source, &expr_stmt_res);
       } else {
         parse_expr_into(arena, stmt_start, source, &expr_stmt_res);
@@ -3934,9 +4256,9 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         set_onefunc_fail(out, lex); return;
       }
       /** expr; 后若紧跟 return/let/if 等，须保留 r.tok 并跳过下轮 loop 头 lexer_next，避免吞掉 return（z(); return 0;）。 */
-      if (r.tok.kind == TokenKind.TOKEN_SEMICOLON) {
+      if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
         lex_from_result_ptr_into(&lex, &r);
-        let after_semi: LexerResult = LexerResult { next_lex: lex, tok: Token { kind: TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
+        let after_semi: LexerResult = LexerResult { next_lex: lex, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
         lexer.lexer_next_into(&after_semi, lex, source);
         r = after_semi;
       }
@@ -3946,8 +4268,8 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       }
       out.num_src_body_expr_stmts = pipeline_onefunc_num_body_expr_stmts(onefunc_result_pool_ptr(out));
       onefunc_push_src_stmt(out, 2, ex_i);
-      if (r.tok.kind == TokenKind.TOKEN_RETURN || r.tok.kind == TokenKind.TOKEN_RBRACE
-          || r.tok.kind == TokenKind.TOKEN_MATCH || r.tok.kind == TokenKind.TOKEN_EOF) {
+      if (r.tok.kind == token.TokenKind.TOKEN_RETURN || r.tok.kind == token.TokenKind.TOKEN_RBRACE
+          || r.tok.kind == token.TokenKind.TOKEN_MATCH || r.tok.kind == token.TokenKind.TOKEN_EOF) {
         break;
       }
       lex = lex_at_token_from_result(r);
@@ -3957,7 +4279,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
   } else {
     set_onefunc_fail(out, lex); return;
   }
-  if (r.tok.kind == TokenKind.TOKEN_RBRACE) {
+  if (r.tok.kind == token.TokenKind.TOKEN_RBRACE) {
     /* if/while/for 等语句后已到函数体闭合 }：保留 loop/if；src_stmt_order 已在 out 上，copy_onefunc 不覆盖。 */
     lex_from_next_into(&lex, r);
     onefunc_finish_impl_to_out(out, &impl_snap, lex, &dummy_name[0], func_name_len_storage[0], return_expr_ref_storage);
@@ -3969,7 +4291,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
    * stmt 循环在 return 已被 parse_body_lets/前扫消费后可能停在 MATCH（`let x; return match x`）；
    * 按隐式 `return match …` 解析，避免落入 return 分支前 set_onefunc_fail。
    */
-  if (r.tok.kind == TokenKind.TOKEN_MATCH) {
+  if (r.tok.kind == token.TokenKind.TOKEN_MATCH) {
     impl_snap.has_explicit_return_kw = true;
     let match_tail_lex: Lexer = lex_at_token_from_result(r);
     let match_tail_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: match_tail_lex };
@@ -3980,11 +4302,11 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
     return_expr_ref_storage = match_tail_res.expr_ref;
     lex = match_tail_res.next_lex;
     lexer.lexer_next_into(&r, lex, source);
-    if (r.tok.kind == TokenKind.TOKEN_SEMICOLON) {
+    if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
       lex_from_next_into(&lex, r);
       lexer.lexer_next_into(&r, lex, source);
     }
-    if (r.tok.kind != TokenKind.TOKEN_RBRACE) {
+    if (r.tok.kind != token.TokenKind.TOKEN_RBRACE) {
       set_onefunc_fail(out, lex); return;
     }
     lex_from_next_into(&lex, r);
@@ -3995,7 +4317,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
    * `let y = 1; return match y { … }`：return 已被前扫消费时 stmt 循环可能停在 subject ident（y），
    * 勿落入 expr_stmt；从 "match" 起点重解析整段 match 表达式。
    */
-  if (r.tok.kind == TokenKind.TOKEN_IDENT) {
+  if (r.tok.kind == token.TokenKind.TOKEN_IDENT) {
     let subj_start: usize = r.token_start;
     if (subj_start == 0) {
       subj_start = lexer_pos_before_run(r.next_lex.pos, r.tok.ident_len);
@@ -4011,11 +4333,11 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       return_expr_ref_storage = match_subj_res.expr_ref;
       lex = match_subj_res.next_lex;
       lexer.lexer_next_into(&r, lex, source);
-      if (r.tok.kind == TokenKind.TOKEN_SEMICOLON) {
+      if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
         lex_from_next_into(&lex, r);
         lexer.lexer_next_into(&r, lex, source);
       }
-      if (r.tok.kind != TokenKind.TOKEN_RBRACE) {
+      if (r.tok.kind != token.TokenKind.TOKEN_RBRACE) {
         set_onefunc_fail(out, lex); return;
       }
       lex_from_next_into(&lex, r);
@@ -4023,12 +4345,12 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       return;
     }
   }
-  if (r.tok.kind == TokenKind.TOKEN_RETURN) {
+  if (r.tok.kind == token.TokenKind.TOKEN_RETURN) {
   impl_snap.has_explicit_return_kw = true;
   lex_from_next_into(&lex, r);
   lexer.lexer_next_into(&r, lex, source);
   /** `return match x { … }`：return 后紧跟 match 关键字（let x; return match x 常见形态）。 */
-  if (r.tok.kind == TokenKind.TOKEN_MATCH) {
+  if (r.tok.kind == token.TokenKind.TOKEN_MATCH) {
     let match_ret_lex: Lexer = lex_at_token_from_result(r);
     let match_ret_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: match_ret_lex };
     parse_match_into(arena, match_ret_lex, source, &match_ret_res);
@@ -4038,11 +4360,11 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
     return_expr_ref_storage = match_ret_res.expr_ref;
     lex = match_ret_res.next_lex;
     lexer.lexer_next_into(&r, lex, source);
-    if (r.tok.kind == TokenKind.TOKEN_SEMICOLON) {
+    if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
       lex_from_next_into(&lex, r);
       lexer.lexer_next_into(&r, lex, source);
     }
-    if (r.tok.kind != TokenKind.TOKEN_RBRACE) {
+    if (r.tok.kind != token.TokenKind.TOKEN_RBRACE) {
       set_onefunc_fail(out, lex); return;
     }
     lex_from_next_into(&lex, r);
@@ -4050,7 +4372,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
     return;
   }
   /** i32 等标量且非 return if：统一 parse_expr（if(struct.field) 后 return struct.field）。 */
-  if (!return_type_is_bool && r.tok.kind != TokenKind.TOKEN_IF) {
+  if (!return_type_is_bool && r.tok.kind != token.TokenKind.TOKEN_IF) {
     let rex_u_lex: Lexer = lex_at_token_from_result(r);
     let rex_u_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: rex_u_lex };
     parse_cond_expr_into(arena, rex_u_lex, source, &rex_u_res);
@@ -4058,11 +4380,11 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       return_expr_ref_storage = rex_u_res.expr_ref;
       lex = rex_u_res.next_lex;
       lexer.lexer_next_into(&r, lex, source);
-      if (r.tok.kind == TokenKind.TOKEN_SEMICOLON) {
+      if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
         lex_from_next_into(&lex, r);
         lexer.lexer_next_into(&r, lex, source);
       }
-      if (r.tok.kind != TokenKind.TOKEN_RBRACE) {
+      if (r.tok.kind != token.TokenKind.TOKEN_RBRACE) {
         set_onefunc_fail(out, lex); return;
       }
       lex_from_next_into(&lex, r);
@@ -4071,7 +4393,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
     }
   }
   /** `return if`：优先 parse_if_expr_into；失败则落 legacy has_if_expr（let 初值含字符串 call 时偶发失败）。 */
-  if (r.tok.kind == TokenKind.TOKEN_IF) {
+  if (r.tok.kind == token.TokenKind.TOKEN_IF) {
     let if_lex: Lexer = lex_at_token_from_result(r);
     let if_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: if_lex };
     parse_if_expr_into(arena, if_lex, source, 0, &if_res);
@@ -4079,11 +4401,11 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       return_expr_ref_storage = if_res.expr_ref;
       lex = if_res.next_lex;
       lexer.lexer_next_into(&r, lex, source);
-      if (r.tok.kind == TokenKind.TOKEN_SEMICOLON) {
+      if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
         lex_from_next_into(&lex, r);
         lexer.lexer_next_into(&r, lex, source);
       }
-      if (r.tok.kind != TokenKind.TOKEN_RBRACE) {
+      if (r.tok.kind != token.TokenKind.TOKEN_RBRACE) {
         set_onefunc_fail(out, lex); return;
       }
       lex_from_next_into(&lex, r);
@@ -4094,7 +4416,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
     lexer.lexer_next_into(&r, lex, source);
   }
   /* bool 返回值：return 后为任意 parse_expr_into 可解析表达式；return if 走下方 legacy has_if_expr。 */
-  if (return_type_is_bool && r.tok.kind != TokenKind.TOKEN_IF) {
+  if (return_type_is_bool && r.tok.kind != token.TokenKind.TOKEN_IF) {
     let rex_lex: Lexer = lex_at_token_from_result(r);
     let rex_out: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: rex_lex };
     parse_expr_into(arena, rex_lex, source, &rex_out);
@@ -4104,29 +4426,29 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
     return_expr_ref_storage = rex_out.expr_ref;
     lex = rex_out.next_lex;
     lexer.lexer_next_into(&r, lex, source);
-    if (r.tok.kind == TokenKind.TOKEN_SEMICOLON) {
+    if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
       lex_from_next_into(&lex, r);
       lexer.lexer_next_into(&r, lex, source);
     }
-    if (r.tok.kind != TokenKind.TOKEN_RBRACE) {
+    if (r.tok.kind != token.TokenKind.TOKEN_RBRACE) {
       set_onefunc_fail(out, lex); return;
     }
     lex_from_next_into(&lex, r);
     onefunc_finish_impl_to_out(out, &impl_snap, lex, &dummy_name[0], func_name_len_storage[0], return_expr_ref_storage);
     return;
   }
-  if (r.tok.kind == TokenKind.TOKEN_IF) {
+  if (r.tok.kind == token.TokenKind.TOKEN_IF) {
     lex_from_next_into(&lex, r);
     lexer.lexer_next_into(&r, lex, source);
-    if (r.tok.kind != TokenKind.TOKEN_LPAREN) {
+    if (r.tok.kind != token.TokenKind.TOKEN_LPAREN) {
       set_onefunc_fail(out, lex); return;
     }
     lex_from_next_into(&lex, r);
     let lex_cond_start: Lexer = lex;
     lexer.lexer_next_into(&r, lex, source);
     /* 支持 return if ( true/false ) { int } else { int }；其它条件须 parse_expr 进 arena，供 typeck 拒绝 if (1) 等非 bool。 */
-    if (r.tok.kind == TokenKind.TOKEN_TRUE || r.tok.kind == TokenKind.TOKEN_FALSE) {
-      impl_snap.if_cond_true = r.tok.kind == TokenKind.TOKEN_TRUE;
+    if (r.tok.kind == token.TokenKind.TOKEN_TRUE || r.tok.kind == token.TokenKind.TOKEN_FALSE) {
+      impl_snap.if_cond_true = r.tok.kind == token.TokenKind.TOKEN_TRUE;
       impl_snap.if_cond_expr_ref = 0;
       lex_from_next_into(&lex, r);
       lexer.lexer_next_into(&r, lex, source);
@@ -4142,60 +4464,60 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       lexer.lexer_next_into(&r, lex, source);
     }
     /* 仅当未用 skip_balanced_parens 时需消费 )；skip 后 lex 已在 ) 之后，r 为 {，不可再要求 TOKEN_RPAREN 否则 hello.x 的 return if (n>=0){0}else{1} 失败 */
-    if (r.tok.kind == TokenKind.TOKEN_RPAREN) {
+    if (r.tok.kind == token.TokenKind.TOKEN_RPAREN) {
       lex_from_next_into(&lex, r);
       lexer.lexer_next_into(&r, lex, source);
     }
     /* then 分支：接受 { int } 或 裸 int */
-    if (r.tok.kind == TokenKind.TOKEN_LBRACE) {
+    if (r.tok.kind == token.TokenKind.TOKEN_LBRACE) {
       lex_from_next_into(&lex, r);
       lexer.lexer_next_into(&r, lex, source);
     }
-    if (r.tok.kind != TokenKind.TOKEN_INT) {
+    if (r.tok.kind != token.TokenKind.TOKEN_INT) {
       set_onefunc_fail(out, lex); return;
     }
     impl_snap.if_then_val = r.tok.int_val;
     lex_from_next_into(&lex, r);
     lexer.lexer_next_into(&r, lex, source);
-    if (r.tok.kind == TokenKind.TOKEN_RBRACE) {
+    if (r.tok.kind == token.TokenKind.TOKEN_RBRACE) {
       lex_from_next_into(&lex, r);
       lexer.lexer_next_into(&r, lex, source);
     }
-    if (r.tok.kind != TokenKind.TOKEN_ELSE) {
+    if (r.tok.kind != token.TokenKind.TOKEN_ELSE) {
       set_onefunc_fail(out, lex); return;
     }
     lex_from_next_into(&lex, r);
     lexer.lexer_next_into(&r, lex, source);
     /* else 分支：接受 { int } 或 裸 int */
-    if (r.tok.kind == TokenKind.TOKEN_LBRACE) {
+    if (r.tok.kind == token.TokenKind.TOKEN_LBRACE) {
       lex_from_next_into(&lex, r);
       lexer.lexer_next_into(&r, lex, source);
     }
-    if (r.tok.kind != TokenKind.TOKEN_INT) {
+    if (r.tok.kind != token.TokenKind.TOKEN_INT) {
       set_onefunc_fail(out, lex); return;
     }
     impl_snap.if_else_val = r.tok.int_val;
     impl_snap.has_if_expr = true;
     lex_from_next_into(&lex, r);
     lexer.lexer_next_into(&r, lex, source);
-    if (r.tok.kind == TokenKind.TOKEN_RBRACE) {
+    if (r.tok.kind == token.TokenKind.TOKEN_RBRACE) {
       lex_from_next_into(&lex, r);
       lexer.lexer_next_into(&r, lex, source);
     }
     /* return if (cond) { int } else { int } 解析成功，写回 out 并返回，避免落入下方要求 SEMICOLON 的分支导致失败 */
     onefunc_finish_impl_to_out(out, &impl_snap, lex, &dummy_name[0], func_name_len_storage[0], return_expr_ref_storage);
     return;
-  } else if (r.tok.kind == TokenKind.TOKEN_MINUS) {
+  } else if (r.tok.kind == token.TokenKind.TOKEN_MINUS) {
     lex_from_next_into(&lex, r);
     lexer.lexer_next_into(&r, lex, source);
-    if (r.tok.kind != TokenKind.TOKEN_INT) {
+    if (r.tok.kind != token.TokenKind.TOKEN_INT) {
       set_onefunc_fail(out, lex); return;
     }
     impl_snap.return_val = r.tok.int_val;
     impl_snap.has_unary_neg = true;
     lex_from_next_into(&lex, r);
     lexer.lexer_next_into(&r, lex, source);
-  } else if (r.tok.kind == TokenKind.TOKEN_INT) {
+  } else if (r.tok.kind == token.TokenKind.TOKEN_INT) {
     let ret_int_val: i32 = r.tok.int_val;
     let ret_int_start: usize = r.token_start;
     if (ret_int_start == 0) {
@@ -4204,7 +4526,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
     let ret_int_lex: Lexer = Lexer { pos: ret_int_start, line: lex.line, col: lex.col };
     lex_from_next_into(&lex, r);
     lexer.lexer_next_into(&r, lex, source);
-    if (r.tok.kind == TokenKind.TOKEN_AS) {
+    if (r.tok.kind == token.TokenKind.TOKEN_AS) {
       let ret_expr_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: ret_int_lex };
       parse_expr_into(arena, ret_int_lex, source, &ret_expr_res);
       if (!ret_expr_res.ok) {
@@ -4222,7 +4544,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
      * return 1+2 / 42-10 / 1+2*3 等：走 parse_expr_into 建完整二元树到 return_expr_ref_storage，
      * 勿仅写 has_binop/binop_right_val（OneFuncResult bool/i32 在 parse_into 读 res 时可能撕裂）。
      */
-    if (r.tok.kind != TokenKind.TOKEN_SEMICOLON && r.tok.kind != TokenKind.TOKEN_RBRACE) {
+    if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON && r.tok.kind != token.TokenKind.TOKEN_RBRACE) {
       let rex_add: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: ret_int_lex };
       parse_expr_into(arena, ret_int_lex, source, &rex_add);
       if (!rex_add.ok) {
@@ -4245,7 +4567,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
      * i32 等标量返回：表达式以 (、true、字符串等非 IDENT 开头时须走 parse_expr_into 建 AST，
      * * 与 bool 返回分支及 C 解析器一致；避免落入下方仅扫到分号、impl_snap.return_expr_ref 仍为 0 的死路径。
      */
-    if (r.tok.kind != TokenKind.TOKEN_IDENT) {
+    if (r.tok.kind != token.TokenKind.TOKEN_IDENT) {
       let rex_lex_ni: Lexer = lex_at_token_from_result(r);
       let rex_out_ni: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: rex_lex_ni };
       parse_expr_into(arena, rex_lex_ni, source, &rex_out_ni);
@@ -4255,11 +4577,11 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       return_expr_ref_storage = rex_out_ni.expr_ref;
       lex = rex_out_ni.next_lex;
       lexer.lexer_next_into(&r, lex, source);
-      if (r.tok.kind == TokenKind.TOKEN_SEMICOLON) {
+      if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
         lex_from_next_into(&lex, r);
         lexer.lexer_next_into(&r, lex, source);
       }
-      if (r.tok.kind != TokenKind.TOKEN_RBRACE) {
+      if (r.tok.kind != token.TokenKind.TOKEN_RBRACE) {
         set_onefunc_fail(out, lex); return;
       }
       lex_from_next_into(&lex, r);
@@ -4267,7 +4589,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       return;
     }
     /* 阶段 5：return ident(); 无参调用，供多文件 main 中 return bar(); */
-    if (r.tok.kind == TokenKind.TOKEN_IDENT) {
+    if (r.tok.kind == token.TokenKind.TOKEN_IDENT) {
       let clen: i32 = r.tok.ident_len;
       if (clen > 0 && clen <= 63) {
         let cstart: usize = r.next_lex.pos - clen;
@@ -4276,10 +4598,10 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         lex_from_next_into(&lex, r);
         lexer.lexer_next_into(&r, lex, source);
         /* return ident + ident 且两 ident 为形参（如 return a + b）时解析为 impl_snap.has_binop + binop_left/right_param_idx */
-        if (r.tok.kind == TokenKind.TOKEN_PLUS && out.num_params >= 2) {
+        if (r.tok.kind == token.TokenKind.TOKEN_PLUS && out.num_params >= 2) {
           lex_from_next_into(&lex, r);
           lexer.lexer_next_into(&r, lex, source);
-          if (r.tok.kind == TokenKind.TOKEN_IDENT) {
+          if (r.tok.kind == token.TokenKind.TOKEN_IDENT) {
             let binop_pool: *u8 = onefunc_result_pool_ptr(out);
             let left_ok: bool = (impl_snap.call_callee_len == pipeline_onefunc_param_name_len(binop_pool, 0));
             if (left_ok) {
@@ -4298,10 +4620,10 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
               impl_snap.return_val = 0;
               lex_from_next_into(&lex, r);
               lexer.lexer_next_into(&r, lex, source);
-              if (r.tok.kind == TokenKind.TOKEN_SEMICOLON) {
+              if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
                 lex_from_next_into(&lex, r);
                 lexer.lexer_next_into(&r, lex, source);
-                if (r.tok.kind == TokenKind.TOKEN_RBRACE) {
+                if (r.tok.kind == token.TokenKind.TOKEN_RBRACE) {
                   lex_from_next_into(&lex, r);
     onefunc_finish_impl_to_out(out, &impl_snap, lex, &dummy_name[0], func_name_len_storage[0], return_expr_ref_storage);
     return;
@@ -4314,7 +4636,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
          * `return match x { … }` 被误读成 return + ident(x) 且后继为 `{` 时，从 "match " 起点重解析。
          * 典型触发：let 绑定名与 match subject 同名（let x; return match x）。
          */
-        if (r.tok.kind == TokenKind.TOKEN_LBRACE && parser_match_kw_immediately_before(source, cstart)) {
+        if (r.tok.kind == token.TokenKind.TOKEN_LBRACE && parser_match_kw_immediately_before(source, cstart)) {
           let match_back: usize = cstart - 6;
           let match_lex_fix: Lexer = Lexer { pos: match_back, line: r.tok.line, col: r.tok.col };
           let match_fix_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: match_lex_fix };
@@ -4325,11 +4647,11 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
           return_expr_ref_storage = match_fix_res.expr_ref;
           lex = match_fix_res.next_lex;
           lexer.lexer_next_into(&r, lex, source);
-          if (r.tok.kind == TokenKind.TOKEN_SEMICOLON) {
+          if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
             lex_from_next_into(&lex, r);
             lexer.lexer_next_into(&r, lex, source);
           }
-          if (r.tok.kind != TokenKind.TOKEN_RBRACE) {
+          if (r.tok.kind != token.TokenKind.TOKEN_RBRACE) {
             set_onefunc_fail(out, lex); return;
           }
           lex_from_next_into(&lex, r);
@@ -4337,17 +4659,17 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
           return;
         }
         /* return ident 后非 '('：return x 或 return x;（identifier 字节已在 impl_snap.call_callee_name） */
-        if (r.tok.kind == TokenKind.TOKEN_RBRACE || r.tok.kind == TokenKind.TOKEN_SEMICOLON) {
+        if (r.tok.kind == token.TokenKind.TOKEN_RBRACE || r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
           impl_snap.has_call_expr = false;
           impl_snap.return_val = 0;
           onefunc_snap_set_return_path(&impl_snap, false, impl_snap.call_callee_name, impl_snap.call_callee_len, 0);
-          if (r.tok.kind == TokenKind.TOKEN_RBRACE) {
+          if (r.tok.kind == token.TokenKind.TOKEN_RBRACE) {
             lex_from_next_into(&lex, r);
             lexer.lexer_next_into(&r, lex, source);
           } else {
             lex_from_next_into(&lex, r);
             lexer.lexer_next_into(&r, lex, source);
-            if (r.tok.kind != TokenKind.TOKEN_RBRACE) {
+            if (r.tok.kind != token.TokenKind.TOKEN_RBRACE) {
               set_onefunc_fail(out, lex); return;
             }
             lex_from_next_into(&lex, r);
@@ -4356,7 +4678,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
           onefunc_finish_impl_to_out(out, &impl_snap, lex, &dummy_name[0], func_name_len_storage[0], return_expr_ref_storage);
           return;
         }
-        if (r.tok.kind == TokenKind.TOKEN_LPAREN) {
+        if (r.tok.kind == token.TokenKind.TOKEN_LPAREN) {
           /* return callee(...)；从 callee 起点 parse_expr_into（支持 ()、整型/field 实参），勿先消费 '('。 */
           let ret_expr_lex: Lexer = Lexer { pos: cstart, line: 1, col: 1 };
           let ret_expr_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: ret_expr_lex };
@@ -4370,11 +4692,11 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
           impl_snap.call_num_args = 0;
           lex = ret_expr_res.next_lex;
           lexer.lexer_next_into(&r, lex, source);
-          if (r.tok.kind == TokenKind.TOKEN_SEMICOLON) {
+          if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
             lex_from_next_into(&lex, r);
             lexer.lexer_next_into(&r, lex, source);
           }
-          if (r.tok.kind != TokenKind.TOKEN_RBRACE) {
+          if (r.tok.kind != token.TokenKind.TOKEN_RBRACE) {
             set_onefunc_fail(out, lex); return;
           }
           lex_from_next_into(&lex, r);
@@ -4397,11 +4719,11 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         impl_snap.call_num_args = 0;
         lex = ret_expr_res_member.next_lex;
         lexer.lexer_next_into(&r, lex, source);
-        if (r.tok.kind == TokenKind.TOKEN_SEMICOLON) {
+        if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
           lex_from_next_into(&lex, r);
           lexer.lexer_next_into(&r, lex, source);
         }
-        if (r.tok.kind != TokenKind.TOKEN_RBRACE) {
+        if (r.tok.kind != token.TokenKind.TOKEN_RBRACE) {
           set_onefunc_fail(out, lex); return;
         }
         lex_from_next_into(&lex, r);
@@ -4421,11 +4743,11 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         impl_snap.call_num_args = 0;
         lex = ret_id_badlen_res.next_lex;
         lexer.lexer_next_into(&r, lex, source);
-        if (r.tok.kind == TokenKind.TOKEN_SEMICOLON) {
+        if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
           lex_from_next_into(&lex, r);
           lexer.lexer_next_into(&r, lex, source);
         }
-        if (r.tok.kind != TokenKind.TOKEN_RBRACE) {
+        if (r.tok.kind != token.TokenKind.TOKEN_RBRACE) {
           set_onefunc_fail(out, lex); return;
         }
         lex_from_next_into(&lex, r);
@@ -4435,19 +4757,19 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
     }
     /* return <非整型表达式>; 如 return e.resolved_type_ref; 跳过至分号，impl_snap.return_val 用 0（bool 已在 return 后立即 parse_expr 路径处理）。 */
     while (1 == 1) {
-      if (r.tok.kind == TokenKind.TOKEN_SEMICOLON || r.tok.kind == TokenKind.TOKEN_EOF) {
+      if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON || r.tok.kind == token.TokenKind.TOKEN_EOF) {
         break;
       }
       lex_from_next_into(&lex, r);
       lexer.lexer_next_into(&r, lex, source);
     }
-    if (r.tok.kind != TokenKind.TOKEN_SEMICOLON) {
+    if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON) {
       set_onefunc_fail(out, lex); return;
     }
     lex_from_next_into(&lex, r);
     lexer.lexer_next_into(&r, lex, source);
     impl_snap.return_val = 0;
-    if (r.tok.kind == TokenKind.TOKEN_RBRACE) {
+    if (r.tok.kind == token.TokenKind.TOKEN_RBRACE) {
       lex_from_next_into(&lex, r);
     } else {
       set_onefunc_fail(out, lex); return;
@@ -4456,12 +4778,12 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
     return;
   }
   /* return 后允许直接 } 或 ; }（语法约定：} 后不带分号，return 后分号可选） */
-  if (r.tok.kind == TokenKind.TOKEN_RBRACE) {
+  if (r.tok.kind == token.TokenKind.TOKEN_RBRACE) {
     lex_from_next_into(&lex, r);
-  } else if (r.tok.kind == TokenKind.TOKEN_SEMICOLON) {
+  } else if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
     lex_from_next_into(&lex, r);
     lexer.lexer_next_into(&r, lex, source);
-    if (r.tok.kind != TokenKind.TOKEN_RBRACE) {
+    if (r.tok.kind != token.TokenKind.TOKEN_RBRACE) {
       set_onefunc_fail(out, lex); return;
     }
     lex_from_next_into(&lex, r);
@@ -4481,13 +4803,13 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
 
 /**
  * import 路径段长度：IDENT/I32 或 TOKEN_ASYNC（std.async 模块名）。
- * 形参 TokenKind + ident_len（勿 Token 按值）；ASYNC 用 i32 ordinal 29。
+ * 形参 token.TokenKind + ident_len（勿 Token 按值）；ASYNC 用 i32 ordinal 29。
  */
-export function import_path_dot_segment_len(kind: TokenKind, ident_len: i32): i32 {
-  if (kind == TokenKind.TOKEN_IDENT && ident_len > 0) {
+export function import_path_dot_segment_len(kind: token.TokenKind, ident_len: i32): i32 {
+  if (kind == token.TokenKind.TOKEN_IDENT && ident_len > 0) {
     return ident_len;
   }
-  if (kind == TokenKind.TOKEN_I32) {
+  if (kind == token.TokenKind.TOKEN_I32) {
     return 3;
   }
   let ko: i32 = kind as i32;
@@ -4520,8 +4842,11 @@ export function import_path_dot_segment_copy(source: u8[], token_start: usize, s
 
 /** import_path_dot_segment_copy 的 buf 变体：parser_slice_from_buf + bl import_path_dot_segment_copy。 */
 export function import_path_dot_segment_copy_buf(data: *u8, len: i32, token_start: usize, seg_len: i32, path_buf: *u8, path_len: i32): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   import_path_dot_segment_copy(slice, token_start, seg_len, path_buf, path_len);
+  }
 }
 
 
@@ -4532,6 +4857,8 @@ export function import_path_dot_segment_copy_buf(data: *u8, len: i32, token_star
  * Module 顶层计数由 parser.pipeline_module_reset_parse_counters 写入，对齐 pipeline_gen 原语义。
  */
 export function parse_into_init(module: *Module, arena: *ASTArena): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   ast.ast_arena_init(arena);
   /** C 侧 memset(module/arena) 后须清 sidecar grow 池，否则二次 parse 累积 funcs 出现重复 main。 */
   ast_pool_module_reset(module);
@@ -4546,6 +4873,7 @@ export function parse_into_init(module: *Module, arena: *ASTArena): void {
   onefunc_result_layout_prime_f();
   pipeline_module_reset_parse_counters(module);
   pipeline_parser_set_match_module(module);
+  }
 }
 
 
@@ -4557,14 +4885,20 @@ export function parse_into_init(module: *Module, arena: *ASTArena): void {
 /** 单行 extern bl→parser_skip_imports_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_skip_imports_glue(lex: Lexer, source: u8[]): Lexer;
 export function skip_imports(lex: Lexer, source: u8[]): Lexer {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return parser_skip_imports_glue(lex, source);
+  }
 }
 
 
 /** skip_imports 的 buf 变体：parser_slice_from_buf + bl skip_imports（扩 EMIT_HEAVY __text）。 */
 export function skip_imports_buf(lex: Lexer, data: *u8, len: i32): Lexer {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   return skip_imports(lex, slice);
+  }
 }
 
 
@@ -4576,7 +4910,10 @@ export function skip_imports_buf(lex: Lexer, data: *u8, len: i32): Lexer {
 /** 单行 extern bl→parser_collect_imports_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_collect_imports_glue(lex: Lexer, source: u8[], module: *Module, out: *CollectImportsResult): void;
 export function collect_imports(lex: Lexer, source: u8[], module: *Module, out: *CollectImportsResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_collect_imports_glue(lex, source, module, out);
+  }
 }
 
 
@@ -4584,8 +4921,11 @@ export function collect_imports(lex: Lexer, source: u8[], module: *Module, out: 
  * buf 形式的 collect_imports：parser_slice_from_buf + bl collect_imports（勿 lexer_next_buf 按值 ABI）。
  */
 export function collect_imports_buf(lex: Lexer, data: *u8, len: i32, module: *Module, out: *CollectImportsResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   collect_imports(lex, slice, module, out);
+  }
 }
 
 
@@ -4597,14 +4937,20 @@ export function collect_imports_buf(lex: Lexer, data: *u8, len: i32, module: *Mo
 /** 单行 extern bl→parser_skip_one_struct_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_skip_one_struct_into_glue(out: *Lexer, lex: Lexer, source: u8[]): void;
 export function skip_one_struct_into(out: *Lexer, lex: Lexer, source: u8[]): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_skip_one_struct_into_glue(out, lex, source);
+  }
 }
 
 
 /** 单行 extern bl→parser_skip_one_struct_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_skip_one_struct_glue(lex: Lexer, source: u8[]): Lexer;
 export function skip_one_struct(lex: Lexer, source: u8[]): Lexer {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return parser_skip_one_struct_glue(lex, source);
+  }
 }
 
 
@@ -4617,6 +4963,8 @@ export extern function parser_module_try_register_enum_name_glue(module: *Module
  * 登记顶层 enum 类型名（去重），供 codegen / match 查 variant tag；返回 sidecar 下标，失败为 -1。
  */
 export function module_try_register_enum_name(module: *Module, name: *u8, name_len: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   if (module == 0 as *Module || name == 0 as *u8 || name_len <= 0 || name_len > 63) {
     return -1;
   }
@@ -4644,6 +4992,8 @@ export function module_try_register_enum_name(module: *Module, name: *u8, name_l
   }
   pipeline_module_enum_set_name(module, slot, name, name_len);
   return slot;
+  }
+  return 0;  // unreachable — typeck after unsafe block
 }
 
 
@@ -4655,25 +5005,30 @@ export function module_try_register_enum_name(module: *Module, name: *u8, name_l
 /** 单行 extern bl→parser_module_append_enum_variants_and_skip_body_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 extern function parser_module_append_enum_variants_and_skip_body_into_glue(module: *Module, enum_idx: i32, out: *Lexer, lex: Lexer, source: u8[]): void;
 function module_append_enum_variants_and_skip_body_into(module: *Module, enum_idx: i32, out: *Lexer, lex: Lexer, source: u8[]): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_module_append_enum_variants_and_skip_body_into_glue(module, enum_idx, out, lex, source);
+  }
 }
 
 
 /** 与 module_append_enum_variants_and_skip_body_into 相同，源为 (data,len) buf。 */
 function module_append_enum_variants_and_skip_body_into_buf(module: *Module, enum_idx: i32, out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let depth: i32 = 1;
   let slen: usize = len as usize;
   while (depth > 0) {
     let r: LexerResult = lexer.lexer_next_buf(lex, data, len);
-    if (r.tok.kind == TokenKind.TOKEN_RBRACE) {
+    if (r.tok.kind == token.TokenKind.TOKEN_RBRACE) {
       depth = depth - 1;
       if (depth == 0) {
         lex_from_next_into(&lex, r);
         break;
       }
-    } else if (r.tok.kind == TokenKind.TOKEN_LBRACE) {
+    } else if (r.tok.kind == token.TokenKind.TOKEN_LBRACE) {
       depth = depth + 1;
-    } else if (depth == 1 && enum_idx >= 0 && r.tok.kind == TokenKind.TOKEN_IDENT) {
+    } else if (depth == 1 && enum_idx >= 0 && r.tok.kind == token.TokenKind.TOKEN_IDENT) {
       let vlen: i32 = r.tok.ident_len;
       if (vlen > 63) {
         vlen = 63;
@@ -4698,6 +5053,7 @@ function module_append_enum_variants_and_skip_body_into_buf(module: *Module, enu
   out.pos = lex.pos;
   out.line = lex.line;
   out.col = lex.col;
+  }
 }
 
 
@@ -4706,14 +5062,20 @@ function module_append_enum_variants_and_skip_body_into_buf(module: *Module, enu
 /** 单行 extern bl→parser_skip_one_enum_register_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 extern function parser_skip_one_enum_register_into_glue(module: *Module, out: *Lexer, lex: Lexer, source: u8[]): void;
 function skip_one_enum_register_into(module: *Module, out: *Lexer, lex: Lexer, source: u8[]): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_skip_one_enum_register_into_glue(module, out, lex, source);
+  }
 }
 
 
 /** 与 skip_one_enum_into_buf 相同，且登记 enum 名（buf 源）；parser_slice_from_buf + bl skip_one_enum_register_into。 */
 function skip_one_enum_register_into_buf(module: *Module, out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   skip_one_enum_register_into(module, out, lex, slice);
+  }
 }
 
 
@@ -4731,13 +5093,19 @@ function skip_one_enum_register_buf(module: *Module, out: *Lexer, lex: Lexer, da
 /** 单行 extern bl→parser_skip_one_enum_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 extern function parser_skip_one_enum_into_glue(out: *Lexer, lex: Lexer, source: u8[]): void;
 function skip_one_enum_into(out: *Lexer, lex: Lexer, source: u8[]): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_skip_one_enum_into_glue(out, lex, source);
+  }
 }
 
 /** 单行 extern bl→parser_skip_one_enum_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 extern function parser_skip_one_enum_glue(lex: Lexer, source: u8[]): Lexer;
 function skip_one_enum(lex: Lexer, source: u8[]): Lexer {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return parser_skip_one_enum_glue(lex, source);
+  }
 }
 
 
@@ -4748,13 +5116,19 @@ function skip_one_enum(lex: Lexer, source: u8[]): Lexer {
 /** 单行 extern bl→parser_skip_one_trait_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 extern function parser_skip_one_trait_into_glue(out: *Lexer, lex: Lexer, source: u8[]): void;
 function skip_one_trait_into(out: *Lexer, lex: Lexer, source: u8[]): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_skip_one_trait_into_glue(out, lex, source);
+  }
 }
 
 /** 单行 extern bl→parser_skip_one_trait_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 extern function parser_skip_one_trait_glue(lex: Lexer, source: u8[]): Lexer;
 function skip_one_trait(lex: Lexer, source: u8[]): Lexer {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return parser_skip_one_trait_glue(lex, source);
+  }
 }
 
 
@@ -4765,51 +5139,75 @@ function skip_one_trait(lex: Lexer, source: u8[]): Lexer {
 /** 单行 extern bl→parser_skip_one_impl_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 extern function parser_skip_one_impl_into_glue(out: *Lexer, lex: Lexer, source: u8[]): void;
 function skip_one_impl_into(out: *Lexer, lex: Lexer, source: u8[]): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_skip_one_impl_into_glue(out, lex, source);
+  }
 }
 
 /** 单行 extern bl→parser_skip_one_impl_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 extern function parser_skip_one_impl_glue(lex: Lexer, source: u8[]): Lexer;
 function skip_one_impl(lex: Lexer, source: u8[]): Lexer {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return parser_skip_one_impl_glue(lex, source);
+  }
 }
 /** skip_one_enum_buf 的 _into_buf 变体；parser_slice_from_buf + bl skip_one_enum_into（collect_imports_buf / 13al 模式）。 */
 function skip_one_enum_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   skip_one_enum_into(out, lex, slice);
+  }
 }
 
 
 /** skip_one_enum_buf：parser_slice_from_buf + bl skip_one_enum。 */
 function skip_one_enum_buf(lex: Lexer, data: *u8, len: i32): Lexer {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   return skip_one_enum(lex, slice);
+  }
 }
 
 
 /** skip_one_trait_buf 的 _into_buf 变体；parser_slice_from_buf + bl skip_one_trait_into。 */
 function skip_one_trait_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   skip_one_trait_into(out, lex, slice);
+  }
 }
 
 /** skip_one_trait_buf：parser_slice_from_buf + bl skip_one_trait。 */
 function skip_one_trait_buf(lex: Lexer, data: *u8, len: i32): Lexer {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   return skip_one_trait(lex, slice);
+  }
 }
 
 
 /** skip_one_impl_buf 的 _into_buf 变体；parser_slice_from_buf + bl skip_one_impl_into。 */
 function skip_one_impl_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   skip_one_impl_into(out, lex, slice);
+  }
 }
 
 /** skip_one_impl_buf：parser_slice_from_buf + bl skip_one_impl。 */
 function skip_one_impl_buf(lex: Lexer, data: *u8, len: i32): Lexer {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   return skip_one_impl(lex, slice);
+  }
 }
 
 
@@ -4821,13 +5219,19 @@ function skip_one_impl_buf(lex: Lexer, data: *u8, len: i32): Lexer {
 /** 单行 extern bl→parser_skip_one_extern_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 extern function parser_skip_one_extern_into_glue(out: *Lexer, lex: Lexer, source: u8[]): void;
 function skip_one_extern_into(out: *Lexer, lex: Lexer, source: u8[]): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_skip_one_extern_into_glue(out, lex, source);
+  }
 }
 
 /** 单行 extern bl→parser_skip_one_extern_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 extern function parser_skip_one_extern_glue(lex: Lexer, source: u8[]): Lexer;
 function skip_one_extern(lex: Lexer, source: u8[]): Lexer {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return parser_skip_one_extern_glue(lex, source);
+  }
 }
 
 
@@ -4866,6 +5270,8 @@ extern function parser_write_extern_params_to_pools_glue(arena: *ASTArena, modul
  * res 须为 parse_one_extern_skip_into 写入的同一栈对象，侧车池按地址索引。
  */
 function write_extern_params_to_pools(arena: *ASTArena, module: *Module, func_ref: i32, fi: i32, res: *ExternParseResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let pool: *u8 = extern_parse_pool_ptr(res);
   let p: i32 = 0;
   while (p < res.num_params) {
@@ -4876,6 +5282,7 @@ function write_extern_params_to_pools(arena: *ASTArena, module: *Module, func_re
     pipeline_arena_func_param_write(arena, func_ref, p, &pname32[0], plen, pty);
     pipeline_module_func_param_write(module, fi, p, &pname32[0], plen, pty);
     p = p + 1;
+  }
   }
 }
 
@@ -4900,14 +5307,20 @@ function extern_parse_set_fail(out: *ExternParseResult, lex: Lexer): void {
 /** 单行 extern bl→parser_parse_one_extern_skip_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 extern function parser_parse_one_extern_skip_into_glue(out: *ExternParseResult, arena: *ASTArena, lex: Lexer, source: u8[]): void;
 function parse_one_extern_skip_into(out: *ExternParseResult, arena: *ASTArena, lex: Lexer, source: u8[]): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_parse_one_extern_skip_into_glue(out, arena, lex, source);
+  }
 }
 
 
 /** parse_one_extern_skip_into 的 buf 变体：parser_slice_from_buf + bl parse_one_extern_skip_into。 */
 function parse_one_extern_skip_into_buf(out: *ExternParseResult, arena: *ASTArena, lex: Lexer, data: *u8, len: i32): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   parse_one_extern_skip_into(out, arena, lex, slice);
+  }
 }
 
 
@@ -4926,6 +5339,8 @@ function parse_one_extern_skip_into_buf(out: *ExternParseResult, arena: *ASTAren
  * EMIT_HEAVY safe_helper X 真 emit（pipeline_module_* 标量 glue 调用）。
  */
 function module_register_arena_func(module: *Module, func_ref: i32, f: Func): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let fi: i32 = pipeline_module_func_alloc_slot(module);
   if (fi < 0) {
     return -1;
@@ -4952,6 +5367,8 @@ function module_register_arena_func(module: *Module, func_ref: i32, f: Func): i3
       module.pending_interrupt = 0;
   pipeline_module_func_ref_set(module, fi, func_ref);
   return fi;
+  }
+  return 0;  // unreachable — typeck after unsafe block
 }
 
 
@@ -4960,21 +5377,30 @@ function module_register_arena_func(module: *Module, func_ref: i32, f: Func): i3
 /** 单行 extern bl→parser_parse_one_extern_and_add_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 extern function parser_parse_one_extern_and_add_into_glue(arena: *ASTArena, module: *Module, lex: Lexer, source: u8[], lex_out: *Lexer): void;
 function parse_one_extern_and_add_into(arena: *ASTArena, module: *Module, lex: Lexer, source: u8[], lex_out: *Lexer): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_parse_one_extern_and_add_into_glue(arena, module, lex, source, lex_out);
+  }
 }
 
 
 /** 与 skip_one_extern 等价，接受 (data: *u8, len) 供 parse_into_buf 使用。 */
 /** skip_one_extern_buf 的 _into_buf 变体；parser_slice_from_buf + bl skip_one_extern_into。 */
 function skip_one_extern_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   skip_one_extern_into(out, lex, slice);
+  }
 }
 
 /** skip_one_extern_buf：parser_slice_from_buf + bl skip_one_extern。 */
 function skip_one_extern_buf(lex: Lexer, data: *u8, len: i32): Lexer {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   return skip_one_extern(lex, slice);
+  }
 }
 
 
@@ -4985,7 +5411,10 @@ function skip_one_extern_buf(lex: Lexer, data: *u8, len: i32): Lexer {
 /** parse_one_extern_and_add_buf 的 _into_buf 变体：走 buf glue，避免 slice 栈临时体在 -E/seed 链上偶发失效。 */
 extern function parser_parse_one_extern_and_add_into_buf_glue(arena: *ASTArena, module: *Module, lex: Lexer, data: *u8, len: i32, lex_out: *Lexer): void;
 function parse_one_extern_and_add_into_buf(arena: *ASTArena, module: *Module, lex: Lexer, data: *u8, len: i32, lex_out: *Lexer): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_parse_one_extern_and_add_into_buf_glue(arena, module, lex, data, len, lex_out);
+  }
 }
 
 
@@ -5014,28 +5443,40 @@ allow(padding) struct LibraryParseResult {
 /** 单行 extern bl→parser_lex_from_try_skip_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 extern function parser_lex_from_try_skip_into_glue(out: *Lexer, t: TrySkipAllowResult): void;
 function lex_from_try_skip_into(out: *Lexer, t: TrySkipAllowResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_lex_from_try_skip_into_glue(out, t);
+  }
 }
 
 /** 从 LibraryParseResult 取 next_lex 写入 out，同上。 */
 /** 单行 extern bl→parser_lex_from_library_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 extern function parser_lex_from_library_into_glue(out: *Lexer, lib: LibraryParseResult): void;
 function lex_from_library_into(out: *Lexer, lib: LibraryParseResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_lex_from_library_into_glue(out, lib);
+  }
 }
 
 /** 兼容：返回 Lexer。 */
 /** 单行 extern bl→parser_lex_from_try_skip_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 extern function parser_lex_from_try_skip_glue(t: TrySkipAllowResult): Lexer;
 function lex_from_try_skip(t: TrySkipAllowResult): Lexer {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return parser_lex_from_try_skip_glue(t);
+  }
 }
 
 /** 兼容：返回 Lexer。 */
 /** 单行 extern bl→parser_lex_from_library_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 extern function parser_lex_from_library_glue(lib: LibraryParseResult): Lexer;
 function lex_from_library(lib: LibraryParseResult): Lexer {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return parser_lex_from_library_glue(lib);
+  }
 }
 
 
@@ -5063,7 +5504,11 @@ struct LibraryParseScanResult {
 /** 单行 extern bl→parser_parse_one_function_library_scan_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 extern function parser_parse_one_function_library_scan_glue(lex: Lexer, source: u8[], result: *LibraryParseScanResult): bool;
 function parse_one_function_library_scan(lex: Lexer, source: u8[], result: *LibraryParseScanResult): bool {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return parser_parse_one_function_library_scan_glue(lex, source, result);
+  }
+  return false;  // unreachable — typeck after unsafe block
 }
 
 /** 判断 module 中是否已有同名 struct layout（避免重复注册）。 */
@@ -5071,6 +5516,8 @@ function parse_one_function_library_scan(lex: Lexer, source: u8[], result: *Libr
 extern function parser_struct_layout_name_exists_arr_glue(module: *Module, nm: u8[64], nlen: i32): bool;
 /** 判断 module 中是否已有同名 struct layout（避免重复注册）。 */
 function struct_layout_name_exists_arr(module: *Module, nm: u8[64], nlen: i32): bool {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let k: i32 = 0;
   while (k < module.num_struct_layouts) {
     if (pipeline_module_struct_layout_name_len(module, k) == nlen && nlen > 0) {
@@ -5089,6 +5536,8 @@ function struct_layout_name_exists_arr(module: *Module, nm: u8[64], nlen: i32): 
     k = k + 1;
   }
   return false;
+  }
+  return false;  // unreachable — typeck after unsafe block
 }
 
 
@@ -5098,6 +5547,8 @@ function struct_layout_name_exists_arr(module: *Module, nm: u8[64], nlen: i32): 
 extern function parser_struct_layout_first_name_match_idx_glue(module: *Module, nm: u8[64], nlen: i32): i32;
 /** 返回首个与 nm 同名的 struct_layouts 下标，无则 -1。 */
 function struct_layout_first_name_match_idx(module: *Module, nm: u8[64], nlen: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let k: i32 = 0;
   while (k < module.num_struct_layouts) {
     if (pipeline_module_struct_layout_name_len(module, k) == nlen && nlen > 0) {
@@ -5116,6 +5567,8 @@ function struct_layout_first_name_match_idx(module: *Module, nm: u8[64], nlen: i
     k = k + 1;
   }
   return -1;
+  }
+  return 0;  // unreachable — typeck after unsafe block
 }
 
 
@@ -5131,6 +5584,8 @@ extern function parser_struct_layout_placeholder_idx_glue(module: *Module, nm: u
  * 后续顶层 struct 应按真实成员覆盖该槽位，否则 typeck 只能通过下一槽位兜底。
  */
 function struct_layout_placeholder_idx(module: *Module, nm: u8[64], nlen: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let k: i32 = 0;
   while (k < module.num_struct_layouts) {
     if (pipeline_module_struct_layout_name_len(module, k) == nlen && nlen > 0) {
@@ -5158,6 +5613,8 @@ function struct_layout_placeholder_idx(module: *Module, nm: u8[64], nlen: i32): 
     k = k + 1;
   }
   return -1;
+  }
+  return 0;  // unreachable — typeck after unsafe block
 }
 
 
@@ -5169,7 +5626,10 @@ function struct_layout_placeholder_idx(module: *Module, nm: u8[64], nlen: i32): 
 /** 单行 extern bl→parser_parse_one_function_library_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 extern function parser_parse_one_function_library_glue(arena: *ASTArena, module: *Module, lex: Lexer, source: u8[]): LibraryParseResult;
 function parse_one_function_library(arena: *ASTArena, module: *Module, lex: Lexer, source: u8[]): LibraryParseResult {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return parser_parse_one_function_library_glue(arena, module, lex, source);
+  }
 }
 
 
@@ -5178,8 +5638,11 @@ function parse_one_function_library(arena: *ASTArena, module: *Module, lex: Lexe
  * 委托 slice 路径（parser_slice_from_buf），与 parse_into 行为一致，避免存根导致库形态回退失败、num_funcs 残缺。
  */
 function parse_one_function_library_buf(arena: *ASTArena, module: *Module, lex: Lexer, data: *u8, len: i32): LibraryParseResult {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   return parse_one_function_library(arena, module, lex, slice);
+  }
 }
 
 
@@ -5188,41 +5651,59 @@ function parse_one_function_library_buf(arena: *ASTArena, module: *Module, lex: 
 /** 单行 extern bl→parser_parse_into_try_skip_allow_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 extern function parser_parse_into_try_skip_allow_glue(lex: Lexer, r: LexerResult, source: u8[]): TrySkipAllowResult;
 function parse_into_try_skip_allow(lex: Lexer, r: LexerResult, source: u8[]): TrySkipAllowResult {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return parser_parse_into_try_skip_allow_glue(lex, r, source);
+  }
 }
 
 
 /** parse_into_try_skip_allow_buf：parser_slice_from_buf + bl parse_into_try_skip_allow。 */
 function parse_into_try_skip_allow_buf(lex: Lexer, r: LexerResult, data: *u8, len: i32): TrySkipAllowResult {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   return parse_into_try_skip_allow(lex, r, slice);
+  }
 }
 
 
 /** 单行 extern bl→parser_try_skip_allow_padding_struct_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 extern function parser_try_skip_allow_padding_struct_glue(lex: Lexer, source: u8[]): TrySkipAllowResult;
 function try_skip_allow_padding_struct(lex: Lexer, source: u8[]): TrySkipAllowResult {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return parser_try_skip_allow_padding_struct_glue(lex, source);
+  }
 }
 
 
 /** try_skip_allow_padding_struct_buf：parser_slice_from_buf + bl try_skip_allow_padding_struct。 */
 function try_skip_allow_padding_struct_buf(lex: Lexer, data: *u8, len: i32): TrySkipAllowResult {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   return try_skip_allow_padding_struct(lex, slice);
+  }
 }
 
 
 /** skip_one_struct_buf 的 _into_buf 变体；parser_slice_from_buf + bl skip_one_struct_into。 */
 function skip_one_struct_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   skip_one_struct_into(out, lex, slice);
+  }
 }
 
 /** skip_one_struct_buf：parser_slice_from_buf + bl skip_one_struct。 */
 function skip_one_struct_buf(lex: Lexer, data: *u8, len: i32): Lexer {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   return skip_one_struct(lex, slice);
+  }
 }
 
 
@@ -5234,35 +5715,43 @@ function skip_one_struct_buf(lex: Lexer, data: *u8, len: i32): Lexer {
 /** 单行 extern bl→parser_consume_qualified_type_ident_name_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 extern function parser_consume_qualified_type_ident_name_glue(source: u8[], r: *LexerResult, out: *u8, out_len: *i32): i32;
 function consume_qualified_type_ident_name(source: u8[], r: *LexerResult, out: *u8, out_len: *i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return parser_consume_qualified_type_ident_name_glue(source, r, out, out_len);
+  }
+  return 0;  // unreachable — typeck after unsafe block
 }
 
 
 /** consume_qualified_type_ident_name 的 buf 变体：parser_slice_from_buf + bl consume_qualified_type_ident_name。 */
 function consume_qualified_type_ident_name_buf(data: *u8, len: i32, r: *LexerResult, out: *u8, out_len: *i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   return consume_qualified_type_ident_name(slice, r, out, out_len);
+  }
+  return 0;  // unreachable — typeck after unsafe block
 }
 
 
 /**
  * 判断 token 是否可作为「*」后的指向目标（命名类型或内建标量关键字，含 u8/i32 等）。
- * EMIT_HEAVY safe_helper X 真 emit（纯 TokenKind 分派，无 lexer 调用）。
+ * EMIT_HEAVY safe_helper X 真 emit（纯 token.TokenKind 分派，无 lexer 调用）。
  */
-function is_pointee_type_token(kind: TokenKind): bool {
-  if (kind == TokenKind.TOKEN_IDENT) {
+function is_pointee_type_token(kind: token.TokenKind): bool {
+  if (kind == token.TokenKind.TOKEN_IDENT) {
     return true;
   }
-  if (kind == TokenKind.TOKEN_I32 || kind == TokenKind.TOKEN_I64 || kind == TokenKind.TOKEN_BOOL) {
+  if (kind == token.TokenKind.TOKEN_I32 || kind == token.TokenKind.TOKEN_I64 || kind == token.TokenKind.TOKEN_BOOL) {
     return true;
   }
-  if (kind == TokenKind.TOKEN_U8 || kind == TokenKind.TOKEN_U32 || kind == TokenKind.TOKEN_U64) {
+  if (kind == token.TokenKind.TOKEN_U8 || kind == token.TokenKind.TOKEN_U32 || kind == token.TokenKind.TOKEN_U64) {
     return true;
   }
-  if (kind == TokenKind.TOKEN_USIZE || kind == TokenKind.TOKEN_ISIZE || kind == TokenKind.TOKEN_VOID) {
+  if (kind == token.TokenKind.TOKEN_USIZE || kind == token.TokenKind.TOKEN_ISIZE || kind == token.TokenKind.TOKEN_VOID) {
     return true;
   }
-  if (kind == TokenKind.TOKEN_F32 || kind == TokenKind.TOKEN_F64) {
+  if (kind == token.TokenKind.TOKEN_F32 || kind == token.TokenKind.TOKEN_F64) {
     return true;
   }
   return false;
@@ -5277,7 +5766,11 @@ function is_pointee_type_token(kind: TokenKind): bool {
 /** 单行 extern bl→parser_alloc_pointee_type_ref_from_tok_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 extern function parser_alloc_pointee_type_ref_from_tok_glue(arena: *ASTArena, source: u8[], r: *LexerResult): i32;
 function alloc_pointee_type_ref_from_tok(arena: *ASTArena, source: u8[], r: *LexerResult): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return parser_alloc_pointee_type_ref_from_tok_glue(arena, source, r);
+  }
+  return 0;  // unreachable — typeck after unsafe block
 }
 
 
@@ -5290,6 +5783,8 @@ extern function parser_parser_alloc_vector_type_ref_glue(arena: *ASTArena, elem_
  * 分配 TYPE_VECTOR 类型节点（elem_ord 为 TypeKind 序数，lanes 为车道数）。
  */
 function parser_alloc_vector_type_ref(arena: *ASTArena, elem_ord: i32, lanes: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let elem_tr_v: i32 = pipeline_type_ensure_by_kind_ord(arena, elem_ord);
   let vec_ref: i32 = 0;
   if (elem_tr_v == 0) {
@@ -5305,6 +5800,8 @@ function parser_alloc_vector_type_ref(arena: *ASTArena, elem_ord: i32, lanes: i3
     ast.ast_arena_type_set(arena, vec_ref, tv);
   }
   return vec_ref;
+  }
+  return 0;  // unreachable — typeck after unsafe block
 }
 
 
@@ -5315,7 +5812,11 @@ function parser_alloc_vector_type_ref(arena: *ASTArena, elem_ord: i32, lanes: i3
 /** 单行 extern bl→parser_parser_vector_type_ref_from_ident_spelling_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 extern function parser_parser_vector_type_ref_from_ident_spelling_glue(arena: *ASTArena, source: u8[], r: LexerResult): i32;
 function parser_vector_type_ref_from_ident_spelling(arena: *ASTArena, source: u8[], r: LexerResult): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return parser_parser_vector_type_ref_from_ident_spelling_glue(arena, source, r);
+  }
+  return 0;  // unreachable — typeck after unsafe block
 }
 
 
@@ -5326,7 +5827,11 @@ function parser_vector_type_ref_from_ident_spelling(arena: *ASTArena, source: u8
 /** 单行 extern bl→parser_parse_struct_record_layout_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_parse_struct_record_layout_into_glue(arena: *ASTArena, module: *Module, lex: Lexer, source: u8[], out_lex: *Lexer, allow_pad: i32, force_soa: i32, repr_compat: i32): i32;
 export function parse_struct_record_layout_into(arena: *ASTArena, module: *Module, lex: Lexer, source: u8[], out_lex: *Lexer, allow_pad: i32, force_soa: i32, repr_compat: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return parser_parse_struct_record_layout_into_glue(arena, module, lex, source, out_lex, allow_pad, force_soa, repr_compat);
+  }
+  return 0;  // unreachable — typeck after unsafe block
 }
 
 
@@ -5339,7 +5844,10 @@ export function parse_struct_record_layout_into(arena: *ASTArena, module: *Modul
 /** 单行 extern bl→parser_parse_one_function_buf_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_parse_one_function_buf_into_glue(out: *OneFuncResult, arena: *ASTArena, lex: Lexer, data: *u8, len: i32): void;
 export function parse_one_function_buf_into(out: *OneFuncResult, arena: *ASTArena, lex: Lexer, data: *u8, len: i32): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_parse_one_function_buf_into_glue(out, arena, lex, data, len);
+  }
 }
 
 
@@ -5347,7 +5855,10 @@ export function parse_one_function_buf_into(out: *OneFuncResult, arena: *ASTAren
 /** 单行 extern bl→parser_parse_one_function_library_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_parse_one_function_library_into_glue(out: *LibraryParseResult, arena: *ASTArena, module: *Module, lex: Lexer, source: u8[]): void;
 export function parse_one_function_library_into(out: *LibraryParseResult, arena: *ASTArena, module: *Module, lex: Lexer, source: u8[]): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_parse_one_function_library_into_glue(out, arena, module, lex, source);
+  }
 }
 
 
@@ -5355,8 +5866,11 @@ export function parse_one_function_library_into(out: *LibraryParseResult, arena:
  * parse_one_function_library_into 的 buf 变体：parser_slice_from_buf + bl into（扩 EMIT_HEAVY __text）。
  */
 export function parse_one_function_library_into_buf(out: *LibraryParseResult, arena: *ASTArena, module: *Module, lex: Lexer, data: *u8, len: i32): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   parse_one_function_library_into(out, arena, module, lex, slice);
+  }
 }
 
 
@@ -5364,14 +5878,20 @@ export function parse_one_function_library_into_buf(out: *LibraryParseResult, ar
 /** 单行 extern bl→parser_parse_into_try_skip_allow_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_parse_into_try_skip_allow_into_glue(out: *TrySkipAllowResult, lex: Lexer, r: LexerResult, source: u8[]): void;
 export function parse_into_try_skip_allow_into(out: *TrySkipAllowResult, lex: Lexer, r: LexerResult, source: u8[]): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_parse_into_try_skip_allow_into_glue(out, lex, r, source);
+  }
 }
 
 
 /** parse_into_try_skip_allow_buf 的 _into_buf 变体；parser_slice_from_buf + bl parse_into_try_skip_allow_into。 */
 export function parse_into_try_skip_allow_into_buf(out: *TrySkipAllowResult, lex: Lexer, r: LexerResult, data: *u8, len: i32): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   parse_into_try_skip_allow_into(out, lex, r, slice);
+  }
 }
 
 
@@ -5381,6 +5901,8 @@ export function parse_into_try_skip_allow_into_buf(out: *TrySkipAllowResult, lex
  * 返回 ParseIntoResult：ok 0 成功 -1 失败，main_idx 为 main 下标（无则 -1）。
  */
 export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): ParseIntoResult {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   /* 由调用方在调用 parse_into 前先调用 parse_into_init，避免 codegen 将 init 移到循环后 */
   let lex: Lexer = lexer.lexer_init();
   let main_idx: i32 = -1;
@@ -5397,20 +5919,20 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
     loop_count = loop_count + 1;
     let iter_start: Lexer = lex;
     /* 首 token 必须用 lexer_next_into 写 r，否则结构体返回 ABI 导致 r/next_lex 错，传入 parse_one_function 的 lex 错、自举失败 */
-    let r: LexerResult = LexerResult { next_lex: lex, tok: Token { kind: TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
+    let r: LexerResult = LexerResult { next_lex: lex, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
     let current_tok_lex: Lexer = lex;
     lexer.lexer_next_into(&r, lex, source);
     lex_from_next_into(&lex, r);
     let func_is_async_storage: i32[1] = [];
     func_is_async_storage[0] = 0;
-    if (r.tok.kind == TokenKind.TOKEN_ASYNC) {
+    if (r.tok.kind == token.TokenKind.TOKEN_ASYNC) {
       func_is_async_storage[0] = 1;
       lex_from_next_into(&lex, r);
       current_tok_lex = lex;
       lexer.lexer_next_into(&r, lex, source);
       lex_from_next_into(&lex, r);
     }
-    if (r.tok.kind == TokenKind.TOKEN_ATTR_SOA) {
+    if (r.tok.kind == token.TokenKind.TOKEN_ATTR_SOA) {
       module.pending_soa_struct = 1;
       lex_from_next_into(&lex, r);
       if (lex.pos == iter_start.pos && lex.pos < source.length) {
@@ -5418,7 +5940,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       }
       continue;
     }
-    if (r.tok.kind == TokenKind.TOKEN_ATTR_CFG) {
+    if (r.tok.kind == token.TokenKind.TOKEN_ATTR_CFG) {
       if (r.tok.int_val == 0) { module.pending_cfg_skip = 1; }
       lex_from_next_into(&lex, r);
       if (lex.pos == iter_start.pos && lex.pos < source.length) {
@@ -5426,7 +5948,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       }
       continue;
     }
-    if (r.tok.kind == TokenKind.TOKEN_ATTR_REPR_C) {
+    if (r.tok.kind == token.TokenKind.TOKEN_ATTR_REPR_C) {
       module.pending_repr_c_struct = 1;
       lex_from_next_into(&lex, r);
       if (lex.pos == iter_start.pos && lex.pos < source.length) {
@@ -5435,7 +5957,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       continue;
     }
     /** MOD-02：`#[repr(compatible)]` 下一顶层 struct 记 repr_compatible。 */
-    if (r.tok.kind == TokenKind.TOKEN_ATTR_REPR_COMPATIBLE) {
+    if (r.tok.kind == token.TokenKind.TOKEN_ATTR_REPR_COMPATIBLE) {
       module.pending_repr_compatible_struct = 1;
       lex_from_next_into(&lex, r);
       if (lex.pos == iter_start.pos && lex.pos < source.length) {
@@ -5444,14 +5966,14 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       continue;
     }
     /** MEM-C1：`#[alloc]` 仅标记下一 function 由后续解析路径处理；顶层循环这里只消费 attribute。 */
-    if (r.tok.kind == TokenKind.TOKEN_ATTR_ALLOC) {
+    if (r.tok.kind == token.TokenKind.TOKEN_ATTR_ALLOC) {
       lex_from_next_into(&lex, r);
       if (lex.pos == iter_start.pos && lex.pos < source.length) {
         lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
       }
       continue;
     }
-    if (r.tok.kind == TokenKind.TOKEN_ATTR_USED) {
+    if (r.tok.kind == token.TokenKind.TOKEN_ATTR_USED) {
       module.pending_used = 1;
       lex_from_next_into(&lex, r);
       if (lex.pos == iter_start.pos && lex.pos < source.length) {
@@ -5459,28 +5981,28 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       }
       continue;
     }
-    if (r.tok.kind == TokenKind.TOKEN_ATTR_NAKED) {
+    if (r.tok.kind == token.TokenKind.TOKEN_ATTR_NAKED) {
       module.pending_naked = 1; lex_from_next_into(&lex, r);
       if (lex.pos == iter_start.pos && lex.pos < source.length) { lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 }; }
       continue;
     }
-    if (r.tok.kind == TokenKind.TOKEN_ATTR_ENTRY) {
+    if (r.tok.kind == token.TokenKind.TOKEN_ATTR_ENTRY) {
       module.pending_entry = 1; lex_from_next_into(&lex, r);
       if (lex.pos == iter_start.pos && lex.pos < source.length) { lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 }; }
       continue;
     }
-    if (r.tok.kind == TokenKind.TOKEN_ATTR_NO_MANGLE) {
+    if (r.tok.kind == token.TokenKind.TOKEN_ATTR_NO_MANGLE) {
       module.pending_no_mangle = 1; lex_from_next_into(&lex, r);
       if (lex.pos == iter_start.pos && lex.pos < source.length) { lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 }; }
       continue;
     }
-    if (r.tok.kind == TokenKind.TOKEN_ATTR_INTERRUPT) {
+    if (r.tok.kind == token.TokenKind.TOKEN_ATTR_INTERRUPT) {
       module.pending_interrupt = 1; lex_from_next_into(&lex, r);
       if (lex.pos == iter_start.pos && lex.pos < source.length) { lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 }; }
       continue;
     }
     /** 模块导出：`export` 下一顶层 function/struct/enum/const 记 is_export。 */
-    if (r.tok.kind == TokenKind.TOKEN_EXPORT) {
+    if (r.tok.kind == token.TokenKind.TOKEN_EXPORT) {
       module.pending_export = 1;
       lex_from_next_into(&lex, r);
       if (lex.pos == iter_start.pos && lex.pos < source.length) {
@@ -5489,7 +6011,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       continue;
     }
     if (module.pending_cfg_skip != 0) {
-      if (r.tok.kind == TokenKind.TOKEN_STRUCT) {
+      if (r.tok.kind == token.TokenKind.TOKEN_STRUCT) {
         skip_one_struct_into(&lex, iter_start, source);
         module.pending_cfg_skip = 0;
         module.pending_export = 0;
@@ -5498,7 +6020,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
         }
         continue;
       }
-      if (r.tok.kind == TokenKind.TOKEN_CONST) {
+      if (r.tok.kind == token.TokenKind.TOKEN_CONST) {
         skip_one_top_level_const_into(&lex, iter_start, source);
         module.pending_cfg_skip = 0;
         module.pending_export = 0;
@@ -5507,7 +6029,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
         }
         continue;
       }
-      if (r.tok.kind == TokenKind.TOKEN_LET) {
+      if (r.tok.kind == token.TokenKind.TOKEN_LET) {
         skip_one_top_level_let_into_buf(&lex, iter_start, source as *u8, source.length as i32);
         module.pending_cfg_skip = 0;
         module.pending_export = 0;
@@ -5516,8 +6038,8 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
         }
         continue;
       }
-      if (r.tok.kind == TokenKind.TOKEN_FUNCTION || func_is_async_storage[0] != 0 ||
-          r.tok.kind == TokenKind.TOKEN_EXTERN) {
+      if (r.tok.kind == token.TokenKind.TOKEN_FUNCTION || func_is_async_storage[0] != 0 ||
+          r.tok.kind == token.TokenKind.TOKEN_EXTERN) {
         skip_one_function_full_into(&lex, iter_start, source);
         module.pending_cfg_skip = 0;
         module.pending_export = 0;
@@ -5546,7 +6068,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       }
       module.pending_cfg_skip = 0;
     }
-    if (r.tok.kind == TokenKind.TOKEN_STRUCT) {
+    if (r.tok.kind == token.TokenKind.TOKEN_STRUCT) {
       let ap_struct: i32 = module.pending_allow_padding;
       let ps_struct: i32 = module.pending_soa_struct;
       let pr_struct: i32 = module.pending_repr_c_struct;
@@ -5572,7 +6094,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       }
       continue;
     }
-    if (r.tok.kind == TokenKind.TOKEN_ENUM) {
+    if (r.tok.kind == token.TokenKind.TOKEN_ENUM) {
       let pe_enum: i32 = module.pending_export;
       module.pending_export = 0;
       let nen_before: i32 = module.num_module_enums;
@@ -5585,7 +6107,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       }
       continue;
     }
-    if (r.tok.kind == TokenKind.TOKEN_EXTERN) {
+    if (r.tok.kind == token.TokenKind.TOKEN_EXTERN) {
       parse_one_extern_and_add_into(arena, module, iter_start, source, &lex);
       if (lex.pos == iter_start.pos && lex.pos < source.length) {
         skip_one_extern_into(&lex, lex, source);
@@ -5595,21 +6117,21 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       }
       continue;
     }
-    if (r.tok.kind == TokenKind.TOKEN_TRAIT) {
+    if (r.tok.kind == token.TokenKind.TOKEN_TRAIT) {
       skip_one_trait_into(&lex, iter_start, source);
       if (lex.pos == iter_start.pos && lex.pos < source.length) {
         lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
       }
       continue;
     }
-    if (r.tok.kind == TokenKind.TOKEN_IMPL) {
+    if (r.tok.kind == token.TokenKind.TOKEN_IMPL) {
       skip_one_impl_into(&lex, iter_start, source);
       if (lex.pos == iter_start.pos && lex.pos < source.length) {
         lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
       }
       continue;
     }
-    if (r.tok.kind != TokenKind.TOKEN_FUNCTION) {
+    if (r.tok.kind != token.TokenKind.TOKEN_FUNCTION) {
       let try_res: TrySkipAllowResult = TrySkipAllowResult { lex: lex, skipped: 0, _pad: [] };
       parse_into_try_skip_allow_into(&try_res, lex, r, source);
       if (try_res.skipped != 0) {
@@ -5621,14 +6143,14 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
         continue;
       }
       /* 非 function 且未 skip：可能是注释等，前进一个 token 再试，避免注释导致只解析前若干函数（与 parse_into_buf 一致） */
-      if (r.tok.kind == TokenKind.TOKEN_EOF) {
+      if (r.tok.kind == token.TokenKind.TOKEN_EOF) {
         break;
       }
       lex_from_next_into(&lex, r);
       continue;
     }
     /* 库模块或正常结束：break 后若为 EOF 则直接返回成功，避免在 EOF 处当作 function 解析导致死循环（-backend asm 编 token.x 等仅 enum 的模块依赖此路径）。 */
-    if (r.tok.kind == TokenKind.TOKEN_EOF) {
+    if (r.tok.kind == token.TokenKind.TOKEN_EOF) {
       if (module.num_funcs == 0) {
         return parse_into_result_empty_module_or_fail_tok(diag_fail_at_token_kind(source));
       }
@@ -6647,6 +7169,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
   let out_idx_storage: i32[1] = [];
   out_idx_storage[0] = main_idx;
   return ParseIntoResult { ok: 0, main_idx: out_idx_storage[0] }
+  }
 }
 
 /**
@@ -6656,13 +7179,19 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
 /** 单行 extern bl→parser_parse_one_top_level_let_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_parse_one_top_level_let_into_glue(arena: *ASTArena, module: *Module, lex: Lexer, source: u8[], is_const: bool, out: *TopLevelLetResult): void;
 export function parse_one_top_level_let_into(arena: *ASTArena, module: *Module, lex: Lexer, source: u8[], is_const: bool, out: *TopLevelLetResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_parse_one_top_level_let_into_glue(arena, module, lex, source, is_const, out);
+  }
 }
 
 /** 单行 extern bl→parser_parse_one_type_alias_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_parse_one_type_alias_into_glue(arena: *ASTArena, module: *Module, lex: Lexer, source: u8[], out: *TypeAliasResult): void;
 export function parse_one_type_alias_into(arena: *ASTArena, module: *Module, lex: Lexer, source: u8[], out: *TypeAliasResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_parse_one_type_alias_into_glue(arena, module, lex, source, out);
+  }
 }
 
 
@@ -6673,252 +7202,367 @@ export function parse_one_type_alias_into(arena: *ASTArena, module: *Module, lex
 
 /** parse_primary_into 的 buf 变体。 */
 export function parse_primary_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   parse_primary_into(arena, lex, slice, out);
+  }
 }
 
 
 /** parse_unary_into 的 buf 变体。 */
 export function parse_unary_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   parse_unary_into(arena, lex, slice, out);
+  }
 }
 
 
 /** parse_cast_into 的 buf 变体。 */
 export function parse_cast_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   parse_cast_into(arena, lex, slice, out);
+  }
 }
 
 
 /** parse_term_into 的 buf 变体。 */
 export function parse_term_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   parse_term_into(arena, lex, slice, out);
+  }
 }
 
 
 /** parse_addsub_into 的 buf 变体。 */
 export function parse_addsub_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   parse_addsub_into(arena, lex, slice, out);
+  }
 }
 
 
 /** parse_shift_into 的 buf 变体。 */
 export function parse_shift_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   parse_shift_into(arena, lex, slice, out);
+  }
 }
 
 
 /** parse_relcompare_into 的 buf 变体。 */
 export function parse_relcompare_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   parse_relcompare_into(arena, lex, slice, out);
+  }
 }
 
 
 /** parse_compare_into 的 buf 变体。 */
 export function parse_compare_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   parse_compare_into(arena, lex, slice, out);
+  }
 }
 
 
 /** parse_bitand_into 的 buf 变体。 */
 export function parse_bitand_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   parse_bitand_into(arena, lex, slice, out);
+  }
 }
 
 
 /** parse_bitxor_into 的 buf 变体。 */
 export function parse_bitxor_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   parse_bitxor_into(arena, lex, slice, out);
+  }
 }
 
 
 /** parse_bitor_into 的 buf 变体。 */
 export function parse_bitor_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   parse_bitor_into(arena, lex, slice, out);
+  }
 }
 
 
 /** parse_logand_into 的 buf 变体。 */
 export function parse_logand_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   parse_logand_into(arena, lex, slice, out);
+  }
 }
 
 
 /** parse_logor_into 的 buf 变体。 */
 export function parse_logor_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   parse_logor_into(arena, lex, slice, out);
+  }
 }
 
 
 /** parse_ternary_into 的 buf 变体。 */
 export function parse_ternary_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   parse_ternary_into(arena, lex, slice, out);
+  }
 }
 
 
 /** parse_assign_into 的 buf 变体。 */
 export function parse_assign_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   parse_assign_into(arena, lex, slice, out);
+  }
 }
 
 
 /** parse_expr_into 的 buf 变体。 */
 export function parse_expr_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   parse_expr_into(arena, lex, slice, out);
+  }
 }
 
 
 /** finish_struct_lit_from_type_ident_into 的 buf 变体。 */
 export function finish_struct_lit_from_type_ident_into_buf(arena: *ASTArena, lit_ref: i32, lex_in_brace: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   finish_struct_lit_from_type_ident_into(arena, lit_ref, lex_in_brace, slice, out);
+  }
 }
 
 
 /** parse_cond_expr_into 的 buf 变体。 */
 export function parse_cond_expr_into_buf(arena: *ASTArena, lex_start: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   parse_cond_expr_into(arena, lex_start, slice, out);
+  }
 }
 
 
 /** parse_if_stmt_into 的 buf 变体。 */
 export function parse_if_stmt_into_buf(arena: *ASTArena, lex_at_if: Lexer, data: *u8, len: i32, type_ref: i32, out_cond: *i32, out_then: *i32, out_else: *i32, lex_out: *Lexer): bool {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   return parse_if_stmt_into(arena, lex_at_if, slice, type_ref, out_cond, out_then, out_else, lex_out);
+  }
+  return false;  // unreachable — typeck after unsafe block
 }
 
 
 /** parse_block_into 的 buf 变体。 */
 export function parse_block_into_buf(arena: *ASTArena, lex_after_lbrace: Lexer, data: *u8, len: i32, type_ref: i32, out: *ParseBlockResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   parse_block_into(arena, lex_after_lbrace, slice, type_ref, out);
+  }
 }
 
 
 /** parse_if_expr_into 的 buf 变体。 */
 export function parse_if_expr_into_buf(arena: *ASTArena, lex_at_if: Lexer, data: *u8, len: i32, type_ref: i32, out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   parse_if_expr_into(arena, lex_at_if, slice, type_ref, out);
+  }
 }
 
 
 /** parse_match_subject_into 的 buf 变体。 */
 export function parse_match_subject_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   parse_match_subject_into(arena, lex, slice, out);
+  }
 }
 
 
 /** parse_match_into 的 buf 变体。 */
 export function parse_match_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   parse_match_into(arena, lex, slice, out);
+  }
 }
 
 
 /** parse_at_simd_builtin_into 的 buf 变体。 */
 export function parse_at_simd_builtin_into_buf(arena: *ASTArena, r0: LexerResult, data: *u8, len: i32, out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   parse_at_simd_builtin_into(arena, r0, slice, out);
+  }
 }
 
 
 /** parse_as_suffix_into 的 buf 变体。 */
 export function parse_as_suffix_into_buf(arena: *ASTArena, data: *u8, len: i32, out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   parse_as_suffix_into(arena, slice, out);
+  }
 }
 
 
 /** parse_type_ref_for_arena_into 的 buf 变体。 */
 export function parse_type_ref_for_arena_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out_lex: *Lexer): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   return parse_type_ref_for_arena_into(arena, lex, slice, out_lex);
+  }
+  return 0;  // unreachable — typeck after unsafe block
 }
 
 
 /** parse_body_let_bracket_compound_init_ref 的 buf 变体。 */
 export function parse_body_let_bracket_compound_init_ref_buf(arena: *ASTArena, bracket_start: usize, lex: Lexer, data: *u8, len: i32, lex_out: *Lexer, r_out: *LexerResult): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   return parse_body_let_bracket_compound_init_ref(arena, bracket_start, lex, slice, lex_out, r_out);
+  }
+  return 0;  // unreachable — typeck after unsafe block
 }
 
 
 /** parse_struct_record_layout_into 的 buf 变体。 */
 export function parse_struct_record_layout_into_buf(arena: *ASTArena, module: *Module, lex: Lexer, data: *u8, len: i32, out_lex: *Lexer, allow_pad: i32, force_soa: i32, repr_compat: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   return parse_struct_record_layout_into(arena, module, lex, slice, out_lex, allow_pad, force_soa, repr_compat);
+  }
+  return 0;  // unreachable — typeck after unsafe block
 }
 
 
 /** parse_one_function_library_scan 的 buf 变体。 */
 export function parse_one_function_library_scan_buf(lex: Lexer, data: *u8, len: i32, result: *LibraryParseScanResult): bool {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   return parse_one_function_library_scan(lex, slice, result);
+  }
+  return false;  // unreachable — typeck after unsafe block
 }
 
 
 /** alloc_pointee_type_ref_from_tok 的 buf 变体。 */
 export function alloc_pointee_type_ref_from_tok_buf(arena: *ASTArena, data: *u8, len: i32, r: *LexerResult): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   return alloc_pointee_type_ref_from_tok(arena, slice, r);
+  }
+  return 0;  // unreachable — typeck after unsafe block
 }
 
 
 /** parser_vector_type_ref_from_ident_spelling 的 buf 变体。 */
 export function parser_vector_type_ref_from_ident_spelling_buf(arena: *ASTArena, data: *u8, len: i32, r: LexerResult): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   return parser_vector_type_ref_from_ident_spelling(arena, slice, r);
+  }
+  return 0;  // unreachable — typeck after unsafe block
 }
 
 
 /** parse_one_top_level_let_into 的 buf 变体。 */
 export function parse_one_top_level_let_into_buf(arena: *ASTArena, module: *Module, lex: Lexer, data: *u8, len: i32, is_const: bool, out: *TopLevelLetResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   parse_one_top_level_let_into(arena, module, lex, slice, is_const, out);
+  }
 }
 
 /** parse_one_type_alias_into 的 buf 变体。 */
 export function parse_one_type_alias_into_buf(arena: *ASTArena, module: *Module, lex: Lexer, data: *u8, len: i32, out: *TypeAliasResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   parse_one_type_alias_into(arena, module, lex, slice, out);
+  }
 }
 
 
 /** skip_balanced_parens_into 的 slice 委托 buf（与 skip_balanced_parens_into_buf 深循环 X 体并存）。 */
 export function skip_balanced_parens_slice_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   skip_balanced_parens_into(out, lex, slice);
+  }
 }
 
 
 /** skip_balanced_braces_into 的 slice 委托 buf（与 skip_balanced_braces_into_buf 深循环 X 体并存）。 */
 export function skip_balanced_braces_slice_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   skip_balanced_braces_into(out, lex, slice);
+  }
 }
 
 
 /** module_append_enum_variants_and_skip_body_into 的 slice 委托 buf（深循环 X 体见 module_append_enum_variants_and_skip_body_into_buf）。 */
 export function module_append_enum_variants_and_skip_body_slice_into_buf(module: *Module, enum_idx: i32, out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let slice: u8[] = parser_slice_from_buf(data, len);
   module_append_enum_variants_and_skip_body_into(module, enum_idx, out, lex, slice);
+  }
 }
 
 
@@ -6950,6 +7594,8 @@ export function parse_into_try_skip_allow_from_buf(lex: Lexer, r: LexerResult, d
  * 与 parse_into 等价，接受 (data: *u8, len) 供无 slice 的 buf 路径使用；collect_imports 走 slice lexer_next_into；主循环用 lexer_next_buf_into 避免 LexerResult 按值 ABI 损坏。
  */
 export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len: i32): ParseIntoResult {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let lex: Lexer = lexer.lexer_init();
   let main_idx: i32 = -1;
   let import_res: CollectImportsResult = CollectImportsResult { lex: lex };
@@ -6963,20 +7609,20 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
     }
     loop_count_buf = loop_count_buf + 1;
     let iter_start_buf: Lexer = lex;
-    let r: LexerResult = LexerResult { next_lex: lex, tok: Token { kind: TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
+    let r: LexerResult = LexerResult { next_lex: lex, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
     let current_tok_lex_buf: Lexer = lex;
     lexer_next_buf_into(&r, lex, data, len);
     lex_from_next_into(&lex, r);
     let func_is_async_buf: i32[1] = [];
     func_is_async_buf[0] = 0;
-    if (r.tok.kind == TokenKind.TOKEN_ASYNC) {
+    if (r.tok.kind == token.TokenKind.TOKEN_ASYNC) {
       func_is_async_buf[0] = 1;
       lex_from_next_into(&lex, r);
       current_tok_lex_buf = lex;
       lexer_next_buf_into(&r, lex, data, len);
       lex_from_next_into(&lex, r);
     }
-    if (r.tok.kind == TokenKind.TOKEN_ATTR_SOA) {
+    if (r.tok.kind == token.TokenKind.TOKEN_ATTR_SOA) {
       module.pending_soa_struct = 1;
       lex_from_next_into(&lex, r);
       if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) {
@@ -6984,7 +7630,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       }
       continue;
     }
-    if (r.tok.kind == TokenKind.TOKEN_ATTR_CFG) {
+    if (r.tok.kind == token.TokenKind.TOKEN_ATTR_CFG) {
       if (r.tok.int_val == 0) { module.pending_cfg_skip = 1; }
       lex_from_next_into(&lex, r);
       if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) {
@@ -6992,7 +7638,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       }
       continue;
     }
-    if (r.tok.kind == TokenKind.TOKEN_ATTR_REPR_C) {
+    if (r.tok.kind == token.TokenKind.TOKEN_ATTR_REPR_C) {
       module.pending_repr_c_struct = 1;
       lex_from_next_into(&lex, r);
       if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) {
@@ -7001,7 +7647,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       continue;
     }
     /** MOD-02：`#[repr(compatible)]` 下一顶层 struct 记 repr_compatible。 */
-    if (r.tok.kind == TokenKind.TOKEN_ATTR_REPR_COMPATIBLE) {
+    if (r.tok.kind == token.TokenKind.TOKEN_ATTR_REPR_COMPATIBLE) {
       module.pending_repr_compatible_struct = 1;
       lex_from_next_into(&lex, r);
       if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) {
@@ -7010,7 +7656,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       continue;
     }
     /** MEM-C1：`#[alloc]` 仅标记下一 function 由后续解析路径处理；顶层循环这里只消费 attribute。 */
-    if (r.tok.kind == TokenKind.TOKEN_ATTR_ALLOC) {
+    if (r.tok.kind == token.TokenKind.TOKEN_ATTR_ALLOC) {
       lex_from_next_into(&lex, r);
       if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) {
         lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
@@ -7018,7 +7664,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       continue;
     }
     /** K10：`#[used]` 下一 function 标记为 used（不被 C 编译器消除，外部链接）。 */
-    if (r.tok.kind == TokenKind.TOKEN_ATTR_USED) {
+    if (r.tok.kind == token.TokenKind.TOKEN_ATTR_USED) {
       module.pending_used = 1;
       lex_from_next_into(&lex, r);
       if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) {
@@ -7026,28 +7672,28 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       }
       continue;
     }
-    if (r.tok.kind == TokenKind.TOKEN_ATTR_NAKED) {
+    if (r.tok.kind == token.TokenKind.TOKEN_ATTR_NAKED) {
       module.pending_naked = 1; lex_from_next_into(&lex, r);
       if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) { lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 }; }
       continue;
     }
-    if (r.tok.kind == TokenKind.TOKEN_ATTR_ENTRY) {
+    if (r.tok.kind == token.TokenKind.TOKEN_ATTR_ENTRY) {
       module.pending_entry = 1; lex_from_next_into(&lex, r);
       if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) { lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 }; }
       continue;
     }
-    if (r.tok.kind == TokenKind.TOKEN_ATTR_NO_MANGLE) {
+    if (r.tok.kind == token.TokenKind.TOKEN_ATTR_NO_MANGLE) {
       module.pending_no_mangle = 1; lex_from_next_into(&lex, r);
       if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) { lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 }; }
       continue;
     }
-    if (r.tok.kind == TokenKind.TOKEN_ATTR_INTERRUPT) {
+    if (r.tok.kind == token.TokenKind.TOKEN_ATTR_INTERRUPT) {
       module.pending_interrupt = 1; lex_from_next_into(&lex, r);
       if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) { lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 }; }
       continue;
     }
     /** 模块导出：`export` 下一顶层声明记 is_export（parse_into_buf）。 */
-    if (r.tok.kind == TokenKind.TOKEN_EXPORT) {
+    if (r.tok.kind == token.TokenKind.TOKEN_EXPORT) {
       module.pending_export = 1;
       lex_from_next_into(&lex, r);
       if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) {
@@ -7056,7 +7702,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       continue;
     }
     if (module.pending_cfg_skip != 0) {
-      if (r.tok.kind == TokenKind.TOKEN_STRUCT) {
+      if (r.tok.kind == token.TokenKind.TOKEN_STRUCT) {
         skip_one_struct_into_buf(&lex, iter_start_buf, data, len);
         module.pending_cfg_skip = 0;
         module.pending_export = 0;
@@ -7065,7 +7711,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
         }
         continue;
       }
-      if (r.tok.kind == TokenKind.TOKEN_CONST) {
+      if (r.tok.kind == token.TokenKind.TOKEN_CONST) {
         skip_one_top_level_const_into_buf(&lex, iter_start_buf, data, len);
         module.pending_cfg_skip = 0;
         module.pending_export = 0;
@@ -7074,7 +7720,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
         }
         continue;
       }
-      if (r.tok.kind == TokenKind.TOKEN_LET) {
+      if (r.tok.kind == token.TokenKind.TOKEN_LET) {
         skip_one_top_level_let_into_buf(&lex, iter_start_buf, data, len);
         module.pending_cfg_skip = 0;
         module.pending_export = 0;
@@ -7083,8 +7729,8 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
         }
         continue;
       }
-      if (r.tok.kind == TokenKind.TOKEN_FUNCTION || func_is_async_buf[0] != 0 ||
-          r.tok.kind == TokenKind.TOKEN_EXTERN) {
+      if (r.tok.kind == token.TokenKind.TOKEN_FUNCTION || func_is_async_buf[0] != 0 ||
+          r.tok.kind == token.TokenKind.TOKEN_EXTERN) {
         skip_one_function_full_into_buf(&lex, iter_start_buf, data, len);
         module.pending_cfg_skip = 0;
         module.pending_export = 0;
@@ -7108,7 +7754,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       }
       module.pending_cfg_skip = 0;
     }
-    if (r.tok.kind == TokenKind.TOKEN_STRUCT) {
+    if (r.tok.kind == token.TokenKind.TOKEN_STRUCT) {
       let lex_kw: Lexer = iter_start_buf;
       let ap_sb: i32 = module.pending_allow_padding;
       let ps_sb: i32 = module.pending_soa_struct;
@@ -7135,7 +7781,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       }
       continue;
     }
-    if (r.tok.kind == TokenKind.TOKEN_ENUM) {
+    if (r.tok.kind == token.TokenKind.TOKEN_ENUM) {
       let pe_enum_buf: i32 = module.pending_export;
       module.pending_export = 0;
       let nen_before_buf: i32 = module.num_module_enums;
@@ -7148,21 +7794,21 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       }
       continue;
     }
-    if (r.tok.kind == TokenKind.TOKEN_TRAIT) {
+    if (r.tok.kind == token.TokenKind.TOKEN_TRAIT) {
       skip_one_trait_into_buf(&lex, iter_start_buf, data, len);
       if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) {
         lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
       }
       continue;
     }
-    if (r.tok.kind == TokenKind.TOKEN_IMPL) {
+    if (r.tok.kind == token.TokenKind.TOKEN_IMPL) {
       skip_one_impl_into_buf(&lex, iter_start_buf, data, len);
       if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) {
         lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
       }
       continue;
     }
-    if (r.tok.kind == TokenKind.TOKEN_EXTERN) {
+    if (r.tok.kind == token.TokenKind.TOKEN_EXTERN) {
       parse_one_extern_and_add_into_buf(arena, module, iter_start_buf, data, len, &lex);
       if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) {
         skip_one_extern_into_buf(&lex, iter_start_buf, data, len);
@@ -7173,7 +7819,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       continue;
     }
     /* 顶层 type 别名：type Alias = Target;（§2.24 ALIAS-01） */
-    if (r.tok.kind == TokenKind.TOKEN_TYPE) {
+    if (r.tok.kind == token.TokenKind.TOKEN_TYPE) {
       let alias_res: TypeAliasResult = TypeAliasResult { ok: false, next_lex: lex };
       parse_one_type_alias_into_buf(arena, module, r.next_lex, data, len, &alias_res);
       if (alias_res.ok) {
@@ -7182,12 +7828,12 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       }
     }
     /* 顶层 let/const：与 C 流水线同步支持，供自举与 toplevel-let 测试 */
-    if (r.tok.kind == TokenKind.TOKEN_LET || r.tok.kind == TokenKind.TOKEN_CONST) {
+    if (r.tok.kind == token.TokenKind.TOKEN_LET || r.tok.kind == token.TokenKind.TOKEN_CONST) {
       let pe_tl: i32 = module.pending_export;
       module.pending_export = 0;
       let ntl_before: i32 = module.num_top_level_lets;
       let toplevel_res: TopLevelLetResult = TopLevelLetResult { ok: false, next_lex: lex };
-      parse_one_top_level_let_into_buf(arena, module, r.next_lex, data, len, r.tok.kind == TokenKind.TOKEN_CONST, &toplevel_res);
+      parse_one_top_level_let_into_buf(arena, module, r.next_lex, data, len, r.tok.kind == token.TokenKind.TOKEN_CONST, &toplevel_res);
       if (toplevel_res.ok) {
         if (pe_tl != 0 && module.num_top_level_lets > ntl_before) {
           pipeline_module_top_level_let_set_is_export(module, module.num_top_level_lets - 1, 1);
@@ -7196,7 +7842,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
         continue;
       }
     }
-    if (r.tok.kind != TokenKind.TOKEN_FUNCTION) {
+    if (r.tok.kind != token.TokenKind.TOKEN_FUNCTION) {
       let try_res: TrySkipAllowResult = TrySkipAllowResult { lex: lex, skipped: 0, _pad: [] };
       parse_into_try_skip_allow_into_buf(&try_res, lex, r, data, len);
       if (try_res.skipped != 0) {
@@ -7208,7 +7854,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
         continue;
       }
       /* 非 function 且未 skip：可能是注释等，前进一个 token 再试，避免文件开头的注释导致 0 函数；EOF 时下面会处理。 */
-      if (r.tok.kind == TokenKind.TOKEN_EOF) {
+      if (r.tok.kind == token.TokenKind.TOKEN_EOF) {
         break;
       }
       if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) {
@@ -7217,7 +7863,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       continue;
     }
     /* 库模块或正常结束：break 后若为 EOF 则直接返回成功，避免在 EOF 处当作 function 解析导致死循环。 */
-    if (r.tok.kind == TokenKind.TOKEN_EOF) {
+    if (r.tok.kind == token.TokenKind.TOKEN_EOF) {
       if (module.num_funcs == 0) {
         return parse_into_result_empty_module_or_fail_tok(diag_fail_at_token_kind_buf(data, len));
       }
@@ -8082,13 +8728,17 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
   let out_idx_storage: i32[1] = [];
   out_idx_storage[0] = out_idx;
   return ParseIntoResult { ok: 0, main_idx: out_idx_storage[0] }
+  }
 }
 
 /** 在 parse_into 返回后由调用方调用，将 main_idx 写回 module.main_func_index，避免 codegen 将赋值提升到循环前。 */
 /** 单行 extern bl→parser_parse_into_set_main_index_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_parse_into_set_main_index_glue(module: *Module, main_idx: i32): void;
 export function parse_into_set_main_index(module: *Module, main_idx: i32): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parser_parse_into_set_main_index_glue(module, main_idx);
+  }
 }
 
 
@@ -8099,7 +8749,11 @@ export function parse_into_set_main_index(module: *Module, main_idx: i32): void 
 /** 单行 extern bl→parser_diag_token_after_collect_imports_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_diag_token_after_collect_imports_glue(source: u8[], module: *Module): i32;
 export function diag_token_after_collect_imports(source: u8[], module: *Module): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return parser_diag_token_after_collect_imports_glue(source, module);
+  }
+  return 0;  // unreachable — typeck after unsafe block
 }
 
 
@@ -8110,7 +8764,11 @@ export function diag_token_after_collect_imports(source: u8[], module: *Module):
 /** 单行 extern bl→parser_diag_parse_one_after_collect_imports_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_diag_parse_one_after_collect_imports_glue(source: u8[], module: *Module, arena: *ASTArena): i32;
 export function diag_parse_one_after_collect_imports(source: u8[], module: *Module, arena: *ASTArena): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return parser_diag_parse_one_after_collect_imports_glue(source, module, arena);
+  }
+  return 0;  // unreachable — typeck after unsafe block
 }
 
 
@@ -8121,7 +8779,11 @@ export function diag_parse_one_after_collect_imports(source: u8[], module: *Modu
 /** 单行 extern bl→parser_parse_one_function_ok_for_pipeline_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_parse_one_function_ok_for_pipeline_glue(arena: *ASTArena, source: u8[]): i32;
 export function parse_one_function_ok_for_pipeline(arena: *ASTArena, source: u8[]): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return parser_parse_one_function_ok_for_pipeline_glue(arena, source);
+  }
+  return 0;  // unreachable — typeck after unsafe block
 }
 
 
@@ -8132,12 +8794,15 @@ export function get_module_num_imports(module: *Module): i32 {
 
 /** 阶段 5：将第 i 条 import 路径复制到 out（NUL 结尾），供 C 做 resolve。i 越界时 out 填空串。 */
 export function get_module_import_path(module: *Module, i: i32, out: u8[64]): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   if (i < 0 || i >= module.num_imports) {
     let z: u8 = (0 as u8);
     out[0] = z;
     return;
   }
   pipeline_module_import_path_copy(module, i, &out[0], 64);
+  }
 }
 
 /**
@@ -8155,6 +8820,8 @@ export function copy_module_import_path64(module: *Module, i: i32, out: u8[64]):
 
 /** 联调 9.1：若存在 /tmp/shux_parse_test.x 则读入前 128 字节并以 parse() 校验（return 字面量或简单表达式，`parse()` 内部非字面量时用堆 Arena）。 */
 export function main(): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let path: u8[32] = [
     47, 116, 109, 112, 47, 115, 104, 117, 95, 112, 97, 114, 115, 101, 95, 116,
     101, 115, 116, 46, 115, 117, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
@@ -8191,4 +8858,6 @@ export function main(): i32 {
     return 2;
   }
   return 0;
+  }
+  return 0;  // unreachable — typeck after unsafe block
 }
