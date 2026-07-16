@@ -5527,6 +5527,23 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
         }
         continue;
       }
+      /*
+       * 【Why】`#[cfg(false)] allow(padding) struct S`：allow 夹在 cfg 与 item 之间。
+       * 旧逻辑在非 STRUCT/CONST/LET/FUNCTION 时清 pending_cfg_skip，导致 allow 后 struct
+       * 仍被解析（posix PosixStatBuf macOS 布局在 Linux 上胜出 → fstat 错位）。
+       * allow 仅消费词法、保持 skip，直至真正 item 被 skip。
+       */
+      {
+        let try_cfg_allow: TrySkipAllowResult = TrySkipAllowResult { lex: lex, skipped: 0, _pad: [] };
+        parse_into_try_skip_allow_into(&try_cfg_allow, lex, r, source);
+        if (try_cfg_allow.skipped != 0) {
+          lex_from_try_skip_into(&lex, try_cfg_allow);
+          if (lex.pos == iter_start.pos && lex.pos < source.length) {
+            lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+          }
+          continue;
+        }
+      }
       module.pending_cfg_skip = 0;
     }
     if (r.tok.kind == TokenKind.TOKEN_STRUCT) {
@@ -7076,6 +7093,18 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
           lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
         }
         continue;
+      }
+      /* 同 parse_into：cfg_skip 下消费 allow(padding)，保持 skip（见上注释）。 */
+      {
+        let try_cfg_allow_buf: TrySkipAllowResult = TrySkipAllowResult { lex: lex, skipped: 0, _pad: [] };
+        parse_into_try_skip_allow_into_buf(&try_cfg_allow_buf, lex, r, data, len);
+        if (try_cfg_allow_buf.skipped != 0) {
+          lex_from_try_skip_into(&lex, try_cfg_allow_buf);
+          if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) {
+            lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+          }
+          continue;
+        }
       }
       module.pending_cfg_skip = 0;
     }
