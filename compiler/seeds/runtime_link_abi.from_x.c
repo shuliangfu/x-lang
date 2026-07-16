@@ -6147,6 +6147,25 @@ void shux_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *us
                     && !shux_link_obj_needs_undef_sym(user_o, "std_process_exit")
                     && !shux_link_obj_needs_undef_sym(user_o, "std_process_args"))
                     break;
+                /*
+                 * 【Why 根源】sync/atomic 预编 .o 经 -backend c 带 preamble weak process_arg*_c，
+                 *   对 process_shux_* 有 U。无条件硬链 → 纯 asm（binop_var 等仅 U shux_panic_）
+                 *   也拖入 sync/atomic → ld 缺 process_shux_argc_get（bstrict26）。
+                 * 【Invariant】与 crypto/process 同：仅 user.o 有 std_sync_*/std_atomic_* UNDEF 才推。
+                 */
+                if (fk == 3 /* sync */
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_sync_mutex_lock")
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_sync_mutex_new")
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_sync_condvar_wait")
+                    && !shux_link_obj_needs_undef_sym(user_o, "sync_mutex_lock_c"))
+                    break;
+                if (fk == 6 /* atomic */
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_atomic_store_i32_ptr_i32")
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_atomic_load_i32_ptr")
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_atomic_fetch_add_i32_ptr_i32")
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_atomic_store_i64_ptr_i64")
+                    && !shux_link_obj_needs_undef_sym(user_o, "atomic_store_i32_c"))
+                    break;
             } else if (fk == 0 && rel && rel[0] && !labi_std_fk0_user_needs_rel(user_o, rel)) {
                 break;
             }
@@ -6263,6 +6282,15 @@ void shux_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *us
         default:
             break;
         }
+    }
+    /*
+     * sync/atomic（及同类）C 路径预编 .o 内 preamble weak process_arg*_c → U process_shux_*。
+     * 已推 sync/atomic 且未推 process.o 时补 runtime_process_argv.o（勿与 process.o 双链）。
+     */
+    if ((have_atomic || (flags && flags->have_sync)) && !have_process) {
+        (void)shux_ensure_runtime_process_argv_o(link_argv0);
+        link_abi_asm_ld_push_obj(shux_runtime_process_argv_o_path(link_argv0), link_argv0,
+            "compiler/runtime_process_argv.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
     }
 }
 
