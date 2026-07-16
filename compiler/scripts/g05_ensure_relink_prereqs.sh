@@ -132,7 +132,7 @@ g05_try_x_to_o() {
     # 下方 sed 会删掉 -E 自带 #include <poll.h> 等，故在 prologue 补齐。
     echo '#include <sys/uio.h>'
     echo '#include <poll.h>'
-    # PLATFORM: POSIX — fmt_check path_stat pure *u8 wrappers (DIR* cast safe).
+    # PLATFORM: POSIX — fmt_check walk/path_stat pure *u8 wrappers (DIR* cast safe).
     echo '#include <dirent.h>'
     echo 'static inline uint8_t *shux_fmt_opendir(uint8_t *name) {'
     echo '  return (uint8_t *)opendir((const char *)name);'
@@ -142,6 +142,12 @@ g05_try_x_to_o() {
     echo '}'
     echo 'static inline int32_t shux_fmt_access(uint8_t *path, int32_t mode) {'
     echo '  return path ? (int32_t)access((const char *)path, (int)mode) : (int32_t)-1;'
+    echo '}'
+    echo 'static inline uint8_t *shux_fmt_readdir_name(uint8_t *dirp) {'
+    echo '  struct dirent *ent;'
+    echo '  if (!dirp) return (uint8_t *)0;'
+    echo '  ent = readdir((DIR *)(void *)dirp);'
+    echo '  return ent ? (uint8_t *)ent->d_name : (uint8_t *)0;'
     echo '}'
     echo '#endif'
     # 去掉 -E 自带 #include 与 libc 再声明（与上方头冲突）
@@ -192,6 +198,7 @@ g05_try_x_to_o() {
         -e '/^extern uint8_t \* shux_fmt_opendir(/d' \
         -e '/^extern int32_t shux_fmt_closedir(/d' \
         -e '/^extern int32_t shux_fmt_access(/d' \
+        -e '/^extern uint8_t \* shux_fmt_readdir_name(/d' \
         "$_xtmp"
   } >"${_xtmp}.full" && mv "${_xtmp}.full" "$_xtmp"
   # shellcheck disable=SC2086

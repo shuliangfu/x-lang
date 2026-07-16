@@ -1,4 +1,4 @@
-/* regen from fmt_check_cmd_thin.x -E (path_stat pure + shux_fmt_* wrappers) */
+/* regen from fmt_check_cmd_thin.x -E (walk_dir_collect pure + shux_fmt_* wrappers) */
 /* prove prologue (g05_try_x_to_o aligned + uio/poll + dirent wrappers) */
 #include <stddef.h>
 #include <stdint.h>
@@ -21,6 +21,12 @@ static inline int32_t shux_fmt_closedir(uint8_t *dirp) {
 }
 static inline int32_t shux_fmt_access(uint8_t *path, int32_t mode) {
   return path ? (int32_t)access((const char *)path, (int)mode) : (int32_t)-1;
+}
+static inline uint8_t *shux_fmt_readdir_name(uint8_t *dirp) {
+  struct dirent *ent;
+  if (!dirp) return (uint8_t *)0;
+  ent = readdir((DIR *)(void *)dirp);
+  return ent ? (uint8_t *)ent->d_name : (uint8_t *)0;
 }
 #endif
 #if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 201112L
@@ -1232,7 +1238,6 @@ int32_t check_one_file(uint8_t * path, int32_t argc, uint8_t * argv) {
   }
   return (0 - 1);
 }
-extern void walk_dir_collect_impl(uint8_t * dir);
 int32_t path_should_ignore(uint8_t * path) {
   if ((path ==((uint8_t *)(0)))) {
     return 1;
@@ -1307,7 +1312,76 @@ void walk_dir_collect_process_child(uint8_t * child, int32_t is_dir, int32_t is_
   return;
 }
 void walk_dir_collect(uint8_t * dir) {
-  (void)(walk_dir_collect_impl(dir));
+  if ((dir ==((uint8_t *)(0)))) {
+    return;
+  }
+  {
+    uint8_t dir_buf[512] = {};
+    int32_t di = 0;
+    while ((di < 511)) {
+      uint8_t c = (dir)[di];
+      (void)(((dir_buf)[di] = c));
+      if ((c ==0)) {
+        break;
+      }
+      (void)((di = (di + 1)));
+    }
+    (void)(((dir_buf)[511] = 0));
+    uint8_t * d = shux_fmt_opendir(&((dir_buf)[0]));
+    if ((d ==((uint8_t *)(0)))) {
+      return;
+    }
+    int32_t guard = 0;
+    while ((guard < 100000)) {
+      uint8_t * name = shux_fmt_readdir_name(d);
+      uint8_t child[768] = {};
+      int32_t ci = 0;
+      int32_t ni = 0;
+      int32_t is_dir = 0;
+      int32_t is_reg = 0;
+      int32_t k = 0;
+      (void)((guard = (guard + 1)));
+      if ((name ==((uint8_t *)(0)))) {
+        break;
+      }
+      if ((fmt_walk_skip_dot_name(name) !=0)) {
+        continue;
+      }
+      while ((ci < 511)) {
+        uint8_t c2 = (dir_buf)[ci];
+        if ((c2 ==0)) {
+          break;
+        }
+        (void)(((child)[ci] = c2));
+        (void)((ci = (ci + 1)));
+      }
+      if ((ci >=767)) {
+        continue;
+      }
+      (void)(((child)[ci] = 47));
+      (void)((ci = (ci + 1)));
+      while ((ci < 767)) {
+        uint8_t c3 = (name)[ni];
+        (void)(((child)[ci] = c3));
+        if ((c3 ==0)) {
+          break;
+        }
+        (void)((ci = (ci + 1)));
+        (void)((ni = (ni + 1)));
+      }
+      (void)(((child)[767] = 0));
+      (void)((k = fmt_path_stat_kind(&((child)[0]))));
+      if ((k ==1)) {
+        (void)((is_dir = 1));
+      } else {
+        if ((k ==0)) {
+          (void)((is_reg = 1));
+        }
+      }
+      (void)(walk_dir_collect_process_child(&((child)[0]), is_dir, is_reg));
+    }
+    (void)(shux_fmt_closedir(d));
+  }
   (void)(0);
   return;
 }

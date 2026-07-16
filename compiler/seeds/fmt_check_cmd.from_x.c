@@ -1,4 +1,4 @@
-/* R2 thin + Cap residual pure 深迁（续 path_stat pure）：
+/* R2 thin + Cap residual pure 深迁（续 walk_dir_collect pure）：
  * PREFER hybrid thin 由 src/driver/fmt_check_cmd_thin.x（lit/entry + pure 真体）；
  * rest SHUX_L2_FMT_CHECK_THIN_FROM_X：无 thin 公共体；pure-duplicate _impl 剔除
  * （含 set_current_file / print / cwd_fallback / try_walk / path_resolve_abs /
@@ -8,9 +8,8 @@
  *  parse_ignore_opt / try_append_lib_root / argv_append /
  *  fmt_file_list_store / file_list_clear / fmt_file_list_at /
  *  driver_run_compiler_check / driver_run_fmt / check_one_file body /
- *  fmt_path_stat_kind / …）；
- * Cap residual：walk opendir 仍 rest
- *  （ALWAYS residual 1）。
+ *  fmt_path_stat_kind / walk_dir_collect / …）；
+ * Cap residual pure done：ALWAYS residual 0（hybrid）。
  * 冷启动无宏：全 C 体（含 pure _impl + public 门闩）。
  * Regen thin surface: shux -E src/driver/fmt_check_cmd_thin.x → thin_surface.
  */
@@ -864,8 +863,9 @@ void walk_dir_collect_process_child(const char *child, int is_dir, int is_reg) {
 
 /**
  * 递归遍历目录，收集 .x 文件。
- * Cap residual：opendir 循环 🔒；过滤/递归编排调 public walk_dir_collect_process_child
- * （hybrid 时 thin pure；冷启动时 seed public→_impl）。
+ * pure 权威：thin.x walk_dir_collect（opendir + readdir_name + path_stat classify；
+ *   无 struct dirent/stat 布局）；冷启动保留本 _impl + public；
+ * FROM_X 下剔除 pure-dup（H↓；ALWAYS residual 1→0）。
  *
  * 【Why 根源】dir 可能指向 fmt_path_resolve_abs 的静态/小 BSS 缓冲
  * （collect_paths_from_arg → resolve_abs → walk_dir_collect 传入；hybrid thin
@@ -876,6 +876,7 @@ void walk_dir_collect_process_child(const char *child, int is_dir, int is_reg) {
  * 【Invariant】dir_buf 在本函数栈帧内，不受下游调用影响。
  * 【Asm/Perf】单次 snprintf 拷贝，零热路径影响（目录遍历非热路径）。
  */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 void walk_dir_collect_impl(const char *dir) {
     DIR *d;
     struct dirent *ent;
@@ -905,7 +906,7 @@ void walk_dir_collect_impl(const char *dir) {
             else if (stat(child, &st) == 0 && S_ISREG(st.st_mode))
                 is_reg = 1;
         }
-        /* 调 public：hybrid thin pure / 冷 seed public */
+        /* 调 public：冷 seed public→_impl path；hybrid 不编此函数 */
         walk_dir_collect_process_child(child, is_dir, is_reg);
     }
     closedir(d);
@@ -913,7 +914,6 @@ void walk_dir_collect_impl(const char *dir) {
 
 /* G-02f-249：逻辑源 .x（门闩）；seed 保留同语义 C 供产品 cc */
 /* G-02f-407：public PREFER 时 thin → existing impl */
-#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 void walk_dir_collect(const char *dir) {
     if (!dir)
         return;

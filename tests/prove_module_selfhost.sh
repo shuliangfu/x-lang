@@ -112,15 +112,15 @@ MODULES=(
   #  collect_mode/user_passed_L BSS + init + file_list/ignore/lib_bufs n + ignore path slots +
   #  lib path slots + full try_append + full argv_append + file_list path slots/store/clear +
   #  driver_run_compiler_check full orch + driver_run_fmt full orch + check_one_file body +
-  #  path_stat pure）：
+  #  path_stat pure + walk_dir_collect pure）：
   # thin.x 吃满 lit/entry + pure 真体（path_should_ignore / .x 后缀 / lint / file_list_push /
   #  process_child / collect_paths / default_dirs / check_one_file full body / try_append 全 pure /
   #  argv_append 全 pure / parse_ignore 全量 / invoke_compile·dep_clear / set_current_file /
   #  print_collected / cwd_fallback / try_walk / path_resolve_abs / append_repo / missing_diag /
   #  collect_mode / user_passed_L / init / file_list_n / user_ignore_count / lib_bufs_n /
   #  user_ignore_at / lib_buf_at/store / file_list_at/store/clear / run_compiler_check / run_fmt /
-  #  path_stat opendir+access）；
-  # rest FROM_X 无 pure-dup _impl；Cap residual：walk opendir
+  #  path_stat opendir+access / walk_dir_collect opendir+readdir_name+path_stat）；
+  # rest FROM_X 无 pure-dup _impl；Cap residual pure done（ALWAYS residual 0）
   # prove 锁 thin surface IDENTICAL；冷/无 PREFER 仍可走 seeds/fmt_check_cmd.from_x.c 全 C 体
   "fmt_check|src/driver/fmt_check_cmd_thin.x|seeds/fmt_check_cmd_thin_surface.from_x.c||"
   # simd_loop R2 full：.x 吃满 peel/parse/emit 公共业务；
@@ -333,7 +333,7 @@ gen_x_o() {
     # sed 会删 -E 自带 #include，故在此补齐（权威：g05_try_x_to_o）。
     echo '#include <sys/uio.h>'
     echo '#include <poll.h>'
-    # PLATFORM: POSIX — fmt_check path_stat pure *u8 wrappers (DIR* cast safe).
+    # PLATFORM: POSIX — fmt_check walk/path_stat pure *u8 wrappers (DIR* cast safe).
     echo '#include <dirent.h>'
     echo 'static inline uint8_t *shux_fmt_opendir(uint8_t *name) {'
     echo '  return (uint8_t *)opendir((const char *)name);'
@@ -343,6 +343,12 @@ gen_x_o() {
     echo '}'
     echo 'static inline int32_t shux_fmt_access(uint8_t *path, int32_t mode) {'
     echo '  return path ? (int32_t)access((const char *)path, (int)mode) : (int32_t)-1;'
+    echo '}'
+    echo 'static inline uint8_t *shux_fmt_readdir_name(uint8_t *dirp) {'
+    echo '  struct dirent *ent;'
+    echo '  if (!dirp) return (uint8_t *)0;'
+    echo '  ent = readdir((DIR *)(void *)dirp);'
+    echo '  return ent ? (uint8_t *)ent->d_name : (uint8_t *)0;'
     echo '}'
     echo '#endif'
     sed -e '/^#include /d' \
@@ -392,6 +398,7 @@ gen_x_o() {
         -e '/^extern uint8_t \* shux_fmt_opendir(/d' \
         -e '/^extern int32_t shux_fmt_closedir(/d' \
         -e '/^extern int32_t shux_fmt_access(/d' \
+        -e '/^extern uint8_t \* shux_fmt_readdir_name(/d' \
         "$tmp"
   } >"${tmp}.full" && mv "${tmp}.full" "$tmp"
 

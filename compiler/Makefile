@@ -777,7 +777,7 @@ src/runtime_x.o: seeds/runtime.from_x.c src/runtime.x include/diag.h
 
 # G-02f-11 / Phase 4：fmt_check_cmd thin+rest PREFER_X_O
 # 两目标共用 thin.x；driver 变体 rest 编译额外加 -DSHUX_USE_X_PIPELINE
-# PLATFORM: POSIX — thin -E uses getcwd/opendir/access; wrap with g05-aligned prologue.
+# PLATFORM: POSIX — thin -E uses getcwd/opendir/readdir/access; wrap with g05-aligned prologue.
 # (raw -E + unistd/dirent conflicts on libc extern redecls; strip like g05_try_x_to_o.)
 src/driver/fmt_check_cmd.o: seeds/fmt_check_cmd.from_x.c src/driver/fmt_check_cmd_thin.x src/driver/fmt_check_cmd.x
 	@if [ -x ./shux-c ] && { \
@@ -791,6 +791,7 @@ src/driver/fmt_check_cmd.o: seeds/fmt_check_cmd.from_x.c src/driver/fmt_check_cm
 		  echo 'static inline uint8_t *shux_fmt_opendir(uint8_t *name) { return (uint8_t *)opendir((const char *)name); }'; \
 		  echo 'static inline int32_t shux_fmt_closedir(uint8_t *dirp) { return dirp ? (int32_t)closedir((DIR *)(void *)dirp) : (int32_t)-1; }'; \
 		  echo 'static inline int32_t shux_fmt_access(uint8_t *path, int32_t mode) { return path ? (int32_t)access((const char *)path, (int)mode) : (int32_t)-1; }'; \
+		  echo 'static inline uint8_t *shux_fmt_readdir_name(uint8_t *dirp) { struct dirent *ent; if (!dirp) return (uint8_t *)0; ent = readdir((DIR *)(void *)dirp); return ent ? (uint8_t *)ent->d_name : (uint8_t *)0; }'; \
 		  echo '#endif'; \
 		  sed -e '/^#include /d' -e '/^extern char \* getcwd(/d' -e '/^extern uint8_t \* getcwd(/d' \
 		      -e '/^extern char \* getenv(/d' -e '/^extern uint8_t \* getenv(/d' \
@@ -798,7 +799,7 @@ src/driver/fmt_check_cmd.o: seeds/fmt_check_cmd.from_x.c src/driver/fmt_check_cm
 		      -e '/^extern int32_t strncmp(/d' -e '/^extern int strncmp(/d' \
 		      -e '/^extern uint8_t \* strstr(/d' -e '/^extern char \* strstr(/d' \
 		      -e '/^extern uint8_t \* shux_fmt_opendir(/d' -e '/^extern int32_t shux_fmt_closedir(/d' \
-		      -e '/^extern int32_t shux_fmt_access(/d' "$$_tmp.raw"; \
+		      -e '/^extern int32_t shux_fmt_access(/d' -e '/^extern uint8_t \* shux_fmt_readdir_name(/d' "$$_tmp.raw"; \
 		} > "$$_tmp" && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/driver/fmt_check_cmd_thin.o && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_L2_FMT_CHECK_THIN_FROM_X -c seeds/fmt_check_cmd.from_x.c -o src/driver/fmt_check_cmd_rest.o && \
@@ -825,6 +826,7 @@ src/driver/fmt_check_cmd_driver.o: seeds/fmt_check_cmd.from_x.c src/driver/fmt_c
 		  echo 'static inline uint8_t *shux_fmt_opendir(uint8_t *name) { return (uint8_t *)opendir((const char *)name); }'; \
 		  echo 'static inline int32_t shux_fmt_closedir(uint8_t *dirp) { return dirp ? (int32_t)closedir((DIR *)(void *)dirp) : (int32_t)-1; }'; \
 		  echo 'static inline int32_t shux_fmt_access(uint8_t *path, int32_t mode) { return path ? (int32_t)access((const char *)path, (int)mode) : (int32_t)-1; }'; \
+		  echo 'static inline uint8_t *shux_fmt_readdir_name(uint8_t *dirp) { struct dirent *ent; if (!dirp) return (uint8_t *)0; ent = readdir((DIR *)(void *)dirp); return ent ? (uint8_t *)ent->d_name : (uint8_t *)0; }'; \
 		  echo '#endif'; \
 		  sed -e '/^#include /d' -e '/^extern char \* getcwd(/d' -e '/^extern uint8_t \* getcwd(/d' \
 		      -e '/^extern char \* getenv(/d' -e '/^extern uint8_t \* getenv(/d' \
@@ -832,7 +834,7 @@ src/driver/fmt_check_cmd_driver.o: seeds/fmt_check_cmd.from_x.c src/driver/fmt_c
 		      -e '/^extern int32_t strncmp(/d' -e '/^extern int strncmp(/d' \
 		      -e '/^extern uint8_t \* strstr(/d' -e '/^extern char \* strstr(/d' \
 		      -e '/^extern uint8_t \* shux_fmt_opendir(/d' -e '/^extern int32_t shux_fmt_closedir(/d' \
-		      -e '/^extern int32_t shux_fmt_access(/d' "$$_tmp.raw"; \
+		      -e '/^extern int32_t shux_fmt_access(/d' -e '/^extern uint8_t \* shux_fmt_readdir_name(/d' "$$_tmp.raw"; \
 		} > "$$_tmp" && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/driver/fmt_check_cmd_driver_thin.o && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_L2_FMT_CHECK_THIN_FROM_X -DSHUX_USE_X_PIPELINE -c seeds/fmt_check_cmd.from_x.c -o src/driver/fmt_check_cmd_driver_rest.o && \

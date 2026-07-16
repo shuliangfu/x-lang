@@ -52,16 +52,19 @@
 //   + wave Cap residual pure：fmt_path_stat_kind（opendir dir probe + access F_OK；
 //     no struct stat layout）；FROM_X 无 pure-dup path_stat_impl；
 //     Cap residual：walk opendir 仍 rest（ALWAYS residual 2→1）。
+//   + wave Cap residual pure：walk_dir_collect（opendir + readdir_name + path_stat
+//     classify + process_child；no struct dirent/stat layout）；FROM_X 无 pure-dup
+//     walk_dir_collect_impl（ALWAYS residual 1→0；fmt_check Cap residual pure done）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_FMT_CHECK_THIN_FROM_X）ld -r
 //   → fmt_check_cmd_driver.o
 // Prove IDENTICAL：seeds/fmt_check_cmd_thin_surface.from_x.c
-// Cap residual：walk opendir
+// Cap residual pure：fmt_check ALWAYS residual 0（walk/stat/file_list/orch pure）
 //   等 *_impl 仍在 full seed rest；FROM_X 下 pure-duplicate _impl 已剔除（含
 //   set_current_file / print / cwd_fallback / try_walk / path_resolve_abs /
 //   append_repo / missing_diag / collect_mode / user_passed_L / init / file_list_n /
 //   user_ignore_count / lib_bufs_n / user_ignore_at / parse_ignore_opt /
 //   try_append_lib_root / argv_append / file_list store+clear / run_check / run_fmt /
-//   check_one_file body / path_stat；H↓）。
+//   check_one_file body / path_stat / walk_dir_collect；H↓）。
 //
 // -E 约束：无 while 重赋值；无零参-only 不稳写法；6 参用扁平 if。
 //
@@ -664,9 +667,11 @@ export function fmt_check_lib_buf_store(i: i32, path: *u8): i32 {
 // Matches seed S_ISDIR / exists semantics for product fmt/check path trees.
 // G.7: *u8 FFI wrappers (static inline in g05/prove prologue + surface pin) avoid
 // DIR* vs uint8_t* redecl errors under Ubuntu -Wall (do not call libc opendir bare).
+// readdir_name returns d_name only (valid until next readdir/closedir; no dirent layout).
 export extern "C" function shux_fmt_opendir(name: *u8): *u8;
 export extern "C" function shux_fmt_closedir(dirp: *u8): i32;
 export extern "C" function shux_fmt_access(path: *u8, mode: i32): i32;
+export extern "C" function shux_fmt_readdir_name(dirp: *u8): *u8;
 
 // pure：SHUX_LINT_CI_FAIL_ON=warn|warning
 #[no_mangle]
@@ -1108,8 +1113,7 @@ export function check_one_file(path: *u8, argc: i32, argv: *u8): i32 {
   return 0 - 1;
 }
 
-// ---- pure ignore / file_list orch / walk process_child；Cap：walk opendir ----
-export extern "C" function walk_dir_collect_impl(dir: *u8): void;
+// ---- pure ignore / file_list orch / walk process_child + walk opendir pure ----
 
 // pure：内置 + --ignore 子串；null path → 忽略
 #[no_mangle]
@@ -1192,10 +1196,100 @@ export function walk_dir_collect_process_child(child: *u8, is_dir: i32, is_reg: 
   }
 }
 
+/** Recursively collect .x files under dir into pure file_list path slots.
+ * Pure under PREFER hybrid without struct dirent / struct stat layout (G.8):
+ *   1) null dir → return;
+ *   2) copy dir into stack dir_buf[512] (alias isolation: resolve_abs may
+ *      overwrite caller static/BSS path buffers that pointed at the same bytes);
+ *   3) shux_fmt_opendir(dir_buf); if null → return;
+ *   4) bounded readdir loop via shux_fmt_readdir_name (d_name only):
+ *      skip dots → join child path on stack → classify with fmt_path_stat_kind
+ *      (1=dir, 0=file/other) → walk_dir_collect_process_child public;
+ *   5) closedir.
+ * Cold seed keeps opendir/readdir/stat body under #ifndef FROM_X.
+ * No walk_dir_collect_impl under hybrid (ALWAYS residual 1→0).
+ * PLATFORM: POSIX — dual-host prove; Windows cold seed remains C rest. */
 #[no_mangle]
 export function walk_dir_collect(dir: *u8): void {
+  if (dir == 0 as *u8) {
+    return;
+  }
   unsafe {
-    walk_dir_collect_impl(dir);
+    // Isolate dir string from resolve_abs / file_list_push reuse of caller buffers.
+    let dir_buf: u8[512] = [];
+    let di: i32 = 0;
+    while (di < 511) {
+      let c: u8 = dir[di];
+      dir_buf[di] = c;
+      if (c == 0) {
+        break;
+      }
+      di = di + 1;
+    }
+    dir_buf[511] = 0;
+
+    let d: *u8 = shux_fmt_opendir(&dir_buf[0]);
+    if (d == 0 as *u8) {
+      return;
+    }
+
+    // Bound readdir iterations (no while-condition reassignment under -E).
+    // Note: -E may hoist `let` initializers to block top — never initialize k
+    // with fmt_path_stat_kind(child) before the path join; assign after join.
+    let guard: i32 = 0;
+    while (guard < 100000) {
+      guard = guard + 1;
+      let name: *u8 = shux_fmt_readdir_name(d);
+      if (name == 0 as *u8) {
+        break;
+      }
+      if (fmt_walk_skip_dot_name(name) != 0) {
+        continue;
+      }
+
+      // child = dir_buf + "/" + name  (max 768, match seed)
+      let child: u8[768] = [];
+      let ci: i32 = 0;
+      let ni: i32 = 0;
+      let is_dir: i32 = 0;
+      let is_reg: i32 = 0;
+      let k: i32 = 0;
+      while (ci < 511) {
+        let c2: u8 = dir_buf[ci];
+        if (c2 == 0) {
+          break;
+        }
+        child[ci] = c2;
+        ci = ci + 1;
+      }
+      if (ci >= 767) {
+        continue;
+      }
+      child[ci] = 47;
+      ci = ci + 1;
+      while (ci < 767) {
+        let c3: u8 = name[ni];
+        child[ci] = c3;
+        if (c3 == 0) {
+          break;
+        }
+        ci = ci + 1;
+        ni = ni + 1;
+      }
+      child[767] = 0;
+
+      // Classify without d_type / struct stat: pure path_stat probe (after join).
+      k = fmt_path_stat_kind(&child[0]);
+      if (k == 1) {
+        is_dir = 1;
+      } else {
+        if (k == 0) {
+          is_reg = 1;
+        }
+      }
+      walk_dir_collect_process_child(&child[0], is_dir, is_reg);
+    }
+    shux_fmt_closedir(d);
   }
 }
 
