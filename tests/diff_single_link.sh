@@ -49,9 +49,13 @@ MODULES=(
   "src/parser/parser.x|parser_gen.c"
   "src/typeck/typeck.x|typeck_gen.c"
   "src/codegen/codegen.x|codegen_gen.c"
-  "src/lsp/lsp.x|lsp_gen.c"
-  "src/lsp/lsp_diag.x|lsp_diag_gen.c"
-  "src/lsp/lsp_io.x|lsp_io_gen.c"
+  # PLATFORM: SHARED — EMPTY-track plain -E surface only.
+  # Product cold pins stay seeds/lsp{,_diag,_io}_gen.linux.x86_64.c (renames +
+  # full types / C-04 -E-extern markers). Same dual-authority split as diagnostic thin:
+  # full product seed never EMPTY by design; EMPTY KPI tracks the surface pin.
+  "src/lsp/lsp.x|seeds/lsp_empty_surface.from_x.c"
+  "src/lsp/lsp_diag.x|seeds/lsp_diag_empty_surface.from_x.c"
+  "src/lsp/lsp_io.x|seeds/lsp_io_empty_surface.from_x.c"
   "src/driver/fmt.x|driver_fmt_gen.c"
   "src/driver/check.x|driver_check_gen.c"
   "src/driver/test.x|driver_test_gen.c"
@@ -98,6 +102,8 @@ for entry in "${MODULES[@]}"; do
     parser_gen.c) alt="seeds/parser_gen.linux.x86_64.c" ;;
     typeck_gen.c) alt="seeds/typeck_gen.linux.x86_64.c" ;;
     codegen_gen.c) alt="seeds/codegen_gen.linux.x86_64.c" ;;
+    # lsp* MODULES already point at EMPTY surface paths; keep product linux seeds
+    # as alt only if a caller still uses bare lsp_*_gen.c seed keys.
     lsp_gen.c) alt="seeds/lsp_gen.linux.x86_64.c" ;;
     lsp_diag_gen.c) alt="seeds/lsp_diag_gen.linux.x86_64.c" ;;
     lsp_io_gen.c) alt="seeds/lsp_io_gen.linux.x86_64.c" ;;
