@@ -105,15 +105,78 @@ for x_path in "$@"; do
       >"$tmp_dir/shuxc_${idx}.log" 2>&1 || true
   fi
   # 优先：-o 已直接产出可用 .o（无 Arena64 冲突时）。
-  # bare-impl 且无 -lib-name：.o 内仍是路径前缀符号，须走 gen_c 后处理剥前缀，勿直接用 .o。
+  # bare-impl 且无 -lib-name：
+  #   - 产品 C 后端 -o/KEEP_C 常带路径前缀（std_crypto_core_*）→ 须 gen_c 剥前缀
+  #   - 产品 Linux 默认 asm -o 已产裸符号（crypto_mem_eq_c）→ 直接用 .o，勿退 -E
+  # 旧逻辑一律拒绝 direct .o 再走 -x -E，而 -E 对 preamble 在 ~20KiB 处截断 → crypto.o 假死。
   bare_need_strip=0
   if [ "$base_name" != "mod.x" ] && [ "$BARE_IMPL" = "1" ] && [ "$LIB_NAME_SUPPORTED" != "1" ]; then
     bare_need_strip=1
   fi
-  if [ "$bare_need_strip" != "1" ] && [ -f "$tmp_dir/try_${idx}.o" ] && [ -s "$tmp_dir/try_${idx}.o" ]; then
-    use_direct_o=1
-    emit_ok=1
-    obj="$tmp_dir/try_${idx}.o"
+  if [ -f "$tmp_dir/try_${idx}.o" ] && [ -s "$tmp_dir/try_${idx}.o" ]; then
+    if [ "$bare_need_strip" = "1" ]; then
+      strip_pref_probe=$(printf '%s' "$x_path" | sed -e 's|^\.\./||' -e 's|\.x$||' -e 's|/|_|g')
+      has_prefixed=0
+      if [ -n "$strip_pref_probe" ] && command -v nm >/dev/null 2>&1; then
+        if nm "$tmp_dir/try_${idx}.o" 2>/dev/null | grep -q " T ${strip_pref_probe}_"; then
+          has_prefixed=1
+        fi
+      fi
+      if [ "$has_prefixed" != "1" ]; then
+        # 已是裸符号（asm -o）或无可检测前缀：直接用 .o
+        bare_need_strip=0
+        use_direct_o=1
+        emit_ok=1
+        obj="$tmp_dir/try_${idx}.o"
+      fi
+      # has_prefixed=1：保留 bare_need_strip，走下方 KEEP_C / -E 剥前缀
+    else
+      use_direct_o=1
+      emit_ok=1
+      obj="$tmp_dir/try_${idx}.o"
+    fi
+  fi
+  # mod.x 用户 API 须为 std_<module>_*（import 调用约定）。
+  # 产品 Linux asm -o 常产裸名 mem_eq；objcopy 重命名为 std_crypto_mem_eq，与 mac C 路径对齐。
+  if [ "$use_direct_o" = "1" ] && [ "$base_name" = "mod.x" ] \
+     && [ -f "$obj" ] && command -v nm >/dev/null 2>&1; then
+    mod_leaf=$(basename "$(dirname "$x_path")")
+    case "$mod_leaf" in
+      ''|.) mod_leaf=$(basename "$x_path" .x) ;;
+    esac
+    mod_pref="std_${mod_leaf}_"
+    if [ -n "$mod_leaf" ] && ! nm "$obj" 2>/dev/null | grep -q " T ${mod_pref}"; then
+      if command -v objcopy >/dev/null 2>&1; then
+        nm "$obj" 2>/dev/null | awk '/ [TDB] / { print $3 }' | while IFS= read -r sym; do
+          [ -n "$sym" ] || continue
+          case "$sym" in
+            "${mod_pref}"*) continue ;;
+            _"${mod_pref}"*) continue ;;
+            # 跳过 C 内部/编译器符号
+            _Z*|.L*|L0*|__*) continue ;;
+          esac
+          # Mach-O 可能带前导 _
+          bare="$sym"
+          case "$sym" in
+            _*) bare="${sym#_}" ;;
+          esac
+          case "$bare" in
+            "${mod_pref}"*) continue ;;
+          esac
+          if [ "$bare" != "$sym" ]; then
+            objcopy --redefine-sym "${sym}=_${mod_pref}${bare}" "$obj" 2>/dev/null || true
+          else
+            objcopy --redefine-sym "${sym}=${mod_pref}${bare}" "$obj" 2>/dev/null || true
+          fi
+        done
+      fi
+      if ! nm "$obj" 2>/dev/null | grep -q " T ${mod_pref}"; then
+        # 重命名失败：放弃 direct .o，改走 C/KEEP_C 前缀路径
+        use_direct_o=0
+        emit_ok=0
+        obj="$tmp_dir/mod_${idx}.o"
+      fi
+    fi
   fi
   if [ "$emit_ok" != "1" ]; then
     kept=$(ls -t /tmp/shux_shux_x.*.c 2>/dev/null | head -1)
@@ -124,23 +187,49 @@ for x_path in "$@"; do
       fi
     fi
   fi
-  if [ "$emit_ok" != "1" ]; then
-    # 回退 -E（可能截断；仍尝试）
-    if [ "$base_name" != "mod.x" ] && [ "$BARE_IMPL" = "1" ] && [ "$LIB_NAME_SUPPORTED" = "1" ]; then
-      if ! "$SHUX_BIN" -x -E -lib-name "" -L .. "$x_path" >"$gen_c" 2>"$tmp_dir/shuxc_${idx}.log"; then
-        echo "shux_compile_std_module.sh: -o and -x -E failed for $x_path" >&2
-        cat "$tmp_dir/shuxc_${idx}.log" >&2
-        exit 1
-      fi
-    else
-      if ! "$SHUX_BIN" -x -E -L .. "$x_path" >"$gen_c" 2>"$tmp_dir/shuxc_${idx}.log"; then
-        echo "shux_compile_std_module.sh: -o and -x -E failed for $x_path" >&2
-        cat "$tmp_dir/shuxc_${idx}.log" >&2
-        exit 1
+  # bare-impl 需剥前缀且无完整 C：用 -backend c 再试（-o 常因无 main 失败但 SHUX_KEEP_C 留完整源）
+  if [ "$emit_ok" != "1" ] && [ "$bare_need_strip" = "1" ]; then
+    rm -f /tmp/shux_shux_x.*.c 2>/dev/null || true
+    SHUX_KEEP_C=1 "$SHUX_BIN" -backend c -L .. -o "$tmp_dir/try_c_${idx}.o" "$x_path" \
+      >"$tmp_dir/shuxc_c_${idx}.log" 2>&1 || true
+    kept=$(ls -t /tmp/shux_shux_x.*.c 2>/dev/null | head -1)
+    if [ -n "$kept" ] && [ -f "$kept" ] && [ -s "$kept" ]; then
+      if tail -c 80 "$kept" | grep -q '}' ; then
+        cp "$kept" "$gen_c"
+        emit_ok=1
       fi
     fi
-    if [ -s "$gen_c" ]; then
+  fi
+  if [ "$emit_ok" != "1" ]; then
+    # 回退 -E：拒绝明显截断（尾部无 } 或半截 token）
+    if [ "$base_name" != "mod.x" ] && [ "$BARE_IMPL" = "1" ] && [ "$LIB_NAME_SUPPORTED" = "1" ]; then
+      if ! "$SHUX_BIN" -backend c -x -E -lib-name "" -L .. "$x_path" >"$gen_c" 2>"$tmp_dir/shuxc_${idx}.log"; then
+        if ! "$SHUX_BIN" -x -E -lib-name "" -L .. "$x_path" >"$gen_c" 2>"$tmp_dir/shuxc_${idx}.log"; then
+          echo "shux_compile_std_module.sh: -o and -x -E failed for $x_path" >&2
+          cat "$tmp_dir/shuxc_${idx}.log" >&2
+          exit 1
+        fi
+      fi
+    else
+      if ! "$SHUX_BIN" -backend c -x -E -L .. "$x_path" >"$gen_c" 2>"$tmp_dir/shuxc_${idx}.log"; then
+        if ! "$SHUX_BIN" -x -E -L .. "$x_path" >"$gen_c" 2>"$tmp_dir/shuxc_${idx}.log"; then
+          echo "shux_compile_std_module.sh: -o and -x -E failed for $x_path" >&2
+          cat "$tmp_dir/shuxc_${idx}.log" >&2
+          exit 1
+        fi
+      fi
+    fi
+    if [ -s "$gen_c" ] && tail -c 80 "$gen_c" | grep -q '}'; then
+      # 拒绝半截 struct/标识符（历史 20KiB 截断）
+      if ! tail -c 1 "$gen_c" | grep -q '[[:space:];}]' \
+         && ! tail -c 40 "$gen_c" | grep -qE '([;}][[:space:]]*)$'; then
+        echo "shux_compile_std_module.sh: -E output looks truncated for $x_path" >&2
+        exit 1
+      fi
       emit_ok=1
+    elif [ -s "$gen_c" ]; then
+      echo "shux_compile_std_module.sh: -E output incomplete (no closing brace) for $x_path" >&2
+      exit 1
     fi
   fi
   # bare-impl：产品 x-pipeline 无 -lib-name 时，codegen 用路径导出前缀
