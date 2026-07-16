@@ -787,15 +787,16 @@ export function fs_stat_c(path: *u8, out: *u8): i32 {
     return -1;
   }
   let st_mode: u32 = st.st_mode as u32;
-  o.size = st.st_size;
-  o.mode = st_mode & 4095;
-  o.is_dir = 0;
-  o.is_file = 0;
-  o.mtime_sec = st.st_mtime;
+  /* o[0].*：与 fs_fill_stat_from_st 一致；cast 后的 *T 用 . 会误发 C 的 o.field */
+  o[0].size = st.st_size;
+  o[0].mode = st_mode & 4095;
+  o[0].is_dir = 0;
+  o[0].is_file = 0;
+  o[0].mtime_sec = st.st_mtime;
   if ((st_mode & S_IFMT) == S_IFDIR) {
-    o.is_dir = 1;
+    o[0].is_dir = 1;
   } else if ((st_mode & S_IFMT) == S_IFREG) {
-    o.is_file = 1;
+    o[0].is_file = 1;
   }
   return 0;
 }
