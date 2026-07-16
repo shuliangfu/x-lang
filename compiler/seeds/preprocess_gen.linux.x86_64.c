@@ -1,565 +1,295 @@
+/* generated from preprocess */
 #include <stdint.h>
 #include <stddef.h>
-#include <sys/types.h>
-void shux_panic_(int has_msg, int msg_val);
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 struct shux_slice_uint8_t { uint8_t *data; size_t length; };
-struct ParseDirectiveResult {
-  int32_t kind;
-  int32_t sym_len;
-};
-
-extern void pp_if_stack_reset(void);
-extern int32_t pp_if_stack_len(void);
-extern int32_t pp_if_stack_push(int32_t v);
-extern int32_t pp_if_stack_at(int32_t i);
-extern void pp_if_stack_set_at(int32_t i, int32_t v);
-extern void pp_if_stack_pop(void);
-extern int32_t pp_eval_condition(uint8_t * cond, int32_t cond_len);
-extern int32_t pp_reset_i32(void);
-extern int pp_kind_needs_cond(int32_t kind);
-extern int pp_is_ws(uint8_t ch);
-extern int pp_is_eol(uint8_t ch);
-extern int pp_is_token_end(uint8_t ch);
-extern int pp_at_end_or_not_byte(uint8_t * buf, int32_t pos, int32_t line_len, uint8_t target);
-extern int pp_is_word_boundary(uint8_t * buf, int32_t pos, int32_t line_len);
-extern int pp_at_end_or_token_end(uint8_t * buf, int32_t pos, int32_t line_len);
-extern int pp_match_if(uint8_t * buf, int32_t pos, int32_t line_len);
-extern int pp_match_elseif(uint8_t * buf, int32_t pos, int32_t line_len);
-extern int pp_match_else(uint8_t * buf, int32_t pos, int32_t line_len);
-extern int pp_match_endif(uint8_t * buf, int32_t pos, int32_t line_len);
-extern int32_t preprocess_apply_directive_kind(int32_t kind, int32_t cond_val);
-extern int preprocess_line_keeping(void);
-extern int32_t parse_copy_cond_from_line(uint8_t * cond, uint8_t * line_buf, int32_t pos, int32_t line_len);
-extern void parse_directive_into(uint8_t * line_buf, int32_t line_len, uint8_t * cond);
-extern int32_t preprocess_x(struct shux_slice_uint8_t source, struct shux_slice_uint8_t out_buf);
-extern int32_t preprocess_x_buf(uint8_t * source_buf, ssize_t source_len, uint8_t * out_buf, int32_t out_cap);
-static int32_t g_pp_kind;
-static int32_t g_pp_sym_len;
-static uint8_t g_pp_line_buf[512];
-static uint8_t g_pp_cond[256];
-static void init_globals(void) {
-  g_pp_kind = 0;
-  g_pp_sym_len = 0;
+struct preprocess_ParseDirectiveResult { int32_t kind; int32_t sym_len; };
+extern int getpid(void);
+static inline void shux_crash_evidence_collect_inline(int has_msg, int msg_val) {
+  const char *_ev = getenv("SHUX_CRASH_EVIDENCE");
+  if (!_ev || _ev[0] != '1') return;
+  int _pid = (int)getpid();
+  fprintf(stderr, "note: crash evidence: panic=%d msg=%d frames=0 pid=%d\n", has_msg, msg_val, _pid);
+  const char *_dir = getenv("SHUX_CRASH_EVIDENCE_DIR");
+  if (_dir && _dir[0]) { char _p[1024]; snprintf(_p, sizeof _p, "%s/shux-crash-%d.txt", _dir, _pid);
+    FILE *_f = fopen(_p, "w"); if (_f) { fprintf(_f, "panic_has_msg=%d\npanic_msg=%d\nframes=0\npid=%d\n", has_msg, msg_val, _pid); fclose(_f);
+      fprintf(stderr, "note: crash evidence: bundle=%s\n", _p); } } }
+static inline void shux_panic_(int has_msg, int msg_val) __attribute__((noreturn, cold));
+static inline void shux_panic_(int has_msg, int msg_val) {
+  shux_crash_evidence_collect_inline(has_msg, msg_val);
+  if (has_msg) (void)fprintf(stderr, "%d\n", msg_val);
+  abort();
 }
-extern void preprocess_if_stack_reset(void);
-extern int32_t preprocess_if_stack_len(void);
+extern void preprocess_if_stack_reset();
+extern int32_t preprocess_if_stack_len();
 extern int32_t preprocess_if_stack_push(int32_t v);
-extern void preprocess_if_stack_pop(void);
+extern void preprocess_if_stack_pop();
 extern int32_t preprocess_if_stack_at(int32_t i);
 extern void preprocess_if_stack_set_at(int32_t i, int32_t v);
 extern int32_t preprocess_eval_condition_c(uint8_t * cond, int32_t cond_len);
-void pp_if_stack_reset(void) {
-  (void)(preprocess_if_stack_reset());
-  (void)(0);
-  return;
-}
-int32_t pp_if_stack_len(void) {
-  return preprocess_if_stack_len();
-  return 0;
-}
-int32_t pp_if_stack_push(int32_t v) {
-  return preprocess_if_stack_push(v);
-  return 0;
-}
-int32_t pp_if_stack_at(int32_t i) {
-  return preprocess_if_stack_at(i);
-  return 0;
-}
-void pp_if_stack_set_at(int32_t i, int32_t v) {
-  (void)(preprocess_if_stack_set_at(i, v));
-  (void)(0);
-  return;
-}
-void pp_if_stack_pop(void) {
-  (void)(preprocess_if_stack_pop());
-  (void)(0);
-  return;
-}
-int32_t pp_eval_condition(uint8_t * cond, int32_t cond_len) {
-  return preprocess_eval_condition_c(cond, cond_len);
-  return 0;
-}
-int32_t pp_reset_i32(void) {
-  (void)(preprocess_if_stack_reset());
-  return 0;
-}
-int pp_kind_needs_cond(int32_t kind) {
-  if ((kind ==1)) {
-    return 1;
-  }
-  if ((kind ==4)) {
-    return 1;
-  }
-  return 0;
-}
-int pp_is_ws(uint8_t ch) {
-  if ((ch ==32)) {
-    return 1;
-  }
-  if ((ch ==9)) {
-    return 1;
-  }
-  return 0;
-}
-int pp_is_eol(uint8_t ch) {
-  if ((ch ==10)) {
-    return 1;
-  }
-  if ((ch ==13)) {
-    return 1;
-  }
-  return 0;
-}
-int pp_is_token_end(uint8_t ch) {
-  if ((ch ==32)) {
-    return 1;
-  }
-  if ((ch ==9)) {
-    return 1;
-  }
-  if ((ch ==10)) {
-    return 1;
-  }
-  if ((ch ==13)) {
-    return 1;
-  }
-  if ((ch ==0)) {
-    return 1;
-  }
-  return 0;
-}
-int pp_at_end_or_not_byte(uint8_t * buf, int32_t pos, int32_t line_len, uint8_t target) {
-  if ((pos >=line_len)) {
-    return 1;
-  }
-  if (((buf)[pos] !=target)) {
-    return 1;
-  }
-  return 0;
-}
-int pp_is_word_boundary(uint8_t * buf, int32_t pos, int32_t line_len) {
-  if ((pos >=line_len)) {
-    return 0;
-  }
-  uint8_t ch = (buf)[pos];
-  if (pp_is_token_end(ch)) {
-    return 0;
-  }
-  return 1;
-}
-int pp_at_end_or_token_end(uint8_t * buf, int32_t pos, int32_t line_len) {
-  if ((pos >=line_len)) {
-    return 1;
-  }
-  uint8_t ch = (buf)[pos];
-  if (pp_is_token_end(ch)) {
-    return 1;
-  }
-  return 0;
-}
-int pp_match_if(uint8_t * buf, int32_t pos, int32_t line_len) {
-  if (((pos + 2) > line_len)) {
-    return 0;
-  }
-  if (((buf)[pos] !=105)) {
-    return 0;
-  }
-  if (((buf)[(pos + 1)] !=102)) {
-    return 0;
-  }
-  return 1;
-}
-int pp_match_elseif(uint8_t * buf, int32_t pos, int32_t line_len) {
-  if (((pos + 6) > line_len)) {
-    return 0;
-  }
-  if (((buf)[pos] !=101)) {
-    return 0;
-  }
-  if (((buf)[(pos + 1)] !=108)) {
-    return 0;
-  }
-  if (((buf)[(pos + 2)] !=115)) {
-    return 0;
-  }
-  if (((buf)[(pos + 3)] !=101)) {
-    return 0;
-  }
-  if (((buf)[(pos + 4)] !=105)) {
-    return 0;
-  }
-  if (((buf)[(pos + 5)] !=102)) {
-    return 0;
-  }
-  return 1;
-}
-int pp_match_else(uint8_t * buf, int32_t pos, int32_t line_len) {
-  if (((pos + 4) > line_len)) {
-    return 0;
-  }
-  if (((buf)[pos] !=101)) {
-    return 0;
-  }
-  if (((buf)[(pos + 1)] !=108)) {
-    return 0;
-  }
-  if (((buf)[(pos + 2)] !=115)) {
-    return 0;
-  }
-  if (((buf)[(pos + 3)] !=101)) {
-    return 0;
-  }
-  return 1;
-}
-int pp_match_endif(uint8_t * buf, int32_t pos, int32_t line_len) {
-  if (((pos + 5) > line_len)) {
-    return 0;
-  }
-  if (((buf)[pos] !=101)) {
-    return 0;
-  }
-  if (((buf)[(pos + 1)] !=110)) {
-    return 0;
-  }
-  if (((buf)[(pos + 2)] !=100)) {
-    return 0;
-  }
-  if (((buf)[(pos + 3)] !=105)) {
-    return 0;
-  }
-  if (((buf)[(pos + 4)] !=102)) {
-    return 0;
-  }
-  return 1;
-}
+int32_t preprocess_apply_directive_kind(int32_t kind, int32_t cond_val);
+int preprocess_line_keeping();
+int32_t preprocess_parse_copy_cond_from_line(uint8_t cond[256], uint8_t line_buf[512], int32_t pos, int32_t line_len);
+void preprocess_parse_directive_into(struct preprocess_ParseDirectiveResult * out, uint8_t line_buf[512], int32_t line_len, uint8_t cond[256]);
+int32_t preprocess_x(struct shux_slice_uint8_t * source, struct shux_slice_uint8_t * out_buf);
+int32_t preprocess_x_buf(uint8_t source_buf[4194304], ptrdiff_t source_len, uint8_t out_buf[4194304], int32_t out_cap);
+/* 失败码：-2 else without #if；-3 endif without；-4 elseif without；-5 elseif after else；-6 duplicate else；-7 nesting */
 int32_t preprocess_apply_directive_kind(int32_t kind, int32_t cond_val) {
-  int32_t depth = pp_if_stack_len();
-  if ((kind ==1)) {
+  int32_t depth = preprocess_if_stack_len();
+  if (kind == 1) {
     int32_t v = cond_val;
-    if ((depth > 0)) {
-      int32_t parent = pp_if_stack_at((depth - 1));
-      if ((parent ==0)) {
-        (void)((v = 0));
-      }
+    if (depth > 0) {
+      int32_t parent = preprocess_if_stack_at(depth - 1);
+      if (parent == 0)
+        v = 0;
     }
-    if ((v !=0)) {
-      (void)((v = 1));
-    }
-    int32_t pr = pp_if_stack_push(v);
-    if ((pr < 0)) {
-      return -(7);
-    }
+    if (v != 0)
+      v = 1;
+    if (preprocess_if_stack_push(v) < 0)
+      return -7;
     return 0;
   }
-  if ((kind ==2)) {
-    int32_t di = (depth - 1);
-    int32_t top = pp_if_stack_at(di);
-    if ((depth ==0)) {
-      return -(2);
-    }
-    if ((top ==1)) {
-      (void)(pp_if_stack_set_at(di, 0));
-    } else {
-      if ((top ==0)) {
-        (void)(pp_if_stack_set_at(di, 2));
-      } else {
-        if ((top ==3)) {
-        } else {
-          return -(6);
-        }
-      }
-    }
+  if (kind == 2) {
+    int32_t di;
+    int32_t top;
+    if (depth == 0)
+      return -2;
+    di = depth - 1;
+    top = preprocess_if_stack_at(di);
+    if (top == 1)
+      preprocess_if_stack_set_at(di, 0);
+    else if (top == 0)
+      preprocess_if_stack_set_at(di, 2);
+    else if (top == 3)
+      ;
+    else
+      return -6;
     return 0;
   }
-  if ((kind ==4)) {
-    int32_t di2 = (depth - 1);
-    int32_t top2 = pp_if_stack_at(di2);
-    if ((depth ==0)) {
-      return -(4);
-    }
-    if ((top2 ==2)) {
-      return -(5);
-    }
-    if ((top2 ==1)) {
-      (void)(pp_if_stack_set_at(di2, 3));
-    } else {
-      if ((top2 ==0)) {
-        int32_t cv = cond_val;
-        if ((cv !=0)) {
-          (void)(pp_if_stack_set_at(di2, 1));
-        } else {
-          (void)(pp_if_stack_set_at(di2, 0));
-        }
-      } else {
-        (void)(pp_if_stack_set_at(di2, 3));
-      }
-    }
+  if (kind == 4) {
+    int32_t di2;
+    int32_t top2;
+    if (depth == 0)
+      return -4;
+    di2 = depth - 1;
+    top2 = preprocess_if_stack_at(di2);
+    if (top2 == 2)
+      return -5;
+    if (top2 == 1)
+      preprocess_if_stack_set_at(di2, 3);
+    else if (top2 == 0) {
+      if (cond_val != 0)
+        preprocess_if_stack_set_at(di2, 1);
+      else
+        preprocess_if_stack_set_at(di2, 0);
+    } else
+      preprocess_if_stack_set_at(di2, 3);
     return 0;
   }
-  if ((depth ==0)) {
-    return -(3);
-  }
-  (void)(pp_if_stack_pop());
+  if (depth == 0)
+    return -3;
+  preprocess_if_stack_pop();
   return 0;
 }
-int preprocess_line_keeping(void) {
-  int32_t depth = pp_if_stack_len();
-  if ((depth ==0)) {
-    return 1;
-  }
-  int32_t top = pp_if_stack_at((depth - 1));
-  if ((top ==1)) {
-    return 1;
-  }
-  if ((top ==2)) {
-    return 1;
-  }
-  return 0;
+int preprocess_line_keeping() {
+  int32_t depth = preprocess_if_stack_len();
+  (void)(({ int __tmp = 0; if (depth == 0) {   return 1;
+ } else (__tmp = 0) ; __tmp; }));
+  int32_t top = preprocess_if_stack_at(depth - 1);
+  return top == 1 || top == 2;
 }
-int32_t parse_copy_cond_from_line(uint8_t * cond, uint8_t * line_buf, int32_t pos, int32_t line_len) {
+int32_t preprocess_parse_copy_cond_from_line(uint8_t cond[256], uint8_t line_buf[512], int32_t pos, int32_t line_len) {
   int32_t s = 0;
-  while ((pos < line_len)) {
-    uint8_t ch = (line_buf)[pos];
-    if ((s >=255)) {
-      break;
-    }
-    if (pp_is_eol(ch)) {
-      break;
-    }
-    (void)(((cond)[s] = ch));
-    (void)((s = (s + 1)));
-    (void)((pos = (pos + 1)));
+  while (pos < line_len && s < 255) {
+    uint8_t ch = (pos < 0 || (pos) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]);
+    (void)(({ int32_t __tmp = 0; if (ch == 10 || ch == 13) {   break;
+ } else (__tmp = 0) ; __tmp; }));
+    ((s < 0 || (s) >= 256 ? (shux_panic_(1, 0), 0) : ((cond)[s] = ch, 0)));
+    ++s;
+    ++pos;
   }
-  while ((s > 0)) {
-    uint8_t tail = (cond)[(s - 1)];
-    if (pp_is_ws(tail)) {
-      (void)((s = (s - 1)));
-    } else {
-      if ((tail ==13)) {
-        (void)((s = (s - 1)));
-      } else {
-        break;
-      }
-    }
+  while (s > 0) {
+    uint8_t tail = (s - 1 < 0 || (s - 1) >= 256 ? (shux_panic_(1, 0), (cond)[0]) : (cond)[s - 1]);
+    (void)(({ int32_t __tmp = 0; if (tail != 32 && tail != 9 && tail != 13) {   break;
+ } else (__tmp = 0) ; __tmp; }));
+    (s = (s - 1));
   }
   return s;
 }
-void parse_directive_into(uint8_t * line_buf, int32_t line_len, uint8_t * cond) {
+void preprocess_parse_directive_into(struct preprocess_ParseDirectiveResult * out, uint8_t line_buf[512], int32_t line_len, uint8_t cond[256]) {
   int32_t pos = 0;
-  (void)((g_pp_kind = 0));
-  (void)((g_pp_sym_len = 0));
-  while ((pos < line_len)) {
-    uint8_t ws0 = (line_buf)[pos];
-    if (pp_is_ws(ws0)) {
-      (void)((pos = (pos + 1)));
-    } else {
-      break;
-    }
+  ((out)->kind = (0));
+  ((out)->sym_len = (0));
+  while (pos < line_len) {
+    uint8_t ws0 = (pos < 0 || (pos) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]);
+    (void)(({ int32_t __tmp = 0; if (ws0 != 32 && ws0 != 9) {   break;
+ } else (__tmp = 0) ; __tmp; }));
+    ++pos;
   }
-  if (pp_at_end_or_not_byte(line_buf, pos, line_len, ((uint8_t)(35)))) {
-    return;
+  (void)(({ int32_t __tmp = 0; if (pos >= line_len || (pos < 0 || (pos) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 35) {   return;
+ } else (__tmp = 0) ; __tmp; }));
+  ++pos;
+  while (pos < line_len) {
+    uint8_t ws1 = (pos < 0 || (pos) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]);
+    (void)(({ int32_t __tmp = 0; if (ws1 != 32 && ws1 != 9) {   break;
+ } else (__tmp = 0) ; __tmp; }));
+    ++pos;
   }
-  (void)((pos = (pos + 1)));
-  while ((pos < line_len)) {
-    uint8_t ws1 = (line_buf)[pos];
-    if (pp_is_ws(ws1)) {
-      (void)((pos = (pos + 1)));
-    } else {
-      break;
-    }
+  (void)(({ int32_t __tmp = 0; if (pos >= line_len) {   return;
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (pos + 2 <= line_len && (pos < 0 || (pos) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 105 && (pos + 1 < 0 || (pos + 1) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 1]) == 102) {   pos += 2;
+  (void)(({ int32_t __tmp = 0; if (pos < line_len && (pos < 0 || (pos) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 32 && (pos < 0 || (pos) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 9 && (pos < 0 || (pos) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 10 && (pos < 0 || (pos) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 13 && (pos < 0 || (pos) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 0) {   return;
+ } else (__tmp = 0) ; __tmp; }));
+  while (pos < line_len) {
+    uint8_t ws_if = (pos < 0 || (pos) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]);
+    (void)(({ int32_t __tmp = 0; if (ws_if != 32 && ws_if != 9) {   break;
+ } else (__tmp = 0) ; __tmp; }));
+    ++pos;
   }
-  if ((pos >=line_len)) {
-    return;
+  (void)(({ int32_t __tmp = 0; if (pos >= line_len) {   return;
+ } else (__tmp = 0) ; __tmp; }));
+  int32_t cl = preprocess_parse_copy_cond_from_line(cond, line_buf, pos, line_len);
+  (void)(({ int32_t __tmp = 0; if (cl <= 0) {   return;
+ } else (__tmp = 0) ; __tmp; }));
+  ((out)->kind = (1));
+  ((out)->sym_len = (cl));
+  return;
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (pos + 6 <= line_len && (pos < 0 || (pos) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 101 && (pos + 1 < 0 || (pos + 1) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 1]) == 108 && (pos + 2 < 0 || (pos + 2) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 2]) == 115 && (pos + 3 < 0 || (pos + 3) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 3]) == 101 && (pos + 4 < 0 || (pos + 4) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 4]) == 105 && (pos + 5 < 0 || (pos + 5) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 5]) == 102) {   pos += 6;
+  (void)(({ int32_t __tmp = 0; if (pos < line_len && (pos < 0 || (pos) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 32 && (pos < 0 || (pos) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 9 && (pos < 0 || (pos) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 10 && (pos < 0 || (pos) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 13 && (pos < 0 || (pos) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 0) {   return;
+ } else (__tmp = 0) ; __tmp; }));
+  while (pos < line_len) {
+    uint8_t ws_elseif = (pos < 0 || (pos) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]);
+    (void)(({ int32_t __tmp = 0; if (ws_elseif != 32 && ws_elseif != 9) {   break;
+ } else (__tmp = 0) ; __tmp; }));
+    ++pos;
   }
-  if (pp_match_if(line_buf, pos, line_len)) {
-    int32_t cl = parse_copy_cond_from_line(cond, line_buf, pos, line_len);
-    (void)((pos = (pos + 2)));
-    if (pp_is_word_boundary(line_buf, pos, line_len)) {
-      return;
-    }
-    while ((pos < line_len)) {
-      uint8_t ws_if = (line_buf)[pos];
-      if (pp_is_ws(ws_if)) {
-        (void)((pos = (pos + 1)));
-      } else {
-        break;
-      }
-    }
-    if ((pos >=line_len)) {
-      return;
-    }
-    if ((cl <=0)) {
-      return;
-    }
-    (void)((g_pp_kind = 1));
-    (void)((g_pp_sym_len = cl));
-    return;
-  }
-  if (pp_match_elseif(line_buf, pos, line_len)) {
-    int32_t cl2 = parse_copy_cond_from_line(cond, line_buf, pos, line_len);
-    (void)((pos = (pos + 6)));
-    if (pp_is_word_boundary(line_buf, pos, line_len)) {
-      return;
-    }
-    while ((pos < line_len)) {
-      uint8_t ws_elseif = (line_buf)[pos];
-      if (pp_is_ws(ws_elseif)) {
-        (void)((pos = (pos + 1)));
-      } else {
-        break;
-      }
-    }
-    if ((pos >=line_len)) {
-      return;
-    }
-    if ((cl2 <=0)) {
-      return;
-    }
-    (void)((g_pp_kind = 4));
-    (void)((g_pp_sym_len = cl2));
-    return;
-  }
-  if (pp_match_else(line_buf, pos, line_len)) {
-    (void)((pos = (pos + 4)));
-    if (pp_at_end_or_token_end(line_buf, pos, line_len)) {
-      (void)((g_pp_kind = 2));
-      (void)((g_pp_sym_len = 0));
-      return;
-    }
-    return;
-  }
-  if (pp_match_endif(line_buf, pos, line_len)) {
-    (void)((pos = (pos + 5)));
-    if (pp_at_end_or_token_end(line_buf, pos, line_len)) {
-      (void)((g_pp_kind = 3));
-      (void)((g_pp_sym_len = 0));
-      return;
-    }
-    return;
-  }
+  (void)(({ int32_t __tmp = 0; if (pos >= line_len) {   return;
+ } else (__tmp = 0) ; __tmp; }));
+  int32_t cl2 = preprocess_parse_copy_cond_from_line(cond, line_buf, pos, line_len);
+  (void)(({ int32_t __tmp = 0; if (cl2 <= 0) {   return;
+ } else (__tmp = 0) ; __tmp; }));
+  ((out)->kind = (4));
+  ((out)->sym_len = (cl2));
+  return;
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (pos + 4 <= line_len && (pos < 0 || (pos) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 101 && (pos + 1 < 0 || (pos + 1) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 1]) == 108 && (pos + 2 < 0 || (pos + 2) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 2]) == 115 && (pos + 3 < 0 || (pos + 3) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 3]) == 101) {   pos += 4;
+  (void)(({ int32_t __tmp = 0; if (pos >= line_len || (pos < 0 || (pos) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 32 || (pos < 0 || (pos) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 9 || (pos < 0 || (pos) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 10 || (pos < 0 || (pos) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 13 || (pos < 0 || (pos) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 0) {   ((out)->kind = (2));
+  ((out)->sym_len = (0));
+  return;
+ } else (__tmp = 0) ; __tmp; }));
+  return;
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (pos + 5 <= line_len && (pos < 0 || (pos) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 101 && (pos + 1 < 0 || (pos + 1) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 1]) == 110 && (pos + 2 < 0 || (pos + 2) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 2]) == 100 && (pos + 3 < 0 || (pos + 3) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 3]) == 105 && (pos + 4 < 0 || (pos + 4) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 4]) == 102) {   pos += 5;
+  (void)(({ int32_t __tmp = 0; if (pos >= line_len || (pos < 0 || (pos) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 32 || (pos < 0 || (pos) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 9 || (pos < 0 || (pos) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 10 || (pos < 0 || (pos) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 13 || (pos < 0 || (pos) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 0) {   ((out)->kind = (3));
+  ((out)->sym_len = (0));
+  return;
+ } else (__tmp = 0) ; __tmp; }));
+  return;
+ } else (__tmp = 0) ; __tmp; }));
+  return;
 }
-int32_t preprocess_x(struct shux_slice_uint8_t source, struct shux_slice_uint8_t out_buf) {
-  if (((out_buf.length) <=0)) {
-    return -(1);
-  }
-  int32_t _r = pp_reset_i32();
+int32_t preprocess_x(struct shux_slice_uint8_t * source, struct shux_slice_uint8_t * out_buf) {
+  (void)(({ int32_t __tmp = 0; if ((out_buf)->length <= 0) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(preprocess_if_stack_reset());
   int32_t out_len = 0;
   int32_t line_len = 0;
+  uint8_t line_buf[512] = { 0 };
   int32_t pos = 0;
-  while ((pos < (source.length))) {
-    uint8_t ch = (source).data[pos];
-    if ((ch ==10)) {
-      int32_t kind = g_pp_kind;
-      (void)(parse_directive_into(g_pp_line_buf, line_len, g_pp_cond));
-      if ((kind !=0)) {
-        int32_t cond_val = 0;
-        if (pp_kind_needs_cond(kind)) {
-          (void)((cond_val = pp_eval_condition(&((g_pp_cond)[0]), g_pp_sym_len)));
-        }
-        int32_t ar = preprocess_apply_directive_kind(kind, cond_val);
-        if ((ar !=0)) {
-          return ar;
-        }
-        if ((out_len >=(out_buf.length))) {
-          return -(1);
-        }
-        (void)(((out_buf).data[out_len] = 10));
-        (void)((out_len = (out_len + 1)));
-      } else {
-        int keeping = preprocess_line_keeping();
-        if (keeping) {
-          int32_t i = 0;
-          while ((i < line_len)) {
-            if ((out_len >=(out_buf.length))) {
-              return -(1);
-            }
-            (void)(((out_buf).data[out_len] = (g_pp_line_buf)[i]));
-            (void)((out_len = (out_len + 1)));
-            (void)((i = (i + 1)));
-          }
-        }
-        if ((out_len >=(out_buf.length))) {
-          return -(1);
-        }
-        (void)(((out_buf).data[out_len] = 10));
-        (void)((out_len = (out_len + 1)));
-      }
-      (void)((line_len = 0));
-      (void)((pos = (pos + 1)));
-    } else {
-      if ((line_len < 511)) {
-        (void)(((g_pp_line_buf)[line_len] = ch));
-        (void)((line_len = (line_len + 1)));
-      }
-      (void)((pos = (pos + 1)));
-    }
+  while (pos < (source)->length) {
+    uint8_t ch = (pos < 0 || (size_t)(pos) >= (source)->length ? (shux_panic_(1, 0), (source)->data[0]) : (source)->data[pos]);
+    (void)(({ int32_t __tmp = 0; if (ch == 10) {   (void)(({ int32_t __tmp = 0; if (line_len > 0 || 1) {   uint8_t cond[256] = { 0 };
+  struct preprocess_ParseDirectiveResult res = (struct preprocess_ParseDirectiveResult){ .kind = 0, .sym_len = 0 };
+  (void)(preprocess_parse_directive_into((&(res)), line_buf, line_len, cond));
+  int32_t kind = (res).kind;
+  __tmp = ({ int32_t __tmp = 0; if (kind != 0) {   int32_t cond_val = 0;
+  (void)(({ int32_t __tmp = 0; if (kind == 1 || kind == 4) {   (cond_val = (preprocess_eval_condition_c((&((cond)[0])), (res).sym_len)));
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if ((__tmp = preprocess_apply_directive_kind(kind, cond_val)) != 0) {   return __tmp;
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (out_len >= (out_buf)->length) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
+  ((out_len < 0 || (size_t)(out_len) >= (out_buf)->length ? (shux_panic_(1, 0), 0) : ((out_buf)->data[out_len] = 10, 0)));
+  ++out_len;
+ } else {   int keeping = preprocess_line_keeping();
+  (void)(({ int32_t __tmp = 0; if (keeping) {   int32_t i = 0;
+  while (i < line_len) {
+    (void)(({ int32_t __tmp = 0; if (out_len >= (out_buf)->length) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
+    ((out_len < 0 || (size_t)(out_len) >= (out_buf)->length ? (shux_panic_(1, 0), 0) : ((out_buf)->data[out_len] = (i < 0 || (i) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[i]), 0)));
+    ++out_len;
+    ++i;
   }
-  if ((pp_if_stack_len() !=0)) {
-    return -(1);
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (out_len >= (out_buf)->length) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
+  ((out_len < 0 || (size_t)(out_len) >= (out_buf)->length ? (shux_panic_(1, 0), 0) : ((out_buf)->data[out_len] = 10, 0)));
+  ++out_len;
+ } ; __tmp; });
+ } else (__tmp = 0) ; __tmp; }));
+  (line_len = (0));
+  ++pos;
+ } else {   (void)(({ int32_t __tmp = 0; if (line_len < 511) {   ((line_len < 0 || (line_len) >= 512 ? (shux_panic_(1, 0), 0) : ((line_buf)[line_len] = ch, 0)));
+  ++line_len;
+ } else (__tmp = 0) ; __tmp; }));
+  ++pos;
+ } ; __tmp; }));
   }
+  (void)(({ int32_t __tmp = 0; if (preprocess_if_stack_len() != 0) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
   return out_len;
 }
-int32_t preprocess_x_buf(uint8_t * source_buf, ssize_t source_len, uint8_t * out_buf, int32_t out_cap) {
-  if ((out_cap <=0)) {
-    return -(1);
-  }
-  int32_t _r = pp_reset_i32();
+int32_t preprocess_x_buf(uint8_t source_buf[4194304], ptrdiff_t source_len, uint8_t out_buf[4194304], int32_t out_cap) {
+  (void)(({ int32_t __tmp = 0; if (out_cap <= 0) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(preprocess_if_stack_reset());
   int32_t out_len = 0;
   int32_t line_len = 0;
+  uint8_t line_buf[512] = { 0 };
   int32_t pos = 0;
-  while ((pos < source_len)) {
-    uint8_t ch = (source_buf)[pos];
-    if ((pos >=4194304)) {
-      break;
-    }
-    if ((ch ==10)) {
-      int32_t kind = g_pp_kind;
-      (void)(parse_directive_into(g_pp_line_buf, line_len, g_pp_cond));
-      if ((kind !=0)) {
-        int32_t cond_val = 0;
-        if (pp_kind_needs_cond(kind)) {
-          (void)((cond_val = pp_eval_condition(&((g_pp_cond)[0]), g_pp_sym_len)));
-        }
-        int32_t ar = preprocess_apply_directive_kind(kind, cond_val);
-        if ((ar !=0)) {
-          return ar;
-        }
-        if ((out_len >=out_cap)) {
-          return -(1);
-        }
-        (void)(((out_buf)[out_len] = 10));
-        (void)((out_len = (out_len + 1)));
-      } else {
-        int keeping = preprocess_line_keeping();
-        if (keeping) {
-          int32_t i = 0;
-          while ((i < line_len)) {
-            if ((out_len >=out_cap)) {
-              return -(1);
-            }
-            (void)(((out_buf)[out_len] = (g_pp_line_buf)[i]));
-            (void)((out_len = (out_len + 1)));
-            (void)((i = (i + 1)));
-          }
-        }
-        if ((out_len >=out_cap)) {
-          return -(1);
-        }
-        (void)(((out_buf)[out_len] = 10));
-        (void)((out_len = (out_len + 1)));
-      }
-      (void)((line_len = 0));
-      (void)((pos = (pos + 1)));
-    } else {
-      if ((line_len < 511)) {
-        (void)(((g_pp_line_buf)[line_len] = ch));
-        (void)((line_len = (line_len + 1)));
-      }
-      (void)((pos = (pos + 1)));
-    }
+  while (pos < source_len && pos < 4194304) {
+    uint8_t ch = (pos < 0 || (pos) >= 4194304 ? (shux_panic_(1, 0), (source_buf)[0]) : (source_buf)[pos]);
+    (void)(({ int32_t __tmp = 0; if (ch == 10) {   (void)(({ int32_t __tmp = 0; if (line_len > 0 || 1) {   uint8_t cond[256] = { 0 };
+  struct preprocess_ParseDirectiveResult res = (struct preprocess_ParseDirectiveResult){ .kind = 0, .sym_len = 0 };
+  (void)(preprocess_parse_directive_into((&(res)), line_buf, line_len, cond));
+  int32_t kind = (res).kind;
+  __tmp = ({ int32_t __tmp = 0; if (kind != 0) {   int32_t cond_val = 0;
+  (void)(({ int32_t __tmp = 0; if (kind == 1 || kind == 4) {   (cond_val = (preprocess_eval_condition_c((&((cond)[0])), (res).sym_len)));
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if ((__tmp = preprocess_apply_directive_kind(kind, cond_val)) != 0) {   return __tmp;
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (out_len >= out_cap) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
+  ((out_len < 0 || (out_len) >= 4194304 ? (shux_panic_(1, 0), 0) : ((out_buf)[out_len] = 10, 0)));
+  ++out_len;
+ } else {   int keeping = preprocess_line_keeping();
+  (void)(({ int32_t __tmp = 0; if (keeping) {   int32_t i = 0;
+  while (i < line_len) {
+    (void)(({ int32_t __tmp = 0; if (out_len >= out_cap) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
+    ((out_len < 0 || (out_len) >= 4194304 ? (shux_panic_(1, 0), 0) : ((out_buf)[out_len] = (i < 0 || (i) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[i]), 0)));
+    ++out_len;
+    ++i;
   }
-  if ((pp_if_stack_len() !=0)) {
-    return -(1);
+ } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (out_len >= out_cap) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
+  ((out_len < 0 || (out_len) >= 4194304 ? (shux_panic_(1, 0), 0) : ((out_buf)[out_len] = 10, 0)));
+  ++out_len;
+ } ; __tmp; });
+ } else (__tmp = 0) ; __tmp; }));
+  (line_len = (0));
+  ++pos;
+ } else {   (void)(({ int32_t __tmp = 0; if (line_len < 511) {   ((line_len < 0 || (line_len) >= 512 ? (shux_panic_(1, 0), 0) : ((line_buf)[line_len] = ch, 0)));
+  ++line_len;
+ } else (__tmp = 0) ; __tmp; }));
+  ++pos;
+ } ; __tmp; }));
   }
+  (void)(({ int32_t __tmp = 0; if (preprocess_if_stack_len() != 0) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
   return out_len;
 }

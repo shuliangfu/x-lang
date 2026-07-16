@@ -46,7 +46,10 @@ MODULES=(
   # PLATFORM: SHARED — EMPTY-track plain -E surface. Product cold pin stays
   # seeds/lexer_gen.linux.x86_64.c (full single-file + renames).
   "src/lexer/lexer.x|seeds/lexer_empty_surface.from_x.c"
-  "src/preprocess/preprocess.x|preprocess_gen.c"
+  # PLATFORM: SHARED — EMPTY-track plain -E surface only. Product cold pin is
+  # seeds/preprocess_gen.linux.x86_64.c (pre-EMPTY-re-pin; full directive loop).
+  # e0c21f57 re-pin of product for EMPTY broke #if (kind read before parse) → PP002.
+  "src/preprocess/preprocess.x|seeds/preprocess_empty_surface.from_x.c"
   "src/ast/ast.x|ast_gen.c"
   # PLATFORM: SHARED — EMPTY-track plain -E surface only for mega frontends.
   # Product cold pins stay seeds/{parser,typeck,codegen}_gen.linux.x86_64.c
@@ -103,6 +106,7 @@ for entry in "${MODULES[@]}"; do
     lexer_gen.c) alt="seeds/lexer_gen.linux.x86_64.c" ;;
     token_gen.c) alt="seeds/token_gen.linux.x86_64.c" ;;
     preprocess_gen.c) alt="seeds/preprocess_gen.linux.x86_64.c" ;;
+    # EMPTY surface path is already under seeds/; no alt needed.
     ast_gen.c) alt="seeds/ast_gen.linux.x86_64.c" ;;
     parser_gen.c) alt="seeds/parser_gen.linux.x86_64.c" ;;
     typeck_gen.c) alt="seeds/typeck_gen.linux.x86_64.c" ;;
@@ -204,21 +208,22 @@ for entry in "${MODULES[@]}"; do
     done
     IFS="$old_ifs"
   fi
-  # PLATFORM: SHARED — preprocess cold seed injects shux_slice layout (by-value
-  # preprocess_x args); -E names the type in signatures but does not emit the
-  # struct body. Inject the definition line so EMPTY matches the product pin.
-  # Match the full definition (not bare "struct shux_slice_uint8_t" in protos).
-  if [ "$seed_key" = "preprocess_gen.c" ]; then
-    if ! grep -q 'struct shux_slice_uint8_t { uint8_t \*data; size_t length; };' "$norm_out"; then
-      awk '
-        { print }
-        /^void shux_panic_\(int has_msg, int msg_val\);$/ && !done {
-          print "struct shux_slice_uint8_t { uint8_t *data; size_t length; };"
-          done=1
-        }
-      ' "$norm_out" >"${norm_out}.slice" && mv "${norm_out}.slice" "$norm_out"
-    fi
-  fi
+  # PLATFORM: SHARED — preprocess EMPTY surface may need shux_slice layout inject
+  # when comparing plain -E (type name in protos, no struct body) to surface pin.
+  # Product cold pin already embeds the definition; do not rewrite product pin here.
+  case "$seed_key" in
+    preprocess_empty_surface.from_x.c|preprocess_gen.c)
+      if ! grep -q 'struct shux_slice_uint8_t { uint8_t \*data; size_t length; };' "$norm_out"; then
+        awk '
+          { print }
+          /^void shux_panic_\(int has_msg, int msg_val\);$/ && !done {
+            print "struct shux_slice_uint8_t { uint8_t *data; size_t length; };"
+            done=1
+          }
+        ' "$norm_out" >"${norm_out}.slice" && mv "${norm_out}.slice" "$norm_out"
+      fi
+      ;;
+  esac
   sed 's/[[:space:]]*$//' "$seed_path" >"$norm_seed"
 
   # PLATFORM: LINUX|MACOS — std.heap page_mmap freestanding types/externs appear in
@@ -228,7 +233,7 @@ for entry in "${MODULES[@]}"; do
   case "$seed_key" in
     lsp_empty_surface.from_x.c|lsp_diag_empty_surface.from_x.c|lsp_io_empty_surface.from_x.c|\
     parser_empty_surface.from_x.c|typeck_empty_surface.from_x.c|codegen_empty_surface.from_x.c|\
-    lexer_empty_surface.from_x.c)
+    lexer_empty_surface.from_x.c|preprocess_empty_surface.from_x.c)
       for _side in "$norm_out" "$norm_seed"; do
         # Drop multi-line struct bodies + forward decls + freestanding page_heap
         # externs; collapse blank runs left by the drop so mac/Ubuntu match.
