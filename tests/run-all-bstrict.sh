@@ -59,7 +59,10 @@ fi
 
 # bootstrap-driver-seed 仅预链 io/fs/heap；runtime -o 按磁盘存在的 std/*.o 追加链接。
 # Docker 门禁 purge 宿主 Mach-O 后须重建，否则 run-crypto/run-log 等 -o 缺 C 符号。
-if [ -n "${SHUX_RUN_ALL_BOOTSTRAP_SHUX:-}" ]; then
+# 产品冷链：SHUX_SKIP_STD_ENSURE=1 跳过 ensure（避免残缺 std/*.o 被 labi 硬链毒化 asm 测）。
+if [ -n "${SHUX_SKIP_STD_ENSURE:-}" ]; then
+  echo "run-all-bstrict: SHUX_SKIP_STD_ENSURE=1, skip ensure std C .o"
+elif [ -n "${SHUX_RUN_ALL_BOOTSTRAP_SHUX:-}" ]; then
   # W3 gold：seed shux 经 make 编 std/*.x 易挂起/进程风暴；best-effort 跳过整段 ensure。
   if [ -n "${SHUX_BSTRICT_STD_O_BEST_EFFORT:-}" ] && [ -n "${SHUX_W3_BSTRICT_BEST_EFFORT:-}" ]; then
     echo "run-all-bstrict: skip ensure std C .o (W3 best-effort; avoid seed make shux storm)"

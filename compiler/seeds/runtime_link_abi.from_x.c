@@ -6044,8 +6044,9 @@ static int labi_std_fk0_user_needs_rel(const char *user_o, const char *rel) {
     if (strstr(rel, "std/context/context.o"))
         return shux_link_obj_needs_undef_sym(user_o, "std_context_background")
             || shux_link_obj_needs_undef_sym(user_o, "std_context_deadline_ns");
-    /* 其它 fk==0：仍按磁盘存在硬链（兼容旧行为） */
-    return 1;
+    /* 其它 fk==0：默认不硬链，避免残缺 .o 毒化纯 asm / 无 import 用户程序。
+     * 需要时由 on_demand 或上方专用探针推入。 */
+    return 0;
 }
 
 void shux_asm_ld_append_std_objs(const char *link_argv0, const char **lib_roots, int n_lib_roots,
