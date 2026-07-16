@@ -395,7 +395,10 @@ export extern "C" function lsp_diag_report_typeck(line: i32, col: i32, msg: *u8)
 
 #[no_mangle]
 export function driver_diag_env_debug_pipe(): i32 {
-  return driver_env_flag_truthy("SHUX_DEBUG_PIPE");
+  // PLATFORM: SHARED — LANG-007 S0：is_extern 调用须在 unsafe 内（与 tests/unsafe U4 一致）。
+  unsafe {
+    return driver_env_flag_truthy("SHUX_DEBUG_PIPE");
+  }
 }
 
 #[no_mangle]
@@ -534,7 +537,10 @@ let g_type_diag_scratch_found: u8[96] = [];
 
 #[no_mangle]
 export function driver_parse_strict_enabled(): i32 {
-  return driver_env_flag_truthy("SHUX_PARSE_STRICT");
+  // PLATFORM: SHARED — LANG-007 S0：extern 调用边界（见 问题分析文档 §0.25）。
+  unsafe {
+    return driver_env_flag_truthy("SHUX_PARSE_STRICT");
+  }
 }
 
 // pure：拼装后走 diag_report note（无 va_list reportf）

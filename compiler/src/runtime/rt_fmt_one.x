@@ -216,7 +216,12 @@ export function driver_fmt_one_file(path: *u8, path_len: i32): i32 {
     }
   }
 
-  if (driver_fmt_check_only_get() != 0) {
+  // PLATFORM: SHARED — LANG-007：driver_fmt_check_only_get 为 extern "C"，须 unsafe。
+  let check_only: i32 = 0;
+  unsafe {
+    check_only = driver_fmt_check_only_get();
+  }
+  if (check_only != 0) {
     unsafe {
       free(out);
       free(raw);
