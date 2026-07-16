@@ -1132,8 +1132,8 @@ export function driver_diagnostic_parser_onefunc_param_ref(func_name: *u8, func_
 }
 
 /** Import top-level const bare-name access must be qualified. Assembles fixed message then
- * lsp_diag_report_typeck (3-arg; no format varargs). With binding: "... use binding.name";
- * without: "... must be qualified as binding.name". PLATFORM: SHARED — pure in thin. */
+ * lsp_diag_report_typeck (3-arg; no format varargs). With a binding: use binding.name form;
+ * if binding is null: must be qualified as binding.name. PLATFORM: SHARED — pure in thin. */
 #[no_mangle]
 export function driver_diagnostic_typeck_import_const_must_be_qualified(line: i32, col: i32, name: *u8, name_len: i32, binding: *u8, binding_len: i32): void {
   let msg: u8[280] = [];
