@@ -1169,12 +1169,14 @@ rebuild_typeck_wpo_o() {
   fi
   txt=$(asm_o_text_bytes "$tmp" 2>/dev/null || echo 0)
   [ "$txt" -gt 0 ] || return 1
-  [ "$txt" -le 2048 ] 2>/dev/null || return 1
+  # Align with tests/baseline/wpo-typeck-o.tsv typeck_wpo_max_text_bytes (post-2026-07 true DCE ~4577B).
+  local tck_wpo_max="${SHUX_WPO_TYPECK_MAX_TEXT:-6144}"
+  [ "$txt" -le "$tck_wpo_max" ] 2>/dev/null || return 1
   nm "$tmp" 2>/dev/null | grep -q 'typeck_x_ast' || return 1
   nm "$tmp" 2>/dev/null | grep -q 'check_block' || return 1
   return 0
   }
-  build_shux_asm_info "recompile typeck_wpo.o (WPO DCE, typeck_x_ast root)"
+  build_shux_asm_info "recompile typeck_wpo.o (WPO DCE, typeck_x_ast root, max __text=${SHUX_WPO_TYPECK_MAX_TEXT:-6144}B)"
   set +e
   while IFS= read -r comp; do
   [ -n "$comp" ] || continue
