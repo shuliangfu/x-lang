@@ -6052,10 +6052,17 @@ static int labi_std_fk0_user_needs_rel(const char *user_o, const char *rel) {
             || shux_link_obj_needs_undef_sym(user_o, "std_csv_parse_line");
     if (strstr(rel, "std/path/path.o"))
         return shux_link_obj_needs_undef_sym(user_o, "std_path_join")
-            || shux_link_obj_needs_undef_sym(user_o, "std_path_dirname");
+            || shux_link_obj_needs_undef_sym(user_o, "std_path_dirname")
+            || shux_link_obj_needs_undef_sym(user_o, "std_path_empty_len")
+            || shux_link_obj_needs_undef_sym(user_o, "std_path_basename");
     if (strstr(rel, "std/hash/hash.o"))
         return shux_link_obj_needs_undef_sym(user_o, "std_hash_sip_hash")
-            || shux_link_obj_needs_undef_sym(user_o, "std_hash_fnv1a");
+            || shux_link_obj_needs_undef_sym(user_o, "std_hash_fnv1a")
+            || shux_link_obj_needs_undef_sym(user_o, "std_hash_start")
+            || shux_link_obj_needs_undef_sym(user_o, "std_hash_bytes")
+            || shux_link_obj_needs_undef_sym(user_o, "std_hash_finish")
+            || shux_link_obj_needs_undef_sym(user_o, "std_hash_free")
+            || shux_link_obj_needs_undef_sym(user_o, "std_hash_write_u8_ptr_u32");
     if (strstr(rel, "std/error/error.o"))
         return shux_link_obj_needs_undef_sym(user_o, "std_error_http_err_timeout")
             || shux_link_obj_needs_undef_sym(user_o, "std_error_ok")
