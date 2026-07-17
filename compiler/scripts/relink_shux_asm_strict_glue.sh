@@ -8,6 +8,11 @@ CC=${CC:-cc}
 CFLAGS="-Wall -Wextra -I. -Iinclude -Isrc"
 SEED_O="$BUILD_DIR/asm_driver_seed"
 export STRICT_LINK_BUILD_ASM_PIPELINE=1
+# PLATFORM: SHARED — nm export lists are ASCII symbol names; force C locale so
+# GNU sort and comm agree. Host locales (e.g. zh_CN.UTF-8) make sort/comm
+# disagree on underscore/letter order → "file is not in sorted order" noise and
+# wrong set subtraction for WPO partial export (dual authority with build_shux_asm).
+export LC_ALL=C
 
 # #region debug-point A:dbg-helpers
 DBG_ENV_FILE="../.dbg/relink-strict-glue-hang.env"

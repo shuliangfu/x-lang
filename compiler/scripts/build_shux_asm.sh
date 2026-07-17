@@ -18,6 +18,11 @@
 
 set -e
 cd "$(dirname "$0")/.."
+# PLATFORM: SHARED — nm export lists are ASCII symbol names; force C locale so
+# GNU sort and comm agree. Host locales (e.g. zh_CN.UTF-8) make sort/comm
+# disagree on underscore/letter order → wrong partial export subtraction
+# (dual authority with relink_shux_asm_strict_glue.sh).
+export LC_ALL=C
 
 # 可选外层超时（阶段 G phase0-stream）：SHUX_BUILD_ASM_TIMEOUT=3600 等。
 if [ -z "${SHUX_BUILD_ASM_TIMEOUT_WRAPPED:-}" ] && [ -n "${SHUX_BUILD_ASM_TIMEOUT:-}" ] && [ "${SHUX_BUILD_ASM_TIMEOUT}" != "0" ]; then

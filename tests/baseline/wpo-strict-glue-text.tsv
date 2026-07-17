@@ -1,9 +1,11 @@
 # strict_glue 实二进制 .text A/B（pipeline WPO helpers off vs on，同 strict_glue 链骨架）
 # 更新：SHUX_WPO_STRICT_GLUE_TEXT_UPDATE_BASELINE=1 ./tests/run-wpo-strict-glue-text-gate.sh
-# 说明：当前 pipeline WPO helpers 链入 strict_glue 略增 .text（~4KiB），非缩减；本 baseline 用于回归追踪。
+# 说明：pipeline WPO helpers 链入 strict_glue 略增 .text（~7.6KiB @ tip），非缩减；本 baseline 用于回归追踪。
 # max_text_growth_bytes：WPO on 允许相对 off 的最大 .text 增量（on − off）
+# 更新钉：Ubuntu text-gate @ ea0b1520 测 off=3024781 on=3032392 delta=7611（max 8192）
 max_text_growth_bytes	8192
-text_off_bytes	1894432
-text_on_bytes	1898832
-measured_delta_bytes	4400
-measured_delta_pct	0.23
+text_off_bytes	3024781
+text_on_bytes	3032392
+measured_delta_bytes	7611
+measured_delta_pct	0.25
+measured_save_bytes	0
