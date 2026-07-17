@@ -1,4 +1,4 @@
-/* R2 thin + Cap residual pure 深迁（续 walk_dir_collect pure）：
+/* R2 thin + Cap residual pure 深迁（续 path_bss rest C leaf）：
  * PREFER hybrid thin 由 src/driver/fmt_check_cmd_thin.x（lit/entry + pure 真体）；
  * rest SHUX_L2_FMT_CHECK_THIN_FROM_X：无 thin 公共体；pure-duplicate _impl 剔除
  * （含 set_current_file / print / cwd_fallback / try_walk / path_resolve_abs /
@@ -8,9 +8,9 @@
  *  parse_ignore_opt / try_append_lib_root / argv_append /
  *  fmt_file_list_store / file_list_clear / fmt_file_list_at /
  *  driver_run_compiler_check / driver_run_fmt / check_one_file body /
- *  fmt_path_stat_kind / walk_dir_collect / …）；
- * Cap residual pure done：ALWAYS residual 0（hybrid）。
- * 冷启动无宏：全 C 体（含 pure _impl + public 门闩）。
+ *  fmt_path_stat_kind / walk_dir_collect / fmt_check_path_bss_slot / …）；
+ * Cap residual pure done：ALWAYS residual 0 + path_bss pure（hybrid rest T=0）。
+ * 冷启动无宏：全 C 体（含 pure _impl + public 门闩 + path_bss C static）。
  * Regen thin surface: shux -E src/driver/fmt_check_cmd_thin.x → thin_surface.
  */
 #include "win32_compat.h"
@@ -203,8 +203,9 @@ static char s_ignore_paths[DRIVER_FMT_MAX_IGNORE][256];
 static int s_n_ignore;
 #endif
 
-/* Cap residual：thin pure 可写路径 BSS（0=current_file，1=resolve_abs）。
- * -E 顶层 u8[N] 退化为悬空指针；codegen.x 已根修，codegen_gen 再生后可收回。 */
+/* rest C leaf closed：hybrid thin owns g_fmt_check_path_bss (2×512) + pure slot.
+ * Cold start keeps C static + accessor. PLATFORM: SHARED. */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 static char s_fmt_check_path_bss[2][512];
 
 char *fmt_check_path_bss_slot(int which) {
@@ -212,6 +213,7 @@ char *fmt_check_path_bss_slot(int which) {
         return s_fmt_check_path_bss[0];
     return s_fmt_check_path_bss[which];
 }
+#endif /* SHUX_L2_FMT_CHECK_THIN_FROM_X */
 
 /* Cap residual pure：hybrid thin owns s_n_files + path slots (8192×512 flat);
  * cold keeps static n + pointer table + strdup/free. */

@@ -1,4 +1,4 @@
-/* regen from fmt_check_cmd_thin.x -E (walk_dir_collect pure + shux_fmt_* wrappers) */
+/* regen from fmt_check_cmd_thin.x -E (path_bss pure rest T=0 + shux_fmt_* wrappers) */
 /* prove prologue (g05_try_x_to_o aligned + uio/poll + dirent wrappers) */
 #include <stddef.h>
 #include <stdint.h>
@@ -427,6 +427,7 @@ static int32_t g_fmt_check_lib_bufs_n[1] = {0};
 static uint8_t g_fmt_user_ignore_paths[8192];
 static uint8_t g_fmt_check_lib_bufs[4096];
 static uint8_t g_fmt_file_list_paths[4194304];
+static uint8_t g_fmt_check_path_bss[1024];
 static uint8_t g_fmt_lit_check_error[12] = {99, 104, 101, 99, 107, 32, 101, 114, 114, 111, 114, 0};
 static uint8_t g_fmt_lit_fmt_error[10] = {102, 109, 116, 32, 101, 114, 114, 111, 114, 0};
 static uint8_t g_fmt_lit_chk002[7] = {67, 72, 75, 48, 48, 50, 0};
@@ -840,6 +841,19 @@ uint8_t * fmt_check_lib_buf_at(int32_t i) {
   {
     uint8_t * base = &((g_fmt_check_lib_bufs)[0]);
     return (base + (i * 512));
+  }
+  return ((uint8_t *)(0));
+}
+uint8_t * fmt_check_path_bss_slot(int32_t which) {
+  {
+    uint8_t * base = &((g_fmt_check_path_bss)[0]);
+    if ((which < 0)) {
+      return base;
+    }
+    if ((which > 1)) {
+      return base;
+    }
+    return (base + (which * 512));
   }
   return ((uint8_t *)(0));
 }

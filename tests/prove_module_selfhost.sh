@@ -119,15 +119,16 @@ MODULES=(
   #  collect_mode/user_passed_L BSS + init + file_list/ignore/lib_bufs n + ignore path slots +
   #  lib path slots + full try_append + full argv_append + file_list path slots/store/clear +
   #  driver_run_compiler_check full orch + driver_run_fmt full orch + check_one_file body +
-  #  path_stat pure + walk_dir_collect pure）：
+  #  path_stat pure + walk_dir_collect pure + path_bss_slot pure）：
   # thin.x 吃满 lit/entry + pure 真体（path_should_ignore / .x 后缀 / lint / file_list_push /
   #  process_child / collect_paths / default_dirs / check_one_file full body / try_append 全 pure /
   #  argv_append 全 pure / parse_ignore 全量 / invoke_compile·dep_clear / set_current_file /
   #  print_collected / cwd_fallback / try_walk / path_resolve_abs / append_repo / missing_diag /
   #  collect_mode / user_passed_L / init / file_list_n / user_ignore_count / lib_bufs_n /
   #  user_ignore_at / lib_buf_at/store / file_list_at/store/clear / run_compiler_check / run_fmt /
-  #  path_stat opendir+access / walk_dir_collect opendir+readdir_name+path_stat）；
-  # rest FROM_X 无 pure-dup _impl；Cap residual pure done（ALWAYS residual 0）
+  #  path_stat opendir+access / walk_dir_collect opendir+readdir_name+path_stat /
+  #  path_bss_slot 2×512 flat BSS）；
+  # rest FROM_X 无 pure-dup _impl；hybrid rest T=0（path_bss leaf closed）
   # prove 锁 thin surface IDENTICAL；冷/无 PREFER 仍可走 seeds/fmt_check_cmd.from_x.c 全 C 体
   "fmt_check|src/driver/fmt_check_cmd_thin.x|seeds/fmt_check_cmd_thin_surface.from_x.c||"
   # simd_loop R2 full：.x 吃满 peel/parse/emit 公共业务；

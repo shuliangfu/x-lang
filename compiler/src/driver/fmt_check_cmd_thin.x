@@ -55,16 +55,18 @@
 //   + wave Cap residual pure：walk_dir_collect（opendir + readdir_name + path_stat
 //     classify + process_child；no struct dirent/stat layout）；FROM_X 无 pure-dup
 //     walk_dir_collect_impl（ALWAYS residual 1→0；fmt_check Cap residual pure done）。
+//   + wave rest C leaf：path_bss_slot pure（2×512 flat BSS + slot accessor）；
+//     FROM_X rest T 1→0（hybrid rest 仅无业务体）；cold keeps C static slot。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_FMT_CHECK_THIN_FROM_X）ld -r
 //   → fmt_check_cmd_driver.o
 // Prove IDENTICAL：seeds/fmt_check_cmd_thin_surface.from_x.c
-// Cap residual pure：fmt_check ALWAYS residual 0（walk/stat/file_list/orch pure）
+// Cap residual pure：fmt_check ALWAYS residual 0 + path_bss pure（hybrid rest T=0）
 //   等 *_impl 仍在 full seed rest；FROM_X 下 pure-duplicate _impl 已剔除（含
 //   set_current_file / print / cwd_fallback / try_walk / path_resolve_abs /
 //   append_repo / missing_diag / collect_mode / user_passed_L / init / file_list_n /
 //   user_ignore_count / lib_bufs_n / user_ignore_at / parse_ignore_opt /
 //   try_append_lib_root / argv_append / file_list store+clear / run_check / run_fmt /
-//   check_one_file body / path_stat / walk_dir_collect；H↓）。
+//   check_one_file body / path_stat / walk_dir_collect / path_bss_slot；H↓）。
 //
 // -E 约束：无 while 重赋值；无零参-only 不稳写法；6 参用扁平 if。
 //
@@ -94,9 +96,6 @@ export extern "C" function driver_check_only_set(v: i32): void;
 export extern "C" function driver_fmt_one_file(path: *u8, path_len: i32): i32;
 export extern "C" function driver_fmt_check_only_set(v: i32): void;
 export extern "C" function driver_fmt_check_only_get(): i32;
-// Cap residual：可写路径 BSS 槽（0=current_file，1=resolve_abs）。
-// -E 顶层 u8[N] 现退化为悬空指针（codegen.x 已根修，codegen_gen 再生后可收回此槽）。
-export extern "C" function fmt_check_path_bss_slot(which: i32): *u8;
 // G.7: load/store argv[i] / char** slot (pipeline authority pair).
 export extern "C" function shux_ptr_slot_get(arr: *u8, i: i32): *u8;
 export extern "C" function shux_ptr_slot_set(arr: *u8, i: i32, p: *u8): void;
@@ -104,7 +103,7 @@ export extern "C" function shux_ptr_slot_set(arr: *u8, i: i32, p: *u8): void;
 // ---- Cap residual pure: collect_mode + user_passed_L + file_list/ignore/lib_bufs n ----
 // DRIVER_COLLECT_MODE_FMT=1, DRIVER_COLLECT_MODE_CHECK=2 (match seed enum).
 // Hybrid thin owns cells; cold seed keeps C static + _impl. PLATFORM: SHARED.
-// Counters pure; file_list path slots (8192×512) + ignore (32×256) + lib (8×512) pure.
+// Counters pure; file_list/ignore/lib path slots + path_bss pure under hybrid.
 let g_fmt_collect_mode: i32[1] = [1];
 let g_fmt_user_passed_L: i32[1] = [0];
 let g_fmt_file_list_n: i32[1] = [0];
@@ -120,6 +119,10 @@ let g_fmt_check_lib_bufs: u8[4096] = [];
 // Replaces Cap residual char* s_file_list[] + strdup/free under hybrid.
 // PLATFORM: SHARED. Cold seed keeps pointer table + strdup/free.
 let g_fmt_file_list_paths: u8[4194304] = [];
+// Writable path BSS slots: 2 entries × 512 bytes (0=current_file, 1=resolve_abs).
+// Replaces Cap residual s_fmt_check_path_bss[][] under hybrid (rest T 1→0).
+// PLATFORM: SHARED. Cold seed keeps static char[2][512] + C accessor.
+let g_fmt_check_path_bss: u8[1024] = [];
 
 let g_fmt_lit_check_error: u8[12] = [99, 104, 101, 99, 107, 32, 101, 114, 114, 111, 114, 0];
 let g_fmt_lit_fmt_error: u8[10] = [102, 109, 116, 32, 101, 114, 114, 111, 114, 0];
@@ -624,6 +627,25 @@ export function fmt_check_lib_buf_at(i: i32): *u8 {
   unsafe {
     let base: *u8 = &g_fmt_check_lib_bufs[0];
     return base + (i * 512);
+  }
+  return 0 as *u8;
+}
+
+/** Return pointer to writable path BSS slot (0=current_file, 1=resolve_abs).
+ * Pure under PREFER hybrid: 2×512 flat g_fmt_check_path_bss.
+ * Out-of-range which clamps to slot 0 (match cold seed). PLATFORM: SHARED.
+ * Callers: driver_check_set_current_file / print_collected / fmt_path_resolve_abs. */
+#[no_mangle]
+export function fmt_check_path_bss_slot(which: i32): *u8 {
+  unsafe {
+    let base: *u8 = &g_fmt_check_path_bss[0];
+    if (which < 0) {
+      return base;
+    }
+    if (which > 1) {
+      return base;
+    }
+    return base + (which * 512);
   }
   return 0 as *u8;
 }
