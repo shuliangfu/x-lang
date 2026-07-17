@@ -403,6 +403,8 @@ int driver_run_x_emit_c(void) {
         } else {
             pipeline_set_dep_slots(dep_arenas, dep_modules);
             driver_dep_seed_slots(dep_arenas, dep_modules, n_deps);
+            /* PLATFORM: SHARED — re-seed pctx after dep pre-parse (NL-07 L8; G.7 pctx_seed). */
+            shux_pipeline_pctx_seed_dep_slots(pctx_e, dep_modules, dep_arenas, dep_paths, n_deps);
             codegen_set_dep_slots_for_x_pipeline((struct ASTModule **)dep_modules, (const char **)dep_paths, n_deps);
             pipeline_set_dep_slots(dep_arenas, dep_modules);
         }

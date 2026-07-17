@@ -2070,6 +2070,8 @@ int RUN_CC_FUNC(int argc, char **argv) {
         }
         pipeline_set_dep_slots(dep_arenas, dep_modules);
         driver_dep_seed_slots(dep_arenas, dep_modules, n_deps);
+        /* PLATFORM: SHARED — re-seed pctx after dep pre-parse (same as C emit path; NL-07 L8). */
+        shux_pipeline_pctx_seed_dep_slots(pctx, dep_modules, dep_arenas, dep_paths, n_deps);
         codegen_set_dep_slots_for_x_pipeline((struct ASTModule **)dep_modules, (const char **)dep_paths, n_deps);
         codegen_set_preamble_has_core_option_result(1);
         /* asm 后端：必须让 pipeline_run_x_pipeline 内完整地 parse_into + typeck + asm codegen，
@@ -3134,6 +3136,15 @@ int run_compiler_x_path(int argc, char **argv) {
     }
     pipeline_set_dep_slots(dep_arenas, dep_modules);
     driver_dep_seed_slots(dep_arenas, dep_modules, n_deps);
+    /*
+     * PLATFORM: SHARED — re-seed pctx after dep pre-parse filled dep_modules.
+     * Early pctx_seed (before the loop) only held empty malloc slots. Old realign
+     * zeroed ndep then load_and_sync rebound via driver_dep_module_buf (masked the
+     * miss). Keep-closure realign (NL-07 L8) leaves ndep=12 without that rebind →
+     * pure static co-emit saw module=NULL (std.io missing → std_io_print UNDEF).
+     * Authority: same shux_pipeline_pctx_seed_dep_slots as initial seed (G.7).
+     */
+    shux_pipeline_pctx_seed_dep_slots(pctx, dep_modules, dep_arenas, dep_paths, n_deps);
     codegen_set_dep_slots_for_x_pipeline((struct ASTModule **)dep_modules, (const char **)dep_paths, n_deps);
     codegen_set_preamble_has_core_option_result(1); /* preamble（write_io_net_abi_inline）已含 Option_i32/Result_i32，codegen 跳过避免重定义 */
     codegen_reset_preamble_skip_mask(); /* codegen.x emit 过程中 OR 重叠段 skip；pipeline 完成后写 preamble 时读取 */
