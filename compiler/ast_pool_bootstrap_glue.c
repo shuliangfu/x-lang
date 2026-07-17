@@ -376,16 +376,20 @@ int32_t pipeline_codegen_dep_skip_asm_user_std_misc(uint8_t *path) {
 }
 
 /**
- * Skip asm co-emit for core modules that are provided elsewhere.
- * PLATFORM: SHARED — only core.fmt stays skip (hello/fmt via io stubs; co-emit history SIGSEGV).
- * core.types / option / result have no formal prebuilt .o (nm: base64.o does NOT export
- * core_types_*; old comment was wrong). User -backend asm must co-emit them or ld UNDEF
- * (Ubuntu gold: tests/stdlib-import/main.x).
+ * Skip asm co-emit for core modules provided by formal .o or io stubs.
+ * PLATFORM: SHARED — core.fmt via io stubs; core.types/option/result via formal
+ * core types/option/result .o + on_demand (do NOT co-emit: Ubuntu hang on option/result).
  */
 int32_t pipeline_codegen_dep_skip_asm_user_core_lib(uint8_t *path) {
   if (!path)
     return 0;
   if (memcmp(path, "core.fmt", 8) == 0 && (path[8] == 0 || path[8] == '.'))
+    return 1;
+  if (memcmp(path, "core.types", 10) == 0 && (path[10] == 0 || path[10] == '.'))
+    return 1;
+  if (memcmp(path, "core.option", 11) == 0 && (path[11] == 0 || path[11] == '.'))
+    return 1;
+  if (memcmp(path, "core.result", 11) == 0 && (path[11] == 0 || path[11] == '.'))
     return 1;
   return 0;
 }
@@ -400,33 +404,20 @@ int32_t pipeline_asm_user_std_net_dep_path(uint8_t *path) {
 }
 
 /** Whether any dep must be co-emitted into the user -backend asm object.
- * PLATFORM: SHARED — Ubuntu ELF UNDEF is gold; mac const-fold can hide missing core_*.
- * Authority: this function only (G.7); called from rt_run_asm_backend / runtime.from_x. */
+ * PLATFORM: SHARED — std/core symbols come from formal .o + on_demand (not co-emit).
+ * Authority: this function only (G.7). Co-emitting core.option/result hangs Ubuntu x86_64. */
 int32_t pipeline_asm_user_deps_need_coemit(char **dep_paths, int32_t n) {
   int32_t i;
   if (!dep_paths || n <= 0)
     return 0;
   for (i = 0; i < n; i++) {
     uint8_t *p = (uint8_t *)(dep_paths[i] ? dep_paths[i] : "");
-    /* std.*: prebuilt .o + UNDEF gates; bulk co-emit risks SIGSEGV on encoding/string/heap. */
-    if (memcmp(p, "std.", 4) == 0)
-      continue;
-    /* core.mem / core.slice: formal prebuilt .o (Makefile + on_demand). */
-    if (memcmp(p, "core.mem", 8) == 0 && (p[8] == 0 || p[8] == '.'))
-      continue;
-    if (memcmp(p, "core.slice", 10) == 0 && (p[10] == 0 || p[10] == '.'))
-      continue;
-    /* core.fmt: io stubs / skip co-emit (hello path). */
-    if (memcmp(p, "core.fmt", 8) == 0 && (p[8] == 0 || p[8] == '.'))
-      continue;
     /*
-     * core.types / core.option / core.result (and any other core.* without formal .o):
-     * must co-emit. Returning 0 for all core.* left ENTRY_MODULE_ONLY and Ubuntu
-     * stdlib-import ld: U core_types_placeholder / core_option_* / core_result_*.
+     * std./core. 闭包：预编 .o / on_demand（types/option/result 见 labi_od simple groups）。
+     * 勿整库 co-emit（encoding/string hang/SIGSEGV；option/result Ubuntu hang）。
      */
-    if (memcmp(p, "core.", 5) == 0)
-      return 1;
-    /* User multi-file import("foo") etc. */
+    if (memcmp(p, "std.", 4) == 0 || memcmp(p, "core.", 5) == 0)
+      continue;
     return 1;
   }
   return 0;

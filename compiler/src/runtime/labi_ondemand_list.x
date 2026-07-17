@@ -9,14 +9,17 @@
 // 禁止「函数体仅 return "lit"」——parser 会 skip 整函数；用 let p + return p。
 // nm 探针与 push/ensure 仍在 mega append_on_demand_user_objs。
 //
-// Simple groups: string=0 (g1 empty; core.types co-emit) encoding=2 base64=3 csv=4 schema=5
-// g1 formerly core_types_* → base64.o (wrong; base64 has no core_types_ export).
+// Simple groups: string=0 core_types=1 encoding=2 base64=3 csv=4 schema=5
+// core_option=6 core_result=7. Formal core/*/ *.o; g1 rel is core/types/types.o (not base64).
+// PLATFORM: SHARED — no asm co-emit of option/result (Ubuntu hang); link formal .o only.
 
+/** Return simple on_demand group count (must match seed labi_ondemand_list.from_x.c). */
 #[no_mangle]
 export function labi_od_simple_group_count(): i32 {
-  return 6;
+  return 8;
 }
 
+/** Return symbol probe count for simple group g. */
 #[no_mangle]
 export function labi_od_simple_group_sym_count(g: i32): i32 {
   if (g < 0) {
@@ -26,7 +29,7 @@ export function labi_od_simple_group_sym_count(g: i32): i32 {
     return 9;
   }
   if (g == 1) {
-    return 0;
+    return 2;
   }
   if (g == 2) {
     return 6;
@@ -39,6 +42,12 @@ export function labi_od_simple_group_sym_count(g: i32): i32 {
   }
   if (g == 5) {
     return 3;
+  }
+  if (g == 6) {
+    return 4;
+  }
+  if (g == 7) {
+    return 4;
   }
   return 0;
 }
@@ -91,6 +100,14 @@ export function labi_od_simple_group_sym_at(g: i32, i: i32): *u8 {
     return 0 as *u8;
   }
   if (g == 1) {
+    if (i == 0) {
+      let p: *u8 = "core_types_size_of_i32";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "core_types_placeholder";
+      return p;
+    }
     return 0 as *u8;
   }
   if (g == 2) {
@@ -169,9 +186,48 @@ export function labi_od_simple_group_sym_at(g: i32, i: i32): *u8 {
     }
     return 0 as *u8;
   }
+  if (g == 6) {
+    if (i == 0) {
+      let p: *u8 = "core_option_some_i32";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "core_option_unwrap_or_i32";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "core_option_none_i32";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "core_option_is_some_i32";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (g == 7) {
+    if (i == 0) {
+      let p: *u8 = "core_result_ok_i32";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "core_result_is_ok_i32";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "core_result_err_i32";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "core_result_ok";
+      return p;
+    }
+    return 0 as *u8;
+  }
   return 0 as *u8;
 }
 
+/** Return relative .o path for simple group g (repo-relative). */
 #[no_mangle]
 export function labi_od_simple_group_rel(g: i32): *u8 {
   if (g < 0) {
@@ -182,7 +238,8 @@ export function labi_od_simple_group_rel(g: i32): *u8 {
     return p;
   }
   if (g == 1) {
-    return 0 as *u8;
+    let p: *u8 = "core/types/types.o";
+    return p;
   }
   if (g == 2) {
     let p: *u8 = "std/encoding/encoding.o";
@@ -198,6 +255,14 @@ export function labi_od_simple_group_rel(g: i32): *u8 {
   }
   if (g == 5) {
     let p: *u8 = "std/schema/schema.o";
+    return p;
+  }
+  if (g == 6) {
+    let p: *u8 = "core/option/option.o";
+    return p;
+  }
+  if (g == 7) {
+    let p: *u8 = "core/result/result.o";
     return p;
   }
   return 0 as *u8;

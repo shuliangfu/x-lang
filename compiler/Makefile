@@ -134,6 +134,17 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 ../core/mem/mem.o: ../core/mem/mod.x | scripts/shux_compile_std_module.sh
 	@sh scripts/shux_compile_std_module.sh $@ ../core/mem/mod.x
 
+# PLATFORM: SHARED — core.types/option/result formal .o for -backend asm on_demand.
+# Do not asm co-emit these (Ubuntu x86_64 hang on option/result); C -E + cc only.
+../core/types/types.o: ../core/types/mod.x | scripts/shux_compile_std_module.sh
+	@sh scripts/shux_compile_std_module.sh $@ ../core/types/mod.x
+
+../core/option/option.o: ../core/option/mod.x | scripts/shux_compile_std_module.sh
+	@sh scripts/shux_compile_std_module.sh $@ ../core/option/mod.x
+
+../core/result/result.o: ../core/result/mod.x | scripts/shux_compile_std_module.sh
+	@sh scripts/shux_compile_std_module.sh $@ ../core/result/mod.x
+
 # std.map：F 闭合 — 纯 .x -E-extern + cc -c。
 ../std/map/map.o: ../std/map/mod.x | scripts/shux_compile_std_module.sh
 	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/map/mod.x

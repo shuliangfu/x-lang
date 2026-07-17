@@ -13,13 +13,13 @@
 
 #ifndef SHUX_LABI_ONDEMAND_LIST_FROM_X
 
-/* Simple groups: string=0 (g1 reserved/unused) encoding=2 base64=3 csv=4 schema=5.
- * g1 formerly listed core_types_* but rel wrongly pointed at base64.o (no core_types_ export).
- * core.types is co-emitted for -backend asm (pipeline_asm_user_deps_need_coemit); do not
- * push a wrong .o on residual U. Keep g1 empty so indices of 2..5 stay stable. */
+/* Simple groups: string=0 core_types=1 encoding=2 base64=3 csv=4 schema=5
+ * core_option=6 core_result=7.
+ * PLATFORM: SHARED — g1 rel is core/types/types.o (was wrongly base64.o).
+ * types/option/result formal .o via Makefile + ensure; no asm co-emit (Ubuntu hang). */
 
 int labi_od_simple_group_count(void) {
-  return 6;
+  return 8;
 }
 
 int labi_od_simple_group_sym_count(int g) {
@@ -28,7 +28,7 @@ int labi_od_simple_group_sym_count(int g) {
   if (g == 0)
     return 9;
   if (g == 1)
-    return 0; /* was core_types_* → base64.o mis-map; co-emit core.types instead */
+    return 2;
   if (g == 2)
     return 6;
   if (g == 3)
@@ -37,6 +37,10 @@ int labi_od_simple_group_sym_count(int g) {
     return 3;
   if (g == 5)
     return 3;
+  if (g == 6)
+    return 4;
+  if (g == 7)
+    return 4;
   return 0;
 }
 
@@ -67,7 +71,10 @@ const char *labi_od_simple_group_sym_at(int g, int i) {
     return NULL;
   }
   if (g == 1) {
-    (void)i;
+    if (i == 0)
+      return "core_types_size_of_i32";
+    if (i == 1)
+      return "core_types_placeholder";
     return NULL;
   }
   if (g == 2) {
@@ -114,6 +121,28 @@ const char *labi_od_simple_group_sym_at(int g, int i) {
       return "schema_smoke_c";
     return NULL;
   }
+  if (g == 6) {
+    if (i == 0)
+      return "core_option_some_i32";
+    if (i == 1)
+      return "core_option_unwrap_or_i32";
+    if (i == 2)
+      return "core_option_none_i32";
+    if (i == 3)
+      return "core_option_is_some_i32";
+    return NULL;
+  }
+  if (g == 7) {
+    if (i == 0)
+      return "core_result_ok_i32";
+    if (i == 1)
+      return "core_result_is_ok_i32";
+    if (i == 2)
+      return "core_result_err_i32";
+    if (i == 3)
+      return "core_result_ok";
+    return NULL;
+  }
   return NULL;
 }
 
@@ -123,7 +152,7 @@ const char *labi_od_simple_group_rel(int g) {
   if (g == 0)
     return "std/string/string.o";
   if (g == 1)
-    return NULL; /* empty group; was mis-mapped to base64.o */
+    return "core/types/types.o";
   if (g == 2)
     return "std/encoding/encoding.o";
   if (g == 3)
@@ -132,6 +161,10 @@ const char *labi_od_simple_group_rel(int g) {
     return "std/csv/csv.o";
   if (g == 5)
     return "std/schema/schema.o";
+  if (g == 6)
+    return "core/option/option.o";
+  if (g == 7)
+    return "core/result/result.o";
   return NULL;
 }
 
