@@ -24886,6 +24886,8 @@ int32_t pipeline_asm_call_param_type_ref_at_c(struct ast_ASTArena *arena, int32_
 /**
  * CALL 返回类型 TypeKind 序数；解析失败返回 -1。
  * PLATFORM: SHARED — used by asm SysV f32/f64 xmm0 harvest after CALL.
+ * Dep callees: map type into caller arena; if map fails, read kind from dep arena
+ * (caller-arena kind_ord on dep type_ref is garbage and hid f64 as non-float).
  */
 int32_t pipeline_asm_call_return_type_kind_ord_c(struct ast_ASTArena *arena, int32_t call_expr_ref) {
   struct ast_Module *mod;
@@ -24893,6 +24895,7 @@ int32_t pipeline_asm_call_return_type_kind_ord_c(struct ast_ASTArena *arena, int
   int32_t dep_ix;
   int32_t rty;
   int32_t mapped;
+  struct ast_ASTArena *dep_arena;
 
   if (!arena || call_expr_ref <= 0)
     return -1;
@@ -24906,11 +24909,14 @@ int32_t pipeline_asm_call_return_type_kind_ord_c(struct ast_ASTArena *arena, int
   rty = pipeline_module_func_return_type_at(mod, func_ix);
   if (rty <= 0)
     return -1;
-  if (dep_ix >= 0 && mod != g_pipeline_asm_emit_module && g_pipeline_asm_emit_dep_pipe) {
+  if (dep_ix >= 0 && g_pipeline_asm_emit_dep_pipe) {
     mapped = pipeline_typeck_get_dep_return_type_in_caller_arena_c(dep_ix, rty, arena,
                                                                    g_pipeline_asm_emit_dep_pipe);
     if (mapped > 0)
-      rty = mapped;
+      return pipeline_type_kind_ord_at(arena, mapped);
+    dep_arena = pipeline_dep_ctx_arena_at(g_pipeline_asm_emit_dep_pipe, dep_ix);
+    if (dep_arena)
+      return pipeline_type_kind_ord_at(dep_arena, rty);
   }
   return pipeline_type_kind_ord_at(arena, rty);
 }

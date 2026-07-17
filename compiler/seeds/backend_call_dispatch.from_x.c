@@ -663,6 +663,11 @@ int32_t glue_emit_call_args_elf_sysv_f32_xmm_c_impl(struct ast_ASTArena *arena,
   pipeline_asm_emit_set_call_f32_xmm(1);
   /** 高序号寄存器实参先 emit，避免 ok_i32(…) 等 clobber 已装入 rdi 的低序号实参。 */
   for (i = nargs - 1; i >= 0; i--) {
+    int32_t arg_ko;
+    int32_t pty;
+    int32_t mov_rc;
+    int32_t use_xmm;
+    int32_t xk;
     arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
     if (arg_ref == 0)
       continue;
@@ -673,19 +678,25 @@ int32_t glue_emit_call_args_elf_sysv_f32_xmm_c_impl(struct ast_ASTArena *arena,
       pipeline_asm_emit_set_call_f32_xmm(0);
       return -1;
     }
-    if (kind == 0) {
+    pty = glue_call_param_type_ref_at(arena, expr_ref, i);
+    arg_ko = pipeline_expr_kind_ord_at(arena, arg_ref);
+    /**
+     * SysV float placement: slot kind==1, or FLOAT_LIT (1), or param/arg f32/f64.
+     * Use arg_ref already resolved for emit — do not re-fetch (slot helper can miss).
+     */
+    use_xmm = (kind == 1) || (arg_ko == 1) || glue_call_param_is_f32_c(arena, pty);
+    if (!use_xmm) {
       if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, reg_k, ta) != 0) {
         pipeline_asm_emit_set_call_f32_xmm(0);
         return -1;
       }
     } else {
-      /** kind==1 xmm: f32 → movd; f64 → movq (SysV SSE float class). */
-      int32_t pty = glue_call_param_type_ref_at(arena, expr_ref, i);
-      int32_t mov_rc;
-      if (glue_call_arg_is_f64_width_c(arena, expr_ref, i, pty))
-        mov_rc = backend_enc_mov_rax_to_xmm_arg_reg_arch(elf_ctx, reg_k, ta);
+      xk = (kind == 1) ? reg_k : 0;
+      if (arg_ko == 1 || glue_call_arg_is_f64_width_c(arena, expr_ref, i, pty) ||
+          (pty > 0 && pipeline_type_kind_ord_at(arena, pty) == 15))
+        mov_rc = backend_enc_mov_rax_to_xmm_arg_reg_arch(elf_ctx, xk, ta);
       else
-        mov_rc = backend_enc_mov_eax_to_xmm_arg_reg_arch(elf_ctx, reg_k, ta);
+        mov_rc = backend_enc_mov_eax_to_xmm_arg_reg_arch(elf_ctx, xk, ta);
       if (mov_rc != 0) {
         pipeline_asm_emit_set_call_f32_xmm(0);
         return -1;
@@ -1987,7 +1998,12 @@ static int32_t glue_asm_harvest_sse_call_ret_to_gpr_c(struct ast_ASTArena *arena
   kind = pipeline_asm_call_return_type_kind_ord_c(arena, call_expr_ref);
   if (kind == 14)
     return backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx, 0, ta);
-  if (kind == 15)
+  /**
+   * f64, or unresolved (-1): SysV scalar float returns live in xmm0.
+   * Unresolved import float APIs (std.math) previously skipped harvest → GPR garbage.
+   * Integer/pointer kinds (0–13 except float) must not harvest.
+   */
+  if (kind == 15 || kind < 0)
     return backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx, 0, ta);
   return 0;
 }
