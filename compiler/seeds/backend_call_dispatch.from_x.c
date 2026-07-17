@@ -3016,9 +3016,25 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
               reg_units[i] = u;
               gp_cur += u;
             }
-            /** Push MEMORY by-value (right-to-left) before placing register args; 16-align stack. */
+            /**
+             * Push MEMORY by-value before reg args.
+             * SysV: aggregate at lowest stack address ([rsp+0]=byte0). Pad for 16-align must sit at
+             * higher addresses → push pad first, then struct high→low. (Pad-after shifts fields.)
+             */
             if (ta == 0) {
+              int32_t raw_mem = 0;
               int32_t pushed_total = 0;
+              for (i = 0; i < n_place; i++) {
+                if (is_mem[i])
+                  raw_mem += (arg_sz[i] + 7) & ~7;
+              }
+              while (((raw_mem + pushed_total) & 15) != 0) {
+                if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0)
+                  return -1;
+                if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+                  return -1;
+                pushed_total += 8;
+              }
               for (i = n_place - 1; i >= 0; i--) {
                 int32_t arg_ref;
                 int32_t pushed;
@@ -3031,13 +3047,6 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
                 if (pushed < 0)
                   return -1;
                 pushed_total += pushed;
-              }
-              while ((pushed_total & 15) != 0) {
-                if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0)
-                  return -1;
-                if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
-                  return -1;
-                pushed_total += 8;
               }
               mem_stack = pushed_total;
             }
