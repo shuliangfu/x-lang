@@ -4979,7 +4979,42 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           }
           j = 0;
           let nd_call: i32 = pipeline_dep_ctx_ndep(ctx);
-          while (j < nd_call) {
+          /*
+           * Local-first bare-name CALL (align pin seed).
+           * Purpose: if current_codegen_module already defines the bare name
+           *   (e.g. core.result.unwrap_or), do not scan earlier deps and steal
+           *   a same-named symbol (core.option.unwrap_or → core_option_unwrap_or).
+           * Authority: seeds/codegen_gen.linux.x86_64.c local_has_name before
+           *   while (j < nd_call && local_has_name == 0).
+           * Uses pipeline_module_func_name_* (not arena Func) — reliable for slim modules.
+           * PLATFORM: SHARED — Cap force si co-emit matrix.
+           */
+          let local_has_name: i32 = 0;
+          if (cur_mod != 0 as *Module && callee.var_name_len > 0) {
+            let lfi: i32 = 0;
+            while (lfi < cur_mod.num_funcs) {
+              let lnl: i32 = pipeline_module_func_name_len_at(cur_mod, lfi);
+              if (lnl == callee.var_name_len) {
+                let lnm: u8[64] = [];
+                pipeline_module_func_name_copy64(cur_mod, lfi, &lnm[0]);
+                let leq: i32 = 1;
+                let li: i32 = 0;
+                while (li < lnl && li < 64) {
+                  if (lnm[li] != callee.var_name[li]) {
+                    leq = 0;
+                    break;
+                  }
+                  li = li + 1;
+                }
+                if (leq != 0) {
+                  local_has_name = 1;
+                  break;
+                }
+              }
+              lfi = lfi + 1;
+            }
+          }
+          while (j < nd_call && local_has_name == 0) {
             let dep_mod: *Module = pipeline_dep_ctx_module_at(ctx, j);
             let dep_arena: *ASTArena = pipeline_dep_ctx_arena_at(ctx, j);
             if (dep_mod != 0 as *Module && dep_arena != 0 as *ASTArena && dep_mod.num_funcs > 0) {
@@ -5158,15 +5193,36 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
                 if (eq) {
                   let cur_pre: u8[128] = [];
                   /*
-                   * 【Why 根源】入口库模块（dep_index=-1，如 core/mem）不在 dep 池，
-                   *   codegen_ctx_dep_path_for_current_codegen_module_into 返回 0。
-                   *   旧逻辑于是 pl=0 → 同模块调用 emit 裸名 mem_set，与定义端
-                   *   core_mem_mem_set 不匹配。codegen_emit_prefix_len_from_ctx 优先读
-                   *   driver 预设的 current_codegen_prefix_mirror（core_mem_），与
-                   *   emit_func / 声明端一致。
-                   * 【Invariant】extern 函数仍强制 pl=0（与 extern 声明裸/特定符号一致）。
+                   * Same-module bare call prefix (align pin seed CALL callee2 path).
+                   * Purpose: prefer path of current_codegen_module in the dep pool
+                   *   (core_result_ while emitting result), then entry pin / mirror.
+                   *   Do NOT only use codegen_emit_prefix_len_from_ctx: it prefers
+                   *   current_codegen_prefix_mirror which import/dep walks can leave
+                   *   on a prior dep (e.g. core_option_ → bare unwrap_or mis-prefixed).
+                   * Authority: seeds/codegen_gen.linux.x86_64.c same-module VAR CALL.
+                   * PLATFORM: SHARED — Cap force si (result→result, not option).
                    */
-                  let pl: i32 = codegen_emit_prefix_len_from_ctx(ctx, &cur_pre[0], 128);
+                  let cur_dep_path_buf: u8[128] = [];
+                  let cur_dep_plen: i32 = codegen_ctx_dep_path_for_current_codegen_module_into(ctx, &cur_dep_path_buf[0]);
+                  let pl: i32 = 0;
+                  if (cur_dep_plen > 0) {
+                    codegen_import_path_to_c_prefix_into(&cur_dep_path_buf[0], &cur_pre[0], 128);
+                    while (pl < 128 && cur_pre[pl] != 0 as u8) {
+                      pl = pl + 1;
+                    }
+                  } else if (ctx.current_codegen_prefix_len > 0) {
+                    let _cpl: i32 = ctx.current_codegen_prefix_len;
+                    let pi: i32 = 0;
+                    while (pi < _cpl && pi < 127) {
+                      cur_pre[pi] = ctx.current_codegen_prefix_mirror[pi];
+                      pi = pi + 1;
+                    }
+                    cur_pre[pi] = 0 as u8;
+                    pl = pi;
+                  } else {
+                    cur_pre[0] = 0 as u8;
+                    pl = 0;
+                  }
                   /* 【Why extern/no_mangle 裸名】同模块调用须与定义/声明符号一致 */
                   if (pipeline_module_func_is_extern_at(cur_mod, fi) != 0
                       || pipeline_module_func_is_no_mangle_at(cur_mod, fi) != 0) {
@@ -9067,6 +9123,19 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
           if (codegen_emit_skipped_dep_type_definitions(ctx, out) != 0) {
             return -1;
           }
+          /*
+           * Restore current_codegen_module after dep type walk.
+           * Purpose: skipped_dep_type_definitions may leave ctx pointing at the last
+           *   dep visited; CALL binding resolution (fmt.fmt_*) and same-module bare
+           *   names (unwrap_or) then mangle with the wrong prefix.
+           * Authority: seeds/codegen_gen.linux.x86_64.c codegen_x_ast after
+           *   codegen_emit_skipped_dep_type_definitions.
+           * PLATFORM: SHARED — multi-dep co-emit C TU; verify Cap force hello/si.
+           */
+          if (ctx != 0 as *PipelineDepCtx) {
+            ctx.current_codegen_module = module;
+            ctx.current_codegen_arena = arena;
+          }
           if (codegen_emit_dep_struct_forward_declarations(ctx, out) != 0) {
             return -1;
           }
@@ -9500,6 +9569,29 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
       if (ctx != 0 as *PipelineDepCtx) {
         saved_func_idx = ctx.current_func_index;
         ctx.current_func_index = i;
+      }
+      /*
+       * Restore module identity + C prefix before each function body.
+       * Purpose: prior emit_func / import-extern walks may leave
+       *   current_codegen_module or prefix_mirror on another dep (e.g. core.option
+       *   while emitting core.result → bare unwrap_or becomes core_option_unwrap_or;
+       *   or entry while emitting std.fmt → fmt.fmt_i32 not core_fmt_fmt_i32).
+       * Authority: seeds/codegen_gen.linux.x86_64.c before codegen_emit_func
+       *   (module/arena/dep_index); prefix_mirror re-pin matches this module's
+       *   prefix_buf computed at codegen_x_ast entry (Cap residual root).
+       * PLATFORM: SHARED — Cap force multi-dep co-emit matrix (hello/si).
+       */
+      if (ctx != 0 as *PipelineDepCtx) {
+        ctx.current_codegen_module = module;
+        ctx.current_codegen_arena = arena;
+        ctx.current_codegen_dep_index = dep_index;
+        let px: i32 = 0;
+        while (px < prefix_len && px < 63) {
+          ctx.current_codegen_prefix_mirror[px] = prefix_buf[px];
+          px = px + 1;
+        }
+        ctx.current_codegen_prefix_mirror[px] = 0 as u8;
+        ctx.current_codegen_prefix_len = px;
       }
       if (emit_func(arena, out, module, i, is_entry, &prefix_buf[0], prefix_len, ctx, call_init_globals) != 0) {
         driver_diagnostic_codegen_emit_func_fail(module, i);
