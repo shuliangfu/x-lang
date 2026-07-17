@@ -2026,7 +2026,13 @@ int32_t glue_asm_emit_call_with_cleanup_impl(struct ast_ASTArena *arena, struct 
     return -1;
   if (backend_enc_call_stack_cleanup_arch(elf_ctx, cleanup, ta) != 0)
     return -1;
-  return glue_asm_harvest_sse_or_std_math_c(arena, elf_ctx, expr_ref, ta, cname, clen);
+  if (glue_asm_harvest_sse_or_std_math_c(arena, elf_ctx, expr_ref, ta, cname, clen) != 0)
+    return -1;
+  /** Always append movq rax,xmm0 after call on x86_64 — diagnostic force; refine later.
+   * If this still does not appear in user main, emit path is not with_cleanup. */
+  if (ta == 0)
+    return backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx, 0, ta);
+  return 0;
 }
 
 /**
@@ -2150,6 +2156,8 @@ int32_t pipeline_asm_emit_call_elf_c_impl(struct ast_ASTArena *arena, struct pla
               }
               if (glue_asm_harvest_sse_or_std_math_c(arena, elf_ctx, expr_ref, ta, sym_flat, sym_len) != 0)
                 return -1;
+              if (ta == 0 && backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx, 0, ta) != 0)
+                return -1;
               return 0;
             }
           }
@@ -2189,7 +2197,9 @@ int32_t pipeline_asm_emit_call_elf_c_impl(struct ast_ASTArena *arena, struct pla
         if (cln2 < 0 || backend_enc_call_stack_cleanup_arch(elf_ctx, cln2, ta) != 0)
           return -1;
       }
-      if (glue_asm_harvest_sse_call_ret_to_gpr_c(arena, elf_ctx, expr_ref, ta) != 0)
+      if (glue_asm_harvest_sse_or_std_math_c(arena, elf_ctx, expr_ref, ta, sym_eh, elen) != 0)
+        return -1;
+      if (ta == 0 && backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx, 0, ta) != 0)
         return -1;
       return 0;
     }
