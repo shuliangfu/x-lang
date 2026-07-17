@@ -4104,10 +4104,14 @@ bootstrap_wants_nostdlib() {
 }
 
 # crt0 链尾参数（无 PIPELINE_LIBS）。
+# PLATFORM: LINUX — nostdlib tail is Linux x86_64 bootstrap only.
+# Callers capture stdout: BOOT_CRT0_TAIL=$(bootstrap_link_tail_crt0).
+# ensure_* may print " cc -c ..." progress; must go to stderr or $(...) pollutes the
+# link line with a bare -c and fails: cannot specify '-o' with '-c' with multiple files.
 bootstrap_link_tail_crt0() {
   if bootstrap_wants_nostdlib; then
-  ensure_freestanding_io_x86_64_obj
-  ensure_bootstrap_nostdlib_stubs_obj
+  ensure_freestanding_io_x86_64_obj 1>&2
+  ensure_bootstrap_nostdlib_stubs_obj 1>&2
   echo "-nostdlib -static -Wl,--gc-sections src/asm/freestanding_io_x86_64.o src/asm/bootstrap_nostdlib_stubs.o"
   else
   echo "-lc -lm"
@@ -4115,10 +4119,11 @@ bootstrap_link_tail_crt0() {
 }
 
 # driver / experimental / strict 链尾（保留 PIPELINE_LIBS，仅去 -lc/-lm）。
+# PLATFORM: LINUX — same stdout purity rule as bootstrap_link_tail_crt0 (NL-07).
 bootstrap_link_tail_driver() {
   if bootstrap_wants_nostdlib; then
-  ensure_freestanding_io_x86_64_obj
-  ensure_bootstrap_nostdlib_stubs_obj
+  ensure_freestanding_io_x86_64_obj 1>&2
+  ensure_bootstrap_nostdlib_stubs_obj 1>&2
   echo "-nostdlib -static -Wl,--gc-sections src/asm/freestanding_io_x86_64.o src/asm/bootstrap_nostdlib_stubs.o ${PIPELINE_LIBS}"
   else
   echo "-lm -lc ${PIPELINE_LIBS}"
