@@ -13,10 +13,11 @@
  * 替代 -lc/-lm，供 build_shux_asm.sh crt0 路径尝试无 libc.so 静态链。
  *
  * 【范围】
- * 覆盖 bootstrap 链常见未定义符号：string/mem、stdio 最小格式化（含 NL-07 L2 fflush）、
+ * 覆盖 bootstrap 链常见未定义符号：string/mem、stdio 最小格式化
+ * （NL-07 L2 fflush；NL-07 L6 fileno/isatty/puts/strerror/fread/ferror/stdin/remove/__ctype_b_loc）、
  * getenv、libm（__builtin_*）、fenv 空实现、posix_memalign、POSIX open/read/close/fstat/waitpid、
  * readlink/realpath/getcwd/opendir（NL-07 v5 runtime_link_abi / fmt_check 路径）。
- * 完整编译器仍可能缺符号（backend_enc/typeck/companion 等 L3+）；失败时 build_shux_asm 回退 -lc/-lm。
+ * L1–L5 companions 后 residual 应仅为本 libc 面；失败时 build_shux_asm 回退 -lc/-lm。
  *
  * 【依赖】
  * freestanding_io_x86_64.s 提供 shux_sys_write / shux_sys_mmap / shux_sys_exit。
@@ -51,15 +52,17 @@ struct dirent {
 /** 不透明目录流；见 opendir/readdir/closedir。 */
 typedef struct bootstrap_dir DIR;
 
-/** FILE 最小占位；bootstrap 仅区分 stdout/stderr。 */
+/** FILE 最小占位；bootstrap 区分 stdin/stdout/stderr（fd 0/1/2）。 */
 struct _bootstrap_file {
     int fd;
 };
 typedef struct _bootstrap_file FILE;
 
+static FILE bootstrap_stdin_file = { 0 };
 static FILE bootstrap_stdout_file = { 1 };
 static FILE bootstrap_stderr_file = { 2 };
 
+FILE *stdin = &bootstrap_stdin_file;
 FILE *stdout = &bootstrap_stdout_file;
 FILE *stderr = &bootstrap_stderr_file;
 
@@ -1523,6 +1526,162 @@ int fflush(FILE *stream) {
 }
 
 /**
+ * Return the underlying fd of a stub FILE* (POSIX fileno).
+ *
+ * PLATFORM: LINUX — nostdlib-only (same link gate as fflush).
+ * Authority (G.7 / NL-07 L6): this seed only; do not add fileno in freestanding_io.
+ */
+int fileno(FILE *stream) {
+  if (!stream)
+    return -1;
+  return stream->fd;
+}
+
+/**
+ * Report sticky error on stream (POSIX ferror).
+ *
+ * Stub FILE* has no error flag field; unbuffered read/write failures are reported
+ * by return values only. Always 0 so seed paths like `fread==0 && ferror(stdin)`
+ * treat EOF cleanly without a false hard error.
+ *
+ * PLATFORM: LINUX — nostdlib-only. Authority: G.7 / NL-07 L6 this seed.
+ */
+int ferror(FILE *stream) {
+  (void)stream;
+  return 0;
+}
+
+/**
+ * Read size*nmemb bytes from stream into ptr (POSIX fread).
+ *
+ * Mirrors fwrite: single read() on stream->fd; returns complete elements only.
+ * PLATFORM: LINUX — nostdlib-only. Authority: G.7 / NL-07 L6 this seed.
+ */
+size_t fread(void *ptr, size_t size, size_t nmemb, FILE *stream) {
+  size_t total;
+  ssize_t n;
+  if (!ptr || !stream || size == 0 || nmemb == 0)
+    return 0;
+  total = size * nmemb;
+  n = read(stream->fd, ptr, (unsigned long)total);
+  if (n <= 0)
+    return 0;
+  return (size_t)n / size;
+}
+
+/**
+ * Write s plus a trailing newline to stdout (POSIX puts).
+ *
+ * PLATFORM: LINUX — nostdlib-only. Authority: G.7 / NL-07 L6 this seed.
+ */
+int puts(const char *s) {
+  size_t n;
+  char nl = '\n';
+  if (!s)
+    return -1;
+  n = strlen(s);
+  if (n > 0 && write(1, s, (unsigned long)n) != (long)n)
+    return -1;
+  if (write(1, &nl, 1) != 1)
+    return -1;
+  return 0;
+}
+
+/**
+ * Test whether fd refers to a terminal (POSIX isatty).
+ *
+ * Bootstrap returns 0 always: nostdlib has no termios; diag color paths stay off.
+ * PLATFORM: LINUX — nostdlib-only. Authority: G.7 / NL-07 L6 this seed.
+ */
+int isatty(int fd) {
+  (void)fd;
+  return 0;
+}
+
+/**
+ * Map errno to a short static message (POSIX strerror).
+ *
+ * Not a full locale table — enough for rt_diag / link_abi error strings.
+ * PLATFORM: LINUX — nostdlib-only. Authority: G.7 / NL-07 L6 this seed.
+ */
+char *strerror(int errnum) {
+  static char buf[48];
+  (void)snprintf(buf, sizeof(buf), "errno %d", errnum);
+  return buf;
+}
+
+/**
+ * glibc ctype class table locator for objects compiled against hosted headers.
+ *
+ * Seeds / gen C expand isalpha/isdigit via (*__ctype_b_loc())[c] with glibc
+ * little-endian _ISbit layout. Provide a 384-entry ASCII table (index = c+128)
+ * so -nostdlib links without libpthread/libc ctype.
+ *
+ * PLATFORM: LINUX — nostdlib-only. Authority: G.7 / NL-07 L6 this seed only
+ * (do not duplicate in freestanding_io).
+ */
+#define BOOTSTRAP_ISBIT(bit) \
+  ((unsigned short)(((bit) < 8) ? ((1u << (bit)) << 8) : ((1u << (bit)) >> 8)))
+enum {
+  B_ISupper = BOOTSTRAP_ISBIT(0),
+  B_ISlower = BOOTSTRAP_ISBIT(1),
+  B_ISalpha = BOOTSTRAP_ISBIT(2),
+  B_ISdigit = BOOTSTRAP_ISBIT(3),
+  B_ISxdigit = BOOTSTRAP_ISBIT(4),
+  B_ISspace = BOOTSTRAP_ISBIT(5),
+  B_ISprint = BOOTSTRAP_ISBIT(6),
+  B_ISgraph = BOOTSTRAP_ISBIT(7),
+  B_ISblank = BOOTSTRAP_ISBIT(8),
+  B_IScntrl = BOOTSTRAP_ISBIT(9),
+  B_ISpunct = BOOTSTRAP_ISBIT(10),
+  B_ISalnum = BOOTSTRAP_ISBIT(11)
+};
+
+static unsigned short bootstrap_ctype_b_array[384];
+static const unsigned short *bootstrap_ctype_b_ptr;
+static int bootstrap_ctype_inited;
+
+static void bootstrap_ctype_init(void) {
+  int c;
+  if (bootstrap_ctype_inited)
+    return;
+  for (c = 0; c < 256; c++) {
+    unsigned short bits = 0;
+    unsigned char u = (unsigned char)c;
+    if (u < 32u || u == 127u)
+      bits |= (unsigned short)B_IScntrl;
+    if (u == ' ' || u == '\t')
+      bits |= (unsigned short)(B_ISblank | B_ISspace);
+    if (u == '\n' || u == '\r' || u == '\f' || u == '\v')
+      bits |= (unsigned short)B_ISspace;
+    if (u >= 0x21u && u <= 0x7eu)
+      bits |= (unsigned short)(B_ISprint | B_ISgraph);
+    if (u == ' ')
+      bits |= (unsigned short)B_ISprint;
+    if (u >= '0' && u <= '9')
+      bits |= (unsigned short)(B_ISdigit | B_ISxdigit | B_ISalnum);
+    if ((u >= 'A' && u <= 'F') || (u >= 'a' && u <= 'f'))
+      bits |= (unsigned short)B_ISxdigit;
+    if (u >= 'A' && u <= 'Z')
+      bits |= (unsigned short)(B_ISupper | B_ISalpha | B_ISalnum);
+    if (u >= 'a' && u <= 'z')
+      bits |= (unsigned short)(B_ISlower | B_ISalpha | B_ISalnum);
+    if ((bits & (unsigned short)B_ISgraph) &&
+        !(bits & (unsigned short)(B_ISalnum | B_ISspace)))
+      bits |= (unsigned short)B_ISpunct;
+    bootstrap_ctype_b_array[c + 128] = bits;
+  }
+  /* EOF (-1) lands at index 127; leave 0. */
+  bootstrap_ctype_b_ptr = &bootstrap_ctype_b_array[128];
+  bootstrap_ctype_inited = 1;
+}
+
+const unsigned short **__ctype_b_loc(void) {
+  bootstrap_ctype_init();
+  return (const unsigned short **)&bootstrap_ctype_b_ptr;
+}
+
+/**
  * crt0 exit path after main_entry: flush stdio when safe, then sys_exit (never returns).
  *
  * PLATFORM: LINUX (freestanding + hosted hybrid) —
@@ -1660,6 +1819,16 @@ int system(const char *command) {
 /** unlink：Linux syscall 87。 */
 int unlink(const char *path) {
   return (int)bootstrap_syscall3(87L, (long)path, 0L, 0L);
+}
+
+/**
+ * Remove a file (POSIX remove → unlink for regular paths).
+ *
+ * PLATFORM: LINUX — nostdlib-only; wraps this TU's unlink (G.7 single path).
+ * Authority: G.7 / NL-07 L6 this seed.
+ */
+int remove(const char *path) {
+  return unlink(path);
 }
 
 /** rename：Linux syscall 82。 */

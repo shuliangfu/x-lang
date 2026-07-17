@@ -3138,8 +3138,10 @@ build_nonempty_asm_objs() {
 # L3b: same ensure appends seed backend_emit_* partial (not full seed .o — multi-def).
 # L4+: typeck/driver/lsp companions via ensure_crt0_typeck_driver_lsp_companion_objs.
 # L5: codegen/parser residual partials via ensure_crt0_codegen_parser_companion_objs.
-# Residual after L5: nostdlib libc face (fileno/isatty/puts/…) + any new pull-ins.
-# NL-07 L2: fflush is defined in bootstrap_nostdlib_stubs (not freestanding_io).
+# L6: nostdlib libc face (fileno/isatty/puts/strerror/fread/ferror/stdin/remove/
+#     __ctype_b_loc) in bootstrap_nostdlib_stubs (same G.7 stdio authority as L2).
+# Residual after L6: should be empty on crt0 bag (or new pull-ins only).
+# NL-07 L2/L6: libc face lives in bootstrap_nostdlib_stubs (not freestanding_io).
 filter_crt0_asm_objs() {
   CRT0_ASM=""
   _crt0_have_standalone=0
