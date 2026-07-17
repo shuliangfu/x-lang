@@ -3103,6 +3103,122 @@ export function emit_struct_field_type_via_pipeline(arena: *ASTArena, out: *Code
 }
 
 /**
+ * Look up the type_ref of `struct_name.field_name` in the entry module then deps.
+ *
+ * Purpose: STRUCT_LIT array-field emit must know the field is TYPE_ARRAY so it can
+ * expand `.name = src` (illegal in C) into `.name = { src[0], …, src[N-1] }`.
+ * Parameters: arena unused (layout lives on Module); ctx may be null → 0.
+ * struct_name may be bare (`OneFuncResult`) or dotted; bare tail is matched.
+ * Returns: field type_ref, or 0 if not found.
+ * PLATFORM: SHARED — co-emit C TU; verify parser.x host-cc array-init residual.
+ */
+export function codegen_lookup_struct_field_type_ref(
+  arena: *ASTArena,
+  ctx: *PipelineDepCtx,
+  struct_name: *u8,
+  struct_name_len: i32,
+  field_name: *u8,
+  field_name_len: i32
+): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    (void)(arena);
+    if (struct_name == 0 as *u8 || struct_name_len <= 0 || field_name == 0 as *u8 || field_name_len <= 0) {
+      return 0;
+    }
+    let bare_off: i32 = 0;
+    let bi: i32 = 0;
+    while (bi < struct_name_len && bi < 64) {
+      if (struct_name[bi] == 46) {
+        bare_off = bi + 1;
+      }
+      bi = bi + 1;
+    }
+    let bare_len: i32 = struct_name_len - bare_off;
+    if (bare_len <= 0) {
+      return 0;
+    }
+    let flen_use: i32 = field_name_len;
+    if (flen_use > 64) {
+      flen_use = 64;
+    }
+    let try_mod: *Module = 0 as *Module;
+    let pass: i32 = 0;
+    while (pass < 2) {
+      let nmod: i32 = 1;
+      if (pass == 1) {
+        if (ctx == 0 as *PipelineDepCtx) {
+          break;
+        }
+        nmod = pipeline_dep_ctx_ndep(ctx);
+      }
+      let mi: i32 = 0;
+      while (mi < nmod) {
+        if (pass == 0) {
+          if (ctx == 0 as *PipelineDepCtx || ctx.current_codegen_module == 0 as *Module) {
+            mi = mi + 1;
+            continue;
+          }
+          try_mod = ctx.current_codegen_module;
+        } else {
+          try_mod = pipeline_dep_ctx_module_at(ctx, mi);
+        }
+        if (try_mod != 0 as *Module) {
+          let k: i32 = 0;
+          while (k < try_mod.num_struct_layouts) {
+            let snl: i32 = pipeline_module_struct_layout_name_len(try_mod, k);
+            if (snl == bare_len && snl > 0) {
+              let snm: u8[64] = [];
+              pipeline_module_struct_layout_name_into(try_mod, k, &snm[0]);
+              let eq: bool = true;
+              let sj: i32 = 0;
+              while (sj < snl && sj < 64) {
+                if (snm[sj] != struct_name[bare_off + sj]) {
+                  eq = false;
+                  break;
+                }
+                sj = sj + 1;
+              }
+              if (eq) {
+                let nf: i32 = pipeline_module_struct_layout_num_fields(try_mod, k);
+                let j: i32 = 0;
+                while (j < nf) {
+                  let fnl: i32 = pipeline_module_struct_layout_field_name_len(try_mod, k, j);
+                  if (fnl == flen_use && fnl > 0) {
+                    let fnm: u8[64] = [];
+                    pipeline_module_struct_layout_field_name_into(try_mod, k, j, &fnm[0]);
+                    let feq: bool = true;
+                    let fj: i32 = 0;
+                    while (fj < fnl && fj < 64) {
+                      if (fnm[fj] != field_name[fj]) {
+                        feq = false;
+                        break;
+                      }
+                      fj = fj + 1;
+                    }
+                    if (feq) {
+                      return pipeline_module_struct_layout_field_type_ref(try_mod, k, j);
+                    }
+                  }
+                  j = j + 1;
+                }
+              }
+            }
+            k = k + 1;
+          }
+        }
+        mi = mi + 1;
+        if (pass == 0) {
+          break;
+        }
+      }
+      pass = pass + 1;
+    }
+    return 0;
+  }
+}
+
+/**
  * pipeline_module_struct_layout_name_into 给出的 struct 尾部名若与 IO 异步 ABI 固定名相同，则跳过 codegen 发射：
  * runtime.c / preamble 已定义完整的 ast_* 与 std_io_driver_* 等 tag，再输出会重复完整定义导致 C 编译失败。
  * 仅匹配裸名 Buffer、Completion、AsyncContext（与任意 struct_prefix 拼接后均由 ABI 层提供）。
@@ -6565,10 +6681,12 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         if (emit_bytes_4(out, eq, 3) != 0) {
           return -1;
         }
-        /* 结构体数组字段初值必须用花括号 `{ e0, e1, ... }`，不能 emit_expr 成 `(T[]){...}`：
-         * C 指定初始化器里 `.arr = (int32_t[]){...}` 是指针/复合字面量，无法初始化 `int32_t arr[N]`
-         * （error: incompatible pointer to integer conversion initializing 'int32_t'）。
-         * 空 [] → `{ 0 }`；非空 ARRAY_LIT → emit_braced_array_lit_init。 */
+        /* STRUCT_LIT array fields: C designated init cannot take an array/pointer RHS.
+         * - EXPR_ARRAY_LIT empty → `{ 0 }`; non-empty → emit_braced_array_lit_init
+         * - VAR/param (u8[N] or decayed *u8) → expand `.name = { src[0], …, src[N-1] }`
+         *   (parser M1 host-cc residual: `.name = z64` / `.name = name64` illegal).
+         * Do NOT emit_expr alone for TYPE_ARRAY fields (pointer-to-integer on first elem).
+         * PLATFORM: SHARED — seed pin same commit; verify parser.x -E host-cc. */
         let init_ref: i32 = pipeline_expr_struct_lit_init_ref(arena, expr_ref, fi);
         if (!ast.ref_is_null(init_ref)) {
           let init_e: Expr = ast.ast_arena_expr_get(arena, init_ref);
@@ -6584,8 +6702,60 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
               }
             }
           } else {
-            if (emit_expr(arena, out, init_ref, ctx) != 0) {
-              return -1;
+            let use_elem_expand: i32 = 0;
+            let arr_sz: i32 = 0;
+            let flen_lk: i32 = flen;
+            if (flen_lk > 64) {
+              flen_lk = 64;
+            }
+            let ftr: i32 = codegen_lookup_struct_field_type_ref(
+              arena, ctx, &e.struct_lit_struct_name[0], e.struct_lit_struct_name_len, &sl_fnbuf[0], flen_lk);
+            if (!ast.ref_is_null(ftr)
+                && pipeline_type_kind_ord_at(arena, ftr) == (TypeKind.TYPE_ARRAY as i32)) {
+              arr_sz = pipeline_type_array_size_at(arena, ftr);
+              if (arr_sz > 0 && arr_sz <= 512) {
+                use_elem_expand = 1;
+              }
+            } else if (!ast.ref_is_null(init_e.resolved_type_ref)
+                && pipeline_type_kind_ord_at(arena, init_e.resolved_type_ref) == (TypeKind.TYPE_ARRAY as i32)) {
+              arr_sz = pipeline_type_array_size_at(arena, init_e.resolved_type_ref);
+              if (arr_sz > 0 && arr_sz <= 512) {
+                use_elem_expand = 1;
+              }
+            }
+            if (use_elem_expand != 0) {
+              if (append_byte(out, 123) != 0) {
+                return -1;
+              }
+              let ai: i32 = 0;
+              while (ai < arr_sz) {
+                if (ai > 0) {
+                  let cm: u8[3] = [44, 32, 0];
+                  if (emit_bytes_3(out, cm, 2) != 0) {
+                    return -1;
+                  }
+                }
+                if (emit_expr(arena, out, init_ref, ctx) != 0) {
+                  return -1;
+                }
+                if (append_byte(out, 91) != 0) {
+                  return -1;
+                }
+                if (format_int(out, ai as i64) != 0) {
+                  return -1;
+                }
+                if (append_byte(out, 93) != 0) {
+                  return -1;
+                }
+                ai = ai + 1;
+              }
+              if (append_byte(out, 125) != 0) {
+                return -1;
+              }
+            } else {
+              if (emit_expr(arena, out, init_ref, ctx) != 0) {
+                return -1;
+              }
             }
           }
         }

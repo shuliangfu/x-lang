@@ -4181,6 +4181,105 @@ int32_t codegen_try_emit_slice_init_from_array_var(struct ast_ASTArena * arena, 
   }
   return 0;
 }
+/* PLATFORM: SHARED — STRUCT_LIT array-field type lookup (parser M1 host-cc array-init).
+ * Authority mirror of codegen.x codegen_lookup_struct_field_type_ref; same commit. */
+int32_t codegen_lookup_struct_field_type_ref(struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx, uint8_t * struct_name, int32_t struct_name_len, uint8_t * field_name, int32_t field_name_len) {
+  int32_t bare_off = 0;
+  int32_t bi = 0;
+  int32_t bare_len = 0;
+  int32_t flen_use = 0;
+  int32_t pass = 0;
+  (void)arena;
+  if ((((struct_name == ((uint8_t *)(0))) || (struct_name_len <= 0)) || (field_name == ((uint8_t *)(0)))) || (field_name_len <= 0)) {
+    return 0;
+  }
+  while (((bi < struct_name_len) && (bi < 64))) {
+    if ((((struct_name)[bi]) == 46)) {
+      bare_off = (bi + 1);
+    }
+    bi = (bi + 1);
+  }
+  bare_len = (struct_name_len - bare_off);
+  if ((bare_len <= 0)) {
+    return 0;
+  }
+  flen_use = field_name_len;
+  if ((flen_use > 64)) {
+    flen_use = 64;
+  }
+  while ((pass < 2)) {
+    int32_t nmod = 1;
+    int32_t mi = 0;
+    if ((pass == 1)) {
+      if ((ctx == ((struct ast_PipelineDepCtx *)(0)))) {
+        break;
+      }
+      nmod = pipeline_dep_ctx_ndep(ctx);
+    }
+    while ((mi < nmod)) {
+      struct ast_Module * try_mod = ((struct ast_Module *)(0));
+      if ((pass == 0)) {
+        if (((ctx == ((struct ast_PipelineDepCtx *)(0))) || ((ctx->current_codegen_module) == ((struct ast_Module *)(0))))) {
+          mi = (mi + 1);
+          continue;
+        }
+        try_mod = (ctx->current_codegen_module);
+      } else {
+        try_mod = pipeline_dep_ctx_module_at(ctx, mi);
+      }
+      if ((try_mod != ((struct ast_Module *)(0)))) {
+        int32_t k = 0;
+        while ((k < (try_mod->num_struct_layouts))) {
+          int32_t snl = pipeline_module_struct_layout_name_len(try_mod, k);
+          if (((snl == bare_len) && (snl > 0))) {
+            uint8_t snm[64] = {};
+            int eq = 1;
+            int32_t sj = 0;
+            (void)(pipeline_module_struct_layout_name_into(try_mod, k, &((snm)[0])));
+            while (((sj < snl) && (sj < 64))) {
+              if ((((snm)[sj]) != ((struct_name)[(bare_off + sj)]))) {
+                eq = 0;
+                break;
+              }
+              sj = (sj + 1);
+            }
+            if (eq) {
+              int32_t nf = pipeline_module_struct_layout_num_fields(try_mod, k);
+              int32_t j = 0;
+              while ((j < nf)) {
+                int32_t fnl = pipeline_module_struct_layout_field_name_len(try_mod, k, j);
+                if (((fnl == flen_use) && (fnl > 0))) {
+                  uint8_t fnm[64] = {};
+                  int feq = 1;
+                  int32_t fj = 0;
+                  (void)(pipeline_module_struct_layout_field_name_into(try_mod, k, j, &((fnm)[0])));
+                  while (((fj < fnl) && (fj < 64))) {
+                    if ((((fnm)[fj]) != ((field_name)[fj]))) {
+                      feq = 0;
+                      break;
+                    }
+                    fj = (fj + 1);
+                  }
+                  if (feq) {
+                    return pipeline_module_struct_layout_field_type_ref(try_mod, k, j);
+                  }
+                }
+                j = (j + 1);
+              }
+            }
+          }
+          k = (k + 1);
+        }
+      }
+      mi = (mi + 1);
+      if ((pass == 0)) {
+        break;
+      }
+    }
+    pass = (pass + 1);
+  }
+  return 0;
+}
 int32_t codegen_emit_braced_array_lit_init(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t init_ref, struct ast_PipelineDepCtx * ctx) {
   {
     int32_t n = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
@@ -7506,8 +7605,61 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
               }
             }
           } else {
-            if ((codegen_emit_expr(arena, out, init_ref, ctx) !=0)) {
-              return -(1);
+            /* PLATFORM: SHARED — array field ← VAR/param: expand to { src[0], … }. */
+            int32_t use_elem_expand = 0;
+            int32_t arr_sz = 0;
+            int32_t flen_lk = flen;
+            int32_t ftr = 0;
+            if ((flen_lk > 64)) {
+              flen_lk = 64;
+            }
+            ftr = codegen_lookup_struct_field_type_ref(arena, ctx, &(((e.struct_lit_struct_name))[0]), (e.struct_lit_struct_name_len), &((sl_fnbuf)[0]), flen_lk);
+            if (((!(ast_ref_is_null(ftr))) && (pipeline_type_kind_ord_at(arena, ftr) == 10))) {
+              arr_sz = pipeline_type_array_size_at(arena, ftr);
+              if (((arr_sz > 0) && (arr_sz <= 512))) {
+                use_elem_expand = 1;
+              }
+            } else {
+              if (((!(ast_ref_is_null((init_e.resolved_type_ref)))) && (pipeline_type_kind_ord_at(arena, (init_e.resolved_type_ref)) == 10))) {
+                arr_sz = pipeline_type_array_size_at(arena, (init_e.resolved_type_ref));
+                if (((arr_sz > 0) && (arr_sz <= 512))) {
+                  use_elem_expand = 1;
+                }
+              }
+            }
+            if ((use_elem_expand != 0)) {
+              int32_t ai = 0;
+              if ((codegen_append_byte(out, 123) !=0)) {
+                return -(1);
+              }
+              while ((ai < arr_sz)) {
+                if ((ai > 0)) {
+                  uint8_t cm[3] = {44, 32, 0};
+                  if ((codegen_emit_bytes_3(out, cm, 2) !=0)) {
+                    return -(1);
+                  }
+                }
+                if ((codegen_emit_expr(arena, out, init_ref, ctx) !=0)) {
+                  return -(1);
+                }
+                if ((codegen_append_byte(out, 91) !=0)) {
+                  return -(1);
+                }
+                if ((codegen_format_int(out, ((int64_t)(ai))) !=0)) {
+                  return -(1);
+                }
+                if ((codegen_append_byte(out, 93) !=0)) {
+                  return -(1);
+                }
+                (void)((ai = (ai + 1)));
+              }
+              if ((codegen_append_byte(out, 125) !=0)) {
+                return -(1);
+              }
+            } else {
+              if ((codegen_emit_expr(arena, out, init_ref, ctx) !=0)) {
+                return -(1);
+              }
             }
           }
         }
