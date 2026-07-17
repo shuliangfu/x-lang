@@ -16345,9 +16345,14 @@ int32_t pipeline_asm_compute_frame_size_c(int32_t num_params, struct ast_ASTAren
   prev_mod = g_pipeline_asm_emit_module;
   g_pipeline_asm_emit_module = mod;
   asm_ctx_local_reset(ctx_buf);
-  next_off = 8;
+  /*
+   * 【Why】x86_64 prologue 在 [rbp-8] 保存 rbx（callee-saved）；形参 homing 须从 16 起，
+   *   否则 store [rbp-8] 覆写 saved rbx → epilogue pop 错误（run-env env_iter SEGV）。
+   * PLATFORM: SHARED x86_64 SysV — 与 fill_param_slots / emit_param_home 对齐。
+   */
+  next_off = 16;
   if (num_params > 0)
-    next_off = 8 + num_params * 8;
+    next_off = 16 + num_params * 8;
   /** 与 mega_body emit 一致：>16B 返回函数在形参后预留 8B 存 hidden rdi。 */
   if (mod && func_index >= 0 && glue_func_return_byte_size_c(mod, arena, func_index) > 16)
     next_off += 8;
@@ -16369,7 +16374,8 @@ int32_t pipeline_asm_compute_frame_size_c(int32_t num_params, struct ast_ASTAren
 }
 
 /**
- * 将函数形参填入 asm 局部 sidecar（偏移 8,16,…）；与 backend.x fill_param_slots 一致。
+ * 将函数形参填入 asm 局部 sidecar（偏移 16,24,…）；[rbp-8] 保留给 prologue 的 saved rbx。
+ * 与 backend.x fill_param_slots / enc_prologue push rbx 一致。
  */
 void pipeline_asm_fill_param_slots(struct backend_AsmFuncCtx *ctx, struct ast_Module *mod, int32_t func_index) {
   int32_t off;
@@ -16384,7 +16390,7 @@ void pipeline_asm_fill_param_slots(struct backend_AsmFuncCtx *ctx, struct ast_Mo
   if (!ly)
     return;
   g_pipeline_asm_emit_module = mod;
-  off = 8;
+  off = 16; /* reserve [rbp-8] for callee-saved rbx */
   np = pipeline_asm_module_func_num_params_at(mod, func_index);
   for (i = 0; i < np; i++) {
     pipeline_asm_module_func_param_name_copy32(mod, func_index, i, pname_buf);
@@ -16478,7 +16484,7 @@ static int32_t pipeline_asm_emit_param_home_elf_sysv_f32_xmm_c(struct platform_e
     return -1;
   sret_shift = g_pipeline_asm_func_sret_active ? 1 : 0;
   for (i = 0; i < np; i++) {
-    off = 8 + i * 8;
+    off = 16 + i * 8; /* [rbp-8]=saved rbx; params from 16 */
     glue_sysv_x86_func_param_slot_c(arena, mod, func_index, np, i, &kind, &reg_k, &stack_k);
     rk = i + sret_shift;
     if (kind == 0) {
@@ -16539,7 +16545,7 @@ int32_t pipeline_asm_emit_param_home_elf_c(struct platform_elf_ElfCodegenCtx *el
     int32_t sret_shift = (ta == 0 && g_pipeline_asm_func_sret_active) ? 1 : 0;
     for (i = 0; i < np; i++) {
       int32_t rk;
-      off = 8 + i * 8;
+      off = 16 + i * 8; /* [rbp-8]=saved rbx; params from 16 */
       rk = i + sret_shift;
       if (rk < reg_max) {
         if (ta == 1) {
