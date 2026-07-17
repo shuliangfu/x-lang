@@ -6455,21 +6455,43 @@ extern void typeck_typeck_merge_dep_struct_layouts_into_entry(struct ast_Module 
 extern void typeck_typeck_wpo_unify_soa_layouts(struct ast_Module *entry, struct ast_PipelineDepCtx *ctx);
 
 /**
- * runtime 以传递闭包顺序 seed ctx.ndep/import_path 后，若与 entry 直接 import 数不一致则清零 ndep，
- * 触发 load_and_sync 按 entry import 下标重绑 seed 槽（避免 path=platform.coff 配 module=ast）。
+ * Align ctx.ndep with entry direct imports after BFS/runtime seed.
+ *
+ * Invariants (must match load_and_sync keep-closure branch):
+ * - ndep == n_entry_imports: entry-indexed layout already; leave alone.
+ * - ndep > n_entry_imports: BFS/closure seed is authoritative (std.fmt → std.io → …).
+ *   Do NOT zero — zeroing reloads only entry imports and drops transitive co-emit
+ *   (pure static hello -o: std_io_print_u8_ptr_usize UNDEF; product mac often
+ *   "kept" only because set_ndep layout drift left ndep non-zero).
+ * - ndep < n_entry_imports: incomplete; zero so load_and_sync reloads from entry.
+ *
+ * Historical bug: zero whenever ndep != n_imp destroyed healthy closures.
+ * PLATFORM: SHARED — Cap force hello pure static -o + run-net closure.
  */
 void pipeline_dep_ctx_realign_ndep_for_entry_c(struct ast_Module *module, struct ast_PipelineDepCtx *ctx) {
   int32_t n_imp;
+  int32_t ndep;
 
   if (!module || !ctx)
     return;
   n_imp = parser_get_module_num_imports(module);
-  if (pipeline_dep_ctx_ndep(ctx) != n_imp) {
+  ndep = pipeline_dep_ctx_ndep(ctx);
+  if (ndep == n_imp)
+    return;
+  if (ndep > n_imp) {
+    /* Closure seed: keep full BFS list; load_and_sync skips entry-index re-pin. */
     if (getenv("SHUX_DEBUG_PIPE"))
-      fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] realign ndep %d -> entry imports %d\n",
-              (int)pipeline_dep_ctx_ndep(ctx), (int)n_imp);
-    pipeline_dep_ctx_set_ndep(ctx, 0);
+      fprintf(stderr,
+              "shux: [SHUX_DEBUG_PIPE] realign keep closure ndep=%d (entry imports=%d)\n",
+              (int)ndep, (int)n_imp);
+    return;
   }
+  /* ndep < n_imp: incomplete — force reload via load_and_sync. */
+  if (getenv("SHUX_DEBUG_PIPE"))
+    fprintf(stderr,
+            "shux: [SHUX_DEBUG_PIPE] realign ndep %d -> entry imports %d (incomplete, zero)\n",
+            (int)ndep, (int)n_imp);
+  pipeline_dep_ctx_set_ndep(ctx, 0);
 }
 
 /**
