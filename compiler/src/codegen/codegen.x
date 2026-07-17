@@ -2750,11 +2750,22 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
 }
 
 /**
- * 在 dep 图中为裸名 struct 选定义模块下标。
- * 【Why 根源】多 dep co-emit 时同名 layout 可能因 merge/污染出现在多个 module（如 std.context 误含 Error）。
- *   旧逻辑 first-match 会把 std_error_ok_value 签名发成 std_context_Error，而 compound lit 用当前模块前缀
- *   std_error_Error → C 类型冲突。定义权：export layout 优先；同档优先 current_codegen_dep_index；再 earliest。
- * 【Invariant】返回 -1 表示无 dep 含该裸名；>=0 为 pipeline_dep_ctx 下标。
+ * Pick defining-module dep index for a bare struct name across the dep pool.
+ *
+ * Why: co-emit can leave the same bare name in several modules (merge, struct-lit
+ * pollution). Wrong owner → dual C tags (lexer_Token vs token_Token) and incomplete
+ * by-value fields (LexerResult before Token).
+ *
+ * Ranking (PLATFORM: SHARED):
+ *  1) Prefer layouts with num_fields > 0 over empty placeholders.
+ *  2) Prefer is_export=1 (true `export struct`) over non-export copies.
+ *  3) When both candidates are export: prefer current_codegen_dep_index so dual real
+ *     types (std_context_Error vs std_error_Error) each emit under their own prefix.
+ *  4) When both are non-export (pollution competition, e.g. Token in lexer+token with
+ *     is_export still 0 on product parser pin): prefer the **latest** dep index — leaf
+ *     imports are registered after parents (token after lexer), so the defining file wins.
+ *
+ * Returns -1 if no dep has the bare name; otherwise a pipeline_dep_ctx index.
  */
 export function codegen_type_dep_struct_owner_index(ctx: *PipelineDepCtx, bare_nm: *u8, bare_len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -2804,7 +2815,7 @@ export function codegen_type_dep_struct_owner_index(ctx: *PipelineDepCtx, bare_n
           li = li + 1;
         }
         if (hit != 0) {
-          /* 【Why】0 字段同名 layout（污染/merge）不能抢 owner，否则完整定义被跳过 → incomplete type */
+          /* Empty same-name layouts must not steal ownership (incomplete type). */
           if (best_di < 0) {
             best_di = di;
             best_export = hit_export;
@@ -2817,14 +2828,21 @@ export function codegen_type_dep_struct_owner_index(ctx: *PipelineDepCtx, bare_n
             best_di = di;
             best_export = 1;
             best_nf = hit_nf;
-          } else if (hit_nf > 0 && best_nf > 0 && hit_export == best_export && di == cur) {
-            best_di = di;
-            best_nf = hit_nf;
           } else if (hit_export != 0 && best_export == 0 && hit_nf >= best_nf) {
             best_di = di;
             best_export = 1;
             best_nf = hit_nf;
-          } else if (hit_export == best_export && di == cur && hit_nf >= best_nf) {
+          } else if (hit_nf > 0 && best_nf > 0 && hit_export != 0 && best_export != 0 && di == cur) {
+            /* Dual true exports (Error): current module owns its own tag. */
+            best_di = di;
+            best_nf = hit_nf;
+          } else if (hit_nf > 0 && best_nf > 0 && hit_export == 0 && best_export == 0 && di > best_di) {
+            /*
+             * Non-export competition: prefer later dep (leaf import after parent).
+             * Token: lexer di=0 pollution vs token di=1 definition → token wins.
+             * Do not apply cur preference here — that re-emitted lexer_Token and
+             * broke LexerResult by-value field completeness (parser M1 host-cc).
+             */
             best_di = di;
             best_nf = hit_nf;
           }
@@ -3694,8 +3712,16 @@ export function codegen_emit_module_enum_definitions(module: *Module, out: *Code
 }
 
 /**
- * entry 单文件模式下，某些 dep 会被 pipeline 层整块跳过（如 lexer/ast/parser/bootstrap partial），
- * 或者仅含类型而无函数体（如 token）。这些 dep 的 enum/struct 仍需先发射，否则 entry C 会因不完整类型失败。
+ * Emit enum/struct type definitions for every dep module in import-first order.
+ *
+ * Why: flat di order registers parents before leaf imports (lexer before token).
+ * LexerResult embeds token.Token by value → host C needs token_Token complete before
+ * lexer_LexerResult (parser M1 host-cc residual).
+ *
+ * Algorithm (PLATFORM: SHARED): Kahn-style multi-pass over dep indices — a dep is
+ * emitted only when every import path that resolves to another dep slot is already
+ * emitted (or not in the pool). Caps at nd+2 passes; remainder emitted in di order.
+ * Path de-dupe still applies. Restores current_codegen_* after work.
  */
 export function codegen_emit_skipped_dep_type_definitions(ctx: *PipelineDepCtx, out: *CodegenOutBuf): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -3715,84 +3741,176 @@ export function codegen_emit_skipped_dep_type_definitions(ctx: *PipelineDepCtx, 
       sp = sp + 1;
     }
     let nd: i32 = pipeline_dep_ctx_ndep(ctx);
-    /* emit ALL dep 模块类型（不限 skipped）：pipeline.x L692 先 codegen dep、L697 后 codegen entry，
-     * 若仅 skipped 模块 emit 类型，非 skipped dep 的函数体（在 entry 之前输出）引用其他 dep 类型时不完整。
-     * seen_before 去重防同路径重复。dep 模块各自 codegen_x_ast 跳过 struct emit（dep_index>=0 guard）。 */
-    let di: i32 = 0;
-    while (di < nd) {
-      let dep_mod: *Module = pipeline_dep_ctx_module_at(ctx, di);
-      let dep_arena: *ASTArena = pipeline_dep_ctx_arena_at(ctx, di);
-      let dep_path: u8[64] = [];
-      let dep_path_len: i32 = codegen_dep_import_path_len_at(ctx, di, &dep_path[0]);
-      if (dep_mod != 0 as *Module && dep_arena != 0 as *ASTArena && dep_path_len > 0) {
-        let should_emit_types: i32 = 1;
-          if (should_emit_types != 0) {
-            let seen_before: i32 = 0;
-            let pj: i32 = 0;
-            while (pj < di) {
-              let prev_path: u8[64] = [];
-              let prev_len: i32 = codegen_dep_import_path_len_at(ctx, pj, &prev_path[0]);
-              if (prev_len == dep_path_len) {
-                let eq_prev: bool = true;
-                let pk: i32 = 0;
-                while (pk < dep_path_len && pk < 64) {
-                  if (prev_path[pk] != dep_path[pk]) {
-                    eq_prev = false;
-                    break;
-                  }
-                  pk = pk + 1;
-                }
-                if (eq_prev) {
-                  seen_before = 1;
-                  break;
-                }
-              }
-              pj = pj + 1;
-            }
-            if (seen_before == 0) {
-              let prefix_buf: u8[128] = [];
-              let prefix_len: i32 = 0;
-              if (codegen_path_is_std_io_core_bytes(&dep_path[0]) == 0) {
-                codegen_import_path_to_c_prefix_into(&dep_path[0], &prefix_buf[0], 128);
-                while (prefix_len < 128 && prefix_buf[prefix_len] != 0 as u8) {
-                  prefix_len = prefix_len + 1;
-                }
-              }
-              ctx.current_codegen_module = dep_mod;
-              ctx.current_codegen_arena = dep_arena;
-              ctx.current_codegen_dep_index = di;
-              ctx.current_codegen_prefix_len = 0;
-              let px: i32 = 0;
-              while (px < prefix_len && px < 63) {
-                ctx.current_codegen_prefix_mirror[px] = prefix_buf[px];
-                px = px + 1;
-              }
-              ctx.current_codegen_prefix_mirror[px] = 0 as u8;
-              ctx.current_codegen_prefix_len = px;
-              if (codegen_emit_module_enum_definitions(dep_mod, out, &prefix_buf[0], prefix_len) != 0) {
-                return -1;
-              }
-              if (codegen_emit_module_struct_definitions(dep_mod, dep_arena, out, &prefix_buf[0], prefix_len, ctx) != 0) {
-                return -1;
-              }
+    /* Cap 64 dep slots for emit-done flags (product graphs are far smaller). */
+    let done: i32[64] = [];
+    let di_init: i32 = 0;
+    while (di_init < 64) {
+      done[di_init] = 0;
+      di_init = di_init + 1;
+    }
+    let remaining: i32 = 0;
+    let di_count: i32 = 0;
+    while (di_count < nd) {
+      let dep_mod0: *Module = pipeline_dep_ctx_module_at(ctx, di_count);
+      let dep_arena0: *ASTArena = pipeline_dep_ctx_arena_at(ctx, di_count);
+      let dep_path0: u8[64] = [];
+      let plen0: i32 = codegen_dep_import_path_len_at(ctx, di_count, &dep_path0[0]);
+      if (dep_mod0 != 0 as *Module && dep_arena0 != 0 as *ASTArena && plen0 > 0) {
+        remaining = remaining + 1;
+      } else {
+        done[di_count] = 1;
+      }
+      di_count = di_count + 1;
+    }
+    let pass: i32 = 0;
+    let max_pass: i32 = nd + 2;
+    while (remaining > 0 && pass < max_pass) {
+      let progressed: i32 = 0;
+      let di: i32 = 0;
+      while (di < nd) {
+        if (done[di] != 0) {
+          di = di + 1;
+          continue;
+        }
+        let dep_mod: *Module = pipeline_dep_ctx_module_at(ctx, di);
+        let dep_arena: *ASTArena = pipeline_dep_ctx_arena_at(ctx, di);
+        let dep_path: u8[64] = [];
+        let dep_path_len: i32 = codegen_dep_import_path_len_at(ctx, di, &dep_path[0]);
+        if (dep_mod == 0 as *Module || dep_arena == 0 as *ASTArena || dep_path_len <= 0) {
+          done[di] = 1;
+          di = di + 1;
+          continue;
+        }
+        /* Ready iff every resolved import dep is already emitted. */
+        let ready: i32 = 1;
+        let n_imp: i32 = codegen_module_num_imports(dep_mod);
+        let ii: i32 = 0;
+        while (ii < n_imp) {
+          let ipath: u8[64] = [];
+          let ilen: i32 = codegen_module_import_path_len_at(dep_mod, ii, &ipath[0]);
+          if (ilen > 0) {
+            let idi: i32 = codegen_find_dep_index_by_path(ctx, &ipath[0], ilen);
+            if (idi >= 0 && idi < nd && idi != di && done[idi] == 0) {
+              ready = 0;
+              break;
             }
           }
+          ii = ii + 1;
         }
+        if (ready == 0) {
+          di = di + 1;
+          continue;
+        }
+        /* Path de-dupe: first registration (lower di) is authority. A later same-path
+         * slot must not emit first and suppress the real module (lexer di=0 vs di=2). */
+        let seen_before: i32 = 0;
+        let pj: i32 = 0;
+        while (pj < di) {
+          let prev_path: u8[64] = [];
+          let prev_len: i32 = codegen_dep_import_path_len_at(ctx, pj, &prev_path[0]);
+          if (prev_len == dep_path_len) {
+            let eq_prev: bool = true;
+            let pk: i32 = 0;
+            while (pk < dep_path_len && pk < 64) {
+              if (prev_path[pk] != dep_path[pk]) {
+                eq_prev = false;
+                break;
+              }
+              pk = pk + 1;
+            }
+            if (eq_prev) {
+              seen_before = 1;
+              break;
+            }
+          }
+          pj = pj + 1;
+        }
+        if (seen_before == 0) {
+          let prefix_buf: u8[128] = [];
+          let prefix_len: i32 = 0;
+          if (codegen_path_is_std_io_core_bytes(&dep_path[0]) == 0) {
+            codegen_import_path_to_c_prefix_into(&dep_path[0], &prefix_buf[0], 128);
+            while (prefix_len < 128 && prefix_buf[prefix_len] != 0 as u8) {
+              prefix_len = prefix_len + 1;
+            }
+          }
+          ctx.current_codegen_module = dep_mod;
+          ctx.current_codegen_arena = dep_arena;
+          ctx.current_codegen_dep_index = di;
+          ctx.current_codegen_prefix_len = 0;
+          let px: i32 = 0;
+          while (px < prefix_len && px < 63) {
+            ctx.current_codegen_prefix_mirror[px] = prefix_buf[px];
+            px = px + 1;
+          }
+          ctx.current_codegen_prefix_mirror[px] = 0 as u8;
+          ctx.current_codegen_prefix_len = px;
+          if (codegen_emit_module_enum_definitions(dep_mod, out, &prefix_buf[0], prefix_len) != 0) {
+            return -1;
+          }
+          if (codegen_emit_module_struct_definitions(dep_mod, dep_arena, out, &prefix_buf[0], prefix_len, ctx) != 0) {
+            return -1;
+          }
+        }
+        done[di] = 1;
+        remaining = remaining - 1;
+        progressed = 1;
         di = di + 1;
       }
-    
+      if (progressed == 0) {
+        /* Cycle / unresolved: emit remaining in di order. */
+        let dj: i32 = 0;
+        while (dj < nd) {
+          if (done[dj] == 0) {
+            let dep_mod2: *Module = pipeline_dep_ctx_module_at(ctx, dj);
+            let dep_arena2: *ASTArena = pipeline_dep_ctx_arena_at(ctx, dj);
+            let dep_path2: u8[64] = [];
+            let plen2: i32 = codegen_dep_import_path_len_at(ctx, dj, &dep_path2[0]);
+            if (dep_mod2 != 0 as *Module && dep_arena2 != 0 as *ASTArena && plen2 > 0) {
+              let prefix_buf2: u8[128] = [];
+              let prefix_len2: i32 = 0;
+              if (codegen_path_is_std_io_core_bytes(&dep_path2[0]) == 0) {
+                codegen_import_path_to_c_prefix_into(&dep_path2[0], &prefix_buf2[0], 128);
+                while (prefix_len2 < 128 && prefix_buf2[prefix_len2] != 0 as u8) {
+                  prefix_len2 = prefix_len2 + 1;
+                }
+              }
+              ctx.current_codegen_module = dep_mod2;
+              ctx.current_codegen_arena = dep_arena2;
+              ctx.current_codegen_dep_index = dj;
+              let px2: i32 = 0;
+              while (px2 < prefix_len2 && px2 < 63) {
+                ctx.current_codegen_prefix_mirror[px2] = prefix_buf2[px2];
+                px2 = px2 + 1;
+              }
+              ctx.current_codegen_prefix_mirror[px2] = 0 as u8;
+              ctx.current_codegen_prefix_len = px2;
+              if (codegen_emit_module_enum_definitions(dep_mod2, out, &prefix_buf2[0], prefix_len2) != 0) {
+                return -1;
+              }
+              if (codegen_emit_module_struct_definitions(dep_mod2, dep_arena2, out, &prefix_buf2[0], prefix_len2, ctx) != 0) {
+                return -1;
+              }
+            }
+            done[dj] = 1;
+            remaining = remaining - 1;
+          }
+          dj = dj + 1;
+        }
+      }
+      pass = pass + 1;
+    }
+    ctx.current_codegen_module = saved_module;
+    ctx.current_codegen_arena = saved_arena;
+    ctx.current_codegen_dep_index = saved_dep_index;
+    ctx.current_codegen_prefix_len = saved_prefix_len;
+    sp = 0;
+    while (sp < 64) {
+      ctx.current_codegen_prefix_mirror[sp] = saved_prefix[sp];
+      sp = sp + 1;
+    }
+    return 0;
   }
-}
-  ctx.current_codegen_module = saved_module;
-  ctx.current_codegen_arena = saved_arena;
-  ctx.current_codegen_dep_index = saved_dep_index;
-  ctx.current_codegen_prefix_len = saved_prefix_len;
-  sp = 0;
-  while (sp < 64) {
-    ctx.current_codegen_prefix_mirror[sp] = saved_prefix[sp];
-    sp = sp + 1;
-  }
-  return 0;
 }
 
 /** 遍历所有 dep 模块，emit struct forward declaration。
@@ -6199,6 +6317,37 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       let sl_pfx: u8[128] = [];
       let sl_plen: i32 = codegen_emit_prefix_len_from_ctx(ctx, &sl_pfx[0], 128);
       let bare_user_lit: i32 = 0;
+      /*
+       * PLATFORM: SHARED — compound lit must use defining-module C tag.
+       * Entry/ctx prefix alone yields parser_Token while the full def is token_Token
+       * (or lexer_Token pollution) → incomplete type (parser M1 host-cc residual).
+       * Authority: codegen_type_dep_struct_owner_index (same as emit_type).
+       */
+      if (ctx != 0 as *PipelineDepCtx && e.struct_lit_struct_name_len > 0) {
+        let lit_bare_off: i32 = 0;
+        let lit_bi: i32 = 0;
+        while (lit_bi < e.struct_lit_struct_name_len && lit_bi < 64) {
+          if (e.struct_lit_struct_name[lit_bi] == 46) {
+            lit_bare_off = lit_bi + 1;
+          }
+          lit_bi = lit_bi + 1;
+        }
+        let lit_bare_len: i32 = e.struct_lit_struct_name_len - lit_bare_off;
+        if (lit_bare_len > 0) {
+          let lit_owner: i32 = codegen_type_dep_struct_owner_index(ctx, &e.struct_lit_struct_name[lit_bare_off], lit_bare_len);
+          if (lit_owner >= 0) {
+            let lit_path: u8[64] = [];
+            let lit_plen: i32 = codegen_dep_import_path_len_at(ctx, lit_owner, &lit_path[0]);
+            if (lit_plen > 0) {
+              codegen_import_path_to_c_prefix_into(&lit_path[0], &sl_pfx[0], 128);
+              sl_plen = 0;
+              while (sl_plen < 128 && sl_pfx[sl_plen] != 0 as u8) {
+                sl_plen = sl_plen + 1;
+              }
+            }
+          }
+        }
+      }
       if (sl_plen == 0 && ctx != 0 as *PipelineDepCtx && ctx.current_codegen_dep_index < 0 && ctx.current_codegen_module != 0 as *Module) {
         let modu: *Module = ctx.current_codegen_module;
         let sk: i32 = 0;
