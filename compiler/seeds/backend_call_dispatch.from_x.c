@@ -2384,6 +2384,14 @@ int32_t pipeline_asm_emit_call_elf_c_impl(struct ast_ASTArena *arena, struct pla
   callee_ko = pipeline_expr_kind_ord_at(arena, callee_ref);
   backend_call_debugf("emit call elf callee_ko=%d call_nargs=%d", (int)callee_ko,
                       (int)pipeline_expr_call_num_args_at(arena, expr_ref));
+  if (getenv("SHUX_ASM_MANGLE_TRACE")) {
+    FILE *tf = fopen("/tmp/shux_asm_mangle_trace.txt", "a");
+    if (tf) {
+      fprintf(tf, "emit_call_elf enter callee_ko=%d nargs=%d mod=%p\n", (int)callee_ko,
+              (int)pipeline_expr_call_num_args_at(arena, expr_ref), (void *)mod_ref);
+      fclose(tf);
+    }
+  }
 
   /** hello.x: fmt.print/println string lit → call std_fmt_print / std_fmt_println. */
   if (callee_ko == GLUE_EXPR_FIELD_ACCESS_ORD) {
