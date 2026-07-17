@@ -1,5 +1,6 @@
 # build_asm/backend_wpo.o WPO 生产链：asm_codegen_ast root + reach DCE
-# 实测 2026-06-03：4677B → 117B（5 export）
+# dce_off：真 A/B recompile（LIBROOT + ENTRY_MODULE_ONLY + EMIT_HEAVY=1 + WPO=0）
+# Ubuntu 2026-07-17 @ fb62fec9：4941B → on≈117B（旧 proxy 4677 略低估）
 backend_wpo_max_text_bytes	512
 backend_wpo_min_save_bytes	4000
-backend_dce_off_text	4677
+backend_dce_off_text	4941

@@ -94,8 +94,9 @@ wpo_ab_try_driver_fast() {
   local off_proxy on_txt
   [ "${SHUX_WPO_FAST_AB:-1}" = "1" ] || return 1
   [ -f "$build_drv" ] || return 1
+  # Ubuntu true A/B (LIBROOT + EMIT_HEAVY=1 + WPO=0) ~12934B @ 2026-07-17.
   off_proxy=$(wpo_ab_proxy_from_baseline "driver_dce_off_text" "$baseline")
-  off_proxy=${off_proxy:-7637}
+  off_proxy=${off_proxy:-12934}
   on_txt=$(wpo_ab_text_bytes "$build_drv") || return 1
   [ "$on_txt" -le "$max_on" ] 2>/dev/null || return 1
   nm "$build_drv" 2>/dev/null | grep -qE ' T (compile_dispatch_asm_backend|run_compiler_full_x|entry)$' || return 1
@@ -165,8 +166,9 @@ wpo_ab_try_backend_fast() {
     max_on=$(wpo_ab_proxy_prefer "backend_wpo_max_text_bytes" \
       "tests/baseline/wpo-backend-o.tsv" "$baseline" "512")
   fi
+  # Ubuntu true A/B (LIBROOT + EMIT_HEAVY=1 + WPO=0) ~4941B @ 2026-07-17.
   off_proxy=$(wpo_ab_proxy_prefer "backend_dce_off_text" \
-    "tests/baseline/wpo-backend-o.tsv" "$baseline" "4677")
+    "tests/baseline/wpo-backend-o.tsv" "$baseline" "4941")
   on_txt=$(wpo_ab_text_bytes "$build_be") || return 1
   [ "$on_txt" -le "$max_on" ] 2>/dev/null || return 1
   [ "$on_txt" -lt "$off_proxy" ] 2>/dev/null || return 1

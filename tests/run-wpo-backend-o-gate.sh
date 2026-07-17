@@ -17,7 +17,7 @@ MAX_TEXT=${MAX_TEXT:-4096}
 MIN_SAVE=$(awk -F'\t' '$1=="backend_wpo_min_save_bytes" && $1 !~ /^#/ { print $2; exit }' "$BASELINE")
 MIN_SAVE=${MIN_SAVE:-2000}
 OFF_PROXY=$(awk -F'\t' '$1=="backend_dce_off_text" && $1 !~ /^#/ { print $2; exit }' "$BASELINE")
-OFF_PROXY=${OFF_PROXY:-4677}
+OFF_PROXY=${OFF_PROXY:-4941}
 FAIL=${SHUX_WPO_BACKEND_O_FAIL:-1}
 
 if [ ! -f "$BACKEND_O" ]; then

@@ -1,6 +1,8 @@
 # build_asm/pipeline_wpo.o WPO 生产链：run_x_pipeline_impl root + reach DCE
-# 参考 dce_off proxy：pipeline_dce_off_text（全量 EMIT_HEAVY ~11588B）
-# reach 修复后 export 数上升、__text 可能 >2048B；save 仍应显著低于 proxy off。
+# dce_off proxy：全量 EMIT 预算 11588B（o-gate min_save 用；非 ENTRY 真 A/B twin）
+# ENTRY_MODULE 真 A/B（LIBROOT+EMIT_HEAVY=1）：on=off=7611 save=0（ENTRY 已收窄 export）
+# 禁止把本键降到 7611：会破 min_save 与 wpo_ab_try_pipeline_fast 的 on<off。
+# reach 修复后 export 数上升、__text 可能 >2048B；save 相对 11588 仍应 ≥ min_save。
 pipeline_wpo_max_text_bytes	12288
 pipeline_wpo_min_save_bytes	1500
 pipeline_dce_off_text	11588

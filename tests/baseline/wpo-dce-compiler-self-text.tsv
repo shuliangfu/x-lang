@@ -12,8 +12,13 @@ build_asm_min_text_save_bytes	12000
 # typeck_dce_off_text 须与 wpo-typeck-o.tsv 同语义（G.7 单一权威；2026-07-17 对齐 105821）
 # main_dce_off_text：真 A/B recompile（LIBROOT + ENTRY_MODULE_ONLY + EMIT_HEAVY=0 + WPO=0）
 # Ubuntu 2026-07-17 @ b070d68d：2234B（旧 1304 低估 → 表上 main save 假负；on≈1610）
+# driver_dce_off_text：真 A/B（LIBROOT + ENTRY + EMIT_HEAVY=1 + WPO=0）
+# Ubuntu 2026-07-17 @ fb62fec9：12934B（旧 7637 低估；on≈341）
+# backend_dce_off_text：真 A/B 同模式 → 4941B（旧 4677；on≈117）；与 wpo-backend-o.tsv 同 commit
+# pipeline_dce_off_text：保留 o-gate 全量 EMIT 预算 11588（ENTRY 真 A/B 上 on=off=7611、save=0；
+#   非 recompile twin；勿降到 7611 否则 o-gate min_save 与 fast-path on<off 双破）
 main_dce_off_text	2234
-driver_dce_off_text	7637
+driver_dce_off_text	12934
 pipeline_dce_off_text	11588
 typeck_dce_off_text	105821
-backend_dce_off_text	4677
+backend_dce_off_text	4941
