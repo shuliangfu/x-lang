@@ -2465,28 +2465,19 @@ int32_t glue_try_std_encoding_redirect_sym_local(const uint8_t *name, int32_t na
 /* G-02f-373 call：实现体始终 seed；public PREFER 时 thin forward */
 /**
  * Emit redirected or direct call by symbol name.
- * PLATFORM: LINUX+MACOS x86_64 SysV — prefer type-driven f32/f64 xmm via arg path +
- * harvest (pipeline_asm_call_return_type_kind_ord_c). Residual std_math_* choke remains
- * until import FIELD_ACCESS param/ret types fully reach this path on product g05.
+ * PLATFORM: LINUX+MACOS x86_64 SysV — float arg/ret xmm is type-driven only:
+ *   args: glue_emit_call_args / f32_xmm path (param type + FLOAT_LIT + resolved)
+ *   ret:  glue_asm_harvest_sse_call_ret_to_gpr_c (pipeline_asm_call_return_type_kind_ord_c)
+ * G.7: no std_math_* symbol-name pre/post xmm choke (import FIELD_ACCESS + dep type map
+ * are the authority; name gates hide missing type resolve on other callees).
  */
 int32_t glue_asm_enc_call_redirected_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len,
                                             int32_t ta) {
   uint8_t redir[64];
   int32_t rlen;
   int32_t rc;
-  int32_t is_std_math;
   if (!name || name_len <= 0)
     return -1;
-  is_std_math = (ta == 0 && name_len >= 9 && name[0] == 's' && name[1] == 't' && name[2] == 'd' &&
-                 name[3] == '_' && name[4] == 'm' && name[5] == 'a' && name[6] == 't' && name[7] == 'h' &&
-                 name[8] == '_')
-                    ? 1
-                    : 0;
-  /* Residual name choke: f64 arg bits may sit only in rax/rdi when SSE class missed. */
-  if (is_std_math) {
-    if (backend_enc_mov_rax_to_xmm_arg_reg_arch(elf_ctx, 0, ta) != 0)
-      return -1;
-  }
   rlen = glue_try_std_heap_redirect_sym_local(name, name_len, redir, 64);
   if (rlen <= 0)
     rlen = glue_try_std_string_shux_redirect_sym_local(name, name_len, redir, 64);
@@ -2500,11 +2491,7 @@ int32_t glue_asm_enc_call_redirected_impl(struct platform_elf_ElfCodegenCtx *elf
   } else {
     rc = backend_enc_call_arch(elf_ctx, name, name_len, ta);
   }
-  if (rc != 0)
-    return rc;
-  if (is_std_math)
-    return backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx, 0, ta);
-  return 0;
+  return rc;
 }
 
 #ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
@@ -2644,8 +2631,9 @@ extern int32_t pipeline_expr_call_arg_ref(struct ast_ASTArena *a, int32_t expr_r
 
 /**
  * PLATFORM: LINUX+MACOS x86_64 SysV — after CALL, harvest f32/f64 return from xmm0 into eax/rax.
- * Authority: pipeline_asm_call_return_type_kind_ord_c (resolved + dep map). kind<0 residual
- * harvest keeps import calls green when type resolve still misses FIELD_ACCESS.
+ * Authority: pipeline_asm_call_return_type_kind_ord_c (resolved_type + dep map + dep-arena kind).
+ * Type-driven only (G.7): kind 14=f32, 15=f64. No name gate; no kind<0 force-harvest.
+ * Import FIELD_ACCESS (math.floor) must resolve via glue_asm_resolve_call_target_module_c.
  */
 static int32_t glue_asm_harvest_sse_call_ret_to_gpr_c(struct ast_ASTArena *arena,
                                                       struct platform_elf_ElfCodegenCtx *elf_ctx,
@@ -2656,7 +2644,7 @@ static int32_t glue_asm_harvest_sse_call_ret_to_gpr_c(struct ast_ASTArena *arena
   kind = pipeline_asm_call_return_type_kind_ord_c(arena, call_expr_ref);
   if (kind == 14)
     return backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx, 0, ta);
-  if (kind == 15 || kind < 0)
+  if (kind == 15)
     return backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx, 0, ta);
   return 0;
 }
