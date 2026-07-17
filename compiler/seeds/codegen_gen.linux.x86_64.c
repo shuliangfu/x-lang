@@ -3231,11 +3231,15 @@ int32_t codegen_field_access_base_is_pointer_param(struct ast_ASTArena * arena, 
   }
   return 0;
 }
+/* PLATFORM: SHARED — local let s:*T fallback when dep co-emit leaves resolved_type empty.
+ * Must resolve body/current block ref BEFORE num_lets; computing nlets with br==0 always
+ * yields 0 → never match → field access emits '.' instead of '->' (compress gzip/zstd/brotli).
+ * Authority mirror: codegen.x field_access_base_is_pointer_local (nlets after br). */
 int32_t codegen_field_access_base_is_pointer_local(struct ast_ASTArena * arena, int32_t base_ref, struct ast_PipelineDepCtx * ctx) {
   {
-    struct ast_Expr base = ast_ast_arena_expr_get(arena, base_ref);
+    struct ast_Expr base;
     int32_t br = 0;
-    int32_t nlets = ast_ast_block_num_lets(arena, br);
+    int32_t nlets = 0;
     int32_t li = 0;
     if (((arena ==((struct ast_ASTArena *)(0))) || (ctx ==((struct ast_PipelineDepCtx *)(0))))) {
       return 0;
@@ -3243,6 +3247,7 @@ int32_t codegen_field_access_base_is_pointer_local(struct ast_ASTArena * arena, 
     if (((ast_ref_is_null(base_ref) || (base_ref <=0)) || (base_ref > (arena->num_exprs)))) {
       return 0;
     }
+    base = ast_ast_arena_expr_get(arena, base_ref);
     if ((((base.kind) !=3) || ((base.var_name_len) <=0))) {
       return 0;
     }
@@ -3255,6 +3260,8 @@ int32_t codegen_field_access_base_is_pointer_local(struct ast_ASTArena * arena, 
     if (((ast_ref_is_null(br) || (br <=0)) || (br > (arena->num_blocks)))) {
       return 0;
     }
+    /* After br is valid — never call num_lets(arena, 0) above. */
+    (void)((nlets = ast_ast_block_num_lets(arena, br)));
     while ((li < nlets)) {
       int32_t nl = pipeline_block_let_name_len(arena, br, li);
       if (((nl ==(base.var_name_len)) && (nl > 0))) {
@@ -3273,6 +3280,7 @@ int32_t codegen_field_access_base_is_pointer_local(struct ast_ASTArena * arena, 
           int32_t tr = pipeline_block_let_type_ref(arena, br, li);
           if (((!(ast_ref_is_null(tr)) && (tr > 0)) && (tr <=(arena->num_types)))) {
             struct ast_Type lty = ast_ast_arena_type_get(arena, tr);
+            /* TYPE_PTR = 9 */
             if (((lty.kind) ==9)) {
               return 1;
             }
