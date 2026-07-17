@@ -1690,6 +1690,19 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
   lex_cur = parser_rewind_lex_for_following_stmt(lex_cur, r_peek_blk);
   let stmt_tok_ready: bool = true;
   let pb_break: i32 = 0;
+  /**
+   * Hoist-safe expr_stmt path (pin X→C has no stmt_order).
+   * PLATFORM: SHARED — Cap force lifts `let stmt_start / expr_stmt_res / rpeek_fe /
+   * ex_pool_i = append_expr_stmt(expr_ref=0)` to the top of every while iteration, so each
+   * stmt (return/if/...) appends an empty expr_stmt; after return sets pb_break, the next
+   * iteration appends a second empty before break → host-cc `(void)(); (void)();` in if bodies
+   * (force option residual after param-name fix). Zero here; assign + append only on the
+   * real expr_stmt path after parse_expr_into succeeds.
+   */
+  let stmt_start: Lexer = Lexer { pos: 0 as usize, line: 0, col: 0 };
+  let expr_stmt_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: stmt_start };
+  let rpeek_fe: LexerResult = LexerResult { next_lex: lex_cur, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
+  let ex_pool_i: i32 = 0;
   while (1 == 1) {
     if (pb_break != 0) {
       break;
@@ -2319,9 +2332,9 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
       stmt_tok_ready = false;
       continue;
     }
-    /* 表达式语句 expr;（起点用 lex_at_token_from_result(r)，勿先 lex_from_result_ptr 以免 lex_cur 越过当前 token） */
-    let stmt_start: Lexer = lex_at_token_from_result(r);
-    let expr_stmt_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: stmt_start };
+    /* expr; — hoist-safe: reset then parse; append only after success (not loop-top let). */
+    stmt_start = lex_at_token_from_result(r);
+    parse_expr_result_reset(&expr_stmt_res, stmt_start);
     /*
      * 块内 `{ 10 }` 等须走完整 parse_expr；parse_cond_expr 对多位 int 可能只消费首数字，
      * * 导致 final_expr 丢失、if 分支常量错误（simple.x 期望 10 得 0）。
@@ -2333,7 +2346,7 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
     }
     lex_cur = expr_stmt_res.next_lex;
     /** if 分支 `{ 10 }`：先窥视下一 token，为 `}` 则作块尾 final_expr（勿落 expr_stmt，否则 EXPR_BLOCK 无值）。 */
-    let rpeek_fe: LexerResult = LexerResult { next_lex: lex_cur, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
+    rpeek_fe = LexerResult { next_lex: lex_cur, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
     lexer.lexer_next_into(&rpeek_fe, lex_cur, source);
     if (rpeek_fe.tok.kind == token.TokenKind.TOKEN_RBRACE) {
       b.final_expr_ref = expr_stmt_res.expr_ref;
@@ -2363,7 +2376,7 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
       lexer.lexer_next_into(&after_semi_blk, lex_cur, source);
       r = after_semi_blk;
     }
-    let ex_pool_i: i32 = pipeline_block_append_expr_stmt(arena, block_ref, expr_stmt_res.expr_ref);
+    ex_pool_i = pipeline_block_append_expr_stmt(arena, block_ref, expr_stmt_res.expr_ref);
     if (ex_pool_i < 0) {
       out.ok = false;
       return;
@@ -3871,6 +3884,18 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
   let ret_type_ref: i32 = 0;
   let lex_before_type: Lexer = Lexer { pos: 0 as usize, line: 0, col: 0 };
   let type_ref_param: i32 = 0;
+  /**
+   * Hoist-safe param-name capture (pin X→C has no stmt_order).
+   * PLATFORM: SHARED — Cap force used to lift `let plen / pname_row / param_idx = append_param(...)`
+   * before IDENT check and before `copy_slice_to_param32`, so the sidecar got empty names
+   * (`int32_t )` / undeclared `x`/`opt` on option host-cc). Zero at function top; assign only
+   * after IDENT+copy; never bind append as a loop-local `let` initializer.
+   */
+  let plen_param: i32 = 0;
+  let param_idx: i32 = 0;
+  let param_pool: *u8 = 0 as *u8;
+  let pname_row: u8[32] = [];
+  let zi_param: i32 = 0;
   /* 用 lexer_next_into 取首 token，避免 LexerResult 按值返回/赋值的 ABI 导致 r.tok 读错 */
   let r: LexerResult = LexerResult { next_lex: lex, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
   lexer.lexer_next_into(&r, lex, source);
@@ -3941,20 +3966,25 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
   if (r.tok.kind == token.TokenKind.TOKEN_RPAREN) {
     lex_from_next_into(&lex, r);
   } else {
+    /* Param list: IDENT check → copy name → append (order must survive Cap let-hoist). */
     while (1 == 1) {
       if (r.tok.kind != token.TokenKind.TOKEN_IDENT) {
         set_onefunc_fail(out_ref, lex); return;
       }
-      let plen: i32 = r.tok.ident_len;
-      if (plen <= 0 || plen > 31) {
+      plen_param = r.tok.ident_len;
+      if (plen_param <= 0 || plen_param > 31) {
         set_onefunc_fail(out_ref, lex); return;
       }
-      /** IDENT 字节起点：仅用 token_start（含偏移 0），与 lexer_next_into 约定一致；形参名写入侧车池。 */
-      let pname_row: u8[32] = [];
-      copy_slice_to_param32(source, r.token_start, plen, &pname_row[0]);
-      /** 形参名/类型写入 out 侧车池（与函数体 stmt 同池）；勿写 impl_snap，否则 onefunc_merge_pool_out_to_snap 重置 snap 时会丢失 param_type_refs。 */
-      let param_pool: *u8 = onefunc_result_pool_ptr(out);
-      let param_idx: i32 = pipeline_onefunc_append_param(param_pool, &pname_row[0], plen, 0);
+      /* Clear row then copy IDENT bytes from token_start before append into sidecar pool. */
+      zi_param = 0;
+      while (zi_param < 32) {
+        pname_row[zi_param] = 0;
+        zi_param = zi_param + 1;
+      }
+      copy_slice_to_param32(source, r.token_start, plen_param, &pname_row[0]);
+      /* Names/types go to out sidecar (not impl_snap — merge_pool resets snap). */
+      param_pool = onefunc_result_pool_ptr(out);
+      param_idx = pipeline_onefunc_append_param(param_pool, &pname_row[0], plen_param, 0);
       if (param_idx < 0) {
         set_onefunc_fail(out_ref, lex); return;
       }
@@ -3972,7 +4002,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         set_onefunc_fail(out_ref, lex); return;
       }
       pipeline_onefunc_set_param_type_ref(param_pool, param_idx, type_ref_param);
-      driver_diagnostic_parser_onefunc_param_ref(&dummy_name[0], func_name_len_storage[0], &pname_row[0], plen,
+      driver_diagnostic_parser_onefunc_param_ref(&dummy_name[0], func_name_len_storage[0], &pname_row[0], plen_param,
       0, param_idx, type_ref_param);
       lexer.lexer_next_into(&r, lex, source);
       /* 若上面已 consume 则 r 已推进；否则需与原逻辑一致，此处类型已写入侧车池。 */
@@ -4658,11 +4688,17 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
     lex = if_lex;
     lexer.lexer_next_into(&r, lex, source);
   }
-  /* bool 返回值：return 后为任意 parse_expr_into 可解析表达式；return if 走下方 legacy has_if_expr。 */
+  /**
+   * bool return: parse condition/expression after `return`.
+   * PLATFORM: SHARED — use parse_cond_expr_into (same as non-bool scalar return path), not
+   * parse_expr_into/assign layer only. Cap force: `return !opt.is_some` via parse_expr left
+   * return_val=0 (is_none host-cc wrong); parse_cond builds `!((opt.is_some))` correctly
+   * (matches seed product and force i32 bang+field). return if still uses legacy below.
+   */
   if (return_type_is_bool && r.tok.kind != token.TokenKind.TOKEN_IF) {
     let rex_lex: Lexer = lex_at_token_from_result(r);
     let rex_out: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: rex_lex };
-    parse_expr_into(arena, rex_lex, source, &rex_out);
+    parse_cond_expr_into(arena, rex_lex, source, &rex_out);
     if (!rex_out.ok) {
       set_onefunc_fail(out, lex); return;
     }

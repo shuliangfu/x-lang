@@ -1656,29 +1656,17 @@ int32_t parser_asm_parse_one_function_library_scan_slice_c(struct parser_asm_lex
   }
   parser_asm_lex_from_lr_next_c(&lex, &r);
   lexer_next_into(&r, lex, source);
+  /*
+   * PLATFORM: SHARED — library form is only:
+   *   return <param>.<field> == <Enum>.<variant>;
+   * After `return`, first token must be IDENT (param name). Do NOT accept BANG/unary/etc.
+   * Historical false positive: non-IDENT branch skipped to `;` and forged field "kind" with
+   * ok=1, so Cap force `return !opt.is_some` (is_none) never reached parse_one_function_impl
+   * and host-cc got `return 0`. Fail the scan and let impl parse the real expression.
+   */
   if (r.tok.kind != (int32_t)TOKEN_IDENT) {
-    while (r.tok.kind != (int32_t)TOKEN_SEMICOLON && r.tok.kind != (int32_t)TOKEN_EOF) {
-      parser_asm_lex_from_lr_next_c(&lex, &r);
-      lexer_next_into(&r, lex, source);
-    }
-    if (r.tok.kind != (int32_t)TOKEN_SEMICOLON) {
-      result->next_lex = lex;
-      return 0;
-    }
-    parser_asm_lex_from_lr_next_c(&lex, &r);
-    lexer_next_into(&r, lex, source);
-    if (r.tok.kind != (int32_t)TOKEN_RBRACE) {
-      result->next_lex = lex;
-      return 0;
-    }
-    result->field_len = 4;
-    result->field_name[0] = 107;
-    result->field_name[1] = 105;
-    result->field_name[2] = 110;
-    result->field_name[3] = 100;
-    result->ok = 1;
-    result->next_lex = r.next_lex;
-    return 1;
+    result->next_lex = lex;
+    return 0;
   }
   parser_asm_lex_from_lr_next_c(&lex, &r);
   lexer_next_into(&r, lex, source);
