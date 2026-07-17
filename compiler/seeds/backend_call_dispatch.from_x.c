@@ -473,14 +473,18 @@ static int32_t glue_call_arg_is_sse_float_c(struct ast_ASTArena *arena, int32_t 
   }
   /* TEMP debug: remove after math_asm type-path root found */
   if (getenv("SHUX_SSE_DEBUG") && arena && call_expr_ref > 0 && arg_index >= 0) {
+    FILE *df = fopen("/tmp/shux_sse_dbg.log", "a");
     arg_ref = pipeline_expr_call_arg_ref(arena, call_expr_ref, arg_index);
     ko = arg_ref > 0 ? pipeline_expr_kind_ord_at(arena, arg_ref) : -1;
     atr = arg_ref > 0 ? pipeline_expr_resolved_type_ref(arena, arg_ref) : 0;
     ak = atr > 0 ? pipeline_type_kind_ord_at(arena, atr) : -1;
-    fprintf(stderr, "shux: sse_dbg call=%d ai=%d pty=%d pty_k=%d arg=%d ko=%d atr=%d ak=%d -> %d\n",
-            (int)call_expr_ref, (int)arg_index, (int)pty,
-            (pty > 0 && arena) ? (int)pipeline_type_kind_ord_at(arena, pty) : -1, (int)arg_ref, (int)ko, (int)atr,
-            (int)ak, (int)rc);
+    if (df) {
+      fprintf(df, "sse_dbg call=%d ai=%d pty=%d pty_k=%d arg=%d ko=%d atr=%d ak=%d -> %d\n",
+              (int)call_expr_ref, (int)arg_index, (int)pty,
+              (pty > 0 && arena) ? (int)pipeline_type_kind_ord_at(arena, pty) : -1, (int)arg_ref, (int)ko, (int)atr,
+              (int)ak, (int)rc);
+      fclose(df);
+    }
   }
   return rc;
 }
