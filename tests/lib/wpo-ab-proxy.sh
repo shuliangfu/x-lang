@@ -77,7 +77,8 @@ wpo_ab_try_main_fast() {
       "tests/baseline/wpo-main-o.tsv" "$baseline" "2048")
   fi
   off_proxy=$(wpo_ab_proxy_from_baseline "main_dce_off_text" "$baseline")
-  off_proxy=${off_proxy:-1304}
+  # Ubuntu true A/B recompile (LIBROOT + EMIT_HEAVY=0 + WPO=0) ~2234B @ 2026-07-17.
+  off_proxy=${off_proxy:-2234}
   on_txt=$(wpo_ab_text_bytes "$build_main") || return 1
   [ "$on_txt" -le "$max_on" ] 2>/dev/null || return 1
   nm "$build_main" 2>/dev/null | grep -q ' entry$' || return 1
@@ -172,4 +173,82 @@ wpo_ab_try_backend_fast() {
   nm "$build_be" 2>/dev/null | grep -q 'asm_codegen_ast' || return 1
   echo "$off_proxy $on_txt"
   return 0
+}
+
+# ---------------------------------------------------------------------------
+# A/B recompile (fallback when build_asm fast-path misses)
+# G.7 single authority with build_shux_asm.sh rebuild_main_o_for_cli / EMIT_HEAVY paths:
+#   - LIBROOT from asm_build_list.x // LIBROOT: (must pass -L … or IMP001 on import("ast"))
+#   - env -u SHUX_ASM_START_FUNC
+#   - ENTRY_MODULE_ONLY + BUILD_SKIP_TYPECK
+# PLATFORM: SHARED helpers; binary dogfood gold = LINUX (Ubuntu). mac may CG002 on ELF emit.
+# ---------------------------------------------------------------------------
+
+# Print production LIBROOT flags (cwd-relative to compiler/ when compiling).
+# Authority: compiler/src/asm/asm_build_list.x // LIBROOT: line (same as build_shux_asm.sh).
+wpo_ab_libroot() {
+  local list_x="${1:-}"
+  local tab=$'\t'
+  local lr=""
+  if [ -z "$list_x" ]; then
+    if [ -f "compiler/src/asm/asm_build_list.x" ]; then
+      list_x="compiler/src/asm/asm_build_list.x"
+    elif [ -f "src/asm/asm_build_list.x" ]; then
+      list_x="src/asm/asm_build_list.x"
+    fi
+  fi
+  if [ -n "$list_x" ] && [ -f "$list_x" ]; then
+    lr=$(grep '^// LIBROOT:' "$list_x" | sed "s|^// LIBROOT:${tab}||")
+  fi
+  if [ -z "$lr" ]; then
+    lr="-L asm_libroot -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/pipeline -L src/lsp -L src/asm"
+  fi
+  echo "$lr"
+}
+
+# Compile one ENTRY_MODULE_ONLY .x → .o with production LIBROOT.
+# Args: compiler out_o src_rel_to_compiler wpo_dce emit_heavy [timeout_s]
+# Returns 0 only if out_o non-empty. Does not require timeout binary (mac).
+wpo_ab_compile_entry() {
+  local compiler="$1"
+  local out_o="$2"
+  local src="$3"
+  local wpo_dce="$4"
+  local emit_heavy="${5:-1}"
+  local timeout_s="${6:-180}"
+  local libroot
+  libroot=$(wpo_ab_libroot)
+  rm -f "$out_o"
+  if command -v timeout >/dev/null 2>&1; then
+    ( cd compiler && \
+      timeout "$timeout_s" env -u SHUX_ASM_START_FUNC \
+        SHUX_ASM_ENTRY_MODULE_ONLY=1 \
+        SHUX_ASM_BUILD_SKIP_TYPECK=1 \
+        SHUX_ASM_ENTRY_EMIT_HEAVY="$emit_heavy" \
+        SHUX_ASM_WPO_DCE="$wpo_dce" \
+        "$compiler" -backend asm -o "$out_o" $libroot "$src" >/dev/null 2>&1 ) || return 1
+  else
+    ( cd compiler && \
+      env -u SHUX_ASM_START_FUNC \
+        SHUX_ASM_ENTRY_MODULE_ONLY=1 \
+        SHUX_ASM_BUILD_SKIP_TYPECK=1 \
+        SHUX_ASM_ENTRY_EMIT_HEAVY="$emit_heavy" \
+        SHUX_ASM_WPO_DCE="$wpo_dce" \
+        "$compiler" -backend asm -o "$out_o" $libroot "$src" >/dev/null 2>&1 ) || return 1
+  fi
+  [ -s "$out_o" ]
+}
+
+# A/B pair: dce_off then dce_on for the same src.
+# Args: compiler off_o on_o src emit_heavy [timeout_s]
+wpo_ab_compile_entry_pair() {
+  local compiler="$1"
+  local off_o="$2"
+  local on_o="$3"
+  local src="$4"
+  local emit_heavy="${5:-1}"
+  local timeout_s="${6:-180}"
+  wpo_ab_compile_entry "$compiler" "$off_o" "$src" 0 "$emit_heavy" "$timeout_s" || return 1
+  wpo_ab_compile_entry "$compiler" "$on_o" "$src" 1 "$emit_heavy" "$timeout_s" || return 1
+  [ -s "$off_o" ] && [ -s "$on_o" ]
 }

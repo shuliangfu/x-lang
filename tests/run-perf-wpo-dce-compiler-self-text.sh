@@ -157,75 +157,41 @@ PIPE_SAVE=""
 PIPE_PCT=""
 BUILD_ASM_DIR="compiler/build_asm"
 
+# G.7: A/B recompile via wpo_ab_compile_entry_pair（须 $LIBROOT，否则 IMP001 import("ast")）。
+# 与 rebuild_main_o_for_cli 同契约：ENTRY_ONLY + SKIP_TYPECK；main 优先 EMIT_HEAVY=0。
 compile_main_x_ab() {
   local off_o="$1"
   local on_o="$2"
   local emit_heavy="${3:-0}"
-  rm -f "$off_o" "$on_o"
-  # 与 rebuild_main_o_for_cli 一致：ENTRY_ONLY + SKIP_TYPECK；生产链优先 EMIT_HEAVY=0（仅 entry ~656B）。
-  ( cd compiler && \
-    timeout "$MAIN_TIMEOUT" env SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_ENTRY_EMIT_HEAVY="$emit_heavy" SHUX_ASM_WPO_DCE=0 \
-      "$SHUX_ASM_ABS" -backend asm -o "$off_o" src/main.x >/dev/null 2>&1 ) || return 1
-  ( cd compiler && \
-    timeout "$MAIN_TIMEOUT" env SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_ENTRY_EMIT_HEAVY="$emit_heavy" SHUX_ASM_WPO_DCE=1 \
-      "$SHUX_ASM_ABS" -backend asm -o "$on_o" src/main.x >/dev/null 2>&1 ) || return 1
-  [ -s "$off_o" ] && [ -s "$on_o" ]
+  wpo_ab_compile_entry_pair "$SHUX_ASM_ABS" "$off_o" "$on_o" "src/main.x" "$emit_heavy" "$MAIN_TIMEOUT"
 }
 
 # driver/compile.x EMIT_HEAVY A/B（与 run-s3-driver-emit-heavy 同模式）。
 compile_driver_x_ab() {
   local off_o="$1"
   local on_o="$2"
-  rm -f "$off_o" "$on_o"
-  ( cd compiler && \
-    timeout "$MAIN_TIMEOUT" env SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_ENTRY_EMIT_HEAVY=1 SHUX_ASM_WPO_DCE=0 \
-      "$SHUX_ASM_ABS" -backend asm -o "$off_o" src/driver/compile.x >/dev/null 2>&1 ) || return 1
-  ( cd compiler && \
-    timeout "$MAIN_TIMEOUT" env SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_ENTRY_EMIT_HEAVY=1 SHUX_ASM_WPO_DCE=1 \
-      "$SHUX_ASM_ABS" -backend asm -o "$on_o" src/driver/compile.x >/dev/null 2>&1 ) || return 1
-  [ -s "$off_o" ] && [ -s "$on_o" ]
+  wpo_ab_compile_entry_pair "$SHUX_ASM_ABS" "$off_o" "$on_o" "src/driver/compile.x" 1 "$MAIN_TIMEOUT"
 }
 
 # pipeline.x EMIT_HEAVY A/B（run_x_pipeline_impl root + reach DCE）。
 compile_pipeline_x_ab() {
   local off_o="$1"
   local on_o="$2"
-  rm -f "$off_o" "$on_o"
-  ( cd compiler && \
-    timeout "$MAIN_TIMEOUT" env SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_ENTRY_EMIT_HEAVY=1 SHUX_ASM_WPO_DCE=0 \
-      "$SHUX_ASM_ABS" -backend asm -o "$off_o" src/pipeline/pipeline.x >/dev/null 2>&1 ) || return 1
-  ( cd compiler && \
-    timeout "$MAIN_TIMEOUT" env SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_ENTRY_EMIT_HEAVY=1 SHUX_ASM_WPO_DCE=1 \
-      "$SHUX_ASM_ABS" -backend asm -o "$on_o" src/pipeline/pipeline.x >/dev/null 2>&1 ) || return 1
-  [ -s "$off_o" ] && [ -s "$on_o" ]
+  wpo_ab_compile_entry_pair "$SHUX_ASM_ABS" "$off_o" "$on_o" "src/pipeline/pipeline.x" 1 "$MAIN_TIMEOUT"
 }
 
 # typeck.x EMIT_HEAVY A/B（typeck_x_ast root + reach DCE）。
 compile_typeck_x_ab() {
   local off_o="$1"
   local on_o="$2"
-  rm -f "$off_o" "$on_o"
-  ( cd compiler && \
-    timeout "$MAIN_TIMEOUT" env SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_ENTRY_EMIT_HEAVY=1 SHUX_ASM_WPO_DCE=0 \
-      "$SHUX_ASM_ABS" -backend asm -o "$off_o" src/typeck/typeck.x >/dev/null 2>&1 ) || return 1
-  ( cd compiler && \
-    timeout "$MAIN_TIMEOUT" env SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_ENTRY_EMIT_HEAVY=1 SHUX_ASM_WPO_DCE=1 \
-      "$SHUX_ASM_ABS" -backend asm -o "$on_o" src/typeck/typeck.x >/dev/null 2>&1 ) || return 1
-  [ -s "$off_o" ] && [ -s "$on_o" ]
+  wpo_ab_compile_entry_pair "$SHUX_ASM_ABS" "$off_o" "$on_o" "src/typeck/typeck.x" 1 "$MAIN_TIMEOUT"
 }
 
 # backend.x EMIT_HEAVY A/B（asm_codegen_ast root + reach DCE）。
 compile_backend_x_ab() {
   local off_o="$1"
   local on_o="$2"
-  rm -f "$off_o" "$on_o"
-  ( cd compiler && \
-    timeout "$MAIN_TIMEOUT" env SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_ENTRY_EMIT_HEAVY=1 SHUX_ASM_WPO_DCE=0 \
-      "$SHUX_ASM_ABS" -backend asm -o "$off_o" src/asm/backend.x >/dev/null 2>&1 ) || return 1
-  ( cd compiler && \
-    timeout "$MAIN_TIMEOUT" env SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_ENTRY_EMIT_HEAVY=1 SHUX_ASM_WPO_DCE=1 \
-      "$SHUX_ASM_ABS" -backend asm -o "$on_o" src/asm/backend.x >/dev/null 2>&1 ) || return 1
-  [ -s "$off_o" ] && [ -s "$on_o" ]
+  wpo_ab_compile_entry_pair "$SHUX_ASM_ABS" "$off_o" "$on_o" "src/asm/backend.x" 1 "$MAIN_TIMEOUT"
 }
 
 MOFF=0
