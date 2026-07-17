@@ -156,6 +156,8 @@ g05_try_x_to_o() {
         -e '/^extern ssize_t write(/d' \
         -e '/^extern int32_t open(/d' \
         -e '/^extern int open(/d' \
+        -e '/^extern int32_t fcntl(/d' \
+        -e '/^extern int fcntl(/d' \
         -e '/^extern int32_t close(/d' \
         -e '/^extern int close(/d' \
         -e '/^extern uint8_t \* calloc(/d' \
@@ -2544,6 +2546,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
                 -e '/^extern ssize_t write(/d' \
                 -e '/^extern int32_t open(/d' \
                 -e '/^extern int open(/d' \
+                -e '/^extern int32_t fcntl(/d' \
+                -e '/^extern int fcntl(/d' \
                 -e '/^extern int32_t close(/d' \
                 -e '/^extern int close(/d' \
                 -e '/^extern uint8_t \* calloc(/d' \

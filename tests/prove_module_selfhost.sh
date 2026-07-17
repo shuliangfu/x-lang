@@ -364,6 +364,8 @@ gen_x_o() {
         -e '/^extern ssize_t write(/d' \
         -e '/^extern int32_t open(/d' \
         -e '/^extern int open(/d' \
+        -e '/^extern int32_t fcntl(/d' \
+        -e '/^extern int fcntl(/d' \
         -e '/^extern int32_t close(/d' \
         -e '/^extern int close(/d' \
         -e '/^extern uint8_t \* calloc(/d' \
