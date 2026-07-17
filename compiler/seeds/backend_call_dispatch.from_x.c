@@ -978,16 +978,14 @@ static int32_t glue_asm_type_ref_to_suffix_c(struct ast_ASTArena *a, int32_t typ
     }
     return n;
   }
-  /* TYPE_NAMED = 8 */
-  if (tk == 8) {
-    n = pipeline_type_named_name_into(a, type_ref, out);
+  /* Named / user types: always try type name (String, Vec_u8, …). */
+  n = pipeline_type_named_name_into(a, type_ref, out);
+  if (n > 0 && n < out_cap) {
     for (si = 0; si < n && si < out_cap; si++) {
       if (out[si] == (uint8_t)'.')
         out[si] = (uint8_t)'_';
     }
-    if (n > 0 && n < out_cap)
-      return n;
-    return 0;
+    return n;
   }
   return glue_type_kind_to_suffix_c(tk, out, out_cap);
 }
@@ -2390,61 +2388,52 @@ int32_t pipeline_asm_emit_call_elf_c_impl(struct ast_ASTArena *arena, struct pla
                   }
                 }
                 /*
-                 * PLATFORM: SHARED — arg/ret-type mangle from *caller* arena when dep
-                 * param type_ref path still yields bare names (len without _String).
-                 * Formal string.o: std_string_len_String; vec: std_vec_new_retVec_u8.
+                 * PLATFORM: SHARED — always try caller-arena arg/ret type mangle when the
+                 * current symbol is still bare prefix+field. Do not gate on dep overload_count
+                 * (dep scan can miss import overloads → stayed std_string_len bare).
+                 * Formal: std_string_len_String; std_vec_new_retVec_u8.
                  */
-                if (sym_len <= 0 || (sym_len > 0 && sym_len == pre_len + field_len
-                                     && memcmp(sym_flat + pre_len, field_name, (size_t)field_len) == 0)) {
+                if (sym_len > 0 && sym_len == pre_len + field_len
+                    && memcmp(sym_flat + pre_len, field_name, (size_t)field_len) == 0) {
                   int32_t n_args = pipeline_expr_call_num_args_at(arena, expr_ref);
                   int32_t pos;
                   int32_t pi;
-                  int32_t need_ov = 0;
                   uint8_t mid[64];
                   int32_t mid_len = 0;
-                  if (dp && j >= 0 && j < pipeline_dep_ctx_ndep(dp)) {
-                    struct ast_Module *dm = pipeline_dep_ctx_module_at(dp, j);
-                    if (dm && glue_module_func_overload_count_c(dm, field_name, field_len) > 1)
-                      need_ov = 1;
-                  } else {
-                    need_ov = 1; /* conservative when dep unavailable */
+                  if (field_len > 0 && field_len < 64) {
+                    memcpy(mid, field_name, (size_t)field_len);
+                    mid_len = field_len;
                   }
-                  if (need_ov) {
-                    if (field_len > 0 && field_len < 64) {
-                      memcpy(mid, field_name, (size_t)field_len);
-                      mid_len = field_len;
-                    }
-                    for (pi = 0; pi < n_args && mid_len < 60; pi++) {
-                      int32_t arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, pi);
-                      int32_t arg_ty = arg_ref > 0 ? pipeline_expr_resolved_type_ref(arena, arg_ref) : 0;
-                      uint8_t suf[64];
-                      int32_t sl = arg_ty > 0 ? glue_asm_type_ref_to_suffix_c(arena, arg_ty, suf, 64) : 0;
-                      if (sl <= 0)
-                        continue;
-                      if (mid_len + 1 + sl >= 64)
-                        break;
+                  for (pi = 0; pi < n_args && mid_len < 60; pi++) {
+                    int32_t arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, pi);
+                    int32_t arg_ty = arg_ref > 0 ? pipeline_expr_resolved_type_ref(arena, arg_ref) : 0;
+                    uint8_t suf[64];
+                    int32_t sl = arg_ty > 0 ? glue_asm_type_ref_to_suffix_c(arena, arg_ty, suf, 64) : 0;
+                    if (sl <= 0)
+                      continue;
+                    if (mid_len + 1 + sl >= 64)
+                      break;
+                    mid[mid_len++] = (uint8_t)'_';
+                    memcpy(mid + mid_len, suf, (size_t)sl);
+                    mid_len += sl;
+                  }
+                  if (n_args == 0) {
+                    int32_t exp_ty = pipeline_expr_resolved_type_ref(arena, expr_ref);
+                    uint8_t suf[64];
+                    int32_t sl = exp_ty > 0 ? glue_asm_type_ref_to_suffix_c(arena, exp_ty, suf, 64) : 0;
+                    if (sl > 0 && mid_len + 4 + sl < 64) {
                       mid[mid_len++] = (uint8_t)'_';
+                      mid[mid_len++] = (uint8_t)'r';
+                      mid[mid_len++] = (uint8_t)'e';
+                      mid[mid_len++] = (uint8_t)'t';
                       memcpy(mid + mid_len, suf, (size_t)sl);
                       mid_len += sl;
                     }
-                    if (n_args == 0) {
-                      int32_t exp_ty = pipeline_expr_resolved_type_ref(arena, expr_ref);
-                      uint8_t suf[64];
-                      int32_t sl = exp_ty > 0 ? glue_asm_type_ref_to_suffix_c(arena, exp_ty, suf, 64) : 0;
-                      if (sl > 0 && mid_len + 4 + sl < 64) {
-                        mid[mid_len++] = (uint8_t)'_';
-                        mid[mid_len++] = (uint8_t)'r';
-                        mid[mid_len++] = (uint8_t)'e';
-                        mid[mid_len++] = (uint8_t)'t';
-                        memcpy(mid + mid_len, suf, (size_t)sl);
-                        mid_len += sl;
-                      }
-                    }
-                    if (mid_len > field_len) {
-                      pos = glue_asm_build_import_binding_call_sym(pre_buf, pre_len, mid, mid_len, sym_flat);
-                      if (pos > 0)
-                        sym_len = pos;
-                    }
+                  }
+                  if (mid_len > field_len) {
+                    pos = glue_asm_build_import_binding_call_sym(pre_buf, pre_len, mid, mid_len, sym_flat);
+                    if (pos > 0)
+                      sym_len = pos;
                   }
                 }
                 if (sym_len <= 0) {
