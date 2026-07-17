@@ -3133,7 +3133,9 @@ build_nonempty_asm_objs() {
 # crt0 historically dumped the whole bag → multiple definition (9 symbols).
 # Authority when standalone is present: standalone only; drop subset/companion objs.
 # When standalone is missing: keep strict_minimal + preprocess_if_stack_only.
-# Does NOT resolve UNDEF (backend_enc / typeck / companion) — those are L3+ layers.
+# NL-07 L1: multi-def topology only. L2: fflush in nostdlib stubs.
+# L3: backend enc/dispatch companions are appended via ensure_crt0_backend_companion_objs
+# (not mixed into NONEMPTY_ASM). Residual: typeck/driver/lsp + heavy backend_emit_*.
 # NL-07 L2: fflush is defined in bootstrap_nostdlib_stubs (not freestanding_io).
 filter_crt0_asm_objs() {
   CRT0_ASM=""
@@ -3159,6 +3161,32 @@ filter_crt0_asm_objs() {
   if [ "$_crt0_have_standalone" -eq 1 ]; then
   build_shux_asm_info "crt0 bag: glue authority=pipeline_glue_standalone (drop strict_minimal + preprocess_if_stack_only)"
   fi
+}
+
+# PLATFORM: LINUX — NL-07 L3: crt0 link must include the same backend enc/dispatch
+# companions as experimental/strict (BSTRICT_DISPATCH_OBJS + simd_*).
+# Who produces UNDEF: pipeline/backend build_asm .o reference backend_enc_*_arch /
+# backend_arch_emit_* / try_inline / simd_enc, but crt0 historically linked only
+# NONEMPTY_ASM + freestanding_io/stubs — dispatch live under src/asm/, never in bag.
+# Authority (G.7): ensure_bstrict_seed_support_objs + BSTRICT_DISPATCH_OBJS — no second
+# stub table for enc. Does NOT invent backend_emit_* weak stubs (need seed heavy partial;
+# residual after L3). typeck/driver/lsp companions = later layer.
+# Sets CRT0_BACKEND_COMPANIONS for the crt0 link line (Linux only callers).
+ensure_crt0_backend_companion_objs() {
+  CRT0_BACKEND_COMPANIONS=""
+  ensure_bstrict_seed_support_objs
+  # crt0 path is Linux-only; keep non-Darwin dispatch set (no filtered enc complement).
+  BSTRICT_BACKEND_X86_64_ENC_LINK="src/asm/backend_x86_64_enc_c.o"
+  BSTRICT_DISPATCH_OBJS="src/asm/backend_enc_dispatch.o $BSTRICT_BACKEND_X86_64_ENC_LINK src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o"
+  CRT0_BACKEND_COMPANIONS="$BSTRICT_DISPATCH_OBJS"
+  # Same layer as GEN_DRIVER_BSTRICT_COMPANIONS simd_* (closes simd_enc UNDEF cluster).
+  if [ -f src/asm/simd_enc.o ]; then
+  CRT0_BACKEND_COMPANIONS="$CRT0_BACKEND_COMPANIONS src/asm/simd_enc.o"
+  fi
+  if [ -f src/asm/simd_loop.o ]; then
+  CRT0_BACKEND_COMPANIONS="$CRT0_BACKEND_COMPANIONS src/asm/simd_loop.o"
+  fi
+  build_shux_asm_info "crt0 bag: backend companions (NL-07 L3)=$CRT0_BACKEND_COMPANIONS"
 }
 
 # F-06 v1：fs/io/heap 已纯 .x；bootstrap 不再 cc -c std/*.c（符号由 std_fs_shim / runtime_io_abi / lsp_io_std_heap_x 等提供）。
@@ -4438,9 +4466,12 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   elif [ "$(uname -s 2>/dev/null)" = "Linux" ] && [ -f src/asm/crt0_x86_64.o ] && [ -f src/typeck/typeck_f64_bits.o ] && [ -f runtime_panic.o ]; then
   echo " linking shux_asm (crt0 + typeck_f64_bits + runtime_panic + asm*.o, no runtime_driver) ..."
   filter_crt0_asm_objs
+  # NL-07 L3: append BSTRICT_DISPATCH_OBJS (+ simd) — same authority as experimental/strict.
+  ensure_crt0_backend_companion_objs
   set +e
   # F-no-libc NL-07 BEGIN — bootstrap nostdlib（SHUX_BOOTSTRAP_NOSTDLIB=1 尝试；失败回退 libc/libm）
-  # 目标：crt0_x86_64 + freestanding_io + bootstrap_nostdlib_stubs + build_asm/*.o + -nostdlib --gc-sections
+  # 目标：crt0_x86_64 + freestanding_io + bootstrap_nostdlib_stubs + build_asm/*.o
+  #        + backend dispatch companions + -nostdlib --gc-sections
   # F-06 v1：bootstrap 已不链 cc -c 的 std/fs|io|heap .o
   CRT_RC=1
   if bootstrap_wants_nostdlib; then
@@ -4448,7 +4479,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   build_shux_asm_info "trying bootstrap nostdlib crt0 link (SHUX_BOOTSTRAP_NOSTDLIB=1)"
   # shellcheck disable=SC2086
   "$CC" $CFLAGS -o shux_asm src/asm/crt0_x86_64.o src/typeck/typeck_f64_bits.o runtime_panic.o atoi_stub.o \
-  $CRT0_ASM $BOOT_CRT0_TAIL 2>"$BUILD_DIR/.bootstrap_nostdlib_link_err"
+  $CRT0_ASM $CRT0_BACKEND_COMPANIONS $BOOT_CRT0_TAIL 2>"$BUILD_DIR/.bootstrap_nostdlib_link_err"
   CRT_RC=$?
   if [ "$CRT_RC" -ne 0 ]; then
   build_shux_asm_error "bootstrap nostdlib crt0 link failed (rc=$CRT_RC)"
@@ -4463,7 +4494,8 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   # F-no-libc track：默认 crt0 链仍须 libc/libm；用户 freestanding 走 runtime NL-05 无 libc。
   BOOT_CRT0_TAIL=$(bootstrap_link_tail_crt0)
   # shellcheck disable=SC2086
-  "$CC" $CFLAGS -o shux_asm src/asm/crt0_x86_64.o src/typeck/typeck_f64_bits.o runtime_panic.o atoi_stub.o $CRT0_ASM $BOOT_CRT0_TAIL
+  "$CC" $CFLAGS -o shux_asm src/asm/crt0_x86_64.o src/typeck/typeck_f64_bits.o runtime_panic.o atoi_stub.o \
+  $CRT0_ASM $CRT0_BACKEND_COMPANIONS $BOOT_CRT0_TAIL
   CRT_RC=$?
   fi
   # F-no-libc NL-07 END
