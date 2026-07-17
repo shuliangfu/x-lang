@@ -167,6 +167,10 @@ struct glue_AsmFuncCtxCall {
 #define GLUE_EXPR_STRING_LIT_ORD 59
 #define GLUE_EXPR_FIELD_ACCESS_ORD 44
 #define GLUE_EXPR_VAR_ORD 3
+/** ast.x ExprKind.EXPR_ADDR_OF — &v for push(&v, x) arg typing. */
+#define GLUE_EXPR_ADDR_OF_ORD 51
+/** ast.x TypeKind.TYPE_PTR */
+#define GLUE_TYPE_PTR_ORD 9
 
 extern int32_t pipeline_elf_ctx_append_bytes(uint8_t *ctx_bytes, uint8_t *ptr, int32_t n);
 extern int32_t pipeline_expr_kind_ord_at(struct ast_ASTArena *arena, int32_t expr_ref);
@@ -1117,10 +1121,16 @@ static struct ast_Module *glue_asm_res_mod_for_import_binding_c(struct ast_Pipel
 extern int32_t pipeline_expr_method_call_num_args_at(struct ast_ASTArena *a, int32_t expr_ref);
 extern int32_t pipeline_expr_method_call_arg_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t idx);
 
+extern int32_t pipeline_expr_unary_operand_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
+extern int32_t pipeline_type_find_or_alloc_compound(struct ast_ASTArena *a, int32_t kind_ord, int32_t elem_ref,
+                                                     int32_t array_size);
+extern int32_t pipeline_asm_call_expected_ret_ty_c(void);
+
 /**
  * PLATFORM: SHARED — resolve arg type for import overload mangle.
  * Prefer expr.resolved_type; for VAR fall back to scope-block let type
  * (g_pipeline_asm_emit_scope_block path used by FIELD_ACCESS layout).
+ * ADDR_OF(VAR): *T from let/param type of operand (push(&v) when entry typeck skipped).
  */
 static int32_t glue_asm_call_arg_type_ref_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                            int32_t arg_ref) {
@@ -1135,7 +1145,18 @@ static int32_t glue_asm_call_arg_type_ref_c(struct ast_ASTArena *arena, struct b
   if (ty > 0)
     return ty;
   ko = pipeline_expr_kind_ord_at(arena, arg_ref);
-  if (ko != 3 || !ctx) /* VAR */
+  /** &local: build *T so push(&v) scores Vec_u8_ptr_u8 not first Vec_i32 overload. */
+  if (ko == GLUE_EXPR_ADDR_OF_ORD) {
+    int32_t op = pipeline_expr_unary_operand_ref_at(arena, arg_ref);
+    int32_t elem;
+    if (op <= 0)
+      return 0;
+    elem = glue_asm_call_arg_type_ref_c(arena, ctx, op);
+    if (elem <= 0)
+      return 0;
+    return pipeline_type_find_or_alloc_compound(arena, GLUE_TYPE_PTR_ORD, elem, 0);
+  }
+  if (ko != GLUE_EXPR_VAR_ORD || !ctx) /* VAR */
     return 0;
   vlen = pipeline_expr_var_name_len(arena, arg_ref);
   if (vlen <= 0 || vlen > 63)
@@ -1148,6 +1169,20 @@ static int32_t glue_asm_call_arg_type_ref_c(struct ast_ASTArena *arena, struct b
       return ty;
   }
   return 0;
+}
+
+/**
+ * PLATFORM: SHARED — expected return for zero-arg import overload (vec.new).
+ * Prefer typeck-resolved expr type; else let-init install (pipeline_asm_call_expected_ret_ty_c).
+ */
+static int32_t glue_asm_call_expected_ret_ty_c(struct ast_ASTArena *arena, int32_t expr_ref) {
+  int32_t ty;
+  if (arena && expr_ref > 0) {
+    ty = pipeline_expr_resolved_type_ref(arena, expr_ref);
+    if (ty > 0)
+      return ty;
+  }
+  return pipeline_asm_call_expected_ret_ty_c();
 }
 
 /**
@@ -1297,7 +1332,8 @@ static int32_t glue_asm_mangle_import_binding_call_sym_c(struct ast_ASTArena *ar
     }
     if (res_mod && use_fi < 0) {
       int32_t fi;
-      int32_t exp_ty = pipeline_expr_resolved_type_ref(arena, expr_ref);
+      /** Prefer typeck resolve; else let-init expected ret (asm skip entry typeck). */
+      int32_t exp_ty = glue_asm_call_expected_ret_ty_c(arena, expr_ref);
       int32_t best = -1;
       int32_t best_score = -1;
       for (fi = 0; fi < pipeline_module_num_funcs(res_mod); fi++) {
@@ -1355,6 +1391,26 @@ static int32_t glue_asm_mangle_import_binding_call_sym_c(struct ast_ASTArena *ar
             }
             if (eq)
               score += 20;
+          } else if (na > 0 && nb > 0) {
+            /** Last-segment NAMED only on '.': bare vs module-qualified (not '_' — Vec_u8). */
+            int32_t sa0 = 0, sb0 = 0, i2;
+            for (i2 = 0; i2 < na; i2++)
+              if (sa[i2] == (uint8_t)'.')
+                sa0 = i2 + 1;
+            for (i2 = 0; i2 < nb; i2++)
+              if (sb[i2] == (uint8_t)'.')
+                sb0 = i2 + 1;
+            if ((sa0 > 0 || sb0 > 0) && (na - sa0) == (nb - sb0) && (na - sa0) > 0) {
+              int32_t eq = 1;
+              for (i2 = 0; i2 < na - sa0; i2++) {
+                if (sa[sa0 + i2] != sb[sb0 + i2]) {
+                  eq = 0;
+                  break;
+                }
+              }
+              if (eq)
+                score += 20;
+            }
           }
         }
         if (score > best_score) {
@@ -1403,7 +1459,7 @@ static int32_t glue_asm_mangle_import_binding_call_sym_c(struct ast_ASTArena *ar
       alen += sl;
     }
     if (n_args == 0) {
-      int32_t exp_ty = pipeline_expr_resolved_type_ref(arena, expr_ref);
+      int32_t exp_ty = glue_asm_call_expected_ret_ty_c(arena, expr_ref);
       uint8_t suf[64];
       int32_t sl = exp_ty > 0 ? glue_asm_type_ref_to_suffix_c(arena, exp_ty, suf, 64) : 0;
       if (sl > 0 && alen + 4 + sl < 64) {

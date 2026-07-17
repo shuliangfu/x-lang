@@ -131,6 +131,21 @@ static int32_t g_pipeline_asm_func_sret_active = 0;
 static int32_t g_pipeline_asm_func_sret_ret_sz = 0;
 /** CALL 侧 hidden sret：实参寄存器槽整体右移位数（0 或 1；rdi 已预装 dest 指针）。 */
 static int32_t g_pipeline_asm_call_sret_reg_shift = 0;
+/**
+ * PLATFORM: SHARED — expected return type for import CALL/METHOD_CALL overload mangle.
+ * Asm user -o with imports skips entry .x typeck (C precheck is a separate arena); zero-arg
+ * overloads (vec.new) would otherwise pick first (Vec_i32). Let-init install sets this from
+ * the declaration type (let v: Vec_u8 = vec.new()).
+ */
+static int32_t g_pipeline_asm_call_expected_ret_ty = 0;
+
+void pipeline_asm_set_call_expected_ret_ty_c(int32_t type_ref) {
+  g_pipeline_asm_call_expected_ret_ty = type_ref > 0 ? type_ref : 0;
+}
+
+int32_t pipeline_asm_call_expected_ret_ty_c(void) {
+  return g_pipeline_asm_call_expected_ret_ty;
+}
 
 int32_t pipeline_asm_emit_call_arg_active_c(void);
 /** 当前 emit 块 scope（与 asm_ctx scope_block_ref 同步）；FIELD_ACCESS 查 let 类型用。 */
@@ -3844,6 +3859,7 @@ static int32_t glue_emit_struct_type_let_init_elf_c(struct ast_ASTArena *arena,
    * → Vec (32B) half-initialized → push/realloc invalid pointer. G.7: same sret authority for both kinds.
    */
   if (ko == 48 || ko == 49) {
+    int32_t emit_rc;
     if (ko == 48) {
       inl = try_inline_struct_lit_return_call_to_slot_elf(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off);
       if (inl == 1)
@@ -3852,6 +3868,11 @@ static int32_t glue_emit_struct_type_let_init_elf_c(struct ast_ASTArena *arena,
       if (inl == 1)
         return 0;
     }
+    /**
+     * PLATFORM: SHARED — install let decl type as expected return for import overload mangle
+     * (vec.new → new_retVec_u8). Cleared on all exit paths of this CALL/METHOD_CALL branch.
+     */
+    pipeline_asm_set_call_expected_ret_ty_c(let_ty_ref > 0 ? let_ty_ref : 0);
     {
       int32_t call_ret_sz = glue_call_return_byte_size_c(arena, init_ref);
       /** Prefer call return size; fall back to let annotation (import dep layout may miss call_ret). */
@@ -3864,19 +3885,25 @@ static int32_t glue_emit_struct_type_let_init_elf_c(struct ast_ASTArena *arena,
       }
       /** SysV >16B struct return: hidden rdi = let slot; callee writes; do not glue_store_retval. */
       if (call_ret_sz > 16 && ta == 0) {
-        if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, stack_slot_off, ta) != 0)
+        if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, stack_slot_off, ta) != 0) {
+          pipeline_asm_set_call_expected_ret_ty_c(0);
           return -1;
-        if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0)
+        }
+        if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0) {
+          pipeline_asm_set_call_expected_ret_ty_c(0);
           return -1;
+        }
         pipeline_asm_emit_set_call_sret_reg_shift_c(1);
-        if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, init_ref, ctx, ta) != 0)
-          return -1;
+        emit_rc = pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, init_ref, ctx, ta);
         pipeline_asm_emit_set_call_sret_reg_shift_c(0);
-        return 0;
+        pipeline_asm_set_call_expected_ret_ty_c(0);
+        return emit_rc != 0 ? -1 : 0;
       }
     }
     /** Scalar / ≤16B import CALL/METHOD_CALL: emit then store rax[+rdx]. */
-    if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, init_ref, ctx, ta) != 0)
+    emit_rc = pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, init_ref, ctx, ta);
+    pipeline_asm_set_call_expected_ret_ty_c(0);
+    if (emit_rc != 0)
       return -1;
     if (glue_store_retval_pair_to_rbp_elf_c(glue_emit_module_from_ctx(ctx), arena, elf_ctx, let_ty_ref,
                                             stack_slot_off, ta, init_ref) != 0)
@@ -16340,6 +16367,7 @@ void pipeline_asm_emit_set_arena(struct ast_ASTArena *arena) {
 void pipeline_asm_emit_set_call_param_type_ref(int32_t type_ref) {
   g_pipeline_asm_emit_call_param_ty_ref = type_ref;
 }
+
 
 /** CALL 实参 emit 入口：递增嵌套深度（backend_call_dispatch 每实参 emit 前调用）。 */
 void pipeline_asm_emit_call_arg_begin_c(void) {
