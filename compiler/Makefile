@@ -142,6 +142,11 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 ../std/set/set.o: ../std/set/mod.x | scripts/shux_compile_std_module.sh
 	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/set/mod.x
 
+# std.vec：F 闭合 — 单 mod.x（import std.heap）；link_only 产品链按需 std/vec/vec.o。
+# PLATFORM: SHARED — L4 全擦后须 make 本目标或 link ensure（push_existing  alone 静默 skip）。
+../std/vec/vec.o: ../std/vec/mod.x | scripts/shux_compile_std_module.sh
+	@sh scripts/shux_compile_std_module.sh $@ ../std/vec/mod.x
+
 # std.runtime：保留 runtime.x 作为 F-runtime v1 源码锚点；runtime.o 仅提供
 # runtime_panic/runtime_abort/runtime_crash_evidence_collect_c 三个 extern provider。
 ../std/runtime/runtime.o: ../std/runtime/runtime.x seeds/runtime_std_runtime_fast.from_x.c src/asm/runtime_std_runtime_fast.x
@@ -312,20 +317,11 @@ net-o-mbedtls:
 	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/hash/mod.x ../std/hash/hash.x
 
 # std.math：F-math v2 纯 .x（F-ZC）；libm 胶层在 runtime_math_libm.o（链接 exe 仍须 -lm）。
-# LANG-007 v2：优先 shux-c -E → cc -c；失败则 shux_compile_std_x.sh。
-../std/math/math.o: ../std/math/math.x
-	@if [ -x ./shux-c ] && \
-	  ./shux-c -E -L .. ../std/math/math.x > ../std/math/math_core_gen.c && \
-	  $(CC) $(CFLAGS) -c -o ../std/math/math.o ../std/math/math_core_gen.c; then \
-	  rm -f ../std/math/math_core_gen.c; \
-	else \
-	  rm -f ../std/math/math_core_gen.c; \
-	  if [ -x ./shux_asm ] || [ -x ./shux ] || [ -x ./shux-c ]; then \
-	    sh scripts/shux_compile_std_x.sh auto ../std/math/math.x ../std/math/math.o; \
-	  else \
-	    echo "make math.o: need shux-c or shux (F-math zero-c)" >&2; exit 1; \
-	  fi; \
-	fi
+# PLATFORM: SHARED — 权威 = mod.x (std_math_* API) + math.x (bare math_*_c constants)
+# via shux_compile_std_module --bare-impl. Do NOT compile only math.x (missing std_math_*).
+# Ban old shux-c -E double-prefix stale path.
+../std/math/math.o: ../std/math/mod.x ../std/math/math.x | scripts/shux_compile_std_module.sh
+	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/math/mod.x ../std/math/math.x
 
 # std.sort：F-sort v1 纯 .x（sort.x）；无胶层 C。
 ../std/sort/sort.o: ../std/sort/sort.x

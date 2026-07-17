@@ -39,6 +39,8 @@ void shux_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *us
 void shux_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char *user_o, const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags);
 int invoke_cc_append_net_tls_ld(char *argv[], int *i, int argv_cap, const char *net_o, const char *repo_root);
 void ensure_std_net_o_auto_tls(const char *repo_root);
+/* PLATFORM: SHARED — formal std .o after L4 wipe (def near ensure_std_net_o_auto_tls). */
+static int shux_ensure_formal_std_make_o(const char *repo_root, const char *rel_from_repo, const char *make_target);
 /* G-02f-68 link helpers */
 int shu_waitpid_retry(pid_t pid, int *status_out);
 int shux_asm_user_o_has_undef_syms(const char *o_path);
@@ -4355,15 +4357,28 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
             }
             if (need_hash)
                 (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, hash_o);
-            if (need_math && invoke_cc_argv_push_existing(argv, &i, argv_cap, math_o)) {
-                (void)shux_ensure_runtime_math_libm_o(NULL);
+            /* PLATFORM: SHARED — L4 wipe removes formal math.o; ensure before push.
+             * math_o is resolved at invoke entry via shux_rel_o_path_from_argv0; when the
+             * file is missing that returns "" and stays empty for the whole invoke.
+             * After ensure, re-resolve (same as need_vec/set/map) — do not push stale math_o. */
+            if (need_math) {
+                if (include_root && include_root[0])
+                    (void)shux_ensure_formal_std_make_o(include_root, "std/math/math.o", "../std/math/math.o");
                 {
-                    const char *rml = shux_runtime_math_libm_o_path(NULL);
-                    if (rml && rml[0])
-                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rml);
+                    const char *math_push = shux_rel_o_path_from_argv0(include_root, "std/math/math.o");
+                    if ((!math_push || !math_push[0]) && math_o && math_o[0])
+                        math_push = math_o;
+                    if (invoke_cc_argv_push_existing(argv, &i, argv_cap, math_push)) {
+                        (void)shux_ensure_runtime_math_libm_o(NULL);
+                        {
+                            const char *rml = shux_runtime_math_libm_o_path(NULL);
+                            if (rml && rml[0])
+                                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rml);
+                        }
+                        if (i < argv_cap - 1)
+                            argv[i++] = (char *)"-lm";
+                    }
                 }
-                if (i < argv_cap - 1)
-                    argv[i++] = (char *)"-lm";
             }
             /* sort.o：仅当未 co-emit 实现时链入（co-emit 定义形如 void std_sort_sort_…） */
             if (need_sort) {
@@ -4386,7 +4401,8 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
              * link_only extern prototypes and would skip the product .o (false co-emit).
              * Formal vec.o U: std_heap_default_alloc / kind_arena / alloc_Allocator_* /
              * realloc_Allocator_* — user C has no std_heap_* use_line, so mirror set/map and
-             * push heap.o + core mem with vec.o (G.7 complete need_vec path). */
+             * push heap.o + core mem with vec.o (G.7 complete need_vec path).
+             * L4 wipe: formal .o gitignored → ensure via Makefile before push_existing. */
             if (need_vec) {
                 int have_vec_body = 0;
                 for (jscan = 0; jscan < n; jscan++) {
@@ -4401,13 +4417,19 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
                         break;
                     }
                 }
-                if (!have_vec_body &&
-                    invoke_cc_argv_push_existing(argv, &i, argv_cap,
+                if (!have_vec_body) {
+                    if (include_root && include_root[0]) {
+                        (void)shux_ensure_formal_std_make_o(include_root, "std/vec/vec.o", "../std/vec/vec.o");
+                        (void)shux_ensure_formal_std_make_o(include_root, "std/heap/heap.o", "../std/heap/heap.o");
+                        (void)shux_ensure_formal_std_make_o(include_root, "core/mem/mem.o", "../core/mem/mem.o");
+                    }
+                    if (invoke_cc_argv_push_existing(argv, &i, argv_cap,
                         shux_rel_o_path_from_argv0(include_root, "std/vec/vec.o"))) {
-                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
-                        shux_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o()));
-                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
-                        shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o()));
+                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
+                            shux_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o()));
+                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
+                            shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o()));
+                    }
                 }
             }
             if (need_ffi)
@@ -4433,22 +4455,37 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
             /*
              * set.o U：std_heap_libc_heap_alloc_*_c / std_heap_map_find / std_hash_bytes。
              * 现有 heap_import 探针不含 *_i32_c 等符号，故 need_set 时显式链 heap+hash+mem。
+             * L4 wipe: formal set/heap/mem via Makefile ensure before push.
              */
-            if (need_set && invoke_cc_argv_push_existing(argv, &i, argv_cap,
-                    shux_rel_o_path_from_argv0(include_root, "std/set/set.o"))) {
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
-                    shux_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o()));
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
-                    shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o()));
-                /* set.o → U _std_hash_bytes；need_hash 推送已在上方，此处显式补链 */
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, hash_o);
+            if (need_set) {
+                if (include_root && include_root[0]) {
+                    (void)shux_ensure_formal_std_make_o(include_root, "std/set/set.o", "../std/set/set.o");
+                    (void)shux_ensure_formal_std_make_o(include_root, "std/heap/heap.o", "../std/heap/heap.o");
+                    (void)shux_ensure_formal_std_make_o(include_root, "core/mem/mem.o", "../core/mem/mem.o");
+                }
+                if (invoke_cc_argv_push_existing(argv, &i, argv_cap,
+                        shux_rel_o_path_from_argv0(include_root, "std/set/set.o"))) {
+                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
+                        shux_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o()));
+                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
+                        shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o()));
+                    /* set.o → U _std_hash_bytes；need_hash 推送已在上方，此处显式补链 */
+                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, hash_o);
+                }
             }
-            if (need_map && invoke_cc_argv_push_existing(argv, &i, argv_cap,
-                    shux_rel_o_path_from_argv0(include_root, "std/map/map.o"))) {
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
-                    shux_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o()));
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
-                    shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o()));
+            if (need_map) {
+                if (include_root && include_root[0]) {
+                    (void)shux_ensure_formal_std_make_o(include_root, "std/map/map.o", "../std/map/map.o");
+                    (void)shux_ensure_formal_std_make_o(include_root, "std/heap/heap.o", "../std/heap/heap.o");
+                    (void)shux_ensure_formal_std_make_o(include_root, "core/mem/mem.o", "../core/mem/mem.o");
+                }
+                if (invoke_cc_argv_push_existing(argv, &i, argv_cap,
+                        shux_rel_o_path_from_argv0(include_root, "std/map/map.o"))) {
+                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
+                        shux_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o()));
+                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
+                        shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o()));
+                }
             }
             if (need_queue && invoke_cc_argv_push_existing(argv, &i, argv_cap,
                     shux_rel_o_path_from_argv0(include_root, "std/queue/queue.o"))) {
@@ -4775,6 +4812,66 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
 int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char *target, const char *opt_level, int use_lto, const char *io_o, const char *fs_o, const char *process_o, const char *string_o, const char *heap_o, const char *path_o, const char *runtime_o, const char *runtime_panic_o, const char *net_o, const char *thread_o, const char *time_o, const char *random_o, const char *env_o, const char *sync_o, const char *encoding_o, const char *base64_o, const char *crypto_o, const char *log_o, const char *atomic_o, const char *channel_o, const char *backtrace_o, const char *hash_o, const char *math_o, const char *sort_o, const char *ffi_o, const char *db_o, const char *elf_o, const char *json_o, const char *csv_o, const char *regex_o, const char *compress_o, const char *unicode_o, const char *dynlib_o, const char *http_o, const char *tar_o, const char *simd_o, const char *context_o, const char *datetime_o, const char *uuid_o, const char *url_o, const char *cli_o, const char *security_o, const char *config_o, const char *cache_o, const char *trace_o, const char *task_o, const char *schema_o, const char *test_o, const char *include_root, const char *async_scheduler_o);
 #endif
 
+
+/**
+ * PLATFORM: SHARED — formal std|core .o under repo (gitignored) vanish after L4 wipe.
+ * Authority = Makefile + shux_compile_std_module (G.7); link push_existing alone silent-skips.
+ * If rel_from_repo is missing, run: SHUX=<product> make -C <repo>/compiler <make_target>
+ * make_target is relative to compiler/ (e.g. ../std/vec/vec.o).
+ * Reentrancy: make → shux_compile_std_module → same product host → need_math/vec/set/map
+ * would call ensure again and fork-bomb. Export SHUX_FORMAL_STD_ENSURE=1 on the make
+ * child; nested ensure only checks existence (no second make).
+ * Returns 1 if object exists after ensure, 0 otherwise.
+ */
+static int shux_ensure_formal_std_make_o(const char *repo_root, const char *rel_from_repo, const char *make_target) {
+    char abs[PATH_MAX];
+    char cmd[768];
+    char shux_bin[PATH_MAX];
+    const char *env_shux;
+    const char *ensuring;
+    int nn;
+    if (!repo_root || !repo_root[0] || !rel_from_repo || !rel_from_repo[0] || !make_target || !make_target[0])
+        return 0;
+    nn = snprintf(abs, sizeof abs, "%s/%s", repo_root, rel_from_repo);
+    if (nn < 0 || (size_t)nn >= sizeof abs)
+        return 0;
+    if (asm_link_obj_skip_missing(abs))
+        return 1;
+    /* Nested ensure while compiling formal .o: do not system(make) again. */
+    ensuring = getenv("SHUX_FORMAL_STD_ENSURE");
+    if (ensuring && ensuring[0] && ensuring[0] != '0')
+        return 0;
+    env_shux = getenv("SHUX");
+    shux_bin[0] = '\0';
+    if (env_shux && env_shux[0] && access(env_shux, X_OK) == 0) {
+        if (realpath(env_shux, shux_bin) == NULL)
+            (void)snprintf(shux_bin, sizeof shux_bin, "%s", env_shux);
+    } else {
+        static const char *names[] = { "shux_asm", "shux", "shux-c", NULL };
+        int i;
+        for (i = 0; names[i]; i++) {
+            char cand[PATH_MAX];
+            nn = snprintf(cand, sizeof cand, "%s/compiler/%s", repo_root, names[i]);
+            if (nn < 0 || (size_t)nn >= sizeof cand)
+                continue;
+            if (access(cand, X_OK) == 0) {
+                if (realpath(cand, shux_bin) == NULL)
+                    (void)snprintf(shux_bin, sizeof shux_bin, "%s", cand);
+                break;
+            }
+        }
+    }
+    if (!shux_bin[0])
+        return 0;
+    /* freestanding system() = fork+execvp sh -c; PATH fixed in invoke_cc child too. */
+    nn = snprintf(cmd, sizeof cmd,
+                  "SHUX_FORMAL_STD_ENSURE=1 SHUX='%s' make -C '%s/compiler' '%s'",
+                  shux_bin, repo_root, make_target);
+    if (nn < 0 || (size_t)nn >= sizeof cmd)
+        return 0;
+    (void)system(cmd);
+    return asm_link_obj_skip_missing(abs) ? 1 : 0;
+}
 
 /**
  * 若 net.o / tls_openssl.o 仍为 TLS 桩且 SHUX_NET_TLS 非 stub，尝试 make net-o-openssl / net-o-mbedtls。
