@@ -3471,11 +3471,16 @@ ensure_crt0_codegen_parser_companion_objs() {
   p="$BUILD_DIR/crt0_l5_parser_partial.o"
   _psyms="$BUILD_DIR/crt0_l5_parser_export.txt"
   if [ -f parser_x.o ] && [ -s parser_x.o ]; then
+  # Keep GLOBAL every parser_x symbol thin_glue / residual U-ref (objcopy
+  # --keep-global demotes unlisted T to local → cannot satisfy cross-.o U).
   nm parser_x.o 2>/dev/null | awk '/ [TW] / {
     s=$3; sub(/^_/, "", s)
-    if (s ~ /^(parse_expr_into|parser_parse_|parser_onefunc_|parser_copy_module_import_path64|parser_diag_fail_at_token_kind)$/ \
-        || s ~ /^parser_onefunc_result_layout_prime/ \
-        || s ~ /^parser_parse_into/)
+    if (s == "parse_expr_into" \
+        || s ~ /^parser_parse_/ \
+        || s ~ /^parser_onefunc_/ \
+        || s == "parser_copy_module_import_path64" \
+        || s == "parser_diag_fail_at_token_kind" \
+        || s ~ /^parser_diag_fail_at_token_kind/)
       print s
   }' | sort -u >"$_psyms"
   if [ -s "$_psyms" ]; then
