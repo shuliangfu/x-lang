@@ -1158,16 +1158,39 @@ export function codegen_is_std_io_driver_bridge_name(name: *u8, name_len: i32): 
 }
 
 /**
- * std.io.core 的 shux_io_read_fixed 等与 io.o 强符号重复；X 内联 std.io 时仍链 io.o，须跳过 core 段这些函数体。
+ * Skip emitting std.io.core bodies that duplicate runtime/io.o strong symbols.
+ *
+ * Purpose: when product C co-emits std.io.core, do not redefine shux_io_read_fixed
+ * (and siblings) that product preamble already provides as weak stubs / io.o.
+ *
+ * Parameters:
+ *   dep_path  — module path bytes; must start with "std.io.core" (11 bytes).
+ *   name      — bare function name (no module prefix).
+ *   name_len  — name length; allow exact or exact+1 (historical trailing-NUL window).
+ *
+ * Returns 1 to skip emit, 0 to emit.
+ *
+ * Contract: match tables use full "shux_io_*" (with 'x'), never historic "shu_io_*".
+ * Batch names are checked before short submit_read/write prefixes.
+ * PLATFORM: SHARED — link-name contract; Cap force + pin product matrix.
  */
 export function codegen_should_skip_emit_std_io_core_io_dup(dep_path: *u8, name: *u8, name_len: i32): i32 {
   let path_core: u8[11] = [115, 116, 100, 46, 105, 111, 46, 99, 111, 114, 101];
-  let n_rf: u8[17] = [115, 104, 117, 95, 105, 111, 95, 114, 101, 97, 100, 95, 102, 105, 120, 101, 100];
-  let n_wf: u8[18] = [115, 104, 117, 95, 105, 111, 95, 119, 114, 105, 116, 101, 95, 102, 105, 120, 101, 100];
-  let n_srb: u8[24] = [115, 104, 117, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100, 95, 98, 97, 116, 99, 104];
-  let n_swb: u8[25] = [115, 104, 117, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 119, 114, 105, 116, 101, 95, 98, 97, 116, 99, 104];
-  let n_sr: u8[18] = [115, 104, 117, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100];
-  let n_sw: u8[19] = [115, 104, 117, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 119, 114, 105, 116, 101];
+  /* shux_io_read_fixed — 18 */
+  let n_rf: u8[18] = [115, 104, 117, 120, 95, 105, 111, 95, 114, 101, 97, 100, 95, 102, 105, 120, 101, 100];
+  /* shux_io_write_fixed — 19 */
+  let n_wf: u8[19] = [115, 104, 117, 120, 95, 105, 111, 95, 119, 114, 105, 116, 101, 95, 102, 105, 120, 101, 100];
+  /* shux_io_submit_read_batch — 25 */
+  let n_srb: u8[25] = [115, 104, 117, 120, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100, 95, 98, 97, 116, 99, 104];
+  /* shux_io_submit_write_batch — 26 */
+  let n_swb: u8[26] = [115, 104, 117, 120, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 119, 114, 105, 116, 101, 95, 98, 97, 116, 99, 104];
+  /* shux_io_submit_read — 19 (preamble has weak; skip redef). */
+  let n_sr: u8[19] = [115, 104, 117, 120, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100];
+  /*
+   * Do NOT skip shux_io_submit_write: product preamble intentionally has no weak stub
+   * (comment: 勿桩 submit_write — co-emit must supply the strong definition).
+   * Skipping it yields link UNDEF _shux_io_submit_write (Cap force hello residual).
+   */
   let di: i32 = 0;
   if (dep_path == 0 as *u8 || name == 0 as *u8) {
     return 0;
@@ -1178,22 +1201,19 @@ export function codegen_should_skip_emit_std_io_core_io_dup(dep_path: *u8, name:
     }
     di = di + 1;
   }
-  if ((name_len == 17 || name_len == 18) && codegen_name_bytes_prefix_eq(name, name_len, &n_rf[0], 17) != 0) {
+  if ((name_len == 18 || name_len == 19) && codegen_name_bytes_prefix_eq(name, name_len, &n_rf[0], 18) != 0) {
     return 1;
   }
-  if ((name_len == 18 || name_len == 19) && codegen_name_bytes_prefix_eq(name, name_len, &n_wf[0], 18) != 0) {
+  if ((name_len == 19 || name_len == 20) && codegen_name_bytes_prefix_eq(name, name_len, &n_wf[0], 19) != 0) {
     return 1;
   }
-  if ((name_len == 24 || name_len == 25) && codegen_name_bytes_prefix_eq(name, name_len, &n_srb[0], 24) != 0) {
+  if ((name_len == 25 || name_len == 26) && codegen_name_bytes_prefix_eq(name, name_len, &n_srb[0], 25) != 0) {
     return 1;
   }
-  if ((name_len == 25 || name_len == 26) && codegen_name_bytes_prefix_eq(name, name_len, &n_swb[0], 25) != 0) {
+  if ((name_len == 26 || name_len == 27) && codegen_name_bytes_prefix_eq(name, name_len, &n_swb[0], 26) != 0) {
     return 1;
   }
-  if ((name_len == 18 || name_len == 19) && codegen_name_bytes_prefix_eq(name, name_len, &n_sr[0], 18) != 0) {
-    return 1;
-  }
-  if ((name_len == 19 || name_len == 20) && codegen_name_bytes_prefix_eq(name, name_len, &n_sw[0], 19) != 0) {
+  if ((name_len == 19 || name_len == 20) && codegen_name_bytes_prefix_eq(name, name_len, &n_sr[0], 19) != 0) {
     return 1;
   }
   return 0;
@@ -1248,48 +1268,70 @@ export function codegen_should_skip_emit_func(dep_path: *u8, prefix: *u8, prefix
   /* Case B：import 路径 NUL 结尾（与 codegen_path_is_std_io_core_bytes 同样逐字节含末尾 NUL）。 */
   let path_driver: u8[14] = [115, 116, 100, 46, 105, 111, 46, 100, 114, 105, 118, 101, 114, 0];
   let path_io: u8[7] = [115, 116, 100, 46, 105, 111, 0];
-  /* Case B：标识符本体为 19/15 字节；AST 可能上报 name_len 20/16，与 runtime.c strncmp 上限一致。 */
+  /* Case B：标识符本体；AST 可能上报 name_len exact+1。 */
   let nm_len19: u8[19] = [100, 114, 105, 118, 101, 114, 95, 114, 101, 97, 100, 95, 112, 116, 114, 95, 108, 101, 110];
   let nm_len15: u8[15] = [100, 114, 105, 118, 101, 114, 95, 114, 101, 97, 100, 95, 112, 116, 114];
+  /* driver_read_ptr_gen — 19 (same length as ptr_len; distinct suffix) */
+  let nm_gen19: u8[19] = [100, 114, 105, 118, 101, 114, 95, 114, 101, 97, 100, 95, 112, 116, 114, 95, 103, 101, 110];
   let pi: i32 = 0;
   let ni: i32 = 0;
   let ok_path: i32 = 0;
   let di: i32 = 0;
+  /* full33_gen: std_io_driver_driver_read_ptr_gen (33) — same length as ptr_len; must not early-return 0 on mismatch. */
+  let full33_gen: u8[33] = [115, 116, 100, 95, 105, 111, 95, 100, 114, 105, 118, 101, 114, 95, 100, 114, 105, 118, 101, 114, 95, 114, 101, 97, 100, 95, 112, 116, 114, 95, 103, 101, 110];
   if (prefix != 0 as *u8 && prefix_len > 0 && name != 0 as *u8 && name_len > 0) {
     let total_len: i32 = prefix_len + name_len;
     if (total_len == 33) {
+      let match_len: i32 = 1;
+      let match_gen: i32 = 1;
       pi = 0;
       while (pi < prefix_len) {
         if (prefix[pi] != full33[pi]) {
-          return 0;
+          match_len = 0;
+        }
+        if (prefix[pi] != full33_gen[pi]) {
+          match_gen = 0;
         }
         pi = pi + 1;
       }
       ni = 0;
       while (ni < name_len) {
         if (name[ni] != full33[prefix_len + ni]) {
-          return 0;
+          match_len = 0;
+        }
+        if (name[ni] != full33_gen[prefix_len + ni]) {
+          match_gen = 0;
         }
         ni = ni + 1;
       }
-      return 1;
+      if (match_len != 0 || match_gen != 0) {
+        return 1;
+      }
+      /* fall through — other total-33 names are not auto-skipped */
     }
     if (total_len == 29) {
       pi = 0;
       while (pi < prefix_len) {
         if (prefix[pi] != full29[pi]) {
-          return 0;
+          /* fall through on mismatch (do not abort whole skip) */
+          pi = prefix_len + 1;
+          break;
         }
         pi = pi + 1;
       }
-      ni = 0;
-      while (ni < name_len) {
-        if (name[ni] != full29[prefix_len + ni]) {
-          return 0;
+      if (pi == prefix_len) {
+        ni = 0;
+        while (ni < name_len) {
+          if (name[ni] != full29[prefix_len + ni]) {
+            ni = name_len + 1;
+            break;
+          }
+          ni = ni + 1;
         }
-        ni = ni + 1;
+        if (ni == name_len) {
+          return 1;
+        }
       }
-      return 1;
     }
   }
   if (dep_path != 0 as *u8) {
@@ -1320,6 +1362,9 @@ export function codegen_should_skip_emit_func(dep_path: *u8, prefix: *u8, prefix
     }
     if (ok_path != 0 && name != 0 as *u8) {
       if ((name_len == 19 || name_len == 20) && codegen_name_bytes_prefix_eq(name, name_len, &nm_len19[0], 19) != 0) {
+        return 1;
+      }
+      if ((name_len == 19 || name_len == 20) && codegen_name_bytes_prefix_eq(name, name_len, &nm_gen19[0], 19) != 0) {
         return 1;
       }
       if ((name_len == 15 || name_len == 16) && codegen_name_bytes_prefix_eq(name, name_len, &nm_len15[0], 15) != 0) {
@@ -9671,40 +9716,60 @@ function codegen_force_param_i32(prefix: *u8, prefix_len: i32, name: *u8, name_l
 }
 
 /**
- * std.io.core 中由 runtime preamble / io 后端提供的 ABI 桥接名：不发射 C 函数体。
- * 跳过 shux_io_read_ptr_len / shux_io_read_ptr（read_ptr_len 允许 name_len>19 仅前缀匹配；原 driver_should_skip_emit_func_core_read_ptr），
- * 以及 shux_io_register、shux_io_register_buffers、shux_io_unregister_buffers、shux_io_wait_readable（与 read_ptr 同策略，标识符按完整长度逐字节比对）。
+ * Skip std.io.core ABI bridge names supplied by runtime preamble / io backend.
+ *
+ * Purpose: do not emit C bodies for shux_io_read_ptr(_len), register*, wait_readable
+ * when the C backend already maps them via preamble macros/weak stubs.
+ *
+ * Parameters:
+ *   name / name_len — bare identifier; must use full "shux_io_*" spelling (with 'x').
+ *
+ * Returns 1 to skip, 0 to emit.
+ * read_ptr_len allows name_len >= 20 (prefix match); others require exact length.
+ * PLATFORM: SHARED — Cap force hello co-emit must not redefine preamble bridges.
  */
 function codegen_should_skip_emit_func_core_read_ptr(name: *u8, name_len: i32): i32 {
-  let shu_len19: u8[19] = [115, 104, 117, 95, 105, 111, 95, 114, 101, 97, 100, 95, 112, 116, 114, 95, 108, 101, 110];
-  let shu15: u8[15] = [115, 104, 117, 95, 105, 111, 95, 114, 101, 97, 100, 95, 112, 116, 114];
-  /* shux_io_register — 15 字节，与 shux_io_read_ptr 同长不同后缀，单独逐字节匹配。 */
-  let shu_reg15: u8[15] = [115, 104, 117, 95, 105, 111, 95, 114, 101, 103, 105, 115, 116, 101, 114];
-  /* shux_io_register_buffers — 23 字节。 */
-  let shu_reg_bufs23: u8[23] = [115, 104, 117, 95, 105, 111, 95, 114, 101, 103, 105, 115, 116, 101, 114, 95, 98, 117, 102, 102, 101, 114, 115];
-  /* shux_io_unregister_buffers — 25 字节。 */
-  let shu_unreg_bufs25: u8[25] = [115, 104, 117, 95, 105, 111, 95, 117, 110, 114, 101, 103, 105, 115, 116, 101, 114, 95, 98, 117, 102, 102, 101, 114, 115];
-  /* shux_io_wait_readable — 20 字节。 */
-  let shu_wait_rd20: u8[20] = [115, 104, 117, 95, 105, 111, 95, 119, 97, 105, 116, 95, 114, 101, 97, 100, 97, 98, 108, 101];
+  /* shux_io_read_ptr_len — 20 */
+  let shux_rpl20: u8[20] = [115, 104, 117, 120, 95, 105, 111, 95, 114, 101, 97, 100, 95, 112, 116, 114, 95, 108, 101, 110];
+  /* shux_io_read_ptr — 16 */
+  let shux_rp16: u8[16] = [115, 104, 117, 120, 95, 105, 111, 95, 114, 101, 97, 100, 95, 112, 116, 114];
+  /* shux_io_register — 16 (same length as read_ptr, different suffix) */
+  let shux_reg16: u8[16] = [115, 104, 117, 120, 95, 105, 111, 95, 114, 101, 103, 105, 115, 116, 101, 114];
+  /* shux_io_register_buffers — 24 */
+  let shux_reg_bufs24: u8[24] = [115, 104, 117, 120, 95, 105, 111, 95, 114, 101, 103, 105, 115, 116, 101, 114, 95, 98, 117, 102, 102, 101, 114, 115];
+  /* shux_io_unregister_buffers — 26 */
+  let shux_unreg_bufs26: u8[26] = [115, 104, 117, 120, 95, 105, 111, 95, 117, 110, 114, 101, 103, 105, 115, 116, 101, 114, 95, 98, 117, 102, 102, 101, 114, 115];
+  /* shux_io_wait_readable — 21 */
+  let shux_wait_rd21: u8[21] = [115, 104, 117, 120, 95, 105, 111, 95, 119, 97, 105, 116, 95, 114, 101, 97, 100, 97, 98, 108, 101];
   if (name == 0 as *u8) {
     return 0;
   }
-  if (name_len >= 19 && codegen_name_bytes_prefix_eq(name, name_len, &shu_len19[0], 19) != 0) {
+  if (name_len >= 20 && codegen_name_bytes_prefix_eq(name, name_len, &shux_rpl20[0], 20) != 0) {
     return 1;
   }
-  if (name_len == 15 && codegen_name_bytes_prefix_eq(name, name_len, &shu15[0], 15) != 0) {
+  if (name_len == 16 && codegen_name_bytes_prefix_eq(name, name_len, &shux_rp16[0], 16) != 0) {
     return 1;
   }
-  if (name_len == 15 && codegen_name_bytes_prefix_eq(name, name_len, &shu_reg15[0], 15) != 0) {
+  if (name_len == 16 && codegen_name_bytes_prefix_eq(name, name_len, &shux_reg16[0], 16) != 0) {
     return 1;
   }
-  if (name_len == 23 && codegen_name_bytes_prefix_eq(name, name_len, &shu_reg_bufs23[0], 23) != 0) {
+  if (name_len == 24 && codegen_name_bytes_prefix_eq(name, name_len, &shux_reg_bufs24[0], 24) != 0) {
     return 1;
   }
-  if (name_len == 25 && codegen_name_bytes_prefix_eq(name, name_len, &shu_unreg_bufs25[0], 25) != 0) {
+  if (name_len == 26 && codegen_name_bytes_prefix_eq(name, name_len, &shux_unreg_bufs26[0], 26) != 0) {
     return 1;
   }
-  if (name_len == 20 && codegen_name_bytes_prefix_eq(name, name_len, &shu_wait_rd20[0], 20) != 0) {
+  if (name_len == 21 && codegen_name_bytes_prefix_eq(name, name_len, &shux_wait_rd21[0], 21) != 0) {
+    return 1;
+  }
+  /* shux_io_read_ptr_backend — 24 (preamble weak stub) */
+  let shux_rpb24: u8[24] = [115, 104, 117, 120, 95, 105, 111, 95, 114, 101, 97, 100, 95, 112, 116, 114, 95, 98, 97, 99, 107, 101, 110, 100];
+  if ((name_len == 24 || name_len == 25) && codegen_name_bytes_prefix_eq(name, name_len, &shux_rpb24[0], 24) != 0) {
+    return 1;
+  }
+  /* shux_io_submit_read_async — 25 (preamble weak stub) */
+  let shux_sra25: u8[25] = [115, 104, 117, 120, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100, 95, 97, 115, 121, 110, 99];
+  if ((name_len == 25 || name_len == 26) && codegen_name_bytes_prefix_eq(name, name_len, &shux_sra25[0], 25) != 0) {
     return 1;
   }
   return 0;

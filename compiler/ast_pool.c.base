@@ -7386,18 +7386,17 @@ int32_t pipeline_codegen_should_skip_emit_std_io_core_io_dup(uint8_t *dep_path, 
     return 0;
   if (memcmp(dep_path, "std.io.core", 11) != 0)
     return 0;
-  if ((name_len == 17 || name_len == 18) && codegen_name_prefix_eq(name, name_len, "shux_io_read_fixed", 17))
+  if ((name_len == 18 || name_len == 19) && codegen_name_prefix_eq(name, name_len, "shux_io_read_fixed", 18))
     return 1;
-  if ((name_len == 18 || name_len == 19) && codegen_name_prefix_eq(name, name_len, "shux_io_write_fixed", 18))
+  if ((name_len == 19 || name_len == 20) && codegen_name_prefix_eq(name, name_len, "shux_io_write_fixed", 19))
     return 1;
-  if ((name_len == 24 || name_len == 25) && codegen_name_prefix_eq(name, name_len, "shux_io_submit_read_batch", 24))
+  if ((name_len == 25 || name_len == 26) && codegen_name_prefix_eq(name, name_len, "shux_io_submit_read_batch", 25))
     return 1;
-  if ((name_len == 25 || name_len == 26) && codegen_name_prefix_eq(name, name_len, "shux_io_submit_write_batch", 25))
+  if ((name_len == 26 || name_len == 27) && codegen_name_prefix_eq(name, name_len, "shux_io_submit_write_batch", 26))
     return 1;
-  if ((name_len == 18 || name_len == 19) && codegen_name_prefix_eq(name, name_len, "shux_io_submit_read", 18))
+  if ((name_len == 19 || name_len == 20) && codegen_name_prefix_eq(name, name_len, "shux_io_submit_read", 19))
     return 1;
-  if ((name_len == 19 || name_len == 20) && codegen_name_prefix_eq(name, name_len, "shux_io_submit_write", 19))
-    return 1;
+  /* no submit_write skip: preamble has no weak stub; co-emit must define the strong symbol */
   return 0;
 }
 

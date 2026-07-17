@@ -166,6 +166,9 @@ const char *const driver_preamble_io_net_lines[] = {
         "#define std_io_core_shux_io_read_batch_buf(fd, bufs, n, t) io_read_batch_buf((fd), (const struct std_io_driver_Buffer *)(const void *)(bufs), (n), (t))\n",
         "#define std_io_core_shux_io_write_batch_buf(fd, bufs, n, t) io_write_batch_buf((fd), (const struct std_io_driver_Buffer *)(const void *)(bufs), (n), (t))\n",
         "#define std_io_core_shux_io_register_provided_buffers shux_io_register_provided_buffers\n",
+        /* Cap co-emit of std.io wrappers calls these names; map to runtime/io.o symbols. */
+        "#define std_io_core_shux_io_unregister_provided_buffers shux_io_unregister_provided_buffers\n",
+        "#define std_io_core_shux_io_provided_buffer_ptr shux_io_provided_buffer_ptr\n",
         "#define std_io_core_shux_io_provided_buffer_size shux_io_provided_buffer_size\n",
         "#define std_io_core_shux_io_read_provided shux_io_read_provided\n",
         "#define std_io_core_shux_io_read_batch_provided shux_io_read_batch_provided\n",
@@ -182,6 +185,8 @@ const char *const driver_preamble_io_net_lines[] = {
         "extern uint64_t shux_io_read_ptr_gen(void);\n",
         "extern struct shux_slice_uint8_t shux_io_read_ptr_slice(size_t handle, uint32_t timeout_ms);\n",
         "extern int32_t shux_io_register_provided_buffers(uint32_t nr, uint32_t bufsz);\n",
+        "extern void shux_io_unregister_provided_buffers(void);\n",
+        "extern uint8_t *shux_io_provided_buffer_ptr(uint32_t bid);\n",
         "extern uint32_t shux_io_provided_buffer_size(void);\n",
         "extern int32_t shux_io_read_provided(size_t handle, uint32_t timeout_ms, uint32_t *out_bid, uint32_t *out_len);\n",
         "extern int32_t shux_io_read_batch_provided(size_t handle, int32_t n, uint32_t timeout_ms, uint32_t *out_bids, uint32_t *out_lens);\n",
