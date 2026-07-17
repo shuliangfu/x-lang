@@ -3647,7 +3647,9 @@ decl_kind: i32, init_kind: i32): i32 {
         return 1;
       }
     }
-    if (int_val == 0 && (decl_kind == ord_f32 || decl_kind == ord_f64)) {
+    /* Integer literal → f32/f64 (incl. non-zero): product gate run-float init_non_zero_int.
+     * Zero-only would reject `let x: f32 = 1` after strict typeck stamps lit as i32. */
+    if (decl_kind == ord_f32 || decl_kind == ord_f64) {
       pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
       return 1;
     }

@@ -2175,7 +2175,8 @@ int32_t typeck_coerce_init_lit_to_decl(struct ast_ASTArena * arena, int32_t init
       return 1;
     }
   }
-  if (int_val == 0 && (decl_kind == ord_f32 || decl_kind == ord_f64)) {
+  /* Integer literal → f32/f64 (incl. non-zero); align typeck.x + run-float. */
+  if (decl_kind == ord_f32 || decl_kind == ord_f64) {
     pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
     return 1;
   }
