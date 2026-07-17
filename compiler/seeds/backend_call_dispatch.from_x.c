@@ -126,6 +126,11 @@ extern int32_t pipeline_type_elem_ref_at(struct ast_ASTArena *arena, int32_t typ
 extern int32_t pipeline_type_named_name_into(struct ast_ASTArena *arena, int32_t type_ref, uint8_t *out64);
 extern struct ast_PipelineDepCtx *pipeline_asm_emit_dep_pipe_c(void);
 extern int32_t pipeline_expr_resolved_type_ref(struct ast_ASTArena *a, int32_t expr_ref);
+extern int32_t pipeline_block_resolve_var_type_ref(struct ast_ASTArena *arena, int32_t block_ref, uint8_t *vname,
+                                                    int32_t vlen);
+extern int32_t asm_ctx_scope_block_ref_at(uint8_t *ctx);
+extern int32_t pipeline_expr_var_name_len(struct ast_ASTArena *a, int32_t expr_ref);
+extern void pipeline_expr_var_name_into(struct ast_ASTArena *a, int32_t expr_ref, uint8_t *out64);
 
 struct ast_ASTArena;
 struct ast_Module;
@@ -951,6 +956,39 @@ int32_t glue_type_kind_to_suffix_c(int32_t kind_ord, uint8_t *out, int32_t out_c
   return glue_type_kind_to_suffix_c_impl(kind_ord, out, out_cap);
 }
 #endif
+
+/**
+ * PLATFORM: SHARED — resolve arg type for import overload mangle.
+ * Prefer expr.resolved_type; for VAR fall back to scope-block let type
+ * (g_pipeline_asm_emit_scope_block path used by FIELD_ACCESS layout).
+ */
+static int32_t glue_asm_call_arg_type_ref_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                           int32_t arg_ref) {
+  int32_t ty;
+  int32_t ko;
+  int32_t scope_br;
+  uint8_t vname[64];
+  int32_t vlen;
+  if (!arena || arg_ref <= 0)
+    return 0;
+  ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
+  if (ty > 0)
+    return ty;
+  ko = pipeline_expr_kind_ord_at(arena, arg_ref);
+  if (ko != 3 || !ctx) /* VAR */
+    return 0;
+  vlen = pipeline_expr_var_name_len(arena, arg_ref);
+  if (vlen <= 0 || vlen > 63)
+    return 0;
+  pipeline_expr_var_name_into(arena, arg_ref, vname);
+  scope_br = asm_ctx_scope_block_ref_at((uint8_t *)ctx);
+  if (scope_br > 0) {
+    ty = pipeline_block_resolve_var_type_ref(arena, scope_br, vname, vlen);
+    if (ty > 0)
+      return ty;
+  }
+  return 0;
+}
 
 /**
  * PLATFORM: SHARED — type_ref → overload mangle suffix (align codegen_type_ref_to_suffix).
@@ -2388,13 +2426,11 @@ int32_t pipeline_asm_emit_call_elf_c_impl(struct ast_ASTArena *arena, struct pla
                   }
                 }
                 /*
-                 * PLATFORM: SHARED — always try caller-arena arg/ret type mangle when the
-                 * current symbol is still bare prefix+field. Do not gate on dep overload_count
-                 * (dep scan can miss import overloads → stayed std_string_len bare).
-                 * Formal: std_string_len_String; std_vec_new_retVec_u8.
+                 * PLATFORM: SHARED — prefer caller-arena arg/ret type mangle over bare
+                 * prefix+field. Formal string.o uses len_String; vec uses new_retVec_u8.
+                 * Always attempt (not only when first path produced bare).
                  */
-                if (sym_len > 0 && sym_len == pre_len + field_len
-                    && memcmp(sym_flat + pre_len, field_name, (size_t)field_len) == 0) {
+                {
                   int32_t n_args = pipeline_expr_call_num_args_at(arena, expr_ref);
                   int32_t pos;
                   int32_t pi;
@@ -2406,7 +2442,7 @@ int32_t pipeline_asm_emit_call_elf_c_impl(struct ast_ASTArena *arena, struct pla
                   }
                   for (pi = 0; pi < n_args && mid_len < 60; pi++) {
                     int32_t arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, pi);
-                    int32_t arg_ty = arg_ref > 0 ? pipeline_expr_resolved_type_ref(arena, arg_ref) : 0;
+                    int32_t arg_ty = glue_asm_call_arg_type_ref_c(arena, ctx, arg_ref);
                     uint8_t suf[64];
                     int32_t sl = arg_ty > 0 ? glue_asm_type_ref_to_suffix_c(arena, arg_ty, suf, 64) : 0;
                     if (sl <= 0)
