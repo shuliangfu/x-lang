@@ -6980,22 +6980,36 @@ void shux_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char *
             flags->have_libc_heap = 1;
     }
     /* Simple multi-sym groups → single rel (pure table). Formal ensure for core/*.o. */
-    for (sg = 0; sg < labi_od_simple_group_count(); sg++) {
-        const char *rel = labi_od_simple_group_rel(sg);
-        if (!rel || !rel[0])
-            continue;
-        if (!labi_od_user_needs_simple_group(user_o, sg))
-            continue;
-        /* PLATFORM: SHARED — L4 wipe drops gitignored core types/option/result .o;
-         * ensure via Makefile before push (same pattern as formal vec/math). */
-        if (strstr(rel, "core/types/") || strstr(rel, "core/option/") || strstr(rel, "core/result/")) {
-            const char *include_root = shux_repo_root_from_argv0(link_argv0);
-            char make_tgt[PATH_MAX];
-            if (include_root && include_root[0] &&
-                (size_t)snprintf(make_tgt, sizeof make_tgt, "../%s", rel) < sizeof make_tgt)
-                (void)shux_ensure_formal_std_make_o(include_root, rel, make_tgt);
+    {
+        int pushed_core_formal = 0;
+        for (sg = 0; sg < labi_od_simple_group_count(); sg++) {
+            const char *rel = labi_od_simple_group_rel(sg);
+            if (!rel || !rel[0])
+                continue;
+            if (!labi_od_user_needs_simple_group(user_o, sg))
+                continue;
+            /* PLATFORM: SHARED — L4 wipe drops gitignored core types/option/result .o;
+             * ensure via Makefile before push (same pattern as formal vec/math). */
+            if (strstr(rel, "core/types/") || strstr(rel, "core/option/") || strstr(rel, "core/result/")) {
+                const char *include_root = shux_repo_root_from_argv0(link_argv0);
+                char make_tgt[PATH_MAX];
+                if (include_root && include_root[0] &&
+                    (size_t)snprintf(make_tgt, sizeof make_tgt, "../%s", rel) < sizeof make_tgt)
+                    (void)shux_ensure_formal_std_make_o(include_root, rel, make_tgt);
+                pushed_core_formal = 1;
+            }
+            link_abi_asm_ld_push_obj(NULL, link_argv0, rel, lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
         }
-        link_abi_asm_ld_push_obj(NULL, link_argv0, rel, lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+        /*
+         * Formal core/*.o from shux_compile_std_module carry preamble weak process_arg*_c
+         * → U process_shux_*. Same complement as sync/atomic: push process_argv (not process.o).
+         * PLATFORM: SHARED — Ubuntu asm si residual after ELF UNDEF scan.
+         */
+        if (pushed_core_formal) {
+            (void)shux_ensure_runtime_process_argv_o(link_argv0);
+            link_abi_asm_ld_push_obj(shux_runtime_process_argv_o_path(link_argv0), link_argv0,
+                "compiler/runtime_process_argv.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+        }
     }
     if (labi_od_user_needs_any_sym_table(user_o, labi_od_time_sym_count(), labi_od_time_sym_at)) {
         if (shux_ensure_runtime_time_os_o(link_argv0) == 0)
