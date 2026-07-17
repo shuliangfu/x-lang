@@ -48,18 +48,28 @@ make -C compiler bootstrap-driver-bstrict
 
 > **禁止** 一波搅多债。硬绿按层推进；权威仍 `build_shux_asm.sh` + freestanding/stubs + 产品对象拓扑。
 
-| 层 | 现象 | 方向（未做） |
-|----|------|----------------|
-| **拓扑 / multi-def** | `pipeline_glue_strict_minimal` ∩ `pipeline_glue_standalone`；`preprocess_if_stack_only` 与 standalone 重定义 | crt0 对象集去重；与 libc 成功链对齐 |
-| **stdio 桩** | `fflush` UNDEF（crt0 `_start` + stubs `bootstrap_flush_stdio_and_exit`） | freestanding_io 或 nostdlib stubs **补全** fflush（G.7 有则补全） |
-| **backend** | 大量 `backend_enc_*` / emit（≈前缀最大） | 入链真 enc `.o` 或兼容桩表完整化 |
+| 层 | 现象 | 方向 |
+|----|------|------|
+| **拓扑 / multi-def** | ~~strict_minimal ∩ standalone；preprocess_if_stack_only ∩ standalone~~ | ✅ **L1 @ `e3d63a68`**：`filter_crt0_asm_objs`；Ubuntu multi **0** |
+| **stdio 桩** | `fflush` UNDEF（crt0 `_start` + stubs `bootstrap_flush_stdio_and_exit`） | **L2 前排**：freestanding_io 或 nostdlib stubs **补全** fflush（G.7 有则补全） |
+| **backend** | 大量 `backend_enc_*` / emit（≈前缀最大） | L3+：入链真 enc `.o` 或兼容桩表完整化 |
 | **typeck / driver / lsp** | `typeck_*` · `driver_diagnostic_*` · `lsp_*` | 与 experimental/strict 同源 companion 入链；禁第三套 |
 | **diag / parser / codegen** | 次级 UNDEF 簇 | 随拓扑闭合自然降 |
 
-unique UNDEF（修污染后 err 文件）≈ **291**。
+unique UNDEF（L1 后 err）≈ **284**（L0 try ≈291；multi 噪声去掉后略降）。
+
+## 2026-07-17 L1（Ubuntu · tip `e3d63a68`）
+
+| 项 | 结果 |
+|----|------|
+| 根修 | `filter_crt0_asm_objs`：standalone 在 bag 时 drop `pipeline_glue_strict_minimal` + `preprocess_if_stack_only` |
+| 日志 | `/tmp/ubuntu_n07_l1_e3d63a68.log` · err multi=**0** |
+| nostdlib crt0 | **仍红**（UNDEF 主导；head 为 `fflush`） |
+| 产品 | `function main(): i32 { return 42; }` **rv=42**；`ldd` 仍 libc |
 
 ## 延后（v4 硬绿 / v5）
 
-- 全链 nostdlib **硬绿**（experimental/strict 无 undefined reference）— **本 try 未达**
+- 全链 nostdlib **硬绿**（experimental/strict 无 undefined reference）— **L1 未达**
 - 默认 `SHUX_BOOTSTRAP_NOSTDLIB=1`
 - pthread/io_uring 去系统库
+
