@@ -8,15 +8,14 @@
 // 诊断码串经一次 malloc 池常驻（避免 -E 把 string lit return 编成自动期 compound literal）。
 // errno：linux `__errno_location` / macos `__error`（cfg）；err 文案经 strerror。
 //
-// PLATFORM: SHARED — declaration order is load-bearing for current typeck:
-// put #[cfg] export-externs BEFORE plain export-externs. Otherwise dual-cfg
-// same-name functions (rt_diag_get_errno) poison later global assigns
-// (rt_diag_ensure_codes → check_block failed / XT001). Typeck residual tracked
-// separately; this leaf keeps a safe interleaving so prove IDENTICAL stays green.
+// PLATFORM: SHARED — errno TLS accessors are declared on every host; only the
+// matching rt_diag_get_errno body (#[cfg]) references one of them. Do NOT wrap
+// these two export-externs in #[cfg]: a kept cfg-extern followed by a skipped
+// cfg-extern poisons later global assigns (rt_diag_ensure_codes → XT001
+// check_block) on the host where the second attr is false. Typeck residual
+// tracked separately; leaf uses always-on decls so dual-host prove stays green.
 
-#[cfg(target_os = "linux")]
 export extern "C" function __errno_location(): *i32;
-#[cfg(target_os = "macos")]
 export extern "C" function __error(): *i32;
 
 export extern "C" function strcmp(a: *u8, b: *u8): i32;
