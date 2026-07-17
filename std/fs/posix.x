@@ -359,6 +359,20 @@ export function fs_errno_set(v: i32): void {
   ep[0] = v;
 }
 
+/**
+ * Snapshot libc errno into module statics for fs_last_error_c.
+ * Purpose: open/stat failure paths record errno without re-querying TLS later.
+ * Returns: void. Side effect: sets fs_saved_last_error / fs_saved_last_error_set.
+ * Placed with fs_errno_* so co-emit keeps the body (mid-file after export-const block
+ * previously dropped this symbol while bare call sites remained → Ubuntu run-fs red).
+ * PLATFORM: SHARED — uses fs_libc_errno_location (LINUX/MACOS inside that helper).
+ */
+export function fs_note_last_error_posix(): void {
+  let ep: *i32 = fs_libc_errno_location();
+  fs_saved_last_error = ep[0];
+  fs_saved_last_error_set = 1;
+}
+
 #[cfg(target_os = "linux")]
 extern "C" function posix_fadvise(fd: i32, offset: i64, len: i64, advice: i32): i32;
 #[cfg(target_os = "linux")]
@@ -423,20 +437,6 @@ export const O_TRUNC: i32 = 1024;
 export const O_APPEND: i32 = 8;
 #[cfg(target_os = "macos")]
 export const F_NOCACHE: i32 = 48;
-
-#[cfg(target_os = "linux")]
-export function fs_note_last_error_posix(): void {
-  let ep: *i32 = fs_libc_errno_location();
-  fs_saved_last_error = ep[0];
-  fs_saved_last_error_set = 1;
-}
-
-#[cfg(target_os = "macos")]
-export function fs_note_last_error_posix(): void {
-  let ep: *i32 = fs_libc_errno_location();
-  fs_saved_last_error = ep[0];
-  fs_saved_last_error_set = 1;
-}
 
 /**
  * 从 PosixStatBuf 填充 FsStatOut。

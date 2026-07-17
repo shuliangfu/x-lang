@@ -71,7 +71,9 @@ const char *const driver_preamble_io_net_lines[] = {
         "extern int32_t open(uint8_t *path, int32_t flags, int32_t mode);\n"
         "static inline int32_t fs_libc_open(uint8_t *path, int32_t flags, int32_t mode) {\n"
         "  return open(path, flags, mode);\n"
-        "}\n",
+        "}\n"
+        /* Same-module calls may emit bare fs_note_last_error_posix; body is mangled. */
+        "#define fs_note_last_error_posix std_fs_posix_fs_note_last_error_posix\n",
         "static inline ssize_t shux_sys_read(int32_t fd, uint8_t *buf, size_t count) {\n"
         "  return read((int)fd, (void *)buf, count);\n"
         "}\n",
