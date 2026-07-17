@@ -1657,16 +1657,18 @@ codegen_gen.c: src/codegen/codegen.x
 	  tmp="$@.tmp.$$$$"; rm -f "$$tmp"; \
 	  $(MAKE) $(SHUX_C) && \
 	  ./$(SHUX_C) -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck src/codegen/codegen.x -E-extern > "$$tmp" && mv "$$tmp" $@; \
-	elif [ -s codegen_gen.c ]; then \
-	  echo "codegen_gen.c: pinned ($$(wc -c < codegen_gen.c | tr -d ' ') bytes; SHUX_FORCE_REGEN_GEN=1 to regen)"; \
-	elif [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/codegen_gen.linux.x86_64.c ] && [ ! -s codegen_gen.c ]; then \
-	  cp -f seeds/codegen_gen.linux.x86_64.c codegen_gen.c; \
-	  echo "codegen_gen.c: restored from seeds/codegen_gen.linux.x86_64.c"; \
+	elif [ -f seeds/codegen_gen.linux.x86_64.c ]; then \
+	  if [ ! -s codegen_gen.c ] || ! cmp -s seeds/codegen_gen.linux.x86_64.c codegen_gen.c; then \
+	    cp -f seeds/codegen_gen.linux.x86_64.c codegen_gen.c; \
+	    echo "codegen_gen.c: synced from tip seed pin (PLATFORM SHARED: guard gitignored pin drift)"; \
+	  else \
+	    echo "codegen_gen.c: pinned matches tip seed ($$(wc -c < codegen_gen.c | tr -d ' ') bytes)"; \
+	  fi; \
 	else \
 	  tmp="$@.tmp.$$$$"; rm -f "$$tmp"; \
 	  $(MAKE) $(SHUX_C) && \
 	  ./$(SHUX_C) -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck src/codegen/codegen.x -E-extern > "$$tmp" && mv "$$tmp" $@ || \
-	  { rm -f "$$tmp"; if [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/codegen_gen.linux.x86_64.c ]; then cp -f seeds/codegen_gen.linux.x86_64.c $@ && echo "codegen_gen.c: fallback seed (shux-c -E failed)" >&2; else exit 1; fi; }; \
+	  { rm -f "$$tmp"; exit 1; }; \
 	fi
 	perl scripts/fix_slim_arena_gen_c.pl $@
 
