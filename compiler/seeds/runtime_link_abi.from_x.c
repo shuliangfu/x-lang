@@ -7053,7 +7053,14 @@ void shux_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char *
             shux_runtime_test_fn_invoke_o_path(link_argv0), link_argv0,
             labi_od_rel_test_fn_invoke(), lib_roots, n_lib_roots, bank, argv, la, max_la);
     }
-    if (link_abi_link_needs_heap_user_c(user_o, argv, la ? *la : 0)) {
+    /*
+     * PLATFORM: LINUX freestanding / SHARED gate —
+     * runtime_heap_user.o wraps libc malloc/free/realloc. Under -freestanding
+     * (-nostdlib) that yields U malloc. Zero-libc product heap is page_mmap
+     * (co-emit or formal); never push heap_user on freestanding links.
+     * G.7: complete existing heap_user on_demand authority (no second path).
+     */
+    if (!driver_freestanding_get() && link_abi_link_needs_heap_user_c(user_o, argv, la ? *la : 0)) {
         if (shux_ensure_runtime_heap_user_o(link_argv0) != 0)
             return;
         link_abi_asm_ld_push_obj(shux_runtime_heap_user_o_path(link_argv0), link_argv0, labi_od_rel_heap_user(),
