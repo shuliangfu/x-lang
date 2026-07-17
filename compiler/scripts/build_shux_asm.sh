@@ -3466,20 +3466,28 @@ ensure_crt0_codegen_parser_companion_objs() {
 
   # --- conditional: bag stub → need X residual; bag selfhosted already defines ---
   if ! asm_strict_parser_selfhosted 2>/dev/null; then
+  # thin_glue parser_*_glue calls back into parser_x parse_*_into / onefunc wire.
+  # Export the full residual cascade from parser_x (not whole .o — multi with bag/standalone).
   p="$BUILD_DIR/crt0_l5_parser_partial.o"
-  if crt0_ld_partial_syms "$p" parser_x.o \
-  parser_copy_module_import_path64 \
-  parser_diag_fail_at_token_kind \
-  parser_onefunc_result_layout_prime \
-  parser_onefunc_result_layout_prime_b \
-  parser_onefunc_result_layout_prime_c \
-  parser_onefunc_result_layout_prime_d \
-  parser_onefunc_result_layout_prime_d_b \
-  parser_onefunc_result_layout_prime_e \
-  parser_onefunc_result_layout_prime_f \
-  parser_parse_into_buf; then
+  _psyms="$BUILD_DIR/crt0_l5_parser_export.txt"
+  if [ -f parser_x.o ] && [ -s parser_x.o ]; then
+  nm parser_x.o 2>/dev/null | awk '/ [TW] / {
+    s=$3; sub(/^_/, "", s)
+    if (s ~ /^(parse_expr_into|parser_parse_|parser_onefunc_|parser_copy_module_import_path64|parser_diag_fail_at_token_kind)$/ \
+        || s ~ /^parser_onefunc_result_layout_prime/ \
+        || s ~ /^parser_parse_into/)
+      print s
+  }' | sort -u >"$_psyms"
+  if [ -s "$_psyms" ]; then
+  if [ ! -f "$p" ] || [ parser_x.o -nt "$p" ] || [ "$_psyms" -nt "$p" ]; then
+  build_shux_asm_info "ld partial export $_psyms parser_x -> $p (NL-07 L5 parser cascade)"
+  ld_partial_export "$_psyms" "$p" parser_x.o || true
+  fi
+  if [ -f "$p" ] && [ -s "$p" ]; then
   CRT0_CG_PARSER_COMPANIONS="$CRT0_CG_PARSER_COMPANIONS $p"
-  build_shux_asm_info "crt0 L5: parser bag not selfhosted — append parser residual partial"
+  build_shux_asm_info "crt0 L5: parser bag not selfhosted — append parser residual cascade partial"
+  fi
+  fi
   fi
   fi
   if ! asm_strict_pipeline_selfhosted 2>/dev/null; then
