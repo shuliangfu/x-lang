@@ -10886,6 +10886,8 @@ static int32_t pipeline_asm_emit_expr_elf_rec(struct ast_ASTArena *arena, struct
     out_rc = r;
     goto debug_done;
   }
+  if (getenv("SHUX_ASM_MANGLE_TRACE") && (ko == 48 || ko == 49 || ko == 44))
+    fprintf(stderr, "shux: rec slow-dispatch ko=%d expr_ref=%d\n", (int)ko, (int)expr_ref);
   if (ko == 25 || ko == 27)
     out_rc = pipeline_asm_emit_expr_if_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
   /** EXPR_BLOCK 需走块体同步发射；若落 slow 会把同一 expr_ref 再喂回 rec，形成自递归。 */
