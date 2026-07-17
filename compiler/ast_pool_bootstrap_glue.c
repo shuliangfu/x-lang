@@ -459,9 +459,8 @@ typedef struct {
 } glue_std_heap_redirect_t;
 
 static const glue_std_heap_redirect_t kGlueStdHeapRedirect[] = {
+    /* PLATFORM: SHARED — bare free/realloc collide with libc FFI in heap.libc co-emit. */
     {"alloc", "heap_alloc_c"},
-    {"realloc", "heap_realloc_c"},
-    {"free", "heap_free_c"},
     {"alloc_i32", "heap_alloc_i32_c"},
     {"alloc_i32_ret_i32_ptr", "heap_alloc_i32_c"},
     {"alloc_i32_ret_u8_ptr", "heap_alloc_u8_c"},

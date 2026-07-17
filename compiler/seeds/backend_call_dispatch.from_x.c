@@ -2365,10 +2365,12 @@ int32_t glue_try_std_heap_redirect_sym_local_impl(const uint8_t *name, int32_t n
     const char *from;
     const char *to;
   } k_tab[] = {
-      /** 核心堆 API：co-emit 薄模块缺函数体，链 runtime_heap_user.o（heap_*_c）。 */
+      /** 核心堆 API：co-emit 薄模块缺函数体，链 runtime_heap_user.o（heap_*_c）。
+       * PLATFORM: SHARED — do NOT map bare free/realloc (collide with libc free/realloc
+       * in std.heap.libc co-emit → U heap_free_c under freestanding). Typed free_* /
+       * realloc_* remain; usize alloc/realloc use explicit mid or heap_*_c names. */
       {"alloc", "heap_alloc_c"},
-      {"realloc", "heap_realloc_c"},
-      {"free", "heap_free_c"},
+      /* bare realloc/free removed: libc FFI names in heap.libc (G.7 complete, no dual). */
       {"alloc_i32", "heap_alloc_i32_c"},
       {"alloc_i32_ret_i32_ptr", "heap_alloc_i32_c"},
       {"alloc_i32_ret_u8_ptr", "heap_alloc_u8_c"},
