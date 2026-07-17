@@ -52,11 +52,12 @@ make -C compiler bootstrap-driver-bstrict
 |----|------|------|
 | **拓扑 / multi-def** | ~~strict_minimal ∩ standalone；preprocess_if_stack_only ∩ standalone~~ | ✅ **L1 @ `e3d63a68`**：`filter_crt0_asm_objs`；Ubuntu multi **0** |
 | **stdio 桩** | ~~`fflush` UNDEF~~ | ✅ **L2 @ `6a945f5b`**：`bootstrap_nostdlib_stubs` 补全 `fflush`（G.7；**非** freestanding_io） |
-| **backend** | 大量 `backend_enc_*` / emit（≈前缀最大 · L2 后 head） | **L3 前排**：入链真 enc `.o` 或兼容桩表完整化 |
+| **backend enc** | ~~大量 `backend_enc_*` / arch_emit / try_inline / simd~~ | ✅ **L3 @ `b613f58e`**：crt0 追加 `BSTRICT_DISPATCH_OBJS`+simd（与 experimental 同权威） |
+| **backend emit** | `backend_emit_*`（10 · L3 后 head） | **L3b 前排**：seed heavy partial 入链；禁第二套 weak 桩表 |
 | **typeck / driver / lsp** | `typeck_*` · `driver_diagnostic_*` · `lsp_*` | 与 experimental/strict 同源 companion 入链；禁第三套 |
 | **diag / parser / codegen** | 次级 UNDEF 簇 | 随拓扑闭合自然降 |
 
-unique UNDEF（L2 后 err）≈ **283**（L1 ≈284；L0 try ≈291）。
+unique UNDEF（L3 后 err）≈ **156**（L2 ≈283；L1 ≈284；L0 try ≈291）。
 
 ## 2026-07-17 L1（Ubuntu · tip `e3d63a68`）
 
@@ -77,9 +78,19 @@ unique UNDEF（L2 后 err）≈ **283**（L1 ≈284；L0 try ≈291）。
 | gate | **OK**（匹配 `bootstrap nostdlib final link OK`；**≠** crt0 全绿） |
 | 产品 | `function main(): i32 { return 42; }` **rv=42** |
 
+## 2026-07-17 L3（Ubuntu · tip `b613f58e`）
+
+| 项 | 结果 |
+|----|------|
+| 根修 | `ensure_crt0_backend_companion_objs`：crt0 链 `backend_enc_dispatch` + `backend_x86_64_enc_c` + arch_emit / try_inline / call + simd_*（G.7 = `BSTRICT_DISPATCH_OBJS` 权威） |
+| 日志 | `/tmp/ubuntu_n07_l3_b613f58e.log` · err **backend_enc=0** · multi=**0** · unique UNDEF **283→156** |
+| nostdlib crt0 bag | **仍红**（head `backend_emit_*`×10 → typeck/driver）；**无** `bootstrap nostdlib crt0 link OK` |
+| gate | **OK**（final-link loose；**≠** crt0 全绿） |
+| 产品 | `function main(): i32 { return 42; }` **rv=42** |
+
 ## 延后（v4 硬绿 / v5）
 
-- 全链 nostdlib **硬绿**（crt0 bag 无 undefined reference）— **L2 未达**（L3+ residual）
+- 全链 nostdlib **硬绿**（crt0 bag 无 undefined reference）— **L3 未达**（L3b+ residual）
 - 默认 `SHUX_BOOTSTRAP_NOSTDLIB=1`
 - pthread/io_uring 去系统库
 

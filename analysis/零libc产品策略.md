@@ -17,7 +17,7 @@
 |------|------|--------------------|
 | **L0 语义自举** | 产品 `shux_asm` 冷编译自己 + 全量 bstrict | 双端 tip 已绿（钉盘见 `自举进度.md`） |
 | **L1 用户零 libc** | 用户 `.x` 经产品路径出 **nostdlib、无 `-lc`** 的静态可执行文件（Linux x86_64） | **NL-05 等 gate ✅**；std 首批发 NL-06 🟡 |
-| **L2 编译器 / bootstrap 零 libc** | `shux_asm` 自身无动态 `libc.so`、crt0 bag nostdlib **无 UNDEF** | **进行中**：NL-07 **L1 multi=0** + **L2 fflush** 已关；crt0 bag unique UNDEF≈283（head `backend_enc_*`）→ **L3+**；G-03 未硬绿 |
+| **L2 编译器 / bootstrap 零 libc** | `shux_asm` 自身无动态 `libc.so`、crt0 bag nostdlib **无 UNDEF** | **进行中**：NL-07 **L1–L3** 已关（multi / fflush / `backend_enc`）；crt0 bag unique UNDEF≈156（head `backend_emit_*`）→ **L3b+**；G-03 未硬绿 |
 
 「实现无 libc」= **L1 + L2 都硬绿**。L0 绿 **不能** 单独写成「无 libc 已完成」。
 
@@ -186,7 +186,7 @@ SHUX_NOLIBC_N07_V4_TRY_BUILD=1 SHUX_NOLIBC_N07_V4_FAIL=1 \
 1. **终局 = 零 libc 依赖**（Linux 金标编译器 + 用户 freestanding 路径）。  
 2. **不做 `--libc`**——不实现、不文档化、不作为兼容轴。  
 3. **用户入口 = `-freestanding` only**；compiler residual 用分层债清，不用新 CLI 糊。  
-4. **NL-07 按层推进**（已 L1 multi-def、L2 fflush；下为 L3 `backend_enc_*` …）→ G-03。  
+4. **NL-07 按层推进**（已 L1 multi-def、L2 fflush、L3 enc companions；下为 L3b `backend_emit_*` → typeck/driver）→ G-03。  
 5. **范围诚实**：mac/Windows 是平台兼容，不假装物理零系统库；Linux 是验收真值。  
 6. **实现以 gate / `ldd` / crt0 UNDEF 为准**，不以叙事为准。
 
@@ -199,7 +199,8 @@ SHUX_NOLIBC_N07_V4_TRY_BUILD=1 SHUX_NOLIBC_N07_V4_FAIL=1 \
 | 双端 bstrict / 产品矩阵 | **L0**；不替代 F-no-libc |
 | NL-07 L1 `e3d63a68` | crt0 multi-def 关 |
 | NL-07 L2 `6a945f5b` | nostdlib stubs `fflush` 关 |
-| NL-07 L3+ | `backend_enc` / typeck / driver companion |
+| NL-07 L3 `b613f58e` | crt0 入链 `BSTRICT_DISPATCH_OBJS`+simd（`backend_enc_*=0`） |
+| NL-07 L3b+ | `backend_emit_*` / typeck / driver companion |
 | 本文 | **策略权威**；进度 KPI 见 `自举进度.md` / `当前进度.md` |
 
 ---
