@@ -2284,6 +2284,41 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
       stmt_tok_ready = false;
       continue;
     }
+    /**
+     * Bare block statement `{ stmts }` at statement position (C compound statement).
+     * PLATFORM: SHARED — not a block-expression that requires a trailing `;`.
+     * Why: mega parse_into uses `{ let try_cfg_allow = ...; ... } module.pending_cfg_skip = 0;`
+     * inside `if (pending_cfg_skip)`. Treating `{` as parse_expr + require `;` fails the whole
+     * function (parse-skip of parse_into / parse_into_buf). Represent as expr_stmt of EXPR_BLOCK
+     * so codegen emits nested `{ ... }` without requiring a semicolon after the closing brace.
+     */
+    if (r.tok.kind == token.TokenKind.TOKEN_LBRACE) {
+      lex_from_next_into(&lex_cur, r);
+      let block_res_bare: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex_cur };
+      parse_block_into(arena, lex_cur, source, type_ref, &block_res_bare);
+      if (!block_res_bare.ok) {
+        out.ok = false;
+        return;
+      }
+      let bare_expr: i32 = wrap_block_ref_as_expr(arena, block_res_bare.block_ref, type_ref);
+      if (bare_expr == 0) {
+        out.ok = false;
+        return;
+      }
+      let bare_ex_i: i32 = pipeline_block_append_expr_stmt(arena, block_ref, bare_expr);
+      if (bare_ex_i < 0) {
+        out.ok = false;
+        return;
+      }
+      if (pipeline_block_append_stmt_order(arena, block_ref, 2, bare_ex_i) < 0) {
+        out.ok = false;
+        return;
+      }
+      b = ast.ast_arena_block_get(arena, block_ref);
+      lex_cur = block_res_bare.next_lex;
+      stmt_tok_ready = false;
+      continue;
+    }
     /* 表达式语句 expr;（起点用 lex_at_token_from_result(r)，勿先 lex_from_result_ptr 以免 lex_cur 越过当前 token） */
     let stmt_start: Lexer = lex_at_token_from_result(r);
     let expr_stmt_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: stmt_start };
@@ -3349,7 +3384,17 @@ export function skip_one_top_level_const_into_buf(out: *Lexer, lex: Lexer, data:
   }
 }
 
-/** B-01/B-19：跳过一条顶层 let 声明；lex 位于 let 前。 */
+/** B-01/B-19：跳过一条顶层 let 声明（slice 路径；与 skip_one_top_level_const_into 对称）。
+ * PLATFORM: SHARED — avoids illegal `source as *u8` on Cap by-value slice emit. */
+export extern function parser_skip_one_top_level_let_into_glue(out: *Lexer, lex: Lexer, source: u8[]): void;
+export function skip_one_top_level_let_into(out: *Lexer, lex: Lexer, source: u8[]): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+  parser_skip_one_top_level_let_into_glue(out, lex, source);
+  }
+}
+
+/** B-01/B-19：跳过一条顶层 let 声明；lex 位于 let 前（buf 路径）。 */
 export extern function parser_skip_one_top_level_let_into_buf_glue(out: *Lexer, lex: Lexer, data: *u8, len: i32): void;
 export function skip_one_top_level_let_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -4372,6 +4417,32 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
          * parse_if_stmt_into() 已返回下一 stmt 首 token；此处勿再二次 realign。
          * 否则 `if (...) { ... } tick(); x = ...;` 这类裸 expr_stmt 后继会被重新暴露给当前函数体顶层循环。
          */
+        stmt_tok_ready = false;
+        continue;
+      }
+      /**
+       * Bare block statement `{ stmts }` at function-body statement position.
+       * PLATFORM: SHARED — same contract as parse_block_into (no trailing `;`).
+       * Mirrors seed parser_parse_block_into bare-block arm so mega parse_into* parse.
+       */
+      if (r.tok.kind == token.TokenKind.TOKEN_LBRACE) {
+        lex_from_next_into(&lex, r);
+        let block_res_bare_fn: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex };
+        parse_block_into(arena, lex, source, ret_type_ref, &block_res_bare_fn);
+        if (!block_res_bare_fn.ok) {
+          set_onefunc_fail(out, lex); return;
+        }
+        let bare_expr_fn: i32 = wrap_block_ref_as_expr(arena, block_res_bare_fn.block_ref, ret_type_ref);
+        if (bare_expr_fn == 0) {
+          set_onefunc_fail(out, lex); return;
+        }
+        let bare_ex_fn: i32 = pipeline_onefunc_push_body_expr_stmt(onefunc_result_pool_ptr(out), bare_expr_fn);
+        if (bare_ex_fn < 0) {
+          set_onefunc_fail(out, lex); return;
+        }
+        out.num_src_body_expr_stmts = pipeline_onefunc_num_body_expr_stmts(onefunc_result_pool_ptr(out));
+        onefunc_push_src_stmt(out, 2, bare_ex_fn);
+        lex = block_res_bare_fn.next_lex;
         stmt_tok_ready = false;
         continue;
       }
@@ -6186,7 +6257,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
         continue;
       }
       if (r.tok.kind == token.TokenKind.TOKEN_LET) {
-        skip_one_top_level_let_into_buf(&lex, iter_start, source as *u8, source.length as i32);
+        skip_one_top_level_let_into(&lex, iter_start, source);
         module.pending_cfg_skip = 0;
         module.pending_export = 0;
         if (lex.pos == iter_start.pos && lex.pos < source.length) {

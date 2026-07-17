@@ -1565,6 +1565,13 @@ void parser_skip_one_top_level_const_into_buf_glue(struct parser_asm_lexer *out,
   parser_asm_skip_one_top_level_const_into_slice_c(out, lex, &source);
 }
 
+/** B-01/B-19：跳过一条顶层 let 声明（slice 路径；与 const_into 对称）。
+ * PLATFORM: SHARED — product Cap emit passes shux_slice by value; glue takes *slice. */
+void parser_skip_one_top_level_let_into_glue(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
+                                              struct parser_asm_slice_u8 *source) {
+  parser_asm_skip_one_top_level_let_into_slice_c(out, lex, source);
+}
+
 /** buf 路径：跳过一条顶层 let 声明。 */
 void parser_skip_one_top_level_let_into_buf_glue(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
                                                   uint8_t *data, int32_t len) {
