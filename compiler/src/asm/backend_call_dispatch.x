@@ -1884,43 +1884,8 @@ export function glue_try_std_heap_redirect_sym_local(name: *u8, nlen: i32, out: 
       return 12;
     }
   }
-  if (nlen == 7) {
-    if (name[0]==114 && name[1]==101 && name[2]==97 && name[3]==108 && name[4]==108 && name[5]==111 && name[6]==99) {
-      if (14 + 1 > cap) { return 0; }
-      out[0] = 104;
-      out[1] = 101;
-      out[2] = 97;
-      out[3] = 112;
-      out[4] = 95;
-      out[5] = 114;
-      out[6] = 101;
-      out[7] = 97;
-      out[8] = 108;
-      out[9] = 108;
-      out[10] = 111;
-      out[11] = 99;
-      out[12] = 95;
-      out[13] = 99;
-      return 14;
-    }
-  }
-  if (nlen == 4) {
-    if (name[0]==102 && name[1]==114 && name[2]==101 && name[3]==101) {
-      if (11 + 1 > cap) { return 0; }
-      out[0] = 104;
-      out[1] = 101;
-      out[2] = 97;
-      out[3] = 112;
-      out[4] = 95;
-      out[5] = 102;
-      out[6] = 114;
-      out[7] = 101;
-      out[8] = 101;
-      out[9] = 95;
-      out[10] = 99;
-      return 11;
-    }
-  }
+  /* bare realloc (7) / free (4) removed: collide with libc FFI in heap.libc co-emit.
+   * PLATFORM: SHARED — typed free_*/realloc_* rows below; seed table same (G.7). */
   if (nlen == 9) {
     if (name[0]==97 && name[1]==108 && name[2]==108 && name[3]==111 && name[4]==99 && name[5]==95 && name[6]==105 && name[7]==51 && name[8]==50) {
       if (16 + 1 > cap) { return 0; }
