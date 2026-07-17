@@ -3836,6 +3836,17 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
    * 用 func_name_len_storage[0] 存函数名长度，避免与 plen 等复用导致被 i32 的 ident_len(3) 覆盖。 */
   let name_start: usize = (0 as usize);
   let func_name_len_storage: i32[1] = [];
+  /**
+   * Hoist-safe zeros for return/param type parse (pin X→C has no stmt_order).
+   * PLATFORM: SHARED — product pin hoists `let x = parse_type_ref...` to function top and
+   * mutates `lex` before the function name is read (force FAIL at `(`; only glue fallback
+   * saves bare `return N`). Assign only after `):` / param `:` so force parse_one_function_impl
+   * can own binop/unary/paren returns without relying on buf_into glue.
+   */
+  let lex_before_ret: Lexer = Lexer { pos: 0 as usize, line: 0, col: 0 };
+  let ret_type_ref: i32 = 0;
+  let lex_before_type: Lexer = Lexer { pos: 0 as usize, line: 0, col: 0 };
+  let type_ref_param: i32 = 0;
   /* 用 lexer_next_into 取首 token，避免 LexerResult 按值返回/赋值的 ABI 导致 r.tok 读错 */
   let r: LexerResult = LexerResult { next_lex: lex, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
   lexer.lexer_next_into(&r, lex, source);
@@ -3930,9 +3941,9 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         set_onefunc_fail(out_ref, lex); return;
       }
       lex_from_next_into(&lex, r);
-      let lex_before_type: Lexer = lex;
-      /* 参数类型：统一走 parse_type_ref_for_arena_into（含 *u8、*CodegenOutBuf、u8[N] 等），写入侧车池 param_type_refs。 */
-      let type_ref_param: i32 = parse_type_ref_for_arena_into(arena, lex_before_type, source, &lex);
+      /* Param type: assign after `:`; zeros declared at function top (hoist-safe). */
+      lex_before_type = lex;
+      type_ref_param = parse_type_ref_for_arena_into(arena, lex_before_type, source, &lex);
       if (type_ref_param == 0) {
         set_onefunc_fail(out_ref, lex); return;
       }
@@ -3962,9 +3973,9 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
     set_onefunc_fail(out_ref, lex); return;
   }
   lex_from_next_into(&lex, r);
-  let lex_before_ret: Lexer = lex;
-  /* 返回类型：标量 / 命名 / *u8 / *Ident 等，与形参类型同一套 parse_type_ref_for_arena_into。 */
-  let ret_type_ref: i32 = parse_type_ref_for_arena_into(arena, lex_before_ret, source, &lex);
+  /* Return type after `):`; zeros at function top so pin cannot pre-parse from entry lex. */
+  lex_before_ret = lex;
+  ret_type_ref = parse_type_ref_for_arena_into(arena, lex_before_ret, source, &lex);
   if (ret_type_ref == 0) {
     set_onefunc_fail(out, lex); return;
   }
