@@ -7246,28 +7246,27 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
               (void)((mc_resolved_ok = 1));
             }
             /* PLATFORM: SHARED — multi-import: call_resolved dep may be transitive (heap.libc)
-             * while binding is std.heap; require path match + re-search overloads. */
+             * while binding is std.heap; require path match. Keep typeck overload when path OK. */
             if ((mc_resolved_ok !=0)) {
               uint8_t bind_path[64] = {};
               int32_t bind_plen = codegen_resolve_binding_import_path_for_method_call(ctx, arena, expr_ref, &((bind_path)[0]));
               uint8_t dep_path_chk[64] = {};
               (void)(pipeline_dep_ctx_import_path_copy64(ctx, dep_ix, &((dep_path_chk)[0])));
               int32_t dep_plen_chk = pipeline_dep_ctx_import_path_len(ctx, dep_ix);
-              if (((bind_plen <=0) || (bind_plen !=dep_plen_chk))) {
-                (void)((mc_resolved_ok = 0));
-              } else {
-                int32_t bp = 0;
-                while ((bp < bind_plen)) {
-                  if (((bind_path)[bp] !=((dep_path_chk)[bp]))) {
-                    (void)((mc_resolved_ok = 0));
-                    (void)((bp = bind_plen));
-                  } else {
-                    (void)((bp = (bp + 1)));
+              if ((bind_plen > 0)) {
+                if ((bind_plen !=dep_plen_chk)) {
+                  (void)((mc_resolved_ok = 0));
+                } else {
+                  int32_t bp = 0;
+                  while ((bp < bind_plen)) {
+                    if (((bind_path)[bp] !=((dep_path_chk)[bp]))) {
+                      (void)((mc_resolved_ok = 0));
+                      (void)((bp = bind_plen));
+                    } else {
+                      (void)((bp = (bp + 1)));
+                    }
                   }
                 }
-              }
-              if ((((mc_resolved_ok !=0) && (fn_len > 0)) && (codegen_module_func_overload_count(dep_mod, &((fn_name)[0]), fn_len) > 1))) {
-                (void)((mc_resolved_ok = 0));
               }
             }
             if ((mc_resolved_ok !=0)) {

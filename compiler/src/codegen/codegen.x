@@ -6407,8 +6407,8 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
              * PLATFORM: SHARED — multi-import closure can leave call_resolved dep_ix on a
              * transitive dep (e.g. std.heap.libc) while the binding is std.heap. Name+arity
              * alone then emits std_heap_libc_free instead of std_heap_free_u8_ptr.
-             * Trust resolved only when dep path matches the import binding path; overloads
-             * always re-search by arg types (same policy as CALL emit_call_func_name).
+             * Trust resolved only when dep path matches the import binding path.
+             * When path matches, keep typeck's overload pick (do not force re-search).
              */
             if (mc_resolved_ok != 0) {
               let bind_path: u8[64] = [];
@@ -6416,22 +6416,20 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
               let dep_path_chk: u8[64] = [];
               pipeline_dep_ctx_import_path_copy64(ctx, dep_ix, &dep_path_chk[0]);
               let dep_plen_chk: i32 = pipeline_dep_ctx_import_path_len(ctx, dep_ix);
-              if (bind_plen <= 0 || bind_plen != dep_plen_chk) {
-                mc_resolved_ok = 0;
-              } else {
-                let bp: i32 = 0;
-                while (bp < bind_plen) {
-                  if (bind_path[bp] != dep_path_chk[bp]) {
-                    mc_resolved_ok = 0;
-                    bp = bind_plen;
-                  } else {
-                    bp = bp + 1;
+              if (bind_plen > 0) {
+                if (bind_plen != dep_plen_chk) {
+                  mc_resolved_ok = 0;
+                } else {
+                  let bp: i32 = 0;
+                  while (bp < bind_plen) {
+                    if (bind_path[bp] != dep_path_chk[bp]) {
+                      mc_resolved_ok = 0;
+                      bp = bind_plen;
+                    } else {
+                      bp = bp + 1;
+                    }
                   }
                 }
-              }
-              if (mc_resolved_ok != 0 && fn_len > 0
-                  && codegen_module_func_overload_count(dep_mod, &fn_name[0], fn_len) > 1) {
-                mc_resolved_ok = 0;
               }
             }
             if (mc_resolved_ok != 0) {
