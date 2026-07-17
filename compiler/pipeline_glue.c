@@ -14026,6 +14026,9 @@ int32_t pipeline_asm_emit_cmp_elf(struct ast_ASTArena *arena, struct platform_el
     /** FLOAT_LIT 默认 f64 位型比较。 */
     if (is_cmp_64bit == 0 && pipeline_expr_kind_ord_at(arena, left_ref) == 1)
       is_cmp_64bit = 1;
+    /** Right FLOAT_LIT (math.pi() <= 3.0)：双侧 f64 位型，须 cmpq。 */
+    if (is_cmp_64bit == 0 && right_ref > 0 && pipeline_expr_kind_ord_at(arena, right_ref) == 1)
+      is_cmp_64bit = 1;
   }
   /**
    * CALL 与字面量 0 比较（while/if 内 pipeline_loop_* / sync_one 等）：

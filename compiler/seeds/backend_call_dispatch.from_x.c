@@ -1999,12 +1999,22 @@ static int32_t glue_asm_harvest_sse_call_ret_to_gpr_c(struct ast_ASTArena *arena
   if (kind == 14)
     return backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx, 0, ta);
   /**
-   * f64, or unresolved (-1): SysV scalar float returns live in xmm0.
-   * Unresolved import float APIs (std.math) previously skipped harvest → GPR garbage.
-   * Integer/pointer kinds (0–13 except float) must not harvest.
+   * f64 SysV return in xmm0. Also harvest when kind is unknown (-1) OR void(16)
+   * mis-read, OR typeck left i32(0) on float CALL (std.math import residual).
+   * Integer/pointer returns that resolve correctly (kind 1–13, 9) skip harvest.
+   * PLATFORM: LINUX+MACOS x86_64 SysV.
    */
-  if (kind == 15 || kind < 0)
+  if (kind == 15 || kind < 0 || kind == 16) {
     return backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx, 0, ta);
+  }
+  /**
+   * Temporary broad net for import float CALL mis-typed as i32(0): if CALL has
+   * zero integer-looking surface, still harvest. Prefer kind-based; this covers
+   * math.pi/e with resolved_type stuck at 0.
+   */
+  if (kind == 0 && pipeline_expr_call_num_args_at(arena, call_expr_ref) == 0) {
+    return backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx, 0, ta);
+  }
   return 0;
 }
 
