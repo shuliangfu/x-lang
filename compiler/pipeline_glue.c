@@ -13445,6 +13445,48 @@ int32_t pipeline_asm_type_ref_byte_size_c(struct ast_ASTArena *arena, int32_t ty
 }
 
 /**
+ * Call/method-arg value byte size for SysV GP packing (G.7 authority with dual load).
+ * Order: formal pty → expr resolved → VAR decl type (scope) → named layout any dep.
+ * PLATFORM: SHARED size query; consumers apply LINUX+MACOS SysV 2-GP for 9–16B.
+ */
+int32_t pipeline_asm_call_arg_value_byte_size_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                                 int32_t arg_ref, int32_t pty) {
+  int32_t sz = 0;
+  int32_t tr;
+  if (pty > 0)
+    sz = glue_type_size_simple(g_pipeline_asm_emit_module, arena, pty, 0);
+  if (sz <= 0 && arg_ref > 0 && arena) {
+    tr = pipeline_expr_resolved_type_ref(arena, arg_ref);
+    if (tr > 0)
+      sz = glue_type_size_simple(g_pipeline_asm_emit_module, arena, tr, 0);
+  }
+  if (arg_ref > 0 && arena && ctx && pipeline_expr_kind_ord_at(arena, arg_ref) == 3) {
+    tr = glue_var_decl_type_ref_elf_c(arena, ctx, arg_ref);
+    if (tr > 0) {
+      int32_t sz2 = glue_type_size_simple(g_pipeline_asm_emit_module, arena, tr, 0);
+      if (sz2 > sz)
+        sz = sz2;
+    }
+  }
+  if (sz <= 8 && pty > 0) {
+    int32_t sz2 = glue_type_named_layout_size_any_module_elf_c(arena, pty);
+    if (sz2 > sz)
+      sz = sz2;
+  }
+  if (sz <= 8 && arg_ref > 0 && arena) {
+    tr = pipeline_expr_resolved_type_ref(arena, arg_ref);
+    if (tr > 0) {
+      int32_t sz2 = glue_type_named_layout_size_any_module_elf_c(arena, tr);
+      if (sz2 > sz)
+        sz = sz2;
+    }
+  }
+  if (sz <= 0)
+    return 8;
+  return sz;
+}
+
+/**
  * 按 §11.1 + field_align(N) 动态计算 layout li 第 fj 字段字节偏移（权威值，勿信仅 fi*8 回退）。
  * 未命中 layout/字段时返回 fj*8。
  */

@@ -343,6 +343,8 @@ extern int32_t backend_enc_mov_xmm_arg_reg_to_eax_arch(struct platform_elf_ElfCo
 extern int32_t backend_enc_mov_xmm_arg_reg_to_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k,
                                                        int32_t ta);
 extern int32_t pipeline_asm_type_ref_byte_size_c(struct ast_ASTArena *arena, int32_t ty_ref);
+extern int32_t pipeline_asm_call_arg_value_byte_size_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                                       int32_t arg_ref, int32_t pty);
 extern int32_t pipeline_asm_deref_struct16_rax_ptr_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t pipeline_asm_call_struct16_ret_needs_rax_deref_c(struct ast_ASTArena *arena, int32_t call_expr_ref);
 extern int32_t pipeline_asm_emit_call_sret_reg_shift_c(void);
@@ -489,9 +491,19 @@ static int32_t glue_sysv_arg_gp_units_from_size_c(int32_t sz) {
   return 1;
 }
 
-/** Byte size of a call/method arg: formal param type, else arg expr resolved type. */
-static int32_t glue_sysv_arg_byte_size_c(struct ast_ASTArena *arena, int32_t pty, int32_t arg_ref) {
-  int32_t sz = 0;
+/**
+ * Byte size of a call/method arg for SysV packing.
+ * Prefer pipeline authority (VAR decl + dep layout); fallback formal/resolved only.
+ */
+static int32_t glue_sysv_arg_byte_size_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx, int32_t pty,
+                                         int32_t arg_ref) {
+  int32_t sz;
+  if (arena) {
+    sz = pipeline_asm_call_arg_value_byte_size_c(arena, ctx, arg_ref, pty);
+    if (sz > 0)
+      return sz;
+  }
+  sz = 0;
   if (pty > 0 && arena)
     sz = pipeline_asm_type_ref_byte_size_c(arena, pty);
   if (sz <= 0 && arg_ref > 0 && arena) {
@@ -543,7 +555,7 @@ int32_t glue_sysv_x86_call_arg_slot_c_impl(struct ast_ASTArena *arena, int32_t c
   for (j = 0; j <= arg_index && j < nargs; j++) {
     pty = glue_call_param_type_ref_at(arena, call_expr_ref, j);
     arg_ref = pipeline_expr_call_arg_ref(arena, call_expr_ref, j);
-    units = glue_sysv_arg_gp_units_from_size_c(glue_sysv_arg_byte_size_c(arena, pty, arg_ref));
+    units = glue_sysv_arg_gp_units_from_size_c(glue_sysv_arg_byte_size_c(arena, 0, pty, arg_ref));
     if (j == arg_index) {
       if (glue_call_arg_is_sse_float_c(arena, call_expr_ref, j, pty)) {
         if (xmm < 8) {
@@ -605,7 +617,7 @@ int32_t glue_sysv_x86_call_n_stack_c_impl(struct ast_ASTArena *arena, int32_t ca
   for (j = 0; j < nargs; j++) {
     pty = glue_call_param_type_ref_at(arena, call_expr_ref, j);
     arg_ref = pipeline_expr_call_arg_ref(arena, call_expr_ref, j);
-    units = glue_sysv_arg_gp_units_from_size_c(glue_sysv_arg_byte_size_c(arena, pty, arg_ref));
+    units = glue_sysv_arg_gp_units_from_size_c(glue_sysv_arg_byte_size_c(arena, 0, pty, arg_ref));
     if (glue_call_arg_is_sse_float_c(arena, call_expr_ref, j, pty)) {
       if (xmm < 8)
         xmm++;
@@ -738,7 +750,7 @@ int32_t glue_emit_call_args_elf_sysv_f32_xmm_c_impl(struct ast_ASTArena *arena,
     use_xmm = (kind == 1) || glue_call_arg_is_sse_float_c(arena, expr_ref, i, pty);
     if (!use_xmm) {
       int32_t units =
-          glue_sysv_arg_gp_units_from_size_c(glue_sysv_arg_byte_size_c(arena, pty, arg_ref));
+          glue_sysv_arg_gp_units_from_size_c(glue_sysv_arg_byte_size_c(arena, ctx, pty, arg_ref));
       if (glue_sysv_place_rax_rdx_arg_regs_elf_c(elf_ctx, ta, reg_k, units) != 0) {
         pipeline_asm_emit_set_call_f32_xmm(0);
         return -1;
@@ -2028,7 +2040,7 @@ int32_t pipeline_asm_emit_call_args_elf_c_impl(struct ast_ASTArena *arena, struc
         int32_t u;
         ar_i = pipeline_expr_call_arg_ref(arena, expr_ref, i);
         pty_i = glue_call_param_type_ref_at(arena, expr_ref, i);
-        u = glue_sysv_arg_gp_units_from_size_c(glue_sysv_arg_byte_size_c(arena, pty_i, ar_i));
+        u = glue_sysv_arg_gp_units_from_size_c(glue_sysv_arg_byte_size_c(arena, ctx, pty_i, ar_i));
         gp_start[i] = gp_cur;
         gp_units[i] = u;
         if (gp_cur + u <= reg_max)
@@ -2870,7 +2882,8 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
             for (i = 0; i < n_place; i++) {
               int32_t arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, i);
               int32_t pty_i = glue_call_param_type_ref_at(arena, expr_ref, i);
-              int32_t u = glue_sysv_arg_gp_units_from_size_c(glue_sysv_arg_byte_size_c(arena, pty_i, arg_ref));
+              int32_t u =
+                  glue_sysv_arg_gp_units_from_size_c(glue_sysv_arg_byte_size_c(arena, ctx, pty_i, arg_ref));
               if (ta != 0)
                 u = 1;
               if (gp_cur + u > 6)
