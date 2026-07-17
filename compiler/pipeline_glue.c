@@ -21765,6 +21765,9 @@ int32_t pipeline_typeck_check_expr_addr_of_c(struct ast_Module *module, struct a
 
 int32_t pipeline_block_region_is_unsafe(struct ast_ASTArena *a, int32_t br, int32_t ri);
 int32_t pipeline_dep_ctx_typeck_unsafe_depth_at(struct ast_PipelineDepCtx *ctx);
+/* Cap-T001 / WPO-S3 post-scan: push/pop must be visible before typeck_scan_block_stack_escape_c. */
+int32_t pipeline_typeck_unsafe_depth_push_c(struct ast_PipelineDepCtx *ctx);
+void pipeline_typeck_unsafe_depth_pop_c(struct ast_PipelineDepCtx *ctx, int32_t saved_unsafe_depth);
 
 /**
  * typeck.x::typeck_check_expr_deref 的 C 委托：操作数须为 *T，表达式类型 T。
@@ -23614,6 +23617,7 @@ int32_t pipeline_typeck_ptr_for_addr_of_operand_c(struct ast_ASTArena *arena, in
 
 /**
  * WPO-S3：assign 路径 — 禁止将局部 struct 指针写入形参 *T 的字段（外层槽逃逸）。
+ * PLATFORM: SHARED — Cap-T001: inside unsafe { } (typeck_unsafe_depth>0) skip; not LANG-007 off.
  */
 int32_t pipeline_typeck_check_struct_stack_escape_assign_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                            int32_t site_expr_ref, int32_t left_ref, int32_t right_ref,
@@ -23624,6 +23628,9 @@ int32_t pipeline_typeck_check_struct_stack_escape_assign_c(struct ast_Module *mo
   int32_t line;
   int32_t col;
   if (!module || !arena || !ctx || left_ref <= 0 || right_ref <= 0)
+    return 0;
+  /* Cap-T001 / mega selfhost: whole-body unsafe opts into stack-ptr patterns. */
+  if (pipeline_dep_ctx_typeck_unsafe_depth_at(ctx) > 0)
     return 0;
   if (!typeck_expr_is_addr_of_block_local_c(module, arena, ctx, right_ref))
     return 0;
@@ -23910,6 +23917,7 @@ int32_t pipeline_typeck_check_return_slice_region_in_scope_c(struct ast_ASTArena
 
 /**
  * WPO-S3：CALL 路径 — 局部 struct 指针与另一 *Struct 形参同传时拒绝（callee 可能写入外层槽）。
+ * PLATFORM: SHARED — Cap-T001: inside unsafe { } skip (depth>0); safe code still hard-fails T001.
  */
 int32_t pipeline_typeck_check_call_struct_stack_escape_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                          int32_t call_expr_ref, struct ast_PipelineDepCtx *ctx) {
@@ -23921,6 +23929,9 @@ int32_t pipeline_typeck_check_call_struct_stack_escape_c(struct ast_Module *modu
   int32_t line;
   int32_t col;
   if (!module || !arena || !ctx || call_expr_ref <= 0)
+    return 0;
+  /* Cap-T001: mega parser/typeck/codegen whole-body unsafe may pass &local with *Struct outer. */
+  if (pipeline_dep_ctx_typeck_unsafe_depth_at(ctx) > 0)
     return 0;
   func_ix = pipeline_typeck_resolve_call_func_index_c(module, arena, call_expr_ref);
   if (func_ix < 0)
@@ -24135,10 +24146,17 @@ static int32_t typeck_scan_block_stack_escape_c(struct ast_Module *m, struct ast
     } else if (k == 6 && idx >= 0 && idx < ast_ast_block_num_regions(a, block_ref)) {
       int32_t wa_cap = pipeline_block_region_with_arena_cap_ref(a, block_ref, idx);
       int32_t br = ast_ast_block_region_body_ref(a, block_ref, idx);
+      /* Cap-T001: post-scan must honor unsafe regions like check_block_one_region. */
+      int32_t is_unsafe = pipeline_block_region_is_unsafe(a, block_ref, idx);
+      int32_t saved_ud = 0;
+      if (is_unsafe != 0)
+        saved_ud = pipeline_typeck_unsafe_depth_push_c(ctx);
       if (wa_cap > 0) {
         typeck_with_arena_scope_push_c(br);
         if (br > 0 && typeck_scan_block_stack_escape_c(m, a, ctx, func_ix, br) != 0) {
           typeck_with_arena_scope_pop_c();
+          if (is_unsafe != 0)
+            pipeline_typeck_unsafe_depth_pop_c(ctx, saved_ud);
           ctx->current_block_ref = saved_br;
           return -1;
         }
@@ -24149,6 +24167,8 @@ static int32_t typeck_scan_block_stack_escape_c(struct ast_Module *m, struct ast
         if (llen > 0) {
           pipeline_block_region_label_copy64(a, block_ref, idx, lbl);
           if (pipeline_dep_ctx_scope_region_push_c(ctx, lbl, llen) != 0) {
+            if (is_unsafe != 0)
+              pipeline_typeck_unsafe_depth_pop_c(ctx, saved_ud);
             ctx->current_block_ref = saved_br;
             return -1;
           }
@@ -24156,12 +24176,16 @@ static int32_t typeck_scan_block_stack_escape_c(struct ast_Module *m, struct ast
         if (br > 0 && typeck_scan_block_stack_escape_c(m, a, ctx, func_ix, br) != 0) {
           if (llen > 0)
             pipeline_dep_ctx_scope_region_pop_c(ctx);
+          if (is_unsafe != 0)
+            pipeline_typeck_unsafe_depth_pop_c(ctx, saved_ud);
           ctx->current_block_ref = saved_br;
           return -1;
         }
         if (llen > 0)
           pipeline_dep_ctx_scope_region_pop_c(ctx);
       }
+      if (is_unsafe != 0)
+        pipeline_typeck_unsafe_depth_pop_c(ctx, saved_ud);
     }
   }
   ctx->current_block_ref = saved_br;
@@ -24846,8 +24870,13 @@ int32_t pipeline_typeck_check_call_slice_region_c(struct ast_Module *module, str
     if (typeck_check_call_ptr_struct_compat_c(module, arena, call_expr_ref, param_ref, arg_ref) != 0)
       return -1;
   }
-  /** WPO-S3：&local struct 与 *Struct 形参同传 → 拒（外层槽逃逸）。 */
-  if (ctx && num_args >= 2 && getenv("SHUX_SKIP_STACK_ESCAPE") == NULL) {
+  /**
+   * WPO-S3：&local struct 与 *Struct 形参同传 → 拒（外层槽逃逸）。
+   * PLATFORM: SHARED — Cap-T001: skip when already inside unsafe { } (same gate as call_struct_stack_escape).
+   * G.7 note: body mirrors pipeline_typeck_check_call_struct_stack_escape_c for dep-resolved callee_mod.
+   */
+  if (ctx && num_args >= 2 && getenv("SHUX_SKIP_STACK_ESCAPE") == NULL &&
+      pipeline_dep_ctx_typeck_unsafe_depth_at(ctx) <= 0) {
     int32_t src_i;
     int32_t dst_j;
     for (src_i = 0; src_i < num_args; src_i++) {

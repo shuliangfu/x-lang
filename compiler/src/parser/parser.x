@@ -246,7 +246,10 @@ export extern function pipeline_module_top_level_let_set(module: *Module, idx: i
 
 /** 取 OneFuncResult 侧车池键（C 按 struct 地址索引）；避免 `&res as *u8` 被解析成 `&(res as *u8)`。 */
 export function onefunc_result_pool_ptr(res: *OneFuncResult): *u8 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return res as *u8;
+  }
 }
 
 
@@ -368,28 +371,40 @@ export function lex_from_result_ptr_into(out_lex: *Lexer, r: *LexerResult): void
 }
 
 export function lexer_copy_into(out_lex: *Lexer, src_lex: Lexer): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   out_lex.pos = src_lex.pos;
   out_lex.line = src_lex.line;
   out_lex.col = src_lex.col;
+  }
 }
 
 export function lexer_copy_from_parse_expr_result_into(out_lex: *Lexer, res: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   out_lex.pos = res.next_lex.pos;
   out_lex.line = res.next_lex.line;
   out_lex.col = res.next_lex.col;
+  }
 }
 
 export function parse_expr_result_reset(out_res: *ParseExprResult, next_lex: Lexer): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   out_res.ok = false;
   out_res.expr_ref = 0;
   out_res.next_lex.pos = next_lex.pos;
   out_res.next_lex.line = next_lex.line;
   out_res.next_lex.col = next_lex.col;
+  }
 }
 
 export function parser_rewind_lex_for_following_stmt_into(out_lex: *Lexer, lex_in: Lexer, r: LexerResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let rewound: Lexer = parser_rewind_lex_for_following_stmt(lex_in, r);
   lexer_copy_into(out_lex, rewound);
+  }
 }
 
 /** 从 *OneFuncResult 取 next_lex 写入 out；C glue（OneFuncResult 体量大，按指针传入）。 */
@@ -406,9 +421,12 @@ export function lex_from_onefunc_next_into(out: *Lexer, res: *OneFuncResult): vo
 
 /** 由 token 结束位置与长度反推起点（避免在 if 条件内写 (nlen as usize) 触发 C 解析歧义）。 */
 export function lexer_pos_before_run(end_pos: usize, run_len: i32): usize {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let rl: i32 = run_len;
   let start: usize = end_pos - (rl as usize);
   return start;
+  }
 }
 
 
@@ -421,6 +439,8 @@ export function lexer_pos_before_run(end_pos: usize, run_len: i32): usize {
  * 形参 token.TokenKind（勿 Token 按值）；TOKEN_ASYNC 用 i32 ordinal 29（EMIT_HEAVY enum emit 曾失败）。
  */
 export function lexer_token_run_len(kind: token.TokenKind): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   if (kind == token.TokenKind.TOKEN_RETURN) {
     return 6;
   }
@@ -474,6 +494,7 @@ export function lexer_token_run_len(kind: token.TokenKind): i32 {
     return 5;
   }
   return 1;
+  }
 }
 
 
@@ -513,9 +534,12 @@ export function parser_rewind_lex_for_following_stmt(lex_in: Lexer, r: LexerResu
  * 若直接沿用旧 r/stmt_tok_ready，会把 `if (...) { ... }` 后半段误落入 expr_stmt，继而丢掉尾 return。
  */
 export function parser_realign_lex_after_compound_stmt(lex_in: Lexer, r_in: LexerResult, source: u8[]): Lexer {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let lex_out: Lexer = parser_rewind_lex_for_following_stmt(lex_in, r_in);
   lex_out = parser_rewind_lex_for_lparen_control_stmt(lex_out, r_in, source);
   return lex_out;
+  }
 }
 
 /**
@@ -523,6 +547,8 @@ export function parser_realign_lex_after_compound_stmt(lex_in: Lexer, r_in: Lexe
  * 之前只回扫 `if`，会把 `while (...) { ... }` / `for (...) { ... }` 误落入 expr_stmt。
  */
 export function parser_rewind_lex_for_lparen_control_stmt(lex_in: Lexer, r_in: LexerResult, source: u8[]): Lexer {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   if (r_in.tok.kind == token.TokenKind.TOKEN_LPAREN) {
     let lp_base: Lexer = lex_at_token_from_result(r_in);
     let back_lp: i32 = 2;
@@ -542,6 +568,7 @@ export function parser_rewind_lex_for_lparen_control_stmt(lex_in: Lexer, r_in: L
     }
   }
   return lex_in;
+  }
 }
 
 
@@ -550,12 +577,15 @@ export function parser_rewind_lex_for_lparen_control_stmt(lex_in: Lexer, r_in: L
  * 用于修正 `let x; return match x` 被误当作 `return x { … }` 时从 subject 的 ident 起点回溯。
  */
 export function parser_match_kw_immediately_before(source: u8[], ident_start: usize): bool {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   if (ident_start < 6) {
     return false;
   }
   let p: usize = ident_start - 6;
   return source[p] == 109 && source[p + 1] == 97 && source[p + 2] == 116 && source[p + 3] == 99
       && source[p + 4] == 104 && source[p + 5] == 32;
+  }
 }
 
 /**
@@ -563,6 +593,8 @@ export function parser_match_kw_immediately_before(source: u8[], ident_start: us
  * 用于 if (struct.field) 后 lex 误落在 `return expr` 的 expr 首 ident（如 r3）时回溯至 TOKEN_RETURN。
  */
 export function parser_return_kw_immediately_before(source: u8[], ident_start: usize): bool {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   if (ident_start < 7) {
     return false;
   }
@@ -573,6 +605,7 @@ export function parser_return_kw_immediately_before(source: u8[], ident_start: u
   }
   let sep: u8 = source[p + 6];
   return sep == 32 || sep == 9 || sep == 10 || sep == 13;
+  }
 }
 
 /** parser_match_kw_immediately_before 的 buf 变体。 */
@@ -643,6 +676,8 @@ export function advance_past_cond_rparen_into_buf(r_out: *LexerResult, lex: Lexe
  * 后续同名字面量由 ensure_struct_layout_from_struct_lit **合并**补全余下字段名（AST 单字面量上限 8）。
  */
 export function onefunc_result_layout_prime(): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let z64: u8[64] = [];
   /** 仅 8 个字段：AST 单结构字面量上限 8；num_consts 起由 prime_b 合并；形参在侧车池。 */
   let _prime: OneFuncResult = OneFuncResult {
@@ -656,6 +691,7 @@ export function onefunc_result_layout_prime(): void {
    * 勿整结构自赋值：.x typeck 展开后易触发「一侧 ?」。用常量写回一字段即可拴住字面量并过检。
    */
   _prime.name_len = 0;
+  }
 }
 
 /** 写失败结果到 out，避免 ABI 下 OneFuncResult 按值返回/赋值错误；调用方仅用 out.ok 与 out.next_lex。 */
@@ -670,6 +706,8 @@ export function set_onefunc_fail(out: *OneFuncResult, next_lex: Lexer): void {
 
 export function onefunc_finish_after_return_lex(out: *OneFuncResult, impl_snap: *OneFuncResult, source: u8[],
 lex_after_expr: Lexer, func_name: *u8, func_name_len: i32, return_expr_ref: i32): bool {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let r_tail: LexerResult = LexerResult { next_lex: lex_after_expr, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
   let lex_tail: Lexer = lex_after_expr;
   if (advance_past_stmt_semicolon_into(&r_tail, lex_after_expr, source) == 0) {
@@ -685,6 +723,7 @@ lex_after_expr: Lexer, func_name: *u8, func_name_len: i32, return_expr_ref: i32)
   lex_from_next_into(&lex_tail, r_tail);
   onefunc_finish_impl_to_out(out, impl_snap, lex_tail, func_name, func_name_len, return_expr_ref);
   return true;
+  }
 }
 
 
@@ -692,17 +731,22 @@ lex_after_expr: Lexer, func_name: *u8, func_name_len: i32, return_expr_ref: i32)
  * 合并第二段字段进 struct_layouts（num_consts/num_lets），const/let 明细在侧车池。
  */
 export function onefunc_result_layout_prime_b(): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let _q2: OneFuncResult = OneFuncResult {
     num_consts: 0,
     num_lets: 0
   };
   _q2.num_consts = 0;
+  }
 }
 
 /**
  * 合并第三段（has_if_expr…if_cond_expr_ref）。
  */
 export function onefunc_result_layout_prime_c(): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let _q3: OneFuncResult = OneFuncResult {
     has_if_expr: false,
     if_cond_true: false,
@@ -713,12 +757,15 @@ export function onefunc_result_layout_prime_c(): void {
     mul_right_val: 0
   };
   _q3.if_cond_expr_ref = 0;
+  }
 }
 
 /**
  * 合并第四段（has_binop…call_callee_name）。
  */
 export function onefunc_result_layout_prime_d(): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let ccn: u8[64] = [];
   let _q4: OneFuncResult = OneFuncResult {
     has_binop: false,
@@ -731,12 +778,15 @@ export function onefunc_result_layout_prime_d(): void {
     call_callee_name: ccn
   };
   _q4.binop_left_param_idx = -1;
+  }
 }
 
 /**
  * 合并第五段（call_callee_len…num_loops）；while cond/body 在侧车池。
  */
 export function onefunc_result_layout_prime_d_b(): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let rvn: u8[64] = [];
   let _q4b: OneFuncResult = OneFuncResult {
     call_callee_len: 0,
@@ -747,29 +797,36 @@ export function onefunc_result_layout_prime_d_b(): void {
     num_loops: 0
   };
   _q4b.call_num_args = 0;
+  }
 }
 
 /**
  * 合并第六段（num_for_loops…num_if_stmts）；for 明细在侧车池。
  */
 export function onefunc_result_layout_prime_e(): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let _q5: OneFuncResult = OneFuncResult {
     num_for_loops: 0,
     num_if_stmts: 0
   };
   _q5.num_if_stmts = 0;
+  }
 }
 
 /**
  * 合并第七段（num_src_stmt_order…func_return_type_ref）。
  */
 export function onefunc_result_layout_prime_f(): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let _q6: OneFuncResult = OneFuncResult {
     num_src_stmt_order: 0,
     num_src_body_expr_stmts: 0,
     func_return_type_ref: 0
   };
   _q6.func_return_type_ref = 0;
+  }
 }
 
 /** 将 src 逐字段拷到 dst，避免 *dst = src 在部分解析器下被误解析；用于 parse_one_function_impl 成功路径写回。 */
@@ -837,6 +894,8 @@ export function copy_onefunc_into(dst: *OneFuncResult, src: *OneFuncResult): voi
 
 /** 供 parse_one_function_impl 用的空快照（结构字面量 ≤8 字段，见 onefunc_result_layout_prime）。 */
 export function onefunc_scratch_empty(): OneFuncResult {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let z64: u8[64] = [];
   return OneFuncResult {
     ok: false,
@@ -845,6 +904,7 @@ export function onefunc_scratch_empty(): OneFuncResult {
     name_len: 0,
     num_params: 0
   };
+  }
 }
 
 /**
@@ -881,6 +941,8 @@ export function onefunc_finish_impl_to_out(
   name_len: i32,
   ret_expr_storage: i32
 ): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   /** 函数体 let/if/stmt_order 写在 out 侧车池；合并进 snap 再 copy 回 out。 */
   onefunc_merge_pool_out_to_snap(snap, out);
   snap.return_expr_ref = ret_expr_storage;
@@ -893,6 +955,7 @@ export function onefunc_finish_impl_to_out(
     ni = ni + 1;
   }
   copy_onefunc_into(out, snap);
+  }
 }
 export function onefunc_res_wire_dummy_head(res: *OneFuncResult, lex: Lexer, name64: u8[64]): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -976,6 +1039,8 @@ export function onefunc_snap_set_return_path(
   ret_var_len: i32,
   ret_expr_ref: i32
 ): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   snap.has_call_expr = has_call;
   snap.return_var_name_len = ret_var_len;
   snap.return_expr_ref = ret_expr_ref;
@@ -984,6 +1049,7 @@ export function onefunc_snap_set_return_path(
   while (rvni < 64) {
     snap.return_var_name[rvni] = ret_var[rvni];
     rvni = rvni + 1;
+  }
   }
 }
 
@@ -1027,6 +1093,8 @@ export function expr_set_common_zeros(e: *ast.Expr): void {
  * loop { } 等价 while (true)：分配 EXPR_BOOL_LIT(1) 作为 while 条件 ref；失败返回 0。
  */
 export function parser_alloc_true_bool_lit(arena: *ASTArena): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let ref: i32 = ast.ast_arena_expr_alloc(arena);
   if (ref == 0) {
     return 0;
@@ -1039,6 +1107,7 @@ export function parser_alloc_true_bool_lit(arena: *ASTArena): i32 {
   expr_set_common_zeros(&e);
   ast.ast_arena_expr_set(arena, ref, e);
   return ref;
+  }
 }
 
 /**
@@ -1046,6 +1115,8 @@ export function parser_alloc_true_bool_lit(arena: *ASTArena): i32 {
  * 失败返回 0。
  */
 export function parser_alloc_float_lit(arena: *ASTArena, fval: f64): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let ref: i32 = ast.ast_arena_expr_alloc(arena);
   if (ref == 0) {
     return 0;
@@ -1058,6 +1129,7 @@ export function parser_alloc_float_lit(arena: *ASTArena, fval: f64): i32 {
   expr_set_common_zeros(&e);
   ast.ast_arena_expr_set(arena, ref, e);
   return ref;
+  }
 }
 
 /**
@@ -1066,6 +1138,8 @@ export function parser_alloc_float_lit(arena: *ASTArena, fval: f64): i32 {
  * alloc 失败或 inner_ref 无效时返回 0。
  */
 export function parser_expr_wrap_in_return(arena: *ASTArena, type_ref: i32, inner_ref: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   if (ast.ref_is_null(inner_ref)) {
     return 0;
   }
@@ -1087,6 +1161,7 @@ export function parser_expr_wrap_in_return(arena: *ASTArena, type_ref: i32, inne
   rwe.unary_operand_ref = inner_ref;
   ast.ast_arena_expr_set(arena, wrap, rwe);
   return wrap;
+  }
 }
 
 /**
@@ -1095,6 +1170,8 @@ export function parser_expr_wrap_in_return(arena: *ASTArena, type_ref: i32, inne
  * 裸尾 `{ 0 }` 须留 EXPR_LIT 供 typeck 报 implicit tail return（tests/typeck/return_implicit.x）。
  */
 export function parser_should_wrap_func_tail_in_return(arena: *ASTArena, res: *OneFuncResult, type_ref: i32): bool {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   if (ast.ref_is_null(type_ref)) {
     return false;
   }
@@ -1103,6 +1180,7 @@ export function parser_should_wrap_func_tail_in_return(arena: *ASTArena, res: *O
     return false;
   }
   return res.has_explicit_return_kw;
+  }
 }
 
 /**
@@ -1340,6 +1418,8 @@ export function parse_ternary_into(arena: *ASTArena, lex: Lexer, source: u8[], o
 
 /** 判断是否为复合赋值 token（+= … >>=）；10 路 if 链（勿 || 长链，EMIT_HEAVY 曾 elf_ec=-1）。 */
 export function is_compound_assign_token(kind: token.TokenKind): bool {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   if (kind == token.TokenKind.TOKEN_PLUS_EQ) {
     return true;
   }
@@ -1371,6 +1451,7 @@ export function is_compound_assign_token(kind: token.TokenKind): bool {
     return true;
   }
   return false;
+  }
 }
 
 /** 映射实现见 pipeline_glue.c（C 内比对 token.TokenKind），避免 .x typeck 对 `return ExprKind.*` 失败。 */
@@ -1418,7 +1499,10 @@ export function parse_assign_into(arena: *ASTArena, lex: Lexer, source: u8[], ou
 
 /** 表达式解析入口：赋值层（内含 logor）；成功时写 out.expr_ref、out.next_lex。 */
 export function parse_expr_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parse_assign_into(arena, lex, source, out);
+  }
 }
 
 /**
@@ -1452,7 +1536,10 @@ function parse_cond_expr_into(arena: *ASTArena, lex_start: Lexer, source: u8[], 
 
 /** 兼容旧名：与 parse_cond_expr_into 相同。 */
 function parse_expr_with_leading_int_as_into(arena: *ASTArena, lex_start: Lexer, source: u8[], out: *ParseExprResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parse_cond_expr_into(arena, lex_start, source, out);
+  }
 }
 
 
@@ -1524,6 +1611,8 @@ function parse_if_stmt_into(arena: *ASTArena, lex_at_if: Lexer, source: u8[], ty
  * 成功时写 out.block_ref、out.next_lex（在 } 之后），type_ref 用于 const/let 初值类型，可为 0。
  */
 export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, source: u8[], type_ref: i32, out: *ParseBlockResult): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   /** 堆上 OneFuncResult scratch：勿在栈上分配 temp+blk_dummy（~96KiB），递归块解析会栈溢出导致块内 expr;/if 静默失败。 */
   let scratch_sz: usize = pipeline_sizeof_onefunc_result();
   let scratch_raw: *u8 = calloc(1, scratch_sz);
@@ -2277,12 +2366,15 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
   out.ok = true;
   out.block_ref = block_ref;
   out.next_lex = r.next_lex;
+  }
 }
 
 /**
  * 将已解析的块 ref 包成 EXPR_BLOCK 表达式节点（if 表达式 then/else 分支与 C parse_if_expr 一致）。
  */
 export function wrap_block_ref_as_expr(arena: *ASTArena, block_ref: i32, type_ref: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   if (block_ref == 0) {
     return 0;
   }
@@ -2299,6 +2391,7 @@ export function wrap_block_ref_as_expr(arena: *ASTArena, block_ref: i32, type_re
   e.col = 0;
   ast.ast_arena_expr_set(arena, ref, e);
   return ref;
+  }
 }
 
 /**
@@ -3140,6 +3233,8 @@ export function skip_balanced_parens_into(out: *Lexer, lex: Lexer, source: u8[])
 /** 与 skip_balanced_parens 等价，接受 (data: *u8, len) 供 buf 路径使用。 */
 /** skip_balanced_parens_buf 的 _into_buf 变体。 */
 export function skip_balanced_parens_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let depth: i32 = 1;
   while (depth > 0) {
     let r: LexerResult = lexer.lexer_next_buf(lex, data, len);
@@ -3152,6 +3247,7 @@ export function skip_balanced_parens_into_buf(out: *Lexer, lex: Lexer, data: *u8
     lex_from_next_into(&lex, r);
   }
   out.pos = lex.pos; out.line = lex.line; out.col = lex.col;
+  }
 }
 
 
@@ -3192,6 +3288,8 @@ export function skip_balanced_braces_into(out: *Lexer, lex: Lexer, source: u8[])
 
 /** skip_balanced_braces_buf 的 _into_buf 变体。 */
 export function skip_balanced_braces_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let depth: i32 = 1;
   while (depth > 0) {
     let r: LexerResult = lexer.lexer_next_buf(lex, data, len);
@@ -3204,6 +3302,7 @@ export function skip_balanced_braces_into_buf(out: *Lexer, lex: Lexer, data: *u8
     lex_from_next_into(&lex, r);
   }
   out.pos = lex.pos; out.line = lex.line; out.col = lex.col;
+  }
 }
 
 
@@ -3452,10 +3551,13 @@ export function diag_fail_at_token_kind_buf(data: *u8, len: i32): i32 {
 
 /** 零函数模块通常可作为库模块返回成功；但若首个失败 token 已明确是字符串字面量，则应收为真正 parse fail。 */
 export function parse_into_result_empty_module_or_fail_tok(fail_tok: i32): ParseIntoResult {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   if (fail_tok == (token.TokenKind.TOKEN_STRING as i32)) {
     return ParseIntoResult { ok: -2, main_idx: -1 }
   }
   return ParseIntoResult { ok: 0, main_idx: -1 }
+  }
 }
 
 
@@ -3464,6 +3566,8 @@ export function parse_into_result_empty_module_or_fail_tok(fail_tok: i32): Parse
  * out 须为 *u8（指向至少 nlen 字节）：自举路径上 u8[64] 按值传入时写不入调用方缓冲，会导致 name_len 与字节列错位（全 NUL 函数名）。
  */
 export function copy_slice_to_name64(source: u8[], start: usize, nlen: i32, out: *u8): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let i: i32 = 0;
   while (i < nlen) {
     if (start + (i as usize) < source.length) {
@@ -3471,13 +3575,17 @@ export function copy_slice_to_name64(source: u8[], start: usize, nlen: i32, out:
     }
     i = i + 1;
   }
+  }
 }
 
 
 /** 从 source 的 [end_pos-nlen..end_pos) 复制到 out，供 scan 内调用避免在调用处写 as usize 触发解析歧义。 */
 export function copy_slice_to_name64_at_end(source: u8[], end_pos: usize, nlen: i32, out: *u8): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let start: usize = end_pos - (nlen as usize);
   copy_slice_to_name64(source, start, nlen, out);
+  }
 }
 
 
@@ -3509,6 +3617,8 @@ export function struct_field_name_from_tok_buf(r: LexerResult, data: *u8, len: i
 
 /** 续字段解析：下一 token 是否为字段名起点；SOA/PACKED 用整型 ordinal（EMIT_HEAVY enum 成员 emit 曾失败）。 */
 export function struct_field_name_tok_kind(k: token.TokenKind): bool {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   if (k == token.TokenKind.TOKEN_IDENT) {
     return true;
   }
@@ -3520,6 +3630,7 @@ export function struct_field_name_tok_kind(k: token.TokenKind): bool {
     return true;
   }
   return false;
+  }
 }
 
 /**
@@ -3527,6 +3638,8 @@ export function struct_field_name_tok_kind(k: token.TokenKind): bool {
  * 勿仅用 struct_field_name_tok_kind，否则 `align(64) tail:` 第二字段解析失败且 layout 仅 nf=1。
  */
 export function struct_field_continues_tok_kind(k: token.TokenKind): bool {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   if (struct_field_name_tok_kind(k)) {
     return true;
   }
@@ -3535,6 +3648,7 @@ export function struct_field_continues_tok_kind(k: token.TokenKind): bool {
     return true;
   }
   return false;
+  }
 }
 
 
@@ -3543,6 +3657,8 @@ export function struct_field_continues_tok_kind(k: token.TokenKind): bool {
  * 与 parser.c parse_block 内 `peek IDENT && peek_next COLON → parse_label_start` 对齐。
  */
 export function parser_token_is_label_start(r: LexerResult, source: u8[]): bool {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   if (r.tok.kind != token.TokenKind.TOKEN_IDENT) {
     return false;
   }
@@ -3553,10 +3669,13 @@ export function parser_token_is_label_start(r: LexerResult, source: u8[]): bool 
   };
   lexer.lexer_next_into(&nx, r.next_lex, source);
   return nx.tok.kind == token.TokenKind.TOKEN_COLON;
+  }
 }
 
 /** 从 source 的 [start..start+nlen) 复制到 out[0..31]；out 为 *u8 原因同 copy_slice_to_name64。 */
 export function copy_slice_to_param32(source: u8[], start: usize, nlen: i32, out: *u8): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let i: i32 = 0;
   while (i < 32) {
     if (i < nlen && start + (i as usize) < source.length) {
@@ -3566,18 +3685,24 @@ export function copy_slice_to_param32(source: u8[], start: usize, nlen: i32, out
     }
     i = i + 1;
   }
+  }
 }
 
 
 /** 从 source 的 [end_pos-nlen..end_pos) 复制到 out[0..31]，供 scan 内 param_name 复制，避免 source[pos-len+pi] 在 C 中类型/越界。 */
 export function copy_slice_to_param32_at_end(source: u8[], end_pos: usize, nlen: i32, out: *u8): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let start: usize = end_pos - (nlen as usize);
   copy_slice_to_param32(source, start, nlen, out);
+  }
 }
 
 
 /** 与 copy_slice_to_name64 等价，接受 (source: *u8, source_len) 供 buf 路径使用。out 为 *u8 原因同 copy_slice_to_name64。 */
 export function copy_slice_to_name64_buf(source: *u8, source_len: i32, start: usize, nlen: i32, out: *u8): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let i: i32 = 0;
   while (i < nlen) {
     if (start + (i as usize) < (source_len as usize)) {
@@ -3585,18 +3710,24 @@ export function copy_slice_to_name64_buf(source: *u8, source_len: i32, start: us
     }
     i = i + 1;
   }
+  }
 }
 
 
 /** 从 buf 的 [end_pos-nlen..end_pos) 复制到 out，供 parse_one_extern_skip_buf 使用，避免调用处 as usize 解析歧义。 */
 export function copy_slice_to_name64_at_end_buf(source: *u8, source_len: i32, end_pos: usize, nlen: i32, out: *u8): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let start: usize = end_pos - (nlen as usize);
   copy_slice_to_name64_buf(source, source_len, start, nlen, out);
+  }
 }
 
 
 /** 从 buf 的 [end_pos-nlen..end_pos) 复制到 out[0..31]，供 parse_one_function_library_scan_buf 内 param_name 复制。 */
 export function copy_slice_to_param32_at_end_buf(source: *u8, source_len: i32, end_pos: usize, nlen: i32, out: *u8): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let start: usize = end_pos - (nlen as usize);
   let i: i32 = 0;
   while (i < 32) {
@@ -3607,11 +3738,14 @@ export function copy_slice_to_param32_at_end_buf(source: *u8, source_len: i32, e
     }
     i = i + 1;
   }
+  }
 }
 
 
 /** 与 copy_slice_to_param32 等价，接受 (source: *u8, source_len) 供 buf 路径使用。 */
 export function copy_slice_to_param32_buf(source: *u8, source_len: i32, start: usize, nlen: i32, out: *u8): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let i: i32 = 0;
   while (i < 32) {
     if (i < nlen && start + (i as usize) < (source_len as usize)) {
@@ -3620,6 +3754,7 @@ export function copy_slice_to_param32_buf(source: *u8, source_len: i32, start: u
       out[i] = 0;
     }
     i = i + 1;
+  }
   }
 }
 
@@ -3630,6 +3765,8 @@ export function copy_slice_to_param32_buf(source: *u8, source_len: i32, start: u
  * arena 用于在 parse_body_lets_into 中构建 let 的 init 表达式（数组字面量、调用等）。
  */
 export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, lex: Lexer, source: u8[]): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   /** 清零 OneFunc 侧车池，避免复用 scratch 残留 if/stmt_order。 */
   ast_pool_onefunc_reset(onefunc_result_pool_ptr(out));
   /** 物理重置复用的 OneFuncResult 标量槽，避免上一函数的 generic/path 状态泄漏到当前函数。 */
@@ -4799,6 +4936,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
     onefunc_finish_impl_to_out(out, &impl_snap, lex, &dummy_name[0], func_name_len_storage[0], return_expr_ref_storage);
     return;
   }
+  }
 }
 
 /**
@@ -4806,6 +4944,8 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
  * 形参 token.TokenKind + ident_len（勿 Token 按值）；ASYNC 用 i32 ordinal 29。
  */
 export function import_path_dot_segment_len(kind: token.TokenKind, ident_len: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   if (kind == token.TokenKind.TOKEN_IDENT && ident_len > 0) {
     return ident_len;
   }
@@ -4817,6 +4957,7 @@ export function import_path_dot_segment_len(kind: token.TokenKind, ident_len: i3
     return 5;
   }
   return -1;
+  }
 }
 
 
@@ -4830,12 +4971,15 @@ export extern function parser_import_path_dot_segment_copy_glue(source: u8[], to
  * 将 import 路径段从 source[token_start..] 复制到 path_buf[path_len..]。
  */
 export function import_path_dot_segment_copy(source: u8[], token_start: usize, seg_len: i32, path_buf: *u8, path_len: i32): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let i: i32 = 0;
   while (i < seg_len) {
     if (token_start + (i as usize) < source.length) {
       path_buf[path_len + i] = source[token_start + (i as usize)];
     }
     i = i + 1;
+  }
   }
 }
 
@@ -5081,7 +5225,10 @@ function skip_one_enum_register_into_buf(module: *Module, out: *Lexer, lex: Lexe
 
 /** skip_one_enum_register_into 的 buf 别名（与 skip_one_enum_register_into_buf 等价，扩 EMIT_HEAVY __text）。 */
 function skip_one_enum_register_buf(module: *Module, out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   skip_one_enum_register_into_buf(module, out, lex, data, len);
+  }
 }
 
 
@@ -5255,7 +5402,10 @@ allow(padding) struct ExternParseResult {
 
 /** 取 ExternParseResult 侧车池键（与 OneFunc 共用 grow 池 API，按 struct 地址索引）。 */
 function extern_parse_pool_ptr(res: *ExternParseResult): *u8 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return res as *u8;
+  }
 }
 
 
@@ -5290,6 +5440,8 @@ function write_extern_params_to_pools(arena: *ASTArena, module: *Module, func_re
 
 /** 将 extern 解析失败快照写入 out（name_len=-1）。 */
 function extern_parse_set_fail(out: *ExternParseResult, lex: Lexer): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   let empty64: u8[64] = [];
   out.next_lex = lex;
   out.name_len = -1;
@@ -5299,6 +5451,7 @@ function extern_parse_set_fail(out: *ExternParseResult, lex: Lexer): void {
   while (ni < 64) {
     out.name[ni] = empty64[ni];
     ni = ni + 1;
+  }
   }
 }
 
@@ -5739,6 +5892,8 @@ function consume_qualified_type_ident_name_buf(data: *u8, len: i32, r: *LexerRes
  * EMIT_HEAVY safe_helper X 真 emit（纯 token.TokenKind 分派，无 lexer 调用）。
  */
 function is_pointee_type_token(kind: token.TokenKind): bool {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   if (kind == token.TokenKind.TOKEN_IDENT) {
     return true;
   }
@@ -5755,6 +5910,7 @@ function is_pointee_type_token(kind: token.TokenKind): bool {
     return true;
   }
   return false;
+  }
 }
 
 
@@ -7568,25 +7724,37 @@ export function module_append_enum_variants_and_skip_body_slice_into_buf(module:
 
 /** parse_one_extern_skip_into 的 buf 变体（结果写入 out）。 */
 export function parse_one_extern_skip_buf(out: *ExternParseResult, arena: *ASTArena, lex: Lexer, data: *u8, len: i32): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parse_one_extern_skip_into_buf(out, arena, lex, data, len);
+  }
 }
 
 
 /** parse_one_extern_and_add_into 的 buf 别名。 */
 export function parse_one_extern_and_add_buf(arena: *ASTArena, module: *Module, lex: Lexer, data: *u8, len: i32, lex_out: *Lexer): void {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   parse_one_extern_and_add_into_buf(arena, module, lex, data, len, lex_out);
+  }
 }
 
 
 /** parse_one_function_library 的 buf 别名（与 parse_one_function_library_buf 等价）。 */
 export function parse_one_function_library_from_buf(arena: *ASTArena, module: *Module, lex: Lexer, data: *u8, len: i32): LibraryParseResult {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return parse_one_function_library_buf(arena, module, lex, data, len);
+  }
 }
 
 
 /** parse_into_try_skip_allow 的 buf 别名。 */
 export function parse_into_try_skip_allow_from_buf(lex: Lexer, r: LexerResult, data: *u8, len: i32): TrySkipAllowResult {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return parse_into_try_skip_allow_buf(lex, r, data, len);
+  }
 }
 
 
@@ -8789,7 +8957,10 @@ export function parse_one_function_ok_for_pipeline(arena: *ASTArena, source: u8[
 
 /** 阶段 5：返回 module 的 import 数量，供 C main.c 判断是否走多文件路径。 */
 export function get_module_num_imports(module: *Module): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   return module.num_imports;
+  }
 }
 
 /** 阶段 5：将第 i 条 import 路径复制到 out（NUL 结尾），供 C 做 resolve。i 越界时 out 填空串。 */
@@ -8810,12 +8981,15 @@ export function get_module_import_path(module: *Module, i: i32, out: u8[64]): vo
  * 供 pipeline.x 等调用方在 let 初始化/return 中使用，避免 void 调用语句导致 parse_into_buf skip。
  */
 export function copy_module_import_path64(module: *Module, i: i32, out: u8[64]): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
   get_module_import_path(module, i, out);
   let path_len: i32 = 0;
   while (path_len < 64 && out[path_len] != 0) {
     path_len = path_len + 1;
   }
   return path_len;
+  }
 }
 
 /** 联调 9.1：若存在 /tmp/shux_parse_test.x 则读入前 128 字节并以 parse() 校验（return 字面量或简单表达式，`parse()` 内部非字面量时用堆 Arena）。 */
