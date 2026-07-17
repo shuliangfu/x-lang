@@ -2111,12 +2111,16 @@ int32_t pipeline_asm_emit_call_args_elf_c_impl(struct ast_ASTArena *arena, struc
 
     /**
      * x86 寄存器实参：9–16B struct 占 2 个连续 GP；spill then load (SysV dual-load safety).
-     * PLATFORM: LINUX+MACOS x86_64 SysV.
+     * PLATFORM: LINUX+MACOS x86_64 SysV — SSE float args (param type / FLOAT_LIT / resolved)
+     * go to xmm0–7 even on this legacy path (f32_xmm path is preferred when sret==0).
      */
     {
       int32_t gp_start[GLUE_ASM_MAX_CALL_ARGS];
       int32_t gp_units[GLUE_ASM_MAX_CALL_ARGS];
       int32_t spill_off[GLUE_ASM_MAX_CALL_ARGS];
+      int32_t is_sse[GLUE_ASM_MAX_CALL_ARGS];
+      int32_t is_f64[GLUE_ASM_MAX_CALL_ARGS];
+      int32_t xmm_cur = 0;
       int32_t gp_cur = sret_sh;
       for (i = 0; i < nargs; i++) {
         int32_t pty_i;
@@ -2124,6 +2128,16 @@ int32_t pipeline_asm_emit_call_args_elf_c_impl(struct ast_ASTArena *arena, struc
         int32_t u;
         ar_i = pipeline_expr_call_arg_ref(arena, expr_ref, i);
         pty_i = glue_call_param_type_ref_at(arena, expr_ref, i);
+        is_sse[i] = glue_call_arg_is_sse_float_c(arena, expr_ref, i, pty_i);
+        is_f64[i] = glue_call_arg_is_f64_width_c(arena, expr_ref, i, pty_i);
+        if (is_sse[i]) {
+          gp_start[i] = xmm_cur < 8 ? xmm_cur : -1;
+          gp_units[i] = 1;
+          spill_off[i] = -1;
+          if (xmm_cur < 8)
+            xmm_cur++;
+          continue;
+        }
         u = glue_sysv_arg_gp_units_from_size_c(glue_sysv_arg_byte_size_c(arena, ctx, pty_i, ar_i));
         gp_start[i] = gp_cur;
         gp_units[i] = u;
@@ -2148,10 +2162,22 @@ int32_t pipeline_asm_emit_call_args_elf_c_impl(struct ast_ASTArena *arena, struc
         spill_off[i] = so;
       }
       for (i = 0; i < nargs; i++) {
+        int32_t mov_rc;
         if (spill_off[i] < 0)
           continue;
-        if (glue_sysv_load_spill_to_arg_regs_elf_c(elf_ctx, ta, spill_off[i], gp_start[i], gp_units[i]) != 0)
+        if (is_sse[i]) {
+          if (backend_enc_load_rbp_to_rax_arch(elf_ctx, spill_off[i], ta) != 0)
+            return -1;
+          if (is_f64[i])
+            mov_rc = backend_enc_mov_rax_to_xmm_arg_reg_arch(elf_ctx, gp_start[i], ta);
+          else
+            mov_rc = backend_enc_mov_eax_to_xmm_arg_reg_arch(elf_ctx, gp_start[i], ta);
+          if (mov_rc != 0)
+            return -1;
+        } else if (glue_sysv_load_spill_to_arg_regs_elf_c(elf_ctx, ta, spill_off[i], gp_start[i],
+                                                           gp_units[i]) != 0) {
           return -1;
+        }
       }
     }
     pipeline_asm_emit_set_call_param_type_ref(0);
@@ -2594,27 +2620,14 @@ int32_t glue_asm_try_emit_fmt_string_lit_import_call_elf_c(struct ast_ASTArena *
 
 extern int32_t pipeline_expr_resolved_type_ref(struct ast_ASTArena *a, int32_t expr_ref);
 extern int32_t pipeline_expr_call_arg_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t idx);
-
-/**
- * PLATFORM: SHARED — call return TypeKind for SSE harvest.
- * Prefer call expr resolved_type (typeck). Weak full helper may live in pipeline_glue_standalone
- * (not always on g05 product link); keep authority in this TU for product g05.
- */
-static int32_t glue_asm_call_return_type_kind_ord_c(struct ast_ASTArena *arena, int32_t call_expr_ref) {
-  int32_t rty;
-  if (!arena || call_expr_ref <= 0)
-    return -1;
-  rty = pipeline_expr_resolved_type_ref(arena, call_expr_ref);
-  if (rty > 0)
-    return pipeline_type_kind_ord_at(arena, rty);
-  return -1;
-}
+/** Full authority in pipeline_glue: resolved_type + dep param/ret map + dep-arena kind fallback. */
+extern int32_t pipeline_asm_call_return_type_kind_ord_c(struct ast_ASTArena *arena, int32_t call_expr_ref);
 
 /**
  * PLATFORM: LINUX+MACOS x86_64 SysV — after CALL, harvest f32/f64 return from xmm0 into eax/rax.
  * Internal asm value convention keeps scalar float bits in GPR; C/libm returns in xmm0.
- * Authority: glue_asm_call_return_type_kind_ord_c (resolved_type + dep map / dep-arena fallback).
- * G.7: type-driven only — no symbol-name gate, no kind<0 force harvest.
+ * Authority: pipeline_asm_call_return_type_kind_ord_c (G.7 — not a local resolved_type-only stub).
+ * Type-driven only: no std_math_* name gate.
  */
 static int32_t glue_asm_harvest_sse_call_ret_to_gpr_c(struct ast_ASTArena *arena,
                                                       struct platform_elf_ElfCodegenCtx *elf_ctx,
@@ -2622,7 +2635,7 @@ static int32_t glue_asm_harvest_sse_call_ret_to_gpr_c(struct ast_ASTArena *arena
   int32_t kind;
   if (ta != 0 || !arena || !elf_ctx || call_expr_ref <= 0)
     return 0;
-  kind = glue_asm_call_return_type_kind_ord_c(arena, call_expr_ref);
+  kind = pipeline_asm_call_return_type_kind_ord_c(arena, call_expr_ref);
   if (kind == 14)
     return backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx, 0, ta);
   if (kind == 15)
