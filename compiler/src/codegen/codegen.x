@@ -1742,6 +1742,126 @@ export function field_access_base_type_resolved(arena: *ASTArena, base_ref: i32)
 }
 
 /**
+ * Emit one call argument under seed/glue slice ABI (PLATFORM: SHARED).
+ *
+ * Why: TYPE_SLICE params lower as `struct shux_slice_* *`. Locals stay by-value
+ * structs, so call sites must pass `&local` (seed: `&(slice)`). Slice params are
+ * already pointers — pass through. ADDR_OF is left unchanged.
+ *
+ * Invariant: only for call/method arg positions; never for general emit_expr.
+ */
+export function emit_call_arg_slice_abi(arena: *ASTArena, out: *CodegenOutBuf, arg_ref: i32, ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (ast.ref_is_null(arg_ref)) {
+      return append_byte(out, 48);
+    }
+    let arg: Expr = ast.ast_arena_expr_get(arena, arg_ref);
+    if (arg.kind == ExprKind.EXPR_ADDR_OF) {
+      return emit_expr(arena, out, arg_ref, ctx);
+    }
+    /* Already a slice param of the current function → C pointer; do not add &. */
+    if (ctx != 0 as *PipelineDepCtx && ctx.current_codegen_module != 0 as *Module && ctx.current_func_index >= 0) {
+      if (field_access_base_is_pointer_param(arena, arg_ref, ctx.current_codegen_module, ctx.current_func_index) != 0) {
+        /* pointer_param now treats TYPE_SLICE params as pointers */
+        let is_slice_param: i32 = 0;
+        let base: Expr = arg;
+        if (base.kind == ExprKind.EXPR_VAR && base.var_name_len > 0) {
+          let mod: *Module = ctx.current_codegen_module;
+          let fi: i32 = ctx.current_func_index;
+          let np: i32 = pipeline_module_func_num_params_at(mod, fi);
+          let pi: i32 = 0;
+          while (pi < np) {
+            let p_name_len: i32 = pipeline_module_func_param_name_len_at(mod, fi, pi);
+            if (p_name_len > 0 && p_name_len == base.var_name_len) {
+              let pname_buf: u8[32] = [];
+              pipeline_module_func_param_name_copy32(mod, fi, pi, &pname_buf[0]);
+              let matched: bool = true;
+              let j: i32 = 0;
+              while (j < p_name_len && j < 32) {
+                if (pname_buf[j] != base.var_name[j]) {
+                  matched = false;
+                  break;
+                }
+                j = j + 1;
+              }
+              if (matched) {
+                let param_ty_ref: i32 = pipeline_module_func_param_type_ref_at(mod, fi, pi);
+                if (pipeline_type_kind_ord_at(arena, param_ty_ref) == (TypeKind.TYPE_SLICE as i32)) {
+                  is_slice_param = 1;
+                }
+              }
+            }
+            pi = pi + 1;
+          }
+        }
+        if (is_slice_param != 0) {
+          return emit_expr(arena, out, arg_ref, ctx);
+        }
+      }
+    }
+    /* Local / rvalue slice → &(arg) for pointer param ABI. */
+    let need_addr: i32 = 0;
+    if (!ast.ref_is_null(arg.resolved_type_ref) && arg.resolved_type_ref > 0 && arg.resolved_type_ref <= arena.num_types) {
+      let aty: Type = ast.ast_arena_type_get(arena, arg.resolved_type_ref);
+      if (aty.kind == TypeKind.TYPE_SLICE) {
+        need_addr = 1;
+      }
+    }
+    if (need_addr == 0 && arg.kind == ExprKind.EXPR_VAR && ctx != 0 as *PipelineDepCtx) {
+      /* Local let annotated as TYPE_SLICE */
+      if (field_access_base_is_pointer_local(arena, arg_ref, ctx) == 0) {
+        let br: i32 = 0;
+        if (ctx.current_codegen_module != 0 as *Module && ctx.current_func_index >= 0) {
+          br = pipeline_module_func_body_ref_at(ctx.current_codegen_module, ctx.current_func_index);
+        }
+        if (ast.ref_is_null(br) || br <= 0 || br > arena.num_blocks) {
+          br = ctx.current_block_ref;
+        }
+        if (!ast.ref_is_null(br) && br > 0 && br <= arena.num_blocks) {
+          let nlets: i32 = ast.ast_block_num_lets(arena, br);
+          let li: i32 = 0;
+          while (li < nlets) {
+            let nl: i32 = pipeline_block_let_name_len(arena, br, li);
+            if (nl == arg.var_name_len && nl > 0) {
+              let nb: u8[64] = [];
+              pipeline_block_let_name_copy64(arena, br, li, &nb[0]);
+              let eq: bool = true;
+              let j2: i32 = 0;
+              while (j2 < nl && j2 < 64) {
+                if (nb[j2] != arg.var_name[j2]) {
+                  eq = false;
+                  break;
+                }
+                j2 = j2 + 1;
+              }
+              if (eq) {
+                let tr: i32 = pipeline_block_let_type_ref(arena, br, li);
+                if (pipeline_type_kind_ord_at(arena, tr) == (TypeKind.TYPE_SLICE as i32)) {
+                  need_addr = 1;
+                }
+              }
+            }
+            li = li + 1;
+          }
+        }
+      }
+    }
+    if (need_addr != 0) {
+      let pre: u8[3] = [38, 40, 0];
+      if (emit_bytes_3(out, pre, 2) != 0) {
+        return -1;
+      }
+      if (emit_expr(arena, out, arg_ref, ctx) != 0) {
+        return -1;
+      }
+      return append_byte(out, 41);
+    }
+    return emit_expr(arena, out, arg_ref, ctx);
+  }
+}
+
+/**
  * 【Why 根源】回退：typeck 未填 resolved_type_ref 时，通过当前函数形参类型判断 base 是否为指针。
  * 用于 dep 模块 codegen：dep 模块函数体未走完整 typeck，EXPR_VAR 的 resolved_type_ref 可能为空，
  * field_access_base_is_pointer_ref 返回 0 → 字段访问误用 . 而非 ->（C 编译错误）。
@@ -1782,7 +1902,9 @@ export function field_access_base_is_pointer_param(arena: *ASTArena, base_ref: i
           let param_ty_ref: i32 = pipeline_module_func_param_type_ref_at(mod, func_index, pi);
           if (!ast.ref_is_null(param_ty_ref) && param_ty_ref > 0 && param_ty_ref <= arena.num_types) {
             let pty: Type = ast.ast_arena_type_get(arena, param_ty_ref);
-            if (pty.kind == TypeKind.TYPE_PTR) {
+            /* PLATFORM: SHARED — C ABI: *T and u8[] (TYPE_SLICE) params are pointers.
+             * Seed/glue pass slices as struct shux_slice_* *; field access must use ->. */
+            if (pty.kind == TypeKind.TYPE_PTR || pty.kind == TypeKind.TYPE_SLICE) {
               return 1;
             }
           }
@@ -5015,7 +5137,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
               if (append_byte(out, 48) != 0) {
                 return -1;
               }
-            } else if (emit_expr(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, ai_q), ctx) != 0) {
+            } else if (emit_call_arg_slice_abi(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, ai_q), ctx) != 0) {
               return -1;
             }
             ai_q = ai_q + 1;
@@ -5113,7 +5235,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
               if (append_byte(out, 48) != 0) {
                 return -1;
               }
-            } else if (emit_expr(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, ai_fast), ctx) != 0) {
+            } else if (emit_call_arg_slice_abi(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, ai_fast), ctx) != 0) {
               return -1;
             }
             ai_fast = ai_fast + 1;
@@ -5241,7 +5363,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
                       if (append_byte(out, 48) != 0) {
                         return -1;
                       }
-                    } else if (emit_expr(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, ai), ctx) != 0) {
+                    } else if (emit_call_arg_slice_abi(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, ai), ctx) != 0) {
                       return -1;
                     }
                     ai = ai + 1;
@@ -5312,7 +5434,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
                         if (append_byte(out, 48) != 0) {
                           return -1;
                         }
-                      } else if (emit_expr(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, ai), ctx) != 0) {
+                      } else if (emit_call_arg_slice_abi(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, ai), ctx) != 0) {
                         return -1;
                       }
                       ai = ai + 1;
@@ -5457,7 +5579,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
                         if (append_byte(out, 48) != 0) {
                           return -1;
                         }
-                      } else if (emit_expr(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, arg_idx_dep), ctx) != 0) {
+                      } else if (emit_call_arg_slice_abi(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, arg_idx_dep), ctx) != 0) {
                         return -1;
                       }
                       ai = ai + 1;
@@ -5509,7 +5631,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
               if (append_byte(out, 48) != 0) {
                 return -1;
               }
-            } else if (emit_expr(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, ai), ctx) != 0) {
+            } else if (emit_call_arg_slice_abi(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, ai), ctx) != 0) {
               return -1;
             }
             ai = ai + 1;
@@ -5611,7 +5733,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
                       if (append_byte(out, 48) != 0) {
                         return -1;
                       }
-                    } else if (emit_expr(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, arg_idx_cur), ctx) != 0) {
+                    } else if (emit_call_arg_slice_abi(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, arg_idx_cur), ctx) != 0) {
                       return -1;
                     }
                     ai = ai + 1;
@@ -5648,7 +5770,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
             if (emit_bytes_3(out, open, 2) != 0) {
               return -1;
             }
-            if (emit_expr(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, 0), ctx) != 0) {
+            if (emit_call_arg_slice_abi(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, 0), ctx) != 0) {
               return -1;
             }
             /* ").keys, (" 9 字节 */
@@ -5656,7 +5778,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
             if (emit_bytes_from_ptr(out, &mid1[0], 9) != 0) {
               return -1;
             }
-            if (emit_expr(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, 0), ctx) != 0) {
+            if (emit_call_arg_slice_abi(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, 0), ctx) != 0) {
               return -1;
             }
             /* ").occupied, (" 13 字节 */
@@ -5664,7 +5786,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
             if (emit_bytes_from_ptr(out, &mid2[0], 13) != 0) {
               return -1;
             }
-            if (emit_expr(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, 0), ctx) != 0) {
+            if (emit_call_arg_slice_abi(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, 0), ctx) != 0) {
               return -1;
             }
             /* ").cap, " 7 字节 */
@@ -5672,7 +5794,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
             if (emit_bytes_8(out, mid3, 7) != 0) {
               return -1;
             }
-            if (emit_expr(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, 1), ctx) != 0) {
+            if (emit_call_arg_slice_abi(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, 1), ctx) != 0) {
               return -1;
             }
             if (append_byte(out, 41) != 0) {
@@ -5748,7 +5870,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           if (append_byte(out, 48) != 0) {
             return -1;
           }
-        } else if (emit_expr(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, arg_idx), ctx) != 0) {
+        } else if (emit_call_arg_slice_abi(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, arg_idx), ctx) != 0) {
           return -1;
         }
         ai = ai + 1;
@@ -6103,9 +6225,29 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         }
       }
       if (need_slice_data != 0) {
-        let dot: u8[6] = [46, 100, 97, 116, 97, 0];
-        if (emit_bytes_6(out, dot, 5) != 0) {
-          return -1;
+        /* PLATFORM: SHARED — slice params are pointers: use ->data not .data.
+         * Why: Cap by-value→pointer param ABI; INDEX used to hardcode `.data` → host-cc error. */
+        let use_arrow: i32 = 0;
+        if (!ast.ref_is_null(e.index_base_ref)) {
+          if (field_access_base_is_pointer_ref(arena, e.index_base_ref) != 0) {
+            use_arrow = 1;
+          }
+          if (use_arrow == 0 && ctx != 0 as *PipelineDepCtx && ctx.current_codegen_module != 0 as *Module && ctx.current_func_index >= 0) {
+            if (field_access_base_is_pointer_param(arena, e.index_base_ref, ctx.current_codegen_module, ctx.current_func_index) != 0) {
+              use_arrow = 1;
+            }
+          }
+        }
+        if (use_arrow != 0) {
+          let arrow_data: u8[8] = [45, 62, 100, 97, 116, 97, 0, 0];
+          if (emit_bytes_from_ptr(out, &arrow_data[0], 6) != 0) {
+            return -1;
+          }
+        } else {
+          let dot: u8[6] = [46, 100, 97, 116, 97, 0];
+          if (emit_bytes_6(out, dot, 5) != 0) {
+            return -1;
+          }
         }
       }
       if (append_byte(out, 91) != 0) {
@@ -8827,6 +8969,17 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
         } else if (emit_type(arena, out, pipeline_module_func_param_type_ref_at(module, fi, p), prefix, prefix_len, ctx) != 0) {
           return -1;
         }
+        /* PLATFORM: SHARED — lower TYPE_SLICE params as pointers (seed/glue ABI).
+         * Why: Cap by-value slice + pointer glue → SIGSEGV (string bytes as ptr).
+         * Emit: `struct shux_slice_T * name` so field access uses -> and calls pass &local. */
+        if (pipeline_type_kind_ord_at(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) == (TypeKind.TYPE_SLICE as i32)) {
+          if (append_byte(out, 32) != 0) {
+            return -1;
+          }
+          if (append_byte(out, 42) != 0) {
+            return -1;
+          }
+        }
         if (append_byte(out, 32) != 0) {
           return -1;
         }
@@ -9375,6 +9528,15 @@ export function emit_func_extern_declaration(arena: *ASTArena, out: *CodegenOutB
           }
         } else if (emit_type(arena, out, pipeline_module_func_param_type_ref_at(module, fi, p), prefix, prefix_len, ctx) != 0) {
           return -1;
+        }
+        /* PLATFORM: SHARED — TYPE_SLICE params as pointers (mirror emit_func body; seed/glue ABI). */
+        if (pipeline_type_kind_ord_at(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) == (TypeKind.TYPE_SLICE as i32)) {
+          if (append_byte(out, 32) != 0) {
+            return -1;
+          }
+          if (append_byte(out, 42) != 0) {
+            return -1;
+          }
         }
         if (append_byte(out, 32) != 0) {
           return -1;

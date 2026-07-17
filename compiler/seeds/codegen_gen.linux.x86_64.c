@@ -3105,7 +3105,8 @@ int32_t codegen_field_access_base_is_pointer_param(struct ast_ASTArena * arena, 
           int32_t param_ty_ref = pipeline_module_func_param_type_ref_at(mod, func_index, pi);
           if (((!(ast_ref_is_null(param_ty_ref)) && (param_ty_ref > 0)) && (param_ty_ref <=(arena->num_types)))) {
             struct ast_Type pty = ast_ast_arena_type_get(arena, param_ty_ref);
-            if (((pty.kind) ==9)) {
+            /* PLATFORM: SHARED — TYPE_PTR(9) or TYPE_SLICE(11): C params are pointers. */
+            if ((((pty.kind) ==9) || ((pty.kind) ==11))) {
               return 1;
             }
           }
@@ -6967,9 +6968,28 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
         }
       }
       if ((need_slice_data !=0)) {
-        uint8_t dot[6] = {46, 100, 97, 116, 97, 0};
-        if ((codegen_emit_bytes_6(out, dot, 5) !=0)) {
-          return -(1);
+        /* PLATFORM: SHARED — slice/pointer base uses ->data (params are pointers). */
+        int32_t use_arrow = 0;
+        if (!(ast_ref_is_null((e.index_base_ref)))) {
+          if ((codegen_field_access_base_is_pointer_ref(arena, (e.index_base_ref)) !=0)) {
+            (void)((use_arrow = 1));
+          }
+          if ((((use_arrow ==0) && (ctx !=((struct ast_PipelineDepCtx *)(0)))) && (ctx->current_codegen_module !=((struct ast_Module *)(0)))) && ((ctx->current_func_index) >=0)) {
+            if ((codegen_field_access_base_is_pointer_param(arena, (e.index_base_ref), (ctx->current_codegen_module), (ctx->current_func_index)) !=0)) {
+              (void)((use_arrow = 1));
+            }
+          }
+        }
+        if ((use_arrow !=0)) {
+          uint8_t arrow_data[8] = {45, 62, 100, 97, 116, 97, 0, 0};
+          if ((codegen_emit_bytes_from_ptr(out, &((arrow_data)[0]), 6) !=0)) {
+            return -(1);
+          }
+        } else {
+          uint8_t dot[6] = {46, 100, 97, 116, 97, 0};
+          if ((codegen_emit_bytes_6(out, dot, 5) !=0)) {
+            return -(1);
+          }
         }
       }
       if ((codegen_append_byte(out, 91) !=0)) {
@@ -9568,6 +9588,15 @@ int32_t codegen_emit_func(struct ast_ASTArena * arena, struct codegen_CodegenOut
                   if ((codegen_emit_type(arena, out, pipeline_module_func_param_type_ref_at(module, fi, p), prefix, prefix_len, ctx) !=0)) {
                     return -(1);
                   }
+                  /* PLATFORM: SHARED — TYPE_SLICE params as pointers (seed/glue ABI). */
+                  if ((pipeline_type_kind_ord_at(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) ==11)) {
+                    if ((codegen_append_byte(out, 32) !=0)) {
+                      return -(1);
+                    }
+                    if ((codegen_append_byte(out, 42) !=0)) {
+                      return -(1);
+                    }
+                  }
                 }
               }
             }
@@ -10078,6 +10107,15 @@ int32_t codegen_emit_func_extern_declaration(struct ast_ASTArena * arena, struct
                 } else {
                   if ((codegen_emit_type(arena, out, pipeline_module_func_param_type_ref_at(module, fi, p), prefix, prefix_len, ctx) !=0)) {
                     return -(1);
+                  }
+                  /* PLATFORM: SHARED — TYPE_SLICE params as pointers (seed/glue ABI). */
+                  if ((pipeline_type_kind_ord_at(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) ==11)) {
+                    if ((codegen_append_byte(out, 32) !=0)) {
+                      return -(1);
+                    }
+                    if ((codegen_append_byte(out, 42) !=0)) {
+                      return -(1);
+                    }
                   }
                 }
               }
