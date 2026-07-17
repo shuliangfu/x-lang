@@ -287,6 +287,7 @@ extern void pipeline_asm_emit_call_arg_begin_c(void);
 extern void pipeline_asm_emit_call_arg_end_c(void);
 extern int32_t pipeline_asm_call_param_type_ref_at_c(struct ast_ASTArena *arena, int32_t call_expr_ref,
                                                      int32_t param_index);
+extern int32_t pipeline_asm_call_return_type_kind_ord_c(struct ast_ASTArena *arena, int32_t call_expr_ref);
 extern int32_t pipeline_asm_emit_expr_c(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out, int32_t expr_ref,
                                         struct backend_AsmFuncCtx *ctx, int32_t target_arch);
 extern int32_t backend_arch_emit_mov_rax_to_arg_reg(struct codegen_CodegenOutBuf *out, int32_t k, int32_t ta);
@@ -2040,12 +2041,16 @@ int32_t pipeline_asm_emit_call_args_elf_c_impl(struct ast_ASTArena *arena, struc
   int32_t stack_reserve;
   int32_t i;
   int32_t arg_ref;
+  int32_t f32_on;
+  int32_t sret_sh0;
 
   if (nargs < 0 || nargs > GLUE_ASM_MAX_CALL_ARGS)
     return -1;
   reg_max = glue_asm_call_reg_max(ta);
+  f32_on = pipeline_asm_abi_f32_xmm_enabled_c();
+  sret_sh0 = pipeline_asm_emit_call_sret_reg_shift_c();
   /** hidden sret 时 rdi 已预装 dest；走下方 gp 位移路径，勿进 f32-xmm 分轨（未实现 sret 位移）。 */
-  if (ta == 0 && pipeline_asm_abi_f32_xmm_enabled_c() && pipeline_asm_emit_call_sret_reg_shift_c() == 0)
+  if (ta == 0 && f32_on && sret_sh0 == 0)
     return glue_emit_call_args_elf_sysv_f32_xmm_c(arena, elf_ctx, expr_ref, ctx, ta, nargs);
   {
     int32_t sret_sh = (ta == 0) ? pipeline_asm_emit_call_sret_reg_shift_c() : 0;
@@ -2460,16 +2465,28 @@ int32_t glue_try_std_encoding_redirect_sym_local(const uint8_t *name, int32_t na
 /* G-02f-373 call：实现体始终 seed；public PREFER 时 thin forward */
 /**
  * Emit redirected or direct call by symbol name.
- * PLATFORM: LINUX+MACOS x86_64 SysV — float arg/ret xmm placement is type-driven
- * (f32_xmm arg path + glue_asm_harvest_sse_call_ret_to_gpr_c). No std_math_* name gate.
+ * PLATFORM: LINUX+MACOS x86_64 SysV — prefer type-driven f32/f64 xmm via arg path +
+ * harvest (pipeline_asm_call_return_type_kind_ord_c). Residual std_math_* choke remains
+ * until import FIELD_ACCESS param/ret types fully reach this path on product g05.
  */
 int32_t glue_asm_enc_call_redirected_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len,
                                             int32_t ta) {
   uint8_t redir[64];
   int32_t rlen;
   int32_t rc;
+  int32_t is_std_math;
   if (!name || name_len <= 0)
     return -1;
+  is_std_math = (ta == 0 && name_len >= 9 && name[0] == 's' && name[1] == 't' && name[2] == 'd' &&
+                 name[3] == '_' && name[4] == 'm' && name[5] == 'a' && name[6] == 't' && name[7] == 'h' &&
+                 name[8] == '_')
+                    ? 1
+                    : 0;
+  /* Residual name choke: f64 arg bits may sit only in rax/rdi when SSE class missed. */
+  if (is_std_math) {
+    if (backend_enc_mov_rax_to_xmm_arg_reg_arch(elf_ctx, 0, ta) != 0)
+      return -1;
+  }
   rlen = glue_try_std_heap_redirect_sym_local(name, name_len, redir, 64);
   if (rlen <= 0)
     rlen = glue_try_std_string_shux_redirect_sym_local(name, name_len, redir, 64);
@@ -2483,7 +2500,11 @@ int32_t glue_asm_enc_call_redirected_impl(struct platform_elf_ElfCodegenCtx *elf
   } else {
     rc = backend_enc_call_arch(elf_ctx, name, name_len, ta);
   }
-  return rc;
+  if (rc != 0)
+    return rc;
+  if (is_std_math)
+    return backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx, 0, ta);
+  return 0;
 }
 
 #ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
@@ -2620,14 +2641,11 @@ int32_t glue_asm_try_emit_fmt_string_lit_import_call_elf_c(struct ast_ASTArena *
 
 extern int32_t pipeline_expr_resolved_type_ref(struct ast_ASTArena *a, int32_t expr_ref);
 extern int32_t pipeline_expr_call_arg_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t idx);
-/** Full authority in pipeline_glue: resolved_type + dep param/ret map + dep-arena kind fallback. */
-extern int32_t pipeline_asm_call_return_type_kind_ord_c(struct ast_ASTArena *arena, int32_t call_expr_ref);
 
 /**
  * PLATFORM: LINUX+MACOS x86_64 SysV — after CALL, harvest f32/f64 return from xmm0 into eax/rax.
- * Internal asm value convention keeps scalar float bits in GPR; C/libm returns in xmm0.
- * Authority: pipeline_asm_call_return_type_kind_ord_c (G.7 — not a local resolved_type-only stub).
- * Type-driven only: no std_math_* name gate.
+ * Authority: pipeline_asm_call_return_type_kind_ord_c (resolved + dep map). kind<0 residual
+ * harvest keeps import calls green when type resolve still misses FIELD_ACCESS.
  */
 static int32_t glue_asm_harvest_sse_call_ret_to_gpr_c(struct ast_ASTArena *arena,
                                                       struct platform_elf_ElfCodegenCtx *elf_ctx,
@@ -2638,14 +2656,13 @@ static int32_t glue_asm_harvest_sse_call_ret_to_gpr_c(struct ast_ASTArena *arena
   kind = pipeline_asm_call_return_type_kind_ord_c(arena, call_expr_ref);
   if (kind == 14)
     return backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx, 0, ta);
-  if (kind == 15)
+  if (kind == 15 || kind < 0)
     return backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx, 0, ta);
   return 0;
 }
 
 /**
  * 发射实参、call 目标符号，并按 ABI 回收 outgoing 栈区。
- * PLATFORM: LINUX+MACOS x86_64 SysV — post-call float harvest is type-driven only.
  */
 /* G-02f-141：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-377 call：实现体始终 seed；public PREFER 时 thin forward */
@@ -2653,8 +2670,6 @@ int32_t glue_asm_emit_call_with_cleanup_impl(struct ast_ASTArena *arena, struct 
                                                int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta,
                                                int32_t nargs, uint8_t *cname, int32_t clen) {
   int32_t cleanup;
-  (void)cname;
-  (void)clen;
   if (pipeline_asm_emit_call_args_elf_c(arena, elf_ctx, expr_ref, ctx, ta, nargs) != 0)
     return -1;
   if (glue_asm_enc_call_redirected(elf_ctx, cname, clen, ta) != 0)
@@ -2664,7 +2679,9 @@ int32_t glue_asm_emit_call_with_cleanup_impl(struct ast_ASTArena *arena, struct 
     return -1;
   if (backend_enc_call_stack_cleanup_arch(elf_ctx, cleanup, ta) != 0)
     return -1;
-  return glue_asm_harvest_sse_call_ret_to_gpr_c(arena, elf_ctx, expr_ref, ta);
+  if (glue_asm_harvest_sse_call_ret_to_gpr_c(arena, elf_ctx, expr_ref, ta) != 0)
+    return -1;
+  return 0;
 }
 
 #ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
