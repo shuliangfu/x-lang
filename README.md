@@ -1,117 +1,119 @@
 # Shux
 
-> **Write high-performance, memory-safe code in a modern language** — Based on C's type and execution model, with syntax and semantics kept simple, readable, and maintainable; achieves performance and memory safety through "explicit + fewer undefined behaviors + safe by default" rather than complex type theory.
+> **Write high-performance, memory-safe code in a modern language** — C-like type and execution model; simple, readable syntax; safety and speed via *explicit contracts + fewer undefined behaviors + safe by default*, not heavy type theory.
 
 | Item | Description |
 |------|-------------|
-| **Language Name** | Shux |
-| **Compiler** | `shux` |
-| **Source File Extension** | `.x` |
-| **Build Configuration** | `build.x` (equivalent to Zig's `build.zig`) |
-| **Current Main Track** | **Phase B + C in parallel** (Cap capability unlocking → R2 real migration → M mega depinning; D+E-soft+F v1 closed) |
-| **Progress View** | [`analysis/自举进度.md`](analysis/自举进度.md) (single source of truth) |
+| **Language** | Shux |
+| **Compiler** | `shux` / `shux_asm` (product binary after bootstrap) |
+| **Source extension** | `.x` |
+| **Build config** | `build.x` (role similar to Zig’s `build.zig`) |
+| **Status (2026-07)** | **Product path green** on macOS + Ubuntu (L4 true cold + `run-all-bstrict` 123/123); **self-host not finished** (seed / hybrid C still on the cold-start chain) |
+| **Live dashboard** | [`analysis/自举进度.md`](analysis/自举进度.md) · snapshot [`当前进度.md`](当前进度.md) |
+| **中文** | [README_zh-CN.md](README_zh-CN.md) |
 
 ---
 
-## 1. Project Positioning
+## 1. Positioning
 
-Shux is a **systems programming language**: no GC, zero-cost abstractions, explicit memory model, targeting code quality **comparable to or exceeding C**. Compared to C, it offers a simpler development experience—clean syntax, errors with locations and suggestions, integrated toolchain; compared to Rust, the type system is deliberately restrained, being **sufficiently explicit** at key points (nullable, bounds, ownership/borrowing, aliasing), allowing the compiler to statically prove safety and optimize with confidence.
+Shux is a **systems language**: no GC, zero-cost abstractions, explicit memory model. Generated code aims to match or beat careful C. Versus C: cleaner syntax, diagnostics with locations, integrated toolchain. Versus Rust: a deliberately smaller type system that stays **explicit enough** at the hard edges (nullability, bounds, ownership/borrow, aliasing) so the compiler can prove safety and optimize.
 
-### Core Objectives
+### Goals
 
-| Objective | Meaning |
-|-----------|---------|
-| **Extreme Performance** | No GC, zero-cost abstractions, direct ASM output + optional C backend; aliasing and noalias drive auto-vectorization |
-| **Memory Safety** | No leaks, no dangling pointers, no out-of-bounds, no data races in the safe subset; clear auditable `unsafe` boundaries |
-| **Lightweight** | Few dependencies, small executables, supports freestanding and embedded; standard library linked on-demand |
-| **Rich Standard Library** | Full `core/` + `std/` modules, one API across all platforms |
-| **Easy to Learn** | Much simpler than C; gentle learning curve, smooth toolchain |
-| **Self-Hosting** | Compiler and standard library eventually 100% `.x`; host C / seed only for cold start and cleanup transition |
+| Goal | Meaning |
+|------|---------|
+| **Performance** | No GC; ASM backend (default) + optional C backend; alias / `noalias` feed autovec and DCE |
+| **Memory safety** | Safe subset: no leaks, dangling refs, OOB, or data races by default; auditable `unsafe` |
+| **Lightweight** | Few deps; small binaries; freestanding/embedded; std linked on demand |
+| **Standard library** | Full `core/` + `std/`; one API surface across platforms (impl details under `std.sys`) |
+| **Learnability** | Much simpler than C-at-scale; gentle curve, integrated tools |
+| **Self-hosting** | End state: compiler + std 100% `.x`; host C / seed only for cold start (in progress, not claimed complete) |
 
-### Design Philosophy
+### Design stance
 
-- **Purpose**: Extreme performance optimization.
-- **Principle**: Highly maintainable code, simple development; **memory safety** (no leaks, no crashes, absolute safety).
+- **Aim**: extreme performance where it matters.
+- **Discipline**: maintainable code, simple development, **memory safety** (no silent UB in the safe subset).
 
-Detailed design: [`analysis/语法与类型设计-高性能与内存安全.md`](analysis/语法与类型设计-高性能与内存安全.md), [`analysis/需求分析.md`](analysis/需求分析.md).
-
----
-
-## 2. Language Feature Overview
-
-### Types and Semantics
-
-- **Primitive Types**: `i8`/`i16`/`i32`/`i64`, `u8`/`u16`/`u32`/`u64`, `f32`/`f64`, `bool`, `usize`/`isize`
-- **Structs and Generics**: Generic functions/structs + monomorphization; trait / impl interfaces
-- **Nullable and Error Handling**: `Option<T>`, `Result<T, E>`; explicit handling, avoiding C-style nullable raw pointers
-- **Slices**: `T[]` carries length; region annotation `T[]<label>` with **region** borrowing domains (typeck rejects escapes)
-- **Modules**: `import("std.io")` / `import("core.mem")`; directories are modules, entry is `mod.x`
-
-### Memory and Safety
-
-- **No GC**: Stack + Heap + Arena; compile-time region / linear / borrow rejects errors
-- **Compile-Time Automatic Memory Management**: `defer`, `owned`, scoped `Allocator` (`with_arena`), SROA, BCE
-- **Gradated Safety**: Safe by default; only `unsafe { ... }` allows raw pointers and low-level syscalls
-- **Alias Analysis**: `noalias`, scope borrow gate, providing basis for autovec and DCE
-
-See also [`analysis/编译时自动内存管理和自动向量化.md`](analysis/编译时自动内存管理和自动向量化.md), [`analysis/安全与性能.md`](analysis/安全与性能.md).
-
-### Conditional Compilation and Platforms
-
-- Conditional compilation (`#if` / target branches) supports multiple targets
-- **One API across all platforms**: Platform differences encapsulated inside `std/sys`
-- Supports **freestanding** (`-freestanding`, nostdlib static linking)
-- Multi-target: `x86_64-linux`, `arm64-macos`, etc. (`-target`)
-
-Language syntax quick reference: [`docs/README.md`](docs/README.md) (keywords, types, control flow, modules, etc.).
+Design notes: [`analysis/语法与类型设计-高性能与内存安全.md`](analysis/语法与类型设计-高性能与内存安全.md), [`analysis/需求分析.md`](analysis/需求分析.md).
 
 ---
 
-## 3. Quick Start
+## 2. Language sketch
+
+### Types and semantics
+
+- **Primitives**: `i8`/`i16`/`i32`/`i64`, `u8`/`u16`/`u32`/`u64`, `f32`/`f64`, `bool`, `usize`/`isize`
+- **Structs and generics**: monomorphized generics; trait / impl
+- **Nullability / errors**: `Option<T>`, `Result<T, E>` (prefer over raw nullable C pointers)
+- **Slices**: `T[]` carries length; region forms `T[]<label>` with escape checks
+- **Modules**: `import("std.io")` / `import("core.mem")`; directory = module, entry `mod.x`
+- **Field access**: only `.` in Shux source (not `->`; C `->` is codegen’s job when the base is a pointer)
+
+### Memory and safety
+
+- **No GC**: stack + heap + arena; compile-time region / linear / borrow checks
+- **Compile-time help**: `defer`, `owned`, scoped allocators (`with_arena`), SROA, BCE
+- **Graded safety**: safe by default; raw pointers and low-level syscalls only in `unsafe { ... }`
+- **Alias analysis**: `noalias` and borrow gates for autovec / DCE
+
+See [`analysis/编译时自动内存管理和自动向量化.md`](analysis/编译时自动内存管理和自动向量化.md), [`analysis/安全与性能.md`](analysis/安全与性能.md).
+
+### Platforms
+
+- Conditional compilation (`#if` / target branches)
+- **One API, multi-OS** (Linux / macOS primary; Windows probes / B-hybrid)
+- Freestanding: `-freestanding` (nostdlib static, Linux x86_64 path)
+- Targets such as `x86_64-linux`, `arm64-macos` (`-target`)
+
+Syntax index: [`docs/README.md`](docs/README.md).
+
+---
+
+## 3. Quick start
 
 ### Requirements
 
-- Linux or macOS (Windows bootstrap chain in progress, B-hybrid)
-- System C compiler and linker (`cc` / `clang`), used for linking phase and cold-start seed
-- Optional: Docker (Linux x86_64 gold standard gate, e.g., `run-linux-a09-a11-gate.sh`)
+- **Linux** (x86_64 gold standard) or **macOS**
+- Host C toolchain (`cc` / `clang`) for link and cold-start seed
+- Optional: Docker for Linux gates
 
-### First-Time Build
+### First-time build
 
 ```bash
-# Recommended: pinned seeds produce build_tool, then daily relink to shux
+# Recommended: pinned seeds → build_tool → daily shux
 make -C compiler build-tool
-./shux-build.sh first-time          # = build_tool + ./build_tool ./shux
+./shux-build.sh first-time          # build_tool + ./build_tool ./shux
 # Or: cd compiler && ./build_tool ./shux
 
-# Cold start (cc only, no Makefile): cd compiler && sh bootstrap.sh
+# Cold start with cc only: cd compiler && sh bootstrap.sh
 
-# For LSP (--lsp):
+# Full seed driver (LSP / product chain common path):
 make -C compiler bootstrap-driver-seed
+FULL=0 bash compiler/scripts/g05_prepare_and_relink.sh
 ```
 
-### Daily Build and Bootstrap
+### Daily build
 
 ```bash
-# [Recommended daily] G-05: build_tool → g05_build_shux_asm.sh → make shux_asm (relink gold standard)
-./shux-build.sh build                 # at repo root (root make also delegates to this script)
+# Daily: G-05 path → shux_asm relink gold
+./shux-build.sh build
 # Or: cd compiler && ./build_tool ./shux
 
-SHUX=./compiler/shux ./tests/run-hello.sh
+export SHUX=./compiler/shux_asm   # prefer this-wave product binary
+./tests/run-hello.sh
 
-# Full B-strict (after changing backend/seed; slower)
-./shux-build.sh full                  # or make -C compiler bootstrap-driver-bstrict
-
-# Semantic bootstrap smoke test
-make -C compiler bootstrap-verify     # Makefile fallback / CI
+# Heavier rebuild after backend/seed changes
+./shux-build.sh full              # or make -C compiler bootstrap-driver-bstrict
 ```
 
-| Entry Point | Purpose |
-|-------------|---------|
+| Entry | Use |
+|-------|-----|
 | `./shux-build.sh build` / `./build_tool ./shux` | **Daily incremental** (default) |
-| `./shux-build.sh full` | Full B-strict |
-| `make -C compiler …` | Cold start details, legacy CI, test targets (**fallback**) |
+| `./shux-build.sh full` | Full B-strict-style rebuild |
+| `make -C compiler …` | Cold start, CI, low-level targets |
 
-`shux-c` is only used for **first cold start** or MSYS2 / non-x86_64 linking fallback; **not** the daily release binary. Daily work uses `compiler/shux` (relink / B-strict finalized).
+**Product binary**: after a proper build, use **`compiler/shux_asm`** (often mirrored as `compiler/shux`).  
+`shux-c` / seed helpers are for **cold start and transition**, not the daily release story.
 
 ### Hello World
 
@@ -126,336 +128,288 @@ function main(): i32 {
 ```
 
 ```bash
-./compiler/shux examples/hello.x          # compile and run (requires shux already built)
-./compiler/shux build examples/hello.x -o hello && ./hello
-./compiler/shux check examples/hello.x      # parse + typeck only
+export SHUX=./compiler/shux_asm
+$SHUX examples/hello.x
+$SHUX build examples/hello.x -o hello && ./hello
+$SHUX check examples/hello.x
 ```
 
-More examples: [`examples/`](examples/) (includes cookbook: io, net, async, json, compress, etc.).
+More samples: [`examples/`](examples/) (io, net, async, json, compress, …).
 
-### Acceptance Tests
+### Acceptance tests
 
 ```bash
-./tests/run-all.sh              # full regression (repo root)
-./tests/run-all-bstrict.sh      # B-strict chain equivalent CI
-./tests/run-linux-a09-a11-gate.sh   # Linux gold standard bootstrap gate (Docker recommended)
+export SHUX=./compiler/shux_asm
+./tests/run-all.sh                 # full regression (when appropriate)
+SHUX_BSTRICT_SKIP_BUILD=1 ./tests/run-all-bstrict.sh   # product gate suite (~123 scripts)
+./tests/run-linux-a09-a11-gate.sh  # Linux gold bootstrap subset (Docker OK)
 ```
+
+For **self-host / product release claims**, the project requires **L4 true cold** (wipe all `.o` under `compiler`/`std`/`core`, rebuild binaries) **plus** dual-platform `run-all-bstrict` green. Details: skill / [`自举方法.md`](自举方法.md) · [`compiler/docs/SELFHOST.md`](compiler/docs/SELFHOST.md).
 
 ---
 
-## 4. Compiler Usage (`shux`)
+## 4. Compiler CLI
 
-Default uses **ASM backend** to emit machine code directly (`-backend asm`). Common commands:
+Default backend: **ASM** (`-backend asm`).
 
 | Command | Description |
 |---------|-------------|
-| `shux file.x` | Compile and run (same as `shux run file.x`) |
-| `shux build` | Read current directory `build.x`, compile and run `build_runner` |
-| `shux build file.x` | Compile only, default output `a.out` |
-| `shux build file.x -o exe` | Compile to specified executable |
-| `shux run file.x` | Compile and run |
-| `shux check file.x` | Parse + typeck only (including imports), no linking |
-| `shux fmt file.x` | Format `.x` source file |
-| `shux test [script.sh]` | Run test script (default `tests/run-all.sh`) |
-| `shux --lsp` | Language server (stdio JSON-RPC; called by IDE plugins) |
-| `shux -E file.x` | Output C source (for debugging) |
+| `shux file.x` | Compile and run (`shux run`) |
+| `shux build` | Read `build.x`, run build runner |
+| `shux build file.x -o exe` | Compile to executable |
+| `shux check file.x` | Parse + typeck only |
+| `shux fmt file.x` | Format |
+| `shux test [script]` | Run tests (default `tests/run-all.sh`) |
+| `shux --lsp` | Language server (stdio JSON-RPC) |
+| `shux -E file.x` | Emit C (debug) |
 | `shux -backend c file.x` | Force C backend |
-| `shux -O2 file.x -o app` | Optimization level (**default -O2**) |
-| `shux -freestanding … -o app` | Linux x86_64 nostdlib static linking |
-| `shux -h` / `shux --help` | Print usage summary |
+| `shux -O2 file.x -o app` | Optimize (default **-O2**) |
+| `shux -freestanding …` | Linux x86_64 nostdlib static |
+| `shux -h` | Help |
 
-Build configuration entry: root [`build.x`](build.x): equivalent to Zig's `build.zig`, describing "how to compile, what to compile". Daily entry: `./shux-build.sh` / `build_tool` (G-05 ~95%); `compiler/Makefile` only for relink dependency graph and cold-start implementation layer.
+Root [`build.x`](build.x) describes what to build. Daily entry: `./shux-build.sh` / `build_tool`.
 
 ---
 
-## 5. Repository Structure
+## 5. Repository layout
 
 ```
 shux/
-├── README.md                 # This file
-├── LICENSE                   # Full AGPL-3.0-or-later license text
-├── NOTICE                    # Copyright, SPDX identifiers, and third-party notices
-├── build.x                  # Build configuration (equivalent to build.zig)
-├── NEXT.md                   # Complete bootstrap roadmap and gate commands
-├── analysis/                 # Requirements, architecture, RFCs, performance and security analysis
-├── docs/                     # Language syntax documentation (user-facing)
-├── compiler/                 # Compiler (.x main chain + C seed / glue, moving toward physical zero C)
-│   ├── src/
-│   │   ├── lexer/ parser/ ast/ typeck/ codegen/
-│   │   ├── asm/              # In-house ASM backend
-│   │   ├── pipeline/ driver/ lsp/
-│   │   └── …
-│   ├── seeds/                # bootstrap_shuxc, *_gen cold-start seeds
-│   ├── docs/SELFHOST.md      # Bootstrap acceptance commands
-│   └── scripts/              # build_shux_asm.sh etc.
-├── core/                     # Standard library core (no OS dependency)
-├── std/                      # Standard library std (F-ZC: 0 handwritten .c/.h)
-├── runtime/                  # Minimal runtime (optional)
-├── tests/                    # Regression tests and gate scripts
-├── examples/                 # Examples and cookbook
-├── tools/                    # Formatting, test runners, etc.
-├── editors/vscode/           # VS Code / Cursor / Trae plugins (LSP client)
-└── mcp/                      # MCP services (development assistance)
+├── README.md / README_zh-CN.md
+├── LICENSE / NOTICE
+├── build.x / shux-build.sh
+├── 当前进度.md / 自举方法.md / 自举步骤.md
+├── analysis/                 # architecture, RFCs, progress dashboard
+├── docs/                     # language syntax (user-facing)
+├── compiler/                 # compiler (.x + seed C / glue)
+│   ├── src/                  # lexer, parser, typeck, codegen, asm, pipeline, driver, lsp
+│   ├── seeds/                # cold-start pins
+│   ├── docs/SELFHOST.md
+│   └── scripts/              # build_shux_asm, g05, relink, …
+├── core/                     # OS-free core library
+├── std/                      # OS-facing standard library (product .x; no handwritten std .c)
+├── tests/                    # regressions and gates
+├── examples/
+├── tools/
+├── editors/vscode/           # VS Code / Cursor / Trae + LSP client
+└── mcp/
 ```
 
-- **core/** does not depend on **std/**; **std/** depends on **core/**
-- Module layout: **directory is module**, entry is `mod.x` (e.g., `std/io/mod.x`)
-- User references: `import("core.mem")`, `import("std.io")`
+- **core/** does not depend on **std/**; **std/** may depend on **core/**
+- Module rule: **directory = module**, entry `mod.x`
 
-Architecture details: [`analysis/构架分析.md`](analysis/构架分析.md).
+Architecture: [`analysis/构架分析.md`](analysis/构架分析.md).
 
 ---
 
-## 6. Standard Library
+## 6. Standard library
 
-### core (No OS)
+### core (no OS)
 
-| Module | Responsibility |
-|--------|----------------|
-| `core.types` | `size_of` / `align_of`, layout queries |
-| `core.mem` | Memory operations, alignment, copying |
-| `core.option` / `core.result` | Nullable and error types |
-| `core.slice` / `core.str` | Slices and string views |
-| `core.fmt` / `core.debug` | Formatting and debugging |
-| `core.builtin` / `core.iterator` / `core.cmp` | Builtins, iteration, comparison |
+| Module | Role |
+|--------|------|
+| `core.types` | `size_of` / `align_of`, layout |
+| `core.mem` | memory ops |
+| `core.option` / `core.result` | option / result |
+| `core.slice` / `core.str` | slices and string views |
+| `core.fmt` / `core.debug` | format / debug |
+| `core.builtin` / `core.iterator` / `core.cmp` | builtins, iteration, compare |
 
-(Full list: [`docs/07-内置与标准库.md`](docs/07-内置与标准库.md).)
+Full list: [`docs/07-内置与标准库.md`](docs/07-内置与标准库.md).
 
-### std (OS-Dependent, F-ZC ✅)
+### std (OS-facing)
 
-Handwritten **`.c`/`.h` under `std/` is now 0** (Phase F closed). Covers I/O, filesystem, networking, concurrency, compression, encoding, database, HTTP, async, crypto, regex, configuration, etc. Representative modules:
+Product sources under `std/` are **`.x`** (Phase F: no handwritten `.c`/`.h` in `std/`). Categories include:
 
-| Category | Modules |
-|----------|---------|
+| Category | Examples |
+|----------|----------|
 | Basics | `std.io`, `std.fs`, `std.path`, `std.process`, `std.env` |
 | Containers | `std.vec`, `std.map`, `std.set`, `std.queue` |
-| Memory | `std.heap` (Allocator, Arena), `std.mem` |
+| Memory | `std.heap`, `std.mem` |
 | Concurrency | `std.thread`, `std.sync`, `std.channel`, `std.async` |
 | Networking | `std.net`, `std.http`, `std.websocket` |
 | Data | `std.json`, `std.csv`, `std.compress`, `std.db` |
-| System | `std.sys` (Linux syscall / macOS libSystem / Win32 planned) |
-| Utilities | `std.test`, `std.fmt`, `std.log`, `std.cli` |
+| System | `std.sys` (Linux / macOS; Windows WIP) |
+| Utilities | `std.test`, `std.fmt`, `std.log`, `std.cli`, `std.crypto`, … |
 
-Standard library is linked on-demand, no unused modules included, fulfilling "lightweight, everything small".
+Link is **on demand** (unused modules stay out of the final link when possible).
 
 ---
 
-## 7. Compiler Architecture
-
-### Pipeline
+## 7. Compiler architecture
 
 ```
 .x source
-  → [Preprocess] → #if / import expansion
-  → [Lexer] → Token stream
-  → [Parser] → AST
-  → [Type Checker] → Generic monomorphization, borrow, region
-  → [Code Generator] → ASM or C
-  → [Linker] → Executable / .o
+  → preprocess (#if / import)
+  → lexer → parser → AST
+  → typeck (generics, borrow, region, …)
+  → codegen (ASM default, or C via -E / -backend c)
+  → host link → executable / .o
 ```
 
-### Two Build Paths
+| Path | Meaning |
+|------|---------|
+| **User / product path** | This-SHA `shux_asm` compiles user `.x` → `-o` / run; matrix + bstrict |
+| **Bootstrap / engineering path** | Seed cold start → `build_shux_asm` / g05 → optional Stage2 / WPO dogfood |
 
-| Path | Description |
-|------|-------------|
-| **User Compilation** | `.x` → driver → asm/c backend → ld → executable |
-| **Bootstrap Build** | Seed (`shux-c` / `bootstrap_shuxc` + `*_gen`) → `build_shux_asm.sh` → `shux_asm` → Stage2 verification |
+**Two tracks (do not mix when reading status):**
 
-### Bootstrap Status (2026-07-14)
-
-> Detailed numbers and TODOs: [`analysis/自举进度.md`](analysis/自举进度.md); table below is README summary.
-
-#### Progress Over the Past Month (2026-06-14 → 2026-07-14)
-
-One month ago, this repository had no bootstrap progress tracking system (no `analysis/自举进度.md`, no Cap/R/L/M methodology, README was "development timeline"). Within one month (4163 commits), key changes:
-
-| Dimension | One Month Ago | Now | Change |
-|-----------|--------------|-----|--------|
-| **Methodology** | Stage G cleanup ~20% | Cap/R/L/M four tracks + four KPIs (T/N/R2/H/S/G) | Established [`自举方法.md`](自举方法.md), [`自举步骤.md`](自举步骤.md), [`自举进度.md`](analysis/自举进度.md), [`当前进度.md`](当前进度.md) |
-| **T** (typeck) | Some modules failing | **18/18 full** | 12 root cause waves including W-lsp-diag-expr / W-lexer-timeout / W-tail / W-isize all cleared |
-| **N** (prove IDENTICAL) | 0 (system not built) | **49** | 9 labi_* + 12 rt_* + 7 backend/diagnostic thin proves all green |
-| **R2** (real migration H=0) | 0 | **15** full | `rt_util` / `rt_lib_root` / `rt_emit_flags` / `rt_emit_state` / `rt_content` / `rt_fs_open` / `rt_parse_diag` / `rt_fmt_one` / `rt_diag_errno` / `rt_stack` / `rt_argv` / `rt_entry` / `rt_pipeline_elf_diag` / `rt_compile` / `rt_run_exec` |
-| **W Waves** | 0 | **12 ✅** | W-string / W-keyword-param / W-unsafe-expr / W-extern-unsafe / W-tail / W-isize / W-heap-overload / W-escape / W-lexer-timeout / W-lsp-diag-expr / W-string-let / W-string-nul |
-| **Cap** | 0 unlocked | **1** ✅ | Cap-empty-str; ⬜ Cap-string-pool / Cap-global-bss / Cap-va-reportf / Cap-regen-sync |
-| **Gate G** | — | ✅ mac + Ubuntu all green | Seed cold start / G-FFI-5 |
-
-> **Core Conclusion**: Within one month, completed "from no progress tracking → established four-track methodology + four KPIs + 12 root cause waves all cleared + 15 slices R2 full real migration". Remaining bottlenecks converged to **4 Cap items + 3 mega pins**, no longer unorganized cleanup.
-
-#### Stage Overview
-
-| Stage | Meaning | Status |
-|-------|---------|--------|
-| **D** | Gold bootstrap Stage2 | ✅ v1 |
-| **E** | Compiler de-C (soft) | 🟡 Default no_c; pinned seed + patch still present ← **current main track** |
-| **F** | std no C (F-ZC) | ✅ `std/` 0 `.c` + 0 `.h` |
-| **G** | Final physical zero C / nostdlib hard green | 🟡 Not this week's main track (E three tracks first) |
-
-#### Four KPIs (Ubuntu x86_64, 2026-07-14)
-
-| KPI | Meaning | Current | Healthy Direction |
-|-----|---------|---------|-------------------|
-| **T** | typeck OK / 18 | **18/18** ✅ | Full |
-| **N** | prove IDENTICAL module count | **49** (annotated) | No longer sprinting |
-| **R2** | Production rest business symbols migrated (H=0) | **15** full | ↑ Primary metric |
-| **H** | Hybrid rest slices still containing business C bodies | 15 slices above H=0; remaining runtime multi-slices still rest C | ↓ Primary metric |
-| **S** | Pinned seed surface hard-depended by build chain | R2×15 production PREFER full .x; others hybrid multi thin+rest; mega still pinned | ↓ |
-| **G** | Gates: seed cold start / G-FFI-5 | ✅ mac + Ubuntu | All green |
-
-#### Current Main Track (Phase B + C in Parallel)
-
-```
-Current ──► Phase B Exit ──► Phase C Exit ──► v2==v3 ──► Bootstrap Semantics Complete
-  │           │                │
-  │           │                └─ All mega pins removed (typeck M4 + codegen + parser)
-  │           └─ 4 Cap items + batch R2 (H→0, except syscall/crt shells)
-  └─ T=18/18 ✅ / N=49 annotated / R2=15
-```
-
-| Track | Current Status | Next Step |
-|-------|---------------|-----------|
-| **Cap** (Capability Unlocking) | ✅ Cap-empty-str; ⬜ Cap-string-pool / Cap-global-bss / Cap-va-reportf / Cap-regen-sync | Cap-global-bss → rt_arena_buf |
-| **R** (Real Migration Retirement) | R2=15 full (H=0); remaining hybrid multi-slices still rest C | Batch R2: other runtime rest |
-| **M** (Mega Depinning) | 3 still pinned (typeck / codegen / parser) | typeck M2 trial replacement smoke |
-| **L** (Leaf Prove) | N=49 IDENTICAL (secondary track, no longer sprinting) | Regression lock only |
-
-#### Current Blockers
-
-1. **Phase B Exit Not Reached**: Production `runtime_driver_no_c` / labi still has business rest C (H not reduced) — Root cause: 4 Cap items not unlocked
-2. **Phase C Exit Not Reached**: 3 mega still pinned — Root cause: typeck M2 trial replacement not smoke-verified
-3. **typeck standalone variable resolution**: `shux-c -E src/runtime_driver_diagnostic.x` still reports `expected *u8, found ?`
-
-Full picture and acceptance: [`compiler/docs/SELFHOST.md`](compiler/docs/SELFHOST.md), [`NEXT.md`](NEXT.md) §10 Stage G, [`analysis/doc-selfhost-architecture-v1.md`](analysis/doc-selfhost-architecture-v1.md).
+| Track | What it measures | Alone enough to claim “self-host done”? |
+|-------|------------------|----------------------------------------|
+| **Product** | L4 true cold + product matrix (rv / option / hello / …) + dual `run-all-bstrict` 123 | **Required**, not sufficient alone for “zero C forever” |
+| **Engineering** | prove T/N, Cap residual pure, Stage2, WPO chain/link/text gates | **No** |
 
 ---
 
-## 8. Milestones
+## 8. Self-host status (snapshot · 2026-07-17)
+
+> **Authoritative live numbers**: [`analysis/自举进度.md`](analysis/自举进度.md).  
+> README only summarizes; **do not** treat Stage2 / prove / WPO green as product release by itself.
+
+### Product track
+
+| Item | Status |
+|------|--------|
+| Ubuntu L4 + full bstrict | ✅ **123/123** (tip L4 pin documented in dashboard) |
+| macOS L4 + full bstrict | ✅ **123/123** (same tip pin) |
+| Product binary under test | `compiler/shux_asm` from **this SHA’s** cold/L3+ build — never an old `stage1` binary |
+| Gold host | **Ubuntu x86_64** |
+
+### Engineering track (subset)
+
+| KPI / gate | Status (order of magnitude) |
+|------------|------------------------------|
+| **T** typeck surface | **18/18** |
+| **EMPTY** | **18/18** |
+| **N** prove IDENTICAL | **54/54** |
+| Cap residual pure (driver_abi / fmt_check / …) | major residual pure waves closed on product tip L4 |
+| **D Stage2** | ✅ freestanding / parity green (**≠** full product g05 chain) |
+| Stage2 **WPO** chain + strict-link + text-gate | ✅ engineering green (Ubuntu; Darwin N/A for some link gates) |
+
+### What is *not* claimed
+
+- **Not** “compiler is 100% `.x` with zero seed”
+- **Not** “Stage2 `shux_asm2` is the product compiler”
+- **Not** “engineering WPO green = tip product L4”
+- Final physical zero-C / nostdlib hard green (**G**) is still roadmap, not the weekly claim surface
+
+Methodology: Cap / R / L / M → [`自举方法.md`](自举方法.md). Ops: [`compiler/docs/SELFHOST.md`](compiler/docs/SELFHOST.md).
+
+### Near-term front row (high level)
+
+1. Keep **product** dual L4 green when SHARED surfaces move; re-pin tip L4 after product commits  
+2. Engineering: WPO full-chain remainder (proxy / stretch) and residual pure cleanup without fake-green  
+3. Pause greenfield **std feature** expansion while self-host / product gates remain the main line  
+
+---
+
+## 9. Milestones
 
 | Milestone | Content | Status |
 |-----------|---------|--------|
 | M0 | Lexer, AST, Parser | ✅ |
-| M1 | Typeck, Codegen, Driver, first working version | ✅ |
-| M2 | import, core/std minimal subset, multi-target | ✅ |
-| M3 | Generics, trait, module system, standard library expansion | ✅ |
-| M4 | DCE, -O2/-Os, size and performance baseline | ✅ (partial) |
-| M5 | Bootstrap (`.x` compiler can compile itself) | ✅ D+E+F v1; 🟡 Phase B+C parallel (Cap→R2→M depinning) |
-| **Current Main Track** | **Phase B + C in Parallel** (bootstrap semantics complete) | See [`自举进度.md`](自举进度.md) |
+| M1 | Typeck, Codegen, Driver | ✅ |
+| M2 | import, core/std subset, multi-target | ✅ |
+| M3 | Generics, trait, modules, std growth | ✅ |
+| M4 | DCE, -O2/-Os, size/perf baseline | ✅ partial |
+| M5 | Bootstrap (compiler can rebuild itself) | 🟡 **usable product path + partial self-host**; seed still required for cold start |
+| **Now** | Product L4 dual green + engineering Cap/WPO deep work | See dashboard |
 
 ---
 
-## 9. Documentation Index
+## 10. Documentation map
 
-| Document | Content |
-|----------|---------|
-| [`自举进度.md`](自举进度.md) | **Bootstrap / Final G progress (prioritized maintenance)** |
-| [`当前进度.md`](当前进度.md) | Daily engineering blockers and reproduction commands |
-| [`自举方法.md`](自举方法.md) | Cap/R/L/M methodology |
-| [`NEXT.md`](NEXT.md) | Roadmap, Stage G tasks, gate commands |
-| [`docs/README.md`](docs/README.md) | Language syntax documentation index |
-| [`analysis/自举进度.md`](analysis/自举进度.md) | Bootstrap progress dashboard (KPI / front-row / three tracks) |
-| [`analysis/需求分析.md`](analysis/需求分析.md) | Overall goals, performance and security strategy |
-| [`analysis/构架分析.md`](analysis/构架分析.md) | Repository structure, compiler module division |
-| [`analysis/语法与类型设计-高性能与内存安全.md`](analysis/语法与类型设计-高性能与内存安全.md) | Type and semantic design principles |
-| [`analysis/编译时自动内存管理和自动向量化.md`](analysis/编译时自动内存管理和自动向量化.md) | Arena, SROA, autovec roadmap |
-| [`analysis/安全与性能.md`](analysis/安全与性能.md) | Compiler and language security defenses |
-| [`analysis/性能压榨.md`](analysis/性能压榨.md) | Performance layering and pre-bootstrap perf baseline |
-| [`analysis/IR核心设计.md`](analysis/IR核心设计.md) | Five-layer IR architecture (Architecture Freeze v4.0, post-bootstrap) |
-| [`compiler/docs/SELFHOST.md`](compiler/docs/SELFHOST.md) | Bootstrap operations and acceptance commands |
-| [`editors/vscode/README.md`](editors/vscode/README.md) | VS Code / Cursor / Trae plugin and LSP configuration |
+| Document | Role |
+|----------|------|
+| [`analysis/自举进度.md`](analysis/自举进度.md) | **KPI dashboard** (must update each wave) |
+| [`当前进度.md`](当前进度.md) | Daily snapshot / front row |
+| [`自举方法.md`](自举方法.md) | Cap / R / L / M method |
+| [`自举步骤.md`](自举步骤.md) | Executable gates |
+| [`docs/README.md`](docs/README.md) | Language docs index |
+| [`analysis/需求分析.md`](analysis/需求分析.md) | Goals, perf & safety strategy |
+| [`analysis/构架分析.md`](analysis/构架分析.md) | Repo / compiler layout |
+| [`analysis/性能压榨.md`](analysis/性能压榨.md) | Perf layers / dogfood |
+| [`compiler/docs/SELFHOST.md`](compiler/docs/SELFHOST.md) | Self-host ops |
+| [`editors/vscode/README.md`](editors/vscode/README.md) | Editor plugin + LSP |
+| [`AGENTS.md`](AGENTS.md) | Contributor / agent rules (root-cause, dual authority, platforms) |
 
-There are also numerous RFCs and module-level designs (std-http, std-async, perf, etc.) under `analysis/`, search by module name.
+Many RFCs live under `analysis/` (http, async, WPO, …).
 
 ---
 
-## 10. Testing and Quality
+## 11. Testing and quality
 
-- **Full Regression**: `./tests/run-all.sh`
-- **B-strict CI**: `SHUX=./compiler/shux ./tests/run-bootstrap-bstrict-ci.sh` (or `shux_asm`)
-- **Pre-Push P0**: `SHUX=./compiler/shux ./tests/run-pre-push-p0.sh`
-- **Linux Gold Standard**: `./tests/run-linux-a09-a11-gate.sh`
-- **Gate Scripts**: `tests/run-*-gate.sh` (borrow, arena, region, linear, autovec, etc.)
-- **No Compile Regression**: `SHUX_PERF_FAIL_ON_COMPILE_REGRESSION=1 ./tests/run-perf-compile-dogfood.sh`
-- **Performance Baseline**: `tests/baseline/`, `analysis/perf-*.md`
+| Suite | Command |
+|-------|---------|
+| Full regression | `./tests/run-all.sh` |
+| Product bstrict | `SHUX=./compiler/shux_asm SHUX_BSTRICT_SKIP_BUILD=1 ./tests/run-all-bstrict.sh` |
+| Pre-push P0 | `SHUX=./compiler/shux_asm ./tests/run-pre-push-p0.sh` |
+| Linux gold subset | `./tests/run-linux-a09-a11-gate.sh` |
+| Topic gates | `tests/run-*-gate.sh` |
+| Compile dogfood | `SHUX_PERF_FAIL_ON_COMPILE_REGRESSION=1 ./tests/run-perf-compile-dogfood.sh` |
 
-### Performance Benchmark Results (2026-07-09, Linux x86_64, fair data after anti-cheat fix)
+Baselines: `tests/baseline/`. When running **true cold full tests**, log paths should be printed for operators (e.g. `/tmp/*true_cold*`, `/tmp/*true_bstrict*`).
 
-> Test machine: Ubuntu x86_64; reference compiler `clang -O2 -std=c11`; SHUX compiler `./compiler/shux` (seed, ASM backend, default `-O2`).
-> Gate standard (Dev Spec v1 §4): SHUX in-house backend wall time median ≤ C `-O2` median. Sampling: warmup 3 + rounds 20, take median.
-> Anti-cheat: All C sources contain `__asm__ volatile` to prevent constant folding (`call_boundary.c` / `struct_param.c` fixed, see commit 567bea0a).
+### Perf snapshot (historical · 2026-07-09 · Linux x86_64)
 
-#### Differential Tests D1–D6 (Behavior correctness: exit code + stdout match C source)
+Fair wall-time medians vs `clang -O2` (warmup 3 + 20 rounds). See suite docs under `analysis/perf-*` for refresh procedure.
 
-| Test Case | Verification Content | Result |
-|-----------|---------------------|--------|
-| D1 `int_arith` | u32 overflow wrap / signed division truncation toward zero / modulo sign / shift / bit ops | ✅ PASS (rc=242) |
-| D2 `struct_layout` | repr(C) layout / packed no padding / nested struct / field read/write | ✅ PASS (rc=50) |
-| D3 `call_conv` | Multi-parameter passing (>6 register spill to stack) / struct return / recursive call | ✅ PASS (rc=178) |
-| D4 `float` | IEEE 754 float operations / float comparison | ❌ FAIL (P2 placeholder, ASM backend float codegen pending) |
-| D5 `bit_ops` | Negative arithmetic right shift / unsigned logical right shift / bitfield extract / bit set/clear | ✅ PASS (rc=130) |
-| D6 `mem_ops` | Handwritten memset/memcpy / array index access / loop fill copy | ✅ PASS (rc=8) |
+| Benchmark | ratio (SHUX / C) | Note |
+|-----------|------------------|------|
+| `loop_i32` | ~0.87 | ✅ |
+| `mem_copy` | ~0.87 | ✅ |
+| `struct_param` | ~0.08 | ✅ |
+| `call_boundary` (fold) | ~0.00 | compile-time affine fold |
+| `call_boundary` (real) | ~1.77 | ❌ — stack-heavy ASM; regalloc still weak |
 
-**D1–D6 Summary: 5/6 PASS**. D4 float is P2 placeholder (explicitly commented in `tests/bench/diff/d4_float.x`), to be activated after ASM backend float support is complete.
-
-#### PERF-001 Performance Gate (wall time median comparison, fair comparison)
-
-| Benchmark | Loop Scale | C median | SHUX median | ratio | Gate |
-|-----------|------------|----------|-------------|-------|------|
-| `loop_i32` | 100M LCG accumulation loops | 45.7 ms | 39.9 ms | 0.87 | ✅ PASS |
-| `mem_copy` | 8192 rounds × 4096 bytes fill+sum | 7.5 ms | 6.5 ms | 0.87 | ✅ PASS |
-| `struct_param` | 100M Pair(2×i32) pass-by-value | 67.6 ms | 5.7 ms | 0.08 | ✅ PASS |
-| `call_boundary` (fold) | 200M 5-layer deep call chain | 81.1 ms | 0.3 ms | 0.00 | ✅ PASS |
-| `call_boundary` (real) | 200M 5-layer deep call chain | 81.2 ms | 143.4 ms | 1.77 | ❌ FAIL |
-
-> ratio = SHUX median / C median; < 1.0 means SHUX is faster. Sampling: warmup 3 + rounds 20, take median (Python `perf_counter` precise timing).
-> `call_boundary` provides two datasets: **fold** = compile-time affine loop elimination (recognizes `while(i<n){s=s+f(i);i++}` pattern, f0–f4 are `x+K` chains K=5, closed-form evaluation `n(n-1)/2 + K·n`, 200M loops folded into 2 instructions `mov $total,%eax; store`); **real** = disabled fold for fair runtime comparison, gap from ASM backend lacking register allocation (loop variables s/i all stored on stack, load/store per iteration, clang `-O2` keeps in registers). Post-bootstrap register allocation will make real ratio approach 1.0.
-
-> macOS arm64 cannot run ASM backend benchmarks due to CG002 (ASM backend `code_len=0` limitation), please execute on Linux x86_64 (use `ssh ubuntu-server`).
+Diff cases D1–D6: 5/6 pass; float D4 still a known P2 placeholder.
 
 ---
 
-## 11. Toolchain Ecosystem
+## 12. Tooling
 
-| Component | Path | Description |
-|-----------|------|-------------|
-| VS Code / Cursor / Trae Plugin | [`editors/vscode/`](editors/vscode/) | Syntax highlighting, LSP (`shux --lsp`), formatting, tasks, diagnostics; 32 config items, 14 UI languages, 36 snippets |
-| Language Server | `compiler/src/lsp/` | `lsp.x`, `lsp_diag.x`, etc.; requires `compiler/shux` with `--lsp` support |
-| MCP Server | [`mcp/`](mcp/) | IDE/AI calls parsing and diagnostics via MCP |
+| Component | Path |
+|-----------|------|
+| VS Code / Cursor / Trae | [`editors/vscode/`](editors/vscode/) |
+| LSP | `shux --lsp` · `compiler/src/lsp/` |
+| MCP | [`mcp/`](mcp/) |
 
-Install plugin: see [`editors/vscode/README.md`](editors/vscode/README.md) (VSIX or development mode); workspace requires Open Folder to start LSP.
-
----
-
-## 12. Contributing
-
-1. After cloning: `make -C compiler build-tool && ./shux-build.sh first-time` (or `make -C compiler bootstrap-driver-bstrict`).
-2. After modifying `.x` daily: `./shux-build.sh build` (or `cd compiler && ./build_tool ./shux`), then run `./tests/run-all.sh` / relevant gate.
-3. Bootstrap-related changes: `make -C compiler bootstrap-verify`; final items cross-reference [`analysis/自举进度.md`](analysis/自举进度.md).
-4. Commit conventions: Conventional Commits (`feat:` / `fix:` / `perf:` etc.), English description.
-
-**Current Resolution**: Standard library **new features** are paused; **only main track = bootstrap semantics completion** (Phase B + C parallel: Cap capability unlocking → R2 real migration retirement → M mega depinning). Post-bootstrap, IR Phase 0 will start (architecture already frozen v4.0).
+Plugin install: [`editors/vscode/README.md`](editors/vscode/README.md).
 
 ---
 
-## 13. License
+## 13. Contributing
 
-This project is licensed under **GNU Affero General Public License v3.0 or later** (AGPL-3.0-or-later), unless a path states otherwise in [`NOTICE`](NOTICE).
+1. Clone → `make -C compiler build-tool && ./shux-build.sh first-time` (or full bootstrap-driver path).  
+2. Daily edits → `./shux-build.sh build`, set `SHUX=./compiler/shux_asm`, run relevant tests/gates.  
+3. Product / link / SHARED changes → **Ubuntu gold** (and mac when SHARED); for release claims use **L4 true cold** + dual bstrict.  
+4. Commits: Conventional Commits (`feat:` / `fix:` / `docs:` …), English preferred for code comments in `.x` (see `AGENTS.md` / G.9).  
+5. **No dual authority**: seed and `.x` product surfaces move **same commit** when both exist.  
+6. **No false green**: do not claim self-host complete from prove/Stage2/WPO alone.
 
-- Full license text: [`LICENSE`](LICENSE)
-- Copyright, component matrix, and third-party notices: [`NOTICE`](NOTICE)
+**Main line resolution**: prioritize self-host / product gates over large new std features; IR v4 architecture is frozen for post-bootstrap work.
 
-Notable exceptions / third parties (details in NOTICE):
+---
+
+## 14. License
+
+**GNU Affero General Public License v3.0 or later** (AGPL-3.0-or-later), unless a path says otherwise in [`NOTICE`](NOTICE).
 
 | Component | License |
 |-----------|---------|
-| Default (compiler, core, std, tree-sitter grammar, …) | AGPL-3.0-or-later |
-| `editors/vscode` | MIT ([`editors/vscode/LICENSE`](editors/vscode/LICENSE)) |
+| Default (compiler, core, std, …) | AGPL-3.0-or-later |
+| `editors/vscode` | MIT |
 | Vendored orlp ed25519 (`compiler/seeds/crypto/ed25519/`) | zlib |
 
-### Commercial License
+Full text: [`LICENSE`](LICENSE). Copyright & third-party map: [`NOTICE`](NOTICE).
 
-If your use case requires **exemption from AGPL-3.0 copyleft** (e.g., embedding the Shux compiler, toolchain, or derivative works in proprietary products, or running modified versions as network services without providing corresponding source to remote users), please contact the author for **commercial licensing**:
+### Commercial licensing
+
+For **AGPL exemption** (proprietary embedding, closed distribution, modified network services without offering corresponding source), contact:
 
 - Shuliang Fu — [admin@shuliangfu.com](mailto:admin@shuliangfu.com)
 
 ---
 
-*Shux — Extreme performance optimization, simple, readable, maintainable, memory safe.*
+*Shux — performance-oriented, simple, readable, maintainable, memory-safe.*
