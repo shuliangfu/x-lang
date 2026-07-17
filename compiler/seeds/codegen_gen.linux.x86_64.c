@@ -9344,6 +9344,10 @@ int32_t codegen_emit_call_func_name(struct codegen_CodegenOutBuf * out, struct a
         if ((((ok_res !=0) && (fallback_len > 0)) && (codegen_module_func_overload_count(res_mod, fallback_name, fallback_len) > 1))) {
           (void)((ok_res = 0));
         }
+        /* PLATFORM: SHARED — reject call_resolved on a different module than binding current_module. */
+        if ((((ok_res !=0) && (current_module !=((struct ast_Module *)(0)))) && (res_mod !=current_module))) {
+          (void)((ok_res = 0));
+        }
         if ((ok_res !=0)) {
           struct ast_ASTArena * res_arena = codegen_arena_for_module(ctx, res_mod, arena);
           return codegen_emit_func_link_name(out, res_arena, res_mod, func_ix);

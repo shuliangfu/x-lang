@@ -50,85 +50,15 @@ int32_t typeck_check_expr_deref(struct ast_Module * module, struct ast_ASTArena 
 
 METHOD_CALL_BODY = """\
 int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
-  /* W-heap-overload: glue method_call then re-dispatch binding overload by arg types. */
-  extern int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
-  extern int32_t pipeline_expr_method_call_base_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
-  extern int32_t pipeline_expr_method_call_name_len(struct ast_ASTArena *a, int32_t expr_ref);
-  extern void pipeline_expr_method_call_name_into(struct ast_ASTArena *a, int32_t expr_ref, uint8_t *out);
-  extern int32_t pipeline_expr_method_call_num_args_at(struct ast_ASTArena *a, int32_t expr_ref);
-  extern int32_t pipeline_typeck_import_binding_name_equal_strict_minimal(struct ast_Module *m, int32_t ii, uint8_t *nm, int32_t nlen);
-  extern int32_t pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
-      struct ast_Module *mod, struct ast_ASTArena *caller_arena, uint8_t *name, int32_t name_len,
-      int32_t from_dep_index, int32_t want_arity, int32_t call_expr_ref, int32_t is_method,
-      struct ast_PipelineDepCtx *ctx, int32_t *func_index_out);
-  int32_t rc;
-  int32_t base_ref;
-  int32_t base_kind;
-  int32_t base_nlen;
-  int32_t method_nlen;
-  int32_t num_args;
-  int32_t ii;
-  int32_t import_kind;
-  int32_t import_ret_ty;
-  int32_t func_ix;
-  int32_t dep_ix;
-  uint8_t method_nm[64];
-  uint8_t base_nm[64];
-  struct ast_Module *dm;
-  rc = pipeline_typeck_check_expr_method_call_c(module, arena, expr_ref, return_type_ref, ctx);
-  if (rc != 0 || !module || !arena || !ctx || expr_ref <= 0)
-    return rc;
-  base_ref = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
-  if (base_ref <= 0)
-    return rc;
-  base_kind = pipeline_expr_kind_ord_at(arena, base_ref);
-  if (base_kind != 3)
-    return rc;
-  method_nlen = pipeline_expr_method_call_name_len(arena, expr_ref);
-  if (method_nlen <= 0 || method_nlen > 63)
-    return rc;
-  pipeline_expr_method_call_name_into(arena, expr_ref, method_nm);
-  num_args = pipeline_expr_method_call_num_args_at(arena, expr_ref);
-  base_nlen = pipeline_expr_var_name_len(arena, base_ref);
-  if (base_nlen <= 0 || base_nlen > 63)
-    return rc;
-  pipeline_expr_var_name_into(arena, base_ref, base_nm);
   /*
-   * PLATFORM: SHARED — re-dispatch must install expected return (let/assign context).
-   * glue method_call_c scores with expected_ret then clears the slot; without re-install,
-   * zero-arg overloads (vec.new → Vec_i32 vs Vec_u8) fall back to first match.
+   * PLATFORM: SHARED — authority matches typeck.x: only pipeline_typeck_check_expr_method_call_c.
+   * Do NOT re-dispatch by import index as dep index: multi-import closure (ndep > n_imports)
+   * maps entry import ii for "heap" to a wrong dep (Linux inserts page_mmap so ii=2 → libc).
+   * That overwrote free(*u8) with libc free → bare std_heap_free / http.o fail.
+   * method_call_c already path-resolves dep + scores overloads + expected_ret.
    */
-  {
-    extern int32_t *typeck_overload_expected_ret_slot(void);
-    int32_t es = 0;
-    if (return_type_ref > 0)
-      es = return_type_ref;
-    *typeck_overload_expected_ret_slot() = es;
-  }
-  for (ii = 0; ii < module->num_imports; ii++) {
-    import_kind = pipeline_module_import_kind_at(module, ii);
-    if (import_kind != 1)
-      continue;
-    if (!pipeline_typeck_import_binding_name_equal_strict_minimal(module, ii, base_nm, base_nlen))
-      continue;
-    dm = pipeline_dep_ctx_module_at(ctx, ii);
-    if (!dm)
-      break;
-    func_ix = -1;
-    import_ret_ty = pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
-        dm, arena, method_nm, method_nlen, ii, num_args, expr_ref, 1, ctx, &func_ix);
-    if (import_ret_ty > 0) {
-      dep_ix = ii;
-      (void)ast_expr_apply_call_resolve(arena, expr_ref, dep_ix, func_ix);
-      (void)pipeline_expr_set_resolved_type_ref(arena, expr_ref, import_ret_ty);
-    }
-    break;
-  }
-  {
-    extern int32_t *typeck_overload_expected_ret_slot(void);
-    *typeck_overload_expected_ret_slot() = 0;
-  }
-  return 0;
+  extern int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
+  return pipeline_typeck_check_expr_method_call_c(module, arena, expr_ref, return_type_ref, ctx);
 }
 """
 
@@ -219,11 +149,10 @@ def replace_weak_fn(src: str, name: str, new_body: str) -> tuple[str, bool]:
                 if "pipeline_typeck_unsafe_depth_push_c" in old and name == "typeck_check_expr_block":
                     return src, False
                 if name == "typeck_check_expr_method_call":
-                    # Already has expected-return re-dispatch (zero-arg overload fix).
-                    if "typeck_overload_expected_ret_slot" in old and "by_name_call_strict_minimal" in old:
+                    # Fixed: pure delegate to path-resolving method_call_c (no import-ix re-dispatch).
+                    if "Do NOT re-dispatch by import index" in old:
                         return src, False
-                    # Old W-heap re-dispatch without expected_ret → rewrite (vec.new Vec_u8).
-                    # Short LANG-007 delegate also rewritten → arg-type dispatch + expected_ret.
+                    # Any older body (import-ix re-dispatch or short stub) → rewrite.
                 return src[:start] + new_body.rstrip() + "\n" + src[end:], True
         i += 1
     raise RuntimeError(f"unbalanced braces for {name}")

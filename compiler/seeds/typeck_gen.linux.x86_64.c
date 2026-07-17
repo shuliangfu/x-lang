@@ -3445,14 +3445,15 @@ int32_t typeck_check_expr_method_call_arg(struct ast_Module * module, struct ast
   return typeck_check_expr_method_call_arg(module, arena, expr_ref, return_type_ref, ctx, arg_i + 1, num_args);
 }
 int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
-  int32_t base_ref = 0;
-  int32_t num_args = 0;
-  (void)(ast_expr_init_call_resolve(arena, expr_ref));
-  (base_ref = (pipeline_expr_method_call_base_ref_at(arena, expr_ref)));
-  (void)(({ int32_t __tmp = 0; if (typeck_check_expr(module, arena, base_ref, return_type_ref, ctx) != 0) {   return (-1);
- } else (__tmp = 0) ; __tmp; }));
-  (num_args = (pipeline_expr_method_call_num_args_at(arena, expr_ref)));
-  return typeck_check_expr_method_call_arg(module, arena, expr_ref, return_type_ref, ctx, 0, num_args);
+  /*
+   * PLATFORM: SHARED — authority matches typeck.x: only pipeline_typeck_check_expr_method_call_c.
+   * Do NOT re-dispatch by import index as dep index: with multi-import closure (ndep > n_imports),
+   * entry import ii for "heap" may be 2 while dep[2] is std.heap.libc (Linux inserts page_mmap).
+   * That overwrote correct free(*u8) resolve with libc free → bare std_heap_free / http.o fail.
+   * method_call_c already path-resolves dep + scores overloads + expected_ret.
+   */
+  extern int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
+  return pipeline_typeck_check_expr_method_call_c(module, arena, expr_ref, return_type_ref, ctx);
 }
 int32_t typeck_check_expr_as(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, struct ast_PipelineDepCtx * ctx) {
   int32_t op_ref = pipeline_expr_as_operand_ref_at(arena, expr_ref);

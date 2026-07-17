@@ -8576,6 +8576,14 @@ export function codegen_emit_call_func_name(out: *CodegenOutBuf, arena: *ASTAren
               && codegen_module_func_overload_count(res_mod, fallback_name, fallback_len) > 1) {
             ok_res = 0;
           }
+          /*
+           * PLATFORM: SHARED — when METHOD_CALL fallback passes binding current_module,
+           * reject call_resolved that points at a different dep module (e.g. heap.free →
+           * libc free after multi-import index confusion). Prefer re-search in binding.
+           */
+          if (ok_res != 0 && current_module != 0 as *Module && res_mod != current_module) {
+            ok_res = 0;
+          }
           if (ok_res != 0) {
             let res_arena: *ASTArena = codegen_arena_for_module(ctx, res_mod, arena);
             return codegen_emit_func_link_name(out, res_arena, res_mod, func_ix);
