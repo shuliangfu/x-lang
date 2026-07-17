@@ -1515,7 +1515,14 @@ src/asm/backend_call_dispatch.o: seeds/backend_call_dispatch.from_x.c src/asm/ba
 PARSER_ASM_THIN_GLUE_CFLAGS = -DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE
 PARSER_ASM_LINK_ALIAS_CFLAGS = -DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS
 # G-02f-10：thin glue / parse_expr_link 产品 seed
+# PLATFORM: SHARED — thin glue monothin includes many parser_asm/*.inc; list ALL
+# of them so make rebuilds when glue_tail/library_wrap/etc. change (stale .o caused
+# Ubuntu UNDEF parser_skip_one_top_level_let_into_glue after M2 re-pin).
 parser_asm_thin_glue.o: seeds/parser_asm_thin_c.from_x.c src/asm/parser_asm_thin_c.x \
+ seeds/parser_asm/parser_asm_lex_skip_slice.inc \
+ seeds/parser_asm/parser_asm_helpers_slice.inc \
+ seeds/parser_asm/parser_asm_skip_if_slice.inc \
+ seeds/parser_asm/parser_asm_foundation_slice.inc \
  seeds/parser_asm/parser_asm_type_ref_slice.inc \
  seeds/parser_asm/parser_asm_struct_layout_slice.inc \
  seeds/parser_asm/parser_asm_library_slice.inc \
@@ -1536,7 +1543,15 @@ parser_asm_thin_glue.o: seeds/parser_asm_thin_c.from_x.c src/asm/parser_asm_thin
  seeds/parser_asm/parser_asm_ternary_assign_slice.inc \
  seeds/parser_asm/parser_asm_emit_heavy_stretch_slice.inc \
  seeds/parser_asm/parser_asm_emit_heavy_stretch_suite_slice.inc \
- seeds/parser_asm/parser_asm_seed_parse_into_buf_slice.inc
+ seeds/parser_asm/parser_asm_seed_parse_into_buf_slice.inc \
+ seeds/parser_asm/parser_asm_body_tl_slice.inc \
+ seeds/parser_asm/parser_asm_imports_slice.inc \
+ seeds/parser_asm/parser_asm_diag_pipeline_slice.inc \
+ seeds/parser_asm/parser_asm_skip_tl_slice.inc \
+ seeds/parser_asm/parser_asm_diag_late_slice.inc \
+ seeds/parser_asm/parser_asm_try_skip_allow_slice.inc \
+ seeds/parser_asm/parser_asm_library_wrap_slice.inc \
+ seeds/parser_asm/parser_asm_glue_tail_slice.inc
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) $(PARSER_ASM_THIN_GLUE_CFLAGS) -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm -c seeds/parser_asm_thin_c.from_x.c -o $@
 
 src/asm/parser_asm_parse_expr_link.o: seeds/parser_asm_parse_expr_link.from_x.c src/asm/parser_asm_parse_expr_link.x
