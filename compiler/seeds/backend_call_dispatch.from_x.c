@@ -472,8 +472,8 @@ static int32_t glue_call_arg_is_sse_float_c(struct ast_ASTArena *arena, int32_t 
       }
     }
   }
-  /* TEMP debug: freestanding may stub fopen — use write(2). */
-  if (getenv("SHUX_SSE_DEBUG") && arena && call_expr_ref > 0 && arg_index >= 0) {
+  /* TEMP always-on (remove after root): freestanding getenv may be stub. */
+  if (arena && call_expr_ref > 0 && arg_index >= 0 && arg_index < 4) {
     char line[192];
     int n;
     arg_ref = pipeline_expr_call_arg_ref(arena, call_expr_ref, arg_index);
@@ -2075,7 +2075,7 @@ int32_t pipeline_asm_emit_call_args_elf_c_impl(struct ast_ASTArena *arena, struc
   reg_max = glue_asm_call_reg_max(ta);
   f32_on = pipeline_asm_abi_f32_xmm_enabled_c();
   sret_sh0 = pipeline_asm_emit_call_sret_reg_shift_c();
-  if (getenv("SHUX_SSE_DEBUG")) {
+  {
     char line[160];
     int n = snprintf(line, sizeof line, "emit_call_args expr=%d nargs=%d ta=%d f32_on=%d sret=%d\n", (int)expr_ref,
                      (int)nargs, (int)ta, (int)f32_on, (int)sret_sh0);
@@ -2737,7 +2737,7 @@ int32_t pipeline_asm_emit_call_elf_c_impl(struct ast_ASTArena *arena, struct pla
   ly = (struct glue_AsmFuncCtxCall *)ctx;
   mod_ref = ly ? ly->module_ref : 0;
   callee_ko = pipeline_expr_kind_ord_at(arena, callee_ref);
-  if (getenv("SHUX_SSE_DEBUG")) {
+  {
     char line[160];
     int n = snprintf(line, sizeof line, "emit_call_elf expr=%d callee_ko=%d nargs=%d mod=%p\n", (int)expr_ref,
                      (int)callee_ko, (int)pipeline_expr_call_num_args_at(arena, expr_ref), (void *)mod_ref);
