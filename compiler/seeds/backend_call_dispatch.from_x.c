@@ -2494,42 +2494,40 @@ int32_t glue_asm_build_call_export_sym_c_impl(struct ast_ASTArena *arena, int32_
   /*
    * PLATFORM: SHARED — heap thin redirect (alloc/free → heap_*_c) must NOT
    * steal:
-   *  - libc/extern callees in co-emitted std.heap.libc (free→heap_free_c)
-   *  - same-module local/export functions when co-emit has real bodies
-   *    (std.heap.alloc overload → heap_alloc_c under freestanding)
-   * G.7: complete existing redirect authority (guard before table, no second path).
+   *  - libc free/realloc/malloc when co-emitting std.heap.libc (free→heap_free_c)
+   *  - same-module local exports when co-emit has real bodies
+   * G.7: complete existing redirect authority (guards before table).
+   * Note: extern "C" free may be absent from module_num_funcs; path gate is required.
    */
-  if (mod) {
-    int32_t efi;
+  {
+    const char *dep_path = driver_get_current_dep_path_for_codegen();
+    int32_t skip_heap_redirect = 0;
     int32_t has_local = 0;
-    int32_t has_extern = 0;
-    for (efi = 0; efi < pipeline_module_num_funcs(mod); efi++) {
-      if (!pipeline_module_func_name_equal_at(mod, efi, cname, clen))
-        continue;
-      if (pipeline_module_func_is_extern_at(mod, efi) != 0)
-        has_extern = 1;
-      else
+    /* std.heap.libc — bare free/malloc/realloc are libc FFI, not heap_*_c. */
+    if (dep_path && dep_path[0]
+        && (strstr(dep_path, "heap.libc") != NULL || strstr(dep_path, "heap/libc") != NULL))
+      skip_heap_redirect = 1;
+    if (mod) {
+      int32_t efi;
+      for (efi = 0; efi < pipeline_module_num_funcs(mod); efi++) {
+        if (!pipeline_module_func_name_equal_at(mod, efi, cname, clen))
+          continue;
+        if (pipeline_module_func_is_extern_at(mod, efi) != 0) {
+          /* Prefer bare extern name (even if also listed with a body elsewhere). */
+          if (clen > 0 && clen < out_cap) {
+            memcpy(out, cname, (size_t)clen);
+            return clen;
+          }
+          return -1;
+        }
         has_local = 1;
-    }
-    if (has_extern && !has_local) {
-      if (clen > 0 && clen < out_cap) {
-        memcpy(out, cname, (size_t)clen);
-        return clen;
       }
-      return -1;
     }
-    if (has_local) {
-      /* Co-emit has function body for this name — use normal export mid path below. */
-      rlen = 0;
-    } else {
+    if (!skip_heap_redirect && !has_local) {
       rlen = glue_try_std_heap_redirect_sym_local(cname, clen, out, out_cap);
       if (rlen > 0)
         return rlen;
     }
-  } else {
-    rlen = glue_try_std_heap_redirect_sym_local(cname, clen, out, out_cap);
-    if (rlen > 0)
-      return rlen;
   }
   dep_ix = pipeline_expr_call_resolved_dep_index_at(arena, call_expr_ref);
   if (dep_ix < 0 && dep_pipe) {
