@@ -2555,34 +2555,81 @@ int32_t glue_asm_build_call_export_sym_c_impl(struct ast_ASTArena *arena, int32_
      * 定义由 freestanding_io 桩或 libc 提供（裸名），勿加 dep 前缀（否则 ld 缺符号
      * std_sys_linux_shux_sys_listen / std_sys_linux_open）。 */
     struct ast_Module *dep_mod = pipeline_dep_ctx_module_at(dep_pipe, dep_ix);
+    struct ast_ASTArena *dep_arena = pipeline_dep_ctx_arena_at(dep_pipe, dep_ix);
     if (dep_mod) {
       int32_t fi2;
+      int32_t saw_non_extern = 0;
       for (fi2 = 0; fi2 < pipeline_module_num_funcs(dep_mod); fi2++) {
         if (pipeline_module_func_name_equal_at(dep_mod, fi2, cname, clen)) {
           if (pipeline_module_func_is_extern_at(dep_mod, fi2) != 0) {
+            /* Keep scanning: overloads may mix extern FFI + local bodies. */
+            continue;
+          }
+          saw_non_extern = 1;
+          break;
+        }
+      }
+      if (!saw_non_extern) {
+        /* Only extern hit(s) for this name in dep_mod → bare libc/syscall face. */
+        for (fi2 = 0; fi2 < pipeline_module_num_funcs(dep_mod); fi2++) {
+          if (pipeline_module_func_name_equal_at(dep_mod, fi2, cname, clen)
+              && pipeline_module_func_is_extern_at(dep_mod, fi2) != 0) {
             if (clen > 0 && clen < out_cap) {
               memcpy(out, cname, (size_t)clen);
               return clen;
             }
             return -1;
           }
-          break;
         }
       }
     }
     memset(path, 0, sizeof(path));
     pipeline_dep_ctx_import_path_copy64(dep_pipe, dep_ix, path);
-    if (path[0]) {
+    if (path[0] && dep_mod) {
+      int32_t want_np = pipeline_expr_call_num_args_at(arena, call_expr_ref);
+      int32_t use_fi = -1;
+      int32_t r_func = pipeline_expr_call_resolved_func_index_at(arena, call_expr_ref);
+      int32_t r_dep = pipeline_expr_call_resolved_dep_index_at(arena, call_expr_ref);
+      uint8_t mid[64];
+      int32_t mid_len;
+      if (!dep_arena)
+        dep_arena = arena;
+      /*
+       * PLATFORM: SHARED — freestanding co-emit overload CALL residual:
+       * prior path always used bare field mid (prefix+cname) → U std_vec_reserve
+       * while T std_vec_reserve_Vec_i32_ptr (formal export mid).
+       * G.7: complete call-export authority with formal/score mid (same as import-binding).
+       */
+      if (r_dep == dep_ix && r_func >= 0 && r_func < pipeline_module_num_funcs(dep_mod)
+          && pipeline_module_func_is_extern_at(dep_mod, r_func) == 0
+          && pipeline_module_func_name_equal_at(dep_mod, r_func, cname, clen)
+          && pipeline_module_func_num_params_at(dep_mod, r_func) == want_np)
+        use_fi = r_func;
+      if (use_fi < 0)
+        use_fi = glue_asm_score_import_binding_func_ix_c(arena, 0, call_expr_ref, dep_mod, dep_arena, cname,
+                                                         clen, want_np, 0);
       glue_codegen_import_path_to_c_prefix_into(path, prefix, 128);
       plen = 0;
       while (plen < 127 && prefix[plen])
         plen++;
-      if (plen > 0)
+      if (plen > 0) {
+        if (use_fi >= 0) {
+          mid_len = glue_asm_build_func_overload_mid_c(dep_mod, dep_arena, use_fi, mid, 64);
+          if (mid_len > 0)
+            return glue_asm_build_import_binding_call_sym(prefix, plen, mid, mid_len, out);
+        }
         return glue_asm_build_import_binding_call_sym(prefix, plen, cname, clen, out);
+      }
     }
   }
   if (mod) {
     int32_t func_ix = pipeline_typeck_resolve_call_func_index_for_emit_c(mod, arena, call_expr_ref);
+    int32_t want_np = pipeline_expr_call_num_args_at(arena, call_expr_ref);
+    if (func_ix < 0) {
+      /* typeck residual (freestanding XT001): score same-module overloads. */
+      func_ix = glue_asm_score_import_binding_func_ix_c(arena, 0, call_expr_ref, mod, arena, cname, clen,
+                                                       want_np, 0);
+    }
     if (func_ix >= 0) {
       /* extern 函数（shux_sys_* / libc）用裸名：定义由 freestanding_io 桩或 libc 提供，
        * 勿加 dep 前缀（否则 ld 缺符号 std_heap_page_mmap_shux_sys_mmap）。 */

@@ -3110,6 +3110,7 @@ int link_abi_generated_c_needs_libc_heap(const char *c_path) {
 
 /**
  * 用户 .o 是否仍引用 libc 堆符号（F-03 v2：无 heap.o，由 -lc 解析）。
+ * Freestanding: same probe → chain bootstrap_nostdlib_stubs (mmap bump malloc), not -lc.
  */
 int link_abi_user_o_needs_libc_heap(const char *user_o) {
   (void)(({   {
@@ -3135,6 +3136,88 @@ int link_abi_user_o_needs_libc_heap(const char *user_o) {
   }
  }));
   return 0;
+}
+
+/**
+ * PLATFORM: LINUX freestanding — co-emit std.heap.libc / mem ops need zero-libc face.
+ * G.7: reuse link_abi_user_o_needs_libc_heap + memcpy/memcmp (stubs authority).
+ */
+int link_abi_user_o_needs_freestanding_nostdlib_face(const char *user_o) {
+    if (!user_o || !user_o[0])
+        return 0;
+    if (link_abi_user_o_needs_libc_heap(user_o))
+        return 1;
+    if (shux_link_obj_needs_undef_sym(user_o, "memcpy") != 0)
+        return 1;
+    if (shux_link_obj_needs_undef_sym(user_o, "memcmp") != 0)
+        return 1;
+    if (shux_link_obj_needs_undef_sym(user_o, "memset") != 0)
+        return 1;
+    return 0;
+}
+
+/**
+ * PLATFORM: LINUX — path to bootstrap_nostdlib_stubs.o (mmap bump malloc/free face).
+ * Same object as compiler nostdlib bag; freestanding user link pulls it on demand.
+ */
+const char *shux_bootstrap_nostdlib_stubs_o_path(const char *argv0) {
+    static char buf[PATH_MAX];
+    static char resolved[PATH_MAX];
+    char comp_dir[PATH_MAX];
+    int nn;
+    buf[0] = resolved[0] = '\0';
+    if (realpath("compiler/src/asm/bootstrap_nostdlib_stubs.o", resolved) != NULL)
+        return resolved;
+    if (shu_resolve_compiler_dir(argv0, comp_dir, sizeof comp_dir) == 0) {
+        nn = snprintf(buf, sizeof buf, "%s/src/asm/bootstrap_nostdlib_stubs.o", comp_dir);
+        if (nn > 0 && (size_t)nn < sizeof buf) {
+            if (realpath(buf, resolved) != NULL)
+                return resolved;
+            return buf;
+        }
+    }
+    return buf;
+}
+
+/**
+ * PLATFORM: LINUX — ensure bootstrap_nostdlib_stubs.o exists (cc seed if missing).
+ * G.7: one face for freestanding malloc (page-backed), shared with compiler nostdlib bag.
+ */
+int shux_ensure_bootstrap_nostdlib_stubs_o(const char *argv0) {
+    const char *existing = shux_bootstrap_nostdlib_stubs_o_path(argv0);
+    char comp[PATH_MAX];
+    char out_o[PATH_MAX];
+    char src_c[PATH_MAX];
+    char cmd[PATH_MAX * 3];
+    int rc;
+    if (existing && existing[0] && asm_link_obj_skip_missing(existing))
+        return 0;
+    if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
+        link_diag_runtime_obj_resolve_fail("bootstrap_nostdlib_stubs.o", NULL);
+        return -1;
+    }
+    if ((size_t)snprintf(out_o, sizeof out_o, "%s/src/asm/bootstrap_nostdlib_stubs.o", comp) >= sizeof out_o)
+        return -1;
+    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/bootstrap_nostdlib_stubs.from_x.c", comp) >= sizeof src_c
+        || !asm_link_obj_skip_missing(src_c)) {
+        link_diag_runtime_source_missing("bootstrap_nostdlib_stubs", src_c);
+        return -1;
+    }
+    /* PLATFORM: LINUX — same seed as g05 ensure_bootstrap_nostdlib_stubs_obj. */
+    rc = snprintf(cmd, sizeof cmd, "cc -c -O2 -fno-builtin -I%s -I%s/include -I%s/src -o %s %s",
+                  comp, comp, comp, out_o, src_c);
+    if (rc < 0 || (size_t)rc >= sizeof cmd)
+        return -1;
+    rc = system(cmd);
+    if (rc != 0) {
+        link_diag_runtime_obj_build_status("bootstrap_nostdlib_stubs.o", rc);
+        return -1;
+    }
+    if (!asm_link_obj_skip_missing(shux_bootstrap_nostdlib_stubs_o_path(argv0))) {
+        link_diag_runtime_obj_missing("bootstrap_nostdlib_stubs.o", out_o);
+        return -1;
+    }
+    return 0;
 }
 
 int link_abi_generated_c_needs_win32(const char *c_path) {
@@ -7595,10 +7678,22 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
             const char *crt0_p;
             const char *panic_p;
             const char *io_p;
+            const char *stubs_p;
             int need_io = 0;
             int need_panic = 0;
+            int need_nostdlib_face = 0;
             need_io = shux_freestanding_user_o_needs_io(o_path);
             need_panic = shux_freestanding_user_o_needs_panic(o_path);
+            /*
+             * PLATFORM: LINUX freestanding product residual —
+             * co-emit std.heap.libc → U malloc/free/…; zero-libc face is
+             * bootstrap_nostdlib_stubs (mmap bump), same as compiler nostdlib bag.
+             * Stubs need shux_sys_mmap from freestanding_io → force need_io.
+             * G.7: complete freestanding ld on_demand (no second malloc path).
+             */
+            need_nostdlib_face = link_abi_user_o_needs_freestanding_nostdlib_face(o_path);
+            if (need_nostdlib_face)
+                need_io = 1;
             argv[la++] = "ld";
             argv[la++] = "-nostdlib";
             argv[la++] = "-static";
@@ -7638,12 +7733,24 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
                 link_diag_freestanding_missing("freestanding_io.o", "shux_sys_write");
                 return -1;
             }
+            stubs_p = NULL;
+            if (need_nostdlib_face) {
+                if (shux_ensure_bootstrap_nostdlib_stubs_o(link_eff) != 0)
+                    return -1;
+                stubs_p = asm_link_obj_skip_missing(shux_bootstrap_nostdlib_stubs_o_path(link_eff));
+                if (!stubs_p) {
+                    link_diag_freestanding_missing("bootstrap_nostdlib_stubs.o", "malloc");
+                    return -1;
+                }
+            }
             if (la < SHUX_LD_ARGV_CAP - 1)
                 argv[la++] = crt0_p;
             if (need_panic && la < SHUX_LD_ARGV_CAP - 1)
                 argv[la++] = panic_p;
             if (need_io && la < SHUX_LD_ARGV_CAP - 1)
                 argv[la++] = io_p;
+            if (need_nostdlib_face && stubs_p && la < SHUX_LD_ARGV_CAP - 1)
+                argv[la++] = stubs_p;
             /*
              * F-no-libc NL-03/04/06：freestanding 按需链入 import 的 std/*.o（page_mmap/sys/linux/core_mem）。
              * 【Why 根源】freestanding -nostdlib 链接默认只链 crt0+panic+io+user.o，不扫描 std 依赖；
