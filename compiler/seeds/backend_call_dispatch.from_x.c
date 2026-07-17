@@ -39,7 +39,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 #include "diag.h"
 #include "runtime_pipeline_abi.h"
@@ -439,21 +438,17 @@ int32_t glue_call_param_is_f32_c(struct ast_ASTArena *arena, int32_t type_ref) {
 #endif
 
 /**
- * True if call arg should use SysV xmm (param type f32/f64, or arg is FLOAT_LIT / resolved float).
- * Completes import callees when dep param type_ref mapping is missing.
+ * True if this arg_ref should use SysV xmm (param type f32/f64, FLOAT_LIT, or resolved float).
+ * PLATFORM: SHARED classification / LINUX+MACOS x86_64 SysV placement.
+ * G.7: single helper for CALL and METHOD_CALL import paths (math.floor is METHOD_CALL).
  */
-static int32_t glue_call_arg_is_sse_float_c(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t arg_index,
-                                            int32_t pty) {
-  int32_t arg_ref;
+static int32_t glue_arg_ref_is_sse_float_c(struct ast_ASTArena *arena, int32_t arg_ref, int32_t pty) {
   int32_t ko;
   int32_t atr;
   int32_t ak;
   if (glue_call_param_is_f32_c(arena, pty))
     return 1;
-  if (!arena || call_expr_ref <= 0 || arg_index < 0)
-    return 0;
-  arg_ref = pipeline_expr_call_arg_ref(arena, call_expr_ref, arg_index);
-  if (arg_ref <= 0)
+  if (!arena || arg_ref <= 0)
     return 0;
   ko = pipeline_expr_kind_ord_at(arena, arg_ref);
   if (ko == 1) /* FLOAT_LIT → default f64 bits / SysV xmm */
@@ -465,18 +460,26 @@ static int32_t glue_call_arg_is_sse_float_c(struct ast_ASTArena *arena, int32_t 
   return (ak == 14 || ak == 15) ? 1 : 0;
 }
 
-/** f64 width for movq vs movd when placing into xmm. */
-static int32_t glue_call_arg_is_f64_width_c(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t arg_index,
+/**
+ * True if call arg should use SysV xmm (param type f32/f64, or arg is FLOAT_LIT / resolved float).
+ * Completes import callees when dep param type_ref mapping is missing.
+ */
+static int32_t glue_call_arg_is_sse_float_c(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t arg_index,
                                             int32_t pty) {
   int32_t arg_ref;
+  if (!arena || call_expr_ref <= 0 || arg_index < 0)
+    return glue_arg_ref_is_sse_float_c(arena, 0, pty);
+  arg_ref = pipeline_expr_call_arg_ref(arena, call_expr_ref, arg_index);
+  return glue_arg_ref_is_sse_float_c(arena, arg_ref, pty);
+}
+
+/** f64 width for movq vs movd when placing into xmm. */
+static int32_t glue_arg_ref_is_f64_width_c(struct ast_ASTArena *arena, int32_t arg_ref, int32_t pty) {
   int32_t atr;
   int32_t ak;
-  if (pty > 0 && pipeline_type_kind_ord_at(arena, pty) == 15)
+  if (pty > 0 && arena && pipeline_type_kind_ord_at(arena, pty) == 15)
     return 1;
-  if (!arena || call_expr_ref <= 0)
-    return 0;
-  arg_ref = pipeline_expr_call_arg_ref(arena, call_expr_ref, arg_index);
-  if (arg_ref <= 0)
+  if (!arena || arg_ref <= 0)
     return 0;
   if (pipeline_expr_kind_ord_at(arena, arg_ref) == 1)
     return 1; /* float lit default f64 */
@@ -485,6 +488,15 @@ static int32_t glue_call_arg_is_f64_width_c(struct ast_ASTArena *arena, int32_t 
     return 0;
   ak = pipeline_type_kind_ord_at(arena, atr);
   return ak == 15 ? 1 : 0;
+}
+
+static int32_t glue_call_arg_is_f64_width_c(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t arg_index,
+                                            int32_t pty) {
+  int32_t arg_ref;
+  if (!arena || call_expr_ref <= 0)
+    return glue_arg_ref_is_f64_width_c(arena, 0, pty);
+  arg_ref = pipeline_expr_call_arg_ref(arena, call_expr_ref, arg_index);
+  return glue_arg_ref_is_f64_width_c(arena, arg_ref, pty);
 }
 
 /**
@@ -2940,29 +2952,44 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
             return -1;
           n_ov = pipeline_codegen_call_num_args_override(pre_buf, pre_len, name, name_len, nargs);
           /**
-           * PLATFORM: LINUX+MACOS x86_64 SysV — import METHOD_CALL args.
-           * 9–16B POD → 2 GPs. Emit each arg to a frame spill first, then load into final
-           * regs (dual-load uses rdx; must not clobber already-placed higher args).
+           * PLATFORM: LINUX+MACOS x86_64 SysV — import METHOD_CALL args (math.floor / vec.push).
+           * Root: product parses `math.floor(x)` as METHOD_CALL, not CALL+FIELD_ACCESS.
+           * Historical GP-only path left f64 in rdi; formal libm reads xmm0 (std_math name choke
+           * papered over it). G.7: same SSE class as CALL (param type / FLOAT_LIT / resolved).
+           * 9–16B POD → 2 GPs. Spill then place so dual-load does not clobber earlier regs.
            */
           {
-            int32_t gp_start[6];
-            int32_t gp_units[6];
+            int32_t reg_start[6];
+            int32_t reg_units[6];
             int32_t spill_off[6];
+            int32_t is_sse[6];
+            int32_t is_f64[6];
             int32_t gp_cur = 0;
+            int32_t xmm_cur = 0;
             int32_t n_place = nargs;
             if (n_place > 6)
               n_place = 6;
             for (i = 0; i < n_place; i++) {
               int32_t arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, i);
               int32_t pty_i = glue_call_param_type_ref_at(arena, expr_ref, i);
-              int32_t u =
-                  glue_sysv_arg_gp_units_from_size_c(glue_sysv_arg_byte_size_c(arena, ctx, pty_i, arg_ref));
+              int32_t u;
+              is_sse[i] = (ta == 0) ? glue_arg_ref_is_sse_float_c(arena, arg_ref, pty_i) : 0;
+              is_f64[i] = glue_arg_ref_is_f64_width_c(arena, arg_ref, pty_i);
+              if (is_sse[i]) {
+                if (xmm_cur >= 8)
+                  return -1;
+                reg_start[i] = xmm_cur++;
+                reg_units[i] = 1;
+                spill_off[i] = -1;
+                continue;
+              }
+              u = glue_sysv_arg_gp_units_from_size_c(glue_sysv_arg_byte_size_c(arena, ctx, pty_i, arg_ref));
               if (ta != 0)
                 u = 1;
               if (gp_cur + u > 6)
                 return -1;
-              gp_start[i] = gp_cur;
-              gp_units[i] = u;
+              reg_start[i] = gp_cur;
+              reg_units[i] = u;
               spill_off[i] = -1;
               gp_cur += u;
             }
@@ -2974,22 +3001,33 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
               if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0)
                 return -1;
               if (ta != 0) {
-                if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, gp_start[i], ta) != 0)
+                if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, reg_start[i], ta) != 0)
                   return -1;
                 continue;
               }
-              so = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, gp_units[i]);
+              so = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, reg_units[i]);
               if (so < 0)
                 return -1;
               spill_off[i] = so;
             }
             if (ta == 0) {
               for (i = 0; i < n_place; i++) {
+                int32_t mov_rc;
                 if (spill_off[i] < 0)
                   continue;
-                if (glue_sysv_load_spill_to_arg_regs_elf_c(elf_ctx, ta, spill_off[i], gp_start[i],
-                                                           gp_units[i]) != 0)
+                if (is_sse[i]) {
+                  if (backend_enc_load_rbp_to_rax_arch(elf_ctx, spill_off[i], ta) != 0)
+                    return -1;
+                  if (is_f64[i])
+                    mov_rc = backend_enc_mov_rax_to_xmm_arg_reg_arch(elf_ctx, reg_start[i], ta);
+                  else
+                    mov_rc = backend_enc_mov_eax_to_xmm_arg_reg_arch(elf_ctx, reg_start[i], ta);
+                  if (mov_rc != 0)
+                    return -1;
+                } else if (glue_sysv_load_spill_to_arg_regs_elf_c(elf_ctx, ta, spill_off[i], reg_start[i],
+                                                                  reg_units[i]) != 0) {
                   return -1;
+                }
               }
             }
           }
@@ -3000,6 +3038,9 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
             if (cln < 0 || backend_enc_call_stack_cleanup_arch(elf_ctx, cln, ta) != 0)
               return -1;
           }
+          /* Type-driven f32/f64 ret harvest (same authority as EXPR_CALL). */
+          if (glue_asm_harvest_sse_call_ret_to_gpr_c(arena, elf_ctx, expr_ref, ta) != 0)
+            return -1;
           return 0;
         }
       }
