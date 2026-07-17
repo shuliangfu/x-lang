@@ -14681,17 +14681,30 @@ static int glue_emit_block_final_expr_elf(struct ast_ASTArena *arena, struct pla
   }
   glue_asm_ctx_set_scope_block((uint8_t *)ctx, block_ref);
   /** 保留 assign 留下的 rbx 址缓存，供 final return 的 EXPR_INDEX 对称复用（7.3）。 */
-  if (glue_index_scratch_spills_cleanup_all_elf_c(elf_ctx, ta) != 0)
+  if (glue_index_scratch_spills_cleanup_all_elf_c(elf_ctx, ta) != 0) {
+    if (getenv("SHUX_ASM_DEBUG"))
+      fprintf(stderr, "shux: final_expr scratch cleanup fail block=%d fref=%d ko=%d\n", (int)block_ref,
+              (int)blk->final_expr_ref, (int)pipeline_expr_kind_ord_at(arena, blk->final_expr_ref));
     return -1;
-  if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, blk->final_expr_ref, ctx, ta) != 0)
+  }
+  if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, blk->final_expr_ref, ctx, ta) != 0) {
+    if (getenv("SHUX_ASM_DEBUG"))
+      fprintf(stderr, "shux: final_expr emit_expr fail block=%d fref=%d ko=%d sret=%d ret_sz=%d\n",
+              (int)block_ref, (int)blk->final_expr_ref,
+              (int)pipeline_expr_kind_ord_at(arena, blk->final_expr_ref),
+              (int)g_pipeline_asm_func_sret_active, (int)g_pipeline_asm_func_sret_ret_sz);
     return -1;
+  }
   /** 隐式尾表达式（非 EXPR_RETURN）：结果在 rax，须 jmp 到 tail_join。if-expr 分支块由 done 标签汇合。 */
   if (glue_if_expr_arm_emit_depth <= 0 &&
       pipeline_expr_kind_ord_at(arena, blk->final_expr_ref) != 41) {
     pipeline_glue_AsmFuncCtxLayout *ly = pipeline_asm_ctx_layout(ctx);
     if (ly->tail_join_label_len > 0 &&
-        backend_enc_jmp_arch(elf_ctx, ly->tail_join_label, ly->tail_join_label_len, ta) != 0)
+        backend_enc_jmp_arch(elf_ctx, ly->tail_join_label, ly->tail_join_label_len, ta) != 0) {
+      if (getenv("SHUX_ASM_DEBUG"))
+        fprintf(stderr, "shux: final_expr tail_join jmp fail block=%d\n", (int)block_ref);
       return -1;
+    }
   }
   return 0;
 }
