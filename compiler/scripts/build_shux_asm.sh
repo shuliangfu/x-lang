@@ -3134,8 +3134,9 @@ build_nonempty_asm_objs() {
 # Authority when standalone is present: standalone only; drop subset/companion objs.
 # When standalone is missing: keep strict_minimal + preprocess_if_stack_only.
 # NL-07 L1: multi-def topology only. L2: fflush in nostdlib stubs.
-# L3: backend enc/dispatch companions are appended via ensure_crt0_backend_companion_objs
-# (not mixed into NONEMPTY_ASM). Residual: typeck/driver/lsp + heavy backend_emit_*.
+# L3: backend enc/dispatch companions via ensure_crt0_backend_companion_objs.
+# L3b: same ensure appends seed backend_emit_* partial (not full seed .o — multi-def).
+# Residual after L3b: typeck/driver/lsp companions.
 # NL-07 L2: fflush is defined in bootstrap_nostdlib_stubs (not freestanding_io).
 filter_crt0_asm_objs() {
   CRT0_ASM=""
@@ -3163,14 +3164,57 @@ filter_crt0_asm_objs() {
   fi
 }
 
-# PLATFORM: LINUX — NL-07 L3: crt0 link must include the same backend enc/dispatch
-# companions as experimental/strict (BSTRICT_DISPATCH_OBJS + simd_*).
-# Who produces UNDEF: pipeline/backend build_asm .o reference backend_enc_*_arch /
-# backend_arch_emit_* / try_inline / simd_enc, but crt0 historically linked only
-# NONEMPTY_ASM + freestanding_io/stubs — dispatch live under src/asm/, never in bag.
-# Authority (G.7): ensure_bstrict_seed_support_objs + BSTRICT_DISPATCH_OBJS — no second
-# stub table for enc. Does NOT invent backend_emit_* weak stubs (need seed heavy partial;
-# residual after L3). typeck/driver/lsp companions = later layer.
+# PLATFORM: LINUX — NL-07 L3b: partial-export seed weak backend_emit_* into crt0.
+# Authority (G.7): seed_host/asm_backend_partial.o (backend_seed_mega_fallback weak stubs).
+# Why not full seed .o: T backend_asm_codegen_ast{,_to_elf} multi-def with
+# build_asm/backend_asm_strict_fallback_alias.o already in the crt0 bag.
+# Why not second stub TU: same seed symbols experimental/strict already use.
+# Residual after L3b: typeck/driver/lsp companions (later layer).
+ensure_crt0_backend_emit_seed_partial_obj() {
+  local seed_o="$BUILD_DIR/seed_host/asm_backend_partial.o"
+  local partial="$BUILD_DIR/crt0_backend_emit_seed_partial.o"
+  local syms="$BUILD_DIR/crt0_backend_emit_seed_export.txt"
+  # Ensure seed partial exists (same pin path as experimental / build_seed_asm_host).
+  if [ ! -f "$seed_o" ] || [ ! -s "$seed_o" ]; then
+  if [ -x ./scripts/build_seed_asm_host.sh ] || [ -f ./scripts/build_seed_asm_host.sh ]; then
+  build_shux_asm_info "crt0 L3b: build_seed_asm_host for $seed_o"
+  ./scripts/build_seed_asm_host.sh || true
+  fi
+  fi
+  if [ ! -f "$seed_o" ] || [ ! -s "$seed_o" ]; then
+  build_shux_asm_warn "crt0 L3b: missing $seed_o (skip backend_emit seed partial)"
+  return 1
+  fi
+  # Export only backend_emit_* T+W from seed (weak no-op stubs resolve compat_stubs UNDEF).
+  nm "$seed_o" 2>/dev/null | awk '/ [TW] / {
+    s=$3; sub(/^_/, "", s)
+    if (s ~ /^backend_emit_/) print s
+  }' | sort -u >"$syms"
+  if [ ! -s "$syms" ]; then
+  build_shux_asm_warn "crt0 L3b: seed has no backend_emit_* exports"
+  return 1
+  fi
+  if [ ! -f "$partial" ] || [ "$seed_o" -nt "$partial" ] || [ "$syms" -nt "$partial" ]; then
+  build_shux_asm_info "ld partial export $syms seed asm_backend_partial -> $partial (NL-07 L3b)"
+  ld_partial_export "$syms" "$partial" "$seed_o" || return 1
+  fi
+  # Sanity: at least the text-path head symbols that residual head listed after L3.
+  if ! nm "$partial" 2>/dev/null | grep -qE ' [TW] (_)?backend_emit_expr$'; then
+  build_shux_asm_error "crt0 L3b partial missing backend_emit_expr"
+  return 1
+  fi
+  CRT0_BACKEND_EMIT_PARTIAL="$partial"
+  return 0
+}
+
+# PLATFORM: LINUX — NL-07 L3 + L3b: crt0 link must include backend enc/dispatch
+# companions (BSTRICT_DISPATCH_OBJS + simd_*) and seed backend_emit_* partial.
+# Who produces UNDEF (enc): pipeline/backend build_asm .o reference backend_enc_* /
+# arch_emit / try_inline / simd — dispatch live under src/asm/, never in bag historically.
+# Who produces UNDEF (emit): asm_backend_compat_stubs forwards to backend_emit_*; seed
+# holds weak stubs but was not on the crt0 line (experimental links full seed partial).
+# Authority (G.7): ensure_bstrict_seed_support_objs + BSTRICT_DISPATCH_OBJS + seed emit
+# partial export — no second stub table. typeck/driver/lsp companions = later layer.
 # Sets CRT0_BACKEND_COMPANIONS for the crt0 link line (Linux only callers).
 ensure_crt0_backend_companion_objs() {
   CRT0_BACKEND_COMPANIONS=""
@@ -3186,7 +3230,12 @@ ensure_crt0_backend_companion_objs() {
   if [ -f src/asm/simd_loop.o ]; then
   CRT0_BACKEND_COMPANIONS="$CRT0_BACKEND_COMPANIONS src/asm/simd_loop.o"
   fi
-  build_shux_asm_info "crt0 bag: backend companions (NL-07 L3)=$CRT0_BACKEND_COMPANIONS"
+  # NL-07 L3b: seed weak backend_emit_* (partial only — avoid multi-def with fallback alias).
+  CRT0_BACKEND_EMIT_PARTIAL=""
+  if ensure_crt0_backend_emit_seed_partial_obj; then
+  CRT0_BACKEND_COMPANIONS="$CRT0_BACKEND_COMPANIONS $CRT0_BACKEND_EMIT_PARTIAL"
+  fi
+  build_shux_asm_info "crt0 bag: backend companions (NL-07 L3+L3b)=$CRT0_BACKEND_COMPANIONS"
 }
 
 # F-06 v1：fs/io/heap 已纯 .x；bootstrap 不再 cc -c std/*.c（符号由 std_fs_shim / runtime_io_abi / lsp_io_std_heap_x 等提供）。
@@ -4466,12 +4515,12 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   elif [ "$(uname -s 2>/dev/null)" = "Linux" ] && [ -f src/asm/crt0_x86_64.o ] && [ -f src/typeck/typeck_f64_bits.o ] && [ -f runtime_panic.o ]; then
   echo " linking shux_asm (crt0 + typeck_f64_bits + runtime_panic + asm*.o, no runtime_driver) ..."
   filter_crt0_asm_objs
-  # NL-07 L3: append BSTRICT_DISPATCH_OBJS (+ simd) — same authority as experimental/strict.
+  # NL-07 L3+L3b: append BSTRICT_DISPATCH (+ simd) + seed backend_emit_* partial.
   ensure_crt0_backend_companion_objs
   set +e
   # F-no-libc NL-07 BEGIN — bootstrap nostdlib（SHUX_BOOTSTRAP_NOSTDLIB=1 尝试；失败回退 libc/libm）
   # 目标：crt0_x86_64 + freestanding_io + bootstrap_nostdlib_stubs + build_asm/*.o
-  #        + backend dispatch companions + -nostdlib --gc-sections
+  #        + backend dispatch companions + seed emit partial + -nostdlib --gc-sections
   # F-06 v1：bootstrap 已不链 cc -c 的 std/fs|io|heap .o
   CRT_RC=1
   if bootstrap_wants_nostdlib; then
