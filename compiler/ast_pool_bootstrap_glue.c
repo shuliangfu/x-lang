@@ -543,7 +543,12 @@ int32_t pipeline_asm_redirect_std_c_wrapper_sym(uint8_t *name, int32_t name_len,
     memcpy(sym_out, "std_io_print_str", 16);
     return 16;
   }
-  /** std.fmt.println(ptr,len)：跳过 fmt co-emit 时链 runtime_asm_io_stubs 桩。 */
+  /** std.fmt.print / println(ptr,len): keep short surface; link runtime_asm_io_stubs.
+   * PLATFORM: SHARED — identity redirect; must cover print (hello.x) not only println. */
+  if (name_len == 13 && memcmp(name, "std_fmt_print", 13) == 0) {
+    memcpy(sym_out, "std_fmt_print", 13);
+    return 13;
+  }
   if (name_len == 14 && memcmp(name, "std_fmt_println", 14) == 0) {
     memcpy(sym_out, "std_fmt_println", 14);
     return 14;

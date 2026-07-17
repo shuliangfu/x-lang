@@ -1827,8 +1827,8 @@ int32_t glue_asm_emit_string_lit_ptr_rax_elf_c(struct ast_ASTArena *arena, struc
 #endif
 
 /**
- * fmt/debug `binding.println("…")` / `print("…")`：内嵌 rodata + call std_fmt_println(ptr,len)。
- * 避免对 STRING_LIT 走通用 emit_expr 导致 SIGSEGV（hello.x 阻塞项）。
+ * fmt/debug binding.print / println("…"): embed rodata + call std_fmt_print or
+ * std_fmt_println(ptr,len). Avoid generic emit_expr on STRING_LIT (hello.x SIGSEGV).
  */
 /* G-02f-144：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-378 call：实现体始终 seed；public PREFER 时 thin forward */
@@ -1951,7 +1951,7 @@ int32_t pipeline_asm_emit_call_elf_c_impl(struct ast_ASTArena *arena, struct pla
   backend_call_debugf("emit call elf callee_ko=%d call_nargs=%d", (int)callee_ko,
                       (int)pipeline_expr_call_num_args_at(arena, expr_ref));
 
-  /** hello.x：fmt.println("…") 不依赖 import 槽匹配，直接 call std_fmt_println(ptr,len)。 */
+  /** hello.x: fmt.print/println string lit → call std_fmt_print / std_fmt_println. */
   if (callee_ko == GLUE_EXPR_FIELD_ACCESS_ORD) {
     int32_t fa_lit = glue_asm_try_emit_fmt_string_lit_import_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta,
                                                                         (const uint8_t *)"std_fmt_", 8, (const uint8_t *)"println",

@@ -6011,7 +6011,8 @@ int link_abi_user_o_needs_std_sys(const char *user_o) {
 }
 
 /**
- * nostdlib 最小 gcc 链（user.o+-lc）仍须链入的 compiler runtime 桩；hello 等依赖 std_fmt_println。
+ * nostdlib minimal gcc link still needs compiler runtime stubs; hello depends on
+ * std_fmt_print / std_fmt_println (runtime_asm_io_stubs; PLATFORM: SHARED).
  * popen 桩恒失败时 has_undef 误判为自包含，勿因此省略 io_stubs。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */

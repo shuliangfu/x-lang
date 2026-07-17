@@ -250,7 +250,15 @@ __attribute__((weak)) int32_t std_io_print_str(uint8_t *ptr, size_t len) {
   return std_io_print_u8_ptr_usize(ptr, len);
 }
 
-/** std.fmt.println(ptr,len)：跳过 fmt 模块 co-emit 时由入口 CALL 链入。 */
+/** std.fmt.print(ptr,len): asm backend CALL surface when fmt module is not co-emitted.
+ * PLATFORM: SHARED — same ABI as println without trailing newline; hello.x uses print+embedded \\n.
+ * Authority: this TU only (G.7); linked via LABI_STD_OP_IO_STUBS / ensure runtime_asm_io_stubs.o. */
+int32_t std_fmt_print(uint8_t *ptr, size_t len) {
+  return std_io_print_str(ptr, len);
+}
+
+/** std.fmt.println(ptr,len): print + single \\n; asm CALL surface (no fmt co-emit).
+ * PLATFORM: SHARED — pairs with std_fmt_print; do not invent a second stub path. */
 int32_t std_fmt_println(uint8_t *ptr, size_t len) {
   int32_t r = std_io_print_str(ptr, len);
   uint8_t nl = 10;
