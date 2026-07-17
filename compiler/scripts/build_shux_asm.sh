@@ -11,7 +11,7 @@
 # C parser 导出的是 parse 等名，与 runtime 期望的 parser_parse_into 不一致。
 # pipeline_gen.c 已内联 ast/lexer/parser/typeck/codegen 与 asm 后端；当前 -backend asm 产出的 build_asm/*.o
 # 多为空桩（仅 Mach-O 壳），并入回退链接会触发 Apple ld 断言或重复定义。故回退链仅 -E 产物 + C 种子，不并 build_asm/*.o。
-# Linux crt0 成功路径仍使用整包 NONEMPTY_ASM（见下方）。
+# Linux crt0 成功路径使用 NONEMPTY_ASM，但须单一 glue 权威（见 filter_crt0_asm_objs）。
 #
 # 仅当 main.o/pipeline.o 均非空且链接仍失败时退出码 1（供 build_tool 回退 legacy）；其它情况 0。
 # 构建顺序与 LIBROOT 唯一定义在 src/asm/asm_build_list.x。
@@ -3126,6 +3126,40 @@ build_nonempty_asm_objs() {
   done
 }
 
+# PLATFORM: LINUX — crt0 bag single glue authority (NL-07 L1 topology).
+# build_asm often holds BOTH pipeline_glue_standalone.o (full ast_pool/glue) and
+# pipeline_glue_strict_minimal.o / preprocess_if_stack_only.o (strict companions).
+# strict/experimental filters drop those from the bulk bag and re-add one ST_GLUE;
+# crt0 historically dumped the whole bag → multiple definition (9 symbols).
+# Authority when standalone is present: standalone only; drop subset/companion objs.
+# When standalone is missing: keep strict_minimal + preprocess_if_stack_only.
+# Does NOT resolve UNDEF (fflush / backend_enc / typeck) — those are later layers.
+filter_crt0_asm_objs() {
+  CRT0_ASM=""
+  _crt0_have_standalone=0
+  if [ -f "$BUILD_DIR/pipeline_glue_standalone.o" ] \
+  && [ -s "$BUILD_DIR/pipeline_glue_standalone.o" ]; then
+  _crt0_have_standalone=1
+  fi
+  for _co in $NONEMPTY_ASM; do
+  _cb=$(basename "$_co")
+  case "$_cb" in
+  *_partial.o|pipeline_strict_link_partial.o)
+  continue
+  ;;
+  pipeline_glue_strict_minimal.o|preprocess_if_stack_only.o)
+  if [ "$_crt0_have_standalone" -eq 1 ]; then
+  continue
+  fi
+  ;;
+  esac
+  CRT0_ASM="$CRT0_ASM $_co"
+  done
+  if [ "$_crt0_have_standalone" -eq 1 ]; then
+  build_shux_asm_info "crt0 bag: glue authority=pipeline_glue_standalone (drop strict_minimal + preprocess_if_stack_only)"
+  fi
+}
+
 # F-06 v1：fs/io/heap 已纯 .x；bootstrap 不再 cc -c std/*.c（符号由 std_fs_shim / runtime_io_abi / lsp_io_std_heap_x 等提供）。
 ensure_std_fs_io_heap_objs() {
   :
@@ -4402,16 +4436,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   build_shux_asm_info "SHUX_ASM_EXPERIMENTAL_SKIP_GEN=1 - skip crt0 link (use asm_only_strict; crt0 见 make bootstrap-driver-crt0)"
   elif [ "$(uname -s 2>/dev/null)" = "Linux" ] && [ -f src/asm/crt0_x86_64.o ] && [ -f src/typeck/typeck_f64_bits.o ] && [ -f runtime_panic.o ]; then
   echo " linking shux_asm (crt0 + typeck_f64_bits + runtime_panic + asm*.o, no runtime_driver) ..."
-  CRT0_ASM=""
-  for _co in $NONEMPTY_ASM; do
-  _cb=$(basename "$_co")
-  case "$_cb" in
-  *_partial.o|pipeline_strict_link_partial.o)
-  continue
-  ;;
-  esac
-  CRT0_ASM="$CRT0_ASM $_co"
-  done
+  filter_crt0_asm_objs
   set +e
   # F-no-libc NL-07 BEGIN — bootstrap nostdlib（SHUX_BOOTSTRAP_NOSTDLIB=1 尝试；失败回退 libc/libm）
   # 目标：crt0_x86_64 + freestanding_io + bootstrap_nostdlib_stubs + build_asm/*.o + -nostdlib --gc-sections
