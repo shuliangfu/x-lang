@@ -6385,11 +6385,16 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       out_idx_storage[0] = main_idx;
       return ParseIntoResult { ok: 0, main_idx: out_idx_storage[0] }
     }
-    /* 这里必须保留 function 关键字起点；library/peek/skip helper 都要求从 TOKEN_FUNCTION 开始。 */
-    let lex_at_function: Lexer = current_tok_lex;
+    /*
+     * let-hoist safe（product pin X→C）：与 parse_into_buf 同纪律——while 体 `let x = f()` 会被提到循环顶。
+     * PLATFORM: SHARED
+     */
+    let lex_at_function: Lexer = lexer.lexer_init();
+    lex_at_function = current_tok_lex;
     lex_from_next_into(&lex, r);
     let parse_into_empty64: u8[64] = [];
     let res: OneFuncResult = onefunc_scratch_empty();
+    res = onefunc_scratch_empty();
     onefunc_res_wire_dummy_head(&res, lex, parse_into_empty64);
     onefunc_res_wire_dummy_const_let(&res);
     onefunc_res_wire_dummy_if_mul(&res);
@@ -6399,6 +6404,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
     /* 优先 library：形态「单参 bool return x.y == Enum.V」须走专用 AST（EXPR_ENUM_VARIANT）；若先跑 impl 则会 parse_expr_into 成功却得不到 X typeck/asm 路径期望的节点 */
     let empty64_lib_first: u8[64] = [];
     let lib_first: LibraryParseResult = LibraryParseResult { ok: false, _pad: [], next_lex: lex_at_function, name: empty64_lib_first, name_len: 0, _pad_tail: [] };
+    lib_first = LibraryParseResult { ok: false, _pad: [], next_lex: lex_at_function, name: empty64_lib_first, name_len: 0, _pad_tail: [] };
     parse_one_function_library_into(&lib_first, arena, module, lex_at_function, source);
     if (lib_first.ok) {
       lex_from_library_into(&lex, lib_first);
@@ -6418,8 +6424,9 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
     }
     parser_diagnostic_parse_func_generic((lex_at_function.pos) as i32, module.num_funcs, &res.name[0], res.name_len,
       res.num_generic_params, is_main_storage[0]);
-    /* 使用签名中的返回类型 Ty；若为 0（异常回退），与历史上行为一致再造 TYPE_I32。 */
-    let type_ref: i32 = res.func_return_type_ref;
+    /* 使用签名中的返回类型 Ty。let-hoist safe：先 0 再赋值。 */
+    let type_ref: i32 = 0;
+    type_ref = res.func_return_type_ref;
     if (type_ref == 0) {
       type_ref = ast.ast_arena_type_alloc(arena);
       if (type_ref == 0 && module.num_funcs == 0) {
@@ -6437,11 +6444,13 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       ast.ast_arena_type_set(arena, type_ref, t_fb);
     }
 
-    let expr_ref: i32 = ast.ast_arena_expr_alloc(arena);
+    let expr_ref: i32 = 0;
+    expr_ref = ast.ast_arena_expr_alloc(arena);
     if (expr_ref == 0) {
       return ParseIntoResult { ok: -1, main_idx: -1002 }
     }
     let e: Expr = ast.ast_arena_expr_get(arena, expr_ref);
+    e = ast.ast_arena_expr_get(arena, expr_ref);
     /** 与 parse_into_buf 一致：slice 路径须识别 return_var_name，否则 impl_snap 已记变量名时仍建 EXPR_LIT(return_val)，多函数下易误为 return 0。 */
     if (res.return_var_name_len > 0) {
       e.kind = ExprKind.EXPR_VAR;
@@ -6489,7 +6498,9 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
     e.index_proven_in_bounds = 0;
     ast.ast_arena_expr_set(arena, expr_ref, e);
 
-    let allow_legacy_tail_expr: bool = res.has_final_expr || res.has_explicit_return_kw
+    /* let-hoist safe：bool 依赖 res 解析后字段。 */
+    let allow_legacy_tail_expr: bool = false;
+    allow_legacy_tail_expr = res.has_final_expr || res.has_explicit_return_kw
       || res.return_expr_ref != 0 || res.return_var_name_len > 0;
     let final_expr_ref: i32 = 0;
     if (allow_legacy_tail_expr) {
@@ -7213,11 +7224,14 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       }
     }
 
-    let block_ref: i32 = ast.ast_arena_block_alloc(arena);
+    /* let-hoist safe：alloc 在 parse 成功后。 */
+    let block_ref: i32 = 0;
+    block_ref = ast.ast_arena_block_alloc(arena);
     if (block_ref == 0) {
       return ParseIntoResult { ok: -1, main_idx: -1010 }
     }
     let b: Block = ast.ast_arena_block_get(arena, block_ref);
+    b = ast.ast_arena_block_get(arena, block_ref);
     /** 新函数体块必须先落盘清零；否则 fill_* 会从脏 num_lets/num_consts 起步，导致 body_ref 读到旧块内容。 */
     b.num_consts = 0;
     b.num_lets = 0;
@@ -7247,20 +7261,25 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       return ParseIntoResult { ok: -1, main_idx: -1 }
     }
     b = ast.ast_arena_block_get(arena, block_ref);
-    /** while/for 从 OneFunc 侧车池填充 Block 池（与 if 路径一致） */
-    let n_while_pool: i32 = pipeline_onefunc_num_whiles(onefunc_result_pool_ptr(&res));
+    /** while/for 从 OneFunc 侧车池填充。let-hoist safe：n_* 在 res 填充后赋值。 */
+    let n_while_pool: i32 = 0;
+    n_while_pool = pipeline_onefunc_num_whiles(onefunc_result_pool_ptr(&res));
     res.num_loops = n_while_pool;
     pipeline_block_fill_whiles_from_onefunc(arena, block_ref, onefunc_result_pool_ptr(&res), n_while_pool);
-    let n_for_pool: i32 = pipeline_onefunc_num_fors(onefunc_result_pool_ptr(&res));
+    let n_for_pool: i32 = 0;
+    n_for_pool = pipeline_onefunc_num_fors(onefunc_result_pool_ptr(&res));
     res.num_for_loops = n_for_pool;
     pipeline_block_fill_fors_from_onefunc(arena, block_ref, onefunc_result_pool_ptr(&res), n_for_pool);
     b = ast.ast_arena_block_get(arena, block_ref);
-    let n_if_pool: i32 = pipeline_onefunc_num_if_stmts(onefunc_result_pool_ptr(&res));
+    let n_if_pool: i32 = 0;
+    n_if_pool = pipeline_onefunc_num_if_stmts(onefunc_result_pool_ptr(&res));
     res.num_if_stmts = n_if_pool;
     pipeline_block_fill_ifs_from_onefunc(arena, block_ref, onefunc_result_pool_ptr(&res), n_if_pool);
-    let n_reg_pool: i32 = pipeline_onefunc_num_regions(onefunc_result_pool_ptr(&res));
+    let n_reg_pool: i32 = 0;
+    n_reg_pool = pipeline_onefunc_num_regions(onefunc_result_pool_ptr(&res));
     pipeline_block_fill_regions_from_onefunc(arena, block_ref, onefunc_result_pool_ptr(&res), n_reg_pool);
-    let n_def_pool: i32 = pipeline_onefunc_num_defers(onefunc_result_pool_ptr(&res));
+    let n_def_pool: i32 = 0;
+    n_def_pool = pipeline_onefunc_num_defers(onefunc_result_pool_ptr(&res));
     pipeline_block_fill_defers_from_onefunc(arena, block_ref, onefunc_result_pool_ptr(&res), n_def_pool);
     b = ast.ast_arena_block_get(arena, block_ref);
     /* stmt_order：优先用 parse_one_function_impl 按源码累计的序（含 expr;），否则按批回退 */
@@ -7349,8 +7368,10 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
     /*
      * 勿 let f: Func = module.funcs[i]：Func 体量较大时按值读/写在当前 codegen 路径上可能丢字段，
      * * 会直接抹掉刚写入的 return_type_ref（typeck dep 上出现 return_type_ref==0）。
+     * let-hoist safe：module 槽仅在 commit 点分配。
      */
-    let fi: i32 = pipeline_module_func_alloc_slot(module);
+    let fi: i32 = -1;
+    fi = pipeline_module_func_alloc_slot(module);
     if (fi < 0) {
       return ParseIntoResult { ok: -1, main_idx: -1000 }
     }
@@ -8110,13 +8131,20 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       out_idx_storage[0] = main_idx;
       return ParseIntoResult { ok: 0, main_idx: out_idx_storage[0] }
     }
-    /* 与 parse_into 完全一致：捕获 library 锚点后再次 lex_from_next_into(&lex, r)，避免 buf 路径上 LexerResult ABI 偶发 lex 滞后于 r.next_lex 导致 impl 误判失败。 */
-    let lex_at_function_buf: Lexer = current_tok_lex_buf;
+    /*
+     * let-hoist safe（product pin X→C）：emit_block 无 stmt_order 时把 while 体全部 `let x = f()` 提到循环顶。
+     * 副作用 init（alloc / scratch / 读 res）若被提前求值 → 污染 module 槽、type_ref/n_* 陈旧、allow_legacy 永假 → P001。
+     * 【Invariant】本函数路径：先 zero-decl，再在控制流之后赋值（与 codegen_emit_func_link_name 同纪律）。
+     * PLATFORM: SHARED
+     */
+    let lex_at_function_buf: Lexer = lexer.lexer_init();
+    lex_at_function_buf = current_tok_lex_buf;
     lex_from_next_into(&lex, r);
     /* lex 当前在 function 之后，供 parse_one_function_impl 解析函数体 */
     /* 用 _into 避免 OneFuncResult 按值返回导致 ARM64 ABI 崩溃 */
     let empty64_buf: u8[64] = [];
     let res: OneFuncResult = onefunc_scratch_empty();
+    res = onefunc_scratch_empty();
     onefunc_res_wire_dummy_head(&res, lex, empty64_buf);
     onefunc_res_wire_dummy_const_let(&res);
     onefunc_res_wire_dummy_if_mul(&res);
@@ -8124,9 +8152,18 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
     onefunc_res_wire_dummy_loop_call(&res);
     onefunc_res_wire_dummy_for_if(&res);
     let slice_for_impl: u8[] = parser_slice_from_buf(data, len);
+    slice_for_impl = parser_slice_from_buf(data, len);
     /* 与 parse_into（slice）一致：library 优先，避免 impl 抢走 token_is_eof 类形态 */
     let empty64_lib_buf_first: u8[64] = [];
     let lib_buf_first: LibraryParseResult = LibraryParseResult {
+      ok: false,
+      _pad: [],
+      next_lex: lex_at_function_buf,
+      name: empty64_lib_buf_first,
+      name_len: 0,
+      _pad_tail: []
+    };
+    lib_buf_first = LibraryParseResult {
       ok: false,
       _pad: [],
       next_lex: lex_at_function_buf,
@@ -8160,8 +8197,9 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
     }
     parser_diagnostic_parse_func_generic((lex_at_function_buf.pos) as i32, module.num_funcs, &res.name[0], res.name_len,
       res.num_generic_params, is_main_storage[0]);
-    /* Buf 路径与 parse_into 一致：沿用签名 Ty，0 时再回退 i32 */
-    let type_ref: i32 = res.func_return_type_ref;
+    /* Buf 路径与 parse_into 一致：沿用签名 Ty，0 时再回退 i32。let-hoist safe：先 0 再赋值。 */
+    let type_ref: i32 = 0;
+    type_ref = res.func_return_type_ref;
     if (type_ref == 0) {
       type_ref = ast.ast_arena_type_alloc(arena);
       if (type_ref == 0) {
@@ -8181,7 +8219,9 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       ast.ast_arena_type_set(arena, type_ref, t_fb);
     }
 
-    let expr_ref: i32 = ast.ast_arena_expr_alloc(arena);
+    /* let-hoist safe：alloc 必须在 parse 成功之后，禁止 while 顶每轮抢槽。 */
+    let expr_ref: i32 = 0;
+    expr_ref = ast.ast_arena_expr_alloc(arena);
     if (expr_ref == 0) {
       parser_diagnostic_parse_commit_fail((lex_at_function_buf.pos) as i32, module.num_funcs, res.name_len, &res.name[0]);
       skip_one_function_full_into_buf(&lex, lex_at_function_buf, data, len);
@@ -8192,6 +8232,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       continue;
     }
     let e: Expr = ast.ast_arena_expr_get(arena, expr_ref);
+    e = ast.ast_arena_expr_get(arena, expr_ref);
     if (res.return_var_name_len > 0) {
       /* return ident; 生成 EXPR_VAR 以便 codegen 输出变量名；类型须由 typeck 从形参/let/const 绑定，勿预设为返回类型否则漏报未定义名 */
       e.kind = ExprKind.EXPR_VAR;
@@ -8239,7 +8280,9 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
     e.index_proven_in_bounds = 0;
     ast.ast_arena_expr_set(arena, expr_ref, e);
 
-    let allow_legacy_tail_expr2: bool = res.has_final_expr || res.has_explicit_return_kw
+    /* let-hoist safe：bool 依赖 res 解析后字段，禁止 while 顶用空 res 求值（永假 → final_expr 丢失 → P001）。 */
+    let allow_legacy_tail_expr2: bool = false;
+    allow_legacy_tail_expr2 = res.has_final_expr || res.has_explicit_return_kw
       || res.return_expr_ref != 0 || res.return_var_name_len > 0;
     let final_expr_ref: i32 = 0;
     if (allow_legacy_tail_expr2) {
@@ -8774,12 +8817,14 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
         }
       }
     }
-    /* 与 parse_into 一致：从 onefunc 构建 block（含 let 名称、final_expr），供 codegen 生成带正确变量名的 C，避免 print_str(msg, 12) 中 msg 未定义。 */
-    let block_ref: i32 = ast.ast_arena_block_alloc(arena);
+    /* 与 parse_into 一致：从 onefunc 构建 block。let-hoist safe：alloc 在 parse 成功后。 */
+    let block_ref: i32 = 0;
+    block_ref = ast.ast_arena_block_alloc(arena);
     if (block_ref == 0) {
       return ParseIntoResult { ok: -1, main_idx: -1 }
     }
     let b: Block = ast.ast_arena_block_get(arena, block_ref);
+    b = ast.ast_arena_block_get(arena, block_ref);
     /** 与 parse_into 主路径一致：函数体块需先持久化清零，避免复用 block 槽时残留 let/stmt_order。 */
     b.num_consts = 0;
     b.num_lets = 0;
@@ -8809,20 +8854,25 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       return ParseIntoResult { ok: -1, main_idx: -1 }
     }
     b = ast.ast_arena_block_get(arena, block_ref);
-    /** while/for 从 OneFunc 侧车池填充 Block 池（与 parse_into 主路径一致） */
-    let n_while_pool2: i32 = pipeline_onefunc_num_whiles(onefunc_result_pool_ptr(&res));
+    /** while/for 从 OneFunc 侧车池填充 Block 池。let-hoist safe：n_* 在 res 填充后赋值，禁止 while 顶用空 res 写成 0 再写回 res.num_loops。 */
+    let n_while_pool2: i32 = 0;
+    n_while_pool2 = pipeline_onefunc_num_whiles(onefunc_result_pool_ptr(&res));
     res.num_loops = n_while_pool2;
     pipeline_block_fill_whiles_from_onefunc(arena, block_ref, onefunc_result_pool_ptr(&res), n_while_pool2);
-    let n_for_pool2: i32 = pipeline_onefunc_num_fors(onefunc_result_pool_ptr(&res));
+    let n_for_pool2: i32 = 0;
+    n_for_pool2 = pipeline_onefunc_num_fors(onefunc_result_pool_ptr(&res));
     res.num_for_loops = n_for_pool2;
     pipeline_block_fill_fors_from_onefunc(arena, block_ref, onefunc_result_pool_ptr(&res), n_for_pool2);
     b = ast.ast_arena_block_get(arena, block_ref);
-    let n_if_pool2: i32 = pipeline_onefunc_num_if_stmts(onefunc_result_pool_ptr(&res));
+    let n_if_pool2: i32 = 0;
+    n_if_pool2 = pipeline_onefunc_num_if_stmts(onefunc_result_pool_ptr(&res));
     res.num_if_stmts = n_if_pool2;
     pipeline_block_fill_ifs_from_onefunc(arena, block_ref, onefunc_result_pool_ptr(&res), n_if_pool2);
-    let n_reg_pool2: i32 = pipeline_onefunc_num_regions(onefunc_result_pool_ptr(&res));
+    let n_reg_pool2: i32 = 0;
+    n_reg_pool2 = pipeline_onefunc_num_regions(onefunc_result_pool_ptr(&res));
     pipeline_block_fill_regions_from_onefunc(arena, block_ref, onefunc_result_pool_ptr(&res), n_reg_pool2);
-    let n_def_pool2: i32 = pipeline_onefunc_num_defers(onefunc_result_pool_ptr(&res));
+    let n_def_pool2: i32 = 0;
+    n_def_pool2 = pipeline_onefunc_num_defers(onefunc_result_pool_ptr(&res));
     pipeline_block_fill_defers_from_onefunc(arena, block_ref, onefunc_result_pool_ptr(&res), n_def_pool2);
     b = ast.ast_arena_block_get(arena, block_ref);
     if (res.num_src_stmt_order > 0) {
@@ -8899,7 +8949,9 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
     b = ast.ast_arena_block_get(arena, block_ref);
     parser_diagnostic_parse_commit_post(arena, &res.name[0], res.name_len, block_ref, onefunc_result_pool_ptr(&res));
 
-    let func_ref: i32 = ast.ast_arena_func_alloc(arena);
+    /* let-hoist safe：func/module 槽仅在 commit 点分配，禁止 while 顶每轮 pipeline_module_func_alloc_slot。 */
+    let func_ref: i32 = 0;
+    func_ref = ast.ast_arena_func_alloc(arena);
     if (func_ref == 0) {
       parser_diagnostic_parse_commit_fail((lex_at_function_buf.pos) as i32, module.num_funcs, res.name_len, &res.name[0]);
       skip_one_function_full_into_buf(&lex, lex_at_function_buf, data, len);
@@ -8909,7 +8961,8 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       }
       continue;
     }
-    let fi_mod: i32 = pipeline_module_func_alloc_slot(module);
+    let fi_mod: i32 = -1;
+    fi_mod = pipeline_module_func_alloc_slot(module);
     if (fi_mod < 0) {
       parser_diagnostic_parse_commit_fail((lex_at_function_buf.pos) as i32, module.num_funcs, res.name_len, &res.name[0]);
       skip_one_function_full_into_buf(&lex, lex_at_function_buf, data, len);
