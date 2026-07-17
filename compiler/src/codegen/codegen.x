@@ -3801,8 +3801,12 @@ export function codegen_emit_skipped_dep_type_definitions(ctx: *PipelineDepCtx, 
           di = di + 1;
           continue;
         }
-        /* Path de-dupe: first registration (lower di) is authority. A later same-path
-         * slot must not emit first and suppress the real module (lexer di=0 vs di=2). */
+        /* Path de-dupe: first *non-empty* registration (lower di) is authority.
+         * Why: an earlier same-path slot with num_struct_layouts==0 (failed/partial load)
+         * must not suppress a later real module (parser M1: missing struct ast_* full
+         * layouts → dual-extern incomplete tags). Later empty re-regs still suppressed
+         * once a non-empty slot for the path was seen.
+         * PLATFORM: SHARED — co-emit C TU; verify parser.x -E host-cc + typeck -E. */
         let seen_before: i32 = 0;
         let pj: i32 = 0;
         while (pj < di) {
@@ -3819,8 +3823,11 @@ export function codegen_emit_skipped_dep_type_definitions(ctx: *PipelineDepCtx, 
               pk = pk + 1;
             }
             if (eq_prev) {
-              seen_before = 1;
-              break;
+              let prev_mod: *Module = pipeline_dep_ctx_module_at(ctx, pj);
+              if (prev_mod != 0 as *Module && prev_mod.num_struct_layouts > 0) {
+                seen_before = 1;
+                break;
+              }
             }
           }
           pj = pj + 1;
@@ -3918,7 +3925,14 @@ export function codegen_emit_skipped_dep_type_definitions(ctx: *PipelineDepCtx, 
  *   dep 模块 struct tag 在文件作用域已知，避免 conflicting types。C 允许对已有完整定义的 struct
  *   再 emit forward declaration（无副作用），故无需排除 skipped 模块。
  * 【Invariant】遍历顺序与 codegen_emit_skipped_dep_type_definitions 一致（dep_index 递增）。
- * 【Asm/Perf】仅在 -E 输出写一次，无热路径影响。 */
+ * 【Asm/Perf】仅在 -E 输出写一次，无热路径影响。
+ *
+ * Also (parser M1 host-cc): for every bare layout name, emit one forward under the
+ * **owner** prefix from codegen_type_dep_struct_owner_index (e.g. `struct ast_Module;`).
+ * Per-module forwards can use polluted prefixes (`lexer_Module`) while signatures use
+ * owner tags (`ast_Module`) → dual incomplete tags / conflicting types without this.
+ * PLATFORM: SHARED — co-emit C TU; verify parser.x -E host-cc.
+ */
 export function codegen_emit_dep_struct_forward_declarations(ctx: *PipelineDepCtx, out: *CodegenOutBuf): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3946,6 +3960,57 @@ export function codegen_emit_dep_struct_forward_declarations(ctx: *PipelineDepCt
         if (codegen_emit_module_struct_forward_declarations_ctx(dep_mod, out, &prefix_buf[0], prefix_len, ctx) != 0) {
           ctx.current_codegen_dep_index = saved_dep_index;
           return -1;
+        }
+      }
+      di = di + 1;
+    }
+    /* Owner-prefixed file-scope forwards (dedupe by claim of mangled tag). */
+    di = 0;
+    while (di < nd) {
+      let dep_mod2: *Module = pipeline_dep_ctx_module_at(ctx, di);
+      if (dep_mod2 != 0 as *Module) {
+        let k: i32 = 0;
+        while (k < dep_mod2.num_struct_layouts) {
+          let nl: i32 = pipeline_module_struct_layout_name_len(dep_mod2, k);
+          let nf: i32 = pipeline_module_struct_layout_num_fields(dep_mod2, k);
+          if (nl > 0 && nf > 0) {
+            let ty_nm: u8[64] = [];
+            pipeline_module_struct_layout_name_into(dep_mod2, k, &ty_nm[0]);
+            let owner: i32 = codegen_type_dep_struct_owner_index(ctx, &ty_nm[0], nl);
+            if (owner >= 0) {
+              let opath: u8[64] = [];
+              let oplen: i32 = codegen_dep_import_path_len_at(ctx, owner, &opath[0]);
+              let opfx: u8[128] = [];
+              let opfx_len: i32 = 0;
+              if (oplen > 0 && codegen_path_is_std_io_core_bytes(&opath[0]) == 0) {
+                codegen_import_path_to_c_prefix_into(&opath[0], &opfx[0], 128);
+                while (opfx_len < 128 && opfx[opfx_len] != 0 as u8) {
+                  opfx_len = opfx_len + 1;
+                }
+              }
+              /* C allows redundant `struct Tag;` — emit owner-prefixed forward always.
+               * Do not try_claim: that would block later full layout emit of the same tag. */
+              let hdr: u8[8] = [115, 116, 114, 117, 99, 116, 32, 0];
+              if (emit_bytes_from_ptr(out, &hdr[0], 7) != 0) {
+                ctx.current_codegen_dep_index = saved_dep_index;
+                return -1;
+              }
+              if (opfx_len > 0 && emit_bytes_from_ptr(out, &opfx[0], opfx_len) != 0) {
+                ctx.current_codegen_dep_index = saved_dep_index;
+                return -1;
+              }
+              if (emit_bytes_from_ptr(out, &ty_nm[0], nl) != 0) {
+                ctx.current_codegen_dep_index = saved_dep_index;
+                return -1;
+              }
+              let semi_nl: u8[2] = [59, 10];
+              if (emit_bytes_from_ptr(out, &semi_nl[0], 2) != 0) {
+                ctx.current_codegen_dep_index = saved_dep_index;
+                return -1;
+              }
+            }
+          }
+          k = k + 1;
         }
       }
       di = di + 1;
@@ -6759,6 +6824,16 @@ export function codegen_current_func_returns_void(arena: *ASTArena, ctx: *Pipeli
   }
 }
 
+/**
+ * Emit a C `return` statement with Cap-T001 / host-cc awareness.
+ *
+ * Why: Cap-T001 wrappers often end with typeck filler `return 0` after a real
+ * `return glue(...)`. Bare `return 0` is illegal when the function returns a
+ * struct by value (Lexer, OneFuncResult, …) → host-cc "returning 'int' from …".
+ * For TYPE_NAMED returns, int-lit/empty `return 0` becomes
+ * `return (struct Tag){0};` (valid C dead code).
+ * PLATFORM: SHARED — seed pin same commit; verify parser.x host-cc.
+ */
 export function emit_return_stmt_with_context(arena: *ASTArena, out: *CodegenOutBuf, indent: i32, operand_ref: i32, ctx: *PipelineDepCtx, fn_ret_void: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -6797,6 +6872,44 @@ export function emit_return_stmt_with_context(arena: *ASTArena, out: *CodegenOut
         }
         let sc_panic: u8[4] = [59, 10, 0, 0];
         return emit_bytes_4(out, sc_panic, 2);
+      }
+    }
+    /*
+     * By-value struct + Cap-T001 filler `return 0`: host C rejects `return 0` for
+     * incomplete/struct return types. Emit compound zero instead.
+     */
+    if (ctx != 0 as *PipelineDepCtx && ctx.current_codegen_module != 0 as *Module
+        && ctx.current_func_index >= 0 && ctx.current_func_index < ctx.current_codegen_module.num_funcs) {
+      let rty: i32 = pipeline_module_func_return_type_at(ctx.current_codegen_module, ctx.current_func_index);
+      if (!ast.ref_is_null(rty) && pipeline_type_kind_ord_at(arena, rty) == (TypeKind.TYPE_NAMED as i32)) {
+        let use_struct_zero: i32 = 0;
+        if (ast.ref_is_null(operand_ref)) {
+          use_struct_zero = 1;
+        } else if (pipeline_expr_kind_ord_at(arena, operand_ref) == (ExprKind.EXPR_LIT as i32)) {
+          let lit: Expr = ast.ast_arena_expr_get(arena, operand_ref);
+          if (lit.int_val == 0) {
+            use_struct_zero = 1;
+          }
+        }
+        if (use_struct_zero != 0) {
+          if (emit_indent(out, indent) != 0) {
+            return -1;
+          }
+          /* return ( */
+          let ret_open: u8[8] = [114, 101, 116, 117, 114, 110, 32, 40];
+          if (emit_bytes_from_ptr(out, &ret_open[0], 8) != 0) {
+            return -1;
+          }
+          if (emit_type(arena, out, rty, 0 as *u8, 0, ctx) != 0) {
+            return -1;
+          }
+          /* ){0};\n */
+          let ret_close: u8[8] = [41, 123, 48, 125, 59, 10, 0, 0];
+          if (emit_bytes_from_ptr(out, &ret_close[0], 6) != 0) {
+            return -1;
+          }
+          return 0;
+        }
       }
     }
     if (emit_indent(out, indent) != 0) {
@@ -8365,6 +8478,49 @@ export function codegen_copy_param_name32_from_module(module: *Module, fi: i32, 
  * still-zero buffer → never emitted C `main` (rv matrix: undefined _main).
  * PLATFORM: SHARED — entry main symbol contract.
  */
+/**
+ * True if this block (or nested region bodies, e.g. Cap-T001 `unsafe { return … }`)
+ * contains a return statement or a final expression (treated as the function return path).
+ *
+ * Purpose: emit_func fallback `return 0` must not fire when the only return lives inside
+ * an unsafe/region body — otherwise by-value struct functions get illegal `return 0`.
+ * Parameters: arena + block_ref (1-based pool ref); null/invalid → 0.
+ * Returns: 1 if a return path is present, 0 otherwise.
+ * PLATFORM: SHARED — C TU ordering / host-cc; seed pin same commit.
+ */
+export function codegen_block_contains_return(arena: *ASTArena, block_ref: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (arena == 0 as *ASTArena || ast.ref_is_null(block_ref)) {
+      return 0;
+    }
+    /* final_expr on the block is the implicit return path for expression-bodied blocks. */
+    if (!ast.ref_is_null(ast.ast_block_final_expr_ref(arena, block_ref))) {
+      return 1;
+    }
+    let ji: i32 = 0;
+    let nes: i32 = ast.ast_block_num_expr_stmts(arena, block_ref);
+    while (ji < nes) {
+      let se: Expr = ast.ast_arena_expr_get(arena, ast.ast_block_expr_stmt_ref(arena, block_ref, ji));
+      if (se.kind == ExprKind.EXPR_RETURN) {
+        return 1;
+      }
+      ji = ji + 1;
+    }
+    /* Cap-T001: return often sits only inside unsafe / region body blocks. */
+    let ri: i32 = 0;
+    let nr: i32 = ast.ast_block_num_regions(arena, block_ref);
+    while (ri < nr) {
+      let rb: i32 = ast.ast_block_region_body_ref(arena, block_ref, ri);
+      if (codegen_block_contains_return(arena, rb) != 0) {
+        return 1;
+      }
+      ri = ri + 1;
+    }
+    return 0;
+  }
+}
+
 export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module, fi: i32, is_entry: bool, prefix: *u8, prefix_len: i32, ctx: *PipelineDepCtx, call_init_globals: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -8658,30 +8814,33 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
       ctx.current_emit_empty_var_next_index = saved_next;
       pipeline_dep_ctx_empty_param_restore(ctx);
     }
-    /* 仅非 void 函数在块体无 final_expr 且无 expr_stmt 为 return 时补 "  return 0;\n"。
-     * void 函数自然落到结尾即合法，避免 bootstrap 同步不稳时误发射 `return 0;`。 */
-    let need_fallback_return: bool = true;
-    if (!ast.ref_is_null(pipeline_module_func_body_expr_ref_at(module, fi))) {
-      need_fallback_return = false;
-    }
-    if (!ast.ref_is_null(pipeline_module_func_body_ref_at(module, fi))) {
-      let body_br: i32 = pipeline_module_func_body_ref_at(module, fi);
-      if (!ast.ref_is_null(ast.ast_block_final_expr_ref(arena, body_br))) {
-        need_fallback_return = false;
-      }
-      let ji: i32 = 0;
-      let nes: i32 = ast.ast_block_num_expr_stmts(arena, body_br);
-      while (ji < nes) {
-        let se: Expr = ast.ast_arena_expr_get(arena, ast.ast_block_expr_stmt_ref(arena, body_br, ji));
-        if (se.kind == ExprKind.EXPR_RETURN) {
-          need_fallback_return = false;
-          break;
-        }
-        ji = ji + 1;
-      }
-    }
+    /*
+     * Fallback `return 0;` — default OFF when a body block was emitted.
+     * Why (parser M1 host-cc): Cap-T001 `unsafe { return glue(...); }` nests return in a
+     * region; old top-level-only scan still appended `return 0` → illegal for by-value
+     * struct (Lexer / OneFuncResult). Scalar fallback only if no return path found.
+     * PLATFORM: SHARED — seed pin same commit; verify parser.x host-cc + product matrix.
+     * Authority: codegen_block_contains_return + integer/pointer kind gate.
+     */
+    let need_fallback_return: bool = false;
     if (fn_ret_void) {
       need_fallback_return = false;
+    } else if (!ast.ref_is_null(pipeline_module_func_body_expr_ref_at(module, fi))) {
+      need_fallback_return = false;
+    } else if (!ast.ref_is_null(pipeline_module_func_body_ref_at(module, fi))) {
+      let body_br: i32 = pipeline_module_func_body_ref_at(module, fi);
+      if (codegen_block_contains_return(arena, body_br) == 0) {
+        let ret_ord: i32 = pipeline_type_kind_ord_at(arena, pipeline_module_func_return_type_at(module, fi));
+        /* Integer-like 0..7 and TYPE_PTR only. */
+        if ((ret_ord >= 0 && ret_ord <= 7) || ret_ord == (TypeKind.TYPE_PTR as i32)) {
+          need_fallback_return = true;
+        }
+      }
+    } else {
+      let ret_ord2: i32 = pipeline_type_kind_ord_at(arena, pipeline_module_func_return_type_at(module, fi));
+      if ((ret_ord2 >= 0 && ret_ord2 <= 7) || ret_ord2 == (TypeKind.TYPE_PTR as i32)) {
+        need_fallback_return = true;
+      }
     }
     if (need_fallback_return) {
       if (emit_indent(out, 2) != 0) {

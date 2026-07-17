@@ -1530,6 +1530,7 @@ extern struct ast_ASTArena * codegen_arena_for_module(struct ast_PipelineDepCtx 
 extern int32_t codegen_emit_call_func_name(struct codegen_CodegenOutBuf * out, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx, int32_t expr_ref, struct ast_Module * current_module, uint8_t * fallback_name, int32_t fallback_len);
 extern void codegen_copy_func_name64_from_module(struct ast_Module * module, int32_t fi, uint8_t * dst);
 extern void codegen_copy_param_name32_from_module(struct ast_Module * module, int32_t fi, int32_t pi, uint8_t * dst);
+extern int32_t codegen_block_contains_return(struct ast_ASTArena * arena, int32_t block_ref);
 extern int32_t codegen_emit_func(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, struct ast_Module * module, int32_t fi, int is_entry, uint8_t * prefix, int32_t prefix_len, struct ast_PipelineDepCtx * ctx, int32_t call_init_globals);
 extern int32_t codegen_is_libc_conflicting_extern_name(uint8_t * name, int32_t name_len);
 extern int32_t codegen_find_mono_type_for_generic_func(struct ast_ASTArena * arena, struct ast_Module * module, int32_t fi);
@@ -4839,8 +4840,9 @@ int32_t codegen_emit_skipped_dep_type_definitions(struct ast_PipelineDepCtx * ct
             (void)((di = (di + 1)));
             continue;
           }
-          /* Path de-dupe: first registration (lower di) is authority — do not let a later
-           * same-path slot emit first and suppress the real module (lexer di=0 vs di=2). */
+          /* Path de-dupe: first *non-empty* registration is authority.
+           * Empty earlier same-path slots must not suppress a later real module
+           * (parser M1: missing struct ast_* → dual-extern). PLATFORM: SHARED. */
           seen_before = 0;
           pj = 0;
           while ((pj < di)) {
@@ -4857,8 +4859,11 @@ int32_t codegen_emit_skipped_dep_type_definitions(struct ast_PipelineDepCtx * ct
                 (void)((pk = (pk + 1)));
               }
               if (eq_prev) {
-                (void)((seen_before = 1));
-                break;
+                struct ast_Module * prev_mod = pipeline_dep_ctx_module_at(ctx, pj);
+                if ((prev_mod != ((struct ast_Module *)(0))) && ((prev_mod->num_struct_layouts) > 0)) {
+                  (void)((seen_before = 1));
+                  break;
+                }
               }
             }
             (void)((pj = (pj + 1)));
@@ -7767,6 +7772,39 @@ int32_t codegen_emit_return_stmt_with_context(struct ast_ASTArena * arena, struc
         return codegen_emit_bytes_4(out, sc_panic, 2);
       }
     }
+    /* Cap-T001 filler return 0 for by-value struct → compound zero (host-cc). */
+    if ((ctx != ((struct ast_PipelineDepCtx *)(0))) && (ctx->current_codegen_module != ((struct ast_Module *)(0)))
+        && (ctx->current_func_index >= 0) && (ctx->current_func_index < (ctx->current_codegen_module->num_funcs))) {
+      int32_t rty = pipeline_module_func_return_type_at(ctx->current_codegen_module, ctx->current_func_index);
+      if ((!(ast_ref_is_null(rty))) && (pipeline_type_kind_ord_at(arena, rty) == 8)) {
+        int32_t use_struct_zero = 0;
+        if (ast_ref_is_null(operand_ref)) {
+          (void)((use_struct_zero = 1));
+        } else if ((pipeline_expr_kind_ord_at(arena, operand_ref) == 0)) {
+          struct ast_Expr lit = ast_ast_arena_expr_get(arena, operand_ref);
+          if (((lit.int_val) == 0)) {
+            (void)((use_struct_zero = 1));
+          }
+        }
+        if ((use_struct_zero != 0)) {
+          uint8_t ret_open[8] = {114, 101, 116, 117, 114, 110, 32, 40};
+          uint8_t ret_close[8] = {41, 123, 48, 125, 59, 10, 0, 0};
+          if ((codegen_emit_indent(out, indent) !=0)) {
+            return -(1);
+          }
+          if ((codegen_emit_bytes_from_ptr(out, &((ret_open)[0]), 8) !=0)) {
+            return -(1);
+          }
+          if ((codegen_emit_type(arena, out, rty, ((uint8_t *)(0)), 0, ctx) !=0)) {
+            return -(1);
+          }
+          if ((codegen_emit_bytes_from_ptr(out, &((ret_close)[0]), 6) !=0)) {
+            return -(1);
+          }
+          return 0;
+        }
+      }
+    }
     if ((codegen_emit_indent(out, indent) !=0)) {
       return -(1);
     }
@@ -9212,6 +9250,40 @@ void codegen_copy_param_name32_from_module(struct ast_Module * module, int32_t f
   (void)(0);
   return;
 }
+/* PLATFORM: SHARED — Cap-T001 unsafe region return scan for emit_func fallback.
+ * Same semantics as codegen.x codegen_block_contains_return (seed pin). */
+int32_t codegen_block_contains_return(struct ast_ASTArena * arena, int32_t block_ref) {
+  int32_t ji;
+  int32_t nes;
+  int32_t ri;
+  int32_t nr;
+  if ((arena == ((struct ast_ASTArena *)(0))) || ast_ref_is_null(block_ref)) {
+    return 0;
+  }
+  if (!(ast_ref_is_null(ast_ast_block_final_expr_ref(arena, block_ref)))) {
+    return 1;
+  }
+  ji = 0;
+  nes = ast_ast_block_num_expr_stmts(arena, block_ref);
+  while ((ji < nes)) {
+    struct ast_Expr se = ast_ast_arena_expr_get(arena, ast_ast_block_expr_stmt_ref(arena, block_ref, ji));
+    if (((se.kind) == 41)) {
+      return 1;
+    }
+    (void)((ji = (ji + 1)));
+  }
+  ri = 0;
+  nr = ast_ast_block_num_regions(arena, block_ref);
+  while ((ri < nr)) {
+    int32_t rb = ast_ast_block_region_body_ref(arena, block_ref, ri);
+    if ((codegen_block_contains_return(arena, rb) != 0)) {
+      return 1;
+    }
+    (void)((ri = (ri + 1)));
+  }
+  return 0;
+}
+
 int32_t codegen_emit_func(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, struct ast_Module * module, int32_t fi, int is_entry, uint8_t * prefix, int32_t prefix_len, struct ast_PipelineDepCtx * ctx, int32_t call_init_globals) {
   {
     uint8_t fn_local[64] = {};
@@ -9502,28 +9574,32 @@ int32_t codegen_emit_func(struct ast_ASTArena * arena, struct codegen_CodegenOut
       (void)(((ctx->current_emit_empty_var_next_index) = saved_next));
       (void)(pipeline_dep_ctx_empty_param_restore(ctx));
     }
-    int need_fallback_return = 1;
-    if (!(ast_ref_is_null(pipeline_module_func_body_expr_ref_at(module, fi)))) {
-      (void)((need_fallback_return = 0));
-    }
-    if (!(ast_ref_is_null(pipeline_module_func_body_ref_at(module, fi)))) {
-      int32_t body_br = pipeline_module_func_body_ref_at(module, fi);
-      if (!(ast_ref_is_null(ast_ast_block_final_expr_ref(arena, body_br)))) {
-        (void)((need_fallback_return = 0));
-      }
-      int32_t ji = 0;
-      int32_t nes = ast_ast_block_num_expr_stmts(arena, body_br);
-      while ((ji < nes)) {
-        struct ast_Expr se = ast_ast_arena_expr_get(arena, ast_ast_block_expr_stmt_ref(arena, body_br, ji));
-        if (((se.kind) ==41)) {
-          (void)((need_fallback_return = 0));
-          break;
-        }
-        (void)((ji = (ji + 1)));
-      }
-    }
+    /* Fallback return 0: Cap-T001 unsafe-region returns + by-value struct residual.
+     * Default OFF when body_ref present (body already emitted via emit_block — including
+     * returns nested in unsafe regions). Only keep scalar fallback for empty/expr-less bodies.
+     * PLATFORM: SHARED — seed pin matches codegen.x; verify parser.x host-cc. */
+    int need_fallback_return = 0;
     if (fn_ret_void) {
       (void)((need_fallback_return = 0));
+    } else if (!(ast_ref_is_null(pipeline_module_func_body_expr_ref_at(module, fi)))) {
+      (void)((need_fallback_return = 0));
+    } else if (!(ast_ref_is_null(pipeline_module_func_body_ref_at(module, fi)))) {
+      /* Body block present: emit_block already ran. Append return 0 only if no return path
+       * (including Cap-T001 unsafe region) AND return type is scalar/pointer. */
+      int32_t body_br = pipeline_module_func_body_ref_at(module, fi);
+      if ((codegen_block_contains_return(arena, body_br) == 0)) {
+        int32_t ret_ord = pipeline_type_kind_ord_at(arena, pipeline_module_func_return_type_at(module, fi));
+        /* Allow fallback only for integer-like / pointer (0..7 and TYPE_PTR=9). */
+        if ((ret_ord >= 0 && ret_ord <= 7) || (ret_ord == 9)) {
+          (void)((need_fallback_return = 1));
+        }
+      }
+    } else {
+      /* No body at all: scalar fallback for incomplete stubs. */
+      int32_t ret_ord2 = pipeline_type_kind_ord_at(arena, pipeline_module_func_return_type_at(module, fi));
+      if ((ret_ord2 >= 0 && ret_ord2 <= 7) || (ret_ord2 == 9)) {
+        (void)((need_fallback_return = 1));
+      }
     }
     if (need_fallback_return) {
       uint8_t ret0[9] = {114, 101, 116, 117, 114, 110, 32, 48, 59};
