@@ -50,6 +50,41 @@ shux_strip_conflicting_weak_args_iter() {
   fi
 }
 
+# PLATFORM: MACOS/LINUX — std/net cfg errno bodies call __error / __errno_location.
+# Codegen may omit the extern prototype; host-cc then fails (Darwin cold net.o).
+# Inject after last #include when the gen C actually references the symbol.
+shux_inject_errno_externs() {
+  _gen="$1"
+  [ -f "$_gen" ] || return 0
+  _need=0
+  if grep -qE '__error\s*\(' "$_gen" 2>/dev/null \
+    && ! grep -qE 'extern\s+.*\*?\s*__error\s*\(' "$_gen" 2>/dev/null; then
+    _need=1
+  fi
+  if grep -qE '__errno_location\s*\(' "$_gen" 2>/dev/null \
+    && ! grep -qE 'extern\s+.*\*?\s*__errno_location\s*\(' "$_gen" 2>/dev/null; then
+    _need=1
+  fi
+  [ "$_need" = "1" ] || return 0
+  if grep -q '^#include' "$_gen" 2>/dev/null; then
+    last_inc_line=$(grep -n '^#include' "$_gen" | tail -1 | cut -d: -f1)
+  else
+    last_inc_line=1
+  fi
+  [ -n "$last_inc_line" ] || last_inc_line=1
+  # Portable insert: write block then splice (sed -i a\\ differs BSD/GNU).
+  {
+    head -n "$last_inc_line" "$_gen"
+    echo '/* PLATFORM: injected by shux_compile_std_x — errno TLS accessors */'
+    echo '#if defined(__APPLE__)'
+    echo 'extern int *__error(void);'
+    echo '#elif defined(__linux__)'
+    echo 'extern int *__errno_location(void);'
+    echo '#endif'
+    tail -n +"$((last_inc_line + 1))" "$_gen"
+  } >"$_gen.errno" && mv "$_gen.errno" "$_gen"
+}
+
 case "$(basename "$shux_bin")" in
   shux-c)
     # -o may use ASM backend which fails on some .x files (pointer arith, arrays).
@@ -68,6 +103,7 @@ case "$(basename "$shux_bin")" in
       fi
     fi
     shux_strip_conflicting_weak_args_iter "$gen_c"
+    shux_inject_errno_externs "$gen_c"
     cc -Wall -Wextra -I. -Iinclude -Isrc -c -o "$out_o" "$gen_c" || { rm -f "$gen_c"; exit 1; }
     rm -f "$gen_c"
     ;;
@@ -94,6 +130,7 @@ case "$(basename "$shux_bin")" in
           fi
         fi
         shux_strip_conflicting_weak_args_iter "$gen_c"
+        shux_inject_errno_externs "$gen_c"
         cc -Wall -Wextra -I. -Iinclude -Isrc -c -o "$out_o" "$gen_c" || { rm -f "$gen_c"; exit 1; }
         rm -f "$gen_c"
       else

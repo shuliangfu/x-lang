@@ -20,6 +20,32 @@ extern void net_tcp_set_addr_port_buf_c(uint8_t *sin, uint32_t addr_u32, uint32_
 extern void net_udp_set_addr_port_buf_c(uint8_t *sin, uint32_t addr_u32, uint32_t port_u32);
 
 /*
+ * PLATFORM: LINUX|MACOS — errno TLS pointer for std/net tcp/udp/ipv6.
+ * Why: product .x cfg bodies may emit calls to bare net_*_errno_ptr[_c] while
+ * the same-name cfg export is missing or mangles to std_net_*_net_*_errno_ptr;
+ * host-cc gen C on Darwin may call __error without a prototype. Authority for
+ * short C link names lives here (merged into net.o via sock_fast).
+ * Weak so a future full .x no_mangle body can override without duplicate hard.
+ */
+#if defined(_WIN32) || defined(_WIN64)
+/* Winsock: errno via WSAGetLastError — not used by POSIX net_*_errno_ptr paths. */
+#else
+#if defined(__APPLE__)
+extern int *__error(void);
+static int32_t *shux_net_errno_ptr(void) { return (int32_t *)__error(); }
+#else
+#include <errno.h>
+static int32_t *shux_net_errno_ptr(void) { return (int32_t *)__errno_location(); }
+#endif
+__attribute__((weak)) int32_t *net_tcp_errno_ptr(void) { return shux_net_errno_ptr(); }
+__attribute__((weak)) int32_t *net_tcp_errno_ptr_c(void) { return shux_net_errno_ptr(); }
+__attribute__((weak)) int32_t *net_udp_errno_ptr(void) { return shux_net_errno_ptr(); }
+__attribute__((weak)) int32_t *net_udp_errno_ptr_c(void) { return shux_net_errno_ptr(); }
+__attribute__((weak)) int32_t *net_ipv6_errno_ptr(void) { return shux_net_errno_ptr(); }
+__attribute__((weak)) int32_t *net_ipv6_errno_ptr_c(void) { return shux_net_errno_ptr(); }
+#endif
+
+/*
  * 【Why 根源】std/net 下 .x 经 -backend asm 出 .o 时，extern shux_sys_poll 为真 U 符号；
  * C 前端 user TU 靠 preamble static inline，不会导出给 net.o。
  * 权威体放 net.o 合并的 sock_fast（与 net_close_socket_c 同层），asm/C 两路径可链。
