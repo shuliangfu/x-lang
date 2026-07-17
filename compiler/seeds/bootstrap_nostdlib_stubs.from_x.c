@@ -529,7 +529,10 @@ int posix_memalign(void **memptr, size_t alignment, size_t size) {
     return 0;
 }
 
-/** 最小 vsnprintf：支持 %% %c %s %d %u %ld %lu %x %p %f（%f 精度有限）。 */
+/** 最小 vsnprintf：支持 %% %c %s %d %u %ld %lu %x %p %f %F %g %G %e %E
+ * （浮点均走 bootstrap_format_double；精度有限，足够 codegen C 字面量 / 诊断）。
+ * PLATFORM: LINUX — nostdlib-only TU；g05 动态链不链接本 stub。
+ * NL-07 L7：%.17g 曾落 default 吐出字面 'g' + emit 补 ".0" → 非法 C token "g.0"。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 int bootstrap_format_double_impl(double x, char *out, size_t cap) {
     size_t n = 0;
@@ -580,7 +583,8 @@ int bootstrap_format_double(double x, char *out, size_t cap) { return bootstrap_
 
 
 
-/** 最小 vsnprintf：支持 %% %c %s %d %u %ld %lu %x %p %f（%f 精度有限）。 */
+/** 最小 vsnprintf：支持 %% %c %s %d %u %ld %lu %x %p %f %F %g %G %e %E。
+ * PLATFORM: LINUX — nostdlib freestanding face；权威仅本 TU（G.7）。 */
 int vsnprintf(char *buf, size_t size, const char *fmt, va_list ap) {
     size_t pos = 0;
     if (!buf || size == 0)
@@ -717,7 +721,15 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list ap) {
                 }
                 break;
             }
-            case 'f': {
+            /* %f/%F and %g/%G/%e/%E: freestanding fixed decimal via bootstrap_format_double.
+             * PLATFORM: LINUX nostdlib — not full glibc float conversions; consume va_arg(double)
+             * so subsequent conversions stay aligned (unknown specs still risk desync). */
+            case 'f':
+            case 'F':
+            case 'g':
+            case 'G':
+            case 'e':
+            case 'E': {
                 double dv = va_arg(ap, double);
                 char fb[32];
                 int fn = bootstrap_format_double(dv, fb, sizeof(fb));
@@ -729,6 +741,7 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list ap) {
                 break;
             }
             default:
+                /* Unknown conversion: copy char only (do not invent a second float path). */
                 tmp[tn++] = *fmt;
                 break;
             }

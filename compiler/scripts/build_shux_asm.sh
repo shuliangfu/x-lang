@@ -3142,6 +3142,7 @@ build_nonempty_asm_objs() {
 #     __ctype_b_loc) in bootstrap_nostdlib_stubs (same G.7 stdio authority as L2).
 # Residual after L6: should be empty on crt0 bag (or new pull-ins only).
 # NL-07 L2/L6: libc face lives in bootstrap_nostdlib_stubs (not freestanding_io).
+# NL-07 L7: freestanding vsnprintf %g/%e (fixes pure-static float lit "g.0").
 filter_crt0_asm_objs() {
   CRT0_ASM=""
   _crt0_have_standalone=0
