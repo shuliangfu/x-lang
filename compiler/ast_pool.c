@@ -310,7 +310,25 @@ typedef struct {
 static ArenaSidecar g_arena_sc[MAX_ARENA_SIDECARS];
 static ModuleSidecar g_module_sc[MAX_MODULE_SIDECARS];
 static OneFuncSidecar g_onefunc_sc[MAX_ONEFUNC_SIDECARS];
-static DepCtxSidecar g_depctx_sc[MAX_DEP_CTX_SIDECARS];
+/*
+ * PLATFORM: SHARED — process-wide DepCtx sidecar table (G.7 single authority).
+ *
+ * Must NOT be `static`: pure static crt0 embeds depctx_sidecar_get in both
+ * pipeline_x / glue_standalone (global) and crt0 L5 pipeline partial (local).
+ * Per-TU static BSS → dual tables keyed by the same PipelineDepCtx*:
+ *   load_and_sync set_module/path writes table A;
+ *   Cap run_x_pipeline_codegen_one_dep module_at reads table B;
+ *   codegen_x_ast path_copy reads table A → module/path split
+ *   (NL-07 pure static si -o: core.types body emitted as core_result_*).
+ *
+ * Non-static global: multi-def objects share one BSS under
+ * --allow-multiple-definition (product + nostdlib crt0). Weak so a single
+ * surviving definition owns all references when the linker merges.
+ */
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((weak))
+#endif
+DepCtxSidecar g_shux_depctx_sc[MAX_DEP_CTX_SIDECARS];
 static DriverEmitSidecar g_driver_emit_sc[MAX_DRIVER_EMIT_SIDECARS];
 
 static DepCtxSidecar *depctx_sidecar_get(struct ast_PipelineDepCtx *ctx, int create) {
@@ -318,32 +336,32 @@ static DepCtxSidecar *depctx_sidecar_get(struct ast_PipelineDepCtx *ctx, int cre
   if (!ctx)
     return NULL;
   for (i = 0; i < MAX_DEP_CTX_SIDECARS; i++) {
-    if (g_depctx_sc[i].used && g_depctx_sc[i].ctx == ctx)
-      return &g_depctx_sc[i];
+    if (g_shux_depctx_sc[i].used && g_shux_depctx_sc[i].ctx == ctx)
+      return &g_shux_depctx_sc[i];
   }
   if (!create)
     return NULL;
   for (i = 0; i < MAX_DEP_CTX_SIDECARS; i++) {
-    if (!g_depctx_sc[i].used) {
-      g_depctx_sc[i].ctx = ctx;
-      g_depctx_sc[i].used = 1;
-      if (!grow_vec_init(&g_depctx_sc[i].dep_modules, sizeof(void *), AST_POOL_GROW))
+    if (!g_shux_depctx_sc[i].used) {
+      g_shux_depctx_sc[i].ctx = ctx;
+      g_shux_depctx_sc[i].used = 1;
+      if (!grow_vec_init(&g_shux_depctx_sc[i].dep_modules, sizeof(void *), AST_POOL_GROW))
         return NULL;
-      if (!grow_vec_init(&g_depctx_sc[i].dep_arenas, sizeof(void *), AST_POOL_GROW))
+      if (!grow_vec_init(&g_shux_depctx_sc[i].dep_arenas, sizeof(void *), AST_POOL_GROW))
         return NULL;
-      if (!grow_vec_init(&g_depctx_sc[i].dep_path_rows, 64, AST_POOL_GROW))
+      if (!grow_vec_init(&g_shux_depctx_sc[i].dep_path_rows, 64, AST_POOL_GROW))
         return NULL;
-      if (!grow_vec_init(&g_depctx_sc[i].dep_path_lens, sizeof(int32_t), AST_POOL_GROW))
+      if (!grow_vec_init(&g_shux_depctx_sc[i].dep_path_lens, sizeof(int32_t), AST_POOL_GROW))
         return NULL;
-      if (!grow_vec_init(&g_depctx_sc[i].lib_root_rows, 256, AST_POOL_GROW))
+      if (!grow_vec_init(&g_shux_depctx_sc[i].lib_root_rows, 256, AST_POOL_GROW))
         return NULL;
-      if (!grow_vec_init(&g_depctx_sc[i].lib_root_lens, sizeof(int32_t), AST_POOL_GROW))
+      if (!grow_vec_init(&g_shux_depctx_sc[i].lib_root_lens, sizeof(int32_t), AST_POOL_GROW))
         return NULL;
-      if (!grow_vec_init(&g_depctx_sc[i].empty_param_indices, sizeof(int32_t), AST_POOL_GROW))
+      if (!grow_vec_init(&g_shux_depctx_sc[i].empty_param_indices, sizeof(int32_t), AST_POOL_GROW))
         return NULL;
-      if (!grow_vec_init(&g_depctx_sc[i].empty_param_backup, sizeof(int32_t), AST_POOL_GROW))
+      if (!grow_vec_init(&g_shux_depctx_sc[i].empty_param_backup, sizeof(int32_t), AST_POOL_GROW))
         return NULL;
-      return &g_depctx_sc[i];
+      return &g_shux_depctx_sc[i];
     }
   }
   return NULL;
