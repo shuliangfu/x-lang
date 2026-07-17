@@ -934,6 +934,22 @@ static int32_t pipeline_typeck_overload_arg_score_strict_minimal(struct ast_ASTA
   if (arg_ty > 0) {
     ak = pipeline_type_kind_ord_at(caller_arena, arg_ty);
     pk = pipeline_type_kind_ord_at(caller_arena, param_ty);
+    /*
+     * PLATFORM: SHARED — integer widen (align typeck_integer_widen_ok): i32→usize so
+     * heap.alloc(al, capacity:i32) matches alloc(Allocator, usize)→*u8 instead of
+     * eliminating the 2-arg candidate and falling back to first alloc(i32)→*u64.
+     * Score 100 < exact 1000.
+     */
+    if ((pk == 0 || pk == 2 || pk == 3 || pk == 4 || pk == 5 || pk == 6 || pk == 7) &&
+        (ak == 0 || ak == 2 || ak == 3 || ak == 4 || ak == 5 || ak == 6 || ak == 7)) {
+      /* i32→i64/u32/usize; u8→wider; same-kind integers. Mirror typeck_integer_widen_ok. */
+      if (pk == ak)
+        return 100;
+      if (ak == 2 && (pk == 3 || pk == 4 || pk == 6 || pk == 0))
+        return 100;
+      if (ak == 0 && (pk == 5 || pk == 3 || pk == 6))
+        return 100;
+    }
     /* TYPE_ARRAY=10 → TYPE_PTR=9：buf:u8[N] 传 *u8 时须计为可赋，否则全部 overload 评分失败回退首同名(i32)。 */
     if (ak == 10 && pk == 9) {
       int32_t ae = pipeline_type_elem_ref_at(caller_arena, arg_ty);
@@ -1002,6 +1018,38 @@ static int32_t pipeline_typeck_pick_func_index_by_name_args_strict_minimal(
         break;
       }
       score += sc;
+    }
+    /* PLATFORM: SHARED — expected-return bonus (zero-arg overloads: vec.new Vec_u8). */
+    if (matched) {
+      extern int32_t typeck_overload_expected_ret_peek(void);
+      int32_t expect_ty = typeck_overload_expected_ret_peek();
+      int32_t rtr = pipeline_module_func_return_type_at(mod, j);
+      if (expect_ty > 0 && rtr > 0) {
+        int32_t mapped = rtr;
+        if (from_dep_index >= 0)
+          mapped = pipeline_typeck_get_dep_return_type_in_caller_arena_c(from_dep_index, rtr, caller_arena, ctx);
+        if (mapped > 0) {
+          int eq = pipeline_typeck_type_refs_equal_c(caller_arena, mapped, expect_ty);
+          /* Last-segment NAMED: bare Vec_u8 vs vec.Vec_u8 (strict_minimal equal may be exact-only). */
+          if (!eq) {
+            extern int32_t pipeline_type_named_name_into(struct ast_ASTArena *a, int32_t tr, uint8_t *buf);
+            uint8_t na[64], nb[64];
+            int32_t la = pipeline_type_named_name_into(caller_arena, mapped, na);
+            int32_t lb = pipeline_type_named_name_into(caller_arena, expect_ty, nb);
+            if (la > 0 && lb > 0) {
+              int32_t sa = 0, sb = 0, i;
+              for (i = 0; i < la; i++) if (na[i] == (uint8_t)'.') sa = i + 1;
+              for (i = 0; i < lb; i++) if (nb[i] == (uint8_t)'.') sb = i + 1;
+              if ((la - sa) == (lb - sb) && (la - sa) > 0) {
+                eq = 1;
+                for (i = 0; i < la - sa; i++) if (na[sa + i] != nb[sb + i]) { eq = 0; break; }
+              }
+            }
+          }
+          if (eq)
+            score += 5000;
+        }
+      }
     }
     if (matched && score > best_score) {
       best_score = score;
@@ -2098,6 +2146,14 @@ int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module,
   dep_ix = -1;
   func_ix = -1;
   import_ret_ty = 0;
+  /* PLATFORM: SHARED — expected return for zero-arg overload pick. */
+  {
+    extern int32_t *typeck_overload_expected_ret_slot(void);
+    int32_t es = 0;
+    if (return_type_ref > 0)
+      es = return_type_ref;
+    *typeck_overload_expected_ret_slot() = es;
+  }
   if (ctx && base_kind == (int32_t)ast_ExprKind_EXPR_VAR) {
     base_nlen = pipeline_expr_var_name_len(arena, base_ref);
     if (base_nlen > 0 && base_nlen <= 63) {
@@ -2121,6 +2177,10 @@ int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module,
         break;
       }
     }
+  }
+  {
+    extern int32_t *typeck_overload_expected_ret_slot(void);
+    *typeck_overload_expected_ret_slot() = 0;
   }
   if (import_ret_ty > 0) {
     pipeline_expr_apply_call_resolve(arena, expr_ref, dep_ix, func_ix);

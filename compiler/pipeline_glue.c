@@ -25990,16 +25990,32 @@ int32_t pipeline_typeck_check_expr_call_c(struct ast_Module *module, struct ast_
   int32_t rc;
   int32_t callee_ref;
   int32_t ret_ty;
+  int32_t expect_store;
+  extern int32_t *typeck_overload_expected_ret_slot(void);
   if (pipeline_typeck_check_extern_call_unsafe_boundary_c(module, arena, expr_ref, ctx) != 0)
     return -1;
+  /*
+   * PLATFORM: SHARED — install expected return for zero-arg overload pick
+   * (let v: Vec_u8 = vec.new()). Cleared on all exit paths. Authority consumers:
+   * typeck_find_func_return_type_in_module_by_name_overload / module_overload.
+   */
+  expect_store = 0;
+  if (!ast_ref_is_null(return_type_ref) && return_type_ref > 0)
+    expect_store = return_type_ref;
+  *typeck_overload_expected_ret_slot() = expect_store;
   /** 勿经 glue typeck_check_expr_call 互递归；直调 seed 子步骤 + glue resolve。 */
   rc = typeck_check_expr_call_arg(module, arena, expr_ref, return_type_ref, ctx, 0,
                                   pipeline_expr_call_num_args_at(arena, expr_ref));
-  if (rc != 0)
+  if (rc != 0) {
+    *typeck_overload_expected_ret_slot() = 0;
     return rc;
+  }
   rc = typeck_check_expr_call_resolve(module, arena, expr_ref, ctx);
-  if (rc != 0)
+  if (rc != 0) {
+    *typeck_overload_expected_ret_slot() = 0;
     return rc;
+  }
+  *typeck_overload_expected_ret_slot() = 0;
   if (pipeline_typeck_check_call_generic_type_args_c(module, arena, expr_ref, ctx) != 0)
     return -1;
   if (pipeline_typeck_check_call_slice_region_c(module, arena, expr_ref, ctx) != 0)

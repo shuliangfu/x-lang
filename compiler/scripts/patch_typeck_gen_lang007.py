@@ -93,6 +93,18 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
   if (base_nlen <= 0 || base_nlen > 63)
     return rc;
   pipeline_expr_var_name_into(arena, base_ref, base_nm);
+  /*
+   * PLATFORM: SHARED — re-dispatch must install expected return (let/assign context).
+   * glue method_call_c scores with expected_ret then clears the slot; without re-install,
+   * zero-arg overloads (vec.new → Vec_i32 vs Vec_u8) fall back to first match.
+   */
+  {
+    extern int32_t *typeck_overload_expected_ret_slot(void);
+    int32_t es = 0;
+    if (return_type_ref > 0)
+      es = return_type_ref;
+    *typeck_overload_expected_ret_slot() = es;
+  }
   for (ii = 0; ii < module->num_imports; ii++) {
     import_kind = pipeline_module_import_kind_at(module, ii);
     if (import_kind != 1)
@@ -111,6 +123,10 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
       (void)pipeline_expr_set_resolved_type_ref(arena, expr_ref, import_ret_ty);
     }
     break;
+  }
+  {
+    extern int32_t *typeck_overload_expected_ret_slot(void);
+    *typeck_overload_expected_ret_slot() = 0;
   }
   return 0;
 }
@@ -203,11 +219,11 @@ def replace_weak_fn(src: str, name: str, new_body: str) -> tuple[str, bool]:
                 if "pipeline_typeck_unsafe_depth_push_c" in old and name == "typeck_check_expr_block":
                     return src, False
                 if name == "typeck_check_expr_method_call":
-                    # W-heap-overload body contains the call_strict_minimal symbol; old body only
-                    # delegated to pipeline_typeck_check_expr_method_call_c.
-                    if "by_name_call_strict_minimal" in old or "W-heap-overload" in old:
+                    # Already has expected-return re-dispatch (zero-arg overload fix).
+                    if "typeck_overload_expected_ret_slot" in old and "by_name_call_strict_minimal" in old:
                         return src, False
-                    # else rewrite short LANG-007 delegate → arg-type dispatch
+                    # Old W-heap re-dispatch without expected_ret → rewrite (vec.new Vec_u8).
+                    # Short LANG-007 delegate also rewritten → arg-type dispatch + expected_ret.
                 return src[:start] + new_body.rstrip() + "\n" + src[end:], True
         i += 1
     raise RuntimeError(f"unbalanced braces for {name}")

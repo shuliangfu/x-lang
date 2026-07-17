@@ -7624,6 +7624,12 @@ uint8_t *typeck_scratch64_slot(int32_t slot) {
 /** typeck.x：CALL resolve 写 func 下标用；勿用栈上 &cfi（自举 pipeline 下可撕裂致 segfault）。 */
 static int32_t g_typeck_call_resolve_func_idx;
 static int32_t g_typeck_call_resolve_dep_idx;
+/**
+ * PLATFORM: SHARED — expected return type for overload pick (let/assign/return context).
+ * Zero-arg overloads (vec.new → Vec_i32 vs Vec_u8) score by this when args do not disambiguate.
+ * Set by typeck_check_expr_call / method_call; cleared after resolve. 0 = no hint.
+ */
+static int32_t g_typeck_overload_expected_ret;
 
 int32_t *typeck_call_resolve_func_idx_slot(void) {
   return &g_typeck_call_resolve_func_idx;
@@ -7631,6 +7637,10 @@ int32_t *typeck_call_resolve_func_idx_slot(void) {
 
 int32_t *typeck_call_resolve_dep_idx_slot(void) {
   return &g_typeck_call_resolve_dep_idx;
+}
+
+int32_t *typeck_overload_expected_ret_slot(void) {
+  return &g_typeck_overload_expected_ret;
 }
 
 /** 读 CALL resolve dep scratch（X emit 勿 typeck_i32_ptr_read(slot()) 嵌套）。 */
@@ -7641,6 +7651,11 @@ int32_t typeck_call_resolve_dep_idx_peek(void) {
 /** 读 CALL resolve func scratch（X emit 勿 typeck_i32_ptr_read(slot()) 嵌套）。 */
 int32_t typeck_call_resolve_func_idx_peek(void) {
   return g_typeck_call_resolve_func_idx;
+}
+
+/** Read expected-return hint for overload scoring (X emit: avoid nested slot read). */
+int32_t typeck_overload_expected_ret_peek(void) {
+  return g_typeck_overload_expected_ret;
 }
 
 /** 前向声明：binop arith infer C glue 读/写类型池。 */

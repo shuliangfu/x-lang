@@ -140,6 +140,9 @@ export extern function typeck_i32_ptr_read(p: *i32): i32;
 /** CALL resolve 写 dep/func 下标 scratch；勿栈上 &local（EMIT_HEAVY asm SIGSEGV）。 */
 export extern function typeck_call_resolve_dep_idx_slot(): *i32;
 export extern function typeck_call_resolve_func_idx_slot(): *i32;
+/** Expected return type for overload pick (let/assign/return context). 0 = none. PLATFORM: SHARED. */
+export extern function typeck_overload_expected_ret_slot(): *i32;
+export extern function typeck_overload_expected_ret_peek(): i32;
 /** 读 scratch 槽值（X emit 勿嵌套 typeck_i32_ptr_read(slot())）。 */
 export extern function typeck_call_resolve_dep_idx_peek(): i32;
 export extern function typeck_call_resolve_func_idx_peek(): i32;
@@ -2560,6 +2563,15 @@ param_ty_raw: i32, from_dep_index: i32, ctx: *PipelineDepCtx): i32 {
     if (arg_ty > 0) {
       let ak: i32 = pipeline_type_kind_ord_at(caller_arena, arg_ty);
       let pk: i32 = pipeline_type_kind_ord_at(caller_arena, param_ty);
+      /*
+       * Integer widen (same rules as typeck_integer_widen_ok): i32→usize for
+       * heap.alloc(al, capacity) so 2-arg Allocator+usize is not eliminated → first *u64.
+       * Score 100 < exact 1000; expected-return bonus still dominates zero-arg ties.
+       * PLATFORM: SHARED — keep strict_minimal arg score aligned.
+       */
+      if (typeck_integer_widen_ok(pk, ak)) {
+        return 100;
+      }
       /** TYPE_ARRAY=10 → TYPE_PTR=9：`buf: u8[N]` 传 `*u8` 须可赋，否则 overload 全灭回退首同名。 */
       if (ak == 10 && pk == 9) {
         let ae: i32 = pipeline_type_elem_ref_at(caller_arena, arg_ty);
@@ -2592,6 +2604,9 @@ param_ty_raw: i32, from_dep_index: i32, ctx: *PipelineDepCtx): i32 {
 /**
  * 按名字 + call 实参分派 overload（binding import / 跨模块；W-heap-overload）。
  * call_expr_ref<=0 时退化为 by_name 首匹配。
+ * When args do not disambiguate (zero-arg new/Vec_i32 vs Vec_u8), also score expected
+ * return type from typeck_overload_expected_ret_peek (let/assign/return context).
+ * PLATFORM: SHARED — authority: this function; keep seed typeck_gen + strict_minimal in sync.
  */
 export function find_func_return_type_in_module_by_name_overload(mod: *Module, caller_arena: *ASTArena,
 name: *u8, name_len: i32, call_expr_ref: i32, from_dep_index: i32, ctx: *PipelineDepCtx,
@@ -2605,6 +2620,7 @@ func_index_out: *i32): i32 {
     let best_ret: i32 = 0;
     let first_idx: i32 = -1;
     let first_ret: i32 = 0;
+    let expect_ty: i32 = 0;
     if (name_len <= 0 || name_len > 63 || mod == 0 as * Module) {
       return 0;
     }
@@ -2614,6 +2630,7 @@ func_index_out: *i32): i32 {
       ctx, func_index_out);
     }
     num_args = pipeline_expr_call_num_args_at(caller_arena, call_expr_ref);
+    expect_ty = typeck_overload_expected_ret_peek();
     while (j < mod.num_funcs) {
       if (pipeline_module_func_name_equal_at(mod, j, name, name_len) != 0) {
         let rtr: i32 = pipeline_module_func_return_type_at(mod, j);
@@ -2636,6 +2653,21 @@ func_index_out: *i32): i32 {
             }
             score = score + sc;
             ai = ai + 1;
+          }
+          /*
+           * Zero-arg / arg-tie: prefer overload whose return type matches expected
+           * context (e.g. let v: Vec_u8 = vec.new()). Bonus 5000 > any arg sum.
+           * Maps dep return via get_dep_return so vec.Vec_u8 equals bare Vec_u8.
+           */
+          if (matched != 0 && expect_ty > 0 && rtr > 0) {
+            let mapped_ret: i32 = rtr;
+            if (from_dep_index >= 0) {
+              mapped_ret = get_dep_return_type_in_caller_arena(from_dep_index, rtr, caller_arena, ctx);
+            }
+            if (mapped_ret > 0
+                && pipeline_typeck_type_refs_equal_c(caller_arena, mapped_ret, expect_ty) != 0) {
+              score = score + 5000;
+            }
           }
           if (matched != 0 && score > best_score) {
             best_score = score;
@@ -2675,7 +2707,9 @@ func_index_out: *i32): i32 {
  * 【Why 根源】函数重载要求 typeck 根据实参类型选择正确的重载版本，否则 codegen 用错误的
  *   resolved_func_index 做 mangling，链接到错误的重载版本（如 pick(20 as i64) 链到 pick_i32）。
  * 【Invariant】同模块 type_refs 直接比；跨模块用 get_dep_return_type 映射形参后再比（W-heap-overload）。
+ * Also scores expected return (typeck_overload_expected_ret_peek) for zero-arg / arg-tie cases.
  * 【Asm/Perf】遍历全部同名函数做参数类型匹配，O(n_overloads * n_args)，重载数通常 ≤ 8，可忽略。
+ * PLATFORM: SHARED — keep typeck_gen seed + glue strict_minimal pick aligned.
  */
 export function find_func_return_type_in_module_overload(mod: *Module, mod_arena: *ASTArena,
 caller_arena: *ASTArena, callee_arena: *ASTArena, callee_expr_ref: i32,
@@ -2690,11 +2724,13 @@ call_expr_ref: i32, from_dep_index: i32, ctx: *PipelineDepCtx, func_index_out: *
     let best_idx: i32 = -1;
     let best_score: i32 = -1;
     let best_ret: i32 = 0;
+    let expect_ty: i32 = 0;
     /** 无 call_expr_ref 时退化为取第一个匹配（兼容旧调用）。 */
     if (call_expr_ref > 0 && call_expr_ref <= caller_arena.num_exprs) {
       num_args = pipeline_expr_call_num_args_at(caller_arena, call_expr_ref);
       has_call_info = 1;
     }
+    expect_ty = typeck_overload_expected_ret_peek();
     while (j < mod.num_funcs) {
       if (expr_var_name_equal_func(callee_arena, callee_expr_ref, mod, j)) {
         if (first_idx < 0) {
@@ -2707,6 +2743,7 @@ call_expr_ref: i32, from_dep_index: i32, ctx: *PipelineDepCtx, func_index_out: *
             let ai: i32 = 0;
             let score: i32 = 0;
             let matched: i32 = 1;
+            let rtr_cand: i32 = pipeline_module_func_return_type_at(mod, j);
             while (ai < num_args) {
               let param_raw: i32 = pipeline_module_func_param_type_ref_at(mod, j, ai);
               let sc: i32 = typeck_overload_arg_param_score(caller_arena, call_expr_ref, ai, param_raw,
@@ -2718,10 +2755,21 @@ call_expr_ref: i32, from_dep_index: i32, ctx: *PipelineDepCtx, func_index_out: *
               score = score + sc;
               ai = ai + 1;
             }
+            if (matched != 0 && expect_ty > 0 && rtr_cand > 0) {
+              let mapped_ret2: i32 = rtr_cand;
+              if (from_dep_index >= 0) {
+                mapped_ret2 =
+                    get_dep_return_type_in_caller_arena(from_dep_index, rtr_cand, caller_arena, ctx);
+              }
+              if (mapped_ret2 > 0
+                  && pipeline_typeck_type_refs_equal_c(caller_arena, mapped_ret2, expect_ty) != 0) {
+                score = score + 5000;
+              }
+            }
             if (matched != 0 && score > best_score) {
               best_score = score;
               best_idx = j;
-              best_ret = pipeline_module_func_return_type_at(mod, j);
+              best_ret = rtr_cand;
             }
           }
         }
@@ -5261,6 +5309,7 @@ ctx: *PipelineDepCtx): i32 {
 
 /**
 * EXPR_CALL：检查实参并解析 callee 返回类型（EMIT_HEAVY X emit）。
+* Installs expected return (return_type_ref from let/assign/return) for zero-arg overload pick.
 */
 export function typeck_check_expr_call(module: *Module, arena: *ASTArena, expr_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
@@ -5271,12 +5320,20 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
       return -1;
     }
     let num_args: i32 = pipeline_expr_call_num_args_at(arena, expr_ref);
+    let expect_store: i32 = 0;
+    if (!ast.ref_is_null(return_type_ref) && return_type_ref > 0) {
+      expect_store = return_type_ref;
+    }
+    typeck_i32_ptr_store(typeck_overload_expected_ret_slot(), expect_store);
     if (typeck_check_expr_call_arg(module, arena, expr_ref, return_type_ref, ctx, 0, num_args) != 0) {
+      typeck_i32_ptr_store(typeck_overload_expected_ret_slot(), 0);
       return -1;
     }
     if (typeck_check_expr_call_resolve(module, arena, expr_ref, ctx) != 0) {
+      typeck_i32_ptr_store(typeck_overload_expected_ret_slot(), 0);
       return -1;
     }
+    typeck_i32_ptr_store(typeck_overload_expected_ret_slot(), 0);
     /** M-3：实参 slice 域与形参域标签一致性（内含 WPO-S3 struct stack escape）。 */
     if (pipeline_typeck_check_call_slice_region_c(module, arena, expr_ref, ctx) != 0) {
       return -1;

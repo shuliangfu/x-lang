@@ -743,6 +743,8 @@ static int32_t g_typeck_layout_metrics_sz_depth[64];
 static int32_t g_typeck_layout_metrics_al_depth[64];
 static int32_t g_typeck_call_resolve_dep_idx_slot;
 static int32_t g_typeck_call_resolve_func_idx_slot;
+/* PLATFORM: SHARED — weak fallback; strong def in ast_pool.c on product link. */
+static int32_t g_typeck_overload_expected_ret_slot;
 
 __attribute__((weak)) uint8_t *typeck_scratch64_slot(int32_t slot) {
   if (slot < 0)
@@ -821,6 +823,10 @@ __attribute__((weak)) int32_t *typeck_call_resolve_func_idx_slot(void) {
   return &g_typeck_call_resolve_func_idx_slot;
 }
 
+__attribute__((weak)) int32_t *typeck_overload_expected_ret_slot(void) {
+  return &g_typeck_overload_expected_ret_slot;
+}
+
 #ifndef SHUX_L2_STRICT_GLUE_THIN_FROM_X
 __attribute__((weak)) int32_t typeck_call_resolve_dep_idx_peek(void) {
   return *typeck_call_resolve_dep_idx_slot();
@@ -828,6 +834,10 @@ __attribute__((weak)) int32_t typeck_call_resolve_dep_idx_peek(void) {
 
 __attribute__((weak)) int32_t typeck_call_resolve_func_idx_peek(void) {
   return *typeck_call_resolve_func_idx_slot();
+}
+
+__attribute__((weak)) int32_t typeck_overload_expected_ret_peek(void) {
+  return *typeck_overload_expected_ret_slot();
 }
 #endif
 
