@@ -6606,11 +6606,43 @@ void shux_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *us
                     && !shux_link_obj_needs_undef_sym(user_o, "std_backtrace_capture")
                     && !shux_link_obj_needs_undef_sym(user_o, "backtrace_capture"))
                     break;
+                /*
+                 * PLATFORM: SHARED — math gate must cover full std.math surface, not only sin/cos.
+                 * Residual: tests/math/main.x uses pi/e/floor/ceil/sqrt/abs/signum → U std_math_*
+                 * but old probes only sin/cos → -backend asm never pushed math.o (Ubuntu L2).
+                 * G.7: complete existing fk==9 authority (no second needs_math path).
+                 * have_math also pulls GLUE_MATH (libm) + process_argv complement below.
+                 */
                 if (fk == 9 /* math */
                     && !shux_link_obj_needs_undef_sym(user_o, "std_math_sin")
                     && !shux_link_obj_needs_undef_sym(user_o, "std_math_cos")
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_math_tan")
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_math_pi")
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_math_e")
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_math_tau")
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_math_floor")
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_math_ceil")
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_math_trunc")
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_math_round")
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_math_sqrt")
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_math_cbrt")
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_math_pow")
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_math_exp")
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_math_log")
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_math_abs")
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_math_signum")
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_math_min")
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_math_max")
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_math_asin")
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_math_acos")
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_math_atan")
+                    && !shux_link_obj_needs_undef_sym(user_o, "std_math_atan2")
                     && !shux_link_obj_needs_undef_sym(user_o, "math_sin")
-                    && !shux_link_obj_needs_undef_sym(user_o, "math_cos"))
+                    && !shux_link_obj_needs_undef_sym(user_o, "math_cos")
+                    && !shux_link_obj_needs_undef_sym(user_o, "math_sin_c")
+                    && !shux_link_obj_needs_undef_sym(user_o, "math_cos_c")
+                    && !shux_link_obj_needs_undef_sym(user_o, "math_floor_c")
+                    && !shux_link_obj_needs_undef_sym(user_o, "math_pi_c"))
                     break;
                 if (fk == 10 /* sqlite */
                     && !shux_link_obj_needs_undef_sym(user_o, "std_db_sqlite")
@@ -6630,8 +6662,16 @@ void shux_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *us
             } else if (fk == 0 && rel && rel[0] && !labi_std_fk0_user_needs_rel(user_o, rel)) {
                 break;
             }
-            if (rel && rel[0])
+            if (rel && rel[0]) {
+                /* PLATFORM: SHARED — L4 wipe drops formal math.o; ensure before push (same as C need_math). */
+                if (fk == 9 && user_o && user_o[0]) {
+                    const char *include_root = shux_repo_root_from_argv0(link_argv0);
+                    if (include_root && include_root[0])
+                        (void)shux_ensure_formal_std_make_o(include_root, "std/math/math.o",
+                                                            "../std/math/math.o");
+                }
                 link_abi_asm_ld_push_obj(NULL, link_argv0, rel, lib_roots, n_lib_roots, bank, argv, la, max_la, flag_out);
+            }
             break;
         case LABI_STD_OP_GLUE_THREAD:
             link_abi_asm_ld_push_glue_after_std(flags && flags->have_thread, shux_ensure_runtime_thread_glue_o,
