@@ -448,46 +448,21 @@ static int32_t glue_call_arg_is_sse_float_c(struct ast_ASTArena *arena, int32_t 
   int32_t ko;
   int32_t atr;
   int32_t ak;
-  int32_t rc;
   if (glue_call_param_is_f32_c(arena, pty))
-    rc = 1;
-  else if (!arena || call_expr_ref <= 0 || arg_index < 0)
-    rc = 0;
-  else {
-    arg_ref = pipeline_expr_call_arg_ref(arena, call_expr_ref, arg_index);
-    if (arg_ref <= 0)
-      rc = 0;
-    else {
-      ko = pipeline_expr_kind_ord_at(arena, arg_ref);
-      if (ko == 1) /* FLOAT_LIT → default f64 bits / SysV xmm */
-        rc = 1;
-      else {
-        atr = pipeline_expr_resolved_type_ref(arena, arg_ref);
-        if (atr <= 0)
-          rc = 0;
-        else {
-          ak = pipeline_type_kind_ord_at(arena, atr);
-          rc = (ak == 14 || ak == 15) ? 1 : 0;
-        }
-      }
-    }
-  }
-  /* TEMP always-on (remove after root): freestanding getenv may be stub. */
-  if (arena && call_expr_ref > 0 && arg_index >= 0 && arg_index < 4) {
-    char line[192];
-    int n;
-    arg_ref = pipeline_expr_call_arg_ref(arena, call_expr_ref, arg_index);
-    ko = arg_ref > 0 ? pipeline_expr_kind_ord_at(arena, arg_ref) : -1;
-    atr = arg_ref > 0 ? pipeline_expr_resolved_type_ref(arena, arg_ref) : 0;
-    ak = atr > 0 ? pipeline_type_kind_ord_at(arena, atr) : -1;
-    n = snprintf(line, sizeof line, "sse_dbg call=%d ai=%d pty=%d pty_k=%d arg=%d ko=%d atr=%d ak=%d -> %d\n",
-                 (int)call_expr_ref, (int)arg_index, (int)pty,
-                 (pty > 0 && arena) ? (int)pipeline_type_kind_ord_at(arena, pty) : -1, (int)arg_ref, (int)ko, (int)atr,
-                 (int)ak, (int)rc);
-    if (n > 0)
-      (void)write(2, line, (size_t)(n < (int)sizeof line ? n : (int)sizeof line - 1));
-  }
-  return rc;
+    return 1;
+  if (!arena || call_expr_ref <= 0 || arg_index < 0)
+    return 0;
+  arg_ref = pipeline_expr_call_arg_ref(arena, call_expr_ref, arg_index);
+  if (arg_ref <= 0)
+    return 0;
+  ko = pipeline_expr_kind_ord_at(arena, arg_ref);
+  if (ko == 1) /* FLOAT_LIT → default f64 bits / SysV xmm */
+    return 1;
+  atr = pipeline_expr_resolved_type_ref(arena, arg_ref);
+  if (atr <= 0)
+    return 0;
+  ak = pipeline_type_kind_ord_at(arena, atr);
+  return (ak == 14 || ak == 15) ? 1 : 0;
 }
 
 /** f64 width for movq vs movd when placing into xmm. */
@@ -2075,13 +2050,6 @@ int32_t pipeline_asm_emit_call_args_elf_c_impl(struct ast_ASTArena *arena, struc
   reg_max = glue_asm_call_reg_max(ta);
   f32_on = pipeline_asm_abi_f32_xmm_enabled_c();
   sret_sh0 = pipeline_asm_emit_call_sret_reg_shift_c();
-  {
-    char line[160];
-    int n = snprintf(line, sizeof line, "emit_call_args expr=%d nargs=%d ta=%d f32_on=%d sret=%d\n", (int)expr_ref,
-                     (int)nargs, (int)ta, (int)f32_on, (int)sret_sh0);
-    if (n > 0)
-      (void)write(2, line, (size_t)(n < (int)sizeof line ? n : (int)sizeof line - 1));
-  }
   /** hidden sret 时 rdi 已预装 dest；走下方 gp 位移路径，勿进 f32-xmm 分轨（未实现 sret 位移）。 */
   if (ta == 0 && f32_on && sret_sh0 == 0)
     return glue_emit_call_args_elf_sysv_f32_xmm_c(arena, elf_ctx, expr_ref, ctx, ta, nargs);
@@ -2737,13 +2705,6 @@ int32_t pipeline_asm_emit_call_elf_c_impl(struct ast_ASTArena *arena, struct pla
   ly = (struct glue_AsmFuncCtxCall *)ctx;
   mod_ref = ly ? ly->module_ref : 0;
   callee_ko = pipeline_expr_kind_ord_at(arena, callee_ref);
-  {
-    char line[160];
-    int n = snprintf(line, sizeof line, "emit_call_elf expr=%d callee_ko=%d nargs=%d mod=%p\n", (int)expr_ref,
-                     (int)callee_ko, (int)pipeline_expr_call_num_args_at(arena, expr_ref), (void *)mod_ref);
-    if (n > 0)
-      (void)write(2, line, (size_t)(n < (int)sizeof line ? n : (int)sizeof line - 1));
-  }
   backend_call_debugf("emit call elf callee_ko=%d call_nargs=%d", (int)callee_ko,
                       (int)pipeline_expr_call_num_args_at(arena, expr_ref));
 
