@@ -684,7 +684,8 @@ int32_t glue_emit_call_args_elf_sysv_f32_xmm_c_impl(struct ast_ASTArena *arena,
      * SysV float placement: slot kind==1, or FLOAT_LIT (1), or param/arg f32/f64.
      * Use arg_ref already resolved for emit — do not re-fetch (slot helper can miss).
      */
-    use_xmm = (kind == 1) || (arg_ko == 1) || glue_call_param_is_f32_c(arena, pty);
+    /** G.7: single float-slot predicate (param type OR FLOAT_LIT OR resolved f32/f64). */
+    use_xmm = (kind == 1) || glue_call_arg_is_sse_float_c(arena, expr_ref, i, pty);
     if (!use_xmm) {
       if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, reg_k, ta) != 0) {
         pipeline_asm_emit_set_call_f32_xmm(0);
@@ -692,7 +693,7 @@ int32_t glue_emit_call_args_elf_sysv_f32_xmm_c_impl(struct ast_ASTArena *arena,
       }
     } else {
       xk = (kind == 1) ? reg_k : 0;
-      if (arg_ko == 1 || glue_call_arg_is_f64_width_c(arena, expr_ref, i, pty) ||
+      if (glue_call_arg_is_f64_width_c(arena, expr_ref, i, pty) || arg_ko == 1 ||
           (pty > 0 && pipeline_type_kind_ord_at(arena, pty) == 15))
         mov_rc = backend_enc_mov_rax_to_xmm_arg_reg_arch(elf_ctx, xk, ta);
       else
@@ -1832,8 +1833,24 @@ int32_t glue_asm_enc_call_redirected_impl(struct platform_elf_ElfCodegenCtx *elf
                                             int32_t ta) {
   uint8_t redir[64];
   int32_t rlen;
+  int32_t rc;
+  int32_t is_std_math;
   if (!name || name_len <= 0)
     return -1;
+  is_std_math = (ta == 0 && name_len >= 9 && name[0] == 's' && name[1] == 't' && name[2] == 'd' &&
+                 name[3] == '_' && name[4] == 'm' && name[5] == 'a' && name[6] == 't' && name[7] == 'h' &&
+                 name[8] == '_')
+                    ? 1
+                    : 0;
+  /**
+   * PLATFORM: LINUX+MACOS x86_64 SysV — std_math_* choke (G.7 single authority).
+   * Before CALL: f64 arg bits sit in rax after arg emit (mov rdi leaves rax); place xmm0.
+   * After CALL: harvest xmm0 → rax for internal GPR float convention.
+   */
+  if (is_std_math) {
+    if (backend_enc_mov_rax_to_xmm_arg_reg_arch(elf_ctx, 0, ta) != 0)
+      return -1;
+  }
   rlen = glue_try_std_heap_redirect_sym_local(name, name_len, redir, 64);
   if (rlen <= 0)
     rlen = glue_try_std_string_shux_redirect_sym_local(name, name_len, redir, 64);
@@ -1843,9 +1860,15 @@ int32_t glue_asm_enc_call_redirected_impl(struct platform_elf_ElfCodegenCtx *elf
     rlen = pipeline_asm_redirect_std_c_wrapper_sym(name, name_len, redir, 64);
   if (rlen > 0) {
     backend_call_debugf("call redirect %.*s -> %.*s", (int)name_len, (char *)name, (int)rlen, (char *)redir);
-    return backend_enc_call_arch(elf_ctx, redir, rlen, ta);
+    rc = backend_enc_call_arch(elf_ctx, redir, rlen, ta);
+  } else {
+    rc = backend_enc_call_arch(elf_ctx, name, name_len, ta);
   }
-  return backend_enc_call_arch(elf_ctx, name, name_len, ta);
+  if (rc != 0)
+    return rc;
+  if (is_std_math)
+    return backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx, 0, ta);
+  return 0;
 }
 
 #ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
@@ -2016,7 +2039,6 @@ int32_t glue_asm_emit_call_with_cleanup_impl(struct ast_ASTArena *arena, struct 
                                                int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta,
                                                int32_t nargs, uint8_t *cname, int32_t clen) {
   int32_t cleanup;
-  int32_t hr;
   if (pipeline_asm_emit_call_args_elf_c(arena, elf_ctx, expr_ref, ctx, ta, nargs) != 0)
     return -1;
   if (glue_asm_enc_call_redirected(elf_ctx, cname, clen, ta) != 0)
