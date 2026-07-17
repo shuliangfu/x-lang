@@ -867,22 +867,47 @@ const char *shux_std_compress_o_path(const char *argv0) {
 }
 
 /**
- * 由 argv0 推导仓库根目录（基于 std/process/process.o 路径向上取三级目录）。
- * 参数：argv0 可选 shux 路径。
- * 返回值：仓库根路径或空串。
+ * Derive repo root from the product host binary path.
+ * Authority (G.7): shu_resolve_compiler_dir (compiler/) → parent = repo root.
+ * PLATFORM: SHARED — must not depend on formal std/*.o existing.
+ *
+ * Why: after L4 wipe, std/process/process.o is gone. The old path walked
+ * process.o up three seps; when process.o is missing, include_root became ""
+ * and shux_ensure_formal_std_make_o never ran (mac true-cold residual).
+ * Fallback: legacy process.o walk when compiler_dir resolve fails but process.o
+ * already exists (warm tree).
+ *
+ * @param argv0 optional shux path (also used by shu_resolve_compiler_dir fallback)
+ * @return static buffer with repo root, or empty string
  */
 const char *shux_repo_root_from_argv0(const char *argv0) {
     static char buf[512];
-    const char *proc_o = shux_rel_o_path_from_argv0(argv0, "std/process/process.o");
+    char comp[PATH_MAX];
+    char *last;
+    const char *proc_o;
     int k;
     buf[0] = '\0';
+    /* Primary: compiler dir from self/exe or argv0 → parent is repo root. */
+    if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) == 0 && comp[0]) {
+        if (strlen(comp) < sizeof(buf)) {
+            memcpy(buf, comp, strlen(comp) + 1);
+            last = shux_path_last_sep(buf);
+            if (last && last != buf) {
+                *last = '\0';
+                return buf;
+            }
+            buf[0] = '\0';
+        }
+    }
+    /* Fallback: process.o exists (warm tree) → strip std/process/process.o (3 seps). */
+    proc_o = shux_rel_o_path_from_argv0(argv0, "std/process/process.o");
     if (!proc_o || !proc_o[0])
         return buf;
     if (strlen(proc_o) >= sizeof(buf))
         return buf;
     strcpy(buf, proc_o);
     for (k = 0; k < 3; k++) {
-        char *last = shux_path_last_sep(buf);
+        last = shux_path_last_sep(buf);
         if (!last || last == buf)
             break;
         *last = '\0';
