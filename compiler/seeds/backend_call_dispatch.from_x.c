@@ -1270,14 +1270,19 @@ static int32_t glue_asm_mangle_import_binding_call_sym_c(struct ast_ASTArena *ar
     if (res_mod && use_fi >= 0 && use_fi < pipeline_module_num_funcs(res_mod)) {
       mid_len = glue_asm_build_func_overload_mid_c(res_mod, res_arena, use_fi, mid, 64);
       if (mid_len > 0) {
+        /* Bare mid (unique name) is intentional formal link name — do not caller-suffix. */
         sym_len = glue_asm_build_import_binding_call_sym(pre_buf, pre_len, mid, mid_len, sym_flat);
         if (sym_len <= 0)
           mid_len = -1;
       }
     }
   }
-  if (sym_len <= 0 || (sym_len == pre_len + field_len &&
-                       memcmp(sym_flat + pre_len, field_name, (size_t)field_len) == 0)) {
+  /**
+   * Caller-arena arg/ret mid only when formal res_mod path failed (sym_len<=0).
+   * Do NOT re-suffix when formal mid is bare unique name (string_view_get has no mid;
+   * prior path treated bare as "need fallback" → wrong _StrView UNDEF).
+   */
+  if (sym_len <= 0) {
     int32_t n_args = want_np;
     int32_t pos;
     int32_t pi;
