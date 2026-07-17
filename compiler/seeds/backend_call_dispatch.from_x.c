@@ -390,18 +390,21 @@ int32_t pipeline_asm_emit_get_call_f32_xmm_c(void) {
 #endif
 
 #define GLUE_TYPE_F32_ORD 14
+#define GLUE_TYPE_F64_ORD 15
 
 int32_t glue_call_param_type_ref_at(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t param_index);
 int32_t glue_emit_one_call_arg_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                             int32_t call_expr_ref, int32_t arg_ref, int32_t arg_index,
                                             struct backend_AsmFuncCtx *ctx, int32_t ta);
+extern int32_t pipeline_expr_call_arg_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t idx);
+extern int32_t pipeline_expr_resolved_type_ref(struct ast_ASTArena *a, int32_t expr_ref);
+extern int32_t pipeline_expr_kind_ord_at(struct ast_ASTArena *a, int32_t expr_ref);
 
 /** 形参/实参 type_ref 是否走 SysV SSE 浮点寄存器类（f32 或 f64）。
  * Historical name is_f32; f64 shares xmm0–7 (G.7 complete, not a second gate).
  * PLATFORM: SHARED kind check / LINUX+MACOS x86_64 SysV xmm slotting. */
 /* G-02f-120：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
-#define GLUE_TYPE_F64_ORD 15
 int32_t glue_call_param_is_f32_c(struct ast_ASTArena *arena, int32_t type_ref) {
   int32_t k;
   if (!arena || type_ref <= 0)
@@ -410,6 +413,55 @@ int32_t glue_call_param_is_f32_c(struct ast_ASTArena *arena, int32_t type_ref) {
   return (k == GLUE_TYPE_F32_ORD || k == GLUE_TYPE_F64_ORD) ? 1 : 0;
 }
 #endif
+
+/**
+ * True if call arg should use SysV xmm (param type f32/f64, or arg is FLOAT_LIT / resolved float).
+ * Completes import callees when dep param type_ref mapping is missing.
+ */
+static int32_t glue_call_arg_is_sse_float_c(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t arg_index,
+                                            int32_t pty) {
+  int32_t arg_ref;
+  int32_t ko;
+  int32_t atr;
+  int32_t ak;
+  if (glue_call_param_is_f32_c(arena, pty))
+    return 1;
+  if (!arena || call_expr_ref <= 0 || arg_index < 0)
+    return 0;
+  arg_ref = pipeline_expr_call_arg_ref(arena, call_expr_ref, arg_index);
+  if (arg_ref <= 0)
+    return 0;
+  ko = pipeline_expr_kind_ord_at(arena, arg_ref);
+  if (ko == 1) /* FLOAT_LIT → default f64 bits / SysV xmm */
+    return 1;
+  atr = pipeline_expr_resolved_type_ref(arena, arg_ref);
+  if (atr <= 0)
+    return 0;
+  ak = pipeline_type_kind_ord_at(arena, atr);
+  return (ak == 14 || ak == 15) ? 1 : 0;
+}
+
+/** f64 width for movq vs movd when placing into xmm. */
+static int32_t glue_call_arg_is_f64_width_c(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t arg_index,
+                                            int32_t pty) {
+  int32_t arg_ref;
+  int32_t atr;
+  int32_t ak;
+  if (pty > 0 && pipeline_type_kind_ord_at(arena, pty) == 15)
+    return 1;
+  if (!arena || call_expr_ref <= 0)
+    return 0;
+  arg_ref = pipeline_expr_call_arg_ref(arena, call_expr_ref, arg_index);
+  if (arg_ref <= 0)
+    return 0;
+  if (pipeline_expr_kind_ord_at(arena, arg_ref) == 1)
+    return 1; /* float lit default f64 */
+  atr = pipeline_expr_resolved_type_ref(arena, arg_ref);
+  if (atr <= 0)
+    return 0;
+  ak = pipeline_type_kind_ord_at(arena, atr);
+  return ak == 15 ? 1 : 0;
+}
 
 
 
@@ -433,7 +485,7 @@ int32_t glue_sysv_x86_call_arg_slot_c_impl(struct ast_ASTArena *arena, int32_t c
   for (j = 0; j <= arg_index && j < nargs; j++) {
     pty = glue_call_param_type_ref_at(arena, call_expr_ref, j);
     if (j == arg_index) {
-      if (glue_call_param_is_f32_c(arena, pty)) {
+      if (glue_call_arg_is_sse_float_c(arena, call_expr_ref, j, pty)) {
         if (xmm < 8) {
           *out_kind = 1;
           *out_reg_k = xmm;
@@ -450,7 +502,7 @@ int32_t glue_sysv_x86_call_arg_slot_c_impl(struct ast_ASTArena *arena, int32_t c
       }
       return 0;
     }
-    if (glue_call_param_is_f32_c(arena, pty)) {
+    if (glue_call_arg_is_sse_float_c(arena, call_expr_ref, j, pty)) {
       if (xmm < 8)
         xmm++;
       else
@@ -490,7 +542,7 @@ int32_t glue_sysv_x86_call_n_stack_c_impl(struct ast_ASTArena *arena, int32_t ca
   stk = 0;
   for (j = 0; j < nargs; j++) {
     pty = glue_call_param_type_ref_at(arena, call_expr_ref, j);
-    if (glue_call_param_is_f32_c(arena, pty)) {
+    if (glue_call_arg_is_sse_float_c(arena, call_expr_ref, j, pty)) {
       if (xmm < 8)
         xmm++;
       else
@@ -629,9 +681,8 @@ int32_t glue_emit_call_args_elf_sysv_f32_xmm_c_impl(struct ast_ASTArena *arena,
     } else {
       /** kind==1 xmm: f32 → movd; f64 → movq (SysV SSE float class). */
       int32_t pty = glue_call_param_type_ref_at(arena, expr_ref, i);
-      int32_t pk = (pty > 0) ? pipeline_type_kind_ord_at(arena, pty) : 0;
       int32_t mov_rc;
-      if (pk == 15)
+      if (glue_call_arg_is_f64_width_c(arena, expr_ref, i, pty))
         mov_rc = backend_enc_mov_rax_to_xmm_arg_reg_arch(elf_ctx, reg_k, ta);
       else
         mov_rc = backend_enc_mov_eax_to_xmm_arg_reg_arch(elf_ctx, reg_k, ta);
@@ -1919,23 +1970,21 @@ int32_t glue_asm_try_emit_fmt_string_lit_import_call_elf_c(struct ast_ASTArena *
 
 
 extern int32_t pipeline_expr_resolved_type_ref(struct ast_ASTArena *a, int32_t expr_ref);
+extern int32_t pipeline_asm_call_return_type_kind_ord_c(struct ast_ASTArena *arena, int32_t call_expr_ref);
+extern int32_t pipeline_expr_call_arg_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t idx);
 
 /**
  * PLATFORM: LINUX+MACOS x86_64 SysV — after CALL, harvest f32/f64 return from xmm0 into eax/rax.
  * Internal asm value convention keeps scalar float bits in GPR; C/libm returns in xmm0.
- * Authority: call expr resolved_type_ref (typeck must set f32/f64 on product CALL sites).
+ * Authority: pipeline_asm_call_return_type_kind_ord_c (resolved_type or callee ret type).
  */
 static int32_t glue_asm_harvest_sse_call_ret_to_gpr_c(struct ast_ASTArena *arena,
                                                       struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                       int32_t call_expr_ref, int32_t ta) {
-  int32_t tr;
   int32_t kind;
   if (ta != 0 || !arena || !elf_ctx || call_expr_ref <= 0)
     return 0;
-  tr = pipeline_expr_resolved_type_ref(arena, call_expr_ref);
-  if (tr <= 0)
-    return 0;
-  kind = pipeline_type_kind_ord_at(arena, tr);
+  kind = pipeline_asm_call_return_type_kind_ord_c(arena, call_expr_ref);
   if (kind == 14)
     return backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx, 0, ta);
   if (kind == 15)

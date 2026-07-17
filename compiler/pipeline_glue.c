@@ -3812,6 +3812,8 @@ int32_t pipeline_asm_emit_call_sret_reg_shift_c(void) {
 
 /** CALL 目标返回类型字节宽（定义见 glue_type_size_simple 之后）。 */
 static int32_t glue_call_return_byte_size_c(struct ast_ASTArena *arena, int32_t call_expr_ref);
+/** CALL 返回 TypeKind 序数；定义见 pipeline_asm_call_param_type_ref_at_c 之后。 */
+int32_t pipeline_asm_call_return_type_kind_ord_c(struct ast_ASTArena *arena, int32_t call_expr_ref);
 
 /** 从 emit 全局或 ctx 取当前 module（前向声明，定义见 GLUE_ASM_CTX_MODULE_REF_OFF 附近）。 */
 static struct ast_Module *glue_emit_module_from_ctx(struct backend_AsmFuncCtx *ctx);
@@ -13959,11 +13961,12 @@ static int32_t pipeline_asm_cmp_enum_rhs_tag_c(struct ast_ASTArena *arena, int32
 }
 
 /**
- * 判断 TypeKind 是否为 64-bit 整数/指针类型（需 64-bit cmpq）。
- * TYPE_U64=4, TYPE_I64=5, TYPE_USIZE=6, TYPE_ISIZE=7, TYPE_PTR=9。
+ * 判断 TypeKind 是否需 64-bit cmpq（整数/指针，或 f64 IEEE 位型有序比较）。
+ * TYPE_U64=4, TYPE_I64=5, TYPE_USIZE=6, TYPE_ISIZE=7, TYPE_PTR=9, TYPE_F64=15。
+ * f64: positive floats share order with unsigned bit patterns; cmpq unblocks math.pi() vs 3.0/4.0.
  */
 static int32_t glue_type_kind_is_64bit_int(int32_t kind) {
-  return kind == 4 || kind == 5 || kind == 6 || kind == 7 || kind == 9;
+  return kind == 4 || kind == 5 || kind == 6 || kind == 7 || kind == 9 || kind == 15;
 }
 
 /**
@@ -14014,6 +14017,15 @@ int32_t pipeline_asm_emit_cmp_elf(struct ast_ASTArena *arena, struct platform_el
         is_cmp_64bit = glue_type_kind_is_64bit_int(lt_kind);
       }
     }
+    /** CALL 返回 f64 时 resolved 可能仍空：用 callee 返回 kind 触发 cmpq。 */
+    if (is_cmp_64bit == 0 && pipeline_expr_kind_ord_at(arena, left_ref) == 48) {
+      int32_t rk = pipeline_asm_call_return_type_kind_ord_c(arena, left_ref);
+      if (rk == GLUE_TYPE_KIND_F64_ORD || rk == 5 || rk == 4 || rk == 6 || rk == 7 || rk == 9)
+        is_cmp_64bit = 1;
+    }
+    /** FLOAT_LIT 默认 f64 位型比较。 */
+    if (is_cmp_64bit == 0 && pipeline_expr_kind_ord_at(arena, left_ref) == 1)
+      is_cmp_64bit = 1;
   }
   /**
    * CALL 与字面量 0 比较（while/if 内 pipeline_loop_* / sync_one 等）：
@@ -24869,6 +24881,38 @@ int32_t pipeline_asm_call_param_type_ref_at_c(struct ast_ASTArena *arena, int32_
       return mapped;
   }
   return pty;
+}
+
+/**
+ * CALL 返回类型 TypeKind 序数；解析失败返回 -1。
+ * PLATFORM: SHARED — used by asm SysV f32/f64 xmm0 harvest after CALL.
+ */
+int32_t pipeline_asm_call_return_type_kind_ord_c(struct ast_ASTArena *arena, int32_t call_expr_ref) {
+  struct ast_Module *mod;
+  int32_t func_ix;
+  int32_t dep_ix;
+  int32_t rty;
+  int32_t mapped;
+
+  if (!arena || call_expr_ref <= 0)
+    return -1;
+  rty = pipeline_expr_resolved_type_ref(arena, call_expr_ref);
+  if (rty > 0)
+    return pipeline_type_kind_ord_at(arena, rty);
+  if (glue_asm_resolve_call_target_module_c(arena, call_expr_ref, &mod, &func_ix, &dep_ix) != 0)
+    return -1;
+  if (!mod || func_ix < 0)
+    return -1;
+  rty = pipeline_module_func_return_type_at(mod, func_ix);
+  if (rty <= 0)
+    return -1;
+  if (dep_ix >= 0 && mod != g_pipeline_asm_emit_module && g_pipeline_asm_emit_dep_pipe) {
+    mapped = pipeline_typeck_get_dep_return_type_in_caller_arena_c(dep_ix, rty, arena,
+                                                                   g_pipeline_asm_emit_dep_pipe);
+    if (mapped > 0)
+      rty = mapped;
+  }
+  return pipeline_type_kind_ord_at(arena, rty);
 }
 
 /**
