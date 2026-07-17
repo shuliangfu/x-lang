@@ -583,8 +583,16 @@ int bootstrap_format_double(double x, char *out, size_t cap) { return bootstrap_
 
 
 
-/** 最小 vsnprintf：支持 %% %c %s %d %u %ld %lu %x %p %f %F %g %G %e %E。
- * PLATFORM: LINUX — nostdlib freestanding face；权威仅本 TU（G.7）。 */
+/**
+ * Minimal vsnprintf: %% %c %s %d %u %ld %lu %x %p %f/%F/%g/%G/%e/%E plus width/precision.
+ *
+ * PLATFORM: LINUX — nostdlib freestanding face; authority = this TU only (G.7).
+ *
+ * NL-07 L4 expose: product diagnostics use `%.*s` (e.g. driver_diagnostic
+ * `generic function '%.*s' expects %d...`). Prior stub ignored `*` precision, left
+ * literal `*s`, and desynced va_list → garbage expect/got (bstrict run-generic red).
+ * Fix: parse `*` width/precision as va_arg(int); honor prec on %s (bounded copy).
+ */
 int vsnprintf(char *buf, size_t size, const char *fmt, va_list ap) {
     size_t pos = 0;
     if (!buf || size == 0)
@@ -615,16 +623,28 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list ap) {
             int width = 0;
             int prec = -1;
             int longmod = 0;
-            while (*fmt >= '0' && *fmt <= '9') {
-                width = width * 10 + (*fmt - '0');
+            /* Optional width: digits or '*' (va_arg int). */
+            if (*fmt == '*') {
+                width = va_arg(ap, int);
                 fmt++;
+            } else {
+                while (*fmt >= '0' && *fmt <= '9') {
+                    width = width * 10 + (*fmt - '0');
+                    fmt++;
+                }
             }
+            /* Optional precision: .digits or .* (va_arg int). */
             if (*fmt == '.') {
                 fmt++;
-                prec = 0;
-                while (*fmt >= '0' && *fmt <= '9') {
-                    prec = prec * 10 + (*fmt - '0');
+                if (*fmt == '*') {
+                    prec = va_arg(ap, int);
                     fmt++;
+                } else {
+                    prec = 0;
+                    while (*fmt >= '0' && *fmt <= '9') {
+                        prec = prec * 10 + (*fmt - '0');
+                        fmt++;
+                    }
                 }
             }
             if (*fmt == 'l') {
@@ -632,7 +652,6 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list ap) {
                 fmt++;
             }
             (void)width;
-            (void)prec;
             switch (*fmt) {
             case 'c': {
                 char c = (char)va_arg(ap, int);
@@ -644,7 +663,8 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list ap) {
                 int si = 0;
                 if (!s)
                     s = "(null)";
-                while (s[si]) {
+                /* %.*s / %.Ns: stop after prec bytes (when prec >= 0). */
+                while (s[si] && (prec < 0 || si < prec)) {
                     if (pos + 1 < size)
                         buf[pos] = s[si];
                     pos++;
