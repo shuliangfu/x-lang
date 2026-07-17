@@ -2537,11 +2537,11 @@ int32_t codegen_is_std_io_driver_bridge_name(uint8_t * name, int32_t name_len) {
 }
 int32_t codegen_should_skip_emit_std_io_core_io_dup(uint8_t * dep_path, uint8_t * name, int32_t name_len) {
   uint8_t path_core[11] = {115, 116, 100, 46, 105, 111, 46, 99, 111, 114, 101};
+  /* PLATFORM: SHARED — only skip fixed read/write (preamble weak); do NOT skip
+   * submit_read / submit_*_batch: co-emit core → backend is authority; old skip left
+   * weak stubs that call bare io_write_batch (UNDEF without runtime_asm_io_stubs). */
   uint8_t n_rf[18] = {115, 104, 117, 120, 95, 105, 111, 95, 114, 101, 97, 100, 95, 102, 105, 120, 101, 100};
   uint8_t n_wf[19] = {115, 104, 117, 120, 95, 105, 111, 95, 119, 114, 105, 116, 101, 95, 102, 105, 120, 101, 100};
-  uint8_t n_srb[25] = {115, 104, 117, 120, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100, 95, 98, 97, 116, 99, 104};
-  uint8_t n_swb[26] = {115, 104, 117, 120, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 119, 114, 105, 116, 101, 95, 98, 97, 116, 99, 104};
-  uint8_t n_sr[19] = {115, 104, 117, 120, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100};
   int32_t di = 0;
   if (((dep_path ==((uint8_t *)(0))) || (name ==((uint8_t *)(0))))) {
     return 0;
@@ -2556,15 +2556,6 @@ int32_t codegen_should_skip_emit_std_io_core_io_dup(uint8_t * dep_path, uint8_t 
     return 1;
   }
   if ((((name_len ==19) || (name_len ==20)) && (codegen_name_bytes_prefix_eq(name, name_len, &((n_wf)[0]), 19) !=0))) {
-    return 1;
-  }
-  if ((((name_len ==25) || (name_len ==26)) && (codegen_name_bytes_prefix_eq(name, name_len, &((n_srb)[0]), 25) !=0))) {
-    return 1;
-  }
-  if ((((name_len ==26) || (name_len ==27)) && (codegen_name_bytes_prefix_eq(name, name_len, &((n_swb)[0]), 26) !=0))) {
-    return 1;
-  }
-  if ((((name_len ==19) || (name_len ==20)) && (codegen_name_bytes_prefix_eq(name, name_len, &((n_sr)[0]), 19) !=0))) {
     return 1;
   }
   return 0;
@@ -10888,12 +10879,11 @@ int32_t codegen_force_param_i32(uint8_t * prefix, int32_t prefix_len, uint8_t * 
   return 0;
 }
 int32_t codegen_should_skip_emit_func_core_read_ptr(uint8_t * name, int32_t name_len) {
+  /* PLATFORM: SHARED — skip only read_ptr* / async with preamble weak.
+   * Do NOT skip shux_io_register*: product C does not hard-link runtime_asm_io_stubs;
+   * co-emit core → backend is authority (run-io-driver UNDEF _shux_io_register). */
   uint8_t shux_rpl20[20] = {115, 104, 117, 120, 95, 105, 111, 95, 114, 101, 97, 100, 95, 112, 116, 114, 95, 108, 101, 110};
   uint8_t shux_rp16[16] = {115, 104, 117, 120, 95, 105, 111, 95, 114, 101, 97, 100, 95, 112, 116, 114};
-  uint8_t shux_reg16[16] = {115, 104, 117, 120, 95, 105, 111, 95, 114, 101, 103, 105, 115, 116, 101, 114};
-  uint8_t shux_reg_bufs24[24] = {115, 104, 117, 120, 95, 105, 111, 95, 114, 101, 103, 105, 115, 116, 101, 114, 95, 98, 117, 102, 102, 101, 114, 115};
-  uint8_t shux_unreg_bufs26[26] = {115, 104, 117, 120, 95, 105, 111, 95, 117, 110, 114, 101, 103, 105, 115, 116, 101, 114, 95, 98, 117, 102, 102, 101, 114, 115};
-  uint8_t shux_wait_rd21[21] = {115, 104, 117, 120, 95, 105, 111, 95, 119, 97, 105, 116, 95, 114, 101, 97, 100, 97, 98, 108, 101};
   if ((name ==((uint8_t *)(0)))) {
     return 0;
   }
@@ -10901,18 +10891,6 @@ int32_t codegen_should_skip_emit_func_core_read_ptr(uint8_t * name, int32_t name
     return 1;
   }
   if (((name_len ==16) && (codegen_name_bytes_prefix_eq(name, name_len, &((shux_rp16)[0]), 16) !=0))) {
-    return 1;
-  }
-  if (((name_len ==16) && (codegen_name_bytes_prefix_eq(name, name_len, &((shux_reg16)[0]), 16) !=0))) {
-    return 1;
-  }
-  if (((name_len ==24) && (codegen_name_bytes_prefix_eq(name, name_len, &((shux_reg_bufs24)[0]), 24) !=0))) {
-    return 1;
-  }
-  if (((name_len ==26) && (codegen_name_bytes_prefix_eq(name, name_len, &((shux_unreg_bufs26)[0]), 26) !=0))) {
-    return 1;
-  }
-  if (((name_len ==21) && (codegen_name_bytes_prefix_eq(name, name_len, &((shux_wait_rd21)[0]), 21) !=0))) {
     return 1;
   }
   uint8_t shux_rpb24[24] = {115, 104, 117, 120, 95, 105, 111, 95, 114, 101, 97, 100, 95, 112, 116, 114, 95, 98, 97, 99, 107, 101, 110, 100};

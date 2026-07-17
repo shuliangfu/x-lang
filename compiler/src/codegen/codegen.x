@@ -1176,20 +1176,18 @@ export function codegen_is_std_io_driver_bridge_name(name: *u8, name_len: i32): 
  */
 export function codegen_should_skip_emit_std_io_core_io_dup(dep_path: *u8, name: *u8, name_len: i32): i32 {
   let path_core: u8[11] = [115, 116, 100, 46, 105, 111, 46, 99, 111, 114, 101];
-  /* shux_io_read_fixed — 18 */
+  /* shux_io_read_fixed — 18 (preamble weak returns -1; avoid redef with weak). */
   let n_rf: u8[18] = [115, 104, 117, 120, 95, 105, 111, 95, 114, 101, 97, 100, 95, 102, 105, 120, 101, 100];
   /* shux_io_write_fixed — 19 */
   let n_wf: u8[19] = [115, 104, 117, 120, 95, 105, 111, 95, 119, 114, 105, 116, 101, 95, 102, 105, 120, 101, 100];
-  /* shux_io_submit_read_batch — 25 */
-  let n_srb: u8[25] = [115, 104, 117, 120, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100, 95, 98, 97, 116, 99, 104];
-  /* shux_io_submit_write_batch — 26 */
-  let n_swb: u8[26] = [115, 104, 117, 120, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 119, 114, 105, 116, 101, 95, 98, 97, 116, 99, 104];
-  /* shux_io_submit_read — 19 (preamble has weak; skip redef). */
-  let n_sr: u8[19] = [115, 104, 117, 120, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100];
   /*
-   * Do NOT skip shux_io_submit_write: product preamble intentionally has no weak stub
-   * (comment: 勿桩 submit_write — co-emit must supply the strong definition).
-   * Skipping it yields link UNDEF _shux_io_submit_write (Cap force hello residual).
+   * 【Why 根源】勿 skip submit_read / submit_*_batch：
+   *   - core co-emit 会调 std_io_backend_io_*（同 TU 已有真体）；
+   *   - 旧 skip 只剩 preamble weak，且 weak 再调裸 io_write_batch/io_read_batch，
+   *     产品 -o 不硬链 runtime_asm_io_stubs（与 co-emit std_io_write_stdout 冲突）→
+   *     run-io-driver 双端 UNDEF _io_write_batch / 弱路径假红。
+   * Do NOT skip shux_io_submit_write either (no weak; Cap force hello residual).
+   * PLATFORM: SHARED — product C path; Cap force + pin seed.
    */
   let di: i32 = 0;
   if (dep_path == 0 as *u8 || name == 0 as *u8) {
@@ -1205,15 +1203,6 @@ export function codegen_should_skip_emit_std_io_core_io_dup(dep_path: *u8, name:
     return 1;
   }
   if ((name_len == 19 || name_len == 20) && codegen_name_bytes_prefix_eq(name, name_len, &n_wf[0], 19) != 0) {
-    return 1;
-  }
-  if ((name_len == 25 || name_len == 26) && codegen_name_bytes_prefix_eq(name, name_len, &n_srb[0], 25) != 0) {
-    return 1;
-  }
-  if ((name_len == 26 || name_len == 27) && codegen_name_bytes_prefix_eq(name, name_len, &n_swb[0], 26) != 0) {
-    return 1;
-  }
-  if ((name_len == 19 || name_len == 20) && codegen_name_bytes_prefix_eq(name, name_len, &n_sr[0], 19) != 0) {
     return 1;
   }
   return 0;
@@ -10393,14 +10382,14 @@ function codegen_should_skip_emit_func_core_read_ptr(name: *u8, name_len: i32): 
   let shux_rpl20: u8[20] = [115, 104, 117, 120, 95, 105, 111, 95, 114, 101, 97, 100, 95, 112, 116, 114, 95, 108, 101, 110];
   /* shux_io_read_ptr — 16 */
   let shux_rp16: u8[16] = [115, 104, 117, 120, 95, 105, 111, 95, 114, 101, 97, 100, 95, 112, 116, 114];
-  /* shux_io_register — 16 (same length as read_ptr, different suffix) */
-  let shux_reg16: u8[16] = [115, 104, 117, 120, 95, 105, 111, 95, 114, 101, 103, 105, 115, 116, 101, 114];
-  /* shux_io_register_buffers — 24 */
-  let shux_reg_bufs24: u8[24] = [115, 104, 117, 120, 95, 105, 111, 95, 114, 101, 103, 105, 115, 116, 101, 114, 95, 98, 117, 102, 102, 101, 114, 115];
-  /* shux_io_unregister_buffers — 26 */
-  let shux_unreg_bufs26: u8[26] = [115, 104, 117, 120, 95, 105, 111, 95, 117, 110, 114, 101, 103, 105, 115, 116, 101, 114, 95, 98, 117, 102, 102, 101, 114, 115];
-  /* shux_io_wait_readable — 21 */
-  let shux_wait_rd21: u8[21] = [115, 104, 117, 120, 95, 105, 111, 95, 119, 97, 105, 116, 95, 114, 101, 97, 100, 97, 98, 108, 101];
+  /*
+   * 【Why 根源】勿 skip shux_io_register / register_buffers / unregister / wait_readable：
+   *   旧 skip 假定 runtime_asm_io_stubs 提供强符号；产品 C 路径 macOS 不硬链 stubs.o
+   *   （与 co-emit std_io_write_stdout 冲突），且 preamble 无 register 的 weak →
+   *   run-io-driver main 经 shux_io_register_buf 裸调 _shux_io_register → 双端 UNDEF。
+   * co-emit core 体 → std_io_backend_io_register_buffer（同 TU 真体）为权威。
+   * PLATFORM: SHARED.
+   */
   if (name == 0 as *u8) {
     return 0;
   }
@@ -10408,18 +10397,6 @@ function codegen_should_skip_emit_func_core_read_ptr(name: *u8, name_len: i32): 
     return 1;
   }
   if (name_len == 16 && codegen_name_bytes_prefix_eq(name, name_len, &shux_rp16[0], 16) != 0) {
-    return 1;
-  }
-  if (name_len == 16 && codegen_name_bytes_prefix_eq(name, name_len, &shux_reg16[0], 16) != 0) {
-    return 1;
-  }
-  if (name_len == 24 && codegen_name_bytes_prefix_eq(name, name_len, &shux_reg_bufs24[0], 24) != 0) {
-    return 1;
-  }
-  if (name_len == 26 && codegen_name_bytes_prefix_eq(name, name_len, &shux_unreg_bufs26[0], 26) != 0) {
-    return 1;
-  }
-  if (name_len == 21 && codegen_name_bytes_prefix_eq(name, name_len, &shux_wait_rd21[0], 21) != 0) {
     return 1;
   }
   /* shux_io_read_ptr_backend — 24 (preamble weak stub) */

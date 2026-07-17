@@ -292,30 +292,14 @@ const char *const driver_preamble_io_net_lines[] = {
          */
         "#include <stdio.h>\n"
         "#ifndef __cplusplus\n"
-        "/* 仅补 co-emit 未定义的符号；勿桩 shux_io_submit_write / submit_read_batch_buf（同 TU 强定义）。 */\n"
-        "__attribute__((weak)) int32_t shux_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m) {\n"
-        "  size_t r; (void)timeout_m; if (!ptr) return 0; if (handle != 0) return -1;\n"
-        "  r = fread(ptr, 1, len, stdin); if (r == 0 && ferror(stdin)) return -1; return (int32_t)r;\n"
-        "}\n"
-        /* PLATFORM: SHARED — co-emit driver.x calls core.shux_io_submit_*_batch → macro to these
-         * short names; when std.io.core is not in the same TU, host-cc needs a weak fallback.
-         * Strong defs from io.o / core co-emit still win. Signature matches backend.x / core.x. */
-        "__attribute__((weak)) int32_t shux_io_submit_read_batch(\n"
-        "    uint8_t *p0, size_t l0, uint8_t *p1, size_t l1,\n"
-        "    uint8_t *p2, size_t l2, uint8_t *p3, size_t l3,\n"
-        "    size_t handle, int32_t n, uint32_t timeout_ms) {\n"
-        "  extern ptrdiff_t io_read_batch(int32_t fd, uint8_t *a0, size_t b0, uint8_t *a1, size_t b1,\n"
-        "      uint8_t *a2, size_t b2, uint8_t *a3, size_t b3, int32_t nn, unsigned t);\n"
-        "  return (int32_t)io_read_batch((int32_t)handle, p0, l0, p1, l1, p2, l2, p3, l3, n, timeout_ms);\n"
-        "}\n"
-        "__attribute__((weak)) int32_t shux_io_submit_write_batch(\n"
-        "    uint8_t *p0, size_t l0, uint8_t *p1, size_t l1,\n"
-        "    uint8_t *p2, size_t l2, uint8_t *p3, size_t l3,\n"
-        "    size_t handle, int32_t n, uint32_t timeout_ms) {\n"
-        "  extern ptrdiff_t io_write_batch(int32_t fd, uint8_t *a0, size_t b0, uint8_t *a1, size_t b1,\n"
-        "      uint8_t *a2, size_t b2, uint8_t *a3, size_t b3, int32_t nn, unsigned t);\n"
-        "  return (int32_t)io_write_batch((int32_t)handle, p0, l0, p1, l1, p2, l2, p3, l3, n, timeout_ms);\n"
-        "}\n"
+        /*
+         * 【Why 根源】勿 weak 桩 shux_io_submit_read / submit_*_batch / submit_write：
+         *   core co-emit 现为权威（调 std_io_backend_*）；同 TU weak+strong 重定义。
+         *   旧 weak submit_write_batch 再调裸 io_write_batch，产品 -o 不硬链
+         *   runtime_asm_io_stubs → 双端 UNDEF。仅保留无 core 体或仅弱路径的桩。
+         * PLATFORM: SHARED.
+         */
+        "/* 仅补 co-emit 未定义的符号；勿桩 submit_read / submit_*_batch / submit_write（core 强定义）。 */\n"
         "__attribute__((weak)) int32_t shux_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle) {\n"
         "  (void)ptr; (void)len; (void)handle; return -1;\n"
         "}\n"
@@ -488,8 +472,13 @@ int write_io_net_abi_inline(FILE *cf) {
         /* #undef / 重绑 std_io_core_*：X 内联 std.io.core 且 codegen 已 emit 时由 codegen 侧承担。 */
         if ((skip & CODEGEN_PREAMBLE_SKIP_STD_IO_UNDEF_REDEFINE) && i >= 105 && i < 119)
             skip_line = 1;
-        /* weak batch/register：codegen 已 emit 强符号定义时跳过整段（含 #ifndef..#endif，约 126..137）。 */
-        if ((skip & CODEGEN_PREAMBLE_SKIP_WEAK_IO_BATCH) && i >= 126 && i <= 137)
+        /*
+         * weak IO 块：C 相邻字面量拼成单表项（#include..#endif 含 fixed/async/process/ctx）。
+         * 实测 n≈217 时为 i==174；driver co-emit 时跳过整块避免与 core 强符号重定义。
+         * PLATFORM: SHARED — 与 driver_parsed_apply_preamble_skip(CODEGEN_PREAMBLE_SKIP_WEAK_IO_BATCH) 对齐。
+         * 注意：跳过时亦无 process_shux_* weak；需 argv 时链 runtime_process_argv.o 强符号。
+         */
+        if ((skip & CODEGEN_PREAMBLE_SKIP_WEAK_IO_BATCH) && i == 174)
             skip_line = 1;
         if (!skip_line && fputs(driver_preamble_io_net_lines[i], cf) == EOF)
             return 1;
