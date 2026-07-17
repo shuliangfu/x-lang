@@ -996,14 +996,30 @@ void parser_asm_skip_one_function_full_into_slice_c(struct parser_asm_lexer *out
 
 
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_fn_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source));
-  if (r.tok.kind != (int32_t)TOKEN_FUNCTION) {
+  /*
+   * PLATFORM: SHARED — skip-function anchor must accept three entry shapes:
+   *   (1) at `function` keyword (normal);
+   *   (2) already past keyword at IDENT name (host parse residual: lex_at_function.pos
+   *       after TOKEN_FUNCTION was consumed — observed for mega parse_into / parse_into_buf);
+   *   (3) at `export` before function.
+   * Why: early-return when first token != FUNCTION left the body unskipped; top-level
+   *   loop then re-ingested body `let` as module top_level_lets → init_globals with free
+   *   params (module/arena) → host-cc red. Authority: this function only (G.7).
+   */
+  if (r.tok.kind == (int32_t)TOKEN_EXPORT) {
+    parser_asm_lex_from_result_val_into(&lex, r);
+    lexer_next_into(&r, lex, source);
+  }
+  if (r.tok.kind == (int32_t)TOKEN_FUNCTION) {
+    parser_asm_lex_from_result_val_into(&lex, r);
+    lexer_next_into(&r, lex, source);
+  } else if (r.tok.kind != (int32_t)TOKEN_IDENT) {
     out->pos = lex.pos;
     out->line = lex.line;
     out->col = lex.col;
     return;
   }
-  parser_asm_lex_from_result_val_into(&lex, r);
-  lexer_next_into(&r, lex, source);
+  /* r is function name IDENT (either after consuming FUNCTION, or anchor was already name). */
   if (r.tok.kind != (int32_t)TOKEN_IDENT) {
     out->pos = lex.pos;
     out->line = lex.line;
