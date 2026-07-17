@@ -3381,7 +3381,9 @@ ensure_crt0_codegen_parser_companion_objs() {
   p="$BUILD_DIR/crt0_l5_codegen_partial.o"
   if crt0_ld_partial_syms "$p" codegen_x.o \
   codegen_emit_bytes_from_ptr \
-  codegen_emit_expr; then
+  codegen_emit_expr \
+  codegen_x_ast \
+  codegen_x_ast_emit_header; then
   CRT0_CG_PARSER_COMPANIONS="$CRT0_CG_PARSER_COMPANIONS $p"
   fi
   p="$BUILD_DIR/crt0_l5_x_frontend_partial.o"
@@ -3389,6 +3391,29 @@ ensure_crt0_codegen_parser_companion_objs() {
   codegen_codegen_x_ast \
   find_or_alloc_ptr_type_ref; then
   CRT0_CG_PARSER_COMPANIONS="$CRT0_CG_PARSER_COMPANIONS $p"
+  fi
+  # lexer_x.o multi=0 vs bag+L4 (Ubuntu map); closes lexer_init / lexer_next_* after parser partial.
+  if [ -f lexer_x.o ] && [ -s lexer_x.o ]; then
+  CRT0_CG_PARSER_COMPANIONS="$CRT0_CG_PARSER_COMPANIONS lexer_x.o"
+  fi
+  # parser_asm_thin_glue: product authority for parser_*_glue (strict link already uses it).
+  # Full .o multi=4 non-glue names vs bag; export ONLY parser_*_glue (residual cascade 100/100).
+  if [ -f parser_asm_thin_glue.o ] && [ -s parser_asm_thin_glue.o ]; then
+  p="$BUILD_DIR/crt0_l5_parser_thin_glue_partial.o"
+  _glue_syms="$BUILD_DIR/crt0_l5_parser_thin_glue_export.txt"
+  nm parser_asm_thin_glue.o 2>/dev/null | awk '/ [TW] / {
+    s=$3; sub(/^_/, "", s)
+    if (s ~ /^parser_.*_glue$/) print s
+  }' | sort -u >"$_glue_syms"
+  if [ -s "$_glue_syms" ]; then
+  if [ ! -f "$p" ] || [ parser_asm_thin_glue.o -nt "$p" ] || [ "$_glue_syms" -nt "$p" ]; then
+  build_shux_asm_info "ld partial export $_glue_syms parser_asm_thin_glue -> $p (NL-07 L5 glue cascade)"
+  ld_partial_export "$_glue_syms" "$p" parser_asm_thin_glue.o || true
+  fi
+  if [ -f "$p" ] && [ -s "$p" ]; then
+  CRT0_CG_PARSER_COMPANIONS="$CRT0_CG_PARSER_COMPANIONS $p"
+  fi
+  fi
   fi
   p="$BUILD_DIR/crt0_l5_strict_glue_partial.o"
   if crt0_ld_partial_syms "$p" src/runtime_driver_strict_glue_stubs.o \
@@ -3399,9 +3424,14 @@ ensure_crt0_codegen_parser_companion_objs() {
   codegen_set_dep_slots_for_x_pipeline \
   codegen_set_preamble_has_core_option_result \
   codegen_wpo_mono_sym_format \
+  pipeline_block_labeled_set_names \
   preprocess_define_add \
   preprocess_define_reset; then
   CRT0_CG_PARSER_COMPANIONS="$CRT0_CG_PARSER_COMPANIONS $p"
+  fi
+  # process argv surface (g05 / experimental already links runtime_process_argv.o).
+  if [ -f runtime_process_argv.o ] && [ -s runtime_process_argv.o ]; then
+  CRT0_CG_PARSER_COMPANIONS="$CRT0_CG_PARSER_COMPANIONS runtime_process_argv.o"
   fi
   p="$BUILD_DIR/crt0_l5_fmt_check_partial.o"
   if crt0_ld_partial_syms "$p" src/driver/fmt_check_cmd_driver.o \
@@ -3425,10 +3455,12 @@ ensure_crt0_codegen_parser_companion_objs() {
   lsp_write_all; then
   CRT0_CG_PARSER_COMPANIONS="$CRT0_CG_PARSER_COMPANIONS $p"
   fi
-  # L1 drops strict_minimal when standalone present — re-export the one U residual.
+  # L1 drops strict_minimal when standalone present — re-export residual-only symbols.
   p="$BUILD_DIR/crt0_l5_strict_minimal_typeck_find_partial.o"
   if crt0_ld_partial_syms "$p" "$BUILD_DIR/pipeline_glue_strict_minimal.o" \
-  pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal; then
+  pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal \
+  parser_diagnostic_parse_commit_post \
+  parser_diagnostic_parse_commit_pre; then
   CRT0_CG_PARSER_COMPANIONS="$CRT0_CG_PARSER_COMPANIONS $p"
   fi
 
