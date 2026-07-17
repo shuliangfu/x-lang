@@ -3144,6 +3144,7 @@ build_nonempty_asm_objs() {
 # NL-07 L2/L6: libc face lives in bootstrap_nostdlib_stubs (not freestanding_io).
 # NL-07 L7: freestanding vsnprintf %g/%e (fixes pure-static float lit "g.0").
 # NL-07 L7b: crt0 companions include preprocess_x.o (not bridge weak preprocess_x_buf).
+# NL-07 L7c: crt0 companions include user_asm_seed_bridge (asm_asm_codegen_elf_o for smoke).
 filter_crt0_asm_objs() {
   CRT0_ASM=""
   _crt0_have_standalone=0
@@ -3447,6 +3448,17 @@ ensure_crt0_codegen_parser_companion_objs() {
   # symbols exclusive to preprocess_x.o (Ubuntu map 2026-07-17).
   if [ -f preprocess_x.o ] && [ -s preprocess_x.o ]; then
   CRT0_CG_PARSER_COMPANIONS="$CRT0_CG_PARSER_COMPANIONS preprocess_x.o"
+  fi
+  # NL-07 L7c: asm -o smoke needs product asm_asm_codegen_elf_o (user_asm_seed_bridge).
+  # Without it, bridge weak asm_codegen_elf_o returns -1 → CG002; experimental/strict
+  # already link BSTRICT_USER_ASM_SEED_BRIDGE_LINK. multi vs bag: only W/t same names.
+  if [ -f src/asm/user_asm_seed_bridge.o ] && [ -s src/asm/user_asm_seed_bridge.o ]; then
+  CRT0_CG_PARSER_COMPANIONS="$CRT0_CG_PARSER_COMPANIONS src/asm/user_asm_seed_bridge.o"
+  elif [ -f seeds/user_asm_seed_bridge.from_x.c ]; then
+  ensure_bstrict_seed_support_objs 2>/dev/null || true
+  if [ -f src/asm/user_asm_seed_bridge.o ] && [ -s src/asm/user_asm_seed_bridge.o ]; then
+  CRT0_CG_PARSER_COMPANIONS="$CRT0_CG_PARSER_COMPANIONS src/asm/user_asm_seed_bridge.o"
+  fi
   fi
   # process argv surface (g05 / experimental already links runtime_process_argv.o).
   if [ -f runtime_process_argv.o ] && [ -s runtime_process_argv.o ]; then
