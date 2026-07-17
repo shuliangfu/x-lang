@@ -3569,9 +3569,10 @@ ensure_crt0_codegen_parser_companion_objs() {
   build_shux_asm_info "crt0 bag: codegen/parser residual companions (NL-07 L5)=$CRT0_CG_PARSER_COMPANIONS"
 }
 
-# PLATFORM: LINUX — NL-07 L3 + L3b + L4+ + L5: crt0 link must include backend enc/dispatch
+# PLATFORM: LINUX — NL-07 L3 + L3b + L4+ + L5 + L9: crt0 link must include backend enc/dispatch
 # companions (BSTRICT_DISPATCH_OBJS + simd_*), seed backend_emit_* partial,
-# typeck/driver/lsp companions, and codegen/parser residual partials.
+# typeck/driver/lsp companions, codegen/parser residual partials, and experimental
+# seed-support homologues (compat stubs / x_seed_bridge / asm_full_link_stubs).
 # Who produces UNDEF (enc): pipeline/backend build_asm .o reference backend_enc_* /
 # arch_emit / try_inline / simd — dispatch live under src/asm/, never in bag historically.
 # Who produces UNDEF (emit): asm_backend_compat_stubs forwards to backend_emit_*; seed
@@ -3579,9 +3580,13 @@ ensure_crt0_codegen_parser_companion_objs() {
 # Who produces UNDEF (tdl): bridge/glue reference driver_*/typeck_*/lsp_* outside bag.
 # Who produces UNDEF (L5): glue U-refs codegen_*/parser_*/pipeline_run/cfg/lsp sizes —
 # first-pass bag stubs + L1 drop of strict_minimal.
+# Who produces UNDEF (L9 residual after L1–L8): pipeline_glue_standalone U-refs
+# backend_enc_mov_imm32_to_w0_arch / backend_ensure_block_local_slots (compat stubs),
+# io_read_batch_buf / io_write_batch_buf (x_seed_bridge), arch_arm64_* (asm_full_link_stubs).
 # Authority (G.7): ensure_bstrict_seed_support_objs + BSTRICT_DISPATCH_OBJS + seed emit
 # partial + ensure_crt0_typeck_driver_lsp_companion_objs +
-# ensure_crt0_codegen_parser_companion_objs — no second stub table.
+# ensure_crt0_codegen_parser_companion_objs + GEN_DRIVER/strict seed-support objs
+# (no second stub table — same .o experimental already chains).
 # Sets CRT0_BACKEND_COMPANIONS for the crt0 link line (Linux only callers).
 ensure_crt0_backend_companion_objs() {
   CRT0_BACKEND_COMPANIONS=""
@@ -3614,7 +3619,44 @@ ensure_crt0_backend_companion_objs() {
   if [ -n "${CRT0_CG_PARSER_COMPANIONS:-}" ]; then
   CRT0_BACKEND_COMPANIONS="$CRT0_BACKEND_COMPANIONS $CRT0_CG_PARSER_COMPANIONS"
   fi
-  build_shux_asm_info "crt0 bag: backend+tdl+l5 companions (NL-07 L3+L3b+L4++L5)=$CRT0_BACKEND_COMPANIONS"
+  # NL-07 L9: experimental/strict seed-support homologues (G.7 single authority).
+  # Closes crt0 residual after L1–L8 when bag holds full pipeline_glue_standalone.
+  ensure_asm_backend_compat_stubs_obj 2>/dev/null || true
+  CRT0_SEED_SUPPORT=""
+  if [ -f src/asm/asm_backend_compat_stubs.o ]; then
+  CRT0_SEED_SUPPORT="$CRT0_SEED_SUPPORT src/asm/asm_backend_compat_stubs.o"
+  elif [ -f "$BUILD_DIR/asm_backend_compat_stubs.o" ]; then
+  CRT0_SEED_SUPPORT="$CRT0_SEED_SUPPORT $BUILD_DIR/asm_backend_compat_stubs.o"
+  fi
+  if [ -f "$BUILD_DIR/x_seed_bridge.o" ]; then
+  CRT0_SEED_SUPPORT="$CRT0_SEED_SUPPORT $BUILD_DIR/x_seed_bridge.o"
+  fi
+  if [ -f "$BUILD_DIR/seed_link_compat.o" ]; then
+  CRT0_SEED_SUPPORT="$CRT0_SEED_SUPPORT $BUILD_DIR/seed_link_compat.o"
+  fi
+  # arch_arm64_* weak cluster — same obj ST_BSTRICT_LINK_EXTRA / experimental uses.
+  if [ ! -f "$BUILD_DIR/seed_host/asm_full_link_stubs.o" ] \
+  || [ ! -s "$BUILD_DIR/seed_host/asm_full_link_stubs.o" ]; then
+  if [ -f pipeline_x.o ] && [ -x scripts/gen_asm_full_link_stubs.pl ] || [ -f scripts/gen_asm_full_link_stubs.pl ]; then
+  _crt0_stub_scan="pipeline_x.o $BSTRICT_DISPATCH_OBJS"
+  if [ -f "$BUILD_DIR/seed_host/asm_full.o" ]; then
+  _crt0_stub_scan="$BUILD_DIR/seed_host/asm_full.o $_crt0_stub_scan"
+  fi
+  if perl scripts/gen_asm_full_link_stubs.pl "$BUILD_DIR/seed_host/asm_full_link_stubs.c" $_crt0_stub_scan 2>/dev/null \
+  && [ -s "$BUILD_DIR/seed_host/asm_full_link_stubs.c" ]; then
+  "$CC" $CFLAGS -c -o "$BUILD_DIR/seed_host/asm_full_link_stubs.o" "$BUILD_DIR/seed_host/asm_full_link_stubs.c" 2>/dev/null || true
+  fi
+  fi
+  fi
+  if [ -f "$BUILD_DIR/seed_host/asm_full_link_stubs.o" ] \
+  && [ -s "$BUILD_DIR/seed_host/asm_full_link_stubs.o" ]; then
+  CRT0_SEED_SUPPORT="$CRT0_SEED_SUPPORT $BUILD_DIR/seed_host/asm_full_link_stubs.o"
+  fi
+  if [ -n "$CRT0_SEED_SUPPORT" ]; then
+  CRT0_BACKEND_COMPANIONS="$CRT0_BACKEND_COMPANIONS $CRT0_SEED_SUPPORT"
+  build_shux_asm_info "crt0 bag: L9 seed-support homologues=$CRT0_SEED_SUPPORT"
+  fi
+  build_shux_asm_info "crt0 bag: backend+tdl+l5+l9 companions (NL-07 L3+L3b+L4++L5+L9)=$CRT0_BACKEND_COMPANIONS"
 }
 
 # F-06 v1：fs/io/heap 已纯 .x；bootstrap 不再 cc -c std/*.c（符号由 std_fs_shim / runtime_io_abi / lsp_io_std_heap_x 等提供）。
@@ -4519,16 +4561,20 @@ ensure_asm_link_objs() {
   "$CC" -c -o src/asm/crt0_x86_64.o src/asm/crt0_x86_64.s
   fi
   ensure_typeck_f64_bits_obj
-  # atoi stub: 生成的 pipeline 代码调用 atoi（libc），nostdlib 链接缺此符号
-  if [ ! -f atoi_stub.o ]; then
-  echo ' cc -c atoi_stub.o (atoi stub for nostdlib link)'
-  printf '#include <stddef.h>\nint atoi(const char *n) { int v=0; while(*n>=48&&*n<=57){v=v*10+(*n-48);n++;} return v; }\n' > /tmp/atoi_stub_$$.c
+  # atoi stub: generated pipeline may call atoi (libc). nostdlib needs a definition.
+  # PLATFORM: LINUX — always rebuild weak atoi (cheap; avoids strong multi-def with
+  # historical runtime_panic ld -r merges). G.7: single TU atoi_stub.o authority.
+  echo ' cc -c atoi_stub.o (weak atoi for nostdlib link)'
+  printf '#include <stddef.h>\n__attribute__((weak)) int atoi(const char *n) { int v=0; if(!n) return 0; while(*n>=48&&*n<=57){v=v*10+(*n-48);n++;} return v; }\n' > /tmp/atoi_stub_$$.c
   "$CC" $CFLAGS -c -o atoi_stub.o /tmp/atoi_stub_$$.c
   rm -f /tmp/atoi_stub_$$.c
-  # 合并 atoi_stub 到 runtime_panic.o（确保所有链接路径都有 atoi 符号）
-  if [ -f runtime_panic.o ] && [ -f atoi_stub.o ]; then
-  cp runtime_panic.o runtime_panic_no_atoi.o
-  ld -r -o runtime_panic.o runtime_panic_no_atoi.o atoi_stub.o 2>/dev/null && rm -f runtime_panic_no_atoi.o || cp runtime_panic_no_atoi.o runtime_panic.o
+  # Prefer not double-linking: if runtime_panic already has strong T atoi, omit stub.
+  CRT0_ATOI_LINK=""
+  if [ -f atoi_stub.o ]; then
+  if nm runtime_panic.o 2>/dev/null | grep -q ' T atoi$'; then
+  CRT0_ATOI_LINK=""
+  else
+  CRT0_ATOI_LINK="atoi_stub.o"
   fi
   fi
 }
@@ -4894,20 +4940,29 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   elif [ "$(uname -s 2>/dev/null)" = "Linux" ] && [ -f src/asm/crt0_x86_64.o ] && [ -f src/typeck/typeck_f64_bits.o ] && [ -f runtime_panic.o ]; then
   echo " linking shux_asm (crt0 + typeck_f64_bits + runtime_panic + asm*.o, no runtime_driver) ..."
   filter_crt0_asm_objs
-  # NL-07 L3+L3b+L4++L5: dispatch + emit partial + tdl + codegen/parser residual partials.
+  # NL-07 L3+L3b+L4++L5+L9: dispatch + emit partial + tdl + codegen/parser + seed-support.
   ensure_crt0_backend_companion_objs
   set +e
   # F-no-libc NL-07 BEGIN — bootstrap nostdlib（SHUX_BOOTSTRAP_NOSTDLIB=1 尝试；失败回退 libc/libm）
   # 目标：crt0_x86_64 + freestanding_io + bootstrap_nostdlib_stubs + build_asm/*.o
   #        + backend dispatch companions + seed emit partial + typeck/driver/lsp companions
-  #        + codegen/parser residual partials + -nostdlib --gc-sections
+  #        + codegen/parser residual partials + L9 seed-support + -nostdlib --gc-sections
   # F-06 v1：bootstrap 已不链 cc -c 的 std/fs|io|heap .o
+  # CRT0_ATOI_LINK: empty when runtime_panic already provides T atoi (avoid multi-def).
+  CRT0_ATOI_LINK="${CRT0_ATOI_LINK:-}"
+  if [ -z "$CRT0_ATOI_LINK" ] && [ -f atoi_stub.o ]; then
+  if nm runtime_panic.o 2>/dev/null | grep -q ' T atoi$'; then
+  CRT0_ATOI_LINK=""
+  else
+  CRT0_ATOI_LINK="atoi_stub.o"
+  fi
+  fi
   CRT_RC=1
   if bootstrap_wants_nostdlib; then
   BOOT_CRT0_TAIL=$(bootstrap_link_tail_crt0)
   build_shux_asm_info "trying bootstrap nostdlib crt0 link (SHUX_BOOTSTRAP_NOSTDLIB=1)"
   # shellcheck disable=SC2086
-  "$CC" $CFLAGS -o shux_asm src/asm/crt0_x86_64.o src/typeck/typeck_f64_bits.o runtime_panic.o atoi_stub.o \
+  "$CC" $CFLAGS -o shux_asm src/asm/crt0_x86_64.o src/typeck/typeck_f64_bits.o runtime_panic.o $CRT0_ATOI_LINK \
   $CRT0_ASM $CRT0_BACKEND_COMPANIONS $BOOT_CRT0_TAIL 2>"$BUILD_DIR/.bootstrap_nostdlib_link_err"
   CRT_RC=$?
   if [ "$CRT_RC" -ne 0 ]; then
@@ -4923,7 +4978,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   # F-no-libc track：默认 crt0 链仍须 libc/libm；用户 freestanding 走 runtime NL-05 无 libc。
   BOOT_CRT0_TAIL=$(bootstrap_link_tail_crt0)
   # shellcheck disable=SC2086
-  "$CC" $CFLAGS -o shux_asm src/asm/crt0_x86_64.o src/typeck/typeck_f64_bits.o runtime_panic.o atoi_stub.o \
+  "$CC" $CFLAGS -o shux_asm src/asm/crt0_x86_64.o src/typeck/typeck_f64_bits.o runtime_panic.o $CRT0_ATOI_LINK \
   $CRT0_ASM $CRT0_BACKEND_COMPANIONS $BOOT_CRT0_TAIL
   CRT_RC=$?
   fi
