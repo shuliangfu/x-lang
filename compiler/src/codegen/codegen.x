@@ -9085,6 +9085,25 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
             return -1;
           }
         }
+        /*
+         * Same-module forward prototypes (body-front extern wall).
+         * Purpose: co-emitted TU may call later functions in the same module (e.g.
+         *   core_option_map_ptr_u8 → core_option_is_some_ptr_u8). Without prototypes,
+         *   host C99 rejects implicit declarations even when the definition follows.
+         * Authority: same loop as seeds/codegen_gen.linux.x86_64.c codegen_x_ast
+         *   (emit_func_extern_declaration for every non-extern func before bodies).
+         * PLATFORM: SHARED — C TU ordering; verify mac + Ubuntu option force-regen.
+         * Does not re-pin seed: seed already has this wall; Cap was missing it in .x.
+         */
+        let fwd_fi: i32 = 0;
+        while (fwd_fi < module.num_funcs) {
+          if (pipeline_module_func_is_extern_at(module, fwd_fi) == 0) {
+            if (emit_func_extern_declaration(arena, out, module, fwd_fi, &prefix_buf[0], prefix_len, ctx) != 0) {
+              return -1;
+            }
+          }
+          fwd_fi = fwd_fi + 1;
+        }
         /* 顶层 let/const（入口与 dep 模块均 emit）：dep 模块 const 以裸名 emit 供本模块
          * 函数体 EXPR_VAR 裸名引用；入口模块 main 调用 init_globals()，dep 模块不调用。
          * 【Why 根源】emit_type 对 TYPE_ARRAY 输出 elem*（形参退化）；顶层 u8[N] 须
