@@ -14,6 +14,7 @@
  * 端口 arch/x86_64_enc.x。
  */
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 
 struct platform_elf_ElfCodegenCtx;
@@ -829,6 +830,13 @@ int32_t arch_x86_64_enc_enc_call(struct platform_elf_ElfCodegenCtx *elf_ctx, uin
   uint8_t rn[64];
   int32_t k;
   if (!elf_ctx || !name || name_len <= 0) return -1;
+  {
+    FILE *tf = fopen("/tmp/shux_asm_x86_call.txt", "a");
+    if (tf) {
+      fprintf(tf, "x86_call %.*s\n", (int)name_len, (const char *)name);
+      fclose(tf);
+    }
+  }
   cb = x86_enc_ctx_bytes(elf_ctx);
   if (x86_enc_u8(elf_ctx, 232) != 0) return -1;
   if (x86_enc_u32_le(elf_ctx, 0) != 0) return -1;
