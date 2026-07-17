@@ -8697,6 +8697,58 @@ export function codegen_emit_call_func_name(out: *CodegenOutBuf, arena: *ASTAren
         if (found_count == 1 && found_fi >= 0) {
           return codegen_emit_func_link_name(out, search_arena, search_mod, found_fi);
         }
+        /*
+         * PLATFORM: SHARED — PTR overload (heap.free *u8 vs *i32): suffix compare can
+         * fail across arenas; fall back to kind+elem kind match so we never emit bare free.
+         */
+        if (found_count != 1 && call_nargs == 1 && is_method != 0 && search_mod != 0 as *Module) {
+          let arg0: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, 0);
+          let arg0_ty: i32 = 0;
+          if (arg0 > 0) {
+            arg0_ty = pipeline_expr_resolved_type_ref(arena, arg0);
+          }
+          if (arg0_ty > 0 && pipeline_type_kind_ord_at(arena, arg0_ty) == 9) {
+            let ae_k: i32 = 0;
+            let ae: i32 = pipeline_type_elem_ref_at(arena, arg0_ty);
+            if (ae > 0) {
+              ae_k = pipeline_type_kind_ord_at(arena, ae);
+            }
+            let fi_p: i32 = 0;
+            let best_p: i32 = -1;
+            let n_p: i32 = 0;
+            while (fi_p < search_mod.num_funcs) {
+              let fl: i32 = pipeline_module_func_name_len_at(search_mod, fi_p);
+              if (fl == fallback_len && fl > 0 && pipeline_module_func_num_params_at(search_mod, fi_p) == 1) {
+                let fnm_p: u8[64] = [];
+                pipeline_module_func_name_copy64(search_mod, fi_p, &fnm_p[0]);
+                let me: i32 = 1;
+                let bi: i32 = 0;
+                while (bi < fl) {
+                  if (fnm_p[bi] != fallback_name[bi]) {
+                    me = 0;
+                    bi = fl;
+                  } else {
+                    bi = bi + 1;
+                  }
+                }
+                if (me != 0) {
+                  let pt: i32 = pipeline_module_func_param_type_ref_at(search_mod, fi_p, 0);
+                  if (pt > 0 && pipeline_type_kind_ord_at(search_arena, pt) == 9) {
+                    let pe: i32 = pipeline_type_elem_ref_at(search_arena, pt);
+                    if (pe > 0 && pipeline_type_kind_ord_at(search_arena, pe) == ae_k) {
+                      best_p = fi_p;
+                      n_p = n_p + 1;
+                    }
+                  }
+                }
+              }
+              fi_p = fi_p + 1;
+            }
+            if (n_p == 1 && best_p >= 0) {
+              return codegen_emit_func_link_name(out, search_arena, search_mod, best_p);
+            }
+          }
+        }
         /* 类型未解析：同名同 arity 唯一则用；优先唯一 extern/no_mangle。 */
         if (found_count != 1 && call_nargs >= 0) {
           let arity_fi: i32 = -1;

@@ -9469,6 +9469,55 @@ int32_t codegen_emit_call_func_name(struct codegen_CodegenOutBuf * out, struct a
       if (((found_count ==1) && (found_fi >=0))) {
         return codegen_emit_func_link_name(out, search_arena, search_mod, found_fi);
       }
+      /* PLATFORM: SHARED — PTR overload (heap.free *u8): kind+elem match when suffix fails. */
+      if ((((((found_count !=1) && (call_nargs ==1)) && (is_method !=0)) && (search_mod !=((struct ast_Module *)(0)))))) {
+        int32_t arg0 = pipeline_expr_method_call_arg_ref(arena, expr_ref, 0);
+        int32_t arg0_ty = 0;
+        if ((arg0 > 0)) {
+          (void)((arg0_ty = pipeline_expr_resolved_type_ref(arena, arg0)));
+        }
+        if (((arg0_ty > 0) && (pipeline_type_kind_ord_at(arena, arg0_ty) ==9))) {
+          int32_t ae_k = 0;
+          int32_t ae = pipeline_type_elem_ref_at(arena, arg0_ty);
+          if ((ae > 0)) {
+            (void)((ae_k = pipeline_type_kind_ord_at(arena, ae)));
+          }
+          int32_t fi_p = 0;
+          int32_t best_p = -(1);
+          int32_t n_p = 0;
+          while ((fi_p < (search_mod->num_funcs))) {
+            int32_t fl = pipeline_module_func_name_len_at(search_mod, fi_p);
+            if ((((fl ==fallback_len) && (fl > 0)) && (pipeline_module_func_num_params_at(search_mod, fi_p) ==1))) {
+              uint8_t fnm_p[64] = {};
+              (void)(pipeline_module_func_name_copy64(search_mod, fi_p, &((fnm_p)[0])));
+              int32_t me = 1;
+              int32_t bi = 0;
+              while ((bi < fl)) {
+                if (((fnm_p)[bi] !=(fallback_name)[bi])) {
+                  (void)((me = 0));
+                  (void)((bi = fl));
+                } else {
+                  (void)((bi = (bi + 1)));
+                }
+              }
+              if ((me !=0)) {
+                int32_t pt = pipeline_module_func_param_type_ref_at(search_mod, fi_p, 0);
+                if (((pt > 0) && (pipeline_type_kind_ord_at(search_arena, pt) ==9))) {
+                  int32_t pe = pipeline_type_elem_ref_at(search_arena, pt);
+                  if (((pe > 0) && (pipeline_type_kind_ord_at(search_arena, pe) ==ae_k))) {
+                    (void)((best_p = fi_p));
+                    (void)((n_p = (n_p + 1)));
+                  }
+                }
+              }
+            }
+            (void)((fi_p = (fi_p + 1)));
+          }
+          if (((n_p ==1) && (best_p >=0))) {
+            return codegen_emit_func_link_name(out, search_arena, search_mod, best_p);
+          }
+        }
+      }
       if (((found_count !=1) && (call_nargs >=0))) {
         int32_t arity_fi = -(1);
         int32_t arity_count = 0;
