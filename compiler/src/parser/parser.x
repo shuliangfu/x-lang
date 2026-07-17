@@ -2704,32 +2704,44 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
     if (r.tok.kind != token.TokenKind.TOKEN_LET && r.tok.kind != token.TokenKind.TOKEN_CONST) {
       break;
     }
+    /*
+     * let-hoist safe (product pin X→C, no stmt_order):
+     * While-body `let x = r.tok...` is moved to the loop top before lexer_next on the
+     * binding name. Capture name_len/name_start only AFTER next; zero-pad with zi=ni
+     * only AFTER the name bytes are copied (else name_len stays LET's 0 → P001, or
+     * zi=0 wipes the just-copied name_row).
+     * PLATFORM: SHARED — force M2 residual body let; seed parser already correct.
+     */
     let is_let: bool = r.tok.kind == token.TokenKind.TOKEN_LET;
-    /** 当前 let 槽初值/类型；解析完成后 append 到侧车池（无 256 上限）。 */
+    /** Current let slot init/type; append to sidecar pool after parse (no 256 cap). */
     let let_init_val: i32 = 0;
     let let_init_ref: i32 = 0;
     let let_ty_ref: i32 = 0;
+    let is_discard_name: i32 = 0;
+    let name_len: i32 = 0;
+    let name_start: usize = 0;
+    let name_row: u8[64] = [];
+    let ni: i32 = 0;
+    let zi: i32 = 0;
     lex_from_result_ptr_into(&lex, &r);
     lexer.lexer_next_into(&r, lex, source);
-    /* discard 绑定 `let _`：lexer 发 TOKEN_UNDERSCORE（ident_len=0），须当作名 "_"。
-     * 【Why 根源】拒收会中断 parse_body_lets，函数失败后 skip 偶发把体前 let 误解析为顶层 static。 */
-    let is_discard_name: i32 = 0;
+    /* discard binding `let _`: lexer emits TOKEN_UNDERSCORE (ident_len=0) as name "_".
+     * Rejecting would abort parse_body_lets; skip may mis-parse body lets as top-level static. */
     if (r.tok.kind == token.TokenKind.TOKEN_UNDERSCORE) {
       is_discard_name = 1;
     } else if (r.tok.kind != token.TokenKind.TOKEN_IDENT) {
       lex_out.pos = lex.pos; lex_out.line = lex.line; lex_out.col = lex.col; return false;
     }
-    let name_len: i32 = r.tok.ident_len;
+    /* Assign after name token: hoist must not use LET/CONST token's ident_len/start. */
+    name_len = r.tok.ident_len;
     if (is_discard_name != 0) {
       name_len = 1;
     }
     if (name_len <= 0 || name_len > 63) {
       lex_out.pos = lex.pos; lex_out.line = lex.line; lex_out.col = lex.col; return false;
     }
-    /* token_start 在 slice 内为真实起点，偏移 0 合法（勿用 token_start!=0 作哨兵）。 */
-    let name_start: usize = r.token_start;
-    let name_row: u8[64] = [];
-    let ni: i32 = 0;
+    /* token_start is real offset in slice; 0 is legal (do not use token_start!=0 as sentinel). */
+    name_start = r.token_start;
     if (is_discard_name != 0) {
       name_row[0] = 95;
       ni = 1;
@@ -2741,7 +2753,8 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
         ni = ni + 1;
       }
     }
-    let zi: i32 = ni;
+    /* Pad NUL after name only: zi must start at ni, not 0 (hoist would wipe name_row). */
+    zi = ni;
     while (zi < 64) {
       name_row[zi] = 0;
       zi = zi + 1;
@@ -3160,25 +3173,28 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
      * * parse_one_function_impl 会从 `return p.x` 的 `p` 起解析，把 `p.x` 误作 expr_stmt、final_expr 被清空后 typeck 报 implicit tail return。 */
     if (!cast_init_semi_done) {
       if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
+        /*
+         * After `;`, peek next stmt: lex must land on that token's first byte for
+         * parse_block_into / parse_one_function_impl (expr;/let/return…).
+         * let-hoist safe (product pin X→C): do NOT `let lex_after_semi = lex_at_token_from_result(after_semi)`
+         * after next — pin hoists that let to the if-block top and computes from empty after_semi
+         * (wipes correct pos → following return skipped → whole function P001 on body let).
+         * Inline lex_at_token_from_result like the STRING init semi path.
+         * PLATFORM: SHARED — force M2 body-let residual.
+         */
         lex_from_result_ptr_into(&lex, &r);
         let after_semi: LexerResult = LexerResult { next_lex: lex, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
         lexer.lexer_next_into(&after_semi, lex, source);
-        /**
-         * 分号后窥视下一条语句：lex 须回指该 token 首字节，供 parse_block_into / parse_one_function_impl
-         * 主循环解析 expr;/let/return 等。此前 else 分支写 after_semi.next_lex 会越过 IDENT 首 token，
-         * * while 体内 `let p: Pair = mk(...); s = s + p.a` 等 mid-let 后赋值语句被跳过、整函数 parse skip。
-         */
-        let lex_after_semi: Lexer = lex_at_token_from_result(after_semi);
-        lexer_copy_into(&lex, lex_after_semi);
+        lexer_copy_into(&lex, lex_at_token_from_result(after_semi));
         lexer.lexer_next_into(&r, lex, source);
       } else if (r.tok.kind != token.TokenKind.TOKEN_LET && r.tok.kind != token.TokenKind.TOKEN_CONST
           && r.tok.kind != token.TokenKind.TOKEN_RETURN && r.tok.kind != token.TokenKind.TOKEN_IF
           && r.tok.kind != token.TokenKind.TOKEN_WHILE && r.tok.kind != token.TokenKind.TOKEN_FOR
           && r.tok.kind != token.TokenKind.TOKEN_RBRACE) {
         /*
-         * 初值已为表达式（如 `token.Token { … }`）且后继为块内下一条语句/表达式（常见 IDENT 结构体字面量），
-         * 勿在此 return：须先 append。否则 `lexer_next` 的 `{ let t: token.Token = token.Token { }; LexerResult { tok: t } }`
-         * 中 `t` 未入账、asm 报 EXPR_VAR not in ctx。
+         * Init already an expression (e.g. `token.Token { … }`) and next is another stmt/expr
+         * (common: IDENT struct lit). Do not return here — append first, else `t` missing in ctx.
+         * Inline lex_at_token_from_result (hoist-safe; no intermediate let).
          */
         if (is_let) {
           if (!(let_init_ref != 0 || let_init_val != 0 || let_init_ref == -1)) {
@@ -3187,8 +3203,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
         } else if (let_init_ref == 0 && let_init_val == 0) {
           lex_out.pos = lex.pos; lex_out.line = lex.line; lex_out.col = lex.col; return false;
         }
-        let lex_at_cur: Lexer = lex_at_token_from_result(r);
-        lexer_copy_into(&lex, lex_at_cur);
+        lexer_copy_into(&lex, lex_at_token_from_result(r));
       }
     }
     if (is_let) {
@@ -3204,10 +3219,19 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
       out.num_consts = pipeline_onefunc_num_consts(pool);
     }
   }
-  return false;  // unreachable — typeck after unsafe block
-  }
-  lex_out.pos = lex.pos; lex_out.line = lex.line; lex_out.col = lex.col;
+  /*
+   * Success path MUST sit inside unsafe after the while: the loop breaks on
+   * non-let/const, so a following `return false` is reachable (product pin X→C
+   * does not delete it). That made every body-let parse return false → force
+   * P001; buf_into glue could still recover bare `return N` but not `return x`.
+   * PLATFORM: SHARED — force M2 residual body let / return-var.
+   */
+  lex_out.pos = lex.pos;
+  lex_out.line = lex.line;
+  lex_out.col = lex.col;
   return true;
+  }
+  return false;
 }
 
 /** 兼容：返回 LexerResult，内部调 _into（仍有 return 的 ABI 风险）。 */
