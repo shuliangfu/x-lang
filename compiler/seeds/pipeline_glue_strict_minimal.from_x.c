@@ -2128,6 +2128,8 @@ int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module,
   struct ast_Module *dm;
   extern int32_t pipeline_typeck_resolve_dep_index_for_import_c(struct ast_Module *module,
                                                                 struct ast_PipelineDepCtx *ctx, int32_t imp_ix);
+  extern int32_t pipeline_dep_ctx_import_path_len(struct ast_PipelineDepCtx *ctx, int32_t idx);
+  extern void pipeline_dep_ctx_import_path_copy64(struct ast_PipelineDepCtx *ctx, int32_t idx, uint8_t *dst);
   if (!module || !arena || expr_ref <= 0)
     return 0;
   pipeline_expr_init_call_resolve_at_ref(arena, expr_ref);
@@ -2183,6 +2185,15 @@ int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module,
             dm, arena, method_nm, method_nlen, dep_slot, num_args, expr_ref, 1, ctx, &func_ix);
         if (import_ret_ty > 0) {
           dep_ix = dep_slot;
+          if (getenv("SHUX_DEBUG_PIPE") && method_nlen == 4 && method_nm[0] == (uint8_t)'f' &&
+              method_nm[1] == (uint8_t)'r' && method_nm[2] == (uint8_t)'e' && method_nm[3] == (uint8_t)'e') {
+            uint8_t dpath[64];
+            int32_t dplen = pipeline_dep_ctx_import_path_len(ctx, dep_slot);
+            pipeline_dep_ctx_import_path_copy64(ctx, dep_slot, dpath);
+            fprintf(stderr,
+                    "shux: [SHUX_DEBUG_PIPE] method_free resolve imp_ix=%d dep_slot=%d path=%.*s func_ix=%d\n",
+                    (int)ii, (int)dep_slot, (int)(dplen > 0 ? dplen : 0), dpath, (int)func_ix);
+          }
           break;
         }
         break;
