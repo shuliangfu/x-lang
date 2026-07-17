@@ -23,5 +23,19 @@ SHUX_NOLIBC_N07_V5_TRY_BUILD=1 SHUX_NOLIBC_N07_V5_FAIL=1 ./tests/run-nolibc-n07-
 ## 实现锚点
 
 - `compiler/scripts/build_shux_asm.sh`：`bootstrap_wants_nostdlib()` v5 默认逻辑
-- `compiler/src/asm/bootstrap_nostdlib_stubs.c`：POSIX/libc 最小桩（持续扩展）
+- `compiler/seeds/bootstrap_nostdlib_stubs.from_x.c`：POSIX/libc 最小桩（持续扩展）
 - `compiler/src/asm/freestanding_io_x86_64.s`：syscall 门面
+- **L9（2026-07-17 · `3f96d290`）**：`ensure_crt0_backend_companion_objs` 补 experimental 同源 seed-support  
+  （`asm_backend_compat_stubs` / `x_seed_bridge` / `seed_link_compat` / `asm_full_link_stubs`，**仅 CRT0_ASM bag 缺的**；弱 `atoi`）
+
+## 2026-07-17 硬绿记录（Ubuntu · tip `3f96d290`）
+
+| 项 | 结果 |
+|----|------|
+| 命令 | `SHUX_NOLIBC_N07_V5_TRY_BUILD=1 SHUX_NOLIBC_N07_V5_FAIL=1 ./tests/run-nolibc-n07-v5-gate.sh` |
+| 日志 | build `/tmp/ubuntu_n07_l9_3f96d290.log` · gate `/tmp/ubuntu_n07_v5_gate_3f96d290.log` |
+| crt0 | ✅ `bootstrap nostdlib crt0 link OK` · multi=0 · UNDEF=0 |
+| ldd | ✅ **无 `libc.so`**（static） |
+| 矩阵 | ✅ rv=42 · opt=102 · si=0 · hello=0 |
+| 范围 | **`build_shux_asm` crt0 路径**；g05/strict 链尾 residual 另项 |
+

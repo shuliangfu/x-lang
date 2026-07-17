@@ -17,7 +17,7 @@
 |------|------|--------------------|
 | **L0 语义自举** | 产品 `shux_asm` 冷编译自己 + 全量 bstrict | 双端 tip 已绿（钉盘见 `自举进度.md`） |
 | **L1 用户零 libc** | 用户 `.x` 经产品路径出 **nostdlib、无 `-lc`** 的静态可执行文件（Linux x86_64） | **NL-05 等 gate ✅**；std 首批发 NL-06 🟡 |
-| **L2 编译器 / bootstrap 零 libc** | `shux_asm` 自身无动态 `libc.so`、crt0 bag nostdlib **无 UNDEF** | **进行中**：NL-07 **L1–L3b** 已关（multi / fflush / `backend_enc` / `backend_emit`）；crt0 bag unique UNDEF≈147（head driver/typeck）→ **L4+**；G-03 未硬绿 |
+| **L2 编译器 / bootstrap 零 libc** | `shux_asm` 自身无动态 `libc.so`、crt0 bag nostdlib **无 UNDEF** | **`build_shux_asm` crt0 路径 ✅** NL-07 **L1–L9** + v5 gate @ `3f96d290`（static · ldd 无 libc · 矩阵绿）；**g05/strict 链尾**仍可能 `-lc` residual |
 
 「实现无 libc」= **L1 + L2 都硬绿**。L0 绿 **不能** 单独写成「无 libc 已完成」。
 
