@@ -354,8 +354,16 @@ if [ ! -f "$PIPELINE_RUN_X_ALIAS_O" ] || [ "seeds/pipeline_run_x_link_alias.from
 fi
 
 # Linux：std/io io_uring 须 -luring（与 build_shux_asm.sh PIPELINE_LIBS 一致）。
+# NL-07 L10: nostdlib drops -luring/-lpthread/-lc (G.7 shared policy).
+# shellcheck disable=SC1091
+. scripts/bootstrap_nostdlib_shared.sh
 PIPELINE_LIBS=""
-if [ "$(uname -s)" = "Linux" ]; then
+EXP_LINK_TAIL="-lm -lc"
+if bootstrap_wants_nostdlib; then
+  # PLATFORM: LINUX — same freestanding/stubs/atoi tail as g05/crt0.
+  experimental_bootstrap_info "NL-07 L10 experimental: nostdlib tail (no -lc/-lpthread)"
+  EXP_LINK_TAIL="$(bootstrap_nostdlib_link_flags) $(bootstrap_nostdlib_extra_objs)"
+elif [ "$(uname -s)" = "Linux" ]; then
   PIPELINE_LIBS="-luring -lpthread"
 fi
 
@@ -440,7 +448,7 @@ fi
   "$PARSER_EXPR_LINK_O" \
   parser_x.o lexer_x.o typeck_x.o codegen_x.o \
   x_frontend_link_alias.o \
-  -lm -lc $PIPELINE_LIBS 2>"$BUILD_DIR/.relink_experimental_bootstrap_err"
+  $EXP_LINK_TAIL $PIPELINE_LIBS 2>"$BUILD_DIR/.relink_experimental_bootstrap_err"
 
 if [ ! -x shux_asm.experimental ]; then
   experimental_bootstrap_error "link failed"

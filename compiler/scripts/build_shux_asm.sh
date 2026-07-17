@@ -4584,22 +4584,8 @@ ensure_asm_link_objs() {
   "$CC" -c -o src/asm/crt0_x86_64.o src/asm/crt0_x86_64.s
   fi
   ensure_typeck_f64_bits_obj
-  # atoi stub: generated pipeline may call atoi (libc). nostdlib needs a definition.
-  # PLATFORM: LINUX — always rebuild weak atoi (cheap; avoids strong multi-def with
-  # historical runtime_panic ld -r merges). G.7: single TU atoi_stub.o authority.
-  echo ' cc -c atoi_stub.o (weak atoi for nostdlib link)'
-  printf '#include <stddef.h>\n__attribute__((weak)) int atoi(const char *n) { int v=0; if(!n) return 0; while(*n>=48&&*n<=57){v=v*10+(*n-48);n++;} return v; }\n' > /tmp/atoi_stub_$$.c
-  "$CC" $CFLAGS -c -o atoi_stub.o /tmp/atoi_stub_$$.c
-  rm -f /tmp/atoi_stub_$$.c
-  # Prefer not double-linking: if runtime_panic already has strong T atoi, omit stub.
-  CRT0_ATOI_LINK=""
-  if [ -f atoi_stub.o ]; then
-  if nm runtime_panic.o 2>/dev/null | grep -q ' T atoi$'; then
-  CRT0_ATOI_LINK=""
-  else
-  CRT0_ATOI_LINK="atoi_stub.o"
-  fi
-  fi
+  # atoi: G.7 authority = scripts/bootstrap_nostdlib_shared.sh ensure_atoi_stub_obj.
+  CRT0_ATOI_LINK="$(ensure_atoi_stub_obj)"
 }
 
 # 用户程序 asm 链预编译 runtime 对象（nostdlib shux_asm 无 fork+cc，须在 build 阶段产出）。
@@ -4626,42 +4612,10 @@ ensure_runtime_user_link_objs() {
   fi
 }
 
-# NL-07 v2：编译 freestanding_io / bootstrap nostdlib 桩（仅 Linux crt0 链尝试用）。
-ensure_freestanding_io_x86_64_obj() {
-  if [ -f src/asm/freestanding_io_x86_64.s ]; then
-  if [ ! -f src/asm/freestanding_io_x86_64.o ] || [ src/asm/freestanding_io_x86_64.s -nt src/asm/freestanding_io_x86_64.o ]; then
-  echo " cc -c src/asm/freestanding_io_x86_64.o <- src/asm/freestanding_io_x86_64.s"
-  "$CC" -c -o src/asm/freestanding_io_x86_64.o src/asm/freestanding_io_x86_64.s
-  fi
-  fi
-}
-
-ensure_bootstrap_nostdlib_stubs_obj() {
-  if [ -f seeds/bootstrap_nostdlib_stubs.from_x.c ]; then
-  if [ ! -f src/asm/bootstrap_nostdlib_stubs.o ] || [ seeds/bootstrap_nostdlib_stubs.from_x.c -nt src/asm/bootstrap_nostdlib_stubs.o ]; then
-  echo " cc -c src/asm/bootstrap_nostdlib_stubs.o <- seeds/bootstrap_nostdlib_stubs.from_x.c"
-  sh scripts/cc_inc_tu.sh seeds/bootstrap_nostdlib_stubs.from_x.c src/asm/bootstrap_nostdlib_stubs.o
-  fi
-  fi
-}
-
-# NL-07 v2：SHUX_BOOTSTRAP_NOSTDLIB=1 且 Linux 时尝试 nostdlib（去 -lc/-lm，保留 PIPELINE_LIBS 如 -lpthread）。
-# NL-07 v5：Linux x86_64 默认启用 nostdlib（除非 SHUX_BOOTSTRAP_ALLOW_LIBC=1 显式回退 libc）。
-bootstrap_wants_nostdlib() {
-  if [ "$(uname -s 2>/dev/null)" != "Linux" ]; then
-  return 1
-  fi
-  if [ -n "${SHUX_BOOTSTRAP_ALLOW_LIBC:-}" ]; then
-  return 1
-  fi
-  if [ -n "${SHUX_BOOTSTRAP_NOSTDLIB:-}" ]; then
-  return 0
-  fi
-  if [ "$(uname -m 2>/dev/null)" = "x86_64" ] || [ "$(uname -m 2>/dev/null)" = "amd64" ]; then
-  return 0
-  fi
-  return 1
-}
+# NL-07 / G-03: freestanding_io + bootstrap_nostdlib_stubs + wants_nostdlib + weak atoi
+# G.7 single authority — scripts/bootstrap_nostdlib_shared.sh (also g05 product chain).
+# shellcheck disable=SC1091
+. "$(CDPATH= cd -- "$(dirname "$0")" && pwd)/bootstrap_nostdlib_shared.sh"
 
 # crt0 链尾参数（无 PIPELINE_LIBS）。
 # PLATFORM: LINUX — nostdlib tail is Linux x86_64 bootstrap only.
@@ -4670,8 +4624,8 @@ bootstrap_wants_nostdlib() {
 # link line with a bare -c and fails: cannot specify '-o' with '-c' with multiple files.
 bootstrap_link_tail_crt0() {
   if bootstrap_wants_nostdlib; then
-  ensure_freestanding_io_x86_64_obj 1>&2
-  ensure_bootstrap_nostdlib_stubs_obj 1>&2
+  ensure_freestanding_io_x86_64_obj
+  ensure_bootstrap_nostdlib_stubs_obj
   echo "-nostdlib -static -Wl,--gc-sections src/asm/freestanding_io_x86_64.o src/asm/bootstrap_nostdlib_stubs.o"
   else
   echo "-lc -lm"
@@ -4682,8 +4636,8 @@ bootstrap_link_tail_crt0() {
 # PLATFORM: LINUX — same stdout purity rule as bootstrap_link_tail_crt0 (NL-07).
 bootstrap_link_tail_driver() {
   if bootstrap_wants_nostdlib; then
-  ensure_freestanding_io_x86_64_obj 1>&2
-  ensure_bootstrap_nostdlib_stubs_obj 1>&2
+  ensure_freestanding_io_x86_64_obj
+  ensure_bootstrap_nostdlib_stubs_obj
   echo "-nostdlib -static -Wl,--gc-sections src/asm/freestanding_io_x86_64.o src/asm/bootstrap_nostdlib_stubs.o ${PIPELINE_LIBS}"
   else
   echo "-lm -lc ${PIPELINE_LIBS}"

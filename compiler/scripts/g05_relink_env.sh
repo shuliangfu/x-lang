@@ -100,6 +100,27 @@ G05_OBJS="$_DRIVER_SEED_OBJS driver_x.o $_PIPELINE_LINK_O lsp_x.o lsp_diag_x.o l
 
 G05_CFLAGS="$_BASE_CFLAGS $_DRIVER_SEED_LINK_FLAGS $_ASM_GLUE_DUP_LDFLAGS $_MAIN_LINK_FLAGS"
 
+# NL-07 L10 / G-03: product default g05 chain aligns with build_shux_asm crt0 v5.
+# PLATFORM: LINUX — when bootstrap_wants_nostdlib, drop host-implicit -lc (cc driver)
+# by using -nostdlib -static + freestanding_io + bootstrap_nostdlib_stubs + weak atoi.
+# G.7: policy from scripts/bootstrap_nostdlib_shared.sh (same as build_shux_asm).
+# Ensure does not run here (eval purity); g05_ensure_relink_prereqs builds the objs.
+# shellcheck disable=SC1091
+. "$_G05_ROOT/scripts/bootstrap_nostdlib_shared.sh"
+if bootstrap_wants_nostdlib; then
+  case "$UNAME_S/$UNAME_M" in
+  Linux/x86_64|Linux/amd64)
+  _G05_NOSTDLIB_FLAGS="$(bootstrap_nostdlib_link_flags)"
+  # Obj paths only (no ensure). atoi_stub always listed; ensure builds it.
+  # runtime_panic T atoi skip is applied in ensure when CRT0_ATOI_LINK empty —
+  # g05 bag has no runtime_panic.o, so atoi_stub.o is always required.
+  _G05_NOSTDLIB_OBJS="src/asm/freestanding_io_x86_64.o src/asm/bootstrap_nostdlib_stubs.o atoi_stub.o"
+  G05_CFLAGS="$G05_CFLAGS $_G05_NOSTDLIB_FLAGS"
+  G05_OBJS="$G05_OBJS $_G05_NOSTDLIB_OBJS"
+  ;;
+  esac
+fi
+
 # 供 ensure 使用的热路径（force 重编的 .c → .o）
 G05_HOT_C_OBJS="src/runtime_link_abi.o src/runtime_driver_no_c.o build_asm/pipeline_glue_strict_minimal.o"
 

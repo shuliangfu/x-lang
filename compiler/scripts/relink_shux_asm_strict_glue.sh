@@ -1857,6 +1857,7 @@ ST_RT_SEED_SLICES="$ST_RT_SEED_SLICES runtime_process_argv.o"
 strict_glue_info "linking shux_asm.strict_glue (glue_standalone + build_asm pipeline.o ...)"
 dbg_event C "begin link-phase setup"
 # Linux strict 链：runtime_panic + liburing（与 build_shux_asm PIPELINE_LIBS 一致）。
+# NL-07 L10: when bootstrap_wants_nostdlib, drop -lpthread/-lm/-lc (G.7 shared policy).
 ST_RUNTIME_PANIC=""
 ST_PIPELINE_LIBS="-lm -lc"
 if [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
@@ -1878,11 +1879,19 @@ if [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
   fi
   fi
   [ -f runtime_panic.o ] && ST_RUNTIME_PANIC="runtime_panic.o"
+  # shellcheck disable=SC1091
+  . scripts/bootstrap_nostdlib_shared.sh
+  if bootstrap_wants_nostdlib; then
+  # PLATFORM: LINUX — product nostdlib tail (same freestanding/stubs/atoi as g05/crt0).
+  strict_glue_info "NL-07 L10 strict: nostdlib tail (no -lc/-lpthread)"
+  ST_PIPELINE_LIBS="$(bootstrap_nostdlib_link_flags) $(bootstrap_nostdlib_extra_objs)"
+  else
   ST_PIPELINE_LIBS="-lpthread -lm -lc"
   if have_link_liburing; then
   ST_PIPELINE_LIBS="-luring $ST_PIPELINE_LIBS"
   else
   strict_glue_warn "liburing unavailable; linking without -luring"
+  fi
   fi
 fi
 set +e

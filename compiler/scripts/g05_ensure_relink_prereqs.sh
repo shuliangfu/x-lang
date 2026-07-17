@@ -2874,6 +2874,25 @@ case " $G05_OBJS " in
     ;;
 esac
 
+# --- NL-07 L10: nostdlib companions for product g05 (PLATFORM: LINUX) ---
+# G.7: scripts/bootstrap_nostdlib_shared.sh (same freestanding/stubs/atoi as build_shux_asm).
+# Only when G05_OBJS lists them (g05_relink_env after bootstrap_wants_nostdlib).
+case " $G05_OBJS " in
+  *" src/asm/freestanding_io_x86_64.o "*|*" src/asm/bootstrap_nostdlib_stubs.o "*|*" atoi_stub.o "*)
+    # shellcheck disable=SC1091
+    . scripts/bootstrap_nostdlib_shared.sh
+    echo "g05_ensure: nostdlib companions (freestanding_io + stubs + weak atoi)"
+    ensure_freestanding_io_x86_64_obj
+    ensure_bootstrap_nostdlib_stubs_obj
+    # Capture stdout (atoi path); progress already on stderr.
+    _g05_atoi="$(ensure_atoi_stub_obj)"
+    # If policy skipped atoi (strong T in runtime_panic), drop from list so miss check passes.
+    if [ -z "$_g05_atoi" ]; then
+      G05_OBJS="$(printf '%s\n' "$G05_OBJS" | sed 's/[[:space:]]atoi_stub\.o//g')"
+    fi
+    ;;
+esac
+
 # --- 齐备检查 ---
 mkdir -p build_asm/seed_host
 miss=0
