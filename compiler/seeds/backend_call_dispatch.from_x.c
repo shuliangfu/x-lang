@@ -2098,6 +2098,13 @@ int32_t glue_asm_enc_call_redirected_impl(struct platform_elf_ElfCodegenCtx *elf
   int32_t is_std_math;
   if (!name || name_len <= 0)
     return -1;
+  {
+    FILE *tf = fopen("/tmp/shux_asm_call_syms.txt", "a");
+    if (tf) {
+      fprintf(tf, "enc_call name=%.*s\n", (int)name_len, (const char *)name);
+      fclose(tf);
+    }
+  }
   is_std_math = (ta == 0 && name_len >= 9 && name[0] == 's' && name[1] == 't' && name[2] == 'd' &&
                  name[3] == '_' && name[4] == 'm' && name[5] == 'a' && name[6] == 't' && name[7] == 'h' &&
                  name[8] == '_')
