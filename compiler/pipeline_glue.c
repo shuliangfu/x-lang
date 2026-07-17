@@ -4023,7 +4023,7 @@ int32_t pipeline_asm_emit_func_param_is_indirect_struct_slot_c(struct ast_ASTAre
         break;
     }
   }
-  /** layout 未命中时 glue_type_size_simple 回落 4；named struct 形参仍按 hidden pointer（勿 lea 槽址当 struct 基址）。 */
+  /** layout 未命中时 glue_type_size_simple 回落 4；named struct 再扫 dep layout。 */
   if (sz <= 8 && !glue_type_ref_is_named_struct_layout_elf_c(arena, mod, pty)) {
     if (g_pipeline_asm_emit_dep_pipe) {
       nd = pipeline_dep_ctx_ndep(g_pipeline_asm_emit_dep_pipe);
@@ -4036,7 +4036,19 @@ int32_t pipeline_asm_emit_func_param_is_indirect_struct_slot_c(struct ast_ASTAre
     if (sz <= 8)
       sz = 32;
   }
-  /** ≤8B POD struct 按值直存 home 槽；更大 struct 与 CALL 侧一致走 hidden pointer。 */
+  /**
+   * PLATFORM: LINUX+MACOS x86_64 SysV — by-value named struct param slot class.
+   * - ≤8B: value in home (1 GP); not indirect.
+   * - 9–16B INTEGER: formal C is 2 GPs by-value; historical freestanding co-emit still
+   *   homes a pointer for some paths (Allocator). Keep indirect=1 until dual-reg home
+   *   is complete for all call sites (G.7: do not flip one side alone).
+   * - >16B MEMORY: CALL already pushes full struct (pipeline_asm_push_sysv_memory_by_value_elf_c).
+   *   Must NOT treat home as pointer — that made len(Vec)/get(Vec) load rdi while caller
+   *   left the aggregate on the stack → SIGSEGV (fs vec push residual).
+   * Authority: match CALL side MEMORY by-value; param_home copies stack → full home.
+   */
+  if (sz > 16)
+    return 0;
   return (sz > 8) ? 1 : 0;
 }
 
@@ -16620,6 +16632,10 @@ static int32_t pipeline_asm_emit_module_top_level_mutable_lit_inits_elf_c(
  * 栈帧大小：模拟 fill_param + 块树 fill_local 后的 next_offset（真实 struct/vector 槽宽）+ 数组 temp + 64B。
  */
 static int32_t glue_func_return_byte_size_c(struct ast_Module *mod, struct ast_ASTArena *arena, int32_t func_index);
+static int32_t glue_func_param_home_width_c(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_index,
+                                           int32_t param_index);
+static int32_t glue_func_param_agg_byte_size_c(struct ast_ASTArena *arena, struct ast_Module *mod,
+                                              int32_t func_index, int32_t param_index);
 
 int32_t pipeline_asm_compute_frame_size_c(int32_t num_params, struct ast_ASTArena *arena, int32_t block_ref,
                                           struct ast_Module *mod, int32_t func_index) {
@@ -16643,8 +16659,14 @@ int32_t pipeline_asm_compute_frame_size_c(int32_t num_params, struct ast_ASTAren
    * PLATFORM: SHARED x86_64 SysV — 与 fill_param_slots / emit_param_home 对齐。
    */
   next_off = 16;
-  if (num_params > 0)
+  if (num_params > 0 && mod && func_index >= 0) {
+    int32_t pi;
+    /** PLATFORM: LINUX+MACOS x86_64 SysV — MEMORY by-value homes use full struct width. */
+    for (pi = 0; pi < num_params; pi++)
+      next_off += glue_func_param_home_width_c(arena, mod, func_index, pi);
+  } else if (num_params > 0) {
     next_off = 16 + num_params * 8;
+  }
   /** 与 mega_body emit 一致：>16B 返回函数在形参后预留 8B 存 hidden rdi。 */
   if (mod && func_index >= 0 && glue_func_return_byte_size_c(mod, arena, func_index) > 16)
     next_off += 8;
@@ -16666,8 +16688,53 @@ int32_t pipeline_asm_compute_frame_size_c(int32_t num_params, struct ast_ASTAren
 }
 
 /**
- * 将函数形参填入 asm 局部 sidecar（偏移 16,24,…）；[rbp-8] 保留给 prologue 的 saved rbx。
- * 与 backend.x fill_param_slots / enc_prologue push rbx 一致。
+ * Byte size of formal param i (named struct uses dep layout when entry module lacks it).
+ * PLATFORM: SHARED size query; SysV consumers align to 8.
+ */
+static int32_t glue_func_param_agg_byte_size_c(struct ast_ASTArena *arena, struct ast_Module *mod,
+                                              int32_t func_index, int32_t param_index) {
+  int32_t pty;
+  int32_t k;
+  int32_t sz;
+  if (!arena || !mod || func_index < 0 || param_index < 0)
+    return 8;
+  pty = pipeline_module_func_param_type_ref_at(mod, func_index, param_index);
+  if (pty <= 0)
+    return 8;
+  k = pipeline_type_kind_ord_at(arena, pty);
+  if (k == 9)
+    return 8; /* pointer */
+  if (k == 8) {
+    sz = glue_type_named_layout_size_any_module_elf_c(arena, pty);
+    if (sz <= 0)
+      sz = glue_type_size_simple(mod, arena, pty, 0);
+    if (sz <= 0)
+      return 8;
+    return sz;
+  }
+  sz = glue_type_size_simple(mod, arena, pty, 0);
+  if (sz <= 0)
+    return 8;
+  return sz;
+}
+
+/**
+ * Home slot width for formal param.
+ * >16B MEMORY by-value: full 8-aligned aggregate (is_indirect=0).
+ * Else: 8B (scalar / pointer / legacy 9–16B pointer-home).
+ */
+static int32_t glue_func_param_home_width_c(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_index,
+                                           int32_t param_index) {
+  int32_t sz = glue_func_param_agg_byte_size_c(arena, mod, func_index, param_index);
+  if (sz > 16)
+    return (sz + 7) & ~7;
+  return 8;
+}
+
+/**
+ * 将函数形参填入 asm 局部 sidecar；[rbp-8] 保留给 prologue 的 saved rbx。
+ * >16B MEMORY by-value params get a full-size home (not 8B pointer slot).
+ * PLATFORM: LINUX+MACOS x86_64 SysV — matches CALL MEMORY push + param_home copy.
  */
 void pipeline_asm_fill_param_slots(struct backend_AsmFuncCtx *ctx, struct ast_Module *mod, int32_t func_index) {
   int32_t off;
@@ -16675,6 +16742,7 @@ void pipeline_asm_fill_param_slots(struct backend_AsmFuncCtx *ctx, struct ast_Mo
   int32_t i;
   uint8_t pname_buf[32];
   int32_t plen;
+  struct ast_ASTArena *arena;
   pipeline_glue_AsmFuncCtxLayout *ly;
   if (!ctx || !mod)
     return;
@@ -16682,15 +16750,18 @@ void pipeline_asm_fill_param_slots(struct backend_AsmFuncCtx *ctx, struct ast_Mo
   if (!ly)
     return;
   g_pipeline_asm_emit_module = mod;
+  arena = g_pipeline_asm_emit_arena;
   off = 16; /* reserve [rbp-8] for callee-saved rbx */
   np = pipeline_asm_module_func_num_params_at(mod, func_index);
   for (i = 0; i < np; i++) {
+    int32_t width;
     pipeline_asm_module_func_param_name_copy32(mod, func_index, i, pname_buf);
     plen = pipeline_asm_module_func_param_name_len_at(mod, func_index, i);
     if (asm_ctx_local_append((uint8_t *)ctx, pname_buf, plen, off) < 0)
       return;
     ly->num_locals = asm_ctx_local_count((uint8_t *)ctx);
-    off += 8;
+    width = arena ? glue_func_param_home_width_c(arena, mod, func_index, i) : 8;
+    off += width;
   }
   ly->next_offset = off;
 }
@@ -16772,7 +16843,13 @@ static void glue_sysv_x86_func_param_slot_c(struct ast_ASTArena *arena, struct a
 }
 
 /**
- * SysV x86 + SHUX_ABI_F32_XMM=1：gp/xmm 分轨形参 homing（f32 从 xmm0–7 movd 落 32-bit 栈槽）。
+ * SysV x86 + SHUX_ABI_F32_XMM=1：gp/xmm 分轨形参 homing + MEMORY by-value copy.
+ * PLATFORM: LINUX+MACOS x86_64 SysV.
+ * - f32/f64: xmm0–7 (or stack if >8)
+ * - >16B named struct: MEMORY class — copy from [rbp+stack_pos] into full-size home
+ *   (matches CALL pipeline_asm_push_sysv_memory_by_value_elf_c; fixes len(Vec) SIGSEGV)
+ * - else: one GP (legacy 9–16B pointer-home still 1 GP)
+ * Hidden sret uses rdi → gp starts at 1 when sret_active.
  */
 static int32_t pipeline_asm_emit_param_home_elf_sysv_f32_xmm_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                                struct backend_AsmFuncCtx *ctx,
@@ -16781,54 +16858,75 @@ static int32_t pipeline_asm_emit_param_home_elf_sysv_f32_xmm_c(struct platform_e
   struct ast_ASTArena *arena;
   int32_t i;
   int32_t off;
-  int32_t kind;
-  int32_t reg_k;
-  int32_t stack_k;
-  int32_t sret_shift;
-  int32_t rk;
+  int32_t gp;
+  int32_t xmm;
+  int32_t stack_pos;
+  int32_t k;
+  (void)ctx;
   arena = g_pipeline_asm_emit_arena;
   if (!arena)
     return -1;
-  sret_shift = g_pipeline_asm_func_sret_active ? 1 : 0;
+  gp = g_pipeline_asm_func_sret_active ? 1 : 0;
+  xmm = 0;
+  stack_pos = 16; /* first incoming stack arg after saved rbp @ [rbp+0] ret @ [rbp+8] */
+  off = 16;       /* first home; [rbp-8]=saved rbx */
   for (i = 0; i < np; i++) {
-    off = 16 + i * 8; /* [rbp-8]=saved rbx; params from 16 */
-    glue_sysv_x86_func_param_slot_c(arena, mod, func_index, np, i, &kind, &reg_k, &stack_k);
-    rk = i + sret_shift;
-    if (kind == 0) {
-      if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, rk, 0) != 0)
+    int32_t psz = glue_func_param_agg_byte_size_c(arena, mod, func_index, i);
+    int32_t home_w = glue_func_param_home_width_c(arena, mod, func_index, i);
+    int32_t is_f64 = glue_func_param_is_f64_c(arena, mod, func_index, i);
+    int32_t is_f32 = glue_func_param_is_f32_c(arena, mod, func_index, i);
+    if (is_f32) {
+      if (xmm < 8) {
+        if (is_f64) {
+          if (backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx, xmm, 0) != 0)
+            return -1;
+          if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off, 0) != 0)
+            return -1;
+        } else {
+          if (backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx, xmm, 0) != 0)
+            return -1;
+          if (backend_enc_store_eax_to_rbp_arch(elf_ctx, off, 0) != 0)
+            return -1;
+        }
+        xmm++;
+      } else {
+        if (backend_enc_load_rbp_pos_to_rax_arch(elf_ctx, stack_pos, 0) != 0)
+          return -1;
+        if (is_f64) {
+          if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off, 0) != 0)
+            return -1;
+        } else if (backend_enc_store_eax_to_rbp_arch(elf_ctx, off, 0) != 0) {
+          return -1;
+        }
+        stack_pos += 8;
+      }
+    } else if (psz > 16) {
+      /**
+       * MEMORY by-value: copy nbytes from [rbp+stack_pos] into home.
+       * Slot convention: home off is byte0; byte8 at off-8 (downward).
+       */
+      int32_t nbytes = (psz + 7) & ~7;
+      for (k = 0; k < nbytes; k += 8) {
+        if (backend_enc_load_rbp_pos_to_rax_arch(elf_ctx, stack_pos + k, 0) != 0)
+          return -1;
+        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off - k, 0) != 0)
+          return -1;
+      }
+      stack_pos += nbytes;
+    } else if (gp < 6) {
+      if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, gp, 0) != 0)
         return -1;
       if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off, 0) != 0)
         return -1;
-    } else if (kind == 1) {
-      /** xmm 槽不受 hidden rdi 影响（integer reg 占 rdi 时 xmm 仍从 xmm0 起）。
-       * f32: movd→eax + 32-bit store; f64: movq→rax + 64-bit store.
-       * PLATFORM: LINUX+MACOS x86_64 SysV. */
-      if (glue_func_param_is_f64_c(arena, mod, func_index, i)) {
-        if (backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx, reg_k, 0) != 0)
-          return -1;
-        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off, 0) != 0)
-          return -1;
-      } else {
-        if (backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx, reg_k, 0) != 0)
-          return -1;
-        if (backend_enc_store_eax_to_rbp_arch(elf_ctx, off, 0) != 0)
-          return -1;
-      }
+      gp++;
     } else {
-      if (backend_enc_load_rbp_pos_to_rax_arch(elf_ctx, 16 + (rk - 6) * 8, 0) != 0)
+      if (backend_enc_load_rbp_pos_to_rax_arch(elf_ctx, stack_pos, 0) != 0)
         return -1;
-      if (glue_func_param_is_f64_c(arena, mod, func_index, i)) {
-        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off, 0) != 0)
-          return -1;
-      } else if (glue_func_param_is_f32_c(arena, mod, func_index, i) &&
-                 !glue_func_param_is_f64_c(arena, mod, func_index, i)) {
-        /* f32 only (is_f32 now includes f64; exclude f64 for 32-bit store). */
-        if (backend_enc_store_eax_to_rbp_arch(elf_ctx, off, 0) != 0)
-          return -1;
-      } else if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off, 0) != 0) {
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off, 0) != 0)
         return -1;
-      }
+      stack_pos += 8;
     }
+    off += home_w;
   }
   return 0;
 }
@@ -16861,35 +16959,59 @@ int32_t pipeline_asm_emit_param_home_elf_c(struct platform_elf_ElfCodegenCtx *el
     return 0;
   if (ta == 0 && pipeline_asm_abi_f32_xmm_enabled_c() != 0)
     return pipeline_asm_emit_param_home_elf_sysv_f32_xmm_c(elf_ctx, ctx, mod, func_index, np);
-  reg_max = (ta == 0) ? 6 : 8;
-  {
-    int32_t sret_shift = (ta == 0 && g_pipeline_asm_func_sret_active) ? 1 : 0;
+  /** Legacy SysV (f32 xmm off) / arm64: still honor MEMORY by-value on x86. */
+  if (ta == 0) {
+    struct ast_ASTArena *arena = g_pipeline_asm_emit_arena;
+    int32_t gp = g_pipeline_asm_func_sret_active ? 1 : 0;
+    int32_t stack_pos = 16;
+    int32_t home = 16;
+    int32_t k;
+    if (!arena)
+      return -1;
     for (i = 0; i < np; i++) {
-      int32_t rk;
-      off = 16 + i * 8; /* [rbp-8]=saved rbx; params from 16 */
-      rk = i + sret_shift;
-      if (rk < reg_max) {
-        if (ta == 1) {
-          if (backend_enc_store_x_reg_to_rbp_arch(elf_ctx, rk, off, ta) != 0)
+      int32_t psz = glue_func_param_agg_byte_size_c(arena, mod, func_index, i);
+      int32_t home_w = glue_func_param_home_width_c(arena, mod, func_index, i);
+      if (psz > 16) {
+        int32_t nbytes = (psz + 7) & ~7;
+        for (k = 0; k < nbytes; k += 8) {
+          if (backend_enc_load_rbp_pos_to_rax_arch(elf_ctx, stack_pos + k, 0) != 0)
             return -1;
-        } else if (ta == 0) {
-          if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, rk, ta) != 0)
-            return -1;
-          if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off, ta) != 0)
+          if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home - k, 0) != 0)
             return -1;
         }
-      } else if (ta == 1) {
+        stack_pos += nbytes;
+      } else if (gp < 6) {
+        if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, gp, 0) != 0)
+          return -1;
+        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, 0) != 0)
+          return -1;
+        gp++;
+      } else {
+        if (backend_enc_load_rbp_pos_to_rax_arch(elf_ctx, stack_pos, 0) != 0)
+          return -1;
+        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, 0) != 0)
+          return -1;
+        stack_pos += 8;
+      }
+      home += home_w;
+    }
+    return 0;
+  }
+  reg_max = 8; /* arm64 */
+  {
+    int32_t sret_shift = 0;
+    for (i = 0; i < np; i++) {
+      int32_t rk;
+      off = 16 + i * 8;
+      rk = i + sret_shift;
+      if (rk < reg_max) {
+        if (backend_enc_store_x_reg_to_rbp_arch(elf_ctx, rk, off, ta) != 0)
+          return -1;
+      } else {
         if (backend_enc_load_x29_pos_to_rax_arch(elf_ctx, 16 + (rk - reg_max) * 8, ta) != 0)
           return -1;
         if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off, ta) != 0)
           return -1;
-      } else if (ta == 0) {
-        if (backend_enc_load_rbp_pos_to_rax_arch(elf_ctx, 16 + (rk - reg_max) * 8, ta) != 0)
-          return -1;
-        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off, ta) != 0)
-          return -1;
-      } else {
-        return -1;
       }
     }
   }
