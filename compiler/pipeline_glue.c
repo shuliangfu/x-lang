@@ -24908,13 +24908,21 @@ int32_t pipeline_asm_call_struct16_ret_needs_rax_deref_c(struct ast_ASTArena *ar
   return asm_skip_heavy_module_func_body(mod, arena, fi) != 0 ? 1 : 0;
 }
 
-/** CALL emit：查 callee 第 param_index 个形参 type_ref（import dep + 按名回落）。 */
+/**
+ * CALL emit: callee param type_ref at index, always in *caller* arena.
+ * PLATFORM: SHARED — import dep param type_refs live in dep arenas; using them with
+ * caller-arena kind_ord is garbage (hides f32/f64 → SysV xmm misclassified as GP).
+ * Authority: map via get_dep_return / dep_return_type_to_caller; never return raw dep ref.
+ * G.7: single authority for import param types (removes need for std_math_* name gates).
+ */
 int32_t pipeline_asm_call_param_type_ref_at_c(struct ast_ASTArena *arena, int32_t call_expr_ref,
                                               int32_t param_index) {
   struct ast_Module *mod;
   int32_t func_ix;
   int32_t dep_ix;
   int32_t pty;
+  struct ast_ASTArena *dep_arena;
+  int32_t mapped;
 
   if (!arena || call_expr_ref <= 0 || param_index < 0)
     return 0;
@@ -24925,12 +24933,49 @@ int32_t pipeline_asm_call_param_type_ref_at_c(struct ast_ASTArena *arena, int32_
   pty = pipeline_module_func_param_type_ref_at(mod, func_ix, param_index);
   if (pty <= 0)
     return 0;
-  /** dep 形参 type_ref 须映到 caller arena，否则 kind ord 查不到 f32。 */
-  if (dep_ix >= 0 && mod != g_pipeline_asm_emit_module && g_pipeline_asm_emit_dep_pipe) {
-    int32_t mapped = pipeline_typeck_get_dep_return_type_in_caller_arena_c(dep_ix, pty, arena,
-                                                                           g_pipeline_asm_emit_dep_pipe);
-    if (mapped > 0)
-      return mapped;
+
+  /* Entry-module callee: type_ref already in caller/entry arena. */
+  if (mod == g_pipeline_asm_emit_module && dep_ix < 0)
+    return pty;
+
+  /* Dep callee: map into caller arena (primitives f32/f64/i32… + named/ptr/slice). */
+  if (g_pipeline_asm_emit_dep_pipe) {
+    if (dep_ix >= 0) {
+      mapped = pipeline_typeck_get_dep_return_type_in_caller_arena_c(dep_ix, pty, arena,
+                                                                     g_pipeline_asm_emit_dep_pipe);
+      if (mapped > 0)
+        return mapped;
+      dep_arena = pipeline_dep_ctx_arena_at(g_pipeline_asm_emit_dep_pipe, dep_ix);
+      if (!dep_arena)
+        dep_arena = pipeline_get_dep_arena_slot(dep_ix);
+      if (dep_arena) {
+        mapped = pipeline_typeck_dep_return_type_to_caller_arena_c(dep_arena, pty, arena);
+        if (mapped > 0)
+          return mapped;
+      }
+    } else if (mod != g_pipeline_asm_emit_module) {
+      /* Resolve found dep module but dep_ix missing: locate arena by module pointer. */
+      int32_t i;
+      int32_t ndep = pipeline_dep_ctx_ndep(g_pipeline_asm_emit_dep_pipe);
+      for (i = 0; i < ndep; i++) {
+        if (pipeline_dep_ctx_module_at(g_pipeline_asm_emit_dep_pipe, i) != mod)
+          continue;
+        mapped = pipeline_typeck_get_dep_return_type_in_caller_arena_c(i, pty, arena,
+                                                                       g_pipeline_asm_emit_dep_pipe);
+        if (mapped > 0)
+          return mapped;
+        dep_arena = pipeline_dep_ctx_arena_at(g_pipeline_asm_emit_dep_pipe, i);
+        if (dep_arena) {
+          mapped = pipeline_typeck_dep_return_type_to_caller_arena_c(dep_arena, pty, arena);
+          if (mapped > 0)
+            return mapped;
+        }
+        break;
+      }
+    }
+    /* Never hand a dep type_ref to caller-arena consumers. */
+    if (mod != g_pipeline_asm_emit_module)
+      return 0;
   }
   return pty;
 }
