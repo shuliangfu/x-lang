@@ -6124,6 +6124,7 @@ extern int32_t preprocess_x_buf(uint8_t *source_buf, ptrdiff_t source_len, uint8
 extern uint8_t *driver_dep_arena_buf(int32_t i);
 extern uint8_t *driver_dep_module_buf(int32_t i);
 extern int32_t driver_dep_seeded_get(int32_t i);
+extern const char *driver_dep_path_registry_at(int32_t i);
 extern int32_t driver_dep_slot_for_path(uint8_t *path);
 extern int32_t parser_copy_module_import_path64(struct ast_Module *module, int32_t i, uint8_t out[64]);
 
@@ -6585,10 +6586,32 @@ int32_t pipeline_load_and_sync_direct_import_deps_c(struct ast_Module *module, s
      * PLATFORM: SHARED — Cap force run-net + run-io-driver 双端。
      */
     if (cur_ndep > n_imports) {
+      /*
+       * Keep BFS slot order (no entry-index re-pin). Rebind module/arena from
+       * driver_dep publish slots by BFS index — same order as collect/pre-parse.
+       * PLATFORM: SHARED — pure static pctx_seed may use a divergent set_module
+       * (layout drift) so module_at returns NULL even after seed; bind via this
+       * TU's pipeline_dep_ctx_set_module (paired with module_at, G.7).
+       */
       if (getenv("SHUX_DEBUG_PIPE"))
         fprintf(stderr,
-                "shux: [SHUX_DEBUG_PIPE] keep closure seed ndep=%d (entry imports=%d); skip entry-index re-pin\n",
+                "shux: [SHUX_DEBUG_PIPE] keep closure seed ndep=%d (entry imports=%d); rebind from driver slots\n",
                 (int)cur_ndep, (int)n_imports);
+      for (i = 0; i < cur_ndep; i++) {
+        const char *reg_path = NULL;
+        int32_t pl = 0;
+        if (driver_dep_seeded_get(i) == 0)
+          continue;
+        pipeline_dep_ctx_set_module(ctx, i, (struct ast_Module *)driver_dep_module_buf(i));
+        pipeline_dep_ctx_set_arena(ctx, i, (struct ast_ASTArena *)driver_dep_arena_buf(i));
+        reg_path = driver_dep_path_registry_at(i);
+        if (reg_path && reg_path[0]) {
+          while (pl < 63 && reg_path[pl] != 0)
+            pl = pl + 1;
+          if (pl > 0)
+            pipeline_dep_ctx_set_import_path(ctx, i, (uint8_t *)reg_path, pl);
+        }
+      }
     } else {
       /* ndep already set (entry-indexed or equal): re-pin paths from entry imports. */
       for (i = 0; i < n_imports; i++) {
