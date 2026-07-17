@@ -6528,33 +6528,49 @@ int32_t pipeline_load_and_sync_direct_import_deps_c(struct ast_Module *module, s
    * driver 传递闭包 seed：按 entry import 路径 bind 全局槽后直接返回。
    * 须在 realign 之前：realign 会把 ndep(9) 清零，导致 typeck 找不到 encoding.utf8_*（ec=-5）。
    */
-  if (n_imports > 0) {
-    int32_t bound_any = 0;
+  /*
+   * PLATFORM: SHARED — process every entry import: seed-bind or disk-load, always
+   * pin path. Old early-return on bound_any skipped unseeded imports and left stale
+   * paths (parser M1: slot holding ast layouts labeled path=lexer).
+   */
+  pipeline_dep_ctx_realign_ndep_for_entry_c(module, ctx);
+  if (pipeline_dep_ctx_ndep(ctx) == 0 && n_imports > 0) {
     for (i = 0; i < n_imports; i++) {
+      int32_t pl = 0;
       memset(path_buf, 0, sizeof(path_buf));
       (void)parser_copy_module_import_path64(module, i, path_buf);
+      while (pl < 64 && path_buf[pl] != 0)
+        pl = pl + 1;
+      if (pl > 0)
+        pipeline_dep_ctx_set_import_path(ctx, i, path_buf, pl);
       if (pipeline_try_bind_seeded_import(ctx, i, driver_dep_slot_for_path(path_buf)) != 0)
-        bound_any = 1;
+        continue;
+      rc = pipeline_load_import_from_disk_c(module, arena, ctx, i);
+      if (rc != 0)
+        return rc;
     }
-    if (bound_any) {
-      pipeline_dep_ctx_set_ndep(ctx, n_imports);
-      return 0;
-    }
-  }
-  pipeline_dep_ctx_realign_ndep_for_entry_c(module, ctx);
-  if (pipeline_dep_ctx_ndep(ctx) == 0) {
-    if (n_imports > 0) {
-      for (i = 0; i < n_imports; i++) {
-        memset(path_buf, 0, sizeof(path_buf));
-        (void)parser_copy_module_import_path64(module, i, path_buf);
-        if (pipeline_try_bind_seeded_import(ctx, i, driver_dep_slot_for_path(path_buf)) != 0)
-          continue;
+    pipeline_dep_ctx_set_ndep(ctx, n_imports);
+  } else if (n_imports > 0) {
+    /* ndep already set (closure seed): still re-pin paths from entry imports. */
+    for (i = 0; i < n_imports; i++) {
+      int32_t pl = 0;
+      memset(path_buf, 0, sizeof(path_buf));
+      (void)parser_copy_module_import_path64(module, i, path_buf);
+      while (pl < 64 && path_buf[pl] != 0)
+        pl = pl + 1;
+      if (pl > 0)
+        pipeline_dep_ctx_set_import_path(ctx, i, path_buf, pl);
+      if (pipeline_try_bind_seeded_import(ctx, i, driver_dep_slot_for_path(path_buf)) != 0)
+        continue;
+      /* Unseeded under pre-set ndep: load into this slot. */
+      if (pipeline_dep_ctx_module_at(ctx, i) == NULL) {
         rc = pipeline_load_import_from_disk_c(module, arena, ctx, i);
         if (rc != 0)
           return rc;
       }
-      pipeline_dep_ctx_set_ndep(ctx, n_imports);
     }
+    if (pipeline_dep_ctx_ndep(ctx) < n_imports)
+      pipeline_dep_ctx_set_ndep(ctx, n_imports);
   }
   sync_rc = pipeline_sync_dep_slots_from_driver_c(module, ctx);
   if (sync_rc != 0)

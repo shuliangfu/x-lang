@@ -19518,6 +19518,16 @@ int32_t pipeline_load_import_from_disk_impl_c(struct ast_Module *module, struct 
     return -8;
   if (pipeline_preprocess_loaded_into_ctx(ctx) != 0)
     return -9;
+  /*
+   * PLATFORM: SHARED — pin import path on the same slot we parse into.
+   * Why: path was only written later in sync_one_dep_slot / fill_dep; if seed
+   * partially binds or sync is skipped, dep slots keep a stale path (parser M1:
+   * ast layouts registered under path=lexer → path de-dupe suppresses struct
+   * ast_* full emit → dual-extern incomplete tags). Authority = the path used
+   * to resolve/read this import_idx.
+   */
+  if (path_len > 0)
+    pipeline_dep_ctx_set_import_path(ctx, import_idx, path_buf, path_len);
   pipeline_bind_import_dep_buffers(ctx, import_idx);
   dep_arena = pipeline_dep_ctx_arena_at(ctx, import_idx);
   dep_module = pipeline_dep_ctx_module_at(ctx, import_idx);
