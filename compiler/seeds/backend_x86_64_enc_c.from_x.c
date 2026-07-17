@@ -234,12 +234,18 @@ int32_t x86_enc_alu_imm32_to_reg(struct platform_elf_ElfCodegenCtx *elf_ctx, int
 #endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
 
+/*
+ * 【Why 根源】push/pop %rbx：body 用 rbx 作 array/const 基址却未保存，破坏 SysV 被调方保存；
+ *   args_iter_count_c 覆写 next 保存在 rbx 的 it → run-env env_iter Ubuntu exit 1。
+ * PLATFORM: SHARED x86_64 SysV. Seed 与 arch/x86_64_enc.x 同语义。
+ */
 int32_t arch_x86_64_enc_enc_prologue(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t frame_size) {
   uint8_t mov[3] = {72, 137, 229};
   uint8_t sub[7] = {72, 129, 236, 0, 0, 0, 0};
   if (!elf_ctx) return -1;
-  if (x86_enc_u8(elf_ctx, 85) != 0) return -1;
-  if (X86_ENC_FIXED(elf_ctx, mov) != 0) return -1;
+  if (x86_enc_u8(elf_ctx, 85) != 0) return -1; /* push rbp */
+  if (X86_ENC_FIXED(elf_ctx, mov) != 0) return -1; /* mov rbp, rsp */
+  if (x86_enc_u8(elf_ctx, 83) != 0) return -1; /* push rbx (callee-saved) */
   sub[3] = (uint8_t)(frame_size & 255);
   sub[4] = (uint8_t)((frame_size >> 8) & 255);
   sub[5] = (uint8_t)((frame_size >> 16) & 255);
@@ -248,11 +254,12 @@ int32_t arch_x86_64_enc_enc_prologue(struct platform_elf_ElfCodegenCtx *elf_ctx,
 }
 
 int32_t arch_x86_64_enc_enc_epilogue(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  uint8_t mov[3] = {72, 137, 236};
+  uint8_t lea[4] = {72, 141, 101, 248}; /* lea rsp, [rbp-8] */
   if (!elf_ctx) return -1;
-  if (X86_ENC_FIXED(elf_ctx, mov) != 0) return -1;
-  if (x86_enc_u8(elf_ctx, 93) != 0) return -1;
-  return x86_enc_u8(elf_ctx, 195);
+  if (X86_ENC_FIXED(elf_ctx, lea) != 0) return -1;
+  if (x86_enc_u8(elf_ctx, 91) != 0) return -1; /* pop rbx */
+  if (x86_enc_u8(elf_ctx, 93) != 0) return -1; /* pop rbp */
+  return x86_enc_u8(elf_ctx, 195); /* ret */
 }
 
 int32_t arch_x86_64_enc_enc_label(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len, int32_t is_func) {

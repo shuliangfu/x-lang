@@ -42,11 +42,22 @@ export function enc_u32_le(ctx: *ElfCodegenCtx, imm: i64): i32 {
   return elf.append_elf_bytes(ctx, buf, 4);
 }
 
-/** 函数入口：pushq %rbp; movq %rsp, %rbp; subq $frame_size, %rsp。 */
+/**
+ * 函数入口：pushq %rbp; movq %rsp, %rbp; pushq %rbx; subq $frame_size, %rsp。
+ *
+ * 【Why 根源】array/const 字节初始化等路径用 rbx 作基址却未 push/pop，
+ *   破坏 SysV 被调方保存约定；std_env_args_iter_next 在 rbx 中保存 it 指针后
+ *   调 args_iter_count_c，count 体覆写 rbx → 索引变垃圾 → run-env env_iter
+ *   在 Ubuntu 上 exit 1（args_iter_next 恒 null）。
+ * 【Invariant】epilogue 必须 pop rbx（lea rsp,[rbp-8]; pop rbx; pop rbp; ret）。
+ * PLATFORM: SHARED — Linux/macOS x86_64 SysV.
+ */
 export function enc_prologue(ctx: *ElfCodegenCtx, frame_size: i32): i32 {
   if (enc_u8(ctx, 85) != 0) { return -1; }
   let mov: u8[3] = [72, 137, 229];
   if (elf.append_elf_bytes(ctx, mov, 3) != 0) { return -1; }
+  /* pushq %rbx — callee-saved; body may use rbx as store base. */
+  if (enc_u8(ctx, 83) != 0) { return -1; }
   let sub: u8[7] = [72, 129, 236, 0, 0, 0, 0];
   sub[3] = elf.elf_to_u8(frame_size);
   sub[4] = elf.elf_to_u8(frame_size >> 8);
@@ -55,10 +66,15 @@ export function enc_prologue(ctx: *ElfCodegenCtx, frame_size: i32): i32 {
   return elf.append_elf_bytes(ctx, sub, 7);
 }
 
-/** 函数出口：movq %rbp, %rsp; popq %rbp; ret（与 prologue 的 mov %rsp,%rbp 对称）。 */
+/**
+ * 函数出口：lea rsp,[rbp-8]; popq %rbx; popq %rbp; ret。
+ * 与 enc_prologue 的 push rbx 对称（不可 mov rsp,rbp 后直接 pop rbp，会跳过 rbx 恢复）。
+ */
 export function enc_epilogue(ctx: *ElfCodegenCtx): i32 {
-  let mov: u8[3] = [72, 137, 236];
-  if (elf.append_elf_bytes(ctx, mov, 3) != 0) { return -1; }
+  /* lea rsp, [rbp-8] → 48 8d 65 f8 */
+  let lea: u8[4] = [72, 141, 101, 248];
+  if (elf.append_elf_bytes(ctx, lea, 4) != 0) { return -1; }
+  if (enc_u8(ctx, 91) != 0) { return -1; }
   if (enc_u8(ctx, 93) != 0) { return -1; }
   return enc_u8(ctx, 195);
 }
