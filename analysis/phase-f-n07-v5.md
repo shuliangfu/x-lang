@@ -22,11 +22,14 @@ SHUX_NOLIBC_N07_V5_TRY_BUILD=1 SHUX_NOLIBC_N07_V5_FAIL=1 ./tests/run-nolibc-n07-
 
 ## 实现锚点
 
-- `compiler/scripts/build_shux_asm.sh`：`bootstrap_wants_nostdlib()` v5 默认逻辑
+- **`compiler/scripts/bootstrap_nostdlib_shared.sh`**（G.7 权威）：`bootstrap_wants_nostdlib()` v5 默认 + freestanding/stubs/weak atoi
+- `compiler/scripts/build_shux_asm.sh`：crt0 / experimental / strict 链 tail **source shared**
+- `compiler/scripts/g05_relink_env.sh` + `g05_ensure_relink_prereqs.sh`：产品默认 g05 链 **source shared**
 - `compiler/seeds/bootstrap_nostdlib_stubs.from_x.c`：POSIX/libc 最小桩（持续扩展）
 - `compiler/src/asm/freestanding_io_x86_64.s`：syscall 门面
 - **L9（2026-07-17 · `3f96d290`）**：`ensure_crt0_backend_companion_objs` 补 experimental 同源 seed-support  
   （`asm_backend_compat_stubs` / `x_seed_bridge` / `seed_link_compat` / `asm_full_link_stubs`，**仅 CRT0_ASM bag 缺的**；弱 `atoi`）
+- **L10（2026-07-17 · `4c736d57`）**：g05 / strict / experimental 链尾对齐 shared nostdlib（去隐式 `-lc` / 硬编码 `-lpthread -lm -lc`）
 
 ## 2026-07-17 硬绿记录（Ubuntu · tip `3f96d290`）
 
@@ -37,5 +40,14 @@ SHUX_NOLIBC_N07_V5_TRY_BUILD=1 SHUX_NOLIBC_N07_V5_FAIL=1 ./tests/run-nolibc-n07-
 | crt0 | ✅ `bootstrap nostdlib crt0 link OK` · multi=0 · UNDEF=0 |
 | ldd | ✅ **无 `libc.so`**（static） |
 | 矩阵 | ✅ rv=42 · opt=102 · si=0 · hello=0 |
-| 范围 | **`build_shux_asm` crt0 路径**；g05/strict 链尾 residual 另项 |
+| 范围 | 当时 **`build_shux_asm` crt0 路径**；g05 链尾 residual → **L10 关** |
+
+## 2026-07-17 L10 硬绿（Ubuntu · tip `4c736d57`）
+
+| 项 | 结果 |
+|----|------|
+| 根修 | `bootstrap_nostdlib_shared.sh` + g05 env/ensure + strict/experimental tail |
+| 日志 | g05 `/tmp/ubuntu_n07_l10_g05_4c736d57.log` · matrix `/tmp/ubuntu_n07_l10_matrix_4c736d57.log` |
+| g05 | ✅ 60 objs · **static** · `ldd` 无 `libc.so` |
+| 矩阵 | ✅ rv=42 · opt=102 · si=0 · hello=0 |
 

@@ -13,6 +13,8 @@ FAIL=${SHUX_NOLIBC_N07_V5_FAIL:-0}
 DOC="analysis/phase-f-n07-v5.md"
 MANIFEST="tests/baseline/nolibc-n07-v5.tsv"
 BUILD_ASM="compiler/scripts/build_shux_asm.sh"
+# G.7 / NL-07 L10: wants_nostdlib + ALLOW_LIBC live in shared authority (g05 + crt0).
+NOSTDLIB_SHARED="compiler/scripts/bootstrap_nostdlib_shared.sh"
 SHUX_ASM="compiler/shux_asm"
 
 die() {
@@ -26,8 +28,11 @@ echo "=== NL-07 v5: bootstrap nostdlib hard green ==="
 grep -q 'NL-07 v5' "$DOC" || die "doc missing NL-07 v5 marker"
 [ -f "$MANIFEST" ] || die "missing $MANIFEST"
 [ -f "$BUILD_ASM" ] || die "missing $BUILD_ASM"
+[ -f "$NOSTDLIB_SHARED" ] || die "missing $NOSTDLIB_SHARED"
 grep -q 'NL-07 v5' "$BUILD_ASM" || die "build_shux_asm missing NL-07 v5 marker"
-grep -q 'SHUX_BOOTSTRAP_ALLOW_LIBC' "$BUILD_ASM" || die "missing SHUX_BOOTSTRAP_ALLOW_LIBC escape"
+grep -q 'bootstrap_nostdlib_shared.sh' "$BUILD_ASM" || die "build_shux_asm must source shared nostdlib authority"
+grep -q 'SHUX_BOOTSTRAP_ALLOW_LIBC' "$NOSTDLIB_SHARED" || die "missing SHUX_BOOTSTRAP_ALLOW_LIBC escape in shared"
+grep -q 'NL-07 v5: Linux x86_64 defaults to nostdlib' "$NOSTDLIB_SHARED" || die "shared missing default-nostdlib v5 policy"
 
 while IFS=$'\t' read -r item_id category anchor check_type notes; do
   [ -z "${item_id:-}" ] && continue

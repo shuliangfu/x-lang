@@ -17,7 +17,7 @@
 |------|------|--------------------|
 | **L0 语义自举** | 产品 `shux_asm` 冷编译自己 + 全量 bstrict | 双端 tip 已绿（钉盘见 `自举进度.md`） |
 | **L1 用户零 libc** | 用户 `.x` 经产品路径出 **nostdlib、无 `-lc`** 的静态可执行文件（Linux x86_64） | **NL-05 等 gate ✅**；std 首批发 NL-06 🟡 |
-| **L2 编译器 / bootstrap 零 libc** | `shux_asm` 自身无动态 `libc.so`、crt0 bag nostdlib **无 UNDEF** | **`build_shux_asm` crt0 路径 ✅** NL-07 **L1–L9** + v5 gate @ `3f96d290`（static · ldd 无 libc · 矩阵绿）；**g05/strict 链尾**仍可能 `-lc` residual |
+| **L2 编译器 / bootstrap 零 libc** | `shux_asm` 自身无动态 `libc.so`、crt0 bag nostdlib **无 UNDEF** | **crt0 + 产品 g05 ✅** NL-07 **L1–L10** @ `4c736d57`（static · ldd 无 libc · 矩阵绿；G.7 权威 `bootstrap_nostdlib_shared.sh`） |
 
 「实现无 libc」= **L1 + L2 都硬绿**。L0 绿 **不能** 单独写成「无 libc 已完成」。
 
@@ -58,7 +58,7 @@
 
 | 区域 | 现状 |
 |------|------|
-| 产品编译器二进制 | Ubuntu 默认 g05 产品链 historically 仍可能动态依赖 libc；**目标** = 静态/无 `libc.so`（NL-07 / G-03） |
+| 产品编译器二进制 | Ubuntu **产品 g05 + crt0** @ `4c736d57` 已 **static / 无 `libc.so`**（NL-07 L10）；逃生舱仅 `SHUX_BOOTSTRAP_ALLOW_LIBC=1` |
 | compiler runtime / seed | 大量 `malloc` / `stdio` / `snprintf` / 读文件缓冲等 **契约债** → 须迁门面或 nostdlib 桩，**禁止**新增裸 libc 脐带 |
 | `labi_invoke_ld` 等 | 链接参数表仍可能出现 `-lc` 的 hosted 遗留 → 按需审计，默认产品向零 libc 收敛 |
 | std 默认入口叙事 | 部分模块仍有 `heap.libc` / `fs.posix` **实现**；产品策略上 Linux 金标 **优先** page_mmap / freestanding_linux / `std.sys`，**不**再规划「开 `--libc` 选 libc 后端」 |
@@ -66,7 +66,7 @@
 
 ### 1.6 一句话
 
-> **底座骨架在（L1 + NL-07 分层推进）；L2 编译器零 libc 未硬绿。**  
+> **底座骨架在；L2 编译器零 libc（产品 g05 + crt0）已硬绿 @ NL-07 L10。**  
 > **产品策略已定为零 libc，不是「先自举完再决定要不要无 libc」。**
 
 ---
