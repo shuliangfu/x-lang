@@ -605,6 +605,7 @@ struct ast_ASTArena {
 #define codegen_codegen_field_access_base_type_resolved codegen_field_access_base_type_resolved
 #define codegen_codegen_field_access_base_is_pointer_param codegen_field_access_base_is_pointer_param
 #define codegen_codegen_field_access_base_is_pointer_local codegen_field_access_base_is_pointer_local
+#define codegen_codegen_emit_call_arg_slice_abi codegen_emit_call_arg_slice_abi
 #define codegen_codegen_field_access_base_param_type_known codegen_field_access_base_param_type_known
 #define codegen_codegen_field_access_base_is_slice_param_name codegen_field_access_base_is_slice_param_name
 #define codegen_codegen_block_stmt_order_has_let codegen_block_stmt_order_has_let
@@ -1457,6 +1458,7 @@ extern int32_t codegen_try_emit_std_io_driver_buf_body(struct codegen_CodegenOut
 extern int32_t codegen_field_access_base_is_pointer_ref(struct ast_ASTArena * arena, int32_t base_ref);
 extern int32_t codegen_field_access_base_type_resolved(struct ast_ASTArena * arena, int32_t base_ref);
 extern int32_t codegen_field_access_base_is_pointer_param(struct ast_ASTArena * arena, int32_t base_ref, struct ast_Module * mod, int32_t func_index);
+extern int32_t codegen_emit_call_arg_slice_abi(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t arg_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t codegen_field_access_base_is_pointer_local(struct ast_ASTArena * arena, int32_t base_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t codegen_field_access_base_param_type_known(struct ast_ASTArena * arena, int32_t base_ref, struct ast_Module * mod, int32_t func_index);
 extern int32_t codegen_field_access_base_is_slice_param_name(struct ast_ASTArena * arena, int32_t base_ref);
@@ -3072,6 +3074,117 @@ int32_t codegen_field_access_base_type_resolved(struct ast_ASTArena * arena, int
     return 0;
   }
   return 1;
+}
+/* PLATFORM: SHARED — call-arg slice ABI: TYPE_SLICE params are pointers (seed/glue).
+ * Locals stay by-value → pass &(local); slice params already pointers → pass through.
+ * Authority mirror of codegen.x emit_call_arg_slice_abi; only call/method arg positions. */
+int32_t codegen_emit_call_arg_slice_abi(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t arg_ref, struct ast_PipelineDepCtx * ctx) {
+  {
+    struct ast_Expr arg;
+    int32_t need_addr = 0;
+    if (ast_ref_is_null(arg_ref)) {
+      return codegen_append_byte(out, 48);
+    }
+    arg = ast_ast_arena_expr_get(arena, arg_ref);
+    /* EXPR_ADDR_OF=51 — already an address expression */
+    if (((arg.kind) ==51)) {
+      return codegen_emit_expr(arena, out, arg_ref, ctx);
+    }
+    /* Slice param of current function → C pointer; do not add &. */
+    if ((((ctx !=((struct ast_PipelineDepCtx *)(0))) && ((ctx->current_codegen_module) !=((struct ast_Module *)(0)))) && ((ctx->current_func_index) >=0))) {
+      if ((codegen_field_access_base_is_pointer_param(arena, arg_ref, (ctx->current_codegen_module), (ctx->current_func_index)) !=0)) {
+        int32_t is_slice_param = 0;
+        if ((((arg.kind) ==3) && ((arg.var_name_len) > 0))) {
+          struct ast_Module * mod = (ctx->current_codegen_module);
+          int32_t fi = (ctx->current_func_index);
+          int32_t np = pipeline_module_func_num_params_at(mod, fi);
+          int32_t pi = 0;
+          while ((pi < np)) {
+            int32_t p_name_len = pipeline_module_func_param_name_len_at(mod, fi, pi);
+            if (((p_name_len > 0) && (p_name_len ==(arg.var_name_len)))) {
+              uint8_t pname_buf[32] = {};
+              (void)(pipeline_module_func_param_name_copy32(mod, fi, pi, &((pname_buf)[0])));
+              int matched = 1;
+              int32_t j = 0;
+              while (((j < p_name_len) && (j < 32))) {
+                if (((pname_buf)[j] !=((arg.var_name))[j])) {
+                  (void)((matched = 0));
+                  break;
+                }
+                (void)((j = (j + 1)));
+              }
+              if (matched) {
+                int32_t param_ty_ref = pipeline_module_func_param_type_ref_at(mod, fi, pi);
+                if ((pipeline_type_kind_ord_at(arena, param_ty_ref) ==11)) {
+                  (void)((is_slice_param = 1));
+                }
+              }
+            }
+            (void)((pi = (pi + 1)));
+          }
+        }
+        if ((is_slice_param !=0)) {
+          return codegen_emit_expr(arena, out, arg_ref, ctx);
+        }
+      }
+    }
+    /* Local / rvalue TYPE_SLICE → &(arg) for pointer param ABI. */
+    if (((!(ast_ref_is_null((arg.resolved_type_ref))) && ((arg.resolved_type_ref) > 0)) && ((arg.resolved_type_ref) <=(arena->num_types)))) {
+      struct ast_Type aty = ast_ast_arena_type_get(arena, (arg.resolved_type_ref));
+      if (((aty.kind) ==11)) {
+        (void)((need_addr = 1));
+      }
+    }
+    if ((((need_addr ==0) && ((arg.kind) ==3)) && (ctx !=((struct ast_PipelineDepCtx *)(0))))) {
+      if ((codegen_field_access_base_is_pointer_local(arena, arg_ref, ctx) ==0)) {
+        int32_t br = 0;
+        if ((((ctx->current_codegen_module) !=((struct ast_Module *)(0))) && ((ctx->current_func_index) >=0))) {
+          (void)((br = pipeline_module_func_body_ref_at((ctx->current_codegen_module), (ctx->current_func_index))));
+        }
+        if (((ast_ref_is_null(br) || (br <=0)) || (br > (arena->num_blocks)))) {
+          (void)((br = (ctx->current_block_ref)));
+        }
+        if (((!(ast_ref_is_null(br)) && (br > 0)) && (br <=(arena->num_blocks)))) {
+          int32_t nlets = ast_ast_block_num_lets(arena, br);
+          int32_t li = 0;
+          while ((li < nlets)) {
+            int32_t nl = pipeline_block_let_name_len(arena, br, li);
+            if (((nl ==(arg.var_name_len)) && (nl > 0))) {
+              uint8_t nb[64] = {};
+              (void)(pipeline_block_let_name_copy64(arena, br, li, &((nb)[0])));
+              int eq = 1;
+              int32_t j2 = 0;
+              while (((j2 < nl) && (j2 < 64))) {
+                if (((nb)[j2] !=((arg.var_name))[j2])) {
+                  (void)((eq = 0));
+                  break;
+                }
+                (void)((j2 = (j2 + 1)));
+              }
+              if (eq) {
+                int32_t tr = pipeline_block_let_type_ref(arena, br, li);
+                if ((pipeline_type_kind_ord_at(arena, tr) ==11)) {
+                  (void)((need_addr = 1));
+                }
+              }
+            }
+            (void)((li = (li + 1)));
+          }
+        }
+      }
+    }
+    if ((need_addr !=0)) {
+      uint8_t pre[3] = {38, 40, 0};
+      if ((codegen_emit_bytes_3(out, pre, 2) !=0)) {
+        return -(1);
+      }
+      if ((codegen_emit_expr(arena, out, arg_ref, ctx) !=0)) {
+        return -(1);
+      }
+      return codegen_append_byte(out, 41);
+    }
+    return codegen_emit_expr(arena, out, arg_ref, ctx);
+  }
 }
 int32_t codegen_field_access_base_is_pointer_param(struct ast_ASTArena * arena, int32_t base_ref, struct ast_Module * mod, int32_t func_index) {
   {
@@ -5920,7 +6033,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
                 return -(1);
               }
             } else {
-              if ((codegen_emit_expr(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, ai_q), ctx) !=0)) {
+              if ((codegen_emit_call_arg_slice_abi(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, ai_q), ctx) !=0)) {
                 return -(1);
               }
             }
@@ -6016,7 +6129,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
                   return -(1);
                 }
               } else {
-                if ((codegen_emit_expr(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, ai_fast), ctx) !=0)) {
+                if ((codegen_emit_call_arg_slice_abi(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, ai_fast), ctx) !=0)) {
                   return -(1);
                 }
               }
@@ -6139,7 +6252,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
                         return -(1);
                       }
                     } else {
-                      if ((codegen_emit_expr(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, ai), ctx) !=0)) {
+                      if ((codegen_emit_call_arg_slice_abi(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, ai), ctx) !=0)) {
                         return -(1);
                       }
                     }
@@ -6211,7 +6324,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
                           return -(1);
                         }
                       } else {
-                        if ((codegen_emit_expr(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, ai), ctx) !=0)) {
+                        if ((codegen_emit_call_arg_slice_abi(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, ai), ctx) !=0)) {
                           return -(1);
                         }
                       }
@@ -6345,7 +6458,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
                           return -(1);
                         }
                       } else {
-                        if ((codegen_emit_expr(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, arg_idx_dep), ctx) !=0)) {
+                        if ((codegen_emit_call_arg_slice_abi(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, arg_idx_dep), ctx) !=0)) {
                           return -(1);
                         }
                       }
@@ -6396,7 +6509,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
                 return -(1);
               }
             } else {
-              if ((codegen_emit_expr(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, ai), ctx) !=0)) {
+              if ((codegen_emit_call_arg_slice_abi(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, ai), ctx) !=0)) {
                 return -(1);
               }
             }
@@ -6489,7 +6602,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
                         return -(1);
                       }
                     } else {
-                      if ((codegen_emit_expr(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, arg_idx_cur), ctx) !=0)) {
+                      if ((codegen_emit_call_arg_slice_abi(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, arg_idx_cur), ctx) !=0)) {
                         return -(1);
                       }
                     }
@@ -6529,25 +6642,25 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
             if ((codegen_emit_bytes_3(out, open, 2) !=0)) {
               return -(1);
             }
-            if ((codegen_emit_expr(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, 0), ctx) !=0)) {
+            if ((codegen_emit_call_arg_slice_abi(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, 0), ctx) !=0)) {
               return -(1);
             }
             if ((codegen_emit_bytes_from_ptr(out, &((mid1)[0]), 9) !=0)) {
               return -(1);
             }
-            if ((codegen_emit_expr(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, 0), ctx) !=0)) {
+            if ((codegen_emit_call_arg_slice_abi(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, 0), ctx) !=0)) {
               return -(1);
             }
             if ((codegen_emit_bytes_from_ptr(out, &((mid2)[0]), 13) !=0)) {
               return -(1);
             }
-            if ((codegen_emit_expr(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, 0), ctx) !=0)) {
+            if ((codegen_emit_call_arg_slice_abi(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, 0), ctx) !=0)) {
               return -(1);
             }
             if ((codegen_emit_bytes_8(out, mid3, 7) !=0)) {
               return -(1);
             }
-            if ((codegen_emit_expr(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, 1), ctx) !=0)) {
+            if ((codegen_emit_call_arg_slice_abi(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, 1), ctx) !=0)) {
               return -(1);
             }
             if ((codegen_append_byte(out, 41) !=0)) {
@@ -6623,7 +6736,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
             return -(1);
           }
         } else {
-          if ((codegen_emit_expr(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, arg_idx), ctx) !=0)) {
+          if ((codegen_emit_call_arg_slice_abi(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, arg_idx), ctx) !=0)) {
             return -(1);
           }
         }
