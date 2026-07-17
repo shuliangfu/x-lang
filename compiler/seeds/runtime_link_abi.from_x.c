@@ -5624,6 +5624,19 @@ int link_abi_user_o_needs_heap_user_syms(const char *user_o) {
     if ((shux_link_obj_needs_undef_sym(user_o, "heap_arena64_alloc_c") !=0)) {
       return 1;
     }
+    /*
+     * PLATFORM: SHARED — with_arena asm emit calls heap_arena_init_c / heap_arena64_deinit_c
+     * (pipeline_glue with_arena elf). G.7 complete existing heap_user probe authority.
+     */
+    if ((shux_link_obj_needs_undef_sym(user_o, "heap_arena_init_c") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "heap_arena64_deinit_c") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "heap_arena64_init_c") !=0)) {
+      return 1;
+    }
     return 0;
   }
  }));
@@ -6381,9 +6394,17 @@ static int labi_std_fk0_user_needs_rel(const char *user_o, const char *rel) {
         return 0;
     if (!user_o || !user_o[0])
         return 1; /* 无 user 信息时保守保留旧行为 */
+    /* PLATFORM: SHARED — complete string surface (overload mangles + common APIs). */
     if (strstr(rel, "std/string/string.o"))
         return shux_link_obj_needs_undef_sym(user_o, "std_string_string_empty")
             || shux_link_obj_needs_undef_sym(user_o, "std_string_new")
+            || shux_link_obj_needs_undef_sym(user_o, "std_string_len_String")
+            || shux_link_obj_needs_undef_sym(user_o, "std_string_len_StrView")
+            || shux_link_obj_needs_undef_sym(user_o, "std_string_is_empty_String")
+            || shux_link_obj_needs_undef_sym(user_o, "std_string_is_empty_StrView")
+            || shux_link_obj_needs_undef_sym(user_o, "std_string_view")
+            || shux_link_obj_needs_undef_sym(user_o, "std_string_string_from_slice")
+            || shux_link_obj_needs_undef_sym(user_o, "std_string_string_eq")
             || shux_link_obj_needs_undef_sym(user_o, "shux_string_memcmp_c")
             || shux_link_obj_needs_undef_sym(user_o, "shux_string_memmem_c");
     if (strstr(rel, "std/encoding/encoding.o"))
@@ -6953,19 +6974,38 @@ void shux_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char *
      * 完全依赖 co-emit 提供的 freestanding-safe 子集。
      */
     if (!driver_freestanding_get()) {
-        if (link_abi_user_o_needs_std_sys_linux(user_o)
-            || link_abi_user_o_needs_std_heap_page_mmap(user_o)
-            || link_abi_user_o_needs_std_sys(user_o)) {
+        int need_page_mmap = link_abi_user_o_needs_std_heap_page_mmap(user_o);
+        int need_sys_linux = link_abi_user_o_needs_std_sys_linux(user_o);
+        int need_sys = link_abi_user_o_needs_std_sys(user_o);
+        int ai;
+        /*
+         * PLATFORM: SHARED / LINUX gold — formal heap.o carries U page_mmap_* even when
+         * user.o only has std_string_* / std_heap_* API UNDEFs. Scan already-pushed argv
+         * (heap.o from on_demand above) so string/wa chain gets page_mmap.o.
+         * G.7: extend existing page_mmap probe authority (no second path).
+         */
+        if (argv && la) {
+            for (ai = 0; ai < *la && argv[ai]; ai++) {
+                if (!link_abi_ld_argv_entry_is_obj(argv[ai]))
+                    continue;
+                if (link_abi_user_o_needs_std_heap_page_mmap(argv[ai]))
+                    need_page_mmap = 1;
+                if (link_abi_user_o_needs_std_sys_linux(argv[ai]))
+                    need_sys_linux = 1;
+                if (link_abi_user_o_needs_std_sys(argv[ai]))
+                    need_sys = 1;
+            }
+        }
+        if (need_sys_linux || need_page_mmap || need_sys) {
             link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_sys_linux(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
         }
-        if (link_abi_user_o_needs_std_heap_page_mmap(user_o)
-            || link_abi_user_o_needs_std_sys(user_o)) {
+        if (need_page_mmap || need_sys) {
             link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_core_mem(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
         }
-        if (link_abi_user_o_needs_std_heap_page_mmap(user_o)) {
+        if (need_page_mmap) {
             link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_page_mmap(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
         }
-        if (link_abi_user_o_needs_std_sys(user_o)) {
+        if (need_sys) {
             link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_sys(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
         }
     }
@@ -7046,6 +7086,32 @@ void shux_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char *
          * PLATFORM: SHARED — Ubuntu asm si residual after ELF UNDEF scan.
          */
         if (pushed_core_formal) {
+            (void)shux_ensure_runtime_process_argv_o(link_argv0);
+            link_abi_asm_ld_push_obj(shux_runtime_process_argv_o_path(link_argv0), link_argv0,
+                "compiler/runtime_process_argv.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+        }
+    }
+    /*
+     * PLATFORM: SHARED — string/heap/vec/mem formal .o carry preamble weak process_arg*_c
+     * → U process_shux_*. fk0 string push does not set have_math/sync flags, so the std_objs
+     * process_argv complement never fired (Ubuntu string_asm residual).
+     * G.7: complete existing process_argv complement by scanning argv after on_demand.
+     */
+    if (argv && la) {
+        int need_pav = 0;
+        int ai;
+        int have_process_o = 0;
+        for (ai = 0; ai < *la && argv[ai]; ai++) {
+            const char *e = argv[ai];
+            if (!link_abi_ld_argv_entry_is_obj(e))
+                continue;
+            if (strstr(e, "process.o") && !strstr(e, "process_argv"))
+                have_process_o = 1;
+            if (shux_link_obj_needs_undef_sym(e, "process_shux_argc_get")
+                || shux_link_obj_needs_undef_sym(e, "process_shux_argv_get"))
+                need_pav = 1;
+        }
+        if (need_pav && !have_process_o) {
             (void)shux_ensure_runtime_process_argv_o(link_argv0);
             link_abi_asm_ld_push_obj(shux_runtime_process_argv_o_path(link_argv0), link_argv0,
                 "compiler/runtime_process_argv.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);

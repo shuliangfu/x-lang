@@ -109,9 +109,11 @@ static void backend_call_debugf(const char *fmt, ...) {
 
 extern const char *driver_get_current_dep_path_for_codegen(void);
 extern int32_t pipeline_expr_call_resolved_dep_index_at(struct ast_ASTArena *a, int32_t expr_ref);
+extern int32_t pipeline_expr_call_resolved_func_index_at(struct ast_ASTArena *a, int32_t expr_ref);
 extern void pipeline_dep_ctx_import_path_copy64(struct ast_PipelineDepCtx *ctx, int32_t idx, uint8_t *dst);
 extern int32_t pipeline_dep_ctx_ndep(struct ast_PipelineDepCtx *ctx);
 extern struct ast_Module *pipeline_dep_ctx_module_at(struct ast_PipelineDepCtx *ctx, int32_t j);
+extern struct ast_ASTArena *pipeline_dep_ctx_arena_at(struct ast_PipelineDepCtx *ctx, int32_t j);
 extern int32_t pipeline_module_num_funcs(struct ast_Module *m);
 extern int32_t pipeline_module_func_name_equal_at(struct ast_Module *m, int32_t fi, uint8_t *name, int32_t name_len);
 extern int32_t pipeline_asm_module_func_is_extern_at(struct ast_Module *m, int32_t fi);
@@ -119,7 +121,9 @@ extern int32_t pipeline_asm_module_func_name_len_at(struct ast_Module *m, int32_
 extern void pipeline_asm_module_func_name_copy64(struct ast_Module *m, int32_t func_index, uint8_t *dst);
 extern int32_t pipeline_module_func_num_params_at(struct ast_Module *m, int32_t func_idx);
 extern int32_t pipeline_module_func_param_type_ref_at(struct ast_Module *m, int32_t fi, int32_t pi);
+extern int32_t pipeline_module_func_return_type_at(struct ast_Module *m, int32_t fi);
 extern int32_t pipeline_type_elem_ref_at(struct ast_ASTArena *arena, int32_t type_ref);
+extern int32_t pipeline_type_named_name_into(struct ast_ASTArena *arena, int32_t type_ref, uint8_t *out64);
 
 struct ast_ASTArena;
 struct ast_Module;
@@ -946,8 +950,99 @@ int32_t glue_type_kind_to_suffix_c(int32_t kind_ord, uint8_t *out, int32_t out_c
 }
 #endif
 
+/**
+ * PLATFORM: SHARED — type_ref → overload mangle suffix (align codegen_type_ref_to_suffix).
+ * PTR: elem suffix + "_ptr"; NAMED: type name ('.'→'_'); scalars: glue_type_kind_to_suffix.
+ * Authority for asm call/export symbols that must match formal std .o (len_String, Vec_u8_ptr).
+ */
+static int32_t glue_asm_type_ref_to_suffix_c(struct ast_ASTArena *a, int32_t type_ref, uint8_t *out,
+                                            int32_t out_cap) {
+  int32_t tk;
+  int32_t n;
+  int32_t si;
+  if (!a || type_ref <= 0 || !out || out_cap <= 0)
+    return 0;
+  tk = pipeline_type_kind_ord_at(a, type_ref);
+  /* TYPE_PTR = 9 */
+  if (tk == 9) {
+    int32_t elem = pipeline_type_elem_ref_at(a, type_ref);
+    n = glue_asm_type_ref_to_suffix_c(a, elem, out, out_cap);
+    if (n > 0 && n + 4 < out_cap) {
+      out[n] = (uint8_t)'_';
+      out[n + 1] = (uint8_t)'p';
+      out[n + 2] = (uint8_t)'t';
+      out[n + 3] = (uint8_t)'r';
+      return n + 4;
+    }
+    return n;
+  }
+  /* TYPE_NAMED = 8 */
+  if (tk == 8) {
+    n = pipeline_type_named_name_into(a, type_ref, out);
+    for (si = 0; si < n && si < out_cap; si++) {
+      if (out[si] == (uint8_t)'.')
+        out[si] = (uint8_t)'_';
+    }
+    if (n > 0 && n < out_cap)
+      return n;
+    return 0;
+  }
+  return glue_type_kind_to_suffix_c(tk, out, out_cap);
+}
 
-
+/** Count overloads that share the same param-type suffix signature as func_ix (for _ret_ mangle). */
+static int32_t glue_asm_overload_param_sig_count_c(struct ast_ASTArena *a, struct ast_Module *m, int32_t func_ix) {
+  uint8_t fname[64];
+  int32_t fname_len;
+  int32_t np0;
+  int32_t i;
+  int32_t c;
+  if (!a || !m || func_ix < 0)
+    return 0;
+  fname_len = pipeline_asm_module_func_name_len_at(m, func_ix);
+  if (fname_len <= 0 || fname_len > 63)
+    return 0;
+  pipeline_asm_module_func_name_copy64(m, func_ix, fname);
+  np0 = pipeline_module_func_num_params_at(m, func_ix);
+  c = 0;
+  for (i = 0; i < pipeline_module_num_funcs(m); i++) {
+    int32_t npi;
+    int32_t pi;
+    int32_t same;
+    if (pipeline_asm_module_func_is_extern_at(m, i) != 0)
+      continue;
+    if (!pipeline_module_func_name_equal_at(m, i, fname, fname_len))
+      continue;
+    npi = pipeline_module_func_num_params_at(m, i);
+    if (npi != np0)
+      continue;
+    same = 1;
+    for (pi = 0; pi < np0; pi++) {
+      uint8_t sa[64];
+      uint8_t sb[64];
+      int32_t na;
+      int32_t nb;
+      int32_t k;
+      na = glue_asm_type_ref_to_suffix_c(a, pipeline_module_func_param_type_ref_at(m, func_ix, pi), sa, 64);
+      nb = glue_asm_type_ref_to_suffix_c(a, pipeline_module_func_param_type_ref_at(m, i, pi), sb, 64);
+      if (na != nb) {
+        same = 0;
+        break;
+      }
+      for (k = 0; k < na; k++) {
+        if (sa[k] != sb[k]) {
+          same = 0;
+          break;
+        }
+      }
+      if (!same)
+        break;
+    }
+    if (same)
+      c++;
+  }
+  return c;
+}
 
 /** 统计模块内同名函数个数（>1 时 emit/call 须 mangled 符号）。 */
 /* G-02f-134：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
@@ -1018,6 +1113,8 @@ int32_t glue_asm_append_export_c_suffix(uint8_t *sym, int32_t sym_len, int32_t c
 
 /**
  * 函数定义/ CALL 导出符号：无 overload 时用裸名+dep 前缀；有 overload 时用 name_t1_t2（如 pick_i32）。
+ * PLATFORM: SHARED — G.7 complete authority: named/ptr suffixes + _ret_ when param-sig collides
+ * (align codegen_emit_func_link_name). string.len → len_String; vec.new → new_retVec_u8.
  */
 /* G-02f-144：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-374 call：实现体始终 seed；public PREFER 时 thin forward */
@@ -1029,9 +1126,9 @@ int32_t glue_asm_build_func_export_sym_c_impl(struct ast_Module *m, struct ast_A
   int32_t np;
   int32_t pi;
   int32_t pty;
-  int32_t pk;
   int32_t sl;
-  uint8_t suf[16];
+  int32_t sig_count;
+  uint8_t suf[64];
   if (!m || !a || func_ix < 0 || !out || out_cap <= 0)
     return -1;
   fname_len = pipeline_asm_module_func_name_len_at(m, func_ix);
@@ -1054,28 +1151,31 @@ int32_t glue_asm_build_func_export_sym_c_impl(struct ast_Module *m, struct ast_A
     pty = pipeline_module_func_param_type_ref_at(m, func_ix, pi);
     if (pty <= 0)
       continue;
-    pk = pipeline_type_kind_ord_at(a, pty);
-    if (pk == 9) {
-      int32_t elem = pipeline_type_elem_ref_at(a, pty);
-      if (elem > 0)
-        pk = pipeline_type_kind_ord_at(a, elem);
-      if (pos < out_cap - 1)
-        out[pos++] = (uint8_t)'_';
-      if (pos < out_cap - 4) {
-        out[pos++] = (uint8_t)'p';
-        out[pos++] = (uint8_t)'t';
-        out[pos++] = (uint8_t)'r';
-      }
-    }
+    sl = glue_asm_type_ref_to_suffix_c(a, pty, suf, 64);
+    if (sl <= 0)
+      continue;
     if (pos < out_cap - 1)
       out[pos++] = (uint8_t)'_';
-    sl = glue_type_kind_to_suffix_c(pk, suf, 16);
-    if (sl <= 0)
-      sl = glue_type_kind_to_suffix_c(0, suf, 16);
     if (pos + sl >= out_cap)
       return -1;
     memcpy(out + pos, suf, (size_t)sl);
     pos += sl;
+  }
+  /* Same param-sig overloads: append _ret_<T> (e.g. new_retVec_u8). */
+  sig_count = glue_asm_overload_param_sig_count_c(a, m, func_ix);
+  if (sig_count > 1) {
+    int32_t ret_ref = pipeline_module_func_return_type_at(m, func_ix);
+    int32_t rsl = glue_asm_type_ref_to_suffix_c(a, ret_ref, suf, 64);
+    if (rsl > 0) {
+      if (pos + 4 + rsl >= out_cap)
+        return -1;
+      out[pos++] = (uint8_t)'_';
+      out[pos++] = (uint8_t)'r';
+      out[pos++] = (uint8_t)'e';
+      out[pos++] = (uint8_t)'t';
+      memcpy(out + pos, suf, (size_t)rsl);
+      pos += rsl;
+    }
   }
   if (glue_asm_std_c_wrapper_fname_needs_export_c_suffix(fname, fname_len))
     pos = glue_asm_append_export_c_suffix(out, pos, out_cap);
@@ -2004,13 +2104,27 @@ int32_t glue_asm_try_emit_fmt_string_lit_import_call_elf_c(struct ast_ASTArena *
 
 
 extern int32_t pipeline_expr_resolved_type_ref(struct ast_ASTArena *a, int32_t expr_ref);
-extern int32_t pipeline_asm_call_return_type_kind_ord_c(struct ast_ASTArena *arena, int32_t call_expr_ref);
 extern int32_t pipeline_expr_call_arg_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t idx);
+
+/**
+ * PLATFORM: SHARED — call return TypeKind for SSE harvest.
+ * Prefer call expr resolved_type (typeck). Weak full helper may live in pipeline_glue_standalone
+ * (not always on g05 product link); keep authority in this TU for product g05.
+ */
+static int32_t glue_asm_call_return_type_kind_ord_c(struct ast_ASTArena *arena, int32_t call_expr_ref) {
+  int32_t rty;
+  if (!arena || call_expr_ref <= 0)
+    return -1;
+  rty = pipeline_expr_resolved_type_ref(arena, call_expr_ref);
+  if (rty > 0)
+    return pipeline_type_kind_ord_at(arena, rty);
+  return -1;
+}
 
 /**
  * PLATFORM: LINUX+MACOS x86_64 SysV — after CALL, harvest f32/f64 return from xmm0 into eax/rax.
  * Internal asm value convention keeps scalar float bits in GPR; C/libm returns in xmm0.
- * Authority: pipeline_asm_call_return_type_kind_ord_c (resolved_type or callee ret type).
+ * Authority: glue_asm_call_return_type_kind_ord_c (resolved_type).
  */
 static int32_t glue_asm_harvest_sse_call_ret_to_gpr_c(struct ast_ASTArena *arena,
                                                       struct platform_elf_ElfCodegenCtx *elf_ctx,
@@ -2018,7 +2132,7 @@ static int32_t glue_asm_harvest_sse_call_ret_to_gpr_c(struct ast_ASTArena *arena
   int32_t kind;
   if (ta != 0 || !arena || !elf_ctx || call_expr_ref <= 0)
     return 0;
-  kind = pipeline_asm_call_return_type_kind_ord_c(arena, call_expr_ref);
+  kind = glue_asm_call_return_type_kind_ord_c(arena, call_expr_ref);
   if (kind == 14)
     return backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx, 0, ta);
   if (kind == 15 || kind < 0)
@@ -2153,7 +2267,66 @@ int32_t pipeline_asm_emit_call_elf_c_impl(struct ast_ASTArena *arena, struct pla
               pre_len = glue_asm_fill_c_prefix_from_module_import(mod_ref, j, pre_buf);
               if (pre_len <= 0)
                 return -1;
-              sym_len = glue_asm_build_import_binding_call_sym(pre_buf, pre_len, field_name, field_len, sym_flat);
+              /*
+               * PLATFORM: SHARED — trust typeck call_resolved for overload mangle.
+               * Bare prefix+field → std_string_len misses formal std_string_len_String;
+               * same for vec.new → new_retVec_u8. Align C codegen_emit_call_func_name.
+               */
+              {
+                int32_t r_func = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
+                int32_t r_dep = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
+                struct ast_PipelineDepCtx *dp =
+                    ly && ly->dep_pipe ? (struct ast_PipelineDepCtx *)ly->dep_pipe : 0;
+                uint8_t mangled[64];
+                int32_t mlen = -1;
+                if (r_func >= 0 && dp) {
+                  struct ast_Module *res_mod = 0;
+                  struct ast_ASTArena *res_arena = arena;
+                  if (r_dep >= 0 && r_dep < pipeline_dep_ctx_ndep(dp)) {
+                    res_mod = pipeline_dep_ctx_module_at(dp, r_dep);
+                    if (pipeline_dep_ctx_arena_at(dp, r_dep))
+                      res_arena = pipeline_dep_ctx_arena_at(dp, r_dep);
+                  } else if (r_dep < 0) {
+                    /* Binding import index often equals dep index when typeck omitted dep. */
+                    if (j >= 0 && j < pipeline_dep_ctx_ndep(dp)) {
+                      res_mod = pipeline_dep_ctx_module_at(dp, j);
+                      if (pipeline_dep_ctx_arena_at(dp, j))
+                        res_arena = pipeline_dep_ctx_arena_at(dp, j);
+                    }
+                  }
+                  if (res_mod && r_func < pipeline_module_num_funcs(res_mod)) {
+                    mlen = glue_asm_build_func_export_sym_c(res_mod, res_arena, r_func, mangled, 64);
+                    /* Drop accidental dep-path prefix: re-prefix with import binding. */
+                    if (mlen > 0) {
+                      int32_t bare_off = 0;
+                      /* If mangled already starts with import prefix, use as-is. */
+                      if (mlen >= pre_len && memcmp(mangled, pre_buf, (size_t)pre_len) == 0) {
+                        if (mlen < 64) {
+                          memcpy(sym_flat, mangled, (size_t)mlen);
+                          sym_len = mlen;
+                        } else {
+                          mlen = -1;
+                        }
+                      } else {
+                        /* Prefer bare fname_suffix: strip leading path if present by scanning last. */
+                        bare_off = 0;
+                        if (pre_len > 0 && mlen > pre_len) {
+                          /* when current_dep empty, mangled is bare overload name */
+                          bare_off = 0;
+                        }
+                        sym_len = glue_asm_build_import_binding_call_sym(
+                            pre_buf, pre_len, mangled + bare_off, mlen - bare_off, sym_flat);
+                        if (sym_len <= 0)
+                          mlen = -1;
+                      }
+                    }
+                  }
+                }
+                if (mlen <= 0) {
+                  sym_len = glue_asm_build_import_binding_call_sym(pre_buf, pre_len, field_name, field_len,
+                                                                  sym_flat);
+                }
+              }
               if (sym_len <= 0)
                 return -1;
               {
