@@ -2098,7 +2098,11 @@ __attribute__((weak)) int32_t pipeline_typeck_check_expr_match_c(struct ast_Modu
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-219：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-/* W-heap-overload：须为 strong，覆盖 pipeline_filtered 内旧 METHOD_CALL 分派（仅 arity 取首）。 */
+/*
+ * W-heap-overload: strong override for METHOD_CALL (must win over weak pipeline_glue body).
+ * PLATFORM: SHARED — import index ≠ dep slot when closure seed has ndep > n_imports;
+ * always path-resolve via pipeline_typeck_resolve_dep_index_for_import_c.
+ */
 int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module,
                                                                        struct ast_ASTArena *arena, int32_t expr_ref,
                                                                        int32_t return_type_ref,
@@ -2111,6 +2115,7 @@ int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module,
   int32_t base_nlen;
   int32_t method_nlen;
   int32_t dep_ix;
+  int32_t dep_slot;
   int32_t func_ix;
   int32_t import_ret_ty;
   int32_t import_kind;
@@ -2121,6 +2126,8 @@ int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module,
   int32_t num_args;
   int32_t arg_i;
   struct ast_Module *dm;
+  extern int32_t pipeline_typeck_resolve_dep_index_for_import_c(struct ast_Module *module,
+                                                                struct ast_PipelineDepCtx *ctx, int32_t imp_ix);
   if (!module || !arena || expr_ref <= 0)
     return 0;
   pipeline_expr_init_call_resolve_at_ref(arena, expr_ref);
@@ -2164,14 +2171,18 @@ int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module,
           continue;
         if (!pipeline_typeck_import_binding_name_equal_strict_minimal(module, ii, base_nm, base_nlen))
           continue;
-        dm = pipeline_dep_ctx_module_at(ctx, ii);
+        /* Path-match dep slot; never treat entry import index as dep index. */
+        dep_slot = pipeline_typeck_resolve_dep_index_for_import_c(module, ctx, ii);
+        if (dep_slot < 0)
+          break;
+        dm = pipeline_dep_ctx_module_at(ctx, dep_slot);
         if (!dm)
           break;
-        /* W-heap-overload：METHOD_CALL 带实参类型分派（heap.alloc(usize) ≠ 首个 alloc(i32)）。 */
+        /* W-heap-overload: METHOD_CALL by arg types (sort(*u8) ≠ first sort(*i32)). */
         import_ret_ty = pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
-            dm, arena, method_nm, method_nlen, ii, num_args, expr_ref, 1, ctx, &func_ix);
+            dm, arena, method_nm, method_nlen, dep_slot, num_args, expr_ref, 1, ctx, &func_ix);
         if (import_ret_ty > 0) {
-          dep_ix = ii;
+          dep_ix = dep_slot;
           break;
         }
         break;

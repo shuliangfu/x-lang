@@ -22379,9 +22379,13 @@ static int32_t pipeline_typeck_module_num_imports_c(struct ast_Module *module) {
   return module->num_imports;
 }
 
-/** 将 entry module 的 import 槽位按路径映射到 dep ctx 槽位。 */
-static int32_t pipeline_typeck_resolve_dep_index_for_import_c(struct ast_Module *module,
-                                                              struct ast_PipelineDepCtx *ctx, int32_t imp_ix) {
+/**
+ * Map entry-module import slot → dep ctx slot by import path.
+ * PLATFORM: SHARED — closure seed may order deps differently from entry import
+ * index (ndep > n_imports). Callers must use this; never use imp_ix as dep index.
+ */
+int32_t pipeline_typeck_resolve_dep_index_for_import_c(struct ast_Module *module,
+                                                       struct ast_PipelineDepCtx *ctx, int32_t imp_ix) {
   uint8_t imp_path[64];
   int32_t plen;
   int32_t n_imp;
@@ -25544,11 +25548,16 @@ static int32_t glue_slice_equal_c(const uint8_t *a, int32_t alen, const uint8_t 
 }
 
 /**
- * EXPR_METHOD_CALL：检查 base/实参并解析方法返回类型（trait/impl skip 时 i32.double→i32 fallback）。
+ * EXPR_METHOD_CALL: typecheck base/args, resolve import.method via path-matched dep
+ * slot + W-heap-overload (call_strict_minimal). Never use entry import index as dep index.
+ * PLATFORM: SHARED — weak so pipeline_glue_strict_minimal strong definition wins when linked;
+ * this body remains correct if it is the sole definition (Ubuntu first-T link order).
  */
-int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module, struct ast_ASTArena *arena,
-                                                 int32_t expr_ref, int32_t return_type_ref,
-                                                 struct ast_PipelineDepCtx *ctx) {
+__attribute__((weak)) int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module,
+                                                                       struct ast_ASTArena *arena,
+                                                                       int32_t expr_ref,
+                                                                       int32_t return_type_ref,
+                                                                       struct ast_PipelineDepCtx *ctx) {
   int32_t base_ref;
   int32_t base_rc;
   int32_t base_ty;
@@ -25562,6 +25571,11 @@ int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module, stru
   int32_t ord_var = (int32_t)ast_ExprKind_EXPR_VAR;
   extern int32_t typeck_check_expr(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
                                    int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
+  /* Authority for overload pick (seed): same as strict_minimal product path. */
+  extern int32_t pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
+      struct ast_Module *mod, struct ast_ASTArena *caller_arena, uint8_t *name, int32_t name_len,
+      int32_t from_dep_index, int32_t want_arity, int32_t call_expr_ref, int32_t is_method,
+      struct ast_PipelineDepCtx *ctx, int32_t *func_index_out);
 
   if (!module || !arena || expr_ref <= 0)
     return 0;
@@ -25574,6 +25588,15 @@ int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module, stru
   if (method_nlen <= 0 || method_nlen > 63)
     return -1;
   pipeline_expr_method_call_name_into(arena, expr_ref, method_nm);
+  /* Args must be typed before overload scoring (PTR elem match needs resolved *T). */
+  num_args = pipeline_expr_method_call_num_args_at(arena, expr_ref);
+  arg_i = 0;
+  while (arg_i < num_args) {
+    int32_t arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, arg_i);
+    if (typeck_check_expr(module, arena, arg_ref, return_type_ref, ctx) != 0)
+      return -1;
+    arg_i = arg_i + 1;
+  }
   if (getenv("SHUX_DEBUG_PIPE")) {
     fprintf(stderr,
             "shux: [SHUX_DEBUG_PIPE] method_call expr=%d base=%d base_kind=%d base_rc=%d base_ty=%d method=%.*s\n",
@@ -25650,8 +25673,9 @@ int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module, stru
           }
           if (dm) {
             int32_t bind_fn = 0;
-            ret_ty = pipeline_typeck_find_func_return_type_in_module_by_name_c(
-                dm, arena, method_nm, method_nlen, dep_slot, ctx, &bind_fn);
+            /* Overload by arg types (not first same-name). Authority: call_strict_minimal. */
+            ret_ty = pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
+                dm, arena, method_nm, method_nlen, dep_slot, num_args, expr_ref, 1, ctx, &bind_fn);
             if (getenv("SHUX_DEBUG_PIPE"))
               fprintf(stderr,
                       "shux: [SHUX_DEBUG_PIPE] method_call binding_ret idx=%d dep_slot=%d ret_ty=%d bind_fn=%d\n",
@@ -25660,17 +25684,19 @@ int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module, stru
               pipeline_typeck_expr_apply_call_resolve_c(arena, expr_ref, dep_slot, bind_fn);
               break;
             }
-            /* Fallback: dep_slot path/module misalignment; search all dep slots for function. */
+            /* Fallback: path/module misalignment; search other dep slots with same overload pick. */
             {
               int32_t try_di;
               int32_t nd = pipeline_dep_ctx_ndep(ctx);
               for (try_di = 0; try_di < nd && ret_ty == 0; try_di++) {
-                if (try_di == dep_slot) continue;
+                if (try_di == dep_slot)
+                  continue;
                 struct ast_Module *try_dm = pipeline_dep_ctx_module_at(ctx, try_di);
-                if (!try_dm) continue;
+                if (!try_dm)
+                  continue;
                 bind_fn = 0;
-                ret_ty = pipeline_typeck_find_func_return_type_in_module_by_name_c(
-                    try_dm, arena, method_nm, method_nlen, try_di, ctx, &bind_fn);
+                ret_ty = pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
+                    try_dm, arena, method_nm, method_nlen, try_di, num_args, expr_ref, 1, ctx, &bind_fn);
                 if (ret_ty != 0) {
                   dep_slot = try_di;
                   pipeline_typeck_expr_apply_call_resolve_c(arena, expr_ref, dep_slot, bind_fn);
@@ -25678,6 +25704,7 @@ int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module, stru
               }
             }
           }
+          break;
         }
         j = j + 1;
       }
@@ -25692,14 +25719,6 @@ int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module, stru
   }
   if (ret_ty != 0)
     pipeline_expr_set_resolved_type_ref(arena, expr_ref, ret_ty);
-  num_args = pipeline_expr_method_call_num_args_at(arena, expr_ref);
-  arg_i = 0;
-  while (arg_i < num_args) {
-    int32_t arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, arg_i);
-    if (typeck_check_expr(module, arena, arg_ref, return_type_ref, ctx) != 0)
-      return -1;
-    arg_i = arg_i + 1;
-  }
   if (base_rc != 0 && ret_ty == 0)
     return -1;
   return ret_ty != 0 ? 0 : -1;

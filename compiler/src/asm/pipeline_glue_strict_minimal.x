@@ -1973,7 +1973,18 @@ export function pipeline_typeck_check_expr_field_access_c(module: *u8, arena: *u
   return 0;
 }
 
-// G-02f-219：method call（i32.double + import binding 方法）
+/**
+ * METHOD_CALL typeck: i32.double fallback + import.binding methods.
+ * PLATFORM: SHARED — path-resolve dep slot (import index ≠ dep when ndep > n_imports);
+ * overload via call_strict_minimal after args are typed. Product authority is seed C;
+ * this .x stays in sync (G.7).
+ */
+export extern "C" function pipeline_typeck_resolve_dep_index_for_import_c(module: *u8, ctx: *u8, imp_ix: i32): i32;
+export extern "C" function pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
+  mod: *u8, arena: *u8, name: *u8, name_len: i32, from_dep_index: i32, want_arity: i32,
+  call_expr_ref: i32, is_method: i32, ctx: *u8, func_index_out: *i32
+): i32;
+
 #[no_mangle]
 export function pipeline_typeck_check_expr_method_call_c(module: *u8, arena: *u8, expr_ref: i32, return_type_ref: i32, ctx: *u8): i32 {
   if (module == 0) { return 0; }
@@ -2036,20 +2047,25 @@ export function pipeline_typeck_check_expr_method_call_c(module: *u8, arena: *u8
               let import_kind: i32 = pipeline_module_import_kind_at(module, ii);
               if (import_kind == 1) {
                 if (pipeline_typeck_import_binding_name_equal_strict_minimal(module, ii, &base_nm[0], base_nlen) != 0) {
-                  let dm: *u8 = pipeline_dep_ctx_module_at(ctx, ii);
-                  if (dm == 0) {
+                  let dep_slot: i32 = pipeline_typeck_resolve_dep_index_for_import_c(module, ctx, ii);
+                  if (dep_slot < 0) {
                     ii = nimp;
                   } else {
-                    let fout: i32 = 0 - 1;
-                    import_ret_ty = pipeline_typeck_find_func_return_type_in_module_by_name_strict_minimal(
-                      dm, arena, &method_nm[0], method_nlen, ii, num_args, ctx, &fout
-                    );
-                    if (import_ret_ty > 0) {
-                      dep_ix = ii;
-                      func_ix = fout;
+                    let dm: *u8 = pipeline_dep_ctx_module_at(ctx, dep_slot);
+                    if (dm == 0) {
                       ii = nimp;
                     } else {
-                      ii = nimp;
+                      let fout: i32 = 0 - 1;
+                      import_ret_ty = pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
+                        dm, arena, &method_nm[0], method_nlen, dep_slot, num_args, expr_ref, 1, ctx, &fout
+                      );
+                      if (import_ret_ty > 0) {
+                        dep_ix = dep_slot;
+                        func_ix = fout;
+                        ii = nimp;
+                      } else {
+                        ii = nimp;
+                      }
                     }
                   }
                 } else {
