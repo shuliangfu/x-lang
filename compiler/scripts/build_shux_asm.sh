@@ -3136,7 +3136,8 @@ build_nonempty_asm_objs() {
 # NL-07 L1: multi-def topology only. L2: fflush in nostdlib stubs.
 # L3: backend enc/dispatch companions via ensure_crt0_backend_companion_objs.
 # L3b: same ensure appends seed backend_emit_* partial (not full seed .o — multi-def).
-# Residual after L3b: typeck/driver/lsp companions.
+# L4+: typeck/driver/lsp companions via ensure_crt0_typeck_driver_lsp_companion_objs.
+# Residual after L4+: codegen cluster (+ pipeline_impl / strict_minimal leftovers).
 # NL-07 L2: fflush is defined in bootstrap_nostdlib_stubs (not freestanding_io).
 filter_crt0_asm_objs() {
   CRT0_ASM=""
@@ -3169,7 +3170,7 @@ filter_crt0_asm_objs() {
 # Why not full seed .o: T backend_asm_codegen_ast{,_to_elf} multi-def with
 # build_asm/backend_asm_strict_fallback_alias.o already in the crt0 bag.
 # Why not second stub TU: same seed symbols experimental/strict already use.
-# Residual after L3b: typeck/driver/lsp companions (later layer).
+# Residual after L3b closed by L4+ typeck/driver/lsp companions.
 ensure_crt0_backend_emit_seed_partial_obj() {
   local seed_o="$BUILD_DIR/seed_host/asm_backend_partial.o"
   local partial="$BUILD_DIR/crt0_backend_emit_seed_partial.o"
@@ -3207,14 +3208,102 @@ ensure_crt0_backend_emit_seed_partial_obj() {
   return 0
 }
 
-# PLATFORM: LINUX — NL-07 L3 + L3b: crt0 link must include backend enc/dispatch
-# companions (BSTRICT_DISPATCH_OBJS + simd_*) and seed backend_emit_* partial.
+# PLATFORM: LINUX — NL-07 L4+: typeck / driver / lsp companions into crt0 bag.
+# Who produces UNDEF (L3b residual head): asm_experimental_symbol_bridge + pipeline_glue
+# reference driver_run_compiler_full / driver_cmd_* / driver_diagnostic_* / typeck_* /
+# lsp_io_* / lsp_diag_* — those live outside the historic build_asm/*.o bulk bag.
+# Authority (G.7): same objects experimental already links — NOT a second stub table.
+#   · runtime_driver_{abi,diagnostic,asm_strict} · runtime_{pipeline,link,io}_abi · diag
+#   · driver_{fmt,check,test,run,build,compile,emit}_x.o · target_cpu
+#   · lsp_{x,io,io_std_heap}_x.o · lsp_diag seed stubs · rt_* seed slices
+#   · typeck_x.o ONLY when bag typeck.o is not selfhosted (thin stub); full bag typeck
+#     already defines residual typeck_* (dual typeck_x would multi-def).
+# Forbidden: full experimental line (parser_x/codegen_x/x_frontend_link_alias/
+#   strict_glue_stubs multi-def with bag). Residual after L4+: codegen cluster.
+# Sets CRT0_TDL_COMPANIONS (Linux crt0 only).
+ensure_crt0_typeck_driver_lsp_companion_objs() {
+  CRT0_TDL_COMPANIONS=""
+  # Materialize runtime driver stack + rt seed slices (same ensure as experimental).
+  ensure_runtime_driver_asm_strict_obj || true
+  # Driver subcmd X modules (driver_cmd_fmt/check/test/run …).
+  if [ ! -f driver_fmt_x.o ] || [ ! -f driver_compile_x.o ] || [ ! -f driver_run_x.o ]; then
+  ensure_asm_bootstrap_x_companion_objs || true
+  fi
+  # LSP X + seed diag stubs (lsp_main_impl / lsp_io_* / lsp_diag_enabled B).
+  ensure_asm_experimental_lsp_objs || true
+  mkdir -p "$BUILD_DIR/asm_driver_seed"
+  ensure_lsp_diag_seed_obj "$BUILD_DIR/asm_driver_seed" || true
+  _lsp_diag_o=$(lsp_diag_seed_obj_path "$BUILD_DIR/asm_driver_seed")
+  # typeck: bag may be OK-typeck-stub (~11B) during early nostdlib try; full EMIT_HEAVY
+  # typeck.o already provides typeck_check_*/typeck_x_ast* — do not dual-link typeck_x.
+  if ! asm_strict_typeck_selfhosted 2>/dev/null; then
+  if [ -f typeck_x.o ] && [ -s typeck_x.o ]; then
+  CRT0_TDL_COMPANIONS="$CRT0_TDL_COMPANIONS typeck_x.o"
+  build_shux_asm_info "crt0 L4+: typeck bag not selfhosted — append typeck_x.o"
+  fi
+  fi
+  # Runtime / driver / cmd objects — multi-def vs bag checked = 0 (Ubuntu map 2026-07-17).
+  for _tdl in \
+  src/runtime_driver_diagnostic.o \
+  src/runtime_driver_abi.o \
+  src/runtime_pipeline_abi.o \
+  src/runtime_link_abi.o \
+  src/runtime_io_abi.o \
+  src/runtime_driver_asm_strict.o \
+  src/diag.o \
+  src/driver/target_cpu.o \
+  src/runtime/rt_arena_buf.o \
+  src/runtime/rt_emit_state.o \
+  src/runtime/rt_preamble.o \
+  src/runtime/rt_stack.o \
+  src/runtime/rt_parse_diag.o \
+  driver_fmt_x.o \
+  driver_check_x.o \
+  driver_test_x.o \
+  driver_run_x.o \
+  driver_build_x.o \
+  driver_compile_x.o \
+  driver_emit_x.o
+  do
+  if [ -f "$_tdl" ] && [ -s "$_tdl" ]; then
+  CRT0_TDL_COMPANIONS="$CRT0_TDL_COMPANIONS $_tdl"
+  fi
+  done
+  # Prefer root lsp_*_x.o; fall back to gen_driver copies (ensure_asm_experimental_lsp_objs).
+  _lsp_added=0
+  for _tdl in lsp_x.o lsp_io_x.o lsp_io_std_heap_x.o; do
+  if [ -f "$_tdl" ] && [ -s "$_tdl" ]; then
+  CRT0_TDL_COMPANIONS="$CRT0_TDL_COMPANIONS $_tdl"
+  _lsp_added=1
+  fi
+  done
+  if [ "$_lsp_added" -eq 0 ]; then
+  for _tdl in \
+  "$BUILD_DIR/gen_driver/lsp_x.o" \
+  "$BUILD_DIR/gen_driver/lsp_io_x.o" \
+  "$BUILD_DIR/gen_driver/lsp_io_std_heap_x.o"
+  do
+  if [ -f "$_tdl" ] && [ -s "$_tdl" ]; then
+  CRT0_TDL_COMPANIONS="$CRT0_TDL_COMPANIONS $_tdl"
+  fi
+  done
+  fi
+  if [ -n "$_lsp_diag_o" ] && [ -f "$_lsp_diag_o" ] && [ -s "$_lsp_diag_o" ]; then
+  CRT0_TDL_COMPANIONS="$CRT0_TDL_COMPANIONS $_lsp_diag_o"
+  fi
+  build_shux_asm_info "crt0 bag: typeck/driver/lsp companions (NL-07 L4+)=$CRT0_TDL_COMPANIONS"
+}
+
+# PLATFORM: LINUX — NL-07 L3 + L3b + L4+: crt0 link must include backend enc/dispatch
+# companions (BSTRICT_DISPATCH_OBJS + simd_*), seed backend_emit_* partial, and
+# typeck/driver/lsp companions (experimental-homologous).
 # Who produces UNDEF (enc): pipeline/backend build_asm .o reference backend_enc_* /
 # arch_emit / try_inline / simd — dispatch live under src/asm/, never in bag historically.
 # Who produces UNDEF (emit): asm_backend_compat_stubs forwards to backend_emit_*; seed
 # holds weak stubs but was not on the crt0 line (experimental links full seed partial).
+# Who produces UNDEF (tdl): bridge/glue reference driver_*/typeck_*/lsp_* outside bag.
 # Authority (G.7): ensure_bstrict_seed_support_objs + BSTRICT_DISPATCH_OBJS + seed emit
-# partial export — no second stub table. typeck/driver/lsp companions = later layer.
+# partial + ensure_crt0_typeck_driver_lsp_companion_objs — no second stub table.
 # Sets CRT0_BACKEND_COMPANIONS for the crt0 link line (Linux only callers).
 ensure_crt0_backend_companion_objs() {
   CRT0_BACKEND_COMPANIONS=""
@@ -3235,7 +3324,13 @@ ensure_crt0_backend_companion_objs() {
   if ensure_crt0_backend_emit_seed_partial_obj; then
   CRT0_BACKEND_COMPANIONS="$CRT0_BACKEND_COMPANIONS $CRT0_BACKEND_EMIT_PARTIAL"
   fi
-  build_shux_asm_info "crt0 bag: backend companions (NL-07 L3+L3b)=$CRT0_BACKEND_COMPANIONS"
+  # NL-07 L4+: typeck / driver / lsp (experimental-homologous; multi-safe vs bag).
+  CRT0_TDL_COMPANIONS=""
+  ensure_crt0_typeck_driver_lsp_companion_objs
+  if [ -n "${CRT0_TDL_COMPANIONS:-}" ]; then
+  CRT0_BACKEND_COMPANIONS="$CRT0_BACKEND_COMPANIONS $CRT0_TDL_COMPANIONS"
+  fi
+  build_shux_asm_info "crt0 bag: backend+tdl companions (NL-07 L3+L3b+L4+)=$CRT0_BACKEND_COMPANIONS"
 }
 
 # F-06 v1：fs/io/heap 已纯 .x；bootstrap 不再 cc -c std/*.c（符号由 std_fs_shim / runtime_io_abi / lsp_io_std_heap_x 等提供）。
@@ -4515,12 +4610,13 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   elif [ "$(uname -s 2>/dev/null)" = "Linux" ] && [ -f src/asm/crt0_x86_64.o ] && [ -f src/typeck/typeck_f64_bits.o ] && [ -f runtime_panic.o ]; then
   echo " linking shux_asm (crt0 + typeck_f64_bits + runtime_panic + asm*.o, no runtime_driver) ..."
   filter_crt0_asm_objs
-  # NL-07 L3+L3b: append BSTRICT_DISPATCH (+ simd) + seed backend_emit_* partial.
+  # NL-07 L3+L3b+L4+: BSTRICT_DISPATCH (+ simd) + seed backend_emit_* partial + tdl companions.
   ensure_crt0_backend_companion_objs
   set +e
   # F-no-libc NL-07 BEGIN — bootstrap nostdlib（SHUX_BOOTSTRAP_NOSTDLIB=1 尝试；失败回退 libc/libm）
   # 目标：crt0_x86_64 + freestanding_io + bootstrap_nostdlib_stubs + build_asm/*.o
-  #        + backend dispatch companions + seed emit partial + -nostdlib --gc-sections
+  #        + backend dispatch companions + seed emit partial + typeck/driver/lsp companions
+  #        + -nostdlib --gc-sections
   # F-06 v1：bootstrap 已不链 cc -c 的 std/fs|io|heap .o
   CRT_RC=1
   if bootstrap_wants_nostdlib; then
