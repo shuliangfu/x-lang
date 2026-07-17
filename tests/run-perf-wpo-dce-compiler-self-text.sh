@@ -88,7 +88,7 @@ echo "=== wpo compiler self __text (graph + asm proxy) ==="
 
 # ── 1) main.x 全程序 call graph dead export %（C WPO，与 run-wpo-compiler-self 同语义）──
 rm -f "$GRAPH"
-SHUX_WPO_DUMP_CALLGRAPH="$GRAPH" "$SHUXXX_C" check compiler/src/main.x >/dev/null
+SHUX_WPO_DUMP_CALLGRAPH="$GRAPH" "$SHUX_C" check compiler/src/main.x >/dev/null
 [ -s "$GRAPH" ] || { echo "wpo compiler self text: graph missing"; exit 1; }
 perl compiler/scripts/wpo_dce.pl "$GRAPH" --min-dead-pct "$MIN_GRAPH_PCT" | tee /tmp/wpo_compiler_self_text_graph.log
 grep -q 'wpo_dce OK' /tmp/wpo_compiler_self_text_graph.log
