@@ -3621,23 +3621,44 @@ ensure_crt0_backend_companion_objs() {
   fi
   # NL-07 L9: experimental/strict seed-support homologues (G.7 single authority).
   # Closes crt0 residual after L1–L8 when bag holds full pipeline_glue_standalone.
+  # Only append objs NOT already in CRT0_ASM (filter bag) — dual src/asm + build_asm
+  # copies of the same TU cause multi-def (compat stubs first failure mode).
   ensure_asm_backend_compat_stubs_obj 2>/dev/null || true
   CRT0_SEED_SUPPORT=""
-  if [ -f src/asm/asm_backend_compat_stubs.o ]; then
-  CRT0_SEED_SUPPORT="$CRT0_SEED_SUPPORT src/asm/asm_backend_compat_stubs.o"
-  elif [ -f "$BUILD_DIR/asm_backend_compat_stubs.o" ]; then
+  _crt0_bag=" $CRT0_ASM "
+  case "$_crt0_bag" in
+  *"asm_backend_compat_stubs.o"*) ;;
+  *)
+  if [ -f "$BUILD_DIR/asm_backend_compat_stubs.o" ]; then
   CRT0_SEED_SUPPORT="$CRT0_SEED_SUPPORT $BUILD_DIR/asm_backend_compat_stubs.o"
+  elif [ -f src/asm/asm_backend_compat_stubs.o ]; then
+  CRT0_SEED_SUPPORT="$CRT0_SEED_SUPPORT src/asm/asm_backend_compat_stubs.o"
   fi
+  ;;
+  esac
+  case "$_crt0_bag" in
+  *"x_seed_bridge.o"*) ;;
+  *)
   if [ -f "$BUILD_DIR/x_seed_bridge.o" ]; then
   CRT0_SEED_SUPPORT="$CRT0_SEED_SUPPORT $BUILD_DIR/x_seed_bridge.o"
   fi
+  ;;
+  esac
+  case "$_crt0_bag" in
+  *"seed_link_compat.o"*) ;;
+  *)
   if [ -f "$BUILD_DIR/seed_link_compat.o" ]; then
   CRT0_SEED_SUPPORT="$CRT0_SEED_SUPPORT $BUILD_DIR/seed_link_compat.o"
   fi
+  ;;
+  esac
   # arch_arm64_* weak cluster — same obj ST_BSTRICT_LINK_EXTRA / experimental uses.
+  case "$_crt0_bag" in
+  *"asm_full_link_stubs.o"*) ;;
+  *)
   if [ ! -f "$BUILD_DIR/seed_host/asm_full_link_stubs.o" ] \
   || [ ! -s "$BUILD_DIR/seed_host/asm_full_link_stubs.o" ]; then
-  if [ -f pipeline_x.o ] && [ -x scripts/gen_asm_full_link_stubs.pl ] || [ -f scripts/gen_asm_full_link_stubs.pl ]; then
+  if [ -f pipeline_x.o ] && { [ -x scripts/gen_asm_full_link_stubs.pl ] || [ -f scripts/gen_asm_full_link_stubs.pl ]; }; then
   _crt0_stub_scan="pipeline_x.o $BSTRICT_DISPATCH_OBJS"
   if [ -f "$BUILD_DIR/seed_host/asm_full.o" ]; then
   _crt0_stub_scan="$BUILD_DIR/seed_host/asm_full.o $_crt0_stub_scan"
@@ -3652,6 +3673,8 @@ ensure_crt0_backend_companion_objs() {
   && [ -s "$BUILD_DIR/seed_host/asm_full_link_stubs.o" ]; then
   CRT0_SEED_SUPPORT="$CRT0_SEED_SUPPORT $BUILD_DIR/seed_host/asm_full_link_stubs.o"
   fi
+  ;;
+  esac
   if [ -n "$CRT0_SEED_SUPPORT" ]; then
   CRT0_BACKEND_COMPANIONS="$CRT0_BACKEND_COMPANIONS $CRT0_SEED_SUPPORT"
   build_shux_asm_info "crt0 bag: L9 seed-support homologues=$CRT0_SEED_SUPPORT"
