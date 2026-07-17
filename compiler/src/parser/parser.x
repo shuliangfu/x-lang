@@ -1917,6 +1917,15 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
       continue;
     }
     if (r.tok.kind == token.TokenKind.TOKEN_LOOP) {
+      /**
+       * Hoist-safe for pin X→C (no stmt_order): zero-init + assign after parse.
+       * `let while_idx_blk = append_while(...)` at mid-path is hoisted to the if-top and
+       * registers an empty while before the body is parsed — force `loop`/`while` residual.
+       * PLATFORM: SHARED — product force parser path; seed pin does not hoist the same way.
+       */
+      let cond_ref_blk: i32 = 0;
+      let block_res_blk: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex_cur };
+      let while_idx_blk: i32 = 0;
       lex_from_next_into(&lex_cur, r);
       lexer.lexer_next_into(&r, lex_cur, source);
       if (r.tok.kind != token.TokenKind.TOKEN_LBRACE) {
@@ -1924,18 +1933,18 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
         return;
       }
       lex_cur = r.next_lex;
-      let cond_ref_blk: i32 = parser_alloc_true_bool_lit(arena);
+      cond_ref_blk = parser_alloc_true_bool_lit(arena);
       if (cond_ref_blk == 0) {
         out.ok = false;
         return;
       }
-      let block_res_blk: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex_cur };
+      block_res_blk = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex_cur };
       parse_block_into(arena, lex_cur, source, type_ref, &block_res_blk);
       if (!block_res_blk.ok) {
         out.ok = false;
         return;
       }
-      let while_idx_blk: i32 = pipeline_block_append_while(arena, block_ref, cond_ref_blk, block_res_blk.block_ref);
+      while_idx_blk = pipeline_block_append_while(arena, block_ref, cond_ref_blk, block_res_blk.block_ref);
       if (while_idx_blk < 0) {
         out.ok = false;
         return;
@@ -1947,169 +1956,182 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
       b = ast.ast_arena_block_get(arena, block_ref);
       lex_cur = block_res_blk.next_lex;
       /**
-       * parse_block_into() 已返回 loop 语句之后的下一 stmt 首 token；
-       * 此处若再二次 realign，会把 loop 体内末尾 expr_stmt 重新暴露给外层块，
-       * 形成 `... while (...) { j = j + 1; } return 0;` 被误判成函数尾 `j = ...` 的污染。
+       * parse_block_into() already returned the next stmt head after loop;
+       * do not realign again or body-tail expr_stmt leaks to the outer block.
        */
       stmt_tok_ready = false;
       continue;
     }
     if (r.tok.kind == token.TokenKind.TOKEN_WHILE) {
+      /**
+       * Hoist-safe while (block path): pin X→C hoists mid-path lets to if-top.
+       * Bad hoist was: loop_cond_start=lex before advancing past WHILE; cond_ref=expr_ref
+       * before parse_cond; while_idx=append_while(0,0) before body — force while XP003,
+       * hello missing core_fmt_fmt_*_to_buf co-emit.
+       * PLATFORM: SHARED.
+       */
+      let loop_cond_start: Lexer = lex_cur;
+      let expr_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex_cur };
+      let cond_ref: i32 = 0;
+      let block_res: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex_cur };
+      let while_idx: i32 = 0;
       lex_from_next_into(&lex_cur, r);
       lexer.lexer_next_into(&r, lex_cur, source);
       if (r.tok.kind != token.TokenKind.TOKEN_LPAREN) {
         out.ok = false;
         return;
       }
-    lex_cur = r.next_lex;
-    let loop_cond_start: Lexer = lex_cur;
-    let expr_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: loop_cond_start };
-    parse_cond_expr_into(arena, loop_cond_start, source, &expr_res);
-    if (!expr_res.ok) {
-      out.ok = false;
-      return;
-    }
-    let cond_ref: i32 = expr_res.expr_ref;
-    lex_cur = expr_res.next_lex;
-    if (advance_past_cond_rparen_into(&r, lex_cur, source) == 0) {
-      out.ok = false;
-      return;
-    }
-    /** 与 parse_one_function_impl 一致：advance 已写 r，勿再用旧 lex_cur 重复 lexer_next（否则 if 块内 while 误判非 {）。 */
-    if (r.tok.kind != token.TokenKind.TOKEN_LBRACE) {
-      out.ok = false;
-      return;
-    }
-    lex_cur = r.next_lex;
-    let block_res: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex_cur };
-    parse_block_into(arena, lex_cur, source, type_ref, &block_res);
-    if (!block_res.ok) {
-      out.ok = false;
-      return;
-    }
-    /** while 条件/体写入 Block 侧车池，返回下标供 stmt_order 引用 */
-    let while_idx: i32 = pipeline_block_append_while(arena, block_ref, cond_ref, block_res.block_ref);
-    if (while_idx < 0) {
-      out.ok = false;
-      return;
-    }
-    if (pipeline_block_append_stmt_order(arena, block_ref, 3, while_idx) < 0) {
-      out.ok = false;
-      return;
-    }
-    b = ast.ast_arena_block_get(arena, block_ref);
-    lex_cur = block_res.next_lex;
-    /**
-     * while 体 parse_block_into() 已完成整条语句的同步，勿再做 compound realign。
-     * 否则会把 while 体内部 `expr;` 再次暴露给当前块/函数体顶层循环。
-     */
-    stmt_tok_ready = false;
-    continue;
+      lex_cur = r.next_lex;
+      loop_cond_start = lex_cur;
+      expr_res = ParseExprResult { ok: false, expr_ref: 0, next_lex: loop_cond_start };
+      parse_cond_expr_into(arena, loop_cond_start, source, &expr_res);
+      if (!expr_res.ok) {
+        out.ok = false;
+        return;
+      }
+      cond_ref = expr_res.expr_ref;
+      lex_cur = expr_res.next_lex;
+      if (advance_past_cond_rparen_into(&r, lex_cur, source) == 0) {
+        out.ok = false;
+        return;
+      }
+      /* advance_past already wrote r; do not lexer_next again (if-nested while needs `{`). */
+      if (r.tok.kind != token.TokenKind.TOKEN_LBRACE) {
+        out.ok = false;
+        return;
+      }
+      lex_cur = r.next_lex;
+      block_res = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex_cur };
+      parse_block_into(arena, lex_cur, source, type_ref, &block_res);
+      if (!block_res.ok) {
+        out.ok = false;
+        return;
+      }
+      while_idx = pipeline_block_append_while(arena, block_ref, cond_ref, block_res.block_ref);
+      if (while_idx < 0) {
+        out.ok = false;
+        return;
+      }
+      if (pipeline_block_append_stmt_order(arena, block_ref, 3, while_idx) < 0) {
+        out.ok = false;
+        return;
+      }
+      b = ast.ast_arena_block_get(arena, block_ref);
+      lex_cur = block_res.next_lex;
+      /* while body sync complete; no second compound realign. */
+      stmt_tok_ready = false;
+      continue;
     }
     if (r.tok.kind == token.TokenKind.TOKEN_FOR) {
+      /**
+       * Hoist-safe for (block path): same pin X→C rule as while — append_for only after
+       * init/cond/step/body parse success. PLATFORM: SHARED.
+       */
+      let init_ref: i32 = 0;
+      let cond_ref: i32 = 0;
+      let step_ref: i32 = 0;
+      let block_res: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex_cur };
+      let for_idx: i32 = 0;
+      let expr_res_fi: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex_cur };
+      let expr_res_fc: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex_cur };
+      let expr_res_fs: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex_cur };
+      let cond_expr_ref: i32 = 0;
       lex_from_next_into(&lex_cur, r);
       lexer.lexer_next_into(&r, lex_cur, source);
       if (r.tok.kind != token.TokenKind.TOKEN_LPAREN) {
         out.ok = false;
         return;
       }
-    lex_cur = r.next_lex;
-    let init_ref: i32 = 0;
-    lexer.lexer_next_into(&r, lex_cur, source);
-    if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON) {
-      let expr_res_fi: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex_cur };
-      parse_expr_into(arena, lex_cur, source, &expr_res_fi);
-      if (!expr_res_fi.ok) {
+      lex_cur = r.next_lex;
+      lexer.lexer_next_into(&r, lex_cur, source);
+      if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON) {
+        expr_res_fi = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex_cur };
+        parse_expr_into(arena, lex_cur, source, &expr_res_fi);
+        if (!expr_res_fi.ok) {
+          out.ok = false;
+          return;
+        }
+        init_ref = expr_res_fi.expr_ref;
+        lex_cur = expr_res_fi.next_lex;
+        lexer.lexer_next_into(&r, lex_cur, source);
+      }
+      if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON) {
         out.ok = false;
         return;
       }
-      init_ref = expr_res_fi.expr_ref;
-      lex_cur = expr_res_fi.next_lex;
+      lex_cur = r.next_lex;
       lexer.lexer_next_into(&r, lex_cur, source);
-    }
-    if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON) {
-      out.ok = false;
-      return;
-    }
-    lex_cur = r.next_lex;
-    let cond_ref: i32 = 0;
-    lexer.lexer_next_into(&r, lex_cur, source);
-    if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON) {
-      let expr_res_fc: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex_cur };
-      parse_expr_into(arena, lex_cur, source, &expr_res_fc);
-      if (!expr_res_fc.ok) {
+      if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON) {
+        expr_res_fc = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex_cur };
+        parse_expr_into(arena, lex_cur, source, &expr_res_fc);
+        if (!expr_res_fc.ok) {
+          out.ok = false;
+          return;
+        }
+        cond_ref = expr_res_fc.expr_ref;
+        lex_cur = expr_res_fc.next_lex;
+        lexer.lexer_next_into(&r, lex_cur, source);
+      }
+      if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON) {
         out.ok = false;
         return;
       }
-      cond_ref = expr_res_fc.expr_ref;
-      lex_cur = expr_res_fc.next_lex;
+      lex_cur = r.next_lex;
       lexer.lexer_next_into(&r, lex_cur, source);
-    }
-    if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON) {
-      out.ok = false;
-      return;
-    }
-    lex_cur = r.next_lex;
-    let step_ref: i32 = 0;
-    lexer.lexer_next_into(&r, lex_cur, source);
-    if (r.tok.kind != token.TokenKind.TOKEN_RPAREN) {
-      let expr_res_fs: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex_cur };
-      parse_expr_into(arena, lex_cur, source, &expr_res_fs);
-      if (!expr_res_fs.ok) {
+      if (r.tok.kind != token.TokenKind.TOKEN_RPAREN) {
+        expr_res_fs = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex_cur };
+        parse_expr_into(arena, lex_cur, source, &expr_res_fs);
+        if (!expr_res_fs.ok) {
+          out.ok = false;
+          return;
+        }
+        step_ref = expr_res_fs.expr_ref;
+        lex_cur = expr_res_fs.next_lex;
+        lexer.lexer_next_into(&r, lex_cur, source);
+      }
+      if (r.tok.kind != token.TokenKind.TOKEN_RPAREN) {
         out.ok = false;
         return;
       }
-      step_ref = expr_res_fs.expr_ref;
-      lex_cur = expr_res_fs.next_lex;
+      lex_cur = r.next_lex;
       lexer.lexer_next_into(&r, lex_cur, source);
-    }
-    if (r.tok.kind != token.TokenKind.TOKEN_RPAREN) {
-      out.ok = false;
-      return;
-    }
-    lex_cur = r.next_lex;
-    lexer.lexer_next_into(&r, lex_cur, source);
-    if (r.tok.kind != token.TokenKind.TOKEN_LBRACE) {
-      out.ok = false;
-      return;
-    }
-    lex_cur = r.next_lex;
-    let block_res: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex_cur };
-    parse_block_into(arena, lex_cur, source, type_ref, &block_res);
-    if (!block_res.ok) {
-      out.ok = false;
-      return;
-    }
-    if (cond_ref == 0) {
-      let cond_expr_ref: i32 = ast.ast_arena_expr_alloc(arena);
-      if (cond_expr_ref != 0) {
-        let ce: Expr = ast.ast_arena_expr_get(arena, cond_expr_ref);
-        ce.kind = ExprKind.EXPR_BOOL_LIT;
-        ce.int_val = 1;
-        ce.line = 0;
-        ce.col = 0;
-        expr_set_common_zeros(&ce);
-        ast.ast_arena_expr_set(arena, cond_expr_ref, ce);
-        cond_ref = cond_expr_ref;
+      if (r.tok.kind != token.TokenKind.TOKEN_LBRACE) {
+        out.ok = false;
+        return;
       }
-    }
-    /** for init/cond/step/body 写入 Block 侧车池，返回下标供 stmt_order 引用 */
-    let for_idx: i32 = pipeline_block_append_for(arena, block_ref, init_ref, cond_ref, step_ref, block_res.block_ref);
-    if (for_idx < 0) {
-      out.ok = false;
-      return;
-    }
-    if (pipeline_block_append_stmt_order(arena, block_ref, 4, for_idx) < 0) {
-      out.ok = false;
-      return;
-    }
-    b = ast.ast_arena_block_get(arena, block_ref);
-    lex_cur = block_res.next_lex;
-    /**
-     * for 体 parse_block_into() 已返回下一 stmt 首 token；二次 realign 会把 step/body 内 expr_stmt 泄漏到外层。
-     */
-    stmt_tok_ready = false;
-    continue;
+      lex_cur = r.next_lex;
+      block_res = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex_cur };
+      parse_block_into(arena, lex_cur, source, type_ref, &block_res);
+      if (!block_res.ok) {
+        out.ok = false;
+        return;
+      }
+      if (cond_ref == 0) {
+        cond_expr_ref = ast.ast_arena_expr_alloc(arena);
+        if (cond_expr_ref != 0) {
+          let ce: Expr = ast.ast_arena_expr_get(arena, cond_expr_ref);
+          ce.kind = ExprKind.EXPR_BOOL_LIT;
+          ce.int_val = 1;
+          ce.line = 0;
+          ce.col = 0;
+          expr_set_common_zeros(&ce);
+          ast.ast_arena_expr_set(arena, cond_expr_ref, ce);
+          cond_ref = cond_expr_ref;
+        }
+      }
+      for_idx = pipeline_block_append_for(arena, block_ref, init_ref, cond_ref, step_ref, block_res.block_ref);
+      if (for_idx < 0) {
+        out.ok = false;
+        return;
+      }
+      if (pipeline_block_append_stmt_order(arena, block_ref, 4, for_idx) < 0) {
+        out.ok = false;
+        return;
+      }
+      b = ast.ast_arena_block_get(arena, block_ref);
+      lex_cur = block_res.next_lex;
+      stmt_tok_ready = false;
+      continue;
     }
     /** MEM-B0：defer { body } — 块退出时逆序执行（与 parser.c parse_defer_start 对齐）。 */
     if (r.tok.kind == token.TokenKind.TOKEN_DEFER) {
@@ -2237,6 +2259,14 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
       copy_slice_to_name64(source, r.token_start, r.tok.ident_len, &unsafe_nm[0]);
       if (unsafe_nm[0] == 117 && unsafe_nm[1] == 110 && unsafe_nm[2] == 115 && unsafe_nm[3] == 97
       && unsafe_nm[4] == 102 && unsafe_nm[5] == 101) {
+        /**
+         * Hoist-safe unsafe (block path): pin X→C otherwise does
+         * append_unsafe(body_ref=0) before parse_block_into — force drops
+         * `unsafe { return shux_sys_*; }` (hello io_libc_* residual).
+         * PLATFORM: SHARED.
+         */
+        let block_res_unsafe: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex_cur };
+        let unsafe_pool_i: i32 = 0;
         lex_from_next_into(&lex_cur, r);
         lexer.lexer_next_into(&r, lex_cur, source);
         if (r.tok.kind != token.TokenKind.TOKEN_LBRACE) {
@@ -2244,13 +2274,13 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
           return;
         }
         lex_from_next_into(&lex_cur, r);
-        let block_res_unsafe: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex_cur };
+        block_res_unsafe = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex_cur };
         parse_block_into(arena, lex_cur, source, type_ref, &block_res_unsafe);
         if (!block_res_unsafe.ok) {
           out.ok = false;
           return;
         }
-        let unsafe_pool_i: i32 = pipeline_block_append_unsafe(arena, block_ref, block_res_unsafe.block_ref);
+        unsafe_pool_i = pipeline_block_append_unsafe(arena, block_ref, block_res_unsafe.block_ref);
         if (unsafe_pool_i < 0) {
           out.ok = false;
           return;
@@ -2261,11 +2291,7 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
         }
         b = ast.ast_arena_block_get(arena, block_ref);
         lex_cur = block_res_unsafe.next_lex;
-        /**
-         * parse_block_into() 已返回 unsafe 之后的下一 stmt 首 token；勿再二次 realign（与 while/loop 一致）。
-         * 旧实现额外 lexer_next_into + stmt_tok_ready=true 会导致 unsafe 后跟赋值语句时
-         * 函数体截断、局部 let 被误识别为 top-level let。
-         */
+        /* parse_block already returned next stmt head; no second realign. */
         stmt_tok_ready = false;
         continue;
       }
@@ -2306,19 +2332,27 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
      * so codegen emits nested `{ ... }` without requiring a semicolon after the closing brace.
      */
     if (r.tok.kind == token.TokenKind.TOKEN_LBRACE) {
-      lex_from_next_into(&lex_cur, r);
+      /**
+       * Hoist-safe bare block: wrap/append only after parse_block_into succeeds.
+       * Pin X→C otherwise pushes empty expr_stmt before the nested body is parsed.
+       * PLATFORM: SHARED.
+       */
       let block_res_bare: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex_cur };
+      let bare_expr: i32 = 0;
+      let bare_ex_i: i32 = 0;
+      lex_from_next_into(&lex_cur, r);
+      block_res_bare = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex_cur };
       parse_block_into(arena, lex_cur, source, type_ref, &block_res_bare);
       if (!block_res_bare.ok) {
         out.ok = false;
         return;
       }
-      let bare_expr: i32 = wrap_block_ref_as_expr(arena, block_res_bare.block_ref, type_ref);
+      bare_expr = wrap_block_ref_as_expr(arena, block_res_bare.block_ref, type_ref);
       if (bare_expr == 0) {
         out.ok = false;
         return;
       }
-      let bare_ex_i: i32 = pipeline_block_append_expr_stmt(arena, block_ref, bare_expr);
+      bare_ex_i = pipeline_block_append_expr_stmt(arena, block_ref, bare_expr);
       if (bare_ex_i < 0) {
         out.ok = false;
         return;
@@ -4077,6 +4111,18 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
     r = r_peek;
     lex = parser_rewind_lex_for_following_stmt(lex, r_peek);
     let stmt_tok_ready: bool = true;
+    /**
+     * Hoist-safe onefunc expr_stmt path (pin X→C has no stmt_order).
+     * PLATFORM: SHARED — Cap force lifts
+     *   `let stmt_start / expr_stmt_res / ex_i = push_body_expr_stmt(expr_ref=0)`
+     * to the top of every while iteration, so each stmt appends an empty body expr_stmt
+     * before parse; assign-after-if then fails (force hello residual: missing
+     * fmt_bool_to_buf / fmt_f64_to_buf_prec). Zero here; assign + push only after
+     * parse_expr_into succeeds on the real expr_stmt path.
+     */
+    let stmt_start: Lexer = Lexer { pos: 0 as usize, line: 0, col: 0 };
+    let expr_stmt_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: stmt_start };
+    let ex_i: i32 = 0;
     /* while / for / if / expr; 交错：与 C parser parse_block 主循环对齐，避免仅批处理 loop 导致 stmt_order 与 codegen 顺序错乱 */
     while (1 == 1) {
       if (!stmt_tok_ready) {
@@ -4233,29 +4279,30 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         copy_slice_to_name64(source, r.token_start, r.tok.ident_len, &unsafe_nm_fn[0]);
         if (unsafe_nm_fn[0] == 117 && unsafe_nm_fn[1] == 110 && unsafe_nm_fn[2] == 115 && unsafe_nm_fn[3] == 97
         && unsafe_nm_fn[4] == 102 && unsafe_nm_fn[5] == 101) {
+          /**
+           * Hoist-safe unsafe (onefunc): append_unsafe only after body parse.
+           * PLATFORM: SHARED — force hello needs co-emit of std_io_sync_io_libc_*.
+           */
+          let block_res_unsafe_fn: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex };
+          let unsafe_idx_fn: i32 = 0;
           lex_from_next_into(&lex, r);
           lexer.lexer_next_into(&r, lex, source);
           if (r.tok.kind != token.TokenKind.TOKEN_LBRACE) {
             set_onefunc_fail(out, lex); return;
           }
-          /** parse_block_into 要求 lex 位于 `{` 之后，与 region/while 分支保持一致。 */
+          /* parse_block_into wants lex after `{`. */
           lex_from_next_into(&lex, r);
-          let block_res_unsafe_fn: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex };
+          block_res_unsafe_fn = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex };
           parse_block_into(arena, lex, source, ret_type_ref, &block_res_unsafe_fn);
           if (!block_res_unsafe_fn.ok) {
             set_onefunc_fail(out, lex); return;
           }
-          let unsafe_idx_fn: i32 = pipeline_onefunc_append_unsafe(onefunc_result_pool_ptr(out), block_res_unsafe_fn.block_ref);
+          unsafe_idx_fn = pipeline_onefunc_append_unsafe(onefunc_result_pool_ptr(out), block_res_unsafe_fn.block_ref);
           if (unsafe_idx_fn < 0) {
             set_onefunc_fail(out, lex); return;
           }
           onefunc_push_src_stmt(out, 6, unsafe_idx_fn);
           lex = block_res_unsafe_fn.next_lex;
-          /**
-           * parse_block_into() 已返回 unsafe 之后的下一 stmt 首 token；勿再二次 realign（与 while/loop 一致）。
-           * 旧实现额外 lexer_next_into + stmt_tok_ready=true 会导致 unsafe 后跟赋值语句时
-           * 函数体截断、局部 let 被误识别为 top-level let。
-           */
           stmt_tok_ready = false;
           continue;
         }
@@ -4294,48 +4341,62 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         set_onefunc_fail(out, lex); return;
       }
       if (r.tok.kind == token.TokenKind.TOKEN_LOOP) {
+        /**
+         * Hoist-safe loop (onefunc path): append_while only after body parse.
+         * PLATFORM: SHARED — pin X→C must not hoist append before parse.
+         */
+        let cond_ref_loop: i32 = 0;
+        let block_res_loop: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex };
+        let while_idx_loop: i32 = 0;
         lex_from_next_into(&lex, r);
         lexer.lexer_next_into(&r, lex, source);
         if (r.tok.kind != token.TokenKind.TOKEN_LBRACE) {
           set_onefunc_fail(out, lex); return;
         }
         lex = r.next_lex;
-        let cond_ref_loop: i32 = parser_alloc_true_bool_lit(arena);
+        cond_ref_loop = parser_alloc_true_bool_lit(arena);
         if (cond_ref_loop == 0) {
           set_onefunc_fail(out, lex); return;
         }
-        let block_res_loop: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex };
+        block_res_loop = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex };
         parse_block_into(arena, lex, source, ret_type_ref, &block_res_loop);
         if (!block_res_loop.ok) {
           set_onefunc_fail(out, lex); return;
         }
-        let while_idx_loop: i32 = pipeline_onefunc_append_while(onefunc_result_pool_ptr(out), cond_ref_loop, block_res_loop.block_ref);
+        while_idx_loop = pipeline_onefunc_append_while(onefunc_result_pool_ptr(out), cond_ref_loop, block_res_loop.block_ref);
         if (while_idx_loop < 0) {
           set_onefunc_fail(out, lex); return;
         }
         impl_snap.num_loops = pipeline_onefunc_num_whiles(onefunc_result_pool_ptr(out));
         onefunc_push_src_stmt(out, 3, while_idx_loop);
         lex = block_res_loop.next_lex;
-        /**
-         * parse_block_into() 已返回 loop 之后的下一 stmt 首 token；此处勿再二次 realign。
-         */
         stmt_tok_ready = false;
         continue;
       }
       if (r.tok.kind == token.TokenKind.TOKEN_WHILE) {
+        /**
+         * Hoist-safe while (onefunc path): zero-init at top; assign cond_start after
+         * advance past WHILE/(; append_while only after cond+body success.
+         * PLATFORM: SHARED — fixes force hello core_fmt co-emit residual.
+         */
+        let while_cond_start: Lexer = lex;
+        let expr_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex };
+        let cond_ref: i32 = 0;
+        let block_res: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex };
+        let while_idx: i32 = 0;
         lex_from_next_into(&lex, r);
         lexer.lexer_next_into(&r, lex, source);
         if (r.tok.kind != token.TokenKind.TOKEN_LPAREN) {
           set_onefunc_fail(out, lex); return;
         }
         lex = r.next_lex;
-        let while_cond_start: Lexer = lex;
-        let expr_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: while_cond_start };
+        while_cond_start = lex;
+        expr_res = ParseExprResult { ok: false, expr_ref: 0, next_lex: while_cond_start };
         parse_cond_expr_into(arena, while_cond_start, source, &expr_res);
         if (!expr_res.ok) {
           set_onefunc_fail(out, lex); return;
         }
-        let cond_ref: i32 = expr_res.expr_ref;
+        cond_ref = expr_res.expr_ref;
         lex = expr_res.next_lex;
         if (advance_past_cond_rparen_into(&r, lex, source) == 0) {
           set_onefunc_fail(out, lex); return;
@@ -4344,39 +4405,46 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
           set_onefunc_fail(out, lex); return;
         }
         lex = r.next_lex;
-        let block_res: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex };
+        block_res = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex };
         parse_block_into(arena, lex, source, ret_type_ref, &block_res);
         if (!block_res.ok) {
           set_onefunc_fail(out, lex); return;
         }
-        /** while 写入 out 侧车池；impl_snap.num_loops 仅作缓存计数 */
-        let while_idx: i32 = pipeline_onefunc_append_while(onefunc_result_pool_ptr(out), cond_ref, block_res.block_ref);
+        while_idx = pipeline_onefunc_append_while(onefunc_result_pool_ptr(out), cond_ref, block_res.block_ref);
         if (while_idx < 0) {
           set_onefunc_fail(out, lex); return;
         }
         impl_snap.num_loops = pipeline_onefunc_num_whiles(onefunc_result_pool_ptr(out));
         onefunc_push_src_stmt(out, 3, while_idx);
         lex = block_res.next_lex;
-        /**
-         * while 体 parse_block_into() 已完成整条 while 的同步，勿再二次 realign。
-         * 否则 while 体内末尾赋值/调用会被重新暴露给函数体顶层 stmt_order。
-         */
         stmt_tok_ready = false;
         continue;
       }
       if (r.tok.kind == token.TokenKind.TOKEN_FOR) {
+        /**
+         * Hoist-safe for (onefunc path): append_for only after full header+body parse.
+         * PLATFORM: SHARED.
+         */
+        let init_ref: i32 = 0;
+        let for_cond_ref: i32 = 0;
+        let step_ref: i32 = 0;
+        let block_res_f: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex };
+        let for_idx: i32 = 0;
+        let expr_res_fi: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex };
+        let expr_res_fc: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex };
+        let expr_res_fs: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex };
+        let cond_expr_ref: i32 = 0;
         lex_from_next_into(&lex, r);
         lexer.lexer_next_into(&r, lex, source);
         if (r.tok.kind != token.TokenKind.TOKEN_LPAREN) {
           set_onefunc_fail(out, lex); return;
         }
         lex = r.next_lex;
-        let init_ref: i32 = 0;
         lexer.lexer_next_into(&r, lex, source);
         if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON) {
-          let expr_res_fi: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex };
+          expr_res_fi = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex };
           parse_expr_into(arena, lex, source, &expr_res_fi);
-          /* 须有完整表达式（含赋值等），否则 step 留 0、typeck 跳过 for-step 报错，与 shux-c 不一致 */
+          /* Full expr required (incl. assign); empty step breaks typeck vs shux-c. */
           if (!expr_res_fi.ok) {
             set_onefunc_fail(out, lex); return;
           }
@@ -4388,10 +4456,9 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
           set_onefunc_fail(out, lex); return;
         }
         lex = r.next_lex;
-        let for_cond_ref: i32 = 0;
         lexer.lexer_next_into(&r, lex, source);
         if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON) {
-          let expr_res_fc: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex };
+          expr_res_fc = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex };
           parse_expr_into(arena, lex, source, &expr_res_fc);
           if (!expr_res_fc.ok) {
             set_onefunc_fail(out, lex); return;
@@ -4404,10 +4471,9 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
           set_onefunc_fail(out, lex); return;
         }
         lex = r.next_lex;
-        let step_ref: i32 = 0;
         lexer.lexer_next_into(&r, lex, source);
         if (r.tok.kind != token.TokenKind.TOKEN_RPAREN) {
-          let expr_res_fs: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex };
+          expr_res_fs = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex };
           parse_expr_into(arena, lex, source, &expr_res_fs);
           if (!expr_res_fs.ok) {
             set_onefunc_fail(out, lex); return;
@@ -4425,13 +4491,13 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
           set_onefunc_fail(out, lex); return;
         }
         lex = r.next_lex;
-        let block_res_f: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex };
+        block_res_f = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex };
         parse_block_into(arena, lex, source, ret_type_ref, &block_res_f);
         if (!block_res_f.ok) {
           set_onefunc_fail(out, lex); return;
         }
         if (for_cond_ref == 0) {
-          let cond_expr_ref: i32 = ast.ast_arena_expr_alloc(arena);
+          cond_expr_ref = ast.ast_arena_expr_alloc(arena);
           if (cond_expr_ref != 0) {
             let ce: Expr = ast.ast_arena_expr_get(arena, cond_expr_ref);
             ce.kind = ExprKind.EXPR_BOOL_LIT;
@@ -4443,17 +4509,13 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
             for_cond_ref = cond_expr_ref;
           }
         }
-        /** for 写入 out 侧车池；impl_snap.num_for_loops 仅作缓存计数 */
-        let for_idx: i32 = pipeline_onefunc_append_for(onefunc_result_pool_ptr(out), init_ref, for_cond_ref, step_ref, block_res_f.block_ref);
+        for_idx = pipeline_onefunc_append_for(onefunc_result_pool_ptr(out), init_ref, for_cond_ref, step_ref, block_res_f.block_ref);
         if (for_idx < 0) {
           set_onefunc_fail(out, lex); return;
         }
         impl_snap.num_for_loops = pipeline_onefunc_num_fors(onefunc_result_pool_ptr(out));
         onefunc_push_src_stmt(out, 4, for_idx);
         lex = block_res_f.next_lex;
-        /**
-         * for 体 parse_block_into() 已返回下一 stmt 首 token；二次 realign 会把 step/body 内 expr_stmt 泄漏到外层。
-         */
         stmt_tok_ready = false;
         continue;
       }
@@ -4491,17 +4553,21 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
        * Mirrors seed parser_parse_block_into bare-block arm so mega parse_into* parse.
        */
       if (r.tok.kind == token.TokenKind.TOKEN_LBRACE) {
-        lex_from_next_into(&lex, r);
+        /** Hoist-safe bare block (onefunc): wrap/push only after nested parse succeeds. */
         let block_res_bare_fn: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex };
+        let bare_expr_fn: i32 = 0;
+        let bare_ex_fn: i32 = 0;
+        lex_from_next_into(&lex, r);
+        block_res_bare_fn = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex };
         parse_block_into(arena, lex, source, ret_type_ref, &block_res_bare_fn);
         if (!block_res_bare_fn.ok) {
           set_onefunc_fail(out, lex); return;
         }
-        let bare_expr_fn: i32 = wrap_block_ref_as_expr(arena, block_res_bare_fn.block_ref, ret_type_ref);
+        bare_expr_fn = wrap_block_ref_as_expr(arena, block_res_bare_fn.block_ref, ret_type_ref);
         if (bare_expr_fn == 0) {
           set_onefunc_fail(out, lex); return;
         }
-        let bare_ex_fn: i32 = pipeline_onefunc_push_body_expr_stmt(onefunc_result_pool_ptr(out), bare_expr_fn);
+        bare_ex_fn = pipeline_onefunc_push_body_expr_stmt(onefunc_result_pool_ptr(out), bare_expr_fn);
         if (bare_ex_fn < 0) {
           set_onefunc_fail(out, lex); return;
         }
@@ -4511,10 +4577,10 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         stmt_tok_ready = false;
         continue;
       }
-      /* 表达式语句 expr ;（从 r.tok 起点解析，兼容 (1 as T) 与裸 INT+AS） */
+      /* expr; — hoist-safe: rebind stmt_start from r; push only after parse success. */
       lex_from_result_ptr_into(&lex, &r);
-      let stmt_start: Lexer = lex_at_token_from_result(r);
-      let expr_stmt_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: stmt_start };
+      stmt_start = lex_at_token_from_result(r);
+      parse_expr_result_reset(&expr_stmt_res, stmt_start);
       if (r.tok.kind == token.TokenKind.TOKEN_INT) {
         parse_cond_expr_into(arena, stmt_start, source, &expr_stmt_res);
       } else {
@@ -4524,18 +4590,18 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         set_onefunc_fail(out, lex); return;
       }
       lex = expr_stmt_res.next_lex;
-      /* 非 void 函数的返回值一律须 `return expr;`，块尾不作为返回值（`;`/`}` 规则见 advance_past_stmt_semicolon_into） */
+      /* Non-void returns require `return expr;`; bare block-tail is not a return value. */
       if (advance_past_stmt_semicolon_into(&r, lex, source) == 0) {
         set_onefunc_fail(out, lex); return;
       }
-      /** expr; 后若紧跟 return/let/if 等，须保留 r.tok 并跳过下轮 loop 头 lexer_next，避免吞掉 return（z(); return 0;）。 */
+      /* Keep r.tok after expr; so next loop head does not swallow return/let/if. */
       if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
         lex_from_result_ptr_into(&lex, &r);
         let after_semi: LexerResult = LexerResult { next_lex: lex, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
         lexer.lexer_next_into(&after_semi, lex, source);
         r = after_semi;
       }
-      let ex_i: i32 = pipeline_onefunc_push_body_expr_stmt(onefunc_result_pool_ptr(out), expr_stmt_res.expr_ref);
+      ex_i = pipeline_onefunc_push_body_expr_stmt(onefunc_result_pool_ptr(out), expr_stmt_res.expr_ref);
       if (ex_i < 0) {
         set_onefunc_fail(out, lex); return;
       }
