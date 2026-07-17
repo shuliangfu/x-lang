@@ -504,15 +504,16 @@ extern int32_t pipeline_dep_ctx_scope_region_push_c(struct ast_PipelineDepCtx *c
                                                    int32_t label_len);
 extern void pipeline_dep_ctx_scope_region_pop_c(struct ast_PipelineDepCtx *ctx);
 extern int32_t pipeline_dep_ctx_scope_region_len_at(struct ast_PipelineDepCtx *ctx);
-/* 若 filtered/ast_pool 已导出则覆盖；否则 stamp 安全 no-op（禁 in-place 改共享 T[]）。 */
-__attribute__((weak)) int32_t pipeline_block_set_let_type_ref(struct ast_ASTArena *arena, int32_t block_ref,
-                                                              int32_t let_idx, int32_t type_ref) {
-  (void)arena;
-  (void)block_ref;
-  (void)let_idx;
-  (void)type_ref;
-  return -1;
-}
+/*
+ * PLATFORM: SHARED — 权威实现在 ast_pool.c（经 pipeline_x / Darwin filtered 导出）。
+ * 禁止 weak 恒 -1 空桩：Darwin g05 用 bootstrap_seed_pipeline_filtered.o 时，
+ * omit_syms 含本 .o 与 pipeline_x 的交集符号，会把 pipeline 侧真 set_let 私有化，
+ * 仅剩 weak 空桩为 external → stamp 永远失败 → AL-06 dual_escape 误报 type mismatch
+ * （Linux 因 pipeline_x.o 全量导出 strong 盖过 weak，故不暴露）。
+ * 只保留 extern：filtered keep_syms 保留真实现，stamp 可写回 let.type_ref。
+ */
+extern int32_t pipeline_block_set_let_type_ref(struct ast_ASTArena *arena, int32_t block_ref, int32_t let_idx,
+                                              int32_t type_ref);
 extern struct parser_ParseIntoResult pipeline_parse_into_with_init_c(struct ast_ASTArena *arena, struct ast_Module *module,
                                                                      struct shux_slice_uint8_t *source);
 extern int32_t pipeline_parse_into_with_init_slice_scalars_sidecar(struct ast_ASTArena *arena, struct ast_Module *module,

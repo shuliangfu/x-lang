@@ -261,6 +261,7 @@ extern int32_t pipeline_type_set_region_label_at(struct ast_ASTArena * arena, in
 extern int32_t pipeline_type_find_or_alloc_slice(struct ast_ASTArena * arena, int32_t elem_ref, uint8_t * reg_label, int32_t reg_label_len);
 extern int32_t pipeline_typeck_check_slice_region_assign_c(struct ast_ASTArena * arena, int32_t site_expr_ref, int32_t expect_ref, int32_t src_ref);
 extern int32_t pipeline_typeck_check_return_slice_region_c(struct ast_ASTArena * arena, int32_t ret_site_ref, int32_t op_ref, int32_t func_return_ref);
+extern int32_t pipeline_typeck_check_return_slice_region_in_scope_c(struct ast_ASTArena * arena, int32_t site_expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t pipeline_typeck_check_call_slice_region_c(struct ast_Module * module, struct ast_ASTArena * arena, int32_t call_expr_ref, struct ast_PipelineDepCtx * ctx);
 extern int32_t pipeline_type_stamp_block_let_region_c(struct ast_ASTArena * arena, int32_t block_ref, int32_t let_idx, struct ast_PipelineDepCtx * ctx);
 extern int32_t pipeline_typeck_check_block_one_region_c(struct ast_Module * module, struct ast_ASTArena * arena, int32_t block_ref, int32_t region_idx, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx);
@@ -3058,6 +3059,9 @@ int32_t typeck_check_expr_return(struct ast_Module * module, struct ast_ASTArena
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null(return_type_ref)) && (!ast_ref_is_null(op_ref))) {   int32_t expect_kind = 0;
   int32_t got_kind = 0;
+  /* M-3 AL-06：与 typeck.x 对齐 — region 内 return 未标注 T[] 须先于类型匹配失败路径。 */
+  (void)(({ int32_t __tmp = 0; if (pipeline_typeck_check_return_slice_region_in_scope_c(arena, expr_ref, return_type_ref, ctx) != 0) {   return (-1);
+ } else (__tmp = 0) ; __tmp; }));
   (void)(typeck_ret_coerce_integral_to_expect_i32(arena, op_ref, return_type_ref));
   (void)(typeck_ret_coerce_integral_widen(arena, op_ref, return_type_ref));
   (got = (typeck_expr_type_ref(arena, op_ref)));
