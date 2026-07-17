@@ -3396,6 +3396,12 @@ ensure_crt0_codegen_parser_companion_objs() {
   if [ -f lexer_x.o ] && [ -s lexer_x.o ]; then
   CRT0_CG_PARSER_COMPANIONS="$CRT0_CG_PARSER_COMPANIONS lexer_x.o"
   fi
+  # parse_expr_into alias (strict already links this TU).
+  if [ -f src/asm/parser_asm_parse_expr_link.o ] && [ -s src/asm/parser_asm_parse_expr_link.o ]; then
+  CRT0_CG_PARSER_COMPANIONS="$CRT0_CG_PARSER_COMPANIONS src/asm/parser_asm_parse_expr_link.o"
+  elif [ -f parser_asm_parse_expr_link.o ] && [ -s parser_asm_parse_expr_link.o ]; then
+  CRT0_CG_PARSER_COMPANIONS="$CRT0_CG_PARSER_COMPANIONS parser_asm_parse_expr_link.o"
+  fi
   # parser_asm_thin_glue: product authority for parser_*_glue (strict link already uses it).
   # Full .o multi=4 non-glue names vs bag; export ONLY parser_*_glue (residual cascade 100/100).
   if [ -f parser_asm_thin_glue.o ] && [ -s parser_asm_thin_glue.o ]; then
