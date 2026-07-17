@@ -1761,14 +1761,92 @@ pid_t fork(void) {
   return (pid_t)bootstrap_syscall3(57L, 0L, 0L, 0L);
 }
 
-/** execve：Linux syscall 59；execvp 传入 bootstrap environ（勿传 NULL，否则 gcc/collect2 无 PATH）。 */
-int execvp(const char *file, char *const argv[]) {
-  return (int)bootstrap_syscall3(59L, (long)file, (long)argv, (long)(uintptr_t)environ);
+/* access is defined later in this #if block; needed for PATH search. */
+int access(const char *path, int mode);
+
+/**
+ * execve-like helper: Linux syscall 59 with bootstrap environ.
+ * PLATFORM: LINUX — nostdlib only (this #if block).
+ * Must pass environ (not NULL): host gcc/collect2 need PATH and friends.
+ */
+static int bootstrap_execve(const char *path, char *const argv[]) {
+  long ret = bootstrap_syscall3(59L, (long)path, (long)argv, (long)(uintptr_t)environ);
+  if (ret < 0) {
+    bootstrap_errno = (int)(-ret);
+    return -1;
+  }
+  return (int)ret;
 }
 
-/** execv：Linux syscall 59。 */
+/**
+ * POSIX execvp: search PATH when `file` has no '/'; otherwise exec absolute/relative path.
+ *
+ * Root cause (NL-07 L10 L4 expose): prior stub was bare execve(file) without PATH search.
+ * After L4 wipe, ensure → shux_cc_compile_sync_ex → execvp("cc") → ENOENT, BLD001 on
+ * runtime_asm_io_stubs.o. L2/L3 with residual .o hid this (ensure skipped).
+ *
+ * Authority: G.7 this freestanding execvp only — do not fork second search in link_abi.
+ * Fallback PATH when environ has no PATH (setenv is no-op here): /usr/local/bin:/usr/bin:/bin.
+ * PLATFORM: LINUX x86_64 nostdlib.
+ */
+int execvp(const char *file, char *const argv[]) {
+  const char *path_env;
+  const char *p;
+  char cand[4096];
+  size_t flen;
+  if (!file || !file[0]) {
+    bootstrap_errno = 2; /* ENOENT */
+    return -1;
+  }
+  /* Absolute or relative with slash: no PATH search (POSIX). */
+  if (strchr(file, '/') != NULL)
+    return bootstrap_execve(file, argv);
+
+  flen = strlen(file);
+  path_env = getenv("PATH");
+  if (!path_env || !path_env[0])
+    path_env = "/usr/local/bin:/usr/bin:/bin";
+
+  p = path_env;
+  for (;;) {
+    const char *colon = strchr(p, ':');
+    size_t dlen = colon ? (size_t)(colon - p) : strlen(p);
+    /* Empty component means current directory (POSIX). */
+    if (dlen == 0) {
+      if (flen + 1 >= sizeof(cand)) {
+        bootstrap_errno = 36; /* ENAMETOOLONG */
+        return -1;
+      }
+      memcpy(cand, file, flen + 1);
+    } else {
+      if (dlen + 1 + flen + 1 >= sizeof(cand)) {
+        /* Skip oversized component; try next. */
+        if (!colon)
+          break;
+        p = colon + 1;
+        continue;
+      }
+      memcpy(cand, p, dlen);
+      cand[dlen] = '/';
+      memcpy(cand + dlen + 1, file, flen + 1);
+    }
+    if (access(cand, X_OK) == 0) {
+      (void)bootstrap_execve(cand, argv);
+      /* exec failed: try next path component (e.g. not a real ELF). */
+    }
+    if (!colon)
+      break;
+    p = colon + 1;
+  }
+  bootstrap_errno = 2; /* ENOENT */
+  return -1;
+}
+
+/** execv：absolute/relative path only; pass environ (gcc needs PATH even with abs path). */
 int execv(const char *path, char *const argv[]) {
-  return (int)bootstrap_syscall3(59L, (long)path, (long)argv, 0L);
+  if (!path)
+    return -1;
+  return bootstrap_execve(path, argv);
 }
 
 /** execlp：可变参数转 argv 后 execvp（签名与 unistd.h 一致）。 */
