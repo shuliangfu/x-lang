@@ -7,17 +7,23 @@
 // 🔒 诊断用 diag_report_with_code（无 va_list / reportf）；
 // 诊断码串经一次 malloc 池常驻（避免 -E 把 string lit return 编成自动期 compound literal）。
 // errno：linux `__errno_location` / macos `__error`（cfg）；err 文案经 strerror。
+//
+// PLATFORM: SHARED — declaration order is load-bearing for current typeck:
+// put #[cfg] export-externs BEFORE plain export-externs. Otherwise dual-cfg
+// same-name functions (rt_diag_get_errno) poison later global assigns
+// (rt_diag_ensure_codes → check_block failed / XT001). Typeck residual tracked
+// separately; this leaf keeps a safe interleaving so prove IDENTICAL stays green.
+
+#[cfg(target_os = "linux")]
+export extern "C" function __errno_location(): *i32;
+#[cfg(target_os = "macos")]
+export extern "C" function __error(): *i32;
 
 export extern "C" function strcmp(a: *u8, b: *u8): i32;
 export extern "C" function strerror(e: i32): *u8;
 export extern "C" function malloc(n: usize): *u8;
 export extern "C" function diag_report_with_code(
   file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void;
-
-#[cfg(target_os = "linux")]
-export extern "C" function __errno_location(): *i32;
-#[cfg(target_os = "macos")]
-export extern "C" function __error(): *i32;
 
 /** 诊断码常驻池（首次 ensure 后只读）。 */
 export let g_rt_diag_codes_ready: i32 = 0;
