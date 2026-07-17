@@ -250,11 +250,20 @@ __attribute__((weak)) int32_t std_io_print_str(uint8_t *ptr, size_t len) {
   return std_io_print_u8_ptr_usize(ptr, len);
 }
 
-/** std.fmt.print(ptr,len): asm backend CALL surface when fmt module is not co-emitted.
- * PLATFORM: SHARED — same ABI as println without trailing newline; hello.x uses print+embedded \\n.
- * Authority: this TU only (G.7); linked via LABI_STD_OP_IO_STUBS / ensure runtime_asm_io_stubs.o. */
+/** std.fmt.print(ptr,len): asm CALL surface when fmt is not co-emitted.
+ * PLATFORM: SHARED — println without trailing newline; string-lit special path uses bare.
+ * Authority: this TU only (G.7); LABI_STD_OP_IO_STUBS / ensure runtime_asm_io_stubs.o. */
 int32_t std_fmt_print(uint8_t *ptr, size_t len) {
   return std_io_print_str(ptr, len);
+}
+
+/** Overload mid for print(*u8, i32) — import-binding mangle when fmt has many print overloads.
+ * PLATFORM: SHARED — hello.x calls fmt.print(msg,12); pairs with bare std_fmt_print.
+ * CALL may hit this symbol directly if redirect is skipped; G.7 complete stub surface. */
+int32_t std_fmt_print_u8_ptr_i32(uint8_t *ptr, int32_t len) {
+  if (len < 0)
+    return -1;
+  return std_fmt_print(ptr, (size_t)len);
 }
 
 /** std.fmt.println(ptr,len): print + single \\n; asm CALL surface (no fmt co-emit).
@@ -264,6 +273,13 @@ int32_t std_fmt_println(uint8_t *ptr, size_t len) {
   uint8_t nl = 10;
   (void)std_io_print_str(&nl, 1);
   return r;
+}
+
+/** Overload mid for println(*u8, i32) — same mangle contract as std_fmt_print_u8_ptr_i32. */
+int32_t std_fmt_println_u8_ptr_i32(uint8_t *ptr, int32_t len) {
+  if (len < 0)
+    return -1;
+  return std_fmt_println(ptr, (size_t)len);
 }
 
 /** 兜底：未走 redirect 的 call 仍可直接链到 print_str。 */

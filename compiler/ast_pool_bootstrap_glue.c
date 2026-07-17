@@ -549,13 +549,25 @@ int32_t pipeline_asm_redirect_std_c_wrapper_sym(uint8_t *name, int32_t name_len,
     memcpy(sym_out, "std_io_print_str", 16);
     return 16;
   }
-  /** std.fmt.print / println(ptr,len): keep short surface; link runtime_asm_io_stubs.
-   * PLATFORM: SHARED — identity redirect; must cover print (hello.x) not only println. */
+  /** std.fmt.print / println(ptr,len): short surface → runtime_asm_io_stubs.
+   * PLATFORM: SHARED — identity + overload-mid aliases.
+   * fmt has many print overloads so import-binding mangle emits
+   * std_fmt_print_u8_ptr_i32; stubs keep bare std_fmt_print (string-lit path +
+   * legacy). G.7 complete: both bare and *u8+i32 mid map to the same stub body.
+   * Cover print (hello.x) not only println. */
   if (name_len == 13 && memcmp(name, "std_fmt_print", 13) == 0) {
     memcpy(sym_out, "std_fmt_print", 13);
     return 13;
   }
+  if (name_len == 24 && memcmp(name, "std_fmt_print_u8_ptr_i32", 24) == 0) {
+    memcpy(sym_out, "std_fmt_print", 13);
+    return 13;
+  }
   if (name_len == 14 && memcmp(name, "std_fmt_println", 14) == 0) {
+    memcpy(sym_out, "std_fmt_println", 14);
+    return 14;
+  }
+  if (name_len == 26 && memcmp(name, "std_fmt_println_u8_ptr_i32", 26) == 0) {
     memcpy(sym_out, "std_fmt_println", 14);
     return 14;
   }
