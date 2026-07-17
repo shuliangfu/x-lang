@@ -71,7 +71,8 @@ TON=0
 BOFF=0
 BON=0
 
-main_fast=$(wpo_ab_try_main_fast "$BUILD_ASM/main.o" "$BASELINE_PROXY" 768) || main_fast=""
+# Fast-path max_on / dce_off：权威在 wpo-ab-proxy.sh → o-gate baselines（勿硬编码 768/2048）。
+main_fast=$(wpo_ab_try_main_fast "$BUILD_ASM/main.o" "$BASELINE_PROXY") || main_fast=""
 if [ -n "$main_fast" ]; then
   MOFF="${main_fast%% *}"
   MON="${main_fast#* }"
@@ -85,7 +86,7 @@ if [ -n "$drv_fast" ]; then
 fi
 pipe_tree="$BUILD_ASM/pipeline_wpo.o"
 [ -f "$pipe_tree" ] || pipe_tree="$BUILD_ASM/pipeline.o"
-pipe_fast=$(wpo_ab_try_pipeline_fast "$pipe_tree" "$BASELINE_PROXY" 2048) || pipe_fast=""
+pipe_fast=$(wpo_ab_try_pipeline_fast "$pipe_tree" "$BASELINE_PROXY") || pipe_fast=""
 if [ -n "$pipe_fast" ]; then
   POFF="${pipe_fast%% *}"
   PON="${pipe_fast#* }"
@@ -93,7 +94,7 @@ if [ -n "$pipe_fast" ]; then
 fi
 tck_tree="$BUILD_ASM/typeck_wpo.o"
 [ -f "$tck_tree" ] || tck_tree="$BUILD_ASM/typeck.o"
-tck_fast=$(wpo_ab_try_typeck_fast "$tck_tree" "$BASELINE_PROXY" 2048) || tck_fast=""
+tck_fast=$(wpo_ab_try_typeck_fast "$tck_tree" "$BASELINE_PROXY") || tck_fast=""
 if [ -n "$tck_fast" ]; then
   TOFF="${tck_fast%% *}"
   TON="${tck_fast#* }"
@@ -101,7 +102,7 @@ if [ -n "$tck_fast" ]; then
 fi
 be_tree="$BUILD_ASM/backend_wpo.o"
 [ -f "$be_tree" ] || be_tree="$BUILD_ASM/backend.o"
-be_fast=$(wpo_ab_try_backend_fast "$be_tree" "$BASELINE_PROXY" 512) || be_fast=""
+be_fast=$(wpo_ab_try_backend_fast "$be_tree" "$BASELINE_PROXY") || be_fast=""
 if [ -n "$be_fast" ]; then
   BOFF="${be_fast%% *}"
   BON="${be_fast#* }"

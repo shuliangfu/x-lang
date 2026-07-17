@@ -246,7 +246,8 @@ BE_ON="/tmp/shux_wpo_be_on.o"
 if [ "$TRY_MAIN_ASM" = "1" ] && [ -x "$SHUX_ASM_ABS" ]; then
   echo "wpo compiler self text: trying main.x asm A/B (ENTRY_ONLY, timeout ${MAIN_TIMEOUT}s per pass) ..."
   main_fast=""
-  main_fast=$(wpo_ab_try_main_fast "$BUILD_ASM_DIR/main.o" "$BASELINE" 768) || main_fast=""
+  # max_on 权威：wpo-main-o.tsv（via wpo_ab_try_main_fast）；勿硬编码 768。
+  main_fast=$(wpo_ab_try_main_fast "$BUILD_ASM_DIR/main.o" "$BASELINE") || main_fast=""
   if [ -n "$main_fast" ]; then
     MOFF="${main_fast%% *}"
     MON="${main_fast#* }"
@@ -298,7 +299,8 @@ if [ "$TRY_MAIN_ASM" = "1" ] && [ -x "$SHUX_ASM_ABS" ]; then
   pipe_tree="$BUILD_ASM_DIR/pipeline_wpo.o"
   [ -f "$pipe_tree" ] || pipe_tree="$BUILD_ASM_DIR/pipeline.o"
   pipe_fast=""
-  pipe_fast=$(wpo_ab_try_pipeline_fast "$pipe_tree" "$BASELINE" 2048) || pipe_fast=""
+  # max_on 权威：wpo-pipeline-o.tsv；勿硬编码 emit_heavy 2048（会拒绝 ~7KiB pipeline_wpo）。
+  pipe_fast=$(wpo_ab_try_pipeline_fast "$pipe_tree" "$BASELINE") || pipe_fast=""
   if [ -n "$pipe_fast" ]; then
     POFF="${pipe_fast%% *}"
     PON="${pipe_fast#* }"
@@ -323,7 +325,8 @@ if [ "$TRY_MAIN_ASM" = "1" ] && [ -x "$SHUX_ASM_ABS" ]; then
   tck_tree="$BUILD_ASM_DIR/typeck_wpo.o"
   [ -f "$tck_tree" ] || tck_tree="$BUILD_ASM_DIR/typeck.o"
   tck_fast=""
-  tck_fast=$(wpo_ab_try_typeck_fast "$tck_tree" "$BASELINE" 2048) || tck_fast=""
+  # max_on / dce_off 权威：wpo-typeck-o.tsv；勿硬编码 2048。
+  tck_fast=$(wpo_ab_try_typeck_fast "$tck_tree" "$BASELINE") || tck_fast=""
   if [ -n "$tck_fast" ]; then
     TOFF="${tck_fast%% *}"
     TON="${tck_fast#* }"
