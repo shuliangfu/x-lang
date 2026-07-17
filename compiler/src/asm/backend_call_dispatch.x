@@ -429,29 +429,21 @@ export function glue_sysv_x86_call_arg_slot_c(
   out_stack_k[0] = 0;
 }
 
-// G-02f-145：9–16B struct 实参 spill 到 [rbp-off] 再 lea；next_offset@4 LE
+/**
+ * Historical name: spill 9–16B call-arg to stack then lea.
+ * PLATFORM: LINUX+MACOS x86_64 SysV — INTEGER-class 9–16B aggregates pass by value in
+ * rax+rdx / two consecutive GPs. Nested CALL already leaves that form; converting to a
+ * pointer mismatches formal C (std_string_len_StrView rdi+rsi). No-op; placement uses
+ * mov_rax/mov_rdx_to_arg_reg. Authority aligned with pipeline_glue call-arg dual load.
+ */
 #[no_mangle]
 export function glue_spill_struct16_call_arg_to_lea_elf_c(arena: *u8, elf: *u8, ctx: *u8, pty: i32, ta: i32): i32 {
-  if (ta != 0) { return 0; }
+  // Keep signature for G.7 single symbol; body is intentionally a no-op (SysV by-value).
+  if (arena == 0) { return 0; }
   if (elf == 0) { return 0; }
   if (ctx == 0) { return 0; }
-  unsafe {
-    let sz: i32 = pipeline_asm_type_ref_byte_size_c(arena, pty);
-    if (sz <= 8) { return 0; }
-    if (sz > 16) { return 0; }
-    // spill 区在全部局部之后：rax@off、rdx@(off-8)
-    let next: i32 = call_dispatch_load_i32_le(ctx, 4);
-    let off: i32 = next + 16;
-    if (off < 16) {
-      off = 16;
-      call_dispatch_store_i32_le(ctx, 4, 0);
-    }
-    if (off < 16) { return 0 - 1; }
-    if (backend_enc_store_rax_to_rbp_arch(elf, off, ta) != 0) { return 0 - 1; }
-    if (backend_enc_store_rdx_to_rbp_arch(elf, off - 8, ta) != 0) { return 0 - 1; }
-    call_dispatch_store_i32_le(ctx, 4, off + 16);
-    return backend_enc_lea_rbp_to_rax_arch(elf, off, ta);
-  }
+  if (pty < 0) { return 0; }
+  if (ta < 0) { return 0; }
   return 0;
 }
 

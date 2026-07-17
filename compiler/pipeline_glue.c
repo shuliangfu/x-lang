@@ -11319,9 +11319,13 @@ static int32_t glue_call_arg_var_use_lea_not_load_elf_c(struct ast_ASTArena *are
   if (decl_ty <= 0)
     return 0;
   if (glue_type_ref_is_named_struct_layout_elf_c(arena, g_pipeline_asm_emit_module, decl_ty)) {
-    /** ≤8B POD struct 按值经寄存器传参（load 槽内 8 字节），勿 lea 传栈地址。 */
+    /**
+     * PLATFORM: LINUX+MACOS x86_64 SysV — INTEGER-class aggregates ≤16B pass by value in
+     * one/two GPRs (load slot to rax[/rdx]), not as a pointer. Only >16B / MEMORY class
+     * uses lea of the stack slot. Formal C (std_string_len_StrView) expects rdi+rsi.
+     */
     int32_t sz = glue_type_size_simple(g_pipeline_asm_emit_module, arena, decl_ty, 0);
-    if (sz > 0 && sz <= 8)
+    if (sz > 0 && sz <= 16)
       return 0;
     return 1;
   }
@@ -11411,12 +11415,18 @@ static int32_t glue_type_named_layout_size_any_module_elf_c(struct ast_ASTArena 
   return 0;
 }
 
+/**
+ * PLATFORM: LINUX+MACOS x86_64 SysV — pass named struct by address only when MEMORY class
+ * (>16B). 9–16B INTEGER class is by value in two GPRs (matches formal C ABI).
+ */
 static int32_t glue_call_param_named_struct_pass_addr_elf_c(struct ast_ASTArena *arena, int32_t pty) {
-  return glue_type_named_layout_size_any_module_elf_c(arena, pty) > 8 ? 1 : 0;
+  return glue_type_named_layout_size_any_module_elf_c(arena, pty) > 16 ? 1 : 0;
 }
 
 /**
- * CALL 实参 emit 入口：let struct VAR 须 lea 传地址；其余委托 rec（标量 load、*T/形参 struct load 指针）。
+ * CALL 实参 emit 入口：>16B let struct / 定长数组 lea 传地址；≤16B POD struct 按值 load rax[+rdx]；
+ * 其余委托 rec（标量 load、*T/形参 struct load 指针）。
+ * PLATFORM: LINUX+MACOS x86_64 SysV for ≤16B by-value.
  */
 int32_t pipeline_asm_emit_expr_elf_for_call_args(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                  int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
@@ -11446,7 +11456,8 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(struct ast_ASTArena *arena, str
           return backend_enc_lea_rbp_to_rax_arch(elf_ctx, off, ta);
         if (pty > 0 && pipeline_type_kind_ord_at(arena, pty) == GLUE_TYPE_KIND_F32_ORD)
           return glue_load_f32_var_slot_to_rax_elf_c(elf_ctx, arena, ctx, expr_ref, off, ta);
-        return backend_enc_load_rbp_to_rax_arch(elf_ctx, off, ta);
+        /* ≤16B named struct / scalar: dual-half load when size 9–16 (SysV rax+rdx). */
+        return glue_load_var_as_value_to_rax_rdx_elf_c(elf_ctx, arena, ctx, expr_ref, off, ta);
       }
     }
   }
@@ -11463,11 +11474,7 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(struct ast_ASTArena *arena, str
       if (fty > 0 && glue_call_param_named_struct_pass_addr_elf_c(arena, fty) != 0)
         use_lea = 1;
     }
-    if (use_lea == 0) {
-      int32_t fty = glue_field_access_field_type_ref_c(arena, g_pipeline_asm_emit_module, expr_ref);
-      if (fty > 0 && pipeline_type_kind_ord_at(arena, fty) == GLUE_TYPE_NAMED)
-        use_lea = 1;
-    }
+    /* Do not force lea for all NAMED fields: ≤16B SysV is by-value (rax+rdx). */
     if (use_lea != 0)
       return pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
   }

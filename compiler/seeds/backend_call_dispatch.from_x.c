@@ -352,6 +352,8 @@ extern int32_t backend_enc_store_rax_to_rbp_arch(struct platform_elf_ElfCodegenC
                                                  int32_t ta);
 extern int32_t backend_enc_lea_rbp_to_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
                                                int32_t ta);
+extern int32_t backend_enc_mov_rdx_to_arg_reg_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k,
+                                                   int32_t ta);
 extern int32_t pipeline_type_kind_ord_at(struct ast_ASTArena *arena, int32_t type_ref);
 
 /* G-02e：原 pipeline_abi_f32_xmm.c 并入本 TU，去掉独立手写 C 文件。 */
@@ -477,10 +479,50 @@ static int32_t glue_call_arg_is_f64_width_c(struct ast_ASTArena *arena, int32_t 
   return ak == 15 ? 1 : 0;
 }
 
+/**
+ * PLATFORM: LINUX+MACOS x86_64 SysV — how many integer arg registers a value of size sz needs.
+ * 9–16B POD → 2; else 1 (scalars / pointers / ≤8B). >16B is MEMORY (caller lea) → 1 pointer.
+ */
+static int32_t glue_sysv_arg_gp_units_from_size_c(int32_t sz) {
+  if (sz > 8 && sz <= 16)
+    return 2;
+  return 1;
+}
 
+/** Byte size of a call/method arg: formal param type, else arg expr resolved type. */
+static int32_t glue_sysv_arg_byte_size_c(struct ast_ASTArena *arena, int32_t pty, int32_t arg_ref) {
+  int32_t sz = 0;
+  if (pty > 0 && arena)
+    sz = pipeline_asm_type_ref_byte_size_c(arena, pty);
+  if (sz <= 0 && arg_ref > 0 && arena) {
+    int32_t tr = pipeline_expr_resolved_type_ref(arena, arg_ref);
+    if (tr > 0)
+      sz = pipeline_asm_type_ref_byte_size_c(arena, tr);
+  }
+  if (sz <= 0)
+    return 8;
+  return sz;
+}
 
+/**
+ * Place rax (+ rdx for 9–16B) into consecutive SysV integer arg regs starting at gp.
+ * PLATFORM: LINUX+MACOS x86_64 SysV.
+ */
+static int32_t glue_sysv_place_rax_rdx_arg_regs_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta,
+                                                      int32_t gp, int32_t gp_units) {
+  if (!elf_ctx || gp < 0)
+    return -1;
+  if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, gp, ta) != 0)
+    return -1;
+  if (ta == 0 && gp_units >= 2) {
+    if (backend_enc_mov_rdx_to_arg_reg_arch(elf_ctx, gp + 1, ta) != 0)
+      return -1;
+  }
+  return 0;
+}
 
-/** SysV x86_64：第 arg_index 个实参的寄存器/栈归属（0=gp 1=xmm 2=stack）。 */
+/** SysV x86_64：第 arg_index 个实参的寄存器/栈归属（0=gp 1=xmm 2=stack）。
+ * PLATFORM: LINUX+MACOS x86_64 SysV — 9–16B INTEGER aggregates consume 2 GP slots. */
 /* G-02f-141：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-380 call：_impl 返回 i32（供 thin -E）；public void 仍 seed-only 非 PREFER */
 int32_t glue_sysv_x86_call_arg_slot_c_impl(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t nargs,
@@ -491,6 +533,8 @@ int32_t glue_sysv_x86_call_arg_slot_c_impl(struct ast_ASTArena *arena, int32_t c
   int32_t stk;
   int32_t j;
   int32_t pty;
+  int32_t arg_ref;
+  int32_t units;
   if (!out_kind || !out_reg_k || !out_stack_k)
     return 0;
   gp = 0;
@@ -498,6 +542,8 @@ int32_t glue_sysv_x86_call_arg_slot_c_impl(struct ast_ASTArena *arena, int32_t c
   stk = 0;
   for (j = 0; j <= arg_index && j < nargs; j++) {
     pty = glue_call_param_type_ref_at(arena, call_expr_ref, j);
+    arg_ref = pipeline_expr_call_arg_ref(arena, call_expr_ref, j);
+    units = glue_sysv_arg_gp_units_from_size_c(glue_sysv_arg_byte_size_c(arena, pty, arg_ref));
     if (j == arg_index) {
       if (glue_call_arg_is_sse_float_c(arena, call_expr_ref, j, pty)) {
         if (xmm < 8) {
@@ -507,7 +553,7 @@ int32_t glue_sysv_x86_call_arg_slot_c_impl(struct ast_ASTArena *arena, int32_t c
           *out_kind = 2;
           *out_stack_k = stk;
         }
-      } else if (gp < 6) {
+      } else if (gp + units <= 6) {
         *out_kind = 0;
         *out_reg_k = gp;
       } else {
@@ -521,10 +567,10 @@ int32_t glue_sysv_x86_call_arg_slot_c_impl(struct ast_ASTArena *arena, int32_t c
         xmm++;
       else
         stk++;
-    } else if (gp < 6) {
-      gp++;
+    } else if (gp + units <= 6) {
+      gp += units;
     } else {
-      stk++;
+      stk += units;
     }
   }
   *out_kind = 2;
@@ -551,20 +597,24 @@ int32_t glue_sysv_x86_call_n_stack_c_impl(struct ast_ASTArena *arena, int32_t ca
   int32_t stk;
   int32_t j;
   int32_t pty;
+  int32_t arg_ref;
+  int32_t units;
   gp = 0;
   xmm = 0;
   stk = 0;
   for (j = 0; j < nargs; j++) {
     pty = glue_call_param_type_ref_at(arena, call_expr_ref, j);
+    arg_ref = pipeline_expr_call_arg_ref(arena, call_expr_ref, j);
+    units = glue_sysv_arg_gp_units_from_size_c(glue_sysv_arg_byte_size_c(arena, pty, arg_ref));
     if (glue_call_arg_is_sse_float_c(arena, call_expr_ref, j, pty)) {
       if (xmm < 8)
         xmm++;
       else
         stk++;
-    } else if (gp < 6) {
-      gp++;
+    } else if (gp + units <= 6) {
+      gp += units;
     } else {
-      stk++;
+      stk += units;
     }
   }
   return stk;
@@ -580,7 +630,13 @@ int32_t glue_sysv_x86_call_n_stack_c(struct ast_ASTArena *arena, int32_t call_ex
 
 
 /**
- * 9–16B struct 实参：CALL 结果在 rax/rdx，须 spill 到栈再 lea 传址（C callee / import 与 lea VAR 一致）。
+ * 9–16B struct call-arg post-process (historical name: spill+lea).
+ *
+ * PLATFORM: LINUX+MACOS x86_64 SysV — INTEGER-class aggregates 9–16B pass by value in two
+ * consecutive GPRs. Nested CALL already returns them in rax+rdx; converting to a stack pointer
+ * (lea) mismatches formal C (e.g. std_string_len_StrView takes rdi=ptr, rsi=len).
+ * Authority: leave rax/rdx intact; placement uses mov_rax/mov_rdx_to_arg_reg.
+ * (G.7: single path with call-arg VAR dual load in pipeline_glue.)
  */
 /* G-02f-145：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-375 call：实现体始终 seed；public PREFER 时 thin forward */
@@ -588,32 +644,12 @@ int32_t glue_spill_struct16_call_arg_to_lea_elf_c_impl(struct ast_ASTArena *aren
                                                           struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                           struct backend_AsmFuncCtx *ctx, int32_t pty,
                                                           int32_t ta) {
-  int32_t sz;
-  int32_t off;
-  struct glue_AsmFuncCtxCall *ly;
-  if (ta != 0 || !elf_ctx || !ctx)
-    return 0;
-  sz = pipeline_asm_type_ref_byte_size_c(arena, pty);
-  if (sz <= 8 || sz > 16)
-    return 0;
-  ly = (struct glue_AsmFuncCtxCall *)ctx;
-  /**
-   * spill 区须在全部局部之后：rax@off、rdx@(off-8)；若 off==next_offset 则 rdx 半覆盖上一 local。
-   * 且 off-8>=16，避免 rdx 写入 saved rbp（[rbp]）。
-   */
-  off = ly->next_offset + 16;
-  if (off < 16) {
-    off = 16;
-    ly->next_offset = 0;
-  }
-  if (off < 16)
-    return -1;
-  if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off, ta) != 0)
-    return -1;
-  if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, off - 8, ta) != 0)
-    return -1;
-  ly->next_offset = off + 16;
-  return backend_enc_lea_rbp_to_rax_arch(elf_ctx, off, ta);
+  (void)arena;
+  (void)elf_ctx;
+  (void)ctx;
+  (void)pty;
+  (void)ta;
+  return 0;
 }
 
 #ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
@@ -701,7 +737,9 @@ int32_t glue_emit_call_args_elf_sysv_f32_xmm_c_impl(struct ast_ASTArena *arena,
     /** G.7: single float-slot predicate (param type OR FLOAT_LIT OR resolved f32/f64). */
     use_xmm = (kind == 1) || glue_call_arg_is_sse_float_c(arena, expr_ref, i, pty);
     if (!use_xmm) {
-      if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, reg_k, ta) != 0) {
+      int32_t units =
+          glue_sysv_arg_gp_units_from_size_c(glue_sysv_arg_byte_size_c(arena, pty, arg_ref));
+      if (glue_sysv_place_rax_rdx_arg_regs_elf_c(elf_ctx, ta, reg_k, units) != 0) {
         pipeline_asm_emit_set_call_f32_xmm(0);
         return -1;
       }
@@ -1976,17 +2014,37 @@ int32_t pipeline_asm_emit_call_args_elf_c_impl(struct ast_ASTArena *arena, struc
       return 0;
     }
 
-    /** x86 寄存器实参逆序 emit（hidden sret 时 rdi 已预装 dest，用户 arg i → reg i+sret_sh）。 */
-    for (i = nargs - 1; i >= 0; i--) {
-      if (ta == 0 && i >= eff_reg_max)
-        continue;
-      arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
-      if (arg_ref == 0)
-        continue;
-      if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0)
-        return -1;
-      if (i < eff_reg_max) {
-        if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, i + sret_sh, ta) != 0)
+    /**
+     * x86 寄存器实参逆序 emit；9–16B struct 占 2 个连续 GP（SysV INTEGER class）。
+     * PLATFORM: LINUX+MACOS x86_64 SysV.
+     */
+    {
+      int32_t gp_start[GLUE_ASM_MAX_CALL_ARGS];
+      int32_t gp_units[GLUE_ASM_MAX_CALL_ARGS];
+      int32_t gp_cur = sret_sh;
+      for (i = 0; i < nargs; i++) {
+        int32_t pty_i;
+        int32_t ar_i;
+        int32_t u;
+        ar_i = pipeline_expr_call_arg_ref(arena, expr_ref, i);
+        pty_i = glue_call_param_type_ref_at(arena, expr_ref, i);
+        u = glue_sysv_arg_gp_units_from_size_c(glue_sysv_arg_byte_size_c(arena, pty_i, ar_i));
+        gp_start[i] = gp_cur;
+        gp_units[i] = u;
+        if (gp_cur + u <= reg_max)
+          gp_cur += u;
+        else
+          gp_start[i] = -1; /* stack residual: keep legacy index path below via skip */
+      }
+      for (i = nargs - 1; i >= 0; i--) {
+        if (gp_start[i] < 0)
+          continue;
+        arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
+        if (arg_ref == 0)
+          continue;
+        if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0)
+          return -1;
+        if (glue_sysv_place_rax_rdx_arg_regs_elf_c(elf_ctx, ta, gp_start[i], gp_units[i]) != 0)
           return -1;
       }
     }
@@ -2798,25 +2856,37 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
           if (sym_len <= 0)
             return -1;
           n_ov = pipeline_codegen_call_num_args_override(pre_buf, pre_len, name, name_len, nargs);
-          if (ta == 1) {
-            for (i = nargs - 1; i >= 0; i--) {
+          /**
+           * PLATFORM: LINUX+MACOS x86_64 SysV — import METHOD_CALL args (string.len(v)).
+           * 9–16B POD (StrView) occupies two consecutive GPs; reverse emit avoids clobber.
+           */
+          {
+            int32_t gp_start[6];
+            int32_t gp_units[6];
+            int32_t gp_cur = 0;
+            int32_t n_place = nargs;
+            if (n_place > 6)
+              n_place = 6;
+            for (i = 0; i < n_place; i++) {
               int32_t arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, i);
-              if (arg_ref != 0) {
-                if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0)
-                  return -1;
-                if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, i, ta) != 0)
-                  return -1;
-              }
+              int32_t pty_i = glue_call_param_type_ref_at(arena, expr_ref, i);
+              int32_t u = glue_sysv_arg_gp_units_from_size_c(glue_sysv_arg_byte_size_c(arena, pty_i, arg_ref));
+              if (ta != 0)
+                u = 1;
+              if (gp_cur + u > 6)
+                return -1;
+              gp_start[i] = gp_cur;
+              gp_units[i] = u;
+              gp_cur += u;
             }
-          } else {
-            for (i = 0; i < nargs && i < 6; i++) {
+            for (i = n_place - 1; i >= 0; i--) {
               int32_t arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, i);
-              if (arg_ref != 0) {
-                if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0)
-                  return -1;
-                if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, i, ta) != 0)
-                  return -1;
-              }
+              if (arg_ref == 0)
+                continue;
+              if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0)
+                return -1;
+              if (glue_sysv_place_rax_rdx_arg_regs_elf_c(elf_ctx, ta, gp_start[i], gp_units[i]) != 0)
+                return -1;
             }
           }
           if (glue_asm_enc_call_redirected(elf_ctx, sym_flat, sym_len, ta) != 0)
