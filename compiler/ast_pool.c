@@ -324,6 +324,12 @@ static OneFuncSidecar g_onefunc_sc[MAX_ONEFUNC_SIDECARS];
  * Non-static global: multi-def objects share one BSS under
  * --allow-multiple-definition (product + nostdlib crt0). Weak so a single
  * surviving definition owns all references when the linker merges.
+ *
+ * ALSO required: ld_partial_export (build_shux_asm.sh / relink strict glue) must
+ * keep this symbol GLOBAL when extracting pipeline partials. Linux
+ * objcopy --keep-global-symbols and Darwin -exported_symbols_list localize
+ * unlisted symbols; a localized copy + static depctx_sidecar_get reopens the
+ * dual-table split even when this definition is weak in the source .o.
  */
 #if defined(__GNUC__) || defined(__clang__)
 __attribute__((weak))

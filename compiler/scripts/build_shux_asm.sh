@@ -307,13 +307,34 @@ ld_supports_exported_symbols_list() {
 }
 
 # 从符号列表（每行一个，可带 Mach-O 前缀 _）做 ld -r 局部导出；供 strict partial 链。
+#
+# PLATFORM: SHARED — process-wide DepCtx table (NL-07 pure static dual-table residual).
+# When the input .o defines g_shux_depctx_sc, always keep it GLOBAL in the partial.
+# Darwin -exported_symbols_list and Linux objcopy --keep-global-symbols both localize
+# unlisted symbols. Static depctx_sidecar_get is copied into each partial and binds
+# whatever BSS it sees; if the table is localized, Cap module_at vs path_copy split
+# (core.types body emitted as core_result_*). Authority: ast_pool.c g_shux_depctx_sc.
 ld_partial_export() {
   local syms_file="$1"
   local out_o="$2"
   shift 2
   local in_o="$1"
+  local export_list="$syms_file"
+  local tmp_export=""
+  if nm "$in_o" 2>/dev/null | grep -qE ' [A-Za-z] (_)?g_shux_depctx_sc$'; then
+  tmp_export="${out_o}.export_with_depctx.txt"
+  cp "$syms_file" "$tmp_export"
+  if ! grep -qE '^_?g_shux_depctx_sc$' "$tmp_export" 2>/dev/null; then
+  if nm "$in_o" 2>/dev/null | grep -qE ' _g_shux_depctx_sc$'; then
+  printf '%s\n' '_g_shux_depctx_sc' >>"$tmp_export"
+  else
+  printf '%s\n' 'g_shux_depctx_sc' >>"$tmp_export"
+  fi
+  fi
+  export_list="$tmp_export"
+  fi
   if ld_supports_exported_symbols_list; then
-  ld -r -exported_symbols_list "$syms_file" -o "$out_o" "$in_o"
+  ld -r -exported_symbols_list "$export_list" -o "$out_o" "$in_o"
   return $?
   fi
   # GNU bfd ld：--version-script 不剥离 .o 内符号；须 objcopy --keep-global-symbols 真删局部符号。
@@ -324,7 +345,7 @@ ld_partial_export() {
   case "$sym" in \#*) continue ;; esac
   sym="${sym#_}"
   echo "$sym" >> "$keep"
-  done < "$syms_file"
+  done < "$export_list"
   ld -r -o "$out_o" "$in_o" || return 1
   objcopy --keep-global-symbols="$keep" "$out_o" "$out_o"
 }
