@@ -2444,15 +2444,23 @@ int32_t pipeline_asm_emit_call_elf_c_impl(struct ast_ASTArena *arena, struct pla
                 struct ast_PipelineDepCtx *dp = pipeline_asm_emit_dep_pipe_c();
                 uint8_t mid[64];
                 int32_t mid_len = -1;
+                int32_t dbg_use_fi = -2;
+                int32_t dbg_nfunc = -1;
+                int32_t dbg_ovc = -1;
+                int32_t dbg_ndep = -1;
                 sym_len = -1;
                 if (!dp && ly && ly->dep_pipe)
                   dp = (struct ast_PipelineDepCtx *)ly->dep_pipe;
+                if (dp)
+                  dbg_ndep = pipeline_dep_ctx_ndep(dp);
                 if (dp) {
                   struct ast_ASTArena *res_arena = arena;
                   struct ast_Module *res_mod =
                       glue_asm_res_mod_for_import_binding_c(dp, mod_ref, j, r_dep, &res_arena, arena);
                   int32_t use_fi = r_func;
                   int32_t want_np = pipeline_expr_call_num_args_at(arena, expr_ref);
+                  if (res_mod)
+                    dbg_nfunc = pipeline_module_num_funcs(res_mod);
                   /* Validate typeck func_ix (name + arity) on res_mod; else rescan. */
                   if (res_mod && use_fi >= 0 && use_fi < pipeline_module_num_funcs(res_mod)) {
                     int32_t ok = 1;
@@ -2534,12 +2542,36 @@ int32_t pipeline_asm_emit_call_elf_c_impl(struct ast_ASTArena *arena, struct pla
                     use_fi = best;
                   }
                   if (res_mod && use_fi >= 0 && use_fi < pipeline_module_num_funcs(res_mod)) {
+                    dbg_use_fi = use_fi;
+                    {
+                      uint8_t fnb[64];
+                      int32_t fnl = pipeline_asm_module_func_name_len_at(res_mod, use_fi);
+                      if (fnl > 0 && fnl <= 63) {
+                        pipeline_asm_module_func_name_copy64(res_mod, use_fi, fnb);
+                        dbg_ovc = glue_module_func_overload_count_c_impl(res_mod, fnb, fnl);
+                      }
+                    }
                     mid_len = glue_asm_build_func_overload_mid_c(res_mod, res_arena, use_fi, mid, 64);
                     if (mid_len > 0) {
                       sym_len = glue_asm_build_import_binding_call_sym(pre_buf, pre_len, mid, mid_len, sym_flat);
                       if (sym_len <= 0)
                         mid_len = -1;
                     }
+                  } else {
+                    dbg_use_fi = use_fi;
+                  }
+                }
+                if (getenv("SHUX_ASM_MANGLE_TRACE")) {
+                  FILE *tf = fopen("/tmp/shux_asm_mangle_trace.txt", "a");
+                  if (tf) {
+                    fprintf(tf,
+                            "field=%.*s pre_len=%d r_func=%d r_dep=%d ndep=%d nfunc=%d use_fi=%d ovc=%d mid_len=%d "
+                            "sym_len=%d mid=%.*s sym=%.*s\n",
+                            (int)field_len, (const char *)field_name, (int)pre_len, (int)r_func, (int)r_dep,
+                            (int)dbg_ndep, (int)dbg_nfunc, (int)dbg_use_fi, (int)dbg_ovc, (int)mid_len, (int)sym_len,
+                            mid_len > 0 ? (int)mid_len : 0, mid_len > 0 ? (const char *)mid : "",
+                            sym_len > 0 ? (int)sym_len : 0, sym_len > 0 ? (const char *)sym_flat : "");
+                    fclose(tf);
                   }
                 }
                 /*
