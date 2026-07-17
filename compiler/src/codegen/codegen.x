@@ -61,7 +61,10 @@ export extern function pipeline_codegen_emit_struct_field_type(arena: *ASTArena,
 export extern function pipeline_codegen_emit_struct_field_decl(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, field_name: *u8, field_name_len: i32, struct_prefix: *u8, struct_prefix_len: i32): i32;
 /** build_seed_asm_host：SHUX_EMIT_SEED_MEGA=1 时勿跳过 seed_mega emit。 */
 export extern function pipeline_codegen_emit_seed_mega_enabled(): i32;
-/** C 后端浮点字面量发射（host snprintf；float_val + float_bits 回退）。 */
+/** C-backend float literal emit (host snprintf; float_val + float_bits fallback).
+ * Authority: pipeline_glue.c pipeline_codegen_emit_float_lit_c; product Darwin also exports
+ * the same symbol from seeds/pipeline_glue_strict_minimal.from_x.c (same semantics, same commit).
+ * PLATFORM: SHARED — required by force-regen codegen M2 (EXPR_FLOAT_LIT). */
 export extern function pipeline_codegen_emit_float_lit_c(out: *CodegenOutBuf, float_val: f64, bits_lo: i32, bits_hi: i32): i32;
 /** runtime_driver_diagnostic.c：emit_func 失败时打印函数名下标，便于定位 -E codegen fail。 */
 export extern function driver_diagnostic_codegen_emit_func_fail(module: *Module, func_index: i32): void;
@@ -4053,7 +4056,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         }
         si = si + 1;
       }
-      /* close " )  for cast; slice adds , .length = N } */
+      /* Close the C string quote and cast paren; slice path adds .length = N. */
       if (append_byte(out, 34) != 0) {
         return -1;
       }
@@ -5339,8 +5342,8 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       }
       return 0;
     }
-    /* 浮点字面量：须 emit 真实值（旧 stub 非零也写 0.0 → fmt 的 10.0/用户 1.5 全坏）。
-     * 委托 C helper（host snprintf）；权威实现见 codegen_gen.c。 */
+    /* FLOAT_LIT: emit real value via C helper (old seed stub always wrote 0.0).
+     * Authority: pipeline_codegen_emit_float_lit_c in pipeline_glue.c / strict_minimal seed. */
     if (e.kind == ExprKind.EXPR_FLOAT_LIT) {
       return pipeline_codegen_emit_float_lit_c(out, e.float_val, e.float_bits_lo, e.float_bits_hi);
     }

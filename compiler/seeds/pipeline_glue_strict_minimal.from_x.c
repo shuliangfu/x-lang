@@ -2775,4 +2775,54 @@ __attribute__((weak)) int32_t pipeline_typeck_check_block_impl_c(struct ast_Modu
   ctx->current_block_ref = saved_block_ref;
   return 0;
 }
+
+/**
+ * C-backend float literal emit for codegen.x emit_expr (EXPR_FLOAT_LIT).
+ * Mirrors pipeline_glue.c pipeline_codegen_emit_float_lit_c (same commit / same semantics).
+ * Darwin g05 links this TU and omits full pipeline_glue_standalone; force-regen codegen_x.o
+ * must resolve the symbol here.
+ * PLATFORM: SHARED — keep body identical to pipeline_glue.c.
+ */
+struct codegen_CodegenOutBuf;
+extern int32_t codegen_emit_bytes_from_ptr(struct codegen_CodegenOutBuf *out, uint8_t *p, int32_t n);
+
+int32_t pipeline_codegen_emit_float_lit_c(struct codegen_CodegenOutBuf *out, double float_val, int32_t bits_lo,
+                                         int32_t bits_hi) {
+  char buf[64];
+  int n;
+  int i;
+  int has_dot = 0;
+  int has_e = 0;
+  double v = float_val;
+  union {
+    double d;
+    struct {
+      uint32_t lo;
+      uint32_t hi;
+    } w;
+  } u;
+
+  if (!out)
+    return -1;
+  if (v == 0.0 && (bits_lo != 0 || bits_hi != 0)) {
+    u.w.lo = (uint32_t)bits_lo;
+    u.w.hi = (uint32_t)bits_hi;
+    v = u.d;
+  }
+  n = snprintf(buf, sizeof(buf), "%.17g", v);
+  if (n <= 0 || n >= (int)sizeof(buf))
+    return -1;
+  for (i = 0; i < n; i++) {
+    if (buf[i] == '.' || buf[i] == ',')
+      has_dot = 1;
+    if (buf[i] == 'e' || buf[i] == 'E')
+      has_e = 1;
+  }
+  if (!has_dot && !has_e && n < (int)sizeof(buf) - 3) {
+    buf[n++] = '.';
+    buf[n++] = '0';
+    buf[n] = '\0';
+  }
+  return codegen_emit_bytes_from_ptr(out, (uint8_t *)buf, n);
+}
 #endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */

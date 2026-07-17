@@ -823,6 +823,55 @@ static int32_t glue_codegen_out_append_byte(struct codegen_CodegenOutBuf *out, u
 }
 
 /**
+ * C-backend float literal emit for codegen.x emit_expr (EXPR_FLOAT_LIT).
+ * Purpose: host snprintf of a real decimal/hex-free C double token into CodegenOutBuf.
+ * Prefer float_val; if float_val is 0.0 but bits_lo/hi are non-zero, reconstruct via IEEE bits
+ * (little-endian lo/hi layout matches typeck_float64_bits_lo/hi).
+ * Returns 0 on success, -1 on failure. Integer-looking tokens get a trailing ".0".
+ * PLATFORM: SHARED — product M2 force-regen of codegen.x links this; also mirrored in
+ * seeds/pipeline_glue_strict_minimal.from_x.c for Darwin g05 (no full standalone glue).
+ */
+int32_t pipeline_codegen_emit_float_lit_c(struct codegen_CodegenOutBuf *out, double float_val,
+                                         int32_t bits_lo, int32_t bits_hi) {
+  char buf[64];
+  int n;
+  int i;
+  int has_dot = 0;
+  int has_e = 0;
+  double v = float_val;
+  union {
+    double d;
+    struct {
+      uint32_t lo;
+      uint32_t hi;
+    } w;
+  } u;
+
+  if (!out)
+    return -1;
+  if (v == 0.0 && (bits_lo != 0 || bits_hi != 0)) {
+    u.w.lo = (uint32_t)bits_lo;
+    u.w.hi = (uint32_t)bits_hi;
+    v = u.d;
+  }
+  n = snprintf(buf, sizeof(buf), "%.17g", v);
+  if (n <= 0 || n >= (int)sizeof(buf))
+    return -1;
+  for (i = 0; i < n; i++) {
+    if (buf[i] == '.' || buf[i] == ',')
+      has_dot = 1;
+    if (buf[i] == 'e' || buf[i] == 'E')
+      has_e = 1;
+  }
+  if (!has_dot && !has_e && n < (int)sizeof(buf) - 3) {
+    buf[n++] = '.';
+    buf[n++] = '0';
+    buf[n] = '\0';
+  }
+  return glue_codegen_out_append_cstr(out, buf);
+}
+
+/**
  * let s: T[] = arr：写出 { .data = arr, .length = N }（对齐 codegen.c codegen_init / codegen.x）。
  * @return 1 已写出；0 不适用；-1 失败。
  */
