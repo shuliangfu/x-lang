@@ -400,18 +400,13 @@ SHUX_LIB_WEAK int32_t pipeline_load_import_from_disk(struct ast_Module * module,
 SHUX_LIB_WEAK int32_t pipeline_load_one_import_slot(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx, int32_t import_idx) {
   return pipeline_load_one_import_slot_c(module, arena, ctx, import_idx);
 }
+/*
+ * 【Why 根源】旧 while+sync_one_dep_slot 按 entry import[i] 覆写闭包槽 → 丢 std.io.core。
+ * Authority: pipeline_sync_dep_slots_from_driver_impl_c (ast_pool/pipeline_glue).
+ * PLATFORM: SHARED.
+ */
 SHUX_LIB_WEAK int32_t pipeline_sync_dep_slots_from_driver(struct ast_Module * module, struct ast_PipelineDepCtx * ctx) {
-  if (module == ((struct ast_Module *)(0)) || ctx == ((struct ast_PipelineDepCtx *)(0))) {   return (-1);
- }
-  int32_t dep_sync_i = 0;
-  while (1) {
-    if (pipeline_loop_should_continue_ndep_c(ctx, dep_sync_i) == 0) {   break;
- }
-    if (pipeline_sync_one_dep_slot(module, ctx, dep_sync_i) != 0) {   return (-1);
- }
-    ++dep_sync_i;
-  }
-  return 0;
+  return pipeline_sync_dep_slots_from_driver_impl_c(module, ctx);
 }
 SHUX_LIB_WEAK int32_t pipeline_load_and_sync_direct_import_deps(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx) {
   return pipeline_load_and_sync_direct_import_deps_c(module, arena, ctx);

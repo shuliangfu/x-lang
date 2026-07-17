@@ -19546,14 +19546,25 @@ int32_t pipeline_sync_dep_slots_from_driver_impl_c(struct ast_Module *module, st
   int32_t dep_sync_nd;
   int32_t dep_sync_i;
   int32_t sync_rc;
+  int32_t n_entry_imports;
 
   if (!module || !ctx)
     return -1;
   dep_sync_nd = pipeline_dep_ctx_ndep(ctx);
-  {
-    int32_t n_entry_imports = parser_get_module_num_imports(module);
-    if (n_entry_imports >= 0 && n_entry_imports < dep_sync_nd)
-      dep_sync_nd = n_entry_imports;
+  n_entry_imports = parser_get_module_num_imports(module);
+  /*
+   * 【Why 根源】闭包 seed 时 ndep > entry imports；旧逻辑把 sync 范围缩到 n_entry_imports，
+   *   且 pipeline_sync_one_dep_slot 用 entry import[i] 路径覆写槽 i → 与
+   *   load_and_sync entry-index re-pin 同构，冲掉 std.io.core 等传递 dep。
+   * 【Invariant】ndep > n_entry_imports：槽已由 pctx_seed 对齐，跳过 entry-index sync。
+   * PLATFORM: SHARED — 与 pipeline_load_and_sync_direct_import_deps_c 对齐。
+   */
+  if (n_entry_imports >= 0 && n_entry_imports < dep_sync_nd) {
+    if (getenv("SHUX_DEBUG_PIPE"))
+      fprintf(stderr,
+              "shux: [SHUX_DEBUG_PIPE] skip entry-index dep sync (ndep=%d entry_imports=%d)\n",
+              (int)dep_sync_nd, (int)n_entry_imports);
+    return 0;
   }
   dep_sync_i = 0;
   while (dep_sync_i < dep_sync_nd) {

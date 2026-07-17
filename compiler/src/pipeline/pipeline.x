@@ -397,24 +397,17 @@ export function pipeline_load_one_import_slot(module: *Module, arena: *ASTArena,
 export extern function pipeline_sync_one_dep_slot(module: *Module, ctx: *PipelineDepCtx, dep_i: i32): i32;
 
 /**
- * 将 ctx 各 dep 槽与 driver 全局 seed 槽对齐；EMIT_HEAVY X 真 emit。
- * 有界循环：while(1==1)+if(CALL==0) break（与 std/cli/mod.x 同型，勿 CALL 作 while 条件）。
+ * 将 ctx 各 dep 槽与 driver 全局 seed 槽对齐。
+ *
+ * 【Why 根源】旧 X 循环对每个 dep_i 调 pipeline_sync_one_dep_slot，后者用
+ *   entry import[dep_i] 覆写 path/module。闭包 seed 时 ndep > entry imports，
+ *   slot0/1 被冲成 net/driver，std.io.core 丢失 → run-net BLD001。
+ * 【Authority】单点 C：pipeline_sync_dep_slots_from_driver_impl_c
+ *   （ndep > n_entry_imports 时跳过 entry-index sync）。
+ * PLATFORM: SHARED.
  */
 export function pipeline_sync_dep_slots_from_driver(module: *Module, ctx: *PipelineDepCtx): i32 {
-  if (module == 0 as *Module || ctx == 0 as *PipelineDepCtx) {
-    return -1;
-  }
-  let dep_sync_i: i32 = 0;
-  while (1 == 1) {
-    if (pipeline_loop_should_continue_ndep_c(ctx, dep_sync_i) == 0) {
-      break;
-    }
-    if (pipeline_sync_one_dep_slot(module, ctx, dep_sync_i) != 0) {
-      return -1;
-    }
-    dep_sync_i = dep_sync_i + 1;
-  }
-  return 0;
+  return pipeline_sync_dep_slots_from_driver_impl_c(module, ctx);
 }
 
 /**

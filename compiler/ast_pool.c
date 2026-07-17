@@ -6551,26 +6551,44 @@ int32_t pipeline_load_and_sync_direct_import_deps_c(struct ast_Module *module, s
     }
     pipeline_dep_ctx_set_ndep(ctx, n_imports);
   } else if (n_imports > 0) {
-    /* ndep already set (closure seed): still re-pin paths from entry imports. */
-    for (i = 0; i < n_imports; i++) {
-      int32_t pl = 0;
-      memset(path_buf, 0, sizeof(path_buf));
-      (void)parser_copy_module_import_path64(module, i, path_buf);
-      while (pl < 64 && path_buf[pl] != 0)
-        pl = pl + 1;
-      if (pl > 0)
-        pipeline_dep_ctx_set_import_path(ctx, i, path_buf, pl);
-      if (pipeline_try_bind_seeded_import(ctx, i, driver_dep_slot_for_path(path_buf)) != 0)
-        continue;
-      /* Unseeded under pre-set ndep: load into this slot. */
-      if (pipeline_dep_ctx_module_at(ctx, i) == NULL) {
-        rc = pipeline_load_import_from_disk_c(module, arena, ctx, i);
-        if (rc != 0)
-          return rc;
+    int32_t cur_ndep = pipeline_dep_ctx_ndep(ctx);
+    /*
+     * 【Why 根源】driver 传递闭包 seed 时 ndep 为 BFS 全量（含 std.io.core 等传递 dep），
+     *   槽序 ≠ entry 直接 import 序。若仍按 entry import 下标 0..n_imports-1 覆写
+     *   path/module，会把 slot0=driver→net、slot1=core→driver，丢掉 core。
+     *   结果：driver 共发射体调 shux_io_submit_*_batch，core 无 co-emit → 双端
+     *   run-net udp_batch_buf BLD001（implicit declaration）。
+     * 【Invariant】ndep > n_imports：闭包权威，禁止 entry-index re-pin。
+     *   ndep == n_imports：entry-indexed 布局，可 re-pin。
+     * PLATFORM: SHARED — Cap force run-net + run-io-driver 双端。
+     */
+    if (cur_ndep > n_imports) {
+      if (getenv("SHUX_DEBUG_PIPE"))
+        fprintf(stderr,
+                "shux: [SHUX_DEBUG_PIPE] keep closure seed ndep=%d (entry imports=%d); skip entry-index re-pin\n",
+                (int)cur_ndep, (int)n_imports);
+    } else {
+      /* ndep already set (entry-indexed or equal): re-pin paths from entry imports. */
+      for (i = 0; i < n_imports; i++) {
+        int32_t pl = 0;
+        memset(path_buf, 0, sizeof(path_buf));
+        (void)parser_copy_module_import_path64(module, i, path_buf);
+        while (pl < 64 && path_buf[pl] != 0)
+          pl = pl + 1;
+        if (pl > 0)
+          pipeline_dep_ctx_set_import_path(ctx, i, path_buf, pl);
+        if (pipeline_try_bind_seeded_import(ctx, i, driver_dep_slot_for_path(path_buf)) != 0)
+          continue;
+        /* Unseeded under pre-set ndep: load into this slot. */
+        if (pipeline_dep_ctx_module_at(ctx, i) == NULL) {
+          rc = pipeline_load_import_from_disk_c(module, arena, ctx, i);
+          if (rc != 0)
+            return rc;
+        }
       }
+      if (pipeline_dep_ctx_ndep(ctx) < n_imports)
+        pipeline_dep_ctx_set_ndep(ctx, n_imports);
     }
-    if (pipeline_dep_ctx_ndep(ctx) < n_imports)
-      pipeline_dep_ctx_set_ndep(ctx, n_imports);
   }
   sync_rc = pipeline_sync_dep_slots_from_driver_c(module, ctx);
   if (sync_rc != 0)
@@ -7078,14 +7096,28 @@ int32_t pipeline_resolve_path_x_from_buf64_c(struct ast_PipelineDepCtx *ctx, uin
   return pipeline_resolve_path_x(ctx, path_buf, path_len);
 }
 
-/** dep import 路径补全；C glue（X u8[64] 栈 + assign CALL）。 */
+/**
+ * dep import 路径补全；C glue。
+ *
+ * 【Why 根源】旧实现无条件用 entry import[dep_j] 覆写 ctx path。
+ *   闭包 seed 时 dep_j 是 BFS 下标（0=driver, 1=core…），entry 仅有
+ *   import[0]=net、import[1]=driver → path 被冲成 net/driver，module 仍为
+ *   driver/core。后果：j=0 被 link_only(std.net) 跳过、core 以 driver 前缀
+ *   co-emit（std_io_driver_shux_io_*）→ run-net 缺 shux_io_submit_*_batch。
+ * 【Invariant】ctx 槽 path 已设（plen>0）则保留闭包权威；仅空槽才从 entry 补。
+ * PLATFORM: SHARED.
+ */
 int32_t run_x_pipeline_fill_dep_import_path_c(struct ast_Module *module, struct ast_PipelineDepCtx *ctx,
                                                 int32_t dep_j) {
   uint8_t path_buf[64];
   int32_t path_len;
+  int32_t existing;
 
   if (!module || !ctx || dep_j < 0)
     return -1;
+  existing = pipeline_dep_ctx_import_path_len(ctx, dep_j);
+  if (existing > 0)
+    return 0;
   memset(path_buf, 0, sizeof(path_buf));
   (void)parser_copy_module_import_path64(module, dep_j, path_buf);
   path_len = 0;
@@ -10458,7 +10490,13 @@ int32_t pipeline_codegen_dep_skip_x_bootstrap_partial(uint8_t *path) {
   return 0;
 }
 
-/** codegen.x / seed：std.io.core 与 io.o 重复的 shux_io_*（含 x）须跳过 emit。 */
+/**
+ * codegen.x / seed：std.io.core 与 preamble weak 重复的 shux_io_* 须跳过 emit。
+ * 【Why 根源】仅 skip read_fixed/write_fixed（preamble weak）；勿 skip submit_read /
+ *   submit_*_batch — 与 codegen.x codegen_should_skip_emit_std_io_core_io_dup 单权威对齐。
+ *   旧 skip 假定 io.o/weak batch 权威；产品 C 不硬链 stubs 且 weak batch 已撤 → 假绿/UNDEF。
+ * PLATFORM: SHARED.
+ */
 int32_t pipeline_codegen_should_skip_emit_std_io_core_io_dup(uint8_t *dep_path, uint8_t *name, int32_t name_len) {
   if (!dep_path || !name)
     return 0;
@@ -10468,13 +10506,6 @@ int32_t pipeline_codegen_should_skip_emit_std_io_core_io_dup(uint8_t *dep_path, 
     return 1;
   if ((name_len == 19 || name_len == 20) && codegen_name_prefix_eq(name, name_len, "shux_io_write_fixed", 19))
     return 1;
-  if ((name_len == 25 || name_len == 26) && codegen_name_prefix_eq(name, name_len, "shux_io_submit_read_batch", 25))
-    return 1;
-  if ((name_len == 26 || name_len == 27) && codegen_name_prefix_eq(name, name_len, "shux_io_submit_write_batch", 26))
-    return 1;
-  if ((name_len == 19 || name_len == 20) && codegen_name_prefix_eq(name, name_len, "shux_io_submit_read", 19))
-    return 1;
-  /* no submit_write skip: preamble has no weak stub; co-emit must define the strong symbol */
   return 0;
 }
 
