@@ -7296,7 +7296,8 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
                     return -(1);
                   }
                 } else {
-                  if ((codegen_emit_expr(arena, out, dep_arg, ctx) !=0)) {
+                  /* PLATFORM: SHARED — method dep args: same slice pointer ABI as CALL. */
+                  if ((codegen_emit_call_arg_slice_abi(arena, out, dep_arg, ctx) !=0)) {
                     return -(1);
                   }
                 }
@@ -7378,7 +7379,8 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
                 return -(1);
               }
             } else {
-              if ((codegen_emit_expr(arena, out, arg_fb, ctx) !=0)) {
+              /* PLATFORM: SHARED — method fallback args: slice locals → &(s). */
+              if ((codegen_emit_call_arg_slice_abi(arena, out, arg_fb, ctx) !=0)) {
                 return -(1);
               }
             }
@@ -7428,7 +7430,8 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
             return -(1);
           }
         } else {
-          if ((codegen_emit_expr(arena, out, m_arg, ctx) !=0)) {
+          /* PLATFORM: SHARED — residual method_call args: slice pointer ABI. */
+          if ((codegen_emit_call_arg_slice_abi(arena, out, m_arg, ctx) !=0)) {
             return -(1);
           }
         }

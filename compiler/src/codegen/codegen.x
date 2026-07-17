@@ -6470,7 +6470,8 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
                 if (append_byte(out, 48) != 0) {
                   return -1;
                 }
-              } else if (emit_expr(arena, out, dep_arg, ctx) != 0) {
+              /* PLATFORM: SHARED — method dep args use same slice pointer ABI as CALL. */
+              } else if (emit_call_arg_slice_abi(arena, out, dep_arg, ctx) != 0) {
                 return -1;
               }
               ai = ai + 1;
@@ -6553,7 +6554,8 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
               if (append_byte(out, 48) != 0) {
                 return -1;
               }
-            } else if (emit_expr(arena, out, arg_fb, ctx) != 0) {
+            /* PLATFORM: SHARED — method fallback args: slice locals → &(s). */
+            } else if (emit_call_arg_slice_abi(arena, out, arg_fb, ctx) != 0) {
               return -1;
             }
             ai_fb = ai_fb + 1;
@@ -6614,7 +6616,8 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           if (append_byte(out, 48) != 0) {
             return -1;
           }
-        } else if (emit_expr(arena, out, m_arg, ctx) != 0) {
+        /* PLATFORM: SHARED — residual method_call args: slice pointer ABI. */
+        } else if (emit_call_arg_slice_abi(arena, out, m_arg, ctx) != 0) {
           return -1;
         }
         mi = mi + 1;
