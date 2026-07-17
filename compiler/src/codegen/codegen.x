@@ -3433,8 +3433,14 @@ export function codegen_emit_module_struct_definitions(module: *Module, arena: *
       }
       let ty_nm: u8[64] = [];
       pipeline_module_struct_layout_name_into(module, k, &ty_nm[0]);
-      /* dep 模块：仅当本 dep 为该裸名定义所有者时 emit（export 优先），防污染双 tag。 */
-      if (cur_di >= 0 && ctx != 0 as *PipelineDepCtx) {
+      /*
+       * PLATFORM: SHARED — only the defining owner emits full C layout.
+       * Entry (cur_di < 0) must also skip dep-owned names (e.g. Lexer from lexer.x).
+       * Otherwise co-emit re-emits as parser_Lexer; entry prime/merge layouts may have
+       * field_type_ref=0 on later fields → field_decl fail mid-struct (parser M1 residual).
+       * Authority: codegen_type_dep_struct_owner_index (export-first); seed pin same commit.
+       */
+      if (ctx != 0 as *PipelineDepCtx) {
         let owner: i32 = codegen_type_dep_struct_owner_index(ctx, &ty_nm[0], nl);
         if (owner >= 0 && owner != cur_di) {
           k = k + 1;
@@ -3554,7 +3560,8 @@ export function codegen_emit_module_struct_forward_declarations_ctx(module: *Mod
       }
       let ty_nm: u8[64] = [];
       pipeline_module_struct_layout_name_into(module, k, &ty_nm[0]);
-      if (cur_di >= 0 && ctx != 0 as *PipelineDepCtx) {
+      /* PLATFORM: SHARED — same owner skip as codegen_emit_module_struct_definitions (entry + dep). */
+      if (ctx != 0 as *PipelineDepCtx) {
         let owner: i32 = codegen_type_dep_struct_owner_index(ctx, &ty_nm[0], nl);
         if (owner >= 0 && owner != cur_di) {
           k = k + 1;

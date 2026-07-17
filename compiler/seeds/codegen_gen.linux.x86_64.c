@@ -4519,7 +4519,9 @@ int32_t codegen_emit_module_struct_definitions(struct ast_Module * module, struc
       }
       uint8_t ty_nm[64] = {};
       (void)(pipeline_module_struct_layout_name_into(module, k, &((ty_nm)[0])));
-      if (((cur_di >=0) && (ctx !=((struct ast_PipelineDepCtx *)(0))))) {
+      /* PLATFORM: SHARED — entry + dep: only defining owner emits full layout.
+       * Entry must skip dep-owned names (Lexer→parser_Lexer residual: field type_ref=0). */
+      if ((ctx !=((struct ast_PipelineDepCtx *)(0)))) {
         int32_t owner = codegen_type_dep_struct_owner_index(ctx, &((ty_nm)[0]), nl);
         if (((owner >=0) && (owner !=cur_di))) {
           (void)((k = (k + 1)));
@@ -4630,7 +4632,9 @@ int32_t codegen_emit_module_struct_forward_declarations_ctx(struct ast_Module * 
       }
       uint8_t ty_nm[64] = {};
       (void)(pipeline_module_struct_layout_name_into(module, k, &((ty_nm)[0])));
-      if (((cur_di >=0) && (ctx !=((struct ast_PipelineDepCtx *)(0))))) {
+      /* PLATFORM: SHARED — entry + dep: only defining owner emits full layout.
+       * Entry must skip dep-owned names (Lexer→parser_Lexer residual: field type_ref=0). */
+      if ((ctx !=((struct ast_PipelineDepCtx *)(0)))) {
         int32_t owner = codegen_type_dep_struct_owner_index(ctx, &((ty_nm)[0]), nl);
         if (((owner >=0) && (owner !=cur_di))) {
           (void)((k = (k + 1)));
