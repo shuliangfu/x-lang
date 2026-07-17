@@ -101,6 +101,11 @@ const char *shux_empty_cstr(void) {
 #include <sys/wait.h>
 #endif
 #include <sys/stat.h>
+#if defined(__linux__)
+#include <elf.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#endif
 
 #ifndef SHUX_WEAK
 #if defined(_WIN32) || defined(_WIN64)
@@ -5110,12 +5115,102 @@ const char *shux_rel_o_path_from_argv0(const char *argv0, const char *rel) {
     return strdup("");
 }
 
-/** 扫描用户 .o 未定义符号；nm 失败时返回 0（勿臆测缺符号，避免 on_demand 误链 net/heap）。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc
+/**
+ * PLATFORM: LINUX — freestanding product popen is a NULL stub (bootstrap_nostdlib_stubs).
+ * Without this, on_demand never sees U symbols and -backend asm takes minimal gcc only.
+ * Scan ELF64 .symtab for SHN_UNDEF. want_sym NULL → any global UNDEF; else match name.
+ * Returns 1 on match, 0 on none/error. G.7 authority for freestanding undef probes.
+ */
+#if defined(__linux__)
+static int shux_elf64_obj_scan_undef(const char *o_path, const char *want_sym) {
+    int fd;
+    struct stat st;
+    unsigned char *map = NULL;
+    size_t sz;
+    Elf64_Ehdr *eh;
+    Elf64_Shdr *sh;
+    Elf64_Shdr *symtab = NULL;
+    Elf64_Shdr *strtab = NULL;
+    Elf64_Sym *syms;
+    const char *strs;
+    size_t i, nsym;
+    int found = 0;
+    if (!o_path || !o_path[0])
+        return 0;
+    fd = open(o_path, O_RDONLY);
+    if (fd < 0)
+        return 0;
+    if (fstat(fd, &st) != 0 || st.st_size < (off_t)sizeof(Elf64_Ehdr)) {
+        close(fd);
+        return 0;
+    }
+    sz = (size_t)st.st_size;
+    map = (unsigned char *)mmap(NULL, sz, PROT_READ, MAP_PRIVATE, fd, 0);
+    close(fd);
+    if (map == MAP_FAILED)
+        return 0;
+    eh = (Elf64_Ehdr *)map;
+    if (memcmp(eh->e_ident, ELFMAG, SELFMAG) != 0 || eh->e_ident[EI_CLASS] != ELFCLASS64) {
+        munmap(map, sz);
+        return 0;
+    }
+    if (eh->e_shoff == 0 || eh->e_shentsize != sizeof(Elf64_Shdr) || eh->e_shnum == 0) {
+        munmap(map, sz);
+        return 0;
+    }
+    if ((size_t)eh->e_shoff + (size_t)eh->e_shnum * sizeof(Elf64_Shdr) > sz) {
+        munmap(map, sz);
+        return 0;
+    }
+    sh = (Elf64_Shdr *)(map + eh->e_shoff);
+    for (i = 0; i < eh->e_shnum; i++) {
+        if (sh[i].sh_type == SHT_SYMTAB) {
+            symtab = &sh[i];
+            if (sh[i].sh_link < eh->e_shnum)
+                strtab = &sh[sh[i].sh_link];
+            break;
+        }
+    }
+    if (!symtab || !strtab || symtab->sh_entsize != sizeof(Elf64_Sym) ||
+        symtab->sh_offset + symtab->sh_size > sz || strtab->sh_offset + strtab->sh_size > sz) {
+        munmap(map, sz);
+        return 0;
+    }
+    nsym = symtab->sh_size / sizeof(Elf64_Sym);
+    syms = (Elf64_Sym *)(map + symtab->sh_offset);
+    strs = (const char *)(map + strtab->sh_offset);
+    for (i = 0; i < nsym; i++) {
+        const char *name;
+        if (syms[i].st_shndx != SHN_UNDEF)
+            continue;
+        if (ELF64_ST_BIND(syms[i].st_info) == STB_LOCAL)
+            continue;
+        if (syms[i].st_name >= strtab->sh_size)
+            continue;
+        name = strs + syms[i].st_name;
+        if (!name[0])
+            continue;
+        if (!want_sym) {
+            found = 1;
+            break;
+        }
+        if (strcmp(name, want_sym) == 0) {
+            found = 1;
+            break;
+        }
+    }
+    munmap(map, sz);
+    return found;
+}
+#endif /* __linux__ */
+
+/** 扫描用户 .o 未定义符号；nm/popen 失败时 LINUX 走 ELF 扫描（freestanding 产品）。
+ * G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc
  *
  * 【Why 根源】Darwin `nm -u` 输出为 `_sym` 单行（无类型字母 U），且 Mach-O 符号带前导 `_`。
  * 旧实现用 `nm -u --porcelain`（Apple nm 常空输出）且只匹配无 `_` 的裸名 / 含 `U` 的行，
  * 导致 http.o 等对 std_heap_* 的 U 永远测不到 → on_demand 不推 heap.o → 链接失败。
+ * Freestanding：popen 桩恒 NULL → 旧实现永远 0 → minimal gcc 永不 on_demand（si UNDEF）。
  * 【Invariant】匹配时跳过可选的 `U` 类型字段与可选的前导 `_`，再与裸 sym 比较。 */
 int shux_link_obj_needs_undef_sym(const char *o_path, const char *sym) {
     char cmd[PATH_MAX + 160];
@@ -5129,8 +5224,14 @@ int shux_link_obj_needs_undef_sym(const char *o_path, const char *sym) {
     if ((size_t)snprintf(cmd, sizeof cmd, "nm -u '%s' 2>/dev/null", o_path) >= sizeof cmd)
         return 0;
     fp = popen(cmd, "r");
-    if (!fp)
+    if (!fp) {
+#if defined(__linux__)
+        /* PLATFORM: LINUX freestanding — popen stub; ELF UNDEF scan authority. */
+        return shux_elf64_obj_scan_undef(o_path, sym);
+#else
         return 0; /* nm 不可用时不臆测缺符号，避免 on_demand 全量误链 net/heap 等 */
+#endif
+    }
     while (fgets(line, sizeof line, fp)) {
         char *p = line;
         size_t rest;
@@ -7000,8 +7101,14 @@ int shux_asm_user_o_has_undef_syms(const char *o_path) {
     if ((size_t)snprintf(cmd, sizeof cmd, "nm -u '%s' 2>/dev/null", o_path) >= sizeof cmd)
         return 1;
     fp = popen(cmd, "r");
-    if (!fp)
-        return 0; /* nostdlib 无 popen：优先 gcc 最小链 user.o+-lc，避免 append 全量 std/*.o 栈溢出 */
+    if (!fp) {
+#if defined(__linux__)
+        /* PLATFORM: LINUX freestanding — popen stub; any ELF UNDEF forces full on_demand path. */
+        return shux_elf64_obj_scan_undef(o_path, NULL) ? 1 : 0;
+#else
+        return 0; /* nostdlib 无 popen：优先 gcc 最小链 user.o+-lc */
+#endif
+    }
     while (fgets(line, sizeof line, fp)) {
         for (i = 0; line[i]; i++) {
             if (line[i] != ' ' && line[i] != '\t' && line[i] != '\n' && line[i] != '\r') {
