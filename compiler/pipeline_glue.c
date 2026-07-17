@@ -3812,6 +3812,10 @@ int32_t pipeline_asm_emit_call_sret_reg_shift_c(void) {
 
 /** CALL 目标返回类型字节宽（定义见 glue_type_size_simple 之后）。 */
 static int32_t glue_call_return_byte_size_c(struct ast_ASTArena *arena, int32_t call_expr_ref);
+/** Type byte size (def later); needed for let_ty sret fallback before first full def. */
+static int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth);
+/** Named layout size across dep modules (def after glue_type_size_simple). */
+static int32_t glue_type_named_layout_size_any_module_elf_c(struct ast_ASTArena *arena, int32_t ty_ref);
 /** CALL 返回 TypeKind 序数；定义见 pipeline_asm_call_param_type_ref_at_c 之后。 */
 int32_t pipeline_asm_call_return_type_kind_ord_c(struct ast_ASTArena *arena, int32_t call_expr_ref);
 
@@ -3834,16 +3838,31 @@ static int32_t glue_emit_struct_type_let_init_elf_c(struct ast_ASTArena *arena,
     fprintf(stderr, "shux: struct_let_init ko=%d ref=%d slot=%d\n", (int)ko, (int)init_ref, (int)stack_slot_off);
   if (ko == 45)
     return pipeline_asm_emit_struct_let_init_elf_c(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off);
-  if (ko == 48) {
-    inl = try_inline_struct_lit_return_call_to_slot_elf(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off);
-    if (inl == 1)
-      return 0;
-    inl = try_inline_const_struct_lit_return_call_to_slot_elf(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off);
-    if (inl == 1)
-      return 0;
+  /**
+   * PLATFORM: LINUX+MACOS x86_64 SysV — large struct let init from CALL (48) or METHOD_CALL (49).
+   * Root: import `vec.new()` is METHOD_CALL; historical path only handled CALL → no sret, store rax only
+   * → Vec (32B) half-initialized → push/realloc invalid pointer. G.7: same sret authority for both kinds.
+   */
+  if (ko == 48 || ko == 49) {
+    if (ko == 48) {
+      inl = try_inline_struct_lit_return_call_to_slot_elf(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off);
+      if (inl == 1)
+        return 0;
+      inl = try_inline_const_struct_lit_return_call_to_slot_elf(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off);
+      if (inl == 1)
+        return 0;
+    }
     {
       int32_t call_ret_sz = glue_call_return_byte_size_c(arena, init_ref);
-      /** SysV >16B struct 返回：hidden rdi=let 槽，callee 写回后勿再 glue_store_retval。 */
+      /** Prefer call return size; fall back to let annotation (import dep layout may miss call_ret). */
+      if (call_ret_sz <= 16 && let_ty_ref > 0) {
+        int32_t let_sz = glue_type_size_simple(g_pipeline_asm_emit_module, arena, let_ty_ref, 0);
+        if (let_sz <= 16)
+          let_sz = glue_type_named_layout_size_any_module_elf_c(arena, let_ty_ref);
+        if (let_sz > call_ret_sz)
+          call_ret_sz = let_sz;
+      }
+      /** SysV >16B struct return: hidden rdi = let slot; callee writes; do not glue_store_retval. */
       if (call_ret_sz > 16 && ta == 0) {
         if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, stack_slot_off, ta) != 0)
           return -1;
@@ -3856,7 +3875,7 @@ static int32_t glue_emit_struct_type_let_init_elf_c(struct ast_ASTArena *arena,
         return 0;
       }
     }
-    /** 标量 / import CALL（fmt.println 等）：struct 内联未命中或 -1 时回落正常 emit，勿直接失败。 */
+    /** Scalar / ≤16B import CALL/METHOD_CALL: emit then store rax[+rdx]. */
     if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, init_ref, ctx, ta) != 0)
       return -1;
     if (glue_store_retval_pair_to_rbp_elf_c(glue_emit_module_from_ctx(ctx), arena, elf_ctx, let_ty_ref,
@@ -13408,6 +13427,38 @@ static int32_t glue_copy_large_struct_from_rax_ptr_elf_c(struct platform_elf_Elf
   if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 2, ta) != 0)
     return -1;
   return backend_enc_call_arch(elf_ctx, (uint8_t *)memcpy_sym, (int32_t)(sizeof(memcpy_sym) - 1), ta);
+}
+
+/**
+ * PLATFORM: LINUX+MACOS x86_64 SysV — push a MEMORY-class (>16B) by-value aggregate onto the
+ * outgoing call stack (matches formal C: full struct on stack, not a pointer in rdi).
+ * Authority for asm freestanding/product vec residual (len(Vec) etc.).
+ * Parameters: arg_ref must be a local VAR with a known stack slot; sz is byte size (>16).
+ * Returns bytes pushed (8-aligned), or -1 on error.
+ */
+int32_t pipeline_asm_push_sysv_memory_by_value_elf_c(struct ast_ASTArena *arena,
+                                                     struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                     struct backend_AsmFuncCtx *ctx, int32_t arg_ref, int32_t sz,
+                                                     int32_t ta) {
+  int32_t off;
+  int32_t nbytes;
+  int32_t k;
+  if (!arena || !elf_ctx || !ctx || arg_ref <= 0 || sz <= 16 || ta != 0)
+    return -1;
+  if (pipeline_expr_kind_ord_at(arena, arg_ref) != 3)
+    return -1;
+  off = glue_call_arg_resolve_var_stack_off_elf_c(arena, ctx, arg_ref);
+  if (off < 0)
+    return -1;
+  nbytes = (sz + 7) & ~7;
+  /* Push high qwords first so [rsp+0] holds struct byte 0 (ptr). */
+  for (k = nbytes - 8; k >= 0; k -= 8) {
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off - k, ta) != 0)
+      return -1;
+    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+  }
+  return nbytes;
 }
 
 /**
