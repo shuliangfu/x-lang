@@ -17,7 +17,7 @@
 |------|------|--------------------|
 | **L0 语义自举** | 产品 `shux_asm` 冷编译自己 + 全量 bstrict | 双端 tip 已绿（钉盘见 `自举进度.md`） |
 | **L1 用户零 libc** | 用户 `.x` 经产品路径出 **nostdlib、无 `-lc`** 的静态可执行文件（Linux x86_64） | **NL-05 等 gate ✅**；std 首批发 NL-06 🟡 |
-| **L2 编译器 / bootstrap 零 libc** | `shux_asm` 自身无动态 `libc.so`、crt0 bag nostdlib **无 UNDEF** | **进行中**：NL-07 **L1–L3** 已关（multi / fflush / `backend_enc`）；crt0 bag unique UNDEF≈156（head `backend_emit_*`）→ **L3b+**；G-03 未硬绿 |
+| **L2 编译器 / bootstrap 零 libc** | `shux_asm` 自身无动态 `libc.so`、crt0 bag nostdlib **无 UNDEF** | **进行中**：NL-07 **L1–L3b** 已关（multi / fflush / `backend_enc` / `backend_emit`）；crt0 bag unique UNDEF≈147（head driver/typeck）→ **L4+**；G-03 未硬绿 |
 
 「实现无 libc」= **L1 + L2 都硬绿**。L0 绿 **不能** 单独写成「无 libc 已完成」。
 
@@ -87,7 +87,7 @@
 1. **单一权威门面**：堆/文件/写 fd 只经 `std.heap` / `std.fs` / `std.sys`（及已登记的 freestanding 后端），禁止业务/compiler 新代码裸 `extern malloc`/`write`。  
 2. **链接审计常青**：用户 NL-05；bootstrap NL-07 track；**禁止** `SHUX_BOOTSTRAP_ALLOW_LIBC` 当验收绿。  
 3. **新代码禁增 libc 脐带**：compiler `.x` 新逻辑不得新增 stdio/malloc 依赖而不走门面或 nostdlib 桩。  
-4. **一条债一层**：NL-07 硬绿按拓扑 → stdio → backend_enc → typeck/driver companion（见 `phase-f-n07-v4.md`）。  
+4. **一条债一层**：NL-07 硬绿按拓扑 → stdio → backend_enc → backend_emit → typeck/driver companion（见 `phase-f-n07-v4.md`）。  
 5. **G.7**：同一能力一个权威实现；**不**为 libc 兼容再开平行函数树。
 
 ### 2.3 推荐节奏
@@ -186,7 +186,7 @@ SHUX_NOLIBC_N07_V4_TRY_BUILD=1 SHUX_NOLIBC_N07_V4_FAIL=1 \
 1. **终局 = 零 libc 依赖**（Linux 金标编译器 + 用户 freestanding 路径）。  
 2. **不做 `--libc`**——不实现、不文档化、不作为兼容轴。  
 3. **用户入口 = `-freestanding` only**；compiler residual 用分层债清，不用新 CLI 糊。  
-4. **NL-07 按层推进**（已 L1 multi-def、L2 fflush、L3 enc companions；下为 L3b `backend_emit_*` → typeck/driver）→ G-03。  
+4. **NL-07 按层推进**（已 L1 multi-def、L2 fflush、L3 enc、L3b emit；下为 typeck/driver/lsp companion）→ G-03。  
 5. **范围诚实**：mac/Windows 是平台兼容，不假装物理零系统库；Linux 是验收真值。  
 6. **实现以 gate / `ldd` / crt0 UNDEF 为准**，不以叙事为准。
 
@@ -200,7 +200,8 @@ SHUX_NOLIBC_N07_V4_TRY_BUILD=1 SHUX_NOLIBC_N07_V4_FAIL=1 \
 | NL-07 L1 `e3d63a68` | crt0 multi-def 关 |
 | NL-07 L2 `6a945f5b` | nostdlib stubs `fflush` 关 |
 | NL-07 L3 `b613f58e` | crt0 入链 `BSTRICT_DISPATCH_OBJS`+simd（`backend_enc_*=0`） |
-| NL-07 L3b+ | `backend_emit_*` / typeck / driver companion |
+| NL-07 L3b `57fa657d` | seed `backend_emit_*` partial（`backend_emit_*=0`；双端 g05 矩阵） |
+| NL-07 L4+ | typeck / driver / lsp companion |
 | 本文 | **策略权威**；进度 KPI 见 `自举进度.md` / `当前进度.md` |
 
 ---
