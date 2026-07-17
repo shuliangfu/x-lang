@@ -10886,8 +10886,6 @@ static int32_t pipeline_asm_emit_expr_elf_rec(struct ast_ASTArena *arena, struct
     out_rc = r;
     goto debug_done;
   }
-  if (getenv("SHUX_ASM_MANGLE_TRACE") && (ko == 48 || ko == 49 || ko == 44))
-    fprintf(stderr, "shux: rec slow-dispatch ko=%d expr_ref=%d\n", (int)ko, (int)expr_ref);
   if (ko == 25 || ko == 27)
     out_rc = pipeline_asm_emit_expr_if_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
   /** EXPR_BLOCK 需走块体同步发射；若落 slow 会把同一 expr_ref 再喂回 rec，形成自递归。 */
@@ -10905,11 +10903,8 @@ static int32_t pipeline_asm_emit_expr_elf_rec(struct ast_ASTArena *arena, struct
     out_rc = pipeline_asm_emit_index_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
   else if (ko == 51)
     out_rc = pipeline_asm_emit_addr_of_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
-  else if (ko == 48) {
-    if (getenv("SHUX_ASM_MANGLE_TRACE"))
-      fprintf(stderr, "shux: rec dispatch CALL expr_ref=%d -> emit_call_elf_c\n", (int)expr_ref);
+  else if (ko == 48)
     out_rc = pipeline_asm_emit_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
-  }
   else if (ko == 49)
     out_rc = pipeline_asm_emit_method_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
   /** STRING_LIT（kind 59）：内嵌 .text rodata，指针在 rax（fmt.println 实参等）。 */

@@ -963,6 +963,12 @@ int32_t glue_type_kind_to_suffix_c(int32_t kind_ord, uint8_t *out, int32_t out_c
 /* Forward: overload mid / export builders need helpers before their definitions. */
 int32_t glue_module_func_overload_count_c_impl(struct ast_Module *m, const uint8_t *name, int32_t name_len);
 static int32_t glue_asm_overload_param_sig_count_c(struct ast_ASTArena *a, struct ast_Module *m, int32_t func_ix);
+static struct ast_Module *glue_asm_res_mod_for_import_binding_c(struct ast_PipelineDepCtx *dp,
+                                                                struct ast_Module *user_mod, int32_t imp_j,
+                                                                int32_t r_dep, struct ast_ASTArena **out_arena,
+                                                                struct ast_ASTArena *fallback_arena);
+extern int32_t pipeline_expr_method_call_num_args_at(struct ast_ASTArena *a, int32_t expr_ref);
+extern int32_t pipeline_expr_method_call_arg_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t idx);
 
 /**
  * PLATFORM: SHARED — resolve arg type for import overload mangle.
@@ -1094,6 +1100,178 @@ static int32_t glue_asm_build_func_overload_mid_c(struct ast_Module *m, struct a
     }
   }
   return pos > 0 ? pos : -1;
+}
+
+/**
+ * PLATFORM: SHARED — G.7 single authority for import-binding CALL/METHOD_CALL mangle.
+ * Builds pre+mid into sym_flat. is_method: 0=EXPR_CALL arg refs; 1=METHOD_CALL arg refs.
+ * Formal param mid (path-matched res_mod + func_ix) first; caller-arena arg/ret fallback.
+ * Returns symbol length or -1.
+ */
+static int32_t glue_asm_mangle_import_binding_call_sym_c(struct ast_ASTArena *arena,
+                                                          struct backend_AsmFuncCtx *ctx, int32_t expr_ref,
+                                                          struct glue_AsmFuncCtxCall *ly, struct ast_Module *mod_ref,
+                                                          int32_t imp_j, const uint8_t *pre_buf, int32_t pre_len,
+                                                          const uint8_t *field_name, int32_t field_len,
+                                                          int32_t is_method, uint8_t *sym_flat) {
+  int32_t r_func;
+  int32_t r_dep;
+  struct ast_PipelineDepCtx *dp;
+  uint8_t mid[64];
+  int32_t mid_len;
+  int32_t sym_len;
+  int32_t want_np;
+  if (!arena || !mod_ref || !pre_buf || pre_len <= 0 || !field_name || field_len <= 0 || !sym_flat)
+    return -1;
+  r_func = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
+  r_dep = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
+  dp = pipeline_asm_emit_dep_pipe_c();
+  mid_len = -1;
+  sym_len = -1;
+  if (!dp && ly && ly->dep_pipe)
+    dp = (struct ast_PipelineDepCtx *)ly->dep_pipe;
+  want_np = is_method ? pipeline_expr_method_call_num_args_at(arena, expr_ref)
+                      : pipeline_expr_call_num_args_at(arena, expr_ref);
+  if (dp) {
+    struct ast_ASTArena *res_arena = arena;
+    struct ast_Module *res_mod =
+        glue_asm_res_mod_for_import_binding_c(dp, mod_ref, imp_j, r_dep, &res_arena, arena);
+    int32_t use_fi = r_func;
+    if (res_mod && use_fi >= 0 && use_fi < pipeline_module_num_funcs(res_mod)) {
+      int32_t ok = 1;
+      if (pipeline_module_func_num_params_at(res_mod, use_fi) != want_np)
+        ok = 0;
+      else if (!pipeline_module_func_name_equal_at(res_mod, use_fi, (uint8_t *)field_name, field_len))
+        ok = 0;
+      if (!ok)
+        use_fi = -1;
+    } else {
+      use_fi = -1;
+    }
+    if (res_mod && use_fi < 0) {
+      int32_t fi;
+      int32_t exp_ty = pipeline_expr_resolved_type_ref(arena, expr_ref);
+      int32_t best = -1;
+      int32_t best_score = -1;
+      for (fi = 0; fi < pipeline_module_num_funcs(res_mod); fi++) {
+        int32_t np;
+        int32_t score;
+        int32_t pi;
+        if (pipeline_asm_module_func_is_extern_at(res_mod, fi) != 0)
+          continue;
+        if (!pipeline_module_func_name_equal_at(res_mod, fi, (uint8_t *)field_name, field_len))
+          continue;
+        np = pipeline_module_func_num_params_at(res_mod, fi);
+        if (np != want_np)
+          continue;
+        score = 1;
+        for (pi = 0; pi < np && pi < 8; pi++) {
+          int32_t arg_ref = is_method ? pipeline_expr_method_call_arg_ref(arena, expr_ref, pi)
+                                     : pipeline_expr_call_arg_ref(arena, expr_ref, pi);
+          int32_t arg_ty = glue_asm_call_arg_type_ref_c(arena, ctx, arg_ref);
+          int32_t pty = pipeline_module_func_param_type_ref_at(res_mod, fi, pi);
+          uint8_t sa[64];
+          uint8_t sb[64];
+          int32_t na;
+          int32_t nb;
+          int32_t k;
+          if (arg_ty <= 0 || pty <= 0)
+            continue;
+          na = glue_asm_type_ref_to_suffix_c(arena, arg_ty, sa, 64);
+          nb = glue_asm_type_ref_to_suffix_c(res_arena, pty, sb, 64);
+          if (na > 0 && na == nb) {
+            int32_t eq = 1;
+            for (k = 0; k < na; k++) {
+              if (sa[k] != sb[k]) {
+                eq = 0;
+                break;
+              }
+            }
+            if (eq)
+              score += 10;
+          }
+        }
+        if (want_np == 0 && exp_ty > 0) {
+          int32_t rty = pipeline_module_func_return_type_at(res_mod, fi);
+          uint8_t sa[64];
+          uint8_t sb[64];
+          int32_t na = glue_asm_type_ref_to_suffix_c(arena, exp_ty, sa, 64);
+          int32_t nb = rty > 0 ? glue_asm_type_ref_to_suffix_c(res_arena, rty, sb, 64) : 0;
+          int32_t k;
+          if (na > 0 && na == nb) {
+            int32_t eq = 1;
+            for (k = 0; k < na; k++) {
+              if (sa[k] != sb[k]) {
+                eq = 0;
+                break;
+              }
+            }
+            if (eq)
+              score += 20;
+          }
+        }
+        if (score > best_score) {
+          best_score = score;
+          best = fi;
+        }
+      }
+      use_fi = best;
+    }
+    if (res_mod && use_fi >= 0 && use_fi < pipeline_module_num_funcs(res_mod)) {
+      mid_len = glue_asm_build_func_overload_mid_c(res_mod, res_arena, use_fi, mid, 64);
+      if (mid_len > 0) {
+        sym_len = glue_asm_build_import_binding_call_sym(pre_buf, pre_len, mid, mid_len, sym_flat);
+        if (sym_len <= 0)
+          mid_len = -1;
+      }
+    }
+  }
+  if (sym_len <= 0 || (sym_len == pre_len + field_len &&
+                       memcmp(sym_flat + pre_len, field_name, (size_t)field_len) == 0)) {
+    int32_t n_args = want_np;
+    int32_t pos;
+    int32_t pi;
+    int32_t alen = 0;
+    if (field_len > 0 && field_len < 64) {
+      memcpy(mid, field_name, (size_t)field_len);
+      alen = field_len;
+    }
+    for (pi = 0; pi < n_args && alen < 60; pi++) {
+      int32_t arg_ref = is_method ? pipeline_expr_method_call_arg_ref(arena, expr_ref, pi)
+                                 : pipeline_expr_call_arg_ref(arena, expr_ref, pi);
+      int32_t arg_ty = glue_asm_call_arg_type_ref_c(arena, ctx, arg_ref);
+      uint8_t suf[64];
+      int32_t sl = arg_ty > 0 ? glue_asm_type_ref_to_suffix_c(arena, arg_ty, suf, 64) : 0;
+      if (sl <= 0)
+        continue;
+      if (alen + 1 + sl >= 64)
+        break;
+      mid[alen++] = (uint8_t)'_';
+      memcpy(mid + alen, suf, (size_t)sl);
+      alen += sl;
+    }
+    if (n_args == 0) {
+      int32_t exp_ty = pipeline_expr_resolved_type_ref(arena, expr_ref);
+      uint8_t suf[64];
+      int32_t sl = exp_ty > 0 ? glue_asm_type_ref_to_suffix_c(arena, exp_ty, suf, 64) : 0;
+      if (sl > 0 && alen + 4 + sl < 64) {
+        mid[alen++] = (uint8_t)'_';
+        mid[alen++] = (uint8_t)'r';
+        mid[alen++] = (uint8_t)'e';
+        mid[alen++] = (uint8_t)'t';
+        memcpy(mid + alen, suf, (size_t)sl);
+        alen += sl;
+      }
+    }
+    if (alen > field_len) {
+      pos = glue_asm_build_import_binding_call_sym(pre_buf, pre_len, mid, alen, sym_flat);
+      if (pos > 0)
+        sym_len = pos;
+    }
+  }
+  if (sym_len <= 0)
+    sym_len = glue_asm_build_import_binding_call_sym(pre_buf, pre_len, field_name, field_len, sym_flat);
+  return sym_len;
 }
 
 /**
@@ -2098,8 +2276,6 @@ int32_t glue_asm_enc_call_redirected_impl(struct platform_elf_ElfCodegenCtx *elf
   int32_t is_std_math;
   if (!name || name_len <= 0)
     return -1;
-  fprintf(stderr, "redir_call %.*s\n", (int)name_len, (const char *)name);
-  fflush(stderr);
   is_std_math = (ta == 0 && name_len >= 9 && name[0] == 's' && name[1] == 't' && name[2] == 'd' &&
                  name[3] == '_' && name[4] == 'm' && name[5] == 'a' && name[6] == 't' && name[7] == 'h' &&
                  name[8] == '_')
@@ -2386,9 +2562,6 @@ int32_t pipeline_asm_emit_call_elf_c_impl(struct ast_ASTArena *arena, struct pla
   callee_ko = pipeline_expr_kind_ord_at(arena, callee_ref);
   backend_call_debugf("emit call elf callee_ko=%d call_nargs=%d", (int)callee_ko,
                       (int)pipeline_expr_call_num_args_at(arena, expr_ref));
-  /* Always-on diagnostic while hunting bare import mangle (remove after green). */
-  fprintf(stderr, "shux: emit_call_elf_impl callee_ko=%d nargs=%d\n", (int)callee_ko,
-          (int)pipeline_expr_call_num_args_at(arena, expr_ref));
 
   /** hello.x: fmt.print/println string lit → call std_fmt_print / std_fmt_println. */
   if (callee_ko == GLUE_EXPR_FIELD_ACCESS_ORD) {
@@ -2433,203 +2606,9 @@ int32_t pipeline_asm_emit_call_elf_c_impl(struct ast_ASTArena *arena, struct pla
               pre_len = glue_asm_fill_c_prefix_from_module_import(mod_ref, j, pre_buf);
               if (pre_len <= 0)
                 return -1;
-              /*
-               * PLATFORM: SHARED — import-binding CALL mangle authority (G.7).
-               * Align C codegen_emit_call_func_name / codegen_emit_func_link_name:
-               *   1) resolve dep module (typeck dep_ix OR import-path match; never j==dep_ix)
-               *   2) resolve func_ix (typeck or arity+type scan)
-               *   3) mid = overload mid from *formal* param types (no user current_dep_path)
-               *   4) sym = import_c_prefix + mid
-               * Fallback: caller-arena arg/ret suffixes when formals unavailable.
-               * Bare prefix+field → U std_string_len vs formal std_string_len_StrView.
-               */
-              {
-                int32_t r_func = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
-                int32_t r_dep = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
-                struct ast_PipelineDepCtx *dp = pipeline_asm_emit_dep_pipe_c();
-                uint8_t mid[64];
-                int32_t mid_len = -1;
-                int32_t dbg_use_fi = -2;
-                int32_t dbg_nfunc = -1;
-                int32_t dbg_ovc = -1;
-                int32_t dbg_ndep = -1;
-                sym_len = -1;
-                if (!dp && ly && ly->dep_pipe)
-                  dp = (struct ast_PipelineDepCtx *)ly->dep_pipe;
-                if (dp)
-                  dbg_ndep = pipeline_dep_ctx_ndep(dp);
-                if (dp) {
-                  struct ast_ASTArena *res_arena = arena;
-                  struct ast_Module *res_mod =
-                      glue_asm_res_mod_for_import_binding_c(dp, mod_ref, j, r_dep, &res_arena, arena);
-                  int32_t use_fi = r_func;
-                  int32_t want_np = pipeline_expr_call_num_args_at(arena, expr_ref);
-                  if (res_mod)
-                    dbg_nfunc = pipeline_module_num_funcs(res_mod);
-                  /* Validate typeck func_ix (name + arity) on res_mod; else rescan. */
-                  if (res_mod && use_fi >= 0 && use_fi < pipeline_module_num_funcs(res_mod)) {
-                    int32_t ok = 1;
-                    if (pipeline_module_func_num_params_at(res_mod, use_fi) != want_np)
-                      ok = 0;
-                    else if (!pipeline_module_func_name_equal_at(res_mod, use_fi, field_name, field_len))
-                      ok = 0;
-                    if (!ok)
-                      use_fi = -1;
-                  } else {
-                    use_fi = -1;
-                  }
-                  if (res_mod && use_fi < 0) {
-                    int32_t fi;
-                    int32_t exp_ty = pipeline_expr_resolved_type_ref(arena, expr_ref);
-                    int32_t best = -1;
-                    int32_t best_score = -1;
-                    for (fi = 0; fi < pipeline_module_num_funcs(res_mod); fi++) {
-                      int32_t np;
-                      int32_t score;
-                      int32_t pi;
-                      if (pipeline_asm_module_func_is_extern_at(res_mod, fi) != 0)
-                        continue;
-                      if (!pipeline_module_func_name_equal_at(res_mod, fi, field_name, field_len))
-                        continue;
-                      np = pipeline_module_func_num_params_at(res_mod, fi);
-                      if (np != want_np)
-                        continue;
-                      score = 1;
-                      for (pi = 0; pi < np && pi < 8; pi++) {
-                        int32_t arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, pi);
-                        int32_t arg_ty = glue_asm_call_arg_type_ref_c(arena, ctx, arg_ref);
-                        int32_t pty = pipeline_module_func_param_type_ref_at(res_mod, fi, pi);
-                        uint8_t sa[64];
-                        uint8_t sb[64];
-                        int32_t na;
-                        int32_t nb;
-                        int32_t k;
-                        if (arg_ty <= 0 || pty <= 0)
-                          continue;
-                        na = glue_asm_type_ref_to_suffix_c(arena, arg_ty, sa, 64);
-                        nb = glue_asm_type_ref_to_suffix_c(res_arena, pty, sb, 64);
-                        if (na > 0 && na == nb) {
-                          int32_t eq = 1;
-                          for (k = 0; k < na; k++) {
-                            if (sa[k] != sb[k]) {
-                              eq = 0;
-                              break;
-                            }
-                          }
-                          if (eq)
-                            score += 10;
-                        }
-                      }
-                      if (want_np == 0 && exp_ty > 0) {
-                        int32_t rty = pipeline_module_func_return_type_at(res_mod, fi);
-                        uint8_t sa[64];
-                        uint8_t sb[64];
-                        int32_t na = glue_asm_type_ref_to_suffix_c(arena, exp_ty, sa, 64);
-                        int32_t nb = rty > 0 ? glue_asm_type_ref_to_suffix_c(res_arena, rty, sb, 64) : 0;
-                        int32_t k;
-                        if (na > 0 && na == nb) {
-                          int32_t eq = 1;
-                          for (k = 0; k < na; k++) {
-                            if (sa[k] != sb[k]) {
-                              eq = 0;
-                              break;
-                            }
-                          }
-                          if (eq)
-                            score += 20;
-                        }
-                      }
-                      if (score > best_score) {
-                        best_score = score;
-                        best = fi;
-                      }
-                    }
-                    use_fi = best;
-                  }
-                  if (res_mod && use_fi >= 0 && use_fi < pipeline_module_num_funcs(res_mod)) {
-                    dbg_use_fi = use_fi;
-                    {
-                      uint8_t fnb[64];
-                      int32_t fnl = pipeline_asm_module_func_name_len_at(res_mod, use_fi);
-                      if (fnl > 0 && fnl <= 63) {
-                        pipeline_asm_module_func_name_copy64(res_mod, use_fi, fnb);
-                        dbg_ovc = glue_module_func_overload_count_c_impl(res_mod, fnb, fnl);
-                      }
-                    }
-                    mid_len = glue_asm_build_func_overload_mid_c(res_mod, res_arena, use_fi, mid, 64);
-                    if (mid_len > 0) {
-                      sym_len = glue_asm_build_import_binding_call_sym(pre_buf, pre_len, mid, mid_len, sym_flat);
-                      if (sym_len <= 0)
-                        mid_len = -1;
-                    }
-                  } else {
-                    dbg_use_fi = use_fi;
-                  }
-                }
-                if (getenv("SHUX_ASM_MANGLE_TRACE")) {
-                  FILE *tf = fopen("/tmp/shux_asm_mangle_trace.txt", "a");
-                  if (tf) {
-                    fprintf(tf,
-                            "field=%.*s pre_len=%d r_func=%d r_dep=%d ndep=%d nfunc=%d use_fi=%d ovc=%d mid_len=%d "
-                            "sym_len=%d mid=%.*s sym=%.*s\n",
-                            (int)field_len, (const char *)field_name, (int)pre_len, (int)r_func, (int)r_dep,
-                            (int)dbg_ndep, (int)dbg_nfunc, (int)dbg_use_fi, (int)dbg_ovc, (int)mid_len, (int)sym_len,
-                            mid_len > 0 ? (int)mid_len : 0, mid_len > 0 ? (const char *)mid : "",
-                            sym_len > 0 ? (int)sym_len : 0, sym_len > 0 ? (const char *)sym_flat : "");
-                    fclose(tf);
-                  }
-                }
-                /*
-                 * PLATFORM: SHARED — caller-arena arg/ret mangle when formals mid stayed bare
-                 * or res_mod unresolved. Formal: len_StrView / new_retVec_u8.
-                 */
-                if (sym_len <= 0 || (sym_len == pre_len + field_len &&
-                                     memcmp(sym_flat + pre_len, field_name, (size_t)field_len) == 0)) {
-                  int32_t n_args = pipeline_expr_call_num_args_at(arena, expr_ref);
-                  int32_t pos;
-                  int32_t pi;
-                  int32_t alen = 0;
-                  if (field_len > 0 && field_len < 64) {
-                    memcpy(mid, field_name, (size_t)field_len);
-                    alen = field_len;
-                  }
-                  for (pi = 0; pi < n_args && alen < 60; pi++) {
-                    int32_t arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, pi);
-                    int32_t arg_ty = glue_asm_call_arg_type_ref_c(arena, ctx, arg_ref);
-                    uint8_t suf[64];
-                    int32_t sl = arg_ty > 0 ? glue_asm_type_ref_to_suffix_c(arena, arg_ty, suf, 64) : 0;
-                    if (sl <= 0)
-                      continue;
-                    if (alen + 1 + sl >= 64)
-                      break;
-                    mid[alen++] = (uint8_t)'_';
-                    memcpy(mid + alen, suf, (size_t)sl);
-                    alen += sl;
-                  }
-                  if (n_args == 0) {
-                    int32_t exp_ty = pipeline_expr_resolved_type_ref(arena, expr_ref);
-                    uint8_t suf[64];
-                    int32_t sl = exp_ty > 0 ? glue_asm_type_ref_to_suffix_c(arena, exp_ty, suf, 64) : 0;
-                    if (sl > 0 && alen + 4 + sl < 64) {
-                      mid[alen++] = (uint8_t)'_';
-                      mid[alen++] = (uint8_t)'r';
-                      mid[alen++] = (uint8_t)'e';
-                      mid[alen++] = (uint8_t)'t';
-                      memcpy(mid + alen, suf, (size_t)sl);
-                      alen += sl;
-                    }
-                  }
-                  if (alen > field_len) {
-                    pos = glue_asm_build_import_binding_call_sym(pre_buf, pre_len, mid, alen, sym_flat);
-                    if (pos > 0)
-                      sym_len = pos;
-                  }
-                }
-                if (sym_len <= 0) {
-                  sym_len = glue_asm_build_import_binding_call_sym(pre_buf, pre_len, field_name, field_len,
-                                                                  sym_flat);
-                }
-              }
+              /* PLATFORM: SHARED — G.7 import-binding CALL mangle (shared with METHOD_CALL). */
+              sym_len = glue_asm_mangle_import_binding_call_sym_c(arena, ctx, expr_ref, ly, mod_ref, j, pre_buf,
+                                                                  pre_len, field_name, field_len, 0, sym_flat);
               if (sym_len <= 0)
                 return -1;
               {
@@ -2810,7 +2789,12 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
           pre_len = glue_asm_fill_c_prefix_from_module_import(mod_ref, j, pre_buf);
           if (pre_len <= 0)
             return -1;
-          sym_len = glue_asm_build_import_binding_call_sym(pre_buf, pre_len, name, name_len, sym_flat);
+          /*
+           * PLATFORM: SHARED — import-binding METHOD_CALL mangle (G.7 same authority as CALL).
+           * Parser emits METHOD_CALL for string.len(v); bare pre+name → U std_string_len.
+           */
+          sym_len = glue_asm_mangle_import_binding_call_sym_c(arena, ctx, expr_ref, ly, mod_ref, j, pre_buf,
+                                                              pre_len, name, name_len, 1, sym_flat);
           if (sym_len <= 0)
             return -1;
           n_ov = pipeline_codegen_call_num_args_override(pre_buf, pre_len, name, name_len, nargs);
