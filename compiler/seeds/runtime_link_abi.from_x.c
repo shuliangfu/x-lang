@@ -3910,7 +3910,7 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
             int need_net = 0, need_thread = 0, need_time = 0, need_random = 0, need_env = 0;
             int need_sync = 0, need_encoding = 0, need_base64 = 0, need_crypto = 0;
             int need_log = 0, need_atomic = 0, need_channel = 0, need_backtrace = 0;
-            int need_hash = 0, need_math = 0, need_sort = 0, need_ffi = 0, need_db = 0;
+            int need_hash = 0, need_math = 0, need_sort = 0, need_vec = 0, need_ffi = 0, need_db = 0;
             int need_elf = 0, need_json = 0, need_csv = 0, need_regex = 0, need_compress = 0, need_unicode = 0;
             int need_dynlib = 0, need_http = 0, need_tar = 0, need_simd = 0, need_context = 0;
             int need_error = 0, need_datetime = 0, need_uuid = 0, need_url = 0, need_cli = 0;
@@ -4023,6 +4023,19 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
                     link_abi_generated_c_contains_substr_use_line(cp, "sort_i32") ||
                     link_abi_generated_c_contains_substr_use_line(cp, "sort_stable"))
                     need_sort = 1;
+                /* PLATFORM: SHARED — std.vec is link_only; user C has extern + calls only.
+                 * Ignore weak preamble std_vec_len_empty / placeholder lines (use_line). */
+                if (link_abi_generated_c_contains_substr_use_line(cp, "std_vec_new") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "std_vec_push") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "std_vec_len_Vec") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "std_vec_len_ptr") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "std_vec_with_capacity") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "std_vec_from_slice") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "std_vec_append") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "std_vec_reserve") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "std_vec_clear") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "std_vec_free"))
+                    need_vec = 1;
                 if (link_abi_generated_c_contains_substr_use_line(cp, "std_ffi_") ||
                     link_abi_generated_c_contains_substr_use_line(cp, "ffi_call"))
                     need_ffi = 1;
@@ -4367,6 +4380,27 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
                 }
                 if (!have_sort_body)
                     (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, sort_o);
+            }
+            /* PLATFORM: SHARED — vec.o authority for link_only std.vec (same as set/map).
+             * Must key on *body* open-brace, not "int32_t std_vec_*(..." which matches
+             * link_only extern prototypes and would skip the product .o (false co-emit). */
+            if (need_vec) {
+                int have_vec_body = 0;
+                for (jscan = 0; jscan < n; jscan++) {
+                    const char *cp = c_paths[jscan];
+                    if (!cp)
+                        continue;
+                    if (link_abi_generated_c_contains_substr(cp, "std_vec_new_retVec_u8(void) {") != 0 ||
+                        link_abi_generated_c_contains_substr(cp, "std_vec_new_retVec_u8(void){") != 0 ||
+                        link_abi_generated_c_contains_substr(cp, "std_vec_push_Vec_u8_ptr_u8(struct std_vec_Vec_u8 * v, uint8_t x) {") != 0 ||
+                        link_abi_generated_c_contains_substr(cp, "std_vec_push_Vec_u8_ptr_u8(struct std_vec_Vec_u8 *v, uint8_t x){") != 0) {
+                        have_vec_body = 1;
+                        break;
+                    }
+                }
+                if (!have_vec_body)
+                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
+                        shux_rel_o_path_from_argv0(include_root, "std/vec/vec.o"));
             }
             if (need_ffi)
                 (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, ffi_o);
@@ -5988,6 +6022,8 @@ static const LabiStdPlanStep g_labi_std_plan[] = {
     {LABI_STD_OP_STD, "std/math/math.o", 9},
     {LABI_STD_OP_GLUE_MATH, "compiler/runtime_math_libm.o", 0},
     {LABI_STD_OP_STD, "std/sort/sort.o", 0},
+    /* PLATFORM: SHARED — std.vec is link_only; on-demand via fk0 UNDEF probes. */
+    {LABI_STD_OP_STD, "std/vec/vec.o", 0},
     {LABI_STD_OP_STD, "std/ffi/ffi.o", 0},
     {LABI_STD_OP_STD, "std/db/sqlite/sqlite.o", 10},
     {LABI_STD_OP_GLUE_SQLITE, "compiler/runtime_sqlite_glue.o", 0},
@@ -6135,6 +6171,17 @@ static int labi_std_fk0_user_needs_rel(const char *user_o, const char *rel) {
             || shux_link_obj_needs_undef_sym(user_o, "std_context_deadline_ns")
             || shux_link_obj_needs_undef_sym(user_o, "std_context_is_cancelled")
             || shux_link_obj_needs_undef_sym(user_o, "std_context_remaining_ns");
+    /* PLATFORM: SHARED — vec is link_only; pull when user.o has real API UNDEFs
+     * (new/push/len family). Do not key on weak preamble std_vec_len_empty alone. */
+    if (strstr(rel, "std/vec/vec.o"))
+        return shux_link_obj_needs_undef_sym(user_o, "std_vec_new_retVec_u8")
+            || shux_link_obj_needs_undef_sym(user_o, "std_vec_new_retVec_i32")
+            || shux_link_obj_needs_undef_sym(user_o, "std_vec_push_Vec_u8_ptr_u8")
+            || shux_link_obj_needs_undef_sym(user_o, "std_vec_push_Vec_i32_ptr_i32")
+            || shux_link_obj_needs_undef_sym(user_o, "std_vec_len_Vec_u8")
+            || shux_link_obj_needs_undef_sym(user_o, "std_vec_len_Vec_i32")
+            || shux_link_obj_needs_undef_sym(user_o, "std_vec_new")
+            || shux_link_obj_needs_undef_sym(user_o, "std_vec_push");
     /* 其它 fk==0：默认不硬链，避免残缺 .o 毒化纯 asm / 无 import 用户程序。
      * 需要时由 on_demand 或上方专用探针推入。 */
     return 0;

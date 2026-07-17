@@ -1,7 +1,7 @@
 /* seeds/labi_std_list_surface.from_x.c
  * G-02f labi_std_list R2 full surface — isomorphic with src/runtime/labi_std_list.x
  * Product PREFER_X_O: g05_try_x_to_o(labi_std_list.x) + mega rest under FROM_X
- * Prove: full.x vs this seed → nm IDENTICAL (58-step std ld plan pure table)
+ * Prove: full.x vs this seed → nm IDENTICAL (59-step std ld plan pure table)
  * Cap residual: IO/ensure/push in mega shux_asm_ld_append_std_objs
  * Regen: ./shux -E ... src/runtime/labi_std_list.x | tail -n +8 (skip extern decls)
  */
@@ -9,13 +9,13 @@
 #include <stddef.h>
 #include <sys/types.h>
 int32_t labi_std_plan_count(void) {
-  return 58;
+  return 59;
 }
 int32_t labi_std_plan_step_at(int32_t i, int32_t * op_out, size_t * rel_out, int32_t * flag_kind_out) {
   if ((i < 0)) {
     return 0;
   }
-  if ((i >=58)) {
+  if ((i >=59)) {
     return 0;
   }
   if ((i ==0)) {
@@ -759,7 +759,21 @@ int32_t labi_std_plan_step_at(int32_t i, int32_t * op_out, size_t * rel_out, int
     }
     return 1;
   }
+  /* PLATFORM: SHARED — std/vec/vec.o (link_only product path). */
   if ((i ==57)) {
+    if ((op_out !=((int32_t *)(0)))) {
+      (void)(((op_out)[0] = 1));
+    }
+    if ((rel_out !=((size_t *)(0)))) {
+      uint8_t * p = (uint8_t[]){115, 116, 100, 47, 118, 101, 99, 47, 118, 101, 99, 46, 111, 0 };
+      (void)(((rel_out)[0] = ((size_t)(p))));
+    }
+    if ((flag_kind_out !=((int32_t *)(0)))) {
+      (void)(((flag_kind_out)[0] = 0));
+    }
+    return 1;
+  }
+  if ((i ==58)) {
     if ((op_out !=((int32_t *)(0)))) {
       (void)(((op_out)[0] = 30));
     }
@@ -775,7 +789,7 @@ int32_t labi_std_plan_step_at(int32_t i, int32_t * op_out, size_t * rel_out, int
   return 0;
 }
 int32_t labi_std_default_std_rel_count(void) {
-  return 41;
+  return 42;
 }
 uint8_t * labi_std_default_std_rel_at(int32_t j) {
   if ((j < 0)) {
@@ -943,6 +957,10 @@ uint8_t * labi_std_default_std_rel_at(int32_t j) {
   }
   if ((j ==40)) {
     uint8_t * p = (uint8_t[]){115, 116, 100, 47, 116, 114, 97, 99, 101, 47, 116, 114, 97, 99, 101, 46, 111, 0 };
+    return p;
+  }
+  if ((j ==41)) {
+    uint8_t * p = (uint8_t[]){115, 116, 100, 47, 118, 101, 99, 47, 118, 101, 99, 46, 111, 0 };
     return p;
   }
   return ((uint8_t *)(0));

@@ -284,6 +284,19 @@ for x_path in "$@"; do
     idx=$((idx + 1))
     continue
   fi
+  # PLATFORM: SHARED — rt_preamble injects weak std_vec_len_empty / std_vec_vec_len_empty
+  # for programs that never link std/vec/vec.o. std/vec/mod.x provides strong defs in the
+  # same TU → Clang/GCC redefinition error on host-cc path (Darwin always; Linux when
+  # forced -backend c). Authority: strip preamble weak bodies when strong defs exist
+  # (same pattern as shux_compile_std_x.sh args_iter_*).
+  if [ -f "$gen_c" ] && [ -s "$gen_c" ]; then
+    if grep -qE '__attribute__\(\(weak\)\).*std_vec_len_empty' "$gen_c" 2>/dev/null \
+      && grep -qE '^int32_t std_vec_len_empty\(' "$gen_c" 2>/dev/null; then
+      sed -e '/__attribute__((weak)) int32_t std_vec_len_empty(void)/d' \
+          -e '/__attribute__((weak)) int32_t std_vec_vec_len_empty(void)/d' \
+          "$gen_c" >"$gen_c.strip" && mv "$gen_c.strip" "$gen_c"
+    fi
+  fi
   # 【Why 根源】-E 对跨模块 struct（如 heap_libc_Arena64）常只在「形参列表内」
   # 写出 `struct Foo`，未给文件级 forward。C 规定形参内的 struct 标签作用域仅限该
   # 声明 → 原型与定义各得一个不同 incomplete 类型 → conflicting types for 'fn'。

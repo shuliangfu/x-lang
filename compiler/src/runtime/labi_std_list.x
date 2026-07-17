@@ -14,12 +14,16 @@
 // GLUE_THREAD=10 SYNC=11 CRYPTO=12 LOG=13 ATOMIC=14 CHANNEL=15 BACKTRACE=16
 // MATH=17 SQLITE=18 DYNLIB=19 HTTP=20 TASK_SPECIAL=30
 
+/** Return the number of default std link plan steps (must match step_at cases).
+ * PLATFORM: SHARED — pure table; seed labi_std_list.from_x.c must stay in sync. */
 #[no_mangle]
 export function labi_std_plan_count(): i32 {
-  return 58;
+  return 59;
 }
 
-// out：C 侧 int* / const char** / int*；.x 用 *i32 + *usize + *i32。
+/** Fill one plan step: op / rel path / flag_kind. Returns 1 if i is in range.
+ * out: C int* / const char** / int*; .x writes via *i32 + *usize + *i32.
+ * PLATFORM: SHARED — includes std/vec/vec.o (fk0) after sort; task remains last. */
 #[no_mangle]
 export function labi_std_plan_step_at(
   i: i32, op_out: *i32, rel_out: *usize, flag_kind_out: *i32
@@ -27,7 +31,7 @@ export function labi_std_plan_step_at(
   if (i < 0) {
     return 0;
   }
-  if (i >= 58) {
+  if (i >= 59) {
     return 0;
   }
   if (i == 0) {
@@ -771,7 +775,21 @@ export function labi_std_plan_step_at(
     }
     return 1;
   }
+  // PLATFORM: SHARED — std.vec link_only product .o; fk0 UNDEF gate in mega.
   if (i == 57) {
+    if (op_out != 0 as *i32) {
+      op_out[0] = 1;
+    }
+    if (rel_out != 0 as *usize) {
+      let p: *u8 = "std/vec/vec.o";
+      rel_out[0] = p as usize;
+    }
+    if (flag_kind_out != 0 as *i32) {
+      flag_kind_out[0] = 0;
+    }
+    return 1;
+  }
+  if (i == 58) {
     if (op_out != 0 as *i32) {
       op_out[0] = 30;
     }
@@ -787,10 +805,11 @@ export function labi_std_plan_step_at(
   return 0;
 }
 
-// Pure: count of OP_STD entries with std/ prefix (audit / unit).
+/** Pure: count of OP_STD entries with std/ prefix (audit / unit).
+ * PLATFORM: SHARED — includes std/vec/vec.o. */
 #[no_mangle]
 export function labi_std_default_std_rel_count(): i32 {
-  return 41;
+  return 42;
 }
 
 #[no_mangle]
@@ -960,6 +979,10 @@ export function labi_std_default_std_rel_at(j: i32): *u8 {
   }
   if (j == 40) {
     let p: *u8 = "std/trace/trace.o";
+    return p;
+  }
+  if (j == 41) {
+    let p: *u8 = "std/vec/vec.o";
     return p;
   }
   return 0 as *u8;

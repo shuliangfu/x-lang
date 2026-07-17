@@ -24,13 +24,13 @@
  */
 
 int labi_std_plan_count(void) {
-  return 58;
+  return 59;
 }
 
 int labi_std_plan_step_at(int i, int *op_out, const char **rel_out, int *flag_kind_out) {
   if (i < 0)
     return 0;
-  if (i >= 58)
+  if (i >= 59)
     return 0;
   if (i == 0) {
     if (op_out)
@@ -545,7 +545,17 @@ int labi_std_plan_step_at(int i, int *op_out, const char **rel_out, int *flag_ki
       *flag_kind_out = 0;
     return 1;
   }
+  /* PLATFORM: SHARED — std.vec link_only product .o; fk0 UNDEF gate in mega. */
   if (i == 57) {
+    if (op_out)
+      *op_out = 1;
+    if (rel_out)
+      *rel_out = "std/vec/vec.o";
+    if (flag_kind_out)
+      *flag_kind_out = 0;
+    return 1;
+  }
+  if (i == 58) {
     if (op_out)
       *op_out = 30;
     if (rel_out)
@@ -559,7 +569,7 @@ int labi_std_plan_step_at(int i, int *op_out, const char **rel_out, int *flag_ki
 
 /* Pure: count of OP_STD entries with std/ prefix (audit / unit). */
 int labi_std_default_std_rel_count(void) {
-  return 41;
+  return 42;
 }
 
 const char *labi_std_default_std_rel_at(int j) {
@@ -647,6 +657,8 @@ const char *labi_std_default_std_rel_at(int j) {
     return "std/cache/cache.o";
   if (j == 40)
     return "std/trace/trace.o";
+  if (j == 41)
+    return "std/vec/vec.o";
   return NULL;
 }
 
