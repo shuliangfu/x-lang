@@ -9,7 +9,8 @@
 // 禁止「函数体仅 return "lit"」——parser 会 skip 整函数；用 let p + return p。
 // nm 探针与 push/ensure 仍在 mega append_on_demand_user_objs。
 //
-// Simple groups: string=0 core_types=1 encoding=2 base64=3 csv=4 schema=5
+// Simple groups: string=0 (g1 empty; core.types co-emit) encoding=2 base64=3 csv=4 schema=5
+// g1 formerly core_types_* → base64.o (wrong; base64 has no core_types_ export).
 
 #[no_mangle]
 export function labi_od_simple_group_count(): i32 {
@@ -25,7 +26,7 @@ export function labi_od_simple_group_sym_count(g: i32): i32 {
     return 9;
   }
   if (g == 1) {
-    return 2;
+    return 0;
   }
   if (g == 2) {
     return 6;
@@ -90,14 +91,6 @@ export function labi_od_simple_group_sym_at(g: i32, i: i32): *u8 {
     return 0 as *u8;
   }
   if (g == 1) {
-    if (i == 0) {
-      let p: *u8 = "core_types_size_of_i32";
-      return p;
-    }
-    if (i == 1) {
-      let p: *u8 = "core_types_placeholder";
-      return p;
-    }
     return 0 as *u8;
   }
   if (g == 2) {
@@ -189,8 +182,7 @@ export function labi_od_simple_group_rel(g: i32): *u8 {
     return p;
   }
   if (g == 1) {
-    let p: *u8 = "std/base64/base64.o";
-    return p;
+    return 0 as *u8;
   }
   if (g == 2) {
     let p: *u8 = "std/encoding/encoding.o";

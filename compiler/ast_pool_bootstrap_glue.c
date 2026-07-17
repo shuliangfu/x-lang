@@ -376,16 +376,16 @@ int32_t pipeline_codegen_dep_skip_asm_user_std_misc(uint8_t *path) {
 }
 
 /**
- * core.fmt / core.types：闭包符号由链入 std 预编译 .o 提供（base64.o 等 export core_types_*），
- * 勿整库 co-emit（与 base64.o 重复 core_types_placeholder；hello 等纯 std 闭包勿 co-emit core.fmt）。
- * core.result / core.option：用户 import 时须 co-emit（否则 ld 缺 core_result_ok_i32 等）。
+ * Skip asm co-emit for core modules that are provided elsewhere.
+ * PLATFORM: SHARED — only core.fmt stays skip (hello/fmt via io stubs; co-emit history SIGSEGV).
+ * core.types / option / result have no formal prebuilt .o (nm: base64.o does NOT export
+ * core_types_*; old comment was wrong). User -backend asm must co-emit them or ld UNDEF
+ * (Ubuntu gold: tests/stdlib-import/main.x).
  */
 int32_t pipeline_codegen_dep_skip_asm_user_core_lib(uint8_t *path) {
   if (!path)
     return 0;
   if (memcmp(path, "core.fmt", 8) == 0 && (path[8] == 0 || path[8] == '.'))
-    return 1;
-  if (memcmp(path, "core.types", 10) == 0 && (path[10] == 0 || path[10] == '.'))
     return 1;
   return 0;
 }
@@ -399,19 +399,34 @@ int32_t pipeline_asm_user_std_net_dep_path(uint8_t *path) {
   return (path[7] == 0 || path[7] == '.') ? 1 : 0;
 }
 
-/** 是否存在须 co-emit 的用户自有 dep（tests/multi-file 的 import("foo") 等）。 */
+/** Whether any dep must be co-emitted into the user -backend asm object.
+ * PLATFORM: SHARED — Ubuntu ELF UNDEF is gold; mac const-fold can hide missing core_*.
+ * Authority: this function only (G.7); called from rt_run_asm_backend / runtime.from_x. */
 int32_t pipeline_asm_user_deps_need_coemit(char **dep_paths, int32_t n) {
   int32_t i;
   if (!dep_paths || n <= 0)
     return 0;
   for (i = 0; i < n; i++) {
     uint8_t *p = (uint8_t *)(dep_paths[i] ? dep_paths[i] : "");
-    /*
-     * std./core. 闭包符号由预编 .o / preamble 提供；勿整库 co-emit（encoding/string/heap 等
-     * dep_prerun typeck 在 strict 链上易 SIGSEGV）。
-     */
-    if (memcmp(p, "std.", 4) == 0 || memcmp(p, "core.", 5) == 0)
+    /* std.*: prebuilt .o + UNDEF gates; bulk co-emit risks SIGSEGV on encoding/string/heap. */
+    if (memcmp(p, "std.", 4) == 0)
       continue;
+    /* core.mem / core.slice: formal prebuilt .o (Makefile + on_demand). */
+    if (memcmp(p, "core.mem", 8) == 0 && (p[8] == 0 || p[8] == '.'))
+      continue;
+    if (memcmp(p, "core.slice", 10) == 0 && (p[10] == 0 || p[10] == '.'))
+      continue;
+    /* core.fmt: io stubs / skip co-emit (hello path). */
+    if (memcmp(p, "core.fmt", 8) == 0 && (p[8] == 0 || p[8] == '.'))
+      continue;
+    /*
+     * core.types / core.option / core.result (and any other core.* without formal .o):
+     * must co-emit. Returning 0 for all core.* left ENTRY_MODULE_ONLY and Ubuntu
+     * stdlib-import ld: U core_types_placeholder / core_option_* / core_result_*.
+     */
+    if (memcmp(p, "core.", 5) == 0)
+      return 1;
+    /* User multi-file import("foo") etc. */
     return 1;
   }
   return 0;

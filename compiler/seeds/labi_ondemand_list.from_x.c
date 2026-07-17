@@ -13,7 +13,10 @@
 
 #ifndef SHUX_LABI_ONDEMAND_LIST_FROM_X
 
-/* Simple groups: string=0 core_types=1 encoding=2 base64=3 csv=4 schema=5 */
+/* Simple groups: string=0 (g1 reserved/unused) encoding=2 base64=3 csv=4 schema=5.
+ * g1 formerly listed core_types_* but rel wrongly pointed at base64.o (no core_types_ export).
+ * core.types is co-emitted for -backend asm (pipeline_asm_user_deps_need_coemit); do not
+ * push a wrong .o on residual U. Keep g1 empty so indices of 2..5 stay stable. */
 
 int labi_od_simple_group_count(void) {
   return 6;
@@ -25,7 +28,7 @@ int labi_od_simple_group_sym_count(int g) {
   if (g == 0)
     return 9;
   if (g == 1)
-    return 2;
+    return 0; /* was core_types_* → base64.o mis-map; co-emit core.types instead */
   if (g == 2)
     return 6;
   if (g == 3)
@@ -64,10 +67,7 @@ const char *labi_od_simple_group_sym_at(int g, int i) {
     return NULL;
   }
   if (g == 1) {
-    if (i == 0)
-      return "core_types_size_of_i32";
-    if (i == 1)
-      return "core_types_placeholder";
+    (void)i;
     return NULL;
   }
   if (g == 2) {
@@ -123,7 +123,7 @@ const char *labi_od_simple_group_rel(int g) {
   if (g == 0)
     return "std/string/string.o";
   if (g == 1)
-    return "std/base64/base64.o";
+    return NULL; /* empty group; was mis-mapped to base64.o */
   if (g == 2)
     return "std/encoding/encoding.o";
   if (g == 3)
