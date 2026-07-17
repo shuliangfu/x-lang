@@ -2133,35 +2133,51 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
       stmt_tok_ready = false;
       continue;
     }
-    /** MEM-B0：defer { body } — 块退出时逆序执行（与 parser.c parse_defer_start 对齐）。 */
+    /**
+     * MEM-B0: defer { body } — LIFO at block exit (align parser.c parse_defer_start).
+     * Hoist-safe (block path): pin X→C otherwise does
+     * append_defer(body_ref=0) before parse_block_into — force drops defer body.
+     * PLATFORM: SHARED — same mid-path let hoist class as unsafe/while.
+     */
     if (r.tok.kind == token.TokenKind.TOKEN_DEFER) {
+      let block_res_def: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex_cur };
+      let def_i: i32 = 0;
       lex_from_next_into(&lex_cur, r);
       lexer.lexer_next_into(&r, lex_cur, source);
       if (r.tok.kind != token.TokenKind.TOKEN_LBRACE) {
         out.ok = false;
         return;
       }
-      /** parse_block_into 期望 lex_after_lbrace（与 while/loop/for 一致）。 */
+      /* parse_block_into wants lex_after_lbrace (same as while/loop/for). */
       lex_cur = r.next_lex;
-      let block_res_def: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex_cur };
+      block_res_def = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex_cur };
       parse_block_into(arena, lex_cur, source, type_ref, &block_res_def);
       if (!block_res_def.ok) {
         out.ok = false;
         return;
       }
-      let def_i: i32 = pipeline_block_append_defer(arena, block_ref, block_res_def.block_ref);
+      def_i = pipeline_block_append_defer(arena, block_ref, block_res_def.block_ref);
       if (def_i < 0) {
         out.ok = false;
         return;
       }
       b = ast.ast_arena_block_get(arena, block_ref);
       lex_cur = block_res_def.next_lex;
-      /** 体已同步整条 defer 语句；勿 compound realign（会把体内 expr 泄漏到外层）。 */
+      /* Body already synced the full defer stmt; no compound realign (leaks body expr). */
       stmt_tok_ready = false;
       continue;
     }
+    /**
+     * MEM-C1: with_arena(cap) { body }; X stmt_order kind=6 (shared region idx pool; cap_ref>0).
+     * Hoist-safe: zero-init + assign after parse; mid-path let append_with_arena(0,0)
+     * before body would register empty region (force with_arena residual).
+     * PLATFORM: SHARED.
+     */
     if (r.tok.kind == token.TokenKind.TOKEN_WITH_ARENA) {
-      /** MEM-C1：with_arena(cap) { body }；X stmt_order kind=6（与 region 共用 idx 池，cap_ref>0 区分）。 */
+      let cap_ref: i32 = 0;
+      let cap_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex_cur };
+      let block_res_wa: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex_cur };
+      let wa_pool_i: i32 = 0;
       lex_from_next_into(&lex_cur, r);
       lexer.lexer_next_into(&r, lex_cur, source);
       if (r.tok.kind != token.TokenKind.TOKEN_LPAREN) {
@@ -2169,8 +2185,7 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
         return;
       }
       lex_from_next_into(&lex_cur, r);
-      let cap_ref: i32 = 0;
-      let cap_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex_cur };
+      cap_res = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex_cur };
       parse_expr_into(arena, lex_cur, source, &cap_res);
       if (!cap_res.ok || cap_res.expr_ref == 0) {
         out.ok = false;
@@ -2190,13 +2205,13 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
         return;
       }
       lex_from_next_into(&lex_cur, r);
-      let block_res_wa: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex_cur };
+      block_res_wa = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex_cur };
       parse_block_into(arena, lex_cur, source, type_ref, &block_res_wa);
       if (!block_res_wa.ok) {
         out.ok = false;
         return;
       }
-      let wa_pool_i: i32 = pipeline_block_append_with_arena(arena, block_ref, cap_ref, block_res_wa.block_ref);
+      wa_pool_i = pipeline_block_append_with_arena(arena, block_ref, cap_ref, block_res_wa.block_ref);
       if (wa_pool_i < 0) {
         out.ok = false;
         return;
@@ -2212,32 +2227,39 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
       stmt_tok_ready = false;
       continue;
     }
+    /**
+     * M-3: region label { body }; X stmt_order kind=6.
+     * Hoist-safe: append_region only after body parse (same class as unsafe/defer).
+     * PLATFORM: SHARED.
+     */
     if (r.tok.kind == token.TokenKind.TOKEN_REGION) {
-      /** M-3：region label { body }；X stmt_order kind=6。 */
+      let reg_label_blk: u8[64] = [];
+      let reg_label_len_blk: i32 = 0;
+      let block_res_reg: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex_cur };
+      let reg_pool_i: i32 = 0;
       lex_from_next_into(&lex_cur, r);
       lexer.lexer_next_into(&r, lex_cur, source);
       if (r.tok.kind != token.TokenKind.TOKEN_IDENT) {
         out.ok = false;
         return;
       }
-      let reg_label_blk: u8[64] = [];
       copy_slice_to_name64(source, r.token_start, r.tok.ident_len, &reg_label_blk[0]);
-      let reg_label_len_blk: i32 = r.tok.ident_len;
+      reg_label_len_blk = r.tok.ident_len;
       lex_from_next_into(&lex_cur, r);
       lexer.lexer_next_into(&r, lex_cur, source);
       if (r.tok.kind != token.TokenKind.TOKEN_LBRACE) {
         out.ok = false;
         return;
       }
-      /** parse_block_into 要求 lex 位于 `{` 之后（与 while/for 分支一致）。 */
+      /* parse_block_into wants lex after `{` (same as while/for). */
       lex_from_next_into(&lex_cur, r);
-      let block_res_reg: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex_cur };
+      block_res_reg = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex_cur };
       parse_block_into(arena, lex_cur, source, type_ref, &block_res_reg);
       if (!block_res_reg.ok) {
         out.ok = false;
         return;
       }
-      let reg_pool_i: i32 = pipeline_block_append_region(arena, block_ref, &reg_label_blk[0], reg_label_len_blk, block_res_reg.block_ref);
+      reg_pool_i = pipeline_block_append_region(arena, block_ref, &reg_label_blk[0], reg_label_len_blk, block_res_reg.block_ref);
       if (reg_pool_i < 0) {
         out.ok = false;
         return;
@@ -4178,23 +4200,27 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         lexer.lexer_next_into(&r, lex, source);
         continue;
       }
-      /*
-       * defer { block }：与 parser.c parse_defer_start 对齐；写入 OneFunc 侧车，落 Block 时 fill_defers。
+      /**
+       * defer { block }: align parse_defer_start; OneFunc sidecar → fill_defers on Block.
+       * Hoist-safe (onefunc): append_defer only after body parse.
+       * PLATFORM: SHARED.
        */
       if (r.tok.kind == token.TokenKind.TOKEN_DEFER) {
+        let block_res_def_fn: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex };
+        let def_idx_fn: i32 = 0;
         lex_from_next_into(&lex, r);
         lexer.lexer_next_into(&r, lex, source);
         if (r.tok.kind != token.TokenKind.TOKEN_LBRACE) {
           set_onefunc_fail(out, lex); return;
         }
-        /** parse_block_into 期望 lex_after_lbrace（与 while/loop 一致）。 */
+        /* parse_block_into wants lex_after_lbrace (same as while/loop). */
         lex = r.next_lex;
-        let block_res_def_fn: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex };
+        block_res_def_fn = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex };
         parse_block_into(arena, lex, source, ret_type_ref, &block_res_def_fn);
         if (!block_res_def_fn.ok) {
           set_onefunc_fail(out, lex); return;
         }
-        let def_idx_fn: i32 = pipeline_onefunc_append_defer(onefunc_result_pool_ptr(out), block_res_def_fn.block_ref);
+        def_idx_fn = pipeline_onefunc_append_defer(onefunc_result_pool_ptr(out), block_res_def_fn.block_ref);
         if (def_idx_fn < 0) {
           set_onefunc_fail(out, lex); return;
         }
@@ -4202,15 +4228,22 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         stmt_tok_ready = false;
         continue;
       }
-      /** MEM-C1：with_arena(cap) { body } — OneFunc 侧车，落 Block 时 fill_regions。 */
+      /**
+       * MEM-C1: with_arena(cap) { body } — OneFunc sidecar, fill_regions on Block.
+       * Hoist-safe: zero-init + assign after parse (no mid-path append_with_arena(0,0)).
+       * PLATFORM: SHARED.
+       */
       if (r.tok.kind == token.TokenKind.TOKEN_WITH_ARENA) {
+        let cap_res_fn: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex };
+        let block_res_wa_fn: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex };
+        let wa_idx_fn: i32 = 0;
         lex_from_next_into(&lex, r);
         lexer.lexer_next_into(&r, lex, source);
         if (r.tok.kind != token.TokenKind.TOKEN_LPAREN) {
           set_onefunc_fail(out, lex); return;
         }
         lex_from_next_into(&lex, r);
-        let cap_res_fn: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex };
+        cap_res_fn = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex };
         parse_expr_into(arena, lex, source, &cap_res_fn);
         if (!cap_res_fn.ok || cap_res_fn.expr_ref == 0) {
           set_onefunc_fail(out, lex); return;
@@ -4226,12 +4259,12 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
           set_onefunc_fail(out, lex); return;
         }
         lex_from_next_into(&lex, r);
-        let block_res_wa_fn: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex };
+        block_res_wa_fn = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex };
         parse_block_into(arena, lex, source, ret_type_ref, &block_res_wa_fn);
         if (!block_res_wa_fn.ok) {
           set_onefunc_fail(out, lex); return;
         }
-        let wa_idx_fn: i32 = pipeline_onefunc_append_with_arena(onefunc_result_pool_ptr(out), cap_res_fn.expr_ref, block_res_wa_fn.block_ref);
+        wa_idx_fn = pipeline_onefunc_append_with_arena(onefunc_result_pool_ptr(out), cap_res_fn.expr_ref, block_res_wa_fn.block_ref);
         if (wa_idx_fn < 0) {
           set_onefunc_fail(out, lex); return;
         }
@@ -4241,29 +4274,36 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         stmt_tok_ready = true;
         continue;
       }
-      /** M-3：region label { body } — OneFunc 侧车暂存，落 Block 时 fill_regions。 */
+      /**
+       * M-3: region label { body } — OneFunc sidecar → fill_regions on Block.
+       * Hoist-safe: append_region only after body parse.
+       * PLATFORM: SHARED.
+       */
       if (r.tok.kind == token.TokenKind.TOKEN_REGION) {
+        let reg_nm_fn: u8[64] = [];
+        let reg_nlen_fn: i32 = 0;
+        let block_res_reg_fn: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex };
+        let reg_idx_fn: i32 = 0;
         lex_from_next_into(&lex, r);
         lexer.lexer_next_into(&r, lex, source);
         if (r.tok.kind != token.TokenKind.TOKEN_IDENT) {
           set_onefunc_fail(out, lex); return;
         }
-        let reg_nm_fn: u8[64] = [];
         copy_slice_to_name64(source, r.token_start, r.tok.ident_len, &reg_nm_fn[0]);
-        let reg_nlen_fn: i32 = r.tok.ident_len;
+        reg_nlen_fn = r.tok.ident_len;
         lex_from_next_into(&lex, r);
         lexer.lexer_next_into(&r, lex, source);
         if (r.tok.kind != token.TokenKind.TOKEN_LBRACE) {
           set_onefunc_fail(out, lex); return;
         }
-        /** parse_block_into 要求 lex 位于 `{` 之后（与 while 分支 lex = r.next_lex 一致）。 */
+        /* parse_block_into wants lex after `{` (same as while). */
         lex_from_next_into(&lex, r);
-        let block_res_reg_fn: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex };
+        block_res_reg_fn = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex };
         parse_block_into(arena, lex, source, ret_type_ref, &block_res_reg_fn);
         if (!block_res_reg_fn.ok) {
           set_onefunc_fail(out, lex); return;
         }
-        let reg_idx_fn: i32 = pipeline_onefunc_append_region(onefunc_result_pool_ptr(out), &reg_nm_fn[0], reg_nlen_fn, block_res_reg_fn.block_ref);
+        reg_idx_fn = pipeline_onefunc_append_region(onefunc_result_pool_ptr(out), &reg_nm_fn[0], reg_nlen_fn, block_res_reg_fn.block_ref);
         if (reg_idx_fn < 0) {
           set_onefunc_fail(out, lex); return;
         }

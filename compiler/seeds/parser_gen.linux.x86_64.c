@@ -2694,7 +2694,7 @@ void parser_parse_block_into(struct ast_ASTArena * arena, struct lexer_Lexer lex
       }
       if ((((r.tok).kind) ==13)) {
         struct parser_ParseBlockResult block_res_def = (struct parser_ParseBlockResult){ .ok = 0, .block_ref = 0, .next_lex = lex_cur };
-        int32_t def_i = pipeline_block_append_defer(arena, block_ref, (block_res_def.block_ref));
+        int32_t def_i = 0;
         (void)(parser_lex_from_next_into(&(lex_cur), r));
         (void)(lexer_next_into(&(r), lex_cur, source));
         if ((((r.tok).kind) !=84)) {
@@ -2707,6 +2707,7 @@ void parser_parse_block_into(struct ast_ASTArena * arena, struct lexer_Lexer lex
           (void)(((out->ok) = 0));
           return;
         }
+        (void)((def_i = pipeline_block_append_defer(arena, block_ref, (block_res_def.block_ref))));
         if ((def_i < 0)) {
           (void)(((out->ok) = 0));
           return;
@@ -2720,7 +2721,7 @@ void parser_parse_block_into(struct ast_ASTArena * arena, struct lexer_Lexer lex
         int32_t cap_ref = 0;
         struct parser_ParseExprResult cap_res = (struct parser_ParseExprResult){ .ok = 0, .expr_ref = 0, .next_lex = lex_cur };
         struct parser_ParseBlockResult block_res_wa = (struct parser_ParseBlockResult){ .ok = 0, .block_ref = 0, .next_lex = lex_cur };
-        int32_t wa_pool_i = pipeline_block_append_with_arena(arena, block_ref, cap_ref, (block_res_wa.block_ref));
+        int32_t wa_pool_i = 0;
         (void)(parser_lex_from_next_into(&(lex_cur), r));
         (void)(lexer_next_into(&(r), lex_cur, source));
         if ((((r.tok).kind) !=82)) {
@@ -2752,6 +2753,7 @@ void parser_parse_block_into(struct ast_ASTArena * arena, struct lexer_Lexer lex
           (void)(((out->ok) = 0));
           return;
         }
+        (void)((wa_pool_i = pipeline_block_append_with_arena(arena, block_ref, cap_ref, (block_res_wa.block_ref))));
         if ((wa_pool_i < 0)) {
           (void)(((out->ok) = 0));
           return;
@@ -2771,7 +2773,7 @@ void parser_parse_block_into(struct ast_ASTArena * arena, struct lexer_Lexer lex
         uint8_t reg_label_blk[64] = {};
         int32_t reg_label_len_blk = ((r.tok).ident_len);
         struct parser_ParseBlockResult block_res_reg = (struct parser_ParseBlockResult){ .ok = 0, .block_ref = 0, .next_lex = lex_cur };
-        int32_t reg_pool_i = pipeline_block_append_region(arena, block_ref, &((reg_label_blk)[0]), reg_label_len_blk, (block_res_reg.block_ref));
+        int32_t reg_pool_i = 0;
         (void)(parser_lex_from_next_into(&(lex_cur), r));
         (void)(lexer_next_into(&(r), lex_cur, source));
         if ((((r.tok).kind) !=59)) {
@@ -2791,6 +2793,7 @@ void parser_parse_block_into(struct ast_ASTArena * arena, struct lexer_Lexer lex
           (void)(((out->ok) = 0));
           return;
         }
+        (void)((reg_pool_i = pipeline_block_append_region(arena, block_ref, &((reg_label_blk)[0]), reg_label_len_blk, (block_res_reg.block_ref))));
         if ((reg_pool_i < 0)) {
           (void)(((out->ok) = 0));
           return;
@@ -4347,7 +4350,7 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
         }
         if ((((r.tok).kind) ==13)) {
           struct parser_ParseBlockResult block_res_def_fn = (struct parser_ParseBlockResult){ .ok = 0, .block_ref = 0, .next_lex = lex };
-          int32_t def_idx_fn = pipeline_onefunc_append_defer(parser_onefunc_result_pool_ptr(out), (block_res_def_fn.block_ref));
+          int32_t def_idx_fn = 0;
           (void)(parser_lex_from_next_into(&(lex), r));
           (void)(lexer_next_into(&(r), lex, source));
           if ((((r.tok).kind) !=84)) {
@@ -4360,6 +4363,7 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
             (void)(parser_set_onefunc_fail(out, lex));
             return;
           }
+          (void)((def_idx_fn = pipeline_onefunc_append_defer(parser_onefunc_result_pool_ptr(out), (block_res_def_fn.block_ref))));
           if ((def_idx_fn < 0)) {
             (void)(parser_set_onefunc_fail(out, lex));
             return;
@@ -4371,7 +4375,7 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
         if ((((r.tok).kind) ==17)) {
           struct parser_ParseExprResult cap_res_fn = (struct parser_ParseExprResult){ .ok = 0, .expr_ref = 0, .next_lex = lex };
           struct parser_ParseBlockResult block_res_wa_fn = (struct parser_ParseBlockResult){ .ok = 0, .block_ref = 0, .next_lex = lex };
-          int32_t wa_idx_fn = pipeline_onefunc_append_with_arena(parser_onefunc_result_pool_ptr(out), (cap_res_fn.expr_ref), (block_res_wa_fn.block_ref));
+          int32_t wa_idx_fn = 0;
           (void)(parser_lex_from_next_into(&(lex), r));
           (void)(lexer_next_into(&(r), lex, source));
           if ((((r.tok).kind) !=82)) {
@@ -4402,6 +4406,7 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
             (void)(parser_set_onefunc_fail(out, lex));
             return;
           }
+          (void)((wa_idx_fn = pipeline_onefunc_append_with_arena(parser_onefunc_result_pool_ptr(out), (cap_res_fn.expr_ref), (block_res_wa_fn.block_ref))));
           if ((wa_idx_fn < 0)) {
             (void)(parser_set_onefunc_fail(out, lex));
             return;
@@ -4416,7 +4421,7 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
           uint8_t reg_nm_fn[64] = {};
           int32_t reg_nlen_fn = ((r.tok).ident_len);
           struct parser_ParseBlockResult block_res_reg_fn = (struct parser_ParseBlockResult){ .ok = 0, .block_ref = 0, .next_lex = lex };
-          int32_t reg_idx_fn = pipeline_onefunc_append_region(parser_onefunc_result_pool_ptr(out), &((reg_nm_fn)[0]), reg_nlen_fn, (block_res_reg_fn.block_ref));
+          int32_t reg_idx_fn = 0;
           (void)(parser_lex_from_next_into(&(lex), r));
           (void)(lexer_next_into(&(r), lex, source));
           if ((((r.tok).kind) !=59)) {
@@ -4436,6 +4441,7 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
             (void)(parser_set_onefunc_fail(out, lex));
             return;
           }
+          (void)((reg_idx_fn = pipeline_onefunc_append_region(parser_onefunc_result_pool_ptr(out), &((reg_nm_fn)[0]), reg_nlen_fn, (block_res_reg_fn.block_ref))));
           if ((reg_idx_fn < 0)) {
             (void)(parser_set_onefunc_fail(out, lex));
             return;
