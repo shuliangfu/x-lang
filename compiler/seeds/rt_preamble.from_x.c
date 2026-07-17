@@ -65,8 +65,10 @@ const char *const driver_preamble_io_net_lines[] = {
         "#endif\n"
         "#if defined(__APPLE__)\nextern int *__error(void);\n"
         "#else\nextern int *__errno_location(void);\n#endif\n"
-        "extern int fcntl(int, int, ...);\n"
-        "extern int madvise(void *, size_t, int);\n"
+        /* Match Shux extern "C" fcntl/madvise ABI (int32_t), not libc fcntl(int,...)/madvise.
+         * libc prototypes conflict with co-emit std.net.udp etc. (mac L4 run-net red). */
+        "extern int32_t fcntl(int32_t fd, int32_t cmd, int32_t arg);\n"
+        "extern int32_t madvise(uint8_t *addr, size_t len, int32_t advice);\n"
         /* Co-emit currently omits fs_libc_open body while same-module calls use bare name. */
         "extern int32_t open(uint8_t *path, int32_t flags, int32_t mode);\n"
         "static inline int32_t fs_libc_open(uint8_t *path, int32_t flags, int32_t mode) {\n"
