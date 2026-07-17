@@ -8121,11 +8121,20 @@ int32_t codegen_emit_block_final_expr(struct ast_ASTArena * arena, struct codege
     return codegen_emit_return_stmt_with_context(arena, out, indent, (fe.unary_operand_ref), ctx, fn_ret_void);
   }
   int32_t parent_br = 0;
+  int32_t is_func_body = 0;
   if (((block_ref > 0) && (block_ref <=(arena->num_blocks)))) {
     struct ast_Block blk = ast_ast_arena_block_get(arena, block_ref);
     (void)((parent_br = (blk.parent_block_ref)));
   }
-  if ((parent_br > 0)) {
+  /* PLATFORM: SHARED — only function body final uses return; EXPR_BLOCK value
+   * contexts (if {1} else {0} as call arg) must emit expr; so ({1;}) is int. */
+  if (((ctx != ((struct ast_PipelineDepCtx *)(0))) && ((ctx->current_codegen_module) != ((struct ast_Module *)(0))) && ((ctx->current_func_index) >= 0))) {
+    int32_t fbody = pipeline_module_func_body_ref_at((ctx->current_codegen_module), (ctx->current_func_index));
+    if (((!(ast_ref_is_null(fbody))) && (fbody == block_ref))) {
+      (void)((is_func_body = 1));
+    }
+  }
+  if (((parent_br > 0) || (is_func_body == 0))) {
     uint8_t end[4] = {59, 10, 0, 0};
     if ((codegen_emit_indent(out, indent) !=0)) {
       return -(1);

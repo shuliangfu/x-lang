@@ -7267,11 +7267,21 @@ export function emit_block_final_expr(arena: *ASTArena, out: *CodegenOutBuf, blo
     parent_br = blk.parent_block_ref;
   }
   /*
-   * 嵌套块 final：发 `expr;` 而非 return，亦勿 (void)(expr)。
-   * 【Why 根源】(void) 使 GNU 语句表达式 `({ ... })`（unsafe 块 / EXPR_BLOCK）值为 void，
-   *   破坏 `if (unsafe { memcmp(...) } != 0)`。纯语句体里 `expr;` 同样丢弃返回值。
+   * Nested / non-function-body final: emit `expr;` not return.
+   * PLATFORM: SHARED — GNU statement expr `({ ... })` (EXPR_BLOCK as value, e.g.
+   * `if (a==b){1}else{0}` as call arg) must end with a value expression.
+   * `return 1;` makes the statement-expr void → host-cc "void to int32_t".
+   * Only the real function body block may use return for final_expr.
    */
-  if (parent_br > 0) {
+  let is_func_body: i32 = 0;
+  if (ctx != 0 as *PipelineDepCtx && ctx.current_codegen_module != 0 as *Module
+      && ctx.current_func_index >= 0) {
+    let fbody: i32 = pipeline_module_func_body_ref_at(ctx.current_codegen_module, ctx.current_func_index);
+    if (!ast.ref_is_null(fbody) && fbody == block_ref) {
+      is_func_body = 1;
+    }
+  }
+  if (parent_br > 0 || is_func_body == 0) {
     if (emit_indent(out, indent) != 0) {
       return -1;
     }
