@@ -447,21 +447,42 @@ static int32_t glue_call_arg_is_sse_float_c(struct ast_ASTArena *arena, int32_t 
   int32_t ko;
   int32_t atr;
   int32_t ak;
+  int32_t rc;
   if (glue_call_param_is_f32_c(arena, pty))
-    return 1;
-  if (!arena || call_expr_ref <= 0 || arg_index < 0)
-    return 0;
-  arg_ref = pipeline_expr_call_arg_ref(arena, call_expr_ref, arg_index);
-  if (arg_ref <= 0)
-    return 0;
-  ko = pipeline_expr_kind_ord_at(arena, arg_ref);
-  if (ko == 1) /* FLOAT_LIT → default f64 bits / SysV xmm */
-    return 1;
-  atr = pipeline_expr_resolved_type_ref(arena, arg_ref);
-  if (atr <= 0)
-    return 0;
-  ak = pipeline_type_kind_ord_at(arena, atr);
-  return (ak == 14 || ak == 15) ? 1 : 0;
+    rc = 1;
+  else if (!arena || call_expr_ref <= 0 || arg_index < 0)
+    rc = 0;
+  else {
+    arg_ref = pipeline_expr_call_arg_ref(arena, call_expr_ref, arg_index);
+    if (arg_ref <= 0)
+      rc = 0;
+    else {
+      ko = pipeline_expr_kind_ord_at(arena, arg_ref);
+      if (ko == 1) /* FLOAT_LIT → default f64 bits / SysV xmm */
+        rc = 1;
+      else {
+        atr = pipeline_expr_resolved_type_ref(arena, arg_ref);
+        if (atr <= 0)
+          rc = 0;
+        else {
+          ak = pipeline_type_kind_ord_at(arena, atr);
+          rc = (ak == 14 || ak == 15) ? 1 : 0;
+        }
+      }
+    }
+  }
+  /* TEMP debug: remove after math_asm type-path root found */
+  if (getenv("SHUX_SSE_DEBUG") && arena && call_expr_ref > 0 && arg_index >= 0) {
+    arg_ref = pipeline_expr_call_arg_ref(arena, call_expr_ref, arg_index);
+    ko = arg_ref > 0 ? pipeline_expr_kind_ord_at(arena, arg_ref) : -1;
+    atr = arg_ref > 0 ? pipeline_expr_resolved_type_ref(arena, arg_ref) : 0;
+    ak = atr > 0 ? pipeline_type_kind_ord_at(arena, atr) : -1;
+    fprintf(stderr, "shux: sse_dbg call=%d ai=%d pty=%d pty_k=%d arg=%d ko=%d atr=%d ak=%d -> %d\n",
+            (int)call_expr_ref, (int)arg_index, (int)pty,
+            (pty > 0 && arena) ? (int)pipeline_type_kind_ord_at(arena, pty) : -1, (int)arg_ref, (int)ko, (int)atr,
+            (int)ak, (int)rc);
+  }
+  return rc;
 }
 
 /** f64 width for movq vs movd when placing into xmm. */
