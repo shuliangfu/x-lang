@@ -2491,9 +2491,46 @@ int32_t glue_asm_build_call_export_sym_c_impl(struct ast_ASTArena *arena, int32_
   if (clen <= 0 || clen > 63)
     return -1;
   pipeline_expr_var_name_into(arena, callee_ref, cname);
-  rlen = glue_try_std_heap_redirect_sym_local(cname, clen, out, out_cap);
-  if (rlen > 0)
-    return rlen;
+  /*
+   * PLATFORM: SHARED — heap thin redirect (alloc/free → heap_*_c) must NOT
+   * steal:
+   *  - libc/extern callees in co-emitted std.heap.libc (free→heap_free_c)
+   *  - same-module local/export functions when co-emit has real bodies
+   *    (std.heap.alloc overload → heap_alloc_c under freestanding)
+   * G.7: complete existing redirect authority (guard before table, no second path).
+   */
+  if (mod) {
+    int32_t efi;
+    int32_t has_local = 0;
+    int32_t has_extern = 0;
+    for (efi = 0; efi < pipeline_module_num_funcs(mod); efi++) {
+      if (!pipeline_module_func_name_equal_at(mod, efi, cname, clen))
+        continue;
+      if (pipeline_module_func_is_extern_at(mod, efi) != 0)
+        has_extern = 1;
+      else
+        has_local = 1;
+    }
+    if (has_extern && !has_local) {
+      if (clen > 0 && clen < out_cap) {
+        memcpy(out, cname, (size_t)clen);
+        return clen;
+      }
+      return -1;
+    }
+    if (has_local) {
+      /* Co-emit has function body for this name — use normal export mid path below. */
+      rlen = 0;
+    } else {
+      rlen = glue_try_std_heap_redirect_sym_local(cname, clen, out, out_cap);
+      if (rlen > 0)
+        return rlen;
+    }
+  } else {
+    rlen = glue_try_std_heap_redirect_sym_local(cname, clen, out, out_cap);
+    if (rlen > 0)
+      return rlen;
+  }
   dep_ix = pipeline_expr_call_resolved_dep_index_at(arena, call_expr_ref);
   if (dep_ix < 0 && dep_pipe) {
     int32_t nd = pipeline_dep_ctx_ndep(dep_pipe);
