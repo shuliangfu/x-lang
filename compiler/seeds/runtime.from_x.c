@@ -510,6 +510,47 @@ int write_io_net_abi_inline(FILE *cf) {
         "#include <unistd.h>\n",
         "#include <sys/uio.h>\n",
         "#include <poll.h>\n",
+        /*
+         * PLATFORM: POSIX — product -o co-emit of std.fs.posix uses bare O_*, S_IF*,
+         * PROT_*, MAP_*, FS_IOV_BUF_MAX, DIRENT_D_NAME_OFF and bare fs_libc_open, plus
+         * Darwin __error / Linux __errno_location / fcntl / madvise without prototypes.
+         * Do NOT include sys/stat.h or sys/mman.h: conflict with Shux PosixStatBuf /
+         * extern open,stat,mmap (host-cc red). Values match std/fs/posix.x export const.
+         */
+        "#ifndef O_RDONLY\n#define O_RDONLY 0\n#endif\n"
+        "#ifndef O_WRONLY\n#define O_WRONLY 1\n#endif\n"
+        "#ifndef O_RDWR\n#define O_RDWR 2\n#endif\n"
+        "#if defined(__APPLE__)\n"
+        "#ifndef O_CREAT\n#define O_CREAT 512\n#endif\n"
+        "#ifndef O_TRUNC\n#define O_TRUNC 1024\n#endif\n"
+        "#ifndef O_APPEND\n#define O_APPEND 8\n#endif\n"
+        "#ifndef F_NOCACHE\n#define F_NOCACHE 48\n#endif\n"
+        "#else\n"
+        "#ifndef O_CREAT\n#define O_CREAT 64\n#endif\n"
+        "#ifndef O_TRUNC\n#define O_TRUNC 512\n#endif\n"
+        "#ifndef O_APPEND\n#define O_APPEND 1024\n#endif\n"
+        "#endif\n"
+        "#ifndef PROT_READ\n#define PROT_READ 1\n#endif\n"
+        "#ifndef PROT_WRITE\n#define PROT_WRITE 2\n#endif\n"
+        "#ifndef MAP_SHARED\n#define MAP_SHARED 1\n#endif\n"
+        "#ifndef MAP_PRIVATE\n#define MAP_PRIVATE 2\n#endif\n"
+        "#ifndef MAP_FAILED\n#define MAP_FAILED ((int64_t)-1)\n#endif\n"
+        "#ifndef S_IFMT\n#define S_IFMT 61440u\n#endif\n"
+        "#ifndef S_IFDIR\n#define S_IFDIR 16384u\n#endif\n"
+        "#ifndef S_IFREG\n#define S_IFREG 32768u\n#endif\n"
+        "#ifndef FS_IOV_BUF_MAX\n#define FS_IOV_BUF_MAX 16\n#endif\n"
+        "#ifndef DIRENT_D_NAME_OFF\n"
+        "#if defined(__APPLE__)\n#define DIRENT_D_NAME_OFF ((size_t)21)\n"
+        "#else\n#define DIRENT_D_NAME_OFF ((size_t)19)\n#endif\n"
+        "#endif\n"
+        "#if defined(__APPLE__)\nextern int *__error(void);\n"
+        "#else\nextern int *__errno_location(void);\n#endif\n"
+        "extern int fcntl(int, int, ...);\n"
+        "extern int madvise(void *, size_t, int);\n"
+        "extern int32_t open(uint8_t *path, int32_t flags, int32_t mode);\n"
+        "static inline int32_t fs_libc_open(uint8_t *path, int32_t flags, int32_t mode) {\n"
+        "  return open(path, flags, mode);\n"
+        "}\n",
         /* std.io.sync 调用 shux_sys_*：与 unistd 解耦，内部 cast 到系统 iovec/pollfd。 */
         "static inline ssize_t shux_sys_read(int32_t fd, uint8_t *buf, size_t count) {\n"
         "  return read((int)fd, (void *)buf, count);\n"

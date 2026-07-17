@@ -320,10 +320,31 @@ export function fs_libc_fallocate(fd: i32, mode: i32, offset: i64, len: i64): i3
   unsafe { return fallocate(fd, mode, offset, len); }
   return 0; // unreachable — typeck workaround
 }
+/**
+ * Darwin sendfile(2) wrapper.
+ * Purpose: keep a surface for 6-arg Darwin sendfile if callers need it later.
+ * Parameters: in_fd/out_fd/offset/len/hdtr/flags match Darwin sendfile(2).
+ * Returns: -1 (not wired). Product zero-copy uses fs_sendfile_c read/write fallback.
+ * Why not call bare `sendfile`: codegen resolves that name to std.fs.sendfile (3-arg
+ * product API) instead of the local extern "C" 6-arg Darwin sendfile → host-cc arity error.
+ * PLATFORM: MACOS — Linux uses fs_libc_sendfile / fs_sendfile_c separately.
+ */
 #[cfg(target_os = "macos")]
 export function fs_libc_sendfile_mac(in_fd: i32, out_fd: i32, offset: i64, len: *i64, hdtr: *u8, flags: i32): i32 {
-  unsafe { return sendfile(in_fd, out_fd, offset, len, hdtr, flags); }
-  return 0; // unreachable — typeck workaround
+  // Silence unused params; real Darwin sendfile needs a distinct link name (follow-up).
+  if (in_fd < 0 || out_fd < 0) {
+    return -1;
+  }
+  if (len == 0 as *i64) {
+    return -1;
+  }
+  if (hdtr == 0 as *u8) {
+    // flags/offset reserved for future wiring
+    if (offset < 0 || flags < 0) {
+      return -1;
+    }
+  }
+  return -1;
 }
 
 /** 读取当前 errno；双步取值规避 C parser 对 let init 中 call()[i] postfix 的限制。 */
