@@ -3504,12 +3504,19 @@ ensure_crt0_codegen_parser_companion_objs() {
   if [ -f parser_x.o ] && [ -s parser_x.o ]; then
   # Keep GLOBAL every parser_x symbol thin_glue / residual U-ref (objcopy
   # --keep-global demotes unlisted T to local → cannot satisfy cross-.o U).
+  # PLATFORM: LINUX — NL-07 L7+ pure-static import: pipeline U-refs
+  # parser_get_module_num_imports / path. If demoted to local, ELF picks
+  # experimental_symbol_bridge weak stubs (return 0 / empty path) → no dep
+  # open → typeck XT001 check_block on import programs (hello/option/si).
+  # Authority: parser_x.o real bodies only; keep-global must list them (G.7).
   nm parser_x.o 2>/dev/null | awk '/ [TW] / {
     s=$3; sub(/^_/, "", s)
     if (s == "parse_expr_into" \
         || s ~ /^parser_parse_/ \
         || s ~ /^parser_onefunc_/ \
         || s == "parser_copy_module_import_path64" \
+        || s == "parser_get_module_num_imports" \
+        || s == "parser_get_module_import_path" \
         || s == "parser_diag_fail_at_token_kind" \
         || s ~ /^parser_diag_fail_at_token_kind/)
       print s
