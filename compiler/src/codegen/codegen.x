@@ -3057,10 +3057,18 @@ export function codegen_should_skip_emit_struct_layout_for_abi_dup(name: *u8, na
   /*
    * rt_preamble 已 one-liner 定义 Option_i32/u8/u64/ptr_u8（slice get_* 等消费端在 option 体前需要完整类型）。
    * 凡裸名 Option_* 一律 skip — preamble 权威，co-emit 再 emit → redefinition（stdlib-import/option）。
+   * PLATFORM: SHARED — seed pin and .x must agree (dual-authority ban).
    */
   let nm_option_us: u8[8] = [79, 112, 116, 105, 111, 110, 95, 0];
   /* 泛型模板 Option<T>：C 无 monomorphize，勿 emit 非法/空 layout。 */
   let nm_option: u8[7] = [79, 112, 116, 105, 111, 110, 0];
+  /*
+   * rt_preamble one-liner also owns Result_i32 / Result_u8 (core_result_* tags).
+   * Co-emit full layout → redefinition of 'core_result_Result_*' (hello / fmt path).
+   * 【Invariant】bare Result_i32 / Result_u8 skip — same authority as seed pin.
+   */
+  let nm_result_i32: u8[11] = [82, 101, 115, 117, 108, 116, 95, 105, 51, 50, 0];
+  let nm_result_u8: u8[10] = [82, 101, 115, 117, 108, 116, 95, 117, 56, 0];
   /*
    * rt_preamble / runtime.from_x 已 one-liner 定义：
    *   struct std_string_String { ... }; typedef ... String;
@@ -3101,6 +3109,13 @@ export function codegen_should_skip_emit_struct_layout_for_abi_dup(name: *u8, na
     return 1;
   }
   if (name_len == 6 && codegen_symbuf_bytes_eq(name, name_len, &nm_option[0], 6) != 0) {
+    return 1;
+  }
+  /* Result_i32 / Result_u8 — preamble owns complete core_result_* layouts. */
+  if (name_len == 10 && codegen_symbuf_bytes_eq(name, name_len, &nm_result_i32[0], 10) != 0) {
+    return 1;
+  }
+  if (name_len == 9 && codegen_symbuf_bytes_eq(name, name_len, &nm_result_u8[0], 9) != 0) {
     return 1;
   }
   if (name_len == 6 && codegen_symbuf_bytes_eq(name, name_len, &nm_string[0], 6) != 0) {
@@ -6101,7 +6116,12 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           sk = sk + 1;
         }
       }
-      /* preamble ABI 类型：compound lit 用 std_* 前缀，勿 entry 前缀。 */
+      /*
+       * Preamble ABI types: compound lit must use the defining-module C tag, not the
+       * entry-module prefix. Catch-all std_net_ was wrong for Option_* → incomplete
+       * std_net_Option_i32 (option/si matrix red under force-regen).
+       * PLATFORM: SHARED — align with seed pin + emit_type Option_/Result_ authority.
+       */
       if (codegen_should_skip_emit_struct_layout_for_abi_dup(&e.struct_lit_struct_name[0], e.struct_lit_struct_name_len) != 0) {
         bare_user_lit = 0;
         if (e.struct_lit_struct_name_len == 6 && e.struct_lit_struct_name[0] == 66) {
@@ -6117,6 +6137,31 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           sl_pfx[4] = 101; sl_pfx[5] = 114; sl_pfx[6] = 114; sl_pfx[7] = 111;
           sl_pfx[8] = 114; sl_pfx[9] = 95; sl_pfx[10] = 0;
           sl_plen = 10;
+        } else if (e.struct_lit_struct_name_len >= 8 && e.struct_lit_struct_name[0] == 79
+            && e.struct_lit_struct_name[1] == 112 && e.struct_lit_struct_name[2] == 116
+            && e.struct_lit_struct_name[3] == 105 && e.struct_lit_struct_name[4] == 111
+            && e.struct_lit_struct_name[5] == 110 && e.struct_lit_struct_name[6] == 95) {
+          /* Option_* → core_option_ (same invariant as emit_type monomorph path) */
+          sl_pfx[0] = 99; sl_pfx[1] = 111; sl_pfx[2] = 114; sl_pfx[3] = 101;
+          sl_pfx[4] = 95; sl_pfx[5] = 111; sl_pfx[6] = 112; sl_pfx[7] = 116;
+          sl_pfx[8] = 105; sl_pfx[9] = 111; sl_pfx[10] = 110; sl_pfx[11] = 95;
+          sl_pfx[12] = 0;
+          sl_plen = 12;
+        } else if (e.struct_lit_struct_name_len == 9 && e.struct_lit_struct_name[0] == 82) {
+          /* Result_u8 → core_result_ */
+          sl_pfx[0] = 99; sl_pfx[1] = 111; sl_pfx[2] = 114; sl_pfx[3] = 101;
+          sl_pfx[4] = 95; sl_pfx[5] = 114; sl_pfx[6] = 101; sl_pfx[7] = 115;
+          sl_pfx[8] = 117; sl_pfx[9] = 108; sl_pfx[10] = 116; sl_pfx[11] = 95;
+          sl_pfx[12] = 0;
+          sl_plen = 12;
+        } else if (e.struct_lit_struct_name_len == 10 && e.struct_lit_struct_name[0] == 82
+            && e.struct_lit_struct_name[7] == 105) {
+          /* Result_i32 → core_result_ */
+          sl_pfx[0] = 99; sl_pfx[1] = 111; sl_pfx[2] = 114; sl_pfx[3] = 101;
+          sl_pfx[4] = 95; sl_pfx[5] = 114; sl_pfx[6] = 101; sl_pfx[7] = 115;
+          sl_pfx[8] = 117; sl_pfx[9] = 108; sl_pfx[10] = 116; sl_pfx[11] = 95;
+          sl_pfx[12] = 0;
+          sl_plen = 12;
         } else if (e.struct_lit_struct_name_len == 6 && e.struct_lit_struct_name[0] == 83 && e.struct_lit_struct_name[1] == 116 && e.struct_lit_struct_name[2] == 114 && e.struct_lit_struct_name[3] == 105) {
           /* String → std_string_ */
           sl_pfx[0] = 115; sl_pfx[1] = 116; sl_pfx[2] = 100; sl_pfx[3] = 95;
@@ -6129,6 +6174,18 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           sl_pfx[4] = 115; sl_pfx[5] = 116; sl_pfx[6] = 114; sl_pfx[7] = 105;
           sl_pfx[8] = 110; sl_pfx[9] = 103; sl_pfx[10] = 95; sl_pfx[11] = 0;
           sl_plen = 11;
+        } else if (e.struct_lit_struct_name_len == 9 && e.struct_lit_struct_name[0] == 84) {
+          /* TcpStream → std_net_ */
+          sl_pfx[0] = 115; sl_pfx[1] = 116; sl_pfx[2] = 100; sl_pfx[3] = 95;
+          sl_pfx[4] = 110; sl_pfx[5] = 101; sl_pfx[6] = 116; sl_pfx[7] = 95;
+          sl_pfx[8] = 0;
+          sl_plen = 8;
+        } else if (e.struct_lit_struct_name_len == 11 && e.struct_lit_struct_name[0] == 84) {
+          /* TcpListener → std_net_ */
+          sl_pfx[0] = 115; sl_pfx[1] = 116; sl_pfx[2] = 100; sl_pfx[3] = 95;
+          sl_pfx[4] = 110; sl_pfx[5] = 101; sl_pfx[6] = 116; sl_pfx[7] = 95;
+          sl_pfx[8] = 0;
+          sl_plen = 8;
         } else if (e.struct_lit_struct_name_len == 10 && e.struct_lit_struct_name[0] == 70 && e.struct_lit_struct_name[1] == 115) {
           /* FsIovecBuf → std_fs_ */
           sl_pfx[0] = 115; sl_pfx[1] = 116; sl_pfx[2] = 100; sl_pfx[3] = 95;
@@ -6141,13 +6198,8 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           sl_pfx[7] = 115; sl_pfx[8] = 121; sl_pfx[9] = 110; sl_pfx[10] = 99;
           sl_pfx[11] = 95; sl_pfx[12] = 0;
           sl_plen = 12;
-        } else {
-          /* net types → std_net_ */
-          sl_pfx[0] = 115; sl_pfx[1] = 116; sl_pfx[2] = 100; sl_pfx[3] = 95;
-          sl_pfx[4] = 110; sl_pfx[5] = 101; sl_pfx[6] = 116; sl_pfx[7] = 95;
-          sl_pfx[8] = 0;
-          sl_plen = 8;
         }
+        /* other abi_dup names: keep sl_pfx from ctx (do not force std_net_) */
       }
       let open: u8[9] = [40, 115, 116, 114, 117, 99, 116, 32, 0];
       if (emit_bytes_9(out, open, 8) != 0) {
@@ -7629,21 +7681,31 @@ export function codegen_func_c_symbol_prefix_len(module: *Module, fi: i32, prefi
 }
 
 /**
- * 【Why 根源】输出函数的 C 链接符号名：无 overload 时用原名，否则 mangled（name_t1_t2）。
- * 与 codegen.c func_link_name 对齐。#[no_mangle] 函数始终用原名。
- * 【Invariant】须在所有函数符号生成点（定义/声明/CALL）统一调用，保证三者一致。
- * 【Asm/Perf】仅当 overload_count>1 时遍历参数写后缀，单定义函数零开销。
+ * Emit the C link symbol for function fi: bare name, or mangled name_t1_t2 when overloaded.
+ * Aligns with seed pin / historical codegen.c func_link_name. #[no_mangle] always bare.
+ *
+ * Why zero-init + assign (not let x = f(name)): product pin X→C hoists all `let` inits
+ * to the top of the block. `let overload_count = count(fn_local, …)` ran before
+ * codegen_copy_func_name64, so overload_count was always 0/1 and extern decls collided
+ * (hello: core_fmt_fmt_scalar_to_buf / std_io_print unmangled).
+ * PLATFORM: SHARED — definition / extern decl / CALL must all call this helper.
  */
 export function codegen_emit_func_link_name(out: *CodegenOutBuf, arena: *ASTArena, module: *Module, fi: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
 
+    /* Hoist-safe: zero locals first; fill via statements after the early-return gate. */
+    let fn_local: u8[64] = [];
+    let fn_len: i32 = 0;
+    let overload_count: i32 = 0;
+    let np: i32 = 0;
+    let pi: i32 = 0;
+    let sig_count: i32 = 0;
     if (module == 0 as *Module || fi < 0 || fi >= module.num_funcs) {
       return -1;
     }
-    let fn_local: u8[64] = [];
+    fn_len = pipeline_module_func_name_len_at(module, fi);
     codegen_copy_func_name64_from_module(module, fi, &fn_local[0]);
-    let fn_len: i32 = pipeline_module_func_name_len_at(module, fi);
     if (fn_len <= 0) {
       return -1;
     }
@@ -7651,8 +7713,8 @@ export function codegen_emit_func_link_name(out: *CodegenOutBuf, arena: *ASTAren
     if (pipeline_module_func_is_no_mangle_at(module, fi) != 0) {
       return emit_bytes_64(out, &fn_local[0], fn_len);
     }
-    /* 统计同名函数个数 */
-    let overload_count: i32 = codegen_module_func_overload_count(module, &fn_local[0], fn_len);
+    /* Count overloads only after name is copied (let-hoist safe). */
+    overload_count = codegen_module_func_overload_count(module, &fn_local[0], fn_len);
     if (overload_count <= 1) {
       return emit_bytes_64(out, &fn_local[0], fn_len);
     }
@@ -7660,8 +7722,8 @@ export function codegen_emit_func_link_name(out: *CodegenOutBuf, arena: *ASTAren
     if (emit_bytes_64(out, &fn_local[0], fn_len) != 0) {
       return -1;
     }
-    let np: i32 = pipeline_module_func_num_params_at(module, fi);
-    let pi: i32 = 0;
+    np = pipeline_module_func_num_params_at(module, fi);
+    pi = 0;
     while (pi < np) {
       let suf: u8[64] = [];
       let sl: i32 = codegen_type_ref_to_suffix(arena, pipeline_module_func_param_type_ref_at(module, fi, pi), &suf[0], 64);
@@ -7676,7 +7738,7 @@ export function codegen_emit_func_link_name(out: *CodegenOutBuf, arena: *ASTAren
       pi = pi + 1;
     }
     /* 参数签名相同时追加 _ret_<T>（参考 codegen.c line 1063） */
-    let sig_count: i32 = codegen_module_overload_param_sig_count(arena, module, fi);
+    sig_count = codegen_module_overload_param_sig_count(arena, module, fi);
     if (sig_count > 1) {
       let ret_ref: i32 = pipeline_module_func_return_type_at(module, fi);
       let rs: u8[64] = [];
@@ -8038,20 +8100,31 @@ export function codegen_copy_param_name32_from_module(module: *Module, fi: i32, 
 }
 
 /**
- * 写单个函数到 out：返回类型 + 名称 + (参数) + { 体 }。
- * call_init_globals 非 0 且 is_entry 且 main 时，在函数体开头输出 init_globals();（与 C 流水线一致）。
+ * Emit one function: return type + name + (params) + { body }.
+ * When call_init_globals != 0 and is_entry main, body starts with init_globals();
+ *
+ * Why name_is_main is assigned after copy (not `let x = name_eq`): pin X→C hoists
+ * all let inits to block top, so `let name_is_main = (fn_local[0]=='m'…)` ran on a
+ * still-zero buffer → never emitted C `main` (rv matrix: undefined _main).
+ * PLATFORM: SHARED — entry main symbol contract.
  */
 export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module, fi: i32, is_entry: bool, prefix: *u8, prefix_len: i32, ctx: *PipelineDepCtx, call_init_globals: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
 
+    /* Hoist-safe name locals: fill via statements before any name-dependent test. */
+    let fn_local: u8[64] = [];
+    let fn_len: i32 = 0;
+    let name_is_main: bool = false;
+    let force_entry_main: bool = false;
+    let emit_c_main_symbol: bool = false;
+    let main_name: u8[4] = [109, 97, 105, 110];
     /* 自举：禁止整 Func 按值拷贝；一律 module.funcs[fi]. 访问。 */
     if (fi < 0 || fi >= module.num_funcs) {
       return -1;
     }
-    let fn_local: u8[64] = [];
+    fn_len = pipeline_module_func_name_len_at(module, fi);
     codegen_copy_func_name64_from_module(module, fi, &fn_local[0]);
-    let fn_len: i32 = pipeline_module_func_name_len_at(module, fi);
     /* K10：#[used] 不被 C 编译器消除，外部链接 */
     if (pipeline_module_func_is_used_at(module, fi) != 0) {
       let used_attr: u8[27] = [95, 95, 97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 117, 115, 101, 100, 41, 41, 32, 0, 0, 0, 0, 0];
@@ -8078,13 +8151,15 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
     if (append_byte(out, 32) != 0) {
       return -1;
     }
-    /* 仅当函数名确为 "main"(4 字节) 时输出 C 符号 "main"，避免库模块首函数被误命名为 main 导致链接冲突；库模块加 prefix 避免与 C 关键字（如 register）冲突。
-     * 若 is_entry 且名为空（自举路径偶发 name_len 丢失）且本模块仅一函数，仍发射 main，避免生成 int32_t (void) 非法 C。 */
-    let main_name: u8[4] = [109, 97, 105, 110];
-    let name_is_main: bool = (fn_len == 4 && fn_local[0] == 109 && fn_local[1] == 97 && fn_local[2] == 105 && fn_local[3] == 110);
-    /* name_len 与 name64 偶发不一致（如 len=4 但前导为 NUL）：单函数入口仍发 main，避免非法 C 函数名。
-     * 勿写 (is_entry && a) || b — X→C 会丢括号变成 is_entry && a || b，语义错误。 */
-    let force_entry_main: bool = false;
+    /*
+     * Emit C symbol "main" only when the function name is the four bytes main.
+     * Assign name_is_main after copy (let-hoist safe) — see function docblock.
+     * Single-function entry with empty name still forces main (bootstrap path).
+     * Do not write (is_entry && a) || b — X→C may drop parens.
+     */
+    if (fn_len == 4 && fn_local[0] == 109 && fn_local[1] == 97 && fn_local[2] == 105 && fn_local[3] == 110) {
+      name_is_main = true;
+    }
     if (is_entry && module.num_funcs == 1) {
       if (fn_len <= 0) {
         force_entry_main = true;
@@ -8093,7 +8168,6 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
         force_entry_main = true;
       }
     }
-    let emit_c_main_symbol: bool = false;
     if (is_entry) {
       if (name_is_main) {
         emit_c_main_symbol = true;
