@@ -6403,6 +6403,37 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
             if (name_ok != 0 && pipeline_module_func_num_params_at(dep_mod, func_ix) == e.method_call_num_args) {
               mc_resolved_ok = 1;
             }
+            /*
+             * PLATFORM: SHARED — multi-import closure can leave call_resolved dep_ix on a
+             * transitive dep (e.g. std.heap.libc) while the binding is std.heap. Name+arity
+             * alone then emits std_heap_libc_free instead of std_heap_free_u8_ptr.
+             * Trust resolved only when dep path matches the import binding path; overloads
+             * always re-search by arg types (same policy as CALL emit_call_func_name).
+             */
+            if (mc_resolved_ok != 0) {
+              let bind_path: u8[64] = [];
+              let bind_plen: i32 = codegen_resolve_binding_import_path_for_method_call(ctx, arena, expr_ref, &bind_path[0]);
+              let dep_path_chk: u8[64] = [];
+              pipeline_dep_ctx_import_path_copy64(ctx, dep_ix, &dep_path_chk[0]);
+              let dep_plen_chk: i32 = pipeline_dep_ctx_import_path_len(ctx, dep_ix);
+              if (bind_plen <= 0 || bind_plen != dep_plen_chk) {
+                mc_resolved_ok = 0;
+              } else {
+                let bp: i32 = 0;
+                while (bp < bind_plen) {
+                  if (bind_path[bp] != dep_path_chk[bp]) {
+                    mc_resolved_ok = 0;
+                    bp = bind_plen;
+                  } else {
+                    bp = bp + 1;
+                  }
+                }
+              }
+              if (mc_resolved_ok != 0 && fn_len > 0
+                  && codegen_module_func_overload_count(dep_mod, &fn_name[0], fn_len) > 1) {
+                mc_resolved_ok = 0;
+              }
+            }
             if (mc_resolved_ok != 0) {
             let dep_path: u8[64] = [];
             pipeline_dep_ctx_import_path_copy64(ctx, dep_ix, &dep_path[0]);
@@ -8540,10 +8571,17 @@ export function codegen_emit_call_func_name(out: *CodegenOutBuf, arena: *ASTAren
         }
         func_ix = -1;
       }
-      /* 目标模块：优先 dep_ix；否则 binding 传入的 current_module。arena 按 Module* 回填。 */
+      /*
+       * Target module for re-search: prefer binding current_module when provided.
+       * PLATFORM: SHARED — call_resolved dep_ix may point at a transitive dep after
+       * multi-import closure (heap.free → libc free); binding module is the authority.
+       */
       let search_mod: *Module = 0 as *Module;
       let search_arena: *ASTArena = arena;
-      if (dep_ix >= 0 && dep_ix < pipeline_dep_ctx_ndep(ctx)) {
+      if (current_module != 0 as *Module) {
+        search_mod = current_module;
+        search_arena = codegen_arena_for_module(ctx, search_mod, arena);
+      } else if (dep_ix >= 0 && dep_ix < pipeline_dep_ctx_ndep(ctx)) {
         search_mod = pipeline_dep_ctx_module_at(ctx, dep_ix);
         search_arena = pipeline_dep_ctx_arena_at(ctx, dep_ix);
         if (search_arena == 0 as *ASTArena) {

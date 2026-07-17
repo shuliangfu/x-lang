@@ -7245,6 +7245,31 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
             if (((name_ok !=0) && (pipeline_module_func_num_params_at(dep_mod, func_ix) ==(e.method_call_num_args)))) {
               (void)((mc_resolved_ok = 1));
             }
+            /* PLATFORM: SHARED — multi-import: call_resolved dep may be transitive (heap.libc)
+             * while binding is std.heap; require path match + re-search overloads. */
+            if ((mc_resolved_ok !=0)) {
+              uint8_t bind_path[64] = {};
+              int32_t bind_plen = codegen_resolve_binding_import_path_for_method_call(ctx, arena, expr_ref, &((bind_path)[0]));
+              uint8_t dep_path_chk[64] = {};
+              (void)(pipeline_dep_ctx_import_path_copy64(ctx, dep_ix, &((dep_path_chk)[0])));
+              int32_t dep_plen_chk = pipeline_dep_ctx_import_path_len(ctx, dep_ix);
+              if (((bind_plen <=0) || (bind_plen !=dep_plen_chk))) {
+                (void)((mc_resolved_ok = 0));
+              } else {
+                int32_t bp = 0;
+                while ((bp < bind_plen)) {
+                  if (((bind_path)[bp] !=((dep_path_chk)[bp]))) {
+                    (void)((mc_resolved_ok = 0));
+                    (void)((bp = bind_plen));
+                  } else {
+                    (void)((bp = (bp + 1)));
+                  }
+                }
+              }
+              if ((((mc_resolved_ok !=0) && (fn_len > 0)) && (codegen_module_func_overload_count(dep_mod, &((fn_name)[0]), fn_len) > 1))) {
+                (void)((mc_resolved_ok = 0));
+              }
+            }
             if ((mc_resolved_ok !=0)) {
               uint8_t dep_path[64] = {};
               (void)(pipeline_dep_ctx_import_path_copy64(ctx, dep_ix, &((dep_path)[0])));
@@ -9326,7 +9351,11 @@ int32_t codegen_emit_call_func_name(struct codegen_CodegenOutBuf * out, struct a
     }
     struct ast_Module * search_mod = ((struct ast_Module *)(0));
     struct ast_ASTArena * search_arena = arena;
-    if (((dep_ix >=0) && (dep_ix < pipeline_dep_ctx_ndep(ctx)))) {
+    /* Prefer binding current_module over call_resolved dep_ix (closure multi-import). */
+    if ((current_module !=((struct ast_Module *)(0)))) {
+      (void)((search_mod = current_module));
+      (void)((search_arena = codegen_arena_for_module(ctx, search_mod, arena)));
+    } else if (((dep_ix >=0) && (dep_ix < pipeline_dep_ctx_ndep(ctx)))) {
       (void)((search_mod = pipeline_dep_ctx_module_at(ctx, dep_ix)));
       (void)((search_arena = pipeline_dep_ctx_arena_at(ctx, dep_ix)));
       if ((search_arena ==((struct ast_ASTArena *)(0)))) {
