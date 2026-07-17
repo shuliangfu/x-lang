@@ -3124,24 +3124,25 @@ export function codegen_should_skip_emit_struct_layout_for_abi_dup(name: *u8, na
   if (name_len == 12 && codegen_symbuf_bytes_eq(name, name_len, &nm_sock_v4[0], 12) != 0) {
     return 1;
   }
-  /* preamble 权威：Allocator/Arena64/FsIovecBuf/Iovec — 勿 co-emit redefinition */
-  {
-    let nm_allocator: u8[10] = [65, 108, 108, 111, 99, 97, 116, 111, 114, 0];
-    let nm_arena64: u8[8] = [65, 114, 101, 110, 97, 54, 52, 0];
-    let nm_fs_iovec: u8[11] = [70, 115, 73, 111, 118, 101, 99, 66, 117, 102, 0];
-    let nm_iovec: u8[6] = [73, 111, 118, 101, 99, 0];
-    if (name_len == 9 && codegen_symbuf_bytes_eq(name, name_len, &nm_allocator[0], 9) != 0) {
-      return 1;
-    }
-    if (name_len == 7 && codegen_symbuf_bytes_eq(name, name_len, &nm_arena64[0], 7) != 0) {
-      return 1;
-    }
-    if (name_len == 10 && codegen_symbuf_bytes_eq(name, name_len, &nm_fs_iovec[0], 10) != 0) {
-      return 1;
-    }
-    if (name_len == 5 && codegen_symbuf_bytes_eq(name, name_len, &nm_iovec[0], 5) != 0) {
-      return 1;
-    }
+  /* Preamble owns Allocator/Arena64/FsIovecBuf/Iovec — skip co-emit redefinition.
+   * PLATFORM: SHARED — keep lets flat at function scope. Nested `{ let ... }` anon
+   * blocks are parse-skipped by the current product parser (residual body then
+   * mis-ingested as top-level lets → illegal static/init_globals in force-regen). */
+  let nm_allocator: u8[10] = [65, 108, 108, 111, 99, 97, 116, 111, 114, 0];
+  let nm_arena64: u8[8] = [65, 114, 101, 110, 97, 54, 52, 0];
+  let nm_fs_iovec: u8[11] = [70, 115, 73, 111, 118, 101, 99, 66, 117, 102, 0];
+  let nm_iovec: u8[6] = [73, 111, 118, 101, 99, 0];
+  if (name_len == 9 && codegen_symbuf_bytes_eq(name, name_len, &nm_allocator[0], 9) != 0) {
+    return 1;
+  }
+  if (name_len == 7 && codegen_symbuf_bytes_eq(name, name_len, &nm_arena64[0], 7) != 0) {
+    return 1;
+  }
+  if (name_len == 10 && codegen_symbuf_bytes_eq(name, name_len, &nm_fs_iovec[0], 10) != 0) {
+    return 1;
+  }
+  if (name_len == 5 && codegen_symbuf_bytes_eq(name, name_len, &nm_iovec[0], 5) != 0) {
+    return 1;
   }
   return 0;
 }
@@ -9417,6 +9418,10 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
       i = i + 1;
     }
     return 0;
+  }
+  // PLATFORM: SHARED — Cap-T001 whole-body unsafe close. Extra matching `}` required so
+  // product parser does not parse-skip this mega function (SHUX_DEBUG_PARSE: skip at
+  // codegen_x_ast entry → residual body mis-ingested as top-level lets / fake init_globals).
   }
 }
 
