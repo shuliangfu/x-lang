@@ -1489,6 +1489,7 @@ int32_t pipeline_module_top_level_let_name_len(struct ast_Module *m, int32_t idx
 uint8_t pipeline_module_top_level_let_name_byte_at(struct ast_Module *m, int32_t idx, int32_t off);
 int32_t pipeline_module_top_level_let_type_ref(struct ast_Module *m, int32_t idx);
 int32_t pipeline_module_top_level_let_init_ref(struct ast_Module *m, int32_t idx);
+int32_t pipeline_module_top_level_let_is_const(struct ast_Module *m, int32_t idx);
 int32_t asm_local_slot_bytes(struct ast_ASTArena *arena, int32_t type_ref);
 int32_t asm_bump_off_before_struct_local(struct ast_ASTArena *arena, int32_t type_ref, int32_t off);
 int32_t asm_bump_off_align_for_local(struct ast_ASTArena *arena, int32_t type_ref, int32_t off);
@@ -16507,6 +16508,14 @@ void pipeline_asm_module_func_param_name_copy32(struct ast_Module *m, int32_t fu
 /**
  * 非 hoist 目标函数：将 module 顶层 let/const 登记到 asm sidecar（g_mem_fence_seq 等跨函数 VAR）。
  */
+/**
+ * PLATFORM: SHARED — register module top-level lets into a non-hoist function frame.
+ *
+ * True `const` with lit/bool init stay unregistered: loads use asm_module_top_level_const_lit_i32
+ * imm path (bug ①). Mutable `let` with lit init (e.g. heap_trace counters) MUST register so
+ * EXPR_ASSIGN can store; freestanding co-emit hits this for std.heap.libc (CG002).
+ * Per-function stack copies are not true ELF .bss sharing — full BSS is a follow-on residual.
+ */
 static void pipeline_asm_register_module_top_level_lets_c(struct backend_AsmFuncCtx *ctx, struct ast_Module *m,
                                                            struct ast_ASTArena *a, int32_t func_index) {
   int32_t tl;
@@ -16529,6 +16538,7 @@ static void pipeline_asm_register_module_top_level_lets_c(struct backend_AsmFunc
     int32_t init_ref;
     int32_t slot_off;
     int32_t k;
+    int32_t is_const;
     name_len = pipeline_module_top_level_let_name_len(m, tl);
     if (name_len <= 0 || name_len > 64)
       continue;
@@ -16538,14 +16548,12 @@ static void pipeline_asm_register_module_top_level_lets_c(struct backend_AsmFunc
       continue;
     type_ref = pipeline_module_top_level_let_type_ref(m, tl);
     init_ref = pipeline_module_top_level_let_init_ref(m, tl);
-    /* 【Why】模块级 const（init 为 EXPR_LIT/EXPR_BOOL_LIT）不登记到非 hoist target
-     *        函数的局部变量表：const 值不会被 store 到栈上（仅 hoist target 在 body
-     *        中 store），登记偏移会导致 glue_var_expr_stack_off_elf_c 返回未初始化
-     *        栈槽偏移，读取垃圾值（bug ①）。const 应通过 asm_module_top_level_const_lit_i32
-     *        emit 立即数。非字面量 let 仍需登记（值在 hoist target 中 store）。
-     * 【Invariant】仅跳过 init_kind==0(EXPR_LIT) 或 2(EXPR_BOOL_LIT)；其他 init 不跳过。
-     * 【Asm/Perf】跳过登记后 const 引用走 mov $imm32,%eax 立即数路径，零访存。 */
-    if (init_ref > 0 && init_ref <= a->num_exprs) {
+    is_const = pipeline_module_top_level_let_is_const(m, tl);
+    /**
+     * Skip only true const + lit/bool init (imm load path). Mutable lit let (is_const=0)
+     * must register for ASSIGN (heap_trace_note_alloc: shu_heap_trace_* = …).
+     */
+    if (is_const != 0 && init_ref > 0 && init_ref <= a->num_exprs) {
       int32_t init_kind = pipeline_expr_kind_ord_at(a, init_ref);
       if (init_kind == 0 || init_kind == 2)
         continue;
@@ -16557,6 +16565,55 @@ static void pipeline_asm_register_module_top_level_lets_c(struct backend_AsmFunc
   }
   ly->next_offset = off;
   ly->num_locals = asm_ctx_local_count((uint8_t *)ctx);
+}
+
+/**
+ * PLATFORM: SHARED — after prologue on non-hoist funcs, seed registered mutable top-level lit
+ * slots with their init imm so first load is not garbage (trace_on = -1, counters = 0).
+ * Hoist target already prepends real lets with inits; skip here.
+ */
+static int32_t pipeline_asm_emit_module_top_level_mutable_lit_inits_elf_c(
+    struct ast_ASTArena *a, struct platform_elf_ElfCodegenCtx *elf_ctx, struct backend_AsmFuncCtx *ctx,
+    struct ast_Module *m, int32_t func_index, int32_t ta) {
+  int32_t tl;
+  int32_t n;
+  uint8_t name_buf[64];
+  if (!a || !elf_ctx || !ctx || !m || m->num_top_level_lets <= 0)
+    return 0;
+  if (func_index == pipeline_asm_hoist_target_func_index(m))
+    return 0;
+  n = m->num_top_level_lets;
+  for (tl = 0; tl < n; tl++) {
+    int32_t name_len;
+    int32_t init_ref;
+    int32_t off;
+    int32_t k;
+    int32_t init_kind;
+    int32_t imm;
+    if (pipeline_module_top_level_let_is_const(m, tl) != 0)
+      continue;
+    name_len = pipeline_module_top_level_let_name_len(m, tl);
+    if (name_len <= 0 || name_len > 63)
+      continue;
+    for (k = 0; k < name_len; k++)
+      name_buf[k] = pipeline_module_top_level_let_name_byte_at(m, tl, k);
+    name_buf[name_len] = 0;
+    off = asm_ctx_local_find_offset((uint8_t *)ctx, name_buf, name_len);
+    if (off < 0)
+      continue;
+    init_ref = pipeline_module_top_level_let_init_ref(m, tl);
+    if (init_ref <= 0 || init_ref > a->num_exprs)
+      continue;
+    init_kind = pipeline_expr_kind_ord_at(a, init_ref);
+    if (init_kind != 0 && init_kind != 2)
+      continue;
+    imm = pipeline_expr_int_val_at(a, init_ref);
+    if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, imm, 0, ta) != 0)
+      return -1;
+    if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off, ta) != 0)
+      return -1;
+  }
+  return 0;
 }
 
 /**
@@ -19682,6 +19739,13 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(struct ast_Module *m
       return -1;
     if (pipeline_asm_emit_param_home_elf_c(elf_ctx, bctx, m, i, ta) != 0)
       return -1;
+    /** Mutable module-level lit lets on non-hoist: seed stack slots after param home. */
+    if (pipeline_asm_emit_module_top_level_mutable_lit_inits_elf_c(a, elf_ctx, bctx, m, i, ta) != 0) {
+      if (getenv("SHUX_ASM_DEBUG"))
+        fprintf(stderr, "shux: mega_body_c top_level lit inits fail func=%.*s fi=%d\n", (int)fname_len,
+                (char *)fname_buf, (int)i);
+      return -1;
+    }
     if (pipeline_asm_emit_async_cps_entry_elf_c(a, elf_ctx, bctx, m, i, ta) != 0)
       return -1;
     if (body_ref != 0) {
