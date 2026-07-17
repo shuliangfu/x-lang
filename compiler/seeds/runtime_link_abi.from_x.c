@@ -62,6 +62,7 @@ int shux_ensure_runtime_dynlib_os_o(const char *argv0);
 int shux_ensure_runtime_ed25519_ref10_glue_o(const char *argv0);
 int shux_ensure_runtime_env_os_o(const char *argv0);
 int shux_ensure_runtime_heap_user_o(const char *argv0);
+int shux_link_obj_has_defined_sym(const char *o_path, const char *sym);
 int shux_ensure_runtime_http_glue_o(const char *argv0);
 int shux_ensure_runtime_kv_mmap_glue_o(const char *argv0);
 int shux_ensure_runtime_log_os_o(const char *argv0);
@@ -2091,8 +2092,17 @@ int shux_ensure_runtime_heap_user_o(const char *argv0) {
     char wrap_c[PATH_MAX];
     char inc0[PATH_MAX], inc1[PATH_MAX], inc2[PATH_MAX];
     FILE *wf;
-    if (asm_link_obj_skip_missing(shux_runtime_heap_user_o_path(argv0)))
-        return 0;
+    const char *existing = shux_runtime_heap_user_o_path(argv0);
+    /*
+     * PLATFORM: SHARED — do not keep a stub/empty heap_user.o that lacks arena API.
+     * with_arena residual: ensure returned early on 944B incomplete .o → U heap_arena_init_c.
+     */
+    if (asm_link_obj_skip_missing(existing)) {
+        if (shux_link_obj_has_defined_sym(existing, "heap_arena_init_c")
+            || shux_link_obj_has_defined_sym(existing, "heap_alloc_c"))
+            return 0;
+        (void)remove(existing);
+    }
     if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
         link_diag_runtime_obj_resolve_fail("runtime_heap_user.o", NULL);
         return -1;
