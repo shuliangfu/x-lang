@@ -297,9 +297,15 @@ typedef struct {
 #define MAX_DRIVER_EMIT_SIDECARS 32
 
 #define MAX_DEP_CTX_SIDECARS 64
+/* PLATFORM: SHARED — sidecar table caps (pointer-keyed global pools).
+ * MAX_ONEFUNC_SIDECARS: raised 256→1024 for codegen M1 (2026-07-17).
+ * Peak observed under SHUX_DEBUG_PIPE while -E src/codegen/codegen.x:
+ *   onefunc≈385 (typeck mega only ≈206). Old 256 exhausted → dep=ast
+ *   parse_set_main stopped at num_funcs=5 / collect pr_ok=-2 (XT001).
+ * Arena/module remain 512 (peak observed arena=3 module=3 on codegen M1). */
 #define MAX_ARENA_SIDECARS 512
 #define MAX_MODULE_SIDECARS 512
-#define MAX_ONEFUNC_SIDECARS 256
+#define MAX_ONEFUNC_SIDECARS 1024
 
 static ArenaSidecar g_arena_sc[MAX_ARENA_SIDECARS];
 static ModuleSidecar g_module_sc[MAX_MODULE_SIDECARS];
