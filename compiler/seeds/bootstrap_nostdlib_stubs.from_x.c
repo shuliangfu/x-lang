@@ -13,10 +13,10 @@
  * 替代 -lc/-lm，供 build_shux_asm.sh crt0 路径尝试无 libc.so 静态链。
  *
  * 【范围】
- * 覆盖 bootstrap 链常见未定义符号：string/mem、stdio 最小格式化、getenv、
- * libm（__builtin_*）、fenv 空实现、posix_memalign、POSIX open/read/close/fstat/waitpid、
+ * 覆盖 bootstrap 链常见未定义符号：string/mem、stdio 最小格式化（含 NL-07 L2 fflush）、
+ * getenv、libm（__builtin_*）、fenv 空实现、posix_memalign、POSIX open/read/close/fstat/waitpid、
  * readlink/realpath/getcwd/opendir（NL-07 v5 runtime_link_abi / fmt_check 路径）。
- * 完整编译器仍可能缺符号（pthread/io_uring 仍链系统库）；失败时 build_shux_asm 回退 -lc/-lm。
+ * 完整编译器仍可能缺符号（backend_enc/typeck/companion 等 L3+）；失败时 build_shux_asm 回退 -lc/-lm。
  *
  * 【依赖】
  * freestanding_io_x86_64.s 提供 shux_sys_write / shux_sys_mmap / shux_sys_exit。
@@ -1503,35 +1503,43 @@ void *__memcpy_chk(void *dest, const void *src, size_t len, size_t destlen) {
 }
 
 /**
- * 刷新流。
- * 【Why 2026-07-16】不可再提供恒成功 no-op：seed 常动态链 glibc，stdout 写走 glibc fwrite
- * 缓冲；若本 TU 强符号 fflush 盖掉 glibc，crt0 又直接 sys_exit，则 -E 等大输出尾部丢失
- * （Linux 冷链 std/net/udp.x → 恰截在 24KiB）。不定义本符号时链接器用 glibc fflush。
- * 纯 nostdlib 无缓冲路径不依赖 fflush。
+ * Flush a stdio stream (POSIX fflush).
+ *
+ * PLATFORM: LINUX — this TU is linked **only** on SHUX_BOOTSTRAP_NOSTDLIB crt0
+ * (build_shux_asm bootstrap_link_tail_crt0 / driver). g05 dynamic product does
+ * **not** link bootstrap_nostdlib_stubs.o, so glibc keeps fflush (historical
+ * 24KiB -E truncate when a strong no-op covered glibc + unflushed fwrite).
+ *
+ * Authority (G.7 / NL-07 L2): single nostdlib FILE* stdio surface lives in this
+ * seed — do **not** add a second fflush in freestanding_io_x86_64.s.
+ *
+ * Semantics: stub FILE* I/O is unbuffered write(fd) (see fwrite/fputs); there is
+ * no user-space buffer to drain. Always return 0. fflush(NULL) is a no-op success
+ * (no open buffered streams to walk).
  */
-/* int fflush(FILE *stream); — 有 libc 时用 glibc；勿在此 no-op 盖掉 */
+int fflush(FILE *stream) {
+  (void)stream;
+  return 0;
+}
 
 /**
  * crt0 exit path after main_entry: flush stdio when safe, then sys_exit (never returns).
  *
  * PLATFORM: LINUX (freestanding + hosted hybrid) —
- * - Hosted/dynamic (g05 product): stdout/stderr are real glibc FILE*; must fflush or
- *   buffered -E output truncates at ~buffer boundary (historical 24KiB udp cold cut).
- * - Freestanding Stage2 gen2: our stdout/stderr point at bootstrap_stdout_file /
- *   bootstrap_stderr_file ({int fd} only). Writes use write(fd) (unbuffered). A static
- *   glibc _IO_fflush may still be linked; calling it on the stub FILE* SIGSEGVs
- *   (Stage2 smoke: gen2 dies in fflush after main_entry returns 0).
+ * - Hosted/dynamic (g05 product): stubs not linked; crt0 weak ref is 0 → fflush@PLT
+ *   on real glibc streams (keeps -E buffer tail).
+ * - Freestanding / nostdlib crt0: this symbol is strong; call fflush (this TU) then
+ *   shux_sys_exit. Stub FILE* path is no-op success (unbuffered write).
  *
- * Authority: only this helper from crt0_x86_64.s — do not call fflush@PLT on raw
- * stdout from asm (G.7 single exit-flush path).
+ * Authority: only this helper from crt0_x86_64.s for freestanding exit — do not
+ * call fflush@PLT on raw stdout from asm (G.7 single exit-flush path).
  */
-extern int fflush(FILE *stream);
 void bootstrap_flush_stdio_and_exit(int code) {
-  /* Skip fflush for bootstrap stub FILE* (pointer identity). Hosted glibc stdout
-   * is a different object, so fflush still runs there. */
-  if (stdout && stdout != &bootstrap_stdout_file)
+  /* fflush is defined in this TU for nostdlib; identity skip no longer required
+   * for SIGSEGV safety, but still avoid work when pointers are null. */
+  if (stdout)
     (void)fflush(stdout);
-  if (stderr && stderr != &bootstrap_stderr_file)
+  if (stderr)
     (void)fflush(stderr);
   shux_sys_exit(code);
 }

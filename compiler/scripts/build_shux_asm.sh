@@ -3133,7 +3133,8 @@ build_nonempty_asm_objs() {
 # crt0 historically dumped the whole bag → multiple definition (9 symbols).
 # Authority when standalone is present: standalone only; drop subset/companion objs.
 # When standalone is missing: keep strict_minimal + preprocess_if_stack_only.
-# Does NOT resolve UNDEF (fflush / backend_enc / typeck) — those are later layers.
+# Does NOT resolve UNDEF (backend_enc / typeck / companion) — those are L3+ layers.
+# NL-07 L2: fflush is defined in bootstrap_nostdlib_stubs (not freestanding_io).
 filter_crt0_asm_objs() {
   CRT0_ASM=""
   _crt0_have_standalone=0
