@@ -15,7 +15,7 @@
  * 【范围】
  * 覆盖 bootstrap 链常见未定义符号：string/mem、stdio 最小格式化
  * （NL-07 L2 fflush；NL-07 L6 fileno/isatty/puts/strerror/fread/ferror/stdin/remove/__ctype_b_loc）、
- * getenv、libm（__builtin_*）、fenv 空实现、posix_memalign、POSIX open/read/close/fstat/waitpid、
+ * getenv、libm（freestanding soft math，禁 __builtin_* 自递归）、fenv 空实现、posix_memalign、POSIX open/read/close/fstat/waitpid、
  * readlink/realpath/getcwd/opendir（NL-07 v5 runtime_link_abi / fmt_check 路径）。
  * L1–L5 companions 后 residual 应仅为本 libc 面；失败时 build_shux_asm 回退 -lc/-lm。
  *
@@ -887,31 +887,567 @@ int printf(const char *fmt, ...) {
     return n;
 }
 
-/* ── libm：编译器内置，替代 -lm ── */
+/* ── freestanding soft libm（替代 -lm；禁 __builtin_* 同名自递归）──
+ *
+ * PLATFORM: SHARED soft-math semantics / LINUX+MACOS product nostdlib link face.
+ * Authority (G.7): this TU only for freestanding pure-static libm symbols.
+ * Hosted product std.math still uses runtime_math_libm.from_x.c + host -lm.
+ *
+ * Root cause of prior hang/warning: defining `double erfc(x){return __builtin_erfc(x);}`
+ * (and sin/exp/floor/…) lowers to a call of the same symbol when the builtin is not a
+ * hardware intrinsic → infinite recursion (Ubuntu -Winfinite-recursion; mac/Linux hang).
+ * Fix: real soft implementations via static helpers with distinct names; public faces
+ * only forward to helpers (never call public sin from inside soft_sin body).
+ *
+ * Quality: enough for std.math smoke (floor/ceil/sqrt/abs + STD-115 erf/erfc/log1p/expm1
+ * at ~1e-6..1e-12 on gold samples). Not a full IEEE libm replacement.
+ */
 
-double sin(double x) { return __builtin_sin(x); }
-double cos(double x) { return __builtin_cos(x); }
-double tan(double x) { return __builtin_tan(x); }
-double asin(double x) { return __builtin_asin(x); }
-double acos(double x) { return __builtin_acos(x); }
-double atan(double x) { return __builtin_atan(x); }
-double atan2(double y, double x) { return __builtin_atan2(y, x); }
-double sqrt(double x) { return __builtin_sqrt(x); }
-double cbrt(double x) { return __builtin_cbrt(x); }
-double pow(double base, double exp) { return __builtin_pow(base, exp); }
-double exp(double x) { return __builtin_exp(x); }
-double log(double x) { return __builtin_log(x); }
-double log1p(double x) { return __builtin_log1p(x); }
-double expm1(double x) { return __builtin_expm1(x); }
-double fabs(double x) { return __builtin_fabs(x); }
-double floor(double x) { return __builtin_floor(x); }
-double ceil(double x) { return __builtin_ceil(x); }
-double trunc(double x) { return __builtin_trunc(x); }
-double round(double x) { return __builtin_round(x); }
-double fmin(double a, double b) { return __builtin_fmin(a, b); }
-double fmax(double a, double b) { return __builtin_fmax(a, b); }
-double erf(double x) { return __builtin_erf(x); }
-double erfc(double x) { return __builtin_erfc(x); }
+typedef union {
+    double d;
+    uint64_t u;
+} shux_soft_f64bits;
+
+/** Absolute value via sign-bit clear (no libm). */
+static double shux_soft_fabs(double x) {
+    shux_soft_f64bits b;
+    b.d = x;
+    b.u &= 0x7fffffffffffffffull;
+    return b.d;
+}
+
+/** True if IEEE-754 quiet/signaling NaN. */
+static int shux_soft_isnan(double x) {
+    shux_soft_f64bits b;
+    b.d = x;
+    return ((b.u & 0x7ff0000000000000ull) == 0x7ff0000000000000ull) &&
+           ((b.u & 0x000fffffffffffffull) != 0ull);
+}
+
+/** True if ±Inf. */
+static int shux_soft_isinf(double x) {
+    shux_soft_f64bits b;
+    b.d = x;
+    return (b.u & 0x7fffffffffffffffull) == 0x7ff0000000000000ull;
+}
+
+/** Copy sign bit of s onto magnitude of m. */
+static double shux_soft_copysign(double m, double s) {
+    shux_soft_f64bits bm, bs;
+    bm.d = m;
+    bs.d = s;
+    bm.u = (bm.u & 0x7fffffffffffffffull) | (bs.u & 0x8000000000000000ull);
+    return bm.d;
+}
+
+/** Min; NaN policy: prefer non-NaN when one is NaN (simple freestanding). */
+static double shux_soft_fmin(double a, double b) {
+    if (shux_soft_isnan(a))
+        return b;
+    if (shux_soft_isnan(b))
+        return a;
+    return a < b ? a : b;
+}
+
+/** Max; NaN policy: prefer non-NaN when one is NaN. */
+static double shux_soft_fmax(double a, double b) {
+    if (shux_soft_isnan(a))
+        return b;
+    if (shux_soft_isnan(b))
+        return a;
+    return a > b ? a : b;
+}
+
+/** Truncate toward zero via integer cast when |x| < 2^53. */
+static double shux_soft_trunc(double x) {
+    double y;
+    if (shux_soft_isnan(x) || shux_soft_isinf(x))
+        return x;
+    if (x >= 0x1p53 || x <= -0x1p53)
+        return x;
+    y = (double)(long long)x;
+    return y;
+}
+
+/** Floor toward −∞. */
+static double shux_soft_floor(double x) {
+    double y;
+    if (shux_soft_isnan(x) || shux_soft_isinf(x))
+        return x;
+    if (x >= 0x1p53 || x <= -0x1p53)
+        return x;
+    y = (double)(long long)x;
+    if (x < 0.0 && y != x)
+        y -= 1.0;
+    return y;
+}
+
+/** Ceil toward +∞. */
+static double shux_soft_ceil(double x) {
+    double y;
+    if (shux_soft_isnan(x) || shux_soft_isinf(x))
+        return x;
+    if (x >= 0x1p53 || x <= -0x1p53)
+        return x;
+    y = (double)(long long)x;
+    if (x > 0.0 && y != x)
+        y += 1.0;
+    return y;
+}
+
+/** Round half away from zero (common freestanding; matches smoke ints). */
+static double shux_soft_round(double x) {
+    if (shux_soft_isnan(x) || shux_soft_isinf(x))
+        return x;
+    if (x >= 0.0)
+        return shux_soft_floor(x + 0.5);
+    return shux_soft_ceil(x - 0.5);
+}
+
+/** Square root: hardware when available, else Newton. */
+static double shux_soft_sqrt(double x) {
+    double r;
+    if (shux_soft_isnan(x) || x == 0.0)
+        return x;
+    if (x < 0.0) {
+        shux_soft_f64bits n;
+        n.u = 0x7ff8000000000000ull; /* qNaN */
+        return n.d;
+    }
+    if (shux_soft_isinf(x))
+        return x;
+#if defined(__x86_64__) || defined(_M_X64)
+    __asm__ volatile("sqrtsd %1, %0" : "=x"(r) : "x"(x));
+    return r;
+#elif defined(__aarch64__)
+    __asm__ volatile("fsqrt %d0, %d1" : "=w"(r) : "w"(x));
+    return r;
+#else
+    {
+        int i;
+        r = x;
+        if (r < 1.0)
+            r = 1.0;
+        for (i = 0; i < 16; i++)
+            r = 0.5 * (r + x / r);
+        return r;
+    }
+#endif
+}
+
+/* ---- transcendentals: range reduction + minimax / Taylor ---- */
+
+#define SHUX_SOFT_PI 3.14159265358979323846
+#define SHUX_SOFT_PI_2 1.57079632679489661923
+#define SHUX_SOFT_PI_4 0.78539816339744830962
+#define SHUX_SOFT_LN2 0.693147180559945309417
+#define SHUX_SOFT_LOG2E 1.44269504088896340736
+#define SHUX_SOFT_TWO54 0x1.0p54
+
+/** exp(x) via 2^k * exp(r), |r| small; freestanding series. */
+static double shux_soft_exp(double x) {
+    double r, z, p;
+    int k;
+    if (shux_soft_isnan(x))
+        return x;
+    if (x > 709.0)
+        return 0x1.0p1023 * 0x1.0p1023; /* +Inf overflow */
+    if (x < -745.0)
+        return 0.0;
+    /* k = round(x / ln2) */
+    k = (int)(x * SHUX_SOFT_LOG2E + (x >= 0.0 ? 0.5 : -0.5));
+    r = x - (double)k * SHUX_SOFT_LN2;
+    /* exp(r) ≈ 1 + r + r^2/2! + … + r^8/8! */
+    z = r * r;
+    p = 1.0 + r +
+        z * (0.5 + r * (1.0 / 6.0 + r * (1.0 / 24.0 + r * (1.0 / 120.0 + r * (1.0 / 720.0 + r * (1.0 / 5040.0 + r * (1.0 / 40320.0)))))));
+    /* scale by 2^k via exponent field */
+    {
+        shux_soft_f64bits b;
+        int e;
+        b.d = p;
+        e = (int)((b.u >> 52) & 0x7ffull);
+        e += k;
+        if (e <= 0)
+            return 0.0;
+        if (e >= 0x7ff)
+            return 0x1.0p1023 * 0x1.0p1023;
+        b.u = (b.u & 0x800fffffffffffffull) | ((uint64_t)e << 52);
+        return b.d;
+    }
+}
+
+/** frexp-like: x = m * 2^e, m in [0.5, 1). */
+static double shux_soft_frexp_mant(double x, int *exp_out) {
+    shux_soft_f64bits b;
+    int e;
+    b.d = x;
+    e = (int)((b.u >> 52) & 0x7ffull);
+    if (e == 0) {
+        /* subnormal or zero */
+        if ((b.u & 0x7fffffffffffffffull) == 0ull) {
+            *exp_out = 0;
+            return x;
+        }
+        /* normalize subnormal */
+        b.d = x * SHUX_SOFT_TWO54;
+        e = (int)((b.u >> 52) & 0x7ffull) - 54;
+    } else if (e == 0x7ff) {
+        *exp_out = 0;
+        return x;
+    } else {
+        e -= 1022; /* bias so mant in [0.5,1) */
+    }
+    b.u = (b.u & 0x800fffffffffffffull) | (0x3feull << 52);
+    *exp_out = e;
+    return b.d;
+}
+
+/** log(x) natural log for x > 0. */
+static double shux_soft_log(double x) {
+    double m, f, s, z, R;
+    int e;
+    if (shux_soft_isnan(x))
+        return x;
+    if (x < 0.0) {
+        shux_soft_f64bits n;
+        n.u = 0x7ff8000000000000ull;
+        return n.d;
+    }
+    if (x == 0.0)
+        return -0x1.0p1023 * 0x1.0p1023; /* -Inf */
+    if (shux_soft_isinf(x))
+        return x;
+    if (x == 1.0)
+        return 0.0;
+    m = shux_soft_frexp_mant(x, &e);
+    /* Bring mant into [sqrt(1/2), sqrt(2)] ≈ [0.707, 1.414] for better series. */
+    if (m < 0.7071067811865476) {
+        m *= 2.0;
+        e -= 1;
+    }
+    /* log(m) for m near 1: f=(m-1)/(m+1) atanh series */
+    f = (m - 1.0) / (m + 1.0);
+    s = f * f;
+    z = f + f * s * (1.0 / 3.0 + s * (1.0 / 5.0 + s * (1.0 / 7.0 + s * (1.0 / 9.0 + s * (1.0 / 11.0 + s * (1.0 / 13.0))))));
+    R = 2.0 * z;
+    return R + (double)e * SHUX_SOFT_LN2;
+}
+
+/** log1p(x) = log(1+x) numerically stable for small x. */
+static double shux_soft_log1p(double x) {
+    double y, z;
+    if (shux_soft_isnan(x))
+        return x;
+    if (x == 0.0)
+        return x;
+    if (x <= -1.0) {
+        if (x == -1.0)
+            return -0x1.0p1023 * 0x1.0p1023;
+        {
+            shux_soft_f64bits n;
+            n.u = 0x7ff8000000000000ull;
+            return n.d;
+        }
+    }
+    y = 1.0 + x;
+    z = y - 1.0;
+    if (z == 0.0)
+        return x;
+    return shux_soft_log(y) * (x / z);
+}
+
+/** expm1(x) = exp(x)-1 numerically stable for small x. */
+static double shux_soft_expm1(double x) {
+    double a, e;
+    if (shux_soft_isnan(x))
+        return x;
+    if (shux_soft_fabs(x) < 1.0e-8) {
+        /* x + x^2/2 + x^3/6 */
+        return x + x * x * (0.5 + x / 6.0);
+    }
+    e = shux_soft_exp(x);
+    if (e == 1.0)
+        return x;
+    a = e - 1.0;
+    if (a == 0.0)
+        return a;
+    return a * x / shux_soft_log(e);
+}
+
+/** pow(base, exp) via exp(exp*log|base|) with special cases. */
+static double shux_soft_pow(double base, double expn) {
+    int neg = 0;
+    double r;
+    long long n;
+    if (base == 0.0) {
+        if (expn > 0.0)
+            return 0.0;
+        if (expn < 0.0)
+            return 0x1.0p1023 * 0x1.0p1023;
+        return 1.0;
+    }
+    if (shux_soft_isnan(base) || shux_soft_isnan(expn)) {
+        shux_soft_f64bits nb;
+        nb.u = 0x7ff8000000000000ull;
+        return nb.d;
+    }
+    if (expn == 0.0)
+        return 1.0;
+    if (base == 1.0)
+        return 1.0;
+    /* Small integer exponents: exact multiply ladder (avoids log/exp error on 2^3 etc.). */
+    if (expn == shux_soft_floor(expn) && expn >= -1022.0 && expn <= 1023.0) {
+        n = (long long)expn;
+        if (n < 0) {
+            return 1.0 / shux_soft_pow(base, (double)(-n));
+        }
+        r = 1.0;
+        {
+            double b = base;
+            unsigned long long u = (unsigned long long)n;
+            while (u) {
+                if (u & 1ull)
+                    r *= b;
+                b *= b;
+                u >>= 1;
+            }
+        }
+        return r;
+    }
+    if (base < 0.0) {
+        double ip;
+        /* only integer exponents for negative bases in this soft face */
+        ip = shux_soft_floor(expn);
+        if (ip != expn) {
+            shux_soft_f64bits nb;
+            nb.u = 0x7ff8000000000000ull;
+            return nb.d;
+        }
+        neg = ((long long)ip) & 1;
+        base = -base;
+    }
+    r = shux_soft_exp(expn * shux_soft_log(base));
+    return neg ? -r : r;
+}
+
+/** cbrt via Newton on y^3 - x = 0. */
+static double shux_soft_cbrt(double x) {
+    double y;
+    int i, sign = 0;
+    if (shux_soft_isnan(x) || x == 0.0 || shux_soft_isinf(x))
+        return x;
+    if (x < 0.0) {
+        sign = 1;
+        x = -x;
+    }
+    y = shux_soft_exp(shux_soft_log(x) / 3.0);
+    for (i = 0; i < 4; i++)
+        y = (2.0 * y + x / (y * y)) / 3.0;
+    return sign ? -y : y;
+}
+
+/** Kernel sin on [-pi/4, pi/4]. */
+static double shux_soft_sin_kernel(double x) {
+    double z = x * x;
+    /* sin = x + x^3*(-1/6 + z*(1/120 + z*(-1/5040 + z/362880))) */
+    return x + x * z * (-1.0 / 6.0 + z * (1.0 / 120.0 + z * (-1.0 / 5040.0 + z * (1.0 / 362880.0))));
+}
+
+/** Kernel cos on [-pi/4, pi/4]. */
+static double shux_soft_cos_kernel(double x) {
+    double z = x * x;
+    return 1.0 + z * (-0.5 + z * (1.0 / 24.0 + z * (-1.0 / 720.0 + z * (1.0 / 40320.0))));
+}
+
+/** Reduce x to [-pi/4,pi/4] and quadrant; *q = 0..3. */
+static double shux_soft_rem_pio2(double x, int *q) {
+    double y;
+    long n;
+    /* n ≈ x / (pi/2) */
+    n = (long)(x * (1.0 / SHUX_SOFT_PI_2) + (x >= 0.0 ? 0.5 : -0.5));
+    y = x - (double)n * SHUX_SOFT_PI_2;
+    *q = (int)(n & 3);
+    return y;
+}
+
+static double shux_soft_sin(double x) {
+    int q;
+    double y;
+    if (shux_soft_isnan(x) || shux_soft_isinf(x))
+        return x - x; /* NaN */
+    y = shux_soft_rem_pio2(x, &q);
+    switch (q) {
+    case 0:
+        return shux_soft_sin_kernel(y);
+    case 1:
+        return shux_soft_cos_kernel(y);
+    case 2:
+        return -shux_soft_sin_kernel(y);
+    default:
+        return -shux_soft_cos_kernel(y);
+    }
+}
+
+static double shux_soft_cos(double x) {
+    int q;
+    double y;
+    if (shux_soft_isnan(x) || shux_soft_isinf(x))
+        return x - x;
+    y = shux_soft_rem_pio2(x, &q);
+    switch (q) {
+    case 0:
+        return shux_soft_cos_kernel(y);
+    case 1:
+        return -shux_soft_sin_kernel(y);
+    case 2:
+        return -shux_soft_cos_kernel(y);
+    default:
+        return shux_soft_sin_kernel(y);
+    }
+}
+
+static double shux_soft_tan(double x) {
+    double s = shux_soft_sin(x);
+    double c = shux_soft_cos(x);
+    if (c == 0.0)
+        return shux_soft_copysign(0x1.0p1023 * 0x1.0p1023, s);
+    return s / c;
+}
+
+/** atan via range reduction + rational approximation. */
+static double shux_soft_atan(double x) {
+    double t, z;
+    int inv = 0, sign = 0;
+    if (shux_soft_isnan(x))
+        return x;
+    if (x < 0.0) {
+        sign = 1;
+        x = -x;
+    }
+    if (x > 1.0) {
+        inv = 1;
+        x = 1.0 / x;
+    }
+    /* atan(x) for |x|<=1: polynomial in z=x^2 */
+    z = x * x;
+    t = x * (1.0 + z * (-0.3333333333333333 + z * (0.2 + z * (-0.14285714285714285 +
+                                                                z * (0.1111111111111111 + z * (-0.09090909090909091 +
+                                                                                              z * 0.07692307692307693))))));
+    if (inv)
+        t = SHUX_SOFT_PI_2 - t;
+    return sign ? -t : t;
+}
+
+static double shux_soft_atan2(double y, double x) {
+    if (shux_soft_isnan(x) || shux_soft_isnan(y)) {
+        shux_soft_f64bits n;
+        n.u = 0x7ff8000000000000ull;
+        return n.d;
+    }
+    if (x > 0.0)
+        return shux_soft_atan(y / x);
+    if (x < 0.0) {
+        if (y >= 0.0)
+            return shux_soft_atan(y / x) + SHUX_SOFT_PI;
+        return shux_soft_atan(y / x) - SHUX_SOFT_PI;
+    }
+    /* x == 0 */
+    if (y > 0.0)
+        return SHUX_SOFT_PI_2;
+    if (y < 0.0)
+        return -SHUX_SOFT_PI_2;
+    return 0.0;
+}
+
+/** asin via atan(x/sqrt(1-x^2)). */
+static double shux_soft_asin(double x) {
+    if (shux_soft_isnan(x))
+        return x;
+    if (x < -1.0 || x > 1.0) {
+        shux_soft_f64bits n;
+        n.u = 0x7ff8000000000000ull;
+        return n.d;
+    }
+    if (x == 1.0)
+        return SHUX_SOFT_PI_2;
+    if (x == -1.0)
+        return -SHUX_SOFT_PI_2;
+    return shux_soft_atan(x / shux_soft_sqrt(1.0 - x * x));
+}
+
+/** acos via pi/2 - asin. */
+static double shux_soft_acos(double x) {
+    return SHUX_SOFT_PI_2 - shux_soft_asin(x);
+}
+
+/** erf via A&S 7.1.26 (max err ~1.5e-7); enough for STD-115 1e-6 gold. */
+static double shux_soft_erf(double x) {
+    double ax, t, y;
+    const double a1 = 0.254829592;
+    const double a2 = -0.284496736;
+    const double a3 = 1.421413741;
+    const double a4 = -1.453152027;
+    const double a5 = 1.061405429;
+    const double p = 0.3275911;
+    /* 2/sqrt(pi) — linear small-x: erf(x) ≈ c*x */
+    const double two_over_sqrt_pi = 1.1283791670955126;
+    int sign = 0;
+    if (shux_soft_isnan(x))
+        return x;
+    if (x == 0.0)
+        return x; /* preserve ±0 */
+    if (x < 0.0) {
+        sign = 1;
+        x = -x;
+    }
+    ax = x;
+    if (ax < 1.0e-8)
+        return sign ? -two_over_sqrt_pi * ax : two_over_sqrt_pi * ax;
+    t = 1.0 / (1.0 + p * ax);
+    y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * shux_soft_exp(-ax * ax);
+    return sign ? -y : y;
+}
+
+/** erfc(x) = 1 - erf(x); for large |x| use complementary path to limit cancellation. */
+static double shux_soft_erfc(double x) {
+    if (x >= 0.0 && x < 0.5)
+        return 1.0 - shux_soft_erf(x);
+    if (x >= 0.5) {
+        /* erfc(x) for x>=0.5: 1-erf still OK until ~6; beyond → 0 */
+        if (x > 20.0)
+            return 0.0;
+        return 1.0 - shux_soft_erf(x);
+    }
+    /* x < 0: erfc(x) = 1 + erf(-x) = 2 - erfc(-x) */
+    return 2.0 - shux_soft_erfc(-x);
+}
+
+/* ---- public libm face (forward only; no __builtin_*) ---- */
+
+double fabs(double x) { return shux_soft_fabs(x); }
+double fmin(double a, double b) { return shux_soft_fmin(a, b); }
+double fmax(double a, double b) { return shux_soft_fmax(a, b); }
+double trunc(double x) { return shux_soft_trunc(x); }
+double floor(double x) { return shux_soft_floor(x); }
+double ceil(double x) { return shux_soft_ceil(x); }
+double round(double x) { return shux_soft_round(x); }
+double sqrt(double x) { return shux_soft_sqrt(x); }
+double cbrt(double x) { return shux_soft_cbrt(x); }
+double exp(double x) { return shux_soft_exp(x); }
+double log(double x) { return shux_soft_log(x); }
+double log1p(double x) { return shux_soft_log1p(x); }
+double expm1(double x) { return shux_soft_expm1(x); }
+double pow(double base, double expn) { return shux_soft_pow(base, expn); }
+double sin(double x) { return shux_soft_sin(x); }
+double cos(double x) { return shux_soft_cos(x); }
+double tan(double x) { return shux_soft_tan(x); }
+double asin(double x) { return shux_soft_asin(x); }
+double acos(double x) { return shux_soft_acos(x); }
+double atan(double x) { return shux_soft_atan(x); }
+double atan2(double y, double x) { return shux_soft_atan2(y, x); }
+double erf(double x) { return shux_soft_erf(x); }
+double erfc(double x) { return shux_soft_erfc(x); }
 
 /* ── fenv 空实现：runtime_math_libm.c 在 Linux 上可链入 ── */
 
