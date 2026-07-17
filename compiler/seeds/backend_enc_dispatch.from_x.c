@@ -145,6 +145,11 @@ int32_t backend_enc_cvtsd2ss_eax_from_f64_bits_arch(struct platform_elf_ElfCodeg
 int32_t backend_enc_cvtsi2ss_eax_from_i32_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 int32_t backend_enc_mov_eax_to_xmm_arg_reg_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k, int32_t ta);
 int32_t backend_enc_mov_xmm_arg_reg_to_eax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k, int32_t ta);
+int32_t backend_enc_mov_rax_to_xmm_arg_reg_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k, int32_t ta);
+int32_t backend_enc_mov_xmm_arg_reg_to_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k, int32_t ta);
+int32_t backend_enc_addsd_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+int32_t backend_enc_subsd_rbx_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+int32_t backend_enc_subsd_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 int32_t backend_enc_store_eax_to_rbp_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset, int32_t ta);
 #endif
 
@@ -855,6 +860,95 @@ int32_t backend_enc_mov_xmm_arg_reg_to_eax_arch(struct platform_elf_ElfCodegenCt
   return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, &modrm, 1);
 }
 #endif
+
+/**
+ * PLATFORM: LINUX+MACOS x86_64 SysV — movq xmmK, rax (66 REX.W 0F 6E /r).
+ * f64 bits in GPR → SSE arg/return register. Always in seed rest (not thin-gated).
+ */
+int32_t backend_enc_mov_rax_to_xmm_arg_reg_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k, int32_t ta) {
+  static const uint8_t prefix[4] = {0x66, 0x48, 0x0f, 0x6e};
+  uint8_t modrm;
+  if (ta != 0 || !elf_ctx || k < 0 || k > 7)
+    return -1;
+  modrm = (uint8_t)(0xc0 | (k << 3));
+  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)prefix, 4) != 0)
+    return -1;
+  return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, &modrm, 1);
+}
+
+/**
+ * PLATFORM: LINUX+MACOS x86_64 SysV — movq rax, xmmK (66 REX.W 0F 7E /r).
+ * Harvest f64 SysV return (xmm0) or param into internal rax-bits convention.
+ */
+int32_t backend_enc_mov_xmm_arg_reg_to_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k, int32_t ta) {
+  static const uint8_t prefix[4] = {0x66, 0x48, 0x0f, 0x7e};
+  uint8_t modrm;
+  if (ta != 0 || !elf_ctx || k < 0 || k > 7)
+    return -1;
+  modrm = (uint8_t)(0xc0 | (k << 3));
+  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)prefix, 4) != 0)
+    return -1;
+  return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, &modrm, 1);
+}
+
+/**
+ * PLATFORM: LINUX+MACOS x86_64 SysV — scalar f64 add: rax + rbx → rax (IEEE bits in GPRs).
+ * movq xmm0,rax; movq xmm1,rbx; addsd xmm0,xmm1; movq rax,xmm0
+ */
+int32_t backend_enc_addsd_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
+  static const uint8_t movq_xmm0_rax[5] = {0x66, 0x48, 0x0f, 0x6e, 0xc0};
+  static const uint8_t movq_xmm1_rbx[5] = {0x66, 0x48, 0x0f, 0x6e, 0xcb};
+  static const uint8_t addsd_xmm0_xmm1[4] = {0xf2, 0x0f, 0x58, 0xc1};
+  static const uint8_t movq_rax_xmm0[5] = {0x66, 0x48, 0x0f, 0x7e, 0xc0};
+  if (ta != 0 || !elf_ctx)
+    return -1;
+  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movq_xmm0_rax, 5) != 0)
+    return -1;
+  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movq_xmm1_rbx, 5) != 0)
+    return -1;
+  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)addsd_xmm0_xmm1, 4) != 0)
+    return -1;
+  return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movq_rax_xmm0, 5);
+}
+
+/**
+ * PLATFORM: LINUX+MACOS x86_64 SysV — scalar f64 sub: rbx - rax → rax (left in rbx, right in rax).
+ * movq xmm0,rbx; movq xmm1,rax; subsd xmm0,xmm1; movq rax,xmm0
+ */
+int32_t backend_enc_subsd_rbx_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
+  static const uint8_t movq_xmm0_rbx[5] = {0x66, 0x48, 0x0f, 0x6e, 0xc3};
+  static const uint8_t movq_xmm1_rax[5] = {0x66, 0x48, 0x0f, 0x6e, 0xc8};
+  static const uint8_t subsd_xmm0_xmm1[4] = {0xf2, 0x0f, 0x5c, 0xc1};
+  static const uint8_t movq_rax_xmm0[5] = {0x66, 0x48, 0x0f, 0x7e, 0xc0};
+  if (ta != 0 || !elf_ctx)
+    return -1;
+  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movq_xmm0_rbx, 5) != 0)
+    return -1;
+  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movq_xmm1_rax, 5) != 0)
+    return -1;
+  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)subsd_xmm0_xmm1, 4) != 0)
+    return -1;
+  return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movq_rax_xmm0, 5);
+}
+
+/**
+ * PLATFORM: LINUX+MACOS x86_64 SysV — scalar f64 sub: rax - rbx → rax (left in rax, right in rbx).
+ */
+int32_t backend_enc_subsd_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
+  static const uint8_t movq_xmm0_rax[5] = {0x66, 0x48, 0x0f, 0x6e, 0xc0};
+  static const uint8_t movq_xmm1_rbx[5] = {0x66, 0x48, 0x0f, 0x6e, 0xcb};
+  static const uint8_t subsd_xmm0_xmm1[4] = {0xf2, 0x0f, 0x5c, 0xc1};
+  static const uint8_t movq_rax_xmm0[5] = {0x66, 0x48, 0x0f, 0x7e, 0xc0};
+  if (ta != 0 || !elf_ctx)
+    return -1;
+  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movq_xmm0_rax, 5) != 0)
+    return -1;
+  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movq_xmm1_rbx, 5) != 0)
+    return -1;
+  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)subsd_xmm0_xmm1, 4) != 0)
+    return -1;
+  return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movq_rax_xmm0, 5);
+}
 
 /**
  * ta 分派：enc_sub_rax_rbx_arch

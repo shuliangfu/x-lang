@@ -1574,14 +1574,17 @@ export function glue_asm_prefix_is_fmt_or_debug(pre: *u8, pre_len: i32): i32 {
 // G-02f-120：call_dispatch pure helpers 真迁 .x
 // pipeline_type_kind_ord_at：见文件头 R2 full 前置 extern
 
+/** SysV SSE float slot: f32 (14) or f64 (15). Name is historical; G.7 completes f64.
+ * PLATFORM: SHARED kind / LINUX+MACOS x86_64 SysV xmm class. */
 #[no_mangle]
 export function glue_call_param_is_f32_c(arena: *u8, tr: i32): i32 {
   if (arena == 0) { return 0; }
   if (tr <= 0) { return 0; }
   unsafe {
     let k: i32 = pipeline_type_kind_ord_at(arena, tr);
-    // GLUE_TYPE_F32_ORD = 14
+    // TYPE_F32=14, TYPE_F64=15
     if (k == 14) { return 1; }
+    if (k == 15) { return 1; }
   }
   return 0;
 }

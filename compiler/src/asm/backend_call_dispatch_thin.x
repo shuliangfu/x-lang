@@ -91,6 +91,9 @@ export function glue_call_param_type_ref_at(arena: *u8, call_expr_ref: i32, para
 // ---- G-02f-367：f32 判定 + build_ 前缀冗余 ----
 export extern "C" function pipeline_type_kind_ord_at(arena: *u8, ty: i32): i32;
 
+/** True if type is scalar f32 (14) or f64 (15) for SysV xmm0–7 arg/param slotting.
+ * Name keeps historical is_f32; f64 shares the SSE float register class (G.7 complete).
+ * PLATFORM: SHARED classification / LINUX+MACOS x86_64 SysV xmm use. */
 #[no_mangle]
 export function glue_call_param_is_f32_c(arena: *u8, type_ref: i32): i32 {
   if (arena == 0 as *u8) {
@@ -100,10 +103,15 @@ export function glue_call_param_is_f32_c(arena: *u8, type_ref: i32): i32 {
     return 0;
   }
   unsafe {
-    if (pipeline_type_kind_ord_at(arena, type_ref) != 14) {
-      return 0;
+    let k: i32 = pipeline_type_kind_ord_at(arena, type_ref);
+    // TYPE_F32=14, TYPE_F64=15 (ast TypeKind with LINEAR present).
+    if (k == 14) {
+      return 1;
     }
-    return 1;
+    if (k == 15) {
+      return 1;
+    }
+    return 0;
   }
   return 0;
 }

@@ -322,6 +322,12 @@ extern int32_t backend_enc_store_x0_sp_offset_arch(struct platform_elf_ElfCodege
                                                    int32_t ta);
 extern int32_t backend_enc_mov_eax_to_xmm_arg_reg_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k,
                                                        int32_t ta);
+extern int32_t backend_enc_mov_rax_to_xmm_arg_reg_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k,
+                                                       int32_t ta);
+extern int32_t backend_enc_mov_xmm_arg_reg_to_eax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k,
+                                                       int32_t ta);
+extern int32_t backend_enc_mov_xmm_arg_reg_to_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k,
+                                                       int32_t ta);
 extern int32_t pipeline_asm_type_ref_byte_size_c(struct ast_ASTArena *arena, int32_t ty_ref);
 extern int32_t pipeline_asm_deref_struct16_rax_ptr_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t pipeline_asm_call_struct16_ret_needs_rax_deref_c(struct ast_ASTArena *arena, int32_t call_expr_ref);
@@ -390,13 +396,18 @@ int32_t glue_emit_one_call_arg_elf_c(struct ast_ASTArena *arena, struct platform
                                             int32_t call_expr_ref, int32_t arg_ref, int32_t arg_index,
                                             struct backend_AsmFuncCtx *ctx, int32_t ta);
 
-/** 形参/实参 type_ref 是否为 f32。 */
+/** 形参/实参 type_ref 是否走 SysV SSE 浮点寄存器类（f32 或 f64）。
+ * Historical name is_f32; f64 shares xmm0–7 (G.7 complete, not a second gate).
+ * PLATFORM: SHARED kind check / LINUX+MACOS x86_64 SysV xmm slotting. */
 /* G-02f-120：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
+#define GLUE_TYPE_F64_ORD 15
 int32_t glue_call_param_is_f32_c(struct ast_ASTArena *arena, int32_t type_ref) {
+  int32_t k;
   if (!arena || type_ref <= 0)
     return 0;
-  return pipeline_type_kind_ord_at(arena, type_ref) == GLUE_TYPE_F32_ORD ? 1 : 0;
+  k = pipeline_type_kind_ord_at(arena, type_ref);
+  return (k == GLUE_TYPE_F32_ORD || k == GLUE_TYPE_F64_ORD) ? 1 : 0;
 }
 #endif
 
@@ -615,9 +626,19 @@ int32_t glue_emit_call_args_elf_sysv_f32_xmm_c_impl(struct ast_ASTArena *arena,
         pipeline_asm_emit_set_call_f32_xmm(0);
         return -1;
       }
-    } else if (backend_enc_mov_eax_to_xmm_arg_reg_arch(elf_ctx, reg_k, ta) != 0) {
-      pipeline_asm_emit_set_call_f32_xmm(0);
-      return -1;
+    } else {
+      /** kind==1 xmm: f32 → movd; f64 → movq (SysV SSE float class). */
+      int32_t pty = glue_call_param_type_ref_at(arena, expr_ref, i);
+      int32_t pk = (pty > 0) ? pipeline_type_kind_ord_at(arena, pty) : 0;
+      int32_t mov_rc;
+      if (pk == 15)
+        mov_rc = backend_enc_mov_rax_to_xmm_arg_reg_arch(elf_ctx, reg_k, ta);
+      else
+        mov_rc = backend_enc_mov_eax_to_xmm_arg_reg_arch(elf_ctx, reg_k, ta);
+      if (mov_rc != 0) {
+        pipeline_asm_emit_set_call_f32_xmm(0);
+        return -1;
+      }
     }
   }
   pipeline_asm_emit_set_call_f32_xmm(0);
@@ -1897,6 +1918,31 @@ int32_t glue_asm_try_emit_fmt_string_lit_import_call_elf_c(struct ast_ASTArena *
 #endif
 
 
+extern int32_t pipeline_expr_resolved_type_ref(struct ast_ASTArena *a, int32_t expr_ref);
+
+/**
+ * PLATFORM: LINUX+MACOS x86_64 SysV — after CALL, harvest f32/f64 return from xmm0 into eax/rax.
+ * Internal asm value convention keeps scalar float bits in GPR; C/libm returns in xmm0.
+ * Authority: call expr resolved_type_ref (typeck must set f32/f64 on product CALL sites).
+ */
+static int32_t glue_asm_harvest_sse_call_ret_to_gpr_c(struct ast_ASTArena *arena,
+                                                      struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                      int32_t call_expr_ref, int32_t ta) {
+  int32_t tr;
+  int32_t kind;
+  if (ta != 0 || !arena || !elf_ctx || call_expr_ref <= 0)
+    return 0;
+  tr = pipeline_expr_resolved_type_ref(arena, call_expr_ref);
+  if (tr <= 0)
+    return 0;
+  kind = pipeline_type_kind_ord_at(arena, tr);
+  if (kind == 14)
+    return backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx, 0, ta);
+  if (kind == 15)
+    return backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx, 0, ta);
+  return 0;
+}
+
 /**
  * 发射实参、call 目标符号，并按 ABI 回收 outgoing 栈区。
  */
@@ -1913,7 +1959,9 @@ int32_t glue_asm_emit_call_with_cleanup_impl(struct ast_ASTArena *arena, struct 
   cleanup = glue_asm_call_stack_cleanup_bytes(ta, nargs);
   if (cleanup < 0)
     return -1;
-  return backend_enc_call_stack_cleanup_arch(elf_ctx, cleanup, ta);
+  if (backend_enc_call_stack_cleanup_arch(elf_ctx, cleanup, ta) != 0)
+    return -1;
+  return glue_asm_harvest_sse_call_ret_to_gpr_c(arena, elf_ctx, expr_ref, ta);
 }
 
 #ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
@@ -2017,6 +2065,8 @@ int32_t pipeline_asm_emit_call_elf_c_impl(struct ast_ASTArena *arena, struct pla
                 if (cln < 0 || backend_enc_call_stack_cleanup_arch(elf_ctx, cln, ta) != 0)
                   return -1;
               }
+              if (glue_asm_harvest_sse_call_ret_to_gpr_c(arena, elf_ctx, expr_ref, ta) != 0)
+                return -1;
               return 0;
             }
           }
@@ -2056,6 +2106,8 @@ int32_t pipeline_asm_emit_call_elf_c_impl(struct ast_ASTArena *arena, struct pla
         if (cln2 < 0 || backend_enc_call_stack_cleanup_arch(elf_ctx, cln2, ta) != 0)
           return -1;
       }
+      if (glue_asm_harvest_sse_call_ret_to_gpr_c(arena, elf_ctx, expr_ref, ta) != 0)
+        return -1;
       return 0;
     }
   }

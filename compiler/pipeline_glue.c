@@ -1286,6 +1286,9 @@ extern int32_t pipeline_block_find_var_decl_block_ref(struct ast_ASTArena *arena
                                                       int32_t vlen);
 extern int32_t backend_enc_add_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_addss_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+extern int32_t backend_enc_addsd_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+extern int32_t backend_enc_subsd_rbx_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+extern int32_t backend_enc_subsd_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_cvttss2si_eax_from_f32_bits_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_cvtsd2ss_eax_from_f64_bits_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_cvtsi2ss_eax_from_i32_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
@@ -1382,6 +1385,12 @@ extern int32_t backend_enc_mov_arg_reg_to_rax_arch(struct platform_elf_ElfCodege
                                                    int32_t ta);
 /** SysV f32 xmm 形参：movd xmmK, eax（backend_enc_dispatch.c）。 */
 extern int32_t backend_enc_mov_xmm_arg_reg_to_eax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k,
+                                                       int32_t ta);
+extern int32_t backend_enc_mov_xmm_arg_reg_to_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k,
+                                                       int32_t ta);
+extern int32_t backend_enc_mov_eax_to_xmm_arg_reg_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k,
+                                                       int32_t ta);
+extern int32_t backend_enc_mov_rax_to_xmm_arg_reg_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k,
                                                        int32_t ta);
 /** SHUX_ABI_F32_XMM=1 时启用（pipeline_abi_f32_xmm.c）。 */
 extern int32_t pipeline_asm_abi_f32_xmm_enabled_c(void);
@@ -2610,6 +2619,8 @@ static int32_t glue_vector_let_init_uses_direct_slot(struct ast_ASTArena *arena,
 int32_t pipeline_type_array_size_at(struct ast_ASTArena *arena, int32_t ref);
 /** TYPE_F32 在 TypeKind 序数表中的值（与 pipeline_asm_index_elem_byte_sz_c 一致）。 */
 #define GLUE_TYPE_KIND_F32_ORD 14
+/** TYPE_F64（ast TypeKind with LINEAR；与 TYPE_F32 同属 SysV SSE 浮点类）。 */
+#define GLUE_TYPE_KIND_F64_ORD 15
 
 /** EXPR_VAR kind 序数（与 ast_ExprKind 一致）。 */
 #define GLUE_EXPR_KIND_VAR 3
@@ -11468,9 +11479,21 @@ static int32_t glue_type_ref_is_scalar_f32_c(struct ast_ASTArena *arena, int32_t
   return pipeline_type_kind_ord_at(arena, type_ref) == GLUE_TYPE_KIND_F32_ORD ? 1 : 0;
 }
 
+/** 类型 ref 是否为标量 f64。 */
+static int32_t glue_type_ref_is_scalar_f64_c(struct ast_ASTArena *arena, int32_t type_ref) {
+  if (!arena || type_ref <= 0)
+    return 0;
+  return pipeline_type_kind_ord_at(arena, type_ref) == GLUE_TYPE_KIND_F64_ORD ? 1 : 0;
+}
+
 /** 表达式 resolved_type 是否为标量 f32。 */
 static int32_t glue_expr_resolved_is_scalar_f32_c(struct ast_ASTArena *arena, int32_t expr_ref) {
   return glue_type_ref_is_scalar_f32_c(arena, pipeline_expr_resolved_type_ref(arena, expr_ref));
+}
+
+/** 表达式 resolved_type 是否为标量 f64。 */
+static int32_t glue_expr_resolved_is_scalar_f64_c(struct ast_ASTArena *arena, int32_t expr_ref) {
+  return glue_type_ref_is_scalar_f64_c(arena, pipeline_expr_resolved_type_ref(arena, expr_ref));
 }
 
 /**
@@ -11528,11 +11551,46 @@ static int32_t glue_binop_operand_is_scalar_f32_elf_c(struct ast_ASTArena *arena
   return 0;
 }
 
-/** f32 ADD 双操作数均为 f32 时走 addss，否则整数 add。 */
+/**
+ * binop：标量 f64 操作数（resolved / 局部声明 / 浮点字面量 / 加减链）。
+ * PLATFORM: SHARED type / LINUX+MACOS x86_64 uses addsd/subsd.
+ */
+static int32_t glue_binop_operand_is_scalar_f64_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                                       int32_t expr_ref) {
+  int32_t ko;
+  int32_t tr;
+  if (!arena || expr_ref <= 0)
+    return 0;
+  if (glue_expr_resolved_is_scalar_f64_c(arena, expr_ref))
+    return 1;
+  ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  if (ko == GLUE_EXPR_KIND_VAR && ctx) {
+    tr = glue_var_decl_type_ref_elf_c(arena, ctx, expr_ref);
+    return glue_type_ref_is_scalar_f64_c(arena, tr);
+  }
+  /** FLOAT_LIT default / unresolved → treat as f64 (typeck ensures_f64). */
+  if (ko == 1)
+    return 1;
+  if (ko == 48) /* CALL: use resolved only */
+    return glue_expr_resolved_is_scalar_f64_c(arena, expr_ref);
+  if (ko == 4 || ko == 5 || ko == 6 || ko == 7) {
+    int32_t lr = pipeline_expr_binop_left_ref_at(arena, expr_ref);
+    int32_t rr = pipeline_expr_binop_right_ref_at(arena, expr_ref);
+    if (lr > 0 && rr > 0 && glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, lr) &&
+        glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, rr))
+      return 1;
+  }
+  return 0;
+}
+
+/** f32 ADD → addss; f64 ADD → addsd; else integer add。 */
 static int32_t glue_emit_binop_add_rax_rbx_elf_c(struct ast_ASTArena *arena,
                                                    struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                    struct backend_AsmFuncCtx *ctx, int32_t left_ref,
                                                    int32_t right_ref, int32_t ta) {
+  if (ta == 0 && glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) &&
+      glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref))
+    return backend_enc_addsd_rax_rbx_arch(elf_ctx, ta);
   if (ta == 0 && glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref) &&
       glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, right_ref))
     return backend_enc_addss_rax_rbx_arch(elf_ctx, ta);
@@ -11672,6 +11730,27 @@ static int32_t pipeline_asm_emit_binop_add_elf_c(struct ast_ASTArena *arena, str
   return 0;
 }
 
+/** f64 SUB: left-right with bits in GPRs; rbx-rax or rax-rbx conventions match integer sub helpers. */
+static int32_t glue_emit_binop_sub_rbx_minus_rax_elf_c(struct ast_ASTArena *arena,
+                                                         struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                         struct backend_AsmFuncCtx *ctx, int32_t left_ref,
+                                                         int32_t right_ref, int32_t ta) {
+  if (ta == 0 && glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) &&
+      glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref))
+    return backend_enc_subsd_rbx_rax_arch(elf_ctx, ta);
+  return backend_enc_sub_rbx_rax_then_mov_arch(elf_ctx, ta);
+}
+
+static int32_t glue_emit_binop_sub_rax_minus_rbx_elf_c(struct ast_ASTArena *arena,
+                                                         struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                         struct backend_AsmFuncCtx *ctx, int32_t left_ref,
+                                                         int32_t right_ref, int32_t ta) {
+  if (ta == 0 && glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) &&
+      glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref))
+    return backend_enc_subsd_rax_rbx_arch(elf_ctx, ta);
+  return backend_enc_sub_rax_rbx_arch(elf_ctx, ta);
+}
+
 static int32_t pipeline_asm_emit_binop_sub_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                    int32_t left_ref, int32_t right_ref, struct backend_AsmFuncCtx *ctx,
                                                    int32_t ta) {
@@ -11682,7 +11761,7 @@ static int32_t pipeline_asm_emit_binop_sub_elf_c(struct ast_ASTArena *arena, str
       return -1;
     if (backend_enc_mov_imm32_to_rbx_arch(elf_ctx, lit_imm, ta) != 0)
       return -1;
-    return backend_enc_sub_rbx_rax_then_mov_arch(elf_ctx, ta);
+    return glue_emit_binop_sub_rbx_minus_rax_elf_c(arena, elf_ctx, ctx, left_ref, right_ref, ta);
   }
   /** 右字面量：rax=左子树，rbx=立即数，结果 rax-rbx（如 i-1）。 */
   if (pipeline_asm_expr_lit_i32_at_c(arena, right_ref, &lit_imm)) {
@@ -11690,7 +11769,7 @@ static int32_t pipeline_asm_emit_binop_sub_elf_c(struct ast_ASTArena *arena, str
       return -1;
     if (backend_enc_mov_imm32_to_rbx_arch(elf_ctx, lit_imm, ta) != 0)
       return -1;
-    return backend_enc_sub_rax_rbx_arch(elf_ctx, ta);
+    return glue_emit_binop_sub_rax_minus_rbx_elf_c(arena, elf_ctx, ctx, left_ref, right_ref, ta);
   }
   {
     int32_t loff;
@@ -11702,7 +11781,7 @@ static int32_t pipeline_asm_emit_binop_sub_elf_c(struct ast_ASTArena *arena, str
         return -1;
       if (backend_enc_load_rbp_to_rax_arch(elf_ctx, roff, ta) != 0)
         return -1;
-      return backend_enc_sub_rbx_rax_then_mov_arch(elf_ctx, ta);
+      return glue_emit_binop_sub_rbx_minus_rax_elf_c(arena, elf_ctx, ctx, left_ref, right_ref, ta);
     }
     if (loff >= 0) {
       /** 左 VAR、右复合：先 emit 右子树到 rax，再 rax=i、rbx=右，sub rax-rbx（如 i-(j+k)）。 */
@@ -11714,7 +11793,7 @@ static int32_t pipeline_asm_emit_binop_sub_elf_c(struct ast_ASTArena *arena, str
         return -1;
       if (backend_enc_load_rbp_to_rax_arch(elf_ctx, loff, ta) != 0)
         return -1;
-      return backend_enc_sub_rax_rbx_arch(elf_ctx, ta);
+      return glue_emit_binop_sub_rax_minus_rbx_elf_c(arena, elf_ctx, ctx, left_ref, right_ref, ta);
     }
     if (roff >= 0) {
       if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, left_ref, ctx, ta) != 0)
@@ -11723,7 +11802,7 @@ static int32_t pipeline_asm_emit_binop_sub_elf_c(struct ast_ASTArena *arena, str
         return -1;
       if (backend_enc_load_rbp_to_rax_arch(elf_ctx, roff, ta) != 0)
         return -1;
-      return backend_enc_sub_rbx_rax_then_mov_arch(elf_ctx, ta);
+      return glue_emit_binop_sub_rbx_minus_rax_elf_c(arena, elf_ctx, ctx, left_ref, right_ref, ta);
     }
   }
   if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, left_ref, ctx, ta) != 0)
@@ -11734,7 +11813,7 @@ static int32_t pipeline_asm_emit_binop_sub_elf_c(struct ast_ASTArena *arena, str
     return -1;
   if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
     return -1;
-  return backend_enc_sub_rbx_rax_then_mov_arch(elf_ctx, ta);
+  return glue_emit_binop_sub_rbx_minus_rax_elf_c(arena, elf_ctx, ctx, left_ref, right_ref, ta);
 }
 
 static int32_t pipeline_asm_emit_binop_mul_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
@@ -16403,8 +16482,23 @@ void pipeline_asm_fill_param_slots(struct backend_AsmFuncCtx *ctx, struct ast_Mo
   ly->next_offset = off;
 }
 
-/** 函数形参 type_ref 是否为 f32（SysV xmm ABI 分轨用）。 */
+/** 函数形参 type_ref 是否走 SysV SSE 浮点寄存器类（f32 或 f64；历史名 is_f32）。
+ * PLATFORM: SHARED kind / LINUX+MACOS x86_64 SysV xmm slotting. */
 static int32_t glue_func_param_is_f32_c(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_index,
+                                        int32_t param_index) {
+  int32_t pty;
+  int32_t k;
+  if (!arena || !mod || func_index < 0 || param_index < 0)
+    return 0;
+  pty = pipeline_module_func_param_type_ref_at(mod, func_index, param_index);
+  if (pty <= 0)
+    return 0;
+  k = pipeline_type_kind_ord_at(arena, pty);
+  return (k == GLUE_TYPE_KIND_F32_ORD || k == GLUE_TYPE_KIND_F64_ORD) ? 1 : 0;
+}
+
+/** 函数形参是否为 f64（8B xmm→GPR home；与 is_f32 槽位类分离宽度）。 */
+static int32_t glue_func_param_is_f64_c(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_index,
                                         int32_t param_index) {
   int32_t pty;
   if (!arena || !mod || func_index < 0 || param_index < 0)
@@ -16412,7 +16506,7 @@ static int32_t glue_func_param_is_f32_c(struct ast_ASTArena *arena, struct ast_M
   pty = pipeline_module_func_param_type_ref_at(mod, func_index, param_index);
   if (pty <= 0)
     return 0;
-  return pipeline_type_kind_ord_at(arena, pty) == GLUE_TYPE_KIND_F32_ORD ? 1 : 0;
+  return pipeline_type_kind_ord_at(arena, pty) == GLUE_TYPE_KIND_F64_ORD ? 1 : 0;
 }
 
 /**
@@ -16493,15 +16587,29 @@ static int32_t pipeline_asm_emit_param_home_elf_sysv_f32_xmm_c(struct platform_e
       if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off, 0) != 0)
         return -1;
     } else if (kind == 1) {
-      /** xmm 槽不受 hidden rdi 影响（integer reg 占 rdi 时 xmm 仍从 xmm0 起）。 */
-      if (backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx, reg_k, 0) != 0)
-        return -1;
-      if (backend_enc_store_eax_to_rbp_arch(elf_ctx, off, 0) != 0)
-        return -1;
+      /** xmm 槽不受 hidden rdi 影响（integer reg 占 rdi 时 xmm 仍从 xmm0 起）。
+       * f32: movd→eax + 32-bit store; f64: movq→rax + 64-bit store.
+       * PLATFORM: LINUX+MACOS x86_64 SysV. */
+      if (glue_func_param_is_f64_c(arena, mod, func_index, i)) {
+        if (backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx, reg_k, 0) != 0)
+          return -1;
+        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off, 0) != 0)
+          return -1;
+      } else {
+        if (backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx, reg_k, 0) != 0)
+          return -1;
+        if (backend_enc_store_eax_to_rbp_arch(elf_ctx, off, 0) != 0)
+          return -1;
+      }
     } else {
       if (backend_enc_load_rbp_pos_to_rax_arch(elf_ctx, 16 + (rk - 6) * 8, 0) != 0)
         return -1;
-      if (glue_func_param_is_f32_c(arena, mod, func_index, i)) {
+      if (glue_func_param_is_f64_c(arena, mod, func_index, i)) {
+        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off, 0) != 0)
+          return -1;
+      } else if (glue_func_param_is_f32_c(arena, mod, func_index, i) &&
+                 !glue_func_param_is_f64_c(arena, mod, func_index, i)) {
+        /* f32 only (is_f32 now includes f64; exclude f64 for 32-bit store). */
         if (backend_enc_store_eax_to_rbp_arch(elf_ctx, off, 0) != 0)
           return -1;
       } else if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off, 0) != 0) {
@@ -19447,6 +19555,22 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(struct ast_Module *m
     if (result_ref != 0) {
       if (pipeline_asm_emit_expr_elf_c(a, elf_ctx, result_ref, bctx, ta) != 0)
         return -1;
+    }
+    /**
+     * PLATFORM: LINUX+MACOS x86_64 SysV — place scalar float return in xmm0 before epilogue.
+     * Internal path holds IEEE bits in eax/rax; callee ABI requires xmm0 for f32/f64.
+     * Covers both explicit result_ref and values that jumped to tail_join via return stmts.
+     */
+    if (ta == 0) {
+      int32_t rty = pipeline_module_func_return_type_at(m, i);
+      int32_t rkind = (rty > 0) ? pipeline_type_kind_ord_at(a, rty) : -1;
+      if (rkind == GLUE_TYPE_KIND_F32_ORD) {
+        if (backend_enc_mov_eax_to_xmm_arg_reg_arch(elf_ctx, 0, ta) != 0)
+          return -1;
+      } else if (rkind == GLUE_TYPE_KIND_F64_ORD) {
+        if (backend_enc_mov_rax_to_xmm_arg_reg_arch(elf_ctx, 0, ta) != 0)
+          return -1;
+      }
     }
     if (backend_enc_epilogue_arch(elf_ctx, ta) != 0) {
       if (getenv("SHUX_ASM_DEBUG"))
