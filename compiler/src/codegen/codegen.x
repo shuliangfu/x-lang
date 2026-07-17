@@ -6458,9 +6458,14 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
               }
               /* 【Why 根源】typeck 已解析的重载函数也须 mangle：emit_bytes_from_ptr 只发原名，
                  重载函数（如 heap.free 6 重载）会与定义端 mangled 名不匹配 → 链接错误。
-                 dep_arena 是 dep 模块自己的 arena，type_ref 是其局部索引，不能用当前 arena。
+                 dep param type_ref lives in that module's arena — prefer dep_ctx arena,
+                 else codegen_arena_for_module (null arena → empty suffixes → bare free).
                  【Invariant】fn_len>0 保证有函数名；codegen_emit_func_link_name 内部判断 overload_count。 */
-              let dep_arena: *ASTArena = pipeline_dep_ctx_arena_at(ctx, dep_ix);
+              /* Prefer module→arena map (stable); dep_ix arena can be stale/null on Linux. */
+              let dep_arena: *ASTArena = codegen_arena_for_module(ctx, dep_mod, arena);
+              if (dep_arena == 0 as *ASTArena) {
+                dep_arena = pipeline_dep_ctx_arena_at(ctx, dep_ix);
+              }
               if (fn_len > 0 && codegen_emit_func_link_name(out, dep_arena, dep_mod, func_ix) != 0) {
                 return -1;
               }
@@ -8439,7 +8444,16 @@ export function codegen_emit_func_link_name(out: *CodegenOutBuf, arena: *ASTAren
     pi = 0;
     while (pi < np) {
       let suf: u8[64] = [];
-      let sl: i32 = codegen_type_ref_to_suffix(arena, pipeline_module_func_param_type_ref_at(module, fi, pi), &suf[0], 64);
+      let param_ty: i32 = pipeline_module_func_param_type_ref_at(module, fi, pi);
+      /*
+       * PLATFORM: SHARED — param type_ref is indexed in the function's module arena.
+       * Callers must pass that arena; if null/wrong, suffix is empty → bare free
+       * (Ubuntu multi-import heap.free). Prefer non-null arena; never silent bare mangle.
+       */
+      let sl: i32 = 0;
+      if (arena != 0 as *ASTArena) {
+        sl = codegen_type_ref_to_suffix(arena, param_ty, &suf[0], 64);
+      }
       if (sl > 0) {
         if (append_byte(out, 95) != 0) {
           return -1;

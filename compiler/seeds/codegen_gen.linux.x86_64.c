@@ -7290,7 +7290,10 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
                 if (((((call_pre > 0) && (fn_len > 0)) && (codegen_c_prefix_redundant_with_name(&((pre_buf)[0]), call_pre, &((fn_name)[0]), fn_len) ==0)) && (codegen_emit_bytes_from_ptr(out, &((pre_buf)[0]), call_pre) !=0))) {
                   return -(1);
                 }
-                struct ast_ASTArena * dep_arena = pipeline_dep_ctx_arena_at(ctx, dep_ix);
+                struct ast_ASTArena * dep_arena = codegen_arena_for_module(ctx, dep_mod, arena);
+                if ((dep_arena ==((struct ast_ASTArena *)(0)))) {
+                  (void)((dep_arena = pipeline_dep_ctx_arena_at(ctx, dep_ix)));
+                }
                 if (((fn_len > 0) && (codegen_emit_func_link_name(out, dep_arena, dep_mod, func_ix) !=0))) {
                   return -(1);
                 }
