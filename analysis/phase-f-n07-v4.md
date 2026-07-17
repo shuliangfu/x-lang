@@ -33,8 +33,33 @@ make -C compiler bootstrap-driver-seed
 make -C compiler bootstrap-driver-bstrict
 ```
 
+## 2026-07-17 try 记录（Ubuntu · tip `a0a0fc0e`）
+
+| 项 | 结果 |
+|----|------|
+| 命令 | `SHUX_NOLIBC_N07_V4_TRY_BUILD=1 SHUX_NOLIBC_N07_V4_FAIL=1 ./tests/run-nolibc-n07-v4-build-gate.sh` |
+| 日志 | `/tmp/ubuntu_n07_v4_try_a0a0fc0e.log` · `compiler/build_asm/.bootstrap_nostdlib_link_err` |
+| 机械根修 | `build_shux_asm.sh`：`bootstrap_link_tail_crt0/driver` 内 `ensure_*` 进度改 **stderr**（commit **`a0a0fc0e`**）。此前 `$(tail)` 吞进 `echo " cc -c ..."` → 链行假失败，**掩盖**真 UNDEF |
+| gate | **OK**（track：`build_shux_asm` exit 0 + **libc fallback**） |
+| nostdlib crt0 | **红** — 无 `bootstrap nostdlib crt0 link OK` |
+| 产物 | `ldd shux_asm` 仍 **`libc.so.6`**（≠ 零 libc 硬绿） |
+
+### 修后真 residual（crt0 nostdlib 链 · 分层地图）
+
+> **禁止** 一波搅多债。硬绿按层推进；权威仍 `build_shux_asm.sh` + freestanding/stubs + 产品对象拓扑。
+
+| 层 | 现象 | 方向（未做） |
+|----|------|----------------|
+| **拓扑 / multi-def** | `pipeline_glue_strict_minimal` ∩ `pipeline_glue_standalone`；`preprocess_if_stack_only` 与 standalone 重定义 | crt0 对象集去重；与 libc 成功链对齐 |
+| **stdio 桩** | `fflush` UNDEF（crt0 `_start` + stubs `bootstrap_flush_stdio_and_exit`） | freestanding_io 或 nostdlib stubs **补全** fflush（G.7 有则补全） |
+| **backend** | 大量 `backend_enc_*` / emit（≈前缀最大） | 入链真 enc `.o` 或兼容桩表完整化 |
+| **typeck / driver / lsp** | `typeck_*` · `driver_diagnostic_*` · `lsp_*` | 与 experimental/strict 同源 companion 入链；禁第三套 |
+| **diag / parser / codegen** | 次级 UNDEF 簇 | 随拓扑闭合自然降 |
+
+unique UNDEF（修污染后 err 文件）≈ **291**。
+
 ## 延后（v4 硬绿 / v5）
 
-- 全链 nostdlib **硬绿**（experimental/strict 无 undefined reference）
+- 全链 nostdlib **硬绿**（experimental/strict 无 undefined reference）— **本 try 未达**
 - 默认 `SHUX_BOOTSTRAP_NOSTDLIB=1`
 - pthread/io_uring 去系统库
