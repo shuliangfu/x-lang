@@ -24858,11 +24858,11 @@ int32_t pipeline_typeck_pick_overload_func_index_for_call_c(struct ast_Module *m
  * 供 f32 实参 mov imm32 等须对照 callee 形参表的 emit 路径。
  */
 /**
- * Resolve CALL target module + func_ix + dep_ix for asm emit (param/ret types).
- * PLATFORM: SHARED — import binding FIELD_ACCESS callees (math.floor / vec.push) must
- * resolve by field name into the bound dep module; VAR-only match leaves type_ref=0 and
- * forced historical std_math_* name gates.
- * G.7: single authority for import call target (shared with mangle emit path).
+ * Resolve CALL/METHOD_CALL target module + func_ix + dep_ix for asm emit (param/ret types).
+ * PLATFORM: SHARED — import binding targets (math.floor / vec.push) must resolve by name into
+ * the bound dep module; missing resolve leaves type_ref=0 and forced historical name gates.
+ * Product parses `math.floor(x)` as EXPR_METHOD_CALL (49), not only CALL+FIELD_ACCESS (44).
+ * G.7: single authority for import call target (param SSE class + ret harvest + mangle share).
  */
 static int32_t glue_asm_resolve_call_target_module_c(struct ast_ASTArena *arena, int32_t call_expr_ref,
                                                       struct ast_Module **mod_out, int32_t *func_ix_out,
@@ -24873,6 +24873,7 @@ static int32_t glue_asm_resolve_call_target_module_c(struct ast_ASTArena *arena,
   int32_t callee_ref;
   int32_t i;
   int32_t imax;
+  int32_t call_ord;
   int32_t callee_ord;
   int32_t base_ref;
   uint8_t base_name[64];
@@ -24917,13 +24918,69 @@ static int32_t glue_asm_resolve_call_target_module_c(struct ast_ASTArena *arena,
 
   if (!g_pipeline_asm_emit_dep_pipe)
     return -1;
+
+  call_ord = pipeline_expr_kind_ord_at(arena, call_expr_ref);
+
+  /**
+   * import binding METHOD_CALL: `const math = import("std.math"); math.floor(x)` / abs(var).
+   * Root: product parser emits kind 49; historical resolve only handled CALL callee FIELD_ACCESS
+   * (44). Without this branch param_type_ref=0 → non-lit f64 args stay in rdi while formal libm
+   * reads xmm0 (abs/signum greened only by binop xmm0 residual). G.7 complete same authority.
+   */
+  if (call_ord == (int32_t)ast_ExprKind_EXPR_METHOD_CALL) {
+    base_ref = pipeline_expr_method_call_base_ref_at(arena, call_expr_ref);
+    field_len = pipeline_expr_method_call_name_len(arena, call_expr_ref);
+    if (base_ref > 0 && pipeline_expr_kind_ord_at(arena, base_ref) == 3 && field_len > 0 &&
+        field_len <= 63) {
+      base_len = pipeline_expr_var_name_len(arena, base_ref);
+      if (base_len > 0 && base_len <= 63) {
+        pipeline_expr_var_name_into(arena, base_ref, base_name);
+        pipeline_expr_method_call_name_into(arena, call_expr_ref, field_name);
+        for (j = 0; j < parser_get_module_num_imports(mod); j++) {
+          struct ast_Module *dm;
+          int32_t fx = 0;
+          int32_t bl;
+          int32_t eq;
+          int32_t bi;
+          if (pipeline_module_import_kind_at(mod, j) != GLUE_TYPECK_IMPORT_BINDING)
+            continue;
+          bl = pipeline_module_import_binding_name_len(mod, j);
+          if (bl != base_len)
+            continue;
+          eq = 1;
+          for (bi = 0; bi < bl; bi++) {
+            if (pipeline_module_import_binding_name_byte_at(mod, j, bi) != base_name[bi]) {
+              eq = 0;
+              break;
+            }
+          }
+          if (!eq)
+            continue;
+          dm = pipeline_dep_ctx_module_at(g_pipeline_asm_emit_dep_pipe, j);
+          if (!dm)
+            continue;
+          if (pipeline_typeck_find_func_return_type_in_module_by_name_c(
+                  dm, arena, field_name, field_len, j, g_pipeline_asm_emit_dep_pipe, &fx) != 0) {
+            *mod_out = dm;
+            *func_ix_out = fx;
+            if (dep_ix_out)
+              dep_ix_out[0] = j;
+            return 0;
+          }
+        }
+      }
+    }
+    /* METHOD_CALL has no CALL callee_ref; do not fall through to FIELD_ACCESS/VAR paths. */
+    return -1;
+  }
+
   callee_ref = pipeline_expr_call_callee_ref_at(arena, call_expr_ref);
   if (callee_ref <= 0)
     return -1;
   callee_ord = pipeline_expr_kind_ord_at(arena, callee_ref);
 
   /**
-   * import binding FIELD_ACCESS: `const math = import("std.math"); math.floor(x)`
+   * import binding FIELD_ACCESS: CALL form `math.floor(x)` when parsed as CALL+FIELD_ACCESS.
    * Callee is FIELD_ACCESS (kind 44), not VAR (3). Match binding name → dep, field → func.
    */
   if (callee_ord == 44) {
