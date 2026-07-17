@@ -1229,8 +1229,89 @@ static int32_t parser_asm_kw_at_pos_c(struct parser_asm_slice_u8 *source, size_t
 }
 
 /**
+ * Skip one balanced `{...}` starting at data[start] which must be '{'.
+ * Returns the index immediately after the matching '}'.
+ *
+ * PLATFORM: SHARED — raw byte scan must ignore braces inside line comments (//),
+ * block comments (slash-star), and "..." / '...' literals. The lexer path already
+ * does this; scan_sync historically counted raw bytes and mis-closed large if
+ * then-bodies when a comment contained a lone `{` (e.g. codegen.x note about
+ * illegal `void {` C). That overshoot made outer while siblings (per-func emit)
+ * nest under if (i==0), so Cap force-regen only co-emitted the first dep body.
+ */
+static size_t parser_asm_skip_balanced_braces_bytes_comment_aware_c(const uint8_t *data, size_t len,
+                                                                     size_t start) {
+  size_t i = start;
+  int32_t br = 0;
+  if (!data || i >= len || data[i] != (uint8_t)'{')
+    return start;
+  while (i < len) {
+    uint8_t c = data[i];
+    /* line comment (//) — skip to newline; braces inside do not affect depth. */
+    if (c == (uint8_t)'/' && i + 1 < len && data[i + 1] == (uint8_t)'/') {
+      i = i + 2;
+      while (i < len && data[i] != (uint8_t)'\n')
+        i = i + 1;
+      continue;
+    }
+    /* block comment (slash-star) — skip to star-slash; braces inside ignored. */
+    if (c == (uint8_t)'/' && i + 1 < len && data[i + 1] == (uint8_t)'*') {
+      i = i + 2;
+      while (i + 1 < len && !(data[i] == (uint8_t)'*' && data[i + 1] == (uint8_t)'/'))
+        i = i + 1;
+      if (i + 1 < len)
+        i = i + 2;
+      else
+        i = len;
+      continue;
+    }
+    /* double-quoted string */
+    if (c == (uint8_t)'"') {
+      i = i + 1;
+      while (i < len && data[i] != (uint8_t)'"') {
+        if (data[i] == (uint8_t)'\\' && i + 1 < len)
+          i = i + 2;
+        else
+          i = i + 1;
+      }
+      if (i < len)
+        i = i + 1;
+      continue;
+    }
+    /* single-quoted char / byte literal */
+    if (c == (uint8_t)'\'') {
+      i = i + 1;
+      while (i < len && data[i] != (uint8_t)'\'') {
+        if (data[i] == (uint8_t)'\\' && i + 1 < len)
+          i = i + 2;
+        else
+          i = i + 1;
+      }
+      if (i < len)
+        i = i + 1;
+      continue;
+    }
+    if (c == (uint8_t)'{') {
+      br = br + 1;
+      i = i + 1;
+      continue;
+    }
+    if (c == (uint8_t)'}') {
+      br = br - 1;
+      i = i + 1;
+      if (br == 0)
+        return i;
+      continue;
+    }
+    i = i + 1;
+  }
+  return i;
+}
+
+/**
  * 从 lex 附近回找 if (…) { … } [else …] 并返回整句后的首字节位置；
  * 不依赖 lexer 预读状态，修复 if 条件含 struct.field 时 lex 滑入下一 stmt 中部。
+ * Brace regions use comment/string-aware depth (see helper above).
  */
 static struct parser_asm_lexer parser_asm_scan_sync_after_if_stmt_c(struct parser_asm_lexer lex_cur,
                                                                     struct parser_asm_slice_u8 *source) {
@@ -1260,9 +1341,41 @@ static struct parser_asm_lexer parser_asm_scan_sync_after_if_stmt_c(struct parse
   {
     int32_t par = 1;
     while (i < source->length && par > 0) {
-      if (source->data[i] == (uint8_t)'(')
+      /* Skip comments/strings so `(` / `)` inside them do not skew cond depth. */
+      uint8_t c = source->data[i];
+      if (c == (uint8_t)'/' && i + 1 < source->length && source->data[i + 1] == (uint8_t)'/') {
+        i = i + 2;
+        while (i < source->length && source->data[i] != (uint8_t)'\n')
+          i = i + 1;
+        continue;
+      }
+      if (c == (uint8_t)'/' && i + 1 < source->length && source->data[i + 1] == (uint8_t)'*') {
+        i = i + 2;
+        while (i + 1 < source->length
+               && !(source->data[i] == (uint8_t)'*' && source->data[i + 1] == (uint8_t)'/'))
+          i = i + 1;
+        if (i + 1 < source->length)
+          i = i + 2;
+        else
+          i = source->length;
+        continue;
+      }
+      if (c == (uint8_t)'"' || c == (uint8_t)'\'') {
+        uint8_t q = c;
+        i = i + 1;
+        while (i < source->length && source->data[i] != q) {
+          if (source->data[i] == (uint8_t)'\\' && i + 1 < source->length)
+            i = i + 2;
+          else
+            i = i + 1;
+        }
+        if (i < source->length)
+          i = i + 1;
+        continue;
+      }
+      if (c == (uint8_t)'(')
         par = par + 1;
-      else if (source->data[i] == (uint8_t)')')
+      else if (c == (uint8_t)')')
         par = par - 1;
       i = i + 1;
     }
@@ -1270,38 +1383,12 @@ static struct parser_asm_lexer parser_asm_scan_sync_after_if_stmt_c(struct parse
   i = parser_asm_stretch_skip_ws_and_comments_c(source->data, source->length, i);
   if (i >= source->length || source->data[i] != (uint8_t)'{')
     return lex_cur;
-  {
-    int32_t br = 0;
-    while (i < source->length) {
-      if (source->data[i] == (uint8_t)'{')
-        br = br + 1;
-      else if (source->data[i] == (uint8_t)'}') {
-        br = br - 1;
-        if (br == 0) {
-          i = i + 1;
-          break;
-        }
-      }
-      i = i + 1;
-    }
-  }
+  i = parser_asm_skip_balanced_braces_bytes_comment_aware_c(source->data, source->length, i);
   i = parser_asm_stretch_skip_ws_and_comments_c(source->data, source->length, i);
   if (i + 4 <= source->length && parser_asm_kw_at_pos_c(source, i, "else", 4)) {
     i = parser_asm_stretch_skip_ws_and_comments_c(source->data, source->length, i + 4);
     if (i < source->length && source->data[i] == (uint8_t)'{') {
-      int32_t br = 0;
-      while (i < source->length) {
-        if (source->data[i] == (uint8_t)'{')
-          br = br + 1;
-        else if (source->data[i] == (uint8_t)'}') {
-          br = br - 1;
-          if (br == 0) {
-            i = i + 1;
-            break;
-          }
-        }
-        i = i + 1;
-      }
+      i = parser_asm_skip_balanced_braces_bytes_comment_aware_c(source->data, source->length, i);
     } else if (i + 2 <= source->length && parser_asm_kw_at_pos_c(source, i, "if", 2)) {
       struct parser_asm_lexer inner;
       inner.pos = (int32_t)i;
