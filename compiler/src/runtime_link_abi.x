@@ -581,6 +581,25 @@ export function link_abi_user_o_needs_std_heap_api(user_o: *u8): i32 {
     if (shux_link_obj_needs_undef_sym_impl(user_o, "std_heap_free_u8_ptr") != 0) {
       return 1;
     }
+    /* Formal std/vec/vec.o Allocator/default/kind family — keep seed probes in sync (G.7). */
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_heap_default_alloc") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_heap_kind_arena") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_heap_alloc_Allocator_usize") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_heap_realloc_Allocator_u8_ptr_usize") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_heap_free_Allocator_u8_ptr") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_heap_arena64_alloc") != 0) {
+      return 1;
+    }
     if (shux_link_obj_needs_undef_sym_impl(user_o, "std_heap_libc_heap_arena64_alloc_c") != 0) {
       return 1;
     }

@@ -4383,7 +4383,10 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
             }
             /* PLATFORM: SHARED — vec.o authority for link_only std.vec (same as set/map).
              * Must key on *body* open-brace, not "int32_t std_vec_*(..." which matches
-             * link_only extern prototypes and would skip the product .o (false co-emit). */
+             * link_only extern prototypes and would skip the product .o (false co-emit).
+             * Formal vec.o U: std_heap_default_alloc / kind_arena / alloc_Allocator_* /
+             * realloc_Allocator_* — user C has no std_heap_* use_line, so mirror set/map and
+             * push heap.o + core mem with vec.o (G.7 complete need_vec path). */
             if (need_vec) {
                 int have_vec_body = 0;
                 for (jscan = 0; jscan < n; jscan++) {
@@ -4398,9 +4401,14 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
                         break;
                     }
                 }
-                if (!have_vec_body)
+                if (!have_vec_body &&
+                    invoke_cc_argv_push_existing(argv, &i, argv_cap,
+                        shux_rel_o_path_from_argv0(include_root, "std/vec/vec.o"))) {
                     (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
-                        shux_rel_o_path_from_argv0(include_root, "std/vec/vec.o"));
+                        shux_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o()));
+                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
+                        shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o()));
+                }
             }
             if (need_ffi)
                 (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, ffi_o);
@@ -4618,9 +4626,12 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
                 if (link_abi_generated_c_contains_substr_use_line(cp, "std_heap_alloc_size_zero") ||
                     link_abi_generated_c_contains_substr_use_line(cp, "std_heap_alloc_usize") ||
                     link_abi_generated_c_contains_substr_use_line(cp, "std_heap_default_alloc") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "std_heap_kind_arena") ||
                     link_abi_generated_c_contains_substr_use_line(cp, "std_heap_heap_alloc") ||
                     link_abi_generated_c_contains_substr_use_line(cp, "std_heap_alloc_Allocator") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "std_heap_realloc_Allocator") ||
                     link_abi_generated_c_contains_substr_use_line(cp, "std_heap_free_Allocator") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "std_heap_arena64_alloc") ||
                     link_abi_generated_c_contains_substr_use_line(cp, "std_heap_map_find") ||
                     link_abi_generated_c_contains_substr_use_line(cp, "std_heap_libc_heap_alloc"))
                     need_heap_from_c = 1;
@@ -5331,6 +5342,25 @@ int link_abi_user_o_needs_std_heap_api(const char *user_o) {
       return 1;
     }
     if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_free_u8_ptr") !=0)) {
+      return 1;
+    }
+    /* Formal std/vec/vec.o (and similar) — Allocator/default/kind family (G.7 complete probes). */
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_default_alloc") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_kind_arena") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_alloc_Allocator_usize") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_realloc_Allocator_u8_ptr_usize") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_free_Allocator_u8_ptr") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_arena64_alloc") !=0)) {
       return 1;
     }
     if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_libc_heap_arena64_alloc_c") !=0)) {
