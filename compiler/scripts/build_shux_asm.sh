@@ -3137,7 +3137,8 @@ build_nonempty_asm_objs() {
 # L3: backend enc/dispatch companions via ensure_crt0_backend_companion_objs.
 # L3b: same ensure appends seed backend_emit_* partial (not full seed .o — multi-def).
 # L4+: typeck/driver/lsp companions via ensure_crt0_typeck_driver_lsp_companion_objs.
-# Residual after L4+: codegen cluster (+ pipeline_impl / strict_minimal leftovers).
+# L5: codegen/parser residual partials via ensure_crt0_codegen_parser_companion_objs.
+# Residual after L5: nostdlib libc face (fileno/isatty/puts/…) + any new pull-ins.
 # NL-07 L2: fflush is defined in bootstrap_nostdlib_stubs (not freestanding_io).
 filter_crt0_asm_objs() {
   CRT0_ASM=""
@@ -3294,16 +3295,189 @@ ensure_crt0_typeck_driver_lsp_companion_objs() {
   build_shux_asm_info "crt0 bag: typeck/driver/lsp companions (NL-07 L4+)=$CRT0_TDL_COMPANIONS"
 }
 
-# PLATFORM: LINUX — NL-07 L3 + L3b + L4+: crt0 link must include backend enc/dispatch
-# companions (BSTRICT_DISPATCH_OBJS + simd_*), seed backend_emit_* partial, and
-# typeck/driver/lsp companions (experimental-homologous).
+# PLATFORM: LINUX — bag parser.o / pipeline.o are often 11B stubs at first crt0 try
+# (second-pass promote happens later). Same 8KiB gate as typeck selfhosted.
+asm_strict_parser_selfhosted() {
+  local t
+  t=$(asm_o_text_bytes "$BUILD_DIR/parser.o" 2>/dev/null || echo 0)
+  [ "$t" -gt 8192 ] 2>/dev/null
+}
+
+# PLATFORM: LINUX — bag codegen.o is historically a tiny stub; gate mirrors typeck.
+asm_strict_codegen_selfhosted() {
+  local t
+  t=$(asm_o_text_bytes "$BUILD_DIR/codegen.o" 2>/dev/null || echo 0)
+  [ "$t" -gt 8192 ] 2>/dev/null
+}
+
+# PLATFORM: LINUX — write one-symbol-per-line export list and ld_partial_export.
+# Args: out.o src.o sym1 [sym2 ...]. Returns 0 only if partial built and non-empty.
+# G.7: partial residual only — never second stub table of reimplemented bodies.
+crt0_ld_partial_syms() {
+  local out_o="$1"
+  local src_o="$2"
+  shift 2
+  local syms_file="$out_o.export.txt"
+  local s
+  if [ ! -f "$src_o" ] || [ ! -s "$src_o" ]; then
+  return 1
+  fi
+  : >"$syms_file"
+  for s in "$@"; do
+  # Keep only symbols actually present as T/W in src (avoid empty partials).
+  if nm -g "$src_o" 2>/dev/null | grep -qE " [TW] (_)?${s}\$"; then
+  printf '%s\n' "$s" >>"$syms_file"
+  fi
+  done
+  if [ ! -s "$syms_file" ]; then
+  return 1
+  fi
+  if [ ! -f "$out_o" ] || [ "$src_o" -nt "$out_o" ] || [ "$syms_file" -nt "$out_o" ]; then
+  build_shux_asm_info "ld partial export $syms_file $(basename "$src_o") -> $out_o (NL-07 L5)"
+  ld_partial_export "$syms_file" "$out_o" "$src_o" || return 1
+  fi
+  return 0
+}
+
+# PLATFORM: LINUX — NL-07 L5: codegen/parser (+ residual glue) into crt0 bag.
+# Who produces UNDEF (L4+ residual head ~41 unique):
+#   · crt0 first-pass bag uses OK-parser-stub / OK-codegen-stub / OK-pipeline-stub
+#     (size≈11) — promote to parser_x/codegen_x/pipeline_x happens AFTER crt0 try.
+#   · glue_standalone U-refs codegen_emit_* / parser_parse_into_buf / pipeline_run_* /
+#     find_or_alloc_ptr_type_ref / strict_minimal typeck_find / preamble masks / cfg_* /
+#     lsp sizes / driver_run_{fmt,check} — live outside historic bag bulk.
+# Authority (G.7): SAME product objects experimental/g05 already use; export ONLY the
+# residual T/W symbols (L3b pattern). Forbidden: full parser_x/codegen_x/pipeline_x/
+# strict_glue/lsp_ctx on the crt0 line (multi-def vs bag or L4 companions).
+# Conditional: parser residual partial only when bag parser not selfhosted (dual T).
+# pipeline_run partial only when bag pipeline not selfhosted (dual W otherwise OK but
+# stub has no def). Sets CRT0_CG_PARSER_COMPANIONS.
+ensure_crt0_codegen_parser_companion_objs() {
+  CRT0_CG_PARSER_COMPANIONS=""
+  # Materialize X frontend + glue sources (same ensure experimental uses).
+  ensure_asm_bootstrap_x_companion_objs || true
+  ensure_asm_lsp_codegen_extern_obj || true
+  ensure_asm_pipeline_glue_strict_minimal_obj || true
+  ensure_lsp_diag_pipeline_sizes_obj || true
+  # g05 authority for true sizeof (not weak sizes-only stub) when present.
+  if [ ! -f src/lsp/lsp_diag_pipeline_sizes_nostub.o ]; then
+  if [ -f seeds/lsp_diag_pipeline_sizes_nostub.from_x.c ] || [ -f src/lsp/lsp_diag_pipeline_sizes_nostub.c ]; then
+  build_shux_asm_info "crt0 L5: build lsp_diag_pipeline_sizes_nostub.o"
+  make -s src/lsp/lsp_diag_pipeline_sizes_nostub.o 2>/dev/null || true
+  fi
+  fi
+  if [ ! -f src/lsp/lsp_diag_pipeline_ctx.o ]; then
+  make -s src/lsp/lsp_diag_pipeline_ctx.o 2>/dev/null || true
+  fi
+  if [ ! -f src/driver/fmt_check_cmd_driver.o ]; then
+  make -s src/driver/fmt_check_cmd_driver.o 2>/dev/null || true
+  fi
+  if [ ! -f src/lexer/cfg_eval.o ]; then
+  ensure_asm_bootstrap_support_extra_objs || true
+  fi
+
+  local p
+  # --- always: residual-only partials (symbol multi vs bag+L4 = 0; Ubuntu map 2026-07-17) ---
+  p="$BUILD_DIR/crt0_l5_codegen_partial.o"
+  if crt0_ld_partial_syms "$p" codegen_x.o \
+  codegen_emit_bytes_from_ptr \
+  codegen_emit_expr; then
+  CRT0_CG_PARSER_COMPANIONS="$CRT0_CG_PARSER_COMPANIONS $p"
+  fi
+  p="$BUILD_DIR/crt0_l5_x_frontend_partial.o"
+  if crt0_ld_partial_syms "$p" x_frontend_link_alias.o \
+  codegen_codegen_x_ast \
+  find_or_alloc_ptr_type_ref; then
+  CRT0_CG_PARSER_COMPANIONS="$CRT0_CG_PARSER_COMPANIONS $p"
+  fi
+  p="$BUILD_DIR/crt0_l5_strict_glue_partial.o"
+  if crt0_ld_partial_syms "$p" src/runtime_driver_strict_glue_stubs.o \
+  ast_module_free \
+  codegen_get_preamble_skip_mask \
+  codegen_or_preamble_skip_mask \
+  codegen_reset_preamble_skip_mask \
+  codegen_set_dep_slots_for_x_pipeline \
+  codegen_set_preamble_has_core_option_result \
+  codegen_wpo_mono_sym_format \
+  preprocess_define_add \
+  preprocess_define_reset; then
+  CRT0_CG_PARSER_COMPANIONS="$CRT0_CG_PARSER_COMPANIONS $p"
+  fi
+  p="$BUILD_DIR/crt0_l5_fmt_check_partial.o"
+  if crt0_ld_partial_syms "$p" src/driver/fmt_check_cmd_driver.o \
+  driver_run_compiler_check \
+  driver_run_fmt; then
+  CRT0_CG_PARSER_COMPANIONS="$CRT0_CG_PARSER_COMPANIONS $p"
+  fi
+  # cfg_eval.o: full TU multi=0 vs bag+L4 (g05 companion).
+  if [ -f src/lexer/cfg_eval.o ] && [ -s src/lexer/cfg_eval.o ]; then
+  CRT0_CG_PARSER_COMPANIONS="$CRT0_CG_PARSER_COMPANIONS src/lexer/cfg_eval.o"
+  fi
+  # Prefer nostub sizeof (g05); fall back to weak sizes seed.
+  if [ -f src/lsp/lsp_diag_pipeline_sizes_nostub.o ] && [ -s src/lsp/lsp_diag_pipeline_sizes_nostub.o ]; then
+  CRT0_CG_PARSER_COMPANIONS="$CRT0_CG_PARSER_COMPANIONS src/lsp/lsp_diag_pipeline_sizes_nostub.o"
+  elif [ -f src/lsp/lsp_diag_pipeline_sizes.o ] && [ -s src/lsp/lsp_diag_pipeline_sizes.o ]; then
+  CRT0_CG_PARSER_COMPANIONS="$CRT0_CG_PARSER_COMPANIONS src/lsp/lsp_diag_pipeline_sizes.o"
+  fi
+  p="$BUILD_DIR/crt0_l5_lsp_ctx_partial.o"
+  if crt0_ld_partial_syms "$p" src/lsp/lsp_diag_pipeline_ctx.o \
+  lsp_state_buf_ptr \
+  lsp_write_all; then
+  CRT0_CG_PARSER_COMPANIONS="$CRT0_CG_PARSER_COMPANIONS $p"
+  fi
+  # L1 drops strict_minimal when standalone present — re-export the one U residual.
+  p="$BUILD_DIR/crt0_l5_strict_minimal_typeck_find_partial.o"
+  if crt0_ld_partial_syms "$p" "$BUILD_DIR/pipeline_glue_strict_minimal.o" \
+  pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal; then
+  CRT0_CG_PARSER_COMPANIONS="$CRT0_CG_PARSER_COMPANIONS $p"
+  fi
+
+  # --- conditional: bag stub → need X residual; bag selfhosted already defines ---
+  if ! asm_strict_parser_selfhosted 2>/dev/null; then
+  p="$BUILD_DIR/crt0_l5_parser_partial.o"
+  if crt0_ld_partial_syms "$p" parser_x.o \
+  parser_copy_module_import_path64 \
+  parser_diag_fail_at_token_kind \
+  parser_onefunc_result_layout_prime \
+  parser_onefunc_result_layout_prime_b \
+  parser_onefunc_result_layout_prime_c \
+  parser_onefunc_result_layout_prime_d \
+  parser_onefunc_result_layout_prime_d_b \
+  parser_onefunc_result_layout_prime_e \
+  parser_onefunc_result_layout_prime_f \
+  parser_parse_into_buf; then
+  CRT0_CG_PARSER_COMPANIONS="$CRT0_CG_PARSER_COMPANIONS $p"
+  build_shux_asm_info "crt0 L5: parser bag not selfhosted — append parser residual partial"
+  fi
+  fi
+  if ! asm_strict_pipeline_selfhosted 2>/dev/null; then
+  p="$BUILD_DIR/crt0_l5_pipeline_run_partial.o"
+  if crt0_ld_partial_syms "$p" pipeline_x.o \
+  pipeline_run_x_pipeline_impl; then
+  CRT0_CG_PARSER_COMPANIONS="$CRT0_CG_PARSER_COMPANIONS $p"
+  build_shux_asm_info "crt0 L5: pipeline bag not selfhosted — append pipeline_run residual partial"
+  fi
+  fi
+  # codegen residual partial is always from codegen_x (bag codegen historically stub);
+  # if bag ever selfhosts, residual codegen_emit_* would already be in bag — dual T risk.
+  # Current map: bag codegen has 0 T codegen_*; keep always-on partial above.
+
+  build_shux_asm_info "crt0 bag: codegen/parser residual companions (NL-07 L5)=$CRT0_CG_PARSER_COMPANIONS"
+}
+
+# PLATFORM: LINUX — NL-07 L3 + L3b + L4+ + L5: crt0 link must include backend enc/dispatch
+# companions (BSTRICT_DISPATCH_OBJS + simd_*), seed backend_emit_* partial,
+# typeck/driver/lsp companions, and codegen/parser residual partials.
 # Who produces UNDEF (enc): pipeline/backend build_asm .o reference backend_enc_* /
 # arch_emit / try_inline / simd — dispatch live under src/asm/, never in bag historically.
 # Who produces UNDEF (emit): asm_backend_compat_stubs forwards to backend_emit_*; seed
 # holds weak stubs but was not on the crt0 line (experimental links full seed partial).
 # Who produces UNDEF (tdl): bridge/glue reference driver_*/typeck_*/lsp_* outside bag.
+# Who produces UNDEF (L5): glue U-refs codegen_*/parser_*/pipeline_run/cfg/lsp sizes —
+# first-pass bag stubs + L1 drop of strict_minimal.
 # Authority (G.7): ensure_bstrict_seed_support_objs + BSTRICT_DISPATCH_OBJS + seed emit
-# partial + ensure_crt0_typeck_driver_lsp_companion_objs — no second stub table.
+# partial + ensure_crt0_typeck_driver_lsp_companion_objs +
+# ensure_crt0_codegen_parser_companion_objs — no second stub table.
 # Sets CRT0_BACKEND_COMPANIONS for the crt0 link line (Linux only callers).
 ensure_crt0_backend_companion_objs() {
   CRT0_BACKEND_COMPANIONS=""
@@ -3330,7 +3504,13 @@ ensure_crt0_backend_companion_objs() {
   if [ -n "${CRT0_TDL_COMPANIONS:-}" ]; then
   CRT0_BACKEND_COMPANIONS="$CRT0_BACKEND_COMPANIONS $CRT0_TDL_COMPANIONS"
   fi
-  build_shux_asm_info "crt0 bag: backend+tdl companions (NL-07 L3+L3b+L4+)=$CRT0_BACKEND_COMPANIONS"
+  # NL-07 L5: codegen/parser residual partials (L3b pattern; multi-safe).
+  CRT0_CG_PARSER_COMPANIONS=""
+  ensure_crt0_codegen_parser_companion_objs
+  if [ -n "${CRT0_CG_PARSER_COMPANIONS:-}" ]; then
+  CRT0_BACKEND_COMPANIONS="$CRT0_BACKEND_COMPANIONS $CRT0_CG_PARSER_COMPANIONS"
+  fi
+  build_shux_asm_info "crt0 bag: backend+tdl+l5 companions (NL-07 L3+L3b+L4++L5)=$CRT0_BACKEND_COMPANIONS"
 }
 
 # F-06 v1：fs/io/heap 已纯 .x；bootstrap 不再 cc -c std/*.c（符号由 std_fs_shim / runtime_io_abi / lsp_io_std_heap_x 等提供）。
@@ -4610,13 +4790,13 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   elif [ "$(uname -s 2>/dev/null)" = "Linux" ] && [ -f src/asm/crt0_x86_64.o ] && [ -f src/typeck/typeck_f64_bits.o ] && [ -f runtime_panic.o ]; then
   echo " linking shux_asm (crt0 + typeck_f64_bits + runtime_panic + asm*.o, no runtime_driver) ..."
   filter_crt0_asm_objs
-  # NL-07 L3+L3b+L4+: BSTRICT_DISPATCH (+ simd) + seed backend_emit_* partial + tdl companions.
+  # NL-07 L3+L3b+L4++L5: dispatch + emit partial + tdl + codegen/parser residual partials.
   ensure_crt0_backend_companion_objs
   set +e
   # F-no-libc NL-07 BEGIN — bootstrap nostdlib（SHUX_BOOTSTRAP_NOSTDLIB=1 尝试；失败回退 libc/libm）
   # 目标：crt0_x86_64 + freestanding_io + bootstrap_nostdlib_stubs + build_asm/*.o
   #        + backend dispatch companions + seed emit partial + typeck/driver/lsp companions
-  #        + -nostdlib --gc-sections
+  #        + codegen/parser residual partials + -nostdlib --gc-sections
   # F-06 v1：bootstrap 已不链 cc -c 的 std/fs|io|heap .o
   CRT_RC=1
   if bootstrap_wants_nostdlib; then
