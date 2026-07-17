@@ -286,6 +286,81 @@ static void parser_asm_primary_parse_unsafe_expr_c(void *arena, struct parser_as
   out->next_lex = block_res.next_lex;
 }
 
+/**
+ * Parse bare `{ ... }` as an EXPR_BLOCK primary (docs/08 §2.3 block expression).
+ * lex_after_lbrace must already be past the opening `{`.
+ * PLATFORM: SHARED — single authority for block-expr primary (G.7); used by
+ * TOKEN_LBRACE disambiguation so `{ let ... }` no longer whole-function parse-skips.
+ */
+static void parser_asm_primary_parse_block_expr_c(void *arena, struct parser_asm_lexer lex_after_lbrace,
+                                                  struct parser_asm_slice_u8 *source,
+                                                  struct parser_asm_parse_expr_result *out) {
+  struct parser_asm_parse_block_result block_res;
+  int32_t expr_ref;
+  if (!arena || !source || !out)
+    return;
+  out->ok = 0;
+  memset(&block_res, 0, sizeof(block_res));
+  block_res.next_lex = lex_after_lbrace;
+  parser_parse_block_into(arena, lex_after_lbrace, source, 0, &block_res);
+  if (!block_res.ok)
+    return;
+  expr_ref = parser_asm_wrap_block_ref_as_expr_primary_c(arena, block_res.block_ref);
+  if (expr_ref == 0)
+    return;
+  out->ok = 1;
+  out->expr_ref = expr_ref;
+  out->next_lex = block_res.next_lex;
+}
+
+/**
+ * After `{`, decide block expression vs anonymous struct literal.
+ * PLATFORM: SHARED — root fix for parser residual `{ let y = ... }` parse-skip:
+ * primary historically always took anonymous struct lit on TOKEN_LBRACE, so any
+ * bare block with let/return/if failed and the enclosing function was skipped.
+ *
+ * Lookahead rules (preserve existing struct forms):
+ *  - stmt / control keywords, nested `{`, `unsafe` → block
+ *  - IDENT then `:` / `,` / `}` → anonymous struct lit (`{ fd: 1 }`, `{ fd, x }`, `{ fd }`)
+ *  - IDENT then other → block (`{ y = 1; }`, `{ y; }`)
+ *  - empty `}` → keep struct lit path (`{}`)
+ *  - INT / other primary heads → block (`{ 10 }`, `{ (a) }`)
+ */
+static int32_t parser_asm_primary_lbrace_looks_like_block_c(struct parser_asm_lexer lex_after_lbrace,
+                                                            struct parser_asm_slice_u8 *source) {
+  struct parser_asm_lexer_result r;
+  struct parser_asm_lexer_result r2;
+  if (!source)
+    return 0;
+  lexer_next_into(&r, lex_after_lbrace, source);
+  if (r.tok.kind == (int32_t)TOKEN_LET || r.tok.kind == (int32_t)TOKEN_CONST
+      || r.tok.kind == (int32_t)TOKEN_RETURN || r.tok.kind == (int32_t)TOKEN_IF
+      || r.tok.kind == (int32_t)TOKEN_WHILE || r.tok.kind == (int32_t)TOKEN_LOOP
+      || r.tok.kind == (int32_t)TOKEN_FOR || r.tok.kind == (int32_t)TOKEN_DEFER
+      || r.tok.kind == (int32_t)TOKEN_MATCH || r.tok.kind == (int32_t)TOKEN_BREAK
+      || r.tok.kind == (int32_t)TOKEN_CONTINUE || r.tok.kind == (int32_t)TOKEN_PANIC
+      || r.tok.kind == (int32_t)TOKEN_REGION || r.tok.kind == (int32_t)TOKEN_WITH_ARENA
+      || r.tok.kind == (int32_t)TOKEN_LBRACE || r.tok.kind == (int32_t)TOKEN_GOTO) {
+    return 1;
+  }
+  if (r.tok.kind == (int32_t)TOKEN_IDENT
+      && parser_asm_primary_ident_is_unsafe_c(source, r.token_start, r.tok.ident_len)) {
+    return 1;
+  }
+  if (r.tok.kind == (int32_t)TOKEN_IDENT) {
+    lexer_next_into(&r2, r.next_lex, source);
+    if (r2.tok.kind == (int32_t)TOKEN_COLON || r2.tok.kind == (int32_t)TOKEN_COMMA
+        || r2.tok.kind == (int32_t)TOKEN_RBRACE) {
+      return 0;
+    }
+    return 1;
+  }
+  if (r.tok.kind == (int32_t)TOKEN_RBRACE) {
+    return 0;
+  }
+  return 1;
+}
+
 /** IDENT 后 `.field` / `[idx]` / `(args)` 后缀链；失败时写 out.ok=0 或仅写 out.next_lex 后返回。 */
 static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_asm_slice_u8 *source,
                                                    struct parser_asm_lexer *lex, struct parser_asm_lexer_result *r,
@@ -1717,6 +1792,16 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
     return;
   }
   if (r.tok.kind == (int32_t)TOKEN_LBRACE) {
+    /**
+     * PLATFORM: SHARED — bare `{` primary disambiguation (G.7 single path):
+     * block expression `{ stmt; ... expr }` vs anonymous struct lit `{ field: e }`.
+     * Prefer block when lookahead is stmt-like so `{ let y = 1; return y; }` parses
+     * instead of whole-function parse-skip (codegen M2 residual root cause).
+     */
+    if (parser_asm_primary_lbrace_looks_like_block_c(r.next_lex, source) != 0) {
+      parser_asm_primary_parse_block_expr_c(arena, r.next_lex, source, out);
+      return;
+    }
     /** 匿名 struct 字面量 `{ fd, x: 1 }`（let p: PollFd = { ... }）。 */
     parser_asm_parse_anonymous_struct_lit_c(arena, r.next_lex, source, out);
     return;
