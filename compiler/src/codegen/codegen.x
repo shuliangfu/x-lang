@@ -9520,25 +9520,15 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
         }
       }
       /*
-       * 【Why 根源】by_name 对裸名 placeholder / string_new 跳过，是为避免与 preamble 弱桩
-       *   符号冲突。入口库带 prefix 时定义端为 core_mem_placeholder / std_string_string_new，
-       *   与裸桩不冲突；若仍 skip，core.mem 等模块丢失真实 export → undefined reference。
-       * 【Invariant】仅解除 name_len==11（placeholder）与 name_len==10（string_new）在
-       *   prefix_len>0 时的 skip；std_string_placeholder 等已 mangle 名仍按原规则。
+       * Legacy belt: if an older by_name still skipped bare placeholder/string_new,
+       * un-skip when this module has a real C prefix (core_mem_ / core_types_ / …).
+       * Current by_name no longer skips those names (seed-aligned); this remains a
+       * no-op safety net. Product preamble only externs core_types_placeholder —
+       * co-emit must produce the strong body or si links UNDEF.
+       * PLATFORM: SHARED — Cap force multi-dep co-emit (stdlib-import).
        */
-      /*
-       * 【Why 根源】by_name 对裸名 placeholder 一律 skip，导致 core.mem 作为 dep 共 emit
-       *   时丢失 core_mem_placeholder 定义（user.o 其余 core_mem_* 齐、仅缺 placeholder →
-       *   on-demand 不拉 mem.o → undefined）。core_types_/std_string_ 仍须 skip 以免与
-       *   preamble weak 桩重定义。
-       * 【Invariant】prefix 以 core_mem_ 开头且 name 为 placeholder/string_new 时解除 skip。
-       */
-      if (skip != 0 && prefix_len >= 9 && (skip_nl == 11 || skip_nl == 10)) {
-        if (prefix_buf[0] == 99 && prefix_buf[1] == 111 && prefix_buf[2] == 114 && prefix_buf[3] == 101
-            && prefix_buf[4] == 95 && prefix_buf[5] == 109 && prefix_buf[6] == 101 && prefix_buf[7] == 109
-            && prefix_buf[8] == 95) {
-          skip = 0;
-        }
+      if (skip != 0 && prefix_len > 0 && (skip_nl == 11 || skip_nl == 10)) {
+        skip = 0;
       }
       if (skip == 0 && prefix_len == 0 && asm_backend == 0) {
         skip = codegen_should_skip_emit_func_core_read_ptr(&skip_name[0], skip_nl);
@@ -9616,35 +9606,32 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
 /**
  * 仅按函数名跳过发射：与 preamble / string.o 冲突的占位符与 string_new 族；逻辑由原 driver_should_skip_emit_func_by_name 迁入 .x。
  */
+/**
+ * Decide whether to skip emitting a function solely by bare name.
+ * Purpose: gate oversized bootstrap mega bodies (and historically bare
+ *   placeholder/string_new that collided with preamble #define macros).
+ * Parameters: name/name_len — function bare name (not C-mangled).
+ * Returns: 1 = skip emit, 0 = emit normally.
+ * Authority: seeds/codegen_gen.linux.x86_64.c codegen_should_skip_emit_func_by_name.
+ * Why: product preamble no longer #define-aliases placeholder/string_new; those
+ *   are real exports (core_types_placeholder, core_mem_placeholder, and peers).
+ *   Cap still skipped bare "placeholder" so multi-dep co-emit of core.types
+ *   emitted every size_of body but dropped placeholder → si -o UNDEF.
+ * Invariant: only asm_codegen_ast_seed_mega / to_elf mega remain name-skips
+ *   unless SHUX_EMIT_SEED_MEGA is set; do not re-add placeholder skip.
+ * PLATFORM: SHARED — Cap force stdlib-import / core.* co-emit link.
+ * Note: never write star-slash inside this block comment (truncates C emit).
+ */
 function codegen_should_skip_emit_func_by_name(name: *u8, name_len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-
-    let ph11: u8[11] = [112, 108, 97, 99, 101, 104, 111, 108, 100, 101, 114];
-    let ssp22: u8[22] = [115, 116, 100, 95, 115, 116, 114, 105, 110, 103, 95, 112, 108, 97, 99, 101, 104, 111, 108, 100, 101, 114];
-    let sn10: u8[10] = [115, 116, 114, 105, 110, 103, 95, 110, 101, 119];
-    let sssn22: u8[22] = [115, 116, 100, 95, 115, 116, 114, 105, 110, 103, 95, 115, 116, 114, 105, 110, 103, 95, 110, 101, 119, 0];
     let asm_seed_mega: u8[25] = [97, 115, 109, 95, 99, 111, 100, 101, 103, 101, 110, 95, 97, 115, 116, 95, 115, 101, 101, 100, 95, 109, 101, 103, 97];
     let asm_to_elf_seed_mega: u8[32] = [97, 115, 109, 95, 99, 111, 100, 101, 103, 101, 110, 95, 97, 115, 116, 95, 116, 111, 95, 101, 108, 102, 95, 115, 101, 101, 100, 95, 109, 101, 103, 97];
     if (name == 0 as *u8) {
       return 0;
     }
-    if (name_len == 11 && codegen_name_bytes_prefix_eq(name, name_len, &ph11[0], 11) != 0) {
-      return 1;
-    }
-    if (name_len == 22 && codegen_name_bytes_prefix_eq(name, name_len, &ssp22[0], 22) != 0) {
-      return 1;
-    }
-    if (name_len == 10 && codegen_name_bytes_prefix_eq(name, name_len, &sn10[0], 10) != 0) {
-      return 1;
-    }
-    if (name_len == 22 && codegen_name_bytes_prefix_eq(name, name_len, &sssn22[0], 22) != 0) {
-      return 1;
-    }
-    if (name_len == 21 && codegen_name_bytes_prefix_eq(name, name_len, &sssn22[0], 21) != 0) {
-      return 1;
-    }
-    /** bootstrap -E：seed_mega 体过大，X emit_func 失败；SHUX_EMIT_SEED_MEGA=1 时 build_seed_asm_host 仍尝试 emit。 */
+    // placeholder and string_new skip removed (seed-aligned; real core/std exports).
+    // bootstrap -E: seed_mega bodies are huge; SHUX_EMIT_SEED_MEGA=1 still tries emit.
     if (pipeline_codegen_emit_seed_mega_enabled() == 0) {
       if (name_len == 25 && codegen_name_bytes_prefix_eq(name, name_len, &asm_seed_mega[0], 25) != 0) {
         return 1;
