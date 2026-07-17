@@ -3143,6 +3143,7 @@ build_nonempty_asm_objs() {
 # Residual after L6: should be empty on crt0 bag (or new pull-ins only).
 # NL-07 L2/L6: libc face lives in bootstrap_nostdlib_stubs (not freestanding_io).
 # NL-07 L7: freestanding vsnprintf %g/%e (fixes pure-static float lit "g.0").
+# NL-07 L7b: crt0 companions include preprocess_x.o (not bridge weak preprocess_x_buf).
 filter_crt0_asm_objs() {
   CRT0_ASM=""
   _crt0_have_standalone=0
@@ -3435,8 +3436,17 @@ ensure_crt0_codegen_parser_companion_objs() {
   codegen_wpo_mono_sym_format \
   pipeline_block_labeled_set_names \
   preprocess_define_add \
-  preprocess_define_reset; then
+  preprocess_define_reset \
+  preprocess_eval_condition_c; then
   CRT0_CG_PARSER_COMPANIONS="$CRT0_CG_PARSER_COMPANIONS $p"
+  fi
+  # NL-07 L7 runtime: pure crt0 previously resolved preprocess_x_buf from
+  # asm_experimental_symbol_bridge weak stub (returns -1) → PP002 + postlink smoke WARN.
+  # Authority (G.7): product preprocess_x.o (same as experimental/strict companions).
+  # multi-def: only preprocess_x_buf overlaps bridge W; strong T wins. Other preprocess_*
+  # symbols exclusive to preprocess_x.o (Ubuntu map 2026-07-17).
+  if [ -f preprocess_x.o ] && [ -s preprocess_x.o ]; then
+  CRT0_CG_PARSER_COMPANIONS="$CRT0_CG_PARSER_COMPANIONS preprocess_x.o"
   fi
   # process argv surface (g05 / experimental already links runtime_process_argv.o).
   if [ -f runtime_process_argv.o ] && [ -s runtime_process_argv.o ]; then
