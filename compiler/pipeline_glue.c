@@ -24446,7 +24446,10 @@ static int32_t pipeline_typeck_call_arg_assignable_c(struct ast_ASTArena *arena,
   return 0;
 }
 
-/** 单候选 overload 与 CALL 实参的匹配得分；不匹配返回 -1（精确 +1000，可赋 +1）。 */
+/** 单候选 overload 与 CALL 实参的匹配得分；不匹配返回 -1（精确 +1000，可赋 +1）。
+ * PLATFORM: SHARED — also +5000 when return type matches typeck_overload_expected_ret_peek
+ * (let v: Vec_u8 = new() / zero-arg overload). Aligns with typeck.x
+ * find_func_return_type_in_module_by_name_overload expected-return bonus. */
 static int32_t pipeline_typeck_overload_match_score_c(struct ast_Module *m, struct ast_ASTArena *a, int32_t func_ix,
                                                       int32_t call_expr_ref) {
   int32_t num_args;
@@ -24455,6 +24458,9 @@ static int32_t pipeline_typeck_overload_match_score_c(struct ast_Module *m, stru
   int32_t score;
   int32_t arg_ref;
   int32_t param_ref;
+  int32_t expect_ty;
+  int32_t rtr;
+  extern int32_t typeck_overload_expected_ret_peek(void);
   if (!m || !a || func_ix < 0 || call_expr_ref <= 0)
     return -1;
   num_args = pipeline_expr_call_num_args_at(a, call_expr_ref);
@@ -24475,6 +24481,13 @@ static int32_t pipeline_typeck_overload_match_score_c(struct ast_Module *m, stru
       score += 1000;
     else
       score += 1;
+  }
+  /* Zero-arg / arg-tie: prefer return type matching let/assign/return expected. */
+  expect_ty = typeck_overload_expected_ret_peek();
+  if (expect_ty > 0) {
+    rtr = pipeline_module_func_return_type_at(m, func_ix);
+    if (rtr > 0 && pipeline_typeck_type_refs_equal_c(a, rtr, expect_ty) != 0)
+      score += 5000;
   }
   return score;
 }

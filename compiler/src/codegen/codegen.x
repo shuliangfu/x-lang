@@ -8571,11 +8571,13 @@ export function codegen_emit_call_func_name(out: *CodegenOutBuf, arena: *ASTAren
               }
             }
           }
-          /* 重载：仅名+arity 可信不足，typeck 可能指向首个同名；须再按实参类型重搜。 */
-          if (ok_res != 0 && fallback_len > 0
-              && codegen_module_func_overload_count(res_mod, fallback_name, fallback_len) > 1) {
-            ok_res = 0;
-          }
+          /*
+           * PLATFORM: SHARED — trust typeck call_resolved_func_index for overloads.
+           * Typeck already scores args + expected return (let v: Vec_u8 = new() →
+           * new_retVec_u8). Rejecting all overloads here forced re-search that lost
+           * the return-type pick and emitted bare std_vec_new() while defs used _ret_.
+           * Keep arity/name checks above; only cross-module resolved still rejected below.
+           */
           /*
            * PLATFORM: SHARED — when METHOD_CALL fallback passes binding current_module,
            * reject call_resolved that points at a different dep module (e.g. heap.free →
