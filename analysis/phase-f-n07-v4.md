@@ -54,10 +54,11 @@ make -C compiler bootstrap-driver-bstrict
 | **stdio 桩** | ~~`fflush` UNDEF~~ | ✅ **L2 @ `6a945f5b`**：`bootstrap_nostdlib_stubs` 补全 `fflush`（G.7；**非** freestanding_io） |
 | **backend enc** | ~~大量 `backend_enc_*` / arch_emit / try_inline / simd~~ | ✅ **L3 @ `b613f58e`**：crt0 追加 `BSTRICT_DISPATCH_OBJS`+simd（与 experimental 同权威） |
 | **backend emit** | ~~`backend_emit_*`（10 · L3 后 head）~~ | ✅ **L3b @ `57fa657d`**：seed `backend_emit_*` partial export（非整颗 seed；避 multi-def） |
-| **typeck / driver / lsp** | `typeck_*` · `driver_*` · `lsp_*`（L3b 后 head） | **L4+ 前排**：与 experimental/strict 同源 companion 入链；禁第三套 |
-| **diag / parser / codegen** | 次级 UNDEF 簇 | 随拓扑闭合自然降 |
+| **typeck / driver / lsp** | ~~`typeck_*` · `driver_*` 主簇 · `lsp_*` 主簇~~ | ✅ **L4+ @ `94f0ae11`**：experimental 同源 companion；`typeck_x` 仅 bag 未自举 |
+| **codegen / parser** | `codegen_*` · `parser_*` · residual lsp sizes（L4+ 后 head） | **L5 前排**：同源 companion；注意 multi-def |
+| **nostdlib libc 面** | `fileno` / `isatty` / `puts` / `strerror` … | stubs 或 freestanding 扩展（另层） |
 
-unique UNDEF（L3b 后 err）≈ **147**（L3 ≈156；L2 ≈283；L1 ≈284；L0 try ≈291）。
+unique UNDEF（L4+ 后 err）≈ **41**（L3b ≈147；L3 ≈156；L2 ≈283；L1 ≈284；L0 try ≈291）。
 
 ## 2026-07-17 L1（Ubuntu · tip `e3d63a68`）
 
@@ -98,9 +99,19 @@ unique UNDEF（L3b 后 err）≈ **147**（L3 ≈156；L2 ≈283；L1 ≈284；L
 | gate | **OK**（final-link loose；**≠** crt0 全绿） |
 | **双端产品** | mac g05 矩阵 rv/opt/hello/si **绿**；Ubuntu g05 矩阵 **绿**（日志 mac `/tmp/mac_g05_n07_l3b.log` · Ubuntu `/tmp/ubuntu_g05_n07_l3b.log`） |
 
+## 2026-07-17 L4+（Ubuntu · tip `94f0ae11`）
+
+| 项 | 结果 |
+|----|------|
+| 根修 | `ensure_crt0_typeck_driver_lsp_companion_objs`：crt0 链 runtime_driver_* + abi + diag + driver_*_x + lsp_*_x + lsp_diag seed + rt_* slices；`typeck_x` 仅 bag typeck 未自举（G.7 experimental 同源；禁整行 experimental multi-def） |
+| 日志 | `/tmp/ubuntu_n07_l4p_94f0ae11.log` · err **typeck=0** · multi=**0** · unique UNDEF **147→41** |
+| nostdlib crt0 bag | **仍红**（head `parser_*` / `codegen_*` / residual lsp sizes）；**无** `bootstrap nostdlib crt0 link OK` |
+| gate | **OK**（final-link loose；**≠** crt0 全绿） |
+| **双端产品** | mac g05 矩阵 rv/opt/hello/si **绿**；Ubuntu g05 矩阵 **绿**（日志 mac `/tmp/mac_g05_n07_l4p.log` · Ubuntu `/tmp/ubuntu_g05_n07_l4p.log`） |
+
 ## 延后（v4 硬绿 / v5）
 
-- 全链 nostdlib **硬绿**（crt0 bag 无 undefined reference）— **L3b 未达**（L4+ residual）
+- 全链 nostdlib **硬绿**（crt0 bag 无 undefined reference）— **L4+ 未达**（L5 residual：parser/codegen）
 - 默认 `SHUX_BOOTSTRAP_NOSTDLIB=1`
 - pthread/io_uring 去系统库
 
