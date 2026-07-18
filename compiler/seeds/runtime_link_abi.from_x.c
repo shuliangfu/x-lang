@@ -6742,6 +6742,67 @@ static int labi_std_fk0_user_needs_rel(const char *user_o, const char *rel) {
     return 0;
 }
 
+/*
+ * PLATFORM: SHARED — bulk residual (§0.1): PRIMARY_TIME_OS / RANDOM_FILL / ENV_OS used to
+ * always enter the asm link line. With user_o known, gate on real UNDEF (same authority as
+ * fk0 / on_demand probes). null user_o keeps legacy hard-link for old call sites.
+ * G.7: complete existing append_std_objs_for_user; no second link plan.
+ */
+static int labi_user_needs_runtime_time_os(const char *user_o) {
+    if (!user_o || !user_o[0])
+        return 1;
+    return shux_link_obj_needs_undef_sym(user_o, "time_now_monotonic_ns_c")
+        || shux_link_obj_needs_undef_sym(user_o, "time_now_wall_ns_c")
+        || shux_link_obj_needs_undef_sym(user_o, "time_sleep_ns_c")
+        || shux_link_obj_needs_undef_sym(user_o, "time_format_wall_rfc3339_c")
+        || shux_link_obj_needs_undef_sym(user_o, "time_wall_local_offset_min_c")
+        || shux_link_obj_needs_undef_sym(user_o, "std_time_now_monotonic_ns")
+        || shux_link_obj_needs_undef_sym(user_o, "std_time_now_wall_ns")
+        || shux_link_obj_needs_undef_sym(user_o, "std_time_sleep_ms")
+        || shux_link_obj_needs_undef_sym(user_o, "std_time_timer_start")
+        || shux_link_obj_needs_undef_sym(user_o, "std_time_duration_ns");
+}
+
+static int labi_user_needs_runtime_random_fill(const char *user_o) {
+    if (!user_o || !user_o[0])
+        return 1;
+    return shux_link_obj_needs_undef_sym(user_o, "random_fill_bytes_c")
+        || shux_link_obj_needs_undef_sym(user_o, "std_random_fill_bytes")
+        || shux_link_obj_needs_undef_sym(user_o, "std_random_fill")
+        || shux_link_obj_needs_undef_sym(user_o, "std_random_next")
+        || shux_link_obj_needs_undef_sym(user_o, "std_random_gen")
+        || shux_link_obj_needs_undef_sym(user_o, "std_random_flip")
+        || shux_link_obj_needs_undef_sym(user_o, "std_random_rng_smoke")
+        || shux_link_obj_needs_undef_sym(user_o, "random_u32_c")
+        || shux_link_obj_needs_undef_sym(user_o, "random_u64_c")
+        || shux_link_obj_needs_undef_sym(user_o, "random_rng_smoke_c");
+}
+
+static int labi_user_needs_runtime_env_os(const char *user_o) {
+    if (!user_o || !user_o[0])
+        return 1;
+    /* OS glue + formal env API (user.o has U std_env_*; env_*_c only after env.o). */
+    return shux_link_obj_needs_undef_sym(user_o, "env_getenv_c")
+        || shux_link_obj_needs_undef_sym(user_o, "env_getenv_exists_c")
+        || shux_link_obj_needs_undef_sym(user_o, "env_getenv_z_c")
+        || shux_link_obj_needs_undef_sym(user_o, "env_getenv_ptr_c")
+        || shux_link_obj_needs_undef_sym(user_o, "env_setenv_c")
+        || shux_link_obj_needs_undef_sym(user_o, "env_unsetenv_c")
+        || shux_link_obj_needs_undef_sym(user_o, "env_temp_dir_c")
+        || shux_link_obj_needs_undef_sym(user_o, "env_iter_count_c")
+        || shux_link_obj_needs_undef_sym(user_o, "env_iter_at_c")
+        || shux_link_obj_needs_undef_sym(user_o, "std_env_getenv")
+        || shux_link_obj_needs_undef_sym(user_o, "std_env_getenv_exists")
+        || shux_link_obj_needs_undef_sym(user_o, "std_env_getenv_z")
+        || shux_link_obj_needs_undef_sym(user_o, "std_env_getenv_ptr")
+        || shux_link_obj_needs_undef_sym(user_o, "std_env_setenv")
+        || shux_link_obj_needs_undef_sym(user_o, "std_env_unsetenv")
+        || shux_link_obj_needs_undef_sym(user_o, "std_env_temp_dir")
+        || shux_link_obj_needs_undef_sym(user_o, "std_env_iter")
+        || shux_link_obj_needs_undef_sym(user_o, "std_env_iter_count")
+        || shux_link_obj_needs_undef_sym(user_o, "std_env_args_iter");
+}
+
 void shux_asm_ld_append_std_objs(const char *link_argv0, const char **lib_roots, int n_lib_roots,
     ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags) {
     /* 兼容旧调用：无 user_o 时走硬链。新调用经 wrapper 传入 o_path。 */
@@ -6788,14 +6849,21 @@ void shux_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *us
                 rel ? rel : "compiler/runtime_panic.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
             break;
         case LABI_STD_OP_PRIMARY_TIME_OS:
+            /* PLATFORM: SHARED — on_demand also covers time.o+time_os; skip bulk when pure. */
+            if (!labi_user_needs_runtime_time_os(user_o))
+                break;
             link_abi_asm_ld_push_obj(shux_runtime_time_os_o_path(link_argv0), link_argv0,
                 rel ? rel : "compiler/runtime_time_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
             break;
         case LABI_STD_OP_PRIMARY_RANDOM_FILL:
+            if (!labi_user_needs_runtime_random_fill(user_o))
+                break;
             link_abi_asm_ld_push_obj(shux_runtime_random_fill_o_path(link_argv0), link_argv0,
                 rel ? rel : "compiler/runtime_random_fill.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
             break;
         case LABI_STD_OP_PRIMARY_ENV_OS:
+            if (!labi_user_needs_runtime_env_os(user_o))
+                break;
             link_abi_asm_ld_push_obj(shux_runtime_env_os_o_path(link_argv0), link_argv0,
                 rel ? rel : "compiler/runtime_env_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
             break;
@@ -6993,6 +7061,28 @@ void shux_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *us
                                                      n_lib_roots, bank, argv, la, max_la, NULL);
                             link_abi_asm_ld_push_obj(NULL, link_argv0, "core/mem/mem.o", lib_roots,
                                                      n_lib_roots, bank, argv, la, max_la, NULL);
+                        }
+                        /*
+                         * PLATFORM: SHARED — formal env.o U env_*_c lives in runtime_env_os.o.
+                         * PRIMARY_ENV_OS may already have pushed; companion here covers the case
+                         * where env.o is pulled via fk0 after PRIMARY was gated off incorrectly.
+                         */
+                        if (strstr(rel, "std/env/env.o")) {
+                            if (shux_ensure_runtime_env_os_o(link_argv0) == 0)
+                                link_abi_asm_ld_push_obj(shux_runtime_env_os_o_path(link_argv0), link_argv0,
+                                    "compiler/runtime_env_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+                        }
+                        /* PLATFORM: SHARED — formal random.o U random_fill_bytes_c. */
+                        if (strstr(rel, "std/random/random.o")) {
+                            if (shux_ensure_runtime_random_fill_o(link_argv0) == 0)
+                                link_abi_asm_ld_push_obj(shux_runtime_random_fill_o_path(link_argv0), link_argv0,
+                                    "compiler/runtime_random_fill.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+                        }
+                        /* PLATFORM: SHARED — formal time.o U time_*_c (mirrors on_demand pair). */
+                        if (strstr(rel, "std/time/time.o")) {
+                            if (shux_ensure_runtime_time_os_o(link_argv0) == 0)
+                                link_abi_asm_ld_push_obj(shux_runtime_time_os_o_path(link_argv0), link_argv0,
+                                    "compiler/runtime_time_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
                         }
                     }
                 }
