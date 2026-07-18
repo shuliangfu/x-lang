@@ -8,7 +8,7 @@
 | **Compiler** | `shux` / `shux_asm` (product binary after bootstrap) |
 | **Source extension** | `.x` |
 | **Build config** | `build.x` — project build strategy in Shux (steps, targets, products); entry via `shux build` / `build_tool` / `shux-build.sh` |
-| **Status (2026-07-18)** | **Product L4 pin** dual green @ **`c51759eb`** (true cold + bstrict **123/123** macOS+Ubuntu). Daily tip **`48ef9833`** + product-path fixes: dual L2 bstrict **123/123** again (logs `/tmp/{mac,ubuntu}_bstrict_v4.log`). Recent L2 closes: i64 CTFE fold gate, `/* */` recovery, borrow/lifetime baselines, g05 hybrid-slice poison. **Self-host not finished** (seed / hybrid C still required for cold start; tip L4 not re-pinned) |
+| **Status (2026-07-18)** | **Product L4 pin** still **`c51759eb`** (true cold + bstrict **123/123** *at pin time*). **Product bstrict suite is now 125** (`run-void-main-gate` + `run-comment-prefix`). Tip verify: mac true-cold L4 **125/125** @ **`d8aa86e2`**; Ubuntu 125 after i64 ABI fix (`SKIP_BUILD`). **Self-host not finished** (seed / hybrid C still required for cold start; tip L4 not re-pinned) |
 | **Live dashboard** | [`analysis/自举进度.md`](analysis/自举进度.md) · daily snapshot [`analysis/当前进度.md`](analysis/当前进度.md) |
 | **中文** | [README_zh-CN.md](README_zh-CN.md) |
 
@@ -258,7 +258,7 @@ Link is **on demand** (unused modules stay out of the final link when possible).
 
 | Track | What it measures | Alone enough to claim “self-host done”? |
 |-------|------------------|----------------------------------------|
-| **Product** | L4 true cold + product matrix (rv / option / hello / …) + dual `run-all-bstrict` 123 | **Required**, not sufficient alone for “zero C forever” |
+| **Product** | L4 true cold + product matrix (rv / option / hello / …) + dual `run-all-bstrict` **125** | **Required**, not sufficient alone for “zero C forever” |
 | **Engineering** | prove T/N, Cap residual pure, Stage2, WPO chain/link/text gates | **No** |
 
 ---
@@ -272,13 +272,14 @@ Link is **on demand** (unused modules stay out of the final link when possible).
 
 | Item | Status |
 |------|--------|
-| **L4 release pin** | **`c51759eb`** — dual-host **true cold** + `run-all-bstrict` **123/123** (Ubuntu + macOS). Previous pin lineage includes `f16f7d48` / older `5c8204ae`-era waves — **do not** re-cite those as the live pin |
-| Ubuntu L4 + full bstrict | ✅ **123/123** @ pin (`/tmp/ubuntu_true_cold_c51759eb.log`, `/tmp/ubuntu_true_bstrict_c51759eb.log`) |
-| macOS L4 + full bstrict | ✅ **123/123** @ pin (`/tmp/mac_true_cold_c51759eb.log`, `/tmp/mac_true_bstrict_c51759eb.log`) |
+| **L4 release pin** | **`c51759eb`** — dual-host **true cold** + `run-all-bstrict` **123/123** *at pin time* (Ubuntu + macOS). Suite later grew to **125**. Previous pin lineage includes `f16f7d48` / older `5c8204ae`-era waves — **do not** re-cite those as the live pin |
+| Product bstrict suite size | **125** scripts (`tests/run-all-bstrict.sh`; must log `OK (125 scripts…)`) |
+| Ubuntu L4 + full bstrict (pin) | ✅ **123/123** @ pin (`/tmp/ubuntu_true_cold_c51759eb.log`, `/tmp/ubuntu_true_bstrict_c51759eb.log`) |
+| macOS L4 + full bstrict (pin) | ✅ **123/123** @ pin (`/tmp/mac_true_cold_c51759eb.log`, `/tmp/mac_true_bstrict_c51759eb.log`) |
 | Gold host | **Ubuntu x86_64** |
 | Product binary under test | This-wave `compiler/shux_asm` (g05 / relink) — **never** leftover Stage2 `shux_asm2` or old `stage1` |
-| Branch tip (not tip L4) | **`48ef9833`** on `self-hosting` (+ local product-path worktree when present). **Tip L4 is re-pinned only after dual true cold + bstrict**, not after every L2 green |
-| Latest dual L2 bstrict (tip wave) | ✅ **123/123** macOS + Ubuntu after product relink (`SHUX_BSTRICT_SKIP_BUILD=1`; `/tmp/mac_bstrict_v4.log`, `/tmp/ubuntu_bstrict_v4.log`, `EXIT:0`). **≠** tip L4 re-pin |
+| Branch tip (not tip L4) | **`d8aa86e2`** wave on `self-hosting` (+ local Makefile ABI guard). **Tip L4 is re-pinned only after dual true cold + bstrict 125**, not after every L2 green |
+| Latest tip bstrict 125 | ✅ mac true-cold **125/125** @ `d8aa86e2` (`/tmp/mac_true_cold_d8aa86e2.log`); Ubuntu **125/125** after i64 ABI fix (`/tmp/ubuntu_bstrict_after_i64fix.log`, `SKIP_BUILD`). **≠** tip L4 re-pin |
 
 ### Product surface recently closed (daily L2 · pin still `c51759eb`)
 
@@ -334,7 +335,7 @@ Methodology: Cap / R / L / M → [`analysis/自举方法.md`](analysis/自举方
 | M3 | Generics, trait, modules, std growth | ✅ |
 | M4 | DCE, -O2/-Os, size/perf baseline | ✅ partial |
 | M5 | Bootstrap (compiler can rebuild itself) | 🟡 **usable product path + advanced self-host**; **seed still required for cold start** |
-| **Now** | Product L4 dual pin @ **`c51759eb`**; tip dual L2 bstrict **123/123** @ **`48ef9833`** wave; product residuals (CTFE / comments / g05) closed on L2 | See dashboard |
+| **Now** | Product L4 dual pin @ **`c51759eb`** (pin-time 123); suite **125**; tip mac L4+125 @ **`d8aa86e2`** + Ubuntu 125 after i64 ABI fix — **not** tip L4 re-pin | See dashboard |
 
 ---
 

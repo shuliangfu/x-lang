@@ -2262,6 +2262,13 @@ FORCE:
 # 否则只要 make 检查 driver_gen.c，就会先触发一次 -B legacy shux-c 强刷。
 # 这里保留源码级 freshness 判断，但把 legacy frontend 刷新收进真正 fallback 到
 # shux-c 重生的分支里，避免 bstrict/relink 链反复为 pinned driver_gen.c 付费。
+#
+# PLATFORM: SHARED — L4 true-cold wipes shux-x / shux-c binaries but often leaves a
+# host-local driver_gen.c that is older than MAIN_X_DEPS → need_regen=1. Old recipe
+# only restored seed when the file was empty, then fell into bootstrap shux-c -E
+# which can burn CPU/RAM for minutes with a 0-byte .tmp (pathological hang). Prefer
+# seeds/driver_gen.linux.x86_64.c whenever need_regen and shux-x is missing, unless
+# SHUX_FORCE_REGEN_GEN=1 explicitly requests a live -E.
 driver_gen.c: $(MAIN_X_DEPS)
 	@need_regen=0; \
 	if [ "$(SHUX_FORCE_REGEN_GEN)" = "1" ]; then \
@@ -2278,9 +2285,11 @@ driver_gen.c: $(MAIN_X_DEPS)
 	fi; \
 	if [ "$$need_regen" = "0" ]; then \
 	  echo "driver_gen.c: pinned ($$(wc -c < $@ | tr -d ' ') bytes; up-to-date with MAIN_X_DEPS)"; \
-	elif [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/driver_gen.linux.x86_64.c ] && [ ! -s $@ ]; then \
+	elif [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/driver_gen.linux.x86_64.c ] \
+	  && [ "$(SHUX_FORCE_REGEN_GEN)" != "1" ] && { [ ! -s $@ ] || [ ! -f $(SHUX_X) ]; }; then \
 	  cp -f seeds/driver_gen.linux.x86_64.c $@; \
-	  echo "driver_gen.c: restored from seeds/driver_gen.linux.x86_64.c"; \
+	  touch $@; \
+	  echo "driver_gen.c: restored from seeds/driver_gen.linux.x86_64.c (empty or no $(SHUX_X); L4-safe)"; \
 	elif [ -f $(SHUX_X) ]; then \
 	  echo "driver_gen.c: ./$(SHUX_X) -x -E ..." >&2; \
 	  ./$(SHUX_X) -x -E $(MAIN_X_E_DIRS) -E-extern src/main.x > $@.tmp 2>/dev/null || true; \
@@ -2292,14 +2301,18 @@ driver_gen.c: $(MAIN_X_DEPS)
 	  tmp="$@.tmp"; \
 	  $(MAKE) $(SHUX_C) && \
 	  ./$(SHUX_C) $(MAIN_X_E_DIRS) src/main.x -E -E-extern > "$$tmp" || \
-	  { rm -f "$$tmp"; if [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/driver_gen.linux.x86_64.c ]; then cp -f seeds/driver_gen.linux.x86_64.c $@ && echo "driver_gen.c: fallback seed (shux-c -E failed)" >&2; else exit 1; fi; }; \
+	  { rm -f "$$tmp"; if [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/driver_gen.linux.x86_64.c ]; then cp -f seeds/driver_gen.linux.x86_64.c $@ && touch $@ && echo "driver_gen.c: fallback seed (shux-c -E failed)" >&2; else exit 1; fi; }; \
 	  if [ -s "$$tmp" ]; then mv "$$tmp" $@; fi; \
 	  fi; \
+	elif [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/driver_gen.linux.x86_64.c ]; then \
+	  cp -f seeds/driver_gen.linux.x86_64.c $@; \
+	  touch $@; \
+	  echo "driver_gen.c: restored from seeds/driver_gen.linux.x86_64.c (no $(SHUX_X); skip shux-c -E)"; \
 	else \
 	  tmp="$@.tmp"; \
 	  $(MAKE) $(SHUX_C) && \
 	  ./$(SHUX_C) $(MAIN_X_E_DIRS) src/main.x -E -E-extern > "$$tmp" || \
-	  { rm -f "$$tmp"; if [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/driver_gen.linux.x86_64.c ]; then cp -f seeds/driver_gen.linux.x86_64.c $@ && echo "driver_gen.c: fallback seed (shux-c -E failed)" >&2; else exit 1; fi; }; \
+	  { rm -f "$$tmp"; if [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/driver_gen.linux.x86_64.c ]; then cp -f seeds/driver_gen.linux.x86_64.c $@ && touch $@ && echo "driver_gen.c: fallback seed (shux-c -E failed)" >&2; else exit 1; fi; }; \
 	  if [ -s "$$tmp" ]; then mv "$$tmp" $@; fi; \
 	fi
 	perl scripts/fix_driver_gen_duplicate_main.pl $@
@@ -2372,6 +2385,8 @@ endif
 
 bootstrap-driver-seed: DRIVER_SEED_GLUE_SUFFIX = build_asm/pipeline_glue_strict_minimal.o
 bootstrap-driver-seed: $(DRIVER_SEED_PREREQS) build_asm/pipeline_glue_strict_minimal.o
+	@# PLATFORM: SHARED — P0-4: refuse stale int32_t Expr.int_val before any pipeline_x / glue link.
+	@$(MAKE) check-pipeline-gen-expr-i64-abi
 	@# 冷启动：保留已提交的 ast_gen2.c，避免旧 seed 对 ast.x 重新 -E 失败。
 	@if [ -f ast_gen2.c ] && [ -s ast_gen2.c ]; then touch -r ast_gen2.c src/ast/ast.x 2>/dev/null || true; fi
 	@$(MAKE) pipeline_x.o PIPELINE_X_FORCE_COMPILE=1
@@ -2431,7 +2446,9 @@ endif
 
 # 与 bootstrap-driver-seed 相同；保留别名供脚本引用
 # bootstrap seed 链 需 glue 类型头（与 build_shux_asm B-strict 同源）。
+# PLATFORM: SHARED — run i64 ABI guard before extract so glue never sees int32_t Expr.int_val.
 build_asm/pipeline_glue_types.inc: pipeline_gen.c scripts/extract_pipeline_glue_types.pl
+	@$(MAKE) check-pipeline-gen-expr-i64-abi
 	@mkdir -p build_asm
 	perl scripts/extract_pipeline_glue_types.pl pipeline_gen.c > $@
 
@@ -2700,6 +2717,13 @@ check-7.2: bootstrap-self
 # 2) 若把 legacy-shux-c-ready 作为 order-only 前置，Make 仍会在“检查 pipeline_gen.c”时先执行那段 -B 重编。
 # 因此这里把 legacy frontend 刷新收进真正需要重生的分支里：仅当文件缺失或显式 SHUX_FORCE_REGEN_GEN=1 时才刷新并生成；
 # 其余情况直接沿用 pinned pipeline_gen.c。
+#
+# PLATFORM: SHARED — ABI guard (P0-4 / run-i64-ctfe-gate):
+# ast.x Expr.int_val / token.Token.int_val are i64. seeds/pipeline_gen.linux.x86_64.c
+# matches. Stale or bad bootstrap -E can leave `int32_t int_val` in pipeline_gen.c;
+# extract → pipeline_glue_types.inc → glue CTFE then truncates INT64_MAX to -1 and
+# folds `0 - lit - 1` to 0 (silent wrong code, exit 1 ≠ 42). After every branch,
+# require `int64_t int_val` in struct ast_Expr or restore the linux.x86_64 seed.
 pipeline_gen.c:
 	@if [ "$(SHUX_FORCE_REGEN_GEN)" = "1" ]; then \
 	  $(MAKE) $(SHUX_C) && \
@@ -2715,6 +2739,28 @@ pipeline_gen.c:
 	  ./$(SHUX_C) -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/asm -L src/preprocess -E -E-extern src/pipeline/pipeline.x > pipeline_gen.c || \
 	  { if [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/pipeline_gen.linux.x86_64.c ]; then cp -f seeds/pipeline_gen.linux.x86_64.c pipeline_gen.c && echo "bootstrap-pipeline: fallback seed (shux-c -E failed)" >&2; else exit 1; fi; }; \
 	  echo "bootstrap-pipeline: pipeline_gen.c (-E-extern thin TU; codegen 无 perl 后处理)"; \
+	fi
+	@$(MAKE) check-pipeline-gen-expr-i64-abi
+
+# PLATFORM: SHARED — always-run ABI guard (make may skip pipeline_gen.c recipe when file exists).
+# Stale workspace pipeline_gen.c with int32_t int_val is the P0-4 L4 failure mode on Ubuntu cold.
+.PHONY: check-pipeline-gen-expr-i64-abi
+check-pipeline-gen-expr-i64-abi:
+	@if [ ! -s pipeline_gen.c ]; then \
+	  if [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/pipeline_gen.linux.x86_64.c ]; then \
+	    cp -f seeds/pipeline_gen.linux.x86_64.c pipeline_gen.c; \
+	    echo "check-pipeline-gen-expr-i64-abi: restored empty pipeline_gen.c from seed" >&2; \
+	  else \
+	    echo "check-pipeline-gen-expr-i64-abi: FAIL missing pipeline_gen.c" >&2; exit 1; \
+	  fi; \
+	fi
+	@if ! grep -q 'struct ast_Expr {.*int64_t int_val' pipeline_gen.c 2>/dev/null; then \
+	  if [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/pipeline_gen.linux.x86_64.c ]; then \
+	    cp -f seeds/pipeline_gen.linux.x86_64.c pipeline_gen.c; \
+	    echo "check-pipeline-gen-expr-i64-abi: restored seed (Expr.int_val must be int64_t; P0-4 / i64-ctfe)" >&2; \
+	  else \
+	    echo "check-pipeline-gen-expr-i64-abi: FAIL Expr.int_val is not int64_t and no seed" >&2; exit 1; \
+	  fi; \
 	fi
 
 .PHONY: bootstrap-pipeline

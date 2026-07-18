@@ -8,7 +8,7 @@
 | **编译器** | `shux` / `shux_asm`（自举链路后的产品二进制） |
 | **源文件后缀** | `.x` |
 | **构建配置** | `build.x` — 用 Shux 描述的项目构建策略（步骤、目标、产物）；由 `shux build` / `build_tool` / `shux-build.sh` 执行 |
-| **现阶段（2026-07-18）** | **产品 L4 钉盘** 双端绿 @ **`c51759eb`**（真冷 + bstrict **123/123** macOS+Ubuntu）。日常 tip **`48ef9833`** + 产品路径修复后再次双端 L2 bstrict **123/123**（日志 `/tmp/{mac,ubuntu}_bstrict_v4.log`）。本波 L2 收口：i64 CTFE 折叠门、`/* */` 恢复、borrow/lifetime 基线、g05 hybrid slice 毒化。**尚未完全自举**（冷启动仍需 seed / 过渡 C；**未**把 tip 升为 L4 钉盘） |
+| **现阶段（2026-07-18）** | **产品 L4 钉盘**仍 **`c51759eb`**（钉盘时真冷 + bstrict **123/123**）。**现行产品 bstrict 套件 = 125**（+void-main + comment-prefix）。tip 验证：mac 真冷 L4 **125/125** @ **`d8aa86e2`**；Ubuntu i64 ABI 修后 125（`SKIP_BUILD`）。**尚未完全自举**（冷启动仍需 seed / 过渡 C；**未** tip L4 升钉） |
 | **进度仪表盘** | [`analysis/自举进度.md`](analysis/自举进度.md) · 当天快照 [`analysis/当前进度.md`](analysis/当前进度.md) |
 | **English** | [README.md](README.md) |
 
@@ -258,7 +258,7 @@ shux/
 
 | 轨道 | 测什么 | 能否单独说「自举完成」 |
 |------|--------|------------------------|
-| **产品轨** | L4 真冷 + 产品矩阵 + 双端 `run-all-bstrict` 123 | **必要**，但还不够宣称「永久零 C」 |
+| **产品轨** | L4 真冷 + 产品矩阵 + 双端 `run-all-bstrict` **125** | **必要**，但还不够宣称「永久零 C」 |
 | **工程轨** | prove T/N、Cap residual pure、Stage2、WPO 链/链接/text 门 | **否** |
 
 ---
@@ -272,13 +272,14 @@ shux/
 
 | 项 | 状态 |
 |----|------|
-| **L4 放行钉盘** | **`c51759eb`** — 双端 **真冷** + `run-all-bstrict` **123/123**（Ubuntu + macOS）。历史钉盘谱系含 `f16f7d48` / 更早 `5c8204ae` 波次 — **勿**再把旧 SHA 写成现行钉盘 |
-| Ubuntu L4 + 全量 bstrict | ✅ **123/123** @ 钉盘（`/tmp/ubuntu_true_cold_c51759eb.log`、`/tmp/ubuntu_true_bstrict_c51759eb.log`） |
-| macOS L4 + 全量 bstrict | ✅ **123/123** @ 钉盘（`/tmp/mac_true_cold_c51759eb.log`、`/tmp/mac_true_bstrict_c51759eb.log`） |
+| **L4 放行钉盘** | **`c51759eb`** — 双端 **真冷** + `run-all-bstrict` **123/123**（**钉盘时**）。其后套件扩至 **125**。历史钉盘谱系含 `f16f7d48` / 更早 `5c8204ae` — **勿**把旧 SHA 写成现行钉盘 |
+| 产品 bstrict 套件数 | **125**（`tests/run-all-bstrict.sh`；日志须 `OK (125 scripts…)`） |
+| Ubuntu L4 + 全量 bstrict（钉盘） | ✅ **123/123** @ 钉盘（`/tmp/ubuntu_true_cold_c51759eb.log`、`/tmp/ubuntu_true_bstrict_c51759eb.log`） |
+| macOS L4 + 全量 bstrict（钉盘） | ✅ **123/123** @ 钉盘（`/tmp/mac_true_cold_c51759eb.log`、`/tmp/mac_true_bstrict_c51759eb.log`） |
 | 金标主机 | **Ubuntu x86_64** |
 | 验收二进制 | 本波 g05 / relink 的 `compiler/shux_asm` — **禁止**残留 Stage2 `shux_asm2` 或旧 stage1 |
-| 分支 tip（≠ tip L4） | **`48ef9833`**（`self-hosting`；可含未提交产品路径工作区）。**仅**双端真冷 + bstrict 后才升 tip L4 钉盘 |
-| 最新双端 L2 bstrict（tip 波） | ✅ **123/123** macOS + Ubuntu（产品 relink 后 `SHUX_BSTRICT_SKIP_BUILD=1`；`/tmp/mac_bstrict_v4.log`、`/tmp/ubuntu_bstrict_v4.log`，`EXIT:0`）。**≠** tip L4 重钉 |
+| 分支 tip（≠ tip L4） | **`d8aa86e2`** 波（`self-hosting`；可含 Makefile ABI 守卫未提交）。**仅**双端真冷 + bstrict **125** 后才升 tip L4 钉盘 |
+| 最新 tip bstrict 125 | ✅ mac 真冷 **125/125** @ `d8aa86e2`（`/tmp/mac_true_cold_d8aa86e2.log`）；Ubuntu i64 ABI 修后 **125/125**（`/tmp/ubuntu_bstrict_after_i64fix.log`，`SKIP_BUILD`）。**≠** tip L4 重钉 |
 
 ### 产品面近期已收口（日常 L2 · 钉盘仍为 `c51759eb`）
 
@@ -334,7 +335,7 @@ shux/
 | M3 | 泛型、trait、模块、std 扩张 | ✅ |
 | M4 | DCE、-O2/-Os、体积/性能基线 | ✅ 部分 |
 | M5 | 自举（编译器可重编自身） | 🟡 **产品路径可用 + 自举推进中**；**冷启动仍需 seed** |
-| **当前** | 产品 L4 双端钉盘 @ **`c51759eb`**；tip 双端 L2 bstrict **123/123** @ **`48ef9833`** 波；CTFE / 注释 / g05 等产品 residual 已在 L2 收口 | 见仪表盘 |
+| **当前** | 产品 L4 双端钉盘 @ **`c51759eb`**（钉盘时 123）；现行套件 **125**；tip mac L4+125 @ **`d8aa86e2`** + Ubuntu 125（i64 ABI 修后）— **未** tip L4 升钉 | 见仪表盘 |
 
 ---
 
