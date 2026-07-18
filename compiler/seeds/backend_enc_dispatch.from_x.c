@@ -151,6 +151,8 @@ int32_t backend_enc_addsd_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ct
 int32_t backend_enc_subsd_rbx_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 int32_t backend_enc_subsd_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 int32_t backend_enc_mulsd_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+int32_t backend_enc_ucomisd_rbx_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+int32_t backend_enc_fp_cmp_setcc_movzbl_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t cc, int32_t ta);
 int32_t backend_enc_store_eax_to_rbp_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset, int32_t ta);
 #endif
 
@@ -970,6 +972,56 @@ int32_t backend_enc_mulsd_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ct
   if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)mulsd_xmm0_xmm1, 4) != 0)
     return -1;
   return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movq_rax_xmm0, 5);
+}
+
+/**
+ * PLATFORM: LINUX+MACOS x86_64 — ordered f64 compare: left in rbx, right in rax (IEEE bits).
+ * movq xmm0,rbx; movq xmm1,rax; ucomisd xmm0,xmm1
+ * Flags use CF/ZF (not SF); pair with backend_enc_fp_cmp_setcc_movzbl_arch.
+ * Signed cmpq of IEEE bits reverses order among negatives — do not use cmpq for f64.
+ */
+int32_t backend_enc_ucomisd_rbx_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
+  static const uint8_t movq_xmm0_rbx[5] = {0x66, 0x48, 0x0f, 0x6e, 0xc3};
+  static const uint8_t movq_xmm1_rax[5] = {0x66, 0x48, 0x0f, 0x6e, 0xc8};
+  static const uint8_t ucomisd_xmm0_xmm1[4] = {0x66, 0x0f, 0x2e, 0xc1};
+  if (ta != 0 || !elf_ctx)
+    return -1;
+  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movq_xmm0_rbx, 5) != 0)
+    return -1;
+  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movq_xmm1_rax, 5) != 0)
+    return -1;
+  return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)ucomisd_xmm0_xmm1, 4);
+}
+
+/**
+ * PLATFORM: LINUX+MACOS x86_64 — setcc after ucomisd/comisd (CF/ZF based).
+ * cc: 0=eq 1=ne 2=lt(b) 3=le(be) 4=gt(a) 5=ge(ae); then movzbl %al,%eax.
+ * Integer setl/setle/setg/setge read SF/OF and are wrong after ucomisd.
+ */
+int32_t backend_enc_fp_cmp_setcc_movzbl_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t cc, int32_t ta) {
+  uint8_t op = 0x94; /* sete */
+  static const uint8_t movzbl_al_eax[3] = {0x0f, 0xb6, 0xc0};
+  uint8_t s[3];
+  if (ta != 0 || !elf_ctx)
+    return -1;
+  if (cc == 1)
+    op = 0x95; /* setne */
+  else if (cc == 2)
+    op = 0x92; /* setb  = CF (below / less) */
+  else if (cc == 3)
+    op = 0x96; /* setbe = CF|ZF */
+  else if (cc == 4)
+    op = 0x97; /* seta  = !CF & !ZF */
+  else if (cc == 5)
+    op = 0x93; /* setae = !CF */
+  else if (cc != 0)
+    return -1;
+  s[0] = 0x0f;
+  s[1] = op;
+  s[2] = 0xc0;
+  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, s, 3) != 0)
+    return -1;
+  return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movzbl_al_eax, 3);
 }
 
 /**
