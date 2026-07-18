@@ -154,10 +154,15 @@ export extern function driver_get_argv_i(argc: i32, argv: *u8, i: i32, buf: *u8,
  * See implementation.
  */
 export extern function driver_argv_drop_subcommand(argc: i32, argv: *u8): *u8;
+/* See implementation (seed runtime_link_abi.from_x.c). For `shux run` / bare
+   `shux file.x`: append `-o <temp>` when no -o given so the product is built
+   in /tmp and exec'd, with no a.out and no generated C to stdout. */
+export extern function driver_argv_ensure_run_o(argc: i32, argv: *u8, out_argc: *i32): *u8;
 /* See implementation. */
 export extern function driver_build_build_x(): i32;
 /* See implementation. */
 export extern function driver_exec_compiled(argc: i32, argv: *u8): i32;
+export extern "C" function setenv(name: *u8, value: *u8, overwrite: i32): i32;
 /* See implementation. */
 export extern function driver_fs_open_read_path(path: *u8, path_len: i32): i32;
 /* See implementation. */
@@ -730,15 +735,28 @@ export function main_cmd_build(argc: i32, argv: *u8): i32 {
 }
 
 /**
- * See implementation.
+ * `shux run file.x` (and bare `shux file.x` via entry): compile in memory and
+ * run the product directly. No a.out in the cwd and no generated C to stdout.
+ * When no -o is given, driver_argv_ensure_run_o injects a temp /tmp path as
+ * -o so the C/asm backend links a real executable (instead of the no-`-o`
+ * stdout/smoke fallback); driver_exec_compiled then execs that temp. An
+ * explicit -o is honored as-is. PLATFORM: SHARED.
  */
 export function main_cmd_run(argc: i32, argv: *u8): i32 {
   if (argc < 2) {
     return 1;
   }
-  let rc: i32 = main_run_compiler_x_path_impl(argc, argv);
+  let run_argc: i32 = argc;
+  let run_argv: *u8 = driver_argv_ensure_run_o(argc, argv, &run_argc);
+  /* mute generated-C warning noise so only program output is printed; cc
+     errors still surface (SHUX_RUN_QUIET only adds -w / -Wl,-w in invoke_cc). */
+  /* "SHUX_RUN_QUIET" (14 bytes) + NUL terminator; setenv needs a C string. */
+  let _q: u8[15] = [83, 72, 85, 88, 95, 82, 85, 78, 95, 81, 85, 73, 69, 84, 0];
+  let _one: u8[2] = [49, 0];
+  unsafe { setenv(&_q[0], &_one[0], 1); }
+  let rc: i32 = main_run_compiler_x_path_impl(run_argc, run_argv);
   if (rc == 0) {
-    return driver_exec_compiled(argc, argv);
+    return driver_exec_compiled(run_argc, run_argv);
   }
   return rc;
 }
@@ -786,6 +804,13 @@ export function entry(argc: i32, argv: *u8): i32 {
       if (str_eq(&arg_buf[0], alen, &w_test[0], 4) != 0) {
         return driver_cmd_test(argc - 1, driver_argv_drop_subcommand(argc, argv));
       }
+      /* Bare .x path with no subcommand: "shux file.x" == "compile and run"
+         (matches the documented `shux [options] file.x` contract). main_cmd_run
+         compiles the product in memory (temp -o when none given) then execs it;
+         no a.out, no generated C to stdout. -E / build / run / fmt / check /
+         test and options-first invocations are handled elsewhere and never
+         reach here. PLATFORM: SHARED. */
+      return main_cmd_run(argc, argv);
     }
   }
   let state: DriverXEmitState = driver_emit_state_default();

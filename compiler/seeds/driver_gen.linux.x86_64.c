@@ -113,6 +113,9 @@ extern int32_t driver_emit_lib_root_len(uint8_t * state, int32_t i);
 extern void driver_emit_lib_root_copy(uint8_t * state, int32_t i, uint8_t * dst, int32_t cap);
 extern int32_t driver_get_argv_i(int32_t argc, uint8_t * argv, int32_t i, uint8_t * buf, int32_t max);
 extern uint8_t * driver_argv_drop_subcommand(int32_t argc, uint8_t * argv);
+/* shux run / bare shux file.x: append `-o <temp>` when no -o so the product
+   is built in /tmp and exec'd (no a.out, no generated C to stdout). */
+extern uint8_t * driver_argv_ensure_run_o(int32_t argc, uint8_t * argv, int32_t * out_argc);
 extern int32_t driver_build_build_x();
 extern int32_t driver_exec_compiled(int32_t argc, uint8_t * argv);
 extern int32_t driver_fs_open_read_path(uint8_t * path, int32_t path_len);
@@ -521,8 +524,17 @@ SHUX_LIB_WEAK int32_t main_cmd_build(int32_t argc, uint8_t * argv) {
 SHUX_LIB_WEAK int32_t main_cmd_run(int32_t argc, uint8_t * argv) {
   if (argc < 2) {   return 1;
  }
-  int32_t rc = main_run_compiler_x_path_impl(argc, argv);
-  if (rc == 0) {   return driver_exec_compiled(argc, argv);
+  /* compile in memory and run: inject `-o <temp>` when no -o so the C/asm
+     backend links a real executable (no a.out, no generated C to stdout) and
+     driver_exec_compiled execs that temp. Explicit -o honored as-is. */
+  int32_t run_argc = argc;
+  uint8_t * run_argv = driver_argv_ensure_run_o(argc, argv, &run_argc);
+  /* mute generated-C warning noise so `shux run`/bare `shux file.x` prints
+     only the program output; cc errors still surface (SHUX_RUN_QUIET only
+     adds -w / -Wl,-w in shux_invoke_cc_impl). */
+  (void)setenv("SHUX_RUN_QUIET", "1", 1);
+  int32_t rc = main_run_compiler_x_path_impl(run_argc, run_argv);
+  if (rc == 0) {   return driver_exec_compiled(run_argc, run_argv);
  }
   return rc;
 }
@@ -551,6 +563,8 @@ SHUX_LIB_WEAK int32_t main_entry(int32_t argc, uint8_t * argv) {
  }
   if (main_str_eq((&((arg_buf)[0])), alen, (&((w_test)[0])), 4) != 0) {   return driver_cmd_test(argc - 1, driver_argv_drop_subcommand(argc, argv));
  }
+  /* Bare .x path with no subcommand: "shux file.x" == compile and run. */
+  return main_cmd_run(argc, argv);
  }
  }
   struct main_DriverXEmitState state = main_driver_emit_state_default();

@@ -3799,6 +3799,14 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
         argv[i++] = (char *)"cc";
         /* preamble 中 std_io_* / std_net_* 使用 C11 _Generic，须传 -std=gnu11（不能 -x c，否则 .o 会被当 C 源码编译） */
         argv[i++] = (char *)"-std=gnu11";
+        /* `shux run` / bare `shux file.x`: compile in memory for direct exec, so
+         * suppress the generated-C diagnostic noise (the preamble/codegen emit
+         * trips -Wparentheses-equality etc.). Errors still surface; only warnings
+         * (cc -w and linker -Wl,-w) are muted. PLATFORM: SHARED. */
+        if (i + 2 < argv_cap && getenv("SHUX_RUN_QUIET")) {
+            argv[i++] = (char *)"-w";
+            argv[i++] = (char *)"-Wl,-w";
+        }
 #if defined(__linux__)
         if (i < argv_cap - 1)
             argv[i++] = (char *)"-B/usr/bin";
@@ -8769,6 +8777,72 @@ uint8_t *driver_argv_drop_subcommand(int argc, uint8_t *argv_opaque) {
     adj[0] = argv[0];
     for (i = 2; i < argc; i++)
         adj[i - 1] = argv[i];
+    return (uint8_t *)adj;
+}
+
+/* Build the argv used by `shux run` / bare `shux file.x`: if the user already
+ * passed -o, return argv unchanged (and *out_argc = argc) so the explicit
+ * product path is compiled and exec'd. Otherwise append `-o <temp>` where
+ * <temp> is a unique /tmp path, so the C/asm backend links a real executable
+ * (no a.out in cwd, no generated C to stdout) and driver_exec_compiled execs
+ * that temp. The temp is a unique name obtained via mkstemp+unlink; the
+ * compiler (cc -o / ld -o) creates the actual executable file.
+ * PLATFORM: SHARED — /tmp on POSIX, current dir fallback on Windows. */
+#ifndef SHUX_RUN_TMP_PREFIX
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+#define SHUX_RUN_TMP_PREFIX "shux_run_"
+#else
+#define SHUX_RUN_TMP_PREFIX "/tmp/shux_run_"
+#endif
+#endif
+uint8_t *driver_argv_ensure_run_o(int argc, uint8_t *argv_opaque, int *out_argc) {
+    static char *adj[512];
+    static char temp_path[96];
+    char **argv;
+    int has_o = 0;
+    int i;
+    if (out_argc)
+        *out_argc = argc;
+    if (!argv_opaque || argc < 1)
+        return argv_opaque;
+    argv = (char **)argv_opaque;
+    /* Respect an explicit -o: scan like driver_exec_scan_out_path. */
+    for (i = 1; i < argc - 1; i++) {
+        if (argv[i] && strcmp(argv[i], "-o") == 0) {
+            has_o = 1;
+            break;
+        }
+    }
+    if (has_o)
+        return argv_opaque;
+    if (argc + 2 > 512)
+        return argv_opaque;
+    snprintf(temp_path, sizeof temp_path, "%sXXXXXX", SHUX_RUN_TMP_PREFIX);
+    {
+#if !defined(_WIN32) && !defined(_WIN64) && !defined(__CYGWIN__)
+        /* POSIX: mkstemp yields an atomically unique name; free it so cc -o
+         * creates the executable itself (mkstemp leaves an empty regular file). */
+        int fd = mkstemp(temp_path);
+        if (fd >= 0) {
+            close(fd);
+            unlink(temp_path);
+        } else {
+            snprintf(temp_path, sizeof temp_path, "%s%ld", SHUX_RUN_TMP_PREFIX, (long)getpid());
+        }
+#else
+        /* Windows: no mkstemp here; use a per-process counter for uniqueness. */
+        static long run_counter = 0;
+        run_counter = run_counter + 1;
+        snprintf(temp_path, sizeof temp_path, "%s%ld", SHUX_RUN_TMP_PREFIX, run_counter);
+#endif
+    }
+    for (i = 0; i < argc; i++)
+        adj[i] = argv[i];
+    adj[argc] = (char *)"-o";
+    adj[argc + 1] = temp_path;
+    adj[argc + 2] = (char *)0;
+    if (out_argc)
+        *out_argc = argc + 2;
     return (uint8_t *)adj;
 }
 
