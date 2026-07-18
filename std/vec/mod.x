@@ -157,8 +157,8 @@ export function push(v: *Vec_i32, x: i32, arena: *heap.Arena64): i32 {
  * @return i32
  */
 export function pop(v: *Vec_i32): i32 {
-  /* See implementation. */
-  push）。 */
+  /* Root block is a single if so the last stmt is not misread as implicit tail
+   * return (see push). */
   if (0 == 0) {
     v.len = v.len - 1;
     return v.ptr[v.len];
