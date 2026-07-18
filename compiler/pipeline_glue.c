@@ -240,6 +240,7 @@ int32_t pipeline_elf_ctx_emit_code_len(uint8_t *ctx_bytes);
 int32_t pipeline_elf_ctx_ensure_label(uint8_t *ctx_bytes, uint8_t *name, int32_t name_len);
 int32_t pipeline_elf_ctx_append_patch(uint8_t *ctx_bytes, int32_t rel32_offset, uint8_t *name, int32_t name_len,
                                       int32_t imm_bits);
+int32_t pipeline_elf_ctx_append_reloc(uint8_t *ctx_bytes, int32_t offset, uint8_t *name, int32_t name_len);
 int32_t pipeline_elf_write_o_pgo_to_buf(uint8_t *ctx_bytes, struct codegen_CodegenOutBuf *out);
 /** Module mutable lit shared storage (true cross-fn); defs near register_module_top_level_lets. */
 int32_t pipeline_asm_modlet_name_is_shared(uint8_t *name, int32_t name_len);
@@ -16885,8 +16886,9 @@ static int32_t pipeline_asm_modlet_find(uint8_t *name, int32_t name_len) {
 }
 
 /**
- * PLATFORM: LINUX|UBUNTU x86_64 (and macOS x86_64 host) — lea rbx, [rip+label].
- * Uses label patch (same machinery as enc_jmp); does not clobber rax.
+ * PLATFORM: LINUX|UBUNTU x86_64 — lea rbx, [rip+disp] with R_X86_64_PC32 to COMMON object.
+ * COMMON lives in linker BSS (writable); never embed mutable cells in RX .text.
+ * Does not clobber rax (safe after assign rhs).
  */
 static int32_t pipeline_asm_modlet_lea_rbx_rip_x86(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t idx) {
   uint8_t *cb;
@@ -16910,9 +16912,8 @@ static int32_t pipeline_asm_modlet_lea_rbx_rip_x86(struct platform_elf_ElfCodege
   if (pipeline_elf_ctx_append_bytes(cb, lea7, 7) != 0)
     return -1;
   rel32_at = pipeline_elf_ctx_emit_code_len(cb) - 4;
-  if (pipeline_elf_ctx_ensure_label(cb, lname, llen) != 0)
-    return -1;
-  return pipeline_elf_ctx_append_patch(cb, rel32_at, lname, llen, 0);
+  /* Reloc (not internal patch): linker resolves to SHN_COMMON BSS. */
+  return pipeline_elf_ctx_append_reloc(cb, rel32_at, lname, llen);
 }
 
 /** Load shared modlet cell into rax. 0=ok, -1=miss/err. */
@@ -16943,18 +16944,20 @@ static int32_t pipeline_asm_modlet_store_from_rax_elf_c(struct platform_elf_ElfC
   return backend_enc_store_rax_to_rbx_indirect_arch(elf_ctx, 8, ta);
 }
 
+/** ast_pool.c — SHN_COMMON object symbols for module mutable lets (writable BSS via linker). */
+extern int32_t pipeline_elf_ctx_add_common_sym(uint8_t *ctx_bytes, uint8_t *name, int32_t name_len, int32_t size,
+                                               int32_t align);
+
 /**
- * PLATFORM: SHARED x86_64 — once per mega emit: jmp over cells, label each 8B init, skip.
- * Builds g_pipeline_asm_modlet for load/store authority.
+ * PLATFORM: SHARED x86_64 — once per mega emit: build modlet table + SHN_COMMON symbols.
+ * Linker places COMMON in BSS (writable). Non-zero inits seeded on hoist-target entry.
+ * Do NOT put mutable cells in .text (RX → SEGV on store).
  */
 static int32_t pipeline_asm_modlet_prepare_and_emit_elf_c(struct ast_Module *m, struct ast_ASTArena *a,
                                                           struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
   int32_t tl;
   int32_t n;
   int32_t i;
-  uint8_t skip_lbl[24];
-  int32_t skip_len;
-  uint8_t z8[8];
   pipeline_asm_modlet_reset();
   if (!m || !a || !elf_ctx || ta != 0 || m->num_top_level_lets <= 0)
     return 0;
@@ -16985,7 +16988,7 @@ static int32_t pipeline_asm_modlet_prepare_and_emit_elf_c(struct ast_Module *m, 
     for (k = 0; k < name_len; k++)
       g_pipeline_asm_modlet.name[idx][k] = pipeline_module_top_level_let_name_byte_at(m, tl, k);
     g_pipeline_asm_modlet.init_imm[idx] = pipeline_expr_int_val_at(a, init_ref);
-    /* Label: Lshux_ml_<idx> */
+    /* Symbol: Lshux_ml_<idx> (COMMON object; reloc target for lea). */
     {
       int32_t llen = 0;
       const char *pfx = "Lshux_ml_";
@@ -17012,45 +17015,32 @@ static int32_t pipeline_asm_modlet_prepare_and_emit_elf_c(struct ast_Module *m, 
     }
     g_pipeline_asm_modlet.n = idx + 1;
   }
-  if (g_pipeline_asm_modlet.n <= 0)
-    return 0;
-  /* skip label after all cells */
-  {
-    const char *sp = "Lshux_ml_skip";
-    skip_len = 0;
-    while (sp[skip_len] != 0 && skip_len < 23) {
-      skip_lbl[skip_len] = (uint8_t)sp[skip_len];
-      skip_len++;
-    }
+  for (i = 0; i < g_pipeline_asm_modlet.n; i++) {
+    if (pipeline_elf_ctx_add_common_sym((uint8_t *)elf_ctx, g_pipeline_asm_modlet.label[i],
+                                        g_pipeline_asm_modlet.label_len[i], 8, 8) != 0)
+      return -1;
   }
-  if (backend_enc_jmp_arch(elf_ctx, skip_lbl, skip_len, ta) != 0)
-    return -1;
+  return 0;
+}
+
+/**
+ * PLATFORM: SHARED x86_64 — seed non-zero COMMON cells once on hoist-target entry
+ * (BSS starts zero; e.g. heap_trace_on = -1 needs this).
+ */
+static int32_t pipeline_asm_modlet_seed_nonzero_inits_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
+  int32_t i;
+  if (!elf_ctx || ta != 0)
+    return 0;
   for (i = 0; i < g_pipeline_asm_modlet.n; i++) {
     int32_t imm = g_pipeline_asm_modlet.init_imm[i];
-    if (backend_enc_label_arch(elf_ctx, g_pipeline_asm_modlet.label[i], g_pipeline_asm_modlet.label_len[i], 0, ta) !=
-        0)
+    if (imm == 0)
+      continue;
+    if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, imm, 0, ta) != 0)
       return -1;
-    z8[0] = (uint8_t)(imm & 255);
-    z8[1] = (uint8_t)((imm >> 8) & 255);
-    z8[2] = (uint8_t)((imm >> 16) & 255);
-    z8[3] = (uint8_t)((imm >> 24) & 255);
-    /* sign-extend high for negative imm (e.g. heap_trace_on = -1) */
-    if (imm < 0) {
-      z8[4] = 0xff;
-      z8[5] = 0xff;
-      z8[6] = 0xff;
-      z8[7] = 0xff;
-    } else {
-      z8[4] = 0;
-      z8[5] = 0;
-      z8[6] = 0;
-      z8[7] = 0;
-    }
-    if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, z8, 8) != 0)
+    if (pipeline_asm_modlet_store_from_rax_elf_c(elf_ctx, g_pipeline_asm_modlet.name[i],
+                                                 g_pipeline_asm_modlet.name_len[i], ta) != 0)
       return -1;
   }
-  if (backend_enc_label_arch(elf_ctx, skip_lbl, skip_len, 0, ta) != 0)
-    return -1;
   return 0;
 }
 
@@ -20507,6 +20497,14 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(struct ast_Module *m
       if (getenv("SHUX_ASM_DEBUG"))
         fprintf(stderr, "shux: mega_body_c top_level lit inits fail func=%.*s fi=%d\n", (int)fname_len,
                 (char *)fname_buf, (int)i);
+      return -1;
+    }
+    /** COMMON BSS starts zero; non-zero modlet inits (e.g. -1) once on hoist target. */
+    if (i == pipeline_asm_hoist_target_func_index(m) &&
+        pipeline_asm_modlet_seed_nonzero_inits_elf_c(elf_ctx, ta) != 0) {
+      if (getenv("SHUX_ASM_DEBUG"))
+        fprintf(stderr, "shux: mega_body_c modlet nonzero seed fail func=%.*s\n", (int)fname_len,
+                (char *)fname_buf);
       return -1;
     }
     if (pipeline_asm_emit_async_cps_entry_elf_c(a, elf_ctx, bctx, m, i, ta) != 0)

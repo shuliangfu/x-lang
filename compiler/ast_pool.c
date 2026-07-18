@@ -8507,17 +8507,45 @@ int32_t pipeline_elf_write_o_standard_to_buf_c(uint8_t *ctx_bytes, struct codege
     s = 0;
     while (s < ctx->num_syms) {
       uint8_t ent[24];
+      int32_t is_common;
+      int32_t csize;
+      int32_t calign;
       memset(ent, 0, sizeof(ent));
-      ent[4] = 18;
-      ent[6] = 1;
+      is_common = (g_pipeline_elf_common_owner == ctx_bytes && s < PIPELINE_ELF_CTX_TABLE_CAP &&
+                   g_pipeline_elf_sym_is_common[s] != 0)
+                      ? 1
+                      : 0;
       ent[0] = (uint8_t)(str_off & 255);
       ent[1] = (uint8_t)((str_off >> 8) & 255);
       ent[2] = (uint8_t)((str_off >> 16) & 255);
       ent[3] = (uint8_t)((str_off >> 24) & 255);
-      ent[8] = (uint8_t)(ctx->syms[s].offset & 255);
-      ent[9] = (uint8_t)((ctx->syms[s].offset >> 8) & 255);
-      ent[10] = (uint8_t)((ctx->syms[s].offset >> 16) & 255);
-      ent[11] = (uint8_t)((ctx->syms[s].offset >> 24) & 255);
+      if (is_common != 0) {
+        /* STB_GLOBAL|STT_OBJECT=17; SHN_COMMON=0xfff2; st_value=align, st_size=size */
+        csize = g_pipeline_elf_sym_common_size[s];
+        calign = g_pipeline_elf_sym_common_align[s];
+        if (calign <= 0)
+          calign = 8;
+        if (csize <= 0)
+          csize = 8;
+        ent[4] = 17;
+        ent[6] = 0xf2;
+        ent[7] = 0xff;
+        ent[8] = (uint8_t)(calign & 255);
+        ent[9] = (uint8_t)((calign >> 8) & 255);
+        ent[10] = (uint8_t)((calign >> 16) & 255);
+        ent[11] = (uint8_t)((calign >> 24) & 255);
+        ent[16] = (uint8_t)(csize & 255);
+        ent[17] = (uint8_t)((csize >> 8) & 255);
+        ent[18] = (uint8_t)((csize >> 16) & 255);
+        ent[19] = (uint8_t)((csize >> 24) & 255);
+      } else {
+        ent[4] = 18;
+        ent[6] = 1;
+        ent[8] = (uint8_t)(ctx->syms[s].offset & 255);
+        ent[9] = (uint8_t)((ctx->syms[s].offset >> 8) & 255);
+        ent[10] = (uint8_t)((ctx->syms[s].offset >> 16) & 255);
+        ent[11] = (uint8_t)((ctx->syms[s].offset >> 24) & 255);
+      }
       if (pipeline_elf_out_append(out, ent, 24) != 0)
         return -1;
       str_off = str_off + ctx->syms[s].name_len + 1;
@@ -8900,19 +8928,46 @@ int32_t pipeline_elf_write_o_pgo_to_buf(uint8_t *ctx_bytes, struct codegen_Codeg
     while (s < ctx->num_syms) {
       uint8_t ent[24];
       int32_t shndx;
+      int32_t is_common;
+      int32_t csize;
+      int32_t calign;
       memset(ent, 0, sizeof(ent));
+      is_common = (g_pipeline_elf_common_owner == ctx_bytes && s < PIPELINE_ELF_CTX_TABLE_CAP &&
+                   g_pipeline_elf_sym_is_common[s] != 0)
+                      ? 1
+                      : 0;
       shndx = pipeline_elf_ctx_sym_shndx_at(ctx_bytes, s);
       ent[0] = (uint8_t)(str_off & 255);
       ent[1] = (uint8_t)((str_off >> 8) & 255);
       ent[2] = (uint8_t)((str_off >> 16) & 255);
       ent[3] = (uint8_t)((str_off >> 24) & 255);
-      ent[4] = 18;
-      ent[6] = (uint8_t)(shndx & 255);
-      ent[7] = (uint8_t)((shndx >> 8) & 255);
-      ent[8] = (uint8_t)(ctx->syms[s].offset & 255);
-      ent[9] = (uint8_t)((ctx->syms[s].offset >> 8) & 255);
-      ent[10] = (uint8_t)((ctx->syms[s].offset >> 16) & 255);
-      ent[11] = (uint8_t)((ctx->syms[s].offset >> 24) & 255);
+      if (is_common != 0) {
+        csize = g_pipeline_elf_sym_common_size[s];
+        calign = g_pipeline_elf_sym_common_align[s];
+        if (calign <= 0)
+          calign = 8;
+        if (csize <= 0)
+          csize = 8;
+        ent[4] = 17;
+        ent[6] = 0xf2;
+        ent[7] = 0xff;
+        ent[8] = (uint8_t)(calign & 255);
+        ent[9] = (uint8_t)((calign >> 8) & 255);
+        ent[10] = (uint8_t)((calign >> 16) & 255);
+        ent[11] = (uint8_t)((calign >> 24) & 255);
+        ent[16] = (uint8_t)(csize & 255);
+        ent[17] = (uint8_t)((csize >> 8) & 255);
+        ent[18] = (uint8_t)((csize >> 16) & 255);
+        ent[19] = (uint8_t)((csize >> 24) & 255);
+      } else {
+        ent[4] = 18;
+        ent[6] = (uint8_t)(shndx & 255);
+        ent[7] = (uint8_t)((shndx >> 8) & 255);
+        ent[8] = (uint8_t)(ctx->syms[s].offset & 255);
+        ent[9] = (uint8_t)((ctx->syms[s].offset >> 8) & 255);
+        ent[10] = (uint8_t)((ctx->syms[s].offset >> 16) & 255);
+        ent[11] = (uint8_t)((ctx->syms[s].offset >> 24) & 255);
+      }
       if (pipeline_elf_out_append(out, ent, 24) != 0)
         return -1;
       str_off = str_off + ctx->syms[s].name_len + 1;
@@ -9388,6 +9443,22 @@ int32_t pipeline_elf_ctx_pad_code_to_4(uint8_t *ctx_bytes) {
   return 0;
 }
 
+/**
+ * PLATFORM: SHARED — sidecar flags for SHN_COMMON object symbols (module mutable lets).
+ * st_shndx=SHN_COMMON (0xfff2): linker allocates writable BSS; st_value=align, st_size=size.
+ */
+static uint8_t *g_pipeline_elf_common_owner;
+static uint8_t g_pipeline_elf_sym_is_common[PIPELINE_ELF_CTX_TABLE_CAP];
+static int32_t g_pipeline_elf_sym_common_size[PIPELINE_ELF_CTX_TABLE_CAP];
+static int32_t g_pipeline_elf_sym_common_align[PIPELINE_ELF_CTX_TABLE_CAP];
+
+static void pipeline_elf_common_sidecar_reset(uint8_t *ctx_bytes) {
+  g_pipeline_elf_common_owner = ctx_bytes;
+  memset(g_pipeline_elf_sym_is_common, 0, sizeof(g_pipeline_elf_sym_is_common));
+  memset(g_pipeline_elf_sym_common_size, 0, sizeof(g_pipeline_elf_sym_common_size));
+  memset(g_pipeline_elf_sym_common_align, 0, sizeof(g_pipeline_elf_sym_common_align));
+}
+
 /** 记录导出符号；端口 elf.x elf_add_sym。 */
 int32_t pipeline_elf_ctx_add_sym(uint8_t *ctx_bytes, uint8_t *name, int32_t name_len, int32_t offset) {
   PipelineElfCtxAccess *ctx;
@@ -9400,6 +9471,8 @@ int32_t pipeline_elf_ctx_add_sym(uint8_t *ctx_bytes, uint8_t *name, int32_t name
   ctx = (PipelineElfCtxAccess *)ctx_bytes;
   if (ctx->num_syms >= PIPELINE_ELF_CTX_TABLE_CAP)
     return -1;
+  if (g_pipeline_elf_common_owner != ctx_bytes)
+    pipeline_elf_common_sidecar_reset(ctx_bytes);
   copy_len = name_len;
   if (copy_len > 64)
     copy_len = 64;
@@ -9423,7 +9496,37 @@ int32_t pipeline_elf_ctx_add_sym(uint8_t *ctx_bytes, uint8_t *name, int32_t name
   else
     shndx = PIPELINE_ELF_SHNX_TEXT;
   ctx->syms[ctx->num_syms].sym_shndx = shndx;
+  g_pipeline_elf_sym_is_common[ctx->num_syms] = 0;
   ctx->num_syms = ctx->num_syms + 1;
+  return 0;
+}
+
+/**
+ * PLATFORM: SHARED — add SHN_COMMON object symbol (linker BSS, writable).
+ * Used by asm modlet (true cross-fn mutable top-level lit lets).
+ */
+int32_t pipeline_elf_ctx_add_common_sym(uint8_t *ctx_bytes, uint8_t *name, int32_t name_len, int32_t size,
+                                        int32_t align) {
+  PipelineElfCtxAccess *ctx;
+  int32_t si;
+  if (!ctx_bytes || !name || name_len <= 0 || size <= 0)
+    return -1;
+  if (align <= 0)
+    align = 8;
+  if (g_pipeline_elf_common_owner != ctx_bytes)
+    pipeline_elf_common_sidecar_reset(ctx_bytes);
+  /* offset unused for COMMON; store size in offset for debug. */
+  if (pipeline_elf_ctx_add_sym(ctx_bytes, name, name_len, size) != 0)
+    return -1;
+  ctx = (PipelineElfCtxAccess *)ctx_bytes;
+  si = ctx->num_syms - 1;
+  if (si < 0 || si >= PIPELINE_ELF_CTX_TABLE_CAP)
+    return -1;
+  g_pipeline_elf_sym_is_common[si] = 1;
+  g_pipeline_elf_sym_common_size[si] = size;
+  g_pipeline_elf_sym_common_align[si] = align;
+  /* Distinct from .text so writers can branch. */
+  ctx->syms[si].sym_shndx = 0xfff2;
   return 0;
 }
 
