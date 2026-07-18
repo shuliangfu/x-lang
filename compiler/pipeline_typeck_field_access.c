@@ -474,13 +474,17 @@ int32_t pipeline_typeck_field_layout_named_c(struct ast_Module *module, struct a
 }
 
 /**
- * EXPR_FIELD_ACCESS：T[] 的 .length（usize）与 .data（*elem，当前仅 u8[]）。
+ * EXPR_FIELD_ACCESS：T[] 的 .length（usize）与 .data（*elem for any T）.
  *
  * Fat layout (PLATFORM: SHARED / SysV dual-GP home): { .data @ +0, .length @ +8 }.
  * Asm stack homes register byte0 at slot_off; high half at slot_off-8 (see
  * asm_local_slot_reg_offset / param dual-home). Emit must use field_access_offset so
  * lea base + add offset hits the correct half — previously offset stayed 0 and
  * s.length loaded .data (tests/slice/data_field.x exit 2).
+ *
+ * G.7 complete: .data must resolve to TYPE_PTR(elem) for i32/u8/u64/… — not only U8.
+ * Old U8-only gate left s.data untyped for i32[] → INDEX `s.data[i]` T001 on Ubuntu
+ * (formal core/slice/mod.x get_i32 / length.x co-emit typeck). mac often soft-pathed.
  */
 void pipeline_typeck_field_slice_c(struct ast_ASTArena *arena, int32_t expr_ref, int32_t base_ref) {
   int32_t base_ty;
@@ -515,12 +519,11 @@ void pipeline_typeck_field_slice_c(struct ast_ASTArena *arena, int32_t expr_ref,
     return;
   }
   if (fl == 4 && typeck_name_equal(&fn_buf[0], fl, (uint8_t *)&dat_nm[0], 4)) {
+    /** G.7 authority: .data is *elem for every slice element kind (i32/u8/u64/…). */
     pipeline_expr_set_field_access_offset(arena, expr_ref, 0);
-    if (pipeline_type_kind_ord_at(arena, elem_ty) == (int32_t)ast_TypeKind_TYPE_U8) {
-      ptr_ref = find_or_alloc_ptr_type_ref(arena, elem_ty);
-      if (ptr_ref != 0)
-        pipeline_expr_set_resolved_type_ref(arena, expr_ref, ptr_ref);
-    }
+    ptr_ref = find_or_alloc_ptr_type_ref(arena, elem_ty);
+    if (ptr_ref != 0)
+      pipeline_expr_set_resolved_type_ref(arena, expr_ref, ptr_ref);
   }
 }
 
