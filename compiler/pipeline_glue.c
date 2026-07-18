@@ -3978,13 +3978,37 @@ static int32_t glue_emit_struct_type_let_init_elf_c(struct ast_ASTArena *arena,
     pipeline_asm_set_call_expected_ret_ty_c(let_ty_ref > 0 ? let_ty_ref : 0);
     {
       int32_t call_ret_sz = glue_call_return_byte_size_c(arena, init_ref);
-      /** Prefer call return size; fall back to let annotation (import dep layout may miss call_ret). */
+      /**
+       * Prefer call return size; fall back / widen from let annotation when call ret is weak.
+       * PLATFORM: SHARED (SysV sret gate) — LINUX+MACOS x86_64.
+       *
+       * Root (length.x Option_u8 exit 4): call_ret_sz for get_u8 is correctly 8 (rax return),
+       * but named_layout over-reported Option_u8 as 24 (cross-arena field type_ref sizing /
+       * bare-name layout hit). Old code always replaced let_sz with named when let_sz<=16,
+       * inflating 8→24 and taking false sret (hidden rdi = dest; callee still uses rdi as
+       * first arg) → slot never written; deferred is_some_u8 fails.
+       *
+       * Rule: once callee return is a valid register class (1..16), never let named_layout
+       * push into MEMORY/sret (>16). Named may still widen dual-GP within ≤16, or upgrade
+       * when call_ret/size_simple is weak (≤0 or scalar fallback 4) for true large structs
+       * (vec.new etc.).
+       */
       if (call_ret_sz <= 16 && let_ty_ref > 0) {
         int32_t let_sz = glue_type_size_simple(g_pipeline_asm_emit_module, arena, let_ty_ref, 0);
+        int32_t named_sz = 0;
+        int32_t best;
         if (let_sz <= 16)
-          let_sz = glue_type_named_layout_size_any_module_elf_c(arena, let_ty_ref);
-        if (let_sz > call_ret_sz)
-          call_ret_sz = let_sz;
+          named_sz = glue_type_named_layout_size_any_module_elf_c(arena, let_ty_ref);
+        best = let_sz;
+        if (named_sz > best) {
+          if (call_ret_sz > 0 && call_ret_sz <= 16 && named_sz > 16) {
+            /* keep best — do not false-sret over a known register-class call ret */
+          } else if (let_sz <= 4 || call_ret_sz <= 0 || named_sz <= 16) {
+            best = named_sz;
+          }
+        }
+        if (best > call_ret_sz)
+          call_ret_sz = best;
       }
       /** SysV >16B struct return: hidden rdi = let slot; callee writes; do not glue_store_retval. */
       if (call_ret_sz > 16 && ta == 0) {
