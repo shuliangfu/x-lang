@@ -4365,6 +4365,44 @@ static int32_t glue_index_deref_ptr_field_slot_rbx_elf_c(struct ast_ASTArena *ar
 }
 
 /**
+ * VAR type for emit: resolved_type_ref, else param / scope / func-body let decl type.
+ *
+ * PLATFORM: SHARED — import asm often skips .x typeck (driver skip_typeck), so VAR uses
+ * of `let sub: i32[] = slice.subslice_*(...)` have resolved_type_ref=0 while the let
+ * annotation is TYPE_SLICE. Without this fallback INDEX does lea(fat) instead of
+ * load(.data), and .length uses offset 0 (tests/slice/subslice_split_chunks.x).
+ * G.7: single authority for VAR type recovery (also used by index_elem_byte_sz).
+ */
+static int32_t glue_var_expr_type_ref_with_decl_fallback_c(struct ast_ASTArena *arena, int32_t var_ref) {
+  int32_t tr;
+  uint8_t vname[64];
+  int32_t vlen;
+  if (!arena || var_ref <= 0)
+    return 0;
+  tr = pipeline_expr_resolved_type_ref(arena, var_ref);
+  if (tr > 0)
+    return tr;
+  if (pipeline_expr_kind_ord_at(arena, var_ref) != GLUE_EXPR_KIND_VAR || !g_pipeline_asm_emit_module)
+    return 0;
+  vlen = pipeline_expr_var_name_len(arena, var_ref);
+  if (vlen <= 0 || vlen > 63)
+    return 0;
+  pipeline_expr_var_name_into(arena, var_ref, vname);
+  if (g_pipeline_asm_emit_func_index >= 0)
+    tr = pipeline_module_func_param_type_ref_for_name(g_pipeline_asm_emit_module, g_pipeline_asm_emit_func_index,
+                                                     vname, vlen);
+  if (tr <= 0 && g_pipeline_asm_emit_scope_block > 0)
+    tr = pipeline_block_resolve_var_type_ref(arena, g_pipeline_asm_emit_scope_block, vname, vlen);
+  if (tr <= 0 && g_pipeline_asm_emit_func_index >= 0) {
+    int32_t body_ref =
+        pipeline_module_func_body_ref_at(g_pipeline_asm_emit_module, g_pipeline_asm_emit_func_index);
+    if (body_ref > 0)
+      tr = pipeline_block_resolve_var_type_ref(arena, body_ref, vname, vlen);
+  }
+  return tr > 0 ? tr : 0;
+}
+
+/**
  * INDEX 基址入 rax/x0：局部 VAR 或 VAR-base FIELD_ACCESS（如 let/形参 p.arr）。
  * 形参 struct 为 load 指针 + 字段偏移；块内 let struct 为 lea + 偏移。0=OK，-1=错，-2=不适用。
  */
@@ -4391,7 +4429,7 @@ static int32_t glue_try_index_var_or_field_base_to_rax_elf_c(struct ast_ASTArena
     if (boff < 0)
       return -2;
     /** Slice local `{ *data, length }`: load `.data` from slot (not lea fat pointer). */
-    tr = pipeline_expr_resolved_type_ref(arena, base_ref);
+    tr = glue_var_expr_type_ref_with_decl_fallback_c(arena, base_ref);
     if (tr > 0 && pipeline_type_kind_ord_at(arena, tr) == GLUE_TYPE_KIND_SLICE)
       return backend_enc_load_rbp_to_rax_arch(elf_ctx, boff, ta);
     return glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, base_ref, boff, ctx, ta);
@@ -4439,7 +4477,7 @@ static int32_t glue_try_index_var_or_field_base_to_rbx_elf_c(struct ast_ASTArena
     boff = glue_var_expr_stack_off_elf_c(arena, ctx, base_ref);
     if (boff < 0)
       return -2;
-    tr = pipeline_expr_resolved_type_ref(arena, base_ref);
+    tr = glue_var_expr_type_ref_with_decl_fallback_c(arena, base_ref);
     if (tr > 0 && pipeline_type_kind_ord_at(arena, tr) == GLUE_TYPE_KIND_SLICE)
       return backend_enc_load_rbp_to_rbx_arch(elf_ctx, boff, ta);
     return glue_enc_local_slot_ptr_or_addr_rbx_elf_c(arena, elf_ctx, base_ref, boff, ctx, ta);
@@ -9454,28 +9492,10 @@ static int32_t pipeline_asm_index_elem_byte_sz_c(struct ast_ASTArena *arena, int
       return glue_index_elem_byte_sz_from_type_ref_c(arena, tr);
     return 4;
   }
-  tr = pipeline_expr_resolved_type_ref(arena, base_ref);
-  /** skip typeck 时 resolved_type_ref=0：从 VAR 声明作用域查 let/param 声明类型（p:*u8 等）。
-   *  【Why】import 程序走 -o asm 时 driver_x_pipeline_skip_typeck_set(1) 跳过 .x typeck，
-   *  INDEX base VAR 的 resolved_type_ref 未设，导致步长默认 4（i32）而非 *u8 的 1 字节。
-   *  【Invariant】仅 VAR(kind=3) 基址走此 fallback；FIELD_ACCESS(44) 已在上方处理。 */
-  if (tr <= 0 && pipeline_expr_kind_ord_at(arena, base_ref) == 3 && g_pipeline_asm_emit_module) {
-    uint8_t vname_idx[64];
-    int32_t vlen_idx = pipeline_expr_var_name_len(arena, base_ref);
-    if (vlen_idx > 0 && vlen_idx <= 63) {
-      pipeline_expr_var_name_into(arena, base_ref, vname_idx);
-      if (g_pipeline_asm_emit_func_index >= 0)
-        tr = pipeline_module_func_param_type_ref_for_name(g_pipeline_asm_emit_module,
-                                                           g_pipeline_asm_emit_func_index, vname_idx, vlen_idx);
-      if (tr <= 0 && g_pipeline_asm_emit_scope_block > 0)
-        tr = pipeline_block_resolve_var_type_ref(arena, g_pipeline_asm_emit_scope_block, vname_idx, vlen_idx);
-      if (tr <= 0 && g_pipeline_asm_emit_func_index >= 0) {
-        int32_t body_ref_idx = pipeline_module_func_body_ref_at(g_pipeline_asm_emit_module, g_pipeline_asm_emit_func_index);
-        if (body_ref_idx > 0)
-          tr = pipeline_block_resolve_var_type_ref(arena, body_ref_idx, vname_idx, vlen_idx);
-      }
-    }
-  }
+  /** G.7: same VAR type recovery as INDEX slice load / .length offset (decl fallback). */
+  tr = glue_var_expr_type_ref_with_decl_fallback_c(arena, base_ref);
+  if (tr <= 0)
+    tr = pipeline_expr_resolved_type_ref(arena, base_ref);
   if (tr <= 0)
     return 4;
   kind_ord = pipeline_type_kind_ord_at(arena, tr);
@@ -11253,7 +11273,9 @@ static int32_t glue_emit_index_eff_addr_base_elf_c(struct ast_ASTArena *arena,
   } else if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, base_ref, ctx, ta) != 0) {
     return -1;
   }
-  tr = pipeline_expr_resolved_type_ref(arena, base_ref);
+  tr = glue_var_expr_type_ref_with_decl_fallback_c(arena, base_ref);
+  if (tr <= 0)
+    tr = pipeline_expr_resolved_type_ref(arena, base_ref);
   if (tr > 0 && pipeline_type_kind_ord_at(arena, tr) == GLUE_TYPE_KIND_SLICE) {
     if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
       return -1;
@@ -11318,7 +11340,9 @@ static int32_t glue_emit_index_eff_addr_base_text_c(struct ast_ASTArena *arena, 
   } else if (pipeline_asm_emit_expr_c(arena, out, base_ref, ctx, ta) != 0) {
     return -1;
   }
-  tr = pipeline_expr_resolved_type_ref(arena, base_ref);
+  tr = glue_var_expr_type_ref_with_decl_fallback_c(arena, base_ref);
+  if (tr <= 0)
+    tr = pipeline_expr_resolved_type_ref(arena, base_ref);
   if (tr > 0 && pipeline_type_kind_ord_at(arena, tr) == GLUE_TYPE_KIND_SLICE) {
     if (backend_arch_emit_load_64_from_rax(out, ta) != 0)
       return -1;
@@ -16493,7 +16517,9 @@ int32_t pipeline_expr_field_access_layout_offset(struct ast_ASTArena *a, struct 
       return typed_off;
     /** Built-in T[] fat pointer — not a named struct layout. */
     {
-      int32_t base_ty = pipeline_expr_resolved_type_ref(a, ex->field_access_base_ref);
+      int32_t base_ty = glue_var_expr_type_ref_with_decl_fallback_c(a, ex->field_access_base_ref);
+      if (base_ty <= 0)
+        base_ty = pipeline_expr_resolved_type_ref(a, ex->field_access_base_ref);
       if (base_ty > 0 && pipeline_type_kind_ord_at(a, base_ty) == GLUE_TYPE_KIND_SLICE) {
         if (flen == 4 && memcmp(field_name, "data", 4) == 0)
           return 0;
