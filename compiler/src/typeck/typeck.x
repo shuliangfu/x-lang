@@ -6021,7 +6021,71 @@ export function typeck_check_expr_struct_lit(
 }
 
 /**
+ * Resolve element type of a SIMD vector type for INDEX `v[i]`.
+ * TYPE_VECTOR uses elem_type_ref; TYPE_NAMED spellings (i32x4/u32x8/f32x4/…)
+ * often have empty elem_ref — map prefix to a primitive via ensure_*.
+ * Returns 0 if not a vector-like type.
+ * PLATFORM: SHARED — pairs with typeck_vector_lanes_of_type (NAMED residual).
+ */
+export function typeck_vector_elem_type_ref(arena: *ASTArena, type_ref: i32): i32 {
+  // PLATFORM: SHARED — vector lane element for INDEX / CTFE.
+  unsafe {
+    let ord_type_vector: i32 = 13;
+    let ord_type_named: i32 = 8;
+    let tk: i32 = 0;
+    let er: i32 = 0;
+    let nm: u8[64] = [];
+    let nlen: i32 = 0;
+    if (ast.ref_is_null(type_ref) || type_ref <= 0) {
+      return 0;
+    }
+    if (typeck_vector_lanes_of_type(arena, type_ref) <= 0) {
+      return 0;
+    }
+    tk = pipeline_type_kind_ord_at(arena, type_ref);
+    er = pipeline_type_elem_ref_at(arena, type_ref);
+    if (!ast.ref_is_null(er) && er > 0 && er <= arena.num_types) {
+      return er;
+    }
+    if (tk == ord_type_vector) {
+      /* No elem stamp: default i32 lane (i32xN product default). */
+      return ensure_i32_type_ref(arena);
+    }
+    if (tk != ord_type_named) {
+      return 0;
+    }
+    nlen = pipeline_type_named_name_into(arena, type_ref, &nm[0]);
+    if (nlen <= 0) {
+      return ensure_i32_type_ref(arena);
+    }
+    /* f32x* / f64x* first (overlap with *32 / *64 digit patterns). */
+    if (nlen >= 3 && nm[0] == 102 && nm[1] == 51 && nm[2] == 50) {
+      return ensure_f32_type_ref(arena);
+    }
+    if (nlen >= 3 && nm[0] == 102 && nm[1] == 54 && nm[2] == 52) {
+      return ensure_f64_type_ref(arena);
+    }
+    if (nlen >= 3 && nm[0] == 105 && nm[1] == 54 && nm[2] == 52) {
+      return ensure_i64_type_ref(arena);
+    }
+    if (nlen >= 3 && nm[0] == 117 && nm[1] == 54 && nm[2] == 52) {
+      return typeck_ensure_primitive_by_kind_ord(arena, 4); /* TYPE_U64 */
+    }
+    if (nlen >= 3 && nm[0] == 117 && nm[1] == 51 && nm[2] == 50) {
+      return typeck_ensure_primitive_by_kind_ord(arena, 3); /* TYPE_U32 */
+    }
+    if (nlen >= 2 && nm[0] == 117 && nm[1] == 56) {
+      return ensure_u8_type_ref(arena);
+    }
+    /* i32x* / Vec* / residual → i32 */
+    return ensure_i32_type_ref(arena);
+  }
+}
+
+/**
  * EXPR_INDEX：检查 base/index 下标，写元素类型与 slice/bounds 标记（EMIT_HEAVY X emit）。
+ * Accepts TYPE_ARRAY / SLICE / PTR / VECTOR and TYPE_NAMED SIMD spellings (i32x4…).
+ * PLATFORM: SHARED — product INDEX path for vector lane extract (WPO-S2 lane0).
  */
 export function typeck_check_expr_index(module: *Module, arena: *ASTArena, expr_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
@@ -6040,6 +6104,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     let bt_kind: i32 = 0;
     let elem_ty: i32 = 0;
     let array_sz: i32 = 0;
+    let vec_lanes: i32 = 0;
+    let is_vec_base: i32 = 0;
     if (check_expr(module, arena, base_ref, return_type_ref, ctx) != 0) {
       return - 1;
     }
@@ -6055,12 +6121,21 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
       return - 1;
     }
     bt_kind = pipeline_type_kind_ord_at(arena, base_ty);
-    if (bt_kind != ord_array && bt_kind != ord_slice && bt_kind != ord_ptr && bt_kind != ord_vector) {
+    vec_lanes = typeck_vector_lanes_of_type(arena, base_ty);
+    is_vec_base = 0;
+    if (bt_kind == ord_vector || vec_lanes > 0) {
+      is_vec_base = 1;
+    }
+    if (bt_kind != ord_array && bt_kind != ord_slice && bt_kind != ord_ptr && is_vec_base == 0) {
       driver_diagnostic_typeck_subscript_base(line, col);
       return - 1;
     }
-    elem_ty = pipeline_type_elem_ref_at(arena, base_ty);
-    if (ast.ref_is_null(elem_ty)) {
+    if (is_vec_base != 0) {
+      elem_ty = typeck_vector_elem_type_ref(arena, base_ty);
+    } else {
+      elem_ty = pipeline_type_elem_ref_at(arena, base_ty);
+    }
+    if (ast.ref_is_null(elem_ty) || elem_ty <= 0) {
       driver_diagnostic_typeck_subscript_base(line, col);
       return - 1;
     }
@@ -6072,8 +6147,11 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     }
     if (!ast.ref_is_null(index_ref) && index_ref > 0 && index_ref <= arena.num_exprs) {
       if (pipeline_expr_kind_ord_at(arena, index_ref) == ord_lit &&
-      pipeline_expr_int_val_at(arena, index_ref) == 0 && (bt_kind == ord_array || bt_kind == ord_vector)) {
+      pipeline_expr_int_val_at(arena, index_ref) == 0 && (bt_kind == ord_array || is_vec_base != 0)) {
         array_sz = pipeline_type_array_size_at(arena, base_ty);
+        if (array_sz < 1 && vec_lanes > 0) {
+          array_sz = vec_lanes;
+        }
         if (array_sz >= 1) {
           pipeline_expr_set_index_proven_in_bounds(arena, expr_ref, 1);
         }

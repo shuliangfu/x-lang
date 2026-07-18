@@ -6659,6 +6659,57 @@ int32_t typeck_check_expr_struct_lit(struct ast_Module * module, struct ast_ASTA
   }
   return 0;
 }
+int32_t typeck_vector_elem_type_ref(struct ast_ASTArena * arena, int32_t type_ref) {
+  {
+    int32_t ord_type_vector = 13;
+    int32_t ord_type_named = 8;
+    int32_t tk = 0;
+    int32_t er = 0;
+    uint8_t nm[64];
+    int32_t nlen = 0;
+    if (((ast_ref_is_null(type_ref) || (type_ref <=0)))) {
+      return 0;
+    }
+    if ((typeck_vector_lanes_of_type(arena, type_ref) <=0)) {
+      return 0;
+    }
+    (void)((tk = pipeline_type_kind_ord_at(arena, type_ref)));
+    (void)((er = pipeline_type_elem_ref_at(arena, type_ref)));
+    if (((!(ast_ref_is_null(er)) && (er > 0)) && (er <=(arena->num_types)))) {
+      return er;
+    }
+    if ((tk ==ord_type_vector)) {
+      return typeck_ensure_i32_type_ref(arena);
+    }
+    if ((tk !=ord_type_named)) {
+      return 0;
+    }
+    (void)((nlen = pipeline_type_named_name_into(arena, type_ref, &((nm)[0]))));
+    if ((nlen <=0)) {
+      return typeck_ensure_i32_type_ref(arena);
+    }
+    if ((((nlen >=3) && (nm[0] ==102)) && (nm[1] ==51) && (nm[2] ==50))) {
+      return typeck_ensure_f32_type_ref(arena);
+    }
+    if ((((nlen >=3) && (nm[0] ==102)) && (nm[1] ==54) && (nm[2] ==52))) {
+      return typeck_ensure_f64_type_ref(arena);
+    }
+    if ((((nlen >=3) && (nm[0] ==105)) && (nm[1] ==54) && (nm[2] ==52))) {
+      return typeck_ensure_i64_type_ref(arena);
+    }
+    if ((((nlen >=3) && (nm[0] ==117)) && (nm[1] ==54) && (nm[2] ==52))) {
+      return typeck_ensure_primitive_by_kind_ord(arena, 4);
+    }
+    if ((((nlen >=3) && (nm[0] ==117)) && (nm[1] ==51) && (nm[2] ==50))) {
+      return typeck_ensure_primitive_by_kind_ord(arena, 3);
+    }
+    if ((((nlen >=2) && (nm[0] ==117)) && (nm[1] ==56))) {
+      return typeck_ensure_u8_type_ref(arena);
+    }
+    return typeck_ensure_i32_type_ref(arena);
+  }
+  return 0;
+}
 int32_t typeck_check_expr_index(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
   {
     int32_t ord_lit = 0;
@@ -6674,6 +6725,8 @@ int32_t typeck_check_expr_index(struct ast_Module * module, struct ast_ASTArena 
     int32_t bt_kind = 0;
     int32_t elem_ty = 0;
     int32_t array_sz = 0;
+    int32_t vec_lanes = 0;
+    int32_t is_vec_base = 0;
     if ((typeck_check_expr(module, arena, base_ref, return_type_ref, ctx) !=0)) {
       return -(1);
     }
@@ -6689,12 +6742,21 @@ int32_t typeck_check_expr_index(struct ast_Module * module, struct ast_ASTArena 
       return -(1);
     }
     (void)((bt_kind = pipeline_type_kind_ord_at(arena, base_ty)));
-    if (((((bt_kind !=ord_array) && (bt_kind !=ord_slice)) && (bt_kind !=ord_ptr)) && (bt_kind !=ord_vector))) {
+    (void)((vec_lanes = typeck_vector_lanes_of_type(arena, base_ty)));
+    (void)((is_vec_base = 0));
+    if (((bt_kind ==ord_vector) || (vec_lanes > 0))) {
+      (void)((is_vec_base = 1));
+    }
+    if (((((bt_kind !=ord_array) && (bt_kind !=ord_slice)) && (bt_kind !=ord_ptr)) && (is_vec_base ==0))) {
       (void)(driver_diagnostic_typeck_subscript_base(line, col));
       return -(1);
     }
-    (void)((elem_ty = pipeline_type_elem_ref_at(arena, base_ty)));
-    if (ast_ref_is_null(elem_ty)) {
+    if ((is_vec_base !=0)) {
+      (void)((elem_ty = typeck_vector_elem_type_ref(arena, base_ty)));
+    } else {
+      (void)((elem_ty = pipeline_type_elem_ref_at(arena, base_ty)));
+    }
+    if ((ast_ref_is_null(elem_ty) || (elem_ty <=0))) {
       (void)(driver_diagnostic_typeck_subscript_base(line, col));
       return -(1);
     }
@@ -6705,8 +6767,11 @@ int32_t typeck_check_expr_index(struct ast_Module * module, struct ast_ASTArena 
       (void)(pipeline_expr_set_index_base_is_slice(arena, expr_ref, 0));
     }
     if (((!(ast_ref_is_null(index_ref)) && (index_ref > 0)) && (index_ref <=(arena->num_exprs)))) {
-      if ((((pipeline_expr_kind_ord_at(arena, index_ref) ==ord_lit) && (pipeline_expr_int_val_at(arena, index_ref) ==0)) && ((bt_kind ==ord_array) || (bt_kind ==ord_vector)))) {
+      if ((((pipeline_expr_kind_ord_at(arena, index_ref) ==ord_lit) && (pipeline_expr_int_val_at(arena, index_ref) ==0)) && ((bt_kind ==ord_array) || (is_vec_base !=0)))) {
         (void)((array_sz = pipeline_type_array_size_at(arena, base_ty)));
+        if (((array_sz <1) && (vec_lanes > 0))) {
+          (void)((array_sz = vec_lanes));
+        }
         if ((array_sz >=1)) {
           (void)(pipeline_expr_set_index_proven_in_bounds(arena, expr_ref, 1));
         }

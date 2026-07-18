@@ -1560,6 +1560,8 @@ int32_t backend_emit_loop_body_content_elf_sync(struct ast_ASTArena *arena,
 
 int32_t pipeline_expr_kind_ord_at(struct ast_ASTArena *a, int32_t expr_ref);
 int32_t pipeline_expr_int_val_at(struct ast_ASTArena *a, int32_t expr_ref);
+int32_t pipeline_expr_const_folded_valid_at(struct ast_ASTArena *a, int32_t expr_ref);
+int32_t pipeline_expr_const_folded_val_at(struct ast_ASTArena *a, int32_t expr_ref);
 int32_t pipeline_expr_binop_left_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
 int32_t pipeline_expr_binop_right_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
 int32_t pipeline_expr_float_bits_lo_at(struct ast_ASTArena *a, int32_t expr_ref);
@@ -3701,6 +3703,120 @@ static int32_t glue_fold_func_returns_param01_scalar_binop_c(struct ast_ASTArena
     return 0;
   *out_binop_ko = ko;
   return 1;
+}
+
+/**
+ * PLATFORM: SHARED — callee body is pure `return param0[const_lane]` (1 param).
+ * Authority for WPO-S2 vector lane call-site CTFE (pre-emit). Writes *out_lane.
+ * Mirrors glue_fold_func_returns_param0_index_const (backend try_inline).
+ */
+static int32_t glue_fold_func_returns_param0_index_const_c(struct ast_ASTArena *arena, struct ast_Module *mod,
+                                                          int32_t func_idx, int32_t *out_lane) {
+  int32_t ret_ref;
+  int32_t base_ref;
+  int32_t idx_ref;
+  int32_t lane;
+  int32_t idx_ko;
+  if (!out_lane || !arena || !mod || func_idx < 0)
+    return 0;
+  if (pipeline_module_func_num_params_at(mod, func_idx) != 1)
+    return 0;
+  ret_ref = glue_fold_func_return_operand_ref_c(arena, mod, func_idx);
+  if (ret_ref <= 0)
+    return 0;
+  /* GLUE_EXPR_INDEX / EXPR_INDEX = 47 */
+  if (pipeline_expr_kind_ord_at(arena, ret_ref) != 47)
+    return 0;
+  base_ref = pipeline_expr_index_base_ref(arena, ret_ref);
+  idx_ref = pipeline_expr_index_index_ref(arena, ret_ref);
+  if (glue_expr_is_func_param_at_c(arena, mod, func_idx, base_ref, 0) == 0)
+    return 0;
+  /* Avoid glue_arena_expr_at_ref here (defined later); use public pipeline getters. */
+  if (pipeline_expr_const_folded_valid_at(arena, idx_ref) != 0)
+    lane = pipeline_expr_const_folded_val_at(arena, idx_ref);
+  else {
+    idx_ko = pipeline_expr_kind_ord_at(arena, idx_ref);
+    if (idx_ko != 0 && idx_ko != 2) /* LIT / BOOL_LIT */
+      return 0;
+    lane = (int32_t)pipeline_expr_int_val_at(arena, idx_ref);
+  }
+  *out_lane = lane;
+  return 1;
+}
+
+/**
+ * PLATFORM: SHARED — callee body is pure `return param0 binop param1` for vector/SIMD shape.
+ * Typeck CTFE authority (no dst type required). Allows EXPR_BINOP placeholder ko=51 as add.
+ * Mirrors backend glue_fold_func_returns_param01_vector_binop without emit type_ref.
+ */
+static int32_t glue_fold_func_returns_param01_vector_binop_ctfe_c(struct ast_ASTArena *arena, struct ast_Module *mod,
+                                                                 int32_t func_idx, int32_t *out_binop_ko) {
+  int32_t ret_ref;
+  int32_t ko;
+  int32_t al;
+  int32_t ar;
+  int32_t ret_ty;
+  if (!out_binop_ko || !arena || !mod || func_idx < 0)
+    return 0;
+  if (pipeline_module_func_num_params_at(mod, func_idx) != 2)
+    return 0;
+  ret_ref = glue_fold_func_return_operand_ref_c(arena, mod, func_idx);
+  if (ret_ref <= 0)
+    return 0;
+  ko = pipeline_expr_kind_ord_at(arena, ret_ref);
+  /* Vector add often lands as placeholder 51; scalar add is 4. */
+  if (ko == 51)
+    ko = 4;
+  else if (!glue_is_vector_lane_scalar_binop_ko(ko))
+    return 0;
+  /* Prefer SIMD return type when present; still match pure p0 binop p1 when typeck left i32. */
+  ret_ty = pipeline_module_func_return_type_at(mod, func_idx);
+  if (ret_ty > 0) {
+    if (asm_type_is_simd_vector_spelling(arena, ret_ty) == 0 && asm_type_is_simd_vector(arena, ret_ty) == 0) {
+      /* Body is already vector-shaped binop; allow default i32 return slot (typeck residual). */
+      if (ko < 4 || ko > 8)
+        return 0;
+    }
+  }
+  al = pipeline_expr_binop_left_ref_at(arena, ret_ref);
+  ar = pipeline_expr_binop_right_ref_at(arena, ret_ref);
+  if (glue_expr_is_func_param_at_c(arena, mod, func_idx, al, 0) == 0)
+    return 0;
+  if (glue_expr_is_func_param_at_c(arena, mod, func_idx, ar, 1) == 0)
+    return 0;
+  *out_binop_ko = ko;
+  return 1;
+}
+
+/**
+ * PLATFORM: SHARED — ARRAY_LIT[lane] is an i32-like constant (lit or already folded).
+ * Typeck CTFE helper; mirrors glue_try_array_lit_lane_const_i32 without emit-layer link.
+ */
+static int32_t glue_try_array_lit_lane_const_i32_c(struct ast_ASTArena *arena, int32_t arr_ref, int32_t lane,
+                                                  int32_t *out) {
+  int32_t ne;
+  int32_t elem_ref;
+  int32_t eko;
+  if (!arena || arr_ref <= 0 || !out || lane < 0)
+    return 0;
+  if (pipeline_expr_kind_ord_at(arena, arr_ref) != (int32_t)ast_ExprKind_EXPR_ARRAY_LIT)
+    return 0;
+  ne = pipeline_expr_array_lit_num_elems_at(arena, arr_ref);
+  if (lane >= ne)
+    return 0;
+  elem_ref = pipeline_expr_array_lit_elem_ref(arena, arr_ref, lane);
+  if (elem_ref <= 0)
+    return 0;
+  if (pipeline_expr_const_folded_valid_at(arena, elem_ref) != 0) {
+    *out = pipeline_expr_const_folded_val_at(arena, elem_ref);
+    return 1;
+  }
+  eko = pipeline_expr_kind_ord_at(arena, elem_ref);
+  if (eko == 0 || eko == 2) { /* LIT / BOOL_LIT */
+    *out = (int32_t)pipeline_expr_int_val_at(arena, elem_ref);
+    return 1;
+  }
+  return 0;
 }
 
 /**
@@ -13550,10 +13666,11 @@ static void glue_typeck_fold_expr_ref(struct ast_ASTArena *a, int32_t expr_ref,
 
   /**
    * PLATFORM: SHARED — WPO-S2 / LANG-006 call-site CTFE (pre-emit authority).
-   * Fold pure local `f(c0,c1)` when f body is `return p0 binop p1` and both args
-   * are already folded or lit. Emit only *consumes* const_folded_* (mov imm);
-   * try_inline_wpo_const_scalar_binop_call_elf remains a safety net for trees
-   * that skip typeck fold. Vector lane-of-binop stays emit-side for now.
+   * (1) Pure local `f(c0,c1)` when f body is `return p0 binop p1`.
+   * (2) Pure `laneK(vec_binop([const…],[const…]))` when outer is `return p0[K]`
+   *     and inner is vector `return p0 binop p1` with array-lit const lanes.
+   * Emit only *consumes* const_folded_* (mov imm / C int); try_inline_* remain
+   * safety nets. SHUX_WPO_MONO / NO_FOLD skip stamp so call sites stay live.
    */
   if (kd == ast_ExprKind_EXPR_CALL) {
     int32_t nargs;
@@ -13590,7 +13707,7 @@ static void glue_typeck_fold_expr_ref(struct ast_ASTArena *a, int32_t expr_ref,
         return;
     }
     mod = g_typeck_active_module;
-    if (!mod || nargs != 2)
+    if (!mod)
       return;
     callee_ref = pipeline_expr_call_callee_ref_at(a, expr_ref);
     if (callee_ref <= 0 || pipeline_expr_kind_ord_at(a, callee_ref) != 3)
@@ -13602,55 +13719,128 @@ static void glue_typeck_fold_expr_ref(struct ast_ASTArena *a, int32_t expr_ref,
     fi = glue_module_func_index_by_name_c(mod, cname, clen);
     if (fi < 0)
       return;
-    if (glue_fold_func_returns_param01_scalar_binop_c(a, mod, fi, &binop_ko) == 0)
-      return;
-    arg0 = pipeline_expr_call_arg_ref(a, expr_ref, 0);
-    arg1 = pipeline_expr_call_arg_ref(a, expr_ref, 1);
-    if (arg0 <= 0 || arg1 <= 0)
-      return;
-    ea0 = glue_arena_expr_at_ref(a, arg0);
-    ea1 = glue_arena_expr_at_ref(a, arg1);
-    if (!ea0 || !ea1)
-      return;
-    if (ea0->const_folded_valid)
-      av0 = ea0->const_folded_val;
-    else if (ea0->kind == ast_ExprKind_EXPR_LIT || ea0->kind == ast_ExprKind_EXPR_BOOL_LIT)
-      av0 = (int32_t)ea0->int_val;
-    else
-      return;
-    if (ea1->const_folded_valid)
-      av1 = ea1->const_folded_val;
-    else if (ea1->kind == ast_ExprKind_EXPR_LIT || ea1->kind == ast_ExprKind_EXPR_BOOL_LIT)
-      av1 = (int32_t)ea1->int_val;
-    else
-      return;
-    /* Same domain as glue_const_scalar_binop_eval_i32 (ko 4..8). */
-    switch (binop_ko) {
-    case 4:
-      folded = (int32_t)((int64_t)av0 + (int64_t)av1);
-      break;
-    case 5:
-      folded = (int32_t)((int64_t)av0 - (int64_t)av1);
-      break;
-    case 6:
-      folded = (int32_t)((int64_t)av0 * (int64_t)av1);
-      break;
-    case 7:
-      if (av1 == 0)
+
+    /* (1) scalar f(c0,c1) → const */
+    if (nargs == 2) {
+      if (glue_fold_func_returns_param01_scalar_binop_c(a, mod, fi, &binop_ko) == 0)
         return;
-      folded = (int32_t)((int64_t)av0 / (int64_t)av1);
-      break;
-    case 8:
-      if (av1 == 0)
+      arg0 = pipeline_expr_call_arg_ref(a, expr_ref, 0);
+      arg1 = pipeline_expr_call_arg_ref(a, expr_ref, 1);
+      if (arg0 <= 0 || arg1 <= 0)
         return;
-      folded = (int32_t)((int64_t)av0 % (int64_t)av1);
-      break;
-    default:
+      ea0 = glue_arena_expr_at_ref(a, arg0);
+      ea1 = glue_arena_expr_at_ref(a, arg1);
+      if (!ea0 || !ea1)
+        return;
+      if (ea0->const_folded_valid)
+        av0 = ea0->const_folded_val;
+      else if (ea0->kind == ast_ExprKind_EXPR_LIT || ea0->kind == ast_ExprKind_EXPR_BOOL_LIT)
+        av0 = (int32_t)ea0->int_val;
+      else
+        return;
+      if (ea1->const_folded_valid)
+        av1 = ea1->const_folded_val;
+      else if (ea1->kind == ast_ExprKind_EXPR_LIT || ea1->kind == ast_ExprKind_EXPR_BOOL_LIT)
+        av1 = (int32_t)ea1->int_val;
+      else
+        return;
+      /* Same domain as glue_const_scalar_binop_eval_i32 (ko 4..8). */
+      switch (binop_ko) {
+      case 4:
+        folded = (int32_t)((int64_t)av0 + (int64_t)av1);
+        break;
+      case 5:
+        folded = (int32_t)((int64_t)av0 - (int64_t)av1);
+        break;
+      case 6:
+        folded = (int32_t)((int64_t)av0 * (int64_t)av1);
+        break;
+      case 7:
+        if (av1 == 0)
+          return;
+        folded = (int32_t)((int64_t)av0 / (int64_t)av1);
+        break;
+      case 8:
+        if (av1 == 0)
+          return;
+        folded = (int32_t)((int64_t)av0 % (int64_t)av1);
+        break;
+      default:
+        return;
+      }
+      e->const_folded_val = folded;
+      e->const_folded_valid = 1;
       return;
     }
-    e->const_folded_val = folded;
-    e->const_folded_valid = 1;
-    return;
+
+    /* (2) laneK(vec_binop([const…],[const…])) → scalar const */
+    if (nargs == 1) {
+      int32_t lane;
+      int32_t inner_call_ref;
+      int32_t inner_callee_ref;
+      int32_t ilen;
+      int32_t inner_fi;
+      uint8_t iname[64];
+
+      if (glue_fold_func_returns_param0_index_const_c(a, mod, fi, &lane) == 0)
+        return;
+      inner_call_ref = pipeline_expr_call_arg_ref(a, expr_ref, 0);
+      if (inner_call_ref <= 0)
+        return;
+      if (pipeline_expr_kind_ord_at(a, inner_call_ref) != (int32_t)ast_ExprKind_EXPR_CALL)
+        return;
+      if (pipeline_expr_call_num_args_at(a, inner_call_ref) != 2)
+        return;
+      /* Nested CALL already folded above; still ok if not stamped (vector return). */
+      inner_callee_ref = pipeline_expr_call_callee_ref_at(a, inner_call_ref);
+      if (inner_callee_ref <= 0 || pipeline_expr_kind_ord_at(a, inner_callee_ref) != 3)
+        return;
+      ilen = pipeline_expr_var_name_len(a, inner_callee_ref);
+      if (ilen <= 0 || ilen > 63)
+        return;
+      pipeline_expr_var_name_into(a, inner_callee_ref, iname);
+      inner_fi = glue_module_func_index_by_name_c(mod, iname, ilen);
+      if (inner_fi < 0)
+        return;
+      if (glue_fold_func_returns_param01_vector_binop_ctfe_c(a, mod, inner_fi, &binop_ko) == 0)
+        return;
+      arg0 = pipeline_expr_call_arg_ref(a, inner_call_ref, 0);
+      arg1 = pipeline_expr_call_arg_ref(a, inner_call_ref, 1);
+      if (arg0 <= 0 || arg1 <= 0)
+        return;
+      if (glue_try_array_lit_lane_const_i32_c(a, arg0, lane, &av0) == 0)
+        return;
+      if (glue_try_array_lit_lane_const_i32_c(a, arg1, lane, &av1) == 0)
+        return;
+      if (binop_ko == 51)
+        binop_ko = 4;
+      switch (binop_ko) {
+      case 4:
+        folded = (int32_t)((int64_t)av0 + (int64_t)av1);
+        break;
+      case 5:
+        folded = (int32_t)((int64_t)av0 - (int64_t)av1);
+        break;
+      case 6:
+        folded = (int32_t)((int64_t)av0 * (int64_t)av1);
+        break;
+      case 7:
+        if (av1 == 0)
+          return;
+        folded = (int32_t)((int64_t)av0 / (int64_t)av1);
+        break;
+      case 8:
+        if (av1 == 0)
+          return;
+        folded = (int32_t)((int64_t)av0 % (int64_t)av1);
+        break;
+      default:
+        return;
+      }
+      e->const_folded_val = folded;
+      e->const_folded_valid = 1;
+      return;
+    }
   }
 }
 
