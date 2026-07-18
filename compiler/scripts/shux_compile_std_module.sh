@@ -51,7 +51,12 @@ SHUX_BIN="${SHUX:-./shux}"
 # -ffunction-sections -fdata-sections：配合 freestanding 链接的 --gc-sections，
 # 移除 std/sys/linux.o 等模块中未被引用的 hosted libc 函数（open/mmap 等），
 # 使 freestanding -nostdlib 链接不因 transitive libc 符号失败。
+# PLATFORM: LINUX — -D_GNU_SOURCE so formal std.fs.posix (posix_fadvise, etc.) compile
+# under gcc -Werror=implicit-function-declaration; macOS clang accepts without it.
 CFLAGS="-I.. -I. -Iinclude -Isrc -fPIE -ffunction-sections -fdata-sections -Wno-unused-variable -Wno-unused-parameter -Wno-unused-function -Wno-parentheses -Wno-sign-compare -Wno-ignored-qualifiers -Wno-unused-but-set-variable -Wno-type-limits -Wno-visibility -Wno-incompatible-pointer-types -Wno-incompatible-pointer-types-discards-qualifiers"
+case "$(uname -s 2>/dev/null)" in
+  Linux) CFLAGS="-D_GNU_SOURCE $CFLAGS" ;;
+esac
 if cc -v 2>&1 | grep -q clang; then
   CFLAGS="$CFLAGS -Wno-logical-op-parentheses -Wno-bitwise-op-parentheses"
 fi
