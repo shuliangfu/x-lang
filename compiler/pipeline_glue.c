@@ -1304,6 +1304,7 @@ extern int32_t backend_enc_addss_rax_rbx_arch(struct platform_elf_ElfCodegenCtx 
 extern int32_t backend_enc_addsd_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_subsd_rbx_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_subsd_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+extern int32_t backend_enc_mulsd_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_cvttss2si_eax_from_f32_bits_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_cvtsd2ss_eax_from_f64_bits_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_cvtsi2ss_eax_from_i32_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
@@ -1842,7 +1843,26 @@ static int32_t pipeline_asm_emit_return_elf_impl(struct ast_ASTArena *arena,
   return backend_enc_jmp_arch(elf_ctx, ly->tail_join_label, ly->tail_join_label_len, ta);
 }
 
-/** EXPR_NEG：emit 一元操作数后对 eax/x0 取负。 */
+/* Forward decls: used by EXPR_NEG / assign before f32/f64 classifiers and mul helper. */
+static int32_t glue_binop_operand_is_scalar_f32_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                                       int32_t expr_ref);
+static int32_t glue_binop_operand_is_scalar_f64_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                                       int32_t expr_ref);
+static int32_t glue_emit_binop_mul_rax_rbx_elf_c(struct ast_ASTArena *arena,
+                                                   struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                   struct backend_AsmFuncCtx *ctx, int32_t left_ref,
+                                                   int32_t right_ref, int32_t ta);
+
+/**
+ * EXPR_NEG: emit unary operand, then negate.
+ *
+ * PLATFORM: LINUX+MACOS x86_64 — scalar f32/f64 flip the IEEE sign bit (btc).
+ * Integer path keeps enc_neg_eax (32-bit). A 32-bit `neg %eax` on f64 zero-extends
+ * RAX and destroys the magnitude (e.g. bits of 2.0 become 0.0), so `-2.0` and
+ * ordered compares against unary-negated float lits were wrong. f32 is checked
+ * before f64 so FLOAT_LIT with resolved f32 does not take the f64 default.
+ * PLATFORM: SHARED type classification; only x86_64 (ta==0) emits btc.
+ */
 static int32_t pipeline_asm_emit_neg_elf_impl(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                               int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
   int32_t op;
@@ -1851,6 +1871,16 @@ static int32_t pipeline_asm_emit_neg_elf_impl(struct ast_ASTArena *arena, struct
     return -1;
   if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, op, ctx, ta) != 0)
     return -1;
+  /* f32 first: btc eax, 31 — flip IEEE f32 sign in low 32 bits. */
+  if (ta == 0 && glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, op)) {
+    static const uint8_t btc_eax_31[4] = {0x0f, 0xba, 0xf8, 0x1f};
+    return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)btc_eax_31, 4);
+  }
+  /* f64 / float lit default: btc rax, 63 — flip IEEE f64 sign without touching magnitude. */
+  if (ta == 0 && glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, op)) {
+    static const uint8_t btc_rax_63[5] = {0x48, 0x0f, 0xba, 0xf8, 0x3f};
+    return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)btc_rax_63, 5);
+  }
   return backend_enc_neg_eax_arch(elf_ctx, ta);
 }
 
@@ -11723,7 +11753,7 @@ static int32_t glue_emit_assign_rhs_to_rax_elf_c(struct ast_ASTArena *arena,
   case 30:
     return backend_enc_sub_rax_rbx_arch(elf_ctx, ta);
   case 31:
-    return backend_enc_imul_rbx_rax_arch(elf_ctx, ta);
+    return glue_emit_binop_mul_rax_rbx_elf_c(arena, elf_ctx, ctx, left_ref, right_ref, ta);
   case 32:
     if (pipeline_asm_emit_divisor_zero_check_rbx_elf_c(elf_ctx, ctx, ta) != 0)
       return -1;
@@ -11843,6 +11873,17 @@ static int32_t glue_emit_binop_sub_rax_minus_rbx_elf_c(struct ast_ASTArena *aren
   return backend_enc_sub_rax_rbx_arch(elf_ctx, ta);
 }
 
+/** f64 MUL → mulsd; else integer imul. G.7: single path with addsd/subsd family. */
+static int32_t glue_emit_binop_mul_rax_rbx_elf_c(struct ast_ASTArena *arena,
+                                                   struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                   struct backend_AsmFuncCtx *ctx, int32_t left_ref,
+                                                   int32_t right_ref, int32_t ta) {
+  if (ta == 0 && glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) &&
+      glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref))
+    return backend_enc_mulsd_rax_rbx_arch(elf_ctx, ta);
+  return backend_enc_imul_rbx_rax_arch(elf_ctx, ta);
+}
+
 static int32_t pipeline_asm_emit_binop_sub_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                    int32_t left_ref, int32_t right_ref, struct backend_AsmFuncCtx *ctx,
                                                    int32_t ta) {
@@ -11913,19 +11954,24 @@ static int32_t pipeline_asm_emit_binop_mul_elf_c(struct ast_ASTArena *arena, str
                                                    int32_t ta) {
   int32_t lit_imm;
   int32_t vr;
-  if (pipeline_asm_expr_lit_i32_at_c(arena, left_ref, &lit_imm)) {
+  /** Integer lit fast path only when neither side is scalar f64 (else mulsd needs full IEEE bits). */
+  if (pipeline_asm_expr_lit_i32_at_c(arena, left_ref, &lit_imm) &&
+      !(glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) ||
+        glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref))) {
     if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, right_ref, ctx, ta) != 0)
       return -1;
     if (backend_enc_mov_imm32_to_rbx_arch(elf_ctx, lit_imm, ta) != 0)
       return -1;
-    return backend_enc_imul_rbx_rax_arch(elf_ctx, ta);
+    return glue_emit_binop_mul_rax_rbx_elf_c(arena, elf_ctx, ctx, left_ref, right_ref, ta);
   }
-  if (pipeline_asm_expr_lit_i32_at_c(arena, right_ref, &lit_imm)) {
+  if (pipeline_asm_expr_lit_i32_at_c(arena, right_ref, &lit_imm) &&
+      !(glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) ||
+        glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref))) {
     if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, left_ref, ctx, ta) != 0)
       return -1;
     if (backend_enc_mov_imm32_to_rbx_arch(elf_ctx, lit_imm, ta) != 0)
       return -1;
-    return backend_enc_imul_rbx_rax_arch(elf_ctx, ta);
+    return glue_emit_binop_mul_rax_rbx_elf_c(arena, elf_ctx, ctx, left_ref, right_ref, ta);
   }
   /**
    * 7.3：左结合 mul 链 ((…)*VAR) — 与 add 同序，结果在 rax，保留 rbx 右 VAR 槽。
@@ -11938,14 +11984,14 @@ static int32_t pipeline_asm_emit_binop_mul_elf_c(struct ast_ASTArena *arena, str
     glue_asm73_left_assoc_spill_rbx_before_var_load_elf_c(arena, ctx, right_ref, ta, elf_ctx);
     if (glue_try_binop_load_operand_elf_c(arena, elf_ctx, right_ref, ctx, ta, 1) != 0)
       return -1;
-    if (backend_enc_imul_rbx_rax_arch(elf_ctx, ta) != 0)
+    if (glue_emit_binop_mul_rax_rbx_elf_c(arena, elf_ctx, ctx, left_ref, right_ref, ta) != 0)
       return -1;
     glue_binop_var_slot_cache_invalidate_rax();
     return 0;
   }
   vr = glue_try_binop_commutative_rax_rbx_elf_c(arena, elf_ctx, left_ref, right_ref, ctx, ta);
   if (vr == 0) {
-    if (backend_enc_imul_rbx_rax_arch(elf_ctx, ta) != 0)
+    if (glue_emit_binop_mul_rax_rbx_elf_c(arena, elf_ctx, ctx, left_ref, right_ref, ta) != 0)
       return -1;
     glue_binop_var_slot_cache_invalidate_rax();
     return 0;
@@ -11954,7 +12000,7 @@ static int32_t pipeline_asm_emit_binop_mul_elf_c(struct ast_ASTArena *arena, str
     return -1;
   if (glue_finish_binop_commutative_slow_rax_rbx_elf_c(arena, elf_ctx, left_ref, right_ref, ctx, ta) != 0)
     return -1;
-  if (backend_enc_imul_rbx_rax_arch(elf_ctx, ta) != 0)
+  if (glue_emit_binop_mul_rax_rbx_elf_c(arena, elf_ctx, ctx, left_ref, right_ref, ta) != 0)
     return -1;
   glue_binop_var_slot_cache_invalidate_rax();
   return 0;
