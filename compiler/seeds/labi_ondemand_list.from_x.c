@@ -14,12 +14,12 @@
 #ifndef SHUX_LABI_ONDEMAND_LIST_FROM_X
 
 /* Simple groups: string=0 core_types=1 encoding=2 base64=3 csv=4 schema=5
- * core_option=6 core_result=7.
+ * core_option=6 core_result=7 core_debug=8.
  * PLATFORM: SHARED — g1 rel is core/types/types.o (was wrongly base64.o).
- * types/option/result formal .o via Makefile + ensure; no asm co-emit (Ubuntu hang). */
+ * types/option/result/debug formal .o via Makefile + ensure; no asm co-emit (Ubuntu hang). */
 
 int labi_od_simple_group_count(void) {
-  return 8;
+  return 9;
 }
 
 int labi_od_simple_group_sym_count(int g) {
@@ -41,6 +41,8 @@ int labi_od_simple_group_sym_count(int g) {
     return 4;
   if (g == 7)
     return 4;
+  if (g == 8)
+    return 6;
   return 0;
 }
 
@@ -143,6 +145,22 @@ const char *labi_od_simple_group_sym_at(int g, int i) {
       return "core_result_ok";
     return NULL;
   }
+  /* PLATFORM: SHARED — core.debug formal surface (tests/sort assert_eq_*). */
+  if (g == 8) {
+    if (i == 0)
+      return "core_debug_assert_eq_i32";
+    if (i == 1)
+      return "core_debug_assert_eq_u32";
+    if (i == 2)
+      return "core_debug_assert_eq_u64";
+    if (i == 3)
+      return "core_debug_assert_ne_i32";
+    if (i == 4)
+      return "core_debug_assert";
+    if (i == 5)
+      return "core_debug_debug_assert";
+    return NULL;
+  }
   return NULL;
 }
 
@@ -165,6 +183,8 @@ const char *labi_od_simple_group_rel(int g) {
     return "core/option/option.o";
   if (g == 7)
     return "core/result/result.o";
+  if (g == 8)
+    return "core/debug/debug.o";
   return NULL;
 }
 

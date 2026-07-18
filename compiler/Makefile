@@ -145,6 +145,11 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 ../core/result/result.o: ../core/result/mod.x | scripts/shux_compile_std_module.sh
 	@sh scripts/shux_compile_std_module.sh $@ ../core/result/mod.x
 
+# core.debug：兼容 alias of core.assert; formal .o for asm on_demand (no co-emit).
+# PLATFORM: SHARED — tests/sort etc. U core_debug_assert_eq_*; L4 wipe needs make ensure.
+../core/debug/debug.o: ../core/debug/mod.x | scripts/shux_compile_std_module.sh
+	@sh scripts/shux_compile_std_module.sh $@ ../core/debug/mod.x
+
 # std.map：F 闭合 — 纯 .x -E-extern + cc -c。
 ../std/map/map.o: ../std/map/mod.x | scripts/shux_compile_std_module.sh
 	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/map/mod.x
@@ -334,13 +339,12 @@ net-o-mbedtls:
 ../std/math/math.o: ../std/math/mod.x ../std/math/math.x | scripts/shux_compile_std_module.sh
 	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/math/mod.x ../std/math/math.x
 
-# std.sort：F-sort v1 纯 .x（sort.x）；无胶层 C。
-../std/sort/sort.o: ../std/sort/sort.x
-	@if [ -x ./shux_asm ]; then shux=./shux_asm; \
-	elif [ -x ./shux ]; then shux=./shux; \
-	elif [ -x ./shux-c ]; then shux=./shux-c; \
-	else echo "make sort.o: need shux-c or shux (F-sort v1)" >&2; exit 1; fi; \
-	sh scripts/shux_compile_std_x.sh auto ../std/sort/sort.x ../std/sort/sort.o
+# std.sort：F-sort v1 — product surface = mod.x (std_sort_sort_*) + sort.x impl.
+# PLATFORM: SHARED — do NOT compile only sort.x (bare sort_* / missing std_sort_sort_*);
+# asm fk0 pulls formal sort.o; wrong authority → Ubuntu BLD001 (tests/sort).
+# Import binding (not --bare-impl): sort.x path prefix → std_sort_sort_sort_qsort_*.
+../std/sort/sort.o: ../std/sort/mod.x ../std/sort/sort.x | scripts/shux_compile_std_module.sh
+	@sh scripts/shux_compile_std_module.sh $@ ../std/sort/mod.x ../std/sort/sort.x
 
 # G-01：core/ 零 C — 位运算/volatile/slice 已纯 .x（见 analysis/phase-g-full-selfhost-tasks-v1.md）
 

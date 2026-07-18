@@ -3308,8 +3308,8 @@ int pipeline_codegen_std_dep_link_only(uint8_t *path) {
       /* 勿 link_only std.env：env.o 来自 env.x 内部符号（std_env_env_*），与 mod.x API
        *（std_env_getenv）不一致；co-emit mod.x + runtime_env_os.o 的 env_*_c 为权威。 */
       "std.math", "std.hash",
-      /* 勿 link_only std.sort：sort.o 仅为 std.sort.sort 实现（std_sort_sort_*），
-       * 对外 API 在 mod.x 重载包装；co-emit mod+sort.x 为权威。 */
+      /* 勿 link_only std.sort：C 路径仍可 co-emit mod；formal sort.o 现为
+       * mod.x+sort.x（std_sort_sort_*），asm 由 fk0 探针按需推入。 */
       "std.ffi",
       "std.db", "std.test",
       /* 勿 link_only std.compress：纯 .x、无 compress.o；link_only 只留 extern → 未定义符号 */
@@ -6690,6 +6690,21 @@ static int labi_std_fk0_user_needs_rel(const char *user_o, const char *rel) {
             || shux_link_obj_needs_undef_sym(user_o, "std_vec_vec_len_empty")
             || shux_link_obj_needs_undef_sym(user_o, "std_vec_new")
             || shux_link_obj_needs_undef_sym(user_o, "std_vec_push");
+    /*
+     * PLATFORM: SHARED — formal sort.o = mod.x (std_sort_sort_*) + sort.x impl.
+     * Old sort.x-only .o exported bare sort_* and fk0 had no probes → never pushed
+     * → Ubuntu -backend asm tests/sort BLD001. G.7: complete fk0 authority.
+     */
+    if (strstr(rel, "std/sort/sort.o"))
+        return shux_link_obj_needs_undef_sym(user_o, "std_sort_sort_i32_ptr_i32")
+            || shux_link_obj_needs_undef_sym(user_o, "std_sort_sort_u8_ptr_i32")
+            || shux_link_obj_needs_undef_sym(user_o, "std_sort_stable_i32_ptr_i32")
+            || shux_link_obj_needs_undef_sym(user_o, "std_sort_stable_u8_ptr_i32")
+            || shux_link_obj_needs_undef_sym(user_o, "std_sort_stable_by_key")
+            || shux_link_obj_needs_undef_sym(user_o, "std_sort_cmp")
+            || shux_link_obj_needs_undef_sym(user_o, "std_sort_cmp_asc_fn")
+            || shux_link_obj_needs_undef_sym(user_o, "std_sort_cmp_desc_fn")
+            || shux_link_obj_needs_undef_sym(user_o, "std_sort_cmp_key_fn");
     /* 其它 fk==0：默认不硬链，避免残缺 .o 毒化纯 asm / 无 import 用户程序。
      * 需要时由 on_demand 或上方专用探针推入。 */
     return 0;
@@ -7355,9 +7370,10 @@ void shux_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char *
                 continue;
             if (!labi_od_user_needs_simple_group(user_o, sg))
                 continue;
-            /* PLATFORM: SHARED — L4 wipe drops gitignored core types/option/result .o;
+            /* PLATFORM: SHARED — L4 wipe drops gitignored core types/option/result/debug .o;
              * ensure via Makefile before push (same pattern as formal vec/math). */
-            if (strstr(rel, "core/types/") || strstr(rel, "core/option/") || strstr(rel, "core/result/")) {
+            if (strstr(rel, "core/types/") || strstr(rel, "core/option/") || strstr(rel, "core/result/")
+                || strstr(rel, "core/debug/")) {
                 const char *include_root = shux_repo_root_from_argv0(link_argv0);
                 char make_tgt[PATH_MAX];
                 if (include_root && include_root[0] &&
