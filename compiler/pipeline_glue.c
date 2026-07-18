@@ -25188,6 +25188,12 @@ static int32_t pipeline_typeck_call_arg_assignable_c(struct ast_ASTArena *arena,
  * PLATFORM: SHARED — also +5000 when return type matches typeck_overload_expected_ret_peek
  * (let v: Vec_u8 = new() / zero-arg overload). Aligns with typeck.x
  * find_func_return_type_in_module_by_name_overload expected-return bonus. */
+/*
+ * PLATFORM: SHARED — arg score only. Expected return is applied as a *secondary key*
+ * in pipeline_typeck_pick_overload_func_index_c (must not fold +5000 here: outer main i32
+ * as expected_ret made get_Vec_i32 beat exact Vec_u16 — vec_u16 BLD001).
+ * Align with strict_minimal pick + typeck.x by_name_overload.
+ */
 static int32_t pipeline_typeck_overload_match_score_c(struct ast_Module *m, struct ast_ASTArena *a, int32_t func_ix,
                                                       int32_t call_expr_ref) {
   int32_t num_args;
@@ -25196,9 +25202,6 @@ static int32_t pipeline_typeck_overload_match_score_c(struct ast_Module *m, stru
   int32_t score;
   int32_t arg_ref;
   int32_t param_ref;
-  int32_t expect_ty;
-  int32_t rtr;
-  extern int32_t typeck_overload_expected_ret_peek(void);
   if (!m || !a || func_ix < 0 || call_expr_ref <= 0)
     return -1;
   num_args = pipeline_expr_call_num_args_at(a, call_expr_ref);
@@ -25220,14 +25223,24 @@ static int32_t pipeline_typeck_overload_match_score_c(struct ast_Module *m, stru
     else
       score += 1;
   }
-  /* Zero-arg / arg-tie: prefer return type matching let/assign/return expected. */
-  expect_ty = typeck_overload_expected_ret_peek();
-  if (expect_ty > 0) {
-    rtr = pipeline_module_func_return_type_at(m, func_ix);
-    if (rtr > 0 && pipeline_typeck_type_refs_equal_c(a, rtr, expect_ty) != 0)
-      score += 5000;
-  }
   return score;
+}
+
+/** 1 if func return matches typeck_overload_expected_ret_peek (let/assign context). */
+static int32_t pipeline_typeck_overload_expect_match_c(struct ast_Module *m, struct ast_ASTArena *a,
+                                                       int32_t func_ix) {
+  int32_t expect_ty;
+  int32_t rtr;
+  extern int32_t typeck_overload_expected_ret_peek(void);
+  if (!m || !a || func_ix < 0)
+    return 0;
+  expect_ty = typeck_overload_expected_ret_peek();
+  if (expect_ty <= 0)
+    return 0;
+  rtr = pipeline_module_func_return_type_at(m, func_ix);
+  if (rtr > 0 && pipeline_typeck_type_refs_equal_c(a, rtr, expect_ty) != 0)
+    return 1;
+  return 0;
 }
 
 /**
@@ -25240,8 +25253,10 @@ static int32_t pipeline_typeck_pick_overload_func_index_c(struct ast_Module *m, 
   int32_t i;
   int32_t best_ix;
   int32_t best_score;
+  int32_t best_expect;
   int32_t n_at_best;
   int32_t sc;
+  int32_t em;
   if (!m || !a || call_expr_ref <= 0)
     return -1;
   callee_ref = pipeline_expr_call_callee_ref_at(a, call_expr_ref);
@@ -25254,6 +25269,7 @@ static int32_t pipeline_typeck_pick_overload_func_index_c(struct ast_Module *m, 
     return -1;
   best_ix = -1;
   best_score = -1;
+  best_expect = -1;
   n_at_best = 0;
   for (i = 0; i < m->num_funcs; i++) {
     if (pipeline_asm_module_func_is_extern_at(m, i) != 0)
@@ -25263,14 +25279,17 @@ static int32_t pipeline_typeck_pick_overload_func_index_c(struct ast_Module *m, 
     sc = pipeline_typeck_overload_match_score_c(m, a, i, call_expr_ref);
     if (sc < 0)
       continue;
-    if (sc > best_score) {
+    em = pipeline_typeck_overload_expect_match_c(m, a, i);
+    if (sc > best_score || (sc == best_score && em > best_expect)) {
       best_ix = i;
       best_score = sc;
+      best_expect = em;
       n_at_best = 1;
-    } else if (sc == best_score) {
+    } else if (sc == best_score && em == best_expect) {
       n_at_best++;
     }
   }
+  /* Ambiguous only when arg score *and* expect_match tie across multiple overloads. */
   if (best_ix < 0 || n_at_best > 1)
     return -1;
   return best_ix;

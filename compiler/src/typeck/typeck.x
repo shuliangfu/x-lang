@@ -2566,7 +2566,7 @@ param_ty_raw: i32, from_dep_index: i32, ctx: *PipelineDepCtx): i32 {
       /*
        * Integer widen (same rules as typeck_integer_widen_ok): i32→usize for
        * heap.alloc(al, capacity) so 2-arg Allocator+usize is not eliminated → first *u64.
-       * Score 100 < exact 1000; expected-return bonus still dominates zero-arg ties.
+       * Score 100 < exact 1000; expected-return is a separate tie-break (not in arg score).
        * PLATFORM: SHARED — keep strict_minimal arg score aligned.
        */
       if (typeck_integer_widen_ok(pk, ak)) {
@@ -2604,9 +2604,10 @@ param_ty_raw: i32, from_dep_index: i32, ctx: *PipelineDepCtx): i32 {
 /**
  * 按名字 + call 实参分派 overload（binding import / 跨模块；W-heap-overload）。
  * call_expr_ref<=0 时退化为 by_name 首匹配。
- * When args do not disambiguate (zero-arg new/Vec_i32 vs Vec_u8), also score expected
- * return type from typeck_overload_expected_ret_peek (let/assign/return context).
- * PLATFORM: SHARED — authority: this function; keep seed typeck_gen + strict_minimal in sync.
+ * When args do not disambiguate (zero-arg new/Vec_i32 vs Vec_u8), also prefer expected
+ * return type from typeck_overload_expected_ret_peek as a *tie-break only* (let/assign).
+ * Never fold a huge bonus into arg score (polluted outer main i32 → wrong get overload).
+ * PLATFORM: SHARED — authority: this function; keep strict_minimal pick in sync.
  */
 export function find_func_return_type_in_module_by_name_overload(mod: *Module, caller_arena: *ASTArena,
 name: *u8, name_len: i32, call_expr_ref: i32, from_dep_index: i32, ctx: *PipelineDepCtx,
@@ -2617,6 +2618,8 @@ func_index_out: *i32): i32 {
     let num_args: i32 = 0;
     let best_idx: i32 = -1;
     let best_score: i32 = -1;
+    /* expected_ret is tie-break only — must not override exact arg scores (vec_u16 get BLD001). */
+    let best_expect_match: i32 = -1;
     let best_ret: i32 = 0;
     let first_idx: i32 = -1;
     let first_ret: i32 = 0;
@@ -2643,6 +2646,7 @@ func_index_out: *i32): i32 {
           let ai: i32 = 0;
           let score: i32 = 0;
           let matched: i32 = 1;
+          let expect_match: i32 = 0;
           while (ai < num_args) {
             let param_raw: i32 = pipeline_module_func_param_type_ref_at(mod, j, ai);
             let sc: i32 = typeck_overload_arg_param_score(caller_arena, call_expr_ref, ai, param_raw,
@@ -2655,9 +2659,11 @@ func_index_out: *i32): i32 {
             ai = ai + 1;
           }
           /*
-           * Zero-arg / arg-tie: prefer overload whose return type matches expected
-           * context (e.g. let v: Vec_u8 = vec.new()). Bonus 5000 > any arg sum.
+           * Zero-arg / arg-tie only: prefer overload whose return matches expected
+           * (e.g. let v: Vec_u8 = vec.new()). Do NOT add a huge bonus into score —
+           * outer main i32 threaded through if/binop polluted get→Vec_i32 (BLD001).
            * Maps dep return via get_dep_return so vec.Vec_u8 equals bare Vec_u8.
+           * PLATFORM: SHARED — keep strict_minimal pick lexicographic aligned.
            */
           if (matched != 0 && expect_ty > 0 && rtr > 0) {
             let mapped_ret: i32 = rtr;
@@ -2666,11 +2672,13 @@ func_index_out: *i32): i32 {
             }
             if (mapped_ret > 0
                 && pipeline_typeck_type_refs_equal_c(caller_arena, mapped_ret, expect_ty) != 0) {
-              score = score + 5000;
+              expect_match = 1;
             }
           }
-          if (matched != 0 && score > best_score) {
+          if (matched != 0 && (score > best_score
+              || (score == best_score && expect_match > best_expect_match))) {
             best_score = score;
+            best_expect_match = expect_match;
             best_idx = j;
             best_ret = rtr;
           }
@@ -2731,6 +2739,7 @@ call_expr_ref: i32, from_dep_index: i32, ctx: *PipelineDepCtx, func_index_out: *
       has_call_info = 1;
     }
     expect_ty = typeck_overload_expected_ret_peek();
+    let best_expect_match2: i32 = -1;
     while (j < mod.num_funcs) {
       if (expr_var_name_equal_func(callee_arena, callee_expr_ref, mod, j)) {
         if (first_idx < 0) {
@@ -2743,6 +2752,7 @@ call_expr_ref: i32, from_dep_index: i32, ctx: *PipelineDepCtx, func_index_out: *
             let ai: i32 = 0;
             let score: i32 = 0;
             let matched: i32 = 1;
+            let expect_match2: i32 = 0;
             let rtr_cand: i32 = pipeline_module_func_return_type_at(mod, j);
             while (ai < num_args) {
               let param_raw: i32 = pipeline_module_func_param_type_ref_at(mod, j, ai);
@@ -2755,6 +2765,7 @@ call_expr_ref: i32, from_dep_index: i32, ctx: *PipelineDepCtx, func_index_out: *
               score = score + sc;
               ai = ai + 1;
             }
+            /* expected_ret: secondary key only (see by_name_overload; G.7 align strict_minimal). */
             if (matched != 0 && expect_ty > 0 && rtr_cand > 0) {
               let mapped_ret2: i32 = rtr_cand;
               if (from_dep_index >= 0) {
@@ -2763,11 +2774,13 @@ call_expr_ref: i32, from_dep_index: i32, ctx: *PipelineDepCtx, func_index_out: *
               }
               if (mapped_ret2 > 0
                   && pipeline_typeck_type_refs_equal_c(caller_arena, mapped_ret2, expect_ty) != 0) {
-                score = score + 5000;
+                expect_match2 = 1;
               }
             }
-            if (matched != 0 && score > best_score) {
+            if (matched != 0 && (score > best_score
+                || (score == best_score && expect_match2 > best_expect_match2))) {
               best_score = score;
+              best_expect_match2 = expect_match2;
               best_idx = j;
               best_ret = rtr_cand;
             }

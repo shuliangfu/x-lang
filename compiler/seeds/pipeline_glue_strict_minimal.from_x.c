@@ -982,6 +982,11 @@ static int32_t pipeline_typeck_pick_func_index_by_name_args_strict_minimal(
   int32_t first_match = -1;
   int32_t best_ix = -1;
   int32_t best_score = -1;
+  /* PLATFORM: SHARED — expected_ret is a *tie-break only* (never fold +5000 into arg score).
+   * Outer function return (e.g. main i32) is threaded as return_type_ref through if/binop into
+   * CALL expected_ret; adding 5000 let get_Vec_i32 beat exact Vec_u16 (vec_u16 BLD001).
+   * Keep: zero-arg let v: Vec_u8 = vec.new() still wins via expect_match when arg scores tie. */
+  int32_t best_expect_match = -1;
   int32_t num_args;
   if (!mod || !name || name_len <= 0)
     return -1;
@@ -997,6 +1002,7 @@ static int32_t pipeline_typeck_pick_func_index_by_name_args_strict_minimal(
     int32_t ai;
     int32_t score;
     int32_t matched;
+    int32_t expect_match;
     if (!pipeline_module_func_name_equal_at(mod, j, name, name_len))
       continue;
     if (first_match < 0)
@@ -1010,6 +1016,7 @@ static int32_t pipeline_typeck_pick_func_index_by_name_args_strict_minimal(
     }
     score = 0;
     matched = 1;
+    expect_match = 0;
     for (ai = 0; ai < nparams; ai++) {
       int32_t param_raw = pipeline_module_func_param_type_ref_at(mod, j, ai);
       int32_t sc = pipeline_typeck_overload_arg_score_strict_minimal(
@@ -1020,7 +1027,7 @@ static int32_t pipeline_typeck_pick_func_index_by_name_args_strict_minimal(
       }
       score += sc;
     }
-    /* PLATFORM: SHARED — expected-return bonus (zero-arg overloads: vec.new Vec_u8). */
+    /* PLATFORM: SHARED — expected return: secondary key only (zero-arg / arg-score ties). */
     if (matched) {
       extern int32_t typeck_overload_expected_ret_peek(void);
       int32_t expect_ty = typeck_overload_expected_ret_peek();
@@ -1048,12 +1055,14 @@ static int32_t pipeline_typeck_pick_func_index_by_name_args_strict_minimal(
             }
           }
           if (eq)
-            score += 5000;
+            expect_match = 1;
         }
       }
     }
-    if (matched && score > best_score) {
+    if (matched &&
+        (score > best_score || (score == best_score && expect_match > best_expect_match))) {
       best_score = score;
+      best_expect_match = expect_match;
       best_ix = j;
     }
   }
