@@ -2172,19 +2172,42 @@ int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module,
           continue;
         if (!pipeline_typeck_import_binding_name_equal_strict_minimal(module, ii, base_nm, base_nlen))
           continue;
-        /* Path-match dep slot; never treat entry import index as dep index. */
+        /* Path-match dep slot; never treat entry import index as dep index.
+         * PLATFORM: SHARED — path-matched slot can be empty (dm->num_funcs==0) during
+         * freestanding dep prerun (vec.new → heap.default_alloc soft XT001). Fall back
+         * across all ctx deps (same as pipeline_glue weak method_call body). */
         dep_slot = pipeline_typeck_resolve_dep_index_for_import_c(module, ctx, ii);
-        if (dep_slot < 0)
-          break;
-        dm = pipeline_dep_ctx_module_at(ctx, dep_slot);
-        if (!dm)
-          break;
-        /* W-heap-overload: METHOD_CALL by arg types (sort(*u8) ≠ first sort(*i32)). */
-        import_ret_ty = pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
-            dm, arena, method_nm, method_nlen, dep_slot, num_args, expr_ref, 1, ctx, &func_ix);
-        if (import_ret_ty > 0) {
-          dep_ix = dep_slot;
-          break;
+        func_ix = -1;
+        if (dep_slot >= 0) {
+          dm = pipeline_dep_ctx_module_at(ctx, dep_slot);
+          if (dm && pipeline_module_num_funcs(dm) > 0) {
+            /* W-heap-overload: METHOD_CALL by arg types (sort(*u8) ≠ first sort(*i32)). */
+            import_ret_ty = pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
+                dm, arena, method_nm, method_nlen, dep_slot, num_args, expr_ref, 1, ctx, &func_ix);
+            if (import_ret_ty > 0)
+              dep_ix = dep_slot;
+          }
+        }
+        if (import_ret_ty <= 0 && ctx) {
+          int32_t try_di;
+          int32_t nd = pipeline_dep_ctx_ndep(ctx);
+          for (try_di = 0; try_di < nd && import_ret_ty <= 0; try_di++) {
+            struct ast_Module *try_dm;
+            int32_t try_fn = -1;
+            int32_t try_ret;
+            if (try_di == dep_slot)
+              continue;
+            try_dm = pipeline_dep_ctx_module_at(ctx, try_di);
+            if (!try_dm || pipeline_module_num_funcs(try_dm) <= 0)
+              continue;
+            try_ret = pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
+                try_dm, arena, method_nm, method_nlen, try_di, num_args, expr_ref, 1, ctx, &try_fn);
+            if (try_ret > 0) {
+              import_ret_ty = try_ret;
+              dep_ix = try_di;
+              func_ix = try_fn;
+            }
+          }
         }
         break;
       }

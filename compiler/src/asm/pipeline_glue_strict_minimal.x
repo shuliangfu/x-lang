@@ -1776,6 +1776,8 @@ export extern "C" function pipeline_expr_method_call_name_into(arena: *u8, er: i
 export extern "C" function pipeline_expr_method_call_num_args_at(arena: *u8, er: i32): i32;
 export extern "C" function pipeline_expr_method_call_arg_ref(arena: *u8, er: i32, idx: i32): i32;
 export extern "C" function pipeline_dep_ctx_module_at(ctx: *u8, idx: i32): *u8;
+/** Used by METHOD_CALL dep fallback when path-matched slot is empty (freestanding prerun). */
+export extern "C" function pipeline_dep_ctx_ndep(ctx: *u8): i32;
 export extern "C" function typeck_check_expr_assign(module: *u8, arena: *u8, er: i32, rt: i32, ctx: *u8): i32;
 export extern "C" function typeck_check_expr_return(module: *u8, arena: *u8, er: i32, rt: i32, ctx: *u8): i32;
 export extern "C" function typeck_check_expr_panic(module: *u8, arena: *u8, er: i32, rt: i32, ctx: *u8): i32;
@@ -2047,27 +2049,51 @@ export function pipeline_typeck_check_expr_method_call_c(module: *u8, arena: *u8
               let import_kind: i32 = pipeline_module_import_kind_at(module, ii);
               if (import_kind == 1) {
                 if (pipeline_typeck_import_binding_name_equal_strict_minimal(module, ii, &base_nm[0], base_nlen) != 0) {
+                  // Path-match dep slot. Empty/misaligned slots (dm_funcs=0 during dep prerun)
+                  // must fall back across all ctx deps — matches pipeline_glue weak authority.
+                  // PLATFORM: SHARED — freestanding co-emit soft XT001 on heap.default_alloc / mem.mem_set.
                   let dep_slot: i32 = pipeline_typeck_resolve_dep_index_for_import_c(module, ctx, ii);
-                  if (dep_slot < 0) {
-                    ii = nimp;
-                  } else {
+                  let fout: i32 = 0 - 1;
+                  if (dep_slot >= 0) {
                     let dm: *u8 = pipeline_dep_ctx_module_at(ctx, dep_slot);
-                    if (dm == 0) {
-                      ii = nimp;
-                    } else {
-                      let fout: i32 = 0 - 1;
-                      import_ret_ty = pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
-                        dm, arena, &method_nm[0], method_nlen, dep_slot, num_args, expr_ref, 1, ctx, &fout
-                      );
-                      if (import_ret_ty > 0) {
-                        dep_ix = dep_slot;
-                        func_ix = fout;
-                        ii = nimp;
-                      } else {
-                        ii = nimp;
+                    if (dm != 0) {
+                      if (pipeline_module_num_funcs(dm) > 0) {
+                        import_ret_ty = pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
+                          dm, arena, &method_nm[0], method_nlen, dep_slot, num_args, expr_ref, 1, ctx, &fout
+                        );
+                        if (import_ret_ty > 0) {
+                          dep_ix = dep_slot;
+                          func_ix = fout;
+                        }
                       }
                     }
                   }
+                  // Fallback: path/module misalignment or empty path-matched slot.
+                  if (import_ret_ty <= 0) {
+                    let nd: i32 = pipeline_dep_ctx_ndep(ctx);
+                    let try_di: i32 = 0;
+                    while (try_di < nd) {
+                      if (try_di != dep_slot) {
+                        let try_dm: *u8 = pipeline_dep_ctx_module_at(ctx, try_di);
+                        if (try_dm != 0) {
+                          if (pipeline_module_num_funcs(try_dm) > 0) {
+                            fout = 0 - 1;
+                            let try_ret: i32 = pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
+                              try_dm, arena, &method_nm[0], method_nlen, try_di, num_args, expr_ref, 1, ctx, &fout
+                            );
+                            if (try_ret > 0) {
+                              import_ret_ty = try_ret;
+                              dep_ix = try_di;
+                              func_ix = fout;
+                              try_di = nd;
+                            }
+                          }
+                        }
+                      }
+                      try_di = try_di + 1;
+                    }
+                  }
+                  ii = nimp;
                 } else {
                   ii = ii + 1;
                 }
