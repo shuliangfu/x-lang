@@ -61,9 +61,32 @@ def false_star_block_damage(lines: list[str]) -> list[tuple[int, str]]:
 
 
 def false_star_decl_damage(lines: list[str]) -> list[tuple[int, str]]:
+    """Detect enum/struct fields mis-wrapped as block-comment continuations.
+
+    PLATFORM: SHARED — used by run-check / run-all-bstrict.
+    Must not flag legitimate docblock lines like ``* fold_expr: ...`` inside
+    ``/** ... */`` (historical false positive after English doc bulk convert).
+    """
     out: list[tuple[int, str]] = []
+    in_block = False
     for i, line in enumerate(lines, 1):
-        s = line.lstrip()
+        raw = line
+        s = raw.lstrip()
+        # Track /* ... */ / /** ... */ so interior ``* name:`` lines are not
+        # treated as damaged star-decls (they are normal doc continuations).
+        if not in_block:
+            if "/*" in s:
+                # Open on this line; may also close on the same line.
+                in_block = True
+                if "*/" in s[s.find("/*") + 2 :]:
+                    in_block = False
+            # fall through: opening line itself is never a star-decl hit shape we care
+        else:
+            if "*/" in s:
+                in_block = False
+            # Interior of a block comment: skip star-decl heuristics entirely.
+            continue
+
         if not (
             FALSE_STAR_ENUM.match(s)
             or FALSE_STAR_FIELD.match(s)
