@@ -241,6 +241,8 @@ export function link_abi_user_o_needs_libc_heap(user_o: *u8): i32 {
   return 0;
 }
 
+/** True when user.o has U refs to std.map formal exports (empty_size + Map surface).
+ * PLATFORM: SHARED — must stay aligned with seeds/runtime_link_abi.from_x.c. */
 #[no_mangle]
 export function link_abi_user_o_needs_std_map(user_o: *u8): i32 {
   if (user_o == 0 as *u8) {
@@ -250,12 +252,40 @@ export function link_abi_user_o_needs_std_map(user_o: *u8): i32 {
     if (user_o[0] == 0) {
       return 0;
     }
-    let r: i32 = shux_link_obj_needs_undef_sym_impl(user_o, "std_map_empty_size");
-    return r;
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_map_empty_size") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_map_new_Map_i32_i32") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_map_with_capacity_Map_i32_i32_ptr_i32") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_map_insert_Map_i32_i32_ptr_i32_i32") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_map_get_Map_i32_i32_i32") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_map_find_Map_i32_i32_i32") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_map_deinit_Map_i32_i32_ptr") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_map_str_new") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_map_str_insert") != 0) {
+      return 1;
+    }
+    return 0;
   }
   return 0;
 }
 
+/** True when user.o has U refs to std.set formal overload mangles (not stale set_i32_*).
+ * PLATFORM: SHARED — seed + this .x must stay same-commit. */
 #[no_mangle]
 export function link_abi_user_o_needs_std_set(user_o: *u8): i32 {
   if (user_o == 0 as *u8) {
@@ -264,6 +294,51 @@ export function link_abi_user_o_needs_std_set(user_o: *u8): i32 {
   unsafe {
     if (user_o[0] == 0) {
       return 0;
+    }
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_set_new_i32_retSet_i32") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_set_new_i32_retSet_u64") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_set_with_capacity_Set_i32_ptr_i32") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_set_insert_Set_i32_ptr_i32") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_set_insert_Set_u64_ptr_u64") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_set_contains_key_Set_i32_i32") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_set_contains_key_Set_u64_u64") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_set_remove_Set_i32_ptr_i32") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_set_remove_Set_u64_ptr_u64") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_set_len_Set_i32") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_set_len_Set_u64") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_set_deinit_Set_i32_ptr") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_set_deinit_Set_u64_ptr") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_set_str_new") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_set_str_insert") != 0) {
+      return 1;
     }
     if (shux_link_obj_needs_undef_sym_impl(user_o, "std_set_set_i32_insert") != 0) {
       return 1;
@@ -278,6 +353,58 @@ export function link_abi_user_o_needs_std_set(user_o: *u8): i32 {
       return 1;
     }
     if (shux_link_obj_needs_undef_sym_impl(user_o, "std_set_set_i32_deinit") != 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+/** True when user.o has U refs to product std.queue APIs (tests/queue surface).
+ * PLATFORM: SHARED — complements labi_od_queue_sym contention table. */
+#[no_mangle]
+export function link_abi_user_o_needs_std_queue(user_o: *u8): i32 {
+  if (user_o == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    if (user_o[0] == 0) {
+      return 0;
+    }
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_queue_new_retQueue_i32") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_queue_new_retQueue_u8") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_queue_push_back_Queue_i32_ptr_i32") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_queue_push_back_Queue_u8_ptr_u8") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_queue_push_front") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_queue_pop_front_Queue_i32_ptr") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_queue_pop_back") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_queue_get") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_queue_len_Queue_i32") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_queue_is_empty_Queue_i32") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_queue_deinit_Queue_i32_ptr") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_queue_with_capacity") != 0) {
       return 1;
     }
     return 0;
@@ -610,6 +737,31 @@ export function link_abi_user_o_needs_std_heap_api(user_o: *u8): i32 {
       return 1;
     }
     if (shux_link_obj_needs_undef_sym_impl(user_o, "std_heap_libc_heap_alloc_aligned_c") != 0) {
+      return 1;
+    }
+    /* Typed libc heap surface used by formal set/map/queue/vec .o. */
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_heap_libc_heap_alloc_i32_c") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_heap_libc_heap_alloc_u8_c") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_heap_libc_heap_alloc_u64_c") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_heap_libc_heap_free_i32_c") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_heap_libc_heap_free_u8_c") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_heap_libc_heap_free_u64_c") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_heap_map_find") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_heap_libc_heap_copy_u8_at_c") != 0) {
       return 1;
     }
     return 0;

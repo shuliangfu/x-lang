@@ -5583,7 +5583,11 @@ int link_abi_user_o_needs_std_net(const char *user_o) {
 }
 
 /**
- * 判断用户 .o 是否引用 std.set API（按需链 set.o + heap.o）。
+ * 判断用户 .o 是否引用 std.set API（按需链 set.o + heap.o + hash.o）。
+ * PLATFORM: SHARED — probes must match formal std/set/set.o export mangles
+ * (overload surface: insert_Set_i32_ptr_i32, new_i32_retSet_i32, …).
+ * Stale names std_set_set_i32_* never appear as U on product asm user.o → set.o never
+ * pushed → BLD001 (Ubuntu gold). G.7: complete existing needs_std_set authority.
  */
 int link_abi_user_o_needs_std_set(const char *user_o) {
   if ((user_o ==NULL)) {
@@ -5593,6 +5597,53 @@ int link_abi_user_o_needs_std_set(const char *user_o) {
     if (((user_o)[0] ==0)) {
       return 0;
     }
+    /* Current product overload mangles (tests/set, formal set.o). */
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_set_new_i32_retSet_i32") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_set_new_i32_retSet_u64") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_set_with_capacity_Set_i32_ptr_i32") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_set_insert_Set_i32_ptr_i32") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_set_insert_Set_u64_ptr_u64") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_set_contains_key_Set_i32_i32") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_set_contains_key_Set_u64_u64") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_set_remove_Set_i32_ptr_i32") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_set_remove_Set_u64_ptr_u64") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_set_len_Set_i32") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_set_len_Set_u64") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_set_deinit_Set_i32_ptr") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_set_deinit_Set_u64_ptr") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_set_str_new") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_set_str_insert") !=0)) {
+      return 1;
+    }
+    /* Legacy / alternate mangles kept so old user.o still pulls set.o. */
     if ((shux_link_obj_needs_undef_sym(user_o, "std_set_set_i32_insert") !=0)) {
       return 1;
     }
@@ -5683,6 +5734,31 @@ int link_abi_user_o_needs_std_heap_api(const char *user_o) {
     if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_libc_heap_alloc_aligned_c") !=0)) {
       return 1;
     }
+    /* Typed libc heap surface used by formal set/map/queue/vec .o (G.7 complete). */
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_libc_heap_alloc_i32_c") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_libc_heap_alloc_u8_c") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_libc_heap_alloc_u64_c") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_libc_heap_free_i32_c") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_libc_heap_free_u8_c") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_libc_heap_free_u64_c") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_map_find") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_libc_heap_copy_u8_at_c") !=0)) {
+      return 1;
+    }
     return 0;
   }
  }));
@@ -5749,20 +5825,88 @@ int link_abi_link_needs_std_heap_import(const char *user_o, const char **argv, i
 
 
 /**
- * 判断用户 .o 是否引用 std.map API（按需链 map.o）。
+ * 判断用户 .o 是否引用 std.map API（按需链 map.o + heap companions）。
+ * PLATFORM: SHARED — empty_size smoke + full Map_i32/u64/str surface.
+ * G.7: complete existing needs_std_map authority (was empty_size-only).
  */
 int link_abi_user_o_needs_std_map(const char *user_o) {
   if ((user_o ==NULL)) {
     return 0;
   }
   (void)(({   {
-    int r = shux_link_obj_needs_undef_sym(user_o, "std_map_empty_size");
     if (((user_o)[0] ==0)) {
       return 0;
     }
-    return r;
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_map_empty_size") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_map_new_Map_i32_i32") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_map_with_capacity_Map_i32_i32_ptr_i32") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_map_insert_Map_i32_i32_ptr_i32_i32") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_map_get_Map_i32_i32_i32") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_map_find_Map_i32_i32_i32") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_map_deinit_Map_i32_i32_ptr") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_map_str_new") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_map_str_insert") !=0)) {
+      return 1;
+    }
+    return 0;
   }
  }));
+  return 0;
+}
+
+/**
+ * Product std.queue surface on user.o (asm on_demand).
+ * PLATFORM: SHARED — formal queue.o export mangles from tests/queue.
+ * Contention/smoke symbols stay in labi_od_queue_sym_* (separate table).
+ * G.7: complete queue on_demand authority (was contention-only → product queue BLD001).
+ */
+int link_abi_user_o_needs_std_queue(const char *user_o) {
+  if ((user_o == NULL)) {
+    return 0;
+  }
+  if (((user_o)[0] == 0)) {
+    return 0;
+  }
+  if (shux_link_obj_needs_undef_sym(user_o, "std_queue_new_retQueue_i32") != 0)
+    return 1;
+  if (shux_link_obj_needs_undef_sym(user_o, "std_queue_new_retQueue_u8") != 0)
+    return 1;
+  if (shux_link_obj_needs_undef_sym(user_o, "std_queue_push_back_Queue_i32_ptr_i32") != 0)
+    return 1;
+  if (shux_link_obj_needs_undef_sym(user_o, "std_queue_push_back_Queue_u8_ptr_u8") != 0)
+    return 1;
+  if (shux_link_obj_needs_undef_sym(user_o, "std_queue_push_front") != 0)
+    return 1;
+  if (shux_link_obj_needs_undef_sym(user_o, "std_queue_pop_front_Queue_i32_ptr") != 0)
+    return 1;
+  if (shux_link_obj_needs_undef_sym(user_o, "std_queue_pop_back") != 0)
+    return 1;
+  if (shux_link_obj_needs_undef_sym(user_o, "std_queue_get") != 0)
+    return 1;
+  if (shux_link_obj_needs_undef_sym(user_o, "std_queue_len_Queue_i32") != 0)
+    return 1;
+  if (shux_link_obj_needs_undef_sym(user_o, "std_queue_is_empty_Queue_i32") != 0)
+    return 1;
+  if (shux_link_obj_needs_undef_sym(user_o, "std_queue_deinit_Queue_i32_ptr") != 0)
+    return 1;
+  if (shux_link_obj_needs_undef_sym(user_o, "std_queue_with_capacity") != 0)
+    return 1;
   return 0;
 }
 
@@ -7045,14 +7189,36 @@ void shux_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char *
             link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_heap(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
         }
     }
+    /*
+     * PLATFORM: SHARED — set/map product asm: formal .o + heap/core_mem/(hash for set).
+     * Align companions with C invoke_cc need_set/need_map (G.7 complete, no second path).
+     * L4 wipe: ensure formal .o via Makefile before push.
+     */
     if (link_abi_user_o_needs_std_set(user_o)) {
-        link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_set(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-        if (!link_abi_link_needs_std_heap_import(user_o, argv, la ? *la : 0)) {
-            link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_heap(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+        const char *include_root = shux_repo_root_from_argv0(link_argv0);
+        if (include_root && include_root[0]) {
+            (void)shux_ensure_formal_std_make_o(include_root, "std/set/set.o", "../std/set/set.o");
+            (void)shux_ensure_formal_std_make_o(include_root, "std/heap/heap.o", "../std/heap/heap.o");
+            (void)shux_ensure_formal_std_make_o(include_root, "core/mem/mem.o", "../core/mem/mem.o");
+            (void)shux_ensure_formal_std_make_o(include_root, "std/hash/hash.o", "../std/hash/hash.o");
         }
+        link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_set(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+        link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_heap(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+        link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_core_mem(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+        /* set.o → U std_hash_bytes; fk0 hash gate is user-only and misses set.o. */
+        link_abi_asm_ld_push_obj(NULL, link_argv0, "std/hash/hash.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
     }
     if (link_abi_user_o_needs_std_map(user_o)) {
+        const char *include_root = shux_repo_root_from_argv0(link_argv0);
+        if (include_root && include_root[0]) {
+            (void)shux_ensure_formal_std_make_o(include_root, "std/map/map.o", "../std/map/map.o");
+            (void)shux_ensure_formal_std_make_o(include_root, "std/heap/heap.o", "../std/heap/heap.o");
+            (void)shux_ensure_formal_std_make_o(include_root, "core/mem/mem.o", "../core/mem/mem.o");
+        }
         link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_map(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+        /* map.o U: typed libc heap + map_find; user may only U empty_size. */
+        link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_heap(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+        link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_core_mem(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
     }
     if (link_abi_user_o_needs_async_scheduler(user_o)) {
         p = asm_link_obj_skip_missing(shux_std_async_scheduler_o_path(link_argv0));
@@ -7244,11 +7410,29 @@ void shux_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char *
                                      labi_od_time_os_rel(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
         link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_time_rel(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
     }
-    if (labi_od_user_needs_any_sym_table(user_o, labi_od_queue_sym_count(), labi_od_queue_sym_at)) {
-        (void)shux_ensure_runtime_queue_contention_o(link_argv0);
-        link_abi_asm_ld_push_obj(shux_runtime_queue_contention_o_path(link_argv0), link_argv0,
-            labi_od_queue_contention_rel(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-        link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_queue_rel(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+    /*
+     * PLATFORM: SHARED — product queue (std_queue_*) + contention table.
+     * G.7: complete queue on_demand (product needs_std_queue + existing od_queue table).
+     */
+    {
+        int need_q_product = link_abi_user_o_needs_std_queue(user_o);
+        int need_q_contention = labi_od_user_needs_any_sym_table(user_o, labi_od_queue_sym_count(), labi_od_queue_sym_at);
+        if (need_q_product || need_q_contention) {
+            const char *include_root = shux_repo_root_from_argv0(link_argv0);
+            if (include_root && include_root[0]) {
+                (void)shux_ensure_formal_std_make_o(include_root, "std/queue/queue.o", "../std/queue/queue.o");
+                (void)shux_ensure_formal_std_make_o(include_root, "std/heap/heap.o", "../std/heap/heap.o");
+                (void)shux_ensure_formal_std_make_o(include_root, "core/mem/mem.o", "../core/mem/mem.o");
+            }
+            if (need_q_contention) {
+                (void)shux_ensure_runtime_queue_contention_o(link_argv0);
+                link_abi_asm_ld_push_obj(shux_runtime_queue_contention_o_path(link_argv0), link_argv0,
+                    labi_od_queue_contention_rel(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+            }
+            link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_queue_rel(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+            link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_heap(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+            link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_core_mem(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+        }
     }
 #else
     (void)link_argv0;
@@ -7886,6 +8070,14 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
         /* Linux ELF：gcc 驱动链接（crt _start→main）；裸 ld -e main 缺 crt 初始化易 SIGSEGV。 */
         argv[la++] = shux_linux_host_gcc_path();
         shux_append_linux_link_harden((char **)argv, &la, SHUX_LD_ARGV_CAP);
+        /*
+         * PLATFORM: LINUX hosted asm — same GC invariant as C invoke_cc + freestanding asm ld.
+         * Formal std/*.o are built with -ffunction-sections; without --gc-sections, unused
+         * map/set/queue bodies retain U heap/hash and BLD001 even when user only needs empty_size.
+         * G.7: complete hosted asm link authority (do not invent a second GC path).
+         */
+        if (la < SHUX_LD_ARGV_CAP - 1)
+            argv[la++] = "-Wl,--gc-sections";
 #else
         argv[la++] = "ld";
         argv[la++] = "-e";
