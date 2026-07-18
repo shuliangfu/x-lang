@@ -29,7 +29,6 @@ export const SOL_SOCKET: i32 = 1;
 export const SO_REUSEADDR: i32 = 2;
 export const O_NONBLOCK: i32 = 2048;
 /* See implementation. */
- * See implementation.
 
 /* See implementation. */
 allow(padding) struct SockAddrIn {

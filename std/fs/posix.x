@@ -24,8 +24,6 @@
 // See implementation.
 
 /* See implementation. */
- * See implementation.
- * See implementation.
 const io_sync = import("std.io.sync");
 
 /* See implementation. */
@@ -42,9 +40,6 @@ allow(padding) struct FsStatOut {
 }
 
 /* See implementation. */
- * See implementation.
- * See implementation.
- * See implementation.
 
 /* See implementation. */
 allow(padding) struct FsIovecBuf { ptr: *u8; len: usize; handle: usize; }
@@ -106,10 +101,8 @@ allow(padding) struct PosixStatBuf {
 }
 
 /* See implementation. */
- * See implementation.
 
 /* See implementation. */
- * See implementation.
 extern "C" function shux_sys_read(fd: i32, buf: *u8, count: usize): isize;
 extern "C" function shux_sys_write(fd: i32, buf: *u8, count: usize): isize;
 extern "C" function shux_sys_readv(fd: i32, iov: *u8, iovcnt: i32): isize;

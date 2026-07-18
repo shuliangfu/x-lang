@@ -129,7 +129,6 @@ export function read_message(fd: i32, body_out: *u8, body_cap: i32, state_buf: *
     state_buf[LSP_STATE_LEN_OFF + 1] = ((new_n >> 8) & 255) as u8;
     state_buf[LSP_STATE_LEN_OFF + 2] = ((new_n >> 16) & 255) as u8;
     state_buf[LSP_STATE_LEN_OFF + 3] = ((new_n >> 24) & 255) as u8;
-     * See implementation.
     "leftover n=821" */
   } else {
     state_buf[LSP_STATE_LEN_OFF] = 0;

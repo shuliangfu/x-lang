@@ -24,7 +24,6 @@
 // See implementation.
 
 /* See implementation. */
- * See implementation.
 
 /* See implementation. */
 extern function compress2(dest: *u8, destLen: *u64, source: *u8, sourceLen: u64, level: i32): i32;

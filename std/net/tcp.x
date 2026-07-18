@@ -33,7 +33,6 @@ export const SO_REUSEADDR: i32 = 2;
 export const SO_ERROR: i32 = 4;
 export const O_NONBLOCK: i32 = 2048;
 /* See implementation. */
- * See implementation.
 
 #[cfg(target_os = "linux")]
 export const ERR_INPROGRESS: i32 = 115;
@@ -381,7 +380,6 @@ export function net_tcp_connect_blocking_c(addr_u32: u32, port_u32: u32, timeout
       return -1;
     }
     /* See implementation. */
-     * See implementation.
     let set_blk_rc: i32 = 0;
     unsafe { set_blk_rc = net_set_blocking_c(fd, 1); }
     if (set_blk_rc != 0) {

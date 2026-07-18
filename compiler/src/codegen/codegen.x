@@ -1247,8 +1247,6 @@ export function codegen_is_std_io_driver_bridge_name(name: *u8, name_len: i32): 
     return 1;
   }
   /* See implementation. */
-   * See implementation.
-   * See implementation.
   return 0;
 }
 
@@ -1481,10 +1479,6 @@ export function codegen_should_skip_emit_func(dep_path: *u8, prefix: *u8, prefix
     }
   }
   /* See implementation. */
-   * See implementation.
-   * See implementation.
-   * See implementation.
-   * See implementation.
   if (prefix != 0 as *u8 && prefix_len == 14 && name != 0 as *u8
       && codegen_name_bytes_prefix_eq(prefix, prefix_len, &pref_abi14[0], 14) != 0) {
     if (codegen_should_skip_emit_std_io_trivial_handle(0 as *u8, name, name_len) != 0) {
@@ -2152,7 +2146,6 @@ export function field_access_base_is_slice_param_name(arena: *ASTArena, base_ref
     return 1;
   }
   /* See implementation. */
-   * See implementation.
   if (base.var_name_len == 7 && base.var_name[0] == 99 && base.var_name[1] == 117 && base.var_name[2] == 114 && base.var_name[3] == 95 && base.var_name[4] == 109 && base.var_name[5] == 111 && base.var_name[6] == 100) {
     return 1;
   }
@@ -2194,9 +2187,6 @@ export function codegen_c_prefix_redundant_with_name(prefix: *u8, prefix_len: i3
     return 0;
   }
   /* See implementation. */
-   * See implementation.
-   * See implementation.
-   * See implementation.
   if (prefix_len == 4 && prefix[0] == 97 && prefix[1] == 115 && prefix[2] == 116 && prefix[3] == 95) {
     return 0;
   }
@@ -2926,10 +2916,6 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
         return 0;
       }
       /* See implementation. */
-       * See implementation.
-       * See implementation.
-       * See implementation.
-       * See implementation.
       if (name_len == 3 && nm[0] == 117 && nm[1] == 49 && nm[2] == 54) {
         let u16_t: u8[9] = [117, 105, 110, 116, 49, 54, 95, 116, 0];
         return emit_bytes_8(out, u16_t, 8);
@@ -2971,11 +2957,6 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
         return emit_bytes_8(out, i32_enum, 7);
       }
       /* See implementation. */
-       * See implementation.
-       * See implementation.
-       * See implementation.
-       * See implementation.
-       * See implementation.
       if (ctx != 0 as *PipelineDepCtx) {
         let dep_enum_prefix: u8[128] = [];
         let dep_enum_prefix_len: i32 = codegen_type_dep_enum_prefix_into(ctx, arena, type_ref, &dep_enum_prefix[0], 128);
@@ -3011,11 +2992,6 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
       }
       dep_prefix_len = codegen_type_dep_struct_prefix_into(ctx, arena, type_ref, &dep_prefix_buf[0], 128);
       /* See implementation. */
-       * See implementation.
-       * See implementation.
-       * See implementation.
-       * See implementation.
-       * See implementation.
       if (dep_prefix_len == 0) {
         let qmod_end: i32 = 0;
         let qhas_dot: bool = false;
@@ -3043,11 +3019,6 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
         }
       }
       /* See implementation. */
-       * See implementation.
-       * See implementation.
-       * See implementation.
-       * See implementation.
-       * See implementation.
       if (dep_prefix_len > 0) {
         if (emit_bytes_from_ptr(out, &dep_prefix_buf[0], dep_prefix_len) != 0) {
           return -1;
@@ -3072,8 +3043,6 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
         }
       }
       /* See implementation. */
-       * See implementation.
-       * See implementation.
       let bare_off: i32 = 0;
       let bi: i32 = 0;
       while (bi < name_len && bi < 64) {
@@ -3258,8 +3227,6 @@ export function codegen_type_dep_struct_prefix_into(ctx: *PipelineDepCtx, arena:
       return 0;
     }
     /* See implementation. */
-     * See implementation.
-     * See implementation.
     let bare_off: i32 = 0;
     let bi: i32 = 0;
     while (bi < name_len && bi < 64) {
@@ -5370,7 +5337,6 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       return append_byte(out, 41);
     }
     /* See implementation. */
-     * See implementation.
     if (e.kind == ExprKind.EXPR_CALL) {
       let callee_ref: i32 = e.call_callee_ref;
       /* See implementation. */
@@ -5486,7 +5452,6 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
             pre_fast_len = pre_fast_len + 1;
           }
           /* See implementation. */
-           * See implementation.
           let drv_buf_fast: i32 = 0;
           if (codegen_path_is_std_io_driver_bytes(&dep_path_fast[0]) != 0) {
             drv_buf_fast = codegen_emit_io_driver_buf_call_name(out, &callee_fast.field_access_field_name[0], callee_fast.field_access_field_len, e.call_num_args);
@@ -6597,9 +6562,6 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         return -1;
       }
       /* See implementation. */
-       * See implementation.
-       * See implementation.
-       * See implementation.
       let is_ptr_base: i32 = field_access_base_is_pointer_ref(arena, e.field_access_base_ref);
       let param_type_known: i32 = 0;
       if (ctx != 0 as *PipelineDepCtx && ctx.current_codegen_module != 0 as *Module && ctx.current_func_index >= 0) {
@@ -6744,7 +6706,6 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
               pre_len = pre_len + 1;
             }
             /* See implementation. */
-             * See implementation.
             let drv_buf_mc: i32 = 0;
             if (codegen_path_is_std_io_driver_bytes(&dep_path[0]) != 0 && fn_len > 0) {
               drv_buf_mc = codegen_emit_io_driver_buf_call_name(out, &fn_name[0], fn_len, e.method_call_num_args);
@@ -9452,7 +9413,6 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
     /* See implementation. */
     let fn_ret_void: bool = pipeline_type_kind_ord_at(arena, pipeline_module_func_return_type_at(module, fi)) == (TypeKind.TYPE_VOID as i32);
     /* See implementation. */
-     * See implementation.
     if (call_init_globals != 0) {
       if (is_entry) {
         if (emit_c_main_symbol) {
@@ -9890,12 +9850,6 @@ export function emit_func_extern_declaration(arena: *ASTArena, out: *CodegenOutB
     let name_prefix_len: i32 = prefix_len;
     if (pipeline_module_func_is_extern_at(module, fi) != 0) {
       /* See implementation. */
-       * See implementation.
-       * See implementation.
-       * See implementation.
-       * See implementation.
-       * See implementation.
-       * See implementation.
       let _starts_with_prefix: bool = false;
       if (prefix_len > 0 && fn_len >= prefix_len) {
         let _k: i32 = 0;
@@ -10004,9 +9958,6 @@ export function emit_func_extern_declaration(arena: *ASTArena, out: *CodegenOutB
       }
     }
     /* See implementation. */
-     * See implementation.
-     * See implementation.
-     * See implementation.
     if (pipeline_module_func_is_variadic_at(module, fi) != 0 && pipeline_module_func_num_params_at(module, fi) > 0) {
       let ellipsis: u8[5] = [44, 32, 46, 46, 46];
       if (emit_bytes_from_ptr(out, &ellipsis[0], 5) != 0) {
@@ -10236,10 +10187,6 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
       ctx.current_codegen_prefix_len = px;
     }
     /* See implementation. */
-     * See implementation.
-     * See implementation.
-     * See implementation.
-     * See implementation.
     let call_init_globals: i32 = 0;
     if (module.num_top_level_lets > 0) {
       let ti: i32 = 0;
@@ -10319,11 +10266,6 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
           fwd_fi = fwd_fi + 1;
         }
         /* See implementation. */
-         * See implementation.
-         * See implementation.
-         * See implementation.
-         * See implementation.
-         * See implementation.
         if (module.num_top_level_lets > 0) {
           let ti: i32 = 0;
           while (ti < module.num_top_level_lets) {
@@ -10488,7 +10430,6 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
           }
           if (any_let != 0 && dep_index < 0) {
             /* See implementation. */
-             * See implementation.
             let init_globals_def: u8[32] = [115, 116, 97, 116, 105, 99, 32, 118, 111, 105, 100, 32, 105, 110, 105, 116, 95, 103, 108, 111, 98, 97, 108, 115, 40, 118, 111, 105, 100, 41, 32, 0];
             /* See implementation. */
             if (emit_bytes_from_ptr(out, &init_globals_def[0], 31) != 0) {
@@ -10539,7 +10480,6 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
               ti = ti + 1;
             }
             /* See implementation. */
-             * See implementation.
             let dep_i: i32 = 0;
             let ndep: i32 = 0;
             if (module.main_func_index >= 0) {
@@ -10625,7 +10565,6 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
         continue;
       }
       /* See implementation. */
-       * See implementation.
       let skip: i32 = 0;
       let asm_backend: i32 = 0;
       if (ctx != 0 as *PipelineDepCtx && ctx.use_asm_backend != 0) {

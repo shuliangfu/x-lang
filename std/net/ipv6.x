@@ -31,7 +31,6 @@ export const SO_REUSEADDR: i32 = 2;
 export const SO_ERROR: i32 = 4;
 export const O_NONBLOCK: i32 = 2048;
 /* See implementation. */
- * See implementation.
 export const SOCKADDR_IN6_SIZE: u32 = 28;
 
 /* See implementation. */

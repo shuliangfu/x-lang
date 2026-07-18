@@ -34,11 +34,6 @@ const io_read_ptr_mod = import("std.io.read_ptr");
 const io_stubs_mod = import("std.io.stubs");
 
 /* See implementation. */
- * See implementation.
- * See implementation.
- * See implementation.
- * See implementation.
- * See implementation.
 
 /* See implementation. */
 

@@ -24,7 +24,6 @@ extern function time_now_monotonic_ns_c(): i64;
 extern function test_call_i32_void_c(fn: usize): i32;
 extern function env_getenv_c(key: *u8, key_len: i32, out: *u8, out_cap: i32): i32;
 /* See implementation. */
- * See implementation.
 extern "C" function shux_sys_write(fd: i32, buf: *u8, count: usize): isize;
 extern "C" function strtoul(nptr: *u8, endptr: *u8, base: i32): u32;
 extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;

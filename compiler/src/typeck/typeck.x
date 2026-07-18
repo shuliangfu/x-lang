@@ -3847,8 +3847,6 @@ decl_kind: i32, init_kind: i32): i32 {
       return 1;
     }
     /* See implementation. */
-     * See implementation.
-     * See implementation.
     if (decl_kind == ord_u32) {
       pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
       return 1;
@@ -3858,9 +3856,6 @@ decl_kind: i32, init_kind: i32): i32 {
       return 1;
     }
     /* See implementation. */
-     * See implementation.
-     * See implementation.
-     * See implementation.
     if (decl_kind == ord_named) {
       let nm16: u8[64] = [];
       let nlen16: i32 = pipeline_type_named_name_into(arena, decl_ty_ref, &nm16[0]);
@@ -5229,9 +5224,6 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
             pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
           } else if (expr_kind == ord_assign && lt_kind == ord_named) {
             /* See implementation. */
-             * See implementation.
-             * See implementation.
-             * See implementation.
             let nm16: u8[64] = [];
             let nlen16: i32 = pipeline_type_named_name_into(arena, lt, &nm16[0]);
             if (nlen16 == 3 && nm16[0] == 117 && nm16[1] == 49 && nm16[2] == 54

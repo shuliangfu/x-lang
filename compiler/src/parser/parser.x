@@ -3746,8 +3746,6 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
       }
     }
     /* See implementation. */
-     * See implementation.
-     * See implementation.
     if (!cast_init_semi_done) {
       if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
         /*
@@ -4689,7 +4687,6 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
   /* See implementation. */
   let return_expr_ref_storage: i32 = 0;
   /* See implementation. */
-   * See implementation.
   let name_start: usize = (0 as usize);
   let func_name_len_storage: i32[1] = [];
   /**
@@ -4944,7 +4941,6 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       if (r.tok.kind == token.TokenKind.TOKEN_LET || r.tok.kind == token.TokenKind.TOKEN_CONST) {
         let n_before_mid: i32 = pipeline_onefunc_num_lets(onefunc_result_pool_ptr(out));
         /* See implementation. */
-         * See implementation.
         let kw_back: i32 = 3;
         if (r.tok.kind == token.TokenKind.TOKEN_CONST) {
           kw_back = 5;

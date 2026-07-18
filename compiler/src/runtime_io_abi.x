@@ -329,7 +329,6 @@ export function shux_runtime_file_view_read_malloc(fd: i32, size: i64, out: *u8)
 /* See implementation. */
 
 /* See implementation. */
- * See implementation.
  *   runtime_read_file_view_impl / runtime_release_file_view_impl /
  *   shux_write_path_bytes_impl / shux_fs_open_write_flags_impl */
 

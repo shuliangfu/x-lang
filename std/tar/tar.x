@@ -150,14 +150,15 @@ export function tar_write_header_c(buf: *u8, buf_cap: i32, name: *u8, name_len: 
   tar_write_octal(buf, 124, 12, file_size);
   tar_write_octal(buf, 136, 12, 0);     /* mtime */
   i = 148;
-   * See implementation.
-   * See implementation.
+  // Chksum field placeholder spaces (ustar layout bytes 148..155).
+  while (i < 156) { buf[i] = 32; i = i + 1; }
+  buf[156] = 48;                          /* typeflag '0' = regular file */
   buf[257] = 117; buf[258] = 115; buf[259] = 116; buf[260] = 97; buf[261] = 114;  /* "ustar" */
   buf[262] = 0;
   buf[263] = 48; buf[264] = 48;           /* version "00" */
   let chk: i32 = tar_header_chksum(buf);
-   * See implementation.
-   * See implementation.
+  tar_write_octal(buf, 148, 7, chk);       /* 6-digit octal + NUL */
+  buf[155] = 32;                           /* chksum trailing space */
   return 0;
 }
 
