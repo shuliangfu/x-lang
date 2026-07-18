@@ -164,15 +164,23 @@ for x_path in "$@"; do
       obj="$tmp_dir/try_${idx}.o"
     fi
   fi
-  # mod.x 用户 API 须为 std_<module>_*（import 调用约定）。
-  # 产品 Linux asm -o 常产裸名 mem_eq；objcopy 重命名为 std_crypto_mem_eq，与 mac C 路径对齐。
+  # mod.x 用户 API 须为 <root>_<module>_*（import 调用约定）。
+  # PLATFORM: SHARED — std/foo → std_foo_*; core/slice → core_slice_* (NOT std_slice_*).
+  # 产品 Linux asm/KEEP_C 常产裸名 len_i32；objcopy 重命名与 mac C 路径对齐。
+  # G.7: length.x U core_slice_len_i32 while formal mod.o had bare len_i32 → BLD001.
   if [ "$use_direct_o" = "1" ] && [ "$base_name" = "mod.x" ] \
      && [ -f "$obj" ] && command -v nm >/dev/null 2>&1; then
     mod_leaf=$(basename "$(dirname "$x_path")")
     case "$mod_leaf" in
       ''|.) mod_leaf=$(basename "$x_path" .x) ;;
     esac
-    mod_pref="std_${mod_leaf}_"
+    # Path root: ../core/slice/mod.x → core; ../std/env/mod.x → std.
+    mod_root=$(printf '%s' "$x_path" | sed -e 's|^\.\./||' -e 's|/.*||')
+    case "$mod_root" in
+      core) mod_pref="core_${mod_leaf}_" ;;
+      std)  mod_pref="std_${mod_leaf}_" ;;
+      *)    mod_pref="std_${mod_leaf}_" ;;
+    esac
     if [ -n "$mod_leaf" ] && ! nm "$obj" 2>/dev/null | grep -q " T ${mod_pref}"; then
       if command -v objcopy >/dev/null 2>&1; then
         nm "$obj" 2>/dev/null | awk '/ [TDB] / { print $3 }' | while IFS= read -r sym; do
@@ -180,6 +188,8 @@ for x_path in "$@"; do
           case "$sym" in
             "${mod_pref}"*) continue ;;
             _"${mod_pref}"*) continue ;;
+            # Already product-prefixed (co-emitted deps) or compiler noise.
+            core_*|std_*|_core_*|_std_*) continue ;;
             # 跳过 C 内部/编译器符号
             _Z*|.L*|L0*|__*) continue ;;
           esac
@@ -189,7 +199,7 @@ for x_path in "$@"; do
             _*) bare="${sym#_}" ;;
           esac
           case "$bare" in
-            "${mod_pref}"*) continue ;;
+            "${mod_pref}"*|core_*|std_*) continue ;;
           esac
           if [ "$bare" != "$sym" ]; then
             objcopy --redefine-sym "${sym}=_${mod_pref}${bare}" "$obj" 2>/dev/null || true
@@ -405,6 +415,39 @@ if command -v nm >/dev/null 2>&1 && command -v objcopy >/dev/null 2>&1 && [ -f "
   case "$leaf" in
     ''|.) leaf=$(basename "$out_o" .o) ;;
   esac
+  # PLATFORM: SHARED — product prefix for core/* and std/* formal .o after KEEP_C/cc.
+  # out: ../core/slice/mod.o → core_slice_*; ../std/env/env.o → std_env_*.
+  # Skip symbols already core_*/std_* (co-emitted deps). G.7 complete authority for
+  # core.slice length.x: bare len_i32 must become core_slice_len_i32.
+  out_rel=$(printf '%s' "$out_o" | sed -e 's|^\.\./||')
+  out_root=$(printf '%s' "$out_rel" | sed -e 's|/.*||')
+  case "$out_root" in
+    core) prod_pref="core_${leaf}_" ;;
+    std)  prod_pref="std_${leaf}_" ;;
+    *)    prod_pref="" ;;
+  esac
+  if [ -n "$prod_pref" ] && ! nm "$out_o" 2>/dev/null | grep -q " T ${prod_pref}"; then
+    nm "$out_o" 2>/dev/null | awk '/ [TDB] / { print $3 }' | while IFS= read -r sym; do
+      [ -n "$sym" ] || continue
+      case "$sym" in
+        "${prod_pref}"*|_"${prod_pref}"*) continue ;;
+        core_*|std_*|_core_*|_std_*) continue ;;
+        _Z*|.L*|L0*|__*|_*_c|args_*|ctx_*|io_*|process_*) continue ;;
+      esac
+      bare="$sym"
+      case "$sym" in
+        _*) bare="${sym#_}" ;;
+      esac
+      case "$bare" in
+        "${prod_pref}"*|core_*|std_*) continue ;;
+      esac
+      if [ "$bare" != "$sym" ]; then
+        objcopy --redefine-sym "${sym}=_${prod_pref}${bare}" "$out_o" 2>/dev/null || true
+      else
+        objcopy --redefine-sym "${sym}=${prod_pref}${bare}" "$out_o" 2>/dev/null || true
+      fi
+    done
+  fi
   for clash in free open close malloc realloc calloc getcwd chdir pipe exit getenv setenv unsetenv getpid getppid waitpid exec; do
     if nm "$out_o" 2>/dev/null | grep -q " T ${clash}$"; then
       # Prefer product export std_<leaf>_<clash> (e.g. std_env_getenv). *_api was a
