@@ -4339,12 +4339,21 @@ static int32_t glue_index_elem_byte_sz_from_type_ref_c(struct ast_ASTArena *aren
 /**
  * INDEX 基址为 struct 内指针字段（如 v.col_x）：rax 已指向字段槽，须 load [rax] 得堆列指针。
  */
+/**
+ * After INDEX base FIELD_ACCESS yields the field slot address in rax: if field is
+ * *T or TYPE_SLICE fat, load the pointer (`.data` @ +0 for slice). G.7 with VAR slice path.
+ * PLATFORM: SHARED — sp.left[i] / Split_*.left INDEX (subslice_split_chunks).
+ */
 static int32_t glue_index_deref_ptr_field_slot_rax_elf_c(struct ast_ASTArena *arena,
                                                           struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                           int32_t fa_ref, int32_t ta) {
   int32_t ftr;
+  int32_t fk;
   ftr = glue_field_access_field_type_ref_c(arena, g_pipeline_asm_emit_module, fa_ref);
-  if (ftr > 0 && pipeline_type_kind_ord_at(arena, ftr) == GLUE_TYPE_KIND_PTR)
+  if (ftr <= 0)
+    return 0;
+  fk = pipeline_type_kind_ord_at(arena, ftr);
+  if (fk == GLUE_TYPE_KIND_PTR || fk == GLUE_TYPE_KIND_SLICE)
     return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
   return 0;
 }
@@ -4354,8 +4363,12 @@ static int32_t glue_index_deref_ptr_field_slot_rbx_elf_c(struct ast_ASTArena *ar
                                                           struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                           int32_t fa_ref, int32_t ta) {
   int32_t ftr;
+  int32_t fk;
   ftr = glue_field_access_field_type_ref_c(arena, g_pipeline_asm_emit_module, fa_ref);
-  if (ftr <= 0 || pipeline_type_kind_ord_at(arena, ftr) != GLUE_TYPE_KIND_PTR)
+  if (ftr <= 0)
+    return 0;
+  fk = pipeline_type_kind_ord_at(arena, ftr);
+  if (fk != GLUE_TYPE_KIND_PTR && fk != GLUE_TYPE_KIND_SLICE)
     return 0;
   if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0)
     return -1;
@@ -16515,11 +16528,15 @@ int32_t pipeline_expr_field_access_layout_offset(struct ast_ASTArena *a, struct 
     typed_off = glue_field_layout_offset_for_base_field(a, m, ex->field_access_base_ref, field_name, flen);
     if (typed_off >= 0)
       return typed_off;
-    /** Built-in T[] fat pointer — not a named struct layout. */
+    /** Built-in T[] fat pointer — not a named struct layout.
+     * Base may be VAR (`sub.length`) or FIELD_ACCESS (`sp.left.length` → left is TYPE_SLICE). */
     {
-      int32_t base_ty = glue_var_expr_type_ref_with_decl_fallback_c(a, ex->field_access_base_ref);
+      int32_t base_ref = ex->field_access_base_ref;
+      int32_t base_ty = glue_var_expr_type_ref_with_decl_fallback_c(a, base_ref);
       if (base_ty <= 0)
-        base_ty = pipeline_expr_resolved_type_ref(a, ex->field_access_base_ref);
+        base_ty = pipeline_expr_resolved_type_ref(a, base_ref);
+      if (base_ty <= 0 && pipeline_expr_kind_ord_at(a, base_ref) == 44)
+        base_ty = glue_field_access_field_type_ref_c(a, m, base_ref);
       if (base_ty > 0 && pipeline_type_kind_ord_at(a, base_ty) == GLUE_TYPE_KIND_SLICE) {
         if (flen == 4 && memcmp(field_name, "data", 4) == 0)
           return 0;
