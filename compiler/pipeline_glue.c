@@ -13850,7 +13850,12 @@ static void glue_typeck_fold_expr_ref(struct ast_ASTArena *a, int32_t expr_ref,
     if (clen <= 0 || clen > 63)
       return;
     pipeline_expr_var_name_into(a, callee_ref, cname);
-    fi = glue_module_func_index_by_name_c(mod, cname, clen);
+    /* PLATFORM: SHARED — prefer typeck call_resolved_func_index for overloads.
+     * Name-only lookup returns the first same-name func (e.g. pick(i32) before
+     * pick(i64)) and wrongly CTFE-folds the i64 call site → types/overload exit 2. */
+    fi = pipeline_expr_call_resolved_func_index_at(a, expr_ref);
+    if (fi < 0)
+      fi = glue_module_func_index_by_name_c(mod, cname, clen);
     if (fi < 0)
       return;
 
@@ -13956,7 +13961,10 @@ static void glue_typeck_fold_expr_ref(struct ast_ASTArena *a, int32_t expr_ref,
       if (ilen <= 0 || ilen > 63)
         return;
       pipeline_expr_var_name_into(a, inner_callee_ref, iname);
-      inner_fi = glue_module_func_index_by_name_c(mod, iname, ilen);
+      /* PLATFORM: SHARED — same overload rule as outer CALL fold above. */
+      inner_fi = pipeline_expr_call_resolved_func_index_at(a, inner_call_ref);
+      if (inner_fi < 0)
+        inner_fi = glue_module_func_index_by_name_c(mod, iname, ilen);
       if (inner_fi < 0)
         return;
       if (glue_fold_func_returns_param01_vector_binop_ctfe_c(a, mod, inner_fi, &binop_ko) == 0)
