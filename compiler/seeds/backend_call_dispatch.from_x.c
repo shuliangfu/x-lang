@@ -3143,7 +3143,12 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
   ly = (struct glue_AsmFuncCtxCall *)ctx;
   mod_ref = ly ? ly->module_ref : 0;
   nargs = pipeline_expr_method_call_num_args_at(arena, expr_ref);
-  if (nargs > 5)
+  /**
+   * PLATFORM: SHARED — product parses `core.shux_io_submit_read_batch(...)` as METHOD_CALL with
+   * 11 scalar args. Historical `nargs > 5` hard-fail → freestanding co-emit CG002 on
+   * submit_read_batch final_expr. G.7: complete same multi-arg path as EXPR_CALL (regs + stack).
+   */
+  if (nargs < 0 || nargs > GLUE_ASM_MAX_CALL_ARGS)
     return -1;
   base_ref = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
   name_len = pipeline_expr_method_call_name_len(arena, expr_ref);
@@ -3178,26 +3183,26 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
             return -1;
           n_ov = pipeline_codegen_call_num_args_override(pre_buf, pre_len, name, name_len, nargs);
           /**
-           * PLATFORM: LINUX+MACOS x86_64 SysV — import METHOD_CALL args (math.floor / vec.push / len).
-           * Root: product parses `math.floor(x)` / `vec.new()` as METHOD_CALL, not CALL+FIELD_ACCESS.
+           * PLATFORM: LINUX+MACOS x86_64 SysV — import METHOD_CALL args (math.floor / vec.push / len /
+           * shux_io_submit_*_batch).
+           * Root: product parses `math.floor(x)` / `core.fn(…)` as METHOD_CALL, not CALL+FIELD_ACCESS.
            * G.7: same SSE class as CALL; 9–16B POD → 2 GPs; >16B MEMORY by-value on stack (formal C);
-           * sret shift reserves rdi when caller pre-loaded hidden dest (vec.new → let slot).
+           * excess integer args after 6 GPs go on stack (same as EXPR_CALL); sret shift reserves rdi.
            */
           {
-            int32_t reg_start[6];
-            int32_t reg_units[6];
-            int32_t spill_off[6];
-            int32_t is_sse[6];
-            int32_t is_f64[6];
-            int32_t is_mem[6];
-            int32_t arg_sz[6];
+            int32_t reg_start[GLUE_ASM_MAX_CALL_ARGS];
+            int32_t reg_units[GLUE_ASM_MAX_CALL_ARGS];
+            int32_t spill_off[GLUE_ASM_MAX_CALL_ARGS];
+            int32_t is_sse[GLUE_ASM_MAX_CALL_ARGS];
+            int32_t is_f64[GLUE_ASM_MAX_CALL_ARGS];
+            int32_t is_mem[GLUE_ASM_MAX_CALL_ARGS];
+            int32_t is_stk[GLUE_ASM_MAX_CALL_ARGS];
+            int32_t arg_sz[GLUE_ASM_MAX_CALL_ARGS];
             int32_t sret_sh = (ta == 0) ? pipeline_asm_emit_call_sret_reg_shift_c() : 0;
             int32_t gp_cur = sret_sh;
             int32_t xmm_cur = 0;
             int32_t mem_stack = 0;
             int32_t n_place = nargs;
-            if (n_place > 6)
-              n_place = 6;
             for (i = 0; i < n_place; i++) {
               int32_t arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, i);
               int32_t pty_i = glue_call_param_type_ref_at(arena, expr_ref, i);
@@ -3206,6 +3211,7 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
               is_sse[i] = 0;
               is_f64[i] = 0;
               is_mem[i] = 0;
+              is_stk[i] = 0;
               arg_sz[i] = 0;
               reg_start[i] = -1;
               reg_units[i] = 0;
@@ -3231,16 +3237,21 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
               u = glue_sysv_arg_gp_units_from_size_c(sz);
               if (ta != 0)
                 u = 1;
-              if (gp_cur + u > 6)
-                return -1;
+              if (gp_cur + u > 6) {
+                /** Excess integer args: SysV stack (right-to-left push). Dual-GP that does not fit: fail. */
+                if (u > 1)
+                  return -1;
+                is_stk[i] = 1;
+                continue;
+              }
               reg_start[i] = gp_cur;
               reg_units[i] = u;
               gp_cur += u;
             }
             /**
-             * Push MEMORY by-value before reg args.
+             * Push MEMORY by-value and excess integer stack args before reg loads.
              * SysV: aggregate at lowest stack address ([rsp+0]=byte0). Pad for 16-align must sit at
-             * higher addresses → push pad first, then struct high→low. (Pad-after shifts fields.)
+             * higher addresses → push pad first, then struct/stack high→low. (Pad-after shifts fields.)
              */
             if (ta == 0) {
               int32_t raw_mem = 0;
@@ -3248,6 +3259,8 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
               for (i = 0; i < n_place; i++) {
                 if (is_mem[i])
                   raw_mem += (arg_sz[i] + 7) & ~7;
+                else if (is_stk[i])
+                  raw_mem += 8;
               }
               while (((raw_mem + pushed_total) & 15) != 0) {
                 if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0)
@@ -3259,22 +3272,31 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
               for (i = n_place - 1; i >= 0; i--) {
                 int32_t arg_ref;
                 int32_t pushed;
-                if (!is_mem[i])
-                  continue;
-                arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, i);
-                if (arg_ref == 0)
-                  return -1;
-                pushed = pipeline_asm_push_sysv_memory_by_value_elf_c(arena, elf_ctx, ctx, arg_ref, arg_sz[i], ta);
-                if (pushed < 0)
-                  return -1;
-                pushed_total += pushed;
+                if (is_mem[i]) {
+                  arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, i);
+                  if (arg_ref == 0)
+                    return -1;
+                  pushed = pipeline_asm_push_sysv_memory_by_value_elf_c(arena, elf_ctx, ctx, arg_ref, arg_sz[i], ta);
+                  if (pushed < 0)
+                    return -1;
+                  pushed_total += pushed;
+                } else if (is_stk[i]) {
+                  arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, i);
+                  if (arg_ref == 0)
+                    return -1;
+                  if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0)
+                    return -1;
+                  if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+                    return -1;
+                  pushed_total += 8;
+                }
               }
               mem_stack = pushed_total;
             }
             for (i = 0; i < n_place; i++) {
               int32_t arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, i);
               int32_t so;
-              if (arg_ref == 0 || is_mem[i])
+              if (arg_ref == 0 || is_mem[i] || is_stk[i])
                 continue;
               if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0)
                 return -1;

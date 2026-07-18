@@ -1240,7 +1240,9 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
   unsafe {
     let mod_ref: *u8 = call_dispatch_load_ptr_le(ctx, 16);
     let nargs: i32 = pipeline_expr_method_call_num_args_at(arena, expr_ref);
-    if (nargs > 5) { return 0 - 1; }
+    /** Product parses core.shux_io_submit_*_batch as METHOD_CALL with >5 args; seed _impl is authority. */
+    if (nargs < 0) { return 0 - 1; }
+    if (nargs > 96) { return 0 - 1; }
     let base_ref: i32 = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
     let name_len: i32 = pipeline_expr_method_call_name_len(arena, expr_ref);
     if (name_len <= 0) { return 0 - 1; }
@@ -1281,7 +1283,29 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
                         i = i - 1;
                       }
                     } else {
+                      /** Reg args first 6; excess scalar args push right-to-left (G.7 align seed multi-arg). */
                       let i2: i32 = 0;
+                      let stk_n: i32 = 0;
+                      if (nargs > 6) { stk_n = nargs - 6; }
+                      if (stk_n > 0) {
+                        let pad: i32 = 0;
+                        if ((stk_n & 1) != 0) { pad = 1; }
+                        if (pad != 0) {
+                          if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0) { return 0 - 1; }
+                          if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+                        }
+                        let is: i32 = nargs - 1;
+                        while (is >= 6) {
+                          let arg_stk: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, is);
+                          if (arg_stk != 0) {
+                            if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_stk, is, ctx, ta) != 0) {
+                              return 0 - 1;
+                            }
+                            if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+                          }
+                          is = is - 1;
+                        }
+                      }
                       while (i2 < nargs) {
                         if (i2 >= 6) { break; }
                         let arg_ref2: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, i2);
