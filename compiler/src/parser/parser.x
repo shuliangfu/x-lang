@@ -3092,10 +3092,37 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
     }
     if (init_handled == 0) {
       if (r.tok.kind == token.TokenKind.TOKEN_FLOAT) {
-        /** f32/f64 初值：浮点字面量（与 parser.c TOKEN_FLOAT / typeck f32 规则对齐）。 */
-        let_init_ref = parser_alloc_float_lit(arena, r.tok.float_val);
+        /*
+         * f32/f64 init: plain float lit OR compound (`0.0 - 1.5`, `1.0 + 2.5`, `x as f64`).
+         * G.7: same compound reparse as TOKEN_INT (`0 - val`); bare lit keeps alloc_float_lit.
+         * Bug: taking only the first FLOAT left `let x: f64 = 0.0 - 1.5` as init=0.0 plus a
+         * dangling expr_stmt `-(1.5)` (C -E and asm store-then-neg).
+         * PLATFORM: SHARED — parser AST for body/mid-block lets.
+         */
+        let float_val_saved: f64 = r.tok.float_val;
+        let float_start: usize = r.token_start;
+        if (float_start == 0) {
+          float_start = r.next_lex.pos - 1;
+        }
+        let float_lex: Lexer = Lexer { pos: float_start, line: r.tok.line, col: r.tok.col };
         lex_from_result_ptr_into(&lex, &r);
         lexer.lexer_next_into(&r, lex, source);
+        let float_init_plain: bool = r.tok.kind == token.TokenKind.TOKEN_SEMICOLON || r.tok.kind == token.TokenKind.TOKEN_LET
+            || r.tok.kind == token.TokenKind.TOKEN_CONST || r.tok.kind == token.TokenKind.TOKEN_RETURN
+            || r.tok.kind == token.TokenKind.TOKEN_IF || r.tok.kind == token.TokenKind.TOKEN_WHILE
+            || r.tok.kind == token.TokenKind.TOKEN_FOR || r.tok.kind == token.TokenKind.TOKEN_RBRACE;
+        if (r.tok.kind == token.TokenKind.TOKEN_AS || !float_init_plain) {
+          parse_expr_result_reset(&expr_tmp, float_lex);
+          parse_expr_into(arena, float_lex, source, &expr_tmp);
+          if (!expr_tmp.ok) {
+            lex_out.pos = lex.pos; lex_out.line = lex.line; lex_out.col = lex.col; return false;
+          }
+          let_init_ref = expr_tmp.expr_ref;
+          lexer_copy_from_parse_expr_result_into(&lex, &expr_tmp);
+          lexer.lexer_next_into(&r, lex, source);
+        } else {
+          let_init_ref = parser_alloc_float_lit(arena, float_val_saved);
+        }
         init_handled = 1;
       }
     }
