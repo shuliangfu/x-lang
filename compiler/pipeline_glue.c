@@ -2371,12 +2371,18 @@ int32_t pipeline_asm_emit_expr_if_arm_elf_c(struct ast_ASTArena *arena,
  * 表达式级 if/三元 ELF 发射（C 实现）：避免 seed partial 中 backend.x EXPR_IF 经 -E 后漏打 else 标签（.L_else_N offset=-1）。
  * backend.x::emit_expr_elf 在 ek 25/27 时 extern 调用本函数。
  */
+/* Forward: dual-GP / named layout used by STRUCT_LIT field store (defs later). */
+static int32_t glue_sysv_dual_gp_byte_size_c(struct ast_ASTArena *arena, int32_t ty_ref);
+static int32_t glue_type_named_layout_size_any_module_elf_c(struct ast_ASTArena *arena, int32_t ty_ref);
+
 /**
  * STRUCT_LIT 单字段 store 宽度：与 glue_field_access_load_bytes_for_type_ref 一致（i32=4，bool/u8=1）。
+ * PLATFORM: LINUX+MACOS x86_64 SysV — 9–16B NAMED (Allocator/StrView) store 16 (rax+rdx).
  */
 static int32_t glue_struct_lit_field_store_sz(struct ast_ASTArena *arena, int32_t expr_ref, int32_t fi) {
   int32_t ty;
   int32_t kind_ord;
+  int32_t nsz;
   ty = pipeline_expr_struct_lit_field_type_ref_at(arena, g_pipeline_asm_emit_module, expr_ref, fi);
   if (ty <= 0)
     return 8;
@@ -2386,6 +2392,13 @@ static int32_t glue_struct_lit_field_store_sz(struct ast_ASTArena *arena, int32_
   /** f32(14) 须 4B store；勿 8B mov 覆盖相邻 f32 字段。 */
   if (kind_ord == 0 || kind_ord == 3 || kind_ord == 13 || kind_ord == 14)
     return 4;
+  /* SysV INTEGER dual-GP field (Allocator etc.): full 16B, not truncated to 8. */
+  nsz = glue_sysv_dual_gp_byte_size_c(arena, ty);
+  if (nsz > 8 && nsz <= 16)
+    return nsz;
+  nsz = glue_type_named_layout_size_any_module_elf_c(arena, ty);
+  if (nsz > 8 && nsz <= 16)
+    return nsz;
   return 8;
 }
 
@@ -2461,23 +2474,51 @@ static int32_t pipeline_asm_emit_struct_lit_fields_elf_c(struct ast_ASTArena *ar
       /**
        * 【Why】递归 emit（嵌套 struct_lit / binop）会 clobber rbx 为子 temp 区基址；
        *        不重载则 store 写入子 temp 区而非父栈槽，字段值丢失。
-       * 【Invariant】rax 含字段值（不可破坏）；push/pop 保护后重载 rbx 父基址。
+       * 【Invariant】rax（+rdx for 9–16B SysV）含字段值；spill 到 frame 后再重载 rbx。
+       * PLATFORM: LINUX+MACOS x86_64 — dual-GP CALL/VAR field init must keep rdx half.
        */
-      if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
-        return -1;
-      if (sret_direct) {
-        if (backend_enc_load_rbp_to_rbx_arch(elf_ctx, g_pipeline_asm_sret_home_off, ta) != 0)
+      if (ta == 0 && fsz > 8 && fsz <= 16) {
+        int32_t spill = ly->next_offset + 16;
+        if (spill < 16)
+          spill = 16;
+        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, spill, ta) != 0)
+          return -1;
+        if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, spill - 8, ta) != 0)
+          return -1;
+        if (sret_direct) {
+          if (backend_enc_load_rbp_to_rbx_arch(elf_ctx, g_pipeline_asm_sret_home_off, ta) != 0)
+            return -1;
+        } else {
+          if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, base_off, ta) != 0)
+            return -1;
+          if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+            return -1;
+        }
+        if (backend_enc_load_rbp_to_rax_arch(elf_ctx, spill, ta) != 0)
+          return -1;
+        if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff, 8, ta) != 0)
+          return -1;
+        if (backend_enc_load_rbp_to_rax_arch(elf_ctx, spill - 8, ta) != 0)
+          return -1;
+        if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff + 8, 8, ta) != 0)
           return -1;
       } else {
-        if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, base_off, ta) != 0)
+        if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
           return -1;
-        if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+        if (sret_direct) {
+          if (backend_enc_load_rbp_to_rbx_arch(elf_ctx, g_pipeline_asm_sret_home_off, ta) != 0)
+            return -1;
+        } else {
+          if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, base_off, ta) != 0)
+            return -1;
+          if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+            return -1;
+        }
+        if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+          return -1;
+        if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff, fsz, ta) != 0)
           return -1;
       }
-      if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
-        return -1;
-      if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff, fsz, ta) != 0)
-        return -1;
     }
   }
   if (getenv("SHUX_ASM_EMIT_TRACE"))
@@ -13655,8 +13696,11 @@ int32_t pipeline_asm_type_ref_byte_size_c(struct ast_ASTArena *arena, int32_t ty
 
 /**
  * Call/method-arg value byte size for SysV GP packing (G.7 authority with dual load).
- * Order: formal pty → expr resolved → VAR decl type (scope) → named layout any dep.
+ * Order: formal pty → expr resolved → VAR decl → FIELD_ACCESS field type → dual-GP name.
  * PLATFORM: SHARED size query; consumers apply LINUX+MACOS SysV 2-GP for 9–16B.
+ *
+ * FIELD_ACCESS (v.al → alloc): formal pty often 0 during co-emit; must resolve field type
+ * so units=2 (rax+rdx place). units=1 left size in rsi and arena half unused → malloc(0).
  */
 int32_t pipeline_asm_call_arg_value_byte_size_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                                  int32_t arg_ref, int32_t pty) {
@@ -13673,6 +13717,23 @@ int32_t pipeline_asm_call_arg_value_byte_size_c(struct ast_ASTArena *arena, stru
     tr = glue_var_decl_type_ref_elf_c(arena, ctx, arg_ref);
     if (tr > 0) {
       int32_t sz2 = glue_type_size_simple(g_pipeline_asm_emit_module, arena, tr, 0);
+      if (sz2 > sz)
+        sz = sz2;
+      sz2 = glue_sysv_dual_gp_byte_size_c(arena, tr);
+      if (sz2 > sz)
+        sz = sz2;
+    }
+  }
+  /* FIELD_ACCESS: field type / layout (v.al) when formal pty or resolved miss. */
+  if (arg_ref > 0 && arena && pipeline_expr_kind_ord_at(arena, arg_ref) == 44) {
+    tr = glue_field_access_field_type_ref_c(arena, g_pipeline_asm_emit_module, arg_ref);
+    if (tr <= 0 && g_pipeline_asm_emit_module)
+      tr = glue_field_access_layout_field_type_ref_by_name_c(arena, g_pipeline_asm_emit_module, arg_ref);
+    if (tr > 0) {
+      int32_t sz2 = glue_type_size_simple(g_pipeline_asm_emit_module, arena, tr, 0);
+      if (sz2 > sz)
+        sz = sz2;
+      sz2 = glue_type_named_layout_size_any_module_elf_c(arena, tr);
       if (sz2 > sz)
         sz = sz2;
       sz2 = glue_sysv_dual_gp_byte_size_c(arena, tr);
