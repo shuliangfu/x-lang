@@ -40,7 +40,7 @@ export struct Completion {
 export struct AsyncContext {
   flags: u32;
 }
-// ——— 预注册 Buffer（与 std.mem.Buffer 一致，ABI 24 字节）；调用 std.io.core（舒 IO 核心）———
+// ——— Pre-register Buffer (same ABI as std.mem.Buffer, 24 bytes); calls std.io.core ———
 export function register(buf: Buffer): i32 {
   return core.shux_io_register(buf.ptr, buf.len, buf.handle);
 }

@@ -14,7 +14,7 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.io.backend — F-03 v2/v3：舒 IO C ABI 聚合层（替代 io.c + io.o）
+// std.io.backend — F-03 v2/v3: IO C ABI aggregation layer (replaces io.c + io.o)
 //
 // 【文件职责】
 // 导出 core.x / driver.x 所需的 io_* 符号；按平台 cfg 转发 sync/win32；

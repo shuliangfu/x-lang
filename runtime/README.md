@@ -6,4 +6,4 @@
 - **内容**：例如 startup/crt0、栈检查、可选 backtrace 采集。**Shux IO 桩**已移至 **std.io.core**（`std/io/core.x`），由 `.x` 实现 `shux_io_register`、`shux_io_submit_read`、`shux_io_submit_write`；std.io.driver 与 std.mem 通过 `import("std.io.core")` 调用；自举前为桩（返回 0），自举后可在此模块内改为真实 IO 实现或通过 extern 调用内核/驱动。
 - **原则**：保持「小」；能放进 std 的尽量放 std，此处只放必须与编译器/链接脚本配合的底层片段。
 
-详见 `analysis/architecture.md` 第二章与第六章；`analysis/自举前-极致IO与网络性能准备.md` 第二节。
+详见 `analysis/doc-selfhost-architecture-v1.md`。IO 实现以 `std/io/`（core / driver / mod / backend）为准。

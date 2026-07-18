@@ -14,7 +14,7 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.io — Read/Write 与标准流 API（高性能 Shu IO 三层之 API 层，与 std.fs 联合极致压榨）
+// std.io — Read/Write and std streams API (API layer of the io stack; use with std.fs for batch I/O).
 //
 // 职责：Reader/Writer trait、ReadOnlySlice/WriteOnlySlice；对 std.io.driver 的薄封装，同步 = submit + 等一次完成。
 // 提供：handle 常量、单次/批量读写、标准流（stdin/stdout/stderr）；fd 便捷 API（read_fd/write_fd/read_batch_fd/write_batch_fd）与 std.fs 联合走 io_uring/readv 极致压榨。

@@ -1,4 +1,4 @@
-// 测试 std.io 高性能 Shu IO：io.write_stdout(ptr, len) 大块写 stdout
+// Test std.io write_stdout(ptr, len) bulk write to stdout
 const io = import("std.io");
 
 function main(): i32 {

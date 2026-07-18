@@ -14,8 +14,8 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.io.core — 舒 IO 核心层（分析/舒IO实现路线图.md 阶段 1）
-// 供 std.io.driver 与 std.mem 调用。F-03 v2/v3：底层 io_* 由 std.io.backend 纯 .x 提供（libc sync）。
+// std.io.core — IO core layer for driver and std.mem.
+// F-03 v2/v3: underlying io_* comes from std.io.backend pure .x (libc sync).
 // 约定：返回值 >0 表示读写字节数，0 表示 EOF（仅读），-1 表示错误；timeout_ms 传 0 表示无超时。
 const io_backend = import("std.io.backend");
 

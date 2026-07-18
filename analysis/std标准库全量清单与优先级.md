@@ -1,6 +1,6 @@
 # std 标准库全量清单与优先级
 
-> 列出 **所有** std 标准库模块（已实现 + 规划），按**优先级**排序，供「丰富标准库」时按序推进。与《std开发时序分析》《接下来做什么-性能压榨与新std》一致；用户只写一套 API，内部条件编译适配平台，按需链接不增体积。
+> 列出 **所有** std 标准库模块（已实现 + 规划），按**优先级**排序，供「丰富标准库」时按序推进。用户只写一套 API，内部条件编译适配平台，按需链接不增体积。
 >
 > **状态图例**：✅ = 已完成（已实现并可用的模块/规格）。
 
@@ -25,7 +25,7 @@
 | 序号 | 状态 | 模块 | 路径 | 依赖 | 说明 |
 |------|:----:|------|------|------|------|
 | 1 | ✅ | **std.runtime** | std/runtime/ | core | 运行时初始化、panic/abort 钩子；extern 对接 runtime_panic。 |
-| 2 | ✅ | **std.io.core** | std/io/（core.x） | core | 舒 IO 核心：shu_io_register、submit_read/submit_write，extern 调 io.c（io_uring/kqueue/IOCP）。 |
+| 2 | ✅ | **std.io.core** | std/io/（core.x） | core | IO 核心：shux_io_register、submit_read/submit_write；经 backend/io 层对接平台（io_uring/kqueue/IOCP 等）。 |
 | 3 | ✅ | **std.io.driver** | std/io/（driver.x） | std.io.core | Buffer ABI 24 字节、Completion、submit_*_batch、register_fixed_buffers、wait_readable。 |
 | 4 | ✅ | **std.mem** | std/mem/ | std.io.core, std.heap | Buffer(ptr,len,handle)、register_buffer；copy/set/compare 走 heap C 层。 |
 | 5 | ✅ | **std.io** | std/io/（mod.x） | std.io.driver | 对外 API：Reader/Writer、read/write 超时、print_str、read_batch_fd_buf/write_batch_fd_buf、register_fixed_buffers_buf。 |
@@ -195,7 +195,7 @@
 
 ---
 
-## 八、实现顺序建议（与《std开发时序分析》一致）
+## 八、实现顺序建议
 
 1. **P0**：已实现，仅需维护与文档更新。  
 2. **P1**：按 **std.time → std.random → std.env → std.fmt** 顺序做；每个模块**完整功能**（见第三章 3.1～3.5）、API 对标 Zig/Rust、性能超越；独立目录、README + 测试 + benchmark。  

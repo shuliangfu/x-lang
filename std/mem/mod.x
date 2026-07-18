@@ -20,7 +20,7 @@
 // 【文件职责】
 // 1) 内存操作：copy/set/compare（对标 Zig std.mem.copy/set/compare、Rust
 // ptr::copy/write_bytes、Go bytes.Equal/Compare）；
-// 2) Buffer ABI 与舒 IO 预注册（高并发 IO 第八节）：Buffer 24
+// 2) Buffer ABI and IO pre-registration: Buffer 24
 // 字节、register_buffer 调 shux_io_register。
 //
 // 【对标】
@@ -38,7 +38,7 @@ export struct Buffer {
   len: usize
   handle: usize
 }
-/** 舒 IO 预注册：解构 import("std.io.core") 后调用 shux_io_register，与 std.io.driver 共用同一实现。
+/** IO pre-register: after import("std.io.core"), call shux_io_register; shared with std.io.driver.
 */
 export function register_buffer(buf: Buffer): i32 {
   return core.shux_io_register(buf.ptr, buf.len, buf.handle);
