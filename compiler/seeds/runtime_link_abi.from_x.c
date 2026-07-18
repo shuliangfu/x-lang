@@ -6724,6 +6724,25 @@ static int labi_std_fk0_user_needs_rel(const char *user_o, const char *rel) {
             || shux_link_obj_needs_undef_sym(user_o, "std_env_iter_count")
             || shux_link_obj_needs_undef_sym(user_o, "std_env_args_iter");
     /*
+     * PLATFORM: SHARED — formal random.o = mod.x surface (std_random_*); OS fill in
+     * runtime_random_fill.o. Without fk0 probes, PRIMARY gate + default-skip leaves
+     * U std_random_* on -backend asm (tests/random). G.7: complete fk0 authority;
+     * companion push of random_fill is in STD ensure block below.
+     */
+    if (strstr(rel, "std/random/random.o"))
+        return shux_link_obj_needs_undef_sym(user_o, "std_random_next")
+            || shux_link_obj_needs_undef_sym(user_o, "std_random_fill_bytes")
+            || shux_link_obj_needs_undef_sym(user_o, "std_random_fill")
+            || shux_link_obj_needs_undef_sym(user_o, "std_random_range_u32_u32")
+            || shux_link_obj_needs_undef_sym(user_o, "std_random_flip")
+            || shux_link_obj_needs_undef_sym(user_o, "std_random_gen")
+            || shux_link_obj_needs_undef_sym(user_o, "std_random_rng_smoke")
+            || shux_link_obj_needs_undef_sym(user_o, "std_random_seed")
+            || shux_link_obj_needs_undef_sym(user_o, "random_u32_c")
+            || shux_link_obj_needs_undef_sym(user_o, "random_u64_c")
+            || shux_link_obj_needs_undef_sym(user_o, "random_rng_smoke_c")
+            || shux_link_obj_needs_undef_sym(user_o, "random_fill_bytes_c");
+    /*
      * PLATFORM: SHARED — formal fs.o = mod.x + posix.x (std_fs_*); asm skips std.fs co-emit.
      * No plan entry / no probes → U std_fs_invalid (tests/fs/main) BLD001. G.7 complete fk0.
      */
@@ -6770,9 +6789,11 @@ static int labi_user_needs_runtime_random_fill(const char *user_o) {
         || shux_link_obj_needs_undef_sym(user_o, "std_random_fill_bytes")
         || shux_link_obj_needs_undef_sym(user_o, "std_random_fill")
         || shux_link_obj_needs_undef_sym(user_o, "std_random_next")
+        || shux_link_obj_needs_undef_sym(user_o, "std_random_range_u32_u32")
         || shux_link_obj_needs_undef_sym(user_o, "std_random_gen")
         || shux_link_obj_needs_undef_sym(user_o, "std_random_flip")
         || shux_link_obj_needs_undef_sym(user_o, "std_random_rng_smoke")
+        || shux_link_obj_needs_undef_sym(user_o, "std_random_seed")
         || shux_link_obj_needs_undef_sym(user_o, "random_u32_c")
         || shux_link_obj_needs_undef_sym(user_o, "random_u64_c")
         || shux_link_obj_needs_undef_sym(user_o, "random_rng_smoke_c");
