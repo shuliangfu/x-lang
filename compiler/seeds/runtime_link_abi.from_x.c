@@ -6532,7 +6532,9 @@ static int labi_std_fk0_user_needs_rel(const char *user_o, const char *rel) {
             || shux_link_obj_needs_undef_sym(user_o, "std_context_is_cancelled")
             || shux_link_obj_needs_undef_sym(user_o, "std_context_remaining_ns");
     /* PLATFORM: SHARED — vec is link_only; pull when user.o has real API UNDEFs
-     * (new/push/len family). Do not key on weak preamble std_vec_len_empty alone. */
+     * (new/push/len family + len_empty smoke). shux_link_obj_needs_undef_sym only
+     * matches U, so C-frontend weak preamble defs (W) do not force-pull vec.o;
+     * asm user.o with U std_vec_len_empty must pull formal std/vec/vec.o (Ubuntu BLD001). */
     if (strstr(rel, "std/vec/vec.o"))
         return shux_link_obj_needs_undef_sym(user_o, "std_vec_new_retVec_u8")
             || shux_link_obj_needs_undef_sym(user_o, "std_vec_new_retVec_i32")
@@ -6540,6 +6542,8 @@ static int labi_std_fk0_user_needs_rel(const char *user_o, const char *rel) {
             || shux_link_obj_needs_undef_sym(user_o, "std_vec_push_Vec_i32_ptr_i32")
             || shux_link_obj_needs_undef_sym(user_o, "std_vec_len_Vec_u8")
             || shux_link_obj_needs_undef_sym(user_o, "std_vec_len_Vec_i32")
+            || shux_link_obj_needs_undef_sym(user_o, "std_vec_len_empty")
+            || shux_link_obj_needs_undef_sym(user_o, "std_vec_vec_len_empty")
             || shux_link_obj_needs_undef_sym(user_o, "std_vec_new")
             || shux_link_obj_needs_undef_sym(user_o, "std_vec_push");
     /* 其它 fk==0：默认不硬链，避免残缺 .o 毒化纯 asm / 无 import 用户程序。
