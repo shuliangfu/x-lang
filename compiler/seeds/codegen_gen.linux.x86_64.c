@@ -10637,6 +10637,9 @@ int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTArena * arena, s
                 return -(1);
               }
             }
+            /* PLATFORM: SHARED — decl-site init for fixed arrays, const, AND mutable lets.
+             * Library/dep .o has no main → init_globals never runs; BSS must not wipe -1
+             * sentinels (e.g. shu_heap_trace_on). Keep in sync with codegen.x. */
             int32_t want_decl_init = 0;
             if (((is_fixed_arr !=0) && !(ast_ref_is_null(tl_init)))) {
               if ((pipeline_expr_kind_ord_at(arena, tl_init) ==((int32_t)(46)))) {
@@ -10648,6 +10651,9 @@ int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTArena * arena, s
               }
             }
             if ((((is_const !=0) && (is_fixed_arr ==0)) && !(ast_ref_is_null(tl_init)))) {
+              (void)((want_decl_init = 1));
+            }
+            if ((((is_const ==0) && (is_fixed_arr ==0)) && !(ast_ref_is_null(tl_init)))) {
               (void)((want_decl_init = 1));
             }
             if ((want_decl_init !=0)) {

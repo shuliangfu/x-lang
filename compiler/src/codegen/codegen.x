@@ -10037,8 +10037,14 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
                 return -1;
               }
             }
-            /* 固定数组：声明处写初值（空 [] 则 BSS 零初始化，勿 compound lit 赋指针）。
-             * 非数组 const：保持声明处 = init；非数组 let：仍由 init_globals 赋值。 */
+            /* Declaration-site init policy (C static storage):
+             * - Fixed arrays: write init at decl (empty [] → BSS zeros; no compound-lit pointer).
+             * - Non-array const: keep `= init` at decl.
+             * - Non-array mutable let: ALSO write lit/expr init at decl.
+             *   Why: library/dep TUs have no main, so init_globals never runs; BSS zero-init
+             *   would wipe sentinels like shu_heap_trace_on = -1 (heap_trace never enables).
+             *   init_globals may still re-assign on entry co-emit (idempotent for lits).
+             * PLATFORM: SHARED — C .data vs .bss; non-zero static init must not become BSS 0. */
             let want_decl_init: i32 = 0;
             if (is_fixed_arr != 0 && !ast.ref_is_null(tl_init)) {
               if (pipeline_expr_kind_ord_at(arena, tl_init) == (46 as i32)) {
@@ -10050,6 +10056,10 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
               }
             }
             if (is_const != 0 && is_fixed_arr == 0 && !ast.ref_is_null(tl_init)) {
+              want_decl_init = 1;
+            }
+            /* Mutable scalar/struct let: same decl init as const (library .o path). */
+            if (is_const == 0 && is_fixed_arr == 0 && !ast.ref_is_null(tl_init)) {
               want_decl_init = 1;
             }
             if (want_decl_init != 0) {
