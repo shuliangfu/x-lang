@@ -6824,6 +6824,52 @@ static int labi_user_needs_runtime_env_os(const char *user_o) {
         || shux_link_obj_needs_undef_sym(user_o, "std_env_args_iter");
 }
 
+/*
+ * PLATFORM: SHARED — bulk residual TASK_SPECIAL: task.o (+ scheduler companions)
+ * used to enter the asm link line whenever the .o existed (no UNDEF gate). Pure
+ * rv/hello then dragged task+async when a warm tree had prebuilt task.o.
+ * Align with C backend need_task (std_task_*) and PRIMARY OS gates: only push
+ * when user.o has real task surface UNDEFs. null user_o keeps legacy hard-link.
+ * G.7: complete existing LABI_STD_OP_TASK_SPECIAL; do not add a second plan.
+ * Do NOT probe shux_async_task_submit* here — pure async goes through on_demand
+ * scheduler path without forcing task.o.
+ */
+static int labi_user_needs_std_task(const char *user_o) {
+    if (!user_o || !user_o[0])
+        return 1;
+    /* formal mod.x surface (std_task_*) */
+    return shux_link_obj_needs_undef_sym(user_o, "std_task_new")
+        || shux_link_obj_needs_undef_sym(user_o, "std_task_free")
+        || shux_link_obj_needs_undef_sym(user_o, "std_task_bind")
+        || shux_link_obj_needs_undef_sym(user_o, "std_task_spawn")
+        || shux_link_obj_needs_undef_sym(user_o, "std_task_join")
+        || shux_link_obj_needs_undef_sym(user_o, "std_task_pending")
+        || shux_link_obj_needs_undef_sym(user_o, "std_task_check_leak")
+        || shux_link_obj_needs_undef_sym(user_o, "std_task_cancel")
+        || shux_link_obj_needs_undef_sym(user_o, "std_task_total")
+        || shux_link_obj_needs_undef_sym(user_o, "std_task_set_new")
+        || shux_link_obj_needs_undef_sym(user_o, "std_task_set_free")
+        || shux_link_obj_needs_undef_sym(user_o, "std_task_set_spawn")
+        || shux_link_obj_needs_undef_sym(user_o, "std_task_set_join")
+        || shux_link_obj_needs_undef_sym(user_o, "std_task_set_check_leak")
+        || shux_link_obj_needs_undef_sym(user_o, "std_task_echo")
+        || shux_link_obj_needs_undef_sym(user_o, "std_task_echo_ptr")
+        || shux_link_obj_needs_undef_sym(user_o, "std_task_retry")
+        || shux_link_obj_needs_undef_sym(user_o, "std_task_err_ok")
+        /* task.x bare C surface (no_mangle / smoke) */
+        || shux_link_obj_needs_undef_sym(user_o, "task_group_create_c")
+        || shux_link_obj_needs_undef_sym(user_o, "task_group_spawn_c")
+        || shux_link_obj_needs_undef_sym(user_o, "task_group_join_c")
+        || shux_link_obj_needs_undef_sym(user_o, "task_group_free_c")
+        || shux_link_obj_needs_undef_sym(user_o, "join_set_create_c")
+        || shux_link_obj_needs_undef_sym(user_o, "join_set_spawn_c")
+        || shux_link_obj_needs_undef_sym(user_o, "join_set_join_c")
+        || shux_link_obj_needs_undef_sym(user_o, "task_smoke_c")
+        || shux_link_obj_needs_undef_sym(user_o, "task_supervise_retry_c")
+        || shux_link_obj_needs_undef_sym(user_o, "task_echo_fn_c")
+        || shux_link_obj_needs_undef_sym(user_o, "task_echo_fn_ptr_c");
+}
+
 void shux_asm_ld_append_std_objs(const char *link_argv0, const char **lib_roots, int n_lib_roots,
     ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags) {
     /* 兼容旧调用：无 user_o 时走硬链。新调用经 wrapper 传入 o_path。 */
@@ -7176,43 +7222,61 @@ void shux_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *us
                 rel ? rel : "compiler/runtime_http_glue.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
             break;
         case LABI_STD_OP_TASK_SPECIAL:
-            p = asm_link_obj_skip_missing(shux_rel_o_path_from_argv0(link_argv0, rel ? rel : "std/task/task.o"));
-            if (!p && bank)
-                p = shux_asm_ld_try_under_lib_roots(rel ? rel : "std/task/task.o", lib_roots, n_lib_roots, bank);
-            if (p && la && *la < max_la - 1) {
-                const char *task_o;
-                if (bank) {
-                    const char *bp = shux_asm_ld_bank_push(bank, p);
-                    if (bp)
-                        p = bp;
-                }
-                task_o = p;
-                if (!link_abi_asm_ld_argv_has_obj(argv, *la, p))
-                    argv[(*la)++] = p;
-                {
-                    const char *sched = scheduler_o_for_task_link(task_o, NULL);
-                    if (!sched)
-                        sched = asm_link_obj_skip_missing(shux_std_async_scheduler_o_path(link_argv0));
-                    if (!sched && bank)
-                        sched = shux_asm_ld_try_under_lib_roots("std/async/scheduler.o", lib_roots, n_lib_roots, bank);
-                    if (sched && bank) {
-                        const char *sb = shux_asm_ld_bank_push(bank, sched);
-                        if (sb)
-                            sched = sb;
+            /* PLATFORM: SHARED — gate bulk task+scheduler on user UNDEF (see labi_user_needs_std_task). */
+            if (user_o && user_o[0] && !labi_user_needs_std_task(user_o))
+                break;
+            {
+                const char *task_rel = rel ? rel : "std/task/task.o";
+                /* L4 wipe: formal ensure when user actually needs task (G.7 complete). */
+                if (user_o && user_o[0]) {
+                    const char *include_root = shux_repo_root_from_argv0(link_argv0);
+                    char make_tgt[PATH_MAX];
+                    if (include_root && include_root[0]
+                        && (size_t)snprintf(make_tgt, sizeof make_tgt, "../%s", task_rel) < sizeof make_tgt) {
+                        (void)shux_ensure_formal_std_make_o(include_root, task_rel, make_tgt);
                     }
-                    if (sched && *la < max_la - 1 && !link_abi_asm_ld_argv_has_obj(argv, *la, sched))
-                        argv[(*la)++] = sched;
-                    if (sched && *la < max_la - 1) {
-                        const char *rsg = asm_link_obj_skip_missing(shux_runtime_scheduler_glue_o_path(link_argv0));
-                        if (!rsg && bank)
-                            rsg = shux_asm_ld_try_under_lib_roots("compiler/runtime_scheduler_glue.o", lib_roots, n_lib_roots, bank);
-                        if (rsg && bank) {
-                            const char *rb = shux_asm_ld_bank_push(bank, rsg);
-                            if (rb)
-                                rsg = rb;
+                }
+                p = asm_link_obj_skip_missing(shux_rel_o_path_from_argv0(link_argv0, task_rel));
+                if (!p && bank)
+                    p = shux_asm_ld_try_under_lib_roots(task_rel, lib_roots, n_lib_roots, bank);
+                if (p && la && *la < max_la - 1) {
+                    const char *task_o;
+                    if (bank) {
+                        const char *bp = shux_asm_ld_bank_push(bank, p);
+                        if (bp)
+                            p = bp;
+                    }
+                    task_o = p;
+                    if (!link_abi_asm_ld_argv_has_obj(argv, *la, p))
+                        argv[(*la)++] = p;
+                    {
+                        const char *sched = scheduler_o_for_task_link(task_o, NULL);
+                        if (!sched)
+                            sched = asm_link_obj_skip_missing(shux_std_async_scheduler_o_path(link_argv0));
+                        if (!sched && bank)
+                            sched = shux_asm_ld_try_under_lib_roots("std/async/scheduler.o", lib_roots, n_lib_roots, bank);
+                        if (sched && bank) {
+                            const char *sb = shux_asm_ld_bank_push(bank, sched);
+                            if (sb)
+                                sched = sb;
                         }
-                        if (rsg && *la < max_la - 1 && !link_abi_asm_ld_argv_has_obj(argv, *la, rsg))
-                            argv[(*la)++] = rsg;
+                        if (sched && *la < max_la - 1 && !link_abi_asm_ld_argv_has_obj(argv, *la, sched))
+                            argv[(*la)++] = sched;
+                        if (sched && *la < max_la - 1) {
+                            (void)shux_ensure_runtime_scheduler_glue_o(link_argv0);
+                            {
+                                const char *rsg = asm_link_obj_skip_missing(shux_runtime_scheduler_glue_o_path(link_argv0));
+                                if (!rsg && bank)
+                                    rsg = shux_asm_ld_try_under_lib_roots("compiler/runtime_scheduler_glue.o", lib_roots, n_lib_roots, bank);
+                                if (rsg && bank) {
+                                    const char *rb = shux_asm_ld_bank_push(bank, rsg);
+                                    if (rb)
+                                        rsg = rb;
+                                }
+                                if (rsg && *la < max_la - 1 && !link_abi_asm_ld_argv_has_obj(argv, *la, rsg))
+                                    argv[(*la)++] = rsg;
+                            }
+                        }
                     }
                 }
             }
