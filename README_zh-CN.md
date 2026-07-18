@@ -8,7 +8,7 @@
 | **编译器** | `shux` / `shux_asm`（自举链路后的产品二进制） |
 | **源文件后缀** | `.x` |
 | **构建配置** | `build.x`（角色类似 Zig 的 `build.zig`） |
-| **现阶段（2026-07）** | **产品轨** macOS + Ubuntu **L4 真冷 + `run-all-bstrict` 123/123 已绿**；**尚未宣称完全自举**（冷启动仍依赖 seed / 过渡 C） |
+| **现阶段（2026-07-18）** | **产品 L4 钉盘** 双端绿（macOS + Ubuntu 真冷 + `run-all-bstrict` **123/123** @ `5c8204ae`）；freestanding S4 / vec / 软 typeck 等日常 L2 residual 已大部收口；**尚未宣称完全自举**（冷启动仍依赖 seed / 过渡 C） |
 | **进度仪表盘** | [`analysis/自举进度.md`](analysis/自举进度.md) · 当天快照 [`当前进度.md`](当前进度.md) |
 | **English** | [README.md](README.md) |
 
@@ -143,9 +143,12 @@ export SHUX=./compiler/shux_asm
 ./tests/run-all.sh
 SHUX_BSTRICT_SKIP_BUILD=1 ./tests/run-all-bstrict.sh   # 产品闸门（约 123 脚本）
 ./tests/run-linux-a09-a11-gate.sh
+# Linux x86_64 freestanding S4 烟测（return42 / panic / hello）：
+./tests/run-freestanding-hello.sh
 ```
 
-凡谈**自举 / 产品放行**，项目要求 **L4 真冷**（擦除 `compiler`/`std`/`core` 下全部 `.o` 并重链二进制）+ **双端** `run-all-bstrict` 全绿。详见 [`自举方法.md`](自举方法.md)、[`compiler/docs/SELFHOST.md`](compiler/docs/SELFHOST.md)。
+凡谈**自举 / 产品放行**，项目要求 **L4 真冷**（擦除 `compiler`/`std`/`core` 下全部 `.o` 并重链二进制）+ **双端** `run-all-bstrict` 全绿。详见 [`自举方法.md`](自举方法.md)、[`compiler/docs/SELFHOST.md`](compiler/docs/SELFHOST.md)。  
+**注意：** 日常 tip 的 L2 绿 **≠** tip L4 钉盘；当前放行钉盘为 **`5c8204ae`**，直到下次双端真冷重钉（见仪表盘）。
 
 ---
 
@@ -262,19 +265,34 @@ shux/
 
 ---
 
-## 八、自举状态（摘要 · 2026-07-17）
+## 八、自举状态（摘要 · 2026-07-18）
 
-> **实时数字以** [`analysis/自举进度.md`](analysis/自举进度.md) **为准**。  
-> README 只给摘要；**禁止**把 Stage2 / prove / WPO 绿单独写成产品放行或完全自举。
+> **实时数字以** [`analysis/自举进度.md`](analysis/自举进度.md) · 当天 [`当前进度.md`](当前进度.md) **为准**。  
+> README 只给摘要；**禁止**把 Stage2 / prove / WPO / **日常 L2 绿**单独写成 tip 产品 L4 或完全自举。
 
 ### 产品轨
 
 | 项 | 状态 |
 |----|------|
-| Ubuntu L4 + 全量 bstrict | ✅ **123/123**（tip L4 钉在仪表盘） |
-| macOS L4 + 全量 bstrict | ✅ **123/123**（同一 tip） |
-| 验收二进制 | **本 SHA** 冷/L3+ 产出的 `compiler/shux_asm`，禁止旧 stage1 |
+| **L4 放行钉盘** | **`5c8204ae`** — 双端真冷 + `run-all-bstrict` **123/123**（Ubuntu + macOS） |
+| Ubuntu L4 + 全量 bstrict | ✅ **123/123** @ 钉盘（日志 `/tmp/ubuntu_true_*_5c8204ae.log`） |
+| macOS L4 + 全量 bstrict | ✅ **123/123** @ 钉盘（日志 `/tmp/mac_true_*_5c8204ae.log`） |
 | 金标主机 | **Ubuntu x86_64** |
+| 验收二进制 | **本波** L2/L3/L4 产出的 `compiler/shux_asm`，**禁止**旧 stage1 |
+| 日常 tip（≠ 自动 tip L4） | 分支 tip 会随日常 L2 产品修复前进；**只有**双端真冷 + bstrict 后才升 tip L4 钉盘 |
+
+### 产品面近期已收口（日常 L2 · 钉盘仍为 `5c8204ae`）
+
+下列属于**用户产品路径**（`-backend asm` / freestanding），详见仪表盘；**不能**单独当作 tip L4 已升：
+
+| 面 | 状态（量级） |
+|----|--------------|
+| Freestanding S4 闸门 | ✅ `run-freestanding-hello`（return42 / panic_div / hello） |
+| Freestanding `std.vec` push | ✅ SysV MEMORY by-value 形参 home（push/boundary/cookbook 无 SIGSEGV） |
+| Freestanding hello CG002 | ✅ 多参 `METHOD_CALL` 栈路径（`submit_read_batch` residual 关） |
+| Freestanding 软 XT001 噪声 | ✅ dep prerun 探测 typeck soft-suppress（cookbook `new` / `heap_mem_set_c`） |
+| NL-07 零 libc 轨 | ✅ **L1–L10 + v5** 已在产品钉盘收口（crt0 / soft libm / pure static 矩阵） |
+| Hosted asm 矩阵 | ✅ return-value / hello / option / stdlib-import 等 Ubuntu 金标 L2 绿 |
 
 ### 工程轨（量级）
 
@@ -292,15 +310,16 @@ shux/
 - **未**宣称「编译器已 100% `.x`、无 seed」
 - **未**把 Stage2 的 `shux_asm2` 当产品编译器
 - **未**把工程 WPO 绿等同 tip 产品 L4
-- 终局物理零 C / nostdlib 硬绿（**G**）仍在路线图，不是本周叙事
+- **未**把「每个日常 L2 commit」写成 tip L4 —— 钉盘只在下次双端真冷 + bstrict 后更新
+- 终局物理零 C / 彻底去掉 seed（**G**）仍在路线图，不是本周叙事
 
-方法：Cap / R / L / M → [`自举方法.md`](自举方法.md)。运维：[`compiler/docs/SELFHOST.md`](compiler/docs/SELFHOST.md)。
+方法：Cap / R / L / M → [`自举方法.md`](自举方法.md)。运维：[`compiler/docs/SELFHOST.md`](compiler/docs/SELFHOST.md)。纪律：[`AGENTS.md`](AGENTS.md) + skill `shux-selfhost-product-gate`。
 
 ### 近端前排（高层）
 
-1. SHARED 产品面变更后重跑 **双端 tip L4**，更新 tip 钉  
-2. 工程：WPO full-chain 余段（proxy / stretch）与 residual pure，禁止假绿  
-3. 自举 / 产品闸门为主线期间，**暂停**大规模 std 新功能扩张  
+1. （可选）**9–16B Allocator** 双 GP SysV home 与 formal C 对齐  
+2. （旁）`vec_u16` BLD001 mangle、f64 let-init、cfg-extern / `.bss` / labi `len_empty`（挡产品面再开）  
+3. SHARED 产品面变更后：**双端 tip L4 真冷 + bstrict** 重钉；禁止双权威、禁止 soft-skip typeck 糊绿  
 
 ---
 
@@ -313,8 +332,8 @@ shux/
 | M2 | import、core/std 子集、多目标 | ✅ |
 | M3 | 泛型、trait、模块、std 扩张 | ✅ |
 | M4 | DCE、-O2/-Os、体积/性能基线 | ✅ 部分 |
-| M5 | 自举（编译器可重编自身） | 🟡 **产品路径可用 + 部分自举**；冷启动仍需 seed |
-| **当前** | 产品双端 L4 绿 + 工程 Cap/WPO 深水区 | 见仪表盘 |
+| M5 | 自举（编译器可重编自身） | 🟡 **产品路径可用 + 自举推进中**；**冷启动仍需 seed** |
+| **当前** | 产品 L4 双端钉盘 @ `5c8204ae` + freestanding/asm 日常 L2 residual + ABI 余债 | 见仪表盘 |
 
 ---
 

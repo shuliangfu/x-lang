@@ -8,8 +8,8 @@
 | **Compiler** | `shux` / `shux_asm` (product binary after bootstrap) |
 | **Source extension** | `.x` |
 | **Build config** | `build.x` (role similar to Zig’s `build.zig`) |
-| **Status (2026-07)** | **Product path green** on macOS + Ubuntu (L4 true cold + `run-all-bstrict` 123/123); **self-host not finished** (seed / hybrid C still on the cold-start chain) |
-| **Live dashboard** | [`analysis/自举进度.md`](analysis/自举进度.md) · snapshot [`当前进度.md`](当前进度.md) |
+| **Status (2026-07-18)** | **Product L4 pin** dual green (macOS + Ubuntu true cold + `run-all-bstrict` **123/123** @ `5c8204ae`); freestanding S4 / vec / soft-typeck residuals largely closed on daily L2 tip; **self-host not finished** (seed / hybrid C still required for cold start) |
+| **Live dashboard** | [`analysis/自举进度.md`](analysis/自举进度.md) · daily snapshot [`当前进度.md`](当前进度.md) |
 | **中文** | [README_zh-CN.md](README_zh-CN.md) |
 
 ---
@@ -143,9 +143,12 @@ export SHUX=./compiler/shux_asm
 ./tests/run-all.sh                 # full regression (when appropriate)
 SHUX_BSTRICT_SKIP_BUILD=1 ./tests/run-all-bstrict.sh   # product gate suite (~123 scripts)
 ./tests/run-linux-a09-a11-gate.sh  # Linux gold bootstrap subset (Docker OK)
+# Linux x86_64 freestanding S4 smoke (return42 / panic / hello):
+./tests/run-freestanding-hello.sh
 ```
 
-For **self-host / product release claims**, the project requires **L4 true cold** (wipe all `.o` under `compiler`/`std`/`core`, rebuild binaries) **plus** dual-platform `run-all-bstrict` green. Details: skill / [`自举方法.md`](自举方法.md) · [`compiler/docs/SELFHOST.md`](compiler/docs/SELFHOST.md).
+For **self-host / product release claims**, the project requires **L4 true cold** (wipe all `.o` under `compiler`/`std`/`core`, rebuild binaries) **plus** dual-platform `run-all-bstrict` green. Details: skill / [`自举方法.md`](自举方法.md) · [`compiler/docs/SELFHOST.md`](compiler/docs/SELFHOST.md).  
+**Note:** daily L2 green on tip ≠ tip L4 pin; current release pin is **`5c8204ae`** until the next dual cold re-pin (see dashboard).
 
 ---
 
@@ -262,19 +265,34 @@ Link is **on demand** (unused modules stay out of the final link when possible).
 
 ---
 
-## 8. Self-host status (snapshot · 2026-07-17)
+## 8. Self-host status (snapshot · 2026-07-18)
 
-> **Authoritative live numbers**: [`analysis/自举进度.md`](analysis/自举进度.md).  
-> README only summarizes; **do not** treat Stage2 / prove / WPO green as product release by itself.
+> **Authoritative live numbers**: [`analysis/自举进度.md`](analysis/自举进度.md) · daily [`当前进度.md`](当前进度.md).  
+> README only summarizes; **do not** treat Stage2 / prove / WPO / daily L2 green as product release by itself.
 
 ### Product track
 
 | Item | Status |
 |------|--------|
-| Ubuntu L4 + full bstrict | ✅ **123/123** (tip L4 pin documented in dashboard) |
-| macOS L4 + full bstrict | ✅ **123/123** (same tip pin) |
-| Product binary under test | `compiler/shux_asm` from **this SHA’s** cold/L3+ build — never an old `stage1` binary |
+| **L4 release pin** | **`5c8204ae`** — dual-host true cold + `run-all-bstrict` **123/123** (Ubuntu + macOS) |
+| Ubuntu L4 + full bstrict | ✅ **123/123** @ pin (logs under `/tmp/ubuntu_true_*_5c8204ae.log`) |
+| macOS L4 + full bstrict | ✅ **123/123** @ pin (logs under `/tmp/mac_true_*_5c8204ae.log`) |
 | Gold host | **Ubuntu x86_64** |
+| Product binary under test | `compiler/shux_asm` from **this-wave** L2/L3/L4 build — **never** an old `stage1` binary |
+| Daily tip (not auto tip-L4) | Active branch tip advances with L2 product fixes; **tip L4 is re-pinned only after a full cold + dual bstrict**, not after every micro commit |
+
+### Product surface recently closed (daily L2 · pin still `5c8204ae`)
+
+These are **on the product path** (user `-backend asm` / freestanding) and are tracked on the dashboard; they do **not** by themselves re-pin tip L4:
+
+| Area | Status (order of magnitude) |
+|------|------------------------------|
+| Freestanding S4 gate | ✅ `run-freestanding-hello` (return42 / panic_div / hello) |
+| Freestanding `std.vec` push | ✅ SysV MEMORY by-value param home (no SIGSEGV on push/boundary/cookbook) |
+| Freestanding hello CG002 | ✅ multi-arg `METHOD_CALL` stack path (`submit_read_batch` residual closed) |
+| Freestanding soft XT001 noise | ✅ dep-prerun exploratory typeck soft-suppress (cookbook `new` / `heap_mem_set_c`) |
+| NL-07 no-libc track | ✅ **L1–L10 + v5** closed on product pin (crt0 / soft libm / pure static matrix) |
+| Hosted asm matrix | ✅ return-value / hello / option / stdlib-import (and related L2 probes) green on Ubuntu gold |
 
 ### Engineering track (subset)
 
@@ -292,15 +310,16 @@ Link is **on demand** (unused modules stay out of the final link when possible).
 - **Not** “compiler is 100% `.x` with zero seed”
 - **Not** “Stage2 `shux_asm2` is the product compiler”
 - **Not** “engineering WPO green = tip product L4”
-- Final physical zero-C / nostdlib hard green (**G**) is still roadmap, not the weekly claim surface
+- **Not** “every daily L2 commit is tip L4” — pin stays until the next dual true cold + bstrict
+- Final physical zero-C / full seed elimination (**G**) is still roadmap, not the weekly claim surface
 
-Methodology: Cap / R / L / M → [`自举方法.md`](自举方法.md). Ops: [`compiler/docs/SELFHOST.md`](compiler/docs/SELFHOST.md).
+Methodology: Cap / R / L / M → [`自举方法.md`](自举方法.md). Ops: [`compiler/docs/SELFHOST.md`](compiler/docs/SELFHOST.md). Discipline: [`AGENTS.md`](AGENTS.md) + skill `shux-selfhost-product-gate`.
 
 ### Near-term front row (high level)
 
-1. Keep **product** dual L4 green when SHARED surfaces move; re-pin tip L4 after product commits  
-2. Engineering: WPO full-chain remainder (proxy / stretch) and residual pure cleanup without fake-green  
-3. Pause greenfield **std feature** expansion while self-host / product gates remain the main line  
+1. Optional **9–16B Allocator** dual-GP SysV home alignment (formal C parity residual)  
+2. Side residuals: `vec_u16` BLD001 mangle, f64 let-init, cfg-extern / `.bss` / labi `len_empty` when they block a product surface  
+3. When SHARED product surfaces move: **re-pin tip L4** with dual true cold + bstrict; do not invent a second authority or soft-skip typeck  
 
 ---
 
@@ -313,8 +332,8 @@ Methodology: Cap / R / L / M → [`自举方法.md`](自举方法.md). Ops: [`co
 | M2 | import, core/std subset, multi-target | ✅ |
 | M3 | Generics, trait, modules, std growth | ✅ |
 | M4 | DCE, -O2/-Os, size/perf baseline | ✅ partial |
-| M5 | Bootstrap (compiler can rebuild itself) | 🟡 **usable product path + partial self-host**; seed still required for cold start |
-| **Now** | Product L4 dual green + engineering Cap/WPO deep work | See dashboard |
+| M5 | Bootstrap (compiler can rebuild itself) | 🟡 **usable product path + advanced self-host**; **seed still required for cold start** |
+| **Now** | Product L4 dual pin @ `5c8204ae` + freestanding/asm daily L2 residuals + residual ABI polish | See dashboard |
 
 ---
 
