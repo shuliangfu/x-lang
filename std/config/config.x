@@ -14,13 +14,13 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std/config/config.x — F-config v2 + F-ZC：TOML/YAML/ENV 解析与 store（纯 .x，无 .c/.h）
+// See implementation.
 //
-// 【文件职责】
-// 分层配置 load/merge/get/set、TOML/YAML 子集解析、烟测；文件读经 fs，smoke setenv 经 env_setenv_c。
-// 编译为 config.o；对外 API 在 mod.x。
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 【对标】Go viper 最小子集、Rust config + figment 分层覆盖。
+// See implementation.
 
 export const CFG_OK: i32 = 0;
 export const CFG_ERR_NULL: i32 = -1;
@@ -39,7 +39,7 @@ export const CFG_STORE_SIZE: usize = 29000;
 export const YAML_CTX_SIZE: usize = 1200;
 
 export const CFG_SRC_UNKNOWN: i32 = 0;
-/** 布尔字面量 C 字符串（解析器不支持 &CFG_LIT_TRUE[0]）。 */
+/* See implementation. */
 export const CFG_LIT_TRUE: u8[5] = [116, 114, 117, 101, 0];
 export const CFG_LIT_FALSE: u8[6] = [102, 97, 108, 115, 101, 0];
 export const CFG_LIT_ONE: u8[2] = [49, 0];
@@ -48,7 +48,7 @@ export const CFG_LIT_YES: u8[4] = [121, 101, 115, 0];
 export const CFG_LIT_ON: u8[3] = [111, 110, 0];
 export const CFG_LIT_NO: u8[3] = [110, 111, 0];
 export const CFG_LIT_OFF: u8[4] = [111, 102, 102, 0];
-/** C 字符串常量（解析器不支持 "..." as *u8）。 */
+/* See implementation. */
 export const CFG_LIT_N9090: u8[5] = [57, 48, 57, 48, 0];
 export const CFG_LIT_SHUX_CFG_DEBUG: u8[15] = [83, 72, 85, 88, 95, 67, 70, 71, 95, 100, 101, 98, 117, 103, 0];
 export const CFG_LIT_ALPHA: u8[6] = [97, 108, 112, 104, 97, 0];
@@ -76,7 +76,7 @@ export const CFG_SRC_YAML: i32 = 2;
 export const CFG_SRC_ENV: i32 = 3;
 export const CFG_SRC_SET: i32 = 4;
 
-/** 单条键值及来源 meta。 */
+/* See implementation. */
 allow(padding) struct CfgEntry {
   key: u8[128];
   val: u8[256];
@@ -84,7 +84,7 @@ allow(padding) struct CfgEntry {
   source_label: u8[64];
 }
 
-/** 配置存储堆对象（句柄 cast 为此结构）。 */
+/* See implementation. */
 allow(padding) struct CfgStore {
   entries: CfgEntry[64];
   count: i32;
@@ -92,13 +92,13 @@ allow(padding) struct CfgStore {
   active_source_label: u8[64];
 }
 
-/** YAML section 栈帧。 */
+/* See implementation. */
 allow(padding) struct YamlFrame {
   name: u8[128];
   indent: i32;
 }
 
-/** YAML 解析上下文。 */
+/* See implementation. */
 allow(padding) struct YamlParseCtx {
   stack: YamlFrame[8];
   depth: i32;
@@ -123,24 +123,33 @@ extern "C" function strncmp(a: *u8, b: *u8, n: usize): i32;
 extern "C" function strlen(s: *u8): usize;
 extern "C" function strchr(s: *u8, c: i32): *u8;
 
-/** F-config v1 版本标记。 */
+/** Exported function `config_f_config_v1_marker_c`.
+ * Implements `config_f_config_v1_marker_c`.
+ * @return i32
+ */
 export function config_f_config_v1_marker_c(): i32 {
   return 1;
 }
 
-/** F-config v2 逻辑下沉标记。 */
+/** Exported function `config_f_config_v2_marker_c`.
+ * Implements `config_f_config_v2_marker_c`.
+ * @return i32
+ */
 export function config_f_config_v2_marker_c(): i32 {
   return 1;
 }
 
-/** F-std-zero-c：config_io_glue.c 已删除，IO 在 .x 内。 */
+/** Exported function `config_f_zero_c_marker_c`.
+ * Implements `config_f_zero_c_marker_c`.
+ * @return i32
+ */
 export function config_f_zero_c_marker_c(): i32 {
   return 1;
 }
 
 /**
- * 读取 path 文件至 out_buf（最多 out_cap-1 字节 + 结尾 NUL）。
- * 成功返回字节数（不含 NUL）；失败 -1 参数，-4 IO/过大。
+ * See implementation.
+ * See implementation.
  */
 export function config_read_file_c(path: *u8, out_buf: *u8, out_cap: i32): i32 {
   let fd: i32 = 0;
@@ -168,31 +177,54 @@ export function config_read_file_c(path: *u8, out_buf: *u8, out_cap: i32): i32 {
   return total;
 }
 
-/** smoke 专用 setenv（经 std.env 胶层 env_setenv_c）。 */
+/** Exported function `config_smoke_setenv_c`.
+ * Implements `config_smoke_setenv_c`.
+ * @param key *u8
+ * @param val *u8
+ * @return i32
+ */
 export function config_smoke_setenv_c(key: *u8, val: *u8): i32 {
   unsafe { return env_setenv_c(key, val, 1); }
   return 0; // unreachable — typeck workaround
 }
 
-/** 句柄转 store 指针；非法 0。 */
+/** Exported function `cfg_from_handle`.
+ * Implements `cfg_from_handle`.
+ * @param handle i64
+ * @return *CfgStore
+ */
 export function cfg_from_handle(handle: i64): *CfgStore {
   if (handle == 0) { return 0 as *CfgStore; }
   return handle as *CfgStore;
 }
 
-/** 内联 isspace（ASCII 空白）。 */
+/** Exported function `cfg_isspace`.
+ * Implements `cfg_isspace`.
+ * @param c u8
+ * @return i32
+ */
 export function cfg_isspace(c: u8): i32 {
   if (c == 32 || c == 9 || c == 10 || c == 13 || c == 12) { return 1; }
   return 0;
 }
 
-/** 内联 isalnum。 */
+/** Exported function `cfg_isalnum`.
+ * Implements `cfg_isalnum`.
+ * @param c u8
+ * @return i32
+ */
 export function cfg_isalnum(c: u8): i32 {
   if ((c >= 48 && c <= 57) || (c >= 65 && c <= 90) || (c >= 97 && c <= 122)) { return 1; }
   return 0;
 }
 
-/** 安全 strncpy：最多 cap-1 字节并 NUL 结尾；返回 0。 */
+/** Exported function `cfg_strncpy`.
+ * Implements `cfg_strncpy`.
+ * @param dst *u8
+ * @param src *u8
+ * @param cap i32
+ * @return i32
+ */
 export function cfg_strncpy(dst: *u8, src: *u8, cap: i32): i32 {
   let n: i32 = 0;
   if (dst == 0 || src == 0 || cap <= 0) { return CFG_ERR_NULL; }
@@ -204,7 +236,12 @@ export function cfg_strncpy(dst: *u8, src: *u8, cap: i32): i32 {
   return CFG_OK;
 }
 
-/** 去除首尾空白；返回起始指针并写入 out_len。 */
+/** Exported function `cfg_trim`.
+ * Implements `cfg_trim`.
+ * @param s *u8
+ * @param out_len *i32
+ * @return *u8
+ */
 export function cfg_trim(s: *u8, out_len: *i32): *u8 {
   let start: i32 = 0;
   let end: i32 = 0;
@@ -219,7 +256,12 @@ export function cfg_trim(s: *u8, out_len: *i32): *u8 {
   return s + start;
 }
 
-/** 查找键索引；不存在 -1。 */
+/** Exported function `cfg_find_index`.
+ * Implements `cfg_find_index`.
+ * @param store *CfgStore
+ * @param key *u8
+ * @return i32
+ */
 export function cfg_find_index(store: *CfgStore, key: *u8): i32 {
   let i: i32 = 0;
   if (store == 0 || key == 0) { return -1; }
@@ -230,7 +272,7 @@ export function cfg_find_index(store: *CfgStore, key: *u8): i32 {
   return -1;
 }
 
-/** 设置键值及来源 meta；override 非 0 时覆盖已有项。 */
+/* See implementation. */
 export function cfg_set_raw_ex(store: *CfgStore, key: *u8, val: *u8, override: i32,
                       src_kind: i32, src_label: *u8): i32 {
   let idx: i32 = 0;
@@ -261,14 +303,28 @@ export function cfg_set_raw_ex(store: *CfgStore, key: *u8, val: *u8, override: i
   return CFG_OK;
 }
 
-/** 设置键值；来源取自 store->active_source_*。 */
+/** Exported function `cfg_set_raw`.
+ * Implements `cfg_set_raw`.
+ * @param store *CfgStore
+ * @param key *u8
+ * @param val *u8
+ * @param override i32
+ * @return i32
+ */
 export function cfg_set_raw(store: *CfgStore, key: *u8, val: *u8, override: i32): i32 {
   if (store == 0) { return CFG_ERR_NULL; }
   return cfg_set_raw_ex(store, key, val, override, store.active_source_kind,
                         &store.active_source_label[0]);
 }
 
-/** 解析 TOML 双引号字符串到 out；成功 0。 */
+/** Exported function `cfg_parse_quoted`.
+ * Implements `cfg_parse_quoted`.
+ * @param src *u8
+ * @param len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function cfg_parse_quoted(src: *u8, len: i32, out: *u8, out_cap: i32): i32 {
   let i: i32 = 1;
   let o: i32 = 0;
@@ -295,7 +351,14 @@ export function cfg_parse_quoted(src: *u8, len: i32, out: *u8, out_cap: i32): i3
   return CFG_OK;
 }
 
-/** 将 TOML 标量值规范化为存储字符串。 */
+/** Exported function `cfg_normalize_value`.
+ * Implements `cfg_normalize_value`.
+ * @param raw *u8
+ * @param raw_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function cfg_normalize_value(raw: *u8, raw_len: i32, out: *u8, out_cap: i32): i32 {
   let tl: i32 = 0;
   let t: *u8 = 0;
@@ -316,7 +379,15 @@ export function cfg_normalize_value(raw: *u8, raw_len: i32, out: *u8, out_cap: i
   return CFG_OK;
 }
 
-/** 拼接 prefix + '.' + key 片段（key_len 字节）；prefix 空则仅拷贝 key。 */
+/** Exported function `cfg_build_key_prefix`.
+ * Implements `cfg_build_key_prefix`.
+ * @param prefix *u8
+ * @param key_start *u8
+ * @param key_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function cfg_build_key_prefix(prefix: *u8, key_start: *u8, key_len: i32, out: *u8, out_cap: i32): i32 {
   let pos: i32 = 0;
   let plen: i32 = 0;
@@ -336,7 +407,14 @@ export function cfg_build_key_prefix(prefix: *u8, key_start: *u8, key_len: i32, 
   return CFG_OK;
 }
 
-/** 将 i32 追加到 out[pos]；返回新 pos，失败 -1。 */
+/** Exported function `cfg_append_i32`.
+ * Implements `cfg_append_i32`.
+ * @param out *u8
+ * @param pos i32
+ * @param cap i32
+ * @param v i32
+ * @return i32
+ */
 export function cfg_append_i32(out: *u8, pos: i32, cap: i32, v: i32): i32 {
   let tmp: u8[16] = [];
   let n: i32 = 0;
@@ -361,7 +439,14 @@ export function cfg_append_i32(out: *u8, pos: i32, cap: i32, v: i32): i32 {
   return pos;
 }
 
-/** 构建 name.index section 键。 */
+/** Exported function `cfg_build_array_section`.
+ * Implements `cfg_build_array_section`.
+ * @param name *u8
+ * @param index i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function cfg_build_array_section(name: *u8, index: i32, out: *u8, out_cap: i32): i32 {
   let pos: i32 = 0;
   let nl: i32 = 0;
@@ -378,7 +463,15 @@ export function cfg_build_array_section(name: *u8, index: i32, out: *u8, out_cap
   return CFG_OK;
 }
 
-/** 构建 list_prefix.index[.field] 键。 */
+/** Exported function `cfg_build_list_key`.
+ * Implements `cfg_build_list_key`.
+ * @param prefix *u8
+ * @param index i32
+ * @param field *u8
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function cfg_build_list_key(prefix: *u8, index: i32, field: *u8, out: *u8, out_cap: i32): i32 {
   let pos: i32 = 0;
   let pl: i32 = 0;
@@ -405,7 +498,14 @@ export function cfg_build_list_key(prefix: *u8, index: i32, field: *u8, out: *u8
 }
 
 
-/** 解析单行 key = value；section_prefix 可为空或 "sect"。 */
+/** Exported function `cfg_parse_kv_line`.
+ * Implements `cfg_parse_kv_line`.
+ * @param store *CfgStore
+ * @param line *u8
+ * @param section_prefix *u8
+ * @param override i32
+ * @return i32
+ */
 export function cfg_parse_kv_line(store: *CfgStore, line: *u8, section_prefix: *u8, override: i32): i32 {
   let key_full: u8[128] = [];
   let val_buf: u8[256] = [];
@@ -430,7 +530,13 @@ export function cfg_parse_kv_line(store: *CfgStore, line: *u8, section_prefix: *
   return cfg_set_raw(store, &key_full[0], &val_buf[0], override);
 }
 
-/** 解析 [section] 头；写入 out 并返回 1，否则 0；非法 -1。 */
+/** Exported function `cfg_parse_section`.
+ * Implements `cfg_parse_section`.
+ * @param line *u8
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function cfg_parse_section(line: *u8, out: *u8, out_cap: i32): i32 {
   let len: i32 = 0;
   let t: *u8 = 0;
@@ -450,7 +556,13 @@ export function cfg_parse_section(line: *u8, out: *u8, out_cap: i32): i32 {
   return 1;
 }
 
-/** 解析 [[array]] 头；返回 2；非法 -1；非 array 0。 */
+/** Exported function `cfg_parse_array_section`.
+ * Implements `cfg_parse_array_section`.
+ * @param line *u8
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function cfg_parse_array_section(line: *u8, out: *u8, out_cap: i32): i32 {
   let len: i32 = 0;
   let t: *u8 = 0;
@@ -472,7 +584,14 @@ export function cfg_parse_array_section(line: *u8, out: *u8, out_cap: i32): i32 
   return 2;
 }
 
-/** 从内存缓冲加载 TOML 子集。 */
+/** Exported function `cfg_load_toml_buf_impl`.
+ * Implements `cfg_load_toml_buf_impl`.
+ * @param store *CfgStore
+ * @param buf *u8
+ * @param len i32
+ * @param override i32
+ * @return i32
+ */
 export function cfg_load_toml_buf_impl(store: *CfgStore, buf: *u8, len: i32, override: i32): i32 {
   let section: u8[128] = [];
   let array_name: u8[128] = [];
@@ -535,6 +654,14 @@ export function cfg_load_toml_buf_impl(store: *CfgStore, buf: *u8, len: i32, ove
 }
 
 
+/** Exported function `config_load_toml_buf_c`.
+ * Implements `config_load_toml_buf_c`.
+ * @param handle i64
+ * @param buf *u8
+ * @param len i32
+ * @param override i32
+ * @return i32
+ */
 export function config_load_toml_buf_c(handle: i64, buf: *u8, len: i32, override: i32): i32 {
   let store: *CfgStore = cfg_from_handle(handle);
   if (store == 0 || buf == 0 || len < 0) { return CFG_ERR_NULL; }
@@ -543,6 +670,13 @@ export function config_load_toml_buf_c(handle: i64, buf: *u8, len: i32, override
   return cfg_load_toml_buf_impl(store, buf, len, override);
 }
 
+/** Exported function `config_load_toml_file_c`.
+ * Implements `config_load_toml_file_c`.
+ * @param handle i64
+ * @param path *u8
+ * @param override i32
+ * @return i32
+ */
 export function config_load_toml_file_c(handle: i64, path: *u8, override: i32): i32 {
   let store: *CfgStore = cfg_from_handle(handle);
   let buf: *u8 = 0;
@@ -562,6 +696,14 @@ export function config_load_toml_file_c(handle: i64, path: *u8, override: i32): 
   return r;
 }
 
+/** Exported function `config_load_env_prefix_c`.
+ * Implements `config_load_env_prefix_c`.
+ * @param handle i64
+ * @param prefix *u8
+ * @param prefix_len i32
+ * @param override i32
+ * @return i32
+ */
 export function config_load_env_prefix_c(handle: i64, prefix: *u8, prefix_len: i32, override: i32): i32 {
   let store: *CfgStore = cfg_from_handle(handle);
   let pfx: u8[128] = [];
@@ -592,6 +734,10 @@ export function config_load_env_prefix_c(handle: i64, prefix: *u8, prefix_len: i
   return loaded;
 }
 
+/** Exported function `config_create_c`.
+ * Implements `config_create_c`.
+ * @return i64
+ */
 export function config_create_c(): i64 {
   let s: *u8 = 0;
   unsafe { s = calloc(1, CFG_STORE_SIZE); }
@@ -599,16 +745,33 @@ export function config_create_c(): i64 {
   return s as i64;
 }
 
+/** Exported function `config_free_c`.
+ * Memory management helper `config_free_c`.
+ * @param handle i64
+ * @return void
+ */
 export function config_free_c(handle: i64): void {
   let s: *CfgStore = cfg_from_handle(handle);
   if (s != 0) { unsafe { free(s as *u8); } }
 }
 
+/** Exported function `config_clear_c`.
+ * Implements `config_clear_c`.
+ * @param handle i64
+ * @return void
+ */
 export function config_clear_c(handle: i64): void {
   let s: *CfgStore = cfg_from_handle(handle);
   if (s != 0) { s.count = 0; }
 }
 
+/** Exported function `config_merge_c`.
+ * Implements `config_merge_c`.
+ * @param dst_handle i64
+ * @param src_handle i64
+ * @param override i32
+ * @return i32
+ */
 export function config_merge_c(dst_handle: i64, src_handle: i64, override: i32): i32 {
   let dst: *CfgStore = cfg_from_handle(dst_handle);
   let src: *CfgStore = cfg_from_handle(src_handle);
@@ -624,6 +787,15 @@ export function config_merge_c(dst_handle: i64, src_handle: i64, override: i32):
   return CFG_OK;
 }
 
+/** Exported function `config_set_string_c`.
+ * Implements `config_set_string_c`.
+ * @param handle i64
+ * @param key *u8
+ * @param key_len i32
+ * @param val *u8
+ * @param val_len i32
+ * @return i32
+ */
 export function config_set_string_c(handle: i64, key: *u8, key_len: i32, val: *u8, val_len: i32): i32 {
   let store: *CfgStore = cfg_from_handle(handle);
   let k: u8[128] = [];
@@ -640,6 +812,15 @@ export function config_set_string_c(handle: i64, key: *u8, key_len: i32, val: *u
   return cfg_set_raw_ex(store, &k[0], &v[0], 1, CFG_SRC_SET, &CFG_LIT_CLI[0]);
 }
 
+/** Exported function `config_get_string_c`.
+ * Implements `config_get_string_c`.
+ * @param handle i64
+ * @param key *u8
+ * @param key_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function config_get_string_c(handle: i64, key: *u8, key_len: i32, out: *u8, out_cap: i32): i32 {
   let store: *CfgStore = cfg_from_handle(handle);
   let idx: i32 = 0;
@@ -661,7 +842,12 @@ export function config_get_string_c(handle: i64, key: *u8, key_len: i32, out: *u
   return len as i32;
 }
 
-/** 十进制字符串转 i32；非法 CFG_ERR_INVALID。 */
+/** Exported function `cfg_parse_i32_str`.
+ * Implements `cfg_parse_i32_str`.
+ * @param s *u8
+ * @param out *i32
+ * @return i32
+ */
 export function cfg_parse_i32_str(s: *u8, out: *i32): i32 {
   let i: i32 = 0;
   let sign: i32 = 1;
@@ -688,6 +874,14 @@ export function cfg_parse_i32_str(s: *u8, out: *i32): i32 {
   return CFG_OK;
 }
 
+/** Exported function `config_get_i32_c`.
+ * Implements `config_get_i32_c`.
+ * @param handle i64
+ * @param key *u8
+ * @param key_len i32
+ * @param out *i32
+ * @return i32
+ */
 export function config_get_i32_c(handle: i64, key: *u8, key_len: i32, out: *i32): i32 {
   let store: *CfgStore = cfg_from_handle(handle);
   let idx: i32 = 0;
@@ -701,6 +895,14 @@ export function config_get_i32_c(handle: i64, key: *u8, key_len: i32, out: *i32)
   return cfg_parse_i32_str(&store.entries[idx].val[0], out);
 }
 
+/** Exported function `config_get_bool_c`.
+ * Implements `config_get_bool_c`.
+ * @param handle i64
+ * @param key *u8
+ * @param key_len i32
+ * @param out *i32
+ * @return i32
+ */
 export function config_get_bool_c(handle: i64, key: *u8, key_len: i32, out: *i32): i32 {
   let store: *CfgStore = cfg_from_handle(handle);
   let idx: i32 = 0;
@@ -726,6 +928,10 @@ export function config_get_bool_c(handle: i64, key: *u8, key_len: i32, out: *i32
   return CFG_ERR_INVALID;
 }
 
+/** Function `config_get_source_c`.
+ * Purpose: implements `config_get_source_c`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function config_get_source_c(handle: i64, key: *u8, key_len: i32, out_kind: *i32,
                              out_label: *u8, label_cap: i32): i32 {
   let store: *CfgStore = cfg_from_handle(handle);
@@ -744,6 +950,10 @@ export function config_get_source_c(handle: i64, key: *u8, key_len: i32, out_kin
   return CFG_OK;
 }
 
+/** Function `config_get_i32_meta_c`.
+ * Purpose: implements `config_get_i32_meta_c`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function config_get_i32_meta_c(handle: i64, key: *u8, key_len: i32, out_val: *i32,
                                out_kind: *i32, out_label: *u8, label_cap: i32): i32 {
   let r: i32 = config_get_i32_c(handle, key, key_len, out_val);
@@ -751,6 +961,10 @@ export function config_get_i32_meta_c(handle: i64, key: *u8, key_len: i32, out_v
   return config_get_source_c(handle, key, key_len, out_kind, out_label, label_cap);
 }
 
+/** Function `config_get_bool_meta_c`.
+ * Purpose: implements `config_get_bool_meta_c`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function config_get_bool_meta_c(handle: i64, key: *u8, key_len: i32, out_val: *i32,
                                 out_kind: *i32, out_label: *u8, label_cap: i32): i32 {
   let r: i32 = config_get_bool_c(handle, key, key_len, out_val);
@@ -758,6 +972,10 @@ export function config_get_bool_meta_c(handle: i64, key: *u8, key_len: i32, out_
   return config_get_source_c(handle, key, key_len, out_kind, out_label, label_cap);
 }
 
+/** Function `config_get_string_meta_c`.
+ * Purpose: implements `config_get_string_meta_c`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function config_get_string_meta_c(handle: i64, key: *u8, key_len: i32, out: *u8, out_cap: i32,
                                   out_kind: *i32, out_label: *u8, label_cap: i32): i32 {
   let r: i32 = config_get_string_c(handle, key, key_len, out, out_cap);
@@ -769,6 +987,11 @@ export function config_get_string_meta_c(handle: i64, key: *u8, key_len: i32, ou
 }
 
 
+/** Exported function `cfg_yaml_indent`.
+ * Implements `cfg_yaml_indent`.
+ * @param line *u8
+ * @return i32
+ */
 export function cfg_yaml_indent(line: *u8): i32 {
   let n: i32 = 0;
   if (line == 0) { return 0; }
@@ -777,12 +1000,28 @@ export function cfg_yaml_indent(line: *u8): i32 {
   return n;
 }
 
+/** Exported function `cfg_yaml_pop_to`.
+ * Implements `cfg_yaml_pop_to`.
+ * @param stack *YamlFrame
+ * @param depth *i32
+ * @param target_indent i32
+ * @return void
+ */
 export function cfg_yaml_pop_to(stack: *YamlFrame, depth: *i32, target_indent: i32): void {
   while (*depth > 0 && stack[(*depth - 1)].indent >= target_indent) {
     depth[0] = depth[0] - 1;
   }
 }
 
+/** Exported function `cfg_yaml_build_key`.
+ * Implements `cfg_yaml_build_key`.
+ * @param stack *YamlFrame
+ * @param depth i32
+ * @param local *u8
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function cfg_yaml_build_key(stack: *YamlFrame, depth: i32, local: *u8, out: *u8, out_cap: i32): i32 {
   let pos: i32 = 0;
   let i: i32 = 0;
@@ -816,6 +1055,11 @@ export function cfg_yaml_build_key(stack: *YamlFrame, depth: i32, local: *u8, ou
   return CFG_OK;
 }
 
+/** Exported function `cfg_yaml_list_reset`.
+ * Implements `cfg_yaml_list_reset`.
+ * @param ctx *YamlParseCtx
+ * @return void
+ */
 export function cfg_yaml_list_reset(ctx: *YamlParseCtx): void {
   if (ctx == 0) { return; }
   ctx.list_prefix[0] = 0;
@@ -823,6 +1067,14 @@ export function cfg_yaml_list_reset(ctx: *YamlParseCtx): void {
   ctx.list_indent = -1;
 }
 
+/** Exported function `cfg_yaml_frame_key`.
+ * Implements `cfg_yaml_frame_key`.
+ * @param stack *YamlFrame
+ * @param depth i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function cfg_yaml_frame_key(stack: *YamlFrame, depth: i32, out: *u8, out_cap: i32): i32 {
   let pos: i32 = 0;
   let i: i32 = 0;
@@ -845,6 +1097,13 @@ export function cfg_yaml_frame_key(stack: *YamlFrame, depth: i32, out: *u8, out_
   return CFG_OK;
 }
 
+/** Exported function `cfg_yaml_list_ensure_item`.
+ * Implements `cfg_yaml_list_ensure_item`.
+ * @param ctx *YamlParseCtx
+ * @param indent i32
+ * @param new_dash i32
+ * @return i32
+ */
 export function cfg_yaml_list_ensure_item(ctx: *YamlParseCtx, indent: i32, new_dash: i32): i32 {
   if (ctx == 0) { return CFG_ERR_NULL; }
   if (ctx.list_prefix[0] == 0) {
@@ -860,6 +1119,15 @@ export function cfg_yaml_list_ensure_item(ctx: *YamlParseCtx, indent: i32, new_d
   return CFG_OK;
 }
 
+/** Exported function `cfg_yaml_set_list_entry`.
+ * Implements `cfg_yaml_set_list_entry`.
+ * @param store *CfgStore
+ * @param ctx *YamlParseCtx
+ * @param field *u8
+ * @param val *u8
+ * @param override i32
+ * @return i32
+ */
 export function cfg_yaml_set_list_entry(store: *CfgStore, ctx: *YamlParseCtx, field: *u8, val: *u8, override: i32): i32 {
   let key_full: u8[128] = [];
   if (store == 0 || ctx == 0 || val == 0) { return CFG_ERR_NULL; }
@@ -870,6 +1138,10 @@ export function cfg_yaml_set_list_entry(store: *CfgStore, ctx: *YamlParseCtx, fi
   return cfg_set_raw(store, &key_full[0], val, override);
 }
 
+/** Function `cfg_yaml_parse_list_field`.
+ * Purpose: implements `cfg_yaml_parse_list_field`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function cfg_yaml_parse_list_field(store: *CfgStore, ctx: *YamlParseCtx, line: *u8,
                                  indent: i32, new_dash: i32, override: i32): i32 {
   let key_local: u8[128] = [];
@@ -906,6 +1178,14 @@ export function cfg_yaml_parse_list_field(store: *CfgStore, ctx: *YamlParseCtx, 
   return cfg_yaml_set_list_entry(store, ctx, &key_local[0], &val_buf[0], override);
 }
 
+/** Exported function `cfg_yaml_parse_list_scalar`.
+ * Implements `cfg_yaml_parse_list_scalar`.
+ * @param store *CfgStore
+ * @param ctx *YamlParseCtx
+ * @param line *u8
+ * @param override i32
+ * @return i32
+ */
 export function cfg_yaml_parse_list_scalar(store: *CfgStore, ctx: *YamlParseCtx, line: *u8, override: i32): i32 {
   let val_buf: u8[256] = [];
   let tl: i32 = 0;
@@ -924,6 +1204,14 @@ export function cfg_yaml_parse_list_scalar(store: *CfgStore, ctx: *YamlParseCtx,
   return cfg_yaml_set_list_entry(store, ctx, 0, &val_buf[0], override);
 }
 
+/** Exported function `cfg_yaml_parse_line`.
+ * Implements `cfg_yaml_parse_line`.
+ * @param store *CfgStore
+ * @param line *u8
+ * @param ctx *YamlParseCtx
+ * @param override i32
+ * @return i32
+ */
 export function cfg_yaml_parse_line(store: *CfgStore, line: *u8, ctx: *YamlParseCtx, override: i32): i32 {
   let key_local: u8[128] = [];
   let key_full: u8[128] = [];
@@ -988,6 +1276,14 @@ export function cfg_yaml_parse_line(store: *CfgStore, line: *u8, ctx: *YamlParse
   return cfg_set_raw(store, &key_full[0], &val_buf[0], override);
 }
 
+/** Exported function `cfg_load_yaml_buf_impl`.
+ * Implements `cfg_load_yaml_buf_impl`.
+ * @param store *CfgStore
+ * @param buf *u8
+ * @param len i32
+ * @param override i32
+ * @return i32
+ */
 export function cfg_load_yaml_buf_impl(store: *CfgStore, buf: *u8, len: i32, override: i32): i32 {
   let ctx: YamlParseCtx = YamlParseCtx {
     stack: [], depth: 0, list_prefix: [], list_index: -1, list_indent: -1
@@ -1020,6 +1316,14 @@ export function cfg_load_yaml_buf_impl(store: *CfgStore, buf: *u8, len: i32, ove
   return CFG_OK;
 }
 
+/** Exported function `config_load_yaml_buf_c`.
+ * Implements `config_load_yaml_buf_c`.
+ * @param handle i64
+ * @param buf *u8
+ * @param len i32
+ * @param override i32
+ * @return i32
+ */
 export function config_load_yaml_buf_c(handle: i64, buf: *u8, len: i32, override: i32): i32 {
   let store: *CfgStore = cfg_from_handle(handle);
   if (store == 0 || buf == 0 || len < 0) { return CFG_ERR_NULL; }
@@ -1028,6 +1332,13 @@ export function config_load_yaml_buf_c(handle: i64, buf: *u8, len: i32, override
   return cfg_load_yaml_buf_impl(store, buf, len, override);
 }
 
+/** Exported function `config_load_yaml_file_c`.
+ * Implements `config_load_yaml_file_c`.
+ * @param handle i64
+ * @param path *u8
+ * @param override i32
+ * @return i32
+ */
 export function config_load_yaml_file_c(handle: i64, path: *u8, override: i32): i32 {
   let store: *CfgStore = cfg_from_handle(handle);
   let buf: *u8 = 0;
@@ -1048,6 +1359,10 @@ export function config_load_yaml_file_c(handle: i64, path: *u8, override: i32): 
 }
 
 
+/** Exported function `config_yaml_smoke_c`.
+ * Implements `config_yaml_smoke_c`.
+ * @return i32
+ */
 export function config_yaml_smoke_c(): i32 {
   let cfg: i64 = 0;
   let port: i32 = 0;
@@ -1078,6 +1393,10 @@ export function config_yaml_smoke_c(): i32 {
   return 0;
 }
 
+/** Exported function `config_array_smoke_c`.
+ * Implements `config_array_smoke_c`.
+ * @return i32
+ */
 export function config_array_smoke_c(): i32 {
   let cfg: i64 = 0;
   let p0: i32 = 0;
@@ -1098,6 +1417,10 @@ export function config_array_smoke_c(): i32 {
   return 0;
 }
 
+/** Exported function `config_nested_smoke_c`.
+ * Implements `config_nested_smoke_c`.
+ * @return i32
+ */
 export function config_nested_smoke_c(): i32 {
   let cfg: i64 = 0;
   let port: i32 = 0;
@@ -1116,6 +1439,10 @@ export function config_nested_smoke_c(): i32 {
   return 0;
 }
 
+/** Exported function `config_smoke_c`.
+ * Implements `config_smoke_c`.
+ * @return i32
+ */
 export function config_smoke_c(): i32 {
   let base: i64 = 0;
   let overlay: i64 = 0;

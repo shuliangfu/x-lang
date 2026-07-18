@@ -1,6 +1,10 @@
-// Hello World：程序正常输出走 std.fmt（stdout）
+// See implementation.
 const fmt = import("std.fmt");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let msg: *u8 = "Hello World\n";
   let n: i32 = fmt.print(msg, 12);

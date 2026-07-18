@@ -1,13 +1,19 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-23：真迁 .x — std.runtime panic/abort/evidence 薄转发。
-// 产品：./shux-c -E → seeds/runtime_std_runtime_fast.from_x.c
+// See implementation.
+// See implementation.
 
 export extern "C" function shux_panic_(has_msg: i32, msg_val: i32): void;
 export extern "C" function shux_crash_evidence_collect_c(has_msg: i32, msg_val: i32): void;
 
 #[no_mangle]
+/** Exported function `std_runtime_crash_evidence_collect`.
+ * Implements `std_runtime_crash_evidence_collect`.
+ * @param has_msg i32
+ * @param msg_val i32
+ * @return void
+ */
 export function std_runtime_crash_evidence_collect(has_msg: i32, msg_val: i32): void {
   unsafe {
     shux_crash_evidence_collect_c(has_msg, msg_val);
@@ -15,11 +21,21 @@ export function std_runtime_crash_evidence_collect(has_msg: i32, msg_val: i32): 
 }
 
 #[no_mangle]
+/** Exported function `runtime_crash_evidence_collect_c`.
+ * Implements `runtime_crash_evidence_collect_c`.
+ * @param has_msg i32
+ * @param msg_val i32
+ * @return void
+ */
 export function runtime_crash_evidence_collect_c(has_msg: i32, msg_val: i32): void {
   std_runtime_crash_evidence_collect(has_msg, msg_val);
 }
 
 #[no_mangle]
+/** Exported function `std_runtime_runtime_panic`.
+ * Implements `std_runtime_runtime_panic`.
+ * @return void
+ */
 export function std_runtime_runtime_panic(): void {
   unsafe {
     shux_panic_(0, 0);
@@ -27,6 +43,10 @@ export function std_runtime_runtime_panic(): void {
 }
 
 #[no_mangle]
+/** Exported function `runtime_panic`.
+ * Implements `runtime_panic`.
+ * @return void
+ */
 export function runtime_panic(): void {
   unsafe {
     shux_panic_(0, 0);
@@ -34,6 +54,10 @@ export function runtime_panic(): void {
 }
 
 #[no_mangle]
+/** Exported function `std_runtime_runtime_abort`.
+ * Implements `std_runtime_runtime_abort`.
+ * @return void
+ */
 export function std_runtime_runtime_abort(): void {
   unsafe {
     shux_panic_(0, 0);
@@ -41,6 +65,10 @@ export function std_runtime_runtime_abort(): void {
 }
 
 #[no_mangle]
+/** Exported function `runtime_abort`.
+ * Implements `runtime_abort`.
+ * @return void
+ */
 export function runtime_abort(): void {
   unsafe {
     shux_panic_(0, 0);

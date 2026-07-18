@@ -1,8 +1,12 @@
-// STD-095：map_http_c_result / request_timeout_ms_for_ctx 离线烟测（recv 超时见 http_timeout_smoke.c）
+// See implementation.
 const http = import("std.http");
 const context = import("std.context");
 const err = import("std.error");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (map_http_c_result(-1220) != http_err_timeout()) {
     return 1;

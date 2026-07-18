@@ -1,13 +1,17 @@
-// async_run_io_stdin.x — IO-A5 Linux 全链路：run + await read_fd(stdin) link + run
+// See implementation.
 extern function read_fd(fd: i32, ptr: *u8, len: usize): i32;
 
-/** 从 stdin 读 4 字节；run 经 shux_async_run_i32 drain/wake 完成 IO await。 */
+/* See implementation. */
 async function read_four(): i32 {
   let buf: u8[4] = [];
   let n: i32 = await unsafe { read_fd(0, buf as *u8, 4) };
   return n;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let n: i32 = run read_four();
   if (n != 4) {

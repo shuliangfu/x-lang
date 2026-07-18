@@ -1,10 +1,14 @@
-// tests/csv/main.x — std.csv 全面 + 边界测试
+// See implementation.
 //
-// 覆盖：next_field（无引号、引号字段、逗号在引号内）、escape、unescape；边界：空、缓冲不足。
-// 【asm -o】CALL 结果用赋值语句；引号探针内联于本文件，避免 csv.x 内局部数组 co-emit 缺陷。
+// See implementation.
+// See implementation.
 
 const csv = import("std.csv");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let start: i32 = 0;
   let flen: i32 = 0;
@@ -30,7 +34,7 @@ function main(): i32 {
   esc_fail = csv.escape(&line[0], 2, &buf[0], 3);
   if (esc_fail != (0 - 1)) { return 8; }
 
-  /** 引号字段 `"a,b",c` — 第一字段 start=1 len=3（a,b）。 */
+  /* See implementation. */
   let qline: u8[8] = [34, 97, 44, 98, 34, 44, 99, 0];
   let off: i32 = 0;
   let st: i32 = 0;

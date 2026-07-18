@@ -14,14 +14,14 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.io.read_ptr — F-03 v2/v3：TLS 风格 read_ptr 内部缓冲（无 mmap/dispatch_data）
+// See implementation.
 //
-// 【文件职责】
-// io_read_ptr / io_read_ptr_len / generation 校验；v1 仅用模块级 64KiB 缓冲 + io_read 拷贝。
-// backend 恒为 0（TLS）；ZC-2 mmap/dispatch_data 留待 v3+。
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 【依赖】
-// 平台 sync 模块提供 io_read。
+// See implementation.
+// See implementation.
 
 #[cfg(target_os = "linux")]
 const io_sync = import("std.io.sync");
@@ -30,21 +30,21 @@ const io_sync = import("std.io.sync");
 #[cfg(target_os = "windows")]
 const io_sync = import("std.io.win32");
 
-/** read_ptr 内部缓冲大小（与 io.c IO_READ_PTR_BUF_SIZE 一致）。 */
+/* See implementation. */
 export const IO_READ_PTR_BUF_SIZE: usize = 65536;
 
-/** M-5：u8[] slice ABI（与 shux_slice_uint8_t 一致）。 */
+/* See implementation. */
 allow(padding) struct ShuxSliceU8 { data: *u8; length: usize; }
 
-/** 模块级 read_ptr 缓冲（v1 单缓冲；并发 read_ptr 不隔离）。 */
+/* See implementation. */
 let g_io_read_ptr_buf: u8[65536] = [];
 let g_io_read_ptr_len: i32 = 0;
 let g_io_read_ptr_gen: u64 = 0 as u64;
 let g_io_read_ptr_backend: i32 = 0;
 
 /**
- * 零拷贝读：读入内部缓冲并返回只读指针；失败返回 0。
- * 任意调用均递增 generation（含失败路径）。
+ * See implementation.
+ * See implementation.
  */
 export function io_read_ptr(handle: usize, timeout_ms: u32): *u8 {
   g_io_read_ptr_gen = g_io_read_ptr_gen + 1;
@@ -59,17 +59,27 @@ export function io_read_ptr(handle: usize, timeout_ms: u32): *u8 {
   return &g_io_read_ptr_buf[0];
 }
 
-/** 返回最近一次 io_read_ptr 成功读入的字节数。 */
+/** Exported function `io_read_ptr_len`.
+ * Read path helper `io_read_ptr_len`.
+ * @return i32
+ */
 export function io_read_ptr_len(): i32 {
   return g_io_read_ptr_len;
 }
 
-/** 返回当前 read_ptr generation。 */
+/** Exported function `io_read_ptr_gen`.
+ * Read path helper `io_read_ptr_gen`.
+ * @return u64
+ */
 export function io_read_ptr_gen(): u64 {
   return g_io_read_ptr_gen;
 }
 
-/** saved 与当前 gen 相等返回 1，否则 0。 */
+/** Exported function `io_read_ptr_gen_valid`.
+ * Read path helper `io_read_ptr_gen_valid`.
+ * @param saved u64
+ * @return i32
+ */
 export function io_read_ptr_gen_valid(saved: u64): i32 {
   if (saved == g_io_read_ptr_gen) {
     return 1;
@@ -77,12 +87,20 @@ export function io_read_ptr_gen_valid(saved: u64): i32 {
   return 0;
 }
 
-/** 返回上次 read_ptr 后端：v1 恒为 0（TLS 缓冲）。 */
+/** Exported function `io_read_ptr_backend`.
+ * Read path helper `io_read_ptr_backend`.
+ * @return i32
+ */
 export function io_read_ptr_backend(): i32 {
   return g_io_read_ptr_backend;
 }
 
-/** 零拷贝读并打包为 u8[] slice 视图。 */
+/** Exported function `io_read_ptr_slice`.
+ * Read path helper `io_read_ptr_slice`.
+ * @param handle usize
+ * @param timeout_ms u32
+ * @return ShuxSliceU8
+ */
 export function io_read_ptr_slice(handle: usize, timeout_ms: u32): ShuxSliceU8 {
   let p: *u8 = io_read_ptr(handle, timeout_ms);
   let s: ShuxSliceU8;

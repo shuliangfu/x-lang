@@ -1,8 +1,12 @@
 /**
- * STD-SOCKETIO-001 烟测：P3 收口 v16（v9–v15 全栈金样）。
+ * See implementation.
  */
 const sio = import("std.socketio");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   return sio.p3_complete_smoke();
 }

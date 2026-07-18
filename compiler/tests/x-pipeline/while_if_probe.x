@@ -1,4 +1,8 @@
-/** 探针：while 内单层 if */
+/** Probe: single-level if inside while. */
+
+/**
+ * Increment j under two ifs until j >= len; returns final j (expect 2).
+ */
 function main(): i32 {
   let j: i32 = 0;
   let len: i32 = 2;

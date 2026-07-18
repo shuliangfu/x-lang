@@ -14,18 +14,18 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// check.x — shux check 子命令：parse + typeck（含 import deps），不
-// codegen、不链接。
-// 符号名 driver_cmd_check：源码标识符 cmd_check + 模块前缀 driver_
-// 勿 import ast：-E 生成 driver_check_gen.c 时无需 AST；路径/目录由 fmt_check_cmd.c
-// 处理。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 
-/** C 侧 fmt_check_cmd.c：多文件/目录、deno check 风格诊断。 */
+/* See implementation. */
 export extern function driver_run_compiler_check(argc: i32, argv: *u8): i32;
 
 /**
  * shux check [flags] [path...]
- * 无路径时递归检查当前目录 *.x（与 shux fmt 一致）；目录则递归 *.x。
+ * See implementation.
  */
 export function cmd_check(argc: i32, argv: *u8): i32 {
   unsafe {

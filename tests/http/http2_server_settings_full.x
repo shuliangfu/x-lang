@@ -1,6 +1,10 @@
-// STD-HTTP-H2-v21：server 全量 SETTINGS 协商烟测（HEADER_TABLE_SIZE/MAX_FRAME_SIZE）
+// See implementation.
 const http = import("std.http");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (http.server_settings_full_smoke() != 0) { return 1; }
   if (http.setting_header_table_size() != 1) { return 2; }

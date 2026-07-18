@@ -1,8 +1,12 @@
-// STD-090：std.async bind_ctx + cancel 传播烟测
+// See implementation.
 const async_mod = import("std.async");
 const context = import("std.context");
 const task = import("std.task");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let bg: Context = context.background();
   let child: Context = context.with_cancel(bg);

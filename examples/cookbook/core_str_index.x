@@ -3,6 +3,10 @@
  */
 const str = import("core.str");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let buf: u8[6] = [104, 101, 108, 108, 111, 0];
   let v: BytesView = str.bytes_view(&buf[0], 5);

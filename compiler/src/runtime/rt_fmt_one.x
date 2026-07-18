@@ -1,10 +1,10 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-311/447 / P2 runtime rest：fmt 单文件。
-// R2 full：.x 吃满 driver_fmt_one_file；产品 PREFER_X_O 下 rest 仅 marker（业务 H=0）。
-// 🔒 读文件 runtime_read_file_malloc；写回 shux_write_path_bytes；格式化 shu_format_x_document；
-// 诊断用 diag_report_with_code（无 va_list / reportf）。
+// Runtime fmt-one helpers (G.9 English; body is authoritative).
+// Runtime fmt-one helpers (G.9 English; body is authoritative).
+// Runtime fmt-one helpers (G.9 English; body is authoritative).
+// Runtime fmt-one helpers (G.9 English; body is authoritative).
 
 export extern "C" function runtime_read_file_malloc(path: *u8, out_len: *usize): *u8;
 export extern "C" function free(p: *u8): void;
@@ -17,8 +17,7 @@ export extern "C" function shux_write_path_bytes(path: *u8, data: *u8, len: usiz
 export extern "C" function diag_report_with_code(
   file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void;
 
-/** path[0..path_len) → path_buf 尾 0；path_len 须 < 512。成功 1 / 失败 0。
- * Track-L：#[no_mangle] 与 surface 短名一致，禁止模块前缀 mangle（rt_fmt_one_rt_fmt_path_*）。 */
+/** Format one value into the driver emit path; see signature and body for contracts. */
 #[no_mangle]
 export function rt_fmt_path_copy_nul(path: *u8, path_len: i32, path_buf: *u8): i32 {
   let i: i32 = 0;
@@ -39,7 +38,12 @@ export function rt_fmt_path_copy_nul(path: *u8, path_len: i32, path_buf: *u8): i
   return 1;
 }
 
-/** 后缀是否为 ".x"。 */
+/** Exported function `rt_fmt_path_ends_x`.
+ * Implements `rt_fmt_path_ends_x`.
+ * @param path_buf *u8
+ * @param path_len i32
+ * @return i32
+ */
 #[no_mangle]
 export function rt_fmt_path_ends_x(path_buf: *u8, path_len: i32): i32 {
   if (path_len < 2) {
@@ -55,8 +59,8 @@ export function rt_fmt_path_ends_x(path_buf: *u8, path_len: i32): i32 {
 }
 
 /**
- * shux fmt 单文件：读入 .x、按 LSP 规则格式化；内容变化时写回。
- * path 为字节路径（path_len 不含 NUL）；成功 0，失败 1。
+ * See signature and body for params/returns/contracts.
+ * See signature and body for params/returns/contracts.
  */
 #[no_mangle]
 export function driver_fmt_one_file(path: *u8, path_len: i32): i32 {
@@ -219,7 +223,7 @@ export function driver_fmt_one_file(path: *u8, path_len: i32): i32 {
     }
   }
 
-  // PLATFORM: SHARED — LANG-007：driver_fmt_check_only_get 为 extern "C"，须 unsafe。
+  // Runtime fmt-one helpers (G.9 English; body is authoritative).
   let check_only: i32 = 0;
   unsafe {
     check_only = driver_fmt_check_only_get();
@@ -264,7 +268,7 @@ export function driver_fmt_one_file(path: *u8, path_len: i32): i32 {
       }
       return 1;
     }
-    /* "info" / "fmt OK" — 与 deno fmt 一致：仅写回时输出 */
+    /* Local step; behavior follows surrounding code. */
     info_kind[0] = 105;
     info_kind[1] = 110;
     info_kind[2] = 102;

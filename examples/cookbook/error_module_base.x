@@ -1,8 +1,12 @@
 /**
- * Cookbook ERR-01：错误码→模块 base 与 sidecar 种类（STD-020）。
+ * See implementation.
  */
 const err = import("std.error");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let base_io: i32 = err.code_to_module_base(err.io_err_timeout());
   if (base_io != err.base_io()) { return 1; }

@@ -1,4 +1,8 @@
-// label 与 goto：先跳转到标签再 return（验证解析与 codegen）
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   out: return 42;
 }

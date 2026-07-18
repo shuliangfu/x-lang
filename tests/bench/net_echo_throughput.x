@@ -1,9 +1,14 @@
-// net_echo_throughput.x — N2：TcpStream batch 读写 echo 吞吐（client 侧，与 run-perf-net.sh 配套）
-// 4×4KiB×1024 轮 ≈ 16MiB 发 + 16MiB 收；stream_*_batch(n=4) 一次 readv/writev。
+// See implementation.
+// See implementation.
 const net = import("std.net");
 const process = import("std.process");
 
-/** 解析十进制 u32 端口（NUL 结尾）；非法返回 default_port。 */
+/** Internal function `bench_parse_port`.
+ * Implements `bench_parse_port`.
+ * @param s *u8
+ * @param default_port u32
+ * @return u32
+ */
 function bench_parse_port(s: *u8, default_port: u32): u32 {
   if (s == 0 as *u8) { return default_port; }
   let n: u32 = 0;
@@ -19,7 +24,16 @@ function bench_parse_port(s: *u8, default_port: u32): u32 {
   return n;
 }
 
-/** 写 4×4KiB；失败返回负值。 */
+/** Internal function `echo_write_4`.
+ * Write path helper `echo_write_4`.
+ * @param stream TcpStream
+ * @param p0 *u8
+ * @param p1 *u8
+ * @param p2 *u8
+ * @param p3 *u8
+ * @param seg usize
+ * @return i32
+ */
 function echo_write_4(stream: TcpStream, p0: *u8, p1: *u8, p2: *u8, p3: *u8, seg: usize): i32 {
   let need: i32 = 16384;
   let nw: i32 = net.write_batch(stream, p0, seg, p1, seg, p2, seg, p3, seg, 4, 0);
@@ -27,7 +41,16 @@ function echo_write_4(stream: TcpStream, p0: *u8, p1: *u8, p2: *u8, p3: *u8, seg
   return nw;
 }
 
-/** 读 4×4KiB；失败返回负值。 */
+/** Internal function `echo_read_4`.
+ * Read path helper `echo_read_4`.
+ * @param stream TcpStream
+ * @param p0 *u8
+ * @param p1 *u8
+ * @param p2 *u8
+ * @param p3 *u8
+ * @param seg usize
+ * @return i32
+ */
 function echo_read_4(stream: TcpStream, p0: *u8, p1: *u8, p2: *u8, p3: *u8, seg: usize): i32 {
   let need: i32 = 16384;
   let nr: i32 = net.read_batch(stream, p0, seg, p1, seg, p2, seg, p3, seg, 4, 0);
@@ -35,8 +58,12 @@ function echo_read_4(stream: TcpStream, p0: *u8, p1: *u8, p2: *u8, p3: *u8, seg:
   return nr;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
-  /** 与 net_echo_throughput_server.c / run-perf-net.sh 一致；argv[1] 为动态端口。 */
+  /* See implementation. */
   let echo_port: u32 = 38457;
   if (process.args_count() >= 2) {
     echo_port = bench_parse_port(process.arg(1), echo_port);
@@ -44,7 +71,7 @@ function main(): i32 {
   let echo_rounds: i32 = 1024;
   let seg: usize = 4096;
   let addr: Ipv4Addr = Ipv4Addr { a: 127, b: 0, c: 0, d: 1 };
-  /** timeout=0：阻塞 connect，bulk echo 快路径。 */
+  /* See implementation. */
   let stream: TcpStream = net.connect_blocking(addr, echo_port, 0);
   if (stream.fd < 0) { return 1; }
   let b0: u8[4096] = [];

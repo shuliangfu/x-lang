@@ -1,4 +1,8 @@
-// 数组字面量 [1,2,3,4] 与下标 a[i]（变量类型与类型系统设计 §6.2）
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32[4] = [1, 2, 3, 4];
   return a[0];

@@ -1,11 +1,16 @@
-// STD-009：std.http GET 吞吐与 P99 延迟 bench（client）
-// 64 次 GET → stderr：BENCH_ELAPSED_NS= / BENCH_P99_US=
+// See implementation.
+// See implementation.
 const http = import("std.http");
 const time = import("std.time");
 const io = import("std.io");
 const process = import("std.process");
 
-/** 解析十进制 u32 端口；非法返回 default_port。 */
+/** Internal function `bench_parse_port`.
+ * Implements `bench_parse_port`.
+ * @param s *u8
+ * @param default_port u32
+ * @return u32
+ */
 function bench_parse_port(s: *u8, default_port: u32): u32 {
   if (s == 0 as *u8) { return default_port; }
   let n: u32 = 0;
@@ -21,7 +26,11 @@ function bench_parse_port(s: *u8, default_port: u32): u32 {
   return n;
 }
 
-/** 十进制位数（v>0）。 */
+/** Internal function `bench_u64_len`.
+ * Query helper `bench_u64_len`.
+ * @param v i64
+ * @return i32
+ */
 function bench_u64_len(v: i64): i32 {
   if (v <= 0) { return 1; }
   let n: i32 = 0;
@@ -33,7 +42,13 @@ function bench_u64_len(v: i64): i32 {
   return n;
 }
 
-/** 将 v 右对齐写入 buf（总长 len）。 */
+/** Internal function `bench_u64_fill`.
+ * Implements `bench_u64_fill`.
+ * @param buf *u8
+ * @param len i32
+ * @param v i64
+ * @return void
+ */
 function bench_u64_fill(buf: *u8, len: i32, v: i64): void {
   let x: i64 = v;
   if (x <= 0) {
@@ -49,12 +64,24 @@ function bench_u64_fill(buf: *u8, len: i32, v: i64): void {
   }
 }
 
+/** Internal function `bench_swap_i64`.
+ * Implements `bench_swap_i64`.
+ * @param a *i64
+ * @param b *i64
+ * @return void
+ */
 function bench_swap_i64(a: *i64, b: *i64): void {
   let t: i64 = a[0];
   a[0] = b[0];
   b[0] = t;
 }
 
+/** Internal function `bench_sort_latencies`.
+ * Implements `bench_sort_latencies`.
+ * @param lat *i64
+ * @param n i32
+ * @return void
+ */
 function bench_sort_latencies(lat: *i64, n: i32): void {
   let i: i32 = 0;
   while (i < n) {
@@ -69,6 +96,12 @@ function bench_sort_latencies(lat: *i64, n: i32): void {
   }
 }
 
+/** Internal function `bench_p99_us`.
+ * Implements `bench_p99_us`.
+ * @param lat *i64
+ * @param n i32
+ * @return i64
+ */
 function bench_p99_us(lat: *i64, n: i32): i64 {
   if (n <= 0) { return 0; }
   bench_sort_latencies(lat, n);
@@ -77,7 +110,13 @@ function bench_p99_us(lat: *i64, n: i32): i64 {
   return lat[idx];
 }
 
-/** 向 stderr 打印 key=value\\n（ASCII 手写）。 */
+/** Internal function `bench_write_kv_line`.
+ * Write path helper `bench_write_kv_line`.
+ * @param key *u8
+ * @param key_len i32
+ * @param val i64
+ * @return void
+ */
 function bench_write_kv_line(key: *u8, key_len: i32, val: i64): void {
   io.write_stderr(key, key_len as usize);
   let eq: u8 = 61;
@@ -90,6 +129,10 @@ function bench_write_kv_line(key: *u8, key_len: i32, val: i64): void {
   io.write_stderr(&nl, 1);
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let http_port: u32 = 38460;
   if (process.args_count() >= 2) {

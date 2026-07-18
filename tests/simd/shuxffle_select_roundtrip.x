@@ -1,6 +1,10 @@
-// STD-047：shuffle/select 金样（断言 lane 值，非仅编译）
+// See implementation.
 const simd = import("std.simd");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let v4: Vec4f = [1.0, 2.0, 3.0, 4.0];
   let m4: i32[4] = [3, 2, 1, 0];

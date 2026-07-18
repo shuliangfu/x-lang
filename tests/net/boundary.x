@@ -1,15 +1,19 @@
-// TST-001：std.net 边界烟测（地址转换 / bind / batch 常量）
+// See implementation.
 //
-// 【文件职责】≥8 边界 case；无阻塞 connect/accept。
-// 【运行方式】tests/run-tst-001-boundary-gate.sh
+// See implementation.
+// See implementation.
 const net = import("std.net");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let loopback: Ipv4Addr = Ipv4Addr { a: 127, b: 0, c: 0, d: 1 };
-  // case 1：addr_to_u32 大端
+  // See implementation.
   let u: u32 = net.addr_to_packed(loopback);
   if (u != 0x7f000001) { return 1; }
-  // case 2：u32_to_ipv4 往返
+  // See implementation.
   let back: Ipv4Addr = net.packed_to_ipv4(u);
   if (back.a != 127 || back.d != 1) { return 2; }
   // case 3：0.0.0.0
@@ -17,21 +21,21 @@ function main(): i32 {
   if (net.addr_to_packed(zero) != 0) { return 3; }
   // case 4：net_batch_max
   if (net.batch_max() < 8) { return 4; }
-  // case 5：UDP bind 端口 0（内核分配）
+  // See implementation.
   let sock: UdpSocket = net.udp_bind(loopback, 0);
   if (sock.fd < 0) { return 5; }
-  // case 6：TCP listen 端口 0
+  // See implementation.
   let listener: TcpListener = net.listen(loopback, 0);
   if (listener.fd < 0) { return 6; }
-  // case 7：listener_local_addr 端口非 0
+  // See implementation.
   let la: SocketAddrV4 = net.listener_local_addr(listener);
   if (la.port == 0) { return 7; }
-  // case 8：255.255.255.255 广播地址编码
+  // See implementation.
   let bcast: Ipv4Addr = Ipv4Addr { a: 255, b: 255, c: 255, d: 255 };
   if (net.addr_to_packed(bcast) != 0xffffffff) { return 8; }
-  // case 9：关闭 UDP
+  // See implementation.
   if (net.close_udp(sock) != 0) { return 9; }
-  // case 10：关闭 listener
+  // See implementation.
   if (net.close_listener(listener) != 0) { return 10; }
   return 0;
 }

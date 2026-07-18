@@ -14,199 +14,336 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.compress — 压缩封装门面（P4 可选；zlib / gzip / Brotli / zstd）
+// See implementation.
 //
-// 【文件职责】聚合 std.compress.zlib / gzip / brotli / zstd，保持 import("std.compress") 兼容。
-// 【目录】zlib/、gzip/、brotli/、zstd/ 各格式独立；共用类型见 common.x；F-04 v7 无 compress.o。
+// See implementation.
+// See implementation.
 const zlib_m = import("std.compress.zlib");
 const gzip_m = import("std.compress.gzip");
 const brotli_m = import("std.compress.brotli");
 const zstd_m = import("std.compress.zstd");
 
-/** 压缩为 zlib 格式，返回写入字节数，失败 -1。 */
+/** Exported function `deflate`.
+ * Implements `deflate`.
+ * @param in *u8
+ * @param in_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function deflate(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
   return zlib_m.deflate(in, in_len, out, out_cap);
 }
 
-/** 解压 zlib 流，返回写入字节数，失败 -1。 */
+/** Exported function `inflate`.
+ * Implements `inflate`.
+ * @param in *u8
+ * @param in_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function inflate(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
   return zlib_m.inflate(in, in_len, out, out_cap);
 }
 
-/** 压缩为 gzip 格式（.gz），返回写入字节数，失败 -1。 */
+/** Exported function `gzip_compress`.
+ * Implements `gzip_compress`.
+ * @param in *u8
+ * @param in_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function gzip_compress(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
   return gzip_m.gzip_compress(in, in_len, out, out_cap);
 }
 
-/** 解压 gzip 流，返回写入字节数，失败 -1。 */
+/** Exported function `gzip_decompress`.
+ * Implements `gzip_decompress`.
+ * @param in *u8
+ * @param in_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function gzip_decompress(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
   return gzip_m.gzip_decompress(in, in_len, out, out_cap);
 }
 
-/** 压缩为 Brotli 格式（.br），返回写入字节数，失败 -1。 */
+/** Exported function `brotli_compress`.
+ * Implements `brotli_compress`.
+ * @param in *u8
+ * @param in_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function brotli_compress(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
   return brotli_m.brotli_compress(in, in_len, out, out_cap);
 }
 
-/** 解压 Brotli 流，返回写入字节数，失败 -1。 */
+/** Exported function `brotli_decompress`.
+ * Implements `brotli_decompress`.
+ * @param in *u8
+ * @param in_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function brotli_decompress(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
   return brotli_m.brotli_decompress(in, in_len, out, out_cap);
 }
 
-/** 探测 Brotli 是否已在编译期启用；1=可用，0=占位 stub。 */
+/** Exported function `brotli_available`.
+ * Implements `brotli_available`.
+ * @return i32
+ */
 export function brotli_available(): i32 {
   return brotli_m.brotli_available();
 }
 
-/** Brotli 往返烟测；未启用时返回 0（skip）。 */
+/** Exported function `brotli_smoke`.
+ * Implements `brotli_smoke`.
+ * @return i32
+ */
 export function brotli_smoke(): i32 {
   return brotli_m.brotli_smoke();
 }
 
-/** 压缩为 zstd 帧，返回写入字节数，失败 -1。 */
+/** Exported function `zstd_compress`.
+ * Implements `zstd_compress`.
+ * @param in *u8
+ * @param in_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function zstd_compress(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
   return zstd_m.zstd_compress(in, in_len, out, out_cap);
 }
 
-/** 解压 zstd 帧，返回写入字节数，失败 -1。 */
+/** Exported function `zstd_decompress`.
+ * Implements `zstd_decompress`.
+ * @param in *u8
+ * @param in_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function zstd_decompress(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
   return zstd_m.zstd_decompress(in, in_len, out, out_cap);
 }
 
-/** 探测 zstd 是否已在编译期启用；1=可用，0=占位 stub。 */
+/** Exported function `zstd_available`.
+ * Implements `zstd_available`.
+ * @return i32
+ */
 export function zstd_available(): i32 {
   return zstd_m.zstd_available();
 }
 
-/** zstd 往返烟测；未启用时返回 0（skip）。 */
+/** Exported function `zstd_smoke`.
+ * Implements `zstd_smoke`.
+ * @return i32
+ */
 export function zstd_smoke(): i32 {
   return zstd_m.zstd_smoke();
 }
 
-/** zstd 流状态缓冲最小字节数。 */
+/** Exported function `zstd_stream_state_bytes`.
+ * Implements `zstd_stream_state_bytes`.
+ * @return i32
+ */
 export function zstd_stream_state_bytes(): i32 {
   return zstd_m.zstd_stream_state_bytes();
 }
 
-/** 初始化 zstd 压缩流；成功 0。 */
+/** Exported function `zstd_stream_init_compress`.
+ * Implements `zstd_stream_init_compress`.
+ * @param state *u8
+ * @param state_cap i32
+ * @return i32
+ */
 export function zstd_stream_init_compress(state: *u8, state_cap: i32): i32 {
   return zstd_m.zstd_stream_init_compress(state, state_cap);
 }
 
-/** 初始化 zstd 解压流；成功 0。 */
+/** Exported function `zstd_stream_init_decompress`.
+ * Implements `zstd_stream_init_decompress`.
+ * @param state *u8
+ * @param state_cap i32
+ * @return i32
+ */
 export function zstd_stream_init_decompress(state: *u8, state_cap: i32): i32 {
   return zstd_m.zstd_stream_init_decompress(state, state_cap);
 }
 
-/** 分块 zstd 压缩。 */
+/* See implementation. */
 export function zstd_stream_compress(state: *u8, state_cap: i32, inp: *u8, in_len: i32, out: *u8, out_cap: i32,
   is_last: i32, in_consumed: *i32): i32 {
   return zstd_m.zstd_stream_compress(state, state_cap, inp, in_len, out, out_cap, is_last, in_consumed);
 }
 
-/** 分块 zstd 解压。 */
+/* See implementation. */
 export function zstd_stream_decompress(state: *u8, state_cap: i32, inp: *u8, in_len: i32, out: *u8, out_cap: i32,
   in_consumed: *i32): i32 {
   return zstd_m.zstd_stream_decompress(state, state_cap, inp, in_len, out, out_cap, in_consumed);
 }
 
-/** 释放 zstd 流。 */
+/** Exported function `zstd_stream_end`.
+ * Implements `zstd_stream_end`.
+ * @param state *u8
+ * @param state_cap i32
+ * @return i32
+ */
 export function zstd_stream_end(state: *u8, state_cap: i32): i32 {
   return zstd_m.zstd_stream_end(state, state_cap);
 }
 
-/** brotli 流状态缓冲最小字节数。 */
+/** Exported function `brotli_stream_state_bytes`.
+ * Implements `brotli_stream_state_bytes`.
+ * @return i32
+ */
 export function brotli_stream_state_bytes(): i32 {
   return brotli_m.brotli_stream_state_bytes();
 }
 
-/** 初始化 brotli 压缩流；成功 0。 */
+/** Exported function `brotli_stream_init_compress`.
+ * Implements `brotli_stream_init_compress`.
+ * @param state *u8
+ * @param state_cap i32
+ * @return i32
+ */
 export function brotli_stream_init_compress(state: *u8, state_cap: i32): i32 {
   return brotli_m.brotli_stream_init_compress(state, state_cap);
 }
 
-/** 初始化 brotli 解压流；成功 0。 */
+/** Exported function `brotli_stream_init_decompress`.
+ * Implements `brotli_stream_init_decompress`.
+ * @param state *u8
+ * @param state_cap i32
+ * @return i32
+ */
 export function brotli_stream_init_decompress(state: *u8, state_cap: i32): i32 {
   return brotli_m.brotli_stream_init_decompress(state, state_cap);
 }
 
-/** 分块 brotli 压缩。 */
+/* See implementation. */
 export function brotli_stream_compress(state: *u8, state_cap: i32, inp: *u8, in_len: i32, out: *u8, out_cap: i32,
   is_last: i32, in_consumed: *i32): i32 {
   return brotli_m.brotli_stream_compress(state, state_cap, inp, in_len, out, out_cap, is_last, in_consumed);
 }
 
-/** 分块 brotli 解压。 */
+/* See implementation. */
 export function brotli_stream_decompress(state: *u8, state_cap: i32, inp: *u8, in_len: i32, out: *u8, out_cap: i32,
   in_consumed: *i32): i32 {
   return brotli_m.brotli_stream_decompress(state, state_cap, inp, in_len, out, out_cap, in_consumed);
 }
 
-/** 释放 brotli 流。 */
+/** Exported function `brotli_stream_end`.
+ * Implements `brotli_stream_end`.
+ * @param state *u8
+ * @param state_cap i32
+ * @return i32
+ */
 export function brotli_stream_end(state: *u8, state_cap: i32): i32 {
   return brotli_m.brotli_stream_end(state, state_cap);
 }
 
-/** gzip 流状态缓冲最小字节数（STD-039）。 */
+/** Exported function `gzip_stream_state_bytes`.
+ * Implements `gzip_stream_state_bytes`.
+ * @return i32
+ */
 export function gzip_stream_state_bytes(): i32 {
   return gzip_m.gzip_stream_state_bytes();
 }
 
-/** 初始化 gzip 压缩流；成功 0，未链 zlib 时 -1。 */
+/** Exported function `gzip_stream_init_compress`.
+ * Implements `gzip_stream_init_compress`.
+ * @param state *u8
+ * @param state_cap i32
+ * @return i32
+ */
 export function gzip_stream_init_compress(state: *u8, state_cap: i32): i32 {
   return gzip_m.gzip_stream_init_compress(state, state_cap);
 }
 
-/** 初始化 gzip 解压流；成功 0，未链 zlib 时 -1。 */
+/** Exported function `gzip_stream_init_decompress`.
+ * Implements `gzip_stream_init_decompress`.
+ * @param state *u8
+ * @param state_cap i32
+ * @return i32
+ */
 export function gzip_stream_init_decompress(state: *u8, state_cap: i32): i32 {
   return gzip_m.gzip_stream_init_decompress(state, state_cap);
 }
 
-/** 分块 gzip 压缩；is_last≠0 时对末块 Z_FINISH。 */
+/* See implementation. */
 export function gzip_stream_compress(state: *u8, state_cap: i32, inp: *u8, in_len: i32, out: *u8, out_cap: i32,
   is_last: i32, in_consumed: *i32): i32 {
   return gzip_m.gzip_stream_compress(state, state_cap, inp, in_len, out, out_cap, is_last, in_consumed);
 }
 
-/** 分块 gzip 解压。 */
+/* See implementation. */
 export function gzip_stream_decompress(state: *u8, state_cap: i32, inp: *u8, in_len: i32, out: *u8, out_cap: i32,
   in_consumed: *i32): i32 {
   return gzip_m.gzip_stream_decompress(state, state_cap, inp, in_len, out, out_cap, in_consumed);
 }
 
-/** 释放 gzip 流底层 z_stream。 */
+/** Exported function `gzip_stream_end`.
+ * Implements `gzip_stream_end`.
+ * @param state *u8
+ * @param state_cap i32
+ * @return i32
+ */
 export function gzip_stream_end(state: *u8, state_cap: i32): i32 {
   return gzip_m.gzip_stream_end(state, state_cap);
 }
 
-/* ---------- STD-122 / #81：统一流式 API（gzip / brotli / zstd） ---------- */
+/* See implementation. */
 
-/** 流格式：gzip。 */
+/** Exported function `format_gzip`.
+ * Implements `format_gzip`.
+ * @return i32
+ */
 export function format_gzip(): i32 {
   return 0;
 }
 
-/** 流格式：brotli。 */
+/** Exported function `format_brotli`.
+ * Implements `format_brotli`.
+ * @return i32
+ */
 export function format_brotli(): i32 {
   return 1;
 }
 
-/** 流格式：zstd。 */
+/** Exported function `format_zstd`.
+ * Implements `format_zstd`.
+ * @return i32
+ */
 export function format_zstd(): i32 {
   return 2;
 }
 
-/** 流模式：压缩。 */
+/** Exported function `mode_compress`.
+ * Implements `mode_compress`.
+ * @return i32
+ */
 export function mode_compress(): i32 {
   return 0;
 }
 
-/** 流模式：解压。 */
+/** Exported function `mode_decompress`.
+ * Implements `mode_decompress`.
+ * @return i32
+ */
 export function mode_decompress(): i32 {
   return 1;
 }
 
-/** 统一流状态（绑定外置 state 缓冲 + format/mode）。 */
+/* See implementation. */
 allow(padding) struct StreamCompress {
   format: i32;
   mode: i32;
@@ -214,7 +351,11 @@ allow(padding) struct StreamCompress {
   state_cap: i32;
 }
 
-/** 指定格式的流状态缓冲最小字节数。 */
+/** Exported function `compress_state_bytes_for`.
+ * Implements `compress_state_bytes_for`.
+ * @param format i32
+ * @return i32
+ */
 export function compress_state_bytes_for(format: i32): i32 {
   if (format == format_gzip()) {
     return gzip_stream_state_bytes();
@@ -228,7 +369,10 @@ export function compress_state_bytes_for(format: i32): i32 {
   return -1;
 }
 
-/** 统一流状态缓冲最小字节数（取 gzip/brotli/zstd 最大值，便于通用缓冲）。 */
+/** Exported function `compress_state_bytes`.
+ * Implements `compress_state_bytes`.
+ * @return i32
+ */
 export function compress_state_bytes(): i32 {
   let gz: i32 = gzip_stream_state_bytes();
   let br: i32 = brotli_stream_state_bytes();
@@ -240,8 +384,8 @@ export function compress_state_bytes(): i32 {
 }
 
 /**
- * 初始化 StreamCompress；format 为 format_* 之一。
- * 成功 0；未链对应库或格式不支持时非 0。
+ * See implementation.
+ * See implementation.
  */
 export function compress_init(sc: *StreamCompress, state: *u8, state_cap: i32, format: i32, mode: i32): i32 {
   sc.format = format;
@@ -279,8 +423,8 @@ export function compress_init(sc: *StreamCompress, state: *u8, state_cap: i32, f
 }
 
 /**
- * 分块 compress/decompress；is_last≠0 为压缩末块（Z_FINISH）。
- * 返回写入 out 字节数，失败 -1；in_consumed 写入已消费输入字节数。
+ * See implementation.
+ * See implementation.
  */
 export function compress_process(sc: StreamCompress, inp: *u8, in_len: i32, out: *u8, out_cap: i32,
   is_last: i32, in_consumed: *i32): i32 {
@@ -314,7 +458,11 @@ export function compress_process(sc: StreamCompress, inp: *u8, in_len: i32, out:
   return -9;
 }
 
-/** 结束流并释放底层状态；成功 0。 */
+/** Exported function `compress_end`.
+ * Implements `compress_end`.
+ * @param sc StreamCompress
+ * @return i32
+ */
 export function compress_end(sc: StreamCompress): i32 {
   if (sc.format == format_gzip()) {
     return gzip_stream_end(sc.state, sc.state_cap);

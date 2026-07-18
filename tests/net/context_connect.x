@@ -1,8 +1,12 @@
-// STD-092：std.net connect_ctx/accept_ctx/stream_*_ctx + Context 烟测
+// See implementation.
 const net = import("std.net");
 const context = import("std.context");
 const err = import("std.error");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let bg: Context = context.background();
   let loopback: Ipv4Addr = Ipv4Addr { a: 127, b: 0, c: 0, d: 1 };

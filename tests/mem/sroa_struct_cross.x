@@ -1,6 +1,10 @@
-// MEM-D1.2：跨模块 struct 工厂 SROA + sum_pair 消费者内联烟测。
+// See implementation.
 const sroa_lib = import("sroa_lib");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let p: Pair = make_pair(3, 4);
   return sum_pair(p);

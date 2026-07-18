@@ -1,7 +1,17 @@
-// STD-068：内存库 row_col_text 文本列烟测（须 sqlite-o + -lsqlite3 链接）
+// See implementation.
 const sqlite = import("std.db.sqlite");
 
-/** 比较 buf 前 n 字节是否与五元组字面量一致。 */
+/** Internal function `bytes_eq5`.
+ * Implements `bytes_eq5`.
+ * @param buf *u8
+ * @param b0 u8
+ * @param b1 u8
+ * @param b2 u8
+ * @param b3 u8
+ * @param b4 u8
+ * @param n i32
+ * @return i32
+ */
 function bytes_eq5(buf: *u8, b0: u8, b1: u8, b2: u8, b3: u8, b4: u8, n: i32): i32 {
   if (n < 1) {
     return 0;
@@ -36,7 +46,16 @@ function bytes_eq5(buf: *u8, b0: u8, b1: u8, b2: u8, b3: u8, b4: u8, n: i32): i3
   return 1;
 }
 
-/** 比较 buf 前 n 字节是否与四元组字面量一致。 */
+/** Internal function `bytes_eq4`.
+ * Implements `bytes_eq4`.
+ * @param buf *u8
+ * @param b0 u8
+ * @param b1 u8
+ * @param b2 u8
+ * @param b3 u8
+ * @param n i32
+ * @return i32
+ */
 function bytes_eq4(buf: *u8, b0: u8, b1: u8, b2: u8, b3: u8, n: i32): i32 {
   if (n < 1) {
     return 0;
@@ -65,6 +84,10 @@ function bytes_eq4(buf: *u8, b0: u8, b1: u8, b2: u8, b3: u8, n: i32): i32 {
   return 1;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let mem: u8[9] = [58, 109, 101, 109, 111, 114, 121, 58, 0];
   let sql_create: u8[38] = [

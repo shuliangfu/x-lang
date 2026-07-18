@@ -1,6 +1,10 @@
-// import select grow 池：选取 10 个符号（超过旧 8 顶）；调用 f9 应返回 9。
+// See implementation.
 const select_lib = import("select_lib");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let _u0: i32 = f0();
   let _u1: i32 = f1();

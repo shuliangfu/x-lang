@@ -1,5 +1,9 @@
-// M-6：字面量下标 a[0] 在 typeck 中 index_proven_in_bounds；
-// 默认 C emit 无边界检查；`-fsanitize=address` 须插入 shux_panic_ 守卫。
+// See implementation.
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32[2] = [10, 20];
   return a[0];

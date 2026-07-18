@@ -14,44 +14,59 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.trace — 分布式链路追踪基础（STD-088）
+// See implementation.
 //
-// 【文件职责】
-// Span 创建/结束/嵌套；trace_id/span_id；text 导出；
-// 与 std.context value bag 传播 trace 句柄。
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 【对标】OpenTelemetry 最小子集、Go opentelemetry trace 简化版。
-// C 层依赖 std/time + std/random（链入 trace.o 时一并链接）。
+// See implementation.
+// See implementation.
 
 const context = import("std.context");
 const io = import("std.io");
 const async_mod = import("std.async");
 const net = import("std.net");
 
-/** 追踪会话句柄。 */
+/* See implementation. */
 allow(padding) struct Trace {
   handle: i64;
 }
 
-/** Span 标识（opaque id）。 */
+/* See implementation. */
 allow(padding) struct Span {
   id: i64;
 }
 
-/** trace_id 128-bit（16 字节）。 */
+/* See implementation. */
 allow(padding) struct TraceId {
   bytes: u8[16];
 }
 
-/** 成功。 */
+/** Exported function `err_ok`.
+ * Implements `err_ok`.
+ * @return i32
+ */
 export function err_ok(): i32 { return 0; }
-/** 空指针/非法句柄。 */
+/** Exported function `err_null`.
+ * Implements `err_null`.
+ * @return i32
+ */
 export function err_null(): i32 { return -1; }
-/** 未找到 span。 */
+/** Exported function `err_not_found`.
+ * Implements `err_not_found`.
+ * @return i32
+ */
 export function err_not_found(): i32 { return -2; }
-/** 容量已满。 */
+/** Exported function `err_full`.
+ * Implements `err_full`.
+ * @return i32
+ */
 export function err_full(): i32 { return -3; }
-/** 参数非法（如非栈顶 end）。 */
+/** Exported function `err_invalid`.
+ * Implements `err_invalid`.
+ * @return i32
+ */
 export function err_invalid(): i32 { return -4; }
 
 extern function create_c(): i64;
@@ -64,14 +79,21 @@ extern function start_child_c(handle: i64, name: *u8, name_len: i32): i64;
 extern function span_count_c(handle: i64): i32;
 extern function export_text_c(handle: i64, out: *u8, out_cap: i32): i32;
 
-/** 创建新追踪会话。 */
+/** Exported function `new`.
+ * Implements `new`.
+ * @return Trace
+ */
 export function new(): Trace {
   let h: i64 = 0;
   unsafe { h = create_c(); }
   return Trace { handle: h };
 }
 
-/** 释放追踪会话。 */
+/** Exported function `free`.
+ * Memory management helper `free`.
+ * @param tr *Trace
+ * @return void
+ */
 export function free(tr: *Trace): void {
   let zero: i64 = 0;
   if (tr == 0) { return; }
@@ -81,14 +103,23 @@ export function free(tr: *Trace): void {
   }
 }
 
-/** 读取 trace_id。 */
+/** Exported function `id`.
+ * Implements `id`.
+ * @param tr *Trace
+ * @param out *TraceId
+ * @return void
+ */
 export function id(tr: *Trace, out: *TraceId): void {
   let zero: i64 = 0;
   if (tr == 0 || tr.handle == zero || out == 0) { return; }
   unsafe { trace_id_c(tr.handle, &out.bytes[0]); }
 }
 
-/** 当前活跃 span id；无则 0。 */
+/** Exported function `current_span`.
+ * Implements `current_span`.
+ * @param tr *Trace
+ * @return i64
+ */
 export function current_span(tr: *Trace): i64 {
   let zero: i64 = 0;
   if (tr == 0 || tr.handle == zero) { return zero; }
@@ -96,7 +127,14 @@ export function current_span(tr: *Trace): i64 {
   return 0; // unreachable — typeck workaround
 }
 
-/** 开始 span；parent_id=0 为根 span。 */
+/** Exported function `start`.
+ * Implements `start`.
+ * @param tr *Trace
+ * @param parent_id i64
+ * @param name *u8
+ * @param name_len i32
+ * @return Span
+ */
 export function start(tr: *Trace, parent_id: i64, name: *u8, name_len: i32): Span {
   let zero: i64 = 0;
   let sid: i64 = zero;
@@ -107,7 +145,13 @@ export function start(tr: *Trace, parent_id: i64, name: *u8, name_len: i32): Spa
   return Span { id: sid };
 }
 
-/** 以当前栈顶为 parent 开始子 span。 */
+/** Exported function `start_child`.
+ * Implements `start_child`.
+ * @param tr *Trace
+ * @param name *u8
+ * @param name_len i32
+ * @return Span
+ */
 export function start_child(tr: *Trace, name: *u8, name_len: i32): Span {
   let zero: i64 = 0;
   let sid: i64 = zero;
@@ -118,7 +162,12 @@ export function start_child(tr: *Trace, name: *u8, name_len: i32): Span {
   return Span { id: sid };
 }
 
-/** 结束 span（须为栈顶）。 */
+/** Exported function `end`.
+ * Implements `end`.
+ * @param tr *Trace
+ * @param sp Span
+ * @return i32
+ */
 export function end(tr: *Trace, sp: Span): i32 {
   let zero: i64 = 0;
   if (tr == 0 || tr.handle == zero || sp.id == zero) { return err_null(); }
@@ -126,7 +175,11 @@ export function end(tr: *Trace, sp: Span): i32 {
   return 0; // unreachable — typeck workaround
 }
 
-/** 已完成 span 数量。 */
+/** Exported function `count`.
+ * Implements `count`.
+ * @param tr *Trace
+ * @return i32
+ */
 export function count(tr: *Trace): i32 {
   let zero: i64 = 0;
   if (tr == 0 || tr.handle == zero) { return err_null(); }
@@ -134,7 +187,13 @@ export function count(tr: *Trace): i32 {
   return 0; // unreachable — typeck workaround
 }
 
-/** 导出 text 格式追踪记录；返回写入长度。 */
+/** Exported function `export_text`.
+ * Implements `export_text`.
+ * @param tr *Trace
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function export_text(tr: *Trace, out: *u8, out_cap: i32): i32 {
   let zero: i64 = 0;
   if (tr == 0 || tr.handle == zero || out == 0) { return err_null(); }
@@ -142,13 +201,22 @@ export function export_text(tr: *Trace, out: *u8, out_cap: i32): i32 {
   return 0; // unreachable — typeck workaround
 }
 
-/** 将 trace 句柄写入 Context value bag。 */
+/** Exported function `attach`.
+ * Implements `attach`.
+ * @param ctx Context
+ * @param tr Trace
+ * @return i32
+ */
 export function attach(ctx: Context, tr: Trace): i32 {
   let k: u8[6] = [116, 114, 97, 99, 101, 0];
   return context.set_value(ctx, &k[0], tr.handle);
 }
 
-/** 从 Context 读取 trace 句柄；未附着则 handle=0。 */
+/** Exported function `from_ctx`.
+ * Implements `from_ctx`.
+ * @param ctx Context
+ * @return Trace
+ */
 export function from_ctx(ctx: Context): Trace {
   let zero: i64 = 0;
   let h: i64 = zero;
@@ -160,11 +228,11 @@ export function from_ctx(ctx: Context): Trace {
   return tr;
 }
 
-/* --- STD-118：与 std.async / std.io / std.net 关键路径挂钩 --- */
+/* See implementation. */
 
 /**
- * 开始子 span；tr 无效时返回 id=0（透传模式）。
- * 供自定义关键路径或内部 hook 使用。
+ * See implementation.
+ * See implementation.
  */
 export function hook_begin(tr: *Trace, name: *u8, name_len: i32): Span {
   let zero: i64 = 0;
@@ -175,7 +243,7 @@ export function hook_begin(tr: *Trace, name: *u8, name_len: i32): Span {
 }
 
 /**
- * 结束 hook span；sp.id=0 时 no-op。
+ * See implementation.
  */
 export function hook_end(tr: *Trace, sp: Span): i32 {
   let zero: i64 = 0;
@@ -185,7 +253,14 @@ export function hook_end(tr: *Trace, sp: Span): i32 {
   return end(tr, sp);
 }
 
-/** io.read 自动 span；Context 无 trace 时透传 read_ctx。 */
+/** Exported function `io_read`.
+ * Read path helper `io_read`.
+ * @param ctx Context
+ * @param handle usize
+ * @param ptr *u8
+ * @param len usize
+ * @return i32
+ */
 export function io_read(ctx: Context, handle: usize, ptr: *u8, len: usize): i32 {
   let tr: Trace = from_ctx(ctx);
   let n_io_read: u8[7] = [105, 111, 46, 114, 101, 97, 100];
@@ -195,7 +270,14 @@ export function io_read(ctx: Context, handle: usize, ptr: *u8, len: usize): i32 
   return r;
 }
 
-/** io.write 自动 span；Context 无 trace 时透传 write_ctx。 */
+/** Exported function `io_write`.
+ * Write path helper `io_write`.
+ * @param ctx Context
+ * @param handle usize
+ * @param ptr *u8
+ * @param len usize
+ * @return i32
+ */
 export function io_write(ctx: Context, handle: usize, ptr: *u8, len: usize): i32 {
   let tr: Trace = from_ctx(ctx);
   let n_io_write: u8[8] = [105, 111, 46, 119, 114, 105, 116, 101];
@@ -205,7 +287,13 @@ export function io_write(ctx: Context, handle: usize, ptr: *u8, len: usize): i32
   return r;
 }
 
-/** net.connect 自动 span；返回 fd 语义同 connect_ctx_fd。 */
+/** Exported function `net_connect`.
+ * Implements `net_connect`.
+ * @param ctx Context
+ * @param addr Ipv4Addr
+ * @param port u32
+ * @return i32
+ */
 export function net_connect(ctx: Context, addr: Ipv4Addr, port: u32): i32 {
   let tr: Trace = from_ctx(ctx);
   let n_net_conn: u8[11] = [110, 101, 116, 46, 99, 111, 110, 110, 101, 99, 116];
@@ -215,7 +303,14 @@ export function net_connect(ctx: Context, addr: Ipv4Addr, port: u32): i32 {
   return fd;
 }
 
-/** net.stream_read 自动 span；语义同 stream_read_ctx。 */
+/** Exported function `net_read`.
+ * Read path helper `net_read`.
+ * @param ctx Context
+ * @param stream TcpStream
+ * @param ptr *u8
+ * @param len usize
+ * @return i32
+ */
 export function net_read(ctx: Context, stream: TcpStream, ptr: *u8, len: usize): i32 {
   let tr: Trace = from_ctx(ctx);
   let n_net_rd: u8[15] = [110, 101, 116, 46, 115, 116, 114, 101, 97, 109, 95, 114, 101, 97, 100];
@@ -225,7 +320,12 @@ export function net_read(ctx: Context, stream: TcpStream, ptr: *u8, len: usize):
   return r;
 }
 
-/** async.drain 自动 span；语义同 drain。 */
+/** Exported function `async_drain`.
+ * Implements `async_drain`.
+ * @param ctx Context
+ * @param rt *AsyncRuntime
+ * @return i32
+ */
 export function async_drain(ctx: Context, rt: *AsyncRuntime): i32 {
   let tr: Trace = from_ctx(ctx);
   let n_async: u8[11] = [97, 115, 121, 110, 99, 46, 100, 114, 97, 105, 110];
@@ -237,7 +337,10 @@ export function async_drain(ctx: Context, rt: *AsyncRuntime): i32 {
 
 extern function hooks_smoke_c(): i32;
 
-/** STD-118：挂钩路径 C 烟测；0 通过。 */
+/** Exported function `hooks_smoke`.
+ * Implements `hooks_smoke`.
+ * @return i32
+ */
 export function hooks_smoke(): i32 {
   unsafe { return hooks_smoke_c(); }
   return 0; // unreachable — typeck workaround

@@ -14,18 +14,18 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// mod.x — SLIR 层模块入口（re-export）
+// mod.x — SLIR layer module entry (re-export)
 //
-// 模块：ir/slir
-// 层级：SLIR（Shux Low IR，机器无关极致优化，immutable graph）
-// Phase：Phase 3-4
-// 职责：聚合 slir/ 子模块导出（egraph / rules / cost / extract / saturate / conflict / superopt / soa / verify）。
-// 依赖：../smir / ../inst / ../contract / ../effect
-// 设计约束：
-//   - SLIR 采用 immutable 设计：Pass 接口为函数式 `&SLIRGraph → SLIRGraph`（§4.9）
-//   - 不改 Instruction，生成新 Graph（支持 Parallel Pass / Incremental Compile / Undo）
-//   - e-graph 重写引擎是 SLIR 的核心
-//   - 契约保持：变换前后契约等价（§1.4）
+// Module: ir/slir
+// Layer: SLIR (Shux Low IR; machine-independent extreme opts; immutable graph)
+// Phase: Phase 3-4
+// Responsibility: Aggregate slir/ exports
+//   (egraph / rules / cost / extract / saturate / conflict / superopt / soa / verify).
+// Depends: ../smir / ../inst / ../contract / ../effect
+// Design constraints:
+//   - SLIR is immutable: pass API is functional (§4.9)
+//   - e-graph rewrite engine is the core of SLIR
+//   - Contract preservation across transforms (§1.4)
 //
-// 参考文档：analysis/IR核心设计.md §2.1（SLIR 层）/ §4.9（SLIR immutable 原则）
-// 架构状态：v4.0 Architecture Freeze — 实现骨架，待 Phase 3 填充
+// Ref: analysis IR core design §2.1 (SLIR layer) / §4.9 (SLIR immutable principle)
+// Status: v4.0 Architecture Freeze — implementation skeleton; fill in Phase 3

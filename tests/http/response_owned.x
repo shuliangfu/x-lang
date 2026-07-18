@@ -1,6 +1,10 @@
-// STD-HTTP-REQRESP-v4：HttpResponseOwned + push 堆 body 烟测（离线）
+// See implementation.
 const http = import("std.http");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let line: u8[48] = [72, 84, 84, 80, 47, 49, 46, 49, 32, 50, 48, 48, 32, 79, 75, 13, 10,
     67, 111, 110, 116, 101, 110, 116, 45, 76, 101, 110, 103, 116, 104, 58, 32, 52, 13, 10, 13, 10,

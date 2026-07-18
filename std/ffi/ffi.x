@@ -14,55 +14,65 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std/ffi/ffi.x — C 字符串互操作（F-ffi v1 + F-ZC；纯 .x，无 .c/.h）
+// See implementation.
 //
-// 【文件职责】
-// cstr_len / cstring_new / free / try_new / point pack-unpack / 烟测；
-// 回调 invoke 经句柄分发（F-ZC；非真实函数地址）。
+// See implementation.
+// See implementation.
+// See implementation.
 
 extern "C" function malloc(n: usize): *u8;
 extern "C" function free(p: *u8): void;
 extern "C" function strlen(s: *u8): usize;
 extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 
-/** 内置 arg*2 回调句柄（F-ZC handle dispatch；非 C 函数地址）。 */
+/* See implementation. */
 export const FFI_CB_HANDLE_DOUBLE_I32: usize = 1;
 
-/** 成功。 */
+/* See implementation. */
 export const FFI_OK: i32 = 0;
-/** 空指针错误。 */
+/* See implementation. */
 export const FFI_ERR_NULL: i32 = -1;
 /** len < 0。 */
 export const FFI_ERR_INVALID_LEN: i32 = -2;
-/** malloc 失败。 */
+/* See implementation. */
 export const FFI_ERR_OOM: i32 = -3;
-/** 缓冲区过小（cap < 8）。 */
+/* See implementation. */
 export const FFI_ERR_TOO_SMALL: i32 = -4;
 
-/** FfiPoint POD（与 mod.x 布局一致：x + y，各 i32）。 */
+/* See implementation. */
 export struct FfiPoint {
   x: i32
   y: i32
 }
 
-/** F-std-zero-c：ffi_cb_glue.c 已删除。 */
+/** Exported function `ffi_f_zero_c_marker_c`.
+ * Implements `ffi_f_zero_c_marker_c`.
+ * @return i32
+ */
 export function ffi_f_zero_c_marker_c(): i32 {
   return 1;
 }
 
-/** 内置烟测回调：返回 arg*2。 */
+/** Exported function `ffi_cb_double_i32_impl`.
+ * Implements `ffi_cb_double_i32_impl`.
+ * @param arg i32
+ * @return i32
+ */
 export function ffi_cb_double_i32_impl(arg: i32): i32 {
   return arg * 2;
 }
 
-/** 返回内置 double 回调句柄（usize；供 invoke_i32_cb 分发）。 */
+/** Exported function `ffi_cb_double_i32_fn_c`.
+ * Implements `ffi_cb_double_i32_fn_c`.
+ * @return usize
+ */
 export function ffi_cb_double_i32_fn_c(): usize {
   return FFI_CB_HANDLE_DOUBLE_I32;
 }
 
 /**
- * 调用 usize 承载的 i32→i32 回调句柄；cb=0 返回 -1。
- * 已知句柄经 .x 分发；任意 C 函数地址 invoke 待编译器 indirect-call 支持。
+ * See implementation.
+ * See implementation.
  */
 export function ffi_invoke_i32_cb_c(cb: usize, arg: i32): i32 {
   if (cb == 0) { return -1; }
@@ -70,7 +80,11 @@ export function ffi_invoke_i32_cb_c(cb: usize, arg: i32): i32 {
   return -1;
 }
 
-/** 返回 NUL 结尾字符串的字节长度（不含 NUL）；ptr 为 0 返回 -1。 */
+/** Exported function `ffi_cstr_len_c`.
+ * Implements `ffi_cstr_len_c`.
+ * @param ptr *u8
+ * @return i32
+ */
 export function ffi_cstr_len_c(ptr: *u8): i32 {
   let n: usize = 0;
   if (ptr == 0) { return -1; }
@@ -81,7 +95,12 @@ export function ffi_cstr_len_c(ptr: *u8): i32 {
   return n as i32;
 }
 
-/** 分配 len+1 字节，复制 ptr[0..len] 并写入 NUL；失败返回 0。 */
+/** Exported function `ffi_cstring_new_c`.
+ * Implements `ffi_cstring_new_c`.
+ * @param ptr *u8
+ * @param len i32
+ * @return *u8
+ */
 export function ffi_cstring_new_c(ptr: *u8, len: i32): *u8 {
   let p: *u8 = 0 as *u8;
   let n: usize = 0;
@@ -100,7 +119,11 @@ export function ffi_cstring_new_c(ptr: *u8, len: i32): *u8 {
   return p;
 }
 
-/** 释放由 cstring_new 返回的指针；ptr 可为 0。 */
+/** Exported function `ffi_cstring_free_c`.
+ * Memory management helper `ffi_cstring_free_c`.
+ * @param ptr *u8
+ * @return void
+ */
 export function ffi_cstring_free_c(ptr: *u8): void {
   if (ptr != 0) {
     unsafe {
@@ -109,7 +132,13 @@ export function ffi_cstring_free_c(ptr: *u8): void {
   }
 }
 
-/** 显式错误码分配 owned CString；成功 FFI_OK 且 *out 为指针位模式。 */
+/** Exported function `ffi_cstring_try_new_c`.
+ * Implements `ffi_cstring_try_new_c`.
+ * @param ptr *u8
+ * @param len i32
+ * @param out *usize
+ * @return i32
+ */
 export function ffi_cstring_try_new_c(ptr: *u8, len: i32, out: *usize): i32 {
   let p: *u8 = 0 as *u8;
   if (out == 0) { return FFI_ERR_NULL; }
@@ -126,7 +155,10 @@ export function ffi_cstring_try_new_c(ptr: *u8, len: i32, out: *usize): i32 {
   return FFI_OK;
 }
 
-/** STD-055 C 烟测：try_new 成功路径 + invalid len 错误码。 */
+/** Exported function `ffi_cstring_lifecycle_smoke_c`.
+ * Implements `ffi_cstring_lifecycle_smoke_c`.
+ * @return i32
+ */
 export function ffi_cstring_lifecycle_smoke_c(): i32 {
   let src: u8[3] = [97, 98, 99];
   let owned: usize = 0;
@@ -140,7 +172,14 @@ export function ffi_cstring_lifecycle_smoke_c(): i32 {
   return 0;
 }
 
-/** 将 x/y 以小端写入 buf[0..7]；cap<8 返回 FFI_ERR_TOO_SMALL。 */
+/** Exported function `ffi_point_pack_c`.
+ * Implements `ffi_point_pack_c`.
+ * @param buf *u8
+ * @param cap i32
+ * @param x i32
+ * @param y i32
+ * @return i32
+ */
 export function ffi_point_pack_c(buf: *u8, cap: i32, x: i32, y: i32): i32 {
   if (buf == 0) { return -1; }
   if (cap < 8) { return FFI_ERR_TOO_SMALL; }
@@ -155,7 +194,13 @@ export function ffi_point_pack_c(buf: *u8, cap: i32, x: i32, y: i32): i32 {
   return 0;
 }
 
-/** 从 buf[0..7] 读出 FfiPoint；cap<8 返回 FFI_ERR_TOO_SMALL。 */
+/** Exported function `ffi_point_unpack_c`.
+ * Implements `ffi_point_unpack_c`.
+ * @param buf *u8
+ * @param cap i32
+ * @param out *FfiPoint
+ * @return i32
+ */
 export function ffi_point_unpack_c(buf: *u8, cap: i32, out: *FfiPoint): i32 {
   let ux: u32 = 0;
   let uy: u32 = 0;
@@ -168,7 +213,10 @@ export function ffi_point_unpack_c(buf: *u8, cap: i32, out: *FfiPoint): i32 {
   return 0;
 }
 
-/** STD-151 C 烟测：pack/unpack + 回调边界。 */
+/** Exported function `ffi_struct_callback_smoke_c`.
+ * Implements `ffi_struct_callback_smoke_c`.
+ * @return i32
+ */
 export function ffi_struct_callback_smoke_c(): i32 {
   let buf: u8[8];
   let pt: FfiPoint;

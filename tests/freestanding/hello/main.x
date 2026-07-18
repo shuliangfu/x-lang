@@ -1,7 +1,11 @@
-// freestanding/hello — S4：syscall write 输出 "Hello Shu!\n"，不链 std/io
-/** Linux write(2) 包装；由 freestanding_io_x86_64.s 提供。 */
+// See implementation.
+/* See implementation. */
 extern function shux_sys_write(fd: i32, buf: *u8, len: i32): i32;
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let msg: u8[12] = [72, 101, 108, 108, 111, 32, 83, 104, 117, 33, 10, 0];
   let n: i32 = unsafe { shux_sys_write(1, &msg[0], 11) };

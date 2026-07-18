@@ -14,14 +14,14 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std/task/task.x — F-task v2：TaskGroup/JoinSet 纯 .x（替代 task_async_glue.c）
+// See implementation.
 //
-// 【文件职责】
-// TaskGroup / JoinSet 封装 std.async spawn + drain；Context 取消传播；
-// 结构化并发 leak 检测；Supervisor 重试；烟测入口。
-// 经 shux -backend asm 编译为 task.o；对外 API 在 mod.x。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 【依赖】scheduler（spawn/drain/seed）、context（取消）、time（退避）、libc（calloc/free）。
+// See implementation.
 
 export const TASK_OK: i32 = 0;
 export const TASK_ERR_NULL: i32 = -1;
@@ -32,7 +32,7 @@ export const TASK_ERR_INVALID: i32 = -5;
 
 export const TASK_MAX: i32 = 32;
 
-/** TaskGroup 内存布局（与 v1 C task_group_t 一致）。 */
+/* See implementation. */
 allow(padding) struct TaskGroupMem {
   capacity: i32;
   spawned: i32;
@@ -41,7 +41,7 @@ allow(padding) struct TaskGroupMem {
   join_total: i64;
 }
 
-/** JoinSet 内存布局（与 v1 C join_set_t 一致）。 */
+/* See implementation. */
 allow(padding) struct JoinSetMem {
   capacity: i32;
   spawned: i32;
@@ -63,21 +63,31 @@ extern "C" function calloc(nmemb: usize, size: usize): *u8;
 extern "C" function free(ptr: *u8): void;
 
 /**
- * F-task v2：.x 尚不能同模块取函数址；scheduler 在链 task.o 时解析 task_echo_fn_c 符号。
+ * See implementation.
  */
 extern function shux_async_task_echo_fn_ptr_c(): *u8;
 
-/** F-task v1 版本标记；供 v1 聚合 gate 校验。 */
+/** Exported function `task_f_task_v1_marker_c`.
+ * Implements `task_f_task_v1_marker_c`.
+ * @return i32
+ */
 export function task_f_task_v1_marker_c(): i32 {
   return 1;
 }
 
-/** F-task v2 逻辑全量 .x 标记。 */
+/** Exported function `task_f_task_v2_marker_c`.
+ * Implements `task_f_task_v2_marker_c`.
+ * @return i32
+ */
 export function task_f_task_v2_marker_c(): i32 {
   return 1;
 }
 
-/** handle → TaskGroup 指针；0 返回 null。 */
+/** Exported function `tg_from_handle`.
+ * Implements `tg_from_handle`.
+ * @param handle i64
+ * @return *TaskGroupMem
+ */
 export function tg_from_handle(handle: i64): *TaskGroupMem {
   if (handle == 0) {
     return 0 as *TaskGroupMem;
@@ -85,7 +95,11 @@ export function tg_from_handle(handle: i64): *TaskGroupMem {
   return handle as *TaskGroupMem;
 }
 
-/** handle → JoinSet 指针；0 返回 null。 */
+/** Exported function `js_from_handle`.
+ * Implements `js_from_handle`.
+ * @param handle i64
+ * @return *JoinSetMem
+ */
 export function js_from_handle(handle: i64): *JoinSetMem {
   if (handle == 0) {
     return 0 as *JoinSetMem;
@@ -93,7 +107,11 @@ export function js_from_handle(handle: i64): *JoinSetMem {
   return handle as *JoinSetMem;
 }
 
-/** 组是否已取消（绑定 Context 时沿链检测）。 */
+/** Exported function `tg_is_cancelled`.
+ * Implements `tg_is_cancelled`.
+ * @param g *TaskGroupMem
+ * @return i32
+ */
 export function tg_is_cancelled(g: *TaskGroupMem): i32 {
   if (g == 0) {
     return 0;
@@ -105,7 +123,10 @@ export function tg_is_cancelled(g: *TaskGroupMem): i32 {
   return 0; // unreachable — typeck workaround
 }
 
-/** 烟测/demo 任务：返回 seed*10。 */
+/** Exported function `task_echo_fn_c`.
+ * Implements `task_echo_fn_c`.
+ * @return i32
+ */
 export function task_echo_fn_c(): i32 {
   let seed: i32 = 0;
   unsafe { if (shux_async_run_seed_valid() != 0) {
@@ -114,13 +135,20 @@ export function task_echo_fn_c(): i32 {
   return seed * 10;
 }
 
-/** 返回 demo 任务函数指针（供 .x spawn 烟测）。 */
+/** Exported function `task_echo_fn_ptr_c`.
+ * Implements `task_echo_fn_ptr_c`.
+ * @return *u8
+ */
 export function task_echo_fn_ptr_c(): *u8 {
   unsafe { return shux_async_task_echo_fn_ptr_c(); }
   return 0 as *u8; // unreachable — typeck workaround
 }
 
-/** 创建 TaskGroup；capacity 须 1..TASK_MAX。 */
+/** Exported function `task_group_create_c`.
+ * Implements `task_group_create_c`.
+ * @param capacity i32
+ * @return i64
+ */
 export function task_group_create_c(capacity: i32): i64 {
   let cap: i32 = capacity;
   let raw: *u8 = 0 as *u8;
@@ -137,7 +165,11 @@ export function task_group_create_c(capacity: i32): i64 {
   return raw as i64;
 }
 
-/** 释放 TaskGroup；未 join 且 spawned>0 时仍释放（调用方应 check_leak）。 */
+/** Exported function `task_group_free_c`.
+ * Memory management helper `task_group_free_c`.
+ * @param handle i64
+ * @return void
+ */
 export function task_group_free_c(handle: i64): void {
   let g: *TaskGroupMem = tg_from_handle(handle);
   if (g != 0) {
@@ -145,7 +177,12 @@ export function task_group_free_c(handle: i64): void {
   }
 }
 
-/** 绑定 Context 用于取消传播。 */
+/** Exported function `task_group_bind_context_c`.
+ * Implements `task_group_bind_context_c`.
+ * @param handle i64
+ * @param ctx_handle i64
+ * @return void
+ */
 export function task_group_bind_context_c(handle: i64, ctx_handle: i64): void {
   let g: *TaskGroupMem = tg_from_handle(handle);
   if (g == 0) {
@@ -154,7 +191,13 @@ export function task_group_bind_context_c(handle: i64, ctx_handle: i64): void {
   g.ctx_handle = ctx_handle;
 }
 
-/** 提交单任务到 async 就绪环；0 成功。 */
+/** Exported function `task_group_spawn_c`.
+ * Implements `task_group_spawn_c`.
+ * @param handle i64
+ * @param fn *u8
+ * @param seed i32
+ * @return i32
+ */
 export function task_group_spawn_c(handle: i64, fn: *u8, seed: i32): i32 {
   let g: *TaskGroupMem = tg_from_handle(handle);
   let spawn_r: i32 = 0;
@@ -179,7 +222,11 @@ export function task_group_spawn_c(handle: i64, fn: *u8, seed: i32): i32 {
   return TASK_OK;
 }
 
-/** 等待组内全部任务完成；返回 drain 结果之和。 */
+/** Exported function `task_group_join_c`.
+ * Implements `task_group_join_c`.
+ * @param handle i64
+ * @return i32
+ */
 export function task_group_join_c(handle: i64): i32 {
   let g: *TaskGroupMem = tg_from_handle(handle);
   let total: i32 = 0;
@@ -207,7 +254,11 @@ export function task_group_join_c(handle: i64): i32 {
   return total;
 }
 
-/** 未 join 的 spawn 数。 */
+/** Exported function `task_group_pending_c`.
+ * Implements `task_group_pending_c`.
+ * @param handle i64
+ * @return i32
+ */
 export function task_group_pending_c(handle: i64): i32 {
   let g: *TaskGroupMem = tg_from_handle(handle);
   if (g == 0) {
@@ -216,7 +267,11 @@ export function task_group_pending_c(handle: i64): i32 {
   return g.spawned;
 }
 
-/** 结构化并发：未 join 且仍有 pending 时返回 TASK_ERR_LEAK。 */
+/** Exported function `task_group_check_leak_c`.
+ * Implements `task_group_check_leak_c`.
+ * @param handle i64
+ * @return i32
+ */
 export function task_group_check_leak_c(handle: i64): i32 {
   let g: *TaskGroupMem = tg_from_handle(handle);
   if (g == 0) {
@@ -228,7 +283,11 @@ export function task_group_check_leak_c(handle: i64): i32 {
   return TASK_OK;
 }
 
-/** 取消绑定 Context。 */
+/** Exported function `task_group_cancel_c`.
+ * Implements `task_group_cancel_c`.
+ * @param handle i64
+ * @return void
+ */
 export function task_group_cancel_c(handle: i64): void {
   let g: *TaskGroupMem = tg_from_handle(handle);
   if (g == 0 || g.ctx_handle == 0) {
@@ -237,7 +296,11 @@ export function task_group_cancel_c(handle: i64): void {
   unsafe { ctx_cancel_c(g.ctx_handle); }
 }
 
-/** 读取上次 join 累计结果。 */
+/** Exported function `task_group_join_total_c`.
+ * Implements `task_group_join_total_c`.
+ * @param handle i64
+ * @return i64
+ */
 export function task_group_join_total_c(handle: i64): i64 {
   let g: *TaskGroupMem = tg_from_handle(handle);
   if (g == 0) {
@@ -246,7 +309,11 @@ export function task_group_join_total_c(handle: i64): i64 {
   return g.join_total;
 }
 
-/** 创建 JoinSet。 */
+/** Exported function `join_set_create_c`.
+ * Implements `join_set_create_c`.
+ * @param capacity i32
+ * @return i64
+ */
 export function join_set_create_c(capacity: i32): i64 {
   let cap: i32 = capacity;
   let raw: *u8 = 0 as *u8;
@@ -263,7 +330,11 @@ export function join_set_create_c(capacity: i32): i64 {
   return raw as i64;
 }
 
-/** 释放 JoinSet。 */
+/** Exported function `join_set_free_c`.
+ * Memory management helper `join_set_free_c`.
+ * @param handle i64
+ * @return void
+ */
 export function join_set_free_c(handle: i64): void {
   let s: *JoinSetMem = js_from_handle(handle);
   if (s != 0) {
@@ -288,7 +359,11 @@ export function join_set_spawn_c(handle: i64, fn: *u8, seed: i32): i32 {
   return TASK_OK;
 }
 
-/** JoinSet 等待全部完成。 */
+/** Exported function `join_set_join_c`.
+ * Implements `join_set_join_c`.
+ * @param handle i64
+ * @return i32
+ */
 export function join_set_join_c(handle: i64): i32 {
   let s: *JoinSetMem = js_from_handle(handle);
   let total: i32 = 0;
@@ -307,7 +382,11 @@ export function join_set_join_c(handle: i64): i32 {
   return total;
 }
 
-/** JoinSet leak 检测。 */
+/** Exported function `join_set_check_leak_c`.
+ * Implements `join_set_check_leak_c`.
+ * @param handle i64
+ * @return i32
+ */
 export function join_set_check_leak_c(handle: i64): i32 {
   let s: *JoinSetMem = js_from_handle(handle);
   if (s == 0) {
@@ -319,7 +398,14 @@ export function join_set_check_leak_c(handle: i64): i32 {
   return TASK_OK;
 }
 
-/** Supervisor：失败时重试 fn(seed)；成功返回最终 drain 结果。 */
+/** Exported function `task_supervise_retry_c`.
+ * Implements `task_supervise_retry_c`.
+ * @param fn *u8
+ * @param seed i32
+ * @param max_attempts i32
+ * @param backoff_ns i64
+ * @return i32
+ */
 export function task_supervise_retry_c(fn: *u8, seed: i32, max_attempts: i32, backoff_ns: i64): i32 {
   let attempt: i32 = 0;
   let total: i32 = 0;
@@ -344,7 +430,10 @@ export function task_supervise_retry_c(fn: *u8, seed: i32, max_attempts: i32, ba
   return TASK_ERR_INVALID;
 }
 
-/** 烟测：双任务 spawn + join + leak 检测 + supervise（spawn 用 task_echo_fn_ptr_c）。 */
+/** Exported function `task_smoke_c`.
+ * Implements `task_smoke_c`.
+ * @return i32
+ */
 export function task_smoke_c(): i32 {
   let grp: i64 = task_group_create_c(4);
   let js: i64 = join_set_create_c(2);

@@ -1,6 +1,10 @@
-// STD-045：RwLock/Condvar 单线程 + C 层竞争烟测
+// See implementation.
 const sync = import("std.sync");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let rw: *u8 = sync.new_rwlock();
   if (rw == 0 as *u8) {

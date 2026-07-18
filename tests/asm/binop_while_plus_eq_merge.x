@@ -1,4 +1,8 @@
-// 7.3：while 出口汇合后 return a+b 须见循环内 a+= 后的值；run-asm-binop-cfg-merge.sh。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32 = 0;
   let b: i32 = 2;

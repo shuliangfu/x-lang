@@ -17,6 +17,11 @@ struct VTable {
   putc_fn: u32;
 }
 
+/** Internal function `serial_putc`.
+ * Implements `serial_putc`.
+ * @param c u8
+ * @return void
+ */
 function serial_putc(c: u8): void {
   unsafe {
     asm!("outb %%al, %%dx" : : "a"(c), "d"(0x3F8));
@@ -24,6 +29,11 @@ function serial_putc(c: u8): void {
 }
 
 #[used]
+/** Internal function `driver_a_putc`.
+ * Implements `driver_a_putc`.
+ * @param c u8
+ * @return void
+ */
 function driver_a_putc(c: u8): void {
   unsafe {
     asm!("outb %%al, %%dx" : : "a"(c), "d"(0x3F8));
@@ -31,12 +41,23 @@ function driver_a_putc(c: u8): void {
 }
 
 #[used]
+/** Internal function `driver_b_putc`.
+ * Implements `driver_b_putc`.
+ * @param c u8
+ * @return void
+ */
 function driver_b_putc(c: u8): void {
   unsafe {
     asm!("outb %%al, %%dx" : : "a"(c), "d"(0x2F8));
   }
 }
 
+/** Internal function `vtable_call`.
+ * Implements `vtable_call`.
+ * @param vt VTable
+ * @param c u8
+ * @return void
+ */
 function vtable_call(vt: VTable, c: u8): void {
   let fn_addr: u32 = vt.putc_fn;
   unsafe {
@@ -44,6 +65,10 @@ function vtable_call(vt: VTable, c: u8): void {
   }
 }
 
+/** Internal function `kmain`.
+ * Implements `kmain`.
+ * @return i32
+ */
 function kmain(): i32 {
   let driver_a_addr: u32 = 0;
   unsafe {
@@ -57,10 +82,19 @@ function kmain(): i32 {
 }
 
 #[entry]
+/** Internal function `start`.
+ * Implements `start`.
+ * @return void
+ */
 function start(): void {
   unsafe {
     asm!("mov $0x80000, %esp; call kmain; cli; hlt");
   }
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @param ) i32 { return kmain(
+ * @return void
+ */
 function main(): i32 { return kmain() + mb1.magic as i32; }

@@ -1,6 +1,10 @@
-// tests/exc/panic_hook_align.x — STD-028：panic_hook_collect 与 EXC-002 runtime 对齐烟测
+// See implementation.
 const runtime = import("std.runtime");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (runtime.ready() != 0) { return 1; }
   runtime.panic_hook_collect(1, 42);

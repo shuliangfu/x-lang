@@ -1,8 +1,15 @@
-// STD-073：std.codec hex/base64/gzip/json/csv/bytes round-trip 烟测
+// See implementation.
 const codec = import("std.codec");
 const bytes = import("std.bytes");
 
-/** 比较两段字节是否相等；1 相等，0 不等。 */
+/** Internal function `bytes_eq`.
+ * Implements `bytes_eq`.
+ * @param a *u8
+ * @param a_len i32
+ * @param b *u8
+ * @param b_len i32
+ * @return i32
+ */
 function bytes_eq(a: *u8, a_len: i32, b: *u8, b_len: i32): i32 {
   if (a_len != b_len) { return 0; }
   let i: i32 = 0;
@@ -13,6 +20,10 @@ function bytes_eq(a: *u8, a_len: i32, b: *u8, b_len: i32): i32 {
   return 1;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let src: u8[3] = [1, 2, 3];
   let enc: u8[64] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,

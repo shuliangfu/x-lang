@@ -1,9 +1,13 @@
 /**
- * CORE-013 烟测：core.types i16/u16 size_of_* 与 align_of_* 宽度金样。
+ * See implementation.
  */
 const types = import("core.types");
 const debug = import("core.debug");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (types.size_of_i16() != 2) { return 1; }
   if (types.size_of_u16() != 2) { return 2; }

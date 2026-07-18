@@ -1,9 +1,13 @@
 /**
- * ZC-5 smoke：fs_pipe_splice 文件→文件（经内核 pipe 中转）。
- * 写入 /tmp/fs_splice_in → splice → /tmp/fs_splice_out → 读回校验；exit 0。
+ * See implementation.
+ * See implementation.
  */
 const fs = import("std.fs");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   /** "/tmp/fs_splice_in\0" */
   let path_in: u8[18] =

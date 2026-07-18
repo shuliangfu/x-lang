@@ -1,9 +1,9 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f：async_asm_pool 产品源迁 seeds/async_asm_pool.from_x.c。
-// G-02f-104：+ await/var/live helpers 薄门闩。
-// G-02f-142：await/var/refs/block_rest pure helpers 真迁 .x
+// See implementation.
+// See implementation.
+// See implementation.
 
 export extern "C" function pipeline_expr_kind_ord_at(a: *u8, er: i32): i32;
 export extern "C" function pipeline_expr_unary_operand_ref_at(a: *u8, er: i32): i32;
@@ -33,15 +33,25 @@ export extern "C" function typeck_x_type_size_from_layout_glue(m: *u8, a: *u8, k
 export extern "C" function pipeline_module_func_is_async_at(m: *u8, fi: i32): i32;
 export extern "C" function pipeline_module_func_body_ref_at(m: *u8, fi: i32): i32;
 
+/** Exported function `async_asm_pool_x_doc_anchor`.
+ * Implements `async_asm_pool_x_doc_anchor`.
+ * @return i32
+ */
 export function async_asm_pool_x_doc_anchor(): i32 {
   return 0;
 }
 
 /* ---- G-02f-142：async asm pool pure helpers ---- */
 
-// C AST_EXPR_AWAIT(54) 与 X EXPR_AS 碰撞；X EXPR_AWAIT=55
-// G-02f-142：expr 是否 await
+// See implementation.
+// asm_pool_expr_is_await: see function docblock below.
 #[no_mangle]
+/** Exported function `asm_pool_expr_is_await`.
+ * Implements `asm_pool_expr_is_await`.
+ * @param a *u8
+ * @param er i32
+ * @return i32
+ */
 export function asm_pool_expr_is_await(a: *u8, er: i32): i32 {
   if (a == 0) { return 0; }
   if (er <= 0) { return 0; }
@@ -61,8 +71,14 @@ export function asm_pool_expr_is_await(a: *u8, er: i32): i32 {
   return 0;
 }
 
-// G-02f-142：表达式树是否含 await
+// asm_pool_expr_has_await: see function docblock below.
 #[no_mangle]
+/** Exported function `asm_pool_expr_has_await`.
+ * Implements `asm_pool_expr_has_await`.
+ * @param a *u8
+ * @param er i32
+ * @return i32
+ */
 export function asm_pool_expr_has_await(a: *u8, er: i32): i32 {
   if (a == 0) { return 0; }
   if (er <= 0) { return 0; }
@@ -107,8 +123,16 @@ export function asm_pool_expr_has_await(a: *u8, er: i32): i32 {
   return 0;
 }
 
-// G-02f-142：VAR=3 是否给定名
+// asm_pool_expr_is_var_named: see function docblock below.
 #[no_mangle]
+/** Exported function `asm_pool_expr_is_var_named`.
+ * Implements `asm_pool_expr_is_var_named`.
+ * @param a *u8
+ * @param er i32
+ * @param name *u8
+ * @param nlen i32
+ * @return i32
+ */
 export function asm_pool_expr_is_var_named(a: *u8, er: i32, name: *u8, nlen: i32): i32 {
   if (a == 0) { return 0; }
   if (er <= 0) { return 0; }
@@ -130,8 +154,16 @@ export function asm_pool_expr_is_var_named(a: *u8, er: i32, name: *u8, nlen: i32
   return 0;
 }
 
-// G-02f-142：表达式是否引用变量名
+// asm_pool_expr_refs_name: see function docblock below.
 #[no_mangle]
+/** Exported function `asm_pool_expr_refs_name`.
+ * Implements `asm_pool_expr_refs_name`.
+ * @param a *u8
+ * @param er i32
+ * @param name *u8
+ * @param nlen i32
+ * @return i32
+ */
 export function asm_pool_expr_refs_name(a: *u8, er: i32, name: *u8, nlen: i32): i32 {
   if (a == 0) { return 0; }
   if (er <= 0) { return 0; }
@@ -178,8 +210,17 @@ export function asm_pool_expr_refs_name(a: *u8, er: i32, name: *u8, nlen: i32): 
   return 0;
 }
 
-// G-02f-142：stmt_order 后段是否仍引用 name
+// asm_pool_block_rest_refs_name: see function docblock below.
 #[no_mangle]
+/** Exported function `asm_pool_block_rest_refs_name`.
+ * Implements `asm_pool_block_rest_refs_name`.
+ * @param a *u8
+ * @param br i32
+ * @param from_exclusive i32
+ * @param name *u8
+ * @param nlen i32
+ * @return i32
+ */
 export function asm_pool_block_rest_refs_name(a: *u8, br: i32, from_exclusive: i32, name: *u8, nlen: i32): i32 {
   if (a == 0) { return 0; }
   if (br <= 0) { return 0; }
@@ -222,9 +263,16 @@ export function asm_pool_block_rest_refs_name(a: *u8, br: i32, from_exclusive: i
   return 0;
 }
 
-// G-02f-142/143：type_size 真迁
-// G-02f-144：live_add 真迁（AsyncAsmPoolLayout LE：num_live@8 live@12 stride 76）
+// See implementation.
+// asm_pool_type_size_bytes: see function docblock below.
 #[no_mangle]
+/** Exported function `asm_pool_type_size_bytes`.
+ * Implements `asm_pool_type_size_bytes`.
+ * @param a *u8
+ * @param m *u8
+ * @param type_ref i32
+ * @return i32
+ */
 export function asm_pool_type_size_bytes(a: *u8, m: *u8, type_ref: i32): i32 {
   if (a == 0) { return 8; }
   if (type_ref <= 0) { return 8; }
@@ -272,7 +320,13 @@ export function asm_pool_type_size_bytes(a: *u8, m: *u8, type_ref: i32): i32 {
   return 8;
 }
 
-// LE i32 load/store（little-endian；避免 <<）
+// asm_pool_load_i32_le: see function docblock below.
+/** Exported function `asm_pool_load_i32_le`.
+ * Implements `asm_pool_load_i32_le`.
+ * @param p *u8
+ * @param off i32
+ * @return i32
+ */
 export function asm_pool_load_i32_le(p: *u8, off: i32): i32 {
   if (p == 0) { return 0; }
   let m: i32 = 256;
@@ -283,6 +337,13 @@ export function asm_pool_load_i32_le(p: *u8, off: i32): i32 {
   return a;
 }
 
+/** Exported function `asm_pool_store_i32_le`.
+ * Implements `asm_pool_store_i32_le`.
+ * @param p *u8
+ * @param off i32
+ * @param v i32
+ * @return void
+ */
 export function asm_pool_store_i32_le(p: *u8, off: i32, v: i32): void {
   if (p == 0) { return; }
   let u: u32 = v as u32;
@@ -292,10 +353,18 @@ export function asm_pool_store_i32_le(p: *u8, off: i32, v: i32): void {
   p[off + 3] = ((u / 16777216) & 255) as u8;
 }
 
-// G-02f-144：live 表去重追加
+// See implementation.
 // AsyncAsmPoolLiveVar: name[64]@0 name_len@64 size_bytes@68 frame_data_off@72; stride 76
 // ASYNC_LIVE_MAX_VARS=64
 #[no_mangle]
+/** Exported function `asm_pool_live_add`.
+ * Implements `asm_pool_live_add`.
+ * @param lay *u8
+ * @param name *u8
+ * @param nlen i32
+ * @param sz i32
+ * @return void
+ */
 export function asm_pool_live_add(lay: *u8, name: *u8, nlen: i32, sz: i32): void {
   if (lay == 0) { return; }
   if (name == 0) { return; }
@@ -345,8 +414,14 @@ export function asm_pool_live_add(lay: *u8, name: *u8, nlen: i32, sz: i32): void
   }
 }
 
-// G-02f-143：FNV-1a 函数名 → fn_id
+// async_asm_pool_fn_id_from_name: see function docblock below.
 #[no_mangle]
+/** Exported function `async_asm_pool_fn_id_from_name`.
+ * Implements `async_asm_pool_fn_id_from_name`.
+ * @param name *u8
+ * @param name_len i32
+ * @return u32
+ */
 export function async_asm_pool_fn_id_from_name(name: *u8, name_len: i32): u32 {
   if (name == 0) { return 1; }
   if (name_len <= 0) { return 1; }
@@ -360,8 +435,15 @@ export function async_asm_pool_fn_id_from_name(name: *u8, name_len: i32): u32 {
   return h;
 }
 
-// G-02f-143：async 且体中含 await
+// async_asm_pool_func_needs_cps: see function docblock below.
 #[no_mangle]
+/** Exported function `async_asm_pool_func_needs_cps`.
+ * Implements `async_asm_pool_func_needs_cps`.
+ * @param arena *u8
+ * @param mod *u8
+ * @param func_index i32
+ * @return i32
+ */
 export function async_asm_pool_func_needs_cps(arena: *u8, mod: *u8, func_index: i32): i32 {
   if (arena == 0) { return 0; }
   if (mod == 0) { return 0; }

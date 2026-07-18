@@ -17,10 +17,22 @@ const elf = import("platform.elf");
 
 export extern function pipeline_asm_arm64_cset_cond_enc_from_cc(cc: i32): i32;
 
+/** Exported function `enc_a`.
+ * Implements `enc_a`.
+ * @param ctx *ElfCodegenCtx
+ * @param val i32
+ * @return i32
+ */
 export function enc_a(ctx: *ElfCodegenCtx, val: i32): i32 {
   return 0;
 }
 
+/** Exported function `enc_b`.
+ * Implements `enc_b`.
+ * @param ctx *ElfCodegenCtx
+ * @param frame_size i32
+ * @return i32
+ */
 export function enc_b(ctx: *ElfCodegenCtx, frame_size: i32): i32 {
   return 0;
 }

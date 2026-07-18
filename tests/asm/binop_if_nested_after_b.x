@@ -1,4 +1,8 @@
-// 7.3：then 内嵌套 if 汇合后外层 if 再汇合；return a+b 须见内层 else 的 a+=（cfg-merge ldur 门禁）。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32 = 1;
   let b: i32 = 2;

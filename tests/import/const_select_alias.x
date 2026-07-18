@@ -1,7 +1,11 @@
-// 测试绑定 import + 跨模块类型：driver.Buffer
+// See implementation.
 const io = import("std.io");
 const driver = import("std.io.driver");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let msg: u8[12] = [72, 101, 108, 108, 111, 32, 87, 111, 114, 108, 100, 10];
   let n: i32 = io.print(msg, 12);

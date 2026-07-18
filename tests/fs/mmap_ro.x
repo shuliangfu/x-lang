@@ -1,9 +1,13 @@
-// 测试 std.fs：fs_mmap_ro、fs_munmap（极速读大文件）
-// 先写工作区内临时文件再 mmap 只读，避免 CI 上 /tmp 行为差异导致失败。
+// See implementation.
+// See implementation.
 const fs = import("std.fs");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
-  // 路径 "tests/fs/.mmap_ro_tmp"（相对 run-fs.sh 的 cwd 即 repo 根）
+  // See implementation.
   let path: u8[32] =
   [116,101,115,116,115,47,102,115,47,46,109,109,97,112,95,114,111,46,116,109,112,0,0,0,0,0,0,0,0,0,0
   ,0];

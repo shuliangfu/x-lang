@@ -1,8 +1,12 @@
 /**
- * Cookbook CSV-01：write_row / parse_row 三列往返（STD-036）。
+ * See implementation.
  */
 const csv = import("std.csv");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let blob: u8[16] = [97, 108, 105, 99, 101, 98, 111, 98, 49, 0, 0, 0, 0, 0, 0, 0];
   let starts: i32[4] = [0, 5, 8, 0];

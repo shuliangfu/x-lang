@@ -1,4 +1,8 @@
-/** 探针：if (i < lim) return -1 应仅在 i<lim 时返回 -1 */
+/** Probe: if (i < lim) style guard; returns -1 only when i >= lim-1. */
+
+/**
+ * With i=1 and lim=64, the guard fails so main returns 0 (not -1).
+ */
 function main(): i32 {
   let i: i32 = 1;
   let lim: i32 = 64;

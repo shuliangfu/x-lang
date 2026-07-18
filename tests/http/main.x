@@ -1,11 +1,15 @@
-// tests/http/main.x — std.http 最小 GET：全面 + 边界
-// 有网络时校验 GET 返回 HTTP 响应头；无网络或失败时跳过仍通过（不把 CI
-// 绑死）。
+// See implementation.
+// See implementation.
+// See implementation.
 
 const http = import("std.http");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
-  // 使用稳定、轻量的目标；无网络时 get 返回 -1，不判失败
+  // See implementation.
   let url: u8[32] = [104, 116, 116, 112, 58, 47, 47, 101, 120, 97, 109, 112, 108, 101, 46, 99, 111,
   109, 47, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   let out_buf: u8[4096] = [];

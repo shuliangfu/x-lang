@@ -13,6 +13,12 @@ const B64_STREAM_STATE_BYTES: i32 = 28;
 
 extern function memset(s: *u8, c: i32, n: usize): *u8;
 
+/** Internal function `b64_stream_cast`.
+ * Implements `b64_stream_cast`.
+ * @param state *u8
+ * @param state_cap i32
+ * @return *B64Stream
+ */
 function b64_stream_cast(state: *u8, state_cap: i32): *B64Stream {
   let need: i32 = B64_STREAM_STATE_BYTES;
   if (state == 0 || state_cap < need) { return 0 as *B64Stream; }
@@ -21,6 +27,13 @@ function b64_stream_cast(state: *u8, state_cap: i32): *B64Stream {
   return s;
 }
 
+/** Internal function `base64_stream_dec_init_c`.
+ * Implements `base64_stream_dec_init_c`.
+ * @param state *u8
+ * @param state_cap i32
+ * @param url i32
+ * @return i32
+ */
 function base64_stream_dec_init_c(state: *u8, state_cap: i32, url: i32): i32 {
   let need: i32 = B64_STREAM_STATE_BYTES;
   let s: *B64Stream = 0 as *B64Stream;
@@ -33,6 +46,16 @@ function base64_stream_dec_init_c(state: *u8, state_cap: i32, url: i32): i32 {
   return 0;
 }
 
+/** Internal function `decode_stub`.
+ * Implements `decode_stub`.
+ * @param s *B64Stream
+ * @param quad *u8
+ * @param n i32
+ * @param is_last i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 function decode_stub(s: *B64Stream, quad: *u8, n: i32, is_last: i32, out: *u8, out_cap: i32): i32 {
   if (s == 0 || quad == 0 || out == 0 || out_cap <= 0 || n <= 0) { return -1; }
   out[0] = quad[0];
@@ -43,6 +66,18 @@ function decode_stub(s: *B64Stream, quad: *u8, n: i32, is_last: i32, out: *u8, o
   return 1;
 }
 
+/** Internal function `base64_stream_dec_update_no_loop_c`.
+ * Implements `base64_stream_dec_update_no_loop_c`.
+ * @param state *u8
+ * @param state_cap i32
+ * @param inp *u8
+ * @param in_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @param is_last i32
+ * @param in_consumed *i32
+ * @return i32
+ */
 function base64_stream_dec_update_no_loop_c(state: *u8, state_cap: i32, inp: *u8, in_len: i32, out: *u8, out_cap: i32, is_last: i32, in_consumed: *i32): i32 {
   let s: *B64Stream = b64_stream_cast(state, state_cap);
   let chunk: i32 = 0;
@@ -63,6 +98,10 @@ function base64_stream_dec_update_no_loop_c(state: *u8, state_cap: i32, inp: *u8
   return n;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let st: u8[32] = [];
   let out: u8[16] = [];

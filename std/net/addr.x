@@ -14,16 +14,16 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.net.addr — F-04 v11：TCP local/peer 地址查询
+// See implementation.
 //
-// 【文件职责】
-// 从 net.c 迁出 net_tcp_local_addr_c / net_tcp_peer_addr_c。
+// See implementation.
+// See implementation.
 //
-// 【依赖】libc getsockname/getpeername、ntohl/ntohs
+// See implementation.
 
 export const AF_INET: i32 = 2;
 
-/** IPv4 sockaddr 前缀（sin_addr 网络序 u32）。 */
+/* See implementation. */
 allow(padding) struct SockAddrIn {
   sin_family: u16;
   sin_port: u16;
@@ -46,14 +46,14 @@ extern "C" function getsockname(fd: i32, addr: *u8, addrlen: *i32): i32;
 extern "C" function getpeername(fd: i32, addr: *u8, addrlen: *i32): i32;
 
 /**
- * 取栈上 sockaddr 缓冲首地址（seed emit 不支持 call 实参内联 &buf[0]，经 helper 传递）。
+ * See implementation.
  */
 export function net_sockaddr_in_buf_ptr_c(p: *u8): *u8 {
   return p;
 }
 
 /**
- * 从 16 字节 sockaddr_in 缓冲读取 addr/port 并打包为 (addr_u32<<32)|port_u32。
+ * See implementation.
  */
 export function net_sockaddr_in_pack_addr_port_c(sin_ptr: *u8): i64 {
   let p_port: *u16 = (sin_ptr + 2) as *u16;
@@ -66,7 +66,7 @@ export function net_sockaddr_in_pack_addr_port_c(sin_ptr: *u8): i64 {
 }
 
 /**
- * 获取 TCP 本地地址与端口；成功 (addr_u32<<32)|port_u32，失败 -1。
+ * See implementation.
  */
 #[cfg(not(target_os = "windows"))]
 export function net_tcp_local_addr_c(fd: i32): i64 {
@@ -82,6 +82,11 @@ export function net_tcp_local_addr_c(fd: i32): i64 {
 }
 
 #[cfg(target_os = "windows")]
+/** Exported function `net_tcp_local_addr_c`.
+ * Implements `net_tcp_local_addr_c`.
+ * @param fd i32
+ * @return i64
+ */
 export function net_tcp_local_addr_c(fd: i32): i64 {
   let sin_mem: u8[16] = [];
   let len_i: i32 = 16;
@@ -95,7 +100,7 @@ export function net_tcp_local_addr_c(fd: i32): i64 {
 }
 
 /**
- * 获取 TCP 远端地址与端口；成功 (addr_u32<<32)|port_u32，失败 -1。
+ * See implementation.
  */
 #[cfg(not(target_os = "windows"))]
 export function net_tcp_peer_addr_c(fd: i32): i64 {
@@ -111,6 +116,11 @@ export function net_tcp_peer_addr_c(fd: i32): i64 {
 }
 
 #[cfg(target_os = "windows")]
+/** Exported function `net_tcp_peer_addr_c`.
+ * Implements `net_tcp_peer_addr_c`.
+ * @param fd i32
+ * @return i64
+ */
 export function net_tcp_peer_addr_c(fd: i32): i64 {
   let sin_mem: u8[16] = [];
   let len_i: i32 = 16;

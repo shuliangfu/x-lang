@@ -1,6 +1,10 @@
-// SAFE-004 C4：cstring_new 复制 len 字节并 NUL 结尾；cstr_len 校验。
+// See implementation.
 const ffi = import("std.ffi");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let src: u8[4] = [120, 121, 122, 0];
   let p: *u8 = ffi.cstring_new(&src[0], 3);

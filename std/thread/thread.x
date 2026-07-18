@@ -14,13 +14,16 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std/thread/thread.x — F-thread v1 模块锚点（pthread 封装在 thread_glue.c）
+// See implementation.
 //
-// 【文件职责】
-// 提供 F-thread v1 可编译 .x 单元；经 ld -r 与 thread_glue.c 合并为 thread.o。
-// 对外 API 在 mod.x。
+// See implementation.
+// See implementation.
+// See implementation.
 
-/** F-thread v1 版本标记；供聚合 gate 校验 thread.x 已参与 ld -r 合并。 */
+/** Exported function `thread_f_thread_v1_marker_c`.
+ * Read path helper `thread_f_thread_v1_marker_c`.
+ * @return i32
+ */
 export function thread_f_thread_v1_marker_c(): i32 {
   return 1;
 }

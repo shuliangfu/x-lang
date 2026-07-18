@@ -14,23 +14,20 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// verify.x — 契约验证机制（三步检查）
+// verify.x — contract verification mechanism (three-step check)
 //
-// 模块：ir
-// 层级：共享（lowering 阶段调用，SMIR / SLIR / VMIR 逐层复用）
-// Phase：Phase 1（SHIR → SMIR lowering 首次触发）
-// 职责：
-//   - Step 1 契约提取：从 .x 类型系统提取 Linear / Region / ABI 信息 → 生成 Contract
-//   - Step 2 前置条件检查：每条指令执行前验证 pre-condition 可满足
-//     · region_alive → 检查 region 未被 arena_reset
-//     · linear_valid → 检查句柄未被 linear_move / consume
-//     · ptr_aligned → 检查指针对齐边界
-//   - Step 3 后置条件传播：执行后更新 IR 状态（标记 consumed / 更新 alias set）
-// 依赖：contract / effect / inst
-// 设计约束：
-//   - lowering 时契约不一致 = 编译器 bug（前端 typeck 与 IR 契约矛盾），直接 panic
-//   - 不生成错误代码（fail-fast，绝不静默退化）
-//   - 优化器等价验证判据：pre 包含 / post 包含 / effects 不变（§1.4）
+// Module: ir
+// Layer: shared (called during lowering; reused by SMIR / SLIR / VMIR)
+// Phase: Phase 1 (first triggered on SHIR → SMIR lowering)
+// Responsibility:
+//   - Step 1 contract extract: Linear / Region / ABI from .x type system → Contract
+//   - Step 2 precondition check: before each inst, verify pre is satisfiable
+//   - Step 3 postcondition propagation: after exec, update IR state
+// Depends: contract / effect / inst
+// Design constraints:
+//   - Contract mismatch at lowering = compiler bug; panic
+//   - Never emit error code (fail-fast; no silent degradation)
+//   - Optimizer equivalence: pre subset / post superset / effects unchanged (§1.4)
 //
-// 参考文档：analysis/IR核心设计.md §1.3（契约验证机制）/ §1.4（优化器工作模型）
-// 架构状态：v4.0 Architecture Freeze — 实现骨架，待 Phase 1 填充
+// Ref: analysis IR core design §1.3 (contract verification) / §1.4 (optimizer model)
+// Status: v4.0 Architecture Freeze — implementation skeleton; fill in Phase 1

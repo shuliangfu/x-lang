@@ -1,6 +1,10 @@
-// SIMD-S4 烟测：@shuffle / @select 语法糖 → simd_shuffle/simd_select 内联。
+// See implementation.
 const simd = import("std.simd");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let v: Vec8i = [0, 1, 2, 3, 4, 5, 6, 7];
   let r: Vec8i = @shuffle(v, [3, 2, 1, 0, 7, 6, 5, 4]);

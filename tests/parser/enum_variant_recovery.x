@@ -1,4 +1,4 @@
-// 回归：enum 内部变体级同步恢复——坏变体各自报错，好变体与后续 function 不受影响。
+// See implementation.
 enum Bad {
   A,
   123,
@@ -7,6 +7,10 @@ enum Bad {
   C,
 }
 
+/** Internal function `good`.
+ * Implements `good`.
+ * @return i32
+ */
 function good(): i32 {
   return 0;
 }

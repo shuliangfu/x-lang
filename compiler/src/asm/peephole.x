@@ -14,37 +14,56 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// peephole.x — 汇编窥孔优化（可选）
+// See implementation.
 //
-// 职责：对 backend
-// 产出的汇编文本做一次或多次窥孔扫描，合并/删除冗余指令或空行，减少输
-// 出体积；ELF 直编路径对 code_data 做等价字节级窥孔（须在 elf_resolve_patches 前）。
-// 依赖：codegen_outbuf_abi（CodegenOutBuf）、types、platform.elf。
-// 当前：去除连续空行；消除连续 push rax + pop rax（x86/arm64/riscv64，与 7.3
-// 寄存器分配相关）；消除 arm64 7.3 spill 槽 x10–x14 与 x0/x1 往返冗余 mov 对。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 
 const codegen_outbuf_abi = import("codegen_outbuf_abi");
 const types = import("asm.types");
 const elf = import("platform.elf");
 
-/** sidecar reloc offset glue（定义在 ast_pool.c）。 */
+/* See implementation. */
 export extern function pipeline_elf_ctx_reloc_offset_at(ctx: *u8, idx: i32): i32;
 export extern function pipeline_elf_ctx_reloc_offset_set(ctx: *u8, idx: i32, offset: i32): void;
 
+/** Exported function `peephole_reloc_offset_at`.
+ * Implements `peephole_reloc_offset_at`.
+ * @param ctx *ElfCodegenCtx
+ * @param idx i32
+ * @return i32
+ */
 export function peephole_reloc_offset_at(ctx: *ElfCodegenCtx, idx: i32): i32 {
   unsafe {
     return pipeline_elf_ctx_reloc_offset_at(ctx as *u8, idx);
   }
 }
 
+/** Exported function `peephole_reloc_offset_set`.
+ * Implements `peephole_reloc_offset_set`.
+ * @param ctx *ElfCodegenCtx
+ * @param idx i32
+ * @param offset i32
+ * @return void
+ */
 export function peephole_reloc_offset_set(ctx: *ElfCodegenCtx, idx: i32, offset: i32): void {
   unsafe {
     pipeline_elf_ctx_reloc_offset_set(ctx as *u8, idx, offset);
   }
 }
 
-/** 比较 out.data[pos..pos+len] 与 ptr 指向的 len 字节是否相等。相等返回
-* 1，否则 0。 */
+/** Exported function `slice_eq`.
+ * Implements `slice_eq`.
+ * @param out *CodegenOutBuf
+ * @param pos i32
+ * @param ptr *u8
+ * @param len i32
+ * @return i32
+ */
 export function slice_eq(out: *CodegenOutBuf, pos: i32, ptr: *u8, len: i32): i32 {
   if (pos + len > out.len) { return 0; }
   let i: i32 = 0;
@@ -55,12 +74,14 @@ export function slice_eq(out: *CodegenOutBuf, pos: i32, ptr: *u8, len: i32): i32
   return 1;
 }
 
-/** 窥孔：消除连续的「push rax」行与「pop
-* rax」行（两行紧邻且无其他指令时冗余，可删）。x86: pushq %rax + popq
-* %rax；arm64: str w0,[sp,#-16]! + ldr w0,[sp],#16。写回 out.data，更新 out.len。 */
+/** Exported function `peephole_remove_redundant_push_pop`.
+ * Implements `peephole_remove_redundant_push_pop`.
+ * @param out *CodegenOutBuf
+ * @return i32
+ */
 export function peephole_remove_redundant_push_pop(out: *CodegenOutBuf): i32 {
-  /* x86: "pushq %rax\n" 11 字节；"popq %rax\n" 10 字节。arm64: "str w0, [sp, #-16]!\n" 20
-  字节；"ldr w0, [sp], #16\n" 18 字节。 */
+  /* x86: "pushq %rax\n" 11 bytes; "popq %rax\n" 10. arm64: "str w0, [sp, #-16]!\n" 20;
+  "ldr w0, [sp], #16\n" is 18 bytes. */
   let x86_push: u8[11] = [112, 117, 115, 104, 113, 32, 37, 114, 97, 120, 10];
   let x86_pop: u8[10] = [112, 111, 112, 113, 32, 37, 114, 97, 120, 10];
   let arm_push: u8[20] = [115, 116, 114, 32, 119, 48, 44, 32, 91, 115, 112, 44, 32, 35, 45, 49, 54,
@@ -98,7 +119,11 @@ export function peephole_remove_redundant_push_pop(out: *CodegenOutBuf): i32 {
   return 0;
 }
 
-/** 窥孔：消除 x86 无操作「movq %rax, %rax」（单行，16 字节含换行）。 */
+/** Exported function `peephole_remove_noop_mov_rax_rax`.
+ * Implements `peephole_remove_noop_mov_rax_rax`.
+ * @param out *CodegenOutBuf
+ * @return i32
+ */
 export function peephole_remove_noop_mov_rax_rax(out: *CodegenOutBuf): i32 {
   let x86_noop: u8[16] = [109, 111, 118, 113, 32, 37, 114, 97, 120, 44, 32, 37, 114, 97, 120, 10];
   let i: i32 = 0;
@@ -120,7 +145,11 @@ export function peephole_remove_noop_mov_rax_rax(out: *CodegenOutBuf): i32 {
   return 0;
 }
 
-/** 窥孔：消除 arm64 无操作「mov x0, x0」（单行，11 字节含换行）。 */
+/** Exported function `peephole_remove_noop_mov_x0_x0`.
+ * Implements `peephole_remove_noop_mov_x0_x0`.
+ * @param out *CodegenOutBuf
+ * @return i32
+ */
 export function peephole_remove_noop_mov_x0_x0(out: *CodegenOutBuf): i32 {
   let arm_noop: u8[11] = [109, 111, 118, 32, 120, 48, 44, 32, 120, 48, 10];
   let i: i32 = 0;
@@ -142,8 +171,11 @@ export function peephole_remove_noop_mov_x0_x0(out: *CodegenOutBuf): i32 {
   return 0;
 }
 
-/** 窥孔：去除连续空行（将多行 \n 压成单行）。写回 out.data，更新
-* out.len。返回 0 成功，-1 失败。 */
+/** Exported function `peephole_remove_empty_lines`.
+ * Implements `peephole_remove_empty_lines`.
+ * @param out *CodegenOutBuf
+ * @return i32
+ */
 export function peephole_remove_empty_lines(out: *CodegenOutBuf): i32 {
   let src: i32 = 0;
   let dst: i32 = 0;
@@ -167,8 +199,11 @@ export function peephole_remove_empty_lines(out: *CodegenOutBuf): i32 {
   return 0;
 }
 
-/** 对 out 执行当前所有窥孔模式；供 pipeline 在 asm_codegen_ast 之后可选调用。
-*/
+/** Exported function `peephole_run`.
+ * Implements `peephole_run`.
+ * @param out *CodegenOutBuf
+ * @return i32
+ */
 export function peephole_run(out: *CodegenOutBuf): i32 {
   if (peephole_remove_redundant_push_pop(out) != 0) {
     return -1;
@@ -185,7 +220,13 @@ export function peephole_run(out: *CodegenOutBuf): i32 {
   return 0;
 }
 
-/** ELF：code_data[pos..pos+3] 是否与 w 小端相等。 */
+/** Exported function `peephole_elf_u32_eq`.
+ * Implements `peephole_elf_u32_eq`.
+ * @param ctx *ElfCodegenCtx
+ * @param pos i32
+ * @param w i32
+ * @return i32
+ */
 export function peephole_elf_u32_eq(ctx: *ElfCodegenCtx, pos: i32, w: i32): i32 {
   if (pos < 0 || pos + 3 >= ctx.code_len) {
     return 0;
@@ -197,7 +238,7 @@ export function peephole_elf_u32_eq(ctx: *ElfCodegenCtx, pos: i32, w: i32): i32 
 }
 
 /**
- * ELF：标签/补丁/重定位/符号是否有点落在 [pos, pos+len) 内；有则不可删字节（避免偏移悬空）。
+ * See implementation.
  */
 export function peephole_elf_region_has_meta(ctx: *ElfCodegenCtx, pos: i32, len: i32): i32 {
   let end: i32 = pos + len;
@@ -236,7 +277,13 @@ export function peephole_elf_region_has_meta(ctx: *ElfCodegenCtx, pos: i32, len:
   return 0;
 }
 
-/** ELF：删除 code_data[pos..pos+len) 后，将所有 offset >= pos+len 的元数据减 len。 */
+/** Exported function `peephole_elf_shift_meta_after_remove`.
+ * Implements `peephole_elf_shift_meta_after_remove`.
+ * @param ctx *ElfCodegenCtx
+ * @param pos i32
+ * @param len i32
+ * @return void
+ */
 export function peephole_elf_shift_meta_after_remove(ctx: *ElfCodegenCtx, pos: i32, len: i32): void {
   let bound: i32 = pos + len;
   let li: i32 = 0;
@@ -270,7 +317,13 @@ export function peephole_elf_shift_meta_after_remove(ctx: *ElfCodegenCtx, pos: i
   }
 }
 
-/** ELF：从 code_data 删除 len 字节（起始于 pos），并修正元数据偏移。 */
+/** Exported function `peephole_elf_remove_code_bytes`.
+ * Implements `peephole_elf_remove_code_bytes`.
+ * @param ctx *ElfCodegenCtx
+ * @param pos i32
+ * @param len i32
+ * @return i32
+ */
 export function peephole_elf_remove_code_bytes(ctx: *ElfCodegenCtx, pos: i32, len: i32): i32 {
   if (len <= 0 || pos < 0 || pos + len > ctx.code_len) {
     return -1;
@@ -289,7 +342,7 @@ export function peephole_elf_remove_code_bytes(ctx: *ElfCodegenCtx, pos: i32, le
 }
 
 /**
- * ELF：消除连续 push rax + pop rax（与文本窥孔等价）。
+ * See implementation.
  * e_machine：62=x86_64，183=arm64，243=riscv64。
  */
 export function peephole_elf_remove_redundant_push_pop(ctx: *ElfCodegenCtx, e_machine: i32): i32 {
@@ -329,15 +382,15 @@ export function peephole_elf_remove_redundant_push_pop(ctx: *ElfCodegenCtx, e_ma
 }
 
 /**
- * arm64 ORR mov 编码：mov Rd, Rn → 2852127712 | (Rn<<16) | Rd（与 arm64_enc.x 一致）。
+ * See implementation.
  */
 export function peephole_elf_arm64_mov_u32(rd: i32, rn: i32): i32 {
   return 2852127712 | (rn << 16) | rd;
 }
 
 /**
- * ELF：消除 7.3 spill 物理槽 x10–x15 与 rax/x0、rbx/x1 的连续往返 mov（各 8 字节）。
- * 例如 mov x10,x0 + mov x0,x10 或 mov x0,x10 + mov x10,x0（中间无其它指令时无意义）。
+ * See implementation.
+ * See implementation.
  */
 export function peephole_elf_remove_redundant_spill_reg_mov_pair(ctx: *ElfCodegenCtx): i32 {
   if (ctx.e_machine != 183) {
@@ -381,7 +434,11 @@ export function peephole_elf_remove_redundant_spill_reg_mov_pair(ctx: *ElfCodege
   return 0;
 }
 
-/** ELF：消除 arm64 连续 mov x2,scratch + mov scratch,x2（8 字节，scratch 为 x0/x1）。 */
+/** Exported function `peephole_elf_remove_redundant_mov_x2_pair`.
+ * Implements `peephole_elf_remove_redundant_mov_x2_pair`.
+ * @param ctx *ElfCodegenCtx
+ * @return i32
+ */
 export function peephole_elf_remove_redundant_mov_x2_pair(ctx: *ElfCodegenCtx): i32 {
   if (ctx.e_machine != 183) {
     return 0;
@@ -409,7 +466,11 @@ export function peephole_elf_remove_redundant_mov_x2_pair(ctx: *ElfCodegenCtx): 
   return 0;
 }
 
-/** ELF 窥孔入口：在 elf_resolve_patches 之前调用；e_machine 从 ctx 读取。 */
+/** Exported function `peephole_elf_run`.
+ * Implements `peephole_elf_run`.
+ * @param ctx *ElfCodegenCtx
+ * @return i32
+ */
 export function peephole_elf_run(ctx: *ElfCodegenCtx): i32 {
   if (ctx == (0 as *ElfCodegenCtx)) {
     return 0;

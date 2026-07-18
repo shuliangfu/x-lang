@@ -14,21 +14,20 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// sched.x — 早期指令调度
+// sched.x — early instruction scheduling
 //
-// 模块：ir/vmir
-// 层级：VMIR
-// Phase：Phase 5
-// 职责：
-//   - 基于 DAG 的依赖约束下指令重排
-//   - 早期调度（VMIR 层），后续 Target MIR 层做最终调度
-//   - 目标：减少流水线停顿 / 提高 ILP（指令级并行）
-//   - 考虑 Effect 约束（Write 不可跨 Pure 重排）
-// 依赖：./dag / ./machine_inst / ../effect
-// 设计约束：
-//   - 调度必须保持依赖不变量（不破坏 DAG 边）
-//   - 调度决策基于 Cost Model 的 pipeline 维度（§10.3）
-//   - 确定性：相同 DAG 相同调度结果
+// Module: ir/vmir
+// Layer: VMIR
+// Phase: Phase 5
+// Responsibility:
+//   - Reorder instructions under DAG dependency constraints
+//   - Early schedule (VMIR); Target MIR does final schedule later
+//   - Respect Effect constraints (Write must not reorder across Pure)
+// Depends: ./dag / ./machine_inst / ../effect
+// Design constraints:
+//   - Scheduling must preserve dependency invariants
+//   - Decisions use Cost Model pipeline dimension (§10.3)
+//   - Determinism: same DAG → same schedule
 //
-// 参考文档：analysis/IR核心设计.md §2.1（VMIR 早期指令调度）/ §2.2（VMIR 职责）
-// 架构状态：v4.0 Architecture Freeze — 实现骨架，待 Phase 5 填充
+// Ref: analysis IR core design §2.1 (VMIR early schedule) / §2.2 (VMIR duties)
+// Status: v4.0 Architecture Freeze — implementation skeleton; fill in Phase 5

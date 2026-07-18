@@ -1,11 +1,15 @@
-// TST-004：std.channel ASAN 夜跑用例（有界 send/recv/close/free）。
+// See implementation.
 //
-// 【文件职责】在 -fsanitize=address 下验证 channel 生命周期无泄漏。
-// 【运行方式】tests/run-tst-004-std-sanitize-nightly.sh
-// 单线程 channel 烟测；创建失败时返回 0（与 tests/channel/main.x 一致）。
+// See implementation.
+// See implementation.
+// See implementation.
 const channel = import("std.channel");
 const debug = import("core.debug");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let ch: *u8 = channel.bounded(2);
   if (ch == 0) {

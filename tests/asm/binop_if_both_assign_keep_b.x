@@ -1,4 +1,8 @@
-// 7.3：if 两分支均写 a（φ 槽）；b 未写，return a+b 应复用 b 槽（cfg-merge ldur 门禁）。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32 = 1;
   let b: i32 = 2;

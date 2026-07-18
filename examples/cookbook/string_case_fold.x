@@ -1,8 +1,12 @@
 /**
- * Cookbook STR-02：string_view_case_fold Unicode 桥接（STD-160）。
+ * See implementation.
  */
 const string = import("std.string");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let txt: u8[3] = [65, 66, 67];
   let v: StrView = string.view(&txt[0], 3);

@@ -1,6 +1,10 @@
-// STD-HTTP-H2-v24：GOAWAY 连接优雅关闭烟测
+// See implementation.
 const http = import("std.http");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (http.goaway_smoke() != 0) { return 1; }
   if (http.frame_goaway() != 7) { return 2; }

@@ -1,6 +1,10 @@
-// 测试 std.queue：push_back、push_front、pop_back、pop_front、get、len、deinit
+// See implementation.
 const queue = import("std.queue");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let q: Queue_i32 = queue.new();
   if (queue.push_back(&q, 1) != 0) { return 1; }

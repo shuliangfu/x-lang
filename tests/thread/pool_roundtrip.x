@@ -1,10 +1,14 @@
-// STD-043：线程池 submit/drain/stop + 命名线程（Windows 池不可用则 skip）
+// See implementation.
 const thread = import("std.thread");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let nm: u8[9] = [115, 104, 117, 45, 109, 97, 105, 110, 0];
   if (thread.set_name_self(&nm[0], 8) != 0) {
-    // macOS/Linux 外平台可 -1，不失败
+    // See implementation.
   }
   if (thread.start(2) != 0) {
     return 0;

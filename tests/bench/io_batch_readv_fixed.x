@@ -1,10 +1,14 @@
-// io_batch_readv_fixed.x — I6：register_fixed_buffers + read_batch_fd（Linux read_fixed 路径）
-// 与 io_batch_readv.x 同 workload；供 tests/run-perf-io-ring-ab.sh A/B。
+// See implementation.
+// See implementation.
 const fs = import("std.fs");
 const io = import("std.io");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
-  // 路径 "tests/bench/.io_mmap_bench_tmp"
+  // See implementation.
   let path: u8[31] =
   [116, 101, 115, 116, 115, 47, 98, 101, 110, 99, 104, 47, 46, 105, 111, 95, 109, 109, 97, 112, 95,
   98, 101, 110, 99, 104, 95, 116, 109, 112, 0];
@@ -14,7 +18,7 @@ function main(): i32 {
   let b1: u8[4096] = [];
   let b2: u8[4096] = [];
   let b3: u8[4096] = [];
-  /** 注册 4×4KiB 为 fixed buffer 池，read_batch_fd 走 io_uring read_fixed。 */
+  /* See implementation. */
   if (io.register_buffers(&b0[0], 4096, &b1[0], 4096, &b2[0], 4096, &b3[0], 4096, 4) != 1) {
     fs.close(fd);
     return 4;

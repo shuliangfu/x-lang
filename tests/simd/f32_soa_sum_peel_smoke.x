@@ -1,6 +1,6 @@
 /**
- * SIMD f32 SoA 列 reduce peel 烟测：while i<N { s += arr[i].x } → movups/addps 块累加。
- * 8×1.0 → s=8.0 → main 返回 8（cvttss2si）。
+ * See implementation.
+ * See implementation.
  */
 struct Particle soa {
   x: f32
@@ -8,6 +8,10 @@ struct Particle soa {
   z: f32
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let arr: Particle[8] = [];
   let i: i32 = 0;

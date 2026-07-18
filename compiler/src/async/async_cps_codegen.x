@@ -1,20 +1,29 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-18：async_cps_codegen 产品源迁 seeds/async_cps_codegen.from_x.c。
-// 实现仍在 seed C；本文件为文档锚点。
-// 产品：cc seeds/async_cps_codegen.from_x.c → src/async/async_cps_codegen.o
-// G-02f-105：+ emit_hoisted_lets / callee_is_io / future_wait 薄门闩。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 
 export extern "C" function emit_hoisted_lets_impl(f: *u8, out: *u8): void;
 
+/** Exported function `async_cps_codegen_x_doc_anchor`.
+ * Implements `async_cps_codegen_x_doc_anchor`.
+ * @return i32
+ */
 export function async_cps_codegen_x_doc_anchor(): i32 {
   return 0;
 }
 
 /* ---- G-02f-105 / G-02f-132：async cps helpers ---- */
 
-// ASTFunc: line:i32 + col:i32 + name:*char → name 在偏移 8
+// async_cps_load_func_name: see function docblock below.
+/** Exported function `async_cps_load_func_name`.
+ * Implements `async_cps_load_func_name`.
+ * @param callee *u8
+ * @return *u8
+ */
 export function async_cps_load_func_name(callee: *u8): *u8 {
   if (callee == 0) { return 0 as *u8; }
   let m: usize = 256;
@@ -32,14 +41,25 @@ export function async_cps_load_func_name(callee: *u8): *u8 {
 }
 
 #[no_mangle]
+/** Exported function `emit_hoisted_lets`.
+ * Implements `emit_hoisted_lets`.
+ * @param f *u8
+ * @param out *u8
+ * @return void
+ */
 export function emit_hoisted_lets(f: *u8, out: *u8): void {
   unsafe {
     emit_hoisted_lets_impl(f, out);
   }
 }
 
-// G-02f-132：IO await 目标名表真迁 .x
+// async_cps_callee_is_io: see function docblock below.
 #[no_mangle]
+/** Exported function `async_cps_callee_is_io`.
+ * Implements `async_cps_callee_is_io`.
+ * @param callee *u8
+ * @return i32
+ */
 export function async_cps_callee_is_io(callee: *u8): i32 {
   let name: *u8 = async_cps_load_func_name(callee);
   if (name == 0) { return 0; }
@@ -93,21 +113,31 @@ export function async_cps_callee_is_io(callee: *u8): i32 {
   return 0;
 }
 
-// G-02f-111：+ run_async ref scan 薄门闩。
+// See implementation.
 
 export extern "C" function expr_references_run_async_impl(e: *u8): i32;
 export extern "C" function block_has_run_async_ref_impl(b: *u8): i32;
 
-/* ---- G-02f-111：async_cps run_async scan 门闩 ---- */
+/* See implementation. */
 
 #[no_mangle]
 export function expr_references_run_async(e: *u8): i32 { unsafe { return expr_references_run_async_impl(e); } return 0; }
 #[no_mangle]
+/** Exported function `block_has_run_async_ref`.
+ * Implements `block_has_run_async_ref`.
+ * @param b *u8): i32 { unsafe { return block_has_run_async_ref_impl(b
+ * @return void
+ */
 export function block_has_run_async_ref(b: *u8): i32 { unsafe { return block_has_run_async_ref_impl(b); } return 0; }
 
-// G-02f-120：async_cps_callee_is_future_wait_by_name 真迁 .x
+// async_cps_callee_is_future_wait_by_name: see function docblock below.
 
 #[no_mangle]
+/** Exported function `async_cps_callee_is_future_wait_by_name`.
+ * Implements `async_cps_callee_is_future_wait_by_name`.
+ * @param n *u8
+ * @return i32
+ */
 export function async_cps_callee_is_future_wait_by_name(n: *u8): i32 {
   if (n == 0) { return 0; }
   if (n[0] == 0) { return 0; }
@@ -166,8 +196,13 @@ export function async_cps_callee_is_future_wait_by_name(n: *u8): i32 {
   return 0;
 }
 
-// G-02f-132：future_wait 经 by_name（须在 by_name 之后）
+// async_cps_callee_is_future_wait: see function docblock below.
 #[no_mangle]
+/** Exported function `async_cps_callee_is_future_wait`.
+ * Implements `async_cps_callee_is_future_wait`.
+ * @param callee *u8
+ * @return i32
+ */
 export function async_cps_callee_is_future_wait(callee: *u8): i32 {
   let name: *u8 = async_cps_load_func_name(callee);
   if (name == 0) { return 0; }

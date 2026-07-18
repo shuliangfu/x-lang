@@ -2,6 +2,10 @@
 Test 1: Functions
 ==================
 
+/** Function `add`.
+ * Purpose: implements `add`; params/returns as declared.
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function add(a: i32, b: i32): i32 {
   return a + b;
 }
@@ -75,6 +79,10 @@ extern "C" function printf(fmt: *u8): i32;
 Test 4: Match and For
 ==================
 
+/** Function `test`.
+ * Purpose: implements `test`; params/returns as declared.
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function test(x: i32, n: i32): void {
   match x {
     0 => return,

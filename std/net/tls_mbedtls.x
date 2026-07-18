@@ -14,26 +14,26 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.net.tls_mbedtls — F-04 v9：mbedTLS TLS 客户端/服务端（libmbedtls FFI）
+// See implementation.
 //
-// 【文件职责】
-// 从 tls_mbedtls.inc.c 迁出的 STD-085 mbedTLS 实现：握手、读写、ALPN、烟测。
+// See implementation.
+// See implementation.
 //
-// 【依赖】
-// - libmbedtls：-lmbedtls -lmbedx509 -lmbedcrypto（runtime_link_abi 见 shu_net_tls_mbedtls_marker）
-// - tls_mbedtls_bio.c：shu_mbedtls_ssl_bind_fd_c（BIO fn ptr 胶层）
+// See implementation.
+// See implementation.
+// See implementation.
 // - net.c：net_set_blocking_c、net_tcp_connect_blocking_c、net_close_socket_c
 // - libc：calloc/free、getenv/atoi、strlen、memcpy
 
 const mem = import("core.mem");
 
-/** mbedTLS 结构体字节容量（Homebrew mbedtls 4.x + margin）。 */
+/* See implementation. */
 export const SZ_SSL_CTX: usize = 896;
 export const SZ_SSL_CONF: usize = 384;
 export const SZ_X509_CRT: usize = 1408;
 export const SZ_PK_CTX: usize = 640;
 
-/** mbedTLS / PSA 常量。 */
+/* See implementation. */
 export const MBEDTLS_SSL_IS_CLIENT: i32 = 0;
 export const MBEDTLS_SSL_IS_SERVER: i32 = 1;
 export const MBEDTLS_SSL_TRANSPORT_STREAM: i32 = 0;
@@ -44,7 +44,7 @@ export const MBEDTLS_ERR_SSL_WANT_WRITE: i32 = (0 - 26752);
 export const PSA_SUCCESS: i32 = 0;
 export const PSA_ERROR_BAD_STATE: i32 = (0 - 137);
 
-/** ALPN 指针列表（h2 + http/1.1 + NULL / h2 + NULL）。 */
+/* See implementation. */
 allow(padding) struct AlpnPtr3 {
   p0: *u8;
   p1: *u8;
@@ -55,7 +55,7 @@ allow(padding) struct AlpnPtr2 {
   p1: *u8;
 }
 
-/** mbedTLS 会话：fd + ssl/conf 嵌入块。 */
+/* See implementation. */
 allow(padding) struct TlsMbedtlsSess {
   fd: i32;
   has_conf: i32;
@@ -63,7 +63,7 @@ allow(padding) struct TlsMbedtlsSess {
   conf: u8[384];
 }
 
-/** mbedTLS 服务端共享上下文。 */
+/* See implementation. */
 allow(padding) struct TlsMbedtlsServerCtx {
   conf: u8[384];
   cert: u8[1408];
@@ -71,16 +71,16 @@ allow(padding) struct TlsMbedtlsServerCtx {
   ready: i32;
 }
 
-/** TLS 最后错误码（本模块路径）。 */
+/* See implementation. */
 let shu_tls_last_error: i32 = 0;
 
-/** 后端名 "mbedtls"（NUL 结尾）。 */
+/* See implementation. */
 let TLS_BACKEND_NAME: u8[8] = [109, 101, 100, 116, 108, 115, 0, 0];
 
-/** 链接 marker：runtime 按需 -lmbedtls*。 */
+/* See implementation. */
 let shu_net_tls_mbedtls_marker: u8[8] = [109, 101, 100, 116, 108, 115, 0, 0];
 
-/** ALPN 协议名（NUL 结尾）。 */
+/* See implementation. */
 let ALPN_H2: u8[3] = [104, 50, 0];
 let ALPN_HTTP11: u8[9] = [104, 116, 116, 112, 47, 49, 46, 49, 0];
 
@@ -120,7 +120,7 @@ extern "C" function mbedtls_pk_free(pk: *u8): void;
 extern "C" function mbedtls_ssl_conf_own_cert(conf: *u8, cert: *u8, pk: *u8): i32;
 
 /**
- * handle 转 TlsMbedtlsSess*；0 返回 0。
+ * See implementation.
  */
 export function tls_mbedtls_sess_ptr(handle: i64): *TlsMbedtlsSess {
   if (handle == 0) {
@@ -130,7 +130,7 @@ export function tls_mbedtls_sess_ptr(handle: i64): *TlsMbedtlsSess {
 }
 
 /**
- * PSA 初始化；BAD_STATE 视为已初始化。
+ * See implementation.
  */
 export function tls_mbedtls_psa_init(): i32 {
   let st: i32 = 0;
@@ -142,28 +142,28 @@ export function tls_mbedtls_psa_init(): i32 {
 }
 
 /**
- * TLS 后端是否可用；mbedTLS 恒 1。
+ * See implementation.
  */
 export function net_tls_is_available_c(): i32 {
   return 1;
 }
 
 /**
- * TLS 后端名称（NUL 结尾）。
+ * See implementation.
  */
 export function net_tls_backend_name_c(): *u8 {
   return &TLS_BACKEND_NAME[0];
 }
 
 /**
- * 读取 TLS 最后一次错误码。
+ * See implementation.
  */
 export function net_tls_last_error_c(): i32 {
   return shu_tls_last_error;
 }
 
 /**
- * 释放会话 ssl/conf 并 free 结构体。
+ * See implementation.
  */
 export function tls_mbedtls_free_sess(sess: *TlsMbedtlsSess): void {
   if (sess == 0) {
@@ -177,7 +177,7 @@ export function tls_mbedtls_free_sess(sess: *TlsMbedtlsSess): void {
 }
 
 /**
- * 阻塞直至 handshake 完成或失败。
+ * See implementation.
  */
 export function tls_mbedtls_handshake_loop(ssl: *u8): i32 {
   let ret: i32 = 0;
@@ -193,7 +193,7 @@ export function tls_mbedtls_handshake_loop(ssl: *u8): i32 {
 }
 
 /**
- * TLS 客户端握手（SNI）；失败返回 0。
+ * See implementation.
  */
 export function net_tls_connect_client_c(fd: i32, sni: *u8): i64 {
   let sess: *TlsMbedtlsSess = 0 as *TlsMbedtlsSess;
@@ -254,7 +254,7 @@ export function net_tls_connect_client_c(fd: i32, sni: *u8): i64 {
 }
 
 /**
- * 带 ALPN（h2 + http/1.1）的 TLS 客户端握手。
+ * See implementation.
  */
 export function net_tls_connect_client_alpn_c(fd: i32, sni: *u8, alpn_wire: *u8, alpn_wire_len: i32): i64 {
   let sess: *TlsMbedtlsSess = 0 as *TlsMbedtlsSess;
@@ -323,7 +323,7 @@ export function net_tls_connect_client_alpn_c(fd: i32, sni: *u8, alpn_wire: *u8,
 }
 
 /**
- * 读取协商 ALPN 协议名；返回长度，写入 out（可 NULL）。
+ * See implementation.
  */
 export function net_tls_alpn_selected_c(ctx_handle: i64, out: *u8, out_cap: i32): i32 {
   let sess: *TlsMbedtlsSess = tls_mbedtls_sess_ptr(ctx_handle);
@@ -350,7 +350,7 @@ export function net_tls_alpn_selected_c(ctx_handle: i64, out: *u8, out_cap: i32)
 }
 
 /**
- * 协商协议是否为 h2。
+ * See implementation.
  */
 export function net_tls_alpn_is_h2_c(ctx_handle: i64): i32 {
   let buf: u8[4] = [0, 0, 0, 0];
@@ -362,7 +362,7 @@ export function net_tls_alpn_is_h2_c(ctx_handle: i64): i32 {
 }
 
 /**
- * 关闭 TLS 会话。
+ * See implementation.
  */
 export function net_tls_close_c(ctx_handle: i64): i32 {
   let sess: *TlsMbedtlsSess = tls_mbedtls_sess_ptr(ctx_handle);
@@ -376,7 +376,7 @@ export function net_tls_close_c(ctx_handle: i64): i32 {
 }
 
 /**
- * TLS 读；失败 -1/-2。
+ * See implementation.
  */
 export function net_tls_read_c(ctx_handle: i64, buf: *u8, cap: i32): i32 {
   let sess: *TlsMbedtlsSess = tls_mbedtls_sess_ptr(ctx_handle);
@@ -404,7 +404,7 @@ export function net_tls_read_c(ctx_handle: i64, buf: *u8, cap: i32): i32 {
 }
 
 /**
- * TLS 写；失败 -1/-2。
+ * See implementation.
  */
 export function net_tls_write_c(ctx_handle: i64, buf: *u8, len: i32): i32 {
   let sess: *TlsMbedtlsSess = tls_mbedtls_sess_ptr(ctx_handle);
@@ -431,15 +431,15 @@ export function net_tls_write_c(ctx_handle: i64, buf: *u8, len: i32): i32 {
   return n;
 }
 
-/** 127.0.0.1 主机序。 */
+/* See implementation. */
 export const ADDR_LOOPBACK: u32 = 0x7f000001;
 
-/** 烟测字面量。 */
+/* See implementation. */
 let LOCALHOST: u8[10] = [108, 111, 99, 97, 108, 104, 111, 115, 116, 0];
 let ENV_SHUX_TLS_PORT: u8[20] = [83, 72, 85, 88, 95, 84, 76, 83, 95, 83, 77, 79, 75, 69, 95, 80, 79, 82, 84, 0];
 
 /**
- * mbedTLS 烟测：连接 SHUX_TLS_SMOKE_PORT 上 s_server 并完成握手。
+ * See implementation.
  */
 export function net_tls_mbedtls_smoke_c(): i32 {
   let port_env: *u8 = 0 as *u8;
@@ -475,14 +475,14 @@ export function net_tls_mbedtls_smoke_c(): i32 {
 }
 
 /**
- * OpenSSL 烟测：mbedTLS 构建下不可用。
+ * See implementation.
  */
 export function net_tls_openssl_smoke_c(): i32 {
   return -9;
 }
 
 /**
- * 释放服务端上下文内部 mbedTLS 对象。
+ * See implementation.
  */
 export function tls_mbedtls_server_free(srv: *TlsMbedtlsServerCtx): void {
   if (srv == 0) {
@@ -494,7 +494,7 @@ export function tls_mbedtls_server_free(srv: *TlsMbedtlsServerCtx): void {
 }
 
 /**
- * 从内存 PEM 创建 TLS 服务端上下文（ALPN h2）；失败返回 0。
+ * See implementation.
  */
 export function net_tls_server_ctx_create_mem_c(cert_pem: *u8, cert_len: i32, key_pem: *u8, key_len: i32): i64 {
   let srv: *TlsMbedtlsServerCtx = 0 as *TlsMbedtlsServerCtx;
@@ -564,7 +564,7 @@ export function net_tls_server_ctx_create_mem_c(cert_pem: *u8, cert_len: i32, ke
 }
 
 /**
- * 释放 TLS 服务端上下文。
+ * See implementation.
  */
 function net_tls_server_ctx_destroy_c(srv_ctx_h: i64): void {
   let srv: *TlsMbedtlsServerCtx = srv_ctx_h as usize as *TlsMbedtlsServerCtx;
@@ -576,7 +576,7 @@ function net_tls_server_ctx_destroy_c(srv_ctx_h: i64): void {
 }
 
 /**
- * 在已 accept 的 TCP fd 上完成 TLS 服务端握手；失败返回 0。
+ * See implementation.
  */
 function net_tls_accept_server_c(srv_ctx_h: i64, fd: i32): i64 {
   let srv: *TlsMbedtlsServerCtx = srv_ctx_h as usize as *TlsMbedtlsServerCtx;

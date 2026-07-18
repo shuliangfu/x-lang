@@ -1,7 +1,11 @@
-// STD-041：runtime_wait_future + Context 桥接烟测（await 落地前手动驱动）
+// See implementation.
 const async_mod = import("std.async");
 const ctx_mod = import("std.context");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let zero: i64 = 0;
   let bg: Context = ctx_mod.background();

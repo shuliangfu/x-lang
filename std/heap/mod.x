@@ -14,47 +14,66 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.heap — 堆分配、alloc/free/realloc（对标 Zig Allocator、Rust alloc、Go 底层）
+// See implementation.
 //
-// 【文件职责】
-// 提供与 libc 一致的堆分配 API：alloc/free/realloc/alloc_zero；供 std.vec、std.map
-// 等使用。
-// F-03 v2：libc 分配见 libc.x；F-03 v1 算法层见 ops.x。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 【对标】
+// See implementation.
 // Zig: page_allocator.alloc / free / realloc；Rust: alloc::alloc::{alloc, dealloc}；Go:
-// 运行时 malloc/free 不直接暴露，此处显式提供。
+// See implementation.
 
 const heap_ops = import("std.heap.ops");
 const heap_libc = import("std.heap.libc");
 
-/** F-no-libc NL-03：Linux freestanding mmap bump（import 区须顶格，勿放 function 段）。 */
+/* See implementation. */
 #[cfg(target_os = "linux")]
 const page_mmap = import("std.heap.page_mmap");
 
-/** DOD-CL-S2：单 chunk bump arena（chunk 由 posix_memalign(64) 分配）。 */
+/* See implementation. */
 allow(padding) struct Arena64 {
   chunk: *u8;
   cap: usize;
   off: usize;
 }
 
-/** F-03 v1：纯 .x 实现（ops.x）；供 std.mem / std.map 链接。 */
+/** Exported function `mem_set`.
+ * Implements `mem_set`.
+ * @param ptr *u8
+ * @param byte u8
+ * @param n i32
+ * @return void
+ */
 export function mem_set(ptr: *u8, byte: u8, n: i32): void {
   heap_ops.heap_mem_set_c(ptr, byte, n);
 }
 
-/** F-03 v1：纯 .x 实现（ops.x）。 */
+/** Exported function `mem_compare`.
+ * Implements `mem_compare`.
+ * @param a *u8
+ * @param b *u8
+ * @param n i32
+ * @return i32
+ */
 export function mem_compare(a: *u8, b: *u8, n: i32): i32 {
   return heap_ops.heap_mem_compare_c(a, b, n);
 }
 
-/** 线性探测查找 key；F-03 v1 纯 .x（ops.x）。 */
+/** Exported function `map_find`.
+ * Implements `map_find`.
+ * @param keys *i32
+ * @param occupied *u8
+ * @param cap i32
+ * @param key i32
+ * @return i32
+ */
 export function map_find(keys: *i32, occupied: *u8, cap: i32, key: i32): i32 {
   return heap_ops.map_i32_i32_find_c(keys, occupied, cap, key);
 }
 
-/** STD-017：堆分配 trace 统计（SHUX_HEAP_TRACE=1 时生效）。 */
+/* See implementation. */
 allow(padding) struct HeapTraceStats {
   alloc_count: u64;
   free_count: u64;
@@ -62,102 +81,170 @@ allow(padding) struct HeapTraceStats {
   bytes_allocated: u64;
 }
 
-/** trace 是否启用（1/0）。 */
+/** Exported function `trace_on`.
+ * Implements `trace_on`.
+ * @return i32
+ */
 export function trace_on(): i32 {
   return heap_libc.heap_trace_enabled_c();
 }
 
-/** 重置 trace 计数器。 */
+/** Exported function `trace_reset`.
+ * Implements `trace_reset`.
+ * @return void
+ */
 export function trace_reset(): void {
   heap_libc.heap_trace_reset_c();
 }
 
-/** 读取 trace 统计到 st。 */
+/** Exported function `trace_stats`.
+ * Implements `trace_stats`.
+ * @param st *HeapTraceStats
+ * @return void
+ */
 export function trace_stats(st: *HeapTraceStats): void {
   heap_libc.heap_trace_stats_c(&st.alloc_count, &st.free_count, &st.realloc_count, &st.bytes_allocated);
 }
 
-/** 分配 count 个 u64；失败 null。供 Map_u64 / Set_u64 使用。 */
+/** Exported function `alloc`.
+ * Memory management helper `alloc`.
+ * @param count i32
+ * @return *u64
+ */
 export function alloc(count: i32): *u64 {
   return heap_libc.heap_alloc_u64_c(count);
 }
 
-/** 释放 u64 数组 ptr。 */
+/** Exported function `free`.
+ * Memory management helper `free`.
+ * @param ptr *u64
+ * @return void
+ */
 export function free(ptr: *u64): void {
   heap_libc.heap_free_u64_c(ptr);
 }
 
-/** 将 u64 数组 ptr 调整为 new_count 个元素；失败 null 且原 ptr 未释放。 */
+/** Exported function `realloc`.
+ * Memory management helper `realloc`.
+ * @param ptr *u64
+ * @param new_count i32
+ * @return *u64
+ */
 export function realloc(ptr: *u64, new_count: i32): *u64 {
   return heap_libc.heap_realloc_u64_c(ptr, new_count);
 }
 
-/** 块拷贝 u64；供 std.vec append_slice/from_slice 快路径。 */
+/** Exported function `copy`.
+ * Implements `copy`.
+ * @param dst *u64
+ * @param dst_offset i32
+ * @param src *u64
+ * @param count i32
+ * @return void
+ */
 export function copy(dst: *u64, dst_offset: i32, src: *u64, count: i32): void {
   heap_libc.heap_copy_u64_at_c(dst, dst_offset, src, count);
 }
 
-/** 分配 count 个 f64；失败 null。供 Vec_f64 使用（STD-014）。 */
+/** Exported function `alloc`.
+ * Memory management helper `alloc`.
+ * @param count i32
+ * @return *f64
+ */
 export function alloc(count: i32): *f64 {
   return heap_libc.heap_alloc_f64_c(count);
 }
 
-/** 将 f64 数组 ptr 调整为 new_count 个元素；失败 null 且原 ptr 未释放。 */
+/** Exported function `realloc`.
+ * Memory management helper `realloc`.
+ * @param ptr *f64
+ * @param new_count i32
+ * @return *f64
+ */
 export function realloc(ptr: *f64, new_count: i32): *f64 {
   return heap_libc.heap_realloc_f64_c(ptr, new_count);
 }
 
-/** 释放 f64 数组 ptr；ptr 可为 null。 */
+/** Exported function `free`.
+ * Memory management helper `free`.
+ * @param ptr *f64
+ * @return void
+ */
 export function free(ptr: *f64): void {
   heap_libc.heap_free_f64_c(ptr);
 }
 
-/** 块拷贝 f64；供 std.vec append_slice/from_slice 快路径。 */
+/** Exported function `copy`.
+ * Implements `copy`.
+ * @param dst *f64
+ * @param dst_offset i32
+ * @param src *f64
+ * @param count i32
+ * @return void
+ */
 export function copy(dst: *f64, dst_offset: i32, src: *f64, count: i32): void {
   heap_libc.heap_copy_f64_at_c(dst, dst_offset, src, count);
 }
 
-// ——— STD-112：Allocator trait（堆 / Arena bump） ———
+// See implementation.
 
-/** 堆分配器 kind 常量（0）。 */
+/** Exported function `kind_heap`.
+ * Implements `kind_heap`.
+ * @return i32
+ */
 export function kind_heap(): i32 { return 0; }
 
-/** Arena bump 分配器 kind 常量（1）。 */
+/** Exported function `kind_arena`.
+ * Implements `kind_arena`.
+ * @return i32
+ */
 export function kind_arena(): i32 { return 1; }
 
-/** 统一分配器：kind 区分堆或 arena；arena 字段仅 kind=arena 时有效。 */
+/* See implementation. */
 allow(padding) struct Allocator {
   kind: i32;
   arena: *Arena64;
 }
 
-/** 默认 libc 堆分配器。 */
+/** Exported function `heap_alloc`.
+ * Memory management helper `heap_alloc`.
+ * @return Allocator
+ */
 export function heap_alloc(): Allocator {
   return Allocator { kind: kind_heap(), arena: 0 as *Arena64 };
 }
 
-/** 将 Arena64 包装为 bump 分配器（单独 free 为 no-op）。 */
+/** Exported function `from_arena`.
+ * Implements `from_arena`.
+ * @param a *Arena64
+ * @return Allocator
+ */
 export function from_arena(a: *Arena64): Allocator {
   return Allocator { kind: kind_arena(), arena: a };
 }
 
 /**
- * MEM-C1 编译器魔法：仅 `with_arena` 块内可调用；typeck 拒块外；codegen 展开为当前 scope Allocator。
- * 函数体不可达（由 codegen 替换为 __shux_scope_al_N）。
+ * See implementation.
+ * See implementation.
  */
 export function scope_alloc(): Allocator {
   return heap_alloc();
 }
 
 /**
- * MEM-C1 AL-01/02：`with_arena` 内展开 scope Allocator，块外展开 heap Allocator（编译器魔法）。
- * 供 `#[alloc]` API 与容器 new 路径使用；函数体不可达。
+ * See implementation.
+ * See implementation.
  */
 export function default_alloc(): Allocator {
   return heap_alloc();
 }
 
-/** 按 Allocator 分配 size 字节；失败 null。 */
+/** Exported function `alloc`.
+ * Memory management helper `alloc`.
+ * @param al Allocator
+ * @param size usize
+ * @return *u8
+ */
 export function alloc(al: Allocator, size: usize): *u8 {
   if (al.kind == kind_heap()) {
     return heap_libc.heap_alloc_c(size);
@@ -166,14 +253,25 @@ export function alloc(al: Allocator, size: usize): *u8 {
   return heap_libc.heap_arena64_alloc_c(al.arena, size, 8);
 }
 
-/** 释放 ptr；arena 分配器为 no-op。 */
+/** Exported function `free`.
+ * Memory management helper `free`.
+ * @param al Allocator
+ * @param ptr *u8
+ * @return void
+ */
 export function free(al: Allocator, ptr: *u8): void {
   if (al.kind == kind_heap()) {
     heap_libc.heap_free_c(ptr);
   }
 }
 
-/** 调整块大小；仅堆分配器支持，arena 返回 null。 */
+/** Exported function `realloc`.
+ * Memory management helper `realloc`.
+ * @param al Allocator
+ * @param ptr *u8
+ * @param new_size usize
+ * @return *u8
+ */
 export function realloc(al: Allocator, ptr: *u8, new_size: usize): *u8 {
   if (al.kind == kind_heap()) {
     return heap_libc.heap_realloc_c(ptr, new_size);
@@ -182,139 +280,255 @@ export function realloc(al: Allocator, ptr: *u8, new_size: usize): *u8 {
 }
 
 /**
- * MEM-C1 #[alloc] smoke：调用方可省略 al 实参，由编译器注入 default_alloc()。
- * 首参 al: Allocator 显式声明，AL-03 以形参为准。
+ * See implementation.
+ * See implementation.
  */
 #[alloc]
 export function bump(al: Allocator, size: usize): *u8 {
   return alloc(al, size);
 }
 
-// ─── DOD-CL-S2：64B 对齐 chunk bump Arena API ───
+// See implementation.
 
-/** 未初始化 Arena64 占位；调用方须随后 arena64_init。 */
+/** Exported function `arena64_empty`.
+ * Implements `arena64_empty`.
+ * @return Arena64
+ */
 export function arena64_empty(): Arena64 {
   return Arena64 { chunk: 0 as *u8, cap: 0, off: 0 };
 }
 
 /**
- * 初始化 Arena64；cap==0 时用 4096 字节默认 chunk。
- * 成功返回 0，分配失败返回 -1。
+ * See implementation.
+ * See implementation.
  */
 export function arena64_init(a: *Arena64, cap: usize): i32 {
   return heap_libc.heap_arena64_init_c(a as *heap_libc.LibcArena64, cap);
 }
 
 /**
- * 从 arena bump 分配 size 字节；align 为对象对齐（0 视为 8）。
- * 空间不足返回 null。
+ * See implementation.
+ * See implementation.
  */
 export function arena64_alloc(a: *Arena64, size: usize, align_bytes: usize): *u8 {
   return heap_libc.heap_arena64_alloc_c(a as *heap_libc.LibcArena64, size, align_bytes);
 }
 
-/** 释放 arena chunk 并重置 off/cap。 */
+/** Exported function `arena64_deinit`.
+ * Implements `arena64_deinit`.
+ * @param a *Arena64
+ * @return void
+ */
 export function arena64_deinit(a: *Arena64): void {
   heap_libc.heap_arena64_deinit_c(a as *heap_libc.LibcArena64);
 }
 
-/** 指针对 mod 取模；mod=64 验证 cache line 对齐。 */
+/** Exported function `ptr_mod`.
+ * Implements `ptr_mod`.
+ * @param ptr *u8
+ * @param mod usize
+ * @return usize
+ */
 export function ptr_mod(ptr: *u8, mod: usize): usize {
   return heap_libc.heap_ptr_mod_c(ptr, mod);
 }
 
-/** posix_memalign 薄封装；供 ring slot 等全局 64B 分配。 */
+/** Exported function `alloc_align`.
+ * Memory management helper `alloc_align`.
+ * @param align_bytes usize
+ * @param size usize
+ * @return *u8
+ */
 export function alloc_align(align_bytes: usize, size: usize): *u8 {
   return heap_libc.heap_alloc_aligned_c(align_bytes, size);
 }
 
-/** 分配 size 字节，未初始化；失败返回 null（*u8 的 0）。对标 Zig alloc、Rust alloc。 */
+/** Exported function `alloc`.
+ * Memory management helper `alloc`.
+ * @param size usize
+ * @return *u8
+ */
 export function alloc(size: usize): *u8 {
   return heap_libc.heap_alloc_c(size);
 }
 
-/** 释放 ptr；ptr 可为 null（无操作）。对标 Zig free、Rust dealloc。 */
+/** Exported function `free`.
+ * Memory management helper `free`.
+ * @param ptr *u8
+ * @return void
+ */
 export function free(ptr: *u8): void {
   heap_libc.heap_free_c(ptr);
 }
 
-/** 将 ptr 调整为 new_size 字节，可能移动；失败返回 null 且原 ptr 未释放。 */
+/** Exported function `realloc`.
+ * Memory management helper `realloc`.
+ * @param ptr *u8
+ * @param new_size usize
+ * @return *u8
+ */
 export function realloc(ptr: *u8, new_size: usize): *u8 {
   return heap_libc.heap_realloc_c(ptr, new_size);
 }
 
-/** 分配 size 字节并清零（calloc 语义）；失败返回 null。 */
+/** Exported function `alloc_zero`.
+ * Memory management helper `alloc_zero`.
+ * @param size usize
+ * @return *u8
+ */
 export function alloc_zero(size: usize): *u8 {
   return heap_libc.heap_alloc_zeroed_c(size);
 }
 
-/** 分配 count 个 i32，未初始化；失败返回 null。供 std.vec Vec_i32 使用。 */
+/** Exported function `alloc`.
+ * Memory management helper `alloc`.
+ * @param count i32): *i32 { return heap_libc.heap_alloc_i32_c(count
+ * @return void
+ */
 export function alloc(count: i32): *i32 { return heap_libc.heap_alloc_i32_c(count); }
 
-/** 将 i32 数组 ptr 调整为 new_count 个元素；失败返回 null 且原 ptr 未释放。 */
+/** Exported function `realloc`.
+ * Memory management helper `realloc`.
+ * @param ptr *i32
+ * @param new_count i32): *i32 { return heap_libc.heap_realloc_i32_c(ptr
+ * @param new_count
+ * @return void
+ */
 export function realloc(ptr: *i32, new_count: i32): *i32 { return heap_libc.heap_realloc_i32_c(ptr, new_count); }
 
-/** 释放 i32 数组 ptr；ptr 可为 null。 */
+/** Exported function `free`.
+ * Memory management helper `free`.
+ * @param ptr *i32): void { heap_libc.heap_free_i32_c(ptr
+ * @return void
+ */
 export function free(ptr: *i32): void { heap_libc.heap_free_i32_c(ptr); }
 
-/** 分配 count 个 u8 元素，未初始化；失败返回 null。供 std.vec Vec_u8 / map occupied 使用。 */
+/** Exported function `alloc`.
+ * Memory management helper `alloc`.
+ * @param count i32): *u8 { return heap_libc.heap_alloc_u8_c(count
+ * @return void
+ */
 export function alloc(count: i32): *u8 { return heap_libc.heap_alloc_u8_c(count); }
 
-/** 将 u8 数组 ptr 调整为 new_count 个元素；失败返回 null 且原 ptr 未释放。 */
+/** Exported function `realloc`.
+ * Memory management helper `realloc`.
+ * @param ptr *u8
+ * @param new_count i32): *u8 { return heap_libc.heap_realloc_u8_c(ptr
+ * @param new_count
+ * @return void
+ */
 export function realloc(ptr: *u8, new_count: i32): *u8 { return heap_libc.heap_realloc_u8_c(ptr, new_count); }
 
-/** 块拷贝 i32；供 std.vec 快路径，≥8 元素走此路径。 */
+/** Exported function `copy`.
+ * Implements `copy`.
+ * @param dst *i32
+ * @param dst_offset i32
+ * @param src *i32
+ * @param count i32
+ * @return void
+ */
 export function copy(dst: *i32, dst_offset: i32, src: *i32, count: i32): void {
   heap_libc.heap_copy_i32_at_c(dst, dst_offset, src, count);
 }
 
-/** 块拷贝 u8；供 std.vec 快路径。 */
+/** Exported function `copy`.
+ * Implements `copy`.
+ * @param dst *u8
+ * @param dst_offset i32
+ * @param src *u8
+ * @param count i32
+ * @return void
+ */
 export function copy(dst: *u8, dst_offset: i32, src: *u8, count: i32): void {
   heap_libc.heap_copy_u8_at_c(dst, dst_offset, src, count);
 }
 
-/** 分配 count 个 f32，未初始化；失败返回 null。DOD-S2：std.vec SoA 列存储。 */
+/** Exported function `alloc`.
+ * Memory management helper `alloc`.
+ * @param count i32): *f32 { return heap_libc.heap_alloc_f32_c(count
+ * @return void
+ */
 export function alloc(count: i32): *f32 { return heap_libc.heap_alloc_f32_c(count); }
 
-/** 将 f32 数组 ptr 调整为 new_count 个元素；失败返回 null 且原 ptr 未释放。 */
+/** Exported function `realloc`.
+ * Memory management helper `realloc`.
+ * @param ptr *f32
+ * @param new_count i32): *f32 { return heap_libc.heap_realloc_f32_c(ptr
+ * @param new_count
+ * @return void
+ */
 export function realloc(ptr: *f32, new_count: i32): *f32 { return heap_libc.heap_realloc_f32_c(ptr, new_count); }
 
-/** 释放 f32 数组 ptr；ptr 可为 null。 */
+/** Exported function `free`.
+ * Memory management helper `free`.
+ * @param ptr *f32): void { heap_libc.heap_free_f32_c(ptr
+ * @return void
+ */
 export function free(ptr: *f32): void { heap_libc.heap_free_f32_c(ptr); }
 
-/** 块拷贝 f32 列；供 std.vec SoA/AoS 扩容与 append。 */
+/** Exported function `copy`.
+ * Implements `copy`.
+ * @param dst *f32
+ * @param dst_offset i32
+ * @param src *f32
+ * @param count i32
+ * @return void
+ */
 export function copy(dst: *f32, dst_offset: i32, src: *f32, count: i32): void {
   heap_libc.heap_copy_f32_at_c(dst, dst_offset, src, count);
 }
 
-/** 表示“分配大小 0”占位；保留兼容（测试用）。 */
+/** Exported function `alloc_size_zero`.
+ * Memory management helper `alloc_size_zero`.
+ * @return i32
+ */
 export function alloc_size_zero(): i32 { return 0; }
 
-// ——— F-no-libc NL-03：Linux freestanding mmap bump（不链 libc malloc） ———
+// See implementation.
 
-/** Linux freestanding：mmap bump 堆是否可用（1/0）。 */
+/** Exported function `page_heap_ok`.
+ * Implements `page_heap_ok`.
+ * @return i32
+ */
 #[cfg(target_os = "linux")]
 export function page_heap_ok(): i32 {
   return page_mmap.page_mmap_heap_available();
 }
 
-/** Linux freestanding：初始化 PageMmapHeap；成功 0。 */
+/** Exported function `freestanding_page_heap_init`.
+ * Memory management helper `freestanding_page_heap_init`.
+ * @param h *page_mmap.PageMmapHeap
+ * @return i32
+ */
 #[cfg(target_os = "linux")]
 export function freestanding_page_heap_init(h: *page_mmap.PageMmapHeap): i32 {
   return page_mmap.page_mmap_heap_init(h);
 }
 
-/** Linux freestanding：bump 分配；失败 null。 */
+/** Exported function `freestanding_page_heap_alloc`.
+ * Memory management helper `freestanding_page_heap_alloc`.
+ * @param h *page_mmap.PageMmapHeap
+ * @param size usize
+ * @param align_bytes usize
+ * @return *u8
+ */
 #[cfg(target_os = "linux")]
 export function freestanding_page_heap_alloc(h: *page_mmap.PageMmapHeap, size: usize, align_bytes: usize): *u8 {
   return page_mmap.page_mmap_heap_alloc(h, size, align_bytes);
 }
 
-/** Linux freestanding：munmap 并复位。 */
+/** Exported function `freestanding_page_heap_deinit`.
+ * Memory management helper `freestanding_page_heap_deinit`.
+ * @param h *page_mmap.PageMmapHeap
+ * @return void
+ */
 #[cfg(target_os = "linux")]
 export function freestanding_page_heap_deinit(h: *page_mmap.PageMmapHeap): void {
   page_mmap.page_mmap_heap_deinit(h);
 }
 
-/** 模块尾占位：transitive import 解析时末位 function 会丢失，须保留非 API 锚点。 */
+/** Exported function `heap_module_anchor`.
+ * Implements `heap_module_anchor`.
+ * @return i32
+ */
 export function heap_module_anchor(): i32 { return 0; }

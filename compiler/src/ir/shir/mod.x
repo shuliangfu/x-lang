@@ -14,17 +14,17 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// mod.x — SHIR 层模块入口（re-export）
+// mod.x — SHIR layer module entry (re-export)
 //
-// 模块：ir/shir
-// 层级：SHIR（Shux High IR，最接近语言语义）
-// Phase：Phase 1
-// 职责：聚合 shir/ 子模块导出（lower / interp / verify）。
-// 依赖：../inst / ../contract / ../effect / ../opcode / ../abi
-// 设计约束：
-//   - SHIR 是"语言语义的 1:1 映射"，不是"低级 IR 的预处理层"（§1.8）
-//   - 保留高层结构（Linear / Region / X ABI / Pattern Match / Coroutine / Generator）
-//   - 延迟 lowering：只有当高层结构阻碍进一步优化时才 lower 到 SMIR
+// Module: ir/shir
+// Layer: SHIR (Shux High IR; closest to language semantics)
+// Phase: Phase 1
+// Responsibility: Aggregate shir/ submodule exports (lower / interp / verify).
+// Depends: ../inst / ../contract / ../effect / ../opcode / ../abi
+// Design constraints:
+//   - SHIR is a 1:1 map of language semantics, not a pre-pass for low-level IR (§1.8)
+//   - Preserve high-level structure (Linear / Region / X ABI / Pattern Match / Coroutine / Generator)
+//   - Deferred lowering: lower to SMIR only when high-level form blocks further opts
 //
-// 参考文档：analysis/IR核心设计.md §1.8（SHIR 高层性原则）/ §2.1（SHIR 层）
-// 架构状态：v4.0 Architecture Freeze — 实现骨架，待 Phase 1 填充
+// Ref: analysis IR core design §1.8 (SHIR high-level principle) / §2.1 (SHIR layer)
+// Status: v4.0 Architecture Freeze — implementation skeleton; fill in Phase 1

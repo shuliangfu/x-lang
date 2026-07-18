@@ -1,4 +1,8 @@
-// 7.3：while 体 redefine a（loop φ 失效 cache）+ 十四元 return；exit 105（0→1 后 1+2+…+14）。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32 = 0;
   let b: i32 = 2;

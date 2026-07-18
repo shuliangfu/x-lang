@@ -1,8 +1,18 @@
-// tests/json/object_array_parse.x — STD-034：object/array 游标解析金样
-// 输入：{"name":"alice","age":30,"tags":["a","b"]}
+// See implementation.
+// See implementation.
 const json = import("std.json");
 
-/** 逐字节比较 key_buf[0..key_len) 与期望 ASCII；匹配 1，否则 0。 */
+/** Internal function `key_eq`.
+ * Implements `key_eq`.
+ * @param key_buf *u8
+ * @param key_len i32
+ * @param b0 u8
+ * @param b1 u8
+ * @param b2 u8
+ * @param b3 u8
+ * @param need i32
+ * @return i32
+ */
 function key_eq(key_buf: *u8, key_len: i32, b0: u8, b1: u8, b2: u8, b3: u8, need: i32): i32 {
   if (key_len != need) { return 0; }
   if (need > 0 && key_buf[0] != b0) { return 0; }
@@ -12,6 +22,10 @@ function key_eq(key_buf: *u8, key_len: i32, b0: u8, b1: u8, b2: u8, b3: u8, need
   return 1;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   /** {"name":"alice","age":30,"tags":["a","b"]} */
   let doc: u8[44] =

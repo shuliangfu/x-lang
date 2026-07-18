@@ -14,49 +14,65 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std/test/test.x — F-test v2 + F-ZC：断言/runner/bench/fuzz 全量 .x（fn-ptr 在 runtime_test_fn_invoke.o）
+// See implementation.
 //
-// 【文件职责】
-// expect、runner 计数、bench/fuzz、stderr 报告行；单调时钟经 time.o；fn 调用经 compiler runtime。
-// 纯 .x 编译为 test.o；对外 API 在 mod.x。
+// See implementation.
+// See implementation.
+// See implementation.
 
 extern function time_now_monotonic_ns_c(): i64;
 extern function test_call_i32_void_c(fn: usize): i32;
 extern function env_getenv_c(key: *u8, key_len: i32, out: *u8, out_cap: i32): i32;
-/* 禁裸 write：preamble 已 #include <unistd.h>，再 extern write 会与 libc 签名冲突。
- * 权威：rt_preamble shux_sys_write 内联包装。 */
+/* See implementation. */
+ * See implementation.
 extern "C" function shux_sys_write(fd: i32, buf: *u8, count: usize): isize;
 extern "C" function strtoul(nptr: *u8, endptr: *u8, base: i32): u32;
 extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 
-/** F-test v1 版本标记；供聚合 gate 校验 test.x 已参与构建。 */
+/** Exported function `test_f_test_v1_marker_c`.
+ * Implements `test_f_test_v1_marker_c`.
+ * @return i32
+ */
 export function test_f_test_v1_marker_c(): i32 {
   return 1;
 }
 
-/** F-test v2 逻辑下沉标记。 */
+/** Exported function `test_f_test_v2_marker_c`.
+ * Implements `test_f_test_v2_marker_c`.
+ * @return i32
+ */
 export function test_f_test_v2_marker_c(): i32 {
   return 1;
 }
 
-/** F-std-zero-c：test_glue.c 已删除。 */
+/** Exported function `test_f_zero_c_marker_c`.
+ * Implements `test_f_zero_c_marker_c`.
+ * @return i32
+ */
 export function test_f_zero_c_marker_c(): i32 {
   return 1;
 }
 
-/** C 字符串常量（解析器不支持 "..." as *u8）。 */
+/* See implementation. */
 export const TST_LIT_SUMMARY: u8[32] = [115, 104, 117, 120, 58, 32, 91, 83, 72, 85, 88, 95, 84, 69, 83, 84, 95, 83, 85, 77, 77, 65, 82, 89, 93, 32, 116, 111, 116, 97, 108, 61, 0];
 export const TST_LIT_PASS: u8[7] = [32, 112, 97, 115, 115, 61, 0];
 export const TST_LIT_FAIL: u8[7] = [32, 102, 97, 105, 108, 61, 0];
 export const TST_LIT_SKIP: u8[7] = [32, 115, 107, 105, 112, 61, 0];
 
-/** STD-145 runner 计数器（模块级状态）。 */
+/* See implementation. */
 let test_s_runner_total: i32 = 0;
 let test_s_runner_pass: i32 = 0;
 let test_s_runner_fail: i32 = 0;
 let test_s_runner_skip: i32 = 0;
 
-/** 复制用例名到 NUL 结尾缓冲（cap 含结尾 0）。 */
+/** Exported function `test_io_copy_name`.
+ * Implements `test_io_copy_name`.
+ * @param out *u8
+ * @param cap i32
+ * @param name *u8
+ * @param len i32
+ * @return void
+ */
 export function test_io_copy_name(out: *u8, cap: i32, name: *u8, len: i32): void {
   let n: i32 = len;
   if (out == 0 || cap <= 0) { return; }
@@ -69,14 +85,28 @@ export function test_io_copy_name(out: *u8, cap: i32, name: *u8, len: i32): void
   out[n] = 0;
 }
 
-/** 向 out[pos] 追加单字节；失败 -1。 */
+/** Exported function `test_io_append_byte`.
+ * Implements `test_io_append_byte`.
+ * @param out *u8
+ * @param pos i32
+ * @param cap i32
+ * @param b u8
+ * @return i32
+ */
 export function test_io_append_byte(out: *u8, pos: i32, cap: i32, b: u8): i32 {
   if (out == 0 || pos < 0 || cap <= pos) { return -1; }
   out[pos] = b;
   return pos + 1;
 }
 
-/** 将 i32 十进制追加到 out；失败 -1。 */
+/** Exported function `test_io_append_i32`.
+ * Implements `test_io_append_i32`.
+ * @param out *u8
+ * @param pos i32
+ * @param cap i32
+ * @param v i32
+ * @return i32
+ */
 export function test_io_append_i32(out: *u8, pos: i32, cap: i32, v: i32): i32 {
   let tmp: u8[16];
   let n: i32 = 0;
@@ -103,7 +133,14 @@ export function test_io_append_i32(out: *u8, pos: i32, cap: i32, v: i32): i32 {
   return pos;
 }
 
-/** 将 i64 十进制追加到 out；失败 -1。 */
+/** Exported function `test_io_append_i64`.
+ * Implements `test_io_append_i64`.
+ * @param out *u8
+ * @param pos i32
+ * @param cap i32
+ * @param v i64
+ * @return i32
+ */
 export function test_io_append_i64(out: *u8, pos: i32, cap: i32, v: i64): i32 {
   let tmp: u8[24];
   let n: i32 = 0;
@@ -130,7 +167,14 @@ export function test_io_append_i64(out: *u8, pos: i32, cap: i32, v: i64): i32 {
   return pos;
 }
 
-/** 追加 C 串到 out；失败 -1。 */
+/** Exported function `test_io_append_cstr`.
+ * Implements `test_io_append_cstr`.
+ * @param out *u8
+ * @param pos i32
+ * @param cap i32
+ * @param s *u8
+ * @return i32
+ */
 export function test_io_append_cstr(out: *u8, pos: i32, cap: i32, s: *u8): i32 {
   let i: i32 = 0;
   let c: u8 = 0;
@@ -145,7 +189,15 @@ export function test_io_append_cstr(out: *u8, pos: i32, cap: i32, s: *u8): i32 {
   return pos;
 }
 
-/** 追加 name[0..len) 到 out；失败 -1。 */
+/** Exported function `test_io_append_name`.
+ * Implements `test_io_append_name`.
+ * @param out *u8
+ * @param pos i32
+ * @param cap i32
+ * @param name *u8
+ * @param len i32
+ * @return i32
+ */
 export function test_io_append_name(out: *u8, pos: i32, cap: i32, name: *u8, len: i32): i32 {
   let i: i32 = 0;
   if (out == 0 || name == 0 || len <= 0) { return -1; }
@@ -157,7 +209,12 @@ export function test_io_append_name(out: *u8, pos: i32, cap: i32, name: *u8, len
   return pos;
 }
 
-/** 写 buf[0..len) 到 stderr；成功 0，失败 -1。 */
+/** Exported function `test_io_write_stderr`.
+ * Write path helper `test_io_write_stderr`.
+ * @param buf *u8
+ * @param len i32
+ * @return i32
+ */
 export function test_io_write_stderr(buf: *u8, len: i32): i32 {
   let r: isize = 0 as isize;
   if (buf == 0 || len <= 0) { return -1; }
@@ -166,9 +223,10 @@ export function test_io_write_stderr(buf: *u8, len: i32): i32 {
   return 0;
 }
 
-/** 读 SHUX_FUZZ_SEED 或默认 0xABCDEF01。
- * PLATFORM: SHARED — 大十六进制字面量 typeck 为 i64；返回 u32 必须 `as u32`
- *（mac arm64 冷 typeck 硬失败；Ubuntu 曾宽松放过，双端须同一写法）。 */
+/** Exported function `test_fuzz_seed_c`.
+ * Implements `test_fuzz_seed_c`.
+ * @return u32
+ */
 export function test_fuzz_seed_c(): u32 {
   let key: u8[15] = [83, 72, 85, 88, 95, 70, 85, 90, 90, 95, 83, 69, 69, 68, 0];
   let buf: u8[64];
@@ -182,7 +240,13 @@ export function test_fuzz_seed_c(): u32 {
   return 0xABCDEF01 as u32;
 }
 
-/** 写 bench 报告行：shux: [SHUX_BENCH] name=… ns=… */
+/** Exported function `test_io_bench_line_c`.
+ * Implements `test_io_bench_line_c`.
+ * @param name *u8
+ * @param len i32
+ * @param ns i64
+ * @return i32
+ */
 export function test_io_bench_line_c(name: *u8, len: i32, ns: i64): i32 {
   let line: u8[256];
   let pos: i32 = 0;
@@ -202,7 +266,13 @@ export function test_io_bench_line_c(name: *u8, len: i32, ns: i64): i32 {
   return test_io_write_stderr(&line[0], pos);
 }
 
-/** 写单条 pass/fail 用例行。 */
+/** Exported function `test_io_runner_case_line_c`.
+ * Implements `test_io_runner_case_line_c`.
+ * @param name *u8
+ * @param len i32
+ * @param exit_code i32
+ * @return i32
+ */
 export function test_io_runner_case_line_c(name: *u8, len: i32, exit_code: i32): i32 {
   let line: u8[256];
   let nbuf: u8[128];
@@ -234,7 +304,12 @@ export function test_io_runner_case_line_c(name: *u8, len: i32, exit_code: i32):
   return test_io_write_stderr(&line[0], pos);
 }
 
-/** 写 skip 用例行。 */
+/** Exported function `test_io_runner_skip_line_c`.
+ * Implements `test_io_runner_skip_line_c`.
+ * @param name *u8
+ * @param len i32
+ * @return i32
+ */
 export function test_io_runner_skip_line_c(name: *u8, len: i32): i32 {
   let line: u8[256];
   let nbuf: u8[128];
@@ -251,7 +326,14 @@ export function test_io_runner_skip_line_c(name: *u8, len: i32): i32 {
   return test_io_write_stderr(&line[0], pos);
 }
 
-/** 写汇总行。 */
+/** Exported function `test_io_runner_summary_line_c`.
+ * Implements `test_io_runner_summary_line_c`.
+ * @param total i32
+ * @param pass i32
+ * @param fail i32
+ * @param skip i32
+ * @return i32
+ */
 export function test_io_runner_summary_line_c(total: i32, pass: i32, fail: i32, skip: i32): i32 {
   let line: u8[256];
   let pos: i32 = 0;
@@ -276,43 +358,74 @@ export function test_io_runner_summary_line_c(total: i32, pass: i32, fail: i32, 
   return test_io_write_stderr(&line[0], pos);
 }
 
-/** 内置 noop（bench/fuzz 烟测）。 */
+/** Exported function `test_noop_impl`.
+ * Implements `test_noop_impl`.
+ * @return i32
+ */
 export function test_noop_impl(): i32 {
   return 0;
 }
 
-/** 断言 cond 为真；0=通过，1=失败。 */
+/** Exported function `test_expect_c`.
+ * Implements `test_expect_c`.
+ * @param cond i32
+ * @return i32
+ */
 export function test_expect_c(cond: i32): i32 {
   if (cond != 0) { return 0; }
   return 1;
 }
 
-/** 断言 a == b（i32）。 */
+/** Exported function `test_expect_eq_i32_c`.
+ * Implements `test_expect_eq_i32_c`.
+ * @param a i32
+ * @param b i32
+ * @return i32
+ */
 export function test_expect_eq_i32_c(a: i32, b: i32): i32 {
   if (a == b) { return 0; }
   return 1;
 }
 
-/** 断言 a == b（u32）。 */
+/** Exported function `test_expect_eq_u32_c`.
+ * Implements `test_expect_eq_u32_c`.
+ * @param a u32
+ * @param b u32
+ * @return i32
+ */
 export function test_expect_eq_u32_c(a: u32, b: u32): i32 {
   if (a == b) { return 0; }
   return 1;
 }
 
-/** 断言 a != b（i32）。 */
+/** Exported function `test_expect_ne_i32_c`.
+ * Implements `test_expect_ne_i32_c`.
+ * @param a i32
+ * @param b i32
+ * @return i32
+ */
 export function test_expect_ne_i32_c(a: i32, b: i32): i32 {
   if (a != b) { return 0; }
   return 1;
 }
 
-/** 调用无参 fn；fn 为 0 返回 -1，否则返回 fn 的 i32 结果。 */
+/** Exported function `test_run_c`.
+ * Implements `test_run_c`.
+ * @param fn usize
+ * @return i32
+ */
 export function test_run_c(fn: usize): i32 {
   if (fn == 0) { return -1; }
   unsafe { return test_call_i32_void_c(fn); }
   return 0; // unreachable — typeck workaround
 }
 
-/** 调用 fn 共 iters 次，返回纳秒耗时；非法参数 -1。 */
+/** Exported function `test_bench_run_c`.
+ * Implements `test_bench_run_c`.
+ * @param fn usize
+ * @param iters i32
+ * @return i64
+ */
 export function test_bench_run_c(fn: usize, iters: i32): i64 {
   let t0: i64 = 0;
   let t1: i64 = 0;
@@ -327,12 +440,22 @@ export function test_bench_run_c(fn: usize, iters: i32): i64 {
   return t1 - t0;
 }
 
-/** 写 bench 报告到 stderr：shux: [SHUX_BENCH] name=… ns=… */
+/** Exported function `test_bench_report_c`.
+ * Implements `test_bench_report_c`.
+ * @param name *u8
+ * @param len i32
+ * @param ns i64
+ * @return i32
+ */
 export function test_bench_report_c(name: *u8, len: i32, ns: i64): i32 {
   return test_io_bench_line_c(name, len, ns);
 }
 
-/** LCG 单步 PRNG；state 为 in/out 种子。 */
+/** Exported function `test_fuzz_next_c`.
+ * Implements `test_fuzz_next_c`.
+ * @param state *u32
+ * @return u32
+ */
 export function test_fuzz_next_c(state: *u32): u32 {
   let s: u32 = 0;
   if (state == 0) { return 0 as u32; }
@@ -342,7 +465,12 @@ export function test_fuzz_next_c(state: *u32): u32 {
   return s;
 }
 
-/** 每轮推进 PRNG 后调用 fn；全 0 则 0，否则 1；非法 -1。 */
+/** Exported function `test_fuzz_run_c`.
+ * Implements `test_fuzz_run_c`.
+ * @param fn usize
+ * @param iters i32
+ * @return i32
+ */
 export function test_fuzz_run_c(fn: usize, iters: i32): i32 {
   let state: u32 = 0;
   let i: i32 = 0;
@@ -356,7 +484,11 @@ export function test_fuzz_run_c(fn: usize, iters: i32): i32 {
   return 0;
 }
 
-/** STD-143：对内置 noop 跑 bench_run，返回纳秒。 */
+/** Exported function `test_bench_run_noop_c`.
+ * Implements `test_bench_run_noop_c`.
+ * @param iters i32
+ * @return i64
+ */
 export function test_bench_run_noop_c(iters: i32): i64 {
   let t0: i64 = 0;
   let t1: i64 = 0;
@@ -371,7 +503,11 @@ export function test_bench_run_noop_c(iters: i32): i64 {
   return t1 - t0;
 }
 
-/** STD-143：对内置 noop 跑 fuzz_run。 */
+/** Exported function `test_fuzz_run_noop_c`.
+ * Implements `test_fuzz_run_noop_c`.
+ * @param iters i32
+ * @return i32
+ */
 export function test_fuzz_run_noop_c(iters: i32): i32 {
   let state: u32 = 0;
   let i: i32 = 0;
@@ -385,7 +521,10 @@ export function test_fuzz_run_noop_c(iters: i32): i32 {
   return 0;
 }
 
-/** STD-054 C 烟测：bench_report 行 + bench_run + fuzz_next 非零。 */
+/** Exported function `test_bench_fuzz_smoke_c`.
+ * Implements `test_bench_fuzz_smoke_c`.
+ * @return i32
+ */
 export function test_bench_fuzz_smoke_c(): i32 {
   let name: u8[6] = [115, 109, 111, 107, 101, 0];
   let ns: i64 = 0;
@@ -398,7 +537,10 @@ export function test_bench_fuzz_smoke_c(): i32 {
   return 0;
 }
 
-/** 重置 runner 计数（STD-145）。 */
+/** Exported function `test_runner_reset_c`.
+ * Implements `test_runner_reset_c`.
+ * @return void
+ */
 export function test_runner_reset_c(): void {
   test_s_runner_total = 0;
   test_s_runner_pass = 0;
@@ -406,7 +548,13 @@ export function test_runner_reset_c(): void {
   test_s_runner_skip = 0;
 }
 
-/** 报告单条用例；exit_code=0 记 pass，否则 fail。 */
+/** Exported function `test_runner_report_case_c`.
+ * Implements `test_runner_report_case_c`.
+ * @param name *u8
+ * @param len i32
+ * @param exit_code i32
+ * @return i32
+ */
 export function test_runner_report_case_c(name: *u8, len: i32, exit_code: i32): i32 {
   test_s_runner_total = test_s_runner_total + 1;
   if (exit_code == 0) {
@@ -418,7 +566,12 @@ export function test_runner_report_case_c(name: *u8, len: i32, exit_code: i32): 
   return exit_code;
 }
 
-/** 报告 skip 用例。 */
+/** Exported function `test_runner_report_skip_c`.
+ * Implements `test_runner_report_skip_c`.
+ * @param name *u8
+ * @param len i32
+ * @return i32
+ */
 export function test_runner_report_skip_c(name: *u8, len: i32): i32 {
   test_s_runner_total = test_s_runner_total + 1;
   test_s_runner_skip = test_s_runner_skip + 1;
@@ -426,7 +579,10 @@ export function test_runner_report_skip_c(name: *u8, len: i32): i32 {
   return 0;
 }
 
-/** 输出汇总行并返回 fail 数。 */
+/** Exported function `test_runner_finish_c`.
+ * Implements `test_runner_finish_c`.
+ * @return i32
+ */
 export function test_runner_finish_c(): i32 {
   test_io_runner_summary_line_c(test_s_runner_total, test_s_runner_pass, test_s_runner_fail, test_s_runner_skip);
   return test_s_runner_fail;

@@ -1,10 +1,10 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-9：backend_call_dispatch 产品源迁 seeds/backend_call_dispatch.from_x.c。
-// G-02f-184：f32 xmm 标志三件套真迁；残余扫描见优先级表 §4.5。
-// R2 full（2026-07-14）：产品 PREFER_X_O → 本文件 -E→.o + rest（SHUX_BACKEND_CALL_DISPATCH_FROM_X 仅 marker）
-// 冷启动：seeds/backend_call_dispatch.from_x.c 全 C；L2 thin 仅 g05 回退
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 
 // PLATFORM: SHARED — all export extern "C" hoisted before first use so -E emits
 // short-name prototypes matching call sites (late mid-file externs caused type-mangle
@@ -89,15 +89,23 @@ export extern "C" function backend_arch_emit_add_sp_imm(out: *u8, imm: i32, ta: 
 export extern "C" function pipeline_module_import_binding_name_len(mod: *u8, ix: i32): i32;
 export extern "C" function pipeline_module_import_binding_name_byte_at(mod: *u8, ix: i32, i: i32): u8;
 
+/** Exported function `backend_call_dispatch_x_doc_anchor`.
+ * Implements `backend_call_dispatch_x_doc_anchor`.
+ * @return i32
+ */
 export function backend_call_dispatch_x_doc_anchor(): i32 {
   return 0;
 }
 
 
-// G-02f-184：CALL f32 xmm ABI 开关（原独立 pipeline_abi_f32_xmm）
+// See implementation.
 let g_pipeline_asm_emit_call_f32_xmm: i32 = 0;
 
 #[no_mangle]
+/** Exported function `pipeline_asm_abi_f32_xmm_enabled_c`.
+ * Implements `pipeline_asm_abi_f32_xmm_enabled_c`.
+ * @return i32
+ */
 export function pipeline_asm_abi_f32_xmm_enabled_c(): i32 {
   unsafe {
     let env: *u8 = getenv("SHUX_ABI_F32_XMM");
@@ -112,6 +120,11 @@ export function pipeline_asm_abi_f32_xmm_enabled_c(): i32 {
 }
 
 #[no_mangle]
+/** Exported function `pipeline_asm_emit_set_call_f32_xmm`.
+ * Implements `pipeline_asm_emit_set_call_f32_xmm`.
+ * @param on i32
+ * @return void
+ */
 export function pipeline_asm_emit_set_call_f32_xmm(on: i32): void {
   if (on != 0) {
     g_pipeline_asm_emit_call_f32_xmm = 1;
@@ -121,20 +134,31 @@ export function pipeline_asm_emit_set_call_f32_xmm(on: i32): void {
 }
 
 #[no_mangle]
+/** Exported function `pipeline_asm_emit_get_call_f32_xmm_c`.
+ * Implements `pipeline_asm_emit_get_call_f32_xmm_c`.
+ * @return i32
+ */
 export function pipeline_asm_emit_get_call_f32_xmm_c(): i32 {
   return g_pipeline_asm_emit_call_f32_xmm;
 }
 
 
-// G-02f-108：+ string_lit / f32 param / reg_max / import_sym 薄门闩。
-// G-02f-139：string_lit_into / import_path_to_c_prefix 真迁 .x
-// R2 full：pipeline_expr/type_kind 等 extern 须在首次使用前声明，否则 -E 不发原型 → cc 隐式声明失败
+// See implementation.
+// See implementation.
+// See implementation.
 
 
 /* ---- G-02f-108 / G-02f-139：backend call dispatch helpers ---- */
 
-// G-02f-139：拷贝 STRING_LIT 内容到 out64（至多 63 字节，先清零）
+// glue_asm_string_lit_into: see function docblock below.
 #[no_mangle]
+/** Exported function `glue_asm_string_lit_into`.
+ * Implements `glue_asm_string_lit_into`.
+ * @param arena *u8
+ * @param er i32
+ * @param out64 *u8
+ * @return void
+ */
 export function glue_asm_string_lit_into(arena: *u8, er: i32, out64: *u8): void {
   if (out64 == 0) { return; }
   let zi: i32 = 0;
@@ -149,8 +173,15 @@ export function glue_asm_string_lit_into(arena: *u8, er: i32, out64: *u8): void 
   }
 }
 
-// G-02f-139：import 路径 → C 前缀（'.'→'_'，末尾再补 '_'）
+// glue_codegen_import_path_to_c_prefix_into: see function docblock below.
 #[no_mangle]
+/** Exported function `glue_codegen_import_path_to_c_prefix_into`.
+ * Implements `glue_codegen_import_path_to_c_prefix_into`.
+ * @param path *u8
+ * @param buf *u8
+ * @param buf_cap i32
+ * @return void
+ */
 export function glue_codegen_import_path_to_c_prefix_into(path: *u8, buf: *u8, buf_cap: i32): void {
   if (buf == 0) { return; }
   if (buf_cap <= 0) { return; }
@@ -186,13 +217,20 @@ export function glue_codegen_import_path_to_c_prefix_into(path: *u8, buf: *u8, b
 
 
 
-// G-02f-109：+ overload/export_c/import path/heap redirect 薄门闩。
+// See implementation.
 
 
 /* ---- G-02f-109 / G-02f-133 / G-02f-134：call_dispatch more helpers ---- */
 
-// G-02f-134：非 extern 同名函数计数
+// glue_module_func_overload_count_c: see function docblock below.
 #[no_mangle]
+/** Exported function `glue_module_func_overload_count_c`.
+ * Implements `glue_module_func_overload_count_c`.
+ * @param m *u8
+ * @param name *u8
+ * @param nlen i32
+ * @return i32
+ */
 export function glue_module_func_overload_count_c(m: *u8, name: *u8, nlen: i32): i32 {
   if (m == 0) { return 0; }
   if (name == 0) { return 0; }
@@ -214,8 +252,17 @@ export function glue_module_func_overload_count_c(m: *u8, name: *u8, nlen: i32):
   return 0;
 }
 
-// G-02f-134：import path 第 want_seg 段起止
+// glue_asm_import_segment_at: see function docblock below.
 #[no_mangle]
+/** Exported function `glue_asm_import_segment_at`.
+ * Implements `glue_asm_import_segment_at`.
+ * @param mod *u8
+ * @param ix i32
+ * @param want_seg i32
+ * @param ostr *i32
+ * @param olen *i32
+ * @return i32
+ */
 export function glue_asm_import_segment_at(mod: *u8, ix: i32, want_seg: i32, ostr: *i32, olen: *i32): i32 {
   if (mod == 0) { return 0; }
   if (ix < 0) { return 0; }
@@ -255,8 +302,15 @@ export function glue_asm_import_segment_at(mod: *u8, ix: i32, want_seg: i32, ost
   return 0;
 }
 
-// G-02f-133：import path → C 前缀
+// glue_asm_fill_c_prefix_from_module_import: see function docblock below.
 #[no_mangle]
+/** Exported function `glue_asm_fill_c_prefix_from_module_import`.
+ * Implements `glue_asm_fill_c_prefix_from_module_import`.
+ * @param mod *u8
+ * @param ix i32
+ * @param pre *u8
+ * @return i32
+ */
 export function glue_asm_fill_c_prefix_from_module_import(mod: *u8, ix: i32, pre: *u8): i32 {
   if (mod == 0) { return 0 - 1; }
   if (pre == 0) { return 0 - 1; }
@@ -279,9 +333,9 @@ export function glue_asm_fill_c_prefix_from_module_import(mod: *u8, ix: i32, pre
 
 
 
-// G-02f-110：+ jmp/lea/arg slot/export/call cleanup 薄门闩。
+// See implementation.
 
-// G-02f-145：spill / f32_xmm / build_call_export 真迁所需
+// See implementation.
 /* ---- G-02f-110 / G-02f-141 / G-02f-142 / G-02f-145：call_dispatch emit helpers ---- */
 
 // LE i32 load/store（AsmFuncCtx.next_offset @4）
@@ -313,7 +367,7 @@ export function call_dispatch_store_i32_le(p: *u8, off: i32, v: i32): void {
   p[off + 3] = ((u / 16777216) & 255) as u8;
 }
 
-// LE 指针 load（AsmFuncCtx.module_ref@16 / dep_pipe@1256）
+// See implementation.
 /** Load little-endian pointer from p[off..off+8). Null p → null.
  * Used for AsmFuncCtx module_ref @16 and dep_pipe @1256 (64-bit LE).
  * Track-L: no_mangle keeps surface short name call_dispatch_load_ptr_le.
@@ -335,16 +389,30 @@ export function call_dispatch_load_ptr_le(p: *u8, off: i32): *u8 {
   return a as *u8;
 }
 
-// G-02f-142：CALL 整数寄存器实参个数（x86_64 SysV=6，AAPCS64/RISC-V=8）
+// glue_asm_call_reg_max: see function docblock below.
 #[no_mangle]
+/** Exported function `glue_asm_call_reg_max`.
+ * Implements `glue_asm_call_reg_max`.
+ * @param ta i32
+ * @return i32
+ */
 export function glue_asm_call_reg_max(ta: i32): i32 {
   if (ta == 0) { return 6; }
   return 8;
 }
 
 // G-02f-143：x86_64 jmp over string lit then lea reg,[rip+disp]
-// reg_k：0→rdi，1→rax；仅 ta==0
+// glue_asm_emit_jmp_skip_string_then_lea: see function docblock below.
 #[no_mangle]
+/** Exported function `glue_asm_emit_jmp_skip_string_then_lea`.
+ * Implements `glue_asm_emit_jmp_skip_string_then_lea`.
+ * @param ctx_bytes *u8
+ * @param ta i32
+ * @param reg_k i32
+ * @param sbuf *u8
+ * @param slen i32
+ * @return i32
+ */
 export function glue_asm_emit_jmp_skip_string_then_lea(ctx_bytes: *u8, ta: i32, reg_k: i32, sbuf: *u8, slen: i32): i32 {
   if (ctx_bytes == 0) { return 0 - 1; }
   if (sbuf == 0) { return 0 - 1; }
@@ -360,7 +428,7 @@ export function glue_asm_emit_jmp_skip_string_then_lea(ctx_bytes: *u8, ta: i32, 
     if (pipeline_elf_ctx_append_bytes(ctx_bytes, sbuf, slen) != 0) { return 0 - 1; }
     let z: u8 = 0;
     if (pipeline_elf_ctx_append_bytes(ctx_bytes, &z, 1) != 0) { return 0 - 1; }
-    // disp32 = -slen - 8（有符号 LE）
+    // See implementation.
     let d: i32 = 0 - slen - 8;
     let u: u32 = d as u32;
     let lea7: u8[7] = [];
@@ -380,8 +448,12 @@ export function glue_asm_emit_jmp_skip_string_then_lea(ctx_bytes: *u8, ta: i32, 
   return 0 - 1;
 }
 
-// G-02f-141：SysV x86_64 第 arg_index 实参槽（0=gp 1=xmm 2=stack）
+// See implementation.
 #[no_mangle]
+/** Function `glue_sysv_x86_call_arg_slot_c`.
+ * Purpose: implements `glue_sysv_x86_call_arg_slot_c`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function glue_sysv_x86_call_arg_slot_c(
   arena: *u8, call_expr_ref: i32, nargs: i32, arg_index: i32, out_kind: *i32, out_reg_k: *i32, out_stack_k: *i32
 ): void {
@@ -447,9 +519,19 @@ export function glue_spill_struct16_call_arg_to_lea_elf_c(arena: *u8, elf: *u8, 
   return 0;
 }
 
-// G-02f-145：x86 SysV f32 xmm CALL 实参（gp/xmm 分轨 + 栈）
+// See implementation.
 // GLUE_ASM_MAX_CALL_ARGS=96
 #[no_mangle]
+/** Exported function `glue_emit_call_args_elf_sysv_f32_xmm_c`.
+ * Implements `glue_emit_call_args_elf_sysv_f32_xmm_c`.
+ * @param arena *u8
+ * @param elf *u8
+ * @param er i32
+ * @param ctx *u8
+ * @param ta i32
+ * @param nargs i32
+ * @return i32
+ */
 export function glue_emit_call_args_elf_sysv_f32_xmm_c(arena: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32, nargs: i32): i32 {
   if (arena == 0) { return 0 - 1; }
   if (elf == 0) { return 0 - 1; }
@@ -499,7 +581,7 @@ export function glue_emit_call_args_elf_sysv_f32_xmm_c(arena: *u8, elf: *u8, er:
       si = si - 1;
     }
     pipeline_asm_emit_set_call_f32_xmm(1);
-    // 高序号寄存器实参先 emit，避免 clobber 低序号
+    // See implementation.
     i = nargs - 1;
     while (i >= 0) {
       let arg_ref2: i32 = pipeline_expr_call_arg_ref(arena, er, i);
@@ -535,8 +617,12 @@ export function glue_emit_call_args_elf_sysv_f32_xmm_c(arena: *u8, elf: *u8, er:
   return 0 - 1;
 }
 
-// G-02f-144：单实参 emit + 嵌套 CALL 16B struct spill
+// See implementation.
 #[no_mangle]
+/** Function `glue_emit_one_call_arg_elf_c`.
+ * Purpose: implements `glue_emit_one_call_arg_elf_c`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function glue_emit_one_call_arg_elf_c(
   arena: *u8, elf_ctx: *u8, call_expr_ref: i32, arg_ref: i32, arg_index: i32, ctx: *u8, ta: i32
 ): i32 {
@@ -576,8 +662,12 @@ export function glue_emit_one_call_arg_elf_c(
   return 0;
 }
 
-// G-02f-145：VAR callee 导出符号（heap redirect → dep 前缀 → func export / 裸名）
+// See implementation.
 #[no_mangle]
+/** Function `glue_asm_build_call_export_sym_c`.
+ * Purpose: implements `glue_asm_build_call_export_sym_c`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function glue_asm_build_call_export_sym_c(
   arena: *u8, call_expr_ref: i32, callee_ref: i32, mod: *u8, dep_pipe: *u8, out: *u8, out_cap: i32
 ): i32 {
@@ -618,7 +708,7 @@ export function glue_asm_build_call_export_sym_c(
     }
     if (dep_ix >= 0) {
       if (dep_pipe != 0) {
-        // extern 用裸名（定义由桩/libc 提供）
+        // See implementation.
         let dep_mod: *u8 = pipeline_dep_ctx_module_at(dep_pipe, dep_ix);
         if (dep_mod != 0) {
           let nfunc2: i32 = pipeline_module_num_funcs(dep_mod);
@@ -683,7 +773,7 @@ export function glue_asm_build_call_export_sym_c(
         return glue_asm_build_func_export_sym_c(mod, arena, func_ix, out, out_cap);
       }
     }
-    // 兜底：裸名 extern
+    // See implementation.
     if (clen > 0) {
       if (clen < out_cap) {
         let ci3: i32 = 0;
@@ -698,8 +788,16 @@ export function glue_asm_build_call_export_sym_c(
   return 0 - 1;
 }
 
-// G-02f-144：dep 前缀 + 裸名导出符号
+// glue_asm_build_dep_export_sym_c: see function docblock below.
 #[no_mangle]
+/** Exported function `glue_asm_build_dep_export_sym_c`.
+ * Implements `glue_asm_build_dep_export_sym_c`.
+ * @param name *u8
+ * @param name_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function glue_asm_build_dep_export_sym_c(name: *u8, name_len: i32, out: *u8, out_cap: i32): i32 {
   if (name == 0) { return 0 - 1; }
   if (name_len <= 0) { return 0 - 1; }
@@ -742,8 +840,17 @@ export function glue_asm_build_dep_export_sym_c(name: *u8, name_len: i32, out: *
   return 0 - 1;
 }
 
-// G-02f-144：函数定义/CALL 导出符号（overload mangled）
+// glue_asm_build_func_export_sym_c: see function docblock below.
 #[no_mangle]
+/** Exported function `glue_asm_build_func_export_sym_c`.
+ * Implements `glue_asm_build_func_export_sym_c`.
+ * @param m *u8
+ * @param a *u8
+ * @param func_ix i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function glue_asm_build_func_export_sym_c(m: *u8, a: *u8, func_ix: i32, out: *u8, out_cap: i32): i32 {
   if (m == 0) { return 0 - 1; }
   if (a == 0) { return 0 - 1; }
@@ -817,9 +924,13 @@ export function glue_asm_build_func_export_sym_c(m: *u8, a: *u8, func_ix: i32, o
   return 0 - 1;
 }
 
-// G-02f-144：fmt/debug println/print("…") 字面量特化；STRING_LIT=59
-// 返回 1=已 emit，0=未匹配，-1=错误
+// See implementation.
+// See implementation.
 #[no_mangle]
+/** Function `glue_asm_try_emit_fmt_string_lit_import_call_elf_c`.
+ * Purpose: implements `glue_asm_try_emit_fmt_string_lit_import_call_elf_c`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function glue_asm_try_emit_fmt_string_lit_import_call_elf_c(
   arena: *u8, elf_ctx: *u8, call_expr_ref: i32, ctx: *u8, ta: i32,
   pre_buf: *u8, pre_len: i32, field_name: *u8, field_len: i32
@@ -878,8 +989,16 @@ export function glue_asm_try_emit_fmt_string_lit_import_call_elf_c(
   return 0;
 }
 
-// G-02f-141：std 重定向表后 enc call
+// glue_asm_enc_call_redirected: see function docblock below.
 #[no_mangle]
+/** Exported function `glue_asm_enc_call_redirected`.
+ * Implements `glue_asm_enc_call_redirected`.
+ * @param elf_ctx *u8
+ * @param name *u8
+ * @param name_len i32
+ * @param ta i32
+ * @return i32
+ */
 export function glue_asm_enc_call_redirected(elf_ctx: *u8, name: *u8, name_len: i32, ta: i32): i32 {
   if (name == 0) { return 0 - 1; }
   if (name_len <= 0) { return 0 - 1; }
@@ -903,9 +1022,13 @@ export function glue_asm_enc_call_redirected(elf_ctx: *u8, name: *u8, name_len: 
   return 0 - 1;
 }
 
-// G-02f-146：CALL 实参主路径（f32-xmm 分轨 / AAPCS64 / x86_64 SysV）
+// See implementation.
 // GLUE_ASM_MAX_CALL_ARGS=96
 #[no_mangle]
+/** Function `pipeline_asm_emit_call_args_elf_c`.
+ * Purpose: implements `pipeline_asm_emit_call_args_elf_c`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function pipeline_asm_emit_call_args_elf_c(
   arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, nargs: i32
 ): i32 {
@@ -913,7 +1036,7 @@ export function pipeline_asm_emit_call_args_elf_c(
   if (nargs > 96) { return 0 - 1; }
   unsafe {
     let reg_max: i32 = glue_asm_call_reg_max(ta);
-    // hidden sret 时勿进 f32-xmm 分轨
+    // See implementation.
     if (ta == 0) {
       if (pipeline_asm_abi_f32_xmm_enabled_c() != 0) {
         if (pipeline_asm_emit_call_sret_reg_shift_c() == 0) {
@@ -934,7 +1057,7 @@ export function pipeline_asm_emit_call_args_elf_c(
     let stack_reserve: i32 = glue_asm_call_stack_cleanup_bytes(ta, nargs);
     if (stack_reserve < 0) { return 0 - 1; }
     if (backend_enc_call_stack_reserve_arch(elf_ctx, stack_reserve, ta) != 0) { return 0 - 1; }
-    // x86_64：奇数栈实参对齐垫 + 右到左 push
+    // See implementation.
     if (ta == 0) {
       if (n_stack > 0) {
         if ((n_stack & 1) != 0) {
@@ -954,7 +1077,7 @@ export function pipeline_asm_emit_call_args_elf_c(
         }
       }
     }
-    // AAPCS64：高序号寄存器先 emit
+    // See implementation.
     if (ta == 1) {
       let reg_n: i32 = nargs;
       if (reg_n > eff_reg_max) { reg_n = eff_reg_max; }
@@ -987,7 +1110,7 @@ export function pipeline_asm_emit_call_args_elf_c(
       pipeline_asm_emit_set_call_param_type_ref(0);
       return 0;
     }
-    // x86 寄存器实参逆序
+    // See implementation.
     let i3: i32 = nargs - 1;
     while (i3 >= 0) {
       if (ta == 0) {
@@ -1015,8 +1138,16 @@ export function pipeline_asm_emit_call_args_elf_c(
   return 0 - 1;
 }
 
-// G-02f-146：STRING_LIT → jmp/lea 结果指针装入 rax（reg_k=1）
+// glue_asm_emit_string_lit_ptr_rax_elf_c: see function docblock below.
 #[no_mangle]
+/** Exported function `glue_asm_emit_string_lit_ptr_rax_elf_c`.
+ * Implements `glue_asm_emit_string_lit_ptr_rax_elf_c`.
+ * @param arena *u8
+ * @param elf_ctx *u8
+ * @param str_expr_ref i32
+ * @param ta i32
+ * @return i32
+ */
 export function glue_asm_emit_string_lit_ptr_rax_elf_c(arena: *u8, elf_ctx: *u8, str_expr_ref: i32, ta: i32): i32 {
   if (arena == 0) { return 0 - 1; }
   if (elf_ctx == 0) { return 0 - 1; }
@@ -1036,6 +1167,10 @@ export function glue_asm_emit_string_lit_ptr_rax_elf_c(arena: *u8, elf_ctx: *u8,
 
 // G-02f-141：emit args + call + stack cleanup
 #[no_mangle]
+/** Function `glue_asm_emit_call_with_cleanup`.
+ * Purpose: implements `glue_asm_emit_call_with_cleanup`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function glue_asm_emit_call_with_cleanup(
   arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, nargs: i32, cname: *u8, clen: i32
 ): i32 {
@@ -1054,6 +1189,12 @@ export function glue_asm_emit_call_with_cleanup(
 }
 
 #[no_mangle]
+/** Exported function `glue_asm_call_stack_cleanup_bytes`.
+ * Implements `glue_asm_call_stack_cleanup_bytes`.
+ * @param ta i32
+ * @param nargs i32
+ * @return i32
+ */
 export function glue_asm_call_stack_cleanup_bytes(ta: i32, nargs: i32): i32 {
   if (nargs <= 0) {
     return 0;
@@ -1076,10 +1217,14 @@ export function glue_asm_call_stack_cleanup_bytes(ta: i32, nargs: i32): i32 {
   return (n_stack * 8 + 15) & -16;
 }
 
-// G-02f-147：import / call emit 主路径
+// See implementation.
 
-// G-02f-147：a.b.c.method whole-import 限定符号；FIELD_ACCESS=44 VAR=3
+// See implementation.
 #[no_mangle]
+/** Function `pipeline_asm_resolve_whole_import_qualified_symbol_c`.
+ * Purpose: implements `pipeline_asm_resolve_whole_import_qualified_symbol_c`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function pipeline_asm_resolve_whole_import_qualified_symbol_c(
   arena: *u8, cur_mod: *u8, callee_expr_ref: i32, sym_flat: *u8, out_match_imp_j: *i32
 ): i32 {
@@ -1188,8 +1333,12 @@ export function pipeline_asm_resolve_whole_import_qualified_symbol_c(
   return 0 - 1;
 }
 
-// G-02f-147：text 路径至多 6 个实参
+// See implementation.
 #[no_mangle]
+/** Function `pipeline_asm_emit_call_args_text_c`.
+ * Purpose: implements `pipeline_asm_emit_call_args_text_c`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function pipeline_asm_emit_call_args_text_c(
   arena: *u8, out: *u8, expr_ref: i32, ctx: *u8, target_arch: i32, nargs: i32
 ): i32 {
@@ -1233,6 +1382,15 @@ export function pipeline_asm_emit_call_args_text_c(
 
 // G-02f-147：EXPR_METHOD_CALL ELF；module_ref@16 LE；IMPORT_BINDING=1 VAR=3
 #[no_mangle]
+/** Exported function `pipeline_asm_emit_method_call_elf_c`.
+ * Implements `pipeline_asm_emit_method_call_elf_c`.
+ * @param arena *u8
+ * @param elf_ctx *u8
+ * @param expr_ref i32
+ * @param ctx *u8
+ * @param ta i32
+ * @return i32
+ */
 export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
   if (arena == 0) { return 0 - 1; }
   if (elf_ctx == 0) { return 0 - 1; }
@@ -1249,7 +1407,7 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
     if (name_len > 63) { return 0 - 1; }
     let name: u8[64] = [];
     pipeline_expr_method_call_name_into(arena, expr_ref, &name[0]);
-    // import binding：receiver 不入参
+    // See implementation.
     if (mod_ref != 0) {
       if (base_ref > 0) {
         if (pipeline_expr_kind_ord_at(arena, base_ref) == 3) {
@@ -1369,8 +1527,17 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
   return 0 - 1;
 }
 
-// G-02f-147：EXPR_CALL ELF 主路径；module_ref@16 dep_pipe@1256 LE
+// pipeline_asm_emit_call_elf_c: see function docblock below.
 #[no_mangle]
+/** Exported function `pipeline_asm_emit_call_elf_c`.
+ * Implements `pipeline_asm_emit_call_elf_c`.
+ * @param arena *u8
+ * @param elf_ctx *u8
+ * @param expr_ref i32
+ * @param ctx *u8
+ * @param ta i32
+ * @return i32
+ */
 export function pipeline_asm_emit_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
   if (arena == 0) { return 0 - 1; }
   if (elf_ctx == 0) { return 0 - 1; }
@@ -1381,7 +1548,7 @@ export function pipeline_asm_emit_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref:
     let mod_ref: *u8 = call_dispatch_load_ptr_le(ctx, 16);
     let dep_pipe: *u8 = call_dispatch_load_ptr_le(ctx, 1256);
     let callee_ko: i32 = pipeline_expr_kind_ord_at(arena, callee_ref);
-    // hello：fmt.println / print 字面量特化
+    // See implementation.
     if (callee_ko == 44) {
       let pre_fmt: u8[16] = [];
       pre_fmt[0] = 115; pre_fmt[1] = 116; pre_fmt[2] = 100; pre_fmt[3] = 95;
@@ -1462,7 +1629,7 @@ export function pipeline_asm_emit_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref:
         }
       }
     }
-    // whole-import 限定 a.b.c.method
+    // See implementation.
     if (mod_ref != 0) {
       if (callee_ko == 44) {
         let imp_elt: i32 = 0;
@@ -1498,7 +1665,7 @@ export function pipeline_asm_emit_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref:
         }
       }
     }
-    // 同模块 VAR callee
+    // See implementation.
     if (callee_ko != 3) { return 0 - 1; }
     let nargs: i32 = pipeline_expr_call_num_args_at(arena, expr_ref);
     if (nargs < 0) { return 0 - 1; }
@@ -1528,7 +1695,7 @@ export function pipeline_asm_emit_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref:
       if (inline_rc < 0) { return 0 - 1; }
       return 0;
     }
-    // SHUX_WPO_MONO / SHUX_WPO_NO_FOLD 环境
+    // See implementation.
     let kmono: u8[16] = [];
     kmono[0] = 83; kmono[1] = 72; kmono[2] = 85; kmono[3] = 88; kmono[4] = 95;
     kmono[5] = 87; kmono[6] = 80; kmono[7] = 79; kmono[8] = 95;
@@ -1563,9 +1730,15 @@ export function pipeline_asm_emit_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref:
   return 0 - 1;
 }
 
-// G-02f-114：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
+// glue_asm_prefix_is_fmt_or_debug: see function docblock below.
 
 #[no_mangle]
+/** Exported function `glue_asm_prefix_is_fmt_or_debug`.
+ * Implements `glue_asm_prefix_is_fmt_or_debug`.
+ * @param pre *u8
+ * @param pre_len i32
+ * @return i32
+ */
 export function glue_asm_prefix_is_fmt_or_debug(pre: *u8, pre_len: i32): i32 {
   if (pre == 0) { return 0; }
   if (pre_len < 8) { return 0; }
@@ -1587,8 +1760,8 @@ export function glue_asm_prefix_is_fmt_or_debug(pre: *u8, pre_len: i32): i32 {
   return 0;
 }
 
-// G-02f-120：call_dispatch pure helpers 真迁 .x
-// pipeline_type_kind_ord_at：见文件头 R2 full 前置 extern
+// See implementation.
+// See implementation.
 
 /** SysV SSE float slot: f32 (14) or f64 (15). Name is historical; G.7 completes f64.
  * PLATFORM: SHARED kind / LINUX+MACOS x86_64 SysV xmm class. */
@@ -1606,6 +1779,12 @@ export function glue_call_param_is_f32_c(arena: *u8, tr: i32): i32 {
 }
 
 #[no_mangle]
+/** Exported function `glue_asm_std_c_wrapper_fname_needs_export_c_suffix`.
+ * Implements `glue_asm_std_c_wrapper_fname_needs_export_c_suffix`.
+ * @param fname *u8
+ * @param nlen i32
+ * @return i32
+ */
 export function glue_asm_std_c_wrapper_fname_needs_export_c_suffix(fname: *u8, nlen: i32): i32 {
   if (fname == 0) { return 0; }
   if (nlen <= 0) { return 0; }
@@ -1626,6 +1805,13 @@ export function glue_asm_std_c_wrapper_fname_needs_export_c_suffix(fname: *u8, n
 }
 
 #[no_mangle]
+/** Exported function `glue_asm_append_export_c_suffix`.
+ * Implements `glue_asm_append_export_c_suffix`.
+ * @param sym *u8
+ * @param slen i32
+ * @param cap i32
+ * @return i32
+ */
 export function glue_asm_append_export_c_suffix(sym: *u8, slen: i32, cap: i32): i32 {
   if (sym == 0) { return slen; }
   if (slen <= 0) { return slen; }
@@ -1636,6 +1822,12 @@ export function glue_asm_append_export_c_suffix(sym: *u8, slen: i32, cap: i32): 
 }
 
 #[no_mangle]
+/** Exported function `glue_asm_import_path_segment_count`.
+ * Implements `glue_asm_import_path_segment_count`.
+ * @param path *u8
+ * @param plen i32
+ * @return i32
+ */
 export function glue_asm_import_path_segment_count(path: *u8, plen: i32): i32 {
   if (path == 0) { return 0; }
   if (plen <= 0) { return 0; }
@@ -1648,11 +1840,19 @@ export function glue_asm_import_path_segment_count(path: *u8, plen: i32): i32 {
   return n;
 }
 
-// G-02f-121：call_dispatch pure helpers 真迁 .x
+// See implementation.
 
 // glue_call_param_type_ref_at / glue_call_param_is_f32_c already in this TU or linked
 
 #[no_mangle]
+/** Exported function `glue_asm_c_prefix_redundant_with_name`.
+ * Implements `glue_asm_c_prefix_redundant_with_name`.
+ * @param pre *u8
+ * @param plen i32
+ * @param name *u8
+ * @param nlen i32
+ * @return i32
+ */
 export function glue_asm_c_prefix_redundant_with_name(pre: *u8, plen: i32, name: *u8, nlen: i32): i32 {
   // prefix must be "build_" (6 chars) and name starts with it
   if (pre == 0) { return 0; }
@@ -1675,6 +1875,13 @@ export function glue_asm_c_prefix_redundant_with_name(pre: *u8, plen: i32, name:
 }
 
 #[no_mangle]
+/** Exported function `glue_type_kind_to_suffix_c`.
+ * Implements `glue_type_kind_to_suffix_c`.
+ * @param kind i32
+ * @param out *u8
+ * @param cap i32
+ * @return i32
+ */
 export function glue_type_kind_to_suffix_c(kind: i32, out: *u8, cap: i32): i32 {
   if (out == 0) { return 0; }
   if (cap <= 0) { return 0; }
@@ -1714,6 +1921,16 @@ export function glue_type_kind_to_suffix_c(kind: i32, out: *u8, cap: i32): i32 {
 }
 
 #[no_mangle]
+/** Exported function `glue_asm_import_path_slice_equal`.
+ * Implements `glue_asm_import_path_slice_equal`.
+ * @param mod *u8
+ * @param ix i32
+ * @param off i32
+ * @param slen i32
+ * @param nm *u8
+ * @param nm_len i32
+ * @return i32
+ */
 export function glue_asm_import_path_slice_equal(mod: *u8, ix: i32, off: i32, slen: i32, nm: *u8, nm_len: i32): i32 {
   if (slen != nm_len) { return 0; }
   if (slen <= 0) { return 0; }
@@ -1730,6 +1947,14 @@ export function glue_asm_import_path_slice_equal(mod: *u8, ix: i32, off: i32, sl
 }
 
 #[no_mangle]
+/** Exported function `glue_asm_import_binding_name_equal`.
+ * Implements `glue_asm_import_binding_name_equal`.
+ * @param mod *u8
+ * @param ix i32
+ * @param nm *u8
+ * @param nlen i32
+ * @return i32
+ */
 export function glue_asm_import_binding_name_equal(mod: *u8, ix: i32, nm: *u8, nlen: i32): i32 {
   if (nm == 0) { return 0; }
   if (nlen <= 0) { return 0; }
@@ -1747,6 +1972,13 @@ export function glue_asm_import_binding_name_equal(mod: *u8, ix: i32, nm: *u8, n
 }
 
 #[no_mangle]
+/** Exported function `glue_sysv_x86_call_n_stack_c`.
+ * Implements `glue_sysv_x86_call_n_stack_c`.
+ * @param arena *u8
+ * @param call i32
+ * @param nargs i32
+ * @return i32
+ */
 export function glue_sysv_x86_call_n_stack_c(arena: *u8, call: i32, nargs: i32): i32 {
   let gp: i32 = 0;
   let xmm: i32 = 0;
@@ -1767,10 +1999,16 @@ export function glue_sysv_x86_call_n_stack_c(arena: *u8, call: i32, nargs: i32):
   return stk;
 }
 
-// G-02f-122：call_dispatch pure helpers 真迁 .x
-// pipeline_expr_kind_ord_at / var_name_len_for_string_lit / call_param_type_ref：见文件头 R2 full 前置 extern
+// See implementation.
+// glue_asm_string_lit_len: see function docblock below.
 
 #[no_mangle]
+/** Exported function `glue_asm_string_lit_len`.
+ * Query helper `glue_asm_string_lit_len`.
+ * @param arena *u8
+ * @param er i32
+ * @return i32
+ */
 export function glue_asm_string_lit_len(arena: *u8, er: i32): i32 {
   if (arena == 0) { return 0; }
   if (er <= 0) { return 0; }
@@ -1784,6 +2022,15 @@ export function glue_asm_string_lit_len(arena: *u8, er: i32): i32 {
 }
 
 #[no_mangle]
+/** Exported function `glue_asm_build_import_binding_call_sym`.
+ * Implements `glue_asm_build_import_binding_call_sym`.
+ * @param pre *u8
+ * @param plen i32
+ * @param field *u8
+ * @param flen i32
+ * @param out *u8
+ * @return i32
+ */
 export function glue_asm_build_import_binding_call_sym(pre: *u8, plen: i32, field: *u8, flen: i32, out: *u8): i32 {
   if (out == 0) { return 0 - 1; }
   let pos: i32 = 0;
@@ -1816,6 +2063,13 @@ export function glue_asm_build_import_binding_call_sym(pre: *u8, plen: i32, fiel
 }
 
 #[no_mangle]
+/** Exported function `glue_call_param_type_ref_at`.
+ * Implements `glue_call_param_type_ref_at`.
+ * @param arena *u8
+ * @param call i32
+ * @param pix i32
+ * @return i32
+ */
 export function glue_call_param_type_ref_at(arena: *u8, call: i32, pix: i32): i32 {
   unsafe {
     return pipeline_asm_call_param_type_ref_at_c(arena, call, pix);
@@ -1823,9 +2077,17 @@ export function glue_call_param_type_ref_at(arena: *u8, call: i32, pix: i32): i3
   return 0;
 }
 
-// G-02f-123：std redirect pure helpers 真迁 .x
+// glue_try_std_string_shux_redirect_sym_local: see function docblock below.
 
 #[no_mangle]
+/** Exported function `glue_try_std_string_shux_redirect_sym_local`.
+ * Implements `glue_try_std_string_shux_redirect_sym_local`.
+ * @param name *u8
+ * @param nlen i32
+ * @param out *u8
+ * @param cap i32
+ * @return i32
+ */
 export function glue_try_std_string_shux_redirect_sym_local(name: *u8, nlen: i32, out: *u8, cap: i32): i32 {
   if (name == 0) { return 0; }
   if (nlen <= 11) { return 0; }
@@ -1854,6 +2116,14 @@ export function glue_try_std_string_shux_redirect_sym_local(name: *u8, nlen: i32
 }
 
 #[no_mangle]
+/** Exported function `glue_try_std_encoding_redirect_sym_local`.
+ * Implements `glue_try_std_encoding_redirect_sym_local`.
+ * @param name *u8
+ * @param nlen i32
+ * @param out *u8
+ * @param cap i32
+ * @return i32
+ */
 export function glue_try_std_encoding_redirect_sym_local(name: *u8, nlen: i32, out: *u8, cap: i32): i32 {
   if (name == 0) { return 0; }
   if (out == 0) { return 0; }
@@ -1882,9 +2152,17 @@ export function glue_try_std_encoding_redirect_sym_local(name: *u8, nlen: i32, o
   return out_len;
 }
 
-// G-02f-125：glue_try_std_heap_redirect_sym_local 真迁 .x
+// glue_try_std_heap_redirect_sym_local: see function docblock below.
 
 #[no_mangle]
+/** Exported function `glue_try_std_heap_redirect_sym_local`.
+ * Implements `glue_try_std_heap_redirect_sym_local`.
+ * @param name *u8
+ * @param nlen i32
+ * @param out *u8
+ * @param cap i32
+ * @return i32
+ */
 export function glue_try_std_heap_redirect_sym_local(name: *u8, nlen: i32, out: *u8, cap: i32): i32 {
   if (name == 0) { return 0; }
   if (nlen <= 0) { return 0; }

@@ -1,13 +1,17 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f：backend_seed_mega_fallback 产品源迁 seeds/backend_seed_mega_fallback.from_x.c。
-// G-02f-104：+ ctx_reset / target_arch_local 薄门闩。
-// G-02f-150：pipeline_seed_mega_ctx_reset 真迁 .x（label_counter@12 / module_ref@16 LE）
+// See implementation.
+// See implementation.
+// See implementation.
 
 export extern "C" function pipeline_dep_ctx_target_arch(ctx: *u8): i32;
 export extern "C" function memset(p: *u8, c: i32, n: i32): *u8;
 
+/** Exported function `backend_seed_mega_fallback_x_doc_anchor`.
+ * Implements `backend_seed_mega_fallback_x_doc_anchor`.
+ * @return i32
+ */
 export function backend_seed_mega_fallback_x_doc_anchor(): i32 {
   return 0;
 }
@@ -15,6 +19,12 @@ export function backend_seed_mega_fallback_x_doc_anchor(): i32 {
 /* ---- G-02f-104 / G-02f-150：seed mega helpers ---- */
 
 // AsmFuncCtxLayout size=1336；label_counter@12 i32；module_ref@16 ptr
+/** Exported function `mega_load_i32_le`.
+ * Implements `mega_load_i32_le`.
+ * @param p *u8
+ * @param off i32
+ * @return i32
+ */
 export function mega_load_i32_le(p: *u8, off: i32): i32 {
   if (p == 0) { return 0; }
   let m: i32 = 256;
@@ -25,6 +35,13 @@ export function mega_load_i32_le(p: *u8, off: i32): i32 {
   return a;
 }
 
+/** Exported function `mega_store_i32_le`.
+ * Implements `mega_store_i32_le`.
+ * @param p *u8
+ * @param off i32
+ * @param v i32
+ * @return void
+ */
 export function mega_store_i32_le(p: *u8, off: i32, v: i32): void {
   if (p == 0) { return; }
   let u: u32 = v as u32;
@@ -34,6 +51,13 @@ export function mega_store_i32_le(p: *u8, off: i32, v: i32): void {
   p[off + 3] = ((u / 16777216) & 255) as u8;
 }
 
+/** Exported function `mega_store_ptr_le`.
+ * Implements `mega_store_ptr_le`.
+ * @param p *u8
+ * @param off i32
+ * @param val *u8
+ * @return void
+ */
 export function mega_store_ptr_le(p: *u8, off: i32, val: *u8): void {
   if (p == 0) { return; }
   let a: usize = val as usize;
@@ -55,8 +79,14 @@ export function mega_store_ptr_le(p: *u8, off: i32, val: *u8): void {
   p[off + 7] = (a % m) as u8;
 }
 
-// G-02f-150：清零 ctx 保留 label_counter，写 module_ref
+// pipeline_seed_mega_ctx_reset: see function docblock below.
 #[no_mangle]
+/** Exported function `pipeline_seed_mega_ctx_reset`.
+ * Implements `pipeline_seed_mega_ctx_reset`.
+ * @param ctx *u8
+ * @param mod *u8
+ * @return void
+ */
 export function pipeline_seed_mega_ctx_reset(ctx: *u8, mod: *u8): void {
   if (ctx == 0) { return; }
   unsafe {
@@ -69,8 +99,13 @@ export function pipeline_seed_mega_ctx_reset(ctx: *u8, mod: *u8): void {
 }
 
 #[no_mangle]
-// G-02f-133：委托 pipeline_dep_ctx_target_arch
+// pipeline_dep_ctx_target_arch_local: see function docblock below.
 #[no_mangle]
+/** Exported function `pipeline_dep_ctx_target_arch_local`.
+ * Implements `pipeline_dep_ctx_target_arch_local`.
+ * @param ctx *u8
+ * @return i32
+ */
 export function pipeline_dep_ctx_target_arch_local(ctx: *u8): i32 {
   if (ctx == 0) { return 0; }
   unsafe {

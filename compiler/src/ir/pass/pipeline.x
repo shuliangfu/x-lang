@@ -14,21 +14,21 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// pipeline.x — 声明式 pipeline 框架
+// pipeline.x — declarative pipeline framework
 //
-// 模块：ir/pass
-// 层级：共享
-// Phase：Phase 3+
-// 职责：
-//   - 声明式 Pass Pipeline 框架（§6.1）
-//   - Pass 注册与依赖排序
-//   - Pipeline 执行引擎（按顺序调用 Pass）
-//   - 支持动态注入 External Pass Provider 的 Pass
-// 依赖：./registry
-// 设计约束：
-//   - Pipeline 顺序由 Benchmark 决定（实现级问题，§11.2）
-//   - 不同优化级别（--opt=0/1/2/3）启用不同 Pass 子集
-//   - 确定性：相同 Pipeline 相同输入相同输出
+// Module: ir/pass
+// Layer: shared
+// Phase: Phase 3+
+// Responsibility:
+//   - Declarative Pass Pipeline framework (§6.1)
+//   - Pass registration and dependency ordering
+//   - Pipeline execution engine (invoke passes in order)
+//   - Support dynamic injection of External Pass Provider passes
+// Depends: ./registry
+// Design constraints:
+//   - Pipeline order is decided by Benchmark (implementation-level, §11.2)
+//   - Different opt levels (--opt=0/1/2/3) enable different pass subsets
+//   - Determinism: same pipeline + same input → same output
 //
-// 参考文档：analysis/IR核心设计.md §6.1（声明式 pipeline 框架）/ §11.2（Pass Pipeline 顺序由 Benchmark 决定）
-// 架构状态：v4.0 Architecture Freeze — 实现骨架，待 Phase 3 填充
+// Ref: analysis IR core design §6.1 (declarative pipeline) / §11.2 (Benchmark-driven order)
+// Status: v4.0 Architecture Freeze — implementation skeleton; fill in Phase 3

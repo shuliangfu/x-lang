@@ -1,6 +1,10 @@
-// M-5：read_ptr_slice / read_stdin_ptr_slice 零拷贝 slice 烟测（管道喂入 "AB"）
+// See implementation.
 const io = import("std.io");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let s: u8[]<io_read_ptr> = io.stdin_slice();
   if (s.length <= 0) {

@@ -16,28 +16,28 @@
 
 // std.io — Read/Write and std streams API (API layer of the io stack; use with std.fs for batch I/O).
 //
-// 职责：Reader/Writer trait、ReadOnlySlice/WriteOnlySlice；对 std.io.driver 的薄封装，同步 = submit + 等一次完成。
-// 提供：handle 常量、单次/批量读写、标准流（stdin/stdout/stderr）；fd 便捷 API（read_fd/write_fd/read_batch_fd/write_batch_fd）与 std.fs 联合走 io_uring/readv 极致压榨。
-// 零拷贝：写路径已零拷贝（write/write_fd 直接传用户 ptr 进内核，无库内二次拷贝）；读零拷贝为 read_ptr/read_ptr_len、read_stdin_ptr，返回内部缓冲只读指针。
-// read_ptr 生命周期（Z2）：
-//   1. 指针指向 io_backend 单线程内部缓冲（g_io_read_ptr_buf）；只读，勿写入或 free。
-//   2. 有效至同线程下一次 read_ptr / read_stdin_ptr 成功返回新指针前；并发 read_ptr 不隔离（单缓冲）。
-//   3. ptr_len() 仅对最近一次成功的 read_ptr/read_stdin_ptr 有效；失败或 EOF 后 len 可能为 0。
-//   4. 与 u8[] slice 互操作：let p = read_ptr(h, 0); let n = ptr_len() as usize; 构造 ReadOnlySlice { data: { data: p, length: n } } 或 read_into 用户缓冲（勿对 p 越界写）。
-//   5. M-5/ZC-3：read_ptr_slice / shux_io_read_ptr_slice 等 callee 由 typeck 自动绑域 u8[]<io_read_ptr>（TLS g_io_read_ptr_buf）；勿赋给未标注 u8[]。
-//   6. ZC-2：ptr_gen()/ptr_valid(g) 与 ReadPtrView {ptr,len,gen} 校验跨 read_ptr 调用；macOS/Linux 常规文件 mmap 绝对视图。
-//   7. 大文件/长生命周期数据请用 read/read_fd 拷入用户缓冲，或 std.fs.mmap_ro 映射只读页。
-// ZC-1 Provided Buffers 生命周期：
-//   1. 先 register_provided_buffers(nr, bufsz)；内核通过 IORING_OP_PROVIDE_BUFFERS 注册 buffer ring。
-//   2. read_provided_fd / read_batch_provided_fd 返回后，数据在 provided_buffer_ptr(bid)；只读，勿 free。
-//   3. 同线程下一次 provided recv 复用 bid 前有效；并发 provided recv 不隔离（每线程独立池）。
-//   4. Linux 5.19+ / io_uring；v1 stub 返回失败，请回退 read_fixed_fd 或 read_batch_fd。
-// 依赖：std.io.driver（Buffer、submit_read/submit_write、read_ptr/read_ptr_len）；std.io.core（固定 buffer 池多块注册）。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 const driver = import("std.io.driver");
 const core = import("std.io.core");
 const context = import("std.context");
 const err = import("std.error");
-// ——— ReadOnlySlice / WriteOnlySlice（零拷贝只读/只写视图，预留与 driver 对接） ———
+// See implementation.
 export struct ReadOnlySlice {
   data: u8[]
 }
@@ -45,49 +45,96 @@ export struct WriteOnlySlice {
   data: u8[]
 }
 /**
- * ZC-2：read_ptr 三元组视图（ptr + len + gen）。
- * gen 与 read_ptr_gen_valid 配套，用于跨 read_ptr 调用校验指针是否仍有效。
+ * See implementation.
+ * See implementation.
  */
 allow(padding) struct ReadPtrView {
   ptr: *u8;
   len: i32;
   gen: u64;
 }
-// ——— Reader / Writer trait（自举前必须清单第二步、高并发IO 1.1） ———
-// 最小签名：仅 (self) + 返回类型；具体 impl 由 File/网络等类型实现；read/write 缓冲与长度由 impl 方法参数扩展。
+// See implementation.
+// See implementation.
 export trait Reader {
+  /** Internal function `read`.
+   * Read path helper `read`.
+   * @param self
+   * @return i32;
+   */
   function read(self): i32;
 }
 export trait Writer {
+  /** Internal function `write`.
+   * Write path helper `write`.
+   * @param self
+   * @return i32;
+   */
   function write(self): i32;
 }
-// ——— 超时常量：timeout_ms 传 0 表示无超时（阻塞直到完成），与 driver 一致 ———
-// 使用示例：read_with_timeout(ptr, len, 0) 等价于 read_stdin(ptr, len)。
-// ——— 标准 handle（0=stdin，1=stdout，2=stderr；≥2 可与 std.fs/std.net fd 统一） ———
-// X 流水线 return 字面量可由 typeck 隐式升格为 usize（与 std 内 read(数字,…) 的常见写法等价）。
+// See implementation.
+// See implementation.
+// See implementation.
+// stdin: see function docblock below.
+/** Exported function `stdin`.
+ * Implements `stdin`.
+ * @return usize
+ */
 export function stdin(): usize { return 0 as usize; }
+/** Exported function `stdout`.
+ * Implements `stdout`.
+ * @return usize
+ */
 export function stdout(): usize { return 1; }
+/** Exported function `stderr`.
+ * Implements `stderr`.
+ * @return usize
+ */
 export function stderr(): usize { return 2; }
-/** 将 std.fs 等得到的 fd 转为 io handle，用于 read/write；与 std.fs 联合压榨时 fd 走 io_uring/readv。 */
-/** fd 转 handle；第二参 unused 与 codegen 产出一致，调用处传 0。 */
+/* See implementation. */
+/** Exported function `from_fd`.
+ * Implements `from_fd`.
+ * @param fd i32
+ * @param _unused i32): usize { return (fd as usize
+ * @return void
+ */
 export function from_fd(fd: i32, _unused: i32): usize { return (fd as usize); }
-// ——— 通用 handle 读写：任意 handle（stdin/stdout/stderr 或 fd）均可走同一套 submit ———
-// 从 handle 读入至 ptr[0..len]，timeout_ms 毫秒（0=无超时）。返回读入字节数，0=EOF，-1=错误。
+// See implementation.
+// read: see function docblock below.
+/** Exported function `read`.
+ * Read path helper `read`.
+ * @param handle usize
+ * @param ptr *u8
+ * @param len usize
+ * @param timeout_ms u32
+ * @return i32
+ */
 export function read(handle: usize, ptr: *u8, len: usize, timeout_ms: u32): i32 {
   let buf: Buffer = Buffer { ptr: ptr, len: len, handle: handle };
   return driver.submit_read(buf, timeout_ms);
 }
-// 将 ptr[0..len] 写入 handle，timeout_ms 毫秒（0=无超时）。返回写入字节数，-1=错误。
+// write: see function docblock below.
+/** Exported function `write`.
+ * Write path helper `write`.
+ * @param handle usize
+ * @param ptr *u8
+ * @param len usize
+ * @param timeout_ms u32
+ * @return i32
+ */
 export function write(handle: usize, ptr: *u8, len: usize, timeout_ms: u32): i32 {
   let buf: Buffer = Buffer { ptr: ptr, len: len, handle: handle };
   return driver.submit_write(buf, timeout_ms);
 }
-// ——— STD-091：Context 联动 read/write（取消/ deadline 先于 I/O 短路） ———
-/** timeout_ms_for_context 在 Context 已取消时的 sentinel（须 < 0，区别于 0=无超时）。 */
+// See implementation.
+/* See implementation. */
 export const IO_CTX_MS_CANCELLED: i32 = -1;
-/** timeout_ms_for_context 在 Context 已过期时的 sentinel。 */
+/* See implementation. */
 export const IO_CTX_MS_EXPIRED: i32 = -2;
-/** 从 Context 推导 read/write 超时毫秒；无 deadline 返回 0；取消/过期返回 IO_CTX_MS_*。 */
+/** Exported function `timeout_from_ctx`.
+ * Implements `timeout_from_ctx`.
+ * @param ctx Context
+ * @return i32
+ */
 export function timeout_from_ctx(ctx: Context): i32 {
   if (context.is_cancelled(ctx) != 0) {
     return IO_CTX_MS_CANCELLED;
@@ -109,7 +156,14 @@ export function timeout_from_ctx(ctx: Context): i32 {
   }
   return ms as i32;
 }
-/** 带 Context 的 read：已取消返回 io_err_cancelled，已过期返回 io_err_timeout。 */
+/** Exported function `read_ctx`.
+ * Read path helper `read_ctx`.
+ * @param handle usize
+ * @param ptr *u8
+ * @param len usize
+ * @param ctx Context
+ * @return i32
+ */
 export function read_ctx(handle: usize, ptr: *u8, len: usize, ctx: Context): i32 {
   let tm: i32 = timeout_from_ctx(ctx);
   if (tm == IO_CTX_MS_CANCELLED) {
@@ -120,7 +174,14 @@ export function read_ctx(handle: usize, ptr: *u8, len: usize, ctx: Context): i32
   }
   return read(handle, ptr, len, tm as u32);
 }
-/** 带 Context 的 write：语义同 read_ctx。 */
+/** Exported function `write_ctx`.
+ * Write path helper `write_ctx`.
+ * @param handle usize
+ * @param ptr *u8
+ * @param len usize
+ * @param ctx Context
+ * @return i32
+ */
 export function write_ctx(handle: usize, ptr: *u8, len: usize, ctx: Context): i32 {
   let tm: i32 = timeout_from_ctx(ctx);
   if (tm == IO_CTX_MS_CANCELLED) {
@@ -131,36 +192,57 @@ export function write_ctx(handle: usize, ptr: *u8, len: usize, ctx: Context): i3
   }
   return write(handle, ptr, len, tm as u32);
 }
-// ——— 标准流便捷 API（等价于 read(0,...)/write(1,...)/write(2,...)，timeout=0） ———
+// read_stdin: see function docblock below.
+/** Exported function `read_stdin`.
+ * Read path helper `read_stdin`.
+ * @param ptr *u8
+ * @param len usize
+ * @return i32
+ */
 export function read_stdin(ptr: *u8, len: usize): i32 {
   return read(stdin(), ptr, len, 0 as u32);
 }
-/** 零拷贝读：读入内部缓冲，返回只读指针；失败返回 0。生命周期见文件头 Z2 约定。 */
+/** Exported function `read_ptr`.
+ * Read path helper `read_ptr`.
+ * @param handle usize
+ * @param timeout_ms u32
+ * @return *u8
+ */
 export function read_ptr(handle: usize, timeout_ms: u32): *u8 {
   return driver.driver_read_ptr(handle, timeout_ms);
 }
-/** 返回最近一次 read_ptr/read_stdin_ptr 成功读入的字节数；与 read_ptr/read_stdin_ptr 配套使用。 */
+/** Exported function `ptr_len`.
+ * Query helper `ptr_len`.
+ * @return i32
+ */
 export function ptr_len(): i32 {
   return driver.driver_read_ptr_len();
 }
 /**
- * ZC-2：返回最近一次成功 read_ptr 的 generation。
- * 与 read_ptr_gen_valid 配套：跨 read_ptr 调用后 saved gen 不等则旧指针失效。
+ * See implementation.
+ * See implementation.
  */
 export function ptr_gen(): u64 {
   return driver.driver_read_ptr_gen();
 }
-/** ZC-2：saved 与当前 generation 相等返回 1（视图仍有效），否则 0。 */
+/** Exported function `ptr_valid`.
+ * Implements `ptr_valid`.
+ * @param saved u64
+ * @return i32
+ */
 export function ptr_valid(saved: u64): i32 {
   return driver.driver_read_ptr_gen_valid(saved);
 }
-/** ZC-2：上次 read_ptr 后端：0=TLS，1=mmap(Linux)，2=dispatch_data(macOS)。 */
+/** Exported function `ptr_backend`.
+ * Implements `ptr_backend`.
+ * @return i32
+ */
 export function ptr_backend(): i32 {
   return driver.driver_read_ptr_backend();
 }
 /**
- * ZC-2：零拷贝读并打包为 ReadPtrView（ptr+len+gen 一次取用）。
- * 失败时 ptr=0、len=0、gen 为当前 generation。
+ * See implementation.
+ * See implementation.
  */
 export function ptr_view(handle: usize, timeout_ms: u32): ReadPtrView {
   let p: *u8 = read_ptr(handle, timeout_ms);
@@ -168,65 +250,131 @@ export function ptr_view(handle: usize, timeout_ms: u32): ReadPtrView {
   let g: u64 = ptr_gen();
   return ReadPtrView { ptr: p, len: n, gen: g };
 }
-/** ZC-2：ReadPtrView 是否仍对应当前有效 read_ptr 视图。 */
+/** Exported function `ptr_view_valid`.
+ * Implements `ptr_view_valid`.
+ * @param v ReadPtrView
+ * @return i32
+ */
 export function ptr_view_valid(v: ReadPtrView): i32 {
   if (v.ptr == 0) {
     return 0;
   }
   return ptr_valid(v.gen);
 }
-/** ZC-2：stdin 版 read_ptr_view。 */
+/** Exported function `stdin_ptr_view`.
+ * Implements `stdin_ptr_view`.
+ * @return ReadPtrView
+ */
 export function stdin_ptr_view(): ReadPtrView {
   return ptr_view(stdin(), 0 as u32);
 }
 /**
- * M-5：零拷贝读并返回 u8[] slice（域 io_read_ptr，指向 TLS g_io_read_ptr_buf）。
- * 生命周期同 read_ptr；勿赋给未标注 u8[]（typeck 域逃逸检查）。
+ * See implementation.
+ * See implementation.
  */
 export function ptr_slice(handle: usize, timeout_ms: u32): u8[]<io_read_ptr> {
   return driver.driver_read_ptr_slice(handle, timeout_ms);
 }
-/** 零拷贝读 stdin slice；等价 ptr_slice(stdin(), 0)。
- *  权威名 stdin_slice。旧名 stdin_ptr_slice 在 C co-emit 下会只发 extern 不发体
- *  （名敏感），故产品/测试统一 stdin_slice；seed 桩另有 read_stdin_ptr_slice 兼容。 */
+/** Exported function `stdin_slice`.
+ * Implements `stdin_slice`.
+ * @return u8[]<io_read_ptr>
+ */
 export function stdin_slice(): u8[]<io_read_ptr> {
   return driver.driver_read_ptr_slice(stdin(), 0 as u32);
 }
-/** 零拷贝读 stdin：读入内部缓冲，返回只读指针；失败返回 0。指针在下次 read_stdin_ptr/read_ptr 前有效；长度用 ptr_len()。 */
+/** Exported function `read_stdin_ptr`.
+ * Read path helper `read_stdin_ptr`.
+ * @return *u8
+ */
 export function read_stdin_ptr(): *u8 {
   return read_ptr(stdin(), 0 as u32);
 }
+/** Exported function `write_stdout`.
+ * Write path helper `write_stdout`.
+ * @param ptr *u8
+ * @param len usize
+ * @return i32
+ */
 export function write_stdout(ptr: *u8, len: usize): i32 {
   return write(stdout(), ptr, len, 0 as u32);
 }
+/** Exported function `write_stderr`.
+ * Write path helper `write_stderr`.
+ * @param ptr *u8
+ * @param len usize
+ * @return i32
+ */
 export function write_stderr(ptr: *u8, len: usize): i32 {
   return write(stderr(), ptr, len, 0 as u32);
 }
-// ——— 带超时的标准流 API ———
-/** stdin 便捷 read（3 参重载）。 */
+// See implementation.
+/** Exported function `read`.
+ * Read path helper `read`.
+ * @param ptr *u8
+ * @param len usize
+ * @param timeout_ms u32
+ * @return i32
+ */
 export function read(ptr: *u8, len: usize, timeout_ms: u32): i32 {
   return read(stdin(), ptr, len, timeout_ms);
 }
-/** stdout 便捷 write（3 参重载）。 */
+/** Exported function `write`.
+ * Write path helper `write`.
+ * @param ptr *u8
+ * @param len usize
+ * @param timeout_ms u32
+ * @return i32
+ */
 export function write(ptr: *u8, len: usize, timeout_ms: u32): i32 {
   return write(stdout(), ptr, len, timeout_ms);
 }
-// 向 stderr 写入 ptr[0..len]，超时 timeout_ms（0=无超时）。返回写入字节数，-1=错误。
-/** stderr 带超时 write（3 参重载）。 */
+// See implementation.
+/** Exported function `write_stderr`.
+ * Write path helper `write_stderr`.
+ * @param ptr *u8
+ * @param len usize
+ * @param timeout_ms u32
+ * @return i32
+ */
 export function write_stderr(ptr: *u8, len: usize, timeout_ms: u32): i32 {
   return write(stderr(), ptr, len, timeout_ms);
 }
-// ——— 批量读写：解构 import("std.io.driver") 后直接使用 submit_read_batch / submit_write_batch（传 Buffer[4] + n + timeout_ms） ———
-// ——— 与 std.fs 联合极致压榨：fd 单次/批量走 io_uring（Linux）/readv/writev，一次 submit 多段 ———
-/** 从 fd 读入至 ptr[0..len]（timeout=0）；fd 可为 std.fs 打开的文件。推荐 len ≥ std.fs.chunk_size() 压榨 syscall。返回读入字节数，0=EOF，-1=错误。 */
+// See implementation.
+// See implementation.
+/** Exported function `read_fd`.
+ * Read path helper `read_fd`.
+ * @param fd i32
+ * @param ptr *u8
+ * @param len usize
+ * @return i32
+ */
 export function read_fd(fd: i32, ptr: *u8, len: usize): i32 {
   return read(from_fd(fd, 0), ptr, len, 0 as u32);
 }
-/** 将 ptr[0..len] 写入 fd（timeout=0）；fd 可为 std.fs 打开的文件。返回写入字节数，-1=错误。 */
+/** Exported function `write_fd`.
+ * Write path helper `write_fd`.
+ * @param fd i32
+ * @param ptr *u8
+ * @param len usize
+ * @return i32
+ */
 export function write_fd(fd: i32, ptr: *u8, len: usize): i32 {
   return write(from_fd(fd, 0), ptr, len, 0 as u32);
 }
-/** 从 fd 批量读：一次 submit 最多 4 段 (p0,l0)..(p3,l3)，n 为段数 1..4。Linux 走 io_uring 多 SQE 或 readv，极致压榨。返回总字节数，-1=错误。 */
+/** Exported function `read_batch_fd`.
+ * Read path helper `read_batch_fd`.
+ * @param fd i32
+ * @param p0 *u8
+ * @param l0 usize
+ * @param p1 *u8
+ * @param l1 usize
+ * @param p2 *u8
+ * @param l2 usize
+ * @param p3 *u8
+ * @param l3 usize
+ * @param n i32
+ * @return i32
+ */
 export function read_batch_fd(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize, n: i32): i32 {
   let h: usize = from_fd(fd, 0);
   let bufs: Buffer[4] = [
@@ -237,7 +385,20 @@ export function read_batch_fd(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p
   ];
   return driver.submit_read_batch(bufs, n, 0 as u32);
 }
-/** 向 fd 批量写：一次 submit 最多 4 段 (p0,l0)..(p3,l3)，n 为段数 1..4。Linux 走 io_uring 多 SQE 或 writev，极致压榨。返回总字节数，-1=错误。 */
+/** Exported function `write_batch_fd`.
+ * Write path helper `write_batch_fd`.
+ * @param fd i32
+ * @param p0 *u8
+ * @param l0 usize
+ * @param p1 *u8
+ * @param l1 usize
+ * @param p2 *u8
+ * @param l2 usize
+ * @param p3 *u8
+ * @param l3 usize
+ * @param n i32
+ * @return i32
+ */
 export function write_batch_fd(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize, n: i32): i32 {
   let h: usize = from_fd(fd, 0);
   let bufs: Buffer[4] = [
@@ -248,113 +409,250 @@ export function write_batch_fd(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, 
   ];
   return driver.submit_write_batch(bufs, n, 0 as u32);
 }
-/** 与 Zig/Rust 对齐：从 fd 按「指针+段数」批量读；buffers 指向至少 n 个 Buffer（ptr/len 有效），n 为 1..16。timeout=0。返回总字节数，-1=错误。 */
+/** Exported function `readv`.
+ * Read path helper `readv`.
+ * @param fd i32
+ * @param buffers *Buffer
+ * @param n i32
+ * @return i32
+ */
 export function readv(fd: i32, buffers: *Buffer, n: i32): i32 {
   let h: usize = from_fd(fd, 0);
   return driver.submit_read_batch_buf(h, buffers, n, 0 as u32);
 }
-/** 与 Zig/Rust 对齐：向 fd 按「指针+段数」批量写；buffers 同上，n 为 1..16。返回总字节数，-1=错误。 */
+/** Exported function `writev`.
+ * Write path helper `writev`.
+ * @param fd i32
+ * @param buffers *Buffer
+ * @param n i32
+ * @return i32
+ */
 export function writev(fd: i32, buffers: *Buffer, n: i32): i32 {
   let h: usize = from_fd(fd, 0);
   return driver.submit_write_batch_buf(h, buffers, n, 0 as u32);
 }
-// ——— 便捷：向 stdout 写一段字节（等价于 write_stdout(ptr, len)） ———
-/** 向 stdout 写一段字节。 */
+// See implementation.
+/** Exported function `print`.
+ * Implements `print`.
+ * @param ptr *u8
+ * @param len usize
+ * @return i32
+ */
 export function print(ptr: *u8, len: usize): i32 {
   return write_stdout(ptr, len);
 }
-// ——— 固定 buffer 池（多块）：注册最多 4 块 (p0,l0)..(p3,l3)，nr 为实际数量 1..4。返回 1 成功，0 失败。———
-// 与 std.io.driver 中曾重复的同名实现已移到仅保留在 mod；asm 合并 dep 时仍依赖 runtime merge 对同 import 路径去重。
+// See implementation.
+// register_buffers: see function docblock below.
+/** Exported function `register_buffers`.
+ * Registration helper `register_buffers`.
+ * @param p0 *u8
+ * @param l0 usize
+ * @param p1 *u8
+ * @param l1 usize
+ * @param p2 *u8
+ * @param l2 usize
+ * @param p3 *u8
+ * @param l3 usize
+ * @param nr u32
+ * @return i32
+ */
 export function register_buffers(p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize, nr: u32): i32 {
   return core.shux_io_register_buffers(p0, l0, p1, l1, p2, l2, p3, l3, nr);
 }
-/** 与 Zig/Rust 对齐：按「指针+块数」注册固定 buffer 池；bufs 指向至少 nr 个 Buffer（ptr/len 有效），nr 为 1..8。返回 1 成功，0 失败。 */
+/** Exported function `register_buffers`.
+ * Registration helper `register_buffers`.
+ * @param bufs *Buffer
+ * @param nr u32
+ * @return i32
+ */
 export function register_buffers(bufs: *Buffer, nr: u32): i32 {
   return driver.submit_register_fixed_buffers_buf(bufs, nr);
 }
-/** 阶段 4 性能压榨：从 fd 用已注册 fixed buffer 读；buf_index 为 register_fixed_buffers 池下标，offset+len 须 ≤ 该块长度。返回读入字节数，0=EOF，-1=错误。供 std.net 热路径用。 */
+/** Exported function `read_fixed_fd`.
+ * Read path helper `read_fixed_fd`.
+ * @param fd i32
+ * @param buf_index u32
+ * @param offset usize
+ * @param len usize
+ * @param timeout_ms u32
+ * @return i32
+ */
 export function read_fixed_fd(fd: i32, buf_index: u32, offset: usize, len: usize, timeout_ms: u32): i32 {
   return core.shux_io_read_fixed(from_fd(fd, 0), buf_index, offset, len, timeout_ms);
 }
-/** 阶段 4 性能压榨：向 fd 用已注册 fixed buffer 写；buf_index/offset/len 同上。返回写入字节数，-1=错误。 */
+/** Exported function `write_fixed_fd`.
+ * Write path helper `write_fixed_fd`.
+ * @param fd i32
+ * @param buf_index u32
+ * @param offset usize
+ * @param len usize
+ * @param timeout_ms u32
+ * @return i32
+ */
 export function write_fixed_fd(fd: i32, buf_index: u32, offset: usize, len: usize, timeout_ms: u32): i32 {
   return core.shux_io_write_fixed(from_fd(fd, 0), buf_index, offset, len, timeout_ms);
 }
 // ─── ZC-1 Provided Buffers：IORING_OP_PROVIDE_BUFFERS + buffer ring（Linux 5.19+）───
-// 热路径默认 SHUX_IO_PROVIDE_LAZY=1：re-provide 后延迟 drain PROVIDE CQE，下轮读前批量收割。
-/** 注册 provided 池；nr 1..32，bufsz 建议 4096。成功 1，失败/不支持 0。 */
+// See implementation.
+/** Exported function `register_provided`.
+ * Registration helper `register_provided`.
+ * @param nr u32
+ * @param bufsz u32
+ * @return i32
+ */
 export function register_provided(nr: u32, bufsz: u32): i32 {
   return core.shux_io_register_provided_buffers(nr, bufsz);
 }
-/** 注销 provided 池。 */
+/** Exported function `unregister_provided`.
+ * Registration helper `unregister_provided`.
+ * @return void
+ */
 export function unregister_provided(): void {
   core.shux_io_unregister_provided_buffers();
 }
-/** 返回 bid 块只读指针；生命周期至该块被再次 recv 覆盖。 */
+/** Exported function `provided_buffer_ptr`.
+ * Implements `provided_buffer_ptr`.
+ * @param bid u32
+ * @return *u8
+ */
 export function provided_buffer_ptr(bid: u32): *u8 {
   return core.shux_io_provided_buffer_ptr(bid);
 }
-/** provided 单块容量。 */
+/** Exported function `provided_buffer_size`.
+ * Implements `provided_buffer_size`.
+ * @return u32
+ */
 export function provided_buffer_size(): u32 {
   return core.shux_io_provided_buffer_size();
 }
-/** 单次 provided recv；out_bid/out_len 可传 0。返回字节数，0=EOF，-1=错误。 */
+/** Exported function `read_provided_fd`.
+ * Read path helper `read_provided_fd`.
+ * @param fd i32
+ * @param timeout_ms u32
+ * @param out_bid *u32
+ * @param out_len *u32
+ * @return i32
+ */
 export function read_provided_fd(fd: i32, timeout_ms: u32, out_bid: *u32, out_len: *u32): i32 {
   return core.shux_io_read_provided(from_fd(fd, 0), timeout_ms, out_bid, out_len);
 }
-/** 批量 provided recv（n=1..4）；out_bids/out_lens 各 n 元素。返回总字节数，-1=错误。 */
+/** Exported function `read_batch_provided_fd`.
+ * Read path helper `read_batch_provided_fd`.
+ * @param fd i32
+ * @param n i32
+ * @param timeout_ms u32
+ * @param out_bids *u32
+ * @param out_lens *u32
+ * @return i32
+ */
 export function read_batch_provided_fd(fd: i32, n: i32, timeout_ms: u32, out_bids: *u32, out_lens: *u32): i32 {
   return core.shux_io_read_batch_provided(from_fd(fd, 0), n, timeout_ms, out_bids, out_lens);
 }
-// ——— 多 fd 就绪等待：fds 指向 n 个 i32（fd），一次系统调用等待任意可读。返回就绪下标 0..n-1，超时/错误 -1。———
+// wait_readable: see function docblock below.
+/** Exported function `wait_readable`.
+ * Read path helper `wait_readable`.
+ * @param fds *i32
+ * @param n i32
+ * @param timeout_ms u32
+ * @return i32
+ */
 export function wait_readable(fds: *i32, n: i32, timeout_ms: u32): i32 {
   return core.shux_io_wait_readable(fds, n, timeout_ms);
 }
-// ——— slice 版 API：使用 u8[] 的 .data（*u8）与 .length（usize）对接 read/write ———
-// IO-A5 v2：非阻塞 read；submit 返回 slot>=0，complete_read(slot) 收割。
+// See implementation.
+// See implementation.
 export const IO_ASYNC_NOT_READY: i32 = -2;
-/** 提交非阻塞 read；成功返回 slot>=0，失败 -1。 */
+/** Exported function `read_async`.
+ * Read path helper `read_async`.
+ * @param handle usize
+ * @param ptr *u8
+ * @param len usize
+ * @return i32
+ */
 export function read_async(handle: usize, ptr: *u8, len: usize): i32 {
   return core.shux_io_submit_read_async(ptr, len, handle);
 }
-/** 收割在途 read_async（单 in-flight 兼容）；见 IO_ASYNC_NOT_READY。 */
+/** Exported function `complete_read`.
+ * Read path helper `complete_read`.
+ * @return i32
+ */
 export function complete_read(): i32 {
   return core.shux_io_complete_read_async();
 }
-/** 收割指定 slot 的 read_async（重载）。 */
+/** Exported function `complete_read`.
+ * Read path helper `complete_read`.
+ * @param slot i32
+ * @return i32
+ */
 export function complete_read(slot: i32): i32 {
   return core.shux_io_complete_read_async_slot(slot);
 }
-/** 提交非阻塞 write；成功返回 slot>=0，失败 -1。 */
+/** Exported function `write_async`.
+ * Write path helper `write_async`.
+ * @param handle usize
+ * @param ptr *u8
+ * @param len usize
+ * @return i32
+ */
 export function write_async(handle: usize, ptr: *u8, len: usize): i32 {
   return core.shux_io_submit_write_async(ptr, len, handle);
 }
-/** 收割在途 write_async（单 in-flight 兼容）；见 IO_ASYNC_NOT_READY。 */
+/** Exported function `complete_write`.
+ * Write path helper `complete_write`.
+ * @return i32
+ */
 export function complete_write(): i32 {
   return core.shux_io_complete_write_async();
 }
-/** 收割指定 slot 的 write_async。 */
+/** Exported function `complete_write`.
+ * Write path helper `complete_write`.
+ * @param slot i32
+ * @return i32
+ */
 export function complete_write(slot: i32): i32 {
   return core.shux_io_complete_write_async_slot(slot);
 }
-/** poll io_uring async CQE 并唤醒 scheduler；返回本次收割的 async 完成数。 */
+/** Exported function `poll_completions`.
+ * Implements `poll_completions`.
+ * @param timeout_ms u32
+ * @return u32
+ */
 export function poll_completions(timeout_ms: u32): u32 {
   return core.shux_io_poll_async_completions(timeout_ms);
 }
-/** 当前线程 io_uring 是否可用（Linux 且 ring 初始化成功）；1 是，0 否。 */
+/** Exported function `uring_ok`.
+ * Implements `uring_ok`.
+ * @return i32
+ */
 export function uring_ok(): i32 {
   return core.shux_io_uring_is_available_c();
 }
-// 从 stdin 读入至 buf[0..buf.length]，timeout_ms 毫秒（0=无超时）。返回读入字节数，0=EOF，-1=错误。
+// read_slice: see function docblock below.
+/** Exported function `read_slice`.
+ * Read path helper `read_slice`.
+ * @param buf u8[]
+ * @param timeout_ms u32
+ * @return i32
+ */
 export function read_slice(buf: u8[], timeout_ms: u32): i32 {
   return read(stdin(), buf.data, buf.length, timeout_ms);
 }
-// 将 buf[0..buf.length] 写入 stdout，timeout_ms 毫秒（0=无超时）。返回写入字节数，-1=错误。
+// write_slice: see function docblock below.
+/** Exported function `write_slice`.
+ * Write path helper `write_slice`.
+ * @param buf u8[]
+ * @param timeout_ms u32
+ * @return i32
+ */
 export function write_slice(buf: u8[], timeout_ms: u32): i32 {
   return write(stdout(), buf.data, buf.length, timeout_ms);
 }
-// ——— 标准输出整数 print（.x 单一权威；对齐 seed printf("%d\n") 语义，供 tests/io） ———
-/** 将 i64 十进制写入 stdout 并追加 '\n'；返回 0（与历史 seed 桩一致）。 */
+// See implementation.
+/** Internal function `print_i64_nl`.
+ * Implements `print_i64_nl`.
+ * @param v i64
+ * @return i32
+ */
 function print_i64_nl(v: i64): i32 {
   let buf: u8[24] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   let tmp: u8[24] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
@@ -370,7 +668,7 @@ function print_i64_nl(v: i64): i32 {
   if (x < 0) {
     buf[0] = 45 as u8;
     pos = 1;
-    /* i64 最小负值 -x 溢出：退化为按 u64 位模式不走此支（测试路径为正数） */
+    /* See implementation. */
     x = 0 as i64 - x;
   }
   while (x > 0) {
@@ -388,17 +686,32 @@ function print_i64_nl(v: i64): i32 {
   let _w: i32 = write_stdout(&buf[0], pos as usize);
   return 0;
 }
-/** print 有符号 32 位。 */
+/** Exported function `print`.
+ * Implements `print`.
+ * @param x i32
+ * @return i32
+ */
 export function print(x: i32): i32 {
   return print_i64_nl(x as i64);
 }
-/** print 无符号 32 位。 */
+/** Exported function `print`.
+ * Implements `print`.
+ * @param x u32
+ * @return i32
+ */
 export function print(x: u32): i32 {
   return print_i64_nl(x as i64);
 }
-/** print 64 位整数。 */
+/** Exported function `print`.
+ * Implements `print`.
+ * @param x i64
+ * @return i32
+ */
 export function print(x: i64): i32 {
   return print_i64_nl(x);
 }
-/** 模块尾占位：transitive import 解析时末位 function 会丢失，须保留非 API 锚点。 */
+/** Exported function `io_module_anchor`.
+ * Implements `io_module_anchor`.
+ * @return i32
+ */
 export function io_module_anchor(): i32 { return 0; }

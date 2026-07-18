@@ -1,10 +1,14 @@
-// NL-04：Linux freestanding 读文件 + mmap 堆缓冲 + stdout（零 libc / 无 fs.c）。
+// See implementation.
 //
-// 【Why import】bug ①②③ 修复完成后恢复为 import 版本（与 NL-06 manifest 一致）。
+// See implementation.
 const fs = import("std.fs.freestanding_linux");
 const heap = import("std.heap.page_mmap");
 const sys = import("std.sys");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (fs.freestanding_fs_available() != 1) {
     return 1;
@@ -12,7 +16,7 @@ function main(): i32 {
   if (heap.page_mmap_heap_available() != 1) {
     return 2;
   }
-  /** gate 写入 "/tmp/shux_nolibc_fs_gate.txt\0" 内容为 "FS"。 */
+  /* See implementation. */
   let path: u8[32] = [
     47, 116, 109, 112, 47, 115, 104, 117, 120, 95, 110, 111, 108, 105, 98, 99,
     95, 102, 115, 95, 103, 97, 116, 101, 46, 116, 120, 116, 0, 0, 0, 0,

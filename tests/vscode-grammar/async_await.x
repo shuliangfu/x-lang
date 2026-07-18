@@ -1,4 +1,4 @@
-// TOOL-009 golden：async/await 关键字高亮
+// See implementation.
 const async_mod = import("std.async");
 
 async function ping(): i32 {

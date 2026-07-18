@@ -14,10 +14,10 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.elf — ELF64 只读解析与最小写入（STD-058/063/064/103/121）
+// See implementation.
 //
-// 【文件职责】对接 std/elf/elf.x；工具链与测试烟测用。
-// 【依赖】core + std.fs（fixture 读）；解析/写入逻辑于 elf.x。
+// See implementation.
+// See implementation.
 
 export const ELF_OK: i32 = 0;
 export const ELF_ERR_NULL: i32 = -1;
@@ -92,66 +92,137 @@ extern function elf64_write_min_reloc_c(buf: *u8, cap: i32, text: *u8, text_len:
 extern function elf64_write_smoke_c(): i32;
 extern function elf64_parse_smoke_c(): i32;
 
-/** ELF 模块已实现（对接 elf.x）。 */
+/** Exported function `is_implemented`.
+ * Query helper `is_implemented`.
+ * @return i32
+ */
 export function is_implemented(): i32 { return 1; }
 
-/** 解析 ELF64 文件头。 */
+/** Exported function `parse_hdr`.
+ * Implements `parse_hdr`.
+ * @param ptr *u8
+ * @param len i32
+ * @param out *Elf64Hdr
+ * @return i32
+ */
 export function parse_hdr(ptr: *u8, len: i32, out: *Elf64Hdr): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = elf64_parse_hdr_c(ptr, len, out); }
   return _rc;
 }
 
-/** 读取第 idx 个 section 头。 */
+/** Exported function `read_section`.
+ * Read path helper `read_section`.
+ * @param ptr *u8
+ * @param len i32
+ * @param hdr *Elf64Hdr
+ * @param idx i32
+ * @param out *Elf64Sec
+ * @return i32
+ */
 export function read_section(ptr: *u8, len: i32, hdr: *Elf64Hdr, idx: i32, out: *Elf64Sec): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = elf64_read_shdr_c(ptr, len, hdr.shoff, hdr.shnum, idx, out); }
   return _rc;
 }
 
-/** 从 shstrtab 取节名。 */
+/** Exported function `sec_name`.
+ * Implements `sec_name`.
+ * @param ptr *u8
+ * @param len i32
+ * @param strtab *Elf64Sec
+ * @param name_off i32
+ * @param buf *u8
+ * @param buf_len i32
+ * @return i32
+ */
 export function sec_name(ptr: *u8, len: i32, strtab: *Elf64Sec, name_off: i32, buf: *u8, buf_len: i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = elf64_sec_name_c(ptr, len, strtab.offset, strtab.size, name_off, buf, buf_len); }
   return _rc;
 }
 
-/** 按节名查找索引。 */
+/** Exported function `find_section_idx`.
+ * Implements `find_section_idx`.
+ * @param ptr *u8
+ * @param len i32
+ * @param hdr *Elf64Hdr
+ * @param want *u8
+ * @param out_idx *i32
+ * @return i32
+ */
 export function find_section_idx(ptr: *u8, len: i32, hdr: *Elf64Hdr, want: *u8, out_idx: *i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = elf64_find_section_c(ptr, len, hdr.shoff, hdr.shnum, hdr.shstrndx, want, out_idx); }
   return _rc;
 }
 
-/** 读取节体内字节。 */
+/** Exported function `read_sec_byte`.
+ * Read path helper `read_sec_byte`.
+ * @param ptr *u8
+ * @param len i32
+ * @param sec *Elf64Sec
+ * @param at u64
+ * @param out *u8
+ * @return i32
+ */
 export function read_sec_byte(ptr: *u8, len: i32, sec: *Elf64Sec, at: u64, out: *u8): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = elf64_read_sec_byte_c(ptr, len, sec.offset, sec.size, at, out); }
   return _rc;
 }
 
-/** 读取 program 头。 */
+/** Exported function `read_phdr`.
+ * Read path helper `read_phdr`.
+ * @param ptr *u8
+ * @param len i32
+ * @param hdr *Elf64Hdr
+ * @param idx i32
+ * @param out *Elf64Phdr
+ * @return i32
+ */
 export function read_phdr(ptr: *u8, len: i32, hdr: *Elf64Hdr, idx: i32, out: *Elf64Phdr): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = elf64_read_phdr_c(ptr, len, hdr.phoff, hdr.phnum, idx, out); }
   return _rc;
 }
 
-/** 读取 symtab 条目。 */
+/** Exported function `read_sym`.
+ * Read path helper `read_sym`.
+ * @param ptr *u8
+ * @param len i32
+ * @param sec *Elf64Sec
+ * @param idx i32
+ * @param out *Elf64Sym
+ * @return i32
+ */
 export function read_sym(ptr: *u8, len: i32, sec: *Elf64Sec, idx: i32, out: *Elf64Sym): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = elf64_read_sym_c(ptr, len, sec.offset, sec.size, idx, out); }
   return _rc;
 }
 
-/** 从 strtab 节取符号名。 */
+/** Exported function `sym_name`.
+ * Implements `sym_name`.
+ * @param ptr *u8
+ * @param len i32
+ * @param strtab *Elf64Sec
+ * @param name_off i32
+ * @param buf *u8
+ * @param buf_len i32
+ * @return i32
+ */
 export function sym_name(ptr: *u8, len: i32, strtab: *Elf64Sec, name_off: i32, buf: *u8, buf_len: i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = elf64_sec_name_c(ptr, len, strtab.offset, strtab.size, name_off, buf, buf_len); }
   return _rc;
 }
 
-/** symtab 条目数（每符号 24 字节）。 */
+/** Exported function `symtab_entry_count`.
+ * Implements `symtab_entry_count`.
+ * @param sec *Elf64Sec
+ * @return i32
+ */
 export function symtab_entry_count(sec: *Elf64Sec): i32 {
   let sz: u64 = 0;
   unsafe {
@@ -161,14 +232,26 @@ export function symtab_entry_count(sec: *Elf64Sec): i32 {
   return n as i32;
 }
 
-/** 读取 rela 条目。 */
+/** Exported function `read_rela`.
+ * Read path helper `read_rela`.
+ * @param ptr *u8
+ * @param len i32
+ * @param sec *Elf64Sec
+ * @param idx i32
+ * @param out *Elf64Rela
+ * @return i32
+ */
 export function read_rela(ptr: *u8, len: i32, sec: *Elf64Sec, idx: i32, out: *Elf64Rela): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = elf64_read_rela_c(ptr, len, sec.offset, sec.size, idx, out); }
   return _rc;
 }
 
-/** rela 条目数。 */
+/** Exported function `rela_entry_count`.
+ * Implements `rela_entry_count`.
+ * @param sec *Elf64Sec
+ * @return i32
+ */
 export function rela_entry_count(sec: *Elf64Sec): i32 {
   let sz: u64 = 0;
   unsafe {
@@ -178,33 +261,54 @@ export function rela_entry_count(sec: *Elf64Sec): i32 {
   return n as i32;
 }
 
-/** write_min_reloc 成功码。 */
+/** Exported function `write_err_ok`.
+ * Write path helper `write_err_ok`.
+ * @return i32
+ */
 export function write_err_ok(): i32 {
   return ELF_OK;
 }
 
-/** 计算 write_min_reloc 所需缓冲容量。 */
+/** Exported function `write_min_reloc_size`.
+ * Write path helper `write_min_reloc_size`.
+ * @param text_len i32
+ * @return i32
+ */
 export function write_min_reloc_size(text_len: i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = elf64_write_min_reloc_size_c(text_len); }
   return _rc;
 }
 
-/** 写入带最小重定位表的 ELF64 可执行镜像。 */
+/** Exported function `write_min_reloc`.
+ * Write path helper `write_min_reloc`.
+ * @param buf *u8
+ * @param cap i32
+ * @param text *u8
+ * @param text_len i32
+ * @param out_len *i32
+ * @return i32
+ */
 export function write_min_reloc(buf: *u8, cap: i32, text: *u8, text_len: i32, out_len: *i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = elf64_write_min_reloc_c(buf, cap, text, text_len, out_len); }
   return _rc;
 }
 
-/** C 层写入 round-trip 烟测；0 通过。 */
+/** Exported function `write_smoke`.
+ * Write path helper `write_smoke`.
+ * @return i32
+ */
 export function write_smoke(): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = elf64_write_smoke_c(); }
   return _rc;
 }
 
-/** C 层解析烟测；0 通过。 */
+/** Exported function `parse_smoke`.
+ * Implements `parse_smoke`.
+ * @return i32
+ */
 export function parse_smoke(): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = elf64_parse_smoke_c(); }

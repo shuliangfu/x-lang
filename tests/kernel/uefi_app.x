@@ -36,6 +36,12 @@ struct EFI_SYSTEM_TABLE {
 // Returns EFI_STATUS (u64): 0 = EFI_SUCCESS
 #[used]
 #[no_mangle]
+/** Internal function `efi_main`.
+ * Implements `efi_main`.
+ * @param image_handle u64
+ * @param system_table u64
+ * @return u64
+ */
 function efi_main(image_handle: u64, system_table: u64): u64 {
   // In a real UEFI app: call system_table->con_out->output_string(L"Hello UEFI!")
   // For skeleton: just return EFI_SUCCESS

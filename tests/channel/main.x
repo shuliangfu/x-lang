@@ -1,10 +1,14 @@
-// tests/channel/main.x — std.channel 回归：有界
+// See implementation.
 // send/recv、try_send/try_recv、close/free。
-// 单线程有界测试；Windows 与 Unix 共用 C 实现（CRITICAL_SECTION / pthread）。
+// See implementation.
 
 const channel = import("std.channel");
 const debug = import("core.debug");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let ch: *u8 = channel.bounded(2);
   if (ch == 0) {

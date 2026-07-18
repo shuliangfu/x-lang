@@ -1,10 +1,14 @@
-// tests/string/main.x — std.string 全面 + 边界测试
+// See implementation.
 //
-// 覆盖：empty/capacity/new/from_char/from_slice/len/is_empty/eq/clear/append/find/starts/ends_with/
-// view/copy_to；边界：空串、单字节、缓冲不足。
+// See implementation.
+// See implementation.
 
 const string = import("std.string");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (string.string_empty() != 0) { return 1; }
   

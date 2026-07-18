@@ -1,4 +1,8 @@
-// 7.3：arr[lit]=arr[j] 左字面量右变量下标，main 内无 mov x2（run-asm-assign-index-var.sh）。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let arr: i32[3] = [5, 10, 15];
   let j: i32 = 2;

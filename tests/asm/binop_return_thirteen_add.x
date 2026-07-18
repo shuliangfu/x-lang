@@ -1,4 +1,8 @@
-// 7.3：十三 VAR 左结合加链；第六物理 spill 用 x15，无栈 push（1+…+13=91）。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32 = 1;
   let b: i32 = 2;

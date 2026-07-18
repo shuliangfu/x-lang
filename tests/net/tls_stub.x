@@ -1,9 +1,13 @@
 /**
- * STD-030 烟测：TLS 桩后端 — tls_is_available 为 false，握手返回 TLS_NOT_IMPL。
+ * See implementation.
  */
 const debug = import("core.debug");
 const net = import("std.net");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (net.tls_is_available()) { return 1; }
   let name: *u8 = net.tls_backend_name();

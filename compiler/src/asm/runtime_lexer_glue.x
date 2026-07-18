@@ -1,9 +1,13 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-21：runtime_lexer_glue 产品源迁 seeds/runtime_lexer_glue.from_x.c。
-// 实现仍在 seed C；本文件为文档锚点。
+// See implementation.
+// runtime_lexer_glue_x_doc_anchor: see function docblock below.
 
+/** Exported function `runtime_lexer_glue_x_doc_anchor`.
+ * Implements `runtime_lexer_glue_x_doc_anchor`.
+ * @return i32
+ */
 export function runtime_lexer_glue_x_doc_anchor(): i32 {
   return 0;
 }

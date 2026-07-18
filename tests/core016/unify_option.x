@@ -1,8 +1,12 @@
 /**
- * CORE-016 烟测：Option<i32> 与 Option_i32 类型族互操作（import("core.option")）。
+ * See implementation.
  */
 const option = import("core.option");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let g: Option<i32> = option.some_i32(42);
   let f: Option_i32 = option.some_i32(7);

@@ -1,4 +1,8 @@
-// 边界：下标基类型非数组/切片，应报 subscript base must be array or slice
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let x: i32 = 0;
   return x[0];

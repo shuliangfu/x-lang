@@ -14,26 +14,26 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.db — 数据库与存储门面（sqlite / kv / arrow）
+// See implementation.
 //
-// 【子模块】
-// - std.db.sqlite — SQLite3（SQL 关系型，可选 -lsqlite3）
-// - std.db.kv     — mmap LSM Append-Only 键值/时序底座（无 SQL）
-// - std.db.arrow  — 零拷贝列式内存（Apache Arrow 风格布局）
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 【STD-120 兼容层】
-// `import("std.db")` 仍可用但已废弃；open/exec/close/changes 转发 std.db.sqlite，
-// 与 std/db/sqlite/sqlite.o 共享 C 实现（db_open_c 等符号）。
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 【用法】
+// See implementation.
 //   const db = import("std.db");          // deprecated
-//   const sqlite = import("std.db.sqlite"); // 推荐
+// See implementation.
 
 const sqlite_m = import("std.db.sqlite");
 const kv_m = import("std.db.kv");
 const arrow_m = import("std.db.arrow");
 
-/** 不透明连接句柄（与 std.db.sqlite.DbConn 布局一致）。 */
+/* See implementation. */
 export struct DbConn {
   handle: i64;
 }
@@ -43,55 +43,87 @@ extern function db_close_c(handle: i64): i32;
 extern function db_exec_c(handle: i64, sql: *u8): i32;
 extern function db_changes_c(handle: i64): i32;
 
-/** STD-120：import("std.db") 已废弃；恒 1。 */
+/** Exported function `is_deprecated`.
+ * Query helper `is_deprecated`.
+ * @return i32
+ */
 export function is_deprecated(): i32 {
   return 1;
 }
 
-/** 打开数据库（转发 std.db.sqlite / db_open_c）。 */
+/** Exported function `open`.
+ * Implements `open`.
+ * @param path *u8
+ * @return DbConn
+ */
 export function open(path: *u8): DbConn {
   let _rc: DbConn = 0;
   unsafe { _rc = DbConn { handle: db_open_c(path) }; }
   return _rc;
 }
 
-/** 关闭连接。 */
+/** Exported function `close`.
+ * Implements `close`.
+ * @param conn DbConn
+ * @return i32
+ */
 export function close(conn: DbConn): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = db_close_c(conn.handle); }
   return _rc;
 }
 
-/** 执行无结果集 SQL。 */
+/** Exported function `exec`.
+ * Implements `exec`.
+ * @param conn DbConn
+ * @param sql *u8
+ * @return i32
+ */
 export function exec(conn: DbConn, sql: *u8): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = db_exec_c(conn.handle, sql); }
   return _rc;
 }
 
-/** 最近一次 exec 影响行数。 */
+/** Exported function `changes`.
+ * Implements `changes`.
+ * @param conn DbConn
+ * @return i32
+ */
 export function changes(conn: DbConn): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = db_changes_c(conn.handle); }
   return _rc;
 }
 
-/** SQLite 后端是否可用（委托 std.db.sqlite）。 */
+/** Exported function `sqlite_is_available`.
+ * Implements `sqlite_is_available`.
+ * @return i32
+ */
 export function sqlite_is_available(): i32 {
   return sqlite_m.is_available();
 }
 
-/** KV mmap 引擎是否导出（委托 std.db.kv）。 */
+/** Exported function `kv_mmap_available`.
+ * Implements `kv_mmap_available`.
+ * @return i32
+ */
 export function kv_mmap_available(): i32 {
   return kv_m.mmap_available();
 }
 
-/** Arrow 列式模块是否导出（恒 1）。 */
+/** Exported function `arrow_available`.
+ * Implements `arrow_available`.
+ * @return i32
+ */
 export function arrow_available(): i32 {
   return 1;
 }
 
-/** SIMD 是否可用于 Arrow 列计算（委托 std.db.arrow）。 */
+/** Exported function `arrow_simd_hw_available`.
+ * Implements `arrow_simd_hw_available`.
+ * @return i32
+ */
 export function arrow_simd_hw_available(): i32 {
   return arrow_m.simd_hw_available();
 }

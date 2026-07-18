@@ -1,7 +1,11 @@
-// Cookbook CLI-01：子命令 + verbose 标志（STD-077）
+// See implementation.
 const cli = import("std.cli");
 const env = import("std.env");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let it: ArgsIter = env.args_iter();
   let res: CliResult = CliResult {

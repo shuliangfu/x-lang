@@ -1,7 +1,12 @@
-// STD-134：std.url IPv6 bracket host 与 net 字节桥接烟测
+// See implementation.
 const url = import("std.url");
 
-/** 校验 host 文本是否为 "::1"（3 字节 + NUL）。 */
+/** Internal function `host_is_loopback_text`.
+ * Implements `host_is_loopback_text`.
+ * @param host *u8
+ * @param host_len i32
+ * @return i32
+ */
 function host_is_loopback_text(host: *u8, host_len: i32): i32 {
   if (host_len != 3) { return 0; }
   if (host[0] != 58) { return 0; }
@@ -11,6 +16,10 @@ function host_is_loopback_text(host: *u8, host_len: i32): i32 {
   return 1;
 }
 
+/** Internal function `test_parse_loopback`.
+ * Implements `test_parse_loopback`.
+ * @return i32
+ */
 function test_parse_loopback(): i32 {
   let raw: u8[24] = [
     104, 116, 116, 112, 58, 47, 47, 91, 58, 58, 49, 93, 58, 56, 48, 56,
@@ -32,6 +41,10 @@ function test_parse_loopback(): i32 {
   return 0;
 }
 
+/** Internal function `test_build_brackets`.
+ * Implements `test_build_brackets`.
+ * @return i32
+ */
 function test_build_brackets(): i32 {
   let raw: u8[28] = [
     104, 116, 116, 112, 58, 47, 47, 91, 50, 48, 48, 49, 58, 100, 98, 56,
@@ -49,6 +62,10 @@ function test_build_brackets(): i32 {
   return 0;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let r: i32 = test_parse_loopback();
   if (r != 0) { return r; }

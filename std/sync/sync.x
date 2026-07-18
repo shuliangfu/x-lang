@@ -14,15 +14,15 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std/sync/sync.x — F-sync-lock-diag v2：锁诊断 API 锚点（seed asm 兼容）
+// See implementation.
 //
-// 【文件职责】
-// STD-111 锁诊断对外符号锚点、版本标记与错误码常量。
-// seed asm 暂不支持全局写与含全局的 if/while，可变状态与诊断逻辑在
-// compiler/src/asm/runtime_sync_lock_diag_tls.c；Mutex/RwLock/Condvar 在 runtime_sync_os.c。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 【所属模块/组件】
-// std.sync；与 runtime_sync_os.o、runtime_sync_lock_diag_tls.o 一并链入 exe。
+// See implementation.
+// See implementation.
 
 export const SYNC_LOCK_DIAG_ERR_RECURSIVE: i32 = -1;
 export const SYNC_LOCK_DIAG_ERR_ORDER: i32 = -2;
@@ -30,7 +30,7 @@ export const SYNC_LOCK_DIAG_ERR_UNLOCK: i32 = -3;
 export const SYNC_LOCK_DIAG_ERR_TABLE: i32 = -4;
 export const SYNC_LOCK_DIAG_MAX_META: i32 = 64;
 
-/** TLS 持有栈（runtime_sync_lock_diag_tls.c）。 */
+/* See implementation. */
 extern function sync_lock_diag_tls_push_c(m: *u8, order_id: i32): i32;
 extern function sync_lock_diag_tls_pop_c(): void;
 extern function sync_lock_diag_tls_has_c(m: *u8): i32;
@@ -38,13 +38,13 @@ extern function sync_lock_diag_tls_max_order_c(): i32;
 extern function sync_lock_diag_tls_count_c(): i32;
 extern function sync_lock_diag_tls_clear_c(): void;
 
-/** 诊断钩子（runtime_sync_lock_diag_tls.c 强符号，供 runtime_sync_os 调用）。 */
+/* See implementation. */
 extern function sync_lock_diag_before_lock(m: *u8): i32;
 extern function sync_lock_diag_after_lock(m: *u8): void;
 extern function sync_lock_diag_before_unlock(m: *u8): i32;
 extern function sync_lock_diag_after_unlock(m: *u8): void;
 
-/** 诊断配置与查询 API（runtime_sync_lock_diag_tls.c）。 */
+/* See implementation. */
 extern function sync_lock_diag_set_enabled_c(on: i32): void;
 extern function sync_lock_diag_is_enabled_c(): i32;
 extern function sync_lock_diag_mutex_set_id_c(m: *u8, id: i32): i32;
@@ -53,12 +53,18 @@ extern function sync_lock_diag_clear_c(): void;
 extern function sync_lock_diag_snapshot_c(out: *u8, cap: i32): i32;
 extern function sync_lock_diag_smoke_c(): i32;
 
-/** F-sync v1 版本标记；供聚合 gate 校验 sync.x 已参与构建。 */
+/** Exported function `sync_f_sync_v1_marker_c`.
+ * Implements `sync_f_sync_v1_marker_c`.
+ * @return i32
+ */
 export function sync_f_sync_v1_marker_c(): i32 {
   return 1;
 }
 
-/** F-sync-lock-diag v2：诊断 API 锚点标记（逻辑见 runtime TLS C）。 */
+/** Exported function `sync_f_sync_lock_diag_v2_marker_c`.
+ * Implements `sync_f_sync_lock_diag_v2_marker_c`.
+ * @return i32
+ */
 export function sync_f_sync_lock_diag_v2_marker_c(): i32 {
   return 1;
 }

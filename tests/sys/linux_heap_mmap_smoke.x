@@ -1,12 +1,16 @@
-// NL-03：Linux freestanding mmap bump 堆 + stdout write 烟测（零 libc）。
+// See implementation.
 //
-// 【Why import】bug ①（const store-to-stack 缺失，commit 853c5e1b）+
-// bug ②（i64 比较截断，commit 6d1e3922）+ bug ③（dep 前缀模型，commit c28d83e9/db201393）
-// 三处 ASM 后端修复完成后，恢复为 import std.heap.page_mmap 版本（与 NL-06 manifest 一致）。
+// See implementation.
+// See implementation.
+// See implementation.
 const heap = import("std.heap.page_mmap");
 const sys = import("std.sys");
 const linux = import("std.sys.linux");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (heap.page_mmap_heap_available() != 1) {
     return 1;
@@ -22,7 +26,7 @@ function main(): i32 {
   if (heap.page_mmap_heap_init(&h) != 0) {
     return 3;
   }
-  // 诊断：init 后检查 h 字段
+  // See implementation.
   if (h.base == 0 as *u8) {
     return 20;
   }

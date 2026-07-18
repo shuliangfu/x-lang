@@ -1,4 +1,8 @@
-// 7.3：while 体内 if 写 a；循环出口 live ∪ 后 return a+b（cfg-merge）。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32 = 0;
   let b: i32 = 2;

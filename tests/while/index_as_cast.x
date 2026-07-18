@@ -1,5 +1,9 @@
-// while 体内 arr[i] as i32：C parse_postfix 须在 index 后再接 as（回归 parser.c /
+// See implementation.
 // parser.x）。
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let arr: u8[3] = [10, 20, 30];
   let i: i32 = 0;

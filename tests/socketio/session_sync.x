@@ -1,8 +1,12 @@
 /**
- * STD-SOCKETIO-001 烟测：session 一体快照 + register_or_rebind v12。
+ * See implementation.
  */
 const sio = import("std.socketio");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (sio.session_sync_smoke() != 0) {
     return 1;

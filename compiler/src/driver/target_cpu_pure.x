@@ -1,17 +1,17 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-2～6：target_cpu 真迁 pure seed 单 TU。
+// See implementation.
 // - pending（f-2）· SIMD（f-3）· resolve（f-4）· print（f-5）
-// - OS detect_host/generic（f-6；#if/sysctl/proc 在 seed C）
-// G-02f-174：host detect 登记 🔒 语言限制（见优先级表 §6）；pure parse/flags 已真迁。
-// G-02f-165 批折叠 detect；G-02f-97：+ tcp_tolower / tcp_eq5 / tcp_eq6 纯 helper 导出门闩（#[no_mangle]）。
-// G-02f-103 / G-02f-160：append_feat_name / flags_has_token 真迁 .x
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 产品：seeds/target_cpu_pure.from_x.c → src/driver/target_cpu.o（无 ld -r）
-// detect 对外 API 由 seed C 提供；.x 侧 resolve 仍可 extern 声明供语义对照。
-// 说明：tcp_eq_at 的 .x 形参为展开 lit 字节（供 pure resolve/SIMD），seed C 为 lit 指针形参；
-// 两者并行；产品仍走 seed；pure 路径已用 no_mangle 锚定 tolower/eq5/eq6。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 
 let g_driver_pending_target_cpu_features: u32 = 0;
 
@@ -19,16 +19,25 @@ export extern function shu_target_cpu_detect_host(): u32;
 export extern function shu_target_cpu_generic_for_host(): u32;
 
 #[no_mangle]
+/** Exported function `driver_set_pending_target_cpu_features`.
+ * Implements `driver_set_pending_target_cpu_features`.
+ * @param features u32
+ * @return void
+ */
 export function driver_set_pending_target_cpu_features(features: u32): void {
   g_driver_pending_target_cpu_features = features;
 }
 
 #[no_mangle]
+/** Exported function `driver_get_pending_target_cpu_features`.
+ * Implements `driver_get_pending_target_cpu_features`.
+ * @return u32
+ */
 export function driver_get_pending_target_cpu_features(): u32 {
   return g_driver_pending_target_cpu_features;
 }
 
-/* G-02f-97：纯 helper 导出门闩（真 .x 体，非 _impl 转发） */
+/* See implementation. */
 #[no_mangle]
 export function tcp_tolower(c: u8): u8 {
   if (c >= 65 && c <= 90) {
@@ -37,7 +46,22 @@ export function tcp_tolower(c: u8): u8 {
   return c;
 }
 
-/** 从 name[base..] 比较 n 字节（忽略大小写）与固定小写序列（由调用方保证长度）。 */
+/** Exported function `tcp_eq_at`.
+ * Implements `tcp_eq_at`.
+ * @param name *u8
+ * @param base usize
+ * @param n usize
+ * @param lit0 u8
+ * @param lit1 u8
+ * @param lit2 u8
+ * @param lit3 u8
+ * @param lit4 u8
+ * @param lit5 u8
+ * @param lit6 u8
+ * @param lit7 u8
+ * @param lit8 u8
+ * @return i32
+ */
 export function tcp_eq_at(name: *u8, base: usize, n: usize, lit0: u8, lit1: u8, lit2: u8, lit3: u8, lit4: u8, lit5: u8, lit6: u8, lit7: u8, lit8: u8): i32 {
   let i: usize = 0;
   let want: u8 = 0;
@@ -59,11 +83,24 @@ export function tcp_eq_at(name: *u8, base: usize, n: usize, lit0: u8, lit1: u8, 
   return 1;
 }
 
+/** Exported function `tcp_set_u32`.
+ * Implements `tcp_set_u32`.
+ * @param out *u32
+ * @param f u32
+ * @return void
+ */
 export function tcp_set_u32(out: *u32, f: u32): void {
   out[0] = f;
 }
 
-/** 具名规格；base/end 为 [base, end)。成功 0。 */
+/** Exported function `tcp_parse_named`.
+ * Implements `tcp_parse_named`.
+ * @param spec *u8
+ * @param base usize
+ * @param end usize
+ * @param out *u32
+ * @return i32
+ */
 export function tcp_parse_named(spec: *u8, base: usize, end: usize, out: *u32): i32 {
   let n: usize = 0;
   let f: u32 = 0;
@@ -148,6 +185,13 @@ export function tcp_parse_named(spec: *u8, base: usize, end: usize, out: *u32): 
 }
 
 #[no_mangle]
+/** Exported function `shu_target_cpu_resolve`.
+ * Implements `shu_target_cpu_resolve`.
+ * @param spec *u8
+ * @param spec_len usize
+ * @param out *u32
+ * @return i32
+ */
 export function shu_target_cpu_resolve(spec: *u8, spec_len: usize, out: *u32): i32 {
   let start: usize = 0;
   let end: usize = 0;
@@ -176,16 +220,43 @@ export function shu_target_cpu_resolve(spec: *u8, spec_len: usize, out: *u32): i
 }
 
 #[no_mangle]
+/** Exported function `tcp_eq5`.
+ * Implements `tcp_eq5`.
+ * @param name *u8
+ * @param a0 u8
+ * @param a1 u8
+ * @param a2 u8
+ * @param a3 u8
+ * @param a4 u8
+ * @return i32
+ */
 export function tcp_eq5(name: *u8, a0: u8, a1: u8, a2: u8, a3: u8, a4: u8): i32 {
   return tcp_eq_at(name, 0, 5, a0, a1, a2, a3, a4, 0, 0, 0, 0);
 }
 
 #[no_mangle]
+/** Exported function `tcp_eq6`.
+ * Implements `tcp_eq6`.
+ * @param name *u8
+ * @param a0 u8
+ * @param a1 u8
+ * @param a2 u8
+ * @param a3 u8
+ * @param a4 u8
+ * @param a5 u8
+ * @return i32
+ */
 export function tcp_eq6(name: *u8, a0: u8, a1: u8, a2: u8, a3: u8, a4: u8, a5: u8): i32 {
   return tcp_eq_at(name, 0, 6, a0, a1, a2, a3, a4, a5, 0, 0, 0);
 }
 
 #[no_mangle]
+/** Exported function `shu_simd_is_vector_type_spelling`.
+ * Implements `shu_simd_is_vector_type_spelling`.
+ * @param name *u8
+ * @param name_len usize
+ * @return i32
+ */
 export function shu_simd_is_vector_type_spelling(name: *u8, name_len: usize): i32 {
   if (name == 0 as *u8 || name_len == 0) {
     return 0;
@@ -207,6 +278,14 @@ export function shu_simd_is_vector_type_spelling(name: *u8, name_len: usize): i3
 }
 
 #[no_mangle]
+/** Exported function `shu_simd_vector_lanes_esz_from_spelling`.
+ * Implements `shu_simd_vector_lanes_esz_from_spelling`.
+ * @param name *u8
+ * @param name_len usize
+ * @param out_lanes *i32
+ * @param out_esz *i32
+ * @return i32
+ */
 export function shu_simd_vector_lanes_esz_from_spelling(name: *u8, name_len: usize, out_lanes: *i32, out_esz: *i32): i32 {
   let lanes: i32 = 4;
   let esz: i32 = 4;
@@ -230,10 +309,18 @@ export function shu_simd_vector_lanes_esz_from_spelling(name: *u8, name_len: usi
   return 0;
 }
 
-/* ---- G-02f-103 / G-02f-160：print / flags pure helpers 真迁 ---- */
+/* See implementation. */
 
-// G-02f-160：逗号分隔追加 feature 名
+// append_feat_name: see function docblock below.
 #[no_mangle]
+/** Exported function `append_feat_name`.
+ * Implements `append_feat_name`.
+ * @param buf *u8
+ * @param cap usize
+ * @param pos *usize
+ * @param name *u8
+ * @return void
+ */
 export function append_feat_name(buf: *u8, cap: usize, pos: *usize, name: *u8): void {
   if (buf == 0) { return; }
   if (pos == 0) { return; }
@@ -262,8 +349,14 @@ export function append_feat_name(buf: *u8, cap: usize, pos: *usize, name: *u8): 
   pos[0] = p;
 }
 
-// G-02f-160：token 边界匹配（空白/逗号分隔）
+// flags_has_token: see function docblock below.
 #[no_mangle]
+/** Exported function `flags_has_token`.
+ * Implements `flags_has_token`.
+ * @param hay *u8
+ * @param token *u8
+ * @return i32
+ */
 export function flags_has_token(hay: *u8, token: *u8): i32 {
   if (hay == 0) { return 0; }
   if (token == 0) { return 0; }
@@ -311,5 +404,5 @@ export function flags_has_token(hay: *u8, token: *u8): i32 {
   return 0;
 }
 
-// G-02f-165：platform detect_* 批折叠 — public C 在 seeds/target_cpu_pure.from_x.c（#if/OS 仍 seed）。
-/* ---- G-02f-165：detect 无门闩 _impl ---- */
+// See implementation.
+/* See implementation. */

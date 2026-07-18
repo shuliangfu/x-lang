@@ -1,9 +1,15 @@
-// tests/tar/long_path_dir.x — STD-152 UStar prefix 长路径 + 目录 + Pax 超长路径烟测
+// See implementation.
 //
-// 【文件职责】验证 append_entry/next_entry/read_entry_data 对长路径与目录的支持。
+// See implementation.
 const tar = import("std.tar");
 
-/** 比较 name_out 前 len 字节与 expect 是否一致，且 name_out[len]==0。 */
+/** Internal function `prefix_eq`.
+ * Implements `prefix_eq`.
+ * @param name_out *u8
+ * @param expect *u8
+ * @param len i32
+ * @return bool
+ */
 function prefix_eq(name_out: *u8, expect: *u8, len: i32): bool {
   let i: i32 = 0;
   while (i < len) {
@@ -18,11 +24,15 @@ function prefix_eq(name_out: *u8, expect: *u8, len: i32): bool {
   return true;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let arc: u8[8192] = [];
   let off: i32 = 0;
 
-  /* 110 字节路径：60×'a' + "/nested/file.x" */
+  /* See implementation. */
   let path: u8[128] = [];
   let i: i32 = 0;
   while (i < 60) {
@@ -43,7 +53,7 @@ function main(): i32 {
     return 1;
   }
 
-  /* 长目录：40×'d' + "/deep/" */
+  /* See implementation. */
   let dir: u8[64] = [];
   i = 0;
   while (i < 40) {
@@ -62,7 +72,7 @@ function main(): i32 {
     return 2;
   }
 
-  /* 270 字节 Pax 路径：全 'p' */
+  /* See implementation. */
   let pax_path: u8[280] = [];
   i = 0;
   while (i < 270) {

@@ -1,6 +1,10 @@
-// SIMD-S3 烟测：Vec4f vec4f_fma local VAR×3 应走 vfmadd231ps（或 mulps+addps）。
+// See implementation.
 const simd = import("std.simd");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: Vec4f = [1.0, 2.0, 3.0, 4.0];
   let b: Vec4f = [2.0, 2.0, 2.0, 2.0];

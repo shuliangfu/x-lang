@@ -1,4 +1,8 @@
-// Parser smoke: 函数体顶层连续 5 条 if。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (1 != 0) {
     return 1;

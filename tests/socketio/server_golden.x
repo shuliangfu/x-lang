@@ -1,8 +1,12 @@
 /**
- * STD-SOCKETIO-001 烟测：Engine.IO polling 服务端 open 响应 v2。
+ * See implementation.
  */
 const sio = import("std.socketio");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (sio.server_smoke() != 0) {
     return 1;

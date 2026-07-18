@@ -1,18 +1,22 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-20：runtime_process_argv 产品源迁 seeds/runtime_process_argv.from_x.c。
-// 实现仍在 seed C；本文件为文档锚点。
-// 产品：cc seeds/runtime_process_argv.from_x.c → runtime_process_argv.o
-// G-02f-106：+ bind_from_crt 薄门闩。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 
 export extern "C" function shux_process_argv_bind_from_crt_impl(): void;
 
+/** Exported function `runtime_process_argv_x_doc_anchor`.
+ * Implements `runtime_process_argv_x_doc_anchor`.
+ * @return i32
+ */
 export function runtime_process_argv_x_doc_anchor(): i32 {
   return 0;
 }
 
-/* ---- G-02f-106：process argv 门闩 ---- */
+/* See implementation. */
 
 #[no_mangle]
 export function shux_process_argv_bind_from_crt(): void {

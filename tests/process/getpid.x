@@ -1,13 +1,17 @@
-// 测试 std.process：process.getpid()
+// See implementation.
 //
-// 【文件职责】本文件为 std.process 当前进程 ID 查询的回归测试。
-// 【测试目的】确认 process.getpid() 返回正整数（当前进程 ID），与 Rust
-// std::process::id()、Go os.Getpid 语义一致。
-// 【覆盖 API】process.getpid(): i32。
-// 【预期结果】退出码 0 表示 process.getpid()>0；退出码 1 表示返回值≤0（异常）。
-// 【运行方式】./tests/run-process.sh
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 const process = import("std.process");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let pid: i32 = process.getpid();
   if (pid <= 0) {

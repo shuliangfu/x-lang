@@ -1,4 +1,8 @@
-// 7.3：INDEX assign rhs 为 INDEX 读时须失效 rbx 址缓存（run-asm-assign-index-block.sh）。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let arr: i32[4] = [10, 20, 30, 40];
   let j: i32 = 1;

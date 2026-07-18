@@ -1,10 +1,14 @@
 /**
- * ZC-4 smoke：StackStr（SSO_STACK）栈内联 + stack_str_view 零拷贝 + arena concat。
- * 全程无 heap_alloc；exit 0。
+ * See implementation.
+ * See implementation.
  */
 const string = import("std.string");
 const heap = import("std.heap");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let ss: StackStr = string.stack_str_new();
   let src: u8[5] = [104, 101, 108, 108, 111];

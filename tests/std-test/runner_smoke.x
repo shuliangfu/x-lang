@@ -1,12 +1,19 @@
-// STD-145：std.test 统一 runner 烟测（pass + skip + summary）
+// See implementation.
 const test = import("std.test");
 
-/** 简单断言用例：1+1==2。 */
+/** Internal function `case_add`.
+ * Implements `case_add`.
+ * @return i32
+ */
 function case_add(): i32 {
   if (test.expect_eq_i32(1 + 1, 2) != 0) { return 1; }
   return 0;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   test.runner_reset();
   let n_ok: u8[7] = [99, 97, 115, 101, 95, 111, 107];

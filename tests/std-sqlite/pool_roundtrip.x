@@ -1,6 +1,10 @@
-// STD-084：内存库连接池 acquire/release 烟测
+// See implementation.
 const sqlite = import("std.db.sqlite");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let mem: u8[9] = [58, 109, 101, 109, 111, 114, 121, 58, 0];
   let sql_create: u8[27] = [

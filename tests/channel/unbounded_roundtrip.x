@@ -1,6 +1,10 @@
-// STD-044：无界 channel 扩容往返 + 关闭语义（Windows stub 时 skip）
+// See implementation.
 const channel = import("std.channel");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let ch: *u8 = channel.unbounded();
   if (ch == 0 as *u8) {

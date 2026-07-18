@@ -1,6 +1,10 @@
-// STD-120：import("std.db") 兼容层烟测（转发 std.db.sqlite）
+// See implementation.
 const db = import("std.db");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let mem: u8[9] = [58, 109, 101, 109, 111, 114, 121, 58, 0];
   let sql_create: u8[27] = [

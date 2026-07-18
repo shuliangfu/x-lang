@@ -1,7 +1,11 @@
-// STD-060：自定义降序比较器烟测（cmp_i32_desc_fn）
+// See implementation.
 const sort = import("std.sort");
 const debug = import("core.debug");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32[4] = [3, 1, 4, 2];
   let cmp_fn: usize = sort.cmp_desc_fn();

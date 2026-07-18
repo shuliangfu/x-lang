@@ -1,24 +1,23 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-21：runtime_queue_contention 产品源迁 seeds/runtime_queue_contention.from_x.c。
-// G-02f-102：+ queue_smoke / worker_trampoline 薄门闩。
-// G-02f-rest：rest→.x 迁移：5 个 rest 函数真迁 .x（struct + pthread extern），
-//   5 个平台 #ifdef 函数（mutex create/destroy/lock/unlock + run_two_workers）保留 seed。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 
 // libc
 export extern "C" function malloc(size: usize): *u8;
 export extern "C" function free(ptr: *u8): void;
 
-// seed 提供（平台 #ifdef：pthread / Win32 CRITICAL_SECTION）
+// See implementation.
 export extern "C" function queue_os_mutex_create_c(): *u8;
 export extern "C" function queue_os_mutex_destroy_c(mu: *u8): void;
 export extern "C" function queue_os_mutex_lock_c(mu: *u8): void;
 export extern "C" function queue_os_mutex_unlock_c(mu: *u8): void;
 export extern "C" function queue_os_run_two_workers_c(ctx: *u8): i32;
 
-/** 烟测用 mutex 保护环形队列（与 seed C QueueSmokeState 布局一致）。
-* allow(padding)：mu/data 各 8B，cap/len/head 各 4B，总 28B 对齐到 32B，尾部 4B padding。 */
+/** See implementation for details. */
 allow(padding) struct QueueSmokeState {
   mu: *u8;
   data: *i32;
@@ -27,13 +26,22 @@ allow(padding) struct QueueSmokeState {
   head: i32;
 }
 
+/** Exported function `runtime_queue_contention_x_doc_anchor`.
+ * Implements `runtime_queue_contention_x_doc_anchor`.
+ * @return i32
+ */
 export function runtime_queue_contention_x_doc_anchor(): i32 {
   return 0;
 }
 
-// ---- G-02f-102：queue smoke / trampoline 门闩（thin wrapper + impl） ----
+// See implementation.
 
-/** 逻辑下标 i 对应的物理下标。 */
+/** Exported function `queue_smoke_at_impl`.
+ * Implements `queue_smoke_at_impl`.
+ * @param q *QueueSmokeState
+ * @param i i32
+ * @return i32
+ */
 #[no_mangle]
 export function queue_smoke_at_impl(q: *QueueSmokeState, i: i32): i32 {
   let idx: i32 = q.head + i;
@@ -44,11 +52,22 @@ export function queue_smoke_at_impl(q: *QueueSmokeState, i: i32): i32 {
 }
 
 #[no_mangle]
+/** Exported function `queue_smoke_at`.
+ * Implements `queue_smoke_at`.
+ * @param q *QueueSmokeState
+ * @param i i32
+ * @return i32
+ */
 export function queue_smoke_at(q: *QueueSmokeState, i: i32): i32 {
   return queue_smoke_at_impl(q, i);
 }
 
-/** 队尾插入；失败 -1。 */
+/** Exported function `queue_smoke_push_back_impl`.
+ * Implements `queue_smoke_push_back_impl`.
+ * @param q *QueueSmokeState
+ * @param x i32
+ * @return i32
+ */
 #[no_mangle]
 export function queue_smoke_push_back_impl(q: *QueueSmokeState, x: i32): i32 {
   if (q == 0 as *QueueSmokeState) {
@@ -86,11 +105,21 @@ export function queue_smoke_push_back_impl(q: *QueueSmokeState, x: i32): i32 {
 }
 
 #[no_mangle]
+/** Exported function `queue_smoke_push_back`.
+ * Implements `queue_smoke_push_back`.
+ * @param q *QueueSmokeState
+ * @param x i32
+ * @return i32
+ */
 export function queue_smoke_push_back(q: *QueueSmokeState, x: i32): i32 {
   return queue_smoke_push_back_impl(q, x);
 }
 
-/** 每 worker 线程：加锁 push 500 次。 */
+/** Exported function `queue_contention_worker_push_c`.
+ * Implements `queue_contention_worker_push_c`.
+ * @param ctx *u8
+ * @return i32
+ */
 #[no_mangle]
 export function queue_contention_worker_push_c(ctx: *u8): i32 {
   let q: *QueueSmokeState = ctx as *QueueSmokeState;
@@ -109,7 +138,11 @@ export function queue_contention_worker_push_c(ctx: *u8): i32 {
   return 0;
 }
 
-/** 每 worker 线程 trampoline。 */
+/** Exported function `queue_os_worker_trampoline_impl`.
+ * Implements `queue_os_worker_trampoline_impl`.
+ * @param arg *u8
+ * @return *u8
+ */
 #[no_mangle]
 export function queue_os_worker_trampoline_impl(arg: *u8): *u8 {
   queue_contention_worker_push_c(arg);
@@ -117,11 +150,19 @@ export function queue_os_worker_trampoline_impl(arg: *u8): *u8 {
 }
 
 #[no_mangle]
+/** Exported function `queue_os_worker_trampoline`.
+ * Implements `queue_os_worker_trampoline`.
+ * @param arg *u8
+ * @return *u8
+ */
 export function queue_os_worker_trampoline(arg: *u8): *u8 {
   return queue_os_worker_trampoline_impl(arg);
 }
 
-/** STD-048：双线程并发 push 烟测；0 通过，-1 失败。 */
+/** Exported function `sync_queue_contention_smoke_c`.
+ * Implements `sync_queue_contention_smoke_c`.
+ * @return i32
+ */
 #[no_mangle]
 export function sync_queue_contention_smoke_c(): i32 {
   let st: QueueSmokeState = QueueSmokeState {

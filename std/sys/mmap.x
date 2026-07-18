@@ -14,36 +14,36 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.sys.mmap — 可写 mmap 原语（BOOT-029 v3 / std.db.kv 底座 / F-02 v1 Linux 去 C）
+// See implementation.
 //
-// 【文件职责】
-// 在硬盘上开辟连续 MAP_SHARED 映射区，供 LSM append-only 引擎顺序写扇区。
-// Linux / macOS：纯 .x FFI（std.sys.linux / std.sys.macos）；Windows 占位。
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 【依赖】Linux / macOS hosted `-o exe` 链 libc；freestanding 匿名 mmap 见 std.sys.linux。
+// See implementation.
 
-/** Linux F-02 v1：libc 文件 mmap（无 mmap.inc.c）。 */
+/* See implementation. */
 #[cfg(target_os = "linux")]
 const linux_m = import("std.sys.linux");
 
-/** macOS B-16 v1：libSystem 文件 mmap。 */
+/* See implementation. */
 #[cfg(target_os = "macos")]
 const macos_m = import("std.sys.macos");
 
-/** FreeBSD B-21 v0：libc 文件 mmap。 */
+/* See implementation. */
 #[cfg(target_os = "freebsd")]
 const freebsd_m = import("std.sys.freebsd");
 
 /**
- * v3 探测：mmap API 是否导出（恒 1）。
+ * See implementation.
  */
 export function mmap_available(): i32 {
   return 1;
 }
 
 /**
- * 可写 mmap；返回映射首地址，*out_size 为字节数；失败 null。
- * 调用方须 munmap(ptr, *out_size) 释放。
+ * See implementation.
+ * See implementation.
  */
 #[cfg(target_os = "macos")]
 export function mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
@@ -54,6 +54,13 @@ export function mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
 }
 
 #[cfg(target_os = "freebsd")]
+/** Exported function `mmap_rw`.
+ * Implements `mmap_rw`.
+ * @param path *u8
+ * @param min_size usize
+ * @param out_size *usize
+ * @return *u8
+ */
 export function mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
   if (path == 0 || out_size == 0 || min_size == 0) {
     return 0 as *u8;
@@ -63,6 +70,13 @@ export function mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
 
 #[cfg(target_os = "linux")]
 #[cfg(not(freestanding))]
+/** Exported function `mmap_rw`.
+ * Implements `mmap_rw`.
+ * @param path *u8
+ * @param min_size usize
+ * @param out_size *usize
+ * @return *u8
+ */
 export function mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
   if (path == 0 || out_size == 0 || min_size == 0) {
     return 0 as *u8;
@@ -70,7 +84,12 @@ export function mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
   return linux_m.linux_mmap_rw(path, min_size, out_size);
 }
 
-/** 解除 mmap。 */
+/** Exported function `munmap`.
+ * Implements `munmap`.
+ * @param ptr *u8
+ * @param size usize
+ * @return i32
+ */
 #[cfg(target_os = "macos")]
 export function munmap(ptr: *u8, size: usize): i32 {
   if (ptr == 0 || size == 0) {
@@ -80,6 +99,12 @@ export function munmap(ptr: *u8, size: usize): i32 {
 }
 
 #[cfg(target_os = "freebsd")]
+/** Exported function `munmap`.
+ * Implements `munmap`.
+ * @param ptr *u8
+ * @param size usize
+ * @return i32
+ */
 export function munmap(ptr: *u8, size: usize): i32 {
   if (ptr == 0 || size == 0) {
     return -1;
@@ -89,6 +114,12 @@ export function munmap(ptr: *u8, size: usize): i32 {
 
 #[cfg(target_os = "linux")]
 #[cfg(not(freestanding))]
+/** Exported function `munmap`.
+ * Implements `munmap`.
+ * @param ptr *u8
+ * @param size usize
+ * @return i32
+ */
 export function munmap(ptr: *u8, size: usize): i32 {
   if (ptr == 0 || size == 0) {
     return -1;
@@ -96,7 +127,12 @@ export function munmap(ptr: *u8, size: usize): i32 {
   return linux_m.linux_munmap(ptr, size);
 }
 
-/** 将映射区刷盘。 */
+/** Exported function `msync`.
+ * Implements `msync`.
+ * @param ptr *u8
+ * @param size usize
+ * @return i32
+ */
 #[cfg(target_os = "macos")]
 export function msync(ptr: *u8, size: usize): i32 {
   if (ptr == 0 || size == 0) {
@@ -106,6 +142,12 @@ export function msync(ptr: *u8, size: usize): i32 {
 }
 
 #[cfg(target_os = "freebsd")]
+/** Exported function `msync`.
+ * Implements `msync`.
+ * @param ptr *u8
+ * @param size usize
+ * @return i32
+ */
 export function msync(ptr: *u8, size: usize): i32 {
   if (ptr == 0 || size == 0) {
     return -1;
@@ -115,6 +157,12 @@ export function msync(ptr: *u8, size: usize): i32 {
 
 #[cfg(target_os = "linux")]
 #[cfg(not(freestanding))]
+/** Exported function `msync`.
+ * Implements `msync`.
+ * @param ptr *u8
+ * @param size usize
+ * @return i32
+ */
 export function msync(ptr: *u8, size: usize): i32 {
   if (ptr == 0 || size == 0) {
     return -1;
@@ -122,7 +170,13 @@ export function msync(ptr: *u8, size: usize): i32 {
   return linux_m.linux_msync_sync(ptr, size);
 }
 
-/** Windows：mmap 尚未实现；占位 API 供 std.sys 门面 typeck 通过。 */
+/** Exported function `mmap_rw`.
+ * Implements `mmap_rw`.
+ * @param path *u8
+ * @param min_size usize
+ * @param out_size *usize
+ * @return *u8
+ */
 #[cfg(target_os = "windows")]
 export function mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
   if (out_size != 0) {
@@ -135,6 +189,12 @@ export function mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
 }
 
 #[cfg(target_os = "windows")]
+/** Exported function `munmap`.
+ * Implements `munmap`.
+ * @param ptr *u8
+ * @param size usize
+ * @return i32
+ */
 export function munmap(ptr: *u8, size: usize): i32 {
   if (ptr == 0 || size == 0) {
     return -1;
@@ -143,6 +203,12 @@ export function munmap(ptr: *u8, size: usize): i32 {
 }
 
 #[cfg(target_os = "windows")]
+/** Exported function `msync`.
+ * Implements `msync`.
+ * @param ptr *u8
+ * @param size usize
+ * @return i32
+ */
 export function msync(ptr: *u8, size: usize): i32 {
   if (ptr == 0 || size == 0) {
     return -1;

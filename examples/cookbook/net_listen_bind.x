@@ -1,8 +1,12 @@
 /**
- * Cookbook NET-01：TcpListener 绑定本地端口（阻塞 accept 烟测见 NET-02）。
+ * See implementation.
  */
 const net = import("std.net");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let addr: Ipv4Addr = Ipv4Addr { a: 127, b: 0, c: 0, d: 1 };
   let listener: TcpListener = net.listen(addr, 38555);

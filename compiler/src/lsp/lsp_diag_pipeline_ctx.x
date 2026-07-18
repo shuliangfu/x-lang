@@ -1,12 +1,12 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-28：真迁 .x — LSP pipeline ctx 尺寸桥 + typeck_ 前缀去前缀别名。
+// See implementation.
 // G-02f-74：+ remaining lsp_diag_pipeline_ctx gates。
-// G-02f-98：+ lsp_debug_report_sqpoll_env / lsp_apply_default_io_policy 门闩。
-// 产品：./shux-c -E → seeds/lsp_diag_pipeline_ctx.from_x.c（+ C 尾段 + weak 抛光）。
-// C 尾：fill_paths（struct memset/strlen）、g_lsp_state_buf 静态、typeck_lsp_main 大栈、
-//       lsp_write_all（EINTR/write）、lsp_definition_at 出参逻辑。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 
 export extern "C" function pipeline_sizeof_dep_ctx(): usize;
 export extern "C" function typeck_lsp_build_diagnostics_response(id_val: i32, source: *u8, source_len: i32,
@@ -28,6 +28,10 @@ export extern "C" function lsp_debug_report_sqpoll_env_impl(): void;
 export extern "C" function lsp_apply_default_io_policy_impl(): void;
 
 #[no_mangle]
+/** Exported function `lsp_diag_x_alloc_dep_ctx_size`.
+ * Memory management helper `lsp_diag_x_alloc_dep_ctx_size`.
+ * @return usize
+ */
 export function lsp_diag_x_alloc_dep_ctx_size(): usize {
   unsafe {
     let r: usize = pipeline_sizeof_dep_ctx();
@@ -37,6 +41,10 @@ export function lsp_diag_x_alloc_dep_ctx_size(): usize {
 }
 
 #[no_mangle]
+/** Function `lsp_build_diagnostics_response`.
+ * Purpose: implements `lsp_build_diagnostics_response`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function lsp_build_diagnostics_response(id_val: i32, source: *u8, source_len: i32, out_buf: *u8,
                                         out_cap: i32): i32 {
   unsafe {
@@ -47,6 +55,10 @@ export function lsp_build_diagnostics_response(id_val: i32, source: *u8, source_
 }
 
 #[no_mangle]
+/** Function `lsp_diag_hover_at`.
+ * Purpose: implements `lsp_diag_hover_at`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function lsp_diag_hover_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_buf: *u8,
                            out_cap: i32): i32 {
   unsafe {
@@ -57,6 +69,10 @@ export function lsp_diag_hover_at(source: *u8, source_len: i32, line_0: i32, col
 }
 
 #[no_mangle]
+/** Function `lsp_diag_references_at`.
+ * Purpose: implements `lsp_diag_references_at`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function lsp_diag_references_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_lines: *i32,
                                 out_cols: *i32, max_refs: i32): i32 {
   unsafe {
@@ -68,6 +84,10 @@ export function lsp_diag_references_at(source: *u8, source_len: i32, line_0: i32
 }
 
 #[no_mangle]
+/** Function `lsp_hover_at`.
+ * Purpose: implements `lsp_hover_at`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function lsp_hover_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_buf: *u8,
                       out_cap: i32): i32 {
   unsafe {
@@ -78,6 +98,10 @@ export function lsp_hover_at(source: *u8, source_len: i32, line_0: i32, col_0: i
 }
 
 #[no_mangle]
+/** Function `lsp_references_at`.
+ * Purpose: implements `lsp_references_at`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function lsp_references_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_lines: *i32,
                            out_cols: *i32, max_refs: i32): i32 {
   unsafe {
@@ -89,6 +113,10 @@ export function lsp_references_at(source: *u8, source_len: i32, line_0: i32, col
 }
 
 #[no_mangle]
+/** Function `lsp_diag_definition_at`.
+ * Purpose: implements `lsp_diag_definition_at`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function lsp_diag_definition_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_line: *i32,
                                 out_col: *i32): i32 {
   unsafe {
@@ -99,6 +127,10 @@ export function lsp_diag_definition_at(source: *u8, source_len: i32, line_0: i32
 }
 
 #[no_mangle]
+/** Function `lsp_build_semantic_tokens_response`.
+ * Purpose: implements `lsp_build_semantic_tokens_response`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function lsp_build_semantic_tokens_response(id_val: i32, doc_buf: *u8, doc_len: i32, out_buf: *u8,
                                             out_cap: i32): i32 {
   unsafe {
@@ -109,6 +141,10 @@ export function lsp_build_semantic_tokens_response(id_val: i32, doc_buf: *u8, do
 }
 
 #[no_mangle]
+/** Exported function `lsp_io_lsp_diag_invalidate_cache`.
+ * Implements `lsp_io_lsp_diag_invalidate_cache`.
+ * @return void
+ */
 export function lsp_io_lsp_diag_invalidate_cache(): void {
   unsafe {
     lsp_diag_invalidate_cache();
@@ -125,6 +161,10 @@ export function lsp_diag_pipeline_ctx_fill_paths(ctx_void: *u8, entry_dir: *u8, 
 }
 
 #[no_mangle]
+/** Exported function `typeck_lsp_main`.
+ * Implements `typeck_lsp_main`.
+ * @return i32
+ */
 export function typeck_lsp_main(): i32 {
   unsafe {
     return typeck_lsp_main_impl();
@@ -133,6 +173,13 @@ export function typeck_lsp_main(): i32 {
 }
 
 #[no_mangle]
+/** Exported function `lsp_write_all`.
+ * Write path helper `lsp_write_all`.
+ * @param fd i32
+ * @param buf *u8
+ * @param len i32
+ * @return i32
+ */
 export function lsp_write_all(fd: i32, buf: *u8, len: i32): i32 {
   unsafe {
     return lsp_write_all_impl(fd, buf, len);
@@ -140,7 +187,7 @@ export function lsp_write_all(fd: i32, buf: *u8, len: i32): i32 {
   return 0 - 1;
 }
 
-/* ---- G-02f-98：LSP IO policy / debug env 门闩 ---- */
+/* See implementation. */
 
 #[no_mangle]
 export function lsp_debug_report_sqpoll_env(): void {
@@ -150,6 +197,10 @@ export function lsp_debug_report_sqpoll_env(): void {
 }
 
 #[no_mangle]
+/** Exported function `lsp_apply_default_io_policy`.
+ * Implements `lsp_apply_default_io_policy`.
+ * @return void
+ */
 export function lsp_apply_default_io_policy(): void {
   unsafe {
     lsp_apply_default_io_policy_impl();

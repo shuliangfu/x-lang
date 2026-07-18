@@ -1,13 +1,19 @@
-// MEM-D2.2：ASP 逃逸负例 — p 写入块外变量，codegen 须保留 arena bump（不 stack promote）。
+// See implementation.
 const heap = import("std.heap");
 
-/** 两字段 POD。 */
+/* See implementation. */
 struct Pair {
   a: i32
   b: i32
 }
 
-/** Arena bump 工厂；逃逸时不得 ASP。 */
+/** Internal function `make_pair_arena`.
+ * Implements `make_pair_arena`.
+ * @param al Allocator
+ * @param x i32
+ * @param y i32
+ * @return *Pair
+ */
 function make_pair_arena(al: Allocator, x: i32, y: i32): *Pair {
   let raw: *u8 = heap.alloc(al, 8 as usize);
   let p: *Pair = raw as *Pair;
@@ -16,11 +22,19 @@ function make_pair_arena(al: Allocator, x: i32, y: i32): *Pair {
   return p;
 }
 
-/** 字段只读消费者。 */
+/** Internal function `sum_pair_ptr`.
+ * Implements `sum_pair_ptr`.
+ * @param p *Pair
+ * @return i32
+ */
 function sum_pair_ptr(p: *Pair): i32 {
   return p.a + p.b;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let escaped: *Pair = 0 as *Pair;
   with_arena(4096) {

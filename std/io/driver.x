@@ -14,93 +14,170 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.io.driver — 舒 I/O 驱动占位（高并发IO 第八节 + 三项约定）
-// 占位类型与签名：Buffer、IO_Result、Completion、AsyncContext；register、submit_read、submit_write。
-// 自举前仅解析与类型检查通过，实现可空或 panic；Err(i32) 约定：错误码 i32，正/负由文档约定；AsyncContext 原子位预留。
-// Buffer 与 std.mem.Buffer ABI 一致（ptr+len+handle 24 字节），便于与 std.mem 互通。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 const core = import("std.io.core");
-// ——— IO_Result：Ok/Err/Timeout/Cancelled；Err(i32) 约定（错误码 i32，自举后扩展负载）；解析顺序要求 enum 在 struct 前 ———
+// See implementation.
 export enum IO_Result {
   Ok,
   Err,
   Timeout,
   Cancelled
 }
-// ——— Buffer：与 std.mem.Buffer 同布局（ABI 24 字节），本模块自含以简化 codegen ———
+// See implementation.
 export struct Buffer {
   ptr: *u8;
   len: usize;
   handle: usize;
 }
-// ——— Completion：完成句柄占位，自举后与 submit 回调/结果对接 ———
+// See implementation.
 export struct Completion {
   tag: i32;
 }
-// ——— AsyncContext：原子位占位（flags 自举后用于原子状态位） ———
+// See implementation.
 export struct AsyncContext {
   flags: u32;
 }
 // ——— Pre-register Buffer (same ABI as std.mem.Buffer, 24 bytes); calls std.io.core ———
+/** Exported function `register`.
+ * Registration helper `register`.
+ * @param buf Buffer
+ * @return i32
+ */
 export function register(buf: Buffer): i32 {
   return core.shux_io_register(buf.ptr, buf.len, buf.handle);
 }
-// register_fixed_buffers / wait_readable / placeholder 在 std.io（mod.x）中提供；
-// asm 后端将 std.io 与 std.io.driver 合并进同一 .o 时，此处若再定义会与 mod 重复符号。
-// ——— 与 Zig/Rust 对齐：按「指针+块数」注册固定 buffer 池；bufs 指向至少 nr 个 Buffer（ptr/len 有效），nr 为 1..8（IO_FIXED_MAX）。C 侧 io_register_buffers_buf。 ———
+// See implementation.
+// See implementation.
+// submit_register_fixed_buffers_buf: see function docblock below.
+/** Exported function `submit_register_fixed_buffers_buf`.
+ * Registration helper `submit_register_fixed_buffers_buf`.
+ * @param bufs *Buffer
+ * @param nr u32
+ * @return i32
+ */
 export function submit_register_fixed_buffers_buf(bufs: *Buffer, nr: u32): i32 {
   return core.shux_io_register_buffers_buf(bufs as *u8, nr as i32);
 }
-// ——— 提交读；buf 目标缓冲区，timeout_ms 毫秒（0=无超时）；预留 Buffer[] 多段扩展（高吞吐网络） ———
+// submit_read: see function docblock below.
+/** Exported function `submit_read`.
+ * Read path helper `submit_read`.
+ * @param buf Buffer
+ * @param timeout_ms u32
+ * @return i32
+ */
 export function submit_read(buf: Buffer, timeout_ms: u32): i32 {
   return core.shux_io_submit_read(buf.ptr, buf.len, buf.handle, timeout_ms);
 }
-// ——— 零拷贝读（内部名，供 mod 重新导出为 read_ptr/read_ptr_len） ———
+// driver_read_ptr: see function docblock below.
+/** Exported function `driver_read_ptr`.
+ * Read path helper `driver_read_ptr`.
+ * @param handle usize
+ * @param timeout_ms u32
+ * @return *u8
+ */
 export function driver_read_ptr(handle: usize, timeout_ms: u32): *u8 {
   return core.shux_io_read_ptr(handle, timeout_ms);
 }
+/** Exported function `driver_read_ptr_len`.
+ * Read path helper `driver_read_ptr_len`.
+ * @return i32
+ */
 export function driver_read_ptr_len(): i32 {
   return core.shux_io_read_ptr_len();
 }
-/** ZC-2：read_ptr generation；供 mod.read_ptr_gen 导出。 */
+/** Exported function `driver_read_ptr_gen`.
+ * Read path helper `driver_read_ptr_gen`.
+ * @return u64
+ */
 export function driver_read_ptr_gen(): u64 {
   return core.shux_io_read_ptr_gen();
 }
-/** ZC-2：generation 校验。 */
+/** Exported function `driver_read_ptr_gen_valid`.
+ * Read path helper `driver_read_ptr_gen_valid`.
+ * @param saved u64
+ * @return i32
+ */
 export function driver_read_ptr_gen_valid(saved: u64): i32 {
   return core.shux_io_read_ptr_gen_valid(saved);
 }
-/** ZC-2：read_ptr 后端（0 TLS / 1 mmap / 2 dispatch_data）。 */
+/** Exported function `driver_read_ptr_backend`.
+ * Read path helper `driver_read_ptr_backend`.
+ * @return i32
+ */
 export function driver_read_ptr_backend(): i32 {
   return core.shux_io_read_ptr_backend();
 }
-/** M-5：零拷贝读 slice；供 mod.read_ptr_slice 导出。 */
+/** Exported function `driver_read_ptr_slice`.
+ * Read path helper `driver_read_ptr_slice`.
+ * @param handle usize
+ * @param timeout_ms u32
+ * @return u8[]<io_read_ptr>
+ */
 export function driver_read_ptr_slice(handle: usize, timeout_ms: u32): u8[]<io_read_ptr> {
   return core.shux_io_read_ptr_slice(handle, timeout_ms);
 }
-// ——— 提交写；预留 Buffer[] 多段扩展 ———
+// submit_write: see function docblock below.
+/** Exported function `submit_write`.
+ * Write path helper `submit_write`.
+ * @param buf Buffer
+ * @param timeout_ms u32
+ * @return i32
+ */
 export function submit_write(buf: Buffer, timeout_ms: u32): i32 {
   return core.shux_io_submit_write(buf.ptr, buf.len, buf.handle, timeout_ms);
 }
-// ——— 批量读：前 n 段（0 < n ≤ 4）经 core 一次提交；timeout_ms=0 时 C 端用 readv，成功返回总字节数，失败 -1 ———
+// submit_read_batch: see function docblock below.
+/** Exported function `submit_read_batch`.
+ * Read path helper `submit_read_batch`.
+ * @param buffers Buffer[4]
+ * @param n i32
+ * @param timeout_ms u32
+ * @return i32
+ */
 export function submit_read_batch(buffers: Buffer[4], n: i32, timeout_ms: u32): i32 {
   let h: usize = buffers[0].handle;
   return core.shux_io_submit_read_batch(buffers[0].ptr, buffers[0].len, buffers[1].ptr, buffers[1].len, buffers[2].ptr, buffers[2].len, buffers[3].ptr, buffers[3].len, h, n, timeout_ms);
 }
-// ——— 批量写：同上；timeout_ms=0 时 C 端用 writev ———
+// submit_write_batch: see function docblock below.
+/** Exported function `submit_write_batch`.
+ * Write path helper `submit_write_batch`.
+ * @param buffers Buffer[4]
+ * @param n i32
+ * @param timeout_ms u32
+ * @return i32
+ */
 export function submit_write_batch(buffers: Buffer[4], n: i32, timeout_ms: u32): i32 {
   let h: usize = buffers[0].handle;
   return core.shux_io_submit_write_batch(buffers[0].ptr, buffers[0].len, buffers[1].ptr, buffers[1].len, buffers[2].ptr, buffers[2].len, buffers[3].ptr, buffers[3].len, h, n, timeout_ms);
 }
-// ——— 与 Zig/Rust 对齐：按「指针+段数」批量读写；bufs 指向至少 n 个 Buffer（ptr/len 有效，handle 可用首元素或忽略），n 为 1..16（IO_READV_BUF_MAX）。C 侧 io_read_batch_buf/io_write_batch_buf。 ———
+// submit_read_batch_buf: see function docblock below.
+/** Exported function `submit_read_batch_buf`.
+ * Read path helper `submit_read_batch_buf`.
+ * @param handle usize
+ * @param bufs *Buffer
+ * @param n i32
+ * @param timeout_ms u32
+ * @return i32
+ */
 export function submit_read_batch_buf(handle: usize, bufs: *Buffer, n: i32, timeout_ms: u32): i32 {
   let r: isize = core.shux_io_read_batch_buf(handle as i32, bufs as *u8, n, timeout_ms);
   if (r < 0) { return -1; }
   return (r as i32);
 }
-/** 批量写（切片式）：同上。 */
+/** Exported function `submit_write_batch_buf`.
+ * Write path helper `submit_write_batch_buf`.
+ * @param handle usize
+ * @param bufs *Buffer
+ * @param n i32
+ * @param timeout_ms u32
+ * @return i32
+ */
 export function submit_write_batch_buf(handle: usize, bufs: *Buffer, n: i32, timeout_ms: u32): i32 {
   let r: isize = core.shux_io_write_batch_buf(handle as i32, bufs as *u8, n, timeout_ms);
   if (r < 0) { return -1; }
   return (r as i32);
 }
-// register_fixed_buffers、wait_readable、placeholder 均由 std.io（mod.x）导出；本层不再重复定义，避免 asm 合并 dep 进单 .o 时重复符号。
+// See implementation.

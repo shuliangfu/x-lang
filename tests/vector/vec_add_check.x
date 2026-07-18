@@ -1,4 +1,8 @@
-// vec_add_check.x — VAR+VAR 向量加法 + 减法链（asm 逐 lane emit 冒烟）
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32x4 = [1, 2, 3, 4];
   let b: i32x4 = [10, 20, 30, 40];

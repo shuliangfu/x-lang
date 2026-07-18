@@ -1,13 +1,17 @@
-// tests/net/resolve_dns.x — STD-029 DNS 错误码与 IPv6 解析烟测
+// See implementation.
 //
-// invalid.invalid 须失败且 out_err 可诊断；localhost / ::1 无 DNS 时跳过仍通过。
+// See implementation.
 const net = import("std.net");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let err: i32 = 0;
   let addr_u32: u32 = 0;
 
-  // "invalid.invalid" — RFC 2606 保留，应解析失败
+  // See implementation.
   let bad: u8[16] = [105, 110, 118, 97, 108, 105, 100, 46, 105, 110, 118, 97, 108, 105, 100, 0];
   if (net.resolve_ex(&bad[0], &addr_u32, &err) == 0) {
     return 1;
@@ -31,7 +35,7 @@ function main(): i32 {
     return 4;
   }
 
-  // "localhost" IPv6 → 期望 ::1
+  // See implementation.
   let out6: u8[16] = [];
   err = 0;
   if (resolve_ipv6(&host[0], &out6[0], &err) != 0) {

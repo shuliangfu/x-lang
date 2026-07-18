@@ -1,14 +1,18 @@
-// STD-139：std.codec 缓冲复用烟测 — 同一 Bytes 连续 encode 保留 cap
+// See implementation.
 const codec = import("std.codec");
 const bytes = import("std.bytes");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let src_big: u8[5] = [10, 20, 30, 40, 50];
   let src_small: u8[3] = [1, 2, 3];
   let b: Bytes = bytes.new();
   let e: Encoder = codec.encoder_new(codec.kind_hex());
 
-  // 第一次编码较大 payload：分配 cap（10 个 hex 字符）
+  // See implementation.
   if (codec.encode_into_bytes(e, &src_big[0], 5, &b) != 10) {
     bytes.deinit(&b);
     return 1;
@@ -19,7 +23,7 @@ function main(): i32 {
     return 2;
   }
 
-  // 第二次编码较小 payload：应复用 cap（need=6 < cap，不 shrink）
+  // See implementation.
   if (codec.encode_into_bytes(e, &src_small[0], 3, &b) != 6) {
     bytes.deinit(&b);
     return 3;
@@ -33,7 +37,7 @@ function main(): i32 {
     return 5;
   }
 
-  // 解码验证第二次 payload
+  // See implementation.
   let d: Decoder = codec.decoder_new(codec.kind_hex());
   let decoded: Bytes = bytes.new();
   if (codec.decode_from_bytes(d, b, &decoded) != 3) {

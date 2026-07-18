@@ -1,4 +1,9 @@
-// 测试 u8[] 的 .data（*u8）与 .length（usize）字段（typeck + codegen）
+// take_slice: see function docblock below.
+/** Internal function `take_slice`.
+ * Implements `take_slice`.
+ * @param buf u8[]
+ * @return i32
+ */
 function take_slice(buf: u8[]): i32 {
   let p: *u8 = buf.data;
   let n: usize = buf.length;
@@ -6,6 +11,10 @@ function take_slice(buf: u8[]): i32 {
   return (p != 0) ? 1 : -1;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let arr: u8[4] = [1, 2, 3, 4];
   let s: u8[] = arr;

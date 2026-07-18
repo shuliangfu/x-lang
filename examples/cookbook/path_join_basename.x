@@ -3,6 +3,10 @@
  */
 const path = import("std.path");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let dir: u8[4] = [100, 105, 114, 0];
   let file: u8[5] = [102, 105, 108, 101, 0];

@@ -1,8 +1,12 @@
-// NL-02：Linux freestanding socket(2)+close(2) 烟测（零 libc）。
+// See implementation.
 //
-// 【Why import】bug ①②③ 修复完成后恢复为 import 版本（与 NL-06 manifest 一致）。
+// See implementation.
 const net = import("std.net.freestanding_linux");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (net.freestanding_net_available() != 1) {
     return 1;

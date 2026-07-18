@@ -1,4 +1,8 @@
-// 7.3 线性 scan 第二步：压力下按 next-use 驱逐较远 cache 槽；return x+y+z → 21。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32 = 1;
   let b: i32 = 2;

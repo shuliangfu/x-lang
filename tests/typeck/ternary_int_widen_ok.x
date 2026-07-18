@@ -1,4 +1,8 @@
-// 三元整型拓宽：i64 目标无需对 n 写 as
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let n: i32 = 3;
   let r: i64 = n >= 0 ? n : -1;

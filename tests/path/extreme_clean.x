@@ -1,7 +1,14 @@
-// STD-140：std.path 极端路径规范化烟测（path_clean / resolve / extension 边界）
+// See implementation.
 const path = import("std.path");
 
-/** 比较两段等长字节；相等返回 1。 */
+/** Internal function `bytes_eq`.
+ * Implements `bytes_eq`.
+ * @param a *u8
+ * @param a_len i32
+ * @param b *u8
+ * @param b_len i32
+ * @return i32
+ */
 function bytes_eq(a: *u8, a_len: i32, b: *u8, b_len: i32): i32 {
   if (a_len != b_len) { return 0; }
   let i: i32 = 0;
@@ -12,7 +19,15 @@ function bytes_eq(a: *u8, a_len: i32, b: *u8, b_len: i32): i32 {
   return 1;
 }
 
-/** 校验 path_clean 输出与期望一致；失败返回非 0 错误码。 */
+/** Internal function `check_clean`.
+ * Implements `check_clean`.
+ * @param src_path *u8
+ * @param path_len i32
+ * @param expect *u8
+ * @param expect_len i32
+ * @param err i32
+ * @return i32
+ */
 function check_clean(src_path: *u8, path_len: i32, expect: *u8, expect_len: i32, err: i32): i32 {
   let out: u8[128] = [];
   let n: i32 = path.clean(src_path, path_len, &out[0], 128);
@@ -21,24 +36,28 @@ function check_clean(src_path: *u8, path_len: i32, expect: *u8, expect_len: i32,
   return 0;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let out: u8[128] = [];
   let n: i32 = 0;
   let ec: i32 = 0;
 
-  // 连续斜杠折叠：//a///b -> /a/b
+  // See implementation.
   let multi_slash: u8[8] = [47, 47, 97, 47, 47, 47, 98, 0];
   let expect_ab: u8[4] = [47, 97, 47, 98];
   ec = check_clean(&multi_slash[0], 7, &expect_ab[0], 4, 10);
   if (ec != 0) { return ec; }
 
-  // 尾随斜杠：/foo/bar/ -> /foo/bar
+  // See implementation.
   let trail: u8[9] = [47, 102, 111, 111, 47, 98, 97, 114, 47];
   let expect_foo_bar: u8[8] = [47, 102, 111, 111, 47, 98, 97, 114];
   ec = check_clean(&trail[0], 9, &expect_foo_bar[0], 8, 20);
   if (ec != 0) { return ec; }
 
-  // 相对路径 ./ 与 .. 消段：v1 在 pop 后可能留下双分隔符 foo//baz
+  // See implementation.
   let rel_dots: u8[16] = [
     102, 111, 111, 47, 46, 47, 98, 97, 114, 47, 46, 46, 47, 98, 97, 122
   ];
@@ -46,32 +65,32 @@ function main(): i32 {
   ec = check_clean(&rel_dots[0], 16, &expect_foo_baz[0], 8, 30);
   if (ec != 0) { return ec; }
 
-  // 根路径 /.. -> /
+  // See implementation.
   let root_up: u8[3] = [47, 46, 46];
   let expect_root: u8[1] = [47];
   ec = check_clean(&root_up[0], 3, &expect_root[0], 1, 40);
   if (ec != 0) { return ec; }
 
-  // 混合反斜杠：a\\b -> a/b（POSIX 主分隔符为 /）
+  // See implementation.
   let mixed_sep: u8[4] = [97, 92, 92, 98];
   let expect_mixed: u8[3] = [97, 47, 98];
   ec = check_clean(&mixed_sep[0], 4, &expect_mixed[0], 3, 50);
   if (ec != 0) { return ec; }
 
-  // 四连点段名（非 dotdot）：x/..../y
+  // See implementation.
   let four_dot: u8[8] = [120, 47, 46, 46, 46, 46, 47, 121];
   let expect_four: u8[8] = [120, 47, 46, 46, 46, 46, 47, 121];
   ec = check_clean(&four_dot[0], 8, &expect_four[0], 8, 60);
   if (ec != 0) { return ec; }
 
-  // path_resolve：绝对 ref 忽略 base
+  // See implementation.
   let base: u8[4] = [47, 97, 47, 98];
   let abs_ref: u8[5] = [47, 120, 47, 121, 122];
   n = path.resolve(&out[0], 128, &base[0], 4, &abs_ref[0], 5);
   if (n != 5) { return 70; }
   if (out[0] != 47 || out[4] != 122) { return 71; }
 
-  // path_extension：隐藏文件 .gitignore 无扩展名
+  // See implementation.
   let hidden: u8[10] = [46, 103, 105, 116, 105, 103, 110, 111, 114, 101];
   let ext_buf: u8[8] = [];
   n = path.extension(&hidden[0], 10, &ext_buf[0], 8);
@@ -88,7 +107,7 @@ function main(): i32 {
   if (stem_len != 8 || ext_len != 3) { return 91; }
   if (stem2[7] != 114 || ext2[0] != 46 || ext2[2] != 122) { return 92; }
 
-  // Windows 盘符绝对路径识别（字节模式，全平台一致）
+  // See implementation.
   let win_abs: u8[6] = [67, 58, 92, 85, 115, 101];
   if (path.is_absolute(&win_abs[0], 6) != 1) { return 100; }
 

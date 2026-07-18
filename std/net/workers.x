@@ -14,18 +14,18 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.net.workers — F-04 v14：多 worker accept 压测（run_accept_workers）
+// See implementation.
 //
-// 【文件职责】
-// 从 net.c 迁出 net_run_accept_workers_c / net_run_accept_workers_c_real_c。
-// 线程入口见 runtime_net_workers.c；create/join 走 std/thread/thread.x + thread_glue.c。
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 【依赖】tcp.x net_accept_many_c；sock.x net_close_socket_c；thread.o
+// See implementation.
 
-/** 每 listener 最多 worker 数。 */
+/* See implementation. */
 export const SHUX_NET_MAX_WORKERS: i32 = 64;
 
-/** 传入 worker 线程的参数块。 */
+/* See implementation. */
 allow(padding) struct NetWorkerArg {
   listener_fd: i32;
   timeout_ms: u32;
@@ -39,14 +39,14 @@ extern function thread_join_c(thread_id: i64): i32;
 extern function shu_net_worker_accept_entry_ptr_c(): usize;
 
 /**
- * 取 NetWorkerArg 数组第 i 项指针（seed emit 不支持 &args[i] 直接作 call 实参）。
+ * See implementation.
  */
 export function net_worker_arg_slot_ptr_c(base: *NetWorkerArg, i: i32): *NetWorkerArg {
   return base + i;
 }
 
 /**
- * 写入单条 worker 参数（避免 struct 字面量初始化触发 parse skip）。
+ * See implementation.
  */
 export function net_worker_arg_fill_c(slot: *NetWorkerArg, listener_fd: i32, timeout_ms: u32, worker_index: i32): void {
   slot.listener_fd = listener_fd;
@@ -55,8 +55,8 @@ export function net_worker_arg_fill_c(slot: *NetWorkerArg, listener_fd: i32, tim
 }
 
 /**
- * 起 n_workers 线程，每线程循环 accept_many 后立即 close。
- * 主线程阻塞 join（永不返回）；失败 -1。
+ * See implementation.
+ * See implementation.
  */
 export function net_run_accept_workers_c(listener_fd: i32, n_workers: i32, timeout_ms: u32): i32 {
   let nw: i32 = n_workers;

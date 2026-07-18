@@ -1,6 +1,10 @@
-// STD-163：Queue_u8 烟测
+// See implementation.
 const queue = import("std.queue");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let q: Queue_u8 = queue.new();
   if (queue.push_back(&q, 1) != 0) { return 1; }

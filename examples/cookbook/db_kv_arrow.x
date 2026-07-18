@@ -1,10 +1,14 @@
 /**
- * Cookbook DB-03：std.db.kv 时序 Tick + std.db.arrow SIMD 列（#92）。
- * mmap 不可用时 exit 0。
+ * See implementation.
+ * See implementation.
  */
 const dbkv = import("std.db.kv");
 const dbarrow = import("std.db.arrow");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let path: u8[32] =
   [116, 101, 115, 116, 115, 47, 115, 116, 100, 45, 100, 98, 47, 46, 99, 98,

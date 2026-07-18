@@ -1,4 +1,7 @@
-/** 后缀数组/切片类型：u8[N]、u8[]、*u8[N]（C 风格，唯一写法）。 */
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: u8[5] = [1, 2, 3, 4, 0];
   let s: u8[] = a;

@@ -1,6 +1,10 @@
-// cookbook：Map_i32_i32 迭代与负载因子
+// See implementation.
 const map = import("std.map");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let m: Map_i32_i32 = map.new(0);
   if (map.insert(&m, 1, 10) != 0) { return 1; }

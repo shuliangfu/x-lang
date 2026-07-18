@@ -14,17 +14,17 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// mod.x — Pass Pipeline 模块入口（re-export）
+// mod.x — Pass Pipeline module entry (re-export)
 //
-// 模块：ir/pass
-// 层级：共享（跨五层 IR 调度 Pass）
-// Phase：Phase 3+（SLIR 阶段开始大量使用 Pass）
-// 职责：聚合 pass/ 子模块导出（pipeline / registry）。
-// 依赖：../shir / ../smir / ../slir / ../vmir / ../mir
-// 设计约束：
-//   - 声明式 Pass Pipeline 系统（§6.1）
-//   - 允许动态注入 AI 生成的优化 Pass（External Pass Provider）
-//   - Pass Pipeline 顺序由 Benchmark 决定（实现级问题，非设计阶段决定）
+// Module: ir/pass
+// Layer: shared (schedules passes across five IR layers)
+// Phase: Phase 3+
+// Responsibility: Aggregate pass/ submodule exports (pipeline / registry).
+// Depends: ../shir / ../smir / ../slir / ../vmir / ../mir
+// Design constraints:
+//   - Declarative Pass Pipeline system (§6.1)
+//   - Allows dynamic injection of AI-generated optimization passes (External Pass Provider)
+//   - Pipeline order is decided by Benchmark (implementation-level; not a design freeze)
 //
-// 参考文档：analysis/IR核心设计.md §6（优化管道与 Pass 系统）
-// 架构状态：v4.0 Architecture Freeze — 实现骨架，待 Phase 3 填充
+// Ref: analysis IR core design §6 (optimization pipeline & Pass system)
+// Status: v4.0 Architecture Freeze — implementation skeleton; fill in Phase 3

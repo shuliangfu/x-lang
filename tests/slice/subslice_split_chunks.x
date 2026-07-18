@@ -1,7 +1,11 @@
-// CORE-004 烟测：subslice / split_at / chunks（i32[] + u8[] 边界钳制）
+// See implementation.
 const slice = import("core.slice");
 const option = import("core.option");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   // ——— i32[] subslice ———
   let a: i32[4] = [10, 20, 30, 40];

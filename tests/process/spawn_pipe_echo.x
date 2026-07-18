@@ -1,16 +1,16 @@
-// tests/process/spawn_pipe_echo.x — STD-023：pipe + spawn_io stdout 重定向金样
-// POSIX: /bin/echo hello；Windows 回退: cmd.exe /c echo hello
+// See implementation.
+// See implementation.
 const process = import("std.process");
 const fs = import("std.fs");
 
-/** argv 三槽（program, arg, NULL），布局与 C char** 一致。 */
+/* See implementation. */
 allow(padding) struct Argv3 {
   s0: *u8
   s1: *u8
   s2: *u8
 }
 
-/** argv 五槽（cmd /c echo hello + NULL）。 */
+/* See implementation. */
 allow(padding) struct Argv5 {
   s0: *u8
   s1: *u8
@@ -19,7 +19,16 @@ allow(padding) struct Argv5 {
   s4: *u8
 }
 
-/** 从管道读端校验 payload 前缀；匹配返回 0。 */
+/** Internal function `check_pipe_payload`.
+ * Implements `check_pipe_payload`.
+ * @param r_fd i32
+ * @param b0 u8
+ * @param b1 u8
+ * @param b2 u8
+ * @param b3 u8
+ * @param b4 u8
+ * @return i32
+ */
 function check_pipe_payload(r_fd: i32, b0: u8, b1: u8, b2: u8, b3: u8, b4: u8): i32 {
   let buf: u8[16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   let nr: isize = fs.read(r_fd, &buf[0], 8 as usize);
@@ -30,7 +39,10 @@ function check_pipe_payload(r_fd: i32, b0: u8, b1: u8, b2: u8, b3: u8, b4: u8): 
   return 0;
 }
 
-/** POSIX /bin/echo hello 经管道读出；失败返回非 0。 */
+/** Internal function `try_posix_echo_pipe`.
+ * Implements `try_posix_echo_pipe`.
+ * @return i32
+ */
 function try_posix_echo_pipe(): i32 {
   let prog: u8[10] = [47, 98, 105, 110, 47, 101, 99, 104, 111, 0];
   let arg: u8[6] = [104, 101, 108, 108, 111, 0];
@@ -58,7 +70,10 @@ function try_posix_echo_pipe(): i32 {
   return 0;
 }
 
-/** Windows cmd.exe /c echo hello；失败返回非 0。 */
+/** Internal function `try_win_echo_pipe`.
+ * Implements `try_win_echo_pipe`.
+ * @return i32
+ */
 function try_win_echo_pipe(): i32 {
   let cmd: u8[28] =
   [67, 58, 92, 87, 105, 110, 100, 111, 119, 115, 92, 83, 121, 115, 116, 101, 109, 51, 50, 92,
@@ -92,6 +107,10 @@ function try_win_echo_pipe(): i32 {
   return 0;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let r: i32 = try_posix_echo_pipe();
   if (r == 0) { return 0; }

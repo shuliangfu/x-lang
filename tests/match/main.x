@@ -1,4 +1,8 @@
-// match：let 绑定后对变量 match（与 tests/enum/match.x 的 enum 臂互补）
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let x: i32 = 1;
   return match x { 1 => 2; 2 => 3; _ => 0; }

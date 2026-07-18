@@ -1,4 +1,8 @@
-// 7.3：十 VAR 左结合加链；|live|max≥9 时第六溢出走栈帧 spill（1+…+10=55）。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32 = 1;
   let b: i32 = 2;

@@ -1,8 +1,12 @@
 /**
- * STD-SOCKETIO-001 npm plugin live：WS 直连 /chat → plugin_ping/plugin_pong。
+ * See implementation.
  */
 const sio = import("std.socketio");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let base: u8[32] = [104, 116, 116, 112, 58, 47, 47, 49, 50, 55, 46, 48, 46, 48, 46, 49, 58, 49, 51,
     48, 48, 54, 0];

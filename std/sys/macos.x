@@ -16,17 +16,17 @@
 
 // std.sys.macos — Darwin/macOS POSIX I/O + mmap FFI（BOOT-029 v2 / B-16 v0）
 //
-// 【文件职责】
-// 为常规 `-o exe` 宿主程序提供 libSystem write/open/read/mmap 封装；
-// 与 Linux freestanding 路径（shux_sys_*）互补，不含条件编译。
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 【链接】
-// shux 在 macOS 上链接可执行文件时由 clang 隐式链 libSystem；符号 write(2) 直接解析。
+// See implementation.
+// See implementation.
 
-/** POSIX write(2) @ libSystem；count 为字节数。 */
+/* See implementation. */
 extern "C" function write(fd: i32, buf: *u8, count: usize): isize;
 
-/** POSIX open/read/close @ libSystem（B-20 v0 读文件）。 */
+/* See implementation. */
 extern "C" function open(path: *u8, flags: i32, mode: i32): i32;
 extern "C" function read(fd: i32, buf: *u8, count: usize): isize;
 extern "C" function close(fd: i32): i32;
@@ -62,14 +62,14 @@ extern "C" function msync(addr: *u8, len: usize, flags: i32): i32;
 extern "C" function ftruncate(fd: i32, length: i64): i32;
 extern "C" function lseek(fd: i32, offset: i64, whence: i32): i64;
 
-/** lseek(2) SEEK_END：取当前文件长度。 */
+/* See implementation. */
 export const MACOS_SEEK_END: i32 = 2;
 
 /** POSIX _exit(2) @ libSystem（noreturn）。 */
 extern "C" function _exit(code: i32): void;
 
 /**
- * B-16 v2：进程退出；noreturn。
+ * See implementation.
  */
 export function macos_exit(code: i32): void {
   unsafe {
@@ -77,20 +77,20 @@ export function macos_exit(code: i32): void {
   }
 }
 
-/** open(2) O_CREAT 默认 mode 0644。 */
+/* See implementation. */
 export const MACOS_OPEN_MODE_0644: i32 = 420;
 
 /**
- * v2 探测：macOS POSIX write 门面是否导出（恒 1）。
- * 实际符号由系统 libc/libSystem 在链接期解析。
+ * See implementation.
+ * See implementation.
  */
 export function macos_write_available(): i32 {
   return 1;
 }
 
 /**
- * 向 fd 写入 buf[0..len)；Darwin 走 write(2)。
- * 成功返回写入字节数；失败或 count 溢出返回 -1。
+ * See implementation.
+ * See implementation.
  */
 export function macos_write(fd: i32, buf: *u8, len: i32): i32 {
   if (len <= 0) {
@@ -110,18 +110,28 @@ export function macos_write(fd: i32, buf: *u8, len: i32): i32 {
   return r as i32;
 }
 
-/** 写 stdout；等价 macos_write(1, buf, len)。 */
+/** Exported function `macos_write_stdout`.
+ * Write path helper `macos_write_stdout`.
+ * @param buf *u8
+ * @param len i32
+ * @return i32
+ */
 export function macos_write_stdout(buf: *u8, len: i32): i32 {
   return macos_write(1, buf, len);
 }
 
-/** 写 stderr；等价 macos_write(2, buf, len)。 */
+/** Exported function `macos_write_stderr`.
+ * Write path helper `macos_write_stderr`.
+ * @param buf *u8
+ * @param len i32
+ * @return i32
+ */
 export function macos_write_stderr(buf: *u8, len: i32): i32 {
   return macos_write(2, buf, len);
 }
 
 /**
- * B-16 v2：单次 POSIX read(2)；成功返回读入字节数，失败 -1。
+ * See implementation.
  */
 export function macos_read(fd: i32, buf: *u8, len: i32): i32 {
   if (len <= 0) {
@@ -140,7 +150,11 @@ export function macos_read(fd: i32, buf: *u8, len: i32): i32 {
   return r as i32;
 }
 
-/** B-16 v2：close(2) 薄封装。 */
+/** Exported function `macos_close`.
+ * Implements `macos_close`.
+ * @param fd i32
+ * @return i32
+ */
 export function macos_close(fd: i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = close(fd); }
@@ -148,8 +162,8 @@ export function macos_close(fd: i32): i32 {
 }
 
 /**
- * B-20 v1：读整文件到 buf[0..cap)（循环 read 直到 EOF 或 cap）。
- * 成功返回读入字节数；失败返回 -1。
+ * See implementation.
+ * See implementation.
  */
 export function macos_read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
   if (path == 0 || buf == 0 || cap <= 0) {
@@ -185,7 +199,7 @@ export function macos_read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
 }
 
 /**
- * B-16 v0：匿名 mmap（MAP_PRIVATE|MAP_ANON）；失败返回 null。
+ * See implementation.
  */
 export function macos_anonymous_mmap(len: usize, prot: i32): *u8 {
   if (len == 0) {
@@ -196,7 +210,12 @@ export function macos_anonymous_mmap(len: usize, prot: i32): *u8 {
   }
 }
 
-/** 解除 mmap 映射；0 成功，-1 失败。 */
+/** Exported function `macos_munmap`.
+ * Implements `macos_munmap`.
+ * @param addr *u8
+ * @param len usize
+ * @return i32
+ */
 export function macos_munmap(addr: *u8, len: usize): i32 {
   if (addr == 0 || len == 0) {
     return -1;
@@ -207,16 +226,16 @@ export function macos_munmap(addr: *u8, len: usize): i32 {
 }
 
 /**
- * B-16 v0 探测：macOS mmap 是否在子模块导出（恒 1）。
+ * See implementation.
  */
 export function macos_mmap_available(): i32 {
   return 1;
 }
 
 /**
- * B-16 v1：文件 MAP_SHARED 可写 mmap（open + ftruncate + mmap）。
- * path NUL 结尾；不足 min_size 时扩展文件；*out_size 经 p[0] 写回映射字节数。
- * 失败返回 null；调用方须 macos_munmap(ptr, *out_size) 释放。
+ * See implementation.
+ * See implementation.
+ * See implementation.
  */
 export function macos_mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
   if (path == 0 || out_size == 0 || min_size == 0) {
@@ -256,7 +275,12 @@ export function macos_mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8
 /** msync(2) MS_SYNC @ libSystem。 */
 export const MACOS_MS_SYNC: i32 = 16;
 
-/** msync 刷盘（MS_SYNC）；0 成功，-1 失败。 */
+/** Exported function `macos_msync_sync`.
+ * Implements `macos_msync_sync`.
+ * @param addr *u8
+ * @param len usize
+ * @return i32
+ */
 export function macos_msync_sync(addr: *u8, len: usize): i32 {
   if (addr == 0 || len == 0) {
     return -1;

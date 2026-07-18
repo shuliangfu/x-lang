@@ -1,7 +1,10 @@
-// import_std_async.x — 烟测：import("std.async")（async 关键字作模块路径段）
+// See implementation.
 const async_mod = import("std.async");
 
-/** 入口：仅验证 import 解析与链接符号解析。 */
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   async_mod.scheduler_reset();
   return 0;

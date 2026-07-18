@@ -1,4 +1,8 @@
-// 7.3：if 双支均写 a（glue_asm_if_phi_* 失效 cache）+ 十四元 return（exit 105；φ 路径可仅 x10 驱逐）。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32 = 1;
   let b: i32 = 2;

@@ -1,6 +1,10 @@
-// BOOT-029 v2：macOS POSIX write 烟测（Darwin + 常规 -o exe）。
+// See implementation.
 const sys = import("std.sys");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (sys.macos_write_available() != 1) {
     return 1;

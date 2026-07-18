@@ -16,9 +16,12 @@
 
 // backend.x â æ±ç¼åç«¯ï¼AST éåãlowering åæ´¾ãæ¶æåæ´¾
 //
-// èè´£ï¼CodegenOutBuf ä¸ AsmFuncCtx çä½¿ç¨ãæ AST ç»ç¹ç±»ååæ´¾å°æ¶æç¸å³ emitï¼x86_64/arm64ï¼ï¼å¯¹å¤å¥å£ asm_codegen_astã
+// èè´£ï¼CodegenOutBuf ä¸ AsmFuncCtx çä½¿ç¨ãæ AST ç»ç¹ç±»ååæ´¾å°æ¶æç¸å
+³ emitï¼x86_64/arm64ï¼ï¼å¯¹å¤å
+¥å£ asm_codegen_astã
 // ä¾èµï¼astï¼Module/ASTArena/FuncãPipelineDepCtxï¼ãcodegenï¼CodegenOutBufï¼ãtypesãx86_64ãarm64ãelfãarch.x86_64_encï¼.o è·¯å¾ï¼ã
-// åç»­ä¼åï¼7.3ï¼ï¼ç®åå¯å­å¨åéï¼åå°åºå® rax/rbx å¸¦æ¥ç push/popï¼çª¥å­å¯åå¹¶ç¸é» mov/ç®æ¯ã
+// åç»­ä¼åï¼7.3ï¼ï¼ç®åå¯å­å¨åé
+ï¼åå°åºå® rax/rbx å¸¦æ¥ç push/popï¼çª¥å­å¯åå¹¶ç¸é» mov/ç®æ¯ã
 
 const ast = import("ast");
 const codegen_outbuf_abi = import("codegen_outbuf_abi");
@@ -29,8 +32,8 @@ const riscv64 = import("arch.riscv64");
 const elf = import("platform.elf");
 const backend_enc_dispatch = import("backend_enc_dispatch");
 
-// G-02f-479：full 单 TU 先发 backend.x 调用点，再发 backend_enc_dispatch 定义；
-// 显式提前声明 mangled dispatch 符号，避免 C99 隐式声明错误。
+// See implementation.
+// See implementation.
 export extern "C" function enc_dispatch_backend_enc_add_imm_to_rax_arch(elf_ctx: *u8, imm: i32, ta: i32): i32;
 export extern "C" function enc_dispatch_backend_enc_add_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32;
 export extern "C" function enc_dispatch_backend_enc_and_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32;
@@ -94,7 +97,10 @@ export extern "C" function enc_dispatch_backend_enc_xor_rbx_rax_arch(elf_ctx: *u
 
 /** è¯æ­ï¼asm ä¸æ¯æç ExprKind æ¶ç± runtime.c æå°ï¼ä¾¿äºå®ä½ rc=-6ã */
 export extern function driver_diagnostic_asm_unsupported_expr(kind: i32): void;
-/** C æ¡©ï¼å° imm32 è£å¥ w0/eax/a0ï¼ä¸åå° epilogueï¼é¿åä¸ enc_ret_imm32 å¨ arm64 ä¸æå retï¼ã */
+/** C æ¡©ï¼å° imm32 è£
+å
+¥ w0/eax/a0ï¼ä¸åå° epilogueï¼é¿å
+ä¸ enc_ret_imm32 å¨ arm64 ä¸æå retï¼ã */
 export extern function backend_enc_mov_imm32_to_w0_arch(elf_ctx: *ElfCodegenCtx, imm32: i32, ta: i32): i32;
 /** è¯æ­ï¼return -1 åè°ç¨ï¼loc 1=section_text 2=globl 3=label 4=prologue 5=block_body 6=block_inits 7=emit_expr 8=epilogue 9=tail_join_labelã */
 export extern function driver_diagnostic_asm_fail_at(loc: i32): void;
@@ -104,13 +110,15 @@ export extern function driver_diagnostic_asm_set_last_expr_kind(k: i32): void;
 export extern function driver_diagnostic_asm_var_not_found(name: *u8, name_len: i32, num_locals: i32, first_slot: *u8, first_len: i32): void;
 /** è¯æ­ï¼æ¯å½æ° codegen åè®¾ç½®å½åå½æ°åï¼ä¾ var_not_found æå°ã */
 export extern function driver_diagnostic_asm_set_current_func(name: *u8, name_len: i32): void;
-/** runtime.c：`-freestanding` 时 Linux ELF 用户入口由 crt0_user 经 `call main` 进入（符号名保持 main）。 */
+/* See implementation. */
 export extern function driver_freestanding_get(): i32;
-/** build_shux_asmï¼å¤§æ¨¡åæ¡© emit å¤å®ï¼ast_pool.cï¼é¡»å asm_skip_heavy_set_pipeline_ctxï¼ã */
+/** build_shux_asmï¼å¤§æ¨¡åæ¡© emit å¤å®ï¼ast_pool.cï¼é¡»å
+ asm_skip_heavy_set_pipeline_ctxï¼ã */
 export extern function asm_skip_heavy_module_func_body(module: *Module, arena: *ASTArena, func_index: i32): i32;
 /** SHUX_ASM_START_FUNCï¼è·³è¿ module å N ä¸ªå½æ°ç emitï¼è°è¯ç¨ï¼ã */
 export extern function asm_diag_start_func_skip(): i32;
-/** parser_gen / C ABIï¼å° cur_mod ç¬¬ i æ¡ import çé»è¾è·¯å¾åå¥ out_bufï¼è³å¤ 64 å­èï¼å« NULï¼ã */
+/** parser_gen / C ABIï¼å° cur_mod ç¬¬ i æ¡ import çé»è¾è·¯å¾åå
+¥ out_bufï¼è³å¤ 64 å­èï¼å« NULï¼ã */
 export extern function parser_get_module_import_path(mod: *Module, i: i32, out_buf: u8[64]): void;
 export extern function codegen_import_path_to_c_prefix_into(path: *u8, buf: *u8, buf_cap: i32): void;
 /** codegenï¼é¨å std/c shim è°ç¨å¨ AST ä¸­ä¸çå® C ååå®åä¸ªæ°ä¸ä¸è´ï¼ç± codegen.x æ ¡æ­£ã */
@@ -118,12 +126,19 @@ export extern function codegen_call_num_args_override(prefix: *u8, prefix_len: i
 /** Module import è·¯å¾/ç»å® sidecarï¼ast_pool.cï¼ã */
 export extern function pipeline_module_import_path_len(module: *Module, idx: i32): i32;
 /**
- * å° module é¡¶å± let/const æåºå¹¶å¥ main å½æ°ä½ï¼åå letï¼ï¼ä¾ asm å¨æ æ§½åå§åã
+ * å° module é¡¶å± let/const æåºå¹¶å
+¥ main å½æ°ä½ï¼åå
+ letï¼ï¼ä¾ asm å¨æ æ§½åå§åã
  * ä¸ C codegen ç static+init_globals ç­ä»·ï¼é¡»å¨ asm_codegen_ast* ç¼å½æ°åè°ç¨ï¼ast_pool.cï¼ã
  */
 export extern function pipeline_module_hoist_top_level_lets_into_main(module: *Module, arena: *ASTArena): void;
 
-/** asm 编当前 module 前：顶层 let 并入 main 或库模块首函数体（保留 X 体，helper_keep 真 emit）。 */
+/** Exported function `asm_hoist_top_level_lets_for_codegen`.
+ * Implements `asm_hoist_top_level_lets_for_codegen`.
+ * @param module *Module
+ * @param arena *ASTArena
+ * @return void
+ */
 export function asm_hoist_top_level_lets_for_codegen(module: *Module, arena: *ASTArena): void {
   pipeline_module_hoist_top_level_lets_into_main(module, arena);
 }
@@ -163,17 +178,19 @@ export extern function pipeline_asm_struct_lit_reserve_stack_bytes_c(arena: *AST
 export extern function pipeline_type_kind_ord_at(arena: *ASTArena, type_ref: i32): i32;
 export extern "C" function pipeline_type_named_name_into(arena: *u8, tr: i32, out64: *u8): i32;
 export extern function pipeline_expr_kind_ord_at(arena: *ASTArena, expr_ref: i32): i32;
-/** è¯» binop å­è¡¨è¾¾å¼ refï¼å¿ç¨ ast_arena_expr_get å e.binop_*ï¼èªä¸¾ asm ä¸å­æ®µæè£ï¼return 1+2 ä»å¾ 1ï¼ã */
+/** è¯» binop å­è¡¨è¾¾å¼ refï¼å¿ç¨ ast_arena_expr_get å e.binop_*ï¼èªä¸¾ asm ä¸å­æ®µæè£ï¼return 1+2 ä»
+å¾ 1ï¼ã */
 export extern function pipeline_expr_binop_left_ref_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_binop_right_ref_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_unary_operand_ref_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_int_val_at(arena: *ASTArena, expr_ref: i32): i32;
-/** C åæ­¥åä½ stmt_order åå°ï¼pipeline_glue.cï¼å¿å¨ X å while æ« stmt_orderï¼ã */
+/** C åæ­¥åä½ stmt_order åå°ï¼pipeline_glue.cï¼å¿å¨ X å
+ while æ« stmt_orderï¼ã */
 export extern function backend_emit_block_body_sync_elf(arena: *ASTArena, elf_ctx: *ElfCodegenCtx, block_ref: i32, ctx: *AsmFuncCtx, ta: i32): i32;
-/** M8-tail C/partial 薄包装 extern（pipeline_glue / compat_stubs / call_dispatch）。 */
+/* See implementation. */
 export extern function pipeline_asm_compute_frame_size_c(num_params: i32, arena: *ASTArena, block_ref: i32, mod: *Module): i32;
 export extern function pipeline_asm_fill_param_slots(ctx: *AsmFuncCtx, mod: *Module, func_index: i32): void;
-/** prologue 后：寄存器形参落栈 + 栈上传参拷入 fill_param_slots 偏移（>8 形参 grow 池）。 */
+/* See implementation. */
 export extern function pipeline_asm_emit_param_home_elf_c(elf_ctx: *ElfCodegenCtx, ctx: *AsmFuncCtx, mod: *Module, func_index: i32, ta: i32): i32;
 export extern function pipeline_asm_emit_set_arena(arena: *ASTArena): void;
 export extern function pipeline_asm_emit_set_call_param_type_ref(type_ref: i32): void;
@@ -200,11 +217,11 @@ export extern function pipeline_asm_emit_expr_elf_c(arena: *ASTArena, elf_ctx: *
 export extern function pipeline_asm_emit_call_elf_c(arena: *ASTArena, elf_ctx: *ElfCodegenCtx, expr_ref: i32, ctx: *AsmFuncCtx, ta: i32): i32;
 export extern function pipeline_asm_emit_method_call_elf_c(arena: *ASTArena, elf_ctx: *ElfCodegenCtx, expr_ref: i32, ctx: *AsmFuncCtx, ta: i32): i32;
 export extern function pipeline_asm_emit_call_args_elf_c(arena: *ASTArena, elf_ctx: *ElfCodegenCtx, expr_ref: i32, ctx: *AsmFuncCtx, ta: i32, nargs: i32): i32;
-/** M8-tail：SKIP 桩路径 thin 函数 bl C 委托，mega 仍 ret0（pipeline_glue.c）。 */
+/* See implementation. */
 export extern function pipeline_asm_emit_skip_heavy_or_thin_stub_elf_c(elf_ctx: *ElfCodegenCtx, ta: i32, module: *Module, func_index: i32): i32;
-/** 记录当前 emit 函数下标（形参 *T field/index 须 load 槽内指针）。 */
+/* See implementation. */
 export extern function pipeline_asm_emit_set_func_index(func_index: i32): void;
-/** 记录 dep 池；import struct 字段 layout 在 dep module 时 asm 查偏移用。 */
+/* See implementation. */
 export extern function pipeline_asm_emit_set_dep_pipe(pipeline_ctx: *PipelineDepCtx): void;
 export extern function pipeline_asm_emit_set_module(module: *Module): void;
 export extern function pipeline_debug_trace_body_x_mega_pre_reset(module: *Module, arena: *ASTArena): void;
@@ -213,48 +230,59 @@ export extern function pipeline_debug_trace_body_x_mega_post_params(module: *Mod
 export extern function pipeline_debug_trace_body_x_mega_post_frame(module: *Module, arena: *ASTArena): void;
 export extern function pipeline_debug_trace_body_x_mega_post_locals(module: *Module, arena: *ASTArena): void;
 export extern function pipeline_debug_trace_body_x_mega_pre_emit(module: *Module, arena: *ASTArena): void;
-/** WPO v0：asm emit 前查询是否应发射该函数（0=跳过 dead export）。 */
+/* See implementation. */
 export extern function pipeline_asm_wpo_should_emit_func(module: *Module, func_index: i32): i32;
 export extern function pipeline_asm_wpo_pgo_is_hot_func(module: *Module, func_index: i32): i32;
 export extern function pipeline_elf_ctx_set_emit_hot(ctx: *u8, hot: i32): void;
 export extern function pipeline_asm_wpo_pgo_emit_order_prepare(module: *Module): void;
 export extern function pipeline_asm_wpo_pgo_emit_order_count(module: *Module): i32;
 export extern function pipeline_asm_wpo_pgo_emit_order_at(module: *Module, order_index: i32): i32;
-/** emit 时 VAR 是否为当前函数 *T 形参（resolved 缺失时 C glue 回落）。 */
+/* See implementation. */
 export extern function pipeline_asm_emit_func_param_is_ptr_by_name_c(arena: *ASTArena, mod: *Module, vname: *u8, vlen: i32): i32;
-/** M8-tail：INDEX / 赋值左值有效地址 C glue（ix_ref 替代 Expr 按值，便于 bl 薄包装）。 */
+/* See implementation. */
 export extern function pipeline_asm_emit_index_eff_addr_text_c(arena: *ASTArena, out: *CodegenOutBuf, ix_ref: i32, ctx: *AsmFuncCtx, ta: i32, elem_sz: i32): i32;
 export extern function pipeline_asm_emit_index_eff_addr_elf_c(arena: *ASTArena, elf_ctx: *ElfCodegenCtx, ix_ref: i32, ctx: *AsmFuncCtx, ta: i32, elem_sz: i32): i32;
 export extern function pipeline_asm_emit_lvalue_eff_addr_text_c(arena: *ASTArena, ob: *CodegenOutBuf, lval_ref: i32, ctx: *AsmFuncCtx, ta: i32): i32;
 export extern function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *ASTArena, elf_ctx: *ElfCodegenCtx, lval_ref: i32, ctx: *AsmFuncCtx, ta: i32): i32;
 export extern function pipeline_asm_emit_call_args_text_c(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, ctx: *AsmFuncCtx, target_arch: i32, nargs: i32): i32;
 export extern function pipeline_asm_local_offset_c(ctx: *AsmFuncCtx, name: *u8, name_len: i32): i32;
-/** M8-tail：SKIP 桩 mov #0 + epilogue，委托 compat_stubs C glue。 */
+/* See implementation. */
 export extern function pipeline_asm_emit_skip_heavy_stub_elf_c(elf_ctx: *ElfCodegenCtx, ta: i32): i32;
-/** M8-tail：mega asm_codegen_ast* 薄包装 bl→C（seed partial 全量实现；build_asm 仅导出 bl 桩）。 */
+/* See implementation. */
 export extern function pipeline_backend_asm_codegen_ast_c(module: *Module, arena: *ASTArena, out: *CodegenOutBuf, pipeline_ctx: *PipelineDepCtx): i32;
 export extern function pipeline_backend_asm_codegen_ast_to_elf_c(module: *Module, arena: *ASTArena, elf_ctx: *ElfCodegenCtx, pipeline_ctx: *PipelineDepCtx): i32;
-/** M8-tail：`import a.b…` + `a.b….method(args)` 形式解析 C ABI 符号，委托 backend_call_dispatch.c。 */
+/* See implementation. */
 export extern function pipeline_asm_resolve_whole_import_qualified_symbol_c(arena: *ASTArena, cur_mod: *Module, callee_expr_ref: i32, sym_flat: *u8, out_match_imp_j: *i32): i32;
-/** Block ä¾§è½¦å­æ®µç» C è¯»ï¼é¿å ast_arena_block_get æè£ num_stmt_order / final_expr_refã */
+/** Block ä¾§è½¦å­æ®µç» C è¯»ï¼é¿å
+ ast_arena_block_get æè£ num_stmt_order / final_expr_refã */
 export extern function pipeline_asm_block_num_stmt_order_at(arena: *ASTArena, block_ref: i32): i32;
 export extern function pipeline_asm_block_final_expr_ref_at(arena: *ASTArena, block_ref: i32): i32;
 export extern function pipeline_asm_block_stmt_order_has_return(arena: *ASTArena, block_ref: i32): i32;
-/** äºåå·¦/å³å­è¡¨è¾¾å¼ refï¼emit_expr* åç»ä¸ç» glue è¯»åï¼ã */
+/** äºå
+å·¦/å³å­è¡¨è¾¾å¼ refï¼emit_expr* å
+ç»ä¸ç» glue è¯»åï¼ã */
 export function asm_expr_binop_left(arena: *ASTArena, expr_ref: i32): i32 {
   return pipeline_expr_binop_left_ref_at(arena, expr_ref);
 }
+/** Exported function `asm_expr_binop_right`.
+ * Implements `asm_expr_binop_right`.
+ * @param arena *ASTArena
+ * @param expr_ref i32
+ * @return i32
+ */
 export function asm_expr_binop_right(arena: *ASTArena, expr_ref: i32): i32 {
   return pipeline_expr_binop_right_ref_at(arena, expr_ref);
 }
-/** Block sidecarï¼ast.x èå°è£ + pipeline_block_*ï¼ã */
+/** Block sidecarï¼ast.x èå°è£
+ + pipeline_block_*ï¼ã */
 export extern function pipeline_block_const_name_copy64(arena: *ASTArena, br: i32, ci: i32, dst: *u8): void;
 export extern function pipeline_block_const_name_len(arena: *ASTArena, br: i32, ci: i32): i32;
 export extern function pipeline_block_const_init_ref(arena: *ASTArena, br: i32, ci: i32): i32;
 export extern function pipeline_block_let_name_copy64(arena: *ASTArena, br: i32, li: i32, dst: *u8): void;
 export extern function pipeline_block_let_name_len(arena: *ASTArena, br: i32, li: i32): i32;
 export extern function pipeline_block_let_init_ref(arena: *ASTArena, br: i32, li: i32): i32;
-/** asm ä¸»å¾ªç¯è¯» Func æ± ï¼pipeline_glue.c è½¬åï¼é¿å codegen_ åç¼ï¼ã */
+/** asm ä¸»å¾ªç¯è¯» Func æ± ï¼pipeline_glue.c è½¬åï¼é¿å
+ codegen_ åç¼ï¼ã */
 export extern function pipeline_asm_module_func_is_extern_at(mod: *Module, func_index: i32): i32;
 export extern function pipeline_asm_module_func_body_ref_at(mod: *Module, func_index: i32): i32;
 export extern function pipeline_asm_module_func_name_len_at(mod: *Module, func_index: i32): i32;
@@ -263,7 +291,8 @@ export extern function pipeline_asm_module_func_num_params_at(mod: *Module, func
 export extern function pipeline_asm_module_func_param_name_len_at(mod: *Module, func_index: i32, param_index: i32): i32;
 export extern function pipeline_asm_module_func_param_name_copy32(mod: *Module, func_index: i32, param_index: i32, dst: *u8): void;
 export extern function pipeline_asm_get_return_expr_ref_at(arena: *ASTArena, module: *Module, func_index: i32): i32;
-/** import éå®ç¬¦å· field å± scratchï¼ast_pool.cï¼ä¸ typeck.x å±ç¨ï¼ã */
+/** import éå®ç¬¦å· field å± scratchï¼ast_pool.cï¼ä¸ typeck.x å
+±ç¨ï¼ã */
 export extern function asm_qual_sym_layer_reset(): void;
 export extern function asm_qual_sym_layer_push(bytes: *u8, len: i32): i32;
 export extern function asm_qual_sym_layer_count(): i32;
@@ -280,7 +309,8 @@ export extern function asm_ctx_local_offset_at(ctx: *u8, idx: i32): i32;
 export extern function pipeline_module_struct_layout_name_len(module: *Module, idx: i32): i32;
 export extern function pipeline_module_struct_layout_name_byte_at(module: *Module, idx: i32, off: i32): u8;
 
-/** å° ExprKind è½¬ä¸ºåºæ° (0..60)ï¼ä¾è¯æ­æå°ï¼typeck æä¸æ¯æ enum as i32ï¼æç¨åæ¯æ¾å¼æ å°ã */
+/** å° ExprKind è½¬ä¸ºåºæ° (0..60)ï¼ä¾è¯æ­æå°ï¼typeck æä¸æ¯æ enum as i32ï¼æ
+ç¨åæ¯æ¾å¼æ å°ã */
 export function expr_kind_ordinal(k: ExprKind): i32 {
   let o: i32 = k as i32;
   let lo: i32 = ExprKind.EXPR_LIT as i32;
@@ -292,7 +322,8 @@ export function expr_kind_ordinal(k: ExprKind): i32 {
 }
 
 /**
- * æ¯å¦ä¸ºç©ºçæ°ç»å­é¢é []ï¼é¶åç´ ï¼ã
+ * æ¯å¦ä¸ºç©ºçæ°ç»å­é¢é []ï¼é¶å
+ç´ ï¼ã
  * let buf: T[N] = [] æ¶è·³è¿ emit/storeï¼ç±æ æ§½å°åç´æ¥ä½ä¸º buf é¦åï¼INDEX èµ° VAR+LEAï¼ã
  */
 /**
@@ -307,93 +338,246 @@ export function asm_cmp_cc_when_rhs_imm_in_rbx(cc: i32): i32 {
   return cc;
 }
 
+/** Exported function `asm_init_is_empty_array_lit`.
+ * Implements `asm_init_is_empty_array_lit`.
+ * @param arena *ASTArena
+ * @param init_ref i32
+ * @return i32
+ */
 export function asm_init_is_empty_array_lit(arena: *ASTArena, init_ref: i32): i32 {
   return pipeline_asm_init_is_empty_array_lit_c(arena, init_ref);
 }
 
-/** ELF enc 按 target_arch 分派：ta 0=x86_64，1=arm64，2=riscv64。 */
+/** Exported function `enc_label_arch`.
+ * Implements `enc_label_arch`.
+ * @param elf_ctx *ElfCodegenCtx
+ * @param name u8[64]
+ * @param name_len i32
+ * @param is_func i32
+ * @param ta i32
+ * @return i32
+ */
 export function enc_label_arch(elf_ctx: *ElfCodegenCtx, name: u8[64], name_len: i32, is_func: i32, ta: i32): i32 {
   let use_len: i32 = name_len;
   let use_ptr: *u8 = &name[0];
-  /** S4 freestanding：Linux x86_64 用户 `main` 保持 ELF 裸名 main（与 crt0_user_x86_64.s 一致）。 */
+  /* See implementation. */
   return backend_enc_dispatch.backend_enc_label_arch(elf_ctx as *u8, use_ptr, use_len, is_func, ta);
 }
+/** Exported function `enc_prologue_arch`.
+ * Implements `enc_prologue_arch`.
+ * @param elf_ctx *ElfCodegenCtx
+ * @param frame_sz i32
+ * @param ta i32
+ * @return i32
+ */
 export function enc_prologue_arch(elf_ctx: *ElfCodegenCtx, frame_sz: i32, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_prologue_arch(elf_ctx as *u8, frame_sz, ta);
 }
+/** Exported function `enc_epilogue_arch`.
+ * Implements `enc_epilogue_arch`.
+ * @param elf_ctx *ElfCodegenCtx
+ * @param ta i32
+ * @return i32
+ */
 export function enc_epilogue_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_epilogue_arch(elf_ctx as *u8, ta);
 }
+/** Exported function `enc_ret_imm32_arch`.
+ * Implements `enc_ret_imm32_arch`.
+ * @param elf_ctx *ElfCodegenCtx
+ * @param imm32 i32
+ * @param ta i32
+ * @return i32
+ */
 export function enc_ret_imm32_arch(elf_ctx: *ElfCodegenCtx, imm32: i32, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_ret_imm32_arch(elf_ctx as *u8, imm32, ta);
 }
 
+/** Exported function `enc_mov_imm32_to_rbx_arch`.
+ * Implements `enc_mov_imm32_to_rbx_arch`.
+ * @param elf_ctx *ElfCodegenCtx
+ * @param imm32 i32
+ * @param ta i32
+ * @return i32
+ */
 export function enc_mov_imm32_to_rbx_arch(elf_ctx: *ElfCodegenCtx, imm32: i32, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_mov_imm32_to_rbx_arch(elf_ctx as *u8, imm32, ta);
 }
-/** å° 64 ä½ç«å³æ°è£å¥ rax/x0ï¼ç¨äº EXPR_FLOAT_LITï¼double ä½æ¨¡å¼ï¼ã */
+/** å° 64 ä½ç«å³æ°è£
+å
+¥ rax/x0ï¼ç¨äº EXPR_FLOAT_LITï¼double ä½æ¨¡å¼ï¼ã */
 export function enc_mov_imm64_to_rax_arch(elf_ctx: *ElfCodegenCtx, lo: i32, hi: i32, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_mov_imm64_to_rax_arch(elf_ctx as *u8, lo, hi, ta);
 }
+/** Exported function `enc_push_rax_arch`.
+ * Implements `enc_push_rax_arch`.
+ * @param elf_ctx *ElfCodegenCtx
+ * @param ta i32
+ * @return i32
+ */
 export function enc_push_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_push_rax_arch(elf_ctx as *u8, ta);
 }
+/** Exported function `enc_pop_rax_arch`.
+ * Implements `enc_pop_rax_arch`.
+ * @param elf_ctx *ElfCodegenCtx
+ * @param ta i32
+ * @return i32
+ */
 export function enc_pop_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_pop_rax_arch(elf_ctx as *u8, ta);
 }
+/** Exported function `enc_pop_rbx_arch`.
+ * Implements `enc_pop_rbx_arch`.
+ * @param elf_ctx *ElfCodegenCtx
+ * @param ta i32
+ * @return i32
+ */
 export function enc_pop_rbx_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_pop_rbx_arch(elf_ctx as *u8, ta);
 }
+/** Exported function `enc_add_rax_rbx_arch`.
+ * Implements `enc_add_rax_rbx_arch`.
+ * @param elf_ctx *ElfCodegenCtx
+ * @param ta i32
+ * @return i32
+ */
 export function enc_add_rax_rbx_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_add_rax_rbx_arch(elf_ctx as *u8, ta);
 }
-/** w0/eax = w0 - w1ï¼å·¦å¨ w0ãå³/ç«å³æ°å¨ w1ï¼ï¼ä» arm64 æ enc_sub_rax_rbxï¼x86/rv èµ° C glueã */
+/** w0/eax = w0 - w1ï¼å·¦å¨ w0ãå³/ç«å³æ°å¨ w1ï¼ï¼ä»
+ arm64 æ enc_sub_rax_rbxï¼x86/rv èµ° C glueã */
 export function enc_sub_rax_rbx_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_sub_rax_rbx_arch(elf_ctx as *u8, ta);
 }
+/** Exported function `enc_sub_rbx_rax_then_mov_arch`.
+ * Implements `enc_sub_rbx_rax_then_mov_arch`.
+ * @param elf_ctx *ElfCodegenCtx
+ * @param ta i32
+ * @return i32
+ */
 export function enc_sub_rbx_rax_then_mov_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_sub_rbx_rax_then_mov_arch(elf_ctx as *u8, ta);
 }
+/** Exported function `enc_imul_rbx_rax_arch`.
+ * Implements `enc_imul_rbx_rax_arch`.
+ * @param elf_ctx *ElfCodegenCtx
+ * @param ta i32
+ * @return i32
+ */
 export function enc_imul_rbx_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_imul_rbx_rax_arch(elf_ctx as *u8, ta);
 }
+/** Exported function `enc_mov_rax_to_rbx_arch`.
+ * Implements `enc_mov_rax_to_rbx_arch`.
+ * @param elf_ctx *ElfCodegenCtx
+ * @param ta i32
+ * @return i32
+ */
 export function enc_mov_rax_to_rbx_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_mov_rax_to_rbx_arch(elf_ctx as *u8, ta);
 }
+/** Exported function `enc_not_eax_arch`.
+ * Implements `enc_not_eax_arch`.
+ * @param elf_ctx *ElfCodegenCtx
+ * @param ta i32
+ * @return i32
+ */
 export function enc_not_eax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_not_eax_arch(elf_ctx as *u8, ta);
 }
+/** Exported function `enc_and_rbx_rax_arch`.
+ * Implements `enc_and_rbx_rax_arch`.
+ * @param elf_ctx *ElfCodegenCtx
+ * @param ta i32
+ * @return i32
+ */
 export function enc_and_rbx_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_and_rbx_rax_arch(elf_ctx as *u8, ta);
 }
+/** Exported function `enc_or_rbx_rax_arch`.
+ * Implements `enc_or_rbx_rax_arch`.
+ * @param elf_ctx *ElfCodegenCtx
+ * @param ta i32
+ * @return i32
+ */
 export function enc_or_rbx_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_or_rbx_rax_arch(elf_ctx as *u8, ta);
 }
+/** Exported function `enc_xor_rbx_rax_arch`.
+ * Implements `enc_xor_rbx_rax_arch`.
+ * @param elf_ctx *ElfCodegenCtx
+ * @param ta i32
+ * @return i32
+ */
 export function enc_xor_rbx_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_xor_rbx_rax_arch(elf_ctx as *u8, ta);
 }
+/** Exported function `enc_mov_rbx_to_ecx_arch`.
+ * Implements `enc_mov_rbx_to_ecx_arch`.
+ * @param elf_ctx *ElfCodegenCtx
+ * @param ta i32
+ * @return i32
+ */
 export function enc_mov_rbx_to_ecx_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_mov_rbx_to_ecx_arch(elf_ctx as *u8, ta);
 }
+/** Exported function `enc_shl_cl_eax_arch`.
+ * Implements `enc_shl_cl_eax_arch`.
+ * @param elf_ctx *ElfCodegenCtx
+ * @param ta i32
+ * @return i32
+ */
 export function enc_shl_cl_eax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_shl_cl_eax_arch(elf_ctx as *u8, ta);
 }
+/** Exported function `enc_shr_cl_eax_arch`.
+ * Implements `enc_shr_cl_eax_arch`.
+ * @param elf_ctx *ElfCodegenCtx
+ * @param ta i32
+ * @return i32
+ */
 export function enc_shr_cl_eax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_shr_cl_eax_arch(elf_ctx as *u8, ta);
 }
+/** Exported function `enc_sar_cl_eax_arch`.
+ * Implements `enc_sar_cl_eax_arch`.
+ * @param elf_ctx *ElfCodegenCtx
+ * @param ta i32
+ * @return i32
+ */
 export function enc_sar_cl_eax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_sar_cl_eax_arch(elf_ctx as *u8, ta);
 }
+/** Exported function `enc_cltd_arch`.
+ * Implements `enc_cltd_arch`.
+ * @param elf_ctx *ElfCodegenCtx
+ * @param ta i32
+ * @return i32
+ */
 export function enc_cltd_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_cltd_arch(elf_ctx as *u8, ta);
 }
+/** Exported function `enc_idiv_rbx_arch`.
+ * Implements `enc_idiv_rbx_arch`.
+ * @param elf_ctx *ElfCodegenCtx
+ * @param ta i32
+ * @return i32
+ */
 export function enc_idiv_rbx_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_idiv_rbx_arch(elf_ctx as *u8, ta);
 }
+/** Exported function `enc_mov_edx_to_eax_arch`.
+ * Implements `enc_mov_edx_to_eax_arch`.
+ * @param elf_ctx *ElfCodegenCtx
+ * @param ta i32
+ * @return i32
+ */
 export function enc_mov_edx_to_eax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_mov_edx_to_eax_arch(elf_ctx as *u8, ta);
 }
-/** MODï¼arm64 ç¨ sdiv+msubï¼å¿å idiv è¦çè¢«é¤æ°ï¼ï¼x86 ä¸º cltd+idiv+edxâeaxã */
+/** MODï¼arm64 ç¨ sdiv+msubï¼å¿å
+ idiv è¦çè¢«é¤æ°ï¼ï¼x86 ä¸º cltd+idiv+edxâeaxã */
 export function enc_rem_mod_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_rem_mod_arch(elf_ctx as *u8, ta);
 }
@@ -417,43 +601,113 @@ export function enc_div_rbx_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
 export function enc_rem_mod_unsigned_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_rem_mod_unsigned_arch(elf_ctx as *u8, ta);
 }
+/** Exported function `enc_neg_eax_arch`.
+ * Implements `enc_neg_eax_arch`.
+ * @param elf_ctx *ElfCodegenCtx
+ * @param ta i32
+ * @return i32
+ */
 export function enc_neg_eax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_neg_eax_arch(elf_ctx as *u8, ta);
 }
+/** Exported function `enc_test_eax_eax_arch`.
+ * Implements `enc_test_eax_eax_arch`.
+ * @param elf_ctx *ElfCodegenCtx
+ * @param ta i32
+ * @return i32
+ */
 export function enc_test_eax_eax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_test_eax_eax_arch(elf_ctx as *u8, ta);
 }
+/** Exported function `enc_setz_movzbl_eax_arch`.
+ * Implements `enc_setz_movzbl_eax_arch`.
+ * @param elf_ctx *ElfCodegenCtx
+ * @param ta i32
+ * @return i32
+ */
 export function enc_setz_movzbl_eax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_setz_movzbl_eax_arch(elf_ctx as *u8, ta);
 }
+/** Exported function `enc_cmp_rbx_rax_arch`.
+ * Comparison/utility `enc_cmp_rbx_rax_arch`.
+ * @param elf_ctx *ElfCodegenCtx
+ * @param ta i32
+ * @return i32
+ */
 export function enc_cmp_rbx_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_cmp_rbx_rax_arch(elf_ctx as *u8, ta);
 }
-/** cmp 左在 w0/eax、右在 w1/ebx（i 与 n：i-n 供 jge 退出 while）。 */
+/** Exported function `enc_cmp_rax_rbx_arch`.
+ * Comparison/utility `enc_cmp_rax_rbx_arch`.
+ * @param elf_ctx *ElfCodegenCtx
+ * @param ta i32
+ * @return i32
+ */
 export function enc_cmp_rax_rbx_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_cmp_rax_rbx_arch(elf_ctx as *u8, ta);
 }
-/** 比较 w0 与 12 位立即数（字面量 n）；x86 用 cmpl $imm, %eax（i-n）。 */
+/** Exported function `enc_cmp_w0_imm12_arch`.
+ * Comparison/utility `enc_cmp_w0_imm12_arch`.
+ * @param elf_ctx *ElfCodegenCtx
+ * @param imm12 i32
+ * @param ta i32
+ * @return i32
+ */
 export function enc_cmp_w0_imm12_arch(elf_ctx: *ElfCodegenCtx, imm12: i32, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_cmp_w0_imm12_arch(elf_ctx as *u8, imm12, ta);
 }
-/** ä» cset å° w0ï¼é¡»å·² cmpï¼ã */
+/** ä»
+ cset å° w0ï¼é¡»å·² cmpï¼ã */
 export function enc_cset_w0_from_cc_arch(elf_ctx: *ElfCodegenCtx, cc: i32, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_cset_w0_from_cc_arch(elf_ctx as *u8, cc, ta);
 }
+/** Exported function `enc_cmp_setcc_movzbl_arch`.
+ * Comparison/utility `enc_cmp_setcc_movzbl_arch`.
+ * @param elf_ctx *ElfCodegenCtx
+ * @param cc i32
+ * @param ta i32
+ * @return i32
+ */
 export function enc_cmp_setcc_movzbl_arch(elf_ctx: *ElfCodegenCtx, cc: i32, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_cmp_setcc_movzbl_arch(elf_ctx as *u8, cc, ta);
 }
+/** Exported function `enc_store_rax_to_rbp_arch`.
+ * Implements `enc_store_rax_to_rbp_arch`.
+ * @param elf_ctx *ElfCodegenCtx
+ * @param offset i32
+ * @param ta i32
+ * @return i32
+ */
 export function enc_store_rax_to_rbp_arch(elf_ctx: *ElfCodegenCtx, offset: i32, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_store_rax_to_rbp_arch(elf_ctx as *u8, offset, ta);
 }
+/** Exported function `enc_load_rbp_to_rax_arch`.
+ * Implements `enc_load_rbp_to_rax_arch`.
+ * @param elf_ctx *ElfCodegenCtx
+ * @param offset i32
+ * @param ta i32
+ * @return i32
+ */
 export function enc_load_rbp_to_rax_arch(elf_ctx: *ElfCodegenCtx, offset: i32, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_load_rbp_to_rax_arch(elf_ctx as *u8, offset, ta);
 }
-/** 从 rbp 负偏移 load 到 rbx（while i<n 比较右操作数）。 */
+/** Exported function `enc_load_rbp_to_rbx_arch`.
+ * Implements `enc_load_rbp_to_rbx_arch`.
+ * @param elf_ctx *ElfCodegenCtx
+ * @param offset i32
+ * @param ta i32
+ * @return i32
+ */
 export function enc_load_rbp_to_rbx_arch(elf_ctx: *ElfCodegenCtx, offset: i32, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_load_rbp_to_rbx_arch(elf_ctx as *u8, offset, ta);
 }
+/** Exported function `enc_lea_rbp_to_rax_arch`.
+ * Implements `enc_lea_rbp_to_rax_arch`.
+ * @param elf_ctx *ElfCodegenCtx
+ * @param offset i32
+ * @param ta i32
+ * @return i32
+ */
 export function enc_lea_rbp_to_rax_arch(elf_ctx: *ElfCodegenCtx, offset: i32, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_lea_rbp_to_rax_arch(elf_ctx as *u8, offset, ta);
 }
@@ -465,7 +719,7 @@ export function asm_local_var_slot_holds_indirect_ptr(arena: *ASTArena, base_var
   let rtbv: i32 = base_var.resolved_type_ref;
   let kind: i32 = 0;
   if (rtbv <= 0) {
-    /** emit 时 resolved 缺失：module 形参表识别 *T（driver compile.x state 等）。 */
+    /* See implementation. */
     if (mod != 0 as *Module && base_var.kind == ExprKind.EXPR_VAR && base_var.var_name_len > 0
         && pipeline_asm_emit_func_param_is_ptr_by_name_c(arena, mod, &base_var.var_name[0], base_var.var_name_len) != 0) {
       return 1;
@@ -473,7 +727,7 @@ export function asm_local_var_slot_holds_indirect_ptr(arena: *ASTArena, base_var
     return 0;
   }
   kind = pipeline_type_kind_ord_at(arena, rtbv);
-  /** 定长 T[N] 内联栈槽用 lea；仅 *T 为 8B 指针槽须 load。 */
+  /* See implementation. */
   if (kind == TypeKind.TYPE_PTR) {
     return 1;
   }
@@ -488,12 +742,19 @@ export function asm_local_var_slot_holds_indirect_ptr(arena: *ASTArena, base_var
 }
 
 /**
- * ELFï¼å±é¨ VAR ä¸ºæéæ¶ç¨ loadï¼æ§½åå«æåå¯¹è±¡çå°åï¼ï¼å¦å leaï¼æ§½å³å¯¹è±¡/æ°ç»é¦ï¼ã
+ * ELFï¼å±é¨ VAR ä¸ºæéæ¶ç¨ loadï¼æ§½å
+å«æåå¯¹è±¡çå°åï¼ï¼å¦å leaï¼æ§½å³å¯¹è±¡/æ°ç»é¦ï¼ã
  * ä¸ text è·¯å¾ arch_emit_local_slot_ptr_or_addr ä¸è´ã
  */
 export function enc_local_slot_ptr_or_addr_arch(arena: *ASTArena, elf_ctx: *ElfCodegenCtx, base_ref: i32, stack_off: i32, ta: i32, ctx: *AsmFuncCtx): i32 {
   return pipeline_asm_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, base_ref, stack_off, ta, ctx as *u8);
 }
+/** Exported function `enc_rax_plus_rbx_scale4_arch`.
+ * Implements `enc_rax_plus_rbx_scale4_arch`.
+ * @param elf_ctx *ElfCodegenCtx
+ * @param ta i32
+ * @return i32
+ */
 export function enc_rax_plus_rbx_scale4_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_rax_plus_rbx_scale4_arch(elf_ctx as *u8, ta);
 }
@@ -505,10 +766,17 @@ export function enc_rax_plus_rbx_scale1_arch(elf_ctx: *ElfCodegenCtx, ta: i32): 
 export function enc_rax_plus_rbx_scale8_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_rax_plus_rbx_scale8_arch(elf_ctx as *u8, ta);
 }
-/** å° rax å­å¥ [rbx]ï¼å®½åº¦ elem_sz â {1,4,8}ï¼INDEX èµå¼ï¼ã */
+/** å° rax å­å
+¥ [rbx]ï¼å®½åº¦ elem_sz â {1,4,8}ï¼INDEX èµå¼ï¼ã */
 export function enc_store_rax_to_rbx_indirect_arch(elf_ctx: *ElfCodegenCtx, elem_sz: i32, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_store_rax_to_rbx_indirect_arch(elf_ctx as *u8, elem_sz, ta);
 }
+/** Exported function `enc_load_32_from_rax_arch`.
+ * Implements `enc_load_32_from_rax_arch`.
+ * @param elf_ctx *ElfCodegenCtx
+ * @param ta i32
+ * @return i32
+ */
 export function enc_load_32_from_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_load_32_from_rax_arch(elf_ctx as *u8, ta);
 }
@@ -516,18 +784,53 @@ export function enc_load_32_from_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32
 export function enc_load_zext8_from_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_load_zext8_from_rax_arch(elf_ctx as *u8, ta);
 }
+/** Exported function `enc_add_imm_to_rax_arch`.
+ * Implements `enc_add_imm_to_rax_arch`.
+ * @param elf_ctx *ElfCodegenCtx
+ * @param imm i32
+ * @param ta i32
+ * @return i32
+ */
 export function enc_add_imm_to_rax_arch(elf_ctx: *ElfCodegenCtx, imm: i32, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_add_imm_to_rax_arch(elf_ctx as *u8, imm, ta);
 }
+/** Exported function `enc_load_64_from_rax_arch`.
+ * Implements `enc_load_64_from_rax_arch`.
+ * @param elf_ctx *ElfCodegenCtx
+ * @param ta i32
+ * @return i32
+ */
 export function enc_load_64_from_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_load_64_from_rax_arch(elf_ctx as *u8, ta);
 }
+/** Exported function `enc_store_rax_to_rbx_offset_arch`.
+ * Implements `enc_store_rax_to_rbx_offset_arch`.
+ * @param elf_ctx *ElfCodegenCtx
+ * @param offset i32
+ * @param store_size i32
+ * @param ta i32
+ * @return i32
+ */
 export function enc_store_rax_to_rbx_offset_arch(elf_ctx: *ElfCodegenCtx, offset: i32, store_size: i32, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_store_rax_to_rbx_offset_arch(elf_ctx as *u8, offset, store_size, ta);
 }
+/** Exported function `enc_mov_rbx_to_rax_arch`.
+ * Implements `enc_mov_rbx_to_rax_arch`.
+ * @param elf_ctx *ElfCodegenCtx
+ * @param ta i32
+ * @return i32
+ */
 export function enc_mov_rbx_to_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_mov_rbx_to_rax_arch(elf_ctx as *u8, ta);
 }
+/** Exported function `enc_jz_arch`.
+ * Implements `enc_jz_arch`.
+ * @param elf_ctx *ElfCodegenCtx
+ * @param label u8[64]
+ * @param label_len i32
+ * @param ta i32
+ * @return i32
+ */
 export function enc_jz_arch(elf_ctx: *ElfCodegenCtx, label: u8[64], label_len: i32, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_jz_arch(elf_ctx as *u8, &label[0], label_len, ta);
 }
@@ -539,27 +842,61 @@ export function enc_jeq_arch(elf_ctx: *ElfCodegenCtx, label: u8[64], label_len: 
 export function enc_jge_arch(elf_ctx: *ElfCodegenCtx, label: u8[64], label_len: i32, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_jge_arch(elf_ctx as *u8, &label[0], label_len, ta);
 }
+/** Exported function `enc_jnz_arch`.
+ * Implements `enc_jnz_arch`.
+ * @param elf_ctx *ElfCodegenCtx
+ * @param label u8[64]
+ * @param label_len i32
+ * @param ta i32
+ * @return i32
+ */
 export function enc_jnz_arch(elf_ctx: *ElfCodegenCtx, label: u8[64], label_len: i32, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_jnz_arch(elf_ctx as *u8, &label[0], label_len, ta);
 }
+/** Exported function `enc_jmp_arch`.
+ * Implements `enc_jmp_arch`.
+ * @param elf_ctx *ElfCodegenCtx
+ * @param label u8[64]
+ * @param label_len i32
+ * @param ta i32
+ * @return i32
+ */
 export function enc_jmp_arch(elf_ctx: *ElfCodegenCtx, label: u8[64], label_len: i32, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_jmp_arch(elf_ctx as *u8, &label[0], label_len, ta);
 }
+/** Exported function `enc_mov_rax_to_arg_reg_arch`.
+ * Implements `enc_mov_rax_to_arg_reg_arch`.
+ * @param elf_ctx *ElfCodegenCtx
+ * @param k i32
+ * @param ta i32
+ * @return i32
+ */
 export function enc_mov_rax_to_arg_reg_arch(elf_ctx: *ElfCodegenCtx, k: i32, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_mov_rax_to_arg_reg_arch(elf_ctx as *u8, k, ta);
 }
+/** Exported function `enc_call_arch`.
+ * Implements `enc_call_arch`.
+ * @param elf_ctx *ElfCodegenCtx
+ * @param name u8[64]
+ * @param name_len i32
+ * @param ta i32
+ * @return i32
+ */
 export function enc_call_arch(elf_ctx: *ElfCodegenCtx, name: u8[64], name_len: i32, ta: i32): i32 {
   return backend_enc_dispatch.backend_enc_call_arch(elf_ctx as *u8, &name[0], name_len, ta);
 }
 
-/** å½åå½æ°ä¸ä¸æï¼æ å¸§å¤§å°ãå±é¨åéè¡¨ï¼sidecarï¼ãæ ç­¾è®¡æ°å¨ï¼å¾ªç¯æ¶å¡«å¥ break/continue ç®æ æ ç­¾æ ï¼
- * æ°å¢å­æ®µåä¸ C/driver å¯¹é½æ¶åè®¸ç¼è¯å¨å°¾é paddingï¼typeck padding é¨ç¦ï¼ã */
+/** å½åå½æ°ä¸ä¸æï¼æ å¸§å¤§å°ãå±é¨åéè¡¨ï¼sidecarï¼ãæ ç­¾è®¡æ°å¨ï¼å¾ªç¯æ¶å¡«å
+¥ break/continue ç®æ æ ç­¾æ ï¼
+ * æ°å¢å­æ®µåä¸ C/driver å¯¹é½æ¶å
+è®¸ç¼è¯å¨å°¾é paddingï¼typeck padding é¨ç¦ï¼ã */
 allow(padding) struct AsmFuncCtx {
   frame_size: i32;
   next_offset: i32;
   num_locals: i32;
   label_counter: i32;
-  /** å½å codegen æå±æ¨¡åæéï¼ç¨äº FIELD_ACCESS å¤æ­å·åå­æ®µæ¯å¦ä¸º struct_layout ä¸­çèåç±»åï¼ä¸çº¯æä¸¾åºåï¼ãä¸ºç©ºæ¶ææ§è¡ä¸ºéå 64 ä½å è½½ã */
+  /** å½å codegen æå±æ¨¡åæéï¼ç¨äº FIELD_ACCESS å¤æ­å
+·åå­æ®µæ¯å¦ä¸º struct_layout ä¸­çèåç±»åï¼ä¸çº¯æä¸¾åºåï¼ãä¸ºç©ºæ¶ææ§è¡ä¸ºéå 64 ä½å è½½ã */
   module_ref: *Module;
   /** åµå¥å¾ªç¯ break æ ç­¾æ ï¼8 å± Ã 64 å­è = 512 å­èã */
   loop_break_label_stack: u8[512];
@@ -610,7 +947,8 @@ export function asm_c_prefix_redundant_with_name(prefix: *u8, prefix_len: i32, n
   return 1;
 }
 
-/** å° C åç¼å­èä¸å­æ®µåæ¼æè³å¤ 63 å­èç call ç¬¦å·åå¥ out_nameï¼æåè¿åé¿åº¦ï¼1..63ï¼ï¼å¤±è´¥ -1ã */
+/** å° C åç¼å­èä¸å­æ®µåæ¼æè³å¤ 63 å­èç call ç¬¦å·åå
+¥ out_nameï¼æåè¿åé¿åº¦ï¼1..63ï¼ï¼å¤±è´¥ -1ã */
 export function asm_build_import_binding_call_sym(pre: *u8, pre_len: i32, field_name: *u8, field_len: i32, out_name: *u8): i32 {
   return pipeline_asm_build_import_binding_call_sym_c(pre, pre_len, field_name, field_len, out_name);
 }
@@ -662,7 +1000,8 @@ export function asm_import_binding_name_equal(module: *Module, imp_ix: i32, nm: 
   return true;
 }
 
-/** pipeline_module_import_path åç¬¬ want_seg æ®µèµ·ç¹åç§»ä¸é¿åº¦ï¼ä¸ typeck_import_segment_at ä¸è´ï¼ã */
+/** pipeline_module_import_path å
+ç¬¬ want_seg æ®µèµ·ç¹åç§»ä¸é¿åº¦ï¼ä¸ typeck_import_segment_at ä¸è´ï¼ã */
 export function asm_import_segment_at_local(module: *Module, imp_ix: i32, want_seg: i32,
   ostr: *i32, olen: *i32): bool {
   if (module == 0 as *Module || imp_ix < 0 || imp_ix >= module.num_imports) {
@@ -701,7 +1040,8 @@ export function asm_import_segment_at_local(module: *Module, imp_ix: i32, want_s
   return false;
 }
 
-/** å°æ­£å¨ codegen ç module å¨ç¬¬ imp_ix æ§½ç import é»è¾è·¯å¾è½¬æ C ABI åç¼åå¥ pre_bufï¼æåè¿ååç¼é¿åº¦ï¼å­èï¼ï¼è·¯å¾ç©ºæåç¼ç©ºè¿å -1ã */
+/** å°æ­£å¨ codegen ç module å¨ç¬¬ imp_ix æ§½ç import é»è¾è·¯å¾è½¬æ C ABI åç¼åå
+¥ pre_bufï¼æåè¿ååç¼é¿åº¦ï¼å­èï¼ï¼è·¯å¾ç©ºæåç¼ç©ºè¿å -1ã */
 export function asm_fill_c_prefix_from_module_import(cur_mod: *Module, imp_ix: i32, pre_buf: *u8): i32 {
   let path_bytes: u8[64] = [];
   parser_get_module_import_path(cur_mod, imp_ix, path_bytes);
@@ -719,29 +1059,57 @@ export function asm_fill_c_prefix_from_module_import(cur_mod: *Module, imp_ix: i
   return pre_len;
 }
 
-/** è¥ä¸º `import a.bâ¦` + `a.bâ¦.method(args)` å½¢å¼ï¼æ¼è£ä¸ codegen ä¸è´ç C ABI ç¬¦å·å¹¶åå¥ sym_flatï¼è¿åå­èé¿åº¦ï¼-1 æªå¹éã
- * æåæ¶åæ¶å°å¯¹åº module import æ§½ä¸æ åå¥ *out_match_imp_jã
- * pipe ä»ä¿çåæ°å¼å®¹ï¼åç¼ä¸å¾ä» cur_mod ç import æ§½åè·¯å¾ï¼codegen dep æ¨¡åæ¶ PipelineDepCtx.ndep å¸¸ä¸ºå¥å£ direct ä¾èµæ°ï¼
- * ä¸ cur_mod.num_imports ä¸ä¸è´ï¼ä¸å¯ç¨ dep_j &lt; pipe.ndep æªæ­æ¥æ¾ï¼ãæªå¹éä¸å *outã */
+/** è¥ä¸º `import a.bâ¦` + `a.bâ¦.method(args)` å½¢å¼ï¼æ¼è£
+ä¸ codegen ä¸è´ç C ABI ç¬¦å·å¹¶åå
+¥ sym_flatï¼è¿åå­èé¿åº¦ï¼-1 æªå¹é
+ã
+ * æåæ¶åæ¶å°å¯¹åº module import æ§½ä¸æ åå
+¥ *out_match_imp_jã
+ * pipe ä»
+ä¿çåæ°å
+¼å®¹ï¼åç¼ä¸å¾ä» cur_mod ç import æ§½åè·¯å¾ï¼codegen dep æ¨¡åæ¶ PipelineDepCtx.ndep å¸¸ä¸ºå
+¥å£ direct ä¾èµæ°ï¼
+ * ä¸ cur_mod.num_imports ä¸ä¸è´ï¼ä¸å¯ç¨ dep_j &lt; pipe.ndep æªæ­æ¥æ¾ï¼ãæªå¹é
+ä¸å *outã */
 export function asm_resolve_whole_import_qualified_symbol(
   arena: *ASTArena, cur_mod: *Module, pipe: *PipelineDepCtx, callee_expr_ref: i32, sym_flat: *u8,
   out_match_imp_j: *i32): i32 {
-  /** M8-tail 薄包装：pipe 仅保留 ABI 兼容，查找一律委托 C glue。 */
+  /* See implementation. */
   return pipeline_asm_resolve_whole_import_qualified_symbol_c(arena, cur_mod, callee_expr_ref, sym_flat, out_match_imp_j);
 }
 
-/** text call 实参；M8-tail 委托 C glue pipeline_asm_emit_call_args_text_c（expr_ref 替代 Expr 按值）。 */
+/** Exported function `asm_emit_call_args_text`.
+ * Implements `asm_emit_call_args_text`.
+ * @param arena *ASTArena
+ * @param out *CodegenOutBuf
+ * @param expr_ref i32
+ * @param ctx *AsmFuncCtx
+ * @param target_arch i32
+ * @param nargs i32
+ * @return i32
+ */
 export function asm_emit_call_args_text(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, ctx: *AsmFuncCtx, target_arch: i32, nargs: i32): i32 {
   return pipeline_asm_emit_call_args_text_c(arena, out, expr_ref, ctx, target_arch, nargs);
 }
 
-/** ELF call 实参；M8-tail 委托 C glue pipeline_asm_emit_call_args_elf_c。 */
+/** Exported function `asm_emit_call_args_elf`.
+ * Implements `asm_emit_call_args_elf`.
+ * @param arena *ASTArena
+ * @param elf_ctx *ElfCodegenCtx
+ * @param e Expr
+ * @param expr_ref i32
+ * @param ctx *AsmFuncCtx
+ * @param ta i32
+ * @param nargs i32
+ * @return i32
+ */
 export function asm_emit_call_args_elf(arena: *ASTArena, elf_ctx: *ElfCodegenCtx, e: Expr, expr_ref: i32, ctx: *AsmFuncCtx, ta: i32, nargs: i32): i32 {
   return pipeline_asm_emit_call_args_elf_c(arena, elf_ctx, expr_ref, ctx, ta, nargs);
 }
 
 
-/** æ¯è¾ä¸¤æ®µæ è¯ç¬¦å­èåºåæ¯å¦ç¸ç­ï¼ä¸ typeck.name_equal ç­ä»·ï¼ä¾ asm åæ¥ struct_layoutï¼ã */
+/** æ¯è¾ä¸¤æ®µæ è¯ç¬¦å­èåºåæ¯å¦ç¸ç­ï¼ä¸ typeck.name_equal ç­ä»·ï¼ä¾ asm å
+æ¥ struct_layoutï¼ã */
 export function asm_names_equal(a: *u8, a_len: i32, b: *u8, b_len: i32): bool {
   if (a_len != b_len || a_len <= 0) {
     return false;
@@ -755,6 +1123,13 @@ export function asm_names_equal(a: *u8, a_len: i32, b: *u8, b_len: i32): bool {
   }
   return true;
 }
+/** Exported function `asm_module_named_type_has_struct_layout`.
+ * Implements `asm_module_named_type_has_struct_layout`.
+ * @param module *Module
+ * @param name *u8
+ * @param name_len i32
+ * @return bool
+ */
 export function asm_module_named_type_has_struct_layout(module: *Module, name: *u8, name_len: i32): bool {
   if (module == 0 as *Module || name_len <= 0) {
     return false;
@@ -811,8 +1186,14 @@ export function asm_field_access_load_byte_sz(arena: *ASTArena, field_expr_ref: 
   return 4;
 }
 
-/** éç½®å½æ°ä¸ä¸æï¼ç¨äºæ°å½æ°å¼å§ãmod è®°å¥ module_refï¼ä¾ emit_expr FIELD_ACCESS ç­ä½¿ç¨ã */
-/** 重置函数上下文，用于新函数开始。mod 记入 module_ref；label_counter 不重置以免多函数 .L_N 重名。 */
+/** éç½®å½æ°ä¸ä¸æï¼ç¨äºæ°å½æ°å¼å§ãmod è®°å
+¥ module_refï¼ä¾ emit_expr FIELD_ACCESS ç­ä½¿ç¨ã */
+/** Exported function `ctx_reset`.
+ * Implements `ctx_reset`.
+ * @param ctx *AsmFuncCtx
+ * @param mod *Module
+ * @return void
+ */
 export function ctx_reset(ctx: *AsmFuncCtx, mod: *Module): void {
   ctx.frame_size = 0;
   ctx.next_offset = 0;
@@ -827,38 +1208,70 @@ export function ctx_reset(ctx: *AsmFuncCtx, mod: *Module): void {
 }
 
 /** æå½¢å + åä¸­ const + let æ°éè®¡ç®æ å¸§å¤§å°ï¼æ¯æ§½ 8 å­èï¼åä¸åæ´å° 16ï¼ï¼å¹¶é¢ç 64 å­è temp åºä¾ STRUCT_LIT/ARRAY_LITã */
-/** 栈帧大小；M8-tail 委托 C glue（形参 + const/let + temp）。 */
+/** Exported function `compute_frame_size`.
+ * Implements `compute_frame_size`.
+ * @param num_params i32
+ * @param arena *ASTArena
+ * @param block_ref i32
+ * @param mod *Module
+ * @return i32
+ */
 export function compute_frame_size(num_params: i32, arena: *ASTArena, block_ref: i32, mod: *Module): i32 {
   return pipeline_asm_compute_frame_size_c(num_params, arena, block_ref, mod);
 }
 
 
-/** å°å½æ°çå½¢åå¡«å¥ ctx å±é¨ sidecarï¼åç§» 8, 16, 24, ...ï¼ï¼é¡»å¨ fill_local_slots åè°ç¨ã */
-/** 形参槽；M8-tail 委托 C glue pipeline_asm_fill_param_slots。 */
+/** å°å½æ°çå½¢åå¡«å
+¥ ctx å±é¨ sidecarï¼åç§» 8, 16, 24, ...ï¼ï¼é¡»å¨ fill_local_slots åè°ç¨ã */
+/** Exported function `fill_param_slots`.
+ * Implements `fill_param_slots`.
+ * @param ctx *AsmFuncCtx
+ * @param mod *Module
+ * @param func_index i32
+ * @return void
+ */
 export function fill_param_slots(ctx: *AsmFuncCtx, mod: *Module, func_index: i32): void {
   pipeline_asm_fill_param_slots(ctx, mod, func_index);
 }
 
 
-/** å°åç const/let å¡«å¥ ctx å±é¨ sidecarï¼åç§»ä» ctx.next_offset èµ·ï¼fill_param_slots åè°ç¨ï¼ã */
-/** 块内 const/let 槽；M8-tail 委托 C glue pipeline_asm_fill_local_slots。 */
+/** å°åç const/let å¡«å
+¥ ctx å±é¨ sidecarï¼åç§»ä» ctx.next_offset èµ·ï¼fill_param_slots åè°ç¨ï¼ã */
+/** Exported function `fill_local_slots`.
+ * Implements `fill_local_slots`.
+ * @param ctx *AsmFuncCtx
+ * @param arena *ASTArena
+ * @param block_ref i32
+ * @return void
+ */
 export function fill_local_slots(ctx: *AsmFuncCtx, arena: *ASTArena, block_ref: i32): void {
   pipeline_asm_fill_local_slots(ctx, arena, block_ref);
 }
 
 
 /**
- * If è¯­å¥ç then åå¯å«ç¬ç« const/letï¼é¡»åå¥ ctx.locals æ å°æå¯è§£æ EXPR_VARã
+ * If è¯­å¥ç then åå¯å«ç¬ç« const/letï¼é¡»å
+å
+¥ ctx.locals æ å°æå¯è§£æ EXPR_VARã
  * ä¸ EXPR_BLOCK è·¯å¾ä¸è´ï¼æå¢æ§½è¡¨ï¼å®æåæ¢å¤ num_locals/next_offsetï¼åµå¥åæ¯æ åç§»å¯åæ¶å¤ç¨ã
  */
-/** if then 块 text 路径；M8-tail 委托 partial（C glue）。 */
+/** Exported function `emit_if_then_block_body_text`.
+ * Implements `emit_if_then_block_body_text`.
+ * @param arena *ASTArena
+ * @param out *CodegenOutBuf
+ * @param then_block_ref i32
+ * @param ctx *AsmFuncCtx
+ * @param target_arch i32
+ * @return i32
+ */
 export function emit_if_then_block_body_text(arena: *ASTArena, out: *CodegenOutBuf, then_block_ref: i32, ctx: *AsmFuncCtx, target_arch: i32): i32 {
   return pipeline_asm_emit_if_then_block_body_text_c(arena, out, then_block_ref, ctx, target_arch);
 }
 
 
-/** ELF è·¯å¾ï¼`emit_if_then_block_body_text` çéå¯¹å®ç°ãta ä¸ºç®æ æ¶æç´¢å¼ã */
-/** if then 块 ELF 路径；M8-tail 委托 C glue pipeline_asm_emit_if_then_block_body_elf_c。 */
+/** ELF è·¯å¾ï¼`emit_if_then_block_body_text` çé
+å¯¹å®ç°ãta ä¸ºç®æ æ¶æç´¢å¼ã */
+/* See implementation. */
 export function emit_if_then_block_body_elf(
   arena: *ASTArena,
   elf_ctx: *ElfCodegenCtx,
@@ -871,33 +1284,62 @@ export function emit_if_then_block_body_elf(
 
 
 /** å¨ ctx å±é¨ sidecar ä¸­æ¥æ¾åå­ï¼è¿ååç§»ï¼æªæ¾å°è¿å -1ã */
-/** 在 ctx 局部 sidecar 中查找名字，返回偏移；M8-tail 委托 C glue pipeline_asm_local_offset_c。 */
+/** Exported function `local_offset`.
+ * Implements `local_offset`.
+ * @param ctx *AsmFuncCtx
+ * @param name *u8
+ * @param name_len i32
+ * @return i32
+ */
 export function local_offset(ctx: *AsmFuncCtx, name: *u8, name_len: i32): i32 {
   return pipeline_asm_local_offset_c(ctx, name, name_len);
 }
 
+/** Exported function `arch_emit_ret_imm32`.
+ * Implements `arch_emit_ret_imm32`.
+ * @param out *CodegenOutBuf
+ * @param imm i32
+ * @param ta i32
+ * @return i32
+ */
 export function arch_emit_ret_imm32(out: *CodegenOutBuf, imm: i32, ta: i32): i32 {
   if (ta == 1) { return arm64.emit_ret_imm32(out, imm); }
   if (ta == 2) { return riscv64.emit_ret_imm32(out, imm); }
   return x86_64.emit_ret_imm32(out, imm);
 }
-/** å° 64 ä½ç«å³æ°ï¼lo/hi ä¸ºä½/é« 32 ä½ï¼è£å¥ rax/x0ãç¨äº EXPR_FLOAT_LIT åå° double ä½æ¨¡å¼ã */
+/** å° 64 ä½ç«å³æ°ï¼lo/hi ä¸ºä½/é« 32 ä½ï¼è£
+å
+¥ rax/x0ãç¨äº EXPR_FLOAT_LIT åå° double ä½æ¨¡å¼ã */
 export function arch_emit_mov_imm64_to_rax(out: *CodegenOutBuf, lo: i32, hi: i32, ta: i32): i32 {
   if (ta == 1) { return arm64.emit_mov_imm64_to_rax(out, lo, hi); }
   if (ta == 2) { return riscv64.emit_mov_imm64_to_rax(out, lo, hi); }
   return x86_64.emit_mov_imm64_to_rax(out, lo, hi);
 }
-/** 7.3ï¼ç«å³æ°å¥ rbx/w1ï¼ADD å·¦æä½æ°ä¸ºå­é¢éæ¶å push/popã */
+/** 7.3ï¼ç«å³æ°å
+¥ rbx/w1ï¼ADD å·¦æä½æ°ä¸ºå­é¢éæ¶å
+ push/popã */
 export function arch_emit_mov_imm32_to_rbx(out: *CodegenOutBuf, imm: i32, ta: i32): i32 {
   if (ta == 1) { return arm64.emit_mov_imm32_to_rbx(out, imm); }
   if (ta == 2) { return riscv64.emit_mov_imm32_to_rbx(out, imm); }
   return x86_64.emit_mov_imm32_to_rbx(out, imm);
 }
+/** Exported function `arch_emit_neg_eax`.
+ * Implements `arch_emit_neg_eax`.
+ * @param out *CodegenOutBuf
+ * @param ta i32
+ * @return i32
+ */
 export function arch_emit_neg_eax(out: *CodegenOutBuf, ta: i32): i32 {
   if (ta == 1) { return arm64.emit_neg_eax(out); }
   if (ta == 2) { return riscv64.emit_neg_eax(out); }
   return x86_64.emit_neg_eax(out);
 }
+/** Exported function `arch_emit_test_setz`.
+ * Implements `arch_emit_test_setz`.
+ * @param out *CodegenOutBuf
+ * @param ta i32
+ * @return i32
+ */
 export function arch_emit_test_setz(out: *CodegenOutBuf, ta: i32): i32 {
   if (ta == 1) {
     if (arm64.emit_test_eax_eax(out) != 0) { return -1; }
@@ -911,7 +1353,8 @@ export function arch_emit_test_setz(out: *CodegenOutBuf, ta: i32): i32 {
   return x86_64.emit_setz_movzbl_eax(out);
 }
 
-/** ä»æ¯è¾ rbx ä¸ raxï¼ç½®æ å¿/ç»æä¾ jzï¼ãmatch åæ¯ç¸ç­æ¯è¾ç¨ã */
+/** ä»
+æ¯è¾ rbx ä¸ raxï¼ç½®æ å¿/ç»æä¾ jzï¼ãmatch åæ¯ç¸ç­æ¯è¾ç¨ã */
 export function arch_emit_cmp_rbx_rax(out: *CodegenOutBuf, ta: i32): i32 {
   if (ta == 1) { return arm64.emit_cmp_rbx_rax(out); }
   if (ta == 2) { return riscv64.emit_cmp_rbx_rax(out); }
@@ -927,47 +1370,101 @@ export function arch_emit_cmp_setcc(out: *CodegenOutBuf, cc: i32, ta: i32): i32 
   return x86_64.emit_cmp_setcc(out, cc);
 }
 
+/** Exported function `arch_emit_push_rax`.
+ * Implements `arch_emit_push_rax`.
+ * @param out *CodegenOutBuf
+ * @param ta i32
+ * @return i32
+ */
 export function arch_emit_push_rax(out: *CodegenOutBuf, ta: i32): i32 {
   if (ta == 1) { return arm64.emit_push_rax(out); }
   if (ta == 2) { return riscv64.emit_push_rax(out); }
   return x86_64.emit_push_rax(out);
 }
+/** Exported function `arch_emit_pop_rbx`.
+ * Implements `arch_emit_pop_rbx`.
+ * @param out *CodegenOutBuf
+ * @param ta i32
+ * @return i32
+ */
 export function arch_emit_pop_rbx(out: *CodegenOutBuf, ta: i32): i32 {
   if (ta == 1) { return arm64.emit_pop_rbx(out); }
   if (ta == 2) { return riscv64.emit_pop_rbx(out); }
   return x86_64.emit_pop_rbx(out);
 }
+/** Exported function `arch_emit_pop_rax`.
+ * Implements `arch_emit_pop_rax`.
+ * @param out *CodegenOutBuf
+ * @param ta i32
+ * @return i32
+ */
 export function arch_emit_pop_rax(out: *CodegenOutBuf, ta: i32): i32 {
   if (ta == 1) { return arm64.emit_pop_rax(out); }
   if (ta == 2) { return riscv64.emit_pop_rax(out); }
   return x86_64.emit_pop_rax(out);
 }
+/** Exported function `arch_emit_add_rax_rbx`.
+ * Implements `arch_emit_add_rax_rbx`.
+ * @param out *CodegenOutBuf
+ * @param ta i32
+ * @return i32
+ */
 export function arch_emit_add_rax_rbx(out: *CodegenOutBuf, ta: i32): i32 {
   if (ta == 1) { return arm64.emit_add_rax_rbx(out); }
   if (ta == 2) { return riscv64.emit_add_rax_rbx(out); }
   return x86_64.emit_add_rax_rbx(out);
 }
+/** Exported function `arch_emit_sub_rbx_rax_then_mov`.
+ * Implements `arch_emit_sub_rbx_rax_then_mov`.
+ * @param out *CodegenOutBuf
+ * @param ta i32
+ * @return i32
+ */
 export function arch_emit_sub_rbx_rax_then_mov(out: *CodegenOutBuf, ta: i32): i32 {
   if (ta == 1) { return arm64.emit_sub_rbx_rax_then_mov(out); }
   if (ta == 2) { return riscv64.emit_sub_rbx_rax_then_mov(out); }
   return x86_64.emit_sub_rbx_rax_then_mov(out);
 }
+/** Exported function `arch_emit_imul_rbx_rax`.
+ * Implements `arch_emit_imul_rbx_rax`.
+ * @param out *CodegenOutBuf
+ * @param ta i32
+ * @return i32
+ */
 export function arch_emit_imul_rbx_rax(out: *CodegenOutBuf, ta: i32): i32 {
   if (ta == 1) { return arm64.emit_imul_rbx_rax(out); }
   if (ta == 2) { return riscv64.emit_imul_rbx_rax(out); }
   return x86_64.emit_imul_rbx_rax(out);
 }
+/** Exported function `arch_emit_mov_rax_to_rbx`.
+ * Implements `arch_emit_mov_rax_to_rbx`.
+ * @param out *CodegenOutBuf
+ * @param ta i32
+ * @return i32
+ */
 export function arch_emit_mov_rax_to_rbx(out: *CodegenOutBuf, ta: i32): i32 {
   if (ta == 1) { return arm64.emit_mov_rax_to_rbx(out); }
   if (ta == 2) { return riscv64.emit_mov_rax_to_rbx(out); }
   return x86_64.emit_mov_rax_to_rbx(out);
 }
+/** Exported function `arch_emit_idiv_rbx`.
+ * Implements `arch_emit_idiv_rbx`.
+ * @param out *CodegenOutBuf
+ * @param ta i32
+ * @return i32
+ */
 export function arch_emit_idiv_rbx(out: *CodegenOutBuf, ta: i32): i32 {
   if (ta == 1) { return arm64.emit_idiv_rbx(out); }
   if (ta == 2) { return riscv64.emit_idiv_rbx(out); }
   if (x86_64.emit_cltd(out) != 0) { return -1; }
   return x86_64.emit_idiv_rbx(out);
 }
+/** Exported function `arch_emit_rem_mod`.
+ * Implements `arch_emit_rem_mod`.
+ * @param out *CodegenOutBuf
+ * @param ta i32
+ * @return i32
+ */
 export function arch_emit_rem_mod(out: *CodegenOutBuf, ta: i32): i32 {
   if (ta == 1) { return arm64.emit_rem_w0_w1(out); }
   if (ta == 2) { return riscv64.emit_rem_w0_w1(out); }
@@ -975,11 +1472,25 @@ export function arch_emit_rem_mod(out: *CodegenOutBuf, ta: i32): i32 {
   if (x86_64.emit_idiv_rbx(out) != 0) { return -1; }
   return x86_64.emit_mov_edx_to_eax(out);
 }
+/** Exported function `arch_emit_load_rbp_to_rax`.
+ * Implements `arch_emit_load_rbp_to_rax`.
+ * @param out *CodegenOutBuf
+ * @param off i32
+ * @param ta i32
+ * @return i32
+ */
 export function arch_emit_load_rbp_to_rax(out: *CodegenOutBuf, off: i32, ta: i32): i32 {
   if (ta == 1) { return arm64.emit_load_rbp_to_rax(out, off); }
   if (ta == 2) { return riscv64.emit_load_rbp_to_rax(out, off); }
   return x86_64.emit_load_rbp_to_rax(out, off);
 }
+/** Exported function `arch_emit_store_rax_to_rbp`.
+ * Implements `arch_emit_store_rax_to_rbp`.
+ * @param out *CodegenOutBuf
+ * @param off i32
+ * @param ta i32
+ * @return i32
+ */
 export function arch_emit_store_rax_to_rbp(out: *CodegenOutBuf, off: i32, ta: i32): i32 {
   if (ta == 1) { return arm64.emit_store_rax_to_rbp(out, off); }
   if (ta == 2) { return riscv64.emit_store_rax_to_rbp(out, off); }
@@ -992,13 +1503,15 @@ export function arch_emit_lea_rbp_to_rax(out: *CodegenOutBuf, off: i32, ta: i32)
   return x86_64.emit_lea_rbp_to_rax(out, off);
 }
 /**
- * Textï¼å±é¨ VAR ä¸ºæéåä»æ æ§½è½½å¥æéå° raxï¼å¦å rax = æ æ§½å°åï¼å°±å°ç»æ/æ°ç»ï¼ã
+ * Textï¼å±é¨ VAR ä¸ºæéåä»æ æ§½è½½å
+¥æéå° raxï¼å¦å rax = æ æ§½å°åï¼å°±å°ç»æ/æ°ç»ï¼ã
  * codegen.x ä¸­ `fn(..., out: *CodegenOutBuf)` ç­å¯¹ `out.field` é¡»èµ° loadï¼ä¸è½ lea slotã
  */
 export function arch_emit_local_slot_ptr_or_addr(arena: *ASTArena, out: *CodegenOutBuf, base_ref: i32, stack_off: i32, ta: i32, ctx: *AsmFuncCtx): i32 {
   return pipeline_asm_arch_emit_local_slot_ptr_or_addr_text_c(arena, out, base_ref, stack_off, ta, ctx as *u8);
 }
-/** rax/x0 = rax/x0 + rbx/x1*4ãç¨äº EXPR_INDEX ä¸æ ä¹åç´ å¤§å° 4ã */
+/** rax/x0 = rax/x0 + rbx/x1*4ãç¨äº EXPR_INDEX ä¸æ ä¹å
+ç´ å¤§å° 4ã */
 export function arch_emit_rax_plus_rbx_scale4(out: *CodegenOutBuf, ta: i32): i32 {
   if (ta == 1) { return arm64.emit_rax_plus_rbx_scale4(out); }
   if (ta == 2) { return riscv64.emit_rax_plus_rbx_scale4(out); }
@@ -1022,13 +1535,15 @@ export function arch_emit_store_rax_to_rbx_indirect(out: *CodegenOutBuf, elem_sz
   if (ta == 2) { return riscv64.emit_store_rax_to_rbx_indirect(out, elem_sz); }
   return x86_64.emit_store_rax_to_rbx_indirect(out, elem_sz);
 }
-/** ä» [rax]/[x0] å è½½ 4 å­èå° rax/w0ãç¨äº EXPR_INDEX è¯»åç´ ã */
+/** ä» [rax]/[x0] å è½½ 4 å­èå° rax/w0ãç¨äº EXPR_INDEX è¯»å
+ç´ ã */
 export function arch_emit_load_32_from_rax(out: *CodegenOutBuf, ta: i32): i32 {
   if (ta == 1) { return arm64.emit_load_32_from_rax(out); }
   if (ta == 2) { return riscv64.emit_load_32_from_rax(out); }
   return x86_64.emit_load_32_from_rax(out);
 }
-/** u8 åç´ è¯»åï¼é¶æ©å±å°ç®æ è¿åå¯å­å¨ã */
+/** u8 å
+ç´ è¯»åï¼é¶æ©å±å°ç®æ è¿åå¯å­å¨ã */
 export function arch_emit_load_zext8_from_rax(out: *CodegenOutBuf, ta: i32): i32 {
   if (ta == 1) { return arm64.emit_load_zext8_from_rax(out); }
   if (ta == 2) { return riscv64.emit_load_zext8_from_rax(out); }
@@ -1046,7 +1561,8 @@ export function arch_emit_load_64_from_rax(out: *CodegenOutBuf, ta: i32): i32 {
   if (ta == 2) { return riscv64.emit_load_64_from_rax(out); }
   return x86_64.emit_load_64_from_rax(out);
 }
-/** å° rax å­å° [rbx+offset]ãstore_size 4=ARRAY_LIT åç´ ï¼8=STRUCT_LIT å­æ®µãç¨äº STRUCT_LIT/ARRAY_LIT temp åºã */
+/** å° rax å­å° [rbx+offset]ãstore_size 4=ARRAY_LIT å
+ç´ ï¼8=STRUCT_LIT å­æ®µãç¨äº STRUCT_LIT/ARRAY_LIT temp åºã */
 export function arch_emit_store_rax_to_rbx_offset(out: *CodegenOutBuf, offset: i32, store_size: i32, ta: i32): i32 {
   if (ta == 1) { return arm64.emit_store_rax_to_rbx_offset(out, offset, store_size); }
   if (ta == 2) { return riscv64.emit_store_rax_to_rbx_offset(out, offset, store_size); }
@@ -1065,7 +1581,9 @@ export function arch_emit_mov_rax_to_arg_reg(out: *CodegenOutBuf, k: i32, ta: i3
   return x86_64.emit_mov_rax_to_arg_reg(out, k);
 }
 
-/** arm64ï¼ä» [sp + i*16] è£å¥ wiï¼ç¨äºå¤å call åãx86 ä¸è°ç¨ã */
+/** arm64ï¼ä» [sp + i*16] è£
+å
+¥ wiï¼ç¨äºå¤å call åãx86 ä¸è°ç¨ã */
 export function arch_emit_ldr_sp_offset_to_wi(out: *CodegenOutBuf, i: i32, ta: i32): i32 {
   if (ta != 1) { return 0; }
   return arm64.emit_ldr_sp_offset_to_wi(out, i);
@@ -1078,21 +1596,48 @@ export function arch_emit_add_sp_imm(out: *CodegenOutBuf, n: i32, ta: i32): i32 
 }
 
 /** åç¬å¤ç EXPR_CALLï¼æ¯æç»å® import ç FIELD_ACCESS calleeï¼å¯¹é½ codegenï¼ï¼å¦åè¦æ± EXPR_VARã */
-/** text call 表达式；M8-tail 委托 partial backend_emit_expr_call（C glue）。 */
+/** Exported function `emit_expr_call`.
+ * Implements `emit_expr_call`.
+ * @param arena *ASTArena
+ * @param out *CodegenOutBuf
+ * @param expr_ref i32
+ * @param e Expr
+ * @param ctx *AsmFuncCtx
+ * @param target_arch i32
+ * @return i32
+ */
 export function emit_expr_call(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, e: Expr, ctx: *AsmFuncCtx, target_arch: i32): i32 {
   return pipeline_asm_emit_expr_call_c(arena, out, expr_ref, ctx, target_arch);
 }
 
 
 /** EXPR_METHOD_CALLï¼receiver ä½ä¸ºç¬¬ä¸åï¼arg0ï¼ï¼åä¼  method call å®åï¼arg1..argNï¼ï¼æå call method_call_nameã */
-/** text method_call；M8-tail 委托 partial（C glue）。 */
+/** Exported function `emit_expr_method_call`.
+ * Implements `emit_expr_method_call`.
+ * @param arena *ASTArena
+ * @param out *CodegenOutBuf
+ * @param expr_ref i32
+ * @param e Expr
+ * @param ctx *AsmFuncCtx
+ * @param target_arch i32
+ * @return i32
+ */
 export function emit_expr_method_call(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, e: Expr, ctx: *AsmFuncCtx, target_arch: i32): i32 {
   return pipeline_asm_emit_expr_method_call_c(arena, out, expr_ref, ctx, target_arch);
 }
 
 
 /** ELF è·¯å¾ç EXPR_METHOD_CALLï¼receiver ä½ arg0ï¼å arg1..argNï¼enc_call(method_name)ã */
-/** ELF method_call；M8-tail 委托 C glue pipeline_asm_emit_method_call_elf_c。 */
+/** Exported function `emit_expr_elf_method_call`.
+ * Implements `emit_expr_elf_method_call`.
+ * @param arena *ASTArena
+ * @param elf_ctx *ElfCodegenCtx
+ * @param expr_ref i32
+ * @param e Expr
+ * @param ctx *AsmFuncCtx
+ * @param ta i32
+ * @return i32
+ */
 export function emit_expr_elf_method_call(arena: *ASTArena, elf_ctx: *ElfCodegenCtx, expr_ref: i32, e: Expr, ctx: *AsmFuncCtx, ta: i32): i32 {
   return pipeline_asm_emit_method_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
 }
@@ -1179,7 +1724,8 @@ export function fold_expr_is_add_kind(arena: *ASTArena, expr_ref: i32): i32 {
 
 /**
  * è¥å½æ°ä½ä¸º `return param0 + k` æ `return callee(param0) + k`ï¼åæ¨¡åååé¾ï¼ï¼
- * è¿åç´¯è®¡å¸¸æ° kï¼ä¸å¯åèæ¶è¿å -1ãdepth éå¶éå½æ·±åº¦ã
+ * è¿åç´¯è®¡å¸¸æ° kï¼ä¸å¯å
+èæ¶è¿å -1ãdepth éå¶éå½æ·±åº¦ã
  */
 export function fold_func_x_plus_k_chain(arena: *ASTArena, mod: *Module, func_idx: i32, depth: i32): i32 {
   if (depth > 12) { return -1; }
@@ -1214,9 +1760,12 @@ export function fold_func_x_plus_k_chain(arena: *ASTArena, mod: *Module, func_id
 }
 
 /**
- * ELF CALL åèï¼åæ¨¡å `f(arg0)` ä¸ f ä¸º `return p.f0 + p.f1`ï¼param0 ä¸¤å­æ®µ i32 æ±åï¼æ¶ï¼
+ * ELF CALL å
+èï¼åæ¨¡å `f(arg0)` ä¸ f ä¸º `return p.f0 + p.f1`ï¼param0 ä¸¤å­æ®µ i32 æ±åï¼æ¶ï¼
  * å¯¹å®ååå­æ®µ load + addï¼è·³è¿ call/retï¼é const struct äº¦éç¨ï¼ã
- * è¿å 1=å·²åèï¼0=æªå¹éï¼-1=éè¯¯ã
+ * è¿å 1=å·²å
+èï¼0=æªå¹é
+ï¼-1=éè¯¯ã
  */
 export function try_inline_param0_field_sum_call_elf(
   arena: *ASTArena, elf_ctx: *ElfCodegenCtx, expr_ref: i32, e: Expr,
@@ -1256,8 +1805,11 @@ export function try_inline_param0_field_sum_call_elf(
 }
 
 /**
- * ELF CALL ç®ååèï¼åæ¨¡å `f(x)` ä¸ f ä¸º x+K é¾æ¶ï¼emit å®åå add Kï¼è·³è¿ call/retã
- * è¿å 1=å·²åèï¼0=æªå¹éï¼-1=éè¯¯ã
+ * ELF CALL ç®åå
+èï¼åæ¨¡å `f(x)` ä¸ f ä¸º x+K é¾æ¶ï¼emit å®åå add Kï¼è·³è¿ call/retã
+ * è¿å 1=å·²å
+èï¼0=æªå¹é
+ï¼-1=éè¯¯ã
  */
 export function try_inline_x_plus_k_call_elf(
   arena: *ASTArena, elf_ctx: *ElfCodegenCtx, expr_ref: i32, e: Expr,
@@ -1282,17 +1834,42 @@ export function try_inline_x_plus_k_call_elf(
 }
 
 /** ELF è·¯å¾ç EXPR_CALLï¼æ¯æç»å® import ç FIELD_ACCESS calleeã */
-/** ELF call 表达式；M8-tail 委托 C glue pipeline_asm_emit_call_elf_c。 */
+/** Exported function `emit_expr_elf_call`.
+ * Implements `emit_expr_elf_call`.
+ * @param arena *ASTArena
+ * @param elf_ctx *ElfCodegenCtx
+ * @param expr_ref i32
+ * @param e Expr
+ * @param ctx *AsmFuncCtx
+ * @param ta i32
+ * @return i32
+ */
 export function emit_expr_elf_call(arena: *ASTArena, elf_ctx: *ElfCodegenCtx, expr_ref: i32, e: Expr, ctx: *AsmFuncCtx, ta: i32): i32 {
   return pipeline_asm_emit_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
 }
 
 
+/** Exported function `arch_emit_call`.
+ * Implements `arch_emit_call`.
+ * @param out *CodegenOutBuf
+ * @param name u8[64]
+ * @param name_len i32
+ * @param ta i32
+ * @return i32
+ */
 export function arch_emit_call(out: *CodegenOutBuf, name: u8[64], name_len: i32, ta: i32): i32 {
   if (ta == 1) { return arm64.emit_call(out, name, name_len); }
   if (ta == 2) { return riscv64.emit_call(out, name, name_len); }
   return x86_64.emit_call(out, name, name_len);
 }
+/** Exported function `arch_emit_jz`.
+ * Implements `arch_emit_jz`.
+ * @param out *CodegenOutBuf
+ * @param label u8[64]
+ * @param label_len i32
+ * @param ta i32
+ * @return i32
+ */
 export function arch_emit_jz(out: *CodegenOutBuf, label: u8[64], label_len: i32, ta: i32): i32 {
   if (ta == 1) { return arm64.emit_jz(out, label, label_len); }
   if (ta == 2) { return riscv64.emit_jz(out, label, label_len); }
@@ -1304,6 +1881,14 @@ export function arch_emit_jeq(out: *CodegenOutBuf, label: u8[64], label_len: i32
   if (ta == 2) { return riscv64.emit_jeq(out, label, label_len); }
   return x86_64.emit_jeq(out, label, label_len);
 }
+/** Exported function `arch_emit_jmp`.
+ * Implements `arch_emit_jmp`.
+ * @param out *CodegenOutBuf
+ * @param label u8[64]
+ * @param label_len i32
+ * @param ta i32
+ * @return i32
+ */
 export function arch_emit_jmp(out: *CodegenOutBuf, label: u8[64], label_len: i32, ta: i32): i32 {
   if (ta == 1) { return arm64.emit_jmp(out, label, label_len); }
   if (ta == 2) { return riscv64.emit_jmp(out, label, label_len); }
@@ -1330,11 +1915,23 @@ export function arch_emit_and_rbx_rax(out: *CodegenOutBuf, ta: i32): i32 {
   if (ta == 2) { return riscv64.emit_and_rbx_rax(out); }
   return x86_64.emit_and_rbx_rax(out);
 }
+/** Exported function `arch_emit_or_rbx_rax`.
+ * Implements `arch_emit_or_rbx_rax`.
+ * @param out *CodegenOutBuf
+ * @param ta i32
+ * @return i32
+ */
 export function arch_emit_or_rbx_rax(out: *CodegenOutBuf, ta: i32): i32 {
   if (ta == 1) { return arm64.emit_or_rbx_rax(out); }
   if (ta == 2) { return riscv64.emit_or_rbx_rax(out); }
   return x86_64.emit_or_rbx_rax(out);
 }
+/** Exported function `arch_emit_xor_rbx_rax`.
+ * Implements `arch_emit_xor_rbx_rax`.
+ * @param out *CodegenOutBuf
+ * @param ta i32
+ * @return i32
+ */
 export function arch_emit_xor_rbx_rax(out: *CodegenOutBuf, ta: i32): i32 {
   if (ta == 1) { return arm64.emit_xor_rbx_rax(out); }
   if (ta == 2) { return riscv64.emit_xor_rbx_rax(out); }
@@ -1348,43 +1945,92 @@ export function arch_emit_mov_rbx_to_ecx(out: *CodegenOutBuf, ta: i32): i32 {
   return x86_64.emit_mov_rbx_to_ecx(out);
 }
 
-/** å·¦ç§»/é»è¾å³ç§»/ç®æ¯å³ç§»ï¼å¼å¨ raxï¼è®¡æ°å·²å¨ rbxï¼x86 ä¼å mov rbxâecxï¼ã */
+/** å·¦ç§»/é»è¾å³ç§»/ç®æ¯å³ç§»ï¼å¼å¨ raxï¼è®¡æ°å·²å¨ rbxï¼x86 ä¼å
+ mov rbxâecxï¼ã */
 export function arch_emit_shl_cl_eax(out: *CodegenOutBuf, ta: i32): i32 {
   if (ta == 1) { return arm64.emit_shl_cl_eax(out); }
   if (ta == 2) { return riscv64.emit_shl_cl_eax(out); }
   return x86_64.emit_shl_cl_eax(out);
 }
+/** Exported function `arch_emit_shr_cl_eax`.
+ * Implements `arch_emit_shr_cl_eax`.
+ * @param out *CodegenOutBuf
+ * @param ta i32
+ * @return i32
+ */
 export function arch_emit_shr_cl_eax(out: *CodegenOutBuf, ta: i32): i32 {
   if (ta == 1) { return arm64.emit_shr_cl_eax(out); }
   if (ta == 2) { return riscv64.emit_shr_cl_eax(out); }
   return x86_64.emit_shr_cl_eax(out);
 }
+/** Exported function `arch_emit_sar_cl_eax`.
+ * Implements `arch_emit_sar_cl_eax`.
+ * @param out *CodegenOutBuf
+ * @param ta i32
+ * @return i32
+ */
 export function arch_emit_sar_cl_eax(out: *CodegenOutBuf, ta: i32): i32 {
   if (ta == 1) { return arm64.emit_sar_cl_eax(out); }
   if (ta == 2) { return riscv64.emit_sar_cl_eax(out); }
   return x86_64.emit_sar_cl_eax(out);
 }
 
+/** Exported function `arch_emit_label`.
+ * Implements `arch_emit_label`.
+ * @param out *CodegenOutBuf
+ * @param name u8[64]
+ * @param name_len i32
+ * @param ta i32
+ * @return i32
+ */
 export function arch_emit_label(out: *CodegenOutBuf, name: u8[64], name_len: i32, ta: i32): i32 {
   if (ta == 1) { return arm64.emit_label(out, name, name_len); }
   if (ta == 2) { return riscv64.emit_label(out, name, name_len); }
   return x86_64.emit_label(out, name, name_len);
 }
+/** Exported function `arch_emit_section_text`.
+ * Implements `arch_emit_section_text`.
+ * @param out *CodegenOutBuf
+ * @param ta i32
+ * @return i32
+ */
 export function arch_emit_section_text(out: *CodegenOutBuf, ta: i32): i32 {
   if (ta == 1) { return arm64.emit_section_text(out); }
   if (ta == 2) { return riscv64.emit_section_text(out); }
   return x86_64.emit_section_text(out);
 }
+/** Exported function `arch_emit_globl`.
+ * Implements `arch_emit_globl`.
+ * @param out *CodegenOutBuf
+ * @param name u8[64]
+ * @param name_len i32
+ * @param ta i32
+ * @return i32
+ */
 export function arch_emit_globl(out: *CodegenOutBuf, name: u8[64], name_len: i32, ta: i32): i32 {
   if (ta == 1) { return arm64.emit_globl(out, name, name_len); }
   if (ta == 2) { return riscv64.emit_globl(out, name, name_len); }
   return x86_64.emit_globl(out, name, name_len);
 }
+/** Exported function `arch_emit_prologue`.
+ * Implements `arch_emit_prologue`.
+ * @param out *CodegenOutBuf
+ * @param frame_sz i32
+ * @param ta i32
+ * @return i32
+ */
 export function arch_emit_prologue(out: *CodegenOutBuf, frame_sz: i32, ta: i32): i32 {
   if (ta == 1) { return arm64.emit_prologue(out, frame_sz); }
   if (ta == 2) { return riscv64.emit_prologue(out, frame_sz); }
   return x86_64.emit_prologue(out, frame_sz);
 }
+/** Exported function `arch_emit_epilogue`.
+ * Implements `arch_emit_epilogue`.
+ * @param out *CodegenOutBuf
+ * @param frame_sz i32
+ * @param ta i32
+ * @return i32
+ */
 export function arch_emit_epilogue(out: *CodegenOutBuf, frame_sz: i32, ta: i32): i32 {
   if (ta == 1) { return arm64.emit_epilogue(out, frame_sz); }
   if (ta == 2) { return riscv64.emit_epilogue(out, frame_sz); }
@@ -1396,7 +2042,8 @@ export function asm_ctx_slot_offset(ctx: *AsmFuncCtx, slot_idx: i32): i32 {
   return asm_ctx_local_offset_at(asm_ctx_key(ctx), slot_idx);
 }
 
-/** æ é/åç´ ç±»åçæ å­å®½åº¦ï¼å­èï¼ã */
+/** æ é/å
+ç´ ç±»åçæ å­å®½åº¦ï¼å­èï¼ã */
 export function asm_scalar_type_byte_sz(arena: *ASTArena, type_ref: i32): i32 {
   let kind: i32 = 0;
   if (type_ref <= 0) { return 4; }
@@ -1409,17 +2056,27 @@ export function asm_scalar_type_byte_sz(arena: *ASTArena, type_ref: i32): i32 {
   return 4;
 }
 
-/** INDEX ç»æçåç´ å­èå®½ï¼åèª typeck å¨ INDEX ç»ç¹ä¸ç resolved_type_refãé»è®¤ 4ã */
+/** INDEX ç»æçå
+ç´ å­èå®½ï¼åèª typeck å¨ INDEX ç»ç¹ä¸ç resolved_type_refãé»è®¤ 4ã */
 export function asm_index_elem_byte_sz(arena: *ASTArena, index_expr_ref: i32): i32 {
   return pipeline_asm_index_elem_byte_sz(arena, index_expr_ref);
 }
 
-/** ARRAY_LIT 元素字节宽：取自字面量 resolved_type（T[N] 的 T）。 */
+/** Exported function `asm_array_lit_elem_byte_sz`.
+ * Implements `asm_array_lit_elem_byte_sz`.
+ * @param arena *ASTArena
+ * @param array_lit_ref i32
+ * @return i32
+ */
 export function asm_array_lit_elem_byte_sz(arena: *ASTArena, array_lit_ref: i32): i32 {
   return pipeline_asm_array_lit_elem_byte_sz_c(arena, array_lit_ref);
 }
 
-/** 向上取整到 8 字节（局部/temp 区对齐）。 */
+/** Exported function `asm_align_up8`.
+ * Implements `asm_align_up8`.
+ * @param n i32
+ * @return i32
+ */
 export function asm_align_up8(n: i32): i32 {
   let r: i32 = n;
   let m: i32 = n % 8;
@@ -1430,19 +2087,29 @@ export function asm_align_up8(n: i32): i32 {
 }
 
 /**
- * 定长数组字面量初值在栈 temp 区占用的字节数（不含 8 字节指针槽）。
- * 供 fill_local_slots 在后续 let 之前预留，避免 temp 与局部槽重叠。
+ * See implementation.
+ * See implementation.
  */
 export function asm_array_lit_reserve_stack_bytes(arena: *ASTArena, init_ref: i32): i32 {
   return pipeline_asm_array_lit_reserve_stack_bytes_c(arena, init_ref);
 }
 
-/** STRUCT_LIT 初值在 temp 区按 8 字节/字段存放；供 fill_local_slots 预留。 */
+/** Exported function `asm_struct_lit_reserve_stack_bytes`.
+ * Implements `asm_struct_lit_reserve_stack_bytes`.
+ * @param arena *ASTArena
+ * @param init_ref i32
+ * @return i32
+ */
 export function asm_struct_lit_reserve_stack_bytes(arena: *ASTArena, init_ref: i32): i32 {
   return pipeline_asm_struct_lit_reserve_stack_bytes_c(arena, init_ref);
 }
 
-/** let/const 初值为复合字面量时在指针槽后额外占用的 temp 字节数。 */
+/** Exported function `asm_init_expr_reserve_stack_bytes`.
+ * Implements `asm_init_expr_reserve_stack_bytes`.
+ * @param arena *ASTArena
+ * @param init_ref i32
+ * @return i32
+ */
 export function asm_init_expr_reserve_stack_bytes(arena: *ASTArena, init_ref: i32): i32 {
   let n: i32 = asm_array_lit_reserve_stack_bytes(arena, init_ref);
   if (n > 0) {
@@ -1451,47 +2118,113 @@ export function asm_init_expr_reserve_stack_bytes(arena: *ASTArena, init_ref: i3
   return asm_struct_lit_reserve_stack_bytes(arena, init_ref);
 }
 
-/** INDEX 左值有效地址 text；M8-tail 委托 C glue（ix_ref 替代 Expr 按值）。 */
+/** Exported function `emit_index_eff_addr_text`.
+ * Implements `emit_index_eff_addr_text`.
+ * @param arena *ASTArena
+ * @param out *CodegenOutBuf
+ * @param ix_ref i32
+ * @param ctx *AsmFuncCtx
+ * @param ta i32
+ * @param elem_sz i32
+ * @return i32
+ */
 export function emit_index_eff_addr_text(arena: *ASTArena, out: *CodegenOutBuf, ix_ref: i32, ctx: *AsmFuncCtx, ta: i32, elem_sz: i32): i32 {
   return pipeline_asm_emit_index_eff_addr_text_c(arena, out, ix_ref, ctx, ta, elem_sz);
 }
 
-/** 赋值左值有效地址 text；M8-tail 委托 C glue pipeline_asm_emit_lvalue_eff_addr_text_c。 */
+/** Exported function `emit_lvalue_eff_addr_text`.
+ * Implements `emit_lvalue_eff_addr_text`.
+ * @param arena *ASTArena
+ * @param ob *CodegenOutBuf
+ * @param lval_ref i32
+ * @param ctx *AsmFuncCtx
+ * @param ta i32
+ * @return i32
+ */
 export function emit_lvalue_eff_addr_text(arena: *ASTArena, ob: *CodegenOutBuf, lval_ref: i32, ctx: *AsmFuncCtx, ta: i32): i32 {
   return pipeline_asm_emit_lvalue_eff_addr_text_c(arena, ob, lval_ref, ctx, ta);
 }
 
+/** Exported function `emit_expr`.
+ * Implements `emit_expr`.
+ * @param arena *ASTArena
+ * @param out *CodegenOutBuf
+ * @param expr_ref i32
+ * @param ctx *AsmFuncCtx
+ * @param target_arch i32
+ * @return i32
+ */
 export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, ctx: *AsmFuncCtx, target_arch: i32): i32 {
   return pipeline_asm_emit_expr_c(arena, out, expr_ref, ctx, target_arch);
 }
 
 
 /**
- * ä¸ emit_expr å¯¹ç­ç ELF æºå¨ç è·¯å¾ï¼ç»æå¨ %rax/w0ï¼ä½¿ç¨ enc_* åå¥ elf_ctx.codeï¼ta 0=x86_64ï¼1=arm64ã
+ * ä¸ emit_expr å¯¹ç­ç ELF æºå¨ç è·¯å¾ï¼ç»æå¨ %rax/w0ï¼ä½¿ç¨ enc_* åå
+¥ elf_ctx.codeï¼ta 0=x86_64ï¼1=arm64ã
  */
-/** ELF 表达式发射；M8-tail 委托 C glue pipeline_asm_emit_expr_elf_c（fast + rec / partial 慢路径）。 */
+/** Exported function `emit_expr_elf`.
+ * Implements `emit_expr_elf`.
+ * @param arena *ASTArena
+ * @param elf_ctx *ElfCodegenCtx
+ * @param expr_ref i32
+ * @param ctx *AsmFuncCtx
+ * @param ta i32
+ * @return i32
+ */
 export function emit_expr_elf(arena: *ASTArena, elf_ctx: *ElfCodegenCtx, expr_ref: i32, ctx: *AsmFuncCtx, ta: i32): i32 {
   return pipeline_asm_emit_expr_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
 }
 
 
-/** ELF è·¯å¾ INDEX ææå°åè£å¥ rax/x0ï¼æ  loadï¼ãé¡»å¨ emit_expr_elf ä¹åå®ä¹ä¾å¶è°ç¨ã */
-/** INDEX 有效地址 ELF；M8-tail 委托 C glue pipeline_asm_emit_index_eff_addr_elf_c（ix_ref 替代 Expr 按值）。 */
+/** ELF è·¯å¾ INDEX ææå°åè£
+å
+¥ rax/x0ï¼æ  loadï¼ãé¡»å¨ emit_expr_elf ä¹åå®ä¹ä¾å
+¶è°ç¨ã */
+/** Exported function `emit_index_eff_addr_elf`.
+ * Implements `emit_index_eff_addr_elf`.
+ * @param arena *ASTArena
+ * @param elf_ctx *ElfCodegenCtx
+ * @param ix_ref i32
+ * @param ctx *AsmFuncCtx
+ * @param elf_ta i32
+ * @param elem_sz i32
+ * @return i32
+ */
 export function emit_index_eff_addr_elf(arena: *ASTArena, elf_ctx: *ElfCodegenCtx, ix_ref: i32, ctx: *AsmFuncCtx, elf_ta: i32, elem_sz: i32): i32 {
   return pipeline_asm_emit_index_eff_addr_elf_c(arena, elf_ctx, ix_ref, ctx, elf_ta, elem_sz);
 }
 
-/** ELF：赋值左值有效地址；M8-tail 委托 C glue pipeline_asm_emit_lvalue_eff_addr_elf_c。 */
+/** Exported function `emit_lvalue_eff_addr_elf`.
+ * Implements `emit_lvalue_eff_addr_elf`.
+ * @param arena *ASTArena
+ * @param elf_ctx *ElfCodegenCtx
+ * @param lval_ref i32
+ * @param ctx *AsmFuncCtx
+ * @param ta i32
+ * @return i32
+ */
 export function emit_lvalue_eff_addr_elf(arena: *ASTArena, elf_ctx: *ElfCodegenCtx, lval_ref: i32, ctx: *AsmFuncCtx, ta: i32): i32 {
   return pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, lval_ref, ctx, ta);
 }
 
+/** Exported function `emit_block_inits_elf`.
+ * Implements `emit_block_inits_elf`.
+ * @param arena *ASTArena
+ * @param elf_ctx *ElfCodegenCtx
+ * @param block_ref i32
+ * @param ctx *AsmFuncCtx
+ * @param ta i32
+ * @param slot_base i32
+ * @return i32
+ */
 export function emit_block_inits_elf(arena: *ASTArena, elf_ctx: *ElfCodegenCtx, block_ref: i32, ctx: *AsmFuncCtx, ta: i32, slot_base: i32): i32 {
   return pipeline_asm_emit_block_inits_elf_c(arena, elf_ctx, block_ref, ctx, ta, slot_base);
 }
 
 
-/** ä¸¤ EXPR_VAR èç¹æ¯å¦ååï¼ç» pipeline è¯»åï¼é¿å ast å­æ®µæè£ï¼ã */
+/** ä¸¤ EXPR_VAR èç¹æ¯å¦ååï¼ç» pipeline è¯»åï¼é¿å
+ ast å­æ®µæè£ï¼ã */
 export function fold_expr_var_refs_same(arena: *ASTArena, a_ref: i32, b_ref: i32): i32 {
   if (pipeline_expr_kind_ord_at(arena, a_ref) != 3) { return 0; }
   if (pipeline_expr_kind_ord_at(arena, b_ref) != 3) { return 0; }
@@ -1512,7 +2245,8 @@ export function fold_expr_var_refs_same(arena: *ASTArena, a_ref: i32, b_ref: i32
 
 /**
  * æ¯å¦ä¸º `target = target + addend`ï¼addend ä¸º EXPR_LIT ç«å³æ°ï¼ã
- * æåæ¶ *out_addend åå¥å æ°ï¼target_ref ä¸ºå·¦å¼ VAR ç expr refã
+ * æåæ¶ *out_addend åå
+¥å æ°ï¼target_ref ä¸ºå·¦å¼ VAR ç expr refã
  */
 export function fold_is_assign_var_add_lit(arena: *ASTArena, expr_ref: i32, target_ref: i32, out_addend: *i32): i32 {
   if (pipeline_expr_kind_ord_at(arena, expr_ref) != 28) { return 0; }
@@ -1617,6 +2351,10 @@ export function fold_affine_i_plus_k_expr(arena: *ASTArena, mod: *Module, expr_r
   return 1;
 }
 
+/** Function `fold_is_assign_s_plus_affine_i`.
+ * Purpose: implements `fold_is_assign_s_plus_affine_i`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function fold_is_assign_s_plus_affine_i(
   arena: *ASTArena, mod: *Module, expr_ref: i32, i_ref: i32, out_s_ref: *i32, out_k: *i32): i32 {
   if (pipeline_expr_kind_ord_at(arena, expr_ref) != 28) { return 0; }
@@ -1694,7 +2432,13 @@ export function fold_func_returns_param0_field_sum(arena: *ASTArena, mod: *Modul
   return 1;
 }
 
-/** 函数体是否为 `return p.f`（单字段来自 param0，供 CALL 内联）。 */
+/** Exported function `fold_func_returns_param0_single_field`.
+ * Implements `fold_func_returns_param0_single_field`.
+ * @param arena *ASTArena
+ * @param mod *Module
+ * @param func_idx i32
+ * @return i32
+ */
 export function fold_func_returns_param0_single_field(arena: *ASTArena, mod: *Module, func_idx: i32): i32 {
   let ret_ref: i32 = fold_func_return_operand_ref(arena, mod, func_idx);
   if (ret_ref <= 0) { return 0; }
@@ -1702,7 +2446,8 @@ export function fold_func_returns_param0_single_field(arena: *ASTArena, mod: *Mo
 }
 
 /**
- * è¥ var å¨åå let ä¸åå¼ä¸º STRUCT_LITï¼å°ææ i32 å­é¢éå­æ®µæ±ååå¥ *out_sumã
+ * è¥ var å¨åå let ä¸åå¼ä¸º STRUCT_LITï¼å°ææ i32 å­é¢éå­æ®µæ±ååå
+¥ *out_sumã
  * ç¨äº `let p = Pair { a: 1, b: 2 }` â 3ã
  */
 export function fold_block_let_struct_lit_i32_sum(arena: *ASTArena, block_ref: i32, var_ref: i32, out_sum: *i32): i32 {
@@ -1746,7 +2491,12 @@ export function fold_block_let_struct_lit_i32_sum(arena: *ASTArena, block_ref: i
   return 0;
 }
 
-/** 从字段赋值 expr 取 pair 基址 VAR ref（`p.a = …` 的 p）。 */
+/** Exported function `fold_field_assign_pair_base_ref`.
+ * Implements `fold_field_assign_pair_base_ref`.
+ * @param arena *ASTArena
+ * @param er i32
+ * @return i32
+ */
 export function fold_field_assign_pair_base_ref(arena: *ASTArena, er: i32): i32 {
   if (pipeline_expr_kind_ord_at(arena, er) != 28) { return 0; }
   let left_ref: i32 = asm_expr_binop_left(arena, er);
@@ -1754,7 +2504,7 @@ export function fold_field_assign_pair_base_ref(arena: *ASTArena, er: i32): i32 
   return pipeline_expr_field_access_base_ref(arena, left_ref);
 }
 
-/** 是否为 `pair.field = src_ref`（field 单字符）。 */
+/* See implementation. */
 export function fold_is_field_assign_from_var(
   arena: *ASTArena, er: i32, pair_ref: i32, field_ch: u8, src_ref: i32): i32 {
   if (pipeline_expr_kind_ord_at(arena, er) != 28) { return 0; }
@@ -1771,7 +2521,14 @@ export function fold_is_field_assign_from_var(
   return fold_expr_var_refs_same(arena, right_ref, src_ref);
 }
 
-/** 是否为 `pair.b = i + 1`。 */
+/** Exported function `fold_is_field_assign_i_plus_one`.
+ * Implements `fold_is_field_assign_i_plus_one`.
+ * @param arena *ASTArena
+ * @param er i32
+ * @param pair_ref i32
+ * @param i_ref i32
+ * @return i32
+ */
 export function fold_is_field_assign_i_plus_one(arena: *ASTArena, er: i32, pair_ref: i32, i_ref: i32): i32 {
   if (pipeline_expr_kind_ord_at(arena, er) != 28) { return 0; }
   let left_ref: i32 = asm_expr_binop_left(arena, er);
@@ -1793,7 +2550,7 @@ export function fold_is_field_assign_i_plus_one(arena: *ASTArena, er: i32, pair_
   return 1;
 }
 
-/** 是否为 `s = s + add_pair(pair)` 且 add_pair 返回 param0 两字段之和。 */
+/* See implementation. */
 export function fold_is_assign_s_plus_pair_field_sum_call(
   arena: *ASTArena, mod: *Module, er: i32, pair_ref: i32, out_s_ref: *i32): i32 {
   if (pipeline_expr_kind_ord_at(arena, er) != 28) { return 0; }
@@ -1819,8 +2576,8 @@ export function fold_is_assign_s_plus_pair_field_sum_call(
 }
 
 /**
- * struct_param：`p.a=i; p.b=i+1; s+=add_pair(p); i++` 四语句体。
- * 成功写 out_s_ref；闭式 Σ(2i+1)=n² 由调用方 emit。
+ * See implementation.
+ * See implementation.
  */
 export function fold_parse_struct_pair_n2_body(
   arena: *ASTArena, mod: *Module, body_ref: i32, i_ref: i32, out_s_ref: *i32): i32 {
@@ -1938,7 +2695,8 @@ export function fold_parse_count_up_const_field_call_body(
   return 1;
 }
 
-/** è§£æè®¡æ°å¾ªç¯ä½ï¼ä» `s = s + step` ä¸ `i = i + 1` ä¸¤æ¡èµå¼ï¼é¡ºåºä»»æï¼ã */
+/** è§£æè®¡æ°å¾ªç¯ä½ï¼ä»
+ `s = s + step` ä¸ `i = i + 1` ä¸¤æ¡èµå¼ï¼é¡ºåºä»»æï¼ã */
 export function fold_parse_count_up_body(
   arena: *ASTArena, body_ref: i32, i_ref: i32, out_s_ref: *i32, out_step: *i32): i32 {
   let nso: i32 = ast.ast_block_num_stmt_order(arena, body_ref);
@@ -1978,7 +2736,8 @@ export function fold_parse_count_up_body(
 }
 
 /**
- * è¥ var_ref å¨åå let ç»å®ä¸åå¼ä¸ºæ´æ°å­é¢éï¼åå¥ *out_lit å¹¶è¿å 1ã
+ * è¥ var_ref å¨åå let ç»å®ä¸åå¼ä¸ºæ´æ°å­é¢éï¼åå
+¥ *out_lit å¹¶è¿å 1ã
  * ç¨äº `let n: i32 = 1000000000; while (i < n)` çå¸¸éä¼ æ­ã
  */
 export function fold_block_let_init_lit(arena: *ASTArena, block_ref: i32, var_ref: i32, out_lit: *i32): i32 {
@@ -2024,7 +2783,7 @@ export function fold_emit_i_ge_n_branch_exit_elf(
     if (enc_load_rbp_to_rax_arch(elf_ctx, off_i, ta) != 0) { return -1; }
     if (enc_cmp_w0_imm12_arch(elf_ctx, n_lit, ta) != 0) { return -1; }
   } else {
-    /** rax=i、rbx=n：直接 load-load cmpl，避免 push/pop 拖慢 while 头。 */
+    /* See implementation. */
     if (enc_load_rbp_to_rax_arch(elf_ctx, off_i, ta) != 0) { return -1; }
     if (enc_load_rbp_to_rbx_arch(elf_ctx, off_n, ta) != 0) { return -1; }
     if (enc_cmp_rax_rbx_arch(elf_ctx, ta) != 0) { return -1; }
@@ -2034,9 +2793,11 @@ export function fold_emit_i_ge_n_branch_exit_elf(
 
 /**
  * ELFï¼å°è¯ä¼å `while (i < n) { s += step; i += 1; }`ã
- * 1) n ä¸ºç¼è¯æå¸¸éä¸æ  call â ç´æ¥æ n*step åå¥ sï¼
+ * 1) n ä¸ºç¼è¯æå¸¸éä¸æ  call â ç´æ¥æ n*step åå
+¥ sï¼
  * 2) å¦åè¥æ¡ä»¶ä¸º i<n â ç¨ cmp+jge æ¿ä»£ cset æ¡ä»¶ï¼ååå°åå¾ªç¯ä½ã
- * è¿å 1=å·²å¤çï¼0=æªå¹éï¼-1=éè¯¯ã
+ * è¿å 1=å·²å¤çï¼0=æªå¹é
+ï¼-1=éè¯¯ã
  */
 export function try_fold_count_up_while_elf(
   arena: *ASTArena, elf_ctx: *ElfCodegenCtx, block_ref: i32, loop_idx: i32,
@@ -2094,7 +2855,7 @@ export function try_fold_count_up_while_elf(
     if (enc_store_rax_to_rbp_arch(elf_ctx, off_sa, ta) != 0) { return -1; }
     return 1;
   }
-  /** 常量 n + struct_param 四语句体：s = n*n；暂禁（compile stack smash 待查）。 */
+  /* See implementation. */
   let struct_n2_s: i32 = 0;
   let s_e2: Expr = ast.ast_arena_expr_get(arena, 0);
   let off_s2: i32 = -1;
@@ -2145,7 +2906,7 @@ export function try_fold_count_up_while_elf(
   let loop_len: i32 = emit_next_label(ctx, loop_buf, 20);
   let exit_len: i32 = emit_next_label(ctx, exit_buf, 20);
   if (enc_label_arch(elf_ctx, loop_buf, loop_len, 0, ta) != 0) { return -1; }
-  /** let n=lit 传播后须用 imm cmp，勿再按 n_is_lit=0 走变量路径。 */
+  /* See implementation. */
   if (fold_emit_i_ge_n_branch_exit_elf(elf_ctx, off_i, off_n, n_const_ok, n_const, exit_buf, exit_len, ta) != 0) {
     return -1;
   }
@@ -2161,14 +2922,32 @@ export function try_fold_count_up_while_elf(
 }
 
 /** ELF è·¯å¾ï¼while å¾ªç¯ãta 0=x86_64ï¼1=arm64ã */
-/** ELF while 循环；M8-tail 委托 partial backend_emit_while_loop_elf（C glue）。 */
+/** Exported function `emit_while_loop_elf`.
+ * Implements `emit_while_loop_elf`.
+ * @param arena *ASTArena
+ * @param elf_ctx *ElfCodegenCtx
+ * @param block_ref i32
+ * @param loop_idx i32
+ * @param ctx *AsmFuncCtx
+ * @param ta i32
+ * @return i32
+ */
 export function emit_while_loop_elf(arena: *ASTArena, elf_ctx: *ElfCodegenCtx, block_ref: i32, loop_idx: i32, ctx: *AsmFuncCtx, ta: i32): i32 {
   return pipeline_asm_emit_while_loop_elf_c(arena, elf_ctx, block_ref, loop_idx, ctx, ta);
 }
 
 
 /** ELF è·¯å¾ï¼for å¾ªç¯ãta 0=x86_64ï¼1=arm64ã */
-/** ELF for 循环；M8-tail 委托 partial backend_emit_for_loop_elf（C glue）。 */
+/** Exported function `emit_for_loop_elf`.
+ * Implements `emit_for_loop_elf`.
+ * @param arena *ASTArena
+ * @param elf_ctx *ElfCodegenCtx
+ * @param block_ref i32
+ * @param for_idx i32
+ * @param ctx *AsmFuncCtx
+ * @param ta i32
+ * @return i32
+ */
 export function emit_for_loop_elf(arena: *ASTArena, elf_ctx: *ElfCodegenCtx, block_ref: i32, for_idx: i32, ctx: *AsmFuncCtx, ta: i32): i32 {
   return pipeline_asm_emit_for_loop_elf_c(arena, elf_ctx, block_ref, for_idx, ctx, ta);
 }
@@ -2176,7 +2955,8 @@ export function emit_for_loop_elf(arena: *ASTArena, elf_ctx: *ElfCodegenCtx, blo
 
 /**
  * ELF è·¯å¾ï¼æ stmt_order åå°åä½ï¼ç» pipeline_glue.c ç C for å¾ªç¯ + expr å¿«è·¯å¾ï¼ã
- * èªä¸¾ shux_asm ä¸ X ç while(i<nso) ç» shux-c -E å¯è½åªè·ä¸è½®ï¼å¯¼è´ return 1+2 ä» emit å·¦æä½æ°ã
+ * èªä¸¾ shux_asm ä¸ X ç while(i<nso) ç» shux-c -E å¯è½åªè·ä¸è½®ï¼å¯¼è´ return 1+2 ä»
+ emit å·¦æä½æ°ã
  */
 export function emit_block_body_elf(arena: *ASTArena, elf_ctx: *ElfCodegenCtx, block_ref: i32, ctx: *AsmFuncCtx, ta: i32): i32 {
   return backend_emit_block_body_sync_elf(arena, elf_ctx, block_ref, ctx, ta);
@@ -2184,29 +2964,54 @@ export function emit_block_body_elf(arena: *ASTArena, elf_ctx: *ElfCodegenCtx, b
 
 /**
  * åå°åç const/let åå§åï¼slot_base ä¸ºè¯¥åå¨ ctx å±é¨ sidecar ä¸­çèµ·å§ä¸æ ã
- * åµå¥åå¨ EXPR_BLOCK ä¸­å fill_local_slots åè°ç¨æ¬å½æ°ï¼slot_base ä¸ºå¡«å¥åç ctx.num_localsã
+ * åµå¥åå¨ EXPR_BLOCK ä¸­å
+ fill_local_slots åè°ç¨æ¬å½æ°ï¼slot_base ä¸ºå¡«å
+¥åç ctx.num_localsã
  */
-/** text 块 const/let 初始化；M8-tail 委托 partial backend_emit_block_inits（C glue）。 */
+/** Exported function `emit_block_inits`.
+ * Implements `emit_block_inits`.
+ * @param arena *ASTArena
+ * @param out *CodegenOutBuf
+ * @param block_ref i32
+ * @param ctx *AsmFuncCtx
+ * @param target_arch i32
+ * @param slot_base i32
+ * @return i32
+ */
 export function emit_block_inits(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32, ctx: *AsmFuncCtx, target_arch: i32, slot_base: i32): i32 {
   return pipeline_asm_emit_block_inits_c(arena, out, block_ref, ctx, target_arch, slot_base);
 }
 
 
 /** çæå¯ä¸å±é¨æ ç­¾å° bufï¼è¿åé¿åº¦ãbuf æ ¼å¼ä¸º ".L_" + æ°å­ã */
-/** 生成唯一局部标签；M8-tail 委托 C glue pipeline_asm_emit_next_label_c。 */
+/** Exported function `emit_next_label`.
+ * Implements `emit_next_label`.
+ * @param ctx *AsmFuncCtx
+ * @param buf *u8
+ * @param buf_size i32
+ * @return i32
+ */
 export function emit_next_label(ctx: *AsmFuncCtx, buf: *u8, buf_size: i32): i32 {
   return pipeline_asm_emit_next_label_c(ctx, buf, buf_size);
 }
 
 
-/** å° label åºå· id æ ¼å¼åä¸º ".L_<id>" åå¥ bufï¼è¿åé¿åº¦ï¼ä¸æ¨è¿ ctx.label_counterï¼ãç¨äº match å¤åæ¯æ ç­¾ã */
-/** 格式化 ".L_<id>"；M8-tail 委托 C glue pipeline_asm_format_label_id_c。 */
+/** å° label åºå· id æ ¼å¼åä¸º ".L_<id>" åå
+¥ bufï¼è¿åé¿åº¦ï¼ä¸æ¨è¿ ctx.label_counterï¼ãç¨äº match å¤åæ¯æ ç­¾ã */
+/** Exported function `format_label_id`.
+ * Implements `format_label_id`.
+ * @param buf *u8
+ * @param buf_size i32
+ * @param id i32
+ * @return i32
+ */
 export function format_label_id(buf: *u8, buf_size: i32, id: i32): i32 {
   return pipeline_asm_format_label_id_c(buf, buf_size, id);
 }
 
 
-/** å° break/continue æ ç­¾åå¥ 8 å±æ å¹¶è®¾ä¸ºå½åçææ ç­¾ï¼d>=8 æ¶è¿å -1ã */
+/** å° break/continue æ ç­¾åå
+¥ 8 å±æ å¹¶è®¾ä¸ºå½åçææ ç­¾ï¼d>=8 æ¶è¿å -1ã */
 export function ctx_push_loop_labels(ctx: *AsmFuncCtx, exit_buf: *u8, exit_len: i32, loop_buf: *u8, loop_len: i32): i32 {
   let d: i32 = ctx.loop_label_depth;
   if (d >= 8) {
@@ -2241,7 +3046,8 @@ export function ctx_push_loop_labels(ctx: *AsmFuncCtx, exit_buf: *u8, exit_len: 
   return 0;
 }
 
-/** å¼¹åºå¾ªç¯æ ç­¾æ é¡¶ï¼æ¢å¤å¤å± break/continue ææ¸é¶ã */
+/** å¼¹åºå¾ªç¯æ ç­¾æ é¡¶ï¼æ¢å¤å¤å± break/continue ææ¸
+é¶ã */
 export function ctx_pop_loop_labels(ctx: *AsmFuncCtx): void {
   if (ctx.loop_label_depth <= 0) {
     ctx.break_len = 0;
@@ -2273,55 +3079,119 @@ export function ctx_pop_loop_labels(ctx: *AsmFuncCtx): void {
   ctx.continue_len = cl;
 }
 
-/** ELF 循环体 stmt_order；M8-tail 委托 partial backend_emit_loop_body_content_elf（C glue）。 */
+/** Exported function `emit_loop_body_content_elf`.
+ * Implements `emit_loop_body_content_elf`.
+ * @param arena *ASTArena
+ * @param elf_ctx *ElfCodegenCtx
+ * @param body_ref i32
+ * @param ctx *AsmFuncCtx
+ * @param ta i32
+ * @return i32
+ */
 export function emit_loop_body_content_elf(arena: *ASTArena, elf_ctx: *ElfCodegenCtx, body_ref: i32, ctx: *AsmFuncCtx, ta: i32): i32 {
   return pipeline_asm_emit_loop_body_content_elf_c(arena, elf_ctx, body_ref, ctx, ta);
 }
 
-/** text 循环体 stmt_order；M8-tail 委托 partial backend_emit_loop_body_content（C glue）。 */
+/** Exported function `emit_loop_body_content`.
+ * Implements `emit_loop_body_content`.
+ * @param arena *ASTArena
+ * @param out *CodegenOutBuf
+ * @param body_ref i32
+ * @param ctx *AsmFuncCtx
+ * @param target_arch i32
+ * @return i32
+ */
 export function emit_loop_body_content(arena: *ASTArena, out: *CodegenOutBuf, body_ref: i32, ctx: *AsmFuncCtx, target_arch: i32): i32 {
   return pipeline_asm_emit_loop_body_content_c(arena, out, body_ref, ctx, target_arch);
 }
 
-/** text while 循环；M8-tail 委托 partial backend_emit_while_loop（C glue）。 */
+/** Exported function `emit_while_loop`.
+ * Implements `emit_while_loop`.
+ * @param arena *ASTArena
+ * @param out *CodegenOutBuf
+ * @param block_ref i32
+ * @param loop_idx i32
+ * @param ctx *AsmFuncCtx
+ * @param target_arch i32
+ * @return i32
+ */
 export function emit_while_loop(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32, loop_idx: i32, ctx: *AsmFuncCtx, target_arch: i32): i32 {
   return pipeline_asm_emit_while_loop_c(arena, out, block_ref, loop_idx, ctx, target_arch);
 }
 
 
 /** åå° for å¾ªç¯ï¼è®¾ç½® break/continue å¹¶åå°å¾ªç¯ä½ã */
-/** text for 循环；M8-tail 委托 partial backend_emit_for_loop（C glue）。 */
+/** Exported function `emit_for_loop`.
+ * Implements `emit_for_loop`.
+ * @param arena *ASTArena
+ * @param out *CodegenOutBuf
+ * @param block_ref i32
+ * @param for_idx i32
+ * @param ctx *AsmFuncCtx
+ * @param target_arch i32
+ * @return i32
+ */
 export function emit_for_loop(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32, for_idx: i32, ctx: *AsmFuncCtx, target_arch: i32): i32 {
   return pipeline_asm_emit_for_loop_c(arena, out, block_ref, for_idx, ctx, target_arch);
 }
 
 
 /** æ stmt_order åå°åä½ï¼target_arch ç¨äºåæ´¾ emit_expr / store / while / forã */
-/** text 块体 stmt_order；M8-tail 委托 partial backend_emit_block_body（C glue）。 */
+/** Exported function `emit_block_body`.
+ * Implements `emit_block_body`.
+ * @param arena *ASTArena
+ * @param out *CodegenOutBuf
+ * @param block_ref i32
+ * @param ctx *AsmFuncCtx
+ * @param target_arch i32
+ * @return i32
+ */
 export function emit_block_body(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32, ctx: *AsmFuncCtx, target_arch: i32): i32 {
   return pipeline_asm_emit_block_body_c(arena, out, block_ref, ctx, target_arch);
 }
 
 
-/** 汇编后端入口：build_asm 薄包装 bl→C；全量实现见 seed partial backend_asm_codegen_ast。 */
+/** Exported function `asm_codegen_ast`.
+ * Implements `asm_codegen_ast`.
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param out *CodegenOutBuf
+ * @param pipeline_ctx *PipelineDepCtx
+ * @return i32
+ */
 export function asm_codegen_ast(module: *Module, arena: *ASTArena, out: *CodegenOutBuf, pipeline_ctx: *PipelineDepCtx): i32 {
   return pipeline_backend_asm_codegen_ast_c(module, arena, out, pipeline_ctx);
 }
 
 /**
- * build_shux_asm SKIP_TYPECK æ¡©ï¼ä» mov w0/x0/eax,#0 + epilogueï¼å¿ fill/emit_blockï¼å¤§æ¨¡åå®¿ä¸»æ  SIGSEGVï¼ã
+ * build_shux_asm SKIP_TYPECK æ¡©ï¼ä»
+ mov w0/x0/eax,#0 + epilogueï¼å¿ fill/emit_blockï¼å¤§æ¨¡åå®¿ä¸»æ  SIGSEGVï¼ã
  */
 export function emit_skip_heavy_stub_elf(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
-  /** M8-tail 薄包装 bl C glue：mov w0/x0/eax,#0 + epilogue。 */
+  /* See implementation. */
   return pipeline_asm_emit_skip_heavy_stub_elf_c(elf_ctx, ta);
 }
 
-/** 将 Module 生成机器码写入 elf_ctx；build_asm 薄包装 bl→C。 */
+/** Exported function `asm_codegen_ast_to_elf`.
+ * Implements `asm_codegen_ast_to_elf`.
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param elf_ctx *ElfCodegenCtx
+ * @param pipeline_ctx *PipelineDepCtx
+ * @return i32
+ */
 export function asm_codegen_ast_to_elf(module: *Module, arena: *ASTArena, elf_ctx: *ElfCodegenCtx, pipeline_ctx: *PipelineDepCtx): i32 {
   return pipeline_backend_asm_codegen_ast_to_elf_c(module, arena, elf_ctx, pipeline_ctx);
 }
 
-/** seed partial 全量 mega：build_asm 桩化；C glue pipeline_backend_asm_codegen_ast*_c 调此符号。 */
+/** Exported function `asm_codegen_ast_seed_mega`.
+ * Implements `asm_codegen_ast_seed_mega`.
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param out *CodegenOutBuf
+ * @param pipeline_ctx *PipelineDepCtx
+ * @return i32
+ */
 export function asm_codegen_ast_seed_mega(module: *Module, arena: *ASTArena, out: *CodegenOutBuf, pipeline_ctx: *PipelineDepCtx): i32 {
   asm_hoist_top_level_lets_for_codegen(module, arena);
   let ta: i32 = pipeline_ctx.target_arch;
@@ -2355,7 +3225,7 @@ export function asm_codegen_ast_seed_mega(module: *Module, arena: *ASTArena, out
       i = i + 1;
       continue;
     }
-    /** WPO v0：跳过不可达 dead export（与 codegen DCE 对齐）。 */
+    /* See implementation. */
     if (pipeline_asm_wpo_should_emit_func(module, i) == 0) {
       i = i + 1;
       continue;
@@ -2392,7 +3262,7 @@ export function asm_codegen_ast_seed_mega(module: *Module, arena: *ASTArena, out
           driver_diagnostic_asm_fail_at(5);
           return -1;
         }
-        /** final_expr 已由 pipeline_asm_emit_block_body_sync_elf 末尾 glue_emit_block_final 发射，勿重复。 */
+        /* See implementation. */
       } else {
         let slot_base: i32 = ctx.num_locals - ast.ast_block_num_consts(arena, body_ref) - ast.ast_block_num_lets(arena, body_ref);
         if (slot_base < 0) { driver_diagnostic_asm_fail_at(6); return -1; }
@@ -2425,7 +3295,14 @@ export function asm_codegen_ast_seed_mega(module: *Module, arena: *ASTArena, out
   return 0;
 }
 
-/** seed partial 全量 mega（ELF 路径）；build_asm 桩化，SKIP 路径走 thin delegate bl→C。 */
+/** Exported function `asm_codegen_ast_to_elf_seed_mega`.
+ * Implements `asm_codegen_ast_to_elf_seed_mega`.
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param elf_ctx *ElfCodegenCtx
+ * @param pipeline_ctx *PipelineDepCtx
+ * @return i32
+ */
 export function asm_codegen_ast_to_elf_seed_mega(module: *Module, arena: *ASTArena, elf_ctx: *ElfCodegenCtx, pipeline_ctx: *PipelineDepCtx): i32 {
   asm_hoist_top_level_lets_for_codegen(module, arena);
   let ta: i32 = pipeline_ctx.target_arch;
@@ -2483,7 +3360,7 @@ export function asm_codegen_ast_to_elf_seed_mega(module: *Module, arena: *ASTAre
     fill_param_slots(&ctx, module, i);
     pipeline_debug_trace_body_x_mega_post_params(module, arena);
     if (enc_label_arch(elf_ctx, fname_buf2, fname_len2, 1, ta) != 0) { return -1; }
-    /** build_shux_asm：SKIP 桩；M8-tail 薄包装 bl C 委托。 */
+    /* See implementation. */
     if (asm_skip_heavy_module_func_body(module, arena, i) != 0) {
       if (enc_prologue_arch(elf_ctx, 0, ta) != 0) { return -1; }
       if (pipeline_asm_emit_skip_heavy_or_thin_stub_elf_c(elf_ctx, ta, module, i) != 0) { return -1; }
@@ -2508,7 +3385,7 @@ export function asm_codegen_ast_to_elf_seed_mega(module: *Module, arena: *ASTAre
       if (pipeline_asm_block_num_stmt_order_at(arena, body_ref) > 0) {
         pipeline_debug_trace_body_x_mega_pre_emit(module, arena);
         if (emit_block_body_elf(arena, elf_ctx, body_ref, &ctx, ta) != 0) { return -1; }
-        /** final_expr 已由 emit_block_body_sync 末尾发射，勿重复。 */
+        /* See implementation. */
       } else {
         let slot_base: i32 = ctx.num_locals - ast.ast_block_num_consts(arena, body_ref) - ast.ast_block_num_lets(arena, body_ref);
         if (slot_base < 0) { return -1; }

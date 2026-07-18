@@ -1,6 +1,10 @@
-// STD-056：SipHash / aHash 切换烟测（金样 u64 由 C 烟测校验；此处避免大 hex 字面量截断）
+// See implementation.
 const hash = import("std.hash");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let buf: u8[3] = [97, 98, 99];
   let hs: *u8 = hash.start_algo(0);

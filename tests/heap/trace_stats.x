@@ -1,6 +1,10 @@
-// STD-017：std.heap SHUX_HEAP_TRACE 统计烟测
+// See implementation.
 const heap = import("std.heap");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let st: HeapTraceStats = HeapTraceStats {
     alloc_count: 0 as u64,
@@ -18,13 +22,13 @@ function main(): i32 {
 
   heap.trace_stats(&st);
   if (heap.trace_on() == 0) {
-    // 未设置 SHUX_HEAP_TRACE 时计数器保持 0
+    // See implementation.
     if (st.alloc_count != 0 as u64) { return 3; }
     if (st.free_count != 0 as u64) { return 4; }
     return 0;
   }
 
-  // SHUX_HEAP_TRACE=1：heap.alloc(32)+free 应产生统计
+  // See implementation.
   if (st.alloc_count < 1 as u64) { return 5; }
   if (st.free_count < 1 as u64) { return 6; }
   if (st.bytes_allocated < 32 as u64) { return 7; }

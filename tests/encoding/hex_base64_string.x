@@ -1,8 +1,14 @@
-// STD-040：hex/Base64 与 std.string 互操作金样
+// See implementation.
 const encoding = import("std.encoding");
 const string = import("std.string");
 
-/** 比较 String 与期望 ASCII 字节序列（len 字节）。 */
+/** Internal function `str_bytes_eq`.
+ * Implements `str_bytes_eq`.
+ * @param s *String
+ * @param expect *u8
+ * @param len i32
+ * @return bool
+ */
 function str_bytes_eq(s: *String, expect: *u8, len: i32): bool {
   if (string.string_len_ptr(s) != len) { return false; }
   let p: *u8 = string.string_data_ptr(s);
@@ -14,6 +20,10 @@ function str_bytes_eq(s: *String, expect: *u8, len: i32): bool {
   return true;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let raw: u8[4] = [222, 173, 190, 239];
   let hex_expect: u8[8] = [100, 101, 97, 100, 98, 101, 101, 102];

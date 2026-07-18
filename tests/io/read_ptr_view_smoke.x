@@ -1,9 +1,13 @@
 /**
- * ZC-2 smoke：ReadPtrView {ptr,len,gen} 打包与 read_ptr_view_valid 跨调用校验。
- * 管道 "AB"：第一次 view 有效；第二次 read_ptr 后旧 view 失效。exit 0。
+ * See implementation.
+ * See implementation.
  */
 const io = import("std.io");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let v1: ReadPtrView = io.stdin_ptr_view();
   if (v1.ptr == 0 as *u8) {
@@ -18,7 +22,7 @@ function main(): i32 {
   if (v1.ptr[0] != 65) {
     return 4;
   }
-  /** 须使用 v2 字段，避免 WPO/DCE 删掉第二次 read（view gen 失效烟测依赖此调用）。 */
+  /* See implementation. */
   let v2: ReadPtrView = io.stdin_ptr_view();
   if (v2.ptr != 0 as *u8 && v2.len > 0 && v2.ptr[0] == 65 && v2.gen == v1.gen) {
     return 11;

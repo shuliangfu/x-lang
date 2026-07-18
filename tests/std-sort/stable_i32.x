@@ -1,7 +1,11 @@
-// STD-060：稳定升序 i32 烟测
+// See implementation.
 const sort = import("std.sort");
 const debug = import("core.debug");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32[4] = [3, 1, 4, 2];
   sort.stable(&a[0], 4);

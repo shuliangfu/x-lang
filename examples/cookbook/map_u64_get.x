@@ -1,6 +1,10 @@
 // cookbook：Map_u64_i32 get/remove
 const map = import("std.map");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let mu: Map_u64_i32 = map.new(0 as u64);
   if (map.with_capacity(&mu, 4) != 0) { return 1; }

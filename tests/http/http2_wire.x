@@ -1,13 +1,17 @@
-// STD-HTTP-H2：HTTP/2 v0 线格式烟测（preface / 帧头 / SETTINGS ACK）
+// See implementation.
 const http = import("std.http");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (http.smoke() != 0) { return 1; }
   if (http.preface_len() != 24) { return 2; }
   if (http.wire_is_available() == false) { return 3; }
   if (http.client_is_available() == false) { return 4; }
 
-  // RFC 7540 §3.5 preface 前 8 字节 "PRI * HT"
+  // See implementation.
   let pre8: u8[8] = [80, 82, 73, 32, 42, 32, 72, 84];
   if (http.is_connection_preface(&pre8[0], 8) == true) { return 5; }
 

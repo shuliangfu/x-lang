@@ -14,14 +14,14 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.codec — 统一块/流编解码抽象（STD-073）
+// See implementation.
 //
-// 【文件职责】
-// Encoder / Decoder 块编解码门面；hex / base64 / gzip / json / csv 适配；
-// gzip 流式编解码；STD-110 base64/compress 流式适配。
-// 【错误语义】0=成功写入字节数；负值=err_*。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 【对标】Zig 各 format 模块的统一入口、Go encoding 包组合风格。
+// See implementation.
 
 const bytes = import("std.bytes");
 const encoding = import("std.encoding");
@@ -30,44 +30,74 @@ const compress = import("std.compress");
 const json = import("std.json");
 const csv = import("std.csv");
 
-/** 成功（块操作返回值为写入字节数，非本常量）。 */
+/** Exported function `err_ok`.
+ * Implements `err_ok`.
+ * @return i32
+ */
 export function err_ok(): i32 { return 0; }
-/** 输出缓冲不足或分配失败。 */
+/** Exported function `err_buffer`.
+ * Implements `err_buffer`.
+ * @return i32
+ */
 export function err_buffer(): i32 { return -1; }
-/** 输入非法或校验失败。 */
+/** Exported function `err_input`.
+ * Implements `err_input`.
+ * @return i32
+ */
 export function err_input(): i32 { return -2; }
-/** 后端未链入或格式不支持。 */
+/** Exported function `err_unsupported`.
+ * Implements `err_unsupported`.
+ * @return i32
+ */
 export function err_unsupported(): i32 { return -9; }
 
-/** 十六进制（小写 ASCII）。 */
+/** Exported function `kind_hex`.
+ * Implements `kind_hex`.
+ * @return i32
+ */
 export function kind_hex(): i32 { return 1; }
-/** 标准 Base64（含填充）。 */
+/** Exported function `kind_base64_standard`.
+ * Implements `kind_base64_standard`.
+ * @return i32
+ */
 export function kind_base64_standard(): i32 { return 2; }
-/** gzip 块压缩（依赖 zlib）。 */
+/** Exported function `kind_gzip`.
+ * Implements `kind_gzip`.
+ * @return i32
+ */
 export function kind_gzip(): i32 { return 3; }
-/** JSON 字符串转义（encode-only）。 */
+/** Exported function `kind_json_escape`.
+ * Implements `kind_json_escape`.
+ * @return i32
+ */
 export function kind_json_escape(): i32 { return 4; }
-/** CSV 字段引号转义（encode-only）。 */
+/** Exported function `kind_csv_escape`.
+ * Implements `kind_csv_escape`.
+ * @return i32
+ */
 export function kind_csv_escape(): i32 { return 5; }
-/** STD-110：Base64 流式编解码（standard/url 由 init 参数 url 选择）。 */
+/** Exported function `kind_base64_stream`.
+ * Implements `kind_base64_stream`.
+ * @return i32
+ */
 export function kind_base64_stream(): i32 { return 6; }
 
-/** 块编解码描述符（kind 选择后端）。 */
+/* See implementation. */
 allow(padding) struct BlockCodec {
   kind: i32;
 }
 
-/** 编码器：与 BlockCodec 同布局，语义别名。 */
+/* See implementation. */
 allow(padding) struct Encoder {
   kind: i32;
 }
 
-/** 解码器：与 BlockCodec 同布局，语义别名。 */
+/* See implementation. */
 allow(padding) struct Decoder {
   kind: i32;
 }
 
-/** 流编解码状态（gzip / base64 stream）。 */
+/* See implementation. */
 allow(padding) struct StreamCodec {
   kind: i32;
   mode: i32;
@@ -75,27 +105,53 @@ allow(padding) struct StreamCodec {
   state_cap: i32;
 }
 
-/** 流模式：压缩。 */
+/** Exported function `mode_compress`.
+ * Implements `mode_compress`.
+ * @return i32
+ */
 export function mode_compress(): i32 { return 0; }
-/** 流模式：解压。 */
+/** Exported function `mode_decompress`.
+ * Implements `mode_decompress`.
+ * @return i32
+ */
 export function mode_decompress(): i32 { return 1; }
 
-/** 构造块 codec。 */
+/** Exported function `block_codec_new`.
+ * Implements `block_codec_new`.
+ * @param kind i32
+ * @return BlockCodec
+ */
 export function block_codec_new(kind: i32): BlockCodec {
   return BlockCodec { kind: kind };
 }
 
-/** 构造编码器。 */
+/** Exported function `encoder_new`.
+ * Implements `encoder_new`.
+ * @param kind i32
+ * @return Encoder
+ */
 export function encoder_new(kind: i32): Encoder {
   return Encoder { kind: kind };
 }
 
-/** 构造解码器。 */
+/** Exported function `decoder_new`.
+ * Implements `decoder_new`.
+ * @param kind i32
+ * @return Decoder
+ */
 export function decoder_new(kind: i32): Decoder {
   return Decoder { kind: kind };
 }
 
-/** 块编码：返回写入 out 字节数，失败为负错误码。 */
+/** Exported function `block_encode`.
+ * Implements `block_encode`.
+ * @param c BlockCodec
+ * @param src *u8
+ * @param src_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function block_encode(c: BlockCodec, src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
   if (c.kind == kind_hex()) {
     let n: i32 = encoding.hex_encode(src, src_len, out, out_cap);
@@ -125,7 +181,15 @@ export function block_encode(c: BlockCodec, src: *u8, src_len: i32, out: *u8, ou
   return err_unsupported();
 }
 
-/** 块解码：返回写入 out 字节数，失败为负错误码。 */
+/** Exported function `block_decode`.
+ * Implements `block_decode`.
+ * @param c BlockCodec
+ * @param src *u8
+ * @param src_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function block_decode(c: BlockCodec, src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
   if (c.kind == kind_hex()) {
     let n: i32 = encoding.hex_decode(src, src_len, out, out_cap);
@@ -145,19 +209,40 @@ export function block_decode(c: BlockCodec, src: *u8, src_len: i32, out: *u8, ou
   return err_unsupported();
 }
 
-/** 编码器块编码。 */
+/** Exported function `encoder_encode`.
+ * Implements `encoder_encode`.
+ * @param e Encoder
+ * @param src *u8
+ * @param src_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function encoder_encode(e: Encoder, src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
   let c: BlockCodec = BlockCodec { kind: e.kind };
   return block_encode(c, src, src_len, out, out_cap);
 }
 
-/** 解码器块解码。 */
+/** Exported function `decoder_decode`.
+ * Implements `decoder_decode`.
+ * @param d Decoder
+ * @param src *u8
+ * @param src_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function decoder_decode(d: Decoder, src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
   let c: BlockCodec = BlockCodec { kind: d.kind };
   return block_decode(c, src, src_len, out, out_cap);
 }
 
-/** 估算块编码输出上界（保守；失败 -1）。 */
+/** Exported function `encode_upper_bound`.
+ * Implements `encode_upper_bound`.
+ * @param kind i32
+ * @param src_len i32
+ * @return i32
+ */
 export function encode_upper_bound(kind: i32, src_len: i32): i32 {
   if (src_len < 0) { return -1; }
   if (kind == kind_hex()) {
@@ -178,7 +263,14 @@ export function encode_upper_bound(kind: i32, src_len: i32): i32 {
   return -1;
 }
 
-/** 编码写入 Bytes（清空后填充）；成功返回写入字节数。 */
+/** Exported function `encode_into_bytes`.
+ * Implements `encode_into_bytes`.
+ * @param e Encoder
+ * @param src *u8
+ * @param src_len i32
+ * @param b *Bytes
+ * @return i32
+ */
 export function encode_into_bytes(e: Encoder, src: *u8, src_len: i32, b: *Bytes): i32 {
   let need: i32 = encode_upper_bound(e.kind, src_len);
   if (need < 0) { return err_unsupported(); }
@@ -190,7 +282,13 @@ export function encode_into_bytes(e: Encoder, src: *u8, src_len: i32, b: *Bytes)
   return n;
 }
 
-/** 从 Bytes 解码（清空后填充）；成功返回写入字节数。 */
+/** Exported function `decode_from_bytes`.
+ * Implements `decode_from_bytes`.
+ * @param d Decoder
+ * @param src Bytes
+ * @param b *Bytes
+ * @return i32
+ */
 export function decode_from_bytes(d: Decoder, src: Bytes, b: *Bytes): i32 {
   bytes.clear(b);
   if (bytes.grow(b, src.len) != 0) { return err_buffer(); }
@@ -200,7 +298,10 @@ export function decode_from_bytes(d: Decoder, src: Bytes, b: *Bytes): i32 {
   return n;
 }
 
-/** 流状态缓冲最小字节数（gzip 与 base64 stream 取较大值）。 */
+/** Exported function `codec_state_bytes`.
+ * Implements `codec_state_bytes`.
+ * @return i32
+ */
 export function codec_state_bytes(): i32 {
   let gz: i32 = compress.gzip_stream_state_bytes();
   let b64: i32 = base64.state_bytes();
@@ -210,7 +311,14 @@ export function codec_state_bytes(): i32 {
   return b64;
 }
 
-/** 绑定 gzip 流 codec；mode 为 compress/decompress；成功 0。 */
+/** Exported function `codec_init_gzip`.
+ * Implements `codec_init_gzip`.
+ * @param sc *StreamCodec
+ * @param state *u8
+ * @param state_cap i32
+ * @param mode i32
+ * @return i32
+ */
 export function codec_init_gzip(sc: *StreamCodec, state: *u8, state_cap: i32, mode: i32): i32 {
   sc.kind = kind_gzip();
   sc.mode = mode;
@@ -226,8 +334,8 @@ export function codec_init_gzip(sc: *StreamCodec, state: *u8, state_cap: i32, mo
 }
 
 /**
- * STD-110：绑定 base64 流 codec。
- * mode=mode_compress() 为编码，mode_decompress() 为解码；url 非 0 为 URL 变体。
+ * See implementation.
+ * See implementation.
  */
 export function codec_init_base64(sc: *StreamCodec, state: *u8, state_cap: i32, url: i32, mode: i32): i32 {
   sc.kind = kind_base64_stream();
@@ -243,7 +351,17 @@ export function codec_init_base64(sc: *StreamCodec, state: *u8, state_cap: i32, 
   return err_input();
 }
 
-/** 流式处理一块；is_last 非 0 表示末块（压缩/编码 padding）；返回写入 out 字节数。 */
+/** Exported function `codec_process`.
+ * Implements `codec_process`.
+ * @param sc StreamCodec
+ * @param inp *u8
+ * @param in_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @param is_last i32
+ * @param in_consumed *i32
+ * @return i32
+ */
 export function codec_process(sc: StreamCodec, inp: *u8, in_len: i32, out: *u8, out_cap: i32, is_last: i32, in_consumed: *i32): i32 {
   if (sc.kind == kind_gzip()) {
     if (sc.mode == mode_compress()) {
@@ -266,7 +384,11 @@ export function codec_process(sc: StreamCodec, inp: *u8, in_len: i32, out: *u8, 
   return err_unsupported();
 }
 
-/** 结束流并释放底层状态（gzip）；base64 stream 无额外清理。 */
+/** Exported function `codec_end`.
+ * Implements `codec_end`.
+ * @param sc StreamCodec
+ * @return i32
+ */
 export function codec_end(sc: StreamCodec): i32 {
   if (sc.kind == kind_gzip()) {
     return compress.gzip_stream_end(sc.state, sc.state_cap);
@@ -277,60 +399,131 @@ export function codec_end(sc: StreamCodec): i32 {
   return err_unsupported();
 }
 
-/** hex 适配：编码。 */
+/** Exported function `adapter_hex_encode`.
+ * Implements `adapter_hex_encode`.
+ * @param src *u8
+ * @param src_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function adapter_hex_encode(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
   let e: Encoder = encoder_new(kind_hex());
   return encoder_encode(e, src, src_len, out, out_cap);
 }
 
-/** hex 适配：解码。 */
+/** Exported function `adapter_hex_decode`.
+ * Implements `adapter_hex_decode`.
+ * @param src *u8
+ * @param src_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function adapter_hex_decode(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
   let d: Decoder = decoder_new(kind_hex());
   return decoder_decode(d, src, src_len, out, out_cap);
 }
 
-/** base64 标准适配：编码。 */
+/** Exported function `adapter_base64_encode`.
+ * Implements `adapter_base64_encode`.
+ * @param src *u8
+ * @param src_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function adapter_base64_encode(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
   let e: Encoder = encoder_new(kind_base64_standard());
   return encoder_encode(e, src, src_len, out, out_cap);
 }
 
-/** base64 标准适配：解码。 */
+/** Exported function `adapter_base64_decode`.
+ * Implements `adapter_base64_decode`.
+ * @param src *u8
+ * @param src_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function adapter_base64_decode(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
   let d: Decoder = decoder_new(kind_base64_standard());
   return decoder_decode(d, src, src_len, out, out_cap);
 }
 
-/** gzip 块适配：压缩。 */
+/** Exported function `adapter_gzip_encode`.
+ * Implements `adapter_gzip_encode`.
+ * @param src *u8
+ * @param src_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function adapter_gzip_encode(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
   let e: Encoder = encoder_new(kind_gzip());
   return encoder_encode(e, src, src_len, out, out_cap);
 }
 
-/** gzip 块适配：解压。 */
+/** Exported function `adapter_gzip_decode`.
+ * Implements `adapter_gzip_decode`.
+ * @param src *u8
+ * @param src_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function adapter_gzip_decode(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
   let d: Decoder = decoder_new(kind_gzip());
   return decoder_decode(d, src, src_len, out, out_cap);
 }
 
-// ——— STD-110：compress / base64 流式适配（块 + 流双路径） ———
+// See implementation.
 
-/** STD-110：compress 流式 init（委托 codec_init_gzip）。 */
+/** Exported function `adapter_compress_stream_init`.
+ * Implements `adapter_compress_stream_init`.
+ * @param sc *StreamCodec
+ * @param state *u8
+ * @param state_cap i32
+ * @param mode i32
+ * @return i32
+ */
 export function adapter_compress_stream_init(sc: *StreamCodec, state: *u8, state_cap: i32, mode: i32): i32 {
   return codec_init_gzip(sc, state, state_cap, mode);
 }
 
-/** STD-110：compress/base64 流式 process（委托 codec_process）。 */
+/** Exported function `adapter_compress_stream_process`.
+ * Implements `adapter_compress_stream_process`.
+ * @param sc StreamCodec
+ * @param inp *u8
+ * @param in_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @param is_last i32
+ * @param in_consumed *i32
+ * @return i32
+ */
 export function adapter_compress_stream_process(sc: StreamCodec, inp: *u8, in_len: i32, out: *u8, out_cap: i32, is_last: i32, in_consumed: *i32): i32 {
   return codec_process(sc, inp, in_len, out, out_cap, is_last, in_consumed);
 }
 
-/** STD-110：流式 end（委托 codec_end）。 */
+/** Exported function `adapter_compress_stream_end`.
+ * Implements `adapter_compress_stream_end`.
+ * @param sc StreamCodec
+ * @return i32
+ */
 export function adapter_compress_stream_end(sc: StreamCodec): i32 {
   return codec_end(sc);
 }
 
-/** STD-110：base64 流式 init；encode_mode 非 0 为编码，否则解码。 */
+/** Exported function `adapter_base64_stream_init`.
+ * Implements `adapter_base64_stream_init`.
+ * @param sc *StreamCodec
+ * @param state *u8
+ * @param state_cap i32
+ * @param url i32
+ * @param encode_mode i32
+ * @return i32
+ */
 export function adapter_base64_stream_init(sc: *StreamCodec, state: *u8, state_cap: i32, url: i32, encode_mode: i32): i32 {
   let mode: i32 = mode_decompress();
   if (encode_mode != 0) {
@@ -339,23 +532,51 @@ export function adapter_base64_stream_init(sc: *StreamCodec, state: *u8, state_c
   return codec_init_base64(sc, state, state_cap, url, mode);
 }
 
-/** STD-110：base64 流式 process。 */
+/** Exported function `adapter_base64_stream_process`.
+ * Implements `adapter_base64_stream_process`.
+ * @param sc StreamCodec
+ * @param inp *u8
+ * @param in_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @param is_last i32
+ * @param in_consumed *i32
+ * @return i32
+ */
 export function adapter_base64_stream_process(sc: StreamCodec, inp: *u8, in_len: i32, out: *u8, out_cap: i32, is_last: i32, in_consumed: *i32): i32 {
   return codec_process(sc, inp, in_len, out, out_cap, is_last, in_consumed);
 }
 
-/** STD-110：base64 流式 end。 */
+/** Exported function `adapter_base64_stream_end`.
+ * Implements `adapter_base64_stream_end`.
+ * @param sc StreamCodec
+ * @return i32
+ */
 export function adapter_base64_stream_end(sc: StreamCodec): i32 {
   return codec_end(sc);
 }
 
-/** JSON 字符串转义适配（encode-only）。 */
+/** Exported function `adapter_json_escape`.
+ * Implements `adapter_json_escape`.
+ * @param src *u8
+ * @param src_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function adapter_json_escape(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
   let e: Encoder = encoder_new(kind_json_escape());
   return encoder_encode(e, src, src_len, out, out_cap);
 }
 
-/** CSV 字段转义适配（encode-only）。 */
+/** Exported function `adapter_csv_escape`.
+ * Implements `adapter_csv_escape`.
+ * @param src *u8
+ * @param src_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function adapter_csv_escape(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
   let e: Encoder = encoder_new(kind_csv_escape());
   return encoder_encode(e, src, src_len, out, out_cap);

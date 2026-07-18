@@ -1,8 +1,12 @@
 /**
- * STD-033 bench：chunked 解码热路径（1000 次，纯 CPU，可复现）。
+ * See implementation.
  */
 const http = import("std.http");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let resp: u8[86] = [
     72, 84, 84, 80, 47, 49, 46, 49, 32, 50, 48, 48, 32, 79, 75, 13, 10,

@@ -14,19 +14,19 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.net.tcp_pool — F-04 v2：TCP idle 连接复用池（STD-164 纯 .x）
+// See implementation.
 //
-// 【文件职责】
-// 从 tcp_pool.inc.c 迁出：按 IPv4 addr:port 缓存 idle TCP fd；
-// acquire 优先复用，否则 net_tcp_connect_blocking_c 新建连接。
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 【依赖】
+// See implementation.
 // net_tcp.x：net_tcp_connect_blocking_c、net_close_socket_c；libc：calloc/free。
 
-/** 单池最大 idle 连接数（与 C 版一致）。 */
+/* See implementation. */
 export const NET_TCP_POOL_MAX_IDLE: i32 = 8;
 
-/** TCP 连接池对象（handle 为 *NetTcpPool 转 i64）。 */
+/* See implementation. */
 allow(padding) struct NetTcpPool {
   addr_u32: u32;
   port_u32: u32;
@@ -38,28 +38,47 @@ allow(padding) struct NetTcpPool {
 
 extern "C" function calloc(nmemb: usize, size: usize): *u8;
 extern "C" function free(ptr: *u8): void;
-/** 阻塞 TCP 连接（net_tcp.x 提供）。 */
+/* See implementation. */
 extern function net_tcp_connect_blocking_c(addr_u32: u32, port_u32: u32, timeout_ms: u32): i32;
-/** 关闭 socket（net_sock.x 提供）。 */
+/* See implementation. */
 extern function net_close_socket_c(fd: i32): i32;
 
-/** libc calloc 包装（extern 须在 unsafe 内调用）。 */
+/** Exported function `pool_heap_alloc_c`.
+ * Memory management helper `pool_heap_alloc_c`.
+ * @param nmemb usize
+ * @param size usize
+ * @return *u8
+ */
 export function pool_heap_alloc_c(nmemb: usize, size: usize): *u8 {
   let p: *u8 = 0 as *u8;
   unsafe { p = calloc(nmemb, size); }
   return p;
 }
-/** libc free 包装。 */
+/** Exported function `pool_heap_free_c`.
+ * Memory management helper `pool_heap_free_c`.
+ * @param ptr *u8
+ * @return void
+ */
 export function pool_heap_free_c(ptr: *u8): void {
   unsafe { free(ptr); }
 }
-/** 阻塞 TCP 连接包装。 */
+/** Exported function `pool_tcp_connect_c`.
+ * Implements `pool_tcp_connect_c`.
+ * @param addr_u32 u32
+ * @param port_u32 u32
+ * @param timeout_ms u32
+ * @return i32
+ */
 export function pool_tcp_connect_c(addr_u32: u32, port_u32: u32, timeout_ms: u32): i32 {
   let fd: i32 = -1;
   unsafe { fd = net_tcp_connect_blocking_c(addr_u32, port_u32, timeout_ms); }
   return fd;
 }
-/** 关闭 socket 包装。 */
+/** Exported function `pool_tcp_close_c`.
+ * Implements `pool_tcp_close_c`.
+ * @param fd i32
+ * @return i32
+ */
 export function pool_tcp_close_c(fd: i32): i32 {
   let rc: i32 = -1;
   unsafe { rc = net_close_socket_c(fd); }
@@ -67,7 +86,7 @@ export function pool_tcp_close_c(fd: i32): i32 {
 }
 
 /**
- * 由 i64 handle 还原池指针；handle=0 返回 null。
+ * See implementation.
  */
 export function tcp_pool_ptr(pool_h: i64): *NetTcpPool {
   if (pool_h == 0) {
@@ -77,8 +96,8 @@ export function tcp_pool_ptr(pool_h: i64): *NetTcpPool {
 }
 
 /**
- * 创建 TCP 连接池；addr_u32 为 IPv4 host-order（如 0x7f000001）。
- * max_idle≤0 时默认 1；失败返回 0。
+ * See implementation.
+ * See implementation.
  */
 export function net_tcp_pool_create_c(addr_u32: u32, port_u32: u32, max_idle: i32): i64 {
   let mi: i32 = max_idle;
@@ -113,7 +132,7 @@ export function net_tcp_pool_create_c(addr_u32: u32, port_u32: u32, max_idle: i3
 }
 
 /**
- * 关闭全部 idle fd 并清零栈（不 free 池对象）。
+ * See implementation.
  */
 export function net_tcp_pool_drain_c(pool_h: i64): void {
   let pool: *NetTcpPool = tcp_pool_ptr(pool_h);
@@ -132,7 +151,7 @@ export function net_tcp_pool_drain_c(pool_h: i64): void {
 }
 
 /**
- * 销毁连接池（先 drain idle，再 free idle 数组与池对象）。
+ * See implementation.
  */
 export function net_tcp_pool_destroy_c(pool_h: i64): void {
   let pool: *NetTcpPool = tcp_pool_ptr(pool_h);
@@ -147,8 +166,8 @@ export function net_tcp_pool_destroy_c(pool_h: i64): void {
 }
 
 /**
- * 从池取连接：有 idle 则复用；否则 net_tcp_connect_blocking 并递增 connect_count。
- * 失败返回 -1。
+ * See implementation.
+ * See implementation.
  */
 export function net_tcp_pool_acquire_c(pool_h: i64, timeout_ms: u32): i32 {
   let pool: *NetTcpPool = tcp_pool_ptr(pool_h);
@@ -169,8 +188,8 @@ export function net_tcp_pool_acquire_c(pool_h: i64, timeout_ms: u32): i32 {
 }
 
 /**
- * 归还 fd 到 idle 栈；栈满则 close。
- * 成功 0；参数非法 -1。
+ * See implementation.
+ * See implementation.
  */
 export function net_tcp_pool_release_c(pool_h: i64, fd: i32): i32 {
   let pool: *NetTcpPool = tcp_pool_ptr(pool_h);
@@ -187,7 +206,7 @@ export function net_tcp_pool_release_c(pool_h: i64, fd: i32): i32 {
 }
 
 /**
- * 累计新建 TCP 连接次数（烟测/诊断）；非法 handle 返回 -1。
+ * See implementation.
  */
 export function net_tcp_pool_connect_count_c(pool_h: i64): i32 {
   let pool: *NetTcpPool = tcp_pool_ptr(pool_h);
@@ -198,7 +217,7 @@ export function net_tcp_pool_connect_count_c(pool_h: i64): i32 {
 }
 
 /**
- * 当前 idle 连接数；非法 handle 返回 -1。
+ * See implementation.
  */
 export function net_tcp_pool_idle_count_c(pool_h: i64): i32 {
   let pool: *NetTcpPool = tcp_pool_ptr(pool_h);
@@ -209,8 +228,8 @@ export function net_tcp_pool_idle_count_c(pool_h: i64): i32 {
 }
 
 /**
- * TCP 连接池烟测（离线 create/count/destroy）；0 通过。
- * v2：fork 集成烟测仍由 C net.c 路径延后（F-04 v2 无 fork）。
+ * See implementation.
+ * See implementation.
  */
 export function net_tcp_pool_smoke_c(): i32 {
   let pool_h: i64 = net_tcp_pool_create_c(0x7f000001, 9, 2);

@@ -14,23 +14,20 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// lower.x — .x AST → SHIR lowering + 契约提取
+// lower.x — .x AST → SHIR lowering + contract extraction
 //
-// 模块：ir/shir
-// 层级：SHIR
-// Phase：Phase 1
-// 职责：
-//   - 将 typeck 后的 AST 转换为 SHIR 高层节点
-//   - 提取 Linear / Region / X ABI 语义信息生成 Contract（§1.3 Step 1）
-//   - 保留 Pattern Match / Coroutine / Generator 等高层结构（§1.8）
-//   - 泛型 monomorphization（特化）
-//   - 死代码消除（SHIR 层早期 DCE）
-//   - Pattern 穷尽性检查（未来特性）
-// 依赖：../../ast / ../inst / ../contract / ../effect / ../opcode / ../abi
-// 设计约束：
-//   - SHIR 是"语言语义的 1:1 映射"，不做激进 lowering
-//   - 契约提取必须 100% 确定性（前端 typeck 已验证，IR 层只做物化）
-//   - SHUX 语言新增高层特性时，SHIR 同步保留对应高层节点
+// Module: ir/shir
+// Layer: SHIR
+// Phase: Phase 1
+// Responsibility:
+//   - Convert typeck'd AST into SHIR high-level nodes
+//   - Extract Linear / Region / X ABI semantics into Contract (§1.3 Step 1)
+//   - Preserve Pattern Match / Coroutine / Generator high-level structure (§1.8)
+//   - Generic monomorphization; early DCE at SHIR
+// Depends: ../../ast / ../inst / ../contract / ../effect / ../opcode / ../abi
+// Design constraints:
+//   - SHIR is a 1:1 map of language semantics; no aggressive lowering
+//   - Contract extraction is 100% deterministic
 //
-// 参考文档：analysis/IR核心设计.md §1.3（契约提取）/ §1.8（SHIR 高层性原则）/ §2.2（SHIR 职责）
-// 架构状态：v4.0 Architecture Freeze — 实现骨架，待 Phase 1 填充
+// Ref: analysis IR core design §1.3 (contract extract) / §1.8 / §2.2 (SHIR duties)
+// Status: v4.0 Architecture Freeze — implementation skeleton; fill in Phase 1

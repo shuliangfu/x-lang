@@ -15,40 +15,40 @@
 // Full text: LICENSE.Apache-2.0
 
 // std.process —
-// 进程控制、命令行参数、环境变量、工作目录、spawn/exec/waitpid（对齐
-// Rust/Go/Zig 常用 API）
+// See implementation.
+// See implementation.
 //
-// 【文件职责】
-// 对外暴露 std.process 的完整
-// API：进程终止（exit）、命令行参数（args_count/arg）、环境变量（getenv/setenv/un
+// See implementation.
+// See implementation.
+// See implementation.
 // setenv）、
-// 进程
-// ID（getpid/getppid）、当前工作目录（getcwd/getcwd_ptr/getcwd_cached_len/chdir）、可执�
-// ��路径（self_exe_path/self_exe_path_ptr/self_exe_path_cached_len）、
-// 子进程（spawn/spawn_simple、exec/exec_simple、waitpid）。其中
-// getcwd_ptr/self_exe_path_ptr 为零拷贝接口。
-// 本文件仅做类型安全的薄封装，实际实现由同目录 process.c 提供并链入
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 // process.o。
 //
-// 【所属模块/组件】
-// 标准库 std.process；用户通过 import("std.process") 使用。依赖 core 无；与
-// std/process/process.c、std/process/README.md 同属一模块。
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 【与其它文件的关系】
-// - 被依赖：任何 import("std.process") 的用户代码；compiler 在 -o exe 时自动链入
+// See implementation.
+// See implementation.
 // std/process/process.o。
-// - 依赖：无其它 .x 模块；通过 extern 调用 process_*_c 系列 C 函数（定义在
+// See implementation.
 // process.c）。
-// - exit(code)：由 codegen 对「调用 exit 的语句」生成 C 的
-// exit(code)，不经过本文件实现。
+// See implementation.
+// See implementation.
 //
-// 【重要约定】
-// - 入口 main 由 codegen 生成 int main(int argc, char **argv) 并写入 process.c 的全局
-// argc/argv，故 args_count/arg 仅在入口 main 执行后有效。
-// - spawn(program, argv)、exec(program, argv) 的 argv 在 C 侧为 char**（以 NULL
-// 结尾）；.x 侧传 *u8 表示该指针，调用方须自行构造指针数组。
-// - spawn_simple(program)、exec_simple(program) 内部使用 argv=[program,
-// NULL]，无需调用方构造 argv。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 extern function process_args_count_c(): i32;
 extern function process_arg_c(i: i32): *u8;
 extern function process_getenv_c(name: *u8): *u8;
@@ -64,7 +64,7 @@ extern function process_self_exe_path_c(buf: *u8, buf_size: i32): i32;
 extern function process_self_exe_path_ptr_c(): *u8;
 extern function process_self_exe_path_cached_len_c(): i32;
 
-/** spawn_io 重定向描述；fd < 0 表示继承对应 stdio（STD-023）。 */
+/* See implementation. */
 export struct SpawnIo {
   stdin_fd: i32;
   stdout_fd: i32;
@@ -77,108 +77,155 @@ extern function process_exec_c(program: *u8, argv: *u8): i32;
 extern function process_waitpid_c(pid: i32): i32;
 extern function process_spawn_simple_c(program: *u8): i32;
 extern function process_exec_simple_c(program: *u8): i32;
-/** 终止进程，退出码为 code（noreturn；C 侧调用 exit(code)）。 */
+/** Exported function `exit`.
+ * Implements `exit`.
+ * @param code i32
+ * @return i32
+ */
 export function exit(code: i32): i32 {
   return 0;
 }
-/** 返回命令行参数个数（含程序名 argv[0]）。入口 main 由 codegen 生成并保存
-* argc/argv 后可用。 */
+/** Exported function `args_count`.
+ * Implements `args_count`.
+ * @return i32
+ */
 export function args_count(): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = process_args_count_c(); }
   return _rc;
 }
-/** 返回第 i 个参数的 C 字符串指针（NUL 结尾）；i 越界或未初始化返回
-* 0。0 ≤ i < args_count()。 */
+/** Exported function `arg`.
+ * Implements `arg`.
+ * @param i i32
+ * @return *u8
+ */
 export function arg(i: i32): *u8 {
   let _rc: *u8 = 0;
   unsafe { _rc = process_arg_c(i); }
   return _rc;
 }
-/** 返回环境变量 name（NUL 结尾）的值；不存在返回 0。 */
+/** Exported function `getenv`.
+ * Implements `getenv`.
+ * @param name *u8
+ * @return *u8
+ */
 export function getenv(name: *u8): *u8 {
   let _rc: *u8 = 0;
   unsafe { _rc = process_getenv_c(name); }
   return _rc;
 }
-/** 设置环境变量 name=value；overwrite 非 0 时覆盖已有值。返回 0 成功，-1
-* 失败。 */
+/** Exported function `setenv`.
+ * Implements `setenv`.
+ * @param name *u8
+ * @param value *u8
+ * @param overwrite i32
+ * @return i32
+ */
 export function setenv(name: *u8, value: *u8, overwrite: i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = process_setenv_c(name, value, overwrite); }
   return _rc;
 }
-/** 删除环境变量 name。返回 0 成功，-1 失败。 */
+/** Exported function `unsetenv`.
+ * Implements `unsetenv`.
+ * @param name *u8
+ * @return i32
+ */
 export function unsetenv(name: *u8): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = process_unsetenv_c(name); }
   return _rc;
 }
-/** 返回当前进程 ID（Rust id() / Go Getpid / Zig 同）。 */
+/** Exported function `getpid`.
+ * Implements `getpid`.
+ * @return i32
+ */
 export function getpid(): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = process_getpid_c(); }
   return _rc;
 }
-/** 返回父进程 ID；Windows 无简单 API 返回 -1（Go Getppid / POSIX getppid）。 */
+/** Exported function `getppid`.
+ * Implements `getppid`.
+ * @return i32
+ */
 export function getppid(): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = process_getppid_c(); }
   return _rc;
 }
-/** 将当前工作目录写入 buf（NUL 结尾），最多 buf_size
-* 字节。返回写入字节数（不含 NUL），失败 -1（Go Getwd / Zig getCwd）。 */
+/** Exported function `getcwd`.
+ * Implements `getcwd`.
+ * @param buf *u8
+ * @param buf_size i32
+ * @return i32
+ */
 export function getcwd(buf: *u8, buf_size: i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = process_getcwd_c(buf, buf_size); }
   return _rc;
 }
-/** 零拷贝：返回指向内部缓存的当前工作目录（NUL
-* 结尾）。只读，勿改；指针在下次 chdir 或 getcwd 前有效；失败返回 0。 */
+/** Exported function `getcwd_ptr`.
+ * Implements `getcwd_ptr`.
+ * @return *u8
+ */
 export function getcwd_ptr(): *u8 {
   let _rc: *u8 = 0;
   unsafe { _rc = process_getcwd_ptr_c(); }
   return _rc;
 }
-/** 返回 getcwd 缓存长度（不含 NUL）；未缓存或已失效为 0。与 getcwd_ptr
-* 配套使用。 */
+/** Exported function `getcwd_cached_len`.
+ * Query helper `getcwd_cached_len`.
+ * @return i32
+ */
 export function getcwd_cached_len(): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = process_getcwd_cached_len_c(); }
   return _rc;
 }
-/** 切换当前工作目录到 path（NUL 结尾）。返回 0 成功，-1 失败（Go Chdir）。
-*/
+/** Exported function `chdir`.
+ * Implements `chdir`.
+ * @param path *u8
+ * @return i32
+ */
 export function chdir(path: *u8): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = process_chdir_c(path); }
   return _rc;
 }
-/** 将当前可执行文件路径写入 buf（NUL 结尾），最多 buf_size
-* 字节。返回写入字节数（不含 NUL），失败 -1（Zig selfExePath）。 */
+/** Exported function `self_exe_path`.
+ * Implements `self_exe_path`.
+ * @param buf *u8
+ * @param buf_size i32
+ * @return i32
+ */
 export function self_exe_path(buf: *u8, buf_size: i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = process_self_exe_path_c(buf, buf_size); }
   return _rc;
 }
-/** 零拷贝：返回指向内部缓存的可执行路径（NUL
-* 结尾）。只读，勿改；指针在进程生命周期内有效；失败返回 0。 */
+/** Exported function `self_exe_path_ptr`.
+ * Implements `self_exe_path_ptr`.
+ * @return *u8
+ */
 export function self_exe_path_ptr(): *u8 {
   let _rc: *u8 = 0;
   unsafe { _rc = process_self_exe_path_ptr_c(); }
   return _rc;
 }
-/** 返回 self_exe_path 缓存长度（不含 NUL）；未缓存为 0。与 self_exe_path_ptr
-* 配套使用。 */
+/** Exported function `self_exe_path_cached_len`.
+ * Query helper `self_exe_path_cached_len`.
+ * @return i32
+ */
 export function self_exe_path_cached_len(): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = process_self_exe_path_cached_len_c(); }
   return _rc;
 }
 /**
-* 创建子进程执行 program，参数为 argv（argv 在 C 侧为 char* 数组指针，以 NULL
-* 结尾；.x 侧传 *u8 表示该指针）。
-* 使用当前环境与当前工作目录。返回子进程 pid（>0），失败返回 -1（Rust
+* See implementation.
+* See implementation.
+* See implementation.
 * Command::spawn / Go StartProcess / Zig Child.spawn）。
 */
 export function spawn(program: *u8, argv: *u8): i32 {
@@ -188,8 +235,8 @@ export function spawn(program: *u8, argv: *u8): i32 {
 }
 
 /**
- * 创建子进程并应用 SpawnIo 重定向；argv 同 spawn。
- * 返回子进程 pid（>0），失败 -1。
+ * See implementation.
+ * See implementation.
  */
 export function spawn_io(program: *u8, argv: *u8, io: *SpawnIo): i32 {
   let _rc: i32 = 0;
@@ -197,7 +244,7 @@ export function spawn_io(program: *u8, argv: *u8, io: *SpawnIo): i32 {
   return _rc;
 }
 /**
-* 用 program 替换当前进程（成功不返回）。argv 同 spawn。Windows 不支持，返回
+* See implementation.
 * -1（POSIX execve / Go syscall.Exec）。
 */
 export function exec(program: *u8, argv: *u8): i32 {
@@ -205,27 +252,43 @@ export function exec(program: *u8, argv: *u8): i32 {
   unsafe { _rc = process_exec_c(program, argv); }
   return _rc;
 }
-/** 等待子进程 pid 结束，返回其退出码（低 8 位）；失败返回 -1。 */
+/** Exported function `waitpid`.
+ * Implements `waitpid`.
+ * @param pid i32
+ * @return i32
+ */
 export function waitpid(pid: i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = process_waitpid_c(pid); }
   return _rc;
 }
-/** 简化 spawn：argv = [program, NULL]。返回 pid 或 -1。 */
+/** Exported function `spawn_simple`.
+ * Implements `spawn_simple`.
+ * @param program *u8
+ * @return i32
+ */
 export function spawn_simple(program: *u8): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = process_spawn_simple_c(program); }
   return _rc;
 }
-/** 简化 exec：argv = [program, NULL]。成功不返回；失败返回 -1。 */
+/** Exported function `exec_simple`.
+ * Implements `exec_simple`.
+ * @param program *u8
+ * @return i32
+ */
 export function exec_simple(program: *u8): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = process_exec_simple_c(program); }
   return _rc;
 }
 extern function process_pipe_c(read_fd: *i32, write_fd: *i32): i32;
-/** 创建管道（P3 扩展）；成功时 *read_fd 可读、*write_fd 可写，返回
-* 0；失败返回 -1。POSIX 可用；Windows 暂返回 -1。 */
+/** Exported function `pipe`.
+ * Implements `pipe`.
+ * @param read_fd *i32
+ * @param write_fd *i32
+ * @return i32
+ */
 export function pipe(read_fd: *i32, write_fd: *i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = process_pipe_c(read_fd, write_fd); }

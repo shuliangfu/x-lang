@@ -1,4 +1,8 @@
-// SIMD-S3 烟测：let n=64 常量传播 + i32[64] 整段 peel（4× vpaddd 或 8× paddd）。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let n: i32 = 64;
   let a: i32[64] = [

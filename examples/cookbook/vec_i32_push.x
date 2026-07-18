@@ -1,8 +1,12 @@
 /**
- * Cookbook VEC-01：Vec_i32 push/pop/append_slice 基本路径（STD-014）。
+ * See implementation.
  */
 const vec = import("std.vec");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let v: Vec_i32 = vec.new();
   if (vec.push(&v, 10) != 0) { return 1; }

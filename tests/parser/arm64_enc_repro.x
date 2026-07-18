@@ -1,11 +1,23 @@
-// 最小复现：arm64_enc 第二函数 enc_prologue 体含 ctx.field 赋值与 if 内无 let 重赋值
+// See implementation.
 const elf = import("platform.elf");
 
+/** Internal function `enc_u32_le`.
+ * Implements `enc_u32_le`.
+ * @param ctx *ElfCodegenCtx
+ * @param val i32
+ * @return i32
+ */
 function enc_u32_le(ctx: *ElfCodegenCtx, val: i32): i32 {
   let buf: u8[4] = [];
   return elf.append_elf_bytes(ctx, buf, 4);
 }
 
+/** Internal function `enc_prologue`.
+ * Implements `enc_prologue`.
+ * @param ctx *ElfCodegenCtx
+ * @param frame_size i32
+ * @return i32
+ */
 function enc_prologue(ctx: *ElfCodegenCtx, frame_size: i32): i32 {
   ctx.current_frame_size = frame_size;
   if (enc_u32_le(ctx, 1) != 0) { return -1; }

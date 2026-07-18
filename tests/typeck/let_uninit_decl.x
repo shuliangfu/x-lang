@@ -1,6 +1,10 @@
-// let x: T; 省略 `=`：栈零填，等价 let buf: u8[N] = [] / let n: i32 = 0
+// See implementation.
 allow(padding) struct Pair { a: i16; b: i32; }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let buf: u8[4];
   let n: i32;

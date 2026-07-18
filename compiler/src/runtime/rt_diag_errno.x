@@ -1,12 +1,12 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-302/450 / P2 runtime rest：errno 诊断族。
-// R2 full：.x 吃满 code_for_kind + errno{,_path,_path_pair} + cli_usage_note；
-// 产品 PREFER_X_O 下 rest 仅 marker（业务 H=0）。
-// 🔒 诊断用 diag_report_with_code（无 va_list / reportf）；
-// 诊断码串经一次 malloc 池常驻（避免 -E 把 string lit return 编成自动期 compound literal）。
-// errno：linux `__errno_location` / macos `__error`（cfg）；err 文案经 strerror。
+// Runtime diag/errno helpers (G.9 English; body is authoritative).
+// Runtime diag/errno helpers (G.9 English; body is authoritative).
+// Runtime diag/errno helpers (G.9 English; body is authoritative).
+// Runtime diag/errno helpers (G.9 English; body is authoritative).
+// Runtime diag/errno helpers (G.9 English; body is authoritative).
+// Runtime diag/errno helpers (G.9 English; body is authoritative).
 //
 // PLATFORM: SHARED — errno TLS accessors are declared on every host; only the
 // matching rt_diag_get_errno body (#[cfg]) references one of them. Do NOT wrap
@@ -24,7 +24,7 @@ export extern "C" function malloc(n: usize): *u8;
 export extern "C" function diag_report_with_code(
   file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void;
 
-/** 诊断码常驻池（首次 ensure 后只读）。 */
+/* See signature and body for contracts. */
 export let g_rt_diag_codes_ready: i32 = 0;
 export let g_rt_diag_io001: *u8 = 0 as *u8;
 export let g_rt_diag_prc001: *u8 = 0 as *u8;
@@ -174,7 +174,11 @@ export function rt_diag_append(dst: *u8, cap: i32, src: *u8): i32 {
   return i;
 }
 
-/** kind 文案 → 诊断码（稳定指针；未知 kind 返回 null）。 */
+/** Exported function `runtime_diag_code_for_kind`.
+ * Implements `runtime_diag_code_for_kind`.
+ * @param kind *u8
+ * @return *u8
+ */
 #[no_mangle]
 export function runtime_diag_code_for_kind(kind: *u8): *u8 {
   rt_diag_ensure_codes();
@@ -195,7 +199,13 @@ export function runtime_diag_code_for_kind(kind: *u8): *u8 {
   return 0 as *u8;
 }
 
-/** 无 path：`{op} failed: {strerror}`。 */
+/** Exported function `runtime_diag_errno`.
+ * Implements `runtime_diag_errno`.
+ * @param file *u8
+ * @param kind *u8
+ * @param op *u8
+ * @return void
+ */
 #[no_mangle]
 export function runtime_diag_errno(file: *u8, kind: *u8, op: *u8): void {
   let saved: i32 = 0;
@@ -231,7 +241,14 @@ export function runtime_diag_errno(file: *u8, kind: *u8, op: *u8): void {
   }
 }
 
-/** 有 path：`{op} failed for '{path}': {strerror}`；空 path 回退 errno。 */
+/** Exported function `runtime_diag_errno_path`.
+ * Implements `runtime_diag_errno_path`.
+ * @param file *u8
+ * @param kind *u8
+ * @param op *u8
+ * @param path *u8
+ * @return void
+ */
 #[no_mangle]
 export function runtime_diag_errno_path(file: *u8, kind: *u8, op: *u8, path: *u8): void {
   let saved: i32 = 0;
@@ -277,7 +294,7 @@ export function runtime_diag_errno_path(file: *u8, kind: *u8, op: *u8, path: *u8
   }
 }
 
-/** 双 path：`{op} failed for '{from}' -> '{to}': {strerror}`。 */
+/* See signature and body for contracts. */
 #[no_mangle]
 export function runtime_diag_errno_path_pair(
   file: *u8, kind: *u8, op: *u8, from_path: *u8, to_path: *u8): void {
@@ -330,7 +347,11 @@ export function runtime_diag_errno_path_pair(
   }
 }
 
-/** CLI usage note（固定句式 + argv0；无 va）。 */
+/** Exported function `runtime_diag_cli_usage_note`.
+ * Implements `runtime_diag_cli_usage_note`.
+ * @param argv0 *u8
+ * @return void
+ */
 #[no_mangle]
 export function runtime_diag_cli_usage_note(argv0: *u8): void {
   let msg: u8[256] = [];

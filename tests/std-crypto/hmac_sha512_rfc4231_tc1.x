@@ -1,6 +1,10 @@
 // STD-050：HMAC-SHA512 RFC 4231 Test Case 1（key=20×0x0b，msg="Hi There"）
 const crypto = import("std.crypto");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let key: u8[20] = [
     11, 11, 11, 11, 11, 11, 11, 11, 11, 11,

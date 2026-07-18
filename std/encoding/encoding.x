@@ -14,26 +14,30 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std/encoding/encoding.x — UTF-8/ASCII/hex/base32/percent（F-encoding v1；替代 encoding.c）
+// See implementation.
 //
-// 【文件职责】UTF-8 校验/编解码、ASCII 分类、hex/base32/percent、STD-127 烟测。
-// 无堆分配；对标 Zig/Rust std 编码子集。
+// See implementation.
+// See implementation.
 
-/** UTF-8 续字节掩码 10xxxxxx。 */
+/* See implementation. */
 export const UTF8_CONT_MASK: u8 = 0xC0;
 export const UTF8_CONT_VAL: u8 = 0x80;
 
-/** hex 小写字母表。 */
+/* See implementation. */
 export const HEX_LOWER: u8[16] = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 97, 98, 99, 100, 101, 102];
-/** hex 大写字母表（percent 用）。 */
+/* See implementation. */
 export const HEX_UPPER: u8[16] = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 65, 66, 67, 68, 69, 70];
-/** RFC 4648 Base32 字母表。 */
+/* See implementation. */
 export const B32_ALPHABET: u8[32] = [
   65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80,
   81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 50, 51, 52, 53, 54, 55
 ];
 
-/** UTF-8 首字节序列长度；255=非法/续字节。 */
+/** Exported function `utf8_first_byte_len`.
+ * Query helper `utf8_first_byte_len`.
+ * @param b u8
+ * @return u32
+ */
 export function utf8_first_byte_len(b: u8): u32 {
   if (b <= 127) { return 1; }
   if (b >= 128 && b <= 191) { return 255; }
@@ -43,7 +47,12 @@ export function utf8_first_byte_len(b: u8): u32 {
   return 255;
 }
 
-/** UTF-8 校验 ptr[0..len)；合法 1，非法 0。 */
+/** Exported function `encoding_utf8_valid_c`.
+ * Implements `encoding_utf8_valid_c`.
+ * @param p *u8
+ * @param len i32
+ * @return i32
+ */
 export function encoding_utf8_valid_c(p: *u8, len: i32): i32 {
   let pi: i32 = 0;
   let b: u8 = 0;
@@ -74,7 +83,12 @@ export function encoding_utf8_valid_c(p: *u8, len: i32): i32 {
   return 1;
 }
 
-/** UTF-8 码点个数；非法 -1。 */
+/** Exported function `encoding_utf8_len_chars_c`.
+ * Implements `encoding_utf8_len_chars_c`.
+ * @param p *u8
+ * @param len i32
+ * @return i32
+ */
 export function encoding_utf8_len_chars_c(p: *u8, len: i32): i32 {
   let count: i32 = 0;
   let pi: i32 = 0;
@@ -90,7 +104,12 @@ export function encoding_utf8_len_chars_c(p: *u8, len: i32): i32 {
   return count;
 }
 
-/** 码点 r 编码到 out；返回 1..4，非法 0。 */
+/** Exported function `encoding_utf8_encode_rune_c`.
+ * Implements `encoding_utf8_encode_rune_c`.
+ * @param r u32
+ * @param out *u8
+ * @return i32
+ */
 export function encoding_utf8_encode_rune_c(r: u32, out: *u8): i32 {
   if (out == 0) { return 0; }
   if (r <= 0x7F) {
@@ -120,7 +139,13 @@ export function encoding_utf8_encode_rune_c(r: u32, out: *u8): i32 {
   return 0;
 }
 
-/** 从 p 解码 rune 到 *out_r；返回消费字节 1..4，非法 0。 */
+/** Exported function `encoding_utf8_decode_rune_c`.
+ * Implements `encoding_utf8_decode_rune_c`.
+ * @param p *u8
+ * @param len i32
+ * @param out_r *u32
+ * @return i32
+ */
 export function encoding_utf8_decode_rune_c(p: *u8, len: i32, out_r: *u32): i32 {
   let b: u8 = 0;
   let n: u32 = 0;
@@ -148,49 +173,81 @@ export function encoding_utf8_decode_rune_c(p: *u8, len: i32, out_r: *u32): i32 
   return n as i32;
 }
 
-/** ASCII 是否字母。 */
+/** Exported function `encoding_ascii_is_alpha_c`.
+ * Implements `encoding_ascii_is_alpha_c`.
+ * @param c u8
+ * @return i32
+ */
 export function encoding_ascii_is_alpha_c(c: u8): i32 {
   if ((c >= 65 && c <= 90) || (c >= 97 && c <= 122)) { return 1; }
   return 0;
 }
 
-/** ASCII 是否数字。 */
+/** Exported function `encoding_ascii_is_digit_c`.
+ * Implements `encoding_ascii_is_digit_c`.
+ * @param c u8
+ * @return i32
+ */
 export function encoding_ascii_is_digit_c(c: u8): i32 {
   if (c >= 48 && c <= 57) { return 1; }
   return 0;
 }
 
-/** ASCII 是否字母或数字。 */
+/** Exported function `encoding_ascii_is_alnum_c`.
+ * Implements `encoding_ascii_is_alnum_c`.
+ * @param c u8
+ * @return i32
+ */
 export function encoding_ascii_is_alnum_c(c: u8): i32 {
   if (encoding_ascii_is_alpha_c(c) != 0 || encoding_ascii_is_digit_c(c) != 0) { return 1; }
   return 0;
 }
 
-/** ASCII 是否小写。 */
+/** Exported function `encoding_ascii_is_lower_c`.
+ * Implements `encoding_ascii_is_lower_c`.
+ * @param c u8
+ * @return i32
+ */
 export function encoding_ascii_is_lower_c(c: u8): i32 {
   if (c >= 97 && c <= 122) { return 1; }
   return 0;
 }
 
-/** ASCII 是否大写。 */
+/** Exported function `encoding_ascii_is_upper_c`.
+ * Implements `encoding_ascii_is_upper_c`.
+ * @param c u8
+ * @return i32
+ */
 export function encoding_ascii_is_upper_c(c: u8): i32 {
   if (c >= 65 && c <= 90) { return 1; }
   return 0;
 }
 
-/** ASCII 转小写。 */
+/** Exported function `encoding_ascii_to_lower_c`.
+ * Implements `encoding_ascii_to_lower_c`.
+ * @param c u8
+ * @return u8
+ */
 export function encoding_ascii_to_lower_c(c: u8): u8 {
   if (c >= 65 && c <= 90) { return (c + 32) as u8; }
   return c;
 }
 
-/** ASCII 转大写。 */
+/** Exported function `encoding_ascii_to_upper_c`.
+ * Implements `encoding_ascii_to_upper_c`.
+ * @param c u8
+ * @return u8
+ */
 export function encoding_ascii_to_upper_c(c: u8): u8 {
   if (c >= 97 && c <= 122) { return (c - 32) as u8; }
   return c;
 }
 
-/** 解析 hex 半字节；非法 -1。 */
+/** Exported function `shu_hex_nibble`.
+ * Implements `shu_hex_nibble`.
+ * @param c u8
+ * @return i32
+ */
 export function shu_hex_nibble(c: u8): i32 {
   if (c >= 48 && c <= 57) { return (c - 48) as i32; }
   if (c >= 97 && c <= 102) { return (c - 97 + 10) as i32; }
@@ -198,7 +255,14 @@ export function shu_hex_nibble(c: u8): i32 {
   return -1;
 }
 
-/** 小写 hex 编码；返回 src_len*2，失败 -1。 */
+/** Exported function `encoding_hex_encode_c`.
+ * Implements `encoding_hex_encode_c`.
+ * @param src *u8
+ * @param src_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function encoding_hex_encode_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
   let i: i32 = 0;
   if (src == 0 || out == 0 || src_len < 0) { return -1; }
@@ -211,13 +275,24 @@ export function encoding_hex_encode_c(src: *u8, src_len: i32, out: *u8, out_cap:
   return src_len * 2;
 }
 
-/** hex 编码输出长度（字符数）。 */
+/** Exported function `encoding_hex_encoded_len_c`.
+ * Implements `encoding_hex_encoded_len_c`.
+ * @param src_len i32
+ * @return i32
+ */
 export function encoding_hex_encoded_len_c(src_len: i32): i32 {
   if (src_len < 0) { return -1; }
   return src_len * 2;
 }
 
-/** hex 解码；返回写入字节数，非法 -1。 */
+/** Exported function `encoding_hex_decode_c`.
+ * Implements `encoding_hex_decode_c`.
+ * @param src *u8
+ * @param src_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function encoding_hex_decode_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
   let out_len: i32 = 0;
   let i: i32 = 0;
@@ -236,7 +311,11 @@ export function encoding_hex_decode_c(src: *u8, src_len: i32, out: *u8, out_cap:
   return out_len;
 }
 
-/** 解析 Base32 字符；非法 -1。 */
+/** Exported function `shu_b32_value`.
+ * Implements `shu_b32_value`.
+ * @param c u8
+ * @return i32
+ */
 export function shu_b32_value(c: u8): i32 {
   if (c >= 65 && c <= 90) { return (c - 65) as i32; }
   if (c >= 50 && c <= 55) { return (c - 50 + 26) as i32; }
@@ -244,7 +323,14 @@ export function shu_b32_value(c: u8): i32 {
   return -1;
 }
 
-/** RFC 4648 Base32 编码（含 padding）；失败 -1。 */
+/** Exported function `encoding_base32_encode_c`.
+ * Implements `encoding_base32_encode_c`.
+ * @param src *u8
+ * @param src_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function encoding_base32_encode_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
   let o: i32 = 0;
   let idx: i32 = 0;
@@ -280,7 +366,14 @@ export function encoding_base32_encode_c(src: *u8, src_len: i32, out: *u8, out_c
   return o;
 }
 
-/** RFC 4648 Base32 解码；失败 -1。 */
+/** Exported function `encoding_base32_decode_c`.
+ * Implements `encoding_base32_decode_c`.
+ * @param src *u8
+ * @param src_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function encoding_base32_decode_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
   let i: i32 = 0;
   let o: i32 = 0;
@@ -307,14 +400,25 @@ export function encoding_base32_decode_c(src: *u8, src_len: i32, out: *u8, out_c
   return o;
 }
 
-/** RFC 3986 unreserved 字符。 */
+/** Exported function `shu_percent_unreserved`.
+ * Implements `shu_percent_unreserved`.
+ * @param c u8
+ * @return i32
+ */
 export function shu_percent_unreserved(c: u8): i32 {
   if ((c >= 65 && c <= 90) || (c >= 97 && c <= 122) || (c >= 48 && c <= 57)) { return 1; }
   if (c == 45 || c == 46 || c == 95 || c == 126) { return 1; }
   return 0;
 }
 
-/** percent 编码；失败 -1。 */
+/** Exported function `encoding_percent_encode_c`.
+ * Implements `encoding_percent_encode_c`.
+ * @param src *u8
+ * @param src_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function encoding_percent_encode_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
   let i: i32 = 0;
   let o: i32 = 0;
@@ -338,7 +442,14 @@ export function encoding_percent_encode_c(src: *u8, src_len: i32, out: *u8, out_
   return o;
 }
 
-/** percent 解码；失败 -1。 */
+/** Exported function `encoding_percent_decode_c`.
+ * Implements `encoding_percent_decode_c`.
+ * @param src *u8
+ * @param src_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function encoding_percent_decode_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
   let i: i32 = 0;
   let o: i32 = 0;
@@ -367,7 +478,10 @@ export function encoding_percent_decode_c(src: *u8, src_len: i32, out: *u8, out_
   return o;
 }
 
-/** STD-127 烟测：Base32 foo + percent `a b`；0 成功。 */
+/** Exported function `encoding_extra_smoke_c`.
+ * Implements `encoding_extra_smoke_c`.
+ * @return i32
+ */
 export function encoding_extra_smoke_c(): i32 {
   let foo: u8[3] = [102, 111, 111];
   let b32: u8[16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];

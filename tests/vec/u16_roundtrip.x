@@ -1,6 +1,10 @@
-// STD-161：Vec_u16 烟测
+// See implementation.
 const vec = import("std.vec");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let v: Vec_u16 = vec.new();
   if (vec.push(&v, 1000 as u16) != 0) { return 1; }

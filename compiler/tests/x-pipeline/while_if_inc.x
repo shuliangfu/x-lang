@@ -1,4 +1,8 @@
-/** 探针：while 内 if 不 return + j++ */
+/** Probe: while with if that does not return, plus j++. */
+
+/**
+ * When j==0 add 10 to acc; always increment j. Returns acc (expect 10).
+ */
 function main(): i32 {
   let j: i32 = 0;
   let len: i32 = 2;

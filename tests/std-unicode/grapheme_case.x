@@ -1,6 +1,10 @@
-// STD-114：std.unicode grapheme / case fold 烟测
+// See implementation.
 const unicode = import("std.unicode");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let decomposed: u8[3] = [101, 0xCC, 0x81];
   let hello: u8[5] = [72, 101, 108, 108, 111];

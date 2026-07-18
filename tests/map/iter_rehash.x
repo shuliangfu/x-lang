@@ -1,6 +1,10 @@
-// STD-162：Map 迭代与负载因子烟测
+// See implementation.
 const map = import("std.map");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let m: Map_i32_i32 = map.new(0);
   if (map.with_capacity(&m, 8) != 0) { return 1; }

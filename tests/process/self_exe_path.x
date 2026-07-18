@@ -1,13 +1,17 @@
-// 测试 std.process：process.self_exe_path(buf, size)
+// See implementation.
 //
-// 【文件职责】本文件为 std.process 当前可执行文件路径查询的回归测试。
-// 【测试目的】确认 process.self_exe_path(buf, buf_size) 成功时返回写入字节数且 buf
-// 首字节非 0，与 Zig std.process.selfExePath 语义一致。
-// 【覆盖 API】process.self_exe_path(buf: *u8, buf_size: i32): i32。
-// 【预期结果】退出码 0 表示 n>0 且 buf[0]!=0；1 表示 n≤0；2 表示 buf[0]==0。
-// 【运行方式】./tests/run-process.sh
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 const process = import("std.process");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let buf: u8[128] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0];

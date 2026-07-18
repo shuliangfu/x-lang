@@ -14,19 +14,19 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.db.arrow — F-05 v1：Apache Arrow 风格列式内存（列/batch 生命周期）
+// See implementation.
 //
-// 【文件职责】
-// 从 arrow.c 迁出列创建/adopt/append/batch/烟测；SIMD 归约见 arrow_simd_glue.c。
+// See implementation.
+// See implementation.
 //
-// 【布局】64B 对齐 data + null bitmap（bit=1 有效）
+// See implementation.
 
 export const ARROW_ALIGN: usize = 64;
 export const ARROW_TYPE_I32: i32 = 1;
 export const ARROW_TYPE_F32: i32 = 2;
 export const ARROW_TYPE_F64: i32 = 3;
 
-/** 堆上列对象（与 arrow_simd_glue.c arrow_column_t ABI 一致）。 */
+/* See implementation. */
 allow(padding) struct ArrowColumnMem {
   type_id: i32;
   length: i32;
@@ -36,7 +36,7 @@ allow(padding) struct ArrowColumnMem {
   data_owned: i32;
 }
 
-/** RecordBatch 堆对象。 */
+/* See implementation. */
 allow(padding) struct ArrowBatchMem {
   n_cols: i32;
   cap_cols: i32;
@@ -54,7 +54,7 @@ extern function arrow_column_f32_sum_valid_c(handle: i64, n: i32): f32;
 extern function arrow_column_f32_dot_c(handle_a: i64, handle_b: i64, n: i32): f32;
 
 /**
- * 64B 对齐分配；失败返回 null。
+ * See implementation.
  */
 export function arrow_alloc_aligned(size: usize): *u8 {
   let out: *u8 = 0 as *u8;
@@ -65,7 +65,7 @@ export function arrow_alloc_aligned(size: usize): *u8 {
 }
 
 /**
- * 分配 null bitmap 并置全有效（0xFF）。
+ * See implementation.
  */
 export function arrow_null_bitmap_alloc(capacity: i32): *u8 {
   let n: usize = 0;
@@ -83,7 +83,7 @@ export function arrow_null_bitmap_alloc(capacity: i32): *u8 {
 }
 
 /**
- * 设置 null bitmap 某位。
+ * See implementation.
  */
 export function arrow_null_bitmap_set(col: *ArrowColumnMem, index: i32, is_valid: i32): void {
   let byte_i: usize = 0;
@@ -104,7 +104,7 @@ export function arrow_null_bitmap_set(col: *ArrowColumnMem, index: i32, is_valid
 }
 
 /**
- * 按类型创建列；elem_size 为单元素字节数。
+ * See implementation.
  */
 export function arrow_column_create_typed(type_id: i32, capacity: i32, elem_size: usize): *ArrowColumnMem {
   let c: *ArrowColumnMem = 0 as *ArrowColumnMem;
@@ -132,7 +132,11 @@ export function arrow_column_create_typed(type_id: i32, capacity: i32, elem_size
   return c;
 }
 
-/** 创建 Int32 列句柄。 */
+/** Exported function `arrow_column_i32_create_c`.
+ * Implements `arrow_column_i32_create_c`.
+ * @param capacity i32
+ * @return i64
+ */
 export function arrow_column_i32_create_c(capacity: i32): i64 {
   let c: *ArrowColumnMem = arrow_column_create_typed(ARROW_TYPE_I32, capacity, 4);
   if (c == 0) {
@@ -141,7 +145,11 @@ export function arrow_column_i32_create_c(capacity: i32): i64 {
   return c as i64;
 }
 
-/** 创建 Float32 列句柄。 */
+/** Exported function `arrow_column_f32_create_c`.
+ * Implements `arrow_column_f32_create_c`.
+ * @param capacity i32
+ * @return i64
+ */
 export function arrow_column_f32_create_c(capacity: i32): i64 {
   let c: *ArrowColumnMem = arrow_column_create_typed(ARROW_TYPE_F32, capacity, 4);
   if (c == 0) {
@@ -150,7 +158,11 @@ export function arrow_column_f32_create_c(capacity: i32): i64 {
   return c as i64;
 }
 
-/** 创建 Float64 列句柄。 */
+/** Exported function `arrow_column_f64_create_c`.
+ * Implements `arrow_column_f64_create_c`.
+ * @param capacity i32
+ * @return i64
+ */
 export function arrow_column_f64_create_c(capacity: i32): i64 {
   let c: *ArrowColumnMem = arrow_column_create_typed(ARROW_TYPE_F64, capacity, 8);
   if (c == 0) {
@@ -159,7 +171,13 @@ export function arrow_column_f64_create_c(capacity: i32): i64 {
   return c as i64;
 }
 
-/** 零拷贝接管外部 F32 buffer。 */
+/** Exported function `arrow_column_adopt_f32_c`.
+ * Implements `arrow_column_adopt_f32_c`.
+ * @param ptr *f32
+ * @param len i32
+ * @param capacity i32
+ * @return i64
+ */
 export function arrow_column_adopt_f32_c(ptr: *f32, len: i32, capacity: i32): i64 {
   let c: *ArrowColumnMem = 0 as *ArrowColumnMem;
   if (ptr == 0 || len < 0 || capacity <= 0 || len > capacity) {
@@ -182,7 +200,13 @@ export function arrow_column_adopt_f32_c(ptr: *f32, len: i32, capacity: i32): i6
   return c as i64;
 }
 
-/** 零拷贝接管外部 I32 buffer。 */
+/** Exported function `arrow_column_adopt_i32_c`.
+ * Implements `arrow_column_adopt_i32_c`.
+ * @param ptr *i32
+ * @param len i32
+ * @param capacity i32
+ * @return i64
+ */
 export function arrow_column_adopt_i32_c(ptr: *i32, len: i32, capacity: i32): i64 {
   let c: *ArrowColumnMem = 0 as *ArrowColumnMem;
   if (ptr == 0 || len < 0 || capacity <= 0 || len > capacity) {
@@ -205,7 +229,11 @@ export function arrow_column_adopt_i32_c(ptr: *i32, len: i32, capacity: i32): i6
   return c as i64;
 }
 
-/** 列类型 id。 */
+/** Exported function `arrow_column_type_c`.
+ * Implements `arrow_column_type_c`.
+ * @param handle i64
+ * @return i32
+ */
 export function arrow_column_type_c(handle: i64): i32 {
   let c: *ArrowColumnMem = handle as *ArrowColumnMem;
   if (c == 0) {
@@ -214,7 +242,11 @@ export function arrow_column_type_c(handle: i64): i32 {
   return c.type_id;
 }
 
-/** 列长度。 */
+/** Exported function `arrow_column_len_c`.
+ * Implements `arrow_column_len_c`.
+ * @param handle i64
+ * @return i32
+ */
 export function arrow_column_len_c(handle: i64): i32 {
   let c: *ArrowColumnMem = handle as *ArrowColumnMem;
   if (c == 0) {
@@ -223,7 +255,11 @@ export function arrow_column_len_c(handle: i64): i32 {
   return c.length;
 }
 
-/** 列容量。 */
+/** Exported function `arrow_column_capacity_c`.
+ * Implements `arrow_column_capacity_c`.
+ * @param handle i64
+ * @return i32
+ */
 export function arrow_column_capacity_c(handle: i64): i32 {
   let c: *ArrowColumnMem = handle as *ArrowColumnMem;
   if (c == 0) {
@@ -232,7 +268,11 @@ export function arrow_column_capacity_c(handle: i64): i32 {
   return c.capacity;
 }
 
-/** data 是否模块拥有。 */
+/** Exported function `arrow_column_data_owned_c`.
+ * Implements `arrow_column_data_owned_c`.
+ * @param handle i64
+ * @return i32
+ */
 export function arrow_column_data_owned_c(handle: i64): i32 {
   let c: *ArrowColumnMem = handle as *ArrowColumnMem;
   if (c == 0) {
@@ -241,7 +281,11 @@ export function arrow_column_data_owned_c(handle: i64): i32 {
   return c.data_owned;
 }
 
-/** null bitmap 指针。 */
+/** Exported function `arrow_column_null_bitmap_c`.
+ * Implements `arrow_column_null_bitmap_c`.
+ * @param handle i64
+ * @return *u8
+ */
 export function arrow_column_null_bitmap_c(handle: i64): *u8 {
   let c: *ArrowColumnMem = handle as *ArrowColumnMem;
   if (c == 0) {
@@ -250,7 +294,12 @@ export function arrow_column_null_bitmap_c(handle: i64): *u8 {
   return c.null_bitmap;
 }
 
-/** 索引处是否有效。 */
+/** Exported function `arrow_column_is_valid_c`.
+ * Implements `arrow_column_is_valid_c`.
+ * @param handle i64
+ * @param index i32
+ * @return i32
+ */
 export function arrow_column_is_valid_c(handle: i64, index: i32): i32 {
   let c: *ArrowColumnMem = handle as *ArrowColumnMem;
   let byte_i: usize = 0;
@@ -264,7 +313,11 @@ export function arrow_column_is_valid_c(handle: i64, index: i32): i32 {
   return ((c.null_bitmap[byte_i] >> (index % 8)) & 1) as i32;
 }
 
-/** I32 data 指针。 */
+/** Exported function `arrow_column_i32_data_c`.
+ * Implements `arrow_column_i32_data_c`.
+ * @param handle i64
+ * @return *i32
+ */
 export function arrow_column_i32_data_c(handle: i64): *i32 {
   let c: *ArrowColumnMem = handle as *ArrowColumnMem;
   if (c == 0 || c.type_id != ARROW_TYPE_I32) {
@@ -273,7 +326,11 @@ export function arrow_column_i32_data_c(handle: i64): *i32 {
   return c.data as *i32;
 }
 
-/** F32 data 指针。 */
+/** Exported function `arrow_column_f32_data_c`.
+ * Implements `arrow_column_f32_data_c`.
+ * @param handle i64
+ * @return *f32
+ */
 export function arrow_column_f32_data_c(handle: i64): *f32 {
   let c: *ArrowColumnMem = handle as *ArrowColumnMem;
   if (c == 0 || c.type_id != ARROW_TYPE_F32) {
@@ -282,7 +339,11 @@ export function arrow_column_f32_data_c(handle: i64): *f32 {
   return c.data as *f32;
 }
 
-/** F64 data 指针。 */
+/** Exported function `arrow_column_f64_data_c`.
+ * Implements `arrow_column_f64_data_c`.
+ * @param handle i64
+ * @return *f64
+ */
 export function arrow_column_f64_data_c(handle: i64): *f64 {
   let c: *ArrowColumnMem = handle as *ArrowColumnMem;
   if (c == 0 || c.type_id != ARROW_TYPE_F64) {
@@ -291,7 +352,12 @@ export function arrow_column_f64_data_c(handle: i64): *f64 {
   return c.data as *f64;
 }
 
-/** 追加 Int32。 */
+/** Exported function `arrow_column_i32_append_c`.
+ * Implements `arrow_column_i32_append_c`.
+ * @param handle i64
+ * @param val i32
+ * @return i32
+ */
 export function arrow_column_i32_append_c(handle: i64, val: i32): i32 {
   let c: *ArrowColumnMem = handle as *ArrowColumnMem;
   let d: *i32 = 0 as *i32;
@@ -305,7 +371,13 @@ export function arrow_column_i32_append_c(handle: i64, val: i32): i32 {
   return 0;
 }
 
-/** 追加 Int32 可 null。 */
+/** Exported function `arrow_column_i32_append_null_c`.
+ * Implements `arrow_column_i32_append_null_c`.
+ * @param handle i64
+ * @param val i32
+ * @param is_valid i32
+ * @return i32
+ */
 export function arrow_column_i32_append_null_c(handle: i64, val: i32, is_valid: i32): i32 {
   let c: *ArrowColumnMem = handle as *ArrowColumnMem;
   let d: *i32 = 0 as *i32;
@@ -319,7 +391,12 @@ export function arrow_column_i32_append_null_c(handle: i64, val: i32, is_valid: 
   return 0;
 }
 
-/** 追加 Float32。 */
+/** Exported function `arrow_column_f32_append_c`.
+ * Implements `arrow_column_f32_append_c`.
+ * @param handle i64
+ * @param val f32
+ * @return i32
+ */
 export function arrow_column_f32_append_c(handle: i64, val: f32): i32 {
   let c: *ArrowColumnMem = handle as *ArrowColumnMem;
   let d: *f32 = 0 as *f32;
@@ -333,7 +410,12 @@ export function arrow_column_f32_append_c(handle: i64, val: f32): i32 {
   return 0;
 }
 
-/** 追加 Float64。 */
+/** Exported function `arrow_column_f64_append_c`.
+ * Implements `arrow_column_f64_append_c`.
+ * @param handle i64
+ * @param val f64
+ * @return i32
+ */
 export function arrow_column_f64_append_c(handle: i64, val: f64): i32 {
   let c: *ArrowColumnMem = handle as *ArrowColumnMem;
   let d: *f64 = 0 as *f64;
@@ -347,7 +429,11 @@ export function arrow_column_f64_append_c(handle: i64, val: f64): i32 {
   return 0;
 }
 
-/** 销毁列。 */
+/** Exported function `arrow_column_destroy_c`.
+ * Implements `arrow_column_destroy_c`.
+ * @param handle i64
+ * @return void
+ */
 export function arrow_column_destroy_c(handle: i64): void {
   let c: *ArrowColumnMem = handle as *ArrowColumnMem;
   if (c == 0) {
@@ -362,7 +448,11 @@ export function arrow_column_destroy_c(handle: i64): void {
   unsafe { free(c as *u8); }
 }
 
-/** 创建 batch。 */
+/** Exported function `arrow_batch_create_c`.
+ * Implements `arrow_batch_create_c`.
+ * @param max_cols i32
+ * @return i64
+ */
 export function arrow_batch_create_c(max_cols: i32): i64 {
   let b: *ArrowBatchMem = 0 as *ArrowBatchMem;
   if (max_cols <= 0) {
@@ -381,7 +471,12 @@ export function arrow_batch_create_c(max_cols: i32): i64 {
   return b as i64;
 }
 
-/** batch 添加列（取得所有权）。 */
+/** Exported function `arrow_batch_add_column_c`.
+ * Implements `arrow_batch_add_column_c`.
+ * @param batch i64
+ * @param col i64
+ * @return i32
+ */
 export function arrow_batch_add_column_c(batch: i64, col: i64): i32 {
   let b: *ArrowBatchMem = batch as *ArrowBatchMem;
   if (b == 0 || col == 0 || b.n_cols >= b.cap_cols) {
@@ -392,7 +487,12 @@ export function arrow_batch_add_column_c(batch: i64, col: i64): i32 {
   return 0;
 }
 
-/** 取 batch 内列句柄。 */
+/** Exported function `arrow_batch_column_c`.
+ * Implements `arrow_batch_column_c`.
+ * @param batch i64
+ * @param index i32
+ * @return i64
+ */
 export function arrow_batch_column_c(batch: i64, index: i32): i64 {
   let b: *ArrowBatchMem = batch as *ArrowBatchMem;
   if (b == 0 || index < 0 || index >= b.n_cols) {
@@ -401,7 +501,11 @@ export function arrow_batch_column_c(batch: i64, index: i32): i64 {
   return b.cols[index] as i64;
 }
 
-/** batch 列数。 */
+/** Exported function `arrow_batch_len_c`.
+ * Implements `arrow_batch_len_c`.
+ * @param batch i64
+ * @return i32
+ */
 export function arrow_batch_len_c(batch: i64): i32 {
   let b: *ArrowBatchMem = batch as *ArrowBatchMem;
   if (b == 0) {
@@ -410,7 +514,11 @@ export function arrow_batch_len_c(batch: i64): i32 {
   return b.n_cols;
 }
 
-/** 销毁 batch 及所含列。 */
+/** Exported function `arrow_batch_destroy_c`.
+ * Implements `arrow_batch_destroy_c`.
+ * @param batch i64
+ * @return void
+ */
 export function arrow_batch_destroy_c(batch: i64): void {
   let b: *ArrowBatchMem = batch as *ArrowBatchMem;
   let i: i32 = 0;
@@ -429,7 +537,7 @@ export function arrow_batch_destroy_c(batch: i64): void {
 }
 
 /**
- * SIMD 子烟测（委托胶层归约 API）。
+ * See implementation.
  */
 export function arrow_simd_smoke_inner(): i32 {
   let ci: i64 = 0;
@@ -480,7 +588,7 @@ export function arrow_simd_smoke_inner(): i32 {
 }
 
 /**
- * 烟测：列/batch/adopt + SIMD 归约。
+ * See implementation.
  */
 export function arrow_smoke_c(): i32 {
   let ci: i64 = 0;

@@ -1,4 +1,8 @@
-// 裸指针类型 *T（变量类型与类型系统设计 §5.1）
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let p: *i32 = 0;
   return 0;

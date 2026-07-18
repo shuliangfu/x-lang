@@ -14,26 +14,18 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// cost_model.x — 多维度 Cost Model 加载器
+// cost_model.x — multi-dimensional Cost Model loader
 //
-// 模块：ir/target
-// 层级：共享
-// Phase：Phase 3（SLIR e-graph 需要 cost）+ Phase 5（VMIR isel 需要 cost）
-// 职责：
-//   - 加载 .cost.json 配置文件（§10.3 六维度）：
-//     · inst_costs：指令成本表
-//     · register_pressure：寄存器压力权重
-//     · cache_hierarchy：cache 层级配置
-//     · branch_model：分支预测模型
-//     · simd_capacity：SIMD 容量
-//     · pipeline_model：流水线模型
-//   - 提供 Cost 查询接口（供 SLIR cost.x / VMIR isel.x / Target MIR sched.x 消费）
-//   - 支持 --target-cost 选项切换 Cost Model
-// 依赖：../vmir/machine_inst
-// 设计约束：
-//   - 六维度 Cost Model，各 Pass 按需读取（§10.3）
-//   - 新 CPU 配置通过新增 .cost.json 文件支持，无需修改 IR 架构
-//   - Cost 必须确定性（相同配置相同查询结果）
+// Module: ir/target
+// Layer: shared
+// Phase: Phase 3 + Phase 5
+// Responsibility:
+//   - Load .cost.json six dimensions (§10.3): inst_costs / register_pressure /
+//     cache_hierarchy / branch_model / simd_capacity / pipeline_model
+//   - Cost query API for SLIR / VMIR / Target MIR
+// Depends: ../vmir/machine_inst
+// Design constraints:
+//   - New CPU = new .cost.json; Cost is deterministic
 //
-// 参考文档：analysis/IR核心设计.md §10.3（多维度 Cost Model，六维度 + JSON 配置示例）
-// 架构状态：v4.0 Architecture Freeze — 实现骨架，待 Phase 3 填充
+// Ref: analysis IR core design §10.3 (multi-dim Cost Model)
+// Status: v4.0 Architecture Freeze — implementation skeleton; fill in Phase 3

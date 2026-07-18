@@ -1,6 +1,10 @@
-// STD-HTTP-H2-v6：接收侧流控 + server push + h2c 升级识别烟测（离线）
+// See implementation.
 const http = import("std.http");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (http.flow_recv_smoke() != 0) { return 1; }
   if (http.push_h2c_smoke() != 0) { return 2; }

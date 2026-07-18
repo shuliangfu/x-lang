@@ -1,8 +1,12 @@
 /**
- * LANG-009 烟测：import("core.option") 后使用 Option<i32> 与既有 Option_i32 API 并存。
+ * See implementation.
  */
 const option = import("core.option");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let g: Option<i32> = Option<i32> { is_some: true, value: 42 };
   let f: Option_i32 = option.some_i32(7);

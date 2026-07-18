@@ -1,9 +1,16 @@
-// STD-117：std.metrics 与 std.trace / std.context 观测上下文关联烟测
+// See implementation.
 const metrics = import("std.metrics");
 const trace = import("std.trace");
 const context = import("std.context");
 
-/** 检查 buf 前缀是否等于 expect（长度 expect_len）。 */
+/** Internal function `buf_prefix_eq`.
+ * Implements `buf_prefix_eq`.
+ * @param buf *u8
+ * @param buf_len i32
+ * @param expect *u8
+ * @param expect_len i32
+ * @return i32
+ */
 function buf_prefix_eq(buf: *u8, buf_len: i32, expect: *u8, expect_len: i32): i32 {
   let i: i32 = 0;
   if (buf_len < expect_len) { return 0; }
@@ -14,6 +21,10 @@ function buf_prefix_eq(buf: *u8, buf_len: i32, expect: *u8, expect_len: i32): i3
   return 1;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let tr: Trace = trace.new();
   let sp: Span = Span { id: 0 };

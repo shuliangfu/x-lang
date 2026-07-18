@@ -1,6 +1,10 @@
-// STD-041：Future/Poll 手动运行时烟测
+// See implementation.
 const async_mod = import("std.async");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let fut: Future = async_mod.future_new();
   let pr: i32 = async_mod.future_poll(&fut);

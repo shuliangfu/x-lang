@@ -1,6 +1,10 @@
-// STD-007：gzip 压缩→解压往返（未链 zlib 时 n_gz<=0 仍通过）
+// See implementation.
 const compress = import("std.compress");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let raw: u8[13] = [72, 101, 108, 108, 111, 44, 32, 103, 122, 33, 33, 33, 0];
   let out_buf: u8[256] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];

@@ -14,10 +14,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// token.x — 词法单元（Token）定义（自举 9.1：与 token.h 对应）
-// 与 compiler/include/token.h 一致；与 C 并存，完成后删 lexer.c 留本文件。
+// See implementation.
+// See implementation.
 
-// Token 种类枚举（与 token.h TokenKind 顺序一致）
+// See implementation.
 export enum TokenKind {
   TOKEN_EOF,
   TOKEN_FUNCTION,
@@ -33,65 +33,65 @@ export enum TokenKind {
   TOKEN_RETURN,
   TOKEN_PANIC,
   TOKEN_DEFER,
-  /** ERR-02：try/catch Result 错误捕获（与 token.h TOKEN_TRY/TOKEN_CATCH 一致） */
+  /* See implementation. */
   TOKEN_TRY,
   TOKEN_CATCH,
-  /** M-3：region 域块（与 token.h TOKEN_REGION 一致） */
+  /* See implementation. */
   TOKEN_REGION,
-  /** MEM-C1：with_arena 作用域 Arena（与 token.h TOKEN_WITH_ARENA 一致） */
+  /* See implementation. */
   TOKEN_WITH_ARENA,
   TOKEN_MATCH,
   TOKEN_STRUCT,
-  /** 类型别名 type Alias = T;（与 token.h TOKEN_TYPE 一致） */
+  /* See implementation. */
   TOKEN_TYPE,
   TOKEN_PACKED,
   TOKEN_SOA,
   TOKEN_ATTR_SOA,
-  /** B-01：#[cfg(...)]；int_val 1=host 匹配保留下一项，0=剪枝跳过 */
+  /* See implementation. */
   TOKEN_ATTR_CFG,
-  /** B-03：#[repr(C)]；下一顶层 struct 按 C ABI 布局（允许隐式 padding） */
+  /* See implementation. */
   TOKEN_ATTR_REPR_C,
-  /** #[repr(compatible)]；与同布局 struct 指针互认（与 token.h TOKEN_ATTR_REPR_COMPATIBLE 一致） */
+  /* See implementation. */
   TOKEN_ATTR_REPR_COMPATIBLE,
-  /** MEM-C1：#[alloc]；下一 function 为 Allocator 自动注入 API */
+  /* See implementation. */
   TOKEN_ATTR_ALLOC,
-  /** K4：#[link_section("name")]；下一 const/let/function 落入指定段 */
+  /* See implementation. */
   TOKEN_ATTR_LINK_SECTION,
-  /** K3：#[naked]；下一 function 无 prologue/epilogue，体须仅 asm! */
+  /* See implementation. */
   TOKEN_ATTR_NAKED,
-  /** K5：#[entry]；下一 function 为内核入口 _start */
+  /* See implementation. */
   TOKEN_ATTR_ENTRY,
-  /** K10：#[used]；下一 function 不被 C 编译器消除，外部链接 */
+  /* See implementation. */
   TOKEN_ATTR_USED,
-  /** L9：#[no_mangle]；下一 function 外部链接+不 DCE */
+  /* See implementation. */
   TOKEN_ATTR_NO_MANGLE,
-  /** L9：#[link_name("name")]；下一 function/extern 用指定符号名 */
+  /* See implementation. */
   TOKEN_ATTR_LINK_NAME,
-  /** L4：#[max_stack(N)]；下一 function 栈用量上限 */
+  /* See implementation. */
   TOKEN_ATTR_MAX_STACK,
-  /** A1：#[interrupt]；下一 function 为中断处理（C 编译器自动 push/pop + iret） */
+  /* See implementation. */
   TOKEN_ATTR_INTERRUPT,
-  /** L6：#[send]；下一 struct 可安全跨线程传递 */
+  /* See implementation. */
   TOKEN_ATTR_SEND,
-  /** L6：#[sync]；下一 struct 可安全跨线程共享 */
+  /* See implementation. */
   TOKEN_ATTR_SYNC,
-  /** 属性 #[global_allocator]（L1：下一 function 为全局分配器入口） */
+  /* See implementation. */
   TOKEN_ATTR_GLOBAL_ALLOCATOR,
-  /** 属性 #[cold]（冷路径优化提示） */
+  /* See implementation. */
   TOKEN_ATTR_COLD,
-  /** 属性 #[inline(never)]（禁止内联） */
+  /* See implementation. */
   TOKEN_ATTR_INLINE_NEVER,
-  /** 属性 #[inline(always)]（强制内联） */
+  /* See implementation. */
   TOKEN_ATTR_INLINE_ALWAYS,
-  /** 属性 #[export_name("name")]（导出符号名） */
+  /* See implementation. */
   TOKEN_ATTR_EXPORT_NAME,
-  /** 属性 #[panic_handler]（panic 处理函数） */
+  /* See implementation. */
   TOKEN_ATTR_PANIC_HANDLER,
-  /** 属性 #[thread_local]（线程局部存储） */
+  /* See implementation. */
   TOKEN_ATTR_THREAD_LOCAL,
-  /** 属性 #[percpu]（per-CPU 数据段） */
+  /* See implementation. */
   TOKEN_ATTR_PERCPU,
-  /** DOD-CL：struct 字段 align(N) cache line 对齐 */
+  /* See implementation. */
   TOKEN_ALIGN,
   TOKEN_ENUM,
   TOKEN_GOTO,
@@ -101,13 +101,13 @@ export enum TokenKind {
   TOKEN_UNDERSCORE,
   TOKEN_IMPORT,
   TOKEN_EXTERN,
-  /** async function 修饰（P2 原型） */
+  /* See implementation. */
   TOKEN_ASYNC,
-  /** await expr（仅 async function 内；与 token.h 一致） */
+  /* See implementation. */
   TOKEN_AWAIT,
-  /** run async_fn()（sync 上下文经 scheduler drain） */
+  /* See implementation. */
   TOKEN_RUN,
-  /** spawn async_fn()（非阻塞 submit） */
+  /* See implementation. */
   TOKEN_SPAWN,
   TOKEN_IDENT,
   TOKEN_I32,
@@ -143,9 +143,9 @@ export enum TokenKind {
   TOKEN_COMMA,
   TOKEN_COLON,
   TOKEN_DOT,
-  /** .. 范围 for / 切片（与 token.h TOKEN_DOTDOT 一致） */
+  /* See implementation. */
   TOKEN_DOTDOT,
-  /** ... 变参函数声明（与 token.h TOKEN_ELLIPSIS 一致；extern "C" function f(fmt: *u8, ...): i32） */
+  /* See implementation. */
   TOKEN_ELLIPSIS,
   TOKEN_SEMICOLON,
   TOKEN_PLUS,
@@ -158,8 +158,7 @@ export enum TokenKind {
   TOKEN_CARET,
   TOKEN_LSHIFT,
   TOKEN_RSHIFT,
-  /** 复合赋值：+=, -=, *=, /=, %=, &=, |=, ^=, <<=, >>=（与 C 一致，左值 op
-  * 右值后写回） */
+/** See implementation for details. */
   TOKEN_PLUS_EQ,
   TOKEN_MINUS_EQ,
   TOKEN_STAR_EQ,
@@ -182,24 +181,24 @@ export enum TokenKind {
   TOKEN_PIPEPIPE,
   TOKEN_BANG,
   TOKEN_QUESTION,
-  /** as 类型转换 expr as type（与 token.h / lexer.c 一致） */
+  /* See implementation. */
   TOKEN_AS,
   /** @ SIMD comptime builtin（@shuffle / @select） */
   TOKEN_AT,
-  /** 字符串字面量 import("path") 等 */
+  /* See implementation. */
   TOKEN_STRING,
-  /** export 关键字：放在枚举末尾，避免挤动 IDENT 等序数（thin 硬编码 IDENT=59） */
+  /* See implementation. */
   TOKEN_EXPORT,
 }
 
-// 单个 Token：类型 + 源码位置 + 字面量/标识符（.x 无
-// union，用独立字段）；allow(padding) 与 C 端布局兼容。
-// export：跨模块 layout 合并 / struct lit 依赖 E(M) 可见名。
+// See implementation.
+// See implementation.
+// See implementation.
 export allow(padding) struct Token {
   kind: TokenKind;
   line: i32;
   col: i32;
-  /** 整型字面量全宽值（含 i64 范围；勿再截成 i32）。 */
+  /* See implementation. */
   int_val: i64;
   float_val: f64;
   ident: *u8;
@@ -207,11 +206,11 @@ export allow(padding) struct Token {
 }
 
 /**
-* 是否为 EOF。
-* Parser 将此比较落成 EXPR_FIELD_ACCESS(t.kind) ==
-* EXPR_ENUM_VARIANT(TOKEN_EOF)，typeck/codegen 与 C 流水线一致。
-* 注意：不得写成 let x: i32 = t.kind as i32（shux-c 在 let
-* 初始化里不支持「as」cast，会破坏 bootstrap-pipeline）。
+* See implementation.
+* See implementation.
+* See implementation.
+* See implementation.
+* See implementation.
 */
 export function token_is_eof(t: Token): bool {
   return t.kind == TokenKind.TOKEN_EOF;

@@ -1,14 +1,18 @@
-// async_run_io_dual_pipe.x — IO-A5 双 pipe 全链路：两次 run read_chunk(fd)
-// 由 async_run_io_dual_pipe_wrapper.c 在 fd 3/4 上注入 pipe 读端后 exec 本程序。
+// See implementation.
+// See implementation.
 extern function read_fd(fd: i32, ptr: *u8, len: usize): i32;
 
-/** 从 fd 读最多 8 字节；独立 static 帧 + __io_rd_slot。 */
+/* See implementation. */
 async function read_chunk(fd: i32): i32 {
   let buf: u8[8] = [];
   let n: i32 = await unsafe { read_fd(fd, buf as *u8, 8) };
   return n;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let n1: i32 = run read_chunk(3);
   let n2: i32 = run read_chunk(4);

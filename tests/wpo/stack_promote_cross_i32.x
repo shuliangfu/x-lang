@@ -1,6 +1,10 @@
-// stack_promote_cross_i32.x — 跨模块仅 i32 返回（对照 dead_user，隔离 struct ABI）
+// See implementation.
 const stack_promote_lib = import("stack_promote_lib");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let p: Pair = Pair { a: 3, b: 4 };
   return sum_pair(p);

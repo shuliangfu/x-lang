@@ -1,7 +1,11 @@
-// STD-098：std.channel 双路 select 烟测（单线程；Windows stub 时 skip）
+// See implementation.
 const channel = import("std.channel");
 const debug = import("core.debug");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let ch0: *u8 = channel.bounded(2);
   let ch1: *u8 = channel.bounded(2);

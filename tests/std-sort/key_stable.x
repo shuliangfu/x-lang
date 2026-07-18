@@ -1,7 +1,11 @@
-// STD-150：KeyTag 稳定 key 排序烟测（相等 key 保序）
+// See implementation.
 const sort = import("std.sort");
 const debug = import("core.debug");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let items: sort.KeyTag[4] = [
     sort.KeyTag { key: 3, tag: 0 },

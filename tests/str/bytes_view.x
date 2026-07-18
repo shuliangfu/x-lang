@@ -1,6 +1,10 @@
-// CORE-007 烟测：BytesView 构造 / subview 钳制 / eq / from_slice
+// See implementation.
 const str = import("core.str");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let buf: u8[7] = [72, 101, 108, 108, 111, 33, 0];
   let full: BytesView = str.bytes_view(&buf[0], 6);

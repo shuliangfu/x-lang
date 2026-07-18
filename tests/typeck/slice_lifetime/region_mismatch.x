@@ -1,6 +1,10 @@
-// M-3 负例：跨域 slice 赋值须 typeck 报错（i32[]<ra> → i32[]<rb>）
+// See implementation.
 extern function slice_src(): i32[];
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let x: i32[]<ra> = unsafe { slice_src() };
   let y: i32[]<rb> = x;

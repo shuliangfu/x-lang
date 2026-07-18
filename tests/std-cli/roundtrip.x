@@ -1,6 +1,10 @@
-// STD-077：std.cli 选项/usage 烟测
+// See implementation.
 const cli = import("std.cli");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let help: u8[6] = [45, 45, 104, 101, 108, 112];
   let hshort: u8[2] = [45, 104];

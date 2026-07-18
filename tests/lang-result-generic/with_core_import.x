@@ -1,8 +1,12 @@
 /**
- * LANG-010 烟测：import("core.result") 后使用 Result<i32,i32> 与既有 Result_i32 API 并存。
+ * See implementation.
  */
 const result = import("core.result");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let g: Result<i32, i32> = result.ok_i32(42);
   let f: Result_i32 = result.ok_i32(7);

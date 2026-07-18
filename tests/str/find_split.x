@@ -1,6 +1,10 @@
-// STD-131：BytesView 查找 / 分割烟测（无 BytesView 局部变量，避免 macOS struct ABI SIGTRAP）
+// See implementation.
 const str = import("core.str");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let buf: u8[11] = [104, 101, 108, 108, 111, 44, 119, 111, 114, 108, 100];
   let ptr: *u8 = &buf[0];

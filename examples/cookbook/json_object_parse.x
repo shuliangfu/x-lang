@@ -1,8 +1,12 @@
 /**
- * Cookbook JSON-01：skip_value 游标跳过整棵 JSON 值（STD-034）。
+ * See implementation.
  */
 const json = import("std.json");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   /** {"a":1} */
   let doc: u8[7] = [123, 34, 97, 34, 58, 49, 125];

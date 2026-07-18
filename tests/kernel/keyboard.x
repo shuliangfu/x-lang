@@ -9,6 +9,11 @@ const mb1: MB1Header = {
   checksum: 0xE4524FFE,
 };
 
+/** Internal function `serial_putc`.
+ * Implements `serial_putc`.
+ * @param c u8
+ * @return void
+ */
 function serial_putc(c: u8): void {
   unsafe { asm!("outb %%al, %%dx" : : "a"(c), "d"(0x3F8)); }
 }
@@ -16,11 +21,22 @@ function serial_putc(c: u8): void {
 // Keyboard table at fixed memory 0x50000 (128 bytes, zero-initialized by .bss clear)
 const KBD_TABLE: u32 = 0x50000;
 
+/** Internal function `kbd_set`.
+ * Implements `kbd_set`.
+ * @param scan u8
+ * @param ascii u8
+ * @return void
+ */
 function kbd_set(scan: u8, ascii: u8): void {
   let p: *volatile u8 = (KBD_TABLE + scan as u32) as *volatile u8;
   unsafe { *p = ascii; }
 }
 
+/** Internal function `kbd_translate`.
+ * Implements `kbd_translate`.
+ * @param scan u8
+ * @return u8
+ */
 function kbd_translate(scan: u8): u8 {
   if (scan >= 128) { return 0; }
   let p: *volatile u8 = (KBD_TABLE + scan as u32) as *volatile u8;
@@ -29,6 +45,10 @@ function kbd_translate(scan: u8): u8 {
   return ch;
 }
 
+/** Internal function `kbd_init`.
+ * Implements `kbd_init`.
+ * @return void
+ */
 function kbd_init(): void {
   kbd_set(0x1E, 97);  kbd_set(0x30, 98);  kbd_set(0x2E, 99);  kbd_set(0x20, 100);
   kbd_set(0x12, 101); kbd_set(0x23, 102); kbd_set(0x21, 103); kbd_set(0x24, 104);
@@ -43,6 +63,10 @@ function kbd_init(): void {
   kbd_set(0x39, 32); kbd_set(0x1C, 10);
 }
 
+/** Internal function `kmain`.
+ * Implements `kmain`.
+ * @return i32
+ */
 function kmain(): i32 {
   serial_putc(75); serial_putc(58);
   kbd_init();
@@ -63,7 +87,16 @@ function kmain(): i32 {
 }
 
 #[entry]
+/** Internal function `start`.
+ * Implements `start`.
+ * @return void
+ */
 function start(): void {
   unsafe { asm!("mov $0x80000, %esp; call kmain; cli; hlt"); }
 }
+/** Internal function `main`.
+ * Program/test entry point.
+ * @param ) i32 { return kmain(
+ * @return void
+ */
 function main(): i32 { return kmain() + mb1.magic as i32; }

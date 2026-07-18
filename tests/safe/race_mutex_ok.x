@@ -1,6 +1,10 @@
-// SAFE-006：mutex 保护共享计数（无数据竞争模式烟测）
+// See implementation.
 const sync = import("std.sync");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let m: *u8 = sync.new_mutex();
   if (m == 0) { return 1; }

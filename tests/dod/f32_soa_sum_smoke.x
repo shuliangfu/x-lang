@@ -1,6 +1,6 @@
 /**
- * DOD f32 SoA 列扫描 smoke：arr[i].x 累加须走 SSE addss（非整数 add）。
- * 1+2+3+4=10 → main 返回 10（f32 as i32 + cvttss2si）。
+ * See implementation.
+ * See implementation.
  */
 struct Particle soa {
   x: f32
@@ -8,6 +8,10 @@ struct Particle soa {
   z: f32
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let arr: Particle[4] = [];
   let v0: f32 = 1.0;

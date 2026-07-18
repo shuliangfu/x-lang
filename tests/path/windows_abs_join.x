@@ -1,18 +1,22 @@
-// tests/path/windows_abs_join.x — STD-021：Windows 盘符/UNC/反斜杠解析（全平台同一套 .x）
-// 不依赖本机 path_sep 为 92；仅测 path_is_absolute 与反斜杠 basename/dirname。
+// See implementation.
+// See implementation.
 const path = import("std.path");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   /** UNC "\\srv\share" */
   let unc: u8[11] = [92, 92, 115, 114, 118, 92, 115, 104, 97, 114, 101];
   if (path.is_absolute(&unc[0], 11) != 1) { return 1; }
-  /** 盘符绝对 "C:\Users" */
+  /* See implementation. */
   let drv: u8[8] = [67, 58, 92, 85, 115, 101, 114, 115];
   if (path.is_absolute(&drv[0], 8) != 1) { return 2; }
-  /** 盘符相对 "C:foo" */
+  /* See implementation. */
   let drv_rel: u8[5] = [67, 58, 102, 111, 111];
   if (path.is_absolute(&drv_rel[0], 5) != 0) { return 3; }
-  /** 反斜杠路径 "dir\sub\file.txt" */
+  /* See implementation. */
   let win_path: u8[16] =
   [100, 105, 114, 92, 115, 117, 98, 92, 102, 105, 108, 101, 46, 116, 120, 116];
   let base: u8[16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
@@ -22,7 +26,7 @@ function main(): i32 {
   let dout: u8[8] = [0, 0, 0, 0, 0, 0, 0, 0];
   let dlen: i32 = path.dirname(&win_path[0], 16, &dout[0], 8);
   if (dlen != 7) { return 6; }
-  /** join "C:\base" + "child" 应写出盘符路径 */
+  /* See implementation. */
   let a: u8[7] = [67, 58, 92, 98, 97, 115, 101];
   let b: u8[5] = [99, 104, 105, 108, 100];
   let out: u8[16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];

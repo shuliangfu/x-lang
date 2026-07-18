@@ -14,35 +14,61 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.option — core.option 用户友好重导出与组合子（STD-080）
+// See implementation.
 //
-// 【文件职责】
-// 重导出 Option 类型族与 eager 组合子；与 std.result 互转辅助。
-// 不重复 core 语义，仅提供 std 层统一 import 入口。
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 【对标】Rust std::option、Zig optional 便捷 API。
+// See implementation.
 
 const core_opt = import("core.option");
 const core_res = import("core.result");
 
-/** 构造无值 Option_i32。 */
+/** Exported function `none`.
+ * Implements `none`.
+ * @param ) Option_i32 { return core_opt.none_i32(
+ * @return void
+ */
 export function none(): Option_i32 { return core_opt.none_i32(); }
 
-/** 构造有值 Option_i32。 */
+/** Exported function `some`.
+ * Implements `some`.
+ * @param x i32): Option_i32 { return core_opt.some_i32(x
+ * @return void
+ */
 export function some(x: i32): Option_i32 { return core_opt.some_i32(x); }
 
-/** 有值返回值，否则 default。 */
+/** Exported function `unwrap_or`.
+ * Implements `unwrap_or`.
+ * @param opt Option_i32
+ * @param default_val i32
+ * @return i32
+ */
 export function unwrap_or(opt: Option_i32, default_val: i32): i32 {
   return core_opt.unwrap_or_i32(opt, default_val);
 }
 
-/** 是否为 Some。 */
+/** Exported function `is_some`.
+ * Query helper `is_some`.
+ * @param opt Option_i32): bool { return core_opt.is_some_i32(opt
+ * @return void
+ */
 export function is_some(opt: Option_i32): bool { return core_opt.is_some_i32(opt); }
 
-/** 是否为 None。 */
+/** Exported function `is_none`.
+ * Query helper `is_none`.
+ * @param opt Option_i32): bool { return core_opt.is_none_i32(opt
+ * @return void
+ */
 export function is_none(opt: Option_i32): bool { return core_opt.is_none_i32(opt); }
 
-/** eager map：有值则 some(mapped)，否则 none。 */
+/** Exported function `map`.
+ * Implements `map`.
+ * @param opt Option_i32
+ * @param mapped i32
+ * @return Option_i32
+ */
 export function map(opt: Option_i32, mapped: i32): Option_i32 {
   if (core_opt.is_some_i32(opt)) {
     return core_opt.some_i32(mapped);
@@ -50,7 +76,12 @@ export function map(opt: Option_i32, mapped: i32): Option_i32 {
   return core_opt.none_i32();
 }
 
-/** eager and_then：有值则 next，否则 none。 */
+/** Exported function `and_then`.
+ * Implements `and_then`.
+ * @param opt Option_i32
+ * @param next Option_i32
+ * @return Option_i32
+ */
 export function and_then(opt: Option_i32, next: Option_i32): Option_i32 {
   if (core_opt.is_some_i32(opt)) {
     return next;
@@ -58,12 +89,21 @@ export function and_then(opt: Option_i32, next: Option_i32): Option_i32 {
   return core_opt.none_i32();
 }
 
-/** 取第一个 Some，否则 other。 */
+/** Exported function `or`.
+ * Implements `or`.
+ * @param opt Option_i32
+ * @param other Option_i32
+ * @return Option_i32
+ */
 export function or(opt: Option_i32, other: Option_i32): Option_i32 {
   return core_opt.or_i32(opt, other);
 }
 
-/** Result_i32 成功转 Some(value)，失败转 None。 */
+/** Exported function `from_result`.
+ * Implements `from_result`.
+ * @param r Result_i32
+ * @return Option_i32
+ */
 export function from_result(r: Result_i32): Option_i32 {
   if (core_res.is_ok_i32(r)) {
     return core_opt.some_i32(r.value);
@@ -71,7 +111,11 @@ export function from_result(r: Result_i32): Option_i32 {
   return core_opt.none_i32();
 }
 
-/** Result_u8 成功转 Some，失败转 None。 */
+/** Exported function `from_result`.
+ * Implements `from_result`.
+ * @param r Result_u8
+ * @return Option_u8
+ */
 export function from_result(r: Result_u8): Option_u8 {
   if (core_res.is_ok_u8(r)) {
     return core_opt.some_u8(r.value);
@@ -79,7 +123,12 @@ export function from_result(r: Result_u8): Option_u8 {
   return core_opt.none_u8();
 }
 
-/** Option 有值转 Ok，None 转 Err(err_if_none)。 */
+/** Exported function `to_result`.
+ * Implements `to_result`.
+ * @param opt Option_i32
+ * @param err_if_none i32
+ * @return Result_i32
+ */
 export function to_result(opt: Option_i32, err_if_none: i32): Result_i32 {
   if (core_opt.is_some_i32(opt)) {
     return core_res.ok_i32(opt.value);

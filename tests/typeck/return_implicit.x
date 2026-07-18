@@ -1,4 +1,8 @@
-// 边界：有返回类型但用最终表达式无 return，应报 return value must use explicit
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   0
 }

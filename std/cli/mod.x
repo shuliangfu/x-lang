@@ -14,17 +14,17 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.cli — 命令行参数解析与 usage（STD-077）
+// See implementation.
 //
-// 【文件职责】
-// 长短选项、子命令、位置参数解析；与 std.env args_iter 集成；
-// usage 生成；未知参数与 help 退出码约定。
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 【对标】Go flag + cobra 子集、Rust clap 最小路径。
+// See implementation.
 
 const env = import("std.env");
 
-/** 解析结果缓冲。 */
+/* See implementation. */
 allow(padding) struct CliResult {
   subcommand_len: i32;
   help: i32;
@@ -43,14 +43,27 @@ extern function cli_match_long_c(arg: *u8, len: i32, name: *u8, name_len: i32): 
 extern function cli_match_short_c(arg: *u8, len: i32, c: u8): i32;
 extern function cli_write_usage_c(prog: *u8, prog_len: i32, desc: *u8, desc_len: i32, out: *u8, out_cap: i32): i32;
 
-/** 成功完成解析。 */
+/** Exported function `err_ok`.
+ * Implements `err_ok`.
+ * @return i32
+ */
 export function err_ok(): i32 { return 0; }
-/** 用户请求 --help。 */
+/** Exported function `err_help`.
+ * Implements `err_help`.
+ * @return i32
+ */
 export function err_help(): i32 { return 1; }
-/** 未知或非法参数。 */
+/** Exported function `err_unknown`.
+ * Implements `err_unknown`.
+ * @return i32
+ */
 export function err_unknown(): i32 { return -1; }
 
-/** 计算 C 串长度（不含 NUL）。 */
+/** Exported function `arg_len`.
+ * Query helper `arg_len`.
+ * @param p *u8
+ * @return i32
+ */
 export function arg_len(p: *u8): i32 {
   let n: i32 = 0;
   if (p == 0) { return 0; }
@@ -60,42 +73,81 @@ export function arg_len(p: *u8): i32 {
   return n;
 }
 
-/** 是否为 help 选项。 */
+/** Exported function `is_help`.
+ * Query helper `is_help`.
+ * @param arg *u8
+ * @param len i32
+ * @return i32
+ */
 export function is_help(arg: *u8, len: i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = cli_is_help_c(arg, len); }
   return _rc;
 }
 
-/** 是否为 version 选项。 */
+/** Exported function `is_version`.
+ * Query helper `is_version`.
+ * @param arg *u8
+ * @param len i32
+ * @return i32
+ */
 export function is_version(arg: *u8, len: i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = cli_is_version_c(arg, len); }
   return _rc;
 }
 
-/** 匹配长选项 --name。 */
+/** Exported function `match_long`.
+ * Implements `match_long`.
+ * @param arg *u8
+ * @param len i32
+ * @param name *u8
+ * @param name_len i32
+ * @return i32
+ */
 export function match_long(arg: *u8, len: i32, name: *u8, name_len: i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = cli_match_long_c(arg, len, name, name_len); }
   return _rc;
 }
 
-/** 匹配短选项 -x。 */
+/** Exported function `match_short`.
+ * Implements `match_short`.
+ * @param arg *u8
+ * @param len i32
+ * @param c u8
+ * @return i32
+ */
 export function match_short(arg: *u8, len: i32, c: u8): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = cli_match_short_c(arg, len, c); }
   return _rc;
 }
 
-/** 写入 usage 文本；返回长度。 */
+/** Exported function `write_usage`.
+ * Write path helper `write_usage`.
+ * @param prog *u8
+ * @param prog_len i32
+ * @param desc *u8
+ * @param desc_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function write_usage(prog: *u8, prog_len: i32, desc: *u8, desc_len: i32, out: *u8, out_cap: i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = cli_write_usage_c(prog, prog_len, desc, desc_len, out, out_cap); }
   return _rc;
 }
 
-/** 从 args_iter 解析（跳过 argv[0] 程序名）；expect_sub 可为空 len=0。 */
+/** Exported function `parse_from_iter`.
+ * Implements `parse_from_iter`.
+ * @param it *ArgsIter
+ * @param expect_sub *u8
+ * @param expect_sub_len i32
+ * @param out *CliResult
+ * @return i32
+ */
 export function parse_from_iter(it: *ArgsIter, expect_sub: *u8, expect_sub_len: i32, out: *CliResult): i32 {
   let prog: *u8 = 0;
   let p: *u8 = 0;

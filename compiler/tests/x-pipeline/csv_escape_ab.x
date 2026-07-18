@@ -1,6 +1,9 @@
-/** 探针：csv.escape("ab") 应返回 4 且 buf = "\"ab\"" */
+/** Probe: csv.escape("ab") should return 4 and buf = "\"ab\"". */
 const csv = import("std.csv");
 
+/**
+ * Escape two ASCII bytes and verify length plus quote/content bytes.
+ */
 function main(): i32 {
   let line: u8[8] = [97, 98, 0, 0, 0, 0, 0, 0];
   let buf: u8[64] = [];

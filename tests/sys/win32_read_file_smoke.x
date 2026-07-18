@@ -1,6 +1,10 @@
-// B-17 v2：Windows std.sys os_read_file_into 烟测（MSYS2/Windows 常规链接）。
+// See implementation.
 const sys = import("std.sys");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   // "/tmp/shux_win32_read_gate.txt\0"
   let path: u8[30] = [

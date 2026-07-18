@@ -1,6 +1,10 @@
-// STD-HTTP-H2-CLIENT：HPACK + HEADERS 帧 + 多路复用烟测
+// See implementation.
 const http = import("std.http");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (http.smoke() != 0) { return 1; }
   if (http.hpack_smoke() != 0) { return 2; }

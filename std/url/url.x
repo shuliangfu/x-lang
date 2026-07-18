@@ -14,26 +14,26 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std/url/url.x — F-url v2 + F-ZC：URL 解析/构建/query/resolve（纯 .x，无 .c/.h）
+// See implementation.
 //
-// 【文件职责】
-// RFC 3986 parse/build、query percent 编解码、相对 resolve、IPv6 host 转换与烟测。
-// IPv6 文本转换经 libc inet_pton/inet_ntop；编译为 url.o；对外 API 在 mod.x。
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 【对标】Go net/url、Rust url crate。
+// See implementation.
 
 export const URL_STRUCT_SIZE: usize = 1600;
 
-/** POSIX AF_INET6（与 std.net 一致）。 */
+/* See implementation. */
 export const AF_INET6: i32 = 10;
 
-/** IPv6 文本缓冲上限（含 NUL）。 */
+/* See implementation. */
 export const INET6_ADDRSTRLEN: i32 = 46;
 
-/** percent 编码用大写 hex 表。 */
+/* See implementation. */
 export const URL_HEX: u8[16] = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 65, 66, 67, 68, 69, 70];
 
-/** 与 mod.x Url 布局一致（字段顺序须匹配）。 */
+/* See implementation. */
 allow(padding) struct Url {
   scheme_len: i32;
   host_len: i32;
@@ -55,24 +55,33 @@ extern "C" function strlen(s: *u8): usize;
 extern "C" function inet_pton(af: i32, src: *u8, dst: *u8): i32;
 extern "C" function inet_ntop(af: i32, src: *u8, dst: *u8, size: usize): *u8;
 
-/** F-url v1 版本标记。 */
+/** Exported function `url_f_url_v1_marker_c`.
+ * Implements `url_f_url_v1_marker_c`.
+ * @return i32
+ */
 export function url_f_url_v1_marker_c(): i32 {
   return 1;
 }
 
-/** F-url v2 逻辑下沉标记。 */
+/** Exported function `url_f_url_v2_marker_c`.
+ * Implements `url_f_url_v2_marker_c`.
+ * @return i32
+ */
 export function url_f_url_v2_marker_c(): i32 {
   return 1;
 }
 
-/** F-std-zero-c：url_glue.c 已删除，IPv6 转换在 .x 内。 */
+/** Exported function `url_f_zero_c_marker_c`.
+ * Implements `url_f_zero_c_marker_c`.
+ * @return i32
+ */
 export function url_f_zero_c_marker_c(): i32 {
   return 1;
 }
 
 /**
- * IPv6 文本 → 16 字节；成功 0，失败 -1。
- * 经 libc 的 IPv6 文本解析接口。
+ * See implementation.
+ * See implementation.
  */
 export function url_inet_pton6_c(src: *u8, out_16: *u8): i32 {
   if (src == 0 || out_16 == 0) { return -1; }
@@ -81,8 +90,8 @@ export function url_inet_pton6_c(src: *u8, out_16: *u8): i32 {
 }
 
 /**
- * 16 字节 IPv6 → 文本；返回写入长度（不含 NUL），失败 -1。
- * 经 libc 的 IPv6 文本格式化接口。
+ * See implementation.
+ * See implementation.
  */
 export function url_inet_ntop6_c(addr_16: *u8, out: *u8, out_cap: i32): i32 {
   let buf: u8[46] = [];
@@ -97,7 +106,15 @@ export function url_inet_ntop6_c(addr_16: *u8, out: *u8, out_cap: i32): i32 {
   return len as i32;
 }
 
-/** 拷贝片段到 buf；成功 0。 */
+/** Exported function `url_copy_part`.
+ * Implements `url_copy_part`.
+ * @param src *u8
+ * @param len i32
+ * @param dst *u8
+ * @param cap i32
+ * @param out_len *i32
+ * @return i32
+ */
 export function url_copy_part(src: *u8, len: i32, dst: *u8, cap: i32, out_len: *i32): i32 {
   if (len < 0 || len >= cap) { return -1; }
   if (len > 0) { unsafe { memcpy(dst, src, len); } }
@@ -106,7 +123,12 @@ export function url_copy_part(src: *u8, len: i32, dst: *u8, cap: i32, out_len: *
   return 0;
 }
 
-/** host 是否需 IPv6 方括号。 */
+/** Exported function `url_host_needs_brackets`.
+ * Implements `url_host_needs_brackets`.
+ * @param host *u8
+ * @param host_len i32
+ * @return i32
+ */
 export function url_host_needs_brackets(host: *u8, host_len: i32): i32 {
   let i: i32 = 0;
   if (host_len <= 0) { return 0; }
@@ -118,7 +140,12 @@ export function url_host_needs_brackets(host: *u8, host_len: i32): i32 {
   return 0;
 }
 
-/** 查找 "://" 位置；无则 -1。 */
+/** Exported function `url_find_scheme_end`.
+ * Implements `url_find_scheme_end`.
+ * @param url *u8
+ * @param len i32
+ * @return i32
+ */
 export function url_find_scheme_end(url: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 2 < len) {
@@ -130,7 +157,13 @@ export function url_find_scheme_end(url: *u8, len: i32): i32 {
   return -1;
 }
 
-/** 解析绝对/相对 URL；成功 0。 */
+/** Exported function `url_parse_c`.
+ * Implements `url_parse_c`.
+ * @param url *u8
+ * @param len i32
+ * @param out *Url
+ * @return i32
+ */
 export function url_parse_c(url: *u8, len: i32, out: *Url): i32 {
   let i: i32 = 0;
   let scheme_end: i32 = 0;
@@ -203,7 +236,13 @@ export function url_parse_c(url: *u8, len: i32, out: *Url): i32 {
   return 0;
 }
 
-/** 组装 URL 字符串；返回写入长度，失败 -1。 */
+/** Exported function `url_build_c`.
+ * Implements `url_build_c`.
+ * @param u *Url
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function url_build_c(u: *Url, out: *u8, out_cap: i32): i32 {
   let n: i32 = 0;
   let rem: i32 = 0;
@@ -271,7 +310,11 @@ export function url_build_c(u: *Url, out: *u8, out_cap: i32): i32 {
   return n;
 }
 
-/** query 未编码字符判定。 */
+/** Exported function `url_query_unreserved`.
+ * Implements `url_query_unreserved`.
+ * @param c u8
+ * @return i32
+ */
 export function url_query_unreserved(c: u8): i32 {
   if ((c >= 97 && c <= 122) || (c >= 65 && c <= 90)) { return 1; }
   if (c >= 48 && c <= 57) { return 1; }
@@ -279,7 +322,11 @@ export function url_query_unreserved(c: u8): i32 {
   return 0;
 }
 
-/** hex 字符值；非法 -1。 */
+/** Exported function `url_hex_val`.
+ * Implements `url_hex_val`.
+ * @param c u8
+ * @return i32
+ */
 export function url_hex_val(c: u8): i32 {
   if (c >= 48 && c <= 57) { return (c - 48) as i32; }
   if (c >= 97 && c <= 102) { return (c - 97 + 10) as i32; }
@@ -287,7 +334,14 @@ export function url_hex_val(c: u8): i32 {
   return -1;
 }
 
-/** query percent 编码；返回写入长度。 */
+/** Exported function `url_query_encode_c`.
+ * Implements `url_query_encode_c`.
+ * @param src *u8
+ * @param src_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function url_query_encode_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
   let i: i32 = 0;
   let n: i32 = 0;
@@ -312,7 +366,14 @@ export function url_query_encode_c(src: *u8, src_len: i32, out: *u8, out_cap: i3
   return n;
 }
 
-/** query percent 解码；返回写入长度。 */
+/** Exported function `url_query_decode_c`.
+ * Implements `url_query_decode_c`.
+ * @param src *u8
+ * @param src_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function url_query_decode_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
   let i: i32 = 0;
   let n: i32 = 0;
@@ -338,7 +399,12 @@ export function url_query_decode_c(src: *u8, src_len: i32, out: *u8, out_cap: i3
   return n;
 }
 
-/** 路径段 pop。 */
+/** Exported function `url_path_pop_segment`.
+ * Implements `url_path_pop_segment`.
+ * @param path *u8
+ * @param path_len *i32
+ * @return void
+ */
 export function url_path_pop_segment(path: *u8, path_len: *i32): void {
   let len: i32 = *path_len;
   while (len > 0 && path[len - 1] == 47) { len = len - 1; }
@@ -353,7 +419,17 @@ export function url_path_pop_segment(path: *u8, path_len: *i32): void {
   *path_len = len;
 }
 
-/** 合并 base path 与相对 ref path。 */
+/** Exported function `url_merge_paths`.
+ * Implements `url_merge_paths`.
+ * @param base_path *u8
+ * @param base_len i32
+ * @param ref_path *u8
+ * @param ref_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @param out_len *i32
+ * @return i32
+ */
 export function url_merge_paths(base_path: *u8, base_len: i32, ref_path: *u8, ref_len: i32, out: *u8, out_cap: i32, out_len: *i32): i32 {
   let i: i32 = 0;
   let n: i32 = 0;
@@ -415,7 +491,14 @@ export function url_merge_paths(base_path: *u8, base_len: i32, ref_path: *u8, re
   return 0;
 }
 
-/** 相对 URL resolve；成功 0。 */
+/** Exported function `url_resolve_c`.
+ * Implements `url_resolve_c`.
+ * @param base *Url
+ * @param ref *u8
+ * @param ref_len i32
+ * @param out *Url
+ * @return i32
+ */
 export function url_resolve_c(base: *Url, ref: *u8, ref_len: i32, out: *Url): i32 {
   let rel: Url = Url {
     scheme_len: 0, host_len: 0, port_len: 0, path_len: 0, query_len: 0, fragment_len: 0,
@@ -457,7 +540,14 @@ export function url_resolve_c(base: *Url, ref: *u8, ref_len: i32, out: *Url): i3
   return 0;
 }
 
-/** host 片段拷贝为 NUL 结尾 C 串；成功 0。 */
+/** Exported function `url_host_to_nul`.
+ * Implements `url_host_to_nul`.
+ * @param host *u8
+ * @param host_len i32
+ * @param dst *u8
+ * @param cap i32
+ * @return i32
+ */
 export function url_host_to_nul(host: *u8, host_len: i32, dst: *u8, cap: i32): i32 {
   if (host == 0 || dst == 0 || host_len <= 0 || host_len >= cap) { return -1; }
   unsafe { memcpy(dst, host, host_len); }
@@ -465,7 +555,13 @@ export function url_host_to_nul(host: *u8, host_len: i32, dst: *u8, cap: i32): i
   return 0;
 }
 
-/** 解析 host 为 16 字节 IPv6；成功 0。 */
+/** Exported function `url_host_to_ipv6_c`.
+ * Implements `url_host_to_ipv6_c`.
+ * @param host *u8
+ * @param host_len i32
+ * @param out_16 *u8
+ * @return i32
+ */
 export function url_host_to_ipv6_c(host: *u8, host_len: i32, out_16: *u8): i32 {
   let buf: u8[256] = [];
   if (host == 0 || out_16 == 0) { return -1; }
@@ -473,19 +569,33 @@ export function url_host_to_ipv6_c(host: *u8, host_len: i32, out_16: *u8): i32 {
   return url_inet_pton6_c(&buf[0], out_16);
 }
 
-/** 16 字节 IPv6 格式化为 host 文本；返回长度，失败 -1。 */
+/** Exported function `url_format_ipv6_host_c`.
+ * Implements `url_format_ipv6_host_c`.
+ * @param addr_16 *u8
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function url_format_ipv6_host_c(addr_16: *u8, out: *u8, out_cap: i32): i32 {
   return url_inet_ntop6_c(addr_16, out, out_cap);
 }
 
-/** host 是否为合法 IPv6 文本。 */
+/** Exported function `url_host_is_ipv6_c`.
+ * Implements `url_host_is_ipv6_c`.
+ * @param host *u8
+ * @param host_len i32
+ * @return i32
+ */
 export function url_host_is_ipv6_c(host: *u8, host_len: i32): i32 {
   let tmp: u8[16] = [];
   if (url_host_to_ipv6_c(host, host_len, &tmp[0]) == 0) { return 1; }
   return 0;
 }
 
-/** STD-134：IPv6 host 解析/格式化与 bracket URL 金样。 */
+/** Exported function `url_ipv6_host_smoke_c`.
+ * Implements `url_ipv6_host_smoke_c`.
+ * @return i32
+ */
 export function url_ipv6_host_smoke_c(): i32 {
   let u: Url = Url {
     scheme_len: 0, host_len: 0, port_len: 0, path_len: 0, query_len: 0, fragment_len: 0,
@@ -513,7 +623,10 @@ export function url_ipv6_host_smoke_c(): i32 {
   return 0;
 }
 
-/** C 烟测。 */
+/** Exported function `url_smoke_c`.
+ * Implements `url_smoke_c`.
+ * @return i32
+ */
 export function url_smoke_c(): i32 {
   let u: Url = Url {
     scheme_len: 0, host_len: 0, port_len: 0, path_len: 0, query_len: 0, fragment_len: 0,

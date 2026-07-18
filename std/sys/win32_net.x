@@ -14,29 +14,29 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.sys.win32_net — B-18 v1 / F-02 v2：Windows 网络栈探测（WSA；async IOCP 见 std.io）
+// See implementation.
 //
-// 【文件职责】
-// std.sys 层 win32 网络可用性门面；不实现完整 socket/IOCP。
+// See implementation.
+// See implementation.
 //
-// 【链接】
-// F-02 v2：直接 extern ws2_32.dll（无 win32_net.inc.c）。
+// See implementation.
+// See implementation.
 
-/** winsock2 WSAStartup；0 成功。 */
+/* See implementation. */
 extern "C" function WSAStartup(wVersionRequested: u16, lpWSAData: *u8): i32;
 
-/** winsock2 WSACleanup；0 成功。 */
+/* See implementation. */
 extern "C" function WSACleanup(): i32;
 
 /** MAKEWORD(2, 2) = 0x0202。 */
 export const WIN32_WSA_VERSION_2_2: u16 = 0x0202;
 
-/** WSADATA 栈缓冲字节数（大于 Winsock2 结构体实际尺寸）。 */
+/* See implementation. */
 export const WIN32_WSA_DATA_BYTES: i32 = 512;
 
 /**
- * 返回 1 表示 Windows 网络栈（WSA）可用。
- * 探测：WSAStartup → WSACleanup 成功即视为可用。
+ * See implementation.
+ * See implementation.
  */
 export function win32_net_available(): i32 {
   let wsa: u8[512] = [];

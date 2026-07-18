@@ -16,14 +16,14 @@
 
 // std.sys.freebsd — FreeBSD POSIX I/O + mmap FFI（BOOT-029 / B-21 v0）
 //
-// 【文件职责】
-// 为 FreeBSD 上常规 `-o exe` 宿主程序提供 libc write/open/read/mmap 封装；
-// 与 Linux freestanding（shux_sys_*）互补，不含条件编译。
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 【链接】
-// FreeBSD 上链接可执行文件时由 clang 链 libc；符号 write(2) 直接解析。
+// See implementation.
+// See implementation.
 
-/** POSIX write(2) @ libc；count 为字节数。 */
+/* See implementation. */
 extern "C" function write(fd: i32, buf: *u8, count: usize): isize;
 
 /** POSIX open/read/close @ libc。 */
@@ -69,7 +69,7 @@ export const FREEBSD_SEEK_END: i32 = 2;
 extern "C" function _exit(code: i32): void;
 
 /**
- * 进程退出；noreturn。
+ * See implementation.
  */
 export function freebsd_exit(code: i32): void {
   unsafe {
@@ -77,25 +77,25 @@ export function freebsd_exit(code: i32): void {
   }
 }
 
-/** open(2) O_CREAT 默认 mode 0644。 */
+/* See implementation. */
 export const FREEBSD_OPEN_MODE_0644: i32 = 420;
 
 /**
- * v0 探测：FreeBSD POSIX write 门面是否导出（恒 1）。
+ * See implementation.
  */
 export function freebsd_write_available(): i32 {
   return 1;
 }
 
 /**
- * FreeBSD x86_64 write(2) syscall 号（文档/#[cfg] 用；hosted 走 libc write）。
+ * See implementation.
  */
 export function syscall_nr_write_amd64(): i64 {
   return 4;
 }
 
 /**
- * 向 fd 写入 buf[0..len)；走 write(2)。
+ * See implementation.
  */
 export function freebsd_write(fd: i32, buf: *u8, len: i32): i32 {
   if (len <= 0) {
@@ -115,18 +115,28 @@ export function freebsd_write(fd: i32, buf: *u8, len: i32): i32 {
   return r as i32;
 }
 
-/** 写 stdout。 */
+/** Exported function `freebsd_write_stdout`.
+ * Write path helper `freebsd_write_stdout`.
+ * @param buf *u8
+ * @param len i32
+ * @return i32
+ */
 export function freebsd_write_stdout(buf: *u8, len: i32): i32 {
   return freebsd_write(1, buf, len);
 }
 
-/** 写 stderr。 */
+/** Exported function `freebsd_write_stderr`.
+ * Write path helper `freebsd_write_stderr`.
+ * @param buf *u8
+ * @param len i32
+ * @return i32
+ */
 export function freebsd_write_stderr(buf: *u8, len: i32): i32 {
   return freebsd_write(2, buf, len);
 }
 
 /**
- * 单次 POSIX read(2)；成功返回读入字节数，失败 -1。
+ * See implementation.
  */
 export function freebsd_read(fd: i32, buf: *u8, len: i32): i32 {
   if (len <= 0) {
@@ -145,7 +155,11 @@ export function freebsd_read(fd: i32, buf: *u8, len: i32): i32 {
   return r as i32;
 }
 
-/** close(2) 薄封装。 */
+/** Exported function `freebsd_close`.
+ * Memory management helper `freebsd_close`.
+ * @param fd i32
+ * @return i32
+ */
 export function freebsd_close(fd: i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = close(fd); }
@@ -153,7 +167,7 @@ export function freebsd_close(fd: i32): i32 {
 }
 
 /**
- * 读整文件到 buf[0..cap)（循环 read 直到 EOF 或 cap）。
+ * See implementation.
  */
 export function freebsd_read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
   if (path == 0 || buf == 0 || cap <= 0) {
@@ -189,7 +203,7 @@ export function freebsd_read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
 }
 
 /**
- * 匿名 mmap（MAP_PRIVATE|MAP_ANON）；失败返回 null。
+ * See implementation.
  */
 export function freebsd_anonymous_mmap(len: usize, prot: i32): *u8 {
   if (len == 0) {
@@ -200,7 +214,12 @@ export function freebsd_anonymous_mmap(len: usize, prot: i32): *u8 {
   }
 }
 
-/** 解除 mmap 映射。 */
+/** Exported function `freebsd_munmap`.
+ * Memory management helper `freebsd_munmap`.
+ * @param addr *u8
+ * @param len usize
+ * @return i32
+ */
 export function freebsd_munmap(addr: *u8, len: usize): i32 {
   if (addr == 0 || len == 0) {
     return -1;
@@ -210,13 +229,16 @@ export function freebsd_munmap(addr: *u8, len: usize): i32 {
   }
 }
 
-/** mmap 是否在子模块导出（恒 1）。 */
+/** Exported function `freebsd_mmap_available`.
+ * Memory management helper `freebsd_mmap_available`.
+ * @return i32
+ */
 export function freebsd_mmap_available(): i32 {
   return 1;
 }
 
 /**
- * 文件 MAP_SHARED 可写 mmap（open + ftruncate + mmap）。
+ * See implementation.
  */
 export function freebsd_mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
   if (path == 0 || out_size == 0 || min_size == 0) {
@@ -256,7 +278,12 @@ export function freebsd_mmap_rw(path: *u8, min_size: usize, out_size: *usize): *
 /** msync(2) MS_SYNC。 */
 export const FREEBSD_MS_SYNC: i32 = 16;
 
-/** msync 刷盘（MS_SYNC）。 */
+/** Exported function `freebsd_msync_sync`.
+ * Memory management helper `freebsd_msync_sync`.
+ * @param addr *u8
+ * @param len usize
+ * @return i32
+ */
 export function freebsd_msync_sync(addr: *u8, len: usize): i32 {
   if (addr == 0 || len == 0) {
     return -1;

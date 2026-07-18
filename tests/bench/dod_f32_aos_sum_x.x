@@ -1,6 +1,6 @@
 /**
- * DOD f32 AoS L1 bench 对照：4096 粒子交错布局 arr[i].x 累加（addss）。
- * 每 x=1.0 → sum=4096.0；main 返回 (s as i32)/256（=16）。
+ * See implementation.
+ * See implementation.
  */
 struct Particle {
   x: f32
@@ -8,6 +8,10 @@ struct Particle {
   z: f32
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let n: i32 = 4096;
   let arr: Particle[4096] = [];

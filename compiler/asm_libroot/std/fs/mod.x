@@ -1,44 +1,44 @@
-// asm_libroot/std/fs/mod.x — Goal2 asm 自举用精简 std.fs（与 import("std.fs")
-// 路径一致）
+// asm_libroot/std/fs/mod.x — Goal2 asm  std.fs（ import("std.fs")
+// ）
 //
-// 职责：仅提供 compiler 内 pipeline/main/parser 所需的 open/read/write/close
-// 薄封装，不 import("std.io")，
-// 避免完整 ../std/fs/mod.x 拉入 std.io 后在当前 .x typeck 下失败（见
+// ： compiler  pipeline/main/parser  open/read/write/close
+// ， import("std.io")，
+//  ../std/fs/mod.x  std.io  .x typeck （
 // scripts/build_shux_asm.sh）。
-// 正常用户库仍使用仓库 ../std/fs/mod.x；本文件仅通过 asm_build_list 的 -L
-// asm_libroot 优先于 -L .. 被解析。
+//  ../std/fs/mod.x； asm_build_list  -L
+// asm_libroot  -L .. 。
 
 extern "C" function fs_open_read_c(path: *u8): i32;
 extern "C" function fs_posix_read_c(fd: i32, buf: *u8, count: usize): isize;
 extern "C" function fs_posix_write_c(fd: i32, buf: *u8, count: usize): isize;
 extern "C" function close(fd: i32): i32;
 
-/** mod 层 libc close 须 unsafe；避免与公开 close 重载递归。 */
+/** mod  libc close  unsafe； close 。 */
 function fs_mod_close(fd: i32): i32 {
   unsafe { return close(fd); }
 }
 
-/** 只读打开 path（NUL 结尾）；失败返回 -1。 */
+/**  path（NUL ）； -1。 */
 function open(path: *u8): i32 {
   return fs_open_read_c(path);
 }
 
-/** 关闭 fd；成功 0，失败 -1。 */
+/**  fd； 0， -1。 */
 function close(fd: i32): i32 {
   return fs_mod_close(fd);
 }
 
-/** 从 fd 读入最多 count 字节到 buf。 */
+/**  fd  count  buf。 */
 function read(fd: i32, buf: *u8, count: usize): isize {
   return fs_posix_read_c(fd, buf, count);
 }
 
-/** 将 buf[0..count-1] 写入 fd。 */
+/**  buf[0..count-1]  fd。 */
 function write(fd: i32, buf: *u8, count: usize): isize {
   return fs_posix_write_c(fd, buf, count);
 }
 
-/** 占位：库模块可被 import。 */
+/** ： import。 */
 function placeholder(): i32 {
   return 0;
 }

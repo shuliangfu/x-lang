@@ -1,9 +1,13 @@
 /**
- * Cookbook IO-01：write_batch_fd + read_batch_fd 两段写读环回校验。
- * 平台：Linux io_uring / macOS kqueue / Windows IOCP 自动分派（std.io）。
+ * See implementation.
+ * See implementation.
  */
 const fs = import("std.fs");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   /** "/tmp/shux_cookbook_io_batch\0" */
   let path: u8[26] =

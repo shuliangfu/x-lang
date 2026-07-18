@@ -14,13 +14,13 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.json — JSON 最小解析与生成（对标 Zig std.json、Rust serde_json）
+// See implementation.
 //
-// 【文件职责】解析 number/null/bool/string；object/array 游标与序列化；
-// 零拷贝 string view；类型化 decode。单遍、无 sscanf，性能优先。
-// 【API 对标】Zig parseFromSlice；Rust from_str / to_string。仅最小子集，无大依赖。
+// See implementation.
+// See implementation.
+// See implementation.
 
-/** JSON 游标：与 json_parse_glue.c json_cursor_t 布局一致（STD-034）。 */
+/* See implementation. */
 export struct JsonCursor {
   ptr: *u8;
   len: i32;
@@ -70,413 +70,842 @@ extern function json_append_string_value_c(buf: *u8, cap: i32, off: i32, val: *u
   val_len: i32): i32;
 extern function json_append_number_at_c(buf: *u8, cap: i32, off: i32, val: f64): i32;
 
-// ─── libc/胶水 FFI 薄包装（extern 须 unsafe；公开 API 调用包装而非直接 extern）───
+// See implementation.
 
-/** 包装 `json_parse_number_c`；glue FFI 须 unsafe。 */
+/** Exported function `json_libc_parse_number_c`.
+ * Implements `json_libc_parse_number_c`.
+ * @param ptr *u8
+ * @param len i32
+ * @param out_val *f64
+ * @param consumed *i32
+ * @return i32
+ */
 export function json_libc_parse_number_c(ptr: *u8, len: i32, out_val: *f64, consumed: *i32): i32 {
   unsafe { return json_parse_number_c(ptr, len, out_val, consumed); }
   return 0; // unreachable — typeck workaround
 }
 
-/** 包装 `json_parse_null_c`；glue FFI 须 unsafe。 */
+/** Exported function `json_libc_parse_null_c`.
+ * Implements `json_libc_parse_null_c`.
+ * @param ptr *u8
+ * @param len i32
+ * @param consumed *i32
+ * @return i32
+ */
 export function json_libc_parse_null_c(ptr: *u8, len: i32, consumed: *i32): i32 {
   unsafe { return json_parse_null_c(ptr, len, consumed); }
   return 0; // unreachable — typeck workaround
 }
 
-/** 包装 `json_parse_bool_c`；glue FFI 须 unsafe。 */
+/** Exported function `json_libc_parse_bool_c`.
+ * Implements `json_libc_parse_bool_c`.
+ * @param ptr *u8
+ * @param len i32
+ * @param out *i32
+ * @param consumed *i32
+ * @return i32
+ */
 export function json_libc_parse_bool_c(ptr: *u8, len: i32, out: *i32, consumed: *i32): i32 {
   unsafe { return json_parse_bool_c(ptr, len, out, consumed); }
   return 0; // unreachable — typeck workaround
 }
 
-/** 包装 `json_parse_string_c`；glue FFI 须 unsafe。 */
+/** Exported function `json_libc_parse_string_c`.
+ * Implements `json_libc_parse_string_c`.
+ * @param ptr *u8
+ * @param len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @param consumed *i32
+ * @return i32
+ */
 export function json_libc_parse_string_c(ptr: *u8, len: i32, out: *u8, out_cap: i32, consumed: *i32): i32 {
   unsafe { return json_parse_string_c(ptr, len, out, out_cap, consumed); }
   return 0; // unreachable — typeck workaround
 }
 
-/** 包装 `json_escape_c`；glue FFI 须 unsafe。 */
+/** Exported function `json_libc_escape_c`.
+ * Implements `json_libc_escape_c`.
+ * @param ptr *u8
+ * @param len i32
+ * @param buf *u8
+ * @param buf_cap i32
+ * @return i32
+ */
 export function json_libc_escape_c(ptr: *u8, len: i32, buf: *u8, buf_cap: i32): i32 {
   unsafe { return json_escape_c(ptr, len, buf, buf_cap); }
   return 0; // unreachable — typeck workaround
 }
 
-/** 包装 `json_append_null_c`；glue FFI 须 unsafe。 */
+/** Exported function `json_libc_append_null_c`.
+ * Implements `json_libc_append_null_c`.
+ * @param buf *u8
+ * @param buf_cap i32
+ * @return i32
+ */
 export function json_libc_append_null_c(buf: *u8, buf_cap: i32): i32 {
   unsafe { return json_append_null_c(buf, buf_cap); }
   return 0; // unreachable — typeck workaround
 }
 
-/** 包装 `json_append_bool_c`；glue FFI 须 unsafe。 */
+/** Exported function `json_libc_append_bool_c`.
+ * Implements `json_libc_append_bool_c`.
+ * @param buf *u8
+ * @param buf_cap i32
+ * @param val i32
+ * @return i32
+ */
 export function json_libc_append_bool_c(buf: *u8, buf_cap: i32, val: i32): i32 {
   unsafe { return json_append_bool_c(buf, buf_cap, val); }
   return 0; // unreachable — typeck workaround
 }
 
-/** 包装 `json_append_number_c`；glue FFI 须 unsafe。 */
+/** Exported function `json_libc_append_number_c`.
+ * Implements `json_libc_append_number_c`.
+ * @param buf *u8
+ * @param buf_cap i32
+ * @param val f64
+ * @return i32
+ */
 export function json_libc_append_number_c(buf: *u8, buf_cap: i32, val: f64): i32 {
   unsafe { return json_append_number_c(buf, buf_cap, val); }
   return 0; // unreachable — typeck workaround
 }
 
-/** 包装 `json_skip_value_c`；glue FFI 须 unsafe。 */
+/** Exported function `json_libc_skip_value_c`.
+ * Implements `json_libc_skip_value_c`.
+ * @param ptr *u8
+ * @param len i32
+ * @param consumed *i32
+ * @return i32
+ */
 export function json_libc_skip_value_c(ptr: *u8, len: i32, consumed: *i32): i32 {
   unsafe { return json_skip_value_c(ptr, len, consumed); }
   return 0; // unreachable — typeck workaround
 }
 
-/** 包装 `json_parse_string_view_c`；glue FFI 须 unsafe。 */
+/** Exported function `json_libc_parse_string_view_c`.
+ * Implements `json_libc_parse_string_view_c`.
+ * @param ptr *u8
+ * @param len i32
+ * @param out_len *i32
+ * @param consumed *i32
+ * @return *u8
+ */
 export function json_libc_parse_string_view_c(ptr: *u8, len: i32, out_len: *i32, consumed: *i32): *u8 {
   unsafe { return json_parse_string_view_c(ptr, len, out_len, consumed); }
   return 0 as *u8; // unreachable — typeck workaround
 }
 
-/** 包装 `json_cursor_init_c`；glue FFI 须 unsafe。 */
+/** Exported function `json_libc_cursor_init_c`.
+ * Implements `json_libc_cursor_init_c`.
+ * @param cur *JsonCursor
+ * @param ptr *u8
+ * @param len i32
+ * @return void
+ */
 export function json_libc_cursor_init_c(cur: *JsonCursor, ptr: *u8, len: i32): void {
   unsafe { json_cursor_init_c(cur, ptr, len); }
 }
 
-/** 包装 `json_cursor_enter_object_c`；glue FFI 须 unsafe。 */
+/** Exported function `json_libc_cursor_enter_object_c`.
+ * Implements `json_libc_cursor_enter_object_c`.
+ * @param cur *JsonCursor
+ * @return i32
+ */
 export function json_libc_cursor_enter_object_c(cur: *JsonCursor): i32 {
   unsafe { return json_cursor_enter_object_c(cur); }
   return 0; // unreachable — typeck workaround
 }
 
-/** 包装 `json_cursor_object_next_c`；glue FFI 须 unsafe。 */
+/* See implementation. */
 export function json_libc_cursor_object_next_c(cur: *JsonCursor, key_buf: *u8, key_cap: i32,
   key_len: *i32): i32 {
   unsafe { return json_cursor_object_next_c(cur, key_buf, key_cap, key_len); }
   return 0; // unreachable — typeck workaround
 }
 
-/** 包装 `json_cursor_skip_value_c`；glue FFI 须 unsafe。 */
+/** Exported function `json_libc_cursor_skip_value_c`.
+ * Implements `json_libc_cursor_skip_value_c`.
+ * @param cur *JsonCursor
+ * @return i32
+ */
 export function json_libc_cursor_skip_value_c(cur: *JsonCursor): i32 {
   unsafe { return json_cursor_skip_value_c(cur); }
   return 0; // unreachable — typeck workaround
 }
 
-/** 包装 `json_cursor_enter_array_c`；glue FFI 须 unsafe。 */
+/** Exported function `json_libc_cursor_enter_array_c`.
+ * Implements `json_libc_cursor_enter_array_c`.
+ * @param cur *JsonCursor
+ * @return i32
+ */
 export function json_libc_cursor_enter_array_c(cur: *JsonCursor): i32 {
   unsafe { return json_cursor_enter_array_c(cur); }
   return 0; // unreachable — typeck workaround
 }
 
-/** 包装 `json_cursor_array_has_elem_c`；glue FFI 须 unsafe。 */
+/** Exported function `json_libc_cursor_array_has_elem_c`.
+ * Implements `json_libc_cursor_array_has_elem_c`.
+ * @param cur *JsonCursor
+ * @return i32
+ */
 export function json_libc_cursor_array_has_elem_c(cur: *JsonCursor): i32 {
   unsafe { return json_cursor_array_has_elem_c(cur); }
   return 0; // unreachable — typeck workaround
 }
 
-/** 包装 `json_cursor_value_type_c`；glue FFI 须 unsafe。 */
+/** Exported function `json_libc_cursor_value_type_c`.
+ * Implements `json_libc_cursor_value_type_c`.
+ * @param cur *JsonCursor
+ * @return i32
+ */
 export function json_libc_cursor_value_type_c(cur: *JsonCursor): i32 {
   unsafe { return json_cursor_value_type_c(cur); }
   return 0; // unreachable — typeck workaround
 }
 
-/** 包装 `json_decode_i32_at_c`；glue FFI 须 unsafe。 */
+/** Exported function `json_libc_decode_i32_at_c`.
+ * Implements `json_libc_decode_i32_at_c`.
+ * @param ptr *u8
+ * @param len i32
+ * @param consumed *i32
+ * @param out *i32
+ * @return i32
+ */
 export function json_libc_decode_i32_at_c(ptr: *u8, len: i32, consumed: *i32, out: *i32): i32 {
   unsafe { return json_decode_i32_at_c(ptr, len, consumed, out); }
   return 0; // unreachable — typeck workaround
 }
 
-/** 包装 `json_decode_f64_at_c`；glue FFI 须 unsafe。 */
+/** Exported function `json_libc_decode_f64_at_c`.
+ * Implements `json_libc_decode_f64_at_c`.
+ * @param ptr *u8
+ * @param len i32
+ * @param consumed *i32
+ * @param out *f64
+ * @return i32
+ */
 export function json_libc_decode_f64_at_c(ptr: *u8, len: i32, consumed: *i32, out: *f64): i32 {
   unsafe { return json_decode_f64_at_c(ptr, len, consumed, out); }
   return 0; // unreachable — typeck workaround
 }
 
-/** 包装 `json_decode_bool_at_c`；glue FFI 须 unsafe。 */
+/** Exported function `json_libc_decode_bool_at_c`.
+ * Implements `json_libc_decode_bool_at_c`.
+ * @param ptr *u8
+ * @param len i32
+ * @param consumed *i32
+ * @param out *i32
+ * @return i32
+ */
 export function json_libc_decode_bool_at_c(ptr: *u8, len: i32, consumed: *i32, out: *i32): i32 {
   unsafe { return json_decode_bool_at_c(ptr, len, consumed, out); }
   return 0; // unreachable — typeck workaround
 }
 
-/** 包装 `json_decode_string_at_c`；glue FFI 须 unsafe。 */
+/* See implementation. */
 export function json_libc_decode_string_at_c(ptr: *u8, len: i32, out: *u8, out_cap: i32,
   out_len: *i32, consumed: *i32): i32 {
   unsafe { return json_decode_string_at_c(ptr, len, out, out_cap, out_len, consumed); }
   return 0; // unreachable — typeck workaround
 }
 
-/** 包装 `json_object_decode_i32_c`；glue FFI 须 unsafe。 */
+/** Exported function `json_libc_object_decode_i32_c`.
+ * Implements `json_libc_object_decode_i32_c`.
+ * @param cur *JsonCursor
+ * @param key *u8
+ * @param key_len i32
+ * @param out *i32
+ * @return i32
+ */
 export function json_libc_object_decode_i32_c(cur: *JsonCursor, key: *u8, key_len: i32, out: *i32): i32 {
   unsafe { return json_object_decode_i32_c(cur, key, key_len, out); }
   return 0; // unreachable — typeck workaround
 }
 
-/** 包装 `json_object_decode_bool_c`；glue FFI 须 unsafe。 */
+/** Exported function `json_libc_object_decode_bool_c`.
+ * Implements `json_libc_object_decode_bool_c`.
+ * @param cur *JsonCursor
+ * @param key *u8
+ * @param key_len i32
+ * @param out *i32
+ * @return i32
+ */
 export function json_libc_object_decode_bool_c(cur: *JsonCursor, key: *u8, key_len: i32, out: *i32): i32 {
   unsafe { return json_object_decode_bool_c(cur, key, key_len, out); }
   return 0; // unreachable — typeck workaround
 }
 
-/** 包装 `json_object_decode_string_c`；glue FFI 须 unsafe。 */
+/* See implementation. */
 export function json_libc_object_decode_string_c(cur: *JsonCursor, key: *u8, key_len: i32, out: *u8,
   out_cap: i32, out_len: *i32): i32 {
   unsafe { return json_object_decode_string_c(cur, key, key_len, out, out_cap, out_len); }
   return 0; // unreachable — typeck workaround
 }
 
-/** 包装 `json_object_decode_dotted_i32_c`；glue FFI 须 unsafe。 */
+/** Exported function `json_libc_object_decode_dotted_i32_c`.
+ * Implements `json_libc_object_decode_dotted_i32_c`.
+ * @param cur *JsonCursor
+ * @param path *u8
+ * @param path_len i32
+ * @param out *i32
+ * @return i32
+ */
 export function json_libc_object_decode_dotted_i32_c(cur: *JsonCursor, path: *u8, path_len: i32, out: *i32): i32 {
   unsafe { return json_object_decode_dotted_i32_c(cur, path, path_len, out); }
   return 0; // unreachable — typeck workaround
 }
 
-/** 包装 `json_object_decode_dotted_string_c`；glue FFI 须 unsafe。 */
+/** Exported function `json_libc_object_decode_dotted_string_c`.
+ * Implements `json_libc_object_decode_dotted_string_c`.
+ * @param cur *JsonCursor
+ * @param path *u8
+ * @param path_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @param out_len *i32
+ * @return i32
+ */
 export function json_libc_object_decode_dotted_string_c(cur: *JsonCursor, path: *u8, path_len: i32, out: *u8, out_cap: i32, out_len: *i32): i32 {
   unsafe { return json_object_decode_dotted_string_c(cur, path, path_len, out, out_cap, out_len); }
   return 0; // unreachable — typeck workaround
 }
 
-/** 包装 `json_object_decode_dotted_bool_c`；glue FFI 须 unsafe。 */
+/** Exported function `json_libc_object_decode_dotted_bool_c`.
+ * Implements `json_libc_object_decode_dotted_bool_c`.
+ * @param cur *JsonCursor
+ * @param path *u8
+ * @param path_len i32
+ * @param out *i32
+ * @return i32
+ */
 export function json_libc_object_decode_dotted_bool_c(cur: *JsonCursor, path: *u8, path_len: i32, out: *i32): i32 {
   unsafe { return json_object_decode_dotted_bool_c(cur, path, path_len, out); }
   return 0; // unreachable — typeck workaround
 }
 
-/** 包装 `json_object_decode_dotted_f64_c`；glue FFI 须 unsafe。 */
+/** Exported function `json_libc_object_decode_dotted_f64_c`.
+ * Implements `json_libc_object_decode_dotted_f64_c`.
+ * @param cur *JsonCursor
+ * @param path *u8
+ * @param path_len i32
+ * @param out *f64
+ * @return i32
+ */
 export function json_libc_object_decode_dotted_f64_c(cur: *JsonCursor, path: *u8, path_len: i32, out: *f64): i32 {
   unsafe { return json_object_decode_dotted_f64_c(cur, path, path_len, out); }
   return 0; // unreachable — typeck workaround
 }
 
-/** 包装 `json_typed_decode_smoke_c`；glue FFI 须 unsafe。 */
+/** Exported function `json_libc_typed_decode_smoke_c`.
+ * Implements `json_libc_typed_decode_smoke_c`.
+ * @return i32
+ */
 export function json_libc_typed_decode_smoke_c(): i32 {
   unsafe { return json_typed_decode_smoke_c(); }
   return 0; // unreachable — typeck workaround
 }
 
-/** 包装 `json_append_object_c`；glue FFI 须 unsafe。 */
+/** Exported function `json_libc_append_object_c`.
+ * Implements `json_libc_append_object_c`.
+ * @param buf *u8
+ * @param cap i32
+ * @param off i32
+ * @return i32
+ */
 export function json_libc_append_object_c(buf: *u8, cap: i32, off: i32): i32 {
   unsafe { return json_append_object_c(buf, cap, off); }
   return 0; // unreachable — typeck workaround
 }
 
-/** 包装 `json_append_object_end_c`；glue FFI 须 unsafe。 */
+/** Exported function `json_libc_append_object_end_c`.
+ * Implements `json_libc_append_object_end_c`.
+ * @param buf *u8
+ * @param cap i32
+ * @param off i32
+ * @return i32
+ */
 export function json_libc_append_object_end_c(buf: *u8, cap: i32, off: i32): i32 {
   unsafe { return json_append_object_end_c(buf, cap, off); }
   return 0; // unreachable — typeck workaround
 }
 
-/** 包装 `json_append_array_c`；glue FFI 须 unsafe。 */
+/** Exported function `json_libc_append_array_c`.
+ * Implements `json_libc_append_array_c`.
+ * @param buf *u8
+ * @param cap i32
+ * @param off i32
+ * @return i32
+ */
 export function json_libc_append_array_c(buf: *u8, cap: i32, off: i32): i32 {
   unsafe { return json_append_array_c(buf, cap, off); }
   return 0; // unreachable — typeck workaround
 }
 
-/** 包装 `json_append_array_end_c`；glue FFI 须 unsafe。 */
+/** Exported function `json_libc_append_array_end_c`.
+ * Implements `json_libc_append_array_end_c`.
+ * @param buf *u8
+ * @param cap i32
+ * @param off i32
+ * @return i32
+ */
 export function json_libc_append_array_end_c(buf: *u8, cap: i32, off: i32): i32 {
   unsafe { return json_append_array_end_c(buf, cap, off); }
   return 0; // unreachable — typeck workaround
 }
 
-/** 包装 `json_append_comma_c`；glue FFI 须 unsafe。 */
+/** Exported function `json_libc_append_comma_c`.
+ * Implements `json_libc_append_comma_c`.
+ * @param buf *u8
+ * @param cap i32
+ * @param off i32
+ * @return i32
+ */
 export function json_libc_append_comma_c(buf: *u8, cap: i32, off: i32): i32 {
   unsafe { return json_append_comma_c(buf, cap, off); }
   return 0; // unreachable — typeck workaround
 }
 
-/** 包装 `json_append_key_c`；glue FFI 须 unsafe。 */
+/** Exported function `json_libc_append_key_c`.
+ * Implements `json_libc_append_key_c`.
+ * @param buf *u8
+ * @param cap i32
+ * @param off i32
+ * @param key *u8
+ * @param key_len i32
+ * @return i32
+ */
 export function json_libc_append_key_c(buf: *u8, cap: i32, off: i32, key: *u8, key_len: i32): i32 {
   unsafe { return json_append_key_c(buf, cap, off, key, key_len); }
   return 0; // unreachable — typeck workaround
 }
 
-/** 包装 `json_append_string_value_c`；glue FFI 须 unsafe。 */
+/* See implementation. */
 export function json_libc_append_string_value_c(buf: *u8, cap: i32, off: i32, val: *u8,
   val_len: i32): i32 {
   unsafe { return json_append_string_value_c(buf, cap, off, val, val_len); }
   return 0; // unreachable — typeck workaround
 }
 
-/** 包装 `json_append_number_at_c`；glue FFI 须 unsafe。 */
+/** Exported function `json_libc_append_number_at_c`.
+ * Implements `json_libc_append_number_at_c`.
+ * @param buf *u8
+ * @param cap i32
+ * @param off i32
+ * @param val f64
+ * @return i32
+ */
 export function json_libc_append_number_at_c(buf: *u8, cap: i32, off: i32, val: f64): i32 {
   unsafe { return json_append_number_at_c(buf, cap, off, val); }
   return 0; // unreachable — typeck workaround
 }
 
-/** 零拷贝视图需拷贝时的 out_len 哨兵（STD-008）。 */
+/** Exported function `needs_copy`.
+ * Implements `needs_copy`.
+ * @return i32
+ */
 export function needs_copy(): i32 { return -2; }
 
-/** object 字段缺失时的返回码（STD-116）。 */
+/** Exported function `decode_missing`.
+ * Implements `decode_missing`.
+ * @return i32
+ */
 export function decode_missing(): i32 { return -3; }
 
+/** Exported function `parse_number`.
+ * Implements `parse_number`.
+ * @param ptr *u8
+ * @param len i32
+ * @param out_val *f64
+ * @param consumed *i32
+ * @return i32
+ */
 export function parse_number(ptr: *u8, len: i32, out_val: *f64, consumed: *i32): i32 {
   return json_libc_parse_number_c(ptr, len, out_val, consumed);
 }
+/** Exported function `parse_null`.
+ * Implements `parse_null`.
+ * @param ptr *u8
+ * @param len i32
+ * @param consumed *i32
+ * @return i32
+ */
 export function parse_null(ptr: *u8, len: i32, consumed: *i32): i32 {
   return json_libc_parse_null_c(ptr, len, consumed);
 }
+/** Exported function `parse`.
+ * Implements `parse`.
+ * @param ptr *u8
+ * @param len i32
+ * @param out *i32
+ * @param consumed *i32
+ * @return i32
+ */
 export function parse(ptr: *u8, len: i32, out: *i32, consumed: *i32): i32 {
   return json_libc_parse_bool_c(ptr, len, out, consumed);
 }
-/** 解析 JSON 字符串 "..."（含 \\ \\\" \\n \\r \\t \\uXXXX）；内容写入 out，返回内容长度，失败 -1。 */
+/** Exported function `parse_string`.
+ * Implements `parse_string`.
+ * @param ptr *u8
+ * @param len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @param consumed *i32
+ * @return i32
+ */
 export function parse_string(ptr: *u8, len: i32, out: *u8, out_cap: i32, consumed: *i32): i32 {
   return json_libc_parse_string_c(ptr, len, out, out_cap, consumed);
 }
+/** Exported function `escape`.
+ * Implements `escape`.
+ * @param ptr *u8
+ * @param len i32
+ * @param buf *u8
+ * @param buf_cap i32
+ * @return i32
+ */
 export function escape(ptr: *u8, len: i32, buf: *u8, buf_cap: i32): i32 {
   return json_libc_escape_c(ptr, len, buf, buf_cap);
 }
+/** Exported function `append_null`.
+ * Implements `append_null`.
+ * @param buf *u8
+ * @param buf_cap i32
+ * @return i32
+ */
 export function append_null(buf: *u8, buf_cap: i32): i32 {
   return json_libc_append_null_c(buf, buf_cap);
 }
+/** Exported function `append`.
+ * Implements `append`.
+ * @param buf *u8
+ * @param buf_cap i32
+ * @param val i32
+ * @return i32
+ */
 export function append(buf: *u8, buf_cap: i32, val: i32): i32 {
   return json_libc_append_bool_c(buf, buf_cap, val);
 }
+/** Exported function `append_number`.
+ * Implements `append_number`.
+ * @param buf *u8
+ * @param buf_cap i32
+ * @param val f64
+ * @return i32
+ */
 export function append_number(buf: *u8, buf_cap: i32, val: f64): i32 {
   return json_libc_append_number_c(buf, buf_cap, val);
 }
 
-/** 跳过 ptr[0..len) 处完整 JSON 值；成功 0 并写 consumed 字节数，失败 -1（STD-034）。 */
+/** Exported function `skip_value`.
+ * Implements `skip_value`.
+ * @param ptr *u8
+ * @param len i32
+ * @param consumed *i32
+ * @return i32
+ */
 export function skip_value(ptr: *u8, len: i32, consumed: *i32): i32 {
   return json_libc_skip_value_c(ptr, len, consumed);
 }
 
-/** 无转义 JSON 字符串零拷贝视图；含转义时返回 null 且 *out_len = needs_copy()。 */
+/** Exported function `parse_string_view`.
+ * Implements `parse_string_view`.
+ * @param ptr *u8
+ * @param len i32
+ * @param out_len *i32
+ * @param consumed *i32
+ * @return *u8
+ */
 export function parse_string_view(ptr: *u8, len: i32, out_len: *i32, consumed: *i32): *u8 {
   return json_libc_parse_string_view_c(ptr, len, out_len, consumed);
 }
 
-/** 初始化 JSON 游标。 */
+/** Exported function `cursor_init`.
+ * Implements `cursor_init`.
+ * @param ptr *u8
+ * @param len i32
+ * @return JsonCursor
+ */
 export function cursor_init(ptr: *u8, len: i32): JsonCursor {
   let cur: JsonCursor = JsonCursor { ptr: ptr, len: len, off: 0 };
   json_libc_cursor_init_c(&cur, ptr, len);
   return cur;
 }
 
-/** 进入 object；期望 leading `{`。 */
+/** Internal function `cursor_enter_object`.
+ * Implements `cursor_enter_object`.
+ * @param cur *JsonCursor
+ * @return i32
+ */
 function cursor_enter_object(cur: *JsonCursor): i32 {
   return json_libc_cursor_enter_object_c(cur);
 }
 
-/** 读取下一 object 键；成功 1，结束 0，错误 -1。 */
+/** Internal function `cursor_object_next`.
+ * Implements `cursor_object_next`.
+ * @param cur *JsonCursor
+ * @param key_buf *u8
+ * @param key_cap i32
+ * @param key_len *i32
+ * @return i32
+ */
 function cursor_object_next(cur: *JsonCursor, key_buf: *u8, key_cap: i32, key_len: *i32): i32 {
   return json_libc_cursor_object_next_c(cur, key_buf, key_cap, key_len);
 }
 
-/** 跳过当前 value。 */
+/** Internal function `cursor_skip_value`.
+ * Implements `cursor_skip_value`.
+ * @param cur *JsonCursor
+ * @return i32
+ */
 function cursor_skip_value(cur: *JsonCursor): i32 {
   return json_libc_cursor_skip_value_c(cur);
 }
 
-/** 进入 array；期望 leading `[`。 */
+/** Internal function `cursor_enter_array`.
+ * Implements `cursor_enter_array`.
+ * @param cur *JsonCursor
+ * @return i32
+ */
 function cursor_enter_array(cur: *JsonCursor): i32 {
   return json_libc_cursor_enter_array_c(cur);
 }
 
-/** 数组内是否还有元素：1 有，0 已到 `]`。 */
+/** Internal function `cursor_array_has_elem`.
+ * Implements `cursor_array_has_elem`.
+ * @param cur *JsonCursor
+ * @return i32
+ */
 function cursor_array_has_elem(cur: *JsonCursor): i32 {
   return json_libc_cursor_array_has_elem_c(cur);
 }
 
-/** 游标处 JSON 值种类（STD-116）。 */
+/** Internal function `cursor_value_type`.
+ * Implements `cursor_value_type`.
+ * @param cur *JsonCursor
+ * @return i32
+ */
 function cursor_value_type(cur: *JsonCursor): i32 {
   return json_libc_cursor_value_type_c(cur);
 }
 
-/** 在 ptr 起点解码 i32。 */
+/** Internal function `decode_at`.
+ * Implements `decode_at`.
+ * @param ptr *u8
+ * @param len i32
+ * @param consumed *i32
+ * @param out *i32
+ * @return i32
+ */
 function decode_at(ptr: *u8, len: i32, consumed: *i32, out: *i32): i32 {
   return json_libc_decode_i32_at_c(ptr, len, consumed, out);
 }
 
-/** 在 ptr 起点解码 f64。 */
+/** Internal function `decode_at`.
+ * Implements `decode_at`.
+ * @param ptr *u8
+ * @param len i32
+ * @param consumed *i32
+ * @param out *f64
+ * @return i32
+ */
 function decode_at(ptr: *u8, len: i32, consumed: *i32, out: *f64): i32 {
   return json_libc_decode_f64_at_c(ptr, len, consumed, out);
 }
 
-/** 在 ptr 起点解码 bool（*bool 重载，与 i32 区分）。 */
+/** Internal function `decode_at`.
+ * Implements `decode_at`.
+ * @param ptr *u8
+ * @param len i32
+ * @param consumed *i32
+ * @param out *bool
+ * @return i32
+ */
 function decode_at(ptr: *u8, len: i32, consumed: *i32, out: *bool): i32 {
   return json_libc_decode_bool_at_c(ptr, len, consumed, out as *i32);
 }
 
-/** 在 ptr 起点解码 string。 */
+/* See implementation. */
 function decode_string_at(ptr: *u8, len: i32, out: *u8, out_cap: i32, out_len: *i32,
   consumed: *i32): i32 {
   return json_libc_decode_string_at_c(ptr, len, out, out_cap, out_len, consumed);
 }
 
-/** object 内按 key 解码 i32 字段。 */
+/** Internal function `object_decode`.
+ * Implements `object_decode`.
+ * @param cur *JsonCursor
+ * @param key *u8
+ * @param key_len i32
+ * @param out *i32
+ * @return i32
+ */
 function object_decode(cur: *JsonCursor, key: *u8, key_len: i32, out: *i32): i32 {
   return json_libc_object_decode_i32_c(cur, key, key_len, out);
 }
 
-/** object 内按 key 解码 bool 字段（*bool 重载）。 */
+/** Internal function `object_decode`.
+ * Implements `object_decode`.
+ * @param cur *JsonCursor
+ * @param key *u8
+ * @param key_len i32
+ * @param out *bool
+ * @return i32
+ */
 function object_decode(cur: *JsonCursor, key: *u8, key_len: i32, out: *bool): i32 {
   return json_libc_object_decode_bool_c(cur, key, key_len, out as *i32);
 }
 
-/** object 内按 key 解码 string 字段。 */
+/* See implementation. */
 function object_decode_string(cur: *JsonCursor, key: *u8, key_len: i32, out: *u8, out_cap: i32,
   out_len: *i32): i32 {
   return json_libc_object_decode_string_c(cur, key, key_len, out, out_cap, out_len);
 }
 
-/** object 内按点分路径解码 i32（如 user.age）。 */
+/** Internal function `object_decode_dotted`.
+ * Implements `object_decode_dotted`.
+ * @param cur *JsonCursor
+ * @param path *u8
+ * @param path_len i32
+ * @param out *i32
+ * @return i32
+ */
 function object_decode_dotted(cur: *JsonCursor, path: *u8, path_len: i32, out: *i32): i32 {
   return json_libc_object_decode_dotted_i32_c(cur, path, path_len, out);
 }
 
-/** object 内按点分路径解码 string（如 user.name）。 */
+/* See implementation. */
 function object_decode_dotted_string(cur: *JsonCursor, path: *u8, path_len: i32, out: *u8,
   out_cap: i32, out_len: *i32): i32 {
   return json_libc_object_decode_dotted_string_c(cur, path, path_len, out, out_cap, out_len);
 }
 
-/** object 内按点分路径解码 bool（*bool 重载，如 ok / flags.0）。 */
+/** Internal function `object_decode_dotted`.
+ * Implements `object_decode_dotted`.
+ * @param cur *JsonCursor
+ * @param path *u8
+ * @param path_len i32
+ * @param out *bool
+ * @return i32
+ */
 function object_decode_dotted(cur: *JsonCursor, path: *u8, path_len: i32, out: *bool): i32 {
   return json_libc_object_decode_dotted_bool_c(cur, path, path_len, out as *i32);
 }
 
-/** object 内按点分路径解码 f64（如 metrics.cpu / values.0）。 */
+/** Internal function `object_decode_dotted`.
+ * Implements `object_decode_dotted`.
+ * @param cur *JsonCursor
+ * @param path *u8
+ * @param path_len i32
+ * @param out *f64
+ * @return i32
+ */
 function object_decode_dotted(cur: *JsonCursor, path: *u8, path_len: i32, out: *f64): i32 {
   return json_libc_object_decode_dotted_f64_c(cur, path, path_len, out);
 }
 
-/** 类型化 decode C 烟测钩子（STD-116）。 */
+/** Internal function `typed_decode_smoke`.
+ * Implements `typed_decode_smoke`.
+ * @return i32
+ */
 function typed_decode_smoke(): i32 {
   return json_libc_typed_decode_smoke_c();
 }
 
-/** 在 buf[off] 写入 `{`。 */
+/** Internal function `append_object`.
+ * Implements `append_object`.
+ * @param buf *u8
+ * @param cap i32
+ * @param off i32
+ * @return i32
+ */
 function append_object(buf: *u8, cap: i32, off: i32): i32 {
   return json_libc_append_object_c(buf, cap, off);
 }
 
-/** 在 buf[off] 写入 `}`。 */
+/** Internal function `append_object_end`.
+ * Implements `append_object_end`.
+ * @param buf *u8
+ * @param cap i32
+ * @param off i32
+ * @return i32
+ */
 function append_object_end(buf: *u8, cap: i32, off: i32): i32 {
   return json_libc_append_object_end_c(buf, cap, off);
 }
 
-/** 在 buf[off] 写入 `[`。 */
+/** Internal function `append_array`.
+ * Implements `append_array`.
+ * @param buf *u8
+ * @param cap i32
+ * @param off i32
+ * @return i32
+ */
 function append_array(buf: *u8, cap: i32, off: i32): i32 {
   return json_libc_append_array_c(buf, cap, off);
 }
 
-/** 在 buf[off] 写入 `]`。 */
+/** Internal function `append_array_end`.
+ * Implements `append_array_end`.
+ * @param buf *u8
+ * @param cap i32
+ * @param off i32
+ * @return i32
+ */
 function append_array_end(buf: *u8, cap: i32, off: i32): i32 {
   return json_libc_append_array_end_c(buf, cap, off);
 }
 
-/** 在 buf[off] 写入 `,`。 */
+/** Internal function `append_comma`.
+ * Implements `append_comma`.
+ * @param buf *u8
+ * @param cap i32
+ * @param off i32
+ * @return i32
+ */
 function append_comma(buf: *u8, cap: i32, off: i32): i32 {
   return json_libc_append_comma_c(buf, cap, off);
 }
 
-/** 在 buf[off] 写入 `"key":`。 */
+/** Internal function `append_key`.
+ * Implements `append_key`.
+ * @param buf *u8
+ * @param cap i32
+ * @param off i32
+ * @param key *u8
+ * @param key_len i32
+ * @return i32
+ */
 function append_key(buf: *u8, cap: i32, off: i32, key: *u8, key_len: i32): i32 {
   return json_libc_append_key_c(buf, cap, off, key, key_len);
 }
 
-/** 在 buf[off] 写入 `"value"`。 */
+/** Internal function `append_string_value`.
+ * Implements `append_string_value`.
+ * @param buf *u8
+ * @param cap i32
+ * @param off i32
+ * @param val *u8
+ * @param val_len i32
+ * @return i32
+ */
 function append_string_value(buf: *u8, cap: i32, off: i32, val: *u8, val_len: i32): i32 {
   return json_libc_append_string_value_c(buf, cap, off, val, val_len);
 }
 
-/** 在 buf[off] 写入 number。 */
+/** Internal function `append_number_at`.
+ * Implements `append_number_at`.
+ * @param buf *u8
+ * @param cap i32
+ * @param off i32
+ * @param val f64
+ * @return i32
+ */
 function append_number_at(buf: *u8, cap: i32, off: i32, val: f64): i32 {
   return json_libc_append_number_at_c(buf, cap, off, val);
 }
-/** 模块尾占位：transitive import 解析时末位 function 会丢失，须保留非 API 锚点。 */
+/** Internal function `json_module_anchor`.
+ * Implements `json_module_anchor`.
+ * @return i32
+ */
 function json_module_anchor(): i32 { return 0; }

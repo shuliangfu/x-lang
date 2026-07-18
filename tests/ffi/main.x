@@ -1,6 +1,10 @@
-// tests/ffi/main.x — std.ffi 回归：cstr_len、cstring_new、cstring_free。
+// See implementation.
 const ffi = import("std.ffi");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let s: u8[8] = [97, 98, 99, 0, 0, 0, 0, 0];
   let n: i32 = ffi.cstr_len(&s[0]);

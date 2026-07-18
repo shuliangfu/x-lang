@@ -1,4 +1,8 @@
-// MEM-A2 BCE v1：for i in 0..N 循环内 arr[i] 应省略边界检查。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let arr: i32[8] = [1, 2, 3, 4, 5, 6, 7, 8];
   let sum: i32 = 0;

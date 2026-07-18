@@ -1,8 +1,12 @@
 /**
- * STD-SOCKETIO-001 烟测：Node socket.io-client v4 金样 + 重连退避。
+ * See implementation.
  */
 const sio = import("std.socketio");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (sio.node_golden_smoke() != 0) {
     return 1;

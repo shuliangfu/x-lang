@@ -1,6 +1,10 @@
-// std.db.arrow v2 烟测：F32 + null bitmap + adopt + SIMD 归约。
+// See implementation.
 const dbarrow = import("std.db.arrow");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let col_i: ArrowColumn = dbarrow.new_i32(64);
   let col_f: ArrowColumn = dbarrow.new_f32(64);

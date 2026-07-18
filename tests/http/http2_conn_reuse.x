@@ -1,6 +1,10 @@
-// STD-HTTP-H2-v11：单连接多请求复用烟测（离线）
+// See implementation.
 const http = import("std.http");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (http.conn_reuse_smoke() != 0) { return 1; }
   if (http.conn_reuse_is_available() == false) { return 2; }

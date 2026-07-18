@@ -1,6 +1,10 @@
-// STD-057：内存库 exec 往返烟测（须 sqlite-o + -lsqlite3 链接）
+// See implementation.
 const sqlite = import("std.db.sqlite");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let mem: u8[9] = [58, 109, 101, 109, 111, 114, 121, 58, 0];
   let sql_create: u8[27] = [

@@ -14,18 +14,18 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std/cli/cli.x — 命令行解析辅助（F-cli v1；替代 cli.c）
+// See implementation.
 //
-// 【文件职责】
-// 长短选项检测、子命令匹配、usage 生成；供 mod.x 与 std.env args_iter 组合使用。
+// See implementation.
+// See implementation.
 
-/** C 字符串常量（解析器不支持 "..." as *u8）。 */
+/* See implementation. */
 export const CLI_LIT_HELP: u8[7] = [45, 45, 104, 101, 108, 112, 0];
 
 extern "C" function memcmp(a: *u8, b: *u8, n: usize): i32;
 extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 
-/** 与 mod.x CliResult 布局一致。 */
+/* See implementation. */
 allow(padding) struct CliResult {
   subcommand_len: i32
   help: i32
@@ -38,7 +38,14 @@ allow(padding) struct CliResult {
   positional0: u8[128]
 }
 
-/** 比较等长字节串；1 相等。 */
+/** Exported function `cli_bytes_eq`.
+ * Implements `cli_bytes_eq`.
+ * @param a *u8
+ * @param alen i32
+ * @param b *u8
+ * @param blen i32
+ * @return i32
+ */
 export function cli_bytes_eq(a: *u8, alen: i32, b: *u8, blen: i32): i32 {
   let i: i32 = 0;
   if (alen != blen) { return 0; }
@@ -49,7 +56,12 @@ export function cli_bytes_eq(a: *u8, alen: i32, b: *u8, blen: i32): i32 {
   return 1;
 }
 
-/** 是否为 -h / --help。 */
+/** Exported function `cli_is_help_c`.
+ * Implements `cli_is_help_c`.
+ * @param arg *u8
+ * @param len i32
+ * @return i32
+ */
 export function cli_is_help_c(arg: *u8, len: i32): i32 {
   if (arg == 0 || len <= 0) { return 0; }
   if (len == 2 && arg[0] == 45 && arg[1] == 104) { return 1; }
@@ -60,7 +72,12 @@ export function cli_is_help_c(arg: *u8, len: i32): i32 {
   return 0;
 }
 
-/** 是否为 --version。 */
+/** Exported function `cli_is_version_c`.
+ * Implements `cli_is_version_c`.
+ * @param arg *u8
+ * @param len i32
+ * @return i32
+ */
 export function cli_is_version_c(arg: *u8, len: i32): i32 {
   if (arg == 0 || len <= 0) { return 0; }
   if (len == 9 && arg[0] == 45 && arg[1] == 45 &&
@@ -71,14 +88,27 @@ export function cli_is_version_c(arg: *u8, len: i32): i32 {
   return 0;
 }
 
-/** 长选项 --name 匹配（不含前缀）。 */
+/** Exported function `cli_match_long_c`.
+ * Implements `cli_match_long_c`.
+ * @param arg *u8
+ * @param len i32
+ * @param name *u8
+ * @param name_len i32
+ * @return i32
+ */
 export function cli_match_long_c(arg: *u8, len: i32, name: *u8, name_len: i32): i32 {
   if (arg == 0 || name == 0 || len < 2 + name_len) { return 0; }
   if (arg[0] != 45 || arg[1] != 45) { return 0; }
   return cli_bytes_eq(arg + 2, len - 2, name, name_len);
 }
 
-/** 短选项串 -x 或 -abc 是否含 c。 */
+/** Exported function `cli_match_short_c`.
+ * Implements `cli_match_short_c`.
+ * @param arg *u8
+ * @param len i32
+ * @param c u8
+ * @return i32
+ */
 export function cli_match_short_c(arg: *u8, len: i32, c: u8): i32 {
   let i: i32 = 0;
   if (arg == 0 || len < 2 || arg[0] != 45) { return 0; }
@@ -91,7 +121,15 @@ export function cli_match_short_c(arg: *u8, len: i32, c: u8): i32 {
   return 0;
 }
 
-/** 将固定片段写入 out；返回写入字节数，空间不足 -1。 */
+/** Exported function `cli_copy_lit`.
+ * Implements `cli_copy_lit`.
+ * @param out *u8
+ * @param out_cap i32
+ * @param off i32
+ * @param lit *u8
+ * @param lit_len i32
+ * @return i32
+ */
 export function cli_copy_lit(out: *u8, out_cap: i32, off: i32, lit: *u8, lit_len: i32): i32 {
   let i: i32 = 0;
   if (off + lit_len >= out_cap) { return -1; }
@@ -102,7 +140,7 @@ export function cli_copy_lit(out: *u8, out_cap: i32, off: i32, lit: *u8, lit_len
   return off + lit_len;
 }
 
-/** 写入 usage 行；返回长度，失败 -1（无 snprintf 变参，手工拼接）。 */
+/* See implementation. */
 export function cli_write_usage_c(prog: *u8, prog_len: i32, desc: *u8, desc_len: i32,
                            out: *u8, out_cap: i32): i32 {
   let n: i32 = 0;
@@ -124,7 +162,7 @@ export function cli_write_usage_c(prog: *u8, prog_len: i32, desc: *u8, desc_len:
   return n;
 }
 
-/** 解析 argv[1..] 扁平参数；成功 0，未知 -1，help 1。 */
+/* See implementation. */
 export function cli_parse_args_c(argv: * *u8, lens: *i32, argc: i32,
                           expect_sub: *u8, expect_sub_len: i32, out: *CliResult): i32 {
   let i: i32 = 0;
@@ -194,7 +232,10 @@ export function cli_parse_args_c(argv: * *u8, lens: *i32, argc: i32,
   return 0;
 }
 
-/** C 烟测：help/long/short/sub/positional。 */
+/** Exported function `cli_smoke_c`.
+ * Implements `cli_smoke_c`.
+ * @return i32
+ */
 export function cli_smoke_c(): i32 {
   let r: CliResult;
   let argv: *u8[5];

@@ -14,32 +14,39 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.queue — 双端队列（对标 Rust VecDeque、Zig std.fifo）
-// STD-048：SyncQueue_i32 可选 mutex 封装（std.sync），单线程 Queue_i32 不变。
+// See implementation.
+// See implementation.
 //
-// 【文件职责】
-// Queue_i32：环形缓冲 +
-// 动态扩容；push_back、push_front、pop_back、pop_front、len、is_empty、get(i)、clear、res
+// See implementation.
+// See implementation.
+// See implementation.
 // erve、deinit。
 //
-// 【依赖】std.heap。
+// See implementation.
 const heap_libc = import("std.heap.libc");
-/** STD-048：并发安全封装依赖 std.sync mutex；out 写回经 std.atomic.store。 */
+/* See implementation. */
 const sync = import("std.sync");
 const atomic = import("std.atomic");
-/** 双端队列：data 堆分配，cap 容量，len 元素个数，head
-* 为队首下标（0..cap-1）。 */
+/** See implementation for details. */
 allow(padding) struct Queue_i32 {
   data: *i32;
   cap: i32;
   len: i32;
   head: i32;
 }
-/** 新建空队列。 */
+/** Exported function `new`.
+ * Implements `new`.
+ * @return Queue_i32
+ */
 export function new(): Queue_i32 {
   return Queue_i32 { data: 0, cap: 0, len: 0, head: 0 };
 }
-/** 预分配 capacity；失败返回 -1。 */
+/** Exported function `with_capacity`.
+ * Implements `with_capacity`.
+ * @param q *Queue_i32
+ * @param capacity i32
+ * @return i32
+ */
 export function with_capacity(q: *Queue_i32, capacity: i32): i32 {
   if (capacity <= 0) {
     q.data = 0;
@@ -56,13 +63,22 @@ export function with_capacity(q: *Queue_i32, capacity: i32): i32 {
   q.head = 0;
   return 0;
 }
-/** 逻辑下标 i 对应的物理下标。 */
+/** Exported function `at`.
+ * Implements `at`.
+ * @param q Queue_i32
+ * @param i i32
+ * @return i32
+ */
 export function at(q: Queue_i32, i: i32): i32 {
   let idx: i32 = q.head + i;
   if (idx >= q.cap) { idx = idx - q.cap; }
   return idx;
 }
-/** 扩容至至少能再放 1 个元素；内部复制为 head=0 布局。失败返回 -1。 */
+/** Exported function `grow`.
+ * Implements `grow`.
+ * @param q *Queue_i32
+ * @return i32
+ */
 export function grow(q: *Queue_i32): i32 {
   let new_cap: i32 = if (q.cap <= 0) { 8 } else { q.cap * 2 };
   if (new_cap <= q.cap) { return 0; }
@@ -81,7 +97,12 @@ export function grow(q: *Queue_i32): i32 {
   q.head = 0;
   return 0;
 }
-/** 队尾插入。失败返回 -1。 */
+/** Exported function `push_back`.
+ * Implements `push_back`.
+ * @param q *Queue_i32
+ * @param x i32
+ * @return i32
+ */
 export function push_back(q: *Queue_i32, x: i32): i32 {
   if (q.len >= q.cap && grow(q) != 0) { return -1; }
   let tail: i32 = 0;
@@ -90,7 +111,12 @@ export function push_back(q: *Queue_i32, x: i32): i32 {
   q.len = q.len + 1;
   return 0;
 }
-/** 队首插入。失败返回 -1。 */
+/** Exported function `push_front`.
+ * Implements `push_front`.
+ * @param q *Queue_i32
+ * @param x i32
+ * @return i32
+ */
 export function push_front(q: *Queue_i32, x: i32): i32 {
   if (q.len >= q.cap && grow(q) != 0) { return -1; }
   q.head = q.head - 1;
@@ -99,7 +125,11 @@ export function push_front(q: *Queue_i32, x: i32): i32 {
   q.len = q.len + 1;
   return 0;
 }
-/** 队尾弹出；空队列返回 0（调用方须保证 len>0）。 */
+/** Exported function `pop_back`.
+ * Implements `pop_back`.
+ * @param q *Queue_i32
+ * @return i32
+ */
 export function pop_back(q: *Queue_i32): i32 {
   if (q.len <= 0) { return 0; }
   q.len = q.len - 1;
@@ -107,7 +137,11 @@ export function pop_back(q: *Queue_i32): i32 {
   unsafe { idx = at(*q, q.len); }
   return q.data[idx];
 }
-/** 队首弹出；空队列返回 0。 */
+/** Exported function `pop_front`.
+ * Implements `pop_front`.
+ * @param q *Queue_i32
+ * @return i32
+ */
 export function pop_front(q: *Queue_i32): i32 {
   if (q.len <= 0) { return 0; }
   let x: i32 = q.data[q.head];
@@ -116,24 +150,46 @@ export function pop_front(q: *Queue_i32): i32 {
   q.len = q.len - 1;
   return x;
 }
-/** 取第 i 个元素（0..len-1）；越界返回 0。 */
+/** Exported function `get`.
+ * Implements `get`.
+ * @param q Queue_i32
+ * @param i i32
+ * @return i32
+ */
 export function get(q: Queue_i32, i: i32): i32 {
   if (i < 0 || i >= q.len) { return 0; }
   return q.data[at(q, i)];
 }
-/** 元素个数。 */
+/** Exported function `len`.
+ * Implements `len`.
+ * @param q Queue_i32
+ * @return i32
+ */
 export function len(q: Queue_i32): i32 { return q.len; }
-/** 是否为空。返回 1 是，0 否。 */
+/** Exported function `is_empty`.
+ * Query helper `is_empty`.
+ * @param q Queue_i32
+ * @return i32
+ */
 export function is_empty(q: Queue_i32): i32 {
   if (q.len <= 0) { return 1; }
   return 0;
 }
-/** 清空，不释放内存。 */
+/** Exported function `clear`.
+ * Implements `clear`.
+ * @param q *Queue_i32
+ * @return void
+ */
 export function clear(q: *Queue_i32): void {
   q.len = 0;
   q.head = 0;
 }
-/** 确保容量至少 new_cap；失败返回 -1。 */
+/** Exported function `reserve`.
+ * Implements `reserve`.
+ * @param q *Queue_i32
+ * @param new_cap i32
+ * @return i32
+ */
 export function reserve(q: *Queue_i32, new_cap: i32): i32 {
   if (new_cap <= q.cap) { return 0; }
   let p: *i32 = heap_libc.heap_alloc_i32_c(new_cap);
@@ -151,7 +207,11 @@ export function reserve(q: *Queue_i32, new_cap: i32): i32 {
   q.head = 0;
   return 0;
 }
-/** 释放；调用后不可再用。 */
+/** Exported function `deinit`.
+ * Implements `deinit`.
+ * @param q *Queue_i32
+ * @return void
+ */
 export function deinit(q: *Queue_i32): void {
   if (q.data != 0) { heap_libc.heap_free_i32_c(q.data); q.data = 0; }
   q.cap = 0;
@@ -160,23 +220,30 @@ export function deinit(q: *Queue_i32): void {
 }
 
 // ——— SyncQueue_i32（STD-048） ———
-/** 并发安全 i32 队列：Queue_i32 + mutex；v1 仅 try_pop，无阻塞 pop。 */
+/* See implementation. */
 allow(padding) struct SyncQueue_i32 {
   q: Queue_i32;
   lock: *u8;
 }
 
-/** C 层双线程竞争 push 烟测（queue.x + runtime_queue_contention.c）；0 通过，-1 失败。 */
+/* See implementation. */
 extern function sync_queue_contention_smoke_c(): i32;
 
-/** 创建空 SyncQueue_i32；mutex 分配失败时 lock 为 null。 */
+/** Exported function `sync_new`.
+ * Implements `sync_new`.
+ * @return SyncQueue_i32
+ */
 export function sync_new(): SyncQueue_i32 {
   let lock: *u8 = sync.new_mutex();
   let q: Queue_i32 = Queue_i32 { data: 0, cap: 0, len: 0, head: 0 };
   return SyncQueue_i32 { q: q, lock: lock };
 }
 
-/** 销毁队列并释放 mutex。 */
+/** Exported function `sync_deinit`.
+ * Implements `sync_deinit`.
+ * @param sq *SyncQueue_i32
+ * @return void
+ */
 export function sync_deinit(sq: *SyncQueue_i32): void {
   if (sq.lock != 0) {
     sync.lock(sq.lock);
@@ -189,7 +256,12 @@ export function sync_deinit(sq: *SyncQueue_i32): void {
   }
 }
 
-/** 加锁队尾插入；失败 -1。 */
+/** Exported function `sync_push`.
+ * Implements `sync_push`.
+ * @param sq *SyncQueue_i32
+ * @param x i32
+ * @return i32
+ */
 export function sync_push(sq: *SyncQueue_i32, x: i32): i32 {
   if (sq.lock == 0) { return -1; }
   if (sync.lock(sq.lock) != 0) { return -1; }
@@ -199,7 +271,7 @@ export function sync_push(sq: *SyncQueue_i32, x: i32): i32 {
 }
 
 /**
- * 加锁队首弹出：0 成功写入 *out，1 空队列，-1 失败。
+ * See implementation.
  */
 export function sync_try_pop(sq: *SyncQueue_i32, out: *i32): i32 {
   if (sq.lock == 0) { return -1; }
@@ -213,7 +285,11 @@ export function sync_try_pop(sq: *SyncQueue_i32, out: *i32): i32 {
   return 0;
 }
 
-/** 加锁读元素个数。 */
+/** Exported function `len`.
+ * Implements `len`.
+ * @param sq SyncQueue_i32
+ * @return i32
+ */
 export function len(sq: SyncQueue_i32): i32 {
   if (sq.lock == 0) { return 0; }
   if (sync.lock(sq.lock) != 0) { return 0; }
@@ -222,7 +298,11 @@ export function len(sq: SyncQueue_i32): i32 {
   return n;
 }
 
-/** 加锁判空：1 空，0 非空。 */
+/** Exported function `is_empty`.
+ * Query helper `is_empty`.
+ * @param sq SyncQueue_i32
+ * @return i32
+ */
 export function is_empty(sq: SyncQueue_i32): i32 {
   if (sq.lock == 0) { return 1; }
   if (sync.lock(sq.lock) != 0) { return 1; }
@@ -231,7 +311,10 @@ export function is_empty(sq: SyncQueue_i32): i32 {
   return e;
 }
 
-/** 门面：C 层 sync_queue_contention_smoke_c 烟测。 */
+/** Exported function `sync_smoke`.
+ * Implements `sync_smoke`.
+ * @return i32
+ */
 export function sync_smoke(): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = sync_queue_contention_smoke_c(); }
@@ -239,7 +322,7 @@ export function sync_smoke(): i32 {
 }
 
 // ——— Queue_u8（STD-163） ———
-/** u8 双端队列。 */
+/* See implementation. */
 allow(padding) struct Queue_u8 {
   data: *u8;
   cap: i32;
@@ -247,19 +330,31 @@ allow(padding) struct Queue_u8 {
   head: i32;
 }
 
-/** 新建空 Queue_u8。 */
+/** Exported function `new`.
+ * Implements `new`.
+ * @return Queue_u8
+ */
 export function new(): Queue_u8 {
   return Queue_u8 { data: 0, cap: 0, len: 0, head: 0 };
 }
 
-/** Queue_u8 逻辑下标转物理下标。 */
+/** Exported function `at`.
+ * Implements `at`.
+ * @param q Queue_u8
+ * @param i i32
+ * @return i32
+ */
 export function at(q: Queue_u8, i: i32): i32 {
   let idx: i32 = q.head + i;
   if (idx >= q.cap) { idx = idx - q.cap; }
   return idx;
 }
 
-/** Queue_u8 扩容；失败 -1。 */
+/** Exported function `grow`.
+ * Implements `grow`.
+ * @param q *Queue_u8
+ * @return i32
+ */
 export function grow(q: *Queue_u8): i32 {
   let new_cap: i32 = if (q.cap <= 0) { 8 } else { q.cap * 2 };
   let p: *u8 = heap_libc.heap_alloc_u8_c(new_cap);
@@ -278,7 +373,12 @@ export function grow(q: *Queue_u8): i32 {
   return 0;
 }
 
-/** 队尾插入 u8；失败 -1。 */
+/** Exported function `push_back`.
+ * Implements `push_back`.
+ * @param q *Queue_u8
+ * @param x u8
+ * @return i32
+ */
 export function push_back(q: *Queue_u8, x: u8): i32 {
   if (q.len >= q.cap && grow(q) != 0) { return -1; }
   let tail: i32 = 0;
@@ -288,7 +388,11 @@ export function push_back(q: *Queue_u8, x: u8): i32 {
   return 0;
 }
 
-/** 队首弹出 u8；空队列返回 0。 */
+/** Exported function `pop_front`.
+ * Implements `pop_front`.
+ * @param q *Queue_u8
+ * @return u8
+ */
 export function pop_front(q: *Queue_u8): u8 {
   if (q.len <= 0) { return 0 as u8; }
   let x: u8 = q.data[q.head];
@@ -298,10 +402,18 @@ export function pop_front(q: *Queue_u8): u8 {
   return x;
 }
 
-/** Queue_u8 元素个数。 */
+/** Exported function `len`.
+ * Implements `len`.
+ * @param q Queue_u8
+ * @return i32
+ */
 export function len(q: Queue_u8): i32 { return q.len; }
 
-/** 释放 Queue_u8。 */
+/** Exported function `deinit`.
+ * Implements `deinit`.
+ * @param q *Queue_u8
+ * @return void
+ */
 export function deinit(q: *Queue_u8): void {
   if (q.data != 0) { heap_libc.heap_free_u8_c(q.data); q.data = 0; }
   q.cap = 0;

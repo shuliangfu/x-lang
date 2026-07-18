@@ -1,5 +1,5 @@
-// d2_struct_layout.x — D2 结构体布局差分测试（与 d2_struct_layout.c 同源）
-// 验证：repr(C) 布局 / packed 无填充 / 嵌套 struct / 字段读写正确性
+// See implementation.
+// See implementation.
 #[repr(C)]
 struct Point { x: i32; y: i32; }
 #[repr(C)]
@@ -8,6 +8,10 @@ struct PackedMixed packed { a: u8; b: u32; c: u8; }
 #[repr(C)]
 struct Nested { p: Point; z: i32; }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let acc: u32 = 0;
 

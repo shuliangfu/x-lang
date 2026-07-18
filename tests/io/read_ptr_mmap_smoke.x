@@ -1,10 +1,14 @@
 /**
- * ZC-2 smoke：常规文件 read_ptr mmap 绝对视图（macOS/Linux）+ gen 校验。
- * 写 /tmp/zc2_read_ptr_in → io.read_ptr(fd) → 校验内容与 gen。exit 0。
+ * See implementation.
+ * See implementation.
  */
 const fs = import("std.fs");
 const io = import("std.io");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   /** "/tmp/zc2_read_ptr_in\0" */
   let path: u8[21] =

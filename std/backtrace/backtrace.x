@@ -14,21 +14,27 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std/backtrace/backtrace.x — F-backtrace v2：API 锚点（G-03 seed asm）
+// See implementation.
 //
-// 【文件职责】
-// 版本标记与烟测 API 锚点；帧辅助/capture/symbolicate/烟测实现在 runtime_backtrace_platform.c。
+// See implementation.
+// See implementation.
 //
-// 【对标】Rust std::backtrace。
+// See implementation.
 
-/** F-backtrace v1 版本标记。 */
+/** Exported function `backtrace_f_backtrace_v1_marker_c`.
+ * Implements `backtrace_f_backtrace_v1_marker_c`.
+ * @return i32
+ */
 export function backtrace_f_backtrace_v1_marker_c(): i32 {
   return 1;
 }
 
-/** F-backtrace v2 逻辑下沉标记。 */
+/** Exported function `backtrace_f_backtrace_v2_marker_c`.
+ * Implements `backtrace_f_backtrace_v2_marker_c`.
+ * @return i32
+ */
 export function backtrace_f_backtrace_v2_marker_c(): i32 {
   return 1;
 }
 
-// STD-052：backtrace_symbolicate_smoke_c 实现在 runtime_backtrace_platform.c（避免 .o 重复符号）。
+// See implementation.

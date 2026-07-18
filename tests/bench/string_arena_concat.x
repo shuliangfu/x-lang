@@ -1,10 +1,14 @@
 /**
- * ZC-4 bench：N 轮 string_view_concat_arena 链式拼接（仅 Arena64 bump，无 heap_alloc）。
- * 正确性：最终 len==N 且每字节为 'x'；exit code = N（默认 128）。
+ * See implementation.
+ * See implementation.
  */
 const string = import("std.string");
 const heap = import("std.heap");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let n: i32 = 128;
   let arena: Arena64 = heap.arena64_empty();

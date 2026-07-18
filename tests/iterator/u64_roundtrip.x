@@ -1,7 +1,11 @@
-// CORE-020：SliceIter_u64 烟测
+// See implementation.
 const iterator = import("core.iterator");
 const option = import("core.option");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: u64[3] = [10, 20, 30];
   let it: SliceIter_u64 = iterator.iter_u64_from_buf(&a[0], 3 as usize);

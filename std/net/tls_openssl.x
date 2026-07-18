@@ -14,41 +14,41 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.net.tls_openssl — F-04 v8：OpenSSL TLS 客户端/服务端（libssl FFI）
+// See implementation.
 //
-// 【文件职责】
-// 从 tls_openssl.inc.c 迁出的 STD-030/083 OpenSSL 实现：握手、读写、ALPN、烟测。
+// See implementation.
+// See implementation.
 //
-// 【依赖】
-// - libssl/libcrypto：-lssl -lcrypto（runtime_link_abi 见 shu_net_tls_openssl_marker）
+// See implementation.
+// See implementation.
 // - net.c：net_set_blocking_c、net_tcp_connect_blocking_c、net_close_socket_c
 // - libc：calloc/free、getenv/atoi、strlen
 
 const mem = import("core.mem");
 
-/** OpenSSL 初始化标志。 */
+/* See implementation. */
 export const OPENSSL_INIT_LOAD_SSL_STRINGS: u64 = 0x00000001;
 export const OPENSSL_INIT_LOAD_CRYPTO_STRINGS: u64 = 0x00000002;
 export const SSL_VERIFY_NONE: i32 = 0;
 export const SSL_TLSEXT_ERR_OK: i32 = 0;
 
-/** TLS 最后错误码（本模块路径）。 */
+/* See implementation. */
 let shu_tls_last_error: i32 = 0;
 
-/** 后端名 "openssl"（NUL 结尾）。 */
+/* See implementation. */
 let TLS_BACKEND_NAME: u8[8] = [111, 112, 101, 110, 115, 115, 108, 0];
 
-/** 链接 marker：runtime 按需 -lssl -lcrypto。 */
+/* See implementation. */
 let shu_net_tls_openssl_marker: u8[8] = [111, 112, 101, 110, 115, 115, 108, 0];
 
-/** OpenSSL 会话：fd + SSL* + SSL_CTX*。 */
+/* See implementation. */
 allow(padding) struct TlsOpensslSess {
   fd: i32;
   ssl: *u8;
   ctx: *u8;
 }
 
-/** OpenSSL 服务端共享 SSL_CTX。 */
+/* See implementation. */
 allow(padding) struct TlsOpensslServerCtx {
   ctx: *u8;
 }
@@ -91,7 +91,7 @@ extern "C" function SSL_CTX_use_certificate(ctx: *u8, cert: *u8): i32;
 extern "C" function SSL_CTX_use_PrivateKey(ctx: *u8, key: *u8): i32;
 
 /**
- * handle 转 TlsOpensslSess*；0 返回 0。
+ * See implementation.
  */
 export function tls_openssl_sess_ptr(handle: i64): *TlsOpensslSess {
   if (handle == 0) {
@@ -101,28 +101,28 @@ export function tls_openssl_sess_ptr(handle: i64): *TlsOpensslSess {
 }
 
 /**
- * TLS 后端是否可用；OpenSSL 恒 1。
+ * See implementation.
  */
 export function net_tls_is_available_c(): i32 {
   return 1;
 }
 
 /**
- * TLS 后端名称（NUL 结尾）。
+ * See implementation.
  */
 export function net_tls_backend_name_c(): *u8 {
   return &TLS_BACKEND_NAME[0];
 }
 
 /**
- * 读取 TLS 最后一次错误码。
+ * See implementation.
  */
 export function net_tls_last_error_c(): i32 {
   return shu_tls_last_error;
 }
 
 /**
- * 从内存 PEM 创建 TLS 服务端上下文（v8：无 ALPN select 回调）。
+ * See implementation.
  */
 export function net_tls_server_ctx_create_mem_c(cert_pem: *u8, cert_len: i32, key_pem: *u8, key_len: i32): i64 {
   let srv: *TlsOpensslServerCtx = 0 as *TlsOpensslServerCtx;
@@ -188,7 +188,7 @@ export function net_tls_server_ctx_create_mem_c(cert_pem: *u8, cert_len: i32, ke
 }
 
 /**
- * 释放 TLS 服务端上下文。
+ * See implementation.
  */
 export function net_tls_server_ctx_destroy_c(srv_ctx_h: i64): void {
   let srv: *TlsOpensslServerCtx = srv_ctx_h as usize as *TlsOpensslServerCtx;
@@ -202,7 +202,7 @@ export function net_tls_server_ctx_destroy_c(srv_ctx_h: i64): void {
 }
 
 /**
- * 在已 accept 的 TCP fd 上完成 TLS 服务端握手。
+ * See implementation.
  */
 export function net_tls_accept_server_c(srv_ctx_h: i64, fd: i32): i64 {
   let srv: *TlsOpensslServerCtx = srv_ctx_h as usize as *TlsOpensslServerCtx;
@@ -241,7 +241,7 @@ export function net_tls_accept_server_c(srv_ctx_h: i64, fd: i32): i64 {
 }
 
 /**
- * TLS 客户端握手（SNI）；失败返回 0。
+ * See implementation.
  */
 export function net_tls_connect_client_c(fd: i32, sni: *u8): i64 {
   let sess: *TlsOpensslSess = 0 as *TlsOpensslSess;
@@ -310,7 +310,7 @@ export function net_tls_connect_client_c(fd: i32, sni: *u8): i64 {
 }
 
 /**
- * 带 ALPN 的 TLS 客户端握手。
+ * See implementation.
  */
 export function net_tls_connect_client_alpn_c(fd: i32, sni: *u8, alpn_wire: *u8, alpn_wire_len: i32): i64 {
   let sess: *TlsOpensslSess = 0 as *TlsOpensslSess;
@@ -387,7 +387,7 @@ export function net_tls_connect_client_alpn_c(fd: i32, sni: *u8, alpn_wire: *u8,
 }
 
 /**
- * 读取协商 ALPN 协议名；返回长度，写入 out（可 NULL）。
+ * See implementation.
  */
 export function net_tls_alpn_selected_c(ctx_handle: i64, out: *u8, out_cap: i32): i32 {
   let sess: *TlsOpensslSess = tls_openssl_sess_ptr(ctx_handle);
@@ -413,7 +413,7 @@ export function net_tls_alpn_selected_c(ctx_handle: i64, out: *u8, out_cap: i32)
 }
 
 /**
- * 协商协议是否为 h2。
+ * See implementation.
  */
 export function net_tls_alpn_is_h2_c(ctx_handle: i64): i32 {
   let buf: u8[4] = [0, 0, 0, 0];
@@ -425,7 +425,7 @@ export function net_tls_alpn_is_h2_c(ctx_handle: i64): i32 {
 }
 
 /**
- * 关闭 TLS 会话。
+ * See implementation.
  */
 export function net_tls_close_c(ctx_handle: i64): i32 {
   let sess: *TlsOpensslSess = tls_openssl_sess_ptr(ctx_handle);
@@ -445,7 +445,7 @@ export function net_tls_close_c(ctx_handle: i64): i32 {
 }
 
 /**
- * TLS 读；失败 -1/-2。
+ * See implementation.
  */
 export function net_tls_read_c(ctx_handle: i64, buf: *u8, cap: i32): i32 {
   let sess: *TlsOpensslSess = tls_openssl_sess_ptr(ctx_handle);
@@ -468,7 +468,7 @@ export function net_tls_read_c(ctx_handle: i64, buf: *u8, cap: i32): i32 {
 }
 
 /**
- * TLS 写；失败 -1/-2。
+ * See implementation.
  */
 export function net_tls_write_c(ctx_handle: i64, buf: *u8, len: i32): i32 {
   let sess: *TlsOpensslSess = tls_openssl_sess_ptr(ctx_handle);
@@ -490,10 +490,10 @@ export function net_tls_write_c(ctx_handle: i64, buf: *u8, len: i32): i32 {
   return n;
 }
 
-/** 127.0.0.1 主机序 addr_u32（与 net 测试一致）。 */
+/* See implementation. */
 export const ADDR_LOOPBACK: u32 = 0x7f000001;
 
-/** 烟测用字面量（NUL 结尾）。 */
+/* See implementation. */
 let LOCALHOST: u8[10] = [108, 111, 99, 97, 108, 104, 111, 115, 116, 0];
 let HTTP_TAG: u8[5] = [72, 84, 84, 80, 0];
 let HTML_TAG: u8[5] = [104, 116, 109, 108, 0];
@@ -501,7 +501,7 @@ let HTML_TAG_U: u8[5] = [72, 84, 77, 76, 0];
 let ENV_SHUX_TLS_PORT: u8[20] = [83, 72, 85, 88, 95, 84, 76, 83, 95, 83, 77, 79, 75, 69, 95, 80, 79, 82, 84, 0];
 
 /**
- * OpenSSL 烟测：连接 SHUX_TLS_SMOKE_PORT 上 s_server，握手并读 HTTP 前缀。
+ * See implementation.
  */
 export function net_tls_openssl_smoke_c(): i32 {
   let port_env: *u8 = 0 as *u8;
@@ -547,7 +547,7 @@ export function net_tls_openssl_smoke_c(): i32 {
     return 6;
   }
   buf[n] = 0;
-  /* 【Why】勿用 if (unsafe { strstr } == 0 && …)：表达式 unsafe → void 与指针比较 */
+  /* See implementation. */
   let hit_http: *u8 = 0;
   let hit_html: *u8 = 0;
   let hit_html_u: *u8 = 0;
@@ -568,7 +568,7 @@ export function net_tls_openssl_smoke_c(): i32 {
 }
 
 /**
- * mbedTLS 烟测：OpenSSL 构建下不可用。
+ * See implementation.
  */
 export function net_tls_mbedtls_smoke_c(): i32 {
   return -9;

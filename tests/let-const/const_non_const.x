@@ -1,4 +1,8 @@
-// 边界：const 初始化为非常量表达式，应报 const init must be constant expression
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let x: i32 = 1;
   const n: i32 = x;

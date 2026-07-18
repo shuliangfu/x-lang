@@ -1,8 +1,12 @@
 /**
- * Cookbook IO-04：非 Linux io_uring 回退路径 typeck（STD-026）。
+ * See implementation.
  */
 const io = import("std.io");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let buf: u8[8] = [];
   let _r: i32 = io.read_fd(0, &buf[0], 8);

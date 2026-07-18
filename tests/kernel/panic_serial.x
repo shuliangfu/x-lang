@@ -12,12 +12,22 @@ const mb1: MB1Header = {
   checksum: 0xE4524FFE,
 };
 
+/** Internal function `serial_putc`.
+ * Implements `serial_putc`.
+ * @param c u8
+ * @return void
+ */
 function serial_putc(c: u8): void {
   unsafe {
     asm!("outb %%al, %%dx" : : "a"(c), "d"(0x3F8));
   }
 }
 
+/** Internal function `serial_puts_count`.
+ * Implements `serial_puts_count`.
+ * @param count i32
+ * @return void
+ */
 function serial_puts_count(count: i32): void {
   serial_putc(80);
   serial_putc(65);
@@ -34,11 +44,20 @@ function serial_puts_count(count: i32): void {
 }
 
 #[used]
+/** Internal function `kpanic`.
+ * Implements `kpanic`.
+ * @param code i32
+ * @return void
+ */
 function kpanic(code: i32): void {
   serial_puts_count(code);
   unsafe { asm!("cli; hlt"); }
 }
 
+/** Internal function `kmain`.
+ * Implements `kmain`.
+ * @return i32
+ */
 function kmain(): i32 {
   serial_putc(83);
   serial_putc(10);
@@ -54,10 +73,19 @@ function kmain(): i32 {
 }
 
 #[entry]
+/** Internal function `start`.
+ * Implements `start`.
+ * @return void
+ */
 function start(): void {
   unsafe {
     asm!("mov $0x80000, %esp; call kmain; cli; hlt");
   }
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @param ) i32 { return kmain(
+ * @return void
+ */
 function main(): i32 { return kmain() + mb1.magic as i32; }

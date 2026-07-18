@@ -1,9 +1,14 @@
-// net_accept_many.x — L0 基线：accept_many 批量接受建连（与 run-perf-net.sh 配套）
-// 监听 127.0.0.1；接受 4096 连接后立即 close；argv[1] 为动态端口（默认 38456）。
+// See implementation.
+// See implementation.
 const net = import("std.net");
 const process = import("std.process");
 
-/** 解析十进制 u32 端口；非法返回 default_port。 */
+/** Internal function `bench_parse_port`.
+ * Implements `bench_parse_port`.
+ * @param s *u8
+ * @param default_port u32
+ * @return u32
+ */
 function bench_parse_port(s: *u8, default_port: u32): u32 {
   if (s == 0 as *u8) { return default_port; }
   let n: u32 = 0;
@@ -19,8 +24,12 @@ function bench_parse_port(s: *u8, default_port: u32): u32 {
   return n;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
-  /** 与 net_accept_many_client.c / run-perf-net.sh 一致；argv[1] 为动态端口。 */
+  /* See implementation. */
   let net_bench_port: u32 = 38456;
   if (process.args_count() >= 2) {
     net_bench_port = bench_parse_port(process.arg(1), net_bench_port);
@@ -32,7 +41,7 @@ function main(): i32 {
   let out_buf: TcpStream[64] = 0;
   let out: TcpStream[] = out_buf;
   let total: i32 = 0;
-  /** 每轮最多 net_batch_max()=64；timeout 5s 防止 client 未就绪时永久阻塞。 */
+  /* See implementation. */
   while (total < net_bench_conns) {
     let n: u32 = net.accept_many(listener, out, 5000);
     if (n == 0) {

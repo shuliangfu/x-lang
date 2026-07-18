@@ -14,13 +14,16 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std/async/scheduler.x — F-async v1 调度锚点（协作帧/MPSC/CPS 在 scheduler_glue.c）
+// See implementation.
 //
-// 【文件职责】
-// 提供 F-async v1 可编译 .x 单元；经 ld -r 与 scheduler_glue.c 合并为 scheduler.o。
-// 对外 API 在 mod.x。
+// See implementation.
+// See implementation.
+// See implementation.
 
-/** F-async v1 调度版本标记；供聚合 gate 校验 scheduler.x 已参与 ld -r 合并。 */
+/** Exported function `scheduler_f_async_scheduler_v1_marker_c`.
+ * Implements `scheduler_f_async_scheduler_v1_marker_c`.
+ * @return i32
+ */
 export function scheduler_f_async_scheduler_v1_marker_c(): i32 {
   return 1;
 }

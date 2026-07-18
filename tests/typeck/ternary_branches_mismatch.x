@@ -1,4 +1,8 @@
-// 边界：三元两分支类型不一致，应报 ternary branches must have the same type
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   return true ? 1 : false;
 }

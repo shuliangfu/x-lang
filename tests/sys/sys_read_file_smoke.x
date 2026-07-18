@@ -1,8 +1,12 @@
-// B-20 v0：std.sys read_file_into 烟测（Darwin 常规链接 / Linux freestanding 可选）。
+// See implementation.
 const sys = import("std.sys");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
-  // 固定路径 "/tmp/shux_read_file_gate.txt\0"（gate 脚本写入 "ABC"）
+  // See implementation.
   let path: u8[29] = [
     47, 116, 109, 112, 47, 115, 104, 117, 120, 95, 114, 101, 97, 100, 95,
     102, 105, 108, 101, 95, 103, 97, 116, 101, 46, 116, 120, 116, 0,

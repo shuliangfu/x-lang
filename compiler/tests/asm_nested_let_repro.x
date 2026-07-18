@@ -1,7 +1,10 @@
-// asm_nested_let_repro.x — 复现 while 体内 if-then 嵌套 let 的 asm 槽位登记（fr not
-// in ctx / 139）
+// asm_nested_let_repro.x — repro while-body if-then nested let asm slot registration
+// (fr not in ctx / exit 139).
 
-/** while + if-then 内 let fr；asm 须在块树或 if-then ensure 中登记 fr。 */
+/**
+ * while + if-then let fr; asm must register fr in the block tree or if-then ensure path.
+ * Returns the final i after the loop (expect 10).
+ */
 function demo_nested_let(): i32 {
   let i: i32 = 0;
   while (i < 10) {

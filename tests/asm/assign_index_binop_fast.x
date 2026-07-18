@@ -1,4 +1,8 @@
-// 7.3：INDEX 赋值 + binop 右值应先 emit 再算址，免 x1 被 clobber（run-asm-assign-index-binop.sh）。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let arr: i32[3] = [5, 10, 15];
   let i: i32 = 1;

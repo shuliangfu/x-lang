@@ -14,25 +14,30 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std/simd/simd.x — STD-153 自动向量化策略（F-simd v1 + F-ZC；纯 .x，无 .c/.h）
+// See implementation.
 //
-// 【文件职责】
-// SHUX_SIMD_HW / SHUX_SIMD_AUTovec 环境变量解析；simd_recommend_path_c 分派；
-// HW 探测与 STD-153 烟测均在 .x 内。
-// G-03：strcmp 改字节比较，避免 seed asm .o 链入 PIE 可执行文件时 PC32 重定位失败。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 
 extern "C" function getenv(name: *u8): *u8;
 
-/** lane-scalar 回退路径。 */
+/* See implementation. */
 export const SIMD_PATH_SCALAR: i32 = 0;
-/** 硬件向量 emit 路径。 */
+/* See implementation. */
 export const SIMD_PATH_HW: i32 = 1;
 
-/** C 字符串常量（解析器不支持 "..." as *u8）。 */
+/* See implementation. */
 export const SIM_LIT_SHUX_SIMD_AUTOVEC: u8[18] = [83, 72, 85, 88, 95, 83, 73, 77, 68, 95, 65, 85, 84, 111, 118, 101, 99, 0];
 export const SIM_LIT_SHUX_SIMD_HW: u8[13] = [83, 72, 85, 88, 95, 83, 73, 77, 68, 95, 72, 87, 0];
 
-/** C 串与字面量相等；1 相等（无 libc strcmp，避免 PIE 链入重定位错误）。 */
+/** Exported function `simd_str_eq`.
+ * Implements `simd_str_eq`.
+ * @param a *u8
+ * @param b *u8
+ * @return i32
+ */
 export function simd_str_eq(a: *u8, b: *u8): i32 {
   let i: i32 = 0;
   let ca: u8 = 0;
@@ -49,7 +54,10 @@ export function simd_str_eq(a: *u8, b: *u8): i32 {
   return 0;
 }
 
-/** 读取 SHUX_SIMD_HW=0 或 SHUX_SIMD_AUTovec=scalar 强制标量。 */
+/** Exported function `simd_env_force_scalar`.
+ * Implements `simd_env_force_scalar`.
+ * @return i32
+ */
 export function simd_env_force_scalar(): i32 {
   let hw: *u8 = 0;
   let aut: *u8 = 0;
@@ -64,7 +72,10 @@ export function simd_env_force_scalar(): i32 {
   return 0;
 }
 
-/** 读取 SHUX_SIMD_AUTovec=hw 强制硬件路径。 */
+/** Exported function `simd_env_force_hw`.
+ * Implements `simd_env_force_hw`.
+ * @return i32
+ */
 export function simd_env_force_hw(): i32 {
   let aut: *u8 = 0;
   let lit_hw: u8[3] = [104, 119, 0];
@@ -76,7 +87,10 @@ export function simd_env_force_hw(): i32 {
   return 0;
 }
 
-/** STD-153：推荐向量化路径（0=scalar，1=hw）。 */
+/** Exported function `simd_recommend_path_c`.
+ * Implements `simd_recommend_path_c`.
+ * @return i32
+ */
 export function simd_recommend_path_c(): i32 {
   if (simd_env_force_scalar() != 0) { return SIMD_PATH_SCALAR; }
   if (simd_env_force_hw() != 0) {
@@ -87,21 +101,24 @@ export function simd_recommend_path_c(): i32 {
   return SIMD_PATH_SCALAR;
 }
 
-/** F-std-zero-c：simd_os_glue.c 已删除。 */
+/** Exported function `simd_f_zero_c_marker_c`.
+ * Implements `simd_f_zero_c_marker_c`.
+ * @return i32
+ */
 export function simd_f_zero_c_marker_c(): i32 {
   return 1;
 }
 
 /**
- * 宿主是否具备已知 SIMD 能力（tier-1 目标默认 1；exotic 由 recommend_path 回退 scalar）。
+ * See implementation.
  */
 export function simd_hw_available_c(): i32 {
   return 1;
 }
 
 /**
- * STD-153 C 烟测：校验 auto 策略与环境覆盖组合。
- * 成功 0；HW 可用却走 scalar 且无 env 覆盖 → 1；无 HW 却非 scalar → 2。
+ * See implementation.
+ * See implementation.
  */
 export function simd_autovec_smoke_c(): i32 {
   let hw: i32 = 0;

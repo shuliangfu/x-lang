@@ -1,6 +1,10 @@
-// STD-061：shuffle/select 热循环 bench（import("std.simd") 生产路径）
+// See implementation.
 const simd = import("std.simd");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let limit: i32 = 2000000;
   let acc: i32 = 0;

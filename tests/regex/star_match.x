@@ -1,6 +1,10 @@
-// STD-051：`a*b` 零或多次
+// See implementation.
 const regex = import("std.regex");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let pat: u8[3] = [97, 42, 98];
   let re: *u8 = regex.compile(&pat[0], 3);

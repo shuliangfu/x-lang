@@ -1,26 +1,36 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-7 / R2 full（2026-07-14）：simd_enc 真迁
-// Logic source for product PREFER_X_O：g05_try_x_to_o(本文件) + rest
+// See implementation.
+// See implementation.
 //   seeds/simd_enc.from_x.c (-DSHUX_SIMD_ENC_FROM_X) ld -r → src/asm/simd_enc.o
-// R2: full.x 吃满 pure/insn/try_hw 公共业务（74 公共面）；FROM_X rest 业务 H=0（仅 slice_marker）
-// 冷启动/无 PREFER：seeds/simd_enc.from_x.c 完整 C 体
-// L2 thin hybrid（simd_enc_thin.x + SHUX_L2_SIMD_ENC_THIN_FROM_X）仅作 full.x 失败回退
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 导出（C ABI，见 include/simd_enc.h）：
-//   simd_enc_try_hw_vector_*_rbp / pshufd / select / 低层 x86 enc helpers 等。
-// G-02f-211：try_hw fadd/fmul/fma/imul/iadd 与 x86 短壳真迁 .x。
-// G-02f-212：binop@idx / pshufd / select + arm64 128 壳真迁；simd_enc 主路径闭合。
+// See implementation.
+// See implementation.
+// See implementation.
+// simd_enc_x_doc_anchor: see function docblock below.
 
 #[no_mangle]
+/** Exported function `simd_enc_x_doc_anchor`.
+ * Implements `simd_enc_x_doc_anchor`.
+ * @return i32
+ */
 export function simd_enc_x_doc_anchor(): i32 {
   return 0;
 }
 
-// G-02f-115+：helper / try_hw 真迁 .x 函数体（产品 seed 冷路径仍保留 C 同语义）
+// simd_arm64_ins_v1_from_v0_s: see function docblock below.
 
 #[no_mangle]
+/** Exported function `simd_arm64_ins_v1_from_v0_s`.
+ * Implements `simd_arm64_ins_v1_from_v0_s`.
+ * @param dst_lane i32
+ * @param src_lane i32
+ * @return u32
+ */
 export function simd_arm64_ins_v1_from_v0_s(dst_lane: i32, src_lane: i32): u32 {
   // Encoding: 0x6E040000 | ((dst_lane&3)<<19) | ((src_lane&3)<<13) | 0x401
   // Keep arithmetic form; seed C uses bitwise OR equivalent.
@@ -30,9 +40,16 @@ export function simd_arm64_ins_v1_from_v0_s(dst_lane: i32, src_lane: i32): u32 {
   return enc;
 }
 
-// G-02f-120：simd_arm64_rbp_lea_off_128half 真迁 .x
+// simd_arm64_rbp_lea_off_128half: see function docblock below.
 
 #[no_mangle]
+/** Exported function `simd_arm64_rbp_lea_off_128half`.
+ * Implements `simd_arm64_rbp_lea_off_128half`.
+ * @param slot i32
+ * @param half i32
+ * @param esz i32
+ * @return i32
+ */
 export function simd_arm64_rbp_lea_off_128half(slot: i32, half: i32, esz: i32): i32 {
   if (slot < 0) { return slot; }
   if (esz <= 0) { return slot; }
@@ -40,20 +57,33 @@ export function simd_arm64_rbp_lea_off_128half(slot: i32, half: i32, esz: i32): 
   return slot - half * 4 * esz;
 }
 
-// G-02f-122：simd_append_disp32 真迁 .x（与 simd_append_u32_le 同 LE 编码）
+// simd_append_disp32: see function docblock below.
 
 #[no_mangle]
+/** Exported function `simd_append_disp32`.
+ * Implements `simd_append_disp32`.
+ * @param elf *u8
+ * @param disp i32
+ * @return i32
+ */
 export function simd_append_disp32(elf: *u8, disp: i32): i32 {
   let r: i32 = 0;
   unsafe { r = simd_append_u32_le(elf, disp as u32); }
   return r;
 }
 
-// G-02f-123：simd_append / simd_append_u32_le 真迁 .x
+// See implementation.
 
 export extern "C" function pipeline_elf_ctx_append_bytes(ctx: *u8, ptr: *u8, n: i32): i32;
 
 #[no_mangle]
+/** Exported function `simd_append`.
+ * Implements `simd_append`.
+ * @param elf *u8
+ * @param bytes *u8
+ * @param n i32
+ * @return i32
+ */
 export function simd_append(elf: *u8, bytes: *u8, n: i32): i32 {
   if (elf == 0) { return 0 - 1; }
   if (bytes == 0) { return 0 - 1; }
@@ -64,6 +94,12 @@ export function simd_append(elf: *u8, bytes: *u8, n: i32): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_append_u32_le`.
+ * Implements `simd_append_u32_le`.
+ * @param elf *u8
+ * @param word u32
+ * @return i32
+ */
 export function simd_append_u32_le(elf: *u8, word: u32): i32 {
   let b0: u8 = (word & 255) as u8;
   let b1: u8 = ((word / 256) & 255) as u8;
@@ -80,9 +116,14 @@ export function simd_append_u32_le(elf: *u8, word: u32): i32 {
   return r;
 }
 
-// G-02f-124：simd 固定指令 / rbp+disp 真迁 .x
+// simd_x86_addps_xmm0_xmm1: see function docblock below.
 
 #[no_mangle]
+/** Exported function `simd_x86_addps_xmm0_xmm1`.
+ * Implements `simd_x86_addps_xmm0_xmm1`.
+ * @param elf *u8
+ * @return i32
+ */
 export function simd_x86_addps_xmm0_xmm1(elf: *u8): i32 {
   let b0: u8 = 15;
   let b1: u8 = 88;
@@ -99,6 +140,11 @@ export function simd_x86_addps_xmm0_xmm1(elf: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_x86_mulps_xmm0_xmm1`.
+ * Implements `simd_x86_mulps_xmm0_xmm1`.
+ * @param elf *u8
+ * @return i32
+ */
 export function simd_x86_mulps_xmm0_xmm1(elf: *u8): i32 {
   let b0: u8 = 15;
   let b1: u8 = 89;
@@ -115,6 +161,11 @@ export function simd_x86_mulps_xmm0_xmm1(elf: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_x86_paddd_xmm0_xmm1`.
+ * Implements `simd_x86_paddd_xmm0_xmm1`.
+ * @param elf *u8
+ * @return i32
+ */
 export function simd_x86_paddd_xmm0_xmm1(elf: *u8): i32 {
   let b0: u8 = 102;
   let b1: u8 = 15;
@@ -134,6 +185,11 @@ export function simd_x86_paddd_xmm0_xmm1(elf: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_x86_psubd_xmm0_xmm1`.
+ * Implements `simd_x86_psubd_xmm0_xmm1`.
+ * @param elf *u8
+ * @return i32
+ */
 export function simd_x86_psubd_xmm0_xmm1(elf: *u8): i32 {
   let b0: u8 = 102;
   let b1: u8 = 15;
@@ -153,6 +209,11 @@ export function simd_x86_psubd_xmm0_xmm1(elf: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_x86_pmulld_xmm0_xmm1`.
+ * Implements `simd_x86_pmulld_xmm0_xmm1`.
+ * @param elf *u8
+ * @return i32
+ */
 export function simd_x86_pmulld_xmm0_xmm1(elf: *u8): i32 {
   let b0: u8 = 102;
   let b1: u8 = 15;
@@ -175,6 +236,11 @@ export function simd_x86_pmulld_xmm0_xmm1(elf: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_x86_vpaddd_ymm0_ymm1`.
+ * Implements `simd_x86_vpaddd_ymm0_ymm1`.
+ * @param elf *u8
+ * @return i32
+ */
 export function simd_x86_vpaddd_ymm0_ymm1(elf: *u8): i32 {
   let b0: u8 = 197;
   let b1: u8 = 253;
@@ -194,6 +260,11 @@ export function simd_x86_vpaddd_ymm0_ymm1(elf: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_x86_vpsubd_ymm0_ymm1`.
+ * Implements `simd_x86_vpsubd_ymm0_ymm1`.
+ * @param elf *u8
+ * @return i32
+ */
 export function simd_x86_vpsubd_ymm0_ymm1(elf: *u8): i32 {
   let b0: u8 = 197;
   let b1: u8 = 253;
@@ -213,6 +284,11 @@ export function simd_x86_vpsubd_ymm0_ymm1(elf: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_x86_vpmulld_ymm0_ymm1`.
+ * Implements `simd_x86_vpmulld_ymm0_ymm1`.
+ * @param elf *u8
+ * @return i32
+ */
 export function simd_x86_vpmulld_ymm0_ymm1(elf: *u8): i32 {
   let b0: u8 = 197;
   let b1: u8 = 253;
@@ -232,6 +308,11 @@ export function simd_x86_vpmulld_ymm0_ymm1(elf: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_x86_vfmadd231ps_xmm0_xmm1_xmm2`.
+ * Implements `simd_x86_vfmadd231ps_xmm0_xmm1_xmm2`.
+ * @param elf *u8
+ * @return i32
+ */
 export function simd_x86_vfmadd231ps_xmm0_xmm1_xmm2(elf: *u8): i32 {
   let b0: u8 = 196;
   let b1: u8 = 226;
@@ -254,6 +335,11 @@ export function simd_x86_vfmadd231ps_xmm0_xmm1_xmm2(elf: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_x86_movups_xmm0_to_rbx_rax4`.
+ * Implements `simd_x86_movups_xmm0_to_rbx_rax4`.
+ * @param elf *u8
+ * @return i32
+ */
 export function simd_x86_movups_xmm0_to_rbx_rax4(elf: *u8): i32 {
   let b0: u8 = 197;
   let b1: u8 = 248;
@@ -276,6 +362,11 @@ export function simd_x86_movups_xmm0_to_rbx_rax4(elf: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_x86_movups_xmm0_from_rbx_rax4`.
+ * Implements `simd_x86_movups_xmm0_from_rbx_rax4`.
+ * @param elf *u8
+ * @return i32
+ */
 export function simd_x86_movups_xmm0_from_rbx_rax4(elf: *u8): i32 {
   let b0: u8 = 197;
   let b1: u8 = 248;
@@ -298,6 +389,11 @@ export function simd_x86_movups_xmm0_from_rbx_rax4(elf: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_x86_movups_xmm1_from_rbx_rax4`.
+ * Implements `simd_x86_movups_xmm1_from_rbx_rax4`.
+ * @param elf *u8
+ * @return i32
+ */
 export function simd_x86_movups_xmm1_from_rbx_rax4(elf: *u8): i32 {
   let b0: u8 = 197;
   let b1: u8 = 240;
@@ -320,6 +416,11 @@ export function simd_x86_movups_xmm1_from_rbx_rax4(elf: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_x86_vmovups_ymm0_from_rbx_rax4`.
+ * Implements `simd_x86_vmovups_ymm0_from_rbx_rax4`.
+ * @param elf *u8
+ * @return i32
+ */
 export function simd_x86_vmovups_ymm0_from_rbx_rax4(elf: *u8): i32 {
   let b0: u8 = 196;
   let b1: u8 = 226;
@@ -345,6 +446,11 @@ export function simd_x86_vmovups_ymm0_from_rbx_rax4(elf: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_x86_vmovups_ymm1_from_rbx_rax4`.
+ * Implements `simd_x86_vmovups_ymm1_from_rbx_rax4`.
+ * @param elf *u8
+ * @return i32
+ */
 export function simd_x86_vmovups_ymm1_from_rbx_rax4(elf: *u8): i32 {
   let b0: u8 = 196;
   let b1: u8 = 226;
@@ -370,6 +476,11 @@ export function simd_x86_vmovups_ymm1_from_rbx_rax4(elf: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_x86_vmovups_ymm0_to_rbx_rax4`.
+ * Implements `simd_x86_vmovups_ymm0_to_rbx_rax4`.
+ * @param elf *u8
+ * @return i32
+ */
 export function simd_x86_vmovups_ymm0_to_rbx_rax4(elf: *u8): i32 {
   let b0: u8 = 196;
   let b1: u8 = 226;
@@ -395,6 +506,12 @@ export function simd_x86_vmovups_ymm0_to_rbx_rax4(elf: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_x86_movups_xmm0_from_rbp`.
+ * Implements `simd_x86_movups_xmm0_from_rbp`.
+ * @param elf *u8
+ * @param disp i32
+ * @return i32
+ */
 export function simd_x86_movups_xmm0_from_rbp(elf: *u8, disp: i32): i32 {
   let b0: u8 = 15;
   let b1: u8 = 16;
@@ -411,6 +528,12 @@ export function simd_x86_movups_xmm0_from_rbp(elf: *u8, disp: i32): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_x86_movups_xmm1_from_rbp`.
+ * Implements `simd_x86_movups_xmm1_from_rbp`.
+ * @param elf *u8
+ * @param disp i32
+ * @return i32
+ */
 export function simd_x86_movups_xmm1_from_rbp(elf: *u8, disp: i32): i32 {
   let b0: u8 = 15;
   let b1: u8 = 16;
@@ -427,6 +550,12 @@ export function simd_x86_movups_xmm1_from_rbp(elf: *u8, disp: i32): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_x86_movups_xmm0_to_rbp`.
+ * Implements `simd_x86_movups_xmm0_to_rbp`.
+ * @param elf *u8
+ * @param disp i32
+ * @return i32
+ */
 export function simd_x86_movups_xmm0_to_rbp(elf: *u8, disp: i32): i32 {
   let b0: u8 = 15;
   let b1: u8 = 17;
@@ -443,6 +572,12 @@ export function simd_x86_movups_xmm0_to_rbp(elf: *u8, disp: i32): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_x86_vmovups_ymm0_from_rbp`.
+ * Implements `simd_x86_vmovups_ymm0_from_rbp`.
+ * @param elf *u8
+ * @param disp i32
+ * @return i32
+ */
 export function simd_x86_vmovups_ymm0_from_rbp(elf: *u8, disp: i32): i32 {
   let b0: u8 = 197;
   let b1: u8 = 254;
@@ -462,6 +597,12 @@ export function simd_x86_vmovups_ymm0_from_rbp(elf: *u8, disp: i32): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_x86_vmovups_ymm1_from_rbp`.
+ * Implements `simd_x86_vmovups_ymm1_from_rbp`.
+ * @param elf *u8
+ * @param disp i32
+ * @return i32
+ */
 export function simd_x86_vmovups_ymm1_from_rbp(elf: *u8, disp: i32): i32 {
   let b0: u8 = 197;
   let b1: u8 = 254;
@@ -481,6 +622,12 @@ export function simd_x86_vmovups_ymm1_from_rbp(elf: *u8, disp: i32): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_x86_vmovups_ymm0_to_rbp`.
+ * Implements `simd_x86_vmovups_ymm0_to_rbp`.
+ * @param elf *u8
+ * @param disp i32
+ * @return i32
+ */
 export function simd_x86_vmovups_ymm0_to_rbp(elf: *u8, disp: i32): i32 {
   let b0: u8 = 197;
   let b1: u8 = 254;
@@ -499,9 +646,15 @@ export function simd_x86_vmovups_ymm0_to_rbp(elf: *u8, disp: i32): i32 {
   return r;
 }
 
-// G-02f-125：更多 simd 固定/disp 指令真迁 .x
+// simd_x86_movups_xmm2_from_rbp: see function docblock below.
 
 #[no_mangle]
+/** Exported function `simd_x86_movups_xmm2_from_rbp`.
+ * Implements `simd_x86_movups_xmm2_from_rbp`.
+ * @param elf *u8
+ * @param disp i32
+ * @return i32
+ */
 export function simd_x86_movups_xmm2_from_rbp(elf: *u8, disp: i32): i32 {
   let b0: u8 = 15;
   let b1: u8 = 16;
@@ -518,6 +671,12 @@ export function simd_x86_movups_xmm2_from_rbp(elf: *u8, disp: i32): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_x86_pshufd_xmm0_imm8`.
+ * Implements `simd_x86_pshufd_xmm0_imm8`.
+ * @param elf *u8
+ * @param imm8 i32
+ * @return i32
+ */
 export function simd_x86_pshufd_xmm0_imm8(elf: *u8, imm8: i32): i32 {
   let b0: u8 = 0x66;
   let b1: u8 = 0x0f;
@@ -539,6 +698,12 @@ export function simd_x86_pshufd_xmm0_imm8(elf: *u8, imm8: i32): i32 {
 
 
 #[no_mangle]
+/** Exported function `simd_x86_vpshufd_ymm0_imm8`.
+ * Implements `simd_x86_vpshufd_ymm0_imm8`.
+ * @param elf *u8
+ * @param imm8 i32
+ * @return i32
+ */
 export function simd_x86_vpshufd_ymm0_imm8(elf: *u8, imm8: i32): i32 {
   let b0: u8 = 0xc5;
   let b1: u8 = 0xfe;
@@ -560,6 +725,12 @@ export function simd_x86_vpshufd_ymm0_imm8(elf: *u8, imm8: i32): i32 {
 
 
 #[no_mangle]
+/** Exported function `simd_x86_vmovups_ymm2_from_rbp`.
+ * Implements `simd_x86_vmovups_ymm2_from_rbp`.
+ * @param elf *u8
+ * @param disp i32
+ * @return i32
+ */
 export function simd_x86_vmovups_ymm2_from_rbp(elf: *u8, disp: i32): i32 {
   let b0: u8 = 197;
   let b1: u8 = 254;
@@ -579,6 +750,11 @@ export function simd_x86_vmovups_ymm2_from_rbp(elf: *u8, disp: i32): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_x86_pxor_xmm3_xmm3`.
+ * Implements `simd_x86_pxor_xmm3_xmm3`.
+ * @param elf *u8
+ * @return i32
+ */
 export function simd_x86_pxor_xmm3_xmm3(elf: *u8): i32 {
   let b0: u8 = 102;
   let b1: u8 = 15;
@@ -598,6 +774,11 @@ export function simd_x86_pxor_xmm3_xmm3(elf: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_x86_pcmpgtd_xmm2_xmm3`.
+ * Comparison/utility `simd_x86_pcmpgtd_xmm2_xmm3`.
+ * @param elf *u8
+ * @return i32
+ */
 export function simd_x86_pcmpgtd_xmm2_xmm3(elf: *u8): i32 {
   let b0: u8 = 102;
   let b1: u8 = 15;
@@ -617,6 +798,11 @@ export function simd_x86_pcmpgtd_xmm2_xmm3(elf: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_x86_pand_xmm0_xmm2`.
+ * Implements `simd_x86_pand_xmm0_xmm2`.
+ * @param elf *u8
+ * @return i32
+ */
 export function simd_x86_pand_xmm0_xmm2(elf: *u8): i32 {
   let b0: u8 = 102;
   let b1: u8 = 15;
@@ -636,6 +822,11 @@ export function simd_x86_pand_xmm0_xmm2(elf: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_x86_pandn_xmm2_xmm1`.
+ * Implements `simd_x86_pandn_xmm2_xmm1`.
+ * @param elf *u8
+ * @return i32
+ */
 export function simd_x86_pandn_xmm2_xmm1(elf: *u8): i32 {
   let b0: u8 = 102;
   let b1: u8 = 15;
@@ -655,6 +846,11 @@ export function simd_x86_pandn_xmm2_xmm1(elf: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_x86_por_xmm0_xmm2`.
+ * Implements `simd_x86_por_xmm0_xmm2`.
+ * @param elf *u8
+ * @return i32
+ */
 export function simd_x86_por_xmm0_xmm2(elf: *u8): i32 {
   let b0: u8 = 102;
   let b1: u8 = 15;
@@ -674,6 +870,11 @@ export function simd_x86_por_xmm0_xmm2(elf: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_x86_xorps_xmm3_xmm3`.
+ * Implements `simd_x86_xorps_xmm3_xmm3`.
+ * @param elf *u8
+ * @return i32
+ */
 export function simd_x86_xorps_xmm3_xmm3(elf: *u8): i32 {
   let b0: u8 = 15;
   let b1: u8 = 87;
@@ -690,6 +891,11 @@ export function simd_x86_xorps_xmm3_xmm3(elf: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_x86_cmpgtps_xmm2_xmm3`.
+ * Comparison/utility `simd_x86_cmpgtps_xmm2_xmm3`.
+ * @param elf *u8
+ * @return i32
+ */
 export function simd_x86_cmpgtps_xmm2_xmm3(elf: *u8): i32 {
   let b0: u8 = 15;
   let b1: u8 = 85;
@@ -706,6 +912,11 @@ export function simd_x86_cmpgtps_xmm2_xmm3(elf: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_x86_andps_xmm0_xmm2`.
+ * Implements `simd_x86_andps_xmm0_xmm2`.
+ * @param elf *u8
+ * @return i32
+ */
 export function simd_x86_andps_xmm0_xmm2(elf: *u8): i32 {
   let b0: u8 = 15;
   let b1: u8 = 84;
@@ -722,6 +933,11 @@ export function simd_x86_andps_xmm0_xmm2(elf: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_x86_andnps_xmm2_xmm1`.
+ * Implements `simd_x86_andnps_xmm2_xmm1`.
+ * @param elf *u8
+ * @return i32
+ */
 export function simd_x86_andnps_xmm2_xmm1(elf: *u8): i32 {
   let b0: u8 = 15;
   let b1: u8 = 85;
@@ -738,6 +954,11 @@ export function simd_x86_andnps_xmm2_xmm1(elf: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_x86_orps_xmm0_xmm2`.
+ * Implements `simd_x86_orps_xmm0_xmm2`.
+ * @param elf *u8
+ * @return i32
+ */
 export function simd_x86_orps_xmm0_xmm2(elf: *u8): i32 {
   let b0: u8 = 15;
   let b1: u8 = 86;
@@ -754,6 +975,11 @@ export function simd_x86_orps_xmm0_xmm2(elf: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_x86_vpxor_ymm3_ymm3`.
+ * Implements `simd_x86_vpxor_ymm3_ymm3`.
+ * @param elf *u8
+ * @return i32
+ */
 export function simd_x86_vpxor_ymm3_ymm3(elf: *u8): i32 {
   let b0: u8 = 197;
   let b1: u8 = 245;
@@ -773,6 +999,11 @@ export function simd_x86_vpxor_ymm3_ymm3(elf: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_x86_vpcmpgtd_ymm2_ymm3`.
+ * Comparison/utility `simd_x86_vpcmpgtd_ymm2_ymm3`.
+ * @param elf *u8
+ * @return i32
+ */
 export function simd_x86_vpcmpgtd_ymm2_ymm3(elf: *u8): i32 {
   let b0: u8 = 197;
   let b1: u8 = 237;
@@ -792,6 +1023,11 @@ export function simd_x86_vpcmpgtd_ymm2_ymm3(elf: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_x86_vpand_ymm0_ymm2`.
+ * Implements `simd_x86_vpand_ymm0_ymm2`.
+ * @param elf *u8
+ * @return i32
+ */
 export function simd_x86_vpand_ymm0_ymm2(elf: *u8): i32 {
   let b0: u8 = 197;
   let b1: u8 = 229;
@@ -811,6 +1047,11 @@ export function simd_x86_vpand_ymm0_ymm2(elf: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_x86_vpandn_ymm2_ymm1`.
+ * Implements `simd_x86_vpandn_ymm2_ymm1`.
+ * @param elf *u8
+ * @return i32
+ */
 export function simd_x86_vpandn_ymm2_ymm1(elf: *u8): i32 {
   let b0: u8 = 197;
   let b1: u8 = 229;
@@ -830,6 +1071,11 @@ export function simd_x86_vpandn_ymm2_ymm1(elf: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_x86_vpor_ymm0_ymm2`.
+ * Implements `simd_x86_vpor_ymm0_ymm2`.
+ * @param elf *u8
+ * @return i32
+ */
 export function simd_x86_vpor_ymm0_ymm2(elf: *u8): i32 {
   let b0: u8 = 197;
   let b1: u8 = 229;
@@ -849,6 +1095,11 @@ export function simd_x86_vpor_ymm0_ymm2(elf: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_x86_vxorps_ymm3_ymm3`.
+ * Implements `simd_x86_vxorps_ymm3_ymm3`.
+ * @param elf *u8
+ * @return i32
+ */
 export function simd_x86_vxorps_ymm3_ymm3(elf: *u8): i32 {
   let b0: u8 = 197;
   let b1: u8 = 240;
@@ -868,6 +1119,11 @@ export function simd_x86_vxorps_ymm3_ymm3(elf: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_x86_vcmpgtps_ymm2_ymm3`.
+ * Comparison/utility `simd_x86_vcmpgtps_ymm2_ymm3`.
+ * @param elf *u8
+ * @return i32
+ */
 export function simd_x86_vcmpgtps_ymm2_ymm3(elf: *u8): i32 {
   let b0: u8 = 197;
   let b1: u8 = 232;
@@ -887,6 +1143,11 @@ export function simd_x86_vcmpgtps_ymm2_ymm3(elf: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_x86_vandps_ymm0_ymm2`.
+ * Implements `simd_x86_vandps_ymm0_ymm2`.
+ * @param elf *u8
+ * @return i32
+ */
 export function simd_x86_vandps_ymm0_ymm2(elf: *u8): i32 {
   let b0: u8 = 197;
   let b1: u8 = 224;
@@ -906,6 +1167,11 @@ export function simd_x86_vandps_ymm0_ymm2(elf: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_x86_vandnps_ymm2_ymm1`.
+ * Implements `simd_x86_vandnps_ymm2_ymm1`.
+ * @param elf *u8
+ * @return i32
+ */
 export function simd_x86_vandnps_ymm2_ymm1(elf: *u8): i32 {
   let b0: u8 = 197;
   let b1: u8 = 232;
@@ -925,6 +1191,11 @@ export function simd_x86_vandnps_ymm2_ymm1(elf: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_x86_vorps_ymm0_ymm2`.
+ * Implements `simd_x86_vorps_ymm0_ymm2`.
+ * @param elf *u8
+ * @return i32
+ */
 export function simd_x86_vorps_ymm0_ymm2(elf: *u8): i32 {
   let b0: u8 = 197;
   let b1: u8 = 224;
@@ -944,6 +1215,12 @@ export function simd_x86_vorps_ymm0_ymm2(elf: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_x86_pshufd_xmm1_xmm0`.
+ * Implements `simd_x86_pshufd_xmm1_xmm0`.
+ * @param elf *u8
+ * @param imm u8
+ * @return i32
+ */
 export function simd_x86_pshufd_xmm1_xmm0(elf: *u8, imm: u8): i32 {
   let b0: u8 = 0x66;
   let b1: u8 = 0x0f;
@@ -971,15 +1248,35 @@ export function simd_x86_pshufd_xmm1_xmm0(elf: *u8, imm: u8): i32 {
 export extern "C" function backend_enc_load_rbp_to_rax_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
 export extern "C" function backend_enc_lea_rbp_to_rbx_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
 
-// G-02f-211：disp = -slot_off（lanes/esz 忽略）
+// simd_rbp_disp32: see function docblock below.
 #[no_mangle]
+/** Exported function `simd_rbp_disp32`.
+ * Implements `simd_rbp_disp32`.
+ * @param slot_off i32
+ * @param lanes i32
+ * @param esz i32
+ * @return i32
+ */
 export function simd_rbp_disp32(slot_off: i32, lanes: i32, esz: i32): i32 {
   if (slot_off < 0) { return 0; }
   return 0 - slot_off;
 }
 
-// G-02f-211：整型向量 add/sub 公共路径
+// simd_enc_try_hw_vector_iadd_isub_rbp: see function docblock below.
 #[no_mangle]
+/** Exported function `simd_enc_try_hw_vector_iadd_isub_rbp`.
+ * Implements `simd_enc_try_hw_vector_iadd_isub_rbp`.
+ * @param elf_ctx *u8
+ * @param slot_off_a i32
+ * @param slot_off_b i32
+ * @param slot_off_dst i32
+ * @param lanes i32
+ * @param esz i32
+ * @param ta i32
+ * @param cpu_features u32
+ * @param is_sub i32
+ * @return i32
+ */
 export function simd_enc_try_hw_vector_iadd_isub_rbp(elf_ctx: *u8, slot_off_a: i32, slot_off_b: i32, slot_off_dst: i32, lanes: i32, esz: i32, ta: i32, cpu_features: u32, is_sub: i32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   if (slot_off_a < 0) { return 0 - 1; }
@@ -1022,16 +1319,52 @@ export function simd_enc_try_hw_vector_iadd_isub_rbp(elf_ctx: *u8, slot_off_a: i
 }
 
 #[no_mangle]
+/** Exported function `simd_enc_try_hw_vector_iadd_rbp`.
+ * Implements `simd_enc_try_hw_vector_iadd_rbp`.
+ * @param elf_ctx *u8
+ * @param slot_off_a i32
+ * @param slot_off_b i32
+ * @param slot_off_dst i32
+ * @param lanes i32
+ * @param esz i32
+ * @param ta i32
+ * @param cpu_features u32
+ * @return i32
+ */
 export function simd_enc_try_hw_vector_iadd_rbp(elf_ctx: *u8, slot_off_a: i32, slot_off_b: i32, slot_off_dst: i32, lanes: i32, esz: i32, ta: i32, cpu_features: u32): i32 {
   return simd_enc_try_hw_vector_iadd_isub_rbp(elf_ctx, slot_off_a, slot_off_b, slot_off_dst, lanes, esz, ta, cpu_features, 0);
 }
 
 #[no_mangle]
+/** Exported function `simd_enc_try_hw_vector_isub_rbp`.
+ * Implements `simd_enc_try_hw_vector_isub_rbp`.
+ * @param elf_ctx *u8
+ * @param slot_off_a i32
+ * @param slot_off_b i32
+ * @param slot_off_dst i32
+ * @param lanes i32
+ * @param esz i32
+ * @param ta i32
+ * @param cpu_features u32
+ * @return i32
+ */
 export function simd_enc_try_hw_vector_isub_rbp(elf_ctx: *u8, slot_off_a: i32, slot_off_b: i32, slot_off_dst: i32, lanes: i32, esz: i32, ta: i32, cpu_features: u32): i32 {
   return simd_enc_try_hw_vector_iadd_isub_rbp(elf_ctx, slot_off_a, slot_off_b, slot_off_dst, lanes, esz, ta, cpu_features, 1);
 }
 
 #[no_mangle]
+/** Exported function `simd_enc_try_hw_vector_imul_rbp`.
+ * Implements `simd_enc_try_hw_vector_imul_rbp`.
+ * @param elf_ctx *u8
+ * @param slot_off_a i32
+ * @param slot_off_b i32
+ * @param slot_off_dst i32
+ * @param lanes i32
+ * @param esz i32
+ * @param ta i32
+ * @param cpu_features u32
+ * @return i32
+ */
 export function simd_enc_try_hw_vector_imul_rbp(elf_ctx: *u8, slot_off_a: i32, slot_off_b: i32, slot_off_dst: i32, lanes: i32, esz: i32, ta: i32, cpu_features: u32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   if (slot_off_a < 0) { return 0 - 1; }
@@ -1065,6 +1398,18 @@ export function simd_enc_try_hw_vector_imul_rbp(elf_ctx: *u8, slot_off_a: i32, s
 }
 
 #[no_mangle]
+/** Exported function `simd_enc_try_hw_vector_fadd_rbp`.
+ * Implements `simd_enc_try_hw_vector_fadd_rbp`.
+ * @param elf_ctx *u8
+ * @param slot_off_a i32
+ * @param slot_off_b i32
+ * @param slot_off_dst i32
+ * @param lanes i32
+ * @param esz i32
+ * @param ta i32
+ * @param cpu_features u32
+ * @return i32
+ */
 export function simd_enc_try_hw_vector_fadd_rbp(elf_ctx: *u8, slot_off_a: i32, slot_off_b: i32, slot_off_dst: i32, lanes: i32, esz: i32, ta: i32, cpu_features: u32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   if (slot_off_a < 0) { return 0 - 1; }
@@ -1085,6 +1430,18 @@ export function simd_enc_try_hw_vector_fadd_rbp(elf_ctx: *u8, slot_off_a: i32, s
 }
 
 #[no_mangle]
+/** Exported function `simd_enc_try_hw_vector_fmul_rbp`.
+ * Implements `simd_enc_try_hw_vector_fmul_rbp`.
+ * @param elf_ctx *u8
+ * @param slot_off_a i32
+ * @param slot_off_b i32
+ * @param slot_off_dst i32
+ * @param lanes i32
+ * @param esz i32
+ * @param ta i32
+ * @param cpu_features u32
+ * @return i32
+ */
 export function simd_enc_try_hw_vector_fmul_rbp(elf_ctx: *u8, slot_off_a: i32, slot_off_b: i32, slot_off_dst: i32, lanes: i32, esz: i32, ta: i32, cpu_features: u32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   if (slot_off_a < 0) { return 0 - 1; }
@@ -1105,6 +1462,19 @@ export function simd_enc_try_hw_vector_fmul_rbp(elf_ctx: *u8, slot_off_a: i32, s
 }
 
 #[no_mangle]
+/** Exported function `simd_enc_try_hw_vector_fma_rbp`.
+ * Implements `simd_enc_try_hw_vector_fma_rbp`.
+ * @param elf_ctx *u8
+ * @param slot_off_a i32
+ * @param slot_off_b i32
+ * @param slot_off_c i32
+ * @param slot_off_dst i32
+ * @param lanes i32
+ * @param esz i32
+ * @param ta i32
+ * @param cpu_features u32
+ * @return i32
+ */
 export function simd_enc_try_hw_vector_fma_rbp(elf_ctx: *u8, slot_off_a: i32, slot_off_b: i32, slot_off_c: i32, slot_off_dst: i32, lanes: i32, esz: i32, ta: i32, cpu_features: u32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   if (slot_off_a < 0) { return 0 - 1; }
@@ -1138,6 +1508,11 @@ export function simd_enc_try_hw_vector_fma_rbp(elf_ctx: *u8, slot_off_a: i32, sl
 
 // G-02f-211：xorps xmm0,xmm0
 #[no_mangle]
+/** Exported function `simd_enc_x86_xorps_xmm0_zero`.
+ * Implements `simd_enc_x86_xorps_xmm0_zero`.
+ * @param elf_ctx *u8
+ * @return i32
+ */
 export function simd_enc_x86_xorps_xmm0_zero(elf_ctx: *u8): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   unsafe {
@@ -1149,18 +1524,34 @@ export function simd_enc_x86_xorps_xmm0_zero(elf_ctx: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_enc_x86_movups_xmm1_rbp_disp`.
+ * Implements `simd_enc_x86_movups_xmm1_rbp_disp`.
+ * @param elf_ctx *u8
+ * @param disp i32
+ * @return i32
+ */
 export function simd_enc_x86_movups_xmm1_rbp_disp(elf_ctx: *u8, disp: i32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   return simd_x86_movups_xmm1_from_rbp(elf_ctx, disp);
 }
 
 #[no_mangle]
+/** Exported function `simd_enc_x86_addps_xmm0_xmm1`.
+ * Implements `simd_enc_x86_addps_xmm0_xmm1`.
+ * @param elf_ctx *u8
+ * @return i32
+ */
 export function simd_enc_x86_addps_xmm0_xmm1(elf_ctx: *u8): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   return simd_x86_addps_xmm0_xmm1(elf_ctx);
 }
 
 #[no_mangle]
+/** Exported function `simd_enc_x86_horizontal_addps_xmm0`.
+ * Implements `simd_enc_x86_horizontal_addps_xmm0`.
+ * @param elf_ctx *u8
+ * @return i32
+ */
 export function simd_enc_x86_horizontal_addps_xmm0(elf_ctx: *u8): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   // 0xee=238, 0x55=85
@@ -1171,6 +1562,12 @@ export function simd_enc_x86_horizontal_addps_xmm0(elf_ctx: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_enc_x86_movss_xmm0_rbp_disp`.
+ * Implements `simd_enc_x86_movss_xmm0_rbp_disp`.
+ * @param elf_ctx *u8
+ * @param disp i32
+ * @return i32
+ */
 export function simd_enc_x86_movss_xmm0_rbp_disp(elf_ctx: *u8, disp: i32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   let prefix: u8[3] = [];
@@ -1186,6 +1583,14 @@ export function simd_enc_x86_movss_xmm0_rbp_disp(elf_ctx: *u8, disp: i32): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_enc_f32_soa_col_movups_xmm1_at_idx`.
+ * Implements `simd_enc_f32_soa_col_movups_xmm1_at_idx`.
+ * @param elf_ctx *u8
+ * @param off_col0 i32
+ * @param off_i i32
+ * @param ta i32
+ * @return i32
+ */
 export function simd_enc_f32_soa_col_movups_xmm1_at_idx(elf_ctx: *u8, off_col0: i32, off_i: i32, ta: i32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   if (off_col0 < 0) { return 0 - 1; }
@@ -1213,6 +1618,15 @@ export extern "C" function backend_enc_lea_rbp_to_rax_arch(elf_ctx: *u8, offset:
 
 // G-02f-212：arm64 pshufd-imm8 128-bit half
 #[no_mangle]
+/** Exported function `simd_arm64_pshufd_imm8_128_rbp`.
+ * Implements `simd_arm64_pshufd_imm8_128_rbp`.
+ * @param elf_ctx *u8
+ * @param lea_src i32
+ * @param lea_dst i32
+ * @param imm8 i32
+ * @param ta i32
+ * @return i32
+ */
 export function simd_arm64_pshufd_imm8_128_rbp(elf_ctx: *u8, lea_src: i32, lea_dst: i32, imm8: i32, ta: i32): i32 {
   let re3: i32 = 0;
   unsafe { re3 = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_src, ta); }
@@ -1245,6 +1659,17 @@ export function simd_arm64_pshufd_imm8_128_rbp(elf_ctx: *u8, lea_src: i32, lea_d
 
 // G-02f-212：arm64 select 128
 #[no_mangle]
+/** Exported function `simd_arm64_select_128_rbp`.
+ * Implements `simd_arm64_select_128_rbp`.
+ * @param elf_ctx *u8
+ * @param lea_mask i32
+ * @param lea_a i32
+ * @param lea_b i32
+ * @param lea_dst i32
+ * @param is_f32 i32
+ * @param ta i32
+ * @return i32
+ */
 export function simd_arm64_select_128_rbp(elf_ctx: *u8, lea_mask: i32, lea_a: i32, lea_b: i32, lea_dst: i32, is_f32: i32, ta: i32): i32 {
   let re5: i32 = 0;
   unsafe { re5 = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_mask, ta); }
@@ -1274,6 +1699,11 @@ export function simd_arm64_select_128_rbp(elf_ctx: *u8, lea_mask: i32, lea_a: i3
 
 // G-02f-212：select seq
 #[no_mangle]
+/** Exported function `simd_enc_emit_i32_select_xmm_seq`.
+ * Implements `simd_enc_emit_i32_select_xmm_seq`.
+ * @param elf_ctx *u8
+ * @return i32
+ */
 export function simd_enc_emit_i32_select_xmm_seq(elf_ctx: *u8): i32 {
   if (simd_x86_pxor_xmm3_xmm3(elf_ctx) != 0) { return 0 - 1; }
   if (simd_x86_pcmpgtd_xmm2_xmm3(elf_ctx) != 0) { return 0 - 1; }
@@ -1284,6 +1714,11 @@ export function simd_enc_emit_i32_select_xmm_seq(elf_ctx: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_enc_emit_f32_select_xmm_seq`.
+ * Implements `simd_enc_emit_f32_select_xmm_seq`.
+ * @param elf_ctx *u8
+ * @return i32
+ */
 export function simd_enc_emit_f32_select_xmm_seq(elf_ctx: *u8): i32 {
   if (simd_x86_xorps_xmm3_xmm3(elf_ctx) != 0) { return 0 - 1; }
   if (simd_x86_cmpgtps_xmm2_xmm3(elf_ctx) != 0) { return 0 - 1; }
@@ -1294,6 +1729,11 @@ export function simd_enc_emit_f32_select_xmm_seq(elf_ctx: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_enc_emit_i32_select_ymm_seq`.
+ * Implements `simd_enc_emit_i32_select_ymm_seq`.
+ * @param elf_ctx *u8
+ * @return i32
+ */
 export function simd_enc_emit_i32_select_ymm_seq(elf_ctx: *u8): i32 {
   if (simd_x86_vpxor_ymm3_ymm3(elf_ctx) != 0) { return 0 - 1; }
   if (simd_x86_vpcmpgtd_ymm2_ymm3(elf_ctx) != 0) { return 0 - 1; }
@@ -1304,6 +1744,11 @@ export function simd_enc_emit_i32_select_ymm_seq(elf_ctx: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `simd_enc_emit_f32_select_ymm_seq`.
+ * Implements `simd_enc_emit_f32_select_ymm_seq`.
+ * @param elf_ctx *u8
+ * @return i32
+ */
 export function simd_enc_emit_f32_select_ymm_seq(elf_ctx: *u8): i32 {
   if (simd_x86_vxorps_ymm3_ymm3(elf_ctx) != 0) { return 0 - 1; }
   if (simd_x86_vcmpgtps_ymm2_ymm3(elf_ctx) != 0) { return 0 - 1; }
@@ -1315,6 +1760,21 @@ export function simd_enc_emit_f32_select_ymm_seq(elf_ctx: *u8): i32 {
 
 // G-02f-212：indexed binop
 #[no_mangle]
+/** Exported function `simd_enc_try_hw_vector_binop_rbp_at_idx`.
+ * Implements `simd_enc_try_hw_vector_binop_rbp_at_idx`.
+ * @param elf_ctx *u8
+ * @param off_a i32
+ * @param off_b i32
+ * @param off_d i32
+ * @param off_i i32
+ * @param array_n i32
+ * @param binop_ko i32
+ * @param lanes i32
+ * @param esz i32
+ * @param ta i32
+ * @param cpu_features u32
+ * @return i32
+ */
 export function simd_enc_try_hw_vector_binop_rbp_at_idx(elf_ctx: *u8, off_a: i32, off_b: i32, off_d: i32, off_i: i32, array_n: i32, binop_ko: i32, lanes: i32, esz: i32, ta: i32, cpu_features: u32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   if (off_a < 0) { return 0 - 1; }
@@ -1383,6 +1843,17 @@ export function simd_enc_try_hw_vector_binop_rbp_at_idx(elf_ctx: *u8, off_a: i32
 
 // G-02f-212：pshufd rbp
 #[no_mangle]
+/** Exported function `simd_enc_try_pshufd_rbp`.
+ * Implements `simd_enc_try_pshufd_rbp`.
+ * @param elf_ctx *u8
+ * @param slot_off_src i32
+ * @param slot_off_dst i32
+ * @param imm8 i32
+ * @param lanes i32
+ * @param ta i32
+ * @param cpu_features u32
+ * @return i32
+ */
 export function simd_enc_try_pshufd_rbp(elf_ctx: *u8, slot_off_src: i32, slot_off_dst: i32, imm8: i32, lanes: i32, ta: i32, cpu_features: u32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   if (slot_off_src < 0) { return 0 - 1; }
@@ -1428,6 +1899,19 @@ export function simd_enc_try_pshufd_rbp(elf_ctx: *u8, slot_off_src: i32, slot_of
 
 // G-02f-212：select rbp
 #[no_mangle]
+/** Exported function `simd_enc_try_hw_vector_select_rbp`.
+ * Implements `simd_enc_try_hw_vector_select_rbp`.
+ * @param elf_ctx *u8
+ * @param slot_off_mask i32
+ * @param slot_off_a i32
+ * @param slot_off_b i32
+ * @param slot_off_dst i32
+ * @param lanes i32
+ * @param is_f32 i32
+ * @param ta i32
+ * @param cpu_features u32
+ * @return i32
+ */
 export function simd_enc_try_hw_vector_select_rbp(elf_ctx: *u8, slot_off_mask: i32, slot_off_a: i32, slot_off_b: i32, slot_off_dst: i32, lanes: i32, is_f32: i32, ta: i32, cpu_features: u32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   if (slot_off_mask < 0) { return 0 - 1; }

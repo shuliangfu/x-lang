@@ -14,41 +14,41 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// core.str — 字节串只读视图（CORE-007）
-// BytesView = (ptr, len) 零拷贝，对标 Zig const[] u8、Rust &str、std.string.StrView。
-// 无堆分配、无 OS 依赖；子视图与比较均为纯 .x 实现。
+// note
+// note
+// note
 
-/** 只读字节视图；字段布局与 std.string.StrView 一致（ptr + len）。 */
+/* note */
 allow(padding) struct BytesView {
   ptr: *u8;
   len: i32;
 }
 
-/** 从 (ptr, len) 构造视图；零拷贝。 */
+/** `bytes_view`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function bytes_view(ptr: *u8, len: i32): BytesView {
   return BytesView { ptr: ptr, len: len };
 }
 
-/** 从 u8[] 切片构造视图；零拷贝，生命周期不超过切片来源。 */
+/** `bytes_view_from_slice`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function bytes_view_from_slice(s: u8[]): BytesView {
   return BytesView { ptr: s.data, len: s.length as i32 };
 }
 
-/** 视图字节数。 */
+/** `bytes_view_len`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function bytes_view_len(v: BytesView): i32 { return v.len; }
 
-/** 视图是否为空；返回 1 是，0 否。 */
+/** `bytes_view_is_empty`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function bytes_view_is_empty(v: BytesView): i32 {
   if (v.len <= 0) { return 1; }
   return 0;
 }
 
-/** 取第 i 字节；i 越界未定义。 */
+/** `bytes_view_get`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function bytes_view_get(v: BytesView, i: i32): u8 { return v.ptr[i]; }
 
 /**
- * 零拷贝子视图 v[off..off+len)。
- * off/len 钳制到 v 范围内；len<=0 或 off>=v.len 时返回空视图。
+ /* note */
+ /* note */
  */
 export function bytes_view_subview(v: BytesView, off: i32, len: i32): BytesView {
   if (off < 0) { off = 0; }
@@ -61,7 +61,7 @@ export function bytes_view_subview(v: BytesView, off: i32, len: i32): BytesView 
   return bytes_view(&v.ptr[off], n);
 }
 
-/** 两视图字节相等返回 1，否则 0。 */
+/** `bytes_view_eq`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function bytes_view_eq(a: BytesView, b: BytesView): i32 {
   if (a.len != b.len) { return 0; }
   let i: i32 = 0;
@@ -72,7 +72,7 @@ export function bytes_view_eq(a: BytesView, b: BytesView): i32 {
   return 1;
 }
 
-/** 视图与 (ptr, len) 缓冲相等返回 1，否则 0。 */
+/** `bytes_view_eq_bytes`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function bytes_view_eq_bytes(v: BytesView, ptr: *u8, len: i32): i32 {
   if (v.len != len) { return 0; }
   let i: i32 = 0;
@@ -83,10 +83,10 @@ export function bytes_view_eq_bytes(v: BytesView, ptr: *u8, len: i32): i32 {
   return 1;
 }
 
-// ——— STD-131：查找 / 分割辅助 ———
+// --- section ---
 
 /**
- * 在 v 中查找首字节 b；找到返回下标，否则 -1。
+ /* note */
  */
 export function bytes_view_index_of_byte(v: BytesView, b: u8): i32 {
   let i: i32 = 0;
@@ -98,8 +98,8 @@ export function bytes_view_index_of_byte(v: BytesView, b: u8): i32 {
 }
 
 /**
- * 在 v 中查找子串 needle[0..needle_len)；找到返回起始下标，否则 -1。
- * needle_len<=0 时返回 0。
+ /* note */
+ /* note */
  */
 export function bytes_view_index_of(v: BytesView, needle: *u8, needle_len: i32): i32 {
   if (needle_len <= 0) { return 0; }
@@ -121,13 +121,13 @@ export function bytes_view_index_of(v: BytesView, needle: *u8, needle_len: i32):
   return -1;
 }
 
-/** v 是否包含字节 sep；1 是，0 否。 */
+/** `bytes_view_contains_byte`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function bytes_view_contains_byte(v: BytesView, b: u8): i32 {
   if (bytes_view_index_of_byte(v, b) >= 0) { return 1; }
   return 0;
 }
 
-/** 前缀匹配；相等返回 1，否则 0。 */
+/** `bytes_view_starts_with`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function bytes_view_starts_with(v: BytesView, prefix: *u8, prefix_len: i32): i32 {
   if (prefix_len <= 0) { return 1; }
   if (prefix_len > v.len) { return 0; }

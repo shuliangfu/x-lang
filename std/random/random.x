@@ -14,14 +14,17 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std/random/random.x — CSPRNG 非 OS 逻辑（F-random v1；替代 random.c 主体）
+// See implementation.
 //
-// 【文件职责】random_u32/u64、SplitMix64 PRNG 烟测；OS fill 见 runtime_random_fill.inc（compiler）。
+// See implementation.
 
-/** OS 胶层：密码学安全随机字节。 */
+/* See implementation. */
 extern function random_fill_bytes_c(buf: *u8, len: i32): i32;
 
-/** 生成密码学安全 u32；失败返回 0。 */
+/** Exported function `random_u32_c`.
+ * Implements `random_u32_c`.
+ * @return u32
+ */
 export function random_u32_c(): u32 {
   let buf: u8[4] = [0, 0, 0, 0];
   unsafe { if (random_fill_bytes_c(&buf[0], 4) != 4) { return 0 as u32; } }
@@ -31,7 +34,10 @@ export function random_u32_c(): u32 {
     | ((buf[3] as u32) << 24);
 }
 
-/** 生成密码学安全 u64；失败返回 0。 */
+/** Exported function `random_u64_c`.
+ * Implements `random_u64_c`.
+ * @return u64
+ */
 export function random_u64_c(): u64 {
   let buf: u8[8] = [0, 0, 0, 0, 0, 0, 0, 0];
   unsafe { if (random_fill_bytes_c(&buf[0], 8) != 8) { return 0 as u64; } }
@@ -45,12 +51,16 @@ export function random_u64_c(): u64 {
     | ((buf[7] as u64) << 56);
 }
 
-/** PRNG 状态（SplitMix64 烟测用）。 */
+/* See implementation. */
 allow(padding) struct RngC {
   state: u64
 }
 
-/** SplitMix64 单步。 */
+/** Exported function `random_rng_next_u64`.
+ * Implements `random_rng_next_u64`.
+ * @param r *RngC
+ * @return u64
+ */
 export function random_rng_next_u64(r: *RngC): u64 {
   let z: u64 = r.state + 0x9e3779b97f4a7c15 as u64;
   r.state = z;
@@ -64,7 +74,10 @@ export function random_rng_next_u64(r: *RngC): u64 {
   return z ^ t;
 }
 
-/** STD-130 PRNG 烟测；0 成功。 */
+/** Exported function `random_rng_smoke_c`.
+ * Implements `random_rng_smoke_c`.
+ * @return i32
+ */
 export function random_rng_smoke_c(): i32 {
   let a: RngC = RngC { state: 0 };
   let b: RngC = RngC { state: 0 };

@@ -1,4 +1,8 @@
-// SIMD-S3 烟测：Vec4f local VAR+VAR mul 应走 mulps（非 4 次标量 mul）。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: Vec4f = [2.0, 2.0, 2.0, 2.0];
   let b: Vec4f = [3.0, 3.0, 3.0, 3.0];

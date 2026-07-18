@@ -1,4 +1,8 @@
-// mem_copy.x — 性能基线：memcpy 风格循环（while BCE + 8192 rounds）
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let buf: u8[4096] = [];
   let sum: i32 = 0;

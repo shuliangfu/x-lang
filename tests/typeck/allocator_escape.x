@@ -1,6 +1,10 @@
-// MEM-AUTO-005 负例：scope_allocator 不得在 with_arena 块外调用。
+// See implementation.
 const heap = import("std.heap");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let al: Allocator = heap.scope_alloc();
   return al.kind;

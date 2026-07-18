@@ -1,8 +1,12 @@
-// STD-072：std.bytes append/reader/writer/view/buffer round-trip 烟测
+// See implementation.
 const bytes = import("std.bytes");
 const string = import("std.string");
 const mem = import("std.mem");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let b: Bytes = bytes.new();
   let abc: u8[3] = [65, 66, 67];

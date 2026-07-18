@@ -1,9 +1,13 @@
-// run_async_arg2_err.x — run v2：实参个数与形参不匹配应被 typeck 拒绝
+// See implementation.
 async function add_two(a: i32, b: i32): i32 {
   let x: i32 = await a;
   return x + b;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   return run add_two(1);
 }

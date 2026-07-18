@@ -1,5 +1,9 @@
-// STD-058：ELF64 文件头烟测（金样前 64 字节）
+// See implementation.
 const elf = import("std.elf");
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let blob: u8[64] = [
     127, 69, 76, 70, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,

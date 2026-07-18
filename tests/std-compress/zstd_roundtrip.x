@@ -1,6 +1,10 @@
-// STD-007：zstd 压缩→解压往返（未链 libzstd 时 n_zst<=0 仍通过）
+// See implementation.
 const compress = import("std.compress");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let raw: u8[12] = [90, 115, 116, 100, 46, 99, 111, 109, 112, 114, 101, 115];
   let out_buf: u8[256] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];

@@ -1,10 +1,14 @@
-// tests/base64/main.x — std.base64 全面 + 边界测试
-// 覆盖：encode_standard/decode_standard、encode_url/decode_url 往返；边界：空、1/2/3
-// 字节、缓冲不足、非法字符。
-// 【asm -o】各用例独立 out/dec 缓冲，避免 co-emit 复用栈槽在检查前被后续 encode 覆盖。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 
 const base64 = import("std.base64");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let src: u8[8] = [77, 97, 110, 0, 0, 0, 0, 0];
   let out_man: u8[16] = [];

@@ -1,4 +1,8 @@
-// Parser smoke: with_arena 内连续 5 条 if 须全部落 AST。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   with_arena(65536 as usize) {
     if (1 != 0) {

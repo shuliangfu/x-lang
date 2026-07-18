@@ -1,5 +1,9 @@
-// tests/http/methods_status.x — STD-032 HTTP 方法 + parse_status_line 烟测
+// See implementation.
 const http = import("std.http");
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (http.method(http.method(0)) != 0) { return 10; }
   if (http.method(http.method(1)) != 1) { return 11; }

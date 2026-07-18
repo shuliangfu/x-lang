@@ -1,6 +1,10 @@
-// 负例：import 调用直接 return 时，除 expected/found 外还应带出错子表达式面包屑。
+// See implementation.
 const result = import("core.result");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   return result.ok_i32(1);
 }

@@ -1,4 +1,8 @@
-// 7.3：if 汇合仅 kill 写槽 a，return a+b 应复用 rbx 中 b（run-asm-binop-cfg-merge.sh ldur 门禁）。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32 = 1;
   let b: i32 = 2;

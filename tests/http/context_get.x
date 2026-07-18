@@ -1,11 +1,15 @@
-// STD-094：std.http get_ctx/post_ctx/head_ctx + Context 烟测（离线，不依赖真实网络）
+// See implementation.
 const http = import("std.http");
 const context = import("std.context");
 const err = import("std.error");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let bg: Context = context.background();
-  // "http://x/" — 仅用于参数占位，取消/过期路径不会真正建连
+  // See implementation.
   let url: u8[11] = [104, 116, 116, 112, 58, 47, 47, 120, 47, 0, 0];
   let buf: u8[8] = [0, 0, 0, 0, 0, 0, 0, 0];
   let body: u8[1] = [0];

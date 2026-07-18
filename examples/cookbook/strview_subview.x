@@ -1,8 +1,12 @@
 /**
- * Cookbook STR-01：StrView 零拷贝 subview（STD-016 / ZC-4）。
+ * See implementation.
  */
 const string = import("std.string");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let buf: u8[8] = [97, 98, 99, 100, 101, 102, 103, 0];
   let full: StrView = string.view(&buf[0], 7);

@@ -1,9 +1,18 @@
-// vec_add4_call_inline.x — let c = vec_add4(a,b) 应逐 lane 内联，_main 无 bl
-/** 两形参向量加法，供 CALL 内联 fold。 */
+// See implementation.
+/** Internal function `vec_add4`.
+ * Implements `vec_add4`.
+ * @param a i32x4
+ * @param b i32x4
+ * @return i32x4
+ */
 function vec_add4(a: i32x4, b: i32x4): i32x4 {
   return a + b;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32x4 = [1, 2, 3, 4];
   let b: i32x4 = [10, 20, 30, 40];

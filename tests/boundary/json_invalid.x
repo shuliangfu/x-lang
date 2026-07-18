@@ -1,6 +1,10 @@
-// boundary/json_invalid.x — 非法 JSON 须解析失败（退出码 1）
+// See implementation.
 const json = import("std.json");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let consumed: i32 = 0;
   let bad: u8[4] = [123, 125, 125, 0];

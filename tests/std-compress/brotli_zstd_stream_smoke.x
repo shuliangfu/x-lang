@@ -1,7 +1,11 @@
-// STD-136 / #81：brotli / zstd 统一流式 API 分块往返（未链库时 skip exit 0）
+// See implementation.
 const compress = import("std.compress");
 
-/** 单格式流式往返；init 失败返回 0（skip），失败返回正错误码。 */
+/** Internal function `stream_roundtrip_format`.
+ * Implements `stream_roundtrip_format`.
+ * @param format i32
+ * @return i32
+ */
 function stream_roundtrip_format(format: i32): i32 {
   let raw: u8[8] = [115, 116, 114, 101, 97, 109, 33, 0];
   let raw_len: i32 = 7;
@@ -52,6 +56,10 @@ function stream_roundtrip_format(format: i32): i32 {
   return 0;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let br: i32 = stream_roundtrip_format(compress.format_brotli());
   if (br != 0) { return 10 + br; }

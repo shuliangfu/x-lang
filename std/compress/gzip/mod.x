@@ -14,50 +14,82 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.compress.gzip — gzip 块压缩/解压与流式 API（STD-039 / STD-122）
+// See implementation.
 //
-// 【文件职责】.gz 块 API、gzip_stream_*、StreamCompress 统一门面。
-// 【依赖】libz（F-04 v5 libz.x）；runtime 按需 -lz。
+// See implementation.
+// See implementation.
 const libz = import("std.compress.gzip.libz");
 
-/** 压缩为 gzip 格式（.gz），返回写入字节数，失败 -1。 */
+/** Exported function `gzip_compress`.
+ * Implements `gzip_compress`.
+ * @param in *u8
+ * @param in_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function gzip_compress(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
   return libz.compress_gzip_compress_c(in, in_len, out, out_cap);
 }
 
-/** 解压 gzip 流，返回写入字节数，失败 -1。 */
+/** Exported function `gzip_decompress`.
+ * Implements `gzip_decompress`.
+ * @param in *u8
+ * @param in_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function gzip_decompress(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
   return libz.compress_gzip_decompress_c(in, in_len, out, out_cap);
 }
 
-/** gzip 流状态缓冲最小字节数（STD-039）。 */
+/** Exported function `gzip_stream_state_bytes`.
+ * Implements `gzip_stream_state_bytes`.
+ * @return i32
+ */
 export function gzip_stream_state_bytes(): i32 {
   return libz.compress_gzip_stream_state_bytes_c();
 }
 
-/** 初始化 gzip 压缩流；成功 0，未链 libz 时 -1。 */
+/** Exported function `gzip_stream_init_compress`.
+ * Implements `gzip_stream_init_compress`.
+ * @param state *u8
+ * @param state_cap i32
+ * @return i32
+ */
 export function gzip_stream_init_compress(state: *u8, state_cap: i32): i32 {
   return libz.compress_gzip_stream_init_compress_c(state, state_cap);
 }
 
-/** 初始化 gzip 解压流；成功 0，未链 libz 时 -1。 */
+/** Exported function `gzip_stream_init_decompress`.
+ * Implements `gzip_stream_init_decompress`.
+ * @param state *u8
+ * @param state_cap i32
+ * @return i32
+ */
 export function gzip_stream_init_decompress(state: *u8, state_cap: i32): i32 {
   return libz.compress_gzip_stream_init_decompress_c(state, state_cap);
 }
 
-/** 分块 gzip 压缩；is_last≠0 时对末块 Z_FINISH。 */
+/* See implementation. */
 export function gzip_stream_compress(state: *u8, state_cap: i32, inp: *u8, in_len: i32, out: *u8, out_cap: i32,
   is_last: i32, in_consumed: *i32): i32 {
   return libz.compress_gzip_stream_compress_c(state, state_cap, inp, in_len, out, out_cap, is_last, in_consumed);
 }
 
-/** 分块 gzip 解压。 */
+/* See implementation. */
 export function gzip_stream_decompress(state: *u8, state_cap: i32, inp: *u8, in_len: i32, out: *u8, out_cap: i32,
   in_consumed: *i32): i32 {
   return libz.compress_gzip_stream_decompress_c(state, state_cap, inp, in_len, out, out_cap, in_consumed);
 }
 
-/** 释放 gzip 流底层 z_stream。 */
+/** Exported function `gzip_stream_end`.
+ * Implements `gzip_stream_end`.
+ * @param state *u8
+ * @param state_cap i32
+ * @return i32
+ */
 export function gzip_stream_end(state: *u8, state_cap: i32): i32 {
   return libz.compress_gzip_stream_end_c(state, state_cap);
 }

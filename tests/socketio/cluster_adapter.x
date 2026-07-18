@@ -1,8 +1,12 @@
 /**
- * STD-SOCKETIO-001 烟测：内存 cluster adapter v14（Redis adapter 接口占位）。
+ * See implementation.
  */
 const sio = import("std.socketio");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (sio.cluster_adapter_smoke() != 0) {
     return 1;

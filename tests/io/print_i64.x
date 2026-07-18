@@ -1,6 +1,10 @@
-// 测试 std.io.print：向标准输出打印 64 位整数
+// See implementation.
 const io = import("std.io");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let n: i32 = io.print(123);
   return n;

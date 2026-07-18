@@ -1,6 +1,7 @@
-// 第一种：行注释
-# 第二种：井号行注释（此处仅作注释，非预处理指令）
-/** 第三种：块注释（可多行）
-* 此处为注释内容
-**/
+// See implementation.
+# Second form: hash line comment (comment only, not a preprocessor directive)
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 { return 0; }

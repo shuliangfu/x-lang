@@ -14,21 +14,19 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// verify.x — SHIR 层独立验证器
+// verify.x — SHIR-layer independent verifier
 //
-// 模块：ir/shir
-// 层级：SHIR
-// Phase：Phase 1
-// 职责：
-//   - SHIR 层契约一致性检查（lowering 后立即验证）
-//   - 高层结构完整性（Pattern 穷尽性 / Coroutine 状态机闭合性）
-//   - 泛型特化后的类型一致性
-//   - debug_loc 源码位置完整性
-// 依赖：../inst / ../contract / ../effect / ../verify
-// 设计约束：
-//   - 验证失败 = 编译器 bug，直接 panic 报告不一致点
-//   - 不生成错误代码（fail-fast）
-//   - 与 ../verify.x（三步检查）协同：本文件做 SHIR 特定检查，../verify.x 做通用契约检查
+// Module: ir/shir
+// Layer: SHIR
+// Phase: Phase 1
+// Responsibility:
+//   - SHIR contract consistency checks after lowering
+//   - High-level structure integrity; type consistency after monomorphization
+//   - debug_loc source-location completeness
+// Depends: ../inst / ../contract / ../effect / ../verify
+// Design constraints:
+//   - Verification failure = compiler bug; panic
+//   - Coordinates with ../verify.x for general contract checks
 //
-// 参考文档：analysis/IR核心设计.md §1.3（契约验证机制）/ §2.2（SHIR 职责）
-// 架构状态：v4.0 Architecture Freeze — 实现骨架，待 Phase 1 填充
+// Ref: analysis IR core design §1.3 (contract verification) / §2.2 (SHIR duties)
+// Status: v4.0 Architecture Freeze — implementation skeleton; fill in Phase 1

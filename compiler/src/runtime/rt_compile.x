@@ -167,6 +167,12 @@ export function driver_deps_are_std_core_closure_only(dep_paths: **u8, n_deps: i
 }
 
 #[no_mangle]
+/** Exported function `driver_x_emit_asm_dep_parse_only_ok`.
+ * Implements `driver_x_emit_asm_dep_parse_only_ok`.
+ * @param input_path *u8
+ * @param dep_path *u8
+ * @return i32
+ */
 export function driver_x_emit_asm_dep_parse_only_ok(input_path: *u8, dep_path: *u8): i32 {
   let n_asm: *u8 = 0 as *u8;
   let n_asm2: *u8 = 0 as *u8;
@@ -224,6 +230,11 @@ export function driver_x_emit_asm_dep_parse_only_ok(input_path: *u8, dep_path: *
 }
 
 #[no_mangle]
+/** Exported function `driver_x_emit_asm_direct_import_only`.
+ * Implements `driver_x_emit_asm_direct_import_only`.
+ * @param input_path *u8
+ * @return i32
+ */
 export function driver_x_emit_asm_direct_import_only(input_path: *u8): i32 {
   let a1: *u8 = 0 as *u8;
   let a2: *u8 = 0 as *u8;
@@ -254,6 +265,12 @@ export function driver_x_emit_asm_direct_import_only(input_path: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `driver_x_emit_asm_dep_parse_skip_typeck_ok`.
+ * Implements `driver_x_emit_asm_dep_parse_skip_typeck_ok`.
+ * @param input_path *u8
+ * @param dep_path *u8
+ * @return i32
+ */
 export function driver_x_emit_asm_dep_parse_skip_typeck_ok(input_path: *u8, dep_path: *u8): i32 {
   let be: *u8 = 0 as *u8;
   if (driver_x_emit_asm_direct_import_only(input_path) == 0) {
@@ -272,6 +289,13 @@ export function driver_x_emit_asm_dep_parse_skip_typeck_ok(input_path: *u8, dep_
 }
 
 #[no_mangle]
+/** Exported function `driver_compile_argv_copy_path_c`.
+ * Implements `driver_compile_argv_copy_path_c`.
+ * @param state *RtCompileState
+ * @param arg_buf *u8
+ * @param plen i32
+ * @return void
+ */
 export function driver_compile_argv_copy_path_c(state: *RtCompileState, arg_buf: *u8, plen: i32): void {
   let k: i32 = 0;
   let n: i32 = 0;
@@ -297,6 +321,11 @@ export function driver_compile_argv_copy_path_c(state: *RtCompileState, arg_buf:
 }
 
 #[no_mangle]
+/** Exported function `driver_compile_argv_set_use_freestanding_c`.
+ * Memory management helper `driver_compile_argv_set_use_freestanding_c`.
+ * @param state *RtCompileState
+ * @return void
+ */
 export function driver_compile_argv_set_use_freestanding_c(state: *RtCompileState): void {
   if (state == 0 as *RtCompileState) {
     return;
@@ -309,6 +338,10 @@ export function driver_compile_argv_set_use_freestanding_c(state: *RtCompileStat
 }
 
 #[no_mangle]
+/** Exported function `driver_compile_argv_set_legacy_f32_abi_c`.
+ * Implements `driver_compile_argv_set_legacy_f32_abi_c`.
+ * @return void
+ */
 export function driver_compile_argv_set_legacy_f32_abi_c(): void {
   let name: *u8 = 0 as *u8;
   let val: *u8 = 0 as *u8;
@@ -320,6 +353,10 @@ export function driver_compile_argv_set_legacy_f32_abi_c(): void {
 }
 
 #[no_mangle]
+/** Exported function `driver_compile_argv_set_sanitize_address_c`.
+ * Implements `driver_compile_argv_set_sanitize_address_c`.
+ * @return void
+ */
 export function driver_compile_argv_set_sanitize_address_c(): void {
   unsafe {
     driver_sanitize_address_set(1);
@@ -404,6 +441,13 @@ export function driver_compile_argv_is_help_c(argc: i32, argv: **u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `driver_compile_append_lib_root_c`.
+ * Implements `driver_compile_append_lib_root_c`.
+ * @param state *RtCompileState
+ * @param path *u8
+ * @param len i32
+ * @return void
+ */
 export function driver_compile_append_lib_root_c(state: *RtCompileState, path: *u8, len: i32): void {
   if (state == 0 as *RtCompileState) {
     return;
@@ -420,6 +464,11 @@ export function driver_compile_append_lib_root_c(state: *RtCompileState, path: *
 }
 
 #[no_mangle]
+/** Exported function `driver_compile_ensure_default_lib_c`.
+ * Implements `driver_compile_ensure_default_lib_c`.
+ * @param key *u8
+ * @return void
+ */
 export function driver_compile_ensure_default_lib_c(key: *u8): void {
   let ch: u8 = 46;
   if (key == 0 as *u8) {
@@ -433,6 +482,11 @@ export function driver_compile_ensure_default_lib_c(key: *u8): void {
 }
 
 #[no_mangle]
+/** Exported function `driver_compile_parse_argv_init_c`.
+ * Implements `driver_compile_parse_argv_init_c`.
+ * @param state *RtCompileState
+ * @return void
+ */
 export function driver_compile_parse_argv_init_c(state: *RtCompileState): void {
   if (state == 0 as *RtCompileState) {
     return;
@@ -463,6 +517,10 @@ export function driver_compile_parse_argv_init_c(state: *RtCompileState): void {
 }
 
 #[no_mangle]
+/** Function `driver_compile_argv_apply_minus_o_next_c`.
+ * Purpose: implements `driver_compile_argv_apply_minus_o_next_c`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function driver_compile_argv_apply_minus_o_next_c(
   state: *RtCompileState, argc: i32, argv: **u8, i: i32): void {
   let olen: i32 = 0;
@@ -481,6 +539,10 @@ export function driver_compile_argv_apply_minus_o_next_c(
 }
 
 #[no_mangle]
+/** Function `driver_compile_argv_apply_minus_L_next_c`.
+ * Purpose: implements `driver_compile_argv_apply_minus_L_next_c`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function driver_compile_argv_apply_minus_L_next_c(
   state: *RtCompileState, argc: i32, argv: **u8, i: i32, arg_buf: *u8, arg_cap: i32): void {
   let llen: i32 = 0;
@@ -505,6 +567,10 @@ export function driver_compile_argv_apply_minus_L_next_c(
 }
 
 #[no_mangle]
+/** Function `driver_compile_argv_apply_minus_O_next_c`.
+ * Purpose: implements `driver_compile_argv_apply_minus_O_next_c`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function driver_compile_argv_apply_minus_O_next_c(
   state: *RtCompileState, argc: i32, argv: **u8, i: i32): void {
   let olen: i32 = 0;
@@ -523,6 +589,10 @@ export function driver_compile_argv_apply_minus_O_next_c(
 }
 
 #[no_mangle]
+/** Function `driver_compile_argv_apply_backend_next_c`.
+ * Purpose: implements `driver_compile_argv_apply_backend_next_c`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function driver_compile_argv_apply_backend_next_c(
   state: *RtCompileState, argc: i32, argv: **u8, i: i32, arg_buf: *u8, arg_cap: i32): void {
   let vlen: i32 = 0;
@@ -556,6 +626,10 @@ export function driver_compile_argv_apply_backend_next_c(
 }
 
 #[no_mangle]
+/** Function `driver_compile_argv_apply_target_next_c`.
+ * Purpose: implements `driver_compile_argv_apply_target_next_c`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function driver_compile_argv_apply_target_next_c(
   state: *RtCompileState, argc: i32, argv: **u8, i: i32): void {
   let tlen: i32 = 0;
@@ -580,6 +654,10 @@ export function driver_compile_argv_apply_target_next_c(
 }
 
 #[no_mangle]
+/** Function `driver_compile_argv_apply_target_cpu_next_c`.
+ * Purpose: implements `driver_compile_argv_apply_target_cpu_next_c`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function driver_compile_argv_apply_target_cpu_next_c(
   state: *RtCompileState, argc: i32, argv: **u8, i: i32): void {
   let tlen: i32 = 0;
@@ -599,6 +677,10 @@ export function driver_compile_argv_apply_target_cpu_next_c(
 }
 
 #[no_mangle]
+/** Function `driver_compile_parse_argv_step_c`.
+ * Purpose: implements `driver_compile_parse_argv_step_c`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function driver_compile_parse_argv_step_c(
   argc: i32, argv: **u8, state: *RtCompileState, i: i32, arg_buf: *u8, arg_cap: i32): i32 {
   let len: i32 = 0;
@@ -762,6 +844,11 @@ export function driver_compile_parse_argv_scan_c(argc: i32, argv: **u8, state: *
 }
 
 #[no_mangle]
+/** Exported function `driver_compile_resolve_target_cpu_c`.
+ * Implements `driver_compile_resolve_target_cpu_c`.
+ * @param state *RtCompileState
+ * @return void
+ */
 export function driver_compile_resolve_target_cpu_c(state: *RtCompileState): void {
   let spec: *u8 = 0 as *u8;
   let spec_len: usize = 0 as usize;
@@ -795,6 +882,11 @@ export function driver_compile_resolve_target_cpu_c(state: *RtCompileState): voi
 }
 
 #[no_mangle]
+/** Exported function `cfg_sync_compile_target_from_state_c`.
+ * Implements `cfg_sync_compile_target_from_state_c`.
+ * @param state *u8
+ * @return void
+ */
 export function cfg_sync_compile_target_from_state_c(state: *u8): void {
   let st: *RtCompileState = 0 as *RtCompileState;
   if (state == 0 as *u8) {
@@ -818,6 +910,13 @@ export function cfg_sync_compile_target_from_state_c(state: *u8): void {
 }
 
 #[no_mangle]
+/** Exported function `driver_compile_parse_argv_impl_c`.
+ * Implements `driver_compile_parse_argv_impl_c`.
+ * @param argc i32
+ * @param argv **u8
+ * @param state *RtCompileState
+ * @return i32
+ */
 export function driver_compile_parse_argv_impl_c(argc: i32, argv: **u8, state: *RtCompileState): i32 {
   if (argc < 2) {
     return 1;
@@ -843,6 +942,10 @@ export function driver_compile_parse_argv_impl_c(argc: i32, argv: **u8, state: *
 }
 
 #[no_mangle]
+/** Exported function `driver_compile_state_alloc_c`.
+ * Memory management helper `driver_compile_state_alloc_c`.
+ * @return *RtCompileState
+ */
 export function driver_compile_state_alloc_c(): *RtCompileState {
   let state: *RtCompileState = 0 as *RtCompileState;
   let p: *u8 = 0 as *u8;
@@ -864,6 +967,11 @@ export function driver_compile_state_alloc_c(): *RtCompileState {
 }
 
 #[no_mangle]
+/** Exported function `driver_compile_state_free_c`.
+ * Memory management helper `driver_compile_state_free_c`.
+ * @param state *RtCompileState
+ * @return void
+ */
 export function driver_compile_state_free_c(state: *RtCompileState): void {
   if (state == 0 as *RtCompileState) {
     return;

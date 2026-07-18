@@ -14,21 +14,21 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// regalloc.x — region-based Coloring 寄存器分配
+// regalloc.x — region-based coloring register allocation
 //
-// 模块：ir/mir
-// 层级：Target MIR
-// Phase：Phase 6
-// 职责：
-//   - region-based Coloring 算法（结合 region 生存期信息）
-//   - 干涉图构建（VReg 生存期重叠即干涉）
-//   - 图着色分配物理寄存器
-//   - 着色失败触发 spilling（交给 spill.x）
-// 依赖：../vmir/machine_inst / ../target
-// 设计约束：
-//   - region 生存期信息提升分配精度（Arena 粒度，比传统生存期分析精确）
-//   - 分配必须保持语义（VReg → PReg 映射不改变程序行为）
-//   - 确定性：相同干涉图相同分配结果
+// Module: ir/mir
+// Layer: Target MIR
+// Phase: Phase 6
+// Responsibility:
+//   - Region-based coloring algorithm (uses region live-range info)
+//   - Interference graph construction (overlapping VReg live ranges → interfere)
+//   - Graph coloring to assign physical registers
+//   - Coloring failure triggers spilling (delegated to spill.x)
+// Depends: ../vmir/machine_inst / ../target
+// Design constraints:
+//   - Region live ranges improve allocation precision (Arena grain)
+//   - Allocation must preserve semantics (VReg → PReg does not change behavior)
+//   - Determinism: same interference graph → same assignment
 //
-// 参考文档：analysis/IR核心设计.md §5.3（region-based Coloring 寄存器分配）
-// 架构状态：v4.0 Architecture Freeze — 实现骨架，待 Phase 6 填充
+// Ref: analysis IR core design §5.3 (region-based coloring register allocation)
+// Status: v4.0 Architecture Freeze — implementation skeleton; fill in Phase 6

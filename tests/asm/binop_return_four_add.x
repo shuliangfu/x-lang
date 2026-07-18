@@ -1,4 +1,8 @@
-// 7.3 线性 scan x10：return 左结合加链 ((a+b)+c)+d，rbx 换载前 spill 到 x10。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32 = 1;
   let b: i32 = 2;

@@ -1,6 +1,10 @@
-// 测试 core.mem：placeholder、align_of_*、align_up/down、mem_copy/mem_set/mem_move、mem_compare、mem_zero、mem_swap、is_alignment_power_of_two
+// See implementation.
 const mem = import("core.mem");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let ph: i32 = mem.placeholder();
   if (ph != 0) { return 21; }

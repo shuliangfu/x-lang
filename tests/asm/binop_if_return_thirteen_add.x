@@ -1,4 +1,8 @@
-// 7.3：cfg 父块（if）+ 十三元 return 加链；run-asm-binop-cfg-merge.sh 验 exit 91（1+…+13）。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32 = 1;
   let b: i32 = 2;

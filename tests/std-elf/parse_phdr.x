@@ -1,5 +1,9 @@
-// STD-064：ELF64 program header 烟测（金样 120 字节嵌入）
+// See implementation.
 const elf = import("std.elf");
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let blob: u8[120] = [
     127, 69, 76, 70, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,

@@ -1,16 +1,20 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-18：async_liveness 产品源迁 seeds/async_liveness.from_x.c。
-// G-02f-161：frame_mangle_ident / frame_build_tag 真迁 .x。
-// G-02f-162：frame_live_add 真迁 .x（AsyncFrameLive names@0 n@4096）。
-// G-02f-164：frame_live_at_await 真迁 .x（char** defined LE 槽）。
-// G-02f-165：thin _impl 批折叠。
-// G-02f-166～168：expr/block await + count + io_await 真迁 .x（AST LE 偏移表）。
-// G-02f-169～171：expr/block refs_var + rest_refs + analyze_block_linear 真迁 .x。
-// G-02f-172：P0-2 审计；当前总进度与后续推进统一见 analysis/自举进度.md。
-// 产品：cc seeds/async_liveness.from_x.c → src/async/async_liveness.o
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// async_liveness_x_doc_anchor: see function docblock below.
 
+/** Exported function `async_liveness_x_doc_anchor`.
+ * Implements `async_liveness_x_doc_anchor`.
+ * @return i32
+ */
 export function async_liveness_x_doc_anchor(): i32 {
   return 0;
 }
@@ -26,7 +30,12 @@ export function async_liveness_x_doc_anchor(): i32 {
 // ASTBlock: let_decls@16 num_lets@24; expr_stmts@96 num@104; final@112.
 // ASTLetDecl size 48: name@0 init@16. AST_EXPR_AWAIT=54 CALL=48.
 
-// ASTFunc.name 偏移 8（line+col）
+// async_live_load_func_name: see function docblock below.
+/** Exported function `async_live_load_func_name`.
+ * Implements `async_live_load_func_name`.
+ * @param callee *u8
+ * @return *u8
+ */
 export function async_live_load_func_name(callee: *u8): *u8 {
   if (callee == 0) { return 0 as *u8; }
   let m: usize = 256;
@@ -44,6 +53,11 @@ export function async_live_load_func_name(callee: *u8): *u8 {
 }
 
 #[no_mangle]
+/** Exported function `async_liveness_callee_is_io_read`.
+ * Read path helper `async_liveness_callee_is_io_read`.
+ * @param f *u8
+ * @return i32
+ */
 export function async_liveness_callee_is_io_read(f: *u8): i32 {
   let name: *u8 = async_live_load_func_name(f);
   if (name == 0) { return 0; }
@@ -58,6 +72,11 @@ export function async_liveness_callee_is_io_read(f: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `async_liveness_callee_is_io_write`.
+ * Write path helper `async_liveness_callee_is_io_write`.
+ * @param f *u8
+ * @return i32
+ */
 export function async_liveness_callee_is_io_write(f: *u8): i32 {
   let name: *u8 = async_live_load_func_name(f);
   if (name == 0) { return 0; }
@@ -74,6 +93,12 @@ export function async_liveness_callee_is_io_write(f: *u8): i32 {
 }
 
 // ---- G-02f-166：AST LE load helpers ----
+/** Exported function `async_live_load_i32`.
+ * Implements `async_live_load_i32`.
+ * @param p *u8
+ * @param off i32
+ * @return i32
+ */
 export function async_live_load_i32(p: *u8, off: i32): i32 {
   if (p == 0) { return 0; }
   let m: i32 = 256;
@@ -84,6 +109,12 @@ export function async_live_load_i32(p: *u8, off: i32): i32 {
   return a;
 }
 
+/** Exported function `async_live_load_ptr`.
+ * Implements `async_live_load_ptr`.
+ * @param p *u8
+ * @param off i32
+ * @return *u8
+ */
 export function async_live_load_ptr(p: *u8, off: i32): *u8 {
   if (p == 0) { return 0 as *u8; }
   let m: usize = 256;
@@ -100,15 +131,31 @@ export function async_live_load_ptr(p: *u8, off: i32): *u8 {
   return a as *u8;
 }
 
+/** Exported function `async_live_ptr_at`.
+ * Implements `async_live_ptr_at`.
+ * @param base *u8
+ * @param i i32
+ * @return *u8
+ */
 export function async_live_ptr_at(base: *u8, i: i32): *u8 {
   if (base == 0) { return 0 as *u8; }
   return async_live_load_ptr(base, i * 8);
 }
 
+/** Exported function `async_live_expr_kind`.
+ * Implements `async_live_expr_kind`.
+ * @param e *u8
+ * @return i32
+ */
 export function async_live_expr_kind(e: *u8): i32 {
   return async_live_load_i32(e, 0);
 }
 
+/** Exported function `async_live_is_binop_kind`.
+ * Implements `async_live_is_binop_kind`.
+ * @param k i32
+ * @return i32
+ */
 export function async_live_is_binop_kind(k: i32): i32 {
   if (k >= 4) {
     if (k <= 21) { return 1; }
@@ -119,6 +166,11 @@ export function async_live_is_binop_kind(k: i32): i32 {
   return 0;
 }
 
+/** Exported function `async_live_is_unary_kind`.
+ * Implements `async_live_is_unary_kind`.
+ * @param k i32
+ * @return i32
+ */
 export function async_live_is_unary_kind(k: i32): i32 {
   if (k == 22) { return 1; }
   if (k == 23) { return 1; }
@@ -132,8 +184,13 @@ export function async_live_is_unary_kind(k: i32): i32 {
 
 // forward decls via mutual recursion (define block_* after expr_*)
 
-// G-02f-166：expr_has_await 真迁（主 kind 全表 + 递归）
+// expr_has_await: see function docblock below.
 #[no_mangle]
+/** Exported function `expr_has_await`.
+ * Implements `expr_has_await`.
+ * @param e *u8
+ * @return i32
+ */
 export function expr_has_await(e: *u8): i32 {
   if (e == 0) { return 0; }
   let k: i32 = async_live_expr_kind(e);
@@ -237,6 +294,11 @@ export function expr_has_await(e: *u8): i32 {
 
 // G-02f-166：expr_count_await
 #[no_mangle]
+/** Exported function `expr_count_await`.
+ * Implements `expr_count_await`.
+ * @param e *u8
+ * @return i32
+ */
 export function expr_count_await(e: *u8): i32 {
   if (e == 0) { return 0; }
   let k: i32 = async_live_expr_kind(e);
@@ -335,6 +397,11 @@ export function expr_count_await(e: *u8): i32 {
 
 // G-02f-168：block_count_await / block_has_await
 #[no_mangle]
+/** Exported function `block_count_await`.
+ * Implements `block_count_await`.
+ * @param b *u8
+ * @return i32
+ */
 export function block_count_await(b: *u8): i32 {
   if (b == 0) { return 0; }
   let n: i32 = 0;
@@ -366,6 +433,11 @@ export function block_count_await(b: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `block_has_await`.
+ * Implements `block_has_await`.
+ * @param b *u8
+ * @return i32
+ */
 export function block_has_await(b: *u8): i32 {
   if (block_count_await(b) > 0) { return 1; }
   return 0;
@@ -373,6 +445,11 @@ export function block_has_await(b: *u8): i32 {
 
 // G-02f-167：expr_has_io_read/write_await + block_has_io_*
 #[no_mangle]
+/** Exported function `expr_has_io_read_await`.
+ * Read path helper `expr_has_io_read_await`.
+ * @param e *u8
+ * @return i32
+ */
 export function expr_has_io_read_await(e: *u8): i32 {
   if (e == 0) { return 0; }
   let k: i32 = async_live_expr_kind(e);
@@ -482,6 +559,11 @@ export function expr_has_io_read_await(e: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `expr_has_io_write_await`.
+ * Write path helper `expr_has_io_write_await`.
+ * @param e *u8
+ * @return i32
+ */
 export function expr_has_io_write_await(e: *u8): i32 {
   if (e == 0) { return 0; }
   let k: i32 = async_live_expr_kind(e);
@@ -591,6 +673,11 @@ export function expr_has_io_write_await(e: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `block_has_io_read_await`.
+ * Read path helper `block_has_io_read_await`.
+ * @param b *u8
+ * @return i32
+ */
 export function block_has_io_read_await(b: *u8): i32 {
   if (b == 0) { return 0; }
   let nlets: i32 = async_live_load_i32(b, 24);
@@ -621,6 +708,11 @@ export function block_has_io_read_await(b: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `block_has_io_write_await`.
+ * Write path helper `block_has_io_write_await`.
+ * @param b *u8
+ * @return i32
+ */
 export function block_has_io_write_await(b: *u8): i32 {
   if (b == 0) { return 0; }
   let nlets: i32 = async_live_load_i32(b, 24);
@@ -651,6 +743,12 @@ export function block_has_io_write_await(b: *u8): i32 {
 }
 
 // ---- G-02f-169：cstr + expr_refs_var / block_refs_var ----
+/** Exported function `async_live_cstr_eq`.
+ * Implements `async_live_cstr_eq`.
+ * @param a *u8
+ * @param b *u8
+ * @return i32
+ */
 export function async_live_cstr_eq(a: *u8, b: *u8): i32 {
   if (a == 0) { return 0; }
   if (b == 0) { return 0; }
@@ -665,6 +763,12 @@ export function async_live_cstr_eq(a: *u8, b: *u8): i32 {
   return 1;
 }
 
+/** Exported function `async_live_cstr_copy64`.
+ * Implements `async_live_cstr_copy64`.
+ * @param dst *u8
+ * @param src *u8
+ * @return void
+ */
 export function async_live_cstr_copy64(dst: *u8, src: *u8): void {
   if (dst == 0) { return; }
   if (src == 0) {
@@ -681,6 +785,12 @@ export function async_live_cstr_copy64(dst: *u8, src: *u8): void {
   dst[j] = 0;
 }
 
+/** Exported function `async_live_def_row`.
+ * Implements `async_live_def_row`.
+ * @param defs *u8
+ * @param i i32
+ * @return *u8
+ */
 export function async_live_def_row(defs: *u8, i: i32): *u8 {
   if (defs == 0) { return 0 as *u8; }
   let q: *u8 = defs;
@@ -693,7 +803,13 @@ export function async_live_def_row(defs: *u8, i: i32): *u8 {
   return q;
 }
 
-// char** 槽 i：偏移 i*8（LE 指针）
+// async_live_load_def_name: see function docblock below.
+/** Exported function `async_live_load_def_name`.
+ * Implements `async_live_load_def_name`.
+ * @param defs *u8
+ * @param i i32
+ * @return *u8
+ */
 export function async_live_load_def_name(defs: *u8, i: i32): *u8 {
   if (defs == 0) { return 0 as *u8; }
   let off: i32 = i * 8;
@@ -701,6 +817,12 @@ export function async_live_load_def_name(defs: *u8, i: i32): *u8 {
 }
 
 #[no_mangle]
+/** Exported function `expr_refs_var`.
+ * Implements `expr_refs_var`.
+ * @param e *u8
+ * @param name *u8
+ * @return i32
+ */
 export function expr_refs_var(e: *u8, name: *u8): i32 {
   if (e == 0) { return 0; }
   if (name == 0) { return 0; }
@@ -815,6 +937,12 @@ export function expr_refs_var(e: *u8, name: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `block_refs_var`.
+ * Implements `block_refs_var`.
+ * @param b *u8
+ * @param name *u8
+ * @return i32
+ */
 export function block_refs_var(b: *u8, name: *u8): i32 {
   if (b == 0) { return 0; }
   if (name == 0) { return 0; }
@@ -847,6 +975,13 @@ export function block_refs_var(b: *u8, name: *u8): i32 {
 
 // G-02f-170：block_rest_refs_var — stmt_order@172 entry size 8 kind@0 idx@4
 #[no_mangle]
+/** Exported function `block_rest_refs_var`.
+ * Implements `block_rest_refs_var`.
+ * @param b *u8
+ * @param from_exclusive i32
+ * @param name *u8
+ * @return i32
+ */
 export function block_rest_refs_var(b: *u8, from_exclusive: i32, name: *u8): i32 {
   if (b == 0) { return 0; }
   if (name == 0) { return 0; }
@@ -901,6 +1036,11 @@ export function block_rest_refs_var(b: *u8, from_exclusive: i32, name: *u8): i32
 }
 
 // G-02f-162：AsyncFrameLive — names[64][64] @0，n:i32 @4096
+/** Exported function `frame_live_load_n`.
+ * Implements `frame_live_load_n`.
+ * @param out *u8
+ * @return i32
+ */
 export function frame_live_load_n(out: *u8): i32 {
   if (out == 0) { return 0; }
   let q: *u8 = out;
@@ -917,6 +1057,12 @@ export function frame_live_load_n(out: *u8): i32 {
   return a;
 }
 
+/** Exported function `frame_live_store_n`.
+ * Implements `frame_live_store_n`.
+ * @param out *u8
+ * @param n i32
+ * @return void
+ */
 export function frame_live_store_n(out: *u8, n: i32): void {
   if (out == 0) { return; }
   let q: *u8 = out;
@@ -937,6 +1083,12 @@ export function frame_live_store_n(out: *u8, n: i32): void {
   q[3] = (a % m) as u8;
 }
 
+/** Exported function `frame_live_row_ptr`.
+ * Implements `frame_live_row_ptr`.
+ * @param out *u8
+ * @param idx i32
+ * @return *u8
+ */
 export function frame_live_row_ptr(out: *u8, idx: i32): *u8 {
   if (out == 0) { return 0 as *u8; }
   let q: *u8 = out;
@@ -949,6 +1101,12 @@ export function frame_live_row_ptr(out: *u8, idx: i32): *u8 {
   return q;
 }
 
+/** Exported function `frame_live_name_eq`.
+ * Implements `frame_live_name_eq`.
+ * @param row *u8
+ * @param name *u8
+ * @return i32
+ */
 export function frame_live_name_eq(row: *u8, name: *u8): i32 {
   if (row == 0) { return 0; }
   if (name == 0) { return 0; }
@@ -963,8 +1121,14 @@ export function frame_live_name_eq(row: *u8, name: *u8): i32 {
   return 1;
 }
 
-// G-02f-162：插入去重（超 64 静默丢弃）
+// frame_live_add: see function docblock below.
 #[no_mangle]
+/** Exported function `frame_live_add`.
+ * Implements `frame_live_add`.
+ * @param out *u8
+ * @param name *u8
+ * @return void
+ */
 export function frame_live_add(out: *u8, name: *u8): void {
   if (out == 0) { return; }
   if (name == 0) { return; }
@@ -992,10 +1156,19 @@ export function frame_live_add(out: *u8, name: *u8): void {
   frame_live_store_n(out, n + 1);
 }
 
-/* ---- G-02f-161 / G-02f-164：async_liveness frame 真迁 ---- */
+/* See implementation. */
 
-// G-02f-164：defs 为 char**；block_rest_refs_var 已真迁
+// frame_live_at_await: see function docblock below.
 #[no_mangle]
+/** Exported function `frame_live_at_await`.
+ * Implements `frame_live_at_await`.
+ * @param b *u8
+ * @param idx i32
+ * @param defs *u8
+ * @param nd i32
+ * @param out *u8
+ * @return void
+ */
 export function frame_live_at_await(b: *u8, idx: i32, defs: *u8, nd: i32, out: *u8): void {
   if (nd <= 0) { return; }
   if (defs == 0) { return; }
@@ -1012,7 +1185,16 @@ export function frame_live_at_await(b: *u8, idx: i32, defs: *u8, nd: i32, out: *
   }
 }
 
-// G-02f-171：analyze_block_linear — def 名拷入本地 64×64，避免 char** 栈
+// async_live_analyze_at_await: see function docblock below.
+/** Exported function `async_live_analyze_at_await`.
+ * Implements `async_live_analyze_at_await`.
+ * @param b *u8
+ * @param si i32
+ * @param defs *u8
+ * @param n_def i32
+ * @param frame *u8
+ * @return void
+ */
 export function async_live_analyze_at_await(b: *u8, si: i32, defs: *u8, n_def: i32, frame: *u8): void {
   if (n_def <= 0) { return; }
   if (defs == 0) { return; }
@@ -1032,6 +1214,14 @@ export function async_live_analyze_at_await(b: *u8, si: i32, defs: *u8, n_def: i
 }
 
 #[no_mangle]
+/** Exported function `analyze_block_linear`.
+ * Implements `analyze_block_linear`.
+ * @param b *u8
+ * @param prefix *u8
+ * @param n_prefix i32
+ * @param frame *u8
+ * @return void
+ */
 export function analyze_block_linear(b: *u8, prefix: *u8, n_prefix: i32, frame: *u8): void {
   if (b == 0) { return; }
   if (frame == 0) { return; }
@@ -1118,8 +1308,15 @@ export function analyze_block_linear(b: *u8, prefix: *u8, n_prefix: i32, frame: 
 }
 
 
-// G-02f-161：函数名 → C 标识符（非 alnum/_ → _）
+// frame_mangle_ident: see function docblock below.
 #[no_mangle]
+/** Exported function `frame_mangle_ident`.
+ * Implements `frame_mangle_ident`.
+ * @param in_name *u8
+ * @param out *u8
+ * @param cap i32
+ * @return void
+ */
 export function frame_mangle_ident(in_name: *u8, out: *u8, cap: i32): void {
   if (out == 0) { return; }
   if (cap <= 0) { return; }
@@ -1171,8 +1368,15 @@ export function frame_mangle_ident(in_name: *u8, out: *u8, cap: i32): void {
   out[j] = 0;
 }
 
-// G-02f-161：__shux_async_frame_<mangled>（f 为 ASTFunc*，name@8）
+// frame_build_tag: see function docblock below.
 #[no_mangle]
+/** Exported function `frame_build_tag`.
+ * Implements `frame_build_tag`.
+ * @param f *u8
+ * @param out *u8
+ * @param cap i32
+ * @return void
+ */
 export function frame_build_tag(f: *u8, out: *u8, cap: i32): void {
   if (out == 0) { return; }
   if (cap <= 1) { return; }
@@ -1206,9 +1410,15 @@ export function frame_build_tag(f: *u8, out: *u8, cap: i32): void {
   out[j] = 0;
 }
 
-// G-02f-119：live_name_cmp 真迁 .x
+// live_name_cmp: see function docblock below.
 
 #[no_mangle]
+/** Exported function `live_name_cmp`.
+ * Comparison/utility `live_name_cmp`.
+ * @param a *u8
+ * @param b *u8
+ * @return i32
+ */
 export function live_name_cmp(a: *u8, b: *u8): i32 {
   if (a == 0) {
     if (b == 0) { return 0; }
@@ -1228,4 +1438,4 @@ export function live_name_cmp(a: *u8, b: *u8): i32 {
   return 0;
 }
 
-// G-02f-168：block_has_await 见上文（真迁 + block_count_await）。
+// See implementation.

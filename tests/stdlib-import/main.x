@@ -1,18 +1,22 @@
-// 测试自举前标准库扩展（5.5）：多个 core 模块可 import
-// 并有最小可用实现。
-// 通过调用各模块中具名函数验证解析、typeck 与链接。
-// std.vec 见 tests/run-vec.sh（B-strict 全量 typeck std.heap 链仍易崩溃，此处不 import）。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 const types = import("core.types");
 const option = import("core.option");
 const result = import("core.result");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32 = types.placeholder();
-  // B-strict：避免泛型 placeholder（shux_asm SIGSEGV）；option/result 同名 API
-  // 用各模块独有符号。
+  // See implementation.
+  // See implementation.
   let b: i32 = option.unwrap_or_i32(option.some_i32(42), 0);
   let res: Result_i32 = result.ok_i32(1);
-  // if/else：seed shux-c 解析器暂不支持 let 内三元 ? :
+  // See implementation.
   let c: i32 = 0;
   if (result.is_ok_i32(res)) {
     c = res.value;

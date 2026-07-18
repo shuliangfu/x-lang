@@ -14,17 +14,22 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// riscv64_enc.x — RISC-V 64 位机器码编码（供 ELF .o）
+// See implementation.
 //
-// 职责：与 x86_64_enc/arm64_enc 对等的 enc_* 接口；写入 RV64GC 32 位小端指令，
-//       jz/jnz/jmp/call 写占位并记 patch（B-type 13 位、J-type 21 位）及 reloc。
+// See implementation.
+// See implementation.
 //
-// 依赖：elf（ElfCodegenCtx、append_elf_bytes、elf_add_label、elf_add_patch_with_bits、elf_add_
+// See implementation.
 // reloc、elf_add_sym、elf_to_u8）。
 
 const elf = import("platform.elf");
 
-/** 向 ctx 追加 4 字节小端 u32（一条 RISC-V 指令）。 */
+/** Exported function `enc_u32_le`.
+ * Implements `enc_u32_le`.
+ * @param ctx *ElfCodegenCtx
+ * @param val i64
+ * @return i32
+ */
 export function enc_u32_le(ctx: *ElfCodegenCtx, val: i64): i32 {
   let buf: u8[4] = [];
   buf[0] = elf.elf_u32_byte_at(val, 0);
@@ -34,8 +39,14 @@ export function enc_u32_le(ctx: *ElfCodegenCtx, val: i64): i32 {
   return elf.append_elf_bytes(ctx, buf, 4);
 }
 
-/** 标签：记录 label 与符号；is_func 非 0 时记入 sym（先 4 字节对齐入口）。
-*/
+/** Exported function `enc_label`.
+ * Implements `enc_label`.
+ * @param ctx *ElfCodegenCtx
+ * @param name *u8
+ * @param name_len i32
+ * @param is_func i32
+ * @return i32
+ */
 export function enc_label(ctx: *ElfCodegenCtx, name: *u8, name_len: i32, is_func: i32): i32 {
   if (is_func != 0) {
     if (elf.elf_pad_code_to_4(ctx) != 0) { return -1; }
@@ -47,8 +58,12 @@ export function enc_label(ctx: *ElfCodegenCtx, name: *u8, name_len: i32, is_func
   return 0;
 }
 
-/** 函数入口：addi sp, sp, -frame; sd ra, frame-8(sp)；若 frame≥16 再 sd s0、addi s0,
-* sp, frame。用 current_frame_size 低 12 位存 size，位 12 存是否保存 s0。 */
+/** Exported function `enc_prologue`.
+ * Implements `enc_prologue`.
+ * @param ctx *ElfCodegenCtx
+ * @param frame_sz i32
+ * @return i32
+ */
 export function enc_prologue(ctx: *ElfCodegenCtx, frame_sz: i32): i32 {
   let sz: i32 = frame_sz;
   if (sz < 16) { sz = 16; }
@@ -71,8 +86,11 @@ export function enc_prologue(ctx: *ElfCodegenCtx, frame_sz: i32): i32 {
   return enc_u32_le(ctx, 19 | (8 << 7) | (0 << 12) | (2 << 15) | (imm12 << 20));
 }
 
-/** 函数出口：若 current_frame_size 位 12 置位则先 ld s0；再 ld ra；addi sp,
-* size；ret。 */
+/** Exported function `enc_epilogue`.
+ * Implements `enc_epilogue`.
+ * @param ctx *ElfCodegenCtx
+ * @return i32
+ */
 export function enc_epilogue(ctx: *ElfCodegenCtx): i32 {
   let saved_s0: i32 = (ctx.current_frame_size & 4096) >> 12;
   let frame_sz: i32 = ctx.current_frame_size & 4095;
@@ -90,7 +108,12 @@ export function enc_epilogue(ctx: *ElfCodegenCtx): i32 {
   return enc_u32_le(ctx, 103 | (0 << 7) | (0 << 12) | (1 << 15) | (0 << 20));
 }
 
-/** li a0, imm32：addi a0, x0, imm（12 位内）；否则 lui + addi。 */
+/** Exported function `enc_ret_imm32`.
+ * Implements `enc_ret_imm32`.
+ * @param ctx *ElfCodegenCtx
+ * @param imm32 i32
+ * @return i32
+ */
 export function enc_ret_imm32(ctx: *ElfCodegenCtx, imm32: i32): i32 {
   let imm12: i32 = imm32 & 4095;
   if (imm32 >= 2048 && imm32 < 4096) { imm12 = imm32; }
@@ -117,8 +140,13 @@ export function enc_mov_imm32_to_rbx(ctx: *ElfCodegenCtx, imm32: i32): i32 {
   return enc_u32_le(ctx, 19 | (11 << 7) | (0 << 12) | (11 << 15) | (imm12 << 20));
 }
 
-/** 64 位立即数入 a0：li + slli/srli + lui/addi/slli/add（简化：多条
-* I-type/U-type）。 */
+/** Exported function `enc_mov_imm64_to_rax`.
+ * Implements `enc_mov_imm64_to_rax`.
+ * @param ctx *ElfCodegenCtx
+ * @param lo i32
+ * @param hi i32
+ * @return i32
+ */
 export function enc_mov_imm64_to_rax(ctx: *ElfCodegenCtx, lo: i32, hi: i32): i32 {
   let imm12: i32 = lo & 4095;
   if (enc_u32_le(ctx, 19 | (10 << 7) | (0 << 12) | (0 << 15) | (imm12 << 20)) != 0) { return -1; }
@@ -163,12 +191,20 @@ export function enc_add_rax_rbx(ctx: *ElfCodegenCtx): i32 {
   return enc_u32_le(ctx, 51 | (10 << 7) | (0 << 12) | (10 << 15) | (11 << 20));
 }
 
-/** sub a0, a1, a0（left 在 a1、right 在 a0，结果 a0 = left - right）。 */
+/** Exported function `enc_sub_rbx_rax_then_mov`.
+ * Implements `enc_sub_rbx_rax_then_mov`.
+ * @param ctx *ElfCodegenCtx
+ * @return i32
+ */
 export function enc_sub_rbx_rax_then_mov(ctx: *ElfCodegenCtx): i32 {
   return enc_u32_le(ctx, 51 | (10 << 7) | (0 << 12) | (11 << 15) | (10 << 20) | (64 << 25));
 }
 
-/** sub a0, a0, a1（left 在 a0、right 在 a1，结果 a0 = left - right）。 */
+/** Exported function `enc_sub_rax_rbx`.
+ * Implements `enc_sub_rax_rbx`.
+ * @param ctx *ElfCodegenCtx
+ * @return i32
+ */
 export function enc_sub_rax_rbx(ctx: *ElfCodegenCtx): i32 {
   return enc_u32_le(ctx, 51 | (10 << 7) | (0 << 12) | (10 << 15) | (11 << 20) | (64 << 25));
 }
@@ -203,7 +239,11 @@ export function enc_xor_rbx_rax(ctx: *ElfCodegenCtx): i32 {
   return enc_u32_le(ctx, 51 | (10 << 7) | (4 << 12) | (11 << 15) | (10 << 20));
 }
 
-/** 移位计数已在 a1，no-op。 */
+/** Exported function `enc_mov_rbx_to_ecx`.
+ * Implements `enc_mov_rbx_to_ecx`.
+ * @param ctx *ElfCodegenCtx
+ * @return i32
+ */
 export function enc_mov_rbx_to_ecx(ctx: *ElfCodegenCtx): i32 {
   return 0;
 }
@@ -233,7 +273,11 @@ export function enc_idiv_rbx(ctx: *ElfCodegenCtx): i32 {
   return enc_u32_le(ctx, 51 | (10 << 7) | (4 << 12) | (10 << 15) | (11 << 20) | (1 << 25));
 }
 
-/** rem 已单独用 enc_rem；此处 no-op。 */
+/** Exported function `enc_mov_edx_to_eax`.
+ * Implements `enc_mov_edx_to_eax`.
+ * @param ctx *ElfCodegenCtx
+ * @return i32
+ */
 export function enc_mov_edx_to_eax(ctx: *ElfCodegenCtx): i32 {
   return 0;
 }
@@ -243,12 +287,20 @@ export function enc_neg_eax(ctx: *ElfCodegenCtx): i32 {
   return enc_u32_le(ctx, 51 | (10 << 7) | (0 << 12) | (0 << 15) | (10 << 20) | (64 << 25));
 }
 
-/** seqz 前无需单独 test；no-op 或 and a0, a0, a0。 */
+/** Exported function `enc_test_eax_eax`.
+ * Implements `enc_test_eax_eax`.
+ * @param ctx *ElfCodegenCtx
+ * @return i32
+ */
 export function enc_test_eax_eax(ctx: *ElfCodegenCtx): i32 {
   return 0;
 }
 
-/** 除数 a1 零检占位（RISC-V idiv 路径仍走 slow push）。 */
+/** Exported function `enc_test_rbx_rbx`.
+ * Implements `enc_test_rbx_rbx`.
+ * @param ctx *ElfCodegenCtx
+ * @return i32
+ */
 export function enc_test_rbx_rbx(ctx: *ElfCodegenCtx): i32 {
   return 0;
 }
@@ -258,12 +310,21 @@ export function enc_setz_movzbl_eax(ctx: *ElfCodegenCtx): i32 {
   return enc_u32_le(ctx, 19 | (10 << 7) | (3 << 12) | (10 << 15) | (1 << 20));
 }
 
-/** sub a0, a1, a0；cmp 等价，后续 enc_cmp_setcc_movzbl 会发 slt/seqz 等。 */
+/** Exported function `enc_cmp_rbx_rax`.
+ * Comparison/utility `enc_cmp_rbx_rax`.
+ * @param ctx *ElfCodegenCtx
+ * @return i32
+ */
 export function enc_cmp_rbx_rax(ctx: *ElfCodegenCtx): i32 {
   return enc_u32_le(ctx, 51 | (10 << 7) | (0 << 12) | (11 << 15) | (10 << 20) | (64 << 25));
 }
 
-/** cmp 后 setcc：0=eq→seqz, 1=ne→snez, 2=lt→slt, 3=le, 4=gt, 5=ge。 */
+/** Exported function `enc_cmp_setcc_movzbl`.
+ * Comparison/utility `enc_cmp_setcc_movzbl`.
+ * @param ctx *ElfCodegenCtx
+ * @param cc i32
+ * @return i32
+ */
 export function enc_cmp_setcc_movzbl(ctx: *ElfCodegenCtx, cc: i32): i32 {
   let c: i32 = cc;
   if (c < 0) { c = 0; }
@@ -296,14 +357,24 @@ export function enc_load_rbp_to_rax(ctx: *ElfCodegenCtx, offset: i32): i32 {
   return enc_u32_le(ctx, 3 | (10 << 7) | (3 << 12) | (8 << 15) | (imm << 20));
 }
 
-/** ld a1, -offset(s0)（7.3 binop VAR 右操作数直 load 到 rbx/a1）。 */
+/** Exported function `enc_load_rbp_to_rbx`.
+ * Implements `enc_load_rbp_to_rbx`.
+ * @param ctx *ElfCodegenCtx
+ * @param offset i32
+ * @return i32
+ */
 export function enc_load_rbp_to_rbx(ctx: *ElfCodegenCtx, offset: i32): i32 {
   let imm: i32 = 0 - offset;
   imm = imm & 4095;
   return enc_u32_le(ctx, 3 | (11 << 7) | (3 << 12) | (8 << 15) | (imm << 20));
 }
 
-/** li a2, imm32（memset 第三参）；与 enc_mov_imm32_to_rbx 同算法，目标 a2。 */
+/** Exported function `enc_li_a2_imm32`.
+ * Implements `enc_li_a2_imm32`.
+ * @param ctx *ElfCodegenCtx
+ * @param imm32 i32
+ * @return i32
+ */
 export function enc_li_a2_imm32(ctx: *ElfCodegenCtx, imm32: i32): i32 {
   let imm12: i32 = imm32 & 4095;
   if (imm32 >= 0 && imm32 < 4096) {
@@ -321,7 +392,7 @@ export function enc_li_a2_imm32(ctx: *ElfCodegenCtx, imm32: i32): i32 {
 }
 
 /**
-* 将 [s0-rbp_off, ..) 共 nbytes 置零：a0 首址，a1=0，a2=n，call memset。
+* See implementation.
 */
 export function enc_memset_rbp_zero(ctx: *ElfCodegenCtx, rbp_off: i32, nbytes: i32): i32 {
   if (nbytes <= 0) {
@@ -342,37 +413,65 @@ export function enc_memset_rbp_zero(ctx: *ElfCodegenCtx, rbp_off: i32, nbytes: i
   return enc_call(ctx, memset_nm, 6);
 }
 
+/** Exported function `enc_lea_rbp_to_rax`.
+ * Implements `enc_lea_rbp_to_rax`.
+ * @param ctx *ElfCodegenCtx
+ * @param offset i32
+ * @return i32
+ */
 export function enc_lea_rbp_to_rax(ctx: *ElfCodegenCtx, offset: i32): i32 {
   let imm12: i32 = 0 - offset;
   imm12 = imm12 & 4095;
   return enc_u32_le(ctx, 19 | (10 << 7) | (0 << 12) | (8 << 15) | (imm12 << 20));
 }
 
-/** addi a1, fp, -off — 向量 dst 基址（勿 clobber a0 中 binop 结果）。 */
+/** Exported function `enc_lea_rbp_to_rbx`.
+ * Implements `enc_lea_rbp_to_rbx`.
+ * @param ctx *ElfCodegenCtx
+ * @param offset i32
+ * @return i32
+ */
 export function enc_lea_rbp_to_rbx(ctx: *ElfCodegenCtx, offset: i32): i32 {
   let imm12: i32 = 0 - offset;
   imm12 = imm12 & 4095;
   return enc_u32_le(ctx, 19 | (11 << 7) | (0 << 12) | (8 << 15) | (imm12 << 20));
 }
 
-/** a0 += a1（缩放 ×1，无移位）。 */
+/** Exported function `enc_rax_plus_rbx_scale1`.
+ * Implements `enc_rax_plus_rbx_scale1`.
+ * @param ctx *ElfCodegenCtx
+ * @return i32
+ */
 export function enc_rax_plus_rbx_scale1(ctx: *ElfCodegenCtx): i32 {
   return enc_u32_le(ctx, 51 | (10 << 7) | (0 << 12) | (10 << 15) | (11 << 20));
 }
 
-/** slli a1, a1, 2; add a0, a0, a1 — 缩放 ×4。 */
+/** Exported function `enc_rax_plus_rbx_scale4`.
+ * Implements `enc_rax_plus_rbx_scale4`.
+ * @param ctx *ElfCodegenCtx
+ * @return i32
+ */
 export function enc_rax_plus_rbx_scale4(ctx: *ElfCodegenCtx): i32 {
   if (enc_u32_le(ctx, 19 | (11 << 7) | (1 << 12) | (11 << 15) | (2 << 20)) != 0) { return -1; }
   return enc_u32_le(ctx, 51 | (10 << 7) | (0 << 12) | (10 << 15) | (11 << 20));
 }
 
-/** slli a1, a1, 3; add a0, a0, a1 — 缩放 ×8。 */
+/** Exported function `enc_rax_plus_rbx_scale8`.
+ * Implements `enc_rax_plus_rbx_scale8`.
+ * @param ctx *ElfCodegenCtx
+ * @return i32
+ */
 export function enc_rax_plus_rbx_scale8(ctx: *ElfCodegenCtx): i32 {
   if (enc_u32_le(ctx, 19 | (11 << 7) | (1 << 12) | (11 << 15) | (3 << 20)) != 0) { return -1; }
   return enc_u32_le(ctx, 51 | (10 << 7) | (0 << 12) | (10 << 15) | (11 << 20));
 }
 
-/** sb/sw/sd：将 a0 写入 0(a1)。elem_sz 1/4/8。 */
+/** Exported function `enc_store_rax_to_rbx_indirect`.
+ * Implements `enc_store_rax_to_rbx_indirect`.
+ * @param ctx *ElfCodegenCtx
+ * @param elem_sz i32
+ * @return i32
+ */
 export function enc_store_rax_to_rbx_indirect(ctx: *ElfCodegenCtx, elem_sz: i32): i32 {
   let imm_lo: i32 = 0;
   let imm_hi: i32 = 0;
@@ -392,69 +491,119 @@ export function enc_load_32_from_rax(ctx: *ElfCodegenCtx): i32 {
   return enc_u32_le(ctx, 3 | (10 << 7) | (2 << 12) | (10 << 15) | (0 << 20));
 }
 
-/** lbu a0, 0(a0) — INDEX 读到 u8。 */
+/** Exported function `enc_load_zext8_from_rax`.
+ * Implements `enc_load_zext8_from_rax`.
+ * @param ctx *ElfCodegenCtx
+ * @return i32
+ */
 export function enc_load_zext8_from_rax(ctx: *ElfCodegenCtx): i32 {
   return enc_u32_le(ctx, 3 | (10 << 7) | (4 << 12) | (10 << 15) | (0 << 20));
 }
 
-/** addi a0, a0, imm。imm==0 不发射。 */
+/** Exported function `enc_add_imm_to_rax`.
+ * Implements `enc_add_imm_to_rax`.
+ * @param ctx *ElfCodegenCtx
+ * @param imm i32
+ * @return i32
+ */
 export function enc_add_imm_to_rax(ctx: *ElfCodegenCtx, imm: i32): i32 {
   if (imm == 0) { return 0; }
   let imm12: i32 = imm & 4095;
   return enc_u32_le(ctx, 19 | (10 << 7) | (0 << 12) | (10 << 15) | (imm12 << 20));
 }
 
-/** addi a1, a1, imm（字面量 INDEX 偏移入 rbx/a1）。 */
+/** Exported function `enc_add_imm_to_rbx`.
+ * Implements `enc_add_imm_to_rbx`.
+ * @param ctx *ElfCodegenCtx
+ * @param imm i32
+ * @return i32
+ */
 export function enc_add_imm_to_rbx(ctx: *ElfCodegenCtx, imm: i32): i32 {
   if (imm == 0) { return 0; }
   let imm12: i32 = imm & 4095;
   return enc_u32_le(ctx, 19 | (11 << 7) | (0 << 12) | (11 << 15) | (imm12 << 20));
 }
 
-/** lw a2, -offset(s0)（INDEX 变量下标；勿 clobber a0 assign 右值）。 */
+/** Exported function `enc_load_rbp_to_a2`.
+ * Implements `enc_load_rbp_to_a2`.
+ * @param ctx *ElfCodegenCtx
+ * @param offset i32
+ * @return i32
+ */
 export function enc_load_rbp_to_a2(ctx: *ElfCodegenCtx, offset: i32): i32 {
   let imm: i32 = 0 - offset;
   imm = imm & 4095;
   return enc_u32_le(ctx, 3 | (12 << 7) | (2 << 12) | (8 << 15) | (imm << 20));
 }
 
-/** a1 += a2（变量下标 ×1）。 */
+/** Exported function `enc_rbx_plus_a2_scale1`.
+ * Implements `enc_rbx_plus_a2_scale1`.
+ * @param ctx *ElfCodegenCtx
+ * @return i32
+ */
 export function enc_rbx_plus_a2_scale1(ctx: *ElfCodegenCtx): i32 {
   return enc_u32_le(ctx, 51 | (11 << 7) | (0 << 12) | (11 << 15) | (12 << 20));
 }
 
-/** slli a2,a2,2; add a1,a1,a2（变量下标 ×4）。 */
+/** Exported function `enc_rbx_plus_a2_scale4`.
+ * Implements `enc_rbx_plus_a2_scale4`.
+ * @param ctx *ElfCodegenCtx
+ * @return i32
+ */
 export function enc_rbx_plus_a2_scale4(ctx: *ElfCodegenCtx): i32 {
   if (enc_u32_le(ctx, 19 | (12 << 7) | (1 << 12) | (12 << 15) | (2 << 20)) != 0) { return -1; }
   return enc_u32_le(ctx, 51 | (11 << 7) | (0 << 12) | (11 << 15) | (12 << 20));
 }
 
-/** slli a2,a2,3; add a1,a1,a2（变量下标 ×8）。 */
+/** Exported function `enc_rbx_plus_a2_scale8`.
+ * Implements `enc_rbx_plus_a2_scale8`.
+ * @param ctx *ElfCodegenCtx
+ * @return i32
+ */
 export function enc_rbx_plus_a2_scale8(ctx: *ElfCodegenCtx): i32 {
   if (enc_u32_le(ctx, 19 | (12 << 7) | (1 << 12) | (12 << 15) | (3 << 20)) != 0) { return -1; }
   return enc_u32_le(ctx, 51 | (11 << 7) | (0 << 12) | (11 << 15) | (12 << 20));
 }
 
-/** addi a2, a2, imm（INDEX 下标 var+lit）。 */
+/** Exported function `enc_add_imm_to_a2`.
+ * Implements `enc_add_imm_to_a2`.
+ * @param ctx *ElfCodegenCtx
+ * @param imm i32
+ * @return i32
+ */
 export function enc_add_imm_to_a2(ctx: *ElfCodegenCtx, imm: i32): i32 {
   if (imm == 0) { return 0; }
   let imm12: i32 = imm & 4095;
   return enc_u32_le(ctx, 19 | (12 << 7) | (0 << 12) | (12 << 15) | (imm12 << 20));
 }
 
-/** lw a3, -offset(s0)（INDEX 第二下标 var+var）。 */
+/** Exported function `enc_load_rbp_to_a3`.
+ * Implements `enc_load_rbp_to_a3`.
+ * @param ctx *ElfCodegenCtx
+ * @param offset i32
+ * @return i32
+ */
 export function enc_load_rbp_to_a3(ctx: *ElfCodegenCtx, offset: i32): i32 {
   let imm: i32 = 0 - offset;
   imm = imm & 4095;
   return enc_u32_le(ctx, 3 | (13 << 7) | (2 << 12) | (8 << 15) | (imm << 20));
 }
 
-/** add a2, a2, a3（INDEX scratch 下标 i+j）。 */
+/** Exported function `enc_add_a2_a3`.
+ * Implements `enc_add_a2_a3`.
+ * @param ctx *ElfCodegenCtx
+ * @return i32
+ */
 export function enc_add_a2_a3(ctx: *ElfCodegenCtx): i32 {
   return enc_u32_le(ctx, 51 | (12 << 7) | (0 << 12) | (12 << 15) | (13 << 20));
 }
 
-/** addi a2, a2, -imm（INDEX 下标 var-lit；imm>0 时减）。 */
+/** Exported function `enc_sub_imm_from_a2`.
+ * Implements `enc_sub_imm_from_a2`.
+ * @param ctx *ElfCodegenCtx
+ * @param imm i32
+ * @return i32
+ */
 export function enc_sub_imm_from_a2(ctx: *ElfCodegenCtx, imm: i32): i32 {
   if (imm == 0) { return 0; }
   let neg: i32 = 0 - imm;
@@ -462,7 +611,11 @@ export function enc_sub_imm_from_a2(ctx: *ElfCodegenCtx, imm: i32): i32 {
   return enc_u32_le(ctx, 19 | (12 << 7) | (0 << 12) | (12 << 15) | (imm12 << 20));
 }
 
-/** sub a2, a2, a3（INDEX scratch 下标 i-j）。 */
+/** Exported function `enc_sub_a2_a3`.
+ * Implements `enc_sub_a2_a3`.
+ * @param ctx *ElfCodegenCtx
+ * @return i32
+ */
 export function enc_sub_a2_a3(ctx: *ElfCodegenCtx): i32 {
   return enc_u32_le(ctx, 51 | (12 << 7) | (0 << 12) | (12 << 15) | (13 << 20) | (64 << 25));
 }
@@ -472,12 +625,21 @@ export function enc_rsub_a2_a3(ctx: *ElfCodegenCtx): i32 {
   return enc_u32_le(ctx, 51 | (12 << 7) | (0 << 12) | (13 << 15) | (12 << 20) | (64 << 25));
 }
 
-/** sub a1, a3, a1（INDEX 读路径 rbx = a3 - a1，i-(j+k)）。 */
+/** Exported function `enc_rsub_rbx_a3`.
+ * Implements `enc_rsub_rbx_a3`.
+ * @param ctx *ElfCodegenCtx
+ * @return i32
+ */
 export function enc_rsub_rbx_a3(ctx: *ElfCodegenCtx): i32 {
   return enc_u32_le(ctx, 51 | (11 << 7) | (0 << 12) | (13 << 15) | (11 << 20) | (64 << 25));
 }
 
-/** mul a2, a2, lit（INDEX scratch 下标 var*lit；lit>1）。 */
+/** Exported function `enc_mul_imm_to_a2`.
+ * Implements `enc_mul_imm_to_a2`.
+ * @param ctx *ElfCodegenCtx
+ * @param lit i32
+ * @return i32
+ */
 export function enc_mul_imm_to_a2(ctx: *ElfCodegenCtx, lit: i32): i32 {
   if (lit <= 1) { return 0; }
   let imm12: i32 = lit & 4095;
@@ -485,7 +647,12 @@ export function enc_mul_imm_to_a2(ctx: *ElfCodegenCtx, lit: i32): i32 {
   return enc_u32_le(ctx, 51 | (12 << 7) | (0 << 12) | (12 << 15) | (13 << 20) | (1 << 25));
 }
 
-/** mul a1, a1, lit（INDEX 读路径 var*lit 下标在 rbx/a1）。 */
+/** Exported function `enc_mul_imm_to_rbx`.
+ * Implements `enc_mul_imm_to_rbx`.
+ * @param ctx *ElfCodegenCtx
+ * @param lit i32
+ * @return i32
+ */
 export function enc_mul_imm_to_rbx(ctx: *ElfCodegenCtx, lit: i32): i32 {
   if (lit <= 1) { return 0; }
   let imm12: i32 = lit & 4095;
@@ -493,7 +660,12 @@ export function enc_mul_imm_to_rbx(ctx: *ElfCodegenCtx, lit: i32): i32 {
   return enc_u32_le(ctx, 51 | (11 << 7) | (0 << 12) | (11 << 15) | (13 << 20) | (1 << 25));
 }
 
-/** addi a1, a1, -imm（INDEX 读路径 var-lit 下标）。 */
+/** Exported function `enc_sub_imm_from_rbx_index`.
+ * Implements `enc_sub_imm_from_rbx_index`.
+ * @param ctx *ElfCodegenCtx
+ * @param imm i32
+ * @return i32
+ */
 export function enc_sub_imm_from_rbx_index(ctx: *ElfCodegenCtx, imm: i32): i32 {
   if (imm == 0) { return 0; }
   let neg: i32 = 0 - imm;
@@ -501,22 +673,38 @@ export function enc_sub_imm_from_rbx_index(ctx: *ElfCodegenCtx, imm: i32): i32 {
   return enc_u32_le(ctx, 19 | (11 << 7) | (0 << 12) | (11 << 15) | (imm12 << 20));
 }
 
-/** add a1, a1, a3（INDEX 读路径 i+j 下标）。 */
+/** Exported function `enc_add_rbx_a3`.
+ * Implements `enc_add_rbx_a3`.
+ * @param ctx *ElfCodegenCtx
+ * @return i32
+ */
 export function enc_add_rbx_a3(ctx: *ElfCodegenCtx): i32 {
   return enc_u32_le(ctx, 51 | (11 << 7) | (0 << 12) | (11 << 15) | (13 << 20));
 }
 
-/** sub a1, a1, a3（INDEX 读路径 i-j 下标）。 */
+/** Exported function `enc_sub_rbx_a3`.
+ * Implements `enc_sub_rbx_a3`.
+ * @param ctx *ElfCodegenCtx
+ * @return i32
+ */
 export function enc_sub_rbx_a3(ctx: *ElfCodegenCtx): i32 {
   return enc_u32_le(ctx, 51 | (11 << 7) | (0 << 12) | (11 << 15) | (13 << 20) | (64 << 25));
 }
 
-/** mul a2, a2, a3（INDEX assign scratch 下标 i*j）。 */
+/** Exported function `enc_mul_a2_a3`.
+ * Implements `enc_mul_a2_a3`.
+ * @param ctx *ElfCodegenCtx
+ * @return i32
+ */
 export function enc_mul_a2_a3(ctx: *ElfCodegenCtx): i32 {
   return enc_u32_le(ctx, 51 | (12 << 7) | (0 << 12) | (12 << 15) | (13 << 20) | (1 << 25));
 }
 
-/** mul a1, a1, a3（INDEX 读路径 i*j 下标）。 */
+/** Exported function `enc_mul_rbx_a3`.
+ * Implements `enc_mul_rbx_a3`.
+ * @param ctx *ElfCodegenCtx
+ * @return i32
+ */
 export function enc_mul_rbx_a3(ctx: *ElfCodegenCtx): i32 {
   return enc_u32_le(ctx, 51 | (11 << 7) | (0 << 12) | (11 << 15) | (13 << 20) | (1 << 25));
 }
@@ -543,7 +731,13 @@ export function enc_mov_rbx_to_rax(ctx: *ElfCodegenCtx): i32 {
   return enc_u32_le(ctx, 19 | (10 << 7) | (0 << 12) | (11 << 15) | (0 << 20));
 }
 
-/** beqz a0, label。B-type 占位 0，patch 13 位。 */
+/** Exported function `enc_jz`.
+ * Implements `enc_jz`.
+ * @param ctx *ElfCodegenCtx
+ * @param label *u8
+ * @param label_len i32
+ * @return i32
+ */
 export function enc_jz(ctx: *ElfCodegenCtx, label: *u8, label_len: i32): i32 {
   if (enc_u32_le(ctx, 99 | (0 << 12) | (10 << 15) | (0 << 20)) != 0) { return -1; }
   let at: i32 = ctx.code_len - 4;
@@ -551,12 +745,24 @@ export function enc_jz(ctx: *ElfCodegenCtx, label: *u8, label_len: i32): i32 {
   return elf.elf_add_patch_with_bits(ctx, at, label, label_len, 13);
 }
 
-/** 相等跳转：sub a0,a1,a0 后 a0 为 0 时跳，与 enc_jz 相同。match 臂比较用。 */
+/** Exported function `enc_jeq`.
+ * Implements `enc_jeq`.
+ * @param ctx *ElfCodegenCtx
+ * @param label *u8
+ * @param label_len i32
+ * @return i32
+ */
 export function enc_jeq(ctx: *ElfCodegenCtx, label: *u8, label_len: i32): i32 {
   return enc_jz(ctx, label, label_len);
 }
 
-/** bge a0, a1, label；a0=i、a1=n 时 i>=n 跳出；B-type 13 位 patch。 */
+/** Exported function `enc_jge`.
+ * Implements `enc_jge`.
+ * @param ctx *ElfCodegenCtx
+ * @param label *u8
+ * @param label_len i32
+ * @return i32
+ */
 export function enc_jge(ctx: *ElfCodegenCtx, label: *u8, label_len: i32): i32 {
   if (enc_u32_le(ctx, 99 | (5 << 12) | (11 << 15) | (10 << 20)) != 0) { return -1; }
   let at: i32 = ctx.code_len - 4;
@@ -564,7 +770,13 @@ export function enc_jge(ctx: *ElfCodegenCtx, label: *u8, label_len: i32): i32 {
   return elf.elf_add_patch_with_bits(ctx, at, label, label_len, 13);
 }
 
-/** bnez a0, label。B-type 13 位 patch。 */
+/** Exported function `enc_jnz`.
+ * Implements `enc_jnz`.
+ * @param ctx *ElfCodegenCtx
+ * @param label *u8
+ * @param label_len i32
+ * @return i32
+ */
 export function enc_jnz(ctx: *ElfCodegenCtx, label: *u8, label_len: i32): i32 {
   if (enc_u32_le(ctx, 99 | (1 << 12) | (10 << 15) | (0 << 20)) != 0) { return -1; }
   let at: i32 = ctx.code_len - 4;
@@ -572,7 +784,13 @@ export function enc_jnz(ctx: *ElfCodegenCtx, label: *u8, label_len: i32): i32 {
   return elf.elf_add_patch_with_bits(ctx, at, label, label_len, 13);
 }
 
-/** j label。jal x0, 0；J-type 21 位 patch。 */
+/** Exported function `enc_jmp`.
+ * Implements `enc_jmp`.
+ * @param ctx *ElfCodegenCtx
+ * @param label *u8
+ * @param label_len i32
+ * @return i32
+ */
 export function enc_jmp(ctx: *ElfCodegenCtx, label: *u8, label_len: i32): i32 {
   if (enc_u32_le(ctx, 111 | (0 << 7)) != 0) { return -1; }
   let at: i32 = ctx.code_len - 4;
@@ -580,7 +798,12 @@ export function enc_jmp(ctx: *ElfCodegenCtx, label: *u8, label_len: i32): i32 {
   return elf.elf_add_patch_with_bits(ctx, at, label, label_len, 21);
 }
 
-/** mv a(k), a0。k=0 no-op；k=1..7 发 addi a(k), a0, 0（a0-a7 = x10-x17）。 */
+/** Exported function `enc_mov_rax_to_arg_reg`.
+ * Implements `enc_mov_rax_to_arg_reg`.
+ * @param ctx *ElfCodegenCtx
+ * @param k i32
+ * @return i32
+ */
 export function enc_mov_rax_to_arg_reg(ctx: *ElfCodegenCtx, k: i32): i32 {
   let idx: i32 = k;
   if (idx < 0) { idx = 0; }
@@ -590,7 +813,12 @@ export function enc_mov_rax_to_arg_reg(ctx: *ElfCodegenCtx, k: i32): i32 {
   return enc_u32_le(ctx, 19 | (rd << 7) | (0 << 12) | (10 << 15) | (0 << 20));
 }
 
-/** addi sp, sp, imm（imm 低 12 位；call 后回收栈实参）。 */
+/** Exported function `enc_add_sp_imm12`.
+ * Implements `enc_add_sp_imm12`.
+ * @param ctx *ElfCodegenCtx
+ * @param nbytes i32
+ * @return i32
+ */
 export function enc_add_sp_imm12(ctx: *ElfCodegenCtx, nbytes: i32): i32 {
   if (nbytes <= 0) {
     return 0;
@@ -599,8 +827,13 @@ export function enc_add_sp_imm12(ctx: *ElfCodegenCtx, nbytes: i32): i32 {
   return enc_u32_le(ctx, 19 | (2 << 7) | (0 << 12) | (2 << 15) | (imm12 << 20));
 }
 
-/** jal ra, name。JAL 占位，仅 reloc（不写 patch）；外部符号无同 .o label，patch
-* 会在 elf_resolve_patches 失败，与 x86_64_enc.enc_call 一致。 */
+/** Exported function `enc_call`.
+ * Implements `enc_call`.
+ * @param ctx *ElfCodegenCtx
+ * @param name *u8
+ * @param name_len i32
+ * @return i32
+ */
 export function enc_call(ctx: *ElfCodegenCtx, name: *u8, name_len: i32): i32 {
   if (name_len <= 0) {
     return -1;

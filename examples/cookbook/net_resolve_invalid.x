@@ -1,8 +1,12 @@
 /**
- * Cookbook NET-04：resolve_ex 对 invalid.invalid 须失败（STD-029）。
+ * See implementation.
  */
 const net = import("std.net");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   /** "invalid.invalid" */
   let bad: u8[16] = [

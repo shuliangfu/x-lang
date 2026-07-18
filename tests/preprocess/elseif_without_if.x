@@ -1,4 +1,8 @@
-// 边界：#elseif 前无 #if，应报 #elseif without #if
+// See implementation.
 #elseif FOO
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 { return 1; }
 #endif

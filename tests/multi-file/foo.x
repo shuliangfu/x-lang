@@ -1,2 +1,6 @@
-// 被 main.x 通过 import foo 引用；与 main 同目录，由 entry_dir 解析。
+// bar: see function docblock below.
+/** Internal function `bar`.
+ * Implements `bar`.
+ * @return i32
+ */
 function bar(): i32 { return 42; }

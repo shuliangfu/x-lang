@@ -1,4 +1,8 @@
-// MEM-C1：with_arena 语法烟测 — 验证 codegen 发出 scope Arena init/deinit。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   with_arena(4096) {
     let x: i32 = 0;

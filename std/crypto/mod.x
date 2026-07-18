@@ -14,10 +14,10 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.crypto — 常量时间比较、SHA-256/512、HMAC、AES-GCM、ChaCha20-Poly1305、Ed25519
+// See implementation.
 //
-// 【文件职责】mem_eq、sha256、sha512、hmac_sha256、ed25519、aes_gcm、chacha20_poly1305。
-// 【依赖】core；实现见 core.x + aes_gcm.x + chacha20_poly1305.x + ed25519.x + 胶层（ld -r → crypto.o）。
+// See implementation.
+// See implementation.
 
 extern function crypto_mem_eq_c(a: *u8, b: *u8, len: i32): i32;
 extern function crypto_sha256_c(msg: *u8, len: i32, out: *u8): void;
@@ -38,16 +38,28 @@ extern function crypto_chacha20_poly1305_open_c(key: *u8, key_len: i32, nonce: *
   aad: *u8, aad_len: i32, ct: *u8, ct_len: i32, tag: *u8, pt: *u8): i32;
 extern function crypto_chacha20_poly1305_smoke_c(): i32;
 
-/** Ed25519 seed 长度（字节）。 */
+/** Exported function `ED25519_SEED_LEN`.
+ * Query helper `ED25519_SEED_LEN`.
+ * @return i32
+ */
 export function ED25519_SEED_LEN(): i32 { return 32; }
-/** AES-GCM 认证 tag 长度（字节）。 */
+/* See implementation. */
 export const AES_GCM_TAG_LEN: i32 = 16;
-/** ChaCha20-Poly1305 密钥长度（字节）。 */
+/** Exported function `CHACHA20_POLY1305_KEY_LEN`.
+ * Query helper `CHACHA20_POLY1305_KEY_LEN`.
+ * @return i32
+ */
 export function CHACHA20_POLY1305_KEY_LEN(): i32 { return 32; }
-/** SHA-512 摘要长度（字节，STD-050）。 */
+/* See implementation. */
 export const SHA512_DIGEST_LEN: i32 = 64;
 
-/** 常量时间比较 a[0..len] 与 b[0..len]；相等返回 1，否则 0。 */
+/** Exported function `mem_eq`.
+ * Implements `mem_eq`.
+ * @param a *u8
+ * @param b *u8
+ * @param len i32
+ * @return i32
+ */
 export function mem_eq(a: *u8, b: *u8, len: i32): i32 {
   let __gffi_r: i32 = 0;
   unsafe {
@@ -56,66 +68,138 @@ export function mem_eq(a: *u8, b: *u8, len: i32): i32 {
   return __gffi_r;
 }
 
-/** SHA-256 哈希，写入 out[0..32]。 */
+/** Exported function `sha256`.
+ * Implements `sha256`.
+ * @param msg *u8
+ * @param len i32
+ * @param out *u8
+ * @return void
+ */
 export function sha256(msg: *u8, len: i32, out: *u8): void {
   unsafe {
     crypto_sha256_c(msg, len, out);
   }
 }
 
-/** SHA-512 哈希，写入 out[0..64]。 */
+/** Exported function `sha512`.
+ * Implements `sha512`.
+ * @param msg *u8
+ * @param len i32
+ * @param out *u8
+ * @return void
+ */
 export function sha512(msg: *u8, len: i32, out: *u8): void {
   unsafe {
     crypto_sha512_c(msg, len, out);
   }
 }
 
-/** HMAC-SHA512(key, msg)，结果写入 out[0..64]（STD-050）。 */
+/** Exported function `hmac_sha512`.
+ * Implements `hmac_sha512`.
+ * @param key *u8
+ * @param key_len i32
+ * @param msg *u8
+ * @param msg_len i32
+ * @param out *u8
+ * @return void
+ */
 export function hmac_sha512(key: *u8, key_len: i32, msg: *u8, msg_len: i32, out: *u8): void {
   unsafe {
     crypto_hmac_sha512_c(key, key_len, msg, msg_len, out);
   }
 }
 
-/** HMAC-SHA256(key, msg)，结果写入 out[0..32]。 */
+/** Exported function `hmac_sha256`.
+ * Implements `hmac_sha256`.
+ * @param key *u8
+ * @param key_len i32
+ * @param msg *u8
+ * @param msg_len i32
+ * @param out *u8
+ * @return void
+ */
 export function hmac_sha256(key: *u8, key_len: i32, msg: *u8, msg_len: i32, out: *u8): void {
   unsafe {
     crypto_hmac_sha256_c(key, key_len, msg, msg_len, out);
   }
 }
 
-/** MAC 签名校验别名（256-bit，等同 hmac_sha256）。 */
+/** Exported function `mac_sign`.
+ * Implements `mac_sign`.
+ * @param key *u8
+ * @param key_len i32
+ * @param msg *u8
+ * @param msg_len i32
+ * @param out *u8
+ * @return void
+ */
 export function mac_sign(key: *u8, key_len: i32, msg: *u8, msg_len: i32, out: *u8): void {
   hmac_sha256(key, key_len, msg, msg_len, out);
 }
 
-/** MAC 签名 512-bit（STD-050：等同 hmac_sha512；与 mac_sign 签名相同，tag 64B）。 */
+/** Exported function `mac_sign_512`.
+ * Implements `mac_sign_512`.
+ * @param key *u8
+ * @param key_len i32
+ * @param msg *u8
+ * @param msg_len i32
+ * @param out *u8
+ * @return void
+ */
 export function mac_sign_512(key: *u8, key_len: i32, msg: *u8, msg_len: i32, out: *u8): void {
   hmac_sha512(key, key_len, msg, msg_len, out);
 }
 
-/** MAC 校验：重算 HMAC 与 tag[0..32] 常量时间比较；相等 1，否则 0。 */
+/** Exported function `mac_verify`.
+ * Implements `mac_verify`.
+ * @param key *u8
+ * @param key_len i32
+ * @param msg *u8
+ * @param msg_len i32
+ * @param tag *u8
+ * @return i32
+ */
 export function mac_verify(key: *u8, key_len: i32, msg: *u8, msg_len: i32, tag: *u8): i32 {
   let calc: u8[32] = [];
   hmac_sha256(key, key_len, msg, msg_len, &calc[0]);
   return mem_eq(&calc[0], tag, 32);
 }
 
-/** MAC 512-bit 校验：重算 HMAC-SHA512 与 tag[0..64] 比较（STD-050）。 */
+/** Exported function `mac_verify_512`.
+ * Implements `mac_verify_512`.
+ * @param key *u8
+ * @param key_len i32
+ * @param msg *u8
+ * @param msg_len i32
+ * @param tag *u8
+ * @return i32
+ */
 export function mac_verify_512(key: *u8, key_len: i32, msg: *u8, msg_len: i32, tag: *u8): i32 {
   let calc: u8[64] = [];
   hmac_sha512(key, key_len, msg, msg_len, &calc[0]);
   return mem_eq(&calc[0], tag, 64);
 }
 
-/** 由 32 字节 seed 导出 Ed25519 公钥至 pub[0..32]。 */
+/** Exported function `ed25519_public_from_seed`.
+ * Implements `ed25519_public_from_seed`.
+ * @param seed *u8
+ * @param pub *u8
+ * @return void
+ */
 export function ed25519_public_from_seed(seed: *u8, pub: *u8): void {
   unsafe {
     crypto_ed25519_public_from_seed_c(seed, pub);
   }
 }
 
-/** 使用 seed 对 msg 签名；sig 写入 64 字节；成功 0，失败 -1。 */
+/** Exported function `ed25519_sign`.
+ * Implements `ed25519_sign`.
+ * @param seed *u8
+ * @param msg *u8
+ * @param msg_len i32
+ * @param sig *u8
+ * @return i32
+ */
 export function ed25519_sign(seed: *u8, msg: *u8, msg_len: i32, sig: *u8): i32 {
   let __gffi_r: i32 = 0;
   unsafe {
@@ -124,7 +208,14 @@ export function ed25519_sign(seed: *u8, msg: *u8, msg_len: i32, sig: *u8): i32 {
   return __gffi_r;
 }
 
-/** 验签；成功 0，失败 -1。 */
+/** Exported function `ed25519_verify`.
+ * Implements `ed25519_verify`.
+ * @param pub *u8
+ * @param msg *u8
+ * @param msg_len i32
+ * @param sig *u8
+ * @return i32
+ */
 export function ed25519_verify(pub: *u8, msg: *u8, msg_len: i32, sig: *u8): i32 {
   let __gffi_r: i32 = 0;
   unsafe {
@@ -133,7 +224,10 @@ export function ed25519_verify(pub: *u8, msg: *u8, msg_len: i32, sig: *u8): i32 
   return __gffi_r;
 }
 
-/** Ed25519 C 层烟测（RFC 8032 TEST 1）；0 通过。 */
+/** Exported function `ed25519_smoke`.
+ * Implements `ed25519_smoke`.
+ * @return i32
+ */
 export function ed25519_smoke(): i32 {
   let __gffi_r: i32 = 0;
   unsafe {
@@ -142,7 +236,7 @@ export function ed25519_smoke(): i32 {
   return __gffi_r;
 }
 
-/** AES-128-GCM 加密；key_len=16、iv_len=12、tag 16B；成功 0。 */
+/* See implementation. */
 export function aes_gcm_seal(key: *u8, key_len: i32, iv: *u8, iv_len: i32, aad: *u8, aad_len: i32,
   pt: *u8, pt_len: i32, ct: *u8, tag: *u8): i32 {
   let __gffi_r: i32 = 0;
@@ -152,7 +246,7 @@ export function aes_gcm_seal(key: *u8, key_len: i32, iv: *u8, iv_len: i32, aad: 
   return __gffi_r;
 }
 
-/** AES-128-GCM 解密并校验 tag；成功 0，tag 错误 -1。 */
+/* See implementation. */
 export function aes_gcm_open(key: *u8, key_len: i32, iv: *u8, iv_len: i32, aad: *u8, aad_len: i32,
   ct: *u8, ct_len: i32, tag: *u8, pt: *u8): i32 {
   let __gffi_r: i32 = 0;
@@ -162,7 +256,7 @@ export function aes_gcm_open(key: *u8, key_len: i32, iv: *u8, iv_len: i32, aad: 
   return __gffi_r;
 }
 
-/** ChaCha20-Poly1305 加密；key_len=32、nonce_len=12、tag 16B；成功 0。 */
+/* See implementation. */
 export function chacha20_poly1305_seal(key: *u8, key_len: i32, nonce: *u8, nonce_len: i32, aad: *u8,
   aad_len: i32, pt: *u8, pt_len: i32, ct: *u8, tag: *u8): i32 {
   let __gffi_r: i32 = 0;
@@ -172,7 +266,7 @@ export function chacha20_poly1305_seal(key: *u8, key_len: i32, nonce: *u8, nonce
   return __gffi_r;
 }
 
-/** ChaCha20-Poly1305 解密并校验 tag；成功 0，失败 -1。 */
+/* See implementation. */
 export function chacha20_poly1305_open(key: *u8, key_len: i32, nonce: *u8, nonce_len: i32, aad: *u8,
   aad_len: i32, ct: *u8, ct_len: i32, tag: *u8, pt: *u8): i32 {
   let __gffi_r: i32 = 0;
@@ -182,7 +276,10 @@ export function chacha20_poly1305_open(key: *u8, key_len: i32, nonce: *u8, nonce
   return __gffi_r;
 }
 
-/** ChaCha20-Poly1305 C 层烟测；0 通过。 */
+/** Exported function `chacha20_poly1305_smoke`.
+ * Implements `chacha20_poly1305_smoke`.
+ * @return i32
+ */
 export function chacha20_poly1305_smoke(): i32 {
   let __gffi_r: i32 = 0;
   unsafe {

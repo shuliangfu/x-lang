@@ -1,6 +1,10 @@
-// STD-051：`colou?r` 零或一次
+// See implementation.
 const regex = import("std.regex");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let pat: u8[7] = [99, 111, 108, 111, 117, 63, 114];
   let re: *u8 = regex.compile(&pat[0], 7);

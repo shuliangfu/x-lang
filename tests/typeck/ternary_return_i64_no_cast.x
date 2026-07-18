@@ -1,13 +1,27 @@
-// n 已是 i64 时，return i64 上下文内三元不应要求 n as i64
+// f_i64: see function docblock below.
+/** Internal function `f_i64`.
+ * Implements `f_i64`.
+ * @param n i64
+ * @return i64
+ */
 function f_i64(n: i64): i64 {
   return n >= 0 ? n : -1;
 }
 
-// n 为 i32 时，两分支 i32 + i32 汇合为 i32，return i64 需靠后续拓宽（若未实现则可能报错）
+// f_i32: see function docblock below.
+/** Internal function `f_i32`.
+ * Implements `f_i32`.
+ * @param n i32
+ * @return i64
+ */
 function f_i32(n: i32): i64 {
   return n >= 0 ? n : -1;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i64 = f_i64(1);
   let b: i64 = f_i32(1);

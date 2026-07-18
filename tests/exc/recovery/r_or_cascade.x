@@ -1,6 +1,10 @@
-// EXC-006：连续 or_i32 多级回退
+// See implementation.
 const result = import("core.result");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: Result_i32 = result.or_i32(
     result.err_i32(1),

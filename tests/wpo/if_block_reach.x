@@ -1,7 +1,11 @@
-// WPO 烟测：if 分支 block 内 return call 须计入 call graph（get_i32→some_i32/none_i32）。
+// See implementation.
 const slice = import("core.slice");
 const option = import("core.option");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32[2] = [10, 20];
   let s: i32[] = a;

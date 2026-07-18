@@ -1,11 +1,15 @@
 /**
- * PERF-172：§11 Phase 3 std 热路径循环烟测（datetime/compress/net 离线）。
- * 不测真实网络/SQLite；仅 mod 层 API 调用开销。
+ * See implementation.
+ * See implementation.
  */
 const datetime = import("std.datetime");
 const compress = import("std.compress");
 const net = import("std.net");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let utc_name: u8[4] = [85, 84, 67, 0];
   let tz: TimeZone = TimeZone { offset_min: 0, iana_id: -1 };

@@ -14,13 +14,13 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std/elf/elf.x — F-elf v2 + F-ZC：ELF64 解析/写入与烟测（纯 .x，无 .c/.h）
+// See implementation.
 //
-// 【文件职责】
-// elf64 头/section/phdr/sym/rela 只读解析、最小 ET_REL 写入、round-trip 与 fixture 烟测。
-// fixture 读取经 fs_open_read_c + fs_posix_read_c；编译为 elf.o；对外 API 在 mod.x。
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 【对标】Linux ELF64 规范子集；STD-058/063/064/103/121。
+// See implementation.
 
 export const ELF_OK: i32 = 0;
 export const ELF_ERR_NULL: i32 = -1;
@@ -46,7 +46,7 @@ export const ELF64_WRITE_MIN_TEXT_MAX: i32 = 64;
 export const ELF64_WRITE_SHSTR: i32 = 7;
 export const ELF_FIXTURE_MAX: i32 = 512;
 
-/** 与 mod.x 布局一致。 */
+/* See implementation. */
 allow(padding) struct Elf64Hdr {
   e_type: i32
   machine: i32
@@ -97,24 +97,33 @@ extern "C" function close(fd: i32): i32;
 extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 extern "C" function memset(s: *u8, c: i32, n: usize): *u8;
 
-/** F-elf v1 版本标记。 */
+/** Exported function `elf_f_elf_v1_marker_c`.
+ * Implements `elf_f_elf_v1_marker_c`.
+ * @return i32
+ */
 export function elf_f_elf_v1_marker_c(): i32 {
   return 1;
 }
 
-/** F-elf v2 逻辑下沉标记。 */
+/** Exported function `elf_f_elf_v2_marker_c`.
+ * Implements `elf_f_elf_v2_marker_c`.
+ * @return i32
+ */
 export function elf_f_elf_v2_marker_c(): i32 {
   return 1;
 }
 
-/** F-std-zero-c：elf_io_glue.c 已删除，fixture 读在 .x 内。 */
+/** Exported function `elf_f_zero_c_marker_c`.
+ * Implements `elf_f_zero_c_marker_c`.
+ * @return i32
+ */
 export function elf_f_zero_c_marker_c(): i32 {
   return 1;
 }
 
 /**
- * 读取 path 指向文件至 out_buf（最多 out_cap 字节，不含写入 NUL）。
- * 成功返回读取字节数；失败 -1（参数）或 -4（IO/过长）。
+ * See implementation.
+ * See implementation.
  */
 export function elf_read_fixture_c(path: *u8, out_buf: *u8, out_cap: i32): i32 {
   let fd: i32 = 0;
@@ -130,7 +139,12 @@ export function elf_read_fixture_c(path: *u8, out_buf: *u8, out_cap: i32): i32 {
   return n as i32;
 }
 
-/** 校验 ELF ident 魔数/类/字节序。 */
+/** Exported function `elf64_check_ident`.
+ * Implements `elf64_check_ident`.
+ * @param p *u8
+ * @param len i32
+ * @return i32
+ */
 export function elf64_check_ident(p: *u8, len: i32): i32 {
   if (p == 0 || len < 64) { return ELF_ERR_SHORT; }
   if (p[0] != ELFMAG0 || p[1] != ELFMAG1 || p[2] != ELFMAG2 || p[3] != ELFMAG3) {
@@ -141,30 +155,52 @@ export function elf64_check_ident(p: *u8, len: i32): i32 {
   return ELF_OK;
 }
 
-/** 读取 little-endian u16。 */
+/** Exported function `elf64_u16le`.
+ * Implements `elf64_u16le`.
+ * @param p *u8
+ * @return u32
+ */
 export function elf64_u16le(p: *u8): u32 {
   return (p[0] as u32) | ((p[1] as u32) << 8);
 }
 
-/** 读取 little-endian u32。 */
+/** Exported function `elf64_u32le`.
+ * Implements `elf64_u32le`.
+ * @param p *u8
+ * @return u32
+ */
 export function elf64_u32le(p: *u8): u32 {
   return (p[0] as u32) | ((p[1] as u32) << 8) | ((p[2] as u32) << 16) | ((p[3] as u32) << 24);
 }
 
-/** 读取 little-endian u64。 */
+/** Exported function `elf64_u64le`.
+ * Implements `elf64_u64le`.
+ * @param p *u8
+ * @return u64
+ */
 export function elf64_u64le(p: *u8): u64 {
   let lo: u64 = elf64_u32le(p) as u64;
   let hi: u64 = elf64_u32le(p + 4) as u64;
   return lo | (hi << 32);
 }
 
-/** 写入 little-endian u16。 */
+/** Exported function `elf64_put_u16le`.
+ * Implements `elf64_put_u16le`.
+ * @param p *u8
+ * @param v u32
+ * @return void
+ */
 export function elf64_put_u16le(p: *u8, v: u32): void {
   p[0] = (v & 0xff) as u8;
   p[1] = ((v >> 8) & 0xff) as u8;
 }
 
-/** 写入 little-endian u32。 */
+/** Exported function `elf64_put_u32le`.
+ * Implements `elf64_put_u32le`.
+ * @param p *u8
+ * @param v u32
+ * @return void
+ */
 export function elf64_put_u32le(p: *u8, v: u32): void {
   p[0] = (v & 0xff) as u8;
   p[1] = ((v >> 8) & 0xff) as u8;
@@ -172,13 +208,22 @@ export function elf64_put_u32le(p: *u8, v: u32): void {
   p[3] = ((v >> 24) & 0xff) as u8;
 }
 
-/** 写入 little-endian u64。 */
+/** Exported function `elf64_put_u64le`.
+ * Implements `elf64_put_u64le`.
+ * @param p *u8
+ * @param v u64
+ * @return void
+ */
 export function elf64_put_u64le(p: *u8, v: u64): void {
   elf64_put_u32le(p, (v & 0xffffffff) as u32);
   elf64_put_u32le(p + 4, (v >> 32) as u32);
 }
 
-/** 清零 Elf64Hdr 输出。 */
+/** Exported function `elf64_zero_hdr`.
+ * Implements `elf64_zero_hdr`.
+ * @param hdr *Elf64Hdr
+ * @return void
+ */
 export function elf64_zero_hdr(hdr: *Elf64Hdr): void {
   if (hdr == 0) { return; }
   hdr.e_type = 0;
@@ -191,7 +236,13 @@ export function elf64_zero_hdr(hdr: *Elf64Hdr): void {
   hdr.shstrndx = 0;
 }
 
-/** 解析 ELF64 文件头。 */
+/** Exported function `elf64_parse_hdr_c`.
+ * Implements `elf64_parse_hdr_c`.
+ * @param ptr *u8
+ * @param len i32
+ * @param out *Elf64Hdr
+ * @return i32
+ */
 export function elf64_parse_hdr_c(ptr: *u8, len: i32, out: *Elf64Hdr): i32 {
   let rc: i32 = 0;
   if (out == 0) { return ELF_ERR_NULL; }
@@ -209,7 +260,7 @@ export function elf64_parse_hdr_c(ptr: *u8, len: i32, out: *Elf64Hdr): i32 {
   return ELF_OK;
 }
 
-/** 读取第 idx 个 program 头（phentsize 固定 56）。 */
+/* See implementation. */
 export function elf64_read_phdr_c(ptr: *u8, len: i32, phoff: u64, phnum: i32, idx: i32,
                           out: *Elf64Phdr): i32 {
   let off: u64 = 0;
@@ -234,7 +285,7 @@ export function elf64_read_phdr_c(ptr: *u8, len: i32, phoff: u64, phnum: i32, id
   return ELF_OK;
 }
 
-/** 读取第 idx 个 section 头（shentsize 固定 64）。 */
+/* See implementation. */
 export function elf64_read_shdr_c(ptr: *u8, len: i32, shoff: u64, shnum: i32, idx: i32,
                           out: *Elf64Sec): i32 {
   let off: u64 = 0;
@@ -257,7 +308,7 @@ export function elf64_read_shdr_c(ptr: *u8, len: i32, shoff: u64, shnum: i32, id
   return ELF_OK;
 }
 
-/** 从 shstrtab 取出节名到 buf（NUL 结尾）；返回写入长度或错误码。 */
+/* See implementation. */
 export function elf64_sec_name_c(ptr: *u8, len: i32, str_off: u64, str_size: u64, name_off: i32,
                           buf: *u8, buf_len: i32): i32 {
   let pos: u64 = 0;
@@ -275,7 +326,7 @@ export function elf64_sec_name_c(ptr: *u8, len: i32, str_off: u64, str_size: u64
   return ELF_ERR_SHORT;
 }
 
-/** 比较 shstrtab 中 name_off 处节名与 want（NUL 结尾 C 串）。 */
+/* See implementation. */
 export function elf64_name_eq_c(ptr: *u8, len: i32, str_off: u64, str_size: u64, name_off: i32,
                          want: *u8): i32 {
   let buf: u8[32];
@@ -291,7 +342,7 @@ export function elf64_name_eq_c(ptr: *u8, len: i32, str_off: u64, str_size: u64,
   return (buf[i] == 0) ? 1 : 0;
 }
 
-/** 按节名查找索引；未找到返回 ELF_ERR_NOT_FOUND。 */
+/* See implementation. */
 export function elf64_find_section_c(ptr: *u8, len: i32, shoff: u64, shnum: i32, shstrndx: i32,
                               want: *u8, out_idx: *i32): i32 {
   let shstr: Elf64Sec;
@@ -315,7 +366,7 @@ export function elf64_find_section_c(ptr: *u8, len: i32, shoff: u64, shnum: i32,
   return ELF_ERR_NOT_FOUND;
 }
 
-/** 读取节体内偏移 at 处的单字节。 */
+/* See implementation. */
 export function elf64_read_sec_byte_c(ptr: *u8, len: i32, sec_off: u64, sec_size: u64, at: u64,
                               out: *u8): i32 {
   let pos: u64 = 0;
@@ -327,7 +378,7 @@ export function elf64_read_sec_byte_c(ptr: *u8, len: i32, sec_off: u64, sec_size
   return ELF_OK;
 }
 
-/** 读取 symtab 内第 idx 个 Elf64_Sym（24 字节）。 */
+/* See implementation. */
 export function elf64_read_sym_c(ptr: *u8, len: i32, sym_off: u64, sym_size: u64, idx: i32,
                           out: *Elf64Sym): i32 {
   let off: u64 = 0;
@@ -355,7 +406,7 @@ export function elf64_read_sym_c(ptr: *u8, len: i32, sym_off: u64, sym_size: u64
   return ELF_OK;
 }
 
-/** 读取 rela 节内第 idx 个 Elf64_Rela（24 字节）。 */
+/* See implementation. */
 export function elf64_read_rela_c(ptr: *u8, len: i32, rela_off: u64, rela_size: u64, idx: i32,
                            out: *Elf64Rela): i32 {
   let off: u64 = 0;
@@ -378,15 +429,19 @@ export function elf64_read_rela_c(ptr: *u8, len: i32, rela_off: u64, rela_size: 
   return ELF_OK;
 }
 
-/** 计算 write_min_reloc 所需缓冲容量。 */
+/** Exported function `elf64_write_min_reloc_size_c`.
+ * Write path helper `elf64_write_min_reloc_size_c`.
+ * @param text_len i32
+ * @return i32
+ */
 export function elf64_write_min_reloc_size_c(text_len: i32): i32 {
   if (text_len < 0 || text_len > ELF64_WRITE_MIN_TEXT_MAX) { return ELF_WRITE_ERR_PARAM; }
   return 64 + 3 * 64 + ELF64_WRITE_SHSTR + text_len;
 }
 
 /**
- * 写入最小 ET_REL：Ehdr + 3 Shdr（null/.text/.shstrtab）+ shstrtab + .text 节体。
- * shstrtab 固定 "\0.text\0"；text_len 上限 64。
+ * See implementation.
+ * See implementation.
  */
 export function elf64_write_min_reloc_c(buf: *u8, cap: i32, text: *u8, text_len: i32, out_len: *i32): i32 {
   let need: i32 = 0;
@@ -438,7 +493,10 @@ export function elf64_write_min_reloc_c(buf: *u8, cap: i32, text: *u8, text_len:
   return ELF_WRITE_OK;
 }
 
-/** 写入 + 解析 round-trip 烟测；0 通过。 */
+/** Exported function `elf64_write_smoke_c`.
+ * Write path helper `elf64_write_smoke_c`.
+ * @return i32
+ */
 export function elf64_write_smoke_c(): i32 {
   let out: u8[512];
   let text: u8[4] = [0x90, 0x90, 0x90, 0x90];
@@ -463,7 +521,10 @@ export function elf64_write_smoke_c(): i32 {
   return 0;
 }
 
-/** 烟测：读取 elf64_min_reloc.bin，解析 ET_REL 与 .text 节名。 */
+/** Exported function `elf64_parse_smoke_c`.
+ * Implements `elf64_parse_smoke_c`.
+ * @return i32
+ */
 export function elf64_parse_smoke_c(): i32 {
   let fixture: u8[44] = [
     116, 101, 115, 116, 115, 47, 98, 97, 115, 101, 108, 105, 110, 101, 47,
@@ -492,7 +553,10 @@ export function elf64_parse_smoke_c(): i32 {
   return 0;
 }
 
-/** 深化烟测（STD-063）：按名查找 .text 并读取首字节。 */
+/** Exported function `elf64_sections_deep_smoke_c`.
+ * Implements `elf64_sections_deep_smoke_c`.
+ * @return i32
+ */
 export function elf64_sections_deep_smoke_c(): i32 {
   let fixture: u8[44] = [
     116, 101, 115, 116, 115, 47, 98, 97, 115, 101, 108, 105, 110, 101, 47,
@@ -522,7 +586,10 @@ export function elf64_sections_deep_smoke_c(): i32 {
   return 0;
 }
 
-/** phdr 烟测（STD-064）：解析 elf64_min_phdr.bin program header。 */
+/** Exported function `elf64_phdr_smoke_c`.
+ * Implements `elf64_phdr_smoke_c`.
+ * @return i32
+ */
 export function elf64_phdr_smoke_c(): i32 {
   let fixture: u8[43] = [
     116, 101, 115, 116, 115, 47, 98, 97, 115, 101, 108, 105, 110, 101, 47,
@@ -548,7 +615,10 @@ export function elf64_phdr_smoke_c(): i32 {
   return 0;
 }
 
-/** symtab/rela 烟测（STD-103）：解析 elf64_sym_rela.bin 中 main 与 R_X86_64_64。 */
+/** Exported function `elf64_sym_rela_smoke_c`.
+ * Implements `elf64_sym_rela_smoke_c`.
+ * @return i32
+ */
 export function elf64_sym_rela_smoke_c(): i32 {
   let fixture: u8[44] = [
     116, 101, 115, 116, 115, 47, 98, 97, 115, 101, 108, 105, 110, 101, 47,

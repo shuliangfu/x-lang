@@ -1,8 +1,20 @@
-// #elseif 测试：-D FOO 返回 1，-D BAR 返回 2，否则返回 3
+// See implementation.
 #if FOO
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 { return 1; }
 #elseif BAR
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 { return 2; }
 #else
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 { return 3; }
 #endif

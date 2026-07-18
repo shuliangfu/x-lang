@@ -1,8 +1,12 @@
 /**
- * STD-SOCKETIO-001 烟测：room 广播 + hub 快照 v10。
+ * See implementation.
  */
 const sio = import("std.socketio");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (sio.room_smoke() != 0) {
     return 1;

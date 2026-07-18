@@ -1,4 +1,8 @@
-// 7.3：if 汇合后 return a+b 须读栈上最新 a（then 中 a+=，空 else）；run-asm-binop-cfg-merge.sh。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32 = 1;
   let b: i32 = 2;
@@ -6,7 +10,7 @@ function main(): i32 {
   if (1 == 1) {
     a += 10;
   } else {
-    /** 不可达，仅平衡 AST */
+    /* See implementation. */
     a += 0;
   }
   return a + b;

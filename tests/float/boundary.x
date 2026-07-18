@@ -1,4 +1,8 @@
-// 浮点边界：0.0、const 科学计数法、小数形式
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let zero: f64 = 0.0;
   const C: f64 = 1e2;

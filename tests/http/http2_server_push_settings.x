@@ -1,6 +1,10 @@
-// STD-HTTP-H2-v20：server push ENABLE_PUSH 协商 / 软拒绝烟测
+// See implementation.
 const http = import("std.http");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (http.server_push_settings_smoke() != 0) { return 1; }
   if (http.setting_enable_push() != 2) { return 2; }

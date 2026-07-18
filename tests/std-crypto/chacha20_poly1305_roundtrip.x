@@ -1,6 +1,10 @@
-// STD-113：ChaCha20-Poly1305 往返烟测
+// See implementation.
 const crypto = import("std.crypto");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let key: u8[32] = [
     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,

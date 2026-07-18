@@ -1,11 +1,15 @@
-// B-16 v1：macOS std.sys 文件 MAP_SHARED mmap 烟测（Darwin 常规链接，无 mmap.inc.c）。
+// See implementation.
 const sys = import("std.sys");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (sys.mmap_available() != 1) {
     return 1;
   }
-  // "/tmp/shux_macos_mmap_file_gate.dat\0"（gate 脚本 touch 空文件）
+  // See implementation.
   let path: u8[34] = [
     47, 116, 109, 112, 47, 115, 104, 117, 120, 95, 109, 97, 99, 111, 115,
     95, 109, 109, 97, 112, 95, 102, 105, 108, 101, 95, 103, 97, 116, 101,

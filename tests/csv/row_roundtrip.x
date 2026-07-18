@@ -1,7 +1,18 @@
-// STD-036：std.csv parse_row / write_row round-trip 金样（RFC 4180 边界）
+// See implementation.
 const csv = import("std.csv");
 
-/** 比较 buf 从 off 起 n 字节是否等于 a,b,c,d,e（按 n 使用前若干字节）。 */
+/** Internal function `bytes_eq_at`.
+ * Implements `bytes_eq_at`.
+ * @param buf *u8
+ * @param off i32
+ * @param n i32
+ * @param a u8
+ * @param b u8
+ * @param c u8
+ * @param d u8
+ * @param e u8
+ * @return i32
+ */
 function bytes_eq_at(buf: *u8, off: i32, n: i32, a: u8, b: u8, c: u8, d: u8, e: u8): i32 {
   if (n == 1) { return buf[off] == a ? 1 : 0; }
   if (n == 2) { return buf[off] == a && buf[off + 1] == b ? 1 : 0; }
@@ -13,8 +24,12 @@ function bytes_eq_at(buf: *u8, off: i32, n: i32, a: u8, b: u8, c: u8, d: u8, e: 
   return 0;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
-  // case 1：简单三列 write_row → parse_row
+  // See implementation.
   let blob: u8[16] = [97, 108, 105, 99, 101, 98, 111, 98, 49, 0, 0, 0, 0, 0, 0, 0];
   let starts: i32[4] = [0, 5, 8, 0];
   let lens: i32[4] = [5, 3, 1, 0];
@@ -32,7 +47,7 @@ function main(): i32 {
   if (bytes_eq_at(&out[0], pstarts[1], 3, 98, 111, 98, 0, 0) == 0) { return 6; }
   if (out[pstarts[2]] != 49) { return 7; }
 
-  // case 2：含逗号字段须引号包裹
+  // See implementation.
   let blob2: u8[8] = [97, 44, 98, 0, 0, 0, 0, 0];
   let starts2: i32[2] = [0, 0];
   let lens2: i32[2] = [3, 0];
@@ -44,7 +59,7 @@ function main(): i32 {
   if (cnt != 1 || plens[0] != 3) { return 9; }
   if (bytes_eq_at(&out2[0], pstarts[0], 3, 97, 44, 98, 0, 0) == 0) { return 10; }
 
-  // case 3：空字段 a,,b
+  // See implementation.
   let blob3: u8[4] = [97, 98, 0, 0];
   let starts3: i32[3] = [0, 1, 1];
   let lens3: i32[3] = [1, 0, 1];

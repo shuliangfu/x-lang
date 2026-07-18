@@ -14,21 +14,20 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// sched.x — 最终指令调度
+// sched.x — final instruction scheduling
 //
-// 模块：ir/mir
-// 层级：Target MIR
-// Phase：Phase 6
-// 职责：
-//   - 寄存器分配后的最终指令调度
-//   - 微架构感知：考虑执行端口 / 流水线延迟 / cache 行为
-//   - 与 VMIR 早期调度协同（VMIR 做粗调度，Target MIR 做精调度）
-//   - 目标：最大化流水线利用率 / 减少 cache miss
-// 依赖：../vmir/dag / ../vmir/machine_inst / ./regalloc / ./microarch
-// 设计约束：
-//   - 调度必须保持依赖不变量（不破坏 DAG 边）
-//   - 调度决策基于 Cost Model 的 pipeline + cache 维度（§10.3）
-//   - 确定性：相同输入相同调度结果
+// Module: ir/mir
+// Layer: Target MIR
+// Phase: Phase 6
+// Responsibility:
+//   - Final instruction scheduling after register allocation
+//   - Microarch-aware: execution ports / pipeline latency / cache behavior
+//   - Coordinates with VMIR early scheduling (VMIR coarse; Target MIR fine)
+// Depends: ../vmir/dag / ../vmir/machine_inst / ./regalloc / ./microarch
+// Design constraints:
+//   - Scheduling must preserve dependency invariants (do not break DAG edges)
+//   - Decisions use Cost Model pipeline + cache dimensions (§10.3)
+//   - Determinism: same input → same schedule
 //
-// 参考文档：analysis/IR核心设计.md §2.1（Target MIR 最终指令调度）/ §10.3（Cost Model pipeline/cache 维度）
-// 架构状态：v4.0 Architecture Freeze — 实现骨架，待 Phase 6 填充
+// Ref: analysis IR core design §2.1 (Target MIR final schedule) / §10.3 (pipeline/cache cost)
+// Status: v4.0 Architecture Freeze — implementation skeleton; fill in Phase 6

@@ -1,6 +1,10 @@
-// 测试 std.io.driver：Buffer、register、submit_read、submit_write、submit_*_batch、submit_*_batch_buf、register_fixed_buffers_buf
+// See implementation.
 const driver = import("std.io.driver");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let b: Buffer = Buffer { ptr: 0, len: 0, handle: 0 };
   let r: i32 = driver.register(b);

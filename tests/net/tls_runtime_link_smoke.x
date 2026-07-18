@@ -1,6 +1,10 @@
-// STD-083：runtime 自动 TLS 链入烟测（须 net-o-openssl + invoke_cc -lssl）
+// See implementation.
 const net = import("std.net");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (net.tls_is_available() == 0) {
     return 1;

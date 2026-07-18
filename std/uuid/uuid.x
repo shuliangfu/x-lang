@@ -14,26 +14,30 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std/uuid/uuid.x — UUID v4/v7 生成、解析、格式化（F-uuid v1；替代 uuid.c）
+// See implementation.
 //
-// 【文件职责】
-// 128-bit UUID 布局；v4（CSPRNG）、v7（Unix 毫秒 + 随机）；
-// 标准字符串 parse/format；相等比较与烟测入口 uuid_smoke_c。
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 【依赖】std/random、std/time 符号（extern；F-random/F-time v1 已迁 .x+胶层）。
+// See implementation.
 
 const mem = import("core.mem");
 
-/** 密码学随机字节（链入 random.o）。 */
+/* See implementation. */
 extern function random_fill_bytes_c(buf: *u8, len: i32): i32;
-/** 墙钟毫秒（链入 time.o）。 */
+/* See implementation. */
 extern function time_now_wall_ms_c(): i64;
 
-/** v7 上次生成的 Unix 毫秒；同毫秒内 uuid_v7_seq 单调递增 rand_a。 */
+/* See implementation. */
 let uuid_v7_last_ms: i64 = -1;
 let uuid_v7_seq: u16 = 0;
 
-/** 十六进制字符 → 数值；-1 非法。 */
+/** Exported function `uuid_hex_val`.
+ * Implements `uuid_hex_val`.
+ * @param c u8
+ * @return i32
+ */
 export function uuid_hex_val(c: u8): i32 {
   if (c >= 48 && c <= 57) { return (c - 48) as i32; }
   if (c >= 97 && c <= 102) { return (c - 97 + 10) as i32; }
@@ -41,19 +45,31 @@ export function uuid_hex_val(c: u8): i32 {
   return -1;
 }
 
-/** 半字节 → 小写 hex ASCII。 */
+/** Exported function `uuid_nibble_hex`.
+ * Implements `uuid_nibble_hex`.
+ * @param d u8
+ * @return u8
+ */
 export function uuid_nibble_hex(d: u8): u8 {
   if (d < 10) { return (d + 48) as u8; }
   return (d - 10 + 97) as u8;
 }
 
-/** 写入 UUID v4 随机版本与 variant 位。 */
+/** Exported function `uuid_apply_v4_variant`.
+ * Implements `uuid_apply_v4_variant`.
+ * @param u *u8
+ * @return void
+ */
 export function uuid_apply_v4_variant(u: *u8): void {
   u[6] = (u[6] & 15) | 64;
   u[8] = (u[8] & 63) | 128;
 }
 
-/** 生成 UUID v4；成功 0，随机失败 -1。 */
+/** Exported function `uuid_new_v4_c`.
+ * Implements `uuid_new_v4_c`.
+ * @param out *u8
+ * @return i32
+ */
 export function uuid_new_v4_c(out: *u8): i32 {
   if (out == 0) { return -1; }
   unsafe { if (random_fill_bytes_c(out, 16) != 16) { return -1; } }
@@ -61,7 +77,11 @@ export function uuid_new_v4_c(out: *u8): i32 {
   return 0;
 }
 
-/** 生成 UUID v7（48-bit Unix 毫秒 + 12-bit 序号/随机 + 62-bit 随机）；成功 0。 */
+/** Exported function `uuid_new_v7_c`.
+ * Implements `uuid_new_v7_c`.
+ * @param out *u8
+ * @return i32
+ */
 export function uuid_new_v7_c(out: *u8): i32 {
   let ms: i64 = 0;
   let rand_a: u16 = 0;
@@ -73,7 +93,7 @@ export function uuid_new_v7_c(out: *u8): i32 {
   if (ms == uuid_v7_last_ms) {
     uuid_v7_seq = (uuid_v7_seq + 1) & 4095;
     if (uuid_v7_seq == 0) {
-      /** 同毫秒序号溢出：自旋至下一毫秒（RFC 9562 单调性）。 */
+      /* See implementation. */
       while (ms == uuid_v7_last_ms) {
         unsafe { ms = time_now_wall_ms_c(); }
         if (ms < 0) { ms = 0; }
@@ -105,7 +125,13 @@ export function uuid_new_v7_c(out: *u8): i32 {
   return 0;
 }
 
-/** 解析 UUID 字符串（36 带连字符或 32 纯 hex）；成功 0。 */
+/** Exported function `uuid_parse_c`.
+ * Implements `uuid_parse_c`.
+ * @param ptr *u8
+ * @param len i32
+ * @param out *u8
+ * @return i32
+ */
 export function uuid_parse_c(ptr: *u8, len: i32, out: *u8): i32 {
   let i: i32 = 0;
   let pos: i32 = 0;
@@ -131,7 +157,13 @@ export function uuid_parse_c(ptr: *u8, len: i32, out: *u8): i32 {
   return 0;
 }
 
-/** 格式化为标准小写连字符形式；返回 36，失败 -1。 */
+/** Exported function `uuid_format_c`.
+ * Implements `uuid_format_c`.
+ * @param u *u8
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function uuid_format_c(u: *u8, out: *u8, out_cap: i32): i32 {
   let i: i32 = 0;
   let o: i32 = 0;
@@ -152,20 +184,32 @@ export function uuid_format_c(u: *u8, out: *u8, out_cap: i32): i32 {
   return 36;
 }
 
-/** 128-bit 相等：1 相等，0 不等。 */
+/** Exported function `uuid_eq_c`.
+ * Implements `uuid_eq_c`.
+ * @param a *u8
+ * @param b *u8
+ * @return i32
+ */
 export function uuid_eq_c(a: *u8, b: *u8): i32 {
   if (a == 0 || b == 0) { return 0; }
   if (mem.mem_compare(a, b, 16) == 0) { return 1; }
   return 0;
 }
 
-/** 取版本号 nibble（4/7/等）；非法布局仍返回位值。 */
+/** Exported function `uuid_version_c`.
+ * Implements `uuid_version_c`.
+ * @param u *u8
+ * @return i32
+ */
 export function uuid_version_c(u: *u8): i32 {
   if (u == 0) { return -1; }
   return ((u[6] >> 4) & 15) as i32;
 }
 
-/** C 烟测：已知向量 parse/format/eq/v4/v7（STD-075 门禁）。 */
+/** Exported function `uuid_smoke_c`.
+ * Implements `uuid_smoke_c`.
+ * @return i32
+ */
 export function uuid_smoke_c(): i32 {
   let known: u8[37] = [
     53, 48, 48, 101, 56, 52, 48, 48, 45, 101, 50, 57, 98, 45, 52, 49, 100, 52,

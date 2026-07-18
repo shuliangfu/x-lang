@@ -14,51 +14,66 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.sync — 互斥锁与同步原语（对标 Rust std::sync::Mutex、Zig Thread.Mutex）
+// See implementation.
 //
-// 【文件职责】
-// 对外暴露 std.sync 的 Mutex
+// See implementation.
+// See implementation.
 // API：new_mutex、lock、try_lock、unlock、free_mutex。
-// 互斥体句柄为不透明指针（*u8），与 std.thread
-// 配合实现多线程互斥。RwLock/Once 见 P2 可选或 P3。
+// See implementation.
+// See implementation.
 //
-// 【所属模块/组件】
-// 标准库 std.sync；用户通过 import("std.sync") 使用。依赖 core；实现见 sync.x + sync_os_glue.c +
-// sync_lock_diag_tls_glue.c。Unix 链接时需 -lpthread。
+// See implementation.
+// See implementation.
+// See implementation.
 extern function sync_mutex_new_c(): *u8;
 extern function sync_mutex_lock_c(m: *u8): i32;
 extern function sync_mutex_try_lock_c(m: *u8): i32;
 extern function sync_mutex_unlock_c(m: *u8): i32;
 extern function sync_mutex_free_c(m: *u8): void;
-/** 创建新的互斥体；成功返回句柄（不透明指针），失败返回 0。对标
-* Mutex::new()。 */
+/** Exported function `new_mutex`.
+ * Implements `new_mutex`.
+ * @return *u8
+ */
 export function new_mutex(): *u8 {
   unsafe {
   return sync_mutex_new_c();
   }
 }
-/** 加锁；阻塞直到获取。返回 0 成功，-1 失败（如 m 为
-* 0）。获取后需在相同线程内调用 unlock。 */
+/** Exported function `lock`.
+ * Implements `lock`.
+ * @param m *u8
+ * @return i32
+ */
 export function lock(m: *u8): i32 {
   unsafe {
   return sync_mutex_lock_c(m);
   }
 }
-/** 尝试加锁；不阻塞。返回 0 表示已获取，非 0 表示未获取（忙或 m 为
-* 0）。 */
+/** Exported function `try_lock`.
+ * Implements `try_lock`.
+ * @param m *u8
+ * @return i32
+ */
 export function try_lock(m: *u8): i32 {
   unsafe {
   return sync_mutex_try_lock_c(m);
   }
 }
-/** 解锁；必须在已持有锁的线程内调用。返回 0 成功，-1 失败。 */
+/** Exported function `unlock`.
+ * Implements `unlock`.
+ * @param m *u8
+ * @return i32
+ */
 export function unlock(m: *u8): i32 {
   unsafe {
   return sync_mutex_unlock_c(m);
   }
 }
-/** 销毁并释放互斥体；调用后 m
-* 不可再使用。不得在已加锁状态下调用（先 unlock 再 free）。 */
+/** Exported function `free_mutex`.
+ * Memory management helper `free_mutex`.
+ * @param m *u8
+ * @return void
+ */
 export function free_mutex(m: *u8): void {
   unsafe {
   sync_mutex_free_c(m);
@@ -81,98 +96,147 @@ extern function sync_condvar_free_c(cv: *u8): void;
 extern function sync_rwlock_contention_smoke_c(): i32;
 extern function sync_condvar_contention_smoke_c(): i32;
 
-/** 创建 RwLock；失败 0。 */
+/** Exported function `new_rwlock`.
+ * Implements `new_rwlock`.
+ * @return *u8
+ */
 export function new_rwlock(): *u8 {
   unsafe {
   return sync_rwlock_new_c();
   }
 }
 
-/** 销毁 RwLock。 */
+/** Exported function `free_rwlock`.
+ * Memory management helper `free_rwlock`.
+ * @param rw *u8
+ * @return void
+ */
 export function free_rwlock(rw: *u8): void {
   unsafe {
   sync_rwlock_free_c(rw);
   }
 }
 
-/** 获取读锁；成功 0。 */
+/** Exported function `read_lock`.
+ * Read path helper `read_lock`.
+ * @param rw *u8
+ * @return i32
+ */
 export function read_lock(rw: *u8): i32 {
   unsafe {
   return sync_rwlock_read_lock_c(rw);
   }
 }
 
-/** 获取写锁；成功 0。 */
+/** Exported function `write_lock`.
+ * Write path helper `write_lock`.
+ * @param rw *u8
+ * @return i32
+ */
 export function write_lock(rw: *u8): i32 {
   unsafe {
   return sync_rwlock_write_lock_c(rw);
   }
 }
 
-/** 释放读锁；成功 0。 */
+/** Exported function `read_unlock`.
+ * Read path helper `read_unlock`.
+ * @param rw *u8
+ * @return i32
+ */
 export function read_unlock(rw: *u8): i32 {
   unsafe {
   return sync_rwlock_read_unlock_c(rw);
   }
 }
 
-/** 释放写锁；成功 0。 */
+/** Exported function `write_unlock`.
+ * Write path helper `write_unlock`.
+ * @param rw *u8
+ * @return i32
+ */
 export function write_unlock(rw: *u8): i32 {
   unsafe {
   return sync_rwlock_write_unlock_c(rw);
   }
 }
 
-/** 创建 Condvar；失败 0。 */
+/** Exported function `new_condvar`.
+ * Implements `new_condvar`.
+ * @return *u8
+ */
 export function new_condvar(): *u8 {
   unsafe {
   return sync_condvar_new_c();
   }
 }
 
-/** 在已持有 mutex 时等待 condvar；唤醒后重新持有 mutex。 */
+/** Exported function `wait`.
+ * Implements `wait`.
+ * @param cv *u8
+ * @param mutex *u8
+ * @return i32
+ */
 export function wait(cv: *u8, mutex: *u8): i32 {
   unsafe {
   return sync_condvar_wait_c(cv, mutex);
   }
 }
 
-/** 唤醒一个等待线程。 */
+/** Exported function `notify_one`.
+ * Implements `notify_one`.
+ * @param cv *u8
+ * @return i32
+ */
 export function notify_one(cv: *u8): i32 {
   unsafe {
   return sync_condvar_signal_c(cv);
   }
 }
 
-/** 唤醒全部等待线程。 */
+/** Exported function `notify_all`.
+ * Implements `notify_all`.
+ * @param cv *u8
+ * @return i32
+ */
 export function notify_all(cv: *u8): i32 {
   unsafe {
   return sync_condvar_broadcast_c(cv);
   }
 }
 
-/** 销毁 Condvar。 */
+/** Exported function `free_condvar`.
+ * Memory management helper `free_condvar`.
+ * @param cv *u8
+ * @return void
+ */
 export function free_condvar(cv: *u8): void {
   unsafe {
   sync_condvar_free_c(cv);
   }
 }
 
-/** RwLock 竞争烟测；成功 0。 */
+/** Exported function `rwlock_contention_smoke`.
+ * Implements `rwlock_contention_smoke`.
+ * @return i32
+ */
 export function rwlock_contention_smoke(): i32 {
   unsafe {
   return sync_rwlock_contention_smoke_c();
   }
 }
 
-/** Condvar 竞争烟测；成功 0。 */
+/** Exported function `condvar_contention_smoke`.
+ * Implements `condvar_contention_smoke`.
+ * @return i32
+ */
 export function condvar_contention_smoke(): i32 {
   unsafe {
   return sync_condvar_contention_smoke_c();
   }
 }
 
-/* --- STD-111：调试模式锁诊断 --- */
+/* See implementation. */
 
 extern function sync_lock_diag_set_enabled_c(on: i32): void;
 extern function sync_lock_diag_is_enabled_c(): i32;
@@ -182,56 +246,91 @@ extern function sync_lock_diag_clear_c(): void;
 extern function sync_lock_diag_snapshot_c(out: *u8, cap: i32): i32;
 extern function sync_lock_diag_smoke_c(): i32;
 
-/** 递归加锁错误码 -1。 */
+/** Exported function `lock_diag_err_recursive`.
+ * Implements `lock_diag_err_recursive`.
+ * @return i32
+ */
 export function lock_diag_err_recursive(): i32 { return -1; }
-/** 锁序违规错误码 -2。 */
+/** Exported function `lock_diag_err_order`.
+ * Implements `lock_diag_err_order`.
+ * @return i32
+ */
 export function lock_diag_err_order(): i32 { return -2; }
-/** 解锁顺序错误码 -3。 */
+/** Exported function `lock_diag_err_unlock`.
+ * Implements `lock_diag_err_unlock`.
+ * @return i32
+ */
 export function lock_diag_err_unlock(): i32 { return -3; }
 
-/** 开启/关闭锁诊断。 */
+/** Exported function `lock_diag_set_enabled`.
+ * Implements `lock_diag_set_enabled`.
+ * @param on i32
+ * @return void
+ */
 export function lock_diag_set_enabled(on: i32): void {
   unsafe {
   sync_lock_diag_set_enabled_c(on);
   }
 }
 
-/** 查询锁诊断是否开启。 */
+/** Exported function `lock_diag_is_enabled`.
+ * Implements `lock_diag_is_enabled`.
+ * @return i32
+ */
 export function lock_diag_is_enabled(): i32 {
   unsafe {
   return sync_lock_diag_is_enabled_c();
   }
 }
 
-/** 为 mutex 绑定锁序 id。 */
+/** Exported function `lock_diag_mutex_set_id`.
+ * Implements `lock_diag_mutex_set_id`.
+ * @param m *u8
+ * @param id i32
+ * @return i32
+ */
 export function lock_diag_mutex_set_id(m: *u8, id: i32): i32 {
   unsafe {
   return sync_lock_diag_mutex_set_id_c(m, id);
   }
 }
 
-/** 最近诊断错误码。 */
+/** Exported function `lock_diag_last_err`.
+ * Implements `lock_diag_last_err`.
+ * @return i32
+ */
 export function lock_diag_last_err(): i32 {
   unsafe {
   return sync_lock_diag_last_err_c();
   }
 }
 
-/** 清空诊断状态。 */
+/** Exported function `lock_diag_clear`.
+ * Implements `lock_diag_clear`.
+ * @return void
+ */
 export function lock_diag_clear(): void {
   unsafe {
   sync_lock_diag_clear_c();
   }
 }
 
-/** 写入文本快照；返回写入字节数。 */
+/** Exported function `lock_diag_snapshot`.
+ * Implements `lock_diag_snapshot`.
+ * @param out *u8
+ * @param cap i32
+ * @return i32
+ */
 export function lock_diag_snapshot(out: *u8, cap: i32): i32 {
   unsafe {
   return sync_lock_diag_snapshot_c(out, cap);
   }
 }
 
-/** C 烟测门面。 */
+/** Exported function `lock_diag_smoke`.
+ * Implements `lock_diag_smoke`.
+ * @return i32
+ */
 export function lock_diag_smoke(): i32 {
   unsafe {
   return sync_lock_diag_smoke_c();

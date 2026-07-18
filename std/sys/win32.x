@@ -14,36 +14,36 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.sys.win32 — Windows kernel32 I/O 门面（B-17 v1～v3 / F-02 v2 纯 .x FFI）
+// See implementation.
 //
-// 【文件职责】
-// 为 Windows 宿主提供 WriteFile/ReadFile/CreateFile 的 .x 封装；
-// v1：stdout/stderr 经 GetStdHandle + WriteFile；
-// v2：读文件经 CreateFileA + ReadFile；
-// v3：ExitProcess 进程退出。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 【链接】
-// F-02 v2：直接 extern kernel32.dll；常规 -o exe 由链接器解析 IAT（无 win32.inc.c）。
+// See implementation.
+// See implementation.
 
-/** kernel32 GetStdHandle；n 为 STD_*_HANDLE 常量。 */
+/* See implementation. */
 extern function GetStdHandle(nStdHandle: i32): *u8;
 
-/** kernel32 WriteFile；非零表示成功。 */
+/* See implementation. */
 extern function WriteFile(hFile: *u8, lpBuffer: *u8, nNumberOfBytesToWrite: u32, lpNumberOfBytesWritten: *u32, lpOverlapped: *u8): i32;
 
-/** kernel32 CreateFileA；失败返回 INVALID_HANDLE_VALUE。 */
+/* See implementation. */
 extern function CreateFileA(lpFileName: *u8, dwDesiredAccess: u32, dwShareMode: u32, lpSecurityAttributes: *u8, dwCreationDisposition: u32, dwFlagsAndAttributes: u32, hTemplateFile: *u8): *u8;
 
-/** kernel32 ReadFile；非零表示成功。 */
+/* See implementation. */
 extern function ReadFile(hFile: *u8, lpBuffer: *u8, nNumberOfBytesToRead: u32, lpNumberOfBytesRead: *u32, lpOverlapped: *u8): i32;
 
-/** kernel32 CloseHandle；非零表示成功。 */
+/* See implementation. */
 extern function CloseHandle(hObject: *u8): i32;
 
 /** kernel32 ExitProcess；noreturn。 */
 extern function ExitProcess(uExitCode: u32): void;
 
-/** INVALID_HANDLE_VALUE（64 位下为 (void*)-1）。 */
+/* See implementation. */
 export const WIN32_INVALID_HANDLE: i64 = -1;
 
 /** GetStdHandle(STD_OUTPUT_HANDLE)。 */
@@ -65,14 +65,14 @@ export const WIN32_OPEN_EXISTING: u32 = 3;
 export const WIN32_FILE_ATTRIBUTE_NORMAL: u32 = 0x80;
 
 /**
- * F-02 v2 探测：win32 WriteFile 是否在宿主可用（Windows 目标恒 1）。
+ * See implementation.
  */
 export function win32_write_available(): i32 {
   return 1;
 }
 
 /**
- * GetStdHandle 薄封装；失败 INVALID_HANDLE_VALUE → null。
+ * See implementation.
  */
 export function win32_get_std_handle(n: i32): *u8 {
   let h: *u8 = 0;
@@ -87,8 +87,8 @@ export function win32_get_std_handle(n: i32): *u8 {
 }
 
 /**
- * WriteFile 薄封装；成功返回写入字节数，失败 -1。
- * written_out 可为 null。
+ * See implementation.
+ * See implementation.
  */
 export function win32_write_file(handle: *u8, buf: *u8, len: i32, written_out: *u32): i32 {
   if (handle == 0 || buf == 0 || len <= 0) {
@@ -110,7 +110,7 @@ export function win32_write_file(handle: *u8, buf: *u8, len: i32, written_out: *
 }
 
 /**
- * 将 POSIX fd（1=stdout, 2=stderr）映射为 GetStdHandle 参数；其它 fd v1 返回 -1。
+ * See implementation.
  */
 export function win32_std_handle_id_for_fd(fd: i32): i32 {
   if (fd == 1) {
@@ -123,8 +123,8 @@ export function win32_std_handle_id_for_fd(fd: i32): i32 {
 }
 
 /**
- * v1 write：fd 1/2 → GetStdHandle + WriteFile；其它 fd 暂不支持。
- * 成功返回写入字节数；失败或 count 非法返回 -1。
+ * See implementation.
+ * See implementation.
  */
 export function win32_write(fd: i32, buf: *u8, len: i32): i32 {
   if (len <= 0) {
@@ -150,19 +150,29 @@ export function win32_write(fd: i32, buf: *u8, len: i32): i32 {
   return r;
 }
 
-/** stdout write 薄封装。 */
+/** Exported function `win32_write_stdout`.
+ * Write path helper `win32_write_stdout`.
+ * @param buf *u8
+ * @param len i32
+ * @return i32
+ */
 export function win32_write_stdout(buf: *u8, len: i32): i32 {
   return win32_write(1, buf, len);
 }
 
-/** stderr write 薄封装。 */
+/** Exported function `win32_write_stderr`.
+ * Write path helper `win32_write_stderr`.
+ * @param buf *u8
+ * @param len i32
+ * @return i32
+ */
 export function win32_write_stderr(buf: *u8, len: i32): i32 {
   return win32_write(2, buf, len);
 }
 
 /**
- * CreateFileA + ReadFile 循环读 path 到 buf[0..cap)；成功返回读入字节数，失败 -1。
- * path 为 NUL 结尾 ANSI 路径（B-17 v2）。
+ * See implementation.
+ * See implementation.
  */
 export function win32_read_file_into_path(path: *u8, buf: *u8, cap: i32): i32 {
   if (path == 0 || buf == 0 || cap <= 0) {
@@ -203,13 +213,16 @@ export function win32_read_file_into_path(path: *u8, buf: *u8, cap: i32): i32 {
   return total;
 }
 
-/** F-02 v2 探测：ReadFile 读文件是否在 win32 层可用（恒 1）。 */
+/** Exported function `win32_read_available`.
+ * Read path helper `win32_read_available`.
+ * @return i32
+ */
 export function win32_read_available(): i32 {
   return 1;
 }
 
 /**
- * v2 读文件：CreateFileA + ReadFile 循环；成功返回读入字节数，失败 -1。
+ * See implementation.
  */
 export function win32_read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
   if (path == 0 || buf == 0 || cap <= 0) {
@@ -222,7 +235,7 @@ export function win32_read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
 }
 
 /**
- * v3：ExitProcess 薄封装；code 为进程退出码低 32 位。
+ * See implementation.
  */
 export function win32_exit_process(code: i32): void {
   let c: u32 = code as u32;

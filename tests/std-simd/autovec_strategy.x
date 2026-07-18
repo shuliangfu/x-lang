@@ -1,8 +1,12 @@
-// tests/std-simd/autovec_strategy.x — STD-153 hw_available / recommend_simd_path 烟测
+// See implementation.
 //
-// 【文件职责】验证 auto 策略在已知 SIMD 宿主上推荐 HW 路径。
+// See implementation.
 const simd = import("std.simd");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let hw: i32 = simd.hw_available();
   let path: i32 = simd.recommend_path();

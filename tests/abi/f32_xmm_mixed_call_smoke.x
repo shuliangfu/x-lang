@@ -1,6 +1,6 @@
 /**
- * SysV mixed 实参 ABI 烟测（SHUX_ABI_F32_XMM=1）：*T 走 gp（rdi），三 f32 走 xmm0–xmm2。
- * write3 用形参 x/y/z 求和 → exit=6（字段回读见 f32_xmm_mixed_field_read_smoke.x）。
+ * See implementation.
+ * See implementation.
  */
 struct F32Tri {
   x: f32
@@ -8,7 +8,14 @@ struct F32Tri {
   z: f32
 }
 
-/** 写入三元组并返回 x+y+z（形参须从 xmm 读取，勿依赖 struct 字段 reread 布局）。 */
+/** Internal function `write3`.
+ * Write path helper `write3`.
+ * @param v *F32Tri
+ * @param x f32
+ * @param y f32
+ * @param z f32
+ * @return f32
+ */
 function write3(v: *F32Tri, x: f32, y: f32, z: f32): f32 {
   v.x = x;
   v.y = y;
@@ -17,6 +24,10 @@ function write3(v: *F32Tri, x: f32, y: f32, z: f32): f32 {
   return a + z;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let t: F32Tri = F32Tri { x: 0.0, y: 0.0, z: 0.0 };
   let s: f32 = write3(&t, 1.0, 2.0, 3.0);

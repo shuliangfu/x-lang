@@ -1,4 +1,8 @@
-// 7.3：return arr[i+j] INDEX 读双 VAR 下标 scratch（run-asm-assign-index-expr.sh）。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let arr: i32[4] = [5, 10, 15, 20];
   let i: i32 = 1;

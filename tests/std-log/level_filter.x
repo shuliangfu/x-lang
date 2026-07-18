@@ -1,6 +1,10 @@
-// STD-053：set_min_level 过滤低级别日志
+// See implementation.
 const log = import("std.log");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   log.set_min_level(log.level_warn());
   let msg: u8[4] = [116, 101, 115, 116];

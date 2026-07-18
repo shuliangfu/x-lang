@@ -14,14 +14,28 @@ const mb1: MB1Header = {
   checksum: 0xE4524FFE,
 };
 
+/** Internal function `serial_putc`.
+ * Implements `serial_putc`.
+ * @param c u8
+ * @return void
+ */
 function serial_putc(c: u8): void {
   unsafe { asm!("outb %%al, %%dx" : : "a"(c), "d"(0x3F8)); }
 }
+/** Internal function `serial_putint`.
+ * Implements `serial_putint`.
+ * @param n i32
+ * @return void
+ */
 function serial_putint(n: i32): void {
   if (n >= 10) { serial_putint(n / 10); }
   serial_putc((n % 10 + 48) as u8);
 }
 
+/** Internal function `kmain`.
+ * Implements `kmain`.
+ * @return i32
+ */
 function kmain(): i32 {
   // Set up GDT at 0x80000 with a per-CPU data segment
   // GDT entry 0: null
@@ -110,7 +124,16 @@ function kmain(): i32 {
 }
 
 #[entry]
+/** Internal function `start`.
+ * Implements `start`.
+ * @return void
+ */
 function start(): void {
   unsafe { asm!("mov $0x90000, %esp; call kmain; cli; hlt"); }
 }
+/** Internal function `main`.
+ * Program/test entry point.
+ * @param ) i32 { return kmain(
+ * @return void
+ */
 function main(): i32 { return kmain() + mb1.magic as i32; }

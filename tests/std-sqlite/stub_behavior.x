@@ -1,6 +1,10 @@
-// STD-139：stub / sqlite3 双模式行为烟测（sqlite3 时仅探测；stub 时断言 DB_NOT_IMPL）
+// See implementation.
 const sqlite = import("std.db.sqlite");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let av: i32 = sqlite.is_available();
   if (av != 0 && av != 1) {

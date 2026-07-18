@@ -9,6 +9,12 @@ const UPDATE_STATE_BYTES: i32 = 12;
 
 extern function memset(s: *u8, c: i32, n: usize): *u8;
 
+/** Internal function `update_state_cast`.
+ * Implements `update_state_cast`.
+ * @param state *u8
+ * @param state_cap i32
+ * @return *UpdateState
+ */
 function update_state_cast(state: *u8, state_cap: i32): *UpdateState {
   let need: i32 = UPDATE_STATE_BYTES;
   if (state == 0 || state_cap < need) { return 0 as *UpdateState; }
@@ -17,6 +23,13 @@ function update_state_cast(state: *u8, state_cap: i32): *UpdateState {
   return s;
 }
 
+/** Internal function `update_state_init`.
+ * Implements `update_state_init`.
+ * @param state *u8
+ * @param state_cap i32
+ * @param mode i32
+ * @return i32
+ */
 function update_state_init(state: *u8, state_cap: i32, mode: i32): i32 {
   let need: i32 = UPDATE_STATE_BYTES;
   let s: *UpdateState = 0 as *UpdateState;
@@ -28,6 +41,16 @@ function update_state_init(state: *u8, state_cap: i32, mode: i32): i32 {
   return 0;
 }
 
+/** Internal function `update_emit_stub`.
+ * Implements `update_emit_stub`.
+ * @param s *UpdateState
+ * @param inp *u8
+ * @param n i32
+ * @param is_last i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 function update_emit_stub(s: *UpdateState, inp: *u8, n: i32, is_last: i32, out: *u8, out_cap: i32): i32 {
   if (s == 0 || inp == 0 || out == 0 || out_cap <= 0 || n <= 0) { return -1; }
   out[0] = inp[0];
@@ -35,6 +58,18 @@ function update_emit_stub(s: *UpdateState, inp: *u8, n: i32, is_last: i32, out: 
   return 1;
 }
 
+/** Internal function `generic_update_single_loop_no_chunk_copy_check_c`.
+ * Implements `generic_update_single_loop_no_chunk_copy_check_c`.
+ * @param state *u8
+ * @param state_cap i32
+ * @param inp *u8
+ * @param in_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @param is_last i32
+ * @param in_consumed *i32
+ * @return i32
+ */
 function generic_update_single_loop_no_chunk_copy_check_c(state: *u8, state_cap: i32, inp: *u8, in_len: i32, out: *u8, out_cap: i32, is_last: i32, in_consumed: *i32): i32 {
   let s: *UpdateState = update_state_cast(state, state_cap);
   let cursor: *u8 = inp;
@@ -60,6 +95,10 @@ function generic_update_single_loop_no_chunk_copy_check_c(state: *u8, state_cap:
   return 0;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let st: u8[16] = [];
   let out: u8[16] = [];

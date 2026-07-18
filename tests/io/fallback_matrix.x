@@ -1,8 +1,12 @@
-// tests/io/fallback_matrix.x — STD-026：非 Linux 回退路径烟测（read_fd/write_fd typeck）
+// See implementation.
 //
-// 【文件职责】确认 std.io fd 便捷 API 可 typeck；运行时平台路径见 analysis/std-io-fallback-v1.md。
+// See implementation.
 const io = import("std.io");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let buf: u8[8] = [];
   let _r: i32 = io.read_fd(0, &buf[0], 8);

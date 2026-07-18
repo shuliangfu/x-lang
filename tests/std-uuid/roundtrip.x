@@ -1,6 +1,10 @@
-// STD-075：std.uuid parse/format/eq/v4/v7 round-trip 烟测
+// See implementation.
 const uuid = import("std.uuid");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let known: u8[36] = [
     53, 53, 48, 101, 56, 52, 48, 48, 45, 101, 50, 57, 98, 45, 52, 49,

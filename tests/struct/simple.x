@@ -1,9 +1,13 @@
-// 结构体定义与字段访问、结构体字面量（变量类型与类型系统设计 §6.1）
+// See implementation.
 struct Point {
   x: i32
   y: i32
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let p: Point = Point { x: 1, y: 2 };
   return p.x;

@@ -1,6 +1,10 @@
-// STD-006：std.random CSPRNG 与 std.crypto 安全集联动烟测
+// See implementation.
 const random = import("std.random");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let buf: u8[16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   if (random.fill_bytes(&buf[0], 16) != 16) { return 1; }

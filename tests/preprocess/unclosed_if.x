@@ -1,3 +1,7 @@
-// 边界：仅有条件编译块未闭合，应报 unclosed #if
+// See implementation.
 #if FOO
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 { return 1; }

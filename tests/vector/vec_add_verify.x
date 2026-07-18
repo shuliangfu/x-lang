@@ -1,6 +1,10 @@
-// vec_add_verify.x — memcmp 校验向量逐 lane 加法结果（依赖 &vector + as *u8）
+// See implementation.
 extern function shux_string_memcmp_c(a: *u8, b: *u8, n: i32): i32;
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32x4 = [1, 2, 3, 4];
   let b: i32x4 = [10, 20, 30, 40];

@@ -1,7 +1,11 @@
-// 测试 core.builtin：placeholder、copy、min/max、clz/ctz/popcount；unreachable/abort
-// 仅死分支覆盖（不执行）
+// See implementation.
+// See implementation.
 const builtin = import("core.builtin");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let n: i32 = placeholder();
   let src: u8[4] = [1, 2, 3, 4];

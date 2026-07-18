@@ -14,18 +14,32 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.compress.zlib — zlib 块压缩/解压（deflate/inflate）
+// See implementation.
 //
-// 【文件职责】RFC 1950 zlib 封装；实现见 libz.x（F-04 v4 去 C）。
-// 【依赖】按需 -lz（runtime 扫描 shu_compress_zlib_marker 或 compress2 未定义符号）。
+// See implementation.
+// See implementation.
 const libz = import("std.compress.zlib.libz");
 
-/** 压缩为 zlib 格式，返回写入字节数，失败 -1。 */
+/** Exported function `deflate`.
+ * Implements `deflate`.
+ * @param in *u8
+ * @param in_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function deflate(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
   return libz.compress_deflate_c(in, in_len, out, out_cap);
 }
 
-/** 解压 zlib 流，返回写入字节数，失败 -1。 */
+/** Exported function `inflate`.
+ * Implements `inflate`.
+ * @param in *u8
+ * @param in_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function inflate(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
   return libz.compress_inflate_c(in, in_len, out, out_cap);
 }

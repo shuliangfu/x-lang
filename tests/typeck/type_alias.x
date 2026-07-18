@@ -1,4 +1,4 @@
-// §2.24 类型别名：type Alias = TargetType;（纯 typeck 别名，零运行时成本）
+// See implementation.
 struct Point { x: i32; y: i32; }
 
 type P = Point;
@@ -6,6 +6,10 @@ type Coord = i32;
 type PP = P;
 type IntPtr = *i32;
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let p: P = Point { x: 1, y: 2 };
   let p2: PP = { x: 3, y: 4 };

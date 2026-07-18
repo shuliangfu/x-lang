@@ -1,10 +1,22 @@
-// index_ptr_param.x — M8b：*u8 形参 [i] 与 while 内 if 解析烟测
+// probe_index: see function docblock below.
 
+/** Internal function `probe_index`.
+ * Implements `probe_index`.
+ * @param body *u8
+ * @param len i32
+ * @return i32
+ */
 function probe_index(body: *u8, len: i32): i32 {
   let x: u8 = body[0];
   return x as i32;
 }
 
+/** Internal function `probe_while_if`.
+ * Implements `probe_while_if`.
+ * @param body *u8
+ * @param len i32
+ * @return i32
+ */
 function probe_while_if(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   let b0: u8 = 0;

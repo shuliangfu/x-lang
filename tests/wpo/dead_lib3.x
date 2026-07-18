@@ -1,10 +1,16 @@
-// dead_lib3.x — WPO 多库 proxy：第三 import 库
-/** 不可达 export：WPO asm DCE 应剔除。 */
+// See implementation.
+/** Internal function `dead_export3`.
+ * Implements `dead_export3`.
+ * @return i32
+ */
 function dead_export3(): i32 {
   return 88;
 }
 
-/** 被 dead_multi_user 引用的 export。 */
+/** Internal function `live_export3`.
+ * Implements `live_export3`.
+ * @return i32
+ */
 function live_export3(): i32 {
   return 13;
 }

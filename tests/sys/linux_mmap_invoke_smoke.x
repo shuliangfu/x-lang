@@ -1,6 +1,10 @@
-// B-14 v3：Linux freestanding 匿名 mmap + munmap 烟测。
+// See implementation.
 const linux = import("std.sys.linux");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (linux.linux_syscall_invoke_available() != 1) {
     return 1;

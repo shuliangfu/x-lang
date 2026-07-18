@@ -1,7 +1,11 @@
-// STD-108：std.channel 双向混合 select 烟测（recv+send；Windows stub 时 skip）
+// See implementation.
 const channel = import("std.channel");
 const debug = import("core.debug");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let recv_ch: *u8 = channel.bounded(2);
   let send_ch: *u8 = channel.bounded(1);

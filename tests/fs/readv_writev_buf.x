@@ -1,8 +1,12 @@
-// 测试 std.fs 切片化 API：fs_writev_buf、fs_readv_buf（指针+段数）
-// 覆盖 fs_readv_buf_c/fs_writev_buf_c 的编译与链接；使用无效 fd
-// 调用以不依赖真实 I/O，仅验证符号与调用路径。
+// See implementation.
+// See implementation.
+// See implementation.
 const fs = import("std.fs");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let buf: u8[4] = [65, 66, 67, 68];
   let bufs: FsIovecBuf[2] = [

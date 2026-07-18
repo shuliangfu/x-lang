@@ -14,14 +14,14 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std/async/future.x — F-async-future v2：Future/Poll 纯 .x（替代 future_glue.c）
+// See implementation.
 //
-// 【文件职责】
-// 最小 i32 Future：create → poll → complete → take → wait；
-// 静态池 SHUX_FUTURE_MAX=64；wait 经 extern drain/poll 与 scheduler 协作。
-// 经 shux 编译为 future.o；对外 API 在 mod.x。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 【对标】Rust Future/Poll、Zig async 最小手动驱动子集。
+// See implementation.
 
 export const SHUX_POLL_PENDING: i32 = 0;
 export const SHUX_POLL_READY: i32 = 1;
@@ -34,31 +34,41 @@ export const FUT_ERR_FULL: i32 = -4;
 
 export const SHUX_FUTURE_MAX: i32 = 64;
 
-/** 单 Future 槽：state 0=pending，1=ready。 */
+/* See implementation. */
 allow(padding) struct ShuxFutureSlot {
   state: i32;
   value: i32;
 }
 
-/** 未链 scheduler.o 时 drain/poll 弱桩（future_wait 仍可编译）。 */
+/* See implementation. */
 extern function shux_async_run_drain_until_idle(): i32;
 extern function shux_io_poll_async_completions(timeout_ms: u32): u32;
 
-/** 模块级 Future 静态池（BSS 零初始化）。 */
+/* See implementation. */
 let g_shux_futures: ShuxFutureSlot[64] = [];
 let g_shux_future_count: i32 = 0;
 
-/** F-async v1 Future 版本标记；供 v1 聚合 gate 校验。 */
+/** Exported function `future_f_async_future_v1_marker_c`.
+ * Implements `future_f_async_future_v1_marker_c`.
+ * @return i32
+ */
 export function future_f_async_future_v1_marker_c(): i32 {
   return 1;
 }
 
-/** F-async-future v2 逻辑全量 .x 标记。 */
+/** Exported function `future_f_async_future_v2_marker_c`.
+ * Implements `future_f_async_future_v2_marker_c`.
+ * @return i32
+ */
 export function future_f_async_future_v2_marker_c(): i32 {
   return 1;
 }
 
-/** handle（1..N）→ 槽指针；非法返回 0。 */
+/** Exported function `shux_future_slot_from_handle`.
+ * Implements `shux_future_slot_from_handle`.
+ * @param handle i64
+ * @return *ShuxFutureSlot
+ */
 export function shux_future_slot_from_handle(handle: i64): *ShuxFutureSlot {
   let idx: i32 = 0;
   if (handle <= 0) { return 0 as *ShuxFutureSlot; }
@@ -68,7 +78,7 @@ export function shux_future_slot_from_handle(handle: i64): *ShuxFutureSlot {
 }
 
 /**
- * 创建 pending Future；返回 opaque handle（≥1），池满返回 0。
+ * See implementation.
  */
 export function shux_async_future_create_c(): i64 {
   let s: *ShuxFutureSlot = 0 as *ShuxFutureSlot;
@@ -81,7 +91,7 @@ export function shux_async_future_create_c(): i64 {
 }
 
 /**
- * 轮询 Future：SHUX_POLL_PENDING / SHUX_POLL_READY；非法 handle 返回 -1。
+ * See implementation.
  */
 export function shux_async_future_poll_c(handle: i64): i32 {
   let s: *ShuxFutureSlot = shux_future_slot_from_handle(handle);
@@ -91,7 +101,7 @@ export function shux_async_future_poll_c(handle: i64): i32 {
 }
 
 /**
- * 完成 Future 并写入 i32 结果；重复 complete 覆盖 value 并保持 Ready。
+ * See implementation.
  */
 export function shux_async_future_complete_c(handle: i64, value: i32): void {
   let s: *ShuxFutureSlot = shux_future_slot_from_handle(handle);
@@ -101,7 +111,7 @@ export function shux_async_future_complete_c(handle: i64, value: i32): void {
 }
 
 /**
- * Ready 时取出 value 并重置为 Pending；Pending 返回 FUT_ERR_PENDING。
+ * See implementation.
  */
 export function shux_async_future_take_c(handle: i64, out: *i32): i32 {
   let s: *ShuxFutureSlot = shux_future_slot_from_handle(handle);
@@ -114,7 +124,10 @@ export function shux_async_future_take_c(handle: i64, out: *i32): i32 {
   return FUT_OK;
 }
 
-/** 重置 Future 池（单进程烟测/二次 poll 用）。 */
+/** Exported function `shux_async_future_reset_c`.
+ * Implements `shux_async_future_reset_c`.
+ * @return void
+ */
 export function shux_async_future_reset_c(): void {
   let i: i32 = 0;
   g_shux_future_count = 0;
@@ -126,8 +139,8 @@ export function shux_async_future_reset_c(): void {
 }
 
 /**
- * 带 scheduler drain 的 Future 等待：每轮 poll → IO poll → drain_until_idle。
- * 返回 SHUX_POLL_READY / SHUX_POLL_PENDING；非法 handle 返回 -1。
+ * See implementation.
+ * See implementation.
  */
 export function shux_async_future_wait_c(handle: i64, max_rounds: i32): i32 {
   let round: i32 = 0;
@@ -145,7 +158,10 @@ export function shux_async_future_wait_c(handle: i64, max_rounds: i32): i32 {
   return shux_async_future_poll_c(handle);
 }
 
-/** C 烟测：create → poll pending → complete → poll ready → take。 */
+/** Exported function `shux_async_future_smoke_c`.
+ * Implements `shux_async_future_smoke_c`.
+ * @return i32
+ */
 export function shux_async_future_smoke_c(): i32 {
   let h: i64 = 0;
   let v: i32 = 0;

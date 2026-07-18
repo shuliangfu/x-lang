@@ -1,4 +1,4 @@
-// STD-041：`await future_wait(...)` → CPS suspend_io 循环直至 Ready
+// See implementation.
 const async_mod = import("std.async");
 
 async function wait_fut(): i32 {
@@ -11,6 +11,10 @@ async function wait_fut(): i32 {
   return 0;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   return wait_fut();
 }

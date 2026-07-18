@@ -14,34 +14,39 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// macho.x — Mach-O 64 位可重定位 .o 写出（macOS 目标文件）
+// See implementation.
 //
-// 职责：将 backend 已填充的 ElfCodegenCtx（code/syms/relocs）写出为 Mach-O 64 位
+// See implementation.
 // MH_OBJECT，
-//      供 macOS 下 -backend asm -o xxx.o 使用；与 write_elf_o_to_buf 二选一，由 ctx 侧
-// use_macho_o 决定。
+// See implementation.
+// See implementation.
 //
-// 依赖：codegen_outbuf_abi（CodegenOutBuf）、elf（ElfCodegenCtx、elf_sym_name_ptr、elf_to_u8、elf_name_
+// See implementation.
 // eq_arr_to_pool）。
 
 const codegen_outbuf_abi = import("codegen_outbuf_abi");
 const elf = import("platform.elf");
 
-/** 诊断：Mach-O 写出时遇到空外部符号名。 */
+/* See implementation. */
 export extern function driver_diagnostic_asm_macho_empty_reloc(reloc_idx: i32): void;
-/** 诊断：写出 relocation_info 时未定义符号未在 und 池中找到。 */
+/* See implementation. */
 export extern function driver_diagnostic_asm_macho_missing_und_reloc(reloc_idx: i32): void;
-/** elf sidecar：reloc_sym_names 行读写（定义在 ast_pool.c）。 */
+/* See implementation. */
 export extern function pipeline_elf_ctx_reloc_sym_name_ptr(ctx: *u8, idx: i32): *u8;
 export extern function pipeline_elf_ctx_reloc_sym_name_copy64(ctx: *u8, idx: i32, dst: *u8): void;
 export extern function pipeline_elf_ctx_reloc_name_len(ctx: *u8, idx: i32): i32;
 export extern function pipeline_elf_ctx_reloc_offset_at(ctx: *u8, idx: i32): i32;
 
-/** 向 out 追加 ptr[0..n-1]，返回 0 成功，-1 缓冲区满。 */
+/** Exported function `macho_append`.
+ * Implements `macho_append`.
+ * @param out *CodegenOutBuf
+ * @param ptr *u8
+ * @param n i32
+ * @return i32
+ */
 export function macho_append(out: *CodegenOutBuf, ptr: *u8, n: i32): i32 {
   let i: i32 = 0;
-  /** 与 elf.elf_append 上限一致，避免大型
-  * .text+重定位表写出时中途截断返回 -1。 */
+/** See implementation for details. */
   while (i < n && out.len < 8388608) {
     out.data[out.len] = ptr[i];
     out.len = out.len + 1;
@@ -51,20 +56,29 @@ export function macho_append(out: *CodegenOutBuf, ptr: *u8, n: i32): i32 {
   return 0;
 }
 
-/** reloc 符号名拷到栈上 u8[64]，供 elf_name_eq_arr_to_pool / macho_rel_name_eq。 */
+/** Exported function `macho_reloc_sym_name_buf`.
+ * Implements `macho_reloc_sym_name_buf`.
+ * @param ctx *ElfCodegenCtx
+ * @param idx i32
+ * @param out *u8
+ * @return void
+ */
 export function macho_reloc_sym_name_buf(ctx: *ElfCodegenCtx, idx: i32, out: *u8): void {
   pipeline_elf_ctx_reloc_sym_name_copy64(ctx as *u8, idx, out);
 }
 
-/** reloc r 是否在 ctx.syms 中有同名定义（有则 Mach-O r_symbolnum 指向该 nlist）。
-*/
+/** Exported function `macho_reloc_sym_defined`.
+ * Implements `macho_reloc_sym_defined`.
+ * @param ctx *ElfCodegenCtx
+ * @param r i32
+ * @return i32
+ */
 export function macho_reloc_sym_defined(ctx: *ElfCodegenCtx, r: i32): i32 {
   let m: i32 = 0;
   let sym_buf: u8[64] = [];
   macho_reloc_sym_name_buf(ctx, r, &sym_buf[0]);
   while (m < ctx.num_syms) {
-    /** 与 elf_resolve_rela、write_macho 写入阶段一致：符号字节在
-    * reloc_sym_names[r]，非 relocs[r].name（后者已无 name 字段）。 */
+/** See implementation for details. */
     if (elf.elf_name_eq_arr_to_pool(sym_buf, pipeline_elf_ctx_reloc_name_len(ctx as *u8,
     r), elf.elf_sym_name_ptr(ctx, m), ctx.syms[m].name_len) != 0) {
       return 1;
@@ -74,7 +88,14 @@ export function macho_reloc_sym_defined(ctx: *ElfCodegenCtx, r: i32): i32 {
   return 0;
 }
 
-/** 比较两段名字（与 elf_name_eq 同语义）；b 指向 und_names 中一行首字节。 */
+/** Exported function `macho_rel_name_eq`.
+ * Implements `macho_rel_name_eq`.
+ * @param a u8[64]
+ * @param a_len i32
+ * @param b_ptr *u8
+ * @param b_len i32
+ * @return i32
+ */
 export function macho_rel_name_eq(a: u8[64], a_len: i32, b_ptr: *u8, b_len: i32): i32 {
   if (a_len != b_len) {
     return 0;
@@ -90,9 +111,9 @@ export function macho_rel_name_eq(a: u8[64], a_len: i32, b_ptr: *u8, b_len: i32)
 }
 
 /**
-* Mach-O C 链接名：Darwin strtab 须为 _name（首字节 95），与 clang ld 查找 _main
-* 一致。
-* 若已有前缀则返回 0，否则返回 1（须多写一字节 '_'）。
+* See implementation.
+* See implementation.
+* See implementation.
 */
 export function macho_link_name_extra_byte(name_ptr: *u8): i32 {
   if (name_ptr[0] != 95) {
@@ -101,19 +122,20 @@ export function macho_link_name_extra_byte(name_ptr: *u8): i32 {
   return 0;
 }
 
-/** 将 Mach-O 64 位可重定位 .o 写入 out；写入前再次 resolve（与 asm_codegen_elf_o
-* 双保险，避免 cbz 0x34 占位残留）。返回写入字节数，失败 -1。 */
+/** Exported function `write_macho_o_to_buf`.
+ * Write path helper `write_macho_o_to_buf`.
+ * @param ctx *ElfCodegenCtx
+ * @param out *CodegenOutBuf
+ * @return i32
+ */
 export function write_macho_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i32 {
   if (elf.elf_resolve_patches(ctx) != 0) {
     return -1;
   }
   let code_len: i32 = ctx.code_len;
-  /** 外部 bl/jal：收集唯一未解析符号；strtab 字节从 ctx.relocs[und_src_reloc[i]]
-  * 拷贝（与 nlist n_strx 一致）。 */
-  /** 曾用栈上 und_pool/und_names[][]，在部分 X→C 栈布局下 strtab
-  * 阶段读到全零；改用 relocs 槽位指针更稳。 */
-  /** 唯一未定义外部符号下标；大型 TU 调用数可超旧上限 128，须与 elf 侧
-  * relocs 上限同量级。 */
+/** See implementation for details. */
+/** See implementation for details. */
+/** See implementation for details. */
   let und_src_reloc: i32[2048] = [];
   let und_lens: i32[2048] = [];
   let nu: i32 = 0;
@@ -146,8 +168,7 @@ export function write_macho_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): 
       return -1;
     }
     let nlen: i32 = pipeline_elf_ctx_reloc_name_len(ctx as *u8, rx);
-    /** 与 elf_add_reloc 一致：外部符号 strtab 不得为空串，否则 nlist
-    * 指向空名。 */
+/** See implementation for details. */
     if (nlen <= 0) {
       driver_diagnostic_asm_macho_empty_reloc(rx);
       return -1;
@@ -173,14 +194,13 @@ export function write_macho_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): 
     ui = ui + 1;
   }
   /**
-  * ld64 约定：symtab[0] 为保留空项（n_strx=0、全 0），真实符号自索引 1 起；
-  * 否则 r_symbolnum=0 会与「空名未定义符号」冲突，链接报错 Undefined "".
+  * See implementation.
+  * See implementation.
   */
   let symtab_ents: i32 = ctx.num_syms + nu + 1;
   let symtab_size: i32 = symtab_ents * 16;
   let reloc_size: i32 = ctx.num_relocs * 8;
-  /** LC_SEGMENT_64(152) + LC_BUILD_VERSION(24) + LC_SYMTAB(24)；缺 platform load command 时 ld
-  * 报 assuming macOS。 */
+/** See implementation for details. */
   let lc_build_size: i32 = 24;
   let sizeofcmds: i32 = 152 + lc_build_size + 24;
   let off_text: i32 = 32 + sizeofcmds;
@@ -189,15 +209,14 @@ export function write_macho_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): 
   let off_reloc: i32 = off_str + strtab_size;
   
   out.len = 0;
-  /* CPU_TYPE_X86_64 = 0x01000007；CPU_TYPE_ARM64 = 0x0100000C（原 16777223 实为
-  x86，链器会拒）。 */
+  /* CPU_TYPE_X86_64 = 0x01000007; CPU_TYPE_ARM64 = 0x0100000C (wrong cputype: linker rejects). */
   let cputype: i32 = 16777223;
   let cpusubtype: i32 = 3;
   if (ctx.e_machine == 183) {
     cputype = 16777228;
     cpusubtype = 0;
   }
-  /* mach_header_64：32 字节；须写满
+  /* See implementation. */
   magic/cputype/cpusubtype/filetype/ncmds/sizeofcmds/flags/reserved。 */
   let hdr: u8[32] = [];
   let hz: i32 = 0;
@@ -217,7 +236,7 @@ export function write_macho_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): 
   hdr[9] = elf.elf_to_u8(cpusubtype >> 8);
   hdr[10] = elf.elf_to_u8(cpusubtype >> 16);
   hdr[11] = elf.elf_to_u8(cpusubtype >> 24);
-  /* MH_OBJECT = 1（可重定位 .o） */
+  /* See implementation. */
   hdr[12] = 1;
   hdr[13] = 0;
   hdr[14] = 0;
@@ -231,7 +250,7 @@ export function write_macho_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): 
   hdr[21] = elf.elf_to_u8(sizeofcmds >> 8);
   hdr[22] = elf.elf_to_u8(sizeofcmds >> 16);
   hdr[23] = elf.elf_to_u8(sizeofcmds >> 24);
-  /* flags、reserved 保持 0 */
+  /* See implementation. */
   if (macho_append(out, hdr, 32) != 0) { return -1; }
   
   let seg: u8[152] = [];
@@ -240,8 +259,7 @@ export function write_macho_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): 
     seg[sz] = 0;
     sz = sz + 1;
   }
-  /* LC_SEGMENT_64：cmd=0x19，cmdsize=152；segname 须从字节 8 起，勿占用 cmdsize
-  高字节（否则 ld 报 0x5F5F0098）。 */
+  /* LC_SEGMENT_64: cmd=0x19, cmdsize=152; write cmdsize low+high bytes (else ld reports 0x5F5F0098). */
   seg[0] = elf.elf_to_u8(25);
   seg[4] = elf.elf_to_u8(152);
   seg[5] = elf.elf_to_u8(152 >> 8);
@@ -251,7 +269,7 @@ export function write_macho_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): 
   seg[11] = 69;
   seg[12] = 88;
   seg[13] = 84;
-  /* vmaddr 24–31 已为 0；vmsize 32–39 = code_len */
+  /* See implementation. */
   seg[32] = elf.elf_to_u8(code_len);
   seg[33] = elf.elf_to_u8(code_len >> 8);
   seg[34] = elf.elf_to_u8(code_len >> 16);
@@ -329,8 +347,7 @@ export function write_macho_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): 
   /* ntools = 0 */
   if (macho_append(out, lc_bv, lc_build_size) != 0) { return -1; }
   
-  /* LC_SYMTAB：逐字节写入前先落到标量，避免 X→C
-  对数组下标赋值的逗号包装把值写到临时副本（尤其 n_strx 等字段）。 */
+  /* LC_SYMTAB: write fields carefully; comma-wrap of array-index assign can write temps (esp. n_strx). */
   let lc_sym: u8[24] = [];
   let lz: i32 = 0;
   while (lz < 24) {
@@ -369,8 +386,8 @@ export function write_macho_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): 
   if (macho_append(out, lc_sym, 24) != 0) { return -1; }
   
   if (macho_append(out, &ctx.code_data[0], code_len) != 0) { return -1; }
-  /* 须写成 off_sym - off_text - code_len：若写 off_sym - (off_text + code_len)，-E 到 C
-  会变成 off_sym - off_text + code_len，pad 暴增，symtab 与 LC 声明偏移错位。 */
+  /* pad = off_sym - off_text - code_len; if -E rewrites to off_sym - off_text + code_len,
+  pad explodes and symtab vs LC offsets misalign. */
   let pad: i32 = off_sym - off_text - code_len;
   let zero: u8[1] = [0];
   let z: i32 = 0;
@@ -379,7 +396,7 @@ export function write_macho_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): 
     z = z + 1;
   }
   
-  /** 索引 0：16 字节全 0 nlist（与 strtab[0]=0 对应；ld64 要求保留项）。 */
+  /* See implementation. */
   let nlist0: u8[16] = [];
   if (macho_append(out, &nlist0[0], 16) != 0) { return -1; }
   let str_off: i32 = 1;
@@ -425,7 +442,7 @@ export function write_macho_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): 
     entu[1] = entu_nstrx_1;
     entu[2] = entu_nstrx_2;
     entu[3] = entu_nstrx_3;
-    /* N_UNDF(0) | N_EXT(1)：未定义外部符号，链器从其它 .o 解析 */
+    /* See implementation. */
     let entu_ntype: u8 = 1 as u8;
     let entu_ndesc: u8 = 0 as u8;
     entu[4] = entu_ntype;
@@ -476,7 +493,7 @@ export function write_macho_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): 
     while (m < ctx.num_syms) {
       if (elf.elf_name_eq_arr_to_pool(r_sym_buf2, pipeline_elf_ctx_reloc_name_len(ctx as
       *u8, r), elf.elf_sym_name_ptr(ctx, m), ctx.syms[m].name_len) != 0) {
-        /** symtab：索引 0 保留；导出符号 m 在 nlist 中下标为 m+1。 */
+        /* See implementation. */
         sym_idx = m;
         found_def = 1;
         break;
@@ -503,9 +520,9 @@ export function write_macho_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): 
       }
       sym_idx = ctx.num_syms + uslot;
     }
-    /* relocation_info：r_symbolnum 须含 symtab[0] 保留项，故在逻辑下标上加 1。 */
+    /* See implementation. */
     let r_sym: i32 = sym_idx + 1;
-    /* 第二字（LE）：低 24 位 r_symbolnum，bit24 r_pcrel，25-26 r_length，bit27
+    /* See implementation. */
     r_extern，28-31 r_type */
     let word2: i32 = (r_sym & 16777215) | (1 << 24) | (rel_len << 25) | (1 << 27) | (rel_type <<
     28);

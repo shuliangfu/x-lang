@@ -1,8 +1,12 @@
-// 测试 core.slice：len_i32/get_i32（i32[]）、len_u8/get_u8（u8[]）；边界内返回
-// some，越界返回 none
+// See implementation.
+// See implementation.
 const slice = import("core.slice");
 const option = import("core.option");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32[4] = [10, 20, 30, 40];
   let s: i32[] = a;

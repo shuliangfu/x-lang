@@ -1,9 +1,13 @@
-// io_write_throughput.x — I/O 基线：大文件顺序 write（与 run-perf-io.sh 配套）
-// 输出：tests/bench/.io_write_bench_tmp（默认 16MiB，4KiB × 4096 块）
+// See implementation.
+// See implementation.
 const fs = import("std.fs");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
-  // 路径 "tests/bench/.io_write_bench_tmp"（NUL 结尾，相对仓库根 cwd）
+  // See implementation.
   let path: u8[32] =
   [116, 101, 115, 116, 115, 47, 98, 101, 110, 99, 104, 47, 46, 105, 111, 95, 119, 114, 105, 116,
   101, 95, 98, 101, 110, 99,

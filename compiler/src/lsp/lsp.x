@@ -14,94 +14,87 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// lsp.x — LSP 协议层（路线 A：用 .x 写，内置于 shux）
+// See implementation.
 //
-// 职责：从 stdin 读 JSON-RPC（Content-Length + 正文），解析 method 并分发；向
-// stdout 写响应。
-// 已实现：initialize（含
+// See implementation.
+// See implementation.
+// See implementation.
 // capabilities）、initialized、textDocument/didOpen、didChange、didSave、didClose、
 //
-// textDocument/diagnostic（诊断缓存）、definition、references、hover、completion、documentS
+// See implementation.
 // ymbol、
 // semanticTokens、rename、shutdown、exit、$/cancelRequest、workspace/didChangeConfiguration。
-// 高性能：诊断有文档哈希缓存（不变则跳过重解析）。
+// See implementation.
 
 // Cap-T001 / LANG-007 S0: exports that call C glue or lsp_io surface use
 // whole-body unsafe (PLATFORM: SHARED). M1 typeck for T KPI.
 
 const lsp_io = import("lsp_io");
 
-/** 单条消息 body 安全上限（1MiB）；顶层 let 须在任意 extern/function 之前，供
-* C 解析器正确识别。LSP 单条 JSON 远小于此；勿 per-message malloc 64MiB（Alpine CI OOM/SIGSEGV）。 */
+/** See implementation for details. */
 let LSP_BODY_CAP: i32 = 1048576;
 
-/** 读消息用的状态缓冲大小（4 + leftover 区）。 */
+/* See implementation. */
 let LSP_STATE_SIZE: i32 = 4 + 8192 * 2;
 
-/** 诊断 / 格式化响应堆缓冲容量（勿放入 lsp_main 栈：合计 >300KiB 会在 macOS
-* 默认线程栈上溢出）。 */
+/** See implementation for details. */
 let LSP_DIAG_RESP_CAP: i32 = 32768;
 let LSP_REF_RESP_CAP: i32 = 8192;
 let LSP_FORMAT_RESP_CAP: i32 = 262144;
 
-/** read_message 状态区：定义在 lsp_state.c，避免栈上大数组。 */
+/* See implementation. */
 export extern function lsp_state_buf_ptr(): *u8;
 
-/** 完整 write(2) 循环写 fd；定义在 lsp_state.c，LSP 响应不走 io_uring。 */
+/* See implementation. */
 export extern function lsp_write_all(fd: i32, ptr: *u8, len: i32): i32;
 
-/** 构建 InitializeResult JSON（含 capabilities 与 serverInfo）；仍由 lsp_io.c 提供。 */
+/* See implementation. */
 export extern function lsp_build_initialize_result(id_val: i32, out_buf: *u8, out_cap: i32): i32;
-/** 对 source 跑 .x pipeline（parse_into + typeck）收集诊断，构建完整 JSON-RPC
-* 响应（id + result: Diagnostic[]）；返回长度，失败 -1。 */
+/** See implementation for details. */
 export extern function lsp_build_diagnostics_response(id_val: i32, source: *u8, source_len: i32, out_buf:
 *u8, out_cap: i32): i32;
-/** 从 definition 请求 body 与当前文档构建 definition 响应（result: Location 或
-* null）；返回长度，失败 -1。 */
+/** See implementation for details. */
 export extern function lsp_build_definition_response(id_val: i32, body: *u8, body_len: i32, doc_buf: *u8,
 doc_len: i32, out_buf: *u8, out_cap: i32): i32;
-/** 从 references 请求 body 与当前文档构建 references 响应（result:
-* Location[]）；返回长度，失败 -1。 */
+/** See implementation for details. */
 export extern function lsp_build_references_response(id_val: i32, body: *u8, body_len: i32, doc_buf: *u8,
 doc_len: i32, out_buf: *u8, out_cap: i32): i32;
-/** 从 hover 请求 body 与当前文档构建 hover 响应（result: Hover 或
-* null）；返回长度，失败 -1。 */
+/** See implementation for details. */
 export extern function lsp_build_hover_response(id_val: i32, body: *u8, body_len: i32, doc_buf: *u8,
 doc_len: i32, out_buf: *u8, out_cap: i32): i32;
-/** 从 formatting 请求 body 与当前文档构建格式化响应（result:
-* TextEdit[]）；返回长度，失败 -1。 */
+/** See implementation for details. */
 export extern function lsp_build_formatting_response(id_val: i32, body: *u8, body_len: i32, doc_buf: *u8,
 doc_len: i32, out_buf: *u8, out_cap: i32): i32;
-/** 从 completion 请求 body 与当前文档构建补全响应（result:
-* CompletionItem[]）；返回长度，失败 -1。 */
+/** See implementation for details. */
 export extern function lsp_build_completion_response(id_val: i32, body: *u8, body_len: i32, doc_buf: *u8,
 doc_len: i32, out_buf: *u8, out_cap: i32): i32;
-/** 从 documentSymbol 请求与当前文档构建文档符号响应（result:
-* DocumentSymbol[]）；返回长度，失败 -1。 */
+/** See implementation for details. */
 export extern function lsp_build_document_symbol_response(id_val: i32, body: *u8, body_len: i32, doc_buf:
 *u8, doc_len: i32, out_buf: *u8, out_cap: i32): i32;
-/** 从 semanticTokens/full 请求构建响应（result: SemanticTokens）；返回长度，失败
--1。 */
+/** See implementation for details. */
 export extern function lsp_build_semantic_tokens_response(id_val: i32, doc_buf: *u8, doc_len: i32,
 out_buf: *u8, out_cap: i32): i32;
-/** 从 rename 请求 body + 文档构建 WorkspaceEdit 响应；失败返回 -1。 */
+/* See implementation. */
 export extern function lsp_build_rename_response(id_val: i32, body: *u8, body_len: i32, doc_buf: *u8,
 doc_len: i32, out_buf: *u8, out_cap: i32): i32;
-/** 文档变更时使诊断哈希缓存失效。 */
+/* See implementation. */
 export extern function lsp_diag_invalidate_cache(): void;
-/** 构建 JSON-RPC 响应外壳 {"jsonrpc":"2.0","id":<id>,"result":<result>}；仍由 lsp_io.c
-* 提供（供 C 内 build_definition 等调用）。 */
+/** See implementation for details. */
 export extern function lsp_build_response_with_result(id_val: i32, result_ptr: *u8, result_len: i32,
 out_buf: *u8, out_cap: i32): i32;
-/** 从 didOpen/didChange 的 body 中提取文档并设为当前文档（仍由 lsp_io.c
-* 维护）。 */
+/** See implementation for details. */
 export extern function lsp_set_document_from_body(body: *u8, body_len: i32): void;
-/** 当前文档内容指针（只读）。 */
+/* See implementation. */
 export extern function lsp_get_document_ptr(): *u8;
-/** 当前文档字节长度。 */
+/* See implementation. */
 export extern function lsp_get_document_len(): i32;
 
-/** 在 body[0..len-1] 中查找子串 "initialize"；找到返回 1 否则 0。 */
+/** Exported function `lsp_body_contains_initialize`.
+ * Implements `lsp_body_contains_initialize`.
+ * @param body *u8
+ * @param len i32
+ * @return i32
+ */
 export function lsp_body_contains_initialize(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 10 <= len) {
@@ -115,8 +108,12 @@ export function lsp_body_contains_initialize(body: *u8, len: i32): i32 {
   return 0;
 }
 
-/** 在 body[0..len-1] 中查找子串 "initialized"（11 字节）；握手后 Client
-* 发的通知，无需响应。 */
+/** Exported function `lsp_body_contains_initialized`.
+ * Implements `lsp_body_contains_initialized`.
+ * @param body *u8
+ * @param len i32
+ * @return i32
+ */
 export function lsp_body_contains_initialized(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 11 <= len) {
@@ -130,7 +127,12 @@ export function lsp_body_contains_initialized(body: *u8, len: i32): i32 {
   return 0;
 }
 
-/** 在 body[0..len-1] 中查找子串 "shutdown"；找到返回 1 否则 0。 */
+/** Exported function `lsp_body_contains_shutdown`.
+ * Implements `lsp_body_contains_shutdown`.
+ * @param body *u8
+ * @param len i32
+ * @return i32
+ */
 export function lsp_body_contains_shutdown(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 8 <= len) {
@@ -143,8 +145,12 @@ export function lsp_body_contains_shutdown(body: *u8, len: i32): i32 {
   return 0;
 }
 
-/** 在 body[0..len-1] 中查找子串 "textDocument/didOpen"；打开文件时 Client
-* 发此通知。 */
+/** Exported function `lsp_body_contains_did_open`.
+ * Implements `lsp_body_contains_did_open`.
+ * @param body *u8
+ * @param len i32
+ * @return i32
+ */
 export function lsp_body_contains_did_open(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 19 <= len) {
@@ -160,8 +166,12 @@ export function lsp_body_contains_did_open(body: *u8, len: i32): i32 {
   return 0;
 }
 
-/** 在 body[0..len-1] 中查找子串 "textDocument/didChange"；编辑时 Client 发此通知。
-*/
+/** Exported function `lsp_body_contains_did_change`.
+ * Implements `lsp_body_contains_did_change`.
+ * @param body *u8
+ * @param len i32
+ * @return i32
+ */
 export function lsp_body_contains_did_change(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 21 <= len) {
@@ -178,7 +188,12 @@ export function lsp_body_contains_did_change(body: *u8, len: i32): i32 {
   return 0;
 }
 
-/** 在 body 中查找 "textDocument/didSave"；保存时 Client 发此通知，不回复。 */
+/** Exported function `lsp_body_contains_did_save`.
+ * Implements `lsp_body_contains_did_save`.
+ * @param body *u8
+ * @param len i32
+ * @return i32
+ */
 export function lsp_body_contains_did_save(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 19 <= len) {
@@ -194,8 +209,12 @@ export function lsp_body_contains_did_save(body: *u8, len: i32): i32 {
   return 0;
 }
 
-/** 在 body 中查找 "textDocument/diagnostic"（23 字节，LSP 规范单数）；Client
-* 请求诊断，需按 id 回复 result。 */
+/** Exported function `lsp_body_contains_diagnostic`.
+ * Implements `lsp_body_contains_diagnostic`.
+ * @param body *u8
+ * @param len i32
+ * @return i32
+ */
 export function lsp_body_contains_diagnostic(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 23 <= len) {
@@ -211,7 +230,13 @@ export function lsp_body_contains_diagnostic(body: *u8, len: i32): i32 {
   return 0;
 }
 
-// 在 body 中查找 textDocument/completion（23 字符）；补全请求。
+// lsp_body_contains_completion: see function docblock below.
+/** Exported function `lsp_body_contains_completion`.
+ * Implements `lsp_body_contains_completion`.
+ * @param body *u8
+ * @param len i32
+ * @return i32
+ */
 export function lsp_body_contains_completion(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 23 <= len) {
@@ -227,7 +252,13 @@ export function lsp_body_contains_completion(body: *u8, len: i32): i32 {
   return 0;
 }
 
-// 在 body 中查找 textDocument/documentSymbol（27 字符）；文档大纲符号请求。
+// lsp_body_contains_document_symbol: see function docblock below.
+/** Exported function `lsp_body_contains_document_symbol`.
+ * Implements `lsp_body_contains_document_symbol`.
+ * @param body *u8
+ * @param len i32
+ * @return i32
+ */
 export function lsp_body_contains_document_symbol(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 27 <= len) {
@@ -244,7 +275,13 @@ export function lsp_body_contains_document_symbol(body: *u8, len: i32): i32 {
   return 0;
 }
 
-// 在 body 中查找 textDocument/semanticTokens（28 字符）
+// lsp_body_contains_semantic_tokens: see function docblock below.
+/** Exported function `lsp_body_contains_semantic_tokens`.
+ * Implements `lsp_body_contains_semantic_tokens`.
+ * @param body *u8
+ * @param len i32
+ * @return i32
+ */
 export function lsp_body_contains_semantic_tokens(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 28 <= len) {
@@ -261,7 +298,13 @@ export function lsp_body_contains_semantic_tokens(body: *u8, len: i32): i32 {
   return 0;
 }
 
-// 在 body 中查找 textDocument/rename（20 字符）
+// lsp_body_contains_rename: see function docblock below.
+/** Exported function `lsp_body_contains_rename`.
+ * Implements `lsp_body_contains_rename`.
+ * @param body *u8
+ * @param len i32
+ * @return i32
+ */
 export function lsp_body_contains_rename(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 20 <= len) {
@@ -277,7 +320,13 @@ export function lsp_body_contains_rename(body: *u8, len: i32): i32 {
   return 0;
 }
 
-// 在 body 中查找 textDocument/didClose（20 字符）；通知，无需响应。
+// lsp_body_contains_did_close: see function docblock below.
+/** Exported function `lsp_body_contains_did_close`.
+ * Implements `lsp_body_contains_did_close`.
+ * @param body *u8
+ * @param len i32
+ * @return i32
+ */
 export function lsp_body_contains_did_close(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 20 <= len) {
@@ -293,7 +342,13 @@ export function lsp_body_contains_did_close(body: *u8, len: i32): i32 {
   return 0;
 }
 
-// 在 body 中查找 $/cancelRequest（14 字符）；通知，无需响应。
+// lsp_body_contains_cancel: see function docblock below.
+/** Exported function `lsp_body_contains_cancel`.
+ * Implements `lsp_body_contains_cancel`.
+ * @param body *u8
+ * @param len i32
+ * @return i32
+ */
 export function lsp_body_contains_cancel(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 14 <= len) {
@@ -308,7 +363,13 @@ export function lsp_body_contains_cancel(body: *u8, len: i32): i32 {
   return 0;
 }
 
-// 在 body 中查找 workspace/didChangeConfiguration（35 字符）；通知，无需响应。
+// lsp_body_contains_did_change_config: see function docblock below.
+/** Exported function `lsp_body_contains_did_change_config`.
+ * Implements `lsp_body_contains_did_change_config`.
+ * @param body *u8
+ * @param len i32
+ * @return i32
+ */
 export function lsp_body_contains_did_change_config(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 35 <= len) {
@@ -326,8 +387,12 @@ export function lsp_body_contains_did_change_config(body: *u8, len: i32): i32 {
   return 0;
 }
 
-/** 在 body 中查找 "textDocument/definition"（23 字符）；转到定义请求，需按 id
-* 回复 result。 */
+/** Exported function `lsp_body_contains_definition`.
+ * Implements `lsp_body_contains_definition`.
+ * @param body *u8
+ * @param len i32
+ * @return i32
+ */
 export function lsp_body_contains_definition(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 22 < len) {
@@ -343,7 +408,12 @@ export function lsp_body_contains_definition(body: *u8, len: i32): i32 {
   return 0;
 }
 
-/** 在 body 中查找 "textDocument/references"（24 字符）；查找引用请求。 */
+/** Exported function `lsp_body_contains_references`.
+ * Implements `lsp_body_contains_references`.
+ * @param body *u8
+ * @param len i32
+ * @return i32
+ */
 export function lsp_body_contains_references(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 23 < len) {
@@ -360,7 +430,12 @@ export function lsp_body_contains_references(body: *u8, len: i32): i32 {
   return 0;
 }
 
-/** 在 body 中查找 "textDocument/hover"；悬停请求。 */
+/** Exported function `lsp_body_contains_hover`.
+ * Implements `lsp_body_contains_hover`.
+ * @param body *u8
+ * @param len i32
+ * @return i32
+ */
 export function lsp_body_contains_hover(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 17 <= len) {
@@ -375,7 +450,12 @@ export function lsp_body_contains_hover(body: *u8, len: i32): i32 {
   return 0;
 }
 
-/** 在 body 中查找 "textDocument/formatting"；格式化文档请求。 */
+/** Exported function `lsp_body_contains_formatting`.
+ * Implements `lsp_body_contains_formatting`.
+ * @param body *u8
+ * @param len i32
+ * @return i32
+ */
 export function lsp_body_contains_formatting(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 23 <= len) {
@@ -391,7 +471,12 @@ export function lsp_body_contains_formatting(body: *u8, len: i32): i32 {
   return 0;
 }
 
-/** 在 body[0..len-1] 中查找子串 "exit"；简单起见只查 "exit"。 */
+/** Exported function `lsp_body_contains_exit`.
+ * Implements `lsp_body_contains_exit`.
+ * @param body *u8
+ * @param len i32
+ * @return i32
+ */
 export function lsp_body_contains_exit(body: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i + 4 <= len) {
@@ -403,8 +488,14 @@ export function lsp_body_contains_exit(body: *u8, len: i32): i32 {
   return 0;
 }
 
-/** 从 body 中提取请求 id（简单实现：找 "id": 后的数字）；未找到返回 -1。
-*/
+/** Exported function `lsp_parse_id`.
+ * Implements `lsp_parse_id`.
+ * @param body *u8
+ * @param len i32
+ * @param id_buf *u8
+ * @param id_buf_len i32
+ * @return i32
+ */
 export function lsp_parse_id(body: *u8, len: i32, id_buf: *u8, id_buf_len: i32): i32 {
   let i: i32 = 0;
   while (i + 6 <= len) {
@@ -507,8 +598,7 @@ export function lsp_send_response(fd: i32, body: *u8, body_len: i32): i32 {
   return 0;
 }
 
-/** LSP 主循环：从 stdin 读消息，根据 method 分发，向 stdout 写响应；收到 exit
-* 后返回 0。body/doc 按需动态分配，无固定缓冲上限。 */
+/** See implementation for details. */
 /**
  * LSP main loop: read messages, dispatch methods, write JSON-RPC responses.
  * Host may wrap this on a large-stack pthread (see lsp_state.c typeck_lsp_main).
@@ -554,7 +644,7 @@ export function lsp_main_impl(): i32 {
       lsp_io.lsp_free(body_ptr);
       continue;
     }
-    /* 文档同步：didOpen / didChange 提取文档到 C 内部缓冲（堆，按需大小）。
+    /* See implementation. */
     */
     if (lsp_body_contains_did_open(body_ptr, content_len) != 0) {
       lsp_set_document_from_body(body_ptr, content_len);
@@ -571,18 +661,18 @@ export function lsp_main_impl(): i32 {
       continue;
     }
     if (lsp_body_contains_did_close(body_ptr, content_len) != 0) {
-      /* didClose：释放内部资源，无响应 */
+      /* See implementation. */
       lsp_diag_invalidate_cache();
       lsp_io.lsp_free(body_ptr);
       continue;
     }
     if (lsp_body_contains_cancel(body_ptr, content_len) != 0) {
-      /* $/cancelRequest：通知，无响应 */
+      /* See implementation. */
       lsp_io.lsp_free(body_ptr);
       continue;
     }
     if (lsp_body_contains_did_change_config(body_ptr, content_len) != 0) {
-      /* workspace/didChangeConfiguration：通知，无响应，但需使缓存失效 */
+      /* See implementation. */
       lsp_diag_invalidate_cache();
       lsp_io.lsp_free(body_ptr);
       continue;
@@ -612,7 +702,7 @@ export function lsp_main_impl(): i32 {
       if (sid < 0) {
         sid = 1;
       }
-      /* 用 diag_ptr 而非栈上 out_buf，避免与后续 formatting 大响应共用栈导致 ARM64 输出损坏。 */
+      /* See implementation. */
       let out_len: i32 = lsp_build_initialize_result(sid, diag_ptr, LSP_DIAG_RESP_CAP);
       if (out_len > 0) {
         lsp_send_response(stdout_fd, diag_ptr, out_len);
@@ -620,8 +710,7 @@ export function lsp_main_impl(): i32 {
       lsp_io.lsp_free(body_ptr);
       continue;
     }
-    /* 以下为带 id 的请求：解析 id 后按 id 回复 result；文档从 C
-    侧动态缓冲获取。 */
+    /* Parse request id; result buffer obtained from C-side dynamic allocation. */
     let req_id: i32 = lsp_parse_id(body_ptr, content_len, id_buf, 32);
     let doc_ptr: *u8 = lsp_get_document_ptr();
     let doc_len: i32 = lsp_get_document_len();

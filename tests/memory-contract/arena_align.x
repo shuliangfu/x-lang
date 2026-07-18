@@ -1,6 +1,6 @@
-// L9 / X2：Bump 分配须 align_up — 13 字节对象后下一槽 8 字节对齐（防 ARM64 SIGBUS）。
+// See implementation.
 //
-// 验收：13B bump 后 off=13；align_up(13,8)=16 为下一槽；再 bump 8B 后 off=24。
+// See implementation.
 /** Local align_up (inlined from core.mem to avoid field_access callee — seed typeck limitation). */
 function align_up(addr: usize, alignment: usize): usize {
   if (alignment == 0) {
@@ -10,11 +10,11 @@ function align_up(addr: usize, alignment: usize): usize {
 }
 
 /**
- * 模拟 page_mmap_heap_alloc 的 offset 推进（与 std/heap/page_mmap.x 一致）。
- * 成功返回下一 off；溢出/失败返回 0。
+ * See implementation.
+ * See implementation.
  */
 function bump_simulate(off: usize, size: usize, align_bytes: usize): usize {
-  // 避免 if 表达式作为值（C emit 会生成 void statement-expression）
+  // See implementation.
   let a: usize = 1;
   if (align_bytes != 0) {
     a = align_bytes;
@@ -27,7 +27,10 @@ function bump_simulate(off: usize, size: usize, align_bytes: usize): usize {
   return end;
 }
 
-/** 入口：13B 后第二槽须 8 对齐且 next_off=16。 */
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let off: usize = 0;
   let end1: usize = bump_simulate(off, 13, 8);
@@ -37,7 +40,7 @@ function main(): i32 {
   if (end1 != 13) {
     return 2;
   }
-  /* 下一槽须 align_up(13,8)==16，防 ARM64 SIGBUS */
+  /* See implementation. */
   let start2: usize = align_up(end1, 8);
   if (start2 != 16) {
     return 5;

@@ -1,12 +1,16 @@
-// B-14 v2：Linux freestanding open(2)+read(2) 经 std.sys.read_file_into 烟测。
+// See implementation.
 const sys = import("std.sys");
 const linux = import("std.sys.linux");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (linux.linux_syscall_invoke_available() != 1) {
     return 1;
   }
-  /** 固定路径 "/tmp/shux_linux_open_read_gate.txt\0"（gate 脚本写入 "OK"）。 */
+  /* See implementation. */
   let path: u8[35] = [
     47, 116, 109, 112, 47, 115, 104, 117, 120, 95, 108, 105, 110, 117, 120, 95,
     111, 112, 101, 110, 95, 114, 101, 97, 100, 95, 103, 97, 116, 101, 46, 116,

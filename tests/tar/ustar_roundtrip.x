@@ -1,9 +1,15 @@
-// tests/tar/ustar_roundtrip.x — STD-038 内存归档 round-trip：目录遍历 + 文件提取
+// See implementation.
 //
-// 【文件职责】append_entry 构建 UStar 归档，next_entry 遍历，read_entry_data 提取。
+// See implementation.
 const tar = import("std.tar");
 
-/** 比较 name_out 与期望字节序列（len 字节）。 */
+/** Internal function `name_eq`.
+ * Implements `name_eq`.
+ * @param name_out *u8
+ * @param expect *u8
+ * @param len i32
+ * @return bool
+ */
 function name_eq(name_out: *u8, expect: *u8, len: i32): bool {
   let i: i32 = 0;
   while (i < len) {
@@ -18,6 +24,10 @@ function name_eq(name_out: *u8, expect: *u8, len: i32): bool {
   return true;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let arc: u8[3072] = [];
   let off: i32 = 0;

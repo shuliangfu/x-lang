@@ -1,6 +1,10 @@
-// 烟测：std.debug println 字符串字面量（stderr）+ assert 重导出
+// See implementation.
 const dbg = import("std.debug");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32 = dbg.println("debug line");
   let b: i32 = dbg.assert(true);

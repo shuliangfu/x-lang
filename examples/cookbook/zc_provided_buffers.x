@@ -1,8 +1,12 @@
 /**
- * Cookbook ZC-03：provided buffers 注册（Linux io_uring ZC-1 入门）。
+ * See implementation.
  */
 const io = import("std.io");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let rc: i32 = io.register_provided(2, 1024);
   if (rc == 1) {

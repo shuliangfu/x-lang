@@ -14,127 +14,226 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.error — 错误类型与传播（对标 Zig std.mem.Allocator.Error、Rust Result/error、Go error）
+// See implementation.
 //
-// 【文件职责】
-// 提供错误码类型 Error、ok/from_code/code/is_ok/is_err、与 io/fs
-// 等返回的错误码约定一致；EXC-004 ErrorChain 上下文链。
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 【对标】
-// Zig: 错误集、Allocator.Error、anyerror；
+// See implementation.
+// See implementation.
 // Rust: Result<T,E>、std::error::Error、Option；
-// Go: error 接口、errors.New、nil。
+// See implementation.
 //
-// import core.result — ErrorChain 与 Result_i32 互操作（EXC-004）
+// See implementation.
 const _core_result = import("core.result");
 
-/** 错误码 0 表示无错误；非 0 表示错误（正/负由各模块约定，如 io/fs 用负表示错误）。 */
+/** Exported function `ok`.
+ * Implements `ok`.
+ * @return i32
+ */
 export function ok(): i32 { return 0; }
 
-/** 常用错误码：分配失败（与 std.heap/vec/map 一致）。 */
+/** Exported function `code_alloc_fail`.
+ * Memory management helper `code_alloc_fail`.
+ * @return i32
+ */
 export function code_alloc_fail(): i32 { return -1; }
 
-/** 常用错误码：无效参数或越界。 */
+/** Exported function `code_invalid`.
+ * Implements `code_invalid`.
+ * @return i32
+ */
 export function code_invalid(): i32 { return -2; }
 
-/** 常用错误码：未找到（如 map get 无默认、文件不存在等）。 */
+/** Exported function `code_not_found`.
+ * Implements `code_not_found`.
+ * @return i32
+ */
 export function code_not_found(): i32 { return -3; }
 
-/** 错误类型：仅含 code（i32）；0 表示成功。 */
+/* See implementation. */
 export struct Error {
   code: i32;
 }
 
-/** 构造“无错误”。 */
+/** Exported function `ok_value`.
+ * Implements `ok_value`.
+ * @return Error
+ */
 export function ok_value(): Error {
   return Error { code: 0 };
 }
 
-/** 从错误码构造 Error。 */
+/** Exported function `from_code`.
+ * Implements `from_code`.
+ * @param code i32
+ * @return Error
+ */
 export function from_code(code: i32): Error {
   return Error { code: code };
 }
 
-/** 取错误码。 */
+/** Exported function `code`.
+ * Implements `code`.
+ * @param e Error
+ * @return i32
+ */
 export function code(e: Error): i32 { return e.code; }
 
-/** 是否表示成功（code == 0）。返回 1 是，0 否。 */
+/** Exported function `is_ok`.
+ * Query helper `is_ok`.
+ * @param e Error
+ * @return i32
+ */
 export function is_ok(e: Error): i32 {
   if (e.code == 0) { return 1; }
   return 0;
 }
 
-/** 是否表示错误（code != 0）。返回 1 是，0 否。 */
+/** Exported function `is_err`.
+ * Query helper `is_err`.
+ * @param e Error
+ * @return i32
+ */
 export function is_err(e: Error): i32 {
   if (e.code != 0) { return 1; }
   return 0;
 }
 
-// ——— B 层模块错误码（STD-091/092 Context 联动；完整分层见 EXC-003） ———
+// See implementation.
 
-/** std.io 模块错误段起点。 */
+/** Exported function `base_io`.
+ * Implements `base_io`.
+ * @return i32
+ */
 export function base_io(): i32 { return -1000; }
 
-/** I/O 超时（Context deadline 或 wait 超时）。 */
+/** Exported function `io_err_timeout`.
+ * Implements `io_err_timeout`.
+ * @return i32
+ */
 export function io_err_timeout(): i32 { return -1001; }
 
-/** I/O 已取消（Context cancel）。 */
+/** Exported function `io_err_cancelled`.
+ * Implements `io_err_cancelled`.
+ * @return i32
+ */
 export function io_err_cancelled(): i32 { return -1002; }
 
-/** std.io 模块通用错误码（段起点占位，STD-011 / EXC-003）。 */
+/** Exported function `io_err_generic`.
+ * Implements `io_err_generic`.
+ * @param ) i32 { return base_io(
+ * @return void
+ */
 export function io_err_generic(): i32 { return base_io(); }
 
-/** std.net 模块错误段起点。 */
+/** Exported function `base_net`.
+ * Implements `base_net`.
+ * @return i32
+ */
 export function base_net(): i32 { return -1200; }
 
-/** 网络操作超时。 */
+/** Exported function `net_err_timeout`.
+ * Implements `net_err_timeout`.
+ * @return i32
+ */
 export function net_err_timeout(): i32 { return -1201; }
 
-/** 网络操作已取消。 */
+/** Exported function `net_err_cancelled`.
+ * Implements `net_err_cancelled`.
+ * @return i32
+ */
 export function net_err_cancelled(): i32 { return -1202; }
 
-/** std.net 模块通用错误码（段起点占位，STD-011）。 */
+/** Exported function `net_err_generic`.
+ * Implements `net_err_generic`.
+ * @param ) i32 { return base_net(
+ * @return void
+ */
 export function net_err_generic(): i32 { return base_net(); }
 
-/** std.async 模块错误段起点（EXC-003）。 */
+/** Exported function `base_async`.
+ * Implements `base_async`.
+ * @return i32
+ */
 export function base_async(): i32 { return -1300; }
 
-/** std.async 模块通用错误码占位。 */
+/** Exported function `async_err_generic`.
+ * Implements `async_err_generic`.
+ * @param ) i32 { return base_async(
+ * @return void
+ */
 export function async_err_generic(): i32 { return base_async(); }
 
-/** std.coll（vec/map/heap）模块错误段起点（EXC-003）。 */
+/** Exported function `base_coll`.
+ * Implements `base_coll`.
+ * @return i32
+ */
 export function base_coll(): i32 { return -1400; }
 
-/** std.coll 模块通用错误码占位。 */
+/** Exported function `coll_err_generic`.
+ * Implements `coll_err_generic`.
+ * @param ) i32 { return base_coll(
+ * @return void
+ */
 export function coll_err_generic(): i32 { return base_coll(); }
 
-/** std.fs 模块错误段起点。 */
+/** Exported function `base_fs`.
+ * Implements `base_fs`.
+ * @return i32
+ */
 export function base_fs(): i32 { return -1100; }
 
-/** 文件/路径不存在。 */
+/** Exported function `fs_err_not_found`.
+ * Implements `fs_err_not_found`.
+ * @return i32
+ */
 export function fs_err_not_found(): i32 { return -1101; }
 
-// ——— STD-020：错误码 → 模块 base / 侧车种类 ———
+// See implementation.
 
-/** 模块标签：std.io。 */
+/** Exported function `mod_tag_io`.
+ * Implements `mod_tag_io`.
+ * @return i32
+ */
 export function mod_tag_io(): i32 { return 1; }
 
-/** 模块标签：std.fs。 */
+/** Exported function `mod_tag_fs`.
+ * Implements `mod_tag_fs`.
+ * @return i32
+ */
 export function mod_tag_fs(): i32 { return 2; }
 
-/** 模块标签：std.db（无 B 层 base v1）。 */
+/** Exported function `mod_tag_db`.
+ * Implements `mod_tag_db`.
+ * @return i32
+ */
 export function mod_tag_db(): i32 { return 3; }
 
-/** 侧车种类：无。 */
+/** Exported function `sidecar_none`.
+ * Implements `sidecar_none`.
+ * @return i32
+ */
 export function sidecar_none(): i32 { return 0; }
 
-/** 侧车种类：errno i32（如 fs_last_error）。 */
+/** Exported function `sidecar_errno`.
+ * Implements `sidecar_errno`.
+ * @return i32
+ */
 export function sidecar_errno(): i32 { return 1; }
 
-/** 侧车种类：DbError 结构体。 */
+/** Exported function `sidecar_db_struct`.
+ * Implements `sidecar_db_struct`.
+ * @return i32
+ */
 export function sidecar_db_struct(): i32 { return 2; }
 
-/** 负码 → 所属 base_*；L 层/未知 → 0。 */
+/** Exported function `code_to_module_base`.
+ * Implements `code_to_module_base`.
+ * @param code i32
+ * @return i32
+ */
 export function code_to_module_base(code: i32): i32 {
   if (code == 0) { return 0; }
   if (code <= base_io() && code > base_fs()) { return base_io(); }
@@ -146,8 +245,8 @@ export function code_to_module_base(code: i32): i32 {
 }
 
 /**
- * L 层全局码区间判定：-3..-1（code_alloc_fail/invalid/not_found）。
- * 返回 1 在区间内，0 否。
+ * See implementation.
+ * See implementation.
  */
 export function code_in_global_range(code: i32): i32 {
   if (code >= code_not_found() && code <= code_alloc_fail()) {
@@ -157,8 +256,8 @@ export function code_in_global_range(code: i32): i32 {
 }
 
 /**
- * B 层模块段判定：code 落在 (base-100, base]。
- * 返回 1 在段内，0 否。
+ * See implementation.
+ * See implementation.
  */
 export function code_in_module_span(code: i32, base: i32): i32 {
   if (code == 0) { return 0; }
@@ -167,29 +266,41 @@ export function code_in_module_span(code: i32, base: i32): i32 {
 }
 
 /**
- * S 层平台 errno 判定：正整数视为宿主 errno（如 fs_last_error）。
- * 返回 1 是 errno，0 否。
+ * See implementation.
+ * See implementation.
  */
 export function code_is_platform_errno(code: i32): i32 {
   if (code > 0) { return 1; }
   return 0;
 }
 
-/** base → 模块标签；未知 base → 0。 */
+/** Exported function `mod_tag_from_base`.
+ * Implements `mod_tag_from_base`.
+ * @param base i32
+ * @return i32
+ */
 export function mod_tag_from_base(base: i32): i32 {
   if (base == base_io()) { return mod_tag_io(); }
   if (base == base_fs()) { return mod_tag_fs(); }
   return 0;
 }
 
-/** 标签 → base；db 等无 B 层段 → 0。 */
+/** Exported function `mod_base_from_tag`.
+ * Implements `mod_base_from_tag`.
+ * @param tag i32
+ * @return i32
+ */
 export function mod_base_from_tag(tag: i32): i32 {
   if (tag == mod_tag_io()) { return base_io(); }
   if (tag == mod_tag_fs()) { return base_fs(); }
   return 0;
 }
 
-/** 模块标签 → last_error 侧车种类。 */
+/** Exported function `module_sidecar_kind`.
+ * Implements `module_sidecar_kind`.
+ * @param tag i32
+ * @return i32
+ */
 export function module_sidecar_kind(tag: i32): i32 {
   if (tag == mod_tag_io()) { return sidecar_none(); }
   if (tag == mod_tag_fs()) { return sidecar_errno(); }
@@ -197,27 +308,49 @@ export function module_sidecar_kind(tag: i32): i32 {
   return sidecar_none();
 }
 
-// ——— STD-158：跨模块语义类 ———
+// See implementation.
 
-/** 语义类：无/未知。 */
+/** Exported function `sem_none`.
+ * Implements `sem_none`.
+ * @return i32
+ */
 export function sem_none(): i32 { return 0; }
 
-/** 语义类：超时。 */
+/** Exported function `sem_timeout`.
+ * Implements `sem_timeout`.
+ * @return i32
+ */
 export function sem_timeout(): i32 { return 1; }
 
-/** 语义类：取消。 */
+/** Exported function `sem_cancelled`.
+ * Implements `sem_cancelled`.
+ * @return i32
+ */
 export function sem_cancelled(): i32 { return 2; }
 
-/** 语义类：未找到。 */
+/** Exported function `sem_not_found`.
+ * Implements `sem_not_found`.
+ * @return i32
+ */
 export function sem_not_found(): i32 { return 3; }
 
-/** std.http 超时（映射 net 段）。 */
+/** Exported function `http_err_timeout`.
+ * Implements `http_err_timeout`.
+ * @return i32
+ */
 export function http_err_timeout(): i32 { return -1203; }
 
-/** std.http 取消（映射 net 段）。 */
+/** Exported function `http_err_cancelled`.
+ * Implements `http_err_cancelled`.
+ * @return i32
+ */
 export function http_err_cancelled(): i32 { return -1204; }
 
-/** 错误码 → 跨模块语义类。 */
+/** Exported function `semantic_class`.
+ * Implements `semantic_class`.
+ * @param code i32
+ * @return i32
+ */
 export function semantic_class(code: i32): i32 {
   if (code == io_err_timeout() || code == net_err_timeout() || code == http_err_timeout()) {
     return sem_timeout();
@@ -231,36 +364,55 @@ export function semantic_class(code: i32): i32 {
   return sem_none();
 }
 
-/** 是否为超时语义（1/0）。 */
+/** Exported function `is_timeout`.
+ * Query helper `is_timeout`.
+ * @param code i32
+ * @return i32
+ */
 export function is_timeout(code: i32): i32 {
   if (semantic_class(code) == sem_timeout()) { return 1; }
   return 0;
 }
 
-/** 是否为取消语义（1/0）。 */
+/** Exported function `is_cancelled`.
+ * Query helper `is_cancelled`.
+ * @param code i32
+ * @return i32
+ */
 export function is_cancelled(code: i32): i32 {
   if (semantic_class(code) == sem_cancelled()) { return 1; }
   return 0;
 }
 
-/** 是否为未找到语义（1/0）。 */
+/** Exported function `is_not_found`.
+ * Query helper `is_not_found`.
+ * @param code i32
+ * @return i32
+ */
 export function is_not_found(code: i32): i32 {
   if (semantic_class(code) == sem_not_found()) { return 1; }
   return 0;
 }
 
-/** v1：仅超时建议重试（1/0）。 */
+/** Exported function `recommend_retry`.
+ * Implements `recommend_retry`.
+ * @param code i32
+ * @return i32
+ */
 export function recommend_retry(code: i32): i32 {
   if (is_timeout(code) != 0) { return 1; }
   return 0;
 }
 
-// ——— EXC-004：ErrorChain 固定深度错误链（零堆 v1） ———
+// See implementation.
 
-/** ErrorChain 最大深度（栈上 c0..c3）。 */
+/** Exported function `chain_max_depth`.
+ * Implements `chain_max_depth`.
+ * @return i32
+ */
 export function chain_max_depth(): i32 { return 4; }
 
-/** 错误链：c0 为 root（最近 wrap），向内至 leaf。 */
+/* See implementation. */
 export struct ErrorChain {
   depth: i32;
   c0: i32;
@@ -269,33 +421,57 @@ export struct ErrorChain {
   c3: i32;
 }
 
-/** 空链（depth=0）。 */
+/** Exported function `chain_empty`.
+ * Implements `chain_empty`.
+ * @return ErrorChain
+ */
 export function chain_empty(): ErrorChain {
   return ErrorChain { depth: 0, c0: 0, c1: 0, c2: 0, c3: 0 };
 }
 
-/** 单码链。 */
+/** Exported function `chain_from_code`.
+ * Implements `chain_from_code`.
+ * @param code i32
+ * @return ErrorChain
+ */
 export function chain_from_code(code: i32): ErrorChain {
   return ErrorChain { depth: 1, c0: code, c1: 0, c2: 0, c3: 0 };
 }
 
-/** 自 Result_i32.err 构造单节点链。 */
+/** Exported function `chain_from_result`.
+ * Implements `chain_from_result`.
+ * @param r Result_i32
+ * @return ErrorChain
+ */
 export function chain_from_result(r: Result_i32): ErrorChain {
   return chain_from_code(r.err);
 }
 
-/** 链深度 0..max。 */
+/** Exported function `chain_depth`.
+ * Implements `chain_depth`.
+ * @param chain ErrorChain
+ * @return i32
+ */
 export function chain_depth(chain: ErrorChain): i32 {
   return chain.depth;
 }
 
-/** 最外层码（c0）；空链返回 0。 */
+/** Exported function `chain_root`.
+ * Implements `chain_root`.
+ * @param chain ErrorChain
+ * @return i32
+ */
 export function chain_root(chain: ErrorChain): i32 {
   if (chain.depth <= 0) { return 0; }
   return chain.c0;
 }
 
-/** 按外→内下标取码；越界返回 0。 */
+/** Exported function `chain_code_at`.
+ * Implements `chain_code_at`.
+ * @param chain ErrorChain
+ * @param idx i32
+ * @return i32
+ */
 export function chain_code_at(chain: ErrorChain, idx: i32): i32 {
   if (idx == 0) { return chain.c0; }
   if (idx == 1) { return chain.c1; }
@@ -304,7 +480,11 @@ export function chain_code_at(chain: ErrorChain, idx: i32): i32 {
   return 0;
 }
 
-/** 最内层根因码；空链返回 0。 */
+/** Exported function `chain_leaf`.
+ * Implements `chain_leaf`.
+ * @param chain ErrorChain
+ * @return i32
+ */
 export function chain_leaf(chain: ErrorChain): i32 {
   let d: i32 = chain.depth;
   if (d <= 0) { return 0; }
@@ -315,8 +495,8 @@ export function chain_leaf(chain: ErrorChain): i32 {
 }
 
 /**
- * 在 root 侧追加 wrapper；超深时丢弃最旧 leaf（c3 侧）。
- * 顺序：root=c0（新 wrapper）→ … → leaf。
+ * See implementation.
+ * See implementation.
  */
 export function chain_wrap(chain: ErrorChain, wrapper: i32): ErrorChain {
   let d: i32 = chain.depth;
@@ -342,5 +522,8 @@ export function chain_wrap(chain: ErrorChain, wrapper: i32): ErrorChain {
   return ErrorChain { depth: 4, c0: wrapper, c1: chain.c0, c2: chain.c1, c3: chain.c2 };
 }
 
-/** 模块尾占位：transitive import 解析时末位 function 会丢失，须保留非 API 锚点。 */
+/** Exported function `error_module_anchor`.
+ * Implements `error_module_anchor`.
+ * @return i32
+ */
 export function error_module_anchor(): i32 { return 0; }

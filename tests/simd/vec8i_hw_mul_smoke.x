@@ -1,4 +1,8 @@
-// SIMD-S3 烟测：Vec8i local VAR+VAR mul 应走 vpmulld/pmulld（非 8 次标量 mul）。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: Vec8i = [2, 2, 2, 2, 2, 2, 2, 2];
   let b: Vec8i = [3, 3, 3, 3, 3, 3, 3, 3];

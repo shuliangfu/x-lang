@@ -1,6 +1,10 @@
-// STD-111：std.sync 调试锁诊断烟测（锁序 + 递归 + 快照）
+// See implementation.
 const sync = import("std.sync");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let m1: *u8 = sync.new_mutex();
   let m2: *u8 = sync.new_mutex();

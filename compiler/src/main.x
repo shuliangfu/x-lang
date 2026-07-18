@@ -14,56 +14,67 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// main.x — 与 main.c 一一对应：程序入口与驱动编排（6.2 逻辑全在 .x）
+// See implementation.
 //
-// 职责：提供 main(argc, argv)；-x -E 的 argv 解析与执行（读文件、预处理、pipeline、写 stdout）全部在 .x 实现。
+// See implementation.
 //
-// 为何仍保留少量 C 原语（见下方 extern）：
-// - driver_get_argv_i：argv 在 C 里是 char**，.x 只有 *u8，无法在 .x 里安全地「从 argv 取第 i 个指针」再读字符串，故必须由 C 提供。
-// - run_compiler_c：已迁 .x（本文件内桩实现 return 1）；C 在 SHUX_USE_X_DRIVER 下不定义，由 driver_gen.c 的 run_compiler_c 包装转调 main_run_compiler_c。
-// - run_compiler_x_path：默认走 ASM（driver_run_compiler_full）；`-backend c` 且无 `-o` 时走 .x pipeline 出 C 文本 stdout。
-// - pipeline_run_x_pipeline_impl：实现位于 pipeline.x→pipeline_gen.c，main.x 仅 extern 调用，无法迁入 .x。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 
 const ast = import("ast");
 const codegen = import("codegen");
 const sys = import("std.sys");
 export extern "C" function fs_posix_write_c(fd: i32, buf: *u8, count: usize): isize;
 export extern "C" function fs_posix_close_c(fd: i32): i32;
-/** 与 emit.x / pipeline.x 一致：指针版预处理，避免 import preprocess 模块在 -E-extern 时 method base 无类型。 */
+/* See implementation. */
 export extern function preprocess_x_buf(source_buf: *u8, source_len: isize, out_buf: *u8, out_cap: i32): i32;
-/** 子命令：build/run 在 main_cmd_build / main_cmd_run 内实现；fmt/check/test 仍由 src/driver/*.x 提供（extern driver_cmd_*）。 */
+/* See implementation. */
 export extern function driver_cmd_fmt(argc: i32, argv: *u8): i32;
 export extern function driver_cmd_check(argc: i32, argv: *u8): i32;
 export extern function driver_cmd_test(argc: i32, argv: *u8): i32;
 
-/** -x -E 解析结果：路径与 -L 库根、是否用 asm 后端、目标架构，由 driver_argv_parse_x / driver_argv_parse_x_path 填充。 */
+/* See implementation. */
 export struct DriverXEmitState {
   path_buf: u8[512];
   path_len: i32;
-  /** 非 0 表示 -E-extern：仅类型 + 入口库形态 C，与 C 路径 emit_extern_imports 一致。 */
+  /* See implementation. */
   emit_extern_imports: i32;
-  /** 非 0 表示 asm 后端（默认 1）；`-backend c` 置 0 表示 pipeline 出 C 文本。 */
+  /* See implementation. */
   use_asm_backend: i32;
-  /** 目标架构：0=x86_64，1=arm64，2=riscv64；按 -target aarch64/arm64/riscv64 设置。 */
+  /* See implementation. */
   target_arch: i32;
-  /** `-o` 且写 codegen 缓冲区时使用；ASM 默认路径下多为 driver_run_compiler_full 处理，此项仍供 driver_run_x_emit_x（`-backend c`）写文件。 */
+  /* See implementation. */
   out_path_buf: u8[512];
   out_path_len: i32;
 }
 
-/** driver -L 库根 grow 池（ast_pool.c）；DriverXEmitState 指针作键。 */
+/* See implementation. */
 export extern function driver_emit_lib_root_reset(state: *u8): void;
 export extern function driver_emit_append_lib_root(state: *u8, path: *u8, len: i32): i32;
 export extern function driver_emit_lib_root_count(state: *u8): i32;
 export extern function driver_emit_lib_root_len(state: *u8, i: i32): i32;
 export extern function driver_emit_lib_root_copy(state: *u8, i: i32, dst: *u8, cap: i32): void;
 
-/** DriverXEmitState 指针作 sidecar 键。 */
+/** Exported function `driver_emit_state_key`.
+ * Implements `driver_emit_state_key`.
+ * @param state *DriverXEmitState
+ * @return *u8
+ */
 export function driver_emit_state_key(state: *DriverXEmitState): *u8 {
   return state as *u8;
 }
 
-/** 从 argv[arg_i] 读取路径并追加到 emit lib_root 池；成功返回 1。 */
+/** Exported function `driver_emit_try_append_lib_from_argv`.
+ * Implements `driver_emit_try_append_lib_from_argv`.
+ * @param argc i32
+ * @param argv *u8
+ * @param arg_i i32
+ * @param state *DriverXEmitState
+ * @return i32
+ */
 export function driver_emit_try_append_lib_from_argv(argc: i32, argv: *u8, arg_i: i32, state: *DriverXEmitState): i32 {
   let tmp: u8[256] = [];
   let llen: i32 = driver_get_argv_i(argc, argv, arg_i, &tmp[0], 256);
@@ -73,7 +84,11 @@ export function driver_emit_try_append_lib_from_argv(argc: i32, argv: *u8, arg_i
   return 0;
 }
 
-/** 若无 -L 则默认 "." 库根（与 C driver 一致）。 */
+/** Exported function `driver_emit_ensure_default_lib_root`.
+ * Implements `driver_emit_ensure_default_lib_root`.
+ * @param state *DriverXEmitState
+ * @return void
+ */
 export function driver_emit_ensure_default_lib_root(state: *DriverXEmitState): void {
   if (driver_emit_lib_root_count(driver_emit_state_key(state)) == 0) {
     let dot: u8[1] = [46];
@@ -81,7 +96,12 @@ export function driver_emit_ensure_default_lib_root(state: *DriverXEmitState): v
   }
 }
 
-/** 将 emit lib_root 池灌入 PipelineDepCtx（-backend c 烟测路径）。 */
+/** Exported function `driver_emit_copy_lib_roots_to_ctx`.
+ * Implements `driver_emit_copy_lib_roots_to_ctx`.
+ * @param state *DriverXEmitState
+ * @param ctx *PipelineDepCtx
+ * @return void
+ */
 export function driver_emit_copy_lib_roots_to_ctx(state: *DriverXEmitState, ctx: *PipelineDepCtx): void {
   let k: i32 = 0;
   let n: i32 = driver_emit_lib_root_count(driver_emit_state_key(state));
@@ -97,8 +117,8 @@ export function driver_emit_copy_lib_roots_to_ctx(state: *DriverXEmitState, ctx:
 }
 
 /**
- * 默认 DriverXEmitState：struct 字面量最多 8 字段（parser/AST 限制），
- * out_path_buf/out_path_len 等余下字段依赖零初始化。
+ * See implementation.
+ * See implementation.
  */
 export function driver_emit_state_default(): DriverXEmitState {
   return DriverXEmitState {
@@ -111,7 +131,7 @@ export function driver_emit_state_default(): DriverXEmitState {
 }
 
 /**
- * -x -E emit 路径用 PipelineDepCtx 零基线（8 字段字面量 + 显式填 backend/index 等）。
+ * See implementation.
  */
 export function pipeline_dep_ctx_for_emit(use_asm: i32, target: i32): PipelineDepCtx {
   let ctx: PipelineDepCtx = PipelineDepCtx {
@@ -127,61 +147,76 @@ export function pipeline_dep_ctx_for_emit(use_asm: i32, target: i32): PipelineDe
   return ctx;
 }
 
-/** C 极薄原语：将 argv[i] 复制到 buf[0..max-1]，NUL 结尾，返回长度；越界或失败 -1。必须 C：.x 无 char** 与 argv 索引能力。 */
+/* See implementation. */
 export extern function driver_get_argv_i(argc: i32, argv: *u8, i: i32, buf: *u8, max: i32): i32;
 /**
- * C 极薄原语：子命令路由时去掉 argv[1]（子命令名），保留 argv[0] 与 argv[2..] 连续放入静态槽；返回的指针与 char** 同址。
- * 生命周期：下次调用本函数前有效（单线程 main）。
+ * See implementation.
+ * See implementation.
  */
 export extern function driver_argv_drop_subcommand(argc: i32, argv: *u8): *u8;
-/** C runtime.c：无参 `shux build` 时在当前目录找 build.x，编译后执行 ./a.out。 */
+/* See implementation. */
 export extern function driver_build_build_x(): i32;
-/** C runtime.c：`shux run` 编译成功后 fork/exec 产物（扫描 `-o` 或默认 a.out）。 */
+/* See implementation. */
 export extern function driver_exec_compiled(argc: i32, argv: *u8): i32;
-/** C 极薄原语：以 path[0..path_len-1] 为路径打开读文件，返回 fd，失败 -1。供 driver_run_x_emit_x 读入口文件，避免 -E-extern 生成顺序导致 path_buf 未填就调 open。 */
+/* See implementation. */
 export extern function driver_fs_open_read_path(path: *u8, path_len: i32): i32;
-/** C 提供静态 arena/module 缓冲（arena 32MiB / module 512KiB 级，须 ≥ sizeof(ast_ASTArena)），避免栈上超大数组。 */
+/* See implementation. */
 export extern function driver_arena_buf(): *u8;
 export extern function driver_module_buf(): *u8;
-/** C 极薄原语：以 path[0..path_len-1] 为路径打开写文件（O_WRONLY|O_CREAT|O_TRUNC），返回 fd，失败 -1。供 -backend asm -o 时写 -o 文件。 */
+/* See implementation. */
 export extern function driver_fs_open_write(path: *u8, path_len: i32): i32;
-/** 诊断：pipeline 返回非 0 时打印 rc 到 stderr；rc==-7（resolve 失败）时 path 为尝试过的路径（以 0 结尾），否则 path 可忽略。 */
+/* See implementation. */
 export extern function driver_pipeline_fail_code(rc: i32, path: *u8): void;
-/** 无 -o 时在 pipeline 成功后向 stderr 打印烟测两行（前缀仍含 parse OK / typeck OK）。 */
+/* See implementation. */
 export extern function driver_print_x_smoke_summary(module: *u8, codegen_len: usize): void;
 
-/** -x -E 多文件：将 path 与 -L 库根灌入 C 侧，再调 driver_run_x_emit_c 走完整 deps+main 路径（.x 的 driver_run_x_emit_x 仅单文件无 import）。 */
+/* See implementation. */
 export extern function driver_run_x_emit_c_set_path(path: *u8, path_len: i32): i32;
 export extern function driver_run_x_emit_c_set_lib(i: i32, buf: *u8, len: i32): i32;
 export extern function driver_run_x_emit_c_set_n_lib_roots(n: i32): i32;
-/** -E-extern 时置 1，供 C 侧 driver_run_x_emit_c 走与 run_compiler_c 一致的瘦 C 生成。 */
+/* See implementation. */
 export extern function driver_run_x_emit_c_set_emit_extern(v: i32): i32;
 export extern function driver_run_x_emit_c(): i32;
 
-/** pipeline 实现入口（.x 内以 source_data/source_len 调 parse_into_with_init_buf）。形参顺序 (module, arena) 与调用时 (module_buf, arena_buf) 一致。 */
+/* See implementation. */
 export extern function pipeline_run_x_pipeline_impl(module: *u8, arena: *u8, source_data: *u8, source_len: usize, out_buf: *CodegenOutBuf, ctx: *PipelineDepCtx): i32;
-/** dep 池：lib_root 追加（C ast_pool；driver -E-extern 生成 ast_pipeline_ 前缀符号）。 */
+/* See implementation. */
 export extern function ast_pipeline_ctx_append_lib_root(ctx: *PipelineDepCtx, path: *u8, len: i32): i32;
 
-/** C 侧完整编译实现：解析 -o/-L/-O、读文件、pipeline、cc 生成可执行文件。供 r==1/r==2 时（如带 -o）从 .x 路径转调。 */
+/* See implementation. */
 export extern function driver_run_compiler_full(argc: i32, argv: *u8): i32;
-/** 原 C 侧完整编译实现（-o/import 等复杂路径）；现转调 C 的 driver_run_compiler_full，使带 -o 的 shux 能产出可执行文件。 */
+/** Exported function `run_compiler_c_impl`.
+ * Implements `run_compiler_c_impl`.
+ * @param argc i32
+ * @param argv *u8
+ * @return i32
+ */
 export function run_compiler_c_impl(argc: i32, argv: *u8): i32 {
   return driver_run_compiler_full(argc, argv);
 }
-/** 原 run_compiler_c：转调 run_compiler_c_impl，供 r==1/r==2 时走 C 的完整编译路径（-o、多文件等）。 */
+/** Exported function `run_compiler_c`.
+ * Implements `run_compiler_c`.
+ * @param argc i32
+ * @param argv *u8
+ * @return i32
+ */
 export function run_compiler_c(argc: i32, argv: *u8): i32 {
   return run_compiler_c_impl(argc, argv);
 }
 
 /**
- * 全 asm 链 build_shux_asm.sh 不链 driver_gen.c 时，须由 main.o 导出，否则链接 runtime_driver 报 undefined。
+ * See implementation.
  */
 export function main_run_compiler_c(argc: i32, argv: *u8): i32 {
   return run_compiler_c(argc, argv);
 }
 
-/** 比较 buf 与 "-L"（2 字节），相等返回 1 否则 0。 */
+/** Exported function `eq_minus_L`.
+ * Implements `eq_minus_L`.
+ * @param buf *u8
+ * @param len i32
+ * @return i32
+ */
 export function eq_minus_L(buf: *u8, len: i32): i32 {
   if (len < 2) {
     return 0;
@@ -192,7 +227,12 @@ export function eq_minus_L(buf: *u8, len: i32): i32 {
   return 0;
 }
 
-/** 比较 buf 与 "-x"（3 字节）。 */
+/** Exported function `eq_minus_x`.
+ * Implements `eq_minus_x`.
+ * @param buf *u8
+ * @param len i32
+ * @return i32
+ */
 export function eq_minus_x(buf: *u8, len: i32): i32 {
   if (len < 3) {
     return 0;
@@ -203,7 +243,12 @@ export function eq_minus_x(buf: *u8, len: i32): i32 {
   return 0;
 }
 
-/** 比较 buf 与 "-E"（2 字节）。 */
+/** Exported function `eq_minus_E`.
+ * Implements `eq_minus_E`.
+ * @param buf *u8
+ * @param len i32
+ * @return i32
+ */
 export function eq_minus_E(buf: *u8, len: i32): i32 {
   if (len < 2) {
     return 0;
@@ -214,7 +259,12 @@ export function eq_minus_E(buf: *u8, len: i32): i32 {
   return 0;
 }
 
-/** 比较 buf 与 "-E-extern"（9 字节）；与 C 侧 -E-extern 一致，供 -x -E 在取入口路径前跳过。 */
+/** Exported function `eq_minus_E_extern`.
+ * Implements `eq_minus_E_extern`.
+ * @param buf *u8
+ * @param len i32
+ * @return i32
+ */
 export function eq_minus_E_extern(buf: *u8, len: i32): i32 {
   if (len < 9) {
     return 0;
@@ -225,7 +275,12 @@ export function eq_minus_E_extern(buf: *u8, len: i32): i32 {
   return 0;
 }
 
-/** 比较 buf 与 "-backend"（8 字节）。 */
+/** Exported function `eq_minus_backend`.
+ * Implements `eq_minus_backend`.
+ * @param buf *u8
+ * @param len i32
+ * @return i32
+ */
 export function eq_minus_backend(buf: *u8, len: i32): i32 {
   if (len < 8) {
     return 0;
@@ -236,7 +291,12 @@ export function eq_minus_backend(buf: *u8, len: i32): i32 {
   return 0;
 }
 
-/** 比较 buf 与 "asm"（3 字节）。 */
+/** Exported function `eq_asm`.
+ * Implements `eq_asm`.
+ * @param buf *u8
+ * @param len i32
+ * @return i32
+ */
 export function eq_asm(buf: *u8, len: i32): i32 {
   if (len < 3) {
     return 0;
@@ -247,7 +307,12 @@ export function eq_asm(buf: *u8, len: i32): i32 {
   return 0;
 }
 
-/** 比较 buf 与 "--lsp"（5 字节）；LSP 模式入口。 */
+/** Exported function `eq_minus_lsp`.
+ * Implements `eq_minus_lsp`.
+ * @param buf *u8
+ * @param len i32
+ * @return i32
+ */
 export function eq_minus_lsp(buf: *u8, len: i32): i32 {
   if (len < 5) {
     return 0;
@@ -258,7 +323,12 @@ export function eq_minus_lsp(buf: *u8, len: i32): i32 {
   return 0;
 }
 
-/** 比较 buf 与 "-target"（7 字节）。 */
+/** Exported function `eq_minus_target`.
+ * Implements `eq_minus_target`.
+ * @param buf *u8
+ * @param len i32
+ * @return i32
+ */
 export function eq_minus_target(buf: *u8, len: i32): i32 {
   if (len < 7) {
     return 0;
@@ -269,7 +339,14 @@ export function eq_minus_target(buf: *u8, len: i32): i32 {
   return 0;
 }
 
-/** 通用字节串比较：a[0..a_len-1] 与 b[0..b_len-1] 长度相同且逐字节相等返回 1，否则 0（用于子命令名匹配）。 */
+/** Exported function `str_eq`.
+ * Implements `str_eq`.
+ * @param a *u8
+ * @param a_len i32
+ * @param b *u8
+ * @param b_len i32
+ * @return i32
+ */
 export function str_eq(a: *u8, a_len: i32, b: *u8, b_len: i32): i32 {
   if (a_len != b_len) {
     return 0;
@@ -284,7 +361,12 @@ export function str_eq(a: *u8, a_len: i32, b: *u8, b_len: i32): i32 {
   return 1;
 }
 
-/** 若 buf[0..len-1] 中含子串 "aarch64" 或 "arm64" 返回 1，否则 0（用于 -target 选 arm64）。 */
+/** Exported function `target_contains_arm`.
+ * Implements `target_contains_arm`.
+ * @param buf *u8
+ * @param len i32
+ * @return i32
+ */
 export function target_contains_arm(buf: *u8, len: i32): i32 {
   let start: i32 = 0;
   while (start + 7 <= len) {
@@ -303,7 +385,12 @@ export function target_contains_arm(buf: *u8, len: i32): i32 {
   return 0;
 }
 
-/** 若 buf[0..len-1] 中含子串 "riscv64" 返回 1，否则 0（用于 -target 选 riscv64）。 */
+/** Exported function `target_contains_riscv`.
+ * Implements `target_contains_riscv`.
+ * @param buf *u8
+ * @param len i32
+ * @return i32
+ */
 export function target_contains_riscv(buf: *u8, len: i32): i32 {
   let start: i32 = 0;
   while (start + 7 <= len) {
@@ -316,17 +403,17 @@ export function target_contains_riscv(buf: *u8, len: i32): i32 {
 }
 
 /**
- * 解析 argv 为常规编译请求：填 state.path_buf/path_len、可选 -o 输出路径与 lib_root_*。
- * 裸 `-E` / `-E-extern` 由 driver_argv_parse_x 处理；此处须显式跳过，避免把 `-E` 误收成输入路径。
- * 返回 0 表示已填 state；默认 use_asm_backend=1 走 run_compiler_c_impl（全量流水线）；`-backend c` 且无 `-o` 时才走 driver_run_x_emit_x 烟测（勿默认 0，否则 main.o 栈上 PipelineDepCtx+双 4MiB 缓冲区撑爆线程栈）。
- * 返回 1 表示需走 C 实现（当前仅 -o 缺少输出路径参数时）。
- * 无输入路径返回 2。
+ * See implementation.
+ * See implementation.
+ * See implementation.
+ * See implementation.
+ * See implementation.
  */
 export function driver_argv_parse_x_path(argc: i32, argv: *u8, state: *DriverXEmitState): i32 {
   state.path_len = 0;
   driver_emit_lib_root_reset(driver_emit_state_key(state));
   state.emit_extern_imports = 0;
-  /** 默认 1：走 run_compiler_c_impl；勿 0（会默认进 driver_run_x_emit_x 栈溢出）。 */
+  /* See implementation. */
   state.use_asm_backend = 1;
   state.target_arch = 0;
   state.out_path_len = 0;
@@ -363,7 +450,7 @@ export function driver_argv_parse_x_path(argc: i32, argv: *u8, state: *DriverXEm
     }
     if (eq_minus_backend(arg_buf, len) != 0 && i + 1 < argc) {
       let vlen: i32 = driver_get_argv_i(argc, argv, i + 1, arg_buf, 512);
-      /* `-backend c`：烟测走 driver_run_x_emit_x；`-backend asm`：与默认一致（全量 run_compiler_c_impl）。 */
+      /* See implementation. */
       if (vlen >= 0 && vlen == 1 && arg_buf[0] == 99) {
         state.use_asm_backend = 0;
       }
@@ -373,7 +460,7 @@ export function driver_argv_parse_x_path(argc: i32, argv: *u8, state: *DriverXEm
       i = i + 2;
       continue;
     }
-    /* -o <path>：须写入 state，否则 has_o→返回 1 会误走 C 流水线，typeck 负例在 run-typeck.sh（带 -o）下无法 grep stderr。 */
+    /* See implementation. */
     if (len == 2 && arg_buf[0] == 45 && arg_buf[1] == 111) {
       if (i + 1 < argc) {
         let olen: i32 = driver_get_argv_i(argc, argv, i + 1, state.out_path_buf, 512);
@@ -422,14 +509,14 @@ export function driver_argv_parse_x_path(argc: i32, argv: *u8, state: *DriverXEm
   if (state.path_len == 0) {
     return 2;
   }
-  /* 与 C 一致：无 -L 时默认库根为 "." */
+  /* See implementation. */
   driver_emit_ensure_default_lib_root(state);
   return 0;
 }
 
 /**
- * 在 .x 内解析 emit C 请求：支持裸 `-E` / `-E -E-extern <path>`，也兼容旧 `-x -E` 形式。
- * 返回 1 表示已填充 state 并应走 driver_run_x_emit_c；否则返回 0。
+ * See implementation.
+ * See implementation.
  */
 export function driver_argv_parse_x(argc: i32, argv: *u8, state: *DriverXEmitState): i32 {
   state.path_len = 0;
@@ -513,8 +600,8 @@ export function driver_argv_parse_x(argc: i32, argv: *u8, state: *DriverXEmitSta
 }
 
 /**
- * 在 .x 内执行 -x -E：读 state.path_buf 文件、预处理、跑 pipeline、写 stdout。
- * 使用固定缓冲与 ctx；仅无 import 单文件时正确（deps 为 0）。
+ * See implementation.
+ * See implementation.
  */
 export function driver_run_x_emit_x(state: *DriverXEmitState): i32 {
   if (state.path_len >= 0 && state.path_len < 511) {
@@ -531,7 +618,7 @@ export function driver_run_x_emit_x(state: *DriverXEmitState): i32 {
   if (out_len < 0) {
     return 1;
   }
-  /* arena/module 由 C 提供静态缓冲；池扩大后 ast_ASTArena codegen 约 ~90MiB（arm64），runtime 用 128MiB 静态区 */
+  /* See implementation. */
   let arena_buf: *u8 = driver_arena_buf();
   let module_buf: *u8 = driver_module_buf();
   let ctx: PipelineDepCtx = pipeline_dep_ctx_for_emit(state.use_asm_backend, state.target_arch);
@@ -565,7 +652,7 @@ export function driver_run_x_emit_x(state: *DriverXEmitState): i32 {
     driver_pipeline_fail_code(rc, &ctx.path_buf[0]);
     return 1;
   }
-  /** out.len 为 i32；与 fs_write 返回值 isize 比较时用 i32，勿 usize（typeck 失败）。 */
+  /* See implementation. */
   let len: i32 = out.len;
   if (state.out_path_len == 0) {
     driver_print_x_smoke_summary(module_buf, len as usize);
@@ -605,8 +692,8 @@ export function driver_run_x_emit_x(state: *DriverXEmitState): i32 {
 }
 
 /**
- * 非 -x -E 时的编译入口：默认走 ASM（driver_run_compiler_full → driver_run_asm_backend）；`-backend c` 且无 `-o` 时走 driver_run_x_emit_x 出 C。
- * 返回 0 成功，1 错误，或 C 的返回值。
+ * See implementation.
+ * See implementation.
  */
 export function main_run_compiler_x_path_impl(argc: i32, argv: *u8): i32 {
   let state: DriverXEmitState = driver_emit_state_default();
@@ -621,10 +708,10 @@ export function main_run_compiler_x_path_impl(argc: i32, argv: *u8): i32 {
     return run_compiler_c_impl(argc, argv);
   }
   /*
-   * 含 `-o` 的可执行文件/目标产物必须经 C 的 driver_run_compiler_full：临时 .c + cc/strip，
-   * * 链接 std/io、std/time、panic 等 .o。.x-only 的 driver_run_x_emit_x 只是把 codegen 缓冲区
-   * * 写入路径（等同导出 C，不链接），run-std/run-time/import 会一直失败甚至得到空文件。
-   * * 无 `-o` 时仍走 driver_run_x_emit_x：stderr 打印 parse/typeck OK、stdout 可出 C。
+   * See implementation.
+   * See implementation.
+   * See implementation.
+   * See implementation.
    */
   if (state.out_path_len > 0) {
     return run_compiler_c_impl(argc, argv);
@@ -633,7 +720,7 @@ export function main_run_compiler_x_path_impl(argc: i32, argv: *u8): i32 {
 }
 
 /**
- * `shux build`：子命令已从 argv 剥离后，argc==1 表示除程序名外无额外参数 → 走当前目录 build.x（C）；否则编译指定 .x。
+ * See implementation.
  */
 export function main_cmd_build(argc: i32, argv: *u8): i32 {
   if (argc < 2) {
@@ -643,7 +730,7 @@ export function main_cmd_build(argc: i32, argv: *u8): i32 {
 }
 
 /**
- * `shux run`：编译 .x 到产物，成功则 exec 运行（与 driver/run.x 行为一致；`rc == 0` 分支再调 C 的 driver_exec_compiled，避免与 import ast 同编时 typeck 对 check_block 的误报）。
+ * See implementation.
  */
 export function main_cmd_run(argc: i32, argv: *u8): i32 {
   if (argc < 2) {
@@ -656,14 +743,14 @@ export function main_cmd_run(argc: i32, argv: *u8): i32 {
   return rc;
 }
 
-/** LSP 主循环由 lsp.x 实现，编译为 lsp_gen.c 时以 typeck_ 为前缀导出，故此处 extern 直接调 typeck_lsp_main，不再依赖 lsp_wrapper.c。 */
+/* See implementation. */
 export extern function typeck_lsp_main(): i32;
 
 /**
- * 程序入口：与 main.c 的 main() 对应；C 的 main() 仅做 return main_entry(argc, argv)。
- * 6.2：-x -E 的解析与执行全部在 .x；否则默认 ASM（main_run_compiler_x_path_impl → driver_run_compiler_full）；`-backend c` 且无 `-o` 时为烟测 C stdout。
- * LSP：若任一参数为 --lsp 则进入 LSP 主循环（typeck_lsp_main），不再走编译。
- * 子命令：首参非 `-` 且为 build/run/fmt/check/test 时，去掉该令牌后转发 main_cmd_build / main_cmd_run / driver_cmd_*（与直编共存：首参以 `-` 开头仍走下方默认路径）。
+ * See implementation.
+ * See implementation.
+ * See implementation.
+ * See implementation.
  */
 export function entry(argc: i32, argv: *u8): i32 {
   let arg_buf: u8[64] = [];
@@ -675,7 +762,7 @@ export function entry(argc: i32, argv: *u8): i32 {
     }
     i = i + 1;
   }
-  /* build/run/fmt/check/test：关键字与典型 CLI 子命令一致，首字不为 `-` 以免与 `-x` 等标志冲突。 */
+  /* See implementation. */
   if (argc >= 2) {
     let alen: i32 = driver_get_argv_i(argc, argv, 1, arg_buf, 64);
     if (alen > 0 && arg_buf[0] != 45) {
@@ -703,8 +790,8 @@ export function entry(argc: i32, argv: *u8): i32 {
   }
   let state: DriverXEmitState = driver_emit_state_default();
   if (driver_argv_parse_x(argc, argv, &state) != 0) {
-    /* -x -E：走 C 的 driver_run_x_emit_c，支持多文件（deps+main）；.x 的 driver_run_x_emit_x 仅单文件无 import。 */
-    /* 显式设置 emit_extern 标志；.x 无 C 的 (void) 丢弃写法，void 在括号内非合法 primary，故用裸调用表达式语句。 */
+    /* See implementation. */
+    /* See implementation. */
     driver_run_x_emit_c_set_emit_extern(state.emit_extern_imports);
     driver_run_x_emit_c_set_path(state.path_buf, state.path_len);
     let k: i32 = 0;
@@ -719,6 +806,6 @@ export function entry(argc: i32, argv: *u8): i32 {
     driver_run_x_emit_c_set_n_lib_roots(n_roots);
     return driver_run_x_emit_c();
   }
-  /* 裸 `shux file.x` 仅编译；执行产物须显式 `shux run file.x`（run-*.sh 在编译后自行运行 -o 产物）。 */
+  /* See implementation. */
   return main_run_compiler_x_path_impl(argc, argv);
 }

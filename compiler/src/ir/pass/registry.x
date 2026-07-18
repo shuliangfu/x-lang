@@ -14,22 +14,20 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// registry.x — Pass 注册表 + External Pass Provider 注入接口
+// registry.x — Pass registry + External Pass Provider injection interface
 //
-// 模块：ir/pass
-// 层级：共享
-// Phase：Phase 3+
-// 职责：
-//   - Pass 注册表（Pass ID / 名称 / 依赖 / 优化级别）
-//   - External Pass Provider 注入接口（§6.2）
-//     · 允许外部模块（如 x-neuron）注册 AI 生成的优化 Pass
-//     · 注入的 Pass 必须通过 Performance Oracle 门控（§9.3）
-//   - Pass 元数据查询（供 pipeline.x 排序用）
-// 依赖：../verify/perf_oracle
-// 设计约束：
-//   - External Pass Provider 是通用术语，不绑定具体 AI 项目（x-neuron 抽象化）
-//   - 注入的 Pass 性能不提升则自动拒绝（Performance Oracle 门控）
-//   - Pass 注册必须确定性（相同注册顺序相同 ID）
+// Module: ir/pass
+// Layer: shared
+// Phase: Phase 3+
+// Responsibility:
+//   - Pass registry (Pass ID / name / deps / opt level)
+//   - External Pass Provider injection interface (§6.2)
+//   - Pass metadata queries (used by pipeline.x for ordering)
+// Depends: ../verify/perf_oracle
+// Design constraints:
+//   - External Pass Provider is a generic term; not bound to a specific AI project
+//   - Injected passes that do not improve performance are auto-rejected (Performance Oracle)
+//   - Registration is deterministic (same registration order → same IDs)
 //
-// 参考文档：analysis/IR核心设计.md §6.2（Pass 注册表 + External Pass Provider 注入）/ §9.3（Performance Oracle 门控）
-// 架构状态：v4.0 Architecture Freeze — 实现骨架，待 Phase 3 填充
+// Ref: analysis IR core design §6.2 (Pass registry + External Pass Provider) / §9.3 (Oracle gate)
+// Status: v4.0 Architecture Freeze — implementation skeleton; fill in Phase 3

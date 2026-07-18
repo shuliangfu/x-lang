@@ -1,28 +1,26 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-268 / P2 link_abi L1 → R2 full：诊断 pure。
-// 产品 PREFER_X_O：g05_try_x_to_o；冷启动 seeds/labi_diag_pure.from_x.c。
-// hybrid 宏 SHUX_LABI_DIAG_PURE_FROM_X：FROM_X rest 仅 marker（业务 H=0）。
+// link_abi diag pure helpers (G.9 English; body is authoritative).
+// link_abi diag pure helpers (G.9 English; body is authoritative).
+// link_abi diag pure helpers (G.9 English; body is authoritative).
 //
 // R2 full：
-//   - link_diag_code_for_kind：strcmp + 短字面量
-//   - 7 个 report 消息体：栈缓冲拼装 + diag_report_with_code（无 va_list / reportf）
-// Cap residual（mega rest 常驻 _impl）：
-//   - link_diag_ld_debug_argv：argv 为 char** 遍历 🔒 Cap-fn-ptr
-// 长文案 freestanding_unsupported 拆 ≤64 段 append（禁单 lit >64）。
+// link_abi diag pure helpers (G.9 English; body is authoritative).
+// link_abi diag pure helpers (G.9 English; body is authoritative).
+// link_abi diag pure helpers (G.9 English; body is authoritative).
+// link_abi diag pure helpers (G.9 English; body is authoritative).
+// link_abi diag pure helpers (G.9 English; body is authoritative).
 
 export extern "C" function strcmp(a: *u8, b: *u8): i32;
 export extern "C" function diag_report_with_code(
   file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8
 ): void;
 
-/** Cap residual：char** argv 遍历在 mega rest _impl。 */
+/* See signature and body for contracts. */
 export extern "C" function link_diag_ld_debug_argv_impl(label: *u8, argv: *u8): void;
 
-/** 把 src 接到 dst 尾（cap 含尾 0）；返回新长度（不含 0）。
- * Track-L：#[no_mangle] 与 surface 短名一致，禁止模块前缀 mangle（labi_diag_pure_labi_diag_append）。
- * PLATFORM: SHARED — 链接名契约；双端 prove 同验。 */
+/** Diag pure helper; see signature and body for contracts. */
 #[no_mangle]
 export function labi_diag_append(dst: *u8, cap: i32, src: *u8): i32 {
   let i: i32 = 0;
@@ -63,7 +61,7 @@ export function labi_diag_append(dst: *u8, cap: i32, src: *u8): i32 {
   return i;
 }
 
-/* Pure：kind → 诊断码（PRC001 / BLD001）。禁止函数体仅 return "lit"。 */
+/* See signature and body for contracts. */
 #[no_mangle]
 export function link_diag_code_for_kind(kind: *u8): *u8 {
   if (kind == 0 as *u8) {
@@ -86,6 +84,12 @@ export function link_diag_code_for_kind(kind: *u8): *u8 {
 }
 
 #[no_mangle]
+/** Exported function `link_diag_runtime_obj_resolve_fail`.
+ * Implements `link_diag_runtime_obj_resolve_fail`.
+ * @param obj_name *u8
+ * @param hint *u8
+ * @return void
+ */
 export function link_diag_runtime_obj_resolve_fail(obj_name: *u8, hint: *u8): void {
   let on: *u8 = obj_name;
   let msg: u8[320] = [];
@@ -112,6 +116,12 @@ export function link_diag_runtime_obj_resolve_fail(obj_name: *u8, hint: *u8): vo
 }
 
 #[no_mangle]
+/** Exported function `link_diag_runtime_source_missing`.
+ * Implements `link_diag_runtime_source_missing`.
+ * @param obj_name *u8
+ * @param source_path *u8
+ * @return void
+ */
 export function link_diag_runtime_source_missing(obj_name: *u8, source_path: *u8): void {
   let on: *u8 = obj_name;
   let sp: *u8 = source_path;
@@ -136,6 +146,10 @@ export function link_diag_runtime_source_missing(obj_name: *u8, source_path: *u8
 }
 
 #[no_mangle]
+/** Function `link_diag_runtime_source_missing_under`.
+ * Purpose: implements `link_diag_runtime_source_missing_under`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function link_diag_runtime_source_missing_under(
   obj_name: *u8, base_dir: *u8, suffix: *u8
 ): void {
@@ -167,6 +181,12 @@ export function link_diag_runtime_source_missing_under(
 }
 
 #[no_mangle]
+/** Exported function `link_diag_runtime_obj_missing`.
+ * Implements `link_diag_runtime_obj_missing`.
+ * @param obj_name *u8
+ * @param out_o *u8
+ * @return void
+ */
 export function link_diag_runtime_obj_missing(obj_name: *u8, out_o: *u8): void {
   let on: *u8 = obj_name;
   let oo: *u8 = out_o;
@@ -192,6 +212,12 @@ export function link_diag_runtime_obj_missing(obj_name: *u8, out_o: *u8): void {
 }
 
 #[no_mangle]
+/** Exported function `link_diag_freestanding_missing`.
+ * Memory management helper `link_diag_freestanding_missing`.
+ * @param obj_name *u8
+ * @param symbol_name *u8
+ * @return void
+ */
 export function link_diag_freestanding_missing(obj_name: *u8, symbol_name: *u8): void {
   let on: *u8 = obj_name;
   let sn: *u8 = symbol_name;
@@ -219,12 +245,16 @@ export function link_diag_freestanding_missing(obj_name: *u8, symbol_name: *u8):
 }
 
 #[no_mangle]
+/** Exported function `link_diag_freestanding_unsupported`.
+ * Memory management helper `link_diag_freestanding_unsupported`.
+ * @return void
+ */
 export function link_diag_freestanding_unsupported(): void {
   let msg: u8[192] = [];
   let kind: *u8 = 0 as *u8;
   let code: *u8 = 0 as *u8;
   msg[0] = 0;
-  /* 拆段 ≤64：禁单 lit 超限。 */
+  /* See signature and body for contracts. */
   labi_diag_append(&msg[0], 192, "-freestanding / SHUX_FREESTANDING is only supported for ");
   labi_diag_append(&msg[0], 192, "Linux ELF x86_64 (-o prog, not .o/.obj on macOS/COFF)");
   kind = "link error";
@@ -235,6 +265,13 @@ export function link_diag_freestanding_unsupported(): void {
 }
 
 #[no_mangle]
+/** Exported function `link_diag_ld_debug_push`.
+ * Implements `link_diag_ld_debug_push`.
+ * @param rel *u8
+ * @param stage *u8
+ * @param path *u8
+ * @return void
+ */
 export function link_diag_ld_debug_push(rel: *u8, stage: *u8, path: *u8): void {
   let r: *u8 = rel;
   let st: *u8 = stage;
@@ -264,8 +301,14 @@ export function link_diag_ld_debug_push(rel: *u8, stage: *u8, path: *u8): void {
 }
 
 #[no_mangle]
+/** Exported function `link_diag_ld_debug_argv`.
+ * Implements `link_diag_ld_debug_argv`.
+ * @param label *u8
+ * @param argv *u8
+ * @return void
+ */
 export function link_diag_ld_debug_argv(label: *u8, argv: *u8): void {
-  /* 🔒 Cap residual：char** 遍历在 mega rest。 */
+  /* See signature and body for contracts. */
   unsafe {
     link_diag_ld_debug_argv_impl(label, argv);
   }

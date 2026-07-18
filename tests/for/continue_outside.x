@@ -1,5 +1,9 @@
-// 边界：continue 不在循环内（误写在 while 条件中），应报 only allowed inside a
+// See implementation.
 // loop
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   while (continue) { break }
   return 0;

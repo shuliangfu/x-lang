@@ -1,5 +1,5 @@
-// tests/import-std-layout/check_imports.x — STBL-004 多 std.* import 烟测
-// 验证 -L . 下 dotted import 可解析；main 空实现仅过 typeck。
+// See implementation.
+// See implementation.
 
 const io = import("std.io");
 const fs = import("std.fs");
@@ -9,6 +9,10 @@ const json = import("std.json");
 const process = import("std.process");
 const types = import("core.types");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   return 0;
 }

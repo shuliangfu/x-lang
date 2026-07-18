@@ -1,7 +1,11 @@
-// 测试
-// core.fmt：fmt_i32、fmt_*_to_buf（i32/u32/i64/u64/bool/f64）、append_i64、容量不足返回 -1
+// See implementation.
+// See implementation.
 const fmt = import("std.fmt");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let n: i32 = fmt.format(42);
   let buf: u8[24] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];

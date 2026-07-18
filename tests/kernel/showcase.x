@@ -17,15 +17,31 @@ const mb1: MB1Header = {
 };
 
 // === Serial I/O ===
+/** Internal function `serial_putc`.
+ * Implements `serial_putc`.
+ * @param c u8
+ * @return void
+ */
 function serial_putc(c: u8): void {
   unsafe { asm!("outb %%al, %%dx" : : "a"(c), "d"(0x3F8)); }
 }
+/** Internal function `serial_putint`.
+ * Implements `serial_putint`.
+ * @param n i32
+ * @return void
+ */
 function serial_putint(n: i32): void {
   if (n >= 10) { serial_putint(n / 10); }
   serial_putc((n % 10 + 48) as u8);
 }
 
 // === Atomics ===
+/** Internal function `atomic_fetch_add_u32`.
+ * Implements `atomic_fetch_add_u32`.
+ * @param addr *volatile u32
+ * @param val u32
+ * @return u32
+ */
 function atomic_fetch_add_u32(addr: *volatile u32, val: u32): u32 {
   unsafe { asm!("lock xadd %0, (%1)" : "+a"(val) : "r"(addr) : "memory", "cc"); }
   return val;
@@ -33,6 +49,11 @@ function atomic_fetch_add_u32(addr: *volatile u32, val: u32): u32 {
 
 // === Spinlock ===
 let lock: u32 = 0;
+/** Internal function `spinlock_acquire`.
+ * Implements `spinlock_acquire`.
+ * @param lock_addr *volatile u32
+ * @return void
+ */
 function spinlock_acquire(lock_addr: *volatile u32): void {
   let old: u32 = 1;
   while (old != 0) {
@@ -40,6 +61,11 @@ function spinlock_acquire(lock_addr: *volatile u32): void {
     unsafe { asm!("xchg %0, (%1)" : "+a"(old) : "r"(lock_addr) : "memory"); }
   }
 }
+/** Internal function `spinlock_release`.
+ * Implements `spinlock_release`.
+ * @param lock_addr *volatile u32
+ * @return void
+ */
 function spinlock_release(lock_addr: *volatile u32): void {
   let zero: u32 = 0;
   unsafe { asm!("xchg %0, (%1)" : "+a"(zero) : "r"(lock_addr) : "memory"); }
@@ -47,6 +73,11 @@ function spinlock_release(lock_addr: *volatile u32): void {
 
 // === Bump allocator ===
 let heap_ptr: u32 = 0x200000;
+/** Internal function `kalloc`.
+ * Memory management helper `kalloc`.
+ * @param size u32
+ * @return u32
+ */
 function kalloc(size: u32): u32 {
   if (heap_ptr == 0) { heap_ptr = 0x200000; }
   let addr: u32 = heap_ptr;
@@ -58,11 +89,21 @@ function kalloc(size: u32): u32 {
 let tick_count: u32 = 0;
 
 #[interrupt]
+/** Internal function `timer_handler`.
+ * Implements `timer_handler`.
+ * @return void
+ */
 function timer_handler(): void {
   tick_count = tick_count + 1;
   unsafe { asm!("movb $0x20, %al; outb %al, $0x20"); }
 }
 
+/** Internal function `idt_set_entry`.
+ * Implements `idt_set_entry`.
+ * @param index u32
+ * @param handler_addr u32
+ * @return void
+ */
 function idt_set_entry(index: u32, handler_addr: u32): void {
   let base: u32 = 0x90000 + index * 8;
   let off_lo: *volatile u16 = base as *volatile u16;
@@ -77,6 +118,10 @@ function idt_set_entry(index: u32, handler_addr: u32): void {
   unsafe { *off_hi = (handler_addr >> 16) as u16; }
 }
 
+/** Internal function `kmain`.
+ * Implements `kmain`.
+ * @return i32
+ */
 function kmain(): i32 {
   serial_putc(75);
   serial_putc(58);
@@ -127,7 +172,16 @@ function kmain(): i32 {
 }
 
 #[entry]
+/** Internal function `start`.
+ * Implements `start`.
+ * @return void
+ */
 function start(): void {
   unsafe { asm!("mov $0x80000, %esp; call kmain; cli; hlt"); }
 }
+/** Internal function `main`.
+ * Program/test entry point.
+ * @param ) i32 { return kmain(
+ * @return void
+ */
 function main(): i32 { return kmain() + mb1.magic as i32; }

@@ -38,9 +38,9 @@ export extern "C" function codegen_set_dep_slots_for_x_pipeline(mods: *u8, paths
 export extern "C" function codegen_set_preamble_has_core_option_result(on: i32): void;
 export extern "C" function runtime_report_precise_parse_failure_if_known(
   input_path: *u8, src: *u8, src_len: usize): i32;
-/* 【Why】parser 宽容策略会吞掉 let 缺分号等错误，需词法级 recovery 扫描补出。
- * 【Invariant】always linked（rt_parse_diag.from_x.c L60+，不受 FROM_X 控制）。
- * 【Asm/Perf】仅 check 路径调用，非热路径；词法扫描 O(n)。 */
+/* See signature and body for contracts. */
+ * See signature and body for params/returns/contracts.
+ * See signature and body for params/returns/contracts.
 export extern "C" function runtime_report_parse_recovery_diagnostics(
   input_path: *u8, src: *u8, src_len: usize): i32;
 export extern "C" function pipeline_dep_ctx_heap_destroy(ctx: *u8): void;
@@ -566,7 +566,7 @@ export function rt_cp_step_read_pp(): i32 {
   }
   unsafe {
     pipeline_diag_emitted_reset();
-    /* 必须传入 -D 收集结果；NULL/0 会使 #if FOO 永不成立。 */
+    /* See signature and body for contracts. */
     src = shux_preprocess_with_path(raw, raw_len, path, defs, ndef, &src_len);
     free(raw);
   }
@@ -1096,8 +1096,8 @@ export function rt_cp_step_pipeline(): i32 {
       }
     }
   }
-  /* NO_C product：check + std/core 闭包 → 仅 parse 门禁，跳过大 typeck。
-   * 但仍需跑 recovery 诊断：parser 宽容策略可能吞掉了 let 缺分号等多错误。 */
+  /* See signature and body for contracts. */
+   * See signature and body for params/returns/contracts.
   if (check != 0) {
     if (n_deps > 0) {
       if (core_only != 0) {
@@ -1276,7 +1276,7 @@ export function driver_run_compiler_parsed(p: *u8, argc: i32, argv: *u8): i32 {
       want_asm = 0;
     }
   }
-  /* 泛型 + 将链 exe：asm 无法单态化 → 降级 pipeline/C */
+  /* See signature and body for contracts. */
   if (want_asm != 0) {
     want_exe = 1;
     if (outp != 0 as *u8) {

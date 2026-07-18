@@ -1,6 +1,10 @@
-// STD-HTTP-H2-v10：SETTINGS 协商 + 多 stream 并发客户端烟测（离线）
+// See implementation.
 const http = import("std.http");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (http.settings_smoke() != 0) { return 1; }
   if (http.multistream_client_smoke() != 0) { return 2; }

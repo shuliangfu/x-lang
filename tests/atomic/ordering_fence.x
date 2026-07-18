@@ -1,7 +1,11 @@
-// STD-046：fence API 烟测（Ordering 常量见 std/atomic/mod.x，manifest 校验）
+// See implementation.
 const atomic = import("std.atomic");
 const debug = import("core.debug");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let data: i32 = 0;
   let ready: i32 = 0;

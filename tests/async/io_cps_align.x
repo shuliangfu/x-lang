@@ -1,6 +1,10 @@
-// STD-042：std.async IO 门面与 drain 路径烟测（IO_ASYNC_NOT_READY=-2 见 std.io）
+// See implementation.
 const async_mod = import("std.async");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let phase: i32 = 0;
   if (async_mod.cps_suspend_io(&phase, 2) != 0) { return 1; }

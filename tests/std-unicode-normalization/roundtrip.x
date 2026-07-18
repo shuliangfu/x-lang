@@ -1,7 +1,17 @@
-// STD-082：std.unicode NFD/NFKC/NFKD round-trip 烟测
+// See implementation.
 const unicode = import("std.unicode");
 
-/** 比较 buf 前 n 字节与 expect（最多 4 字节）。 */
+/** Internal function `bytes_eq4`.
+ * Implements `bytes_eq4`.
+ * @param buf *u8
+ * @param n i32
+ * @param e0 u8
+ * @param e1 u8
+ * @param e2 u8
+ * @param e3 u8
+ * @param expect_len i32
+ * @return i32
+ */
 function bytes_eq4(buf: *u8, n: i32, e0: u8, e1: u8, e2: u8, e3: u8, expect_len: i32): i32 {
   if (n != expect_len) { return 0; }
   if (expect_len > 0 && buf[0] != e0) { return 0; }
@@ -11,6 +21,10 @@ function bytes_eq4(buf: *u8, n: i32, e0: u8, e1: u8, e2: u8, e3: u8, expect_len:
   return 1;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let decomposed: u8[3] = [101, 204, 129];
   let composed: u8[2] = [195, 169];

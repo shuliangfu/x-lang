@@ -1,6 +1,10 @@
-// M-3 正例：region 块内未标注 T[] 继承域标签，同域赋值 OK
+// See implementation.
 extern function slice_src(): i32[];
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   region ra {
     let a: i32[] = unsafe { slice_src() };

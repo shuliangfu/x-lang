@@ -1,6 +1,10 @@
-// CORE-002：Option 类型族 + map/and_then + 泛型 unwrap_or 烟测
+// See implementation.
 const option = import("core.option");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let none_opt: Option_i32 = option.none_i32();
   let some_opt: Option_i32 = option.some_i32(42);
@@ -34,7 +38,7 @@ function main(): i32 {
   let m2: u8 = option.expect_u8(map_u8(option.some_u8(4), 8));
   let at: i32 = option.expect_i32(and_then_i32(option.some_i32(1), option.some_i32(9)));
   if (m1 != 6 || m2 != 8 || at != 9) { return -13; }
-  // unwrap_or 语义：parser.x 暂不支持 f<T>(...) 泛型调用，用具象 unwrap_or_i32 等价烟测（core.option 内 unwrap_or<T> 见 manifest）
+  // See implementation.
   let g: i32 = option.unwrap_or_i32(none_opt, 11);
   if (g != 11) { return -14; }
   // Option_ptr_u8

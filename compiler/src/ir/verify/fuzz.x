@@ -16,19 +16,15 @@
 
 // fuzz.x — Differential Fuzzing
 //
-// 模块：ir/verify
-// 层级：共享
-// Phase：Phase 1+（SHIR 落地后开始 fuzz）
-// 职责：
-//   - Differential Fuzzing：随机生成 .x 程序，对比三 oracle 执行结果
-//   - 覆盖所有 IR 指令（22 条 opcode）+ 边界情况
-//   - 契约违反检测（fuzz 时契约不一致 = 编译器 bug）
-//   - 与差分测试框架协同（./diff_test.x）
-// 依赖：./diff_test / ./interp
-// 设计约束：
-//   - Fuzz 发现的契约违反 = 编译器 bug，必须修复根源（禁止补丁）
-//   - Fuzz 覆盖率纳入 Phase Gate 指标
-//   - 确定性复现：fuzz 用例必须可复现（记录随机种子）
+// Module: ir/verify
+// Layer: shared
+// Phase: Phase 1+
+// Responsibility:
+//   - Randomly generate .x programs; compare three oracles
+//   - Cover all 22 opcodes + edge cases; record RNG seeds for repro
+// Depends: ./diff_test / ./interp
+// Design constraints:
+//   - Fuzz-found contract violations = compiler bugs; fix at root
 //
-// 参考文档：analysis/IR核心设计.md §9（验证策略：Differential Fuzzing + Oracle）
-// 架构状态：v4.0 Architecture Freeze — 实现骨架，待 Phase 1 填充
+// Ref: analysis IR core design §9 (verification: Differential Fuzzing + Oracle)
+// Status: v4.0 Architecture Freeze — implementation skeleton; fill in Phase 1

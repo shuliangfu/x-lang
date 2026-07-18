@@ -6,6 +6,14 @@ extern function pipeline_type_kind_ord_at(arena: *ASTArena, type_ref: i32): i32;
 extern function pipeline_type_elem_ref_at(arena: *ASTArena, type_ref: i32): i32;
 extern function pipeline_type_array_size_at(arena: *ASTArena, type_ref: i32): i32;
 
+/** Internal function `helper_size`.
+ * Implements `helper_size`.
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param ty_ref i32
+ * @param depth i32
+ * @return i32
+ */
 function helper_size(module: *Module, arena: *ASTArena, ty_ref: i32, depth: i32): i32 {
   if (ty_ref <= 0 || depth > 64) {
     return 0;
@@ -31,6 +39,10 @@ function helper_size(module: *Module, arena: *ASTArena, ty_ref: i32, depth: i32)
   return 4;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   return 0;
 }

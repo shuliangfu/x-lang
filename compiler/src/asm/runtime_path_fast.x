@@ -1,19 +1,23 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-21：runtime_path_fast 产品源迁 seeds/runtime_path_fast.from_x.c。
-// G-02f-98：+ path_sep / is_sep / last_sep / last_dot 薄门闩。
-// G-02f-rest：rest→.x 迁移：std_path_* 12 个函数真迁 .x，seed 进入 DIRECT 模式。
-//   Why：消除 seed 中 rest 函数，使 runtime_path_fast 进入 DIRECT 模式（无 ld -r）
-//   Invariant：与 seed 同语义（字节级路径操作，无 libc 依赖，无平台 ifdef）
-//   Perf：纯字节循环，无热路径分支冗余
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// runtime_path_fast_x_doc_anchor: see function docblock below.
 
 
+/** Exported function `runtime_path_fast_x_doc_anchor`.
+ * Implements `runtime_path_fast_x_doc_anchor`.
+ * @return i32
+ */
 export function runtime_path_fast_x_doc_anchor(): i32 {
   return 0;
 }
 
-/* ---- G-02f-98：path pure helpers 门闩 ---- */
+/* See implementation. */
 
 
 
@@ -23,15 +27,24 @@ export function runtime_path_fast_x_doc_anchor(): i32 {
 
 
 
-// G-02f-119：path pure helper 真迁 .x
+// path_sep_c: see function docblock below.
 
 #[no_mangle]
+/** Exported function `path_sep_c`.
+ * Implements `path_sep_c`.
+ * @return u8
+ */
 export function path_sep_c(): u8 {
-  // 产品 seed 在 Win 下为 '\\'；posix 验收路径为 '/'
+  // See implementation.
   return 47 as u8;
 }
 
 #[no_mangle]
+/** Exported function `path_is_sep_c`.
+ * Implements `path_is_sep_c`.
+ * @param c u8
+ * @return i32
+ */
 export function path_is_sep_c(c: u8): i32 {
   if (c == 47) { return 1; }
   if (c == 92) { return 1; }
@@ -39,6 +52,12 @@ export function path_is_sep_c(c: u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `path_last_sep_c`.
+ * Implements `path_last_sep_c`.
+ * @param path *u8
+ * @param path_len i32
+ * @return i32
+ */
 export function path_last_sep_c(path: *u8, path_len: i32): i32 {
   let i: i32 = path_len - 1;
   while (i >= 0) {
@@ -48,9 +67,16 @@ export function path_last_sep_c(path: *u8, path_len: i32): i32 {
   return 0 - 1;
 }
 
-// G-02f-123：path_last_dot_c 真迁 .x
+// path_last_dot_c: see function docblock below.
 
 #[no_mangle]
+/** Exported function `path_last_dot_c`.
+ * Implements `path_last_dot_c`.
+ * @param path *u8
+ * @param start i32
+ * @param len i32
+ * @return i32
+ */
 export function path_last_dot_c(path: *u8, start: i32, len: i32): i32 {
   let i: i32 = start + len - 1;
   while (i >= start) {
@@ -60,7 +86,7 @@ export function path_last_dot_c(path: *u8, start: i32, len: i32): i32 {
   return 0 - 1;
 }
 
-/* ---- G-02f-rest：rest→.x 迁移（原 seed 中 12 个 rest 函数） ---- */
+/* See implementation. */
 
 #[no_mangle]
 export function std_path_empty_len(): i32 {
@@ -68,11 +94,25 @@ export function std_path_empty_len(): i32 {
 }
 
 #[no_mangle]
+/** Exported function `std_path_sep`.
+ * Implements `std_path_sep`.
+ * @return u8
+ */
 export function std_path_sep(): u8 {
   return path_sep_c();
 }
 
 #[no_mangle]
+/** Exported function `std_path_join`.
+ * Implements `std_path_join`.
+ * @param out *u8
+ * @param out_max i32
+ * @param a *u8
+ * @param a_len i32
+ * @param b *u8
+ * @param b_len i32
+ * @return i32
+ */
 export function std_path_join(out: *u8, out_max: i32, a: *u8, a_len: i32, b: *u8, b_len: i32): i32 {
   let need_sep: i32 = 0;
   let total: i32 = 0;
@@ -105,6 +145,14 @@ export function std_path_join(out: *u8, out_max: i32, a: *u8, a_len: i32, b: *u8
 }
 
 #[no_mangle]
+/** Exported function `std_path_dirname`.
+ * Implements `std_path_dirname`.
+ * @param path *u8
+ * @param path_len i32
+ * @param out *u8
+ * @param out_max i32
+ * @return i32
+ */
 export function std_path_dirname(path: *u8, path_len: i32, out: *u8, out_max: i32): i32 {
   let last: i32 = path_last_sep_c(path, path_len);
   let i: i32 = 0;
@@ -119,6 +167,14 @@ export function std_path_dirname(path: *u8, path_len: i32, out: *u8, out_max: i3
 }
 
 #[no_mangle]
+/** Exported function `std_path_basename`.
+ * Implements `std_path_basename`.
+ * @param path *u8
+ * @param path_len i32
+ * @param out *u8
+ * @param out_max i32
+ * @return i32
+ */
 export function std_path_basename(path: *u8, path_len: i32, out: *u8, out_max: i32): i32 {
   let last: i32 = path_last_sep_c(path, path_len);
   let start: i32 = last + 1;
@@ -134,6 +190,12 @@ export function std_path_basename(path: *u8, path_len: i32, out: *u8, out_max: i
 }
 
 #[no_mangle]
+/** Exported function `std_path_is_absolute`.
+ * Implements `std_path_is_absolute`.
+ * @param path *u8
+ * @param path_len i32
+ * @return i32
+ */
 export function std_path_is_absolute(path: *u8, path_len: i32): i32 {
   let c0: u8 = 0;
   let is_alpha: i32 = 0;
@@ -166,11 +228,24 @@ export function std_path_is_absolute(path: *u8, path_len: i32): i32 {
 }
 
 #[no_mangle]
+/** Exported function `std_path_is_sep`.
+ * Implements `std_path_is_sep`.
+ * @param c u8
+ * @return i32
+ */
 export function std_path_is_sep(c: u8): i32 {
   return path_is_sep_c(c);
 }
 
 #[no_mangle]
+/** Exported function `std_path_extension`.
+ * Implements `std_path_extension`.
+ * @param path *u8
+ * @param path_len i32
+ * @param out *u8
+ * @param out_max i32
+ * @return i32
+ */
 export function std_path_extension(path: *u8, path_len: i32, out: *u8, out_max: i32): i32 {
   let last_sl: i32 = path_last_sep_c(path, path_len);
   let base_start: i32 = last_sl + 1;
@@ -193,6 +268,14 @@ export function std_path_extension(path: *u8, path_len: i32, out: *u8, out_max: 
 }
 
 #[no_mangle]
+/** Exported function `std_path_stem`.
+ * Implements `std_path_stem`.
+ * @param path *u8
+ * @param path_len i32
+ * @param out *u8
+ * @param out_max i32
+ * @return i32
+ */
 export function std_path_stem(path: *u8, path_len: i32, out: *u8, out_max: i32): i32 {
   let last_sl: i32 = path_last_sep_c(path, path_len);
   let base_start: i32 = last_sl + 1;
@@ -217,6 +300,10 @@ export function std_path_stem(path: *u8, path_len: i32, out: *u8, out_max: i32):
 }
 
 #[no_mangle]
+/** Function `std_path_extension_and_stem`.
+ * Purpose: implements `std_path_extension_and_stem`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function std_path_extension_and_stem(path: *u8, path_len: i32, ext_out: *u8, ext_max: i32,
                                      stem_out: *u8, stem_max: i32): i32 {
   let last_sl: i32 = path_last_sep_c(path, path_len);
@@ -254,6 +341,14 @@ export function std_path_extension_and_stem(path: *u8, path_len: i32, ext_out: *
 }
 
 #[no_mangle]
+/** Exported function `std_path_clean`.
+ * Implements `std_path_clean`.
+ * @param path *u8
+ * @param path_len i32
+ * @param out *u8
+ * @param out_max i32
+ * @return i32
+ */
 export function std_path_clean(path: *u8, path_len: i32, out: *u8, out_max: i32): i32 {
   let seg_starts: i32[64] = [];
   let nseg: i32 = 0;
@@ -338,6 +433,10 @@ export function std_path_clean(path: *u8, path_len: i32, out: *u8, out_max: i32)
 }
 
 #[no_mangle]
+/** Function `std_path_resolve`.
+ * Purpose: implements `std_path_resolve`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function std_path_resolve(out: *u8, out_max: i32, base: *u8, base_len: i32,
                           ref: *u8, ref_len: i32): i32 {
   let dir_buf: u8[256] = [];

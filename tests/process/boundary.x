@@ -1,34 +1,38 @@
-// TST-002：std.process 边界烟测（pid / cwd / pipe / env）
+// See implementation.
 //
-// 【文件职责】≥8 边界 case；不 spawn 子进程，避免 CI 平台差异。
-// 【运行方式】tests/run-tst-002-boundary-gate.sh
+// See implementation.
+// See implementation.
 const process = import("std.process");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
-  // case 1：getpid 正数
+  // See implementation.
   if (process.getpid() <= 0) { return 1; }
-  // case 2：getppid 非负（0 表示无父进程信息）
+  // See implementation.
   if (process.getppid() < 0) { return 2; }
-  // case 3：args_count 非负
+  // See implementation.
   if (process.args_count() < 0) { return 3; }
-  // case 4：process.arg(0) 非空（程序名）
+  // See implementation.
   let a0: *u8 = process.arg(0);
   if (a0 == 0 as *u8) { return 4; }
-  // case 5：pipe 创建
+  // See implementation.
   let rd: i32 = 0;
   let wr: i32 = 0;
   if (process.pipe(&rd, &wr) != 0) { return 5; }
-  // case 6：pipe fd 有效
+  // See implementation.
   if (rd < 0 || wr < 0) { return 6; }
-  // case 7：getcwd 缓冲
+  // See implementation.
   let buf: u8[128] = [];
   let n: i32 = process.getcwd(&buf[0], 128);
   if (n <= 0) { return 7; }
-  // case 8：getcwd_ptr 缓存
+  // See implementation.
   let cp: *u8 = process.getcwd_ptr();
   if (cp == 0 as *u8) { return 8; }
   if (process.getcwd_cached_len() <= 0) { return 9; }
-  // case 9：PATH 环境变量（可能为空指针，仅探测 API）
+  // See implementation.
   let path_name: u8[5] = [80, 65, 84, 72, 0];
   let _pv: *u8 = process.getenv(&path_name[0]);
   return 0;

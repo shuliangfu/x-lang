@@ -21,7 +21,7 @@
 // PLATFORM: SHARED — surface short names are the link-name contract (Track L).
 // Comment rule: never put star-slash sequences inside block comments.
 
-/** 内联类型定义（原 import("ast") 提供；字段布局须与 ast_PipelineDepCtx 一致）。 */
+/* See implementation. */
 allow(padding) struct PipelineDepCtx {
   ndep: i32;
   entry_dir_buf: u8[512];
@@ -58,25 +58,23 @@ allow(padding) struct PipelineDepCtx {
   typeck_scope_region_label: u8[64];
 }
 
-/** 内联类型定义（原 import("codegen") 提供）。 */
+/* See implementation. */
 allow(padding) struct CodegenOutBuf {
   data: u8[9437184];
   len: i32;
 }
 
-/** std.sys 模块函数（原 sys.read_file_into）；-E 符号名 std_sys_read_file_into。 */
+/* See implementation. */
 export extern function std_sys_read_file_into(path: *u8, buf: *u8, cap: i32): i32;
 
-/** POSIX 读写原语（链 ../std/fs/fs.o）；勿 import("std.fs")，-E-extern 不会内联 fs_read
-* 符号名。 */
+/** See implementation for details. */
 export extern "C" function fs_posix_read_c(fd: i32, buf: *u8, count: usize): isize;
 export extern "C" function fs_posix_write_c(fd: i32, buf: *u8, count: usize): isize;
 export extern "C" function fs_posix_close_c(fd: i32): i32;
-/** preprocess.x 导出名带模块前缀。 */
+/* See implementation. */
 export extern function preprocess_x_buf(source_buf: *u8, source_len: isize, out_buf: *u8,
 out_cap: i32): i32;
-/** pipeline_glue / ast_pool：堆缓冲生命周期（emit 栈上 ctx 须显式 ensure/free）。
-*/
+/** See implementation for details. */
 export extern function pipeline_dep_ctx_ensure_source_buffers(ctx: *PipelineDepCtx): i32;
 export extern function pipeline_dep_ctx_free_source_buffers(ctx: *PipelineDepCtx): void;
 export extern function pipeline_dep_ctx_loaded_buf_ptr(ctx: *PipelineDepCtx): *u8;
@@ -84,8 +82,8 @@ export extern function pipeline_dep_ctx_preprocess_buf_ptr(ctx: *PipelineDepCtx)
 export extern function pipeline_dep_ctx_set_loaded_len(ctx: *PipelineDepCtx, n: isize): void;
 
 /**
-* 与 main.x 中 DriverXEmitState 布局一致（字段顺序/类型勿改）。
-* main 负责 argv 解析填本 struct；本模块负责 emit 执行。
+* See implementation.
+* See implementation.
 */
 export struct DriverXEmitState {
   path_buf: u8[512];
@@ -97,14 +95,21 @@ export struct DriverXEmitState {
   out_path_len: i32;
 }
 
-/** sidecar 键：DriverXEmitState 指针转 *u8，供 C lib_root 池 API 使用。 */
+/** Exported function `emit_state_key`.
+ * Implements `emit_state_key`.
+ * @param state *DriverXEmitState
+ * @return *u8
+ */
 export function emit_state_key(state: *DriverXEmitState): *u8 {
   return state as *u8;
 }
 
-/** 将 emit lib_root 池灌入 PipelineDepCtx（-backend c 烟测路径）。
- * state_key 用 *u8（emit_state_key），避免 ( *DriverXEmitState, *PipelineDepCtx )
- * 同传触发 WPO-S3「local + outer *Struct」误报（param 被视作 outer）。 */
+/** Exported function `emit_copy_lib_roots_to_ctx`.
+ * Implements `emit_copy_lib_roots_to_ctx`.
+ * @param state_key *u8
+ * @param ctx *PipelineDepCtx
+ * @return void
+ */
 export function emit_copy_lib_roots_to_ctx(state_key: *u8, ctx: *PipelineDepCtx): void {
   let k: i32 = 0;
   let n: i32 = ew_lib_root_count(state_key);
@@ -120,9 +125,9 @@ export function emit_copy_lib_roots_to_ctx(state_key: *u8, ctx: *PipelineDepCtx)
 }
 
 /**
- * -x -E emit 路径用 PipelineDepCtx 零基线。
- * 【Why 不返回 by-value】shux -E 对大 struct 按值返回会把后续字段赋值误编成 `ctx->field`
- * （ctx 为值而非指针），cc 失败；改 out-pointer 与 seed `driver_pipeline_dep_ctx_for_emit` 语义一致。
+ * See implementation.
+ * See implementation.
+ * See implementation.
  */
 export function pipeline_dep_ctx_fill_for_emit(ctx: *PipelineDepCtx, use_asm: i32, target: i32): void {
   ctx.ndep = 0;
@@ -150,7 +155,7 @@ export extern function driver_run_x_emit_c_set_lib(i: i32, buf: *u8, len: i32): 
 export extern function driver_run_x_emit_c_set_n_lib_roots(n: i32): i32;
 export extern function driver_run_x_emit_c_set_emit_extern(v: i32): i32;
 export extern function driver_run_x_emit_c(): i32;
-/** pipeline_glue：向 PipelineDepCtx 追加 -L 库根。 */
+/* See implementation. */
 export extern function ast_pipeline_ctx_append_lib_root(ctx: *PipelineDepCtx, path: *u8, len: i32): i32;
 
 /**
@@ -323,9 +328,9 @@ export function ew_append_lib_root(ctx: *PipelineDepCtx, path: *u8, len: i32): i
 }
 
 /**
-* 在 .x 内执行单文件 emit：读 state.path_buf、预处理、pipeline、写 stdout 或 -o
-* 路径。
-* 仅无 import 单文件时正确（deps 为 0）；多文件须走 dispatch_x_emit_to_c。
+* See implementation.
+* See implementation.
+* See implementation.
 */
 export function run_x_emit_x(state: *DriverXEmitState): i32 {
   if (state.path_len >= 0 && state.path_len < 511) {
@@ -384,7 +389,7 @@ export function run_x_emit_x(state: *DriverXEmitState): i32 {
   let source_len: usize = out_len as usize;
   let prep_src: *u8 = ew_preprocess_buf_ptr(&ctx);
   let rc: i32 = 0;
-  /* 与 main.x 一致：unsafe 内直调 extern pipeline（勿经 local *Struct 包装） */
+  /* See implementation. */
   unsafe {
     rc = pipeline_run_x_pipeline_impl(module_buf, arena_buf, prep_src, source_len, &out, &ctx);
   }
@@ -438,8 +443,8 @@ export function run_x_emit_x(state: *DriverXEmitState): i32 {
 }
 
 /**
-* -x -E 多文件：将 path 与 -L 库根灌入 C 侧，再调 driver_run_x_emit_c（deps+main
-* 完整路径）。
+* See implementation.
+* See implementation.
 */
 export function dispatch_x_emit_to_c(state: *DriverXEmitState): i32 {
   ew_set_emit_extern(state.emit_extern_imports);

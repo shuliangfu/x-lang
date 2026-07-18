@@ -1,5 +1,9 @@
-// 分号统一规则：语句结束必须加分号；仅 } 后可不加。此处 return
-// 后必须写分号。
+// See implementation.
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let x: i32 = 1;
   return 0;

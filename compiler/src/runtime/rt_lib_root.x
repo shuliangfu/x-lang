@@ -1,16 +1,20 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-305 / P2 R2 真迁：lib root 指针可用性 + 默认根 + from_key。
-// 产品 PREFER_X_O：.x 吃满三业务符号；FROM_X rest 仅前向 + marker。
-// 🔒 getenv 经 libc extern；bufs 扁平成 *u8 行步进 512；out_arr 为 **u8。
+// Lib root pointer usability + default root + from_key; G.9 English; body authoritative.
+// Lib root pointer usability + default root + from_key; G.9 English; body authoritative.
+// Lib root pointer usability + default root + from_key; G.9 English; body authoritative.
 
 export extern "C" function getenv(name: *u8): *u8;
 export extern "C" function driver_emit_lib_root_count(state: *u8): i32;
 export extern "C" function driver_emit_lib_root_len(state: *u8, i: i32): i32;
 export extern "C" function driver_emit_lib_root_copy(state: *u8, i: i32, dst: *u8, cap: i32): void;
 
-/** 指针是否可安全当 lib root 用（非 null 且非空串）。 */
+/** Exported function `driver_lib_root_ptr_usable`.
+ * Implements `driver_lib_root_ptr_usable`.
+ * @param p *u8
+ * @return i32
+ */
 #[no_mangle]
 export function driver_lib_root_ptr_usable(p: *u8): i32 {
   if (p == 0 as *u8) {
@@ -23,8 +27,8 @@ export function driver_lib_root_ptr_usable(p: *u8): i32 {
 }
 
 /**
- * 写入默认 lib root：优先 SHUX_LIB（拷贝到 root_buf[0..511]），否则 "."。
- * root_buf 容量约定 512（与 seed/C 调用方一致）。
+ * See signature and body for params/returns/contracts.
+ * See signature and body for params/returns/contracts.
  */
 #[no_mangle]
 export function driver_lib_root_default(root_buf: *u8): void {
@@ -50,8 +54,8 @@ export function driver_lib_root_default(root_buf: *u8): void {
 }
 
 /**
- * 从 emit sidecar 键填充 lib_roots：out_arr[i] 指向 bufs 第 i 行（行宽 512）。
- * n<=0 时写默认根并返回 1；n 封顶 16（X_FULL_MAX_LIB_ROOTS）。
+ * See signature and body for params/returns/contracts.
+ * See signature and body for params/returns/contracts.
  */
 #[no_mangle]
 export function driver_lib_roots_from_key(lib_key: *u8, out_arr: **u8, bufs: *u8): i32 {

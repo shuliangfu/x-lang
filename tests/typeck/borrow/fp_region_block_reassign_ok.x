@@ -1,6 +1,10 @@
-// TYPE-003 正例：同域 region 内重新赋值，不应误报 borrow/lifetime 冲突
+// See implementation.
 extern function slice_src(): i32[];
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   region ra {
     let s: i32[] = unsafe { slice_src() };

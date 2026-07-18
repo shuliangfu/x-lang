@@ -1,6 +1,10 @@
-// STD-039：gzip 分块压缩→分块解压往返（未链 zlib 时 init 失败仍 exit 0）
+// See implementation.
 const compress = import("std.compress");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let raw: u8[13] = [72, 101, 108, 108, 111, 44, 32, 103, 122, 33, 33, 33, 0];
   let raw_len: i32 = 12;

@@ -1,13 +1,17 @@
-// STD-148：std.hash 默认策略与推荐 Hasher 烟测
+// See implementation.
 const hash = import("std.hash");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
-  // 默认 SipHash（HASHER_SIPHASH=0）
+  // See implementation.
   if (hash.default_hasher() != 0) { return 1; }
   if (hash.recommend_hasher_map() != 0) { return 2; }
   if (hash.recommend_hasher_fast() != 2) { return 3; }
 
-  // 三族 Hasher 工厂可创建且摘要非零（0=SipHash 1=aHash 2=xxHash）
+  // See implementation.
   let buf: u8[3] = [97, 98, 99];
   let hs: *u8 = hash.start_algo(0);
   let ha: *u8 = hash.start_algo(1);
@@ -25,7 +29,7 @@ function main(): i32 {
   if (rs == 0 || ra == 0 || rx == 0) { return 5; }
   if (rs == ra || rs == rx || ra == rx) { return 6; }
 
-  // 快速一次性路径
+  // See implementation.
   let one: u64 = hash.xxhash64(&buf[0], 3);
   if (one == 0) { return 7; }
 

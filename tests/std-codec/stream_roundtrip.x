@@ -1,7 +1,14 @@
-// STD-110：std.codec compress/base64 流式适配烟测（块 + 流双路径）
+// See implementation.
 const codec = import("std.codec");
 
-/** 比较两段字节是否相等；1 相等，0 不等。 */
+/** Internal function `bytes_eq`.
+ * Implements `bytes_eq`.
+ * @param a *u8
+ * @param a_len i32
+ * @param b *u8
+ * @param b_len i32
+ * @return i32
+ */
 function bytes_eq(a: *u8, a_len: i32, b: *u8, b_len: i32): i32 {
   if (a_len != b_len) { return 0; }
   let i: i32 = 0;
@@ -12,7 +19,10 @@ function bytes_eq(a: *u8, a_len: i32, b: *u8, b_len: i32): i32 {
   return 1;
 }
 
-/** base64 流式经 codec 适配器分块往返。 */
+/** Internal function `test_base64_stream`.
+ * Implements `test_base64_stream`.
+ * @return i32
+ */
 function test_base64_stream(): i32 {
   let plain: u8[5] = [104, 101, 108, 108, 111];
   let sc: StreamCodec = StreamCodec { kind: 0, mode: 0, state: 0, state_cap: 0 };
@@ -43,7 +53,10 @@ function test_base64_stream(): i32 {
   return 0;
 }
 
-/** gzip 流式经 codec 适配器往返；未链 zlib 时 init 失败仍 exit 0。 */
+/** Internal function `test_gzip_stream`.
+ * Implements `test_gzip_stream`.
+ * @return i32
+ */
 function test_gzip_stream(): i32 {
   let raw: u8[12] = [72, 101, 108, 108, 111, 44, 32, 103, 122, 33, 33, 33];
   let raw_len: i32 = 12;
@@ -131,6 +144,10 @@ function test_gzip_stream(): i32 {
   return 0;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let r: i32 = test_base64_stream();
   if (r != 0) { return 100 + r; }

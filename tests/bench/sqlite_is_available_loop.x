@@ -1,8 +1,12 @@
 /**
- * PERF-170：sqlite_is_available 热路径循环烟测（stub/真实库均适用）。
+ * See implementation.
  */
 const sqlite = import("std.db.sqlite");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let acc: i32 = 0;
   let i: i32 = 0;

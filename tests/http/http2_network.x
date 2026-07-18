@@ -1,7 +1,11 @@
-// STD-HTTP-H2-TLS：ALPN wire + 网络层烟测（离线，不建连）
+// See implementation.
 const http = import("std.http");
 const net = import("std.net");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (http.network_smoke() != 0) { return 1; }
 
@@ -11,7 +15,7 @@ function main(): i32 {
 
   if (http.err_network_h2() != -1231) { return 4; }
 
-  // 桩环境 network 不可用；有 TLS 时为 true
+  // See implementation.
   let _avail: bool = http.network_is_available();
 
   return 0;

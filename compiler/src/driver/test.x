@@ -14,19 +14,19 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// test.x — shux test 子命令：在仓库根目录执行测试脚本（默认
+// See implementation.
 // tests/run-all.sh）
-// 符号名 driver_cmd_test：源码标识符 cmd_test + 模块前缀 driver_
-// 勿 import ast：-E 生成 driver_test_gen.c 时无需 AST 类型。
+// See implementation.
+// See implementation.
 
-/** C 侧 runtime.c：cd 到仓库根并 bash 执行测试脚本。 */
+/* See implementation. */
 export extern function driver_run_test(argc: i32, argv: *u8): i32;
 
 /**
 * shux test [script.sh]
-* 无参时跑
-* tests/run-all.sh；可指定相对仓库根的脚本路径。退出码与脚本一致（非 0
-* 映射为 1）。
+* See implementation.
+* See implementation.
+* See implementation.
 */
 export function cmd_test(argc: i32, argv: *u8): i32 {
   unsafe {

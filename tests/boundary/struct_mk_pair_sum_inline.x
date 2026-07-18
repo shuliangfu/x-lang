@@ -1,19 +1,32 @@
-// struct_mk_pair_sum_inline.x — add_pair(mk(i,2)) 嵌套 CALL 内联：struct 按值返回 + 字段求和
+// See implementation.
 struct Pair {
   a: i32
   b: i32
 }
 
-/** 由形参构造小 struct 按值返回。 */
+/** Internal function `mk`.
+ * Implements `mk`.
+ * @param a i32
+ * @param b i32
+ * @return Pair
+ */
 function mk(a: i32, b: i32): Pair {
   return Pair { a: a, b: b };
 }
 
-/** 按值累加 struct 两 i32 字段。 */
+/** Internal function `add_pair`.
+ * Implements `add_pair`.
+ * @param p Pair
+ * @return i32
+ */
 function add_pair(p: Pair): i32 {
   return p.a + p.b;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let n: i32 = 5;
   let s: i32 = 0;

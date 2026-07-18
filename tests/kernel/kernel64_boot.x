@@ -12,6 +12,11 @@ const mb1: MB1Header = {
   checksum: 0xE4524FFE,
 };
 
+/** Internal function `serial_putc`.
+ * Implements `serial_putc`.
+ * @param c u8
+ * @return void
+ */
 function serial_putc(c: u8): void {
   unsafe {
     asm!("outb %%al, %%dx" : : "a"(c), "d"(0x3F8));
@@ -20,6 +25,10 @@ function serial_putc(c: u8): void {
 
 let data_var: u32 = 42;
 
+/** Internal function `kmain`.
+ * Implements `kmain`.
+ * @return i32
+ */
 function kmain(): i32 {
   serial_putc(75);
   serial_putc(58);
@@ -32,4 +41,9 @@ function kmain(): i32 {
   return 0;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @param ) i32 { return kmain(
+ * @return void
+ */
 function main(): i32 { return kmain() + mb1.magic as i32; }

@@ -14,17 +14,17 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.db.kv.kv — F-05 v2：mmap LSM KV v3（WAL + 多级 SST + 压实，无 SQL）
+// See implementation.
 //
-// 【文件职责】
-// 从 kv.c 迁出 WAL/LSM/SST/compact/smoke 全量逻辑；mmap 见 kv_mmap_glue.c。
+// See implementation.
+// See implementation.
 //
-// 【分层】
-// - L0 WAL（*.wal）：热写路径
-// - L1 Main（数据文件）：wal_flush 合并后的可变 SST
-// - L2+ Frozen（*.sst.N）：compact 后冻结的不可变 SST
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 【记录】rec_magic | rec_len | ts_ns | key_len | val_len | key | val
+// See implementation.
 
 export const KV_SECTOR: u32 = 4096;
 export const KV_VERSION: u32 = 3;
@@ -104,6 +104,12 @@ extern function shu_kv_mmap_file_c(path: *u8, min_size: usize, out_size: *usize)
 extern function shu_kv_munmap_c(addr: i64, len: usize): i32;
 extern function shu_kv_msync_c(addr: i64, len: usize): i32;
 
+/** Exported function `kv_hash_key`.
+ * Implements `kv_hash_key`.
+ * @param key *u8
+ * @param len u32
+ * @return u32
+ */
 export function kv_hash_key(key: *u8, len: u32): u32 {
   let h: u32 = 2166136261;
   let i: u32 = 0;
@@ -115,19 +121,45 @@ export function kv_hash_key(key: *u8, len: u32): u32 {
   return h;
 }
 
+/** Exported function `kv_keys_equal`.
+ * Implements `kv_keys_equal`.
+ * @param a *u8
+ * @param alen u32
+ * @param b *u8
+ * @param blen u32
+ * @return i32
+ */
 export function kv_keys_equal(a: *u8, alen: u32, b: *u8, blen: u32): i32 {
   if (alen != blen) { return 0; }
   unsafe { return memcmp(a, b, alen) == 0 ? 1 : 0; }
   return 0; // unreachable — typeck workaround
 }
 
+/** Exported function `kv_mt_clear`.
+ * Implements `kv_mt_clear`.
+ * @param s *KvStoreMem
+ * @return void
+ */
 export function kv_mt_clear(s: *KvStoreMem): void { s.mt_count = 0; }
 
+/** Exported function `kv_read_u32_at`.
+ * Read path helper `kv_read_u32_at`.
+ * @param base *u8
+ * @param off u64
+ * @return u32
+ */
 export function kv_read_u32_at(base: *u8, off: u64): u32 {
   let i: usize = off as usize;
   return (base[i] as u32) | ((base[i + 1] as u32) << 8) | ((base[i + 2] as u32) << 16) | ((base[i + 3] as u32) << 24);
 }
 
+/** Exported function `kv_write_u32_at`.
+ * Write path helper `kv_write_u32_at`.
+ * @param base *u8
+ * @param off u64
+ * @param v u32
+ * @return void
+ */
 export function kv_write_u32_at(base: *u8, off: u64, v: u32): void {
   let i: usize = off as usize;
   base[i] = (v & 0xff) as u8;
@@ -136,23 +168,52 @@ export function kv_write_u32_at(base: *u8, off: u64, v: u32): void {
   base[i + 3] = ((v >> 24) & 0xff) as u8;
 }
 
+/** Exported function `kv_write_u64_at`.
+ * Write path helper `kv_write_u64_at`.
+ * @param base *u8
+ * @param off u64
+ * @param v u64
+ * @return void
+ */
 export function kv_write_u64_at(base: *u8, off: u64, v: u64): void {
   kv_write_u32_at(base, off, (v & 0xffffffff) as u32);
   kv_write_u32_at(base, off + (4 as u64), ((v >> 32) & 0xffffffff) as u32);
 }
 
+/** Exported function `kv_magic_is_kv`.
+ * Implements `kv_magic_is_kv`.
+ * @param m *u8
+ * @return i32
+ */
 export function kv_magic_is_kv(m: *u8): i32 {
   return m[0] == 83 && m[1] == 72 && m[2] == 85 && m[3] == 75 && m[4] == 86 && m[5] == 48 && m[6] == 49 ? 1 : 0;
 }
 
+/** Exported function `kv_magic_is_wal`.
+ * Implements `kv_magic_is_wal`.
+ * @param m *u8
+ * @return i32
+ */
 export function kv_magic_is_wal(m: *u8): i32 {
   return m[0] == 83 && m[1] == 72 && m[2] == 85 && m[3] == 87 && m[4] == 65 && m[5] == 76 && m[6] == 48 ? 1 : 0;
 }
 
+/** Exported function `kv_magic_is_sst`.
+ * Implements `kv_magic_is_sst`.
+ * @param m *u8
+ * @return i32
+ */
 export function kv_magic_is_sst(m: *u8): i32 {
   return m[0] == 83 && m[1] == 72 && m[2] == 85 && m[3] == 83 && m[4] == 83 && m[5] == 84 && m[6] == 48 ? 1 : 0;
 }
 
+/** Exported function `kv_layer_base_cap`.
+ * Implements `kv_layer_base_cap`.
+ * @param s *KvStoreMem
+ * @param layer u8
+ * @param out_cap *u64
+ * @return *u8
+ */
 export function kv_layer_base_cap(s: *KvStoreMem, layer: u8, out_cap: *u64): *u8 {
   let slot: u32 = 0;
   let wh: *KvWalHeader = 0;
@@ -184,6 +245,15 @@ export function kv_layer_base_cap(s: *KvStoreMem, layer: u8, out_cap: *u64): *u8
   return 0 as *u8;
 }
 
+/** Exported function `kv_mt_put_ex`.
+ * Implements `kv_mt_put_ex`.
+ * @param s *KvStoreMem
+ * @param off u64
+ * @param key *u8
+ * @param key_len u32
+ * @param layer u8
+ * @return void
+ */
 export function kv_mt_put_ex(s: *KvStoreMem, off: u64, key: *u8, key_len: u32, layer: u8): void {
   let h: u32 = kv_hash_key(key, key_len);
   let i: u32 = 0;
@@ -224,6 +294,13 @@ export function kv_mt_put_ex(s: *KvStoreMem, off: u64, key: *u8, key_len: u32, l
   }
 }
 
+/** Exported function `kv_mt_get_off`.
+ * Implements `kv_mt_get_off`.
+ * @param s *KvStoreMem
+ * @param key *u8
+ * @param key_len u32
+ * @return u64
+ */
 export function kv_mt_get_off(s: *KvStoreMem, key: *u8, key_len: u32): u64 {
   let h: u32 = kv_hash_key(key, key_len);
   let i: u32 = 0;
@@ -234,6 +311,13 @@ export function kv_mt_get_off(s: *KvStoreMem, key: *u8, key_len: u32): u64 {
   return 0 as u64;
 }
 
+/** Exported function `kv_arena_alloc`.
+ * Memory management helper `kv_arena_alloc`.
+ * @param s *KvStoreMem
+ * @param n usize
+ * @param align_bytes usize
+ * @return *u8
+ */
 export function kv_arena_alloc(s: *KvStoreMem, n: usize, align_bytes: usize): *u8 {
   let off: usize = s.arena_off;
   let mask: usize = align_bytes - 1;
@@ -244,8 +328,20 @@ export function kv_arena_alloc(s: *KvStoreMem, n: usize, align_bytes: usize): *u
   return &s.arena[off] as *u8;
 }
 
+/** Exported function `kv_arena_reset`.
+ * Implements `kv_arena_reset`.
+ * @param s *KvStoreMem
+ * @return void
+ */
 export function kv_arena_reset(s: *KvStoreMem): void { s.arena_off = 0; }
 
+/** Exported function `kv_copy_cstr`.
+ * Implements `kv_copy_cstr`.
+ * @param dst *u8
+ * @param src *u8
+ * @param cap usize
+ * @return void
+ */
 export function kv_copy_cstr(dst: *u8, src: *u8, cap: usize): void {
   let n: usize = 0;
   unsafe { n = strlen(src); }
@@ -254,6 +350,13 @@ export function kv_copy_cstr(dst: *u8, src: *u8, cap: usize): void {
   dst[n] = 0;
 }
 
+/** Exported function `kv_build_wal_path`.
+ * Implements `kv_build_wal_path`.
+ * @param data_path *u8
+ * @param wal_path *u8
+ * @param wal_cap usize
+ * @return void
+ */
 export function kv_build_wal_path(data_path: *u8, wal_path: *u8, wal_cap: usize): void {
   let n: usize = 0;
   kv_copy_cstr(wal_path, data_path, wal_cap);
@@ -263,6 +366,13 @@ export function kv_build_wal_path(data_path: *u8, wal_path: *u8, wal_cap: usize)
   }
 }
 
+/** Exported function `kv_u32_to_dec`.
+ * Implements `kv_u32_to_dec`.
+ * @param buf *u8
+ * @param cap usize
+ * @param v u32
+ * @return usize
+ */
 export function kv_u32_to_dec(buf: *u8, cap: usize, v: u32): usize {
   let tmp: u8[16] = [];
   let n: usize = 0;
@@ -276,6 +386,14 @@ export function kv_u32_to_dec(buf: *u8, cap: usize, v: u32): usize {
   return i;
 }
 
+/** Exported function `kv_build_sst_path`.
+ * Implements `kv_build_sst_path`.
+ * @param data_path *u8
+ * @param slot u32
+ * @param out *u8
+ * @param out_cap usize
+ * @return void
+ */
 export function kv_build_sst_path(data_path: *u8, slot: u32, out: *u8, out_cap: usize): void {
   let n: usize = 0;
   let m: usize = 0;
@@ -287,11 +405,29 @@ export function kv_build_sst_path(data_path: *u8, slot: u32, out: *u8, out_cap: 
   out[n + 5 + m] = 0;
 }
 
+/** Exported function `kv_mmap_file`.
+ * Implements `kv_mmap_file`.
+ * @param path *u8
+ * @param min_size usize
+ * @param out_size *usize
+ * @return i64
+ */
 export function kv_mmap_file(path: *u8, min_size: usize, out_size: *usize): i64 {
   unsafe { return shu_kv_mmap_file_c(path, min_size, out_size); }
   return 0; // unreachable — typeck workaround
 }
 
+/** Exported function `kv_read_at_map`.
+ * Read path helper `kv_read_at_map`.
+ * @param base *u8
+ * @param cap u64
+ * @param off u64
+ * @param key *u8
+ * @param key_len u32
+ * @param out *u8
+ * @param out_cap u32
+ * @return i32
+ */
 export function kv_read_at_map(base: *u8, cap: u64, off: u64, key: *u8, key_len: u32, out: *u8, out_cap: u32): i32 {
   let rmagic: u32 = 0;
   let rlen: u32 = 0;
@@ -310,6 +446,19 @@ export function kv_read_at_map(base: *u8, cap: u64, off: u64, key: *u8, key_len:
   return vlen as i32;
 }
 
+/** Exported function `kv_find_latest_in_map`.
+ * Implements `kv_find_latest_in_map`.
+ * @param base *u8
+ * @param map_cap u64
+ * @param end_off u64
+ * @param min_off u64
+ * @param key *u8
+ * @param key_len u32
+ * @param out *u8
+ * @param out_cap u32
+ * @param found_off *u64
+ * @return i32
+ */
 export function kv_find_latest_in_map(base: *u8, map_cap: u64, end_off: u64, min_off: u64, key: *u8, key_len: u32, out: *u8, out_cap: u32, found_off: *u64): i32 {
   let off: u64 = min_off;
   let last_r: i32 = -6;
@@ -328,6 +477,15 @@ export function kv_find_latest_in_map(base: *u8, map_cap: u64, end_off: u64, min
   return last_r;
 }
 
+/** Exported function `kv_rebuild_mt_from_map`.
+ * Implements `kv_rebuild_mt_from_map`.
+ * @param s *KvStoreMem
+ * @param base *u8
+ * @param map_cap u64
+ * @param end_off u64
+ * @param layer u8
+ * @return void
+ */
 export function kv_rebuild_mt_from_map(s: *KvStoreMem, base: *u8, map_cap: u64, end_off: u64, layer: u8): void {
   let off: u64 = KV_SECTOR as u64;
   let rmagic: u32 = 0;
@@ -346,6 +504,15 @@ export function kv_rebuild_mt_from_map(s: *KvStoreMem, base: *u8, map_cap: u64, 
   }
 }
 
+/** Exported function `kv_write_record_to_map`.
+ * Write path helper `kv_write_record_to_map`.
+ * @param base *u8
+ * @param cap u64
+ * @param write_pos *u64
+ * @param rec *u8
+ * @param rec_len usize
+ * @return i64
+ */
 export function kv_write_record_to_map(base: *u8, cap: u64, write_pos: *u64, rec: *u8, rec_len: usize): i64 {
   let off: u64 = write_pos[0];
   if (off + (rec_len as u64) > cap) { return -1 as i64; }
@@ -354,6 +521,18 @@ export function kv_write_record_to_map(base: *u8, cap: u64, write_pos: *u64, rec
   return off as i64;
 }
 
+/** Exported function `kv_serialize_record`.
+ * Implements `kv_serialize_record`.
+ * @param s *KvStoreMem
+ * @param key *u8
+ * @param key_len u32
+ * @param val *u8
+ * @param val_len u32
+ * @param ts_ns u64
+ * @param out_rec *i64
+ * @param out_len *usize
+ * @return i32
+ */
 export function kv_serialize_record(s: *KvStoreMem, key: *u8, key_len: u32, val: *u8, val_len: u32, ts_ns: u64, out_rec: *i64, out_len: *usize): i32 {
   let base: *u8 = 0 as *u8;
   let payload: u32 = 0;
@@ -376,18 +555,38 @@ export function kv_serialize_record(s: *KvStoreMem, key: *u8, key_len: u32, val:
   return 0;
 }
 
+/** Exported function `kv_write_magic_kv`.
+ * Write path helper `kv_write_magic_kv`.
+ * @param dst *u8
+ * @return void
+ */
 export function kv_write_magic_kv(dst: *u8): void {
   dst[0] = 83; dst[1] = 72; dst[2] = 85; dst[3] = 75; dst[4] = 86; dst[5] = 48; dst[6] = 49; dst[7] = 0;
 }
 
+/** Exported function `kv_write_magic_wal`.
+ * Write path helper `kv_write_magic_wal`.
+ * @param dst *u8
+ * @return void
+ */
 export function kv_write_magic_wal(dst: *u8): void {
   dst[0] = 83; dst[1] = 72; dst[2] = 85; dst[3] = 87; dst[4] = 65; dst[5] = 76; dst[6] = 48; dst[7] = 49;
 }
 
+/** Exported function `kv_write_magic_sst`.
+ * Write path helper `kv_write_magic_sst`.
+ * @param dst *u8
+ * @return void
+ */
 export function kv_write_magic_sst(dst: *u8): void {
   dst[0] = 83; dst[1] = 72; dst[2] = 85; dst[3] = 83; dst[4] = 83; dst[5] = 84; dst[6] = 48; dst[7] = 50;
 }
 
+/** Exported function `kv_open_sst_slots`.
+ * Implements `kv_open_sst_slots`.
+ * @param s *KvStoreMem
+ * @return i32
+ */
 export function kv_open_sst_slots(s: *KvStoreMem): i32 {
   let i: u32 = 0;
   let path: u8[512] = [];
@@ -418,6 +617,13 @@ export function kv_open_sst_slots(s: *KvStoreMem): i32 {
   return 0;
 }
 
+/** Exported function `kv_sst_merge_dedup`.
+ * Implements `kv_sst_merge_dedup`.
+ * @param s *KvStoreMem
+ * @param src_slot u32
+ * @param dst_slot u32
+ * @return i32
+ */
 export function kv_sst_merge_dedup(s: *KvStoreMem, src_slot: u32, dst_slot: u32): i32 {
   let i: u32 = 0;
   let live_n: u32 = 0;
@@ -486,6 +692,11 @@ export function kv_sst_merge_dedup(s: *KvStoreMem, src_slot: u32, dst_slot: u32)
   return -3;
 }
 
+/** Exported function `kv_freeze_main_to_sst`.
+ * Memory management helper `kv_freeze_main_to_sst`.
+ * @param s *KvStoreMem
+ * @return i32
+ */
 export function kv_freeze_main_to_sst(s: *KvStoreMem): i32 {
   let data_len: u64 = 0;
   let slot: u32 = 0;
@@ -539,6 +750,12 @@ export function kv_freeze_main_to_sst(s: *KvStoreMem): i32 {
   return -4;
 }
 
+/** Exported function `kv_db_open_impl`.
+ * Implements `kv_db_open_impl`.
+ * @param path *u8
+ * @param capacity_bytes u64
+ * @return i64
+ */
 export function kv_db_open_impl(path: *u8, capacity_bytes: u64): i64 {
   let s: *KvStoreMem = 0 as *KvStoreMem;
   let wal_path: u8[512] = [];
@@ -610,6 +827,11 @@ export function kv_db_open_impl(path: *u8, capacity_bytes: u64): i64 {
   return s as i64;
 }
 
+/** Exported function `kv_db_close_impl`.
+ * Implements `kv_db_close_impl`.
+ * @param handle i64
+ * @return i32
+ */
 export function kv_db_close_impl(handle: i64): i32 {
   let s: *KvStoreMem = handle as *KvStoreMem;
   let i: u32 = 0;
@@ -625,6 +847,11 @@ export function kv_db_close_impl(handle: i64): i32 {
   return 0;
 }
 
+/** Exported function `kv_db_sync_impl`.
+ * Implements `kv_db_sync_impl`.
+ * @param handle i64
+ * @return i32
+ */
 export function kv_db_sync_impl(handle: i64): i32 {
   let s: *KvStoreMem = handle as *KvStoreMem;
   let i: u32 = 0;
@@ -641,6 +868,16 @@ export function kv_db_sync_impl(handle: i64): i32 {
   return -1;
 }
 
+/** Exported function `kv_db_append_wal`.
+ * Implements `kv_db_append_wal`.
+ * @param s *KvStoreMem
+ * @param key *u8
+ * @param key_len u32
+ * @param val *u8
+ * @param val_len u32
+ * @param ts_ns u64
+ * @return i32
+ */
 export function kv_db_append_wal(s: *KvStoreMem, key: *u8, key_len: u32, val: *u8, val_len: u32, ts_ns: u64): i32 {
   let rec: i64 = 0;
   let rec_len: usize = 0;
@@ -656,6 +893,15 @@ export function kv_db_append_wal(s: *KvStoreMem, key: *u8, key_len: u32, val: *u
   return 0;
 }
 
+/** Exported function `kv_db_get_impl`.
+ * Implements `kv_db_get_impl`.
+ * @param handle i64
+ * @param key *u8
+ * @param key_len u32
+ * @param out *u8
+ * @param out_cap u32
+ * @return i32
+ */
 export function kv_db_get_impl(handle: i64, key: *u8, key_len: u32, out: *u8, out_cap: u32): i32 {
   let s: *KvStoreMem = handle as *KvStoreMem;
   let off: u64 = 0;
@@ -709,6 +955,11 @@ export function kv_db_get_impl(handle: i64, key: *u8, key_len: u32, out: *u8, ou
   return -6;
 }
 
+/** Exported function `kv_db_wal_flush_impl`.
+ * Implements `kv_db_wal_flush_impl`.
+ * @param handle i64
+ * @return i32
+ */
 export function kv_db_wal_flush_impl(handle: i64): i32 {
   let s: *KvStoreMem = handle as *KvStoreMem;
   let off: u64 = 0;
@@ -751,6 +1002,11 @@ export function kv_db_wal_flush_impl(handle: i64): i32 {
   return -4;
 }
 
+/** Exported function `kv_db_compact_impl`.
+ * Implements `kv_db_compact_impl`.
+ * @param handle i64
+ * @return i32
+ */
 export function kv_db_compact_impl(handle: i64): i32 {
   let s: *KvStoreMem = handle as *KvStoreMem;
   let live_offs: *u64 = 0 as *u64;
@@ -815,6 +1071,11 @@ export function kv_db_compact_impl(handle: i64): i32 {
   return -3;
 }
 
+/** Exported function `kv_db_smoke_impl`.
+ * Implements `kv_db_smoke_impl`.
+ * @param path *u8
+ * @return i32
+ */
 export function kv_db_smoke_impl(path: *u8): i32 {
   let h: i64 = 0;
   let key: u8[4] = [116, 105, 99, 107];
@@ -842,49 +1103,153 @@ export function kv_db_smoke_impl(path: *u8): i32 {
 }
 
 #[cfg(target_os = "linux")]
+/** Exported function `db_kv_open_c`.
+ * Implements `db_kv_open_c`.
+ * @param path *u8
+ * @param capacity_bytes u64): i64 { return kv_db_open_impl(path
+ * @param capacity_bytes
+ * @return void
+ */
 export function db_kv_open_c(path: *u8, capacity_bytes: u64): i64 { return kv_db_open_impl(path, capacity_bytes); }
 
 #[cfg(target_os = "macos")]
+/** Exported function `db_kv_open_c`.
+ * Implements `db_kv_open_c`.
+ * @param path *u8
+ * @param capacity_bytes u64): i64 { return kv_db_open_impl(path
+ * @param capacity_bytes
+ * @return void
+ */
 export function db_kv_open_c(path: *u8, capacity_bytes: u64): i64 { return kv_db_open_impl(path, capacity_bytes); }
 
 #[cfg(target_os = "linux")]
+/** Exported function `db_kv_close_c`.
+ * Implements `db_kv_close_c`.
+ * @param handle i64): i32 { return kv_db_close_impl(handle
+ * @return void
+ */
 export function db_kv_close_c(handle: i64): i32 { return kv_db_close_impl(handle); }
 
 #[cfg(target_os = "macos")]
+/** Exported function `db_kv_close_c`.
+ * Implements `db_kv_close_c`.
+ * @param handle i64): i32 { return kv_db_close_impl(handle
+ * @return void
+ */
 export function db_kv_close_c(handle: i64): i32 { return kv_db_close_impl(handle); }
 
 #[cfg(target_os = "linux")]
+/** Exported function `db_kv_sync_c`.
+ * Implements `db_kv_sync_c`.
+ * @param handle i64): i32 { return kv_db_sync_impl(handle
+ * @return void
+ */
 export function db_kv_sync_c(handle: i64): i32 { return kv_db_sync_impl(handle); }
 
 #[cfg(target_os = "macos")]
+/** Exported function `db_kv_sync_c`.
+ * Implements `db_kv_sync_c`.
+ * @param handle i64): i32 { return kv_db_sync_impl(handle
+ * @return void
+ */
 export function db_kv_sync_c(handle: i64): i32 { return kv_db_sync_impl(handle); }
 
+/** Exported function `db_kv_put_c`.
+ * Implements `db_kv_put_c`.
+ * @param handle i64
+ * @param key *u8
+ * @param key_len u32
+ * @param val *u8
+ * @param val_len u32
+ * @return i32
+ */
 export function db_kv_put_c(handle: i64, key: *u8, key_len: u32, val: *u8, val_len: u32): i32 {
   return kv_db_append_wal(handle as *KvStoreMem, key, key_len, val, val_len, 0 as u64);
 }
 
+/** Exported function `db_kv_append_ts_c`.
+ * Implements `db_kv_append_ts_c`.
+ * @param handle i64
+ * @param key *u8
+ * @param key_len u32
+ * @param val *u8
+ * @param val_len u32
+ * @param ts_ns u64
+ * @return i32
+ */
 export function db_kv_append_ts_c(handle: i64, key: *u8, key_len: u32, val: *u8, val_len: u32, ts_ns: u64): i32 {
   return kv_db_append_wal(handle as *KvStoreMem, key, key_len, val, val_len, ts_ns);
 }
 
 #[cfg(target_os = "linux")]
+/** Exported function `db_kv_get_c`.
+ * Implements `db_kv_get_c`.
+ * @param handle i64
+ * @param key *u8
+ * @param key_len u32
+ * @param out *u8
+ * @param out_cap u32): i32 { return kv_db_get_impl(handle
+ * @param key
+ * @param key_len
+ * @param out
+ * @param out_cap
+ * @return void
+ */
 export function db_kv_get_c(handle: i64, key: *u8, key_len: u32, out: *u8, out_cap: u32): i32 { return kv_db_get_impl(handle, key, key_len, out, out_cap); }
 
 #[cfg(target_os = "macos")]
+/** Exported function `db_kv_get_c`.
+ * Implements `db_kv_get_c`.
+ * @param handle i64
+ * @param key *u8
+ * @param key_len u32
+ * @param out *u8
+ * @param out_cap u32): i32 { return kv_db_get_impl(handle
+ * @param key
+ * @param key_len
+ * @param out
+ * @param out_cap
+ * @return void
+ */
 export function db_kv_get_c(handle: i64, key: *u8, key_len: u32, out: *u8, out_cap: u32): i32 { return kv_db_get_impl(handle, key, key_len, out, out_cap); }
 
 #[cfg(target_os = "linux")]
+/** Exported function `db_kv_wal_flush_c`.
+ * Implements `db_kv_wal_flush_c`.
+ * @param handle i64): i32 { return kv_db_wal_flush_impl(handle
+ * @return void
+ */
 export function db_kv_wal_flush_c(handle: i64): i32 { return kv_db_wal_flush_impl(handle); }
 
 #[cfg(target_os = "macos")]
+/** Exported function `db_kv_wal_flush_c`.
+ * Implements `db_kv_wal_flush_c`.
+ * @param handle i64): i32 { return kv_db_wal_flush_impl(handle
+ * @return void
+ */
 export function db_kv_wal_flush_c(handle: i64): i32 { return kv_db_wal_flush_impl(handle); }
 
 #[cfg(target_os = "linux")]
+/** Exported function `db_kv_compact_c`.
+ * Implements `db_kv_compact_c`.
+ * @param handle i64): i32 { return kv_db_compact_impl(handle
+ * @return void
+ */
 export function db_kv_compact_c(handle: i64): i32 { return kv_db_compact_impl(handle); }
 
 #[cfg(target_os = "macos")]
+/** Exported function `db_kv_compact_c`.
+ * Implements `db_kv_compact_c`.
+ * @param handle i64): i32 { return kv_db_compact_impl(handle
+ * @return void
+ */
 export function db_kv_compact_c(handle: i64): i32 { return kv_db_compact_impl(handle); }
 
+/** Exported function `db_kv_compact_gen_c`.
+ * Implements `db_kv_compact_gen_c`.
+ * @param handle i64
+ * @return u64
+ */
 export function db_kv_compact_gen_c(handle: i64): u64 {
   let s: *KvStoreMem = handle as *KvStoreMem;
   let hdr: *KvHeader = 0 as *KvHeader;
@@ -895,6 +1260,11 @@ export function db_kv_compact_gen_c(handle: i64): u64 {
   return 0 as u64;
 }
 
+/** Exported function `db_kv_wal_bytes_c`.
+ * Implements `db_kv_wal_bytes_c`.
+ * @param handle i64
+ * @return u64
+ */
 export function db_kv_wal_bytes_c(handle: i64): u64 {
   let s: *KvStoreMem = handle as *KvStoreMem;
   let wh: *KvWalHeader = 0 as *KvWalHeader;
@@ -904,6 +1274,11 @@ export function db_kv_wal_bytes_c(handle: i64): u64 {
   return wh.write_pos - (KV_SECTOR as u64);
 }
 
+/** Exported function `db_kv_sst_level_count_c`.
+ * Implements `db_kv_sst_level_count_c`.
+ * @param handle i64
+ * @return u32
+ */
 export function db_kv_sst_level_count_c(handle: i64): u32 {
   let s: *KvStoreMem = handle as *KvStoreMem;
   let hdr: *KvHeader = 0 as *KvHeader;
@@ -915,13 +1290,33 @@ export function db_kv_sst_level_count_c(handle: i64): u32 {
 }
 
 #[cfg(target_os = "linux")]
+/** Exported function `db_kv_smoke_c`.
+ * Implements `db_kv_smoke_c`.
+ * @param path *u8): i32 { return kv_db_smoke_impl(path
+ * @return void
+ */
 export function db_kv_smoke_c(path: *u8): i32 { return kv_db_smoke_impl(path); }
 
 #[cfg(target_os = "macos")]
+/** Exported function `db_kv_smoke_c`.
+ * Implements `db_kv_smoke_c`.
+ * @param path *u8): i32 { return kv_db_smoke_impl(path
+ * @return void
+ */
 export function db_kv_smoke_c(path: *u8): i32 { return kv_db_smoke_impl(path); }
 
 #[cfg(target_os = "linux")]
+/** Exported function `db_kv_wal_compact_smoke_c`.
+ * Implements `db_kv_wal_compact_smoke_c`.
+ * @param path *u8): i32 { return kv_db_smoke_impl(path
+ * @return void
+ */
 export function db_kv_wal_compact_smoke_c(path: *u8): i32 { return kv_db_smoke_impl(path); }
 
 #[cfg(target_os = "macos")]
+/** Exported function `db_kv_wal_compact_smoke_c`.
+ * Implements `db_kv_wal_compact_smoke_c`.
+ * @param path *u8): i32 { return kv_db_smoke_impl(path
+ * @return void
+ */
 export function db_kv_wal_compact_smoke_c(path: *u8): i32 { return kv_db_smoke_impl(path); }

@@ -1,6 +1,10 @@
-// SAFE-004 C6：owned 指针 new→use→free 单次释放路径。
+// See implementation.
 const ffi = import("std.ffi");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let src: u8[3] = [49, 50, 51];
   let p: *u8 = ffi.cstring_new(&src[0], 3);

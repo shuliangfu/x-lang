@@ -1,4 +1,8 @@
-// 7.3：a+= 后 return a+b 应复用 rbx 中的 b（仅 kill 左值 a 槽，勿整表 clear）。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32 = 1;
   let b: i32 = 2;

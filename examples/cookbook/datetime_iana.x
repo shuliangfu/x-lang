@@ -1,9 +1,13 @@
 /**
- * Cookbook DT-01：IANA 时区解析（STD-080 #80）。
- * 解析内置区 UTC；未知区名返回非 0。
+ * See implementation.
+ * See implementation.
  */
 const datetime = import("std.datetime");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let utc_name: u8[4] = [85, 84, 67, 0];
   let tz: TimeZone = TimeZone { offset_min: 0, iana_id: -1 };

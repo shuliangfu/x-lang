@@ -1,4 +1,8 @@
-// 边界：if 后缺少 '('，应报 parse error expected '(' after 'if'
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   return if 1 < 2 { 1 } else { 0 }
 }

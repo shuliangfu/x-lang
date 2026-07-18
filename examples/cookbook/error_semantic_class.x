@@ -1,8 +1,12 @@
 /**
- * Cookbook ERR-02：跨模块错误语义类（STD-158）。
+ * See implementation.
  */
 const err = import("std.error");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let io_to: i32 = err.io_err_timeout();
   if (err.semantic_class(io_to) != err.sem_timeout()) { return 1; }

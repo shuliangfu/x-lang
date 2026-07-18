@@ -1,4 +1,4 @@
-// run_async_sync_err.x — async 内 run 应 typeck 报错
+// See implementation.
 async function inner(): i32 {
   return run yield_demo();
 }
@@ -8,6 +8,10 @@ async function yield_demo(): i32 {
   return a;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   return 0;
 }

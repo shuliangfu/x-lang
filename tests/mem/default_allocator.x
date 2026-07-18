@@ -1,6 +1,10 @@
-// MEM-C1 AL-01/02：default_allocator — with_arena 内 kind=arena，块外 kind=heap。
+// See implementation.
 const heap = import("std.heap");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   with_arena(4096) {
     let al: Allocator = heap.default_alloc();

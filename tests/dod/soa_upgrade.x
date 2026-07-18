@@ -1,16 +1,20 @@
 /**
- * DOD-S3 smoke：entry 本地 AoS 占位 struct，import dep 同名 SoA 定义；
- * merge + WPO unify 须将 entry layout 升档为 SoA，arr[i].field 仍正确。
- * 期望：3+7=10。
+ * See implementation.
+ * See implementation.
+ * See implementation.
  */
 const soa_cross_lib = import("soa_cross_lib");
 
-/** 入口 module AoS 占位（字段与 lib Particle 一致）；WPO 须统一为 SoA。 */
+/* See implementation. */
 struct Particle {
   x: i32
   y: i32
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let arr: Particle[2] = [];
   arr[0].x = 3;

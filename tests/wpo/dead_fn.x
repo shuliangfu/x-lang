@@ -1,14 +1,24 @@
-// dead_fn.x — WPO-S1 烟测：dead_helper 不可达，used_helper 从 main 可达
-/** 不可达死函数：wpo_dce 应标记为 dead。 */
+// See implementation.
+/** Internal function `dead_helper`.
+ * Implements `dead_helper`.
+ * @return i32
+ */
 function dead_helper(): i32 {
   return 42;
 }
 
-/** 从 main 可达的辅助函数。 */
+/** Internal function `used_helper`.
+ * Implements `used_helper`.
+ * @return i32
+ */
 function used_helper(): i32 {
   return 1;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   return used_helper();
 }

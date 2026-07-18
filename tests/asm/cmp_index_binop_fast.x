@@ -1,4 +1,8 @@
-// 7.3：cmp 左 INDEX 已在 rbx、右 binop slow emit 时须 x2 暂存 rbx，勿覆盖左操作数（run-asm-cmp-index-binop.sh）。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let arr: i32[3] = [5, 10, 15];
   if (arr[1] < arr[0] + arr[1]) {

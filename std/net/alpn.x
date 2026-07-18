@@ -14,16 +14,16 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.net.alpn — F-04 v10：ALPN 线格式（RFC 7301 h2 + http/1.1）
+// See implementation.
 //
-// 【文件职责】
-// 从 net.c 迁出 net_tls_alpn_h2_http1_wire_c；ws/openssl/mbedtls 共用。
+// See implementation.
+// See implementation.
 //
-// 【依赖】无（直写 out 缓冲，避免库模块顶层/局部 u8[N] 字面量 asm emit 失败）
+// See implementation.
 
 /**
- * 写入 h2/http/1.1 ALPN 线格式；成功返回字节数，缓冲不足返回 -1。
- * RFC 7301 字节序列：\x02h2\x08http/1.1
+ * See implementation.
+ * See implementation.
  */
 export function net_tls_alpn_h2_http1_wire_c(out: *u8, out_cap: i32): i32 {
   if (out == 0 || out_cap < 12) {

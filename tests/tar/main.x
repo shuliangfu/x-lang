@@ -1,7 +1,11 @@
-// tests/tar/main.x — std.tar UStar 头读写烟测（name 往返；size 校验待 tar octal/read 与 out 参数 co-emit 稳定）
+// See implementation.
 
 const tar = import("std.tar");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let buf: u8[512] = [];
   let name_out: u8[128] = [];

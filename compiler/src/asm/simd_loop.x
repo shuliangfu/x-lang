@@ -1,12 +1,12 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-8 / R2 full（2026-07-14）：simd_loop 真迁
-// 产品 PREFER：g05_try_x_to_o(本文件) + rest (-DSHUX_SIMD_LOOP_FROM_X，仅 marker)
-// R2：full.x 吃满 peel/parse/emit 公共业务；FROM_X rest 业务 T=0（仅 slice_marker）
-// 冷启动/无 PREFER：seeds/simd_loop.from_x.c 完整 C 体
-// L2 thin hybrid（SHUX_L2_SIMD_LOOP_THIN_FROM_X）仍作 full.x 失败时的回退路径。
-// G-02f-213/214/215：try_simd_peel / parse / runtime_strip / f32_soa_sum_strip 已在本文件。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 
 export extern "C" function driver_get_pending_target_cpu_features(): u32;
 export extern "C" function shu_target_cpu_detect_host(): u32;
@@ -19,14 +19,25 @@ export extern "C" function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32):
 export extern "C" function pipeline_type_array_size_at(arena: *u8, type_ref: i32): i32;
 export extern "C" function pipeline_type_elem_ref_at(arena: *u8, type_ref: i32): i32;
 
+/** Exported function `simd_loop_x_doc_anchor`.
+ * Implements `simd_loop_x_doc_anchor`.
+ * @return i32
+ */
 export function simd_loop_x_doc_anchor(): i32 {
   return 0;
 }
 
-/* ---- G-02f-106 / G-02f-129：simd_loop pure glue 真迁（无 _impl 依赖）---- */
+/* See implementation. */
 
-// G-02f-129：两 EXPR_VAR 是否同名（GLUE_EXPR_VAR=3）
+// glue_expr_same_var_c: see function docblock below.
 #[no_mangle]
+/** Exported function `glue_expr_same_var_c`.
+ * Implements `glue_expr_same_var_c`.
+ * @param arena *u8
+ * @param a_ref i32
+ * @param b_ref i32
+ * @return i32
+ */
 export function glue_expr_same_var_c(arena: *u8, a_ref: i32, b_ref: i32): i32 {
   unsafe {
     if (pipeline_expr_kind_ord_at(arena, a_ref) != 3) { return 0; }
@@ -49,8 +60,15 @@ export function glue_expr_same_var_c(arena: *u8, a_ref: i32, b_ref: i32): i32 {
   return 1;
 }
 
-// G-02f-128：INDEX 下标是否为归纳变量 i（GLUE_EXPR_INDEX=47）
+// glue_index_uses_var_c: see function docblock below.
 #[no_mangle]
+/** Exported function `glue_index_uses_var_c`.
+ * Implements `glue_index_uses_var_c`.
+ * @param arena *u8
+ * @param index_expr_ref i32
+ * @param i_var_ref i32
+ * @return i32
+ */
 export function glue_index_uses_var_c(arena: *u8, index_expr_ref: i32, i_var_ref: i32): i32 {
   unsafe {
     if (pipeline_expr_kind_ord_at(arena, index_expr_ref) != 47) { return 0; }
@@ -60,8 +78,14 @@ export function glue_index_uses_var_c(arena: *u8, index_expr_ref: i32, i_var_ref
   return 0;
 }
 
-// G-02f-129：VAR 的 i32[N] 定长数组元素个数（GLUE_TYPE_ARRAY=10, GLUE_TYPE_I32=0）
+// glue_var_array_i32_size_c: see function docblock below.
 #[no_mangle]
+/** Exported function `glue_var_array_i32_size_c`.
+ * Implements `glue_var_array_i32_size_c`.
+ * @param arena *u8
+ * @param var_ref i32
+ * @return i32
+ */
 export function glue_var_array_i32_size_c(arena: *u8, var_ref: i32): i32 {
   unsafe {
     if (pipeline_expr_kind_ord_at(arena, var_ref) != 3) { return 0; }
@@ -79,8 +103,12 @@ export function glue_var_array_i32_size_c(arena: *u8, var_ref: i32): i32 {
   return 0;
 }
 
-// G-02f-133：pending features，否则 host detect
+// glue_simd_loop_cpu_features_c: see function docblock below.
 #[no_mangle]
+/** Exported function `glue_simd_loop_cpu_features_c`.
+ * Implements `glue_simd_loop_cpu_features_c`.
+ * @return u32
+ */
 export function glue_simd_loop_cpu_features_c(): u32 {
   unsafe {
     let feats: u32 = driver_get_pending_target_cpu_features();
@@ -92,7 +120,7 @@ export function glue_simd_loop_cpu_features_c(): u32 {
 
 
 
-/* ---- G-02f-214/215：parse/local/emit true-port；simd_loop 主路径 ---- */
+/* See implementation. */
 
 // GLUE_EXPR_*: VAR=3 ADD=4 SUB=5 MUL=6 LT=16 ASSIGN=28 ADD_ASSIGN=29 INDEX=47 FIELD=44
 // GLUE_TYPE_*: I32=0 ARRAY=10 F32=14；LIT kind=0
@@ -120,8 +148,16 @@ export extern "C" function ast_ast_block_num_expr_stmts(arena: *u8, body: i32): 
 export extern "C" function ast_ast_block_expr_stmt_ref(arena: *u8, body: i32, ei: i32): i32;
 export extern "C" function getenv(name: *u8): *u8;
 
-// G-02f-214：block let 初值 lit
+// glue_block_let_init_lit_c: see function docblock below.
 #[no_mangle]
+/** Exported function `glue_block_let_init_lit_c`.
+ * Implements `glue_block_let_init_lit_c`.
+ * @param arena *u8
+ * @param block_ref i32
+ * @param var_ref i32
+ * @param out_lit *i32
+ * @return i32
+ */
 export function glue_block_let_init_lit_c(arena: *u8, block_ref: i32, var_ref: i32, out_lit: *i32): i32 {
   if (out_lit == 0) { return 0; }
   if (var_ref <= 0) { return 0; }
@@ -161,6 +197,13 @@ export function glue_block_let_init_lit_c(arena: *u8, block_ref: i32, var_ref: i
 
 // G-02f-214：i = i + 1 / i += 1
 #[no_mangle]
+/** Exported function `glue_parse_i_plus_one_step_c`.
+ * Implements `glue_parse_i_plus_one_step_c`.
+ * @param arena *u8
+ * @param step_ref i32
+ * @param i_var_ref i32
+ * @return i32
+ */
 export function glue_parse_i_plus_one_step_c(arena: *u8, step_ref: i32, i_var_ref: i32): i32 {
   unsafe {
     let ko: i32 = pipeline_expr_kind_ord_at(arena, step_ref);
@@ -188,6 +231,17 @@ export function glue_parse_i_plus_one_step_c(arena: *u8, step_ref: i32, i_var_re
 
 // G-02f-214：d[i] = a[i] ±/* b[i]
 #[no_mangle]
+/** Exported function `glue_parse_index_binop_assign_c`.
+ * Implements `glue_parse_index_binop_assign_c`.
+ * @param arena *u8
+ * @param assign_ref i32
+ * @param i_var_ref i32
+ * @param binop_ko *i32
+ * @param dst_base_ref *i32
+ * @param a_base_ref *i32
+ * @param b_base_ref *i32
+ * @return i32
+ */
 export function glue_parse_index_binop_assign_c(arena: *u8, assign_ref: i32, i_var_ref: i32, binop_ko: *i32, dst_base_ref: *i32, a_base_ref: *i32, b_base_ref: *i32): i32 {
   if (binop_ko == 0) { return 0; }
   if (dst_base_ref == 0) { return 0; }
@@ -227,6 +281,17 @@ export function glue_parse_index_binop_assign_c(arena: *u8, assign_ref: i32, i_v
 
 // G-02f-214：i < n / i < lit
 #[no_mangle]
+/** Exported function `glue_parse_i_lt_bound_c`.
+ * Implements `glue_parse_i_lt_bound_c`.
+ * @param arena *u8
+ * @param block_ref i32
+ * @param cond_ref i32
+ * @param i_var_ref *i32
+ * @param n_lit *i32
+ * @param n_is_const *i32
+ * @param n_var_ref *i32
+ * @return i32
+ */
 export function glue_parse_i_lt_bound_c(arena: *u8, block_ref: i32, cond_ref: i32, i_var_ref: *i32, n_lit: *i32, n_is_const: *i32, n_var_ref: *i32): i32 {
   if (i_var_ref == 0) { return 0; }
   if (n_lit == 0) { return 0; }
@@ -259,8 +324,15 @@ export function glue_parse_i_lt_bound_c(arena: *u8, block_ref: i32, cond_ref: i3
   return 1;
 }
 
-// G-02f-214：局部槽 offset
+// glue_simd_local_var_stack_off_c: see function docblock below.
 #[no_mangle]
+/** Exported function `glue_simd_local_var_stack_off_c`.
+ * Implements `glue_simd_local_var_stack_off_c`.
+ * @param arena *u8
+ * @param ctx *u8
+ * @param var_expr_ref i32
+ * @return i32
+ */
 export function glue_simd_local_var_stack_off_c(arena: *u8, ctx: *u8, var_expr_ref: i32): i32 {
   if (arena == 0) { return 0 - 1; }
   if (ctx == 0) { return 0 - 1; }
@@ -279,8 +351,18 @@ export function glue_simd_local_var_stack_off_c(arena: *u8, ctx: *u8, var_expr_r
   return 0 - 1;
 }
 
-// G-02f-214：f32 SoA sum assign 形
+// glue_parse_f32_soa_sum_assign_c: see function docblock below.
 #[no_mangle]
+/** Exported function `glue_parse_f32_soa_sum_assign_c`.
+ * Implements `glue_parse_f32_soa_sum_assign_c`.
+ * @param arena *u8
+ * @param assign_ref i32
+ * @param i_var_ref i32
+ * @param sum_ref *i32
+ * @param arr_ref *i32
+ * @param fa_ref *i32
+ * @return i32
+ */
 export function glue_parse_f32_soa_sum_assign_c(arena: *u8, assign_ref: i32, i_var_ref: i32, sum_ref: *i32, arr_ref: *i32, fa_ref: *i32): i32 {
   if (sum_ref == 0) { return 0; }
   if (arr_ref == 0) { return 0; }
@@ -316,6 +398,19 @@ export function glue_parse_f32_soa_sum_assign_c(arena: *u8, assign_ref: i32, i_v
 
 // G-02f-214：chunk binop → try_hw
 #[no_mangle]
+/** Exported function `glue_simd_loop_emit_chunk_binop_c`.
+ * Implements `glue_simd_loop_emit_chunk_binop_c`.
+ * @param elf_ctx *u8
+ * @param binop_ko i32
+ * @param chunk_off_a i32
+ * @param chunk_off_b i32
+ * @param chunk_off_d i32
+ * @param lanes i32
+ * @param esz i32
+ * @param ta i32
+ * @param feats u32
+ * @return i32
+ */
 export function glue_simd_loop_emit_chunk_binop_c(elf_ctx: *u8, binop_ko: i32, chunk_off_a: i32, chunk_off_b: i32, chunk_off_d: i32, lanes: i32, esz: i32, ta: i32, feats: u32): i32 {
   unsafe {
     if (binop_ko == 5) {
@@ -329,8 +424,22 @@ export function glue_simd_loop_emit_chunk_binop_c(elf_ctx: *u8, binop_ko: i32, c
   return 0 - 1;
 }
 
-// G-02f-214：const n 整 peel
+// glue_emit_full_const_peel_c: see function docblock below.
 #[no_mangle]
+/** Exported function `glue_emit_full_const_peel_c`.
+ * Implements `glue_emit_full_const_peel_c`.
+ * @param elf_ctx *u8
+ * @param binop_ko i32
+ * @param off_a i32
+ * @param off_b i32
+ * @param off_d i32
+ * @param n_lit i32
+ * @param lanes i32
+ * @param esz i32
+ * @param ta i32
+ * @param feats u32
+ * @return i32
+ */
 export function glue_emit_full_const_peel_c(elf_ctx: *u8, binop_ko: i32, off_a: i32, off_b: i32, off_d: i32, n_lit: i32, lanes: i32, esz: i32, ta: i32, feats: u32): i32 {
   let chunks: i32 = n_lit / lanes;
   if (chunks <= 0) { return 0; }
@@ -384,8 +493,18 @@ export function glue_simd_hw_env_disabled(): i32 {
   return 0;
 }
 
-// G-02f-213：f32 SoA sum while peel 入口
+// glue_try_simd_peel_f32_soa_sum_while_elf_c: see function docblock below.
 #[no_mangle]
+/** Exported function `glue_try_simd_peel_f32_soa_sum_while_elf_c`.
+ * Implements `glue_try_simd_peel_f32_soa_sum_while_elf_c`.
+ * @param arena *u8
+ * @param elf_ctx *u8
+ * @param block_ref i32
+ * @param loop_idx i32
+ * @param ctx *u8
+ * @param ta i32
+ * @return i32
+ */
 export function glue_try_simd_peel_f32_soa_sum_while_elf_c(arena: *u8, elf_ctx: *u8, block_ref: i32, loop_idx: i32, ctx: *u8, ta: i32): i32 {
   if (arena == 0) { return 0; }
   if (elf_ctx == 0) { return 0; }
@@ -449,8 +568,18 @@ export function glue_try_simd_peel_f32_soa_sum_while_elf_c(arena: *u8, elf_ctx: 
   return 0;
 }
 
-// G-02f-213：index binop while peel 入口
+// glue_try_simd_peel_index_add_while_elf_c: see function docblock below.
 #[no_mangle]
+/** Exported function `glue_try_simd_peel_index_add_while_elf_c`.
+ * Implements `glue_try_simd_peel_index_add_while_elf_c`.
+ * @param arena *u8
+ * @param elf_ctx *u8
+ * @param block_ref i32
+ * @param loop_idx i32
+ * @param ctx *u8
+ * @param ta i32
+ * @return i32
+ */
 export function glue_try_simd_peel_index_add_while_elf_c(arena: *u8, elf_ctx: *u8, block_ref: i32, loop_idx: i32, ctx: *u8, ta: i32): i32 {
   if (arena == 0) { return 0; }
   if (elf_ctx == 0) { return 0; }
@@ -519,8 +648,14 @@ export function glue_try_simd_peel_index_add_while_elf_c(arena: *u8, elf_ctx: *u
   return 0;
 }
 
-// G-02f-130：VAR 定长数组元素个数（任意 elem；上限 65536）
+// glue_var_array_size_c: see function docblock below.
 #[no_mangle]
+/** Exported function `glue_var_array_size_c`.
+ * Implements `glue_var_array_size_c`.
+ * @param arena *u8
+ * @param var_ref i32
+ * @return i32
+ */
 export function glue_var_array_size_c(arena: *u8, var_ref: i32): i32 {
   unsafe {
     if (pipeline_expr_kind_ord_at(arena, var_ref) != 3) { return 0; }
@@ -535,20 +670,38 @@ export function glue_var_array_size_c(arena: *u8, var_ref: i32): i32 {
   return 0;
 }
 
-// G-02f-115：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
+// glue_soa_f32_col_rbp_disp32: see function docblock below.
 
 #[no_mangle]
+/** Exported function `glue_soa_f32_col_rbp_disp32`.
+ * Implements `glue_soa_f32_col_rbp_disp32`.
+ * @param off_col0 i32
+ * @param start_idx i32
+ * @return i32
+ */
 export function glue_soa_f32_col_rbp_disp32(off_col0: i32, start_idx: i32): i32 {
   return 0 - (off_col0 - start_idx * 4);
 }
 
 #[no_mangle]
+/** Exported function `glue_f32_slot_rbp_disp32`.
+ * Implements `glue_f32_slot_rbp_disp32`.
+ * @param off i32
+ * @return i32
+ */
 export function glue_f32_slot_rbp_disp32(off: i32): i32 {
   return 0 - off;
 }
 
 // GLUE_EXPR_MUL=6; SSE2=1, SSE41=2, AVX2=8
 #[no_mangle]
+/** Exported function `glue_simd_loop_pick_lanes_c`.
+ * Implements `glue_simd_loop_pick_lanes_c`.
+ * @param feats u32
+ * @param binop_ko i32
+ * @param lanes_out *i32
+ * @return i32
+ */
 export function glue_simd_loop_pick_lanes_c(feats: u32, binop_ko: i32, lanes_out: *i32): i32 {
   if (lanes_out == 0) { return -1; }
   if (binop_ko == 6) {
@@ -561,9 +714,16 @@ export function glue_simd_loop_pick_lanes_c(feats: u32, binop_ko: i32, lanes_out
   return -1;
 }
 
-// G-02f-121：glue_var_is_array_i32_n_c 真迁 .x
+// glue_var_is_array_i32_n_c: see function docblock below.
 
 #[no_mangle]
+/** Exported function `glue_var_is_array_i32_n_c`.
+ * Implements `glue_var_is_array_i32_n_c`.
+ * @param arena *u8
+ * @param var_ref i32
+ * @param n i32
+ * @return i32
+ */
 export function glue_var_is_array_i32_n_c(arena: *u8, var_ref: i32, n: i32): i32 {
   unsafe {
     let sz: i32 = glue_var_array_i32_size_c(arena, var_ref);
@@ -572,11 +732,16 @@ export function glue_var_is_array_i32_n_c(arena: *u8, var_ref: i32, n: i32): i32
   return 0;
 }
 
-// G-02f-124：glue_simd_x86_cmp_rax_rbx_c 真迁 .x
+// See implementation.
 
 export extern "C" function pipeline_elf_ctx_append_bytes(ctx: *u8, ptr: *u8, n: i32): i32;
 
 #[no_mangle]
+/** Exported function `glue_simd_x86_cmp_rax_rbx_c`.
+ * Comparison/utility `glue_simd_x86_cmp_rax_rbx_c`.
+ * @param elf_ctx *u8
+ * @return i32
+ */
 export function glue_simd_x86_cmp_rax_rbx_c(elf_ctx: *u8): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   let b0: u8 = 0x39;
@@ -610,8 +775,26 @@ export extern "C" function simd_enc_x86_addps_xmm0_xmm1(elf_ctx: *u8): i32;
 export extern "C" function simd_enc_x86_horizontal_addps_xmm0(elf_ctx: *u8): i32;
 export extern "C" function simd_enc_x86_movss_xmm0_rbp_disp(elf_ctx: *u8, disp: i32): i32;
 
-// G-02f-215：可变 n / 非 lanes 整除 → 向量条带 + 标量 epilogue
+// glue_emit_runtime_strip_loop_c: see function docblock below.
 #[no_mangle]
+/** Exported function `glue_emit_runtime_strip_loop_c`.
+ * Implements `glue_emit_runtime_strip_loop_c`.
+ * @param arena *u8
+ * @param elf_ctx *u8
+ * @param ctx *u8
+ * @param ta i32
+ * @param assign_body_ref i32
+ * @param binop_ko i32
+ * @param off_i i32
+ * @param off_n i32
+ * @param off_a i32
+ * @param off_b i32
+ * @param off_d i32
+ * @param array_n i32
+ * @param lanes i32
+ * @param feats u32
+ * @return i32
+ */
 export function glue_emit_runtime_strip_loop_c(arena: *u8, elf_ctx: *u8, ctx: *u8, ta: i32, assign_body_ref: i32, binop_ko: i32, off_i: i32, off_n: i32, off_a: i32, off_b: i32, off_d: i32, array_n: i32, lanes: i32, feats: u32): i32 {
   if (ta != 0) { return 0; }
   let vec_loop: u8[64] = [];
@@ -682,8 +865,24 @@ export function glue_emit_runtime_strip_loop_c(arena: *u8, elf_ctx: *u8, ctx: *u
   return 1;
 }
 
-// G-02f-215：f32 SoA sum 向量条带 + 水平加 + 标量 epilogue
+// glue_emit_f32_soa_sum_strip_c: see function docblock below.
 #[no_mangle]
+/** Exported function `glue_emit_f32_soa_sum_strip_c`.
+ * Implements `glue_emit_f32_soa_sum_strip_c`.
+ * @param arena *u8
+ * @param elf_ctx *u8
+ * @param ctx *u8
+ * @param ta i32
+ * @param assign_body_ref i32
+ * @param off_col0 i32
+ * @param off_s i32
+ * @param off_i i32
+ * @param off_n i32
+ * @param n_lit i32
+ * @param lanes i32
+ * @param feats u32
+ * @return i32
+ */
 export function glue_emit_f32_soa_sum_strip_c(arena: *u8, elf_ctx: *u8, ctx: *u8, ta: i32, assign_body_ref: i32, off_col0: i32, off_s: i32, off_i: i32, off_n: i32, n_lit: i32, lanes: i32, feats: u32): i32 {
   if (ta != 0) { return 0; }
   if (lanes != 4) { return 0; }

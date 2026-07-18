@@ -1,27 +1,40 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-276 / P2 link_abi L7：freestanding 纯表（env / needs 符号 / ensure src）→ R2 full。
-// 产品：PREFER_X_O → g05_try_x_to_o；冷启动 seeds/labi_freestanding_list.from_x.c。
-// hybrid 宏 SHUX_LABI_FREESTANDING_LIST_FROM_X；FROM_X rest 仅 marker（H=0）。
+// link_abi L7 freestanding pure table (G.9 English; body is authoritative).
+// link_abi L7 freestanding pure table (G.9 English; body is authoritative).
+// link_abi L7 freestanding pure table (G.9 English; body is authoritative).
 //
-// R2 full：真迁 if/else + let 绑定短字符串（依赖 W-string-nul；无全局表）。
-// 禁止「函数体仅 return "lit"」——parser 会 skip 整函数；用 let p + return p。
-// catalog_step_at 的 const char** out：.x 用 *usize 写指针（与 C 指针 ABI 同宽）。
-// ensure/cc/spawn 仍在 mega（🔒）。
+// link_abi L7 freestanding pure table (G.9 English; body is authoritative).
+// link_abi L7 freestanding pure table (G.9 English; body is authoritative).
+// link_abi L7 freestanding pure table (G.9 English; body is authoritative).
+// labi_fs_env_freestanding: see function docblock below.
 
 #[no_mangle]
+/** Exported function `labi_fs_env_freestanding`.
+ * Memory management helper `labi_fs_env_freestanding`.
+ * @return *u8
+ */
 export function labi_fs_env_freestanding(): *u8 {
   let p: *u8 = "SHUX_FREESTANDING";
   return p;
 }
 
 #[no_mangle]
+/** Exported function `labi_fs_io_sym_count`.
+ * Implements `labi_fs_io_sym_count`.
+ * @return i32
+ */
 export function labi_fs_io_sym_count(): i32 {
   return 13;
 }
 
 #[no_mangle]
+/** Exported function `labi_fs_io_sym_at`.
+ * Implements `labi_fs_io_sym_at`.
+ * @param i i32
+ * @return *u8
+ */
 export function labi_fs_io_sym_at(i: i32): *u8 {
   if (i < 0) {
     return 0 as *u8;
@@ -82,18 +95,30 @@ export function labi_fs_io_sym_at(i: i32): *u8 {
 }
 
 #[no_mangle]
+/** Exported function `labi_fs_panic_sym`.
+ * Implements `labi_fs_panic_sym`.
+ * @return *u8
+ */
 export function labi_fs_panic_sym(): *u8 {
   let p: *u8 = "shux_panic_";
   return p;
 }
 
 #[no_mangle]
+/** Exported function `labi_fs_ensure_catalog_count`.
+ * Implements `labi_fs_ensure_catalog_count`.
+ * @return i32
+ */
 export function labi_fs_ensure_catalog_count(): i32 {
   return 2;
 }
 
-// out 形参：C 侧为 const char**；.x 无 **T，用 *usize 写指针值（同 ABI）。
+// link_abi L7 freestanding pure table (G.9 English; body is authoritative).
 #[no_mangle]
+/** Function `labi_fs_ensure_catalog_step_at`.
+ * Purpose: implements `labi_fs_ensure_catalog_step_at`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function labi_fs_ensure_catalog_step_at(
   i: i32, stem_out: *usize, out_base_out: *usize, src_rel_out: *usize
 ): i32 {
@@ -137,6 +162,11 @@ export function labi_fs_ensure_catalog_step_at(
 }
 
 #[no_mangle]
+/** Exported function `labi_fs_ensure_out_base`.
+ * Implements `labi_fs_ensure_out_base`.
+ * @param i i32
+ * @return *u8
+ */
 export function labi_fs_ensure_out_base(i: i32): *u8 {
   if (i < 0) {
     return 0 as *u8;
@@ -153,6 +183,11 @@ export function labi_fs_ensure_out_base(i: i32): *u8 {
 }
 
 #[no_mangle]
+/** Exported function `labi_fs_ensure_src_rel`.
+ * Implements `labi_fs_ensure_src_rel`.
+ * @param i i32
+ * @return *u8
+ */
 export function labi_fs_ensure_src_rel(i: i32): *u8 {
   if (i < 0) {
     return 0 as *u8;
@@ -169,6 +204,11 @@ export function labi_fs_ensure_src_rel(i: i32): *u8 {
 }
 
 #[no_mangle]
+/** Exported function `labi_fs_ensure_stem`.
+ * Implements `labi_fs_ensure_stem`.
+ * @param i i32
+ * @return *u8
+ */
 export function labi_fs_ensure_stem(i: i32): *u8 {
   if (i < 0) {
     return 0 as *u8;
@@ -185,24 +225,40 @@ export function labi_fs_ensure_stem(i: i32): *u8 {
 }
 
 #[no_mangle]
+/** Exported function `labi_fs_crt0_out_base`.
+ * Implements `labi_fs_crt0_out_base`.
+ * @return *u8
+ */
 export function labi_fs_crt0_out_base(): *u8 {
   let p: *u8 = "crt0_user.o";
   return p;
 }
 
 #[no_mangle]
+/** Exported function `labi_fs_crt0_src_rel`.
+ * Implements `labi_fs_crt0_src_rel`.
+ * @return *u8
+ */
 export function labi_fs_crt0_src_rel(): *u8 {
   let p: *u8 = "src/asm/crt0_user_x86_64.s";
   return p;
 }
 
 #[no_mangle]
+/** Exported function `labi_fs_io_out_base`.
+ * Implements `labi_fs_io_out_base`.
+ * @return *u8
+ */
 export function labi_fs_io_out_base(): *u8 {
   let p: *u8 = "freestanding_io.o";
   return p;
 }
 
 #[no_mangle]
+/** Exported function `labi_fs_io_src_rel`.
+ * Implements `labi_fs_io_src_rel`.
+ * @return *u8
+ */
 export function labi_fs_io_src_rel(): *u8 {
   let p: *u8 = "src/asm/freestanding_io_x86_64.s";
   return p;

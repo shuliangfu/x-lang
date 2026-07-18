@@ -1,11 +1,11 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-312/453 → R2 full：分派薄门闩 + full 入口 + shux-c sibling。
-// 产品 PREFER_X_O：.x 吃满业务符号；FROM_X rest 仅 marker（业务 H=0）。
-// Cap residual（driver_abi）：sibling fork/exec/access/path 拼装（🔒 平台）。
-// 产品路径：run_compiler_full 固定走 full_x_impl_c（对齐 ASM_USE_COMPILER_IMPL_C）。
-// 冷启动：seeds/rt_dispatch_thin.from_x.c 全 C 体（含非 product ifdef）。
+// Dispatch thin gates + full entry + shux-c sibling (G.9 English; body is authoritative).
+// Dispatch thin gates + full entry + shux-c sibling (G.9 English; body is authoritative).
+// Dispatch thin gates + full entry + shux-c sibling (G.9 English; body is authoritative).
+// Dispatch thin gates + full entry + shux-c sibling (G.9 English; body is authoritative).
+// Dispatch thin gates + full entry + shux-c sibling (G.9 English; body is authoritative).
 
 export extern "C" function driver_run_asm_backend_impl_c(
   input_path: *u8, out_path: *u8, lib_key: *u8, target: *u8, argc: i32, argv: *u8
@@ -15,10 +15,10 @@ export extern "C" function driver_run_emit_c_path_impl_c(
   opt_level: *u8, use_lto: i32, argc: i32, argv: *u8
 ): i32;
 export extern "C" function driver_run_compiler_full_x_impl_c(argc: i32, argv: *u8): i32;
-/** Cap residual：sibling 平台体（path 拼装 + access + fork/exec/wait）。 */
+/* See signature and body for contracts. */
 export extern "C" function driver_dispatch_sibling_try_spawn(argc: i32, argv: *u8): i32;
 
-/** 兼容旧 asm_backend_c 名；转调 impl_c。 */
+/* See signature and body for contracts. */
 #[no_mangle]
 export function driver_run_asm_backend_c(
   input_path: *u8, out_path: *u8, lib_key: *u8, target: *u8, argc: i32, argv: *u8
@@ -29,7 +29,7 @@ export function driver_run_asm_backend_c(
   return 0;
 }
 
-/** 兼容旧 emit_c_path_c 名；转调 impl_c。 */
+/* See signature and body for contracts. */
 #[no_mangle]
 export function driver_run_emit_c_path_c(
   input_path: *u8, out_path: *u8, lib_key: *u8, target: *u8,
@@ -44,8 +44,8 @@ export function driver_run_emit_c_path_c(
 }
 
 /**
- * 完整编译入口：产品路径固定走 full_x_impl_c。
- * （冷启动 seed 在非 product ifdef 下可走 full_x 别名。）
+ * See signature and body for params/returns/contracts.
+ * See signature and body for params/returns/contracts.
  */
 #[no_mangle]
 export function driver_run_compiler_full(argc: i32, argv: *u8): i32 {
@@ -56,9 +56,9 @@ export function driver_run_compiler_full(argc: i32, argv: *u8): i32 {
 }
 
 /**
- * 含 import 时 seed X codegen 易重复符号；若同目录有 shux-c 则委托其完成 -o 链接。
- * 返回 ≥0 为子进程 exit；-1 表示未委托（继续本进程路径）。
- * 🔒 path/access/fork/exec 在 Cap residual。
+ * See signature and body for params/returns/contracts.
+ * See signature and body for params/returns/contracts.
+ * See signature and body for params/returns/contracts.
  */
 #[no_mangle]
 export function driver_try_compile_via_shu_c_sibling(argc: i32, argv: *u8): i32 {

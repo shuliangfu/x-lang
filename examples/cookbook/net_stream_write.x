@@ -1,12 +1,16 @@
 /**
- * Cookbook NET-03：stream_write_batch 单段写（需对端 server；本例仅 typeck + 链接烟测路径）。
- * 实战 echo 见 tests/bench/net_echo_throughput.x + run-perf-net.sh。
+ * See implementation.
+ * See implementation.
  */
 const net = import("std.net");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let addr: Ipv4Addr = Ipv4Addr { a: 127, b: 0, c: 0, d: 1 };
-  /** 端口 0 = 动态；connect 失败时返回 2（无 server 属预期）。 */
+  /* See implementation. */
   let stream: TcpStream = net.connect_blocking(addr, 39999, 100);
   if (stream.fd < 0) { return 2; }
   let buf: u8[4] = [1, 2, 3, 4];

@@ -1,9 +1,13 @@
-// STD-041：import("std.async") 门面与 scheduler 链入烟测
+// See implementation.
 //
-// 【文件职责】验证 scheduler_reset / coop_pingpong 与按需链入 scheduler.o。
-// 【运行方式】tests/run-std-async-language-gate.sh
+// See implementation.
+// See implementation.
 const async_mod = import("std.async");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   async_mod.scheduler_reset();
   let n: i64 = async_mod.coop_pingpong(1000);

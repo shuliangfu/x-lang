@@ -14,15 +14,21 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.crypto.core — F-04 v16：mem_eq .x 锚点 + SHA-256/HMAC C 胶层（G-03 seed asm）
+// See implementation.
 //
-// 【文件职责】
-// crypto_mem_eq_c 为 seed asm 可 emit 的 .x 实现；SHA-256/HMAC 见 runtime_crypto_inc_glue.c。
-// 下列 sha256/hmac 函数体为 API/manifest 锚点（seed 单文件仅首函数 emit）。
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 【导出】crypto_mem_eq_c、crypto_sha256_c、crypto_hmac_sha256_c（与 mod.x extern 一致）。
+// See implementation.
 
-/** 常量时间比较 a[0..len) 与 b[0..len)；相等 1，否则 0。 */
+/** Exported function `crypto_mem_eq_c`.
+ * Implements `crypto_mem_eq_c`.
+ * @param a *u8
+ * @param b *u8
+ * @param len i32
+ * @return i32
+ */
 export function crypto_mem_eq_c(a: *u8, b: *u8, len: i32): i32 {
   let diff: u8 = 0 as u8;
   let i: i32 = 0;
@@ -38,17 +44,34 @@ export function crypto_mem_eq_c(a: *u8, b: *u8, len: i32): i32 {
   return 0;
 }
 
-/** SHA-256 摘要锚点；实现在 runtime_crypto_inc_glue.c。 */
+/** Exported function `crypto_sha256_c`.
+ * Implements `crypto_sha256_c`.
+ * @param msg *u8
+ * @param len i32
+ * @param out *u8
+ * @return void
+ */
 export function crypto_sha256_c(msg: *u8, len: i32, out: *u8): void {
   return;
 }
 
-/** HMAC-SHA256 锚点；实现在 runtime_crypto_inc_glue.c。 */
+/** Exported function `crypto_hmac_sha256_c`.
+ * Implements `crypto_hmac_sha256_c`.
+ * @param key *u8
+ * @param key_len i32
+ * @param msg *u8
+ * @param msg_len i32
+ * @param out *u8
+ * @return void
+ */
 export function crypto_hmac_sha256_c(key: *u8, key_len: i32, msg: *u8, msg_len: i32, out: *u8): void {
   return;
 }
 
-/** seed asm 分单元标记（与 sync_f_sync_*_marker_c 同模式）。 */
+/** Exported function `crypto_f_sha256_marker_c`.
+ * Implements `crypto_f_sha256_marker_c`.
+ * @return i32
+ */
 export function crypto_f_sha256_marker_c(): i32 {
   return 0x53484132;
 }

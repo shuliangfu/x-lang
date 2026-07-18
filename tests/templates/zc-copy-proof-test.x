@@ -1,4 +1,4 @@
-// ZC-007 COPY PROOF TEST — 从本模板复制为 tests/zc/<proof_id>.x
+// See implementation.
 //
 // path_id: REPLACE_ME
 // userland_copies: 0
@@ -6,12 +6,16 @@
 // hot_path: describe the data path under test
 // fallback: none
 //
-// 证明成功：main 返回 0；非零表示路径行为与声明不符。
-// 语义定义见 analysis/zc-semantics-v1.md §2。
+// See implementation.
+// See implementation.
 const string = import("std.string");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
-  // TODO: 触达你的热路径（read_ptr / StrView / mmap 等）
+  // See implementation.
   let buf: u8[4] = [97, 98, 99, 0];
   let v: StrView = string.view(&buf[0], 3);
   if (string.len(v) != 3) { return 1; }

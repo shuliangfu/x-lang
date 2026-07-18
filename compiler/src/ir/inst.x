@@ -14,21 +14,21 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// inst.x — IRInst / Operand / ABIKind / SSAReg 数据结构
+// inst.x — IRInst / Operand / ABIKind / SSAReg data structures
 //
-// 模块：ir
-// 层级：共享（SHIR / SMIR / SLIR 三层共用 IRInst；VMIR / Target MIR 用 MachineInst）
-// Phase：Phase 1（SHIR 首次生成 IRInst）
-// 职责：
-//   - 定义 IRInst（opcode / operands / contract_id / effect_id / debug_loc）
-//   - 定义 Operand 枚举（Reg / Imm / Ptr / Func）
-//   - 定义 ABIKind（XABI(InlinePolicy) / CABI）
-//   - 定义 SSAReg（id / ty / def_inst）
-// 依赖：opcode / contract / effect / abi
-// 设计约束：
-//   - IRInst 通过 contract_id / effect_id 间接引用 Pool，不内联 Contract / Effect
-//   - Pool 化设计：IR 体积 ~32B/指令（vs 内联 ~200B/指令）
-//   - debug_loc 保留源码位置（.x 行号），供调试与 panic 报告
+// Module: ir
+// Layer: shared (SHIR / SMIR / SLIR share IRInst; VMIR / Target MIR use MachineInst)
+// Phase: Phase 1 (SHIR first emits IRInst)
+// Responsibility:
+//   - Define IRInst (opcode / operands / contract_id / effect_id / debug_loc)
+//   - Define Operand enum (Reg / Imm / Ptr / Func)
+//   - Define ABIKind (XABI(InlinePolicy) / CABI)
+//   - Define SSAReg (id / ty / def_inst)
+// Depends: opcode / contract / effect / abi
+// Design constraints:
+//   - IRInst references pools via contract_id / effect_id; does not inline Contract / Effect
+//   - Pool design: ~32B/inst IR size (vs ~200B/inst if inlined)
+//   - debug_loc keeps source location (.x line) for debug and panic reports
 //
-// 参考文档：analysis/IR核心设计.md §2.4（核心数据结构）
-// 架构状态：v4.0 Architecture Freeze — 实现骨架，待 Phase 1 填充
+// Ref: analysis IR core design §2.4 (core data structures)
+// Status: v4.0 Architecture Freeze — implementation skeleton; fill in Phase 1

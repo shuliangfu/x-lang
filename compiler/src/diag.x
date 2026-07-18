@@ -1,16 +1,16 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-30：真迁 .x — diag_report 无 code 入口薄转发到 with_code。
+// See implementation.
 // G-02f-74：+ remaining diag_* gates.
-// G-02f-82：+ diag_get_source / diag_get_source_len / diag_report_with_code 门闩。
-// G-02f-96：+ color/kind/code_eq/line_digits 薄 helper 门闩。
-// G-02f-97：+ print_header / extract_line / json_write_str / json_severity 门闩。
-// G-02f-98：+ diag_levenshtein_ci 门闩。
-// 产品：./shux-c -E → seeds/diag.from_x.c（+ C 尾段）。
-// C 尾：g_diag 上下文静态、g_diag_code_table 数据、stdio 桥、va_list reportf/vreportf。
-// G-02f-181：P0-1 闭合登记；code 表+reportf 仍属语言/ABI 限制，当前总进度见 analysis/自举进度.md。
-// 注意：va_list 入口仍留 C（语言/ABI 限制）。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 
 export extern "C" function diag_json_get_state(): i32;
 export extern "C" function diag_json_set_state(v: i32): void;
@@ -35,7 +35,7 @@ export extern "C" function diag_code_eq_impl(lhs: *u8, rhs: *u8): i32;
 export extern "C" function diag_kind_is_exact_impl(kind: *u8, needle: *u8): i32;
 export extern "C" function diag_line_digits_impl(line: i32): i32;
 
-// G-02f-156 / G-02f-157：stdio 冷路径桥
+// See implementation.
 export extern "C" function diag_stderr(): *u8;
 export extern "C" function diag_stdout(): *u8;
 export extern "C" function diag_io_fputc(o: *u8, c: i32): i32;
@@ -55,7 +55,12 @@ export extern "C" function diag_io_fprint_src_line(o: *u8, line: i32, start: *u8
 export extern "C" function diag_io_fprint_gutter_bar(o: *u8, width: i32): void;
 export extern "C" function diag_io_fprint_caret_mark(o: *u8, cc: *u8, rs: *u8, detail: *u8): void;
 
-// G-02f-159：palette 颜色（use_color 经 color_prefix）
+// diag_palette_kind_color: see function docblock below.
+/** Exported function `diag_palette_kind_color`.
+ * Implements `diag_palette_kind_color`.
+ * @param kind *u8
+ * @return *u8
+ */
 export function diag_palette_kind_color(kind: *u8): *u8 {
   unsafe {
     if (kind == 0) { return diag_color_prefix("", "\x1b[1;37m"); }
@@ -71,6 +76,11 @@ export function diag_palette_kind_color(kind: *u8): *u8 {
   return "";
 }
 
+/** Exported function `diag_palette_caret_color`.
+ * Implements `diag_palette_caret_color`.
+ * @param kind *u8
+ * @return *u8
+ */
 export function diag_palette_caret_color(kind: *u8): *u8 {
   unsafe {
     if (kind == 0) { return diag_color_prefix("", "\x1b[37m"); }
@@ -86,8 +96,19 @@ export function diag_palette_caret_color(kind: *u8): *u8 {
   return "";
 }
 
-// G-02f-159：人类可读 caret / 位置渲染
+// diag_report_human: see function docblock below.
 #[no_mangle]
+/** Exported function `diag_report_human`.
+ * Implements `diag_report_human`.
+ * @param file *u8
+ * @param line i32
+ * @param col i32
+ * @param kind *u8
+ * @param code *u8
+ * @param msg *u8
+ * @param detail *u8
+ * @return void
+ */
 export function diag_report_human(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void {
   unsafe {
     let err: *u8 = diag_stderr();
@@ -166,8 +187,18 @@ export function diag_report_human(file: *u8, line: i32, col: i32, kind: *u8, cod
   }
 }
 
-// G-02f-158 / G-02f-159：report 分流 JSON / human
+// diag_report: see function docblock below.
 #[no_mangle]
+/** Exported function `diag_report`.
+ * Implements `diag_report`.
+ * @param file *u8
+ * @param line i32
+ * @param col i32
+ * @param kind *u8
+ * @param msg *u8
+ * @param detail *u8
+ * @return void
+ */
 export function diag_report(file: *u8, line: i32, col: i32, kind: *u8, msg: *u8, detail: *u8): void {
   diag_report_with_code(file, line, col, kind, 0 as *u8, msg, detail);
 }
@@ -187,8 +218,12 @@ export function diag_report_with_code(file: *u8, line: i32, col: i32, kind: *u8,
   }
 }
 
-// G-02f-155：上下文 getter 真迁
+// diag_get_file: see function docblock below.
 #[no_mangle]
+/** Exported function `diag_get_file`.
+ * Implements `diag_get_file`.
+ * @return *u8
+ */
 export function diag_get_file(): *u8 {
   unsafe {
     return diag_ctx_get_file();
@@ -197,6 +232,10 @@ export function diag_get_file(): *u8 {
 }
 
 #[no_mangle]
+/** Exported function `diag_get_source`.
+ * Implements `diag_get_source`.
+ * @return *u8
+ */
 export function diag_get_source(): *u8 {
   unsafe {
     return diag_ctx_get_source();
@@ -205,6 +244,10 @@ export function diag_get_source(): *u8 {
 }
 
 #[no_mangle]
+/** Exported function `diag_get_source_len`.
+ * Query helper `diag_get_source_len`.
+ * @return i64
+ */
 export function diag_get_source_len(): i64 {
   unsafe {
     return diag_ctx_get_source_len();
@@ -212,8 +255,15 @@ export function diag_get_source_len(): i64 {
   return 0;
 }
 
-// G-02f-156：set_file / push_file / restore 真迁
+// diag_set_file: see function docblock below.
 #[no_mangle]
+/** Exported function `diag_set_file`.
+ * Implements `diag_set_file`.
+ * @param path *u8
+ * @param source *u8
+ * @param source_len i64
+ * @return void
+ */
 export function diag_set_file(path: *u8, source: *u8, source_len: i64): void {
   let c: i32 = diag_should_color();
   unsafe {
@@ -222,6 +272,13 @@ export function diag_set_file(path: *u8, source: *u8, source_len: i64): void {
 }
 
 // DiagContextSnapshot：file_path@0 source@8 source_len@16 use_color@24
+/** Exported function `diag_snap_store_ptr`.
+ * Implements `diag_snap_store_ptr`.
+ * @param snap *u8
+ * @param off i32
+ * @param val *u8
+ * @return void
+ */
 export function diag_snap_store_ptr(snap: *u8, off: i32, val: *u8): void {
   if (snap == 0) { return; }
   let q: *u8 = snap;
@@ -233,6 +290,13 @@ export function diag_snap_store_ptr(snap: *u8, off: i32, val: *u8): void {
   diag_store_ptr_le(q, val);
 }
 
+/** Exported function `diag_snap_store_usize`.
+ * Implements `diag_snap_store_usize`.
+ * @param snap *u8
+ * @param off i32
+ * @param val usize
+ * @return void
+ */
 export function diag_snap_store_usize(snap: *u8, off: i32, val: usize): void {
   if (snap == 0) { return; }
   let q: *u8 = snap;
@@ -244,6 +308,13 @@ export function diag_snap_store_usize(snap: *u8, off: i32, val: usize): void {
   diag_store_usize_le(q, val);
 }
 
+/** Exported function `diag_snap_store_i32`.
+ * Implements `diag_snap_store_i32`.
+ * @param snap *u8
+ * @param off i32
+ * @param val i32
+ * @return void
+ */
 export function diag_snap_store_i32(snap: *u8, off: i32, val: i32): void {
   if (snap == 0) { return; }
   let q: *u8 = snap;
@@ -264,6 +335,12 @@ export function diag_snap_store_i32(snap: *u8, off: i32, val: i32): void {
   q[3] = (a % m) as u8;
 }
 
+/** Exported function `diag_snap_load_ptr`.
+ * Implements `diag_snap_load_ptr`.
+ * @param snap *u8
+ * @param off i32
+ * @return *u8
+ */
 export function diag_snap_load_ptr(snap: *u8, off: i32): *u8 {
   if (snap == 0) { return 0 as *u8; }
   let q: *u8 = snap;
@@ -286,6 +363,12 @@ export function diag_snap_load_ptr(snap: *u8, off: i32): *u8 {
   return a as *u8;
 }
 
+/** Exported function `diag_snap_load_usize`.
+ * Implements `diag_snap_load_usize`.
+ * @param snap *u8
+ * @param off i32
+ * @return usize
+ */
 export function diag_snap_load_usize(snap: *u8, off: i32): usize {
   if (snap == 0) { return 0; }
   let q: *u8 = snap;
@@ -308,6 +391,12 @@ export function diag_snap_load_usize(snap: *u8, off: i32): usize {
   return a;
 }
 
+/** Exported function `diag_snap_load_i32`.
+ * Implements `diag_snap_load_i32`.
+ * @param snap *u8
+ * @param off i32
+ * @return i32
+ */
 export function diag_snap_load_i32(snap: *u8, off: i32): i32 {
   if (snap == 0) { return 0; }
   let q: *u8 = snap;
@@ -325,6 +414,14 @@ export function diag_snap_load_i32(snap: *u8, off: i32): i32 {
 }
 
 #[no_mangle]
+/** Exported function `diag_push_file`.
+ * Implements `diag_push_file`.
+ * @param snapshot *u8
+ * @param path *u8
+ * @param source *u8
+ * @param source_len i64
+ * @return void
+ */
 export function diag_push_file(snapshot: *u8, path: *u8, source: *u8, source_len: i64): void {
   unsafe {
     if (snapshot != 0) {
@@ -348,6 +445,11 @@ export function diag_push_file(snapshot: *u8, path: *u8, source: *u8, source_len
 }
 
 #[no_mangle]
+/** Exported function `diag_restore`.
+ * Implements `diag_restore`.
+ * @param snapshot *u8
+ * @return void
+ */
 export function diag_restore(snapshot: *u8): void {
   if (snapshot == 0) { return; }
   unsafe {
@@ -359,8 +461,13 @@ export function diag_restore(snapshot: *u8): void {
   }
 }
 
-// G-02f-155 / G-02f-157：code 表
+// diag_code_is_known: see function docblock below.
 #[no_mangle]
+/** Exported function `diag_code_is_known`.
+ * Implements `diag_code_is_known`.
+ * @param code *u8
+ * @return i32
+ */
 export function diag_code_is_known(code: *u8): i32 {
   unsafe {
     return diag_code_table_has(code);
@@ -369,6 +476,11 @@ export function diag_code_is_known(code: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `diag_code_kind`.
+ * Implements `diag_code_kind`.
+ * @param code *u8
+ * @return *u8
+ */
 export function diag_code_kind(code: *u8): *u8 {
   unsafe {
     return diag_entry_kind(code);
@@ -377,6 +489,11 @@ export function diag_code_kind(code: *u8): *u8 {
 }
 
 #[no_mangle]
+/** Exported function `diag_code_summary`.
+ * Implements `diag_code_summary`.
+ * @param code *u8
+ * @return *u8
+ */
 export function diag_code_summary(code: *u8): *u8 {
   unsafe {
     return diag_entry_summary(code);
@@ -385,6 +502,11 @@ export function diag_code_summary(code: *u8): *u8 {
 }
 
 #[no_mangle]
+/** Exported function `diag_code_details`.
+ * Implements `diag_code_details`.
+ * @param code *u8
+ * @return *u8
+ */
 export function diag_code_details(code: *u8): *u8 {
   unsafe {
     return diag_entry_details(code);
@@ -392,8 +514,13 @@ export function diag_code_details(code: *u8): *u8 {
   return 0 as *u8;
 }
 
-// G-02f-157：已知码列表（comma 分隔）
+// diag_print_known_codes: see function docblock below.
 #[no_mangle]
+/** Exported function `diag_print_known_codes`.
+ * Implements `diag_print_known_codes`.
+ * @param out *u8
+ * @return void
+ */
 export function diag_print_known_codes(out: *u8): void {
   unsafe {
     let o: *u8 = out;
@@ -414,8 +541,14 @@ export function diag_print_known_codes(out: *u8): void {
   }
 }
 
-// G-02f-157：单码解释 / 未知时列已知码
+// diag_print_code_explain: see function docblock below.
 #[no_mangle]
+/** Exported function `diag_print_code_explain`.
+ * Implements `diag_print_code_explain`.
+ * @param out *u8
+ * @param code *u8
+ * @return void
+ */
 export function diag_print_code_explain(out: *u8, code: *u8): void {
   unsafe {
     let o: *u8 = out;
@@ -444,8 +577,13 @@ export function diag_print_code_explain(out: *u8, code: *u8): void {
   }
 }
 
-// G-02f-157：完整 code 表
+// diag_print_code_table: see function docblock below.
 #[no_mangle]
+/** Exported function `diag_print_code_table`.
+ * Implements `diag_print_code_table`.
+ * @param out *u8
+ * @return void
+ */
 export function diag_print_code_table(out: *u8): void {
   unsafe {
     let o: *u8 = out;
@@ -463,8 +601,13 @@ export function diag_print_code_table(out: *u8): void {
   }
 }
 
-// G-02f-153：JSON 模式与颜色探测
+// diag_set_json_mode: see function docblock below.
 #[no_mangle]
+/** Exported function `diag_set_json_mode`.
+ * Implements `diag_set_json_mode`.
+ * @param enable i32
+ * @return void
+ */
 export function diag_set_json_mode(enable: i32): void {
   unsafe {
     if (enable != 0) {
@@ -476,6 +619,10 @@ export function diag_set_json_mode(enable: i32): void {
 }
 
 #[no_mangle]
+/** Exported function `diag_json_enabled`.
+ * Implements `diag_json_enabled`.
+ * @return i32
+ */
 export function diag_json_enabled(): i32 {
   unsafe {
     let s: i32 = diag_json_get_state();
@@ -511,7 +658,7 @@ export function diag_should_color(): i32 {
     k[0]=83;k[1]=72;k[2]=85;k[3]=88;k[4]=95;k[5]=78;k[6]=79;k[7]=95;
     k[8]=67;k[9]=79;k[10]=76;k[11]=79;k[12]=82;k[13]=0;
     if (getenv(&k[0]) != 0) { return 0; }
-    // fileno(stderr) — 用 2 as STDERR_FILENO 跨平台简化
+    // See implementation.
     if (isatty(2) != 0) { return 1; }
   }
   return 0;
@@ -519,6 +666,12 @@ export function diag_should_color(): i32 {
 
 // G-02f-154：use_color ? color : plain
 #[no_mangle]
+/** Exported function `diag_color_prefix`.
+ * Implements `diag_color_prefix`.
+ * @param plain *u8
+ * @param color *u8
+ * @return *u8
+ */
 export function diag_color_prefix(plain: *u8, color: *u8): *u8 {
   unsafe {
     if (diag_ctx_get_use_color() != 0) {
@@ -531,6 +684,10 @@ export function diag_color_prefix(plain: *u8, color: *u8): *u8 {
 
 // G-02f-154：use_color ? ANSI reset : ""
 #[no_mangle]
+/** Exported function `diag_color_reset`.
+ * Implements `diag_color_reset`.
+ * @return *u8
+ */
 export function diag_color_reset(): *u8 {
   unsafe {
     if (diag_ctx_get_use_color() != 0) {
@@ -542,7 +699,13 @@ export function diag_color_reset(): *u8 {
   return "";
 }
 
-// G-02f-154：64 位 LE 写指针 / size_t（**out / *size_t 语义）
+// diag_store_ptr_le: see function docblock below.
+/** Exported function `diag_store_ptr_le`.
+ * Implements `diag_store_ptr_le`.
+ * @param p *u8
+ * @param val *u8
+ * @return void
+ */
 export function diag_store_ptr_le(p: *u8, val: *u8): void {
   if (p == 0) { return; }
   let a: usize = val as usize;
@@ -564,6 +727,12 @@ export function diag_store_ptr_le(p: *u8, val: *u8): void {
   p[7] = (a % m) as u8;
 }
 
+/** Exported function `diag_store_usize_le`.
+ * Implements `diag_store_usize_le`.
+ * @param p *u8
+ * @param val usize
+ * @return void
+ */
 export function diag_store_usize_le(p: *u8, val: usize): void {
   if (p == 0) { return; }
   let a: usize = val;
@@ -587,8 +756,17 @@ export function diag_store_usize_le(p: *u8, val: usize): void {
 
 /* ---- G-02f-97 / G-02f-154 / G-02f-156：print_header / extract_line / json ---- */
 
-// G-02f-156：print_header 真迁（fputs 组合，避免 varargs）
+// diag_print_header: see function docblock below.
 #[no_mangle]
+/** Exported function `diag_print_header`.
+ * Implements `diag_print_header`.
+ * @param kind *u8
+ * @param code *u8
+ * @param msg *u8
+ * @param kind_color *u8
+ * @param reset *u8
+ * @return void
+ */
 export function diag_print_header(kind: *u8, code: *u8, msg: *u8, kind_color: *u8, reset: *u8): void {
   unsafe {
     let err: *u8 = diag_stderr();
@@ -621,8 +799,15 @@ export function diag_print_header(kind: *u8, code: *u8, msg: *u8, kind_color: *u
   }
 }
 
-// G-02f-154：按行号从 diag 源缓冲取一行
+// diag_extract_line: see function docblock below.
 #[no_mangle]
+/** Exported function `diag_extract_line`.
+ * Implements `diag_extract_line`.
+ * @param line_no i32
+ * @param line_start_out *u8
+ * @param line_len_out *u8
+ * @return i32
+ */
 export function diag_extract_line(line_no: i32, line_start_out: *u8, line_len_out: *u8): i32 {
   if (line_no <= 0) { return 0 - 1; }
   if (line_start_out == 0) { return 0 - 1; }
@@ -667,8 +852,14 @@ export function diag_extract_line(line_no: i32, line_start_out: *u8, line_len_ou
   return 0 - 1;
 }
 
-// G-02f-156：JSON 字符串转义写出
+// diag_json_write_str: see function docblock below.
 #[no_mangle]
+/** Exported function `diag_json_write_str`.
+ * Write path helper `diag_json_write_str`.
+ * @param out *u8
+ * @param s *u8
+ * @return void
+ */
 export function diag_json_write_str(out: *u8, s: *u8): void {
   unsafe {
     let p: *u8 = s;
@@ -717,8 +908,18 @@ export function diag_json_write_str(out: *u8, s: *u8): void {
   }
 }
 
-// G-02f-156：NDJSON 一行诊断
+// diag_report_json: see function docblock below.
 #[no_mangle]
+/** Exported function `diag_report_json`.
+ * Implements `diag_report_json`.
+ * @param file *u8
+ * @param line i32
+ * @param col i32
+ * @param kind *u8
+ * @param code *u8
+ * @param msg *u8
+ * @return void
+ */
 export function diag_report_json(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8): void {
   unsafe {
     let err: *u8 = diag_stderr();
@@ -754,10 +955,17 @@ export function diag_report_json(file: *u8, line: i32, col: i32, kind: *u8, code
   }
 }
 
-/* ---- G-02f-98 / G-02f-152：levenshtein 真迁 ---- */
+/* See implementation. */
 
-// G-02f-158：did-you-mean 建议码
+// diag_code_suggest: see function docblock below.
 #[no_mangle]
+/** Exported function `diag_code_suggest`.
+ * Implements `diag_code_suggest`.
+ * @param code *u8
+ * @param out *u8
+ * @param out_cap i64
+ * @return *u8
+ */
 export function diag_code_suggest(code: *u8, out: *u8, out_cap: i64): *u8 {
   if (code == 0) { return 0 as *u8; }
   unsafe {
@@ -805,8 +1013,14 @@ export function diag_code_suggest(code: *u8, out: *u8, out_cap: i64): *u8 {
   return 0 as *u8;
 }
 
-// G-02f-152：有界 Levenshtein（大小写不敏感）；码长 <64
+// diag_levenshtein_ci: see function docblock below.
 #[no_mangle]
+/** Exported function `diag_levenshtein_ci`.
+ * Implements `diag_levenshtein_ci`.
+ * @param a *u8
+ * @param b *u8
+ * @return i32
+ */
 export function diag_levenshtein_ci(a: *u8, b: *u8): i32 {
   if (a == 0) { return 999; }
   if (b == 0) { return 999; }
@@ -866,10 +1080,16 @@ export function diag_levenshtein_ci(a: *u8, b: *u8): i32 {
   return prev[lb];
 }
 
-// G-02f-116 / G-02f-156：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
+// See implementation.
 
-// G-02f-130：diag_kind_contains 真迁 .x（子串探测）
+// diag_kind_contains: see function docblock below.
 #[no_mangle]
+/** Exported function `diag_kind_contains`.
+ * Implements `diag_kind_contains`.
+ * @param kind *u8
+ * @param needle *u8
+ * @return i32
+ */
 export function diag_kind_contains(kind: *u8, needle: *u8): i32 {
   if (kind == 0) { return 0; }
   if (needle == 0) { return 0; }
@@ -901,6 +1121,11 @@ export function diag_kind_contains(kind: *u8, needle: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `diag_line_digits`.
+ * Implements `diag_line_digits`.
+ * @param line i32
+ * @return i32
+ */
 export function diag_line_digits(line: i32): i32 {
   let width: i32 = 1;
   while (line >= 10) {
@@ -911,6 +1136,12 @@ export function diag_line_digits(line: i32): i32 {
 }
 
 #[no_mangle]
+/** Exported function `diag_kind_is_exact`.
+ * Implements `diag_kind_is_exact`.
+ * @param kind *u8
+ * @param needle *u8
+ * @return i32
+ */
 export function diag_kind_is_exact(kind: *u8, needle: *u8): i32 {
   if (kind == 0) { return 0; }
   if (needle == 0) { return 0; }
@@ -927,6 +1158,12 @@ export function diag_kind_is_exact(kind: *u8, needle: *u8): i32 {
 
 // Case-insensitive code equality (ASCII a-z).
 #[no_mangle]
+/** Exported function `diag_code_eq`.
+ * Implements `diag_code_eq`.
+ * @param lhs *u8
+ * @param rhs *u8
+ * @return i32
+ */
 export function diag_code_eq(lhs: *u8, rhs: *u8): i32 {
   if (lhs == 0) { return 0; }
   if (rhs == 0) { return 0; }
@@ -947,9 +1184,14 @@ export function diag_code_eq(lhs: *u8, rhs: *u8): i32 {
   return 0;
 }
 
-// G-02f-124：diag_json_severity 真迁 .x
+// diag_json_severity: see function docblock below.
 
 #[no_mangle]
+/** Exported function `diag_json_severity`.
+ * Implements `diag_json_severity`.
+ * @param kind *u8
+ * @return *u8
+ */
 export function diag_json_severity(kind: *u8): *u8 {
   if (kind == 0) { return "error"; }
   if (kind[0] == 0) { return "error"; }

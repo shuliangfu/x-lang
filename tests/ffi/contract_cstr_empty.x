@@ -1,6 +1,10 @@
-// SAFE-004 C2：空 NUL 串长度为 0。
+// See implementation.
 const ffi = import("std.ffi");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let s: u8[1] = [0];
   let n: i32 = ffi.cstr_len(&s[0]);

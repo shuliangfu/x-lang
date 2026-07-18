@@ -1,6 +1,10 @@
-// STD-065：`a+b` 至少一次
+// See implementation.
 const regex = import("std.regex");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let pat: u8[3] = [97, 43, 98];
   let re: *u8 = regex.compile(&pat[0], 3);

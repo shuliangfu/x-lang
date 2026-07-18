@@ -1,19 +1,23 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-20：runtime_dynlib_os 产品源迁 seeds/runtime_dynlib_os.from_x.c。
-// 实现仍在 seed C；本文件为文档锚点。
-// 产品：cc seeds/runtime_dynlib_os.from_x.c → runtime_dynlib_os.o
+// See implementation.
+// See implementation.
+// runtime_dynlib_os_x_doc_anchor: see function docblock below.
 
+/** Exported function `runtime_dynlib_os_x_doc_anchor`.
+ * Implements `runtime_dynlib_os_x_doc_anchor`.
+ * @return i32
+ */
 export function runtime_dynlib_os_x_doc_anchor(): i32 {
   return 0;
 }
 
-// G-02f-112：+ win dynlib path helpers 薄门闩。
+// See implementation.
 
 export extern "C" function dynlib_win_load_library_w_utf8_impl(path: *u8): *u8;
 
-/* ---- G-02f-112：dynlib win helpers 门闩 ---- */
+/* See implementation. */
 
 
 #[no_mangle]
@@ -21,9 +25,16 @@ export function dynlib_win_load_library_w_utf8(path: *u8): *u8 {
   unsafe { return dynlib_win_load_library_w_utf8_impl(path); }
 }
 
-// G-02f-123：dynlib_win_normalize_path 真迁 .x（签名对齐 seed：out, out_cap, path）
+// dynlib_win_normalize_path: see function docblock below.
 
 #[no_mangle]
+/** Exported function `dynlib_win_normalize_path`.
+ * Implements `dynlib_win_normalize_path`.
+ * @param out *u8
+ * @param out_cap i32
+ * @param path *u8
+ * @return i32
+ */
 export function dynlib_win_normalize_path(out: *u8, out_cap: i32, path: *u8): i32 {
   if (out == 0) { return 0; }
   if (out_cap < 2) { return 0; }

@@ -1,4 +1,8 @@
-// 7.3：while 出口 live ∪ 后 return a+b；a 在循环内 +=，b 应保持入口值 2（run-asm-binop-cfg-merge.sh）。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32 = 0;
   let b: i32 = 2;

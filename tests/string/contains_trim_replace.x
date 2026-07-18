@@ -1,8 +1,12 @@
-// 测试 std.string：string_contains、string_find_slice、string_rfind_char、string_trim_space、string_replace_char
+// See implementation.
 const string = import("std.string");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
-  // "abracadabra" -> 11 字节
+  // See implementation.
   let buf: u8[16] = [97, 98, 114, 97, 99, 97, 100, 97, 98, 114, 97, 0, 0, 0, 0, 0];
   let s: String = string.string_from_slice(&buf[0], 11);
   let ab: u8[2] = [97, 98];

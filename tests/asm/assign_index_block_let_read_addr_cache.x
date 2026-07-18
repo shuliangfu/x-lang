@@ -1,4 +1,8 @@
-// 7.3：assign 后 let 同形 INDEX 读复用 rbx 有效址（run-asm-assign-index-block.sh）。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let arr: i32[4] = [10, 20, 30, 40];
   let i: i32 = 1;

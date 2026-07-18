@@ -1,4 +1,8 @@
-// vec_copy.x — 向量局部按值拷贝 + 与源逐 lane 相减归零
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32x4 = [1, 2, 3, 4];
   let c: i32x4 = a;

@@ -1,7 +1,11 @@
-// tests/exc/error_chain_smoke.x — EXC-004：ErrorChain wrap 与 root/leaf 烟测
+// See implementation.
 const result = import("core.result");
 const err = import("std.error");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let leaf: ErrorChain = chain_from_code(fs_err_not_found());
   if (chain_depth(leaf) != 1) { return 1; }

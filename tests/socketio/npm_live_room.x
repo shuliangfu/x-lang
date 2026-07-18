@@ -1,8 +1,12 @@
 /**
- * STD-SOCKETIO-001 npm room live：WS 直连 /chat → room_ping/room_pong（lobby 广播）。
+ * See implementation.
  */
 const sio = import("std.socketio");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let base: u8[32] = [104, 116, 116, 112, 58, 47, 47, 49, 50, 55, 46, 48, 46, 48, 46, 49, 58, 49, 51,
     48, 48, 52, 0];

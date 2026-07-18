@@ -14,12 +14,12 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std/socketio/socketio.x — F-socketio v2：Engine.IO/SIO 协议逻辑（纯 .x）
+// See implementation.
 //
-// 【文件职责】
-// EIO/SIO 编解码、polling/WS URL、namespace 路由、WS hub、room、cluster adapter 与全部烟测。
-// HTTP/WS IO 经 extern http_* / net_ws_*；经 ld -r 单独编译为 socketio_main.o 再合并 socketio.o。
-// 对外 API 在 mod.x（sio_*_c 符号供 mod extern 绑定）。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 
 
 
@@ -56,7 +56,7 @@ export const SIO_CLUSTER_ADAPTER_DATA_CAP: i32 = 16;
 export const SIO_ADAPTER_SNAP_MAGIC: u32 = 0x53494F41;
 export const SIO_ADAPTER_SNAP_VERSION: i32 = 1;
 
-/** C 字符串常量（解析器不支持 "..." as *u8）。 */
+/* See implementation. */
 export const SIO_LIT_JSON_SID_PREFIX: u8[9] = [123, 34, 115, 105, 100, 34, 58, 34, 0];
 export const SIO_LIT_JSON_SID_SUFFIX: u8[3] = [34, 125, 0];
 export const SIO_LIT_SID_QUERY: u8[5] = [115, 105, 100, 61, 0];
@@ -72,7 +72,7 @@ export const SIO_LIT_N3PROBE: u8[7] = [51, 112, 114, 111, 98, 101, 0];
 export const SIO_LIT_HTTP_127_0_0_1_3000_SOCKET_IO_EIO_4_TRANSPORT_POLLING: u8[57] = [104, 116, 116, 112, 58, 47, 47, 49, 50, 55, 46, 48, 46, 48, 46, 49, 58, 51, 48, 48, 48, 47, 115, 111, 99, 107, 101, 116, 46, 105, 111, 47, 63, 69, 73, 79, 61, 52, 38, 116, 114, 97, 110, 115, 112, 111, 114, 116, 61, 112, 111, 108, 108, 105, 110, 103, 0];
 export const SIO_LIT_WS_127_0_0_1_3000: u8[20] = [119, 115, 58, 47, 47, 49, 50, 55, 46, 48, 46, 48, 46, 49, 58, 51, 48, 48, 48, 0];
 export const SIO_LIT_WSS_EXAMPLE_COM_8443: u8[23] = [119, 115, 115, 58, 47, 47, 101, 120, 97, 109, 112, 108, 101, 46, 99, 111, 109, 58, 56, 52, 52, 51, 0];
-/** C 字符串常量（解析器不支持 "..." as *u8）。 */
+/* See implementation. */
 export const SIO_LIT_ADMIN: u8[7] = [47, 97, 100, 109, 105, 110, 0];
 export const SIO_LIT_UNKNOWN: u8[9] = [47, 117, 110, 107, 110, 111, 119, 110, 0];
 export const SIO_LIT_SUB: u8[4] = [115, 117, 98, 0];
@@ -123,7 +123,7 @@ export const SIO_LIT_UPDATE: u8[7] = [117, 112, 100, 97, 116, 101, 0];
 export const SIO_LIT_WS: u8[6] = [119, 115, 58, 47, 47, 0];
 export const SIO_LIT_WSS: u8[7] = [119, 115, 115, 58, 47, 47, 0];
 
-/** 多 namespace 路由表（CONNECT 包 → slot_id；布局与 mod.x SioNsRouter 一致）。 */
+/* See implementation. */
 allow(padding) struct SioNsRouterMem {
   count: i32;
   ns_len: i32[4];
@@ -131,14 +131,14 @@ allow(padding) struct SioNsRouterMem {
   ns: u8[4][24];
 }
 
-/** 多 namespace 并发会话表（布局与 mod.x SioNsSessions 一致）。 */
+/* See implementation. */
 allow(padding) struct SioNsSessionsMem {
   count: i32;
   slot_id: i32[4];
   active: i32[4];
 }
 
-/** WS hub 单槽（布局与 mod.x SioWsHubSlot 一致，48 字节）。 */
+/* See implementation. */
 allow(padding) struct SioWsHubSlotMem {
   in_use: i32;
   fd: i32;
@@ -148,14 +148,14 @@ allow(padding) struct SioWsHubSlotMem {
   sid: u8[24];
 }
 
-/** WS hub（count + 对齐填充 + 4 槽；200 字节，与 mod.x SioWsHub 一致）。 */
+/* See implementation. */
 allow(padding) struct SioWsHubMem {
   count: i32;
   pad_count: i32;
   slot: SioWsHubSlotMem[4];
 }
 
-/** 单个 room（布局与 mod.x SioRoom 一致）。 */
+/* See implementation. */
 allow(padding) struct SioRoomMem {
   in_use: i32;
   name_len: i32;
@@ -165,13 +165,13 @@ allow(padding) struct SioRoomMem {
   members: i32[4];
 }
 
-/** room 注册表（布局与 mod.x SioRoomRegistry 一致）。 */
+/* See implementation. */
 allow(padding) struct SioRoomRegistryMem {
   count: i32;
   room: SioRoomMem[4];
 }
 
-/** hub 快照单槽。 */
+/* See implementation. */
 allow(padding) struct SioWsHubSnapSlotMem {
   in_use: i32;
   sid_len: i32;
@@ -179,14 +179,14 @@ allow(padding) struct SioWsHubSnapSlotMem {
   sid: u8[24];
 }
 
-/** hub 二进制快照。 */
+/* See implementation. */
 allow(padding) struct SioWsHubSnapshotMem {
   magic: i32;
   version: i32;
   slot: SioWsHubSnapSlotMem[4];
 }
 
-/** room 二进制快照。 */
+/* See implementation. */
 allow(padding) struct SioRoomRegistrySnapshotMem {
   magic: i32;
   version: i32;
@@ -194,7 +194,7 @@ allow(padding) struct SioRoomRegistrySnapshotMem {
   room: SioRoomMem[4];
 }
 
-/** hub + room 一体快照。 */
+/* See implementation. */
 allow(padding) struct SioSessionBundleMem {
   magic: i32;
   version: i32;
@@ -202,7 +202,7 @@ allow(padding) struct SioSessionBundleMem {
   room: SioRoomRegistrySnapshotMem;
 }
 
-/** cluster adapter 单条消息。 */
+/* See implementation. */
 allow(padding) struct SioClusterAdapterMsgMem {
   in_use: i32;
   src_node_id: i32;
@@ -215,14 +215,14 @@ allow(padding) struct SioClusterAdapterMsgMem {
   data: u8[16];
 }
 
-/** 内存 cluster adapter。 */
+/* See implementation. */
 allow(padding) struct SioClusterAdapterMem {
   count: i32;
   node_id: i32;
   msg: SioClusterAdapterMsgMem[4];
 }
 
-/** cluster adapter 二进制快照。 */
+/* See implementation. */
 allow(padding) struct SioClusterAdapterSnapshotMem {
   magic: i32;
   version: i32;
@@ -245,15 +245,35 @@ extern function memset(s: *u8, c: i32, n: usize): *u8;
 extern function strlen(s: *u8): usize;
 
 
-/** F-socketio v1 版本标记；供聚合 gate 校验 socketio.x 已参与编译。 */
+/** Exported function `socketio_f_socketio_v1_marker_c`.
+ * Implements `socketio_f_socketio_v1_marker_c`.
+ * @return i32
+ */
 export function socketio_f_socketio_v1_marker_c(): i32 { return 1; }
 
-/** F-socketio v2 逻辑下沉标记；protocol 全量在 socketio.x。 */
+/** Exported function `socketio_f_socketio_v2_marker_c`.
+ * Implements `socketio_f_socketio_v2_marker_c`.
+ * @return i32
+ */
 export function socketio_f_socketio_v2_marker_c(): i32 { return 1; }
 
 
+/** Exported function `sio_bump_off`.
+ * Implements `sio_bump_off`.
+ * @param off *i32
+ * @return void
+ */
 export function sio_bump_off(off: *i32): void { *off = *off + 1; }
 
+/** Exported function `sio_append_bytes`.
+ * Implements `sio_append_bytes`.
+ * @param out *u8
+ * @param cap i32
+ * @param off *i32
+ * @param s *u8
+ * @param slen i32
+ * @return i32
+ */
 export function sio_append_bytes(out: *u8, cap: i32, off: *i32, s: *u8, slen: i32): i32 {
   let i: i32 = 0;
   if (out == 0 || off == 0 || *off < 0) { return -1; }
@@ -267,6 +287,14 @@ export function sio_append_bytes(out: *u8, cap: i32, off: *i32, s: *u8, slen: i3
   return 0;
 }
 
+/** Exported function `sio_append_u32_dec`.
+ * Implements `sio_append_u32_dec`.
+ * @param out *u8
+ * @param cap i32
+ * @param off *i32
+ * @param v u32
+ * @return i32
+ */
 export function sio_append_u32_dec(out: *u8, cap: i32, off: *i32, v: u32): i32 {
   let tmp: u8[12] = [];
   let n: i32 = 0;
@@ -288,6 +316,14 @@ export function sio_append_u32_dec(out: *u8, cap: i32, off: *i32, v: u32): i32 {
   return sio_append_bytes(out, cap, off, &tmp[0], n);
 }
 
+/** Exported function `sio_server_wrap_http_body_c`.
+ * Implements `sio_server_wrap_http_body_c`.
+ * @param body *u8
+ * @param blen i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function sio_server_wrap_http_body_c(body: *u8, blen: i32, out: *u8, out_cap: i32): i32 {
   let off: i32 = 0;
   let prefix: *u8 = &SIO_LIT_HTTP_1_1_200_OK_R_CONTENT_TYPE_TEXT_PLAIN_CHARSET_UTF_8_R_CONNECTION_KEEP_ALIVE_R_CONTENT_LENGTH[0];
@@ -301,18 +337,41 @@ export function sio_server_wrap_http_body_c(body: *u8, blen: i32, out: *u8, out_
   return off + blen;
 }
 
+/** Exported function `sio_eio_version_c`.
+ * Implements `sio_eio_version_c`.
+ * @return i32
+ */
 export function sio_eio_version_c(): i32 {
  return SIO_EIO_VERSION;
 }
 
+/** Exported function `sio_transport_polling_c`.
+ * Implements `sio_transport_polling_c`.
+ * @return i32
+ */
 export function sio_transport_polling_c(): i32 {
  return SIO_TRANSPORT_POLLING;
 }
 
+/** Exported function `sio_transport_websocket_c`.
+ * Implements `sio_transport_websocket_c`.
+ * @return i32
+ */
 export function sio_transport_websocket_c(): i32 {
  return SIO_TRANSPORT_WEBSOCKET;
 }
 
+/** Exported function `sio_build_eio_url_c`.
+ * Implements `sio_build_eio_url_c`.
+ * @param base *u8
+ * @param base_len i32
+ * @param sid *u8
+ * @param sid_len i32
+ * @param transport i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function sio_build_eio_url_c(base: *u8, base_len: i32, sid: *u8, sid_len: i32, transport: i32, out: *u8, out_cap: i32): i32 {
 
     let path_poll: *u8 = &SIO_LIT_SOCKET_IO_EIO_4_TRANSPORT_POLLING[0];
@@ -379,6 +438,15 @@ export function sio_build_eio_url_c(base: *u8, base_len: i32, sid: *u8, sid_len:
     return off;
 }
 
+/** Exported function `sio_http_extract_body_c`.
+ * Implements `sio_http_extract_body_c`.
+ * @param http *u8
+ * @param len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @param out_len *i32
+ * @return i32
+ */
 export function sio_http_extract_body_c(http: *u8, len: i32, out: *u8, out_cap: i32, out_len: *i32): i32 {
 
     let i: i32 = 0;
@@ -412,6 +480,12 @@ export function sio_http_extract_body_c(http: *u8, len: i32, out: *u8, out_cap: 
     return 0;
 }
 
+/** Exported function `sio_eio_open_has_websocket_c`.
+ * Implements `sio_eio_open_has_websocket_c`.
+ * @param open_payload *u8
+ * @param len i32
+ * @return i32
+ */
 export function sio_eio_open_has_websocket_c(open_payload: *u8, len: i32): i32 {
 
     let needle: *u8 = &SIO_LIT_WEBSOCKET[0];
@@ -431,6 +505,15 @@ export function sio_eio_open_has_websocket_c(open_payload: *u8, len: i32): i32 {
     return 0;
 }
 
+/** Exported function `sio_polling_handshake_parse_c`.
+ * Implements `sio_polling_handshake_parse_c`.
+ * @param http *u8
+ * @param http_len i32
+ * @param out_sid *u8
+ * @param sid_cap i32
+ * @param out_has_ws *i32
+ * @return i32
+ */
 export function sio_polling_handshake_parse_c(http: *u8, http_len: i32, out_sid: *u8, sid_cap: i32, out_has_ws: *i32): i32 {
 
     let body: u8[512] = [];
@@ -469,6 +552,16 @@ export function sio_polling_handshake_parse_c(http: *u8, http_len: i32, out_sid:
     return sid_len;
 }
 
+/** Exported function `sio_polling_handshake_c`.
+ * Implements `sio_polling_handshake_c`.
+ * @param base_url *u8
+ * @param base_len i32
+ * @param out_sid *u8
+ * @param sid_cap i32
+ * @param timeout_ms u32
+ * @param out_has_ws *i32
+ * @return i32
+ */
 export function sio_polling_handshake_c(base_url: *u8, base_len: i32, out_sid: *u8, sid_cap: i32, timeout_ms: u32, out_has_ws: *i32): i32 {
 
     let url: u8[384] = [];
@@ -493,6 +586,19 @@ export function sio_polling_handshake_c(base_url: *u8, base_len: i32, out_sid: *
     return sio_polling_handshake_parse_c(resp, n, out_sid, sid_cap, out_has_ws);
 }
 
+/** Exported function `sio_polling_post_packet_c`.
+ * Implements `sio_polling_post_packet_c`.
+ * @param base_url *u8
+ * @param base_len i32
+ * @param sid *u8
+ * @param sid_len i32
+ * @param packet *u8
+ * @param packet_len i32
+ * @param out_resp *u8
+ * @param out_cap i32
+ * @param timeout_ms u32
+ * @return i32
+ */
 export function sio_polling_post_packet_c(base_url: *u8, base_len: i32, sid: *u8, sid_len: i32, packet: *u8, packet_len: i32, out_resp: *u8, out_cap: i32, timeout_ms: u32): i32 {
 
     let url: u8[384] = [];
@@ -516,6 +622,10 @@ export function sio_polling_post_packet_c(base_url: *u8, base_len: i32, sid: *u8
     return n;
 }
 
+/** Exported function `sio_polling_smoke_c`.
+ * Implements `sio_polling_smoke_c`.
+ * @return i32
+ */
 export function sio_polling_smoke_c(): i32 {
 
     let base: *u8 = &SIO_LIT_HTTP_127_0_0_1_3000[0];
@@ -565,14 +675,30 @@ export function sio_polling_smoke_c(): i32 {
     return 0;
 }
 
+/** Exported function `sio_sio_type_connect_c`.
+ * Implements `sio_sio_type_connect_c`.
+ * @return i32
+ */
 export function sio_sio_type_connect_c(): i32 {
  return SIO_SIO_CONNECT;
 }
 
+/** Exported function `sio_sio_type_ack_c`.
+ * Implements `sio_sio_type_ack_c`.
+ * @return i32
+ */
 export function sio_sio_type_ack_c(): i32 {
  return SIO_SIO_ACK;
 }
 
+/** Exported function `sio_http_to_ws_base_c`.
+ * Implements `sio_http_to_ws_base_c`.
+ * @param http_base *u8
+ * @param len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function sio_http_to_ws_base_c(http_base: *u8, len: i32, out: *u8, out_cap: i32): i32 {
 
     let https_p: *u8 = &SIO_LIT_HTTPS[0];
@@ -620,6 +746,16 @@ export function sio_http_to_ws_base_c(http_base: *u8, len: i32, out: *u8, out_ca
     return off;
 }
 
+/** Exported function `sio_build_ws_connect_url_c`.
+ * Implements `sio_build_ws_connect_url_c`.
+ * @param http_base *u8
+ * @param base_len i32
+ * @param sid *u8
+ * @param sid_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function sio_build_ws_connect_url_c(http_base: *u8, base_len: i32, sid: *u8, sid_len: i32, out: *u8, out_cap: i32): i32 {
 
     let ws_base: u8[384] = [];
@@ -636,6 +772,13 @@ export function sio_build_ws_connect_url_c(http_base: *u8, base_len: i32, sid: *
     return sio_build_eio_url_c(ws_base, wl, sid, sid_len, SIO_TRANSPORT_WEBSOCKET, out, out_cap);
 }
 
+/** Exported function `sio_eio_ws_upgrade_c`.
+ * Implements `sio_eio_ws_upgrade_c`.
+ * @param fd i32
+ * @param tls_ctx i64
+ * @param timeout_ms u32
+ * @return i32
+ */
 export function sio_eio_ws_upgrade_c(fd: i32, tls_ctx: i64, timeout_ms: u32): i32 {
 
     let probe: *u8 = &SIO_LIT_N2PROBE[0];
@@ -674,12 +817,24 @@ export function sio_eio_ws_upgrade_c(fd: i32, tls_ctx: i64, timeout_ms: u32): i3
     return 0;
 }
 
+/** Exported function `sio_encode_connect_packet_c`.
+ * Implements `sio_encode_connect_packet_c`.
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function sio_encode_connect_packet_c(out: *u8, out_cap: i32): i32 {
 
     let sio_connect: *u8 = &SIO_LIT_N0[0];
     return sio_eio_encode_packet_c(SIO_EIO_MESSAGE, sio_connect, 1, out, out_cap);
 }
 
+/** Exported function `sio_reconnect_delay_ms_c`.
+ * Implements `sio_reconnect_delay_ms_c`.
+ * @param attempt i32
+ * @param cap_ms i32
+ * @return i32
+ */
 export function sio_reconnect_delay_ms_c(attempt: i32, cap_ms: i32): i32 {
 
     let delay: i32 = 0;
@@ -699,6 +854,10 @@ export function sio_reconnect_delay_ms_c(attempt: i32, cap_ms: i32): i32 {
     return delay;
 }
 
+/** Exported function `sio_connect_smoke_c`.
+ * Implements `sio_connect_smoke_c`.
+ * @return i32
+ */
 export function sio_connect_smoke_c(): i32 {
 
     let http_base: *u8 = &SIO_LIT_HTTP_127_0_0_1_3000[0];
@@ -743,6 +902,10 @@ export function sio_connect_smoke_c(): i32 {
     return 0;
 }
 
+/** Exported function `sio_node_interop_smoke_c`.
+ * Implements `sio_node_interop_smoke_c`.
+ * @return i32
+ */
 export function sio_node_interop_smoke_c(): i32 {
 
     let node_http_open: *u8 = &SIO_LIT_HTTP_1_1_200_OK_R_CONTENT_TYPE_TEXT_PLAIN_CHARSET_UTF_8_R_CONNECTION_KEEP_ALIVE_R_R_0_SID_OXLMYI_UPGRADES_WEBSOCKET_PINGINTERVAL_25000_PINGTIMEOUT_20000_MAXPAYLOAD_1000000[0];
@@ -806,6 +969,14 @@ export function sio_node_interop_smoke_c(): i32 {
     return 0;
 }
 
+/** Exported function `sio_server_build_open_json_c`.
+ * Implements `sio_server_build_open_json_c`.
+ * @param sid *u8
+ * @param sid_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function sio_server_build_open_json_c(sid: *u8, sid_len: i32, out: *u8, out_cap: i32): i32 {
 
     let prefix: *u8 = &SIO_LIT_JSON_SID_PREFIX[0];
@@ -826,6 +997,14 @@ export function sio_server_build_open_json_c(sid: *u8, sid_len: i32, out: *u8, o
     return need;
 }
 
+/** Exported function `sio_server_build_open_packet_c`.
+ * Implements `sio_server_build_open_packet_c`.
+ * @param sid *u8
+ * @param sid_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function sio_server_build_open_packet_c(sid: *u8, sid_len: i32, out: *u8, out_cap: i32): i32 {
 
     let json: u8[128] = [];
@@ -842,6 +1021,14 @@ export function sio_server_build_open_packet_c(sid: *u8, sid_len: i32, out: *u8,
     return sio_eio_encode_packet_c(SIO_EIO_OPEN, json, jl, out, out_cap);
 }
 
+/** Exported function `sio_server_build_http_open_response_c`.
+ * Implements `sio_server_build_http_open_response_c`.
+ * @param sid *u8
+ * @param sid_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function sio_server_build_http_open_response_c(sid: *u8, sid_len: i32, out: *u8, out_cap: i32): i32 {
 
     let body: u8[160] = [];
@@ -858,6 +1045,12 @@ export function sio_server_build_http_open_response_c(sid: *u8, sid_len: i32, ou
     return sio_server_wrap_http_body_c(body, blen, out, out_cap);
 }
 
+/** Exported function `sio_server_is_polling_handshake_c`.
+ * Implements `sio_server_is_polling_handshake_c`.
+ * @param path *u8
+ * @param len i32
+ * @return i32
+ */
 export function sio_server_is_polling_handshake_c(path: *u8, len: i32): i32 {
 
     let eio: *u8 = &SIO_LIT_EIO_4[0];
@@ -897,6 +1090,12 @@ export function sio_server_is_polling_handshake_c(path: *u8, len: i32): i32 {
     return (has_eio != 0 && has_tp != 0) ? 1 : 0;
 }
 
+/** Exported function `sio_server_is_connect_packet_c`.
+ * Implements `sio_server_is_connect_packet_c`.
+ * @param pkt *u8
+ * @param len i32
+ * @return i32
+ */
 export function sio_server_is_connect_packet_c(pkt: *u8, len: i32): i32 {
 
     let etype: i32 = -1;
@@ -921,6 +1120,16 @@ export function sio_server_is_connect_packet_c(pkt: *u8, len: i32): i32 {
     return (inner[0] == ((48 as u8) +  SIO_SIO_CONNECT)) ? 1 : 0;
 }
 
+/** Exported function `sio_server_emit_event_c`.
+ * Implements `sio_server_emit_event_c`.
+ * @param event *u8
+ * @param event_len i32
+ * @param data *u8
+ * @param data_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function sio_server_emit_event_c(event: *u8, event_len: i32, data: *u8, data_len: i32, out: *u8, out_cap: i32): i32 {
 
     if ((event == 0) || event_len <= 0 || (out == 0))
@@ -938,6 +1147,16 @@ export function sio_server_emit_event_c(event: *u8, event_len: i32, data: *u8, d
     return sio_encode_event_packet_c(event, event_len, data, data_len, out, out_cap);
 }
 
+/** Exported function `sio_server_build_http_event_response_c`.
+ * Implements `sio_server_build_http_event_response_c`.
+ * @param event *u8
+ * @param event_len i32
+ * @param data *u8
+ * @param data_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function sio_server_build_http_event_response_c(event: *u8, event_len: i32, data: *u8, data_len: i32, out: *u8, out_cap: i32): i32 {
 
     let body: u8[512] = [];
@@ -954,6 +1173,10 @@ export function sio_server_build_http_event_response_c(event: *u8, event_len: i3
     return sio_server_wrap_http_body_c(body, blen, out, out_cap);
 }
 
+/** Exported function `sio_server_emit_smoke_c`.
+ * Implements `sio_server_emit_smoke_c`.
+ * @return i32
+ */
 export function sio_server_emit_smoke_c(): i32 {
 
     let evt: *u8 = &SIO_LIT_NEWS[0];
@@ -1000,6 +1223,10 @@ export function sio_server_emit_smoke_c(): i32 {
     return 0;
 }
 
+/** Exported function `sio_server_smoke_c`.
+ * Implements `sio_server_smoke_c`.
+ * @return i32
+ */
 export function sio_server_smoke_c(): i32 {
 
     let sid: *u8 = &SIO_LIT_SRV001[0];
@@ -1049,6 +1276,14 @@ export function sio_server_smoke_c(): i32 {
     return 0;
 }
 
+/** Exported function `sio_encode_connect_ns_packet_c`.
+ * Implements `sio_encode_connect_ns_packet_c`.
+ * @param ns *u8
+ * @param ns_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function sio_encode_connect_ns_packet_c(ns: *u8, ns_len: i32, out: *u8, out_cap: i32): i32 {
 
     let inner: u8[128] = [];
@@ -1084,6 +1319,15 @@ export function sio_encode_connect_ns_packet_c(ns: *u8, ns_len: i32, out: *u8, o
     return sio_eio_encode_packet_c(SIO_EIO_MESSAGE, inner, off, out, out_cap);
 }
 
+/** Exported function `sio_parse_sio_packet_head_c`.
+ * Implements `sio_parse_sio_packet_head_c`.
+ * @param pkt *u8
+ * @param len i32
+ * @param out_type *i32
+ * @param out_id *i32
+ * @param out_payload_off *i32
+ * @return i32
+ */
 export function sio_parse_sio_packet_head_c(pkt: *u8, len: i32, out_type: *i32, out_id: *i32, out_payload_off: *i32): i32 {
 
     let i: i32 = 0;
@@ -1116,6 +1360,14 @@ export function sio_parse_sio_packet_head_c(pkt: *u8, len: i32, out_type: *i32, 
     return 0;
 }
 
+/** Exported function `sio_server_is_connect_ns_packet_c`.
+ * Implements `sio_server_is_connect_ns_packet_c`.
+ * @param pkt *u8
+ * @param len i32
+ * @param ns *u8
+ * @param ns_len i32
+ * @return i32
+ */
 export function sio_server_is_connect_ns_packet_c(pkt: *u8, len: i32, ns: *u8, ns_len: i32): i32 {
 
     let etype: i32 = -1;
@@ -1160,6 +1412,14 @@ export function sio_server_is_connect_ns_packet_c(pkt: *u8, len: i32, ns: *u8, n
     return (inner[plen - 1] == (44 as u8)) ? 1 : 0;
 }
 
+/** Exported function `sio_parse_connect_ns_packet_c`.
+ * Implements `sio_parse_connect_ns_packet_c`.
+ * @param pkt *u8
+ * @param len i32
+ * @param out_ns *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function sio_parse_connect_ns_packet_c(pkt: *u8, len: i32, out_ns: *u8, out_cap: i32): i32 {
 
     let etype: i32 = -1;
@@ -1203,10 +1463,19 @@ export function sio_parse_connect_ns_packet_c(pkt: *u8, len: i32, out_ns: *u8, o
     return ns_len;
 }
 
+/** Exported function `sio_ns_router_bytes_c`.
+ * Implements `sio_ns_router_bytes_c`.
+ * @return i32
+ */
 export function sio_ns_router_bytes_c(): i32 {
  return 132;
 }
 
+/** Exported function `sio_ns_router_init_c`.
+ * Implements `sio_ns_router_init_c`.
+ * @param r *SioNsRouterMem
+ * @return void
+ */
 export function sio_ns_router_init_c(r: *SioNsRouterMem): void {
 
     if ((r == 0))
@@ -1216,6 +1485,14 @@ export function sio_ns_router_init_c(r: *SioNsRouterMem): void {
     unsafe { memset(r as *u8, 0, (sio_ns_router_bytes_c() as usize)); }
 }
 
+/** Exported function `sio_ns_equal_c`.
+ * Implements `sio_ns_equal_c`.
+ * @param a *u8
+ * @param alen i32
+ * @param b *u8
+ * @param blen i32
+ * @return i32
+ */
 export function sio_ns_equal_c(a: *u8, alen: i32, b: *u8, blen: i32): i32 {
 
     let root: *u8 = &SIO_LIT_NS_ROOT[0];
@@ -1234,6 +1511,14 @@ export function sio_ns_equal_c(a: *u8, alen: i32, b: *u8, blen: i32): i32 {
     return (alen == blen && cmp_ab == 0) ? 1 : 0;
 }
 
+/** Exported function `sio_ns_router_register_c`.
+ * Registration helper `sio_ns_router_register_c`.
+ * @param r *SioNsRouterMem
+ * @param ns *u8
+ * @param ns_len i32
+ * @param slot_id i32
+ * @return i32
+ */
 export function sio_ns_router_register_c(r: *SioNsRouterMem, ns: *u8, ns_len: i32, slot_id: i32): i32 {
 
     let root: *u8 = &SIO_LIT_NS_ROOT[0];
@@ -1264,6 +1549,13 @@ export function sio_ns_router_register_c(r: *SioNsRouterMem, ns: *u8, ns_len: i3
     return 0;
 }
 
+/** Exported function `sio_ns_router_lookup_c`.
+ * Implements `sio_ns_router_lookup_c`.
+ * @param r *SioNsRouterMem
+ * @param ns *u8
+ * @param ns_len i32
+ * @return i32
+ */
 export function sio_ns_router_lookup_c(r: *SioNsRouterMem, ns: *u8, ns_len: i32): i32 {
 
     let i: i32 = 0;
@@ -1280,6 +1572,13 @@ export function sio_ns_router_lookup_c(r: *SioNsRouterMem, ns: *u8, ns_len: i32)
     return -1;
 }
 
+/** Exported function `sio_ns_router_route_connect_c`.
+ * Implements `sio_ns_router_route_connect_c`.
+ * @param r *SioNsRouterMem
+ * @param pkt *u8
+ * @param len i32
+ * @return i32
+ */
 export function sio_ns_router_route_connect_c(r: *SioNsRouterMem, pkt: *u8, len: i32): i32 {
 
     let ns: u8[24] = [];
@@ -1296,6 +1595,10 @@ export function sio_ns_router_route_connect_c(r: *SioNsRouterMem, pkt: *u8, len:
     return sio_ns_router_lookup_c(r, ns, nl);
 }
 
+/** Exported function `sio_ns_router_smoke_c`.
+ * Implements `sio_ns_router_smoke_c`.
+ * @return i32
+ */
 export function sio_ns_router_smoke_c(): i32 {
 
     let ns_chat: *u8 = &SIO_LIT_CHAT[0];
@@ -1372,10 +1675,19 @@ export function sio_ns_router_smoke_c(): i32 {
     return 0;
 }
 
+/** Exported function `sio_ns_sessions_bytes_c`.
+ * Implements `sio_ns_sessions_bytes_c`.
+ * @return i32
+ */
 export function sio_ns_sessions_bytes_c(): i32 {
  return 36;
 }
 
+/** Exported function `sio_ns_sessions_init_c`.
+ * Implements `sio_ns_sessions_init_c`.
+ * @param s *SioNsSessionsMem
+ * @return void
+ */
 export function sio_ns_sessions_init_c(s: *SioNsSessionsMem): void {
 
     if ((s == 0))
@@ -1385,6 +1697,12 @@ export function sio_ns_sessions_init_c(s: *SioNsSessionsMem): void {
     unsafe { memset(s as *u8, 0, (sio_ns_sessions_bytes_c() as usize)); }
 }
 
+/** Exported function `sio_ns_sessions_sync_router_c`.
+ * Implements `sio_ns_sessions_sync_router_c`.
+ * @param s *SioNsSessionsMem
+ * @param r *SioNsRouterMem
+ * @return i32
+ */
 export function sio_ns_sessions_sync_router_c(s: *SioNsSessionsMem, r: *SioNsRouterMem): i32 {
 
     let i: i32 = 0;
@@ -1404,6 +1722,12 @@ export function sio_ns_sessions_sync_router_c(s: *SioNsSessionsMem, r: *SioNsRou
     return 0;
 }
 
+/** Exported function `sio_ns_sessions_slot_index_c`.
+ * Implements `sio_ns_sessions_slot_index_c`.
+ * @param s *SioNsSessionsMem
+ * @param slot_id i32
+ * @return i32
+ */
 export function sio_ns_sessions_slot_index_c(s: *SioNsSessionsMem, slot_id: i32): i32 {
 
     let i: i32 = 0;
@@ -1420,6 +1744,14 @@ export function sio_ns_sessions_slot_index_c(s: *SioNsSessionsMem, slot_id: i32)
     return -1;
 }
 
+/** Exported function `sio_ns_sessions_connect_c`.
+ * Implements `sio_ns_sessions_connect_c`.
+ * @param s *SioNsSessionsMem
+ * @param r *SioNsRouterMem
+ * @param pkt *u8
+ * @param len i32
+ * @return i32
+ */
 export function sio_ns_sessions_connect_c(s: *SioNsSessionsMem, r: *SioNsRouterMem, pkt: *u8, len: i32): i32 {
 
     let slot: i32 = 0;
@@ -1442,6 +1774,12 @@ export function sio_ns_sessions_connect_c(s: *SioNsSessionsMem, r: *SioNsRouterM
     return slot;
 }
 
+/** Exported function `sio_ns_sessions_disconnect_c`.
+ * Implements `sio_ns_sessions_disconnect_c`.
+ * @param s *SioNsSessionsMem
+ * @param slot_id i32
+ * @return i32
+ */
 export function sio_ns_sessions_disconnect_c(s: *SioNsSessionsMem, slot_id: i32): i32 {
 
     let idx: i32 = 0;
@@ -1461,6 +1799,12 @@ export function sio_ns_sessions_disconnect_c(s: *SioNsSessionsMem, slot_id: i32)
     return 0;
 }
 
+/** Exported function `sio_ns_sessions_active_c`.
+ * Implements `sio_ns_sessions_active_c`.
+ * @param s *SioNsSessionsMem
+ * @param slot_id i32
+ * @return i32
+ */
 export function sio_ns_sessions_active_c(s: *SioNsSessionsMem, slot_id: i32): i32 {
 
     let idx: i32 = 0;
@@ -1476,6 +1820,11 @@ export function sio_ns_sessions_active_c(s: *SioNsSessionsMem, slot_id: i32): i3
     return s.active[idx];
 }
 
+/** Exported function `sio_ns_sessions_total_c`.
+ * Implements `sio_ns_sessions_total_c`.
+ * @param s *SioNsSessionsMem
+ * @return i32
+ */
 export function sio_ns_sessions_total_c(s: *SioNsSessionsMem): i32 {
 
     let i: i32 = 0;
@@ -1490,6 +1839,10 @@ export function sio_ns_sessions_total_c(s: *SioNsSessionsMem): i32 {
     return total;
 }
 
+/** Exported function `sio_ns_sessions_smoke_c`.
+ * Implements `sio_ns_sessions_smoke_c`.
+ * @return i32
+ */
 export function sio_ns_sessions_smoke_c(): i32 {
 
     let ns_chat: *u8 = &SIO_LIT_CHAT[0];
@@ -1564,10 +1917,19 @@ export function sio_ns_sessions_smoke_c(): i32 {
     return 0;
 }
 
+/** Exported function `sio_ws_hub_bytes_c`.
+ * Implements `sio_ws_hub_bytes_c`.
+ * @return i32
+ */
 export function sio_ws_hub_bytes_c(): i32 {
  return 200;
 }
 
+/** Exported function `sio_ws_hub_init_c`.
+ * Implements `sio_ws_hub_init_c`.
+ * @param h *SioWsHubMem
+ * @return void
+ */
 export function sio_ws_hub_init_c(h: *SioWsHubMem): void {
 
     let i: i32 = 0;
@@ -1581,6 +1943,11 @@ export function sio_ws_hub_init_c(h: *SioWsHubMem): void {
     }
 }
 
+/** Exported function `sio_ws_hub_alloc_slot_c`.
+ * Memory management helper `sio_ws_hub_alloc_slot_c`.
+ * @param h *SioWsHubMem
+ * @return i32
+ */
 export function sio_ws_hub_alloc_slot_c(h: *SioWsHubMem): i32 {
 
     let i: i32 = 0;
@@ -1597,6 +1964,15 @@ export function sio_ws_hub_alloc_slot_c(h: *SioWsHubMem): i32 {
     return -1;
 }
 
+/** Exported function `sio_ws_hub_register_c`.
+ * Registration helper `sio_ws_hub_register_c`.
+ * @param h *SioWsHubMem
+ * @param fd i32
+ * @param tls_ctx i64
+ * @param sid *u8
+ * @param sid_len i32
+ * @return i32
+ */
 export function sio_ws_hub_register_c(h: *SioWsHubMem, fd: i32, tls_ctx: i64, sid: *u8, sid_len: i32): i32 {
 
     let idx: i32 = 0;
@@ -1625,6 +2001,12 @@ export function sio_ws_hub_register_c(h: *SioWsHubMem, fd: i32, tls_ctx: i64, si
     return idx;
 }
 
+/** Exported function `sio_ws_hub_unregister_c`.
+ * Registration helper `sio_ws_hub_unregister_c`.
+ * @param h *SioWsHubMem
+ * @param conn_idx i32
+ * @return i32
+ */
 export function sio_ws_hub_unregister_c(h: *SioWsHubMem, conn_idx: i32): i32 {
 
     let sl: *SioWsHubSlotMem = 0;
@@ -1649,6 +2031,13 @@ export function sio_ws_hub_unregister_c(h: *SioWsHubMem, conn_idx: i32): i32 {
     return 0;
 }
 
+/** Exported function `sio_ws_hub_find_by_sid_c`.
+ * Implements `sio_ws_hub_find_by_sid_c`.
+ * @param h *SioWsHubMem
+ * @param sid *u8
+ * @param sid_len i32
+ * @return i32
+ */
 export function sio_ws_hub_find_by_sid_c(h: *SioWsHubMem, sid: *u8, sid_len: i32): i32 {
 
     let i: i32 = 0;
@@ -1676,6 +2065,15 @@ export function sio_ws_hub_find_by_sid_c(h: *SioWsHubMem, sid: *u8, sid_len: i32
     return -1;
 }
 
+/** Exported function `sio_ws_hub_register_or_rebind_c`.
+ * Registration helper `sio_ws_hub_register_or_rebind_c`.
+ * @param h *SioWsHubMem
+ * @param fd i32
+ * @param tls_ctx i64
+ * @param sid *u8
+ * @param sid_len i32
+ * @return i32
+ */
 export function sio_ws_hub_register_or_rebind_c(h: *SioWsHubMem, fd: i32, tls_ctx: i64, sid: *u8, sid_len: i32): i32 {
 
     let idx: i32 = 0;
@@ -1696,6 +2094,16 @@ export function sio_ws_hub_register_or_rebind_c(h: *SioWsHubMem, fd: i32, tls_ct
     return sio_ws_hub_register_c(h, fd, tls_ctx, sid, sid_len);
 }
 
+/** Exported function `sio_ws_hub_handle_connect_c`.
+ * Implements `sio_ws_hub_handle_connect_c`.
+ * @param h *SioWsHubMem
+ * @param conn_idx i32
+ * @param r *SioNsRouterMem
+ * @param s *SioNsSessionsMem
+ * @param pkt *u8
+ * @param len i32
+ * @return i32
+ */
 export function sio_ws_hub_handle_connect_c(h: *SioWsHubMem, conn_idx: i32, r: *SioNsRouterMem, s: *SioNsSessionsMem, pkt: *u8, len: i32): i32 {
 
     let slot: i32 = 0;
@@ -1722,6 +2130,18 @@ export function sio_ws_hub_handle_connect_c(h: *SioWsHubMem, conn_idx: i32, r: *
     return slot;
 }
 
+/** Exported function `sio_ws_hub_emit_event_ns_c`.
+ * Implements `sio_ws_hub_emit_event_ns_c`.
+ * @param h *SioWsHubMem
+ * @param slot_id i32
+ * @param ns *u8
+ * @param ns_len i32
+ * @param event *u8
+ * @param event_len i32
+ * @param data *u8
+ * @param data_len i32
+ * @return i32
+ */
 export function sio_ws_hub_emit_event_ns_c(h: *SioWsHubMem, slot_id: i32, ns: *u8, ns_len: i32, event: *u8, event_len: i32, data: *u8, data_len: i32): i32 {
 
     let frame: u8[256] = [];
@@ -1753,6 +2173,16 @@ export function sio_ws_hub_emit_event_ns_c(h: *SioWsHubMem, slot_id: i32, ns: *u
     return sent;
 }
 
+/** Exported function `sio_server_build_connect_ns_ack_c`.
+ * Implements `sio_server_build_connect_ns_ack_c`.
+ * @param ns *u8
+ * @param ns_len i32
+ * @param sid *u8
+ * @param sid_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function sio_server_build_connect_ns_ack_c(ns: *u8, ns_len: i32, sid: *u8, sid_len: i32, out: *u8, out_cap: i32): i32 {
 
     let jp: *u8 = &SIO_LIT_JSON_SID_PREFIX[0];
@@ -1825,6 +2255,10 @@ export function sio_server_build_connect_ns_ack_c(ns: *u8, ns_len: i32, sid: *u8
     return sio_eio_encode_packet_c(SIO_EIO_MESSAGE, inner, off, out, out_cap);
 }
 
+/** Exported function `sio_ws_hub_smoke_c`.
+ * Implements `sio_ws_hub_smoke_c`.
+ * @return i32
+ */
 export function sio_ws_hub_smoke_c(): i32 {
 
     let ns_chat: *u8 = &SIO_LIT_CHAT[0];
@@ -1899,6 +2333,18 @@ export function sio_ws_hub_smoke_c(): i32 {
     return 0;
 }
 
+/** Exported function `sio_ws_hub_emit_event_ns_conn_c`.
+ * Implements `sio_ws_hub_emit_event_ns_conn_c`.
+ * @param h *SioWsHubMem
+ * @param conn_idx i32
+ * @param ns *u8
+ * @param ns_len i32
+ * @param event *u8
+ * @param event_len i32
+ * @param data *u8
+ * @param data_len i32
+ * @return i32
+ */
 export function sio_ws_hub_emit_event_ns_conn_c(h: *SioWsHubMem, conn_idx: i32, ns: *u8, ns_len: i32, event: *u8, event_len: i32, data: *u8, data_len: i32): i32 {
 
     let frame: u8[256] = [];
@@ -1927,10 +2373,21 @@ export function sio_ws_hub_emit_event_ns_conn_c(h: *SioWsHubMem, conn_idx: i32, 
     return 0;
 }
 
+/** Exported function `sio_ws_hub_snapshot_bytes_c`.
+ * Implements `sio_ws_hub_snapshot_bytes_c`.
+ * @return i32
+ */
 export function sio_ws_hub_snapshot_bytes_c(): i32 {
  return 184;
 }
 
+/** Exported function `sio_ws_hub_export_c`.
+ * Implements `sio_ws_hub_export_c`.
+ * @param h *SioWsHubMem
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function sio_ws_hub_export_c(h: *SioWsHubMem, out: *u8, out_cap: i32): i32 {
 
     let snap: *SioWsHubSnapshotMem = 0;
@@ -1956,6 +2413,13 @@ export function sio_ws_hub_export_c(h: *SioWsHubMem, out: *u8, out_cap: i32): i3
     return 184;
 }
 
+/** Exported function `sio_ws_hub_import_c`.
+ * Implements `sio_ws_hub_import_c`.
+ * @param h *SioWsHubMem
+ * @param buf *u8
+ * @param len i32
+ * @return i32
+ */
 export function sio_ws_hub_import_c(h: *SioWsHubMem, buf: *u8, len: i32): i32 {
 
     let snap: *SioWsHubSnapshotMem = 0;
@@ -1994,10 +2458,19 @@ export function sio_ws_hub_import_c(h: *SioWsHubMem, buf: *u8, len: i32): i32 {
     return 0;
 }
 
+/** Exported function `sio_room_registry_bytes_c`.
+ * Implements `sio_room_registry_bytes_c`.
+ * @return i32
+ */
 export function sio_room_registry_bytes_c(): i32 {
  return 196;
 }
 
+/** Exported function `sio_room_registry_init_c`.
+ * Implements `sio_room_registry_init_c`.
+ * @param reg *SioRoomRegistryMem
+ * @return void
+ */
 export function sio_room_registry_init_c(reg: *SioRoomRegistryMem): void {
 
     if ((reg == 0))
@@ -2007,6 +2480,11 @@ export function sio_room_registry_init_c(reg: *SioRoomRegistryMem): void {
     unsafe { memset(reg as *u8, 0, (sio_room_registry_bytes_c() as usize)); }
 }
 
+/** Exported function `sio_room_alloc_slot_c`.
+ * Memory management helper `sio_room_alloc_slot_c`.
+ * @param reg *SioRoomRegistryMem
+ * @return i32
+ */
 export function sio_room_alloc_slot_c(reg: *SioRoomRegistryMem): i32 {
 
     let i: i32 = 0;
@@ -2023,6 +2501,12 @@ export function sio_room_alloc_slot_c(reg: *SioRoomRegistryMem): i32 {
     return -1;
 }
 
+/** Exported function `sio_room_find_id_c`.
+ * Implements `sio_room_find_id_c`.
+ * @param reg *SioRoomRegistryMem
+ * @param room_id i32
+ * @return i32
+ */
 export function sio_room_find_id_c(reg: *SioRoomRegistryMem, room_id: i32): i32 {
 
     let i: i32 = 0;
@@ -2039,6 +2523,14 @@ export function sio_room_find_id_c(reg: *SioRoomRegistryMem, room_id: i32): i32 
     return -1;
 }
 
+/** Exported function `sio_room_register_c`.
+ * Registration helper `sio_room_register_c`.
+ * @param reg *SioRoomRegistryMem
+ * @param name *u8
+ * @param name_len i32
+ * @param room_id i32
+ * @return i32
+ */
 export function sio_room_register_c(reg: *SioRoomRegistryMem, name: *u8, name_len: i32, room_id: i32): i32 {
 
     let idx: i32 = 0;
@@ -2070,6 +2562,13 @@ export function sio_room_register_c(reg: *SioRoomRegistryMem, name: *u8, name_le
     return 0;
 }
 
+/** Exported function `sio_room_join_c`.
+ * Implements `sio_room_join_c`.
+ * @param reg *SioRoomRegistryMem
+ * @param room_id i32
+ * @param conn_idx i32
+ * @return i32
+ */
 export function sio_room_join_c(reg: *SioRoomRegistryMem, room_id: i32, conn_idx: i32): i32 {
 
     let idx: i32 = 0;
@@ -2100,6 +2599,13 @@ export function sio_room_join_c(reg: *SioRoomRegistryMem, room_id: i32, conn_idx
     return 0;
 }
 
+/** Exported function `sio_room_leave_c`.
+ * Implements `sio_room_leave_c`.
+ * @param reg *SioRoomRegistryMem
+ * @param room_id i32
+ * @param conn_idx i32
+ * @return i32
+ */
 export function sio_room_leave_c(reg: *SioRoomRegistryMem, room_id: i32, conn_idx: i32): i32 {
 
     let idx: i32 = 0;
@@ -2130,6 +2636,12 @@ export function sio_room_leave_c(reg: *SioRoomRegistryMem, room_id: i32, conn_id
     return 0;
 }
 
+/** Exported function `sio_room_leave_all_c`.
+ * Implements `sio_room_leave_all_c`.
+ * @param reg *SioRoomRegistryMem
+ * @param conn_idx i32
+ * @return i32
+ */
 export function sio_room_leave_all_c(reg: *SioRoomRegistryMem, conn_idx: i32): i32 {
 
     let i: i32 = 0;
@@ -2151,6 +2663,12 @@ export function sio_room_leave_all_c(reg: *SioRoomRegistryMem, conn_idx: i32): i
     return n;
 }
 
+/** Exported function `sio_room_member_count_c`.
+ * Implements `sio_room_member_count_c`.
+ * @param reg *SioRoomRegistryMem
+ * @param room_id i32
+ * @return i32
+ */
 export function sio_room_member_count_c(reg: *SioRoomRegistryMem, room_id: i32): i32 {
 
     let idx: i32 = 0;
@@ -2166,6 +2684,19 @@ export function sio_room_member_count_c(reg: *SioRoomRegistryMem, room_id: i32):
     return reg.room[idx].member_count;
 }
 
+/** Exported function `sio_room_broadcast_ns_c`.
+ * Implements `sio_room_broadcast_ns_c`.
+ * @param reg *SioRoomRegistryMem
+ * @param h *SioWsHubMem
+ * @param room_id i32
+ * @param ns *u8
+ * @param ns_len i32
+ * @param event *u8
+ * @param event_len i32
+ * @param data *u8
+ * @param data_len i32
+ * @return i32
+ */
 export function sio_room_broadcast_ns_c(reg: *SioRoomRegistryMem, h: *SioWsHubMem, room_id: i32, ns: *u8, ns_len: i32, event: *u8, event_len: i32, data: *u8, data_len: i32): i32 {
 
     let idx: i32 = 0;
@@ -2197,6 +2728,10 @@ export function sio_room_broadcast_ns_c(reg: *SioRoomRegistryMem, h: *SioWsHubMe
     return sent;
 }
 
+/** Exported function `sio_room_smoke_c`.
+ * Implements `sio_room_smoke_c`.
+ * @return i32
+ */
 export function sio_room_smoke_c(): i32 {
 
     let ns_chat: *u8 = &SIO_LIT_CHAT[0];
@@ -2264,6 +2799,14 @@ export function sio_room_smoke_c(): i32 {
     return 0;
 }
 
+/** Exported function `sio_ws_hub_rebind_c`.
+ * Implements `sio_ws_hub_rebind_c`.
+ * @param h *SioWsHubMem
+ * @param conn_idx i32
+ * @param fd i32
+ * @param tls_ctx i64
+ * @return i32
+ */
 export function sio_ws_hub_rebind_c(h: *SioWsHubMem, conn_idx: i32, fd: i32, tls_ctx: i64): i32 {
 
     let sl: *SioWsHubSlotMem = 0;
@@ -2281,10 +2824,21 @@ export function sio_ws_hub_rebind_c(h: *SioWsHubMem, conn_idx: i32, fd: i32, tls
     return 0;
 }
 
+/** Exported function `sio_room_registry_snapshot_bytes_c`.
+ * Implements `sio_room_registry_snapshot_bytes_c`.
+ * @return i32
+ */
 export function sio_room_registry_snapshot_bytes_c(): i32 {
  return 204;
 }
 
+/** Exported function `sio_room_registry_export_c`.
+ * Implements `sio_room_registry_export_c`.
+ * @param reg *SioRoomRegistryMem
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function sio_room_registry_export_c(reg: *SioRoomRegistryMem, out: *u8, out_cap: i32): i32 {
 
     let snap: *SioRoomRegistrySnapshotMem = 0;
@@ -2303,6 +2857,13 @@ export function sio_room_registry_export_c(reg: *SioRoomRegistryMem, out: *u8, o
     return sio_room_registry_snapshot_bytes_c();
 }
 
+/** Exported function `sio_room_registry_import_c`.
+ * Implements `sio_room_registry_import_c`.
+ * @param reg *SioRoomRegistryMem
+ * @param buf *u8
+ * @param len i32
+ * @return i32
+ */
 export function sio_room_registry_import_c(reg: *SioRoomRegistryMem, buf: *u8, len: i32): i32 {
 
     let snap: *SioRoomRegistrySnapshotMem = 0;
@@ -2324,6 +2885,10 @@ export function sio_room_registry_import_c(reg: *SioRoomRegistryMem, buf: *u8, l
     return 0;
 }
 
+/** Exported function `sio_hub_sync_smoke_c`.
+ * Implements `sio_hub_sync_smoke_c`.
+ * @return i32
+ */
 export function sio_hub_sync_smoke_c(): i32 {
 
     let sid: *u8 = &SIO_LIT_SYNC1[0];
@@ -2385,10 +2950,22 @@ export function sio_hub_sync_smoke_c(): i32 {
     return 0;
 }
 
+/** Exported function `sio_session_bundle_bytes_c`.
+ * Implements `sio_session_bundle_bytes_c`.
+ * @return i32
+ */
 export function sio_session_bundle_bytes_c(): i32 {
  return 396;
 }
 
+/** Exported function `sio_session_bundle_export_c`.
+ * Implements `sio_session_bundle_export_c`.
+ * @param h *SioWsHubMem
+ * @param reg *SioRoomRegistryMem
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function sio_session_bundle_export_c(h: *SioWsHubMem, reg: *SioRoomRegistryMem, out: *u8, out_cap: i32): i32 {
 
     let bundle: *SioSessionBundleMem = 0;
@@ -2422,6 +2999,14 @@ export function sio_session_bundle_export_c(h: *SioWsHubMem, reg: *SioRoomRegist
     return sio_session_bundle_bytes_c();
 }
 
+/** Exported function `sio_session_bundle_import_c`.
+ * Implements `sio_session_bundle_import_c`.
+ * @param h *SioWsHubMem
+ * @param reg *SioRoomRegistryMem
+ * @param buf *u8
+ * @param len i32
+ * @return i32
+ */
 export function sio_session_bundle_import_c(h: *SioWsHubMem, reg: *SioRoomRegistryMem, buf: *u8, len: i32): i32 {
 
     let bundle: *SioSessionBundleMem = 0;
@@ -2445,6 +3030,10 @@ export function sio_session_bundle_import_c(h: *SioWsHubMem, reg: *SioRoomRegist
     return 0;
 }
 
+/** Exported function `sio_session_sync_smoke_c`.
+ * Implements `sio_session_sync_smoke_c`.
+ * @return i32
+ */
 export function sio_session_sync_smoke_c(): i32 {
 
     let sid: *u8 = &SIO_LIT_SESS1[0];
@@ -2504,6 +3093,11 @@ export function sio_session_sync_smoke_c(): i32 {
     return 0;
 }
 
+/** Exported function `sio_ws_hub_recount_c`.
+ * Implements `sio_ws_hub_recount_c`.
+ * @param h *SioWsHubMem
+ * @return void
+ */
 export function sio_ws_hub_recount_c(h: *SioWsHubMem): void {
 
     let i: i32 = 0;
@@ -2521,6 +3115,12 @@ export function sio_ws_hub_recount_c(h: *SioWsHubMem): void {
     h.count = c;
 }
 
+/** Exported function `sio_ws_hub_append_from_c`.
+ * Implements `sio_ws_hub_append_from_c`.
+ * @param dst *SioWsHubMem
+ * @param src *SioWsHubMem
+ * @return i32
+ */
 export function sio_ws_hub_append_from_c(dst: *SioWsHubMem, src: *SioWsHubMem): i32 {
 
     let i: i32 = 0;
@@ -2553,6 +3153,13 @@ export function sio_ws_hub_append_from_c(dst: *SioWsHubMem, src: *SioWsHubMem): 
     return start >= 0 ? start : 0;
 }
 
+/** Exported function `sio_room_registry_merge_offset_c`.
+ * Implements `sio_room_registry_merge_offset_c`.
+ * @param dst *SioRoomRegistryMem
+ * @param src *SioRoomRegistryMem
+ * @param conn_offset i32
+ * @return i32
+ */
 export function sio_room_registry_merge_offset_c(dst: *SioRoomRegistryMem, src: *SioRoomRegistryMem, conn_offset: i32): i32 {
 
     let i: i32 = 0;
@@ -2592,6 +3199,16 @@ export function sio_room_registry_merge_offset_c(dst: *SioRoomRegistryMem, src: 
     return 0;
 }
 
+/** Exported function `sio_cluster_sync_c`.
+ * Implements `sio_cluster_sync_c`.
+ * @param h *SioWsHubMem
+ * @param reg *SioRoomRegistryMem
+ * @param bundle_a *u8
+ * @param len_a i32
+ * @param bundle_b *u8
+ * @param len_b i32
+ * @return i32
+ */
 export function sio_cluster_sync_c(h: *SioWsHubMem, reg: *SioRoomRegistryMem, bundle_a: *u8, len_a: i32, bundle_b: *u8, len_b: i32): i32 {
 
     let hub_b: SioWsHubMem;
@@ -2619,6 +3236,10 @@ export function sio_cluster_sync_c(h: *SioWsHubMem, reg: *SioRoomRegistryMem, bu
     return sio_room_registry_merge_offset_c(reg, &reg_b, off);
 }
 
+/** Exported function `sio_cluster_sync_smoke_c`.
+ * Implements `sio_cluster_sync_smoke_c`.
+ * @return i32
+ */
 export function sio_cluster_sync_smoke_c(): i32 {
 
     let sid_a: *u8 = &SIO_LIT_NODEA[0];
@@ -2689,10 +3310,20 @@ export function sio_cluster_sync_smoke_c(): i32 {
     return 0;
 }
 
+/** Exported function `sio_cluster_adapter_bytes_c`.
+ * Implements `sio_cluster_adapter_bytes_c`.
+ * @return i32
+ */
 export function sio_cluster_adapter_bytes_c(): i32 {
  return 296;
 }
 
+/** Exported function `sio_cluster_adapter_init_c`.
+ * Implements `sio_cluster_adapter_init_c`.
+ * @param a *SioClusterAdapterMem
+ * @param node_id i32
+ * @return void
+ */
 export function sio_cluster_adapter_init_c(a: *SioClusterAdapterMem, node_id: i32): void {
 
     if ((a == 0))
@@ -2703,6 +3334,11 @@ export function sio_cluster_adapter_init_c(a: *SioClusterAdapterMem, node_id: i3
     a.node_id = node_id;
 }
 
+/** Exported function `sio_cluster_adapter_alloc_c`.
+ * Memory management helper `sio_cluster_adapter_alloc_c`.
+ * @param a *SioClusterAdapterMem
+ * @return i32
+ */
 export function sio_cluster_adapter_alloc_c(a: *SioClusterAdapterMem): i32 {
 
     let i: i32 = 0;
@@ -2719,6 +3355,19 @@ export function sio_cluster_adapter_alloc_c(a: *SioClusterAdapterMem): i32 {
     return -1;
 }
 
+/** Exported function `sio_cluster_adapter_publish_ns_c`.
+ * Implements `sio_cluster_adapter_publish_ns_c`.
+ * @param a *SioClusterAdapterMem
+ * @param src_node_id i32
+ * @param room_id i32
+ * @param ns *u8
+ * @param ns_len i32
+ * @param event *u8
+ * @param event_len i32
+ * @param data *u8
+ * @param data_len i32
+ * @return i32
+ */
 export function sio_cluster_adapter_publish_ns_c(a: *SioClusterAdapterMem, src_node_id: i32, room_id: i32, ns: *u8, ns_len: i32, event: *u8, event_len: i32, data: *u8, data_len: i32): i32 {
 
     let idx: i32 = 0;
@@ -2768,6 +3417,14 @@ export function sio_cluster_adapter_publish_ns_c(a: *SioClusterAdapterMem, src_n
     return 0;
 }
 
+/** Exported function `sio_cluster_adapter_drain_apply_c`.
+ * Implements `sio_cluster_adapter_drain_apply_c`.
+ * @param a *SioClusterAdapterMem
+ * @param h *SioWsHubMem
+ * @param reg *SioRoomRegistryMem
+ * @param local_node_id i32
+ * @return i32
+ */
 export function sio_cluster_adapter_drain_apply_c(a: *SioClusterAdapterMem, h: *SioWsHubMem, reg: *SioRoomRegistryMem, local_node_id: i32): i32 {
 
     let i: i32 = 0;
@@ -2804,6 +3461,10 @@ export function sio_cluster_adapter_drain_apply_c(a: *SioClusterAdapterMem, h: *
     return applied;
 }
 
+/** Exported function `sio_cluster_adapter_smoke_c`.
+ * Implements `sio_cluster_adapter_smoke_c`.
+ * @return i32
+ */
 export function sio_cluster_adapter_smoke_c(): i32 {
 
     let ns_chat: *u8 = &SIO_LIT_CHAT[0];
@@ -2844,10 +3505,21 @@ export function sio_cluster_adapter_smoke_c(): i32 {
     return 0;
 }
 
+/** Exported function `sio_cluster_adapter_snapshot_bytes_c`.
+ * Implements `sio_cluster_adapter_snapshot_bytes_c`.
+ * @return i32
+ */
 export function sio_cluster_adapter_snapshot_bytes_c(): i32 {
  return 304;
 }
 
+/** Exported function `sio_cluster_adapter_export_c`.
+ * Implements `sio_cluster_adapter_export_c`.
+ * @param a *SioClusterAdapterMem
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function sio_cluster_adapter_export_c(a: *SioClusterAdapterMem, out: *u8, out_cap: i32): i32 {
 
     let snap: *SioClusterAdapterSnapshotMem = 0;
@@ -2867,6 +3539,13 @@ export function sio_cluster_adapter_export_c(a: *SioClusterAdapterMem, out: *u8,
     return sio_cluster_adapter_snapshot_bytes_c();
 }
 
+/** Exported function `sio_cluster_adapter_import_merge_c`.
+ * Implements `sio_cluster_adapter_import_merge_c`.
+ * @param a *SioClusterAdapterMem
+ * @param buf *u8
+ * @param len i32
+ * @return i32
+ */
 export function sio_cluster_adapter_import_merge_c(a: *SioClusterAdapterMem, buf: *u8, len: i32): i32 {
 
     let snap: *SioClusterAdapterSnapshotMem = 0;
@@ -2903,6 +3582,10 @@ export function sio_cluster_adapter_import_merge_c(a: *SioClusterAdapterMem, buf
     return merged;
 }
 
+/** Exported function `sio_cluster_ring_sync_smoke_c`.
+ * Implements `sio_cluster_ring_sync_smoke_c`.
+ * @return i32
+ */
 export function sio_cluster_ring_sync_smoke_c(): i32 {
 
     let ns_chat: *u8 = &SIO_LIT_CHAT[0];
@@ -2955,6 +3638,15 @@ export function sio_cluster_ring_sync_smoke_c(): i32 {
 }
 
 
+/** Exported function `sio_eio_encode_packet_c`.
+ * Implements `sio_eio_encode_packet_c`.
+ * @param type i32
+ * @param payload *u8
+ * @param payload_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function sio_eio_encode_packet_c(type: i32, payload: *u8, payload_len: i32, out: *u8, out_cap: i32): i32 {
 
     let n: i32 = 0;
@@ -2987,6 +3679,16 @@ export function sio_eio_encode_packet_c(type: i32, payload: *u8, payload_len: i3
     return n;
 }
 
+/** Exported function `sio_eio_decode_packet_c`.
+ * Implements `sio_eio_decode_packet_c`.
+ * @param buf *u8
+ * @param len i32
+ * @param out_type *i32
+ * @param out_payload *u8
+ * @param out_cap i32
+ * @param out_payload_len *i32
+ * @return i32
+ */
 export function sio_eio_decode_packet_c(buf: *u8, len: i32, out_type: *i32, out_payload: *u8, out_cap: i32, out_payload_len: *i32): i32 {
 
     let type: i32 = 0;
@@ -3021,6 +3723,15 @@ export function sio_eio_decode_packet_c(buf: *u8, len: i32, out_type: *i32, out_
     return 0;
 }
 
+/** Exported function `sio_append_json_string`.
+ * Implements `sio_append_json_string`.
+ * @param out *u8
+ * @param cap i32
+ * @param off *i32
+ * @param s *u8
+ * @param slen i32
+ * @return i32
+ */
 export function sio_append_json_string(out: *u8, cap: i32, off: *i32, s: *u8, slen: i32): i32 {
 
     let i: i32 = 0;
@@ -3063,6 +3774,16 @@ export function sio_append_json_string(out: *u8, cap: i32, off: *i32, s: *u8, sl
     return 0;
 }
 
+/** Exported function `sio_encode_event_packet_c`.
+ * Implements `sio_encode_event_packet_c`.
+ * @param event *u8
+ * @param event_len i32
+ * @param data *u8
+ * @param data_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function sio_encode_event_packet_c(event: *u8, event_len: i32, data: *u8, data_len: i32, out: *u8, out_cap: i32): i32 {
 
     let inner: u8[512] = [];
@@ -3114,6 +3835,18 @@ export function sio_encode_event_packet_c(event: *u8, event_len: i32, data: *u8,
     return sio_eio_encode_packet_c(SIO_EIO_MESSAGE, inner, off, out, out_cap);
 }
 
+/** Exported function `sio_encode_event_ns_packet_c`.
+ * Implements `sio_encode_event_ns_packet_c`.
+ * @param ns *u8
+ * @param ns_len i32
+ * @param event *u8
+ * @param event_len i32
+ * @param data *u8
+ * @param data_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function sio_encode_event_ns_packet_c(ns: *u8, ns_len: i32, event: *u8, event_len: i32, data: *u8, data_len: i32, out: *u8, out_cap: i32): i32 {
 
     let inner: u8[512] = [];
@@ -3183,6 +3916,17 @@ export function sio_encode_event_ns_packet_c(ns: *u8, ns_len: i32, event: *u8, e
     return sio_eio_encode_packet_c(SIO_EIO_MESSAGE, inner, off, out, out_cap);
 }
 
+/** Exported function `sio_encode_event_ack_packet_c`.
+ * Implements `sio_encode_event_ack_packet_c`.
+ * @param ack_id i32
+ * @param event *u8
+ * @param event_len i32
+ * @param data *u8
+ * @param data_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function sio_encode_event_ack_packet_c(ack_id: i32, event: *u8, event_len: i32, data: *u8, data_len: i32, out: *u8, out_cap: i32): i32 {
 
     let inner: u8[512] = [];
@@ -3237,6 +3981,15 @@ export function sio_encode_event_ack_packet_c(ack_id: i32, event: *u8, event_len
     off = off + 1;
     return sio_eio_encode_packet_c(SIO_EIO_MESSAGE, inner, off, out, out_cap);
 }
+/** Exported function `sio_encode_ack_packet_c`.
+ * Implements `sio_encode_ack_packet_c`.
+ * @param ack_id i32
+ * @param data *u8
+ * @param data_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function sio_encode_ack_packet_c(ack_id: i32, data: *u8, data_len: i32, out: *u8, out_cap: i32): i32 {
 
     let inner: u8[256] = [];
@@ -3270,6 +4023,10 @@ export function sio_encode_ack_packet_c(ack_id: i32, data: *u8, data_len: i32, o
     return sio_eio_encode_packet_c(SIO_EIO_MESSAGE, inner, off, out, out_cap);
 }
 
+/** Exported function `sio_ns_ack_smoke_c`.
+ * Implements `sio_ns_ack_smoke_c`.
+ * @return i32
+ */
 export function sio_ns_ack_smoke_c(): i32 {
 
     let ns_chat: *u8 = &SIO_LIT_CHAT[0];
@@ -3357,6 +4114,17 @@ export function sio_ns_ack_smoke_c(): i32 {
 }
 
 
+/** Exported function `sio_decode_event_packet_c`.
+ * Implements `sio_decode_event_packet_c`.
+ * @param sio_pkt *u8
+ * @param len i32
+ * @param out_event *u8
+ * @param out_event_cap i32
+ * @param out_data *u8
+ * @param out_data_cap i32
+ * @param out_data_len *i32
+ * @return i32
+ */
 export function sio_decode_event_packet_c(sio_pkt: *u8, len: i32, out_event: *u8, out_event_cap: i32, out_data: *u8, out_data_cap: i32, out_data_len: *i32): i32 {
 
     let i: i32 = 0;
@@ -3465,6 +4233,14 @@ export function sio_decode_event_packet_c(sio_pkt: *u8, len: i32, out_event: *u8
     return 0;
 }
 
+/** Exported function `sio_eio_extract_sid_c`.
+ * Implements `sio_eio_extract_sid_c`.
+ * @param open_payload *u8
+ * @param len i32
+ * @param out_sid *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function sio_eio_extract_sid_c(open_payload: *u8, len: i32, out_sid: *u8, out_cap: i32): i32 {
 
     let needle: *u8 = &SIO_LIT_JSON_SID_PREFIX[0];
@@ -3500,6 +4276,10 @@ export function sio_eio_extract_sid_c(open_payload: *u8, len: i32, out_sid: *u8,
     return -1;
 }
 
+/** Exported function `sio_packet_smoke_c`.
+ * Implements `sio_packet_smoke_c`.
+ * @return i32
+ */
 export function sio_packet_smoke_c(): i32 {
 
     let open_json: u8[128] = [];
@@ -3595,6 +4375,10 @@ export function sio_packet_smoke_c(): i32 {
     return 0;
 }
 
+/** Exported function `sio_p3_complete_smoke_c`.
+ * Implements `sio_p3_complete_smoke_c`.
+ * @return i32
+ */
 export function sio_p3_complete_smoke_c(): i32 {
 
     if (sio_ws_hub_smoke_c() != 0)

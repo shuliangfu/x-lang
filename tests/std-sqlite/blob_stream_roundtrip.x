@@ -1,7 +1,12 @@
-// STD-137：大 BLOB 分块读烟测（须 sqlite-o + -lsqlite3；stub 时 open 失败 exit 1）
+// See implementation.
 const sqlite = import("std.db.sqlite");
 
-/** 比较 buf 前 n 字节是否等于 0..n-1。 */
+/** Internal function `bytes_seq`.
+ * Implements `bytes_seq`.
+ * @param buf *u8
+ * @param n i32
+ * @return i32
+ */
 function bytes_seq(buf: *u8, n: i32): i32 {
   let i: i32 = 0;
   while (i < n) {
@@ -13,9 +18,13 @@ function bytes_seq(buf: *u8, n: i32): i32 {
   return 1;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let mem: u8[9] = [58, 109, 101, 109, 111, 114, 121, 58, 0];
-  /* INSERT 96 字节 0x00..0x5f 的 hex SQL（预构建） */
+  /* See implementation. */
   let sql_ins: u8[226] = [
     73, 78, 83, 69, 82, 84, 32, 73, 78, 84, 79, 32, 116, 40, 100, 97,
     116, 97, 41, 32, 86, 65, 76, 85, 69, 83, 32, 40, 120, 39, 48, 48,

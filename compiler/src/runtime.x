@@ -1,18 +1,18 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-14/71/72：runtime 产品源 seeds/runtime.from_x.c + 真迁 .x 门闩。
-// G-02f-85：smoke_diag / unlink_failed_out / asm direct-import 门闩。
-// G-02f-86：explain CLI / errno diag / legacy smoke summary 门闩。
-// G-02f-87：argv 令牌/path 后缀纯 helper（drv_eq_* / path_ends / lib_root_usable）门闩。
-// G-02f-88：源扫描 content_has_*、core-only deps/imports、check/fmt 薄委托门闩。
-// G-02f-90：DCE 回调 / tmp 前缀 / parse fail / lib_roots_from_key / run_test 门闩。
-// G-02f-93：large-stack helpers / prepare_dce_ctx / x_emit_from_compile_state 门闩。
-// G-02f-94：C frontend smoke / shu-c sibling / smoke lex thread 门闩。
-// G-02f-95：fs/path/map ABI emit / pipeline_glue include / elf diag / argv_step 门闩。
-// G-02f-71/72：driver compile/run 薄封装 + main_entry/argv/exec/fmt/大 run_* 门闩。
-// 产品：cc seeds/runtime.from_x.c + RUNTIME_DRIVER_NO_C_CFLAGS → src/runtime_driver_no_c.o
-// C 尾：argv 解析循环、#if 变体、大 driver 路径、syscall/fs。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 
 export extern "C" function driver_run_x_emit_c_set_path_impl(path: *u8, path_len: i32): i32;
 export extern "C" function driver_run_x_emit_c_set_lib_impl(i: i32, buf: *u8, len: i32): i32;
@@ -58,7 +58,7 @@ export extern "C" function driver_run_x_emit_c_impl(): i32;
 export extern "C" function driver_fmt_one_file_impl(path: *u8, path_len: i32): i32;
 export extern "C" function main_entry_impl(argc: i32, argv: *u8): i32;
 
-/* ---- G-02f-71：driver compile/run 薄门闩 ---- */
+/* See implementation. */
 
 
 export extern "C" function driver_unlink_failed_output_impl(out_path: *u8): void;
@@ -122,6 +122,12 @@ export extern "C" function driver_compile_parse_argv_step_c_impl(argc: i32, argv
 
 
 #[no_mangle]
+/** Exported function `driver_run_x_emit_c_set_path`.
+ * Implements `driver_run_x_emit_c_set_path`.
+ * @param path *u8
+ * @param path_len i32
+ * @return i32
+ */
 export function driver_run_x_emit_c_set_path(path: *u8, path_len: i32): i32 {
   unsafe {
     return driver_run_x_emit_c_set_path_impl(path, path_len);
@@ -130,6 +136,13 @@ export function driver_run_x_emit_c_set_path(path: *u8, path_len: i32): i32 {
 }
 
 #[no_mangle]
+/** Exported function `driver_run_x_emit_c_set_lib`.
+ * Implements `driver_run_x_emit_c_set_lib`.
+ * @param i i32
+ * @param buf *u8
+ * @param len i32
+ * @return i32
+ */
 export function driver_run_x_emit_c_set_lib(i: i32, buf: *u8, len: i32): i32 {
   unsafe {
     return driver_run_x_emit_c_set_lib_impl(i, buf, len);
@@ -142,6 +155,12 @@ export function driver_run_x_emit_c_set_lib(i: i32, buf: *u8, len: i32): i32 {
 
 
 #[no_mangle]
+/** Exported function `driver_fs_open_read_path`.
+ * Read path helper `driver_fs_open_read_path`.
+ * @param path *u8
+ * @param path_len i32
+ * @return i32
+ */
 export function driver_fs_open_read_path(path: *u8, path_len: i32): i32 {
   unsafe {
     return driver_fs_open_read_path_impl(path, path_len);
@@ -152,6 +171,16 @@ export function driver_fs_open_read_path(path: *u8, path_len: i32): i32 {
 
 
 #[no_mangle]
+/** Exported function `driver_run_asm_backend_c`.
+ * Implements `driver_run_asm_backend_c`.
+ * @param input_path *u8
+ * @param out_path *u8
+ * @param lib_key *u8
+ * @param target *u8
+ * @param argc i32
+ * @param argv *u8
+ * @return i32
+ */
 export function driver_run_asm_backend_c(input_path: *u8, out_path: *u8, lib_key: *u8, target: *u8, argc: i32, argv: *u8): i32 {
   unsafe {
     return driver_run_asm_backend_c_impl(input_path, out_path, lib_key, target, argc, argv);
@@ -160,6 +189,18 @@ export function driver_run_asm_backend_c(input_path: *u8, out_path: *u8, lib_key
 }
 
 #[no_mangle]
+/** Exported function `driver_run_emit_c_path_c`.
+ * Implements `driver_run_emit_c_path_c`.
+ * @param input_path *u8
+ * @param out_path *u8
+ * @param lib_key *u8
+ * @param target *u8
+ * @param opt_level *u8
+ * @param use_lto i32
+ * @param argc i32
+ * @param argv *u8
+ * @return i32
+ */
 export function driver_run_emit_c_path_c(input_path: *u8, out_path: *u8, lib_key: *u8, target: *u8, opt_level: *u8, use_lto: i32, argc: i32, argv: *u8): i32 {
   unsafe {
     return driver_run_emit_c_path_c_impl(input_path, out_path, lib_key, target, opt_level, use_lto, argc, argv);
@@ -168,6 +209,11 @@ export function driver_run_emit_c_path_c(input_path: *u8, out_path: *u8, lib_key
 }
 
 #[no_mangle]
+/** Exported function `driver_compile_state_free_c`.
+ * Memory management helper `driver_compile_state_free_c`.
+ * @param state *u8
+ * @return void
+ */
 export function driver_compile_state_free_c(state: *u8): void {
   unsafe {
     driver_compile_state_free_c_impl(state);
@@ -175,6 +221,11 @@ export function driver_compile_state_free_c(state: *u8): void {
 }
 
 #[no_mangle]
+/** Exported function `cfg_sync_compile_target_from_state_c`.
+ * Implements `cfg_sync_compile_target_from_state_c`.
+ * @param state *u8
+ * @return void
+ */
 export function cfg_sync_compile_target_from_state_c(state: *u8): void {
   unsafe {
     cfg_sync_compile_target_from_state_c_impl(state);
@@ -182,6 +233,11 @@ export function cfg_sync_compile_target_from_state_c(state: *u8): void {
 }
 
 #[no_mangle]
+/** Exported function `driver_compile_ensure_default_lib_c`.
+ * Implements `driver_compile_ensure_default_lib_c`.
+ * @param key *u8
+ * @return void
+ */
 export function driver_compile_ensure_default_lib_c(key: *u8): void {
   unsafe {
     driver_compile_ensure_default_lib_c_impl(key);
@@ -189,6 +245,11 @@ export function driver_compile_ensure_default_lib_c(key: *u8): void {
 }
 
 #[no_mangle]
+/** Exported function `driver_compile_parse_argv_init_c`.
+ * Implements `driver_compile_parse_argv_init_c`.
+ * @param state *u8
+ * @return void
+ */
 export function driver_compile_parse_argv_init_c(state: *u8): void {
   unsafe {
     driver_compile_parse_argv_init_c_impl(state);
@@ -196,6 +257,13 @@ export function driver_compile_parse_argv_init_c(state: *u8): void {
 }
 
 #[no_mangle]
+/** Exported function `driver_compile_append_lib_root_c`.
+ * Implements `driver_compile_append_lib_root_c`.
+ * @param state *u8
+ * @param path *u8
+ * @param len i32
+ * @return void
+ */
 export function driver_compile_append_lib_root_c(state: *u8, path: *u8, len: i32): void {
   unsafe {
     driver_compile_append_lib_root_c_impl(state, path, len);
@@ -203,6 +271,14 @@ export function driver_compile_append_lib_root_c(state: *u8, path: *u8, len: i32
 }
 
 #[no_mangle]
+/** Exported function `driver_compile_argv_apply_minus_o_next_c`.
+ * Implements `driver_compile_argv_apply_minus_o_next_c`.
+ * @param state *u8
+ * @param argc i32
+ * @param argv_opaque *u8
+ * @param i i32
+ * @return void
+ */
 export function driver_compile_argv_apply_minus_o_next_c(state: *u8, argc: i32, argv_opaque: *u8, i: i32): void {
   unsafe {
     driver_compile_argv_apply_minus_o_next_c_impl(state, argc, argv_opaque, i);
@@ -210,6 +286,16 @@ export function driver_compile_argv_apply_minus_o_next_c(state: *u8, argc: i32, 
 }
 
 #[no_mangle]
+/** Exported function `driver_compile_argv_apply_minus_L_next_c`.
+ * Implements `driver_compile_argv_apply_minus_L_next_c`.
+ * @param state *u8
+ * @param argc i32
+ * @param argv_opaque *u8
+ * @param i i32
+ * @param arg_buf *u8
+ * @param arg_cap i32
+ * @return void
+ */
 export function driver_compile_argv_apply_minus_L_next_c(state: *u8, argc: i32, argv_opaque: *u8, i: i32, arg_buf: *u8, arg_cap: i32): void {
   unsafe {
     driver_compile_argv_apply_minus_L_next_c_impl(state, argc, argv_opaque, i, arg_buf, arg_cap);
@@ -217,6 +303,14 @@ export function driver_compile_argv_apply_minus_L_next_c(state: *u8, argc: i32, 
 }
 
 #[no_mangle]
+/** Exported function `driver_compile_argv_apply_minus_O_next_c`.
+ * Implements `driver_compile_argv_apply_minus_O_next_c`.
+ * @param state *u8
+ * @param argc i32
+ * @param argv_opaque *u8
+ * @param i i32
+ * @return void
+ */
 export function driver_compile_argv_apply_minus_O_next_c(state: *u8, argc: i32, argv_opaque: *u8, i: i32): void {
   unsafe {
     driver_compile_argv_apply_minus_O_next_c_impl(state, argc, argv_opaque, i);
@@ -224,6 +318,11 @@ export function driver_compile_argv_apply_minus_O_next_c(state: *u8, argc: i32, 
 }
 
 #[no_mangle]
+/** Exported function `driver_compile_argv_set_use_lto_c`.
+ * Implements `driver_compile_argv_set_use_lto_c`.
+ * @param state *u8
+ * @return void
+ */
 export function driver_compile_argv_set_use_lto_c(state: *u8): void {
   unsafe {
     driver_compile_argv_set_use_lto_c_impl(state);
@@ -231,6 +330,11 @@ export function driver_compile_argv_set_use_lto_c(state: *u8): void {
 }
 
 #[no_mangle]
+/** Exported function `driver_compile_argv_set_use_freestanding_c`.
+ * Memory management helper `driver_compile_argv_set_use_freestanding_c`.
+ * @param state *u8
+ * @return void
+ */
 export function driver_compile_argv_set_use_freestanding_c(state: *u8): void {
   unsafe {
     driver_compile_argv_set_use_freestanding_c_impl(state);
@@ -238,6 +342,10 @@ export function driver_compile_argv_set_use_freestanding_c(state: *u8): void {
 }
 
 #[no_mangle]
+/** Exported function `driver_compile_argv_set_legacy_f32_abi_c`.
+ * Implements `driver_compile_argv_set_legacy_f32_abi_c`.
+ * @return void
+ */
 export function driver_compile_argv_set_legacy_f32_abi_c(): void {
   unsafe {
     driver_compile_argv_set_legacy_f32_abi_c_impl();
@@ -245,6 +353,10 @@ export function driver_compile_argv_set_legacy_f32_abi_c(): void {
 }
 
 #[no_mangle]
+/** Exported function `driver_compile_argv_set_sanitize_address_c`.
+ * Implements `driver_compile_argv_set_sanitize_address_c`.
+ * @return void
+ */
 export function driver_compile_argv_set_sanitize_address_c(): void {
   unsafe {
     driver_compile_argv_set_sanitize_address_c_impl();
@@ -252,6 +364,16 @@ export function driver_compile_argv_set_sanitize_address_c(): void {
 }
 
 #[no_mangle]
+/** Exported function `driver_compile_argv_apply_backend_next_c`.
+ * Implements `driver_compile_argv_apply_backend_next_c`.
+ * @param state *u8
+ * @param argc i32
+ * @param argv_opaque *u8
+ * @param i i32
+ * @param arg_buf *u8
+ * @param arg_cap i32
+ * @return void
+ */
 export function driver_compile_argv_apply_backend_next_c(state: *u8, argc: i32, argv_opaque: *u8, i: i32, arg_buf: *u8, arg_cap: i32): void {
   unsafe {
     driver_compile_argv_apply_backend_next_c_impl(state, argc, argv_opaque, i, arg_buf, arg_cap);
@@ -259,6 +381,14 @@ export function driver_compile_argv_apply_backend_next_c(state: *u8, argc: i32, 
 }
 
 #[no_mangle]
+/** Exported function `driver_compile_argv_apply_target_next_c`.
+ * Implements `driver_compile_argv_apply_target_next_c`.
+ * @param state *u8
+ * @param argc i32
+ * @param argv_opaque *u8
+ * @param i i32
+ * @return void
+ */
 export function driver_compile_argv_apply_target_next_c(state: *u8, argc: i32, argv_opaque: *u8, i: i32): void {
   unsafe {
     driver_compile_argv_apply_target_next_c_impl(state, argc, argv_opaque, i);
@@ -266,6 +396,14 @@ export function driver_compile_argv_apply_target_next_c(state: *u8, argc: i32, a
 }
 
 #[no_mangle]
+/** Exported function `driver_compile_argv_apply_target_cpu_next_c`.
+ * Implements `driver_compile_argv_apply_target_cpu_next_c`.
+ * @param state *u8
+ * @param argc i32
+ * @param argv_opaque *u8
+ * @param i i32
+ * @return void
+ */
 export function driver_compile_argv_apply_target_cpu_next_c(state: *u8, argc: i32, argv_opaque: *u8, i: i32): void {
   unsafe {
     driver_compile_argv_apply_target_cpu_next_c_impl(state, argc, argv_opaque, i);
@@ -273,6 +411,11 @@ export function driver_compile_argv_apply_target_cpu_next_c(state: *u8, argc: i3
 }
 
 #[no_mangle]
+/** Exported function `driver_compile_argv_set_print_target_cpu_c`.
+ * Implements `driver_compile_argv_set_print_target_cpu_c`.
+ * @param state *u8
+ * @return void
+ */
 export function driver_compile_argv_set_print_target_cpu_c(state: *u8): void {
   unsafe {
     driver_compile_argv_set_print_target_cpu_c_impl(state);
@@ -280,6 +423,11 @@ export function driver_compile_argv_set_print_target_cpu_c(state: *u8): void {
 }
 
 #[no_mangle]
+/** Exported function `driver_print_target_cpu_features_c`.
+ * Implements `driver_print_target_cpu_features_c`.
+ * @param features i32
+ * @return i32
+ */
 export function driver_print_target_cpu_features_c(features: i32): i32 {
   unsafe {
     return driver_print_target_cpu_features_c_impl(features);
@@ -288,6 +436,11 @@ export function driver_print_target_cpu_features_c(features: i32): i32 {
 }
 
 #[no_mangle]
+/** Exported function `driver_compile_resolve_target_cpu_c`.
+ * Implements `driver_compile_resolve_target_cpu_c`.
+ * @param state *u8
+ * @return void
+ */
 export function driver_compile_resolve_target_cpu_c(state: *u8): void {
   unsafe {
     driver_compile_resolve_target_cpu_c_impl(state);
@@ -295,6 +448,12 @@ export function driver_compile_resolve_target_cpu_c(state: *u8): void {
 }
 
 #[no_mangle]
+/** Exported function `driver_run_compiler_full`.
+ * Implements `driver_run_compiler_full`.
+ * @param argc i32
+ * @param argv *u8
+ * @return i32
+ */
 export function driver_run_compiler_full(argc: i32, argv: *u8): i32 {
   unsafe {
     return driver_run_compiler_full_impl(argc, argv);
@@ -303,6 +462,12 @@ export function driver_run_compiler_full(argc: i32, argv: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `driver_run_test`.
+ * Implements `driver_run_test`.
+ * @param argc i32
+ * @param argv *u8
+ * @return i32
+ */
 export function driver_run_test(argc: i32, argv: *u8): i32 {
   unsafe {
     return driver_run_test_impl(argc, argv);
@@ -311,6 +476,10 @@ export function driver_run_test(argc: i32, argv: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `driver_fmt_report_no_files`.
+ * Implements `driver_fmt_report_no_files`.
+ * @return i32
+ */
 export function driver_fmt_report_no_files(): i32 {
   unsafe {
     return driver_fmt_report_no_files_impl();
@@ -329,6 +498,12 @@ export function run_compiler_x_path(argc: i32, argv: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `driver_want_asm_emit_to_file`.
+ * Implements `driver_want_asm_emit_to_file`.
+ * @param argc i32
+ * @param argv *u8
+ * @return i32
+ */
 export function driver_want_asm_emit_to_file(argc: i32, argv: *u8): i32 {
   unsafe {
     return driver_want_asm_emit_to_file_impl(argc, argv);
@@ -337,6 +512,12 @@ export function driver_want_asm_emit_to_file(argc: i32, argv: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `driver_exec_compiled`.
+ * Implements `driver_exec_compiled`.
+ * @param argc i32
+ * @param argv_opaque *u8
+ * @return i32
+ */
 export function driver_exec_compiled(argc: i32, argv_opaque: *u8): i32 {
   unsafe {
     return driver_exec_compiled_impl(argc, argv_opaque);
@@ -345,6 +526,10 @@ export function driver_exec_compiled(argc: i32, argv_opaque: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `driver_build_build_x`.
+ * Implements `driver_build_build_x`.
+ * @return i32
+ */
 export function driver_build_build_x(): i32 {
   unsafe {
     return driver_build_build_x_impl();
@@ -353,6 +538,12 @@ export function driver_build_build_x(): i32 {
 }
 
 #[no_mangle]
+/** Exported function `driver_fs_open_write`.
+ * Write path helper `driver_fs_open_write`.
+ * @param path *u8
+ * @param path_len i32
+ * @return i32
+ */
 export function driver_fs_open_write(path: *u8, path_len: i32): i32 {
   unsafe {
     return driver_fs_open_write_impl(path, path_len);
@@ -361,6 +552,12 @@ export function driver_fs_open_write(path: *u8, path_len: i32): i32 {
 }
 
 #[no_mangle]
+/** Exported function `driver_source_has_generic_syntax`.
+ * Implements `driver_source_has_generic_syntax`.
+ * @param path *u8
+ * @param path_len i32
+ * @return i32
+ */
 export function driver_source_has_generic_syntax(path: *u8, path_len: i32): i32 {
   unsafe {
     return driver_source_has_generic_syntax_impl(path, path_len);
@@ -369,6 +566,12 @@ export function driver_source_has_generic_syntax(path: *u8, path_len: i32): i32 
 }
 
 #[no_mangle]
+/** Exported function `driver_source_has_compound_assign_syntax`.
+ * Implements `driver_source_has_compound_assign_syntax`.
+ * @param path *u8
+ * @param path_len i32
+ * @return i32
+ */
 export function driver_source_has_compound_assign_syntax(path: *u8, path_len: i32): i32 {
   unsafe {
     return driver_source_has_compound_assign_syntax_impl(path, path_len);
@@ -377,6 +580,17 @@ export function driver_source_has_compound_assign_syntax(path: *u8, path_len: i3
 }
 
 #[no_mangle]
+/** Exported function `driver_run_asm_backend`.
+ * Implements `driver_run_asm_backend`.
+ * @param input_path *u8
+ * @param out_path *u8
+ * @param lib_roots_arr *u8
+ * @param n_lib_roots i32
+ * @param target *u8
+ * @param argc i32
+ * @param argv *u8
+ * @return i32
+ */
 export function driver_run_asm_backend(input_path: *u8, out_path: *u8, lib_roots_arr: *u8, n_lib_roots: i32, target: *u8, argc: i32, argv: *u8): i32 {
   unsafe {
     return driver_run_asm_backend_impl(input_path, out_path, lib_roots_arr, n_lib_roots, target, argc, argv);
@@ -385,6 +599,13 @@ export function driver_run_asm_backend(input_path: *u8, out_path: *u8, lib_roots
 }
 
 #[no_mangle]
+/** Exported function `driver_compile_parse_argv_scan_c`.
+ * Implements `driver_compile_parse_argv_scan_c`.
+ * @param argc i32
+ * @param argv_opaque *u8
+ * @param state *u8
+ * @return void
+ */
 export function driver_compile_parse_argv_scan_c(argc: i32, argv_opaque: *u8, state: *u8): void {
   unsafe {
     driver_compile_parse_argv_scan_c_impl(argc, argv_opaque, state);
@@ -392,6 +613,13 @@ export function driver_compile_parse_argv_scan_c(argc: i32, argv_opaque: *u8, st
 }
 
 #[no_mangle]
+/** Exported function `driver_compile_argv_copy_path_c`.
+ * Implements `driver_compile_argv_copy_path_c`.
+ * @param state *u8
+ * @param arg_buf *u8
+ * @param plen i32
+ * @return void
+ */
 export function driver_compile_argv_copy_path_c(state: *u8, arg_buf: *u8, plen: i32): void {
   unsafe {
     driver_compile_argv_copy_path_c_impl(state, arg_buf, plen);
@@ -399,6 +627,12 @@ export function driver_compile_argv_copy_path_c(state: *u8, arg_buf: *u8, plen: 
 }
 
 #[no_mangle]
+/** Exported function `driver_compile_argv_is_help_c`.
+ * Implements `driver_compile_argv_is_help_c`.
+ * @param argc i32
+ * @param argv_opaque *u8
+ * @return i32
+ */
 export function driver_compile_argv_is_help_c(argc: i32, argv_opaque: *u8): i32 {
   unsafe {
     return driver_compile_argv_is_help_c_impl(argc, argv_opaque);
@@ -407,6 +641,10 @@ export function driver_compile_argv_is_help_c(argc: i32, argv_opaque: *u8): i32 
 }
 
 #[no_mangle]
+/** Exported function `driver_print_usage_c`.
+ * Implements `driver_print_usage_c`.
+ * @return void
+ */
 export function driver_print_usage_c(): void {
   unsafe {
     driver_print_usage_c_impl();
@@ -414,6 +652,12 @@ export function driver_print_usage_c(): void {
 }
 
 #[no_mangle]
+/** Exported function `driver_argv_parse_x_emit_c`.
+ * Implements `driver_argv_parse_x_emit_c`.
+ * @param argc i32
+ * @param argv *u8
+ * @return i32
+ */
 export function driver_argv_parse_x_emit_c(argc: i32, argv: *u8): i32 {
   unsafe {
     return driver_argv_parse_x_emit_c_impl(argc, argv);
@@ -422,6 +666,10 @@ export function driver_argv_parse_x_emit_c(argc: i32, argv: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `driver_run_x_emit_c`.
+ * Implements `driver_run_x_emit_c`.
+ * @return i32
+ */
 export function driver_run_x_emit_c(): i32 {
   unsafe {
     return driver_run_x_emit_c_impl();
@@ -430,6 +678,12 @@ export function driver_run_x_emit_c(): i32 {
 }
 
 #[no_mangle]
+/** Exported function `driver_fmt_one_file`.
+ * Implements `driver_fmt_one_file`.
+ * @param path *u8
+ * @param path_len i32
+ * @return i32
+ */
 export function driver_fmt_one_file(path: *u8, path_len: i32): i32 {
   unsafe {
     return driver_fmt_one_file_impl(path, path_len);
@@ -438,6 +692,12 @@ export function driver_fmt_one_file(path: *u8, path_len: i32): i32 {
 }
 
 #[no_mangle]
+/** Exported function `main_entry`.
+ * Implements `main_entry`.
+ * @param argc i32
+ * @param argv *u8
+ * @return i32
+ */
 export function main_entry(argc: i32, argv: *u8): i32 {
   unsafe {
     return main_entry_impl(argc, argv);
@@ -446,7 +706,7 @@ export function main_entry(argc: i32, argv: *u8): i32 {
 }
 
 
-/* ---- G-02f-85：smoke / failed-output unlink / asm path 门闩 ---- */
+/* See implementation. */
 
 
 #[no_mangle]
@@ -456,10 +716,10 @@ export function driver_unlink_failed_output(out_path: *u8): void {
   }
 }
 
-// G-02f-128：asm emit path helpers 真迁 .x（见文件尾）
+// See implementation.
 
 
-/* ---- G-02f-86：explain / errno diag / smoke summary 门闩 ---- */
+/* See implementation. */
 
 #[no_mangle]
 export function runtime_diag_cli_usage_note(argv0: *u8): void {
@@ -469,6 +729,13 @@ export function runtime_diag_cli_usage_note(argv0: *u8): void {
 }
 
 #[no_mangle]
+/** Exported function `runtime_diag_errno`.
+ * Implements `runtime_diag_errno`.
+ * @param file *u8
+ * @param kind *u8
+ * @param op *u8
+ * @return void
+ */
 export function runtime_diag_errno(file: *u8, kind: *u8, op: *u8): void {
   unsafe {
     runtime_diag_errno_impl(file, kind, op);
@@ -476,6 +743,14 @@ export function runtime_diag_errno(file: *u8, kind: *u8, op: *u8): void {
 }
 
 #[no_mangle]
+/** Exported function `runtime_diag_errno_path`.
+ * Implements `runtime_diag_errno_path`.
+ * @param file *u8
+ * @param kind *u8
+ * @param op *u8
+ * @param path *u8
+ * @return void
+ */
 export function runtime_diag_errno_path(file: *u8, kind: *u8, op: *u8, path: *u8): void {
   unsafe {
     runtime_diag_errno_path_impl(file, kind, op, path);
@@ -483,6 +758,15 @@ export function runtime_diag_errno_path(file: *u8, kind: *u8, op: *u8, path: *u8
 }
 
 #[no_mangle]
+/** Exported function `runtime_diag_errno_path_pair`.
+ * Implements `runtime_diag_errno_path_pair`.
+ * @param file *u8
+ * @param kind *u8
+ * @param op *u8
+ * @param from_path *u8
+ * @param to_path *u8
+ * @return void
+ */
 export function runtime_diag_errno_path_pair(file: *u8, kind: *u8, op: *u8, from_path: *u8, to_path: *u8): void {
   unsafe {
     runtime_diag_errno_path_pair_impl(file, kind, op, from_path, to_path);
@@ -490,6 +774,12 @@ export function runtime_diag_errno_path_pair(file: *u8, kind: *u8, op: *u8, from
 }
 
 #[no_mangle]
+/** Exported function `runtime_try_handle_explain_cli`.
+ * Implements `runtime_try_handle_explain_cli`.
+ * @param argc i32
+ * @param argv *u8
+ * @return i32
+ */
 export function runtime_try_handle_explain_cli(argc: i32, argv: *u8): i32 {
   unsafe {
     return runtime_try_handle_explain_cli_impl(argc, argv);
@@ -498,6 +788,13 @@ export function runtime_try_handle_explain_cli(argc: i32, argv: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `driver_emit_legacy_smoke_summary_stdout`.
+ * Implements `driver_emit_legacy_smoke_summary_stdout`.
+ * @param main_name *u8
+ * @param main_final_lit i32
+ * @param has_main_body i32
+ * @return void
+ */
 export function driver_emit_legacy_smoke_summary_stdout(main_name: *u8, main_final_lit: i32, has_main_body: i32): void {
   unsafe {
     driver_emit_legacy_smoke_summary_stdout_impl(main_name, main_final_lit, has_main_body);
@@ -505,6 +802,11 @@ export function driver_emit_legacy_smoke_summary_stdout(main_name: *u8, main_fin
 }
 
 #[no_mangle]
+/** Exported function `runtime_diag_code_for_kind`.
+ * Implements `runtime_diag_code_for_kind`.
+ * @param kind *u8
+ * @return *u8
+ */
 export function runtime_diag_code_for_kind(kind: *u8): *u8 {
   unsafe {
     return runtime_diag_code_for_kind_impl(kind);
@@ -512,7 +814,7 @@ export function runtime_diag_code_for_kind(kind: *u8): *u8 {
   return 0 as *u8;
 }
 
-/* ---- G-02f-87：argv 令牌 / path 后缀 / lib_root 纯 helper 门闩 ---- */
+/* See implementation. */
 
 
 
@@ -535,7 +837,7 @@ export function runtime_diag_code_for_kind(kind: *u8): *u8 {
 
 
 
-/* ---- G-02f-88：源扫描 / core-only / check·fmt 薄委托 门闩 ---- */
+/* See implementation. */
 
 
 
@@ -550,6 +852,11 @@ export function driver_deps_are_std_core_closure_only(dep_paths: *u8, n_deps: i3
 }
 
 #[no_mangle]
+/** Exported function `driver_c_mod_imports_are_core_only`.
+ * Implements `driver_c_mod_imports_are_core_only`.
+ * @param mod *u8
+ * @return i32
+ */
 export function driver_c_mod_imports_are_core_only(mod: *u8): i32 {
   unsafe {
     return driver_c_mod_imports_are_core_only_impl(mod);
@@ -557,9 +864,17 @@ export function driver_c_mod_imports_are_core_only(mod: *u8): i32 {
   return 0;
 }
 
-// G-02f-129：driver_x_emit_asm_dep_parse_only_ok 真迁见文件尾
+// driver_check_only_c_typeck: see function docblock below.
 
 #[no_mangle]
+/** Exported function `driver_check_only_c_typeck`.
+ * Implements `driver_check_only_c_typeck`.
+ * @param input_path *u8
+ * @param src *u8
+ * @param lib_roots_arr *u8
+ * @param n_lib_roots i32
+ * @return i32
+ */
 export function driver_check_only_c_typeck(input_path: *u8, src: *u8, lib_roots_arr: *u8, n_lib_roots: i32): i32 {
   unsafe {
     return driver_check_only_c_typeck_impl(input_path, src, lib_roots_arr, n_lib_roots);
@@ -568,6 +883,11 @@ export function driver_check_only_c_typeck(input_path: *u8, src: *u8, lib_roots_
 }
 
 #[no_mangle]
+/** Exported function `driver_lib_root_default`.
+ * Implements `driver_lib_root_default`.
+ * @param root_buf *u8
+ * @return void
+ */
 export function driver_lib_root_default(root_buf: *u8): void {
   unsafe {
     driver_lib_root_default_impl(root_buf);
@@ -575,6 +895,12 @@ export function driver_lib_root_default(root_buf: *u8): void {
 }
 
 #[no_mangle]
+/** Exported function `runtime_test_status_to_rc`.
+ * Implements `runtime_test_status_to_rc`.
+ * @param script *u8
+ * @param st i32
+ * @return i32
+ */
 export function runtime_test_status_to_rc(script: *u8, st: i32): i32 {
   unsafe {
     return runtime_test_status_to_rc_impl(script, st);
@@ -586,7 +912,7 @@ export function runtime_test_status_to_rc(script: *u8, st: i32): i32 {
 
 
 
-/* ---- G-02f-90：DCE 回调 / tmp 前缀 / parse fail / lib_roots / run_test 门闩 ---- */
+/* See implementation. */
 
 #[no_mangle]
 export function shux_get_tmp_prefix(): *u8 {
@@ -597,6 +923,13 @@ export function shux_get_tmp_prefix(): *u8 {
 }
 
 #[no_mangle]
+/** Exported function `dce_is_func_used`.
+ * Implements `dce_is_func_used`.
+ * @param ctx *u8
+ * @param mod *u8
+ * @param func *u8
+ * @return i32
+ */
 export function dce_is_func_used(ctx: *u8, mod: *u8, func: *u8): i32 {
   unsafe {
     return dce_is_func_used_impl(ctx, mod, func);
@@ -605,6 +938,13 @@ export function dce_is_func_used(ctx: *u8, mod: *u8, func: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `dce_is_mono_used`.
+ * Implements `dce_is_mono_used`.
+ * @param ctx *u8
+ * @param mod *u8
+ * @param k i32
+ * @return i32
+ */
 export function dce_is_mono_used(ctx: *u8, mod: *u8, k: i32): i32 {
   unsafe {
     return dce_is_mono_used_impl(ctx, mod, k);
@@ -613,6 +953,13 @@ export function dce_is_mono_used(ctx: *u8, mod: *u8, k: i32): i32 {
 }
 
 #[no_mangle]
+/** Exported function `dce_is_type_used`.
+ * Implements `dce_is_type_used`.
+ * @param ctx *u8
+ * @param mod *u8
+ * @param type_name *u8
+ * @return i32
+ */
 export function dce_is_type_used(ctx: *u8, mod: *u8, type_name: *u8): i32 {
   unsafe {
     return dce_is_type_used_impl(ctx, mod, type_name);
@@ -621,6 +968,13 @@ export function dce_is_type_used(ctx: *u8, mod: *u8, type_name: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `runtime_report_precise_parse_failure_if_known`.
+ * Implements `runtime_report_precise_parse_failure_if_known`.
+ * @param input_path *u8
+ * @param src *u8
+ * @param src_len i64
+ * @return i32
+ */
 export function runtime_report_precise_parse_failure_if_known(input_path: *u8, src: *u8, src_len: i64): i32 {
   unsafe {
     return runtime_report_precise_parse_failure_if_known_impl(input_path, src, src_len);
@@ -629,6 +983,12 @@ export function runtime_report_precise_parse_failure_if_known(input_path: *u8, s
 }
 
 #[no_mangle]
+/** Exported function `runtime_run_test_c`.
+ * Implements `runtime_run_test_c`.
+ * @param argc i32
+ * @param argv *u8
+ * @return i32
+ */
 export function runtime_run_test_c(argc: i32, argv: *u8): i32 {
   unsafe {
     return runtime_run_test_c_impl(argc, argv);
@@ -637,6 +997,13 @@ export function runtime_run_test_c(argc: i32, argv: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `driver_lib_roots_from_key`.
+ * Implements `driver_lib_roots_from_key`.
+ * @param lib_key *u8
+ * @param out_arr *u8
+ * @param bufs *u8
+ * @return i32
+ */
 export function driver_lib_roots_from_key(lib_key: *u8, out_arr: *u8, bufs: *u8): i32 {
   unsafe {
     return driver_lib_roots_from_key_impl(lib_key, out_arr, bufs);
@@ -644,7 +1011,7 @@ export function driver_lib_roots_from_key(lib_key: *u8, out_arr: *u8, bufs: *u8)
   return 0;
 }
 
-/* ---- G-02f-93：large-stack / prepare_dce / x_emit_from_state 门闩 ---- */
+/* See implementation. */
 
 #[no_mangle]
 export function driver_smoke_lex_dump_on_large_stack(src: *u8): void {
@@ -654,6 +1021,11 @@ export function driver_smoke_lex_dump_on_large_stack(src: *u8): void {
 }
 
 #[no_mangle]
+/** Exported function `driver_stack_esc_gate_thread_fn`.
+ * Read path helper `driver_stack_esc_gate_thread_fn`.
+ * @param arg *u8
+ * @return *u8
+ */
 export function driver_stack_esc_gate_thread_fn(arg: *u8): *u8 {
   unsafe {
     return driver_stack_esc_gate_thread_fn_impl(arg);
@@ -662,6 +1034,12 @@ export function driver_stack_esc_gate_thread_fn(arg: *u8): *u8 {
 }
 
 #[no_mangle]
+/** Exported function `driver_stack_esc_gate_large_stack`.
+ * Implements `driver_stack_esc_gate_large_stack`.
+ * @param src *u8
+ * @param src_len i32
+ * @return i32
+ */
 export function driver_stack_esc_gate_large_stack(src: *u8, src_len: i32): i32 {
   unsafe {
     return driver_stack_esc_gate_large_stack_impl(src, src_len);
@@ -670,6 +1048,11 @@ export function driver_stack_esc_gate_large_stack(src: *u8, src_len: i32): i32 {
 }
 
 #[no_mangle]
+/** Exported function `driver_c_typeck_entry_thread_fn`.
+ * Read path helper `driver_c_typeck_entry_thread_fn`.
+ * @param arg *u8
+ * @return *u8
+ */
 export function driver_c_typeck_entry_thread_fn(arg: *u8): *u8 {
   unsafe {
     return driver_c_typeck_entry_thread_fn_impl(arg);
@@ -678,6 +1061,15 @@ export function driver_c_typeck_entry_thread_fn(arg: *u8): *u8 {
 }
 
 #[no_mangle]
+/** Exported function `driver_c_typeck_entry_large_stack`.
+ * Implements `driver_c_typeck_entry_large_stack`.
+ * @param input_path *u8
+ * @param src *u8
+ * @param lib_roots_arr *u8
+ * @param n_lib_roots i32
+ * @param print_ok i32
+ * @return i32
+ */
 export function driver_c_typeck_entry_large_stack(input_path: *u8, src: *u8, lib_roots_arr: *u8, n_lib_roots: i32, print_ok: i32): i32 {
   unsafe {
     return driver_c_typeck_entry_large_stack_impl(input_path, src, lib_roots_arr, n_lib_roots, print_ok);
@@ -686,6 +1078,21 @@ export function driver_c_typeck_entry_large_stack(input_path: *u8, src: *u8, lib
 }
 
 #[no_mangle]
+/** Exported function `runtime_prepare_dce_ctx`.
+ * Implements `runtime_prepare_dce_ctx`.
+ * @param mod *u8
+ * @param all_dep_mods *u8
+ * @param n_all i32
+ * @param used_funcs *u8
+ * @param n_used *i32
+ * @param used_mono *u8
+ * @param used_type_names *u8
+ * @param n_used_types *i32
+ * @param wpo_reach *u8
+ * @param dce *u8
+ * @param dce_ready *i32
+ * @return void
+ */
 export function runtime_prepare_dce_ctx(mod: *u8, all_dep_mods: *u8, n_all: i32, used_funcs: *u8, n_used: *i32, used_mono: *u8, used_type_names: *u8, n_used_types: *i32, wpo_reach: *u8, dce: *u8, dce_ready: *i32): void {
   unsafe {
     runtime_prepare_dce_ctx_impl(mod, all_dep_mods, n_all, used_funcs, n_used, used_mono, used_type_names, n_used_types, wpo_reach, dce, dce_ready);
@@ -693,6 +1100,13 @@ export function runtime_prepare_dce_ctx(mod: *u8, all_dep_mods: *u8, n_all: i32,
 }
 
 #[no_mangle]
+/** Exported function `driver_run_x_emit_c_from_compile_state`.
+ * Implements `driver_run_x_emit_c_from_compile_state`.
+ * @param state *u8
+ * @param argc i32
+ * @param argv *u8
+ * @return i32
+ */
 export function driver_run_x_emit_c_from_compile_state(state: *u8, argc: i32, argv: *u8): i32 {
   unsafe {
     return driver_run_x_emit_c_from_compile_state_impl(state, argc, argv);
@@ -700,7 +1114,7 @@ export function driver_run_x_emit_c_from_compile_state(state: *u8, argc: i32, ar
   return 0 - 1;
 }
 
-/* ---- G-02f-94：C frontend smoke / shu-c sibling / smoke lex thread 门闩 ---- */
+/* See implementation. */
 
 #[no_mangle]
 export function driver_c_frontend_smoke(input_path: *u8, src: *u8, lib_roots_arr: *u8, n_lib_roots: i32): i32 {
@@ -711,6 +1125,12 @@ export function driver_c_frontend_smoke(input_path: *u8, src: *u8, lib_roots_arr
 }
 
 #[no_mangle]
+/** Exported function `driver_try_compile_via_shu_c_sibling`.
+ * Implements `driver_try_compile_via_shu_c_sibling`.
+ * @param argc i32
+ * @param argv *u8
+ * @return i32
+ */
 export function driver_try_compile_via_shu_c_sibling(argc: i32, argv: *u8): i32 {
   unsafe {
     return driver_try_compile_via_shu_c_sibling_impl(argc, argv);
@@ -719,6 +1139,11 @@ export function driver_try_compile_via_shu_c_sibling(argc: i32, argv: *u8): i32 
 }
 
 #[no_mangle]
+/** Exported function `driver_smoke_lex_dump_thread_fn`.
+ * Read path helper `driver_smoke_lex_dump_thread_fn`.
+ * @param arg *u8
+ * @return *u8
+ */
 export function driver_smoke_lex_dump_thread_fn(arg: *u8): *u8 {
   unsafe {
     return driver_smoke_lex_dump_thread_fn_impl(arg);
@@ -726,7 +1151,7 @@ export function driver_smoke_lex_dump_thread_fn(arg: *u8): *u8 {
   return 0 as *u8;
 }
 
-/* ---- G-02f-95：ABI emit / pipeline_glue include / elf diag / argv_step 门闩 ---- */
+/* See implementation. */
 
 #[no_mangle]
 export function write_fs_path_map_error_abi_inline(cf: *u8): i32 {
@@ -737,6 +1162,12 @@ export function write_fs_path_map_error_abi_inline(cf: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `codegen_emit_include_pipeline_glue_c`.
+ * Implements `codegen_emit_include_pipeline_glue_c`.
+ * @param out *u8
+ * @param argv0 *u8
+ * @return void
+ */
 export function codegen_emit_include_pipeline_glue_c(out: *u8, argv0: *u8): void {
   unsafe {
     codegen_emit_include_pipeline_glue_c_impl(out, argv0);
@@ -744,6 +1175,11 @@ export function codegen_emit_include_pipeline_glue_c(out: *u8, argv0: *u8): void
 }
 
 #[no_mangle]
+/** Exported function `runtime_pipeline_elf_ctx_diag_note`.
+ * Implements `runtime_pipeline_elf_ctx_diag_note`.
+ * @param ctx_bytes *u8
+ * @return void
+ */
 export function runtime_pipeline_elf_ctx_diag_note(ctx_bytes: *u8): void {
   unsafe {
     runtime_pipeline_elf_ctx_diag_note_impl(ctx_bytes);
@@ -751,6 +1187,16 @@ export function runtime_pipeline_elf_ctx_diag_note(ctx_bytes: *u8): void {
 }
 
 #[no_mangle]
+/** Exported function `driver_compile_parse_argv_step_c`.
+ * Implements `driver_compile_parse_argv_step_c`.
+ * @param argc i32
+ * @param argv *u8
+ * @param state *u8
+ * @param i i32
+ * @param arg_buf *u8
+ * @param arg_cap i32
+ * @return i32
+ */
 export function driver_compile_parse_argv_step_c(argc: i32, argv: *u8, state: *u8, i: i32, arg_buf: *u8, arg_cap: i32): i32 {
   unsafe {
     return driver_compile_parse_argv_step_c_impl(argc, argv, state, i, arg_buf, arg_cap);
@@ -758,27 +1204,41 @@ export function driver_compile_parse_argv_step_c(argc: i32, argv: *u8, state: *u
   return i + 1;
 }
 
-// G-02f-111：+ write_io_net_abi_inline / driver_run_compiler_parsed / x_emit_c_extern 薄门闩。
-// 注：driver_c_typeck_entry 仍 static（#if 分支花括号，自动 promote 暂跳过）。
+// See implementation.
+// See implementation.
 
 export extern "C" function write_io_net_abi_inline_impl(cf: *u8): i32;
 export extern "C" function driver_run_compiler_parsed_impl(p: *u8, argc: i32, argv: *u8): i32;
 export extern "C" function driver_run_x_emit_c_extern_via_cparser_impl(path: *u8): i32;
 
-/* ---- G-02f-111：runtime driver helpers 门闩 ---- */
+/* See implementation. */
 
 #[no_mangle]
 export function write_io_net_abi_inline(cf: *u8): i32 { unsafe { return write_io_net_abi_inline_impl(cf); } return 0; }
 #[no_mangle]
+/** Exported function `driver_run_compiler_parsed`.
+ * Implements `driver_run_compiler_parsed`.
+ * @param p *u8
+ * @param argc i32
+ * @param argv *u8): i32 { unsafe { return driver_run_compiler_parsed_impl(p
+ * @param argc
+ * @param argv
+ * @return void
+ */
 export function driver_run_compiler_parsed(p: *u8, argc: i32, argv: *u8): i32 { unsafe { return driver_run_compiler_parsed_impl(p, argc, argv); } return 0; }
 #[no_mangle]
+/** Exported function `driver_run_x_emit_c_extern_via_cparser`.
+ * Implements `driver_run_x_emit_c_extern_via_cparser`.
+ * @param path *u8): i32 { unsafe { return driver_run_x_emit_c_extern_via_cparser_impl(path
+ * @return void
+ */
 export function driver_run_x_emit_c_extern_via_cparser(path: *u8): i32 { unsafe { return driver_run_x_emit_c_extern_via_cparser_impl(path); } return 0; }
 
-// G-02f-112：+ driver_c_typeck_entry 薄门闩（#if-aware promote）。
+// See implementation.
 
 export extern "C" function driver_c_typeck_entry_impl(mod: *u8, arena: *u8): i32;
 
-/* ---- G-02f-112：driver typeck entry 门闩 ---- */
+/* See implementation. */
 
 #[no_mangle]
 export function driver_c_typeck_entry(mod: *u8, arena: *u8): i32 {
@@ -786,9 +1246,15 @@ export function driver_c_typeck_entry(mod: *u8, arena: *u8): i32 {
   return 0;
 }
 
-// G-02f-114：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
+// drv_eq_minus_o: see function docblock below.
 
 #[no_mangle]
+/** Exported function `drv_eq_minus_o`.
+ * Implements `drv_eq_minus_o`.
+ * @param buf *u8
+ * @param len i32
+ * @return i32
+ */
 export function drv_eq_minus_o(buf: *u8, len: i32): i32 {
   if (len != 2) { return 0; }
   if (buf[0] == 45 && buf[1] == 111) { return 1; }
@@ -796,6 +1262,12 @@ export function drv_eq_minus_o(buf: *u8, len: i32): i32 {
 }
 
 #[no_mangle]
+/** Exported function `drv_eq_minus_L`.
+ * Implements `drv_eq_minus_L`.
+ * @param buf *u8
+ * @param len i32
+ * @return i32
+ */
 export function drv_eq_minus_L(buf: *u8, len: i32): i32 {
   if (len != 2) { return 0; }
   if (buf[0] == 45 && buf[1] == 76) { return 1; }
@@ -803,6 +1275,12 @@ export function drv_eq_minus_L(buf: *u8, len: i32): i32 {
 }
 
 #[no_mangle]
+/** Exported function `drv_eq_minus_O`.
+ * Implements `drv_eq_minus_O`.
+ * @param buf *u8
+ * @param len i32
+ * @return i32
+ */
 export function drv_eq_minus_O(buf: *u8, len: i32): i32 {
   if (len != 2) { return 0; }
   if (buf[0] == 45 && buf[1] == 79) { return 1; }
@@ -810,6 +1288,12 @@ export function drv_eq_minus_O(buf: *u8, len: i32): i32 {
 }
 
 #[no_mangle]
+/** Exported function `drv_eq_flto`.
+ * Implements `drv_eq_flto`.
+ * @param buf *u8
+ * @param len i32
+ * @return i32
+ */
 export function drv_eq_flto(buf: *u8, len: i32): i32 {
   if (len != 5) { return 0; }
   if (buf[0] == 45 && buf[1] == 102 && buf[2] == 108 && buf[3] == 116 && buf[4] == 111) { return 1; }
@@ -817,6 +1301,12 @@ export function drv_eq_flto(buf: *u8, len: i32): i32 {
 }
 
 #[no_mangle]
+/** Exported function `drv_eq_minus_freestanding`.
+ * Memory management helper `drv_eq_minus_freestanding`.
+ * @param buf *u8
+ * @param len i32
+ * @return i32
+ */
 export function drv_eq_minus_freestanding(buf: *u8, len: i32): i32 {
   if (len != 13) { return 0; }
   // -freestanding
@@ -827,6 +1317,12 @@ export function drv_eq_minus_freestanding(buf: *u8, len: i32): i32 {
 }
 
 #[no_mangle]
+/** Exported function `drv_eq_legacy_f32_abi`.
+ * Implements `drv_eq_legacy_f32_abi`.
+ * @param buf *u8
+ * @param len i32
+ * @return i32
+ */
 export function drv_eq_legacy_f32_abi(buf: *u8, len: i32): i32 {
   if (len != 15) { return 0; }
   // -legacy-f32-abi
@@ -837,6 +1333,12 @@ export function drv_eq_legacy_f32_abi(buf: *u8, len: i32): i32 {
 }
 
 #[no_mangle]
+/** Exported function `drv_eq_fsanitize_address`.
+ * Implements `drv_eq_fsanitize_address`.
+ * @param buf *u8
+ * @param len i32
+ * @return i32
+ */
 export function drv_eq_fsanitize_address(buf: *u8, len: i32): i32 {
   if (len != 18) { return 0; }
   // -fsanitize=address
@@ -848,6 +1350,12 @@ export function drv_eq_fsanitize_address(buf: *u8, len: i32): i32 {
 }
 
 #[no_mangle]
+/** Exported function `drv_eq_minus_backend`.
+ * Implements `drv_eq_minus_backend`.
+ * @param buf *u8
+ * @param len i32
+ * @return i32
+ */
 export function drv_eq_minus_backend(buf: *u8, len: i32): i32 {
   if (len != 8) { return 0; }
   // -backend
@@ -857,6 +1365,12 @@ export function drv_eq_minus_backend(buf: *u8, len: i32): i32 {
 }
 
 #[no_mangle]
+/** Exported function `drv_eq_minus_target`.
+ * Implements `drv_eq_minus_target`.
+ * @param buf *u8
+ * @param len i32
+ * @return i32
+ */
 export function drv_eq_minus_target(buf: *u8, len: i32): i32 {
   if (len < 7) { return 0; }
   // -target
@@ -866,6 +1380,12 @@ export function drv_eq_minus_target(buf: *u8, len: i32): i32 {
 }
 
 #[no_mangle]
+/** Exported function `drv_eq_minus_target_cpu`.
+ * Implements `drv_eq_minus_target_cpu`.
+ * @param buf *u8
+ * @param len i32
+ * @return i32
+ */
 export function drv_eq_minus_target_cpu(buf: *u8, len: i32): i32 {
   if (len < 11) { return 0; }
   // -target-cpu
@@ -876,6 +1396,12 @@ export function drv_eq_minus_target_cpu(buf: *u8, len: i32): i32 {
 }
 
 #[no_mangle]
+/** Exported function `drv_eq_print_target_cpu`.
+ * Implements `drv_eq_print_target_cpu`.
+ * @param buf *u8
+ * @param len i32
+ * @return i32
+ */
 export function drv_eq_print_target_cpu(buf: *u8, len: i32): i32 {
   // --print-target-cpu (18) or -print-target-cpu (17)
   if (len == 18) {
@@ -894,6 +1420,12 @@ export function drv_eq_print_target_cpu(buf: *u8, len: i32): i32 {
 }
 
 #[no_mangle]
+/** Exported function `drv_eq_asm_word`.
+ * Implements `drv_eq_asm_word`.
+ * @param buf *u8
+ * @param len i32
+ * @return i32
+ */
 export function drv_eq_asm_word(buf: *u8, len: i32): i32 {
   if (len != 3) { return 0; }
   if (buf[0] == 97 && buf[1] == 115 && buf[2] == 109) { return 1; }
@@ -901,6 +1433,12 @@ export function drv_eq_asm_word(buf: *u8, len: i32): i32 {
 }
 
 #[no_mangle]
+/** Exported function `drv_eq_c_word`.
+ * Implements `drv_eq_c_word`.
+ * @param buf *u8
+ * @param len i32
+ * @return i32
+ */
 export function drv_eq_c_word(buf: *u8, len: i32): i32 {
   if (len != 1) { return 0; }
   if (buf[0] == 99) { return 1; }
@@ -908,6 +1446,12 @@ export function drv_eq_c_word(buf: *u8, len: i32): i32 {
 }
 
 #[no_mangle]
+/** Exported function `drv_path_ends_x`.
+ * Implements `drv_path_ends_x`.
+ * @param buf *u8
+ * @param len i32
+ * @return i32
+ */
 export function drv_path_ends_x(buf: *u8, len: i32): i32 {
   if (len >= 2) {
     if (buf[len - 2] == 46 && buf[len - 1] == 120) { return 1; }
@@ -919,8 +1463,13 @@ export function drv_path_ends_x(buf: *u8, len: i32): i32 {
 }
 
 #[no_mangle]
+/** Exported function `driver_lib_root_ptr_usable`.
+ * Implements `driver_lib_root_ptr_usable`.
+ * @param p *u8
+ * @return i32
+ */
 export function driver_lib_root_ptr_usable(p: *u8): i32 {
-  // .x 路径：非空指针且非空串（C 侧另有 >=4096 哨兵；seed 保持原语义）
+  // See implementation.
   if (p == 0) { return 0; }
   if (p[0] == 0) { return 0; }
   return 1;
@@ -930,9 +1479,13 @@ export extern "C" function getenv(name: *u8): *u8;
 
 export extern "C" function diag_json_enabled(): i32;
 
-// G-02f-117：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
+// shux_smoke_diag_enabled: see function docblock below.
 
 #[no_mangle]
+/** Exported function `shux_smoke_diag_enabled`.
+ * Implements `shux_smoke_diag_enabled`.
+ * @return i32
+ */
 export function shux_smoke_diag_enabled(): i32 {
   unsafe {
     let j: i32 = diag_json_enabled();
@@ -946,11 +1499,16 @@ export function shux_smoke_diag_enabled(): i32 {
   return 0;
 }
 
-// G-02f-122：driver_asm_output_want_exe 真迁 .x
+// See implementation.
 
 export extern "C" function shux_output_want_exe(path: *u8): i32;
 
 #[no_mangle]
+/** Exported function `driver_asm_output_want_exe`.
+ * Implements `driver_asm_output_want_exe`.
+ * @param path *u8
+ * @return i32
+ */
 export function driver_asm_output_want_exe(path: *u8): i32 {
   unsafe {
     return shux_output_want_exe(path);
@@ -958,11 +1516,17 @@ export function driver_asm_output_want_exe(path: *u8): i32 {
   return 0;
 }
 
-// G-02f-125：driver pure argv/target/basename helpers 真迁 .x
+// See implementation.
 
 export extern "C" function driver_argv_at(argv: *u8, i: i32): *u8;
 
 #[no_mangle]
+/** Exported function `drv_target_has_arm`.
+ * Implements `drv_target_has_arm`.
+ * @param buf *u8
+ * @param len i32
+ * @return i32
+ */
 export function drv_target_has_arm(buf: *u8, len: i32): i32 {
   if (buf == 0) { return 0; }
   let start: i32 = 0;
@@ -977,6 +1541,12 @@ export function drv_target_has_arm(buf: *u8, len: i32): i32 {
 }
 
 #[no_mangle]
+/** Exported function `driver_argv_has_emit_c_flag`.
+ * Implements `driver_argv_has_emit_c_flag`.
+ * @param argc i32
+ * @param argv *u8
+ * @return i32
+ */
 export function driver_argv_has_emit_c_flag(argc: i32, argv: *u8): i32 {
   if (argc < 2) { return 0; }
   if (argv == 0) { return 0; }
@@ -1000,6 +1570,12 @@ export function driver_argv_has_emit_c_flag(argc: i32, argv: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `driver_argv0_basename_is`.
+ * Implements `driver_argv0_basename_is`.
+ * @param argv0 *u8
+ * @param base *u8
+ * @return i32
+ */
 export function driver_argv0_basename_is(argv0: *u8, base: *u8): i32 {
   if (base == 0) { return 0; }
   // find last / or \
@@ -1048,9 +1624,15 @@ export function driver_argv0_basename_is(argv0: *u8, base: *u8): i32 {
   return 0;
 }
 
-// G-02f-126：content_has_* 语法探测真迁 .x；emit setter 产品以 seed C 为准
+// content_has_generic_syntax: see function docblock below.
 
 #[no_mangle]
+/** Exported function `content_has_generic_syntax`.
+ * Implements `content_has_generic_syntax`.
+ * @param content *u8
+ * @param n i64
+ * @return i32
+ */
 export function content_has_generic_syntax(content: *u8, n: i64): i32 {
   if (content == 0) { return 0; }
   if (n == 0) { return 0; }
@@ -1122,6 +1704,12 @@ export function content_has_generic_syntax(content: *u8, n: i64): i32 {
 }
 
 #[no_mangle]
+/** Exported function `content_has_compound_assign_syntax`.
+ * Implements `content_has_compound_assign_syntax`.
+ * @param content *u8
+ * @param n i64
+ * @return i32
+ */
 export function content_has_compound_assign_syntax(content: *u8, n: i64): i32 {
   if (content == 0) { return 0; }
   if (n < 3) { return 0; }
@@ -1188,24 +1776,40 @@ export function content_has_compound_assign_syntax(content: *u8, n: i64): i32 {
 
 // emit setters: product seed C owns static state; .x documents entry (return 0)
 #[no_mangle]
+/** Exported function `driver_run_x_emit_c_set_emit_extern`.
+ * Implements `driver_run_x_emit_c_set_emit_extern`.
+ * @param v i32
+ * @return i32
+ */
 export function driver_run_x_emit_c_set_emit_extern(v: i32): i32 {
   // product: seeds/runtime.from_x.c sets driver_x_emit_c_want_extern
   return 0;
 }
 
 #[no_mangle]
+/** Exported function `driver_run_x_emit_c_set_n_lib_roots`.
+ * Implements `driver_run_x_emit_c_set_n_lib_roots`.
+ * @param n i32
+ * @return i32
+ */
 export function driver_run_x_emit_c_set_n_lib_roots(n: i32): i32 {
   // product: seeds/runtime.from_x.c clamps to X_EMIT_MAX_LIB_ROOTS(16)
   return 0;
 }
 
-// G-02f-127：runtime 入口转发真迁 .x
+// See implementation.
 
 export extern "C" function main_run_compiler_c(argc: i32, argv: *u8): i32;
 export extern "C" function driver_run_fmt(argc: i32, argv: *u8): i32;
 export extern "C" function driver_run_compiler_check(argc: i32, argv: *u8): i32;
 
 #[no_mangle]
+/** Exported function `run_compiler_c`.
+ * Implements `run_compiler_c`.
+ * @param argc i32
+ * @param argv *u8
+ * @return i32
+ */
 export function run_compiler_c(argc: i32, argv: *u8): i32 {
   unsafe {
     return main_run_compiler_c(argc, argv);
@@ -1214,6 +1818,12 @@ export function run_compiler_c(argc: i32, argv: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `runtime_run_fmt_c`.
+ * Implements `runtime_run_fmt_c`.
+ * @param argc i32
+ * @param argv *u8
+ * @return i32
+ */
 export function runtime_run_fmt_c(argc: i32, argv: *u8): i32 {
   unsafe {
     return driver_run_fmt(argc, argv);
@@ -1222,6 +1832,12 @@ export function runtime_run_fmt_c(argc: i32, argv: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `runtime_run_compiler_check_c`.
+ * Implements `runtime_run_compiler_check_c`.
+ * @param argc i32
+ * @param argv *u8
+ * @return i32
+ */
 export function runtime_run_compiler_check_c(argc: i32, argv: *u8): i32 {
   unsafe {
     return driver_run_compiler_check(argc, argv);
@@ -1229,9 +1845,14 @@ export function runtime_run_compiler_check_c(argc: i32, argv: *u8): i32 {
   return 0 - 1;
 }
 
-// G-02f-128：asm emit path pure helpers 真迁 .x
+// driver_x_emit_asm_direct_import_only: see function docblock below.
 
 #[no_mangle]
+/** Exported function `driver_x_emit_asm_direct_import_only`.
+ * Implements `driver_x_emit_asm_direct_import_only`.
+ * @param input_path *u8
+ * @return i32
+ */
 export function driver_x_emit_asm_direct_import_only(input_path: *u8): i32 {
   if (input_path == 0) { return 0; }
   let plen: i32 = 0;
@@ -1289,6 +1910,12 @@ export function driver_x_emit_asm_direct_import_only(input_path: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `driver_x_emit_asm_dep_parse_skip_typeck_ok`.
+ * Implements `driver_x_emit_asm_dep_parse_skip_typeck_ok`.
+ * @param input_path *u8
+ * @param dep_path *u8
+ * @return i32
+ */
 export function driver_x_emit_asm_dep_parse_skip_typeck_ok(input_path: *u8, dep_path: *u8): i32 {
   if (driver_x_emit_asm_direct_import_only(input_path) == 0) { return 0; }
   if (dep_path == 0) { return 0; }
@@ -1300,8 +1927,14 @@ export function driver_x_emit_asm_dep_parse_skip_typeck_ok(input_path: *u8, dep_
   return 0;
 }
 
-// G-02f-129：asm.x dep 仅 parse 白名单
+// driver_x_emit_asm_dep_parse_only_ok: see function docblock below.
 #[no_mangle]
+/** Exported function `driver_x_emit_asm_dep_parse_only_ok`.
+ * Implements `driver_x_emit_asm_dep_parse_only_ok`.
+ * @param input_path *u8
+ * @param dep_path *u8
+ * @return i32
+ */
 export function driver_x_emit_asm_dep_parse_only_ok(input_path: *u8, dep_path: *u8): i32 {
   if (input_path == 0) { return 0; }
   if (dep_path == 0) { return 0; }

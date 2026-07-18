@@ -1,6 +1,10 @@
-// 测试 std.log：set_min_level、log.log(level, ptr, len)
+// See implementation.
 const log = import("std.log");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   log.set_min_level(log.level_info());
   let msg: u8[5] = [111, 107, 32, 49, 0];

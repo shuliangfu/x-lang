@@ -1,8 +1,12 @@
-// STD-031：std.websocket Context 取消/超时离线烟测
+// See implementation.
 const ws = import("std.websocket");
 const context = import("std.context");
 const err = import("std.error");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let bg: Context = context.background();
   if (ws.ws_timeout_ms_from_ctx(bg) != 0) {

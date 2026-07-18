@@ -14,72 +14,72 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// typeck.x — 类型检查（纯 .x，完全自举）
+// See implementation.
 //
-// 职责：对 .x AST（Module + Arena）做类型检查，全部逻辑在 .x；阶段 5.2 跨模块调用时通过 extern 取 dep 模块。
-// 内容：main 校验、const/let 类型与初值一致、while/for 条件须 bool、if/三元条件须 bool、
-//       赋值左右类型一致、块末表达式类型与函数返回类型一致、`return expr`：i32 目标下允许切片下标得到之 u8 与 `.length` 之 usize 隐式收窄并写回 resolved_type；
-//       EXPR_CALL 在本模块或 deps 中解析 callee 并设 resolved_type_ref。
-//       非 void 函数块末不得为「隐式尾表达式」（final_expr 非 EXPR_RETURN 等），否则 typeck_x_ast_impl/library 返回 -6，与 C 路径「须显式 return」一致。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 //
 // Cap-T001 / LANG-007 S0 (M1→M2 typeck): functions that call export-extern
 // pipeline_* / glue use whole-body unsafe FFI gates. Does not weaken user-code
 // unsafe checks inside typeck. PLATFORM: SHARED — product still pins typeck seed until M2.
-// 依赖：import ast。
+// See implementation.
 
 const ast = import("ast");
 
 /**
-* EMIT_HEAVY X 真 emit 注意：函数体内 `(ExprKind.* as i32)` 会宿主 Abort；
-* 模块顶 const 引用会 backend emit 失败。coerce 子 helper 用函数内 `let ord_*: i32 = N` 字面量（与 ast.x 序一致）。
+* See implementation.
+* See implementation.
 */
 export extern function typeck_float64_bits_lo(d: f64): i32;
 export extern function typeck_float64_bits_hi(d: f64): i32;
-/** typeck_x_ast / library 失败时打印函数下标与名称；kind -5 check_block / -6 隐式尾返回（runtime.c）。 */
+/* See implementation. */
 export extern function driver_diagnostic_typeck_func_fail(func_idx: i32, name: *u8, name_len: i32,
 kind: i32): void;
-/** 写 ctx.typeck_loop_depth；loop_depth push/pop X helper 用（勿 X 直接写字段）。 */
+/* See implementation. */
 export extern function pipeline_typeck_loop_depth_set_c(ctx: *PipelineDepCtx, depth: i32): void;
-/** dep 池规模与模块槽（ast_pool.c / pipeline_glue.c）。 */
+/* See implementation. */
 export extern function pipeline_dep_ctx_ndep(ctx: *PipelineDepCtx): i32;
 export extern function pipeline_dep_ctx_module_at(ctx: *PipelineDepCtx, idx: i32): *Module;
 export extern function pipeline_dep_ctx_import_path_len(ctx: *PipelineDepCtx, idx: i32): i32;
 export extern function pipeline_dep_ctx_import_path_copy64(ctx: *PipelineDepCtx, idx: i32, dst: *u8): void;
 export extern function parser_get_module_num_imports(module: *Module): i32;
 export extern function pipeline_dep_ctx_arena_at(ctx: *PipelineDepCtx, idx: i32): *ASTArena;
-/** typeck_x_ast 遍历函数时设置 ctx.current_func_index（EMIT_HEAVY 勿 X 写字段）。 */
+/* See implementation. */
 export extern function pipeline_dep_ctx_set_current_func_index(ctx: *PipelineDepCtx, ix: i32): void;
-/** check_*_impl mega 编排 C；strict emit while+side-effect 易错序。 */
+/* See implementation. */
 export extern function pipeline_typeck_check_expr_impl_c(module: *Module, arena: *ASTArena, expr_ref: i32, return_type_ref: i32, ctx: *PipelineDepCtx): i32;
-/** check_expr_impl_mega：EMIT_HEAVY 第二遍 bl→本符号（kind 分派至 typeck_check_expr_*）。 */
+/* See implementation. */
 export extern function pipeline_typeck_check_expr_impl_mega_c(module: *Module, arena: *ASTArena, expr_ref: i32, return_type_ref: i32, ctx: *PipelineDepCtx): i32;
 export extern function pipeline_typeck_check_expr_method_call_c(module: *Module, arena: *ASTArena, expr_ref: i32, return_type_ref: i32, ctx: *PipelineDepCtx): i32;
-/** ERR-01：Result `?` 传播（kind=58）；C 实现在 pipeline_glue.c。 */
+/* See implementation. */
 export extern function pipeline_typeck_check_expr_try_propagate_c(module: *Module, arena: *ASTArena, expr_ref: i32, return_type_ref: i32, ctx: *PipelineDepCtx): i32;
-/** EXPR_MATCH：迭代检查各 arm；X 递归 typeck_check_expr_match_arm 易 SIGSEGV，整段 C 委托。 */
+/* See implementation. */
 export extern function pipeline_typeck_check_expr_match_c(module: *Module, arena: *ASTArena, expr_ref: i32, return_type_ref: i32, ctx: *PipelineDepCtx): i32;
-/** FIELD_ACCESS 整段 C 委托（含 DOD-S1 SoA arr[i].field；pipeline_typeck_field_access.c）。 */
+/* See implementation. */
 export extern function pipeline_typeck_check_expr_field_access_c(module: *Module, arena: *ASTArena, expr_ref: i32, return_type_ref: i32, ctx: *PipelineDepCtx): i32;
-/** FIELD_ACCESS 子路径（pipeline_typeck_field_access.c）；X 编排 prebind→base→layout/slice/fallback。 */
+/* See implementation. */
 export extern function pipeline_typeck_field_prebind_c(module: *Module, arena: *ASTArena, expr_ref: i32, ctx: *PipelineDepCtx): void;
 export extern function pipeline_typeck_field_known_ptr_types_c(module: *Module, arena: *ASTArena, expr_ref: i32, base_ref: i32, num_layouts: i32): i32;
 export extern function pipeline_typeck_field_layout_named_c(module: *Module, arena: *ASTArena, expr_ref: i32, base_ref: i32, ctx: *PipelineDepCtx): i32;
 export extern function pipeline_typeck_field_slice_c(arena: *ASTArena, expr_ref: i32, base_ref: i32): void;
 export extern function pipeline_typeck_field_name_fallback_c(arena: *ASTArena, expr_ref: i32, base_ref: i32): void;
 export extern function pipeline_typeck_field_lexer_fallback_c(module: *Module, arena: *ASTArena, expr_ref: i32, base_ref: i32, ctx: *PipelineDepCtx): void;
-/** FIELD_ACCESS 调试：SHUX_TYPECK_PTR=1 时打印 base 指针类型信息（runtime.c）。 */
+/* See implementation. */
 export extern function driver_diagnostic_typeck_ptr_field(bt_kind: i32, inner_kind: i32, inner_nlen: i32,
 base_resolved_ref: i32, num_struct_layouts: i32): void;
-/** 从 arena.types[ref] 拷出 Type.name[64]（C memcpy）；返回 name_len，无效 ref 返回 0。避免 TYPE 按值拷贝撕裂 name（pipeline_glue.c）。 */
+/* See implementation. */
 export extern function pipeline_type_named_name_into(arena: *ASTArena, type_ref: i32, out: *u8): i32;
-/** arena.types[ref].kind 的序数值（与 type_kind_ordinal 一致）；无效 ref 返回 -1。 */
+/* See implementation. */
 export extern function pipeline_type_kind_ord_at(arena: *ASTArena, type_ref: i32): i32;
-/** arena.types[ref].array_size / elem_type_ref；向量 lane 与元素类型比较用（pipeline_glue.c）。 */
+/* See implementation. */
 export extern function pipeline_type_array_size_at(arena: *ASTArena, type_ref: i32): i32;
 export extern function pipeline_type_elem_ref_at(arena: *ASTArena, type_ref: i32): i32;
-/** 递归类型相等（C 薄委托）；typeck.x EMIT_HEAVY 内已改 bl→X type_refs_equal，seed/C 链仍可用。 */
+/* See implementation. */
 export extern function pipeline_typeck_type_refs_equal_c(arena: *ASTArena, a: i32, b: i32): i32;
-/** type 别名展开与 alias 表读取（pipeline_glue.c）。 */
+/* See implementation. */
 export extern function pipeline_typeck_resolve_type_alias_ref_c(arena: *ASTArena, type_ref: i32): i32;
 export extern function pipeline_module_num_type_aliases_at(module: *Module): i32;
 export extern function pipeline_module_type_alias_name_len(module: *Module, idx: i32): i32;
@@ -88,36 +88,36 @@ export extern function pipeline_module_type_alias_target_ref(module: *Module, id
 export extern function pipeline_typeck_coerce_init_int_binop_to_decl_c(arena: *ASTArena, init_ref: i32,
 decl_ty_ref: i32, decl_kind: i32, init_kind: i32): i32;
 export extern function pipeline_typeck_func_body_has_implicit_return_tail_c(arena: *ASTArena, body_ref: i32): i32;
-/** 读 binop 子表达式 ref；勿用 ast_arena_expr_get 后 e.binop_*（自举 asm 下字段可能撕裂）。 */
+/* See implementation. */
 export extern function pipeline_expr_binop_left_ref_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_binop_right_ref_at(arena: *ASTArena, expr_ref: i32): i32;
-/** check_block_impl 入口：SHUX_TYPECK_BLOCK=1 时打印块 stmt 计数（runtime.c）。 */
+/* See implementation. */
 export extern function driver_diagnostic_typeck_block_enter(func_idx: i32, block_ref: i32, n_const: i32,
 n_let: i32, n_loop: i32, n_for: i32, n_expr: i32, final_ref: i32): void;
-/** typeck_x_ast 逐函数入口：SHUX_TYPECK_FN=1 时打印 func_idx 与名称（runtime.c）。 */
+/* See implementation. */
 export extern function driver_diagnostic_typeck_fn_enter(func_idx: i32, name: *u8, name_len: i32): void;
-/** EXPR_RETURN 失败诊断：SHUX_TYPECK_RET=1（runtime.c）。 */
+/* See implementation. */
 export extern function driver_diagnostic_typeck_ret_fail(stage: i32, op_expr_ref: i32, expect_ty_ref: i32,
 got_ty_ref: i32): void;
 export extern function driver_diagnostic_typeck_binop_operands(expr_ref: i32, left_ref: i32, right_ref: i32,
 left_kind: i32, right_kind: i32, left_block_ref: i32, right_block_ref: i32, left_ty_ref: i32, right_ty_ref: i32,
 left_ty: *u8, left_ty_len: i32, right_ty: *u8, right_ty_len: i32): void;
-/** return 表达式类型与函数签名不符：stderr 含 typeck error（runtime.c）。 */
+/* See implementation. */
 export extern function driver_diagnostic_typeck_return_mismatch(line: i32, col: i32,
 expect_buf: *u8, expect_len: i32, found_buf: *u8, found_len: i32): void;
 export extern function driver_diagnostic_typeck_return_unresolved(line: i32, col: i32,
 expr_buf: *u8, expr_len: i32): void;
 export extern function driver_diagnostic_typeck_return_subexpr(line: i32, col: i32,
 expr_buf: *u8, expr_len: i32): void;
-/** 赋值类型不符：stderr 行文与 typeck.c + lsp_diag_report_typeck 一致（runtime.c）。 */
+/* See implementation. */
 export extern function driver_diagnostic_typeck_assign_mismatch(is_compound: i32, line: i32, col: i32,
 expect_buf: *u8, expect_len: i32, found_buf: *u8, found_len: i32): void;
-/** import 顶层 const 禁止裸名访问；binding_len>0 时给出 binding.CONST 提示。 */
+/* See implementation. */
 export extern function driver_diagnostic_typeck_import_const_must_be_qualified(line: i32, col: i32,
 name: *u8, name_len: i32, binding: *u8, binding_len: i32): void;
-/** 下标基类型非法时打印 stderr（与 typeck.c 一致）。 */
+/* See implementation. */
 export extern function driver_diagnostic_typeck_subscript_base(line: i32, col: i32): void;
-/** break/continue 出现在循环外：stderr 含「'break' only allowed inside a loop」（与 typeck.c 一致）。 */
+/* See implementation. */
 export extern function driver_diagnostic_typeck_break_continue_outside(line: i32, col: i32,
 is_break: i32): void;
 export extern function typeck_driver_diagnostic_pipe_marker(id: i32): void;
@@ -126,51 +126,51 @@ export extern function driver_diagnostic_typeck_while_condition_not_bool(line: i
 export extern function driver_diagnostic_typeck_for_condition_not_bool(line: i32, col: i32): void;
 export extern function driver_typeck_diag_scratch_expect(): *u8;
 export extern function driver_typeck_diag_scratch_found(): *u8;
-/** ast_pool.c：64 字节 scratch（避免 let u8[64]=[] 在 EMIT_HEAVY asm 下 ExprKind=-1）。 */
+/* See implementation. */
 export extern function typeck_scratch64_slot(slot: i32): *u8;
-/** ast_pool.c：struct_layout_metrics out_sz/out_al 分槽（勿栈上 &local，自举 asm 下 tearing/SIGSEGV）。 */
+/* See implementation. */
 export extern function typeck_layout_metrics_sz_slot(): *i32;
 export extern function typeck_layout_metrics_al_slot(): *i32;
 export extern function typeck_layout_metrics_sz_slot_depth(depth: i32): *i32;
 export extern function typeck_layout_metrics_al_slot_depth(depth: i32): *i32;
-/** 经 C 写 *i32 slot（local ptr[0]=v 在自举 parse 会 skip 整函数；形参 out_sz/out_al 可用）。 */
+/* See implementation. */
 export extern function typeck_i32_ptr_store(p: *i32, v: i32): void;
-/** 经 C 读 *i32 slot；resolve_call X emit 勿栈上 out 局部指针解引用。 */
+/* See implementation. */
 export extern function typeck_i32_ptr_read(p: *i32): i32;
-/** CALL resolve 写 dep/func 下标 scratch；勿栈上 &local（EMIT_HEAVY asm SIGSEGV）。 */
+/* See implementation. */
 export extern function typeck_call_resolve_dep_idx_slot(): *i32;
 export extern function typeck_call_resolve_func_idx_slot(): *i32;
 /** Expected return type for overload pick (let/assign/return context). 0 = none. PLATFORM: SHARED. */
 export extern function typeck_overload_expected_ret_slot(): *i32;
 export extern function typeck_overload_expected_ret_peek(): i32;
-/** 读 scratch 槽值（X emit 勿嵌套 typeck_i32_ptr_read(slot())）。 */
+/* See implementation. */
 export extern function typeck_call_resolve_dep_idx_peek(): i32;
 export extern function typeck_call_resolve_func_idx_peek(): i32;
-/** 算术 binop 类型推导 C glue（EMIT_HEAVY 第二遍已内联于 typeck_check_expr_binop_arith；保留供 seed/C 链）。 */
+/* See implementation. */
 export extern function typeck_binop_arith_infer_type_c(arena: *ASTArena, expr_ref: i32, bop_l: i32,
 bop_r: i32, expr_kind: i32): void;
-/** 为嵌套块补 parent_block_ref；显式栈实现于 ast_pool.c pipeline_patch_block_parent_links。 */
+/* See implementation. */
 export extern function pipeline_patch_block_parent_links(arena: *ASTArena, block_ref: i32, parent_ref: i32): void;
-/** depth/single 槽 init+read（勿 let local *i32 传 extern）。 */
+/* See implementation. */
 export extern function typeck_layout_metrics_init_depth(depth: i32): void;
 export extern function typeck_layout_metrics_al_read_depth(depth: i32): i32;
 export extern function typeck_layout_metrics_sz_read_depth(depth: i32): i32;
 export extern function typeck_layout_metrics_init_slot(): void;
-/** TYPE_NAMED 命中 struct_layout 时算 align/size；C 栈 out，.x 勿 depth slot + metrics 递归 emit（SIGSEGV）。 */
+/* See implementation. */
 export extern function typeck_x_type_align_from_layout_glue(module: *Module, arena: *ASTArena, li: i32,
 depth: i32): i32;
 export extern function typeck_x_type_size_from_layout_glue(module: *Module, arena: *ASTArena, li: i32,
   depth: i32): i32;
 export extern function typeck_soa_array_storage_size_glue(module: *Module, arena: *ASTArena, elem_type_ref: i32,
   array_len: i32, depth: i32): i32;
-/** runtime.c：pipeline 依赖槽位镜像；dep 池 arena 槽未与时序写入时仍可读 dep 的类型池（整包限定调用 ASSIGN/let 需 resolved_type_ref）。 */
+/* See implementation. */
 export extern function pipeline_get_dep_arena_slot(ix: i32): *ASTArena;
-/** 按当前函数下标与变量名查形参的类型池 ref；由 pipeline_glue.c 指针读 Param，避免 asm 下 module.funcs[fi].params[pi] 寻址错误。 */
+/* See implementation. */
 export extern function pipeline_module_func_param_type_ref_for_name(module: *Module, func_index: i32,
 vname: *u8, vname_len: i32): i32;
-/** module.num_funcs 的 glue 读；patch parent 循环勿直接读 Module 字段（EMIT_HEAVY asm）。 */
+/* See implementation. */
 export extern function pipeline_module_num_funcs(module: *Module): i32;
-/** module.main_func_index 的 glue 读；typeck_x_ast 入口勿直接读 Module 字段。 */
+/* See implementation. */
 export extern function pipeline_module_main_func_index(module: *Module): i32;
 export extern function pipeline_module_func_is_extern_at(module: *Module, fi: i32): i32;
 export extern function pipeline_module_func_body_ref_at(module: *Module, fi: i32): i32;
@@ -181,16 +181,16 @@ export extern function pipeline_module_func_name_copy64(module: *Module, fi: i32
 export extern function pipeline_module_func_name_byte_at(module: *Module, fi: i32, i: i32): u8;
 export extern function pipeline_module_func_name_equal_at(module: *Module, fi: i32, name: *u8,
 name_len: i32): i32;
-/** 合并 dep 的 struct_layout 到入口 module 时用 glue 写入槽位（与 parser 一致）。 */
+/* See implementation. */
 export extern function pipeline_module_struct_layout_reset_slot(module: *Module, idx: i32): void;
 export extern function pipeline_module_struct_layout_set_name(module: *Module, idx: i32, bytes: *u8,
 len: i32): void;
 export extern function pipeline_module_struct_layout_set_field(module: *Module, layout_idx: i32, j: i32,
 fname: *u8, fname_len: i32, ftype_ref: i32, foff: i32): void;
-/** §11.1 下一字段字节偏移（勿固定 off+=8）；定义在 pipeline_glue.c。 */
+/* See implementation. */
 export extern function pipeline_struct_layout_next_field_offset(module: *Module, arena: *ASTArena,
 layout_idx: i32, new_field_type_ref: i32): i32;
-/** 读 struct_layout 字段名/长度，避免 X 内 field_names[j][0] 嵌套下标 typeck 失败。 */
+/* See implementation. */
 export extern function pipeline_module_struct_layout_field_name_into(module: *Module, layout_idx: i32,
 j: i32, out: *u8): void;
 export extern function pipeline_module_struct_layout_field_name_len(module: *Module, layout_idx: i32,
@@ -200,7 +200,7 @@ export extern function pipeline_module_struct_layout_name_len(module: *Module, i
 export extern function pipeline_module_struct_layout_num_fields(module: *Module, layout_idx: i32): i32;
 export extern function pipeline_module_struct_layout_set_num_fields(module: *Module, layout_idx: i32,
 nf: i32): void;
-/** 读 struct_lit expr 字段；避免 X 内 e.struct_lit_field_names[j][0] 嵌套下标 typeck 失败。 */
+/* See implementation. */
 export extern function pipeline_expr_struct_lit_num_fields(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_struct_lit_type_name_len(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_struct_lit_type_name_into(arena: *ASTArena, expr_ref: i32,
@@ -211,29 +211,29 @@ export extern function pipeline_expr_struct_lit_field_name_into(arena: *ASTArena
 out: *u8): void;
 export extern function pipeline_expr_struct_lit_init_ref(arena: *ASTArena, expr_ref: i32, j: i32): i32;
 export extern function pipeline_expr_resolved_type_ref(arena: *ASTArena, expr_ref: i32): i32;
-/** 经 C 指针写 expr.resolved_type_ref；勿 ast_arena_expr_get/set（EMIT_HEAVY asm 下 Expr 按值撕裂）。 */
+/* See implementation. */
 export extern function pipeline_expr_set_resolved_type_ref(arena: *ASTArena, expr_ref: i32,
 type_ref: i32): void;
-/** EXPR_FLOAT_LIT：写 float_bits_lo/hi；勿 ast_arena_expr_get/set 整颗 Expr。 */
+/* See implementation. */
 export extern function pipeline_expr_typeck_set_float_bits_from_val(arena: *ASTArena, expr_ref: i32): void;
-/** 读 expr 源码位置；break/continue 诊断 X emit 用。 */
+/* See implementation. */
 export extern function pipeline_expr_line_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_col_at(arena: *ASTArena, expr_ref: i32): i32;
-/** 读 ctx.typeck_loop_depth；break/continue X emit 勿直接读 ctx 字段。 */
+/* See implementation. */
 export extern function pipeline_dep_ctx_typeck_loop_depth_at(ctx: *PipelineDepCtx): i32;
-/** EXPR_VAR：读当前块/函数下标（勿 X 直接读 ctx 字段）。 */
+/* See implementation. */
 export extern function pipeline_dep_ctx_current_block_ref_at(ctx: *PipelineDepCtx): i32;
 export extern function pipeline_dep_ctx_current_func_index(ctx: *PipelineDepCtx): i32;
-/** LANG-007 v2：读 unsafe { } 嵌套深度（>0 表示在 unsafe 块内）；deref/extern call 边界检查共用（pipeline_glue.c 侧车）。 */
+/* See implementation. */
 export extern function pipeline_dep_ctx_typeck_unsafe_depth_at(ctx: *PipelineDepCtx): i32;
-/** check_block_impl：绑定/恢复 ctx.current_block_ref（EMIT_HEAVY 勿 X 写字段+while 混用）。 */
+/* See implementation. */
 export extern function pipeline_typeck_block_impl_bind_ctx_c(ctx: *PipelineDepCtx, block_ref: i32): i32;
 export extern function pipeline_typeck_block_impl_restore_ctx_c(ctx: *PipelineDepCtx, saved_block_ref: i32): void;
 export extern function pipeline_typeck_block_impl_touch_ctx_block_c(ctx: *PipelineDepCtx, block_ref: i32): void;
-/** 读 EXPR_LIT int_val；勿 ast_arena_expr_get 按值拷贝 Expr。 */
+/* See implementation. */
 export extern function pipeline_expr_int_val_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_field_access_is_enum_variant(arena: *ASTArena, expr_ref: i32): i32;
-/** 写 FIELD_ACCESS 枚举变体标记与 tag；勿 ast_arena_expr_set 整颗 Expr。 */
+/* See implementation. */
 export extern function pipeline_expr_set_field_access_enum_variant(arena: *ASTArena, expr_ref: i32,
 tag: i32): void;
 export extern function pipeline_expr_method_call_arg_ref(arena: *ASTArena, expr_ref: i32, idx: i32): i32;
@@ -241,7 +241,7 @@ export extern function pipeline_expr_match_arm_result_ref(arena: *ASTArena, expr
 export extern function pipeline_expr_match_arm_is_enum_variant(arena: *ASTArena, expr_ref: i32,
 i: i32): i32;
 export extern function pipeline_expr_match_arm_variant_index(arena: *ASTArena, expr_ref: i32, i: i32): i32;
-/** EXPR_MATCH 侧车字段；勿 ast_arena_expr_get 读 match_*（EMIT_HEAVY asm 按值撕裂）。 */
+/* See implementation. */
 export extern function pipeline_expr_match_matched_ref_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_match_num_arms_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_module_enum_variant_tag_for_names(m: *Module, enum_name: *u8,
@@ -251,39 +251,39 @@ export extern function pipeline_expr_array_lit_elem_ref(arena: *ASTArena, expr_r
 export extern function driver_diagnostic_typeck_enum_no_variant(line: i32, col: i32): void;
 export extern function driver_diagnostic_typeck_var_resolution(expr_ref: i32, name: *u8, name_len: i32,
 func_idx: i32, block_ref: i32, source: i32, type_ref: i32): void;
-/** 类型池分配/查找；避免 X 内 ti.kind = TypeKind.* 等对大 Type 局部副本赋值 typeck 失败。 */
+/* See implementation. */
 export extern function pipeline_arena_type_alloc(arena: *ASTArena): i32;
-/** 新分配 type 槽仅写 kind（memset+kind）；配合 typeck_ensure_primitive_by_kind_ord X 扫描循环。 */
+/* See implementation. */
 export extern function pipeline_type_init_primitive_kind_at(arena: *ASTArena, ref: i32, kind_ord: i32): i32;
-/** 新分配 TYPE_NAMED 槽；配合 find_or_alloc_named_type_ref X 扫描循环。 */
+/* See implementation. */
 export extern function pipeline_type_init_named_at(arena: *ASTArena, ref: i32, name: *u8, name_len: i32): i32;
-/** 新分配 PTR/ARRAY/SLICE/VECTOR 槽；配合 typeck_find_or_alloc_compound_type_ref X 扫描循环。 */
+/* See implementation. */
 export extern function pipeline_type_init_compound_kind_at(arena: *ASTArena, ref: i32, kind_ord: i32,
 elem_ref: i32, array_size: i32): i32;
 export extern function pipeline_type_ensure_by_kind_ord(arena: *ASTArena, kind_ord: i32): i32;
 export extern function pipeline_type_find_or_alloc_named(arena: *ASTArena, name: *u8, name_len: i32): i32;
 export extern function pipeline_type_find_or_alloc_compound(arena: *ASTArena, kind_ord: i32, elem_ref: i32,
 array_size: i32): i32;
-/** M-3：slice 域标签读写与去重分配（T[]<label>）。 */
+/* See implementation. */
 export extern function pipeline_type_region_label_into(arena: *ASTArena, ref: i32, out64: *u8): i32;
 export extern function pipeline_type_region_label_len_at(arena: *ASTArena, ref: i32): i32;
 export extern function pipeline_type_set_region_label_at(arena: *ASTArena, ref: i32, label: *u8,
 label_len: i32): i32;
 export extern function pipeline_type_find_or_alloc_slice(arena: *ASTArena, elem_ref: i32, reg_label: *u8,
 reg_label_len: i32): i32;
-/** M-3：slice 域 assign/return 检查（C glue，与 typeck.c 措辞一致）。 */
+/* See implementation. */
 export extern function pipeline_typeck_check_slice_region_assign_c(arena: *ASTArena, site_expr_ref: i32,
 expect_ref: i32, src_ref: i32): i32;
 export extern function pipeline_typeck_check_return_slice_region_c(arena: *ASTArena, ret_site_ref: i32,
 op_ref: i32, func_return_ref: i32): i32;
-/** M-3 AL-06：region 作用域内 return 未标注 T[] — 与 operand stamp 无关的 scope 路径。 */
+/* See implementation. */
 export extern function pipeline_typeck_check_return_slice_region_in_scope_c(arena: *ASTArena,
 site_expr_ref: i32, return_type_ref: i32, ctx: *PipelineDepCtx): i32;
-/** M-3：CALL 实参 slice 域检查；region 块 typeck / let stamp。 */
-/** LANG-007 v2：S0 内 extern 调用须在 unsafe { }（pipeline_glue.c）。 */
+/* See implementation. */
+/* See implementation. */
 export extern function pipeline_typeck_check_extern_call_unsafe_boundary_c(module: *Module, arena: *ASTArena,
 expr_ref: i32, ctx: *PipelineDepCtx): i32;
-/** LANG-007 v2：*T 解引用在 unsafe { } 块外时报错（pipeline_glue.c）。 */
+/* See implementation. */
 export extern function driver_diagnostic_typeck_deref_outside_unsafe(line: i32, col: i32): void;
 export extern function pipeline_typeck_check_call_slice_region_c(module: *Module, arena: *ASTArena,
 call_expr_ref: i32, ctx: *PipelineDepCtx): i32;
@@ -292,34 +292,34 @@ ctx: *PipelineDepCtx): i32;
 export extern function pipeline_typeck_check_block_one_region_c(module: *Module, arena: *ASTArena,
 block_ref: i32, region_idx: i32, return_type_ref: i32, ctx: *PipelineDepCtx): i32;
 export extern function pipeline_block_region_is_unsafe(arena: *ASTArena, br: i32, ri: i32): i32;
-/** M-4：Linear(T) use-once move（C glue，与 typeck.c 措辞一致）。 */
+/* See implementation. */
 export extern function pipeline_typeck_linear_reset_c(): void;
 export extern function pipeline_typeck_linear_use_var_c(arena: *ASTArena, type_ref: i32, expr_ref: i32,
 name: *u8, name_len: i32): i32;
 export extern function pipeline_typeck_linear_accepts_init_c(arena: *ASTArena, decl_ref: i32, init_ref: i32): i32;
-/** M-4：禁止 &linear（须在 linear use-once 之前）。 */
+/* See implementation. */
 export extern function pipeline_typeck_reject_addr_of_linear_c(arena: *ASTArena, op_ref: i32,
 addr_expr_ref: i32, module: *Module, ctx: *PipelineDepCtx): i32;
-/** WPO-S3：局部 struct 取址 → stack_local *T；assign/call 栈逃逸检查。 */
+/* See implementation. */
 export extern function pipeline_typeck_ptr_for_addr_of_operand_c(arena: *ASTArena, op_ref: i32,
 elem_ty: i32, module: *Module, ctx: *PipelineDepCtx): i32;
 export extern function pipeline_typeck_check_struct_stack_escape_assign_c(module: *Module, arena: *ASTArena,
 site_expr_ref: i32, left_ref: i32, right_ref: i32, ctx: *PipelineDepCtx): i32;
-/** MEM-A3：scope borrow assign 逃逸（须在 assign 类型匹配前）。 */
+/* See implementation. */
 export extern function pipeline_typeck_check_scope_borrow_assign_c(module: *Module, arena: *ASTArena,
 site_expr_ref: i32, left_ref: i32, right_ref: i32, ctx: *PipelineDepCtx): i32;
-/** MEM-C1 AL-04：with_arena 内赋给块外变量（须在 assign 类型匹配前）。 */
+/* See implementation. */
 export extern function pipeline_typeck_check_allocator_region_assign_c(module: *Module, arena: *ASTArena,
 site_expr_ref: i32, left_ref: i32, ctx: *PipelineDepCtx): i32;
-/** M-5：read_ptr slice 生产者 callee 名 + u8[]<io_read_ptr> 返回类型 ref。 */
+/* See implementation. */
 export extern function pipeline_typeck_is_read_ptr_slice_callee_c(name: *u8, name_len: i32): i32;
 export extern function pipeline_typeck_read_ptr_slice_return_ref_c(arena: *ASTArena): i32;
 export extern function pipeline_module_func_param_type_ref_at(module: *Module, fi: i32, pi: i32): i32;
 export extern function pipeline_module_func_num_params_at(module: *Module, fi: i32): i32;
 export extern function pipeline_expr_call_resolved_func_index_at(arena: *ASTArena, expr_ref: i32): i32;
-/** 读 expr 字段；避免 X 内 ast_arena_expr_get 后 field_access_field_name[i] 等 typeck 失败。 */
+/* See implementation. */
 export extern function pipeline_expr_kind_ord_at(arena: *ASTArena, expr_ref: i32): i32;
-/** block const 初值须为常量表达式（C glue 递归 is_const_expr）。 */
+/* See implementation. */
 export extern function pipeline_typeck_block_const_init_is_const_c(arena: *ASTArena, block_ref: i32, const_idx: i32): i32;
 export extern function pipeline_typeck_const_init_not_constant_c(line: i32, col: i32): void;
 /**
@@ -333,31 +333,30 @@ export extern function pipeline_typeck_fold_block_const_init_c(arena: *ASTArena,
 const_idx: i32): void;
 export extern function pipeline_typeck_fold_expr_in_block_c(arena: *ASTArena, block_ref: i32,
 expr_ref: i32): void;
-/** 读 if/ternary/block 子 ref；勿 ast_arena_expr_get 按值拷贝 Expr。 */
+/* See implementation. */
 export extern function pipeline_expr_if_cond_ref_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_if_then_ref_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_if_else_ref_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_block_ref_at(arena: *ASTArena, expr_ref: i32): i32;
-/** 读 Block 字段；勿 ast_block_* / ast_arena_block_get 按值拷贝（EMIT_HEAVY asm SIGSEGV）。 */
+/* See implementation. */
 export extern function pipeline_asm_block_final_expr_ref_at(arena: *ASTArena, block_ref: i32): i32;
 export extern function pipeline_block_expr_stmt_ref(arena: *ASTArena, block_ref: i32, ei: i32): i32;
-/** 显式设置 block 的 parent_block_ref（仅在为 0 时）；补 pipeline_patch_block_parent_links
- *  无法覆盖块表达式（ord_block 表达式关联的块）的场景。 */
+/** See implementation for details. */
 export extern function pipeline_block_set_parent_if_zero(arena: *ASTArena, block_ref: i32, parent_ref: i32): i32;
-/** 读 unary_operand_ref；块末 void return 判定用，避免 Expr 按值拷贝。 */
+/* See implementation. */
 export extern function pipeline_expr_unary_operand_ref_at(arena: *ASTArena, expr_ref: i32): i32;
-/** EXPR_CALL 侧车字段；勿 ast_arena_expr_get 读 call_*（EMIT_HEAVY asm 按值撕裂）。 */
+/* See implementation. */
 export extern function pipeline_expr_call_callee_ref_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_call_num_args_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_call_arg_ref(arena: *ASTArena, expr_ref: i32, idx: i32): i32;
-/** EXPR_INDEX 侧车字段；勿 ast_arena_expr_get 读 index_*（EMIT_HEAVY asm 按值撕裂）。 */
+/* See implementation. */
 export extern function pipeline_expr_index_base_ref(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_index_index_ref(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_set_index_base_is_slice(arena: *ASTArena, expr_ref: i32,
 v: i32): void;
 export extern function pipeline_expr_set_index_proven_in_bounds(arena: *ASTArena, expr_ref: i32,
 v: i32): void;
-/** EXPR_AS 目标类型池 ref；勿 ast_arena_expr_get 读 as_target_type_ref。 */
+/* See implementation. */
 export extern function pipeline_expr_as_operand_ref_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_as_target_type_ref_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_field_access_name_into(arena: *ASTArena, expr_ref: i32,
@@ -367,27 +366,27 @@ export extern function pipeline_expr_field_access_base_ref(arena: *ASTArena, exp
 export extern function pipeline_expr_set_field_access_offset(arena: *ASTArena, expr_ref: i32, offset: i32): void;
 export extern function pipeline_expr_var_name_into(arena: *ASTArena, expr_ref: i32, out: *u8): void;
 export extern function pipeline_expr_var_name_len(arena: *ASTArena, expr_ref: i32): i32;
-/** 块 symtab 解析 let/const 名→类型 ref；EXPR_VAR 勿 ast_block_resolve 整路径。 */
+/* See implementation. */
 export extern function pipeline_block_resolve_var_type_ref(arena: *ASTArena, block_ref: i32, vname: *u8,
 vlen: i32): i32;
 export extern function pipeline_expr_method_call_base_ref_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_method_call_num_args_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_method_call_name_len(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_method_call_name_into(arena: *ASTArena, expr_ref: i32, out64: *u8): void;
-/** import 限定符号 field 层 scratch（ast_pool.c；与 backend.x 共用）。 */
+/* See implementation. */
 export extern function asm_qual_sym_layer_reset(): void;
 export extern function asm_qual_sym_layer_push(bytes: *u8, len: i32): i32;
 export extern function asm_qual_sym_layer_count(): i32;
 export extern function asm_qual_sym_layer_len(i: i32): i32;
 export extern function asm_qual_sym_layer_copy(i: i32, dst: *u8, cap: i32): void;
-/** §11.1 隐式 padding：与 typeck.c compute_struct_layouts 措辞一致（lsp_diag_report_typeck）。 */
+/* See implementation. */
 export extern function driver_diagnostic_typeck_struct_padding_before(sname: *u8, sname_len: i32, gap: i32,
 fname: *u8, fname_len: i32): void;
 export extern function driver_diagnostic_typeck_struct_padding_trailing(sname: *u8, sname_len: i32,
 gap: i32): void;
 export extern function driver_diagnostic_typeck_struct_field_bad_size(sname: *u8, sname_len: i32,
 fname: *u8, fname_len: i32): void;
-/** module.num_struct_layouts 的 glue 读；validate while 条件勿直接读 Module 字段（EMIT_HEAVY asm）。 */
+/* See implementation. */
 export extern function pipeline_module_num_struct_layouts_at(module: *Module): i32;
 export extern function pipeline_module_struct_layout_alloc(module: *Module): i32;
 export extern function pipeline_module_struct_layout_field_type_ref(module: *Module, layout_idx: i32,
@@ -398,9 +397,9 @@ export extern function pipeline_module_struct_layout_field_align_at(module: *Mod
 export extern function pipeline_module_struct_layout_set_field_align(module: *Module, li: i32, j: i32, al: i32): void;
 export extern function pipeline_struct_layout_next_field_offset_ex(module: *Module, arena: *ASTArena, layout_idx: i32,
 new_field_type_ref: i32, field_align_req: i32): i32;
-/** DOD-CL：SHUX_PAD_FIELDS=1 时 -pad-fields 伪共享 warning。 */
+/* See implementation. */
 export extern function pipeline_typeck_pad_fields_warn_layout(module: *Module, arena: *ASTArena, li: i32): void;
-/** DOD-CL-S2：SHUX_HOT_REORDER=1 时热字段重排 hint。 */
+/* See implementation. */
 export extern function pipeline_typeck_hot_reorder_warn_layout(module: *Module, arena: *ASTArena, li: i32): void;
 export extern function pipeline_module_struct_layout_name_byte_at(module: *Module, idx: i32, off: i32): u8;
 export extern function pipeline_module_struct_layout_allow_padding_at(module: *Module, idx: i32): i32;
@@ -424,7 +423,11 @@ export extern function pipeline_module_top_level_let_name_byte_at(module: *Modul
 export extern function pipeline_module_top_level_let_type_ref(module: *Module, idx: i32): i32;
 export extern function pipeline_module_top_level_let_is_const(module: *Module, idx: i32): i32;
 
-/** 将 TypeKind 转为序数（与 ast.x enum 顺序一致）；枚举值即 0..15，勿 16 路 if（自举 asm emit Abort）。 */
+/** Exported function `type_kind_ordinal`.
+ * Implements `type_kind_ordinal`.
+ * @param k TypeKind
+ * @return i32
+ */
 export function type_kind_ordinal(k: TypeKind): i32 {
   let o: i32 = k as i32;
   let lo: i32 = TypeKind.TYPE_I32 as i32;
@@ -438,7 +441,14 @@ export function type_kind_ordinal(k: TypeKind): i32 {
   return o;
 }
 
-/** 比较两段名字（字节序列）是否相等；长度相等且逐字节相等返回 true。 */
+/** Exported function `name_equal`.
+ * Implements `name_equal`.
+ * @param a *u8
+ * @param a_len i32
+ * @param b *u8
+ * @param b_len i32
+ * @return bool
+ */
 export function name_equal(a: *u8, a_len: i32, b: *u8, b_len: i32): bool {
   if (a_len != b_len || a_len <= 0) {
     return false;
@@ -453,7 +463,14 @@ export function name_equal(a: *u8, a_len: i32, b: *u8, b_len: i32): bool {
   return true;
 }
 
-/** decl TYPE_NAMED 是否等于 lit_name，或经 type alias 链最终指向 lit_name。 */
+/** Exported function `typeck_resolve_type_alias_ref_local`.
+ * Implements `typeck_resolve_type_alias_ref_local`.
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param type_ref i32
+ * @param depth i32
+ * @return i32
+ */
 export function typeck_resolve_type_alias_ref_local(module: *Module, arena: *ASTArena, type_ref: i32, depth: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -501,6 +518,10 @@ export function typeck_resolve_type_alias_ref_local(module: *Module, arena: *AST
   }
 }
 
+/** Function `typeck_named_type_matches_name_or_alias`.
+ * Purpose: implements `typeck_named_type_matches_name_or_alias`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function typeck_named_type_matches_name_or_alias(module: *Module, arena: *ASTArena, decl_ty_ref: i32,
 lit_name: *u8, lit_name_len: i32, depth: i32): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -555,7 +576,14 @@ lit_name: *u8, lit_name_len: i32, depth: i32): bool {
   }
 }
 
-/** 比较 module struct_layout 槽名与外部字节序列（走 C grow pool）。 */
+/** Exported function `typeck_layout_name_equal`.
+ * Implements `typeck_layout_name_equal`.
+ * @param module *Module
+ * @param k i32
+ * @param nm *u8
+ * @param nlen i32
+ * @return bool
+ */
 export function typeck_layout_name_equal(module: *Module, k: i32, nm: *u8, nlen: i32): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -569,7 +597,15 @@ export function typeck_layout_name_equal(module: *Module, k: i32, nm: *u8, nlen:
   }
 }
 
-/** 比较 module struct_layout 字段名与外部字节序列。 */
+/** Exported function `typeck_layout_field_name_equal`.
+ * Implements `typeck_layout_field_name_equal`.
+ * @param module *Module
+ * @param k i32
+ * @param j i32
+ * @param nm *u8
+ * @param nlen i32
+ * @return bool
+ */
 export function typeck_layout_field_name_equal(module: *Module, k: i32, j: i32, nm: *u8, nlen: i32): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -583,7 +619,13 @@ export function typeck_layout_field_name_equal(module: *Module, k: i32, j: i32, 
   }
 }
 
-/** 拷贝 struct_layout 槽名到 buf 并返回 name_len（先 copy 再 len，勿 let+void call 连写致 parse skip）。 */
+/** Exported function `typeck_layout_name_into`.
+ * Implements `typeck_layout_name_into`.
+ * @param module *Module
+ * @param k i32
+ * @param buf *u8
+ * @return i32
+ */
 export function typeck_layout_name_into(module: *Module, k: i32, buf: *u8): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -592,7 +634,14 @@ export function typeck_layout_name_into(module: *Module, k: i32, buf: *u8): i32 
   }
 }
 
-/** 拷贝 struct_layout 字段名到 buf 并返回 field name len。 */
+/** Exported function `typeck_layout_field_name_into`.
+ * Implements `typeck_layout_field_name_into`.
+ * @param module *Module
+ * @param k i32
+ * @param j i32
+ * @param buf *u8
+ * @return i32
+ */
 export function typeck_layout_field_name_into(module: *Module, k: i32, j: i32, buf: *u8): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -601,7 +650,7 @@ export function typeck_layout_field_name_into(module: *Module, k: i32, j: i32, b
   }
 }
 
-/** 比较 import 路径内 [off..off+seg_len) 与外部字节序列是否相等。 */
+/* See implementation. */
 export function typeck_import_path_slice_equal(module: *Module, imp_ix: i32, off: i32, seg_len: i32,
 nm: *u8, nm_len: i32): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -620,7 +669,7 @@ nm: *u8, nm_len: i32): bool {
   }
 }
 
-/** 比较 import 绑定名与外部字节序列是否相等。 */
+/* See implementation. */
 export function typeck_import_binding_name_equal(module: *Module, imp_ix: i32, nm: *u8,
 nm_len: i32): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -640,6 +689,11 @@ nm_len: i32): bool {
   }
 }
 
+/** Exported function `typeck_module_num_imports`.
+ * Implements `typeck_module_num_imports`.
+ * @param module *Module
+ * @return i32
+ */
 export function typeck_module_num_imports(module: *Module): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -654,7 +708,13 @@ export function typeck_module_num_imports(module: *Module): i32 {
   }
 }
 
-/** EXPR_VAR 合法未解析名：import binding 名或 import 路径首段前缀。 */
+/** Exported function `typeck_var_is_import_visible_name`.
+ * Implements `typeck_var_is_import_visible_name`.
+ * @param module *Module
+ * @param nm *u8
+ * @param nlen i32
+ * @return bool
+ */
 export function typeck_var_is_import_visible_name(module: *Module, nm: *u8, nlen: i32): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -681,7 +741,7 @@ export function typeck_var_is_import_visible_name(module: *Module, nm: *u8, nlen
   }
 }
 
-/** 比较 import 解构选取名与外部字节序列是否相等。 */
+/* See implementation. */
 export function typeck_import_select_name_equal(module: *Module, imp_ix: i32, sel: i32, nm: *u8,
 nm_len: i32): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -701,7 +761,14 @@ nm_len: i32): bool {
   }
 }
 
-/** 比较顶层 let/const 名与外部字节序列是否相等。 */
+/** Exported function `typeck_top_level_let_name_equal`.
+ * Implements `typeck_top_level_let_name_equal`.
+ * @param module *Module
+ * @param tl_ix i32
+ * @param nm *u8
+ * @param nm_len i32
+ * @return bool
+ */
 export function typeck_top_level_let_name_equal(module: *Module, tl_ix: i32, nm: *u8, nm_len: i32): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -720,7 +787,14 @@ export function typeck_top_level_let_name_equal(module: *Module, tl_ix: i32, nm:
   }
 }
 
-/** 依赖模块顶层 const 中按名查找；找到返回槽位，否则 -1。 */
+/** Exported function `typeck_dep_module_const_idx_named`.
+ * Implements `typeck_dep_module_const_idx_named`.
+ * @param module *Module
+ * @param nm *u8
+ * @param nlen i32
+ * @param tl_ix i32
+ * @return i32
+ */
 export function typeck_dep_module_const_idx_named(module: *Module, nm: *u8, nlen: i32, tl_ix: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -738,7 +812,7 @@ export function typeck_dep_module_const_idx_named(module: *Module, nm: *u8, nlen
   }
 }
 
-/** import 槽 dep_ix 对应依赖若含同名顶层 const，返回 dep_ix，否则 -1。 */
+/* See implementation. */
 export function typeck_find_import_const_dep_index(module: *Module, ctx: *PipelineDepCtx, nm: *u8, nlen: i32,
 dep_ix: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -758,7 +832,13 @@ dep_ix: i32): i32 {
   }
 }
 
-/** import 路径最后一段写入 out[64]；如 std.async -> async。 */
+/** Exported function `typeck_import_last_segment_into`.
+ * Implements `typeck_import_last_segment_into`.
+ * @param module *Module
+ * @param imp_ix i32
+ * @param out *u8
+ * @return i32
+ */
 export function typeck_import_last_segment_into(module: *Module, imp_ix: i32, out: *u8): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -792,7 +872,13 @@ export function typeck_import_last_segment_into(module: *Module, imp_ix: i32, ou
   }
 }
 
-/** 将当前模块某条 import 槽位按原始 import path 映射到 dep_ctx 的真实 dep 槽位。 */
+/** Exported function `typeck_resolve_dep_index_for_import`.
+ * Implements `typeck_resolve_dep_index_for_import`.
+ * @param module *Module
+ * @param ctx *PipelineDepCtx
+ * @param imp_ix i32
+ * @return i32
+ */
 export function typeck_resolve_dep_index_for_import(module: *Module, ctx: *PipelineDepCtx, imp_ix: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -837,7 +923,13 @@ export function typeck_resolve_dep_index_for_import(module: *Module, ctx: *Pipel
   }
 }
 
-/** 给出 import const 裸名报错提示里的 binding 名；优先 binding 别名，否则取路径末段。 */
+/** Exported function `typeck_import_const_binding_hint_at`.
+ * Implements `typeck_import_const_binding_hint_at`.
+ * @param module *Module
+ * @param dep_ix i32
+ * @param out *u8
+ * @return i32
+ */
 export function typeck_import_const_binding_hint_at(module: *Module, dep_ix: i32, out: *u8): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -863,7 +955,7 @@ export function typeck_import_const_binding_hint_at(module: *Module, dep_ix: i32
 }
 
 /**
-* 按 struct_layout 槽位名查找下标；无匹配返回 -1。
+* See implementation.
 */
 export function typeck_find_layout_idx_by_type_name(module: *Module, nm: *u8, nlen: i32): i32 {
   let k: i32 = 0;
@@ -876,7 +968,12 @@ export function typeck_find_layout_idx_by_type_name(module: *Module, nm: *u8, nl
   return - 1;
 }
 
-/** NAMED 类型为内建别名（与 typeck.c NAMED i32 等）时返回对齐；非内建返回 0。 */
+/** Exported function `typeck_x_named_builtin_align`.
+ * Implements `typeck_x_named_builtin_align`.
+ * @param nm *u8
+ * @param nlen i32
+ * @return i32
+ */
 export function typeck_x_named_builtin_align(nm: *u8, nlen: i32): i32 {
   if (nm == 0 as * u8 || nlen <= 0) {
     return 0;
@@ -896,6 +993,12 @@ export function typeck_x_named_builtin_align(nm: *u8, nlen: i32): i32 {
   return 0;
 }
 
+/** Exported function `typeck_x_named_builtin_size`.
+ * Implements `typeck_x_named_builtin_size`.
+ * @param nm *u8
+ * @param nlen i32
+ * @return i32
+ */
 export function typeck_x_named_builtin_size(nm: *u8, nlen: i32): i32 {
   let a: i32 = typeck_x_named_builtin_align(nm, nlen);
   if (a == 1 && nlen == 2 && nm[0] == 117 && nm[1] == 56) { return 1; }
@@ -904,7 +1007,14 @@ export function typeck_x_named_builtin_size(nm: *u8, nlen: i32): i32 {
   return 0;
 }
 
-/** 与 C type_align_of 对齐：用于 §11.1 结构体布局与零填充校验。 */
+/** Exported function `typeck_x_type_align`.
+ * Implements `typeck_x_type_align`.
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param ty_ref i32
+ * @param depth i32
+ * @return i32
+ */
 export function typeck_x_type_align(module: *Module, arena: *ASTArena, ty_ref: i32, depth: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -930,7 +1040,7 @@ export function typeck_x_type_align(module: *Module, arena: *ASTArena, ty_ref: i
     if (ko == 11) {
       return 8;
     }
-    /** ARRAY / LINEAR / VECTOR：对齐取 elem（M-4 LINEAR=12，VECTOR=13）。 */
+    /* See implementation. */
     if (ko == 10 || ko == 12 || ko == 13) {
       er = pipeline_type_elem_ref_at(arena, ty_ref);
       if (ast.ref_is_null(er)) {
@@ -939,7 +1049,7 @@ export function typeck_x_type_align(module: *Module, arena: *ASTArena, ty_ref: i
       return typeck_x_type_align(module, arena, er, depth + 1);
     }
     if (ko == 8) {
-      /** 勿 driver_typeck_diag_scratch_expect 嵌套实参 + metrics depth slot（EMIT_HEAVY asm SIGSEGV）。 */
+      /* See implementation. */
       nm_len = pipeline_type_named_name_into(arena, ty_ref, nm_buf);
       li = typeck_find_layout_idx_by_type_name(module, nm_buf, nm_len);
       if (li >= 0) {
@@ -955,6 +1065,14 @@ export function typeck_x_type_align(module: *Module, arena: *ASTArena, ty_ref: i
   }
 }
 
+/** Exported function `typeck_x_type_size`.
+ * Implements `typeck_x_type_size`.
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param ty_ref i32
+ * @param depth i32
+ * @return i32
+ */
 export function typeck_x_type_size(module: *Module, arena: *ASTArena, ty_ref: i32, depth: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -985,7 +1103,7 @@ export function typeck_x_type_size(module: *Module, arena: *ASTArena, ty_ref: i3
     if (ko == 11) {
       return 16;
     }
-    /** M-4：Linear(T) 大小与内层 T 相同。 */
+    /* See implementation. */
     if (ko == 12) {
       er = pipeline_type_elem_ref_at(arena, ty_ref);
       if (ast.ref_is_null(er)) {
@@ -1026,14 +1144,14 @@ export function typeck_x_type_size(module: *Module, arena: *ASTArena, ty_ref: i3
 }
 
 /**
-* 计算 struct_layouts[li] 按 §11.1 填充后的总大小与对齐；check_pad=1 时对隐式 gap/尾填充报错（与 C compute_struct_layouts 一致）。
-* 返回值：0 成功；-1 已打印诊断。
+* See implementation.
+* See implementation.
 */
 export function typeck_struct_layout_metrics(module: *Module, arena: *ASTArena, li: i32, depth: i32,
 check_pad: i32, out_sz: *i32, out_al: *i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-    /** 自举 parse：guard 之后勿再 let，须函数顶声明再赋值（与 parser onefunc 侧车池一致）。 */
+    /* See implementation. */
     let nf: i32 = 0;
     let allow: i32 = 0;
     let layout_nlen: i32 = 0;
@@ -1048,7 +1166,7 @@ check_pad: i32, out_sz: *i32, out_al: *i32): i32 {
     let fsize: i32 = 0;
     let end_pad: i32 = 0;
     let fa: i32 = 0;
-    /** 勿 typeck_scratch64_slot 嵌套于 driver_diagnostic 实参（EMIT_HEAVY asm SIGSEGV）。 */
+    /* See implementation. */
     let layout_nm: *u8 = typeck_scratch64_slot(2);
     let field_nm: *u8 = typeck_scratch64_slot(3);
     if (module == 0 as * Module || arena == 0 as * ASTArena || out_sz == 0 as * i32 || out_al == 0 as 
@@ -1064,14 +1182,14 @@ check_pad: i32, out_sz: *i32, out_al: *i32): i32 {
     layout_nlen = pipeline_module_struct_layout_name_len(module, li);
     current = 0;
     max_align = 1;
-    /** packed：无隐式 padding，结构体对齐 1（与 C __attribute__((packed)) 一致）。 */
+    /* See implementation. */
     if (pipeline_module_struct_layout_packed_at(module, li) != 0) {
       j = 0;
       while (j < nf) {
         ftr = pipeline_module_struct_layout_field_type_ref(module, li, j);
         fsize = typeck_x_type_size(module, arena, ftr, depth);
         if (fsize <= 0) {
-          /** size 查询（check_pad=0）静默；校验路径才诊断（避免百万行刷屏 TIMEOUT）。 */
+          /* See implementation. */
           if (check_pad != 0) {
             typeck_layout_field_name_into(module, li, j, field_nm);
             flen = pipeline_module_struct_layout_field_name_len(module, li, j);
@@ -1134,13 +1252,18 @@ check_pad: i32, out_sz: *i32, out_al: *i32): i32 {
   }
 }
 
-/** 模块内全部 struct_layout 跑 Zero-Padding 门禁；失败返回 -1。 */
+/** Exported function `typeck_validate_struct_layouts_zero_padding`.
+ * Implements `typeck_validate_struct_layouts_zero_padding`.
+ * @param module *Module
+ * @param arena *ASTArena
+ * @return i32
+ */
 export function typeck_validate_struct_layouts_zero_padding(module: *Module, arena: *ASTArena): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
     let li: i32 = 0;
     let nsl: i32 = pipeline_module_num_struct_layouts_at(module);
-    /** 勿 typeck_layout_metrics_*_slot() 嵌套于 metrics 实参（EMIT_HEAVY asm SIGSEGV）。 */
+    /* See implementation. */
     let sz_out: *i32 = typeck_layout_metrics_sz_slot();
     let al_out: *i32 = typeck_layout_metrics_al_slot();
     while (li < nsl) {
@@ -1148,9 +1271,9 @@ export function typeck_validate_struct_layouts_zero_padding(module: *Module, are
       if (typeck_struct_layout_metrics(module, arena, li, 0, 1, sz_out, al_out) != 0) {
         return - 1;
       }
-      /** DOD-CL：-pad-fields 伪共享 warning（不阻断 typeck）。 */
+      /* See implementation. */
       pipeline_typeck_pad_fields_warn_layout(module, arena, li);
-      /** DOD-CL-S2：-hot-reorder 热字段置前 hint（不阻断 typeck）。 */
+      /* See implementation. */
       pipeline_typeck_hot_reorder_warn_layout(module, arena, li);
       li = li + 1;
     }
@@ -1158,7 +1281,7 @@ export function typeck_validate_struct_layouts_zero_padding(module: *Module, are
   }
 }
 
-/** 从 module 的 struct_layouts 中按类型名与字段名查字段偏移；未找到返回 -1。 */
+/* See implementation. */
 export function get_field_offset_from_layout(module: *Module, type_name: *u8, type_name_len: i32,
 field_name: *u8, field_name_len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -1180,7 +1303,7 @@ field_name: *u8, field_name_len: i32): i32 {
   }
 }
 
-/** 从 struct_layouts 查字段对应的类型池 ref；未找到返回 0。 */
+/* See implementation. */
 export function get_field_type_ref_from_layout(module: *Module, type_name: *u8, type_name_len: i32,
 field_name: *u8, field_name_len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -1202,7 +1325,7 @@ field_name: *u8, field_name_len: i32): i32 {
   }
 }
 
-/** 在本 module 未命中时继续扫 dep 池；import ast 时 Expr 等 struct_layout 在 dep 中。 */
+/* See implementation. */
 export function get_field_offset_from_layout_deps(module: *Module, ctx: *PipelineDepCtx, type_name: *u8,
 type_name_len: i32, field_name: *u8, field_name_len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -1215,7 +1338,7 @@ type_name_len: i32, field_name: *u8, field_name_len: i32): i32 {
     if (ctx == 0 as * PipelineDepCtx) {
       return - 1;
     }
-    /** 勿仅依赖 ctx.ndep 字段（driver 预填 dep 时可能未写回）；与 resolve 调用路径一致扫 dep 池。 */
+    /* See implementation. */
     let nd: i32 = pipeline_dep_ctx_ndep(ctx);
     let di: i32 = 0;
     while (di < nd) {
@@ -1233,9 +1356,9 @@ type_name_len: i32, field_name: *u8, field_name_len: i32): i32 {
 }
 
 /**
-* 将 STRUCT_LIT 对应的结构体布局加入 module（若尚未存在）；字段偏移按 §11.1 对齐（pipeline_struct_layout_next_field_offset）。
-* init 表达式已在调用方经 check_expr，此处把各字段的 resolved 类型写入 field_type_refs，
-* 供后续 `ptr.field` 赋值左侧与 C 路径一致（否则会落成「expected ?, found bool」等）。
+* See implementation.
+* See implementation.
+* See implementation.
 */
 export function ensure_struct_layout_from_struct_lit(module: *Module, arena: *ASTArena,
 expr_ref: i32): i32 {
@@ -1266,7 +1389,7 @@ expr_ref: i32): i32 {
     let foff_j: i32 = 0;
     let nsl: i32 = 0;
     let sname_len: i32 = 0;
-    /** 勿 typeck_scratch64_slot 嵌套于 name_equal / set_field 实参（EMIT_HEAVY asm SIGSEGV）。 */
+    /* See implementation. */
     let lit_nm: *u8 = typeck_scratch64_slot(4);
     let layout_nm: *u8 = typeck_scratch64_slot(5);
     let field_nm: *u8 = typeck_scratch64_slot(6);
@@ -1274,7 +1397,7 @@ expr_ref: i32): i32 {
     if (expr_ref <= 0 || expr_ref > arena.num_exprs) {
       return 0;
     }
-    /** 勿 `let e: Expr = ast_arena_expr_get`：struct_lit 嵌套数组字段在 typeck 上 base 非 ARRAY。 */
+    /* See implementation. */
     num_fields = pipeline_expr_struct_lit_num_fields(arena, expr_ref);
     if (num_fields <= 0 || num_fields > 8) {
       return 0;
@@ -1296,7 +1419,7 @@ expr_ref: i32): i32 {
       }
       k = k + 1;
     }
-    /** 已有同名布局：将本字面量中的字段按名合并（AST 每字面量最多 8 字段，大结构体需多次字面量拼全）。 */
+    /* See implementation. */
     if (found_idx >= 0) {
       idx_m = found_idx;
       jm = 0;
@@ -1360,8 +1483,7 @@ expr_ref: i32): i32 {
   }
 }
 
-/** 比较模块中某函数名与 arena 中某 VAR 表达式的 var_name 是否相等。避免取址语法。
-* 禁止 ast_arena_expr_get 取整颗 Expr 按值：Expr 极大，自举 codegen 拷贝会撕裂 var_name，整包同模块 callee 永远匹配失败。 */
+/** See implementation for details. */
 export function expr_var_name_equal_func(arena: *ASTArena, callee_expr_ref: i32, mod: *Module,
 func_index: i32): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -1395,7 +1517,13 @@ func_index: i32): bool {
   }
 }
 
-/** 在 arena 中按名查找或分配 TYPE_NAMED，返回 type_ref；供 struct literal 设 resolved_type_ref，使 if-expr 能取到 else 分支类型。 */
+/** Exported function `find_or_alloc_named_type_ref`.
+ * Memory management helper `find_or_alloc_named_type_ref`.
+ * @param arena *ASTArena
+ * @param name *u8
+ * @param name_len i32
+ * @return i32
+ */
 export function find_or_alloc_named_type_ref(arena: *ASTArena, name: *u8, name_len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1403,7 +1531,7 @@ export function find_or_alloc_named_type_ref(arena: *ASTArena, name: *u8, name_l
     let ko: i32 = 0;
     let exist_len: i32 = 0;
     let ord_named: i32 = 8;
-    /** 扫描已有 TYPE_NAMED；预绑定 scratch，勿嵌套于 pipeline_* 实参（EMIT_HEAVY asm SIGSEGV）。 */
+    /* See implementation. */
     let nm_scr: *u8 = typeck_scratch64_slot(12);
     if (arena == 0 as * ASTArena || name == 0 as * u8 || name_len <= 0 || name_len > 63) {
       return 0;
@@ -1431,9 +1559,9 @@ export function find_or_alloc_named_type_ref(arena: *ASTArena, name: *u8, name_l
 }
 
 /**
-* parser/lexer 包装 struct 的嵌套字段（.next_lex.pos、.lex.pos 等）：
-* struct_layout 的 field_type_refs 未同步时，按 TYPE_NAMED 名 + 字段名回落类型。
-* 返回非 0 type_ref 表示已解析。
+* See implementation.
+* See implementation.
+* See implementation.
 */
 export function typeck_field_access_lexer_wrapper_fallback(arena: *ASTArena, base_type_ref: i32,
 field_name: *u8, field_name_len: i32): i32 {
@@ -1442,7 +1570,7 @@ field_name: *u8, field_name_len: i32): i32 {
     if (ast.ref_is_null(base_type_ref) || base_type_ref <= 0 || base_type_ref > arena.num_types) {
       return 0;
     }
-    /** 勿 ast_arena_type_get 按值 Type：EMIT_HEAVY asm 下大 struct 拷贝撕裂；glue 指针读 name[64]。 */
+    /* See implementation. */
     let bn: u8[64] = [];
     let bn_len: i32 = pipeline_type_named_name_into(arena, base_type_ref, &bn[0]);
     if (bn_len <= 0 || bn_len > 63) {
@@ -1516,8 +1644,8 @@ field_name: *u8, field_name_len: i32): i32 {
 }
 
 /**
- * 在 arena 中查找或分配仅含 kind 的 primitive type（name_len/elem/array 均为 0）。
- * X 真 emit 扫描循环；新槽写入经 pipeline_type_init_primitive_kind_at glue（勿 ti.kind= 局部 Type 赋值）。
+ * See implementation.
+ * See implementation.
  */
 export function typeck_ensure_primitive_by_kind_ord(arena: *ASTArena, kind_ord: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -1527,7 +1655,7 @@ export function typeck_ensure_primitive_by_kind_ord(arena: *ASTArena, kind_ord: 
     let nlen: i32 = 0;
     let er: i32 = 0;
     let asz: i32 = 0;
-    /** 扫描 name_into 须 out 缓冲；预绑定 scratch，勿嵌套于 pipeline_* 实参（EMIT_HEAVY asm SIGSEGV）。 */
+    /* See implementation. */
     let nm_scr: *u8 = typeck_scratch64_slot(11);
     if (arena == 0 as * ASTArena || kind_ord < 0 || kind_ord > 16) {
       return 0;
@@ -1556,37 +1684,65 @@ export function typeck_ensure_primitive_by_kind_ord(arena: *ASTArena, kind_ord: 
   }
 }
 
-/** 在当前 arena 中取或分配 TYPE_I32，返回其 type_ref；供跨模块调用时 dep 返回 i32 时复用本 arena 的类型。 */
+/** Exported function `ensure_i32_type_ref`.
+ * Implements `ensure_i32_type_ref`.
+ * @param arena *ASTArena
+ * @return i32
+ */
 export function ensure_i32_type_ref(arena: *ASTArena): i32 {
   return typeck_ensure_primitive_by_kind_ord(arena, 0);
 }
 
-/** 在当前 arena 中取或分配 TYPE_U8，返回其 type_ref；供 u8[64] 内联字段 ARRAY typeck。 */
+/** Exported function `ensure_u8_type_ref`.
+ * Implements `ensure_u8_type_ref`.
+ * @param arena *ASTArena
+ * @return i32
+ */
 export function ensure_u8_type_ref(arena: *ASTArena): i32 {
   return typeck_ensure_primitive_by_kind_ord(arena, 2);
 }
 
-/** 在当前 arena 中取或分配 TYPE_BOOL，返回其 type_ref；供字面量 true/false 自设类型。 */
+/** Exported function `ensure_bool_type_ref`.
+ * Implements `ensure_bool_type_ref`.
+ * @param arena *ASTArena
+ * @return i32
+ */
 export function ensure_bool_type_ref(arena: *ASTArena): i32 {
   return typeck_ensure_primitive_by_kind_ord(arena, 1);
 }
 
-/** 在当前 arena 中取或分配 TYPE_F32，返回其 type_ref；供 f32 字面量/let 初值与声明对齐。 */
+/** Exported function `ensure_f32_type_ref`.
+ * Implements `ensure_f32_type_ref`.
+ * @param arena *ASTArena
+ * @return i32
+ */
 export function ensure_f32_type_ref(arena: *ASTArena): i32 {
   return typeck_ensure_primitive_by_kind_ord(arena, 14);
 }
 
-/** 在当前 arena 中取或分配 TYPE_F64，返回其 type_ref；供字面量浮点自设类型。 */
+/** Exported function `ensure_f64_type_ref`.
+ * Implements `ensure_f64_type_ref`.
+ * @param arena *ASTArena
+ * @return i32
+ */
 export function ensure_f64_type_ref(arena: *ASTArena): i32 {
   return typeck_ensure_primitive_by_kind_ord(arena, 15);
 }
 
-/** 在当前 arena 中取或分配 TYPE_USIZE，供切片 .length 等使用。 */
+/** Exported function `ensure_usize_type_ref`.
+ * Implements `ensure_usize_type_ref`.
+ * @param arena *ASTArena
+ * @return i32
+ */
 export function ensure_usize_type_ref(arena: *ASTArena): i32 {
   return typeck_ensure_primitive_by_kind_ord(arena, 6);
 }
 
-/** 在当前 arena 中取或分配 TYPE_VOID；import dep 返回 void（如 setter）时需在调用方池中建立等价 ref，供 CALLEE resolved_type_ref。 */
+/** Exported function `ensure_void_type_ref`.
+ * Implements `ensure_void_type_ref`.
+ * @param a *ASTArena
+ * @return i32
+ */
 export function ensure_void_type_ref(a: *ASTArena): i32 {
   return typeck_ensure_primitive_by_kind_ord(a, 16);
 }
@@ -1595,7 +1751,7 @@ export extern function pipeline_typeck_get_dep_return_type_in_caller_arena_c(fro
 dep_return_type_ref: i32, caller_arena: *ASTArena, ctx: *PipelineDepCtx): i32;
 export extern function pipeline_typeck_set_entry_module_for_dep_map_c(module: *Module): void;
 
-/** 按 dep 下标取 arena 并在 caller_arena 中得到对应 return_type_ref；ctx 由 typeck 入口传入。 */
+/* See implementation. */
 export function get_dep_return_type_in_caller_arena(from_dep_index: i32, dep_return_type_ref: i32,
 caller_arena: *ASTArena, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -1605,14 +1761,18 @@ caller_arena: *ASTArena, ctx: *PipelineDepCtx): i32 {
   }
 }
 
-/** 在 caller_arena 中取或分配 TYPE_I64，返回 type_ref；供 dep_return_type_to_caller_arena 调用。 */
+/** Exported function `ensure_i64_type_ref`.
+ * Implements `ensure_i64_type_ref`.
+ * @param caller_arena *ASTArena
+ * @return i32
+ */
 export function ensure_i64_type_ref(caller_arena: *ASTArena): i32 {
   return typeck_ensure_primitive_by_kind_ord(caller_arena, 5);
 }
 
 /**
- * 在 arena 中查找或分配复合 type（PTR/ARRAY/SLICE/VECTOR；name_len 须为 0）。
- * X 真 emit 扫描；新槽经 pipeline_type_init_compound_kind_at glue 写入 elem/array_size。
+ * See implementation.
+ * See implementation.
  */
 export function typeck_find_or_alloc_compound_type_ref(a: *ASTArena, kind_ord: i32, elem_ref: i32,
 array_size: i32): i32 {
@@ -1654,7 +1814,7 @@ array_size: i32): i32 {
 }
 
 /**
-* 在类型池中查找已有 TYPE_ARRAY(elem_ref, array_size)，否则分配一条；避免 ASTArena 字段反复 typeck 时塞满 types 池。
+* See implementation.
 */
 export function find_or_alloc_array_type_ref(a: *ASTArena, elem_ref: i32, array_size: i32): i32 {
   if (elem_ref == 0) {
@@ -1664,7 +1824,7 @@ export function find_or_alloc_array_type_ref(a: *ASTArena, elem_ref: i32, array_
 }
 
 /**
-* 解析 TYPE_ARRAY（元素为具名 elem_nm）：元素类型去重 + 数组类型去重；供 *ASTArena 成员等 FIELD_ACCESS。
+* See implementation.
 */
 export function ensure_array_type_ref_named_elem(a: *ASTArena, elem_nm: *u8, elem_nm_len: i32,
 array_size: i32): i32 {
@@ -1676,20 +1836,30 @@ array_size: i32): i32 {
 }
 
 /**
-* dep 侧无非 null 成员的纯标量：仅按 TypeKind 在 caller 池去重；
-* TYPE_U8/TYPE_ISIZE 等结构与 ensure_* 分配节点语义一致（type_refs_equal 按字段比较）。
+* See implementation.
+* See implementation.
 */
 export function ensure_kind_only_type_ref(w: *ASTArena, kind: TypeKind): i32 {
-  /** 勿调 type_kind_ordinal(kind)：自举 asm emit 对同模块 CALL 会爆炸式 call_elf_c 递归。 */
+  /* See implementation. */
   return typeck_ensure_primitive_by_kind_ord(w, kind as i32);
 }
 
-/** caller 中取或分配 TYPE_PTR(elem)，elem 可为 0（opaque *）。 */
+/** Exported function `find_or_alloc_ptr_type_ref`.
+ * Memory management helper `find_or_alloc_ptr_type_ref`.
+ * @param w *ASTArena
+ * @param elem_ref i32
+ * @return i32
+ */
 export function find_or_alloc_ptr_type_ref(w: *ASTArena, elem_ref: i32): i32 {
   return typeck_find_or_alloc_compound_type_ref(w, 9, elem_ref, 0);
 }
 
-/** caller 中取或分配 TYPE_SLICE(elem)；无域标签。 */
+/** Exported function `find_or_alloc_slice_type_ref`.
+ * Memory management helper `find_or_alloc_slice_type_ref`.
+ * @param w *ASTArena
+ * @param elem_ref i32
+ * @return i32
+ */
 export function find_or_alloc_slice_type_ref(w: *ASTArena, elem_ref: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1697,19 +1867,30 @@ export function find_or_alloc_slice_type_ref(w: *ASTArena, elem_ref: i32): i32 {
   }
 }
 
-/** caller 中取或分配 TYPE_LINEAR(elem)。 */
+/** Exported function `find_or_alloc_linear_type_ref`.
+ * Memory management helper `find_or_alloc_linear_type_ref`.
+ * @param w *ASTArena
+ * @param elem_ref i32
+ * @return i32
+ */
 export function find_or_alloc_linear_type_ref(w: *ASTArena, elem_ref: i32): i32 {
   return typeck_find_or_alloc_compound_type_ref(w, 12, elem_ref, 0);
 }
 
-/** caller 中取或分配 TYPE_VECTOR(elem, array_size)，与 ast.x Type 布局一致。 */
+/** Exported function `find_or_alloc_vector_type_ref`.
+ * Memory management helper `find_or_alloc_vector_type_ref`.
+ * @param w *ASTArena
+ * @param elem_ref i32
+ * @param array_size i32
+ * @return i32
+ */
 export function find_or_alloc_vector_type_ref(w: *ASTArena, elem_ref: i32, array_size: i32): i32 {
   return typeck_find_or_alloc_compound_type_ref(w, 13, elem_ref, array_size);
 }
 
 /**
-* 将 dep arena 内的 return_type_ref 映射到 caller arena 等价 ref（结构递归）。
-* EMIT_HEAVY：勿 ast_arena_type_get 按值 Type；与 pipeline_glue.c dep_return impl 一致。
+* See implementation.
+* See implementation.
 */
 export function dep_return_type_to_caller_arena(dep_arena: *ASTArena, dep_return_type_ref: i32,
 caller_arena: *ASTArena): i32 {
@@ -1802,11 +1983,11 @@ caller_arena: *ASTArena): i32 {
 }
 
 /**
-* `*Expr` 上 FIELD_ACCESS：field_type_refs 未映或非零槽被跳过时，按字段名语义回落 i32（与 ast.x Expr 标量字段一致）。
+* See implementation.
 */
 export function expr_field_access_fallback_scalar_type_ref(arena: *ASTArena, field_name: *u8,
 field_name_len: i32): i32 {
-  /** 池 ref 字段以 _ref 结尾 */
+  /* See implementation. */
   if (field_name_len >= 4) {
     let br: i32 = field_name_len - 4;
     if (field_name[br] == 95 && field_name[br + 1] == 114 && field_name[br + 2] == 101 && 
@@ -1814,7 +1995,7 @@ field_name_len: i32): i32 {
       return ensure_i32_type_ref(arena);
     }
   }
-  /** 下列与 parser `expr_set_common_zeros` 等写入的字段名逐字一致（勿对任意 *_len / *_args 做泛化，以免误伤其它 struct） */
+  /* See implementation. */
   let nm_match_num_arms: u8[14] = [109, 97, 116, 99, 104, 95, 110, 117, 109, 95, 97, 114, 109, 115];
   let nm_field_access_is_enum_variant: u8[28] = [
   102, 105, 101, 108, 100, 95, 97, 99, 99, 101, 115, 115, 95, 105, 115, 95, 101, 110, 117, 109, 95,
@@ -1843,7 +2024,7 @@ field_name_len: i32): i32 {
   105, 110, 100, 101, 120, 95, 112, 114, 111, 118, 101, 110, 95, 105, 110, 95, 98, 111, 117, 110,
   100, 115
   ];
-  /** parser expr_set_common_zeros：Expr 尾字段，struct_layout 常未登记 */
+  /* See implementation. */
   let nm_call_resolved_func_index: u8[24] = [
   99, 97, 108, 108, 95, 114, 101, 115, 111, 108, 118, 101, 100, 95, 102, 117, 110, 99, 95, 105, 110,
   100, 101, 120
@@ -1910,15 +2091,15 @@ field_name_len: i32): i32 {
   return 0;
 }
 
-/** FIELD_ACCESS：dep 中 struct_layout 的 field_type_refs 落在 dep.types 池，须映到当前 arena（与 dep_return_type_to_caller_arena 一致）。 */
+/* See implementation. */
 export function get_field_type_ref_from_layout_deps(module: *Module, arena: *ASTArena,
 ctx: *PipelineDepCtx, type_name: *u8, type_name_len: i32, field_name: *u8,
 field_name_len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
     /**
-    * 大模块（codegen 等）自登记 struct_layout 时 field_type_ref 常为 0 或误为标量；
-    * 须先于 layout 命中 Module/ASTArena.funcs、u8[64] / i32[16] 内联池字段。
+    * See implementation.
+    * See implementation.
     */
     let nm_funcs_pool: u8[5] = [102, 117, 110, 99, 115];
     let nm_func_elem: u8[4] = [70, 117, 110, 99];
@@ -1961,7 +2142,7 @@ field_name_len: i32): i32 {
     if (ctx == 0 as * PipelineDepCtx) {
       return 0;
     }
-    /** 同上：ndep 可能未写回，扫满 dep 池。 */
+    /* See implementation. */
     let nd2: i32 = pipeline_dep_ctx_ndep(ctx);
     let di: i32 = 0;
     while (di < nd2) {
@@ -1978,7 +2159,7 @@ field_name_len: i32): i32 {
       }
       di = di + 1;
     }
-    /** ast.Expr / Type 等：合并/胶水后仍无 field_type_ref 时，先识别内联 u8[64] / i32[16] 池字段，再按名回落 i32。 */
+    /* See implementation. */
     if (type_name_len == 4 && type_name[0] == 69 && type_name[1] == 120 && type_name[2] == 112 && 
     type_name[3] == 114) {
       let u8_fb: i32 = typeck_inline_u8_64_array_field_type_ref(arena, field_name, field_name_len);
@@ -1994,7 +2175,7 @@ field_name_len: i32): i32 {
         return fb;
       }
     }
-    /** Type.name 等：layout 未映 u8[64] 时仍供 name[i] 下标 typeck。 */
+    /* See implementation. */
     if (type_name_len == 4 && type_name[0] == 84 && type_name[1] == 121 && type_name[2] == 112 && 
     type_name[3] == 101) {
       let u8_ty: i32 = typeck_inline_u8_64_array_field_type_ref(arena, field_name, field_name_len);
@@ -2002,7 +2183,7 @@ field_name_len: i32): i32 {
         return u8_ty;
       }
     }
-    /** Func.name / Func.params 等：codegen_copy_func_name64_from_module 路径。 */
+    /* See implementation. */
     if (type_name_len == 4 && type_name[0] == 70 && type_name[1] == 117 && type_name[2] == 110 && 
     type_name[3] == 99) {
       let u8_fn: i32 = typeck_inline_u8_64_array_field_type_ref(arena, field_name, field_name_len);
@@ -2019,7 +2200,7 @@ field_name_len: i32): i32 {
         return fb_fn;
       }
     }
-    /** Param.name：形参名 u8[32]。 */
+    /* See implementation. */
     if (type_name_len == 5 && type_name[0] == 80 && type_name[1] == 97 && type_name[2] == 114 && 
     type_name[3] == 97 && type_name[4] == 109) {
       let nm_pname: u8[4] = [110, 97, 109, 101];
@@ -2030,7 +2211,7 @@ field_name_len: i32): i32 {
         }
       }
     }
-    /** StructLayout：module.struct_layouts[k].field_* 链（layout 未合并时仍须 INDEX typeck）。 */
+    /* See implementation. */
     if (type_name_len == 12 && type_name[0] == 83 && type_name[1] == 116 && type_name[2] == 114 && 
     type_name[3] == 117
     && type_name[4] == 99 && type_name[5] == 116 && type_name[6] == 76 && type_name[7] == 97
@@ -2089,8 +2270,8 @@ field_name_len: i32): i32 {
 }
 
 /**
-* 各 struct 上内联 u8[64] 字段（Expr.var_name、Type.name 等）：layout 未登记 field_type_ref 时仍返回 TYPE_ARRAY，
-* 供 field[i] 通过 EXPR_INDEX typeck（如 codegen.field_access_base_is_slice_param_name 中 base.var_name[0]）。
+* See implementation.
+* See implementation.
 */
 export function typeck_inline_u8_64_array_field_type_ref(arena: *ASTArena, field_name: *u8,
 field_name_len: i32): i32 {
@@ -2131,7 +2312,7 @@ field_name_len: i32): i32 {
   return 0;
 }
 
-/** Expr 上 i32[16] 固定数组字段：layout 未登记时仍返回 TYPE_ARRAY，供 e.call_arg_refs[i] 通过 INDEX typeck。 */
+/* See implementation. */
 export function typeck_expr_inline_array_field_type_ref(arena: *ASTArena, field_name: *u8,
 field_name_len: i32): i32 {
   let i32r: i32 = ensure_i32_type_ref(arena);
@@ -2148,7 +2329,7 @@ field_name_len: i32): i32 {
   let nm_array_lit_elem_refs: u8[19] = [
   97, 114, 114, 97, 121, 95, 108, 105, 116, 95, 101, 108, 101, 109, 95, 114, 101, 102, 115
   ];
-  /** ast.expr_init_match_enum：match 每臂 i32[16] 池字段（layout 未映 field_type_ref 时仍须为 INDEX 提供 TYPE_ARRAY）。 */
+  /* See implementation. */
   let nm_match_arm_is_wildcard: u8[21] = [
   109, 97, 116, 99, 104, 95, 97, 114, 109, 95, 105, 115, 95, 119, 105, 108, 100, 99, 97, 114, 100
   ];
@@ -2197,19 +2378,25 @@ field_name_len: i32): i32 {
   return 0;
 }
 
-/** 入口 module 中与 nm 同名的 struct_layout 下标，无则 -1。 */
+/** Exported function `entry_module_find_struct_layout_index`.
+ * Implements `entry_module_find_struct_layout_index`.
+ * @param mod *Module
+ * @param nm *u8
+ * @param nlen i32
+ * @return i32
+ */
 export function entry_module_find_struct_layout_index(mod: *Module, nm: *u8, nlen: i32): i32 {
   return typeck_find_layout_idx_by_type_name(mod, nm, nlen);
 }
 
 /**
-* import ast 等：Expr 完整布局在 dep；入口可有 prime/占位同名槽，须在 typeck 前用 dep 更完整的 num_fields 覆盖并映 field_type_refs。
+* See implementation.
 */
 export function typeck_merge_dep_struct_layouts_into_entry(mod: *Module, arena: *ASTArena,
 ctx: *PipelineDepCtx): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-    /** 自举 parse：循环/if 内勿 let，函数顶声明再赋值。 */
+    /* See implementation. */
     let nd_merge: i32 = 0;
     let di: i32 = 0;
     let dm: *Module = 0 as * Module;
@@ -2228,7 +2415,7 @@ ctx: *PipelineDepCtx): void {
     let fnlen: i32 = 0;
     let foff: i32 = 0;
     let ndm_sl: i32 = 0;
-    /** 勿 typeck_scratch64_slot 嵌套于 pipeline_* 实参（EMIT_HEAVY asm SIGSEGV）。 */
+    /* See implementation. */
     let dep_nm_buf: *u8 = typeck_scratch64_slot(9);
     let fn_buf: *u8 = typeck_scratch64_slot(10);
     if (ctx == 0 as * PipelineDepCtx) {
@@ -2259,12 +2446,12 @@ ctx: *PipelineDepCtx): void {
             need = 1;
           } else {
             weak_entry = false;
-            /** prime/占位布局可能字段个数已够但 field_type_refs 未填（如 resolved_type_ref 槽为 0），用 dep 整槽覆盖。 */
+            /* See implementation. */
             if (pipeline_module_struct_layout_num_fields(mod,
             ex) >= 2 && pipeline_module_struct_layout_field_type_ref(mod, ex, 1) == 0) {
               weak_entry = true;
             }
-            /** 具名 Expr 以 dep（ast.x）为唯一真源整槽覆盖，不依赖字段个数阈值（避免 48/54 边界未触发）。 */
+            /* See implementation. */
             is_expr_nm = false;
             if (nl == 4) {
               if (pipeline_module_struct_layout_name_byte_at(dm, k,
@@ -2278,7 +2465,7 @@ ctx: *PipelineDepCtx): void {
             ex) || weak_entry || is_expr_nm) {
               need = 1;
             }
-            /** DOD-S3：dep 已标 SoA 而 entry 仍为 AoS 时须整槽覆盖，避免跨模块 AoS↔SoA 混用。 */
+            /* See implementation. */
             if (pipeline_module_struct_layout_soa_at(dm, k) != 0
             && pipeline_module_struct_layout_soa_at(mod, ex) == 0) {
               need = 1;
@@ -2311,7 +2498,7 @@ ctx: *PipelineDepCtx): void {
               j = j + 1;
             }
             pipeline_module_struct_layout_set_num_fields(mod, ni, nf_dep);
-            /** 与 dep 一致：import 合并后仍须保留 allow(padding)，否则 StmtOrderItem 等 u8+ i32 布局在入口 module 误报隐式 padding。 */
+            /* See implementation. */
             pipeline_module_struct_layout_set_allow_padding(mod, ni,
             pipeline_module_struct_layout_allow_padding_at(dm, k));
             pipeline_module_struct_layout_set_soa(mod, ni,
@@ -2328,9 +2515,9 @@ ctx: *PipelineDepCtx): void {
 }
 
 /**
- * DOD-S3：WPO 跨模块 SoA layout 统一。
- * dep 图内（entry + direct deps）任一 module 将 struct 标为 soa 时，同名 layout 全图升档为 SoA，
- * 消除跨函数 / 跨模块 AoS↔SoA 转换与尺寸不一致。
+ * See implementation.
+ * See implementation.
+ * See implementation.
  */
 export function typeck_wpo_unify_soa_layouts(entry: *Module, ctx: *PipelineDepCtx): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -2419,7 +2606,7 @@ export function typeck_wpo_unify_soa_layouts(entry: *Module, ctx: *PipelineDepCt
 }
 
 /**
-* resolve_call dep 扫描 + 可选 LSP apply（递归；fn 写入 scratch slot，EMIT_HEAVY X emit）。
+* See implementation.
 */
 export function typeck_resolve_scan_dep_with_apply(module: *Module, arena: *ASTArena, callee_expr_ref: i32,
 callee_ord: i32, call_expr_ref: i32, ctx: *PipelineDepCtx, dep_i: i32, imax: i32,
@@ -2459,7 +2646,7 @@ want_apply: i32): i32 {
   }
 }
 
-/** 在给定模块中按名字查找函数，返回 return_type_ref（当前 arena 内有效），未找到返回 0。from_dep_index<0 表示当前模块，>=0 表示 dep 下标时需 ctx。func_index_out 非空时写入匹配到的 funcs[] 下标。 */
+/* See implementation. */
 export function find_func_return_type_in_module(mod: *Module, mod_arena: *ASTArena,
 caller_arena: *ASTArena, callee_arena: *ASTArena, callee_expr_ref: i32, from_dep_index: i32,
 ctx: *PipelineDepCtx, func_index_out: *i32): i32 {
@@ -2483,11 +2670,10 @@ ctx: *PipelineDepCtx, func_index_out: *i32): i32 {
   }
 }
 
-/** 跨模块可见性：compat/warn/strict（见 pipeline_visibility_mode / SHUX_VISIBILITY）。 */
+/* See implementation. */
 export extern function pipeline_visibility_allow_func(mod: *Module, fi: i32, cross_module: i32): i32;
 
-/** 在模块中按名字（字节+长度）查找函数，返回 return_type_ref；from_dep_index>=0 时通过 ctx 转成 caller_arena。func_index_out 非空时写入 funcs[] 下标。
- *  strict 下跨模块仅允许 is_export 函数（main 例外）。 */
+/** See implementation for details. */
 export function find_func_return_type_in_module_by_name(mod: *Module, caller_arena: *ASTArena, name: *u8,
 name_len: i32, from_dep_index: i32, ctx: *PipelineDepCtx, func_index_out: *i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -2518,9 +2704,9 @@ name_len: i32, from_dep_index: i32, ctx: *PipelineDepCtx, func_index_out: *i32):
 }
 
 /**
- * W-heap-overload：将 dep 形参 type_ref 映到 caller_arena 后，与 call 实参比较。
- * 返回得分：精确 1000；可比较弱匹配 1；不匹配 -1。
- * 跨模块必须映射形参（否则 ref 跨 arena 不可比）。
+ * See implementation.
+ * See implementation.
+ * See implementation.
  */
 export function typeck_overload_arg_param_score(caller_arena: *ASTArena, call_expr_ref: i32, arg_i: i32,
 param_ty_raw: i32, from_dep_index: i32, ctx: *PipelineDepCtx): i32 {
@@ -2559,9 +2745,9 @@ param_ty_raw: i32, from_dep_index: i32, ctx: *PipelineDepCtx): i32 {
       }
     }
     /*
-     * 【Why 根源】整型字面量默认 i32；对 i64/u32 形参若给 -1，store(*i64,1000) 全候选淘汰
-     *   → 回退首同名 i32（atomic 生成 store_i32(&(y))）。与 glue strict_minimal 同策。
-     * 【Invariant】EXPR_LIT=0 弱匹配整数 TypeKind（I32=0,U8=2,U32=3,U64=4,I64=5,USIZE=6,ISIZE=7）分 100。
+     * See implementation.
+     * See implementation.
+     * See implementation.
      */
     if (pipeline_expr_kind_ord_at(caller_arena, arg_ref) == 0) {
       let pk_lit: i32 = pipeline_type_kind_ord_at(caller_arena, param_ty);
@@ -2570,7 +2756,7 @@ param_ty_raw: i32, from_dep_index: i32, ctx: *PipelineDepCtx): i32 {
         return 100;
       }
     }
-    /** 弱匹配：实参类型已解析且与形参 kind 相同；指针须 elem 相等（见下）。 */
+    /* See implementation. */
     if (arg_ty > 0) {
       let ak: i32 = pipeline_type_kind_ord_at(caller_arena, arg_ty);
       let pk: i32 = pipeline_type_kind_ord_at(caller_arena, param_ty);
@@ -2583,7 +2769,7 @@ param_ty_raw: i32, from_dep_index: i32, ctx: *PipelineDepCtx): i32 {
       if (typeck_integer_widen_ok(pk, ak)) {
         return 100;
       }
-      /** TYPE_ARRAY=10 → TYPE_PTR=9：`buf: u8[N]` 传 `*u8` 须可赋，否则 overload 全灭回退首同名。 */
+      /* See implementation. */
       if (ak == 10 && pk == 9) {
         let ae: i32 = pipeline_type_elem_ref_at(caller_arena, arg_ty);
         let pe: i32 = pipeline_type_elem_ref_at(caller_arena, param_ty);
@@ -2592,8 +2778,8 @@ param_ty_raw: i32, from_dep_index: i32, ctx: *PipelineDepCtx): i32 {
         }
       }
       /*
-       * TYPE_PTR=9：*i64 与 *i32 同 kind 不得弱匹配 1，否则 store(&y_i64, lit) 以
-       *   ptr弱1+lit精确1000 胜过 *i64 路径；与 glue strict_minimal 对齐。
+       * See implementation.
+       * See implementation.
        */
       if (ak == 9 && pk == 9) {
         let ae2: i32 = pipeline_type_elem_ref_at(caller_arena, arg_ty);
@@ -2613,8 +2799,8 @@ param_ty_raw: i32, from_dep_index: i32, ctx: *PipelineDepCtx): i32 {
 }
 
 /**
- * 按名字 + call 实参分派 overload（binding import / 跨模块；W-heap-overload）。
- * call_expr_ref<=0 时退化为 by_name 首匹配。
+ * See implementation.
+ * See implementation.
  * When args do not disambiguate (zero-arg new/Vec_i32 vs Vec_u8), also prefer expected
  * return type from typeck_overload_expected_ret_peek as a *tie-break only* (let/assign).
  * Never fold a huge bonus into arg score (polluted outer main i32 → wrong get overload).
@@ -2706,7 +2892,7 @@ func_index_out: *i32): i32 {
       }
       return get_dep_return_type_in_caller_arena(from_dep_index, best_ret, caller_arena, ctx);
     }
-    /** 无按类型匹配时仍回退首同名（兼容旧行为 / 未解析实参）。 */
+    /* See implementation. */
     if (first_idx >= 0) {
       if (func_index_out != 0 as * i32) {
         func_index_out[0] = first_idx;
@@ -2721,13 +2907,13 @@ func_index_out: *i32): i32 {
 }
 
 /**
- * 重载解析版 find_func_return_type_in_module：根据 call 表达式的实参类型选择正确的重载。
- * call_expr_ref <= 0 时退化为取第一个匹配（兼容旧行为）。
- * 【Why 根源】函数重载要求 typeck 根据实参类型选择正确的重载版本，否则 codegen 用错误的
- *   resolved_func_index 做 mangling，链接到错误的重载版本（如 pick(20 as i64) 链到 pick_i32）。
- * 【Invariant】同模块 type_refs 直接比；跨模块用 get_dep_return_type 映射形参后再比（W-heap-overload）。
+ * See implementation.
+ * See implementation.
+ * See implementation.
+ * See implementation.
+ * See implementation.
  * Also scores expected return (typeck_overload_expected_ret_peek) for zero-arg / arg-tie cases.
- * 【Asm/Perf】遍历全部同名函数做参数类型匹配，O(n_overloads * n_args)，重载数通常 ≤ 8，可忽略。
+ * See implementation.
  * PLATFORM: SHARED — keep typeck_gen seed + glue strict_minimal pick aligned.
  */
 export function find_func_return_type_in_module_overload(mod: *Module, mod_arena: *ASTArena,
@@ -2744,7 +2930,7 @@ call_expr_ref: i32, from_dep_index: i32, ctx: *PipelineDepCtx, func_index_out: *
     let best_score: i32 = -1;
     let best_ret: i32 = 0;
     let expect_ty: i32 = 0;
-    /** 无 call_expr_ref 时退化为取第一个匹配（兼容旧调用）。 */
+    /* See implementation. */
     if (call_expr_ref > 0 && call_expr_ref <= caller_arena.num_exprs) {
       num_args = pipeline_expr_call_num_args_at(caller_arena, call_expr_ref);
       has_call_info = 1;
@@ -2809,7 +2995,7 @@ call_expr_ref: i32, from_dep_index: i32, ctx: *PipelineDepCtx, func_index_out: *
       }
       return get_dep_return_type_in_caller_arena(from_dep_index, best_ret, caller_arena, ctx);
     }
-    /** 无匹配重载时回退第一个同名函数（兼容旧行为）。 */
+    /* See implementation. */
     if (first_idx >= 0) {
       if (func_index_out != 0 as * i32) {
         func_index_out[0] = first_idx;
@@ -2823,7 +3009,12 @@ call_expr_ref: i32, from_dep_index: i32, ctx: *PipelineDepCtx, func_index_out: *
   }
 }
 
-/** 统计 import_path 缓冲区中的分段数（`.` 分隔），如 `platform.elf`→2；空白则 0。 */
+/** Exported function `typeck_import_path_segment_count`.
+ * Implements `typeck_import_path_segment_count`.
+ * @param path *u8
+ * @param path_len i32
+ * @return i32
+ */
 export function typeck_import_path_segment_count(path: *u8, path_len: i32): i32 {
   if (path_len <= 0 || path == 0 as * u8) {
     return 0;
@@ -2841,7 +3032,7 @@ export function typeck_import_path_segment_count(path: *u8, path_len: i32): i32 
   return n;
 }
 
-/** import_path[j] 的第 want_seg 段（0 起始）的起点（相对该行 64 字节块内偏移）、长度写入 *ostr / *olen。 */
+/* See implementation. */
 export function typeck_import_segment_at(module: *Module, imp_ix: i32, want_seg: i32,
 ostr: *i32, olen: *i32): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -2883,9 +3074,7 @@ ostr: *i32, olen: *i32): bool {
   }
 }
 
-/** 整包 import（IMPORT_WHOLE）：`elf.fn(args)`，`fn` 为 dep 模块内顶层函数；
-* callee 为最外层 FIELD_ACCESS，向内剥至 VAR，`layers[]` 自外向内为 [fn,...,中间命名空间]，深度须等于路径段数。
-* dep_index_out / func_index_out 可为空：非空时在成功路径写入供 LSP 的 dep 槽与函数下标。 */
+/** See implementation for details. */
 export function resolve_whole_import_qualified_call_return_type(module: *Module, arena: *ASTArena,
 callee_expr_ref: i32, ctx: *PipelineDepCtx, dep_index_out: *i32, func_index_out: *i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -2901,7 +3090,7 @@ callee_expr_ref: i32, ctx: *PipelineDepCtx, dep_index_out: *i32, func_index_out:
     if (pipeline_expr_kind_ord_at(arena, callee_expr_ref) != ord_field) {
       return 0;
     }
-    /** field 层栈走 asm_qual_sym_layer_* grow 池（与 backend.x 对称）。 */
+    /* See implementation. */
     let layer_buf: u8[64] = [];
     asm_qual_sym_layer_reset();
     let nstack: i32 = 0;
@@ -2932,11 +3121,11 @@ callee_expr_ref: i32, ctx: *PipelineDepCtx, dep_index_out: *i32, func_index_out:
     let vname_buf: u8[64] = [];
     pipeline_expr_var_name_into(arena, cur_ref, &vname_buf[0]);
     /**
-    * 不再按 IMPORT_WHOLE 过滤：若 import_kinds[] 零初始化或未写入等与 C ABI 漂移时易被误判为非 WHOLE，
-    * elf.* 将无法匹配；前缀 + 中段与 import_path 一致且 dep 槽有效时即有唯一语义。
+    * See implementation.
+    * See implementation.
     */
     let dep_j: i32 = 0;
-    /** 与 module.num_imports 对齐逐槽匹配；不因 ctx.ndep==0（预填 deps 但未写回 ndep）而整段跳过。空 module_at 槽时 continue。 */
+    /* See implementation. */
     let n_imp: i32 = typeck_module_num_imports(module);
     while (dep_j < n_imp) {
       let plen: i32 = pipeline_module_import_path_len(module, dep_j);
@@ -3015,9 +3204,9 @@ callee_expr_ref: i32, ctx: *PipelineDepCtx, dep_index_out: *i32, func_index_out:
 }
 
 /**
-* 绑定 import（process.getenv / heap.alloc）：callee 为 FIELD_ACCESS、base 为绑定 VAR。
-* call_expr_ref>0 时按实参做 overload 分派（W-heap-overload）；0 则首同名。
-* dep_index_out / func_index_out 可空；非空时成功路径写入 dep 槽与函数下标。
+* See implementation.
+* See implementation.
+* See implementation.
 */
 export function resolve_call_binding_import_return_type(module: *Module, arena: *ASTArena,
 callee_expr_ref: i32, call_expr_ref: i32, ctx: *PipelineDepCtx, dep_index_out: *i32,
@@ -3086,7 +3275,7 @@ func_index_out: *i32): i32 {
   }
 }
 
-/** METHOD_CALL 的 import binding 解析：`binding.func(args)`。 */
+/* See implementation. */
 export function resolve_method_call_binding_import_return_type(module: *Module, arena: *ASTArena,
 expr_ref: i32, ctx: *PipelineDepCtx, dep_index_out: *i32, func_index_out: *i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -3147,8 +3336,8 @@ expr_ref: i32, ctx: *PipelineDepCtx, dep_index_out: *i32, func_index_out: *i32):
 }
 
 /**
-* 解构 import（const { getenv } = import("std.process")）：裸名 VAR callee 在 dep_ix 的 select 名列表中（EMIT_HEAVY X emit）。
-* func_index_out 可空；成功时返回 dep 模块内函数返回类型 ref。
+* See implementation.
+* See implementation.
 */
 export function resolve_call_select_import_return_type(module: *Module, arena: *ASTArena,
 callee_expr_ref: i32, callee_ord: i32, dep_ix: i32, ctx: *PipelineDepCtx,
@@ -3200,7 +3389,7 @@ func_index_out: *i32): i32 {
 }
 
 /**
-* resolve_call_callee：整包 import 路径（无 LSP out；EMIT_HEAVY X emit）。
+* See implementation.
 */
 export function resolve_call_callee_try_whole_import(module: *Module, arena: *ASTArena,
 callee_expr_ref: i32, ctx: *PipelineDepCtx, callee_ord: i32): i32 {
@@ -3214,8 +3403,8 @@ callee_expr_ref: i32, ctx: *PipelineDepCtx, callee_ord: i32): i32 {
 }
 
 /**
-* resolve_call_callee：绑定 import 路径（无 LSP out；EMIT_HEAVY X emit）。
-* call_expr_ref 供 W-heap-overload 实参分派；可为 0。
+* See implementation.
+* See implementation.
 */
 export function resolve_call_callee_try_binding_import(module: *Module, arena: *ASTArena,
 callee_expr_ref: i32, call_expr_ref: i32, ctx: *PipelineDepCtx, callee_ord: i32): i32 {
@@ -3229,18 +3418,18 @@ callee_expr_ref: i32, call_expr_ref: i32, ctx: *PipelineDepCtx, callee_ord: i32)
 }
 
 /**
-* resolve_call_callee：本模块内 callee 解析（EMIT_HEAVY X emit）。
+* See implementation.
 */
 export function resolve_call_callee_local_module(module: *Module, arena: *ASTArena, callee_expr_ref: i32,
 ctx: *PipelineDepCtx): i32 {
-  /** 须 -1 字面量：let init 的 EXPR_SUB 在 EMIT_HEAVY asm 块 let 路径 emit 失败（kind=5）。 */
+  /* See implementation. */
   let minus_one: i32 = -1;
   return find_func_return_type_in_module(module, arena, arena, arena, callee_expr_ref, minus_one,
   ctx, 0 as * i32);
 }
 
 /**
-* resolve_call_callee 的 dep 扫描步进（递归；无 LSP apply，EMIT_HEAVY X emit）。
+* See implementation.
 */
 export function resolve_call_callee_scan_dep(module: *Module, arena: *ASTArena, callee_expr_ref: i32,
 callee_ord: i32, ctx: *PipelineDepCtx, dep_i: i32, imax: i32): i32 {
@@ -3272,8 +3461,7 @@ callee_ord: i32, ctx: *PipelineDepCtx, dep_i: i32, imax: i32): i32 {
   }
 }
 
-/** 解析调用目标：先本模块，再扫描 dep 池。callee_expr_ref 为 callee 子式；call_expr_ref 为 CALL 结点 ref，0 表示不求 LSP 字段。
-* 编排壳 X 真 emit（patch 表 4096）；子路径/apply helper 亦 X 真 emit。 */
+/** See implementation for details. */
 export function resolve_call_callee_return_type(module: *Module, arena: *ASTArena, callee_expr_ref: i32,
 call_expr_ref: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -3293,7 +3481,7 @@ call_expr_ref: i32, ctx: *PipelineDepCtx): i32 {
     ret = resolve_call_callee_try_whole_import(module, arena, callee_expr_ref, ctx, callee_ord);
     if (ret != 0) {
       if (want_apply != 0) {
-        /** whole import + LSP apply 内联（typeck_resolve_whole_import_with_apply thin stub）。 */
+        /* See implementation. */
         typeck_i32_ptr_store(typeck_call_resolve_dep_idx_slot(), 0);
         typeck_i32_ptr_store(typeck_call_resolve_func_idx_slot(), 0);
         resolve_whole_import_qualified_call_return_type(module, arena, callee_expr_ref, ctx,
@@ -3307,7 +3495,7 @@ call_expr_ref: i32, ctx: *PipelineDepCtx): i32 {
     callee_ord);
     if (ret != 0) {
       if (want_apply != 0) {
-        /** binding import + LSP apply：再次带 call 分派，写入正确 overload 下标。 */
+        /* See implementation. */
         typeck_i32_ptr_store(typeck_call_resolve_dep_idx_slot(), 0);
         typeck_i32_ptr_store(typeck_call_resolve_func_idx_slot(), 0);
         ret = resolve_call_binding_import_return_type(module, arena, callee_expr_ref, call_expr_ref, ctx,
@@ -3320,7 +3508,7 @@ call_expr_ref: i32, ctx: *PipelineDepCtx): i32 {
     ret = resolve_call_callee_local_module(module, arena, callee_expr_ref, ctx);
     if (ret != 0) {
       if (want_apply != 0) {
-        /** 本模块：用 overload 同时取返回类型与 func 下标（勿仅首同名）。 */
+        /* See implementation. */
         let minus_one_lm: i32 = -1;
         typeck_i32_ptr_store(typeck_call_resolve_func_idx_slot(), 0);
         ret = find_func_return_type_in_module_overload(module, arena, arena, arena, callee_expr_ref,
@@ -3341,8 +3529,8 @@ call_expr_ref: i32, ctx: *PipelineDepCtx): i32 {
 }
 
 /**
- * 取表达式的类型池下标（resolved_type_ref）；ref 无效时返回 0。
- * glue 指针读池；勿 ast_arena_expr_get 按值拷贝（大 Expr 撕裂导致 return ? 误报）。
+ * See implementation.
+ * See implementation.
  */
 export function expr_type_ref(arena: *ASTArena, expr_ref: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -3357,17 +3545,27 @@ export function expr_type_ref(arena: *ASTArena, expr_ref: i32): i32 {
   }
 }
 
-/** 判断类型池下标是否为 bool（内部）；仅在 type_ref 已通过 null/边界检查后调用。 */
+/** Exported function `type_ref_is_bool_impl`.
+ * Implements `type_ref_is_bool_impl`.
+ * @param arena *ASTArena
+ * @param type_ref i32
+ * @return bool
+ */
 export function type_ref_is_bool_impl(arena: *ASTArena, type_ref: i32): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-    /** 勿 `(TypeKind.* as i32)`：EMIT_HEAVY asm 宿主 Abort；与 dep_return ord_bool 一致。 */
+    /* See implementation. */
     let ord_bool: i32 = 1;
     return pipeline_type_kind_ord_at(arena, type_ref) == ord_bool;
   }
 }
 
-/** 判断类型池下标是否为 bool 类型。 */
+/** Exported function `type_ref_is_bool`.
+ * Implements `type_ref_is_bool`.
+ * @param arena *ASTArena
+ * @param type_ref i32
+ * @return bool
+ */
 export function type_ref_is_bool(arena: *ASTArena, type_ref: i32): bool {
   if (ast.ref_is_null(type_ref)) {
     return false;
@@ -3379,8 +3577,8 @@ export function type_ref_is_bool(arena: *ASTArena, type_ref: i32): bool {
 }
 
 /**
-* NAMED 类型名末段起始偏移（`module.Type` → `Type` 起点）；无 `.` 则 0。
-* 与 typeck.c::type_equal 限定名/短名对齐一致。
+* See implementation.
+* See implementation.
 */
 export function typeck_named_unqual_start(buf: *u8, len: i32): i32 {
   let i: i32 = len - 1;
@@ -3394,8 +3592,8 @@ export function typeck_named_unqual_start(buf: *u8, len: i32): i32 {
 }
 
 /**
-* 比较两个 NAMED 类型名是否相同（调用方已确认 kind 均为 TYPE_NAMED）。
-* 独立小函数供 S2 EMIT_HEAVY X 真 emit；内联逐字节比较（勿调 name_equal，自举 asm 下易 SIGSEGV）。
+* See implementation.
+* See implementation.
 */
 export function type_refs_equal_named(arena: *ASTArena, a: i32, b: i32): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -3412,7 +3610,7 @@ export function type_refs_equal_named(arena: *ASTArena, a: i32, b: i32): bool {
     if (na <= 0 || nb <= 0) {
       return false;
     }
-    /** 全名逐字节相等。 */
+    /* See implementation. */
     if (na == nb) {
       i = 0;
       while (i < na) {
@@ -3425,7 +3623,7 @@ export function type_refs_equal_named(arena: *ASTArena, a: i32, b: i32): bool {
         return true;
       }
     }
-    /** 跨模块限定名 vs 短名：比较末段（vec.Vec_u8 与 Vec_u8）。 */
+    /* See implementation. */
     ta = typeck_named_unqual_start(buf_a, na);
     tb = typeck_named_unqual_start(buf_b, nb);
     ua = na - ta;
@@ -3445,15 +3643,15 @@ export function type_refs_equal_named(arena: *ASTArena, a: i32, b: i32): bool {
 }
 
 /**
-* 在 kind 已相等时比较复合类型（NAMED / PTR / SLICE / ARRAY / VECTOR）。
-* NAMED 走 type_refs_equal_named；elem 递归 bl→type_refs_equal（S2 X 真 emit 全链）。
+* See implementation.
+* See implementation.
 */
 export function type_refs_equal_same_kind(arena: *ASTArena, a: i32, b: i32, kind_ord: i32): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
     let ea: i32 = 0;
     let eb: i32 = 0;
-    /** 勿 `(TypeKind.* as i32)`：EMIT_HEAVY asm 宿主 Abort；与 dep_return ord_* 一致。 */
+    /* See implementation. */
     let ord_named: i32 = 8;
     let ord_ptr: i32 = 9;
     let ord_array: i32 = 10;
@@ -3481,8 +3679,8 @@ export function type_refs_equal_same_kind(arena: *ASTArena, a: i32, b: i32, kind
 }
 
 /**
-* 内部实现：在 a、b 已非 null 且 a!=b 时调用，避免 codegen 将 type_get 提升到 null 检查前导致 type_get(arena,0) panic。
-* 字段均经 pipeline_type_*_at 读池；重逻辑在 type_refs_equal_same_kind / type_refs_equal_named。
+* See implementation.
+* See implementation.
 */
 export function type_refs_equal_impl(arena: *ASTArena, a: i32, b: i32): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -3496,7 +3694,13 @@ export function type_refs_equal_impl(arena: *ASTArena, a: i32, b: i32): bool {
   }
 }
 
-/** 判断两个类型池下标是否表示同一类型（相等；含 type 别名展开，委托 pipeline glue）。 */
+/** Exported function `type_refs_equal`.
+ * Implements `type_refs_equal`.
+ * @param arena *ASTArena
+ * @param a i32
+ * @param b i32
+ * @return bool
+ */
 export function type_refs_equal(arena: *ASTArena, a: i32, b: i32): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3508,8 +3712,8 @@ export function type_refs_equal(arena: *ASTArena, a: i32, b: i32): bool {
 }
 
 /**
-* 较小整数向较宽整数隐式拓宽（对齐 typeck.c typeck_integer_widen_ok）。
-* dest_kind/src_kind 为 pipeline_type_kind_ord_at 序数，非同 kind 时按 C 前端规则判定。
+* See implementation.
+* See implementation.
 */
 export function typeck_integer_widen_ok(dest_kind: i32, src_kind: i32): bool {
   let ord_i32: i32 = 0;
@@ -3544,8 +3748,8 @@ export function typeck_integer_widen_ok(dest_kind: i32, src_kind: i32): bool {
 }
 
 /**
-* return 操作数类型是否与函数返回类型一致（对齐 typeck.c typeck_return_value_matches）。
-* i32 目标允许 `return !expr` 与 `return true/false`（bool 字面量/逻辑非）。
+* See implementation.
+* See implementation.
 */
 export function typeck_return_operand_matches(arena: *ASTArena, op_ref: i32, expect_ref: i32): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -3576,7 +3780,7 @@ export function typeck_return_operand_matches(arena: *ASTArena, op_ref: i32, exp
     if (typeck_integer_widen_ok(expect_kind, got_kind)) {
       return true;
     }
-    /** M-4：return Linear(T) 等同返回内层 T（layout 相同；move 已在 VAR 路径标记）。 */
+    /* See implementation. */
     let ord_linear: i32 = 12;
     if (pipeline_type_kind_ord_at(arena, got) == ord_linear) {
       let elem: i32 = pipeline_type_elem_ref_at(arena, got);
@@ -3584,7 +3788,7 @@ export function typeck_return_operand_matches(arena: *ASTArena, op_ref: i32, exp
         return true;
       }
     }
-    /** 勿 ast_arena_type_get：expect 类型 kind 用 glue 读（与 type_ref_is_bool 一致）。 */
+    /* See implementation. */
     if (pipeline_type_kind_ord_at(arena, expect_ref) != ord_i32 || !type_ref_is_bool(arena, got)) {
       return false;
     }
@@ -3597,8 +3801,8 @@ export function typeck_return_operand_matches(arena: *ASTArena, op_ref: i32, exp
 }
 
 /**
-* let 初值：整型字面量按声明类型收窄（EXPR_LIT 分支）。
-* EMIT_HEAVY：勿 `(ExprKind.* as i32)`；用函数内序数字面量（与 ast.x 一致）。
+* See implementation.
+* See implementation.
 */
 export function typeck_coerce_init_lit_to_decl(arena: *ASTArena, init_ref: i32, decl_ty_ref: i32,
 decl_kind: i32, init_kind: i32): i32 {
@@ -3642,9 +3846,9 @@ decl_kind: i32, init_kind: i32): i32 {
       pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
       return 1;
     }
-    /* 【Why 根源】int_val 存 i32；十进制 2147483648..4294967295 以位型落入负 i32
-     * （如 4294967295 → -1）。u32 目标须按位型接受全部 i32（C：uint32_t x=-1 → UINT32_MAX）。
-     * u64/usize 仍要求 int_val>=0：负位型在 C 中会符号扩展成全 1（非 0xffffffff）。 */
+    /* See implementation. */
+     * See implementation.
+     * See implementation.
     if (decl_kind == ord_u32) {
       pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
       return 1;
@@ -3653,10 +3857,10 @@ decl_kind: i32, init_kind: i32): i32 {
       pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
       return 1;
     }
-    /* 【Why 根源】u16/i16 无独立 TypeKind（存为 TYPE_NAMED name="u16"/"i16"），
-     * let 初值字面量需按 name 做范围检查，否则 let x:u16=42 报 type mismatch。
-     * 【Invariant】decl_kind==ord_named 保证 type_ref 是 TYPE_NAMED，name_into 安全。
-     * 【Asm/Perf】u16 范围 0..65535、i16 范围 -32768..32767 均在 i32 内可表示。 */
+    /* See implementation. */
+     * See implementation.
+     * See implementation.
+     * See implementation.
     if (decl_kind == ord_named) {
       let nm16: u8[64] = [];
       let nlen16: i32 = pipeline_type_named_name_into(arena, decl_ty_ref, &nm16[0]);
@@ -3685,7 +3889,7 @@ decl_kind: i32, init_kind: i32): i32 {
   }
 }
 
-/** let 初值：浮点字面量按 f32/f64 声明收窄。 */
+/* See implementation. */
 export function typeck_coerce_init_float_lit_to_decl(arena: *ASTArena, init_ref: i32, decl_ty_ref: i32,
 decl_kind: i32, init_kind: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -3702,8 +3906,8 @@ decl_kind: i32, init_kind: i32): i32 {
 }
 
 /**
-* let 初值：枚举 variant 字段访问（TypeKind.TYPE_NAMED + EXPR_FIELD_ACCESS）。
-* 内联逐字节比较类型名（勿调 name_equal）；ExprKind 用局部序数。
+* See implementation.
+* See implementation.
 */
 export function typeck_coerce_init_enum_field_to_decl(module: *Module, arena: *ASTArena, init_ref: i32,
 decl_ty_ref: i32, decl_kind: i32, init_kind: i32): i32 {
@@ -3755,7 +3959,7 @@ decl_ty_ref: i32, decl_kind: i32, init_kind: i32): i32 {
   }
 }
 
-/** let 初值：未解析返回类型的 named 类型 call。 */
+/* See implementation. */
 export function typeck_coerce_init_named_call_to_decl(arena: *ASTArena, init_ref: i32, decl_ty_ref: i32,
 decl_kind: i32, init_kind: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -3771,7 +3975,7 @@ decl_kind: i32, init_kind: i32): i32 {
   }
 }
 
-/** 声明类型为别名时，若其展开目标与初值 resolved_type 相同，则把初值回绑到声明别名。 */
+/* See implementation. */
 export function typeck_coerce_init_resolved_alias_to_decl(module: *Module, arena: *ASTArena, init_ref: i32, decl_ty_ref: i32,
 decl_kind: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -3798,7 +4002,7 @@ decl_kind: i32): i32 {
   }
 }
 
-/** 数组字面量：按声明元素类型逐元素收窄，避免 `u8[N] = [0xff, ...]` 在 selfhost 上遗留 i32。 */
+/* See implementation. */
 export function typeck_coerce_array_lit_elem_types_to_decl(arena: *ASTArena, init_ref: i32,
 decl_ty_ref: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -3855,9 +4059,9 @@ decl_ty_ref: i32): i32 {
 }
 
 /**
- * TYPE_VECTOR 车道数，或 TYPE_NAMED 拼写 i32x4/u32x8/i32x16 等解析出的车道数；非向量返回 0。
- * 【Why 根源】parser 部分路径将 i32x4 落 TYPE_NAMED(kind=8) 而非 TYPE_VECTOR(13)，
- *   仅认 kind=13 会导致 array lit / binop 永不 stamp resolved → C 发 (uint8_t[]){...}。
+ * See implementation.
+ * See implementation.
+ * See implementation.
  */
 export function typeck_vector_lanes_of_type(arena: *ASTArena, type_ref: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -3885,7 +4089,7 @@ export function typeck_vector_lanes_of_type(arena: *ASTArena, type_ref: i32): i3
       return 0;
     }
     nlen = pipeline_type_named_name_into(arena, type_ref, &nm[0]);
-    /* 找 'x' 后的十进制车道：i32x4 / u32x16 / f32x4 */
+    /* See implementation. */
     i = 0;
     while (i < nlen) {
       if (nm[i] == 120) {
@@ -3906,14 +4110,14 @@ export function typeck_vector_lanes_of_type(arena: *ASTArena, type_ref: i32): i3
   }
 }
 
-/** let 初值：数组字面量或固定长度 vector 数组字面量。 */
+/* See implementation. */
 export function typeck_coerce_init_array_vector_lit_to_decl(arena: *ASTArena, init_ref: i32,
 decl_ty_ref: i32, decl_kind: i32, init_kind: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-    /** 局部字面量：模块 const / ExprKind cast 在 EMIT_HEAVY emit 会 Abort 或 backend 失败。 */
+    /* See implementation. */
     let ord_type_array: i32 = 10;
-    /* TYPE_VECTOR = 13（TYPE_LINEAR=12）；误写 12 导致 let v:i32x4=[..] 永不 stamp resolved。 */
+    /* See implementation. */
     let ord_type_vector: i32 = 13;
     let ord_expr_array_lit: i32 = 46;
     let lanes: i32 = 0;
@@ -3937,14 +4141,14 @@ decl_ty_ref: i32, decl_kind: i32, init_kind: i32): i32 {
   }
 }
 
-/** let 初值：同尺寸 vector 二元运算结果收窄到声明 vector 类型。 */
+/* See implementation. */
 export function typeck_coerce_init_vector_binop_to_decl(arena: *ASTArena, init_ref: i32, decl_ty_ref: i32,
 decl_kind: i32, init_kind: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
     let lref_c: i32 = 0;
     let rref_c: i32 = 0;
-    /* TYPE_VECTOR=13，非 TYPE_LINEAR(12)。 */
+    /* See implementation. */
     let ord_type_vector: i32 = 13;
     let ord_add: i32 = 4;
     let ord_sub: i32 = 5;
@@ -3973,7 +4177,7 @@ decl_kind: i32, init_kind: i32): i32 {
       let rt_c: i32 = expr_type_ref(arena, rref_c);
       let lk_e: i32 = pipeline_expr_kind_ord_at(arena, lref_c);
       let rk_e: i32 = pipeline_expr_kind_ord_at(arena, rref_c);
-      /* `[1,2,3,4] + [10,20,30,40]`：两侧 ARRAY_LIT 车道数与声明一致时 stamp 为 vector。 */
+      /* See implementation. */
       if (lk_e == ord_expr_array_lit && rk_e == ord_expr_array_lit
       && pipeline_expr_array_lit_num_elems_at(arena, lref_c) == lanes
       && pipeline_expr_array_lit_num_elems_at(arena, rref_c) == lanes) {
@@ -3996,8 +4200,8 @@ decl_kind: i32, init_kind: i32): i32 {
 }
 
 /**
- * let 初值：标量整型二元运算按声明类型提升（如 `0 - 9223372036854775807 - 1` → i64）。
- * 避免 i32 推断与 i64 声明 mismatch（P0-4 i64_min_not_zero / core.fmt INT64_MIN）。
+ * See implementation.
+ * See implementation.
  */
 export function typeck_coerce_init_int_binop_to_decl(arena: *ASTArena, init_ref: i32, decl_ty_ref: i32,
 decl_kind: i32, init_kind: i32): i32 {
@@ -4053,7 +4257,7 @@ decl_kind: i32): i32 {
   }
 }
 
-/** let 初值：数组类型收窄为 slice 声明（元素类型须一致）。 */
+/* See implementation. */
 export function typeck_coerce_init_slice_from_array(arena: *ASTArena, init_ref: i32, decl_ty_ref: i32,
 decl_kind: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -4089,8 +4293,8 @@ decl_kind: i32): i32 {
 }
 
 /**
-* let 初值与声明类型对齐（在 check_expr 之后、type_refs_equal 之前调用）。
-* 薄分发 X 真 emit；coerce 7 子 helper 全 X emit（ExprKind→局部序数；slice 展平 pipeline 调用）。
+* See implementation.
+* See implementation.
 */
 export function typeck_coerce_init_expr_to_decl(module: *Module, arena: *ASTArena, init_ref: i32,
 decl_ty_ref: i32): i32 {
@@ -4146,7 +4350,15 @@ decl_ty_ref: i32): i32 {
   }
 }
 
-/** 写入 lit 后缀到诊断缓冲；不写 NUL；返回下一写入偏移（至多 cap）。 */
+/** Exported function `typeck_diag_append_lit`.
+ * Implements `typeck_diag_append_lit`.
+ * @param out *u8
+ * @param pos i32
+ * @param cap i32
+ * @param lit *u8
+ * @param lit_len i32
+ * @return i32
+ */
 export function typeck_diag_append_lit(out: *u8, pos: i32, cap: i32, lit: *u8, lit_len: i32): i32 {
   let p: i32 = pos;
   let i: i32 = 0;
@@ -4158,7 +4370,14 @@ export function typeck_diag_append_lit(out: *u8, pos: i32, cap: i32, lit: *u8, l
   return p;
 }
 
-/** 将非负 v 写成十进制 ASCII，附加到 out[pos..]（cap 为上限偏移）。 */
+/** Exported function `typeck_diag_append_u32_dec`.
+ * Implements `typeck_diag_append_u32_dec`.
+ * @param out *u8
+ * @param pos i32
+ * @param cap i32
+ * @param v i32
+ * @return i32
+ */
 export function typeck_diag_append_u32_dec(out: *u8, pos: i32, cap: i32, v: i32): i32 {
   let p: i32 = pos;
   if (v < 0 || p < 0 || p >= cap) {
@@ -4168,7 +4387,7 @@ export function typeck_diag_append_u32_dec(out: *u8, pos: i32, cap: i32, v: i32)
     let zd: u8[1] = [48];
     return typeck_diag_append_lit(out, p, cap, &zd[0], 1);
   }
-  /* 不写 scratch 数组（.x let 须有初值）；先数位数再在 out 上由高索引写入十位到个位 */
+  /* See implementation. */
   let cnt: i32 = 0;
   let tc: i32 = v;
   while (tc > 0) {
@@ -4189,7 +4408,15 @@ export function typeck_diag_append_u32_dec(out: *u8, pos: i32, cap: i32, v: i32)
   return pos + cnt;
 }
 
-/** 从 out[cur..] 起写入类型的可读字符串，对齐 typeck.c type_to_string_buf；不写 NUL；返回下一写入偏移。 */
+/** Exported function `typeck_diag_fmt_type_at`.
+ * Implements `typeck_diag_fmt_type_at`.
+ * @param arena *ASTArena
+ * @param ref i32
+ * @param out *u8
+ * @param cur i32
+ * @param cap i32
+ * @return i32
+ */
 export function typeck_diag_fmt_type_at(arena: *ASTArena, ref: i32, out: *u8, cur: i32, cap: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -4318,12 +4545,25 @@ export function typeck_diag_fmt_type_at(arena: *ASTArena, ref: i32, out: *u8, cu
   }
 }
 
-/** 从 out[0..] 写入类型字符串；返回值等于写入字节数（下一偏移）。 */
+/** Exported function `typeck_diag_fmt_type_into`.
+ * Implements `typeck_diag_fmt_type_into`.
+ * @param arena *ASTArena
+ * @param ref i32
+ * @param out *u8
+ * @param cap i32
+ * @return i32
+ */
 export function typeck_diag_fmt_type_into(arena: *ASTArena, ref: i32, out: *u8, cap: i32): i32 {
   return typeck_diag_fmt_type_at(arena, ref, out, 0, cap);
 }
 
-/** ref 无效时单个 "?"，否则与 fmt_into 同上（cap 视作 96 由调用方缓冲保证）。 */
+/** Exported function `typeck_diag_fmt_type_or_question`.
+ * Implements `typeck_diag_fmt_type_or_question`.
+ * @param arena *ASTArena
+ * @param ref i32
+ * @param out *u8
+ * @return i32
+ */
 export function typeck_diag_fmt_type_or_question(arena: *ASTArena, ref: i32, out: *u8): i32 {
   let qmk: u8[1] = [63];
   if (ast.ref_is_null(ref) || ref <= 0 || ref > arena.num_types) {
@@ -4333,8 +4573,8 @@ export function typeck_diag_fmt_type_or_question(arena: *ASTArena, ref: i32, out
 }
 
 /**
-* `return expr`：函数声明为 i32 时，允许来自切片元素（u8）与 `.length`（usize）等与 C ABI 一致的整型收窄；
-* 将操作数 resolved_type_ref 改写为期望类型，便于 codegen 与后续相等比较。
+* See implementation.
+* See implementation.
 */
 export function typeck_ret_coerce_integral_to_expect_i32(arena: *ASTArena, op_ref: i32,
 expect_ref: i32): void {
@@ -4349,7 +4589,7 @@ expect_ref: i32): void {
     if (expect_ref <= 0 || expect_ref > arena.num_types) {
       return;
     }
-    /** 勿 ast_arena_type_get：expect/got 类型 kind 用 glue 读（与 typeck_return_operand_matches 一致）。 */
+    /* See implementation. */
     if (pipeline_type_kind_ord_at(arena, expect_ref) != ord_i32) {
       return;
     }
@@ -4358,7 +4598,7 @@ expect_ref: i32): void {
       return;
     }
     let got_kind: i32 = pipeline_type_kind_ord_at(arena, got_ref);
-    /** 对齐 ASSIGN 对部分整型的放宽；暂不包含 i64→i32（需显式 as）。 */
+    /* See implementation. */
     if (got_kind != ord_u8 && got_kind != ord_usize) {
       return;
     }
@@ -4367,8 +4607,8 @@ expect_ref: i32): void {
 }
 
 /**
-* `return expr`：较宽返回类型时对较小整型操作数写回 resolved_type_ref（如 i32→i64、u8→i32）。
-* 与 typeck_integer_widen_ok 规则一致，便于 codegen 与 return_operand_matches 对齐。
+* See implementation.
+* See implementation.
 */
 export function typeck_ret_coerce_integral_widen(arena: *ASTArena, op_ref: i32, expect_ref: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -4396,8 +4636,8 @@ export function typeck_ret_coerce_integral_widen(arena: *ASTArena, op_ref: i32, 
 }
 
 /**
- * return 语境：整型字面量 0 按指针 null 收窄（对齐 let 初值 typeck_coerce_init_lit_to_decl）。
- * 修复 heap_libc heap_alloc_c 等 `return 0` 在 *T 返回类型下 found i32 误报。
+ * See implementation.
+ * See implementation.
  */
 export function typeck_ret_coerce_null_lit_to_expect(arena: *ASTArena, op_ref: i32, expect_ref: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -4423,8 +4663,8 @@ export function typeck_ret_coerce_null_lit_to_expect(arena: *ASTArena, op_ref: i
 }
 
 /**
- * return 语境：CALL 操作数仍未 resolve 时再跑 call_resolve（同模块 / import binding）。
- * 修复 std.set/map reserve_one 内 `return set_*_with_capacity(...)` found ? 误报。
+ * See implementation.
+ * See implementation.
  */
 export function typeck_ret_fixup_unresolved_call(module: *Module, arena: *ASTArena, op_ref: i32,
 ctx: *PipelineDepCtx): void {
@@ -4447,7 +4687,7 @@ ctx: *PipelineDepCtx): void {
 }
 
 /**
- * return 诊断面包屑：格式化最小子表达式名，优先覆盖 `foo()` / `mod.fn()` / `var`。
+ * See implementation.
  */
 export function typeck_return_breadcrumb_into(arena: *ASTArena, expr_ref: i32, out: *u8): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -4519,6 +4759,10 @@ export function typeck_return_breadcrumb_into(arena: *ASTArena, expr_ref: i32, o
   }
 }
 
+/** Function `typeck_emit_return_subexpr_breadcrumb`.
+ * Purpose: implements `typeck_emit_return_subexpr_breadcrumb`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function typeck_emit_return_subexpr_breadcrumb(arena: *ASTArena, expr_ref: i32, line: i32,
 col: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -4531,6 +4775,10 @@ col: i32): void {
   }
 }
 
+/** Function `typeck_emit_return_unresolved_breadcrumb`.
+ * Purpose: implements `typeck_emit_return_unresolved_breadcrumb`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function typeck_emit_return_unresolved_breadcrumb(arena: *ASTArena, expr_ref: i32, line: i32,
 col: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -4543,7 +4791,12 @@ col: i32): void {
   }
 }
 
-/** EXPR_FLOAT_LIT：填 float_bits 并设 resolved f64；glue 指针写池（EMIT_HEAVY X emit）。 */
+/** Exported function `typeck_check_expr_float_lit`.
+ * Implements `typeck_check_expr_float_lit`.
+ * @param arena *ASTArena
+ * @param expr_ref i32
+ * @return i32
+ */
 export function typeck_check_expr_float_lit(arena: *ASTArena, expr_ref: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -4556,8 +4809,15 @@ export function typeck_check_expr_float_lit(arena: *ASTArena, expr_ref: i32): i3
   }
 }
 
-/** EXPR_LIT：先吃上下文里的 null 指针收窄，再在无 resolved 时回退 i32/i64 默认。 */
+/* See implementation. */
 export extern function pipeline_typeck_check_expr_int_lit_c(arena: *ASTArena, expr_ref: i32): i32;
+/** Exported function `typeck_check_expr_int_lit`.
+ * Implements `typeck_check_expr_int_lit`.
+ * @param arena *ASTArena
+ * @param expr_ref i32
+ * @param return_type_ref i32
+ * @return i32
+ */
 export function typeck_check_expr_int_lit(arena: *ASTArena, expr_ref: i32, return_type_ref: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -4566,7 +4826,12 @@ export function typeck_check_expr_int_lit(arena: *ASTArena, expr_ref: i32, retur
   }
 }
 
-/** EXPR_BOOL_LIT：设 resolved bool。 */
+/** Exported function `typeck_check_expr_bool_lit`.
+ * Implements `typeck_check_expr_bool_lit`.
+ * @param arena *ASTArena
+ * @param expr_ref i32
+ * @return i32
+ */
 export function typeck_check_expr_bool_lit(arena: *ASTArena, expr_ref: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -4578,8 +4843,12 @@ export function typeck_check_expr_bool_lit(arena: *ASTArena, expr_ref: i32): i32
   }
 }
 
-/** STRING_LIT(kind 59)：默认 `*u8`（C 字面量衰减；call 传 *u8 时 -E 出 (uint8_t[])）。
- *  let/arg 有期望 PTR/ARRAY/SLICE 时由 typeck_gen 路径采用期望类型（见 typeck_gen.c）。 */
+/** Exported function `typeck_check_expr_string_lit`.
+ * Implements `typeck_check_expr_string_lit`.
+ * @param arena *ASTArena
+ * @param expr_ref i32
+ * @return i32
+ */
 export function typeck_check_expr_string_lit(arena: *ASTArena, expr_ref: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -4597,7 +4866,7 @@ export function typeck_check_expr_string_lit(arena: *ASTArena, expr_ref: i32): i
 }
 
 /**
- * EXPR_BREAK / EXPR_CONTINUE：须在循环内（ctx.typeck_loop_depth>0）；否则 stderr 诊断。
+ * See implementation.
  */
 export function typeck_check_expr_break_continue(module: *Module, arena: *ASTArena, expr_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
@@ -4623,7 +4892,12 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
   }
 }
 
-/** EXPR_ENUM_VARIANT：视作 i32 tag 字面量。 */
+/** Exported function `typeck_check_expr_enum_variant`.
+ * Implements `typeck_check_expr_enum_variant`.
+ * @param arena *ASTArena
+ * @param expr_ref i32
+ * @return i32
+ */
 export function typeck_check_expr_enum_variant(arena: *ASTArena, expr_ref: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -4635,7 +4909,7 @@ export function typeck_check_expr_enum_variant(arena: *ASTArena, expr_ref: i32):
   }
 }
 
-/** EXPR_IF/TERNARY：条件须 bool；分支类型合一；glue 读 if 子 ref + 类型池（展平 if，EMIT_HEAVY X emit）。 */
+/* See implementation. */
 export function typeck_check_expr_if_ternary(module: *Module, arena: *ASTArena, expr_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -4703,7 +4977,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
         if (typeck_integer_widen_ok(expect_kind, got_kind)) {
           resolved = return_type_ref;
         } else if (expect_kind == ord_u8 && got_kind == ord_i32) {
-          /** 赋值语境：cond ? 53 : 48 等整型字面量分支按 u8 收窄（ternary_u8_context.x）。 */
+          /* See implementation. */
           then_k = pipeline_expr_kind_ord_at(arena, then_ref);
           else_k = pipeline_expr_kind_ord_at(arena, else_ref);
           if (then_k == ord_lit && else_k == ord_lit) {
@@ -4737,7 +5011,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
       resolved = ty_e;
     }
     if (!ast.ref_is_null(resolved)) {
-      /** return 语境：parser 可能落成 EXPR_IF 而非 EXPR_TERNARY，仍须向函数返回类型拓宽。 */
+      /* See implementation. */
       if (!ast.ref_is_null(return_type_ref) && return_type_ref > 0 && return_type_ref <= arena.num_types) {
         expect_kind = pipeline_type_kind_ord_at(arena, return_type_ref);
         got_kind = pipeline_type_kind_ord_at(arena, resolved);
@@ -4751,7 +5025,12 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
   }
 }
 
-/** EXPR_BLOCK：递归 check_block 并推断块表达式类型；glue 读 block/assign 子 ref。 */
+/** Exported function `typeck_block_expr_value_ref`.
+ * Implements `typeck_block_expr_value_ref`.
+ * @param arena *ASTArena
+ * @param block_ref i32
+ * @return i32
+ */
 export function typeck_block_expr_value_ref(arena: *ASTArena, block_ref: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -4791,6 +5070,10 @@ export function typeck_block_expr_value_ref(arena: *ASTArena, block_ref: i32): i
   }
 }
 
+/** Function `typeck_check_expr_block`.
+ * Purpose: implements `typeck_check_expr_block`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function typeck_check_expr_block(module: *Module, arena: *ASTArena, expr_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -4839,7 +5122,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
 }
 
 /**
- * EXPR_ASSIGN / 复合赋值：递归 check 左右子式、字面量收窄、CALL/LHS 回填与类型 mismatch 诊断（EMIT_HEAVY X emit）。
+ * See implementation.
  */
 export function typeck_check_expr_assign(module: *Module, arena: *ASTArena, expr_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
@@ -4870,7 +5153,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     let right_ref: i32 = pipeline_expr_binop_right_ref_at(arena, expr_ref);
     let line: i32 = pipeline_expr_line_at(arena, expr_ref);
     let col: i32 = pipeline_expr_col_at(arena, expr_ref);
-    /** WPO/seed 旧路径可能直达本函数；逃逸诊断须先于类型匹配（与 mega_c 一致）。 */
+    /* See implementation. */
     if (pipeline_typeck_check_struct_stack_escape_assign_c(module, arena, expr_ref, left_ref, right_ref, ctx) != 0) {
       return - 1;
     }
@@ -4934,7 +5217,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
           } else if (expr_kind == ord_assign && lt_kind == ord_ptr && int_val == 0) {
             pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
           } else if (expr_kind == ord_assign && lt_kind == ord_u32) {
-            /* 与 typeck_coerce_init_lit_to_decl：u32 接受 i32 全位型（含 >INT_MAX 十进制）。 */
+            /* See implementation. */
             pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
           } else if (expr_kind == ord_assign && int_val >= 0 &&
           (lt_kind == ord_usize || lt_kind == ord_u64)) {
@@ -4942,13 +5225,13 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
           } else if (expr_kind == ord_assign && lt_kind == ord_i64) {
             pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
           } else if (expr_kind == ord_assign && lt_kind == ord_isize) {
-            /* isize 与 i64 同：字面量 0 等整型字面量收窄到声明类型。 */
+            /* See implementation. */
             pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
           } else if (expr_kind == ord_assign && lt_kind == ord_named) {
-            /* 【Why 根源】u16/i16 无独立 TypeKind（存为 TYPE_NAMED name="u16"/"i16"），
-             * 字面量窄化与 u8 同理需按 name 做范围检查，否则 let x:u16=42 报 type mismatch。
-             * 【Invariant】lt_kind==ord_named 保证 type_ref 是 TYPE_NAMED，name_into 安全。
-             * 【Asm/Perf】u16 范围 0..65535、i16 范围 -32768..32767 均在 i32 内可表示。 */
+            /* See implementation. */
+             * See implementation.
+             * See implementation.
+             * See implementation.
             let nm16: u8[64] = [];
             let nlen16: i32 = pipeline_type_named_name_into(arena, lt, &nm16[0]);
             if (nlen16 == 3 && nm16[0] == 117 && nm16[1] == 49 && nm16[2] == 54
@@ -4966,7 +5249,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     if (!ast.ref_is_null(lt) && !ast.ref_is_null(rt) && !type_refs_equal(arena, lt, rt)) {
       lt_kind = pipeline_type_kind_ord_at(arena, lt);
       let rt_kind_assign: i32 = pipeline_type_kind_ord_at(arena, rt);
-      /** 与 typeck.c 对齐：普通赋值也允许 i32→usize/u32/i64 等整型隐式拓宽。 */
+      /* See implementation. */
       if (typeck_integer_widen_ok(lt_kind, rt_kind_assign)) {
         pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
         rt = lt;
@@ -4999,15 +5282,12 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
         pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
         rt = lt;
       }
-      /** string_lit(kind 59) 类型推断依赖 slice 分配；slice 分配异常时 resolved_type_ref 保持 0。
-       *  与 let 声明 init_ty=null 跳过检查行为对齐：rhs 为 string_lit 且类型未设时回填 lhs 类型，
-       *  避免赋值路径误报 mismatch。codegen 依 kind=59 生成 (uint8_t[]){...}，不依赖 resolved_type_ref。 */
+/** See implementation for details. */
       if (rhs_kind == ord_string_lit) {
         pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
         rt = lt;
       }
-      /** Name.Variant（FIELD_ACCESS）作赋值 RHS：与 let 初值 coerce_init_enum_field 对齐。
-       *  否则 tok.kind = TokenKind.TOKEN_EOF 在 FIELD_ACCESS 未填 resolved 时报 found ?。 */
+/** See implementation for details. */
       if (rhs_kind == ord_field) {
         lt_kind = pipeline_type_kind_ord_at(arena, lt);
         if (typeck_coerce_init_enum_field_to_decl(module, arena, right_ref, lt, lt_kind, rhs_kind) != 0) {
@@ -5031,7 +5311,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
         driver_diagnostic_typeck_assign_mismatch(compound_flag, line, col, eb, el, gb, gl);
         return - 1;
       }
-      /** M-3：类型相等后再查 slice 域（i32[]<ra> vs i32[]<rb> elem 相同但域不同）。 */
+      /* See implementation. */
       if (pipeline_typeck_check_slice_region_assign_c(arena, expr_ref, lt, rt) != 0) {
         return - 1;
       }
@@ -5065,7 +5345,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
 }
 
 /**
- * EXPR_RETURN：裸 return / return expr 与函数签名匹配（EMIT_HEAVY X emit）。
+ * See implementation.
  */
 export function typeck_check_expr_return(module: *Module, arena: *ASTArena, expr_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
@@ -5116,7 +5396,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
         return - 1;
       }
     }
-    /** 须在 check_expr 前 resolve import CALL（如 return result.ok_i32(...) C5/X9）。 */
+    /* See implementation. */
     typeck_ret_fixup_unresolved_call(module, arena, op_ref, ctx);
     if (check_expr(module, arena, op_ref, return_type_ref, ctx) != 0) {
       if (ast.ref_is_null(expr_type_ref(arena, op_ref))) {
@@ -5128,7 +5408,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
       return - 1;
     }
     typeck_ret_coerce_null_lit_to_expect(arena, op_ref, return_type_ref);
-    /* return Method.POST：FIELD_ACCESS 枚举 variant 按返回类型 stamp（对齐 let 初值 coerce）。 */
+    /* See implementation. */
     if (!ast.ref_is_null(op_ref) && !ast.ref_is_null(return_type_ref)) {
       let rk_ret: i32 = pipeline_type_kind_ord_at(arena, return_type_ref);
       let ok_ret: i32 = pipeline_expr_kind_ord_at(arena, op_ref);
@@ -5155,7 +5435,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
       }
     }
     if (!ast.ref_is_null(op_ref) && !ast.ref_is_null(return_type_ref)) {
-      /** return 语境：数组/vector 字面量按函数返回类型解析（对齐 let 初值 typeck_coerce_init_array_vector_lit_to_decl）。 */
+      /* See implementation. */
       let ord_type_array: i32 = 10;
       let ord_type_vector: i32 = 13;
       let ord_expr_array_lit: i32 = 46;
@@ -5190,7 +5470,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     if (!ast.ref_is_null(return_type_ref) && !ast.ref_is_null(op_ref)) {
       let expect_kind: i32 = 0;
       let got_kind: i32 = 0;
-      /** M-3 AL-06：须先于类型匹配失败路径 — region 内 return 未标注 T[] 即逃逸（不依赖 operand 类型）。 */
+      /* See implementation. */
       if (pipeline_typeck_check_return_slice_region_in_scope_c(arena, expr_ref, return_type_ref, ctx) != 0) {
         return - 1;
       }
@@ -5198,7 +5478,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
       typeck_ret_coerce_integral_widen(arena, op_ref, return_type_ref);
       got = expr_type_ref(arena, op_ref);
       if (!typeck_return_operand_matches(arena, op_ref, return_type_ref)) {
-        /** 整型隐式拓宽：match 失败但 i32→i64 等仍合法时写回 resolved 并通过。 */
+        /* See implementation. */
         if (!ast.ref_is_null(got) && got > 0 && !ast.ref_is_null(return_type_ref)) {
           expect_kind = pipeline_type_kind_ord_at(arena, return_type_ref);
           got_kind = pipeline_type_kind_ord_at(arena, got);
@@ -5219,7 +5499,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
         driver_diagnostic_typeck_ret_fail(2, op_ref, return_type_ref, got);
         return - 1;
       }
-      /** M-3：return slice 域逃逸 / 不一致（operand 已 stamp 的标签路径）。 */
+      /* See implementation. */
       if (pipeline_typeck_check_return_slice_region_c(arena, expr_ref, op_ref, return_type_ref) != 0) {
         return - 1;
       }
@@ -5229,7 +5509,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
 }
 
 /**
- * EXPR_PANIC：检查 operand；发散表达式 resolved 为函数返回类型（EMIT_HEAVY X emit）。
+ * See implementation.
  */
 export function typeck_check_expr_panic(module: *Module, arena: *ASTArena, expr_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
@@ -5251,7 +5531,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
 }
 
 /**
-* EXPR_MATCH 单臂检查（递归步进；避免 while 内嵌套 glue+check_expr 触发 EMIT_HEAVY codegen SIGSEGV）。
+* See implementation.
 */
 export function typeck_check_expr_match_arm(module: *Module, arena: *ASTArena, expr_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx, arm_i: i32, num_arms: i32, line: i32, col: i32): i32 {
@@ -5281,7 +5561,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx, arm_i: i32, num_arms: i32, line: i32
 }
 
 /**
-* EXPR_MATCH：检查 matched 与各 arm result；写 resolved_type 为期望返回类型（EMIT_HEAVY X emit）。
+* See implementation.
 */
 export function typeck_check_expr_match(module: *Module, arena: *ASTArena, expr_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
@@ -5306,7 +5586,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
 }
 
 /**
-* EXPR_CALL 实参检查（递归步进；避免 while 内 check_expr 触发 EMIT_HEAVY codegen SIGSEGV）。
+* See implementation.
 */
 export function typeck_check_expr_call_arg(module: *Module, arena: *ASTArena, expr_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx, arg_i: i32, num_args: i32): i32 {
@@ -5326,7 +5606,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx, arg_i: i32, num_args: i32): i32 {
 }
 
 /**
-* EXPR_CALL：解析 callee 返回类型并写 resolved_type（glue 读 call/callee 池；EMIT_HEAVY X emit）。
+* See implementation.
 */
 export function typeck_check_expr_call_resolve(module: *Module, arena: *ASTArena, expr_ref: i32,
 ctx: *PipelineDepCtx): i32 {
@@ -5334,7 +5614,7 @@ ctx: *PipelineDepCtx): i32 {
   unsafe {
     let ord_addr_of: i32 = 51;
     let ord_var: i32 = 3;
-    /** 须 -1 字面量：避免 EMIT_HEAVY block let init EXPR_SUB emit 失败。 */
+    /* See implementation. */
     let minus_one: i32 = -1;
     let callee_ref: i32 = 0;
     let callee_eff: i32 = 0;
@@ -5353,7 +5633,7 @@ ctx: *PipelineDepCtx): i32 {
         callee_eff = inner_c;
       }
     }
-    /** M-5：先取 callee 名，供 read_ptr_slice 域绑定。 */
+    /* See implementation. */
     cnml = 0;
     if (pipeline_expr_kind_ord_at(arena, callee_eff) == ord_var) {
       cnml = pipeline_expr_var_name_len(arena, callee_eff);
@@ -5370,7 +5650,7 @@ ctx: *PipelineDepCtx): i32 {
         ast.ast_expr_apply_call_resolve(arena, expr_ref, minus_one, typeck_call_resolve_func_idx_peek());
       }
     }
-    /** M-5：read_ptr_slice 等 callee 返回 u8[]<io_read_ptr>（TLS buf 域）。 */
+    /* See implementation. */
     if (cnml > 0 && pipeline_typeck_is_read_ptr_slice_callee_c(&cnm[0], cnml) != 0) {
       ret_ty = pipeline_typeck_read_ptr_slice_return_ref_c(arena);
     }
@@ -5382,14 +5662,14 @@ ctx: *PipelineDepCtx): i32 {
 }
 
 /**
-* EXPR_CALL：检查实参并解析 callee 返回类型（EMIT_HEAVY X emit）。
+* See implementation.
 * Installs expected return (return_type_ref from let/assign/return) for zero-arg overload pick.
 */
 export function typeck_check_expr_call(module: *Module, arena: *ASTArena, expr_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-    /** LANG-007：须在 arg resolve 前拒绝 S0 裸 extern（typeck.x 直路径不经 glue 包装）。 */
+    /* See implementation. */
     if (pipeline_typeck_check_extern_call_unsafe_boundary_c(module, arena, expr_ref, ctx) != 0) {
       return -1;
     }
@@ -5408,7 +5688,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
       return -1;
     }
     typeck_i32_ptr_store(typeck_overload_expected_ret_slot(), 0);
-    /** M-3：实参 slice 域与形参域标签一致性（内含 WPO-S3 struct stack escape）。 */
+    /* See implementation. */
     if (pipeline_typeck_check_call_slice_region_c(module, arena, expr_ref, ctx) != 0) {
       return -1;
     }
@@ -5417,7 +5697,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
 }
 
 /**
- * EXPR_EQ..EXPR_LOGOR：比较/逻辑 binop，结果类型 bool（glue 读 kind；EMIT_HEAVY X emit）。
+ * See implementation.
  */
 export function typeck_check_expr_binop_cmp(module: *Module, arena: *ASTArena, expr_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
@@ -5441,7 +5721,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
 }
 
 /**
- * EXPR_ADD..EXPR_BITXOR：算术/位 binop，check 子式后 X 推导结果类型（infer 内联减 reloc）。
+ * See implementation.
  */
 export function typeck_check_expr_binop_arith(module: *Module, arena: *ASTArena, expr_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
@@ -5503,7 +5783,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
       dbg_left, dbg_left_len, dbg_right, dbg_right_len);
       lko = pipeline_type_kind_ord_at(arena, lt_ar);
       rko = pipeline_type_kind_ord_at(arena, rt_ar);
-      /** ptr ± i32/usize/isize → ptr（std/string ptr_at；须在 i32 fallback 之前）。 */
+      /* See implementation. */
       if (expr_kind == ord_add || expr_kind == ord_sub) {
         if (lko == ord_ptr && (rko == ord_i32 || rko == ord_usize || rko == ord_isize)) {
           out_ar = lt_ar;
@@ -5578,7 +5858,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
 }
 
 /**
- * EXPR_ADD..EXPR_LOGOR：分派 cmp/arith 子 helper（EMIT_HEAVY X emit 编排壳）。
+ * See implementation.
  */
 export function typeck_check_expr_binop(module: *Module, arena: *ASTArena, expr_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
@@ -5602,7 +5882,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
 }
 
 /**
- * EXPR_FIELD_ACCESS：委托 C（SoA INDEX 基址 + layout/slice/fallback；勿在 X 重复遗漏 DOD-S1）。
+ * See implementation.
  */
 export function typeck_check_expr_field_access(module: *Module, arena: *ASTArena, expr_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
@@ -5613,7 +5893,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
 }
 
 /**
- * EXPR_NEG/BITNOT/LOGNOT：检查操作数；LOGNOT→bool，其余保留操作数类型（EMIT_HEAVY X emit）。
+ * See implementation.
  */
 export function typeck_check_expr_unary(module: *Module, arena: *ASTArena, expr_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
@@ -5643,7 +5923,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
 }
 
 /**
- * EXPR_ADDR_OF：操作数类型 T，表达式类型 *T（EMIT_HEAVY X emit）。
+ * See implementation.
  */
 export function typeck_check_expr_addr_of(module: *Module, arena: *ASTArena, expr_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
@@ -5652,7 +5932,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     let op_ref: i32 = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
     let op_ty: i32 = 0;
     let pt: i32 = 0;
-    /** M-4：&linear 非法；须在 check_expr 消费 VAR 之前拒绝。 */
+    /* See implementation. */
     if (!ast.ref_is_null(op_ref)) {
       if (pipeline_typeck_reject_addr_of_linear_c(arena, op_ref, expr_ref, module, ctx) != 0) {
         return - 1;
@@ -5665,7 +5945,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     if (ast.ref_is_null(op_ty) || op_ty <= 0 || op_ty > arena.num_types) {
       return - 1;
     }
-    /** WPO-S3：局部 struct 取址标注 stack_local 域。 */
+    /* See implementation. */
     pt = pipeline_typeck_ptr_for_addr_of_operand_c(arena, op_ref, op_ty, module, ctx);
     if (pt == 0) {
       pt = find_or_alloc_ptr_type_ref(arena, op_ty);
@@ -5679,15 +5959,13 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
 }
 
 /**
- * EXPR_DEREF：操作数须为 *T，表达式类型 T（EMIT_HEAVY X emit）。
+ * See implementation.
  */
 export function typeck_check_expr_deref(module: *Module, arena: *ASTArena, expr_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-    /** 【Why 根源】LANG-007 v2：S0 内 *T 解引用须在 unsafe { } 块内（与 extern call 边界对称）。
-     *  【Invariant】pipeline_dep_ctx_typeck_unsafe_depth_at > 0 表示当前在 unsafe 块内。
-     *  【Asm/Perf】单字段读 + 分支，热路径无额外开销。 */
+/** See implementation for details. */
     if (pipeline_dep_ctx_typeck_unsafe_depth_at(ctx) <= 0) {
       let line: i32 = pipeline_expr_line_at(arena, expr_ref);
       let col: i32 = pipeline_expr_col_at(arena, expr_ref);
@@ -5720,8 +5998,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
 }
 
 /**
- * 模块顶层 let/const：递归扫描 top_level_lets（与 C while 等价；避免 while+side-effect 错序）。
- * 命中并写入 resolved_type 返回 1，否则 0。
+ * See implementation.
+ * See implementation.
  */
 export function typeck_check_expr_var_top_level(module: *Module, arena: *ASTArena, expr_ref: i32,
 vbuf: *u8, vnlen: i32, tl: i32): i32 {
@@ -5743,7 +6021,7 @@ vbuf: *u8, vnlen: i32, tl: i32): i32 {
 }
 
 /**
- * EXPR_VAR：块 symtab / 顶层 let / 形参 / TokenKind·TypeKind 限定名（EMIT_HEAVY X emit）。
+ * See implementation.
  */
 export function typeck_check_expr_var(module: *Module, arena: *ASTArena, expr_ref: i32,
 ctx: *PipelineDepCtx): i32 {
@@ -5788,9 +6066,7 @@ ctx: *PipelineDepCtx): i32 {
         return 0;
       }
     }
-    /** 【Why 根源】函数参数查找须先于 top-level let 查找：parser bug 可能将函数局部 let
-     *   误加入 module.num_top_level_lets，导致同名变量被解析为错误类型（跨函数泄漏）。
-     *   先查参数可确保函数参数优先于误置的 top-level let。 */
+/** See implementation for details. */
     func_ix = pipeline_dep_ctx_current_func_index(ctx);
     if (func_ix >= 0 && func_ix < module.num_funcs) {
       pr = pipeline_module_func_param_type_ref_for_name(module, func_ix, vbuf, vnlen);
@@ -5849,7 +6125,7 @@ ctx: *PipelineDepCtx): i32 {
 }
 
 /**
- * EXPR_METHOD_CALL 实参检查（递归步进；避免 while 内 check_expr 触发 EMIT_HEAVY codegen SIGSEGV）。
+ * See implementation.
  */
 export function typeck_check_expr_method_call_arg(module: *Module, arena: *ASTArena, expr_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx, arg_i: i32, num_args: i32): i32 {
@@ -5869,7 +6145,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx, arg_i: i32, num_args: i32): i32 {
 }
 
 /**
- * EXPR_METHOD_CALL：占位 call_resolve，检查 base 与实参（impl 解析待 LSP；EMIT_HEAVY X emit）。
+ * See implementation.
  */
 export function typeck_check_expr_method_call(module: *Module, arena: *ASTArena, expr_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
@@ -5880,7 +6156,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
 }
 
 /**
- * EXPR_AS：检查操作数（return_type=0 避免字面量被外层期望类型污染）；resolved 设为目标类型（EMIT_HEAVY X emit）。
+ * See implementation.
  */
 export function typeck_check_expr_as(module: *Module, arena: *ASTArena, expr_ref: i32,
 ctx: *PipelineDepCtx): i32 {
@@ -5926,9 +6202,9 @@ return_type_ref: i32, ctx: *PipelineDepCtx, field_i: i32, num_fields: i32): i32 
 }
 
 /**
- * STRUCT_LIT 字段初值按 layout 声明类型 coerce（对齐 let/const 的 typeck_coerce_init_expr_to_decl）。
- * 【Why 根源】仅 check_expr 不 stamp 字段类型时，array lit 无 resolved → C 发 (uint8_t[]){...}
- * 无法初始化 int32_t arr[N]（BLD001 / -Wint-conversion）。
+ * See implementation.
+ * See implementation.
+ * See implementation.
  */
 export function typeck_coerce_struct_lit_field_inits_to_layout(module: *Module, arena: *ASTArena,
 expr_ref: i32): i32 {
@@ -5969,7 +6245,7 @@ expr_ref: i32): i32 {
 }
 
 /**
- * EXPR_STRUCT_LIT：检查各字段 init、登记 layout、写 named resolved_type（EMIT_HEAVY X emit）。
+ * See implementation.
  */
 export function typeck_check_expr_struct_lit(
   module: *Module, 
@@ -6000,7 +6276,7 @@ export function typeck_check_expr_struct_lit(
     if (ensure_struct_layout_from_struct_lit(module, arena, expr_ref) != 0) {
       return - 1;
     }
-    /** 已有/刚登记 layout 后：字段 array lit 等按声明类型 stamp resolved。 */
+    /* See implementation. */
     typeck_coerce_struct_lit_field_inits_to_layout(module, arena, expr_ref);
     if (name_len > 63) {
       return 0;
@@ -6083,7 +6359,7 @@ export function typeck_vector_elem_type_ref(arena: *ASTArena, type_ref: i32): i3
 }
 
 /**
- * EXPR_INDEX：检查 base/index 下标，写元素类型与 slice/bounds 标记（EMIT_HEAVY X emit）。
+ * See implementation.
  * Accepts TYPE_ARRAY / SLICE / PTR / VECTOR and TYPE_NAMED SIMD spellings (i32x4…).
  * PLATFORM: SHARED — product INDEX path for vector lane extract (WPO-S2 lane0).
  */
@@ -6162,7 +6438,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
 }
 
 /**
- * 判定 ExprKind 是否为赋值或复合赋值（与 pipeline_typeck_expr_is_any_assign_kind_c 一致）。
+ * See implementation.
  */
 export function typeck_expr_is_any_assign_kind(kind_ord: i32): bool {
   let ord_assign: i32 = 28;
@@ -6178,7 +6454,7 @@ export function typeck_expr_is_any_assign_kind(kind_ord: i32): bool {
 }
 
 /**
- * check_expr_impl mega kind 分派：按 ExprKind 调 typeck_check_expr_* X 子 helper（EMIT_HEAVY 真 emit）。
+ * See implementation.
  */
 export function check_expr_impl_mega(module: *Module, arena: *ASTArena, expr_ref: i32, return_type_ref: i32,
 ctx: *PipelineDepCtx): i32 {
@@ -6201,14 +6477,14 @@ ctx: *PipelineDepCtx): i32 {
     let ord_deref: i32 = 52;
     let ord_var: i32 = 3;
     let ord_as: i32 = 54;
-    /** ERR-01 Result `?`（在 EXPR_SPAWN 之后）。 */
+    /* See implementation. */
     let ord_try_propagate: i32 = ExprKind.EXPR_TRY_PROPAGATE as i32;
     let kind: i32 = 0;
     if (arena == 0 as * ASTArena || expr_ref <= 0 || expr_ref > arena.num_exprs) {
       return 0;
     }
     kind = pipeline_expr_kind_ord_at(arena, expr_ref);
-    /** MEM-C1/WPO：assign/return 走 C glue（逃逸诊断优先于类型匹配）。 */
+    /* See implementation. */
     if (typeck_expr_is_any_assign_kind(kind)) {
       return pipeline_typeck_check_expr_impl_mega_c(module, arena, expr_ref, return_type_ref, ctx);
     }
@@ -6262,7 +6538,7 @@ ctx: *PipelineDepCtx): i32 {
 }
 
 /**
- * check_expr 内部入口：简单 kind→typeck_check_expr_*；其余→check_expr_impl_mega（EMIT_HEAVY X emit）。
+ * See implementation.
  */
 export function check_expr_impl(module: *Module, arena: *ASTArena, expr_ref: i32, return_type_ref: i32,
 ctx: *PipelineDepCtx): i32 {
@@ -6312,7 +6588,7 @@ ctx: *PipelineDepCtx): i32 {
 }
 
 /**
- * 递归检查表达式：边界 guard 后 check_expr_impl（EMIT_HEAVY X emit；勿 bl pipeline_typeck_check_expr_c）。
+ * See implementation.
  */
 export function check_expr(module: *Module, arena: *ASTArena, expr_ref: i32, return_type_ref: i32,
 ctx: *PipelineDepCtx): i32 {
@@ -6334,14 +6610,14 @@ ctx: *PipelineDepCtx): i32 {
 }
 
 /**
-* 取函数体块上用于「禁止隐式尾返回」规则所审视的表达式 ref。
+* See implementation.
 *
-* W-tail 次序（勿颠倒）：
-* 1) final_expr 若已是 RETURN/PANIC/BREAK/CONTINUE → 用它
-*    （`let; unsafe { x = f(); }; return x;` 时 last stmt 是 region，return 在 final）
-* 2) 否则末条为 unsafe region（kind 5/C 或 6/X）→ peel 内层
-*    （sole body `unsafe { return ...; }` 时 outer final 可能是陈旧 EXPR_LIT）
-* 3) 否则 final_expr；末条 expr_stmt(2)；旧式 last expr_stmt
+* See implementation.
+* See implementation.
+* See implementation.
+* See implementation.
+* See implementation.
+* See implementation.
 */
 export function func_body_tail_expr_ref_for_implicit_rule(arena: *ASTArena, body_ref: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -6402,8 +6678,8 @@ export function func_body_tail_expr_ref_for_implicit_rule(arena: *ASTArena, body
 }
 
 /**
-* 函数体块末存在「裸尾值」且不是显式 return / panic / break / continue 时，视为隐式尾返回；
-* 对非 void 返回类型须在 typeck 顶层拒绝（与 C typeck.c block_has_implicit_return 一致：须写 return）。
+* See implementation.
+* See implementation.
 */
 export function func_body_has_implicit_return_tail(arena: *ASTArena, body_ref: i32): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -6416,7 +6692,7 @@ export function func_body_has_implicit_return_tail(arena: *ASTArena, body_ref: i
 }
 
 /**
- * 进入循环体前保存并递增 ctx.typeck_loop_depth（X emit；写 depth 经 C glue）。
+ * See implementation.
  */
 export function typeck_loop_depth_push(ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -6428,7 +6704,7 @@ export function typeck_loop_depth_push(ctx: *PipelineDepCtx): i32 {
 }
 
 /**
- * 离开循环体后恢复 ctx.typeck_loop_depth。
+ * See implementation.
  */
 export function typeck_loop_depth_pop(ctx: *PipelineDepCtx, saved: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -6438,7 +6714,7 @@ export function typeck_loop_depth_pop(ctx: *PipelineDepCtx, saved: i32): void {
 }
 
 /**
- * 递归检查循环体块：push typeck_loop_depth 后 check_block，再 pop。
+ * See implementation.
  */
 export function check_block_as_loop_body(module: *Module, arena: *ASTArena, body_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
@@ -6454,7 +6730,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
 }
 
 /**
- * 单条 block const：init 类型须与声明一致（stmt_order / legacy 共用；EMIT_HEAVY 逐个 helper X emit）。
+ * See implementation.
  */
 export function typeck_check_block_one_const(module: *Module, arena: *ASTArena, block_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
@@ -6464,7 +6740,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
     let cd_tr: i32 = ast.ast_block_const_type_ref(arena, block_ref, idx);
     let init_ty: i32 = 0;
     let init_ctx: i32 = 0;
-    /** const 初值须为常量表达式（字面量、已定义 const 名或其运算）。 */
+    /* See implementation. */
     if (!ast.ref_is_null(cd_ir)) {
       if (pipeline_typeck_block_const_init_is_const_c(arena, block_ref, idx) == 0) {
         let err_line: i32 = pipeline_expr_line_at(arena, cd_ir);
@@ -6496,7 +6772,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
 }
 
 /**
- * 单条 block let：init 须可 coerce 到声明类型（EMIT_HEAVY 逐个 helper X emit）。
+ * See implementation.
  */
 export function typeck_check_block_one_let(module: *Module, arena: *ASTArena, block_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
@@ -6510,7 +6786,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
     let gb: *u8 = 0 as *u8;
     let el: i32 = 0;
     let gl: i32 = 0;
-    /** let x: T; 无 init_ref：仅登记类型，栈零填；勿对 ref 0 调 check_expr。 */
+    /* See implementation. */
     if (!ast.ref_is_null(ld_ir)) {
       init_ctx = return_type_ref;
       if (!ast.ref_is_null(ld_tr)) {
@@ -6520,14 +6796,14 @@ return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
         return - 1;
       }
     }
-    /** M-3：region 块内未标注 T[] 继承当前域标签（换新 type_ref，禁 in-place 改共享池）。 */
+    /* See implementation. */
     pipeline_type_stamp_block_let_region_c(arena, block_ref, idx, ctx);
-    /** stamp 后 let.type_ref 可能已换，须重读。 */
+    /* See implementation. */
     ld_tr = ast.ast_block_let_type_ref(arena, block_ref, idx);
     if (!ast.ref_is_null(ld_ir) && !ast.ref_is_null(ld_tr)) {
       typeck_coerce_init_expr_to_decl(module, arena, ld_ir, ld_tr);
       init_ty = expr_type_ref(arena, ld_ir);
-      /** 与赋值路径 typeck_integer_widen_ok 对齐：let b0: u32 = b[0]（u8）须隐式拓宽。 */
+      /* See implementation. */
       if (!ast.ref_is_null(init_ty) && !type_refs_equal(arena, ld_tr, init_ty)) {
         let decl_k: i32 = pipeline_type_kind_ord_at(arena, ld_tr);
         let init_k: i32 = pipeline_type_kind_ord_at(arena, init_ty);
@@ -6547,7 +6823,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
         driver_diagnostic_typeck_assign_mismatch(0, err_line, err_col, eb, el, gb, gl);
         return - 1;
       }
-      /** M-3：let 初值 slice 域检查。 */
+      /* See implementation. */
       if (!ast.ref_is_null(init_ty) && pipeline_typeck_check_slice_region_assign_c(arena, ld_ir, ld_tr, init_ty) != 0) {
         return - 1;
       }
@@ -6561,7 +6837,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
 }
 
 /**
- * 单条 block while：条件 bool + 循环体（EMIT_HEAVY 逐个 helper X emit）。
+ * See implementation.
  */
 export function typeck_check_block_one_while(module: *Module, arena: *ASTArena, block_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
@@ -6584,7 +6860,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
 }
 
 /**
- * 单条 block for：init/cond/step + 循环体（EMIT_HEAVY 逐个 helper X emit）。
+ * See implementation.
  */
 export function typeck_check_block_one_for(module: *Module, arena: *ASTArena, block_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
@@ -6615,7 +6891,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
 }
 
 /**
- * 单条语句级 if：条件 bool + then/else 块（EMIT_HEAVY 逐个 helper X emit）。
+ * See implementation.
  */
 export function typeck_check_block_one_if(module: *Module, arena: *ASTArena, block_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
@@ -6648,7 +6924,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
 }
 
 /**
- * 块末 final_expr：类型须与 return_type_ref 一致（void return / break / continue 除外；EMIT_HEAVY X emit）。
+ * See implementation.
  */
 export function typeck_check_block_final(module: *Module, arena: *ASTArena, block_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx, fin0: i32): i32 {
@@ -6670,13 +6946,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx, fin0: i32): i32 {
       return - 1;
     }
     fin_k_tail = pipeline_expr_kind_ord_at(arena, fin0);
-    /** 【Why 根源】SHUX 拒绝隐式尾返回（typeck_x_ast_check_one_func 用 func_body_has_implicit_return_tail 门禁）。
-     *  仅 return（kind 41）有操作数时做 return_type_ref 类型比较；其余一律跳过：
-     *    - break(39)/continue(40)：控制流无值
-     *    - assign：parse_block_into 块尾 `}` 前无 `;` 的赋值落 final_expr，非返回值
-     *    - call/var/lit/field_access 等：内层块（unsafe { } 等）的尾表达式是块值，非函数返回值
-     *  【Invariant】return_type_ref 仅对 return 操作数有意义；透传给内层块时不触发误报。
-     *  【Asm/Perf】单分支 kind 比较，无额外开销。 */
+/** See implementation for details. */
     if (fin_k_tail != 41) {
       skip_tail_ty_cmp = true;
     } else if (ast.ref_is_null(pipeline_expr_unary_operand_ref_at(arena, fin0))) {
@@ -6691,7 +6961,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx, fin0: i32): i32 {
     if (fin_k_ret == 41) {
       fin_op = pipeline_expr_unary_operand_ref_at(arena, fin0);
     }
-    /** 块尾 return 操作数：先整型拓宽再匹配（三元 i32→i64 等）。 */
+    /* See implementation. */
     if (!ast.ref_is_null(fin_op) && fin_op > 0 && !ast.ref_is_null(return_type_ref)) {
       typeck_ret_coerce_integral_to_expect_i32(arena, fin_op, return_type_ref);
       typeck_ret_coerce_integral_widen(arena, fin_op, return_type_ref);
@@ -6699,7 +6969,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx, fin0: i32): i32 {
     if (typeck_return_operand_matches(arena, fin_op, return_type_ref)) {
       return 0;
     }
-    /** 整型隐式拓宽回退：match 失败但 widen 合法时仍通过。 */
+    /* See implementation. */
     if (!ast.ref_is_null(fin_op) && fin_op > 0 && !ast.ref_is_null(return_type_ref)) {
       let fin_got: i32 = expr_type_ref(arena, fin_op);
       let ek_fin: i32 = 0;
@@ -6726,7 +6996,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx, fin0: i32): i32 {
 }
 
 /**
- * 单条 region 块：push 域标签后递归 check 体块（C glue 维护 scope 栈）。
+ * See implementation.
  */
 export function typeck_check_block_one_region(module: *Module, arena: *ASTArena, block_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
@@ -6737,7 +7007,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
 }
 
 /**
- * stmt_order 单步：kind 0..6 分派 one_* / check_expr（6=region，X 路径；C parser 用 5=region）。
+ * See implementation.
  */
 export function typeck_check_block_stmt_order_one(module: *Module, arena: *ASTArena, block_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx, si: i32, nso: i32, nc: i32, nl: i32, nes: i32,
@@ -6802,7 +7072,7 @@ nlp: i32, nfp: i32, nif: i32, nreg: i32): i32 {
   }
 }
 
-/** 无 stmt_order 时 legacy const 列表（递归步进）。 */
+/* See implementation. */
 export function typeck_check_block_legacy_consts(module: *Module, arena: *ASTArena, block_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx, i: i32, nc: i32): i32 {
   if (i >= nc) {
@@ -6814,7 +7084,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx, i: i32, nc: i32): i32 {
   return typeck_check_block_legacy_consts(module, arena, block_ref, return_type_ref, ctx, i + 1, nc);
 }
 
-/** 无 stmt_order 时 legacy let 列表（递归步进）。 */
+/* See implementation. */
 export function typeck_check_block_legacy_lets(module: *Module, arena: *ASTArena, block_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx, i: i32, nl: i32): i32 {
   if (i >= nl) {
@@ -6826,7 +7096,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx, i: i32, nl: i32): i32 {
   return typeck_check_block_legacy_lets(module, arena, block_ref, return_type_ref, ctx, i + 1, nl);
 }
 
-/** 无 stmt_order 时 legacy while 列表（递归步进）。 */
+/* See implementation. */
 export function typeck_check_block_legacy_whiles(module: *Module, arena: *ASTArena, block_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx, i: i32, nlp: i32): i32 {
   if (i >= nlp) {
@@ -6838,7 +7108,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx, i: i32, nlp: i32): i32 {
   return typeck_check_block_legacy_whiles(module, arena, block_ref, return_type_ref, ctx, i + 1, nlp);
 }
 
-/** 无 stmt_order 时 legacy for 列表（递归步进）。 */
+/* See implementation. */
 export function typeck_check_block_legacy_fors(module: *Module, arena: *ASTArena, block_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx, i: i32, nfp: i32): i32 {
   if (i >= nfp) {
@@ -6850,7 +7120,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx, i: i32, nfp: i32): i32 {
   return typeck_check_block_legacy_fors(module, arena, block_ref, return_type_ref, ctx, i + 1, nfp);
 }
 
-/** 无 stmt_order 时 legacy if 列表（递归步进）。 */
+/* See implementation. */
 export function typeck_check_block_legacy_ifs(module: *Module, arena: *ASTArena, block_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx, i: i32, nif: i32): i32 {
   if (i >= nif) {
@@ -6862,7 +7132,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx, i: i32, nif: i32): i32 {
   return typeck_check_block_legacy_ifs(module, arena, block_ref, return_type_ref, ctx, i + 1, nif);
 }
 
-/** 无 stmt_order 时 legacy expr_stmt 列表（递归步进；最多 32 条与 C glue 一致）。 */
+/* See implementation. */
 export function typeck_check_block_legacy_expr_stmts(module: *Module, arena: *ASTArena, block_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx, i: i32, nes: i32): i32 {
   let es_ref: i32 = 0;
@@ -6877,7 +7147,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx, i: i32, nes: i32): i32 {
 }
 
 /**
- * check_block 内部编排：bind ctx → stmt_order/legacy → final（EMIT_HEAVY X emit；ctx 绑定仍 C glue）。
+ * See implementation.
  */
 export function check_block_impl(module: *Module, arena: *ASTArena, block_ref: i32, return_type_ref: i32,
 ctx: *PipelineDepCtx): i32 {
@@ -6898,9 +7168,9 @@ ctx: *PipelineDepCtx): i32 {
       return - 1;
     }
     saved_block_ref = pipeline_typeck_block_impl_bind_ctx_c(ctx, block_ref);
-    /* 补设 parent_block_ref：pipeline_patch_block_parent_links 遍历 while/for/if/region body，
-       但无法覆盖块表达式（ord_block 表达式关联的块，通过 pipeline_expr_block_ref_at 关联）。
-       saved_block_ref 是进入此块之前的 current_block_ref = 直接父块。 */
+    /* parent_block_ref: pipeline_patch_block_parent_links covers while/for/if/region bodies,
+       but not block-expr cases (blocks tied via pipeline_expr_block_ref_at).
+       saved_block_ref is current_block_ref before entering this block = direct parent. */
     pipeline_block_set_parent_if_zero(arena, block_ref, saved_block_ref);
     nc = ast.ast_block_num_consts(arena, block_ref);
     nl = ast.ast_block_num_lets(arena, block_ref);
@@ -6955,7 +7225,7 @@ ctx: *PipelineDepCtx): i32 {
 }
 
 /**
- * 检查块：边界 guard 后 check_block_impl（EMIT_HEAVY X emit）。
+ * See implementation.
  */
 export function check_block(module: *Module, arena: *ASTArena, block_ref: i32, return_type_ref: i32,
 ctx: *PipelineDepCtx): i32 {
@@ -6969,7 +7239,7 @@ ctx: *PipelineDepCtx): i32 {
 }
 
 /**
- * 单函数 typeck：check_block + 非 void 隐式尾 return 门禁（EMIT_HEAVY X emit）。
+ * See implementation.
  */
 export function typeck_x_ast_check_one_func(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx, func_idx: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -7001,7 +7271,7 @@ export function typeck_x_ast_check_one_func(module: *Module, arena: *ASTArena, c
     if (check_block(module, arena, body_ref, ret_ty_ref, ctx) != 0) {
       fn_name_len = pipeline_module_func_name_len_at(module, func_idx);
       pipeline_module_func_name_copy64(module, func_idx, typeck_scratch64_slot(0));
-      /** 调用实参位勿写 `-5` 字面量（解析为二元减）；须 let 绑定后传入。 */
+      /* See implementation. */
       let fail_kind_cb: i32 = -5;
       driver_diagnostic_typeck_func_fail(func_idx, typeck_scratch64_slot(0), fn_name_len, fail_kind_cb);
       return fail_kind_cb;
@@ -7021,7 +7291,7 @@ export function typeck_x_ast_check_one_func(module: *Module, arena: *ASTArena, c
 }
 
 /**
- * 遍历 module 内有体函数：check_block + 隐式尾 return 门禁（递归步进，勿 while+side-effect）。
+ * See implementation.
  */
 export function typeck_x_ast_check_all_funcs_loop(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx,
 func_i: i32, num_funcs: i32): i32 {
@@ -7036,7 +7306,7 @@ func_i: i32, num_funcs: i32): i32 {
     let rc: i32 = 0;
     let err_check_block: i32 = 5;
     let err_implicit_tail: i32 = 6;
-    /** 遍历结束/出错时写 ctx.current_func_index=-1；须 let 绑定（调用实参位勿写 `-1` 字面量）。 */
+    /* See implementation. */
     let no_func_ix: i32 = -1;
     if (func_i >= num_funcs) {
       pipeline_dep_ctx_set_current_func_index(ctx, no_func_ix);
@@ -7084,7 +7354,7 @@ func_i: i32, num_funcs: i32): i32 {
 }
 
 /**
- * 为 module 各函数体块 patch parent 链（check_block 前须调用；X emit + glue 读 func body）。
+ * See implementation.
  */
 export function typeck_patch_all_body_parent_links(module: *Module, arena: *ASTArena): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -7107,7 +7377,7 @@ export function typeck_patch_all_body_parent_links(module: *Module, arena: *ASTA
 }
 
 /**
- * 类型检查入口（内部）：main 签名校验 + 全函数遍历（EMIT_HEAVY X emit）。
+ * See implementation.
  */
 export function typeck_x_ast_impl(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -7166,7 +7436,7 @@ export function typeck_x_ast_impl(module: *Module, arena: *ASTArena, ctx: *Pipel
 }
 
 /**
- * 库模块类型检查：无 main 约束，仅遍历有体函数（EMIT_HEAVY X emit）。
+ * See implementation.
  */
 export function typeck_x_ast_library(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -7185,7 +7455,7 @@ export function typeck_x_ast_library(module: *Module, arena: *ASTArena, ctx: *Pi
 }
 
 /**
- * 类型检查入口：main 下标校验后 typeck_x_ast_impl（EMIT_HEAVY X emit）。
+ * See implementation.
  */
 export function typeck_x_ast(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.

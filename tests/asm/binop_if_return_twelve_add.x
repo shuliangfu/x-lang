@@ -1,4 +1,8 @@
-// 7.3：cfg 父块 + 十二元 return 加链；final_expr VAR≥12 启栈帧 spill；cfg-merge 验 exit 78。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32 = 1;
   let b: i32 = 2;

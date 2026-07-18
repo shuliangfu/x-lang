@@ -1,9 +1,13 @@
-// tests/std-bytes/arena_external.x — STD-155 Arena 外部绑定 + append 烟测
+// See implementation.
 //
-// 【文件职责】验证 from_external 在 Arena64 slab 上 extend，deinit 不释放 arena。
+// See implementation.
 const bytes = import("std.bytes");
 const heap = import("std.heap");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let arena: Arena64 = heap.arena64_empty();
   if (heap.arena64_init(&arena, 256 as usize) != 0) {
@@ -36,7 +40,7 @@ function main(): i32 {
     return 6;
   }
 
-  /* 外部绑定：deinit 不应破坏 arena chunk */
+  /* See implementation. */
   bytes.deinit(&b);
   let slab2: *u8 = heap.arena64_alloc(&arena, 8 as usize, 8 as usize);
   if (slab2 == 0) {

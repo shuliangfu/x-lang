@@ -1,6 +1,10 @@
-// F-02 v1：Linux std.sys 文件 MAP_SHARED mmap 烟测（hosted -o exe，无 mmap.inc.c）。
+// See implementation.
 const sys = import("std.sys");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (sys.mmap_available() != 1) {
     return 1;

@@ -1,8 +1,12 @@
 /**
- * Cookbook HTTP-01：parse_status_line 离线解析状态码（STD-032）。
+ * See implementation.
  */
 const http = import("std.http");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   /** "HTTP/1.1 204 No Content\r\n" */
   let line204: u8[28] = [

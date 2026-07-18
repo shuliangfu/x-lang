@@ -1,4 +1,8 @@
-// MEM-A3 负例：内层 region 中 &local 赋给外层变量。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let save: *i32 = 0 as *i32;
   region inner {

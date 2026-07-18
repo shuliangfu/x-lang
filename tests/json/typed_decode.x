@@ -1,6 +1,10 @@
-// STD-116：std.json 类型化 decode 烟测
+// See implementation.
 const json = import("std.json");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let doc: u8[36] = [
     123, 34, 110, 97, 109, 101, 34, 58, 34, 97, 108, 105, 99, 101, 34, 44,

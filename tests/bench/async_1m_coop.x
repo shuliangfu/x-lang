@@ -1,7 +1,11 @@
-// async_1m_coop.x — STD-004：1M 双路径 scheduler 压测（import("std.async")）
-// coop_pingpong + coop_pingpong_jmp 各 1M 轮 → 共 4M task steps；exit 0 = 无崩溃且计数正确。
+// See implementation.
+// See implementation.
 const async_mod = import("std.async");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let rounds: i64 = 1000000;
   let a: i64 = async_mod.coop_pingpong(rounds);

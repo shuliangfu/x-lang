@@ -1,4 +1,8 @@
-// LANG-006：取模与整除折叠
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   return 17 % 5 + 20 / 4;
 }

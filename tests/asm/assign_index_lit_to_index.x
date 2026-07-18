@@ -1,4 +1,8 @@
-// 7.3：arr[lit]=arr[lit] 双字面量下标赋值，左址 lea/add→rbx、右值 ldr→rax，main 内无 mov x2（run-asm-assign-index-lit-to-index.sh）。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let arr: i32[3] = [5, 10, 15];
   arr[1] = arr[2];

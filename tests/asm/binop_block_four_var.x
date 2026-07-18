@@ -1,4 +1,8 @@
-// 7.3：线性块四槽同活（|live|>2 触发清 cache）；return a+b+c+d → 10（block-var）。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32 = 1;
   let b: i32 = 2;

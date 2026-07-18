@@ -1,11 +1,15 @@
-// run_async_arg2.x — A4/run v2：`run async_fn(i32, i32)` 经 seed 队列传参
-/** 双 i32 形参 + await；run 时按序 seed 注入 a、b。 */
+// See implementation.
+/* See implementation. */
 async function add_two(a: i32, b: i32): i32 {
   let x: i32 = await a;
   let y: i32 = await b;
   return x + y;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let r: i32 = run add_two(41, 1);
   if (r != 42) {

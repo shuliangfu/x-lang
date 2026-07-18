@@ -1,8 +1,12 @@
 /**
- * Cookbook HEAP-01：heap_trace_reset 与 trace 统计入口（STD-017）。
+ * See implementation.
  */
 const heap = import("std.heap");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   heap.trace_reset();
   let en: i32 = heap.trace_on();

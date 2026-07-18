@@ -1,4 +1,8 @@
-// if 表达式解析测试：return if ( true|false ) { <int> } else { <int> };
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   return if (true) { 1 } else { 0 };
 }

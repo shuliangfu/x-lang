@@ -1,10 +1,14 @@
-// VEC-V3：SoA f32 字段列 while 归约烟测；codegen 替换为 shux_autovec_sum_f32_strided。
+// See implementation.
 struct Particle soa {
   x: f32
   y: f32
   z: f32
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let arr: Particle[4] = [];
   let k: i32 = 0;

@@ -1,4 +1,4 @@
-// struct layout field grow 池：字段数超过旧 8/64 扫描硬顶；返回末字段 f19。
+// See implementation.
 struct Wide {
   f0: i32
   f1: i32
@@ -22,6 +22,10 @@ struct Wide {
   f19: i32
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let w: Wide = Wide {
     f0: 0, f1: 1, f2: 2, f3: 3, f4: 4, f5: 5, f6: 6, f7: 7, f8: 8, f9: 9,

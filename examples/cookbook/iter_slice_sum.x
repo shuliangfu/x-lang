@@ -1,9 +1,13 @@
 /**
- * Cookbook ITER-01：用 core.iterator 遍历 i32[] 求和（CORE-006）。
+ * See implementation.
  */
 const iterator = import("core.iterator");
 const option = import("core.option");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let data: i32[4] = [1, 2, 3, 4];
   let s: i32[] = data;

@@ -1,5 +1,10 @@
 struct Point { x: i32; y: i32; }
 
+/** Internal function `classify`.
+ * Implements `classify`.
+ * @param p Point
+ * @return i32
+ */
 function classify(p: Point): i32 {
   return match p {
     Point { x: 0, y: 0 } => 0;
@@ -9,6 +14,10 @@ function classify(p: Point): i32 {
   };
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   return classify(Point { x: 1, y: 2 });
 }

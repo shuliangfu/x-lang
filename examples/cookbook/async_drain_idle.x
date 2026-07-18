@@ -1,8 +1,12 @@
 /**
- * Cookbook ASYNC-02：协作调度器 drain 空转（链入 scheduler.o）。
+ * See implementation.
  */
 const async_mod = import("std.async");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let _: i32 = async_mod.placeholder();
   let __: i32 = async_mod.drain_idle();

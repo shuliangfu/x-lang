@@ -14,22 +14,22 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std/compress/common.x — F-std-zero-c：各格式共用流状态魔数与头布局（替代 compress_common.h）
+// See implementation.
 //
-// 【文件职责】
-// gzip / brotli / zstd 流状态头魔数与 POD 布局；各格式 lib.x 可本地重复 const 或 import 本模块。
-// 【所属模块】std.compress（F-04 v7 纯 .x；零 .c/.h）
+// See implementation.
+// See implementation.
+// See implementation.
 
-/** gzip 流状态魔数（'GZST'）。 */
+/* See implementation. */
 export const SHU_GZIP_STREAM_MAGIC: u32 = 0x475a5354;
 
-/** brotli 流状态魔数（'BRST'）。 */
+/* See implementation. */
 export const SHU_BROTLI_STREAM_MAGIC: u32 = 0x42525354;
 
-/** zstd 流状态魔数（'ZSTR'）。 */
+/* See implementation. */
 export const SHU_ZSTD_STREAM_MAGIC: u32 = 0x5a535452;
 
-/** gzip 流状态头（后接 z_stream 或 stub 占位）；mode 0=compress 1=decompress。 */
+/* See implementation. */
 allow(padding) struct CompressStreamHdr {
   magic: u32;
   mode: i32;
@@ -37,7 +37,10 @@ allow(padding) struct CompressStreamHdr {
   inited: i32;
 }
 
-/** F-compress-common-zero-c 标记；供 zero-c track gate 校验。 */
+/** Exported function `compress_common_zero_c_marker_c`.
+ * Implements `compress_common_zero_c_marker_c`.
+ * @return i32
+ */
 export function compress_common_zero_c_marker_c(): i32 {
   return 1;
 }

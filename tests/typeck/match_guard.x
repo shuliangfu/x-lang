@@ -1,4 +1,9 @@
-// MCH-02：match guard `pat if cond =>`；guard 须为 bool，desugar 为 if-else 链
+// classify: see function docblock below.
+/** Internal function `classify`.
+ * Implements `classify`.
+ * @param n i32
+ * @return i32
+ */
 function classify(n: i32): i32 {
   return match n {
     _ if n > 0 => 1;
@@ -7,6 +12,11 @@ function classify(n: i32): i32 {
   };
 }
 
+/** Internal function `pick`.
+ * Implements `pick`.
+ * @param v i32
+ * @return i32
+ */
 function pick(v: i32): i32 {
   return match v {
     1 | 2 if v == 2 => 20;
@@ -15,6 +25,10 @@ function pick(v: i32): i32 {
   };
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (classify(5) != 1) {
     return 1;

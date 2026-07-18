@@ -1,13 +1,19 @@
-// MEM-D2：with_arena 内 arena 小 struct 工厂 → 栈 promotion（消除 bump alloc）。
+// See implementation.
 const heap = import("std.heap");
 
-/** 两字段 POD；ASP 候选（≤64B，块内不逃逸）。 */
+/* See implementation. */
 struct Pair {
   a: i32
   b: i32
 }
 
-/** Arena bump 分配 + 字段写入；首参 Allocator，返回 *Pair。 */
+/** Internal function `make_pair_arena`.
+ * Implements `make_pair_arena`.
+ * @param al Allocator
+ * @param x i32
+ * @param y i32
+ * @return *Pair
+ */
 function make_pair_arena(al: Allocator, x: i32, y: i32): *Pair {
   let raw: *u8 = heap.alloc(al, 8 as usize);
   let p: *Pair = raw as *Pair;
@@ -16,11 +22,19 @@ function make_pair_arena(al: Allocator, x: i32, y: i32): *Pair {
   return p;
 }
 
-/** 经指针读字段求和（消费者内联 + fold 候选）。 */
+/** Internal function `sum_pair_ptr`.
+ * Implements `sum_pair_ptr`.
+ * @param p *Pair
+ * @return i32
+ */
 function sum_pair_ptr(p: *Pair): i32 {
   return p.a + p.b;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   with_arena(4096) {
     let p: *Pair = make_pair_arena(heap.scope_alloc(), 3, 4);

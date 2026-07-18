@@ -14,13 +14,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// ast.x — 纯 .x 抽象语法树（完全自举：不依赖 C 的 ast.h）
+// See implementation.
 //
-// 职责：定义编译器前端/中端/后端共用的 AST 节点类型，全部用 .x 的 struct/enum 表示。
-// 与 C 的关系：无。不引用任何 C 头文件或 extern；parser/typeck/codegen 均基于本模块。
-// 约定：.x 无 union，变体数据用独立字段；子节点用“池下标”表示，0 表示空（无子节点）。
+// See implementation.
+// See implementation.
+// See implementation.
 
-/** 类型节点种类：与 C 的 ASTTypeKind 一一对应，供 typeck/codegen 使用 */
+/* See implementation. */
 export enum TypeKind {
   TYPE_I32,
   TYPE_BOOL,
@@ -34,7 +34,7 @@ export enum TypeKind {
   TYPE_PTR,
   TYPE_ARRAY,
   TYPE_SLICE,
-  /** M-4：Linear(T) use-once move；与 C AST_TYPE_LINEAR 序一致，elem_type_ref 为内层 T */
+  /* See implementation. */
   TYPE_LINEAR,
   TYPE_VECTOR,
   TYPE_F32,
@@ -42,7 +42,7 @@ export enum TypeKind {
   TYPE_VOID
 }
 
-/** 表达式节点种类：与 C 的 ASTExprKind 一一对应（须在 struct 前，因解析顺序为 enum* 再 struct*） */
+/* See implementation. */
 export enum ExprKind {
   EXPR_LIT,
   EXPR_FLOAT_LIT,
@@ -73,7 +73,7 @@ export enum ExprKind {
   EXPR_BLOCK,
   EXPR_TERNARY,
   EXPR_ASSIGN,
-  /** 复合赋值：左值 op= 右值（+=, -=, *=, /=, %=, &=, |=, ^=, <<=, >>=）；复用 binop_left_ref/binop_right_ref */
+  /* See implementation. */
   EXPR_ADD_ASSIGN,
   EXPR_SUB_ASSIGN,
   EXPR_MUL_ASSIGN,
@@ -96,45 +96,45 @@ export enum ExprKind {
   EXPR_CALL,
   EXPR_METHOD_CALL,
   EXPR_ENUM_VARIANT,
-  /** 一元 & expr：取址，操作数 unary_operand_ref；与 C AST_EXPR_ADDR_OF 序一致（在 BINOP/AS 之前）。 */
+  /* See implementation. */
   EXPR_ADDR_OF,
-  /** 一元 * expr：解引用，操作数为指针；与 AST_EXPR_DEREF 一致。 */
+  /* See implementation. */
   EXPR_DEREF,
-  /** 通用二元运算占位（parser 在 parse_into_buf 中先用 BINOP 再细分；与 EXPR_ADD/EXPR_MUL 等并存） */
+  /* See implementation. */
   EXPR_BINOP,
-  /** 类型转换 expr as type（operand + 目标类型在类型池） */
+  /* See implementation. */
   EXPR_AS,
-  /** await expr（仅 async function 内；复用 unary_operand_ref；序 55，与 C AST_EXPR_AWAIT 一致） */
+  /* See implementation. */
   EXPR_AWAIT,
-  /** run async_fn()（sync 经 scheduler drain；复用 unary_operand_ref） */
+  /* See implementation. */
   EXPR_RUN,
-  /** spawn async_fn()（非阻塞 submit；复用 unary_operand_ref） */
+  /* See implementation. */
   EXPR_SPAWN,
-  /** Result `?` 传播：operand 为 Result_*；codegen 降成 err 早退 + value unwrap。 */
+  /* See implementation. */
   EXPR_TRY_PROPAGATE,
-  /** 字符串字面量 "..."；内容在 var_name/var_name_len（不含引号）；序 59，与 C AST_EXPR_STRING_LIT / GLUE_EXPR_STRING_LIT_ORD 一致 */
+  /* See implementation. */
   EXPR_STRING_LIT
 }
 
-/** 类型节点：kind + 具名类型名（NAMED 时）+ 元素类型下标（PTR/ARRAY/SLICE/VECTOR 时）+ 数组长度（ARRAY/VECTOR 时） */
+/* See implementation. */
 export struct Type {
   kind: TypeKind;
   name: u8[64];
   name_len: i32;
   elem_type_ref: i32;
   array_size: i32;
-  /** M-3：仅 TYPE_SLICE；域标签（T[]<label>），region_label_len==0 表示未绑定域 */
+  /* See implementation. */
   region_label: u8[64];
   region_label_len: i32;
 }
 
-/** 表达式节点（最小集）：.x 无 union，变体用独立字段；ref 为池下标，0 表示空。allow(padding) 满足 f64 对齐。 */
+/* See implementation. */
 allow(padding) struct Expr {
   kind: ExprKind;
   resolved_type_ref: i32;
   line: i32;
   col: i32;
-  /** EXPR_LIT/BOOL 等整型载荷；i64 以容纳 INT64_MAX 等大字面量。 */
+  /* See implementation. */
   int_val: i64;
   float_val: f64;
   var_name: u8[64];
@@ -147,58 +147,58 @@ allow(padding) struct Expr {
   if_else_ref: i32;
   block_ref: i32;
   match_matched_ref: i32;
-  /** match 各臂在 arena 侧车 expr_match_arms 池中的起始下标 */
+  /* See implementation. */
   match_arm_base: i32;
   match_num_arms: i32;
   field_access_base_ref: i32;
   field_access_field_name: u8[64];
   field_access_field_len: i32;
   field_access_is_enum_variant: i32;
-  /** 字段偏移（字节），由 typeck 从结构体布局填写；未设时为 0。 */
+  /* See implementation. */
   field_access_offset: i32;
-  /** DOD-S1 SoA：>0 时 field_access_offset 为列基址，index*stride 为动态偏移。 */
+  /* See implementation. */
   field_access_soa_stride: i32;
   index_base_ref: i32;
   index_index_ref: i32;
   index_base_is_slice: i32;
   call_callee_ref: i32;
-  /** call 实参 expr ref 在 arena 侧车池中的起始下标 */
+  /* See implementation. */
   call_arg_base: i32;
   call_num_args: i32;
-  /** `id<T>(...)` 的类型实参数量；bootstrap 仅保留计数供诊断。 */
+  /* See implementation. */
   call_num_type_args: i32;
   method_call_base_ref: i32;
   method_call_name: u8[64];
   method_call_name_len: i32;
-  /** method call 实参（不含 receiver）在侧车池中的起始下标 */
+  /* See implementation. */
   method_call_arg_base: i32;
   method_call_num_args: i32;
   const_folded_val: i32;
   const_folded_valid: i32;
   index_proven_in_bounds: i32;
-  /** STRUCT_LIT：结构体类型名 + 字段（名 + 初值）在侧车 grow pool（base+count）。 */
+  /* See implementation. */
   struct_lit_struct_name: u8[64];
   struct_lit_struct_name_len: i32;
   struct_lit_field_base: i32;
   struct_lit_num_fields: i32;
-  /** ARRAY_LIT：元素 expr ref 在侧车 grow pool（base+count）。 */
+  /* See implementation. */
   array_lit_elem_base: i32;
   array_lit_num_elems: i32;
-  /** EXPR_FLOAT_LIT：double 的 64 位位模式，由 typeck/parser 填写（低 32 位、高 32 位），asm 用于 movq 立即数。 */
+  /* See implementation. */
   float_bits_lo: i32;
   float_bits_hi: i32;
-  /** EXPR_ENUM_VARIANT：变体 tag（0-based 序号），由 typeck 填写，asm 用于 ret 或比较。 */
+  /* See implementation. */
   enum_variant_tag: i32;
-  /** EXPR_AS：被转换表达式池下标 + 目标类型池下标。 */
+  /* See implementation. */
   as_operand_ref: i32;
   as_target_type_ref: i32;
-  /** CALL：typeck 解析到的顶层函数在其所在模块 `funcs[]` 中的下标；-1 表示未解析。METHOD_CALL 暂留白为 -1。供 LSP。 */
+  /* See implementation. */
   call_resolved_func_index: i32;
-  /** CALL：目标在依赖模块中时为本文件 `import`/deps 槽下标；-1 表示本模块。METHOD_CALL 暂为 -1。 */
+  /* See implementation. */
   call_resolved_dep_index: i32;
 }
 
-/** 常量声明：名称 + 类型池下标 + 初值表达式池下标 */
+/* See implementation. */
 export struct ConstDecl {
   name: u8[64];
   name_len: i32;
@@ -206,7 +206,7 @@ export struct ConstDecl {
   init_ref: i32;
 }
 
-/** 变量声明：名称 + 类型池下标 + 初值表达式池下标 */
+/* See implementation. */
 export struct LetDecl {
   name: u8[64];
   name_len: i32;
@@ -214,13 +214,13 @@ export struct LetDecl {
   init_ref: i32;
 }
 
-/** 单条 while 循环：条件表达式池下标 + 体块池下标 */
+/* See implementation. */
 export struct WhileLoop {
   cond_ref: i32;
   body_ref: i32;
 }
 
-/** 单条 for 循环：init/cond/step 表达式池下标 + 体块池下标 */
+/* See implementation. */
 export struct ForLoop {
   init_ref: i32;
   cond_ref: i32;
@@ -228,21 +228,21 @@ export struct ForLoop {
   body_ref: i32;
 }
 
-/** 单条 if 语句：条件表达式池下标 + then 块 ref；else_body_ref 非 0 时为 `else` / `else if` 体（块），与手写 C 的 if/else 一致。 */
+/* See implementation. */
 export struct IfStmt {
   cond_ref: i32;
   then_body_ref: i32;
-  /** 0 表示无 else；否则为块池 ref（`else { ... }` 或 `else if` 落成的包裹块）。 */
+  /* See implementation. */
   else_body_ref: i32;
 }
 
-/** 块内语句顺序项：kind 0=const, 1=let, 2=expr_stmt, 3=loop, 4=for, 5=if；idx 为对应数组下标 */
+/* See implementation. */
 allow(padding) struct StmtOrderItem {
   kind: u8;
   idx: i32;
 }
 
-/** 带标签的语句：goto 或 return；标签名与目标/返回值由后续字段表示 */
+/* See implementation. */
 export struct LabeledStmt {
   label: u8[32];
   label_len: i32;
@@ -252,9 +252,9 @@ export struct LabeledStmt {
   return_expr_ref: i32;
 }
 
-/** 块：循环/defer/标签与 const/let/if 均在 C grow pool（base+count）。 */
+/* See implementation. */
 export struct Block {
-  /** C ast_pool 中 const_decls 池起始下标（分配块时快照）。 */
+  /* See implementation. */
   const_base: i32;
   num_consts: i32;
   let_base: i32;
@@ -266,7 +266,7 @@ export struct Block {
   num_for_loops: i32;
   if_base: i32;
   num_if_stmts: i32;
-  /** M-3：region label { body } 池（C ast_pool regions grow pool）。 */
+  /* See implementation. */
   region_base: i32;
   num_regions: i32;
   defer_base: i32;
@@ -278,111 +278,105 @@ export struct Block {
   final_expr_ref: i32;
   stmt_order_base: i32;
   num_stmt_order: i32;
-  /** 词法外层块 1-based ref；0 表示函数体顶层或尚未链接。typeck 解析内层块中的 VAR 时沿链查找外层 let/const。 */
+  /* See implementation. */
   parent_block_ref: i32;
 }
 
-/** 函数形参：名称 + 类型池下标 */
+/* See implementation. */
 export struct Param {
   name: u8[32];
   name_len: i32;
   type_ref: i32;
 }
 
-/** 函数：名称 + 形参 sidecar 池（param_base + num_params）+ 返回类型池下标 + 体块/体表达式池下标 + 是否 extern。 */
+/* See implementation. */
 export struct Func {
   name: u8[64];
   name_len: i32;
-  /** 形参表在 module/arena sidecar func_params 池中的起始下标 */
+  /* See implementation. */
   param_base: i32;
   num_params: i32;
-  /** `function id<T>(...)` 的泛型形参数量；bootstrap 仅保留计数供 diagnostics。 */
+  /* See implementation. */
   num_generic_params: i32;
   return_type_ref: i32;
   body_ref: i32;
-  /** 体为单表达式时用表达式池 ref（与 body_ref 二选一，0 表示未用） */
+  /* See implementation. */
   body_expr_ref: i32;
   is_extern: i32;
-  /** 1=async function（P2 原型）；await/CPS 变换待后续 sprint */
+  /* See implementation. */
   is_async: i32;
-  /** K10：#[used] 不被 C 编译器消除，外部链接 */
+  /* See implementation. */
   is_used: i32;
-  /** K3：#[naked] 无 prologue/epilogue，体须仅 asm! */
+  /* See implementation. */
   is_naked: i32;
-  /** K5：#[entry] 内核入口 _start，naked+noreturn+外部链接 */
+  /* See implementation. */
   is_entry: i32;
-  /** L9：#[no_mangle] 外部链接+不 DCE */
+  /* See implementation. */
   is_no_mangle: i32;
-  /** A1：#[interrupt] 中断处理（C 编译器自动 push/pop + iret） */
+  /* See implementation. */
   is_interrupt: i32;
-  /** ABI 标记：0=X ABI（默认，SHUX-to-SHUX 调用，不需要 unsafe）；1=C ABI（FFI，需 unsafe 调用）。
-   * 语法：`extern function f()` → abi_kind=0（默认 X）；`extern "C" function f()` → abi_kind=1。
-   * P0a 阶段语义降级：typeck/codegen 统一按 C ABI 生成，不改变行为；P1 激活 X ABI 契约验证。 */
+/** See implementation for details. */
   abi_kind: i32;
-  /** 变参标记：1=C ABI 变参函数（extern "C" function f(fmt: *u8, ...): i32）；0=定参。
-   *  Why：printf/vfprintf 等 C 变参函数需声明处发 `...`、调用处透传实参；X ABI 不支持变参。
-   *  Invariant：仅 abi_kind==1 且 is_extern==1 时可置 1；parser 在 `...` token 后设置。
-   *  Asm/Perf：codegen 读取此字段决定是否发 `...`，无运行期开销。 */
+/** See implementation for details. */
   is_variadic: i32;
-  /** 模块导出：1=`export function`（进入 E(M)，strict 下可被 import 跨模块使用）。
-   *  与 #[export_name]/#[no_mangle] 正交（链接层 vs 语言模块表面）。 */
+/** See implementation for details. */
   is_export: i32;
 }
 
-/** 结构体布局（用于 typeck 填 field_access_offset / 字段类型）：名称 + field_base/num_fields；字段名/偏移/类型在 C sidecar grow 池。 */
+/* See implementation. */
 export struct StructLayout {
   name: u8[64];
   name_len: i32;
-  /** 字段表在 module sidecar struct_layout_fields 池中的起始下标 */
+  /* See implementation. */
   field_base: i32;
   num_fields: i32;
-  /** §11.1：源码含 allow(padding) 的顶层 struct 为 1；typeck 零填充门禁与 C typeck 一致。 */
+  /* See implementation. */
   allow_padding: i32;
-  /** DOD-S1：1 表示 SoA 布局，`T[N]` 数组按列主序存储。 */
+  /* See implementation. */
   soa: i32;
-  /** 1 表示 packed 布局（无填充、对齐 1，与 C __attribute__((packed)) 一致）。 */
+  /* See implementation. */
   packed: i32;
   repr_compatible: i32;
-  /** 模块导出：1=`export struct`（类型名 ∈ E(M)）。 */
+  /* See implementation. */
   is_export: i32;
 }
 
-/** import 种类：与 C 的 AST_IMPORT_KIND_* 一致，供 parser/codegen 使用 */
+/* See implementation. */
 export enum ImportKind { IMPORT_WHOLE, IMPORT_BINDING, IMPORT_SELECT }
 
-/** 模块：funcs 在 C module pool；import/struct_layout/top_level/enum 亦在 grow pool（仅保留计数）。 */
+/* See implementation. */
 export struct Module {
   num_funcs: i32;
   main_func_index: i32;
   num_imports: i32;
   num_top_level_lets: i32;
   num_struct_layouts: i32;
-  /** parse_into：skip allow(padding) 后置 1，紧随其后的顶层 struct 消费后清零。 */
+  /* See implementation. */
   pending_allow_padding: i32;
-  /** parse_into：`#[soa]` 后置 1，紧随其后的 struct 登记 SoA 布局后清零。 */
+  /* See implementation. */
   pending_soa_struct: i32;
-  /** parse_into：`#[cfg]` 不匹配 host 时置 1，紧随其后的 function/struct 跳过后清零。 */
+  /* See implementation. */
   pending_cfg_skip: i32;
-  /** parse_into：`#[repr(C)]` 后置 1，紧随其后的 struct 登记 C ABI 布局后清零。 */
+  /* See implementation. */
   pending_repr_c_struct: i32;
-  /** parse_into：`#[repr(compatible)]` 后置 1，紧随其后的 struct 登记 MOD-02 互认标记后清零。 */
+  /* See implementation. */
   pending_repr_compatible_struct: i32;
-  /** K10：#[used] 后置 1，紧随其后的 function 标记为 used 后清零 */
+  /* See implementation. */
   pending_used: i32;
-  /** K3：#[naked] 后置 1 */
+  /* See implementation. */
   pending_naked: i32;
-  /** K5：#[entry] 后置 1 */
+  /* See implementation. */
   pending_entry: i32;
-  /** L9：#[no_mangle] 后置 1 */
+  /* See implementation. */
   pending_no_mangle: i32;
-  /** A1：#[interrupt] 后置 1 */
+  /* See implementation. */
   pending_interrupt: i32;
-  /** 模块可见性：`export` 关键字后置 1，下一顶层 function/struct/enum/const 消费后清零。 */
+  /* See implementation. */
   pending_export: i32;
   num_module_enums: i32;
 }
 
-/** 统一 AST 分配器：主池 types/exprs/blocks/funcs 在 C grow pool；此处仅保留计数。 */
+/* See implementation. */
 allow(padding) struct ASTArena {
   num_types: i32;
   num_exprs: i32;
@@ -390,70 +384,69 @@ allow(padding) struct ASTArena {
   num_funcs: i32;
 }
 
-/** 阶段 6.1：pipeline/typeck 共用的 dep 上下文，由调用方分配并传入。
- *  路径与缓冲：entry_dir/lib_roots 供 .x 内 resolve；path_buf 写解析后路径；loaded/preprocess 各 4MiB 固定数组。 */
+/** See implementation for details. */
 allow(padding) struct PipelineDepCtx {
   ndep: i32;
-  /** 6.1 路径解析：入口目录；lib_root 与 dep 槽在 C grow 池 */
+  /* See implementation. */
   entry_dir_buf: u8[512];
   entry_dir_len: i32;
   num_lib_roots: i32;
-  /** 解析出的文件路径（含结尾 0，供 open 使用） */
+  /* See implementation. */
   path_buf: u8[512];
-  /** 6.1 完全自举：读入与预处理用固定数组（各 4MiB），全部在 .x 内完成，不依赖 C 缓冲指针 */
+  /* See implementation. */
   loaded_buf: u8[4194304];
   loaded_len: isize;
   preprocess_buf: u8[4194304];
   preprocess_len: i32;
-  /** 非 0 时 pipeline 使用 asm 后端（出汇编）而非 codegen（出 C）；由 driver 解析 -backend asm 设置。 */
+  /* See implementation. */
   use_asm_backend: i32;
-  /** 目标架构：0=x86_64，1=arm64（aarch64），2=riscv64；由 driver 按 -target 设置，asm 后端据此分派。 */
+  /* See implementation. */
   target_arch: i32;
-  /** SIMD-S1：`-target-cpu` 解析后的 feature 位掩码（native/generic/具名特性；见 target_cpu.h）。 */
+  /* See implementation. */
   target_cpu_features: i32;
-  /** 非 0 时出 .o 走 Mach-O 而非 ELF（macOS 宿主机由 C driver 设置）。 */
+  /* See implementation. */
   use_macho_o: i32;
-  /** 非 0 时出 .o 走 COFF/PE .obj（Windows 目标由 C driver 设置）。 */
+  /* See implementation. */
   use_coff_o: i32;
-  /** typeck 用：当前检查的块 ref，供 EXPR_VAR 查 const/let 填 resolved_type_ref。0 表示未在块内。 */
+  /* See implementation. */
   current_block_ref: i32;
-  /** typeck 用：当前嵌套循环深度；>0 时允许 break/continue，与 typeck.c inside_loop 一致。 */
+  /* See implementation. */
   typeck_loop_depth: i32;
-  /** typeck 用：当前检查的函数在 module.funcs 中的下标，供 EXPR_VAR 查形参填 resolved_type_ref。-1 表示未在函数内。 */
+  /* See implementation. */
   current_func_index: i32;
-  /** 非 0 时跳过 dep 0 的 codegen（-o 时设，driver 由 io.o 提供，避免重复符号） */
+  /* See implementation. */
   skip_codegen_dep_0: i32;
-  /** 非 0 时 entry 已由 C 侧 parser_parse_into 解析，pipeline 跳过 parse 直接 typeck+codegen，避免二次解析导致 main body_ref 丢失。 */
+  /* See implementation. */
   entry_already_parsed: i32;
-  /** codegen 用：当前函数中唯一无名/空格名形参的下标（0..num_params-1），供 EXPR_VAR 无名时输出 _pN；若无或不止一个则为 -1。 */
+  /* See implementation. */
   current_func_single_empty_param_index: i32;
-  /** codegen 用：当前函数无名形参个数（≥2 时与 sidecar empty_param_indices 配合）。 */
+  /* See implementation. */
   current_func_empty_param_count: i32;
-  /** codegen 用：下一个待发射的无名 EXPR_VAR 使用的下标（0..current_func_empty_param_count-1），每发射一次自增。 */
+  /* See implementation. */
   current_emit_empty_var_next_index: i32;
-  /** codegen 用：非 0 表示当前在发射 EXPR_CALL 的 callee，无名 EXPR_VAR 不占 _pN 而输出 _0。 */
+  /* See implementation. */
   emit_expr_as_callee: i32;
-  /** codegen 用：当前正在生成 C 的模块/arena，供 CALL 未在 dep 中解析时判断是否为本模块函数并加前缀。 */
+  /* See implementation. */
   current_codegen_module: *Module;
   current_codegen_arena: *ASTArena;
-  /** codegen 用：codegen_x_ast 的 dep_index（-1 表示入口模块），供 emit_block 等与 emit_func 一致取 C 类型前缀。 */
+  /* See implementation. */
   current_codegen_dep_index: i32;
-  /** codegen 用：当前模块 C 符号前缀副本（如 std_io_），与 codegen_x_ast 的 prefix_buf 一致。 */
+  /* See implementation. */
   current_codegen_prefix_mirror: u8[64];
   current_codegen_prefix_len: i32;
-  /** 非 0 且 use_asm_backend 时：-o 单模块 .o 仅编入口 module，跳过 dep 机器码（build_shux_asm 并列链 build_asm/*.o 时由 SHUX_ASM_ENTRY_MODULE_ONLY=1 设置，避免 ast_* 等重复定义）。 */
+  /* See implementation. */
   asm_entry_module_only: i32;
-  /** build_shux_asm 入口模块逻辑 import 路径（如 arch.arm64）；runtime 在 ENTRY_MODULE_ONLY 时填入，供 asm 导出符号加 C 前缀。 */
+  /* See implementation. */
   entry_module_import_path_mirror: u8[64];
   entry_module_import_path_len: i32;
-  /** M-3 typeck：当前 region 域标签；len==0 表示不在 region 块内。 */
+  /* See implementation. */
   typeck_scope_region_len: i32;
   typeck_scope_region_label: u8[64];
 }
 
-/** C grow pool：块分配后初始化 base；见 ast_pool.c。 */
+/* See implementation. */
 export extern function ast_pool_block_on_alloc(arena: *ASTArena, block_ref: i32): void;
-/** 主池 alloc/get/set（C ast_pool.c 可增长池，无固定上限）。 */
+/* See implementation. */
 export extern function pipeline_arena_type_alloc(arena: *ASTArena): i32;
 export extern function pipeline_arena_expr_alloc(arena: *ASTArena): i32;
 export extern function pipeline_arena_block_alloc(arena: *ASTArena): i32;
@@ -466,13 +459,13 @@ export extern function pipeline_arena_block_get_copy(arena: *ASTArena, ref: i32)
 export extern function pipeline_arena_block_set_copy(arena: *ASTArena, ref: i32, b: Block): void;
 export extern function pipeline_arena_func_get_copy(arena: *ASTArena, ref: i32): Func;
 export extern function pipeline_arena_func_set_copy(arena: *ASTArena, ref: i32, f: Func): void;
-/** 主池容量（兼容旧边界检查，实际为 INT32_MAX）。 */
+/* See implementation. */
 export extern function pipeline_arena_type_cap(): i32;
 export extern function pipeline_arena_expr_cap(): i32;
 export extern function pipeline_arena_block_cap(): i32;
 export extern function pipeline_arena_func_cap(): i32;
 
-/** Module import / struct_layout / top_level / enum 动态池（C ast_pool.c）。 */
+/* See implementation. */
 export extern function pipeline_module_import_alloc(module: *Module): i32;
 export extern function pipeline_module_import_set_path(module: *Module, idx: i32, bytes: *u8, len: i32): void;
 export extern function pipeline_module_import_path_len(module: *Module, idx: i32): i32;
@@ -521,7 +514,7 @@ export extern function pipeline_module_struct_layout_soa_at(module: *Module, idx
 export extern function pipeline_module_struct_layout_field_offset_at(module: *Module, li: i32, j: i32): i32;
 export extern function pipeline_module_struct_layout_set_field_offset(module: *Module, li: i32, j: i32, foff: i32): void;
 
-/** OneFunc scratch const/let 动态池。 */
+/* See implementation. */
 export extern function pipeline_onefunc_append_const_name(out: *u8, name: *u8, name_len: i32, init_val: i32): i32;
 export extern function pipeline_onefunc_const_name_len(out: *u8, i: i32): i32;
 export extern function pipeline_onefunc_const_name_byte_at(out: *u8, i: i32, off: i32): u8;
@@ -539,14 +532,14 @@ export extern function pipeline_onefunc_let_name_copy64(out: *u8, i: i32, dst: *
 export extern function pipeline_onefunc_copy_sidecar(dst: *u8, src: *u8): void;
 export extern function ast_pool_onefunc_reset(out: *u8): void;
 
-/** Block 池读/写（C ast_pool.c）；避免 Block 内嵌大数组。 */
+/* See implementation. */
 export extern function pipeline_block_append_const(arena: *ASTArena, br: i32, name: *u8, name_len: i32, type_ref: i32, init_ref: i32): i32;
 export extern function pipeline_block_append_let(arena: *ASTArena, br: i32, name: *u8, name_len: i32, type_ref: i32, init_ref: i32): i32;
 export extern function pipeline_block_append_if(arena: *ASTArena, br: i32, cond_ref: i32, then_ref: i32, else_ref: i32): i32;
-/** M-3：追加 region label { body } 到块池；返回块内 region 下标。 */
+/* See implementation. */
 export extern function pipeline_block_append_region(arena: *ASTArena, br: i32, label: *u8, label_len: i32,
 body_ref: i32): i32;
-/** LANG-007 v2：追加 unsafe { body } 到块池（复用 regions 池，with_arena_cap_ref=-1 标记）；返回块内下标。 */
+/* See implementation. */
 export extern function pipeline_block_append_unsafe(arena: *ASTArena, br: i32, body_ref: i32): i32;
 export extern function pipeline_block_region_body_ref(arena: *ASTArena, br: i32, ri: i32): i32;
 export extern function pipeline_block_append_expr_stmt(arena: *ASTArena, br: i32, expr_ref: i32): i32;
@@ -592,7 +585,7 @@ export extern function pipeline_onefunc_for_step_ref(out: *u8, i: i32): i32;
 export extern function pipeline_onefunc_for_body_ref(out: *u8, i: i32): i32;
 export extern function pipeline_onefunc_num_fors(out: *u8): i32;
 
-/** PipelineDepCtx dep/lib_root 动态池（C ast_pool.c）。 */
+/* See implementation. */
 export extern function pipeline_dep_ctx_set_module(ctx: *PipelineDepCtx, idx: i32, m: *Module): void;
 export extern function pipeline_dep_ctx_set_arena(ctx: *PipelineDepCtx, idx: i32, a: *ASTArena): void;
 export extern function pipeline_dep_ctx_module_at(ctx: *PipelineDepCtx, idx: i32): *Module;
@@ -608,7 +601,7 @@ export extern function pipeline_ctx_lib_root_count(ctx: *PipelineDepCtx): i32;
 export extern function pipeline_ctx_lib_root_len(ctx: *PipelineDepCtx, i: i32): i32;
 export extern function pipeline_ctx_lib_root_copy(ctx: *PipelineDepCtx, i: i32, dst: *u8, cap: i32): void;
 
-/** Module 函数池（C ast_pool.c）。 */
+/* See implementation. */
 export extern function pipeline_module_func_alloc_slot(module: *Module): i32;
 export extern function pipeline_module_func_ref_at(module: *Module, func_index: i32): i32;
 export extern function pipeline_module_func_ref_set(module: *Module, func_index: i32, func_ref: i32): void;
@@ -626,18 +619,25 @@ export extern function pipeline_module_func_name_equal_at(module: *Module, fi: i
 export extern function pipeline_module_func_name_byte_at(module: *Module, fi: i32, i: i32): u8;
 export extern function pipeline_module_func_body_expr_ref_at(module: *Module, fi: i32): i32;
 
-/** 池下标空值：所有 ref 字段用 0 表示“无” */
+/** Exported function `ref_is_null`.
+ * Implements `ref_is_null`.
+ * @param ref i32
+ * @return bool
+ */
 export function ref_is_null(ref: i32): bool {
   return ref == 0;
 }
 
-/** 占位：表示本 AST 模块可被 parser/typeck/codegen 引用；后续接池分配与 parser 构建。 */
+/** Exported function `ast_placeholder`.
+ * Implements `ast_placeholder`.
+ * @return i32
+ */
 export function ast_placeholder(): i32 {
   return 0;
 }
 
 /**
- * 合并 Expr 尾段（call_resolved_*）进本模块 struct_layouts；单字面量 ≤8 字段（与 parser onefunc_result_layout_prime 同类）。
+ * See implementation.
  */
 export function expr_layout_prime_call_resolved(): void {
   let _tail: Expr = Expr {
@@ -654,7 +654,10 @@ export function expr_layout_prime_call_resolved(): void {
   _tail.call_resolved_func_index = -1;
 }
 
-/** 保活 Func.generic 计数字段进 pipeline_gen.c / glue_types 布局。 */
+/** Exported function `func_layout_prime_generic_params`.
+ * Implements `func_layout_prime_generic_params`.
+ * @return void
+ */
 export function func_layout_prime_generic_params(): void {
   let name0: u8[64] = [];
   let f0: Func = Func {
@@ -672,7 +675,11 @@ export function func_layout_prime_generic_params(): void {
   f0.num_generic_params = 0;
 }
 
-/** 将 Arena 内所有计数清零，用于复用或初始化。 */
+/** Exported function `ast_arena_init`.
+ * Implements `ast_arena_init`.
+ * @param arena *ASTArena
+ * @return void
+ */
 export function ast_arena_init(arena: *ASTArena): void {
   expr_layout_prime_call_resolved();
   func_layout_prime_generic_params();
@@ -682,7 +689,11 @@ export function ast_arena_init(arena: *ASTArena): void {
   arena.num_funcs = 0;
 }
 
-/** 在 Type 池中分配一个槽位，返回 1-based ref；失败返回 0。 */
+/** Exported function `ast_arena_type_alloc`.
+ * Memory management helper `ast_arena_type_alloc`.
+ * @param arena *ASTArena
+ * @return i32
+ */
 export function ast_arena_type_alloc(arena: *ASTArena): i32 {
   let ref: i32 = 0;
   unsafe {
@@ -694,7 +705,11 @@ export function ast_arena_type_alloc(arena: *ASTArena): i32 {
   return ref;
 }
 
-/** 在 Expr 池中分配一个槽位，返回 1-based ref；失败返回 0。 */
+/** Exported function `ast_arena_expr_alloc`.
+ * Memory management helper `ast_arena_expr_alloc`.
+ * @param arena *ASTArena
+ * @return i32
+ */
 export function ast_arena_expr_alloc(arena: *ASTArena): i32 {
   let ref: i32 = 0;
   unsafe {
@@ -706,7 +721,11 @@ export function ast_arena_expr_alloc(arena: *ASTArena): i32 {
   return ref;
 }
 
-/** 在 Block 池中分配一个槽位，返回 1-based ref；失败返回 0。 */
+/** Exported function `ast_arena_block_alloc`.
+ * Memory management helper `ast_arena_block_alloc`.
+ * @param arena *ASTArena
+ * @return i32
+ */
 export function ast_arena_block_alloc(arena: *ASTArena): i32 {
   let ref: i32 = 0;
   unsafe {
@@ -718,19 +737,23 @@ export function ast_arena_block_alloc(arena: *ASTArena): i32 {
   return ref;
 }
 
-/** 按 ref 取 Type 池中节点（副本）；ref 须为 1..num_types。ref<=0 时返回默认 TYPE_I32，避免 C 生成码中 ref-1 越界触发 panic。实现于 pipeline_glue.c，禁止 X codegen 直访 types[]。 */
+/* See implementation. */
 export extern function ast_arena_type_get(arena: *ASTArena, ref: i32): Type;
 
-/** 将 Type 节点写回池中 ref 槽位；ref 须为 1..num_types。用于 parser 构建 AST。 */
+/* See implementation. */
 export extern function ast_arena_type_set(arena: *ASTArena, ref: i32, t: Type): void;
 
-/** 将 Expr 的 match 占位与 enum_variant_tag 置 0；各臂数据在侧车池，由 append API 写入。 */
+/** Exported function `expr_init_match_enum`.
+ * Implements `expr_init_match_enum`.
+ * @param e *Expr
+ * @return void
+ */
 export function expr_init_match_enum(e: *Expr): void {
   e.match_arm_base = 0;
   e.enum_variant_tag = 0;
 }
 
-/** Expr 变长附属：call/method/match/struct_lit/array_lit 侧车 grow pool（C ast_pool.c）。 */
+/* See implementation. */
 export extern function pipeline_expr_append_call_arg(arena: *ASTArena, expr_ref: i32, arg_ref: i32): i32;
 export extern function pipeline_expr_call_arg_ref(arena: *ASTArena, expr_ref: i32, idx: i32): i32;
 export extern function pipeline_expr_call_num_args_at(arena: *ASTArena, expr_ref: i32): i32;
@@ -753,38 +776,58 @@ export extern function pipeline_expr_array_lit_elem_ref(arena: *ASTArena, expr_r
 export extern function pipeline_expr_array_lit_num_elems_at(arena: *ASTArena, expr_ref: i32): i32;
 
 /**
- * 将 CALL/METHOD_CALL 的目标解析占位为 -1；parser/typeck 在创建 CALL 节点后调用。
- * typeck 成功解析顶层函数后将两字段改写为合法下标。
+ * See implementation.
+ * See implementation.
  */
-/** 由 pipeline_glue.c 写池槽 call_resolved 占位（X struct_layout 常缺 Expr 尾字段）。 */
+/* See implementation. */
 export extern function pipeline_expr_init_call_resolve_at_ref(arena: *ASTArena, expr_ref: i32): void;
 
-/** 由 pipeline_glue.c 写池槽 call_resolved 解析结果。 */
+/* See implementation. */
 export extern function pipeline_expr_apply_call_resolve(arena: *ASTArena, call_expr_ref: i32, dep_ix: i32, func_ix: i32): void;
 
+/** Exported function `expr_init_call_resolve`.
+ * Implements `expr_init_call_resolve`.
+ * @param arena *ASTArena
+ * @param expr_ref i32
+ * @return void
+ */
 export function expr_init_call_resolve(arena: *ASTArena, expr_ref: i32): void {
   unsafe {
     pipeline_expr_init_call_resolve_at_ref(arena, expr_ref);
   }
 }
 
-/** typeck 解析 CALL 后写入目标模块/函数下标（委托 C glue）。 */
+/** Exported function `ast_expr_apply_call_resolve`.
+ * Implements `ast_expr_apply_call_resolve`.
+ * @param arena *ASTArena
+ * @param call_expr_ref i32
+ * @param dep_ix i32
+ * @param func_ix i32
+ * @return void
+ */
 export function ast_expr_apply_call_resolve(arena: *ASTArena, call_expr_ref: i32, dep_ix: i32, func_ix: i32): void {
   unsafe {
     pipeline_expr_apply_call_resolve(arena, call_expr_ref, dep_ix, func_ix);
   }
 }
 
-/** 按 ref 取 Expr 池中节点（副本）；ref 须为 1..num_exprs。实现于 pipeline_glue.c。 */
+/* See implementation. */
 export extern function ast_arena_expr_get(arena: *ASTArena, ref: i32): Expr;
 
-/** 将 Expr 节点写回池中 ref 槽位；ref 须为 1..num_exprs。用于 parser 构建 AST。 */
+/* See implementation. */
 export extern function ast_arena_expr_set(arena: *ASTArena, ref: i32, e: Expr): void;
 
-/** 按 ref 取 Block 池中节点（副本）；ref 须为 1..num_blocks。实现于 pipeline_glue.c。 */
+/* See implementation. */
 export extern function ast_arena_block_get(arena: *ASTArena, ref: i32): Block;
 
-/** 两段字节名字是否相等；供 ast 模块内解析块绑定，不复用 typeck 的 name_equal。 */
+/** Exported function `ast_name_bytes_equal`.
+ * Implements `ast_name_bytes_equal`.
+ * @param a_nm *u8
+ * @param a_len i32
+ * @param b_nm *u8
+ * @param b_len i32
+ * @return bool
+ */
 export function ast_name_bytes_equal(a_nm: *u8, a_len: i32, b_nm: *u8, b_len: i32): bool {
   if (a_len != b_len || a_len <= 0) {
     return false;
@@ -799,7 +842,12 @@ export function ast_name_bytes_equal(a_nm: *u8, a_len: i32, b_nm: *u8, b_len: i3
   return true;
 }
 
-/** 取块池中某块的 final_expr_ref（无尾表达式时为 0）；封装在 ast 内避免 import 模块对 Block 做字段访问（其 struct_layout 常未含 Block）。 */
+/** Exported function `ast_block_final_expr_ref`.
+ * Implements `ast_block_final_expr_ref`.
+ * @param a *ASTArena
+ * @param body_ref i32
+ * @return i32
+ */
 export function ast_block_final_expr_ref(a: *ASTArena, body_ref: i32): i32 {
   if (body_ref <= 0 || body_ref > a.num_blocks) {
     return 0;
@@ -812,23 +860,34 @@ export function ast_block_final_expr_ref(a: *ASTArena, body_ref: i32): i32 {
 }
 
 /**
- * X 无法用局部 Expr 安全读取 expr.kind；由 pipeline_glue.c 实现该裸 C 符号（无前缀，
- * preamble 与原样 extern 对齐，避免 import 前缀叠层）。
+ * See implementation.
+ * See implementation.
  */
 export extern function implicit_tail_expr_disallowed_by_glue(a: *ASTArena, expr_ref: i32): bool;
 
-/** 末表达式若为 RETURN/PANIC/BREAK/CONTINUE，则不允许隐式尾返回；委托 glue。 */
+/** Exported function `ast_expr_disallows_implicit_tail`.
+ * Implements `ast_expr_disallows_implicit_tail`.
+ * @param a *ASTArena
+ * @param expr_ref i32
+ * @return bool
+ */
 export function ast_expr_disallows_implicit_tail(a: *ASTArena, expr_ref: i32): bool {
   unsafe {
     return implicit_tail_expr_disallowed_by_glue(a, expr_ref);
   }
 }
 
+/** Exported function `ast_block_num_consts`.
+ * Implements `ast_block_num_consts`.
+ * @param a *ASTArena
+ * @param br i32
+ * @return i32
+ */
 export function ast_block_num_consts(a: *ASTArena, br: i32): i32 {
   if (br <= 0 || br > a.num_blocks) {
     return 0;
   }
-  /** shux-c 不能在 return 上对函数返回值再做 .field，须先绑到局部 Block。 */
+  /* See implementation. */
   let blk_nc: Block;
   unsafe {
     blk_nc = ast_arena_block_get(a, br);
@@ -836,6 +895,12 @@ export function ast_block_num_consts(a: *ASTArena, br: i32): i32 {
   return blk_nc.num_consts;
 }
 
+/** Exported function `ast_block_num_lets`.
+ * Implements `ast_block_num_lets`.
+ * @param a *ASTArena
+ * @param br i32
+ * @return i32
+ */
 export function ast_block_num_lets(a: *ASTArena, br: i32): i32 {
   if (br <= 0 || br > a.num_blocks) {
     return 0;
@@ -847,6 +912,12 @@ export function ast_block_num_lets(a: *ASTArena, br: i32): i32 {
   return blk_nl.num_lets;
 }
 
+/** Exported function `ast_block_num_loops`.
+ * Implements `ast_block_num_loops`.
+ * @param a *ASTArena
+ * @param br i32
+ * @return i32
+ */
 export function ast_block_num_loops(a: *ASTArena, br: i32): i32 {
   if (br <= 0 || br > a.num_blocks) {
     return 0;
@@ -858,6 +929,12 @@ export function ast_block_num_loops(a: *ASTArena, br: i32): i32 {
   return blk_nlp.num_loops;
 }
 
+/** Exported function `ast_block_num_for_loops`.
+ * Implements `ast_block_num_for_loops`.
+ * @param a *ASTArena
+ * @param br i32
+ * @return i32
+ */
 export function ast_block_num_for_loops(a: *ASTArena, br: i32): i32 {
   if (br <= 0 || br > a.num_blocks) {
     return 0;
@@ -869,6 +946,12 @@ export function ast_block_num_for_loops(a: *ASTArena, br: i32): i32 {
   return blk_nfp.num_for_loops;
 }
 
+/** Exported function `ast_block_num_if_stmts`.
+ * Implements `ast_block_num_if_stmts`.
+ * @param a *ASTArena
+ * @param br i32
+ * @return i32
+ */
 export function ast_block_num_if_stmts(a: *ASTArena, br: i32): i32 {
   if (br <= 0 || br > a.num_blocks) {
     return 0;
@@ -880,7 +963,12 @@ export function ast_block_num_if_stmts(a: *ASTArena, br: i32): i32 {
   return blk_nif.num_if_stmts;
 }
 
-/** M-3：块内 region 域块个数。 */
+/** Exported function `ast_block_num_regions`.
+ * Implements `ast_block_num_regions`.
+ * @param a *ASTArena
+ * @param br i32
+ * @return i32
+ */
 export function ast_block_num_regions(a: *ASTArena, br: i32): i32 {
   if (br <= 0 || br > a.num_blocks) {
     return 0;
@@ -892,12 +980,25 @@ export function ast_block_num_regions(a: *ASTArena, br: i32): i32 {
   return blk_nr.num_regions;
 }
 
+/** Exported function `ast_block_region_body_ref`.
+ * Implements `ast_block_region_body_ref`.
+ * @param a *ASTArena
+ * @param br i32
+ * @param ri i32
+ * @return i32
+ */
 export function ast_block_region_body_ref(a: *ASTArena, br: i32, ri: i32): i32 {
   unsafe {
     return pipeline_block_region_body_ref(a, br, ri);
   }
 }
 
+/** Exported function `ast_block_num_expr_stmts`.
+ * Implements `ast_block_num_expr_stmts`.
+ * @param a *ASTArena
+ * @param br i32
+ * @return i32
+ */
 export function ast_block_num_expr_stmts(a: *ASTArena, br: i32): i32 {
   if (br <= 0 || br > a.num_blocks) {
     return 0;
@@ -909,6 +1010,12 @@ export function ast_block_num_expr_stmts(a: *ASTArena, br: i32): i32 {
   return blk_nes.num_expr_stmts;
 }
 
+/** Exported function `ast_block_num_stmt_order`.
+ * Implements `ast_block_num_stmt_order`.
+ * @param a *ASTArena
+ * @param br i32
+ * @return i32
+ */
 export function ast_block_num_stmt_order(a: *ASTArena, br: i32): i32 {
   if (br <= 0 || br > a.num_blocks) {
     return 0;
@@ -920,96 +1027,208 @@ export function ast_block_num_stmt_order(a: *ASTArena, br: i32): i32 {
   return blk_nso.num_stmt_order;
 }
 
+/** Exported function `ast_block_stmt_order_kind`.
+ * Implements `ast_block_stmt_order_kind`.
+ * @param a *ASTArena
+ * @param br i32
+ * @param si i32
+ * @return u8
+ */
 export function ast_block_stmt_order_kind(a: *ASTArena, br: i32, si: i32): u8 {
   unsafe {
     return pipeline_block_stmt_order_kind(a, br, si);
   }
 }
 
+/** Exported function `ast_block_stmt_order_idx`.
+ * Implements `ast_block_stmt_order_idx`.
+ * @param a *ASTArena
+ * @param br i32
+ * @param si i32
+ * @return i32
+ */
 export function ast_block_stmt_order_idx(a: *ASTArena, br: i32, si: i32): i32 {
   unsafe {
     return pipeline_block_stmt_order_idx(a, br, si);
   }
 }
 
+/** Exported function `ast_block_const_init_ref`.
+ * Implements `ast_block_const_init_ref`.
+ * @param a *ASTArena
+ * @param br i32
+ * @param ci i32
+ * @return i32
+ */
 export function ast_block_const_init_ref(a: *ASTArena, br: i32, ci: i32): i32 {
   unsafe {
     return pipeline_block_const_init_ref(a, br, ci);
   }
 }
 
+/** Exported function `ast_block_const_type_ref`.
+ * Implements `ast_block_const_type_ref`.
+ * @param a *ASTArena
+ * @param br i32
+ * @param ci i32
+ * @return i32
+ */
 export function ast_block_const_type_ref(a: *ASTArena, br: i32, ci: i32): i32 {
   unsafe {
     return pipeline_block_const_type_ref(a, br, ci);
   }
 }
 
+/** Exported function `ast_block_let_init_ref`.
+ * Implements `ast_block_let_init_ref`.
+ * @param a *ASTArena
+ * @param br i32
+ * @param li i32
+ * @return i32
+ */
 export function ast_block_let_init_ref(a: *ASTArena, br: i32, li: i32): i32 {
   unsafe {
     return pipeline_block_let_init_ref(a, br, li);
   }
 }
 
+/** Exported function `ast_block_let_type_ref`.
+ * Implements `ast_block_let_type_ref`.
+ * @param a *ASTArena
+ * @param br i32
+ * @param li i32
+ * @return i32
+ */
 export function ast_block_let_type_ref(a: *ASTArena, br: i32, li: i32): i32 {
   unsafe {
     return pipeline_block_let_type_ref(a, br, li);
   }
 }
 
+/** Exported function `ast_block_expr_stmt_ref`.
+ * Implements `ast_block_expr_stmt_ref`.
+ * @param a *ASTArena
+ * @param br i32
+ * @param ei i32
+ * @return i32
+ */
 export function ast_block_expr_stmt_ref(a: *ASTArena, br: i32, ei: i32): i32 {
   unsafe {
     return pipeline_block_expr_stmt_ref(a, br, ei);
   }
 }
 
+/** Exported function `ast_block_while_cond_ref`.
+ * Implements `ast_block_while_cond_ref`.
+ * @param a *ASTArena
+ * @param br i32
+ * @param wi i32
+ * @return i32
+ */
 export function ast_block_while_cond_ref(a: *ASTArena, br: i32, wi: i32): i32 {
   unsafe {
     return pipeline_block_while_cond_ref(a, br, wi);
   }
 }
 
+/** Exported function `ast_block_while_body_ref`.
+ * Implements `ast_block_while_body_ref`.
+ * @param a *ASTArena
+ * @param br i32
+ * @param wi i32
+ * @return i32
+ */
 export function ast_block_while_body_ref(a: *ASTArena, br: i32, wi: i32): i32 {
   unsafe {
     return pipeline_block_while_body_ref(a, br, wi);
   }
 }
 
+/** Exported function `ast_block_for_init_ref`.
+ * Implements `ast_block_for_init_ref`.
+ * @param a *ASTArena
+ * @param br i32
+ * @param fi i32
+ * @return i32
+ */
 export function ast_block_for_init_ref(a: *ASTArena, br: i32, fi: i32): i32 {
   unsafe {
     return pipeline_block_for_init_ref(a, br, fi);
   }
 }
 
+/** Exported function `ast_block_for_cond_ref`.
+ * Implements `ast_block_for_cond_ref`.
+ * @param a *ASTArena
+ * @param br i32
+ * @param fi i32
+ * @return i32
+ */
 export function ast_block_for_cond_ref(a: *ASTArena, br: i32, fi: i32): i32 {
   unsafe {
     return pipeline_block_for_cond_ref(a, br, fi);
   }
 }
 
+/** Exported function `ast_block_for_step_ref`.
+ * Implements `ast_block_for_step_ref`.
+ * @param a *ASTArena
+ * @param br i32
+ * @param fi i32
+ * @return i32
+ */
 export function ast_block_for_step_ref(a: *ASTArena, br: i32, fi: i32): i32 {
   unsafe {
     return pipeline_block_for_step_ref(a, br, fi);
   }
 }
 
+/** Exported function `ast_block_for_body_ref`.
+ * Implements `ast_block_for_body_ref`.
+ * @param a *ASTArena
+ * @param br i32
+ * @param fi i32
+ * @return i32
+ */
 export function ast_block_for_body_ref(a: *ASTArena, br: i32, fi: i32): i32 {
   unsafe {
     return pipeline_block_for_body_ref(a, br, fi);
   }
 }
 
+/** Exported function `ast_block_if_cond_ref`.
+ * Implements `ast_block_if_cond_ref`.
+ * @param a *ASTArena
+ * @param br i32
+ * @param ii i32
+ * @return i32
+ */
 export function ast_block_if_cond_ref(a: *ASTArena, br: i32, ii: i32): i32 {
   unsafe {
     return pipeline_block_if_cond_ref(a, br, ii);
   }
 }
 
+/** Exported function `ast_block_if_then_body_ref`.
+ * Implements `ast_block_if_then_body_ref`.
+ * @param a *ASTArena
+ * @param br i32
+ * @param ii i32
+ * @return i32
+ */
 export function ast_block_if_then_body_ref(a: *ASTArena, br: i32, ii: i32): i32 {
   unsafe {
     return pipeline_block_if_then_body_ref(a, br, ii);
   }
 }
 
+/** Exported function `ast_block_if_else_body_ref`.
+ * Implements `ast_block_if_else_body_ref`.
+ * @param a *ASTArena
+ * @param br i32
+ * @param ii i32
+ * @return i32
+ */
 export function ast_block_if_else_body_ref(a: *ASTArena, br: i32, ii: i32): i32 {
   unsafe {
     return pipeline_block_if_else_body_ref(a, br, ii);
@@ -1017,7 +1236,7 @@ export function ast_block_if_else_body_ref(a: *ASTArena, br: i32, ii: i32): i32 
 }
 
 /**
- * 在块内按 const/let 顺序解析局部名到类型池 ref；委托 C grow pool 遍历。
+ * See implementation.
  */
 export function ast_block_resolve_var_to_type_ref(a: *ASTArena, block_ref: i32, vname: *u8, vlen: i32): i32 {
   unsafe {
@@ -1026,8 +1245,8 @@ export function ast_block_resolve_var_to_type_ref(a: *ASTArena, block_ref: i32, 
 }
 
 /**
- * 为嵌套块补 parent_block_ref：OneFuncResult 落成函数体 Block 时，子块已由 parse_block_into 分配但父块 ref 尚不存在；
- * 显式栈遍历 while/for/if 体，避免深层嵌套在 X 自举 typecheck 路径上递归栈溢出。
+ * See implementation.
+ * See implementation.
  */
 export function ast_arena_patch_block_parent_links(arena: *ASTArena, block_ref: i32, parent_ref: i32): void {
   let stack_blk: i32[256] = [];
@@ -1106,7 +1325,7 @@ export function ast_arena_patch_block_parent_links(arena: *ASTArena, block_ref: 
       }
       i = i + 1;
     }
-    /** M-3：region 体块须挂 parent，块内 VAR 可解析外层 let。 */
+    /* See implementation. */
     i = 0;
     while (i < b.num_regions) {
       rgb = ast_block_region_body_ref(arena, cur, i);
@@ -1120,10 +1339,14 @@ export function ast_arena_patch_block_parent_links(arena: *ASTArena, block_ref: 
   }
 }
 
-/** 将 Block 节点写回池中 ref 槽位；ref 须为 1..num_blocks。用于 parser 构建 AST。 */
+/* See implementation. */
 export extern function ast_arena_block_set(arena: *ASTArena, ref: i32, b: Block): void;
 
-/** 在 Func 池中分配一个槽位，返回 1-based ref；失败返回 0。 */
+/** Exported function `ast_arena_func_alloc`.
+ * Memory management helper `ast_arena_func_alloc`.
+ * @param arena *ASTArena
+ * @return i32
+ */
 export function ast_arena_func_alloc(arena: *ASTArena): i32 {
   let ref: i32 = 0;
   unsafe {
@@ -1135,8 +1358,8 @@ export function ast_arena_func_alloc(arena: *ASTArena): i32 {
   return ref;
 }
 
-/** 按 ref 取 Func 池中节点（副本）；ref 须为 1..num_funcs。实现于 pipeline_glue.c。 */
+/* See implementation. */
 export extern function ast_arena_func_get(arena: *ASTArena, ref: i32): Func;
 
-/** 将 Func 节点写回池中 ref 槽位；ref 须为 1..num_funcs。用于 parser 构建 AST。 */
+/* See implementation. */
 export extern function ast_arena_func_set(arena: *ASTArena, ref: i32, f: Func): void;

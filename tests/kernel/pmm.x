@@ -7,8 +7,20 @@ struct MB1Header { magic: u32; flags: u32; checksum: u32; }
 const mb1: MB1Header = { magic: 0x1BADB002, flags: 0, checksum: 0xE4524FFE, };
 
 #[used]
+/** Internal function `kputc`.
+ * Implements `kputc`.
+ * @param c u8): void { unsafe { asm!("outb %%al
+ * @param %%dx" : "a"(c)
+ * @param "d"(0x3F8)
+ * @return void
+ */
 function kputc(c: u8): void { unsafe { asm!("outb %%al, %%dx" : : "a"(c), "d"(0x3F8)); } }
 #[used]
+/** Internal function `kputint`.
+ * Implements `kputint`.
+ * @param n i32
+ * @return void
+ */
 function kputint(n: i32): void {
   if (n >= 10) { kputint(n / 10); }
   kputc((n % 10 + 48) as u8);
@@ -20,6 +32,10 @@ const PMM_PAGE_SIZE: u32 = 4096;
 const PMM_START: u32 = 0x100000;
 const PMM_PAGES: u32 = 768;
 
+/** Internal function `pmm_init`.
+ * Implements `pmm_init`.
+ * @return void
+ */
 function pmm_init(): void {
   let i: u32 = 0;
   while (i < 96) {
@@ -28,6 +44,11 @@ function pmm_init(): void {
   }
 }
 
+/** Internal function `pmm_test_bit`.
+ * Implements `pmm_test_bit`.
+ * @param page u32
+ * @return u32
+ */
 function pmm_test_bit(page: u32) : u32 {
   let byte_idx: u32 = page / 8;
   let bit_idx: u32 = page % 8;
@@ -37,6 +58,12 @@ function pmm_test_bit(page: u32) : u32 {
   return (val >> bit_idx) & 1;
 }
 
+/** Internal function `pmm_set_bit`.
+ * Implements `pmm_set_bit`.
+ * @param page u32
+ * @param val u32
+ * @return void
+ */
 function pmm_set_bit(page: u32, val: u32): void {
   let byte_idx: u32 = page / 8;
   let bit_idx: u32 = page % 8;
@@ -52,6 +79,10 @@ function pmm_set_bit(page: u32, val: u32): void {
   }
 }
 
+/** Internal function `pmm_alloc`.
+ * Memory management helper `pmm_alloc`.
+ * @return u32
+ */
 function pmm_alloc(): u32 {
   let i: u32 = 0;
   while (i < PMM_PAGES) {
@@ -64,11 +95,20 @@ function pmm_alloc(): u32 {
   return 0;
 }
 
+/** Internal function `pmm_free`.
+ * Memory management helper `pmm_free`.
+ * @param addr u32
+ * @return void
+ */
 function pmm_free(addr: u32): void {
   let page: u32 = (addr - PMM_START) / PMM_PAGE_SIZE;
   pmm_set_bit(page, 0);
 }
 
+/** Internal function `pmm_count_free`.
+ * Memory management helper `pmm_count_free`.
+ * @return u32
+ */
 function pmm_count_free(): u32 {
   let count: u32 = 0;
   let i: u32 = 0;
@@ -79,6 +119,10 @@ function pmm_count_free(): u32 {
   return count;
 }
 
+/** Internal function `kmain`.
+ * Implements `kmain`.
+ * @return i32
+ */
 function kmain(): i32 {
   kputc(77); kputc(58);  // M:
   pmm_init();
@@ -105,5 +149,16 @@ function kmain(): i32 {
 }
 
 #[entry]
+/** Internal function `start`.
+ * Implements `start`.
+ * @param ) void { unsafe { asm!("mov $0x80000
+ * @param %esp; call kmain; cli; hlt"
+ * @return void
+ */
 function start(): void { unsafe { asm!("mov $0x80000, %esp; call kmain; cli; hlt"); } }
+/** Internal function `main`.
+ * Program/test entry point.
+ * @param ) i32 { return kmain(
+ * @return void
+ */
 function main(): i32 { return kmain() + mb1.magic as i32; }

@@ -1,4 +1,8 @@
-// 7.3：局部 VAR+VAR 二元运算应直 ldr 到 rax/rbx，免 push/pop（run-asm-binop-var.sh）。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32 = 10;
   let b: i32 = 20;

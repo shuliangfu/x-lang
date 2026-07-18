@@ -1,6 +1,10 @@
-// STD-124：原子分组 `(?>...)` 烟测 — (a+)a 匹配 aaa，(?>(a+))a 不回溯故失败
+// See implementation.
 const regex = import("std.regex");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let pat_norm: u8[5] = [40, 97, 43, 41, 97];
   let pat_atom: u8[9] = [40, 63, 62, 40, 97, 43, 41, 41, 97];

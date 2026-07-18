@@ -14,44 +14,50 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.compress.zstd.lib — F-04 v7：zstd 块/流式压缩（libzstd FFI）
+// See implementation.
 //
-// 【文件职责】
-// 从 zstd/zstd.c 迁出的 ZSTD 块 API 与 zstd_stream_*。
+// See implementation.
+// See implementation.
 //
-// 【依赖】
-// - libzstd：ZSTD_* API（hosted 路径 -lzstd）
+// See implementation.
+// See implementation.
 // - core.mem：mem_zero、mem_compare
-// - runtime_link_abi：shu_compress_zstd_marker 触发 -lzstd
+// See implementation.
 
 const mem = import("core.mem");
 const types = import("core.types");
 
-/** zstd 流状态字节数。 */
+/** Exported function `zstd_stream_state_bytes`.
+ * Implements `zstd_stream_state_bytes`.
+ * @return i32
+ */
 export function zstd_stream_state_bytes(): i32 {
-  /* LP64：hdr 16 + 2×ptr 16 = 32。勿 types.size_of<T>（当前 monomorphize 成空 core_types_size_of()）。 */
+  /* See implementation. */
   return 32;
 }
 
-/** zstd 流头字节数。 */
+/** Exported function `zstd_stream_hdr_bytes`.
+ * Implements `zstd_stream_hdr_bytes`.
+ * @return i32
+ */
 export function zstd_stream_hdr_bytes(): i32 {
   return 16;
 }
 
-/** zstd 流状态魔数（'ZSTR'，与 compress_common.h 一致）。 */
+/* See implementation. */
 export const SHU_ZSTD_STREAM_MAGIC: u32 = 0x5a535452;
 
-/** 默认压缩级别。 */
+/* See implementation. */
 export const ZSTD_CLEVEL_DEFAULT: i32 = 3;
 
-/** ZSTD_CCtx_setParameter：压缩级别参数 id。 */
+/* See implementation. */
 export const ZSTD_c_compressionLevel: i32 = 100;
 
-/** ZSTD_compressStream2 结束指令。 */
+/* See implementation. */
 export const ZSTD_e_continue: i32 = 0;
 export const ZSTD_e_end: i32 = 2;
 
-/** zstd 流状态头（后接 C/D 上下文指针）。 */
+/* See implementation. */
 allow(padding) struct ZstdStreamHdr {
   magic: u32;
   mode: i32;
@@ -59,56 +65,56 @@ allow(padding) struct ZstdStreamHdr {
   inited: i32;
 }
 
-/** 含 ZSTD C/D 上下文的流状态。 */
+/* See implementation. */
 allow(padding) struct ZstdStream {
   hdr: ZstdStreamHdr;
   cctx: *u8;
   dctx: *u8;
 }
 
-/** libzstd 输入缓冲（ZSTD_inBuffer 布局）。 */
+/* See implementation. */
 allow(padding) struct ZstdInBuffer {
   src: *u8;
   size: usize;
   pos: usize;
 }
 
-/** libzstd 输出缓冲（ZSTD_outBuffer 布局）。 */
+/* See implementation. */
 allow(padding) struct ZstdOutBuffer {
   dst: *u8;
   size: usize;
   pos: usize;
 }
 
-/** libzstd：块压缩。 */
+/* See implementation. */
 extern function ZSTD_compress(dst: *u8, dstCapacity: usize, src: *u8, srcSize: usize, compressionLevel: i32): usize;
 
-/** libzstd：块解压。 */
+/* See implementation. */
 extern function ZSTD_decompress(dst: *u8, dstCapacity: usize, src: *u8, compressedSize: usize): usize;
 
-/** libzstd：返回值是否错误码。 */
+/* See implementation. */
 extern function ZSTD_isError(code: usize): u32;
 
-/** libzstd：压缩/解压上下文。 */
+/* See implementation. */
 extern function ZSTD_createCCtx(): *u8;
 extern function ZSTD_freeCCtx(cctx: *u8): usize;
 extern function ZSTD_createDCtx(): *u8;
 extern function ZSTD_freeDCtx(dctx: *u8): usize;
 
-/** libzstd：设置压缩参数。 */
+/* See implementation. */
 extern function ZSTD_CCtx_setParameter(cctx: *u8, param: i32, value: i32): usize;
 
-/** libzstd：流式压缩。 */
+/* See implementation. */
 extern function ZSTD_compressStream2(cctx: *u8, output: *ZstdOutBuffer, input: *ZstdInBuffer, endOp: i32): usize;
 
-/** libzstd：流式解压。 */
+/* See implementation. */
 extern function ZSTD_decompressStream(dctx: *u8, output: *ZstdOutBuffer, input: *ZstdInBuffer): usize;
 
-/** 链接 marker：runtime 据此追加 -lzstd。 */
+/* See implementation. */
 let shu_compress_zstd_marker: u8 = 1;
 
 /**
- * 校验并返回 zstd 流状态指针；无效返回 0。
+ * See implementation.
  */
 export function shu_zstd_stream_cast(state: *u8, state_cap: i32): *ZstdStream {
   let need: i32 = zstd_stream_state_bytes();
@@ -123,7 +129,7 @@ export function shu_zstd_stream_cast(state: *u8, state_cap: i32): *ZstdStream {
 }
 
 /**
- * 压缩为 zstd 帧，返回写入字节数，失败 -1。
+ * See implementation.
  */
 export function compress_zstd_compress_c(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
   if (in == 0 || out == 0 || in_len < 0 || out_cap <= 0) {
@@ -140,7 +146,7 @@ export function compress_zstd_compress_c(in: *u8, in_len: i32, out: *u8, out_cap
 }
 
 /**
- * 解压 zstd 帧，返回写入字节数，失败 -1。
+ * See implementation.
  */
 export function compress_zstd_decompress_c(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
   if (in == 0 || out == 0 || in_len < 0 || out_cap <= 0) {
@@ -157,21 +163,21 @@ export function compress_zstd_decompress_c(in: *u8, in_len: i32, out: *u8, out_c
 }
 
 /**
- * 探测 zstd 是否可用；.x 路径恒 1。
+ * See implementation.
  */
 export function compress_zstd_available_c(): i32 {
   return 1;
 }
 
 /**
- * 返回 zstd 流状态缓冲最小字节数。
+ * See implementation.
  */
 export function compress_zstd_stream_state_bytes_c(): i32 {
   return zstd_stream_state_bytes();
 }
 
 /**
- * 初始化 zstd 压缩流；成功 0，失败 -1。
+ * See implementation.
  */
 export function compress_zstd_stream_init_compress_c(state: *u8, state_cap: i32): i32 {
   let need: i32 = zstd_stream_state_bytes();
@@ -200,7 +206,7 @@ export function compress_zstd_stream_init_compress_c(state: *u8, state_cap: i32)
 }
 
 /**
- * 初始化 zstd 解压流；成功 0，失败 -1。
+ * See implementation.
  */
 export function compress_zstd_stream_init_decompress_c(state: *u8, state_cap: i32): i32 {
   let need: i32 = zstd_stream_state_bytes();
@@ -220,7 +226,7 @@ export function compress_zstd_stream_init_decompress_c(state: *u8, state_cap: i3
 }
 
 /**
- * 分块 zstd 压缩；is_last≠0 时 ZSTD_e_end。
+ * See implementation.
  */
 export function compress_zstd_stream_compress_c(state: *u8, state_cap: i32, in: *u8, in_len: i32,
   out: *u8, out_cap: i32, is_last: i32, in_consumed: *i32): i32 {
@@ -267,7 +273,7 @@ export function compress_zstd_stream_compress_c(state: *u8, state_cap: i32, in: 
 }
 
 /**
- * 分块 zstd 解压。
+ * See implementation.
  */
 export function compress_zstd_stream_decompress_c(state: *u8, state_cap: i32, in: *u8, in_len: i32,
   out: *u8, out_cap: i32, in_consumed: *i32): i32 {
@@ -310,7 +316,7 @@ export function compress_zstd_stream_decompress_c(state: *u8, state_cap: i32, in
 }
 
 /**
- * 释放 zstd 流；成功 0。
+ * See implementation.
  */
 export function compress_zstd_stream_end_c(state: *u8, state_cap: i32): i32 {
   let hdr_need: i32 = zstd_stream_hdr_bytes();
@@ -334,7 +340,7 @@ export function compress_zstd_stream_end_c(state: *u8, state_cap: i32): i32 {
 }
 
 /**
- * zstd 块 + 流往返烟测；失败返回非 0，成功 0。
+ * See implementation.
  */
 export function compress_zstd_smoke_c(): i32 {
   let inp: u8[5] = [104, 101, 108, 108, 111];

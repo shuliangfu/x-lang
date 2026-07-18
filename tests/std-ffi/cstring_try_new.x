@@ -1,6 +1,10 @@
-// STD-055：cstring_try_new 错误码与 owned 生命周期
+// See implementation.
 const ffi = import("std.ffi");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let src: u8[3] = [97, 98, 99];
   let owned: usize = 0;

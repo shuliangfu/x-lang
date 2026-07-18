@@ -14,21 +14,26 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// run.x — shux run 子命令
-// 行为：编译 .x → a.out → 运行
-// 用法：shux run x.x [-o exe]
-// 注：cmd_run 内用 `if (rc == 0)` 再执行 exec；`if (rc != 0) return` 与 import ast
-// 同编时 typeck 会误报 check_block（compiler 限制）。
-// 勿 import ast：-E 生成 driver_run_gen.c 时无需 AST 类型。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 
-/** C 侧 runtime.c：fork+exec 运行编译产物（须写全 C 链接名，-E-extern
-* 不追加模块前缀）。 */
+/** See implementation for details. */
 export extern function driver_exec_compiled(argc: i32, argv: *u8): i32;
-/** main.x 编译入口；链接符号 main_run_compiler_x_path_impl。 */
+/* See implementation. */
 export extern function main_run_compiler_x_path_impl(argc: i32, argv: *u8): i32;
 
-/** 比较 buf[0..len-1] 与
-* word_ptr[0..word_len-1]（当前未使用，保留供将来子命令解析复用）。 */
+/** Exported function `run_eq_word`.
+ * Implements `run_eq_word`.
+ * @param buf *u8
+ * @param len i32
+ * @param word_ptr *u8
+ * @param word_len i32
+ * @return i32
+ */
 export function run_eq_word(buf: *u8, len: i32, word_ptr: *u8, word_len: i32): i32 {
   if (len != word_len) {
     return 0;
@@ -43,6 +48,12 @@ export function run_eq_word(buf: *u8, len: i32, word_ptr: *u8, word_len: i32): i
   return 1;
 }
 
+/** Exported function `cmd_run`.
+ * Implements `cmd_run`.
+ * @param argc i32
+ * @param argv *u8
+ * @return i32
+ */
 export function cmd_run(argc: i32, argv: *u8): i32 {
   unsafe {
     if (argc < 2) {

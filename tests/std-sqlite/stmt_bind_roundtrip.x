@@ -1,7 +1,18 @@
-// STD-070：内存库 stmt bind + 缓存烟测（须 sqlite-o + -lsqlite3 链接）
+// See implementation.
 const sqlite = import("std.db.sqlite");
 
-/** 比较 buf 前 n 字节与 expect（最多 5 字节）。 */
+/** Internal function `text_eq5`.
+ * Implements `text_eq5`.
+ * @param buf *u8
+ * @param n i32
+ * @param b0 u8
+ * @param b1 u8
+ * @param b2 u8
+ * @param b3 u8
+ * @param b4 u8
+ * @param expect_len i32
+ * @return i32
+ */
 function text_eq5(buf: *u8, n: i32, b0: u8, b1: u8, b2: u8, b3: u8, b4: u8, expect_len: i32): i32 {
   if (n != expect_len) { return 0; }
   if (expect_len > 0 && buf[0] != b0) { return 0; }
@@ -12,6 +23,10 @@ function text_eq5(buf: *u8, n: i32, b0: u8, b1: u8, b2: u8, b3: u8, b4: u8, expe
   return 1;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let mem: u8[9] = [58, 109, 101, 109, 111, 114, 121, 58, 0];
   let sql_create: u8[38] = [

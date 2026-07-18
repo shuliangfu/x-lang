@@ -14,23 +14,27 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std/base64/base64.x — Base64 编解码与流式 API（F-base64 v1；替代 base64.c）
+// See implementation.
 //
-// 【文件职责】
-// encode/decode standard 与 URL 变体；STD-109 流式编解码与烟测。
-// 单遍、无堆分配；对标 Zig std.base64。
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 【依赖】libc memcpy/memset（流状态清零与 pending 拷贝）。
+// See implementation.
 
 const types = import("core.types");
 
-/** 流状态魔数 'B4ST'。 */
+/* See implementation. */
 export const SHU_B64_STREAM_MAGIC: u32 = 0x42345354;
 
 extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 extern "C" function memset(s: *u8, c: i32, n: usize): *u8;
 
-/** 标准 Base64 编码字符（0..63）；seed asm 不支持全局 const u8[] 下标。 */
+/** Exported function `b64_std_enc_char`.
+ * Implements `b64_std_enc_char`.
+ * @param idx i32
+ * @return u8
+ */
 export function b64_std_enc_char(idx: i32): u8 {
   let r: u8 = 0 as u8;
   if (idx >= 0 && idx < 26) { r = (65 + idx) as u8; }
@@ -41,7 +45,11 @@ export function b64_std_enc_char(idx: i32): u8 {
   return r;
 }
 
-/** URL 安全 Base64 编码字符（0..63）。 */
+/** Exported function `b64_url_enc_char`.
+ * Implements `b64_url_enc_char`.
+ * @param idx i32
+ * @return u8
+ */
 export function b64_url_enc_char(idx: i32): u8 {
   let r: u8 = 0 as u8;
   if (idx >= 0 && idx < 26) { r = (65 + idx) as u8; }
@@ -52,13 +60,18 @@ export function b64_url_enc_char(idx: i32): u8 {
   return r;
 }
 
-/** 按 URL/标准变体选取编码字符。 */
+/** Exported function `b64_pick_enc_char`.
+ * Implements `b64_pick_enc_char`.
+ * @param is_url i32
+ * @param idx i32
+ * @return u8
+ */
 export function b64_pick_enc_char(is_url: i32, idx: i32): u8 {
   if (is_url != 0) { return b64_url_enc_char(idx); }
   return b64_std_enc_char(idx);
 }
 
-/** 流式编解码状态（与 C shu_b64_stream_t 布局一致）。 */
+/* See implementation. */
 allow(padding) struct B64Stream {
   magic: u32
   is_url: i32
@@ -69,10 +82,14 @@ allow(padding) struct B64Stream {
   dec_pending: u8[4]
 }
 
-/** B64Stream 布局字节数（allow(padding)；与 types.size_of<B64Stream>() 一致为 28）。 */
+/* See implementation. */
 export const B64_STREAM_STATE_BYTES: i32 = 28;
 
-/** 标准表字符 → 6-bit 值；非法 255，`=` 为 254。 */
+/** Exported function `b64_decode_char_std`.
+ * Implements `b64_decode_char_std`.
+ * @param c u8
+ * @return u32
+ */
 export function b64_decode_char_std(c: u8): u32 {
   if (c >= 65 && c <= 90) { return (c - 65) as u32; }
   if (c >= 97 && c <= 122) { return (c - 97 + 26) as u32; }
@@ -83,7 +100,11 @@ export function b64_decode_char_std(c: u8): u32 {
   return 255;
 }
 
-/** URL 表字符 → 6-bit 值；非法 255。 */
+/** Exported function `b64_decode_char_url`.
+ * Implements `b64_decode_char_url`.
+ * @param c u8
+ * @return u32
+ */
 export function b64_decode_char_url(c: u8): u32 {
   if (c >= 65 && c <= 90) { return (c - 65) as u32; }
   if (c >= 97 && c <= 122) { return (c - 97 + 26) as u32; }
@@ -93,7 +114,12 @@ export function b64_decode_char_url(c: u8): u32 {
   return 255;
 }
 
-/** 校验并返回流状态指针；无效返回 0。 */
+/** Exported function `b64_stream_cast`.
+ * Implements `b64_stream_cast`.
+ * @param state *u8
+ * @param state_cap i32
+ * @return *B64Stream
+ */
 export function b64_stream_cast(state: *u8, state_cap: i32): *B64Stream {
   let need: i32 = B64_STREAM_STATE_BYTES;
   if (state == 0 || state_cap < need) { return 0 as *B64Stream; }
@@ -102,7 +128,14 @@ export function b64_stream_cast(state: *u8, state_cap: i32): *B64Stream {
   return s;
 }
 
-/** 标准 Base64 编码；返回写入字节数，缓冲区不足 -1。 */
+/** Exported function `base64_encode_standard_c`.
+ * Implements `base64_encode_standard_c`.
+ * @param src *u8
+ * @param src_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function base64_encode_standard_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
   let need: i32 = 0;
   let si: i32 = 0;
@@ -140,7 +173,14 @@ export function base64_encode_standard_c(src: *u8, src_len: i32, out: *u8, out_c
   return oi;
 }
 
-/** URL 安全 Base64 编码（无 padding）；返回写入字节数。 */
+/** Exported function `base64_encode_url_c`.
+ * Implements `base64_encode_url_c`.
+ * @param src *u8
+ * @param src_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function base64_encode_url_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
   let need: i32 = 0;
   let si: i32 = 0;
@@ -176,7 +216,14 @@ export function base64_encode_url_c(src: *u8, src_len: i32, out: *u8, out_cap: i
   return oi;
 }
 
-/** 标准 Base64 解码；返回写入字节数，非法 -1。 */
+/** Exported function `base64_decode_standard_c`.
+ * Implements `base64_decode_standard_c`.
+ * @param src *u8
+ * @param src_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function base64_decode_standard_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
   let out_len: i32 = 0;
   let si: i32 = 0;
@@ -213,7 +260,14 @@ export function base64_decode_standard_c(src: *u8, src_len: i32, out: *u8, out_c
   return oi;
 }
 
-/** URL 变体解码；返回写入字节数，非法 -1。 */
+/** Exported function `base64_decode_url_c`.
+ * Implements `base64_decode_url_c`.
+ * @param src *u8
+ * @param src_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function base64_decode_url_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
   let out_len: i32 = 0;
   let si: i32 = 0;
@@ -263,16 +317,20 @@ export function base64_decode_url_c(src: *u8, src_len: i32, out: *u8, out_cap: i
   return oi;
 }
 
-/** 返回流状态缓冲最小字节数。 */
+/** Exported function `base64_stream_state_bytes_c`.
+ * Implements `base64_stream_state_bytes_c`.
+ * @return i32
+ */
 export function base64_stream_state_bytes_c(): i32 {
   return B64_STREAM_STATE_BYTES;
 }
 
-/** 初始化 Base64 编码流；url 非 0 为 URL 变体；成功 0。
- * 【Why 不先 let s=0 再赋值】typeck：unsafe 块后对 *Struct 做 `s = p as *T` 会
- * 使本函数返回类型塌成 `?`，调用方 XT001；且 codegen 把前两 let 误升为 top-level
- * init_globals、函数体整段丢失 → base64.o 缺 enc_init/dec_init（run-core-types 红）。
- * 权威写法：校验 + memset 后 `let s: *B64Stream = state as *B64Stream`（一次绑定）。
+/** Exported function `base64_stream_enc_init_c`.
+ * Implements `base64_stream_enc_init_c`.
+ * @param state *u8
+ * @param state_cap i32
+ * @param url i32
+ * @return i32
  */
 export function base64_stream_enc_init_c(state: *u8, state_cap: i32, url: i32): i32 {
   let need: i32 = B64_STREAM_STATE_BYTES;
@@ -285,7 +343,13 @@ export function base64_stream_enc_init_c(state: *u8, state_cap: i32, url: i32): 
   return 0;
 }
 
-/** 初始化 Base64 解码流；成功 0。见 enc_init：勿 unsafe 后对 *Struct 再赋值。 */
+/** Exported function `base64_stream_dec_init_c`.
+ * Implements `base64_stream_dec_init_c`.
+ * @param state *u8
+ * @param state_cap i32
+ * @param url i32
+ * @return i32
+ */
 export function base64_stream_dec_init_c(state: *u8, state_cap: i32, url: i32): i32 {
   let need: i32 = B64_STREAM_STATE_BYTES;
   if (state == 0 || state_cap < need) { return -1; }
@@ -297,7 +361,16 @@ export function base64_stream_dec_init_c(state: *u8, state_cap: i32, url: i32): 
   return 0;
 }
 
-/** 将 1–3 字节编码为 Base64 字符写入 out；返回写入字节数。 */
+/** Exported function `b64_stream_emit_triplet`.
+ * Implements `b64_stream_emit_triplet`.
+ * @param s *B64Stream
+ * @param tri *u8
+ * @param n i32
+ * @param is_last i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function b64_stream_emit_triplet(s: *B64Stream, tri: *u8, n: i32, is_last: i32, out: *u8, out_cap: i32): i32 {
   let v: u32 = 0;
   let need: i32 = 0;
@@ -344,7 +417,7 @@ export function b64_stream_emit_triplet(s: *B64Stream, tri: *u8, n: i32, is_last
   return 4;
 }
 
-/** 流式 Base64 编码 update；is_last=1 时 flush padding。 */
+/* See implementation. */
 export function base64_stream_enc_update_c(state: *u8, state_cap: i32, inp: *u8, in_len: i32, out: *u8,
   out_cap: i32, is_last: i32, in_consumed: *i32): i32 {
   let s: *B64Stream = b64_stream_cast(state, state_cap);
@@ -406,7 +479,16 @@ export function base64_stream_enc_update_c(state: *u8, state_cap: i32, inp: *u8,
   return written;
 }
 
-/** 将 4 个 Base64 字符解码为最多 3 字节。 */
+/** Exported function `b64_stream_decode_quad`.
+ * Implements `b64_stream_decode_quad`.
+ * @param s *B64Stream
+ * @param quad *u8
+ * @param n i32
+ * @param is_last i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function b64_stream_decode_quad(s: *B64Stream, quad: *u8, n: i32, is_last: i32, out: *u8, out_cap: i32): i32 {
   let a: u32 = 0;
   let b: u32 = 0;
@@ -457,7 +539,7 @@ export function b64_stream_decode_quad(s: *B64Stream, quad: *u8, n: i32, is_last
   return out_len;
 }
 
-/** 流式 Base64 解码 update；is_last=1 时 flush 尾部。 */
+/* See implementation. */
 export function base64_stream_dec_update_c(state: *u8, state_cap: i32, inp: *u8, in_len: i32, out: *u8,
   out_cap: i32, is_last: i32, in_consumed: *i32): i32 {
   let s: *B64Stream = b64_stream_cast(state, state_cap);
@@ -511,7 +593,10 @@ export function base64_stream_dec_update_c(state: *u8, state_cap: i32, inp: *u8,
   return written;
 }
 
-/** STD-109：流式 base64 烟测（hello 分块 ≡ 块 API）；0 成功。 */
+/** Exported function `base64_stream_smoke_c`.
+ * Implements `base64_stream_smoke_c`.
+ * @return i32
+ */
 export function base64_stream_smoke_c(): i32 {
   let plain: u8[5];
   let st: u8[32];

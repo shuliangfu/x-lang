@@ -1,6 +1,10 @@
-// SIMD-S4 烟测：Vec8i select → pcmpgtd/pand/por（mask 0/1 无分支 lookup）。
+// See implementation.
 const simd = import("std.simd");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let mask: Vec8i = [1, 0, 1, 0, 0, 1, 0, 1];
   let a: Vec8i = [10, 10, 10, 10, 10, 10, 10, 10];

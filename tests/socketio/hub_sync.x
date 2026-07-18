@@ -1,8 +1,12 @@
 /**
- * STD-SOCKETIO-001 烟测：hub + room 跨进程快照同步 v11。
+ * See implementation.
  */
 const sio = import("std.socketio");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (sio.hub_sync_smoke() != 0) {
     return 1;

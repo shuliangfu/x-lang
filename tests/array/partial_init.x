@@ -1,4 +1,7 @@
-/** 部分初始化：let x: T[N] = [e1,e2,...]，不足 N 的部分按 0 填充 */
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32[5] = [1, 2, 3];
   if (a[0] != 1 || a[1] != 2 || a[2] != 3) { return 1; }

@@ -20,6 +20,11 @@ struct Context {
 let ctx_a: Context = { sp: 0 };
 let ctx_b: Context = { sp: 0 };
 
+/** Internal function `serial_putc`.
+ * Implements `serial_putc`.
+ * @param c u8
+ * @return void
+ */
 function serial_putc(c: u8): void {
   unsafe {
     asm!("outb %%al, %%dx" : : "a"(c), "d"(0x3F8));
@@ -28,6 +33,12 @@ function serial_putc(c: u8): void {
 
 #[used]
 #[naked]
+/** Internal function `switch_to`.
+ * Implements `switch_to`.
+ * @param old *Context
+ * @param new_ctx *Context
+ * @return void
+ */
 function switch_to(old: *Context, new_ctx: *Context): void {
   unsafe {
     asm!("movl 4(%esp), %eax; movl 8(%esp), %edx; pushl %ebp; pushl %ebx; pushl %esi; pushl %edi; movl %esp, (%eax); movl (%edx), %esp; popl %edi; popl %esi; popl %ebx; popl %ebp; ret");
@@ -35,6 +46,10 @@ function switch_to(old: *Context, new_ctx: *Context): void {
 }
 
 #[used]
+/** Internal function `thread_b`.
+ * Read path helper `thread_b`.
+ * @return void
+ */
 function thread_b(): void {
   serial_putc(66);
   serial_putc(10);
@@ -44,6 +59,10 @@ function thread_b(): void {
   unsafe { asm!("cli; hlt"); }
 }
 
+/** Internal function `kmain`.
+ * Implements `kmain`.
+ * @return i32
+ */
 function kmain(): i32 {
   serial_putc(83);
   serial_putc(10);
@@ -73,10 +92,19 @@ function kmain(): i32 {
 }
 
 #[entry]
+/** Internal function `start`.
+ * Implements `start`.
+ * @return void
+ */
 function start(): void {
   unsafe {
     asm!("mov $0x80000, %esp; call kmain; cli; hlt");
   }
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @param ) i32 { return kmain(
+ * @return void
+ */
 function main(): i32 { return kmain() + mb1.magic as i32; }

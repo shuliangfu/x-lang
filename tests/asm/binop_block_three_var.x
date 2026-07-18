@@ -1,4 +1,8 @@
-// 7.3：线性块内 a/b/d 同时参与 binop 链（为全图着色压测：>2 槽同时活跃）；run-asm-binop-block-var.sh。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32 = 1;
   let b: i32 = 2;

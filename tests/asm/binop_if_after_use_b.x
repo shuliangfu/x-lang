@@ -1,4 +1,8 @@
-// 7.3：if 汇合 live union 后 let x=b 应仍复用 rbx 中 b（run-asm-binop-cfg-merge.sh）。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32 = 1;
   let b: i32 = 2;

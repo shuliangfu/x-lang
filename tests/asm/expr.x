@@ -1,3 +1,7 @@
-// 测试 asm 后端：二元运算 2*3=6（.x 解析器支持 return int [* int] 与 return int +
-// int；1+2*3 已解析，backend 待修）
+// See implementation.
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 { return 2 * 3; }

@@ -1,11 +1,15 @@
-// STD-005：std.time 精度与时区烟测
+// See implementation.
 //
-// 【文件职责】覆盖全部 13 个公开 API；校验单调递增、墙钟 UTC 合理、sleep 下限。
-// 【运行方式】由 tests/run-std-time-gate.sh 在 native shux 下编译执行。
+// See implementation.
+// See implementation.
 const time = import("std.time");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
-  // 2020-01-01 00:00:00 UTC（秒）；墙钟应大于此值。
+  // See implementation.
   let min_wall_sec: i64 = 1577836800 as i64;
   let ns0: i64 = time.now_monotonic_ns();
   let us0: i64 = time.now_monotonic_us();
@@ -40,7 +44,7 @@ function main(): i32 {
   if (elapsed < 0) {
     return 20;
   }
-  // 宽松下限 10ms（Windows Sleep 粒度、调度抖动）
+  // See implementation.
   if (elapsed < 10000000) {
     return 21;
   }

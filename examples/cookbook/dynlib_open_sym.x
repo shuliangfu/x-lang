@@ -1,13 +1,21 @@
 /**
- * Cookbook DYN-01：dynlib open/sym/close 跨平台烟测（STD-027）。
+ * See implementation.
  */
 const dynlib = import("std.dynlib");
 
-/** 尝试打开 path；成功返回句柄，否则 0。 */
+/** Internal function `try_open`.
+ * Implements `try_open`.
+ * @param path *u8
+ * @return *u8
+ */
 function try_open(path: *u8): *u8 {
   return dynlib.open(path);
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   /** "/usr/lib/libSystem.B.dylib" */
   let path_mac: u8[27] = [

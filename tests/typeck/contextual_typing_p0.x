@@ -1,20 +1,37 @@
-// P0 期望类型传播：赋值 / return / 实参 / struct 字段 / const / return struct 简写
+// See implementation.
 allow(padding) struct Pair { a: i16; b: i32; }
 
 extern function callee_u64(n: u64, m: i32): i32;
 
+/** Internal function `ret_i64_neg`.
+ * Implements `ret_i64_neg`.
+ * @return i64
+ */
 function ret_i64_neg(): i64 {
   return -1;
 }
 
+/** Internal function `ret_ternary_i32`.
+ * Implements `ret_ternary_i32`.
+ * @param n i32
+ * @return i64
+ */
 function ret_ternary_i32(n: i32): i64 {
   return n >= 0 ? n : -1;
 }
 
+/** Internal function `ret_struct`.
+ * Implements `ret_struct`.
+ * @return Pair
+ */
 function ret_struct(): Pair {
   return { a: 1, b: 2 };
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let total: isize = 0;
   let nr: u32 = 0;

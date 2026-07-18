@@ -1,10 +1,14 @@
 // tests/atomic/main.x — std.atomic
-// 回归：load/store、compare_exchange、fetch_add/sub（i32/u32/i64）。
-// 成功退出码 0。
-// 注：shux_asm pass-0 CALL hoist 未 relink 前，勿将 fetch_* 返回值绑到 let（见 pipeline_glue pass-0/1）。
+// See implementation.
+// See implementation.
+// See implementation.
 
 const atomic = import("std.atomic");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   // i32
   let x: i32 = 0;

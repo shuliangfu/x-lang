@@ -1,9 +1,13 @@
-// STD-118：std.trace io/net/async 关键路径挂钩烟测
+// See implementation.
 const trace = import("std.trace");
 const context = import("std.context");
 const async_mod = import("std.async");
 const io = import("std.io");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let zero: i64 = 0;
   let tr: Trace = trace.new();

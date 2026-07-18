@@ -1,22 +1,49 @@
-// d3_call_conv.x — D3 函数调用约定差分测试（与 d3_call_conv.c 同源）
-// 验证：多参数传递（>6 寄存器参数溢出栈）/ struct 返回值 / 递归调用
+// See implementation.
+// See implementation.
 #[repr(C)]
 struct Pair { a: i32; b: i32; }
 
+/** Internal function `make_pair`.
+ * Implements `make_pair`.
+ * @param a i32
+ * @param b i32
+ * @param c i32
+ * @param d i32
+ * @return Pair
+ */
 function make_pair(a: i32, b: i32, c: i32, d: i32): Pair {
   let p: Pair = Pair { a: a + c, b: b + d };
   return p;
 }
 
+/** Internal function `sum6`.
+ * Implements `sum6`.
+ * @param a i32
+ * @param b i32
+ * @param c i32
+ * @param d i32
+ * @param e i32
+ * @param f i32
+ * @return i32
+ */
 function sum6(a: i32, b: i32, c: i32, d: i32, e: i32, f: i32): i32 {
   return a + b + c + d + e + f;
 }
 
+/** Internal function `fib`.
+ * Implements `fib`.
+ * @param n i32
+ * @return i32
+ */
 function fib(n: i32): i32 {
   if (n < 2) { return n; }
   return fib(n - 1) + fib(n - 2);
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let acc: u32 = 0;
 

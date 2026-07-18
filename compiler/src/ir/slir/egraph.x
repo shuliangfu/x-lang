@@ -14,22 +14,19 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// egraph.x — e-graph 数据结构（Arena-native）
+// egraph.x — e-graph data structure (Arena-native)
 //
-// 模块：ir/slir
-// 层级：SLIR
-// Phase：Phase 3
-// 职责：
-//   - 定义 Arena-native EGraph 数据结构（节点 / e-class / union-find）
-//   - e-class 合并（add / merge / union）
-//   - 节点上限控制（10k，超限触发 capped 警告，§4.8）
-//   - 与 union-find 协同维护等价类
-// 依赖：../inst / ../contract
-// 设计约束：
-//   - Arena-native：所有 e-graph 节点在 Arena 中分配，O(1) 批量回收
-//   - 节点上限 10k，超限提取当前最优并报告警告（避免内存爆炸）
-//   - 分块策略：函数为主分块单位 + region 作 alias 边界（§4.6）
-//   - 不是"每 Region 一个 e-graph"——Region 是 Arena 粒度，过细会爆炸
+// Module: ir/slir
+// Layer: SLIR
+// Phase: Phase 3
+// Responsibility:
+//   - Arena-native EGraph (nodes / e-class / union-find)
+//   - e-class merge; node cap 10k with capped warning (§4.8)
+// Depends: ../inst / ../contract
+// Design constraints:
+//   - Arena-native O(1) bulk reclaim
+//   - Function is primary chunk unit; region is alias boundary (§4.6)
+//   - Not one e-graph per Region (too fine explodes)
 //
-// 参考文档：analysis/IR核心设计.md §4.6（分层饱和策略）/ §4.8（e-graph 内存管理）
-// 架构状态：v4.0 Architecture Freeze — 实现骨架，待 Phase 3 填充
+// Ref: analysis IR core design §4.6 (layered saturation) / §4.8 (e-graph memory mgmt)
+// Status: v4.0 Architecture Freeze — implementation skeleton; fill in Phase 3

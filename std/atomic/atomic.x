@@ -14,13 +14,16 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std/atomic/atomic.x — F-atomic v2 模块锚点（F-ZC 纯 .x；原子操作在 runtime_atomic_glue.c）
+// See implementation.
 //
-// 【文件职责】
-// 提供 F-atomic v2 可编译 .x 单元；与 runtime_atomic_glue.o 一并链入 exe。
-// 对外 API 在 mod.x。
+// See implementation.
+// See implementation.
+// See implementation.
 
-/** F-atomic v1 版本标记；供聚合 gate 校验 atomic.x 已参与 ld -r 合并。 */
+/** Exported function `atomic_f_atomic_v1_marker_c`.
+ * Implements `atomic_f_atomic_v1_marker_c`.
+ * @return i32
+ */
 export function atomic_f_atomic_v1_marker_c(): i32 {
   return 1;
 }

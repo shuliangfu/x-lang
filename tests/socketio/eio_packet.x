@@ -1,8 +1,12 @@
 /**
- * STD-SOCKETIO-001 烟测：Engine.IO / Socket.IO EVENT 编解码 + sid 提取。
+ * See implementation.
  */
 const sio = import("std.socketio");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (sio.socketio_packet_smoke() != 0) {
     return 1;

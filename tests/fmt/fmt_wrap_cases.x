@@ -1,17 +1,21 @@
-// fmt 折行回归：本文件用于 tests/run-fmt-wrap.sh。
-// 长行注释不应被折成无 // 的续行；块注释同理。
-// 这是一段故意写得很长的单行注释，用来验证 formatter 不会在中间折断且不会丢失双斜杠前缀，否则解析器会把下一行当成代码。
+// See implementation.
+// See implementation.
+// See implementation.
 
 /**
-* 块注释同样不应在星号续行处丢失星号前缀；本段也故意写长一些以超过默认列宽限制。
+* See implementation.
 */
 
-/** 单行块注释包裹的短说明。 */
+/* See implementation. */
 
 const option = import("core.option");
 
-// ——— 应用代码：分号链（应优先在 ; 后折行，不得出现 refix[ 残骸） ———
+// fmt_test_semicolon_chain: see function docblock below.
 
+/** Internal function `fmt_test_semicolon_chain`.
+ * Implements `fmt_test_semicolon_chain`.
+ * @return i32
+ */
 function fmt_test_semicolon_chain(): i32 {
   let prefix: u8[32] = [];
   prefix[0] = 1; prefix[1] = 2; prefix[2] = 3; prefix[3] = 4; prefix[4] = 5; prefix[5] = 6;
@@ -19,13 +23,21 @@ function fmt_test_semicolon_chain(): i32 {
   return prefix[0] + prefix[11];
 }
 
-// 无分号的长表达式：宁可超宽也不应在单词中间切断。
+// fmt_test_long_add: see function docblock below.
+/** Internal function `fmt_test_long_add`.
+ * Implements `fmt_test_long_add`.
+ * @return i32
+ */
 function fmt_test_long_add(): i32 {
   let accumulator_name_for_fmt: i32 = 1;
   let another_long_identifier: i32 = 2;
   return accumulator_name_for_fmt + another_long_identifier;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let x: i32 = fmt_test_semicolon_chain();
   let y: i32 = fmt_test_long_add();

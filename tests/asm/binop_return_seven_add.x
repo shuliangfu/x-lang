@@ -1,4 +1,8 @@
-// 7.3：七 VAR 左结合加链；|live|max≥6 时第三 spill 用 x12（1+…+7=28）。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32 = 1;
   let b: i32 = 2;

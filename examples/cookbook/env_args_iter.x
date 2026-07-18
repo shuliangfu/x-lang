@@ -1,8 +1,12 @@
 /**
- * Cookbook ENV-01：args_iter / env_iter 遍历入口（STD-025）。
+ * See implementation.
  */
 const env = import("std.env");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let ai: ArgsIter = env.args_iter();
   let a0: *u8 = env.args_iter_next(&ai);

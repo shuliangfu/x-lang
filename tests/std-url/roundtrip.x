@@ -1,6 +1,10 @@
-// STD-076：std.url parse/build/query/resolve round-trip 烟测
+// See implementation.
 const url = import("std.url");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let raw: u8[36] = [
     104, 116, 116, 112, 58, 47, 47, 101, 120, 97, 109, 112, 108, 101, 46, 99,

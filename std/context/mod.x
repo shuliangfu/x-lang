@@ -14,25 +14,25 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.context — 取消、超时与 deadline 传播（STD-071）
+// See implementation.
 //
-// 【文件职责】
-// 跨模块统一的 Context 载体：background / with_cancel / with_deadline / with_timeout；
-// cancel / is_cancelled；deadline_ns / remaining_ns；轻量键值 bag。
-// 实现见 std/context/context.x（F-context v2 纯 .x）；STD-091 io / STD-092 net Context 超时已 gate。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 【所属模块】标准库 std.context；用户通过 import("std.context") 使用。
+// See implementation.
 
-/** 成功。 */
+/* See implementation. */
 export const CTX_OK: i32 = 0;
-/** 空指针或无效句柄。 */
+/* See implementation. */
 export const CTX_ERR_NULL: i32 = -1;
-/** 上下文已取消。 */
+/* See implementation. */
 export const CTX_CANCELLED: i32 = -2;
-/** 已超过 deadline。 */
+/* See implementation. */
 export const CTX_DEADLINE: i32 = -3;
 
-/** 不透明上下文句柄（映射 ctx_node*）。 */
+/* See implementation. */
 export struct Context {
   handle: i64;
 }
@@ -50,78 +50,127 @@ extern function ctx_get_value_c(handle: i64, key: *u8, out: *i64): i32;
 extern function ctx_free_c(handle: i64): void;
 extern function ctx_smoke_c(): i32;
 
-/** 根上下文：永不取消、无 deadline。 */
+/** Exported function `background`.
+ * Implements `background`.
+ * @return Context
+ */
 export function background(): Context {
-  /* 须 struct 字面量零初始化：`= 0` 在 C 对 struct 非法（codegen 会发 `T _rc = 0`）。 */
+  /* See implementation. */
   let _rc: Context = Context { handle: 0 };
   unsafe { _rc = Context { handle: ctx_background_c() }; }
   return _rc;
 }
 
-/** 派生可取消子上下文；失败 handle=0。 */
+/** Exported function `with_cancel`.
+ * Implements `with_cancel`.
+ * @param parent Context
+ * @return Context
+ */
 export function with_cancel(parent: Context): Context {
   let _rc: Context = Context { handle: 0 };
   unsafe { _rc = Context { handle: ctx_with_cancel_c(parent.handle) }; }
   return _rc;
 }
 
-/** 派生带绝对 deadline（单调纳秒）的子上下文。 */
+/** Exported function `with_deadline`.
+ * Implements `with_deadline`.
+ * @param parent Context
+ * @param deadline_ns i64
+ * @return Context
+ */
 export function with_deadline(parent: Context, deadline_ns: i64): Context {
   let _rc: Context = Context { handle: 0 };
   unsafe { _rc = Context { handle: ctx_with_deadline_c(parent.handle, deadline_ns) }; }
   return _rc;
 }
 
-/** 派生相对超时子上下文（now + timeout_ns）。 */
+/** Exported function `with_timeout`.
+ * Implements `with_timeout`.
+ * @param parent Context
+ * @param timeout_ns i64
+ * @return Context
+ */
 export function with_timeout(parent: Context, timeout_ns: i64): Context {
   let _rc: Context = Context { handle: 0 };
   unsafe { _rc = Context { handle: ctx_with_timeout_c(parent.handle, timeout_ns) }; }
   return _rc;
 }
 
-/** 取消上下文（本节点及子链查询可见）。 */
+/** Exported function `cancel`.
+ * Implements `cancel`.
+ * @param ctx Context
+ * @return void
+ */
 export function cancel(ctx: Context): void {
   unsafe {
     ctx_cancel_c(ctx.handle);
   }
 }
 
-/** 是否已取消：1 是，0 否。 */
+/** Exported function `is_cancelled`.
+ * Query helper `is_cancelled`.
+ * @param ctx Context
+ * @return i32
+ */
 export function is_cancelled(ctx: Context): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = ctx_is_cancelled_c(ctx.handle); }
   return _rc;
 }
 
-/** 有效 deadline（单调纳秒）；0 表示无 deadline。 */
+/** Exported function `deadline_ns`.
+ * Implements `deadline_ns`.
+ * @param ctx Context
+ * @return i64
+ */
 export function deadline_ns(ctx: Context): i64 {
   let _rc: i64 = 0;
   unsafe { _rc = ctx_deadline_ns_c(ctx.handle); }
   return _rc;
 }
 
-/** 剩余时间（纳秒）；已取消或过期返回 0。 */
+/** Exported function `remaining_ns`.
+ * Implements `remaining_ns`.
+ * @param ctx Context
+ * @return i64
+ */
 export function remaining_ns(ctx: Context): i64 {
   let _rc: i64 = 0;
   unsafe { _rc = ctx_remaining_ns_c(ctx.handle); }
   return _rc;
 }
 
-/** 设置键值；成功 CTX_OK，槽满 -1。 */
+/** Exported function `set_value`.
+ * Implements `set_value`.
+ * @param ctx Context
+ * @param key *u8
+ * @param value i64
+ * @return i32
+ */
 export function set_value(ctx: Context, key: *u8, value: i64): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = ctx_set_value_c(ctx.handle, key, value); }
   return _rc;
 }
 
-/** 读取键值；找到返回 1 并写 *out，否则 0。 */
+/** Exported function `get_value`.
+ * Query helper `get_value`.
+ * @param ctx Context
+ * @param key *u8
+ * @param out *i64
+ * @return i32
+ */
 export function get_value(ctx: Context, key: *u8, out: *i64): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = ctx_get_value_c(ctx.handle, key, out); }
   return _rc;
 }
 
-/** 释放派生上下文（不可释放 background）。 */
+/** Exported function `free`.
+ * Memory management helper `free`.
+ * @param ctx Context
+ * @return void
+ */
 export function free(ctx: Context): void {
   unsafe {
     ctx_free_c(ctx.handle);

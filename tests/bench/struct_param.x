@@ -1,14 +1,22 @@
-// struct_param.x — 性能基线：循环内按值传递小 struct（Pair 两个 i32）
+// See implementation.
 struct Pair {
   a: i32
   b: i32
 }
 
-/** 按值累加 struct 字段，测传参/拷贝与字段访问代码质量。 */
+/** Internal function `add_pair`.
+ * Implements `add_pair`.
+ * @param p Pair
+ * @return i32
+ */
 function add_pair(p: Pair): i32 {
   return p.a + p.b;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let n: i32 = 100000000;
   let s: i32 = 0;

@@ -1,11 +1,15 @@
-// STD-080/081：std.option + std.result 组合子与互转烟测
+// See implementation.
 const option = import("std.option");
 const result = import("std.result");
 const err = import("std.error");
-// Option_* / Result_* 类型定义在 core 层；import 以注册类型供注解与字段访问。
+// See implementation.
 const _core_option = import("core.option");
 const _core_result = import("core.result");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let o1: Option_i32 = option.some(10);
   let o2: Option_i32 = option.none();

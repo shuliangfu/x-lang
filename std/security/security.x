@@ -14,10 +14,10 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std/security/security.x — 应用层安全原语（F-security v1 + F-ZC；替代 security.c）
+// See implementation.
 //
-// 【文件职责】
-// secure_zero、HKDF-SHA256、mlock/munlock、烟测；纯 .x 编译为 security.o。
+// See implementation.
+// See implementation.
 
 extern function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 extern function memset(dst: *u8, c: i32, n: usize): *u8;
@@ -27,21 +27,24 @@ extern function munlock(addr: *u8, len: usize): i32;
 extern function crypto_hmac_sha256_c(key: *u8, key_len: i32, msg: *u8, msg_len: i32, out: *u8): void;
 extern function crypto_mem_eq_c(a: *u8, b: *u8, len: i32): i32;
 
-/** SHA-256 输出长度。 */
+/* See implementation. */
 export const SEC_SHA256_LEN: i32 = 32;
 
-/** F-std-zero-c：security_os_glue.c 已删除。 */
+/** Exported function `security_f_zero_c_marker_c`.
+ * Implements `security_f_zero_c_marker_c`.
+ * @return i32
+ */
 export function security_f_zero_c_marker_c(): i32 {
   return 1;
 }
 
 /**
- * 尝试 mlock；成功 1，不支持或失败 0。
- * 经 libc mlock（POSIX；Windows 链路由链接阶段解析）。
+ * See implementation.
+ * See implementation.
  */
 export function security_mlock_c(p: *u8, len: i32): i32 {
   if (p == 0 || len <= 0) { return 0; }
-  /* 【Why】勿用 if (unsafe { call() } == 0)：表达式 unsafe 落成 statement-expr，C 侧 void 与 int 比较 */
+  /* See implementation. */
   let rc: i32 = 0;
   unsafe { rc = mlock(p, len); }
   if (rc == 0) { return 1; }
@@ -49,8 +52,8 @@ export function security_mlock_c(p: *u8, len: i32): i32 {
 }
 
 /**
- * 解除 mlock；成功 1，否则 0。
- * 经 libc munlock。
+ * See implementation.
+ * See implementation.
  */
 export function security_munlock_c(p: *u8, len: i32): i32 {
   if (p == 0 || len <= 0) { return 0; }
@@ -60,7 +63,12 @@ export function security_munlock_c(p: *u8, len: i32): i32 {
   return 0;
 }
 
-/** 安全清零：volatile 写避免编译器优化掉。 */
+/** Exported function `security_secure_zero_c`.
+ * Implements `security_secure_zero_c`.
+ * @param p *u8
+ * @param len i32
+ * @return void
+ */
 export function security_secure_zero_c(p: *u8, len: i32): void {
   let i: i32 = 0;
   if (p == 0 || len <= 0) { return; }
@@ -87,7 +95,15 @@ export function sec_hkdf_extract(salt: *u8, salt_len: i32, ikm: *u8, ikm_len: i3
   unsafe { crypto_hmac_sha256_c(s, sl, ikm, ikm_len, prk); }
 }
 
-/** HKDF-Expand：由 PRK 派生 okm_len 字节 OKM。 */
+/** Exported function `sec_hkdf_expand`.
+ * Implements `sec_hkdf_expand`.
+ * @param prk *u8
+ * @param info *u8
+ * @param info_len i32
+ * @param okm *u8
+ * @param okm_len i32
+ * @return i32
+ */
 export function sec_hkdf_expand(prk: *u8, info: *u8, info_len: i32, okm: *u8, okm_len: i32): i32 {
   let t: u8[32];
   let block: u8[545];
@@ -123,7 +139,7 @@ export function sec_hkdf_expand(prk: *u8, info: *u8, info_len: i32, okm: *u8, ok
   return 0;
 }
 
-/** HKDF-SHA256（RFC 5869）；成功 0，参数非法 -1。 */
+/* See implementation. */
 export function security_hkdf_sha256_c(salt: *u8, salt_len: i32, ikm: *u8, ikm_len: i32,
                                 info: *u8, info_len: i32, okm: *u8, okm_len: i32): i32 {
   let prk: u8[32];
@@ -132,7 +148,10 @@ export function security_hkdf_sha256_c(salt: *u8, salt_len: i32, ikm: *u8, ikm_l
   return sec_hkdf_expand(&prk[0], info, info_len, okm, okm_len);
 }
 
-/** C 烟测：HKDF RFC5869 TC1 + secure_zero + mem_eq。 */
+/** Exported function `security_smoke_c`.
+ * Implements `security_smoke_c`.
+ * @return i32
+ */
 export function security_smoke_c(): i32 {
   let ikm: u8[22] = [
     11, 11, 11, 11, 11, 11, 11, 11, 11, 11,

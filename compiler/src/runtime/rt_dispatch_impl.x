@@ -1,15 +1,15 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-313/446 → R2 full：分派中型 impl（asm/emit/post_parse/full_x/x_emit_from_state）。
-// 产品 PREFER_X_O：.x 吃满业务符号；FROM_X rest 仅 marker（业务 H=0）。
-// Cap residual（driver_abi）：lib_key→lib_roots 槽 + Parsed 填表调 run_compiler_parsed。
-// 产品路径对齐 RUNTIME_DRIVER_NO_C_CFLAGS：
+// Dispatch medium impl (asm/emit/post_parse/full_x); G.9 English; body authoritative.
+// Dispatch medium impl (asm/emit/post_parse/full_x); G.9 English; body authoritative.
+// Dispatch medium impl (asm/emit/post_parse/full_x); G.9 English; body authoritative.
+// Dispatch medium impl (asm/emit/post_parse/full_x); G.9 English; body authoritative.
 //   USE_X_DRIVER+PIPELINE + NO_C_FRONTEND + ASM_USE_COMPILER_IMPL_C
-//   （sibling / 非 product ifdef 仅冷启动 C seed 保留）。
-// 纪律：禁局部 u8[N] / let **u8；argv 经 get_argv_i；state 布局同 compile.x。
+// Dispatch medium impl (asm/emit/post_parse/full_x); G.9 English; body authoritative.
+// Dispatch medium impl (asm/emit/post_parse/full_x); G.9 English; body authoritative.
 
-/** 与 seeds DriverCompileStateSU / compile.x DriverCompileState 字段序一致。 */
+/* See signature and body for contracts. */
 export struct RtDispatchState {
   path_buf: u8[512];
   path_len: i32;
@@ -167,7 +167,7 @@ export function rt_di_effective_use_lto(use_lto: i32): i32 {
   return 0;
 }
 
-/** asm 后端：lib_key → lib_roots，委托 driver_run_asm_backend。 */
+/* See signature and body for contracts. */
 #[no_mangle]
 export function driver_run_asm_backend_impl_c(
   input_path: *u8, out_path: *u8, lib_key: *u8, target: *u8,
@@ -198,7 +198,7 @@ export function driver_run_asm_backend_impl_c(
   return 1;
 }
 
-/** C 后端：lib_key→lib_roots；产品 NO_C 不走 sibling；parsed。 */
+/* See signature and body for contracts. */
 #[no_mangle]
 export function driver_run_emit_c_path_impl_c(
   input_path: *u8, out_path: *u8, lib_key: *u8, target: *u8,
@@ -228,7 +228,7 @@ export function driver_run_emit_c_path_impl_c(
     }
   }
   lto = rt_di_effective_use_lto(use_lto);
-  // 产品 SHUX_NO_C_FRONTEND：不调用 try_compile_via_shu_c_sibling（冷 C seed 仍保留）。
+  // Dispatch medium impl (asm/emit/post_parse/full_x); G.9 English; body authoritative.
   unsafe {
     return driver_dispatch_run_compiler_parsed(
       input_path, out_path, roots, n, tgt, opt, lto, argc, argv);
@@ -236,7 +236,7 @@ export function driver_run_emit_c_path_impl_c(
   return 1;
 }
 
-/** `-E`：compile state → emit state 槽 → driver_run_x_emit_c。 */
+/* See signature and body for contracts. */
 #[no_mangle]
 export function driver_run_x_emit_c_from_compile_state(
   state: *RtDispatchState, argc: i32, argv: *u8
@@ -302,7 +302,7 @@ export function driver_run_x_emit_c_from_compile_state(
   return 1;
 }
 
-/** parse 完成后后端选择 + 分派（产品：USE_X + ASM_IMPL_C 路径）。 */
+/* See signature and body for contracts. */
 #[no_mangle]
 export function driver_run_compiler_full_x_post_parse_impl_c(
   state: *RtDispatchState, argc: i32, argv: *u8
@@ -315,7 +315,7 @@ export function driver_run_compiler_full_x_post_parse_impl_c(
   if (state == 0 as *RtDispatchState) {
     return 1;
   }
-  // 产品 SHUX_USE_X_DRIVER && SHUX_USE_X_PIPELINE：-E 走 x_emit
+  // Dispatch medium impl (asm/emit/post_parse/full_x); G.9 English; body authoritative.
   unsafe {
     if (driver_argv_has_emit_c_flag(argc, argv) != 0) {
       return driver_run_x_emit_c_from_compile_state(state, argc, argv);
@@ -351,7 +351,7 @@ export function driver_run_compiler_full_x_post_parse_impl_c(
   if (state.target_len > 0) {
     target_ptr = &state.target_buf[0];
   }
-  // 产品 SHUX_ASM_USE_COMPILER_IMPL_C：无 import 时强制 explicit
+  // Dispatch medium impl (asm/emit/post_parse/full_x); G.9 English; body authoritative.
   if (state.out_path_len > 0) {
     if (state.backend_asm_explicit == 0) {
       unsafe {
@@ -392,7 +392,12 @@ export function driver_run_compiler_full_x_post_parse_impl_c(
     &state.opt_level_buf[0], state.use_lto, argc, argv);
 }
 
-/** 完整编译 C 入口：堆 state + parse_argv + post_parse。 */
+/** Exported function `driver_run_compiler_full_x_impl_c`.
+ * Implements `driver_run_compiler_full_x_impl_c`.
+ * @param argc i32
+ * @param argv *u8
+ * @return i32
+ */
 #[no_mangle]
 export function driver_run_compiler_full_x_impl_c(argc: i32, argv: *u8): i32 {
   let state: *RtDispatchState = 0 as *RtDispatchState;

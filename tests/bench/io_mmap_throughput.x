@@ -1,9 +1,13 @@
-// io_mmap_throughput.x — I/O 基线：大文件 mmap 顺序扫描（与 run-perf-io.sh 配套）
-// 数据文件由脚本生成：tests/bench/.io_mmap_bench_tmp（默认 16MiB）
+// See implementation.
+// See implementation.
 const fs = import("std.fs");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
-  // 路径 "tests/bench/.io_mmap_bench_tmp"（NUL 结尾，相对仓库根 cwd）
+  // See implementation.
   let path: u8[31] =
   [116, 101, 115, 116, 115, 47, 98, 101, 110, 99, 104, 47, 46, 105, 111, 95, 109, 109, 97, 112, 95,
   98, 101, 110, 99, 104, 95,

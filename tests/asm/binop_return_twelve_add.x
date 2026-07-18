@@ -1,4 +1,8 @@
-// 7.3：十二 VAR 左结合加链；需栈帧 spill 时验 sub sp,#16 push（1+…+12=78）。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32 = 1;
   let b: i32 = 2;

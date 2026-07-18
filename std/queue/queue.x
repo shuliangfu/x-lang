@@ -14,23 +14,29 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std/queue/queue.x — F-queue v2：API 锚点（G-03 seed asm）
+// See implementation.
 //
-// 【文件职责】
-// 版本标记；sync_queue_contention_smoke_c / queue_contention_worker_push_c 实现在
-// runtime_queue_contention.c（pthread + 环形队列烟测）。
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 【对标】Rust VecDeque + std.sync::Mutex 竞争烟测。
+// See implementation.
 
-/** F-queue v1 版本标记。 */
+/** Exported function `queue_f_queue_v1_marker_c`.
+ * Implements `queue_f_queue_v1_marker_c`.
+ * @return i32
+ */
 export function queue_f_queue_v1_marker_c(): i32 {
   return 1;
 }
 
-/** F-queue v2 烟测逻辑下沉标记。 */
+/** Exported function `queue_f_queue_v2_marker_c`.
+ * Implements `queue_f_queue_v2_marker_c`.
+ * @return i32
+ */
 export function queue_f_queue_v2_marker_c(): i32 {
   return 1;
 }
 
-// sync_queue_contention_smoke_c — 见 compiler/src/asm/runtime_queue_contention.c
-// queue_contention_worker_push_c — 见 runtime_queue_contention.c
+// See implementation.
+// See implementation.

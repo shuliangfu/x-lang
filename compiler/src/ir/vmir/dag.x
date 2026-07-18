@@ -14,21 +14,20 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// dag.x — DAG 依赖图构建
+// dag.x — DAG dependency graph construction
 //
-// 模块：ir/vmir
-// 层级：VMIR
-// Phase：Phase 5
-// 职责：
-//   - 将 MachineInst 序列构建为 DAG（有向无环图）
-//   - 节点 = MachineInst，边 = 数据依赖 / 控制依赖
-//   - 依赖来源：defs / uses 重叠 / Effect 约束（Write 不可重排）
-//   - 供 sched.x 做指令调度
-// 依赖：./machine_inst / ../effect
-// 设计约束：
-//   - DAG 必须无环（有环 = 编译器 bug）
-//   - 依赖边基于 Effect（Write{regions} 不相交可并行）
-//   - DAG 构建必须确定性
+// Module: ir/vmir
+// Layer: VMIR
+// Phase: Phase 5
+// Responsibility:
+//   - Build a DAG from a MachineInst sequence
+//   - Nodes = MachineInst; edges = data deps / control deps
+//   - Consumed by sched.x for instruction scheduling
+// Depends: ./machine_inst / ../effect
+// Design constraints:
+//   - DAG must be acyclic (cycle = compiler bug)
+//   - Dep edges based on Effect (disjoint Write{regions} may run in parallel)
+//   - DAG construction must be deterministic
 //
-// 参考文档：analysis/IR核心设计.md §2.1（VMIR DAG 构建）/ §1.7（Effect 调度约束）
-// 架构状态：v4.0 Architecture Freeze — 实现骨架，待 Phase 5 填充
+// Ref: analysis IR core design §2.1 (VMIR DAG build) / §1.7 (Effect scheduling constraints)
+// Status: v4.0 Architecture Freeze — implementation skeleton; fill in Phase 5

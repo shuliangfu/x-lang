@@ -1,20 +1,33 @@
-// tests/dynlib/open_sym_close.x — STD-027：open/sym/close 烟测（POSIX + Windows 路径）
+// See implementation.
 //
-// 【文件职责】按序尝试平台已知系统库路径，校验 sym 非空后 close。
-// 【平台】macOS libSystem / Linux libc.so.6 / Windows kernel32.dll
+// See implementation.
+// See implementation.
 const dynlib = import("std.dynlib");
 
-/** 尝试打开 path；成功返回句柄，否则 0。 */
+/** Internal function `try_open`.
+ * Implements `try_open`.
+ * @param path *u8
+ * @return *u8
+ */
 function try_open(path: *u8): *u8 {
   return dynlib.open(path);
 }
 
-/** 尝试 sym；lib 为 0 时返回 0。 */
+/** Internal function `try_sym`.
+ * Implements `try_sym`.
+ * @param lib *u8
+ * @param name *u8
+ * @return *u8
+ */
 function try_sym(lib: *u8, name: *u8): *u8 {
   if (lib == 0) { return 0; }
   return dynlib.sym(lib, name);
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   // "/usr/lib/libSystem.B.dylib"
   let path_mac: u8[27] = [

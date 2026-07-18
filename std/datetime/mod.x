@@ -14,29 +14,29 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.datetime — 日期时间解析、格式化、时区与 Duration（STD-074 / F-datetime v2）
+// See implementation.
 //
-// 【文件职责】
-// DateTime（UTC Unix sec+nsec）、RFC3339/RFC3339Nano、日历字段、
-// 本地时区偏移、Duration 算术、IANA DST；逻辑与 datetime_local_offset_min_c 均在 datetime.x（F-ZC）。
-// 与 std.time sleep/单调差互操作。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 【对标】Go time.Time、Rust chrono、Zig std.time 高层。
+// See implementation.
 
 const time = import("std.time");
 
-/** UTC 墙钟时刻：Unix 纪元秒 + 纳秒余数。 */
+/* See implementation. */
 allow(padding) struct DateTime {
   sec: i64;
   nsec: i32;
 }
 
-/** 纳秒精度时间间隔。 */
+/* See implementation. */
 allow(padding) struct Duration {
   ns: i64;
 }
 
-/** 日历字段（month 1..12）。 */
+/* See implementation. */
 allow(padding) struct DateFields {
   year: i32;
   month: i32;
@@ -69,7 +69,10 @@ extern function datetime_from_iana_zoned_fields_c(iana_id: i32, y: i32, mo: i32,
 extern function datetime_iana_dst_smoke_c(): i32;
 extern function datetime_timezone_smoke_c(): i32;
 
-/** 当前 UTC 时刻。 */
+/** Exported function `now_utc`.
+ * Implements `now_utc`.
+ * @return DateTime
+ */
 export function now_utc(): DateTime {
   let sec: i64 = 0;
   let nsec: i32 = 0;
@@ -79,12 +82,21 @@ export function now_utc(): DateTime {
   return DateTime { sec: sec, nsec: nsec };
 }
 
-/** 由 Unix 秒构造 UTC DateTime。 */
+/** Exported function `from_unix`.
+ * Implements `from_unix`.
+ * @param sec i64
+ * @param nsec i32
+ * @return DateTime
+ */
 export function from_unix(sec: i64, nsec: i32): DateTime {
   return DateTime { sec: sec, nsec: nsec };
 }
 
-/** 由 UTC 日历字段构造；失败返回 sec=-1。 */
+/** Exported function `from_utc_fields`.
+ * Implements `from_utc_fields`.
+ * @param f DateFields
+ * @return DateTime
+ */
 export function from_utc_fields(f: DateFields): DateTime {
   let sec: i64 = 0;
   let nsec: i32 = 0;
@@ -96,7 +108,11 @@ export function from_utc_fields(f: DateFields): DateTime {
   return DateTime { sec: sec, nsec: nsec };
 }
 
-/** 分解为 UTC 日历字段。 */
+/** Exported function `to_utc_fields`.
+ * Implements `to_utc_fields`.
+ * @param t DateTime
+ * @return DateFields
+ */
 export function to_utc_fields(t: DateTime): DateFields {
   let y: i32 = 0;
   let mo: i32 = 0;
@@ -110,14 +126,26 @@ export function to_utc_fields(t: DateTime): DateFields {
   return DateFields { year: y, month: mo, day: d, hour: h, minute: mi, second: s, nsec: t.nsec };
 }
 
-/** 比较两个 DateTime：-1/0/1。 */
+/** Exported function `compare`.
+ * Implements `compare`.
+ * @param a DateTime
+ * @param b DateTime
+ * @return i32
+ */
 export function compare(a: DateTime, b: DateTime): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = datetime_compare_c(a.sec, a.nsec, b.sec, b.nsec); }
   return _rc;
 }
 
-/** 解析 RFC3339 / RFC3339Nano；0 成功，-1 失败。 */
+/** Exported function `parse_rfc3339`.
+ * Implements `parse_rfc3339`.
+ * @param ptr *u8
+ * @param len i32
+ * @param out *DateTime
+ * @param offset_min *i32
+ * @return i32
+ */
 export function parse_rfc3339(ptr: *u8, len: i32, out: *DateTime, offset_min: *i32): i32 {
   let sec: i64 = 0;
   let nsec: i32 = 0;
@@ -131,28 +159,48 @@ export function parse_rfc3339(ptr: *u8, len: i32, out: *DateTime, offset_min: *i
   return 0;
 }
 
-/** 格式化为 RFC3339 UTC（Z）；返回写入长度，失败 -1。 */
+/** Exported function `format_rfc3339`.
+ * Implements `format_rfc3339`.
+ * @param t DateTime
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function format_rfc3339(t: DateTime, out: *u8, out_cap: i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = datetime_format_rfc3339_c(t.sec, t.nsec, out, out_cap); }
   return _rc;
 }
 
-/** 格式化为 RFC3339Nano UTC；返回写入长度，失败 -1。 */
+/** Exported function `format_rfc3339_nano`.
+ * Implements `format_rfc3339_nano`.
+ * @param t DateTime
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function format_rfc3339_nano(t: DateTime, out: *u8, out_cap: i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = datetime_format_rfc3339_nano_c(t.sec, t.nsec, out, out_cap); }
   return _rc;
 }
 
-/** 本地时区相对 UTC 偏移（分钟，东为正）。 */
+/** Exported function `local_offset_min`.
+ * Implements `local_offset_min`.
+ * @return i32
+ */
 export function local_offset_min(): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = datetime_local_offset_min_c(); }
   return _rc;
 }
 
-/** 按本地偏移分解日历字段。 */
+/** Exported function `to_local_fields`.
+ * Implements `to_local_fields`.
+ * @param t DateTime
+ * @param offset_min i32
+ * @return DateFields
+ */
 export function to_local_fields(t: DateTime, offset_min: i32): DateFields {
   let y: i32 = 0;
   let mo: i32 = 0;
@@ -166,17 +214,30 @@ export function to_local_fields(t: DateTime, offset_min: i32): DateFields {
   return DateFields { year: y, month: mo, day: d, hour: h, minute: mi, second: s, nsec: t.nsec };
 }
 
-/** 构造 Duration（纳秒）。 */
+/** Exported function `duration_from_ns`.
+ * Implements `duration_from_ns`.
+ * @param ns i64
+ * @return Duration
+ */
 export function duration_from_ns(ns: i64): Duration {
   return Duration { ns: ns };
 }
 
-/** 构造 Duration（秒）。 */
+/** Exported function `duration_from_sec`.
+ * Implements `duration_from_sec`.
+ * @param s i64
+ * @return Duration
+ */
 export function duration_from_sec(s: i64): Duration {
   return Duration { ns: s * 1000000000 };
 }
 
-/** 两 DateTime 之差（b - a）。 */
+/** Exported function `duration_between`.
+ * Implements `duration_between`.
+ * @param a DateTime
+ * @param b DateTime
+ * @return Duration
+ */
 export function duration_between(a: DateTime, b: DateTime): Duration {
   let ns: i64 = 0;
   unsafe {
@@ -185,7 +246,12 @@ export function duration_between(a: DateTime, b: DateTime): Duration {
   return Duration { ns: ns };
 }
 
-/** DateTime 加 Duration。 */
+/** Exported function `add_duration`.
+ * Implements `add_duration`.
+ * @param t DateTime
+ * @param d Duration
+ * @return DateTime
+ */
 export function add_duration(t: DateTime, d: Duration): DateTime {
   let sec: i64 = 0;
   let nsec: i32 = 0;
@@ -197,42 +263,61 @@ export function add_duration(t: DateTime, d: Duration): DateTime {
   return DateTime { sec: sec, nsec: nsec };
 }
 
-/** Duration 睡眠（委托 std.time.sleep_ns）。 */
+/** Exported function `duration_sleep`.
+ * Implements `duration_sleep`.
+ * @param d Duration
+ * @return void
+ */
 export function duration_sleep(d: Duration): void {
   time.sleep_ns(d.ns);
 }
 
-/** 单调时钟差 → Duration。 */
+/** Exported function `duration_from_monotonic`.
+ * Implements `duration_from_monotonic`.
+ * @param from_ns i64
+ * @param to_ns i64
+ * @return Duration
+ */
 export function duration_from_monotonic(from_ns: i64, to_ns: i64): Duration {
   return Duration { ns: time.duration_ns(from_ns, to_ns) };
 }
 
-// ——— STD-135/136：固定偏移 + IANA DST 时区 ———
+// See implementation.
 
-/** 固定偏移或 IANA 时区；iana_id>=0 时按 UTC 秒查 DST 规则。 */
+/* See implementation. */
 allow(padding) struct TimeZone {
   offset_min: i32;
   iana_id: i32;
 }
 
-/** UTC 时区（offset 0）。 */
+/** Exported function `timezone_utc`.
+ * Implements `timezone_utc`.
+ * @return TimeZone
+ */
 export function timezone_utc(): TimeZone {
   return TimeZone { offset_min: 0, iana_id: 0 };
 }
 
-/** 平台本地时区偏移（固定，无 IANA）。 */
+/** Exported function `timezone_local`.
+ * Implements `timezone_local`.
+ * @return TimeZone
+ */
 export function timezone_local(): TimeZone {
   return TimeZone { offset_min: local_offset_min(), iana_id: -1 };
 }
 
-/** 指定固定偏移（分钟）；iana_id=-1。 */
+/** Exported function `timezone_fixed`.
+ * Implements `timezone_fixed`.
+ * @param offset_min i32
+ * @return TimeZone
+ */
 export function timezone_fixed(offset_min: i32): TimeZone {
   return TimeZone { offset_min: offset_min, iana_id: -1 };
 }
 
 /**
- * 按内置名解析时区（UTC/JST/CST/…）；成功 0 并写 out，未知 -1。
- * v1 为固定标准时偏移，不含夏令时规则。
+ * See implementation.
+ * See implementation.
  */
 export function timezone_from_name(name: *u8, name_len: i32, out: *TimeZone): i32 {
   let off: i32 = 0;
@@ -247,8 +332,8 @@ export function timezone_from_name(name: *u8, name_len: i32, out: *TimeZone): i3
 }
 
 /**
- * 按 IANA 时区名解析（America/New_York / Europe/London / Asia/Tokyo 等）；含 DST。
- * 成功 0；未知 -1。
+ * See implementation.
+ * See implementation.
  */
 export function timezone_iana(name: *u8, name_len: i32, out: *TimeZone): i32 {
   let id: i32 = 0;
@@ -263,7 +348,12 @@ export function timezone_iana(name: *u8, name_len: i32, out: *TimeZone): i32 {
   return 0;
 }
 
-/** 指定 UTC 时刻在时区下的偏移（分钟；IANA 含 DST，固定区用 offset_min）。 */
+/** Exported function `timezone_offset_at`.
+ * Implements `timezone_offset_at`.
+ * @param t DateTime
+ * @param tz TimeZone
+ * @return i32
+ */
 export function timezone_offset_at(t: DateTime, tz: TimeZone): i32 {
   if (tz.iana_id >= 0) {
     unsafe {
@@ -273,20 +363,36 @@ export function timezone_offset_at(t: DateTime, tz: TimeZone): i32 {
   return tz.offset_min;
 }
 
-/** 解析 ±HH:MM / ±HHMM / Z 或内置时区名；成功 0。 */
+/** Exported function `parse_offset_min`.
+ * Implements `parse_offset_min`.
+ * @param ptr *u8
+ * @param len i32
+ * @param out *i32
+ * @return i32
+ */
 export function parse_offset_min(ptr: *u8, len: i32, out: *i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = datetime_parse_offset_min_c(ptr, len, out); }
   return _rc;
 }
 
-/** UTC DateTime → 时区墙钟日历字段（IANA 按 t.sec 查 DST）。 */
+/** Exported function `to_zoned_fields`.
+ * Implements `to_zoned_fields`.
+ * @param t DateTime
+ * @param tz TimeZone
+ * @return DateFields
+ */
 export function to_zoned_fields(t: DateTime, tz: TimeZone): DateFields {
   let off: i32 = timezone_offset_at(t, tz);
   return to_local_fields(t, off);
 }
 
-/** 时区墙钟日历字段 → UTC DateTime；IANA 含 DST refinement。 */
+/** Exported function `from_zoned_fields`.
+ * Implements `from_zoned_fields`.
+ * @param f DateFields
+ * @param tz TimeZone
+ * @return DateTime
+ */
 export function from_zoned_fields(f: DateFields, tz: TimeZone): DateTime {
   let sec: i64 = 0;
   let nsec: i32 = 0;
@@ -308,14 +414,20 @@ export function from_zoned_fields(f: DateFields, tz: TimeZone): DateTime {
   return DateTime { sec: sec, nsec: nsec };
 }
 
-/** IANA DST 烟测；0 通过。 */
+/** Exported function `iana_dst_smoke`.
+ * Implements `iana_dst_smoke`.
+ * @return i32
+ */
 export function iana_dst_smoke(): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = datetime_iana_dst_smoke_c(); }
   return _rc;
 }
 
-/** STD-135 C 金样。 */
+/** Exported function `timezone_smoke`.
+ * Implements `timezone_smoke`.
+ * @return i32
+ */
 export function timezone_smoke(): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = datetime_timezone_smoke_c(); }

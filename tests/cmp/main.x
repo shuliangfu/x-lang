@@ -1,6 +1,10 @@
-// CORE-005 烟测：Ordering + cmp_i32 / cmp_u8 / cmp_ptr + then/reverse
+// See implementation.
 const cmp = import("core.cmp");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let o_lt: Ordering = cmp.cmp_i32(1, 2);
   let o_eq: Ordering = cmp.cmp_i32(5, 5);

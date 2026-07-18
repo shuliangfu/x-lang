@@ -1,4 +1,8 @@
-// 7.3：assign + return arr[(i-(j+k))*lit] 读写 scratch（run-asm-assign-index-expr.sh）。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let arr: i32[4] = [10, 20, 30, 40];
   let i: i32 = 3;

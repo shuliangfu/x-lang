@@ -14,38 +14,38 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.heap.page_mmap — Linux freestanding 堆：匿名 mmap bump（零 libc / 无 malloc）
+// See implementation.
 //
-// 【文件职责】
-// F-no-libc NL-03：直接声明 shux_sys_mmap/munmap extern 提供页级 bump 分配器，
-// 供 `-freestanding -backend asm` 程序与后续编译器自举堆路径使用；不链 heap.c。
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 【Why 自包含】freestanding 模块须最小依赖；直接 extern syscall 桩避免 import
-// std.sys.linux 触发 -x -E dep const/extern 前缀化问题（codegen.x dep_index<0 裸名
-// vs dep_index>=0 带前缀的符号模型不匹配）。align_up 内联消除 core.mem 依赖。
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 【限制 v1】
-// - 单块匿名映射（默认 64KiB）；bump 用尽返回 null（不自动扩容）
-// - free 为 no-op（与 Arena bump 一致）；deinit 整段 munmap
-// - 仅 Linux freestanding；hosted 仍用 heap.c / malloc
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 
-/** freestanding mmap(2) 桩（6 参；offset 低 32 位在 r9）。 */
+/* See implementation. */
 extern function shux_sys_mmap(addr: *u8, len: usize, prot: i32, flags: i32, fd: i32, offset: i64): *u8;
 
-/** freestanding munmap(2) 桩；成功 0，失败负 errno。 */
+/* See implementation. */
 extern function shux_sys_munmap(addr: *u8, len: usize): i32;
 
-/** 默认映射容量（64KiB）。bug ① 已修复（commit 853c5e1b）：字面量 const 跳过栈槽登记，引用走立即数。 */
+/* See implementation. */
 export const HEAP_CAP: usize = 65536;
 /** mmap prot：PROT_READ|PROT_WRITE。 */
 export const HEAP_PROT: i32 = 3;
 /** mmap flags：MAP_PRIVATE|MAP_ANONYMOUS。 */
 export const HEAP_FLAGS: i32 = 0x22;
-/** mmap fd：MAP_ANONYMOUS 时传 -1。 */
+/* See implementation. */
 export const HEAP_FD: i32 = -1;
 
 /**
- * 单映射 bump 堆状态；调用方栈上持有，init/deinit 成对使用。
+ * See implementation.
  */
 allow(padding) struct PageMmapHeap {
   base: *u8;
@@ -54,14 +54,14 @@ allow(padding) struct PageMmapHeap {
 }
 
 /**
- * v1 探测：page_mmap 堆是否在 mod 层可用（Linux freestanding 路径恒 1）。
+ * See implementation.
  */
 export function page_mmap_heap_available(): i32 {
   return 1;
 }
 
 /**
- * 映射匿名 RW 区并初始化 bump；成功 0，失败 -1。
+ * See implementation.
  */
 export function page_mmap_heap_init(h: *PageMmapHeap): i32 {
   if (h == 0) {
@@ -74,7 +74,7 @@ export function page_mmap_heap_init(h: *PageMmapHeap): i32 {
   unsafe {
     p = shux_sys_mmap(0 as *u8, HEAP_CAP, HEAP_PROT, HEAP_FLAGS, HEAP_FD, 0 as i64);
   }
-  // mmap 失败返回 MAP_FAILED（-1）；bug ② 已修复（commit 6d1e3922），i64 比较发射 REX.W 前缀。
+  // See implementation.
   if (p == -1 as *u8) {
     return -1;
   }
@@ -85,8 +85,8 @@ export function page_mmap_heap_init(h: *PageMmapHeap): i32 {
 }
 
 /**
- * bump 分配 size 字节（align 向上对齐）；失败返回 null。
- * align 须为 2 的幂；0 视为 1。
+ * See implementation.
+ * See implementation.
  */
 export function page_mmap_heap_alloc(h: *PageMmapHeap, size: usize, align_bytes: usize): *u8 {
   if (h == 0 as *PageMmapHeap) {
@@ -116,13 +116,13 @@ export function page_mmap_heap_alloc(h: *PageMmapHeap, size: usize, align_bytes:
 }
 
 /**
- * bump free no-op（保留 API 与 Allocator 语义对齐）。
+ * See implementation.
  */
 export function page_mmap_heap_free(_h: *PageMmapHeap, _ptr: *u8): void {
 }
 
 /**
- * munmap 整段映射并重置字段。
+ * See implementation.
  */
 export function page_mmap_heap_deinit(h: *PageMmapHeap): void {
   if (h == 0) {

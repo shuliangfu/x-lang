@@ -1,10 +1,15 @@
-// net_udp_many.x — N4：UDP recv_many_buf 批量收包（server，与 run-perf-net.sh 配套）
-// 监听 127.0.0.1；4096×64B 报文；argv[1] 为动态端口（默认 38458）。
+// See implementation.
+// See implementation.
 const net = import("std.net");
 const driver = import("std.io.driver");
 const process = import("std.process");
 
-/** 解析十进制 u32 端口；非法返回 default_port。 */
+/** Internal function `bench_parse_port`.
+ * Implements `bench_parse_port`.
+ * @param s *u8
+ * @param default_port u32
+ * @return u32
+ */
 function bench_parse_port(s: *u8, default_port: u32): u32 {
   if (s == 0 as *u8) { return default_port; }
   let n: u32 = 0;
@@ -20,8 +25,12 @@ function bench_parse_port(s: *u8, default_port: u32): u32 {
   return n;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
-  /** 与 net_udp_many_client.c / run-perf-net.sh 一致；argv[1] 为动态端口。 */
+  /* See implementation. */
   let udp_port: u32 = 38458;
   if (process.args_count() >= 2) {
     udp_port = bench_parse_port(process.arg(1), udp_port);
@@ -55,7 +64,7 @@ function main(): i32 {
   let out_ports: u32[8] = [0, 0, 0, 0, 0, 0, 0, 0];
   let total: i32 = 0;
   let sum: i32 = 0;
-  /** timeout 5s 防止 client 未就绪时永久阻塞。 */
+  /* See implementation. */
   while (total < udp_pkts) {
     let n: i32 = net.udp_recv_many_buf(sock, &bufs[0], batch, 5000, &out_sizes[0], &out_addrs[0], &out_ports[0]);
     if (n <= 0) {

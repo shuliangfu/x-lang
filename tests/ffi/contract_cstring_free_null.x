@@ -1,6 +1,10 @@
-// SAFE-004 C5：ffi.cstring_free(null) 为 no-op，不得崩溃。
+// See implementation.
 const ffi = import("std.ffi");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   ffi.cstring_free(0 as *u8);
   return 0;

@@ -1,6 +1,10 @@
-// B-16 v0：macOS libSystem 匿名 mmap 烟测（Darwin 常规链接）。
+// See implementation.
 const macos = import("std.sys.macos");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (macos.macos_mmap_available() != 1) {
     return 1;

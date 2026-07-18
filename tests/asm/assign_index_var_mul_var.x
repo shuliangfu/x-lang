@@ -1,4 +1,8 @@
-// 7.3：arr[i*j]=value 双 VAR MUL 下标 assign scratch（run-asm-assign-index-expr.sh）。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let arr: i32[4] = [10, 20, 30, 40];
   let i: i32 = 2;

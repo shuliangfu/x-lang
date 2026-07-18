@@ -1,9 +1,13 @@
 /**
- * DOD-S3 smoke：import SoA lib，entry 无 struct 重定义，跨模块 call + arr[i].field。
- * 期望：1+2+3+4=10。
+ * See implementation.
+ * See implementation.
  */
 const soa_cross_lib = import("soa_cross_lib");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let arr: Particle[4] = [];
   arr[0].x = 1;

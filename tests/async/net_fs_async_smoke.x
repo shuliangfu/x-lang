@@ -1,7 +1,11 @@
-// STD-049 / #79：std.async net/fs fd 异步读写 + poll_loop_ctx 烟测
+// See implementation.
 const async_mod = import("std.async");
 const ctx_mod = import("std.context");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (async_mod.net_fs_async_smoke() != 0) { return 1; }
 

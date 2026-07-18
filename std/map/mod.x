@@ -14,21 +14,23 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.map — 映射/字典（对标 Zig std.AutoHashMap、Rust HashMap、Go map）
+// See implementation.
 //
-// 【文件职责】
-// 基于 std.heap 的哈希表 Map_i32_i32：new/with_capacity、get/get_or、insert、remove、contains、len、is_empty、clear、reserve、deinit。
+// See implementation.
+// See implementation.
 //
-// 【对标】
+// See implementation.
 // Zig: get/put/containsKey/remove、fetchPut；
 // Rust: insert/get/remove/contains_key/len/is_empty/clear/reserve；
-// Go: make、len、delete、取值+ok。
+// See implementation.
 const heap = import("std.heap");
 const heap_libc = import("std.heap.libc");
-/** 默认初始容量（槽位数）；负载因子超过约 0.7 时扩容。 */
+/** Exported function `default_capacity`.
+ * Implements `default_capacity`.
+ * @return i32
+ */
 export function default_capacity(): i32 { return 8; }
-/** 哈希表：keys/vals/occupied 堆分配，cap 槽位，len
-* 已用对数；调用方须在不用时 deinit。 */
+/** See implementation for details. */
 allow(padding) struct Map_i32_i32 {
   keys: *i32;
   vals: *i32;
@@ -36,22 +38,41 @@ allow(padding) struct Map_i32_i32 {
   cap: i32;
   len: i32;
 }
-/** 取 key 的槽位下标（0..cap-1）；仅用于内部。 */
+/** Exported function `slot`.
+ * Implements `slot`.
+ * @param m Map_i32_i32
+ * @param key i32
+ * @return i32
+ */
 export function slot(m: Map_i32_i32, key: i32): i32 {
   let h: i32 = key % m.cap;
   if (h < 0) { return h + m.cap; }
   return h;
 }
-/** 查找 key 所在槽位；若存在返回槽位下标，否则返回 -1。F-03 v1：ops.x 线性探测。 */
+/** Exported function `find`.
+ * Implements `find`.
+ * @param m Map_i32_i32
+ * @param key i32
+ * @return i32
+ */
 export function find(m: Map_i32_i32, key: i32): i32 {
   return heap.map_find(m.keys, m.occupied, m.cap, key);
 }
-/** 新建空 Map_i32_i32（cap 0，ptr 均为 null）；tag 仅用于重载消歧。 */
+/** Exported function `new`.
+ * Implements `new`.
+ * @param _tag i32
+ * @return Map_i32_i32
+ */
 export function new(_tag: i32): Map_i32_i32 {
   let _: i32 = _tag;
   return Map_i32_i32 { keys: 0, vals: 0, occupied: 0, cap: 0, len: 0 };
 }
-/** 预分配 capacity 个槽位；失败返回 -1，成功返回 0。 */
+/** Exported function `with_capacity`.
+ * Implements `with_capacity`.
+ * @param m *Map_i32_i32
+ * @param capacity i32
+ * @return i32
+ */
 export function with_capacity(m: *Map_i32_i32, capacity: i32): i32 {
   if (capacity <= 0) {
     m.keys = 0;
@@ -82,7 +103,12 @@ export function with_capacity(m: *Map_i32_i32, capacity: i32): i32 {
   m.len = 0;
   return 0;
 }
-/** 扩容为 new_cap 并 rehash 所有条目；失败返回 -1，成功返回 0。 */
+/** Exported function `grow`.
+ * Implements `grow`.
+ * @param m *Map_i32_i32
+ * @param new_cap i32
+ * @return i32
+ */
 export function grow(m: *Map_i32_i32, new_cap: i32): i32 {
   if (new_cap <= m.cap) { return 0; }
   let old_keys: *i32 = m.keys;
@@ -105,8 +131,11 @@ export function grow(m: *Map_i32_i32, new_cap: i32): i32 {
   heap_libc.heap_free_u8_c(old_occupied);
   return 0;
 }
-/** 确保可再放至少 1 条；负载因子 > 0.75 时扩容，减少 rehash
-* 频率。失败返回 -1。热路径用字面量 8。 */
+/** Exported function `reserve_one`.
+ * Implements `reserve_one`.
+ * @param m *Map_i32_i32
+ * @return i32
+ */
 export function reserve_one(m: *Map_i32_i32): i32 {
   if (m.cap <= 0) {
     return with_capacity(m, 8);
@@ -114,7 +143,13 @@ export function reserve_one(m: *Map_i32_i32): i32 {
   if (m.len + 1 <= m.cap * 3 / 4) { return 0; }
   return grow(m, m.cap * 2);
 }
-/** 插入 key -> value；若 key 已存在则覆盖。成功返回 0，失败返回 -1。 */
+/** Exported function `insert`.
+ * Implements `insert`.
+ * @param m *Map_i32_i32
+ * @param key i32
+ * @param value i32
+ * @return i32
+ */
 export function insert(m: *Map_i32_i32, key: i32, value: i32): i32 {
   if (reserve_one(m) != 0) { return -1; }
   let start: i32 = 0;
@@ -141,18 +176,34 @@ export function insert(m: *Map_i32_i32, key: i32, value: i32): i32 {
   }
   return -1;
 }
-/** 取 key 对应的 value；不存在则返回 default_val。 */
+/** Exported function `get`.
+ * Implements `get`.
+ * @param m Map_i32_i32
+ * @param key i32
+ * @param default_val i32
+ * @return i32
+ */
 export function get(m: Map_i32_i32, key: i32, default_val: i32): i32 {
   let idx: i32 = find(m, key);
   if (idx < 0) { return default_val; }
   return m.vals[idx];
 }
-/** 是否包含 key。返回 1 是，0 否。 */
+/** Exported function `contains_key`.
+ * Implements `contains_key`.
+ * @param m Map_i32_i32
+ * @param key i32
+ * @return i32
+ */
 export function contains_key(m: Map_i32_i32, key: i32): i32 {
   if (find(m, key) >= 0) { return 1; }
   return 0;
 }
-/** 移除 key；若存在则移除并返回 1，否则返回 0。 */
+/** Exported function `remove`.
+ * Implements `remove`.
+ * @param m *Map_i32_i32
+ * @param key i32
+ * @return i32
+ */
 export function remove(m: *Map_i32_i32, key: i32): i32 {
   let idx: i32 = 0;
   unsafe { idx = find(*m, key); }
@@ -161,16 +212,32 @@ export function remove(m: *Map_i32_i32, key: i32): i32 {
   m.len = m.len - 1;
   return 1;
 }
-/** 条目数。 */
+/** Exported function `len`.
+ * Implements `len`.
+ * @param m Map_i32_i32
+ * @return i32
+ */
 export function len(m: Map_i32_i32): i32 { return m.len; }
-/** 热路径：指针取 len，避免按值传 Map 结构体。 */
+/** Exported function `len_ptr`.
+ * Implements `len_ptr`.
+ * @param m *Map_i32_i32
+ * @return i32
+ */
 export function len_ptr(m: *Map_i32_i32): i32 { return m.len; }
-/** 是否为空。返回 1 是，0 否。 */
+/** Exported function `is_empty`.
+ * Query helper `is_empty`.
+ * @param m Map_i32_i32
+ * @return i32
+ */
 export function is_empty(m: Map_i32_i32): i32 {
   if (m.len <= 0) { return 1; }
   return 0;
 }
-/** 清空所有条目，不释放内存。 */
+/** Exported function `clear`.
+ * Implements `clear`.
+ * @param m *Map_i32_i32
+ * @return void
+ */
 export function clear(m: *Map_i32_i32): void {
   let i: i32 = 0;
   while (i < m.cap) {
@@ -179,12 +246,21 @@ export function clear(m: *Map_i32_i32): void {
   }
   m.len = 0;
 }
-/** 确保容量至少 new_cap 个槽位；失败返回 -1。 */
+/** Exported function `reserve`.
+ * Implements `reserve`.
+ * @param m *Map_i32_i32
+ * @param new_cap i32
+ * @return i32
+ */
 export function reserve(m: *Map_i32_i32, new_cap: i32): i32 {
   if (new_cap <= m.cap) { return 0; }
   return grow(m, new_cap);
 }
-/** 释放堆内存并将 ptr 置为 null；调用后不可再使用。 */
+/** Exported function `deinit`.
+ * Implements `deinit`.
+ * @param m *Map_i32_i32
+ * @return void
+ */
 export function deinit(m: *Map_i32_i32): void {
   if (m.keys != 0) { heap_libc.heap_free_i32_c(m.keys); m.keys = 0; }
   if (m.vals != 0) { heap_libc.heap_free_i32_c(m.vals); m.vals = 0; }
@@ -192,25 +268,33 @@ export function deinit(m: *Map_i32_i32): void {
   m.cap = 0;
   m.len = 0;
 }
-/** Map 迭代条目：ok=1 表示有效 key/val。 */
+/* See implementation. */
 export struct MapIterItem_i32 {
   ok: i32;
   key: i32;
   val: i32;
 }
 
-/** Map_i32_i32 迭代器状态。 */
+/* See implementation. */
 allow(padding) struct MapIter_i32_i32 {
   map: Map_i32_i32;
   slot: i32;
 }
 
-/** 初始化 map 迭代器（从 slot 0 扫描）。 */
+/** Exported function `iter_init`.
+ * Implements `iter_init`.
+ * @param m Map_i32_i32
+ * @return MapIter_i32_i32
+ */
 export function iter_init(m: Map_i32_i32): MapIter_i32_i32 {
   return MapIter_i32_i32 { map: m, slot: 0 };
 }
 
-/** 读取下一 occupied 槽；结束 ok=0。 */
+/** Exported function `iter_next`.
+ * Implements `iter_next`.
+ * @param it *MapIter_i32_i32
+ * @return MapIterItem_i32
+ */
 export function iter_next(it: *MapIter_i32_i32): MapIterItem_i32 {
   while (it.slot < it.map.cap) {
     if (it.map.occupied[it.slot] != 0) {
@@ -227,18 +311,25 @@ export function iter_next(it: *MapIter_i32_i32): MapIterItem_i32 {
   return MapIterItem_i32 { ok: 0, key: 0, val: 0 };
 }
 
-/** 负载因子百分比（len*100/cap）；空表返回 0。 */
+/** Exported function `load_factor_pct`.
+ * Implements `load_factor_pct`.
+ * @param m Map_i32_i32
+ * @return i32
+ */
 export function load_factor_pct(m: Map_i32_i32): i32 {
   if (m.cap <= 0) { return 0; }
   return m.len * 100 / m.cap;
 }
 
-/** 空 map 的 size 为 0。 */
+/** Exported function `empty_size`.
+ * Implements `empty_size`.
+ * @return i32
+ */
 export function empty_size(): i32 { return 0; }
 
-// ——— Map_u64_i32（STD-013）：u64 键 / i32 值 ———
+// See implementation.
 
-/** u64→i32 哈希表。 */
+/* See implementation. */
 allow(padding) struct Map_u64_i32 {
   keys: *u64;
   vals: *i32;
@@ -247,14 +338,24 @@ allow(padding) struct Map_u64_i32 {
   len: i32;
 }
 
-/** u64 key 槽位下标。 */
+/** Exported function `slot`.
+ * Implements `slot`.
+ * @param m Map_u64_i32
+ * @param key u64
+ * @return i32
+ */
 export function slot(m: Map_u64_i32, key: u64): i32 {
   let cap_u: u64 = m.cap as u64;
   let h: u64 = key % cap_u;
   return h as i32;
 }
 
-/** 线性探测查找 u64 key。 */
+/** Exported function `find`.
+ * Implements `find`.
+ * @param m Map_u64_i32
+ * @param key u64
+ * @return i32
+ */
 export function find(m: Map_u64_i32, key: u64): i32 {
   if (m.cap <= 0) { return -1; }
   let start: i32 = slot(m, key);
@@ -269,13 +370,22 @@ export function find(m: Map_u64_i32, key: u64): i32 {
   return -1;
 }
 
-/** 新建空 Map_u64_i32；tag 仅用于重载消歧。 */
+/** Exported function `new`.
+ * Implements `new`.
+ * @param _tag u64
+ * @return Map_u64_i32
+ */
 export function new(_tag: u64): Map_u64_i32 {
   let _: u64 = _tag;
   return Map_u64_i32 { keys: 0, vals: 0, occupied: 0, cap: 0, len: 0 };
 }
 
-/** 预分配 capacity 槽位；失败 -1。 */
+/** Exported function `with_capacity`.
+ * Implements `with_capacity`.
+ * @param m *Map_u64_i32
+ * @param capacity i32
+ * @return i32
+ */
 export function with_capacity(m: *Map_u64_i32, capacity: i32): i32 {
   if (capacity <= 0) {
     m.keys = 0;
@@ -307,7 +417,12 @@ export function with_capacity(m: *Map_u64_i32, capacity: i32): i32 {
   return 0;
 }
 
-/** 扩容并 rehash。 */
+/** Exported function `grow`.
+ * Implements `grow`.
+ * @param m *Map_u64_i32
+ * @param new_cap i32
+ * @return i32
+ */
 export function grow(m: *Map_u64_i32, new_cap: i32): i32 {
   if (new_cap <= m.cap) { return 0; }
   let old_keys: *u64 = m.keys;
@@ -330,7 +445,11 @@ export function grow(m: *Map_u64_i32, new_cap: i32): i32 {
   return 0;
 }
 
-/** 负载因子超 0.75 时扩容。 */
+/** Exported function `reserve_one`.
+ * Implements `reserve_one`.
+ * @param m *Map_u64_i32
+ * @return i32
+ */
 export function reserve_one(m: *Map_u64_i32): i32 {
   if (m.cap <= 0) {
     return with_capacity(m, 8);
@@ -339,7 +458,13 @@ export function reserve_one(m: *Map_u64_i32): i32 {
   return grow(m, m.cap * 2);
 }
 
-/** 插入 u64→i32；已存在则覆盖。 */
+/** Exported function `insert`.
+ * Implements `insert`.
+ * @param m *Map_u64_i32
+ * @param key u64
+ * @param value i32
+ * @return i32
+ */
 export function insert(m: *Map_u64_i32, key: u64, value: i32): i32 {
   if (reserve_one(m) != 0) { return -1; }
   let start: i32 = 0;
@@ -367,20 +492,36 @@ export function insert(m: *Map_u64_i32, key: u64, value: i32): i32 {
   return -1;
 }
 
-/** 取 u64 key 对应 value；不存在返回 default_val。 */
+/** Exported function `get`.
+ * Implements `get`.
+ * @param m Map_u64_i32
+ * @param key u64
+ * @param default_val i32
+ * @return i32
+ */
 export function get(m: Map_u64_i32, key: u64, default_val: i32): i32 {
   let idx: i32 = find(m, key);
   if (idx < 0) { return default_val; }
   return m.vals[idx];
 }
 
-/** 是否包含 u64 key。 */
+/** Exported function `contains_key`.
+ * Implements `contains_key`.
+ * @param m Map_u64_i32
+ * @param key u64
+ * @return i32
+ */
 export function contains_key(m: Map_u64_i32, key: u64): i32 {
   if (find(m, key) >= 0) { return 1; }
   return 0;
 }
 
-/** 移除 u64 key；存在返回 1。 */
+/** Exported function `remove`.
+ * Implements `remove`.
+ * @param m *Map_u64_i32
+ * @param key u64
+ * @return i32
+ */
 export function remove(m: *Map_u64_i32, key: u64): i32 {
   let idx: i32 = 0;
   unsafe { idx = find(*m, key); }
@@ -390,7 +531,11 @@ export function remove(m: *Map_u64_i32, key: u64): i32 {
   return 1;
 }
 
-/** 释放 Map_u64_i32 堆内存。 */
+/** Exported function `deinit`.
+ * Implements `deinit`.
+ * @param m *Map_u64_i32
+ * @return void
+ */
 export function deinit(m: *Map_u64_i32): void {
   if (m.keys != 0) { heap_libc.heap_free_u64_c(m.keys); m.keys = 0; }
   if (m.vals != 0) { heap_libc.heap_free_i32_c(m.vals); m.vals = 0; }
@@ -399,12 +544,15 @@ export function deinit(m: *Map_u64_i32): void {
   m.len = 0;
 }
 
-// ——— Map_str_i32（STD-013）：字符串键（ptr+len）/ i32 值 ———
+// See implementation.
 
-/** 每槽键字节上限；超长键 insert 返回 -1。 */
+/** Exported function `str_key_cap`.
+ * Implements `str_key_cap`.
+ * @return i32
+ */
 export function str_key_cap(): i32 { return 32; }
 
-/** 字符串键哈希表：keys 为 cap×str_key_cap() 扁平字节区。 */
+/* See implementation. */
 allow(padding) struct Map_str_i32 {
   keys: *u8;
   key_lens: *i32;
@@ -414,7 +562,12 @@ allow(padding) struct Map_str_i32 {
   len: i32;
 }
 
-/** djb2 哈希（key 字节序列）。 */
+/** Exported function `str_hash`.
+ * Implements `str_hash`.
+ * @param key *u8
+ * @param key_len i32
+ * @return i32
+ */
 export function str_hash(key: *u8, key_len: i32): i32 {
   let h: i32 = 5381;
   let i: i32 = 0;
@@ -425,14 +578,26 @@ export function str_hash(key: *u8, key_len: i32): i32 {
   return h;
 }
 
-/** 槽位下标（开放寻址起点）。 */
+/** Exported function `str_slot`.
+ * Implements `str_slot`.
+ * @param m Map_str_i32
+ * @param hash i32
+ * @return i32
+ */
 export function str_slot(m: Map_str_i32, hash: i32): i32 {
   let h: i32 = hash % m.cap;
   if (h < 0) { return h + m.cap; }
   return h;
 }
 
-/** 比较槽 slot 内键与 (key,key_len) 是否相等。 */
+/** Exported function `str_key_eq`.
+ * Implements `str_key_eq`.
+ * @param m Map_str_i32
+ * @param slot i32
+ * @param key *u8
+ * @param key_len i32
+ * @return i32
+ */
 export function str_key_eq(m: Map_str_i32, slot: i32, key: *u8, key_len: i32): i32 {
   if (m.key_lens[slot] != key_len) { return 0; }
   let base: i32 = slot * str_key_cap();
@@ -444,7 +609,13 @@ export function str_key_eq(m: Map_str_i32, slot: i32, key: *u8, key_len: i32): i
   return 1;
 }
 
-/** 线性探测查找字符串键；存在返回槽位，否则 -1。 */
+/** Exported function `str_find`.
+ * Implements `str_find`.
+ * @param m Map_str_i32
+ * @param key *u8
+ * @param key_len i32
+ * @return i32
+ */
 export function str_find(m: Map_str_i32, key: *u8, key_len: i32): i32 {
   if (m.cap <= 0 || key_len <= 0) { return -1; }
   let hash: i32 = str_hash(key, key_len);
@@ -460,12 +631,20 @@ export function str_find(m: Map_str_i32, key: *u8, key_len: i32): i32 {
   return -1;
 }
 
-/** 新建空 Map_str_i32。 */
+/** Exported function `str_new`.
+ * Implements `str_new`.
+ * @return Map_str_i32
+ */
 export function str_new(): Map_str_i32 {
   return Map_str_i32 { keys: 0, key_lens: 0, vals: 0, occupied: 0, cap: 0, len: 0 };
 }
 
-/** 预分配 capacity 槽位；失败 -1。 */
+/** Exported function `str_with_capacity`.
+ * Implements `str_with_capacity`.
+ * @param m *Map_str_i32
+ * @param capacity i32
+ * @return i32
+ */
 export function str_with_capacity(m: *Map_str_i32, capacity: i32): i32 {
   if (capacity <= 0) {
     m.keys = 0;
@@ -503,7 +682,12 @@ export function str_with_capacity(m: *Map_str_i32, capacity: i32): i32 {
   return 0;
 }
 
-/** 扩容并 rehash 所有字符串键。 */
+/** Exported function `str_grow`.
+ * Implements `str_grow`.
+ * @param m *Map_str_i32
+ * @param new_cap i32
+ * @return i32
+ */
 export function str_grow(m: *Map_str_i32, new_cap: i32): i32 {
   if (new_cap <= m.cap) { return 0; }
   let old_keys: *u8 = m.keys;
@@ -529,7 +713,11 @@ export function str_grow(m: *Map_str_i32, new_cap: i32): i32 {
   return 0;
 }
 
-/** 负载因子超 0.75 时扩容。 */
+/** Exported function `str_reserve_one`.
+ * Implements `str_reserve_one`.
+ * @param m *Map_str_i32
+ * @return i32
+ */
 export function str_reserve_one(m: *Map_str_i32): i32 {
   if (m.cap <= 0) {
     return str_with_capacity(m, 8);
@@ -538,7 +726,14 @@ export function str_reserve_one(m: *Map_str_i32): i32 {
   return str_grow(m, m.cap * 2);
 }
 
-/** 插入字符串键→i32；key_len>str_key_cap() 或分配失败返回 -1。 */
+/** Exported function `str_insert`.
+ * Implements `str_insert`.
+ * @param m *Map_str_i32
+ * @param key *u8
+ * @param key_len i32
+ * @param value i32
+ * @return i32
+ */
 export function str_insert(m: *Map_str_i32, key: *u8, key_len: i32, value: i32): i32 {
   if (key_len <= 0 || key_len > str_key_cap()) { return -1; }
   if (str_reserve_one(m) != 0) { return -1; }
@@ -572,20 +767,39 @@ export function str_insert(m: *Map_str_i32, key: *u8, key_len: i32, value: i32):
   return -1;
 }
 
-/** 取字符串键对应 value；不存在返回 default_val。 */
+/** Exported function `str_get`.
+ * Implements `str_get`.
+ * @param m Map_str_i32
+ * @param key *u8
+ * @param key_len i32
+ * @param default_val i32
+ * @return i32
+ */
 export function str_get(m: Map_str_i32, key: *u8, key_len: i32, default_val: i32): i32 {
   let idx: i32 = str_find(m, key, key_len);
   if (idx < 0) { return default_val; }
   return m.vals[idx];
 }
 
-/** 是否包含字符串键。 */
+/** Exported function `str_contains`.
+ * Implements `str_contains`.
+ * @param m Map_str_i32
+ * @param key *u8
+ * @param key_len i32
+ * @return i32
+ */
 export function str_contains(m: Map_str_i32, key: *u8, key_len: i32): i32 {
   if (str_find(m, key, key_len) >= 0) { return 1; }
   return 0;
 }
 
-/** 移除字符串键；存在返回 1。 */
+/** Exported function `str_remove`.
+ * Implements `str_remove`.
+ * @param m *Map_str_i32
+ * @param key *u8
+ * @param key_len i32
+ * @return i32
+ */
 export function str_remove(m: *Map_str_i32, key: *u8, key_len: i32): i32 {
   let idx: i32 = 0;
   unsafe { idx = str_find(*m, key, key_len); }
@@ -595,7 +809,11 @@ export function str_remove(m: *Map_str_i32, key: *u8, key_len: i32): i32 {
   return 1;
 }
 
-/** 释放 Map_str_i32 堆内存。 */
+/** Exported function `str_deinit`.
+ * Implements `str_deinit`.
+ * @param m *Map_str_i32
+ * @return void
+ */
 export function str_deinit(m: *Map_str_i32): void {
   if (m.keys != 0) { heap_libc.heap_free_u8_c(m.keys); m.keys = 0; }
   if (m.key_lens != 0) { heap_libc.heap_free_i32_c(m.key_lens); m.key_lens = 0; }

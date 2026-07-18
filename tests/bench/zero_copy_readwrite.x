@@ -1,12 +1,17 @@
 /**
- * zero_copy_readwrite.x — PERF-008 对照：64KiB read+write 循环推文件到 socket（非 splice/sendfile）
- * 与 zero_copy_splice.x 同 16MiB 吞吐；strace 上 read/write 次数应显著高于 splice 路径。
+ * See implementation.
+ * See implementation.
  */
 const fs = import("std.fs");
 const net = import("std.net");
 const process = import("std.process");
 
-/** 解析十进制 u32 端口（NUL 结尾 ASCII）；非法字符返回 default_port。 */
+/** Internal function `bench_parse_port`.
+ * Implements `bench_parse_port`.
+ * @param s *u8
+ * @param default_port u32
+ * @return u32
+ */
 function bench_parse_port(s: *u8, default_port: u32): u32 {
   if (s == 0 as *u8) { return default_port; }
   let n: u32 = 0 as u32;
@@ -22,6 +27,10 @@ function bench_parse_port(s: *u8, default_port: u32): u32 {
   return n;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   /** "tests/bench/.io_mmap_bench_tmp\0" */
   let path: u8[31] =

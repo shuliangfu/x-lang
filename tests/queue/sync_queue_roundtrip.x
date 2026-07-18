@@ -1,6 +1,10 @@
-// STD-048：SyncQueue_i32 单线程往返 + C 竞争烟测
+// See implementation.
 const queue = import("std.queue");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let sq: SyncQueue_i32 = queue.sync_new();
   if (sq.lock == 0 as *u8) {

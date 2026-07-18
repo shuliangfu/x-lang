@@ -1,6 +1,10 @@
-// 测试绑定 import：函数经模块前缀调用（避免与本地同名符号冲突时用不同绑定名）。
+// See implementation.
 const io = import("std.io");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let msg: u8[12] = [72, 101, 108, 108, 111, 32, 87, 111, 114, 108, 100, 10];
   let n: i32 = io.print(&msg[0], 12);

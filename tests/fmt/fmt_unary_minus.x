@@ -1,10 +1,19 @@
-// fmt 一元负号回归：return -1 / let x = -1 / neg(-1) 须保持紧贴；
-// 二元 a - 1 须两侧空格。一元 - 不可被误判为二元而拆开。
+// See implementation.
+// neg: see function docblock below.
 
+/** Internal function `neg`.
+ * Implements `neg`.
+ * @param i i32
+ * @return i32
+ */
 function neg(i: i32): i32 {
   return -i;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32 = -1;
   let b: i32 = a - 1;

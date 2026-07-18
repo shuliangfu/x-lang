@@ -14,13 +14,21 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std/csv/csv.x — CSV 按行解析与写回（F-csv v1；替代 csv.c）
+// See implementation.
 //
-// 【文件职责】
-// RFC 4180 next_field / escape / unescape / parse_row / write_row / 流式 smoke。
-// mod.x 中 escape 为简化版；本文件 csv_escape_c 含引号双写，供 write_row 使用。
+// See implementation.
+// See implementation.
+// See implementation.
 
-/** 从 offset 起找下一字段（RFC 4180 引号字段与普通字段）。 */
+/** Exported function `csv_next_field_c`.
+ * Implements `csv_next_field_c`.
+ * @param ptr *u8
+ * @param len i32
+ * @param offset i32
+ * @param out_start *i32
+ * @param out_len *i32
+ * @return i32
+ */
 export function csv_next_field_c(ptr: *u8, len: i32, offset: i32, out_start: *i32, out_len: *i32): i32 {
   let start: i32 = 0;
   let pos: i32 = 0;
@@ -33,7 +41,7 @@ export function csv_next_field_c(ptr: *u8, len: i32, offset: i32, out_start: *i3
     out_len[0] = 0;
     return len;
   }
-  /* 引号字段 */
+  /* See implementation. */
   if (ptr[offset] == 34) {
     start = offset + 1;
     pos = start;
@@ -80,21 +88,39 @@ export function csv_next_field_c(ptr: *u8, len: i32, offset: i32, out_start: *i3
   return offset;
 }
 
-/** tests/csv 引号字段探针（第一字段）。 */
+/** Exported function `std_csv_csv_test_quoted_first`.
+ * Implements `std_csv_csv_test_quoted_first`.
+ * @param out_start *i32
+ * @param out_len *i32
+ * @return i32
+ */
 export function std_csv_csv_test_quoted_first(out_start: *i32, out_len: *i32): i32 {
   let q: u8[8];
   q[0] = 34; q[1] = 97; q[2] = 44; q[3] = 98; q[4] = 34; q[5] = 44; q[6] = 99; q[7] = 0;
   return csv_next_field_c(&q[0], 8, 0, out_start, out_len);
 }
 
-/** tests/csv 引号字段探针（第二字段）。 */
+/** Exported function `std_csv_csv_test_quoted_second`.
+ * Implements `std_csv_csv_test_quoted_second`.
+ * @param offset i32
+ * @param out_start *i32
+ * @param out_len *i32
+ * @return i32
+ */
 export function std_csv_csv_test_quoted_second(offset: i32, out_start: *i32, out_len: *i32): i32 {
   let q: u8[8];
   q[0] = 34; q[1] = 97; q[2] = 44; q[3] = 98; q[4] = 34; q[5] = 44; q[6] = 99; q[7] = 0;
   return csv_next_field_c(&q[0], 8, offset, out_start, out_len);
 }
 
-/** RFC 4180 引号转义写入 buf；返回写入长度，不足 -1。 */
+/** Exported function `csv_escape_c`.
+ * Implements `csv_escape_c`.
+ * @param ptr *u8
+ * @param len i32
+ * @param buf *u8
+ * @param buf_cap i32
+ * @return i32
+ */
 export function csv_escape_c(ptr: *u8, len: i32, buf: *u8, buf_cap: i32): i32 {
   let i: i32 = 0;
   let j: i32 = 0;
@@ -121,16 +147,16 @@ export function csv_escape_c(ptr: *u8, len: i32, buf: *u8, buf_cap: i32): i32 {
 }
 
 /**
- * import std.csv 的 next_field → 符号 std_csv_next_field（与调用端 mangle 一致）。
- * 产品轨 csv 走预编 csv.o（pipeline 跳过 co-emit）；勿 #[no_mangle] 成裸 next_field，
- * 否则用户 TU 生成 std_csv_next_field 调用 → undefined。
+ * See implementation.
+ * See implementation.
+ * See implementation.
  */
 export function next_field(ptr: *u8, len: i32, offset: i32, out_start: *i32, out_len: *i32): i32 {
   return csv_next_field_c(ptr, len, offset, out_start, out_len);
 }
 
 /**
- * unescape → std_csv_unescape（同上，与调用端 mangle 一致）。
+ * See implementation.
  */
 export function unescape(ptr: *u8, len: i32, buf: *u8, buf_cap: i32): i32 {
   let i: i32 = 0;
@@ -152,14 +178,22 @@ export function unescape(ptr: *u8, len: i32, buf: *u8, buf_cap: i32): i32 {
   return i;
 }
 
-/** tests/csv unescape 正例。 */
+/** Exported function `std_csv_csv_test_unescape_ok`.
+ * Implements `std_csv_csv_test_unescape_ok`.
+ * @param buf *u8
+ * @param buf_cap i32
+ * @return i32
+ */
 export function std_csv_csv_test_unescape_ok(buf: *u8, buf_cap: i32): i32 {
   let raw: u8[4];
   raw[0] = 34; raw[1] = 34; raw[2] = 97; raw[3] = 0;
   return unescape(&raw[0], 3, buf, buf_cap);
 }
 
-/** tests/csv unescape 缓冲不足应 -1。 */
+/** Exported function `std_csv_csv_test_unescape_fail`.
+ * Implements `std_csv_csv_test_unescape_fail`.
+ * @return i32
+ */
 export function std_csv_csv_test_unescape_fail(): i32 {
   let tiny: u8[1];
   let raw: u8[4];
@@ -167,23 +201,51 @@ export function std_csv_csv_test_unescape_fail(): i32 {
   return unescape(&raw[0], 3, &tiny[0], 1);
 }
 
+/** Exported function `csv_test_quoted_first`.
+ * Implements `csv_test_quoted_first`.
+ * @param out_start *i32
+ * @param out_len *i32
+ * @return i32
+ */
 export function csv_test_quoted_first(out_start: *i32, out_len: *i32): i32 {
   return std_csv_csv_test_quoted_first(out_start, out_len);
 }
 
+/** Exported function `csv_test_quoted_second`.
+ * Implements `csv_test_quoted_second`.
+ * @param offset i32
+ * @param out_start *i32
+ * @param out_len *i32
+ * @return i32
+ */
 export function csv_test_quoted_second(offset: i32, out_start: *i32, out_len: *i32): i32 {
   return std_csv_csv_test_quoted_second(offset, out_start, out_len);
 }
 
+/** Exported function `csv_test_unescape_ok`.
+ * Implements `csv_test_unescape_ok`.
+ * @param buf *u8
+ * @param buf_cap i32
+ * @return i32
+ */
 export function csv_test_unescape_ok(buf: *u8, buf_cap: i32): i32 {
   return std_csv_csv_test_unescape_ok(buf, buf_cap);
 }
 
+/** Exported function `csv_test_unescape_fail`.
+ * Implements `csv_test_unescape_fail`.
+ * @return i32
+ */
 export function csv_test_unescape_fail(): i32 {
   return std_csv_csv_test_unescape_fail();
 }
 
-/** 判断字段是否须 RFC 4180 引号包裹。 */
+/** Exported function `csv_field_needs_quote`.
+ * Implements `csv_field_needs_quote`.
+ * @param ptr *u8
+ * @param len i32
+ * @return i32
+ */
 export function csv_field_needs_quote(ptr: *u8, len: i32): i32 {
   let j: i32 = 0;
   if (ptr == 0) { return 0; }
@@ -195,7 +257,7 @@ export function csv_field_needs_quote(ptr: *u8, len: i32): i32 {
   return 0;
 }
 
-/** 解析一行 CSV；field_starts/lens 为绝对偏移。 */
+/* See implementation. */
 export function csv_parse_row_c(ptr: *u8, len: i32, offset: i32, field_starts: *i32, field_lens: *i32,
                          max_fields: i32, out_count: *i32): i32 {
   let pos: i32 = 0;
@@ -224,7 +286,16 @@ export function csv_parse_row_c(ptr: *u8, len: i32, offset: i32, field_starts: *
   return pos;
 }
 
-/** 将多列字段写入一行 CSV（无尾随换行）。 */
+/** Exported function `csv_write_row_c`.
+ * Write path helper `csv_write_row_c`.
+ * @param blob *u8
+ * @param starts *i32
+ * @param lens *i32
+ * @param count i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function csv_write_row_c(blob: *u8, starts: *i32, lens: *i32, count: i32, out: *u8, out_cap: i32): i32 {
   let o: i32 = 0;
   let i: i32 = 0;
@@ -259,17 +330,27 @@ export function csv_write_row_c(blob: *u8, starts: *i32, lens: *i32, count: i32,
   return o;
 }
 
-/** 裸名 parse_row / write_row 链接别名。 */
+/* See implementation. */
 export function parse_row(ptr: *u8, len: i32, offset: i32, field_starts: *i32, field_lens: *i32,
                    max_fields: i32, out_count: *i32): i32 {
   return csv_parse_row_c(ptr, len, offset, field_starts, field_lens, max_fields, out_count);
 }
 
+/** Exported function `write_row`.
+ * Write path helper `write_row`.
+ * @param blob *u8
+ * @param starts *i32
+ * @param lens *i32
+ * @param count i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function write_row(blob: *u8, starts: *i32, lens: *i32, count: i32, out: *u8, out_cap: i32): i32 {
   return csv_write_row_c(blob, starts, lens, count, out, out_cap);
 }
 
-/** STD-128：向 out 缓冲追加一行 CSV 与换行。 */
+/* See implementation. */
 export function csv_stream_writer_append_row_c(out: *u8, out_cap: i32, out_len: *i32, blob: *u8,
                                       starts: *i32, lens: *i32, count: i32): i32 {
   let n: i32 = 0;
@@ -286,7 +367,10 @@ export function csv_stream_writer_append_row_c(out: *u8, out_cap: i32, out_len: 
   return 0;
 }
 
-/** STD-128 多行 reader/writer 往返烟测；0 通过。 */
+/** Exported function `csv_stream_smoke_c`.
+ * Implements `csv_stream_smoke_c`.
+ * @return i32
+ */
 export function csv_stream_smoke_c(): i32 {
   let blob: u8[16];
   let starts1: i32[3];

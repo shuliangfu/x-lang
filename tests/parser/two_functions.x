@@ -1,3 +1,11 @@
-// 多函数解析测试：parse_into 应产出 num_funcs=2，main_func_index=1
+// foo: see function docblock below.
+/** Internal function `foo`.
+ * Implements `foo`.
+ * @return i32
+ */
 function foo(): i32 { return 1; }
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 { return 0; }

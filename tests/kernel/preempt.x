@@ -5,6 +5,13 @@ struct MB1Header { magic: u32; flags: u32; checksum: u32; }
 const mb1: MB1Header = { magic: 0x1BADB002, flags: 0, checksum: 0xE4524FFE, };
 
 #[used]
+/** Internal function `kputc`.
+ * Implements `kputc`.
+ * @param c u8): void { unsafe { asm!("outb %%al
+ * @param %%dx" : "a"(c)
+ * @param "d"(0x3F8)
+ * @return void
+ */
 function kputc(c: u8): void { unsafe { asm!("outb %%al, %%dx" : : "a"(c), "d"(0x3F8)); } }
 
 let tick_count: u32 = 0;
@@ -14,6 +21,10 @@ let ctx_task2: u32 = 0;
 
 #[used]
 #[naked]
+/** Internal function `timer_preempt`.
+ * Implements `timer_preempt`.
+ * @return void
+ */
 function timer_preempt(): void {
   unsafe {
     asm!("pushal; incl tick_count; movb $0x20, %al; outb %al, $0x20;
@@ -25,6 +36,10 @@ function timer_preempt(): void {
 }
 
 #[used]
+/** Internal function `task1_loop`.
+ * Implements `task1_loop`.
+ * @return void
+ */
 function task1_loop(): void {
   unsafe { asm!("sti"); }
   while (0 == 0) {
@@ -36,11 +51,22 @@ function task1_loop(): void {
 }
 
 #[used]
+/** Internal function `task2_loop`.
+ * Implements `task2_loop`.
+ * @return void
+ */
 function task2_loop(): void {
   while (0 == 0) { }
 }
 
 // Stack format: pushal(32) + iret(12) = 44 bytes
+/** Internal function `setup_task`.
+ * Implements `setup_task`.
+ * @param ctx_sp *volatile u32
+ * @param entry u32
+ * @param stack_top u32
+ * @return void
+ */
 function setup_task(ctx_sp: *volatile u32, entry: u32, stack_top: u32): void {
   unsafe {
     *((stack_top - 4) as *volatile u32) = 0x202;   // EFLAGS (IF=1)
@@ -59,6 +85,12 @@ function setup_task(ctx_sp: *volatile u32, entry: u32, stack_top: u32): void {
 }
 
 #[used]
+/** Internal function `idt_set_entry`.
+ * Implements `idt_set_entry`.
+ * @param index u32
+ * @param handler u32
+ * @return void
+ */
 function idt_set_entry(index: u32, handler: u32): void {
   let base: u32 = 0x90000 + index * 8;
   unsafe {
@@ -70,6 +102,10 @@ function idt_set_entry(index: u32, handler: u32): void {
   }
 }
 
+/** Internal function `kmain`.
+ * Implements `kmain`.
+ * @return i32
+ */
 function kmain(): i32 {
   kputc(83); kputc(10);
   let ta: u32 = 0; unsafe { asm!("mov $timer_preempt, %0" : "=a"(ta)); }
@@ -99,5 +135,16 @@ function kmain(): i32 {
 }
 
 #[entry]
+/** Internal function `start`.
+ * Implements `start`.
+ * @param ) void { unsafe { asm!("mov $0x80000
+ * @param %esp; call kmain; cli; hlt"
+ * @return void
+ */
 function start(): void { unsafe { asm!("mov $0x80000, %esp; call kmain; cli; hlt"); } }
+/** Internal function `main`.
+ * Program/test entry point.
+ * @param ) i32 { return kmain(
+ * @return void
+ */
 function main(): i32 { return kmain() + mb1.magic as i32; }

@@ -1,8 +1,12 @@
 /**
- * STD-SOCKETIO-001 烟测：namespace CONNECT / ACK / 带 id EVENT v6。
+ * See implementation.
  */
 const sio = import("std.socketio");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (sio.ns_ack_smoke() != 0) {
     return 1;

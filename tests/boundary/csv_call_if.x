@@ -1,6 +1,10 @@
-// seed 回归：import("std.csv") 后 main 内 call + if（曾跨函数 .L_* 标签串台 SIGSEGV）
+// See implementation.
 const csv = import("std.csv");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let line: u8[8] = [34, 97, 34, 44, 34, 98, 34, 0];
   let start: i32 = 0;

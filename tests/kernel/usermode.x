@@ -13,9 +13,19 @@ const mb1: MB1Header = {
   checksum: 0xE4524FFE,
 };
 
+/** Internal function `serial_putc`.
+ * Implements `serial_putc`.
+ * @param c u8
+ * @return void
+ */
 function serial_putc(c: u8): void {
   unsafe { asm!("outb %%al, %%dx" : : "a"(c), "d"(0x3F8)); }
 }
+/** Internal function `serial_putint`.
+ * Implements `serial_putint`.
+ * @param n i32
+ * @return void
+ */
 function serial_putint(n: i32): void {
   if (n >= 10) { serial_putint(n / 10); }
   serial_putc((n % 10 + 48) as u8);
@@ -25,6 +35,10 @@ let syscall_result: u32 = 0;
 
 #[used]
 #[naked]
+/** Internal function `syscall_handler`.
+ * Implements `syscall_handler`.
+ * @return void
+ */
 function syscall_handler(): void {
   unsafe {
     asm!("cmp $1, %eax; je sys_print; cmp $2, %eax; je sys_add; cmp $99, %eax; je sys_done; jmp sys_done;
@@ -34,6 +48,12 @@ function syscall_handler(): void {
   }
 }
 
+/** Internal function `idt_set_entry`.
+ * Implements `idt_set_entry`.
+ * @param index u32
+ * @param handler_addr u32
+ * @return void
+ */
 function idt_set_entry(index: u32, handler_addr: u32): void {
   let base: u32 = 0x90000 + index * 8;
   unsafe {
@@ -45,6 +65,10 @@ function idt_set_entry(index: u32, handler_addr: u32): void {
   }
 }
 
+/** Internal function `kmain`.
+ * Implements `kmain`.
+ * @return i32
+ */
 function kmain(): i32 {
   serial_putc(75);  // K
   serial_putc(58);  // :
@@ -115,6 +139,10 @@ function kmain(): i32 {
 }
 
 #[used]
+/** Internal function `user_task`.
+ * Implements `user_task`.
+ * @return void
+ */
 function user_task(): void {
   // Running in ring 3!
   unsafe { asm!("movl $1, %%eax; movl $85, %%ebx; int $0x80" : : : "eax", "ebx", "ecx", "memory"); }
@@ -127,7 +155,16 @@ function user_task(): void {
 }
 
 #[entry]
+/** Internal function `start`.
+ * Implements `start`.
+ * @return void
+ */
 function start(): void {
   unsafe { asm!("mov $0x90000, %esp; call kmain; cli; hlt"); }
 }
+/** Internal function `main`.
+ * Program/test entry point.
+ * @param ) i32 { return kmain(
+ * @return void
+ */
 function main(): i32 { return kmain() + mb1.magic as i32; }

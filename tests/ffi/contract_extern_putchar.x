@@ -1,6 +1,10 @@
-// SAFE-004 C7：extern C ABI — putchar 由调用方保证参数合法；须在 unsafe 内调用。
+// See implementation.
 extern function putchar(c: i32): i32;
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let n: i32 = 0;
   unsafe {

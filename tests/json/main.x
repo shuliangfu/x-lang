@@ -1,7 +1,11 @@
-// tests/json/main.x — std.json 最小烟测（parse null/bool/number；append/escape 待 co-emit 稳定）
+// See implementation.
 
 const json = import("std.json");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let consumed: i32 = 0;
   let out_val: f64 = 0.0;

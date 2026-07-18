@@ -1,7 +1,16 @@
-// M-3 正例：实参与形参同域
+// See implementation.
 extern function slice_src(): i32[];
+/** Internal function `take_ra`.
+ * Implements `take_ra`.
+ * @param x i32[]<ra>
+ * @return i32
+ */
 function take_ra(x: i32[]<ra>): i32 { return 0; }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   region ra {
     let s: i32[] = unsafe { slice_src() };

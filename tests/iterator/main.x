@@ -1,7 +1,11 @@
-// CORE-006 烟测：next_i32 / next_u8 + iter_remaining + 空切片
+// See implementation.
 const iterator = import("core.iterator");
 const option = import("core.option");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32[3] = [10, 20, 30];
   let s: i32[] = a;

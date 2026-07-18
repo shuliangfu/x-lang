@@ -1,10 +1,18 @@
-// simd_dot.x — SIMD-S4 验收：Vec4f 逐 chunk 点积累加（Vec4f * + 水平求和）。
+// See implementation.
 
-/** Vec4f 四 lane 标量和（水平归约 epilogue）。 */
+/** Internal function `hsum4`.
+ * Implements `hsum4`.
+ * @param v Vec4f
+ * @return f32
+ */
 function hsum4(v: Vec4f): f32 {
   return v[0] + v[1] + v[2] + v[3];
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let limit: i32 = 2000000;
   let sum: f32 = 0.0;

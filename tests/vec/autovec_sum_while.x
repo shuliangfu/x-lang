@@ -1,5 +1,10 @@
-// VEC-V2：loop autovec f32 求和烟测；codegen 替换 while 为 shux_autovec_sum_f32。
-/** 单指针 f32 求和（BCE + autovec while 受限模式）。 */
+// See implementation.
+/** Internal function `sum_f32`.
+ * Implements `sum_f32`.
+ * @param n i32
+ * @param ap *f32
+ * @return f32
+ */
 function sum_f32(n: i32, ap: *f32): f32 {
   let s: f32 = 0.0;
   let i: i32 = 0;
@@ -10,6 +15,10 @@ function sum_f32(n: i32, ap: *f32): f32 {
   return s;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let x: f32[4] = [1.0, 2.0, 3.0, 4.0];
   let t: f32 = sum_f32(4, &x[0]);

@@ -1,6 +1,10 @@
-// STD-HTTP-H2-v14：h2c server listen/serve 烟测
+// See implementation.
 const http = import("std.http");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (http.server_smoke() != 0) { return 1; }
   if (http.server_is_available() == false) { return 2; }

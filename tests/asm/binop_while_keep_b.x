@@ -1,4 +1,8 @@
-// 7.3：while 后 let x=b 复用 rbx（汇合 live ∪，run-asm-binop-cfg-merge.sh ldur 门禁）。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32 = 0;
   let b: i32 = 2;

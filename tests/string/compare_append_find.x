@@ -1,6 +1,10 @@
-// 测试 std.string：string_compare、string_append_char、string_append_slice、string_find_char、string_starts_with、string_ends_with、string_copy_to
+// See implementation.
 const string = import("std.string");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a_buf: u8[2] = [97, 98];
   let b_buf: u8[2] = [97, 99];

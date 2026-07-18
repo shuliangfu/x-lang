@@ -1,7 +1,11 @@
-// STD-109：std.base64 流式编解码烟测（分块与块 API 金样一致）
+// See implementation.
 const base64 = import("std.base64");
 const debug = import("core.debug");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let plain: u8[5] = [104, 101, 108, 108, 111];
   let state: u8[32] = [];

@@ -1,6 +1,10 @@
-// STD-151：std.ffi 结构体 pack/unpack 与 i32 回调烟测
+// See implementation.
 const ffi = import("std.ffi");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let buf: u8[8] = [0, 0, 0, 0, 0, 0, 0, 0];
   if (point_pack(&buf[0], 8, 3, 4) != 0) { return 1; }

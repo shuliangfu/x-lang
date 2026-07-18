@@ -14,11 +14,11 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.ffi — C 字符串互操作（对标 Zig std.cstr、Rust std::ffi）
+// See implementation.
 //
-// 【文件职责】cstr_len、cstring_new/free；FfiPoint pack/unpack；
-// invoke_cb usize 回调调用。
-// 【依赖】core；与 std/ffi/ffi.x 同属一模块（F-ZC 纯 .x）。
+// See implementation.
+// See implementation.
+// See implementation.
 extern function ffi_cstr_len_c(ptr: *u8): i32;
 extern function ffi_cstring_new_c(ptr: *u8, len: i32): *u8;
 extern function ffi_cstring_free_c(ptr: *u8): void;
@@ -28,80 +28,124 @@ extern function ffi_point_unpack_c(buf: *u8, cap: i32, out: *FfiPoint): i32;
 extern function ffi_cb_double_i32_fn_c(): usize;
 extern function ffi_invoke_i32_cb_c(cb: usize, arg: i32): i32;
 
-/** 成功。 */
+/* See implementation. */
 export const FFI_OK: i32 = 0;
-/** 空指针错误。 */
+/* See implementation. */
 export const FFI_ERR_NULL: i32 = -1;
 /** len < 0。 */
 export const FFI_ERR_INVALID_LEN: i32 = -2;
-/** malloc 失败。 */
+/* See implementation. */
 export const FFI_ERR_OOM: i32 = -3;
-/** 缓冲区过小（cap < 8）。 */
+/* See implementation. */
 export const FFI_ERR_TOO_SMALL: i32 = -4;
 
-/** 8 字节 POD 点（x, y 各 i32）。 */
+/* See implementation. */
 export struct FfiPoint {
   x: i32
   y: i32
 }
 
-/** 返回 NUL 结尾字符串的字节长度（不含 NUL）；ptr 为 0 返回 -1。 */
+/** Exported function `cstr_len`.
+ * Query helper `cstr_len`.
+ * @param ptr *u8
+ * @return i32
+ */
 export function cstr_len(ptr: *u8): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = ffi_cstr_len_c(ptr); }
   return _rc;
 }
 
-/** 分配并复制 ptr[0..len]，末尾加 NUL；失败返回 0。需用 cstring_free 释放。 */
+/** Exported function `cstring_new`.
+ * Implements `cstring_new`.
+ * @param ptr *u8
+ * @param len i32
+ * @return *u8
+ */
 export function cstring_new(ptr: *u8, len: i32): *u8 {
   let _rc: *u8 = 0;
   unsafe { _rc = ffi_cstring_new_c(ptr, len); }
   return _rc;
 }
 
-/** 显式错误码分配 owned CString；成功 FFI_OK 且 *out 为指针位模式（STD-055）。 */
+/** Exported function `cstring_try_new`.
+ * Implements `cstring_try_new`.
+ * @param ptr *u8
+ * @param len i32
+ * @param out *usize
+ * @return i32
+ */
 export function cstring_try_new(ptr: *u8, len: i32, out: *usize): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = ffi_cstring_try_new_c(ptr, len, out); }
   return _rc;
 }
 
-/** 释放由 cstring_new / cstring_try_new 返回的指针。 */
+/** Exported function `cstring_free`.
+ * Memory management helper `cstring_free`.
+ * @param ptr *u8
+ * @return void
+ */
 export function cstring_free(ptr: *u8): void {
   unsafe {
     ffi_cstring_free_c(ptr);
   }
 }
 
-/** cstring_free 别名（SAFE-004 C6：恰好一次释放）。 */
+/** Exported function `cstring_destroy`.
+ * Implements `cstring_destroy`.
+ * @param ptr *u8
+ * @return void
+ */
 export function cstring_destroy(ptr: *u8): void {
   unsafe {
     ffi_cstring_free_c(ptr);
   }
 }
 
-/** 将 x/y 以小端写入 buf；cap<8 返回 FFI_ERR_TOO_SMALL。 */
+/** Exported function `point_pack`.
+ * Implements `point_pack`.
+ * @param buf *u8
+ * @param cap i32
+ * @param x i32
+ * @param y i32
+ * @return i32
+ */
 export function point_pack(buf: *u8, cap: i32, x: i32, y: i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = ffi_point_pack_c(buf, cap, x, y); }
   return _rc;
 }
 
-/** 从 buf 读出 FfiPoint 到 out；cap<8 返回 FFI_ERR_TOO_SMALL。 */
+/** Exported function `point_unpack`.
+ * Implements `point_unpack`.
+ * @param buf *u8
+ * @param cap i32
+ * @param out *FfiPoint
+ * @return i32
+ */
 export function point_unpack(buf: *u8, cap: i32, out: *FfiPoint): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = ffi_point_unpack_c(buf, cap, out); }
   return _rc;
 }
 
-/** 返回内置 arg*2 回调函数地址（usize）。 */
+/** Exported function `cb_double_fn`.
+ * Implements `cb_double_fn`.
+ * @return usize
+ */
 export function cb_double_fn(): usize {
   let _rc: usize = 0;
   unsafe { _rc = ffi_cb_double_i32_fn_c(); }
   return _rc;
 }
 
-/** 调用 usize 承载的 i32→i32 回调；cb=0 返回 FFI_ERR_NULL。 */
+/** Exported function `invoke_cb`.
+ * Implements `invoke_cb`.
+ * @param cb usize
+ * @param arg i32
+ * @return i32
+ */
 export function invoke_cb(cb: usize, arg: i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = ffi_invoke_i32_cb_c(cb, arg); }

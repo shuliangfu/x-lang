@@ -1,6 +1,10 @@
-// STD-136：std.datetime IANA 时区 + DST 烟测
+// See implementation.
 const datetime = import("std.datetime");
 
+/** Internal function `test_ny_dst`.
+ * Implements `test_ny_dst`.
+ * @return i32
+ */
 function test_ny_dst(): i32 {
   let tz: TimeZone = TimeZone { offset_min: 0, iana_id: -1 };
   let name: u8[16] = [
@@ -21,6 +25,10 @@ function test_ny_dst(): i32 {
   return 0;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (datetime.iana_dst_smoke() != 0) { return 1; }
   if (test_ny_dst() != 0) { return 2; }

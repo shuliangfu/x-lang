@@ -1,6 +1,10 @@
-// STD-096：std.dynlib last_os_error 烟测
+// See implementation.
 const dynlib = import("std.dynlib");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   // "/nonexistent/shux_dynlib_missing.so"
   let bad: u8[35] = [47, 110, 111, 110, 101, 120, 105, 115, 116, 101, 110, 116, 47, 115, 104, 117,

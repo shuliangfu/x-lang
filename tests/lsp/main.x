@@ -1,4 +1,7 @@
-/** LSP 测试用：合法 .x 源码，用于 didOpen + diagnostics 等请求。 */
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   return 0;
 }

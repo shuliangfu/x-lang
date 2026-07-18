@@ -14,39 +14,50 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std/json/json.x — F-json v2：JSON 解析/游标/序列化（纯 .x；替代 json_parse_glue.c）
+// See implementation.
 //
-// 【文件职责】
-// 解析 number/bool/null/string；游标 object/array；类型化 decode；序列化 append；
-// 零拷贝 string view；点分路径导航。单遍、无 sscanf，性能优先。
-// mod.x 对外 API 经 extern json_*_c 链入本文件实现。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 【对标】Zig std.json parseFromSlice；Rust serde_json from_str 最小子集。
+// See implementation.
 
-/** 零拷贝视图需拷贝时的 out_len 哨兵（STD-008）。 */
+/* See implementation. */
 export const JSON_VIEW_NEEDS_COPY: i32 = -2;
 
-/** object 字段缺失时的返回码（STD-116）。 */
+/* See implementation. */
 export const JSON_DECODE_MISSING: i32 = -3;
 
-/** JSON 游标：与 mod.x JsonCursor 布局一致（STD-034）。 */
+/* See implementation. */
 export struct JsonCursor {
   ptr: *u8;
   len: i32;
   off: i32;
 }
 
-/** F-json v1 版本标记；供聚合 gate 校验 json.x 已参与构建。 */
+/** Exported function `json_f_json_v1_marker_c`.
+ * Implements `json_f_json_v1_marker_c`.
+ * @return i32
+ */
 export function json_f_json_v1_marker_c(): i32 {
   return 1;
 }
 
-/** F-json v2 逻辑全量 .x 标记。 */
+/** Exported function `json_f_json_v2_marker_c`.
+ * Implements `json_f_json_v2_marker_c`.
+ * @return i32
+ */
 export function json_f_json_v2_marker_c(): i32 {
   return 1;
 }
 
-/** 拷贝 JsonCursor 三字段（替代 C 结构体赋值）。 */
+/** Exported function `json_cursor_copy`.
+ * Implements `json_cursor_copy`.
+ * @param dst *JsonCursor
+ * @param src *JsonCursor
+ * @return void
+ */
 export function json_cursor_copy(dst: *JsonCursor, src: *JsonCursor): void {
   if (dst == 0 || src == 0) { return; }
   dst.ptr = src.ptr;
@@ -54,7 +65,14 @@ export function json_cursor_copy(dst: *JsonCursor, src: *JsonCursor): void {
   dst.off = src.off;
 }
 
-/** WPO-S3：按字段写入游标，避免 local& + outer* 同 call 触发 stack escape typeck。 */
+/** Exported function `json_cursor_write_fields`.
+ * Write path helper `json_cursor_write_fields`.
+ * @param dst *JsonCursor
+ * @param ptr *u8
+ * @param len i32
+ * @param off i32
+ * @return void
+ */
 export function json_cursor_write_fields(dst: *JsonCursor, ptr: *u8, len: i32, off: i32): void {
   if (dst == 0) { return; }
   dst.ptr = ptr;
@@ -62,7 +80,14 @@ export function json_cursor_write_fields(dst: *JsonCursor, ptr: *u8, len: i32, o
   dst.off = off;
 }
 
-/** 手写 double 解析（单遍、无 sscanf）；consumed 写入消费字节数；成功返回 0。 */
+/** Exported function `json_parse_number_c`.
+ * Implements `json_parse_number_c`.
+ * @param ptr *u8
+ * @param len i32
+ * @param out_val *f64
+ * @param consumed *i32
+ * @return i32
+ */
 export function json_parse_number_c(ptr: *u8, len: i32, out_val: *f64, consumed: *i32): i32 {
   let i: i32 = 0;
   let neg: i32 = 0;
@@ -121,7 +146,13 @@ export function json_parse_number_c(ptr: *u8, len: i32, out_val: *f64, consumed:
   return 0;
 }
 
-/** 解析 JSON null 字面量；匹配返回 1 并写 consumed=4，否则 0。 */
+/** Exported function `json_parse_null_c`.
+ * Implements `json_parse_null_c`.
+ * @param ptr *u8
+ * @param len i32
+ * @param consumed *i32
+ * @return i32
+ */
 export function json_parse_null_c(ptr: *u8, len: i32, consumed: *i32): i32 {
   if (ptr == 0 || len < 4 || consumed == 0) { return 0; }
   if (ptr[0] == 110 && ptr[1] == 117 && ptr[2] == 108 && ptr[3] == 108) {
@@ -131,7 +162,14 @@ export function json_parse_null_c(ptr: *u8, len: i32, consumed: *i32): i32 {
   return 0;
 }
 
-/** 解析 JSON true/false；匹配返回 1 并写 out/consumed，否则 0。 */
+/** Exported function `json_parse_bool_c`.
+ * Implements `json_parse_bool_c`.
+ * @param ptr *u8
+ * @param len i32
+ * @param out *i32
+ * @param consumed *i32
+ * @return i32
+ */
 export function json_parse_bool_c(ptr: *u8, len: i32, out: *i32, consumed: *i32): i32 {
   if (ptr == 0 || len < 4 || out == 0 || consumed == 0) { return 0; }
   if (len >= 4 && ptr[0] == 116 && ptr[1] == 114 && ptr[2] == 117 && ptr[3] == 101) {
@@ -147,8 +185,15 @@ export function json_parse_bool_c(ptr: *u8, len: i32, out: *i32, consumed: *i32)
   return 0;
 }
 
-/** 解析 JSON 字符串 "..."（含 \\ \" \/ \b \f \n \r \t \uXXXX）；
- *  consumed[0] 含前后引号；内容写入 out，最多 out_cap；返回内容长度，失败 -1。 */
+/** Exported function `json_parse_string_c`.
+ * Implements `json_parse_string_c`.
+ * @param ptr *u8
+ * @param len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @param consumed *i32
+ * @return i32
+ */
 export function json_parse_string_c(ptr: *u8, len: i32, out: *u8, out_cap: i32, consumed: *i32): i32 {
   let i: i32 = 1;
   let o: i32 = 0;
@@ -216,7 +261,15 @@ export function json_parse_string_c(ptr: *u8, len: i32, out: *u8, out_cap: i32, 
   return o;
 }
 
-/** 转义字符串内容（不含外围引号）；从 buf[buf_off] 起写入至多 buf_cap 字节。 */
+/** Exported function `json_escape_inner`.
+ * Implements `json_escape_inner`.
+ * @param ptr *u8
+ * @param len i32
+ * @param buf *u8
+ * @param buf_off i32
+ * @param buf_cap i32
+ * @return i32
+ */
 export function json_escape_inner(ptr: *u8, len: i32, buf: *u8, buf_off: i32, buf_cap: i32): i32 {
   let i: i32 = 0;
   let j: i32 = 0;
@@ -261,7 +314,14 @@ export function json_escape_inner(ptr: *u8, len: i32, buf: *u8, buf_off: i32, bu
   return i;
 }
 
-/** 将 ptr[0..len] 按 JSON 字符串转义写入 buf（含前后引号）；返回写入长度，不足 -1。 */
+/** Exported function `json_escape_c`.
+ * Implements `json_escape_c`.
+ * @param ptr *u8
+ * @param len i32
+ * @param buf *u8
+ * @param buf_cap i32
+ * @return i32
+ */
 export function json_escape_c(ptr: *u8, len: i32, buf: *u8, buf_cap: i32): i32 {
   let i: i32 = 0;
   let n: i32 = 0;
@@ -277,7 +337,13 @@ export function json_escape_c(ptr: *u8, len: i32, buf: *u8, buf_cap: i32): i32 {
   return i;
 }
 
-/** 将 number 追加为 JSON 到 buf（整数优先；非整数写 0）；返回写入长度，不足 -1。 */
+/** Exported function `json_append_number_c`.
+ * Implements `json_append_number_c`.
+ * @param buf *u8
+ * @param buf_cap i32
+ * @param val f64
+ * @return i32
+ */
 export function json_append_number_c(buf: *u8, buf_cap: i32, val: f64): i32 {
   let i: i32 = 0;
   let u: u64 = 0;
@@ -305,14 +371,25 @@ export function json_append_number_c(buf: *u8, buf_cap: i32, val: f64): i32 {
   return i;
 }
 
-/** 追加 "null" 到 buf；返回 4，不足 -1。 */
+/** Exported function `json_append_null_c`.
+ * Implements `json_append_null_c`.
+ * @param buf *u8
+ * @param buf_cap i32
+ * @return i32
+ */
 export function json_append_null_c(buf: *u8, buf_cap: i32): i32 {
   if (buf == 0 || buf_cap < 4) { return -1; }
   buf[0] = 110; buf[1] = 117; buf[2] = 108; buf[3] = 108;
   return 4;
 }
 
-/** 追加 "true" 或 "false" 到 buf；返回写入长度，不足 -1。 */
+/** Exported function `json_append_bool_c`.
+ * Implements `json_append_bool_c`.
+ * @param buf *u8
+ * @param buf_cap i32
+ * @param val i32
+ * @return i32
+ */
 export function json_append_bool_c(buf: *u8, buf_cap: i32, val: i32): i32 {
   if (buf == 0 || buf_cap < 5) { return -1; }
   if (val != 0) {
@@ -323,7 +400,11 @@ export function json_append_bool_c(buf: *u8, buf_cap: i32, val: i32): i32 {
   return 5;
 }
 
-/** 跳过 JSON 空白。 */
+/** Exported function `json_cursor_skip_ws`.
+ * Implements `json_cursor_skip_ws`.
+ * @param cur *JsonCursor
+ * @return void
+ */
 export function json_cursor_skip_ws(cur: *JsonCursor): void {
   let c: u8 = 0;
   if (cur == 0) { return; }
@@ -334,7 +415,11 @@ export function json_cursor_skip_ws(cur: *JsonCursor): void {
   }
 }
 
-/** 跳过单个 JSON 值并前进 off；失败返回 -1。 */
+/** Exported function `json_cursor_skip_value_impl`.
+ * Implements `json_cursor_skip_value_impl`.
+ * @param cur *JsonCursor
+ * @return i32
+ */
 export function json_cursor_skip_value_impl(cur: *JsonCursor): i32 {
   let consumed: i32 = 0;
   let dummy: i32 = 0;
@@ -396,7 +481,13 @@ export function json_cursor_skip_value_impl(cur: *JsonCursor): i32 {
   return -1;
 }
 
-/** 初始化游标。 */
+/** Exported function `json_cursor_init_c`.
+ * Implements `json_cursor_init_c`.
+ * @param cur *JsonCursor
+ * @param ptr *u8
+ * @param len i32
+ * @return void
+ */
 export function json_cursor_init_c(cur: *JsonCursor, ptr: *u8, len: i32): void {
   if (cur == 0) { return; }
   cur.ptr = ptr;
@@ -404,7 +495,11 @@ export function json_cursor_init_c(cur: *JsonCursor, ptr: *u8, len: i32): void {
   cur.off = 0;
 }
 
-/** 进入 JSON object；期望 leading `{`。 */
+/** Internal function `json_cursor_enter_object_c`.
+ * Implements `json_cursor_enter_object_c`.
+ * @param cur *JsonCursor
+ * @return i32
+ */
 function json_cursor_enter_object_c(cur: *JsonCursor): i32 {
   if (cur == 0) { return -1; }
   json_cursor_skip_ws(cur);
@@ -414,13 +509,18 @@ function json_cursor_enter_object_c(cur: *JsonCursor): i32 {
   return 0;
 }
 
-/** object 字段 key 暂存（WPO-S3：避免 *JsonCursor 与 &local key_buf 同 call）。 */
+/* See implementation. */
 let g_json_object_keybuf: u8[64] = [];
-/** object 字段 key 长度暂存（WPO-S3：避免 &local key_len 与 *JsonCursor 同 call）。 */
+/* See implementation. */
 let g_json_object_key_len: i32 = 0;
-/** decode 消费字节数暂存（WPO-S3：避免 &local consumed 与 *JsonCursor 同 call）。 */
+/* See implementation. */
 let g_json_decode_consumed: i32 = 0;
-/** 将 src 三字段写入 dst（WPO-S3：标量字段，避免 json_cursor_copy call）。 */
+/** Internal function `json_cursor_load_into_c`.
+ * Implements `json_cursor_load_into_c`.
+ * @param dst *JsonCursor
+ * @param src *JsonCursor
+ * @return void
+ */
 function json_cursor_load_into_c(dst: *JsonCursor, src: *JsonCursor): void {
   let p: *u8 = 0 as *u8;
   let ln: i32 = 0;
@@ -432,34 +532,51 @@ function json_cursor_load_into_c(dst: *JsonCursor, src: *JsonCursor): void {
   json_cursor_write_fields(dst, p, ln, of);
 }
 
-/** 返回 decode 消费字节数槽指针（WPO-S3）。 */
+/** Internal function `json_decode_consumed_ptr_c`.
+ * Implements `json_decode_consumed_ptr_c`.
+ * @return *i32
+ */
 function json_decode_consumed_ptr_c(): *i32 {
   return &g_json_decode_consumed;
 }
 
-/** 返回 object key 暂存区指针（WPO-S3）。 */
+/** Internal function `json_object_keybuf_ptr_c`.
+ * Implements `json_object_keybuf_ptr_c`.
+ * @return *u8
+ */
 function json_object_keybuf_ptr_c(): *u8 {
   return &g_json_object_keybuf[0];
 }
 
-/** 返回 object key 长度槽指针（WPO-S3）。 */
+/** Internal function `json_object_key_len_ptr_c`.
+ * Implements `json_object_key_len_ptr_c`.
+ * @return *i32
+ */
 function json_object_key_len_ptr_c(): *i32 {
   return &g_json_object_key_len;
 }
 
-/** 取游标当前 value 起点指针（WPO-S3：单 *JsonCursor 实参）。 */
+/** Internal function `json_cursor_value_ptr_at_c`.
+ * Implements `json_cursor_value_ptr_at_c`.
+ * @param c *JsonCursor
+ * @return *u8
+ */
 function json_cursor_value_ptr_at_c(c: *JsonCursor): *u8 {
   if (c == 0) { return 0 as *u8; }
   return &c.ptr[c.off];
 }
 
-/** 取游标当前 value 剩余长度（WPO-S3：单 *JsonCursor 实参）。 */
+/** Internal function `json_cursor_value_len_at_c`.
+ * Implements `json_cursor_value_len_at_c`.
+ * @param c *JsonCursor
+ * @return i32
+ */
 function json_cursor_value_len_at_c(c: *JsonCursor): i32 {
   if (c == 0) { return 0; }
   return c.len - c.off;
 }
 
-/** 读取下一 object 键；成功 1，结束 0，错误 -1。off 停在 value 起始。 */
+/* See implementation. */
 function json_cursor_object_next_c(cur: *JsonCursor, key_buf: *u8, key_cap: i32,
   key_len: *i32): i32 {
   let consumed: i32 = 0;
@@ -483,12 +600,22 @@ function json_cursor_object_next_c(cur: *JsonCursor, key_buf: *u8, key_cap: i32,
   return 1;
 }
 
-/** 跳过当前 value。 */
+/** Internal function `json_cursor_skip_value_c`.
+ * Implements `json_cursor_skip_value_c`.
+ * @param cur *JsonCursor
+ * @return i32
+ */
 function json_cursor_skip_value_c(cur: *JsonCursor): i32 {
   return json_cursor_skip_value_impl(cur);
 }
 
-/** 从缓冲起点跳过单个 JSON 值；写 consumed[0] 并返回 0，失败 -1。 */
+/** Internal function `json_skip_value_c`.
+ * Implements `json_skip_value_c`.
+ * @param ptr *u8
+ * @param len i32
+ * @param consumed *i32
+ * @return i32
+ */
 function json_skip_value_c(ptr: *u8, len: i32, consumed: *i32): i32 {
   let cur: JsonCursor;
   if (ptr == 0 || len < 0 || consumed == 0) { return -1; }
@@ -498,7 +625,14 @@ function json_skip_value_c(ptr: *u8, len: i32, consumed: *i32): i32 {
   return 0;
 }
 
-/** 零拷贝视图：含转义时 out_len[0] = JSON_VIEW_NEEDS_COPY 并返回 NULL。 */
+/** Internal function `json_parse_string_view_c`.
+ * Implements `json_parse_string_view_c`.
+ * @param ptr *u8
+ * @param len i32
+ * @param out_len *i32
+ * @param consumed *i32
+ * @return *u8
+ */
 function json_parse_string_view_c(ptr: *u8, len: i32, out_len: *i32, consumed: *i32): *u8 {
   let i: i32 = 0;
   if (ptr == 0 || len < 2 || ptr[0] != 34 || out_len == 0 || consumed == 0) { return 0 as *u8; }
@@ -519,7 +653,11 @@ function json_parse_string_view_c(ptr: *u8, len: i32, out_len: *i32, consumed: *
   return 0 as *u8;
 }
 
-/** 进入 JSON array；期望 leading `[`。 */
+/** Internal function `json_cursor_enter_array_c`.
+ * Implements `json_cursor_enter_array_c`.
+ * @param cur *JsonCursor
+ * @return i32
+ */
 function json_cursor_enter_array_c(cur: *JsonCursor): i32 {
   if (cur == 0) { return -1; }
   json_cursor_skip_ws(cur);
@@ -529,7 +667,11 @@ function json_cursor_enter_array_c(cur: *JsonCursor): i32 {
   return 0;
 }
 
-/** 数组内是否还有元素：1 有，0 已到 `]`（并消费 `]`），错误 -1。 */
+/** Internal function `json_cursor_array_has_elem_c`.
+ * Implements `json_cursor_array_has_elem_c`.
+ * @param cur *JsonCursor
+ * @return i32
+ */
 function json_cursor_array_has_elem_c(cur: *JsonCursor): i32 {
   if (cur == 0) { return -1; }
   json_cursor_skip_ws(cur);
@@ -550,7 +692,11 @@ function json_cursor_array_has_elem_c(cur: *JsonCursor): i32 {
   return 1;
 }
 
-/** 游标处 JSON 值种类：1 string 2 number 3 object 4 array 5 null 6 bool，未知 0。 */
+/** Internal function `json_cursor_value_type_c`.
+ * Implements `json_cursor_value_type_c`.
+ * @param cur *JsonCursor
+ * @return i32
+ */
 function json_cursor_value_type_c(cur: *JsonCursor): i32 {
   let c: u8 = 0;
   if (cur == 0 || cur.off >= cur.len) { return 0; }
@@ -566,7 +712,14 @@ function json_cursor_value_type_c(cur: *JsonCursor): i32 {
   return 0;
 }
 
-/** 在 ptr 起点解码 i32；成功 0 并写 consumed/out。 */
+/** Internal function `json_decode_i32_at_c`.
+ * Implements `json_decode_i32_at_c`.
+ * @param ptr *u8
+ * @param len i32
+ * @param consumed *i32
+ * @param out *i32
+ * @return i32
+ */
 function json_decode_i32_at_c(ptr: *u8, len: i32, consumed: *i32, out: *i32): i32 {
   let dv: f64 = 0.0;
   let con: i32 = 0;
@@ -577,7 +730,14 @@ function json_decode_i32_at_c(ptr: *u8, len: i32, consumed: *i32, out: *i32): i3
   return 0;
 }
 
-/** 在 ptr 起点解码 f64；成功 0 并写 consumed/out。 */
+/** Internal function `json_decode_f64_at_c`.
+ * Implements `json_decode_f64_at_c`.
+ * @param ptr *u8
+ * @param len i32
+ * @param consumed *i32
+ * @param out *f64
+ * @return i32
+ */
 function json_decode_f64_at_c(ptr: *u8, len: i32, consumed: *i32, out: *f64): i32 {
   let dv: f64 = 0.0;
   let con: i32 = 0;
@@ -588,7 +748,14 @@ function json_decode_f64_at_c(ptr: *u8, len: i32, consumed: *i32, out: *f64): i3
   return 0;
 }
 
-/** 在 ptr 起点解码 bool；成功 0。 */
+/** Internal function `json_decode_bool_at_c`.
+ * Implements `json_decode_bool_at_c`.
+ * @param ptr *u8
+ * @param len i32
+ * @param consumed *i32
+ * @param out *i32
+ * @return i32
+ */
 function json_decode_bool_at_c(ptr: *u8, len: i32, consumed: *i32, out: *i32): i32 {
   let con: i32 = 0;
   if (ptr == 0 || consumed == 0 || out == 0) { return -1; }
@@ -597,7 +764,7 @@ function json_decode_bool_at_c(ptr: *u8, len: i32, consumed: *i32, out: *i32): i
   return 0;
 }
 
-/** 在 ptr 起点解码 string 到 out；成功 0 并写 out_len/consumed。 */
+/* See implementation. */
 function json_decode_string_at_c(ptr: *u8, len: i32, out: *u8, out_cap: i32,
   out_len: *i32, consumed: *i32): i32 {
   let con: i32 = 0;
@@ -610,7 +777,14 @@ function json_decode_string_at_c(ptr: *u8, len: i32, out: *u8, out_cap: i32,
   return 0;
 }
 
-/** 比较 key_buf 与 key[0..key_len)（独立 key 缓冲区）。 */
+/** Internal function `json_key_eq`.
+ * Implements `json_key_eq`.
+ * @param key_buf *u8
+ * @param key_len i32
+ * @param key *u8
+ * @param want_len i32
+ * @return i32
+ */
 function json_key_eq(key_buf: *u8, key_len: i32, key: *u8, want_len: i32): i32 {
   let i: i32 = 0;
   if (key_len != want_len) { return 0; }
@@ -622,7 +796,15 @@ function json_key_eq(key_buf: *u8, key_len: i32, key: *u8, want_len: i32): i32 {
   return 1;
 }
 
-/** 比较 key_buf 与 path[path_off..path_off+want_len)。 */
+/** Internal function `json_key_eq_path`.
+ * Implements `json_key_eq_path`.
+ * @param key_buf *u8
+ * @param key_len i32
+ * @param path *u8
+ * @param path_off i32
+ * @param want_len i32
+ * @return i32
+ */
 function json_key_eq_path(key_buf: *u8, key_len: i32, path: *u8, path_off: i32, want_len: i32): i32 {
   let i: i32 = 0;
   if (key_len != want_len) { return 0; }
@@ -634,32 +816,57 @@ function json_key_eq_path(key_buf: *u8, key_len: i32, path: *u8, path_off: i32, 
   return 1;
 }
 
-/** 从游标当前位置解码 i32（WPO-S3：单 *JsonCursor 实参；内部按字段切片）。 */
+/** Internal function `json_decode_i32_at_cursor_c`.
+ * Implements `json_decode_i32_at_cursor_c`.
+ * @param cur *JsonCursor
+ * @param consumed *i32
+ * @param out *i32
+ * @return i32
+ */
 function json_decode_i32_at_cursor_c(cur: *JsonCursor, consumed: *i32, out: *i32): i32 {
   return json_decode_i32_at_c(json_cursor_value_ptr_at_c(cur), json_cursor_value_len_at_c(cur),
     consumed, out);
 }
 
-/** 从游标当前位置解码 bool。 */
+/** Internal function `json_decode_bool_at_cursor_c`.
+ * Implements `json_decode_bool_at_cursor_c`.
+ * @param cur *JsonCursor
+ * @param consumed *i32
+ * @param out *i32
+ * @return i32
+ */
 function json_decode_bool_at_cursor_c(cur: *JsonCursor, consumed: *i32, out: *i32): i32 {
   return json_decode_bool_at_c(json_cursor_value_ptr_at_c(cur), json_cursor_value_len_at_c(cur),
     consumed, out);
 }
 
-/** 从游标当前位置解码 string。 */
+/* See implementation. */
 function json_decode_string_at_cursor_c(cur: *JsonCursor, out: *u8, out_cap: i32, out_len: *i32,
   consumed: *i32): i32 {
   return json_decode_string_at_c(json_cursor_value_ptr_at_c(cur), json_cursor_value_len_at_c(cur),
     out, out_cap, out_len, consumed);
 }
 
-/** 从游标当前位置解码 f64。 */
+/** Internal function `json_decode_f64_at_cursor_c`.
+ * Implements `json_decode_f64_at_cursor_c`.
+ * @param cur *JsonCursor
+ * @param consumed *i32
+ * @param out *f64
+ * @return i32
+ */
 function json_decode_f64_at_cursor_c(cur: *JsonCursor, consumed: *i32, out: *f64): i32 {
   return json_decode_f64_at_c(json_cursor_value_ptr_at_c(cur), json_cursor_value_len_at_c(cur),
     consumed, out);
 }
 
-/** object 内按 key 解码 i32；缺键 JSON_DECODE_MISSING。 */
+/** Internal function `json_object_decode_i32_c`.
+ * Implements `json_object_decode_i32_c`.
+ * @param cur *JsonCursor
+ * @param key *u8
+ * @param key_len i32
+ * @param out *i32
+ * @return i32
+ */
 function json_object_decode_i32_c(cur: *JsonCursor, key: *u8, key_len: i32, out: *i32): i32 {
   let scan: JsonCursor;
   let nr: i32 = 0;
@@ -697,7 +904,14 @@ function json_object_decode_i32_c(cur: *JsonCursor, key: *u8, key_len: i32, out:
   return JSON_DECODE_MISSING;
 }
 
-/** object 内按 key 解码 bool；缺键 JSON_DECODE_MISSING。 */
+/** Internal function `json_object_decode_bool_c`.
+ * Implements `json_object_decode_bool_c`.
+ * @param cur *JsonCursor
+ * @param key *u8
+ * @param key_len i32
+ * @param out *i32
+ * @return i32
+ */
 function json_object_decode_bool_c(cur: *JsonCursor, key: *u8, key_len: i32, out: *i32): i32 {
   let scan: JsonCursor;
   let nr: i32 = 0;
@@ -735,7 +949,7 @@ function json_object_decode_bool_c(cur: *JsonCursor, key: *u8, key_len: i32, out
   return JSON_DECODE_MISSING;
 }
 
-/** object 内按 key 解码 string；缺键 JSON_DECODE_MISSING。 */
+/* See implementation. */
 function json_object_decode_string_c(cur: *JsonCursor, key: *u8, key_len: i32, out: *u8,
   out_cap: i32, out_len: *i32): i32 {
   let scan: JsonCursor;
@@ -777,7 +991,14 @@ function json_object_decode_string_c(cur: *JsonCursor, key: *u8, key_len: i32, o
   return JSON_DECODE_MISSING;
 }
 
-/** 在当前 object 游标内按 path 切片查找 key 并原地定位到 value；成功返回 0。 */
+/** Internal function `json_cursor_find_key_slice_inplace`.
+ * Implements `json_cursor_find_key_slice_inplace`.
+ * @param c *JsonCursor
+ * @param path *u8
+ * @param path_off i32
+ * @param key_len i32
+ * @return i32
+ */
 function json_cursor_find_key_slice_inplace(c: *JsonCursor, path: *u8, path_off: i32, key_len: i32): i32 {
   let scan: JsonCursor;
   let nr: i32 = 0;
@@ -798,7 +1019,13 @@ function json_cursor_find_key_slice_inplace(c: *JsonCursor, path: *u8, path_off:
   return JSON_DECODE_MISSING;
 }
 
-/** 在当前 object 游标内查找 key 并原地定位到 value；成功返回 0。 */
+/** Internal function `json_cursor_find_key_inplace`.
+ * Implements `json_cursor_find_key_inplace`.
+ * @param c *JsonCursor
+ * @param key *u8
+ * @param key_len i32
+ * @return i32
+ */
 function json_cursor_find_key_inplace(c: *JsonCursor, key: *u8, key_len: i32): i32 {
   let scan: JsonCursor;
   let nr: i32 = 0;
@@ -819,7 +1046,12 @@ function json_cursor_find_key_inplace(c: *JsonCursor, key: *u8, key_len: i32): i
   return JSON_DECODE_MISSING;
 }
 
-/** 在 array 游标处取第 index 个元素并原地定位；成功返回 0。 */
+/** Internal function `json_cursor_find_array_index_inplace`.
+ * Implements `json_cursor_find_array_index_inplace`.
+ * @param c *JsonCursor
+ * @param index i32
+ * @return i32
+ */
 function json_cursor_find_array_index_inplace(c: *JsonCursor, index: i32): i32 {
   let i: i32 = 0;
   let has: i32 = 0;
@@ -838,7 +1070,14 @@ function json_cursor_find_array_index_inplace(c: *JsonCursor, index: i32): i32 {
   return -1;
 }
 
-/** 在当前 object 游标内查找 key；成功时 out_at 指向 value 起始。 */
+/** Internal function `json_cursor_find_key`.
+ * Implements `json_cursor_find_key`.
+ * @param cur *JsonCursor
+ * @param key *u8
+ * @param key_len i32
+ * @param out_at *JsonCursor
+ * @return i32
+ */
 function json_cursor_find_key(cur: *JsonCursor, key: *u8, key_len: i32, out_at: *JsonCursor): i32 {
   let src_ptr: *u8 = 0 as *u8;
   let src_len: i32 = 0;
@@ -851,7 +1090,14 @@ function json_cursor_find_key(cur: *JsonCursor, key: *u8, key_len: i32, out_at: 
   return json_cursor_find_key_inplace(out_at, key, key_len);
 }
 
-/** 路径段是否为非负整数数组下标；段为 path[off..off+seg_len)。 */
+/** Internal function `json_path_seg_is_index`.
+ * Implements `json_path_seg_is_index`.
+ * @param path *u8
+ * @param off i32
+ * @param seg_len i32
+ * @param out_idx *i32
+ * @return i32
+ */
 function json_path_seg_is_index(path: *u8, off: i32, seg_len: i32, out_idx: *i32): i32 {
   let i: i32 = 0;
   let v: i32 = 0;
@@ -865,7 +1111,13 @@ function json_path_seg_is_index(path: *u8, off: i32, seg_len: i32, out_idx: *i32
   return 1;
 }
 
-/** 在 array 游标处取第 index 个元素；out_at 指向元素 value 起始。 */
+/** Internal function `json_cursor_find_array_index`.
+ * Implements `json_cursor_find_array_index`.
+ * @param cur *JsonCursor
+ * @param index i32
+ * @param out_at *JsonCursor
+ * @return i32
+ */
 function json_cursor_find_array_index(cur: *JsonCursor, index: i32, out_at: *JsonCursor): i32 {
   let src_ptr: *u8 = 0 as *u8;
   let src_len: i32 = 0;
@@ -878,7 +1130,14 @@ function json_cursor_find_array_index(cur: *JsonCursor, index: i32, out_at: *Jso
   return json_cursor_find_array_index_inplace(out_at, index);
 }
 
-/** 跟随单段路径并原地定位游标（object key 或 array index）；段为 path[seg_off..seg_off+seg_len)。 */
+/** Internal function `json_cursor_follow_path_seg_inplace`.
+ * Implements `json_cursor_follow_path_seg_inplace`.
+ * @param c *JsonCursor
+ * @param path *u8
+ * @param seg_off i32
+ * @param seg_len i32
+ * @return i32
+ */
 function json_cursor_follow_path_seg_inplace(c: *JsonCursor, path: *u8, seg_off: i32, seg_len: i32): i32 {
   let idx: i32 = 0;
   if (c == 0 || path == 0 || seg_len <= 0 || seg_off < 0) { return -1; }
@@ -888,7 +1147,7 @@ function json_cursor_follow_path_seg_inplace(c: *JsonCursor, path: *u8, seg_off:
   return json_cursor_find_key_slice_inplace(c, path, seg_off, seg_len);
 }
 
-/** 跟随单段路径（object key 或 array index）。 */
+/* See implementation. */
 function json_cursor_follow_path_seg(cur: *JsonCursor, seg: *u8, seg_len: i32,
   out_at: *JsonCursor): i32 {
   let src_ptr: *u8 = 0 as *u8;
@@ -902,7 +1161,14 @@ function json_cursor_follow_path_seg(cur: *JsonCursor, seg: *u8, seg_len: i32,
   return json_cursor_follow_path_seg_inplace(out_at, seg, 0, seg_len);
 }
 
-/** 为下一段路径准备游标（下一段为 index 时保持 array 头；否则 enter object）。 */
+/** Internal function `json_cursor_descend_for_next`.
+ * Implements `json_cursor_descend_for_next`.
+ * @param at *JsonCursor
+ * @param path *u8
+ * @param next_i i32
+ * @param path_len i32
+ * @return i32
+ */
 function json_cursor_descend_for_next(at: *JsonCursor, path: *u8, next_i: i32, path_len: i32): i32 {
   let j: i32 = next_i;
   let idx: i32 = 0;
@@ -916,7 +1182,13 @@ function json_cursor_descend_for_next(at: *JsonCursor, path: *u8, next_i: i32, p
   return json_cursor_enter_object_c(at);
 }
 
-/** 在当前 object 根按点分路径导航并原地定位游标。 */
+/** Internal function `json_object_decode_dotted_inplace`.
+ * Implements `json_object_decode_dotted_inplace`.
+ * @param c *JsonCursor
+ * @param path *u8
+ * @param path_len i32
+ * @return i32
+ */
 function json_object_decode_dotted_inplace(c: *JsonCursor, path: *u8, path_len: i32): i32 {
   let i: i32 = 0;
   let j: i32 = 0;
@@ -939,7 +1211,7 @@ function json_object_decode_dotted_inplace(c: *JsonCursor, path: *u8, path_len: 
   return -1;
 }
 
-/** 点分路径逐步导航（支持 object 键与 array 下标，如 items.0 / users.0.name）。 */
+/* See implementation. */
 function json_object_decode_dotted_at(cur: *JsonCursor, path: *u8, path_len: i32,
   out_at: *JsonCursor): i32 {
   let src_ptr: *u8 = 0 as *u8;
@@ -953,7 +1225,14 @@ function json_object_decode_dotted_at(cur: *JsonCursor, path: *u8, path_len: i32
   return json_object_decode_dotted_inplace(out_at, path, path_len);
 }
 
-/** 按点分路径（如 user.age / items.0）在 object 根解码 i32；缺键 JSON_DECODE_MISSING。 */
+/** Internal function `json_object_decode_dotted_i32_c`.
+ * Implements `json_object_decode_dotted_i32_c`.
+ * @param cur *JsonCursor
+ * @param path *u8
+ * @param path_len i32
+ * @param out *i32
+ * @return i32
+ */
 function json_object_decode_dotted_i32_c(cur: *JsonCursor, path: *u8, path_len: i32, out: *i32): i32 {
   let val_ptr: *u8 = 0 as *u8;
   let val_len: i32 = 0;
@@ -977,7 +1256,7 @@ function json_object_decode_dotted_i32_c(cur: *JsonCursor, path: *u8, path_len: 
   return rc;
 }
 
-/** 按点分路径在 object 根解码 string。 */
+/* See implementation. */
 function json_object_decode_dotted_string_c(cur: *JsonCursor, path: *u8, path_len: i32, out: *u8,
   out_cap: i32, out_len: *i32): i32 {
   let val_ptr: *u8 = 0 as *u8;
@@ -1002,7 +1281,14 @@ function json_object_decode_dotted_string_c(cur: *JsonCursor, path: *u8, path_le
   return rc;
 }
 
-/** 按点分路径（如 ok / flags.0）在 object 根解码 bool；缺键 JSON_DECODE_MISSING。 */
+/** Internal function `json_object_decode_dotted_bool_c`.
+ * Implements `json_object_decode_dotted_bool_c`.
+ * @param cur *JsonCursor
+ * @param path *u8
+ * @param path_len i32
+ * @param out *i32
+ * @return i32
+ */
 function json_object_decode_dotted_bool_c(cur: *JsonCursor, path: *u8, path_len: i32, out: *i32): i32 {
   let val_ptr: *u8 = 0 as *u8;
   let val_len: i32 = 0;
@@ -1026,7 +1312,14 @@ function json_object_decode_dotted_bool_c(cur: *JsonCursor, path: *u8, path_len:
   return rc;
 }
 
-/** 按点分路径（如 metrics.cpu / values.0）在 object 根解码 f64。 */
+/** Internal function `json_object_decode_dotted_f64_c`.
+ * Implements `json_object_decode_dotted_f64_c`.
+ * @param cur *JsonCursor
+ * @param path *u8
+ * @param path_len i32
+ * @param out *f64
+ * @return i32
+ */
 function json_object_decode_dotted_f64_c(cur: *JsonCursor, path: *u8, path_len: i32, out: *f64): i32 {
   let val_ptr: *u8 = 0 as *u8;
   let val_len: i32 = 0;
@@ -1050,7 +1343,15 @@ function json_object_decode_dotted_f64_c(cur: *JsonCursor, path: *u8, path_len: 
   return rc;
 }
 
-/** WPO-S3：栈上组装游标解码 i32，供烟测避免 &local cur 与 &local out 同 call。 */
+/** Internal function `json_smoke_decode_i32_c`.
+ * Implements `json_smoke_decode_i32_c`.
+ * @param doc *u8
+ * @param doc_len i32
+ * @param key *u8
+ * @param key_len i32
+ * @param out *i32
+ * @return i32
+ */
 function json_smoke_decode_i32_c(doc: *u8, doc_len: i32, key: *u8, key_len: i32, out: *i32): i32 {
   let cur: JsonCursor;
   cur.ptr = doc;
@@ -1059,7 +1360,15 @@ function json_smoke_decode_i32_c(doc: *u8, doc_len: i32, key: *u8, key_len: i32,
   return json_object_decode_i32_c(&cur, key, key_len, out);
 }
 
-/** WPO-S3：栈上组装游标解码 bool。 */
+/** Internal function `json_smoke_decode_bool_c`.
+ * Implements `json_smoke_decode_bool_c`.
+ * @param doc *u8
+ * @param doc_len i32
+ * @param key *u8
+ * @param key_len i32
+ * @param out *i32
+ * @return i32
+ */
 function json_smoke_decode_bool_c(doc: *u8, doc_len: i32, key: *u8, key_len: i32, out: *i32): i32 {
   let cur: JsonCursor;
   cur.ptr = doc;
@@ -1068,7 +1377,7 @@ function json_smoke_decode_bool_c(doc: *u8, doc_len: i32, key: *u8, key_len: i32
   return json_object_decode_bool_c(&cur, key, key_len, out);
 }
 
-/** WPO-S3：栈上组装游标解码 string。 */
+/* See implementation. */
 function json_smoke_decode_string_c(doc: *u8, doc_len: i32, key: *u8, key_len: i32, out: *u8,
   out_cap: i32, out_len: *i32): i32 {
   let cur: JsonCursor;
@@ -1078,7 +1387,7 @@ function json_smoke_decode_string_c(doc: *u8, doc_len: i32, key: *u8, key_len: i
   return json_object_decode_string_c(&cur, key, key_len, out, out_cap, out_len);
 }
 
-/** WPO-S3：栈上组装游标按点分路径解码 i32。 */
+/* See implementation. */
 function json_smoke_decode_dotted_i32_c(doc: *u8, doc_len: i32, path: *u8, path_len: i32,
   out: *i32): i32 {
   let cur: JsonCursor;
@@ -1088,7 +1397,7 @@ function json_smoke_decode_dotted_i32_c(doc: *u8, doc_len: i32, path: *u8, path_
   return json_object_decode_dotted_i32_c(&cur, path, path_len, out);
 }
 
-/** WPO-S3：栈上组装游标按点分路径解码 string。 */
+/* See implementation. */
 function json_smoke_decode_dotted_string_c(doc: *u8, doc_len: i32, path: *u8, path_len: i32,
   out: *u8, out_cap: i32, out_len: *i32): i32 {
   let cur: JsonCursor;
@@ -1098,7 +1407,7 @@ function json_smoke_decode_dotted_string_c(doc: *u8, doc_len: i32, path: *u8, pa
   return json_object_decode_dotted_string_c(&cur, path, path_len, out, out_cap, out_len);
 }
 
-/** WPO-S3：栈上组装游标按点分路径解码 bool。 */
+/* See implementation. */
 function json_smoke_decode_dotted_bool_c(doc: *u8, doc_len: i32, path: *u8, path_len: i32,
   out: *i32): i32 {
   let cur: JsonCursor;
@@ -1108,7 +1417,7 @@ function json_smoke_decode_dotted_bool_c(doc: *u8, doc_len: i32, path: *u8, path
   return json_object_decode_dotted_bool_c(&cur, path, path_len, out);
 }
 
-/** WPO-S3：栈上组装游标按点分路径解码 f64。 */
+/* See implementation. */
 function json_smoke_decode_dotted_f64_c(doc: *u8, doc_len: i32, path: *u8, path_len: i32,
   out: *f64): i32 {
   let cur: JsonCursor;
@@ -1118,7 +1427,10 @@ function json_smoke_decode_dotted_f64_c(doc: *u8, doc_len: i32, path: *u8, path_
   return json_object_decode_dotted_f64_c(&cur, path, path_len, out);
 }
 
-/** 类型化 decode C 烟测：{"age":30,"ok":true,"name":"alice"} 及嵌套/数组/点分路径。 */
+/** Internal function `json_typed_decode_smoke_c`.
+ * Implements `json_typed_decode_smoke_c`.
+ * @return i32
+ */
 function json_typed_decode_smoke_c(): i32 {
   let age: i32 = 0;
   let ok: i32 = 0;
@@ -1170,42 +1482,80 @@ function json_typed_decode_smoke_c(): i32 {
   return 0;
 }
 
-/** 在 buf[off] 写入 `{`；返回写入字节数。 */
+/** Internal function `json_append_object_c`.
+ * Implements `json_append_object_c`.
+ * @param buf *u8
+ * @param cap i32
+ * @param off i32
+ * @return i32
+ */
 function json_append_object_c(buf: *u8, cap: i32, off: i32): i32 {
   if (buf == 0 || off < 0 || off >= cap) { return -1; }
   buf[off] = 123;
   return 1;
 }
 
-/** 在 buf[off] 写入 `}`。 */
+/** Internal function `json_append_object_end_c`.
+ * Implements `json_append_object_end_c`.
+ * @param buf *u8
+ * @param cap i32
+ * @param off i32
+ * @return i32
+ */
 function json_append_object_end_c(buf: *u8, cap: i32, off: i32): i32 {
   if (buf == 0 || off < 0 || off >= cap) { return -1; }
   buf[off] = 125;
   return 1;
 }
 
-/** 在 buf[off] 写入 `[`。 */
+/** Internal function `json_append_array_c`.
+ * Implements `json_append_array_c`.
+ * @param buf *u8
+ * @param cap i32
+ * @param off i32
+ * @return i32
+ */
 function json_append_array_c(buf: *u8, cap: i32, off: i32): i32 {
   if (buf == 0 || off < 0 || off >= cap) { return -1; }
   buf[off] = 91;
   return 1;
 }
 
-/** 在 buf[off] 写入 `]`。 */
+/** Internal function `json_append_array_end_c`.
+ * Implements `json_append_array_end_c`.
+ * @param buf *u8
+ * @param cap i32
+ * @param off i32
+ * @return i32
+ */
 function json_append_array_end_c(buf: *u8, cap: i32, off: i32): i32 {
   if (buf == 0 || off < 0 || off >= cap) { return -1; }
   buf[off] = 93;
   return 1;
 }
 
-/** 在 buf[off] 写入 `,`。 */
+/** Internal function `json_append_comma_c`.
+ * Implements `json_append_comma_c`.
+ * @param buf *u8
+ * @param cap i32
+ * @param off i32
+ * @return i32
+ */
 function json_append_comma_c(buf: *u8, cap: i32, off: i32): i32 {
   if (buf == 0 || off < 0 || off >= cap) { return -1; }
   buf[off] = 44;
   return 1;
 }
 
-/** 在 buf[off] 写入 `"key":`。 */
+/** Internal function `json_append_key_c`.
+ * Implements `json_append_key_c`.
+ * @param buf *u8
+ * @param cap i32
+ * @param off i32
+ * @param key *u8
+ * @param key_len i32
+ * @return i32
+ */
 function json_append_key_c(buf: *u8, cap: i32, off: i32, key: *u8, key_len: i32): i32 {
   let i: i32 = off;
   let n: i32 = 0;
@@ -1221,7 +1571,15 @@ function json_append_key_c(buf: *u8, cap: i32, off: i32, key: *u8, key_len: i32)
   return i - off;
 }
 
-/** 在 buf[off] 写入 `"value"`。 */
+/** Internal function `json_append_string_value_c`.
+ * Implements `json_append_string_value_c`.
+ * @param buf *u8
+ * @param cap i32
+ * @param off i32
+ * @param val *u8
+ * @param val_len i32
+ * @return i32
+ */
 function json_append_string_value_c(buf: *u8, cap: i32, off: i32, val: *u8, val_len: i32): i32 {
   let i: i32 = off;
   let n: i32 = 0;
@@ -1236,7 +1594,14 @@ function json_append_string_value_c(buf: *u8, cap: i32, off: i32, val: *u8, val_
   return i - off;
 }
 
-/** 在 buf[off] 写入 number；返回写入字节数。 */
+/** Internal function `json_append_number_at_c`.
+ * Implements `json_append_number_at_c`.
+ * @param buf *u8
+ * @param cap i32
+ * @param off i32
+ * @param val f64
+ * @return i32
+ */
 function json_append_number_at_c(buf: *u8, cap: i32, off: i32, val: f64): i32 {
   let tmp: u8[32] = [];
   let n: i32 = 0;
@@ -1251,5 +1616,8 @@ function json_append_number_at_c(buf: *u8, cap: i32, off: i32, val: f64): i32 {
   return n;
 }
 
-/** 模块尾占位：transitive import 解析时末位 function 会丢失，须保留非 API 锚点。 */
+/** Internal function `json_module_anchor`.
+ * Implements `json_module_anchor`.
+ * @return i32
+ */
 function json_module_anchor(): i32 { return 0; }

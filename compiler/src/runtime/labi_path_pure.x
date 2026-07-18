@@ -1,18 +1,24 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-267/429 / P2 link_abi L0：路径纯串（无 stat）→ R2 full。
-// 产品：PREFER_X_O → g05_try_x_to_o；冷启动 seeds/labi_path_pure.from_x.c。
-// hybrid 宏 SHUX_LABI_PATH_PURE_FROM_X（FROM_X rest 业务 H=0，仅 marker）。
+// G-02f-267/429 / P2 link_abi L0: pure path strings (no stat) → R2 full.
+// Product: PREFER_X_O → g05_try_x_to_o; cold-start seeds/labi_path_pure.from_x.c.
+// Hybrid macro SHUX_LABI_PATH_PURE_FROM_X (FROM_X rest business H=0, marker only).
 //
-// R2 full：.x 吃满 7 公共门闩 + count：
+// R2 full: .x owns 7 public gates + count:
 //   - labi_suffix_eq2 / labi_suffix_eq4
 //   - link_abi_ld_argv_entry_is_obj / shux_output_is_elf_o / shux_output_want_exe
-//   - shux_path_has_sep / shux_path_last_sep（POSIX '/' only）
-// Cap residual（mega rest 冷路径 Windows #if '\\'）：产品 PREFER 走 .x 纯 POSIX。
-// G-02f-L：长度用 i32（对齐 rt_content.x），避免 usize 字面量/减法 typeck 阻 -E。
+//   - shux_path_has_sep / shux_path_last_sep (POSIX '/' only)
+// Cap residual (mega rest cold path Windows #if '\\'): product PREFER uses .x pure POSIX.
+// G-02f-L: lengths use i32 (aligned with rt_content.x) to avoid usize literal/sub typeck blocks on -E.
 
-// G-02f-429：后缀 2 字节匹配（flat early-return，参照 rt_content.x rt_eq2 模式）。
+/**
+ * Return 1 iff s ends with the two-byte suffix (a0,a1).
+ * Params: s — bytes; n — length (i32); a0/a1 — suffix bytes.
+ * Returns: 1 on match, 0 if n < 2 or mismatch.
+ * Contracts: flat early-return (same pattern as rt_content.x rt_eq2); caller guarantees n is valid for s.
+ * Track-L: #[no_mangle] keeps surface short name. PLATFORM: SHARED.
+ */
 #[no_mangle]
 export function labi_suffix_eq2(s: *u8, n: i32, a0: u8, a1: u8): i32 {
   if (n < 2) { return 0; }
@@ -21,7 +27,13 @@ export function labi_suffix_eq2(s: *u8, n: i32, a0: u8, a1: u8): i32 {
   return 1;
 }
 
-// G-02f-429：后缀 4 字节匹配（flat early-return，参照 rt_content.x rt_eq4 模式）。
+/**
+ * Return 1 iff s ends with the four-byte suffix (a0,a1,a2,a3).
+ * Params: s — bytes; n — length (i32); a0..a3 — suffix bytes.
+ * Returns: 1 on match, 0 if n < 4 or mismatch.
+ * Contracts: flat early-return (same pattern as rt_content.x rt_eq4).
+ * Track-L: #[no_mangle] keeps surface short name. PLATFORM: SHARED.
+ */
 #[no_mangle]
 export function labi_suffix_eq4(s: *u8, n: i32, a0: u8, a1: u8, a2: u8, a3: u8): i32 {
   if (n < 4) { return 0; }
@@ -32,6 +44,12 @@ export function labi_suffix_eq4(s: *u8, n: i32, a0: u8, a1: u8, a2: u8, a3: u8):
   return 1;
 }
 
+/**
+ * Return 1 iff linker argv entry s looks like an object file (.o or .obj).
+ * Params: s — NUL-terminated path; null/empty → 0.
+ * Returns: 1 for .o / .obj suffixes, else 0.
+ * Track-L: #[no_mangle] keeps surface short name.
+ */
 #[no_mangle]
 export function link_abi_ld_argv_entry_is_obj(s: *u8): i32 {
   let n: i32 = 0;
@@ -43,6 +61,12 @@ export function link_abi_ld_argv_entry_is_obj(s: *u8): i32 {
   return 0;
 }
 
+/**
+ * Return 1 iff path looks like an ELF object output (.o / .O / .obj).
+ * Params: path — NUL-terminated; null → 0.
+ * Returns: 1 on object suffix match, else 0.
+ * Track-L: #[no_mangle] keeps surface short name.
+ */
 #[no_mangle]
 export function shux_output_is_elf_o(path: *u8): i32 {
   let n: i32 = 0;
@@ -54,11 +78,15 @@ export function shux_output_is_elf_o(path: *u8): i32 {
   return 0;
 }
 
-// G-02f-430：shux_output_want_exe 真迁（.o/.O/.s/.obj 后缀 → 0；否则 → 1）。
-// 【Why】C 原实现手动 strlen + 逐级嵌套 if 检查后缀；.x 用 labi_suffix_eq2/eq4
-//   helper 扁平化等价（与 shux_output_is_elf_o 互补，多 .s 后缀）。
-// 【Invariant】path == NULL 或空串 → 0；后缀 .o/.O/.s/.obj → 0；否则 → 1。
-// 【Perf】最多 4 次 helper 调用（每次 ≤2 比较），首次命中即返回。
+/**
+ * Return 1 if path should be treated as an executable output (not .o/.O/.s/.obj).
+ * Params: path — NUL-terminated; null or empty → 0.
+ * Returns: 0 for object/asm suffixes; 1 otherwise (want exe).
+ * Why: C original used nested strlen/if; .x flattens via labi_suffix_eq2/eq4
+ * (complements shux_output_is_elf_o; also rejects .s).
+ * Invariants: path null/empty → 0; suffixes .o/.O/.s/.obj → 0; else → 1.
+ * Track-L: #[no_mangle] keeps surface short name.
+ */
 #[no_mangle]
 export function shux_output_want_exe(path: *u8): i32 {
   let n: i32 = 0;
@@ -72,11 +100,14 @@ export function shux_output_want_exe(path: *u8): i32 {
   return 1;
 }
 
-// G-02f-429：shux_path_has_sep 真迁（POSIX '/' only）。
-// 【Why】C 原实现用 strchr(s, '/') + Windows #if strchr(s, '\\')；
-//   .x 无法表达 C #if host 分支，POSIX 路径分隔符仅 '/' (47)，故纯串扫描等价。
-// 【Invariant】s == NULL → 0；否则扫描至 NUL，遇 '/' 即返回 1。
-// 【Perf】单趟线性扫描，首次命中即返回，无 libc strchr 调用开销。
+/**
+ * Return 1 iff s contains a path separator (POSIX '/' only).
+ * Params: s — NUL-terminated; null → 0.
+ * Returns: 1 if '/' (47) appears, else 0.
+ * Why: C used strchr + Windows #if '\\'; product PREFER path is pure POSIX '/' scan.
+ * Track-L: #[no_mangle] keeps surface short name.
+ * PLATFORM: POSIX product path (Windows residual in mega rest cold path).
+ */
 #[no_mangle]
 export function shux_path_has_sep(s: *u8): i32 {
   if (s == 0 as *u8) {
@@ -92,12 +123,15 @@ export function shux_path_has_sep(s: *u8): i32 {
   return 0;
 }
 
-// G-02f-429：shux_path_last_sep 真迁（POSIX '/' only）。
-// 【Why】C 原实现用 strrchr(s, '/') 返回 char*；.x 无 strrchr，手动正序记录
-//   最后一次 '/' 的偏移。指针返回值通过 s as usize + off as *u8 构造
-//   （*u8 as usize 见 diag_thin.x:227；usize as *u8 见 lsp_load_ptr_at）。
-// 【Invariant】s == NULL → NULL；无 '/' → NULL；否则返回指向最后一个 '/' 的指针。
-// 【Perf】单趟正序扫描记录 last_off，无需 strrchr 二次扫描；末尾一次指针加法。
+/**
+ * Return pointer to the last '/' in s, or null if none.
+ * Params: s — NUL-terminated; null → null.
+ * Returns: *u8 into s at last '/', or null.
+ * Why: C used strrchr; .x records last '/' offset in a forward pass, then
+ * reconstructs pointer via s as usize + off.
+ * Track-L: #[no_mangle] keeps surface short name.
+ * PLATFORM: POSIX product path.
+ */
 #[no_mangle]
 export function shux_path_last_sep(s: *u8): *u8 {
   if (s == 0 as *u8) {
@@ -120,7 +154,11 @@ export function shux_path_last_sep(s: *u8): *u8 {
   return (base + (last as usize)) as *u8;
 }
 
-/* Pure audit: number of L0 path-pure public gates in this slice. */
+/**
+ * Pure audit: number of L0 path-pure public gates in this slice.
+ * Returns: 7 (fixed catalog size for hybrid FROM_X bookkeeping).
+ * Track-L: #[no_mangle] keeps surface short name.
+ */
 #[no_mangle]
 export function labi_path_pure_count(): i32 {
   return 7;

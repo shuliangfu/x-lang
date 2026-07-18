@@ -1,6 +1,10 @@
-// M-3 负例：region 块内 slice 赋给块外不同域变量
+// See implementation.
 extern function slice_src(): i32[];
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let outer: i32[]<rb> = unsafe { slice_src() };
   region ra {

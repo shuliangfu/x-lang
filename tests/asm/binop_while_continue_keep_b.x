@@ -1,4 +1,8 @@
-// 7.3：continue+break 后复用 b 槽（ldur 门禁，run-asm-binop-cfg-merge.sh）。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32 = 0;
   let b: i32 = 2;

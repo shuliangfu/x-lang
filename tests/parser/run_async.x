@@ -1,10 +1,14 @@
-// run_async.x — A4：`run async_fn()` 语法经 scheduler drain
+// See implementation.
 async function yield_demo(): i32 {
   let a: i32 = 1;
   let b: i32 = await a;
   return b + 1;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let r: i32 = run yield_demo();
   if (r != 2) {

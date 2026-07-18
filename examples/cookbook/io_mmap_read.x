@@ -1,11 +1,15 @@
 /**
- * Cookbook IO-03：read_ptr mmap 绝对视图读文件（ZC-2 入门）。
+ * See implementation.
  */
 const fs = import("std.fs");
 const io = import("std.io");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
-  /** "/tmp/shux_cookbook_mmap\0" — 24 字节含 NUL */
+  /* See implementation. */
   let path: u8[23] =
   [47, 116, 109, 112, 47, 115, 104, 117, 95, 99, 111, 111, 107, 98, 111, 111, 107,
   95, 109, 109, 97, 112, 0];

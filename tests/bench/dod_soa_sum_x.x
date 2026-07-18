@@ -1,6 +1,6 @@
 /**
- * DOD-S1 L1 bench：SoA 列主序遍历 arr[i].x（4096 粒子）。
- * 正确性：每 x=1 → sum=4096；main 返回 sum/256（=16，规避 shell exit 8-bit 截断）。
+ * See implementation.
+ * See implementation.
  */
 struct Particle soa {
   x: i32
@@ -8,6 +8,10 @@ struct Particle soa {
   z: i32
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let n: i32 = 4096;
   let arr: Particle[4096] = [];

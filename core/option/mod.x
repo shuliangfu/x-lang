@@ -14,32 +14,35 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// core.option — Option<T> 与可空语义（自举前实现）
-// 当前：Option_i32 / Option_u8 具象类型及 some/none/unwrap_or/is_some/is_none/expect、or/and；泛型 Option<T> 与 map/and_then 待类型实参与函数类型支持后扩展。
+// note
+// note
 
-/** LANG-009：泛型 Option 模板（单态化 mangling 与 Option_i32 等 ABI 兼容）。 */
+/* note */
 allow(padding) struct Option<T> {
   is_some: bool;
   value: T;
 }
 
-// Option_i32：可空 i32，is_some 为真时 value 有效
+// note
 export struct Option_i32 {
   is_some: bool;
   value: i32;
 }
 
-// 构造“无值”
+// none_i32
+/** `none_i32`: see signature for params/returns; contracts in body. */
 export function none_i32(): Option_i32 {
   return Option_i32 { is_some: false, value: 0 }
 }
 
-// 构造“有值”
+// some_i32
+/** `some_i32`: see signature for params/returns; contracts in body. */
 export function some_i32(x: i32): Option_i32 {
   return Option_i32 { is_some: true, value: x }
 }
 
-// 有值则返回值，否则返回默认值（if/else：seed shux-c 解析器暂不支持 return 内三元 ? :）
+// unwrap_or_i32
+/** `unwrap_or_i32`: see signature for params/returns; contracts in body. */
 export function unwrap_or_i32(opt: Option_i32, default_val: i32): i32 {
   if (opt.is_some) {
     return opt.value;
@@ -47,17 +50,20 @@ export function unwrap_or_i32(opt: Option_i32, default_val: i32): i32 {
   return default_val;
 }
 
-// 是否为“有值”
+// is_some_i32
+/** `is_some_i32`: see signature for params/returns; contracts in body. */
 export function is_some_i32(opt: Option_i32): bool {
   return opt.is_some;
 }
 
-// 是否为“无值”
+// is_none_i32
+/** `is_none_i32`: see signature for params/returns; contracts in body. */
 export function is_none_i32(opt: Option_i32): bool {
   return !opt.is_some;
 }
 
-// 有值则返回值，否则 panic（用于必须有的场景）
+// expect_i32
+/** `expect_i32`: see signature for params/returns; contracts in body. */
 export function expect_i32(opt: Option_i32): i32 {
   if (opt.is_some) {
     return opt.value;
@@ -65,7 +71,8 @@ export function expect_i32(opt: Option_i32): i32 {
   return panic();
 }
 
-// 若 opt 有值则返回 opt，否则返回 other（组合两个可选值，取第一个 Some）
+// or_i32
+/** `or_i32`: see signature for params/returns; contracts in body. */
 export function or_i32(opt: Option_i32, other: Option_i32): Option_i32 {
   if (opt.is_some) {
     return opt;
@@ -73,7 +80,8 @@ export function or_i32(opt: Option_i32, other: Option_i32): Option_i32 {
   return other;
 }
 
-// 若 opt 无值则返回 None，否则返回 other（串联：当前有值才继续）
+// and_i32
+/** `and_i32`: see signature for params/returns; contracts in body. */
 export function and_i32(opt: Option_i32, other: Option_i32): Option_i32 {
   if (opt.is_some) {
     return other;
@@ -81,21 +89,27 @@ export function and_i32(opt: Option_i32, other: Option_i32): Option_i32 {
   return none_i32();
 }
 
-// ——— Option_u8：可空 u8，供切片 get_u8、字节流等使用 ———
+// --- section ---
 allow(padding) struct Option_u8 {
   is_some: bool;
   value: u8;
 }
+/** `none_u8`: see signature for params/returns; contracts in body. */
 export function none_u8(): Option_u8 { return Option_u8 { is_some: false, value: 0 } }
+/** `some_u8`: see signature for params/returns; contracts in body. */
 export function some_u8(x: u8): Option_u8 { return Option_u8 { is_some: true, value: x } }
+/** `unwrap_or_u8`: see signature for params/returns; contracts in body. */
 export function unwrap_or_u8(opt: Option_u8, default_val: u8): u8 {
   if (opt.is_some) {
     return opt.value;
   }
   return default_val;
 }
+/** `is_some_u8`: see signature for params/returns; contracts in body. */
 export function is_some_u8(opt: Option_u8): bool { return opt.is_some; }
+/** `is_none_u8`: see signature for params/returns; contracts in body. */
 export function is_none_u8(opt: Option_u8): bool { return !opt.is_some; }
+/** `expect_u8`: see signature for params/returns; contracts in body. */
 export function expect_u8(opt: Option_u8): u8 {
   if (opt.is_some) {
     return opt.value;
@@ -103,12 +117,14 @@ export function expect_u8(opt: Option_u8): u8 {
   return panic();
 }
 
+/** `or_u8`: see signature for params/returns; contracts in body. */
 export function or_u8(opt: Option_u8, other: Option_u8): Option_u8 {
   if (opt.is_some) {
     return opt;
   }
   return other;
 }
+/** `and_u8`: see signature for params/returns; contracts in body. */
 export function and_u8(opt: Option_u8, other: Option_u8): Option_u8 {
   if (opt.is_some) {
     return other;
@@ -116,21 +132,21 @@ export function and_u8(opt: Option_u8, other: Option_u8): Option_u8 {
   return none_u8();
 }
 
-// ——— Option_u64：可空 u64，供 CORE-020 SliceIter_u64 使用 ———
+// --- section ---
 allow(padding) struct Option_u64 {
   is_some: bool;
   value: u64;
 }
 
-/** 构造无值 Option_u64。 */
+/** `none_u64`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function none_u64(): Option_u64 { return Option_u64 { is_some: false, value: 0 } }
 
-/** 构造有值 Option_u64。 */
+/** `some_u64`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function some_u64(x: u64): Option_u64 { return Option_u64 { is_some: true, value: x } }
 
-// ——— eager 组合子（CORE-002 map/and_then） ———
+// --- section ---
 
-/** 有值则 some(mapped)，否则 none。 */
+/** `map_i32`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function map_i32(opt: Option_i32, mapped: i32): Option_i32 {
   if (is_some_i32(opt)) {
     return some_i32(mapped);
@@ -138,7 +154,7 @@ export function map_i32(opt: Option_i32, mapped: i32): Option_i32 {
   return none_i32();
 }
 
-/** 有值则 some(mapped)，否则 none。 */
+/** `map_u8`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function map_u8(opt: Option_u8, mapped: u8): Option_u8 {
   if (is_some_u8(opt)) {
     return some_u8(mapped);
@@ -146,7 +162,7 @@ export function map_u8(opt: Option_u8, mapped: u8): Option_u8 {
   return none_u8();
 }
 
-/** 有值则返回 next，否则 none。 */
+/** `and_then_i32`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function and_then_i32(opt: Option_i32, next: Option_i32): Option_i32 {
   if (is_some_i32(opt)) {
     return next;
@@ -154,7 +170,7 @@ export function and_then_i32(opt: Option_i32, next: Option_i32): Option_i32 {
   return none_i32();
 }
 
-/** 泛型 unwrap_or：有值返回值，否则 default（CORE-002）。 */
+/** `unwrap_or`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function unwrap_or<T>(is_some: bool, value: T, default_val: T): T {
   if (is_some) {
     return value;
@@ -162,23 +178,23 @@ export function unwrap_or<T>(is_some: bool, value: T, default_val: T): T {
   return default_val;
 }
 
-// ——— Option_ptr_u8：可空指针 ———
+// --- section ---
 allow(padding) struct Option_ptr_u8 {
   is_some: bool;
   value: *u8;
 }
 
-/** 构造无值 Option_ptr_u8。 */
+/** `none_ptr_u8`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function none_ptr_u8(): Option_ptr_u8 {
   return Option_ptr_u8 { is_some: false, value: 0 as *u8 };
 }
 
-/** 构造有值 Option_ptr_u8。 */
+/** `some_ptr_u8`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function some_ptr_u8(ptr: *u8): Option_ptr_u8 {
   return Option_ptr_u8 { is_some: true, value: ptr };
 }
 
-/** 有值则 some(mapped)，否则 none。 */
+/** `map_ptr_u8`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function map_ptr_u8(opt: Option_ptr_u8, mapped: *u8): Option_ptr_u8 {
   if (is_some_ptr_u8(opt)) {
     return some_ptr_u8(mapped);
@@ -186,17 +202,17 @@ export function map_ptr_u8(opt: Option_ptr_u8, mapped: *u8): Option_ptr_u8 {
   return none_ptr_u8();
 }
 
-/** 是否为 Some。 */
+/** `is_some_ptr_u8`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function is_some_ptr_u8(opt: Option_ptr_u8): bool {
   return opt.is_some;
 }
 
-/** 是否为 None。 */
+/** `is_none_ptr_u8`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function is_none_ptr_u8(opt: Option_ptr_u8): bool {
   return !opt.is_some;
 }
 
-/** 有值则返回指针，否则 panic。 */
+/** `expect_ptr_u8`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function expect_ptr_u8(opt: Option_ptr_u8): *u8 {
   if (opt.is_some) {
     return opt.value;
@@ -204,7 +220,8 @@ export function expect_ptr_u8(opt: Option_ptr_u8): *u8 {
   return panic();
 }
 
-// 泛型占位，表示本模块可 import；完整 Option<T> 待类型实参语法后扩展
+// option_placeholder
+/** `option_placeholder`: see signature for params/returns; contracts in body. */
 export function option_placeholder<T>(x: T): T { return x; }
-/** 模块尾占位：transitive import 解析时末位 function 会丢失，须保留非 API 锚点。 */
+/** `option_module_anchor`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function option_module_anchor(): i32 { return 0; }

@@ -14,20 +14,20 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std/log/log.x — 日志格式化层（F-log v1；替代 log.c 中非 OS 部分）
+// See implementation.
 //
-// 【文件职责】
-// log_write_c / log_write_structured_kv_c：级别前缀与 OBS-003 行组装；
-// 实际 sink 写入在 runtime_log_os.c（compiler runtime；log_emit_bytes_c）。
+// See implementation.
+// See implementation.
+// See implementation.
 
 extern function log_apply_env_once_c(): void;
 extern function log_get_min_level_c(): i32;
 extern function log_emit_bytes_c(buf: *u8, len: i32): i32;
 
-/** 异步槽最大行宽（与 runtime_log_os.c LOG_ASYNC_SLOT_SIZE 一致）。 */
+/* See implementation. */
 export const LOG_ASYNC_SLOT_SIZE: i32 = 512;
 
-/** 级别前缀与名称字面量（模块级，避免 -E 局部数组/早 return _codegen 缺陷）。 */
+/* See implementation. */
 let g_log_pfx_dbg: u8[8] = [91, 68, 69, 66, 85, 71, 93, 32];
 let g_log_pfx_inf: u8[7] = [91, 73, 78, 70, 79, 93, 32];
 let g_log_pfx_wrn: u8[7] = [91, 87, 65, 82, 78, 93, 32];
@@ -40,7 +40,11 @@ let g_log_obs_pfx: u8[13] = [115, 104, 117, 120, 58, 32, 108, 101, 118, 101, 108
 let g_log_obs_mid: u8[12] = [32, 99, 111, 109, 112, 111, 110, 101, 110, 116, 61, 0];
 let g_log_sp: u8[1] = [32];
 
-/** 级别前缀字节长度。 */
+/** Exported function `log_prefix_len`.
+ * Query helper `log_prefix_len`.
+ * @param level i32
+ * @return i32
+ */
 export function log_prefix_len(level: i32): i32 {
   if (level == 0) { return 8; }
   if (level == 1) { return 7; }
@@ -49,7 +53,13 @@ export function log_prefix_len(level: i32): i32 {
   return 7;
 }
 
-/** 将固定字节串复制到 out[0..n)；返回 n。 */
+/** Exported function `log_copy_lit`.
+ * Implements `log_copy_lit`.
+ * @param out *u8
+ * @param lit *u8
+ * @param n i32
+ * @return i32
+ */
 export function log_copy_lit(out: *u8, lit: *u8, n: i32): i32 {
   let i: i32 = 0;
   while (i < n) {
@@ -59,7 +69,12 @@ export function log_copy_lit(out: *u8, lit: *u8, n: i32): i32 {
   return n;
 }
 
-/** 将级别前缀写入 out；返回写入长度。 */
+/** Exported function `log_prefix_copy`.
+ * Implements `log_prefix_copy`.
+ * @param level i32
+ * @param out *u8
+ * @return i32
+ */
 export function log_prefix_copy(level: i32, out: *u8): i32 {
   if (level == 0) { return log_copy_lit(out, &g_log_pfx_dbg[0], 8); }
   if (level == 1) { return log_copy_lit(out, &g_log_pfx_inf[0], 7); }
@@ -68,7 +83,11 @@ export function log_prefix_copy(level: i32, out: *u8): i32 {
   return log_copy_lit(out, &g_log_pfx_inf[0], 7);
 }
 
-/** 返回级别名 C 串指针（debug/info/warn/error）。 */
+/** Exported function `log_level_name_ptr`.
+ * Implements `log_level_name_ptr`.
+ * @param level i32
+ * @return *u8
+ */
 export function log_level_name_ptr(level: i32): *u8 {
   if (level == 0) { return &g_log_name_dbg[0]; }
   if (level == 1) { return &g_log_name_inf[0]; }
@@ -77,7 +96,11 @@ export function log_level_name_ptr(level: i32): *u8 {
   return &g_log_name_inf[0];
 }
 
-/** 计算 NUL 结尾 C 串长度（不用 libc strlen，避免 -E 与 string.h 冲突）。 */
+/** Exported function `log_cstr_len`.
+ * Query helper `log_cstr_len`.
+ * @param s *u8
+ * @return i32
+ */
 export function log_cstr_len(s: *u8): i32 {
   let i: i32 = 0;
   if (s == 0) { return 0; }
@@ -87,7 +110,14 @@ export function log_cstr_len(s: *u8): i32 {
   return i;
 }
 
-/** 追加 C 串到 out；返回新 offset，失败 -1。 */
+/** Exported function `log_append_cstr`.
+ * Implements `log_append_cstr`.
+ * @param out *u8
+ * @param off i32
+ * @param cap i32
+ * @param s *u8
+ * @return i32
+ */
 export function log_append_cstr(out: *u8, off: i32, cap: i32, s: *u8): i32 {
   let n: i32 = 0;
   let i: i32 = 0;
@@ -101,7 +131,15 @@ export function log_append_cstr(out: *u8, off: i32, cap: i32, s: *u8): i32 {
   return off + n;
 }
 
-/** 追加固定字面节串。 */
+/** Exported function `log_append_lit`.
+ * Implements `log_append_lit`.
+ * @param out *u8
+ * @param off i32
+ * @param cap i32
+ * @param lit *u8
+ * @param lit_len i32
+ * @return i32
+ */
 export function log_append_lit(out: *u8, off: i32, cap: i32, lit: *u8, lit_len: i32): i32 {
   let i: i32 = 0;
   if (off + lit_len >= cap) { return -1; }
@@ -112,7 +150,13 @@ export function log_append_lit(out: *u8, off: i32, cap: i32, lit: *u8, lit_len: 
   return off + lit_len;
 }
 
-/** 写一条人类可读日志："[LEVEL] " + ptr[0..len] + 换行。 */
+/** Exported function `log_write_c`.
+ * Write path helper `log_write_c`.
+ * @param level i32
+ * @param ptr *u8
+ * @param len i32
+ * @return i32
+ */
 export function log_write_c(level: i32, ptr: *u8, len: i32): i32 {
   let line: u8[512] = [];
   let pl: i32 = 0;
@@ -137,7 +181,13 @@ export function log_write_c(level: i32, ptr: *u8, len: i32): i32 {
   return rc;
 }
 
-/** OBS-003 结构化行：shux: level=… component=… kv…。 */
+/** Exported function `log_write_structured_kv_c`.
+ * Write path helper `log_write_structured_kv_c`.
+ * @param component *u8
+ * @param level i32
+ * @param kv_body *u8
+ * @return i32
+ */
 export function log_write_structured_kv_c(component: *u8, level: i32, kv_body: *u8): i32 {
   let line: u8[1024] = [];
   let n: i32 = 0;

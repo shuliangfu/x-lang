@@ -1,3 +1,7 @@
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   region wa {
     if (1 != 0) { return 1; }

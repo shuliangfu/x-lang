@@ -1,4 +1,8 @@
-// 7.3：assign (i-j+k)*lit 后 read (i-j)*lit 复用 minus_pair 前缀栈（run-asm-assign-index-block.sh）。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let arr: i32[8] = [10, 20, 30, 40, 50, 60, 70, 80];
   let i: i32 = 2;

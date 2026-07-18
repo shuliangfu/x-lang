@@ -1,6 +1,10 @@
-// STD-006：mem_eq 常量时间比较边界
+// See implementation.
 const crypto = import("std.crypto");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: u8[5] = [10, 20, 30, 40, 50];
   let b: u8[5] = [10, 20, 30, 40, 50];

@@ -14,33 +14,32 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// lsp_io.x — LSP 用 import("std.io") / import("std.heap") 实现的读写、读消息、文档缓冲与 JSON
-// 响应构建（替代 lsp_io.c 中对应逻辑）
+// See implementation.
+// See implementation.
 //
-// 职责：从 stdin 读 LSP 消息（Content-Length + body）、向 stdout
-// 写；维护当前文档缓冲；从 JSON 提取 text、
-// 构建 InitializeResult 与 JSON-RPC 响应外壳；alloc/free 使用
-// import("std.heap") 绑定后 heap.alloc/free。诊断/definition/references/hover 仍由 lsp_diag.c 提供。
-// 全部用 .x 实现，仅用数组下标与变量索引，不依赖任何 C 辅助函数。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 
 const io = import("std.io");
 const heap = import("std.heap");
 
-/** 文档变更时使诊断缓存失效；由 lsp_diag.c 提供。 */
+/* See implementation. */
 export extern function lsp_diag_invalidate_cache(): void;
 
-/** 单条消息 body 安全上限（1MiB），与 lsp.x 中 LSP_BODY_CAP 一致。 */
+/* See implementation. */
 let LSP_BODY_SAFETY_CAP: i32 = 1048576;
 
-/** leftover 从 state_buf 起始存放；长度放在 buffer 末尾，避免与可能相邻的
-* out_buf 等重叠被零写。 */
+/** See implementation for details. */
 let LSP_STATE_LEFTOVER_OFF: i32 = 0;
 let LSP_STATE_LEFTOVER_MAX: i32 = 8192 * 2;
 let LSP_STATE_LEN_OFF: i32 = 8192 * 2;
 
-/** 调试：LSP_READ_DEBUG 时打 leftover 长度（仅 n>0），由 lsp_diag 提供。 */
+/* See implementation. */
 export extern function lsp_debug_u32(n: u32): void;
-/** 调试：打 state 指针。 */
+/* See implementation. */
 export extern function lsp_debug_ptr(p: *u8): void;
 
 /**
@@ -54,14 +53,13 @@ export function read_message(fd: i32, body_out: *u8, body_cap: i32, state_buf: *
   // Covers export-extern debug/diag and std.io/std.heap import surface calls.
   unsafe {
   let h: usize = 0 as usize;
-  /* 返回类型为 isize：整数字面量默认为 i32，错误路径须显式 as isize（与 write_fd 一致） */
+  /* See implementation. */
   if (fd != 0) { return (-1) as isize; }
   let b0: u8 = state_buf[LSP_STATE_LEN_OFF];
   let b1: u8 = state_buf[LSP_STATE_LEN_OFF + 1];
   let b2: u8 = state_buf[LSP_STATE_LEN_OFF + 2];
   let b3: u8 = state_buf[LSP_STATE_LEN_OFF + 3];
-  /* 小端 4 字节合成 i32；用中间变量避免 codegen 生成 C 时丢掉括号导致 <<
-  与 + 优先级错误 */
+  /* Assemble LE i32 from 4 bytes; avoid C << vs + precedence bugs after codegen. */
   let n0: i32 = b0 as i32;
   let n1: i32 = (b1 as i32) << 8;
   let n2: i32 = (b2 as i32) << 16;
@@ -74,8 +72,7 @@ export function read_message(fd: i32, body_out: *u8, body_cap: i32, state_buf: *
   if (n > 0) {
     lsp_debug_u32(n as u32);
   }
-  /* 循环读直到缓冲区满或 EOF/错误，避免部分环境一次 read
-  只返回首条消息长度导致后续 n=0 即退出 */
+  /* On buffer EOF/error: returning only first message length makes later n=0 and exits. */
   if (n < LSP_STATE_LEFTOVER_MAX) {
     while (n < LSP_STATE_LEFTOVER_MAX) {
       let got: i32 = io.read(h, &state_buf[n], (LSP_STATE_LEFTOVER_MAX - n) as usize, 0 as u32);
@@ -114,7 +111,7 @@ export function read_message(fd: i32, body_out: *u8, body_cap: i32, state_buf: *
   }
   if (content_len > to_copy) {
     let remain: i32 = content_len - to_copy;
-    /* 剩余 body 直读入 body_out，勿经 state_buf[0] 以免覆盖 leftover 区。 */
+    /* See implementation. */
     let r: i32 = io.read(h, &body_out[to_copy], remain as usize, 0 as u32);
     if (r != remain) {
       return (-1) as isize;
@@ -132,7 +129,7 @@ export function read_message(fd: i32, body_out: *u8, body_cap: i32, state_buf: *
     state_buf[LSP_STATE_LEN_OFF + 1] = ((new_n >> 8) & 255) as u8;
     state_buf[LSP_STATE_LEN_OFF + 2] = ((new_n >> 16) & 255) as u8;
     state_buf[LSP_STATE_LEN_OFF + 3] = ((new_n >> 24) & 255) as u8;
-    lsp_debug_u32((new_n as u32)); /* 调试：写入的 leftover 长度，LSP_READ_DEBUG 时打
+     * See implementation.
     "leftover n=821" */
   } else {
     state_buf[LSP_STATE_LEN_OFF] = 0;
@@ -145,8 +142,13 @@ export function read_message(fd: i32, body_out: *u8, body_cap: i32, state_buf: *
   return 0 as isize;
 }
 
-/** 在 state_buf[off..off+header_end) 中解析 "Content-Length: "
-* 后的数字；允许冒号后有多余空白（如 BSD wc -c 产生的前导空格）。 */
+/** Exported function `parse_content_length_in_buf`.
+ * Implements `parse_content_length_in_buf`.
+ * @param state_buf *u8
+ * @param off i32
+ * @param header_end i32
+ * @return i32
+ */
 export function parse_content_length_in_buf(state_buf: *u8, off: i32, header_end: i32): i32 {
   if (header_end < 16) { return -1; }
   let key: u8[16] = [67, 111, 110, 116, 101, 110, 116, 45, 76, 101, 110, 103, 116, 104, 58, 32];
@@ -157,9 +159,8 @@ export function parse_content_length_in_buf(state_buf: *u8, off: i32, header_end
   }
   let val: i32 = 0;
   let i: i32 = 16;
-  /* 跳过冒号后的可选空白（空格 \t 等），兼容 "Content-Length:
-  107"；括号保证先判 i < header_end 再读字节，避免 codegen 后 C 的 &&/||
-  优先级导致越界 */
+  /* Optional space/tab after Content-Length:; ensure i < header_end before reading bytes so
+  post-codegen C &&/|| precedence cannot OOB. */
   while (i < header_end) {
     let c0: u8 = state_buf[off + i];
     if (c0 != 32 && c0 != 9) { break; }
@@ -177,7 +178,13 @@ export function parse_content_length_in_buf(state_buf: *u8, off: i32, header_end
   return val;
 }
 
-/** 向 fd（1=stdout）写 ptr[0..count-1]；短写时循环直至写完或出错（pipe 大 body 在 ARM64 等会 partial write）。 */
+/** Exported function `write_fd`.
+ * Write path helper `write_fd`.
+ * @param fd i32
+ * @param ptr *u8
+ * @param count usize
+ * @return isize
+ */
 export function write_fd(fd: i32, ptr: *u8, count: usize): isize {
   // PLATFORM: SHARED — LANG-007 S0: whole-body unsafe FFI gate (Cap-T001).
   // Covers export-extern debug/diag and std.io/std.heap import surface calls.
@@ -195,8 +202,14 @@ export function write_fd(fd: i32, ptr: *u8, count: usize): isize {
   return 0 as isize;
 }
 
-/** 从 body 中找 "text":" 并取其后 JSON 字符串到 out_buf（做 \", \\, \n, \r, \t
-* 反义）；返回长度，失败 -1。全部用 body[i]、out_buf[i] 下标。 */
+/** Exported function `extract_document_text`.
+ * Implements `extract_document_text`.
+ * @param body *u8
+ * @param body_len i32
+ * @param out_buf *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function extract_document_text(body: *u8, body_len: i32, out_buf: *u8, out_cap: i32): i32 {
   let key_len: i32 = 8;
   let key: u8[8] = [34, 116, 101, 120, 116, 34, 58, 34];
@@ -244,13 +257,13 @@ export function extract_document_text(body: *u8, body_len: i32, out_buf: *u8, ou
   return -1;
 }
 
-/** build_response_with_result 仍由 lsp_io.c 提供，供 C 内 build_definition 等与 lsp.x
-* 共用。 */
+/** See implementation for details. */
 
-/** 分配 size 字节；失败返回 0。
- * 使用 alloc_zero 而非 heap.alloc：std.heap 中 alloc 多 overload，跨模块 binding import
- * typeck 现按「首同名」取 alloc(i32)→*u64，导致 expected *u8 found *u64（见 W-heap-overload）。
- * alloc_zero 仅有 (usize)→*u8 签名，无歧义；LSP 缓冲零初始化亦可接受。 */
+/** Exported function `lsp_alloc`.
+ * Memory management helper `lsp_alloc`.
+ * @param size usize
+ * @return *u8
+ */
 export function lsp_alloc(size: usize): *u8 {
   // PLATFORM: SHARED — LANG-007 S0: whole-body unsafe FFI gate (Cap-T001).
   // Covers export-extern debug/diag and std.io/std.heap import surface calls.
@@ -261,7 +274,11 @@ export function lsp_alloc(size: usize): *u8 {
   return 0 as *u8;
 }
 
-/** 释放由 lsp_alloc 得到的指针。 */
+/** Exported function `lsp_free`.
+ * Memory management helper `lsp_free`.
+ * @param ptr *u8
+ * @return void
+ */
 export function lsp_free(ptr: *u8): void {
   // PLATFORM: SHARED — LANG-007 S0: whole-body unsafe FFI gate (Cap-T001).
   // Covers export-extern debug/diag and std.io/std.heap import surface calls.
@@ -270,7 +287,11 @@ export function lsp_free(ptr: *u8): void {
   }
 }
 
-/** 判断指针是否为空（1=空，0=非空）。 */
+/** Exported function `lsp_is_null`.
+ * Implements `lsp_is_null`.
+ * @param ptr *u8
+ * @return i32
+ */
 export function lsp_is_null(ptr: *u8): i32 {
   if (ptr == 0 as *u8) { return 1; }
   return 0;

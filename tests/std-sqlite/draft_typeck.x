@@ -1,6 +1,10 @@
-// STD-010：std.db.sqlite API typeck 金样（仅校验签名）
+// See implementation.
 const sqlite = import("std.db.sqlite");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let path: u8[8] = [116, 101, 115, 116, 46, 100, 98, 0];
   let sql: u8[9] = [83, 69, 76, 69, 67, 84, 32, 49, 0];

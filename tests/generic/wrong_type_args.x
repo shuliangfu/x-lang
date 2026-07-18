@@ -1,5 +1,13 @@
-// 边界：泛型调用类型实参数量错误，应报 expects N type arguments, got M 或 requires type arguments
+// See implementation.
+/** Function `id`.
+ * Purpose: implements `id`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 function id<T>(x: T): T { return x; }
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   return id<i32, u32>(42);
 }

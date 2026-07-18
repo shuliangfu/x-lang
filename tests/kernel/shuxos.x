@@ -19,6 +19,12 @@ const VGA_HEIGHT: u32 = 25;
 let vga_row: u32 = 0;
 let vga_col: u32 = 0;
 
+/** Internal function `vga_putc`.
+ * Implements `vga_putc`.
+ * @param c u8
+ * @param color u8
+ * @return void
+ */
 function vga_putc(c: u8, color: u8): void {
   let offset: u32 = (vga_row * VGA_WIDTH + vga_col) * 2;
   let p: *volatile u8 = (VGA_BASE + offset) as *volatile u8;
@@ -29,6 +35,10 @@ function vga_putc(c: u8, color: u8): void {
   if (vga_col >= VGA_WIDTH) { vga_col = 0; vga_row = vga_row + 1; if (vga_row >= VGA_HEIGHT) { vga_row = 0; } }
 }
 
+/** Internal function `vga_clear`.
+ * Implements `vga_clear`.
+ * @return void
+ */
 function vga_clear(): void {
   let i: u32 = 0;
   while (i < VGA_WIDTH * VGA_HEIGHT) {
@@ -39,9 +49,19 @@ function vga_clear(): void {
   vga_col = 0;
 }
 
+/** Internal function `serial_putc`.
+ * Implements `serial_putc`.
+ * @param c u8
+ * @return void
+ */
 function serial_putc(c: u8): void {
   unsafe { asm!("outb %%al, %%dx" : : "a"(c), "d"(0x3F8)); }
 }
+/** Internal function `serial_putint`.
+ * Implements `serial_putint`.
+ * @param n i32
+ * @return void
+ */
 function serial_putint(n: i32): void {
   if (n >= 10) { serial_putint(n / 10); }
   serial_putc((n % 10 + 48) as u8);
@@ -52,12 +72,20 @@ let key_scan: u8 = 0;
 let key_count: u32 = 0;
 
 #[interrupt]
+/** Internal function `timer_handler`.
+ * Implements `timer_handler`.
+ * @return void
+ */
 function timer_handler(): void {
   tick_count = tick_count + 1;
   unsafe { asm!("movb $0x20, %al; outb %al, $0x20"); }
 }
 
 #[interrupt]
+/** Internal function `keyboard_handler`.
+ * Implements `keyboard_handler`.
+ * @return void
+ */
 function keyboard_handler(): void {
   let sc: u8 = 0;
   unsafe {
@@ -68,6 +96,12 @@ function keyboard_handler(): void {
   }
 }
 
+/** Internal function `idt_set_entry`.
+ * Implements `idt_set_entry`.
+ * @param index u32
+ * @param handler_addr u32
+ * @return void
+ */
 function idt_set_entry(index: u32, handler_addr: u32): void {
   let base: u32 = 0x90000 + index * 8;
   unsafe {
@@ -79,6 +113,10 @@ function idt_set_entry(index: u32, handler_addr: u32): void {
   }
 }
 
+/** Internal function `kmain`.
+ * Implements `kmain`.
+ * @return i32
+ */
 function kmain(): i32 {
   vga_clear();
   vga_putc(83, 11); vga_putc(104, 11); vga_putc(117, 11); vga_putc(120, 11);
@@ -124,7 +162,16 @@ function kmain(): i32 {
 }
 
 #[entry]
+/** Internal function `start`.
+ * Implements `start`.
+ * @return void
+ */
 function start(): void {
   unsafe { asm!("mov $0x80000, %esp; call kmain; cli; hlt"); }
 }
+/** Internal function `main`.
+ * Program/test entry point.
+ * @param ) i32 { return kmain(
+ * @return void
+ */
 function main(): i32 { return kmain() + mb1.magic as i32; }

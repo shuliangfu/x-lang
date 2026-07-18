@@ -1,14 +1,27 @@
-// vec_const_spec_fold.x — WPO-S2 vec 特化：lane0(vec_add4([const],[const])) 应编译期 fold
-/** 两形参向量加法。 */
+// See implementation.
+/** Internal function `vec_add4`.
+ * Implements `vec_add4`.
+ * @param a i32x4
+ * @param b i32x4
+ * @return i32x4
+ */
 function vec_add4(a: i32x4, b: i32x4): i32x4 {
   return a + b;
 }
 
-/** 取向量第 0 lane（WPO 特化外层形态）。 */
+/** Internal function `lane0`.
+ * Implements `lane0`.
+ * @param v i32x4
+ * @return i32
+ */
 function lane0(v: i32x4): i32 {
   return v[0];
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   return lane0(vec_add4([1, 2, 3, 4], [10, 20, 30, 40])) - 11;
 }

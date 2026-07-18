@@ -1,10 +1,14 @@
 /**
- * Cookbook CMP-02：brotli/zstd 统一流式压缩（STD-081 #81）。
- * 未链 lib 时 compress_init 失败则 exit 0（skip）。
+ * See implementation.
+ * See implementation.
  */
 const compress = import("std.compress");
 
-/** 单格式流式往返；init 失败返回 0（skip）。 */
+/** Internal function `roundtrip`.
+ * Implements `roundtrip`.
+ * @param format i32
+ * @return i32
+ */
 function roundtrip(format: i32): i32 {
   let raw: u8[6] = [99, 111, 111, 107, 33, 0];
   let sb: i32 = compress.compress_state_bytes_for(format);
@@ -48,6 +52,10 @@ function roundtrip(format: i32): i32 {
   return 0;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let br: i32 = roundtrip(compress.format_brotli());
   if (br != 0) {

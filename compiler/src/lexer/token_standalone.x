@@ -14,11 +14,15 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// token_standalone.x — 自举 9.1：单独验证 token 模块可被编译与链接的入口
-// 仅 import token 并提供 main；用于 make bootstrap-token（token.x 作为库无 main）。
+// See implementation.
+// See implementation.
 
 const token = import("token");
 
+/** Exported function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 export function main(): i32 {
   return 0;
 }

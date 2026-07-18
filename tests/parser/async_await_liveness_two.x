@@ -1,4 +1,4 @@
-// async_await_liveness_two.x — A3：双 await 点帧字段为各 suspend 点 live 之并集
+// See implementation.
 async function two_await(): i32 {
   let a: i32 = 1;
   let b: i32 = 2;
@@ -8,6 +8,10 @@ async function two_await(): i32 {
   return c + a;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   return two_await();
 }

@@ -1,12 +1,16 @@
-// async_switch.x — B-ASYNC：1M 双任务 ping-pong（A1 手工状态机，预 async fn 语法）
-// 两帧 phase 0↔1 交替；与 std/async/scheduler.c 语义一致，测 Shu 纯 codegen 切换开销。
+// See implementation.
+// See implementation.
 allow(padding)
 struct CoopFrame {
   phase: i32
   ops: i64
 }
 
-/** 单帧一步：phase 翻转并 ops++；返回 0。 */
+/** Internal function `coop_frame_step`.
+ * Implements `coop_frame_step`.
+ * @param f *CoopFrame
+ * @return i32
+ */
 function coop_frame_step(f: *CoopFrame): i32 {
   if (f.phase == 0) {
     f.ops = f.ops + 1;
@@ -18,6 +22,10 @@ function coop_frame_step(f: *CoopFrame): i32 {
   return 0;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let rounds: i64 = 1000000;
   let ping: CoopFrame = CoopFrame { phase: 0, ops: 0 };

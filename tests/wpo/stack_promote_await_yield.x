@@ -1,13 +1,13 @@
-// stack_promote_await_yield.x — WPO-S3：struct 跨 await + SHUX_ASYNC_YIELD 双 poll（帧须保留 Pair）
-// 运行：SHUX_ASYNC_YIELD=1 ./exe；首次 SUSPENDED，resume 后 exit 0（内部和 10）。
+// See implementation.
+// See implementation.
 
-/** 两字段 POD。 */
+/* See implementation. */
 struct Pair {
   a: i32
   b: i32
 }
 
-/** await 前后均读 p 字段；帧须保留整个 Pair。 */
+/* See implementation. */
 async function struct_across_await(): i32 {
   let p: Pair = Pair { a: 3, b: 4 };
   let kick: i32 = p.a;
@@ -15,6 +15,10 @@ async function struct_across_await(): i32 {
   return p.a + p.b + mid;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let suspended: i32 = 1095980800;
   let r: i32 = struct_across_await();

@@ -11,9 +11,19 @@ const mb1: MB1Header = {
   checksum: 0xE4524FFE,
 };
 
+/** Internal function `serial_putc`.
+ * Implements `serial_putc`.
+ * @param c u8
+ * @return void
+ */
 function serial_putc(c: u8): void {
   unsafe { asm!("outb %%al, %%dx" : : "a"(c), "d"(0x3F8)); }
 }
+/** Internal function `serial_putint`.
+ * Implements `serial_putint`.
+ * @param n i32
+ * @return void
+ */
 function serial_putint(n: i32): void {
   if (n >= 10) { serial_putint(n / 10); }
   serial_putc((n % 10 + 48) as u8);
@@ -27,19 +37,43 @@ const RFS_DATA_MAX: u32 = 256;
 const RFS_ENTRY_SIZE: u32 = 320;  // 32 name + 4 len + 4 used + 256 data + 24 pad
 
 // File entry layout: name[32], data_len[4], used[4], data[256], pad[24]
+/** Internal function `file_name_addr`.
+ * Implements `file_name_addr`.
+ * @param index u32
+ * @return u32
+ */
 function file_name_addr(index: u32): u32 {
   return RAMDISK_BASE + index * RFS_ENTRY_SIZE;
 }
+/** Internal function `file_data_len_addr`.
+ * Implements `file_data_len_addr`.
+ * @param index u32
+ * @return u32
+ */
 function file_data_len_addr(index: u32): u32 {
   return RAMDISK_BASE + index * RFS_ENTRY_SIZE + RFS_NAME_MAX;
 }
+/** Internal function `file_used_addr`.
+ * Implements `file_used_addr`.
+ * @param index u32
+ * @return u32
+ */
 function file_used_addr(index: u32): u32 {
   return RAMDISK_BASE + index * RFS_ENTRY_SIZE + RFS_NAME_MAX + 4;
 }
+/** Internal function `file_data_addr`.
+ * Implements `file_data_addr`.
+ * @param index u32
+ * @return u32
+ */
 function file_data_addr(index: u32): u32 {
   return RAMDISK_BASE + index * RFS_ENTRY_SIZE + RFS_NAME_MAX + 8;
 }
 
+/** Internal function `ramfs_init`.
+ * Implements `ramfs_init`.
+ * @return void
+ */
 function ramfs_init(): void {
   let i: u32 = 0;
   while (i < RFS_MAX_FILES) {
@@ -49,6 +83,10 @@ function ramfs_init(): void {
   }
 }
 
+/** Internal function `ramfs_find_free`.
+ * Memory management helper `ramfs_find_free`.
+ * @return i32
+ */
 function ramfs_find_free(): i32 {
   let i: u32 = 0;
   while (i < RFS_MAX_FILES) {
@@ -61,6 +99,13 @@ function ramfs_find_free(): i32 {
   return -1;
 }
 
+/** Internal function `ramfs_write`.
+ * Write path helper `ramfs_write`.
+ * @param name u32
+ * @param data u32
+ * @param len u32
+ * @return i32
+ */
 function ramfs_write(name: u32, data: u32, len: u32): i32 {
   let idx: i32 = ramfs_find_free();
   if (idx < 0) { return -1; }
@@ -101,6 +146,11 @@ function ramfs_write(name: u32, data: u32, len: u32): i32 {
   return idx;
 }
 
+/** Internal function `ramfs_read`.
+ * Read path helper `ramfs_read`.
+ * @param index u32
+ * @return u32
+ */
 function ramfs_read(index: u32): u32 {
   let used: *volatile u32 = file_used_addr(index) as *volatile u32;
   let u: u32 = 0;
@@ -112,6 +162,10 @@ function ramfs_read(index: u32): u32 {
   return len;
 }
 
+/** Internal function `ramfs_list`.
+ * Implements `ramfs_list`.
+ * @return u32
+ */
 function ramfs_list(): u32 {
   let count: u32 = 0;
   let i: u32 = 0;
@@ -143,6 +197,10 @@ function ramfs_list(): u32 {
   return count;
 }
 
+/** Internal function `kmain`.
+ * Implements `kmain`.
+ * @return i32
+ */
 function kmain(): i32 {
   serial_putc(70);  // F
   serial_putc(58);  // :
@@ -173,7 +231,16 @@ function kmain(): i32 {
 }
 
 #[entry]
+/** Internal function `start`.
+ * Implements `start`.
+ * @return void
+ */
 function start(): void {
   unsafe { asm!("mov $0x80000, %esp; call kmain; cli; hlt"); }
 }
+/** Internal function `main`.
+ * Program/test entry point.
+ * @param ) i32 { return kmain(
+ * @return void
+ */
 function main(): i32 { return kmain() + mb1.magic as i32; }

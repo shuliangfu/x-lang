@@ -1,19 +1,23 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-18：runtime_process_os_glue 产品源迁 seeds/runtime_process_os_glue.from_x.c。
-// 实现仍在 seed C；本文件为文档锚点。
-// 产品：cc seeds/runtime_process_os_glue.from_x.c → runtime_process_os_glue.o
-// G-02f-103：+ nop_sigchld / dup_stdio_posix 薄门闩。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 
 export extern "C" function process_nop_sigchld_impl(sig: i32): void;
 export extern "C" function process_dup_stdio_posix_impl(fd: i32, slot: i32): i32;
 
+/** Exported function `runtime_process_os_glue_x_doc_anchor`.
+ * Implements `runtime_process_os_glue_x_doc_anchor`.
+ * @return i32
+ */
 export function runtime_process_os_glue_x_doc_anchor(): i32 {
   return 0;
 }
 
-/* ---- G-02f-103：process helpers 门闩 ---- */
+/* See implementation. */
 
 #[no_mangle]
 export function process_nop_sigchld(sig: i32): void {
@@ -23,6 +27,12 @@ export function process_nop_sigchld(sig: i32): void {
 }
 
 #[no_mangle]
+/** Exported function `process_dup_stdio_posix`.
+ * Implements `process_dup_stdio_posix`.
+ * @param fd i32
+ * @param slot i32
+ * @return i32
+ */
 export function process_dup_stdio_posix(fd: i32, slot: i32): i32 {
   unsafe {
     return process_dup_stdio_posix_impl(fd, slot);

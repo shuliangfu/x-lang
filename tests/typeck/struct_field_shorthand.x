@@ -1,6 +1,10 @@
-// STR-02：struct 字段同名简写 `{ fd }` 等价 `{ fd: fd }`；可与显式字段混写
+// See implementation.
 struct PollFd { fd: i32; events: i32; revents: i32; }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let fd: i32 = 3;
   let events: i32 = 4;

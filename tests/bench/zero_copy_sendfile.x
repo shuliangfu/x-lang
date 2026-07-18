@@ -1,11 +1,16 @@
-// zero_copy_sendfile.x — Z1：fs_sendfile 文件→socket 零拷贝吞吐（与 run-perf-io.sh 配套）
-// 走 std.fs / std.net 薄包装（P0：connect_blocking + fs_sendfile_c）；含 import 时 driver 走 C codegen+链 fs.o/net.o。
-// 输入 tests/bench/.io_mmap_bench_tmp（默认 16MiB）；sink 端口 argv[1] 或默认 38459（与 C bench 一致）。
+// See implementation.
+// See implementation.
+// See implementation.
 const fs = import("std.fs");
 const net = import("std.net");
 const process = import("std.process");
 
-/** 解析十进制 u32 端口（NUL 结尾 ASCII）；非法字符返回 default_port。 */
+/** Internal function `bench_parse_port`.
+ * Implements `bench_parse_port`.
+ * @param s *u8
+ * @param default_port u32
+ * @return u32
+ */
 function bench_parse_port(s: *u8, default_port: u32): u32 {
   if (s == 0 as *u8) { return default_port; }
   let n: u32 = 0;
@@ -21,24 +26,28 @@ function bench_parse_port(s: *u8, default_port: u32): u32 {
   return n;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
-  /** 路径 "tests/bench/.io_mmap_bench_tmp"（NUL 结尾）。 */
+  /* See implementation. */
   let path: u8[31] =
   [116, 101, 115, 116, 115, 47, 98, 101, 110, 99, 104, 47, 46, 105, 111, 95, 109, 109, 97, 112, 95,
   98, 101, 110, 99, 104, 95,
   116, 109, 112, 0];
-  /** 与 zero_copy_sendfile_sink.c / run-perf-io.sh 一致；run-perf 传 argv[1] 动态端口。 */
+  /* See implementation. */
   let sink_port: u32 = 38459;
   if (process.args_count() >= 2) {
     sink_port = bench_parse_port(process.arg(1), sink_port);
   }
-  /** 与 SHUX_IO_BENCH_MB 默认 16 对应（16777216）；脚本按 BENCH_MB sed 替换。 */
+  /* See implementation. */
   let bench_bytes: usize = 16777216;
   let chunk: usize = 1048576;
   let addr: Ipv4Addr = Ipv4Addr { a: 127, b: 0, c: 0, d: 1 };
   let file_fd: i32 = fs.open(&path[0]);
   if (file_fd < 0) { return 1; }
-  /** timeout=0：阻塞 connect，与 C bench 对齐 bulk 快路径。 */
+  /* See implementation. */
   let stream: TcpStream = net.connect_blocking(addr, sink_port, 0);
   if (stream.fd < 0) {
     fs.close(file_fd);

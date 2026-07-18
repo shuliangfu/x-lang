@@ -1,6 +1,10 @@
-// MEM-C1 AL-05 负例：arena Allocator 上 allocator_realloc 须 typeck 拒错。
+// See implementation.
 const heap = import("std.heap");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   with_arena(4096) {
     let al: heap.Allocator = heap.default_alloc();

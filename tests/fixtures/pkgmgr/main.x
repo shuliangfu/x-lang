@@ -1,9 +1,13 @@
 /**
- * TOOL-007 pkgmgr demo：清单声明 core.mem + core.types，须可 resolve + 编译。
+ * See implementation.
  */
 const mem = import("core.mem");
 const types = import("core.types");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let n: i32 = types.size_of_i32();
   if (n != 4) {

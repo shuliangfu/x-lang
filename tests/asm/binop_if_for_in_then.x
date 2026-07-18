@@ -1,4 +1,8 @@
-// 7.3：if then 内 for 写 a；外层 if 汇合后 return a+b（cfg-merge ldur 门禁）。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32 = 0;
   let b: i32 = 2;

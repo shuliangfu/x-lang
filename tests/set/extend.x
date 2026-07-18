@@ -1,13 +1,17 @@
-// STD-015：std.set Set_u64 / Set_str 边界烟测（insert/contains/remove）
+// See implementation.
 const set = import("std.set");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   // —— Set_u64 ——
   let su: Set_u64 = set.new(0);
   if (set.with_capacity(&su, 4) != 0) { return 1; }
   if (set.insert(&su, 1000 as u64) != 0) { return 2; }
   if (set.insert(&su, 2000 as u64) != 0) { return 3; }
-  // 重复插入不增 len
+  // See implementation.
   if (set.insert(&su, 1000 as u64) != 0) { return 4; }
   if (set.len(su) != 2) { return 5; }
   if (set.contains_key(su, 1000 as u64) != 1) { return 6; }
@@ -25,10 +29,10 @@ function main(): i32 {
   let k1_prefix: u8[2] = [97, 98];
   if (set.str_insert(&ss, k1, 3) != 0) { return 12; }
   if (set.str_insert(&ss, k2, 3) != 0) { return 13; }
-  // 前缀键与完整键区分
+  // See implementation.
   if (set.str_contains(ss, k1_prefix, 2) != 0) { return 14; }
   if (set.str_contains(ss, k1, 3) != 1) { return 15; }
-  // 超长键拒绝
+  // See implementation.
   let long_key: u8[33] = [
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1

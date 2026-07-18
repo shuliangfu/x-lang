@@ -1,4 +1,9 @@
-/** 探针：while 内 call 辅助函数，避免循环体内 if/else */
+/** Probe: while body calls a helper to avoid if/else inside the loop. */
+
+/**
+ * Escape one character into buf; double '"' if needed.
+ * @return new write index or -1 if capacity insufficient
+ */
 function esc_one(ch: u8, buf: *u8, i: i32, buf_cap: i32): i32 {
   if (ch == 34) {
     if (i + 2 > buf_cap) {
@@ -18,6 +23,10 @@ function esc_one(ch: u8, buf: *u8, i: i32, buf_cap: i32): i32 {
   return i;
 }
 
+/** Internal function `escape`.
+ * Purpose: see body; keep contracts (null/cap/PLATFORM) aligned with implementation.
+ * Params/returns: as declared in the signature; panics or error codes follow local conventions.
+ */
 function escape(ptr: *u8, len: i32, buf: *u8, buf_cap: i32): i32 {
   if (buf_cap < 2) {
     return -1;
@@ -41,6 +50,10 @@ function escape(ptr: *u8, len: i32, buf: *u8, buf_cap: i32): i32 {
   return i;
 }
 
+/** Internal function `main`.
+ * Purpose: see body; keep contracts (null/cap/PLATFORM) aligned with implementation.
+ * Params/returns: as declared in the signature; panics or error codes follow local conventions.
+ */
 function main(): i32 {
   let line: u8[8] = [97, 98, 0, 0, 0, 0, 0, 0];
   let buf: u8[64] = [];

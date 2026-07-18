@@ -1,8 +1,12 @@
 /**
- * STD-SOCKETIO-001 烟测：WS hub v9（sid 持久 + 多路复用 server emit）。
+ * See implementation.
  */
 const sio = import("std.socketio");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (sio.ws_hub_smoke() != 0) {
     return 1;

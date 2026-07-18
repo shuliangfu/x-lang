@@ -1,6 +1,10 @@
-// STD-107：client_pool_create/destroy 离线 API 烟测（无真实网络）
+// See implementation.
 const http = import("std.http");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   /** "127.0.0.1\0" */
   let host: u8[10] = [49, 50, 55, 46, 48, 46, 48, 46, 49, 0];

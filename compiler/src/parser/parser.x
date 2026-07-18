@@ -14,10 +14,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// parser.x — 自举 9.1：最小语法分析器（.x 实现，与 parser.c 并存）
-// 职责：消费 Token 流，解析最小程序「function main(): i32 { return <int>; }」，并产出 .x AST（Arena + Module）。
-// 依赖：lexer、token、ast（Arena/Module/Type/Expr/Block/Func）。
-// 全部逻辑在 .x：不调 C 构建 AST，为完全自举第一步。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 //
 // Cap-T001 / LANG-007 S0 (M1 T KPI): FFI wrappers that call export-extern glue use
 // whole-body unsafe. TokenKind/Token uses token.* qualify. Arena heap uses bare
@@ -32,14 +32,22 @@ const ast = import("ast");
 extern "C" function calloc(nmemb: usize, size: usize): *u8;
 extern "C" function free(ptr: *u8): void;
 
-/** parser 联调 main 仅需最小文件 IO，避免拉入 std.fs 全平台定义污染 bootstrap 生成。 */
+/* See implementation. */
 export extern "C" function std_fs_open(path: *u8): i32;
 export extern "C" function std_fs_read(fd: i32, buf: *u8, count: usize): isize;
 export extern "C" function std_fs_close(fd: i32): i32;
 
-/** 从 lex（位于 function 关键字）读出函数名写入 out，返回 name_len；失败返回 0。 */
-/** 单行 extern bl→parser_parse_peek_function_name_buf_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
+/* See implementation. */
 export extern function parser_parse_peek_function_name_buf_glue(lex: Lexer, data: *u8, len: i32, out: *u8): i32;
+/** Exported function `parse_peek_function_name_buf`.
+ * Implements `parse_peek_function_name_buf`.
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @param out *u8
+ * @return i32
+ */
 export function parse_peek_function_name_buf(lex: Lexer, data: *u8, len: i32, out: *u8): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -49,66 +57,71 @@ export function parse_peek_function_name_buf(lex: Lexer, data: *u8, len: i32, ou
 }
 
 
-/** 从 (data, len) 构造 u8[] slice，供 parse_into_buf 内调 parse_one_function_impl 时使用；实现由 pipeline_glue.c 提供。 */
+/* See implementation. */
 export extern function parser_slice_from_buf(data: *u8, len: i32): u8[];
-/** parse_into_buf 跳过函数时打印诊断（pipeline_glue.c；SHUX_DEBUG_PARSE=1）。 */
+/* See implementation. */
 export extern function parser_diagnostic_parse_skip(byte_pos: i32, num_funcs_so_far: i32, name_len: i32, name: *u8): void;
-/** 跳过 `<T>` / `<T,E>` 泛型形参列表（parser_asm_thin_c；`function id<T>` 等）。 */
+/* See implementation. */
 export extern function parser_skip_generic_angle_list_into_glue(out: *Lexer, lex: Lexer, source: u8[]): void;
-/** 跳过 `<...>` 并返回顶层类型参数个数；失败时 out/count 保持输入态。 */
+/* See implementation. */
 export extern function parser_skip_generic_angle_list_count_into_glue(out: *Lexer, count: *i32, lex: Lexer, source: u8[]): void;
-/** parse_into_buf commit 失败时打印诊断（arena/侧车池满等；须 skip+continue）。 */
+/* See implementation. */
 export extern function parser_diagnostic_parse_commit_fail(byte_pos: i32, num_funcs_so_far: i32, name_len: i32, name: *u8): void;
-/** parse_into/parse_into_buf 提交函数槽前打印 generic 计数（SHUX_DEBUG_PARSE_GENERIC=1）。 */
+/* See implementation. */
 export extern function parser_diagnostic_parse_func_generic(byte_pos: i32, num_funcs_so_far: i32, name: *u8, name_len: i32,
   num_generic_params: i32, is_main: i32): void;
-/** parse_into/parse_into_buf 函数体提交前后打印 OneFunc sidecar 与 Block 形状（SHUX_DEBUG_PARSE_COMMIT=1）。 */
+/* See implementation. */
 export extern function parser_diagnostic_parse_commit_pre(arena: *ASTArena, name: *u8, name_len: i32, block_ref: i32, pool: *u8, final_expr_ref: i32): void;
 export extern function parser_diagnostic_parse_commit_post(arena: *ASTArena, name: *u8, name_len: i32, block_ref: i32, pool: *u8): void;
-/** 将 struct_layouts[idx] 整槽清零后由 set_name/set_field 写入（AArch64 下避免 Module 大成员逐字节赋值失效）。 */
+/* See implementation. */
 export extern function pipeline_module_struct_layout_reset_slot(module: *Module, idx: i32): void;
 export extern function pipeline_module_struct_layout_set_name(module: *Module, idx: i32, bytes: *u8, len: i32): void;
-/** 读 struct_layout 名字节；避免 X 嵌套下标 typeck 失败（定义在 ast.x，parser 直接调用）。 */
+/* See implementation. */
 export extern function pipeline_module_struct_layout_name_byte_at(module: *Module, idx: i32, off: i32): u8;
 export extern function pipeline_module_struct_layout_set_field(module: *Module, layout_idx: i32, j: i32, fname: *u8, fname_len: i32,
   ftype_ref: i32, foff: i32): void;
-/** §11.1 下一字段字节偏移（勿固定 off+=8）；定义在 pipeline_glue.c。 */
+/* See implementation. */
 export extern function pipeline_struct_layout_next_field_offset(module: *Module, arena: *ASTArena, layout_idx: i32, new_field_type_ref: i32): i32;
-/** DOD-CL：下一字段偏移，field_align_req 为 align(N) 最小对齐（0=类型对齐）。 */
+/* See implementation. */
 export extern function pipeline_struct_layout_next_field_offset_ex(module: *Module, arena: *ASTArena, layout_idx: i32, new_field_type_ref: i32, field_align_req: i32): i32;
 export extern function pipeline_module_struct_layout_set_field_align(module: *Module, li: i32, j: i32, al: i32): void;
 export extern function pipeline_module_struct_layout_field_align_at(module: *Module, li: i32, j: i32): i32;
-/** 将单个形参写入 module.funcs[fi].params[pi]，避免 Param 按值拷贝导致 asm 下 type_ref 丢失。 */
+/* See implementation. */
 export extern function pipeline_module_func_param_write(module: *Module, func_index: i32, param_index: i32, name_bytes: *u8, name_len: i32, type_ref: i32): void;
-/** glue：memcpy 写 module.funcs[fi].name[64] 与 name_len；勿在 X 内逐字节写函数名（AArch64 自举下嵌套大数组字段可能不落盘）。 */
+/* See implementation. */
 export extern function pipeline_module_func_name_write(module: *Module, func_index: i32, name_bytes: *u8, name_len: i32): void;
-/** 将形参写入 ASTArena 的 func 池槽位（func_ref 1-based），供 parse_into_buf 路径。 */
+/* See implementation. */
 export extern function pipeline_arena_func_param_write(arena: *ASTArena, func_ref: i32, param_index: i32, name_bytes: *u8, name_len: i32, type_ref: i32): void;
-/** 将 module.funcs[fi] 拷入 arena func 池 func_ref 槽（C 整体赋值）；须在 module 槽与形参写完后调用。 */
+/* See implementation. */
 export extern function pipeline_arena_func_copy_slot_from_module(arena: *ASTArena, func_ref: i32, module: *Module, fi: i32): void;
 /**
- * 清零 Module 顶层解析计数（与 pipeline_glue 原 C 实现一致）。
- * M8-tail：薄包装 bl→C，避免 *Module 字段 FIELD_ACCESS 在 asm emit 失败。
+ * See implementation.
+ * See implementation.
  */
 export extern function pipeline_module_reset_parse_counters_c(module: *Module): void;
 
+/** Exported function `pipeline_module_reset_parse_counters`.
+ * Implements `pipeline_module_reset_parse_counters`.
+ * @param module *Module
+ * @return void
+ */
 export function pipeline_module_reset_parse_counters(module: *Module): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   pipeline_module_reset_parse_counters_c(module);
   }
 }
-/** 与 C `pipeline_sizeof_arena` 一致：`sizeof(ast_ASTArena)`；堆/静态 arena 缓冲须 ≥此值。 */
+/* See implementation. */
 export extern function pipeline_sizeof_arena(): usize;
-/** parse_block_into 堆 scratch 字节数（OneFuncResult 体量）；由 pipeline_glue.c 提供。 */
+/* See implementation. */
 export extern function pipeline_sizeof_onefunc_result(): usize;
 
-/** OneFunc / Block / Module 动态池 glue（ast_pool.c）；parse 写块与函数槽须经此 API。 */
+/* See implementation. */
 export extern function ast_pool_onefunc_reset(out: *u8): void;
 export extern function ast_pool_onefunc_release(out: *u8): void;
 export extern function driver_diagnostic_parser_onefunc_param_ref(func_name: *u8, func_name_len: i32,
 param_name: *u8, param_name_len: i32, stage: i32, param_idx: i32, type_ref: i32): void;
-/** 复用 module/arena 指针再次 parse 前清空 sidecar 池（memset 模块体不会清 grow_vec）。 */
+/* See implementation. */
 export extern function ast_pool_module_reset(module: *Module): void;
 export extern function ast_pool_arena_reset(arena: *ASTArena): void;
 export extern function pipeline_module_func_alloc_slot(module: *Module): i32;
@@ -136,17 +149,17 @@ export extern function pipeline_module_func_set_num_generic_params(module: *Modu
 export extern function pipeline_block_append_const(arena: *ASTArena, br: i32, name: *u8, name_len: i32, type_ref: i32, init_ref: i32): i32;
 export extern function pipeline_block_append_let(arena: *ASTArena, br: i32, name: *u8, name_len: i32, type_ref: i32, init_ref: i32): i32;
 export extern function pipeline_block_append_if(arena: *ASTArena, br: i32, cond_ref: i32, then_ref: i32, else_ref: i32): i32;
-/** M-3：追加 region label { body } 到块池；返回块内 region 下标（glue 在 ast.x / ast_pool.c）。 */
+/* See implementation. */
 export extern function pipeline_block_append_region(arena: *ASTArena, br: i32, label: *u8, label_len: i32, body_ref: i32): i32;
-/** LANG-007 v2：unsafe { body } 块池追加。 */
+/* See implementation. */
 export extern function pipeline_block_append_unsafe(arena: *ASTArena, br: i32, body_ref: i32): i32;
-/** MEM-C1：追加 with_arena(cap) { body } 到块池（与 region 共用 stmt_order kind=6）。 */
+/* See implementation. */
 export extern function pipeline_block_append_with_arena(arena: *ASTArena, br: i32, cap_ref: i32, body_ref: i32): i32;
 export extern function pipeline_block_append_expr_stmt(arena: *ASTArena, br: i32, expr_ref: i32): i32;
 export extern function pipeline_block_append_stmt_order(arena: *ASTArena, br: i32, kind: u8, idx: i32): i32;
-/** 块首 let（idx < prefix_n）乱序时重排 stmt_order：const/let 先于 if（with_arena_vec gate）。 */
+/* See implementation. */
 export extern function pipeline_block_stmt_order_fix_prefix_lets(arena: *ASTArena, br: i32, prefix_n: i32): void;
-/** with_arena 块 stmt_order 补 kind=6 region（内层 body 已由 parse_block_into 写入）。 */
+/* See implementation. */
 export extern function pipeline_block_with_arena_fixup_stmt_order(arena: *ASTArena, br: i32): void;
 export extern function pipeline_block_fill_ifs_from_onefunc(arena: *ASTArena, br: i32, out: *u8, count: i32): void;
 export extern function pipeline_block_fill_stmt_order_from_onefunc(arena: *ASTArena, br: i32, out: *u8, count: i32): void;
@@ -161,14 +174,14 @@ export extern function pipeline_onefunc_append_with_arena(out: *u8, cap_ref: i32
 export extern function pipeline_onefunc_append_unsafe(out: *u8, body_ref: i32): i32;
 export extern function pipeline_onefunc_num_regions(out: *u8): i32;
 export extern function pipeline_block_fill_regions_from_onefunc(arena: *ASTArena, br: i32, out: *u8, count: i32): void;
-/** MEM-B0：defer { body } 块池与 OneFunc 侧车。 */
+/* See implementation. */
 export extern function pipeline_block_append_defer(arena: *ASTArena, br: i32, body_ref: i32): i32;
 export extern function pipeline_block_defer_body_ref(arena: *ASTArena, br: i32, di: i32): i32;
 export extern function pipeline_onefunc_append_defer(out: *u8, body_ref: i32): i32;
 export extern function pipeline_onefunc_num_defers(out: *u8): i32;
 export extern function pipeline_block_fill_defers_from_onefunc(arena: *ASTArena, br: i32, out: *u8, count: i32): void;
 export extern function pipeline_onefunc_append_const_name(out: *u8, name: *u8, name_len: i32, init_val: i32): i32;
-/** 与 append_let 对称：写入 const 名/初值/类型到 OneFunc 侧车，供 fill_block_const_let_from_res。 */
+/* See implementation. */
 export extern function pipeline_onefunc_append_const(out: *u8, name: *u8, name_len: i32, init_val: i32, init_ref: i32, type_ref: i32): i32;
 export extern function pipeline_onefunc_const_name_len(out: *u8, i: i32): i32;
 export extern function pipeline_onefunc_const_init_val(out: *u8, i: i32): i32;
@@ -189,7 +202,7 @@ export extern function pipeline_onefunc_src_stmt_idx(out: *u8, i: i32): i32;
 export extern function pipeline_onefunc_push_body_expr_stmt(out: *u8, expr_ref: i32): i32;
 export extern function pipeline_onefunc_body_expr_stmt_ref(out: *u8, i: i32): i32;
 export extern function pipeline_onefunc_num_body_expr_stmts(out: *u8): i32;
-/** OneFunc / ExternParse scratch 形参与 call 实参 grow 池（ast_pool.c）。 */
+/* See implementation. */
 export extern function pipeline_onefunc_append_param(out: *u8, name: *u8, name_len: i32, type_ref: i32): i32;
 export extern function pipeline_onefunc_set_param_type_ref(out: *u8, i: i32, type_ref: i32): void;
 export extern function pipeline_onefunc_param_name_len(out: *u8, i: i32): i32;
@@ -198,7 +211,7 @@ export extern function pipeline_onefunc_param_name_copy32(out: *u8, i: i32, dst:
 export extern function pipeline_onefunc_param_type_ref(out: *u8, i: i32): i32;
 export extern function pipeline_onefunc_call_arg_val_at(out: *u8, i: i32): i32;
 export extern function pipeline_onefunc_reset_call_args(out: *u8): void;
-/** Block / OneFunc while/for 侧车池（与 ast.x 声明一致）。 */
+/* See implementation. */
 export extern function pipeline_block_append_while(arena: *ASTArena, br: i32, cond_ref: i32, body_ref: i32): i32;
 export extern function pipeline_block_append_for(arena: *ASTArena, br: i32, init_ref: i32, cond_ref: i32, step_ref: i32, body_ref: i32): i32;
 export extern function pipeline_block_fill_whiles_from_onefunc(arena: *ASTArena, br: i32, out: *u8, count: i32): void;
@@ -207,7 +220,7 @@ export extern function pipeline_onefunc_append_while(out: *u8, cond_ref: i32, bo
 export extern function pipeline_onefunc_num_whiles(out: *u8): i32;
 export extern function pipeline_onefunc_append_for(out: *u8, init_ref: i32, cond_ref: i32, step_ref: i32, body_ref: i32): i32;
 export extern function pipeline_onefunc_num_fors(out: *u8): i32;
-/** match 解析查 enum tag；由 parse_into_init 设置（x_seed_bridge.c）。 */
+/* See implementation. */
 export extern function pipeline_parser_set_match_module(m: *Module): void;
 export extern function pipeline_parser_get_match_module(): *Module;
 export extern function pipeline_module_enum_variant_tag_for_names(m: *Module, enum_name: *u8, enum_len: i32, variant_name: *u8, variant_len: i32): i32;
@@ -215,7 +228,7 @@ export extern function pipeline_expr_append_match_arm(arena: *ASTArena, expr_ref
 export extern function pipeline_expr_append_array_lit_elem(arena: *ASTArena, expr_ref: i32, elem_ref: i32): i32;
 export extern function pipeline_expr_append_call_arg(arena: *ASTArena, expr_ref: i32, arg_ref: i32): i32;
 
-/** Stage2 _gen2.c 单文件编译须显式 extern（ast/lexer 中定义，parser 直接调用）。 */
+/* See implementation. */
 export extern function lexer_next_buf_into(out: *LexerResult, lex: Lexer, data: *u8, len: i32): void;
 export extern function ast_block_expr_stmt_ref(arena: *ASTArena, block_ref: i32, ei: i32): i32;
 export extern function pipeline_block_append_labeled(arena: *ASTArena, br: i32, label_len: i32, is_goto: i32, goto_target_len: i32, return_expr_ref: i32): i32;
@@ -244,7 +257,11 @@ export extern function pipeline_type_ensure_by_kind_ord(arena: *ASTArena, kind_o
 export extern function pipeline_module_top_level_let_alloc(module: *Module): i32;
 export extern function pipeline_module_top_level_let_set(module: *Module, idx: i32, name: *u8, name_len: i32, type_ref: i32, init_ref: i32, is_const: i32): void;
 
-/** 取 OneFuncResult 侧车池键（C 按 struct 地址索引）；避免 `&res as *u8` 被解析成 `&(res as *u8)`。 */
+/** Exported function `onefunc_result_pool_ptr`.
+ * Implements `onefunc_result_pool_ptr`.
+ * @param res *OneFuncResult
+ * @return *u8
+ */
 export function onefunc_result_pool_ptr(res: *OneFuncResult): *u8 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -253,7 +270,7 @@ export function onefunc_result_pool_ptr(res: *OneFuncResult): *u8 {
 }
 
 
-/** 单函数解析结果：须在任意 `function ... OneFuncResult` 之前定义，使 parse_struct 先写入 struct_layouts，避免前向引用导致 FIELD_ACCESS 无类型。 */
+/* See implementation. */
 allow(padding) struct OneFuncResult {
   ok: bool;
   next_lex: Lexer;
@@ -267,80 +284,86 @@ allow(padding) struct OneFuncResult {
   if_cond_true: bool;
   if_then_val: i32;
   if_else_val: i32;
-  /** return if (cond) 且 cond 非 true/false 字面量时：arena 内条件表达式 ref；0 表示由 if_cond_true 造 EXPR_BOOL_LIT。 */
+  /* See implementation. */
   if_cond_expr_ref: i32;
   has_mul: bool;
   mul_right_val: i32;
   has_binop: bool;
   binop_right_val: i32;
-  /** return ident + ident 且两 ident 为形参时，左/右操作数对应的形参下标（0/1）；-1 表示非形参（用 return_val/binop_right_val） */
+  /* See implementation. */
   binop_left_param_idx: i32;
   binop_right_param_idx: i32;
   has_unary_neg: bool;
   return_val: i32;
-  /** 阶段 5 多文件：return ident(); 无参/有参调用时为 true，call_callee_name/len 为被调名 */
+  /* See implementation. */
   has_call_expr: bool;
   call_callee_name: u8[64];
   call_callee_len: i32;
-  /** return ident; 时记录变量名（非整数字面量）；return_var_name_len>0 时 parse_into 生成 EXPR_VAR */
+  /* See implementation. */
   return_var_name: u8[64];
   return_var_name_len: i32;
-  /** 非 0：return 子表达式已在 arena（如 return foo(buffers[0].ptr,1)）；parse_into 用其作 final，勿再走 has_call_expr。 */
+  /* See implementation. */
   return_expr_ref: i32;
-  /** true：函数体在 stmt 循环后确实解析到了一个尾表达式；false 时 parse_into 不得再合成 fallback literal final_expr。 */
+  /* See implementation. */
   has_final_expr: bool;
-  /** true：函数体经 `return` 关键字结束（含 return 1 / return call），非 `{ 0 }` 裸尾式；供 parse_into 决定是否包 EXPR_RETURN。 */
+  /* See implementation. */
   has_explicit_return_kw: bool;
-  /** 有参调用时解析得到的实参个数（如 return add(1,2) 为 2）；0 表示无参或沿用当前函数形参个数 */
+  /* See implementation. */
   call_num_args: i32;
-  /** 块内 while 循环数（侧车池缓存计数，由 pipeline_onefunc_num_whiles 同步） */
+  /* See implementation. */
   num_loops: i32;
-  /** 块内 for 循环数（侧车池缓存计数，由 pipeline_onefunc_num_fors 同步） */
+  /* See implementation. */
   num_for_loops: i32;
-  /** parse_one_function_impl 与 parse_into 块体：if(cond){ block } 链，数据在 OneFunc 侧车池 */
+  /* See implementation. */
   num_if_stmts: i32;
   /**
-   * parse_one_function_impl 按源码顺序累计的 stmt_order（与 C 侧 push_stmt_order 一致：
-   * 0=const, 1=let, 2=expr_stmt, 3=loop, 4=for, 5=if）。>0 时 parse_into 直接写入 Block，避免仅按批
-   * 次 const/let/loop 重建顺序导致与 C 解析器/codegen 不一致。数据在侧车池。
+   * See implementation.
+   * See implementation.
+   * See implementation.
    */
   num_src_stmt_order: i32;
-  /** kind=2 时 idx 为 body expr_stmt 池下标；数据在侧车池 */
+  /* See implementation. */
   num_src_body_expr_stmts: i32;
-  /** parse_one_function_impl 在 `): Ty` 处解析得到的返回类型 arena ref；parse_intoBuf 必须用其写入 Func.return_type_ref，勿一律造 TYPE_I32（否则 deps 如 std.time 的 i64 API 在 Caller 中被误为 i64，let/跨模块调用 typeck 失败）。为 0 时 parse_into 回退分配 TYPE_I32。 */
+  /* See implementation. */
   func_return_type_ref: i32;
 }
 
-/** 最小解析结果：ok 表示整句解析成功，return_val 为 return 后的整数字面量值。 */
+/* See implementation. */
 export struct ParseResult {
   ok: bool;
   return_val: i32;
 }
 
-/** parse_into 返回：ok 0 成功 -1 失败，main_idx 为 main 函数下标（供调用方写回 module.main_func_index，避免 codegen 提升）。 */
+/* See implementation. */
 export struct ParseIntoResult {
   ok: i32;
   main_idx: i32;
 }
 
-/** 单条顶层 let/const 解析结果：供 parse_into_buf 在见到 TOKEN_LET/TOKEN_CONST 时调用 parse_one_top_level_let_into，通过 out 返回 ok 与 next_lex。 */
+/* See implementation. */
 allow(padding) struct TopLevelLetResult {
   ok: bool;
   next_lex: Lexer;
 }
 
-/** 单条顶层 type 别名解析结果：供 parse_into_buf 在见到 TOKEN_TYPE 时调用 parse_one_type_alias_into。 */
+/* See implementation. */
 allow(padding) struct TypeAliasResult {
   ok: bool;
   next_lex: Lexer;
 }
 
-/** collect_imports 的输出：通过 out 参数返回跳过 import 后的 Lexer，避免按值返回结构体（ABI 导致有 import 时返回值错误）。 */
+/* See implementation. */
 export struct CollectImportsResult {
   lex: Lexer;
 }
-/** 从 CollectImportsResult 取 lex 写入 out；C glue 避免嵌套 .lex.pos FIELD_ACCESS 在 typeck 上为 ?。 */
+/* See implementation. */
 export extern function parser_lex_copy_from_collect_imports(out: *Lexer, res: CollectImportsResult): void;
+/** Exported function `copy_lex_from_import_into`.
+ * Implements `copy_lex_from_import_into`.
+ * @param out *Lexer
+ * @param res CollectImportsResult
+ * @return void
+ */
 export function copy_lex_from_import_into(out: *Lexer, res: CollectImportsResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -348,10 +371,16 @@ export function copy_lex_from_import_into(out: *Lexer, res: CollectImportsResult
   }
 }
 
-/** 从 LexerResult 取 next_lex 写入 out；C glue 同上。 */
+/* See implementation. */
 export extern function parser_lex_from_lexer_result_val_into(out: *Lexer, r: LexerResult): void;
-/** 单行 extern bl→parser_lex_from_next_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 export extern function parser_lex_from_next_into_glue(out: *Lexer, r: LexerResult): void;
+/** Exported function `lex_from_next_into`.
+ * Implements `lex_from_next_into`.
+ * @param out *Lexer
+ * @param r LexerResult
+ * @return void
+ */
 export function lex_from_next_into(out: *Lexer, r: LexerResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -359,10 +388,16 @@ export function lex_from_next_into(out: *Lexer, r: LexerResult): void {
   }
 }
 
-/** 从 *LexerResult 取 next_lex 写入 out_lex；C glue 避免 *T 链式 FIELD_ACCESS 在 typeck 上为 ?。 */
+/* See implementation. */
 export extern function parser_lex_from_lexer_result_ptr_into(out: *Lexer, r: *LexerResult): void;
-/** 单行 extern bl→parser_lex_from_result_ptr_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 export extern function parser_lex_from_result_ptr_into_glue(out_lex: *Lexer, r: *LexerResult): void;
+/** Exported function `lex_from_result_ptr_into`.
+ * Implements `lex_from_result_ptr_into`.
+ * @param out_lex *Lexer
+ * @param r *LexerResult
+ * @return void
+ */
 export function lex_from_result_ptr_into(out_lex: *Lexer, r: *LexerResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -370,6 +405,12 @@ export function lex_from_result_ptr_into(out_lex: *Lexer, r: *LexerResult): void
   }
 }
 
+/** Exported function `lexer_copy_into`.
+ * Implements `lexer_copy_into`.
+ * @param out_lex *Lexer
+ * @param src_lex Lexer
+ * @return void
+ */
 export function lexer_copy_into(out_lex: *Lexer, src_lex: Lexer): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -379,6 +420,12 @@ export function lexer_copy_into(out_lex: *Lexer, src_lex: Lexer): void {
   }
 }
 
+/** Exported function `lexer_copy_from_parse_expr_result_into`.
+ * Implements `lexer_copy_from_parse_expr_result_into`.
+ * @param out_lex *Lexer
+ * @param res *ParseExprResult
+ * @return void
+ */
 export function lexer_copy_from_parse_expr_result_into(out_lex: *Lexer, res: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -388,6 +435,12 @@ export function lexer_copy_from_parse_expr_result_into(out_lex: *Lexer, res: *Pa
   }
 }
 
+/** Exported function `parse_expr_result_reset`.
+ * Implements `parse_expr_result_reset`.
+ * @param out_res *ParseExprResult
+ * @param next_lex Lexer
+ * @return void
+ */
 export function parse_expr_result_reset(out_res: *ParseExprResult, next_lex: Lexer): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -399,6 +452,13 @@ export function parse_expr_result_reset(out_res: *ParseExprResult, next_lex: Lex
   }
 }
 
+/** Exported function `parser_rewind_lex_for_following_stmt_into`.
+ * Implements `parser_rewind_lex_for_following_stmt_into`.
+ * @param out_lex *Lexer
+ * @param lex_in Lexer
+ * @param r LexerResult
+ * @return void
+ */
 export function parser_rewind_lex_for_following_stmt_into(out_lex: *Lexer, lex_in: Lexer, r: LexerResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -407,10 +467,16 @@ export function parser_rewind_lex_for_following_stmt_into(out_lex: *Lexer, lex_i
   }
 }
 
-/** 从 *OneFuncResult 取 next_lex 写入 out；C glue（OneFuncResult 体量大，按指针传入）。 */
+/* See implementation. */
 export extern function parser_lex_from_onefunc_result_ptr_into(out: *Lexer, res: *OneFuncResult): void;
-/** 单行 extern bl→parser_lex_from_onefunc_next_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 export extern function parser_lex_from_onefunc_next_into_glue(out: *Lexer, res: *OneFuncResult): void;
+/** Exported function `lex_from_onefunc_next_into`.
+ * Implements `lex_from_onefunc_next_into`.
+ * @param out *Lexer
+ * @param res *OneFuncResult
+ * @return void
+ */
 export function lex_from_onefunc_next_into(out: *Lexer, res: *OneFuncResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -419,7 +485,12 @@ export function lex_from_onefunc_next_into(out: *Lexer, res: *OneFuncResult): vo
 }
 
 
-/** 由 token 结束位置与长度反推起点（避免在 if 条件内写 (nlen as usize) 触发 C 解析歧义）。 */
+/** Exported function `lexer_pos_before_run`.
+ * Implements `lexer_pos_before_run`.
+ * @param end_pos usize
+ * @param run_len i32
+ * @return usize
+ */
 export function lexer_pos_before_run(end_pos: usize, run_len: i32): usize {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -431,12 +502,12 @@ export function lexer_pos_before_run(end_pos: usize, run_len: i32): usize {
 
 
 /**
- * token_start==0 时按 kind 推断关键字/字面量字节长度，供 lex_at_token_from_result 回溯起点。
- * 避免 `return` 等仅 pos-1 指到末字节导致外层误从 `urn` 起读并落入 skip_balanced 假成功。
+ * See implementation.
+ * See implementation.
  */
 /**
- * token_start==0 时按 kind 推断关键字/字面量字节长度，供 lex_at_token_from_result 回溯起点。
- * 形参 token.TokenKind（勿 Token 按值）；TOKEN_ASYNC 用 i32 ordinal 29（EMIT_HEAVY enum emit 曾失败）。
+ * See implementation.
+ * See implementation.
  */
 export function lexer_token_run_len(kind: token.TokenKind): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -500,11 +571,16 @@ export function lexer_token_run_len(kind: token.TokenKind): i32 {
 
 
 /**
- * 从 LexerResult 当前 token 起点构造 Lexer，供语句级 parse_expr / parse_cond_expr 从 r.tok 重读。
- * TOKEN_INT 须依赖 lexer 填写的 token_start（见 lexer.x lexer_next_body_into）。
+ * See implementation.
+ * See implementation.
  */
-/** 单行 extern bl→parser_lex_at_token_from_result_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 export extern function parser_lex_at_token_from_result_glue(r: LexerResult): Lexer;
+/** Exported function `lex_at_token_from_result`.
+ * Implements `lex_at_token_from_result`.
+ * @param r LexerResult
+ * @return Lexer
+ */
 export function lex_at_token_from_result(r: LexerResult): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -514,13 +590,19 @@ export function lex_at_token_from_result(r: LexerResult): Lexer {
 
 
 /**
- * let/if 初值解析后，若后继为 return/if/while/for/}，把 lex 回指到该 token 起点。
- * 避免 parse_one_function_impl 的 stmt 循环再 lexer_next 吞掉 return（with_else typeck -6）。
+ * See implementation.
+ * See implementation.
  */
-/** 单行 extern bl→parser_parser_rewind_lex_for_following_stmt_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 export extern function parser_parser_rewind_lex_for_following_stmt_glue(lex_in: Lexer, r: LexerResult): Lexer;
-/** parse_block return 尾：RBRACE 时置 block_break，否则 advance lex（C 实现，避 X→C continue 失效）。 */
+/* See implementation. */
 export extern function parser_asm_parse_block_return_end_tail_glue(r: *LexerResult, lex_cur: *Lexer, source: u8[], stmt_tok_ready: *bool, block_break: *i32): void;
+/** Exported function `parser_rewind_lex_for_following_stmt`.
+ * Implements `parser_rewind_lex_for_following_stmt`.
+ * @param lex_in Lexer
+ * @param r LexerResult
+ * @return Lexer
+ */
 export function parser_rewind_lex_for_following_stmt(lex_in: Lexer, r: LexerResult): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -529,9 +611,9 @@ export function parser_rewind_lex_for_following_stmt(lex_in: Lexer, r: LexerResu
 }
 
 /**
- * 复合语句（while/for/loop/unsafe/...）解析结束后，回扫到真实下一条 stmt 首 token。
- * 某些 live 链里 block_res.next_lex 会落到 sibling `if` 的 `(`，甚至已读出的 stmt 关键字 next_lex；
- * 若直接沿用旧 r/stmt_tok_ready，会把 `if (...) { ... }` 后半段误落入 expr_stmt，继而丢掉尾 return。
+ * See implementation.
+ * See implementation.
+ * See implementation.
  */
 export function parser_realign_lex_after_compound_stmt(lex_in: Lexer, r_in: LexerResult, source: u8[]): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -543,8 +625,8 @@ export function parser_realign_lex_after_compound_stmt(lex_in: Lexer, r_in: Lexe
 }
 
 /**
- * 若当前 r 已落在控制流关键字后的 `(`，回扫到真实的 `if/while/for` 起点。
- * 之前只回扫 `if`，会把 `while (...) { ... }` / `for (...) { ... }` 误落入 expr_stmt。
+ * See implementation.
+ * See implementation.
  */
 export function parser_rewind_lex_for_lparen_control_stmt(lex_in: Lexer, r_in: LexerResult, source: u8[]): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -573,8 +655,8 @@ export function parser_rewind_lex_for_lparen_control_stmt(lex_in: Lexer, r_in: L
 
 
 /**
- * 判断 source 在 ident_start 前是否为关键字 "match "（6 字节）。
- * 用于修正 `let x; return match x` 被误当作 `return x { … }` 时从 subject 的 ident 起点回溯。
+ * See implementation.
+ * See implementation.
  */
 export function parser_match_kw_immediately_before(source: u8[], ident_start: usize): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -589,8 +671,8 @@ export function parser_match_kw_immediately_before(source: u8[], ident_start: us
 }
 
 /**
- * 判断 source 在 ident_start 前是否为关键字 "return" + 空白（7 字节：return + 分隔符）。
- * 用于 if (struct.field) 后 lex 误落在 `return expr` 的 expr 首 ident（如 r3）时回溯至 TOKEN_RETURN。
+ * See implementation.
+ * See implementation.
  */
 export function parser_return_kw_immediately_before(source: u8[], ident_start: usize): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -608,7 +690,13 @@ export function parser_return_kw_immediately_before(source: u8[], ident_start: u
   }
 }
 
-/** parser_match_kw_immediately_before 的 buf 变体。 */
+/** Exported function `parser_match_kw_immediately_before_buf`.
+ * Implements `parser_match_kw_immediately_before_buf`.
+ * @param data *u8
+ * @param len i32
+ * @param ident_start usize
+ * @return bool
+ */
 export function parser_match_kw_immediately_before_buf(data: *u8, len: i32, ident_start: usize): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -620,12 +708,19 @@ export function parser_match_kw_immediately_before_buf(data: *u8, len: i32, iden
 
 
 /**
- * 表达式初值/条件解析后同步到分号之后：next_lex 可能止于 ; 或已越过 ;（下一 token 为 let/return 等）。
- * 仅消费 `;` 本身，勿在 `;` 后再 lexer_next：parse_one_function_impl 循环头会 advance，否则吞掉 return/let。
- * 返回 1 成功，0 表示遇到非法后继 token。
+ * See implementation.
+ * See implementation.
+ * See implementation.
  */
-/** 单行 extern bl→parser_advance_past_stmt_semicolon_into_glue（X 真 emit 调 lexer_next_into → elf_ec=-1）。 */
+/* See implementation. */
 export extern function parser_advance_past_stmt_semicolon_into_glue(r_out: *LexerResult, lex: Lexer, source: u8[]): i32;
+/** Exported function `advance_past_stmt_semicolon_into`.
+ * Implements `advance_past_stmt_semicolon_into`.
+ * @param r_out *LexerResult
+ * @param lex Lexer
+ * @param source u8[]
+ * @return i32
+ */
 export function advance_past_stmt_semicolon_into(r_out: *LexerResult, lex: Lexer, source: u8[]): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -635,7 +730,14 @@ export function advance_past_stmt_semicolon_into(r_out: *LexerResult, lex: Lexer
 }
 
 
-/** advance_past_stmt_semicolon_into 的 buf 变体：parser_slice_from_buf + bl advance_past_stmt_semicolon_into。 */
+/** Exported function `advance_past_stmt_semicolon_into_buf`.
+ * Implements `advance_past_stmt_semicolon_into_buf`.
+ * @param r_out *LexerResult
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @return i32
+ */
 export function advance_past_stmt_semicolon_into_buf(r_out: *LexerResult, lex: Lexer, data: *u8, len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -647,10 +749,17 @@ export function advance_past_stmt_semicolon_into_buf(r_out: *LexerResult, lex: L
 
 
 /**
- * 解析 if/while 条件后同步到右括号之后：next_lex 可能止于 ) 或已越过 )。
+ * See implementation.
  */
-/** 单行 extern bl→parser_advance_past_cond_rparen_into_glue（X 真 emit 调 lexer_next_into → elf_ec=-1）。 */
+/* See implementation. */
 export extern function parser_advance_past_cond_rparen_into_glue(r_out: *LexerResult, lex: Lexer, source: u8[]): i32;
+/** Exported function `advance_past_cond_rparen_into`.
+ * Implements `advance_past_cond_rparen_into`.
+ * @param r_out *LexerResult
+ * @param lex Lexer
+ * @param source u8[]
+ * @return i32
+ */
 export function advance_past_cond_rparen_into(r_out: *LexerResult, lex: Lexer, source: u8[]): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -660,7 +769,14 @@ export function advance_past_cond_rparen_into(r_out: *LexerResult, lex: Lexer, s
 }
 
 
-/** advance_past_cond_rparen_into 的 buf 变体：parser_slice_from_buf + bl advance_past_cond_rparen_into。 */
+/** Exported function `advance_past_cond_rparen_into_buf`.
+ * Implements `advance_past_cond_rparen_into_buf`.
+ * @param r_out *LexerResult
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @return i32
+ */
 export function advance_past_cond_rparen_into_buf(r_out: *LexerResult, lex: Lexer, data: *u8, len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -672,14 +788,14 @@ export function advance_past_cond_rparen_into_buf(r_out: *LexerResult, lex: Lexe
 
 
 /**
- * 在 `out.ok` / `copy_onefunc_into` 等之前执行：注册 OneFuncResult 首段 STRUCT_LIT（≤8 字段）并触发 typeck 填充 field_type_refs；
- * 后续同名字面量由 ensure_struct_layout_from_struct_lit **合并**补全余下字段名（AST 单字面量上限 8）。
+ * See implementation.
+ * See implementation.
  */
 export function onefunc_result_layout_prime(): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   let z64: u8[64] = [];
-  /** 仅 8 个字段：AST 单结构字面量上限 8；num_consts 起由 prime_b 合并；形参在侧车池。 */
+  /* See implementation. */
   let _prime: OneFuncResult = OneFuncResult {
     ok: false,
     next_lex: lexer.lexer_init(),
@@ -688,13 +804,18 @@ export function onefunc_result_layout_prime(): void {
     num_params: 0
   };
   /*
-   * 勿整结构自赋值：.x typeck 展开后易触发「一侧 ?」。用常量写回一字段即可拴住字面量并过检。
+   * See implementation.
    */
   _prime.name_len = 0;
   }
 }
 
-/** 写失败结果到 out，避免 ABI 下 OneFuncResult 按值返回/赋值错误；调用方仅用 out.ok 与 out.next_lex。 */
+/** Exported function `set_onefunc_fail`.
+ * Implements `set_onefunc_fail`.
+ * @param out *OneFuncResult
+ * @param next_lex Lexer
+ * @return void
+ */
 export function set_onefunc_fail(out: *OneFuncResult, next_lex: Lexer): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -704,6 +825,10 @@ export function set_onefunc_fail(out: *OneFuncResult, next_lex: Lexer): void {
   }
 }
 
+/** Function `onefunc_finish_after_return_lex`.
+ * Purpose: implements `onefunc_finish_after_return_lex`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function onefunc_finish_after_return_lex(out: *OneFuncResult, impl_snap: *OneFuncResult, source: u8[],
 lex_after_expr: Lexer, func_name: *u8, func_name_len: i32, return_expr_ref: i32): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -728,7 +853,7 @@ lex_after_expr: Lexer, func_name: *u8, func_name_len: i32, return_expr_ref: i32)
 
 
 /**
- * 合并第二段字段进 struct_layouts（num_consts/num_lets），const/let 明细在侧车池。
+ * See implementation.
  */
 export function onefunc_result_layout_prime_b(): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -742,7 +867,7 @@ export function onefunc_result_layout_prime_b(): void {
 }
 
 /**
- * 合并第三段（has_if_expr…if_cond_expr_ref）。
+ * See implementation.
  */
 export function onefunc_result_layout_prime_c(): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -761,7 +886,7 @@ export function onefunc_result_layout_prime_c(): void {
 }
 
 /**
- * 合并第四段（has_binop…call_callee_name）。
+ * See implementation.
  */
 export function onefunc_result_layout_prime_d(): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -782,7 +907,7 @@ export function onefunc_result_layout_prime_d(): void {
 }
 
 /**
- * 合并第五段（call_callee_len…num_loops）；while cond/body 在侧车池。
+ * See implementation.
  */
 export function onefunc_result_layout_prime_d_b(): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -801,7 +926,7 @@ export function onefunc_result_layout_prime_d_b(): void {
 }
 
 /**
- * 合并第六段（num_for_loops…num_if_stmts）；for 明细在侧车池。
+ * See implementation.
  */
 export function onefunc_result_layout_prime_e(): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -815,7 +940,7 @@ export function onefunc_result_layout_prime_e(): void {
 }
 
 /**
- * 合并第七段（num_src_stmt_order…func_return_type_ref）。
+ * See implementation.
  */
 export function onefunc_result_layout_prime_f(): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -829,13 +954,18 @@ export function onefunc_result_layout_prime_f(): void {
   }
 }
 
-/** 将 src 逐字段拷到 dst，避免 *dst = src 在部分解析器下被误解析；用于 parse_one_function_impl 成功路径写回。 */
+/** Exported function `copy_onefunc_into`.
+ * Implements `copy_onefunc_into`.
+ * @param dst *OneFuncResult
+ * @param src *OneFuncResult
+ * @return void
+ */
 export function copy_onefunc_into(dst: *OneFuncResult, src: *OneFuncResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  /* 字面量常省略 func_return_type_ref（视作 0）：保留 dst 已由 parse_one_function_impl 填入的 ): Ty arena ref */
+  /* See implementation. */
   let preserved_func_ret_ty: i32 = dst.func_return_type_ref;
-  /** const/let/if/while/for/stmt_order 在侧车池：先复制池再写标量计数。 */
+  /* See implementation. */
   pipeline_onefunc_copy_sidecar(onefunc_result_pool_ptr(dst), onefunc_result_pool_ptr(src));
   dst.ok = src.ok;
   dst.next_lex = src.next_lex;
@@ -862,7 +992,7 @@ export function copy_onefunc_into(dst: *OneFuncResult, src: *OneFuncResult): voi
   dst.binop_right_param_idx = src.binop_right_param_idx;
   dst.has_unary_neg = src.has_unary_neg;
   dst.return_val = src.return_val;
-  /* return ident（非调用）：须拷入 out，否则 typeck 收不到 EXPR_VAR 与未定义名诊断 */
+  /* See implementation. */
   dst.return_var_name_len = src.return_var_name_len;
   let rvni: i32 = 0;
   while (rvni < 64) {
@@ -877,7 +1007,7 @@ export function copy_onefunc_into(dst: *OneFuncResult, src: *OneFuncResult): voi
   let cci: i32 = 0;
   while (cci < 64) { dst.call_callee_name[cci] = src.call_callee_name[cci]; cci = cci + 1; }
   dst.call_num_args = src.call_num_args;
-  /* while/for/形参/实参明细在侧车池：sidecar 已复制，计数从池同步 */
+  /* See implementation. */
   dst.num_loops = pipeline_onefunc_num_whiles(onefunc_result_pool_ptr(dst));
   dst.num_for_loops = pipeline_onefunc_num_fors(onefunc_result_pool_ptr(dst));
   dst.num_if_stmts = pipeline_onefunc_num_if_stmts(onefunc_result_pool_ptr(dst));
@@ -888,11 +1018,14 @@ export function copy_onefunc_into(dst: *OneFuncResult, src: *OneFuncResult): voi
   } else {
     dst.func_return_type_ref = preserved_func_ret_ty;
   }
-  /* src_stmt_order_* / src_body_expr_* 由 parse_one_function_impl 直接写 out，不由本函数覆盖 */
+  /* See implementation. */
   }
 }
 
-/** 供 parse_one_function_impl 用的空快照（结构字面量 ≤8 字段，见 onefunc_result_layout_prime）。 */
+/** Exported function `onefunc_scratch_empty`.
+ * Implements `onefunc_scratch_empty`.
+ * @return OneFuncResult
+ */
 export function onefunc_scratch_empty(): OneFuncResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -908,7 +1041,7 @@ export function onefunc_scratch_empty(): OneFuncResult {
 }
 
 /**
- * 将 out 上已解析的侧车池（let/if/stmt_order）合并进 snap，供 onefunc_finish_impl_to_out 写回。
+ * See implementation.
  */
 export function onefunc_merge_pool_out_to_snap(snap: *OneFuncResult, out: *OneFuncResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -924,14 +1057,14 @@ export function onefunc_merge_pool_out_to_snap(snap: *OneFuncResult, out: *OneFu
   snap.num_if_stmts = pipeline_onefunc_num_if_stmts(onefunc_result_pool_ptr(snap));
   snap.num_src_stmt_order = pipeline_onefunc_num_src_stmt_order(onefunc_result_pool_ptr(snap));
   snap.num_src_body_expr_stmts = pipeline_onefunc_num_body_expr_stmts(onefunc_result_pool_ptr(snap));
-  /* while/for 写入 out 侧车池，合并后同步计数到 snap */
+  /* See implementation. */
   snap.num_loops = pipeline_onefunc_num_whiles(onefunc_result_pool_ptr(snap));
   snap.num_for_loops = pipeline_onefunc_num_fors(onefunc_result_pool_ptr(snap));
   }
 }
 
 /**
- * parse_one_function_impl 成功退出：写入 ok/next_lex/函数名并 copy 到 out（字段已在 impl_snap 上维护）。
+ * See implementation.
  */
 export function onefunc_finish_impl_to_out(
   out: *OneFuncResult,
@@ -943,7 +1076,7 @@ export function onefunc_finish_impl_to_out(
 ): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  /** 函数体 let/if/stmt_order 写在 out 侧车池；合并进 snap 再 copy 回 out。 */
+  /* See implementation. */
   onefunc_merge_pool_out_to_snap(snap, out);
   snap.return_expr_ref = ret_expr_storage;
   snap.ok = true;
@@ -957,6 +1090,13 @@ export function onefunc_finish_impl_to_out(
   copy_onefunc_into(out, snap);
   }
 }
+/** Exported function `onefunc_res_wire_dummy_head`.
+ * Implements `onefunc_res_wire_dummy_head`.
+ * @param res *OneFuncResult
+ * @param lex Lexer
+ * @param name64 u8[64]
+ * @return void
+ */
 export function onefunc_res_wire_dummy_head(res: *OneFuncResult, lex: Lexer, name64: u8[64]): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -966,6 +1106,11 @@ export function onefunc_res_wire_dummy_head(res: *OneFuncResult, lex: Lexer, nam
   }
 }
 
+/** Exported function `onefunc_res_wire_dummy_const_let`.
+ * Implements `onefunc_res_wire_dummy_const_let`.
+ * @param res *OneFuncResult
+ * @return void
+ */
 export function onefunc_res_wire_dummy_const_let(res: *OneFuncResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -975,6 +1120,11 @@ export function onefunc_res_wire_dummy_const_let(res: *OneFuncResult): void {
   }
 }
 
+/** Exported function `onefunc_res_wire_dummy_if_mul`.
+ * Implements `onefunc_res_wire_dummy_if_mul`.
+ * @param res *OneFuncResult
+ * @return void
+ */
 export function onefunc_res_wire_dummy_if_mul(res: *OneFuncResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -984,6 +1134,12 @@ export function onefunc_res_wire_dummy_if_mul(res: *OneFuncResult): void {
   }
 }
 
+/** Exported function `onefunc_res_wire_dummy_call_binop`.
+ * Implements `onefunc_res_wire_dummy_call_binop`.
+ * @param res *OneFuncResult
+ * @param name64 u8[64]
+ * @return void
+ */
 export function onefunc_res_wire_dummy_call_binop(res: *OneFuncResult, name64: u8[64]): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -993,6 +1149,11 @@ export function onefunc_res_wire_dummy_call_binop(res: *OneFuncResult, name64: u
   }
 }
 
+/** Exported function `onefunc_res_wire_dummy_loop_call`.
+ * Implements `onefunc_res_wire_dummy_loop_call`.
+ * @param res *OneFuncResult
+ * @return void
+ */
 export function onefunc_res_wire_dummy_loop_call(res: *OneFuncResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1002,6 +1163,11 @@ export function onefunc_res_wire_dummy_loop_call(res: *OneFuncResult): void {
   }
 }
 
+/** Exported function `onefunc_res_wire_dummy_for_if`.
+ * Implements `onefunc_res_wire_dummy_for_if`.
+ * @param res *OneFuncResult
+ * @return void
+ */
 export function onefunc_res_wire_dummy_for_if(res: *OneFuncResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1012,8 +1178,8 @@ export function onefunc_res_wire_dummy_for_if(res: *OneFuncResult): void {
 }
 
 /**
- * 供 pipeline.parse_one_function_ok 等调用：返回已 wire 的 OneFuncResult 工作区，
- * 避免 import 方重复分段 wire 且在 -E-extern 下只需声明本函数一条 extern。
+ * See implementation.
+ * See implementation.
  */
 export function onefunc_alloc_wired_for_parse(lex: Lexer): OneFuncResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -1031,7 +1197,7 @@ export function onefunc_alloc_wired_for_parse(lex: Lexer): OneFuncResult {
   }
 }
 
-/** 将 return 路径专用字段写入 snap（return_expr_ref_storage 等非结构体字段）。 */
+/* See implementation. */
 export function onefunc_snap_set_return_path(
   snap: *OneFuncResult,
   has_call: bool,
@@ -1054,12 +1220,12 @@ export function onefunc_snap_set_return_path(
 }
 
 /**
- * 向 out 追加一条源码顺序记录；与 C parser push_stmt_order 对齐（kind 0–5，idx 为对应池下标）。
+ * See implementation.
  */
 export function onefunc_push_src_stmt(out: *OneFuncResult, kind: u8, idx: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  /** 动态池追加源码顺序；失败时静默（与旧 96 上限行为一致）。 */
+  /* See implementation. */
   let _so: i32 = pipeline_onefunc_push_stmt_order(onefunc_result_pool_ptr(out), kind, idx);
   if (_so >= 0) {
     out.num_src_stmt_order = pipeline_onefunc_num_src_stmt_order(onefunc_result_pool_ptr(out));
@@ -1067,7 +1233,7 @@ export function onefunc_push_src_stmt(out: *OneFuncResult, kind: u8, idx: i32): 
   }
 }
 
-/** 单表达式解析结果：ok 为真时 expr_ref 有效且 next_lex 为表达式之后的 lex。 */
+/* See implementation. */
 export struct ParseExprResult {
   ok: bool;
   expr_ref: i32;
@@ -1075,12 +1241,17 @@ export struct ParseExprResult {
 }
 
 /**
- * 将 Expr 的子树引用与语义辅助字段清零（不写 kind/int_val/var_name/float_* 字面数据）。
- * 须在写入 binop_* / unary_operand_ref / index_* / field_access_* / call_* 等变体指针之前调用；若先赋值再调用本函数会把子引用清掉。
+ * See implementation.
+ * See implementation.
  */
-/** 形参须写 *ast.Expr：import ast 后裸 *Expr 在 typeck 上与 ast.Expr 布局不一致，call_resolved_* 赋值会成 ?。 */
-/** 单行 extern bl→parser_expr_set_common_zeros_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
+/* See implementation. */
 export extern function parser_expr_set_common_zeros_glue(e: *ast.Expr): void;
+/** Exported function `expr_set_common_zeros`.
+ * Implements `expr_set_common_zeros`.
+ * @param e *ast.Expr
+ * @return void
+ */
 export function expr_set_common_zeros(e: *ast.Expr): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1090,7 +1261,7 @@ export function expr_set_common_zeros(e: *ast.Expr): void {
 
 
 /**
- * loop { } 等价 while (true)：分配 EXPR_BOOL_LIT(1) 作为 while 条件 ref；失败返回 0。
+ * See implementation.
  */
 export function parser_alloc_true_bool_lit(arena: *ASTArena): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -1111,8 +1282,8 @@ export function parser_alloc_true_bool_lit(arena: *ASTArena): i32 {
 }
 
 /**
- * 分配 EXPR_FLOAT_LIT 并写入浮点字面量；供 parse_body_lets / parse_primary 与 C 前端 TOKEN_FLOAT 对齐。
- * 失败返回 0。
+ * See implementation.
+ * See implementation.
  */
 export function parser_alloc_float_lit(arena: *ASTArena, fval: f64): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -1133,9 +1304,9 @@ export function parser_alloc_float_lit(arena: *ASTArena, fval: f64): i32 {
 }
 
 /**
- * 将 inner_ref 包一层 EXPR_RETURN（已是 RETURN 则原样返回 inner_ref）。
- * 供 `return ident` 与块尾 wrap_tail 共用，避免 final_expr 落成 EXPR_VAR 触发 typeck 隐式尾返回 -6。
- * alloc 失败或 inner_ref 无效时返回 0。
+ * See implementation.
+ * See implementation.
+ * See implementation.
  */
 export function parser_expr_wrap_in_return(arena: *ASTArena, type_ref: i32, inner_ref: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -1165,9 +1336,9 @@ export function parser_expr_wrap_in_return(arena: *ASTArena, type_ref: i32, inne
 }
 
 /**
- * 非 void 函数体 final_expr 是否须包 EXPR_RETURN。
- * 仅当 parse_one_function_impl 已标记 has_explicit_return_kw（显式 `return` / `return match` 等）时包一层；
- * 裸尾 `{ 0 }` 须留 EXPR_LIT 供 typeck 报 implicit tail return（tests/typeck/return_implicit.x）。
+ * See implementation.
+ * See implementation.
+ * See implementation.
  */
 export function parser_should_wrap_func_tail_in_return(arena: *ASTArena, res: *OneFuncResult, type_ref: i32): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -1184,11 +1355,19 @@ export function parser_should_wrap_func_tail_in_return(arena: *ASTArena, res: *O
 }
 
 /**
- * 解析 match 的 subject 表达式；勿对裸 IDENT 走 parse_expr_into 的 Type { } 后缀，
- * 否则 `match x { arm… }` 会把 `{ arm… }` 吃进结构体字面量导致整段 match 解析失败。
+ * See implementation.
+ * See implementation.
  */
-/** 单行 extern bl→parser_parse_match_subject_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 export extern function parser_parse_match_subject_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
+/** Exported function `parse_match_subject_into`.
+ * Implements `parse_match_subject_into`.
+ * @param arena *ASTArena
+ * @param lex Lexer
+ * @param source u8[]
+ * @param out *ParseExprResult
+ * @return void
+ */
 export function parse_match_subject_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1198,11 +1377,19 @@ export function parse_match_subject_into(arena: *ASTArena, lex: Lexer, source: u
 
 
 /**
- * 解析 `match expr { pat => result; ... }`（整数字面量 / `_` / Enum.Variant）；lex 指向 match 关键字。
- * 与 parser.c TOKEN_MATCH 分支一致；Enum.Variant 的 tag 由 pipeline_parser_get_match_module 查表（未命中记 -1，typeck 报错）。
+ * See implementation.
+ * See implementation.
  */
-/** 单行 extern bl→parser_parse_match_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 export extern function parser_parse_match_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
+/** Exported function `parse_match_into`.
+ * Implements `parse_match_into`.
+ * @param arena *ASTArena
+ * @param lex Lexer
+ * @param source u8[]
+ * @param out *ParseExprResult
+ * @return void
+ */
 export function parse_match_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1212,10 +1399,18 @@ export function parse_match_into(arena: *ASTArena, lex: Lexer, source: u8[], out
 
 
 /**
- * 解析 @shuffle(v, mask) / @select(mask, a, b) → CALL simd_shuffle/simd_select。
+ * See implementation.
  */
-/** 单行 extern bl→parser_parse_at_simd_builtin_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 export extern function parser_parse_at_simd_builtin_into_glue(arena: *ASTArena, r0: LexerResult, source: u8[], out: *ParseExprResult): void;
+/** Exported function `parse_at_simd_builtin_into`.
+ * Implements `parse_at_simd_builtin_into`.
+ * @param arena *ASTArena
+ * @param r0 LexerResult
+ * @param source u8[]
+ * @param out *ParseExprResult
+ * @return void
+ */
 export function parse_at_simd_builtin_into(arena: *ASTArena, r0: LexerResult, source: u8[], out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1225,10 +1420,18 @@ export function parse_at_simd_builtin_into(arena: *ASTArena, r0: LexerResult, so
 
 
 /**
- * 解析 primary：INT | TRUE | FALSE | BREAK | CONTINUE | IDENT | ( expr )；成功时写 out.expr_ref、out.next_lex，失败时 out.ok = false。
+ * See implementation.
  */
-/** 单行 extern bl→parser_parse_primary_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 export extern function parser_parse_primary_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
+/** Exported function `parse_primary_into`.
+ * Implements `parse_primary_into`.
+ * @param arena *ASTArena
+ * @param lex Lexer
+ * @param source u8[]
+ * @param out *ParseExprResult
+ * @return void
+ */
 export function parse_primary_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1236,8 +1439,15 @@ export function parse_primary_into(arena: *ASTArena, lex: Lexer, source: u8[], o
   }
 }
 
-/** 单行 extern bl→parser_parse_as_suffix_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 export extern function parser_parse_as_suffix_into_glue(arena: *ASTArena, source: u8[], out: *ParseExprResult): void;
+/** Exported function `parse_as_suffix_into`.
+ * Implements `parse_as_suffix_into`.
+ * @param arena *ASTArena
+ * @param source u8[]
+ * @param out *ParseExprResult
+ * @return void
+ */
 export function parse_as_suffix_into(arena: *ASTArena, source: u8[], out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1247,11 +1457,19 @@ export function parse_as_suffix_into(arena: *ASTArena, source: u8[], out: *Parse
 
 
 /**
- * 解析 unary：(-|~|!|&|*) unary | await|run|spawn unary | primary。
+ * See implementation.
  * PLATFORM: SHARED — `~` → EXPR_BITNOT (LANG-006); authority is parser_asm_unary_slice.inc.
  */
-/** 单行 extern bl→parser_parse_unary_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 export extern function parser_parse_unary_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
+/** Exported function `parse_unary_into`.
+ * Implements `parse_unary_into`.
+ * @param arena *ASTArena
+ * @param lex Lexer
+ * @param source u8[]
+ * @param out *ParseExprResult
+ * @return void
+ */
 export function parse_unary_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1261,10 +1479,18 @@ export function parse_unary_into(arena: *ASTArena, lex: Lexer, source: u8[], out
 
 
 /**
- * 解析 cast：unary (as type)*；as 优先级高于 ==/+/，与 C 一致（如 0 == 0 as *u8、if (0 as *u8)）。
+ * See implementation.
  */
-/** 单行 extern bl→parser_parse_cast_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 export extern function parser_parse_cast_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
+/** Exported function `parse_cast_into`.
+ * Implements `parse_cast_into`.
+ * @param arena *ASTArena
+ * @param lex Lexer
+ * @param source u8[]
+ * @param out *ParseExprResult
+ * @return void
+ */
 export function parse_cast_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1274,10 +1500,18 @@ export function parse_cast_into(arena: *ASTArena, lex: Lexer, source: u8[], out:
 
 
 /**
- * 解析 term：cast ( (*|/|%) cast )*；成功时写 out.expr_ref、out.next_lex。
+ * See implementation.
  */
-/** 单行 extern bl→parser_parse_term_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 export extern function parser_parse_term_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
+/** Exported function `parse_term_into`.
+ * Implements `parse_term_into`.
+ * @param arena *ASTArena
+ * @param lex Lexer
+ * @param source u8[]
+ * @param out *ParseExprResult
+ * @return void
+ */
 export function parse_term_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1287,10 +1521,18 @@ export function parse_term_into(arena: *ASTArena, lex: Lexer, source: u8[], out:
 
 
 /**
- * 解析 addsub：term ( (+|-) term )*；成功时写 out.expr_ref、out.next_lex。
+ * See implementation.
  */
-/** 单行 extern bl→parser_parse_addsub_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 export extern function parser_parse_addsub_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
+/** Exported function `parse_addsub_into`.
+ * Implements `parse_addsub_into`.
+ * @param arena *ASTArena
+ * @param lex Lexer
+ * @param source u8[]
+ * @param out *ParseExprResult
+ * @return void
+ */
 export function parse_addsub_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1300,10 +1542,18 @@ export function parse_addsub_into(arena: *ASTArena, lex: Lexer, source: u8[], ou
 
 
 /**
- * 解析 shift：addsub ( (<<|>>) addsub )*；与 C 端 parse_shift 一致，供位运算层消费 << >>。
+ * See implementation.
  */
-/** 单行 extern bl→parser_parse_shift_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 export extern function parser_parse_shift_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
+/** Exported function `parse_shift_into`.
+ * Implements `parse_shift_into`.
+ * @param arena *ASTArena
+ * @param lex Lexer
+ * @param source u8[]
+ * @param out *ParseExprResult
+ * @return void
+ */
 export function parse_shift_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1313,10 +1563,18 @@ export function parse_shift_into(arena: *ASTArena, lex: Lexer, source: u8[], out
 
 
 /**
- * 解析 relcompare：shift ( (<|<=|>|>=) shift )*；与 C 端 parse_compare 一致（不含 ==/!=）。
+ * See implementation.
  */
-/** 单行 extern bl→parser_parse_relcompare_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 export extern function parser_parse_relcompare_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
+/** Exported function `parse_relcompare_into`.
+ * Implements `parse_relcompare_into`.
+ * @param arena *ASTArena
+ * @param lex Lexer
+ * @param source u8[]
+ * @param out *ParseExprResult
+ * @return void
+ */
 export function parse_relcompare_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1326,10 +1584,18 @@ export function parse_relcompare_into(arena: *ASTArena, lex: Lexer, source: u8[]
 
 
 /**
- * 解析 compare：relcompare ( (==|!=) relcompare )*；与 C 端 parse_eq 一致。
+ * See implementation.
  */
-/** 单行 extern bl→parser_parse_compare_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 export extern function parser_parse_compare_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
+/** Exported function `parse_compare_into`.
+ * Implements `parse_compare_into`.
+ * @param arena *ASTArena
+ * @param lex Lexer
+ * @param source u8[]
+ * @param out *ParseExprResult
+ * @return void
+ */
 export function parse_compare_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1339,10 +1605,18 @@ export function parse_compare_into(arena: *ASTArena, lex: Lexer, source: u8[], o
 
 
 /**
- * 解析 bitand：compare ( & compare )*；单字符 & 为按位与（一元 & 仍在 parse_unary）。
+ * See implementation.
  */
-/** 单行 extern bl→parser_parse_bitand_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 export extern function parser_parse_bitand_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
+/** Exported function `parse_bitand_into`.
+ * Implements `parse_bitand_into`.
+ * @param arena *ASTArena
+ * @param lex Lexer
+ * @param source u8[]
+ * @param out *ParseExprResult
+ * @return void
+ */
 export function parse_bitand_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1352,10 +1626,18 @@ export function parse_bitand_into(arena: *ASTArena, lex: Lexer, source: u8[], ou
 
 
 /**
- * 解析 bitxor：bitand ( ^ bitand )*；与 C 端 parse_bitxor 一致。
+ * See implementation.
  */
-/** 单行 extern bl→parser_parse_bitxor_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 export extern function parser_parse_bitxor_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
+/** Exported function `parse_bitxor_into`.
+ * Implements `parse_bitxor_into`.
+ * @param arena *ASTArena
+ * @param lex Lexer
+ * @param source u8[]
+ * @param out *ParseExprResult
+ * @return void
+ */
 export function parse_bitxor_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1365,10 +1647,18 @@ export function parse_bitxor_into(arena: *ASTArena, lex: Lexer, source: u8[], ou
 
 
 /**
- * 解析 bitor：bitxor ( | bitxor )*；与 C 端 parse_bitor 一致。
+ * See implementation.
  */
-/** 单行 extern bl→parser_parse_bitor_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 export extern function parser_parse_bitor_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
+/** Exported function `parse_bitor_into`.
+ * Implements `parse_bitor_into`.
+ * @param arena *ASTArena
+ * @param lex Lexer
+ * @param source u8[]
+ * @param out *ParseExprResult
+ * @return void
+ */
 export function parse_bitor_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1378,10 +1668,18 @@ export function parse_bitor_into(arena: *ASTArena, lex: Lexer, source: u8[], out
 
 
 /**
- * 解析 logand：bitor ( && bitor )*；成功时写 out.expr_ref、out.next_lex。
+ * See implementation.
  */
-/** 单行 extern bl→parser_parse_logand_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 export extern function parser_parse_logand_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
+/** Exported function `parse_logand_into`.
+ * Implements `parse_logand_into`.
+ * @param arena *ASTArena
+ * @param lex Lexer
+ * @param source u8[]
+ * @param out *ParseExprResult
+ * @return void
+ */
 export function parse_logand_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1391,10 +1689,18 @@ export function parse_logand_into(arena: *ASTArena, lex: Lexer, source: u8[], ou
 
 
 /**
- * 解析 logor：logand ( || logand )*；成功时写 out.expr_ref、out.next_lex。
+ * See implementation.
  */
-/** 单行 extern bl→parser_parse_logor_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 export extern function parser_parse_logor_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
+/** Exported function `parse_logor_into`.
+ * Implements `parse_logor_into`.
+ * @param arena *ASTArena
+ * @param lex Lexer
+ * @param source u8[]
+ * @param out *ParseExprResult
+ * @return void
+ */
 export function parse_logor_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1404,11 +1710,19 @@ export function parse_logor_into(arena: *ASTArena, lex: Lexer, source: u8[], out
 
 
 /**
- * 三元运算符：logor ('?' parse_expr ':' parse_ternary)*，右结合；与 C 端 parse_ternary 一致。
- * then 分支走整棵赋值层（parse_expr），else 分支递归本函数；成功时写 out.expr_ref、out.next_lex。
+ * See implementation.
+ * See implementation.
  */
-/** 单行 extern bl→parser_parse_ternary_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 export extern function parser_parse_ternary_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
+/** Exported function `parse_ternary_into`.
+ * Implements `parse_ternary_into`.
+ * @param arena *ASTArena
+ * @param lex Lexer
+ * @param source u8[]
+ * @param out *ParseExprResult
+ * @return void
+ */
 export function parse_ternary_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1417,7 +1731,11 @@ export function parse_ternary_into(arena: *ASTArena, lex: Lexer, source: u8[], o
 }
 
 
-/** 判断是否为复合赋值 token（+= … >>=）；10 路 if 链（勿 || 长链，EMIT_HEAVY 曾 elf_ec=-1）。 */
+/** Exported function `is_compound_assign_token`.
+ * Query helper `is_compound_assign_token`.
+ * @param kind token.TokenKind
+ * @return bool
+ */
 export function is_compound_assign_token(kind: token.TokenKind): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1455,10 +1773,14 @@ export function is_compound_assign_token(kind: token.TokenKind): bool {
   }
 }
 
-/** 映射实现见 pipeline_glue.c（C 内比对 token.TokenKind），避免 .x typeck 对 `return ExprKind.*` 失败。 */
+/* See implementation. */
 export extern function compound_assign_token_to_expr_kind_from_glue(kind: token.TokenKind): ExprKind;
 
-/** 复合赋值 token 映射到 ExprKind；EMIT_HEAVY 仍走 C glue（X return ExprKind.* 曾 elf_ec=-1）。 */
+/** Exported function `compound_assign_token_to_expr_kind`.
+ * Implements `compound_assign_token_to_expr_kind`.
+ * @param kind token.TokenKind
+ * @return ExprKind
+ */
 export function compound_assign_token_to_expr_kind(kind: token.TokenKind): ExprKind {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1468,12 +1790,12 @@ export function compound_assign_token_to_expr_kind(kind: token.TokenKind): ExprK
 
 
 
-/** 左值判定由 pipeline_glue.c 直读池中 kind/is_enum_variant，与 shux-c 生成 struct 访问一致；勿在 X 内 `let e: Expr = get` 后比较 e.kind（.x typeck 会失败）。 */
+/* See implementation. */
 export extern function pipeline_expr_ref_is_assign_lvalue(arena: *ASTArena, expr_ref: i32): bool;
 
 /**
- * 表达式 ref 是否为可赋值左值（VAR / INDEX / 非枚举变体的 FIELD_ACCESS），与 C 端 expr_is_lvalue 一致。
- * 非左值时遇到 = 不消费赋值符，由上层继续解析（与 parse_assign 一致）。
+ * See implementation.
+ * See implementation.
  */
 export function expr_ref_is_assign_lvalue(arena: *ASTArena, expr_ref: i32): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -1485,11 +1807,19 @@ export function expr_ref_is_assign_lvalue(arena: *ASTArena, expr_ref: i32): bool
 
 
 /**
- * 赋值层：ternary (('='|'+='|…) ternary)?；右结合；仅左值为 VAR/INDEX/字段时消费赋值符。
- * ternary 在 logor 之上挂 ? :（与 C parse_assign → parse_ternary）；此前缺该层时 ? : 无法建成 EXPR_TERNARY。
+ * See implementation.
+ * See implementation.
  */
-/** 单行 extern bl→parser_parse_assign_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 export extern function parser_parse_assign_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;
+/** Exported function `parse_assign_into`.
+ * Implements `parse_assign_into`.
+ * @param arena *ASTArena
+ * @param lex Lexer
+ * @param source u8[]
+ * @param out *ParseExprResult
+ * @return void
+ */
 export function parse_assign_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1498,7 +1828,14 @@ export function parse_assign_into(arena: *ASTArena, lex: Lexer, source: u8[], ou
 }
 
 
-/** 表达式解析入口：赋值层（内含 logor）；成功时写 out.expr_ref、out.next_lex。 */
+/** Exported function `parse_expr_into`.
+ * Implements `parse_expr_into`.
+ * @param arena *ASTArena
+ * @param lex Lexer
+ * @param source u8[]
+ * @param out *ParseExprResult
+ * @return void
+ */
 export function parse_expr_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1507,12 +1844,21 @@ export function parse_expr_into(arena: *ASTArena, lex: Lexer, source: u8[], out:
 }
 
 /**
- * 将已分配为 EXPR_VAR 的类型名片段改写为 STRUCT_LIT，并解析 `{ field: expr , ... }`（最多 8 字段）。
- * lex_in_brace：`{` 之后、第一个字段的起始 lexer；语法与 preprocess 等一致：`TypeName { a: e1 , b: e2 }`。
- * 须放在 parse_expr_into 之后：本函数递归调用 parse_expr_into；根因是原 parse_primary_into 漏认 IDENT 后 `{`。
+ * See implementation.
+ * See implementation.
+ * See implementation.
  */
-/** 单行 extern bl→parser_finish_struct_lit_from_type_ident_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 extern function parser_finish_struct_lit_from_type_ident_into_glue(arena: *ASTArena, lit_ref: i32, lex_in_brace: Lexer, source: u8[], out: *ParseExprResult): void;
+/** Internal function `finish_struct_lit_from_type_ident_into`.
+ * Implements `finish_struct_lit_from_type_ident_into`.
+ * @param arena *ASTArena
+ * @param lit_ref i32
+ * @param lex_in_brace Lexer
+ * @param source u8[]
+ * @param out *ParseExprResult
+ * @return void
+ */
 function finish_struct_lit_from_type_ident_into(arena: *ASTArena, lit_ref: i32, lex_in_brace: Lexer, source: u8[], out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1522,11 +1868,19 @@ function finish_struct_lit_from_type_ident_into(arena: *ASTArena, lit_ref: i32, 
 
 
 /**
- * 解析 if/while 条件或表达式语句；若以 int 开头且紧跟 as，从 int 起点 parse_expr（与 return 0 as T 一致）。
- * 无 as 时从 lex_start 解析，避免误用 next_lex.pos-1 截断多位整数（如 if (10)）。
+ * See implementation.
+ * See implementation.
  */
-/** 单行 extern bl→parser_parse_cond_expr_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 extern function parser_parse_cond_expr_into_glue(arena: *ASTArena, lex_start: Lexer, source: u8[], out: *ParseExprResult): void;
+/** Internal function `parse_cond_expr_into`.
+ * Implements `parse_cond_expr_into`.
+ * @param arena *ASTArena
+ * @param lex_start Lexer
+ * @param source u8[]
+ * @param out *ParseExprResult
+ * @return void
+ */
 function parse_cond_expr_into(arena: *ASTArena, lex_start: Lexer, source: u8[], out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1535,7 +1889,14 @@ function parse_cond_expr_into(arena: *ASTArena, lex_start: Lexer, source: u8[], 
 }
 
 
-/** 兼容旧名：与 parse_cond_expr_into 相同。 */
+/** Internal function `parse_expr_with_leading_int_as_into`.
+ * Implements `parse_expr_with_leading_int_as_into`.
+ * @param arena *ASTArena
+ * @param lex_start Lexer
+ * @param source u8[]
+ * @param out *ParseExprResult
+ * @return void
+ */
 function parse_expr_with_leading_int_as_into(arena: *ASTArena, lex_start: Lexer, source: u8[], out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1544,7 +1905,15 @@ function parse_expr_with_leading_int_as_into(arena: *ASTArena, lex_start: Lexer,
 }
 
 
-/** parse_expr_with_leading_int_as_into 的 buf 变体。 */
+/** Internal function `parse_expr_with_leading_int_as_into_buf`.
+ * Implements `parse_expr_with_leading_int_as_into_buf`.
+ * @param arena *ASTArena
+ * @param lex_start Lexer
+ * @param data *u8
+ * @param len i32
+ * @param out *ParseExprResult
+ * @return void
+ */
 function parse_expr_with_leading_int_as_into_buf(arena: *ASTArena, lex_start: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1554,7 +1923,7 @@ function parse_expr_with_leading_int_as_into_buf(arena: *ASTArena, lex_start: Le
 }
 
 
-/** 单块解析结果：ok 为真时 block_ref 有效且 next_lex 为块闭合 } 之后的 lex。 */
+/* See implementation. */
 struct ParseBlockResult {
   ok: bool;
   block_ref: i32;
@@ -1562,11 +1931,19 @@ struct ParseBlockResult {
 }
 
 /**
- * 根据 OneFuncResult 的 const/let 填写块的 const_decls、let_decls 及 init 表达式；type_ref 可为 0（由 typeck 后填）。
- * 返回 true 成功，false 表示 arena 分配失败。
+ * See implementation.
+ * See implementation.
  */
-/** 单行 extern bl→parser_fill_block_const_let_from_res_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 extern function parser_fill_block_const_let_from_res_glue(arena: *ASTArena, block_ref: i32, res: *OneFuncResult, type_ref: i32): bool;
+/** Internal function `fill_block_const_let_from_res`.
+ * Implements `fill_block_const_let_from_res`.
+ * @param arena *ASTArena
+ * @param block_ref i32
+ * @param res *OneFuncResult
+ * @param type_ref i32
+ * @return bool
+ */
 function fill_block_const_let_from_res(arena: *ASTArena, block_ref: i32, res: *OneFuncResult, type_ref: i32): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1577,10 +1954,19 @@ function fill_block_const_let_from_res(arena: *ASTArena, block_ref: i32, res: *O
 
 
 /**
- * 在已有块上追加 res 中的 let（从 let_base 起写），供 parse_block_into 在 while/if 体中解析中途 let。
+ * See implementation.
  */
-/** 单行 extern bl→parser_append_block_lets_from_res_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 extern function parser_append_block_lets_from_res_glue(arena: *ASTArena, block_ref: i32, res: *OneFuncResult, let_base: i32, type_ref: i32): bool;
+/** Internal function `append_block_lets_from_res`.
+ * Implements `append_block_lets_from_res`.
+ * @param arena *ASTArena
+ * @param block_ref i32
+ * @param res *OneFuncResult
+ * @param let_base i32
+ * @param type_ref i32
+ * @return bool
+ */
 function append_block_lets_from_res(arena: *ASTArena, block_ref: i32, res: *OneFuncResult, let_base: i32, type_ref: i32): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1591,13 +1977,25 @@ function append_block_lets_from_res(arena: *ASTArena, block_ref: i32, res: *OneF
 
 
 /**
- * 解析单条 if（含 else / else if 链）；lex_at_if 指向 if 关键字。
- * 成功写 *out_cond/*out_then/*out_else 与 *lex_out（下一语句首 token），失败返回 false。
+ * See implementation.
+ * See implementation.
  */
-/** 单行 extern bl→parser_parse_if_stmt_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 extern function parser_parse_if_stmt_into_glue(arena: *ASTArena, lex_at_if: Lexer, source: u8[], type_ref: i32, out_cond: *i32, out_then: *i32, out_else: *i32, lex_out: *Lexer): bool;
-/** 单行 extern bl→parser_realign_lex_after_if_stmt_onefunc_glue（if 后 lex 回扫，field cond 修复）。 */
+/* See implementation. */
 extern function parser_realign_lex_after_if_stmt_onefunc_glue(lex: *Lexer, source: u8[]): void;
+/** Internal function `parse_if_stmt_into`.
+ * Implements `parse_if_stmt_into`.
+ * @param arena *ASTArena
+ * @param lex_at_if Lexer
+ * @param source u8[]
+ * @param type_ref i32
+ * @param out_cond *i32
+ * @param out_then *i32
+ * @param out_else *i32
+ * @param lex_out *Lexer
+ * @return bool
+ */
 function parse_if_stmt_into(arena: *ASTArena, lex_at_if: Lexer, source: u8[], type_ref: i32, out_cond: *i32, out_then: *i32, out_else: *i32, lex_out: *Lexer): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1608,13 +2006,13 @@ function parse_if_stmt_into(arena: *ASTArena, lex_at_if: Lexer, source: u8[], ty
 
 
 /**
- * 解析块体：lex 为 { 之后的第一个 token；解析 const* let* (while)* (for)* (if (expr) { block })* 可选最终表达式，期望以 } 结束。
- * 成功时写 out.block_ref、out.next_lex（在 } 之后），type_ref 用于 const/let 初值类型，可为 0。
+ * See implementation.
+ * See implementation.
  */
 export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, source: u8[], type_ref: i32, out: *ParseBlockResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  /** 堆上 OneFuncResult scratch：勿在栈上分配 temp+blk_dummy（~96KiB），递归块解析会栈溢出导致块内 expr;/if 静默失败。 */
+  /* See implementation. */
   let scratch_sz: usize = pipeline_sizeof_onefunc_result();
   let scratch_raw: *u8 = calloc(1, scratch_sz);
   if (scratch_raw == 0 as *u8) {
@@ -1660,7 +2058,7 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
     return;
   }
   b = ast.ast_arena_block_get(arena, block_ref);
-  /** fill 后块首 let 数量；主循环可能追加 mid-let，fix_prefix 只重排此批。 */
+  /* See implementation. */
   let block_prefix_lets: i32 = b.num_lets;
   let ci: i32 = 0;
   while (ci < b.num_consts) {
@@ -1680,11 +2078,11 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
   }
   let r_peek_blk: LexerResult = LexerResult { next_lex: lex_cur, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
   /*
-   * 块体主循环：与 parse_one_function_impl 交错处理 while/for/if/return/expr;，避免仅批处理 loop 导致
-   * * `{ if (...) { ... } i = i + 1; }` 在 if 后失败；且 if/while/for 须 lex_from_next 消费关键字后再读 `(`。
-   * parse_body_lets 后须 peek + parser_rewind_lex_for_following_stmt（与 parse_one_function_impl 一致）：
-   * let 初值为 call 时 lex 可能落在 `;` 之后下一 stmt 的 next_lex，不回绕则块首 let 后连续 if 只落前几条。
-   * stmt_tok_ready：避免 if 后双 advance 漏读（with_arena 内连续 if 只 codegen 一半）。
+   * See implementation.
+   * See implementation.
+   * See implementation.
+   * See implementation.
+   * See implementation.
    */
   lexer.lexer_next_into(&r_peek_blk, lex_cur, source);
   let r: LexerResult = r_peek_blk;
@@ -1713,35 +2111,35 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
     }
     stmt_tok_ready = false;
     /*
-     * 不能在上面用“旧 r”提前判断块尾。
-     * if/unsafe 等分支常把 lex_cur 对齐到下一条 stmt 首 token，并把 stmt_tok_ready 置 false；
-     * 若下一 token 恰好是 `}`，必须在刷新 r 之后立刻 break，
-     * 否则会把真实块尾误落入 expr_stmt 分支，导致上层 onefunc skip。
+     * See implementation.
+     * See implementation.
+     * See implementation.
+     * See implementation.
      */
     if (r.tok.kind == token.TokenKind.TOKEN_RBRACE) {
       break;
     }
     /*
-     * 块体中遇到 EOF 说明缺少 `}`，报语法错误。
-     * 无此检查时 EOF 会落入 expr_stmt 分支，依赖 parse_expr_into 对 EOF 返回 ok=false；
-     * 但 if 分支可能因 C 侧 scan_sync 返回未推进的 lex_cur 导致无限重解析 if（不经过 EOF）。
+     * See implementation.
+     * See implementation.
+     * See implementation.
      */
     if (r.tok.kind == token.TokenKind.TOKEN_EOF) {
       out.ok = false;
       return;
     }
     /**
-     * parse_if 偶发将 lex 落在下一 if 的 `(`；若落入 expr 分支会把 `(N != 0)` 记入 stmt_order，
-     * 块内连续 if（尤其块首 let 后）只 codegen 前几条。回扫至 TOKEN_IF 后走 if 分支。
+     * See implementation.
+     * See implementation.
      */
     if (r.tok.kind == token.TokenKind.TOKEN_LPAREN) {
       lex_cur = parser_rewind_lex_for_lparen_control_stmt(lex_cur, r, source);
       lexer.lexer_next_into(&r, lex_cur, source);
     }
-    /** while/if 体中途 let/const：与 parse_one_function_impl 主循环一致，否则 driver_argv_parse_x_path 等失败。 */
+    /* See implementation. */
     if (r.tok.kind == token.TokenKind.TOKEN_LET || r.tok.kind == token.TokenKind.TOKEN_CONST) {
       let let_base_mid: i32 = b.num_lets;
-      /** 须清侧车池 len，勿只写 temp.num_lets=0（否则 append 误读旧 let）。 */
+      /* See implementation. */
       ast_pool_onefunc_reset(onefunc_result_pool_ptr(temp));
       temp.num_lets = 0;
       temp.num_consts = 0;
@@ -1754,7 +2152,7 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
         out.ok = false;
         return;
       }
-      /** temp 已 onefunc_reset：新 let 在侧车池下标 0..，勿用 let_base_mid 作 res 源下标（path_clean seg_len gate）。 */
+      /* See implementation. */
       if (!append_block_lets_from_res(arena, block_ref, temp, 0, type_ref)) {
         out.ok = false;
         return;
@@ -1773,8 +2171,8 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
       continue;
     }
     /**
-     * 标号语句：`label:` 后接 `return expr` 或 `goto target;`（与 parser.c parse_label_start 对齐）。
-     * labeled return 写入 Block labeled 池供 asm get_return_expr_ref 读取。
+     * See implementation.
+     * See implementation.
      */
     if (parser_token_is_label_start(r, source)) {
       let label_len_blk: i32 = r.tok.ident_len;
@@ -1872,7 +2270,7 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
         lex_cur = ret_val_res.next_lex;
         lexer.lexer_next_into(&r, lex_cur, source);
       }
-      /** `return if (t) { 42 }` 等可无分号、直接以 `}` 结束块体。 */
+      /* See implementation. */
       if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON && r.tok.kind != token.TokenKind.TOKEN_RBRACE) {
         out.ok = false;
         return;
@@ -1912,9 +2310,9 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
         }
         b = ast.ast_arena_block_get(arena, block_ref);
       }
-      /** return expr 以 `}` 结束块时 r 已在 RBRACE：C 尾处理置 pb_break，勿 lexer_next 吞 sibling if。 */
+      /* See implementation. */
       parser_asm_parse_block_return_end_tail_glue(&r, &lex_cur, source, &stmt_tok_ready, &pb_break);
-      /** 无论 pb_break 与否都 continue：0=tail 已 advance；1=勿落块尾 expr 解析（RBRACE 上 parse_expr 失败）。 */
+      /* See implementation. */
       continue;
     }
     if (r.tok.kind == token.TokenKind.TOKEN_LOOP) {
@@ -2277,7 +2675,7 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
       continue;
     }
     if (r.tok.kind == token.TokenKind.TOKEN_IDENT && r.tok.ident_len == 6) {
-      /** LANG-007 v2：unsafe { body }（保留 IDENT，避免 TOKEN 枚举漂移；复用 regions 池）。 */
+      /* See implementation. */
       let unsafe_nm: u8[64] = [];
       copy_slice_to_name64(source, r.token_start, r.tok.ident_len, &unsafe_nm[0]);
       if (unsafe_nm[0] == 117 && unsafe_nm[1] == 110 && unsafe_nm[2] == 115 && unsafe_nm[3] == 97
@@ -2339,9 +2737,9 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
       }
       b = ast.ast_arena_block_get(arena, block_ref);
       /**
-       * parse_if_stmt_into() 内部已经通过 scan_sync/re-align 返回“整条 if 语句之后”的下一 stmt 首 token。
-       * 这里若再二次 realign，会把 `if (...) { ... } expr;` 这类裸 expr_stmt 后继重新错位到外层，
-       * 导致内层 while/body 的 expr_stmt 泄漏进外层 stmt_order（XT001 活跃停点）。
+       * See implementation.
+       * See implementation.
+       * See implementation.
        */
       stmt_tok_ready = false;
       continue;
@@ -2393,8 +2791,8 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
     stmt_start = lex_at_token_from_result(r);
     parse_expr_result_reset(&expr_stmt_res, stmt_start);
     /*
-     * 块内 `{ 10 }` 等须走完整 parse_expr；parse_cond_expr 对多位 int 可能只消费首数字，
-     * * 导致 final_expr 丢失、if 分支常量错误（simple.x 期望 10 得 0）。
+     * See implementation.
+     * See implementation.
      */
     parse_expr_into(arena, stmt_start, source, &expr_stmt_res);
     if (!expr_stmt_res.ok) {
@@ -2402,17 +2800,17 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
       return;
     }
     lex_cur = expr_stmt_res.next_lex;
-    /** if 分支 `{ 10 }`：先窥视下一 token，为 `}` 则作块尾 final_expr（勿落 expr_stmt，否则 EXPR_BLOCK 无值）。 */
+    /* See implementation. */
     rpeek_fe = LexerResult { next_lex: lex_cur, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
     lexer.lexer_next_into(&rpeek_fe, lex_cur, source);
     if (rpeek_fe.tok.kind == token.TokenKind.TOKEN_RBRACE) {
       b.final_expr_ref = expr_stmt_res.expr_ref;
       ast.ast_arena_block_set(arena, block_ref, b);
-      /** 块尾 `}` 窥视成功时须同步 r，否则 out.next_lex 落后、后续 if-expr 漏读 else（else 分支恒 0）。 */
+      /* See implementation. */
       r = rpeek_fe;
       break;
     }
-    /** 与 parse_one_function_impl 一致：advance 消费 `;` 后 peek 下一 token，勿再 lexer_next 吞 return。 */
+    /* See implementation. */
     if (advance_past_stmt_semicolon_into(&r, lex_cur, source) == 0) {
       if (r.tok.kind == token.TokenKind.TOKEN_RBRACE) {
         b.final_expr_ref = expr_stmt_res.expr_ref;
@@ -2448,8 +2846,8 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
   }
   b = ast.ast_arena_block_get(arena, block_ref);
   /*
-   * 块首 parse_body_lets_into 已写入 num_lets，但尚未经下方 li 循环追加 stmt_order（if 臂 `{ let t; … }` 等）。
-   * 无此修补时 asm emit 只见 final_expr 引用 `t`，locals 无 `t`（lexer_next 等）。
+   * See implementation.
+   * See implementation.
    */
   if (b.num_lets > 0 && b.num_stmt_order == 0) {
     let li_fix: i32 = 0;
@@ -2462,7 +2860,7 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
     }
     b = ast.ast_arena_block_get(arena, block_ref);
   }
-  /** 块首 let 须先于 if 出现在 stmt_order（asm 两遍 emit 与 live 分析依赖此顺序）。 */
+  /* See implementation. */
   if (block_prefix_lets > 0) {
     pipeline_block_stmt_order_fix_prefix_lets(arena, block_ref, block_prefix_lets);
     b = ast.ast_arena_block_get(arena, block_ref);
@@ -2475,7 +2873,7 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
 }
 
 /**
- * 将已解析的块 ref 包成 EXPR_BLOCK 表达式节点（if 表达式 then/else 分支与 C parse_if_expr 一致）。
+ * See implementation.
  */
 export function wrap_block_ref_as_expr(arena: *ASTArena, block_ref: i32, type_ref: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -2500,11 +2898,20 @@ export function wrap_block_ref_as_expr(arena: *ASTArena, block_ref: i32, type_re
 }
 
 /**
- * 解析 if 条件表达式：if ( cond ) { block } [ else { block } | else if ... ]，与 parser.c parse_if_expr 对齐。
- * lex_at_if 须指向 TOKEN_IF；成功时写 out.expr_ref 为 EXPR_IF（then/else 为 EXPR_BLOCK 包装块）。
+ * See implementation.
+ * See implementation.
  */
-/** 单行 extern bl→parser_parse_if_expr_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 export extern function parser_parse_if_expr_into_glue(arena: *ASTArena, lex_at_if: Lexer, source: u8[], type_ref: i32, out: *ParseExprResult): void;
+/** Exported function `parse_if_expr_into`.
+ * Implements `parse_if_expr_into`.
+ * @param arena *ASTArena
+ * @param lex_at_if Lexer
+ * @param source u8[]
+ * @param type_ref i32
+ * @param out *ParseExprResult
+ * @return void
+ */
 export function parse_if_expr_into(arena: *ASTArena, lex_at_if: Lexer, source: u8[], type_ref: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -2514,10 +2921,10 @@ export function parse_if_expr_into(arena: *ASTArena, lex_at_if: Lexer, source: u
 
 
 /**
- * 解析最小程序：function main(): i32 { return <expr>; }（返回类型用 :）
- * return 后：`TOKEN_INT` 走快路径；否则在**堆上**分配一块与 `runtime.c driver_arena_static` 同量级的缓冲区，
- * 经 `parse_expr_into` 解析（bootstrap-parse-file 第二段可与宿主 shux 同写 `return (1+2)*3+-1`）。
- * `return_val` 在解析器常量折叠命中时填入，否则成功仍可为 0（联调只看 ok）。
+ * See implementation.
+ * See implementation.
+ * See implementation.
+ * See implementation.
  */
 export function parse(source: u8[]): ParseResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -2610,10 +3017,15 @@ export function parse(source: u8[]): ParseResult {
 }
 
 /**
- * 诊断用：返回 source 首 token 的 kind（整型），失败时便于 main 打印。
+ * See implementation.
  */
-/** 单行 extern bl→parser_first_token_kind_glue（X 真 emit 调 lexer_next_into → elf_ec=-1）。 */
+/* See implementation. */
 export extern function parser_first_token_kind_glue(source: u8[]): i32;
+/** Exported function `first_token_kind`.
+ * Implements `first_token_kind`.
+ * @param source u8[]
+ * @return i32
+ */
 export function first_token_kind(source: u8[]): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -2623,7 +3035,12 @@ export function first_token_kind(source: u8[]): i32 {
 }
 
 
-/** first_token_kind 的 buf 变体：parser_slice_from_buf + bl first_token_kind。 */
+/** Exported function `first_token_kind_buf`.
+ * Implements `first_token_kind_buf`.
+ * @param data *u8
+ * @param len i32
+ * @return i32
+ */
 export function first_token_kind_buf(data: *u8, len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -2635,10 +3052,15 @@ export function first_token_kind_buf(data: *u8, len: i32): i32 {
 
 
 /**
- * 诊断用：返回首 IDENT（函数名）的 ident_len，用于确认 lexer 是否正确填充。
+ * See implementation.
  */
-/** 单行 extern bl→parser_diag_first_ident_len_glue（X 真 emit 调 lexer_next_into → elf_ec=-1）。 */
+/* See implementation. */
 export extern function parser_diag_first_ident_len_glue(source: u8[]): i32;
+/** Exported function `diag_first_ident_len`.
+ * Query helper `diag_first_ident_len`.
+ * @param source u8[]
+ * @return i32
+ */
 export function diag_first_ident_len(source: u8[]): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -2648,7 +3070,12 @@ export function diag_first_ident_len(source: u8[]): i32 {
 }
 
 
-/** diag_first_ident_len 的 buf 变体：parser_slice_from_buf + bl diag_first_ident_len。 */
+/** Exported function `diag_first_ident_len_buf`.
+ * Implements `diag_first_ident_len_buf`.
+ * @param data *u8
+ * @param len i32
+ * @return i32
+ */
 export function diag_first_ident_len_buf(data: *u8, len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -2660,10 +3087,17 @@ export function diag_first_ident_len_buf(data: *u8, len: i32): i32 {
 
 
 /**
- * 诊断用：从 body 首 token 起跳过所有 let/const，写入 out，避免 LexerResult 按值返回 ABI 问题。
+ * See implementation.
  */
-/** 单行 extern bl→parser_diag_skip_let_const_into_glue（X 真 emit 内调 lexer_next_into → elf_ec=-1）。 */
+/* See implementation. */
 export extern function parser_diag_skip_let_const_into_glue(out: *LexerResult, lex: Lexer, source: u8[]): void;
+/** Exported function `diag_skip_let_const_into`.
+ * Implements `diag_skip_let_const_into`.
+ * @param out *LexerResult
+ * @param lex Lexer
+ * @param source u8[]
+ * @return void
+ */
 export function diag_skip_let_const_into(out: *LexerResult, lex: Lexer, source: u8[]): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -2672,9 +3106,15 @@ export function diag_skip_let_const_into(out: *LexerResult, lex: Lexer, source: 
 }
 
 
-/** 兼容：返回 LexerResult，内部调 diag_skip_let_const_into 再写回（仍有 return 的 ABI 风险，优先用 _into）。 */
-/** 单行 extern bl→parser_diag_skip_let_const_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
+/* See implementation. */
 export extern function parser_diag_skip_let_const_glue(lex: Lexer, source: u8[]): LexerResult;
+/** Exported function `diag_skip_let_const`.
+ * Implements `diag_skip_let_const`.
+ * @param lex Lexer
+ * @param source u8[]
+ * @return LexerResult
+ */
 export function diag_skip_let_const(lex: Lexer, source: u8[]): LexerResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -2683,7 +3123,13 @@ export function diag_skip_let_const(lex: Lexer, source: u8[]): LexerResult {
 }
 
 
-/** 与 diag_skip_let_const 等价，接受 (data: *u8, len)；parser_slice_from_buf + bl diag_skip_let_const。 */
+/** Exported function `diag_skip_let_const_buf`.
+ * Implements `diag_skip_let_const_buf`.
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @return LexerResult
+ */
 export function diag_skip_let_const_buf(lex: Lexer, data: *u8, len: i32): LexerResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -2693,7 +3139,14 @@ export function diag_skip_let_const_buf(lex: Lexer, data: *u8, len: i32): LexerR
 }
 
 
-/** diag_skip_let_const_into 的 buf 变体：parser_slice_from_buf + bl diag_skip_let_const_into。 */
+/** Exported function `diag_skip_let_const_into_buf`.
+ * Implements `diag_skip_let_const_into_buf`.
+ * @param out *LexerResult
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @return void
+ */
 export function diag_skip_let_const_into_buf(out: *LexerResult, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -2704,10 +3157,17 @@ export function diag_skip_let_const_into_buf(out: *LexerResult, lex: Lexer, data
 
 
 /**
- * 从 body 首 token 起先跳过 let/const，再跳过所有 if，结果写入 out，避免 LexerResult 按值返回 ABI。
+ * See implementation.
  */
-/** 单行 extern bl→parser_body_skip_let_const_then_if_into_glue（X 真 emit 内调 lexer_next_into → elf_ec=-1）。 */
+/* See implementation. */
 export extern function parser_body_skip_let_const_then_if_into_glue(out: *LexerResult, lex: Lexer, source: u8[]): void;
+/** Exported function `body_skip_let_const_then_if_into`.
+ * Implements `body_skip_let_const_then_if_into`.
+ * @param out *LexerResult
+ * @param lex Lexer
+ * @param source u8[]
+ * @return void
+ */
 export function body_skip_let_const_then_if_into(out: *LexerResult, lex: Lexer, source: u8[]): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -2717,12 +3177,16 @@ export function body_skip_let_const_then_if_into(out: *LexerResult, lex: Lexer, 
 
 
 /**
- * let 初值 `[..] op [..]`：自 `[` 起点 parse_expr_into，更新 lex/r；成功返回 expr ref，失败 0。
- * 独立函数避免 shux-c 将 `if (TOKEN_LBRACKET)` 分支误判为 ParseExprResult 表达式类型。
+ * See implementation.
+ * See implementation.
  */
-/** 单行 extern bl→parser_parse_body_let_bracket_compound_init_ref_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 export extern function parser_parse_body_let_bracket_compound_init_ref_glue(arena: *ASTArena, bracket_start: usize, lex: Lexer, source: u8[],
                                                   lex_out: *Lexer, r_out: *LexerResult): i32;
+/** Function `parse_body_let_bracket_compound_init_ref`.
+ * Purpose: implements `parse_body_let_bracket_compound_init_ref`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function parse_body_let_bracket_compound_init_ref(arena: *ASTArena, bracket_start: usize, lex: Lexer, source: u8[],
                                                   lex_out: *Lexer, r_out: *LexerResult): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -2734,11 +3198,19 @@ export function parse_body_let_bracket_compound_init_ref(arena: *ASTArena, brack
 
 
 /**
- * 从 lex 起解析一个类型写入 arena（*T、Elem[N]、标量、命名类型），返回 types 池下标，失败返回 0。
- * 成功时写入 *out_lex 为类型最后一个 token 之后的位置，供形参/struct 字段等继续读 , 或 ;。
+ * See implementation.
+ * See implementation.
  */
-/** 单行 extern bl→parser_parse_type_ref_for_arena_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 export extern function parser_parse_type_ref_for_arena_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out_lex: *Lexer): i32;
+/** Exported function `parse_type_ref_for_arena_into`.
+ * Implements `parse_type_ref_for_arena_into`.
+ * @param arena *ASTArena
+ * @param lex Lexer
+ * @param source u8[]
+ * @param out_lex *Lexer
+ * @return i32
+ */
 export function parse_type_ref_for_arena_into(arena: *ASTArena, lex: Lexer, source: u8[], out_lex: *Lexer): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -2748,13 +3220,21 @@ export function parse_type_ref_for_arena_into(arena: *ASTArena, lex: Lexer, sour
 }
 
 /**
- * 从 body 首 token（{ 之后）起解析 let 声明，填充 out.num_lets、out.let_name_lens、
- * out.let_type_refs（冒号与等号间的类型 arena ref）、out.let_init_vals、out.let_init_refs（数组字面量或调用时在 arena 中构建并写 ref）。
- * 返回第一个非 let/const 的 token 对应的 lex（即该 token 起始位置），供调用方继续解析 return/if 等。
- * 支持的 init：整数字面量（写 let_init_vals，let_init_refs=0）、[ int , ... ]（EXPR_ARRAY_LIT）、
- * ident ( ident , int )（EXPR_CALL，如 print_str(msg, 12)）。
+ * See implementation.
+ * See implementation.
+ * See implementation.
+ * See implementation.
+ * See implementation.
  */
-/** 将 parse_body_lets 结果写入 lex_out 指针；成功返回 true，失败返回 false，避免 let-init 失败被上层静默吞掉。 */
+/** Internal function `parse_body_lets_into`.
+ * Implements `parse_body_lets_into`.
+ * @param arena *ASTArena
+ * @param lex Lexer
+ * @param source u8[]
+ * @param out *OneFuncResult
+ * @param lex_out *Lexer
+ * @return bool
+ */
 function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *OneFuncResult, lex_out: *Lexer): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -2762,7 +3242,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
   let r: LexerResult = LexerResult { next_lex: lex, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
   let expr_tmp: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex };
   lexer.lexer_next_into(&r, lex, source);
-  /** 块首非 let/const（如 return/if/while）时勿消费该 token，留给 parse_one_function_impl 主循环处理。 */
+  /* See implementation. */
   if (r.tok.kind != token.TokenKind.TOKEN_LET && r.tok.kind != token.TokenKind.TOKEN_CONST) {
     lex = lex_at_token_from_result(r);
     lex_out.pos = lex.pos;
@@ -2830,7 +3310,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
       zi = zi + 1;
     }
     if (is_let) {
-      /* 名称在 name_row，append 时写入池 */
+      /* See implementation. */
     }
     lex_from_result_ptr_into(&lex, &r);
     lexer.lexer_next_into(&r, lex, source);
@@ -2838,13 +3318,13 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
       lex_out.pos = lex.pos; lex_out.line = lex.line; lex_out.col = lex.col; return false;
     }
     lex_from_result_ptr_into(&lex, &r);
-    /* 解析 `:` 与 `=` 之间的类型（与形参同一套）；成功则记入 let_ty_ref，供 INDEX 等对 let 变量的 typeck。 */
+    /* See implementation. */
     let_ty_ref = parse_type_ref_for_arena_into(arena, lex, source, &lex);
     if (let_ty_ref == 0) {
       lex_out.pos = lex.pos; lex_out.line = lex.line; lex_out.col = lex.col; return false;
     }
     lexer.lexer_next_into(&r, lex, source);
-    /** let x: T; 可选省略 `=`：栈零填，等价 let buf: u8[N] = []（const 仍须 =）。 */
+    /* See implementation. */
     let let_omit_init: bool = false;
     if (r.tok.kind != token.TokenKind.TOKEN_ASSIGN) {
       if (!is_let) {
@@ -2862,19 +3342,19 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
     } else {
       lex_from_result_ptr_into(&lex, &r);
       lexer.lexer_next_into(&r, lex, source);
-      /* 解析 init：[ int , ... ] | ident ( ident , int ) | int；let/const 均写 let_init_*（const 须 =）。 */
+      /* See implementation. */
       let_init_ref = 0;
       let_init_val = 0;
     }
     let cast_init_semi_done: bool = false;
     let init_handled: i32 = 0;
     if (!let_omit_init && r.tok.kind == token.TokenKind.TOKEN_LBRACKET) {
-      /** 记录 `[` 起点，供 `[..] + [..]` 等复合初值回退 parse_expr_into 整段解析。 */
+      /* See implementation. */
       let bracket_start: usize = r.token_start;
       if (bracket_start == 0) {
         bracket_start = lex.pos;
       }
-      /* 数组字面量 [ int , ... ] 或空 []（如 let buf: u8[512] = []），元素数动态 grow */
+      /* See implementation. */
       lex_from_result_ptr_into(&lex, &r);
       lexer.lexer_next_into(&r, lex, source);
       let arr_ref: i32 = ast.ast_arena_expr_alloc(arena);
@@ -2903,7 +3383,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
             lex_from_result_ptr_into(&lex, &r);
             lexer.lexer_next_into(&r, lex, source);
           } else if (r.tok.kind == token.TokenKind.TOKEN_FLOAT) {
-            /** f32/f64 数组元素：Vec4f let 初值 [1.0, ...] 等与 C parse_expr TOKEN_FLOAT 对齐。 */
+            /* See implementation. */
             let er: i32 = parser_alloc_float_lit(arena, r.tok.float_val);
             if (er != 0) {
               pipeline_expr_append_array_lit_elem(arena, arr_ref, er);
@@ -2913,7 +3393,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
           } else if (r.tok.kind == token.TokenKind.TOKEN_COMMA) {
             lex_from_result_ptr_into(&lex, &r);
             lexer.lexer_next_into(&r, lex, source);
-            /** 尾逗号：`, ]` 与 C parse_expr 一致（多行 i32[64] let 初值）。 */
+            /* See implementation. */
             if (r.tok.kind == token.TokenKind.TOKEN_RBRACKET) {
               break;
             }
@@ -2923,7 +3403,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
             break;
           }
         }
-        /* 空 [] 亦合法：driver_argv_parse_x_path 等 let arg_buf: u8[512] = [] 依赖此路径。 */
+        /* See implementation. */
         if (r.tok.kind == token.TokenKind.TOKEN_RBRACKET) {
           let_init_ref = arr_ref;
           lex_from_result_ptr_into(&lex, &r);
@@ -2931,8 +3411,8 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
         }
       }
       /*
-       * 复合初值：`let c: i32x4 = [1,2,3,4] + [10,20,30,40];`
-       * 须在 `if (arr_ref != 0)` 外解析，避免 shux-c 将 ParseExprResult 误判为块表达式类型。
+       * See implementation.
+       * See implementation.
        */
       let arr_init_plain: bool = r.tok.kind == token.TokenKind.TOKEN_SEMICOLON || r.tok.kind == token.TokenKind.TOKEN_LET
           || r.tok.kind == token.TokenKind.TOKEN_CONST || r.tok.kind == token.TokenKind.TOKEN_RETURN
@@ -2953,9 +3433,9 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
     }
     if (init_handled == 0) {
       if (r.tok.kind == token.TokenKind.TOKEN_IDENT) {
-        /* RHS 以 ident 开头：从 ident 起点 parse_expr_into（含 foo()、foo(a,b)、buffers[0].handle、单变量、Type { } 字面量） */
+        /* See implementation. */
         let rhs_ilen: i32 = r.tok.ident_len;
-        /** 须用 token_start（与 let 绑定名一致）；next_lex.pos - len 在部分 lexer 状态下会偏一字节，导致 `Point { }` 后跟 return 时解析错位与 typeck 隐式尾返回。 */
+        /* See implementation. */
         let rhs_ident_start: usize = r.token_start;
         lex_from_result_ptr_into(&lex, &r);
         let expr_lex: Lexer = Lexer { pos: rhs_ident_start, line: r.tok.line, col: r.tok.col };
@@ -2967,7 +3447,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
         let_init_ref = expr_tmp.expr_ref;
         lexer_copy_from_parse_expr_result_into(&lex, &expr_tmp);
         lexer.lexer_next_into(&r, lex, source);
-        /* 与 let init = if/match 一致：含字符串实参的 call 后窥视 return/if 时回绕 lex，否则 return if 整函数 parse skip。 */
+        /* See implementation. */
         parser_rewind_lex_for_following_stmt_into(&lex, lex, r);
         init_handled = 1;
       }
@@ -2975,11 +3455,11 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
     if (init_handled == 0) {
       if (r.tok.kind == token.TokenKind.TOKEN_STRING) {
         /**
-         * 【Why 根源】不可对 TOKEN_STRING 再 parse_expr_into：
-         * lexer 的 token_start 指向开引号**后**首字节；以 token_start 为起点重扫时
-         * 见不到 TOKEN_STRING，body let 失败 → 整函数 parse skip → 残体被顶层 let 误收
-         * （init_globals 泄漏、msg_cap 未声明等 diagnostic -E 故障）。
-         * 与 parse_primary / bool 初值相同：直接建 EXPR_STRING_LIT，内容从 token 拷入 var_name。
+         * See implementation.
+         * See implementation.
+         * See implementation.
+         * See implementation.
+         * See implementation.
          */
         let str_ref: i32 = ast.ast_arena_expr_alloc(arena);
         if (str_ref != 0) {
@@ -3048,7 +3528,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
     }
     if (init_handled == 0) {
       if (r.tok.kind == token.TokenKind.TOKEN_TRUE || r.tok.kind == token.TokenKind.TOKEN_FALSE) {
-        /* bool 字面量：创建 EXPR_BOOL_LIT 表达式并写入 arena，使 typeck 可以检查 let/const x: i32 = true 的类型不匹配 */
+        /* See implementation. */
         let bool_ref: i32 = ast.ast_arena_expr_alloc(arena);
         if (bool_ref != 0) {
           let be: Expr = ast.ast_arena_expr_get(arena, bool_ref);
@@ -3130,8 +3610,8 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
     if (init_handled == 0) {
       if (r.tok.kind == token.TokenKind.TOKEN_INT) {
         /*
-         * 初值：纯 int 字面量 | `0 as *T` | `0 - x` 等复合表达式。
-         * * 仅 `as` 走 parse_expr_into 会漏掉 `0 - val`（format_int 的 let u: i32 = 0 - val）。
+         * See implementation.
+         * See implementation.
          */
         let int_val_saved: i32 = r.tok.int_val;
         let int_start: usize = r.token_start;
@@ -3164,8 +3644,8 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
       if (r.tok.kind == token.TokenKind.TOKEN_MINUS || r.tok.kind == token.TokenKind.TOKEN_BANG
           || r.tok.kind == token.TokenKind.TOKEN_LPAREN || r.tok.kind == token.TokenKind.TOKEN_TILDE) {
         /*
-         * 一元 -、!、~ 或括号表达式初值（如 let u: i32 = -1、(x + 1)）；
-         * * 仅认 TOKEN_INT/IDENT/[ 时会误判 semicolon 并提前 return，let 未入账、-1 落为 expr_stmt。
+         * See implementation.
+         * See implementation.
          */
         let rhs_unary_start: usize = r.token_start;
         if (rhs_unary_start == 0) {
@@ -3187,7 +3667,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
     if (init_handled == 0) {
       if (r.tok.kind == token.TokenKind.TOKEN_AMP) {
         /*
-         * 取址初值：`let p: *u8 = &c as *u8` 等；须 parse_expr_into 整段（与 TOKEN_INT 复合初值一致）。
+         * See implementation.
          */
         let amp_start: usize = r.token_start;
         if (amp_start == 0) {
@@ -3211,7 +3691,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
     }
     if (init_handled == 0) {
       if (r.tok.kind == token.TokenKind.TOKEN_IF) {
-        /** let x: T = if (c) { a } else { b }：须建成 EXPR_IF 初值，勿留 init_ref=0 落成字面量 0。 */
+        /* See implementation. */
         let if_lex: Lexer = lex_at_token_from_result(r);
         parse_expr_result_reset(&expr_tmp, if_lex);
         parse_if_expr_into(arena, if_lex, source, let_ty_ref, &expr_tmp);
@@ -3227,7 +3707,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
     }
     if (init_handled == 0) {
       if (r.tok.kind == token.TokenKind.TOKEN_MATCH) {
-        /** let y: i32 = match x { … }; 与 return match 共用 parse_match_into。 */
+        /* See implementation. */
         let match_lex: Lexer = lex_at_token_from_result(r);
         parse_expr_result_reset(&expr_tmp, match_lex);
         parse_match_into(arena, match_lex, source, &expr_tmp);
@@ -3245,8 +3725,8 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
       if (r.tok.kind == token.TokenKind.TOKEN_AWAIT || r.tok.kind == token.TokenKind.TOKEN_RUN
           || r.tok.kind == token.TokenKind.TOKEN_SPAWN) {
         /**
-         * async 一元初值：`let mid: i32 = await kick;` / `run f()` / `spawn f()`；
-         * 须 parse_expr_into 整段，否则 init_ref 留 0 落成栈槽 0（WPO-S3 await asm exit 7 回归）。
+         * See implementation.
+         * See implementation.
          */
         let async_start: usize = r.token_start;
         if (async_start == 0) {
@@ -3265,9 +3745,9 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
         init_handled = 1;
       }
     }
-    /* let 初值后可省略 `;`（与 advance_past_stmt_semicolon_into 后继 token 规则一致）；勿调 advance_past 本身，避免与上文 lexer_next 重复推进。
-     * 遇 `return`/`if`/`while`/`for`/`}` 等时不得写 r.next_lex 到 lex：否则跳过关键字首 token，
-     * * parse_one_function_impl 会从 `return p.x` 的 `p` 起解析，把 `p.x` 误作 expr_stmt、final_expr 被清空后 typeck 报 implicit tail return。 */
+    /* See implementation. */
+     * See implementation.
+     * See implementation.
     if (!cast_init_semi_done) {
       if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
         /*
@@ -3309,7 +3789,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
       }
       out.num_lets = pipeline_onefunc_num_lets(pool);
     } else {
-      /** const 须入账侧车，否则 fill_block / typeck 无法解析 MAX 等块内 const 引用。 */
+      /* See implementation. */
       if (pipeline_onefunc_append_const(pool, &name_row[0], name_len, let_init_val, let_init_ref, let_ty_ref) < 0) {
         lex_out.pos = lex.pos; lex_out.line = lex.line; lex_out.col = lex.col; return false;
       }
@@ -3331,9 +3811,15 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
   return false;
 }
 
-/** 兼容：返回 LexerResult，内部调 _into（仍有 return 的 ABI 风险）。 */
-/** 单行 extern bl→parser_body_skip_let_const_then_if_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
+/* See implementation. */
 export extern function parser_body_skip_let_const_then_if_glue(lex: Lexer, source: u8[]): LexerResult;
+/** Exported function `body_skip_let_const_then_if`.
+ * Implements `body_skip_let_const_then_if`.
+ * @param lex Lexer
+ * @param source u8[]
+ * @return LexerResult
+ */
 export function body_skip_let_const_then_if(lex: Lexer, source: u8[]): LexerResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3342,7 +3828,13 @@ export function body_skip_let_const_then_if(lex: Lexer, source: u8[]): LexerResu
 }
 
 
-/** 与 body_skip_let_const_then_if 等价，接受 (data: *u8, len)；parser_slice_from_buf + bl body_skip_let_const_then_if。 */
+/** Exported function `body_skip_let_const_then_if_buf`.
+ * Implements `body_skip_let_const_then_if_buf`.
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @return LexerResult
+ */
 export function body_skip_let_const_then_if_buf(lex: Lexer, data: *u8, len: i32): LexerResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3352,7 +3844,14 @@ export function body_skip_let_const_then_if_buf(lex: Lexer, data: *u8, len: i32)
 }
 
 
-/** body_skip_let_const_then_if_into 的 buf 变体：parser_slice_from_buf + bl into。 */
+/** Exported function `body_skip_let_const_then_if_into_buf`.
+ * Implements `body_skip_let_const_then_if_into_buf`.
+ * @param out *LexerResult
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @return void
+ */
 export function body_skip_let_const_then_if_into_buf(out: *LexerResult, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3363,10 +3862,16 @@ export function body_skip_let_const_then_if_into_buf(out: *LexerResult, lex: Lex
 
 
 /**
- * 从 lex（已消费开括号）起跳过匹配的括号，返回匹配的 ) 之后的 lex 状态；用于跳过 if ( ... ) 中的条件。
+ * See implementation.
  */
-/** 单行 extern bl→parser_skip_balanced_parens_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 export extern function parser_skip_balanced_parens_glue(lex: Lexer, source: u8[]): Lexer;
+/** Exported function `skip_balanced_parens`.
+ * Implements `skip_balanced_parens`.
+ * @param lex Lexer
+ * @param source u8[]
+ * @return Lexer
+ */
 export function skip_balanced_parens(lex: Lexer, source: u8[]): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3375,9 +3880,16 @@ export function skip_balanced_parens(lex: Lexer, source: u8[]): Lexer {
 }
 
 
-/** 直接在 out 指针写结果，避免 ARM64 下 Lexer 按值返回 ABI 错误。供 parse_one_function_impl 等热路径使用。 */
-/** 单行 extern bl→parser_skip_balanced_parens_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
+/* See implementation. */
 export extern function parser_skip_balanced_parens_into_glue(out: *Lexer, lex: Lexer, source: u8[]): void;
+/** Exported function `skip_balanced_parens_into`.
+ * Implements `skip_balanced_parens_into`.
+ * @param out *Lexer
+ * @param lex Lexer
+ * @param source u8[]
+ * @return void
+ */
 export function skip_balanced_parens_into(out: *Lexer, lex: Lexer, source: u8[]): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3386,8 +3898,15 @@ export function skip_balanced_parens_into(out: *Lexer, lex: Lexer, source: u8[])
 }
 
 
-/** 与 skip_balanced_parens 等价，接受 (data: *u8, len) 供 buf 路径使用。 */
-/** skip_balanced_parens_buf 的 _into_buf 变体。 */
+/* See implementation. */
+/** Exported function `skip_balanced_parens_into_buf`.
+ * Implements `skip_balanced_parens_into_buf`.
+ * @param out *Lexer
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @return void
+ */
 export function skip_balanced_parens_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3419,10 +3938,16 @@ export function skip_balanced_parens_buf(lex: Lexer, data: *u8, len: i32): Lexer
 
 
 /**
- * 从 lex（已消费开大括号）起跳过匹配的大括号，返回匹配的 } 之后的 lex 状态；用于跳过 if { ... } 块。
+ * See implementation.
  */
-/** 单行 extern bl→parser_skip_balanced_braces_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 export extern function parser_skip_balanced_braces_glue(lex: Lexer, source: u8[]): Lexer;
+/** Exported function `skip_balanced_braces`.
+ * Implements `skip_balanced_braces`.
+ * @param lex Lexer
+ * @param source u8[]
+ * @return Lexer
+ */
 export function skip_balanced_braces(lex: Lexer, source: u8[]): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3431,9 +3956,16 @@ export function skip_balanced_braces(lex: Lexer, source: u8[]): Lexer {
 }
 
 
-/** 直接在 out 指针写结果，避免 ARM64 下 Lexer 按值返回 ABI 错误。 */
-/** 单行 extern bl→parser_skip_balanced_braces_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
+/* See implementation. */
 export extern function parser_skip_balanced_braces_into_glue(out: *Lexer, lex: Lexer, source: u8[]): void;
+/** Exported function `skip_balanced_braces_into`.
+ * Implements `skip_balanced_braces_into`.
+ * @param out *Lexer
+ * @param lex Lexer
+ * @param source u8[]
+ * @return void
+ */
 export function skip_balanced_braces_into(out: *Lexer, lex: Lexer, source: u8[]): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3442,7 +3974,14 @@ export function skip_balanced_braces_into(out: *Lexer, lex: Lexer, source: u8[])
 }
 
 
-/** skip_balanced_braces_buf 的 _into_buf 变体。 */
+/** Exported function `skip_balanced_braces_into_buf`.
+ * Implements `skip_balanced_braces_into_buf`.
+ * @param out *Lexer
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @return void
+ */
 export function skip_balanced_braces_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3463,7 +4002,7 @@ export function skip_balanced_braces_into_buf(out: *Lexer, lex: Lexer, data: *u8
 
 
 
-/** 与 skip_balanced_braces 等价，接受 (data: *u8, len) 供 buf 路径使用。 */
+/* See implementation. */
 /** skip_balanced_braces_buf：parser_slice_from_buf + bl skip_balanced_braces。 */
 export function skip_balanced_braces_buf(lex: Lexer, data: *u8, len: i32): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -3475,11 +4014,18 @@ export function skip_balanced_braces_buf(lex: Lexer, data: *u8, len: i32): Lexer
 
 
 /**
- * 从「function」前 lex 起跳过整条函数（含签名与体），返回 } 之后的 lex；用于 parse_into 在 parse 与 library 均失败时跳过该函数继续下一项。
+ * See implementation.
  */
-/** 从「function」前 lex 起跳过整条函数（含签名与体），通过 out 避免 ABI。 */
-/** 单行 extern bl→parser_skip_one_function_full_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
+/* See implementation. */
 export extern function parser_skip_one_function_full_into_glue(out: *Lexer, lex: Lexer, source: u8[]): void;
+/** Exported function `skip_one_function_full_into`.
+ * Implements `skip_one_function_full_into`.
+ * @param out *Lexer
+ * @param lex Lexer
+ * @param source u8[]
+ * @return void
+ */
 export function skip_one_function_full_into(out: *Lexer, lex: Lexer, source: u8[]): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3487,8 +4033,15 @@ export function skip_one_function_full_into(out: *Lexer, lex: Lexer, source: u8[
   }
 }
 
-/** B-01/B-19：跳过一条顶层 const 声明（含 const import）；lex 位于 const 前。 */
+/* See implementation. */
 export extern function parser_skip_one_top_level_const_into_glue(out: *Lexer, lex: Lexer, source: u8[]): void;
+/** Exported function `skip_one_top_level_const_into`.
+ * Implements `skip_one_top_level_const_into`.
+ * @param out *Lexer
+ * @param lex Lexer
+ * @param source u8[]
+ * @return void
+ */
 export function skip_one_top_level_const_into(out: *Lexer, lex: Lexer, source: u8[]): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3496,8 +4049,16 @@ export function skip_one_top_level_const_into(out: *Lexer, lex: Lexer, source: u
   }
 }
 
-/** buf 路径：跳过一条顶层 const 声明。 */
+/* See implementation. */
 export extern function parser_skip_one_top_level_const_into_buf_glue(out: *Lexer, lex: Lexer, data: *u8, len: i32): void;
+/** Exported function `skip_one_top_level_const_into_buf`.
+ * Implements `skip_one_top_level_const_into_buf`.
+ * @param out *Lexer
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @return void
+ */
 export function skip_one_top_level_const_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3505,9 +4066,15 @@ export function skip_one_top_level_const_into_buf(out: *Lexer, lex: Lexer, data:
   }
 }
 
-/** B-01/B-19：跳过一条顶层 let 声明（slice 路径；与 skip_one_top_level_const_into 对称）。
- * PLATFORM: SHARED — avoids illegal `source as *u8` on Cap by-value slice emit. */
+/** See implementation for details. */
 export extern function parser_skip_one_top_level_let_into_glue(out: *Lexer, lex: Lexer, source: u8[]): void;
+/** Exported function `skip_one_top_level_let_into`.
+ * Implements `skip_one_top_level_let_into`.
+ * @param out *Lexer
+ * @param lex Lexer
+ * @param source u8[]
+ * @return void
+ */
 export function skip_one_top_level_let_into(out: *Lexer, lex: Lexer, source: u8[]): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3515,8 +4082,16 @@ export function skip_one_top_level_let_into(out: *Lexer, lex: Lexer, source: u8[
   }
 }
 
-/** B-01/B-19：跳过一条顶层 let 声明；lex 位于 let 前（buf 路径）。 */
+/* See implementation. */
 export extern function parser_skip_one_top_level_let_into_buf_glue(out: *Lexer, lex: Lexer, data: *u8, len: i32): void;
+/** Exported function `skip_one_top_level_let_into_buf`.
+ * Implements `skip_one_top_level_let_into_buf`.
+ * @param out *Lexer
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @return void
+ */
 export function skip_one_top_level_let_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3524,8 +4099,14 @@ export function skip_one_top_level_let_into_buf(out: *Lexer, lex: Lexer, data: *
   }
 }
 
-/** 单行 extern bl→parser_skip_one_function_full_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 export extern function parser_skip_one_function_full_glue(lex: Lexer, source: u8[]): Lexer;
+/** Exported function `skip_one_function_full`.
+ * Implements `skip_one_function_full`.
+ * @param lex Lexer
+ * @param source u8[]
+ * @return Lexer
+ */
 export function skip_one_function_full(lex: Lexer, source: u8[]): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3534,7 +4115,14 @@ export function skip_one_function_full(lex: Lexer, source: u8[]): Lexer {
 }
 
 
-/** skip_one_function_full_buf 的 _into_buf 变体；parser_slice_from_buf + bl skip_one_function_full_into（13al 模式）。 */
+/** Exported function `skip_one_function_full_into_buf`.
+ * Implements `skip_one_function_full_into_buf`.
+ * @param out *Lexer
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @return void
+ */
 export function skip_one_function_full_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3544,7 +4132,7 @@ export function skip_one_function_full_into_buf(out: *Lexer, lex: Lexer, data: *
 }
 
 
-/** 与 skip_one_function_full 等价，接受 (data: *u8, len) 供 parse_into_buf 使用。 */
+/* See implementation. */
 /** skip_one_function_full_buf：parser_slice_from_buf + bl skip_one_function_full。 */
 export function skip_one_function_full_buf(lex: Lexer, data: *u8, len: i32): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -3556,12 +4144,18 @@ export function skip_one_function_full_buf(lex: Lexer, data: *u8, len: i32): Lex
 
 
 /**
- * 跳过 if 的 ( ) 与紧跟的 { } 或单句；lex 为消费掉 if 后的状态（下一 token 为 (）。
- * 单独成函数避免 codegen 将 while(ELSE) 与 return r 提到本逻辑前，导致未处理 LPAREN 就返回。
- * 返回跳过后的 LexerResult。
+ * See implementation.
+ * See implementation.
+ * See implementation.
  */
-/** 单行 extern bl→parser_skip_one_if_core_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 export extern function parser_skip_one_if_core_glue(lex: Lexer, source: u8[]): LexerResult;
+/** Exported function `skip_one_if_core`.
+ * Implements `skip_one_if_core`.
+ * @param lex Lexer
+ * @param source u8[]
+ * @return LexerResult
+ */
 export function skip_one_if_core(lex: Lexer, source: u8[]): LexerResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3571,12 +4165,18 @@ export function skip_one_if_core(lex: Lexer, source: u8[]): LexerResult {
 
 
 /**
- * 跳过一条 if 语句（含 else / else if）；lex 为消费掉 if 后的状态（下一 token 为 (）。
- * 返回跳过后的 LexerResult，供 parse_one_function 与诊断在 body 内跳过 if 继续解析。
- * 通过调用 skip_one_if_core 保证 LPAREN 处理在 return 前执行，避免 codegen 重排。
+ * See implementation.
+ * See implementation.
+ * See implementation.
  */
-/** 单行 extern bl→parser_skip_one_if_statement_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 export extern function parser_skip_one_if_statement_glue(lex: Lexer, source: u8[]): LexerResult;
+/** Exported function `skip_one_if_statement`.
+ * Implements `skip_one_if_statement`.
+ * @param lex Lexer
+ * @param source u8[]
+ * @return LexerResult
+ */
 export function skip_one_if_statement(lex: Lexer, source: u8[]): LexerResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3585,9 +4185,16 @@ export function skip_one_if_statement(lex: Lexer, source: u8[]): LexerResult {
 }
 
 
-/** skip_one_if_statement 的 _into 变体：直接在 out 指针输出避免 ARM64 下 LexerResult 按值返回 ABI 错误。 */
-/** 单行 extern bl→parser_skip_one_if_statement_into_glue（X 真 emit 内调 lexer_next_into → elf_ec=-1）。 */
+/* See implementation. */
+/* See implementation. */
 export extern function parser_skip_one_if_statement_into_glue(out: *LexerResult, lex: Lexer, source: u8[]): void;
+/** Exported function `skip_one_if_statement_into`.
+ * Implements `skip_one_if_statement_into`.
+ * @param out *LexerResult
+ * @param lex Lexer
+ * @param source u8[]
+ * @return void
+ */
 export function skip_one_if_statement_into(out: *LexerResult, lex: Lexer, source: u8[]): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3596,9 +4203,16 @@ export function skip_one_if_statement_into(out: *LexerResult, lex: Lexer, source
 }
 
 
-/** skip_one_if_core 的 _into 变体：直接在 out 指针输出。 */
-/** 单行 extern bl→parser_skip_one_if_core_into_glue（X 真 emit 内调 lexer_next_into → elf_ec=-1）。 */
+/* See implementation. */
+/* See implementation. */
 export extern function parser_skip_one_if_core_into_glue(out: *LexerResult, lex: Lexer, source: u8[]): void;
+/** Exported function `skip_one_if_core_into`.
+ * Implements `skip_one_if_core_into`.
+ * @param out *LexerResult
+ * @param lex Lexer
+ * @param source u8[]
+ * @return void
+ */
 export function skip_one_if_core_into(out: *LexerResult, lex: Lexer, source: u8[]): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3607,7 +4221,7 @@ export function skip_one_if_core_into(out: *LexerResult, lex: Lexer, source: u8[
 }
 
 
-/** 与 skip_one_if_core 等价，接受 (data: *u8, len) 供 buf 路径使用。 */
+/* See implementation. */
 /** skip_one_if_core_buf：parser_slice_from_buf + bl skip_one_if_core。 */
 export function skip_one_if_core_buf(lex: Lexer, data: *u8, len: i32): LexerResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -3628,7 +4242,14 @@ export function skip_one_if_statement_buf(lex: Lexer, data: *u8, len: i32): Lexe
 }
 
 
-/** skip_one_if_core_into 的 buf 变体：parser_slice_from_buf + bl skip_one_if_core_into。 */
+/** Exported function `skip_one_if_core_into_buf`.
+ * Implements `skip_one_if_core_into_buf`.
+ * @param out *LexerResult
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @return void
+ */
 export function skip_one_if_core_into_buf(out: *LexerResult, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3638,7 +4259,14 @@ export function skip_one_if_core_into_buf(out: *LexerResult, lex: Lexer, data: *
 }
 
 
-/** skip_one_if_statement_into 的 buf 变体：parser_slice_from_buf + bl skip_one_if_statement_into。 */
+/** Exported function `skip_one_if_statement_into_buf`.
+ * Implements `skip_one_if_statement_into_buf`.
+ * @param out *LexerResult
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @return void
+ */
 export function skip_one_if_statement_into_buf(out: *LexerResult, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3649,12 +4277,17 @@ export function skip_one_if_statement_into_buf(out: *LexerResult, lex: Lexer, da
 
 
 /**
- * 诊断用：按 parse_one_function 顺序检查，返回首次失败时的 token kind（成功返回 -1）。
- * 便于精确定位是哪个 token 导致解析失败。
+ * See implementation.
+ * See implementation.
  */
-/** 诊断用：返回「跳过顶层 import 后的 lex」；单独成函数确保 codegen 先执行 skip_imports 再被 diag_fail 使用。 */
-/** 单行 extern bl→parser_diag_lex_after_imports_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
+/* See implementation. */
 export extern function parser_diag_lex_after_imports_glue(source: u8[]): Lexer;
+/** Exported function `diag_lex_after_imports`.
+ * Implements `diag_lex_after_imports`.
+ * @param source u8[]
+ * @return Lexer
+ */
 export function diag_lex_after_imports(source: u8[]): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3663,7 +4296,12 @@ export function diag_lex_after_imports(source: u8[]): Lexer {
 }
 
 
-/** diag_lex_after_imports 的 buf 变体：parser_slice_from_buf + bl diag_lex_after_imports。 */
+/** Exported function `diag_lex_after_imports_buf`.
+ * Implements `diag_lex_after_imports_buf`.
+ * @param data *u8
+ * @param len i32
+ * @return Lexer
+ */
 export function diag_lex_after_imports_buf(data: *u8, len: i32): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3673,9 +4311,15 @@ export function diag_lex_after_imports_buf(data: *u8, len: i32): Lexer {
 }
 
 
-/** 诊断用：在给定 lex 上取 token 并跳过 struct，返回第一个非 struct 的 LexerResult。 */
-/** 单行 extern bl→parser_diag_after_imports_then_structs_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
+/* See implementation. */
 export extern function parser_diag_after_imports_then_structs_glue(lex: Lexer, source: u8[]): LexerResult;
+/** Exported function `diag_after_imports_then_structs`.
+ * Implements `diag_after_imports_then_structs`.
+ * @param lex Lexer
+ * @param source u8[]
+ * @return LexerResult
+ */
 export function diag_after_imports_then_structs(lex: Lexer, source: u8[]): LexerResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3684,7 +4328,13 @@ export function diag_after_imports_then_structs(lex: Lexer, source: u8[]): Lexer
 }
 
 
-/** diag_after_imports_then_structs 的 buf 变体：parser_slice_from_buf + bl diag_after_imports_then_structs。 */
+/** Exported function `diag_after_imports_then_structs_buf`.
+ * Implements `diag_after_imports_then_structs_buf`.
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @return LexerResult
+ */
 export function diag_after_imports_then_structs_buf(lex: Lexer, data: *u8, len: i32): LexerResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3694,8 +4344,13 @@ export function diag_after_imports_then_structs_buf(lex: Lexer, data: *u8, len: 
 }
 
 
-/** 单行 extern bl→parser_diag_fail_at_token_kind_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 export extern function parser_diag_fail_at_token_kind_glue(source: u8[]): i32;
+/** Exported function `diag_fail_at_token_kind`.
+ * Implements `diag_fail_at_token_kind`.
+ * @param source u8[]
+ * @return i32
+ */
 export function diag_fail_at_token_kind(source: u8[]): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3705,7 +4360,12 @@ export function diag_fail_at_token_kind(source: u8[]): i32 {
 }
 
 
-/** diag_fail_at_token_kind 的 buf 变体：parser_slice_from_buf + bl diag_fail_at_token_kind。 */
+/** Exported function `diag_fail_at_token_kind_buf`.
+ * Implements `diag_fail_at_token_kind_buf`.
+ * @param data *u8
+ * @param len i32
+ * @return i32
+ */
 export function diag_fail_at_token_kind_buf(data: *u8, len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3715,7 +4375,11 @@ export function diag_fail_at_token_kind_buf(data: *u8, len: i32): i32 {
   return 0;  // unreachable — typeck after unsafe block
 }
 
-/** 零函数模块通常可作为库模块返回成功；但若首个失败 token 已明确是字符串字面量，则应收为真正 parse fail。 */
+/** Exported function `parse_into_result_empty_module_or_fail_tok`.
+ * Implements `parse_into_result_empty_module_or_fail_tok`.
+ * @param fail_tok i32
+ * @return ParseIntoResult
+ */
 export function parse_into_result_empty_module_or_fail_tok(fail_tok: i32): ParseIntoResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3728,8 +4392,8 @@ export function parse_into_result_empty_module_or_fail_tok(fail_tok: i32): Parse
 
 
 /**
- * 从 source[start..start+nlen] 复制到 out[0..nlen-1]，避免 codegen 将复制循环提升到 FUNCTION 分支前。
- * out 须为 *u8（指向至少 nlen 字节）：自举路径上 u8[64] 按值传入时写不入调用方缓冲，会导致 name_len 与字节列错位（全 NUL 函数名）。
+ * See implementation.
+ * See implementation.
  */
 export function copy_slice_to_name64(source: u8[], start: usize, nlen: i32, out: *u8): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -3745,7 +4409,14 @@ export function copy_slice_to_name64(source: u8[], start: usize, nlen: i32, out:
 }
 
 
-/** 从 source 的 [end_pos-nlen..end_pos) 复制到 out，供 scan 内调用避免在调用处写 as usize 触发解析歧义。 */
+/** Exported function `copy_slice_to_name64_at_end`.
+ * Implements `copy_slice_to_name64_at_end`.
+ * @param source u8[]
+ * @param end_pos usize
+ * @param nlen i32
+ * @param out *u8
+ * @return void
+ */
 export function copy_slice_to_name64_at_end(source: u8[], end_pos: usize, nlen: i32, out: *u8): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3756,11 +4427,18 @@ export function copy_slice_to_name64_at_end(source: u8[], end_pos: usize, nlen: 
 
 
 /**
- * 结构体字段名：{ } 内允许 soa/packed 关键字作字段名（如 StructLayout.soa；与 struct 修饰符区分）。
- * 成功返回名字节长度并写入 out；失败返回 -1。
+ * See implementation.
+ * See implementation.
  */
-/** 单行 extern bl→parser_struct_field_name_from_tok_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 export extern function parser_struct_field_name_from_tok_glue(r: LexerResult, source: u8[], out: *u8): i32;
+/** Exported function `struct_field_name_from_tok`.
+ * Implements `struct_field_name_from_tok`.
+ * @param r LexerResult
+ * @param source u8[]
+ * @param out *u8
+ * @return i32
+ */
 export function struct_field_name_from_tok(r: LexerResult, source: u8[], out: *u8): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3770,7 +4448,14 @@ export function struct_field_name_from_tok(r: LexerResult, source: u8[], out: *u
 }
 
 
-/** struct_field_name_from_tok 的 buf 变体：parser_slice_from_buf + bl struct_field_name_from_tok。 */
+/** Exported function `struct_field_name_from_tok_buf`.
+ * Implements `struct_field_name_from_tok_buf`.
+ * @param r LexerResult
+ * @param data *u8
+ * @param len i32
+ * @param out *u8
+ * @return i32
+ */
 export function struct_field_name_from_tok_buf(r: LexerResult, data: *u8, len: i32, out: *u8): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3781,7 +4466,11 @@ export function struct_field_name_from_tok_buf(r: LexerResult, data: *u8, len: i
 }
 
 
-/** 续字段解析：下一 token 是否为字段名起点；SOA/PACKED 用整型 ordinal（EMIT_HEAVY enum 成员 emit 曾失败）。 */
+/** Exported function `struct_field_name_tok_kind`.
+ * Implements `struct_field_name_tok_kind`.
+ * @param k token.TokenKind
+ * @return bool
+ */
 export function struct_field_name_tok_kind(k: token.TokenKind): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3800,8 +4489,8 @@ export function struct_field_name_tok_kind(k: token.TokenKind): bool {
 }
 
 /**
- * 字段列表是否继续：下一字段可为 ident 或 align(N) 前缀（DOD-CL Ring64 head/tail 等）。
- * 勿仅用 struct_field_name_tok_kind，否则 `align(64) tail:` 第二字段解析失败且 layout 仅 nf=1。
+ * See implementation.
+ * See implementation.
  */
 export function struct_field_continues_tok_kind(k: token.TokenKind): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -3819,8 +4508,8 @@ export function struct_field_continues_tok_kind(k: token.TokenKind): bool {
 
 
 /**
- * 判断 r 当前 token 是否为 IDENT 且下一 token 为 COLON（标号语句 `label:` 起点）。
- * 与 parser.c parse_block 内 `peek IDENT && peek_next COLON → parse_label_start` 对齐。
+ * See implementation.
+ * See implementation.
  */
 export function parser_token_is_label_start(r: LexerResult, source: u8[]): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -3838,7 +4527,14 @@ export function parser_token_is_label_start(r: LexerResult, source: u8[]): bool 
   }
 }
 
-/** 从 source 的 [start..start+nlen) 复制到 out[0..31]；out 为 *u8 原因同 copy_slice_to_name64。 */
+/** Exported function `copy_slice_to_param32`.
+ * Implements `copy_slice_to_param32`.
+ * @param source u8[]
+ * @param start usize
+ * @param nlen i32
+ * @param out *u8
+ * @return void
+ */
 export function copy_slice_to_param32(source: u8[], start: usize, nlen: i32, out: *u8): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3855,7 +4551,14 @@ export function copy_slice_to_param32(source: u8[], start: usize, nlen: i32, out
 }
 
 
-/** 从 source 的 [end_pos-nlen..end_pos) 复制到 out[0..31]，供 scan 内 param_name 复制，避免 source[pos-len+pi] 在 C 中类型/越界。 */
+/** Exported function `copy_slice_to_param32_at_end`.
+ * Implements `copy_slice_to_param32_at_end`.
+ * @param source u8[]
+ * @param end_pos usize
+ * @param nlen i32
+ * @param out *u8
+ * @return void
+ */
 export function copy_slice_to_param32_at_end(source: u8[], end_pos: usize, nlen: i32, out: *u8): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3865,7 +4568,15 @@ export function copy_slice_to_param32_at_end(source: u8[], end_pos: usize, nlen:
 }
 
 
-/** 与 copy_slice_to_name64 等价，接受 (source: *u8, source_len) 供 buf 路径使用。out 为 *u8 原因同 copy_slice_to_name64。 */
+/** Exported function `copy_slice_to_name64_buf`.
+ * Implements `copy_slice_to_name64_buf`.
+ * @param source *u8
+ * @param source_len i32
+ * @param start usize
+ * @param nlen i32
+ * @param out *u8
+ * @return void
+ */
 export function copy_slice_to_name64_buf(source: *u8, source_len: i32, start: usize, nlen: i32, out: *u8): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3880,7 +4591,15 @@ export function copy_slice_to_name64_buf(source: *u8, source_len: i32, start: us
 }
 
 
-/** 从 buf 的 [end_pos-nlen..end_pos) 复制到 out，供 parse_one_extern_skip_buf 使用，避免调用处 as usize 解析歧义。 */
+/** Exported function `copy_slice_to_name64_at_end_buf`.
+ * Implements `copy_slice_to_name64_at_end_buf`.
+ * @param source *u8
+ * @param source_len i32
+ * @param end_pos usize
+ * @param nlen i32
+ * @param out *u8
+ * @return void
+ */
 export function copy_slice_to_name64_at_end_buf(source: *u8, source_len: i32, end_pos: usize, nlen: i32, out: *u8): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3890,7 +4609,15 @@ export function copy_slice_to_name64_at_end_buf(source: *u8, source_len: i32, en
 }
 
 
-/** 从 buf 的 [end_pos-nlen..end_pos) 复制到 out[0..31]，供 parse_one_function_library_scan_buf 内 param_name 复制。 */
+/** Exported function `copy_slice_to_param32_at_end_buf`.
+ * Implements `copy_slice_to_param32_at_end_buf`.
+ * @param source *u8
+ * @param source_len i32
+ * @param end_pos usize
+ * @param nlen i32
+ * @param out *u8
+ * @return void
+ */
 export function copy_slice_to_param32_at_end_buf(source: *u8, source_len: i32, end_pos: usize, nlen: i32, out: *u8): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3908,7 +4635,15 @@ export function copy_slice_to_param32_at_end_buf(source: *u8, source_len: i32, e
 }
 
 
-/** 与 copy_slice_to_param32 等价，接受 (source: *u8, source_len) 供 buf 路径使用。 */
+/** Exported function `copy_slice_to_param32_buf`.
+ * Implements `copy_slice_to_param32_buf`.
+ * @param source *u8
+ * @param source_len i32
+ * @param start usize
+ * @param nlen i32
+ * @param out *u8
+ * @return void
+ */
 export function copy_slice_to_param32_buf(source: *u8, source_len: i32, start: usize, nlen: i32, out: *u8): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3926,21 +4661,21 @@ export function copy_slice_to_param32_buf(source: *u8, source_len: i32, start: u
 
 
 /**
- * 解析一个最小函数：function <ident>( [ <name>: i32 [, ...] ] ): i32 { [ let ... ; ] return <int>; }。
- * 当前 lex 必须指向 TOKEN_FUNCTION；成功时写 ok=true、函数名、参数列表、let 列表（含 let_init_refs）、return 值及消费后的 next_lex 到 out；否则写 ok=false 与 next_lex。
- * arena 用于在 parse_body_lets_into 中构建 let 的 init 表达式（数组字面量、调用等）。
+ * See implementation.
+ * See implementation.
+ * See implementation.
  */
 export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, lex: Lexer, source: u8[]): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  /** 清零 OneFunc 侧车池，避免复用 scratch 残留 if/stmt_order。 */
+  /* See implementation. */
   ast_pool_onefunc_reset(onefunc_result_pool_ptr(out));
-  /** 物理重置复用的 OneFuncResult 标量槽，避免上一函数的 generic/path 状态泄漏到当前函数。 */
+  /* See implementation. */
   let out_clean: OneFuncResult = onefunc_alloc_wired_for_parse(lex);
   copy_onefunc_into(out, &out_clean);
   let out_ref: *OneFuncResult = out;
   let dummy_name: u8[64] = [];
-  /** 解析过程工作区：避免 >8 字段结构字面量；成功时 onefunc_finish_impl_to_out 拷入 out。 */
+  /* See implementation. */
   let impl_snap: OneFuncResult = onefunc_scratch_empty();
   ast_pool_onefunc_reset(onefunc_result_pool_ptr(&impl_snap));
   onefunc_res_wire_dummy_head(&impl_snap, lex, dummy_name);
@@ -3949,12 +4684,12 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
   onefunc_res_wire_dummy_call_binop(&impl_snap, dummy_name);
   onefunc_res_wire_dummy_loop_call(&impl_snap);
   onefunc_res_wire_dummy_for_if(&impl_snap);
-  /** return x（无括号）时变量名缓冲，写入 OneFuncResult 供 parse_into 建 EXPR_VAR */
+  /* See implementation. */
   let return_type_is_bool: bool = false;
-  /** return ident(...) 经 parse_expr_into 写入 arena 时的 expr ref；0 表示走 return_val / impl_snap.has_call_expr 等 legacy。 */
+  /* See implementation. */
   let return_expr_ref_storage: i32 = 0;
-  /* 先声明，避免 codegen 将 name_start 提升到首 token 初始化；FUNCTION 分支内再赋值。
-   * 用 func_name_len_storage[0] 存函数名长度，避免与 plen 等复用导致被 i32 的 ident_len(3) 覆盖。 */
+  /* See implementation. */
+   * See implementation.
   let name_start: usize = (0 as usize);
   let func_name_len_storage: i32[1] = [];
   /**
@@ -3980,14 +4715,14 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
   let param_pool: *u8 = 0 as *u8;
   let pname_row: u8[32] = [];
   let zi_param: i32 = 0;
-  /* 用 lexer_next_into 取首 token，避免 LexerResult 按值返回/赋值的 ABI 导致 r.tok 读错 */
+  /* See implementation. */
   let r: LexerResult = LexerResult { next_lex: lex, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
   lexer.lexer_next_into(&r, lex, source);
-  /* parse_into 调用时已消费 "function"，首 token 为 IDENT（函数名）；否则首 token 须为 FUNCTION 再消费得 IDENT */
+  /* See implementation. */
   if (r.tok.kind == token.TokenKind.TOKEN_IDENT) {
-    /* 调用方已消费 FUNCTION，r 即为函数名 token，直接用作 name */
+    /* See implementation. */
   } else if (r.tok.kind == token.TokenKind.TOKEN_SPAWN) {
-    /* std.process function spawn(...)：async spawn 关键字在 function 声明位置作函数名 */
+    /* See implementation. */
     func_name_len_storage[0] = 5;
     dummy_name[0] = 115;
     dummy_name[1] = 112;
@@ -3995,7 +4730,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
     dummy_name[3] = 119;
     dummy_name[4] = 110;
     lex_from_next_into(&lex, r);
-    /* 跳过下方 IDENT 分支的 copy；直接进入参数列表 */
+    /* See implementation. */
   } else {
     if (r.tok.kind != token.TokenKind.TOKEN_FUNCTION) {
       set_onefunc_fail(out, lex); return;
@@ -4035,7 +4770,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
     lex_from_next_into(&lex, r);
   }
   lexer.lexer_next_into(&r, lex, source);
-  /** 泛型函数 `function id<T>(...)`：跳过 `<...>` 再读 `(`。 */
+  /* See implementation. */
   if (r.tok.kind == token.TokenKind.TOKEN_LT) {
     let generic_n: i32 = 0;
     parser_skip_generic_angle_list_count_into_glue(&lex, &generic_n, lex, source);
@@ -4089,7 +4824,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       driver_diagnostic_parser_onefunc_param_ref(&dummy_name[0], func_name_len_storage[0], &pname_row[0], plen_param,
       0, param_idx, type_ref_param);
       lexer.lexer_next_into(&r, lex, source);
-      /* 若上面已 consume 则 r 已推进；否则需与原逻辑一致，此处类型已写入侧车池。 */
+      /* See implementation. */
       if (r.tok.kind == token.TokenKind.TOKEN_RPAREN) {
         lex_from_next_into(&lex, r);
         break;
@@ -4099,7 +4834,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       }
       lex_from_next_into(&lex, r);
       lexer.lexer_next_into(&r, lex, source);
-      /** 允许形参列表尾逗号：`a: T,)`（与 extern 解析一致）。 */
+      /* See implementation. */
       if (r.tok.kind == token.TokenKind.TOKEN_RPAREN) {
         lex_from_next_into(&lex, r);
         break;
@@ -4117,7 +4852,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
   if (ret_type_ref == 0) {
     set_onefunc_fail(out, lex); return;
   }
-  /* 写入 OneFuncResult，供 parse_into/parse_into_buf 填充 Func.return_type_ref（与其它模块 i64/CALL 对齐）。 */
+  /* See implementation. */
   out.func_return_type_ref = ret_type_ref;
   if (ret_type_ref != 0) {
     let rt: Type = ast.ast_arena_type_get(arena, ret_type_ref);
@@ -4129,10 +4864,10 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
   if (r.tok.kind != token.TokenKind.TOKEN_LBRACE) {
     set_onefunc_fail(out, lex); return;
   }
-  /* 消费 {，解析 body 内 let/const 并填充 out.num_lets、let_init_refs 等，再同步到 impl_snap，得到 return/int 等 token */
+  /* See implementation. */
   if (r.tok.kind == token.TokenKind.TOKEN_LBRACE) {
     lex_from_next_into(&lex, r);
-    /* 与 C 侧 parse_block 一致：在函数体里按源码累计 stmt_order（含 let 与 while 之间的 expr;） */
+    /* See implementation. */
     out.num_src_stmt_order = 0;
     out.num_src_body_expr_stmts = 0;
     if (!parse_body_lets_into(arena, lex, source, out, &lex)) {
@@ -4141,7 +4876,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
     }
     out.num_lets = pipeline_onefunc_num_lets(onefunc_result_pool_ptr(out));
     out.num_consts = pipeline_onefunc_num_consts(onefunc_result_pool_ptr(out));
-    /** 将 { 后连续 let/const 写入 stmt_order；须用 out.num_*（impl_snap 侧车池未参与 parse_body_lets_into）。 */
+    /* See implementation. */
     let csr0: i32 = 0;
     while (csr0 < out.num_consts) {
       onefunc_push_src_stmt(out, 0, csr0);
@@ -4153,8 +4888,8 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       lsr = lsr + 1;
     }
     /*
-     * parse_body_lets 可能已停在 return/match/while 首 token；仅 peek 到 r，勿 lexer_next 推进 lex：
-     * 否则会吞掉 return，stmt 循环从 match 开扫，`let x; return match x` 整函数 num_funcs=0。
+     * See implementation.
+     * See implementation.
      */
     let r_peek: LexerResult = LexerResult { next_lex: lex, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
     lexer.lexer_next_into(&r_peek, lex, source);
@@ -4173,15 +4908,15 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
     let stmt_start: Lexer = Lexer { pos: 0 as usize, line: 0, col: 0 };
     let expr_stmt_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: stmt_start };
     let ex_i: i32 = 0;
-    /* while / for / if / expr; 交错：与 C parser parse_block 主循环对齐，避免仅批处理 loop 导致 stmt_order 与 codegen 顺序错乱 */
+    /* See implementation. */
     while (1 == 1) {
       if (!stmt_tok_ready) {
         lexer.lexer_next_into(&r, lex, source);
       }
       stmt_tok_ready = false;
       /*
-       * if (struct.field) 后 lex 偶发落在 `return r3.value` 的 r3；回扫至 return 关键字，
-       * 避免落入 expr_stmt 分支导致 num_funcs=0。
+       * See implementation.
+       * See implementation.
        */
       if (r.tok.kind == token.TokenKind.TOKEN_IDENT) {
         let ret_id_start: usize = r.token_start;
@@ -4200,16 +4935,16 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
           lex = ret_kw_lex;
         }
       }
-      /* 块尾 } 或 return 结束 stmt 循环；勿把语句首 int（如 0 as *u8;、if (0 as *u8)）误判为块尾裸表达式。 */
+      /* See implementation. */
       if (r.tok.kind == token.TokenKind.TOKEN_RETURN || r.tok.kind == token.TokenKind.TOKEN_RBRACE
           || r.tok.kind == token.TokenKind.TOKEN_MATCH || r.tok.kind == token.TokenKind.TOKEN_EOF) {
         break;
       }
-      /* if/while/for 之后仍可跟 let/const：首段仅 parse_body_lets_into({ 后…) 吃掉连续 let，此处不认 TOKEN_LET 会落入 expr 分支失败 */
+      /* See implementation. */
       if (r.tok.kind == token.TokenKind.TOKEN_LET || r.tok.kind == token.TokenKind.TOKEN_CONST) {
         let n_before_mid: i32 = pipeline_onefunc_num_lets(onefunc_result_pool_ptr(out));
-        /* expr; 后进 let：上一轮 lex_from_result_ptr 把 lex 指在 r.next_lex（关键字已跨过），不能直接作 parse_body_lets 起点。
-         * 关键字 token_start 常为 0，lex_at_token_from_result 亦非多字符关键字；用语义长度回溯到「let」「const」首字节。 */
+        /* See implementation. */
+         * See implementation.
         let kw_back: i32 = 3;
         if (r.tok.kind == token.TokenKind.TOKEN_CONST) {
           kw_back = 5;
@@ -4341,7 +5076,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         stmt_tok_ready = true;
         continue;
       }
-      /** LANG-007 v2：unsafe { body } — OneFunc 侧车暂存，落 Block 时复用 regions 池。 */
+      /* See implementation. */
       if (r.tok.kind == token.TokenKind.TOKEN_IDENT && r.tok.ident_len == 6) {
         let unsafe_nm_fn: u8[64] = [];
         copy_slice_to_name64(source, r.token_start, r.tok.ident_len, &unsafe_nm_fn[0]);
@@ -4376,8 +5111,8 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         }
       }
       /**
-       * 标号语句：`label:` 后接 `return expr` 或 `goto target;`。
-       * return 路径 break 到函数体尾部统一 return 解析；goto 仅消费 token 供后续标号块扩展。
+       * See implementation.
+       * See implementation.
        */
       if (parser_token_is_label_start(r, source)) {
         let colon_fn: LexerResult = LexerResult {
@@ -4588,8 +5323,8 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         continue;
       }
       /**
-       * parse_if 偶发将 lex 落在下一 if 的 `(`；若落入 expr 分支会把 `(N != 0)` 记入 stmt_order，
-       * 函数体内连续 if/while/for 只 codegen 前几条。回扫至真实控制流关键字后走对应分支。
+       * See implementation.
+       * See implementation.
        */
       if (r.tok.kind == token.TokenKind.TOKEN_LPAREN) {
         lex = parser_rewind_lex_for_lparen_control_stmt(lex, r, source);
@@ -4609,8 +5344,8 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         }
         onefunc_push_src_stmt(out, 5, if_pool_idx);
         /**
-         * parse_if_stmt_into() 已返回下一 stmt 首 token；此处勿再二次 realign。
-         * 否则 `if (...) { ... } tick(); x = ...;` 这类裸 expr_stmt 后继会被重新暴露给当前函数体顶层循环。
+         * See implementation.
+         * See implementation.
          */
         stmt_tok_ready = false;
         continue;
@@ -4687,16 +5422,16 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
     set_onefunc_fail(out, lex); return;
   }
   if (r.tok.kind == token.TokenKind.TOKEN_RBRACE) {
-    /* if/while/for 等语句后已到函数体闭合 }：保留 loop/if；src_stmt_order 已在 out 上，copy_onefunc 不覆盖。 */
+    /* See implementation. */
     lex_from_next_into(&lex, r);
     onefunc_finish_impl_to_out(out, &impl_snap, lex, &dummy_name[0], func_name_len_storage[0], return_expr_ref_storage);
     return;
   }
-  /** 走到这里说明函数体闭合前仍存在真实尾表达式或显式 return，需要允许 parse_into 复原 final_expr。 */
+  /* See implementation. */
   impl_snap.has_final_expr = true;
   /*
-   * stmt 循环在 return 已被 parse_body_lets/前扫消费后可能停在 MATCH（`let x; return match x`）；
-   * 按隐式 `return match …` 解析，避免落入 return 分支前 set_onefunc_fail。
+   * See implementation.
+   * See implementation.
    */
   if (r.tok.kind == token.TokenKind.TOKEN_MATCH) {
     impl_snap.has_explicit_return_kw = true;
@@ -4721,8 +5456,8 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
     return;
   }
   /*
-   * `let y = 1; return match y { … }`：return 已被前扫消费时 stmt 循环可能停在 subject ident（y），
-   * 勿落入 expr_stmt；从 "match" 起点重解析整段 match 表达式。
+   * See implementation.
+   * See implementation.
    */
   if (r.tok.kind == token.TokenKind.TOKEN_IDENT) {
     let subj_start: usize = r.token_start;
@@ -4756,7 +5491,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
   impl_snap.has_explicit_return_kw = true;
   lex_from_next_into(&lex, r);
   lexer.lexer_next_into(&r, lex, source);
-  /** `return match x { … }`：return 后紧跟 match 关键字（let x; return match x 常见形态）。 */
+  /* See implementation. */
   if (r.tok.kind == token.TokenKind.TOKEN_MATCH) {
     let match_ret_lex: Lexer = lex_at_token_from_result(r);
     let match_ret_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: match_ret_lex };
@@ -4778,7 +5513,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
     onefunc_finish_impl_to_out(out, &impl_snap, lex, &dummy_name[0], func_name_len_storage[0], return_expr_ref_storage);
     return;
   }
-  /** i32 等标量且非 return if：统一 parse_expr（if(struct.field) 后 return struct.field）。 */
+  /* See implementation. */
   if (!return_type_is_bool && r.tok.kind != token.TokenKind.TOKEN_IF) {
     let rex_u_lex: Lexer = lex_at_token_from_result(r);
     let rex_u_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: rex_u_lex };
@@ -4799,7 +5534,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       return;
     }
   }
-  /** `return if`：优先 parse_if_expr_into；失败则落 legacy has_if_expr（let 初值含字符串 call 时偶发失败）。 */
+  /* See implementation. */
   if (r.tok.kind == token.TokenKind.TOKEN_IF) {
     let if_lex: Lexer = lex_at_token_from_result(r);
     let if_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: if_lex };
@@ -4859,7 +5594,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
     lex_from_next_into(&lex, r);
     let lex_cond_start: Lexer = lex;
     lexer.lexer_next_into(&r, lex, source);
-    /* 支持 return if ( true/false ) { int } else { int }；其它条件须 parse_expr 进 arena，供 typeck 拒绝 if (1) 等非 bool。 */
+    /* See implementation. */
     if (r.tok.kind == token.TokenKind.TOKEN_TRUE || r.tok.kind == token.TokenKind.TOKEN_FALSE) {
       impl_snap.if_cond_true = r.tok.kind == token.TokenKind.TOKEN_TRUE;
       impl_snap.if_cond_expr_ref = 0;
@@ -4876,12 +5611,12 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       lex = cond_res.next_lex;
       lexer.lexer_next_into(&r, lex, source);
     }
-    /* 仅当未用 skip_balanced_parens 时需消费 )；skip 后 lex 已在 ) 之后，r 为 {，不可再要求 TOKEN_RPAREN 否则 hello.x 的 return if (n>=0){0}else{1} 失败 */
+    /* See implementation. */
     if (r.tok.kind == token.TokenKind.TOKEN_RPAREN) {
       lex_from_next_into(&lex, r);
       lexer.lexer_next_into(&r, lex, source);
     }
-    /* then 分支：接受 { int } 或 裸 int */
+    /* See implementation. */
     if (r.tok.kind == token.TokenKind.TOKEN_LBRACE) {
       lex_from_next_into(&lex, r);
       lexer.lexer_next_into(&r, lex, source);
@@ -4901,7 +5636,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
     }
     lex_from_next_into(&lex, r);
     lexer.lexer_next_into(&r, lex, source);
-    /* else 分支：接受 { int } 或 裸 int */
+    /* See implementation. */
     if (r.tok.kind == token.TokenKind.TOKEN_LBRACE) {
       lex_from_next_into(&lex, r);
       lexer.lexer_next_into(&r, lex, source);
@@ -4917,7 +5652,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       lex_from_next_into(&lex, r);
       lexer.lexer_next_into(&r, lex, source);
     }
-    /* return if (cond) { int } else { int } 解析成功，写回 out 并返回，避免落入下方要求 SEMICOLON 的分支导致失败 */
+    /* See implementation. */
     onefunc_finish_impl_to_out(out, &impl_snap, lex, &dummy_name[0], func_name_len_storage[0], return_expr_ref_storage);
     return;
   } else if (r.tok.kind == token.TokenKind.TOKEN_MINUS) {
@@ -4954,8 +5689,8 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
     }
     impl_snap.return_val = ret_int_val;
     /*
-     * return 1+2 / 42-10 / 1+2*3 等：走 parse_expr_into 建完整二元树到 return_expr_ref_storage，
-     * 勿仅写 has_binop/binop_right_val（OneFuncResult bool/i32 在 parse_into 读 res 时可能撕裂）。
+     * See implementation.
+     * See implementation.
      */
     if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON && r.tok.kind != token.TokenKind.TOKEN_RBRACE) {
       let rex_add: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: ret_int_lex };
@@ -4970,15 +5705,15 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       }
       return;
     }
-    /* return 单字面量 <int> 后：允许直接 } 或 ; } */
+    /* See implementation. */
     if (!onefunc_finish_after_return_lex(out, &impl_snap, source, lex, &dummy_name[0], func_name_len_storage[0], return_expr_ref_storage)) {
       set_onefunc_fail(out, lex); return;
     }
     return;
   } else {
     /*
-     * i32 等标量返回：表达式以 (、true、字符串等非 IDENT 开头时须走 parse_expr_into 建 AST，
-     * * 与 bool 返回分支及 C 解析器一致；避免落入下方仅扫到分号、impl_snap.return_expr_ref 仍为 0 的死路径。
+     * See implementation.
+     * See implementation.
      */
     if (r.tok.kind != token.TokenKind.TOKEN_IDENT) {
       let rex_lex_ni: Lexer = lex_at_token_from_result(r);
@@ -5001,7 +5736,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       onefunc_finish_impl_to_out(out, &impl_snap, lex, &dummy_name[0], func_name_len_storage[0], return_expr_ref_storage);
       return;
     }
-    /* 阶段 5：return ident(); 无参调用，供多文件 main 中 return bar(); */
+    /* See implementation. */
     if (r.tok.kind == token.TokenKind.TOKEN_IDENT) {
       let clen: i32 = r.tok.ident_len;
       if (clen > 0 && clen <= 63) {
@@ -5010,7 +5745,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         impl_snap.call_callee_len = clen;
         lex_from_next_into(&lex, r);
         lexer.lexer_next_into(&r, lex, source);
-        /* return ident + ident 且两 ident 为形参（如 return a + b）时解析为 impl_snap.has_binop + binop_left/right_param_idx */
+        /* See implementation. */
         if (r.tok.kind == token.TokenKind.TOKEN_PLUS && out.num_params >= 2) {
           lex_from_next_into(&lex, r);
           lexer.lexer_next_into(&r, lex, source);
@@ -5024,7 +5759,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
                 ii = ii + 1;
               }
             }
-            /* 右操作数长度与第二形参一致即认为匹配（C 解析器下避免 (expr as usize) 等写法导致 parse error） */
+            /* See implementation. */
             let right_ok: bool = (r.tok.ident_len == pipeline_onefunc_param_name_len(binop_pool, 1));
             if (left_ok && right_ok) {
               impl_snap.has_binop = true;
@@ -5046,8 +5781,8 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
           }
         }
         /*
-         * `return match x { … }` 被误读成 return + ident(x) 且后继为 `{` 时，从 "match " 起点重解析。
-         * 典型触发：let 绑定名与 match subject 同名（let x; return match x）。
+         * See implementation.
+         * See implementation.
          */
         if (r.tok.kind == token.TokenKind.TOKEN_LBRACE && parser_match_kw_immediately_before(source, cstart)) {
           let match_back: usize = cstart - 6;
@@ -5071,7 +5806,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
           onefunc_finish_impl_to_out(out, &impl_snap, lex, &dummy_name[0], func_name_len_storage[0], return_expr_ref_storage);
           return;
         }
-        /* return ident 后非 '('：return x 或 return x;（identifier 字节已在 impl_snap.call_callee_name） */
+        /* See implementation. */
         if (r.tok.kind == token.TokenKind.TOKEN_RBRACE || r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
           impl_snap.has_call_expr = false;
           impl_snap.return_val = 0;
@@ -5092,7 +5827,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
           return;
         }
         if (r.tok.kind == token.TokenKind.TOKEN_LPAREN) {
-          /* return callee(...)；从 callee 起点 parse_expr_into（支持 ()、整型/field 实参），勿先消费 '('。 */
+          /* See implementation. */
           let ret_expr_lex: Lexer = Lexer { pos: cstart, line: 1, col: 1 };
           let ret_expr_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: ret_expr_lex };
           parse_expr_into(arena, ret_expr_lex, source, &ret_expr_res);
@@ -5117,8 +5852,8 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
           return;
         }
         /*
-         * return arena.exprs[idx] / ident.field / ident + expr 等：IDENT 后继既非裸变量结尾（;/}），也非「直接调用」的 '('，
-         * * 则从标识符字节起点解析整条表达式（与同块的 return callee(...) 一致），勿落入下方「扫到分号但不建 AST」的死路径。
+         * See implementation.
+         * See implementation.
          */
         let ret_expr_lex_member: Lexer = Lexer { pos: cstart, line: 1, col: 1 };
         let ret_expr_res_member: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: ret_expr_lex_member };
@@ -5143,7 +5878,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         onefunc_finish_impl_to_out(out, &impl_snap, lex, &dummy_name[0], func_name_len_storage[0], return_expr_ref_storage);
         return;
       } else {
-        /* ident_len 为 0 或 >63 时内层从不执行，若直接落入下方「扫至分号」会得到 return_val=0 与错误 C（如 add 只有 return 0）。从当前 token 起 parse_expr_into。 */
+        /* See implementation. */
         let ret_id_badlen_lex: Lexer = lex_at_token_from_result(r);
         let ret_id_badlen_res: ParseExprResult = ParseExprResult { ok: false, expr_ref: 0, next_lex: ret_id_badlen_lex };
         parse_expr_into(arena, ret_id_badlen_lex, source, &ret_id_badlen_res);
@@ -5168,7 +5903,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         return;
       }
     }
-    /* return <非整型表达式>; 如 return e.resolved_type_ref; 跳过至分号，impl_snap.return_val 用 0（bool 已在 return 后立即 parse_expr 路径处理）。 */
+    /* See implementation. */
     while (1 == 1) {
       if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON || r.tok.kind == token.TokenKind.TOKEN_EOF) {
         break;
@@ -5190,7 +5925,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
     onefunc_finish_impl_to_out(out, &impl_snap, lex, &dummy_name[0], func_name_len_storage[0], return_expr_ref_storage);
     return;
   }
-  /* return 后允许直接 } 或 ; }（语法约定：} 后不带分号，return 后分号可选） */
+  /* See implementation. */
   if (r.tok.kind == token.TokenKind.TOKEN_RBRACE) {
     lex_from_next_into(&lex, r);
   } else if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
@@ -5206,9 +5941,9 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
   onefunc_finish_impl_to_out(out, &impl_snap, lex, &dummy_name[0], func_name_len_storage[0], return_expr_ref_storage);
   return;
   } else {
-    /* body 以非 INT/return 开头（如赋值、if 等）：跳过整块 { ... }，仍视为解析成功以便继续下一函数（bootstrap codegen.x） */
+    /* See implementation. */
     lex = skip_balanced_braces(lex, source);
-    /* 使用 loop/for/if/call 侧车池：形参/实参不再内嵌于 OneFuncResult 结构体。 */
+    /* See implementation. */
     onefunc_finish_impl_to_out(out, &impl_snap, lex, &dummy_name[0], func_name_len_storage[0], return_expr_ref_storage);
     return;
   }
@@ -5216,8 +5951,8 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
 }
 
 /**
- * import 路径段长度：IDENT/I32 或 TOKEN_ASYNC（std.async 模块名）。
- * 形参 token.TokenKind + ident_len（勿 Token 按值）；ASYNC 用 i32 ordinal 29。
+ * See implementation.
+ * See implementation.
  */
 export function import_path_dot_segment_len(kind: token.TokenKind, ident_len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -5239,12 +5974,12 @@ export function import_path_dot_segment_len(kind: token.TokenKind, ident_len: i3
 
 
 /**
- * 将 import 路径段从 source[token_start..] 复制到 path_buf[path_len..]。
+ * See implementation.
  */
-/** 单行 extern bl→parser_import_path_dot_segment_copy_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 export extern function parser_import_path_dot_segment_copy_glue(source: u8[], token_start: usize, seg_len: i32, path_buf: *u8, path_len: i32): void;
 /**
- * 将 import 路径段从 source[token_start..] 复制到 path_buf[path_len..]。
+ * See implementation.
  */
 export function import_path_dot_segment_copy(source: u8[], token_start: usize, seg_len: i32, path_buf: *u8, path_len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -5260,7 +5995,16 @@ export function import_path_dot_segment_copy(source: u8[], token_start: usize, s
 }
 
 
-/** import_path_dot_segment_copy 的 buf 变体：parser_slice_from_buf + bl import_path_dot_segment_copy。 */
+/** Exported function `import_path_dot_segment_copy_buf`.
+ * Implements `import_path_dot_segment_copy_buf`.
+ * @param data *u8
+ * @param len i32
+ * @param token_start usize
+ * @param seg_len i32
+ * @param path_buf *u8
+ * @param path_len i32
+ * @return void
+ */
 export function import_path_dot_segment_copy_buf(data: *u8, len: i32, token_start: usize, seg_len: i32, path_buf: *u8, path_len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -5272,18 +6016,18 @@ export function import_path_dot_segment_copy_buf(data: *u8, len: i32, token_star
 
 
 /**
- * 初始化 arena 与 module 的计数/主函数下标；单独成函数以避免 codegen 将初始化语句移到 parse_into 循环之后。
- * 形参顺序为 (module, arena)，调用方传 (module, arena)，使某些 ABI 下第二实参（arena）正确收到初始化。
- * Module 顶层计数由 parser.pipeline_module_reset_parse_counters 写入，对齐 pipeline_gen 原语义。
+ * See implementation.
+ * See implementation.
+ * See implementation.
  */
 export function parse_into_init(module: *Module, arena: *ASTArena): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   ast.ast_arena_init(arena);
-  /** C 侧 memset(module/arena) 后须清 sidecar grow 池，否则二次 parse 累积 funcs 出现重复 main。 */
+  /* See implementation. */
   ast_pool_module_reset(module);
   ast_pool_arena_reset(arena);
-  /** 首轮解析前合并 OneFuncResult 各段字面量到 struct_layouts，供 FIELD_ACCESS / set_onefunc_fail 前 typeck */
+  /* See implementation. */
   onefunc_result_layout_prime();
   onefunc_result_layout_prime_b();
   onefunc_result_layout_prime_c();
@@ -5299,11 +6043,17 @@ export function parse_into_init(module: *Module, arena: *ASTArena): void {
 
 
 /**
- * 跳过顶层 import 语句：若当前 token 为 TOKEN_IMPORT 则消费至分号并继续，直到遇到非 import。
- * 返回跳过后的 lex，供 diag_lex_after_imports 等诊断路径使用（不收集 import 路径）。
+ * See implementation.
+ * See implementation.
  */
-/** 单行 extern bl→parser_skip_imports_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 export extern function parser_skip_imports_glue(lex: Lexer, source: u8[]): Lexer;
+/** Exported function `skip_imports`.
+ * Implements `skip_imports`.
+ * @param lex Lexer
+ * @param source u8[]
+ * @return Lexer
+ */
 export function skip_imports(lex: Lexer, source: u8[]): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -5312,7 +6062,13 @@ export function skip_imports(lex: Lexer, source: u8[]): Lexer {
 }
 
 
-/** skip_imports 的 buf 变体：parser_slice_from_buf + bl skip_imports（扩 EMIT_HEAVY __text）。 */
+/** Exported function `skip_imports_buf`.
+ * Implements `skip_imports_buf`.
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @return Lexer
+ */
 export function skip_imports_buf(lex: Lexer, data: *u8, len: i32): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -5323,12 +6079,20 @@ export function skip_imports_buf(lex: Lexer, data: *u8, len: i32): Lexer {
 
 
 /**
- * 收集顶层 import 路径到 module，并通过 out 写出跳过 import 后的 lex。
- * 解析 import("path") 绑定 `const m = import("path");`，填充 module.import_paths / import_path_lens / num_imports。
- * 使用 out 参数避免按值返回 Lexer（ABI 导致有 import 时返回值错误），供 parse_into 在解析 function 前调用。
+ * See implementation.
+ * See implementation.
+ * See implementation.
  */
-/** 单行 extern bl→parser_collect_imports_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 export extern function parser_collect_imports_glue(lex: Lexer, source: u8[], module: *Module, out: *CollectImportsResult): void;
+/** Exported function `collect_imports`.
+ * Implements `collect_imports`.
+ * @param lex Lexer
+ * @param source u8[]
+ * @param module *Module
+ * @param out *CollectImportsResult
+ * @return void
+ */
 export function collect_imports(lex: Lexer, source: u8[], module: *Module, out: *CollectImportsResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -5338,7 +6102,7 @@ export function collect_imports(lex: Lexer, source: u8[], module: *Module, out: 
 
 
 /**
- * buf 形式的 collect_imports：parser_slice_from_buf + bl collect_imports（勿 lexer_next_buf 按值 ABI）。
+ * See implementation.
  */
 export function collect_imports_buf(lex: Lexer, data: *u8, len: i32, module: *Module, out: *CollectImportsResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -5350,12 +6114,19 @@ export function collect_imports_buf(lex: Lexer, data: *u8, len: i32, module: *Mo
 
 
 /**
- * 跳过一条顶层 struct 定义：struct <ident> { ... }；lex 为 struct 前的位置。
- * 返回跳过后的 lex，供 parse_into 在解析 function 前跳过 codegen.x 等文件中的 struct。
+ * See implementation.
+ * See implementation.
  */
-/** 跳过一条顶层 struct 定义：struct <ident> { ... }；lex 为 struct 前的位置。与 skip_one_struct 等价 + _into 避免 ABI。 */
-/** 单行 extern bl→parser_skip_one_struct_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
+/* See implementation. */
 export extern function parser_skip_one_struct_into_glue(out: *Lexer, lex: Lexer, source: u8[]): void;
+/** Exported function `skip_one_struct_into`.
+ * Implements `skip_one_struct_into`.
+ * @param out *Lexer
+ * @param lex Lexer
+ * @param source u8[]
+ * @return void
+ */
 export function skip_one_struct_into(out: *Lexer, lex: Lexer, source: u8[]): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -5364,8 +6135,14 @@ export function skip_one_struct_into(out: *Lexer, lex: Lexer, source: u8[]): voi
 }
 
 
-/** 单行 extern bl→parser_skip_one_struct_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 export extern function parser_skip_one_struct_glue(lex: Lexer, source: u8[]): Lexer;
+/** Exported function `skip_one_struct`.
+ * Implements `skip_one_struct`.
+ * @param lex Lexer
+ * @param source u8[]
+ * @return Lexer
+ */
 export function skip_one_struct(lex: Lexer, source: u8[]): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -5375,12 +6152,12 @@ export function skip_one_struct(lex: Lexer, source: u8[]): Lexer {
 
 
 /**
- * 登记顶层 enum 类型名（去重），供 codegen / match 查 variant tag；返回 sidecar 下标，失败为 -1。
+ * See implementation.
  */
-/** 单行 extern bl→parser_module_try_register_enum_name_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 export extern function parser_module_try_register_enum_name_glue(module: *Module, name: *u8, name_len: i32): i32;
 /**
- * 登记顶层 enum 类型名（去重），供 codegen / match 查 variant tag；返回 sidecar 下标，失败为 -1。
+ * See implementation.
  */
 export function module_try_register_enum_name(module: *Module, name: *u8, name_len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -5419,11 +6196,20 @@ export function module_try_register_enum_name(module: *Module, name: *u8, name_l
 
 
 /**
- * 扫描 enum `{ ... }` 体内变体名并写入 module sidecar（供 match Color.Green 等查 tag），再跳过至匹配 `}`。
- * lex 位于 `{` 之后（与 skip_balanced_braces_into 入参一致）。
+ * See implementation.
+ * See implementation.
  */
-/** 单行 extern bl→parser_module_append_enum_variants_and_skip_body_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 extern function parser_module_append_enum_variants_and_skip_body_into_glue(module: *Module, enum_idx: i32, out: *Lexer, lex: Lexer, source: u8[]): void;
+/** Internal function `module_append_enum_variants_and_skip_body_into`.
+ * Implements `module_append_enum_variants_and_skip_body_into`.
+ * @param module *Module
+ * @param enum_idx i32
+ * @param out *Lexer
+ * @param lex Lexer
+ * @param source u8[]
+ * @return void
+ */
 function module_append_enum_variants_and_skip_body_into(module: *Module, enum_idx: i32, out: *Lexer, lex: Lexer, source: u8[]): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -5432,7 +6218,16 @@ function module_append_enum_variants_and_skip_body_into(module: *Module, enum_id
 }
 
 
-/** 与 module_append_enum_variants_and_skip_body_into 相同，源为 (data,len) buf。 */
+/** Internal function `module_append_enum_variants_and_skip_body_into_buf`.
+ * Implements `module_append_enum_variants_and_skip_body_into_buf`.
+ * @param module *Module
+ * @param enum_idx i32
+ * @param out *Lexer
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @return void
+ */
 function module_append_enum_variants_and_skip_body_into_buf(module: *Module, enum_idx: i32, out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -5478,9 +6273,17 @@ function module_append_enum_variants_and_skip_body_into_buf(module: *Module, enu
 
 
 
-/** 与 skip_one_enum_into 相同，且将 enum 名记入 module（slice 源）。 */
-/** 单行 extern bl→parser_skip_one_enum_register_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
+/* See implementation. */
 extern function parser_skip_one_enum_register_into_glue(module: *Module, out: *Lexer, lex: Lexer, source: u8[]): void;
+/** Internal function `skip_one_enum_register_into`.
+ * Registration helper `skip_one_enum_register_into`.
+ * @param module *Module
+ * @param out *Lexer
+ * @param lex Lexer
+ * @param source u8[]
+ * @return void
+ */
 function skip_one_enum_register_into(module: *Module, out: *Lexer, lex: Lexer, source: u8[]): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -5489,7 +6292,15 @@ function skip_one_enum_register_into(module: *Module, out: *Lexer, lex: Lexer, s
 }
 
 
-/** 与 skip_one_enum_into_buf 相同，且登记 enum 名（buf 源）；parser_slice_from_buf + bl skip_one_enum_register_into。 */
+/** Internal function `skip_one_enum_register_into_buf`.
+ * Registration helper `skip_one_enum_register_into_buf`.
+ * @param module *Module
+ * @param out *Lexer
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @return void
+ */
 function skip_one_enum_register_into_buf(module: *Module, out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -5499,7 +6310,15 @@ function skip_one_enum_register_into_buf(module: *Module, out: *Lexer, lex: Lexe
 }
 
 
-/** skip_one_enum_register_into 的 buf 别名（与 skip_one_enum_register_into_buf 等价，扩 EMIT_HEAVY __text）。 */
+/** Internal function `skip_one_enum_register_buf`.
+ * Registration helper `skip_one_enum_register_buf`.
+ * @param module *Module
+ * @param out *Lexer
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @return void
+ */
 function skip_one_enum_register_buf(module: *Module, out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -5509,12 +6328,19 @@ function skip_one_enum_register_buf(module: *Module, out: *Lexer, lex: Lexer, da
 
 
 /**
- * 跳过一条顶层 enum 定义：enum <ident> { ... }；lex 为 enum 前的位置。
- * 供 parse_into 在解析 function 前跳过 token.x 等文件中的 enum。
+ * See implementation.
+ * See implementation.
  */
-/** 跳过一条顶层 enum 定义：enum <ident> { ... }；通过 out 避免 ABI。 */
-/** 单行 extern bl→parser_skip_one_enum_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
+/* See implementation. */
 extern function parser_skip_one_enum_into_glue(out: *Lexer, lex: Lexer, source: u8[]): void;
+/** Internal function `skip_one_enum_into`.
+ * Implements `skip_one_enum_into`.
+ * @param out *Lexer
+ * @param lex Lexer
+ * @param source u8[]
+ * @return void
+ */
 function skip_one_enum_into(out: *Lexer, lex: Lexer, source: u8[]): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -5522,8 +6348,14 @@ function skip_one_enum_into(out: *Lexer, lex: Lexer, source: u8[]): void {
   }
 }
 
-/** 单行 extern bl→parser_skip_one_enum_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 extern function parser_skip_one_enum_glue(lex: Lexer, source: u8[]): Lexer;
+/** Internal function `skip_one_enum`.
+ * Implements `skip_one_enum`.
+ * @param lex Lexer
+ * @param source u8[]
+ * @return Lexer
+ */
 function skip_one_enum(lex: Lexer, source: u8[]): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -5533,11 +6365,18 @@ function skip_one_enum(lex: Lexer, source: u8[]): Lexer {
 
 
 /**
- * 跳过一条顶层 trait 定义：trait <ident> { ... }；供 parse_into 在解析 function 前跳过 std.io 等文件中的 trait。
+ * See implementation.
  */
-/** 跳过一条顶层 trait 定义：trait <ident> { ... }；通过 out 避免 ABI。 */
-/** 单行 extern bl→parser_skip_one_trait_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
+/* See implementation. */
 extern function parser_skip_one_trait_into_glue(out: *Lexer, lex: Lexer, source: u8[]): void;
+/** Internal function `skip_one_trait_into`.
+ * Implements `skip_one_trait_into`.
+ * @param out *Lexer
+ * @param lex Lexer
+ * @param source u8[]
+ * @return void
+ */
 function skip_one_trait_into(out: *Lexer, lex: Lexer, source: u8[]): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -5545,8 +6384,14 @@ function skip_one_trait_into(out: *Lexer, lex: Lexer, source: u8[]): void {
   }
 }
 
-/** 单行 extern bl→parser_skip_one_trait_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 extern function parser_skip_one_trait_glue(lex: Lexer, source: u8[]): Lexer;
+/** Internal function `skip_one_trait`.
+ * Implements `skip_one_trait`.
+ * @param lex Lexer
+ * @param source u8[]
+ * @return Lexer
+ */
 function skip_one_trait(lex: Lexer, source: u8[]): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -5556,11 +6401,18 @@ function skip_one_trait(lex: Lexer, source: u8[]): Lexer {
 
 
 /**
- * 跳过一条顶层 impl 块：impl [<ident> for ] <ident> { ... }；供 parse_into 在解析 function 前跳过 std.io 等文件中的 impl。
+ * See implementation.
  */
-/** 跳过一条顶层 impl 块：impl [<ident> for ] <ident> { ... }；通过 out 避免 ABI。 */
-/** 单行 extern bl→parser_skip_one_impl_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
+/* See implementation. */
 extern function parser_skip_one_impl_into_glue(out: *Lexer, lex: Lexer, source: u8[]): void;
+/** Internal function `skip_one_impl_into`.
+ * Implements `skip_one_impl_into`.
+ * @param out *Lexer
+ * @param lex Lexer
+ * @param source u8[]
+ * @return void
+ */
 function skip_one_impl_into(out: *Lexer, lex: Lexer, source: u8[]): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -5568,15 +6420,28 @@ function skip_one_impl_into(out: *Lexer, lex: Lexer, source: u8[]): void {
   }
 }
 
-/** 单行 extern bl→parser_skip_one_impl_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 extern function parser_skip_one_impl_glue(lex: Lexer, source: u8[]): Lexer;
+/** Internal function `skip_one_impl`.
+ * Implements `skip_one_impl`.
+ * @param lex Lexer
+ * @param source u8[]
+ * @return Lexer
+ */
 function skip_one_impl(lex: Lexer, source: u8[]): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   return parser_skip_one_impl_glue(lex, source);
   }
 }
-/** skip_one_enum_buf 的 _into_buf 变体；parser_slice_from_buf + bl skip_one_enum_into（collect_imports_buf / 13al 模式）。 */
+/** Internal function `skip_one_enum_into_buf`.
+ * Implements `skip_one_enum_into_buf`.
+ * @param out *Lexer
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @return void
+ */
 function skip_one_enum_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -5596,7 +6461,14 @@ function skip_one_enum_buf(lex: Lexer, data: *u8, len: i32): Lexer {
 }
 
 
-/** skip_one_trait_buf 的 _into_buf 变体；parser_slice_from_buf + bl skip_one_trait_into。 */
+/** Internal function `skip_one_trait_into_buf`.
+ * Implements `skip_one_trait_into_buf`.
+ * @param out *Lexer
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @return void
+ */
 function skip_one_trait_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -5615,7 +6487,14 @@ function skip_one_trait_buf(lex: Lexer, data: *u8, len: i32): Lexer {
 }
 
 
-/** skip_one_impl_buf 的 _into_buf 变体；parser_slice_from_buf + bl skip_one_impl_into。 */
+/** Internal function `skip_one_impl_into_buf`.
+ * Implements `skip_one_impl_into_buf`.
+ * @param out *Lexer
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @return void
+ */
 function skip_one_impl_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -5635,12 +6514,19 @@ function skip_one_impl_buf(lex: Lexer, data: *u8, len: i32): Lexer {
 
 
 /**
- * 跳过一条顶层 extern function 声明：extern function <ident>( ... ): <type> ;。
- * 供 parse_into 在解析 function 前跳过 main.x 等文件中的 extern 声明。
+ * See implementation.
+ * See implementation.
  */
-/** 跳过一条顶层 extern function 声明：通过 out 避免 ABI。 */
-/** 单行 extern bl→parser_skip_one_extern_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
+/* See implementation. */
 extern function parser_skip_one_extern_into_glue(out: *Lexer, lex: Lexer, source: u8[]): void;
+/** Internal function `skip_one_extern_into`.
+ * Implements `skip_one_extern_into`.
+ * @param out *Lexer
+ * @param lex Lexer
+ * @param source u8[]
+ * @return void
+ */
 function skip_one_extern_into(out: *Lexer, lex: Lexer, source: u8[]): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -5648,8 +6534,14 @@ function skip_one_extern_into(out: *Lexer, lex: Lexer, source: u8[]): void {
   }
 }
 
-/** 单行 extern bl→parser_skip_one_extern_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 extern function parser_skip_one_extern_glue(lex: Lexer, source: u8[]): Lexer;
+/** Internal function `skip_one_extern`.
+ * Implements `skip_one_extern`.
+ * @param lex Lexer
+ * @param source u8[]
+ * @return Lexer
+ */
 function skip_one_extern(lex: Lexer, source: u8[]): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -5659,24 +6551,28 @@ function skip_one_extern(lex: Lexer, source: u8[]): Lexer {
 
 
 /**
- * extern 声明解析快照：与普通 function 共用「(name: Ty,…)」语法；return_ty_ref 为 `): Ty` 的 arena ref（含 void）。
- * 失败时 name_len=-1，其余字段无意义。
+ * See implementation.
+ * See implementation.
  */
 allow(padding) struct ExternParseResult {
   next_lex: Lexer;
   name: u8[64];
   name_len: i32;
-  /** 紧跟 `)` 后的返回类型；仅供 parse_one_extern_and_add；失败或未解析时为 0。 */
+  /* See implementation. */
   return_ty_ref: i32;
-  /** 形参个数；形参名/类型在侧车 grow 池（extern_parse_pool_ptr）。 */
+  /* See implementation. */
   num_params: i32;
-  /** ABI 标记：0=X ABI（默认），1=C ABI（extern "C"）。P0a 语义降级阶段仅存储不改变行为。 */
+  /* See implementation. */
   abi_kind: i32;
-  /** 变参：1=extern "C" function f(fmt: *u8, ...); 0=定参。仅 C ABI 支持变参。 */
+  /* See implementation. */
   is_variadic: i32;
 }
 
-/** 取 ExternParseResult 侧车池键（与 OneFunc 共用 grow 池 API，按 struct 地址索引）。 */
+/** Internal function `extern_parse_pool_ptr`.
+ * Implements `extern_parse_pool_ptr`.
+ * @param res *ExternParseResult
+ * @return *u8
+ */
 function extern_parse_pool_ptr(res: *ExternParseResult): *u8 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -5686,14 +6582,14 @@ function extern_parse_pool_ptr(res: *ExternParseResult): *u8 {
 
 
 /**
- * 将 ExternParseResult 形参写入 arena 与 module sidecar 池（Func 本体不再内嵌 params 数组）。
- * res 须为 parse_one_extern_skip_into 写入的同一栈对象，侧车池按地址索引。
+ * See implementation.
+ * See implementation.
  */
-/** 单行 extern bl→parser_write_extern_params_to_pools_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 extern function parser_write_extern_params_to_pools_glue(arena: *ASTArena, module: *Module, func_ref: i32, fi: i32, res: *ExternParseResult): void;
 /**
- * 将 ExternParseResult 形参写入 arena 与 module sidecar 池（Func 本体不再内嵌 params 数组）。
- * res 须为 parse_one_extern_skip_into 写入的同一栈对象，侧车池按地址索引。
+ * See implementation.
+ * See implementation.
  */
 function write_extern_params_to_pools(arena: *ASTArena, module: *Module, func_ref: i32, fi: i32, res: *ExternParseResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -5714,7 +6610,12 @@ function write_extern_params_to_pools(arena: *ASTArena, module: *Module, func_re
 
 
 
-/** 将 extern 解析失败快照写入 out（name_len=-1）。 */
+/** Internal function `extern_parse_set_fail`.
+ * Implements `extern_parse_set_fail`.
+ * @param out *ExternParseResult
+ * @param lex Lexer
+ * @return void
+ */
 function extern_parse_set_fail(out: *ExternParseResult, lex: Lexer): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -5732,9 +6633,17 @@ function extern_parse_set_fail(out: *ExternParseResult, lex: Lexer): void {
 }
 
 
-/** 仅解析 extern function 到分号，结果写入 out；失败时 name_len=-1。须用指针路径以便侧车池与 out 同址。 */
-/** 单行 extern bl→parser_parse_one_extern_skip_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
+/* See implementation. */
 extern function parser_parse_one_extern_skip_into_glue(out: *ExternParseResult, arena: *ASTArena, lex: Lexer, source: u8[]): void;
+/** Internal function `parse_one_extern_skip_into`.
+ * Implements `parse_one_extern_skip_into`.
+ * @param out *ExternParseResult
+ * @param arena *ASTArena
+ * @param lex Lexer
+ * @param source u8[]
+ * @return void
+ */
 function parse_one_extern_skip_into(out: *ExternParseResult, arena: *ASTArena, lex: Lexer, source: u8[]): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -5743,7 +6652,15 @@ function parse_one_extern_skip_into(out: *ExternParseResult, arena: *ASTArena, l
 }
 
 
-/** parse_one_extern_skip_into 的 buf 变体：parser_slice_from_buf + bl parse_one_extern_skip_into。 */
+/** Internal function `parse_one_extern_skip_into_buf`.
+ * Implements `parse_one_extern_skip_into_buf`.
+ * @param out *ExternParseResult
+ * @param arena *ASTArena
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @return void
+ */
 function parse_one_extern_skip_into_buf(out: *ExternParseResult, arena: *ASTArena, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -5754,18 +6671,21 @@ function parse_one_extern_skip_into_buf(out: *ExternParseResult, arena: *ASTAren
 
 
 /**
- * 解析一条 extern function 声明并加入 module（name、is_extern=1、无 body），使 codegen 能为其生成 extern 声明。
- * 先调 parse_one_extern_skip_into 再按结果写 module，避免 -E 生成 C 时重排导致逻辑错乱。
+ * See implementation.
+ * See implementation.
  */
 
 /**
- * 将已写入 arena 的 Func 登记到 module 动态池；返回 module 下标，池满返回 -1。
- * 形参须由调用方经 pipeline_module_func_param_write 写入 sidecar 池。
+ * See implementation.
+ * See implementation.
  */
-/** 单行 extern bl→parser_module_register_arena_func_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
-/** 将已写入 arena 的 Func 登记到 module 动态池；返回 module 下标，池满返回 -1。
- * 形参须由调用方经 pipeline_module_func_param_write 写入 sidecar 池。
- * EMIT_HEAVY safe_helper X 真 emit（pipeline_module_* 标量 glue 调用）。
+/* See implementation. */
+/** Internal function `module_register_arena_func`.
+ * Registration helper `module_register_arena_func`.
+ * @param module *Module
+ * @param func_ref i32
+ * @param f Func
+ * @return i32
  */
 function module_register_arena_func(module: *Module, func_ref: i32, f: Func): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -5802,9 +6722,18 @@ function module_register_arena_func(module: *Module, func_ref: i32, f: Func): i3
 
 
 
-/** parse_one_extern_and_add 的 _into 变体：通过 lex_out 指针写结果。 */
-/** 单行 extern bl→parser_parse_one_extern_and_add_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
+/* See implementation. */
 extern function parser_parse_one_extern_and_add_into_glue(arena: *ASTArena, module: *Module, lex: Lexer, source: u8[], lex_out: *Lexer): void;
+/** Internal function `parse_one_extern_and_add_into`.
+ * Implements `parse_one_extern_and_add_into`.
+ * @param arena *ASTArena
+ * @param module *Module
+ * @param lex Lexer
+ * @param source u8[]
+ * @param lex_out *Lexer
+ * @return void
+ */
 function parse_one_extern_and_add_into(arena: *ASTArena, module: *Module, lex: Lexer, source: u8[], lex_out: *Lexer): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -5813,8 +6742,15 @@ function parse_one_extern_and_add_into(arena: *ASTArena, module: *Module, lex: L
 }
 
 
-/** 与 skip_one_extern 等价，接受 (data: *u8, len) 供 parse_into_buf 使用。 */
-/** skip_one_extern_buf 的 _into_buf 变体；parser_slice_from_buf + bl skip_one_extern_into。 */
+/* See implementation. */
+/** Internal function `skip_one_extern_into_buf`.
+ * Implements `skip_one_extern_into_buf`.
+ * @param out *Lexer
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @return void
+ */
 function skip_one_extern_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -5834,11 +6770,21 @@ function skip_one_extern_buf(lex: Lexer, data: *u8, len: i32): Lexer {
 
 
 /**
- * 解析一条 extern function 声明并加入 module（buf 路径）；与 parse_one_extern_and_add 对称。
- * 先调 parse_one_extern_skip_into 再按结果写 module，失败则 fallback 到 skip_one_extern_buf。
+ * See implementation.
+ * See implementation.
  */
-/** parse_one_extern_and_add_buf 的 _into_buf 变体：走 buf glue，避免 slice 栈临时体在 -E/seed 链上偶发失效。 */
+/* See implementation. */
 extern function parser_parse_one_extern_and_add_into_buf_glue(arena: *ASTArena, module: *Module, lex: Lexer, data: *u8, len: i32, lex_out: *Lexer): void;
+/** Internal function `parse_one_extern_and_add_into_buf`.
+ * Implements `parse_one_extern_and_add_into_buf`.
+ * @param arena *ASTArena
+ * @param module *Module
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @param lex_out *Lexer
+ * @return void
+ */
 function parse_one_extern_and_add_into_buf(arena: *ASTArena, module: *Module, lex: Lexer, data: *u8, len: i32, lex_out: *Lexer): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -5848,18 +6794,18 @@ function parse_one_extern_and_add_into_buf(arena: *ASTArena, module: *Module, le
 
 
 /**
- * 尝试跳过 allow(padding) struct ...；lex 为 "allow" 之后的位置。
- * 若下一 token 为 ( 则跳过整段并返回 (new_lex, 1)，否则返回 (lex, 0)。主循环仅在此返回 1 时 advance。
- * 显式 padding 满足 typeck 对布局的要求。
+ * See implementation.
+ * See implementation.
+ * See implementation.
  */
-/** allow(padding)：Lexer + skipped 与 _pad 组合时可能有 gap（§11.1）。 */
+/* See implementation. */
 allow(padding) struct TrySkipAllowResult {
   lex: Lexer;
   skipped: i32;
   _pad: u8[4];
 }
 
-/** 库函数解析结果：parse_one_function_library 成功时返回 ok、next_lex 及函数名，供 parse_into 继续循环。 */
+/* See implementation. */
 allow(padding) struct LibraryParseResult {
   ok: bool;
   _pad: u8[4];
@@ -5868,9 +6814,15 @@ allow(padding) struct LibraryParseResult {
   name_len: i32;
   _pad_tail: u8[4];
 }
-/** 从 TrySkipAllowResult 取 lex 写入 out，避免 ABI 下结构体赋值未写回。 */
-/** 单行 extern bl→parser_lex_from_try_skip_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
+/* See implementation. */
 extern function parser_lex_from_try_skip_into_glue(out: *Lexer, t: TrySkipAllowResult): void;
+/** Internal function `lex_from_try_skip_into`.
+ * Implements `lex_from_try_skip_into`.
+ * @param out *Lexer
+ * @param t TrySkipAllowResult
+ * @return void
+ */
 function lex_from_try_skip_into(out: *Lexer, t: TrySkipAllowResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -5878,9 +6830,15 @@ function lex_from_try_skip_into(out: *Lexer, t: TrySkipAllowResult): void {
   }
 }
 
-/** 从 LibraryParseResult 取 next_lex 写入 out，同上。 */
-/** 单行 extern bl→parser_lex_from_library_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
+/* See implementation. */
 extern function parser_lex_from_library_into_glue(out: *Lexer, lib: LibraryParseResult): void;
+/** Internal function `lex_from_library_into`.
+ * Implements `lex_from_library_into`.
+ * @param out *Lexer
+ * @param lib LibraryParseResult
+ * @return void
+ */
 function lex_from_library_into(out: *Lexer, lib: LibraryParseResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -5888,9 +6846,14 @@ function lex_from_library_into(out: *Lexer, lib: LibraryParseResult): void {
   }
 }
 
-/** 兼容：返回 Lexer。 */
-/** 单行 extern bl→parser_lex_from_try_skip_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
+/* See implementation. */
 extern function parser_lex_from_try_skip_glue(t: TrySkipAllowResult): Lexer;
+/** Internal function `lex_from_try_skip`.
+ * Implements `lex_from_try_skip`.
+ * @param t TrySkipAllowResult
+ * @return Lexer
+ */
 function lex_from_try_skip(t: TrySkipAllowResult): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -5898,9 +6861,14 @@ function lex_from_try_skip(t: TrySkipAllowResult): Lexer {
   }
 }
 
-/** 兼容：返回 Lexer。 */
-/** 单行 extern bl→parser_lex_from_library_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
+/* See implementation. */
 extern function parser_lex_from_library_glue(lib: LibraryParseResult): Lexer;
+/** Internal function `lex_from_library`.
+ * Implements `lex_from_library`.
+ * @param lib LibraryParseResult
+ * @return Lexer
+ */
 function lex_from_library(lib: LibraryParseResult): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -5909,7 +6877,7 @@ function lex_from_library(lib: LibraryParseResult): Lexer {
 }
 
 
-/** 库函数“仅解析”中间结果：由 parse_one_function_library_scan 按步写入，避免 -E 代码生成把变量提升到函数顶导致错序。显式 _pad 满足对齐。 */
+/* See implementation. */
 struct LibraryParseScanResult {
   ok: bool;
   _pad: u8[4];
@@ -5927,11 +6895,18 @@ struct LibraryParseScanResult {
 }
 
 /**
- * 仅做 token 序列解析并写入 result，不建 AST；每步检查后立即写 result，避免代码生成器提升变量导致错序。
- * 成功返回 true，失败返回 false 并写 result.next_lex / result.ok。
+ * See implementation.
+ * See implementation.
  */
-/** 单行 extern bl→parser_parse_one_function_library_scan_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 extern function parser_parse_one_function_library_scan_glue(lex: Lexer, source: u8[], result: *LibraryParseScanResult): bool;
+/** Internal function `parse_one_function_library_scan`.
+ * Implements `parse_one_function_library_scan`.
+ * @param lex Lexer
+ * @param source u8[]
+ * @param result *LibraryParseScanResult
+ * @return bool
+ */
 function parse_one_function_library_scan(lex: Lexer, source: u8[], result: *LibraryParseScanResult): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -5940,10 +6915,16 @@ function parse_one_function_library_scan(lex: Lexer, source: u8[], result: *Libr
   return false;  // unreachable — typeck after unsafe block
 }
 
-/** 判断 module 中是否已有同名 struct layout（避免重复注册）。 */
-/** 单行 extern bl→parser_struct_layout_name_exists_arr_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
+/* See implementation. */
 extern function parser_struct_layout_name_exists_arr_glue(module: *Module, nm: u8[64], nlen: i32): bool;
-/** 判断 module 中是否已有同名 struct layout（避免重复注册）。 */
+/** Internal function `struct_layout_name_exists_arr`.
+ * Implements `struct_layout_name_exists_arr`.
+ * @param module *Module
+ * @param nm u8[64]
+ * @param nlen i32
+ * @return bool
+ */
 function struct_layout_name_exists_arr(module: *Module, nm: u8[64], nlen: i32): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -5971,10 +6952,16 @@ function struct_layout_name_exists_arr(module: *Module, nm: u8[64], nlen: i32): 
 
 
 
-/** 返回首个与 nm 同名的 struct_layouts 下标，无则 -1。 */
-/** 单行 extern bl→parser_struct_layout_first_name_match_idx_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
+/* See implementation. */
 extern function parser_struct_layout_first_name_match_idx_glue(module: *Module, nm: u8[64], nlen: i32): i32;
-/** 返回首个与 nm 同名的 struct_layouts 下标，无则 -1。 */
+/** Internal function `struct_layout_first_name_match_idx`.
+ * Implements `struct_layout_first_name_match_idx`.
+ * @param module *Module
+ * @param nm u8[64]
+ * @param nlen i32
+ * @return i32
+ */
 function struct_layout_first_name_match_idx(module: *Module, nm: u8[64], nlen: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -6003,14 +6990,14 @@ function struct_layout_first_name_match_idx(module: *Module, nm: u8[64], nlen: i
 
 
 /**
- * 是否存在与 nm 同名的「占位」layout：parse_one_function_library 可能先注册 num_fields=1 且 field_lens[0]==0 的条目，
- * 后续顶层 struct 应按真实成员覆盖该槽位，否则 typeck 只能通过下一槽位兜底。
+ * See implementation.
+ * See implementation.
  */
-/** 单行 extern bl→parser_struct_layout_placeholder_idx_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 extern function parser_struct_layout_placeholder_idx_glue(module: *Module, nm: u8[64], nlen: i32): i32;
 /**
- * 是否存在与 nm 同名的「占位」layout：parse_one_function_library 可能先注册 num_fields=1 且 field_lens[0]==0 的条目，
- * 后续顶层 struct 应按真实成员覆盖该槽位，否则 typeck 只能通过下一槽位兜底。
+ * See implementation.
+ * See implementation.
  */
 function struct_layout_placeholder_idx(module: *Module, nm: u8[64], nlen: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -6049,11 +7036,19 @@ function struct_layout_placeholder_idx(module: *Module, nm: u8[64], nlen: i32): 
 
 
 /**
- * 解析库中“单参 + 返回 bool + return 单表达式”形态：function <name>(<param>: <Type>): bool { return <param>.<field> == <Enum>.<variant>; }。
- * 先调 parse_one_function_library_scan 取解析结果，再按 result 建 AST，避免 -E 生成 C 时变量提升导致错序。
+ * See implementation.
+ * See implementation.
  */
-/** 单行 extern bl→parser_parse_one_function_library_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 extern function parser_parse_one_function_library_glue(arena: *ASTArena, module: *Module, lex: Lexer, source: u8[]): LibraryParseResult;
+/** Internal function `parse_one_function_library`.
+ * Implements `parse_one_function_library`.
+ * @param arena *ASTArena
+ * @param module *Module
+ * @param lex Lexer
+ * @param source u8[]
+ * @return LibraryParseResult
+ */
 function parse_one_function_library(arena: *ASTArena, module: *Module, lex: Lexer, source: u8[]): LibraryParseResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -6063,8 +7058,8 @@ function parse_one_function_library(arena: *ASTArena, module: *Module, lex: Lexe
 
 
 /**
- * 与 parse_one_function_library 等价，接受 (data: *u8, len) 供 parse_into_buf 使用。
- * 委托 slice 路径（parser_slice_from_buf），与 parse_into 行为一致，避免存根导致库形态回退失败、num_funcs 残缺。
+ * See implementation.
+ * See implementation.
  */
 function parse_one_function_library_buf(arena: *ASTArena, module: *Module, lex: Lexer, data: *u8, len: i32): LibraryParseResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -6076,9 +7071,16 @@ function parse_one_function_library_buf(arena: *ASTArena, module: *Module, lex: 
 
 
 
-/** 仅当 r 为 TOKEN_IDENT 且 ident_len==5 时调用 try_skip_allow_padding_struct，否则返回 (lex, 0)。主循环统一调用此包装避免复杂条件。 */
-/** 单行 extern bl→parser_parse_into_try_skip_allow_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
+/* See implementation. */
 extern function parser_parse_into_try_skip_allow_glue(lex: Lexer, r: LexerResult, source: u8[]): TrySkipAllowResult;
+/** Internal function `parse_into_try_skip_allow`.
+ * Implements `parse_into_try_skip_allow`.
+ * @param lex Lexer
+ * @param r LexerResult
+ * @param source u8[]
+ * @return TrySkipAllowResult
+ */
 function parse_into_try_skip_allow(lex: Lexer, r: LexerResult, source: u8[]): TrySkipAllowResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -6097,8 +7099,14 @@ function parse_into_try_skip_allow_buf(lex: Lexer, r: LexerResult, data: *u8, le
 }
 
 
-/** 单行 extern bl→parser_try_skip_allow_padding_struct_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 extern function parser_try_skip_allow_padding_struct_glue(lex: Lexer, source: u8[]): TrySkipAllowResult;
+/** Internal function `try_skip_allow_padding_struct`.
+ * Implements `try_skip_allow_padding_struct`.
+ * @param lex Lexer
+ * @param source u8[]
+ * @return TrySkipAllowResult
+ */
 function try_skip_allow_padding_struct(lex: Lexer, source: u8[]): TrySkipAllowResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -6117,7 +7125,14 @@ function try_skip_allow_padding_struct_buf(lex: Lexer, data: *u8, len: i32): Try
 }
 
 
-/** skip_one_struct_buf 的 _into_buf 变体；parser_slice_from_buf + bl skip_one_struct_into。 */
+/** Internal function `skip_one_struct_into_buf`.
+ * Implements `skip_one_struct_into_buf`.
+ * @param out *Lexer
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @return void
+ */
 function skip_one_struct_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -6137,12 +7152,20 @@ function skip_one_struct_buf(lex: Lexer, data: *u8, len: i32): Lexer {
 
 
 /**
- * 从 r 当前 IDENT 起解析可选 `a.b.Type` 限定类型名，写入 out[0..63] 并设置 *out_len。
- * 结束后 r 仍指向类型名**最后一个** IDENT（与单段 `*Foo` 一致，供 parse_type_ref 的 lex_from_next 再前进一步）。
- * 失败返回 -1。
+ * See implementation.
+ * See implementation.
+ * See implementation.
  */
-/** 单行 extern bl→parser_consume_qualified_type_ident_name_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 extern function parser_consume_qualified_type_ident_name_glue(source: u8[], r: *LexerResult, out: *u8, out_len: *i32): i32;
+/** Internal function `consume_qualified_type_ident_name`.
+ * Implements `consume_qualified_type_ident_name`.
+ * @param source u8[]
+ * @param r *LexerResult
+ * @param out *u8
+ * @param out_len *i32
+ * @return i32
+ */
 function consume_qualified_type_ident_name(source: u8[], r: *LexerResult, out: *u8, out_len: *i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -6152,7 +7175,15 @@ function consume_qualified_type_ident_name(source: u8[], r: *LexerResult, out: *
 }
 
 
-/** consume_qualified_type_ident_name 的 buf 变体：parser_slice_from_buf + bl consume_qualified_type_ident_name。 */
+/** Internal function `consume_qualified_type_ident_name_buf`.
+ * Implements `consume_qualified_type_ident_name_buf`.
+ * @param data *u8
+ * @param len i32
+ * @param r *LexerResult
+ * @param out *u8
+ * @param out_len *i32
+ * @return i32
+ */
 function consume_qualified_type_ident_name_buf(data: *u8, len: i32, r: *LexerResult, out: *u8, out_len: *i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -6164,8 +7195,8 @@ function consume_qualified_type_ident_name_buf(data: *u8, len: i32, r: *LexerRes
 
 
 /**
- * 判断 token 是否可作为「*」后的指向目标（命名类型或内建标量关键字，含 u8/i32 等）。
- * EMIT_HEAVY safe_helper X 真 emit（纯 token.TokenKind 分派，无 lexer 调用）。
+ * See implementation.
+ * See implementation.
  */
 function is_pointee_type_token(kind: token.TokenKind): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -6192,11 +7223,18 @@ function is_pointee_type_token(kind: token.TokenKind): bool {
 
 
 /**
- * 在 r 指向「*」后首 token 时，将指向目标类型写入 arena 类型池并返回其 ref；失败返回 0（不前进 lex）。
- * 须传 *LexerResult：LexerResult 按值传给子函数时主机 ABI（如 AArch64）会撕裂 tok/token_start，导致 *T 的元素名错乱与 struct 布局不匹配。
+ * See implementation.
+ * See implementation.
  */
-/** 单行 extern bl→parser_alloc_pointee_type_ref_from_tok_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 extern function parser_alloc_pointee_type_ref_from_tok_glue(arena: *ASTArena, source: u8[], r: *LexerResult): i32;
+/** Internal function `alloc_pointee_type_ref_from_tok`.
+ * Memory management helper `alloc_pointee_type_ref_from_tok`.
+ * @param arena *ASTArena
+ * @param source u8[]
+ * @param r *LexerResult
+ * @return i32
+ */
 function alloc_pointee_type_ref_from_tok(arena: *ASTArena, source: u8[], r: *LexerResult): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -6207,12 +7245,12 @@ function alloc_pointee_type_ref_from_tok(arena: *ASTArena, source: u8[], r: *Lex
 
 
 /**
- * 分配 TYPE_VECTOR 类型节点（elem_ord 为 TypeKind 序数，lanes 为车道数）。
+ * See implementation.
  */
-/** 单行 extern bl→parser_parser_alloc_vector_type_ref_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 extern function parser_parser_alloc_vector_type_ref_glue(arena: *ASTArena, elem_ord: i32, lanes: i32): i32;
 /**
- * 分配 TYPE_VECTOR 类型节点（elem_ord 为 TypeKind 序数，lanes 为车道数）。
+ * See implementation.
  */
 function parser_alloc_vector_type_ref(arena: *ASTArena, elem_ord: i32, lanes: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -6239,10 +7277,17 @@ function parser_alloc_vector_type_ref(arena: *ASTArena, elem_ord: i32, lanes: i3
 
 
 /**
- * IDENT 拼写为 i32x4/u32x8 等时返回 TYPE_VECTOR ref（部分 lex 路径仍落 TOKEN_IDENT → TYPE_NAMED）。
+ * See implementation.
  */
-/** 单行 extern bl→parser_parser_vector_type_ref_from_ident_spelling_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 extern function parser_parser_vector_type_ref_from_ident_spelling_glue(arena: *ASTArena, source: u8[], r: LexerResult): i32;
+/** Internal function `parser_vector_type_ref_from_ident_spelling`.
+ * Implements `parser_vector_type_ref_from_ident_spelling`.
+ * @param arena *ASTArena
+ * @param source u8[]
+ * @param r LexerResult
+ * @return i32
+ */
 function parser_vector_type_ref_from_ident_spelling(arena: *ASTArena, source: u8[], r: LexerResult): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -6253,11 +7298,23 @@ function parser_vector_type_ref_from_ident_spelling(arena: *ASTArena, source: u8
 
 
 /**
- * 解析顶层 struct Name { field: T; ... }：写入 module.struct_layouts（偏移 8 字节步进 + field_type_refs）。
- * lex 指向类型名第一个字节（已跳过 struct 关键字）。成功返回 0 且 *out_lex 在闭合 } 之后；失败返回 -1。
+ * See implementation.
+ * See implementation.
  */
-/** 单行 extern bl→parser_parse_struct_record_layout_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 export extern function parser_parse_struct_record_layout_into_glue(arena: *ASTArena, module: *Module, lex: Lexer, source: u8[], out_lex: *Lexer, allow_pad: i32, force_soa: i32, repr_compat: i32): i32;
+/** Exported function `parse_struct_record_layout_into`.
+ * Implements `parse_struct_record_layout_into`.
+ * @param arena *ASTArena
+ * @param module *Module
+ * @param lex Lexer
+ * @param source u8[]
+ * @param out_lex *Lexer
+ * @param allow_pad i32
+ * @param force_soa i32
+ * @param repr_compat i32
+ * @return i32
+ */
 export function parse_struct_record_layout_into(arena: *ASTArena, module: *Module, lex: Lexer, source: u8[], out_lex: *Lexer, allow_pad: i32, force_soa: i32, repr_compat: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -6268,13 +7325,22 @@ export function parse_struct_record_layout_into(arena: *ASTArena, module: *Modul
 
 
 /**
- * 与 parse_one_function 等价，接受 (data: *u8, len) 供 buf 路径使用；精简实现：
- * function <ident>(): <标量或 void?> { … }，体须显式 `return <int>;`（分号可省仅当其后直接为 `}` 时与主解析一致），
- * 不支持块末裸字面量当返回值。
+ * See implementation.
+ * See implementation.
+ * See implementation.
  */
-/** parse_one_function_buf 的 _into 变体：避免 ARM64 下 OneFuncResult 按值返回导致 ABI 错误。 */
-/** 单行 extern bl→parser_parse_one_function_buf_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
+/* See implementation. */
 export extern function parser_parse_one_function_buf_into_glue(out: *OneFuncResult, arena: *ASTArena, lex: Lexer, data: *u8, len: i32): void;
+/** Exported function `parse_one_function_buf_into`.
+ * Implements `parse_one_function_buf_into`.
+ * @param out *OneFuncResult
+ * @param arena *ASTArena
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @return void
+ */
 export function parse_one_function_buf_into(out: *OneFuncResult, arena: *ASTArena, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -6283,9 +7349,18 @@ export function parse_one_function_buf_into(out: *OneFuncResult, arena: *ASTAren
 }
 
 
-/** parse_one_function_library 的 _into 变体：避免 ARM64 下 LibraryParseResult 按值返回 ABI 错误。将结果写入 out 指针。 */
-/** 单行 extern bl→parser_parse_one_function_library_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
+/* See implementation. */
 export extern function parser_parse_one_function_library_into_glue(out: *LibraryParseResult, arena: *ASTArena, module: *Module, lex: Lexer, source: u8[]): void;
+/** Exported function `parse_one_function_library_into`.
+ * Implements `parse_one_function_library_into`.
+ * @param out *LibraryParseResult
+ * @param arena *ASTArena
+ * @param module *Module
+ * @param lex Lexer
+ * @param source u8[]
+ * @return void
+ */
 export function parse_one_function_library_into(out: *LibraryParseResult, arena: *ASTArena, module: *Module, lex: Lexer, source: u8[]): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -6295,7 +7370,7 @@ export function parse_one_function_library_into(out: *LibraryParseResult, arena:
 
 
 /**
- * parse_one_function_library_into 的 buf 变体：parser_slice_from_buf + bl into（扩 EMIT_HEAVY __text）。
+ * See implementation.
  */
 export function parse_one_function_library_into_buf(out: *LibraryParseResult, arena: *ASTArena, module: *Module, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -6306,9 +7381,17 @@ export function parse_one_function_library_into_buf(out: *LibraryParseResult, ar
 }
 
 
-/** parse_into_try_skip_allow 的 _into 变体。将结果写到 out 指针。 */
-/** 单行 extern bl→parser_parse_into_try_skip_allow_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
+/* See implementation. */
 export extern function parser_parse_into_try_skip_allow_into_glue(out: *TrySkipAllowResult, lex: Lexer, r: LexerResult, source: u8[]): void;
+/** Exported function `parse_into_try_skip_allow_into`.
+ * Implements `parse_into_try_skip_allow_into`.
+ * @param out *TrySkipAllowResult
+ * @param lex Lexer
+ * @param r LexerResult
+ * @param source u8[]
+ * @return void
+ */
 export function parse_into_try_skip_allow_into(out: *TrySkipAllowResult, lex: Lexer, r: LexerResult, source: u8[]): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -6317,7 +7400,15 @@ export function parse_into_try_skip_allow_into(out: *TrySkipAllowResult, lex: Le
 }
 
 
-/** parse_into_try_skip_allow_buf 的 _into_buf 变体；parser_slice_from_buf + bl parse_into_try_skip_allow_into。 */
+/** Exported function `parse_into_try_skip_allow_into_buf`.
+ * Implements `parse_into_try_skip_allow_into_buf`.
+ * @param out *TrySkipAllowResult
+ * @param lex Lexer
+ * @param r LexerResult
+ * @param data *u8
+ * @param len i32
+ * @return void
+ */
 export function parse_into_try_skip_allow_into_buf(out: *TrySkipAllowResult, lex: Lexer, r: LexerResult, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -6328,29 +7419,29 @@ export function parse_into_try_skip_allow_into_buf(out: *TrySkipAllowResult, lex
 
 
 /**
- * 解析若干最小函数并填入 .x AST：每项为 function <ident>(): i32 { return <int>; }，遇非 function 或 EOF 停止。
- * 成功时填充 arena 与 module（funcs[0..num_funcs-1]）；main_idx 由调用方写回 module.main_func_index。
- * 返回 ParseIntoResult：ok 0 成功 -1 失败，main_idx 为 main 下标（无则 -1）。
+ * See implementation.
+ * See implementation.
+ * See implementation.
  */
 export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): ParseIntoResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  /* 由调用方在调用 parse_into 前先调用 parse_into_init，避免 codegen 将 init 移到循环后 */
+  /* See implementation. */
   let lex: Lexer = lexer.lexer_init();
   let main_idx: i32 = -1;
-  /* 循环前一次性跳过顶层 import，通过 out 参数取 lex 避免按值返回 Lexer（ABI 导致有 import 时错误） */
+  /* See implementation. */
   let import_res: CollectImportsResult = CollectImportsResult { lex: lex };
   collect_imports(lex, source, module, &import_res);
   copy_lex_from_import_into(&lex, import_res);
   let loop_count: i32 = 0;
   while (1 == 1) {
-    /* 防护：避免 ABI/LexerResult 导致 lex 未更新而死循环；大文件（如 parser.x 五千行）需更多迭代，上限 128K 项 */
+    /* See implementation. */
     if (loop_count >= 131072) {
       return ParseIntoResult { ok: -1, main_idx: -1003 }
     }
     loop_count = loop_count + 1;
     let iter_start: Lexer = lex;
-    /* 首 token 必须用 lexer_next_into 写 r，否则结构体返回 ABI 导致 r/next_lex 错，传入 parse_one_function 的 lex 错、自举失败 */
+    /* See implementation. */
     let r: LexerResult = LexerResult { next_lex: lex, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
     let current_tok_lex: Lexer = lex;
     lexer.lexer_next_into(&r, lex, source);
@@ -6388,7 +7479,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       }
       continue;
     }
-    /** MOD-02：`#[repr(compatible)]` 下一顶层 struct 记 repr_compatible。 */
+    /* See implementation. */
     if (r.tok.kind == token.TokenKind.TOKEN_ATTR_REPR_COMPATIBLE) {
       module.pending_repr_compatible_struct = 1;
       lex_from_next_into(&lex, r);
@@ -6397,7 +7488,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       }
       continue;
     }
-    /** MEM-C1：`#[alloc]` 仅标记下一 function 由后续解析路径处理；顶层循环这里只消费 attribute。 */
+    /* See implementation. */
     if (r.tok.kind == token.TokenKind.TOKEN_ATTR_ALLOC) {
       lex_from_next_into(&lex, r);
       if (lex.pos == iter_start.pos && lex.pos < source.length) {
@@ -6433,7 +7524,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       if (lex.pos == iter_start.pos && lex.pos < source.length) { lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 }; }
       continue;
     }
-    /** 模块导出：`export` 下一顶层 function/struct/enum/const 记 is_export。 */
+    /* See implementation. */
     if (r.tok.kind == token.TokenKind.TOKEN_EXPORT) {
       module.pending_export = 1;
       lex_from_next_into(&lex, r);
@@ -6482,10 +7573,10 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
         continue;
       }
       /*
-       * 【Why】`#[cfg(false)] allow(padding) struct S`：allow 夹在 cfg 与 item 之间。
-       * 旧逻辑在非 STRUCT/CONST/LET/FUNCTION 时清 pending_cfg_skip，导致 allow 后 struct
-       * 仍被解析（posix PosixStatBuf macOS 布局在 Linux 上胜出 → fstat 错位）。
-       * allow 仅消费词法、保持 skip，直至真正 item 被 skip。
+       * See implementation.
+       * See implementation.
+       * See implementation.
+       * See implementation.
        */
       {
         let try_cfg_allow: TrySkipAllowResult = TrySkipAllowResult { lex: lex, skipped: 0, _pad: [] };
@@ -6574,14 +7665,14 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
         }
         continue;
       }
-      /* 非 function 且未 skip：可能是注释等，前进一个 token 再试，避免注释导致只解析前若干函数（与 parse_into_buf 一致） */
+      /* See implementation. */
       if (r.tok.kind == token.TokenKind.TOKEN_EOF) {
         break;
       }
       lex_from_next_into(&lex, r);
       continue;
     }
-    /* 库模块或正常结束：break 后若为 EOF 则直接返回成功，避免在 EOF 处当作 function 解析导致死循环（-backend asm 编 token.x 等仅 enum 的模块依赖此路径）。 */
+    /* See implementation. */
     if (r.tok.kind == token.TokenKind.TOKEN_EOF) {
       if (module.num_funcs == 0) {
         return parse_into_result_empty_module_or_fail_tok(diag_fail_at_token_kind(source));
@@ -6591,7 +7682,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       return ParseIntoResult { ok: 0, main_idx: out_idx_storage[0] }
     }
     /*
-     * let-hoist safe（product pin X→C）：与 parse_into_buf 同纪律——while 体 `let x = f()` 会被提到循环顶。
+     * See implementation.
      * PLATFORM: SHARED
      */
     let lex_at_function: Lexer = lexer.lexer_init();
@@ -6606,7 +7697,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
     onefunc_res_wire_dummy_call_binop(&res, parse_into_empty64);
     onefunc_res_wire_dummy_loop_call(&res);
     onefunc_res_wire_dummy_for_if(&res);
-    /* 优先 library：形态「单参 bool return x.y == Enum.V」须走专用 AST（EXPR_ENUM_VARIANT）；若先跑 impl 则会 parse_expr_into 成功却得不到 X typeck/asm 路径期望的节点 */
+    /* See implementation. */
     let empty64_lib_first: u8[64] = [];
     let lib_first: LibraryParseResult = LibraryParseResult { ok: false, _pad: [], next_lex: lex_at_function, name: empty64_lib_first, name_len: 0, _pad_tail: [] };
     lib_first = LibraryParseResult { ok: false, _pad: [], next_lex: lex_at_function, name: empty64_lib_first, name_len: 0, _pad_tail: [] };
@@ -6622,14 +7713,14 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
     if (!res.ok) {
       return ParseIntoResult { ok: -2, main_idx: -1 };
     }
-    /* 立即根据 res 判断是否 main 并存入数组，避免栈上变量被后续代码覆盖 */
+    /* See implementation. */
     let is_main_storage: i32[1] = [];
     if (res.name_len == 4 && res.name[0] == 109 && res.name[1] == 97 && res.name[2] == 105 && res.name[3] == 110) {
       is_main_storage[0] = 1;
     }
     parser_diagnostic_parse_func_generic((lex_at_function.pos) as i32, module.num_funcs, &res.name[0], res.name_len,
       res.num_generic_params, is_main_storage[0]);
-    /* 使用签名中的返回类型 Ty。let-hoist safe：先 0 再赋值。 */
+    /* See implementation. */
     let type_ref: i32 = 0;
     type_ref = res.func_return_type_ref;
     if (type_ref == 0) {
@@ -6656,7 +7747,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
     }
     let e: Expr = ast.ast_arena_expr_get(arena, expr_ref);
     e = ast.ast_arena_expr_get(arena, expr_ref);
-    /** 与 parse_into_buf 一致：slice 路径须识别 return_var_name，否则 impl_snap 已记变量名时仍建 EXPR_LIT(return_val)，多函数下易误为 return 0。 */
+    /* See implementation. */
     if (res.return_var_name_len > 0) {
       e.kind = ExprKind.EXPR_VAR;
       e.var_name_len = res.return_var_name_len;
@@ -6703,7 +7794,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
     e.index_proven_in_bounds = 0;
     ast.ast_arena_expr_set(arena, expr_ref, e);
 
-    /* let-hoist safe：bool 依赖 res 解析后字段。 */
+    /* See implementation. */
     let allow_legacy_tail_expr: bool = false;
     allow_legacy_tail_expr = res.has_final_expr || res.has_explicit_return_kw
       || res.return_expr_ref != 0 || res.return_var_name_len > 0;
@@ -6714,7 +7805,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
     if (res.return_expr_ref != 0) {
       final_expr_ref = res.return_expr_ref;
     }
-    /** return ident; 须落成 EXPR_RETURN(VAR)，勿留裸 EXPR_VAR 作 final_expr（typeck 隐式尾返回 -6）。 */
+    /* See implementation. */
     if (res.return_var_name_len > 0 && res.return_expr_ref == 0) {
       let var_wrapped: i32 = parser_expr_wrap_in_return(arena, type_ref, final_expr_ref);
       if (var_wrapped == 0) {
@@ -6964,9 +8055,9 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       final_expr_ref = if_expr_ref;
     }
     /*
-     * return a+b：impl 已写 return_val/binop_right_val；has_binop(bool) 在 parse_into 读 res 时可能撕裂为 false，
-     * 勿仅信 res.has_binop，否则 final 留 EXPR_LIT(return_val)（run-binary-expr 仅得左操作数）。
-     * return_expr_ref 已建完整树（struct lit / 复合 return）时勿再覆盖 final。
+     * See implementation.
+     * See implementation.
+     * See implementation.
      */
     if (res.return_expr_ref == 0) {
       if (res.has_binop || res.binop_right_val != 0) {
@@ -7330,7 +8421,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       ast.ast_arena_expr_set(arena, neg_ref, ne);
       final_expr_ref = neg_ref;
     }
-    /* 阶段 5：return ident(); 无参调用，构建 EXPR_VAR(callee) + EXPR_CALL，供多文件 main 中 return bar(); */
+    /* See implementation. */
     if (res.has_call_expr && res.return_expr_ref == 0 && res.call_callee_len > 0 && res.call_callee_len <= 63) {
       let call_pool: *u8 = onefunc_result_pool_ptr(&res);
       let callee_ref: i32 = ast.ast_arena_expr_alloc(arena);
@@ -7386,7 +8477,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
           ce.line = 0;
           ce.col = 0;
           ce.call_callee_ref = callee_ref;
-          /* 有参调用：res.call_num_args>0 为解析得到的整型实参（如 return add(1,2)），否则用当前函数形参名 */
+          /* See implementation. */
           if (res.call_num_args > 0) {
             ce.call_num_args = res.call_num_args;
           } else {
@@ -7429,7 +8520,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       }
     }
 
-    /* let-hoist safe：alloc 在 parse 成功后。 */
+    /* See implementation. */
     let block_ref: i32 = 0;
     block_ref = ast.ast_arena_block_alloc(arena);
     if (block_ref == 0) {
@@ -7437,11 +8528,11 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
     }
     let b: Block = ast.ast_arena_block_get(arena, block_ref);
     b = ast.ast_arena_block_get(arena, block_ref);
-    /** 新函数体块必须先落盘清零；否则 fill_* 会从脏 num_lets/num_consts 起步，导致 body_ref 读到旧块内容。 */
+    /* See implementation. */
     b.num_consts = 0;
     b.num_lets = 0;
     b.num_early_lets = 0;
-    /** 侧车池由 fill_*_from_onefunc 递增；勿预置 res.num_loops/num_if_stmts 以免 lazy_fix 错位。 */
+    /* See implementation. */
     b.num_loops = 0;
     b.num_for_loops = 0;
     b.num_if_stmts = 0;
@@ -7453,7 +8544,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
     b.num_stmt_order = 0;
     b.parent_block_ref = 0;
     ast.ast_arena_block_set(arena, block_ref, b);
-    /* 仅显式 return 时包 EXPR_RETURN；裸尾 `{ 0 }` 留裸表达式供 typeck 报隐式尾返回。 */
+    /* See implementation. */
     if (parser_should_wrap_func_tail_in_return(arena, &res, type_ref)) {
       let wrapped_fe: i32 = parser_expr_wrap_in_return(arena, type_ref, final_expr_ref);
       if (wrapped_fe == 0) {
@@ -7466,7 +8557,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       return ParseIntoResult { ok: -1, main_idx: -1 }
     }
     b = ast.ast_arena_block_get(arena, block_ref);
-    /** while/for 从 OneFunc 侧车池填充。let-hoist safe：n_* 在 res 填充后赋值。 */
+    /* See implementation. */
     let n_while_pool: i32 = 0;
     n_while_pool = pipeline_onefunc_num_whiles(onefunc_result_pool_ptr(&res));
     res.num_loops = n_while_pool;
@@ -7487,7 +8578,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
     n_def_pool = pipeline_onefunc_num_defers(onefunc_result_pool_ptr(&res));
     pipeline_block_fill_defers_from_onefunc(arena, block_ref, onefunc_result_pool_ptr(&res), n_def_pool);
     b = ast.ast_arena_block_get(arena, block_ref);
-    /* stmt_order：优先用 parse_one_function_impl 按源码累计的序（含 expr;），否则按批回退 */
+    /* See implementation. */
     if (res.num_src_stmt_order > 0) {
       pipeline_block_fill_expr_stmts_from_onefunc(arena, block_ref, onefunc_result_pool_ptr(&res), pipeline_onefunc_num_body_expr_stmts(onefunc_result_pool_ptr(&res)));
       pipeline_block_fill_stmt_order_from_onefunc(arena, block_ref, onefunc_result_pool_ptr(&res), pipeline_onefunc_num_src_stmt_order(onefunc_result_pool_ptr(&res)));
@@ -7528,7 +8619,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       }
       if_oi = if_oi + 1;
     }
-    /** M-3/MEM-C1：fallback stmt_order 须含 region/with_arena（else 分支此前漏 kind=6）。 */
+    /* See implementation. */
     let reg_oi: i32 = 0;
     while (reg_oi < pipeline_onefunc_num_regions(onefunc_result_pool_ptr(&res))) {
       if (pipeline_block_append_stmt_order(arena, block_ref, 6, reg_oi) < 0) {
@@ -7536,7 +8627,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       }
       reg_oi = reg_oi + 1;
     }
-    /* 仅有 final_expr 时当作一条 expr_stmt + stmt_order kind=2（须用局部 final_expr_ref：7257 写入 b 后 7262 起多次 block_get 会丢未 set 的 final_expr_ref）。 */
+    /* See implementation. */
     if (!ast.ref_is_null(final_expr_ref) && b.num_expr_stmts == 0) {
       let fin_ex: i32 = pipeline_block_append_expr_stmt(arena, block_ref, final_expr_ref);
       if (fin_ex < 0) {
@@ -7551,29 +8642,29 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
     }
     }
     /*
-     * 曾有 expr_stmt 时，勿无条件丢弃 final_expr_ref：parse_into 已将函数尾返回值包成 EXPR_RETURN，
-     * * 若前方还有 `expr;` 等语句（num_src_stmt_order>0），尾 return 不在 expr_stmt_refs 里，清空会导致 codegen 误补 return 0。
-     * * 仅当块尾 RETURN 的操作数与最后一条 expr_stmt 为同一 arena ref（历史「副产品」、避免重复 emit）时再清空。
+     * See implementation.
+     * See implementation.
+     * See implementation.
      */
     b = ast.ast_arena_block_get(arena, block_ref);
     b.final_expr_ref = final_expr_ref;
     if (b.num_expr_stmts > 0 && !ast.ref_is_null(final_expr_ref)) {
       let fe_dedup: Expr = ast.ast_arena_expr_get(arena, final_expr_ref);
-      /** 有前置 expr; 时保留 EXPR_RETURN 作块尾（z(); return 0;），勿 dedup 清空导致 typeck -6。 */
+      /* See implementation. */
       if (fe_dedup.kind != ExprKind.EXPR_RETURN) {
         b.final_expr_ref = 0;
       }
     }
     ast.ast_arena_block_set(arena, block_ref, b);
-    /** with_arena：OneFunc stmt_order 偶发缺 kind=6，须落 region 项否则 asm 只 emit 扁平 if 前几条。 */
+    /* See implementation. */
     pipeline_block_with_arena_fixup_stmt_order(arena, block_ref);
     b = ast.ast_arena_block_get(arena, block_ref);
     parser_diagnostic_parse_commit_post(arena, &res.name[0], res.name_len, block_ref, onefunc_result_pool_ptr(&res));
 
     /*
-     * 勿 let f: Func = module.funcs[i]：Func 体量较大时按值读/写在当前 codegen 路径上可能丢字段，
-     * * 会直接抹掉刚写入的 return_type_ref（typeck dep 上出现 return_type_ref==0）。
-     * let-hoist safe：module 槽仅在 commit 点分配。
+     * See implementation.
+     * See implementation.
+     * See implementation.
      */
     let fi: i32 = -1;
     fi = pipeline_module_func_alloc_slot(module);
@@ -7583,7 +8674,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
     pipeline_module_func_name_write(module, fi, &res.name[0], res.name_len);
     pipeline_module_func_set_num_params(module, fi, res.num_params);
     pipeline_module_func_set_num_generic_params(module, fi, res.num_generic_params);
-    /** 形参表：须 pipeline_module_func_param_write 写槽；形参名/类型从 OneFunc 侧车池读取。 */
+    /* See implementation. */
     let mod_pool: *u8 = onefunc_result_pool_ptr(&res);
     let p: i32 = 0;
     while (p < res.num_params) {
@@ -7614,11 +8705,11 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
     lex_from_onefunc_next_into(&lex, &res);
     ast_pool_onefunc_release(onefunc_result_pool_ptr(&res));
   }
-  /* 库模块（仅 enum/struct/extern，无 function）：返回 ok 0、main_idx -1，供 pipeline 走 typeck_x_ast_library；-backend asm -o xxx.o 编单模块依赖此路径。 */
+  /* See implementation. */
   if (module.num_funcs == 0) {
     return parse_into_result_empty_module_or_fail_tok(diag_fail_at_token_kind(source));
   }
-  /* 无 "main" 时保持 main_idx=-1，走 typeck_x_ast_library（-backend asm -o xxx.o 编库模块依赖此路径）；有 "main" 时返回其下标。 */
+  /* See implementation. */
   let out_idx_storage: i32[1] = [];
   out_idx_storage[0] = main_idx;
   return ParseIntoResult { ok: 0, main_idx: out_idx_storage[0] }
@@ -7626,11 +8717,21 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
 }
 
 /**
- * 解析一条顶层 let 或 const：lex 为消费掉 LET/CONST 后的位置，期望「ident : type = expr ;」。
- * 成功时写 module.top_level_let_*、arena 中 type/expr，并设置 out.ok=true、out.next_lex；失败时 out.ok=false。
+ * See implementation.
+ * See implementation.
  */
-/** 单行 extern bl→parser_parse_one_top_level_let_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 export extern function parser_parse_one_top_level_let_into_glue(arena: *ASTArena, module: *Module, lex: Lexer, source: u8[], is_const: bool, out: *TopLevelLetResult): void;
+/** Exported function `parse_one_top_level_let_into`.
+ * Implements `parse_one_top_level_let_into`.
+ * @param arena *ASTArena
+ * @param module *Module
+ * @param lex Lexer
+ * @param source u8[]
+ * @param is_const bool
+ * @param out *TopLevelLetResult
+ * @return void
+ */
 export function parse_one_top_level_let_into(arena: *ASTArena, module: *Module, lex: Lexer, source: u8[], is_const: bool, out: *TopLevelLetResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -7638,8 +8739,17 @@ export function parse_one_top_level_let_into(arena: *ASTArena, module: *Module, 
   }
 }
 
-/** 单行 extern bl→parser_parse_one_type_alias_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 export extern function parser_parse_one_type_alias_into_glue(arena: *ASTArena, module: *Module, lex: Lexer, source: u8[], out: *TypeAliasResult): void;
+/** Exported function `parse_one_type_alias_into`.
+ * Implements `parse_one_type_alias_into`.
+ * @param arena *ASTArena
+ * @param module *Module
+ * @param lex Lexer
+ * @param source u8[]
+ * @param out *TypeAliasResult
+ * @return void
+ */
 export function parse_one_type_alias_into(arena: *ASTArena, module: *Module, lex: Lexer, source: u8[], out: *TypeAliasResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -7649,11 +8759,19 @@ export function parse_one_type_alias_into(arena: *ASTArena, module: *Module, lex
 
 
 /**
- * EMIT_HEAVY 第二遍：下列 *_into_buf 为 parser_slice_from_buf + bl slice _into（扩 parser.o __text）。
- * 深循环/lexer_next_into 仍走 thin_glue；此处仅薄包装真 emit。
+ * See implementation.
+ * See implementation.
  */
 
-/** parse_primary_into 的 buf 变体。 */
+/** Exported function `parse_primary_into_buf`.
+ * Implements `parse_primary_into_buf`.
+ * @param arena *ASTArena
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @param out *ParseExprResult
+ * @return void
+ */
 export function parse_primary_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -7663,7 +8781,15 @@ export function parse_primary_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, 
 }
 
 
-/** parse_unary_into 的 buf 变体。 */
+/** Exported function `parse_unary_into_buf`.
+ * Implements `parse_unary_into_buf`.
+ * @param arena *ASTArena
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @param out *ParseExprResult
+ * @return void
+ */
 export function parse_unary_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -7673,7 +8799,15 @@ export function parse_unary_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, le
 }
 
 
-/** parse_cast_into 的 buf 变体。 */
+/** Exported function `parse_cast_into_buf`.
+ * Implements `parse_cast_into_buf`.
+ * @param arena *ASTArena
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @param out *ParseExprResult
+ * @return void
+ */
 export function parse_cast_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -7683,7 +8817,15 @@ export function parse_cast_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len
 }
 
 
-/** parse_term_into 的 buf 变体。 */
+/** Exported function `parse_term_into_buf`.
+ * Implements `parse_term_into_buf`.
+ * @param arena *ASTArena
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @param out *ParseExprResult
+ * @return void
+ */
 export function parse_term_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -7693,7 +8835,15 @@ export function parse_term_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len
 }
 
 
-/** parse_addsub_into 的 buf 变体。 */
+/** Exported function `parse_addsub_into_buf`.
+ * Implements `parse_addsub_into_buf`.
+ * @param arena *ASTArena
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @param out *ParseExprResult
+ * @return void
+ */
 export function parse_addsub_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -7703,7 +8853,15 @@ export function parse_addsub_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, l
 }
 
 
-/** parse_shift_into 的 buf 变体。 */
+/** Exported function `parse_shift_into_buf`.
+ * Implements `parse_shift_into_buf`.
+ * @param arena *ASTArena
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @param out *ParseExprResult
+ * @return void
+ */
 export function parse_shift_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -7713,7 +8871,15 @@ export function parse_shift_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, le
 }
 
 
-/** parse_relcompare_into 的 buf 变体。 */
+/** Exported function `parse_relcompare_into_buf`.
+ * Implements `parse_relcompare_into_buf`.
+ * @param arena *ASTArena
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @param out *ParseExprResult
+ * @return void
+ */
 export function parse_relcompare_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -7723,7 +8889,15 @@ export function parse_relcompare_into_buf(arena: *ASTArena, lex: Lexer, data: *u
 }
 
 
-/** parse_compare_into 的 buf 变体。 */
+/** Exported function `parse_compare_into_buf`.
+ * Implements `parse_compare_into_buf`.
+ * @param arena *ASTArena
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @param out *ParseExprResult
+ * @return void
+ */
 export function parse_compare_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -7733,7 +8907,15 @@ export function parse_compare_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, 
 }
 
 
-/** parse_bitand_into 的 buf 变体。 */
+/** Exported function `parse_bitand_into_buf`.
+ * Implements `parse_bitand_into_buf`.
+ * @param arena *ASTArena
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @param out *ParseExprResult
+ * @return void
+ */
 export function parse_bitand_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -7743,7 +8925,15 @@ export function parse_bitand_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, l
 }
 
 
-/** parse_bitxor_into 的 buf 变体。 */
+/** Exported function `parse_bitxor_into_buf`.
+ * Implements `parse_bitxor_into_buf`.
+ * @param arena *ASTArena
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @param out *ParseExprResult
+ * @return void
+ */
 export function parse_bitxor_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -7753,7 +8943,15 @@ export function parse_bitxor_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, l
 }
 
 
-/** parse_bitor_into 的 buf 变体。 */
+/** Exported function `parse_bitor_into_buf`.
+ * Implements `parse_bitor_into_buf`.
+ * @param arena *ASTArena
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @param out *ParseExprResult
+ * @return void
+ */
 export function parse_bitor_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -7763,7 +8961,15 @@ export function parse_bitor_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, le
 }
 
 
-/** parse_logand_into 的 buf 变体。 */
+/** Exported function `parse_logand_into_buf`.
+ * Implements `parse_logand_into_buf`.
+ * @param arena *ASTArena
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @param out *ParseExprResult
+ * @return void
+ */
 export function parse_logand_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -7773,7 +8979,15 @@ export function parse_logand_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, l
 }
 
 
-/** parse_logor_into 的 buf 变体。 */
+/** Exported function `parse_logor_into_buf`.
+ * Implements `parse_logor_into_buf`.
+ * @param arena *ASTArena
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @param out *ParseExprResult
+ * @return void
+ */
 export function parse_logor_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -7783,7 +8997,15 @@ export function parse_logor_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, le
 }
 
 
-/** parse_ternary_into 的 buf 变体。 */
+/** Exported function `parse_ternary_into_buf`.
+ * Implements `parse_ternary_into_buf`.
+ * @param arena *ASTArena
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @param out *ParseExprResult
+ * @return void
+ */
 export function parse_ternary_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -7793,7 +9015,15 @@ export function parse_ternary_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, 
 }
 
 
-/** parse_assign_into 的 buf 变体。 */
+/** Exported function `parse_assign_into_buf`.
+ * Implements `parse_assign_into_buf`.
+ * @param arena *ASTArena
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @param out *ParseExprResult
+ * @return void
+ */
 export function parse_assign_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -7803,7 +9033,15 @@ export function parse_assign_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, l
 }
 
 
-/** parse_expr_into 的 buf 变体。 */
+/** Exported function `parse_expr_into_buf`.
+ * Implements `parse_expr_into_buf`.
+ * @param arena *ASTArena
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @param out *ParseExprResult
+ * @return void
+ */
 export function parse_expr_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -7813,7 +9051,16 @@ export function parse_expr_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len
 }
 
 
-/** finish_struct_lit_from_type_ident_into 的 buf 变体。 */
+/** Exported function `finish_struct_lit_from_type_ident_into_buf`.
+ * Implements `finish_struct_lit_from_type_ident_into_buf`.
+ * @param arena *ASTArena
+ * @param lit_ref i32
+ * @param lex_in_brace Lexer
+ * @param data *u8
+ * @param len i32
+ * @param out *ParseExprResult
+ * @return void
+ */
 export function finish_struct_lit_from_type_ident_into_buf(arena: *ASTArena, lit_ref: i32, lex_in_brace: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -7823,7 +9070,15 @@ export function finish_struct_lit_from_type_ident_into_buf(arena: *ASTArena, lit
 }
 
 
-/** parse_cond_expr_into 的 buf 变体。 */
+/** Exported function `parse_cond_expr_into_buf`.
+ * Implements `parse_cond_expr_into_buf`.
+ * @param arena *ASTArena
+ * @param lex_start Lexer
+ * @param data *u8
+ * @param len i32
+ * @param out *ParseExprResult
+ * @return void
+ */
 export function parse_cond_expr_into_buf(arena: *ASTArena, lex_start: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -7833,7 +9088,19 @@ export function parse_cond_expr_into_buf(arena: *ASTArena, lex_start: Lexer, dat
 }
 
 
-/** parse_if_stmt_into 的 buf 变体。 */
+/** Exported function `parse_if_stmt_into_buf`.
+ * Implements `parse_if_stmt_into_buf`.
+ * @param arena *ASTArena
+ * @param lex_at_if Lexer
+ * @param data *u8
+ * @param len i32
+ * @param type_ref i32
+ * @param out_cond *i32
+ * @param out_then *i32
+ * @param out_else *i32
+ * @param lex_out *Lexer
+ * @return bool
+ */
 export function parse_if_stmt_into_buf(arena: *ASTArena, lex_at_if: Lexer, data: *u8, len: i32, type_ref: i32, out_cond: *i32, out_then: *i32, out_else: *i32, lex_out: *Lexer): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -7844,7 +9111,16 @@ export function parse_if_stmt_into_buf(arena: *ASTArena, lex_at_if: Lexer, data:
 }
 
 
-/** parse_block_into 的 buf 变体。 */
+/** Exported function `parse_block_into_buf`.
+ * Implements `parse_block_into_buf`.
+ * @param arena *ASTArena
+ * @param lex_after_lbrace Lexer
+ * @param data *u8
+ * @param len i32
+ * @param type_ref i32
+ * @param out *ParseBlockResult
+ * @return void
+ */
 export function parse_block_into_buf(arena: *ASTArena, lex_after_lbrace: Lexer, data: *u8, len: i32, type_ref: i32, out: *ParseBlockResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -7854,7 +9130,16 @@ export function parse_block_into_buf(arena: *ASTArena, lex_after_lbrace: Lexer, 
 }
 
 
-/** parse_if_expr_into 的 buf 变体。 */
+/** Exported function `parse_if_expr_into_buf`.
+ * Implements `parse_if_expr_into_buf`.
+ * @param arena *ASTArena
+ * @param lex_at_if Lexer
+ * @param data *u8
+ * @param len i32
+ * @param type_ref i32
+ * @param out *ParseExprResult
+ * @return void
+ */
 export function parse_if_expr_into_buf(arena: *ASTArena, lex_at_if: Lexer, data: *u8, len: i32, type_ref: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -7864,7 +9149,15 @@ export function parse_if_expr_into_buf(arena: *ASTArena, lex_at_if: Lexer, data:
 }
 
 
-/** parse_match_subject_into 的 buf 变体。 */
+/** Exported function `parse_match_subject_into_buf`.
+ * Implements `parse_match_subject_into_buf`.
+ * @param arena *ASTArena
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @param out *ParseExprResult
+ * @return void
+ */
 export function parse_match_subject_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -7874,7 +9167,15 @@ export function parse_match_subject_into_buf(arena: *ASTArena, lex: Lexer, data:
 }
 
 
-/** parse_match_into 的 buf 变体。 */
+/** Exported function `parse_match_into_buf`.
+ * Implements `parse_match_into_buf`.
+ * @param arena *ASTArena
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @param out *ParseExprResult
+ * @return void
+ */
 export function parse_match_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -7884,7 +9185,15 @@ export function parse_match_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, le
 }
 
 
-/** parse_at_simd_builtin_into 的 buf 变体。 */
+/** Exported function `parse_at_simd_builtin_into_buf`.
+ * Implements `parse_at_simd_builtin_into_buf`.
+ * @param arena *ASTArena
+ * @param r0 LexerResult
+ * @param data *u8
+ * @param len i32
+ * @param out *ParseExprResult
+ * @return void
+ */
 export function parse_at_simd_builtin_into_buf(arena: *ASTArena, r0: LexerResult, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -7894,7 +9203,14 @@ export function parse_at_simd_builtin_into_buf(arena: *ASTArena, r0: LexerResult
 }
 
 
-/** parse_as_suffix_into 的 buf 变体。 */
+/** Exported function `parse_as_suffix_into_buf`.
+ * Implements `parse_as_suffix_into_buf`.
+ * @param arena *ASTArena
+ * @param data *u8
+ * @param len i32
+ * @param out *ParseExprResult
+ * @return void
+ */
 export function parse_as_suffix_into_buf(arena: *ASTArena, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -7904,7 +9220,15 @@ export function parse_as_suffix_into_buf(arena: *ASTArena, data: *u8, len: i32, 
 }
 
 
-/** parse_type_ref_for_arena_into 的 buf 变体。 */
+/** Exported function `parse_type_ref_for_arena_into_buf`.
+ * Implements `parse_type_ref_for_arena_into_buf`.
+ * @param arena *ASTArena
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @param out_lex *Lexer
+ * @return i32
+ */
 export function parse_type_ref_for_arena_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out_lex: *Lexer): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -7915,7 +9239,17 @@ export function parse_type_ref_for_arena_into_buf(arena: *ASTArena, lex: Lexer, 
 }
 
 
-/** parse_body_let_bracket_compound_init_ref 的 buf 变体。 */
+/** Exported function `parse_body_let_bracket_compound_init_ref_buf`.
+ * Implements `parse_body_let_bracket_compound_init_ref_buf`.
+ * @param arena *ASTArena
+ * @param bracket_start usize
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @param lex_out *Lexer
+ * @param r_out *LexerResult
+ * @return i32
+ */
 export function parse_body_let_bracket_compound_init_ref_buf(arena: *ASTArena, bracket_start: usize, lex: Lexer, data: *u8, len: i32, lex_out: *Lexer, r_out: *LexerResult): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -7926,7 +9260,19 @@ export function parse_body_let_bracket_compound_init_ref_buf(arena: *ASTArena, b
 }
 
 
-/** parse_struct_record_layout_into 的 buf 变体。 */
+/** Exported function `parse_struct_record_layout_into_buf`.
+ * Implements `parse_struct_record_layout_into_buf`.
+ * @param arena *ASTArena
+ * @param module *Module
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @param out_lex *Lexer
+ * @param allow_pad i32
+ * @param force_soa i32
+ * @param repr_compat i32
+ * @return i32
+ */
 export function parse_struct_record_layout_into_buf(arena: *ASTArena, module: *Module, lex: Lexer, data: *u8, len: i32, out_lex: *Lexer, allow_pad: i32, force_soa: i32, repr_compat: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -7937,7 +9283,14 @@ export function parse_struct_record_layout_into_buf(arena: *ASTArena, module: *M
 }
 
 
-/** parse_one_function_library_scan 的 buf 变体。 */
+/** Exported function `parse_one_function_library_scan_buf`.
+ * Implements `parse_one_function_library_scan_buf`.
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @param result *LibraryParseScanResult
+ * @return bool
+ */
 export function parse_one_function_library_scan_buf(lex: Lexer, data: *u8, len: i32, result: *LibraryParseScanResult): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -7948,7 +9301,14 @@ export function parse_one_function_library_scan_buf(lex: Lexer, data: *u8, len: 
 }
 
 
-/** alloc_pointee_type_ref_from_tok 的 buf 变体。 */
+/** Exported function `alloc_pointee_type_ref_from_tok_buf`.
+ * Memory management helper `alloc_pointee_type_ref_from_tok_buf`.
+ * @param arena *ASTArena
+ * @param data *u8
+ * @param len i32
+ * @param r *LexerResult
+ * @return i32
+ */
 export function alloc_pointee_type_ref_from_tok_buf(arena: *ASTArena, data: *u8, len: i32, r: *LexerResult): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -7959,7 +9319,14 @@ export function alloc_pointee_type_ref_from_tok_buf(arena: *ASTArena, data: *u8,
 }
 
 
-/** parser_vector_type_ref_from_ident_spelling 的 buf 变体。 */
+/** Exported function `parser_vector_type_ref_from_ident_spelling_buf`.
+ * Implements `parser_vector_type_ref_from_ident_spelling_buf`.
+ * @param arena *ASTArena
+ * @param data *u8
+ * @param len i32
+ * @param r LexerResult
+ * @return i32
+ */
 export function parser_vector_type_ref_from_ident_spelling_buf(arena: *ASTArena, data: *u8, len: i32, r: LexerResult): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -7970,7 +9337,17 @@ export function parser_vector_type_ref_from_ident_spelling_buf(arena: *ASTArena,
 }
 
 
-/** parse_one_top_level_let_into 的 buf 变体。 */
+/** Exported function `parse_one_top_level_let_into_buf`.
+ * Implements `parse_one_top_level_let_into_buf`.
+ * @param arena *ASTArena
+ * @param module *Module
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @param is_const bool
+ * @param out *TopLevelLetResult
+ * @return void
+ */
 export function parse_one_top_level_let_into_buf(arena: *ASTArena, module: *Module, lex: Lexer, data: *u8, len: i32, is_const: bool, out: *TopLevelLetResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -7979,7 +9356,16 @@ export function parse_one_top_level_let_into_buf(arena: *ASTArena, module: *Modu
   }
 }
 
-/** parse_one_type_alias_into 的 buf 变体。 */
+/** Exported function `parse_one_type_alias_into_buf`.
+ * Implements `parse_one_type_alias_into_buf`.
+ * @param arena *ASTArena
+ * @param module *Module
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @param out *TypeAliasResult
+ * @return void
+ */
 export function parse_one_type_alias_into_buf(arena: *ASTArena, module: *Module, lex: Lexer, data: *u8, len: i32, out: *TypeAliasResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -7989,7 +9375,14 @@ export function parse_one_type_alias_into_buf(arena: *ASTArena, module: *Module,
 }
 
 
-/** skip_balanced_parens_into 的 slice 委托 buf（与 skip_balanced_parens_into_buf 深循环 X 体并存）。 */
+/** Exported function `skip_balanced_parens_slice_into_buf`.
+ * Implements `skip_balanced_parens_slice_into_buf`.
+ * @param out *Lexer
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @return void
+ */
 export function skip_balanced_parens_slice_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -7999,7 +9392,14 @@ export function skip_balanced_parens_slice_into_buf(out: *Lexer, lex: Lexer, dat
 }
 
 
-/** skip_balanced_braces_into 的 slice 委托 buf（与 skip_balanced_braces_into_buf 深循环 X 体并存）。 */
+/** Exported function `skip_balanced_braces_slice_into_buf`.
+ * Implements `skip_balanced_braces_slice_into_buf`.
+ * @param out *Lexer
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @return void
+ */
 export function skip_balanced_braces_slice_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -8009,7 +9409,16 @@ export function skip_balanced_braces_slice_into_buf(out: *Lexer, lex: Lexer, dat
 }
 
 
-/** module_append_enum_variants_and_skip_body_into 的 slice 委托 buf（深循环 X 体见 module_append_enum_variants_and_skip_body_into_buf）。 */
+/** Exported function `module_append_enum_variants_and_skip_body_slice_into_buf`.
+ * Implements `module_append_enum_variants_and_skip_body_slice_into_buf`.
+ * @param module *Module
+ * @param enum_idx i32
+ * @param out *Lexer
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @return void
+ */
 export function module_append_enum_variants_and_skip_body_slice_into_buf(module: *Module, enum_idx: i32, out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -8019,7 +9428,15 @@ export function module_append_enum_variants_and_skip_body_slice_into_buf(module:
 }
 
 
-/** parse_one_extern_skip_into 的 buf 变体（结果写入 out）。 */
+/** Exported function `parse_one_extern_skip_buf`.
+ * Implements `parse_one_extern_skip_buf`.
+ * @param out *ExternParseResult
+ * @param arena *ASTArena
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @return void
+ */
 export function parse_one_extern_skip_buf(out: *ExternParseResult, arena: *ASTArena, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -8028,7 +9445,16 @@ export function parse_one_extern_skip_buf(out: *ExternParseResult, arena: *ASTAr
 }
 
 
-/** parse_one_extern_and_add_into 的 buf 别名。 */
+/** Exported function `parse_one_extern_and_add_buf`.
+ * Implements `parse_one_extern_and_add_buf`.
+ * @param arena *ASTArena
+ * @param module *Module
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @param lex_out *Lexer
+ * @return void
+ */
 export function parse_one_extern_and_add_buf(arena: *ASTArena, module: *Module, lex: Lexer, data: *u8, len: i32, lex_out: *Lexer): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -8037,7 +9463,15 @@ export function parse_one_extern_and_add_buf(arena: *ASTArena, module: *Module, 
 }
 
 
-/** parse_one_function_library 的 buf 别名（与 parse_one_function_library_buf 等价）。 */
+/** Exported function `parse_one_function_library_from_buf`.
+ * Implements `parse_one_function_library_from_buf`.
+ * @param arena *ASTArena
+ * @param module *Module
+ * @param lex Lexer
+ * @param data *u8
+ * @param len i32
+ * @return LibraryParseResult
+ */
 export function parse_one_function_library_from_buf(arena: *ASTArena, module: *Module, lex: Lexer, data: *u8, len: i32): LibraryParseResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -8046,7 +9480,14 @@ export function parse_one_function_library_from_buf(arena: *ASTArena, module: *M
 }
 
 
-/** parse_into_try_skip_allow 的 buf 别名。 */
+/** Exported function `parse_into_try_skip_allow_from_buf`.
+ * Implements `parse_into_try_skip_allow_from_buf`.
+ * @param lex Lexer
+ * @param r LexerResult
+ * @param data *u8
+ * @param len i32
+ * @return TrySkipAllowResult
+ */
 export function parse_into_try_skip_allow_from_buf(lex: Lexer, r: LexerResult, data: *u8, len: i32): TrySkipAllowResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -8056,7 +9497,7 @@ export function parse_into_try_skip_allow_from_buf(lex: Lexer, r: LexerResult, d
 
 
 /**
- * 与 parse_into 等价，接受 (data: *u8, len) 供无 slice 的 buf 路径使用；collect_imports 走 slice lexer_next_into；主循环用 lexer_next_buf_into 避免 LexerResult 按值 ABI 损坏。
+ * See implementation.
  */
 export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len: i32): ParseIntoResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -8068,7 +9509,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
   copy_lex_from_import_into(&lex, import_res);
   let loop_count_buf: i32 = 0;
   while (1 == 1) {
-    /* 与 parse_into 一致：loop 上限 + 先读 token 再前进 lex，避免 extern 后停滞在 EOF */
+    /* See implementation. */
     if (loop_count_buf >= 131072) {
       return ParseIntoResult { ok: -1, main_idx: -1003 }
     }
@@ -8111,7 +9552,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       }
       continue;
     }
-    /** MOD-02：`#[repr(compatible)]` 下一顶层 struct 记 repr_compatible。 */
+    /* See implementation. */
     if (r.tok.kind == token.TokenKind.TOKEN_ATTR_REPR_COMPATIBLE) {
       module.pending_repr_compatible_struct = 1;
       lex_from_next_into(&lex, r);
@@ -8120,7 +9561,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       }
       continue;
     }
-    /** MEM-C1：`#[alloc]` 仅标记下一 function 由后续解析路径处理；顶层循环这里只消费 attribute。 */
+    /* See implementation. */
     if (r.tok.kind == token.TokenKind.TOKEN_ATTR_ALLOC) {
       lex_from_next_into(&lex, r);
       if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) {
@@ -8128,7 +9569,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       }
       continue;
     }
-    /** K10：`#[used]` 下一 function 标记为 used（不被 C 编译器消除，外部链接）。 */
+    /* See implementation. */
     if (r.tok.kind == token.TokenKind.TOKEN_ATTR_USED) {
       module.pending_used = 1;
       lex_from_next_into(&lex, r);
@@ -8157,7 +9598,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) { lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 }; }
       continue;
     }
-    /** 模块导出：`export` 下一顶层声明记 is_export（parse_into_buf）。 */
+    /* See implementation. */
     if (r.tok.kind == token.TokenKind.TOKEN_EXPORT) {
       module.pending_export = 1;
       lex_from_next_into(&lex, r);
@@ -8205,7 +9646,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
         }
         continue;
       }
-      /* 同 parse_into：cfg_skip 下消费 allow(padding)，保持 skip（见上注释）。 */
+      /* See implementation. */
       {
         let try_cfg_allow_buf: TrySkipAllowResult = TrySkipAllowResult { lex: lex, skipped: 0, _pad: [] };
         parse_into_try_skip_allow_into_buf(&try_cfg_allow_buf, lex, r, data, len);
@@ -8283,7 +9724,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       }
       continue;
     }
-    /* 顶层 type 别名：type Alias = Target;（§2.24 ALIAS-01） */
+    /* See implementation. */
     if (r.tok.kind == token.TokenKind.TOKEN_TYPE) {
       let alias_res: TypeAliasResult = TypeAliasResult { ok: false, next_lex: lex };
       parse_one_type_alias_into_buf(arena, module, r.next_lex, data, len, &alias_res);
@@ -8292,7 +9733,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
         continue;
       }
     }
-    /* 顶层 let/const：与 C 流水线同步支持，供自举与 toplevel-let 测试 */
+    /* See implementation. */
     if (r.tok.kind == token.TokenKind.TOKEN_LET || r.tok.kind == token.TokenKind.TOKEN_CONST) {
       let pe_tl: i32 = module.pending_export;
       module.pending_export = 0;
@@ -8318,7 +9759,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
         }
         continue;
       }
-      /* 非 function 且未 skip：可能是注释等，前进一个 token 再试，避免文件开头的注释导致 0 函数；EOF 时下面会处理。 */
+      /* See implementation. */
       if (r.tok.kind == token.TokenKind.TOKEN_EOF) {
         break;
       }
@@ -8327,7 +9768,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       }
       continue;
     }
-    /* 库模块或正常结束：break 后若为 EOF 则直接返回成功，避免在 EOF 处当作 function 解析导致死循环。 */
+    /* See implementation. */
     if (r.tok.kind == token.TokenKind.TOKEN_EOF) {
       if (module.num_funcs == 0) {
         return parse_into_result_empty_module_or_fail_tok(diag_fail_at_token_kind_buf(data, len));
@@ -8337,16 +9778,16 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       return ParseIntoResult { ok: 0, main_idx: out_idx_storage[0] }
     }
     /*
-     * let-hoist safe（product pin X→C）：emit_block 无 stmt_order 时把 while 体全部 `let x = f()` 提到循环顶。
-     * 副作用 init（alloc / scratch / 读 res）若被提前求值 → 污染 module 槽、type_ref/n_* 陈旧、allow_legacy 永假 → P001。
-     * 【Invariant】本函数路径：先 zero-decl，再在控制流之后赋值（与 codegen_emit_func_link_name 同纪律）。
+     * See implementation.
+     * See implementation.
+     * See implementation.
      * PLATFORM: SHARED
      */
     let lex_at_function_buf: Lexer = lexer.lexer_init();
     lex_at_function_buf = current_tok_lex_buf;
     lex_from_next_into(&lex, r);
-    /* lex 当前在 function 之后，供 parse_one_function_impl 解析函数体 */
-    /* 用 _into 避免 OneFuncResult 按值返回导致 ARM64 ABI 崩溃 */
+    /* See implementation. */
+    /* See implementation. */
     let empty64_buf: u8[64] = [];
     let res: OneFuncResult = onefunc_scratch_empty();
     res = onefunc_scratch_empty();
@@ -8358,7 +9799,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
     onefunc_res_wire_dummy_for_if(&res);
     let slice_for_impl: u8[] = parser_slice_from_buf(data, len);
     slice_for_impl = parser_slice_from_buf(data, len);
-    /* 与 parse_into（slice）一致：library 优先，避免 impl 抢走 token_is_eof 类形态 */
+    /* See implementation. */
     let empty64_lib_buf_first: u8[64] = [];
     let lib_buf_first: LibraryParseResult = LibraryParseResult {
       ok: false,
@@ -8402,7 +9843,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
     }
     parser_diagnostic_parse_func_generic((lex_at_function_buf.pos) as i32, module.num_funcs, &res.name[0], res.name_len,
       res.num_generic_params, is_main_storage[0]);
-    /* Buf 路径与 parse_into 一致：沿用签名 Ty，0 时再回退 i32。let-hoist safe：先 0 再赋值。 */
+    /* See implementation. */
     let type_ref: i32 = 0;
     type_ref = res.func_return_type_ref;
     if (type_ref == 0) {
@@ -8424,7 +9865,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       ast.ast_arena_type_set(arena, type_ref, t_fb);
     }
 
-    /* let-hoist safe：alloc 必须在 parse 成功之后，禁止 while 顶每轮抢槽。 */
+    /* See implementation. */
     let expr_ref: i32 = 0;
     expr_ref = ast.ast_arena_expr_alloc(arena);
     if (expr_ref == 0) {
@@ -8439,7 +9880,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
     let e: Expr = ast.ast_arena_expr_get(arena, expr_ref);
     e = ast.ast_arena_expr_get(arena, expr_ref);
     if (res.return_var_name_len > 0) {
-      /* return ident; 生成 EXPR_VAR 以便 codegen 输出变量名；类型须由 typeck 从形参/let/const 绑定，勿预设为返回类型否则漏报未定义名 */
+      /* See implementation. */
       e.kind = ExprKind.EXPR_VAR;
       e.var_name_len = res.return_var_name_len;
       let rvi: i32 = 0;
@@ -8485,7 +9926,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
     e.index_proven_in_bounds = 0;
     ast.ast_arena_expr_set(arena, expr_ref, e);
 
-    /* let-hoist safe：bool 依赖 res 解析后字段，禁止 while 顶用空 res 求值（永假 → final_expr 丢失 → P001）。 */
+    /* See implementation. */
     let allow_legacy_tail_expr2: bool = false;
     allow_legacy_tail_expr2 = res.has_final_expr || res.has_explicit_return_kw
       || res.return_expr_ref != 0 || res.return_var_name_len > 0;
@@ -8496,7 +9937,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
     if (res.return_expr_ref != 0) {
       final_expr_ref = res.return_expr_ref;
     }
-    /** return ident; 须落成 EXPR_RETURN(VAR)，勿留裸 EXPR_VAR 作 final_expr（typeck 隐式尾返回 -6）。 */
+    /* See implementation. */
     if (res.return_var_name_len > 0 && res.return_expr_ref == 0) {
       let var_wrapped: i32 = parser_expr_wrap_in_return(arena, type_ref, final_expr_ref);
       if (var_wrapped == 0) {
@@ -8579,7 +10020,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       ast.ast_arena_expr_set(arena, mul_ref, me);
       ast.ast_arena_expr_set(arena, expr_ref, e);
     }
-    /* buf 路径须与 parse_into 一致构建 return if(...)：否则 if_cond_expr_ref 丢失，if (1) 等非 bool 条件漏过 typeck */
+    /* See implementation. */
     if (res.has_if_expr) {
       let cond_ref: i32 = 0;
       if (res.if_cond_expr_ref != 0) {
@@ -8747,9 +10188,9 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       final_expr_ref = if_expr_ref;
     }
     /*
-     * return a+b：与 parse_into slice 路径一致（binop_left/right_param_idx → EXPR_VAR + EXPR_ADD）。
-     * 旧 buf 路径误用 EXPR_LIT+EXPR_BINOP 且未写 final_expr_ref，导致 vec_add4 等 fold/内联失败。
-     * return_expr_ref 非 0 时（struct lit 等）勿覆盖 final。
+     * See implementation.
+     * See implementation.
+     * See implementation.
      */
     if (res.return_expr_ref == 0) {
       if (res.has_binop || res.binop_right_val != 0) {
@@ -8924,7 +10365,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       final_expr_ref = add_ref_buf;
       }
     }
-    /* 与 parse_into 一致：return ident(...); 有参/无参调用时构建 EXPR_CALL，供 buf 路径多文件 std.io print_str */
+    /* See implementation. */
     if (res.has_call_expr && res.return_expr_ref == 0 && res.call_callee_len > 0 && res.call_callee_len <= 63) {
       let call_pool_buf: *u8 = onefunc_result_pool_ptr(&res);
       let callee_ref: i32 = ast.ast_arena_expr_alloc(arena);
@@ -9022,7 +10463,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
         }
       }
     }
-    /* 与 parse_into 一致：从 onefunc 构建 block。let-hoist safe：alloc 在 parse 成功后。 */
+    /* See implementation. */
     let block_ref: i32 = 0;
     block_ref = ast.ast_arena_block_alloc(arena);
     if (block_ref == 0) {
@@ -9030,11 +10471,11 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
     }
     let b: Block = ast.ast_arena_block_get(arena, block_ref);
     b = ast.ast_arena_block_get(arena, block_ref);
-    /** 与 parse_into 主路径一致：函数体块需先持久化清零，避免复用 block 槽时残留 let/stmt_order。 */
+    /* See implementation. */
     b.num_consts = 0;
     b.num_lets = 0;
     b.num_early_lets = 0;
-    /** 侧车池由 fill_*_from_onefunc 递增；勿预置 res.num_loops/num_if_stmts 以免 lazy_fix 错位。 */
+    /* See implementation. */
     b.num_loops = 0;
     b.num_for_loops = 0;
     b.num_if_stmts = 0;
@@ -9046,7 +10487,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
     b.num_stmt_order = 0;
     b.parent_block_ref = 0;
     ast.ast_arena_block_set(arena, block_ref, b);
-    /* 与 parse_into 主路径一致：仅显式 return 时包 EXPR_RETURN。 */
+    /* See implementation. */
     if (parser_should_wrap_func_tail_in_return(arena, &res, type_ref)) {
       let wrapped_tail2: i32 = parser_expr_wrap_in_return(arena, type_ref, final_expr_ref);
       if (wrapped_tail2 == 0) {
@@ -9059,7 +10500,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       return ParseIntoResult { ok: -1, main_idx: -1 }
     }
     b = ast.ast_arena_block_get(arena, block_ref);
-    /** while/for 从 OneFunc 侧车池填充 Block 池。let-hoist safe：n_* 在 res 填充后赋值，禁止 while 顶用空 res 写成 0 再写回 res.num_loops。 */
+    /* See implementation. */
     let n_while_pool2: i32 = 0;
     n_while_pool2 = pipeline_onefunc_num_whiles(onefunc_result_pool_ptr(&res));
     res.num_loops = n_while_pool2;
@@ -9127,7 +10568,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       }
       reg_oib = reg_oib + 1;
     }
-    /* 仅有 final_expr 时当作 expr_stmt + stmt_order（用局部 final_expr_ref，8203 赋值后 block_get 会丢未 persist 的 b.final_expr_ref）。 */
+    /* See implementation. */
     if (!ast.ref_is_null(final_expr_ref) && b.num_expr_stmts == 0) {
       let fin_ex2: i32 = pipeline_block_append_expr_stmt(arena, block_ref, final_expr_ref);
       if (fin_ex2 < 0) {
@@ -9154,7 +10595,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
     b = ast.ast_arena_block_get(arena, block_ref);
     parser_diagnostic_parse_commit_post(arena, &res.name[0], res.name_len, block_ref, onefunc_result_pool_ptr(&res));
 
-    /* let-hoist safe：func/module 槽仅在 commit 点分配，禁止 while 顶每轮 pipeline_module_func_alloc_slot。 */
+    /* See implementation. */
     let func_ref: i32 = 0;
     func_ref = ast.ast_arena_func_alloc(arena);
     if (func_ref == 0) {
@@ -9213,7 +10654,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
     let parse_into_guard_pos: usize = lex.pos;
     lex_from_onefunc_next_into(&lex, &res);
     ast_pool_onefunc_release(onefunc_result_pool_ptr(&res));
-    /* 兜底：若 OneFuncResult.next_lex 未正确写回导致 lex 未前进，强制前进 1 字符避免死循环 */
+    /* See implementation. */
     if (lex.pos == parse_into_guard_pos) {
       lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
     }
@@ -9228,9 +10669,15 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
   }
 }
 
-/** 在 parse_into 返回后由调用方调用，将 main_idx 写回 module.main_func_index，避免 codegen 将赋值提升到循环前。 */
-/** 单行 extern bl→parser_parse_into_set_main_index_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
+/* See implementation. */
 export extern function parser_parse_into_set_main_index_glue(module: *Module, main_idx: i32): void;
+/** Exported function `parse_into_set_main_index`.
+ * Implements `parse_into_set_main_index`.
+ * @param module *Module
+ * @param main_idx i32
+ * @return void
+ */
 export function parse_into_set_main_index(module: *Module, main_idx: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -9240,11 +10687,17 @@ export function parse_into_set_main_index(module: *Module, main_idx: i32): void 
 
 
 /**
- * 诊断：模拟 parse_into 首轮循环中 collect_imports 后的下一次 lexer_next，返回得到的 token kind。
- * 用于区分「首 token 非 FUNCTION 导致 break」与「parse_one_function 失败」。
+ * See implementation.
+ * See implementation.
  */
-/** 单行 extern bl→parser_diag_token_after_collect_imports_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 export extern function parser_diag_token_after_collect_imports_glue(source: u8[], module: *Module): i32;
+/** Exported function `diag_token_after_collect_imports`.
+ * Implements `diag_token_after_collect_imports`.
+ * @param source u8[]
+ * @param module *Module
+ * @return i32
+ */
 export function diag_token_after_collect_imports(source: u8[], module: *Module): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -9255,11 +10708,18 @@ export function diag_token_after_collect_imports(source: u8[], module: *Module):
 
 
 /**
- * 诊断：用 collect_imports 后的 lex 调用 parse_one_function，返回 res.ok（1 成功 0 失败）。
- * 若为 0 则说明在 parse_into 内会因 !res.ok 而 break。arena 用于解析 let 时构建 init 表达式。
+ * See implementation.
+ * See implementation.
  */
-/** 单行 extern bl→parser_diag_parse_one_after_collect_imports_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 export extern function parser_diag_parse_one_after_collect_imports_glue(source: u8[], module: *Module, arena: *ASTArena): i32;
+/** Exported function `diag_parse_one_after_collect_imports`.
+ * Implements `diag_parse_one_after_collect_imports`.
+ * @param source u8[]
+ * @param module *Module
+ * @param arena *ASTArena
+ * @return i32
+ */
 export function diag_parse_one_after_collect_imports(source: u8[], module: *Module, arena: *ASTArena): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -9270,11 +10730,17 @@ export function diag_parse_one_after_collect_imports(source: u8[], module: *Modu
 
 
 /**
- * pipeline 诊断：lexer_init 后直接 parse_one_function_impl，返回 1 成功 0 失败。
- * 避免 pipeline.x 内 OneFuncResult 按值 extern 返回导致 parse_into_buf 跳过该函数。
+ * See implementation.
+ * See implementation.
  */
-/** 单行 extern bl→parser_parse_one_function_ok_for_pipeline_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
+/* See implementation. */
 export extern function parser_parse_one_function_ok_for_pipeline_glue(arena: *ASTArena, source: u8[]): i32;
+/** Exported function `parse_one_function_ok_for_pipeline`.
+ * Implements `parse_one_function_ok_for_pipeline`.
+ * @param arena *ASTArena
+ * @param source u8[]
+ * @return i32
+ */
 export function parse_one_function_ok_for_pipeline(arena: *ASTArena, source: u8[]): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -9284,7 +10750,11 @@ export function parse_one_function_ok_for_pipeline(arena: *ASTArena, source: u8[
 }
 
 
-/** 阶段 5：返回 module 的 import 数量，供 C main.c 判断是否走多文件路径。 */
+/** Exported function `get_module_num_imports`.
+ * Query helper `get_module_num_imports`.
+ * @param module *Module
+ * @return i32
+ */
 export function get_module_num_imports(module: *Module): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -9292,7 +10762,13 @@ export function get_module_num_imports(module: *Module): i32 {
   }
 }
 
-/** 阶段 5：将第 i 条 import 路径复制到 out（NUL 结尾），供 C 做 resolve。i 越界时 out 填空串。 */
+/** Exported function `get_module_import_path`.
+ * Query helper `get_module_import_path`.
+ * @param module *Module
+ * @param i i32
+ * @param out u8[64]
+ * @return void
+ */
 export function get_module_import_path(module: *Module, i: i32, out: u8[64]): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -9306,8 +10782,8 @@ export function get_module_import_path(module: *Module, i: i32, out: u8[64]): vo
 }
 
 /**
- * 复制第 i 条 import 路径到 out[64] 并返回路径字节长度（不含 NUL）；越界或空路径返回 0。
- * 供 pipeline.x 等调用方在 let 初始化/return 中使用，避免 void 调用语句导致 parse_into_buf skip。
+ * See implementation.
+ * See implementation.
  */
 export function copy_module_import_path64(module: *Module, i: i32, out: u8[64]): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -9321,7 +10797,10 @@ export function copy_module_import_path64(module: *Module, i: i32, out: u8[64]):
   }
 }
 
-/** 联调 9.1：若存在 /tmp/shux_parse_test.x 则读入前 128 字节并以 parse() 校验（return 字面量或简单表达式，`parse()` 内部非字面量时用堆 Arena）。 */
+/** Exported function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 export function main(): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -9335,7 +10814,7 @@ export function main(): i32 {
     let n: isize = std_fs_read(fd, buf, 128);
     std_fs_close(fd);
     if (n > 0) {
-      /** fs_read 后 buf 仅前 n 字节有效；整条 slice 会带上尾后垃圾导致第二段表达式 parse 失败。 */
+      /* See implementation. */
       let sl: u8[] = parser_slice_from_buf(&buf[0], (n as i32));
       let res: ParseResult = parse(sl);
       if (res.ok) {
@@ -9344,14 +10823,14 @@ export function main(): i32 {
       return 1;
     }
   }
-  // 无文件或读失败：用固定源码「function main(): i32 { return 0; }」（返回类型用 :，bootstrap-parser 行为）
+  // See implementation.
   let src: u8[64] = [
     102, 117, 110, 99, 116, 105, 111, 110, 32, 109, 97, 105, 110, 40, 41, 58,
     32, 105, 51, 50, 32, 123, 32, 114, 101, 116, 117, 114, 110, 32, 48, 59,
     32, 125, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
   ];
-  /** 固定源码 35 字节；勿 u8[64]→u8[] 直接绑定（typeck 拒绝）。 */
+  /* See implementation. */
   let sl: u8[] = parser_slice_from_buf(&src[0], 35);
   let res: ParseResult = parse(sl);
   if (!res.ok) {

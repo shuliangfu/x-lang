@@ -1,7 +1,11 @@
-// tests/exc/code_layer.x — EXC-003：错误码分层区间与 helper 烟测
+// See implementation.
 const result = import("core.result");
 const err = import("std.error");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (ok() != 0) { return 1; }
   if (code_in_global_range(code_alloc_fail()) != 1) { return 2; }

@@ -1,4 +1,8 @@
-// 测试 asm 后端：INDEX 左值赋值（fix EXPR_ASSIGN+EXPR_INDEX）；main 退回 42
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let buf: u8[4] = [0, 0, 0, 0];
   buf[1] = 42;

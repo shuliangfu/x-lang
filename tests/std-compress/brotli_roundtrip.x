@@ -1,6 +1,10 @@
-// STD-125：Brotli 压缩→解压往返（未链 Brotli 时 n_br<=0 仍通过）
+// See implementation.
 const compress = import("std.compress");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let raw: u8[13] = [72, 101, 108, 108, 111, 44, 32, 98, 114, 33, 33, 33, 0];
   let out_buf: u8[256] = [];

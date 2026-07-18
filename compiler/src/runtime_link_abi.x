@@ -1,20 +1,20 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-34..44/47/53/55/56/64..70：真迁 .x — link_abi needs_* / 空 .o / bank / 路径 / ld 门闩。
-// 产品：./shux-c -E → seeds/runtime_link_abi.from_x.c（+ C 尾 + 字符串/签名抛光）。
-// C 尾：invoke_cc/ld 主体、nm/popen、fileview、cstr 拷贝、stat 原语、#if host。
-// G-02f-89：+ path sep / lib_root / link_diag 薄 helper 门闩。
-// G-02f-91：+ needs_heap / argv_has_obj / push_obj / runtime_o path 门闩。
-// G-02f-92：+ cc_compile_sync / spawn_sync / link_perror / glue+minimal push 门闩。
-// G-02f-94：+ cc_compile_sync_ex / nostdlib minimal link / nm exports+undef 门闩。
-// G-02f-83：+ driver_copy_cstr_n / shux_link_obj_needs_undef_sym 门闩。
-// G-02f-76：ensure_* 冷启动源统一 seeds/*.from_x.c（修 f-75 已删 wrapper 的 ensure 空洞）。
-// G-02f-70：+ shux_invoke_cc / linux_link_harden 门闩（link_abi 导出集基本门闩化）。
-// G-02f-69：+ invoke_ld_platform / resolve_dir / append_std/on_demand 门闩。
-// G-02f-68：+ prepare_for_exe_link / waitpid / compress / argv_push 门闩。
-// G-02f-67：+ shux_ensure_* 族门闩（argv0 单参标准模板）。
-// G-02f-66：+ invoke_ld_for_exe / mach+unix tail libs 门闩。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 
 export extern "C" function main_entry(argc: i32, argv: *u8): i32;
 export extern "C" function shux_link_obj_needs_undef_sym_impl(user_o: *u8, sym: *u8): i32;
@@ -102,6 +102,12 @@ export extern "C" function shux_cc_compile_sync_ex_impl(src: *u8, out_o: *u8, in
 export extern "C" function shux_asm_nostdlib_minimal_selfcontained_exe_link_impl(o_path: *u8, exe_path: *u8, link_eff: *u8, lib_roots: *u8, n_lib_roots: i32): i32;
 
 #[no_mangle]
+/** Exported function `shux_forward_main_to_main_entry`.
+ * Implements `shux_forward_main_to_main_entry`.
+ * @param argc i32
+ * @param argv *u8
+ * @return i32
+ */
 export function shux_forward_main_to_main_entry(argc: i32, argv: *u8): i32 {
   unsafe {
     let r: i32 = main_entry(argc, argv);
@@ -111,6 +117,11 @@ export function shux_forward_main_to_main_entry(argc: i32, argv: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `shux_freestanding_user_o_needs_panic`.
+ * Memory management helper `shux_freestanding_user_o_needs_panic`.
+ * @param user_o *u8
+ * @return i32
+ */
 export function shux_freestanding_user_o_needs_panic(user_o: *u8): i32 {
   unsafe {
     let r: i32 = shux_link_obj_needs_undef_sym_impl(user_o, "shux_panic_");
@@ -120,6 +131,11 @@ export function shux_freestanding_user_o_needs_panic(user_o: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `shux_freestanding_user_o_needs_io`.
+ * Memory management helper `shux_freestanding_user_o_needs_io`.
+ * @param user_o *u8
+ * @return i32
+ */
 export function shux_freestanding_user_o_needs_io(user_o: *u8): i32 {
   unsafe {
     if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_sys_write") != 0) {
@@ -167,6 +183,10 @@ export function shux_freestanding_user_o_needs_io(user_o: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `invoke_cc_skip_native_tuning`.
+ * Implements `invoke_cc_skip_native_tuning`.
+ * @return i32
+ */
 export function invoke_cc_skip_native_tuning(): i32 {
   unsafe {
     let a: *u8 = getenv("CI");
@@ -186,7 +206,7 @@ export function invoke_cc_skip_native_tuning(): i32 {
   return 0;
 }
 
-/* ---- G-02f-36：freestanding_enabled（OS 门闩经 C 槽）---- */
+/* See implementation. */
 
 #[no_mangle]
 export function shux_link_freestanding_enabled(driver_freestanding: i32): i32 {
@@ -204,7 +224,7 @@ export function shux_link_freestanding_enabled(driver_freestanding: i32): i32 {
     if (e[0] == 0) {
       return 0;
     }
-    /* '0' == 48 — 避免单引号字面量被 -E 丢掉整函数 */
+    /* See implementation. */
     if (e[0] == 48) {
       return 0;
     }
@@ -213,7 +233,7 @@ export function shux_link_freestanding_enabled(driver_freestanding: i32): i32 {
   return 0;
 }
 
-/* ---- G-02f-36：按需链 user.o needs 探针（原 static C）---- */
+/* See implementation. */
 
 #[no_mangle]
 export function link_abi_user_o_needs_libc_heap(user_o: *u8): i32 {
@@ -413,6 +433,11 @@ export function link_abi_user_o_needs_std_queue(user_o: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `link_abi_user_o_needs_std_test`.
+ * Implements `link_abi_user_o_needs_std_test`.
+ * @param user_o *u8
+ * @return i32
+ */
 export function link_abi_user_o_needs_std_test(user_o: *u8): i32 {
   if (user_o == 0 as *u8) {
     return 0;
@@ -448,6 +473,11 @@ export function link_abi_user_o_needs_std_test(user_o: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `link_abi_user_o_needs_core_mem`.
+ * Implements `link_abi_user_o_needs_core_mem`.
+ * @param user_o *u8
+ * @return i32
+ */
 export function link_abi_user_o_needs_core_mem(user_o: *u8): i32 {
   if (user_o == 0 as *u8) {
     return 0;
@@ -483,6 +513,11 @@ export function link_abi_user_o_needs_core_mem(user_o: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `link_abi_user_o_needs_core_slice`.
+ * Implements `link_abi_user_o_needs_core_slice`.
+ * @param user_o *u8
+ * @return i32
+ */
 export function link_abi_user_o_needs_core_slice(user_o: *u8): i32 {
   unsafe {
     if (shux_link_obj_needs_undef_sym_impl(user_o, "core_slice_i32_from_ptr_c") != 0) {
@@ -509,6 +544,11 @@ export function link_abi_user_o_needs_core_slice(user_o: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `link_abi_user_o_needs_std_heap_page_mmap`.
+ * Implements `link_abi_user_o_needs_std_heap_page_mmap`.
+ * @param user_o *u8
+ * @return i32
+ */
 export function link_abi_user_o_needs_std_heap_page_mmap(user_o: *u8): i32 {
   if (user_o == 0 as *u8) {
     return 0;
@@ -538,6 +578,11 @@ export function link_abi_user_o_needs_std_heap_page_mmap(user_o: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `link_abi_user_o_needs_std_sys_linux`.
+ * Implements `link_abi_user_o_needs_std_sys_linux`.
+ * @param user_o *u8
+ * @return i32
+ */
 export function link_abi_user_o_needs_std_sys_linux(user_o: *u8): i32 {
   if (user_o == 0 as *u8) {
     return 0;
@@ -573,6 +618,11 @@ export function link_abi_user_o_needs_std_sys_linux(user_o: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `link_abi_user_o_needs_std_sys`.
+ * Implements `link_abi_user_o_needs_std_sys`.
+ * @param user_o *u8
+ * @return i32
+ */
 export function link_abi_user_o_needs_std_sys(user_o: *u8): i32 {
   if (user_o == 0 as *u8) {
     return 0;
@@ -611,6 +661,11 @@ export function link_abi_user_o_needs_std_sys(user_o: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `link_abi_user_o_needs_std_net`.
+ * Implements `link_abi_user_o_needs_std_net`.
+ * @param user_o *u8
+ * @return i32
+ */
 export function link_abi_user_o_needs_std_net(user_o: *u8): i32 {
   if (user_o == 0 as *u8) {
     return 0;
@@ -676,7 +731,7 @@ export function link_abi_user_o_needs_std_net(user_o: *u8): i32 {
 }
 
 
-/* ---- G-02f-37：std.heap API / heap_*_c 单路径探针（argv 循环仍 C）---- */
+/* See implementation. */
 
 #[no_mangle]
 export function link_abi_user_o_needs_std_heap_api(user_o: *u8): i32 {
@@ -770,6 +825,11 @@ export function link_abi_user_o_needs_std_heap_api(user_o: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `link_abi_user_o_needs_heap_user_syms`.
+ * Implements `link_abi_user_o_needs_heap_user_syms`.
+ * @param user_o *u8
+ * @return i32
+ */
 export function link_abi_user_o_needs_heap_user_syms(user_o: *u8): i32 {
   if (user_o == 0 as *u8) {
     return 0;
@@ -795,7 +855,7 @@ export function link_abi_user_o_needs_heap_user_syms(user_o: *u8): i32 {
   return 0;
 }
 
-/* ---- G-02f-37：async scheduler 按需链（原 static 符号表展开为 if）---- */
+/* See implementation. */
 
 #[no_mangle]
 export function link_abi_user_o_needs_async_scheduler(user_o: *u8): i32 {
@@ -911,7 +971,7 @@ export function link_abi_user_o_needs_async_scheduler(user_o: *u8): i32 {
 }
 
 
-/* ---- G-02f-38：compress 库按需探针（nm marker/undef 原语仍 C）---- */
+/* See implementation. */
 
 #[no_mangle]
 export function link_abi_obj_needs_zlib(obj_o: *u8): i32 {
@@ -943,6 +1003,11 @@ export function link_abi_obj_needs_zlib(obj_o: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `link_abi_obj_needs_zstd`.
+ * Implements `link_abi_obj_needs_zstd`.
+ * @param obj_o *u8
+ * @return i32
+ */
 export function link_abi_obj_needs_zstd(obj_o: *u8): i32 {
   if (obj_o == 0 as *u8) {
     return 0;
@@ -966,6 +1031,11 @@ export function link_abi_obj_needs_zstd(obj_o: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `link_abi_obj_needs_brotli`.
+ * Implements `link_abi_obj_needs_brotli`.
+ * @param obj_o *u8
+ * @return i32
+ */
 export function link_abi_obj_needs_brotli(obj_o: *u8): i32 {
   if (obj_o == 0 as *u8) {
     return 0;
@@ -989,6 +1059,11 @@ export function link_abi_obj_needs_brotli(obj_o: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `link_abi_user_o_needs_compress_libs`.
+ * Implements `link_abi_user_o_needs_compress_libs`.
+ * @param user_o *u8
+ * @return i32
+ */
 export function link_abi_user_o_needs_compress_libs(user_o: *u8): i32 {
   unsafe {
     if (link_abi_obj_needs_zlib(user_o) != 0) {
@@ -1005,7 +1080,7 @@ export function link_abi_user_o_needs_compress_libs(user_o: *u8): i32 {
   return 0;
 }
 
-/* ---- G-02f-39：generated_c 子串探针（fileview 扫描原语仍 C）---- */
+/* See implementation. */
 
 #[no_mangle]
 export function link_abi_generated_c_needs_core_builtin(c_path: *u8): i32 {
@@ -1013,13 +1088,23 @@ export function link_abi_generated_c_needs_core_builtin(c_path: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `link_abi_generated_c_needs_core_mem`.
+ * Implements `link_abi_generated_c_needs_core_mem`.
+ * @param c_path *u8
+ * @return i32
+ */
 export function link_abi_generated_c_needs_core_mem(c_path: *u8): i32 {
   return 0;
 }
 
 #[no_mangle]
+/** Exported function `link_abi_generated_c_needs_libc_heap`.
+ * Implements `link_abi_generated_c_needs_libc_heap`.
+ * @param c_path *u8
+ * @return i32
+ */
 export function link_abi_generated_c_needs_libc_heap(c_path: *u8): i32 {
-  /* needles 无 '('：shux-c -E 对含括号字符串会丢整函数 */
+  /* See implementation. */
   unsafe {
     if (link_abi_generated_c_contains_substr(c_path, "malloc") != 0) {
       return 1;
@@ -1054,6 +1139,11 @@ export function link_abi_generated_c_needs_libc_heap(c_path: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `link_abi_generated_c_needs_win32`.
+ * Implements `link_abi_generated_c_needs_win32`.
+ * @param c_path *u8
+ * @return i32
+ */
 export function link_abi_generated_c_needs_win32(c_path: *u8): i32 {
   unsafe {
     if (link_abi_generated_c_contains_substr(c_path, "GetStdHandle") != 0) {
@@ -1089,6 +1179,11 @@ export function link_abi_generated_c_needs_win32(c_path: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `link_abi_generated_c_needs_win32_wsa`.
+ * Implements `link_abi_generated_c_needs_win32_wsa`.
+ * @param c_path *u8
+ * @return i32
+ */
 export function link_abi_generated_c_needs_win32_wsa(c_path: *u8): i32 {
   unsafe {
     if (link_abi_generated_c_contains_substr(c_path, "WSAStartup") != 0) {
@@ -1106,6 +1201,11 @@ export function link_abi_generated_c_needs_win32_wsa(c_path: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `link_abi_generated_c_needs_db_kv`.
+ * Implements `link_abi_generated_c_needs_db_kv`.
+ * @param c_path *u8
+ * @return i32
+ */
 export function link_abi_generated_c_needs_db_kv(c_path: *u8): i32 {
   unsafe {
     if (link_abi_generated_c_contains_substr(c_path, "db_kv_open_c") != 0) {
@@ -1135,6 +1235,11 @@ export function link_abi_generated_c_needs_db_kv(c_path: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `link_abi_generated_c_needs_db_arrow`.
+ * Implements `link_abi_generated_c_needs_db_arrow`.
+ * @param c_path *u8
+ * @return i32
+ */
 export function link_abi_generated_c_needs_db_arrow(c_path: *u8): i32 {
   unsafe {
     if (link_abi_generated_c_contains_substr(c_path, "arrow_column_") != 0) {
@@ -1152,6 +1257,11 @@ export function link_abi_generated_c_needs_db_arrow(c_path: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `link_abi_generated_c_needs_core_slice`.
+ * Implements `link_abi_generated_c_needs_core_slice`.
+ * @param c_path *u8
+ * @return i32
+ */
 export function link_abi_generated_c_needs_core_slice(c_path: *u8): i32 {
   unsafe {
     if (link_abi_generated_c_contains_substr(c_path, "core_slice_i32_from_ptr_c") != 0) {
@@ -1178,6 +1288,11 @@ export function link_abi_generated_c_needs_core_slice(c_path: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `link_abi_generated_c_needs_fs`.
+ * Implements `link_abi_generated_c_needs_fs`.
+ * @param c_path *u8
+ * @return i32
+ */
 export function link_abi_generated_c_needs_fs(c_path: *u8): i32 {
   unsafe {
     if (link_abi_generated_c_contains_substr(c_path, "fs_open_read_c") != 0) {
@@ -1201,8 +1316,13 @@ export function link_abi_generated_c_needs_fs(c_path: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `link_abi_generated_c_needs_zlib`.
+ * Implements `link_abi_generated_c_needs_zlib`.
+ * @param c_path *u8
+ * @return i32
+ */
 export function link_abi_generated_c_needs_zlib(c_path: *u8): i32 {
-  /* 无 '(' needle：避免 -E 丢函数；_compress2 等前缀已覆盖 libc 符号 */
+  /* See implementation. */
   unsafe {
     if (link_abi_generated_c_contains_substr(c_path, "_compress2") != 0) {
       return 1;
@@ -1231,6 +1351,11 @@ export function link_abi_generated_c_needs_zlib(c_path: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `link_abi_generated_c_needs_zstd`.
+ * Implements `link_abi_generated_c_needs_zstd`.
+ * @param c_path *u8
+ * @return i32
+ */
 export function link_abi_generated_c_needs_zstd(c_path: *u8): i32 {
   unsafe {
     if (link_abi_generated_c_contains_substr(c_path, "ZSTD_compress") != 0) {
@@ -1254,6 +1379,11 @@ export function link_abi_generated_c_needs_zstd(c_path: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `link_abi_generated_c_needs_brotli`.
+ * Implements `link_abi_generated_c_needs_brotli`.
+ * @param c_path *u8
+ * @return i32
+ */
 export function link_abi_generated_c_needs_brotli(c_path: *u8): i32 {
   unsafe {
     if (link_abi_generated_c_contains_substr(c_path, "BrotliEncoder") != 0) {
@@ -1268,6 +1398,11 @@ export function link_abi_generated_c_needs_brotli(c_path: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `link_abi_generated_c_needs_random`.
+ * Implements `link_abi_generated_c_needs_random`.
+ * @param c_path *u8
+ * @return i32
+ */
 export function link_abi_generated_c_needs_random(c_path: *u8): i32 {
   unsafe {
     if (link_abi_generated_c_contains_substr(c_path, "random_rng_smoke_c") != 0) {
@@ -1285,6 +1420,11 @@ export function link_abi_generated_c_needs_random(c_path: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `link_abi_generated_c_needs_time`.
+ * Implements `link_abi_generated_c_needs_time`.
+ * @param c_path *u8
+ * @return i32
+ */
 export function link_abi_generated_c_needs_time(c_path: *u8): i32 {
   unsafe {
     if (link_abi_generated_c_contains_substr(c_path, "std_time_now_monotonic_ns") != 0) {
@@ -1323,6 +1463,11 @@ export function link_abi_generated_c_needs_time(c_path: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `link_abi_generated_c_needs_runtime`.
+ * Implements `link_abi_generated_c_needs_runtime`.
+ * @param c_path *u8
+ * @return i32
+ */
 export function link_abi_generated_c_needs_runtime(c_path: *u8): i32 {
   unsafe {
     if (link_abi_generated_c_contains_substr(c_path, "runtime_crash_evidence_collect_c") != 0) {
@@ -1340,6 +1485,11 @@ export function link_abi_generated_c_needs_runtime(c_path: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `shux_generated_c_needs_async_scheduler`.
+ * Implements `shux_generated_c_needs_async_scheduler`.
+ * @param c_path *u8
+ * @return i32
+ */
 export function shux_generated_c_needs_async_scheduler(c_path: *u8): i32 {
   unsafe {
     if (link_abi_generated_c_contains_substr(c_path, "shux_async_run_i32") != 0) {
@@ -1373,7 +1523,7 @@ export function shux_generated_c_needs_async_scheduler(c_path: *u8): i32 {
   }
   return 0;
 }
-/* ---- G-02f-47：已存在非空常规文件则返回 path ---- */
+/* See implementation. */
 
 #[no_mangle]
 export function asm_link_obj_skip_missing(path: *u8): *u8 {
@@ -1392,7 +1542,7 @@ export function asm_link_obj_skip_missing(path: *u8): *u8 {
   return 0 as *u8;
 }
 
-/* ---- G-02f-44：argv[i] 拷贝到 buf（循环在 C）---- */
+/* See implementation. */
 
 #[no_mangle]
 export function driver_get_argv_i(argc: i32, argv: *u8, i: i32, buf: *u8, max: i32): i32 {
@@ -1422,7 +1572,7 @@ export function driver_get_argv_i(argc: i32, argv: *u8, i: i32, buf: *u8, max: i
   return 0 - 1;
 }
 
-/* ---- G-02f-43：target arch 解析（OS 门闩经 C 槽）---- */
+/* See implementation. */
 
 #[no_mangle]
 export function driver_resolve_target_arch(parsed_target: i32, saw_target_flag: i32): i32 {
@@ -1439,19 +1589,33 @@ export function driver_resolve_target_arch(parsed_target: i32, saw_target_flag: 
 }
 
 #[no_mangle]
+/** Exported function `bootstrap_init_static_tls`.
+ * Implements `bootstrap_init_static_tls`.
+ * @return void
+ */
 export function bootstrap_init_static_tls(): void {
 }
 
 #[no_mangle]
+/** Exported function `bootstrap_init_environ`.
+ * Implements `bootstrap_init_environ`.
+ * @param argc i32
+ * @param argv *u8
+ * @return void
+ */
 export function bootstrap_init_environ(argc: i32, argv: *u8): void {
 }
 
 #[no_mangle]
+/** Exported function `bootstrap_nostdlib_pthread_is_stub`.
+ * Read path helper `bootstrap_nostdlib_pthread_is_stub`.
+ * @return i32
+ */
 export function bootstrap_nostdlib_pthread_is_stub(): i32 {
   return 0;
 }
 
-/* ---- G-02f-53：std.io / std.compress 已无 .o，返回空串 ---- */
+/* See implementation. */
 
 #[no_mangle]
 export function shux_std_io_o_path(argv0: *u8): *u8 {
@@ -1462,6 +1626,11 @@ export function shux_std_io_o_path(argv0: *u8): *u8 {
 }
 
 #[no_mangle]
+/** Exported function `shux_std_compress_o_path`.
+ * Implements `shux_std_compress_o_path`.
+ * @param argv0 *u8
+ * @return *u8
+ */
 export function shux_std_compress_o_path(argv0: *u8): *u8 {
   unsafe {
     return shux_empty_cstr();
@@ -1469,7 +1638,7 @@ export function shux_std_compress_o_path(argv0: *u8): *u8 {
   return 0 as *u8;
 }
 
-/* ---- G-02f-56：effective link argv0（靠前以免 -E 尾丢）---- */
+/* See implementation. */
 
 #[no_mangle]
 export function shux_asm_ld_effective_link_argv0(link_argv0: *u8, syn_buf: *u8, syn_sz: i32): *u8 {
@@ -1479,7 +1648,7 @@ export function shux_asm_ld_effective_link_argv0(link_argv0: *u8, syn_buf: *u8, 
   return 0 as *u8;
 }
 
-/* ---- G-02f-55：ld path bank push 门闩 ---- */
+/* See implementation. */
 
 #[no_mangle]
 export function shux_asm_ld_bank_push(b: *u8, path: *u8): *u8 {
@@ -1498,7 +1667,7 @@ export function shux_asm_ld_bank_push(b: *u8, path: *u8): *u8 {
   return 0 as *u8;
 }
 
-/* ---- G-02f-56：runtime .o 路径 + effective link argv0 ---- */
+/* See implementation. */
 
 #[no_mangle]
 export function shux_runtime_asm_io_stubs_o_path(argv0: *u8): *u8 {
@@ -1509,6 +1678,11 @@ export function shux_runtime_asm_io_stubs_o_path(argv0: *u8): *u8 {
 }
 
 #[no_mangle]
+/** Exported function `shux_runtime_process_argv_o_path`.
+ * Implements `shux_runtime_process_argv_o_path`.
+ * @param argv0 *u8
+ * @return *u8
+ */
 export function shux_runtime_process_argv_o_path(argv0: *u8): *u8 {
   unsafe {
     return shux_runtime_process_argv_o_path_impl(argv0);
@@ -1516,9 +1690,9 @@ export function shux_runtime_process_argv_o_path(argv0: *u8): *u8 {
   return 0 as *u8;
 }
 
-/* ---- G-02f-64：-o 路径后缀形态（真逻辑，无 _impl）---- */
+/* See implementation. */
 
-/* .o / .O / .obj → 对象文件路径（非自动 ld exe）。 */
+/* See implementation. */
 #[no_mangle]
 export function shux_output_is_elf_o(path: *u8): i32 {
   if (path == 0 as *u8) {
@@ -1557,7 +1731,7 @@ export function shux_output_is_elf_o(path: *u8): i32 {
   return 0;
 }
 
-/* 非 .o/.obj/.s 后缀 → asm 应自动 ld 出 exe。 */
+/* See implementation. */
 #[no_mangle]
 export function shux_output_want_exe(path: *u8): i32 {
   if (path == 0 as *u8) {
@@ -1603,7 +1777,7 @@ export function shux_output_want_exe(path: *u8): i32 {
   return 0;
 }
 
-/* ---- G-02f-65：stat 门闩 + ld argv 条目是否为 .o/.obj ---- */
+/* See implementation. */
 
 #[no_mangle]
 export function shux_path_is_nonempty_regular_file(path: *u8): i32 {
@@ -1619,7 +1793,7 @@ export function shux_path_is_nonempty_regular_file(path: *u8): i32 {
   return 0;
 }
 
-/* 真逻辑：argv 槽是否为对象文件路径（.o / .obj）。供 merge/needs 循环复用。 */
+/* See implementation. */
 #[no_mangle]
 export function link_abi_ld_argv_entry_is_obj(s: *u8): i32 {
   if (s == 0 as *u8) {
@@ -1656,7 +1830,7 @@ export function link_abi_ld_argv_entry_is_obj(s: *u8): i32 {
   return 0;
 }
 
-/* ---- G-02f-66：asm -o exe 编排 + tail libs 门闩 ---- */
+/* See implementation. */
 
 #[no_mangle]
 export function shux_invoke_ld_for_exe(o_path: *u8, exe_path: *u8, target: *u8, use_macho_o: i32, use_coff_o: i32, link_argv0: *u8, lib_roots: *u8, n_lib_roots: i32): i32 {
@@ -1673,6 +1847,17 @@ export function shux_invoke_ld_for_exe(o_path: *u8, exe_path: *u8, target: *u8, 
 }
 
 #[no_mangle]
+/** Exported function `shux_asm_ld_append_mach_tail_libs`.
+ * Implements `shux_asm_ld_append_mach_tail_libs`.
+ * @param compress_o *u8
+ * @param user_o *u8
+ * @param flags *u8
+ * @param argv *u8
+ * @param la *i32
+ * @param max_la i32
+ * @param append_lsystem i32
+ * @return void
+ */
 export function shux_asm_ld_append_mach_tail_libs(compress_o: *u8, user_o: *u8, flags: *u8, argv: *u8, la: *i32, max_la: i32, append_lsystem: i32): void {
   if (flags == 0 as *u8) {
     return;
@@ -1692,6 +1877,17 @@ export function shux_asm_ld_append_mach_tail_libs(compress_o: *u8, user_o: *u8, 
 }
 
 #[no_mangle]
+/** Exported function `shux_asm_ld_append_unix_gcc_tail_libs`.
+ * Implements `shux_asm_ld_append_unix_gcc_tail_libs`.
+ * @param compress_o *u8
+ * @param user_o *u8
+ * @param flags *u8
+ * @param need_pt i32
+ * @param argv *u8
+ * @param la *i32
+ * @param max_la i32
+ * @return void
+ */
 export function shux_asm_ld_append_unix_gcc_tail_libs(compress_o: *u8, user_o: *u8, flags: *u8, need_pt: i32, argv: *u8, la: *i32, max_la: i32): void {
   if (flags == 0 as *u8) {
     return;
@@ -1720,7 +1916,7 @@ export extern "C" function invoke_cc_append_compress_ld_impl(argv: *u8, i: *i32,
 export extern "C" function invoke_cc_argv_push_existing_impl(argv: *u8, ia: *i32, max_ia: i32, path: *u8): i32;
 export extern "C" function shux_asm_ld_prepare_for_exe_link_impl(link_eff: *u8, user_o: *u8, driver_freestanding: i32, use_macho_o: i32, use_coff_o: i32): i32;
 
-/* ---- G-02f-67：ensure_* 标准模板门闩（argv0） ---- */
+/* See implementation. */
 
 #[no_mangle]
 export function shux_ensure_runtime_arrow_simd_glue_o(argv0: *u8): i32 {
@@ -1731,6 +1927,11 @@ export function shux_ensure_runtime_arrow_simd_glue_o(argv0: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `shux_ensure_runtime_asm_io_stubs_o`.
+ * Implements `shux_ensure_runtime_asm_io_stubs_o`.
+ * @param argv0 *u8
+ * @return i32
+ */
 export function shux_ensure_runtime_asm_io_stubs_o(argv0: *u8): i32 {
   unsafe {
     return shux_ensure_runtime_asm_io_stubs_o_impl(argv0);
@@ -1739,6 +1940,11 @@ export function shux_ensure_runtime_asm_io_stubs_o(argv0: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `shux_ensure_runtime_atomic_glue_o`.
+ * Implements `shux_ensure_runtime_atomic_glue_o`.
+ * @param argv0 *u8
+ * @return i32
+ */
 export function shux_ensure_runtime_atomic_glue_o(argv0: *u8): i32 {
   unsafe {
     return shux_ensure_runtime_atomic_glue_o_impl(argv0);
@@ -1747,6 +1953,11 @@ export function shux_ensure_runtime_atomic_glue_o(argv0: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `shux_ensure_runtime_backtrace_platform_o`.
+ * Implements `shux_ensure_runtime_backtrace_platform_o`.
+ * @param argv0 *u8
+ * @return i32
+ */
 export function shux_ensure_runtime_backtrace_platform_o(argv0: *u8): i32 {
   unsafe {
     return shux_ensure_runtime_backtrace_platform_o_impl(argv0);
@@ -1755,6 +1966,11 @@ export function shux_ensure_runtime_backtrace_platform_o(argv0: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `shux_ensure_runtime_channel_glue_o`.
+ * Implements `shux_ensure_runtime_channel_glue_o`.
+ * @param argv0 *u8
+ * @return i32
+ */
 export function shux_ensure_runtime_channel_glue_o(argv0: *u8): i32 {
   unsafe {
     return shux_ensure_runtime_channel_glue_o_impl(argv0);
@@ -1763,6 +1979,11 @@ export function shux_ensure_runtime_channel_glue_o(argv0: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `shux_ensure_runtime_compress_zlib_glue_o`.
+ * Implements `shux_ensure_runtime_compress_zlib_glue_o`.
+ * @param argv0 *u8
+ * @return i32
+ */
 export function shux_ensure_runtime_compress_zlib_glue_o(argv0: *u8): i32 {
   unsafe {
     return shux_ensure_runtime_compress_zlib_glue_o_impl(argv0);
@@ -1771,6 +1992,11 @@ export function shux_ensure_runtime_compress_zlib_glue_o(argv0: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `shux_ensure_runtime_crypto_inc_glue_o`.
+ * Implements `shux_ensure_runtime_crypto_inc_glue_o`.
+ * @param argv0 *u8
+ * @return i32
+ */
 export function shux_ensure_runtime_crypto_inc_glue_o(argv0: *u8): i32 {
   unsafe {
     return shux_ensure_runtime_crypto_inc_glue_o_impl(argv0);
@@ -1779,6 +2005,11 @@ export function shux_ensure_runtime_crypto_inc_glue_o(argv0: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `shux_ensure_runtime_dynlib_os_o`.
+ * Implements `shux_ensure_runtime_dynlib_os_o`.
+ * @param argv0 *u8
+ * @return i32
+ */
 export function shux_ensure_runtime_dynlib_os_o(argv0: *u8): i32 {
   unsafe {
     return shux_ensure_runtime_dynlib_os_o_impl(argv0);
@@ -1787,6 +2018,11 @@ export function shux_ensure_runtime_dynlib_os_o(argv0: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `shux_ensure_runtime_ed25519_ref10_glue_o`.
+ * Implements `shux_ensure_runtime_ed25519_ref10_glue_o`.
+ * @param argv0 *u8
+ * @return i32
+ */
 export function shux_ensure_runtime_ed25519_ref10_glue_o(argv0: *u8): i32 {
   unsafe {
     return shux_ensure_runtime_ed25519_ref10_glue_o_impl(argv0);
@@ -1795,6 +2031,11 @@ export function shux_ensure_runtime_ed25519_ref10_glue_o(argv0: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `shux_ensure_runtime_env_os_o`.
+ * Implements `shux_ensure_runtime_env_os_o`.
+ * @param argv0 *u8
+ * @return i32
+ */
 export function shux_ensure_runtime_env_os_o(argv0: *u8): i32 {
   unsafe {
     return shux_ensure_runtime_env_os_o_impl(argv0);
@@ -1803,6 +2044,11 @@ export function shux_ensure_runtime_env_os_o(argv0: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `shux_ensure_runtime_heap_user_o`.
+ * Implements `shux_ensure_runtime_heap_user_o`.
+ * @param argv0 *u8
+ * @return i32
+ */
 export function shux_ensure_runtime_heap_user_o(argv0: *u8): i32 {
   unsafe {
     return shux_ensure_runtime_heap_user_o_impl(argv0);
@@ -1811,6 +2057,11 @@ export function shux_ensure_runtime_heap_user_o(argv0: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `shux_ensure_runtime_http_glue_o`.
+ * Implements `shux_ensure_runtime_http_glue_o`.
+ * @param argv0 *u8
+ * @return i32
+ */
 export function shux_ensure_runtime_http_glue_o(argv0: *u8): i32 {
   unsafe {
     return shux_ensure_runtime_http_glue_o_impl(argv0);
@@ -1819,6 +2070,11 @@ export function shux_ensure_runtime_http_glue_o(argv0: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `shux_ensure_runtime_kv_mmap_glue_o`.
+ * Implements `shux_ensure_runtime_kv_mmap_glue_o`.
+ * @param argv0 *u8
+ * @return i32
+ */
 export function shux_ensure_runtime_kv_mmap_glue_o(argv0: *u8): i32 {
   unsafe {
     return shux_ensure_runtime_kv_mmap_glue_o_impl(argv0);
@@ -1827,6 +2083,11 @@ export function shux_ensure_runtime_kv_mmap_glue_o(argv0: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `shux_ensure_runtime_log_os_o`.
+ * Implements `shux_ensure_runtime_log_os_o`.
+ * @param argv0 *u8
+ * @return i32
+ */
 export function shux_ensure_runtime_log_os_o(argv0: *u8): i32 {
   unsafe {
     return shux_ensure_runtime_log_os_o_impl(argv0);
@@ -1835,6 +2096,11 @@ export function shux_ensure_runtime_log_os_o(argv0: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `shux_ensure_runtime_math_libm_o`.
+ * Implements `shux_ensure_runtime_math_libm_o`.
+ * @param argv0 *u8
+ * @return i32
+ */
 export function shux_ensure_runtime_math_libm_o(argv0: *u8): i32 {
   unsafe {
     return shux_ensure_runtime_math_libm_o_impl(argv0);
@@ -1843,6 +2109,11 @@ export function shux_ensure_runtime_math_libm_o(argv0: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `shux_ensure_runtime_net_udp_batch_o`.
+ * Implements `shux_ensure_runtime_net_udp_batch_o`.
+ * @param argv0 *u8
+ * @return i32
+ */
 export function shux_ensure_runtime_net_udp_batch_o(argv0: *u8): i32 {
   unsafe {
     return shux_ensure_runtime_net_udp_batch_o_impl(argv0);
@@ -1851,6 +2122,11 @@ export function shux_ensure_runtime_net_udp_batch_o(argv0: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `shux_ensure_runtime_net_workers_o`.
+ * Implements `shux_ensure_runtime_net_workers_o`.
+ * @param argv0 *u8
+ * @return i32
+ */
 export function shux_ensure_runtime_net_workers_o(argv0: *u8): i32 {
   unsafe {
     return shux_ensure_runtime_net_workers_o_impl(argv0);
@@ -1859,6 +2135,11 @@ export function shux_ensure_runtime_net_workers_o(argv0: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `shux_ensure_runtime_panic_o`.
+ * Implements `shux_ensure_runtime_panic_o`.
+ * @param argv0 *u8
+ * @return i32
+ */
 export function shux_ensure_runtime_panic_o(argv0: *u8): i32 {
   unsafe {
     return shux_ensure_runtime_panic_o_impl(argv0);
@@ -1867,6 +2148,11 @@ export function shux_ensure_runtime_panic_o(argv0: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `shux_ensure_runtime_process_argv_o`.
+ * Implements `shux_ensure_runtime_process_argv_o`.
+ * @param argv0 *u8
+ * @return i32
+ */
 export function shux_ensure_runtime_process_argv_o(argv0: *u8): i32 {
   unsafe {
     return shux_ensure_runtime_process_argv_o_impl(argv0);
@@ -1875,6 +2161,11 @@ export function shux_ensure_runtime_process_argv_o(argv0: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `shux_ensure_runtime_process_os_glue_o`.
+ * Implements `shux_ensure_runtime_process_os_glue_o`.
+ * @param argv0 *u8
+ * @return i32
+ */
 export function shux_ensure_runtime_process_os_glue_o(argv0: *u8): i32 {
   unsafe {
     return shux_ensure_runtime_process_os_glue_o_impl(argv0);
@@ -1883,6 +2174,11 @@ export function shux_ensure_runtime_process_os_glue_o(argv0: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `shux_ensure_runtime_queue_contention_o`.
+ * Implements `shux_ensure_runtime_queue_contention_o`.
+ * @param argv0 *u8
+ * @return i32
+ */
 export function shux_ensure_runtime_queue_contention_o(argv0: *u8): i32 {
   unsafe {
     return shux_ensure_runtime_queue_contention_o_impl(argv0);
@@ -1891,6 +2187,11 @@ export function shux_ensure_runtime_queue_contention_o(argv0: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `shux_ensure_runtime_random_fill_o`.
+ * Implements `shux_ensure_runtime_random_fill_o`.
+ * @param argv0 *u8
+ * @return i32
+ */
 export function shux_ensure_runtime_random_fill_o(argv0: *u8): i32 {
   unsafe {
     return shux_ensure_runtime_random_fill_o_impl(argv0);
@@ -1899,6 +2200,11 @@ export function shux_ensure_runtime_random_fill_o(argv0: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `shux_ensure_runtime_scheduler_glue_o`.
+ * Implements `shux_ensure_runtime_scheduler_glue_o`.
+ * @param argv0 *u8
+ * @return i32
+ */
 export function shux_ensure_runtime_scheduler_glue_o(argv0: *u8): i32 {
   unsafe {
     return shux_ensure_runtime_scheduler_glue_o_impl(argv0);
@@ -1907,6 +2213,11 @@ export function shux_ensure_runtime_scheduler_glue_o(argv0: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `shux_ensure_runtime_sqlite_glue_o`.
+ * Implements `shux_ensure_runtime_sqlite_glue_o`.
+ * @param argv0 *u8
+ * @return i32
+ */
 export function shux_ensure_runtime_sqlite_glue_o(argv0: *u8): i32 {
   unsafe {
     return shux_ensure_runtime_sqlite_glue_o_impl(argv0);
@@ -1915,6 +2226,11 @@ export function shux_ensure_runtime_sqlite_glue_o(argv0: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `shux_ensure_runtime_sync_lock_diag_tls_o`.
+ * Implements `shux_ensure_runtime_sync_lock_diag_tls_o`.
+ * @param argv0 *u8
+ * @return i32
+ */
 export function shux_ensure_runtime_sync_lock_diag_tls_o(argv0: *u8): i32 {
   unsafe {
     return shux_ensure_runtime_sync_lock_diag_tls_o_impl(argv0);
@@ -1923,6 +2239,11 @@ export function shux_ensure_runtime_sync_lock_diag_tls_o(argv0: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `shux_ensure_runtime_sync_os_o`.
+ * Implements `shux_ensure_runtime_sync_os_o`.
+ * @param argv0 *u8
+ * @return i32
+ */
 export function shux_ensure_runtime_sync_os_o(argv0: *u8): i32 {
   unsafe {
     return shux_ensure_runtime_sync_os_o_impl(argv0);
@@ -1931,6 +2252,11 @@ export function shux_ensure_runtime_sync_os_o(argv0: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `shux_ensure_runtime_test_fn_invoke_o`.
+ * Implements `shux_ensure_runtime_test_fn_invoke_o`.
+ * @param argv0 *u8
+ * @return i32
+ */
 export function shux_ensure_runtime_test_fn_invoke_o(argv0: *u8): i32 {
   unsafe {
     return shux_ensure_runtime_test_fn_invoke_o_impl(argv0);
@@ -1939,6 +2265,11 @@ export function shux_ensure_runtime_test_fn_invoke_o(argv0: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `shux_ensure_runtime_thread_glue_o`.
+ * Read path helper `shux_ensure_runtime_thread_glue_o`.
+ * @param argv0 *u8
+ * @return i32
+ */
 export function shux_ensure_runtime_thread_glue_o(argv0: *u8): i32 {
   unsafe {
     return shux_ensure_runtime_thread_glue_o_impl(argv0);
@@ -1947,6 +2278,11 @@ export function shux_ensure_runtime_thread_glue_o(argv0: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `shux_ensure_runtime_time_os_o`.
+ * Implements `shux_ensure_runtime_time_os_o`.
+ * @param argv0 *u8
+ * @return i32
+ */
 export function shux_ensure_runtime_time_os_o(argv0: *u8): i32 {
   unsafe {
     return shux_ensure_runtime_time_os_o_impl(argv0);
@@ -1955,6 +2291,11 @@ export function shux_ensure_runtime_time_os_o(argv0: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `shux_ensure_runtime_tls_mbedtls_bio_o`.
+ * Implements `shux_ensure_runtime_tls_mbedtls_bio_o`.
+ * @param argv0 *u8
+ * @return i32
+ */
 export function shux_ensure_runtime_tls_mbedtls_bio_o(argv0: *u8): i32 {
   unsafe {
     return shux_ensure_runtime_tls_mbedtls_bio_o_impl(argv0);
@@ -1963,6 +2304,12 @@ export function shux_ensure_runtime_tls_mbedtls_bio_o(argv0: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `shux_ensure_crt0_user_o`.
+ * Implements `shux_ensure_crt0_user_o`.
+ * @param argv0 *u8
+ * @param driver_freestanding i32
+ * @return i32
+ */
 export function shux_ensure_crt0_user_o(argv0: *u8, driver_freestanding: i32): i32 {
   unsafe {
     return shux_ensure_crt0_user_o_impl(argv0, driver_freestanding);
@@ -1971,6 +2318,12 @@ export function shux_ensure_crt0_user_o(argv0: *u8, driver_freestanding: i32): i
 }
 
 #[no_mangle]
+/** Exported function `shux_ensure_freestanding_io_o`.
+ * Memory management helper `shux_ensure_freestanding_io_o`.
+ * @param argv0 *u8
+ * @param driver_freestanding i32
+ * @return i32
+ */
 export function shux_ensure_freestanding_io_o(argv0: *u8, driver_freestanding: i32): i32 {
   unsafe {
     return shux_ensure_freestanding_io_o_impl(argv0, driver_freestanding);
@@ -1985,7 +2338,7 @@ export extern "C" function shux_asm_ld_append_on_demand_user_objs_impl(link_argv
 export extern "C" function invoke_cc_append_net_tls_ld_impl(argv: *u8, i: *i32, argv_cap: i32, net_o: *u8, repo_root: *u8): i32;
 export extern "C" function ensure_std_net_o_auto_tls_impl(repo_root: *u8): void;
 
-/* ---- G-02f-68：prepare / waitpid / compress / argv_push 门闩 ---- */
+/* See implementation. */
 
 #[no_mangle]
 export function shu_waitpid_retry(pid: i64, status_out: *i32): i32 {
@@ -1996,6 +2349,11 @@ export function shu_waitpid_retry(pid: i64, status_out: *i32): i32 {
 }
 
 #[no_mangle]
+/** Exported function `shux_asm_user_o_has_undef_syms`.
+ * Implements `shux_asm_user_o_has_undef_syms`.
+ * @param o_path *u8
+ * @return i32
+ */
 export function shux_asm_user_o_has_undef_syms(o_path: *u8): i32 {
   if (o_path == 0 as *u8) {
     return 1;
@@ -2007,6 +2365,15 @@ export function shux_asm_user_o_has_undef_syms(o_path: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `asm_ld_append_compress_libs`.
+ * Implements `asm_ld_append_compress_libs`.
+ * @param compress_o *u8
+ * @param user_o *u8
+ * @param argv *u8
+ * @param la *i32
+ * @param max_la i32
+ * @return void
+ */
 export function asm_ld_append_compress_libs(compress_o: *u8, user_o: *u8, argv: *u8, la: *i32, max_la: i32): void {
   if (argv == 0 as *u8) {
     return;
@@ -2020,6 +2387,15 @@ export function asm_ld_append_compress_libs(compress_o: *u8, user_o: *u8, argv: 
 }
 
 #[no_mangle]
+/** Exported function `invoke_cc_append_compress_ld`.
+ * Implements `invoke_cc_append_compress_ld`.
+ * @param argv *u8
+ * @param i *i32
+ * @param argv_cap i32
+ * @param compress_o *u8
+ * @param user_o *u8
+ * @return void
+ */
 export function invoke_cc_append_compress_ld(argv: *u8, i: *i32, argv_cap: i32, compress_o: *u8, user_o: *u8): void {
   if (argv == 0 as *u8) {
     return;
@@ -2033,6 +2409,14 @@ export function invoke_cc_append_compress_ld(argv: *u8, i: *i32, argv_cap: i32, 
 }
 
 #[no_mangle]
+/** Exported function `invoke_cc_argv_push_existing`.
+ * Implements `invoke_cc_argv_push_existing`.
+ * @param argv *u8
+ * @param ia *i32
+ * @param max_ia i32
+ * @param path *u8
+ * @return i32
+ */
 export function invoke_cc_argv_push_existing(argv: *u8, ia: *i32, max_ia: i32, path: *u8): i32 {
   if (argv == 0 as *u8) {
     return 0;
@@ -2047,6 +2431,15 @@ export function invoke_cc_argv_push_existing(argv: *u8, ia: *i32, max_ia: i32, p
 }
 
 #[no_mangle]
+/** Exported function `shux_asm_ld_prepare_for_exe_link`.
+ * Implements `shux_asm_ld_prepare_for_exe_link`.
+ * @param link_eff *u8
+ * @param user_o *u8
+ * @param driver_freestanding i32
+ * @param use_macho_o i32
+ * @param use_coff_o i32
+ * @return i32
+ */
 export function shux_asm_ld_prepare_for_exe_link(link_eff: *u8, user_o: *u8, driver_freestanding: i32, use_macho_o: i32, use_coff_o: i32): i32 {
   if (link_eff == 0 as *u8) {
     return 0 - 1;
@@ -2063,7 +2456,7 @@ export function shux_asm_ld_prepare_for_exe_link(link_eff: *u8, user_o: *u8, dri
 export extern "C" function shux_invoke_cc_impl(c_paths: *u8, n: i32, out_path: *u8, target: *u8, opt_level: *u8, use_lto: i32, io_o: *u8, fs_o: *u8, process_o: *u8, string_o: *u8, heap_o: *u8, path_o: *u8, runtime_o: *u8, runtime_panic_o: *u8, net_o: *u8, thread_o: *u8, time_o: *u8, random_o: *u8, env_o: *u8, sync_o: *u8, encoding_o: *u8, base64_o: *u8, crypto_o: *u8, log_o: *u8, atomic_o: *u8, channel_o: *u8, backtrace_o: *u8, hash_o: *u8, math_o: *u8, sort_o: *u8, ffi_o: *u8, db_o: *u8, elf_o: *u8, json_o: *u8, csv_o: *u8, regex_o: *u8, compress_o: *u8, unicode_o: *u8, dynlib_o: *u8, http_o: *u8, tar_o: *u8, simd_o: *u8, context_o: *u8, datetime_o: *u8, uuid_o: *u8, url_o: *u8, cli_o: *u8, security_o: *u8, config_o: *u8, cache_o: *u8, trace_o: *u8, task_o: *u8, schema_o: *u8, test_o: *u8, include_root: *u8, async_scheduler_o: *u8): i32;
 export extern "C" function shux_append_linux_link_harden_impl(argv: *u8, la: *i32, cap: i32): void;
 
-/* ---- G-02f-69：invoke_ld_platform / resolve_dir / append objs 门闩 ---- */
+/* See implementation. */
 
 #[no_mangle]
 export function shu_resolve_compiler_dir(argv0: *u8, out_dir: *u8, out_dir_sz: i64): i32 {
@@ -2080,6 +2473,19 @@ export function shu_resolve_compiler_dir(argv0: *u8, out_dir: *u8, out_dir_sz: i
 }
 
 #[no_mangle]
+/** Exported function `shux_asm_invoke_ld_platform`.
+ * Implements `shux_asm_invoke_ld_platform`.
+ * @param o_path *u8
+ * @param exe_path *u8
+ * @param target *u8
+ * @param use_macho_o i32
+ * @param use_coff_o i32
+ * @param link_argv0 *u8
+ * @param lib_roots *u8
+ * @param n_lib_roots i32
+ * @param driver_freestanding i32
+ * @return i32
+ */
 export function shux_asm_invoke_ld_platform(o_path: *u8, exe_path: *u8, target: *u8, use_macho_o: i32, use_coff_o: i32, link_argv0: *u8, lib_roots: *u8, n_lib_roots: i32, driver_freestanding: i32): i32 {
   if (o_path == 0 as *u8) {
     return 0 - 1;
@@ -2094,6 +2500,18 @@ export function shux_asm_invoke_ld_platform(o_path: *u8, exe_path: *u8, target: 
 }
 
 #[no_mangle]
+/** Exported function `shux_asm_ld_append_std_objs`.
+ * Implements `shux_asm_ld_append_std_objs`.
+ * @param link_argv0 *u8
+ * @param lib_roots *u8
+ * @param n_lib_roots i32
+ * @param bank *u8
+ * @param argv *u8
+ * @param la *i32
+ * @param max_la i32
+ * @param flags *u8
+ * @return void
+ */
 export function shux_asm_ld_append_std_objs(link_argv0: *u8, lib_roots: *u8, n_lib_roots: i32, bank: *u8, argv: *u8, la: *i32, max_la: i32, flags: *u8): void {
   if (argv == 0 as *u8) {
     return;
@@ -2110,6 +2528,19 @@ export function shux_asm_ld_append_std_objs(link_argv0: *u8, lib_roots: *u8, n_l
 }
 
 #[no_mangle]
+/** Exported function `shux_asm_ld_append_on_demand_user_objs`.
+ * Implements `shux_asm_ld_append_on_demand_user_objs`.
+ * @param link_argv0 *u8
+ * @param user_o *u8
+ * @param lib_roots *u8
+ * @param n_lib_roots i32
+ * @param bank *u8
+ * @param argv *u8
+ * @param la *i32
+ * @param max_la i32
+ * @param flags *u8
+ * @return void
+ */
 export function shux_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o: *u8, lib_roots: *u8, n_lib_roots: i32, bank: *u8, argv: *u8, la: *i32, max_la: i32, flags: *u8): void {
   if (user_o == 0 as *u8) {
     return;
@@ -2129,6 +2560,15 @@ export function shux_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o: 
 }
 
 #[no_mangle]
+/** Exported function `invoke_cc_append_net_tls_ld`.
+ * Implements `invoke_cc_append_net_tls_ld`.
+ * @param argv *u8
+ * @param i *i32
+ * @param argv_cap i32
+ * @param net_o *u8
+ * @param repo_root *u8
+ * @return i32
+ */
 export function invoke_cc_append_net_tls_ld(argv: *u8, i: *i32, argv_cap: i32, net_o: *u8, repo_root: *u8): i32 {
   if (argv == 0 as *u8) {
     return 0;
@@ -2143,13 +2583,18 @@ export function invoke_cc_append_net_tls_ld(argv: *u8, i: *i32, argv_cap: i32, n
 }
 
 #[no_mangle]
+/** Exported function `ensure_std_net_o_auto_tls`.
+ * Implements `ensure_std_net_o_auto_tls`.
+ * @param repo_root *u8
+ * @return void
+ */
 export function ensure_std_net_o_auto_tls(repo_root: *u8): void {
   unsafe {
     ensure_std_net_o_auto_tls_impl(repo_root);
   }
 }
 
-/* ---- G-02f-70：invoke_cc + linux link harden 门闩 ---- */
+/* See implementation. */
 
 #[no_mangle]
 export function shux_invoke_cc(c_paths: *u8, n: i32, out_path: *u8, target: *u8, opt_level: *u8, use_lto: i32, io_o: *u8, fs_o: *u8, process_o: *u8, string_o: *u8, heap_o: *u8, path_o: *u8, runtime_o: *u8, runtime_panic_o: *u8, net_o: *u8, thread_o: *u8, time_o: *u8, random_o: *u8, env_o: *u8, sync_o: *u8, encoding_o: *u8, base64_o: *u8, crypto_o: *u8, log_o: *u8, atomic_o: *u8, channel_o: *u8, backtrace_o: *u8, hash_o: *u8, math_o: *u8, sort_o: *u8, ffi_o: *u8, db_o: *u8, elf_o: *u8, json_o: *u8, csv_o: *u8, regex_o: *u8, compress_o: *u8, unicode_o: *u8, dynlib_o: *u8, http_o: *u8, tar_o: *u8, simd_o: *u8, context_o: *u8, datetime_o: *u8, uuid_o: *u8, url_o: *u8, cli_o: *u8, security_o: *u8, config_o: *u8, cache_o: *u8, trace_o: *u8, task_o: *u8, schema_o: *u8, test_o: *u8, include_root: *u8, async_scheduler_o: *u8): i32 {
@@ -2166,6 +2611,13 @@ export function shux_invoke_cc(c_paths: *u8, n: i32, out_path: *u8, target: *u8,
 }
 
 #[no_mangle]
+/** Exported function `shux_append_linux_link_harden`.
+ * Implements `shux_append_linux_link_harden`.
+ * @param argv *u8
+ * @param la *i32
+ * @param cap i32
+ * @return void
+ */
 export function shux_append_linux_link_harden(argv: *u8, la: *i32, cap: i32): void {
   if (argv == 0 as *u8) {
     return;
@@ -2179,7 +2631,7 @@ export function shux_append_linux_link_harden(argv: *u8, la: *i32, cap: i32): vo
 }
 
 
-/* ---- G-02f-83：cstr 拷贝 / nm 未定义符号探测门闩 ---- */
+/* See implementation. */
 
 
 
@@ -2191,7 +2643,7 @@ export function shux_link_obj_needs_undef_sym(user_o: *u8, sym: *u8): i32 {
   return 0;
 }
 
-/* ---- G-02f-89：path sep / lib_root / link_diag 薄 helper 门闩 ---- */
+/* See implementation. */
 
 
 
@@ -2207,6 +2659,12 @@ export function link_diag_tool_status(tool: *u8, status: i32): void {
 }
 
 #[no_mangle]
+/** Exported function `link_diag_runtime_source_missing`.
+ * Implements `link_diag_runtime_source_missing`.
+ * @param obj_name *u8
+ * @param source_path *u8
+ * @return void
+ */
 export function link_diag_runtime_source_missing(obj_name: *u8, source_path: *u8): void {
   unsafe {
     link_diag_runtime_source_missing_impl(obj_name, source_path);
@@ -2214,6 +2672,13 @@ export function link_diag_runtime_source_missing(obj_name: *u8, source_path: *u8
 }
 
 #[no_mangle]
+/** Exported function `link_diag_runtime_source_missing_under`.
+ * Implements `link_diag_runtime_source_missing_under`.
+ * @param obj_name *u8
+ * @param base_dir *u8
+ * @param suffix *u8
+ * @return void
+ */
 export function link_diag_runtime_source_missing_under(obj_name: *u8, base_dir: *u8, suffix: *u8): void {
   unsafe {
     link_diag_runtime_source_missing_under_impl(obj_name, base_dir, suffix);
@@ -2221,6 +2686,12 @@ export function link_diag_runtime_source_missing_under(obj_name: *u8, base_dir: 
 }
 
 #[no_mangle]
+/** Exported function `link_diag_runtime_obj_missing`.
+ * Implements `link_diag_runtime_obj_missing`.
+ * @param obj_name *u8
+ * @param out_o *u8
+ * @return void
+ */
 export function link_diag_runtime_obj_missing(obj_name: *u8, out_o: *u8): void {
   unsafe {
     link_diag_runtime_obj_missing_impl(obj_name, out_o);
@@ -2228,6 +2699,12 @@ export function link_diag_runtime_obj_missing(obj_name: *u8, out_o: *u8): void {
 }
 
 #[no_mangle]
+/** Exported function `link_diag_runtime_obj_resolve_fail`.
+ * Implements `link_diag_runtime_obj_resolve_fail`.
+ * @param obj_name *u8
+ * @param hint *u8
+ * @return void
+ */
 export function link_diag_runtime_obj_resolve_fail(obj_name: *u8, hint: *u8): void {
   unsafe {
     link_diag_runtime_obj_resolve_fail_impl(obj_name, hint);
@@ -2235,6 +2712,12 @@ export function link_diag_runtime_obj_resolve_fail(obj_name: *u8, hint: *u8): vo
 }
 
 #[no_mangle]
+/** Exported function `link_diag_runtime_obj_build_status`.
+ * Implements `link_diag_runtime_obj_build_status`.
+ * @param obj_name *u8
+ * @param status i32
+ * @return void
+ */
 export function link_diag_runtime_obj_build_status(obj_name: *u8, status: i32): void {
   unsafe {
     link_diag_runtime_obj_build_status_impl(obj_name, status);
@@ -2242,6 +2725,12 @@ export function link_diag_runtime_obj_build_status(obj_name: *u8, status: i32): 
 }
 
 #[no_mangle]
+/** Exported function `link_diag_errno`.
+ * Implements `link_diag_errno`.
+ * @param kind *u8
+ * @param op *u8
+ * @return void
+ */
 export function link_diag_errno(kind: *u8, op: *u8): void {
   unsafe {
     link_diag_errno_impl(kind, op);
@@ -2249,6 +2738,13 @@ export function link_diag_errno(kind: *u8, op: *u8): void {
 }
 
 #[no_mangle]
+/** Exported function `link_diag_errno_path`.
+ * Implements `link_diag_errno_path`.
+ * @param kind *u8
+ * @param op *u8
+ * @param path *u8
+ * @return void
+ */
 export function link_diag_errno_path(kind: *u8, op: *u8, path: *u8): void {
   unsafe {
     link_diag_errno_path_impl(kind, op, path);
@@ -2256,6 +2752,12 @@ export function link_diag_errno_path(kind: *u8, op: *u8, path: *u8): void {
 }
 
 #[no_mangle]
+/** Exported function `link_diag_freestanding_missing`.
+ * Memory management helper `link_diag_freestanding_missing`.
+ * @param obj_name *u8
+ * @param symbol_name *u8
+ * @return void
+ */
 export function link_diag_freestanding_missing(obj_name: *u8, symbol_name: *u8): void {
   unsafe {
     link_diag_freestanding_missing_impl(obj_name, symbol_name);
@@ -2263,6 +2765,10 @@ export function link_diag_freestanding_missing(obj_name: *u8, symbol_name: *u8):
 }
 
 #[no_mangle]
+/** Exported function `link_diag_freestanding_unsupported`.
+ * Memory management helper `link_diag_freestanding_unsupported`.
+ * @return void
+ */
 export function link_diag_freestanding_unsupported(): void {
   unsafe {
     link_diag_freestanding_unsupported_impl();
@@ -2270,6 +2776,13 @@ export function link_diag_freestanding_unsupported(): void {
 }
 
 #[no_mangle]
+/** Exported function `link_diag_ld_debug_push`.
+ * Implements `link_diag_ld_debug_push`.
+ * @param rel *u8
+ * @param stage *u8
+ * @param path *u8
+ * @return void
+ */
 export function link_diag_ld_debug_push(rel: *u8, stage: *u8, path: *u8): void {
   unsafe {
     link_diag_ld_debug_push_impl(rel, stage, path);
@@ -2277,6 +2790,12 @@ export function link_diag_ld_debug_push(rel: *u8, stage: *u8, path: *u8): void {
 }
 
 #[no_mangle]
+/** Exported function `link_diag_ld_debug_argv`.
+ * Implements `link_diag_ld_debug_argv`.
+ * @param label *u8
+ * @param argv *u8
+ * @return void
+ */
 export function link_diag_ld_debug_argv(label: *u8, argv: *u8): void {
   unsafe {
     link_diag_ld_debug_argv_impl(label, argv);
@@ -2285,6 +2804,11 @@ export function link_diag_ld_debug_argv(label: *u8, argv: *u8): void {
 
 
 #[no_mangle]
+/** Exported function `shux_asm_ld_lib_root_default`.
+ * Implements `shux_asm_ld_lib_root_default`.
+ * @param root_buf *u8
+ * @return void
+ */
 export function shux_asm_ld_lib_root_default(root_buf: *u8): void {
   unsafe {
     shux_asm_ld_lib_root_default_impl(root_buf);
@@ -2292,6 +2816,10 @@ export function shux_asm_ld_lib_root_default(root_buf: *u8): void {
 }
 
 #[no_mangle]
+/** Exported function `shux_linux_host_gcc_path`.
+ * Implements `shux_linux_host_gcc_path`.
+ * @return *u8
+ */
 export function shux_linux_host_gcc_path(): *u8 {
   unsafe {
     return shux_linux_host_gcc_path_impl();
@@ -2300,13 +2828,17 @@ export function shux_linux_host_gcc_path(): *u8 {
 }
 
 #[no_mangle]
+/** Exported function `shux_linux_ld_child_path`.
+ * Implements `shux_linux_ld_child_path`.
+ * @return void
+ */
 export function shux_linux_ld_child_path(): void {
   unsafe {
     shux_linux_ld_child_path_impl();
   }
 }
 
-/* ---- G-02f-91：needs_heap / argv has+push / runtime_o path 门闩 ---- */
+/* See implementation. */
 
 #[no_mangle]
 export function shux_runtime_o_realpath_if_exists(path: *u8, resolved: *u8): *u8 {
@@ -2317,6 +2849,14 @@ export function shux_runtime_o_realpath_if_exists(path: *u8, resolved: *u8): *u8
 }
 
 #[no_mangle]
+/** Exported function `shux_runtime_compiler_o_path_copy`.
+ * Implements `shux_runtime_compiler_o_path_copy`.
+ * @param argv0 *u8
+ * @param leaf *u8
+ * @param out *u8
+ * @param out_sz i64
+ * @return i32
+ */
 export function shux_runtime_compiler_o_path_copy(argv0: *u8, leaf: *u8, out: *u8, out_sz: i64): i32 {
   unsafe {
     return shux_runtime_compiler_o_path_copy_impl(argv0, leaf, out, out_sz);
@@ -2325,6 +2865,13 @@ export function shux_runtime_compiler_o_path_copy(argv0: *u8, leaf: *u8, out: *u
 }
 
 #[no_mangle]
+/** Exported function `link_abi_link_needs_heap_user_c`.
+ * Implements `link_abi_link_needs_heap_user_c`.
+ * @param user_o *u8
+ * @param argv *u8
+ * @param la i32
+ * @return i32
+ */
 export function link_abi_link_needs_heap_user_c(user_o: *u8, argv: *u8, la: i32): i32 {
   unsafe {
     return link_abi_link_needs_heap_user_c_impl(user_o, argv, la);
@@ -2333,6 +2880,13 @@ export function link_abi_link_needs_heap_user_c(user_o: *u8, argv: *u8, la: i32)
 }
 
 #[no_mangle]
+/** Exported function `link_abi_link_needs_std_heap_import`.
+ * Implements `link_abi_link_needs_std_heap_import`.
+ * @param user_o *u8
+ * @param argv *u8
+ * @param la i32
+ * @return i32
+ */
 export function link_abi_link_needs_std_heap_import(user_o: *u8, argv: *u8, la: i32): i32 {
   unsafe {
     return link_abi_link_needs_std_heap_import_impl(user_o, argv, la);
@@ -2341,6 +2895,13 @@ export function link_abi_link_needs_std_heap_import(user_o: *u8, argv: *u8, la: 
 }
 
 #[no_mangle]
+/** Exported function `link_abi_asm_ld_argv_has_obj`.
+ * Implements `link_abi_asm_ld_argv_has_obj`.
+ * @param argv *u8
+ * @param la i32
+ * @param path *u8
+ * @return i32
+ */
 export function link_abi_asm_ld_argv_has_obj(argv: *u8, la: i32, path: *u8): i32 {
   unsafe {
     return link_abi_asm_ld_argv_has_obj_impl(argv, la, path);
@@ -2349,6 +2910,15 @@ export function link_abi_asm_ld_argv_has_obj(argv: *u8, la: i32, path: *u8): i32
 }
 
 #[no_mangle]
+/** Exported function `link_abi_asm_ld_argv_push_stable`.
+ * Implements `link_abi_asm_ld_argv_push_stable`.
+ * @param bank *u8
+ * @param argv *u8
+ * @param la *i32
+ * @param max_la i32
+ * @param p *u8
+ * @return void
+ */
 export function link_abi_asm_ld_argv_push_stable(bank: *u8, argv: *u8, la: *i32, max_la: i32, p: *u8): void {
   unsafe {
     link_abi_asm_ld_argv_push_stable_impl(bank, argv, la, max_la, p);
@@ -2356,6 +2926,20 @@ export function link_abi_asm_ld_argv_push_stable(bank: *u8, argv: *u8, la: *i32,
 }
 
 #[no_mangle]
+/** Exported function `link_abi_asm_ld_push_obj`.
+ * Implements `link_abi_asm_ld_push_obj`.
+ * @param primary *u8
+ * @param link_argv0 *u8
+ * @param rel *u8
+ * @param lib_roots *u8
+ * @param n_lib_roots i32
+ * @param bank *u8
+ * @param argv *u8
+ * @param la *i32
+ * @param max_la i32
+ * @param flag_out *i32
+ * @return i32
+ */
 export function link_abi_asm_ld_push_obj(primary: *u8, link_argv0: *u8, rel: *u8, lib_roots: *u8, n_lib_roots: i32, bank: *u8, argv: *u8, la: *i32, max_la: i32, flag_out: *i32): i32 {
   unsafe {
     return link_abi_asm_ld_push_obj_impl(primary, link_argv0, rel, lib_roots, n_lib_roots, bank, argv, la, max_la, flag_out);
@@ -2363,7 +2947,7 @@ export function link_abi_asm_ld_push_obj(primary: *u8, link_argv0: *u8, rel: *u8
   return 0;
 }
 
-/* ---- G-02f-92：cc/spawn/perror / glue+minimal push / brew paths 门闩 ---- */
+/* See implementation. */
 
 #[no_mangle]
 export function shux_cc_compile_sync(src: *u8, out_o: *u8, inc0: *u8, inc1: *u8, inc2: *u8, from_asm_s: i32): i32 {
@@ -2374,6 +2958,12 @@ export function shux_cc_compile_sync(src: *u8, out_o: *u8, inc0: *u8, inc1: *u8,
 }
 
 #[no_mangle]
+/** Exported function `shux_spawn_sync`.
+ * Implements `shux_spawn_sync`.
+ * @param prog *u8
+ * @param argv *u8
+ * @return i32
+ */
 export function shux_spawn_sync(prog: *u8, argv: *u8): i32 {
   unsafe {
     return shux_spawn_sync_impl(prog, argv);
@@ -2382,6 +2972,11 @@ export function shux_spawn_sync(prog: *u8, argv: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `shux_link_perror`.
+ * Implements `shux_link_perror`.
+ * @param msg *u8
+ * @return void
+ */
 export function shux_link_perror(msg: *u8): void {
   unsafe {
     shux_link_perror_impl(msg);
@@ -2389,6 +2984,13 @@ export function shux_link_perror(msg: *u8): void {
 }
 
 #[no_mangle]
+/** Exported function `ld_append_brew_lib_paths`.
+ * Implements `ld_append_brew_lib_paths`.
+ * @param argv *u8
+ * @param la *i32
+ * @param max_la i32
+ * @return void
+ */
 export function ld_append_brew_lib_paths(argv: *u8, la: *i32, max_la: i32): void {
   unsafe {
     ld_append_brew_lib_paths_impl(argv, la, max_la);
@@ -2396,6 +2998,13 @@ export function ld_append_brew_lib_paths(argv: *u8, la: *i32, max_la: i32): void
 }
 
 #[no_mangle]
+/** Exported function `link_abi_generated_c_contains_any_substr`.
+ * Implements `link_abi_generated_c_contains_any_substr`.
+ * @param c_path *u8
+ * @param needles *u8
+ * @param n_needles i32
+ * @return i32
+ */
 export function link_abi_generated_c_contains_any_substr(c_path: *u8, needles: *u8, n_needles: i32): i32 {
   unsafe {
     return link_abi_generated_c_contains_any_substr_impl(c_path, needles, n_needles);
@@ -2404,6 +3013,21 @@ export function link_abi_generated_c_contains_any_substr(c_path: *u8, needles: *
 }
 
 #[no_mangle]
+/** Exported function `link_abi_asm_ld_push_glue_after_std`.
+ * Implements `link_abi_asm_ld_push_glue_after_std`.
+ * @param have_std i32
+ * @param ensure_fn *u8
+ * @param glue_primary *u8
+ * @param link_argv0 *u8
+ * @param glue_rel *u8
+ * @param lib_roots *u8
+ * @param n_lib_roots i32
+ * @param bank *u8
+ * @param argv *u8
+ * @param la *i32
+ * @param max_la i32
+ * @return void
+ */
 export function link_abi_asm_ld_push_glue_after_std(have_std: i32, ensure_fn: *u8, glue_primary: *u8, link_argv0: *u8, glue_rel: *u8, lib_roots: *u8, n_lib_roots: i32, bank: *u8, argv: *u8, la: *i32, max_la: i32): void {
   unsafe {
     link_abi_asm_ld_push_glue_after_std_impl(have_std, ensure_fn, glue_primary, link_argv0, glue_rel, lib_roots, n_lib_roots, bank, argv, la, max_la);
@@ -2411,13 +3035,24 @@ export function link_abi_asm_ld_push_glue_after_std(have_std: i32, ensure_fn: *u
 }
 
 #[no_mangle]
+/** Exported function `link_abi_asm_ld_push_minimal_runtime_objs`.
+ * Implements `link_abi_asm_ld_push_minimal_runtime_objs`.
+ * @param link_argv0 *u8
+ * @param lib_roots *u8
+ * @param n_lib_roots i32
+ * @param bank *u8
+ * @param argv *u8
+ * @param la *i32
+ * @param max_la i32
+ * @return void
+ */
 export function link_abi_asm_ld_push_minimal_runtime_objs(link_argv0: *u8, lib_roots: *u8, n_lib_roots: i32, bank: *u8, argv: *u8, la: *i32, max_la: i32): void {
   unsafe {
     link_abi_asm_ld_push_minimal_runtime_objs_impl(link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la);
   }
 }
 
-/* ---- G-02f-94：cc_ex / nostdlib minimal / nm marker+undef 门闩 ---- */
+/* See implementation. */
 
 #[no_mangle]
 export function shux_cc_compile_sync_ex(src: *u8, out_o: *u8, inc0: *u8, inc1: *u8, inc2: *u8, from_asm_s: i32, extra_flags: *u8): i32 {
@@ -2428,6 +3063,15 @@ export function shux_cc_compile_sync_ex(src: *u8, out_o: *u8, inc0: *u8, inc1: *
 }
 
 #[no_mangle]
+/** Exported function `shux_asm_nostdlib_minimal_selfcontained_exe_link`.
+ * Implements `shux_asm_nostdlib_minimal_selfcontained_exe_link`.
+ * @param o_path *u8
+ * @param exe_path *u8
+ * @param link_eff *u8
+ * @param lib_roots *u8
+ * @param n_lib_roots i32
+ * @return i32
+ */
 export function shux_asm_nostdlib_minimal_selfcontained_exe_link(o_path: *u8, exe_path: *u8, link_eff: *u8, lib_roots: *u8, n_lib_roots: i32): i32 {
   unsafe {
     return shux_asm_nostdlib_minimal_selfcontained_exe_link_impl(o_path, exe_path, link_eff, lib_roots, n_lib_roots);
@@ -2436,6 +3080,12 @@ export function shux_asm_nostdlib_minimal_selfcontained_exe_link(o_path: *u8, ex
 }
 
 #[no_mangle]
+/** Exported function `link_abi_obj_exports_marker`.
+ * Implements `link_abi_obj_exports_marker`.
+ * @param obj_o *u8
+ * @param marker *u8
+ * @return i32
+ */
 export function link_abi_obj_exports_marker(obj_o: *u8, marker: *u8): i32 {
   unsafe {
     return link_abi_obj_exports_marker_impl(obj_o, marker);
@@ -2444,6 +3094,12 @@ export function link_abi_obj_exports_marker(obj_o: *u8, marker: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `link_abi_obj_has_undef_sym`.
+ * Implements `link_abi_obj_has_undef_sym`.
+ * @param obj_o *u8
+ * @param sym *u8
+ * @return i32
+ */
 export function link_abi_obj_has_undef_sym(obj_o: *u8, sym: *u8): i32 {
   unsafe {
     return link_abi_obj_has_undef_sym_impl(obj_o, sym);
@@ -2451,29 +3107,41 @@ export function link_abi_obj_has_undef_sym(obj_o: *u8, sym: *u8): i32 {
   return 0;
 }
 
-// G-02f-112：+ shux_debug_hello_stage1_report 薄门闩。
+// See implementation.
 
 export extern "C" function shux_debug_hello_stage1_report_impl(): void;
 
-/* ---- G-02f-112：link_abi debug report 门闩 ---- */
+/* See implementation. */
 
 #[no_mangle]
 export function shux_debug_hello_stage1_report(): void {
   unsafe { shux_debug_hello_stage1_report_impl(); }
 }
 
-// G-02f-115：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
+// shux_asm_ld_lib_root_ptr_usable: see function docblock below.
 
 #[no_mangle]
+/** Exported function `shux_asm_ld_lib_root_ptr_usable`.
+ * Implements `shux_asm_ld_lib_root_ptr_usable`.
+ * @param p *u8
+ * @return i32
+ */
 export function shux_asm_ld_lib_root_ptr_usable(p: *u8): i32 {
   if (p == 0) { return 0; }
   if (p[0] == 0) { return 0; }
   return 1;
 }
 
-// G-02f-118：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
+// driver_copy_cstr_n: see function docblock below.
 
 #[no_mangle]
+/** Exported function `driver_copy_cstr_n`.
+ * Implements `driver_copy_cstr_n`.
+ * @param src *u8
+ * @param buf *u8
+ * @param max i32
+ * @return i32
+ */
 export function driver_copy_cstr_n(src: *u8, buf: *u8, max: i32): i32 {
   if (src == 0) { return 0 - 1; }
   if (buf == 0) { return 0 - 1; }
@@ -2491,6 +3159,11 @@ export function driver_copy_cstr_n(src: *u8, buf: *u8, max: i32): i32 {
 }
 
 #[no_mangle]
+/** Exported function `shux_path_has_sep`.
+ * Implements `shux_path_has_sep`.
+ * @param s *u8
+ * @return i32
+ */
 export function shux_path_has_sep(s: *u8): i32 {
   if (s == 0) { return 0; }
   let i: i32 = 0;
@@ -2505,6 +3178,11 @@ export function shux_path_has_sep(s: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `shux_path_last_sep`.
+ * Implements `shux_path_last_sep`.
+ * @param s *u8
+ * @return *u8
+ */
 export function shux_path_last_sep(s: *u8): *u8 {
   if (s == 0) { return 0 as *u8; }
   let last: *u8 = 0 as *u8;
@@ -2519,9 +3197,14 @@ export function shux_path_last_sep(s: *u8): *u8 {
   return last;
 }
 
-// G-02f-124：link_diag_code_for_kind 真迁 .x
+// link_diag_code_for_kind: see function docblock below.
 
 #[no_mangle]
+/** Exported function `link_diag_code_for_kind`.
+ * Implements `link_diag_code_for_kind`.
+ * @param kind *u8
+ * @return *u8
+ */
 export function link_diag_code_for_kind(kind: *u8): *u8 {
   if (kind == 0) { return "PRC001"; }
   // "build error"

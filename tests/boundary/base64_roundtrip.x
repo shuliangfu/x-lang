@@ -1,6 +1,10 @@
-// boundary/base64_roundtrip.x — 最小往返（与 tests/base64 子集一致）
+// See implementation.
 const base64 = import("std.base64");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let src: u8[3] = [102, 111, 111];
   let enc: u8[8] = [];

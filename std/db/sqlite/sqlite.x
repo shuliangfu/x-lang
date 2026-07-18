@@ -14,13 +14,13 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.db.sqlite.sqlite — F-05 v3：SQLite3 后端与 stub 回退
+// See implementation.
 //
-// 【文件职责】
-// db_open_c / db_close_c / db_exec_c / 事务 API；stmt 缓存；连接池；全量烟测。
-// libsqlite3 调用见 sqlite_glue.c；无后端时 shu_db_use_sqlite3_c()==0 走 stub。
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 【所属模块】标准库 std.db.sqlite；与 std/db/sqlite/mod.x 同属一模块。
+// See implementation.
 
 export const DB_OK: i32 = 0;
 export const DB_ERR_NULL: i32 = -1;
@@ -39,7 +39,7 @@ export const DB_POOL_SLOT_MAX: i32 = 8;
 export const DB_POOL_PATH_MAX: i32 = 512;
 export const DB_ERR_MSG_MAX: i32 = 160;
 
-/** C 字符串常量（解析器不支持 &SQL_LIT_EMPTY[0] as *u8）。 */
+/* See implementation. */
 export const SQL_LIT_ALICE: u8[6] = [97, 108, 105, 99, 101, 0];
 export const SQL_LIT_ALPHA: u8[6] = [97, 108, 112, 104, 97, 0];
 export const SQL_LIT_BAD_OFFSET: u8[11] = [98, 97, 100, 32, 111, 102, 102, 115, 101, 116, 0];
@@ -97,20 +97,20 @@ export const SQL_LIT_SQL_TOO_LONG_FOR_CACHE: u8[23] = [115, 113, 108, 32, 116, 1
 export const SQL_LIT_STUB: u8[5] = [115, 116, 117, 98, 0];
 export const SQL_LIT_STUB_BACKEND: u8[13] = [115, 116, 117, 98, 32, 98, 97, 99, 107, 101, 110, 100, 0];
 
-/** 线程局部错误快照（v1 原型用进程静态缓冲）。 */
+/* See implementation. */
 allow(padding) struct DbErrSlot {
   code: i32;
   msg: u8[160];
 }
 
-/** 连接级预编译语句缓存项。 */
+/* See implementation. */
 allow(padding) struct DbCachedStmt {
   conn: i64;
   sql: u8[240];
   stmt: i64;
 }
 
-/** 连接池堆对象（与 C db_pool_t ABI 一致）。 */
+/* See implementation. */
 allow(padding) struct DbPoolMem {
   path: u8[512];
   max_conns: i32;
@@ -123,7 +123,11 @@ let g_db_last_err_bytes: u8[168] = [];
 let g_db_last_err: *DbErrSlot = &g_db_last_err_bytes[0] as *DbErrSlot;
 let g_db_stmt_cache_bytes: u8[4224] = [];
 
-/** 返回语句缓存槽 i 的指针（4224 = 16 × 264 字节/槽）。 */
+/** Exported function `db_stmt_cache_slot`.
+ * Implements `db_stmt_cache_slot`.
+ * @param i i32
+ * @return *DbCachedStmt
+ */
 export function db_stmt_cache_slot(i: i32): *DbCachedStmt {
   return (&g_db_stmt_cache_bytes[(i * 264) as i32] as *DbCachedStmt);
 }
@@ -159,7 +163,12 @@ extern "C" function shu_sqlite3_db_handle_c(stmt_h: i64): i64;
 extern "C" function shu_sqlite3_changes_c(db_h: i64): i32;
 extern "C" function shu_sqlite3_free_c(ptr: i64): void;
 
-/** 设置最后一次库错误码与消息（截断至 159 字节）。 */
+/** Exported function `db_set_err`.
+ * Implements `db_set_err`.
+ * @param code i32
+ * @param msg *u8
+ * @return void
+ */
 export function db_set_err(code: i32, msg: *u8): void {
   let i: i32 = 0;
   g_db_last_err.code = code;
@@ -174,13 +183,21 @@ export function db_set_err(code: i32, msg: *u8): void {
   g_db_last_err.msg[i] = 0;
 }
 
-/** 清除错误槽。 */
+/** Exported function `db_clear_err`.
+ * Implements `db_clear_err`.
+ * @return void
+ */
 export function db_clear_err(): void {
   g_db_last_err.code = DB_OK;
   g_db_last_err.msg[0] = 0;
 }
 
-/** C 串相等比较。 */
+/** Exported function `db_str_eq`.
+ * Implements `db_str_eq`.
+ * @param a *u8
+ * @param b *u8
+ * @return i32
+ */
 export function db_str_eq(a: *u8, b: *u8): i32 {
   let i: usize = 0;
   if (a == 0 || b == 0) { return 0; }
@@ -191,7 +208,13 @@ export function db_str_eq(a: *u8, b: *u8): i32 {
   return a[i] == b[i] ? 1 : 0;
 }
 
-/** 拷贝 C 串到固定缓冲（cap 含 NUL）。 */
+/** Exported function `db_str_copy`.
+ * Implements `db_str_copy`.
+ * @param dst *u8
+ * @param cap i32
+ * @param src *u8
+ * @return void
+ */
 export function db_str_copy(dst: *u8, cap: i32, src: *u8): void {
   let i: i32 = 0;
   if (dst == 0 || cap <= 0) { return; }
@@ -203,7 +226,11 @@ export function db_str_copy(dst: *u8, cap: i32, src: *u8): void {
   dst[i] = 0;
 }
 
-/** 释放指定连接上的全部缓存语句。 */
+/** Exported function `db_stmt_cache_drop_conn`.
+ * Implements `db_stmt_cache_drop_conn`.
+ * @param conn i64
+ * @return void
+ */
 export function db_stmt_cache_drop_conn(conn: i64): void {
   let i: i32 = 0;
   let slot: *DbCachedStmt = 0 as *DbCachedStmt;
@@ -219,7 +246,12 @@ export function db_stmt_cache_drop_conn(conn: i64): void {
   }
 }
 
-/** 按连接 + SQL 查找缓存项。 */
+/** Exported function `db_stmt_cache_find`.
+ * Implements `db_stmt_cache_find`.
+ * @param conn i64
+ * @param sql *u8
+ * @return *DbCachedStmt
+ */
 export function db_stmt_cache_find(conn: i64, sql: *u8): *DbCachedStmt {
   let i: i32 = 0;
   let slot: *DbCachedStmt = 0 as *DbCachedStmt;
@@ -234,7 +266,10 @@ export function db_stmt_cache_find(conn: i64, sql: *u8): *DbCachedStmt {
   return 0 as *DbCachedStmt;
 }
 
-/** 分配缓存槽；满则驱逐首项。 */
+/** Exported function `db_stmt_cache_alloc_slot`.
+ * Memory management helper `db_stmt_cache_alloc_slot`.
+ * @return *DbCachedStmt
+ */
 export function db_stmt_cache_alloc_slot(): *DbCachedStmt {
   let i: i32 = 0;
   let slot: *DbCachedStmt = 0 as *DbCachedStmt;
@@ -255,7 +290,11 @@ export function db_stmt_cache_alloc_slot(): *DbCachedStmt {
   return slot;
 }
 
-/** 从缓存移除指定 stmt（finalize 前调用）。 */
+/** Exported function `db_stmt_cache_remove_stmt`.
+ * Implements `db_stmt_cache_remove_stmt`.
+ * @param stmt_h i64
+ * @return void
+ */
 export function db_stmt_cache_remove_stmt(stmt_h: i64): void {
   let i: i32 = 0;
   let slot: *DbCachedStmt = 0 as *DbCachedStmt;
@@ -272,13 +311,20 @@ export function db_stmt_cache_remove_stmt(stmt_h: i64): void {
   }
 }
 
-/** stub 后端统一入口：设置 DB_NOT_IMPL 并返回 1 表示 stub。 */
+/** Exported function `db_stub_active`.
+ * Implements `db_stub_active`.
+ * @return i32
+ */
 export function db_stub_active(): i32 {
   unsafe { return shu_db_use_sqlite3_c() == 0 ? 1 : 0; }
   return 0; // unreachable — typeck workaround
 }
 
-/** 打开数据库；失败返回 handle=0。 */
+/** Exported function `db_open_c`.
+ * Implements `db_open_c`.
+ * @param path *u8
+ * @return i64
+ */
 export function db_open_c(path: *u8): i64 {
   let db: i64 = 0;
   let rc: i32 = 0;
@@ -305,7 +351,11 @@ export function db_open_c(path: *u8): i64 {
   return db;
 }
 
-/** 关闭连接（并释放该连接 stmt 缓存）。 */
+/** Exported function `db_close_c`.
+ * Implements `db_close_c`.
+ * @param handle i64
+ * @return i32
+ */
 export function db_close_c(handle: i64): i32 {
   let rc: i32 = 0;
   if (db_stub_active() != 0) {
@@ -326,7 +376,12 @@ export function db_close_c(handle: i64): i32 {
   return DB_OK;
 }
 
-/** 执行无结果集 SQL。 */
+/** Exported function `db_exec_c`.
+ * Implements `db_exec_c`.
+ * @param handle i64
+ * @param sql *u8
+ * @return i32
+ */
 export function db_exec_c(handle: i64, sql: *u8): i32 {
   let errmsg: i64 = 0;
   let rc: i32 = 0;
@@ -355,7 +410,12 @@ export function db_exec_c(handle: i64, sql: *u8): i32 {
   return DB_OK;
 }
 
-/** 查询行集：返回 SELECT 匹配行数。 */
+/** Exported function `db_query_rows_c`.
+ * Implements `db_query_rows_c`.
+ * @param handle i64
+ * @param sql *u8
+ * @return i32
+ */
 export function db_query_rows_c(handle: i64, sql: *u8): i32 {
   let count: i32 = 0;
   let errmsg: i64 = 0;
@@ -385,7 +445,12 @@ export function db_query_rows_c(handle: i64, sql: *u8): i32 {
   return count;
 }
 
-/** 准备 SELECT 游标；失败返回 cursor=0。 */
+/** Exported function `db_query_begin_c`.
+ * Implements `db_query_begin_c`.
+ * @param handle i64
+ * @param sql *u8
+ * @return i64
+ */
 export function db_query_begin_c(handle: i64, sql: *u8): i64 {
   let stmt: i64 = 0;
   let rc: i32 = 0;
@@ -410,7 +475,11 @@ export function db_query_begin_c(handle: i64, sql: *u8): i64 {
   return stmt;
 }
 
-/** 推进游标：1=有行，0=结束，<0=错误。 */
+/** Exported function `db_next_row_c`.
+ * Implements `db_next_row_c`.
+ * @param cursor i64
+ * @return i32
+ */
 export function db_next_row_c(cursor: i64): i32 {
   let rc: i32 = 0;
   if (db_stub_active() != 0) {
@@ -431,7 +500,12 @@ export function db_next_row_c(cursor: i64): i32 {
   return DB_ERR_EXEC;
 }
 
-/** 读取当前行列值（i32）；列越界返回 DB_ERR_EXEC。 */
+/** Exported function `db_row_col_i32_c`.
+ * Implements `db_row_col_i32_c`.
+ * @param cursor i64
+ * @param col i32
+ * @return i32
+ */
 export function db_row_col_i32_c(cursor: i64, col: i32): i32 {
   if (db_stub_active() != 0) {
     db_set_err(DB_NOT_IMPL, &SQL_LIT_STUB_BACKEND[0]);
@@ -450,7 +524,14 @@ export function db_row_col_i32_c(cursor: i64, col: i32): i32 {
   return 0; // unreachable — typeck workaround
 }
 
-/** 读取当前行文本列到 out_buf；成功返回字节长度（不含 NUL），NULL 列返回 0。 */
+/** Exported function `db_row_col_text_c`.
+ * Implements `db_row_col_text_c`.
+ * @param cursor i64
+ * @param col i32
+ * @param out_buf *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function db_row_col_text_c(cursor: i64, col: i32, out_buf: *u8, out_cap: i32): i32 {
   let txt: i64 = 0;
   let n: i32 = 0;
@@ -486,7 +567,14 @@ export function db_row_col_text_c(cursor: i64, col: i32, out_buf: *u8, out_cap: 
   return n;
 }
 
-/** 读取当前行 BLOB 列到 out_buf；成功返回字节长度，NULL 列返回 0。 */
+/** Exported function `db_row_col_blob_c`.
+ * Implements `db_row_col_blob_c`.
+ * @param cursor i64
+ * @param col i32
+ * @param out_buf *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function db_row_col_blob_c(cursor: i64, col: i32, out_buf: *u8, out_cap: i32): i32 {
   let blob: i64 = 0;
   let n: i32 = 0;
@@ -525,7 +613,12 @@ export function db_row_col_blob_c(cursor: i64, col: i32, out_buf: *u8, out_cap: 
   return n;
 }
 
-/** 返回当前行 BLOB 列字节长度（NULL / 空列返回 0）。 */
+/** Exported function `db_row_col_blob_len_c`.
+ * Implements `db_row_col_blob_len_c`.
+ * @param cursor i64
+ * @param col i32
+ * @return i32
+ */
 export function db_row_col_blob_len_c(cursor: i64, col: i32): i32 {
   let n: i32 = 0;
   if (db_stub_active() != 0) {
@@ -546,7 +639,15 @@ export function db_row_col_blob_len_c(cursor: i64, col: i32): i32 {
   return n;
 }
 
-/** 分块读取 BLOB 列：从 offset 起最多 out_cap 字节；offset>=len 返回 0。 */
+/** Exported function `db_row_col_blob_read_c`.
+ * Read path helper `db_row_col_blob_read_c`.
+ * @param cursor i64
+ * @param col i32
+ * @param offset i32
+ * @param out_buf *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function db_row_col_blob_read_c(cursor: i64, col: i32, offset: i32, out_buf: *u8, out_cap: i32): i32 {
   let blob: i64 = 0;
   let n: i32 = 0;
@@ -590,7 +691,11 @@ export function db_row_col_blob_read_c(cursor: i64, col: i32, offset: i32, out_b
   return to_copy;
 }
 
-/** 释放游标（finalize，并从 stmt 缓存移除）。 */
+/** Exported function `db_query_end_c`.
+ * Implements `db_query_end_c`.
+ * @param cursor i64
+ * @return i32
+ */
 export function db_query_end_c(cursor: i64): i32 {
   let rc: i32 = 0;
   if (db_stub_active() != 0) {
@@ -608,12 +713,22 @@ export function db_query_end_c(cursor: i64): i32 {
   return DB_OK;
 }
 
-/** 预编译 SQL（独立 finalize，不入缓存）。 */
+/** Exported function `db_prepare_c`.
+ * Implements `db_prepare_c`.
+ * @param handle i64
+ * @param sql *u8
+ * @return i64
+ */
 export function db_prepare_c(handle: i64, sql: *u8): i64 {
   return db_query_begin_c(handle, sql);
 }
 
-/** 预编译并缓存（同 SQL 复用 sqlite3_stmt*）。 */
+/** Exported function `db_prepare_cached_c`.
+ * Implements `db_prepare_cached_c`.
+ * @param handle i64
+ * @param sql *u8
+ * @return i64
+ */
 export function db_prepare_cached_c(handle: i64, sql: *u8): i64 {
   let slot: *DbCachedStmt = 0 as *DbCachedStmt;
   let stmt: i64 = 0;
@@ -654,7 +769,13 @@ export function db_prepare_cached_c(handle: i64, sql: *u8): i64 {
   return stmt;
 }
 
-/** 绑定整型参数（idx 为 1 起始 SQLite 约定）。 */
+/** Exported function `db_stmt_bind_i32_c`.
+ * Implements `db_stmt_bind_i32_c`.
+ * @param stmt_h i64
+ * @param idx i32
+ * @param val i32
+ * @return i32
+ */
 export function db_stmt_bind_i32_c(stmt_h: i64, idx: i32, val: i32): i32 {
   let rc: i32 = 0;
   if (db_stub_active() != 0) {
@@ -678,7 +799,13 @@ export function db_stmt_bind_i32_c(stmt_h: i64, idx: i32, val: i32): i32 {
   return DB_OK;
 }
 
-/** 绑定文本参数（idx 为 1 起始）。 */
+/** Exported function `db_stmt_bind_text_c`.
+ * Implements `db_stmt_bind_text_c`.
+ * @param stmt_h i64
+ * @param idx i32
+ * @param text *u8
+ * @return i32
+ */
 export function db_stmt_bind_text_c(stmt_h: i64, idx: i32, text: *u8): i32 {
   let rc: i32 = 0;
   if (db_stub_active() != 0) {
@@ -702,12 +829,20 @@ export function db_stmt_bind_text_c(stmt_h: i64, idx: i32, text: *u8): i32 {
   return DB_OK;
 }
 
-/** 执行一步：1=有行，0=完成，<0=错误。 */
+/** Exported function `db_stmt_step_c`.
+ * Implements `db_stmt_step_c`.
+ * @param stmt_h i64
+ * @return i32
+ */
 export function db_stmt_step_c(stmt_h: i64): i32 {
   return db_next_row_c(stmt_h);
 }
 
-/** 重置预编译语句以便复用。 */
+/** Exported function `db_stmt_reset_c`.
+ * Implements `db_stmt_reset_c`.
+ * @param stmt_h i64
+ * @return i32
+ */
 export function db_stmt_reset_c(stmt_h: i64): i32 {
   let rc: i32 = 0;
   if (db_stub_active() != 0) {
@@ -727,12 +862,20 @@ export function db_stmt_reset_c(stmt_h: i64): i32 {
   return DB_OK;
 }
 
-/** 释放预编译语句（并从缓存移除）。 */
+/** Exported function `db_stmt_finalize_c`.
+ * Implements `db_stmt_finalize_c`.
+ * @param stmt_h i64
+ * @return i32
+ */
 export function db_stmt_finalize_c(stmt_h: i64): i32 {
   return db_query_end_c(stmt_h);
 }
 
-/** 清空连接上全部 stmt 缓存（不关闭连接）。 */
+/** Exported function `db_stmt_cache_clear_c`.
+ * Implements `db_stmt_cache_clear_c`.
+ * @param handle i64
+ * @return i32
+ */
 export function db_stmt_cache_clear_c(handle: i64): i32 {
   if (db_stub_active() != 0) {
     db_set_err(DB_NOT_IMPL, &SQL_LIT_STUB_BACKEND[0]);
@@ -747,7 +890,11 @@ export function db_stmt_cache_clear_c(handle: i64): i32 {
   return DB_OK;
 }
 
-/** 开始事务（BEGIN IMMEDIATE）。 */
+/** Exported function `db_begin_tx_c`.
+ * Implements `db_begin_tx_c`.
+ * @param handle i64
+ * @return i32
+ */
 export function db_begin_tx_c(handle: i64): i32 {
   if (db_stub_active() != 0) {
     db_set_err(DB_NOT_IMPL, &SQL_LIT_STUB_BACKEND[0]);
@@ -756,7 +903,11 @@ export function db_begin_tx_c(handle: i64): i32 {
   return db_exec_c(handle, &SQL_LIT_BEGIN_IMMEDIATE[0]);
 }
 
-/** 提交事务。 */
+/** Exported function `db_commit_c`.
+ * Implements `db_commit_c`.
+ * @param handle i64
+ * @return i32
+ */
 export function db_commit_c(handle: i64): i32 {
   if (db_stub_active() != 0) {
     db_set_err(DB_NOT_IMPL, &SQL_LIT_STUB_BACKEND[0]);
@@ -765,7 +916,11 @@ export function db_commit_c(handle: i64): i32 {
   return db_exec_c(handle, &SQL_LIT_COMMIT[0]);
 }
 
-/** 回滚事务。 */
+/** Exported function `db_rollback_c`.
+ * Implements `db_rollback_c`.
+ * @param handle i64
+ * @return i32
+ */
 export function db_rollback_c(handle: i64): i32 {
   if (db_stub_active() != 0) {
     db_set_err(DB_NOT_IMPL, &SQL_LIT_STUB_BACKEND[0]);
@@ -774,7 +929,10 @@ export function db_rollback_c(handle: i64): i32 {
   return db_exec_c(handle, &SQL_LIT_ROLLBACK[0]);
 }
 
-/** 读取最后一次库错误码。 */
+/** Exported function `db_last_code_c`.
+ * Implements `db_last_code_c`.
+ * @return i32
+ */
 export function db_last_code_c(): i32 {
   if (db_stub_active() != 0) {
     return g_db_last_err.code != 0 ? g_db_last_err.code : DB_NOT_IMPL;
@@ -782,13 +940,19 @@ export function db_last_code_c(): i32 {
   return g_db_last_err.code;
 }
 
-/** 读取最后一次库错误消息（静态缓冲）。 */
+/** Exported function `db_last_error_msg_c`.
+ * Implements `db_last_error_msg_c`.
+ * @return *u8
+ */
 export function db_last_error_msg_c(): *u8 {
   if (g_db_last_err.msg[0] == 0) { return 0 as *u8; }
   return &g_db_last_err.msg[0];
 }
 
-/** 当前后端名称（&SQL_LIT_SQLITE3[0] 或 &SQL_LIT_STUB[0]）。 */
+/** Exported function `db_backend_name_c`.
+ * Implements `db_backend_name_c`.
+ * @return *u8
+ */
 export function db_backend_name_c(): *u8 {
   if (db_stub_active() != 0) {
     return &SQL_LIT_STUB[0];
@@ -796,7 +960,11 @@ export function db_backend_name_c(): *u8 {
   return &SQL_LIT_SQLITE3[0];
 }
 
-/** 返回最近一次 exec 影响行数（仅 SQLite 路径有效）。 */
+/** Exported function `db_changes_c`.
+ * Implements `db_changes_c`.
+ * @param handle i64
+ * @return i32
+ */
 export function db_changes_c(handle: i64): i32 {
   if (db_stub_active() != 0) { return 0; }
   if (handle == 0 as i64) { return 0; }
@@ -804,7 +972,12 @@ export function db_changes_c(handle: i64): i32 {
   return 0; // unreachable — typeck workaround
 }
 
-/** 单字节转两位十六进制（小写）。 */
+/** Exported function `db_byte_to_hex2`.
+ * Implements `db_byte_to_hex2`.
+ * @param b u8
+ * @param out *u8
+ * @return void
+ */
 export function db_byte_to_hex2(b: u8, out: *u8): void {
   let hi: u8 = (b >> 4) & 0x0f;
   let lo: u8 = b & 0x0f;
@@ -813,7 +986,12 @@ export function db_byte_to_hex2(b: u8, out: *u8): void {
   out[2] = 0;
 }
 
-/** 构建 blob_stream 烟测 INSERT SQL（96 字节递增 BLOB）。 */
+/** Exported function `db_blob_stream_build_sql`.
+ * Implements `db_blob_stream_build_sql`.
+ * @param sql *u8
+ * @param cap i32
+ * @return void
+ */
 export function db_blob_stream_build_sql(sql: *u8, cap: i32): void {
   let prefix: *u8 = &SQL_LIT_INSERT_INTO_T_DATA_VALUES_X[0];
   let suffix: *u8 = &SQL_LIT_EMPTY[0];
@@ -843,13 +1021,19 @@ export function db_blob_stream_build_sql(sql: *u8, cap: i32): void {
   sql[pos] = 0;
 }
 
-/** 烟测辅助：后端名首字符是否为 's'（sqlite3）。 */
+/** Exported function `db_smoke_is_sqlite`.
+ * Implements `db_smoke_is_sqlite`.
+ * @return i32
+ */
 export function db_smoke_is_sqlite(): i32 {
   let n: *u8 = db_backend_name_c();
   return n[0] == 115 ? 1 : 0;
 }
 
-/** C 烟测：内存库 exec 往返（CREATE / INSERT / changes）。 */
+/** Exported function `db_sqlite_exec_smoke_c`.
+ * Implements `db_sqlite_exec_smoke_c`.
+ * @return i32
+ */
 export function db_sqlite_exec_smoke_c(): i32 {
   let h: i64 = 0;
   if (db_smoke_is_sqlite() == 0) { return 1; }
@@ -862,7 +1046,10 @@ export function db_sqlite_exec_smoke_c(): i32 {
   return 0;
 }
 
-/** C 烟测：事务 exec 往返（begin/commit + rollback）。 */
+/** Exported function `db_sqlite_tx_exec_smoke_c`.
+ * Implements `db_sqlite_tx_exec_smoke_c`.
+ * @return i32
+ */
 export function db_sqlite_tx_exec_smoke_c(): i32 {
   let h: i64 = 0;
   if (db_smoke_is_sqlite() == 0) { return 1; }
@@ -880,7 +1067,10 @@ export function db_sqlite_tx_exec_smoke_c(): i32 {
   return 0;
 }
 
-/** C 烟测：query_rows 行迭代计数。 */
+/** Exported function `db_sqlite_query_rows_smoke_c`.
+ * Implements `db_sqlite_query_rows_smoke_c`.
+ * @return i32
+ */
 export function db_sqlite_query_rows_smoke_c(): i32 {
   let h: i64 = 0;
   let rows: i32 = 0;
@@ -898,7 +1088,10 @@ export function db_sqlite_query_rows_smoke_c(): i32 {
   return 0;
 }
 
-/** C 烟测：next_row 列值游标迭代（ORDER BY k 读 1、2）。 */
+/** Exported function `db_sqlite_next_row_smoke_c`.
+ * Implements `db_sqlite_next_row_smoke_c`.
+ * @return i32
+ */
 export function db_sqlite_next_row_smoke_c(): i32 {
   let h: i64 = 0;
   let cur: i64 = 0;
@@ -927,7 +1120,10 @@ export function db_sqlite_next_row_smoke_c(): i32 {
   return 0;
 }
 
-/** C 烟测：row_col_text 文本列游标（ORDER BY k 读 alpha、beta）。 */
+/** Exported function `db_sqlite_row_col_text_smoke_c`.
+ * Implements `db_sqlite_row_col_text_smoke_c`.
+ * @return i32
+ */
 export function db_sqlite_row_col_text_smoke_c(): i32 {
   let h: i64 = 0;
   let cur: i64 = 0;
@@ -957,7 +1153,10 @@ export function db_sqlite_row_col_text_smoke_c(): i32 {
   return 0;
 }
 
-/** C 烟测：大 BLOB 分块读（96 字节，32×3 块）。 */
+/** Exported function `db_sqlite_blob_stream_smoke_c`.
+ * Implements `db_sqlite_blob_stream_smoke_c`.
+ * @return i32
+ */
 export function db_sqlite_blob_stream_smoke_c(): i32 {
   let h: i64 = 0;
   let cur: i64 = 0;
@@ -1008,7 +1207,10 @@ export function db_sqlite_blob_stream_smoke_c(): i32 {
   return 0;
 }
 
-/** C 烟测：row_col_blob BLOB 列游标（ORDER BY k 读 3/4 字节）。 */
+/** Exported function `db_sqlite_row_col_blob_smoke_c`.
+ * Implements `db_sqlite_row_col_blob_smoke_c`.
+ * @return i32
+ */
 export function db_sqlite_row_col_blob_smoke_c(): i32 {
   let h: i64 = 0;
   let cur: i64 = 0;
@@ -1040,7 +1242,10 @@ export function db_sqlite_row_col_blob_smoke_c(): i32 {
   return 0;
 }
 
-/** C 烟测：预编译 bind + stmt 缓存。 */
+/** Exported function `db_sqlite_stmt_bind_smoke_c`.
+ * Implements `db_sqlite_stmt_bind_smoke_c`.
+ * @return i32
+ */
 export function db_sqlite_stmt_bind_smoke_c(): i32 {
   let h: i64 = 0;
   let ins: i64 = 0;
@@ -1084,7 +1289,12 @@ export function db_sqlite_stmt_bind_smoke_c(): i32 {
   return 0;
 }
 
-/** 创建连接池（不预建连接）；max_conns 上限 8。 */
+/** Exported function `db_pool_open_c`.
+ * Implements `db_pool_open_c`.
+ * @param path *u8
+ * @param max_conns i32
+ * @return i64
+ */
 export function db_pool_open_c(path: *u8, max_conns: i32): i64 {
   let p: *DbPoolMem = 0 as *DbPoolMem;
   if (db_stub_active() != 0) {
@@ -1108,7 +1318,11 @@ export function db_pool_open_c(path: *u8, max_conns: i32): i64 {
   return p as i64;
 }
 
-/** 关闭池并释放全部 idle 连接；仍有借出连接时返回 DB_ERR_BUSY。 */
+/** Exported function `db_pool_close_c`.
+ * Implements `db_pool_close_c`.
+ * @param pool_h i64
+ * @return i32
+ */
 export function db_pool_close_c(pool_h: i64): i32 {
   let p: *DbPoolMem = pool_h as *DbPoolMem;
   let i: i32 = 0;
@@ -1136,7 +1350,11 @@ export function db_pool_close_c(pool_h: i64): i32 {
   return DB_OK;
 }
 
-/** 从池获取连接；池耗尽返回 handle=0（DB_ERR_BUSY）。 */
+/** Exported function `db_pool_acquire_c`.
+ * Implements `db_pool_acquire_c`.
+ * @param pool_h i64
+ * @return i64
+ */
 export function db_pool_acquire_c(pool_h: i64): i64 {
   let p: *DbPoolMem = pool_h as *DbPoolMem;
   let h: i64 = 0;
@@ -1170,7 +1388,12 @@ export function db_pool_acquire_c(pool_h: i64): i64 {
   return h;
 }
 
-/** 归还连接到 idle 队列（不关闭 sqlite3）。 */
+/** Exported function `db_pool_release_c`.
+ * Implements `db_pool_release_c`.
+ * @param pool_h i64
+ * @param conn_h i64
+ * @return i32
+ */
 export function db_pool_release_c(pool_h: i64, conn_h: i64): i32 {
   let p: *DbPoolMem = pool_h as *DbPoolMem;
   if (db_stub_active() != 0) {
@@ -1197,7 +1420,11 @@ export function db_pool_release_c(pool_h: i64, conn_h: i64): i32 {
   return DB_OK;
 }
 
-/** 当前 idle 连接数（诊断/烟测）。 */
+/** Exported function `db_pool_idle_c`.
+ * Implements `db_pool_idle_c`.
+ * @param pool_h i64
+ * @return i32
+ */
 export function db_pool_idle_c(pool_h: i64): i32 {
   let p: *DbPoolMem = pool_h as *DbPoolMem;
   if (db_stub_active() != 0) { return DB_NOT_IMPL; }
@@ -1205,7 +1432,10 @@ export function db_pool_idle_c(pool_h: i64): i32 {
   return p.idle_count;
 }
 
-/** C 烟测：acquire 上限、release 复用、pool_close（:memory: max=1）。 */
+/** Exported function `db_sqlite_pool_smoke_c`.
+ * Implements `db_sqlite_pool_smoke_c`.
+ * @return i32
+ */
 export function db_sqlite_pool_smoke_c(): i32 {
   let pool: i64 = 0;
   let c1: i64 = 0;
@@ -1239,7 +1469,10 @@ export function db_sqlite_pool_smoke_c(): i32 {
   return 0;
 }
 
-/** C 烟测：stub 语义；真实 sqlite3 后端时跳过（返回 0）。 */
+/** Exported function `db_sqlite_stub_smoke_c`.
+ * Implements `db_sqlite_stub_smoke_c`.
+ * @return i32
+ */
 export function db_sqlite_stub_smoke_c(): i32 {
   let h: i64 = 0;
   let ec: i32 = 0;

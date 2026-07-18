@@ -1,16 +1,23 @@
-// build_runtime_x.x — build_tool 完全无 C：run_step 与 patch 的 .x 实现
+// See implementation.
 //
-// 与 build_runner.x 配合：本文件提供 build_run_step(step_id, shu_path)，由
-// build_runner.x 的 entry 调用。
-// 链接时仅需 crt0 + build_runner.o + build_tool.o + build_runtime_x.o + -lc，不再链接
+// See implementation.
+// See implementation.
+// See implementation.
 // build_runtime.c。
-// 字面量与 build_runtime.c 的 run_step 一致；patch 暂为 no-op（完整逻辑见 build_runtime.c）。
-// system 经 build_tool_libc_bridge.c 的 build_exec_system，避免 Darwin libc 类型冲突。
+// See implementation.
+// See implementation.
 
-/** 宿主 system(3) 包装；由 build_tool_libc_bridge.c 提供。 */
+/* See implementation. */
 extern function build_exec_system(cmd: *u8): i32;
 
-/** 将 path（NUL 结尾）复制到 buf[off]，返回 off+len 或 -1 若溢出。 */
+/** Internal function `copy_path`.
+ * Implements `copy_path`.
+ * @param buf *u8
+ * @param size i32
+ * @param off i32
+ * @param path *u8
+ * @return i32
+ */
 function copy_path(buf: *u8, size: i32, off: i32, path: *u8): i32 {
   let i: i32 = 0;
   while (path[i] != 0 && off + i < size - 1) {
@@ -21,7 +28,15 @@ function copy_path(buf: *u8, size: i32, off: i32, path: *u8): i32 {
   return off + i;
 }
 
-/** 将 lit[0..len) 复制到 buf[off]，返回 off+len 或 -1 若溢出。 */
+/** Internal function `append_lit`.
+ * Implements `append_lit`.
+ * @param buf *u8
+ * @param size i32
+ * @param off i32
+ * @param lit *u8
+ * @param len i32
+ * @return i32
+ */
 function append_lit(buf: *u8, size: i32, off: i32, lit: *u8, len: i32): i32 {
   if (off + len >= size) { return -1; }
   let i: i32 = 0;
@@ -32,15 +47,23 @@ function append_lit(buf: *u8, size: i32, off: i32, lit: *u8, len: i32): i32 {
   return off + len;
 }
 
-/** 执行 step_id 对应的 patch（1 pipeline_gen.c，3 driver_gen.c）。step 6
-* 不再补丁，codegen 已对 source/out_buf 生成 ->。返回 0 成功，-1 失败。 */
+/** Internal function `build_patch_after_step`.
+ * Implements `build_patch_after_step`.
+ * @param step_id i32
+ * @return i32
+ */
 function build_patch_after_step(step_id: i32): i32 {
   if (step_id == 1) { return build_patch_pipeline_gen_c(); }
   if (step_id == 3) { return build_patch_driver_gen_c(); }
   return 0;
 }
 
-/** 执行单步构建；与 compiler/src/build_runtime.c build_run_step 同步。 */
+/** Internal function `build_run_step`.
+ * Implements `build_run_step`.
+ * @param step_id i32
+ * @param shu_path *u8
+ * @return i32
+ */
 function build_run_step(step_id: i32, shu_path: *u8): i32 {
   let cmd: u8[4096] = [];
   let off: i32 = 0;
@@ -282,18 +305,24 @@ function build_run_step(step_id: i32, shu_path: *u8): i32 {
 }
 
 /**
- * asm 构建 / cp 由 build_tool_libc_bridge.c 提供（-x -E 曾截断本函数体）。
- * 此处仅声明，供 build_runner.x 链接。
+ * See implementation.
+ * See implementation.
  */
 extern function build_run_asm_build(shu_path: *u8): i32;
 extern function build_copy_shux_asm(): i32;
 
-/** pipeline_gen.c 补丁：完整逻辑见 build_runtime.c；legacy step 1 暂 no-op。 */
+/** Internal function `build_patch_pipeline_gen_c`.
+ * Implements `build_patch_pipeline_gen_c`.
+ * @return i32
+ */
 function build_patch_pipeline_gen_c(): i32 {
   return 0;
 }
 
-/** driver_gen.c 补丁：完整逻辑见 build_runtime.c；legacy step 3 暂 no-op。 */
+/** Internal function `build_patch_driver_gen_c`.
+ * Implements `build_patch_driver_gen_c`.
+ * @return i32
+ */
 function build_patch_driver_gen_c(): i32 {
   return 0;
 }

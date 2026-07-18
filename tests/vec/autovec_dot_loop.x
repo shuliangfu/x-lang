@@ -1,5 +1,11 @@
-// VEC-V1：loop autovec f32 点积烟测；codegen 替换 for 为 shux_autovec_dot_f32。
-/** 双指针 f32 点积（BCE + autovec 受限模式）。 */
+// See implementation.
+/** Internal function `dot_f32`.
+ * Implements `dot_f32`.
+ * @param n i32
+ * @param ap *f32
+ * @param bp *f32
+ * @return f32
+ */
 function dot_f32(n: i32, ap: *f32, bp: *f32): f32 {
   let s: f32 = 0.0;
   for (let i: i32 = 0; i < n; i = i + 1) {
@@ -8,6 +14,10 @@ function dot_f32(n: i32, ap: *f32, bp: *f32): f32 {
   return s;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let x: f32[4] = [1.0, 2.0, 3.0, 4.0];
   let y: f32[4] = [1.0, 1.0, 1.0, 1.0];

@@ -1,4 +1,8 @@
-// 三元表达式在赋值语境按左值类型收窄：cond ? 53 : 48 → u8
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let is_dir: i32 = 1;
   let typeflag: u8 = 48;

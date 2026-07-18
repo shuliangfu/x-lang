@@ -1,4 +1,8 @@
-// 7.3 线性 scan x10：return 左结合 & 链；1&3&1&1 → 1。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32 = 1;
   let b: i32 = 3;

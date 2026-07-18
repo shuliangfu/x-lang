@@ -1,14 +1,22 @@
-// struct_add_pair_inline.x — add_pair(p.a+p.b) 运行时内联：p 字段可变，不可循环折叠
+// See implementation.
 struct Pair {
   a: i32
   b: i32
 }
 
-/** 按值累加 struct 两 i32 字段。 */
+/** Internal function `add_pair`.
+ * Implements `add_pair`.
+ * @param p Pair
+ * @return i32
+ */
 function add_pair(p: Pair): i32 {
   return p.a + p.b;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let n: i32 = 5;
   let s: i32 = 0;

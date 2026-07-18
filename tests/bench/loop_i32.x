@@ -1,4 +1,8 @@
-// loop_i32.x — 性能基线：累加循环（LCG 混合 s，Shu/C 均须真跑循环）
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let n: i32 = 100000000;
   let s: i32 = 0;

@@ -1,8 +1,12 @@
-// B-14 v3：Linux freestanding openat(AT_FDCWD)+read 烟测。
+// See implementation.
 const linux = import("std.sys.linux");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
-  /** 固定路径 "/tmp/shux_linux_openat_read_gate.txt\0"（gate 写入 "AT"）。 */
+  /* See implementation. */
   let path: u8[37] = [
     47, 116, 109, 112, 47, 115, 104, 117, 120, 95, 108, 105, 110, 117, 120, 95,
     111, 112, 101, 110, 97, 116, 95, 114, 101, 97, 100, 95, 103, 97, 116, 101,

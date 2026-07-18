@@ -1,7 +1,14 @@
-// STD-079：std.security HKDF / ct_compare / secure_zero 烟测
+// See implementation.
 const security = import("std.security");
 
-/** 比较两段字节是否相等；1 相等。 */
+/** Internal function `bytes_eq`.
+ * Implements `bytes_eq`.
+ * @param a *u8
+ * @param a_len i32
+ * @param b *u8
+ * @param b_len i32
+ * @return i32
+ */
 function bytes_eq(a: *u8, a_len: i32, b: *u8, b_len: i32): i32 {
   let i: i32 = 0;
   if (a_len != b_len) { return 0; }
@@ -12,6 +19,10 @@ function bytes_eq(a: *u8, a_len: i32, b: *u8, b_len: i32): i32 {
   return 1;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let ikm: u8[22] = [
     11, 11, 11, 11, 11, 11, 11, 11, 11, 11,

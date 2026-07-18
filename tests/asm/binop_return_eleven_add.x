@@ -1,4 +1,8 @@
-// 7.3：十一 VAR 左结合加链；超出 x10–x14 时栈帧 spill（1+…+11=66）。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32 = 1;
   let b: i32 = 2;

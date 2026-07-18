@@ -1,6 +1,10 @@
-// STD-119：std.config YAML 可选后端烟测
+// See implementation.
 const config = import("std.config");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let zero: i64 = 0;
   let cfg: Config = config.new();

@@ -1,6 +1,10 @@
-// STD-050：mac_sign_512 + mac_verify_512 签验闭环
+// See implementation.
 const crypto = import("std.crypto");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let key: u8[8] = [115, 101, 99, 114, 101, 116, 33, 0];
   let msg: u8[5] = [104, 101, 108, 108, 111];

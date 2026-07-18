@@ -1,6 +1,10 @@
-// CORE-008：跨模块 import("core.mem") 后四条热路径应 -E 为 __builtin_* 调用。
+// See implementation.
 const mem = import("core.mem");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: u8[8] = [1, 2, 3, 4, 5, 6, 7, 8];
   let b: u8[8] = [0, 0, 0, 0, 0, 0, 0, 0];

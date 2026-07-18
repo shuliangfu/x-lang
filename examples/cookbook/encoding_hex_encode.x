@@ -1,8 +1,12 @@
 /**
- * Cookbook ENC-01：hex_encode 原始缓冲编码（STD-040）。
+ * See implementation.
  */
 const encoding = import("std.encoding");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let raw: u8[2] = [222, 173];
   let out: u8[8] = [];

@@ -1,4 +1,8 @@
-// SIMD-S3 烟测：while i<N { dst[i]=a[i]*b[i]; i+=1 } 应剥离为 vpmulld/pmulld。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32[8] = [2, 2, 2, 2, 2, 2, 2, 2];
   let b: i32[8] = [3, 3, 3, 3, 3, 3, 3, 3];

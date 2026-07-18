@@ -1,13 +1,13 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-264 / R2 真迁：pure emit/argv flag helpers。
-// 产品 PREFER_X_O：.x 吃满 has_emit + set_use_lto + set_print_target_cpu；
-// FROM_X rest 业务符号 H=0（仅前向声明）。
-// 🔒 串比较用字节；argv 扫描用尾递归 helper（避免 while+argv[i] 误抬 init_globals）。
-// state 布局与 compile.x DriverCompileState 同构。
+// Pure emit/argv flag helpers (G.9 English; body is authoritative).
+// Pure emit/argv flag helpers (G.9 English; body is authoritative).
+// Pure emit/argv flag helpers (G.9 English; body is authoritative).
+// Pure emit/argv flag helpers (G.9 English; body is authoritative).
+// Pure emit/argv flag helpers (G.9 English; body is authoritative).
 
-/** 与 seeds/rt_emit_flags.from_x.c DriverCompileStateSU / compile.x 字段序一致。 */
+/* Field layout matches compile.x DriverCompileState / seed SU. */
 export struct RtEmitFlagsState {
   path_buf: u8[512];
   path_len: i32;
@@ -115,8 +115,7 @@ export function rt_scan_argv_emit(argc: i32, argv: **u8, i: i32): i32 {
   return rt_scan_argv_emit(argc, argv, i + 1);
 }
 
-/** argv 是否含 -E / -E-extern（argc/argv 与 libc main 一致）。
- * 注意：勿写 `argv == 0 as **u8`（-E 会整函数丢符号）；null 由调用约定保证。 */
+/** Emit/argv flag helper; see signature and body for contracts. */
 #[no_mangle]
 export function driver_argv_has_emit_c_flag(argc: i32, argv: **u8): i32 {
   if (argc < 2) {
@@ -125,7 +124,11 @@ export function driver_argv_has_emit_c_flag(argc: i32, argv: **u8): i32 {
   return rt_scan_argv_emit(argc, argv, 1);
 }
 
-/** -flto：置 use_lto=1。 */
+/** Exported function `driver_compile_argv_set_use_lto_c`.
+ * Implements `driver_compile_argv_set_use_lto_c`.
+ * @param state *RtEmitFlagsState
+ * @return void
+ */
 #[no_mangle]
 export function driver_compile_argv_set_use_lto_c(state: *RtEmitFlagsState): void {
   if (state == 0 as *RtEmitFlagsState) {
@@ -134,7 +137,11 @@ export function driver_compile_argv_set_use_lto_c(state: *RtEmitFlagsState): voi
   state.use_lto = 1;
 }
 
-/** --print-target-cpu：置 print_target_cpu=1。 */
+/** Exported function `driver_compile_argv_set_print_target_cpu_c`.
+ * Implements `driver_compile_argv_set_print_target_cpu_c`.
+ * @param state *RtEmitFlagsState
+ * @return void
+ */
 #[no_mangle]
 export function driver_compile_argv_set_print_target_cpu_c(state: *RtEmitFlagsState): void {
   if (state == 0 as *RtEmitFlagsState) {

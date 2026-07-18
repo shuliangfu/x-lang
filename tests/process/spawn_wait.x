@@ -1,30 +1,39 @@
-// 测试 std.process：process.spawn_simple(program)、process.waitpid(pid)
+// See implementation.
 //
-// 【文件职责】本文件为 std.process 子进程创建与等待的回归测试。
-// 【测试目的】确认 spawn_simple 与 waitpid 得到退出码 0。macOS 用
-// /usr/bin/true，否则用 /bin/true（Alpine/Linux）。
-// 【覆盖 API】process.spawn_simple(program: *u8): i32、process.waitpid(pid: i32): i32。
-// 【预期结果】退出码 0 表示通过；1 表示 spawn_simple 失败；2 表示 waitpid
-// 得到的 status≠0。Windows 上无 true，run-process.sh 会 SKIP。
-// 【运行方式】./tests/run-process.sh
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 支持绑定 import：const process = import("std.process"); → process.getenv / process.spawn_simple 等
+// See implementation.
 const process = import("std.process");
 
+/** Internal function `run_true`.
+ * Implements `run_true`.
+ * @param path *u8
+ * @return i32
+ */
 function run_true(path: *u8): i32 {
   let pid: i32 = process.spawn_simple(path);
   if (pid <= 0) { return -1; }
-  // asm typeck：勿直接 return call()，先赋给 let 再 return（与 setenv 用例同因）。
+  // See implementation.
   let rc: i32 = process.waitpid(pid);
   return rc;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let usr_true: u8[20] = [47, 117, 115, 114, 47, 98, 105, 110, 47, 116, 114, 117, 101, 0, 0, 0, 0,
   0, 0, 0];
   let bin_true: u8[16] = [47, 98, 105, 110, 47, 116, 114, 117, 101, 0, 0, 0, 0, 0, 0, 0];
   let status: i32 = 0;
-  // OSTYPE=darwin 时优先 /usr/bin/true；勿拆成独立函数（asm WPO 可能未导出 is_darwin 符号）。
+  // See implementation.
   let ostype_key: u8[8] = [79, 83, 84, 89, 80, 69, 0, 0];
   let ostype_val: *u8 = process.getenv(&ostype_key[0]);
   let on_darwin: bool = false;

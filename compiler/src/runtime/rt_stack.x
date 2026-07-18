@@ -1,23 +1,37 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-317/449 / P2 runtime R8-lite：栈逃逸 gate 大栈 pthread。
-// R2 full：.x 吃满 thread_fn + large_stack；FROM_X rest 仅 marker（业务 H=0）。
-// Cap-fn-ptr：.x 无法取函数地址 → 专用入口 driver_run_stack_esc_gate_on_large_stack
-// （driver_abi 平台层绑定 thread_fn，与既有 pthread 体同层）。
+// G-02f-317/449 / P2 runtime R8-lite: stack-escape gate on large-stack pthread.
+// R2 full: .x owns thread_fn + large_stack; FROM_X rest is marker-only (business H=0).
+// Cap-fn-ptr: .x cannot take function addresses → dedicated entry
+// driver_run_stack_esc_gate_on_large_stack (driver_abi platform layer binds thread_fn).
 
 export extern "C" function pipeline_typeck_x_stack_escape_gate_from_src_c(src: *u8, src_len: i32): i32;
-/** Cap-fn-ptr residual：平台层绑定本模块 thread_fn 后进大栈。 */
+
+/**
+ * Cap-fn-ptr residual: platform layer binds this module's thread_fn then runs on large stack.
+ * Params: arg — opaque DriverStackEscGateArgs* as *u8.
+ * Returns: void. PLATFORM: SHARED residual in driver_abi.
+ */
 export extern "C" function driver_run_stack_esc_gate_on_large_stack(arg: *u8): void;
 
-/** shux check 后 X 栈逃逸 gate 大栈线程参数（与 seed C 布局一致）。 */
+/**
+ * Args for the large-stack X stack-escape gate after `shux check` (layout matches seed C).
+ * Fields: src / src_len — source buffer; result — out status (-99 = not yet set).
+ */
 struct DriverStackEscGateArgs {
   src: *u8;
   src_len: i32;
   result: i32;
 }
 
-/** pthread 入口：WPO-S3 post-scan gate。 */
+/**
+ * pthread entry: WPO-S3 post-scan gate.
+ * Params: arg — *DriverStackEscGateArgs as *u8.
+ * Returns: always null (pthread start_routine convention).
+ * Contracts: null arg → null return without calling typeck; writes a.result.
+ * Track-L: #[no_mangle] keeps surface short name.
+ */
 #[no_mangle]
 export function driver_stack_esc_gate_thread_fn(arg: *u8): *u8 {
   let a: *DriverStackEscGateArgs = arg as *DriverStackEscGateArgs;
@@ -33,8 +47,13 @@ export function driver_stack_esc_gate_thread_fn(arg: *u8): *u8 {
 }
 
 /**
- * 在 256MiB 栈 pthread 上跑 X struct 栈逃逸 gate（check 路径；勿在主线程 parse）。
- * result 仍为 -99 时回落主线程直跑（pthread 创建失败等）。
+ * Run X struct stack-escape gate on a 256MiB-stack pthread (check path; do not parse on main).
+ * Params: src / src_len — source buffer for the gate.
+ * Returns: gate status from typeck; if result still -99 (pthread create failure etc.),
+ * falls back to running the gate on the main thread.
+ * Contracts: initial result sentinel is -99; platform residual binds thread_fn.
+ * Track-L: #[no_mangle] keeps surface short name.
+ * PLATFORM: SHARED — large-stack path via driver_abi residual.
  */
 #[no_mangle]
 export function driver_stack_esc_gate_large_stack(src: *u8, src_len: i32): i32 {

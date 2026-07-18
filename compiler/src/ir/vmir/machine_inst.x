@@ -14,22 +14,20 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// machine_inst.x — MachineInst / McOperand 数据结构
+// machine_inst.x — MachineInst / McOperand data structures
 //
-// 模块：ir/vmir
-// 层级：VMIR
-// Phase：Phase 5
-// 职责：
-//   - 定义 MachineInst（mc_opcode / operands / defs / uses / deps / contract_id / cost）
-//   - 定义 McOperand 枚举（VReg / Imm / Mem / Label）
-//   - 定义 McOpcode（目标机器操作码，如 x86 LEA/ADD/FMA）
-//   - 定义 VReg（虚拟寄存器，寄存器分配前）
-// 依赖：../inst / ../contract
-// 设计约束：
-//   - MachineInst 是 VMIR / Target MIR 共用的机器指令表示
-//   - contract_id 物化自 IRInst.contract_id（契约从高层传递到机器层）
-//   - cost 来自 Cost Model（§10.3），供调度决策
-//   - defs / uses 用于后续寄存器分配
+// Module: ir/vmir
+// Layer: VMIR
+// Phase: Phase 5
+// Responsibility:
+//   - Define MachineInst (mc_opcode / operands / defs / uses / deps / contract_id / cost)
+//   - Define McOperand enum (VReg / Imm / Mem / Label)
+//   - Define McOpcode and VReg (virtual register, pre-regalloc)
+// Depends: ../inst / ../contract
+// Design constraints:
+//   - MachineInst is shared by VMIR and Target MIR
+//   - contract_id is materialized from IRInst.contract_id
+//   - cost comes from Cost Model (§10.3); defs/uses feed regalloc
 //
-// 参考文档：analysis/IR核心设计.md §2.4（MachineInst / McOperand 数据结构）
-// 架构状态：v4.0 Architecture Freeze — 实现骨架，待 Phase 5 填充
+// Ref: analysis IR core design §2.4 (MachineInst / McOperand data structures)
+// Status: v4.0 Architecture Freeze — implementation skeleton; fill in Phase 5

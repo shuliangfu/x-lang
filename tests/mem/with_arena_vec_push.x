@@ -1,6 +1,10 @@
-// MEM-C1 波次 A：with_arena 内 Vec_u8 push 走 scope Allocator（v.al bump，非 heap.alloc）。
+// See implementation.
 const vec = import("std.vec");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   with_arena(65536 as usize) {
     let v: Vec_u8 = vec.new();

@@ -1,6 +1,10 @@
-// STD-051：字面量子串匹配
+// See implementation.
 const regex = import("std.regex");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let pat: u8[5] = [104, 101, 108, 108, 111];
   let re: *u8 = regex.compile(&pat[0], 5);

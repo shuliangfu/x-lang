@@ -1,14 +1,18 @@
-// 测试 std.process：process.chdir(path)、getcwd 配合
+// See implementation.
 //
-// 【文件职责】本文件为 std.process 切换当前工作目录的回归测试。
-// 【测试目的】确认 process.chdir(".") 成功且前后 getcwd
-// 均能取得当前目录（长度>0），验证 chdir 与 getcwd 配合正确。
-// 【覆盖 API】process.chdir(path: *u8)、process.getcwd(buf, buf_size)。
-// 【预期结果】退出码 0 表示通过；1 表示第一次 getcwd 失败；2 表示
-// process.chdir(".") 失败；3 表示第二次 getcwd 失败。
-// 【运行方式】./tests/run-process.sh
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 const process = import("std.process");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let buf1: u8[128] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0];

@@ -1,9 +1,13 @@
-// STD-008：std.json 零拷贝字符串视图烟测
+// See implementation.
 //
-// 【文件职责】验证 parse_string_view 在无转义时指向输入缓冲内部；含转义时返回 needs_copy。
-// 【运行方式】tests/run-std-json-gate.sh
+// See implementation.
+// See implementation.
 const json = import("std.json");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let plain: u8[8] = [34, 104, 101, 108, 108, 111, 34, 0];
   let out_len: i32 = 0;
@@ -24,7 +28,7 @@ function main(): i32 {
   if (vp != &plain[1]) {
     return 5;
   }
-  // 含 \\u 转义：零拷贝视图须走 needs_copy，parse_string 解码为 "ab"
+  // See implementation.
   let esc: u8[10] = [34, 97, 92, 117, 48, 48, 54, 50, 34, 0];
   let ol2: i32 = 0;
   let c2: i32 = 0;

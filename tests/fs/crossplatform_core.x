@@ -1,9 +1,15 @@
-// tests/fs/crossplatform_core.x — STD-003：std.fs 三平台对齐烟测（同一套 .x）
-// 覆盖：open/read/write/pread/pwrite/mmap/readv/io_fd/append/create/last_error/path_readable
-// 注意：各 helper 内局部变量须唯一命名，避免 typeck 跨函数符号冲突。
+// See implementation.
+// See implementation.
+// See implementation.
 const fs = import("std.fs");
 
-/** 写入 path 固定 payload；成功返回 0。 */
+/** Internal function `cp_write_base`.
+ * Write path helper `cp_write_base`.
+ * @param path *u8
+ * @param payload *u8
+ * @param len usize
+ * @return i32
+ */
 function cp_write_base(path: *u8, payload: *u8, len: usize): i32 {
   let fd_w: i32 = fs.create(path);
   if (fd_w < 0) { return 1; }
@@ -17,7 +23,14 @@ function cp_write_base(path: *u8, payload: *u8, len: usize): i32 {
   return 0;
 }
 
-/** read/pread/pwrite 往返；失败返回非零子码。 */
+/** Internal function `cp_test_rw`.
+ * Implements `cp_test_rw`.
+ * @param path *u8
+ * @param payload *u8
+ * @param pay_len usize
+ * @param buf *u8
+ * @return i32
+ */
 function cp_test_rw(path: *u8, payload: *u8, pay_len: usize, buf: *u8): i32 {
   let fd_r1: i32 = fs.open(path);
   if (fd_r1 < 0) { return 1; }
@@ -43,7 +56,13 @@ function cp_test_rw(path: *u8, payload: *u8, pay_len: usize, buf: *u8): i32 {
   return 0;
 }
 
-/** append/create 模式；失败返回非零子码。 */
+/** Internal function `cp_test_append_create`.
+ * Implements `cp_test_append_create`.
+ * @param path *u8
+ * @param payload *u8
+ * @param pay_len usize
+ * @return i32
+ */
 function cp_test_append_create(path: *u8, payload: *u8, pay_len: usize): i32 {
   let fd_a: i32 = fs.open_append(path);
   if (fd_a < 0) { return 1; }
@@ -63,7 +82,13 @@ function cp_test_append_create(path: *u8, payload: *u8, pay_len: usize): i32 {
   return 0;
 }
 
-/** mmap 只读映射；失败返回非零子码。 */
+/** Internal function `cp_test_mmap`.
+ * Implements `cp_test_mmap`.
+ * @param path *u8
+ * @param payload *u8
+ * @param pay_len usize
+ * @return i32
+ */
 function cp_test_mmap(path: *u8, payload: *u8, pay_len: usize): i32 {
   let sz_m: usize = 0;
   let mp_m: *u8 = fs.mmap_ro(path, &sz_m);
@@ -80,7 +105,13 @@ function cp_test_mmap(path: *u8, payload: *u8, pay_len: usize): i32 {
   return 0;
 }
 
-/** readv/writev2；失败返回非零子码。 */
+/** Internal function `cp_test_vectored`.
+ * Implements `cp_test_vectored`.
+ * @param path *u8
+ * @param p0 *u8
+ * @param p1 *u8
+ * @return i32
+ */
 function cp_test_vectored(path: *u8, p0: *u8, p1: *u8): i32 {
   let b0_v: u8[8] = [0, 0, 0, 0, 0, 0, 0, 0];
   let b1_v: u8[8] = [0, 0, 0, 0, 0, 0, 0, 0];
@@ -104,7 +135,13 @@ function cp_test_vectored(path: *u8, p0: *u8, p1: *u8): i32 {
   return 0;
 }
 
-/** read_fd/write_fd 经 std.io；失败返回非零子码。 */
+/** Internal function `cp_test_io_fd`.
+ * Implements `cp_test_io_fd`.
+ * @param path *u8
+ * @param payload *u8
+ * @param buf *u8
+ * @return i32
+ */
 function cp_test_io_fd(path: *u8, payload: *u8, buf: *u8): i32 {
   let fd_ir: i32 = fs.open(path);
   if (fd_ir < 0) { return 1; }
@@ -126,6 +163,10 @@ function cp_test_io_fd(path: *u8, payload: *u8, buf: *u8): i32 {
   return 0;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   /** "tests/fs/.crossplatform_tmp\0" */
   let path: u8[28] =

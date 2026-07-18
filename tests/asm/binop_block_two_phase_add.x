@@ -1,4 +1,8 @@
-// 7.3：两阶段四 VAR（峰值各 4，全块 8 槽）；Chaitin 可共享 spill 家园；exit 36。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32 = 1;
   let b: i32 = 2;

@@ -14,11 +14,11 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.regex — 最小正则（字面量/字符类/量词/分组/capture，纯 C 引擎）
-// STD-062：match 引擎 perf 优化（字面量快路径 + 首字节跳跃）生产级 bench 锚点。
+// See implementation.
+// See implementation.
 //
-// 【文件职责】compile、match、free；STD-064 capture：group_count/offset/length。
-// 【依赖】std.heap；引擎在 std/regex/regex.x（F-regex v2 纯 .x）；全平台无 regex.h。
+// See implementation.
+// See implementation.
 extern function regex_compile_c(pat: *u8, pat_len: i32): *u8;
 extern function regex_match_c(re: *u8, str: *u8, len: i32): i32;
 extern function regex_free_c(re: *u8): void;
@@ -26,42 +26,71 @@ extern function regex_group_count_c(re: *u8): i32;
 extern function regex_group_offset_c(re: *u8, group: i32): i32;
 extern function regex_group_length_c(re: *u8, group: i32): i32;
 
-/** 编译模式；失败返回 null。 */
+/** Exported function `compile`.
+ * Implements `compile`.
+ * @param pat *u8
+ * @param pat_len i32
+ * @return *u8
+ */
 export function compile(pat: *u8, pat_len: i32): *u8 {
   let _rc: *u8 = 0;
   unsafe { _rc = regex_compile_c(pat, pat_len); }
   return _rc;
 }
 
-/** 子串匹配；成功 0，失败 -1（对标 Rust is_match；`match` 为关键字，仅作模块 API 名）。 */
+/** Exported function `match`.
+ * Implements `match`.
+ * @param re *u8
+ * @param str *u8
+ * @param len i32
+ * @return i32
+ */
 export function match(re: *u8, str: *u8, len: i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = regex_match_c(re, str, len); }
   return _rc;
 }
 
-/** 释放 compile 返回的句柄。 */
+/** Exported function `free`.
+ * Memory management helper `free`.
+ * @param re *u8
+ * @return void
+ */
 export function free(re: *u8): void {
   unsafe {
     regex_free_c(re);
   }
 }
 
-/** 返回 capture 槽数（含 group 0 全匹配）；compile 后即可读。 */
+/** Exported function `group_count`.
+ * Implements `group_count`.
+ * @param re *u8
+ * @return i32
+ */
 export function group_count(re: *u8): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = regex_group_count_c(re); }
   return _rc;
 }
 
-/** 读上次 match 的 group 起始字节偏移；无有效 capture 时 -1。 */
+/** Exported function `group_offset`.
+ * Implements `group_offset`.
+ * @param re *u8
+ * @param group i32
+ * @return i32
+ */
 export function group_offset(re: *u8, group: i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = regex_group_offset_c(re, group); }
   return _rc;
 }
 
-/** 读上次 match 的 group 匹配长度；无有效 capture 时 -1。 */
+/** Exported function `group_length`.
+ * Implements `group_length`.
+ * @param re *u8
+ * @param group i32
+ * @return i32
+ */
 export function group_length(re: *u8, group: i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = regex_group_length_c(re, group); }

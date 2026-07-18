@@ -1,4 +1,8 @@
-// backend 循环标签栈：6 层嵌套 while（旧硬顶 4 层）；最内层 return 6。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   while (true) {
     while (true) {

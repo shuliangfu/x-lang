@@ -1,4 +1,8 @@
-// panic(expr)：带消息时生成 fprintf(stderr, "%d\n", expr); abort()
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   panic(42)
 }

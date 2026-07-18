@@ -1,6 +1,10 @@
-// STD-063：交替 `cat|dog`
+// See implementation.
 const regex = import("std.regex");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let pat: u8[7] = [99, 97, 116, 124, 100, 111, 103];
   let re: *u8 = regex.compile(&pat[0], 7);

@@ -1,9 +1,13 @@
-// await_async.x — A3：`await` 语法烟测（sync stub，暂等同 eval operand）
-/** 异步函数内 await 整数表达式，codegen 暂无 suspend。 */
+// See implementation.
+/* See implementation. */
 async function step(n: i32): i32 {
   return await n + 1;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   return step(41);
 }

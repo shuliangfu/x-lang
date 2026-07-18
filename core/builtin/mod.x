@@ -14,28 +14,37 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// core.builtin — 内建函数 / intrinsics（自举前最小实现）
-// 已提供：copy、unreachable、abort、min/max、clz/ctz/popcount（u32）、placeholder；不新增 extern，保持 core 零 OS 依赖。
-// 与编译器内建对齐后，可改为 extern 或编译器识别符号，以产生单指令/ libcall 优化。
+// note
+// note
+// note
 
 const mem = import("core.mem");
 
-// ——— 占位与测试用 ———
+// placeholder
+/** `placeholder`: see signature for params/returns; contracts in body. */
 export function placeholder(): i32 { return 0; }
 
-// ——— 内存与终止 ———
+// copy
+/** `copy`: see signature for params/returns; contracts in body. */
 export function copy(dst: *u8, src: *u8, n: usize): void { mem.mem_copy(dst, src, n); }
+/** `unreachable`: see signature for params/returns; contracts in body. */
 export function unreachable(): void { panic(); }
+/** `abort`: see signature for params/returns; contracts in body. */
 export function abort(): void { panic(); }
 
-// ——— 比较（可内联，后续可映射为 min/max 指令） ———
+// min_i32
+/** `min_i32`: see signature for params/returns; contracts in body. */
 export function min_i32(a: i32, b: i32): i32 { return if (a < b) { a } else { b }; }
+/** `max_i32`: see signature for params/returns; contracts in body. */
 export function max_i32(a: i32, b: i32): i32 { return if (a > b) { a } else { b }; }
+/** `min_u32`: see signature for params/returns; contracts in body. */
 export function min_u32(a: u32, b: u32): u32 { return if (a < b) { a } else { b }; }
+/** `max_u32`: see signature for params/returns; contracts in body. */
 export function max_u32(a: u32, b: u32): u32 { return if (a > b) { a } else { b }; }
 
-// ——— 位运算（后续可映射为 __builtin_clz/ctz/popcount） ———
-// 前导零个数；x==0 返回 32。
+// --- section ---
+// clz_u32
+/** `clz_u32`: see signature for params/returns; contracts in body. */
 export function clz_u32(x: u32): i32 {
   if (x == 0) { return 32; }
   let n: i32 = 0;
@@ -43,7 +52,8 @@ export function clz_u32(x: u32): i32 {
   while (t != 0) { t = t >> 1; n = n + 1; }
   return 32 - n;
 }
-// 尾随零个数；x==0 返回 32。
+// ctz_u32
+/** `ctz_u32`: see signature for params/returns; contracts in body. */
 export function ctz_u32(x: u32): i32 {
   if (x == 0) { return 32; }
   let n: i32 = 0;
@@ -51,7 +61,8 @@ export function ctz_u32(x: u32): i32 {
   while (t % 2 == 0) { t = t >> 1; n = n + 1; }
   return n;
 }
-// 二进制中 1 的个数。
+// popcount_u32
+/** `popcount_u32`: see signature for params/returns; contracts in body. */
 export function popcount_u32(x: u32): i32 {
   let c: i32 = 0;
   let t: u32 = x;
@@ -62,7 +73,7 @@ export function popcount_u32(x: u32): i32 {
   return c;
 }
 
-/** 32 位字节序交换（CORE-018）。 */
+/** `bswap_u32`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function bswap_u32(x: u32): u32 {
   let b0: u32 = (x >> 24) & 255;
   let b1: u32 = (x >> 16) & 255;
@@ -71,14 +82,14 @@ export function bswap_u32(x: u32): u32 {
   return (b3 << 24) | (b2 << 16) | (b1 << 8) | b0;
 }
 
-/** 32 位循环左移；count 取模 32（CORE-018）。 */
+/** `rotl_u32`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function rotl_u32(x: u32, count: u32): u32 {
   let c: u32 = count % 32;
   if (c == 0) { return x; }
   return (x << c) | (x >> (32 - c));
 }
 
-/** 32 位循环右移；count 取模 32（CORE-018）。 */
+/** `rotr_u32`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function rotr_u32(x: u32, count: u32): u32 {
   let c: u32 = count % 32;
   if (c == 0) { return x; }

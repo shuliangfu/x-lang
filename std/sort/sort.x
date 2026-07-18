@@ -14,63 +14,89 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std/sort/sort.x — 排序实现（F-sort v1；替代 sort.c）
+// See implementation.
 //
-// 【文件职责】
-// sort_i32/u8 不稳定快排；sort_stable_* 稳定归并；
-// sort_i32_cmp 自定义比较器（usize 承载内建 cmp id）；
-// KeyTag 稳定 key 排序与烟测入口。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 【依赖】libc malloc（稳定排序临时缓冲；不依赖 core.mem 或 std.heap，
-//          避免 ASM 后端 free→heap_free_c 重定向导致用户代码链接缺失）。
-// 【Why 根源】ASM 后端 kGlueStdHeapRedirect 将 "free" 重定向为 "heap_free_c"，
-//          但用户代码链接集不含 heap_free_c（仅编译器内部 .o 有定义）；
-//          sort.o 作为 std 模块被链入用户代码时产生未定义引用。
-//          移除 free 调用，temp buffer 暂留（量与输入成正比，仅稳定排序路径）。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 
-/** libc 堆（稳定归并临时缓冲）。 */
+/* See implementation. */
 extern "C" function malloc(size: usize): *u8;
 
-/** 内建比较器 id（usize 承载；与 sort_cmp_*_fn_c 返回值一致，STD-060 v1）。 */
+/* See implementation. */
 export const SORT_CMP_I32_ASC: usize = 1;
 export const SORT_CMP_I32_DESC: usize = 2;
 export const SORT_CMP_KEY_I32: usize = 3;
 
-/** KeyTag 布局（与 mod.x KeyTag 一致：key + tag）。 */
+/* See implementation. */
 allow(padding) struct SortKeyTag {
   key: i32
   tag: i32
 }
 
-/** i32 升序比较：-1/0/1。 */
+/** Exported function `sort_cmp_i32`.
+ * Comparison/utility `sort_cmp_i32`.
+ * @param a *i32
+ * @param b *i32
+ * @return i32
+ */
 export function sort_cmp_i32(a: *i32, b: *i32): i32 {
   if (a[0] < b[0]) { return -1; }
   if (a[0] > b[0]) { return 1; }
   return 0;
 }
 
-/** u8 升序比较：-1/0/1。 */
+/** Exported function `sort_cmp_u8`.
+ * Comparison/utility `sort_cmp_u8`.
+ * @param a *u8
+ * @param b *u8
+ * @return i32
+ */
 export function sort_cmp_u8(a: *u8, b: *u8): i32 {
   if (a[0] < b[0]) { return -1; }
   if (a[0] > b[0]) { return 1; }
   return 0;
 }
 
-/** 交换两个 i32。 */
+/** Exported function `sort_swap_i32`.
+ * Implements `sort_swap_i32`.
+ * @param a *i32
+ * @param b *i32
+ * @return void
+ */
 export function sort_swap_i32(a: *i32, b: *i32): void {
   let t: i32 = a[0];
   a[0] = b[0];
   b[0] = t;
 }
 
-/** 交换两个 u8。 */
+/** Exported function `sort_swap_u8`.
+ * Implements `sort_swap_u8`.
+ * @param a *u8
+ * @param b *u8
+ * @return void
+ */
 export function sort_swap_u8(a: *u8, b: *u8): void {
   let t: u8 = a[0];
   a[0] = b[0];
   b[0] = t;
 }
 
-/** i32 不稳定快排（升序）。 */
+/** Exported function `sort_qsort_i32`.
+ * Implements `sort_qsort_i32`.
+ * @param ptr *i32
+ * @param lo i32
+ * @param hi i32
+ * @return void
+ */
 export function sort_qsort_i32(ptr: *i32, lo: i32, hi: i32): void {
   let i: i32 = 0;
   let j: i32 = 0;
@@ -91,7 +117,13 @@ export function sort_qsort_i32(ptr: *i32, lo: i32, hi: i32): void {
   sort_qsort_i32(ptr, i + 1, hi);
 }
 
-/** u8 不稳定快排（升序）。 */
+/** Exported function `sort_qsort_u8`.
+ * Implements `sort_qsort_u8`.
+ * @param ptr *u8
+ * @param lo i32
+ * @param hi i32
+ * @return void
+ */
 export function sort_qsort_u8(ptr: *u8, lo: i32, hi: i32): void {
   let i: i32 = 0;
   let j: i32 = 0;
@@ -112,7 +144,15 @@ export function sort_qsort_u8(ptr: *u8, lo: i32, hi: i32): void {
   sort_qsort_u8(ptr, i + 1, hi);
 }
 
-/** i32 稳定归并：cmp_dir 1=升序，-1=降序。 */
+/** Exported function `sort_merge_i32_range`.
+ * Implements `sort_merge_i32_range`.
+ * @param base *i32
+ * @param temp *i32
+ * @param left i32
+ * @param right i32
+ * @param cmp_dir i32
+ * @return void
+ */
 export function sort_merge_i32_range(base: *i32, temp: *i32, left: i32, right: i32, cmp_dir: i32): void {
   let n: i32 = 0;
   let mid: i32 = 0;
@@ -165,7 +205,13 @@ export function sort_merge_i32_range(base: *i32, temp: *i32, left: i32, right: i
   }
 }
 
-/** i32 稳定归并排序入口。 */
+/** Exported function `sort_stable_i32_impl`.
+ * Implements `sort_stable_i32_impl`.
+ * @param ptr *i32
+ * @param len i32
+ * @param cmp_dir i32
+ * @return void
+ */
 export function sort_stable_i32_impl(ptr: *i32, len: i32, cmp_dir: i32): void {
   let temp: *i32 = 0 as *i32;
   if (ptr == 0 || len <= 1) { return; }
@@ -175,7 +221,15 @@ export function sort_stable_i32_impl(ptr: *i32, len: i32, cmp_dir: i32): void {
   /* temp buffer not freed: ASM backend redirects free→heap_free_c which is unavailable in user link */
 }
 
-/** u8 稳定归并：cmp_dir 1=升序。 */
+/** Exported function `sort_merge_u8_range`.
+ * Implements `sort_merge_u8_range`.
+ * @param base *u8
+ * @param temp *u8
+ * @param left i32
+ * @param right i32
+ * @param cmp_dir i32
+ * @return void
+ */
 export function sort_merge_u8_range(base: *u8, temp: *u8, left: i32, right: i32, cmp_dir: i32): void {
   let n: i32 = 0;
   let mid: i32 = 0;
@@ -228,7 +282,13 @@ export function sort_merge_u8_range(base: *u8, temp: *u8, left: i32, right: i32,
   }
 }
 
-/** u8 稳定归并排序入口。 */
+/** Exported function `sort_stable_u8_impl`.
+ * Implements `sort_stable_u8_impl`.
+ * @param ptr *u8
+ * @param len i32
+ * @param cmp_dir i32
+ * @return void
+ */
 export function sort_stable_u8_impl(ptr: *u8, len: i32, cmp_dir: i32): void {
   let temp: *u8 = 0 as *u8;
   if (ptr == 0 || len <= 1) { return; }
@@ -238,14 +298,26 @@ export function sort_stable_u8_impl(ptr: *u8, len: i32, cmp_dir: i32): void {
   /* temp buffer not freed: ASM backend redirects free→heap_free_c */
 }
 
-/** KeyTag 仅按 key 比较。 */
+/** Exported function `sort_cmp_key_tag`.
+ * Comparison/utility `sort_cmp_key_tag`.
+ * @param a *SortKeyTag
+ * @param b *SortKeyTag
+ * @return i32
+ */
 export function sort_cmp_key_tag(a: *SortKeyTag, b: *SortKeyTag): i32 {
   if (a.key < b.key) { return -1; }
   if (a.key > b.key) { return 1; }
   return 0;
 }
 
-/** KeyTag 稳定归并。 */
+/** Exported function `sort_merge_key_range`.
+ * Implements `sort_merge_key_range`.
+ * @param base *SortKeyTag
+ * @param temp *SortKeyTag
+ * @param left i32
+ * @param right i32
+ * @return void
+ */
 export function sort_merge_key_range(base: *SortKeyTag, temp: *SortKeyTag, left: i32, right: i32): void {
   let n: i32 = 0;
   let mid: i32 = 0;
@@ -297,29 +369,55 @@ export function sort_merge_key_range(base: *SortKeyTag, temp: *SortKeyTag, left:
   }
 }
 
-/** 原地排序 ptr[0..len]（i32 升序）；不稳定。 */
+/** Exported function `sort`.
+ * Implements `sort`.
+ * @param ptr *i32
+ * @param len i32
+ * @return void
+ */
 export function sort(ptr: *i32, len: i32): void {
   if (ptr == 0 || len <= 1) { return; }
   sort_qsort_i32(ptr, 0, len - 1);
 }
 
-/** 原地排序 ptr[0..len]（u8 升序）；不稳定。 */
+/** Exported function `sort`.
+ * Implements `sort`.
+ * @param ptr *u8
+ * @param len i32
+ * @return void
+ */
 export function sort(ptr: *u8, len: i32): void {
   if (ptr == 0 || len <= 1) { return; }
   sort_qsort_u8(ptr, 0, len - 1);
 }
 
-/** 原地稳定升序排序 ptr[0..len]（i32）。 */
+/** Exported function `stable`.
+ * Implements `stable`.
+ * @param ptr *i32
+ * @param len i32
+ * @return void
+ */
 export function stable(ptr: *i32, len: i32): void {
   sort_stable_i32_impl(ptr, len, 1);
 }
 
-/** 原地稳定升序排序 ptr[0..len]（u8）。 */
+/** Exported function `stable`.
+ * Implements `stable`.
+ * @param ptr *u8
+ * @param len i32
+ * @return void
+ */
 export function stable(ptr: *u8, len: i32): void {
   sort_stable_u8_impl(ptr, len, 1);
 }
 
-/** 原地稳定排序 ptr[0..len]（i32）；cmp_fn 为内建比较器 id（usize）。 */
+/** Exported function `cmp`.
+ * Comparison/utility `cmp`.
+ * @param ptr *i32
+ * @param len i32
+ * @param cmp_fn usize
+ * @return void
+ */
 export function cmp(ptr: *i32, len: i32, cmp_fn: usize): void {
   if (ptr == 0 || len <= 1) { return; }
   if (cmp_fn == SORT_CMP_I32_DESC) {
@@ -329,7 +427,12 @@ export function cmp(ptr: *i32, len: i32, cmp_fn: usize): void {
   sort_stable_i32_impl(ptr, len, 1);
 }
 
-/** KeyTag 数组按 key 稳定升序排序。 */
+/** Exported function `stable_key_tag`.
+ * Implements `stable_key_tag`.
+ * @param ptr *SortKeyTag
+ * @param len i32
+ * @return void
+ */
 export function stable_key_tag(ptr: *SortKeyTag, len: i32): void {
   let temp: *SortKeyTag = 0 as *SortKeyTag;
   if (ptr == 0 || len <= 1) { return; }
@@ -339,22 +442,34 @@ export function stable_key_tag(ptr: *SortKeyTag, len: i32): void {
   /* temp buffer not freed: ASM backend redirects free→heap_free_c */
 }
 
-/** 返回降序 i32 比较器 id（usize）。 */
+/** Exported function `cmp_desc_fn`.
+ * Comparison/utility `cmp_desc_fn`.
+ * @return usize
+ */
 export function cmp_desc_fn(): usize {
   return SORT_CMP_I32_DESC;
 }
 
-/** 返回升序 i32 比较器 id（usize）。 */
+/** Exported function `cmp_asc_fn`.
+ * Comparison/utility `cmp_asc_fn`.
+ * @return usize
+ */
 export function cmp_asc_fn(): usize {
   return SORT_CMP_I32_ASC;
 }
 
-/** 返回 KeyTag key 比较器 id（usize）。 */
+/** Exported function `cmp_key_fn`.
+ * Comparison/utility `cmp_key_fn`.
+ * @return usize
+ */
 export function cmp_key_fn(): usize {
   return SORT_CMP_KEY_I32;
 }
 
-/** STD-060 烟测：稳定升序 + 降序比较器 + 相等 key 稳定性。 */
+/** Exported function `sort_stable_smoke_c`.
+ * Implements `sort_stable_smoke_c`.
+ * @return i32
+ */
 export function sort_stable_smoke_c(): i32 {
   let a: i32[4] = [3, 1, 4, 2];
   let b: i32[4] = [3, 1, 4, 2];
@@ -375,7 +490,10 @@ export function sort_stable_smoke_c(): i32 {
   return 0;
 }
 
-/** STD-150 烟测：KeyTag 稳定 key 排序。 */
+/** Exported function `sort_key_cmp_smoke_c`.
+ * Comparison/utility `sort_key_cmp_smoke_c`.
+ * @return i32
+ */
 export function sort_key_cmp_smoke_c(): i32 {
   let items: SortKeyTag[4] = [
     SortKeyTag { key: 3, tag: 0 },

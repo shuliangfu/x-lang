@@ -1,8 +1,14 @@
-// STD-127：Base32 / percent / URL-Base64 与 std.string 互操作烟测
+// See implementation.
 const encoding = import("std.encoding");
 const string = import("std.string");
 
-/** 比较 String 与期望 ASCII 字节序列。 */
+/** Internal function `str_bytes_eq`.
+ * Implements `str_bytes_eq`.
+ * @param s *String
+ * @param expect *u8
+ * @param len i32
+ * @return bool
+ */
 function str_bytes_eq(s: *String, expect: *u8, len: i32): bool {
   if (string.string_len_ptr(s) != len) { return false; }
   let p: *u8 = string.string_data_ptr(s);
@@ -14,6 +20,10 @@ function str_bytes_eq(s: *String, expect: *u8, len: i32): bool {
   return true;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let raw: u8[3] = [102, 111, 111];
   let b32_expect: u8[8] = [77, 90, 88, 87, 54, 61, 61, 61];

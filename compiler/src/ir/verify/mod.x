@@ -14,17 +14,15 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// mod.x — 验证与测试基础设施模块入口（re-export）
+// mod.x — verification & test infrastructure module entry (re-export)
 //
-// 模块：ir/verify
-// 层级：共享（跨五层 IR 验证）
-// Phase：Phase 0+（Phase 0 即开始差分测试）
-// 职责：聚合 verify/ 子模块导出（interp / diff_test / perf_oracle / fuzz）。
-// 依赖：../shir / ../smir / ../slir / ../vmir / ../mir
-// 设计约束：
-//   - 验证策略：形式化契约驱动开发 + Differential Fuzzing + Oracle + Performance Oracle
-//   - 差分测试三 oracle 对比（C 后端 / 解释器 / codegen），确保语义一致性
-//   - Performance Oracle 作为优化 Pass 合入门控
+// Module: ir/verify
+// Layer: shared
+// Phase: Phase 0+
+// Responsibility: Aggregate verify/ exports (interp / diff_test / perf_oracle / fuzz).
+// Depends: ../shir / ../smir / ../slir / ../vmir / ../mir
+// Design constraints:
+//   - Formal contract-driven development + Differential Fuzzing + Oracle + Performance Oracle
 //
-// 参考文档：analysis/IR核心设计.md §9（验证测试差分框架）
-// 架构状态：v4.0 Architecture Freeze — 实现骨架，待 Phase 0 填充
+// Ref: analysis IR core design §9 (verification / differential test framework)
+// Status: v4.0 Architecture Freeze — implementation skeleton; fill in Phase 0

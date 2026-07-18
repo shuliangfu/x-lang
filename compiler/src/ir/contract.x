@@ -14,20 +14,20 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// contract.x — Contract 结构体 + ContractPool（池化去重）
+// contract.x — Contract struct + ContractPool (pooled dedup)
 //
-// 模块：ir
-// 层级：共享（被五层 IR 共同消费）
-// Phase：Phase 0（C-Emitter 提取契约注释）→ Phase 1+（SHIR lowering 自动生成）
-// 职责：
-//   - 定义 Contract 结构体（pre / post / effect_id / ownership 四字段）
-//   - 实现 ContractPool：Arena 紧致存储 + HashMap 去重索引
-//   - 提供 contract_id 间接引用接口（IRInst 只持 4 字节 ID）
-// 依赖：effect（引用 EffectId）
-// 设计约束：
-//   - 池化去重：1 万个 load 共用 ContractId(7)，IR 体积从 ~200B/指令降至 ~32B/指令
-//   - Pass 比较契约只比 contract_id（整数相等），不深比较结构体
-//   - 契约不变量：变换前后 pre ⊆ / post ⊇ / effects 不变（§1.4）
+// Module: ir
+// Layer: shared (consumed by all five IR layers)
+// Phase: Phase 0 (C-Emitter extracts contract annotations) → Phase 1+ (SHIR lowering auto-gen)
+// Responsibility:
+//   - Define Contract struct (pre / post / effect_id / ownership)
+//   - Implement ContractPool: Arena-compact storage + HashMap dedup index
+//   - Provide contract_id indirection (IRInst holds only a 4-byte id)
+// Depends: effect (references EffectId)
+// Design constraints:
+//   - Pooled dedup: 10k loads share ContractId(7); IR size drops from ~200B/inst to ~32B/inst
+//   - Passes compare contracts by contract_id integer equality, not deep struct compare
+//   - Contract invariants: after transform pre subset / post superset / effects unchanged (§1.4)
 //
-// 参考文档：analysis/IR核心设计.md §1.2（Contract Pool + Metadata ID）/ §1.3（契约验证机制）
-// 架构状态：v4.0 Architecture Freeze — 实现骨架，待 Phase 0 填充
+// Ref: analysis IR core design §1.2 (Contract Pool + Metadata ID) / §1.3 (contract verification)
+// Status: v4.0 Architecture Freeze — implementation skeleton; fill in Phase 0

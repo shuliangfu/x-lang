@@ -1,9 +1,13 @@
-// TST-004：std.heap ASAN 夜跑用例（alloc/free/realloc/arena，无泄漏）。
+// See implementation.
 //
-// 【文件职责】在 -fsanitize=address 下验证堆 API 成对释放。
-// 【运行方式】tests/run-tst-004-std-sanitize-nightly.sh
+// See implementation.
+// See implementation.
 const heap = import("std.heap");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let p: *u8 = heap.alloc(32);
   if (p == 0 as *u8) {

@@ -14,18 +14,17 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// mod.x — VMIR 层模块入口（re-export）
+// mod.x — VMIR layer module entry (re-export)
 //
-// 模块：ir/vmir
-// 层级：VMIR（Value MIR / Instruction Selection IR，指令选择层）
-// Phase：Phase 5
-// 职责：聚合 vmir/ 子模块导出（isel / dag / sched / machine_inst）。
-// 依赖：../slir / ../inst / ../contract
-// 设计约束：
-//   - v4.0 新增层，将原 Target MIR 的"指令选择 + 寄存器分配"双重职责拆分
-//   - VMIR 专做指令选择（isel），Target MIR 专做寄存器分配 + 微架构对齐
-//   - 职责单一后，isel 可独立复用（新架构只需新增 VMIR → Target MIR lowering）
-//   - 契约物化：Contract → 机器指令属性
+// Module: ir/vmir
+// Layer: VMIR (Value MIR / Instruction Selection IR)
+// Phase: Phase 5
+// Responsibility: Aggregate vmir/ submodule exports (isel / dag / sched / machine_inst).
+// Depends: ../slir / ../inst / ../contract
+// Design constraints:
+//   - v4.0 new layer: splits former Target MIR dual duty (isel + regalloc)
+//   - VMIR owns instruction selection (isel); Target MIR owns regalloc + microarch
+//   - Contract materialization: Contract → machine-instruction attributes
 //
-// 参考文档：analysis/IR核心设计.md §2.1（VMIR 层）/ §2.2（VMIR 职责）
-// 架构状态：v4.0 Architecture Freeze — 实现骨架，待 Phase 5 填充
+// Ref: analysis IR core design §2.1 (VMIR layer) / §2.2 (VMIR duties)
+// Status: v4.0 Architecture Freeze — implementation skeleton; fill in Phase 5

@@ -1,6 +1,10 @@
-// std.db.kv v2 烟测：WAL → flush → compact → SST 冻结 → 读回。
+// See implementation.
 const dbkv = import("std.db.kv");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let path: u8[24] =
   [116, 101, 115, 116, 115, 47, 115, 116, 100, 45, 100, 98, 47, 46, 107, 118, 95, 115, 109, 111, 107, 101, 0, 0];

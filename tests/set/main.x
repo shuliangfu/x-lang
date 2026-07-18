@@ -1,6 +1,10 @@
-// 测试 std.set：Set_i32 insert、contains、remove、len、deinit
+// See implementation.
 const set = import("std.set");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let s: Set_i32 = set.new(0);
   if (set.with_capacity(&s, 8) != 0) { return 1; }

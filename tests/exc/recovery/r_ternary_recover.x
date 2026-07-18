@@ -1,6 +1,10 @@
-// EXC-006：is_ok 三元恢复分支
+// See implementation.
 const result = import("core.result");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let r: Result_i32 = result.err_i32(3);
   let v: i32 = result.is_ok_i32(r) ? r.value : 77;

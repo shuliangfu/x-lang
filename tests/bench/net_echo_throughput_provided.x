@@ -1,11 +1,16 @@
-// net_echo_throughput_provided.x — ZC-1：读路径 stream_read_batch_provided（IORING_OP_PROVIDE_BUFFERS）
-// 写路径仍 stream_write_batch；与 net_echo_throughput.x 同规模 4×4KiB×1024。
-// 读侧用 1×16KiB provided buffer（1 SQE），对齐 batch 的 1×readv SQE，公平对比零拷贝收益。
+// See implementation.
+// See implementation.
+// See implementation.
 const io = import("std.io");
 const net = import("std.net");
 const process = import("std.process");
 
-/** 解析十进制 u32 端口（NUL 结尾）；非法返回 default_port。 */
+/** Internal function `bench_parse_port`.
+ * Implements `bench_parse_port`.
+ * @param s *u8
+ * @param default_port u32
+ * @return u32
+ */
 function bench_parse_port(s: *u8, default_port: u32): u32 {
   if (s == 0 as *u8) { return default_port; }
   let n: u32 = 0;
@@ -21,7 +26,16 @@ function bench_parse_port(s: *u8, default_port: u32): u32 {
   return n;
 }
 
-/** 写 4×4KiB；失败返回负值。 */
+/** Internal function `echo_write_4`.
+ * Write path helper `echo_write_4`.
+ * @param stream TcpStream
+ * @param p0 *u8
+ * @param p1 *u8
+ * @param p2 *u8
+ * @param p3 *u8
+ * @param seg usize
+ * @return i32
+ */
 function echo_write_4(stream: TcpStream, p0: *u8, p1: *u8, p2: *u8, p3: *u8, seg: usize): i32 {
   let need: i32 = 16384;
   let nw: i32 = net.write_batch(stream, p0, seg, p1, seg, p2, seg, p3, seg, 4, 0);
@@ -29,7 +43,13 @@ function echo_write_4(stream: TcpStream, p0: *u8, p1: *u8, p2: *u8, p3: *u8, seg
   return nw;
 }
 
-/** 读 16KiB（单 provided buffer，1 SQE）；失败返回负值。 */
+/** Internal function `echo_read_16k_provided`.
+ * Read path helper `echo_read_16k_provided`.
+ * @param stream TcpStream
+ * @param bid *u32
+ * @param len *u32
+ * @return i32
+ */
 function echo_read_16k_provided(stream: TcpStream, bid: *u32, len: *u32): i32 {
   let need: i32 = 16384;
   let nr: i32 = net.read_batch_provided(stream, 1, 0, bid, len);
@@ -37,7 +57,12 @@ function echo_read_16k_provided(stream: TcpStream, bid: *u32, len: *u32): i32 {
   return nr;
 }
 
-/** 对 provided 16KiB 做字节求和（校验路径触达零拷贝视图）。 */
+/** Internal function `echo_sum_provided_16k`.
+ * Implements `echo_sum_provided_16k`.
+ * @param b0 u32
+ * @param l0 u32
+ * @return i32
+ */
 function echo_sum_provided_16k(b0: u32, l0: u32): i32 {
   let sum: i32 = 0;
   let p0: *u8 = io.provided_buffer_ptr(b0);
@@ -49,12 +74,16 @@ function echo_sum_provided_16k(b0: u32, l0: u32): i32 {
   return sum;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let echo_port: u32 = 38457;
   if (process.args_count() >= 2) {
     echo_port = bench_parse_port(process.arg(1), echo_port);
   }
-  /** 8×16KiB provided pool；单块容纳一轮 echo 读。 */
+  /* See implementation. */
   if (io.register_provided(8, 16384) != 1) { return 10; }
   let echo_rounds: i32 = 1024;
   let seg: usize = 4096;

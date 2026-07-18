@@ -14,64 +14,102 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.sort — 排序（对标 Zig std.sort、Rust Vec::sort）
+// See implementation.
 //
-// 【文件职责】sort_i32、sort_u8 原地不稳定升序；sort_stable_* 稳定归并；
-// sort_i32_cmp 自定义比较器；sort_stable_by_key 按 KeyTag.key 稳定排序。
-// 【依赖】core；实现见 sort.x（F-sort v1）。
+// See implementation.
+// See implementation.
+// See implementation.
 const sort_impl = import("std.sort.sort");
 
-/** key+payload 对：稳定排序时仅比较 key，保留 tag 相对顺序（STD-150）。 */
+/* See implementation. */
 export struct KeyTag {
   key: i32
   tag: i32
 }
 
-/** 原地对 ptr[0..len] 升序排序（i32）；不稳定。
- * 【Why】勿 sort_impl.sort 重载：跨模块 *u8/*i32 打分失败时回退首同名 i32（误调 abort）。
- * 权威实现为 sort.x 的 sort_qsort_* / sort_stable_*_impl（唯一名）。 */
+/** Exported function `sort`.
+ * Implements `sort`.
+ * @param ptr *i32
+ * @param len i32
+ * @return void
+ */
 export function sort(ptr: *i32, len: i32): void {
   if (ptr == 0 || len <= 1) { return; }
   sort_impl.sort_qsort_i32(ptr, 0, len - 1);
 }
 
-/** 原地对 ptr[0..len] 升序排序（u8）；不稳定。 */
+/** Exported function `sort`.
+ * Implements `sort`.
+ * @param ptr *u8
+ * @param len i32
+ * @return void
+ */
 export function sort(ptr: *u8, len: i32): void {
   if (ptr == 0 || len <= 1) { return; }
   sort_impl.sort_qsort_u8(ptr, 0, len - 1);
 }
 
-/** 原地稳定升序排序 ptr[0..len]（i32）。 */
+/** Exported function `stable`.
+ * Implements `stable`.
+ * @param ptr *i32
+ * @param len i32
+ * @return void
+ */
 export function stable(ptr: *i32, len: i32): void {
   sort_impl.sort_stable_i32_impl(ptr, len, 1);
 }
 
-/** 原地稳定升序排序 ptr[0..len]（u8）。 */
+/** Exported function `stable`.
+ * Implements `stable`.
+ * @param ptr *u8
+ * @param len i32
+ * @return void
+ */
 export function stable(ptr: *u8, len: i32): void {
   sort_impl.sort_stable_u8_impl(ptr, len, 1);
 }
 
-/** 原地稳定排序 ptr[0..len]（i32）；cmp_fn 为 usize 承载的 C 比较器。 */
+/** Exported function `cmp`.
+ * Comparison/utility `cmp`.
+ * @param ptr *i32
+ * @param len i32
+ * @param cmp_fn usize
+ * @return void
+ */
 export function cmp(ptr: *i32, len: i32, cmp_fn: usize): void {
   sort_impl.cmp(ptr, len, cmp_fn);
 }
 
-/** KeyTag 数组按 key 稳定升序排序。 */
+/** Exported function `stable_by_key`.
+ * Implements `stable_by_key`.
+ * @param ptr *KeyTag
+ * @param len i32
+ * @return void
+ */
 export function stable_by_key(ptr: *KeyTag, len: i32): void {
   sort_impl.stable_key_tag(ptr as *sort_impl.SortKeyTag, len);
 }
 
-/** 返回降序 i32 比较器函数地址（usize）。 */
+/** Exported function `cmp_desc_fn`.
+ * Comparison/utility `cmp_desc_fn`.
+ * @return usize
+ */
 export function cmp_desc_fn(): usize {
   return sort_impl.cmp_desc_fn();
 }
 
-/** 返回升序 i32 比较器函数地址（usize）。 */
+/** Exported function `cmp_asc_fn`.
+ * Comparison/utility `cmp_asc_fn`.
+ * @return usize
+ */
 export function cmp_asc_fn(): usize {
   return sort_impl.cmp_asc_fn();
 }
 
-/** 返回 KeyTag key 比较器函数地址（usize）。 */
+/** Exported function `cmp_key_fn`.
+ * Comparison/utility `cmp_key_fn`.
+ * @return usize
+ */
 export function cmp_key_fn(): usize {
   return sort_impl.cmp_key_fn();
 }

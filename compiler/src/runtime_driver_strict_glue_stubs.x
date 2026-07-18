@@ -1,10 +1,10 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-32/33：真迁 .x — strict glue 薄转发 / i32 指针 / layout metrics 读侧。
-// 产品：./shux-c -E → seeds/runtime_driver_strict_glue_stubs.from_x.c（+ C 尾 + weak 抛光）。
-// C 尾：heap_user、static metrics 槽数组、lsp_codegen 文本块、preprocess。
-// metrics 槽指针函数仍在 C；.x 只做 init/read/peek 薄逻辑。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 
 export extern "C" function driver_skip_codegen_dep_0_get(): i32;
 export extern "C" function driver_set_current_dep_path_for_codegen(path: *u8): void;
@@ -28,6 +28,11 @@ export function asm_driver_skip_codegen_dep_0_get(): i32 {
 }
 
 #[no_mangle]
+/** Exported function `asm_driver_set_current_dep_path_for_codegen`.
+ * Implements `asm_driver_set_current_dep_path_for_codegen`.
+ * @param path *u8
+ * @return void
+ */
 export function asm_driver_set_current_dep_path_for_codegen(path: *u8): void {
   unsafe {
     driver_set_current_dep_path_for_codegen(path);
@@ -35,6 +40,11 @@ export function asm_driver_set_current_dep_path_for_codegen(path: *u8): void {
 }
 
 #[no_mangle]
+/** Exported function `typeck_driver_diagnostic_pipe_marker`.
+ * Implements `typeck_driver_diagnostic_pipe_marker`.
+ * @param id i32
+ * @return void
+ */
 export function typeck_driver_diagnostic_pipe_marker(id: i32): void {
   unsafe {
     driver_diagnostic_pipe_marker(id);
@@ -42,6 +52,12 @@ export function typeck_driver_diagnostic_pipe_marker(id: i32): void {
 }
 
 #[no_mangle]
+/** Exported function `typeck_i32_ptr_store`.
+ * Implements `typeck_i32_ptr_store`.
+ * @param p *i32
+ * @param v i32
+ * @return void
+ */
 export function typeck_i32_ptr_store(p: *i32, v: i32): void {
   if (p == 0 as *i32) {
     return;
@@ -52,6 +68,11 @@ export function typeck_i32_ptr_store(p: *i32, v: i32): void {
 }
 
 #[no_mangle]
+/** Exported function `typeck_i32_ptr_read`.
+ * Read path helper `typeck_i32_ptr_read`.
+ * @param p *i32
+ * @return i32
+ */
 export function typeck_i32_ptr_read(p: *i32): i32 {
   if (p == 0 as *i32) {
     return 0;
@@ -76,6 +97,11 @@ export function typeck_layout_metrics_init_slot(): void {
 }
 
 #[no_mangle]
+/** Exported function `typeck_layout_metrics_init_depth`.
+ * Implements `typeck_layout_metrics_init_depth`.
+ * @param depth i32
+ * @return void
+ */
 export function typeck_layout_metrics_init_depth(depth: i32): void {
   unsafe {
     let sz: *i32 = typeck_layout_metrics_sz_slot_depth(depth);
@@ -86,6 +112,11 @@ export function typeck_layout_metrics_init_depth(depth: i32): void {
 }
 
 #[no_mangle]
+/** Exported function `typeck_layout_metrics_al_read_depth`.
+ * Read path helper `typeck_layout_metrics_al_read_depth`.
+ * @param depth i32
+ * @return i32
+ */
 export function typeck_layout_metrics_al_read_depth(depth: i32): i32 {
   unsafe {
     let p: *i32 = typeck_layout_metrics_al_slot_depth(depth);
@@ -96,6 +127,11 @@ export function typeck_layout_metrics_al_read_depth(depth: i32): i32 {
 }
 
 #[no_mangle]
+/** Exported function `typeck_layout_metrics_sz_read_depth`.
+ * Read path helper `typeck_layout_metrics_sz_read_depth`.
+ * @param depth i32
+ * @return i32
+ */
 export function typeck_layout_metrics_sz_read_depth(depth: i32): i32 {
   unsafe {
     let p: *i32 = typeck_layout_metrics_sz_slot_depth(depth);
@@ -106,6 +142,10 @@ export function typeck_layout_metrics_sz_read_depth(depth: i32): i32 {
 }
 
 #[no_mangle]
+/** Exported function `typeck_call_resolve_dep_idx_peek`.
+ * Implements `typeck_call_resolve_dep_idx_peek`.
+ * @return i32
+ */
 export function typeck_call_resolve_dep_idx_peek(): i32 {
   unsafe {
     let p: *i32 = typeck_call_resolve_dep_idx_slot();
@@ -116,6 +156,10 @@ export function typeck_call_resolve_dep_idx_peek(): i32 {
 }
 
 #[no_mangle]
+/** Exported function `typeck_call_resolve_func_idx_peek`.
+ * Implements `typeck_call_resolve_func_idx_peek`.
+ * @return i32
+ */
 export function typeck_call_resolve_func_idx_peek(): i32 {
   unsafe {
     let p: *i32 = typeck_call_resolve_func_idx_slot();
@@ -125,11 +169,17 @@ export function typeck_call_resolve_func_idx_peek(): i32 {
   return 0;
 }
 
-/* ---- G-02f-105：codegen text append 门闩 ---- */
+/* See implementation. */
 
 export extern "C" function append_text_to_codegen_buf_impl(out: *u8, text: *u8): i32;
 
 #[no_mangle]
+/** Exported function `append_text_to_codegen_buf`.
+ * Implements `append_text_to_codegen_buf`.
+ * @param out *u8
+ * @param text *u8
+ * @return i32
+ */
 export function append_text_to_codegen_buf(out: *u8, text: *u8): i32 {
   unsafe {
     return append_text_to_codegen_buf_impl(out, text);

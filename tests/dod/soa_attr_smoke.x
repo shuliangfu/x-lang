@@ -1,6 +1,6 @@
 /**
- * DOD-S1：`#[soa]` 属性语法 smoke（等价 struct Name soa { }）。
- * arr[0].x=2 + arr[1].x=6 → 返回 8（i32 路径）。
+ * See implementation.
+ * See implementation.
  */
 #[soa]
 struct Vec2 {
@@ -8,6 +8,10 @@ struct Vec2 {
   y: i32
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let arr: Vec2[2] = [];
   arr[0].x = 2;

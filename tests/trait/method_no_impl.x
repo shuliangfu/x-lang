@@ -1,5 +1,9 @@
-// 边界：对无 impl 的类型调用方法，应报 no impl for type ... with method ...
+// See implementation.
 struct S {}
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let s: S = S {}
   return s.double();

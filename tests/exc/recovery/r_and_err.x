@@ -1,6 +1,10 @@
-// EXC-006：and_i32 遇 Err 短路（可恢复，不 panic）
+// See implementation.
 const result = import("core.result");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: Result_i32 = result.and_i32(result.err_i32(9), result.ok_i32(1));
   if (!result.is_err_i32(a) || a.err != 9) { return 1; }

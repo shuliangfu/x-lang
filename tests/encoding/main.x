@@ -1,6 +1,10 @@
-// 测试 std.encoding：utf8_valid、utf8_len_chars、utf8_encode_rune、utf8_decode_rune、ascii_*
+// See implementation.
 const encoding = import("std.encoding");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let ok: u8[4] = [97, 98, 99, 0];
   if (encoding.utf8_valid(&ok[0], 3) != 1) { return 1; }

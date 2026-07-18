@@ -1,8 +1,16 @@
-// SYN-01：let 初值支持 foo()[0] postfix 链
+// foo: see function docblock below.
+/** Internal function `foo`.
+ * Implements `foo`.
+ * @return u8[4]
+ */
 function foo(): u8[4] {
   return [1, 2, 3, 4];
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let e: u8 = foo()[0];
   let f: u8 = foo()[1];

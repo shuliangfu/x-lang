@@ -1,8 +1,12 @@
-// STD-HTTP-REQRESP：Request/Response v0/v1 烟测
+// See implementation.
 const http = import("std.http");
 const context = import("std.context");
 const err = import("std.error");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (http.response_parse_smoke() != 0) { return 1; }
   if (http.response_body_owned_smoke() != 0) { return 2; }

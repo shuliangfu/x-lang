@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // G-02f-301/310/456 / P2 runtime R10 entry → R2 full。
-// .x 吃满 6 公共符号：explain_cli / smoke_diag / smoke_summary /
+// Runtime entry helpers (explain/smoke/fmt/build); G.9 English; body authoritative.
 //   fmt_report_no_files / run_compiler_c / build_build_x。
-// 产品 PREFER_X_O：full .x + rest 在 FROM_X 下仅 marker（业务 H=0）。
-// Cap residual（driver_abi）：stdio FILE* + entry 缓冲槽 + fmt argv。
-// 纪律：少局部 / 无局部 u8[N] / 无 \n 字符串转义 / 无 || 压缩条件（-E 易丢体）。
+// Runtime entry helpers (explain/smoke/fmt/build); G.9 English; body authoritative.
+// Runtime entry helpers (explain/smoke/fmt/build); G.9 English; body authoritative.
+// Runtime entry helpers (explain/smoke/fmt/build); G.9 English; body authoritative.
 
 export extern "C" function diag_json_enabled(): i32;
 export extern "C" function getenv(name: *u8): *u8;
@@ -33,6 +33,11 @@ export extern "C" function driver_entry_tmp_slot(): *u8;
 export extern "C" function driver_entry_tmp2_slot(): *u8;
 export extern "C" function driver_entry_fmt_argv_slot(): **u8;
 
+/** Internal function `rt_entry_strlen`.
+ * Implements `rt_entry_strlen`.
+ * @param s *u8
+ * @return i32
+ */
 function rt_entry_strlen(s: *u8): i32 {
   let i: i32 = 0;
   if (s == 0 as *u8) {
@@ -47,6 +52,13 @@ function rt_entry_strlen(s: *u8): i32 {
   return i;
 }
 
+/** Internal function `rt_entry_append`.
+ * Implements `rt_entry_append`.
+ * @param dst *u8
+ * @param cap i32
+ * @param src *u8
+ * @return void
+ */
 function rt_entry_append(dst: *u8, cap: i32, src: *u8): void {
   let n: i32 = 0;
   let i: i32 = 0;
@@ -77,6 +89,13 @@ function rt_entry_append(dst: *u8, cap: i32, src: *u8): void {
   }
 }
 
+/** Internal function `rt_entry_append_i32`.
+ * Implements `rt_entry_append_i32`.
+ * @param dst *u8
+ * @param cap i32
+ * @param v i32
+ * @return void
+ */
 function rt_entry_append_i32(dst: *u8, cap: i32, v: i32): void {
   let dig: *u8 = 0 as *u8;
   let n: i32 = v;
@@ -84,7 +103,7 @@ function rt_entry_append_i32(dst: *u8, cap: i32, v: i32): void {
   let j: i32 = 0;
   let neg: i32 = 0;
   let a: u8 = 0;
-  /* dig 用 tmp2，避免 dst 也走 tmp 时自覆盖 */
+  /* See signature and body for contracts. */
   unsafe {
     dig = driver_entry_tmp2_slot();
   }
@@ -126,6 +145,12 @@ function rt_entry_append_i32(dst: *u8, cap: i32, v: i32): void {
   rt_entry_append(dst, cap, dig);
 }
 
+/** Internal function `rt_entry_write_str`.
+ * Write path helper `rt_entry_write_str`.
+ * @param fd i32
+ * @param s *u8
+ * @return void
+ */
 function rt_entry_write_str(fd: i32, s: *u8): void {
   let n: i32 = 0;
   if (s == 0 as *u8) {
@@ -140,6 +165,11 @@ function rt_entry_write_str(fd: i32, s: *u8): void {
   }
 }
 
+/** Internal function `rt_entry_write_nl`.
+ * Write path helper `rt_entry_write_nl`.
+ * @param fd i32
+ * @return void
+ */
 function rt_entry_write_nl(fd: i32): void {
   let tmp: *u8 = 0 as *u8;
   unsafe {
@@ -153,6 +183,12 @@ function rt_entry_write_nl(fd: i32): void {
   rt_entry_write_str(fd, tmp);
 }
 
+/** Internal function `rt_entry_write_i32`.
+ * Write path helper `rt_entry_write_i32`.
+ * @param fd i32
+ * @param v i32
+ * @return void
+ */
 function rt_entry_write_i32(fd: i32, v: i32): void {
   let tmp: *u8 = 0 as *u8;
   unsafe {
@@ -166,6 +202,11 @@ function rt_entry_write_i32(fd: i32, v: i32): void {
   rt_entry_write_str(fd, tmp);
 }
 
+/** Internal function `rt_entry_is_explain_eq`.
+ * Implements `rt_entry_is_explain_eq`.
+ * @param s *u8
+ * @return i32
+ */
 function rt_entry_is_explain_eq(s: *u8): i32 {
   if (s == 0 as *u8) {
     return 0;
@@ -206,7 +247,11 @@ function rt_entry_is_explain_eq(s: *u8): i32 {
   return 1;
 }
 
-/** 解析 argv[1]：0=非 explain，1=子命令/旗标，2=--explain=CODE。 */
+/** Internal function `rt_entry_explain_mode`.
+ * Implements `rt_entry_explain_mode`.
+ * @param ab *u8
+ * @return i32
+ */
 function rt_entry_explain_mode(ab: *u8): i32 {
   if (ab == 0 as *u8) {
     return 0;
@@ -227,6 +272,10 @@ function rt_entry_explain_mode(ab: *u8): i32 {
   return 0;
 }
 
+/** Internal function `rt_entry_explain_usage_err`.
+ * Implements `rt_entry_explain_usage_err`.
+ * @return i32
+ */
 function rt_entry_explain_usage_err(): i32 {
   let msg: *u8 = 0 as *u8;
   let kind: *u8 = 0 as *u8;
@@ -247,6 +296,10 @@ function rt_entry_explain_usage_err(): i32 {
   return 1;
 }
 
+/** Internal function `rt_entry_explain_list`.
+ * Implements `rt_entry_explain_list`.
+ * @return i32
+ */
 function rt_entry_explain_list(): i32 {
   let out: *u8 = 0 as *u8;
   unsafe {
@@ -258,6 +311,11 @@ function rt_entry_explain_list(): i32 {
   return 0;
 }
 
+/** Internal function `rt_entry_explain_unknown`.
+ * Implements `rt_entry_explain_unknown`.
+ * @param code *u8
+ * @return i32
+ */
 function rt_entry_explain_unknown(code: *u8): i32 {
   let msg: *u8 = 0 as *u8;
   let sug_buf: *u8 = 0 as *u8;
@@ -312,6 +370,11 @@ function rt_entry_explain_unknown(code: *u8): i32 {
   return 1;
 }
 
+/** Internal function `rt_entry_explain_known`.
+ * Implements `rt_entry_explain_known`.
+ * @param code *u8
+ * @return i32
+ */
 function rt_entry_explain_known(code: *u8): i32 {
   let out: *u8 = 0 as *u8;
   unsafe {
@@ -323,7 +386,12 @@ function rt_entry_explain_known(code: *u8): i32 {
   return 0;
 }
 
-/** explain 子命令 / --explain：-1=非 explain，0=成功，1=失败。 */
+/** Exported function `runtime_try_handle_explain_cli`.
+ * Implements `runtime_try_handle_explain_cli`.
+ * @param argc i32
+ * @param argv **u8
+ * @return i32
+ */
 #[no_mangle]
 export function runtime_try_handle_explain_cli(argc: i32, argv: **u8): i32 {
   let ab: *u8 = 0 as *u8;
@@ -336,7 +404,7 @@ export function runtime_try_handle_explain_cli(argc: i32, argv: **u8): i32 {
   if (argc < 2) {
     return 0 - 1;
   }
-  /* 禁 argv == 0 as **u8：-E 会整函数丢体；经 *u8 判空 */
+  /* See signature and body for contracts. */
   if ((argv as *u8) == 0 as *u8) {
     return 0 - 1;
   }
@@ -404,7 +472,10 @@ export function runtime_try_handle_explain_cli(argc: i32, argv: **u8): i32 {
   return rt_entry_explain_known(code);
 }
 
-/** smoke 结构化诊断是否启用（JSON 或 SHUX_SMOKE_DIAG）。 */
+/** Exported function `shux_smoke_diag_enabled`.
+ * Implements `shux_smoke_diag_enabled`.
+ * @return i32
+ */
 #[no_mangle]
 export function shux_smoke_diag_enabled(): i32 {
   let e: *u8 = 0 as *u8;
@@ -426,6 +497,13 @@ export function shux_smoke_diag_enabled(): i32 {
   return 1;
 }
 
+/** Internal function `rt_entry_smoke_write_body`.
+ * Write path helper `rt_entry_smoke_write_body`.
+ * @param name *u8
+ * @param main_final_lit i32
+ * @param has_main_body i32
+ * @return void
+ */
 function rt_entry_smoke_write_body(name: *u8, main_final_lit: i32, has_main_body: i32): void {
   if (has_main_body != 0) {
     if (main_final_lit >= 0) {
@@ -449,6 +527,13 @@ function rt_entry_smoke_write_body(name: *u8, main_final_lit: i32, has_main_body
   rt_entry_write_nl(1);
 }
 
+/** Internal function `rt_entry_smoke_diag_body`.
+ * Implements `rt_entry_smoke_diag_body`.
+ * @param name *u8
+ * @param main_final_lit i32
+ * @param has_main_body i32
+ * @return void
+ */
 function rt_entry_smoke_diag_body(name: *u8, main_final_lit: i32, has_main_body: i32): void {
   let msg: *u8 = 0 as *u8;
   let kind: *u8 = 0 as *u8;
@@ -496,7 +581,7 @@ function rt_entry_smoke_diag_body(name: *u8, main_final_lit: i32, has_main_body:
   }
 }
 
-/** 兼容旧 smoke 摘要：stdout 文本 + 可选结构化 diag。 */
+/* See signature and body for contracts. */
 #[no_mangle]
 export function driver_emit_legacy_smoke_summary_stdout(
   main_name: *u8, main_final_lit: i32, has_main_body: i32
@@ -514,17 +599,25 @@ export function driver_emit_legacy_smoke_summary_stdout(
   rt_entry_smoke_diag_body(name, main_final_lit, has_main_body);
 }
 
-/** 兼容旧 driver_fmt_gen.c：无路径时委托 driver_run_fmt。 */
+/** Exported function `driver_fmt_report_no_files`.
+ * Implements `driver_fmt_report_no_files`.
+ * @return i32
+ */
 #[no_mangle]
 export function driver_fmt_report_no_files(): i32 {
-  /* 禁 let av: **u8 = 0 as **u8（-E 丢体）；slot 失败时 driver_run_fmt 自护 */
+  /* See signature and body for contracts. */
   unsafe {
     return driver_run_fmt(2, driver_entry_fmt_argv_slot());
   }
   return 1;
 }
 
-/** X driver：转调 main.x main_run_compiler_c（argv 作 *u8 opaque）。 */
+/** Exported function `run_compiler_c`.
+ * Implements `run_compiler_c`.
+ * @param argc i32
+ * @param argv **u8
+ * @return i32
+ */
 #[no_mangle]
 export function run_compiler_c(argc: i32, argv: **u8): i32 {
   unsafe {
@@ -534,8 +627,8 @@ export function run_compiler_c(argc: i32, argv: **u8): i32 {
 }
 
 /**
- * cmd_build：make build-tool 再 build_tool ./shux。
- * 🔒 system() 经 libc。
+ * See signature and body for params/returns/contracts.
+ * See signature and body for params/returns/contracts.
  */
 #[no_mangle]
 export function driver_build_build_x(): i32 {

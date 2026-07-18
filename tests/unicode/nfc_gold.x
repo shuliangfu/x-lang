@@ -1,9 +1,19 @@
-// tests/unicode/nfc_gold.x — STD-037 NFC 金样与非 BMP 烟测
+// See implementation.
 //
-// 金样：e+◌́ → é；非 BMP U+1F600 直通。
+// See implementation.
 const unicode = import("std.unicode");
 
-/** 比较 buf 前 n 字节与 expect。 */
+/** Internal function `bytes_eq`.
+ * Implements `bytes_eq`.
+ * @param buf *u8
+ * @param n i32
+ * @param e0 u8
+ * @param e1 u8
+ * @param e2 u8
+ * @param e3 u8
+ * @param expect_len i32
+ * @return bool
+ */
 function bytes_eq(buf: *u8, n: i32, e0: u8, e1: u8, e2: u8, e3: u8, expect_len: i32): bool {
   if (n != expect_len) {
     return false;
@@ -23,8 +33,12 @@ function bytes_eq(buf: *u8, n: i32, e0: u8, e1: u8, e2: u8, e3: u8, expect_len: 
   return true;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
-  // U+1F600 为非 BMP
+  // See implementation.
   if (unicode.is_supplementary(128512 as u32) != 1) {
     return 1;
   }
@@ -46,7 +60,7 @@ function main(): i32 {
     return 5;
   }
 
-  // 已预组合 é 保持不变
+  // See implementation.
   let composed: u8[2] = [195, 169];
   let out2: u8[8] = [];
   let n2: i32 = nfc_buf(&composed[0], 2, &out2[0], 8);
@@ -54,7 +68,7 @@ function main(): i32 {
     return 6;
   }
 
-  // 非 BMP emoji U+1F600 UTF-8 直通
+  // See implementation.
   let emoji: u8[4] = [240, 159, 152, 128];
   let out3: u8[8] = [];
   let n3: i32 = nfc_buf(&emoji[0], 4, &out3[0], 8);
@@ -62,7 +76,7 @@ function main(): i32 {
     return 7;
   }
 
-  // ASCII 直通
+  // See implementation.
   let ascii: u8[3] = [97, 98, 99];
   let out4: u8[8] = [];
   let n4: i32 = nfc_buf(&ascii[0], 3, &out4[0], 8);

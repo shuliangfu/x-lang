@@ -11,6 +11,10 @@ function f(a: i32, b: i32): i32 {
   return a * b;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   return f(g(3), 4) - 16;
 }

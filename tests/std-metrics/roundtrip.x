@@ -1,7 +1,14 @@
-// STD-078：std.metrics Counter/Gauge/Histogram + Prometheus 导出烟测
+// See implementation.
 const metrics = import("std.metrics");
 
-/** 检查 out 前缀是否包含 expect 子串；1 包含。 */
+/** Internal function `buf_has_prefix`.
+ * Implements `buf_has_prefix`.
+ * @param out *u8
+ * @param out_len i32
+ * @param expect *u8
+ * @param expect_len i32
+ * @return i32
+ */
 function buf_has_prefix(out: *u8, out_len: i32, expect: *u8, expect_len: i32): i32 {
   let i: i32 = 0;
   if (out_len < expect_len) { return 0; }
@@ -12,6 +19,10 @@ function buf_has_prefix(out: *u8, out_len: i32, expect: *u8, expect_len: i32): i
   return 1;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let reg: Registry = metrics.registry_new();
   let out: u8[512] = [];

@@ -1,6 +1,10 @@
-// 测试 core.debug：assert、debug_assert、assert_eq/assert_ne（i32/u32/bool）；扩展见 assert_extend.x（CORE-012）
+// See implementation.
 const debug = import("core.debug");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let ok: i32 = debug.assert(true);
   debug.debug_assert(true);

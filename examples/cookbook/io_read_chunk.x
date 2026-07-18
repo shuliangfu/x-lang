@@ -1,10 +1,14 @@
 /**
- * Cookbook IO-02：fs_read 大块顺序读并求和（无 mmap）。
+ * See implementation.
  */
 const fs = import("std.fs");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
-  /** "/tmp/shux_cookbook_io_chunk\0" — 27 字节含 NUL */
+  /* See implementation. */
   let path: u8[27] =
   [47, 116, 109, 112, 47, 115, 104, 117, 95, 99, 111, 111, 107, 98, 111, 111, 107,
   95, 105, 111, 95, 99, 104, 117, 110, 107, 0];

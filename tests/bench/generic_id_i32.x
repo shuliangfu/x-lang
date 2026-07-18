@@ -1,6 +1,14 @@
-// generic_id_i32.x — LANG-003 benchmark prototype：循环调用单态化 id<i32>
+// See implementation.
+/** Function `id`.
+ * Purpose: implements `id`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 function id<T>(x: T): T { return x; }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let n: i32 = 10000000;
   let s: i32 = 0;

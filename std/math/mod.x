@@ -14,12 +14,12 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.math — 数学常量与函数（对标 Zig std.math、Rust std::f64）
+// See implementation.
 //
-// 【文件职责】PI、E、Tau；floor/ceil/trunc/round；sin/cos/tan、asin/acos/atan、atan2；sqrt
+// See implementation.
 // cbrt、pow、exp、log、abs、signum；min/max；erf/erfc/log1p/expm1（STD-115）；
-// fenv 异常标志（STD-059/149）。
-// 【依赖】core；C 层 math_*_c 在 math.x / runtime_math_libm.c；链接时需 -lm。
+// See implementation.
+// See implementation.
 
 extern function math_pi_c(): f64;
 extern function math_e_c(): f64;
@@ -45,14 +45,20 @@ extern function math_signum_c(x: f64): f64;
 extern function math_fmin_c(a: f64, b: f64): f64;
 extern function math_fmax_c(a: f64, b: f64): f64;
 
-/** 圆周率 π。 */
+/** Exported function `pi`.
+ * Implements `pi`.
+ * @return f64
+ */
 export function pi(): f64 {
   let rc: f64 = 0.0;
   unsafe { rc = math_pi_c(); }
   return rc;
 }
 
-/** 自然常数 e。 */
+/** Exported function `e`.
+ * Implements `e`.
+ * @return f64
+ */
 export function e(): f64 {
   let rc: f64 = 0.0;
   unsafe { rc = math_e_c(); }
@@ -66,189 +72,292 @@ export function tau(): f64 {
   return rc;
 }
 
-/** 向下取整。 */
+/** Exported function `floor`.
+ * Implements `floor`.
+ * @param x f64
+ * @return f64
+ */
 export function floor(x: f64): f64 {
   let rc: f64 = 0.0;
   unsafe { rc = math_floor_c(x); }
   return rc;
 }
 
-/** 向上取整。 */
+/** Exported function `ceil`.
+ * Implements `ceil`.
+ * @param x f64
+ * @return f64
+ */
 export function ceil(x: f64): f64 {
   let rc: f64 = 0.0;
   unsafe { rc = math_ceil_c(x); }
   return rc;
 }
 
-/** 截断小数部分。 */
+/** Exported function `trunc`.
+ * Implements `trunc`.
+ * @param x f64
+ * @return f64
+ */
 export function trunc(x: f64): f64 {
   let rc: f64 = 0.0;
   unsafe { rc = math_trunc_c(x); }
   return rc;
 }
 
-/** 四舍五入。 */
+/** Exported function `round`.
+ * Implements `round`.
+ * @param x f64
+ * @return f64
+ */
 export function round(x: f64): f64 {
   let rc: f64 = 0.0;
   unsafe { rc = math_round_c(x); }
   return rc;
 }
 
-/** 正弦。 */
+/** Exported function `sin`.
+ * Implements `sin`.
+ * @param x f64
+ * @return f64
+ */
 export function sin(x: f64): f64 {
   let rc: f64 = 0.0;
   unsafe { rc = math_sin_c(x); }
   return rc;
 }
 
-/** 余弦。 */
+/** Exported function `cos`.
+ * Implements `cos`.
+ * @param x f64
+ * @return f64
+ */
 export function cos(x: f64): f64 {
   let rc: f64 = 0.0;
   unsafe { rc = math_cos_c(x); }
   return rc;
 }
 
-/** 正切。 */
+/** Exported function `tan`.
+ * Implements `tan`.
+ * @param x f64
+ * @return f64
+ */
 export function tan(x: f64): f64 {
   let rc: f64 = 0.0;
   unsafe { rc = math_tan_c(x); }
   return rc;
 }
 
-/** 反正弦。 */
+/** Exported function `asin`.
+ * Implements `asin`.
+ * @param x f64
+ * @return f64
+ */
 export function asin(x: f64): f64 {
   let rc: f64 = 0.0;
   unsafe { rc = math_asin_c(x); }
   return rc;
 }
 
-/** 反余弦。 */
+/** Exported function `acos`.
+ * Implements `acos`.
+ * @param x f64
+ * @return f64
+ */
 export function acos(x: f64): f64 {
   let rc: f64 = 0.0;
   unsafe { rc = math_acos_c(x); }
   return rc;
 }
 
-/** 反正切。 */
+/** Exported function `atan`.
+ * Implements `atan`.
+ * @param x f64
+ * @return f64
+ */
 export function atan(x: f64): f64 {
   let rc: f64 = 0.0;
   unsafe { rc = math_atan_c(x); }
   return rc;
 }
 
-/** 二参数反正切 atan2(y, x)。 */
+/** Exported function `atan2`.
+ * Implements `atan2`.
+ * @param y f64
+ * @param x f64
+ * @return f64
+ */
 export function atan2(y: f64, x: f64): f64 {
   let rc: f64 = 0.0;
   unsafe { rc = math_atan2_c(y, x); }
   return rc;
 }
 
-/** 平方根。 */
+/** Exported function `sqrt`.
+ * Implements `sqrt`.
+ * @param x f64
+ * @return f64
+ */
 export function sqrt(x: f64): f64 {
   let rc: f64 = 0.0;
   unsafe { rc = math_sqrt_c(x); }
   return rc;
 }
 
-/** 立方根。 */
+/** Exported function `cbrt`.
+ * Implements `cbrt`.
+ * @param x f64
+ * @return f64
+ */
 export function cbrt(x: f64): f64 {
   let rc: f64 = 0.0;
   unsafe { rc = math_cbrt_c(x); }
   return rc;
 }
 
-/** 幂 base^exp。 */
+/** Exported function `pow`.
+ * Implements `pow`.
+ * @param base f64
+ * @param exp f64
+ * @return f64
+ */
 export function pow(base: f64, exp: f64): f64 {
   let rc: f64 = 0.0;
   unsafe { rc = math_pow_c(base, exp); }
   return rc;
 }
 
-/** 自然指数。 */
+/** Exported function `exp`.
+ * Implements `exp`.
+ * @param x f64
+ * @return f64
+ */
 export function exp(x: f64): f64 {
   let rc: f64 = 0.0;
   unsafe { rc = math_exp_c(x); }
   return rc;
 }
 
-/** 自然对数。 */
+/** Exported function `log`.
+ * Implements `log`.
+ * @param x f64
+ * @return f64
+ */
 export function log(x: f64): f64 {
   let rc: f64 = 0.0;
   unsafe { rc = math_log_c(x); }
   return rc;
 }
 
-/** 绝对值。 */
+/** Exported function `abs`.
+ * Implements `abs`.
+ * @param x f64
+ * @return f64
+ */
 export function abs(x: f64): f64 {
   let rc: f64 = 0.0;
   unsafe { rc = math_fabs_c(x); }
   return rc;
 }
 
-/** 符号：x>0→1，x<0→-1，x==0→0。 */
+/** Exported function `signum`.
+ * Implements `signum`.
+ * @param x f64
+ * @return f64
+ */
 export function signum(x: f64): f64 {
   let rc: f64 = 0.0;
   unsafe { rc = math_signum_c(x); }
   return rc;
 }
 
-/** 两数较小值。 */
+/** Exported function `min`.
+ * Implements `min`.
+ * @param a f64
+ * @param b f64
+ * @return f64
+ */
 export function min(a: f64, b: f64): f64 {
   let rc: f64 = 0.0;
   unsafe { rc = math_fmin_c(a, b); }
   return rc;
 }
 
-/** 两数较大值。 */
+/** Exported function `max`.
+ * Implements `max`.
+ * @param a f64
+ * @param b f64
+ * @return f64
+ */
 export function max(a: f64, b: f64): f64 {
   let rc: f64 = 0.0;
   unsafe { rc = math_fmax_c(a, b); }
   return rc;
 }
 
-// --- 特殊函数（STD-115）---
+// See implementation.
 extern function math_erf_c(x: f64): f64;
 extern function math_erfc_c(x: f64): f64;
 extern function math_log1p_c(x: f64): f64;
 extern function math_expm1_c(x: f64): f64;
 extern function math_special_smoke_c(): i32;
 
-/** 误差函数 erf(x)。 */
+/** Exported function `erf`.
+ * Implements `erf`.
+ * @param x f64
+ * @return f64
+ */
 export function erf(x: f64): f64 {
   let rc: f64 = 0.0;
   unsafe { rc = math_erf_c(x); }
   return rc;
 }
 
-/** 互补误差函数 erfc(x) = 1 - erf(x)。 */
+/** Exported function `erfc`.
+ * Implements `erfc`.
+ * @param x f64
+ * @return f64
+ */
 export function erfc(x: f64): f64 {
   let rc: f64 = 0.0;
   unsafe { rc = math_erfc_c(x); }
   return rc;
 }
 
-/** log(1+x)，小 x 数值稳定。 */
+/** Exported function `log1p`.
+ * Implements `log1p`.
+ * @param x f64
+ * @return f64
+ */
 export function log1p(x: f64): f64 {
   let rc: f64 = 0.0;
   unsafe { rc = math_log1p_c(x); }
   return rc;
 }
 
-/** exp(x)-1，小 x 数值稳定。 */
+/** Exported function `expm1`.
+ * Implements `expm1`.
+ * @param x f64
+ * @return f64
+ */
 export function expm1(x: f64): f64 {
   let rc: f64 = 0.0;
   unsafe { rc = math_expm1_c(x); }
   return rc;
 }
 
-/** C 金样烟测；0=通过。 */
+/** Exported function `special_smoke`.
+ * Implements `special_smoke`.
+ * @return i32
+ */
 export function special_smoke(): i32 {
   let rc: i32 = 0;
   unsafe { rc = math_special_smoke_c(); }
   return rc;
 }
 
-// --- fenv 异常标志（STD-059 / STD-149）---
+// See implementation.
 export const FENV_INVALID: i32 = 1;
 export const FENV_DIVBYZERO: i32 = 2;
 export const FENV_OVERFLOW: i32 = 4;
@@ -262,28 +371,43 @@ extern function math_fenv_test_c(mask: i32): i32;
 extern function math_fenv_clear_c(mask: i32): i32;
 extern function math_fenv_raise_c(mask: i32): i32;
 
-/** 平台是否支持 fenv：1=是，0=stub。 */
+/** Exported function `fenv_available`.
+ * Implements `fenv_available`.
+ * @return i32
+ */
 export function fenv_available(): i32 {
   let rc: i32 = 0;
   unsafe { rc = math_fenv_available_c(); }
   return rc;
 }
 
-/** 读取 sticky 异常标志；stub 返回 FENV_NOT_IMPL。 */
+/** Exported function `test_exceptions`.
+ * Implements `test_exceptions`.
+ * @param mask i32
+ * @return i32
+ */
 export function test_exceptions(mask: i32): i32 {
   let rc: i32 = 0;
   unsafe { rc = math_fenv_test_c(mask); }
   return rc;
 }
 
-/** 清除异常标志；成功 0；stub 返回 FENV_NOT_IMPL。 */
+/** Exported function `clear_exceptions`.
+ * Implements `clear_exceptions`.
+ * @param mask i32
+ * @return i32
+ */
 export function clear_exceptions(mask: i32): i32 {
   let rc: i32 = 0;
   unsafe { rc = math_fenv_clear_c(mask); }
   return rc;
 }
 
-/** 置位异常标志（诊断）；成功 0；stub 返回 FENV_NOT_IMPL。 */
+/** Exported function `raise_exceptions`.
+ * Implements `raise_exceptions`.
+ * @param mask i32
+ * @return i32
+ */
 export function raise_exceptions(mask: i32): i32 {
   let rc: i32 = 0;
   unsafe { rc = math_fenv_raise_c(mask); }

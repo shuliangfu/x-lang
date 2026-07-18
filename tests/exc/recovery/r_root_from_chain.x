@@ -1,7 +1,11 @@
-// EXC-006：ErrorChain root 提取后经分支恢复（不 panic）
+// See implementation.
 const result = import("core.result");
 const err = import("std.error");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let leaf: ErrorChain = chain_from_code(fs_err_not_found());
   let wrapped: ErrorChain = chain_wrap(leaf, io_err_timeout());

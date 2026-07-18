@@ -1,9 +1,13 @@
 /**
- * ZC-2 smoke：read_ptr_gen / read_ptr_gen_valid 跨 read_ptr 调用校验。
- * 管道喂入 "AB"：第一次读后 gen 有效；第二次 read_ptr 后旧 gen 失效。exit 0。
+ * See implementation.
+ * See implementation.
  */
 const io = import("std.io");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let p1: *u8 = io.read_stdin_ptr();
   if (p1 == 0 as *u8) {
@@ -19,7 +23,7 @@ function main(): i32 {
   if (p1[0] != 65) {
     return 4;
   }
-  /** 须消费 _p2，避免 WPO/DCE 删掉第二次 read_ptr（gen 失效烟测依赖此调用）。 */
+  /* See implementation. */
   let p2: *u8 = io.read_stdin_ptr();
   if (p2 != 0 as *u8 && io.ptr_len() > 0 && p2[0] == 65) {
     return 11;

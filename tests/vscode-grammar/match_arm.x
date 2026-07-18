@@ -1,6 +1,11 @@
-// TOOL-009 golden：match 臂与 enum 变体高亮
+// See implementation.
 enum Color { RED, GREEN, BLUE }
 
+/** Internal function `pick`.
+ * Implements `pick`.
+ * @param c Color
+ * @return i32
+ */
 function pick(c: Color): i32 {
   return match (c) {
     RED => 1,

@@ -47,6 +47,10 @@ let CFG_HOST_ARCH_UNKNOWN: u8[8] = [117, 110, 107, 110, 111, 119, 110, 0];
 
 #[cfg(not(target_os = "linux"))]
 #[cfg(target_os = "macos")]
+/** Exported function `cfg_host_os_lit_non_linux`.
+ * Implements `cfg_host_os_lit_non_linux`.
+ * @return *u8
+ */
 export function cfg_host_os_lit_non_linux(): *u8 {
   return &CFG_HOST_OS_MACOS[0];
 }
@@ -54,6 +58,10 @@ export function cfg_host_os_lit_non_linux(): *u8 {
 #[cfg(not(target_os = "linux"))]
 #[cfg(not(target_os = "macos"))]
 #[cfg(target_os = "freebsd")]
+/** Exported function `cfg_host_os_lit_non_linux`.
+ * Implements `cfg_host_os_lit_non_linux`.
+ * @return *u8
+ */
 export function cfg_host_os_lit_non_linux(): *u8 {
   return &CFG_HOST_OS_FREEBSD[0];
 }
@@ -62,6 +70,10 @@ export function cfg_host_os_lit_non_linux(): *u8 {
 #[cfg(not(target_os = "macos"))]
 #[cfg(not(target_os = "freebsd"))]
 #[cfg(target_os = "windows")]
+/** Exported function `cfg_host_os_lit_non_linux`.
+ * Implements `cfg_host_os_lit_non_linux`.
+ * @return *u8
+ */
 export function cfg_host_os_lit_non_linux(): *u8 {
   return &CFG_HOST_OS_WINDOWS[0];
 }
@@ -70,18 +82,30 @@ export function cfg_host_os_lit_non_linux(): *u8 {
 #[cfg(not(target_os = "macos"))]
 #[cfg(not(target_os = "freebsd"))]
 #[cfg(not(target_os = "windows"))]
+/** Exported function `cfg_host_os_lit_non_linux`.
+ * Implements `cfg_host_os_lit_non_linux`.
+ * @return *u8
+ */
 export function cfg_host_os_lit_non_linux(): *u8 {
   return &CFG_HOST_OS_UNKNOWN[0];
 }
 
 #[cfg(not(target_arch = "x86_64"))]
 #[cfg(target_arch = "aarch64")]
+/** Exported function `cfg_host_arch_lit_non_x64`.
+ * Implements `cfg_host_arch_lit_non_x64`.
+ * @return *u8
+ */
 export function cfg_host_arch_lit_non_x64(): *u8 {
   return &CFG_HOST_ARCH_A64[0];
 }
 
 #[cfg(not(target_arch = "x86_64"))]
 #[cfg(target_arch = "riscv64")]
+/** Exported function `cfg_host_arch_lit_non_x64`.
+ * Implements `cfg_host_arch_lit_non_x64`.
+ * @return *u8
+ */
 export function cfg_host_arch_lit_non_x64(): *u8 {
   return &CFG_HOST_ARCH_RV64[0];
 }
@@ -89,30 +113,55 @@ export function cfg_host_arch_lit_non_x64(): *u8 {
 #[cfg(not(target_arch = "x86_64"))]
 #[cfg(not(target_arch = "aarch64"))]
 #[cfg(not(target_arch = "riscv64"))]
+/** Exported function `cfg_host_arch_lit_non_x64`.
+ * Implements `cfg_host_arch_lit_non_x64`.
+ * @return *u8
+ */
 export function cfg_host_arch_lit_non_x64(): *u8 {
   return &CFG_HOST_ARCH_UNKNOWN[0];
 }
 
 #[cfg(target_os = "linux")]
+/** Exported function `cfg_host_os_lit`.
+ * Implements `cfg_host_os_lit`.
+ * @return *u8
+ */
 export function cfg_host_os_lit(): *u8 {
   return &CFG_HOST_OS_LINUX[0];
 }
 
 #[cfg(not(target_os = "linux"))]
+/** Exported function `cfg_host_os_lit`.
+ * Implements `cfg_host_os_lit`.
+ * @return *u8
+ */
 export function cfg_host_os_lit(): *u8 {
   return cfg_host_os_lit_non_linux();
 }
 
 #[cfg(target_arch = "x86_64")]
+/** Exported function `cfg_host_arch_lit`.
+ * Implements `cfg_host_arch_lit`.
+ * @return *u8
+ */
 export function cfg_host_arch_lit(): *u8 {
   return &CFG_HOST_ARCH_X64[0];
 }
 
 #[cfg(not(target_arch = "x86_64"))]
+/** Exported function `cfg_host_arch_lit`.
+ * Implements `cfg_host_arch_lit`.
+ * @return *u8
+ */
 export function cfg_host_arch_lit(): *u8 {
   return cfg_host_arch_lit_non_x64();
 }
 
+/** Exported function `cfg_strlen`.
+ * Implements `cfg_strlen`.
+ * @param s *u8
+ * @return i32
+ */
 export function cfg_strlen(s: *u8): i32 {
   let n: i32 = 0;
   if (s == 0) {
@@ -124,12 +173,24 @@ export function cfg_strlen(s: *u8): i32 {
   return n;
 }
 
+/** Exported function `cfg_tolower_c`.
+ * Implements `cfg_tolower_c`.
+ * @param c u8
+ * @return u8
+ */
 export function cfg_tolower_c(c: u8): u8 {
   if (c < 65) { return c; }
   if (c > 90) { return c; }
   return (c + 32) as u8;
 }
 
+/** Exported function `cfg_copy_cstr`.
+ * Implements `cfg_copy_cstr`.
+ * @param dest *u8
+ * @param dest_sz i32
+ * @param src *u8
+ * @return void
+ */
 export function cfg_copy_cstr(dest: *u8, dest_sz: i32, src: *u8): void {
   let i: i32 = 0;
   if (dest == 0) { return; }
@@ -143,6 +204,14 @@ export function cfg_copy_cstr(dest: *u8, dest_sz: i32, src: *u8): void {
   dest[i] = 0;
 }
 
+/** Exported function `cfg_range_eq_ci`.
+ * Implements `cfg_range_eq_ci`.
+ * @param buf *u8
+ * @param b i32
+ * @param e i32
+ * @param lit *u8
+ * @return i32
+ */
 export function cfg_range_eq_ci(buf: *u8, b: i32, e: i32, lit: *u8): i32 {
   let blen: i32 = e - b;
   let llen: i32 = cfg_strlen(lit);
@@ -161,6 +230,14 @@ export function cfg_range_eq_ci(buf: *u8, b: i32, e: i32, lit: *u8): i32 {
   return 1;
 }
 
+/** Exported function `cfg_triple_contains_ci`.
+ * Implements `cfg_triple_contains_ci`.
+ * @param buf *u8
+ * @param b i32
+ * @param e i32
+ * @param needle *u8
+ * @return i32
+ */
 export function cfg_triple_contains_ci(buf: *u8, b: i32, e: i32, needle: *u8): i32 {
   let nlen: i32 = cfg_strlen(needle);
   let i: i32 = b;
@@ -188,12 +265,30 @@ export function cfg_triple_contains_ci(buf: *u8, b: i32, e: i32, needle: *u8): i
   return 0;
 }
 
+/** Exported function `cfg_triple_has`.
+ * Implements `cfg_triple_has`.
+ * @param triple *u8
+ * @param tlen i32
+ * @param a *u8
+ * @param b *u8
+ * @return i32
+ */
 export function cfg_triple_has(triple: *u8, tlen: i32, a: *u8, b: *u8): i32 {
   if (cfg_triple_contains_ci(triple, 0, tlen, a) != 0) { return 1; }
   if (cfg_triple_contains_ci(triple, 0, tlen, b) != 0) { return 1; }
   return 0;
 }
 
+/** Exported function `cfg_parse_triple_literals`.
+ * Implements `cfg_parse_triple_literals`.
+ * @param triple *u8
+ * @param tlen i32
+ * @param os_out *u8
+ * @param os_sz i32
+ * @param arch_out *u8
+ * @param arch_sz i32
+ * @return void
+ */
 export function cfg_parse_triple_literals(triple: *u8, tlen: i32, os_out: *u8, os_sz: i32, arch_out: *u8, arch_sz: i32): void {
   let lit_linux: u8[6] = [108, 105, 110, 117, 120, 0];
   let lit_macos: u8[6] = [109, 97, 99, 111, 115, 0];
@@ -232,18 +327,33 @@ export function cfg_parse_triple_literals(triple: *u8, tlen: i32, os_out: *u8, o
   }
 }
 
+/** Exported function `cfg_effective_os_lit`.
+ * Implements `cfg_effective_os_lit`.
+ * @return *u8
+ */
 export function cfg_effective_os_lit(): *u8 {
   if (g_cfg_has_target_override == 0) { return cfg_host_os_lit(); }
   if (g_cfg_os_override[0] == 0) { return cfg_host_os_lit(); }
   return &g_cfg_os_override[0];
 }
 
+/** Exported function `cfg_effective_arch_lit`.
+ * Implements `cfg_effective_arch_lit`.
+ * @return *u8
+ */
 export function cfg_effective_arch_lit(): *u8 {
   if (g_cfg_has_target_override == 0) { return cfg_host_arch_lit(); }
   if (g_cfg_arch_override[0] == 0) { return cfg_host_arch_lit(); }
   return &g_cfg_arch_override[0];
 }
 
+/** Exported function `cfg_skip_ws`.
+ * Implements `cfg_skip_ws`.
+ * @param buf *u8
+ * @param p i32
+ * @param end i32
+ * @return i32
+ */
 export function cfg_skip_ws(buf: *u8, p: i32, end: i32): i32 {
   while (p < end) {
     let c: u8 = buf[p];
@@ -258,6 +368,17 @@ export function cfg_skip_ws(buf: *u8, p: i32, end: i32): i32 {
   return p;
 }
 
+/** Exported function `cfg_prefix4`.
+ * Implements `cfg_prefix4`.
+ * @param buf *u8
+ * @param p i32
+ * @param end i32
+ * @param c0 u8
+ * @param c1 u8
+ * @param c2 u8
+ * @param c3 u8
+ * @return i32
+ */
 export function cfg_prefix4(buf: *u8, p: i32, end: i32, c0: u8, c1: u8, c2: u8, c3: u8): i32 {
   if (p + 4 > end) {
     return 0;
@@ -269,18 +390,37 @@ export function cfg_prefix4(buf: *u8, p: i32, end: i32, c0: u8, c1: u8, c2: u8, 
   return 1;
 }
 
+/** Exported function `cfg_scan_delim`.
+ * Implements `cfg_scan_delim`.
+ * @param c u8
+ * @param depth i32
+ * @return i32
+ */
 export function cfg_scan_delim(c: u8, depth: i32): i32 {
   if (c == 41) { if (depth == 0) { return 1; } return 2; }
   if (c == 44) { if (depth == 0) { return 1; } return 3; }
   return 0;
 }
 
+/** Exported function `cfg_buf_eq_at`.
+ * Implements `cfg_buf_eq_at`.
+ * @param buf *u8
+ * @param p i32
+ * @param end i32
+ * @param c u8
+ * @return i32
+ */
 export function cfg_buf_eq_at(buf: *u8, p: i32, end: i32, c: u8): i32 {
   if (p >= end) { return 0; }
   if (buf[p] == c) { return 1; }
   return 0;
 }
 
+/** Exported function `cfg_is_ident_char`.
+ * Implements `cfg_is_ident_char`.
+ * @param c u8
+ * @return i32
+ */
 export function cfg_is_ident_char(c: u8): i32 {
   if (c == 95) { return 1; }
   if (c < 48) { return 0; }
@@ -292,6 +432,13 @@ export function cfg_is_ident_char(c: u8): i32 {
   return 1;
 }
 
+/** Exported function `cfg_eval_all`.
+ * Implements `cfg_eval_all`.
+ * @param buf *u8
+ * @param b i32
+ * @param end i32
+ * @return i32
+ */
 export function cfg_eval_all(buf: *u8, b: i32, end: i32): i32 {
   let p: i32 = b + 4;
   while (p < end) {
@@ -316,6 +463,13 @@ export function cfg_eval_all(buf: *u8, b: i32, end: i32): i32 {
   return 1;
 }
 
+/** Exported function `cfg_eval_not`.
+ * Implements `cfg_eval_not`.
+ * @param buf *u8
+ * @param b i32
+ * @param end i32
+ * @return i32
+ */
 export function cfg_eval_not(buf: *u8, b: i32, end: i32): i32 {
   let inner: i32 = b + 4;
   let close: i32 = inner;
@@ -333,6 +487,13 @@ export function cfg_eval_not(buf: *u8, b: i32, end: i32): i32 {
   return 1;
 }
 
+/** Exported function `cfg_eval_target_os`.
+ * Implements `cfg_eval_target_os`.
+ * @param buf *u8
+ * @param p i32
+ * @param end i32
+ * @return i32
+ */
 export function cfg_eval_target_os(buf: *u8, p: i32, end: i32): i32 {
   let lit_target_os: u8[10] = [116, 97, 114, 103, 101, 116, 95, 111, 115, 0];
   if (p + 9 > end) { return -1; }
@@ -358,6 +519,13 @@ export function cfg_eval_target_os(buf: *u8, p: i32, end: i32): i32 {
   return 0;
 }
 
+/** Exported function `cfg_eval_target_arch`.
+ * Implements `cfg_eval_target_arch`.
+ * @param buf *u8
+ * @param p i32
+ * @param end i32
+ * @return i32
+ */
 export function cfg_eval_target_arch(buf: *u8, p: i32, end: i32): i32 {
   let lit_target_arch: u8[12] = [116, 97, 114, 103, 101, 116, 95, 97, 114, 99, 104, 0];
   if (p + 11 > end) { return -1; }
@@ -383,6 +551,13 @@ export function cfg_eval_target_arch(buf: *u8, p: i32, end: i32): i32 {
   return 0;
 }
 
+/** Exported function `cfg_eval_freestanding_flag`.
+ * Memory management helper `cfg_eval_freestanding_flag`.
+ * @param buf *u8
+ * @param p i32
+ * @param end i32
+ * @return i32
+ */
 export function cfg_eval_freestanding_flag(buf: *u8, p: i32, end: i32): i32 {
   let lit_freestanding: u8[13] = [102, 114, 101, 101, 115, 116, 97, 110, 100, 105, 110, 103, 0];
   let q: i32 = p;
@@ -397,6 +572,13 @@ export function cfg_eval_freestanding_flag(buf: *u8, p: i32, end: i32): i32 {
   return 0;
 }
 
+/** Exported function `cfg_eval_expr_range`.
+ * Implements `cfg_eval_expr_range`.
+ * @param buf *u8
+ * @param b i32
+ * @param end i32
+ * @return i32
+ */
 export function cfg_eval_expr_range(buf: *u8, b: i32, end: i32): i32 {
   let p: i32 = cfg_skip_ws(buf, b, end);
   let r: i32 = 0;
@@ -414,6 +596,12 @@ export function cfg_eval_expr_range(buf: *u8, b: i32, end: i32): i32 {
   return cfg_eval_freestanding_flag(buf, p, end);
 }
 
+/** Exported function `cfg_eval_expr_c`.
+ * Implements `cfg_eval_expr_c`.
+ * @param start *u8
+ * @param len i32
+ * @return i32
+ */
 export function cfg_eval_expr_c(start: *u8, len: i32): i32 {
   if (start == 0) { return 0; }
   if (len <= 0) { return 0; }
@@ -423,21 +611,40 @@ export function cfg_eval_expr_c(start: *u8, len: i32): i32 {
   return 0;
 }
 
+/** Exported function `cfg_apply_compile_target_from_triple`.
+ * Implements `cfg_apply_compile_target_from_triple`.
+ * @param triple *u8
+ * @param len i32
+ * @return void
+ */
 export function cfg_apply_compile_target_from_triple(triple: *u8, len: i32): void {
   cfg_parse_triple_literals(triple, len, &g_cfg_os_override[0], 32, &g_cfg_arch_override[0], 32);
   g_cfg_has_target_override = 1;
 }
 
+/** Exported function `cfg_reset_compile_target`.
+ * Implements `cfg_reset_compile_target`.
+ * @return void
+ */
 export function cfg_reset_compile_target(): void {
   g_cfg_has_target_override = 0;
   g_cfg_os_override[0] = 0;
   g_cfg_arch_override[0] = 0;
 }
 
+/** Exported function `cfg_set_freestanding`.
+ * Memory management helper `cfg_set_freestanding`.
+ * @param v i32
+ * @return void
+ */
 export function cfg_set_freestanding(v: i32): void {
   g_cfg_freestanding = v;
 }
 
+/** Exported function `cfg_eval_bootstrap_stub_x_doc_anchor`.
+ * Implements `cfg_eval_bootstrap_stub_x_doc_anchor`.
+ * @return i32
+ */
 export function cfg_eval_bootstrap_stub_x_doc_anchor(): i32 {
   return 0;
 }

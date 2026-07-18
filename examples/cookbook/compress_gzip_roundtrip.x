@@ -1,8 +1,12 @@
 /**
- * Cookbook CMP-01：gzip 压缩/解压往返（STD-007 / STD-039；未链接 zlib 时跳过）。
+ * See implementation.
  */
 const compress = import("std.compress");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let raw: u8[14] = [72, 101, 108, 108, 111, 44, 32, 98, 114, 47, 103, 122, 33, 0];
   let out_buf: u8[256] = [];

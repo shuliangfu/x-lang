@@ -1,3 +1,7 @@
+/** Function `add`.
+ * Purpose: implements `add`; params/returns as declared.
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function add(a: i32, b: i32): i32 {
   return a + b;
 }
@@ -17,6 +21,10 @@ enum Color {
 
 const std = import("std");
 
+/** Function `demo`.
+ * Purpose: implements `demo`; params/returns as declared.
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function demo(x: i32, n: i32, arr: *i32): void {
   match x {
     0 => return,

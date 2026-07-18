@@ -1,6 +1,10 @@
-// tests/exc/result_suite_smoke.x — EXC-002：core.result 轻量回归（main.x -o SIGSEGV 时 fallback）
+// See implementation.
 const result = import("core.result");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let ok_r: Result_i32 = result.ok_i32(42);
   let err_r: Result_i32 = result.err_i32(7);

@@ -1,6 +1,10 @@
-// STD-HTTP-H2-v23：server MAX_FRAME_SIZE 分片 DATA 烟测
+// See implementation.
 const http = import("std.http");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (http.frame_capped_smoke() != 0) { return 1; }
   if (http.server_max_frame_smoke() != 0) { return 2; }

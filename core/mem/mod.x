@@ -14,28 +14,41 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// core.mem — 内存操作、copy/move/set/compare、对齐（自举前最小实现）
-// 自举前：对齐查询 align_of_*；mem_copy（不重叠）、mem_set、mem_zero、mem_move（允许重叠）、mem_compare；mem_swap；is_alignment_power_of_two；align_up/align_down。
-// 语义与 C memcpy/memset/memmove/memcmp 一致；mem_compare 返回 -1/0/1；当前用 .x 实现，便于后端识别为内建时优化。
+// core.mem — memory ops: copy/move/set/compare and alignment (pre-selfhost minimal).
+// Provides align_of_*, mem_copy (non-overlap), mem_set/zero, mem_move (high→low overlap-tolerant), mem_compare, mem_swap, align_up/down.
+// C-like memcpy/memset/memcmp; mem_move is high→low only (not full bidirectional memmove). mem_compare returns -1/0/1. Pure .x loops.
 
-// 占位函数，表示本模块已可 import。
+// Module import marker.
+/** `placeholder`: see signature for params/returns; contracts in body. */
 export function placeholder(): i32 { return 0; }
 
-// ——— 对齐查询（与 core.types 对称，供仅 import("core.mem") 的调用方使用） ———
+// --- Alignment queries (mirror core.types for core.mem-only imports) ---
+/** `align_of_i32`: see signature for params/returns; contracts in body. */
 export function align_of_i32(): i32 { return 4; }
+/** `align_of_bool`: see signature for params/returns; contracts in body. */
 export function align_of_bool(): i32 { return 1; }
+/** `align_of_u8`: see signature for params/returns; contracts in body. */
 export function align_of_u8(): i32 { return 1; }
+/** `align_of_u32`: see signature for params/returns; contracts in body. */
 export function align_of_u32(): i32 { return 4; }
+/** `align_of_u64`: see signature for params/returns; contracts in body. */
 export function align_of_u64(): i32 { return 8; }
+/** `align_of_i64`: see signature for params/returns; contracts in body. */
 export function align_of_i64(): i32 { return 8; }
+/** `align_of_usize`: see signature for params/returns; contracts in body. */
 export function align_of_usize(): i32 { return 8; }
+/** `align_of_isize`: see signature for params/returns; contracts in body. */
 export function align_of_isize(): i32 { return 8; }
+/** `align_of_f32`: see signature for params/returns; contracts in body. */
 export function align_of_f32(): i32 { return 4; }
+/** `align_of_f64`: see signature for params/returns; contracts in body. */
 export function align_of_f64(): i32 { return 8; }
+/** `align_of_pointer`: see signature for params/returns; contracts in body. */
 export function align_of_pointer(): i32 { return 8; }
 
-// ——— 拷贝原语：不重叠、按字节；语义与 C memcpy 一致。
-// 当前用 .x 循环实现，避免与 macOS 等系统头文件中 memcpy 宏冲突；后续可由编译器内建或运行时提供优化实现。
+// --- Byte copy; non-overlapping; C memcpy semantics.
+// Implemented as .x loop to avoid clashing with platform memcpy macros.
+/** `mem_copy`: see signature for params/returns; contracts in body. */
 export function mem_copy(dst: *u8, src: *u8, n: usize): void {
   let i: usize = 0;
   while (i < n) {
@@ -44,7 +57,8 @@ export function mem_copy(dst: *u8, src: *u8, n: usize): void {
   }
 }
 
-// ——— 填充：将 dst[0..n] 全部设为 byte（语义与 C memset 一致）。
+// --- Fill dst[0..n) with byte (C memset).
+/** `mem_set`: see signature for params/returns; contracts in body. */
 export function mem_set(dst: *u8, byte: u8, n: usize): void {
   let i: usize = 0;
   while (i < n) {
@@ -53,7 +67,8 @@ export function mem_set(dst: *u8, byte: u8, n: usize): void {
   }
 }
 
-// ——— 允许重叠的拷贝：语义与 C memmove 一致；始终从高地址向低地址拷贝，重叠时也正确。
+// --- Overlap-tolerant copy always high→low; correct when dst is after src (not full bidirectional memmove).
+/** `mem_move`: see signature for params/returns; contracts in body. */
 export function mem_move(dst: *u8, src: *u8, n: usize): void {
   let i: usize = n;
   while (i > 0) {
@@ -62,7 +77,8 @@ export function mem_move(dst: *u8, src: *u8, n: usize): void {
   }
 }
 
-// ——— 按字节比较 a[0..n] 与 b[0..n]：相等返回 0，a 小返回负，a 大返回正（语义与 C memcmp 一致；返回值为 -1/0/1 便于使用）。
+// --- Byte compare a[0..n) vs b[0..n); returns -1/0/1 (C memcmp style).
+/** `mem_compare`: see signature for params/returns; contracts in body. */
 export function mem_compare(a: *u8, b: *u8, n: usize): i32 {
   let i: usize = 0;
   while (i < n) {
@@ -73,12 +89,14 @@ export function mem_compare(a: *u8, b: *u8, n: usize): i32 {
   return 0;
 }
 
-// ——— 清零：将 dst[0..n] 置 0（等价于 mem_set(dst, 0, n)）。
+// --- Zero dst[0..n); same as mem_set(dst, 0, n).
+/** `mem_zero`: see signature for params/returns; contracts in body. */
 export function mem_zero(dst: *u8, n: usize): void {
   mem_set(dst, 0, n);
 }
 
-// ——— 交换两段内存 a[0..n] 与 b[0..n]；要求 a、b 不重叠，否则未定义。
+// --- Swap a[0..n) with b[0..n); non-overlapping required.
+/** `mem_swap`: see signature for params/returns; contracts in body. */
 export function mem_swap(a: *u8, b: *u8, n: usize): void {
   let i: usize = 0;
   while (i < n) {
@@ -89,7 +107,8 @@ export function mem_swap(a: *u8, b: *u8, n: usize): void {
   }
 }
 
-// ——— 对齐辅助：x 是否为 2 的幂（用于校验 alignment 参数）；0 返回 false。
+// --- True if x is non-zero power of two (alignment validation); 0 → false.
+/** `is_alignment_power_of_two`: see signature for params/returns; contracts in body. */
 export function is_alignment_power_of_two(x: usize): bool {
   if (x == 0) { return false; }
   let m: usize = x - 1;
@@ -97,7 +116,8 @@ export function is_alignment_power_of_two(x: usize): bool {
   return and_val == 0;
 }
 
-// ——— 对齐计算：用于分配器与布局；alignment 建议为 2 的幂，0 时返回 addr 不修改 ———
+// --- Alignment rounding for allocators; alignment 0 leaves addr unchanged ---
+/** `align_up`: see signature for params/returns; contracts in body. */
 export function align_up(addr: usize, alignment: usize): usize {
   if (alignment == 0) {
     return addr;
@@ -105,6 +125,7 @@ export function align_up(addr: usize, alignment: usize): usize {
   return ((addr + alignment - 1) / alignment) * alignment;
 }
 
+/** `align_down`: see signature for params/returns; contracts in body. */
 export function align_down(addr: usize, alignment: usize): usize {
   if (alignment == 0) {
     return addr;
@@ -112,69 +133,69 @@ export function align_down(addr: usize, alignment: usize): usize {
   return (addr / alignment) * alignment;
 }
 
-// ——— volatile 读写与内存栅栏（CORE-017；G-01 纯 .x，无 mem.c） ———
+// --- Volatile loads/stores and fences (CORE-017; pure .x, no mem.c) ---
 /*
- * 勿再放顶层 let g_mem_fence_seq：import 合并后会进依赖方 init_globals() 赋值，
- * 但 C 侧可能未 emit 同名 static 声明 → undeclared identifier（std.encoding -o）。
- * compiler_fence 已空操作；完整 fence 待平台 intrinsic。
+ /* note */
+ /* note */
+ /* note */
  */
 
-/** volatile 读 u8；ptr 可为任意字节地址。 */
+/** Volatile load u8; null returns 0. */
 export function volatile_load_u8(ptr: *u8): u8 {
   if (ptr == 0) { return 0 as u8; }
   return ptr[0];
 }
 
-/** volatile 写 u8。 */
+/** Volatile store u8; null is a no-op. */
 export function volatile_store_u8(ptr: *u8, val: u8): void {
   if (ptr == 0) { return; }
   ptr[0] = val;
 }
 
-/** volatile 读 u16；ptr 须 2 字节对齐。 */
+/** Volatile load u16; ptr must be 2-byte aligned; null returns 0. */
 export function volatile_load_u16(ptr: *u8): u16 {
   if (ptr == 0) { return 0 as u16; }
   let p: *u16 = (ptr as *u16);
   return p[0];
 }
 
-/** volatile 写 u16。 */
+/** Volatile store u16; null is a no-op. */
 export function volatile_store_u16(ptr: *u8, val: u16): void {
   if (ptr == 0) { return; }
   let p: *u16 = (ptr as *u16);
   p[0] = val;
 }
 
-/** volatile 读 u32；ptr 须 4 字节对齐。 */
+/** Volatile load u32; ptr must be 4-byte aligned; null returns 0. */
 export function volatile_load_u32(ptr: *u8): u32 {
   if (ptr == 0) { return 0 as u32; }
   let p: *u32 = (ptr as *u32);
   return p[0];
 }
 
-/** volatile 写 u32。 */
+/** Volatile store u32; null is a no-op. */
 export function volatile_store_u32(ptr: *u8, val: u32): void {
   if (ptr == 0) { return; }
   let p: *u32 = (ptr as *u32);
   p[0] = val;
 }
 
-/** 编译器级栅栏：禁止编译器重排。 */
+/** Compiler fence placeholder (currently a no-op). */
 export function compiler_fence(): void {
-  /* asm seed：import 合并后 g_mem_fence_seq 不在入口 module sidecar，勿写模块 let（compiler_fence 空操作即可）。 */
+  /* note */
 }
 
-/** 线程 acquire 栅栏（G-01 v1：compiler_fence；完整 atomic 待平台 intrinsic）。 */
+/** Acquire fence (G-01 v1: compiler_fence only). */
 export function fence_acquire(): void {
   compiler_fence();
 }
 
-/** 线程 release 栅栏。 */
+/** Release fence (G-01 v1: compiler_fence only). */
 export function fence_release(): void {
   compiler_fence();
 }
 
-/** 线程 seq_cst 全序栅栏。 */
+/** Seq-cst fence (G-01 v1: compiler_fence only). */
 export function fence_seq_cst(): void {
   compiler_fence();
 }

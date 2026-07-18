@@ -1,4 +1,8 @@
-// 7.3：块内连续相同 INDEX assign 复用 rbx 有效址（run-asm-assign-index-block.sh）。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let arr: i32[4] = [10, 20, 30, 40];
   let i: i32 = 1;

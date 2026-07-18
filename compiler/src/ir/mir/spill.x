@@ -14,21 +14,21 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// spill.x — 热度感知 spilling
+// spill.x — heat-aware spilling
 //
-// 模块：ir/mir
-// 层级：Target MIR
-// Phase：Phase 6
-// 职责：
-//   - 寄存器分配失败时选择溢出变量到栈
-//   - 热度感知：冷变量优先溢出（基于性能分析）
-//   - 插入 load/store 指令（栈 ↔ 寄存器）
-//   - 溢出后重新尝试寄存器分配
-// 依赖：./regalloc / ../vmir/machine_inst
-// 设计约束：
-//   - 热度信息来自 PGO（Profile-Guided Optimization）或静态分析
-//   - 溢出决策基于 Cost Model（溢出 cost < 寄存器复用 cost）
-//   - 确定性：相同热度信息相同溢出决策
+// Module: ir/mir
+// Layer: Target MIR
+// Phase: Phase 6
+// Responsibility:
+//   - When register allocation fails, choose variables to spill to the stack
+//   - Heat-aware: spill cold variables first (profile- or static-analysis driven)
+//   - Insert load/store instructions (stack ↔ register)
+//   - Retry register allocation after spilling
+// Depends: ./regalloc / ../vmir/machine_inst
+// Design constraints:
+//   - Heat info comes from PGO or static analysis
+//   - Spill decision based on Cost Model (spill cost < register reuse cost)
+//   - Determinism: same heat info → same spill decisions
 //
-// 参考文档：analysis/IR核心设计.md §5.3（热度感知 spilling 策略）
-// 架构状态：v4.0 Architecture Freeze — 实现骨架，待 Phase 6 填充
+// Ref: analysis IR core design §5.3 (heat-aware spilling strategy)
+// Status: v4.0 Architecture Freeze — implementation skeleton; fill in Phase 6

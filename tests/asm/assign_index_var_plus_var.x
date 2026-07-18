@@ -1,4 +1,8 @@
-// 7.3：arr[i+j]=value 双 VAR 下标 scratch 寻址，main 内无 mov x2（run-asm-assign-index-expr.sh）。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let arr: i32[3] = [5, 10, 15];
   let i: i32 = 0;

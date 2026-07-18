@@ -1,10 +1,14 @@
-// io_random_pread.x — I/O 基线：随机 offset pread（PERF-002 随机读路径）
-// 输入：tests/bench/.io_mmap_bench_tmp（脚本预生成，默认 16MiB）
-// 1024 次 4KiB 随机 pread（LCG 伪随机页号，与 .c/.zig 一致）
+// See implementation.
+// See implementation.
+// See implementation.
 const fs = import("std.fs");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
-  /** 路径 "tests/bench/.io_mmap_bench_tmp"（NUL 结尾）。 */
+  /* See implementation. */
   let path: u8[31] =
   [116, 101, 115, 116, 115, 47, 98, 101, 110, 99, 104, 47, 46, 105, 111, 95, 109, 109, 97, 112, 95,
   98, 101, 110, 99, 104, 95, 116, 109, 112, 0];
@@ -14,7 +18,7 @@ function main(): i32 {
   let sum: i32 = 0;
   let seed: u32 = 12345;
   let rounds: i32 = 0;
-  /** 16MiB / 4KiB = 4096 页。 */
+  /* See implementation. */
   while (rounds < 1024) {
     seed = (seed * 1103515245 + 12345) as u32;
     let page: u32 = seed % 4096;

@@ -1,6 +1,10 @@
-// SAFE-004 C3：ffi.cstring_new(null, 0) 分配仅含 NUL 的 owned 串。
+// See implementation.
 const ffi = import("std.ffi");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let p: *u8 = ffi.cstring_new(0 as *u8, 0);
   if (p == 0 as *u8) {

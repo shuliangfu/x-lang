@@ -1,5 +1,5 @@
 /**
- * ZC-3 运行时 smoke：region 块内 T[N] → T[] 零拷贝视图 + 同域 slice 赋值。
+ * See implementation.
  * arr[1]=20 → t[1] → exit 20。
  */
 function main(): i32 {

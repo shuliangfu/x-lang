@@ -14,23 +14,19 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// rules.x — e-graph 重写规则定义
+// rules.x — e-graph rewrite rule definitions
 //
-// 模块：ir/slir
-// 层级：SLIR
-// Phase：Phase 3
-// 职责：
-//   - 定义四组重写规则集（§4.2）：
-//     · algebra_simplify：代数化简（a+0=a / a*1=a / a-a=0）
-//     · strength_reduction：强度折减（x*2 → x<<1 / x/2 → x>>1）
-//     · linear_optim：Linear move 优化（合并连续 move / 消除冗余 consume）
-//     · alias_optim：别名优化（noalias_load 提升为寄存器缓存）
-//   - 规则优先级（§4.6）：代数化简 > 契约优化 > 搜索优化
-// 依赖：../inst / ../contract / ./egraph
-// 设计约束：
-//   - 每条规则必须保证契约等价（pre ⊆ / post ⊇ / effects 不变）
-//   - 规则按优先级分层执行，先代数化简，再契约优化，最后搜索优化
-//   - External Pass Provider 可注入 AI 生成的规则（§6.2）
+// Module: ir/slir
+// Layer: SLIR
+// Phase: Phase 3
+// Responsibility:
+//   - Four rewrite rule sets (§4.2): algebra_simplify / strength_reduction /
+//     linear_optim / alias_optim
+//   - Rule priority (§4.6): algebra > contract optim > search optim
+// Depends: ../inst / ../contract / ./egraph
+// Design constraints:
+//   - Each rule must preserve contract equivalence
+//   - External Pass Provider may inject AI-generated rules (§6.2)
 //
-// 参考文档：analysis/IR核心设计.md §4.2（重写规则定义）/ §4.6（分层饱和策略）
-// 架构状态：v4.0 Architecture Freeze — 实现骨架，待 Phase 3 填充
+// Ref: analysis IR core design §4.2 (rewrite rules) / §4.6 (layered saturation)
+// Status: v4.0 Architecture Freeze — implementation skeleton; fill in Phase 3

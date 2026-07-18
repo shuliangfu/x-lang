@@ -1,6 +1,10 @@
-// SAFE-006：atomic fetch_add 递增（无数据竞争模式烟测）
+// See implementation.
 const atomic = import("std.atomic");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let counter: i32 = 0;
   let i: i32 = 0;

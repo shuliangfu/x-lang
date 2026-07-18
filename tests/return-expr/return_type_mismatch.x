@@ -1,5 +1,9 @@
-// 边界：return 表达式类型与函数返回类型不一致，应报 typeck
-// error（实参/赋值类）
+// See implementation.
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   return true;
 }

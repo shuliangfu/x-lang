@@ -14,11 +14,11 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// asm_seed_full.x — seed partial 专用 full asm 入口
+// See implementation.
 //
-// 运行时 `asm.x` 已瘦成薄桥，避免 `-E` 解析整份 backend.x；但 build_seed_asm_host
-// 仍需一个会把 backend/peephole/platform 真实现全部拉入生成体的入口。该文件仅供
-// seed partial 生成使用，勿给普通 pipeline 入口复用。
+// See implementation.
+// See implementation.
+// See implementation.
 
 const ast = import("ast");
 const codegen_outbuf_abi = import("codegen_outbuf_abi");
@@ -35,14 +35,29 @@ const macho = import("platform.macho");
 #[cfg(target_os = "windows")]
 const coff = import("platform.coff");
 
-/** 汇编后端 full 入口：供 seed partial 生成时把 backend mega 与 peephole 一并落入生成体。 */
+/** Exported function `asm_codegen_ast`.
+ * Implements `asm_codegen_ast`.
+ * @param module *ast.Module
+ * @param arena *ast.ASTArena
+ * @param out *codegen_outbuf_abi.CodegenOutBuf
+ * @param ctx *ast.PipelineDepCtx
+ * @return i32
+ */
 export function asm_codegen_ast(module: *ast.Module, arena: *ast.ASTArena, out: *codegen_outbuf_abi.CodegenOutBuf, ctx: *ast.PipelineDepCtx): i32 {
   let err: i32 = backend.asm_codegen_ast(module, arena, out, ctx);
   let err2: i32 = peephole.peephole_run(out);
   return err + err2;
 }
 
-/** seed partial full ELF 入口：拉入 backend/peephole/platform 真实实现供后续导出。 */
+/** Exported function `asm_codegen_elf_o`.
+ * Implements `asm_codegen_elf_o`.
+ * @param module *ast.Module
+ * @param arena *ast.ASTArena
+ * @param ctx *ast.PipelineDepCtx
+ * @param elf_ctx *elf.ElfCodegenCtx
+ * @param out *codegen_outbuf_abi.CodegenOutBuf
+ * @return i32
+ */
 #[cfg(target_os = "linux")]
 export function asm_codegen_elf_o(module: *ast.Module, arena: *ast.ASTArena, ctx: *ast.PipelineDepCtx, elf_ctx: *elf.ElfCodegenCtx, out: *codegen_outbuf_abi.CodegenOutBuf): i32 {
   elf.elf_ctx_reset(elf_ctx);
@@ -66,6 +81,15 @@ export function asm_codegen_elf_o(module: *ast.Module, arena: *ast.ASTArena, ctx
 }
 
 #[cfg(target_os = "windows")]
+/** Exported function `asm_codegen_elf_o`.
+ * Implements `asm_codegen_elf_o`.
+ * @param module *ast.Module
+ * @param arena *ast.ASTArena
+ * @param ctx *ast.PipelineDepCtx
+ * @param elf_ctx *elf.ElfCodegenCtx
+ * @param out *codegen_outbuf_abi.CodegenOutBuf
+ * @return i32
+ */
 export function asm_codegen_elf_o(module: *ast.Module, arena: *ast.ASTArena, ctx: *ast.PipelineDepCtx, elf_ctx: *elf.ElfCodegenCtx, out: *codegen_outbuf_abi.CodegenOutBuf): i32 {
   elf.elf_ctx_reset(elf_ctx);
   if (ctx.use_macho_o != 0 || ctx.use_coff_o != 0) {
@@ -96,6 +120,15 @@ export function asm_codegen_elf_o(module: *ast.Module, arena: *ast.ASTArena, ctx
 }
 
 #[cfg(target_os = "macos")]
+/** Exported function `asm_codegen_elf_o`.
+ * Implements `asm_codegen_elf_o`.
+ * @param module *ast.Module
+ * @param arena *ast.ASTArena
+ * @param ctx *ast.PipelineDepCtx
+ * @param elf_ctx *elf.ElfCodegenCtx
+ * @param out *codegen_outbuf_abi.CodegenOutBuf
+ * @return i32
+ */
 export function asm_codegen_elf_o(module: *ast.Module, arena: *ast.ASTArena, ctx: *ast.PipelineDepCtx, elf_ctx: *elf.ElfCodegenCtx, out: *codegen_outbuf_abi.CodegenOutBuf): i32 {
   elf.elf_ctx_reset(elf_ctx);
   if (ctx.use_macho_o != 0 || ctx.use_coff_o != 0) {
@@ -125,5 +158,5 @@ export function asm_codegen_elf_o(module: *ast.Module, arena: *ast.ASTArena, ctx
   return 0;
 }
 
-// 其他 OS 暂不为 seed partial 提供 asm_codegen_elf_o 入口，避免 cfg 链在当前生成链下
-// 将 fallback 与 linux/windows/macos 版本同时发射成重复定义。
+// See implementation.
+// See implementation.

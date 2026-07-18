@@ -1,28 +1,32 @@
-// STD-138：三平台深度边界聚合烟测（time / env / path 可移植子集）
+// See implementation.
 const time = import("std.time");
 const env = import("std.env");
 const path = import("std.path");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
-  // case 1：墙钟 RFC3339 格式化
+  // See implementation.
   let buf: u8[32] = [];
   if (time.format_wall_rfc3339(&buf[0], 32) < 20) { return 1; }
-  // case 2：本地时区偏移合理范围（±14h）
+  // See implementation.
   let off: i32 = time.wall_local_offset_min();
   if (off < -840 || off > 840) { return 2; }
-  // case 3：temp_dir 非空路径
+  // See implementation.
   let tmp: u8[64] = [];
   if (env.temp_dir(&tmp[0], 64) < 1) { return 3; }
-  // case 4：单调时钟递增
+  // See implementation.
   let t0: i64 = time.now_monotonic_ns();
   let t1: i64 = time.now_monotonic_ns();
   if (t1 < t0) { return 4; }
-  // case 5：path join 基础（POSIX 斜杠；Windows gate 另有专项）
+  // See implementation.
   let a: u8[4] = [47, 116, 109, 112];
   let b: u8[4] = [102, 111, 111, 0];
   let out: u8[16] = [];
   if (path.join(&out[0], 16, &a[0], 4, &b[0], 3) < 4) { return 5; }
-  // case 6：benchmark 计时器与 sleep 下限
+  // See implementation.
   let tm: Timer = time.start();
   time.sleep_ms(10);
   if (time.elapsed_ms(tm) < 5) { return 6; }

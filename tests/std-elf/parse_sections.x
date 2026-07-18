@@ -1,5 +1,9 @@
-// STD-063：ELF64 section 深化烟测（金样 275 字节嵌入）
+// See implementation.
 const elf = import("std.elf");
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let blob: u8[275] = [
     127, 69, 76, 70, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,

@@ -1,13 +1,13 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-272 / P2 link_abi L8b：on_demand 符号组 / rel 纯表 → R2 full。
-// 产品：PREFER_X_O → g05_try_x_to_o；冷启动 seeds/labi_ondemand_list.from_x.c。
-// hybrid 宏 SHUX_LABI_ONDEMAND_LIST_FROM_X；FROM_X rest 仅 marker（H=0）。
+// link_abi L8b on_demand symbol groups / rel pure tables; G.9 English; body authoritative.
+// link_abi L8b on_demand symbol groups / rel pure tables; G.9 English; body authoritative.
+// link_abi L8b on_demand symbol groups / rel pure tables; G.9 English; body authoritative.
 //
-// R2 full：真迁 if/else + let 绑定短字符串（依赖 W-string-nul；无全局表）。
-// 禁止「函数体仅 return "lit"」——parser 会 skip 整函数；用 let p + return p。
-// nm 探针与 push/ensure 仍在 mega append_on_demand_user_objs。
+// link_abi L8b on_demand symbol groups / rel pure tables; G.9 English; body authoritative.
+// link_abi L8b on_demand symbol groups / rel pure tables; G.9 English; body authoritative.
+// link_abi L8b on_demand symbol groups / rel pure tables; G.9 English; body authoritative.
 //
 // Simple groups: string=0 core_types=1 encoding=2 base64=3 csv=4 schema=5
 // core_option=6 core_result=7 core_debug=8 core_slice=9.
@@ -62,6 +62,12 @@ export function labi_od_simple_group_sym_count(g: i32): i32 {
 }
 
 #[no_mangle]
+/** Exported function `labi_od_simple_group_sym_at`.
+ * Implements `labi_od_simple_group_sym_at`.
+ * @param g i32
+ * @param i i32
+ * @return *u8
+ */
 export function labi_od_simple_group_sym_at(g: i32, i: i32): *u8 {
   if (g < 0) {
     return 0 as *u8;
@@ -364,6 +370,11 @@ export function labi_od_kv_sym_count(): i32 {
 }
 
 #[no_mangle]
+/** Exported function `labi_od_kv_sym_at`.
+ * Implements `labi_od_kv_sym_at`.
+ * @param i i32
+ * @return *u8
+ */
 export function labi_od_kv_sym_at(i: i32): *u8 {
   if (i < 0) {
     return 0 as *u8;
@@ -380,12 +391,20 @@ export function labi_od_kv_sym_at(i: i32): *u8 {
 }
 
 #[no_mangle]
+/** Exported function `labi_od_kv_rel`.
+ * Implements `labi_od_kv_rel`.
+ * @return *u8
+ */
 export function labi_od_kv_rel(): *u8 {
   let p: *u8 = "std/db/kv/kv.o";
   return p;
 }
 
 #[no_mangle]
+/** Exported function `labi_od_kv_glue_rel`.
+ * Implements `labi_od_kv_glue_rel`.
+ * @return *u8
+ */
 export function labi_od_kv_glue_rel(): *u8 {
   let p: *u8 = "compiler/runtime_kv_mmap_glue.o";
   return p;
@@ -398,6 +417,11 @@ export function labi_od_arrow_sym_count(): i32 {
 }
 
 #[no_mangle]
+/** Exported function `labi_od_arrow_sym_at`.
+ * Implements `labi_od_arrow_sym_at`.
+ * @param i i32
+ * @return *u8
+ */
 export function labi_od_arrow_sym_at(i: i32): *u8 {
   if (i < 0) {
     return 0 as *u8;
@@ -414,12 +438,20 @@ export function labi_od_arrow_sym_at(i: i32): *u8 {
 }
 
 #[no_mangle]
+/** Exported function `labi_od_arrow_rel`.
+ * Implements `labi_od_arrow_rel`.
+ * @return *u8
+ */
 export function labi_od_arrow_rel(): *u8 {
   let p: *u8 = "std/db/arrow/arrow.o";
   return p;
 }
 
 #[no_mangle]
+/** Exported function `labi_od_arrow_glue_rel`.
+ * Implements `labi_od_arrow_glue_rel`.
+ * @return *u8
+ */
 export function labi_od_arrow_glue_rel(): *u8 {
   let p: *u8 = "compiler/runtime_arrow_simd_glue.o";
   return p;
@@ -432,6 +464,11 @@ export function labi_od_time_sym_count(): i32 {
 }
 
 #[no_mangle]
+/** Exported function `labi_od_time_sym_at`.
+ * Implements `labi_od_time_sym_at`.
+ * @param i i32
+ * @return *u8
+ */
 export function labi_od_time_sym_at(i: i32): *u8 {
   if (i < 0) {
     return 0 as *u8;
@@ -456,12 +493,20 @@ export function labi_od_time_sym_at(i: i32): *u8 {
 }
 
 #[no_mangle]
+/** Exported function `labi_od_time_rel`.
+ * Implements `labi_od_time_rel`.
+ * @return *u8
+ */
 export function labi_od_time_rel(): *u8 {
   let p: *u8 = "std/time/time.o";
   return p;
 }
 
 #[no_mangle]
+/** Exported function `labi_od_time_os_rel`.
+ * Implements `labi_od_time_os_rel`.
+ * @return *u8
+ */
 export function labi_od_time_os_rel(): *u8 {
   let p: *u8 = "compiler/runtime_time_os.o";
   return p;
@@ -474,6 +519,11 @@ export function labi_od_queue_sym_count(): i32 {
 }
 
 #[no_mangle]
+/** Exported function `labi_od_queue_sym_at`.
+ * Implements `labi_od_queue_sym_at`.
+ * @param i i32
+ * @return *u8
+ */
 export function labi_od_queue_sym_at(i: i32): *u8 {
   if (i < 0) {
     return 0 as *u8;
@@ -494,12 +544,20 @@ export function labi_od_queue_sym_at(i: i32): *u8 {
 }
 
 #[no_mangle]
+/** Exported function `labi_od_queue_rel`.
+ * Implements `labi_od_queue_rel`.
+ * @return *u8
+ */
 export function labi_od_queue_rel(): *u8 {
   let p: *u8 = "std/queue/queue.o";
   return p;
 }
 
 #[no_mangle]
+/** Exported function `labi_od_queue_contention_rel`.
+ * Implements `labi_od_queue_contention_rel`.
+ * @return *u8
+ */
 export function labi_od_queue_contention_rel(): *u8 {
   let p: *u8 = "compiler/runtime_queue_contention.o";
   return p;
@@ -513,102 +571,170 @@ export function labi_od_rel_net(): *u8 {
 }
 
 #[no_mangle]
+/** Exported function `labi_od_rel_thread`.
+ * Read path helper `labi_od_rel_thread`.
+ * @return *u8
+ */
 export function labi_od_rel_thread(): *u8 {
   let p: *u8 = "std/thread/thread.o";
   return p;
 }
 
 #[no_mangle]
+/** Exported function `labi_od_rel_heap`.
+ * Implements `labi_od_rel_heap`.
+ * @return *u8
+ */
 export function labi_od_rel_heap(): *u8 {
   let p: *u8 = "std/heap/heap.o";
   return p;
 }
 
 #[no_mangle]
+/** Exported function `labi_od_rel_set`.
+ * Implements `labi_od_rel_set`.
+ * @return *u8
+ */
 export function labi_od_rel_set(): *u8 {
   let p: *u8 = "std/set/set.o";
   return p;
 }
 
 #[no_mangle]
+/** Exported function `labi_od_rel_map`.
+ * Implements `labi_od_rel_map`.
+ * @return *u8
+ */
 export function labi_od_rel_map(): *u8 {
   let p: *u8 = "std/map/map.o";
   return p;
 }
 
 #[no_mangle]
+/** Exported function `labi_od_rel_async_scheduler`.
+ * Implements `labi_od_rel_async_scheduler`.
+ * @return *u8
+ */
 export function labi_od_rel_async_scheduler(): *u8 {
   let p: *u8 = "std/async/scheduler.o";
   return p;
 }
 
 #[no_mangle]
+/** Exported function `labi_od_rel_core_mem`.
+ * Implements `labi_od_rel_core_mem`.
+ * @return *u8
+ */
 export function labi_od_rel_core_mem(): *u8 {
   let p: *u8 = "core/mem/mem.o";
   return p;
 }
 
 #[no_mangle]
+/** Exported function `labi_od_rel_sys_linux`.
+ * Implements `labi_od_rel_sys_linux`.
+ * @return *u8
+ */
 export function labi_od_rel_sys_linux(): *u8 {
   let p: *u8 = "std/sys/linux.o";
   return p;
 }
 
 #[no_mangle]
+/** Exported function `labi_od_rel_page_mmap`.
+ * Implements `labi_od_rel_page_mmap`.
+ * @return *u8
+ */
 export function labi_od_rel_page_mmap(): *u8 {
   let p: *u8 = "std/heap/page_mmap.o";
   return p;
 }
 
 #[no_mangle]
+/** Exported function `labi_od_rel_sys`.
+ * Implements `labi_od_rel_sys`.
+ * @return *u8
+ */
 export function labi_od_rel_sys(): *u8 {
   let p: *u8 = "std/sys/sys.o";
   return p;
 }
 
 #[no_mangle]
+/** Exported function `labi_od_rel_core_slice`.
+ * Implements `labi_od_rel_core_slice`.
+ * @return *u8
+ */
 export function labi_od_rel_core_slice(): *u8 {
   let p: *u8 = "core/slice/slice.o";
   return p;
 }
 
 #[no_mangle]
+/** Exported function `labi_od_rel_test`.
+ * Implements `labi_od_rel_test`.
+ * @return *u8
+ */
 export function labi_od_rel_test(): *u8 {
   let p: *u8 = "std/test/test.o";
   return p;
 }
 
 #[no_mangle]
+/** Exported function `labi_od_rel_heap_user`.
+ * Implements `labi_od_rel_heap_user`.
+ * @return *u8
+ */
 export function labi_od_rel_heap_user(): *u8 {
   let p: *u8 = "compiler/runtime_heap_user.o";
   return p;
 }
 
 #[no_mangle]
+/** Exported function `labi_od_rel_scheduler_glue`.
+ * Implements `labi_od_rel_scheduler_glue`.
+ * @return *u8
+ */
 export function labi_od_rel_scheduler_glue(): *u8 {
   let p: *u8 = "compiler/runtime_scheduler_glue.o";
   return p;
 }
 
 #[no_mangle]
+/** Exported function `labi_od_rel_thread_glue`.
+ * Read path helper `labi_od_rel_thread_glue`.
+ * @return *u8
+ */
 export function labi_od_rel_thread_glue(): *u8 {
   let p: *u8 = "compiler/runtime_thread_glue.o";
   return p;
 }
 
 #[no_mangle]
+/** Exported function `labi_od_rel_net_udp_batch`.
+ * Implements `labi_od_rel_net_udp_batch`.
+ * @return *u8
+ */
 export function labi_od_rel_net_udp_batch(): *u8 {
   let p: *u8 = "compiler/runtime_net_udp_batch.o";
   return p;
 }
 
 #[no_mangle]
+/** Exported function `labi_od_rel_net_workers`.
+ * Implements `labi_od_rel_net_workers`.
+ * @return *u8
+ */
 export function labi_od_rel_net_workers(): *u8 {
   let p: *u8 = "compiler/runtime_net_workers.o";
   return p;
 }
 
 #[no_mangle]
+/** Exported function `labi_od_rel_test_fn_invoke`.
+ * Implements `labi_od_rel_test_fn_invoke`.
+ * @return *u8
+ */
 export function labi_od_rel_test_fn_invoke(): *u8 {
   let p: *u8 = "compiler/runtime_test_fn_invoke.o";
   return p;

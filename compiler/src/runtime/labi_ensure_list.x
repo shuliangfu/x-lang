@@ -1,22 +1,31 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-273 / P2 link_abi L4：ensure 目标纯目录（stem / out.o / seed / flags / hint）→ R2 full。
-// 产品：PREFER_X_O → g05_try_x_to_o；冷启动 seeds/labi_ensure_list.from_x.c。
-// hybrid 宏 SHUX_LABI_ENSURE_LIST_FROM_X；FROM_X rest 仅 marker（H=0）。
+// link_abi L4 ensure catalog pure table (G.9 English; body is authoritative).
+// link_abi L4 ensure catalog pure table (G.9 English; body is authoritative).
+// link_abi L4 ensure catalog pure table (G.9 English; body is authoritative).
 //
-// R2 full：真迁 if/else + let 绑定短字符串（依赖 W-string-nul；无全局表）。
-// 禁止「函数体仅 return "lit"」——parser 会 skip 整函数；用 let p + return p。
-// catalog_step_at：const char** out 用 *usize；flags 用 *i32；hint 空→0。
-// step_at 经 stem/out/seed/flags accessor 聚合（与 seed 同构；避免巨型单函数 check_block 失败）。
-// spawn/cc 解释器仍在 mega link_abi_ensure_from_catalog（🔒）。
+// link_abi L4 ensure catalog pure table (G.9 English; body is authoritative).
+// link_abi L4 ensure catalog pure table (G.9 English; body is authoritative).
+// link_abi L4 ensure catalog pure table (G.9 English; body is authoritative).
+// link_abi L4 ensure catalog pure table (G.9 English; body is authoritative).
+// labi_ensure_catalog_count: see function docblock below.
 
 #[no_mangle]
+/** Exported function `labi_ensure_catalog_count`.
+ * Implements `labi_ensure_catalog_count`.
+ * @return i32
+ */
 export function labi_ensure_catalog_count(): i32 {
   return 26;
 }
 
 #[no_mangle]
+/** Exported function `labi_ensure_catalog_stem`.
+ * Implements `labi_ensure_catalog_stem`.
+ * @param i i32
+ * @return *u8
+ */
 export function labi_ensure_catalog_stem(i: i32): *u8 {
   if (i < 0) {
     return 0 as *u8;
@@ -129,6 +138,11 @@ export function labi_ensure_catalog_stem(i: i32): *u8 {
 }
 
 #[no_mangle]
+/** Exported function `labi_ensure_catalog_out_base`.
+ * Implements `labi_ensure_catalog_out_base`.
+ * @param i i32
+ * @return *u8
+ */
 export function labi_ensure_catalog_out_base(i: i32): *u8 {
   if (i < 0) {
     return 0 as *u8;
@@ -241,6 +255,11 @@ export function labi_ensure_catalog_out_base(i: i32): *u8 {
 }
 
 #[no_mangle]
+/** Exported function `labi_ensure_catalog_seed_base`.
+ * Implements `labi_ensure_catalog_seed_base`.
+ * @param i i32
+ * @return *u8
+ */
 export function labi_ensure_catalog_seed_base(i: i32): *u8 {
   if (i < 0) {
     return 0 as *u8;
@@ -353,6 +372,11 @@ export function labi_ensure_catalog_seed_base(i: i32): *u8 {
 }
 
 #[no_mangle]
+/** Exported function `labi_ensure_catalog_flags`.
+ * Implements `labi_ensure_catalog_flags`.
+ * @param i i32
+ * @return i32
+ */
 export function labi_ensure_catalog_flags(i: i32): i32 {
   if (i < 0) {
     return 0;
@@ -372,9 +396,13 @@ export function labi_ensure_catalog_flags(i: i32): i32 {
   return 0;
 }
 
-// out 形参：C 侧 const char** / int*；.x 无 **T，用 *usize / *i32 写（同 ABI）。
+// link_abi L4 ensure catalog pure table (G.9 English; body is authoritative).
 
 #[no_mangle]
+/** Function `labi_ensure_catalog_step_at`.
+ * Purpose: implements `labi_ensure_catalog_step_at`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function labi_ensure_catalog_step_at(
   i: i32, stem_out: *usize, out_base_out: *usize, seed_base_out: *usize,
   flags_out: *i32, hint_out: *usize

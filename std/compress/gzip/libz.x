@@ -14,54 +14,60 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.compress.gzip.libz — F-04 v5：gzip 块/流式压缩（libz FFI）
+// See implementation.
 //
-// 【文件职责】
-// 从 gzip/gzip.c 迁出的 .gz 块 API 与 gzip_stream_*（STD-039 / STD-122）。
+// See implementation.
+// See implementation.
 //
-// 【依赖】
+// See implementation.
 // - libz：deflateInit2/inflateInit2、deflate/inflate、deflateEnd/inflateEnd
 // - core.mem：mem_zero
-// - runtime_link_abi：deflate/inflate 未定义符号触发 -lz
+// See implementation.
 
 const mem = import("core.mem");
 const types = import("core.types");
 
-/** gzip 流状态字节数（GzipStreamHdr + ZStream）。 */
+/** Exported function `gzip_stream_state_bytes`.
+ * Implements `gzip_stream_state_bytes`.
+ * @return i32
+ */
 export function gzip_stream_state_bytes(): i32 {
-  /* LP64 保守上界：hdr 16 + z_stream ~112 ≈ 128。勿 types.size_of<T>（monomorphize 缺口）。 */
+  /* See implementation. */
   return 128;
 }
 
-/** gzip 流头字节数。 */
+/** Exported function `gzip_stream_hdr_bytes`.
+ * Implements `gzip_stream_hdr_bytes`.
+ * @return i32
+ */
 export function gzip_stream_hdr_bytes(): i32 {
   return 16;
 }
 
-/** gzip 流状态魔数（'GZST'，与 compress_common.h 一致）。 */
+/* See implementation. */
 export const SHU_GZIP_STREAM_MAGIC: u32 = 0x475a5354;
 
-/** gzip 格式 windowBits=15+16。 */
+/* See implementation. */
 export const GZIP_WBITS: i32 = 31;
 
-/** zlib 成功。 */
+/* See implementation. */
 export const Z_OK: i32 = 0;
-/** 流结束。 */
+/* See implementation. */
 export const Z_STREAM_END: i32 = 1;
-/** 无 flush。 */
+/* See implementation. */
 export const Z_NO_FLUSH: i32 = 0;
-/** 末块 flush。 */
+/* See implementation. */
 export const Z_FINISH: i32 = 4;
-/** deflate 算法。 */
+/* See implementation. */
 export const Z_DEFLATED: i32 = 8;
-/** 默认压缩级别。 */
+/* See implementation. */
 export const Z_DEFAULT_COMPRESSION: i32 = -1;
-/** 默认策略。 */
+/* See implementation. */
 export const Z_DEFAULT_STRATEGY: i32 = 0;
-/** 输出缓冲不足（部分写入仍可能有效）。 */
+/* See implementation. */
 export const Z_BUF_ERROR: i32 = -5;
 
-/** gzip 流状态头（后接 z_stream）。 */
+/* See implementation. */
 allow(padding) struct GzipStreamHdr {
   magic: u32;
   mode: i32;
@@ -69,7 +75,7 @@ allow(padding) struct GzipStreamHdr {
   inited: i32;
 }
 
-/** libz z_stream（64 位布局，allow(padding) 对齐 C）。 */
+/* See implementation. */
 allow(padding) struct ZStream {
   next_in: *u8;
   avail_in: u32;
@@ -87,27 +93,27 @@ allow(padding) struct ZStream {
   reserved: u64;
 }
 
-/** 含 z_stream 的完整 gzip 流状态。 */
+/* See implementation. */
 allow(padding) struct GzipStream {
   hdr: GzipStreamHdr;
   strm: ZStream;
 }
 
-/** libz：初始化 deflate（gzip windowBits）。 */
+/* See implementation. */
 extern function deflateInit2(strm: *ZStream, level: i32, method: i32, windowBits: i32, memLevel: i32, strategy: i32): i32;
-/** libz：deflate 压缩。 */
+/* See implementation. */
 extern function deflate(strm: *ZStream, flush: i32): i32;
-/** libz：释放 deflate 流。 */
+/* See implementation. */
 extern function deflateEnd(strm: *ZStream): i32;
-/** libz：初始化 inflate（gzip windowBits）。 */
+/* See implementation. */
 extern function inflateInit2(strm: *ZStream, windowBits: i32): i32;
-/** libz：inflate 解压。 */
+/* See implementation. */
 extern function inflate(strm: *ZStream, flush: i32): i32;
-/** libz：释放 inflate 流。 */
+/* See implementation. */
 extern function inflateEnd(strm: *ZStream): i32;
 
 /**
- * 将 z_stream 的 zalloc/zfree/opaque 置空（默认分配器）。
+ * See implementation.
  */
 export function gzip_zstream_clear_alloc(strm: *ZStream): void {
   strm.zalloc = 0;
@@ -116,7 +122,7 @@ export function gzip_zstream_clear_alloc(strm: *ZStream): void {
 }
 
 /**
- * 校验并返回 gzip 流状态指针；无效返回 0。
+ * See implementation.
  */
 export function shu_gzip_stream_cast(state: *u8, state_cap: i32): *GzipStream {
   let need: i32 = gzip_stream_state_bytes();
@@ -131,7 +137,7 @@ export function shu_gzip_stream_cast(state: *u8, state_cap: i32): *GzipStream {
 }
 
 /**
- * 压缩为 gzip 格式（.gz），返回写入字节数，失败 -1。
+ * See implementation.
  */
 export function compress_gzip_compress_c(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
   if (in == 0 || out == 0 || in_len < 0 || out_cap <= 0) {
@@ -160,7 +166,7 @@ export function compress_gzip_compress_c(in: *u8, in_len: i32, out: *u8, out_cap
 }
 
 /**
- * 解压 gzip 流，返回写入字节数，失败 -1。
+ * See implementation.
  */
 export function compress_gzip_decompress_c(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
   if (in == 0 || out == 0 || in_len < 0 || out_cap <= 0) {
@@ -188,14 +194,14 @@ export function compress_gzip_decompress_c(in: *u8, in_len: i32, out: *u8, out_c
 }
 
 /**
- * 返回 gzip 流状态缓冲最小字节数。
+ * See implementation.
  */
 export function compress_gzip_stream_state_bytes_c(): i32 {
   return gzip_stream_state_bytes();
 }
 
 /**
- * 初始化 gzip 压缩流；成功 0，失败 -1。
+ * See implementation.
  */
 export function compress_gzip_stream_init_compress_c(state: *u8, state_cap: i32): i32 {
   let need: i32 = gzip_stream_state_bytes();
@@ -217,7 +223,7 @@ export function compress_gzip_stream_init_compress_c(state: *u8, state_cap: i32)
 }
 
 /**
- * 初始化 gzip 解压流；成功 0，失败 -1。
+ * See implementation.
  */
 export function compress_gzip_stream_init_decompress_c(state: *u8, state_cap: i32): i32 {
   let need: i32 = gzip_stream_state_bytes();
@@ -239,7 +245,7 @@ export function compress_gzip_stream_init_decompress_c(state: *u8, state_cap: i3
 }
 
 /**
- * 分块 gzip 压缩；is_last≠0 时对末块 Z_FINISH；返回写入 out 字节数。
+ * See implementation.
  */
 export function compress_gzip_stream_compress_c(state: *u8, state_cap: i32, in: *u8, in_len: i32,
   out: *u8, out_cap: i32, is_last: i32, in_consumed: *i32): i32 {
@@ -287,7 +293,7 @@ export function compress_gzip_stream_compress_c(state: *u8, state_cap: i32, in: 
 }
 
 /**
- * 分块 gzip 解压；返回写入 out 字节数。
+ * See implementation.
  */
 export function compress_gzip_stream_decompress_c(state: *u8, state_cap: i32, in: *u8, in_len: i32,
   out: *u8, out_cap: i32, in_consumed: *i32): i32 {
@@ -331,7 +337,7 @@ export function compress_gzip_stream_decompress_c(state: *u8, state_cap: i32, in
 }
 
 /**
- * 释放 gzip 流（deflateEnd/inflateEnd）；成功 0。
+ * See implementation.
  */
 export function compress_gzip_stream_end_c(state: *u8, state_cap: i32): i32 {
   let hdr_need: i32 = gzip_stream_hdr_bytes();

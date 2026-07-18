@@ -1,6 +1,10 @@
-// STD-126：Ed25519 签名/验签往返烟测（RFC 8032 §7.1 TEST 1 + 短消息）
+// See implementation.
 const crypto = import("std.crypto");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   // RFC 8032 TEST 1 seed
   let seed: u8[32] = [

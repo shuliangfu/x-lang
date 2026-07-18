@@ -1,7 +1,13 @@
-// STD-129：Set_i32 union / intersect / difference 烟测
+// See implementation.
 const set = import("std.set");
 
-/** 检查 dst 是否恰好包含 expect 中的 n 个元素（顺序无关）。 */
+/** Internal function `set_has_keys`.
+ * Implements `set_has_keys`.
+ * @param dst Set_i32
+ * @param expect *i32
+ * @param n i32
+ * @return i32
+ */
 function set_has_keys(dst: Set_i32, expect: *i32, n: i32): i32 {
   if (set.len(dst) != n) { return 0; }
   let i: i32 = 0;
@@ -12,6 +18,10 @@ function set_has_keys(dst: Set_i32, expect: *i32, n: i32): i32 {
   return 1;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: Set_i32 = set.new(0);
   let b: Set_i32 = set.new(0);

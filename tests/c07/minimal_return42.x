@@ -1,4 +1,8 @@
-// C-07 parity：最小 return 常量（无 import，避免 -luring 链入）。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   return 42;
 }

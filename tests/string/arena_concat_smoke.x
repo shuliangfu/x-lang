@@ -1,10 +1,14 @@
 /**
- * ZC-4 smoke：string_view_concat_arena 仅 Arena64 bump，无 heap_alloc。
- * 两段栈缓冲拼接 → eq 期望串；多轮 concat 仍走同一 arena → exit 0。
+ * See implementation.
+ * See implementation.
  */
 const string = import("std.string");
 const heap = import("std.heap");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let arena: Arena64 = heap.arena64_empty();
   if (heap.arena64_init(&arena, 4096) != 0) {

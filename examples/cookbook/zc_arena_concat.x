@@ -1,9 +1,13 @@
 /**
- * Cookbook ZC-01：Arena64 + string_view_concat_arena 链式拼接（ZC-4 入门）。
+ * See implementation.
  */
 const string = import("std.string");
 const heap = import("std.heap");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let arena: Arena64 = heap.arena64_empty();
   if (heap.arena64_init(&arena, 4096) != 0) { return 1; }

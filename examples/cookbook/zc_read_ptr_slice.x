@@ -1,11 +1,15 @@
 /**
- * Cookbook ZC-02：read_ptr_view 绝对视图校验（ZC-2/ZC-3 入门）。
+ * See implementation.
  */
 const fs = import("std.fs");
 const io = import("std.io");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
-  /** "/tmp/shux_cookbook_zc_view\0" — 26 字节含 NUL */
+  /* See implementation. */
   let path: u8[26] =
   [47, 116, 109, 112, 47, 115, 104, 117, 95, 99, 111, 111, 107, 98, 111, 111, 107,
   95, 122, 99, 95, 118, 105, 101, 119, 0];

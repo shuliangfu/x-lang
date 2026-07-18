@@ -1,22 +1,26 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-20：runtime_crypto_inc_glue 产品源迁 seeds/runtime_crypto_inc_glue.from_x.c。
-// 实现仍在 seed C；本文件为文档锚点。
-// 产品：cc seeds/runtime_crypto_inc_glue.from_x.c → runtime_crypto_inc_glue.o
-// G-02f-99：+ sha256 rotr/ch/maj 薄门闩。
-// G-02f-100：+ sha256_block 薄门闩。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 
 export extern "C" function shu_sha256_rotr32_impl(x: u32, n: u32): u32;
 export extern "C" function shu_sha256_ch_impl(x: u32, y: u32, z: u32): u32;
 export extern "C" function shu_sha256_maj_impl(x: u32, y: u32, z: u32): u32;
 export extern "C" function shu_sha256_block_impl(H: *u32, block: *u8): void;
 
+/** Exported function `runtime_crypto_inc_glue_x_doc_anchor`.
+ * Implements `runtime_crypto_inc_glue_x_doc_anchor`.
+ * @return i32
+ */
 export function runtime_crypto_inc_glue_x_doc_anchor(): i32 {
   return 0;
 }
 
-/* ---- G-02f-99：SHA-256 pure helpers 门闩 ---- */
+/* See implementation. */
 
 
 
@@ -28,32 +32,64 @@ export function shu_sha256_block(H: *u32, block: *u8): void {
   }
 }
 
-// G-02f-114：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
+// shu_sha256_rotr32: see function docblock below.
 
 #[no_mangle]
+/** Exported function `shu_sha256_rotr32`.
+ * Implements `shu_sha256_rotr32`.
+ * @param x u32
+ * @param n u32
+ * @return u32
+ */
 export function shu_sha256_rotr32(x: u32, n: u32): u32 {
   n = n & 31;
   return (x >> n) | (x << (32 - n));
 }
 
 #[no_mangle]
+/** Exported function `shu_sha256_ch`.
+ * Implements `shu_sha256_ch`.
+ * @param x u32
+ * @param y u32
+ * @param z u32
+ * @return u32
+ */
 export function shu_sha256_ch(x: u32, y: u32, z: u32): u32 {
   return (x & y) ^ ((~x) & z);
 }
 
 #[no_mangle]
+/** Exported function `shu_sha256_maj`.
+ * Implements `shu_sha256_maj`.
+ * @param x u32
+ * @param y u32
+ * @param z u32
+ * @return u32
+ */
 export function shu_sha256_maj(x: u32, y: u32, z: u32): u32 {
   return (x & y) ^ (x & z) ^ (y & z);
 }
 
-// G-02f-115：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
+// crypto_i32_sub_c: see function docblock below.
 
 #[no_mangle]
+/** Exported function `crypto_i32_sub_c`.
+ * Implements `crypto_i32_sub_c`.
+ * @param a i32
+ * @param b i32
+ * @return i32
+ */
 export function crypto_i32_sub_c(a: i32, b: i32): i32 {
   return a - b;
 }
 
 #[no_mangle]
+/** Exported function `crypto_rotl32_c`.
+ * Implements `crypto_rotl32_c`.
+ * @param x u32
+ * @param n u32
+ * @return u32
+ */
 export function crypto_rotl32_c(x: u32, n: u32): u32 {
   n = n & 31;
   return (x << n) | (x >> (32 - n));

@@ -1,4 +1,8 @@
-// 7.3：嵌套 while：内层 continue+break，外层再 a+=；return a+b → 5（cfg-merge）。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32 = 0;
   let b: i32 = 2;

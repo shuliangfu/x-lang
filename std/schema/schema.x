@@ -14,13 +14,13 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std/schema/schema.x — F-schema v2：JSON/CSV typed decode（纯 .x；替代 schema_glue.c）
+// See implementation.
 //
-// 【文件职责】
-// Schema 字段注册；JSON 对象/array 递归 decode（点分/索引键）；CSV 行与列映射；
-// 字段级错误路径；C 烟测 schema_smoke_c。依赖 extern json_* 与 csv parse_row。
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 【对标】Rust serde + validator、Go mapstructure 最小子集。
+// See implementation.
 
 export const SCH_OK: i32 = 0;
 export const SCH_ERR_NULL: i32 = -1;
@@ -40,7 +40,7 @@ export const SCH_VAL_MAX: i32 = 256;
 export const SCH_ERR_MSG_MAX: i32 = 128;
 export const SCH_SCHEMA_MEM_SIZE: usize = 12000;
 
-/** C 字符串常量（解析器不支持 "..." as *u8）。 */
+/* See implementation. */
 export const SCH_LIT_N0: u8[2] = [48, 0];
 export const SCH_LIT_N1: u8[2] = [49, 0];
 export const SCH_LIT_N2147483648: u8[11] = [50, 49, 52, 55, 52, 56, 51, 54, 52, 56, 0];
@@ -85,14 +85,14 @@ export const SCH_LIT_NAME_X: u8[13] = [123, 34, 110, 97, 109, 101, 34, 58, 34, 1
 export const SCH_LIT_USER_NAME_CAROL_AGE_42: u8[35] = [123, 34, 117, 115, 101, 114, 34, 58, 123, 34, 110, 97, 109, 101, 34, 58, 34, 99, 97, 114, 111, 108, 34, 44, 34, 97, 103, 101, 34, 58, 52, 50, 125, 125, 0];
 export const SCH_LIT_USERS_NAME_ALICE_NAME_BOB: u8[44] = [123, 34, 117, 115, 101, 114, 115, 34, 58, 91, 123, 34, 110, 97, 109, 101, 34, 58, 34, 97, 108, 105, 99, 101, 34, 125, 44, 123, 34, 110, 97, 109, 101, 34, 58, 34, 98, 111, 98, 34, 125, 93, 125, 0];
 
-/** JSON 游标布局（与 json.c json_cursor_t 一致）。 */
+/* See implementation. */
 export struct JsonCursor {
   ptr: *u8;
   len: i32;
   off: i32;
 }
 
-/** 单字段 decode 结果。 */
+/* See implementation. */
 allow(padding) struct SchVal {
   present: i32;
   type: i32;
@@ -102,7 +102,7 @@ allow(padding) struct SchVal {
   f64_v: f64;
 }
 
-/** Schema 字段定义。 */
+/* See implementation. */
 allow(padding) struct SchFieldDef {
   name: u8[64];
   type: i32;
@@ -110,7 +110,7 @@ allow(padding) struct SchFieldDef {
   col_index: i32;
 }
 
-/** Schema 存储：定义 + decode 值 + 错误路径。 */
+/* See implementation. */
 allow(padding) struct SchSchema {
   fields: SchFieldDef[32];
   values: SchVal[32];
@@ -143,23 +143,39 @@ extern "C" function free(ptr: *u8): void;
 extern "C" function strcmp(a: *u8, b: *u8): i32;
 extern "C" function strlen(s: *u8): usize;
 
-/** F-schema v1 版本标记；供聚合 gate 校验 schema.x 已参与构建。 */
+/** Exported function `schema_f_schema_v1_marker_c`.
+ * Implements `schema_f_schema_v1_marker_c`.
+ * @return i32
+ */
 export function schema_f_schema_v1_marker_c(): i32 {
   return 1;
 }
 
-/** F-schema v2 逻辑全量 .x 标记。 */
+/** Exported function `schema_f_schema_v2_marker_c`.
+ * Implements `schema_f_schema_v2_marker_c`.
+ * @return i32
+ */
 export function schema_f_schema_v2_marker_c(): i32 {
   return 1;
 }
 
-/** 由 i64 句柄取 Schema 指针；非法返回 NULL。 */
+/** Exported function `sch_from_handle`.
+ * Implements `sch_from_handle`.
+ * @param handle i64
+ * @return *SchSchema
+ */
 export function sch_from_handle(handle: i64): *SchSchema {
   if (handle == 0) { return 0 as *SchSchema; }
   return handle as *SchSchema;
 }
 
-/** 受限拷贝 C 串到 dst；最多 cap-1 字节并 NUL 结尾。 */
+/** Exported function `sch_strncpy`.
+ * Implements `sch_strncpy`.
+ * @param dst *u8
+ * @param src *u8
+ * @param cap i32
+ * @return void
+ */
 export function sch_strncpy(dst: *u8, src: *u8, cap: i32): void {
   let n: i32 = 0;
   if (dst == 0 || src == 0 || cap <= 0) { return; }
@@ -170,7 +186,14 @@ export function sch_strncpy(dst: *u8, src: *u8, cap: i32): void {
   dst[n] = 0;
 }
 
-/** 从定长字节缓冲拷贝 name_len 字节并 NUL 结尾。 */
+/** Exported function `sch_copy_bytes_n`.
+ * Implements `sch_copy_bytes_n`.
+ * @param dst *u8
+ * @param src *u8
+ * @param name_len i32
+ * @param cap i32
+ * @return void
+ */
 export function sch_copy_bytes_n(dst: *u8, src: *u8, name_len: i32, cap: i32): void {
   let n: i32 = name_len;
   if (dst == 0 || src == 0 || cap <= 0) { return; }
@@ -179,7 +202,13 @@ export function sch_copy_bytes_n(dst: *u8, src: *u8, name_len: i32, cap: i32): v
   dst[n] = 0;
 }
 
-/** 设置字段级错误信息。 */
+/** Exported function `sch_set_error`.
+ * Implements `sch_set_error`.
+ * @param sch *SchSchema
+ * @param field *u8
+ * @param msg *u8
+ * @return void
+ */
 export function sch_set_error(sch: *SchSchema, field: *u8, msg: *u8): void {
   if (sch == 0) { return; }
   if (field != 0 && field[0] != 0) {
@@ -194,7 +223,11 @@ export function sch_set_error(sch: *SchSchema, field: *u8, msg: *u8): void {
   }
 }
 
-/** 清空 decode 结果与错误状态。 */
+/** Exported function `sch_clear_values`.
+ * Implements `sch_clear_values`.
+ * @param sch *SchSchema
+ * @return void
+ */
 export function sch_clear_values(sch: *SchSchema): void {
   let i: i32 = 0;
   if (sch == 0) { return; }
@@ -211,7 +244,12 @@ export function sch_clear_values(sch: *SchSchema): void {
   sch.error_msg[0] = 0;
 }
 
-/** 按名称查找字段索引；不存在返回 -1。 */
+/** Exported function `sch_find_field`.
+ * Implements `sch_find_field`.
+ * @param sch *SchSchema
+ * @param name *u8
+ * @return i32
+ */
 export function sch_find_field(sch: *SchSchema, name: *u8): i32 {
   let i: i32 = 0;
   if (sch == 0 || name == 0) { return -1; }
@@ -224,7 +262,12 @@ export function sch_find_field(sch: *SchSchema, name: *u8): i32 {
   return -1;
 }
 
-/** 手动解析十进制 i32；成功 0，失败 -1。 */
+/** Exported function `sch_parse_i32_text`.
+ * Implements `sch_parse_i32_text`.
+ * @param text *u8
+ * @param out *i32
+ * @return i32
+ */
 export function sch_parse_i32_text(text: *u8, out: *i32): i32 {
   let i: i32 = 0;
   let sign: i32 = 1;
@@ -235,7 +278,7 @@ export function sch_parse_i32_text(text: *u8, out: *i32): i32 {
   else if (text[0] == 43) { i = 1; }
   if (text[i] == 0) { return -1; }
   if (sign < 0 && text[i] == 0) { return -1; }
-  /* INT_MIN 特判 */
+  /* See implementation. */
   if (sign < 0 && text[i] == 50) {
     let min_str: *u8 = &SCH_LIT_N2147483648[0];
     let j: i32 = 0;
@@ -256,7 +299,12 @@ export function sch_parse_i32_text(text: *u8, out: *i32): i32 {
   return 0;
 }
 
-/** 手动解析 f64（整数/小数/可选 e 指数）；成功 0，失败 -1。 */
+/** Exported function `sch_parse_f64_text`.
+ * Implements `sch_parse_f64_text`.
+ * @param text *u8
+ * @param out *f64
+ * @return i32
+ */
 export function sch_parse_f64_text(text: *u8, out: *f64): i32 {
   let i: i32 = 0;
   let sign: f64 = 1.0;
@@ -315,7 +363,13 @@ export function sch_parse_f64_text(text: *u8, out: *f64): i32 {
   return 0;
 }
 
-/** 将文本解析为字段类型并写入 values[idx]。 */
+/** Exported function `sch_parse_text`.
+ * Implements `sch_parse_text`.
+ * @param sch *SchSchema
+ * @param idx i32
+ * @param text *u8
+ * @return i32
+ */
 export function sch_parse_text(sch: *SchSchema, idx: i32, text: *u8): i32 {
   let fd: *SchFieldDef = 0;
   let v: *SchVal = 0;
@@ -338,7 +392,7 @@ export function sch_parse_text(sch: *SchSchema, idx: i32, text: *u8): i32 {
     return SCH_OK;
   }
   if (fd_type == SCH_TYPE_BOOL) {
-    /* 【Why】勿用 if (unsafe {…}==0 || unsafe {…})：表达式 unsafe → void 与 int 比较 */
+    /* See implementation. */
     let c_true: i32 = 0;
     let c_n1: i32 = 0;
     let c_yes: i32 = 0;
@@ -373,7 +427,11 @@ export function sch_parse_text(sch: *SchSchema, idx: i32, text: *u8): i32 {
   return SCH_ERR_INVALID;
 }
 
-/** 校验所有必填字段已 present。 */
+/** Exported function `sch_check_required`.
+ * Implements `sch_check_required`.
+ * @param sch *SchSchema
+ * @return i32
+ */
 export function sch_check_required(sch: *SchSchema): i32 {
   let i: i32 = 0;
   if (sch == 0) { return SCH_ERR_NULL; }
@@ -387,7 +445,14 @@ export function sch_check_required(sch: *SchSchema): i32 {
   return SCH_OK;
 }
 
-/** 拼接 prefix.local 为点分键名；prefix 为空时仅复制 local。 */
+/** Exported function `sch_build_dotted_key`.
+ * Implements `sch_build_dotted_key`.
+ * @param out *u8
+ * @param out_cap i32
+ * @param prefix *u8
+ * @param local *u8
+ * @return i32
+ */
 export function sch_build_dotted_key(out: *u8, out_cap: i32, prefix: *u8, local: *u8): i32 {
   let pl: i32 = 0;
   let ll: i32 = 0;
@@ -407,7 +472,13 @@ export function sch_build_dotted_key(out: *u8, out_cap: i32, prefix: *u8, local:
   return SCH_OK;
 }
 
-/** 手动 i32 转十进制串；返回长度（不含 NUL），失败 -1。 */
+/** Exported function `sch_i32_to_str`.
+ * Implements `sch_i32_to_str`.
+ * @param buf *u8
+ * @param cap i32
+ * @param val i32
+ * @return i32
+ */
 export function sch_i32_to_str(buf: *u8, cap: i32, val: i32): i32 {
   let tmp: u8[16];
   let i: i32 = 0;
@@ -451,7 +522,14 @@ export function sch_i32_to_str(buf: *u8, cap: i32, val: i32): i32 {
   return j;
 }
 
-/** 拼接 prefix.index 为数组元素键名（如 tags.0）。 */
+/** Exported function `sch_build_index_key`.
+ * Implements `sch_build_index_key`.
+ * @param out *u8
+ * @param out_cap i32
+ * @param prefix *u8
+ * @param index i32
+ * @return i32
+ */
 export function sch_build_index_key(out: *u8, out_cap: i32, prefix: *u8, index: i32): i32 {
   let idx_buf: u8[16];
   let pl: i32 = 0;
@@ -468,7 +546,13 @@ export function sch_build_index_key(out: *u8, out_cap: i32, prefix: *u8, index: 
   return SCH_OK;
 }
 
-/** 在游标当前 value 处解码标量到已注册字段 full_key。 */
+/** Exported function `sch_decode_json_scalar`.
+ * Implements `sch_decode_json_scalar`.
+ * @param sch *SchSchema
+ * @param cur *JsonCursor
+ * @param full_key *u8
+ * @return i32
+ */
 export function sch_decode_json_scalar(sch: *SchSchema, cur: *JsonCursor, full_key: *u8): i32 {
   let idx: i32 = 0;
   let consumed: i32 = 0;
@@ -556,7 +640,13 @@ export function sch_decode_json_scalar(sch: *SchSchema, cur: *JsonCursor, full_k
   return SCH_ERR_INVALID;
 }
 
-/** 递归解码 JSON object（支持 nested object → 点分字段名）；与 array 互递归。 */
+/** Exported function `sch_decode_json_object`.
+ * Implements `sch_decode_json_object`.
+ * @param sch *SchSchema
+ * @param cur *JsonCursor
+ * @param prefix *u8
+ * @return i32
+ */
 export function sch_decode_json_object(sch: *SchSchema, cur: *JsonCursor, prefix: *u8): i32 {
   let key_buf: u8[64];
   let full_key: u8[64];
@@ -597,7 +687,13 @@ export function sch_decode_json_object(sch: *SchSchema, cur: *JsonCursor, prefix
   return SCH_OK;
 }
 
-/** 递归解码 JSON array（元素键 prefix.0 / prefix.1 …）；与 object 互递归。 */
+/** Exported function `sch_decode_json_array`.
+ * Implements `sch_decode_json_array`.
+ * @param sch *SchSchema
+ * @param cur *JsonCursor
+ * @param prefix *u8
+ * @return i32
+ */
 export function sch_decode_json_array(sch: *SchSchema, cur: *JsonCursor, prefix: *u8): i32 {
   let idx: i32 = 0;
   let elem_key: u8[64];
@@ -644,7 +740,10 @@ export function sch_decode_json_array(sch: *SchSchema, cur: *JsonCursor, prefix:
   return SCH_OK;
 }
 
-/** 创建空 Schema；失败返回 0。 */
+/** Exported function `schema_create_c`.
+ * Implements `schema_create_c`.
+ * @return i64
+ */
 export function schema_create_c(): i64 {
   let sch: *SchSchema = 0;
   unsafe { sch = calloc(1, SCH_SCHEMA_MEM_SIZE) as *SchSchema; }
@@ -652,13 +751,21 @@ export function schema_create_c(): i64 {
   return sch as i64;
 }
 
-/** 释放 Schema。 */
+/** Exported function `schema_free_c`.
+ * Memory management helper `schema_free_c`.
+ * @param handle i64
+ * @return void
+ */
 export function schema_free_c(handle: i64): void {
   let sch: *SchSchema = sch_from_handle(handle);
   if (sch != 0) { unsafe { free(sch as *u8); } }
 }
 
-/** 清空字段定义与 decode 结果。 */
+/** Exported function `schema_clear_c`.
+ * Implements `schema_clear_c`.
+ * @param handle i64
+ * @return void
+ */
 export function schema_clear_c(handle: i64): void {
   let sch: *SchSchema = sch_from_handle(handle);
   if (sch == 0) { return; }
@@ -667,8 +774,8 @@ export function schema_clear_c(handle: i64): void {
 }
 
 /**
- * 注册字段：name 为 JSON 键名 / 逻辑名；col_index 用于 CSV/SQLite 列映射。
- * optional 非 0 表示可选；返回 SCH_OK 或错误码。
+ * See implementation.
+ * See implementation.
  */
 export function schema_add_field_c(handle: i64, name: *u8, name_len: i32, type: i32,
   optional: i32, col_index: i32): i32 {
@@ -690,7 +797,13 @@ export function schema_add_field_c(handle: i64, name: *u8, name_len: i32, type: 
   return SCH_OK;
 }
 
-/** 从 JSON 对象缓冲 decode；支持 flat + nested object 点分字段（如 user.name）。 */
+/** Exported function `schema_decode_json_c`.
+ * Implements `schema_decode_json_c`.
+ * @param handle i64
+ * @param json *u8
+ * @param json_len i32
+ * @return i32
+ */
 export function schema_decode_json_c(handle: i64, json: *u8, json_len: i32): i32 {
   let sch: *SchSchema = sch_from_handle(handle);
   let cur: JsonCursor;
@@ -711,7 +824,14 @@ export function schema_decode_json_c(handle: i64, json: *u8, json_len: i32): i32
   return sch_check_required(sch);
 }
 
-/** 从 CSV 行 decode；按 field.col_index 映射列。 */
+/** Exported function `schema_decode_csv_row_c`.
+ * Implements `schema_decode_csv_row_c`.
+ * @param handle i64
+ * @param row *u8
+ * @param row_len i32
+ * @param offset i32
+ * @return i32
+ */
 export function schema_decode_csv_row_c(handle: i64, row: *u8, row_len: i32, offset: i32): i32 {
   let sch: *SchSchema = sch_from_handle(handle);
   let starts: i32[32];
@@ -749,8 +869,8 @@ export function schema_decode_csv_row_c(handle: i64, row: *u8, row_len: i32, off
 }
 
 /**
- * 从列文本数组映射（CSV 解析后或 SQLite row_col_text 结果）。
- * col_starts/col_lens 为每列在 row 缓冲内的偏移与长度；count 为列数。
+ * See implementation.
+ * See implementation.
  */
 export function schema_map_columns_c(handle: i64, row: *u8, col_starts: *i32, col_lens: *i32,
   count: i32): i32 {
@@ -782,7 +902,7 @@ export function schema_map_columns_c(handle: i64, row: *u8, col_starts: *i32, co
   return sch_check_required(sch);
 }
 
-/** 读取 string 字段；返回长度，未找到或类型错误返回负数。 */
+/* See implementation. */
 export function schema_get_string_c(handle: i64, name: *u8, name_len: i32, out: *u8,
   out_cap: i32): i32 {
   let sch: *SchSchema = sch_from_handle(handle);
@@ -803,7 +923,14 @@ export function schema_get_string_c(handle: i64, name: *u8, name_len: i32, out: 
   return n;
 }
 
-/** 读取 i32 字段。 */
+/** Exported function `schema_get_i32_c`.
+ * Implements `schema_get_i32_c`.
+ * @param handle i64
+ * @param name *u8
+ * @param name_len i32
+ * @param out *i32
+ * @return i32
+ */
 export function schema_get_i32_c(handle: i64, name: *u8, name_len: i32, out: *i32): i32 {
   let sch: *SchSchema = sch_from_handle(handle);
   let key: u8[64];
@@ -819,7 +946,14 @@ export function schema_get_i32_c(handle: i64, name: *u8, name_len: i32, out: *i3
   return SCH_OK;
 }
 
-/** 读取 bool 字段。 */
+/** Exported function `schema_get_bool_c`.
+ * Implements `schema_get_bool_c`.
+ * @param handle i64
+ * @param name *u8
+ * @param name_len i32
+ * @param out *i32
+ * @return i32
+ */
 export function schema_get_bool_c(handle: i64, name: *u8, name_len: i32, out: *i32): i32 {
   let sch: *SchSchema = sch_from_handle(handle);
   let key: u8[64];
@@ -835,7 +969,14 @@ export function schema_get_bool_c(handle: i64, name: *u8, name_len: i32, out: *i
   return SCH_OK;
 }
 
-/** 读取 f64 字段。 */
+/** Exported function `schema_get_f64_c`.
+ * Implements `schema_get_f64_c`.
+ * @param handle i64
+ * @param name *u8
+ * @param name_len i32
+ * @param out *f64
+ * @return i32
+ */
 export function schema_get_f64_c(handle: i64, name: *u8, name_len: i32, out: *f64): i32 {
   let sch: *SchSchema = sch_from_handle(handle);
   let key: u8[64];
@@ -851,7 +992,13 @@ export function schema_get_f64_c(handle: i64, name: *u8, name_len: i32, out: *f6
   return SCH_OK;
 }
 
-/** 复制最近错误字段名；无错误返回 0 长度。 */
+/** Exported function `schema_last_error_field_c`.
+ * Implements `schema_last_error_field_c`.
+ * @param handle i64
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function schema_last_error_field_c(handle: i64, out: *u8, out_cap: i32): i32 {
   let sch: *SchSchema = sch_from_handle(handle);
   let n: i32 = 0;
@@ -863,7 +1010,13 @@ export function schema_last_error_field_c(handle: i64, out: *u8, out_cap: i32): 
   return n;
 }
 
-/** 复制最近错误消息。 */
+/** Exported function `schema_last_error_message_c`.
+ * Implements `schema_last_error_message_c`.
+ * @param handle i64
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function schema_last_error_message_c(handle: i64, out: *u8, out_cap: i32): i32 {
   let sch: *SchSchema = sch_from_handle(handle);
   let n: i32 = 0;
@@ -875,7 +1028,10 @@ export function schema_last_error_message_c(handle: i64, out: *u8, out_cap: i32)
   return n;
 }
 
-/** C 烟测：JSON + CSV + 列映射 + 错误路径 + nested/array。 */
+/** Exported function `schema_smoke_c`.
+ * Implements `schema_smoke_c`.
+ * @return i32
+ */
 export function schema_smoke_c(): i32 {
   let sch: i64 = 0;
   let age: i32 = 0;
@@ -922,7 +1078,7 @@ export function schema_smoke_c(): i32 {
   if (schema_map_columns_c(sch, csv, &starts[0], &lens[0], count) != SCH_OK) { return 16; }
   if (schema_decode_json_c(sch, &SCH_LIT_NAME_X[0], 14) != SCH_ERR_NOT_FOUND) { return 17; }
   if (schema_last_error_field_c(sch, &name[0], 64) <= 0) { return 18; }
-  /* nested object → 点分字段 */
+  /* See implementation. */
   schema_free_c(sch);
   sch = schema_create_c();
   if (sch == 0) { return 19; }
@@ -936,7 +1092,7 @@ export function schema_smoke_c(): i32 {
   unsafe { _u_rc_18 = strcmp(&name[0], &SCH_LIT_CAROL[0]); }
   if (_u_rc_18 != 0) { return 24; }
   if (schema_get_i32_c(sch, &SCH_LIT_USER_AGE[0], 8, &age) != SCH_OK || age != 42) { return 25; }
-  /* JSON array → 索引点分键 */
+  /* See implementation. */
   schema_free_c(sch);
   sch = schema_create_c();
   if (sch == 0) { return 26; }

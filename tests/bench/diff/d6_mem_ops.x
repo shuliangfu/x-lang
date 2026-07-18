@@ -1,9 +1,13 @@
-// d6_mem_ops.x — D6 内存操作差分测试（与 d6_mem_ops.c 同源）
-// 同源手写内存操作（不依赖 libc），验证数组下标访问 / 循环填充 / 拷贝正确性
+// See implementation.
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let acc: u32 = 0;
 
-  // memset 手写：填充 16 字节
+  // See implementation.
   let buf: u8[16] = 0;
   let i: i32 = 0;
   while (i < 16) {
@@ -16,7 +20,7 @@ function main(): i32 {
     i = i + 1;
   }
 
-  // memcpy 手写：拷贝 8 字节
+  // See implementation.
   let src: u8[8] = [1, 2, 3, 4, 5, 6, 7, 8];
   let dst: u8[8] = 0;
   i = 0;
@@ -30,7 +34,7 @@ function main(): i32 {
     i = i + 1;
   }
 
-  // 边界：空循环不访问
+  // See implementation.
   let z: u8[4] = 0;
   i = 0;
   while (i < 0) {

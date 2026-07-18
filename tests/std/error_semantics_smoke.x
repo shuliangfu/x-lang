@@ -1,6 +1,10 @@
-// tests/std/error_semantics_smoke.x — STD-158：跨模块错误语义类烟测
+// See implementation.
 const err = import("std.error");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (semantic_class(io_err_timeout()) != sem_timeout()) { return 1; }
   if (semantic_class(net_err_cancelled()) != sem_cancelled()) { return 2; }

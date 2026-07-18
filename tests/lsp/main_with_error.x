@@ -1,4 +1,7 @@
-/** LSP 测试用：含类型错误的 .x，用于校验 diagnostics 返回错误。 */
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let x: bool = 42;
   return 0;

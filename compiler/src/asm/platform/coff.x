@@ -14,26 +14,32 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// coff.x — PE/COFF 可重定位 .obj 写出（Windows 目标文件）
+// See implementation.
 //
-// 职责：将 backend 已填充且 elf_resolve_patches 后的 ElfCodegenCtx 写出为 PE/COFF
+// See implementation.
 // .obj，
-//      供 -target *-windows-* 且 -backend asm -o xxx.obj 使用。仅支持 x86_64 (e_machine
+// See implementation.
 // 62)。
 //
-// 依赖：codegen_outbuf_abi（CodegenOutBuf）、platform.elf（ElfCodegenCtx、elf_sym_name_ptr、elf_to_u8、
+// See implementation.
 // elf_name_eq_arr_to_pool）。
 //
 
 const codegen_outbuf_abi = import("codegen_outbuf_abi");
 const elf = import("platform.elf");
 
-/** sidecar reloc glue（定义在 ast_pool.c）。 */
+/* See implementation. */
 export extern function pipeline_elf_ctx_reloc_sym_name_copy64(ctx: *u8, idx: i32, dst: *u8): void;
 export extern function pipeline_elf_ctx_reloc_name_len(ctx: *u8, idx: i32): i32;
 export extern function pipeline_elf_ctx_reloc_offset_at(ctx: *u8, idx: i32): i32;
 
-/** 向 out 追加 ptr[0..n-1]，返回 0 成功，-1 缓冲区满。 */
+/** Exported function `coff_append`.
+ * Implements `coff_append`.
+ * @param out *CodegenOutBuf
+ * @param ptr *u8
+ * @param n i32
+ * @return i32
+ */
 export function coff_append(out: *CodegenOutBuf, ptr: *u8, n: i32): i32 {
   let i: i32 = 0;
   while (i < n && out.len < 8388608) {
@@ -45,8 +51,12 @@ export function coff_append(out: *CodegenOutBuf, ptr: *u8, n: i32): i32 {
   return 0;
 }
 
-/** 将 PE/COFF x86_64 可重定位 .obj 写入 out；调用前需已执行
-* elf_resolve_patches。仅支持 ctx.e_machine == 62。返回写入字节数，失败 -1。 */
+/** Exported function `write_coff_o_to_buf`.
+ * Write path helper `write_coff_o_to_buf`.
+ * @param ctx *ElfCodegenCtx
+ * @param out *CodegenOutBuf
+ * @return i32
+ */
 export function write_coff_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i32 {
   if (ctx.e_machine != 62) {
     return -1;
@@ -153,7 +163,7 @@ export function write_coff_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i
     let r_sym_buf: u8[64] = [];
     pipeline_elf_ctx_reloc_sym_name_copy64(ctx as *u8, r, &r_sym_buf[0]);
     while (m < num_syms) {
-      /** COFF 符号索引解析须用 reloc_sym_names（与 elf_add_reloc 写入一致）。 */
+      /* See implementation. */
       if (elf.elf_name_eq_arr_to_pool(r_sym_buf, pipeline_elf_ctx_reloc_name_len(ctx as *u8, r),
       elf.elf_sym_name_ptr(ctx, m), ctx.syms[m].name_len) != 0) {
         sym_idx = 2 + m;

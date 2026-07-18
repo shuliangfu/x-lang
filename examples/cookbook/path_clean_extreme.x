@@ -1,8 +1,12 @@
 /**
- * Cookbook PATH-02：path_clean 连续斜杠折叠（STD-140）。
+ * See implementation.
  */
 const path = import("std.path");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let inp: u8[7] = [47, 47, 97, 47, 47, 47, 98];
   let out: u8[16] = [];

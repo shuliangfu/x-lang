@@ -1,38 +1,42 @@
-// TST-001：std.string 边界烟测（StrView 钳制 / String 容量 / compare）
+// See implementation.
 //
-// 【文件职责】≥8 边界 case；栈缓冲，无堆分配。
-// 【运行方式】tests/run-tst-001-boundary-gate.sh
+// See implementation.
+// See implementation.
 const string = import("std.string");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let buf: u8[8] = [97, 98, 99, 100, 101, 102, 103, 0];
   let full: StrView = string.view(&buf[0], 7);
-  // case 1：空视图
+  // See implementation.
   if (string.is_empty(string.view(&buf[0], 0)) != 1) { return 1; }
-  // case 2：subview 正常切片
+  // See implementation.
   let mid: StrView = string.string_view_subview(full, 2, 3);
   if (string.len(mid) != 3) { return 2; }
-  // case 3：subview 越界 off 钳制为空
+  // See implementation.
   let empty: StrView = string.string_view_subview(full, 99, 1);
   if (string.is_empty(empty) != 1) { return 3; }
-  // case 4：subview len 钳制到尾部
+  // See implementation.
   let tail: StrView = string.string_view_subview(full, 5, 99);
   if (string.len(tail) != 2) { return 4; }
   // case 5：string_capacity
   if (string.string_capacity() != 256) { return 5; }
-  // case 6：string_new 空串
+  // See implementation.
   let s: String = string.new();
   if (string.len(s) != 0) { return 6; }
-  // case 7：append 后 compare 相等
+  // See implementation.
   let s2: String = s;
   if (string.string_append_char(&s2, 120) != 0) { return 7; }
   let xb: u8[1] = [120];
   let xs: String = string.string_from_slice(&xb[0], 1);
   if (string.string_compare(s2, xs) != 0) { return 8; }
-  // case 8：starts_with 失败
+  // See implementation.
   let yz: u8[2] = [121, 122];
   if (string.string_starts_with(s2, &yz[0], 2) != 0) { return 9; }
-  // case 9：find_char 未找到
+  // See implementation.
   if (string.string_find_char(s2, 121) != -1) { return 10; }
   // case 10：string_view_eq
   let v1: StrView = string.view(&buf[0], 2);

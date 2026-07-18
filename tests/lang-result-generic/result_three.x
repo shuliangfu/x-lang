@@ -1,11 +1,15 @@
 /**
- * LANG-010 烟测：Result<T,E> 模板 + Result<i32,i32> / Result<u8,i32> / Result<bool,i32> 三组合金样。
+ * See implementation.
  */
 allow(padding) struct Result<T, E> {
   value: T;
   err: E;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: Result<i32, i32> = Result<i32, i32> { value: 10, err: 0 };
   let b: Result<u8, i32> = Result<u8, i32> { value: 5, err: 0 };

@@ -14,15 +14,15 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.url — URL 解析、构建、query 编解码与 resolve（STD-076）
+// See implementation.
 //
-// 【文件职责】
+// See implementation.
 // parse/build/stringify；query encode/decode（percent）；
-// 相对 URL resolve；IPv6 bracket host。
+// See implementation.
 //
-// 【对标】RFC 3986、Go net/url、Rust url crate。
+// See implementation.
 
-/** URL 组件（固定缓冲；零拷贝 slice 由 len 界定）。 */
+/* See implementation. */
 allow(padding) struct Url {
   scheme_len: i32;
   host_len: i32;
@@ -48,38 +48,77 @@ extern function url_format_ipv6_host_c(addr_16: *u8, out: *u8, out_cap: i32): i3
 extern function url_host_is_ipv6_c(host: *u8, host_len: i32): i32;
 extern function url_ipv6_host_smoke_c(): i32;
 
-/** 解析 URL；0 成功，-1 失败。 */
+/** Exported function `parse`.
+ * Implements `parse`.
+ * @param url *u8
+ * @param len i32
+ * @param out *Url
+ * @return i32
+ */
 export function parse(url: *u8, len: i32, out: *Url): i32 {
   if (out == 0) { return -1; }
   unsafe { return url_parse_c(url, len, out); }
   return 0; // unreachable — typeck workaround
 }
 
-/** 从组件组装 URL；返回写入长度，失败 -1。 */
+/** Exported function `build`.
+ * Implements `build`.
+ * @param u Url
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function build(u: Url, out: *u8, out_cap: i32): i32 {
   unsafe { return url_build_c(&u, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
-/** 同 build：序列化为字符串。 */
+/** Exported function `stringify`.
+ * Implements `stringify`.
+ * @param u Url
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function stringify(u: Url, out: *u8, out_cap: i32): i32 {
   unsafe { return url_build_c(&u, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
-/** query 值 percent 编码；返回写入长度。 */
+/** Exported function `query_encode`.
+ * Implements `query_encode`.
+ * @param src *u8
+ * @param src_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function query_encode(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return url_query_encode_c(src, src_len, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
-/** query 值 percent 解码；返回写入长度。 */
+/** Exported function `query_decode`.
+ * Implements `query_decode`.
+ * @param src *u8
+ * @param src_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function query_decode(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return url_query_decode_c(src, src_len, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
-/** 相对 ref 解析到 base；结果写入 out；0 成功。 */
+/** Exported function `resolve`.
+ * Implements `resolve`.
+ * @param base Url
+ * @param ref *u8
+ * @param ref_len i32
+ * @param out *Url
+ * @return i32
+ */
 export function resolve(base: Url, ref: *u8, ref_len: i32, out: *Url): i32 {
   if (out == 0) { return -1; }
   unsafe { return url_resolve_c(&base, ref, ref_len, out); }
@@ -87,28 +126,42 @@ export function resolve(base: Url, ref: *u8, ref_len: i32, out: *Url): i32 {
 }
 
 /**
- * 将 Url.host 文本（无方括号）解析为 16 字节 IPv6。
- * 与 std.net Ipv6Addr.b0 起始布局一致，可传 &addr.b0 给 connect_ipv6。
- * 成功 0，失败 -1。
+ * See implementation.
+ * See implementation.
+ * See implementation.
  */
 export function host_to_ipv6(host: *u8, host_len: i32, out_16: *u8): i32 {
   unsafe { return url_host_to_ipv6_c(host, host_len, out_16); }
   return 0; // unreachable — typeck workaround
 }
 
-/** 16 字节 IPv6 格式化为 host 文本（无方括号）；返回长度，失败 -1。 */
+/** Exported function `format_ipv6_host`.
+ * Implements `format_ipv6_host`.
+ * @param addr_16 *u8
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function format_ipv6_host(addr_16: *u8, out: *u8, out_cap: i32): i32 {
   unsafe { return url_format_ipv6_host_c(addr_16, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
-/** host 是否为 IPv6 文本；1 是，0 否。 */
+/** Exported function `host_is_ipv6`.
+ * Implements `host_is_ipv6`.
+ * @param host *u8
+ * @param host_len i32
+ * @return i32
+ */
 export function host_is_ipv6(host: *u8, host_len: i32): i32 {
   unsafe { return url_host_is_ipv6_c(host, host_len); }
   return 0; // unreachable — typeck workaround
 }
 
-/** STD-134 C 金样：IPv6 bracket 与 host 字节互转。 */
+/** Exported function `ipv6_host_smoke`.
+ * Implements `ipv6_host_smoke`.
+ * @return i32
+ */
 export function ipv6_host_smoke(): i32 {
   unsafe { return url_ipv6_host_smoke_c(); }
   return 0; // unreachable — typeck workaround

@@ -14,33 +14,32 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// lsp_diag.x — LSP「文本诊断」响应：parse_into_buf + typeck_x_ast（经
-// pipeline），不写 codegen。
+// See implementation.
+// See implementation.
 //
-// 职责：收到 diagnostic 请求时对正文跑一次 .x 前端，依赖 runtime.c 在
-// lsp_diag_enabled 下把 driver_diagnostic_* 转写为 lsp_diag_add；
-// 再用 lsp_diag_format_diagnostics_json + lsp_build_response_with_result 产出 JSON-RPC。
-// 与 lsp_diag.c 中 hover/references/definition（bootstrap 经 su_alias 走 .x
-// pipeline）分离：此处开头 invalidate 缓存，避免混用两种 AST。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 约束：ctx 由 lsp_diag_prepare_pipeline_ctx 填入 libRoots/entry_dir；pipeline 内装载 direct import deps 后 typeck。
+// See implementation.
 //
-// 根因纪律：禁止 `let e: Expr = ast_arena_expr_get` / `let ty: Type = ast_arena_type_get`。
-// 大 struct 按值拷贝在自举 typeck 上字段类型为 ?（check_block failed）。统一走 pipeline_* 标量读
-//（与 typeck.x 同源），kind 用 ordinal 字面量（与 ast.x 序一致）。
+// See implementation.
+// See implementation.
+// See implementation.
 
 // Cap-T001 / LANG-007 S0: all export paths that call C/pipeline externs use
 // whole-body unsafe as the FFI gate (PLATFORM: SHARED). Product still may pin C; this is M1 typeck.
 
-/** 与 pipeline.x 经 -E 导出名 pipeline_lsp_diag_parse_typeck_buf 一致；仅用 extern
-* 引用，避免 import pipeline。 */
+/** See implementation for details. */
 export extern function pipeline_lsp_diag_parse_typeck_buf(module: *Module, arena: *ASTArena, source_data:
 *u8, source_len: i32, ctx: *PipelineDepCtx): i32;
 
 export extern function pipeline_module_func_name_len_at(module: *Module, fi: i32): i32;
 export extern function pipeline_module_func_name_copy64(module: *Module, fi: i32, dst: *u8): void;
 
-/** Expr/Type 标量字段读（勿按值拷贝整颗 Expr/Type）。 */
+/* See implementation. */
 export extern function pipeline_expr_line_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_col_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_kind_ord_at(arena: *ASTArena, expr_ref: i32): i32;
@@ -52,10 +51,16 @@ export extern function pipeline_expr_struct_lit_type_name_len(arena: *ASTArena, 
 export extern function pipeline_type_kind_ord_at(arena: *ASTArena, type_ref: i32): i32;
 export extern function pipeline_type_named_name_into(arena: *ASTArena, type_ref: i32, out: *u8): i32;
 
-/** C 侧：按 SHUX_LSP_LIB_ROOTS / entry_dir 填充 PipelineDepCtx。 */
+/* See implementation. */
 export extern function lsp_diag_prepare_pipeline_ctx(ctx: *PipelineDepCtx): void;
 
-/** 复制 n 字节（避免 extern memcpy 与 Darwin string.h 宏冲突）。 */
+/** Exported function `copy_bytes`.
+ * Implements `copy_bytes`.
+ * @param dest *u8
+ * @param src *u8
+ * @param n usize
+ * @return void
+ */
 export function copy_bytes(dest: *u8, src: *u8, n: usize): void {
   let i: usize = 0 as usize;
   while (i < n) {
@@ -66,25 +71,24 @@ export function copy_bytes(dest: *u8, src: *u8, n: usize): void {
 export extern function std_heap_alloc(size: usize): *u8;
 export extern function std_heap_free(ptr: *u8): void;
 
-/** 使 C 侧模块/诊断 JSON 缓存失效（definition 等路径将重新 parse）。 */
+/* See implementation. */
 export extern function lsp_diag_invalidate_cache(): void;
 
-/** 打开/关闭「诊断写入收集器」会话（转调 lsp_diag_enabled）。 */
+/* See implementation. */
 export extern function lsp_diag_collect_begin(): void;
 export extern function lsp_diag_collect_end(): void;
 
-/** 将 arena/module/PipelineDepCtx 三块一次性缓冲清零后复用（池化 AST，勿
-ast_module_free）。 */
+/** See implementation for details. */
 export extern function lsp_diag_x_reset_parse_buffers(): void;
 
 export extern function lsp_diag_x_arena_ptr(): *ASTArena;
 export extern function lsp_diag_x_module_ptr(): *Module;
 export extern function lsp_diag_x_ctx_ptr(): *PipelineDepCtx;
 
-/** 将当前收集的诊断序列化为 LSP Diagnostic[] JSON（含方括号）。 */
+/* See implementation. */
 export extern function lsp_diag_format_diagnostics_json(out: *u8, out_cap: i32): i32;
 
-/** 组装 {"jsonrpc":"2.0","id":…,"result":…}，实现仍在 lsp_diag.c。 */
+/* See implementation. */
 export extern function lsp_build_response_with_result(id_val: i32, result_ptr: *u8, result_len: i32,
 out_buf: *u8, out_cap: i32): i32;
 
@@ -108,8 +112,8 @@ export function lsp_diag_run_pipeline_on_buf(mut_buf: *u8, sl: i32): i32 {
 }
 
 /**
-* 构建 diagnostic 的 JSON-RPC 响应正文；失败或缓冲区不足返回 -1。
-* id_val 为请求 id；source/source_len 为 UTF-8 文档字节（可为空文档）。
+* See implementation.
+* See implementation.
 */
 export function lsp_build_diagnostics_response(id_val: i32, source: *u8, source_len: i32, out_buf: *u8,
 out_cap: i32): i32 {
@@ -162,11 +166,11 @@ out_cap: i32): i32 {
   return 0;
 }
 
-/* ============ hover（arena 全量扫描，无递归） ============ */
+/* See implementation. */
 
 /**
-* 扫描 arena 所有表达式，找 (line_1, col_1) 处首个有 resolved_type_ref 的节点。
-* 返回 type_ref（在调用方 arena 中有效）；未找到返回 0。
+* See implementation.
+* See implementation.
 */
 export function lsp_find_type_ref_at_pos(arena: *ASTArena, line_1: i32, col_1: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: whole-body unsafe FFI gate (Cap-T001).
@@ -193,10 +197,10 @@ export function lsp_find_type_ref_at_pos(arena: *ASTArena, line_1: i32, col_1: i
 }
 
 /**
-* 在 source 中 (line_0, col_0) 处悬停类型查询。
-* parse+typeck 后扫描 arena 取类型，格式化为可读名称写入 out_buf。
-* 返回写入字节数；未找到返回 0。供 lsp_diag.c / lsp_diag.stub.c 通过 extern
-* 调用。
+* See implementation.
+* See implementation.
+* See implementation.
+* See implementation.
 */
 export function lsp_diag_hover_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_buf: *u8,
 out_cap: i32): i32 {
@@ -225,10 +229,10 @@ out_cap: i32): i32 {
   std_heap_free(mut_buf);
   let type_ref: i32 = lsp_find_type_ref_at_pos(arena, line_0 + 1, col_0 + 1);
   if (type_ref == 0) { return 0; }
-  /* 取 type 池 kind 序（pipeline_type_*）；禁止 Type 按值拷贝。 */
+  /* See implementation. */
   if (type_ref <= 0 || type_ref > arena.num_types) { return 0; }
   let ko: i32 = pipeline_type_kind_ord_at(arena, type_ref);
-  /* TypeKind 序：I32=0 BOOL=1 U8=2 U32=3 U64=4 I64=5 USIZE=6 NAMED=8 PTR=9 F32=14 F64=15 VOID=16 */
+  /* See implementation. */
   if (ko == 0 && out_cap >= 4) {
     out_buf[0] = 105; out_buf[1] = 51; out_buf[2] = 50; return 3;
   }
@@ -260,11 +264,11 @@ out_cap: i32): i32 {
   if (ko == 16 && out_cap >= 5) {
     out_buf[0] = 118; out_buf[1] = 111; out_buf[2] = 105; out_buf[3] = 100; return 4;
   }
-  /* ptr: "*" + 不做递归；只输出 "*" */
+  /* See implementation. */
   if (ko == 9 && out_cap >= 2) {
     out_buf[0] = 42; return 1;
   }
-  /* named: 直接输出名字 */
+  /* See implementation. */
   if (ko == 8 && out_cap > 0) {
     let nm: u8[64] = [];
     let nlen: i32 = pipeline_type_named_name_into(arena, type_ref, &nm[0]);
@@ -284,12 +288,12 @@ out_cap: i32): i32 {
   return 0;
 }
 
-/* ============ references（arena 全量扫描） ============ */
+/* See implementation. */
 
 /**
-* 扫描 arena 中所有 EXPR_CALL，收集 call_resolved_func_index==func_index 且 line>0
-* 的调用点。
-* 写入 out_lines/out_cols（1-based），返回条目数，最多 max_refs。
+* See implementation.
+* See implementation.
+* See implementation.
 */
 export function lsp_collect_call_refs(arena: *ASTArena, func_index: i32, out_lines: *i32, out_cols: *i32,
 max_refs: i32): i32 {
@@ -319,9 +323,9 @@ max_refs: i32): i32 {
 }
 
 /**
-* 在 source 中 (line_0, col_0) 处找引用，收集所有调用点。
-* parse+typeck 后先定位 (line,col) 处的 CALL 节点取 func_index，再全量扫描收集。
-* 输入/输出坐标为 0-based。返回条目数。供 C 侧调用。
+* See implementation.
+* See implementation.
+* See implementation.
 */
 export function lsp_diag_references_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_lines:
 *i32, out_cols: *i32, max_refs: i32): i32 {
@@ -348,7 +352,7 @@ export function lsp_diag_references_at(source: *u8, source_len: i32, line_0: i32
   if (rc != 0) { std_heap_free(mut_buf); return 0; }
   let arena: *ASTArena = lsp_diag_x_arena_ptr();
   std_heap_free(mut_buf);
-  /* 先定位 (line,col) 处的 CALL，取 func_index */
+  /* See implementation. */
   let line_1: i32 = line_0 + 1;
   let col_1: i32 = col_0 + 1;
   let ord_call: i32 = 48;
@@ -366,7 +370,7 @@ export function lsp_diag_references_at(source: *u8, source_len: i32, line_0: i32
     ei = ei + 1;
   }
   if (func_index < 0) { return 0; }
-  /* 收集所有调用点（1-based），转 0-based 输出 */
+  /* See implementation. */
   let tmp_lines: i32[512] = [];
   let tmp_cols: i32[512] = [];
   let n: i32 = lsp_collect_call_refs(arena, func_index, &tmp_lines[0], &tmp_cols[0], 512);
@@ -383,10 +387,10 @@ export function lsp_diag_references_at(source: *u8, source_len: i32, line_0: i32
   return 0;
 }
 
-/* ============ definition（parse_into_buf + 源码扫描 function 名） ============ */
+/* See implementation. */
 
 /**
-* 判断 (line_1,col_1) 是否落在 [span_col, span_col+span_len) 同一行上（均为
+* See implementation.
 * 1-based）。
 */
 export function lsp_col_in_ident_span(line_1: i32, col_1: i32, span_line: i32, span_col: i32, span_len:
@@ -401,8 +405,8 @@ i32): i32 {
 }
 
 /**
-* 在 source 中扫描 "function <name>"，找到则写出 name
-* 起始行列（1-based）；未找到返回 0。
+* See implementation.
+* See implementation.
 */
 export function lsp_source_find_function_def(source: *u8, sl: i32, name: *u8, name_len: i32, out_line:
 *i32, out_col: *i32): i32 {
@@ -472,8 +476,8 @@ export function lsp_source_find_function_def(source: *u8, sl: i32, name: *u8, na
 }
 
 /**
-* 在 module 中按 func_index 查源码定义行列（1-based）；Func 池无 line
-* 字段，故扫描 "function name"。
+* See implementation.
+* See implementation.
 */
 export function lsp_func_def_pos_in_source(source: *u8, sl: i32, module: *Module, func_index: i32,
 out_line: *i32, out_col: *i32): i32 {
@@ -495,8 +499,8 @@ out_line: *i32, out_col: *i32): i32 {
 }
 
 /**
-* 在 (line_0,col_0)（0-based）处查找定义；成功返回 1 并写 0-based out_line/out_col。
-* 走 parse_into_buf + typeck；Func 定义位置由源码扫描 "function name" 得到。
+* See implementation.
+* See implementation.
 */
 export function lsp_diag_definition_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_line:
 *i32, out_col: *i32): i32 {
@@ -525,7 +529,7 @@ export function lsp_diag_definition_at(source: *u8, source_len: i32, line_0: i32
   let col_1: i32 = col_0 + 1;
   let def_l1: i32 = 0;
   let def_c1: i32 = 0;
-  /* 光标在函数名上：定义即该函数（含 extern）。 */
+  /* See implementation. */
   let fi: i32 = 0;
   while (fi < module.num_funcs) {
     if (lsp_func_def_pos_in_source(mut_buf, sl, module, fi, &def_l1, &def_c1) != 0) {
@@ -539,7 +543,7 @@ export function lsp_diag_definition_at(source: *u8, source_len: i32, line_0: i32
     }
     fi = fi + 1;
   }
-  /* 调用处：找 (line,col) 的 CALL，跳转到 resolved 函数定义。 */
+  /* See implementation. */
   let ord_call: i32 = 48;
   let func_index: i32 = -1;
   let ei: i32 = 1;
@@ -567,12 +571,12 @@ export function lsp_diag_definition_at(source: *u8, source_len: i32, line_0: i32
   return 0;
 }
 
-/* ============ semanticTokens（arena 全量扫描，产出 LSP delta 五元组） ============ */
+/* See implementation. */
 
 /**
-* 扫描 arena 中所有表达式，产出 LSP SemanticTokens delta 编码的五元组：
+* See implementation.
 * (deltaLine, deltaStart, length, tokenType, tokenModifiers)。
-* 写入 out_data（i32 数组），返回写入的 i32 个数（= 5 * token_count）。
+* See implementation.
 */
 export function lsp_collect_semantic_tokens(arena: *ASTArena, out_data: *i32, out_cap: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: whole-body unsafe FFI gate (Cap-T001).
@@ -581,7 +585,7 @@ export function lsp_collect_semantic_tokens(arena: *ASTArena, out_data: *i32, ou
   if (arena == 0 as *ASTArena || out_data == 0 as *i32 || out_cap < 5) {
     return 0;
   }
-  /* ExprKind 序：LIT=0 FLOAT=1 VAR=3 FIELD=44 STRUCT_LIT=45 CALL=48 METHOD=49 ENUM_VARIANT=50 AS=54 */
+  /* See implementation. */
   let ord_lit: i32 = 0;
   let ord_float: i32 = 1;
   let ord_var: i32 = 3;
@@ -594,7 +598,7 @@ export function lsp_collect_semantic_tokens(arena: *ASTArena, out_data: *i32, ou
   let count: i32 = 0;
   let prev_line: i32 = 0;
   let prev_start: i32 = 0;
-  /* 遍历 arena 中所有表达式（标量读，勿 Expr 按值） */
+  /* See implementation. */
   let ei: i32 = 1;
   while (ei <= arena.num_exprs && count + 5 <= out_cap) {
     let el: i32 = pipeline_expr_line_at(arena, ei);
@@ -646,7 +650,7 @@ export function lsp_collect_semantic_tokens(arena: *ASTArena, out_data: *i32, ou
     }
 
     if (token_type >= 0) {
-      /* 计算 delta */
+      /* See implementation. */
       let delta_line: i32 = line0 - prev_line;
       let delta_start: i32 = 0;
       if (delta_line == 0) { delta_start = start0 - prev_start; }
@@ -667,10 +671,10 @@ export function lsp_collect_semantic_tokens(arena: *ASTArena, out_data: *i32, ou
 }
 
 /**
-* 构建 semanticTokens/full 的 JSON-RPC 响应正文：
+* See implementation.
 * {"jsonrpc":"2.0","id":ID,"result":{"data":[...]}}
-* doc_buf/doc_len 为当前文档内容；out_buf/out_cap 为输出缓冲。
-* 返回写入长度，失败返回 -1。
+* See implementation.
+* See implementation.
 */
 export function lsp_build_semantic_tokens_response(id_val: i32, doc_buf: *u8, doc_len: i32, out_buf: *u8,
 out_cap: i32): i32 {
@@ -696,7 +700,7 @@ out_cap: i32): i32 {
   let arena: *ASTArena = lsp_diag_x_arena_ptr();
   std_heap_free(mut_buf);
   
-  /* 收集 token 五元组 */
+  /* See implementation. */
   let token_cap: i32 = 4096;
   let token_bytes: usize = (token_cap * 4) as usize;
   let token_data_raw: *u8 = std_heap_alloc(token_bytes);
@@ -704,12 +708,12 @@ out_cap: i32): i32 {
   if (token_data == 0 as *i32) { return -1; }
   let n_tokens: i32 = lsp_collect_semantic_tokens(arena, token_data, token_cap);
   
-  /* 构建 JSON: {"jsonrpc":"2.0","id":ID,"result":{"data":[...]}} */
+  /* See implementation. */
   let json_cap: i32 = 262144;
   let json_ptr: *u8 = std_heap_alloc(json_cap as usize);
   if (json_ptr == 0 as *u8) { std_heap_free(token_data as *u8); return -1; }
   
-  /* 手写 JSON 前缀 */
+  /* See implementation. */
   let prefix: u8[64] = [];
   let pi: i32 = 0;
   prefix[0]=123; prefix[1]=34; prefix[2]=106; prefix[3]=115; prefix[4]=111; prefix[5]=110; prefix[6]=114;
@@ -717,7 +721,7 @@ out_cap: i32): i32 {
   prefix[14]=48; prefix[15]=34; prefix[16]=44; prefix[17]=34; prefix[18]=105; prefix[19]=100;
   prefix[20]=34; prefix[21]=58;
   pi = 22;
-  /* 写入 id */
+  /* See implementation. */
   let id_str: u8[12] = [];
   let id_len: i32 = 0;
   let tmp: i32 = id_val;
@@ -750,18 +754,18 @@ out_cap: i32): i32 {
   prefix[pi]=34; pi=pi+1;
   prefix[pi]=58; pi=pi+1;
   prefix[pi]=91; pi=pi+1; /* data: [ */
-  /* 复制到 json_ptr */
+  /* See implementation. */
   let pj: i32 = 0;
   while (pj < pi) { json_ptr[pj] = prefix[pj]; pj = pj + 1; }
   
-  /* 填 token 数值（逗号分隔） */
+  /* See implementation. */
   let ti: i32 = 0;
   let first: i32 = 1;
   while (ti < n_tokens) {
     let val: i32 = token_data[ti];
     if (first == 0 && pj < json_cap) { json_ptr[pj] = 44; pj = pj + 1; }
     first = 0;
-    /* 手动数字转字符串 */
+    /* See implementation. */
     if (val < 0) { if (pj < json_cap) { json_ptr[pj] = 45; pj = pj + 1; val = -val; } }
     let digits: i32[12] = [];
     let dn: i32 = 0;
@@ -772,7 +776,7 @@ out_cap: i32): i32 {
       - 1; }
     ti = ti + 1;
   }
-  /* 关闭 data]  }
+  /* See implementation. */
   return 0;
 }
 } */
@@ -781,7 +785,7 @@ if (pj < json_cap) { json_ptr[pj] = 125; pj = pj + 1; }
 if (pj < json_cap) { json_ptr[pj] = 125; pj = pj + 1; }
 
 let resp_len: i32 = pj;
-/* 复制到 out_buf */
+/* See implementation. */
 let ri: i32 = 0;
 while (ri < resp_len && ri < out_cap) { out_buf[ri] = json_ptr[ri]; ri = ri + 1; }
 std_heap_free(json_ptr);

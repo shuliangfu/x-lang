@@ -1,20 +1,20 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-307/448 / P2 runtime rest：已知精确 parse 失败诊断 note。
-// R2 full（2026-07-14）：.x 吃满 runtime_report_precise_parse_failure_if_known；
-// 产品 PREFER_X_O：full .x + rest 在 FROM_X 下仅 marker（业务 H=0）。
-// 🔒 fail_tok 经 parser_diag_fail_at_token_kind_buf；报告经 diag_report_with_code（无 va）。
-// TOKEN_STRING = 130 与 include/token.h 枚举序对齐（硬编码，忌 thin 假迁）。
+// Runtime parse diagnostics helpers (G.9 English; body is authoritative).
+// Runtime parse diagnostics helpers (G.9 English; body is authoritative).
+// Runtime parse diagnostics helpers (G.9 English; body is authoritative).
+// Runtime parse diagnostics helpers (G.9 English; body is authoritative).
+// Runtime parse diagnostics helpers (G.9 English; body is authoritative).
 
 export extern "C" function parser_diag_fail_at_token_kind_buf(data: *u8, len: i32): i32;
 export extern "C" function diag_report_with_code(
   file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void;
 
-/** 与 include/token.h TokenKind::TOKEN_STRING 一致。 */
+/* See signature and body for contracts. */
 export const RT_PARSE_TOKEN_STRING: i32 = 130;
 
-/** TOKEN_STRING 失败时发 P001；否则 0。 */
+/* See signature and body for contracts. */
 #[no_mangle]
 export function runtime_report_precise_parse_failure_if_known(
   input_path: *u8, src: *u8, src_len: usize): i32 {
@@ -29,7 +29,7 @@ export function runtime_report_precise_parse_failure_if_known(
   if (src_len == 0 as usize) {
     return 0;
   }
-  /* src_len 合理源长 ≪ i32 上界；_buf API 取 i32。 */
+  /* See signature and body for contracts. */
   n = src_len as i32;
   if (n <= 0) {
     return 0;

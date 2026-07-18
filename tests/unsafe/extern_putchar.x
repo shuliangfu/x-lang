@@ -1,7 +1,10 @@
-// LANG-007 U3：extern 声明 C 符号，FFI 边界由 unsafe { } 信封包裹
+// See implementation.
 extern function putchar(c: i32): i32;
 
-/** 入口：在 unsafe 内输出 'A'，成功返回 0。 */
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   unsafe {
     putchar(65);

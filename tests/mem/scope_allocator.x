@@ -1,6 +1,10 @@
-// MEM-C1：scope_alloc() 在 with_arena 内展开为当前 scope Allocator（kind=1 即 arena）。
+// See implementation.
 const heap = import("std.heap");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   with_arena(4096) {
     let al: Allocator = heap.scope_alloc();

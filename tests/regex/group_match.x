@@ -1,6 +1,10 @@
-// STD-063：分组 `(ab)c`
+// See implementation.
 const regex = import("std.regex");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let pat: u8[5] = [40, 97, 98, 41, 99];
   let re: *u8 = regex.compile(&pat[0], 5);

@@ -1,10 +1,14 @@
-// tests/env/env_iter.x — STD-025：env_iter / args_iter 烟测
+// See implementation.
 //
-// 【文件职责】校验环境块与命令行参数遍历 API。
-// 【预期结果】退出码 0 表示通过。
+// See implementation.
+// See implementation.
 const env = import("std.env");
 
-/** 比较 key_buf 与字面量 "X_IT"（4 字节）是否一致。 */
+/** Internal function `key_is_x_it`.
+ * Implements `key_is_x_it`.
+ * @param key *u8
+ * @return i32
+ */
 function key_is_x_it(key: *u8): i32 {
   if (key[0] != 88) { return 0; }
   if (key[1] != 95) { return 0; }
@@ -14,6 +18,10 @@ function key_is_x_it(key: *u8): i32 {
   return 1;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let ai: ArgsIter = env.args_iter();
   let a0: *u8 = env.args_iter_next(&ai);

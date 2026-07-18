@@ -14,34 +14,46 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.random — CSPRNG + 可复现 PRNG（SplitMix64，STD-130）
+// See implementation.
 //
-// 【文件职责】
-// 对外暴露 std.random 的完整 API：fill_bytes、next、range（[lo,hi]
-// 闭区间）、flip/gen（CSPRNG）；以及 Rng / seed / step / fill（可复现 PRNG）。
-// 对标 Zig std.crypto / getentropy、Rust getrandom / OsRng；PRNG 对标 SplitMix64 种子流。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 
 extern function random_fill_bytes_c(buf: *u8, len: i32): i32;
 extern function random_u32_c(): u32;
 extern function random_u64_c(): u64;
 extern function random_rng_smoke_c(): i32;
 
-/** 用密码学安全随机字节填满 buf[0..len)，返回写入的字节数（成功时为
- * len），失败时返回负值。对标 getrandom/OsRng.fill_bytes。 */
+/** Exported function `fill_bytes`.
+ * Implements `fill_bytes`.
+ * @param buf *u8
+ * @param len i32
+ * @return i32
+ */
 export function fill_bytes(buf: *u8, len: i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = random_fill_bytes_c(buf, len); }
   return _rc;
 }
 
-/** 生成密码学安全随机 u64（Tier-S `next`；u32 场景用 `as u32` 截断）。 */
+/** Exported function `next`.
+ * Implements `next`.
+ * @return u64
+ */
 export function next(): u64 {
   let _rc: u64 = 0;
   unsafe { _rc = random_u64_c(); }
   return _rc;
 }
 
-/** CSPRNG：[lo, hi] 闭区间内均匀 u32（含两端）；lo > hi 时返回 lo。 */
+/** Exported function `range`.
+ * Implements `range`.
+ * @param lo u32
+ * @param hi u32
+ * @return u32
+ */
 export function range(lo: u32, hi: u32): u32 {
   if (lo > hi) {
     return lo;
@@ -62,26 +74,36 @@ export function range(lo: u32, hi: u32): u32 {
   return lo + (x % range_val);
 }
 
-/** 生成均匀随机布尔，返回 0 或 1。对标 gen_bool。 */
+/** Exported function `gen`.
+ * Implements `gen`.
+ * @return i32
+ */
 export function gen(): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = (random_u32_c() & 1) as i32; }
   return _rc;
 }
 
-/** Tier-S：均匀随机布尔 0/1（gen 别名）。 */
+/** Exported function `flip`.
+ * Implements `flip`.
+ * @return i32
+ */
 export function flip(): i32 {
   return gen();
 }
 
-// ——— STD-130：可复现 PRNG（SplitMix64） ———
+// See implementation.
 
-/** PRNG 状态；仅含 u64 种子流，按值传递时须复制后再 mutate。 */
+/* See implementation. */
 allow(padding) struct Rng {
   state: u64;
 }
 
-/** SplitMix64 单步；更新 *r 并返回下一个 u64。 */
+/** Exported function `step`.
+ * Implements `step`.
+ * @param r *Rng
+ * @return u64
+ */
 export function step(r: *Rng): u64 {
   let z: u64 = r.state + 0x9e3779b97f4a7c15 as u64;
   r.state = z;
@@ -95,12 +117,22 @@ export function step(r: *Rng): u64 {
   return z ^ t;
 }
 
-/** 用 seed 初始化 PRNG；同 seed 产生同序列。 */
+/** Exported function `seed`.
+ * Implements `seed`.
+ * @param seed_val u64
+ * @return Rng
+ */
 export function seed(seed_val: u64): Rng {
   return Rng { state: seed_val };
 }
 
-/** 用 PRNG 字节填充 buf[0..len)。 */
+/** Exported function `fill`.
+ * Implements `fill`.
+ * @param r *Rng
+ * @param buf *u8
+ * @param len i32
+ * @return void
+ */
 export function fill(r: *Rng, buf: *u8, len: i32): void {
   let i: i32 = 0;
   while (i < len) {
@@ -115,7 +147,13 @@ export function fill(r: *Rng, buf: *u8, len: i32): void {
   }
 }
 
-/** PRNG：[lo, hi] 闭区间均匀 u32；lo > hi 时返回 lo。 */
+/** Exported function `range`.
+ * Implements `range`.
+ * @param r *Rng
+ * @param lo u32
+ * @param hi u32
+ * @return u32
+ */
 export function range(r: *Rng, lo: u32, hi: u32): u32 {
   if (lo > hi) {
     return lo;
@@ -133,7 +171,10 @@ export function range(r: *Rng, lo: u32, hi: u32): u32 {
   return lo + (x % range_val);
 }
 
-/** C 层 PRNG 烟测；0 成功，非 0 失败。 */
+/** Exported function `rng_smoke`.
+ * Implements `rng_smoke`.
+ * @return i32
+ */
 export function rng_smoke(): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = random_rng_smoke_c(); }

@@ -1,6 +1,10 @@
-// SIMD-S2 烟测：Vec4f / Vec8i 类型解析 + lane 运算 + asm 栈槽 emit。
+// See implementation.
 const simd = import("std.simd");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let vi: Vec8i = simd.splat(1);
   let vj: Vec8i = simd.splat(2);

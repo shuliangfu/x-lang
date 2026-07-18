@@ -14,13 +14,13 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.metrics — 统一可观测性指标（STD-078）
+// See implementation.
 //
-// 【文件职责】
-// Counter / Gauge / Histogram 注册与快照；单 label 维度；Prometheus 文本导出；
-// 与 std.atomic 协作保证 counter/gauge 并发安全。
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 【对标】Prometheus client 最小子集、Go expvar + metrics 组合风格。
+// See implementation.
 
 const fmt = import("std.fmt");
 const atomic = import("std.atomic");
@@ -28,26 +28,50 @@ const context = import("std.context");
 const encoding = import("std.encoding");
 const trace = import("std.trace");
 
-/** 成功。 */
+/** Exported function `err_ok`.
+ * Implements `err_ok`.
+ * @return i32
+ */
 export function err_ok(): i32 { return 0; }
-/** 注册表已满。 */
+/** Exported function `err_full`.
+ * Implements `err_full`.
+ * @return i32
+ */
 export function err_full(): i32 { return -1; }
-/** 索引或名称无效。 */
+/** Exported function `err_not_found`.
+ * Implements `err_not_found`.
+ * @return i32
+ */
 export function err_not_found(): i32 { return -2; }
-/** 输出缓冲不足。 */
+/** Exported function `err_buffer`.
+ * Implements `err_buffer`.
+ * @return i32
+ */
 export function err_buffer(): i32 { return -3; }
 
-/** 指标种类：单调递增计数。 */
+/** Exported function `metric_kind_counter`.
+ * Implements `metric_kind_counter`.
+ * @return i32
+ */
 export function metric_kind_counter(): i32 { return 1; }
-/** 指标种类：可增可减瞬时值。 */
+/** Exported function `metric_kind_gauge`.
+ * Implements `metric_kind_gauge`.
+ * @return i32
+ */
 export function metric_kind_gauge(): i32 { return 2; }
-/** 指标种类：分桶分布。 */
+/** Exported function `metric_kind_histogram`.
+ * Implements `metric_kind_histogram`.
+ * @return i32
+ */
 export function metric_kind_histogram(): i32 { return 3; }
 
-/** 默认直方图桶上界（毫秒等任意单位，最后一档为 +Inf）。 */
+/** Exported function `histogram_default_bucket_count`.
+ * Implements `histogram_default_bucket_count`.
+ * @return i32
+ */
 export function histogram_default_bucket_count(): i32 { return 5; }
 
-/** 单 label 键值对（v1 每指标至多一对）。 */
+/* See implementation. */
 allow(padding) struct Label {
   key_len: i32;
   val_len: i32;
@@ -55,7 +79,7 @@ allow(padding) struct Label {
   val: u8[32];
 }
 
-/** 计数器：只增不减。 */
+/* See implementation. */
 allow(padding) struct Counter {
   name_len: i32;
   name: u8[48];
@@ -63,7 +87,7 @@ allow(padding) struct Counter {
   value: i64;
 }
 
-/** 仪表盘：可 set/add。 */
+/* See implementation. */
 allow(padding) struct Gauge {
   name_len: i32;
   name: u8[48];
@@ -71,7 +95,7 @@ allow(padding) struct Gauge {
   value: i64;
 }
 
-/** 直方图：固定 5 桶 + sum/count。 */
+/* See implementation. */
 allow(padding) struct Histogram {
   name_len: i32;
   name: u8[48];
@@ -83,7 +107,7 @@ allow(padding) struct Histogram {
   count: i64;
 }
 
-/** 本地注册表（各类型最多 4 项，供批量导出）。 */
+/* See implementation. */
 allow(padding) struct Registry {
   counter_n: i32;
   gauge_n: i32;
@@ -102,7 +126,14 @@ allow(padding) struct Registry {
   h3: Histogram;
 }
 
-/** 复制字节到固定缓冲；返回写入长度，失败 -1。 */
+/** Exported function `copy_bytes`.
+ * Implements `copy_bytes`.
+ * @param dst *u8
+ * @param dst_cap i32
+ * @param src *u8
+ * @param src_len i32
+ * @return i32
+ */
 export function copy_bytes(dst: *u8, dst_cap: i32, src: *u8, src_len: i32): i32 {
   let i: i32 = 0;
   if (dst == 0 || src == 0 || dst_cap <= 0) { return -1; }
@@ -115,12 +146,23 @@ export function copy_bytes(dst: *u8, dst_cap: i32, src: *u8, src_len: i32): i32 
   return src_len;
 }
 
-/** 初始化空 label。 */
+/** Exported function `label_empty`.
+ * Implements `label_empty`.
+ * @return Label
+ */
 export function label_empty(): Label {
   return Label { key_len: 0, val_len: 0, key: [], val: [] };
 }
 
-/** 设置 label 键值（长度截断至 31）。 */
+/** Exported function `label_set`.
+ * Implements `label_set`.
+ * @param l *Label
+ * @param key *u8
+ * @param key_len i32
+ * @param val *u8
+ * @param val_len i32
+ * @return i32
+ */
 export function label_set(l: *Label, key: *u8, key_len: i32, val: *u8, val_len: i32): i32 {
   if (l == 0) { return err_not_found(); }
   l.key_len = copy_bytes(&l.key[0], 32, key, key_len);
@@ -129,7 +171,10 @@ export function label_set(l: *Label, key: *u8, key_len: i32, val: *u8, val_len: 
   return err_ok();
 }
 
-/** 新建空注册表。 */
+/** Exported function `registry_new`.
+ * Implements `registry_new`.
+ * @return Registry
+ */
 export function registry_new(): Registry {
   return Registry {
     counter_n: 0, gauge_n: 0, hist_n: 0,
@@ -148,7 +193,17 @@ export function registry_new(): Registry {
   };
 }
 
-/** 初始化 Counter 名称与 label。 */
+/** Exported function `counter_init`.
+ * Implements `counter_init`.
+ * @param c *Counter
+ * @param name *u8
+ * @param name_len i32
+ * @param lkey *u8
+ * @param lk_len i32
+ * @param lval *u8
+ * @param lv_len i32
+ * @return i32
+ */
 export function counter_init(c: *Counter, name: *u8, name_len: i32, lkey: *u8, lk_len: i32, lval: *u8, lv_len: i32): i32 {
   if (c == 0) { return err_not_found(); }
   c.name_len = copy_bytes(&c.name[0], 48, name, name_len);
@@ -157,7 +212,12 @@ export function counter_init(c: *Counter, name: *u8, name_len: i32, lkey: *u8, l
   return label_set(&c.label, lkey, lk_len, lval, lv_len);
 }
 
-/** 递增 Counter（原子 add）。 */
+/** Exported function `counter_inc`.
+ * Implements `counter_inc`.
+ * @param c *Counter
+ * @param delta i64
+ * @return i32
+ */
 export function counter_inc(c: *Counter, delta: i64): i32 {
   if (c == 0) { return err_not_found(); }
   if (delta <= (0 as i64)) { return err_ok(); }
@@ -165,13 +225,27 @@ export function counter_inc(c: *Counter, delta: i64): i32 {
   return err_ok();
 }
 
-/** 读取 Counter 快照。 */
+/** Exported function `counter_snapshot`.
+ * Implements `counter_snapshot`.
+ * @param c *Counter
+ * @return i64
+ */
 export function counter_snapshot(c: *Counter): i64 {
   if (c == 0) { return 0; }
   return atomic.load(&c.value);
 }
 
-/** 初始化 Gauge。 */
+/** Exported function `gauge_init`.
+ * Implements `gauge_init`.
+ * @param g *Gauge
+ * @param name *u8
+ * @param name_len i32
+ * @param lkey *u8
+ * @param lk_len i32
+ * @param lval *u8
+ * @param lv_len i32
+ * @return i32
+ */
 export function gauge_init(g: *Gauge, name: *u8, name_len: i32, lkey: *u8, lk_len: i32, lval: *u8, lv_len: i32): i32 {
   if (g == 0) { return err_not_found(); }
   g.name_len = copy_bytes(&g.name[0], 48, name, name_len);
@@ -180,27 +254,45 @@ export function gauge_init(g: *Gauge, name: *u8, name_len: i32, lkey: *u8, lk_le
   return label_set(&g.label, lkey, lk_len, lval, lv_len);
 }
 
-/** 设置 Gauge 值。 */
+/** Exported function `gauge_set`.
+ * Implements `gauge_set`.
+ * @param g *Gauge
+ * @param v i64
+ * @return i32
+ */
 export function gauge_set(g: *Gauge, v: i64): i32 {
   if (g == 0) { return err_not_found(); }
   atomic.store(&g.value, v);
   return err_ok();
 }
 
-/** Gauge 加减。 */
+/** Exported function `gauge_add`.
+ * Implements `gauge_add`.
+ * @param g *Gauge
+ * @param delta i64
+ * @return i32
+ */
 export function gauge_add(g: *Gauge, delta: i64): i32 {
   if (g == 0) { return err_not_found(); }
   atomic.fetch_add(&g.value, delta);
   return err_ok();
 }
 
-/** 读取 Gauge 快照。 */
+/** Exported function `gauge_snapshot`.
+ * Implements `gauge_snapshot`.
+ * @param g *Gauge
+ * @return i64
+ */
 export function gauge_snapshot(g: *Gauge): i64 {
   if (g == 0) { return 0; }
   return atomic.load(&g.value);
 }
 
-/** 安装默认直方图桶：1, 5, 10, 50, +Inf。 */
+/** Exported function `histogram_init_default_buckets`.
+ * Implements `histogram_init_default_buckets`.
+ * @param h *Histogram
+ * @return void
+ */
 export function histogram_init_default_buckets(h: *Histogram): void {
   let inf: i64 = 9223372036854775807;
   if (h == 0) { return; }
@@ -219,7 +311,17 @@ export function histogram_init_default_buckets(h: *Histogram): void {
   h.count = 0 as i64;
 }
 
-/** 初始化 Histogram 名称与 label。 */
+/** Exported function `histogram_init`.
+ * Implements `histogram_init`.
+ * @param h *Histogram
+ * @param name *u8
+ * @param name_len i32
+ * @param lkey *u8
+ * @param lk_len i32
+ * @param lval *u8
+ * @param lv_len i32
+ * @return i32
+ */
 export function histogram_init(h: *Histogram, name: *u8, name_len: i32, lkey: *u8, lk_len: i32, lval: *u8, lv_len: i32): i32 {
   if (h == 0) { return err_not_found(); }
   h.name_len = copy_bytes(&h.name[0], 48, name, name_len);
@@ -228,7 +330,12 @@ export function histogram_init(h: *Histogram, name: *u8, name_len: i32, lkey: *u
   return label_set(&h.label, lkey, lk_len, lval, lv_len);
 }
 
-/** 记录一次观测值（写入首个匹配桶并更新 sum/count）。 */
+/** Exported function `histogram_observe`.
+ * Implements `histogram_observe`.
+ * @param h *Histogram
+ * @param v i64
+ * @return i32
+ */
 export function histogram_observe(h: *Histogram, v: i64): i32 {
   let i: i32 = 0;
   let placed: i32 = 0;
@@ -246,7 +353,17 @@ export function histogram_observe(h: *Histogram, v: i64): i32 {
   return err_ok();
 }
 
-/** 注册 Counter 到 Registry；返回索引或负错误码。 */
+/** Exported function `counter`.
+ * Implements `counter`.
+ * @param reg *Registry
+ * @param name *u8
+ * @param name_len i32
+ * @param lkey *u8
+ * @param lk_len i32
+ * @param lval *u8
+ * @param lv_len i32
+ * @return i32
+ */
 export function counter(reg: *Registry, name: *u8, name_len: i32, lkey: *u8, lk_len: i32, lval: *u8, lv_len: i32): i32 {
   let idx: i32 = 0;
   if (reg == 0) { return err_not_found(); }
@@ -260,7 +377,17 @@ export function counter(reg: *Registry, name: *u8, name_len: i32, lkey: *u8, lk_
   return idx;
 }
 
-/** 注册 Gauge。 */
+/** Exported function `gauge`.
+ * Implements `gauge`.
+ * @param reg *Registry
+ * @param name *u8
+ * @param name_len i32
+ * @param lkey *u8
+ * @param lk_len i32
+ * @param lval *u8
+ * @param lv_len i32
+ * @return i32
+ */
 export function gauge(reg: *Registry, name: *u8, name_len: i32, lkey: *u8, lk_len: i32, lval: *u8, lv_len: i32): i32 {
   let idx: i32 = 0;
   if (reg == 0) { return err_not_found(); }
@@ -274,7 +401,17 @@ export function gauge(reg: *Registry, name: *u8, name_len: i32, lkey: *u8, lk_le
   return idx;
 }
 
-/** 注册 Histogram。 */
+/** Exported function `histogram`.
+ * Implements `histogram`.
+ * @param reg *Registry
+ * @param name *u8
+ * @param name_len i32
+ * @param lkey *u8
+ * @param lk_len i32
+ * @param lval *u8
+ * @param lv_len i32
+ * @return i32
+ */
 export function histogram(reg: *Registry, name: *u8, name_len: i32, lkey: *u8, lk_len: i32, lval: *u8, lv_len: i32): i32 {
   let idx: i32 = 0;
   if (reg == 0) { return err_not_found(); }
@@ -288,7 +425,15 @@ export function histogram(reg: *Registry, name: *u8, name_len: i32, lkey: *u8, l
   return idx;
 }
 
-/** 追加 slice 到 out；返回新 offset，失败 -1。 */
+/** Exported function `extend`.
+ * Implements `extend`.
+ * @param out *u8
+ * @param cap i32
+ * @param off i32
+ * @param src *u8
+ * @param n i32
+ * @return i32
+ */
 export function extend(out: *u8, cap: i32, off: i32, src: *u8, n: i32): i32 {
   let i: i32 = 0;
   if (out == 0 || src == 0) { return -1; }
@@ -300,14 +445,28 @@ export function extend(out: *u8, cap: i32, off: i32, src: *u8, n: i32): i32 {
   return off + n;
 }
 
-/** 追加单字节；返回新 offset，失败 -1。 */
+/** Exported function `append_byte`.
+ * Implements `append_byte`.
+ * @param out *u8
+ * @param cap i32
+ * @param off i32
+ * @param b u8
+ * @return i32
+ */
 export function append_byte(out: *u8, cap: i32, off: i32, b: u8): i32 {
   let tmp: u8[1] = [0];
   tmp[0] = b;
   return extend(out, cap, off, &tmp[0], 1);
 }
 
-/** 追加 label 片段 key="val"（不含花括号）；无 label 时返回原 offset。 */
+/** Exported function `append_label_suffix`.
+ * Implements `append_label_suffix`.
+ * @param out *u8
+ * @param cap i32
+ * @param off i32
+ * @param l *Label
+ * @return i32
+ */
 export function append_label_suffix(out: *u8, cap: i32, off: i32, l: *Label): i32 {
   let o: i32 = off;
   if (l == 0 || l.key_len <= 0) { return o; }
@@ -323,7 +482,14 @@ export function append_label_suffix(out: *u8, cap: i32, off: i32, l: *Label): i3
   return o;
 }
 
-/** 导出单个 Counter 的 Prometheus 行。 */
+/** Exported function `export_counter_prometheus`.
+ * Implements `export_counter_prometheus`.
+ * @param c *Counter
+ * @param out *u8
+ * @param cap i32
+ * @param off i32
+ * @return i32
+ */
 export function export_counter_prometheus(c: *Counter, out: *u8, cap: i32, off: i32): i32 {
   let o: i32 = off;
   let v: i64 = 0;
@@ -347,7 +513,14 @@ export function export_counter_prometheus(c: *Counter, out: *u8, cap: i32, off: 
   return o;
 }
 
-/** 导出单个 Gauge 的 Prometheus 行。 */
+/** Exported function `export_gauge_prometheus`.
+ * Implements `export_gauge_prometheus`.
+ * @param g *Gauge
+ * @param out *u8
+ * @param cap i32
+ * @param off i32
+ * @return i32
+ */
 export function export_gauge_prometheus(g: *Gauge, out: *u8, cap: i32, off: i32): i32 {
   let o: i32 = off;
   let v: i64 = 0;
@@ -371,7 +544,14 @@ export function export_gauge_prometheus(g: *Gauge, out: *u8, cap: i32, off: i32)
   return o;
 }
 
-/** 导出 Histogram（累积桶 + sum + count）。 */
+/** Exported function `export_histogram_prometheus`.
+ * Implements `export_histogram_prometheus`.
+ * @param h *Histogram
+ * @param out *u8
+ * @param cap i32
+ * @param off i32
+ * @return i32
+ */
 export function export_histogram_prometheus(h: *Histogram, out: *u8, cap: i32, off: i32): i32 {
   let o: i32 = off;
   let i: i32 = 0;
@@ -440,7 +620,13 @@ export function export_histogram_prometheus(h: *Histogram, out: *u8, cap: i32, o
   return o;
 }
 
-/** 导出 Registry 内全部指标为 Prometheus 文本；返回总长度。 */
+/** Exported function `export_prometheus`.
+ * Implements `export_prometheus`.
+ * @param reg *Registry
+ * @param out *u8
+ * @param cap i32
+ * @return i32
+ */
 export function export_prometheus(reg: *Registry, out: *u8, cap: i32): i32 {
   let o: i32 = 0;
   let i: i32 = 0;
@@ -474,9 +660,9 @@ export function export_prometheus(reg: *Registry, out: *u8, cap: i32): i32 {
   return o;
 }
 
-/* --- STD-117：与 std.log / std.trace 统一观测上下文 --- */
+/* See implementation. */
 
-/** 统一观测上下文：trace_id + span_id 十六进制（供 log KV / metrics label）。 */
+/* See implementation. */
 allow(padding) struct ObservabilityCtx {
   trace_handle: i64;
   span_id: i64;
@@ -486,25 +672,44 @@ allow(padding) struct ObservabilityCtx {
   span_id_hex: u8[17];
 }
 
-/** Context value bag 键 "trace"（与 std.trace.attach_to_context 一致）。 */
+/** Exported function `obs_ctx_key_trace_len`.
+ * Query helper `obs_ctx_key_trace_len`.
+ * @return i32
+ */
 export function obs_ctx_key_trace_len(): i32 { return 5; }
 
-/** Context value bag 键 "span"（span_id i64）。 */
+/** Exported function `obs_ctx_key_span_len`.
+ * Query helper `obs_ctx_key_span_len`.
+ * @return i32
+ */
 export function obs_ctx_key_span_len(): i32 { return 4; }
 
-/** 写入 trace 键到 buf；返回写入长度。 */
+/** Exported function `obs_ctx_write_key_trace`.
+ * Write path helper `obs_ctx_write_key_trace`.
+ * @param buf *u8
+ * @param cap i32
+ * @return i32
+ */
 export function obs_ctx_write_key_trace(buf: *u8, cap: i32): i32 {
   let k: u8[6] = [116, 114, 97, 99, 101, 0];
   return copy_bytes(buf, cap, &k[0], 5);
 }
 
-/** 写入 span 键到 buf；返回写入长度。 */
+/** Exported function `obs_ctx_write_key_span`.
+ * Write path helper `obs_ctx_write_key_span`.
+ * @param buf *u8
+ * @param cap i32
+ * @return i32
+ */
 export function obs_ctx_write_key_span(buf: *u8, cap: i32): i32 {
   let k: u8[5] = [115, 112, 97, 110, 0];
   return copy_bytes(buf, cap, &k[0], 4);
 }
 
-/** 空观测上下文。 */
+/** Exported function `obs_ctx_empty`.
+ * Implements `obs_ctx_empty`.
+ * @return ObservabilityCtx
+ */
 export function obs_ctx_empty(): ObservabilityCtx {
   let zero: i64 = 0;
   return ObservabilityCtx {
@@ -517,7 +722,12 @@ export function obs_ctx_empty(): ObservabilityCtx {
   };
 }
 
-/** 将 trace_id 16 字节编码为 32 字符 hex 写入 obs.trace_id_hex；返回长度。 */
+/** Exported function `obs_encode_trace_id_hex`.
+ * Implements `obs_encode_trace_id_hex`.
+ * @param obs *ObservabilityCtx
+ * @param tid *TraceId
+ * @return i32
+ */
 export function obs_encode_trace_id_hex(obs: *ObservabilityCtx, tid: *TraceId): i32 {
   let n: i32 = 0;
   if (obs == 0 || tid == 0) { return -1; }
@@ -528,7 +738,12 @@ export function obs_encode_trace_id_hex(obs: *ObservabilityCtx, tid: *TraceId): 
   return 32;
 }
 
-/** 将 span_id 编码为 hex 写入 obs.span_id_hex；返回长度。 */
+/** Exported function `obs_encode_span_id_hex`.
+ * Implements `obs_encode_span_id_hex`.
+ * @param obs *ObservabilityCtx
+ * @param span_id i64
+ * @return i32
+ */
 export function obs_encode_span_id_hex(obs: *ObservabilityCtx, span_id: i64): i32 {
   let n: i32 = 0;
   if (obs == 0) { return -1; }
@@ -539,7 +754,12 @@ export function obs_encode_span_id_hex(obs: *ObservabilityCtx, span_id: i64): i3
   return n;
 }
 
-/** 从 Trace + Span 构建观测上下文。 */
+/** Exported function `obs_ctx_from_trace`.
+ * Implements `obs_ctx_from_trace`.
+ * @param tr *Trace
+ * @param span Span
+ * @return ObservabilityCtx
+ */
 export function obs_ctx_from_trace(tr: *Trace, span: Span): ObservabilityCtx {
   let zero: i64 = 0;
   let obs: ObservabilityCtx = obs_ctx_empty();
@@ -557,7 +777,12 @@ export function obs_ctx_from_trace(tr: *Trace, span: Span): ObservabilityCtx {
   return obs;
 }
 
-/** 将观测上下文写入 Context value bag（trace 句柄 + span_id）。 */
+/** Exported function `obs_ctx_attach_context`.
+ * Implements `obs_ctx_attach_context`.
+ * @param ctx Context
+ * @param obs ObservabilityCtx
+ * @return i32
+ */
 export function obs_ctx_attach_context(ctx: Context, obs: ObservabilityCtx): i32 {
   let zero: i64 = 0;
   let ktrace: u8[8] = [];
@@ -570,7 +795,12 @@ export function obs_ctx_attach_context(ctx: Context, obs: ObservabilityCtx): i32
   return err_ok();
 }
 
-/** 从 Context 恢复观测上下文；tr 用于读取 trace_id hex。 */
+/** Exported function `obs_ctx_from_context`.
+ * Implements `obs_ctx_from_context`.
+ * @param ctx Context
+ * @param tr *Trace
+ * @return ObservabilityCtx
+ */
 export function obs_ctx_from_context(ctx: Context, tr: *Trace): ObservabilityCtx {
   let zero: i64 = 0;
   let obs: ObservabilityCtx = obs_ctx_empty();
@@ -594,8 +824,8 @@ export function obs_ctx_from_context(ctx: Context, tr: *Trace): ObservabilityCtx
 }
 
 /**
- * 格式化为 log structured KV：`trace_id=<hex> span_id=<hex>`。
- * 可直接传入 std.log.structured_kv 的 kv 参数。
+ * See implementation.
+ * See implementation.
  */
 export function obs_ctx_format_log_kv(obs: *ObservabilityCtx, out: *u8, out_cap: i32): i32 {
   let tk: u8[9] = [116, 114, 97, 99, 101, 95, 105, 100, 61];
@@ -620,8 +850,8 @@ export function obs_ctx_format_log_kv(obs: *ObservabilityCtx, out: *u8, out_cap:
 }
 
 /**
- * 将 trace_id 写入 Label（键 trace_id）；值截断至 31 字节。
- * 高基数场景慎用；v1 用于 log/metrics/trace 字段对齐演示。
+ * See implementation.
+ * See implementation.
  */
 export function obs_ctx_apply_trace_label(obs: *ObservabilityCtx, lbl: *Label): i32 {
   let k: u8[9] = [116, 114, 97, 99, 101, 95, 105, 100, 0];

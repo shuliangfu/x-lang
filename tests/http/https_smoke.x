@@ -1,6 +1,10 @@
-// STD-HTTP-HTTPS：std.http HTTPS 烟测（桩 TLS 时验证 -1221；有 TLS 时走 C 烟测）
+// See implementation.
 const http = import("std.http");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let url: u8[19] = [
     104, 116, 116, 112, 115, 58, 47, 47, 101, 120, 97, 109, 112, 108, 101, 46, 99, 111, 109

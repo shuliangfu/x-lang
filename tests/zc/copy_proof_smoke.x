@@ -1,4 +1,4 @@
-// tests/zc/copy_proof_smoke.x — ZC-007 示例：StrView 解析路径 userland 冗余拷贝 = 0
+// See implementation.
 //
 // path_id: copy_proof_smoke
 // userland_copies: 0
@@ -7,6 +7,10 @@
 // fallback: none
 const string = import("std.string");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let buf: u8[8] = [104, 101, 108, 108, 111, 0, 0, 0];
   let v: StrView = string.view(&buf[0], 5);

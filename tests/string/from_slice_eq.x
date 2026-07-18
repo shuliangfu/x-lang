@@ -1,6 +1,10 @@
-// 测试 std.string：string_from_slice、string_eq、string_len、string_is_empty
+// See implementation.
 const string = import("std.string");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let buf: u8[4] = [97, 98, 99, 0];
   let s: String = string.string_from_slice(&buf[0], 3);

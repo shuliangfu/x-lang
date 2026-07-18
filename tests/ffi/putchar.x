@@ -1,8 +1,12 @@
-// 测试 FFI：extern 声明 C 的 putchar，从 .x 调用（须在 unsafe 内）。
+// See implementation.
 extern function putchar(c: i32): i32;
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   unsafe {
-    return putchar(65);  // 'A'，返回 putchar 的返回值
+    return putchar(65);  // See implementation.
   }
 }

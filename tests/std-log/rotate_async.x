@@ -1,6 +1,10 @@
-// STD-106：异步缓冲 + async_flush API 烟测
+// See implementation.
 const log = import("std.log");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   log.set_min_level(log.level_info());
   if (log.set_async_enabled(1) != 0) {

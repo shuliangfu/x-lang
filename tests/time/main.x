@@ -1,13 +1,17 @@
-// 测试 std.time：单调时钟、睡眠、时间差
+// See implementation.
 //
-// 【文件职责】本文件为 std.time 的回归测试。
-// 【测试目的】确认 sleep 后 monotonic 递增、duration_ns 合理。
-// 【覆盖 API】now_monotonic_ns、sleep_ms、duration_ns。
-// 【预期结果】退出码 0 表示通过。
-// 【运行方式】./tests/run-time.sh
-// 【asm -o】CALL 用赋值语句；仅验证 sleep 后 elapsed，避免 hoist/墙钟 flaky。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 const time = import("std.time");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let t0: i64 = 0;
   t0 = time.now_monotonic_ns();

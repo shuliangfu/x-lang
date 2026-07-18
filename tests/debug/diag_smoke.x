@@ -1,6 +1,10 @@
-// CORE-019：debug_assert_eq_i32_diag 烟测（typeck；失败路径不执行）
+// See implementation.
 const debug = import("core.debug");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (debug.debug_assert_eq_i32_diag(1, 1, 99) != 0) { return 1; }
   debug.debug_diag_store(10, 20, 1);

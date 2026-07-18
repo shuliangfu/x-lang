@@ -3,6 +3,10 @@
  */
 const time = import("std.time");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let t: Timer = time.start();
   let ns: i64 = time.elapsed_ns(t);

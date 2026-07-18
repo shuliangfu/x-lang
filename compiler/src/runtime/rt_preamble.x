@@ -1,13 +1,13 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-265 / P2 R3 → R2 full：preamble ABI 内联写盘。
-// .x 吃满 write_io_net_abi_inline / write_fs_path_map_error_abi_inline
-//   （skip mask 过滤 + fputs 循环）。
-// 产品 PREFER_X_O：full .x + rest 在 FROM_X 下业务 T=0（marker + 巨型字串表数据）。
-// Cap-giant-string residual：行表在 rest seed；line_at/count + fputs 在 driver_abi
-// （.x 禁巨型 C 字串表；禁 FILE* 直调 fputs — Ubuntu 指针类型硬错误）。
-// 依赖：codegen_get_preamble_skip_mask（strict_glue / pipeline stubs）。
+// Preamble ABI inline write (G.9 English; body is authoritative).
+// Preamble ABI inline write (G.9 English; body is authoritative).
+// Preamble ABI inline write (G.9 English; body is authoritative).
+// Preamble ABI inline write (G.9 English; body is authoritative).
+// Preamble ABI inline write (G.9 English; body is authoritative).
+// Preamble ABI inline write (G.9 English; body is authoritative).
+// Preamble ABI inline write (G.9 English; body is authoritative).
 
 export extern "C" function codegen_get_preamble_skip_mask(): i32;
 export extern "C" function driver_preamble_io_net_line_at(i: i32): *u8;
@@ -16,10 +16,14 @@ export extern "C" function driver_preamble_fs_path_line_at(i: i32): *u8;
 export extern "C" function driver_preamble_fs_path_line_count(): i32;
 export extern "C" function driver_preamble_fputs(s: *u8, stream: *u8): i32;
 
-// skip mask bits（与 CODEGEN_PREAMBLE_SKIP_* 一致）
+// Preamble ABI inline write (G.9 English; body is authoritative).
 // 1=CORE_MACROS  2=DRIVER_HANDLE  4=UNDEF_REDEFINE  8=WEAK_IO_BATCH
 
-/** 向生成 C 写入 std.io / std.net 内联 ABI。成功返回 0。 */
+/** Exported function `write_io_net_abi_inline`.
+ * Write path helper `write_io_net_abi_inline`.
+ * @param cf *u8
+ * @return i32
+ */
 #[no_mangle]
 export function write_io_net_abi_inline(cf: *u8): i32 {
   let skip: i32 = 0;
@@ -31,7 +35,7 @@ export function write_io_net_abi_inline(cf: *u8): i32 {
   }
   while (i < n) {
     let skip_line: i32 = 0;
-    // std_io_driver_handle_* 别名（i 60..63）
+    // Preamble ABI inline write (G.9 English; body is authoritative).
     if ((skip & 2) != 0) {
       if (i >= 60) {
         if (i < 64) {
@@ -39,7 +43,7 @@ export function write_io_net_abi_inline(cf: *u8): i32 {
         }
       }
     }
-    // std_io_core_io_* 宏（i 64..81）
+    // Preamble ABI inline write (G.9 English; body is authoritative).
     if ((skip & 1) != 0) {
       if (i >= 64) {
         if (i < 82) {
@@ -47,7 +51,7 @@ export function write_io_net_abi_inline(cf: *u8): i32 {
         }
       }
     }
-    // #undef / 重绑 std_io_core_*（i 105..118）
+    // Preamble ABI inline write (G.9 English; body is authoritative).
     if ((skip & 4) != 0) {
       if (i >= 105) {
         if (i < 119) {
@@ -70,7 +74,7 @@ export function write_io_net_abi_inline(cf: *u8): i32 {
         line = driver_preamble_io_net_line_at(i);
         rc = driver_preamble_fputs(line, cf);
       }
-      // fputs EOF → residual 返回负值
+      // Preamble ABI inline write (G.9 English; body is authoritative).
       if (rc < 0) {
         return 1;
       }
@@ -80,7 +84,11 @@ export function write_io_net_abi_inline(cf: *u8): i32 {
   return 0;
 }
 
-/** 向生成 C 写入 std.fs / std.path / std.map / std.error 内联 ABI。成功返回 0。 */
+/** Exported function `write_fs_path_map_error_abi_inline`.
+ * Write path helper `write_fs_path_map_error_abi_inline`.
+ * @param cf *u8
+ * @return i32
+ */
 #[no_mangle]
 export function write_fs_path_map_error_abi_inline(cf: *u8): i32 {
   let n: i32 = 0;

@@ -1,6 +1,10 @@
-// tests/std/error_map_smoke.x — STD-020：错误码→模块 base 与 last_error 侧车种类烟测
+// See implementation.
 const err = import("std.error");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let base_io: i32 = code_to_module_base(io_err_timeout());
   if (base_io != base_io()) { return 1; }

@@ -1,8 +1,12 @@
 /**
- * Cookbook TAR-01：append_entry 构建 UStar 归档条目（STD-038）。
+ * See implementation.
  */
 const tar = import("std.tar");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let arc: u8[512] = [];
   let off: i32 = 0;

@@ -1,7 +1,11 @@
-// 测试 std.fs：fs_open_write、fs_write、fs_close（大块写）；fs_open_read、fs_read 由
-// main.x 与 pipeline 等覆盖
+// See implementation.
+// See implementation.
 const fs = import("std.fs");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let path: u8[16] = [47, 116, 109, 112, 47, 102, 115, 116, 101, 115, 116, 0, 0, 0, 0, 0];
   let fd_w: i32 = fs.create(&path[0]);

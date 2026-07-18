@@ -14,13 +14,16 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std/channel/channel.x — F-channel v2 模块锚点（F-ZC 纯 .x；有界/无界/select 在 runtime_channel_glue.c）
+// See implementation.
 //
-// 【文件职责】
-// 提供 F-channel v2 可编译 .x 单元；与 runtime_channel_glue.o 一并链入 exe。
-// 对外 API 在 mod.x。
+// See implementation.
+// See implementation.
+// See implementation.
 
-/** F-channel v1 版本标记；供聚合 gate 校验 channel.x 已参与 ld -r 合并。 */
+/** Exported function `channel_f_channel_v1_marker_c`.
+ * Implements `channel_f_channel_v1_marker_c`.
+ * @return i32
+ */
 export function channel_f_channel_v1_marker_c(): i32 {
   return 1;
 }

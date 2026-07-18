@@ -4,12 +4,22 @@
 
 // === Serial I/O (COM1 @ 0x3F8) ===
 
+/** Internal function `serial_putc`.
+ * Implements `serial_putc`.
+ * @param c u8
+ * @return void
+ */
 function serial_putc(c: u8): void {
   unsafe {
     asm!("outb %%al, %%dx" : : "a"(c), "d"(0x3F8));
   }
 }
 
+/** Internal function `serial_putint`.
+ * Implements `serial_putint`.
+ * @param n i32
+ * @return void
+ */
 function serial_putint(n: i32): void {
   if (n < 0) {
     serial_putc(45);
@@ -21,6 +31,11 @@ function serial_putint(n: i32): void {
   serial_putc((n % 10 + 48) as u8);
 }
 
+/** Internal function `serial_puthex`.
+ * Implements `serial_puthex`.
+ * @param n u32
+ * @return void
+ */
 function serial_puthex(n: u32): void {
   let i: i32 = 28;
   while (i >= 0) {
@@ -34,6 +49,11 @@ function serial_puthex(n: u32): void {
   }
 }
 
+/** Internal function `serial_puts_count`.
+ * Implements `serial_puts_count`.
+ * @param count i32
+ * @return void
+ */
 function serial_puts_count(count: i32): void {
   serial_putc(80);
   serial_putc(65);
@@ -51,6 +71,12 @@ function serial_puts_count(count: i32): void {
 
 // === Atomics ===
 
+/** Internal function `atomic_fetch_add_u32`.
+ * Implements `atomic_fetch_add_u32`.
+ * @param addr *volatile u32
+ * @param val u32
+ * @return u32
+ */
 function atomic_fetch_add_u32(addr: *volatile u32, val: u32): u32 {
   unsafe {
     asm!("lock xadd %0, (%1)" : "+a"(val) : "r"(addr) : "memory", "cc");
@@ -58,6 +84,13 @@ function atomic_fetch_add_u32(addr: *volatile u32, val: u32): u32 {
   return val;
 }
 
+/** Internal function `atomic_cas_u32`.
+ * Implements `atomic_cas_u32`.
+ * @param addr *volatile u32
+ * @param expected u32
+ * @param newval u32
+ * @return u32
+ */
 function atomic_cas_u32(addr: *volatile u32, expected: u32, newval: u32): u32 {
   let prev: u32 = expected;
   unsafe {
@@ -68,6 +101,11 @@ function atomic_cas_u32(addr: *volatile u32, expected: u32, newval: u32): u32 {
 
 // === Spinlock ===
 
+/** Internal function `spinlock_acquire`.
+ * Implements `spinlock_acquire`.
+ * @param lock_addr *volatile u32
+ * @return void
+ */
 function spinlock_acquire(lock_addr: *volatile u32): void {
   let old: u32 = 1;
   while (old != 0) {
@@ -78,6 +116,11 @@ function spinlock_acquire(lock_addr: *volatile u32): void {
   }
 }
 
+/** Internal function `spinlock_release`.
+ * Implements `spinlock_release`.
+ * @param lock_addr *volatile u32
+ * @return void
+ */
 function spinlock_release(lock_addr: *volatile u32): void {
   let zero: u32 = 0;
   unsafe {
@@ -89,6 +132,11 @@ function spinlock_release(lock_addr: *volatile u32): void {
 
 let heap_ptr: u32 = 0x200000;
 
+/** Internal function `kalloc`.
+ * Memory management helper `kalloc`.
+ * @param size u32
+ * @return u32
+ */
 function kalloc(size: u32): u32 {
   if (heap_ptr == 0) {
     heap_ptr = 0x200000;
@@ -100,6 +148,14 @@ function kalloc(size: u32): u32 {
 
 // === IDT setup ===
 
+/** Internal function `idt_set_entry`.
+ * Implements `idt_set_entry`.
+ * @param index u32
+ * @param handler_addr u32
+ * @param selector u16
+ * @param flags u8
+ * @return void
+ */
 function idt_set_entry(index: u32, handler_addr: u32, selector: u16, flags: u8): void {
   let base: u32 = 0x90000 + index * 8;
   let off_lo: *volatile u16 = base as *volatile u16;
@@ -114,6 +170,10 @@ function idt_set_entry(index: u32, handler_addr: u32, selector: u16, flags: u8):
   unsafe { *off_hi = (handler_addr >> 16) as u16; }
 }
 
+/** Internal function `idt_load`.
+ * Implements `idt_load`.
+ * @return void
+ */
 function idt_load(): void {
   let idt_limit: *volatile u16 = 0x8F000 as *volatile u16;
   unsafe { *idt_limit = 2047; }
@@ -124,6 +184,10 @@ function idt_load(): void {
 
 // === PIC remap ===
 
+/** Internal function `pic_remap`.
+ * Implements `pic_remap`.
+ * @return void
+ */
 function pic_remap(): void {
   unsafe {
     asm!("outb %%al, $0x20" : : "a"(17));
@@ -139,6 +203,10 @@ function pic_remap(): void {
   }
 }
 
+/** Internal function `pic_eoi`.
+ * Implements `pic_eoi`.
+ * @return void
+ */
 function pic_eoi(): void {
   unsafe {
     asm!("movb $0x20, %al; outb %al, $0x20");
@@ -147,6 +215,10 @@ function pic_eoi(): void {
 
 // === PIT programming ===
 
+/** Internal function `pit_init`.
+ * Implements `pit_init`.
+ * @return void
+ */
 function pit_init(): void {
   unsafe {
     asm!("outb %%al, $0x43" : : "a"(54));

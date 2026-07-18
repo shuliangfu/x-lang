@@ -1,9 +1,13 @@
-// io_batch_readv.x — I/O 基线：4 段 read_batch_fd 顺序读满 16MiB（与 run-perf-io.sh 配套）
-// 输入：tests/bench/.io_mmap_bench_tmp（脚本预生成，默认 16MiB）
+// See implementation.
+// See implementation.
 const fs = import("std.fs");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
-  // 路径 "tests/bench/.io_mmap_bench_tmp"
+  // See implementation.
   let path: u8[31] =
   [116, 101, 115, 116, 115, 47, 98, 101, 110, 99, 104, 47, 46, 105, 111, 95, 109, 109, 97, 112, 95,
   98, 101, 110, 99, 104, 95, 116, 109, 112, 0];
@@ -15,7 +19,7 @@ function main(): i32 {
   let b3: u8[4096] = [];
   let sum: i32 = 0;
   let rounds: i32 = 0;
-  /** 每轮 4×4KiB=16KiB；1024 轮 = 16MiB。 */
+  /* See implementation. */
   while (rounds < 1024) {
     let nr: i32 = read_batch_fd(fd, &b0[0], 4096, &b1[0], 4096, &b2[0], 4096, &b3[0], 4096, 4);
     if (nr != 16384) {

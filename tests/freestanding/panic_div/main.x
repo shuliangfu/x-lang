@@ -1,5 +1,8 @@
-// freestanding/panic_div — S4 烟测：除零应引用 shux_panic_，按需链 runtime_panic.o
-/** 整数除零：asm 后端生成 call shux_panic_，链接器须链入 runtime_panic.o。 */
+// See implementation.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let x: i32 = 0;
   return 42 / x;

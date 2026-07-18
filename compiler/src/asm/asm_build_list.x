@@ -14,11 +14,11 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// asm_build_list.x — asm 自举构建顺序与 LIBROOT 的唯一定义（供 scripts/build_shux_asm.sh 读取）
+// See implementation.
 //
-// 职责：-backend asm 构建 shux 时，各 .x 模块的编译顺序与 -L 库根由此文件定义；脚本通过 grep/sed 读取，后续可迁为 .x 内逻辑（如 driver 调 spawn 逐条编译）。
-// 约定：脚本匹配 "// BUILD:\t" 行，后接 "out.o\tpath/to/source.x"（制表符分隔）；"// LIBROOT:\t" 行整行为 -L 参数。
-// 依赖顺序：token/ast/codegen/typeck/lexer → preprocess → std.fs → lsp → asm 子树 → parser → pipeline → main。
+// See implementation.
+// See implementation.
+// See implementation.
 
 // LIBROOT:	-L asm_libroot -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/pipeline -L src/lsp -L src/asm
 
@@ -47,7 +47,7 @@
 // BUILD:	pipeline.o	src/pipeline/pipeline.x
 // BUILD:	main.o	src/main.x
 
-// EMPTY_TEXT_EMITTER_BACKLOG（M8a，2026-05）：lsp.o/asm.o/arm64_enc.o 等 __text=0 时先用
-//   SHUX_ASM_ENTRY_ONLY_DEBUG=1 ./shux -backend asm -o /tmp/x.o $LIBROOT <src> 看 AFTER funcs=N。
-// arm64_enc 典型 N=1/62（parser 截断，非仅 skip_heavy）。typeck/parser/backend 见 M8b 第二遍 EMIT_HEAVY。
-// 曾见 dep path_buf 错乱已用 dep_logical_path_mirror 修复；对照 SELFHOST §4.1。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.

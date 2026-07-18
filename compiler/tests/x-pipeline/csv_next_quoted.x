@@ -1,6 +1,9 @@
-// 探针：next_field 引号字段 "a,b",c（经 C 探针，避免第三段定长数组错址）
+// Probe: next_field quoted field "a,b",c (via C probe; avoids third fixed-array address bug).
 const csv = import("std.csv");
 
+/**
+ * Call csv.test_quoted_first and require positive offset, start 1, length >= 3.
+ */
 function main(): i32 {
   let st: i32 = 0;
   let ln: i32 = 0;

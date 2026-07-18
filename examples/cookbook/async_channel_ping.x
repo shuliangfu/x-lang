@@ -1,8 +1,12 @@
 /**
- * Cookbook ASYNC-03：channel 有界发送接收（async 生态配套）。
+ * See implementation.
  */
 const channel = import("std.channel");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let ch: *u8 = channel.bounded(2);
   if (ch == 0 as *u8) { return 0; }

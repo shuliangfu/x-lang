@@ -14,26 +14,26 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.cache — LRU/TTL 缓存与通用对象池（STD-087）
+// See implementation.
 //
-// 【文件职责】
-// i64 键值 LRU 缓存（容量淘汰 + TTL 惰性过期）；通用资源池
-// acquire/release/health；命中率/池统计；供 sqlite/net 等上层复用。
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 【对标】Go groupcache 子集、Java Caffeine 最小路径、HikariCP 池语义简化版。
-// 单调时钟经 cache.x extern time_now_monotonic_ns_c；C 烟测链 std/time/time.o。
+// See implementation.
+// See implementation.
 
-/** LRU 缓存句柄。 */
+/* See implementation. */
 allow(padding) struct LruCache {
   handle: i64;
 }
 
-/** 通用对象池句柄（i64 资源 ID）。 */
+/* See implementation. */
 allow(padding) struct ObjPool {
   handle: i64;
 }
 
-/** 缓存/池统计快照。 */
+/* See implementation. */
 allow(padding) struct CacheStats {
   hits: i64;
   misses: i64;
@@ -41,7 +41,7 @@ allow(padding) struct CacheStats {
   size: i32;
 }
 
-/** 对象池统计快照。 */
+/* See implementation. */
 allow(padding) struct PoolStats {
   idle: i32;
   in_use: i32;
@@ -49,15 +49,30 @@ allow(padding) struct PoolStats {
   acquires: i64;
 }
 
-/** 成功。 */
+/** Exported function `err_ok`.
+ * Implements `err_ok`.
+ * @return i32
+ */
 export function err_ok(): i32 { return 0; }
-/** 空指针/非法句柄。 */
+/** Exported function `err_null`.
+ * Implements `err_null`.
+ * @return i32
+ */
 export function err_null(): i32 { return -1; }
-/** 未命中或无可用资源。 */
+/** Exported function `err_not_found`.
+ * Implements `err_not_found`.
+ * @return i32
+ */
 export function err_not_found(): i32 { return -2; }
-/** 容量已满。 */
+/** Exported function `err_full`.
+ * Implements `err_full`.
+ * @return i32
+ */
 export function err_full(): i32 { return -3; }
-/** 参数非法或重复。 */
+/** Exported function `err_invalid`.
+ * Implements `err_invalid`.
+ * @return i32
+ */
 export function err_invalid(): i32 { return -4; }
 
 extern function cache_lru_create_c(capacity: i32): i64;
@@ -77,7 +92,11 @@ extern function cache_pool_mark_unhealthy_c(handle: i64, resource: i64): i32;
 extern function cache_pool_idle_c(handle: i64): i32;
 extern function cache_pool_stats_c(handle: i64, idle: *i32, in_use: *i32, unhealthy: *i32, acquires: *i64): void;
 
-/** 创建 LRU 缓存；capacity 默认上限 64。 */
+/** Exported function `new_lru`.
+ * Implements `new_lru`.
+ * @param capacity i32
+ * @return LruCache
+ */
 export function new_lru(capacity: i32): LruCache {
   unsafe {
     let h: i64 = cache_lru_create_c(capacity);
@@ -85,7 +104,11 @@ export function new_lru(capacity: i32): LruCache {
   }
 }
 
-/** 释放 LRU 缓存。 */
+/** Exported function `free`.
+ * Memory management helper `free`.
+ * @param c *LruCache
+ * @return void
+ */
 export function free(c: *LruCache): void {
   let zero: i64 = 0;
   if (c == 0) { return; }
@@ -95,7 +118,13 @@ export function free(c: *LruCache): void {
   }
 }
 
-/** LRU 读取；未命中返回 err_not_found()。 */
+/** Exported function `get`.
+ * Implements `get`.
+ * @param c *LruCache
+ * @param key i64
+ * @param out *i64
+ * @return i32
+ */
 export function get(c: *LruCache, key: i64, out: *i64): i32 {
   let zero: i64 = 0;
   if (c == 0 || c.handle == zero || out == 0) { return err_null(); }
@@ -104,7 +133,14 @@ export function get(c: *LruCache, key: i64, out: *i64): i32 {
   }
 }
 
-/** LRU 写入；ttl_ns=0 表示永不过期。 */
+/** Exported function `put`.
+ * Implements `put`.
+ * @param c *LruCache
+ * @param key i64
+ * @param value i64
+ * @param ttl_ns i64
+ * @return i32
+ */
 export function put(c: *LruCache, key: i64, value: i64, ttl_ns: i64): i32 {
   let zero: i64 = 0;
   if (c == 0 || c.handle == zero) { return err_null(); }
@@ -113,7 +149,12 @@ export function put(c: *LruCache, key: i64, value: i64, ttl_ns: i64): i32 {
   }
 }
 
-/** 删除键。 */
+/** Exported function `remove`.
+ * Implements `remove`.
+ * @param c *LruCache
+ * @param key i64
+ * @return i32
+ */
 export function remove(c: *LruCache, key: i64): i32 {
   let zero: i64 = 0;
   if (c == 0 || c.handle == zero) { return err_null(); }
@@ -122,7 +163,11 @@ export function remove(c: *LruCache, key: i64): i32 {
   }
 }
 
-/** 惰性清理过期条目；返回删除数。 */
+/** Exported function `purge`.
+ * Implements `purge`.
+ * @param c *LruCache
+ * @return i32
+ */
 export function purge(c: *LruCache): i32 {
   let zero: i64 = 0;
   if (c == 0 || c.handle == zero) { return err_null(); }
@@ -131,7 +176,12 @@ export function purge(c: *LruCache): i32 {
   }
 }
 
-/** 读取 LRU 统计。 */
+/** Exported function `stats`.
+ * Implements `stats`.
+ * @param c *LruCache
+ * @param out *CacheStats
+ * @return void
+ */
 export function stats(c: *LruCache, out: *CacheStats): void {
   let zero: i64 = 0;
   if (c == 0 || c.handle == zero || out == 0) { return; }
@@ -140,7 +190,11 @@ export function stats(c: *LruCache, out: *CacheStats): void {
   }
 }
 
-/** 创建对象池（原 pool_new）。 */
+/** Exported function `new`.
+ * Implements `new`.
+ * @param max_slots i32
+ * @return ObjPool
+ */
 export function new(max_slots: i32): ObjPool {
   unsafe {
     let h: i64 = cache_pool_create_c(max_slots);
@@ -148,7 +202,11 @@ export function new(max_slots: i32): ObjPool {
   }
 }
 
-/** 释放对象池（原 pool_free）。 */
+/** Exported function `free`.
+ * Memory management helper `free`.
+ * @param p *ObjPool
+ * @return void
+ */
 export function free(p: *ObjPool): void {
   let zero: i64 = 0;
   if (p == 0) { return; }
@@ -158,7 +216,12 @@ export function free(p: *ObjPool): void {
   }
 }
 
-/** 注册空闲资源到池（原 pool_add）。 */
+/** Exported function `add`.
+ * Implements `add`.
+ * @param p *ObjPool
+ * @param resource i64
+ * @return i32
+ */
 export function add(p: *ObjPool, resource: i64): i32 {
   let zero: i64 = 0;
   if (p == 0 || p.handle == zero || resource == zero) { return err_null(); }
@@ -167,7 +230,12 @@ export function add(p: *ObjPool, resource: i64): i32 {
   }
 }
 
-/** 获取空闲健康资源（原 pool_acquire）。 */
+/** Exported function `acquire`.
+ * Implements `acquire`.
+ * @param p *ObjPool
+ * @param out *i64
+ * @return i32
+ */
 export function acquire(p: *ObjPool, out: *i64): i32 {
   let zero: i64 = 0;
   if (p == 0 || p.handle == zero || out == 0) { return err_null(); }
@@ -176,7 +244,12 @@ export function acquire(p: *ObjPool, out: *i64): i32 {
   }
 }
 
-/** 归还资源；不健康资源会被丢弃（原 pool_release）。 */
+/** Exported function `release`.
+ * Implements `release`.
+ * @param p *ObjPool
+ * @param resource i64
+ * @return i32
+ */
 export function release(p: *ObjPool, resource: i64): i32 {
   let zero: i64 = 0;
   if (p == 0 || p.handle == zero || resource == zero) { return err_null(); }
@@ -185,7 +258,12 @@ export function release(p: *ObjPool, resource: i64): i32 {
   }
 }
 
-/** 标记资源不健康（原 pool_mark_unhealthy）。 */
+/** Exported function `mark_unhealthy`.
+ * Implements `mark_unhealthy`.
+ * @param p *ObjPool
+ * @param resource i64
+ * @return i32
+ */
 export function mark_unhealthy(p: *ObjPool, resource: i64): i32 {
   let zero: i64 = 0;
   if (p == 0 || p.handle == zero || resource == zero) { return err_null(); }
@@ -194,7 +272,11 @@ export function mark_unhealthy(p: *ObjPool, resource: i64): i32 {
   }
 }
 
-/** 当前空闲资源数（原 pool_idle）。 */
+/** Exported function `idle`.
+ * Implements `idle`.
+ * @param p *ObjPool
+ * @return i32
+ */
 export function idle(p: *ObjPool): i32 {
   let zero: i64 = 0;
   if (p == 0 || p.handle == zero) { return err_null(); }
@@ -203,7 +285,12 @@ export function idle(p: *ObjPool): i32 {
   }
 }
 
-/** 读取对象池统计（原 pool_stats）。 */
+/** Exported function `stats`.
+ * Implements `stats`.
+ * @param p *ObjPool
+ * @param out *PoolStats
+ * @return void
+ */
 export function stats(p: *ObjPool, out: *PoolStats): void {
   let zero: i64 = 0;
   if (p == 0 || p.handle == zero || out == 0) { return; }

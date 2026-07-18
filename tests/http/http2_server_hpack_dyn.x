@@ -1,6 +1,10 @@
-// STD-HTTP-H2-v22：server HPACK 动态表与 HEADER_TABLE_SIZE 联动烟测
+// See implementation.
 const http = import("std.http");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (http.hpack_server_dyn_smoke() != 0) { return 1; }
   if (http.server_hpack_dyn_smoke() != 0) { return 2; }

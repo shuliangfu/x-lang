@@ -1,8 +1,12 @@
 /**
- * STD-SOCKETIO-001 烟测：多 namespace 并发会话 v8。
+ * See implementation.
  */
 const sio = import("std.socketio");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (sio.ns_sessions_smoke() != 0) {
     return 1;

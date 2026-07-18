@@ -1,6 +1,10 @@
-// STD-059：fenv clear/test 烟测（掩码用字面量，避免模块 const 解析问题）
+// See implementation.
 const math = import("std.math");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let rc: i32 = clear_exceptions(31);
   if (rc != 0 && rc != -9) {

@@ -1,6 +1,10 @@
-// STD-SIMD-INTRINSIC：std.simd mul/sub/dot 烟测
+// See implementation.
 const simd = import("std.simd");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: Vec4f = [1.0, 2.0, 3.0, 4.0];
   let b: Vec4f = [1.0, 1.0, 1.0, 1.0];

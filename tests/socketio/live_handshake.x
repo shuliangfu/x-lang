@@ -1,9 +1,13 @@
 /**
- * STD-SOCKETIO-001 live 烟测：对 mock Engine.IO polling 服务执行握手。
- * 由 tests/run-std-socketio-live.sh 启动 mock 后运行。
+ * See implementation.
+ * See implementation.
  */
 const sio = import("std.socketio");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let base: u8[32] = [104, 116, 116, 112, 58, 47, 47, 49, 50, 55, 46, 48, 46, 48, 46, 49, 58, 49, 51,
     48, 48, 49, 0];

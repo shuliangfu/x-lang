@@ -1,6 +1,10 @@
-// DOD-S2：heap Vec3f_soa 列扫描 vec3f_soa_sum_x（f32 addss 热路径）。
+// See implementation.
 const vec = import("std.vec");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let v: Vec3f_soa = vec.vec3f_soa_new();
   if (vec.vec3f_soa_push(&v, 1.0, 0.0, 0.0) != 0) { return 11; }

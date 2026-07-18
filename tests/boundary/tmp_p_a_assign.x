@@ -3,6 +3,10 @@ struct Pair {
   b: i32
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let p: Pair = Pair { a: 0, b: 2 };
   p.a = 1;

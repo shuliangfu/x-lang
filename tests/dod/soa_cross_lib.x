@@ -1,6 +1,6 @@
 /**
- * DOD-S3 dep 模块：SoA struct 定义 + 跨函数列访问 helper。
- * 供 soa_cross.x import；layout 须在 WPO dep 图内与 entry 统一为 SoA。
+ * See implementation.
+ * See implementation.
  */
 struct Particle soa {
   x: i32
@@ -8,7 +8,7 @@ struct Particle soa {
 }
 
 /**
- * 列主序累加 x 分量；调用方 Particle[N] 须与 dep 同 SoA layout（无 AoS 转换）。
+ * See implementation.
  */
 function sum_x_column(arr: Particle[4], n: i32): i32 {
   let s: i32 = 0;

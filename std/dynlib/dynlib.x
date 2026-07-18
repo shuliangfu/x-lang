@@ -14,17 +14,17 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std/dynlib/dynlib.x — F-dynlib v2：open/sym/close 包装、last_error 与烟测（OS 在 runtime_dynlib_os.c）
+// See implementation.
 //
-// 【文件职责】
-// 缓存最近一次 open/sym 失败诊断（STD-096）；C 符号 dynlib_*_c 供 mod.x extern；
-// last_error / win_path 烟测。纯 .x → dynlib.o；OS 见 compiler runtime_dynlib_os.c。
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 【对标】Zig std.DynLib、Rust libloading。
+// See implementation.
 
 export const DYNLIB_LAST_ERR_CAP: i32 = 256;
 
-/** 最近一次 open/sym 失败时的诊断文本（STD-096）。 */
+/* See implementation. */
 let g_dynlib_last_err: u8[256] = [];
 
 extern function dynlib_os_open_c(path: *u8): *u8;
@@ -35,23 +35,36 @@ extern function dynlib_os_win_path_smoke_c(): i32;
 extern function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 extern function memset(s: *u8, c: i32, n: usize): *u8;
 
-/** F-dynlib v1 版本标记。 */
+/** Exported function `dynlib_f_dynlib_v1_marker_c`.
+ * Implements `dynlib_f_dynlib_v1_marker_c`.
+ * @return i32
+ */
 export function dynlib_f_dynlib_v1_marker_c(): i32 {
   return 1;
 }
 
-/** F-dynlib v2 逻辑下沉标记。 */
+/** Exported function `dynlib_f_dynlib_v2_marker_c`.
+ * Implements `dynlib_f_dynlib_v2_marker_c`.
+ * @return i32
+ */
 export function dynlib_f_dynlib_v2_marker_c(): i32 {
   return 1;
 }
 
-/** 清空并可选从 OS 复制错误到 g_dynlib_last_err。 */
+/** Exported function `dynlib_note_os_error_c`.
+ * Implements `dynlib_note_os_error_c`.
+ * @return void
+ */
 export function dynlib_note_os_error_c(): void {
   unsafe { memset(&g_dynlib_last_err[0], 0, DYNLIB_LAST_ERR_CAP); }
   unsafe { dynlib_os_copy_last_error_c(&g_dynlib_last_err[0], DYNLIB_LAST_ERR_CAP); }
 }
 
-/** 打开动态库 path（NUL 结尾）；失败返回 0。 */
+/** Exported function `dynlib_open_c`.
+ * Implements `dynlib_open_c`.
+ * @param path *u8
+ * @return *u8
+ */
 export function dynlib_open_c(path: *u8): *u8 {
   let h: *u8 = 0 as *u8;
   if (path == 0 || path[0] == 0) {
@@ -64,7 +77,12 @@ export function dynlib_open_c(path: *u8): *u8 {
   return h;
 }
 
-/** 取符号 name（NUL 结尾）；失败返回 0。 */
+/** Exported function `dynlib_sym_c`.
+ * Implements `dynlib_sym_c`.
+ * @param lib *u8
+ * @param name *u8
+ * @return *u8
+ */
 export function dynlib_sym_c(lib: *u8, name: *u8): *u8 {
   let p: *u8 = 0 as *u8;
   if (lib == 0 || name == 0) {
@@ -77,7 +95,11 @@ export function dynlib_sym_c(lib: *u8, name: *u8): *u8 {
   return p;
 }
 
-/** 关闭动态库。 */
+/** Exported function `dynlib_close_c`.
+ * Implements `dynlib_close_c`.
+ * @param lib *u8
+ * @return void
+ */
 export function dynlib_close_c(lib: *u8): void {
   if (lib == 0) {
     return;
@@ -85,7 +107,12 @@ export function dynlib_close_c(lib: *u8): void {
   unsafe { dynlib_os_close_c(lib); }
 }
 
-/** 复制最近一次错误到 buf；返回写入字节数（不含 NUL），失败或无内容返回 0。 */
+/** Exported function `dynlib_last_error_copy_c`.
+ * Implements `dynlib_last_error_copy_c`.
+ * @param buf *u8
+ * @param cap i32
+ * @return i32
+ */
 export function dynlib_last_error_copy_c(buf: *u8, cap: i32): i32 {
   let n: i32 = 0;
   let i: i32 = 0;
@@ -107,7 +134,10 @@ export function dynlib_last_error_copy_c(buf: *u8, cap: i32): i32 {
   return n;
 }
 
-/** C 烟测：打开不存在路径后 last_error 非空。 */
+/** Exported function `dynlib_last_error_smoke_c`.
+ * Implements `dynlib_last_error_smoke_c`.
+ * @return i32
+ */
 export function dynlib_last_error_smoke_c(): i32 {
   let bad: u8[48] = [
     47, 110, 111, 110, 101, 120, 105, 115, 116, 101, 110, 116, 47, 115, 104, 117, 120, 95, 100, 121,
@@ -128,7 +158,10 @@ export function dynlib_last_error_smoke_c(): i32 {
   return -2;
 }
 
-/** STD-097：Windows 正斜杠路径烟测；POSIX 直接返回 0。 */
+/** Exported function `dynlib_win_path_smoke_c`.
+ * Implements `dynlib_win_path_smoke_c`.
+ * @return i32
+ */
 export function dynlib_win_path_smoke_c(): i32 {
   unsafe { return dynlib_os_win_path_smoke_c(); }
   return 0; // unreachable — typeck workaround

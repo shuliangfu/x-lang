@@ -14,11 +14,11 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.hash — Hasher 抽象与 SipHash-2-4（对标 Zig std.hash、Rust std::hash::Hasher）
-// STD-056：统一 Hasher 工厂 start_algo / default_hasher / SHUX_HASH_ALGO。
+// See implementation.
+// See implementation.
 //
-// 【文件职责】start、write/write_bytes、finish、free；单次 bytes。Tier-S 稳定 API 始终 SipHash。
-// 【依赖】core；算法在 std/hash/hash.x（F-hash v2 纯 .x）。
+// See implementation.
+// See implementation.
 extern function hash_sip_new_c(): *u8;
 extern function hash_sip_write_u32_c(h: *u8, x: u32): void;
 extern function hash_sip_write_u64_c(h: *u8, x: u64): void;
@@ -37,126 +37,201 @@ extern function hash_xxhash64_seed_bytes_c(ptr: *u8, len: i32, seed: u64): u64;
 extern function hash_recommend_hasher_map_c(): i32;
 extern function hash_recommend_hasher_fast_c(): i32;
 
-/** SipHash（抗碰撞，Tier-S 默认）。 */
+/* See implementation. */
 export const HASHER_SIPHASH: i32 = 0;
-/** FNV-1a64 占位 aHash（快速路径预研）。 */
+/* See implementation. */
 export const HASHER_AHASH: i32 = 1;
-/** xxHash64（非对抗快速路径，STD-105）。 */
+/* See implementation. */
 export const HASHER_XXHASH: i32 = 2;
 
-/** 读取 SHUX_HASH_ALGO 环境变量，返回默认 Hasher 算法 id。 */
+/** Exported function `default_hasher`.
+ * Implements `default_hasher`.
+ * @return i32
+ */
 export function default_hasher(): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = hash_default_algo_c(); }
   return _rc;
 }
 
-/** Map/Set 场景推荐 Hasher（SipHash）。 */
+/** Exported function `recommend_hasher_map`.
+ * Implements `recommend_hasher_map`.
+ * @return i32
+ */
 export function recommend_hasher_map(): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = hash_recommend_hasher_map_c(); }
   return _rc;
 }
 
-/** 内部去重/checksum 推荐 Hasher（xxHash64）。 */
+/** Exported function `recommend_hasher_fast`.
+ * Implements `recommend_hasher_fast`.
+ * @return i32
+ */
 export function recommend_hasher_fast(): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = hash_recommend_hasher_fast_c(); }
   return _rc;
 }
 
-/** 按算法创建 Hasher 状态；失败返回 0。 */
+/** Exported function `start_algo`.
+ * Implements `start_algo`.
+ * @param algo i32
+ * @return *u8
+ */
 export function start_algo(algo: i32): *u8 {
   let _rc: *u8 = 0;
   unsafe { _rc = hash_unified_new_c(algo); }
   return _rc;
 }
 
-/** 向 algo Hasher 写入字节 ptr[0..len)。 */
+/** Exported function `write_bytes_algo`.
+ * Write path helper `write_bytes_algo`.
+ * @param h *u8
+ * @param ptr *u8
+ * @param len i32
+ * @return void
+ */
 export function write_bytes_algo(h: *u8, ptr: *u8, len: i32): void {
   unsafe {
     hash_unified_write_bytes_c(h, ptr, len);
   }
 }
 
-/** 向 algo Hasher 写入 u32（小端）。 */
+/** Exported function `write_algo`.
+ * Write path helper `write_algo`.
+ * @param h *u8
+ * @param x u32
+ * @return void
+ */
 export function write_algo(h: *u8, x: u32): void {
   unsafe {
     hash_unified_write_u32_c(h, x);
   }
 }
 
-/** 完成 algo Hasher，返回 u64 摘要。 */
+/** Exported function `finish_algo`.
+ * Implements `finish_algo`.
+ * @param h *u8
+ * @return u64
+ */
 export function finish_algo(h: *u8): u64 {
   let _rc: u64 = 0;
   unsafe { _rc = hash_unified_finish_c(h); }
   return _rc;
 }
 
-/** 释放 algo Hasher 状态。 */
+/** Exported function `free_algo`.
+ * Memory management helper `free_algo`.
+ * @param h *u8
+ * @return void
+ */
 export function free_algo(h: *u8): void {
   unsafe {
     hash_unified_free_c(h);
   }
 }
 
-/** 创建 Hasher 状态（Tier-S：恒 SipHash）；失败返回 0。 */
+/** Exported function `start`.
+ * Implements `start`.
+ * @return *u8
+ */
 export function start(): *u8 {
   let _rc: *u8 = 0;
   unsafe { _rc = hash_sip_new_c(); }
   return _rc;
 }
 
-/** 写入 u32（小端）。 */
+/** Exported function `write`.
+ * Write path helper `write`.
+ * @param h *u8
+ * @param x u32
+ * @return void
+ */
 export function write(h: *u8, x: u32): void {
   unsafe {
     hash_sip_write_u32_c(h, x);
   }
 }
 
-/** 写入 u64（小端）。 */
+/** Exported function `write`.
+ * Write path helper `write`.
+ * @param h *u8
+ * @param x u64
+ * @return void
+ */
 export function write(h: *u8, x: u64): void {
   unsafe {
     hash_sip_write_u64_c(h, x);
   }
 }
 
-/** 写入字节 ptr[0..len)。 */
+/** Exported function `write_bytes`.
+ * Write path helper `write_bytes`.
+ * @param h *u8
+ * @param ptr *u8
+ * @param len i32
+ * @return void
+ */
 export function write_bytes(h: *u8, ptr: *u8, len: i32): void {
   unsafe {
     hash_sip_write_bytes_c(h, ptr, len);
   }
 }
 
-/** 完成哈希，返回 u64；调用后 h 仍可继续写。 */
+/** Exported function `finish`.
+ * Implements `finish`.
+ * @param h *u8
+ * @return u64
+ */
 export function finish(h: *u8): u64 {
   let _rc: u64 = 0;
   unsafe { _rc = hash_sip_finish_c(h); }
   return _rc;
 }
 
-/** 释放 Hasher 状态。 */
+/** Exported function `free`.
+ * Memory management helper `free`.
+ * @param h *u8
+ * @return void
+ */
 export function free(h: *u8): void {
   unsafe {
     hash_sip_free_c(h);
   }
 }
 
-/** 单次对 ptr[0..len) 做 SipHash-2-4，返回 u64。 */
+/** Exported function `bytes`.
+ * Implements `bytes`.
+ * @param ptr *u8
+ * @param len i32
+ * @return u64
+ */
 export function bytes(ptr: *u8, len: i32): u64 {
   let _rc: u64 = 0;
   unsafe { _rc = hash_sip_bytes_c(ptr, len); }
   return _rc;
 }
 
-/** 一次性 xxHash64（seed=0）。 */
+/** Exported function `xxhash64`.
+ * Implements `xxhash64`.
+ * @param ptr *u8
+ * @param len i32
+ * @return u64
+ */
 export function xxhash64(ptr: *u8, len: i32): u64 {
   let _rc: u64 = 0;
   unsafe { _rc = hash_xxhash64_bytes_c(ptr, len); }
   return _rc;
 }
 
-/** 一次性 xxHash64（指定 seed）。 */
+/** Exported function `xxhash64_seed`.
+ * Implements `xxhash64_seed`.
+ * @param ptr *u8
+ * @param len i32
+ * @param seed u64
+ * @return u64
+ */
 export function xxhash64_seed(ptr: *u8, len: i32, seed: u64): u64 {
   let _rc: u64 = 0;
   unsafe { _rc = hash_xxhash64_seed_bytes_c(ptr, len, seed); }

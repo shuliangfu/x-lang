@@ -14,17 +14,15 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// mod.x — 硬件适配层模块入口（re-export）
+// mod.x — hardware adaptation layer module entry (re-export)
 //
-// 模块：ir/target
-// 层级：共享（被 VMIR isel / Target MIR regalloc/sched/microarch 消费）
-// Phase：Phase 5+（VMIR isel 首次需要目标架构信息）
-// 职责：聚合 target/ 子模块导出（cost_model / x86_64 / arm64）。
-// 依赖：../vmir/machine_inst
-// 设计约束：
-//   - 硬件适配层通过 Target MIR 实现特定硬件的微操作和流水线级表示
-//   - Cost Model 通过外部 .cost.json 配置，支持新 CPU 无需改代码（§10.3）
-//   - 新 CPU 配置通过新增 .cost.json 文件支持，无需修改 IR 架构
+// Module: ir/target
+// Layer: shared (consumed by VMIR isel / Target MIR regalloc/sched/microarch)
+// Phase: Phase 5+
+// Responsibility: Aggregate target/ exports (cost_model / x86_64 / arm64).
+// Depends: ../vmir/machine_inst
+// Design constraints:
+//   - Cost Model is external .cost.json; new CPUs need no IR code changes (§10.3)
 //
-// 参考文档：analysis/IR核心设计.md §10（硬件适配层）/ §10.3（多维度 Cost Model）
-// 架构状态：v4.0 Architecture Freeze — 实现骨架，待 Phase 5 填充
+// Ref: analysis IR core design §10 (hardware adaptation layer) / §10.3
+// Status: v4.0 Architecture Freeze — implementation skeleton; fill in Phase 5

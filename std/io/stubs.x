@@ -14,25 +14,37 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.io.stubs — F-03 v2/v3：io_uring/provided buffers/async 桩（graceful 回退 sync）
+// See implementation.
 //
-// 【文件职责】
-// io_uring、IORING_OP_PROVIDE、非阻塞 async slot 等高级特性 v1 全部 stub；
-// shux_io_uring_is_available_c 返回 0；调用方应回退 io_read/io_write 同步路径。
+// See implementation.
+// See implementation.
+// See implementation.
 
-/** 注册 provided buffer 池：v1 不支持，返回 0。 */
+/** Exported function `io_register_provided_buffers`.
+ * Registration helper `io_register_provided_buffers`.
+ * @param nr u32
+ * @param bufsz u32
+ * @return i32
+ */
 export function io_register_provided_buffers(nr: u32, bufsz: u32): i32 {
   if (nr > 0 || bufsz > 0) {
-    /* 保留参数，避免未使用警告。 */
+    /* See implementation. */
   }
   return 0;
 }
 
-/** 注销 provided 池：v1 no-op。 */
+/** Exported function `io_unregister_provided_buffers`.
+ * Registration helper `io_unregister_provided_buffers`.
+ * @return void
+ */
 export function io_unregister_provided_buffers(): void {
 }
 
-/** 无效 bid 返回 0。 */
+/** Exported function `io_provided_buffer_ptr`.
+ * Implements `io_provided_buffer_ptr`.
+ * @param bid u32
+ * @return *u8
+ */
 export function io_provided_buffer_ptr(bid: u32): *u8 {
   if (bid > 0) {
     return 0 as *u8;
@@ -40,29 +52,51 @@ export function io_provided_buffer_ptr(bid: u32): *u8 {
   return 0 as *u8;
 }
 
-/** provided 单块容量：v1 返回 0。 */
+/** Exported function `io_provided_buffer_size`.
+ * Implements `io_provided_buffer_size`.
+ * @return u32
+ */
 export function io_provided_buffer_size(): u32 {
   return 0 as u32;
 }
 
-/** 单次 provided recv：v1 不支持，返回 -1。 */
+/** Exported function `io_read_provided`.
+ * Read path helper `io_read_provided`.
+ * @param fd i32
+ * @param timeout_ms u32
+ * @param out_bid *u32
+ * @param out_len *u32
+ * @return isize
+ */
 export function io_read_provided(fd: i32, timeout_ms: u32, out_bid: *u32, out_len: *u32): isize {
   if (fd >= 0 || timeout_ms >= 0 || out_bid != 0 || out_len != 0) {
-    /* ABI 占位。 */
+    /* See implementation. */
   }
   return -1 as isize;
 }
 
-/** 批量 provided recv：v1 不支持。
- * 勿 #[no_mangle]：C 前端 path 前缀 + CALL 多路径尚未全裸名时，裸定义会与
- * std_io_stubs_* 调用点分裂。裸符号由 runtime_asm_io_stubs 弱桩提供给 net C 胶层。 */
+/** Exported function `io_read_batch_provided`.
+ * Read path helper `io_read_batch_provided`.
+ * @param fd i32
+ * @param n i32
+ * @param timeout_ms u32
+ * @param out_bids *u32
+ * @param out_lens *u32
+ * @return isize
+ */
 export function io_read_batch_provided(fd: i32, n: i32, timeout_ms: u32, out_bids: *u32, out_lens: *u32): isize {
   if (fd >= 0 || n > 0 || timeout_ms >= 0 || out_bids != 0 || out_lens != 0) {
   }
   return -1 as isize;
 }
 
-/** 提交非阻塞 read async：v1 不支持，返回 -1。 */
+/** Exported function `shux_io_submit_read_async`.
+ * Read path helper `shux_io_submit_read_async`.
+ * @param ptr *u8
+ * @param len usize
+ * @param handle usize
+ * @return i32
+ */
 export function shux_io_submit_read_async(ptr: *u8, len: usize, handle: usize): i32 {
   if (ptr != 0 && len > 0 && handle >= 0) {
     return -1;
@@ -70,12 +104,19 @@ export function shux_io_submit_read_async(ptr: *u8, len: usize, handle: usize): 
   return -1;
 }
 
-/** 收割 read async（无 slot）：v1 返回 -1。 */
+/** Exported function `shux_io_complete_read_async`.
+ * Read path helper `shux_io_complete_read_async`.
+ * @return i32
+ */
 export function shux_io_complete_read_async(): i32 {
   return -1;
 }
 
-/** 收割指定 slot read async：v1 返回 -1。 */
+/** Exported function `shux_io_complete_read_async_slot`.
+ * Read path helper `shux_io_complete_read_async_slot`.
+ * @param slot i32
+ * @return i32
+ */
 export function shux_io_complete_read_async_slot(slot: i32): i32 {
   if (slot >= 0) {
     return -1;
@@ -83,7 +124,13 @@ export function shux_io_complete_read_async_slot(slot: i32): i32 {
   return -1;
 }
 
-/** 提交非阻塞 write async：v1 不支持。 */
+/** Exported function `shux_io_submit_write_async`.
+ * Write path helper `shux_io_submit_write_async`.
+ * @param ptr *u8
+ * @param len usize
+ * @param handle usize
+ * @return i32
+ */
 export function shux_io_submit_write_async(ptr: *u8, len: usize, handle: usize): i32 {
   if (ptr != 0 && len > 0 && handle >= 0) {
     return -1;
@@ -91,10 +138,19 @@ export function shux_io_submit_write_async(ptr: *u8, len: usize, handle: usize):
   return -1;
 }
 
+/** Exported function `shux_io_complete_write_async`.
+ * Write path helper `shux_io_complete_write_async`.
+ * @return i32
+ */
 export function shux_io_complete_write_async(): i32 {
   return -1;
 }
 
+/** Exported function `shux_io_complete_write_async_slot`.
+ * Write path helper `shux_io_complete_write_async_slot`.
+ * @param slot i32
+ * @return i32
+ */
 export function shux_io_complete_write_async_slot(slot: i32): i32 {
   if (slot >= 0) {
     return -1;
@@ -102,14 +158,21 @@ export function shux_io_complete_write_async_slot(slot: i32): i32 {
   return -1;
 }
 
-/** poll io_uring async CQE：v1 无 CQE，返回 0。 */
+/** Exported function `shux_io_poll_async_completions`.
+ * Implements `shux_io_poll_async_completions`.
+ * @param timeout_ms u32
+ * @return u32
+ */
 export function shux_io_poll_async_completions(timeout_ms: u32): u32 {
   if (timeout_ms >= 0) {
   }
   return 0 as u32;
 }
 
-/** 当前线程 io_uring 是否可用：v1 恒 0。 */
+/** Exported function `shux_io_uring_is_available_c`.
+ * Implements `shux_io_uring_is_available_c`.
+ * @return i32
+ */
 export function shux_io_uring_is_available_c(): i32 {
   return 0;
 }

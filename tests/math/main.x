@@ -1,7 +1,11 @@
-// tests/math/main.x — std.math 回归：常量、floor/ceil、sqrt、abs/signum。
+// See implementation.
 // Non-lit METHOD_CALL args (var / post-clobber) must use SysV xmm0 — not GP rdi residual.
 const math = import("std.math");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (math.pi() <= 3.0 || math.pi() >= 4.0) { return 1; }
   if (math.e() <= 2.0 || math.e() >= 3.0) { return 2; }

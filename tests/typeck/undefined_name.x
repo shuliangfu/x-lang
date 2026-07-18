@@ -1,4 +1,8 @@
-// 边界：未定义变量，应报 undefined name
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   return x;
 }

@@ -1,11 +1,15 @@
 /**
- * LANG-009 烟测：Option<T> 模板 + Option<i32/u8/*u8> 三类型金样。
+ * See implementation.
  */
 allow(padding) struct Option<T> {
   is_some: bool;
   value: T;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: Option<i32> = Option<i32> { is_some: true, value: 10 };
   let b: Option<u8> = Option<u8> { is_some: true, value: 5 };

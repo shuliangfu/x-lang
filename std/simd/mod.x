@@ -14,86 +14,141 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.simd — SIMD-S2：标准向量类型 Vec4f / Vec8i（映射 f32x4 / i32x8 语义）
-// STD-047：vec4f_shuffle / vec8i_select lane-scalar 实装；STD-061：shuffle/select 生产级 perf bench 锚点。
+// See implementation.
+// See implementation.
 //
-// 【文件职责】
-//   - Vec4f：4×f32（128-bit，NEON / SSE / AVX 低半）
-//   - Vec8i：8×i32（256-bit，AVX2；arm64 为 lane-scalar 路径直至 SVE）
-// 编译器将 Vec4f/Vec8i 识别为 TYPE_VECTOR 栈槽（16B / 32B，16B 对齐）。
-// 【依赖】语言 TYPE_VECTOR；SIMD-S1 target_cpu_features 供后续 intrinsic 分派。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 底层拼写：f32x4 / i32x8 与 Vec4f / Vec8i 等价（parser + asm 后端）。
+// See implementation.
 
 extern function simd_hw_available_c(): i32;
 extern function simd_recommend_path_c(): i32;
 
-/** lane-scalar 回退路径常量（与 simd.c SIMD_PATH_SCALAR 一致）。 */
+/** Exported function `SIMD_PATH_SCALAR`.
+ * Implements `SIMD_PATH_SCALAR`.
+ * @return i32
+ */
 export function SIMD_PATH_SCALAR(): i32 { return 0; }
-/** 硬件向量 emit 路径常量（与 simd.c SIMD_PATH_HW 一致）。 */
+/** Exported function `SIMD_PATH_HW`.
+ * Implements `SIMD_PATH_HW`.
+ * @return i32
+ */
 export function SIMD_PATH_HW(): i32 { return 1; }
 
-/** 宿主是否具备已知 SIMD 能力（1/0）。 */
+/** Exported function `hw_available`.
+ * Implements `hw_available`.
+ * @return i32
+ */
 export function hw_available(): i32 {
   unsafe { return simd_hw_available_c(); }
   return 0; // unreachable — typeck workaround
 }
 
-/** STD-153：推荐向量化路径（0=scalar，1=hw）。 */
+/** Exported function `recommend_path`.
+ * Implements `recommend_path`.
+ * @return i32
+ */
 export function recommend_path(): i32 {
   unsafe { return simd_recommend_path_c(); }
   return 0; // unreachable — typeck workaround
 }
 
-/** Vec8i 逐 lane 加法（当前 lane-scalar emit；SIMD-S3 起可矢量化）。 */
+/** Exported function `add`.
+ * Implements `add`.
+ * @param a Vec8i
+ * @param b Vec8i
+ * @return Vec8i
+ */
 export function add(a: Vec8i, b: Vec8i): Vec8i {
   return a + b;
 }
 
-/** Vec8i 逐 lane 减法（SIMD-S3 binop 内联：psubd/vpsubd）。 */
+/** Exported function `sub`.
+ * Implements `sub`.
+ * @param a Vec8i
+ * @param b Vec8i
+ * @return Vec8i
+ */
 export function sub(a: Vec8i, b: Vec8i): Vec8i {
   return a - b;
 }
 
-/** Vec8i 逐 lane 乘法（SIMD-S3 binop 内联：pmulld/vpmulld）。 */
+/** Exported function `mul`.
+ * Implements `mul`.
+ * @param a Vec8i
+ * @param b Vec8i
+ * @return Vec8i
+ */
 export function mul(a: Vec8i, b: Vec8i): Vec8i {
   return a * b;
 }
 
-/** Vec8i 广播单值到 8 lane。 */
+/** Exported function `splat`.
+ * Implements `splat`.
+ * @param x i32
+ * @return Vec8i
+ */
 export function splat(x: i32): Vec8i {
   let v: Vec8i = [x, x, x, x, x, x, x, x];
   return v;
 }
 
-/** Vec4f 逐 lane 加法。 */
+/** Exported function `add`.
+ * Implements `add`.
+ * @param a Vec4f
+ * @param b Vec4f
+ * @return Vec4f
+ */
 export function add(a: Vec4f, b: Vec4f): Vec4f {
   return a + b;
 }
 
-/** Vec4f 逐 lane 减法（SIMD-S3 binop 内联：mulps/subps）。 */
+/** Exported function `sub`.
+ * Implements `sub`.
+ * @param a Vec4f
+ * @param b Vec4f
+ * @return Vec4f
+ */
 export function sub(a: Vec4f, b: Vec4f): Vec4f {
   return a - b;
 }
 
-/** Vec4f 逐 lane 乘法（SIMD-S3 binop 内联：mulps）。 */
+/** Exported function `mul`.
+ * Implements `mul`.
+ * @param a Vec4f
+ * @param b Vec4f
+ * @return Vec4f
+ */
 export function mul(a: Vec4f, b: Vec4f): Vec4f {
   return a * b;
 }
 
-/** Vec4f 四 lane 水平求和（dot 归约 epilogue）。 */
+/** Exported function `hsum`.
+ * Implements `hsum`.
+ * @param v Vec4f
+ * @return f32
+ */
 export function hsum(v: Vec4f): f32 {
   return v[0] + v[1] + v[2] + v[3];
 }
 
-/** Vec4f 点积：sum(a[i]*b[i])。 */
+/** Exported function `dot`.
+ * Implements `dot`.
+ * @param a Vec4f
+ * @param b Vec4f
+ * @return f32
+ */
 export function dot(a: Vec4f, b: Vec4f): f32 {
   return hsum(mul(a, b));
 }
 
 /**
- * Vec4f 融合乘加（FMA）：逐 lane 计算 a + b * c。
- * x86 emit vfmadd231ps（FMA3）或 mulps+addps；无 HW 时 lane-scalar 回退。
+ * See implementation.
+ * See implementation.
  */
 export function fma(a: Vec4f, b: Vec4f, c: Vec4f): Vec4f {
   let r: Vec4f = [
@@ -105,20 +160,30 @@ export function fma(a: Vec4f, b: Vec4f, c: Vec4f): Vec4f {
   return r;
 }
 
-/** Vec4f multiply-add 别名（同 fma）。 */
+/** Exported function `madd`.
+ * Implements `madd`.
+ * @param a Vec4f
+ * @param b Vec4f
+ * @param c Vec4f
+ * @return Vec4f
+ */
 export function madd(a: Vec4f, b: Vec4f, c: Vec4f): Vec4f {
   return fma(a, b, c);
 }
 
-/** Vec4f 广播单值到 4 lane。 */
+/** Exported function `splat`.
+ * Implements `splat`.
+ * @param x f32
+ * @return Vec4f
+ */
 export function splat(x: f32): Vec4f {
   let v: Vec4f = [x, x, x, x];
   return v;
 }
 
 /**
- * Vec4f comptime shuffle（SIMD-S4）：mask 为编译期 i32[4]，lane 索引 0..3。
- * lane-scalar 回退：v[mask[i]]；编译器可内联为 pshufd。
+ * See implementation.
+ * See implementation.
  */
 export function shuffle(v: Vec4f, mask: i32[4]): Vec4f {
   let r: Vec4f = [v[mask[0]], v[mask[1]], v[mask[2]], v[mask[3]]];
@@ -126,8 +191,8 @@ export function shuffle(v: Vec4f, mask: i32[4]): Vec4f {
 }
 
 /**
- * Vec8i comptime shuffle（SIMD-S4）：mask 为编译期 i32[8]。
- * lane-scalar 回退：v[mask[i]]。
+ * See implementation.
+ * See implementation.
  */
 export function shuffle(v: Vec8i, mask: i32[8]): Vec8i {
   let r: Vec8i = [
@@ -137,14 +202,20 @@ export function shuffle(v: Vec8i, mask: i32[8]): Vec8i {
   return r;
 }
 
-/** 单 lane select：mask lane 非 0 取 a，否则 b。 */
+/** Exported function `select_lane`.
+ * Implements `select_lane`.
+ * @param mask_lane i32
+ * @param a_lane i32
+ * @param b_lane i32
+ * @return i32
+ */
 export function select_lane(mask_lane: i32, a_lane: i32, b_lane: i32): i32 {
   if (mask_lane != 0) { return a_lane; }
   return b_lane;
 }
 
 /**
- * Vec8i 向量 select（SIMD-S4）：mask lane 非 0 取 a，否则 b。
+ * See implementation.
  */
 export function select(mask: Vec8i, a: Vec8i, b: Vec8i): Vec8i {
   let r: Vec8i = [
@@ -160,14 +231,20 @@ export function select(mask: Vec8i, a: Vec8i, b: Vec8i): Vec8i {
   return r;
 }
 
-/** 单 lane f32 select：mask 非 0 取 a。 */
+/** Exported function `select_lane`.
+ * Implements `select_lane`.
+ * @param mask_lane f32
+ * @param a_lane f32
+ * @param b_lane f32
+ * @return f32
+ */
 export function select_lane(mask_lane: f32, a_lane: f32, b_lane: f32): f32 {
   if (mask_lane != 0.0) { return a_lane; }
   return b_lane;
 }
 
 /**
- * Vec4f 向量 select（SIMD-S4）：mask lane 非 0 取 a，否则 b。
+ * See implementation.
  */
 export function select(mask: Vec4f, a: Vec4f, b: Vec4f): Vec4f {
   let r: Vec4f = [
@@ -179,7 +256,10 @@ export function select(mask: Vec4f, a: Vec4f, b: Vec4f): Vec4f {
   return r;
 }
 
-/** 占位：模块加载 smoke（import("std.simd") 链）。 */
+/** Exported function `placeholder`.
+ * Module import/smoke marker; returns 0.
+ * @return i32
+ */
 export function placeholder(): i32 {
   return 0;
 }

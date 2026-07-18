@@ -1,6 +1,10 @@
-// STD-049：AES-128-GCM NIST SP 800-38D Test Case 2 金样 + round-trip
+// See implementation.
 const crypto = import("std.crypto");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let key: u8[16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   let iv: u8[12] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];

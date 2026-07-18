@@ -1,6 +1,10 @@
-// STD-130：可复现 PRNG（SplitMix64）烟测
+// See implementation.
 const random = import("std.random");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let _csr: u64 = random.next();
   let r1: Rng = random.seed(0 as u64);

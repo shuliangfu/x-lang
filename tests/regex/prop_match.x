@@ -1,6 +1,10 @@
-// STD-066：\p{L}+ / \P{N} / \p{Whitespace} Unicode 属性烟测
+// See implementation.
 const regex = import("std.regex");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   // \p{L}+
   let pat_l: u8[6] = [92, 112, 123, 76, 125, 43];
@@ -10,7 +14,7 @@ function main(): i32 {
   if (regex.match(re_l, &hay_abc[0], 5) != 0) { regex.free(re_l); return 2; }
   regex.free(re_l);
 
-  // \P{N} 匹配非数字（x）
+  // See implementation.
   let pat_pn: u8[5] = [92, 80, 123, 78, 125];
   let re_pn: *u8 = regex.compile(&pat_pn[0], 5);
   if (re_pn == 0) { return 3; }
@@ -26,7 +30,7 @@ function main(): i32 {
   if (regex.match(re_ws, &hay_sp[0], 3) != 0) { regex.free(re_ws); return 6; }
   regex.free(re_ws);
 
-  // 空属性名 compile 失败
+  // See implementation.
   let bad: u8[4] = [92, 112, 123, 125];
   if (regex.compile(&bad[0], 4) != 0) { return 7; }
 

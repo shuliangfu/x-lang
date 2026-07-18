@@ -14,13 +14,13 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.net.udp — F-04 v12：UDP bind/send_to/recv_from（基础路径）
+// See implementation.
 //
-// 【文件职责】
-// 从 net.c 迁出 net_udp_bind_c / net_udp_send_to_c / net_udp_recv_from_c。
-// UDP 批量见 udp_batch.x + runtime_net_udp_batch.c（F-04 v13b / F-ZC）。
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 【依赖】libc socket/bind/sendto/recvfrom、poll/select
+// See implementation.
 
 export const AF_INET: i32 = 2;
 export const SOCK_DGRAM: i32 = 2;
@@ -28,10 +28,10 @@ export const IPPROTO_UDP: i32 = 17;
 export const SOL_SOCKET: i32 = 1;
 export const SO_REUSEADDR: i32 = 2;
 export const O_NONBLOCK: i32 = 2048;
-/* 勿 export const POLLIN/POLLERR/POLLHUP：poll.h 已 #define 同名宏 → 生成 C 非法。
- * 事件位用字面量（POLLIN=1, POLLERR|POLLHUP=24），与 std.io.sync / std.fs.posix 一致。 */
+/* See implementation. */
+ * See implementation.
 
-/** IPv4 sockaddr 前缀。 */
+/* See implementation. */
 allow(padding) struct SockAddrIn {
   sin_family: u16;
   sin_port: u16;
@@ -55,7 +55,7 @@ extern "C" function ntohs(netshort: u16): u16;
 #[cfg(not(target_os = "windows"))]
 extern "C" function fcntl(fd: i32, cmd: i32, arg: i32): i32;
 
-/* 勿 bare poll：与 poll.h 原型冲突。权威走 preamble shux_sys_poll（与 std.io.sync 一致）。 */
+/* See implementation. */
 #[cfg(not(target_os = "windows"))]
 extern "C" function shux_sys_poll(fds: *u8, nfds: i32, timeout: i32): i32;
 
@@ -65,10 +65,7 @@ extern "C" function __errno_location(): *i32;
 #[cfg(target_os = "macos")]
 extern "C" function __error(): *i32;
 
-/** 平台无关 errno 指针获取：Linux 走 __errno_location，macOS/BSD 走 __error。
- * 【Why 根源治理】原 `#[cfg(not(windows))] extern __errno_location` 在 macOS 链接失败：
- * __errno_location 是 glibc 符号，macOS 用 __error()。错误 cfg 导致 net.o 引用
- * undefined `___errno_location`，~75 个测试链接失败。 */
+/** See implementation for details. */
 #[cfg(target_os = "linux")]
 export function net_udp_errno_ptr(): *i32 {
   let p: *i32 = 0 as *i32;
@@ -77,6 +74,10 @@ export function net_udp_errno_ptr(): *i32 {
 }
 
 #[cfg(target_os = "macos")]
+/** Exported function `net_udp_errno_ptr`.
+ * Implements `net_udp_errno_ptr`.
+ * @return *i32
+ */
 export function net_udp_errno_ptr(): *i32 {
   let p: *i32 = 0 as *i32;
   unsafe { p = __error(); }
@@ -102,7 +103,7 @@ extern "C" function closesocket(fd: i32): i32;
 let net_udp_wsa_done: i32 = 0;
 
 /**
- * Windows：一次性 WSAStartup。
+ * See implementation.
  */
 #[cfg(target_os = "windows")]
 export function net_udp_ensure_wsa_c(): i32 {
@@ -117,7 +118,7 @@ export function net_udp_ensure_wsa_c(): i32 {
 }
 
 /**
- * Windows：绑定前确保 WSA；非 Windows 恒为 0（顶层 cfg，避免函数体内 #[cfg] parse skip）。
+ * See implementation.
  */
 #[cfg(target_os = "windows")]
 export function net_udp_maybe_wsa_fail_c(): i32 {
@@ -128,22 +129,26 @@ export function net_udp_maybe_wsa_fail_c(): i32 {
 }
 
 #[cfg(not(target_os = "windows"))]
+/** Exported function `net_udp_maybe_wsa_fail_c`.
+ * Implements `net_udp_maybe_wsa_fail_c`.
+ * @return i32
+ */
 export function net_udp_maybe_wsa_fail_c(): i32 {
   return 0;
 }
 
 /**
- * 取栈上 sockaddr 缓冲首地址（seed emit 不支持 call 实参内联 &buf[0]）。
+ * See implementation.
  */
 export function net_udp_sin_buf_ptr_c(p: *u8): *u8 {
   return p;
 }
 
-/** IPv4 sockaddr 填充；实现见 net_import_alias.c（规避 asm u16 间接 store codegen 缺陷）。 */
+/* See implementation. */
 extern function net_udp_set_addr_port_buf_c(sin: *u8, addr_u32: u32, port_u32: u32): void;
 
 /**
- * 设 UDP socket 非阻塞（Unix）。
+ * See implementation.
  */
 #[cfg(not(target_os = "windows"))]
 export function net_udp_set_nonblock_c(fd: i32): i32 {
@@ -159,7 +164,7 @@ export function net_udp_set_nonblock_c(fd: i32): i32 {
 }
 
 /**
- * 设 UDP socket 非阻塞（Windows）。
+ * See implementation.
  */
 #[cfg(target_os = "windows")]
 export function net_udp_set_nonblock_c(fd: i32): i32 {
@@ -171,7 +176,7 @@ export function net_udp_set_nonblock_c(fd: i32): i32 {
 }
 
 /**
- * poll 可读（Unix）。
+ * See implementation.
  */
 #[cfg(not(target_os = "windows"))]
 export function net_udp_poll_readable_c(fd: i32, timeout_ms: u32): i32 {
@@ -196,7 +201,7 @@ export function net_udp_poll_readable_c(fd: i32, timeout_ms: u32): i32 {
 }
 
 /**
- * poll 可读（Windows 桩：恒成功）。
+ * See implementation.
  */
 #[cfg(target_os = "windows")]
 export function net_udp_poll_readable_c(fd: i32, timeout_ms: u32): i32 {
@@ -204,7 +209,7 @@ export function net_udp_poll_readable_c(fd: i32, timeout_ms: u32): i32 {
 }
 
 /**
- * recvfrom EAGAIN 判定（Unix）。
+ * See implementation.
  */
 #[cfg(not(target_os = "windows"))]
 export function net_udp_recv_is_eagain_c(): i32 {
@@ -217,7 +222,7 @@ export function net_udp_recv_is_eagain_c(): i32 {
 }
 
 /**
- * recvfrom EAGAIN 判定（Windows 桩）。
+ * See implementation.
  */
 #[cfg(target_os = "windows")]
 export function net_udp_recv_is_eagain_c(): i32 {
@@ -225,13 +230,13 @@ export function net_udp_recv_is_eagain_c(): i32 {
 }
 
 /**
- * UDP bind；非阻塞 fd；addr_u32=0 为 INADDR_ANY。
- * 实现见 net_import_alias.c（规避 asm socket/bind 字面量实参 codegen 缺陷）。
+ * See implementation.
+ * See implementation.
  */
 extern function net_udp_bind_c(addr_u32: u32, port_u32: u32): i32;
 
 /**
- * UDP 向 addr:port 发送；返回字节数，失败 -1。
+ * See implementation.
  */
 #[no_mangle]
 export function net_udp_send_to_c(fd: i32, addr_u32: u32, port_u32: u32, buf: *u8, len: usize): i32 {
@@ -247,7 +252,7 @@ export function net_udp_send_to_c(fd: i32, addr_u32: u32, port_u32: u32, buf: *u
 }
 
 /**
- * UDP 接收；timeout_ms 毫秒（0=无超时）。成功字节数，EAGAIN=0，错误 -1。
+ * See implementation.
  */
 #[no_mangle]
 export function net_udp_recv_from_c(fd: i32, buf: *u8, len: usize, timeout_ms: u32, out_addr_u32: *u32, out_port_u32: *u32): i32 {

@@ -1,4 +1,8 @@
-// COMP-011：Windows COFF 最小样例（-target x86_64-pc-windows-msvc -backend asm -o out.obj）。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   return 42;
 }

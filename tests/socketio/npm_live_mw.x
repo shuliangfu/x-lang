@@ -1,8 +1,12 @@
 /**
- * STD-SOCKETIO-001 npm mw live：WS 直连 /chat → auth → mw_ping/mw_pong（中间件 gate）。
+ * See implementation.
  */
 const sio = import("std.socketio");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let base: u8[32] = [104, 116, 116, 112, 58, 47, 47, 49, 50, 55, 46, 48, 46, 48, 46, 49, 58, 49, 51,
     48, 48, 53, 0];

@@ -1,8 +1,12 @@
-// STD-089：std.task TaskGroup + JoinSet + context 取消烟测
+// See implementation.
 const task = import("std.task");
 const context = import("std.context");
 const async_mod = import("std.async");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let zero: i64 = 0;
   let tg: TaskGroup = task.new(4);

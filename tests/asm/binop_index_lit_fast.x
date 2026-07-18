@@ -1,4 +1,8 @@
-// 7.3：字面量下标 INDEX binop 用 add_imm，不经 rbx/x2 暂存（run-asm-binop-index-lit.sh）。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let arr: u8[3] = [10, 20, 30];
   let c: i32 = 5;

@@ -1,6 +1,10 @@
-// CORE-003：Result 类型族 + map/and_then/or_else 烟测
+// See implementation.
 const result = import("core.result");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let ok_r: Result_i32 = result.ok_i32(42);
   let err_r: Result_i32 = result.err_i32(7);

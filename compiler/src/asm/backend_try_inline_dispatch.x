@@ -1,12 +1,12 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-9：backend_try_inline_dispatch 产品源迁 seeds/backend_try_inline_dispatch.from_x.c。
-// G-02f-184/185：array/struct lit stack 字节 pure 真迁。
-// G-02f-196：index elem sz + local_var_slot_indirect pure；pipeline 薄包装。
-// R2 full（2026-07-14）：产品 PREFER_X_O → 本文件 -E→.o + rest（SHUX_BACKEND_TRY_INLINE_DISPATCH_FROM_X 仅 marker）
-// 冷启动：seeds/backend_try_inline_dispatch.from_x.c 全 C；L2 thin 仅 g05 回退
-// R2 full：pipeline/asm_ctx extern 须在首次使用前声明，否则 -E 不发原型 → cc 隐式声明失败
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 
 // PLATFORM: SHARED — all export extern "C" hoisted before first use so -E emits
 // short-name prototypes matching call sites (late mid-file externs caused type-mangle
@@ -102,19 +102,30 @@ export extern "C" function glue_wpo_mono_register_thunk(name: *u8, a0: i32, a1: 
 export extern "C" function codegen_wpo_mono_sym_format(name: *u8, nargs: i32, args: *i32, out: *u8, out_cap: i32): i32;
 export extern "C" function glue_wpo_mono_register_thunk_n(name: *u8, nargs: i32, args: *i32, folded: i32): void;
 
+/** Exported function `backend_try_inline_dispatch_x_doc_anchor`.
+ * Implements `backend_try_inline_dispatch_x_doc_anchor`.
+ * @return i32
+ */
 export function backend_try_inline_dispatch_x_doc_anchor(): i32 {
   return 0;
 }
 
-// G-02f-109：+ align/const fold/module lookup/param 薄门闩。
+// See implementation.
 
-// 前置：asm_local_var_slot_holds_indirect_ptr / getenv 等热路径先于中段 late-decl 使用
+// See implementation.
 
 
 /* ---- G-02f-109 / G-02f-134：try_inline helpers ---- */
 
-// G-02f-134：按名找函数下标
+// glue_module_func_index_by_name: see function docblock below.
 #[no_mangle]
+/** Exported function `glue_module_func_index_by_name`.
+ * Implements `glue_module_func_index_by_name`.
+ * @param mod *u8
+ * @param name *u8
+ * @param nlen i32
+ * @return i32
+ */
 export function glue_module_func_index_by_name(mod: *u8, name: *u8, nlen: i32): i32 {
   if (mod == 0) { return 0 - 1; }
   if (name == 0) { return 0 - 1; }
@@ -142,8 +153,16 @@ export function glue_module_func_index_by_name(mod: *u8, name: *u8, nlen: i32): 
   return 0 - 1;
 }
 
-// G-02f-129：标量 i32 binop 编译期求值（4=add..8=mod）
+// glue_const_scalar_binop_eval_i32: see function docblock below.
 #[no_mangle]
+/** Exported function `glue_const_scalar_binop_eval_i32`.
+ * Implements `glue_const_scalar_binop_eval_i32`.
+ * @param ko i32
+ * @param a i32
+ * @param b i32
+ * @param out *i32
+ * @return i32
+ */
 export function glue_const_scalar_binop_eval_i32(ko: i32, a: i32, b: i32, out: *i32): i32 {
   if (out == 0) { return 0; }
   let wide: i64 = 0;
@@ -167,8 +186,15 @@ export function glue_const_scalar_binop_eval_i32(ko: i32, a: i32, b: i32, out: *
 }
 
 #[no_mangle]
-// G-02f-135：模块内是否有命名 struct layout
+// glue_module_named_type_has_struct_layout: see function docblock below.
 #[no_mangle]
+/** Exported function `glue_module_named_type_has_struct_layout`.
+ * Implements `glue_module_named_type_has_struct_layout`.
+ * @param mod *u8
+ * @param name *u8
+ * @param nlen i32
+ * @return i32
+ */
 export function glue_module_named_type_has_struct_layout(mod: *u8, name: *u8, nlen: i32): i32 {
   if (mod == 0) { return 0; }
   if (name == 0) { return 0; }
@@ -198,8 +224,15 @@ export function glue_module_named_type_has_struct_layout(mod: *u8, name: *u8, nl
   return 0;
 }
 
-// G-02f-135：TYPE_NAMED=8 且模块有 layout
+// glue_type_ref_is_named_struct_layout: see function docblock below.
 #[no_mangle]
+/** Exported function `glue_type_ref_is_named_struct_layout`.
+ * Implements `glue_type_ref_is_named_struct_layout`.
+ * @param arena *u8
+ * @param mod *u8
+ * @param ty_ref i32
+ * @return i32
+ */
 export function glue_type_ref_is_named_struct_layout(arena: *u8, mod: *u8, ty_ref: i32): i32 {
   if (ty_ref <= 0) { return 0; }
   if (mod == 0) { return 0; }
@@ -258,9 +291,17 @@ export function g02f_store_ptr_at(p: *u8, off: i32, val: *u8): void {
   p[off + 7] = (a % m) as u8;
 }
 
-// G-02f-196：局部槽是否间接指针（*T / 大 struct 形参 hidden ptr；块内 let struct 则 lea）
+// See implementation.
 // GLUE_EXPR_VAR=3 TYPE_PTR=9 TYPE_NAMED=8
 #[no_mangle]
+/** Exported function `asm_local_var_slot_holds_indirect_ptr`.
+ * Implements `asm_local_var_slot_holds_indirect_ptr`.
+ * @param arena *u8
+ * @param expr_ref i32
+ * @param mod *u8
+ * @param asm_ctx *u8
+ * @return i32
+ */
 export function asm_local_var_slot_holds_indirect_ptr(arena: *u8, expr_ref: i32, mod: *u8, asm_ctx: *u8): i32 {
   if (arena == 0) { return 0; }
   if (expr_ref <= 0) { return 0; }
@@ -323,6 +364,13 @@ export function asm_local_var_slot_holds_indirect_ptr(arena: *u8, expr_ref: i32,
 }
 
 #[no_mangle]
+/** Exported function `glue_local_var_slot_holds_indirect_ptr`.
+ * Implements `glue_local_var_slot_holds_indirect_ptr`.
+ * @param arena *u8
+ * @param er i32
+ * @param asm_ctx *u8
+ * @return i32
+ */
 export function glue_local_var_slot_holds_indirect_ptr(arena: *u8, er: i32, asm_ctx: *u8): i32 {
   let mod_ref: *u8 = 0 as *u8;
   if (asm_ctx != 0) {
@@ -331,8 +379,17 @@ export function glue_local_var_slot_holds_indirect_ptr(arena: *u8, er: i32, asm_
   return asm_local_var_slot_holds_indirect_ptr(arena, er, mod_ref, asm_ctx);
 }
 
-// G-02f-132：VAR 是否为指定形参
+// glue_expr_is_func_param_at: see function docblock below.
 #[no_mangle]
+/** Exported function `glue_expr_is_func_param_at`.
+ * Implements `glue_expr_is_func_param_at`.
+ * @param arena *u8
+ * @param mod *u8
+ * @param fi i32
+ * @param er i32
+ * @param pix i32
+ * @return i32
+ */
 export function glue_expr_is_func_param_at(arena: *u8, mod: *u8, fi: i32, er: i32, pix: i32): i32 {
   if (arena == 0) { return 0; }
   if (mod == 0) { return 0; }
@@ -356,8 +413,15 @@ export function glue_expr_is_func_param_at(arena: *u8, mod: *u8, fi: i32, er: i3
   return 0;
 }
 #[no_mangle]
-// G-02f-134：module body_ref 路径读 return 操作数（41=RETURN）
+// glue_fold_func_return_operand_ref_module: see function docblock below.
 #[no_mangle]
+/** Exported function `glue_fold_func_return_operand_ref_module`.
+ * Implements `glue_fold_func_return_operand_ref_module`.
+ * @param arena *u8
+ * @param mod *u8
+ * @param fi i32
+ * @return i32
+ */
 export function glue_fold_func_return_operand_ref_module(arena: *u8, mod: *u8, fi: i32): i32 {
   if (arena == 0) { return 0; }
   if (mod == 0) { return 0; }
@@ -395,8 +459,15 @@ export function glue_fold_func_return_operand_ref_module(arena: *u8, mod: *u8, f
   return 0;
 }
 
-// G-02f-128：glue_try_fold_func_return_operand_ref 真迁 .x
+// glue_try_fold_func_return_operand_ref: see function docblock below.
 #[no_mangle]
+/** Exported function `glue_try_fold_func_return_operand_ref`.
+ * Implements `glue_try_fold_func_return_operand_ref`.
+ * @param arena *u8
+ * @param mod *u8
+ * @param fi i32
+ * @return i32
+ */
 export function glue_try_fold_func_return_operand_ref(arena: *u8, mod: *u8, fi: i32): i32 {
   unsafe {
     let r: i32 = backend_fold_func_return_operand_ref(arena, mod, fi);
@@ -407,16 +478,26 @@ export function glue_try_fold_func_return_operand_ref(arena: *u8, mod: *u8, fi: 
 }
 
 
-// G-02f-110：+ fold/struct lit/field offset/vector binop 薄门闩。
+// See implementation.
 
 
-// pipeline_expr_resolved_type_ref / asm_ctx_scope_block_ref_at / pipeline_block_resolve_var_type_ref：见文件头 R2 full 前置 extern
+// See implementation.
 
 /* ---- G-02f-110 / G-02f-136 / G-02f-138：try_inline fold/field ---- */
 
-// G-02f-138：解析 CALL callee → out_ca/out_cm 指针槽（*u8 写 8B LE）+ out_fi
+// See implementation.
 // module_ref@16，dep_pipe@1256；FIELD_ACCESS=44，VAR=3
 #[no_mangle]
+/** Exported function `glue_call_lookup_callee_mod_fi_arena`.
+ * Implements `glue_call_lookup_callee_mod_fi_arena`.
+ * @param caller_arena *u8
+ * @param call_ref i32
+ * @param ctx *u8
+ * @param out_ca *u8
+ * @param out_cm *u8
+ * @param out_fi *i32
+ * @return i32
+ */
 export function glue_call_lookup_callee_mod_fi_arena(caller_arena: *u8, call_ref: i32, ctx: *u8, out_ca: *u8, out_cm: *u8, out_fi: *i32): i32 {
   if (caller_arena == 0) { return 0; }
   if (call_ref <= 0) { return 0; }
@@ -526,8 +607,16 @@ export function glue_call_lookup_callee_mod_fi_arena(caller_arena: *u8, call_ref
   return 0;
 }
 
-// G-02f-136：return param0 binop param1（两 i32 形参、非向量返回）；out=ko 4..8
+// glue_fold_func_returns_param01_scalar_binop: see function docblock below.
 #[no_mangle]
+/** Exported function `glue_fold_func_returns_param01_scalar_binop`.
+ * Implements `glue_fold_func_returns_param01_scalar_binop`.
+ * @param arena *u8
+ * @param mod *u8
+ * @param func_idx i32
+ * @param out_binop_ko *i32
+ * @return i32
+ */
 export function glue_fold_func_returns_param01_scalar_binop(arena: *u8, mod: *u8, func_idx: i32, out_binop_ko: *i32): i32 {
   if (out_binop_ko == 0) { return 0; }
   if (arena == 0) { return 0; }
@@ -561,8 +650,18 @@ export function glue_fold_func_returns_param01_scalar_binop(arena: *u8, mod: *u8
   }
   return 0;
 }
-// G-02f-131：local slot enc/emit 真迁 .x
+// glue_enc_local_slot_ptr_or_addr: see function docblock below.
 #[no_mangle]
+/** Exported function `glue_enc_local_slot_ptr_or_addr`.
+ * Implements `glue_enc_local_slot_ptr_or_addr`.
+ * @param arena *u8
+ * @param elf *u8
+ * @param arg_ref i32
+ * @param slot_off i32
+ * @param ta i32
+ * @param asm_ctx *u8
+ * @return i32
+ */
 export function glue_enc_local_slot_ptr_or_addr(arena: *u8, elf: *u8, arg_ref: i32, slot_off: i32, ta: i32, asm_ctx: *u8): i32 {
   unsafe {
     if (glue_local_var_slot_holds_indirect_ptr(arena, arg_ref, asm_ctx) != 0) {
@@ -574,6 +673,16 @@ export function glue_enc_local_slot_ptr_or_addr(arena: *u8, elf: *u8, arg_ref: i
 }
 
 #[no_mangle]
+/** Exported function `glue_arch_emit_local_slot_ptr_or_addr_text`.
+ * Implements `glue_arch_emit_local_slot_ptr_or_addr_text`.
+ * @param arena *u8
+ * @param out *u8
+ * @param arg_ref i32
+ * @param slot_off i32
+ * @param ta i32
+ * @param asm_ctx *u8
+ * @return i32
+ */
 export function glue_arch_emit_local_slot_ptr_or_addr_text(arena: *u8, out: *u8, arg_ref: i32, slot_off: i32, ta: i32, asm_ctx: *u8): i32 {
   unsafe {
     if (glue_local_var_slot_holds_indirect_ptr(arena, arg_ref, asm_ctx) != 0) {
@@ -584,8 +693,18 @@ export function glue_arch_emit_local_slot_ptr_or_addr_text(arena: *u8, out: *u8,
   return 0;
 }
 #[no_mangle]
-// G-02f-134：struct lit 字段 init 对应形参下标；成功 0，失败 -1
+// glue_struct_lit_field_init_param_index: see function docblock below.
 #[no_mangle]
+/** Exported function `glue_struct_lit_field_init_param_index`.
+ * Implements `glue_struct_lit_field_init_param_index`.
+ * @param arena *u8
+ * @param mod *u8
+ * @param fi i32
+ * @param lit i32
+ * @param fj i32
+ * @param out_pix *i32
+ * @return i32
+ */
 export function glue_struct_lit_field_init_param_index(arena: *u8, mod: *u8, fi: i32, lit: i32, fj: i32, out_pix: *i32): i32 {
   if (out_pix == 0) { return 0 - 1; }
   unsafe {
@@ -607,6 +726,14 @@ export function glue_struct_lit_field_init_param_index(arena: *u8, mod: *u8, fi:
 #[no_mangle]
 // G-02f-135：return Struct{f:param…}；STRUCT_LIT=45，max fields=8
 #[no_mangle]
+/** Exported function `glue_fold_func_returns_param_struct_lit`.
+ * Implements `glue_fold_func_returns_param_struct_lit`.
+ * @param arena *u8
+ * @param mod *u8
+ * @param func_idx i32
+ * @param out_lit_ref *i32
+ * @return i32
+ */
 export function glue_fold_func_returns_param_struct_lit(arena: *u8, mod: *u8, func_idx: i32, out_lit_ref: *i32): i32 {
   if (out_lit_ref == 0) { return 0; }
   if (arena == 0) { return 0; }
@@ -635,8 +762,16 @@ export function glue_fold_func_returns_param_struct_lit(arena: *u8, mod: *u8, fu
   return 0;
 }
 
-// G-02f-134：struct lit 按字段名查下标
+// glue_struct_lit_field_index_by_name: see function docblock below.
 #[no_mangle]
+/** Exported function `glue_struct_lit_field_index_by_name`.
+ * Implements `glue_struct_lit_field_index_by_name`.
+ * @param arena *u8
+ * @param lit_ref i32
+ * @param fn *u8
+ * @param fnlen i32
+ * @return i32
+ */
 export function glue_struct_lit_field_index_by_name(arena: *u8, lit_ref: i32, fn: *u8, fnlen: i32): i32 {
   if (arena == 0) { return 0 - 1; }
   if (fn == 0) { return 0 - 1; }
@@ -665,9 +800,18 @@ export function glue_struct_lit_field_index_by_name(arena: *u8, lit_ref: i32, fn
   }
   return 0 - 1;
 }
-// G-02f-138：外层 field_access 经 inner CALL（param struct lit）映射到实参
+// See implementation.
 // CALL=48，FIELD_ACCESS=44
 #[no_mangle]
+/** Exported function `glue_inner_call_arg_for_field_access`.
+ * Implements `glue_inner_call_arg_for_field_access`.
+ * @param arena *u8
+ * @param ctx *u8
+ * @param inner_call_ref i32
+ * @param outer_field_ref i32
+ * @param out_arg_ref *i32
+ * @return i32
+ */
 export function glue_inner_call_arg_for_field_access(arena: *u8, ctx: *u8, inner_call_ref: i32, outer_field_ref: i32, out_arg_ref: *i32): i32 {
   if (out_arg_ref == 0) { return 0; }
   if (inner_call_ref <= 0) { return 0; }
@@ -707,8 +851,15 @@ export function glue_inner_call_arg_for_field_access(arena: *u8, ctx: *u8, inner
   return 0;
 }
 
-// G-02f-137：dep 编译单元 struct layout 按字段名查偏移；失败 -1
+// glue_dep_module_field_offset_by_name: see function docblock below.
 #[no_mangle]
+/** Exported function `glue_dep_module_field_offset_by_name`.
+ * Implements `glue_dep_module_field_offset_by_name`.
+ * @param pctx *u8
+ * @param field_name *u8
+ * @param flen i32
+ * @return i32
+ */
 export function glue_dep_module_field_offset_by_name(pctx: *u8, field_name: *u8, flen: i32): i32 {
   if (pctx == 0) { return 0 - 1; }
   if (field_name == 0) { return 0 - 1; }
@@ -757,8 +908,17 @@ export function glue_dep_module_field_offset_by_name(pctx: *u8, field_name: *u8,
   return 0 - 1;
 }
 
-// G-02f-137：VAR 基址 FIELD_ACCESS 字节偏移；dep layout 回落
+// glue_inline_var_field_access_offset: see function docblock below.
 #[no_mangle]
+/** Exported function `glue_inline_var_field_access_offset`.
+ * Implements `glue_inline_var_field_access_offset`.
+ * @param arena *u8
+ * @param mod *u8
+ * @param pctx *u8
+ * @param asm_ctx *u8
+ * @param fa_ref i32
+ * @return i32
+ */
 export function glue_inline_var_field_access_offset(arena: *u8, mod: *u8, pctx: *u8, asm_ctx: *u8, fa_ref: i32): i32 {
   if (arena == 0) { return 0 - 1; }
   if (mod == 0) { return 0 - 1; }
@@ -835,8 +995,16 @@ export function glue_inline_var_field_access_offset(arena: *u8, mod: *u8, pctx: 
   return 0 - 1;
 }
 
-// G-02f-133：ARRAY_LIT=46 第 lane 常量
+// glue_try_array_lit_lane_const_i32: see function docblock below.
 #[no_mangle]
+/** Exported function `glue_try_array_lit_lane_const_i32`.
+ * Implements `glue_try_array_lit_lane_const_i32`.
+ * @param arena *u8
+ * @param arr_ref i32
+ * @param lane i32
+ * @param out *i32
+ * @return i32
+ */
 export function glue_try_array_lit_lane_const_i32(arena: *u8, arr_ref: i32, lane: i32, out: *i32): i32 {
   if (arena == 0) { return 0; }
   if (arr_ref <= 0) { return 0; }
@@ -851,8 +1019,16 @@ export function glue_try_array_lit_lane_const_i32(arena: *u8, arr_ref: i32, lane
   return 0;
 }
 
-// G-02f-137：return param0 binop param1（两形参、SIMD 向量返回）；out=ko
+// glue_fold_func_returns_param01_vector_binop: see function docblock below.
 #[no_mangle]
+/** Exported function `glue_fold_func_returns_param01_vector_binop`.
+ * Implements `glue_fold_func_returns_param01_vector_binop`.
+ * @param arena *u8
+ * @param mod *u8
+ * @param func_idx i32
+ * @param out_binop_ko *i32
+ * @return i32
+ */
 export function glue_fold_func_returns_param01_vector_binop(arena: *u8, mod: *u8, func_idx: i32, out_binop_ko: *i32): i32 {
   if (out_binop_ko == 0) { return 0; }
   if (arena == 0) { return 0; }
@@ -865,7 +1041,7 @@ export function glue_fold_func_returns_param01_vector_binop(arena: *u8, mod: *u8
     if (ret_ref <= 0) { return 0; }
     let ko: i32 = pipeline_expr_kind_ord_at(arena, ret_ref);
     if (glue_is_vector_lane_scalar_binop_ko(ko) == 0) { return 0; }
-    // typeck 常留默认 i32；return 已是向量 binop 形态（ko=51→add）则仍匹配
+    // See implementation.
     if (ret_ty > 0) {
       if (asm_type_is_simd_vector_spelling(arena, ret_ty) == 0) {
         if (asm_type_is_simd_vector(arena, ret_ty) == 0) {
@@ -884,8 +1060,16 @@ export function glue_fold_func_returns_param01_vector_binop(arena: *u8, mod: *u8
   return 0;
 }
 
-// G-02f-136：return param0[index_const]（单形参）；成功写 *out_lane
+// glue_fold_func_returns_param0_index_const: see function docblock below.
 #[no_mangle]
+/** Exported function `glue_fold_func_returns_param0_index_const`.
+ * Implements `glue_fold_func_returns_param0_index_const`.
+ * @param arena *u8
+ * @param mod *u8
+ * @param func_idx i32
+ * @param out_lane *i32
+ * @return i32
+ */
 export function glue_fold_func_returns_param0_index_const(arena: *u8, mod: *u8, func_idx: i32, out_lane: *i32): i32 {
   if (out_lane == 0) { return 0; }
   if (arena == 0) { return 0; }
@@ -908,13 +1092,19 @@ export function glue_fold_func_returns_param0_index_const(arena: *u8, mod: *u8, 
   return 0;
 }
 
-// G-02f-111：+ default_alloc / const struct lit fold 薄门闩。
+// See implementation.
 
 
 /* ---- G-02f-111 / G-02f-131：try_inline alloc/const-lit ---- */
 
-// G-02f-131：零实参 default_alloc CALL 真迁 .x（GLUE_EXPR_CALL=48, VAR=3, FIELD=44）
+// glue_call_is_zero_arg_default_alloc: see function docblock below.
 #[no_mangle]
+/** Exported function `glue_call_is_zero_arg_default_alloc`.
+ * Memory management helper `glue_call_is_zero_arg_default_alloc`.
+ * @param arena *u8
+ * @param call_ref i32
+ * @return i32
+ */
 export function glue_call_is_zero_arg_default_alloc(arena: *u8, call_ref: i32): i32 {
   if (arena == 0) { return 0; }
   if (call_ref <= 0) { return 0; }
@@ -953,8 +1143,17 @@ export function glue_call_is_zero_arg_default_alloc(arena: *u8, call_ref: i32): 
 }
 
 #[no_mangle]
-// G-02f-133：const struct lit 字段可否 inline（CALL=48）
+// glue_const_struct_lit_field_can_inline: see function docblock below.
 #[no_mangle]
+/** Exported function `glue_const_struct_lit_field_can_inline`.
+ * Implements `glue_const_struct_lit_field_can_inline`.
+ * @param arena *u8
+ * @param mod *u8
+ * @param func_idx i32
+ * @param lit_ref i32
+ * @param fj i32
+ * @return i32
+ */
 export function glue_const_struct_lit_field_can_inline(arena: *u8, mod: *u8, func_idx: i32, lit_ref: i32, fj: i32): i32 {
   if (arena == 0) { return 0; }
   unsafe {
@@ -974,9 +1173,17 @@ export function glue_const_struct_lit_field_can_inline(arena: *u8, mod: *u8, fun
   }
   return 0;
 }
-// G-02f-138：default_alloc 内联到 rbx+foff（with_arena 或 call runtime）
-// 符号名与 seed 一致；enc_call 名长保留 27
+// See implementation.
+// glue_emit_default_alloc_to_rbx_offset: see function docblock below.
 #[no_mangle]
+/** Exported function `glue_emit_default_alloc_to_rbx_offset`.
+ * Memory management helper `glue_emit_default_alloc_to_rbx_offset`.
+ * @param elf_ctx *u8
+ * @param foff i32
+ * @param fsz i32
+ * @param ta i32
+ * @return i32
+ */
 export function glue_emit_default_alloc_to_rbx_offset(elf_ctx: *u8, foff: i32, fsz: i32, ta: i32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   unsafe {
@@ -1008,8 +1215,16 @@ export function glue_emit_default_alloc_to_rbx_offset(elf_ctx: *u8, foff: i32, f
   return 0 - 1;
 }
 
-// G-02f-136：return Struct{f: 常量…/default_alloc}；STRUCT_LIT=45，max fields=8
+// glue_fold_func_returns_const_struct_lit: see function docblock below.
 #[no_mangle]
+/** Exported function `glue_fold_func_returns_const_struct_lit`.
+ * Implements `glue_fold_func_returns_const_struct_lit`.
+ * @param arena *u8
+ * @param mod *u8
+ * @param func_idx i32
+ * @param out_lit_ref *i32
+ * @return i32
+ */
 export function glue_fold_func_returns_const_struct_lit(arena: *u8, mod: *u8, func_idx: i32, out_lit_ref: *i32): i32 {
   if (out_lit_ref == 0) { return 0; }
   if (arena == 0) { return 0; }
@@ -1029,12 +1244,12 @@ export function glue_fold_func_returns_const_struct_lit(arena: *u8, mod: *u8, fu
       let init_ref: i32 = pipeline_expr_struct_lit_init_ref(arena, ret_ref, fj);
       if (init_ref <= 0) { return 0; }
       let pix: i32 = 0;
-      // 与 seed 一致：init 不得是形参（param_index 成功则拒）
+      // See implementation.
       if (glue_struct_lit_field_init_param_index(arena, mod, func_idx, ret_ref, fj, &pix) == 0) {
         return 0;
       }
       let ko: i32 = pipeline_expr_kind_ord_at(arena, init_ref);
-      // CALL=48 → 仅允许零实参 default_alloc
+      // See implementation.
       if (ko == 48) {
         if (glue_call_is_zero_arg_default_alloc(arena, init_ref) == 0) { return 0; }
       } else {
@@ -1052,9 +1267,14 @@ export function glue_fold_func_returns_const_struct_lit(arena: *u8, mod: *u8, fu
   return 0;
 }
 
-// G-02f-113：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
+// glue_align_up8_c: see function docblock below.
 
 #[no_mangle]
+/** Exported function `glue_align_up8_c`.
+ * Implements `glue_align_up8_c`.
+ * @param n i32
+ * @return i32
+ */
 export function glue_align_up8_c(n: i32): i32 {
   let m: i32 = n % 8;
   if (m != 0) {
@@ -1064,6 +1284,11 @@ export function glue_align_up8_c(n: i32): i32 {
 }
 
 #[no_mangle]
+/** Exported function `glue_is_vector_lane_scalar_binop_ko`.
+ * Implements `glue_is_vector_lane_scalar_binop_ko`.
+ * @param ko i32
+ * @return i32
+ */
 export function glue_is_vector_lane_scalar_binop_ko(ko: i32): i32 {
   if (ko == 51) {
     ko = 4;
@@ -1077,10 +1302,17 @@ export function glue_is_vector_lane_scalar_binop_ko(ko: i32): i32 {
   return 1;
 }
 
-// G-02f-126：glue_try_expr_const_i32 真迁 .x
+// glue_try_expr_const_i32: see function docblock below.
 
 
 #[no_mangle]
+/** Exported function `glue_try_expr_const_i32`.
+ * Implements `glue_try_expr_const_i32`.
+ * @param arena *u8
+ * @param er i32
+ * @param out *i32
+ * @return i32
+ */
 export function glue_try_expr_const_i32(arena: *u8, er: i32, out: *i32): i32 {
   if (arena == 0) { return 0; }
   if (er <= 0) { return 0; }
@@ -1100,10 +1332,18 @@ export function glue_try_expr_const_i32(arena: *u8, er: i32, out: *i32): i32 {
   return 0;
 }
 
-// G-02f-127：glue_try_inline_local_slot_off 真迁 .x
+// glue_try_inline_local_slot_off: see function docblock below.
 
 
 #[no_mangle]
+/** Exported function `glue_try_inline_local_slot_off`.
+ * Implements `glue_try_inline_local_slot_off`.
+ * @param ctx *u8
+ * @param arena *u8
+ * @param name *u8
+ * @param nlen i32
+ * @return i32
+ */
 export function glue_try_inline_local_slot_off(ctx: *u8, arena: *u8, name: *u8, nlen: i32): i32 {
   unsafe {
     let off: i32 = asm_ctx_local_find_offset_scoped(ctx, arena, name, nlen);
@@ -1115,10 +1355,19 @@ export function glue_try_inline_local_slot_off(ctx: *u8, arena: *u8, name: *u8, 
   return 0 - 1;
 }
 
-// G-02f-148：try_inline ELF CALL 主路径
+// See implementation.
 
-// G-02f-148：f(x) 且 f 为 x+K 链 → emit 实参 + add K；VAR=3
+// try_inline_x_plus_k_call_elf: see function docblock below.
 #[no_mangle]
+/** Exported function `try_inline_x_plus_k_call_elf`.
+ * Implements `try_inline_x_plus_k_call_elf`.
+ * @param arena *u8
+ * @param elf_ctx *u8
+ * @param expr_ref i32
+ * @param ctx *u8
+ * @param ta i32
+ * @return i32
+ */
 export function try_inline_x_plus_k_call_elf(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
   if (arena == 0) { return 0; }
   if (elf_ctx == 0) { return 0; }
@@ -1136,7 +1385,7 @@ export function try_inline_x_plus_k_call_elf(arena: *u8, elf_ctx: *u8, expr_ref:
     if (clen > 63) { return 0; }
     let cname: u8[64] = [];
     pipeline_expr_var_name_into(arena, callee_ref, &cname[0]);
-    /* 【Why 根源】优先 call_resolved_func_index（overload）；勿按名 first-match。 */
+    /* See implementation. */
     let fi: i32 = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
     if (fi < 0) {
       fi = glue_module_func_index_by_name(mod_ref, &cname[0], clen);
@@ -1144,7 +1393,7 @@ export function try_inline_x_plus_k_call_elf(arena: *u8, elf_ctx: *u8, expr_ref:
     if (fi < 0) { return 0; }
     let k: i32 = backend_fold_func_x_plus_k_chain(arena, mod_ref, fi, 0);
     if (k < 0) { return 0; }
-    // k==0 须确认 identity return param0
+    // See implementation.
     if (k == 0) {
       let ret_ref: i32 = glue_fold_func_return_operand_ref_module(arena, mod_ref, fi);
       if (ret_ref <= 0) {
@@ -1178,8 +1427,17 @@ export function try_inline_x_plus_k_call_elf(arena: *u8, elf_ctx: *u8, expr_ref:
   return 0;
 }
 
-// G-02f-148：f(arg) 且 f 为 return p.field → 字段 load；CALL=48 VAR=3
+// try_inline_param0_single_field_call_elf: see function docblock below.
 #[no_mangle]
+/** Exported function `try_inline_param0_single_field_call_elf`.
+ * Implements `try_inline_param0_single_field_call_elf`.
+ * @param arena *u8
+ * @param elf_ctx *u8
+ * @param expr_ref i32
+ * @param ctx *u8
+ * @param ta i32
+ * @return i32
+ */
 export function try_inline_param0_single_field_call_elf(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
   if (arena == 0) { return 0; }
   if (elf_ctx == 0) { return 0; }
@@ -1228,8 +1486,17 @@ export function try_inline_param0_single_field_call_elf(arena: *u8, elf_ctx: *u8
   return 0;
 }
 
-// G-02f-148：f(arg) 且 f 为 return p.a + p.b → 字段 load + add
+// try_inline_param0_field_sum_call_elf: see function docblock below.
 #[no_mangle]
+/** Exported function `try_inline_param0_field_sum_call_elf`.
+ * Implements `try_inline_param0_field_sum_call_elf`.
+ * @param arena *u8
+ * @param elf_ctx *u8
+ * @param expr_ref i32
+ * @param ctx *u8
+ * @param ta i32
+ * @return i32
+ */
 export function try_inline_param0_field_sum_call_elf(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
   if (arena == 0) { return 0; }
   if (elf_ctx == 0) { return 0; }
@@ -1292,8 +1559,12 @@ export function try_inline_param0_field_sum_call_elf(arena: *u8, elf_ctx: *u8, e
   return 0;
 }
 
-// G-02f-148：p.a + p.b 同 VAR 基址两字段 load32 + add；FIELD=44 VAR=3；dep_pipe@1256
+// See implementation.
 #[no_mangle]
+/** Function `try_inline_var_field_sum_binop_elf`.
+ * Purpose: implements `try_inline_var_field_sum_binop_elf`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function try_inline_var_field_sum_binop_elf(
   arena: *u8, elf_ctx: *u8, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32
 ): i32 {
@@ -1378,11 +1649,15 @@ export function try_inline_var_field_sum_binop_elf(
   return 0;
 }
 
-// G-02f-149：WPO const fold + mono + struct lit 写栈槽
-// getenv：见文件头 R2 full 前置 extern
+// See implementation.
+// See implementation.
 
-// G-02f-149：两常量实参 + return param0 binop param1 → imm 进 rax；CALL=48 VAR=3
+// See implementation.
 #[no_mangle]
+/** Function `try_inline_wpo_const_scalar_binop_call_elf`.
+ * Purpose: implements `try_inline_wpo_const_scalar_binop_call_elf`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function try_inline_wpo_const_scalar_binop_call_elf(
   arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32
 ): i32 {
@@ -1425,8 +1700,12 @@ export function try_inline_wpo_const_scalar_binop_call_elf(
   return 0;
 }
 
-// G-02f-149：laneK(vec_binop([const…],[const…])) 编译期 fold
+// See implementation.
 #[no_mangle]
+/** Function `try_inline_wpo_const_vector_lane_of_binop_call_elf`.
+ * Purpose: implements `try_inline_wpo_const_vector_lane_of_binop_call_elf`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function try_inline_wpo_const_vector_lane_of_binop_call_elf(
   arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32
 ): i32 {
@@ -1485,8 +1764,17 @@ export function try_inline_wpo_const_vector_lane_of_binop_call_elf(
   return 0;
 }
 
-// G-02f-149：SHUX_WPO_MONO=1 时两常量实参标量 binop → 单态 thunk call
+// try_call_wpo_mono_symbol_elf: see function docblock below.
 #[no_mangle]
+/** Exported function `try_call_wpo_mono_symbol_elf`.
+ * Implements `try_call_wpo_mono_symbol_elf`.
+ * @param arena *u8
+ * @param elf_ctx *u8
+ * @param expr_ref i32
+ * @param ctx *u8
+ * @param ta i32
+ * @return i32
+ */
 export function try_call_wpo_mono_symbol_elf(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
   if (arena == 0) { return 0; }
   if (elf_ctx == 0) { return 0; }
@@ -1539,8 +1827,12 @@ export function try_call_wpo_mono_symbol_elf(arena: *u8, elf_ctx: *u8, expr_ref:
   return 0;
 }
 
-// G-02f-149：let v = mk() 零实参 const struct lit 字段直写栈槽
+// See implementation.
 #[no_mangle]
+/** Function `try_inline_const_struct_lit_return_call_to_slot_elf`.
+ * Purpose: implements `try_inline_const_struct_lit_return_call_to_slot_elf`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function try_inline_const_struct_lit_return_call_to_slot_elf(
   arena: *u8, elf_ctx: *u8, call_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32
 ): i32 {
@@ -1592,8 +1884,12 @@ export function try_inline_const_struct_lit_return_call_to_slot_elf(
   return 0;
 }
 
-// G-02f-149：let p = mk(args) param struct lit 实参直写栈槽；max fields=8
+// See implementation.
 #[no_mangle]
+/** Function `try_inline_struct_lit_return_call_to_slot_elf`.
+ * Purpose: implements `try_inline_struct_lit_return_call_to_slot_elf`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function try_inline_struct_lit_return_call_to_slot_elf(
   arena: *u8, elf_ctx: *u8, call_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32
 ): i32 {
@@ -1639,9 +1935,13 @@ export function try_inline_struct_lit_return_call_to_slot_elf(
   return 0;
 }
 
-// G-02f-150：WPO vec mono laneK(vec_binop) → 单态 thunk；ARRAY_LIT=46；MAX_ARGS=8
+// See implementation.
 
 #[no_mangle]
+/** Function `try_call_wpo_mono_vector_lane_of_binop_call_elf`.
+ * Purpose: implements `try_call_wpo_mono_vector_lane_of_binop_call_elf`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function try_call_wpo_mono_vector_lane_of_binop_call_elf(
   arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32
 ): i32 {
@@ -1698,7 +1998,7 @@ export function try_call_wpo_mono_vector_lane_of_binop_call_elf(
     let nargs: i32 = pipeline_expr_array_lit_num_elems_at(arena, arg0);
     if (nargs <= 0) { return 0; }
     if (nargs != pipeline_expr_array_lit_num_elems_at(arena, arg1)) { return 0; }
-    // GLUE_WPO_MONO_MAX_ARGS=8 → 每侧最多 4 lane
+    // See implementation.
     if (nargs > 4) { return 0; }
     let mono_args: i32[8] = [];
     let li: i32 = 0;
@@ -1728,11 +2028,17 @@ export function try_call_wpo_mono_vector_lane_of_binop_call_elf(
   return 0;
 }
 
-// G-02f-184/185：ARRAY_LIT / STRUCT_LIT 栈占用 pure（kind 序与 seed GLUE_* 一致）
-// type kind: u8=1 i8=2 i32=0 u32=3 f32=13 → 4；else 8（与 seed 一致）
+// See implementation.
+// See implementation.
 // EXPR_ARRAY_LIT=46 STRUCT_LIT=45
 
 #[no_mangle]
+/** Exported function `asm_array_lit_elem_byte_sz`.
+ * Implements `asm_array_lit_elem_byte_sz`.
+ * @param arena *u8
+ * @param array_lit_ref i32
+ * @return i32
+ */
 export function asm_array_lit_elem_byte_sz(arena: *u8, array_lit_ref: i32): i32 {
   if (arena == 0) { return 4; }
   if (array_lit_ref <= 0) { return 4; }
@@ -1750,11 +2056,23 @@ export function asm_array_lit_elem_byte_sz(arena: *u8, array_lit_ref: i32): i32 
 }
 
 #[no_mangle]
+/** Exported function `pipeline_asm_array_lit_elem_byte_sz_c`.
+ * Implements `pipeline_asm_array_lit_elem_byte_sz_c`.
+ * @param arena *u8
+ * @param array_lit_ref i32
+ * @return i32
+ */
 export function pipeline_asm_array_lit_elem_byte_sz_c(arena: *u8, array_lit_ref: i32): i32 {
   return asm_array_lit_elem_byte_sz(arena, array_lit_ref);
 }
 
 #[no_mangle]
+/** Exported function `asm_array_lit_reserve_stack_bytes`.
+ * Implements `asm_array_lit_reserve_stack_bytes`.
+ * @param arena *u8
+ * @param init_ref i32
+ * @return i32
+ */
 export function asm_array_lit_reserve_stack_bytes(arena: *u8, init_ref: i32): i32 {
   if (arena == 0) { return 0; }
   if (init_ref <= 0) { return 0; }
@@ -1769,11 +2087,23 @@ export function asm_array_lit_reserve_stack_bytes(arena: *u8, init_ref: i32): i3
 }
 
 #[no_mangle]
+/** Exported function `pipeline_asm_array_lit_reserve_stack_bytes_c`.
+ * Implements `pipeline_asm_array_lit_reserve_stack_bytes_c`.
+ * @param arena *u8
+ * @param init_ref i32
+ * @return i32
+ */
 export function pipeline_asm_array_lit_reserve_stack_bytes_c(arena: *u8, init_ref: i32): i32 {
   return asm_array_lit_reserve_stack_bytes(arena, init_ref);
 }
 
 #[no_mangle]
+/** Exported function `asm_struct_lit_reserve_stack_bytes`.
+ * Implements `asm_struct_lit_reserve_stack_bytes`.
+ * @param arena *u8
+ * @param init_ref i32
+ * @return i32
+ */
 export function asm_struct_lit_reserve_stack_bytes(arena: *u8, init_ref: i32): i32 {
   if (arena == 0) { return 0; }
   if (init_ref <= 0) { return 0; }
@@ -1787,12 +2117,24 @@ export function asm_struct_lit_reserve_stack_bytes(arena: *u8, init_ref: i32): i
 }
 
 #[no_mangle]
+/** Exported function `pipeline_asm_struct_lit_reserve_stack_bytes_c`.
+ * Implements `pipeline_asm_struct_lit_reserve_stack_bytes_c`.
+ * @param arena *u8
+ * @param init_ref i32
+ * @return i32
+ */
 export function pipeline_asm_struct_lit_reserve_stack_bytes_c(arena: *u8, init_ref: i32): i32 {
   return asm_struct_lit_reserve_stack_bytes(arena, init_ref);
 }
 
-// G-02f-196：INDEX 元素宽委托 pipeline_glue（避免 X Type 按值）
+// asm_index_elem_byte_sz: see function docblock below.
 #[no_mangle]
+/** Exported function `asm_index_elem_byte_sz`.
+ * Implements `asm_index_elem_byte_sz`.
+ * @param arena *u8
+ * @param index_expr_ref i32
+ * @return i32
+ */
 export function asm_index_elem_byte_sz(arena: *u8, index_expr_ref: i32): i32 {
   unsafe {
     return pipeline_asm_index_elem_byte_sz(arena, index_expr_ref);
@@ -1800,13 +2142,33 @@ export function asm_index_elem_byte_sz(arena: *u8, index_expr_ref: i32): i32 {
   return 0;
 }
 
-// G-02f-196：pipeline 入口薄包装 → 已真迁 glue_enc / glue_arch
+// pipeline_asm_enc_local_slot_ptr_or_addr_elf_c: see function docblock below.
 #[no_mangle]
+/** Exported function `pipeline_asm_enc_local_slot_ptr_or_addr_elf_c`.
+ * Implements `pipeline_asm_enc_local_slot_ptr_or_addr_elf_c`.
+ * @param arena *u8
+ * @param elf *u8
+ * @param arg_ref i32
+ * @param slot_off i32
+ * @param ta i32
+ * @param asm_ctx *u8
+ * @return i32
+ */
 export function pipeline_asm_enc_local_slot_ptr_or_addr_elf_c(arena: *u8, elf: *u8, arg_ref: i32, slot_off: i32, ta: i32, asm_ctx: *u8): i32 {
   return glue_enc_local_slot_ptr_or_addr(arena, elf, arg_ref, slot_off, ta, asm_ctx);
 }
 
 #[no_mangle]
+/** Exported function `pipeline_asm_arch_emit_local_slot_ptr_or_addr_text_c`.
+ * Implements `pipeline_asm_arch_emit_local_slot_ptr_or_addr_text_c`.
+ * @param arena *u8
+ * @param out *u8
+ * @param arg_ref i32
+ * @param slot_off i32
+ * @param ta i32
+ * @param asm_ctx *u8
+ * @return i32
+ */
 export function pipeline_asm_arch_emit_local_slot_ptr_or_addr_text_c(arena: *u8, out: *u8, arg_ref: i32, slot_off: i32, ta: i32, asm_ctx: *u8): i32 {
   return glue_arch_emit_local_slot_ptr_or_addr_text(arena, out, arg_ref, slot_off, ta, asm_ctx);
 }

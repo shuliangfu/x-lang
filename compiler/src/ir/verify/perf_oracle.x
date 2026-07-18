@@ -14,21 +14,17 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// perf_oracle.x — Performance Oracle 门控
+// perf_oracle.x — Performance Oracle gate
 //
-// 模块：ir/verify
-// 层级：共享
-// Phase：Phase 3+（SLIR 优化 Pass 开始门控）
-// 职责：
-//   - Performance Oracle 系统（§9.3）：优化 Pass 合入门控
-//   - 性能不提升的 Pass 自动拒绝（不进入 pipeline）
-//   - 性能退化检测：Pass 应用后性能下降则回退
-//   - External Pass Provider 注入的 Pass 必须通过 Performance Oracle 门控
-// 依赖：../pass/registry
-// 设计约束：
-//   - 性能不提升的 Pass 自动拒绝（绝不静默退化）
-//   - 门控基于 Benchmark 结果（确定性，相同输入相同决策）
-//   - 性能退化检测必须可回退（风险治理：可回退设计）
+// Module: ir/verify
+// Layer: shared
+// Phase: Phase 3+
+// Responsibility:
+//   - Performance Oracle system (§9.3): gate for landing optimization passes
+//   - Auto-reject non-improving passes; regression detection with rollback
+// Depends: ../pass/registry
+// Design constraints:
+//   - Gate uses Benchmark results; deterministic
 //
-// 参考文档：analysis/IR核心设计.md §9.3（Performance Oracle 系统）/ §13.3（风险治理可回退设计）
-// 架构状态：v4.0 Architecture Freeze — 实现骨架，待 Phase 3 填充
+// Ref: analysis IR core design §9.3 (Performance Oracle) / §13.3 (risk governance rollback)
+// Status: v4.0 Architecture Freeze — implementation skeleton; fill in Phase 3

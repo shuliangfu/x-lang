@@ -1,6 +1,10 @@
-// tests/hash/main.x — std.hash 回归：start/write/finish、bytes。
+// See implementation.
 const hash = import("std.hash");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let h: *u8 = hash.start();
   if (h == 0) { return 1; }

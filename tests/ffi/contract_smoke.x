@@ -1,6 +1,10 @@
-// SAFE-004 聚合烟测：串联 std.ffi 契约用例（无 extern）。
+// See implementation.
 const ffi = import("std.ffi");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (ffi.cstr_len(0 as *u8) != (0 - 1)) {
     return 1;

@@ -1,7 +1,11 @@
-// tests/sort/main.x — std.sort 回归：sort_i32、sort_u8。
+// See implementation.
 const sort = import("std.sort");
 const debug = import("core.debug");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32[4] = [3, 1, 4, 2];
   sort.sort(&a[0], 4);

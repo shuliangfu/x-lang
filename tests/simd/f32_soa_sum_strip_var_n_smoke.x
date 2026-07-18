@@ -1,5 +1,5 @@
 /**
- * SIMD f32 SoA 列 reduce 可变 n 条带烟测：let n=12 → 8 向量 + 4 标量 epilogue → exit=12。
+ * See implementation.
  */
 struct Particle soa {
   x: f32
@@ -7,6 +7,10 @@ struct Particle soa {
   z: f32
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let n: i32 = 12;
   let arr: Particle[16] = [];

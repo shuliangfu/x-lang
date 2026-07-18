@@ -7,7 +7,10 @@ allow(padding) struct Result_i32 {
   _pad2: i32;
 }
 
-/** spill_probe 内联于 main：105 + 120 = 225 */
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let v1: i32 = 1;
   let v2: i32 = 2;

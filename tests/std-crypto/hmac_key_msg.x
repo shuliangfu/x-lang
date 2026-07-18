@@ -1,6 +1,10 @@
-// STD-006：HMAC-SHA256 金样（key=1,2,3,4 msg=msg，与 crypto.c 一致）
+// See implementation.
 const crypto = import("std.crypto");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let key: u8[4] = [1, 2, 3, 4];
   let msg: u8[3] = [109, 115, 103];

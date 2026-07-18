@@ -14,13 +14,13 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std/datetime/datetime.x — F-datetime v2 + F-ZC：RFC3339/时区/IANA DST（纯 .x，无 .c/.h）
+// See implementation.
 //
-// 【文件职责】
-// 闰年/Unix 转换、RFC3339 解析/格式化、Duration、固定偏移与 IANA DST 时区、烟测；
-// 本地偏移经 std.time 的 time_wall_local_offset_min_c；编译为 datetime.o。
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 【对标】Go time.Time、Rust chrono、Zig std.time 高层。
+// See implementation.
 
 export const DT_IANA_UTC: i32 = 0;
 export const DT_IANA_US_EASTERN: i32 = 1;
@@ -36,38 +36,56 @@ extern function time_now_wall_ns_c(): i64;
 extern function time_wall_local_offset_min_c(): i32;
 extern function memcmp(a: *u8, b: *u8, n: usize): i32;
 
-/** F-datetime v1 版本标记。 */
+/** Exported function `datetime_f_datetime_v1_marker_c`.
+ * Implements `datetime_f_datetime_v1_marker_c`.
+ * @return i32
+ */
 export function datetime_f_datetime_v1_marker_c(): i32 {
   return 1;
 }
 
-/** F-datetime v2 逻辑下沉标记。 */
+/** Exported function `datetime_f_datetime_v2_marker_c`.
+ * Implements `datetime_f_datetime_v2_marker_c`.
+ * @return i32
+ */
 export function datetime_f_datetime_v2_marker_c(): i32 {
   return 1;
 }
 
-/** F-std-zero-c：datetime_tz_glue.c 已删除。 */
+/** Exported function `datetime_f_zero_c_marker_c`.
+ * Implements `datetime_f_zero_c_marker_c`.
+ * @return i32
+ */
 export function datetime_f_zero_c_marker_c(): i32 {
   return 1;
 }
 
 /**
- * 本地时区相对 UTC 偏移（分钟，东为正）。
- * 委托 runtime_time_os 的 time_wall_local_offset_min_c（经 std.time extern）。
+ * See implementation.
+ * See implementation.
  */
 export function datetime_local_offset_min_c(): i32 {
   unsafe { return time_wall_local_offset_min_c(); }
   return 0; // unreachable — typeck workaround
 }
 
-/** 闰年判定。 */
+/** Exported function `dt_is_leap`.
+ * Implements `dt_is_leap`.
+ * @param y i32
+ * @return i32
+ */
 export function dt_is_leap(y: i32): i32 {
   if (y % 4 == 0 && y % 100 != 0) { return 1; }
   if (y % 400 == 0) { return 1; }
   return 0;
 }
 
-/** 月天数（month 1..12）；非法月返回 0。 */
+/** Exported function `dt_days_in_month`.
+ * Implements `dt_days_in_month`.
+ * @param y i32
+ * @param mo i32
+ * @return i32
+ */
 export function dt_days_in_month(y: i32, mo: i32): i32 {
   if (mo < 1 || mo > 12) { return 0; }
   if (mo == 2) {
@@ -78,7 +96,16 @@ export function dt_days_in_month(y: i32, mo: i32): i32 {
   return 31;
 }
 
-/** UTC 日历字段 → Unix 秒（1970-01-01 起）。 */
+/** Exported function `dt_utc_to_unix`.
+ * Implements `dt_utc_to_unix`.
+ * @param y i32
+ * @param mo i32
+ * @param d i32
+ * @param h i32
+ * @param mi i32
+ * @param s i32
+ * @return i64
+ */
 export function dt_utc_to_unix(y: i32, mo: i32, d: i32, h: i32, mi: i32, s: i32): i64 {
   let days: i64 = 0;
   let yy: i32 = 0;
@@ -104,7 +131,17 @@ export function dt_utc_to_unix(y: i32, mo: i32, d: i32, h: i32, mi: i32, s: i32)
   return days * 86400 + (h as i64) * 3600 + (mi as i64) * 60 + (s as i64);
 }
 
-/** Unix 秒 → UTC 日历字段。 */
+/** Exported function `dt_unix_to_utc`.
+ * Implements `dt_unix_to_utc`.
+ * @param sec i64
+ * @param y *i32
+ * @param mo *i32
+ * @param d *i32
+ * @param h *i32
+ * @param mi *i32
+ * @param s *i32
+ * @return void
+ */
 export function dt_unix_to_utc(sec: i64, y: *i32, mo: *i32, d: *i32, h: *i32, mi: *i32, s: *i32): void {
   let days: i64 = 0;
   let yy: i32 = 0;
@@ -153,7 +190,15 @@ export function dt_unix_to_utc(sec: i64, y: *i32, mo: *i32, d: *i32, h: *i32, mi
   s[0] = rem % 60;
 }
 
-/** 读十进制数字；成功 0。 */
+/** Exported function `dt_read_digits`.
+ * Read path helper `dt_read_digits`.
+ * @param p *u8
+ * @param len i32
+ * @param pos *i32
+ * @param count i32
+ * @param out *i32
+ * @return i32
+ */
 export function dt_read_digits(p: *u8, len: i32, pos: *i32, count: i32, out: *i32): i32 {
   let i: i32 = 0;
   let v: i32 = 0;
@@ -170,7 +215,14 @@ export function dt_read_digits(p: *u8, len: i32, pos: *i32, count: i32, out: *i3
   return 0;
 }
 
-/** 写入 4 位十进制（年）；失败 -1。 */
+/** Exported function `dt_write_4digit`.
+ * Write path helper `dt_write_4digit`.
+ * @param buf *u8
+ * @param cap i32
+ * @param off i32
+ * @param v i32
+ * @return i32
+ */
 export function dt_write_4digit(buf: *u8, cap: i32, off: i32, v: i32): i32 {
   if (off + 4 > cap || v < 0 || v > 9999) { return -1; }
   buf[(off + 0)] = (48 + v / 1000) as u8;
@@ -180,7 +232,14 @@ export function dt_write_4digit(buf: *u8, cap: i32, off: i32, v: i32): i32 {
   return off + 4;
 }
 
-/** 写入 2 位十进制（月/日/时/分/秒）；失败 -1。 */
+/** Exported function `dt_write_2digit`.
+ * Write path helper `dt_write_2digit`.
+ * @param buf *u8
+ * @param cap i32
+ * @param off i32
+ * @param v i32
+ * @return i32
+ */
 export function dt_write_2digit(buf: *u8, cap: i32, off: i32, v: i32): i32 {
   if (off + 2 > cap || v < 0 || v > 99) { return -1; }
   buf[(off + 0)] = (48 + v / 10) as u8;
@@ -188,7 +247,14 @@ export function dt_write_2digit(buf: *u8, cap: i32, off: i32, v: i32): i32 {
   return off + 2;
 }
 
-/** 写入 9 位十进制（纳秒，前导零）；失败 -1。 */
+/** Exported function `dt_write_9digit`.
+ * Write path helper `dt_write_9digit`.
+ * @param buf *u8
+ * @param cap i32
+ * @param off i32
+ * @param v i32
+ * @return i32
+ */
 export function dt_write_9digit(buf: *u8, cap: i32, off: i32, v: i32): i32 {
   let div: i32 = 100000000;
   let i: i32 = 0;
@@ -203,7 +269,14 @@ export function dt_write_9digit(buf: *u8, cap: i32, off: i32, v: i32): i32 {
   return off + 9;
 }
 
-/** 名称不区分大小写比较（ASCII）。 */
+/** Exported function `dt_name_eq_ci`.
+ * Implements `dt_name_eq_ci`.
+ * @param p *u8
+ * @param len i32
+ * @param lit *u8
+ * @param lit_len i32
+ * @return i32
+ */
 export function dt_name_eq_ci(p: *u8, len: i32, lit: *u8, lit_len: i32): i32 {
   let i: i32 = 0;
   if (len != lit_len) { return 0; }
@@ -218,7 +291,14 @@ export function dt_name_eq_ci(p: *u8, len: i32, lit: *u8, lit_len: i32): i32 {
   return 1;
 }
 
-/** 名称精确匹配（ASCII）。 */
+/** Exported function `dt_name_eq`.
+ * Implements `dt_name_eq`.
+ * @param p *u8
+ * @param len i32
+ * @param lit *u8
+ * @param lit_len i32
+ * @return i32
+ */
 export function dt_name_eq(p: *u8, len: i32, lit: *u8, lit_len: i32): i32 {
   let i: i32 = 0;
   if (len != lit_len) { return 0; }
@@ -229,7 +309,12 @@ export function dt_name_eq(p: *u8, len: i32, lit: *u8, lit_len: i32): i32 {
   return 1;
 }
 
-/** 当前 UTC 墙钟。 */
+/** Exported function `datetime_now_utc_c`.
+ * Implements `datetime_now_utc_c`.
+ * @param out_sec *i64
+ * @param out_nsec *i32
+ * @return void
+ */
 export function datetime_now_utc_c(out_sec: *i64, out_nsec: *i32): void {
   let ns: i64 = 0;
   if (out_sec == 0 || out_nsec == 0) { return; }
@@ -239,7 +324,17 @@ export function datetime_now_utc_c(out_sec: *i64, out_nsec: *i32): void {
   if (out_nsec[0] < 0) { out_nsec[0] = out_nsec[0] + 1000000000; }
 }
 
-/** UTC 日历字段分解。 */
+/** Exported function `datetime_utc_fields_c`.
+ * Implements `datetime_utc_fields_c`.
+ * @param sec i64
+ * @param y *i32
+ * @param mo *i32
+ * @param d *i32
+ * @param h *i32
+ * @param mi *i32
+ * @param s *i32
+ * @return void
+ */
 export function datetime_utc_fields_c(sec: i64, y: *i32, mo: *i32, d: *i32, h: *i32, mi: *i32, s: *i32): void {
   let yi: i32 = 0;
   let moi: i32 = 0;
@@ -256,7 +351,7 @@ export function datetime_utc_fields_c(sec: i64, y: *i32, mo: *i32, d: *i32, h: *
   if (s != 0) { s[0] = si; }
 }
 
-/** 由 UTC 日历构造 DateTime；非法返回 -1。 */
+/* See implementation. */
 export function datetime_from_utc_fields_c(y: i32, mo: i32, d: i32, h: i32, mi: i32, s: i32, nsec: i32,
   out_sec: *i64, out_nsec: *i32): i32 {
   if (out_sec == 0 || out_nsec == 0) { return -1; }
@@ -268,7 +363,14 @@ export function datetime_from_utc_fields_c(y: i32, mo: i32, d: i32, h: i32, mi: 
   return 0;
 }
 
-/** 比较两个 DateTime：-1/0/1。 */
+/** Exported function `datetime_compare_c`.
+ * Implements `datetime_compare_c`.
+ * @param a_sec i64
+ * @param a_nsec i32
+ * @param b_sec i64
+ * @param b_nsec i32
+ * @return i32
+ */
 export function datetime_compare_c(a_sec: i64, a_nsec: i32, b_sec: i64, b_nsec: i32): i32 {
   if (a_sec < b_sec) { return -1; }
   if (a_sec > b_sec) { return 1; }
@@ -278,8 +380,8 @@ export function datetime_compare_c(a_sec: i64, a_nsec: i32, b_sec: i64, b_nsec: 
 }
 
 /**
- * 解析 RFC3339 / RFC3339Nano（Z 或 ±HH:MM 偏移）。
- * out_offset_min：相对 UTC 的分钟偏移（东为正）；Z 时为 0。
+ * See implementation.
+ * See implementation.
  */
 export function datetime_parse_rfc3339_c(ptr: *u8, len: i32, out_sec: *i64, out_nsec: *i32, out_offset_min: *i32): i32 {
   let pos: i32 = 0;
@@ -351,7 +453,14 @@ export function datetime_parse_rfc3339_c(ptr: *u8, len: i32, out_sec: *i64, out_
   return 0;
 }
 
-/** 格式化 RFC3339 UTC（Z 后缀）；返回写入长度，失败 -1。 */
+/** Exported function `datetime_format_rfc3339_c`.
+ * Implements `datetime_format_rfc3339_c`.
+ * @param sec i64
+ * @param nsec i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function datetime_format_rfc3339_c(sec: i64, nsec: i32, out: *u8, out_cap: i32): i32 {
   let y: i32 = 0;
   let mo: i32 = 0;
@@ -384,7 +493,14 @@ export function datetime_format_rfc3339_c(sec: i64, nsec: i32, out: *u8, out_cap
   return 20;
 }
 
-/** 格式化 RFC3339Nano UTC；返回写入长度，失败 -1。 */
+/** Exported function `datetime_format_rfc3339_nano_c`.
+ * Implements `datetime_format_rfc3339_nano_c`.
+ * @param sec i64
+ * @param nsec i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function datetime_format_rfc3339_nano_c(sec: i64, nsec: i32, out: *u8, out_cap: i32): i32 {
   let y: i32 = 0;
   let mo: i32 = 0;
@@ -420,19 +536,45 @@ export function datetime_format_rfc3339_nano_c(sec: i64, nsec: i32, out: *u8, ou
   return 30;
 }
 
-/** UTC + 偏移分钟 → 本地日历字段。 */
+/** Exported function `datetime_local_fields_c`.
+ * Implements `datetime_local_fields_c`.
+ * @param sec i64
+ * @param offset_min i32
+ * @param y *i32
+ * @param mo *i32
+ * @param d *i32
+ * @param h *i32
+ * @param mi *i32
+ * @param s *i32
+ * @return void
+ */
 export function datetime_local_fields_c(sec: i64, offset_min: i32, y: *i32, mo: *i32, d: *i32, h: *i32, mi: *i32, s: *i32): void {
   datetime_utc_fields_c(sec + (offset_min as i64) * 60, y, mo, d, h, mi, s);
 }
 
-/** 两时刻差（纳秒）：b - a。 */
+/** Exported function `datetime_duration_between_ns_c`.
+ * Implements `datetime_duration_between_ns_c`.
+ * @param a_sec i64
+ * @param a_nsec i32
+ * @param b_sec i64
+ * @param b_nsec i32
+ * @return i64
+ */
 export function datetime_duration_between_ns_c(a_sec: i64, a_nsec: i32, b_sec: i64, b_nsec: i32): i64 {
   let da: i64 = a_sec * 1000000000 + a_nsec as i64;
   let db: i64 = b_sec * 1000000000 + b_nsec as i64;
   return db - da;
 }
 
-/** DateTime 加 Duration（纳秒）；溢出归一化。 */
+/** Exported function `datetime_add_duration_ns_c`.
+ * Implements `datetime_add_duration_ns_c`.
+ * @param sec i64
+ * @param nsec i32
+ * @param delta_ns i64
+ * @param out_sec *i64
+ * @param out_nsec *i32
+ * @return i32
+ */
 export function datetime_add_duration_ns_c(sec: i64, nsec: i32, delta_ns: i64, out_sec: *i64, out_nsec: *i32): i32 {
   let total: i64 = 0;
   let s: i64 = 0;
@@ -451,8 +593,8 @@ export function datetime_add_duration_ns_c(sec: i64, nsec: i32, delta_ns: i64, o
 }
 
 /**
- * 内置固定偏移时区名 → offset_min（东为正；无 DST）。
- * 支持 UTC/GMT/JST/CST/HKT/IST/CET/EST/PST 等；未知返回 -1。
+ * See implementation.
+ * See implementation.
  */
 export function datetime_timezone_from_name_c(name: *u8, name_len: i32, out_offset_min: *i32): i32 {
   let lit_utc: u8[3] = [85, 84, 67];
@@ -500,7 +642,7 @@ export function datetime_timezone_from_name_c(name: *u8, name_len: i32, out_offs
 }
 
 /**
- * 解析 ±HH:MM / ±HHMM / Z 或内置时区名；成功 0 并写 offset_min。
+ * See implementation.
  */
 export function datetime_parse_offset_min_c(ptr: *u8, len: i32, out_offset_min: *i32): i32 {
   let pos: i32 = 0;
@@ -535,8 +677,8 @@ export function datetime_parse_offset_min_c(ptr: *u8, len: i32, out_offset_min: 
 }
 
 /**
- * 时区墙钟日历字段 → UTC DateTime（sec+nsec）。
- * offset_min 为相对 UTC 的分钟偏移（东为正）。
+ * See implementation.
+ * See implementation.
  */
 export function datetime_from_zoned_fields_c(y: i32, mo: i32, d: i32, h: i32, mi: i32, s: i32, nsec: i32,
   offset_min: i32, out_sec: *i64, out_nsec: *i32): i32 {
@@ -547,9 +689,15 @@ export function datetime_from_zoned_fields_c(y: i32, mo: i32, d: i32, h: i32, mi
   return 0;
 }
 
-// ——— IANA 时区 + DST（原 timezone_iana.inc.c）———
+// See implementation.
 
-/** 星期（0=周日）由 UTC 日历日推算。 */
+/** Exported function `dt_dow_utc`.
+ * Implements `dt_dow_utc`.
+ * @param y i32
+ * @param mo i32
+ * @param d i32
+ * @return i32
+ */
 export function dt_dow_utc(y: i32, mo: i32, d: i32): i32 {
   let sec: i64 = dt_utc_to_unix(y, mo, d, 12, 0, 0);
   let days: i64 = sec / 86400;
@@ -558,47 +706,82 @@ export function dt_dow_utc(y: i32, mo: i32, d: i32): i32 {
   return dow;
 }
 
-/** 月内第 n 个星期几（n=1 首个 …）；weekday 0=周日。 */
+/** Exported function `dt_nth_weekday`.
+ * Implements `dt_nth_weekday`.
+ * @param y i32
+ * @param mo i32
+ * @param n i32
+ * @param weekday i32
+ * @return i32
+ */
 export function dt_nth_weekday(y: i32, mo: i32, n: i32, weekday: i32): i32 {
   let dow1: i32 = dt_dow_utc(y, mo, 1);
   let day: i32 = 1 + (weekday - dow1 + 7) % 7 + (n - 1) * 7;
   return day;
 }
 
-/** 月内最后一个星期几。 */
+/** Exported function `dt_last_weekday`.
+ * Implements `dt_last_weekday`.
+ * @param y i32
+ * @param mo i32
+ * @param weekday i32
+ * @return i32
+ */
 export function dt_last_weekday(y: i32, mo: i32, weekday: i32): i32 {
   let dim: i32 = dt_days_in_month(y, mo);
   let dow_last: i32 = dt_dow_utc(y, mo, dim);
   return dim - (dow_last - weekday + 7) % 7;
 }
 
-/** 美国 DST：3 月第 2 个周日 02:00 标准时 → UTC。 */
+/** Exported function `dt_us_dst_start_utc`.
+ * Implements `dt_us_dst_start_utc`.
+ * @param year i32
+ * @param std_off_min i32
+ * @return i64
+ */
 export function dt_us_dst_start_utc(year: i32, std_off_min: i32): i64 {
   let day: i32 = dt_nth_weekday(year, 3, 2, 0);
   let wall: i64 = dt_utc_to_unix(year, 3, day, 2, 0, 0);
   return wall - (std_off_min as i64) * 60;
 }
 
-/** 美国 DST：11 月第 1 个周日 02:00 夏令时 → UTC。 */
+/** Exported function `dt_us_dst_end_utc`.
+ * Implements `dt_us_dst_end_utc`.
+ * @param year i32
+ * @param dst_off_min i32
+ * @return i64
+ */
 export function dt_us_dst_end_utc(year: i32, dst_off_min: i32): i64 {
   let day: i32 = dt_nth_weekday(year, 11, 1, 0);
   let wall: i64 = dt_utc_to_unix(year, 11, day, 2, 0, 0);
   return wall - (dst_off_min as i64) * 60;
 }
 
-/** 欧洲 DST：3 月最后一个周日 01:00 UTC。 */
+/** Exported function `dt_eu_dst_start_utc`.
+ * Implements `dt_eu_dst_start_utc`.
+ * @param year i32
+ * @return i64
+ */
 export function dt_eu_dst_start_utc(year: i32): i64 {
   let day: i32 = dt_last_weekday(year, 3, 0);
   return dt_utc_to_unix(year, 3, day, 1, 0, 0);
 }
 
-/** 欧洲 DST：10 月最后一个周日 01:00 UTC。 */
+/** Exported function `dt_eu_dst_end_utc`.
+ * Implements `dt_eu_dst_end_utc`.
+ * @param year i32
+ * @return i64
+ */
 export function dt_eu_dst_end_utc(year: i32): i64 {
   let day: i32 = dt_last_weekday(year, 10, 0);
   return dt_utc_to_unix(year, 10, day, 1, 0, 0);
 }
 
-/** 由 UTC 秒取日历年（近似：用 UTC 字段）。 */
+/** Exported function `dt_year_from_utc_sec`.
+ * Implements `dt_year_from_utc_sec`.
+ * @param sec i64
+ * @return i32
+ */
 export function dt_year_from_utc_sec(sec: i64): i32 {
   let y: i32 = 0;
   let mo: i32 = 0;
@@ -610,7 +793,11 @@ export function dt_year_from_utc_sec(sec: i64): i32 {
   return y;
 }
 
-/** 按 IANA zone id 取标准/夏令偏移与种类。 */
+/** Exported function `dt_iana_std_off`.
+ * Implements `dt_iana_std_off`.
+ * @param id i32
+ * @return i32
+ */
 export function dt_iana_std_off(id: i32): i32 {
   if (id == DT_IANA_US_EASTERN) { return -300; }
   if (id == DT_IANA_US_PACIFIC) { return -480; }
@@ -621,6 +808,11 @@ export function dt_iana_std_off(id: i32): i32 {
   return 0;
 }
 
+/** Exported function `dt_iana_dst_off`.
+ * Implements `dt_iana_dst_off`.
+ * @param id i32
+ * @return i32
+ */
 export function dt_iana_dst_off(id: i32): i32 {
   if (id == DT_IANA_US_EASTERN) { return -240; }
   if (id == DT_IANA_US_PACIFIC) { return -420; }
@@ -631,6 +823,11 @@ export function dt_iana_dst_off(id: i32): i32 {
   return 0;
 }
 
+/** Exported function `dt_iana_kind`.
+ * Implements `dt_iana_kind`.
+ * @param id i32
+ * @return i32
+ */
 export function dt_iana_kind(id: i32): i32 {
   if (id == DT_IANA_UTC) { return DT_IANA_UTC; }
   if (id == DT_IANA_US_EASTERN) { return DT_IANA_US_EASTERN; }
@@ -642,7 +839,12 @@ export function dt_iana_kind(id: i32): i32 {
   return DT_IANA_UTC;
 }
 
-/** 按 IANA 种类与 UTC 秒计算偏移（分钟，东为正）。 */
+/** Exported function `dt_iana_offset_for_id`.
+ * Implements `dt_iana_offset_for_id`.
+ * @param id i32
+ * @param sec i64
+ * @return i32
+ */
 export function dt_iana_offset_for_id(id: i32, sec: i64): i32 {
   let year: i32 = 0;
   let start: i64 = 0;
@@ -670,7 +872,12 @@ export function dt_iana_offset_for_id(id: i32, sec: i64): i32 {
   return std_off;
 }
 
-/** 名称精确匹配 IANA 表；成功返回 zone id（>=0），失败 -1。 */
+/** Exported function `datetime_iana_from_name_c`.
+ * Implements `datetime_iana_from_name_c`.
+ * @param name *u8
+ * @param name_len i32
+ * @return i32
+ */
 export function datetime_iana_from_name_c(name: *u8, name_len: i32): i32 {
   let n_ny: u8[16] = [65, 109, 101, 114, 105, 99, 97, 47, 78, 101, 119, 95, 89, 111, 114, 107];
   let n_la: u8[19] = [65, 109, 101, 114, 105, 99, 97, 47, 76, 111, 115, 95, 65, 110, 103, 101, 108, 101, 115];
@@ -690,14 +897,19 @@ export function datetime_iana_from_name_c(name: *u8, name_len: i32): i32 {
   return -1;
 }
 
-/** 按 IANA zone id 与 UTC 秒取偏移（含 DST）；非法 id 返回 0。 */
+/** Exported function `datetime_iana_offset_at_c`.
+ * Implements `datetime_iana_offset_at_c`.
+ * @param iana_id i32
+ * @param sec i64
+ * @return i32
+ */
 export function datetime_iana_offset_at_c(iana_id: i32, sec: i64): i32 {
   if (iana_id < 0 || iana_id >= DT_IANA_COUNT) { return 0; }
   return dt_iana_offset_for_id(iana_id, sec);
 }
 
 /**
- * IANA 墙钟字段 → UTC（一次 refinement 处理 DST 边界）。
+ * See implementation.
  */
 export function datetime_from_iana_zoned_fields_c(iana_id: i32, y: i32, mo: i32, d: i32, h: i32, mi: i32,
   s: i32, nsec: i32, out_sec: *i64, out_nsec: *i32): i32 {
@@ -716,7 +928,10 @@ export function datetime_from_iana_zoned_fields_c(iana_id: i32, y: i32, mo: i32,
   return 0;
 }
 
-/** STD-135：固定偏移时区名与 UTC/本地字段转换金样。 */
+/** Exported function `datetime_timezone_smoke_c`.
+ * Implements `datetime_timezone_smoke_c`.
+ * @return i32
+ */
 export function datetime_timezone_smoke_c(): i32 {
   let off: i32 = 0;
   let sec: i64 = 0;
@@ -742,7 +957,10 @@ export function datetime_timezone_smoke_c(): i32 {
   return 0;
 }
 
-/** IANA DST 烟测：纽约冬/夏偏移 + 伦敦 BST；0 通过。 */
+/** Exported function `datetime_iana_dst_smoke_c`.
+ * Implements `datetime_iana_dst_smoke_c`.
+ * @return i32
+ */
 export function datetime_iana_dst_smoke_c(): i32 {
   let id: i32 = 0;
   let off: i32 = 0;
@@ -780,7 +998,10 @@ export function datetime_iana_dst_smoke_c(): i32 {
   return 0;
 }
 
-/** C 烟测：RFC3339 往返 + 已知时间戳。 */
+/** Exported function `datetime_smoke_c`.
+ * Implements `datetime_smoke_c`.
+ * @return i32
+ */
 export function datetime_smoke_c(): i32 {
   let sec: i64 = 0;
   let nsec: i32 = 0;

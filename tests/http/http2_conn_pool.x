@@ -1,6 +1,10 @@
-// STD-HTTP-H2-v12：H2 连接池 + 长连接 URL 烟测（离线）
+// See implementation.
 const http = import("std.http");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (http.conn_pool_smoke() != 0) { return 1; }
   if (http.conn_pool_is_available() == false) { return 2; }

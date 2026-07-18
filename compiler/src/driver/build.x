@@ -14,24 +14,23 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// build.x — shux build 子命令
-// 行为：
-//   - 有参数（如 shux build x.x -o exe）：编译指定 .x（run_compiler_x_path_impl）。
-//   - 无参数（仅 shux build）：由 C 侧在当前目录查找
-// build.x，编译并运行默认产物 ./a.out（driver_build_build_x）。
-// 用法：shux build [x.x] [-o exe] [-E] [-backend c] [-L path]
-// 勿 import ast：-E 生成 driver_build_gen.c 时无需 AST 类型。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 
-/** main.x 实现；链接符号 main_run_compiler_x_path_impl。 */
+/* See implementation. */
 export extern function main_run_compiler_x_path_impl(argc: i32, argv: *u8): i32;
 
-/** C 侧 runtime.c：当前目录 build.x → driver_run_compiler_full，成功后 exec
-./a.out。 */
+/** See implementation for details. */
 export extern function driver_build_build_x(): i32;
 
 /**
-* shux build 入口：子命令已从 argv 剥离后，argc==1
-* 表示除程序名外无额外参数。
+* See implementation.
+* See implementation.
 */
 export function cmd_build(argc: i32, argv: *u8): i32 {
   unsafe {

@@ -14,21 +14,18 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// cost.x — Cost function（多维度成本评估）
+// cost.x — Cost function (multi-dimensional cost evaluation)
 //
-// 模块：ir/slir
-// 层级：SLIR
-// Phase：Phase 3
-// 职责：
-//   - 定义 e-graph 节点的 cost function
-//   - 读取 Cost Model 配置（§10.3 六维度）
-//   - 节点 cost = instruction_cost + register_pressure + cache + branch + simd + pipeline
-//   - 供 extract.x 提取最优表达式时使用
-// 依赖：../inst / ../target/cost_model / ./egraph
-// 设计约束：
-//   - Cost Model 通过外部 .cost.json 配置，支持新 CPU 无需改代码（§10.3）
-//   - cost 计算必须确定性（相同输入相同输出，禁止随机）
-//   - 不同优化级别（--opt=0/1/2/3）可调整 cost 权重
+// Module: ir/slir
+// Layer: SLIR
+// Phase: Phase 3
+// Responsibility:
+//   - e-graph node cost function from Cost Model six dimensions (§10.3)
+//   - Used by extract.x when picking the optimal expression
+// Depends: ../inst / ../target/cost_model / ./egraph
+// Design constraints:
+//   - Cost Model is external .cost.json; new CPUs need no IR code changes
+//   - Cost computation is deterministic
 //
-// 参考文档：analysis/IR核心设计.md §4.3（Cost function）/ §10.3（多维度 Cost Model）
-// 架构状态：v4.0 Architecture Freeze — 实现骨架，待 Phase 3 填充
+// Ref: analysis IR core design §4.3 (Cost function) / §10.3 (multi-dim Cost Model)
+// Status: v4.0 Architecture Freeze — implementation skeleton; fill in Phase 3

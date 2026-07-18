@@ -1,4 +1,8 @@
-// while_if_nested_let.x — while 体内 if-then 嵌套 let + 后续赋值（parser lex 回指 + loop body emit let）
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let i: i32 = 0;
   while (i < 10) {

@@ -1,7 +1,11 @@
-// DOD-S2 smoke：std.vec Vec3f_soa（默认 SoA）+ Vec3f_aos（opt-in AoS）。
-// heap push/len/deinit；列扫描 sum_x 见 vec3f_soa_sum_smoke.x。
+// See implementation.
+// See implementation.
 const vec = import("std.vec");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let v_soa: Vec3f_soa = vec.vec3f_soa_new();
   if (vec.vec3f_soa_push(&v_soa, 1.0, 0.0, 0.0) != 0) { return 1; }

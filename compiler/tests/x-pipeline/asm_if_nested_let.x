@@ -1,9 +1,11 @@
-// asm_if_nested_let.x — 复现 typeck_layout_init_struct_from_lit：while 体内 if 嵌套 let
-// fr
+// asm_if_nested_let.x — repro typeck_layout_init_struct_from_lit: while-body if nested let fr.
 const ast = import("ast");
 
 extern function pipeline_module_num_struct_layouts_at(module: *Module): i32;
 
+/**
+ * Nested let fr inside while+if; advance j by acc derived from fr.
+ */
 function test_nested_fr(num_fields: i32): i32 {
   let j: i32 = 0;
   while (j < num_fields) {

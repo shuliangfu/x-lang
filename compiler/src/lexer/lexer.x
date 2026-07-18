@@ -14,34 +14,26 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// lexer.x — 词法分析器（自举 9.1：.x 实现，与 lexer.c 并存）
-// 职责：提供 Lexer、lexer_init、lexer_next；将 .x 源码按字符流切分为 token.Token
-// 流。
-// 依赖：token.x（token.Token/TokenKind）。源码以 u8[] 传入，IDENT 的 ident 暂置
-// 0，仅填 ident_len。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 
 const token = import("token");
 
-/** B-01：#[cfg(...)] 表达式求值（C 实现，与 lexer.c cfg_eval_expr_c 一致）。 */
+/* See implementation. */
 export extern function cfg_eval_expr_c(start: *u8, len: i32): i32;
 
-/** Lexer 状态：当前扫描位置与行号列号；源码由调用方在 lexer_next 时以 u8[]
-* 传入。allow(padding) 与跨模块拷贝/赋值对齐。 */
+/** See implementation for details. */
 allow(padding) struct Lexer {
   pos: usize;
   line: i32;
   col: i32;
 }
 
-/** 一次 lexer_next 的返回：更新后的 Lexer 状态与本次读到的 token.Token。
-* token_start：当前 token 在 source
-* 中的字节起点（跳过空白后的首字节偏移），供 parser 复制
-* IDENT/关键字字面量；
-* 与 lexer_next_body_into 一致（IDENT 与 TOKEN_INT 等带文本的 token
-* 均填真实起点，偏移 0 合法）。
-* 单字符标点等多数字面量仍为 0。 */
-/** allow(padding)：token.Token 含 f64，与 next_lex 组合时 token_start 前可有隐式
-gap（§11.1）。 */
+/** See implementation for details. */
+/** See implementation for details. */
 allow(padding) struct LexerResult {
   next_lex: Lexer;
   tok: token.Token;
@@ -49,19 +41,26 @@ allow(padding) struct LexerResult {
 }
 
 /**
-* glue：pipeline_glue.c 提供 lexer_parser_slice_from_buf；（data,len）与 u8[] 视图一致，
-* 供 buf 路径会合到 slice 版本逻辑，避免在 buf 循环里手写 i32→usize
-* 转换触发 typecheck 不稳定。
+* See implementation.
+* See implementation.
+* See implementation.
 */
 export extern function lexer_parser_slice_from_buf(data: *u8, len: i32): u8[];
 
-/** 返回初始 Lexer 状态（pos=0, line=1, col=1）。 */
+/** Exported function `lexer_init`.
+ * Implements `lexer_init`.
+ * @return Lexer
+ */
 export function lexer_init(): Lexer {
   return Lexer { pos: 0, line: 1, col: 1 };
 }
 
-/** 消费一个字符，返回新的 Lexer 状态（pos+1，换行时 line+1、col 置 1，否则
-col+1）。 */
+/** Exported function `advance_one`.
+ * Implements `advance_one`.
+ * @param lex Lexer
+ * @param c u8
+ * @return Lexer
+ */
 export function advance_one(lex: Lexer, c: u8): Lexer {
   if (c == 10) {
     return Lexer { pos: lex.pos + 1, line: lex.line + 1, col: 1 };
@@ -69,14 +68,22 @@ export function advance_one(lex: Lexer, c: u8): Lexer {
   return Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
 }
 
-/** 判断是否为字母或下划线（标识符/关键字首字符）。 */
+/** Exported function `is_alpha`.
+ * Query helper `is_alpha`.
+ * @param c u8
+ * @return bool
+ */
 export function is_alpha(c: u8): bool {
   if (c >= 97 && c <= 122) { return true; }
   if (c >= 65 && c <= 90) { return true; }
   return c == 95;
 }
 
-/** 判断是否为十六进制数字 0-9、a-f、A-F。 */
+/** Exported function `is_hex_digit`.
+ * Query helper `is_hex_digit`.
+ * @param c u8
+ * @return bool
+ */
 export function is_hex_digit(c: u8): bool {
   if (c >= 48 && c <= 57) { return true; }
   if (c >= 97 && c <= 102) { return true; }
@@ -84,7 +91,11 @@ export function is_hex_digit(c: u8): bool {
   return false;
 }
 
-/** 十六进制数字字符转 0..15。 */
+/** Exported function `hex_digit_value`.
+ * Implements `hex_digit_value`.
+ * @param c u8
+ * @return i32
+ */
 export function hex_digit_value(c: u8): i32 {
   if (c >= 48 && c <= 57) { return (c - 48) as i32; }
   if (c >= 97 && c <= 102) { return (c - 97 + 10) as i32; }
@@ -92,18 +103,32 @@ export function hex_digit_value(c: u8): i32 {
   return 0;
 }
 
-/** 判断是否为数字 0–9。 */
+/** Exported function `is_digit`.
+ * Query helper `is_digit`.
+ * @param c u8
+ * @return bool
+ */
 export function is_digit(c: u8): bool {
   return c >= 48 && c <= 57;
 }
 
-/** 判断是否为字母、数字或下划线（标识符后续字符）。 */
+/** Exported function `is_alnum_underscore`.
+ * Query helper `is_alnum_underscore`.
+ * @param c u8
+ * @return bool
+ */
 export function is_alnum_underscore(c: u8): bool {
   return is_alpha(c) || is_digit(c);
 }
 
-/** 比较 data[start..start+len] 与 keyword 的前 len 字节是否相等；要求 keyword 长度
->= len。 */
+/** Exported function `match_keyword`.
+ * Implements `match_keyword`.
+ * @param data u8[]
+ * @param start usize
+ * @param len i32
+ * @param keyword u8[]
+ * @return bool
+ */
 export function match_keyword(data: u8[], start: usize, len: i32, keyword: u8[]): bool {
   let i: i32 = 0;
   while (i < len) {
@@ -113,8 +138,15 @@ export function match_keyword(data: u8[], start: usize, len: i32, keyword: u8[])
   return true;
 }
 
-/** 与 match_keyword 等价，但接受 (data: *u8, data_len) 用于无 slice 的 buf
-* 路径；要求 start+len <= data_len。 */
+/** Exported function `match_keyword_buf`.
+ * Implements `match_keyword_buf`.
+ * @param data *u8
+ * @param data_len i32
+ * @param start usize
+ * @param len i32
+ * @param keyword u8[]
+ * @return bool
+ */
 export function match_keyword_buf(data: *u8, data_len: i32, start: usize, len: i32, keyword: u8[]): bool {
   let i: i32 = 0;
   while (i < len) {
@@ -796,7 +828,7 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
   return t;
 }
 
-/** 与 try_keyword 等价，接受 (data: *u8, data_len) 供无 slice 的 buf 路径使用。 */
+/* See implementation. */
 export function try_keyword_buf(data: *u8, data_len: i32, start: usize, len: usize, line0: i32, col0:
 i32): token.Token {
   if (len == 8 && match_keyword_buf(data, data_len, start, 8, [102, 117, 110, 99, 116, 105, 111,
@@ -946,8 +978,8 @@ i32): token.Token {
 }
 
 /**
- * B-03 v0：若 lex 位于 #[repr(C)] 起点，消费整段属性并返回新 Lexer；否则 pos 不变。
- * 尚未改 struct layout，仅保证词法/parse 不因未知 #[repr(C)] 失败。
+ * See implementation.
+ * See implementation.
  */
 export function skip_repr_c_attr_if_present(lex: Lexer, data: u8[]): Lexer {
   let l: Lexer = lex;
@@ -969,8 +1001,8 @@ export function skip_repr_c_attr_if_present(lex: Lexer, data: u8[]): Lexer {
 }
 
 /**
- * B-01 v0：若 lex 位于 #[cfg(...)] 起点，消费整段属性并返回新 Lexer；否则 pos 不变。
- * 括号可嵌套；尚无语义剪枝，仅保证词法/parse 不因未知 #[…] 拆成 '#' '[' 而失败。
+ * See implementation.
+ * See implementation.
  */
 export function skip_cfg_attr_if_present(lex: Lexer, data: u8[]): Lexer {
   let l: Lexer = lex;
@@ -1075,8 +1107,8 @@ export function lexer_try_cfg_attr_into(out: *LexerResult, l: Lexer, data: u8[])
 }
 
 /**
- * B-03 v1：若 l 处为 `#[repr(C)]`，写入 TOKEN_ATTR_REPR_C 并返回 1。
- * 独立函数避免 if 体内 `Lexer { ... }` 的 `}` 与 if 块括号歧义（C 前端 parse）。
+ * See implementation.
+ * See implementation.
  */
 export function lexer_try_repr_c_attr_into(out: *LexerResult, l: Lexer, data: u8[]): i32 {
   if (l.pos + 10 > data.length) {
@@ -1113,7 +1145,7 @@ export function lexer_try_repr_c_attr_into(out: *LexerResult, l: Lexer, data: u8
 }
 
 /**
- * MOD-02：若 l 处为 `#[repr(compatible)]`，写入 TOKEN_ATTR_REPR_COMPATIBLE 并返回 1。
+ * See implementation.
  */
 export function lexer_try_repr_compatible_attr_into(out: *LexerResult, l: Lexer, data: u8[]): i32 {
   if (l.pos + 19 > data.length) {
@@ -1158,7 +1190,7 @@ export function lexer_try_repr_compatible_attr_into(out: *LexerResult, l: Lexer,
 }
 
 /**
- * DOD-S1：若 l 处为 `#[soa]`，写入 TOKEN_ATTR_SOA 并返回 1。
+ * See implementation.
  */
 export function lexer_try_soa_attr_into(out: *LexerResult, l: Lexer, data: u8[]): i32 {
   if (l.pos + 6 > data.length) {
@@ -1196,7 +1228,7 @@ export function lexer_try_soa_attr_into(out: *LexerResult, l: Lexer, data: u8[])
 }
 
 /**
- * MEM-C1：若 l 处为 `#[alloc]`，写入 TOKEN_ATTR_ALLOC 并返回 1。
+ * See implementation.
  */
 export function lexer_try_alloc_attr_into(out: *LexerResult, l: Lexer, data: u8[]): i32 {
   if (l.pos + 8 > data.length) {
@@ -1236,7 +1268,7 @@ export function lexer_try_alloc_attr_into(out: *LexerResult, l: Lexer, data: u8[
 }
 
 /**
- * K10：若 l 处为 `#[used]`，写入 TOKEN_ATTR_USED 并返回 1。
+ * See implementation.
  */
 export function lexer_try_used_attr_into(out: *LexerResult, l: Lexer, data: u8[]): i32 {
   if (l.pos + 7 > data.length) {
@@ -1275,7 +1307,7 @@ export function lexer_try_used_attr_into(out: *LexerResult, l: Lexer, data: u8[]
 }
 
 /**
- * K3：若 l 处为 `#[naked]`，写入 TOKEN_ATTR_NAKED 并返回 1。
+ * See implementation.
  */
 export function lexer_try_naked_attr_into(out: *LexerResult, l: Lexer, data: u8[]): i32 {
   if (l.pos + 8 > data.length) { return 0; }
@@ -1292,7 +1324,7 @@ export function lexer_try_naked_attr_into(out: *LexerResult, l: Lexer, data: u8[
 }
 
 /**
- * K5：若 l 处为 `#[entry]`，写入 TOKEN_ATTR_ENTRY 并返回 1。
+ * See implementation.
  */
 export function lexer_try_entry_attr_into(out: *LexerResult, l: Lexer, data: u8[]): i32 {
   if (l.pos + 8 > data.length) { return 0; }
@@ -1309,7 +1341,7 @@ export function lexer_try_entry_attr_into(out: *LexerResult, l: Lexer, data: u8[
 }
 
 /**
- * L9：若 l 处为 `#[no_mangle]`，写入 TOKEN_ATTR_NO_MANGLE 并返回 1。
+ * See implementation.
  */
 export function lexer_try_no_mangle_attr_into(out: *LexerResult, l: Lexer, data: u8[]): i32 {
   if (l.pos + 12 > data.length) { return 0; }
@@ -1328,7 +1360,7 @@ export function lexer_try_no_mangle_attr_into(out: *LexerResult, l: Lexer, data:
 }
 
 /**
- * A1：若 l 处为 `#[interrupt]`，写入 TOKEN_ATTR_INTERRUPT 并返回 1。
+ * See implementation.
  */
 export function lexer_try_interrupt_attr_into(out: *LexerResult, l: Lexer, data: u8[]): i32 {
   if (l.pos + 13 > data.length) { return 0; }
@@ -1347,7 +1379,7 @@ export function lexer_try_interrupt_attr_into(out: *LexerResult, l: Lexer, data:
 }
 
 /**
- * L6：若 l 处为 `#[send]`，写入 TOKEN_ATTR_SEND 并返回 1。
+ * See implementation.
  */
 export function lexer_try_send_attr_into(out: *LexerResult, l: Lexer, data: u8[]): i32 {
   if (l.pos + 8 > data.length) { return 0; }
@@ -1364,7 +1396,7 @@ export function lexer_try_send_attr_into(out: *LexerResult, l: Lexer, data: u8[]
 }
 
 /**
- * L6：若 l 处为 `#[sync]`，写入 TOKEN_ATTR_SYNC 并返回 1。
+ * See implementation.
  */
 export function lexer_try_sync_attr_into(out: *LexerResult, l: Lexer, data: u8[]): i32 {
   if (l.pos + 8 > data.length) { return 0; }
@@ -1380,9 +1412,12 @@ export function lexer_try_sync_attr_into(out: *LexerResult, l: Lexer, data: u8[]
   out.token_start = (0 as usize); return 1;
 }
 
-/** 跳过空白与注释，返回新的 Lexer 状态；若已到末尾则返回当前
-* lex。控制流仅用 if/else-if（无 continue），以满足 asm codegen 对 EXPR_CONTINUE
-* 的限制。 */
+/** Exported function `skip_whitespace_and_comments`.
+ * Implements `skip_whitespace_and_comments`.
+ * @param lex Lexer
+ * @param data u8[]
+ * @return Lexer
+ */
 export function skip_whitespace_and_comments(lex: Lexer, data: u8[]): Lexer {
   let l: Lexer = lex;
   while (l.pos < data.length) {
@@ -1405,7 +1440,7 @@ export function skip_whitespace_and_comments(lex: Lexer, data: u8[]): Lexer {
         l = advance_one(l, data[l.pos]);
       }
     } else if (c == 35) {
-      /** B-01/B-03：`#[cfg]`/`#[repr(C)]` 在 lexer_next 产出 token；`#[soa]` 留给 lexer_next_body；`#` 行注释照旧。 */
+      /* See implementation. */
       if (l.pos + 1 < data.length && data[l.pos + 1] == 91) {
         return l;
       } else {
@@ -1420,8 +1455,7 @@ export function skip_whitespace_and_comments(lex: Lexer, data: u8[]): Lexer {
   return l;
 }
 
-/** 与 skip_whitespace_and_comments 等价，接受 (data: *u8, len) 供 buf 路径使用；委托
-* slice 路径，logic 仅此一份。 */
+/** See implementation for details. */
 /**
  * Same as skip_whitespace_and_comments for raw (data, len) buffers.
  * PLATFORM: SHARED — LANG-007 S0: slice glue is extern; call inside unsafe (Cap-T001).
@@ -1433,12 +1467,12 @@ export function skip_whitespace_and_comments_buf(lex: Lexer, data: *u8, len: i32
   return lex;
 }
 
-/** 取下一个 token.Token；跳过空白与注释后，识别关键字/标识符/数字/符号，写
-* tok 并返回新状态。IDENT 时 ident 置 0，仅 ident_len 有效。遇 NUL 或越界视为
-* EOF（便于从文件读入的固定长缓冲）。先做 EOF 检查再调
-* lexer_next_body，避免代码生成将 data[l.pos] 提到越界检查前导致 panic。
-* 使用单一 return + if-else 链使两分支类型一致为 LexerResult，避免 codegen 产出
-* __tmp=LexerResult 却赋 (token.Token){0}。 */
+/** Exported function `lexer_next`.
+ * Implements `lexer_next`.
+ * @param lex Lexer
+ * @param data u8[]
+ * @return LexerResult
+ */
 export function lexer_next(lex: Lexer, data: u8[]): LexerResult {
   let l: Lexer = skip_whitespace_and_comments(lex, data);
   if (l.pos >= data.length) {
@@ -1465,7 +1499,7 @@ export function lexer_next(lex: Lexer, data: u8[]): LexerResult {
     }
     return LexerResult { next_lex: l, tok: t, token_start: (0 as usize) }
   }
-  /** #[cfg]/#[repr]/#[soa]/#[alloc] 仅 _into 路径实现；勿全量替换 lexer_next_body（会破坏自举 .x emit）。 */
+  /* See implementation. */
   let attr_out: LexerResult = LexerResult {
     next_lex: l,
     tok: token.Token { kind: 0, line: l.line, col: l.col, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 },
@@ -1507,14 +1541,14 @@ export function lexer_next(lex: Lexer, data: u8[]): LexerResult {
   if (lexer_try_sync_attr_into(&attr_out, l, data) != 0) {
     return attr_out;
   }
-  /** 用 _into 避免对后置定义的 lexer_next_body 做 return 类型前向解析（found ?）。 */
+  /* See implementation. */
   lexer_next_body_into(&attr_out, l, data);
   return attr_out;
 }
 
 /**
-* 浮点字面量可选指数（e/E[+/-]digits）；与 lexer.c lex_optional_exponent 一致。
-* 通过 out_l/out_f 写回推进后的 Lexer 与缩放后的值。
+* See implementation.
+* See implementation.
 */
 export function lexer_apply_optional_exponent(l: Lexer, data: u8[], fval: f64, out_l: *Lexer, out_f:
 *f64): void {
@@ -1555,11 +1589,16 @@ export function lexer_apply_optional_exponent(l: Lexer, data: u8[], fval: f64, o
   out_f[0] = cur;
 }
 
-/** 与 lexer_next_body 逻辑相同，但将结果写入 out 而非返回，供 lexer_next_impl
-* 使用以绕过结构体返回 ABI。 */
+/** Exported function `lexer_next_body_into`.
+ * Implements `lexer_next_body_into`.
+ * @param out *LexerResult
+ * @param l Lexer
+ * @param data u8[]
+ * @return void
+ */
 export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): void {
   let c: u8 = data[l.pos];
-  /** B-01 v1：`#[cfg(...)]` → TOKEN_ATTR_CFG（int_val 0/1 表 host 是否保留下一顶层项）。 */
+  /* See implementation. */
   if (lexer_try_cfg_attr_into(out, l, data) != 0) {
     return;
   }
@@ -1596,7 +1635,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
   if (lexer_try_sync_attr_into(out, l, data) != 0) {
     return;
   }
-  /** import("path") 等：字符串字面量，token_start 指向开引号后首字节，ident_len 为字节数。 */
+  /* See implementation. */
   if (c == 34) {
     let line0: i32 = l.line;
     let col0: i32 = l.col;
@@ -1729,7 +1768,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
       float_val: 0.0, ident: 0, ident_len: 0 };
     write_next_lex_into(out, l);
     write_tok_into(out, tok);
-    /** 与 IDENT 分支一致：块尾 `{ 10 }` 依赖 token_start，否则 parser lex_at_token 仅回溯 1 字节。 */
+    /* See implementation. */
     out.token_start = start;
     return;
   }
@@ -1790,7 +1829,7 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
   if (c == 58) { tok.kind = 91; write_next_lex_into(out, l); write_tok_into(out,
     tok); out.token_start = start; return; }
   if (c == 46) {
-    /** 变参 `...`：三个连续 `.`；c==46 已 advance_one，故检查 l.pos 与 l.pos+1 是否仍为 `.` */
+    /* See implementation. */
     if (l.pos + 1 < data.length && data[l.pos] == 46 && data[l.pos + 1] == 46) {
       l = advance_one(l, 46);
       l = advance_one(l, 46);
@@ -1803,7 +1842,7 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
   if (c == 59) { tok.kind = 95; write_next_lex_into(out, l);
     write_tok_into(out, tok); out.token_start = start; return; }
   if (c == 43) {
-    /** 复合赋值 +=（与 lexer.c TOKEN_PLUS_EQ 一致）。 */
+    /* See implementation. */
     if (l.pos < data.length && data[l.pos] == 61) {
       l = advance_one(l, 61);
       tok.kind = 106;
@@ -2048,15 +2087,24 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
   out.token_start = start;
 }
 
-/** 将 Lexer 各字段写入 out.next_lex，并置 token_start=0；ident
-* 分支会在调用后再写 out.token_start。 */
+/** Exported function `write_next_lex_into`.
+ * Write path helper `write_next_lex_into`.
+ * @param out *LexerResult
+ * @param l Lexer
+ * @return void
+ */
 export function write_next_lex_into(out: *LexerResult, l: Lexer): void {
   out.next_lex.pos = l.pos;
   out.next_lex.line = l.line;
   out.next_lex.col = l.col;
   out.token_start = (0 as usize);
 }
-/** 将 token.Token 各字段写入 out.tok，避免 out.tok = t 整结构体赋值的 ABI 问题。 */
+/** Exported function `write_tok_into`.
+ * Write path helper `write_tok_into`.
+ * @param out *LexerResult
+ * @param t token.Token
+ * @return void
+ */
 export function write_tok_into(out: *LexerResult, t: token.Token): void {
   out.tok.kind = t.kind;
   out.tok.line = t.line;
@@ -2067,8 +2115,13 @@ export function write_tok_into(out: *LexerResult, t: token.Token): void {
   out.tok.ident_len = t.ident_len;
 }
 
-/** 核心实现：将下一 token 的结果写入 out（不返回结构体），避免 ABI 下
-* LexerResult 按值返回错误。 */
+/** Exported function `lexer_next_impl`.
+ * Implements `lexer_next_impl`.
+ * @param out *LexerResult
+ * @param lex Lexer
+ * @param data u8[]
+ * @return void
+ */
 export function lexer_next_impl(out: *LexerResult, lex: Lexer, data: u8[]): void {
   let l: Lexer = skip_whitespace_and_comments(lex, data);
   if (l.pos >= data.length) {
@@ -2088,14 +2141,18 @@ export function lexer_next_impl(out: *LexerResult, lex: Lexer, data: u8[]): void
   lexer_next_body_into(out, l, data);
 }
 
-/** 将 lexer_next 的结果写入 out，供 parser 关键路径使用，避免结构体返回 ABI
-* 问题。 */
+/** Exported function `lexer_next_into`.
+ * Implements `lexer_next_into`.
+ * @param out *LexerResult
+ * @param lex Lexer
+ * @param data u8[]
+ * @return void
+ */
 export function lexer_next_into(out: *LexerResult, lex: Lexer, data: u8[]): void {
   lexer_next_impl(out, lex, data);
 }
 
-/** buf + len：写入 out；内部走 lexer_next_into；优先此路径可避免 lexer_next_buf
-* 按值 LexerResult 在部分宿主 ABI 上不稳定。 */
+/** See implementation for details. */
 /**
  * Buf + len path writing into out via lexer_next_into.
  * PLATFORM: SHARED — LANG-007 S0: slice glue is extern; call inside unsafe (Cap-T001).
@@ -2107,10 +2164,10 @@ export function lexer_next_buf_into(out: *LexerResult, lex: Lexer, data: *u8, le
 }
 
 /**
-* 与 lexer_next 等价，接受 (data: *u8, len)。
-* 委托 lexer_next(lex, source)，勿在本函数展开 skip/EOF/next_body：
-* codegen 对「栈上 u8[] 绑定」易产生 (source)->length 等箭头误用；(lex, &(source))
-* 传参路径与 lexer_next 一致可避免坏 C。
+* See implementation.
+* See implementation.
+* See implementation.
+* See implementation.
 */
 /**
  * Same as lexer_next for raw (data, len).
@@ -2122,8 +2179,12 @@ export function lexer_next_buf(lex: Lexer, data: *u8, len: i32): LexerResult {
   }
 }
 
-/** 在已保证 l.pos < data.length 且 data[l.pos] != 0 时取下一 token.Token；供 lexer_next 在
-* EOF 检查后调用。 */
+/** Exported function `lexer_next_body`.
+ * Implements `lexer_next_body`.
+ * @param l Lexer
+ * @param data u8[]
+ * @return LexerResult
+ */
 export function lexer_next_body(l: Lexer, data: u8[]): LexerResult {
   let c: u8 = data[l.pos];
   if (is_alpha(c)) {
@@ -2136,8 +2197,7 @@ export function lexer_next_body(l: Lexer, data: u8[]): LexerResult {
     }
     let len: usize = l.pos - start;
     let tok: token.Token = try_keyword(data, start, len, line0, col0);
-    /** IDENT/关键字：必须与 lexer_next_body_into 一致写入起点，否则会触发
-    * parser 误判与 struct 字段名不匹配。 */
+/** See implementation for details. */
     return LexerResult { next_lex: l, tok: tok, token_start: start };
   }
   if (is_digit(c)) {
@@ -2259,7 +2319,7 @@ export function lexer_next_body(l: Lexer, data: u8[]): LexerResult {
   if (c == 58) { tok.kind = 91; return LexerResult { next_lex: l, tok: tok,
       token_start: start } };
   if (c == 46) {
-    /** 变参 `...`：三个连续 `.`；c==46 已 advance_one，故检查 l.pos 与 l.pos+1 是否仍为 `.` */
+    /* See implementation. */
     if (l.pos + 1 < data.length && data[l.pos] == 46 && data[l.pos + 1] == 46) {
       l = advance_one(l, 46);
       l = advance_one(l, 46);
@@ -2428,12 +2488,14 @@ export function lexer_next_body(l: Lexer, data: u8[]): LexerResult {
   return LexerResult { next_lex: l, tok: tok, token_start: start };
 }
 
-/** 自举 9.1 测试：初始化 Lexer，用固定源码调用 lexer_next 若干次，确认
-TOKEN_LET/TOKEN_IDENT/TOKEN_ASSIGN/TOKEN_INT/TOKEN_EOF。 */
+/** Exported function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 export function main(): i32 {
   let src: u8[32] = [108, 101, 116, 32, 120, 32, 61, 32, 49, 59, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-  /** 固定源码长度 11（"let x = 1;"）；勿 u8[32]→u8[] 直接绑定（typeck 拒绝）。 */
+  /* See implementation. */
   // PLATFORM: SHARED — LANG-007 S0: slice glue is extern; call inside unsafe (Cap-T001).
   let sl: u8[] = [];
   unsafe {

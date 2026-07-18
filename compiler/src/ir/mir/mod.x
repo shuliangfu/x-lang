@@ -14,19 +14,19 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// mod.x — Target MIR 层模块入口（re-export）
+// mod.x — Target MIR layer module entry (re-export)
 //
-// 模块：ir/mir
-// 层级：Target MIR（Machine IR，特定硬件寄存器分配 + 微架构对齐）
-// Phase：Phase 6
-// 职责：聚合 mir/ 子模块导出（regalloc / spill / sched / microarch）。
-// 依赖：../vmir / ../inst / ../contract / ../target
-// 设计约束：
-//   - Target MIR 专做寄存器分配 + 微架构对齐（VMIR 拆分后职责单一）
-//   - region-based Coloring 寄存器分配（§5.3）
-//   - 热度感知 spilling（冷变量溢出到栈）
-//   - 微架构流水线建模 + 执行端口调度
-//   - 契约物化：Contract 已物化为机器指令属性
+// Module: ir/mir
+// Layer: Target MIR (Machine IR; hardware register allocation + microarch alignment)
+// Phase: Phase 6
+// Responsibility: Aggregate mir/ submodule exports (regalloc / spill / sched / microarch).
+// Depends: ../vmir / ../inst / ../contract / ../target
+// Design constraints:
+//   - Target MIR owns regalloc + microarch alignment only (split from VMIR)
+//   - Region-based coloring register allocation (§5.3)
+//   - Heat-aware spilling (cold vars to stack)
+//   - Microarch pipeline modeling + execution-port scheduling
+//   - Contract materialization: Contract already lowered to machine-inst attributes
 //
-// 参考文档：analysis/IR核心设计.md §2.1（Target MIR 层）/ §2.2（Target MIR 职责）
-// 架构状态：v4.0 Architecture Freeze — 实现骨架，待 Phase 6 填充
+// Ref: analysis IR core design §2.1 (Target MIR layer) / §2.2 (Target MIR duties)
+// Status: v4.0 Architecture Freeze — implementation skeleton; fill in Phase 6

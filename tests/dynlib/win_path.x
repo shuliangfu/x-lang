@@ -1,8 +1,12 @@
-// STD-097：Windows 路径烟测占位（运行时见 win_path_smoke.c；POSIX 跳过）
+// See implementation.
 const dynlib = import("std.dynlib");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
-  // 非 Windows：open_sym_close 已覆盖 POSIX；此处仅 typeck 通过
+  // See implementation.
   let path: u8[4] = [0, 0, 0, 0];
   if (dynlib.open(&path[0]) != 0) {
     return 1;

@@ -1,6 +1,10 @@
-// STD-HTTP-H2-v9：h2c URL 客户端入口烟测（离线；不建连）
+// See implementation.
 const http = import("std.http");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (http.h2c_client_smoke() != 0) { return 1; }
   if (http.err_h2c_scheme() != -1235) { return 2; }

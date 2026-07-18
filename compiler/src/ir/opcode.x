@@ -14,22 +14,23 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// opcode.x — Opcode 枚举（22 条核心指令）
+// opcode.x — Opcode enum (22 core instructions)
 //
-// 模块：ir
-// 层级：共享（被五层 IR 共用）
-// Phase：Phase 1（SHIR 首次发射 IRInst 即用）
-// 职责：
-//   - 定义 Opcode 枚举，覆盖四类指令：
-//     · 核心契约指令（region_alloc / arena_alloc / arena_reset / linear_move / noalias_load / x_abi_call / pure_call）
-//     - 优化提示指令（loop_unroll_hint / branch_predict / prefetch）
-//     - SIMD 指令（vector_load / vector_op / vector_store，支持 VLA）
-//     - 原子指令（atomic_load / atomic_store / atomic_cas / memory_fence，携带 MemoryOrder）
-// 依赖：无
-// 设计约束：
-//   - 22 条指令是 v4.0 冻结的核心集，新增指令需 Benchmark 证明收益
-//   - 每条指令的 Contract 定义在 contract.x 中，opcode 本身只关心操作码
-//   - SIMD 指令支持 vl 参数（变长向量化）
+// Module: ir
+// Layer: shared (used by all five IR layers)
+// Phase: Phase 1 (first SHIR IRInst emission uses opcodes)
+// Responsibility:
+//   - Define Opcode enum covering four instruction classes:
+//     · Core contract ops (region_alloc / arena_alloc / arena_reset / linear_move /
+//       noalias_load / x_abi_call / pure_call)
+//     · Optimization hint ops (loop_unroll_hint / branch_predict / prefetch)
+//     · SIMD ops (vector_load / vector_op / vector_store; VLA supported)
+//     · Atomic ops (atomic_load / atomic_store / atomic_cas / memory_fence with MemoryOrder)
+// Depends: none
+// Design constraints:
+//   - 22 instructions are the v4.0 frozen core set; new opcodes need Benchmark proof
+//   - Per-opcode Contracts live in contract.x; opcode itself only names the operation
+//   - SIMD ops support a vl parameter (variable-length vectorization)
 //
-// 参考文档：analysis/IR核心设计.md §3.1（指令集总览，22 条）
-// 架构状态：v4.0 Architecture Freeze — 实现骨架，待 Phase 1 填充
+// Ref: analysis IR core design §3.1 (instruction set overview, 22 ops)
+// Status: v4.0 Architecture Freeze — implementation skeleton; fill in Phase 1

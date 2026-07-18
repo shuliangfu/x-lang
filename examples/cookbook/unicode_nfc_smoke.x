@@ -3,6 +3,10 @@
  */
 const unicode = import("std.unicode");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (unicode.is_supplementary(128512 as u32) != 1) { return 1; }
   if (unicode.is_supplementary(233 as u32) != 0) { return 2; }

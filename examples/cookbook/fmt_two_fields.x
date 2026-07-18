@@ -1,8 +1,12 @@
 /**
- * Cookbook FMT-02：std.fmt format_2 / format_3 多字段拼接（函数重载）。
+ * See implementation.
  */
 const fmt = import("std.fmt");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let buf: u8[64] = [
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,

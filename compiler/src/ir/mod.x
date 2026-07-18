@@ -14,17 +14,20 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// mod.x — IR 模块入口（re-export）
+// mod.x — IR module entry (re-export)
 //
-// 模块：ir
-// 层级：共享（跨五层 IR 架构）
-// Phase：Phase 0+
-// 职责：聚合 ir/ 子模块的公共导出，供 pipeline/codegen 调用；声明 Module 顶层结构。
-// 依赖：contract / effect / inst / opcode / abi / verify；shir / smir / slir / vmir / mir / pass / target / verify / c_emit
-// 设计约束：
-//   - Module 持有 contract_pool / effect_pool / cost_model 三大全局池（§2.4）
-//   - IRInst 只存 4 字节 contract_id / effect_id，不内联 Contract / Effect
-//   - Architecture Freeze：总架构不再修改，仅实现级调整
+// Module: ir
+// Layer: shared (across the five-layer IR architecture)
+// Phase: Phase 0+
+// Responsibility:
+//   Aggregate public exports from ir/ submodules for pipeline/codegen;
+//   declare the top-level Module structure.
+// Depends: contract / effect / inst / opcode / abi / verify;
+//          shir / smir / slir / vmir / mir / pass / target / verify / c_emit
+// Design constraints:
+//   - Module owns the three global pools: contract_pool / effect_pool / cost_model (§2.4)
+//   - IRInst stores only 4-byte contract_id / effect_id; does not inline Contract / Effect
+//   - Architecture Freeze: top-level architecture is fixed; only implementation-level changes
 //
-// 参考文档：analysis/IR核心设计.md §2.4（核心数据结构）/ §1.2（Contract Pool）/ §1.7（Effect Pool）
-// 架构状态：v4.0 Architecture Freeze — 实现骨架，待 Phase 0 起逐步填充
+// Ref: analysis IR core design §2.4 (core data structures) / §1.2 (Contract Pool) / §1.7 (Effect Pool)
+// Status: v4.0 Architecture Freeze — implementation skeleton; fill from Phase 0 onward

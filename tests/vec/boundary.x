@@ -1,20 +1,24 @@
-// TST-002：std.vec 边界烟测（Vec_i32 push/pop/clear/reserve）
+// See implementation.
 //
-// 【文件职责】≥8 边界 case；动态数组基本路径。
-// 【运行方式】tests/run-tst-002-boundary-gate.sh
+// See implementation.
+// See implementation.
 const vec = import("std.vec");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let v: Vec_i32 = vec.new();
-  // case 1：新建为空
+  // See implementation.
   if (vec.is_empty(v) != 1) { return 1; }
-  // case 2：新建 cap 为 0（首次 push 懒分配）
+  // See implementation.
   if (vec.capacity(v) != 0) { return 2; }
-  // case 3：push 三个元素
+  // See implementation.
   if (vec.push(&v, 10) != 0) { return 3; }
   if (vec.push(&v, 20) != 0) { return 4; }
   if (vec.push(&v, 30) != 0) { return 5; }
-  // case 4：长度
+  // See implementation.
   if (vec.len(v) != 3) { return 6; }
   // case 5：get/set
   if (vec.get(v, 1) != 20) { return 7; }
@@ -28,7 +32,7 @@ function main(): i32 {
   let tail: i32[2] = [40, 50];
   if (vec.extend(&v, &tail[0], 2) != 0) { return 11; }
   if (vec.len(v) != 4) { return 12; }
-  // case 8：clear 后为空
+  // See implementation.
   vec.clear(&v);
   if (vec.is_empty(v) != 1) { return 13; }
   // case 9：truncate + deinit

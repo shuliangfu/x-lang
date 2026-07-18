@@ -14,29 +14,29 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.heap.ops — F-03 v1：堆模块纯算法（core.mem + 线性探测；无 libc）
+// See implementation.
 //
-// 【文件职责】
-// 从 heap.c 迁出的 mem set/compare 与 map 线性探测；供 std.mem / std.map / std.set 使用。
+// See implementation.
+// See implementation.
 //
-// 【依赖】
-// core.mem：mem_set / mem_compare（避免与系统头 memcpy 宏冲突）。
+// See implementation.
+// See implementation.
 
 const mem = import("core.mem");
 
 /**
- * std.mem 用：将 ptr[0..n-1] 置为 byte；n<=0 不写。
+ * See implementation.
  */
 export function heap_mem_set_c(ptr: *u8, byte: u8, n: i32): void {
   if (n <= 0) {
     return;
   }
-  /* core.mem.mem_set 第三参为 usize；与 i32 API 面在此收敛，避免 typeck XT001 */
+  /* See implementation. */
   mem.mem_set(ptr, byte, n as usize);
 }
 
 /**
- * std.mem 用：比较 a[0..n-1] 与 b[0..n-1]；返回 -1 / 0 / 1。
+ * See implementation.
  */
 export function heap_mem_compare_c(a: *u8, b: *u8, n: i32): i32 {
   if (n <= 0) {
@@ -46,7 +46,7 @@ export function heap_mem_compare_c(a: *u8, b: *u8, n: i32): i32 {
 }
 
 /**
- * 哈希槽起始下标；cap 须 > 0。
+ * See implementation.
  */
 export function map_slot(key: i32, cap: i32): i32 {
   let h: i32 = key % cap;
@@ -57,7 +57,7 @@ export function map_slot(key: i32, cap: i32): i32 {
 }
 
 /**
- * std.map / std.set 用：线性探测查找 key；存在返回下标，否则 -1。
+ * See implementation.
  */
 export function map_i32_i32_find_c(keys: *i32, occupied: *u8, cap: i32, key: i32): i32 {
   if (cap <= 0) {

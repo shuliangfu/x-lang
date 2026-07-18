@@ -1,6 +1,10 @@
-// STD-146：std.atomic i16/u16 与 i64/u64 扩展 API 烟测
+// See implementation.
 const atomic = import("std.atomic");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   // i16
   let s: i16 = (0 as i16);

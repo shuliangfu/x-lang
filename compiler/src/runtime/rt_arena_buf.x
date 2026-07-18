@@ -1,11 +1,11 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-309/443 / P2 runtime rest → R2 full：静态 arena/module 缓冲。
-// .x 吃满 driver_arena_buf / driver_module_buf（memset + num_types 清零）。
-// 产品 PREFER_X_O：full .x + rest 在 FROM_X 下业务 T=0（marker + BSS 数据）。
-// Cap-global-bss residual：128MiB/2MiB 数组在 rest seed；槽 API 在 driver_abi
-// （.x export let 会变 static，不能跨 TU 导出大数组）。
+// G-02f-309/443 / P2 runtime rest → R2 full: static arena/module buffers.
+// .x owns driver_arena_buf / driver_module_buf (memset + num_types clear).
+// Product PREFER_X_O: full .x + rest under FROM_X has business T=0 (marker + BSS data).
+// Cap-global-bss residual: 128MiB/2MiB arrays live in rest seed; slot API in driver_abi
+// (.x export let becomes static; cannot export large arrays across TUs).
 
 export extern "C" function driver_arena_static_slot(): *u8;
 export extern "C" function driver_module_static_slot(): *u8;
@@ -14,7 +14,15 @@ export extern "C" function driver_module_static_size(): usize;
 export extern "C" function pipeline_arena_offset_num_types(): usize;
 export extern "C" function memset(p: *u8, c: i32, n: usize): *u8;
 
-/** 清零并返回静态 arena 缓冲（≥ pipeline_sizeof_arena；宿主 128MiB）。 */
+/**
+ * Zero and return the static arena buffer (>= pipeline_sizeof_arena; host 128MiB).
+ * Params: none (uses residual static slot + size).
+ * Returns: *u8 to zeroed arena, or null if slot unavailable.
+ * Contracts: after memset, also force num_types=0 at pipeline offset (LE i32 four bytes)
+ * so type_alloc does not mis-read if .x layout drifts from C.
+ * Track-L: #[no_mangle] keeps surface short name.
+ * PLATFORM: SHARED — slot residual in driver_abi.
+ */
 #[no_mangle]
 export function driver_arena_buf(): *u8 {
   let p: *u8 = 0 as *u8;
@@ -31,7 +39,7 @@ export function driver_arena_buf(): *u8 {
     memset(p, 0, sz);
     off = pipeline_arena_offset_num_types();
   }
-  // 强制 num_types=0（小端 i32 写 0），避免与 .x 布局不一致时 type_alloc 误判
+  // Force num_types=0 (little-endian i32 write of 0) so type_alloc cannot mis-read.
   if (off + 4 as usize <= sz) {
     p[off] = 0;
     p[off + 1 as usize] = 0;
@@ -41,7 +49,14 @@ export function driver_arena_buf(): *u8 {
   return p;
 }
 
-/** 清零并返回静态 module 缓冲（宿主 2MiB）。 */
+/**
+ * Zero and return the static module buffer (host 2MiB).
+ * Params: none (uses residual static slot + size).
+ * Returns: *u8 to zeroed module buffer, or null if slot unavailable.
+ * Contracts: full memset of residual size; no field-level fixups.
+ * Track-L: #[no_mangle] keeps surface short name.
+ * PLATFORM: SHARED — slot residual in driver_abi.
+ */
 #[no_mangle]
 export function driver_module_buf(): *u8 {
   let p: *u8 = 0 as *u8;

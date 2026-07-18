@@ -1,8 +1,12 @@
 /**
- * STD-018 烟测：std.mem copy/set/compare 与 core.mem 分轨（经 heap C 层）。
+ * See implementation.
  */
 const mem = import("std.mem");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let src: u8[4] = [10, 20, 30, 40];
   let dst: u8[4] = [0, 0, 0, 0];

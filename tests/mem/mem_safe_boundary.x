@@ -1,11 +1,15 @@
-// STD-144：std.mem 有界 copy/set/compare 与 buffer_from 烟测
+// See implementation.
 const mem = import("std.mem");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let src: u8[4] = [1, 2, 3, 4];
   let dst: u8[4] = [0, 0, 0, 0];
 
-  // copy_bounded：正常与 cap 溢出
+  // See implementation.
   if (mem.copy_bounded(&dst[0], 4, &src[0], 4) != 4) { return 1; }
   if (dst[3] != 4) { return 2; }
   if (mem.copy_bounded(&dst[0], 4, &src[0], 5) != -1) { return 3; }
@@ -16,7 +20,7 @@ function main(): i32 {
   if (dst[0] != 9 || dst[1] != 9) { return 6; }
   if (mem.set_bounded(&dst[0], 4, 9, 8) != -1) { return 7; }
 
-  // compare_bounded：前缀相等 + 长度决胜
+  // See implementation.
   let a: u8[3] = [1, 2, 3];
   let b: u8[4] = [1, 2, 3, 4];
   if (mem.compare_bounded(&a[0], 3, &b[0], 4) >= 0) { return 8; }

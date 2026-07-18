@@ -1,4 +1,8 @@
-// 7.3：嵌套 VAR 返回乘链应直 ldr/imul，勿 mov x2 暂存（run-asm-binop-nested-var.sh）。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32 = 2;
   let b: i32 = 3;

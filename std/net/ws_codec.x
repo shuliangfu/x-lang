@@ -14,26 +14,26 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.net.ws_codec — F-04 v3：WebSocket 编解码与握手纯算法层（RFC 6455 子集）
+// See implementation.
 //
-// 【文件职责】
-// 从 ws.inc.c 迁出：SHA-1 Accept、帧编解码、握手 HTTP 缓冲、URL 解析、Upgrade 校验。
-// 无 socket IO；IO 见 ws_io.x。
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 【依赖】
+// See implementation.
 // core.mem；std.random（Sec-WebSocket-Key）。
 
 const mem = import("core.mem");
 const random = import("std.random");
 
-/** RFC 6455 GUID 字节（258EAFA5-E914-47DA-95CA-C5AB0DC85B11 + NUL）。 */
+/* See implementation. */
 let WS_GUID: u8[37] = [
   50, 53, 56, 69, 65, 70, 65, 53, 45, 69, 57, 49, 52, 45, 52, 55,
   68, 65, 45, 57, 53, 67, 65, 45, 67, 53, 65, 66, 48, 68, 67, 56,
   53, 66, 49, 49, 0,
 ];
 
-/** Base64 标准表。 */
+/* See implementation. */
 let WS_B64: u8[65] = [
   65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80,
   81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 97, 98, 99, 100, 101, 102,
@@ -42,7 +42,7 @@ let WS_B64: u8[65] = [
   43, 47, 0,
 ];
 
-/** SHA-1 上下文（WebSocket Accept 用）。 */
+/* See implementation. */
 allow(padding) struct WsSha1Ctx {
   state0: u32; state1: u32; state2: u32; state3: u32; state4: u32;
   count0: u32; count1: u32;
@@ -51,14 +51,14 @@ allow(padding) struct WsSha1Ctx {
 }
 
 /**
- * 32 位循环左移（SHA-1 用）。
+ * See implementation.
  */
 export function ws_rol(v: u32, bits: i32): u32 {
   return ((v << bits) | (v >> (32 - bits))) as u32;
 }
 
 /**
- * SHA-1 单块压缩（64 字节 block）。
+ * See implementation.
  */
 export function ws_sha1_transform(ctx: *WsSha1Ctx, block: *u8): void {
   let w: u32[80] = [
@@ -113,7 +113,7 @@ export function ws_sha1_transform(ctx: *WsSha1Ctx, block: *u8): void {
 }
 
 /**
- * 初始化 SHA-1 上下文。
+ * See implementation.
  */
 export function ws_sha1_init(ctx: *WsSha1Ctx): void {
   ctx.state0 = 0x67452301;
@@ -127,7 +127,7 @@ export function ws_sha1_init(ctx: *WsSha1Ctx): void {
 }
 
 /**
- * SHA-1 追加数据。
+ * See implementation.
  */
 export function ws_sha1_update(ctx: *WsSha1Ctx, data: *u8, len: usize): void {
   if (len == 0 || data == 0) {
@@ -158,7 +158,7 @@ export function ws_sha1_update(ctx: *WsSha1Ctx, data: *u8, len: usize): void {
 }
 
 /**
- * SHA-1 结束并写 20 字节 digest。
+ * See implementation.
  */
 export function ws_sha1_final(ctx: *WsSha1Ctx, digest: *u8): void {
   let pad80: u8[1] = [0x80];
@@ -196,7 +196,7 @@ export function ws_sha1_final(ctx: *WsSha1Ctx, digest: *u8): void {
 }
 
 /**
- * Base64 标准编码；成功返回写入长度（含 NUL），失败 -1。
+ * See implementation.
  */
 export function ws_b64_encode(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
   let i: i32 = 0;
@@ -236,7 +236,7 @@ export function ws_b64_encode(src: *u8, src_len: i32, out: *u8, out_cap: i32): i
 }
 
 /**
- * 计算 Sec-WebSocket-Accept；out 须 ≥ 29 字节（28 字符 + NUL）。
+ * See implementation.
  */
 export function net_ws_compute_accept_c(key: *u8, key_len: i32, out: *u8, out_cap: i32): i32 {
   let ctx: WsSha1Ctx = WsSha1Ctx {
@@ -265,7 +265,7 @@ export function net_ws_compute_accept_c(key: *u8, key_len: i32, out: *u8, out_ca
 }
 
 /**
- * 客户端 MASKED 帧编码公共路径（FIN=1，payload ≤ 125）。
+ * See implementation.
  */
 export function ws_encode_masked_frame(first_byte: u8, payload: *u8, payload_len: i32, out: *u8, out_cap: i32): i32 {
   let mask: u8[4] = [0x37, 0xfa, 0x21, 0x3d];
@@ -291,27 +291,55 @@ export function ws_encode_masked_frame(first_byte: u8, payload: *u8, payload_len
   return hdr + payload_len;
 }
 
-/** 客户端 TEXT 帧编码（FIN+opcode=1，MASK=1）。 */
+/** Exported function `net_ws_encode_text_frame_c`.
+ * Implements `net_ws_encode_text_frame_c`.
+ * @param payload *u8
+ * @param payload_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function net_ws_encode_text_frame_c(payload: *u8, payload_len: i32, out: *u8, out_cap: i32): i32 {
   return ws_encode_masked_frame(0x81, payload, payload_len, out, out_cap);
 }
 
-/** 客户端 BINARY 帧编码（FIN+opcode=2，MASK=1）。 */
+/** Exported function `net_ws_encode_binary_frame_c`.
+ * Implements `net_ws_encode_binary_frame_c`.
+ * @param payload *u8
+ * @param payload_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function net_ws_encode_binary_frame_c(payload: *u8, payload_len: i32, out: *u8, out_cap: i32): i32 {
   return ws_encode_masked_frame(0x82, payload, payload_len, out, out_cap);
 }
 
-/** 客户端 PING 帧（opcode=9）。 */
+/** Exported function `net_ws_encode_ping_frame_c`.
+ * Implements `net_ws_encode_ping_frame_c`.
+ * @param payload *u8
+ * @param payload_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function net_ws_encode_ping_frame_c(payload: *u8, payload_len: i32, out: *u8, out_cap: i32): i32 {
   return ws_encode_masked_frame(0x89, payload, payload_len, out, out_cap);
 }
 
-/** 客户端 PONG 帧（opcode=10）。 */
+/** Exported function `net_ws_encode_pong_frame_c`.
+ * Implements `net_ws_encode_pong_frame_c`.
+ * @param payload *u8
+ * @param payload_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function net_ws_encode_pong_frame_c(payload: *u8, payload_len: i32, out: *u8, out_cap: i32): i32 {
   return ws_encode_masked_frame(0x8A, payload, payload_len, out, out_cap);
 }
 
-/** 客户端 CLOSE 帧（opcode=8）。 */
+/* See implementation. */
 export function net_ws_encode_close_frame_c(status_code: i32, reason: *u8, reason_len: i32,
   out: *u8, out_cap: i32): i32 {
   let pl: u8[128] = [];
@@ -346,7 +374,7 @@ export function net_ws_encode_close_frame_c(status_code: i32, reason: *u8, reaso
 }
 
 /**
- * 解析 WebSocket 帧；将负载解掩码写入 out_payload；成功 0。
+ * See implementation.
  */
 export function net_ws_decode_frame_c(buf: *u8, buf_len: i32, out_opcode: *i32,
   out_payload: *u8, out_payload_cap: i32, out_payload_len: *i32): i32 {
@@ -394,7 +422,7 @@ export function net_ws_decode_frame_c(buf: *u8, buf_len: i32, out_opcode: *i32,
 }
 
 /**
- * 向 out 追加 NUL 结尾 C 字符串；返回新长度，失败 -1。
+ * See implementation.
  */
 export function ws_append_cstr(out: *u8, off: i32, out_cap: i32, s: *u8): i32 {
   let i: i32 = 0;
@@ -412,7 +440,7 @@ export function ws_append_cstr(out: *u8, off: i32, out_cap: i32, s: *u8): i32 {
 }
 
 /**
- * 向 out 追加单字节；返回新长度，失败 -1。
+ * See implementation.
  */
 export function ws_append_byte(out: *u8, off: i32, out_cap: i32, b: u8): i32 {
   if (out == 0 || off < 0 || off + 1 >= out_cap) {
@@ -422,7 +450,15 @@ export function ws_append_byte(out: *u8, off: i32, out_cap: i32, b: u8): i32 {
   return off + 1;
 }
 
-/** 构建客户端握手 HTTP 请求到 out；返回字节数（不含 NUL），失败 -1。 */
+/** Exported function `net_ws_handshake_request_c`.
+ * Implements `net_ws_handshake_request_c`.
+ * @param host *u8
+ * @param path *u8
+ * @param key *u8
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function net_ws_handshake_request_c(host: *u8, path: *u8, key: *u8, out: *u8, out_cap: i32): i32 {
   let n: i32 = 0;
   if (host == 0 || path == 0 || key == 0 || out == 0 || out_cap < 64) {
@@ -469,7 +505,7 @@ export function net_ws_handshake_request_c(host: *u8, path: *u8, key: *u8, out: 
 }
 
 /**
- * 在 buf[0..len) 中查找子串 sub[0..sub_len)；找到返回起始下标，否则 -1。
+ * See implementation.
  */
 export function ws_find_bytes(buf: *u8, len: i32, sub: *u8, sub_len: i32): i32 {
   let i: i32 = 0;
@@ -485,7 +521,14 @@ export function ws_find_bytes(buf: *u8, len: i32, sub: *u8, sub_len: i32): i32 {
   return -1;
 }
 
-/** 校验握手响应缓冲含 HTTP/1.1 101 与匹配的 Sec-WebSocket-Accept。 */
+/** Exported function `net_ws_validate_handshake_c`.
+ * Implements `net_ws_validate_handshake_c`.
+ * @param resp *u8
+ * @param resp_len i32
+ * @param key *u8
+ * @param key_len i32
+ * @return i32
+ */
 export function net_ws_validate_handshake_c(resp: *u8, resp_len: i32, key: *u8, key_len: i32): i32 {
   let expect: u8[32] = [];
   let prefix: u8[22] = [83, 101, 99, 45, 87, 101, 98, 83, 111, 99, 107, 101, 116, 45, 65, 99, 99, 101, 112, 116, 58, 32];
@@ -508,7 +551,12 @@ export function net_ws_validate_handshake_c(resp: *u8, resp_len: i32, key: *u8, 
   return 0;
 }
 
-/** 生成 Sec-WebSocket-Key（16 随机字节 Base64）；成功返回 24，失败 -1。 */
+/** Exported function `net_ws_generate_key_c`.
+ * Implements `net_ws_generate_key_c`.
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function net_ws_generate_key_c(out: *u8, out_cap: i32): i32 {
   let rnd: u8[16] = [];
   if (out == 0 || out_cap < 25) {
@@ -521,7 +569,7 @@ export function net_ws_generate_key_c(out: *u8, out_cap: i32): i32 {
 }
 
 /**
- * 不区分大小写比较 a[0..n) 与 ASCII 字面量 b（NUL 结尾）。
+ * See implementation.
  */
 export function ws_ci_eq_lit(a: *u8, b: *u8, n: i32): i32 {
   let i: i32 = 0;
@@ -541,7 +589,12 @@ export function ws_ci_eq_lit(a: *u8, b: *u8, n: i32): i32 {
   return 1;
 }
 
-/** 扫描 HTTP 头是否含 Upgrade: websocket（不区分大小写）。 */
+/** Exported function `ws_request_is_upgrade`.
+ * Implements `ws_request_is_upgrade`.
+ * @param req *u8
+ * @param req_len i32
+ * @return i32
+ */
 export function ws_request_is_upgrade(req: *u8, req_len: i32): i32 {
   let upg: u8[10] = [117, 112, 103, 114, 97, 100, 101, 58, 0, 0];
   let ws_lit: u8[10] = [119, 101, 98, 115, 111, 99, 107, 101, 116, 0];
@@ -566,7 +619,14 @@ export function ws_request_is_upgrade(req: *u8, req_len: i32): i32 {
   return 0;
 }
 
-/** 从 HTTP Upgrade 请求提取 Sec-WebSocket-Key；成功返回 key 长度。 */
+/** Exported function `net_ws_extract_key_from_request_c`.
+ * Implements `net_ws_extract_key_from_request_c`.
+ * @param req *u8
+ * @param req_len i32
+ * @param out_key *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function net_ws_extract_key_from_request_c(req: *u8, req_len: i32, out_key: *u8, out_cap: i32): i32 {
   let needle: u8[19] = [83, 101, 99, 45, 87, 101, 98, 83, 111, 99, 107, 101, 116, 45, 75, 101, 121, 58, 0];
   let i: i32 = 0;
@@ -597,7 +657,12 @@ export function net_ws_extract_key_from_request_c(req: *u8, req_len: i32, out_ke
   return -1;
 }
 
-/** 校验客户端 WebSocket Upgrade 请求；成功 0。 */
+/** Exported function `net_ws_validate_upgrade_request_c`.
+ * Implements `net_ws_validate_upgrade_request_c`.
+ * @param req *u8
+ * @param req_len i32
+ * @return i32
+ */
 export function net_ws_validate_upgrade_request_c(req: *u8, req_len: i32): i32 {
   let ver: u8[23] = [83, 101, 99, 45, 87, 101, 98, 83, 111, 99, 107, 101, 116, 45, 86, 101, 114, 115, 105, 111, 110, 58, 0];
   let get_lit: u8[5] = [71, 69, 84, 32, 0];
@@ -636,7 +701,14 @@ export function net_ws_validate_upgrade_request_c(req: *u8, req_len: i32): i32 {
   return -1;
 }
 
-/** 服务端 TEXT 帧编码（MASK=0，payload ≤ 125）。 */
+/** Exported function `net_ws_encode_server_text_frame_c`.
+ * Implements `net_ws_encode_server_text_frame_c`.
+ * @param payload *u8
+ * @param payload_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function net_ws_encode_server_text_frame_c(payload: *u8, payload_len: i32, out: *u8, out_cap: i32): i32 {
   if (payload_len < 0 || payload_len > 125) {
     return -1;
@@ -655,7 +727,14 @@ export function net_ws_encode_server_text_frame_c(payload: *u8, payload_len: i32
   return 2 + payload_len;
 }
 
-/** 服务端 BINARY 帧编码（MASK=0，payload ≤ 125）。 */
+/** Exported function `net_ws_encode_server_binary_frame_c`.
+ * Implements `net_ws_encode_server_binary_frame_c`.
+ * @param payload *u8
+ * @param payload_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function net_ws_encode_server_binary_frame_c(payload: *u8, payload_len: i32, out: *u8, out_cap: i32): i32 {
   if (payload_len < 0 || payload_len > 125) {
     return -1;
@@ -674,7 +753,12 @@ export function net_ws_encode_server_binary_frame_c(payload: *u8, payload_len: i
   return 2 + payload_len;
 }
 
-/** 查找 HTTP 头结束 \\r\\n\\r\\n；返回结束位置（不含）或 0。 */
+/** Exported function `ws_header_end`.
+ * Implements `ws_header_end`.
+ * @param buf *u8
+ * @param len i32
+ * @return i32
+ */
 export function ws_header_end(buf: *u8, len: i32): i32 {
   let i: i32 = 3;
   if (buf == 0 || len < 4) {
@@ -689,7 +773,7 @@ export function ws_header_end(buf: *u8, len: i32): i32 {
   return 0;
 }
 
-/** 解析 ws(s)://host[:port]/path；out_secure=1 为 wss；默认端口 80/443。 */
+/* See implementation. */
 export function net_ws_parse_url_c(url: *u8, url_len: i32, host: *u8, host_cap: i32, path: *u8,
   path_cap: i32, out_port: *u32, out_secure: *i32): i32 {
   let i: i32 = 0;
@@ -763,7 +847,12 @@ export function net_ws_parse_url_c(url: *u8, url_len: i32, host: *u8, host_cap: 
   return 0;
 }
 
-/** 比较 NUL 结尾 C 字符串是否相等；相等 1，否则 0。 */
+/** Exported function `ws_cstr_eq`.
+ * Implements `ws_cstr_eq`.
+ * @param a *u8
+ * @param b *u8
+ * @return i32
+ */
 export function ws_cstr_eq(a: *u8, b: *u8): i32 {
   let i: i32 = 0;
   if (a == 0 || b == 0) {
@@ -781,7 +870,10 @@ export function ws_cstr_eq(a: *u8, b: *u8): i32 {
   return 0;
 }
 
-/** URL 解析烟测；0 通过。 */
+/** Exported function `net_ws_parse_url_smoke_c`.
+ * Implements `net_ws_parse_url_smoke_c`.
+ * @return i32
+ */
 export function net_ws_parse_url_smoke_c(): i32 {
   let host: u8[64] = [];
   let path: u8[64] = [];

@@ -16,15 +16,30 @@ const mb1: MB1Header = {
 struct Context { sp: u32; }
 
 // === Serial I/O ===
+/** Internal function `serial_putc`.
+ * Implements `serial_putc`.
+ * @param c u8
+ * @return void
+ */
 function serial_putc(c: u8): void {
   unsafe { asm!("outb %%al, %%dx" : : "a"(c), "d"(0x3F8)); }
 }
 
 // === kprintf (kernel printf) ===
+/** Internal function `kputchar`.
+ * Implements `kputchar`.
+ * @param c u8
+ * @return void
+ */
 function kputchar(c: u8): void {
   serial_putc(c);
 }
 
+/** Internal function `kputs`.
+ * Implements `kputs`.
+ * @param s u32
+ * @return void
+ */
 function kputs(s: u32): void {
   let p: *volatile u8 = s as *volatile u8;
   let ch: u8 = 0;
@@ -36,12 +51,22 @@ function kputs(s: u32): void {
   }
 }
 
+/** Internal function `kputint`.
+ * Implements `kputint`.
+ * @param n i32
+ * @return void
+ */
 function kputint(n: i32): void {
   if (n < 0) { kputchar(45); n = 0 - n; }
   if (n >= 10) { kputint(n / 10); }
   kputchar((n % 10 + 48) as u8);
 }
 
+/** Internal function `kputhex`.
+ * Implements `kputhex`.
+ * @param n u32
+ * @return void
+ */
 function kputhex(n: u32): void {
   let i: i32 = 28;
   while (i >= 0) {
@@ -58,6 +83,12 @@ const VGA_WIDTH: u32 = 80;
 let vga_row: u32 = 0;
 let vga_col: u32 = 0;
 
+/** Internal function `vga_putc`.
+ * Implements `vga_putc`.
+ * @param c u8
+ * @param color u8
+ * @return void
+ */
 function vga_putc(c: u8, color: u8): void {
   let offset: u32 = (vga_row * VGA_WIDTH + vga_col) * 2;
   unsafe { *((VGA_BASE + offset) as *volatile u8) = c; }
@@ -66,6 +97,12 @@ function vga_putc(c: u8, color: u8): void {
   if (vga_col >= VGA_WIDTH) { vga_col = 0; vga_row = vga_row + 1; }
 }
 
+/** Internal function `vga_print_str`.
+ * Implements `vga_print_str`.
+ * @param s u32
+ * @param color u8
+ * @return void
+ */
 function vga_print_str(s: u32, color: u8): void {
   let p: *volatile u8 = s as *volatile u8;
   let ch: u8 = 0;
@@ -79,6 +116,11 @@ function vga_print_str(s: u32, color: u8): void {
 
 // === Bump allocator ===
 let heap_ptr: u32 = 0x200000;
+/** Internal function `kalloc`.
+ * Memory management helper `kalloc`.
+ * @param size u32
+ * @return u32
+ */
 function kalloc(size: u32): u32 {
   if (heap_ptr == 0) { heap_ptr = 0x200000; }
   let addr: u32 = heap_ptr;
@@ -88,6 +130,11 @@ function kalloc(size: u32): u32 {
 
 // === Spinlock ===
 let lock: u32 = 0;
+/** Internal function `spinlock_acquire`.
+ * Implements `spinlock_acquire`.
+ * @param addr *volatile u32
+ * @return void
+ */
 function spinlock_acquire(addr: *volatile u32): void {
   let old: u32 = 1;
   while (old != 0) {
@@ -95,12 +142,22 @@ function spinlock_acquire(addr: *volatile u32): void {
     unsafe { asm!("xchg %0, (%1)" : "+a"(old) : "r"(addr) : "memory"); }
   }
 }
+/** Internal function `spinlock_release`.
+ * Implements `spinlock_release`.
+ * @param addr *volatile u32
+ * @return void
+ */
 function spinlock_release(addr: *volatile u32): void {
   let zero: u32 = 0;
   unsafe { asm!("xchg %0, (%1)" : "+a"(zero) : "r"(addr) : "memory"); }
 }
 
 // === Atomics ===
+/** Internal function `atomic_inc`.
+ * Implements `atomic_inc`.
+ * @param addr *volatile u32
+ * @return u32
+ */
 function atomic_inc(addr: *volatile u32): u32 {
   let val: u32 = 1;
   unsafe { asm!("lock xadd %0, (%1)" : "+a"(val) : "r"(addr) : "memory", "cc"); }
@@ -119,6 +176,12 @@ let task2_count: u32 = 0;
 
 #[used]
 #[naked]
+/** Internal function `switch_to`.
+ * Implements `switch_to`.
+ * @param old *Context
+ * @param new_ctx *Context
+ * @return void
+ */
 function switch_to(old: *Context, new_ctx: *Context): void {
   unsafe {
     asm!("movl 4(%esp), %eax; movl 8(%esp), %edx; pushl %ebp; pushl %ebx; pushl %esi; pushl %edi; movl %esp, (%eax); movl (%edx), %esp; popl %edi; popl %esi; popl %ebx; popl %ebp; ret");
@@ -126,6 +189,10 @@ function switch_to(old: *Context, new_ctx: *Context): void {
 }
 
 #[interrupt]
+/** Internal function `timer_handler`.
+ * Implements `timer_handler`.
+ * @return void
+ */
 function timer_handler(): void {
   tick_count = tick_count + 1;
   schedule_tick = schedule_tick + 1;
@@ -134,6 +201,10 @@ function timer_handler(): void {
 
 // === Tasks ===
 #[used]
+/** Internal function `task1`.
+ * Implements `task1`.
+ * @return void
+ */
 function task1(): void {
   let i: u32 = 0;
   while (i < 5) {
@@ -145,6 +216,10 @@ function task1(): void {
 }
 
 #[used]
+/** Internal function `task2`.
+ * Implements `task2`.
+ * @return void
+ */
 function task2(): void {
   let i: u32 = 0;
   while (i < 5) {
@@ -155,6 +230,13 @@ function task2(): void {
   switch_to(&ctx_task2, &ctx_main);
 }
 
+/** Internal function `setup_task`.
+ * Implements `setup_task`.
+ * @param ctx *Context
+ * @param entry u32
+ * @param stack_top u32
+ * @return void
+ */
 function setup_task(ctx: *Context, entry: u32, stack_top: u32): void {
   let sp: u32 = stack_top - 20;
   unsafe { *((stack_top - 4) as *volatile u32) = entry; }
@@ -166,6 +248,12 @@ function setup_task(ctx: *Context, entry: u32, stack_top: u32): void {
 }
 
 // === IDT + PIC ===
+/** Internal function `idt_set_entry`.
+ * Implements `idt_set_entry`.
+ * @param index u32
+ * @param handler u32
+ * @return void
+ */
 function idt_set_entry(index: u32, handler: u32): void {
   let base: u32 = 0x90000 + index * 8;
   unsafe {
@@ -177,6 +265,10 @@ function idt_set_entry(index: u32, handler: u32): void {
   }
 }
 
+/** Internal function `kmain`.
+ * Implements `kmain`.
+ * @return i32
+ */
 function kmain(): i32 {
   // Clear VGA
   let vi: u32 = 0;
@@ -268,7 +360,16 @@ function kmain(): i32 {
 }
 
 #[entry]
+/** Internal function `start`.
+ * Implements `start`.
+ * @return void
+ */
 function start(): void {
   unsafe { asm!("mov $0x80000, %esp; call kmain; cli; hlt"); }
 }
+/** Internal function `main`.
+ * Program/test entry point.
+ * @param ) i32 { return kmain(
+ * @return void
+ */
 function main(): i32 { return kmain() + mb1.magic as i32; }

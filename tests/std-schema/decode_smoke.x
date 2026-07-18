@@ -1,6 +1,10 @@
-// STD-090：std.schema JSON + CSV decode 烟测
+// See implementation.
 const schema = import("std.schema");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let zero: i64 = 0;
   let sch: Schema = schema.new();

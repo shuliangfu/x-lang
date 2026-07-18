@@ -1,5 +1,9 @@
 const csv = import("std.csv");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let start: i32 = 0;
   let flen: i32 = 0;

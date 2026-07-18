@@ -1,5 +1,5 @@
 /**
- * SysV f32 xmm ABI 烟测（SHUX_ABI_F32_XMM=1）：三 f32 实参走 xmm0–xmm2，无 f64 widen/cvtsd2ss。
+ * See implementation.
  * add3(1.0, 2.0, 3.0) → exit=6。
  */
 function add3(x: f32, y: f32, z: f32): f32 {
@@ -7,6 +7,10 @@ function add3(x: f32, y: f32, z: f32): f32 {
   return a + z;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let s: f32 = add3(1.0, 2.0, 3.0);
   return s as i32;

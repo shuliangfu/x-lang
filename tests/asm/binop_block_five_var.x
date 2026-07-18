@@ -1,4 +1,8 @@
-// 7.3 线性 scan：|live|>3 且 cache 满时清 binop cache；五槽块内和 231。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let vol0: i32 = 40;
   let vol1: i32 = 41;

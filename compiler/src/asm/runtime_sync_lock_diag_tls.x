@@ -1,20 +1,24 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-19：runtime_sync_lock_diag_tls 产品源迁 seeds/runtime_sync_lock_diag_tls.from_x.c。
-// 实现仍在 seed C；本文件为文档锚点。
-// 产品：cc seeds/runtime_sync_lock_diag_tls.from_x.c → runtime_sync_lock_diag_tls.o
-// G-02f-101：+ append_byte / append_lit / append_i32 薄门闩。
-// G-02f-102：+ find_meta_idx / get_order 薄门闩。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 
 export extern "C" function sync_lock_diag_find_meta_idx_impl(m: *u8): i32;
 export extern "C" function sync_lock_diag_get_order_impl(m: *u8): i32;
 
+/** Exported function `runtime_sync_lock_diag_tls_x_doc_anchor`.
+ * Implements `runtime_sync_lock_diag_tls_x_doc_anchor`.
+ * @return i32
+ */
 export function runtime_sync_lock_diag_tls_x_doc_anchor(): i32 {
   return 0;
 }
 
-/* ---- G-02f-101：sync lock diag append 门闩 ---- */
+/* See implementation. */
 
 
 
@@ -22,7 +26,7 @@ export function runtime_sync_lock_diag_tls_x_doc_anchor(): i32 {
 
 
 
-/* ---- G-02f-102：meta/order 门闩 ---- */
+/* See implementation. */
 
 #[no_mangle]
 export function sync_lock_diag_find_meta_idx(m: *u8): i32 {
@@ -33,6 +37,11 @@ export function sync_lock_diag_find_meta_idx(m: *u8): i32 {
 }
 
 #[no_mangle]
+/** Exported function `sync_lock_diag_get_order`.
+ * Implements `sync_lock_diag_get_order`.
+ * @param m *u8
+ * @return i32
+ */
 export function sync_lock_diag_get_order(m: *u8): i32 {
   unsafe {
     return sync_lock_diag_get_order_impl(m);
@@ -40,9 +49,17 @@ export function sync_lock_diag_get_order(m: *u8): i32 {
   return 0;
 }
 
-// G-02f-119：sync_lock_diag append pure helpers 真迁 .x
+// sync_lock_diag_append_byte: see function docblock below.
 
 #[no_mangle]
+/** Exported function `sync_lock_diag_append_byte`.
+ * Implements `sync_lock_diag_append_byte`.
+ * @param out *u8
+ * @param pos i32
+ * @param cap i32
+ * @param b u8
+ * @return i32
+ */
 export function sync_lock_diag_append_byte(out: *u8, pos: i32, cap: i32, b: u8): i32 {
   if (out == 0) { return 0 - 1; }
   if (pos < 0) { return 0 - 1; }
@@ -52,6 +69,15 @@ export function sync_lock_diag_append_byte(out: *u8, pos: i32, cap: i32, b: u8):
 }
 
 #[no_mangle]
+/** Exported function `sync_lock_diag_append_lit`.
+ * Implements `sync_lock_diag_append_lit`.
+ * @param out *u8
+ * @param pos i32
+ * @param cap i32
+ * @param s *u8
+ * @param n i32
+ * @return i32
+ */
 export function sync_lock_diag_append_lit(out: *u8, pos: i32, cap: i32, s: *u8, n: i32): i32 {
   let i: i32 = 0;
   while (i < n) {
@@ -63,6 +89,14 @@ export function sync_lock_diag_append_lit(out: *u8, pos: i32, cap: i32, s: *u8, 
 }
 
 #[no_mangle]
+/** Exported function `sync_lock_diag_append_i32`.
+ * Implements `sync_lock_diag_append_i32`.
+ * @param out *u8
+ * @param pos i32
+ * @param cap i32
+ * @param v i32
+ * @return i32
+ */
 export function sync_lock_diag_append_i32(out: *u8, pos: i32, cap: i32, v: i32): i32 {
   if (out == 0) { return 0 - 1; }
   if (pos < 0) { return 0 - 1; }

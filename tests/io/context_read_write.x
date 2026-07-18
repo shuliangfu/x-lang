@@ -1,8 +1,12 @@
-// STD-091：std.io read_ctx/write_ctx + Context 取消与 deadline 烟测
+// See implementation.
 const io = import("std.io");
 const context = import("std.context");
 const err = import("std.error");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let bg: Context = context.background();
   let buf: u8[1] = [0];

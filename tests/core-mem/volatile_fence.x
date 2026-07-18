@@ -1,6 +1,10 @@
-// CORE-017：core.mem volatile_load/store 与 fence 烟测
+// See implementation.
 const mem = import("core.mem");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let cell: u8[4] = [0, 0, 0, 0];
   let p: *u8 = &cell[0];

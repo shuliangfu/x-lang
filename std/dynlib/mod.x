@@ -14,38 +14,56 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.dynlib — 动态加载 .so/.dll（对标 Zig std.DynLib、Rust libloading）
+// See implementation.
 //
-// 【文件职责】open(path)、sym(lib, name)、close(lib)。按需链接。
-// 【依赖】core；与 std/dynlib/dynlib.x + runtime_dynlib_os.c 同属一模块（F-dynlib v2 / F-ZC）。
+// See implementation.
+// See implementation.
 
 extern function dynlib_open_c(path: *u8): *u8;
 extern function dynlib_sym_c(lib: *u8, name: *u8): *u8;
 extern function dynlib_close_c(lib: *u8): void;
 extern function dynlib_last_error_copy_c(buf: *u8, cap: i32): i32;
 
-/** 打开动态库 path（NUL 结尾）；失败返回 0。 */
+/** Exported function `open`.
+ * Implements `open`.
+ * @param path *u8
+ * @return *u8
+ */
 export function open(path: *u8): *u8 {
   let _rc: *u8 = 0;
   unsafe { _rc = dynlib_open_c(path); }
   return _rc;
 }
 
-/** 取符号 name（NUL 结尾）；失败返回 0。 */
+/** Exported function `sym`.
+ * Implements `sym`.
+ * @param lib *u8
+ * @param name *u8
+ * @return *u8
+ */
 export function sym(lib: *u8, name: *u8): *u8 {
   let _rc: *u8 = 0;
   unsafe { _rc = dynlib_sym_c(lib, name); }
   return _rc;
 }
 
-/** 关闭动态库。 */
+/** Exported function `close`.
+ * Implements `close`.
+ * @param lib *u8
+ * @return void
+ */
 export function close(lib: *u8): void {
   unsafe {
     dynlib_close_c(lib);
   }
 }
 
-/** 复制最近一次 open/sym 失败诊断到 buf；返回写入字节数，无内容返回 0（STD-096）。 */
+/** Exported function `last_os_error`.
+ * Implements `last_os_error`.
+ * @param buf *u8
+ * @param cap i32
+ * @return i32
+ */
 export function last_os_error(buf: *u8, cap: i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = dynlib_last_error_copy_c(buf, cap); }

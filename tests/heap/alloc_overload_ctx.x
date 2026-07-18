@@ -1,6 +1,10 @@
-// 最小用例：let 上下文消解 heap.alloc(count:i32) 重载
+// See implementation.
 const heap = import("std.heap");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let k: *i32 = heap.alloc(8);
   let o: *u8 = heap.alloc(8);

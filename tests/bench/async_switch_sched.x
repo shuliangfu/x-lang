@@ -1,7 +1,11 @@
 // async_switch_sched.x — B-ASYNC：scheduler.c computed-goto ping-pong（A2）
-// 不 import("std.async")（避免 wait_completion→io 链）；由 run-perf-async.sh 链 scheduler.o。
+// See implementation.
 extern function shux_async_coop_pingpong_jmp(rounds: i64): i64;
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let rounds: i64 = 1000000;
   let total: i64 = unsafe { shux_async_coop_pingpong_jmp(rounds) };

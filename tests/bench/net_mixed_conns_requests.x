@@ -1,11 +1,16 @@
-// net_mixed_conns_requests.x — PERF-003 混合 client（Shu stream batch 路径）
-// 256 建连 × 16 轮 512B echo；stderr 输出 BENCH_P99_US=（供 run-perf-net.sh 解析）。
+// See implementation.
+// See implementation.
 const net = import("std.net");
 const process = import("std.process");
 const time = import("std.time");
 const io = import("std.io");
 
-/** 解析十进制 u32 端口；非法返回 default_port。 */
+/** Internal function `bench_parse_port`.
+ * Implements `bench_parse_port`.
+ * @param s *u8
+ * @param default_port u32
+ * @return u32
+ */
 function bench_parse_port(s: *u8, default_port: u32): u32 {
   if (s == 0 as *u8) { return default_port; }
   let n: u32 = 0;
@@ -21,14 +26,24 @@ function bench_parse_port(s: *u8, default_port: u32): u32 {
   return n;
 }
 
-/** 交换两个 i64（冒泡排序用）。 */
+/** Internal function `bench_swap_i64`.
+ * Implements `bench_swap_i64`.
+ * @param a *i64
+ * @param b *i64
+ * @return void
+ */
 function bench_swap_i64(a: *i64, b: *i64): void {
   let t: i64 = a[0];
   a[0] = b[0];
   b[0] = t;
 }
 
-/** 对 lat[0..n) 升序冒泡排序（n≤4096，bench 可接受）。 */
+/** Internal function `bench_sort_latencies`.
+ * Implements `bench_sort_latencies`.
+ * @param lat *i64
+ * @param n i32
+ * @return void
+ */
 function bench_sort_latencies(lat: *i64, n: i32): void {
   let i: i32 = 0;
   while (i < n) {
@@ -43,7 +58,12 @@ function bench_sort_latencies(lat: *i64, n: i32): void {
   }
 }
 
-/** 计算 P99 微秒（n>0）。 */
+/** Internal function `bench_p99_us`.
+ * Implements `bench_p99_us`.
+ * @param lat *i64
+ * @param n i32
+ * @return i64
+ */
 function bench_p99_us(lat: *i64, n: i32): i64 {
   if (n <= 0) { return 0; }
   bench_sort_latencies(lat, n);
@@ -52,7 +72,12 @@ function bench_p99_us(lat: *i64, n: i32): i64 {
   return lat[idx];
 }
 
-/** 写 512B（单段 batch）。 */
+/** Internal function `mixed_write_512`.
+ * Write path helper `mixed_write_512`.
+ * @param stream TcpStream
+ * @param buf *u8
+ * @return i32
+ */
 function mixed_write_512(stream: TcpStream, buf: *u8): i32 {
   let need: i32 = 512;
   let nw: i32 = net.write_batch(stream, buf, 512, 0 as *u8, 0, 0 as *u8, 0, 0 as *u8, 0, 1, 0);
@@ -60,7 +85,12 @@ function mixed_write_512(stream: TcpStream, buf: *u8): i32 {
   return nw;
 }
 
-/** 读 512B（单段 batch）。 */
+/** Internal function `mixed_read_512`.
+ * Read path helper `mixed_read_512`.
+ * @param stream TcpStream
+ * @param buf *u8
+ * @return i32
+ */
 function mixed_read_512(stream: TcpStream, buf: *u8): i32 {
   let need: i32 = 512;
   let nr: i32 = net.read_batch(stream, buf, 512, 0 as *u8, 0, 0 as *u8, 0, 0 as *u8, 0, 1, 0);
@@ -68,6 +98,10 @@ function mixed_read_512(stream: TcpStream, buf: *u8): i32 {
   return nr;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let mixed_port: u32 = 38459;
   if (process.args_count() >= 2) {
@@ -119,13 +153,17 @@ function main(): i32 {
     if (net.close_stream(stream) != 0) { return 4; }
     ci = ci + 1;
   }
-  /** stderr 标记供 shell 解析 P99。 */
+  /* See implementation. */
   let p99: i64 = bench_p99_us(lat, n_samples);
   bench_write_p99_line(p99);
   return sum & 255;
 }
 
-/** 将非负 i64 写入 buf，返回写入长度（不含 NUL）。 */
+/** Internal function `bench_u64_len`.
+ * Query helper `bench_u64_len`.
+ * @param v i64
+ * @return i32
+ */
 function bench_u64_len(v: i64): i32 {
   if (v <= 0) { return 1; }
   let n: i32 = 0;
@@ -137,7 +175,13 @@ function bench_u64_len(v: i64): i32 {
   return n;
 }
 
-/** 将 v 的十进制字符写入 buf（右对齐，总长 len）。 */
+/** Internal function `bench_u64_fill`.
+ * Implements `bench_u64_fill`.
+ * @param buf *u8
+ * @param len i32
+ * @param v i64
+ * @return void
+ */
 function bench_u64_fill(buf: *u8, len: i32, v: i64): void {
   let x: i64 = v;
   if (x <= 0) {
@@ -153,7 +197,11 @@ function bench_u64_fill(buf: *u8, len: i32, v: i64): void {
   }
 }
 
-/** 向 stderr 打印 BENCH_P99_US=<p99>\\n（ASCII 手写，无 libc fprintf）。 */
+/** Internal function `bench_write_p99_line`.
+ * Write path helper `bench_write_p99_line`.
+ * @param p99 i64
+ * @return void
+ */
 function bench_write_p99_line(p99: i64): void {
   let hdr: u8[13] = [66, 69, 78, 67, 72, 95, 80, 57, 57, 95, 85, 83, 61];
   let dig: u8[24] = 0;

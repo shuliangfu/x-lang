@@ -1,7 +1,11 @@
-// STD-167：sqlite/net stub 可用性烟测
+// See implementation.
 const sqlite = import("std.db.sqlite");
 const net = import("std.net");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let sa: i32 = sqlite.is_available();
   if (sa != 0 && sa != 1) { return 1; }

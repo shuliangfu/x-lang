@@ -1,6 +1,10 @@
-// STD-087：std.cache LRU 淘汰 + 对象池烟测
+// See implementation.
 const cache = import("std.cache");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let zero: i64 = 0;
   let lru: LruCache = cache.new_lru(2);

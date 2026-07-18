@@ -3,6 +3,10 @@
  */
 const slice = import("core.slice");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let w: u64[4] = [100, 200, 300, 400];
   let sw: u64[] = w;

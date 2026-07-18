@@ -1,7 +1,11 @@
-// 测试 core.types 全部 size_of_*、align_of_* 与 core.debug.assert（全覆盖）
+// See implementation.
 const types = import("core.types");
 const debug = import("core.debug");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (types.size_of_i32() != 4) { return 1; }
   if (types.size_of_bool() != 1 || types.size_of_u8() != 1) { return 2; }

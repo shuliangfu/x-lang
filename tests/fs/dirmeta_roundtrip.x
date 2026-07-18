@@ -1,7 +1,12 @@
-// STD-123：目录/元数据 mkdir → stat → readdir → unlink → rmdir 往返
+// See implementation.
 const fs = import("std.fs");
 
-/** 比较 NUL 结尾字符串是否相等。 */
+/** Internal function `str_eq`.
+ * Implements `str_eq`.
+ * @param a *u8
+ * @param b *u8
+ * @return i32
+ */
 function str_eq(a: *u8, b: *u8): i32 {
   let i: i32 = 0;
   while (a[i] != 0 && b[i] != 0) {
@@ -12,6 +17,10 @@ function str_eq(a: *u8, b: *u8): i32 {
   return 1;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   /** "tests/fs/.dirmeta_tmp\0" */
   let dir_path: u8[24] =

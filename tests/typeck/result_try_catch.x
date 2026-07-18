@@ -1,8 +1,12 @@
-// ERR-02：try/catch — try 内 ? 失败 goto catch（零成本）；catch (r) 绑定 Result
+// See implementation.
 
 const result = import("core.result");
 
-/** 负数 err，非负 ok doubled。 */
+/** Internal function `may_fail`.
+ * Implements `may_fail`.
+ * @param x i32
+ * @return Result_i32
+ */
 function may_fail(x: i32): Result_i32 {
   if (x < 0) {
     return result.err_i32(1);
@@ -10,7 +14,10 @@ function may_fail(x: i32): Result_i32 {
   return result.ok_i32(x * 2);
 }
 
-/** i32 返回函数内用 try/catch 处理 ?，不必整函数返回 Result。 */
+/** Internal function `read_ok`.
+ * Read path helper `read_ok`.
+ * @return i32
+ */
 function read_ok(): i32 {
   try {
     let v: i32 = may_fail(3)?;
@@ -20,6 +27,10 @@ function read_ok(): i32 {
   }
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (read_ok() != 6) {
     return 1;

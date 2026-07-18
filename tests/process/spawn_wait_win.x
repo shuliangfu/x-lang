@@ -1,8 +1,8 @@
-// tests/process/spawn_wait_win.x — STD-024：Windows CreateProcess + waitpid 金样
-// cmd.exe /c exit 0；POSIX 上 spawn 失败则退出 0（gate 按平台 SKIP runnable）。
+// See implementation.
+// See implementation.
 const process = import("std.process");
 
-/** argv 四槽：cmd /c exit 0 + NULL。 */
+/* See implementation. */
 allow(padding) struct Argv4 {
   s0: *u8
   s1: *u8
@@ -11,6 +11,10 @@ allow(padding) struct Argv4 {
   s4: *u8
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let cmd: u8[28] =
   [67, 58, 92, 87, 105, 110, 100, 111, 119, 115, 92, 83, 121, 115, 116, 101, 109, 51, 50, 92,

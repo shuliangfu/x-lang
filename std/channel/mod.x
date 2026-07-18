@@ -14,15 +14,15 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.channel — 有界/无界 channel（对标 Rust std::sync::mpsc）
+// See implementation.
 //
-// 【文件职责】i32 channel 有界/无界、send、recv、try_send、try_recv、close、free；
-// select 双路/N 路 recv/send/混合（STD-098/102/104/108）。
-// 【依赖】std.heap（C 层 malloc/realloc/free）；与 std/channel/channel.x + runtime_channel_glue.c 同属一模块（F-channel v2 / F-ZC）。Unix 需 -lpthread。
+// See implementation.
+// See implementation.
+// See implementation.
 
-/** select 方向：接收 case。 */
+/* See implementation. */
 export const SELECT_DIR_RECV: i32 = 0;
-/** select 方向：发送 case。 */
+/* See implementation. */
 export const SELECT_DIR_SEND: i32 = 1;
 
 extern function channel_i32_bounded_c(cap: i32): *u8;
@@ -50,194 +50,358 @@ extern function channel_select_mixed_2_c(recv_ch: *u8, send_ch: *u8, send_val: i
 extern function channel_select_try_mixed_n_c(chs_slots: *i64, dirs: *i32, n: i32, send_val: i32, out_val: *i32, out_index: *i32, out_is_send: *i32): i32;
 extern function channel_select_mixed_n_c(chs_slots: *i64, dirs: *i32, n: i32, send_val: i32, out_val: *i32, out_index: *i32, out_is_send: *i32): i32;
 
-/** 创建容量为 cap 的有界 channel；失败返回 0。 */
+/** Exported function `bounded`.
+ * Implements `bounded`.
+ * @param cap i32
+ * @return *u8
+ */
 export function bounded(cap: i32): *u8 {
   let _rc: *u8 = 0;
   unsafe { _rc = channel_i32_bounded_c(cap); }
   return _rc;
 }
 
-/** 创建无界 channel；失败返回 0。 */
+/** Exported function `unbounded`.
+ * Implements `unbounded`.
+ * @return *u8
+ */
 export function unbounded(): *u8 {
   let _rc: *u8 = 0;
   unsafe { _rc = channel_i32_unbounded_c(); }
   return _rc;
 }
 
-/** 发送；有界且满时阻塞。返回 0 成功，-1 已关闭。 */
+/** Exported function `send`.
+ * Implements `send`.
+ * @param ch *u8
+ * @param val i32
+ * @return i32
+ */
 export function send(ch: *u8, val: i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = channel_i32_send_c(ch, val); }
   return _rc;
 }
 
-/** 接收；空时阻塞。返回 0 成功且 *out 有效，-1 已关闭。 */
+/** Exported function `recv`.
+ * Implements `recv`.
+ * @param ch *u8
+ * @param out *i32
+ * @return i32
+ */
 export function recv(ch: *u8, out: *i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = channel_i32_recv_c(ch, out); }
   return _rc;
 }
 
-/** 非阻塞发送。返回 0 成功，1 满，-1 已关闭。 */
+/** Exported function `try_send`.
+ * Implements `try_send`.
+ * @param ch *u8
+ * @param val i32
+ * @return i32
+ */
 export function try_send(ch: *u8, val: i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = channel_i32_try_send_c(ch, val); }
   return _rc;
 }
 
-/** 非阻塞接收。返回 0 成功，1 空，-1 已关闭。 */
+/** Exported function `try_recv`.
+ * Implements `try_recv`.
+ * @param ch *u8
+ * @param out *i32
+ * @return i32
+ */
 export function try_recv(ch: *u8, out: *i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = channel_i32_try_recv_c(ch, out); }
   return _rc;
 }
 
-/** 关闭 channel，唤醒阻塞的 recv。 */
+/** Exported function `close`.
+ * Implements `close`.
+ * @param ch *u8
+ * @return void
+ */
 export function close(ch: *u8): void {
   unsafe {
     channel_i32_close_c(ch);
   }
 }
 
-/** 释放 channel；关闭后调用。 */
+/** Exported function `free`.
+ * Memory management helper `free`.
+ * @param ch *u8
+ * @return void
+ */
 export function free(ch: *u8): void {
   unsafe {
     channel_i32_free_c(ch);
   }
 }
 
-/** 通用 channel 是否已关闭；1=是，0=否。 */
+/** Exported function `is_closed`.
+ * Query helper `is_closed`.
+ * @param ch *u8
+ * @return i32
+ */
 export function is_closed(ch: *u8): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = channel_i32_is_closed_c(ch); }
   return _rc;
 }
 
-/** 无界 channel 发送；等同 send。 */
+/** Exported function `send_unbounded`.
+ * Implements `send_unbounded`.
+ * @param ch *u8
+ * @param val i32
+ * @return i32
+ */
 export function send_unbounded(ch: *u8, val: i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = channel_i32_send_c(ch, val); }
   return _rc;
 }
 
-/** 无界 channel 非阻塞接收；等同 try_recv。 */
+/** Exported function `try_recv_unbounded`.
+ * Implements `try_recv_unbounded`.
+ * @param ch *u8
+ * @param out *i32
+ * @return i32
+ */
 export function try_recv_unbounded(ch: *u8, out: *i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = channel_i32_try_recv_c(ch, out); }
   return _rc;
 }
 
-/** 关闭无界 channel。 */
+/** Exported function `unbounded_close`.
+ * Implements `unbounded_close`.
+ * @param ch *u8
+ * @return void
+ */
 export function unbounded_close(ch: *u8): void {
   unsafe {
     channel_i32_close_c(ch);
   }
 }
 
-/** 无界 channel 是否已关闭；1=是，0=否。 */
+/** Exported function `unbounded_is_closed`.
+ * Implements `unbounded_is_closed`.
+ * @param ch *u8
+ * @return i32
+ */
 export function unbounded_is_closed(ch: *u8): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = channel_i32_is_closed_c(ch); }
   return _rc;
 }
 
-/** select 最大路数（CHANNEL_SELECT_MAX）。 */
+/** Exported function `select_max`.
+ * Implements `select_max`.
+ * @return i32
+ */
 export function select_max(): i32 {
   return 8;
 }
 
-/** 将 channel 句柄写入 i64 槽（64 位 LE，与 C void* 布局兼容）。 */
+/** Exported function `select_chs_set`.
+ * Implements `select_chs_set`.
+ * @param slots *i64
+ * @param idx i32
+ * @param ch *u8
+ * @return void
+ */
 export function select_chs_set(slots: *i64, idx: i32, ch: *u8): void {
   unsafe {
     channel_select_chs_set_c(slots, idx, ch);
   }
 }
 
-/** 写入 select 方向槽（SELECT_DIR_RECV / SELECT_DIR_SEND）。 */
+/** Exported function `select_dirs_set`.
+ * Implements `select_dirs_set`.
+ * @param dirs *i32
+ * @param idx i32
+ * @param dir i32
+ * @return void
+ */
 export function select_dirs_set(dirs: *i32, idx: i32, dir: i32): void {
   unsafe {
     channel_select_dirs_set_c(dirs, idx, dir);
   }
 }
 
-/** 非阻塞双路 recv；ch0 优先。返回 0 成功，1 暂无，-1 皆已关闭。 */
+/** Exported function `select_try_recv`.
+ * Implements `select_try_recv`.
+ * @param ch0 *u8
+ * @param ch1 *u8
+ * @param out_val *i32
+ * @param out_index *i32
+ * @return i32
+ */
 export function select_try_recv(ch0: *u8, ch1: *u8, out_val: *i32, out_index: *i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = channel_select_try_recv_2_c(ch0, ch1, out_val, out_index); }
   return _rc;
 }
 
-/** 阻塞双路 recv 直至任一路有数据。返回 0 成功，-1 皆已关闭。 */
+/** Exported function `select_recv`.
+ * Implements `select_recv`.
+ * @param ch0 *u8
+ * @param ch1 *u8
+ * @param out_val *i32
+ * @param out_index *i32
+ * @return i32
+ */
 export function select_recv(ch0: *u8, ch1: *u8, out_val: *i32, out_index: *i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = channel_select_recv_2_c(ch0, ch1, out_val, out_index); }
   return _rc;
 }
 
-/** 非阻塞 N 路 recv；index 升序优先。 */
+/** Exported function `select_try_recv_n`.
+ * Implements `select_try_recv_n`.
+ * @param chs_slots *i64
+ * @param n i32
+ * @param out_val *i32
+ * @param out_index *i32
+ * @return i32
+ */
 export function select_try_recv_n(chs_slots: *i64, n: i32, out_val: *i32, out_index: *i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = channel_select_try_recv_n_c(chs_slots, n, out_val, out_index); }
   return _rc;
 }
 
-/** 阻塞 N 路 recv 直至任一路有数据。 */
+/** Exported function `select_recv_n`.
+ * Implements `select_recv_n`.
+ * @param chs_slots *i64
+ * @param n i32
+ * @param out_val *i32
+ * @param out_index *i32
+ * @return i32
+ */
 export function select_recv_n(chs_slots: *i64, n: i32, out_val: *i32, out_index: *i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = channel_select_recv_n_c(chs_slots, n, out_val, out_index); }
   return _rc;
 }
 
-/** 非阻塞双路 send；ch0 优先。返回 0 成功，1 暂满，-1 皆已关闭。 */
+/** Exported function `select_try_send`.
+ * Implements `select_try_send`.
+ * @param ch0 *u8
+ * @param ch1 *u8
+ * @param val i32
+ * @param out_index *i32
+ * @return i32
+ */
 export function select_try_send(ch0: *u8, ch1: *u8, val: i32, out_index: *i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = channel_select_try_send_2_c(ch0, ch1, val, out_index); }
   return _rc;
 }
 
-/** 阻塞双路 send 直至任一路可写。 */
+/** Exported function `select_send`.
+ * Implements `select_send`.
+ * @param ch0 *u8
+ * @param ch1 *u8
+ * @param val i32
+ * @param out_index *i32
+ * @return i32
+ */
 export function select_send(ch0: *u8, ch1: *u8, val: i32, out_index: *i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = channel_select_send_2_c(ch0, ch1, val, out_index); }
   return _rc;
 }
 
-/** 非阻塞 N 路 send；index 升序优先。 */
+/** Exported function `select_try_send_n`.
+ * Implements `select_try_send_n`.
+ * @param chs_slots *i64
+ * @param n i32
+ * @param val i32
+ * @param out_index *i32
+ * @return i32
+ */
 export function select_try_send_n(chs_slots: *i64, n: i32, val: i32, out_index: *i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = channel_select_try_send_n_c(chs_slots, n, val, out_index); }
   return _rc;
 }
 
-/** 阻塞 N 路 send 直至任一路可写。 */
+/** Exported function `select_send_n`.
+ * Implements `select_send_n`.
+ * @param chs_slots *i64
+ * @param n i32
+ * @param val i32
+ * @param out_index *i32
+ * @return i32
+ */
 export function select_send_n(chs_slots: *i64, n: i32, val: i32, out_index: *i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = channel_select_send_n_c(chs_slots, n, val, out_index); }
   return _rc;
 }
 
-/** 非阻塞混合双路；recv 优先于 send。 */
+/** Exported function `select_try_mixed`.
+ * Implements `select_try_mixed`.
+ * @param recv_ch *u8
+ * @param send_ch *u8
+ * @param send_val i32
+ * @param out_val *i32
+ * @param out_is_send *i32
+ * @return i32
+ */
 export function select_try_mixed(recv_ch: *u8, send_ch: *u8, send_val: i32, out_val: *i32, out_is_send: *i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = channel_select_try_mixed_2_c(recv_ch, send_ch, send_val, out_val, out_is_send); }
   return _rc;
 }
 
-/** 阻塞混合双路；recv 优先于 send。 */
+/** Exported function `select_mixed`.
+ * Implements `select_mixed`.
+ * @param recv_ch *u8
+ * @param send_ch *u8
+ * @param send_val i32
+ * @param out_val *i32
+ * @param out_is_send *i32
+ * @return i32
+ */
 export function select_mixed(recv_ch: *u8, send_ch: *u8, send_val: i32, out_val: *i32, out_is_send: *i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = channel_select_mixed_2_c(recv_ch, send_ch, send_val, out_val, out_is_send); }
   return _rc;
 }
 
-/** 非阻塞 N 路混合；index 升序优先，同下标 recv 先于 send。 */
+/** Exported function `select_try_mixed_n`.
+ * Implements `select_try_mixed_n`.
+ * @param chs_slots *i64
+ * @param dirs *i32
+ * @param n i32
+ * @param send_val i32
+ * @param out_val *i32
+ * @param out_index *i32
+ * @param out_is_send *i32
+ * @return i32
+ */
 export function select_try_mixed_n(chs_slots: *i64, dirs: *i32, n: i32, send_val: i32, out_val: *i32, out_index: *i32, out_is_send: *i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = channel_select_try_mixed_n_c(chs_slots, dirs, n, send_val, out_val, out_index, out_is_send); }
   return _rc;
 }
 
-/** 阻塞 N 路混合。 */
+/** Exported function `select_mixed_n`.
+ * Implements `select_mixed_n`.
+ * @param chs_slots *i64
+ * @param dirs *i32
+ * @param n i32
+ * @param send_val i32
+ * @param out_val *i32
+ * @param out_index *i32
+ * @param out_is_send *i32
+ * @return i32
+ */
 export function select_mixed_n(chs_slots: *i64, dirs: *i32, n: i32, send_val: i32, out_val: *i32, out_index: *i32, out_is_send: *i32): i32 {
   let _rc: i32 = 0;
   unsafe { _rc = channel_select_mixed_n_c(chs_slots, dirs, n, send_val, out_val, out_index, out_is_send); }

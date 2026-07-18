@@ -1,23 +1,32 @@
-// stack_promote_escape_global.x — WPO-S3 负例：struct 栈指针写入更长生命周期槽（typeck 应拒）
-// 语言尚无 module 级 var；用跨函数 Slot 模拟 global 逃逸。
+// See implementation.
+// See implementation.
 
-/** 两字段 POD。 */
+/* See implementation. */
 struct Pair {
   a: i32
   b: i32
 }
 
-/** 模拟 global 槽：在 caller 栈上持久，可被写入 *Pair。 */
+/* See implementation. */
 struct Slot {
   ptr: *Pair
 }
 
-/** 将局部 struct 地址写入 slot（ callee 返回后 p 已失效 — 负例语义）。 */
+/** Internal function `stash_pair_ptr`.
+ * Implements `stash_pair_ptr`.
+ * @param slot *Slot
+ * @param p *Pair
+ * @return void
+ */
 function stash_pair_ptr(slot: *Slot, p: *Pair): void {
   slot.ptr = p;
 }
 
-/** 在子帧构造 Pair 并写入 caller slot（负例：&p 逃逸到外层 *Slot）。 */
+/** Internal function `fill_and_stash`.
+ * Implements `fill_and_stash`.
+ * @param slot *Slot
+ * @return i32
+ */
 function fill_and_stash(slot: *Slot): i32 {
   let p: Pair = Pair { a: 3, b: 4 };
   slot.ptr = &p;
@@ -25,6 +34,10 @@ function fill_and_stash(slot: *Slot): i32 {
   return pp.a + pp.b;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let slot: Slot = Slot { ptr: 0 as *Pair };
   return fill_and_stash(&slot);

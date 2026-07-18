@@ -1,5 +1,9 @@
-// 边界：赋值类型不匹配（for 的 step 中赋值表达式），应报 assignment type
+// See implementation.
 // mismatch
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let x: i32 = 0;
   for ( ; x < 1 ; x = true) { break }

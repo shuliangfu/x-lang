@@ -1,6 +1,6 @@
 /**
- * SIMD f32 SoA 列 reduce 条带烟测：n=10（8 向量 + 2 标量 epilogue）→ exit=10。
- * 匹配 while i < 10 { s += arr[i].x; i++ }，movups/addps 主循环 + addss 余数。
+ * See implementation.
+ * See implementation.
  */
 struct Particle soa {
   x: f32
@@ -8,6 +8,10 @@ struct Particle soa {
   z: f32
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let arr: Particle[16] = [];
   let i: i32 = 0;

@@ -1,6 +1,10 @@
-// STD-HTTP-H2-v18：h2 over TLS server push 响应烟测（fork + ALPN h2）
+// See implementation.
 const http = import("std.http");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (http.server_push_tls_smoke() != 0) { return 1; }
   if (http.server_push_is_available() == false) { return 2; }

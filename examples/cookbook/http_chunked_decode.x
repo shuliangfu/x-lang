@@ -1,10 +1,14 @@
 /**
- * Cookbook HTTP-02：chunked 响应解码与 keep-alive 检测（STD-033）。
+ * See implementation.
  */
 const http = import("std.http");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
-  /** 合成 HTTP/1.1 chunked + keep-alive 响应（金样见 std-http-chunked-v1.md §3） */
+  /* See implementation. */
   let resp: u8[86] = [
     72, 84, 84, 80, 47, 49, 46, 49, 32, 50, 48, 48, 32, 79, 75, 13, 10,
     84, 114, 97, 110, 115, 102, 101, 114, 45, 69, 110, 99, 111, 100, 105, 110, 103, 58, 32, 99, 104, 117, 110, 107, 101, 100, 13, 10,

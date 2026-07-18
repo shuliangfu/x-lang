@@ -1,4 +1,8 @@
-// 7.3 线性 scan：五 VAR 左结合加链；|live|max≥5 时可用 x11 第二 spill；1+2+3+4+5=15。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32 = 1;
   let b: i32 = 2;

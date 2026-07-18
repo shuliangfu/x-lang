@@ -1,4 +1,7 @@
-/** M-4：二次 move 应 typeck 失败 */
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: Linear(i32) = 1;
   let b: Linear(i32) = a;

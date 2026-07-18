@@ -14,28 +14,32 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// build_runner.x — build_tool 的入口与编排（G-05：无 build_runtime.c）
+// See implementation.
 //
-// 与 build.x + build_runtime_x.x 配合：build.x 提供 build_get_step_* / build_use_asm_only；
-// build_runtime_x.x 提供 build_run_step / build_run_asm_build；
-// 本文件提供 entry(argc, argv)。Linux 链 crt0_x86_64.o；Darwin 经 build_tool_main.c 薄 main。
-// 链接：crt0 + build_runner.o + build_tool.o + build_runtime_x.o + -lc（无 build_runtime.c）。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 
-/** 从 argv 取第 i 个参数到 buf，NUL 结尾；crt0 或 build_tool_main 提供。 */
+/* See implementation. */
 extern function driver_get_argv_i(argc: i32, argv: *u8, i: i32, buf: *u8, max: i32): i32;
-/** 执行单步 legacy；由 build_runtime_x.x 提供。 */
+/* See implementation. */
 extern function build_run_step(step_id: i32, shu_path: *u8): i32;
-/** asm 路径；由 build_runtime_x.x 提供。 */
+/* See implementation. */
 extern function build_run_asm_build(shu_path: *u8): i32;
-/** 步骤数量与顺序；由 build.x 生成 build_gen.c 提供。 */
+/* See implementation. */
 extern function build_get_step_count(): i32;
 extern function build_get_step_at(i: i32): i32;
-/** 1=默认先试 asm；由 build.x 生成 build_gen.c 提供。 */
+/* See implementation. */
 extern function build_use_asm_only(): i32;
-/** asm 成功后 cp shux_asm → shux；由 build_runtime_x.x 提供。 */
+/* See implementation. */
 extern function build_copy_shux_asm(): i32;
 
-/** 执行 build.x 配置的 legacy 逐步。返回 0 成功。 */
+/** Internal function `build_run_legacy_steps`.
+ * Implements `build_run_legacy_steps`.
+ * @param shu_path *u8
+ * @return i32
+ */
 function build_run_legacy_steps(shu_path: *u8): i32 {
   let n: i32 = build_get_step_count();
   let i: i32 = 0;
@@ -52,7 +56,12 @@ function build_run_legacy_steps(shu_path: *u8): i32 {
   return 0;
 }
 
-/** argv[2] 是否与 "asm" 匹配（长度 3）。 */
+/** Internal function `build_argv2_is_asm`.
+ * Implements `build_argv2_is_asm`.
+ * @param arg2 *u8
+ * @param l2 i32
+ * @return i32
+ */
 function build_argv2_is_asm(arg2: *u8, l2: i32): i32 {
   if (l2 == 3 && arg2[0] == 97 && arg2[1] == 115 && arg2[2] == 109) {
     return 1;
@@ -60,7 +69,12 @@ function build_argv2_is_asm(arg2: *u8, l2: i32): i32 {
   return 0;
 }
 
-/** argv[2] 是否与 "legacy" 匹配（长度 6）。 */
+/** Internal function `build_argv2_is_legacy`.
+ * Implements `build_argv2_is_legacy`.
+ * @param arg2 *u8
+ * @param l2 i32
+ * @return i32
+ */
 function build_argv2_is_legacy(arg2: *u8, l2: i32): i32 {
   if (l2 == 6 && arg2[0] == 108 && arg2[1] == 101 && arg2[2] == 103
     && arg2[3] == 97 && arg2[4] == 99 && arg2[5] == 121) {
@@ -69,7 +83,12 @@ function build_argv2_is_legacy(arg2: *u8, l2: i32): i32 {
   return 0;
 }
 
-/** 入口：crt0 / build_tool_main 调用。与 build_runtime.c main() 语义一致（无 C runtime）。 */
+/** Internal function `entry`.
+ * Implements `entry`.
+ * @param argc i32
+ * @param argv *u8
+ * @return i32
+ */
 function entry(argc: i32, argv: *u8): i32 {
   let shu_buf: u8[256] = [];
   let len: i32 = driver_get_argv_i(argc, argv, 1, shu_buf, 256);

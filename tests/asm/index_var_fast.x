@@ -1,4 +1,8 @@
-// 7.3：局部 arr[i]（VAR 基址 + VAR 下标）应 lea/ldr 直取，免 push/pop（run-asm-index-var.sh）。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let arr: u8[3] = [5, 10, 15];
   let i: i32 = 1;

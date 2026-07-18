@@ -14,14 +14,14 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// pipeline_fill_dep_strict_alias.x — B-strict 链裸名 fill_dep 别名（G-02-B1）
+// See implementation.
 //
-// 职责：strict 链不链 pipeline_x.o，无 pipeline_run_x_* 前缀符号；orchestration
-// 仍期望裸名 run_x_pipeline_fill_dep_import_path。转发至 ast_pool C glue（经
-// pipeline_glue_standalone.o），勿链完整 pipeline_run_x_link_alias.o。
-// 替代 pipeline_fill_dep_strict_alias.c（F-09 终局去 C）。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 
-/** ast_pool.c glue；strict 链由 pipeline_glue_standalone.o 提供。 */
+/* See implementation. */
 export extern function run_x_pipeline_fill_dep_import_path_c(
   module: *u8,
   ctx: *u8,
@@ -29,7 +29,7 @@ export extern function run_x_pipeline_fill_dep_import_path_c(
 ): i32;
 
 /**
- * orchestration 裸名 → C glue；与 pipeline.x 语义一致，供 relink strict 链使用。
+ * See implementation.
  */
 export function run_x_pipeline_fill_dep_import_path(module: *u8, ctx: *u8, dep_j: i32): i32 {
   unsafe {

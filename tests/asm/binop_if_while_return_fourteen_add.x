@@ -1,4 +1,8 @@
-// 7.3：嵌套 cfg（if then 内 while）+ 十四元 return；final_expr VAR≥12 栈帧 spill（1+…+14=105）。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32 = 1;
   let b: i32 = 2;

@@ -1,6 +1,10 @@
-// EXC-006：expect_i32 在 Err 时落默认（与 unwrap_or 同义）
+// See implementation.
 const result = import("core.result");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let r: Result_i32 = result.err_i32(5);
   if (result.expect_i32(r, 88) != 88) { return 1; }

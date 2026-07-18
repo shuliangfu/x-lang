@@ -1,13 +1,25 @@
-// 测试 std.path：path_extension、path_stem、path_is_absolute、path_sep、path_clean
-// 对标 Rust/Go/Zig 的 extension、stem、IsAbs、sep、Clean。
+// See implementation.
+// See implementation.
 const path = import("std.path");
 
-// POSIX sep()=47 ('/')；Windows sep()=92 ('\\') — path.sep() 返回 OS 原生分隔符
+// expected_sep: see function docblock below.
 #[cfg(target_os = "windows")]
+/** Internal function `expected_sep`.
+ * Implements `expected_sep`.
+ * @return u8
+ */
 function expected_sep(): u8 { return 92 as u8; }
 #[cfg(not(target_os = "windows"))]
+/** Internal function `expected_sep`.
+ * Implements `expected_sep`.
+ * @return u8
+ */
 function expected_sep(): u8 { return 47 as u8; }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (path.sep() != expected_sep()) { return 1; }
   let p_abs: u8[4] = [47, 97, 98, 0];

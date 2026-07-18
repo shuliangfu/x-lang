@@ -1,6 +1,10 @@
-// STD-006：SHA-256("abc") 金样向量（与 std/crypto/crypto.c 输出一致）
+// See implementation.
 const crypto = import("std.crypto");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let msg: u8[3] = [97, 98, 99];
   let out: u8[32] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];

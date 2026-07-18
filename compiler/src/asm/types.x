@@ -14,17 +14,16 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// types.x — 汇编后端公共类型（与架构无关）
+// See implementation.
 //
-// 职责：目标架构枚举、汇编行追加（复用 codegen_outbuf_abi 的
-// CodegenOutBuf）、栈槽抽象等，供 backend 与各架构模块共用。
-// 依赖：codegen_outbuf_abi（与 pipeline 共用 CodegenOutBuf，保证 asm
-// 输出写入同一缓冲区）。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 
 const codegen_outbuf_abi = import("codegen_outbuf_abi");
 
-/** 当前支持的目标架构；pipeline 或 driver 按 -target 选择，backend
-* 据此分派到对应 emit 实现。 */
+/** See implementation for details. */
 export enum TargetArch {
   TARGET_X86_64,
   TARGET_ARM64,
@@ -32,8 +31,13 @@ export enum TargetArch {
   TARGET_NONE
 }
 
-/** 向 CodegenOutBuf 追加一行汇编（ptr[0..len-1] + 换行）。与 pipeline 共用同一
-* out，便于 -backend asm 时写汇编到 out。返回 0 成功，缓冲区满返回 -1。 */
+/** Exported function `append_asm_line`.
+ * Implements `append_asm_line`.
+ * @param out *CodegenOutBuf
+ * @param ptr *u8
+ * @param len i32
+ * @return i32
+ */
 export function append_asm_line(out: *CodegenOutBuf, ptr: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i < len && out.len < 8388608) {
@@ -54,11 +58,11 @@ export function append_asm_line(out: *CodegenOutBuf, ptr: *u8, len: i32): i32 {
 }
 
 /**
-* 将无符号数 u 的十进制表示写入 buf[off..]，最多写 max
-* 字节，返回写入长度；缓冲区不足返回 -1。
-* 用于 emit 指令中立即数的十进制输出（如 mov eax, 42）。
-* 使用迭代实现：生成 pipeline 时 C codegen 对该块未按 stmt_order
-* 输出，递归版会导致栈溢出。
+* See implementation.
+* See implementation.
+* See implementation.
+* See implementation.
+* See implementation.
 */
 export function format_u32_to_buf(buf: *u8, off: i32, max: i32, u: i32): i32 {
   let digit_chars: u8[10] = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57];
@@ -73,8 +77,7 @@ export function format_u32_to_buf(buf: *u8, off: i32, max: i32, u: i32): i32 {
     num_digits = num_digits + 1;
     v = v / 10;
   }
-  /* 0 时 num_digits 为 0，写一位 '0' 并置 num_digits=1，与主流程共用末尾
-  return，避免 codegen 重排。 */
+  /* If value is 0, num_digits stays 0 — write '0' so num_digits=1 before return (avoid codegen reorder). */
   if (num_digits == 0) {
     buf[off] = digit_chars[0];
     num_digits = 1;
@@ -95,9 +98,9 @@ export function format_u32_to_buf(buf: *u8, off: i32, max: i32, u: i32): i32 {
 }
 
 /**
-* 将 i32 的十进制表示写入 buf[off..]，最多写 max
-* 字节，返回写入长度；缓冲区不足返回 -1。
-* 特殊处理 -2147483648（0-val 会溢出）。
+* See implementation.
+* See implementation.
+* See implementation.
 */
 export function format_i32_to_buf(buf: *u8, off: i32, max: i32, val: i32): i32 {
   if (val < 0) {
@@ -128,8 +131,13 @@ export function format_i32_to_buf(buf: *u8, off: i32, max: i32, val: i32): i32 {
   return format_u32_to_buf(buf, off, max, val);
 }
 
-/** 将 32 位值按 8 个十六进制字符写入 buf[off..off+7]，返回 8。用于 64
-* 位立即数（float 位模式）输出。 */
+/** Exported function `format_u32_hex8_to_buf`.
+ * Implements `format_u32_hex8_to_buf`.
+ * @param buf *u8
+ * @param off i32
+ * @param val i32
+ * @return i32
+ */
 export function format_u32_hex8_to_buf(buf: *u8, off: i32, val: i32): i32 {
   let hex: u8[16] = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 97, 98, 99, 100, 101, 102];
   let i: i32 = 0;
@@ -142,5 +150,5 @@ export function format_u32_hex8_to_buf(buf: *u8, off: i32, val: i32): i32 {
   return 8;
 }
 
-/** 类型到栈槽/寄存器字节数的映射（与 ABI 一致）。i32→4, i64/指针→8。 */
-// 占位：具体由 backend 或各架构根据 TypeKind 查表得到，此处仅作说明。
+/* See implementation. */
+// See implementation.

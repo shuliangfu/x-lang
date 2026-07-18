@@ -1,6 +1,10 @@
-// STD-019：std.fmt format_2/3 与 core.fmt 对齐烟测（函数重载）
+// See implementation.
 const fmt = import("std.fmt");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let buf: u8[64] = [
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -29,7 +33,7 @@ function main(): i32 {
   if (fmt.format(buf, 64, 1, 2 as u32, 3 as usize) != 3) { return 11; }
   if (fmt.format(buf, 2, 100, 200) != -1) { return 12; }
 
-  /** 重导出 core.fmt 烟测 */
+  /* See implementation. */
   if (fmt.to_buf(buf, 64, 42) != 2) { return 13; }
   if (fmt.to_buf(buf, 64, 7) != 1) { return 14; }
 

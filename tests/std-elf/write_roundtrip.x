@@ -1,5 +1,9 @@
-// STD-121：std.elf 写入 + 只读解析 round-trip 烟测
+// See implementation.
 const elf = import("std.elf");
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let text: u8[4] = [144, 144, 144, 144];
   let out: u8[512] = [];

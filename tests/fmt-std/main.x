@@ -1,6 +1,10 @@
-// 测试 std.fmt：重导出 core.fmt、print/println、format_2/format_3 重载
+// See implementation.
 const fmt = import("std.fmt");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let buf: u8[32] = [
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,

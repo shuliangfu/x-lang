@@ -1,10 +1,19 @@
-// P1 期望类型：指针 null、下标 i32、match 多字面量、struct ; 分隔、&buf[0] decay
+// See implementation.
 allow(padding) struct Pair { a: i16; b: i32; }
 
+/** Internal function `ret_null`.
+ * Implements `ret_null`.
+ * @return *u8
+ */
 function ret_null(): *u8 {
   return 0;
 }
 
+/** Internal function `match_multi`.
+ * Implements `match_multi`.
+ * @param v i32
+ * @return i32
+ */
 function match_multi(v: i32): i32 {
   return match v {
     1 | 2 | 3 => 10;
@@ -12,6 +21,10 @@ function match_multi(v: i32): i32 {
   };
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let buf: u8[4] = [1, 2, 3, 4];
   let i: i32 = 0;

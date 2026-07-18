@@ -1,3 +1,8 @@
+/** Internal function `while_assign_only_return_outside`.
+ * Implements `while_assign_only_return_outside`.
+ * @param n i32
+ * @return i32
+ */
 function while_assign_only_return_outside(n: i32): i32 {
   let i: i32 = 0;
   while (i < n) {
@@ -6,6 +11,10 @@ function while_assign_only_return_outside(n: i32): i32 {
   return 0;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   return while_assign_only_return_outside(8);
 }

@@ -1,24 +1,35 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-22：lsp_diag_stubs_no_c 产品源迁 seeds/lsp_diag_stubs_no_c.from_x.c。
-// G-02f-101：+ copy_text / json_escape_str 薄门闩。
-// rest→.x 迁移：lsp_diag_copy_text_impl + json_escape_str_impl 真迁 .x
-//   Why：消除 seed 中 2 个纯字节操作 rest 函数，推进 L2（权威零 C）覆盖
-//   Invariant：与 seed 同语义（copy_text 纯字节拷贝；json_escape 转义 "/\\/\n/\r/\t）
-//   Perf：无 libc 依赖，无热路径分支冗余
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// lsp_diag_stubs_no_c_x_doc_anchor: see function docblock below.
 
+/** Exported function `lsp_diag_stubs_no_c_x_doc_anchor`.
+ * Implements `lsp_diag_stubs_no_c_x_doc_anchor`.
+ * @return i32
+ */
 export function lsp_diag_stubs_no_c_x_doc_anchor(): i32 {
   return 0;
 }
 
-/* ---- rest→.x 迁移：纯字节操作 _impl 实现 ---- */
+/* See implementation. */
 
-// 【Why 根源】seed 中 lsp_diag_copy_text_impl 是纯字节拷贝，无 libc/static/va_list 限制，
-// 可直接用 .x 实现。PREFER_X_O 路径下 seed 跳过此函数，由 .x 提供。
-// 【Invariant】与 seed 同语义：null 检查 + cap 边界 + null 终止
-// 【Perf】单次遍历，无分支预测惩罚
+// See implementation.
+// See implementation.
+// See implementation.
+// lsp_diag_copy_text_impl: see function docblock below.
 #[no_mangle]
+/** Exported function `lsp_diag_copy_text_impl`.
+ * Implements `lsp_diag_copy_text_impl`.
+ * @param dst *u8
+ * @param cap i32
+ * @param src *u8
+ * @return void
+ */
 export function lsp_diag_copy_text_impl(dst: *u8, cap: i32, src: *u8): void {
   if (dst == 0 || cap <= 0) { return; }
   if (src == 0) { dst[0] = 0; return; }
@@ -30,11 +41,18 @@ export function lsp_diag_copy_text_impl(dst: *u8, cap: i32, src: *u8): void {
   dst[n] = 0;
 }
 
-// 【Why 根源】seed 中 json_escape_str_impl 是纯字节转义，无 libc/static/va_list 限制，
-// 可直接用 .x 实现。.x 不支持 switch/case，用 if/else 链替代（语义等价）。
-// 【Invariant】与 seed 同语义：转义 "(34) \(92) \n(10) \r(13) \t(9)；cap 边界检查
-// 【Perf】单次遍历，if/else 链按 ASCII 频率排序
+// See implementation.
+// See implementation.
+// See implementation.
+// json_escape_str_impl: see function docblock below.
 #[no_mangle]
+/** Exported function `json_escape_str_impl`.
+ * Implements `json_escape_str_impl`.
+ * @param msg *u8
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function json_escape_str_impl(msg: *u8, out: *u8, out_cap: i32): i32 {
   let k: i32 = 0;
   if (msg == 0 || out == 0 || out_cap <= 0) { return 0; }
@@ -66,7 +84,7 @@ export function json_escape_str_impl(msg: *u8, out: *u8, out_cap: i32): i32 {
   return k;
 }
 
-/* ---- G-02f-101：lsp diag text helpers 门闩（_impl 已在 .x 中实现，无需 unsafe） ---- */
+/* See implementation. */
 
 #[no_mangle]
 export function lsp_diag_copy_text(dst: *u8, cap: i32, src: *u8): void {
@@ -74,6 +92,13 @@ export function lsp_diag_copy_text(dst: *u8, cap: i32, src: *u8): void {
 }
 
 #[no_mangle]
+/** Exported function `json_escape_str`.
+ * Implements `json_escape_str`.
+ * @param msg *u8
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function json_escape_str(msg: *u8, out: *u8, out_cap: i32): i32 {
   return json_escape_str_impl(msg, out, out_cap);
 }

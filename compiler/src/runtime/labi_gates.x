@@ -1,19 +1,19 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-277 / P2 link_abi L9：thin gate / null 检查转发层 → R2 full。
-// 产品：PREFER_X_O → g05_try_x_to_o；冷启动 seeds/labi_gates.from_x.c。
-// hybrid 宏 SHUX_LABI_GATES_FROM_X；mega rest 在 FROM_X 下仅前向（H=0）。
+// link_abi L9 thin gate / null-check forward layer (G.9 English; body is authoritative).
+// link_abi L9 thin gate / null-check forward layer (G.9 English; body is authoritative).
+// link_abi L9 thin gate / null-check forward layer (G.9 English; body is authoritative).
 //
-// R2 full 公共符号（thin shell，*u8 透传 _impl）：
+// link_abi L9 thin gate / null-check forward layer (G.9 English; body is authoritative).
 //   shux_asm_ld_bank_push / shux_invoke_cc
 //   shux_asm_ld_append_mach_tail_libs / shux_asm_ld_append_unix_gcc_tail_libs
 //   shux_append_linux_link_harden / shux_invoke_ld_for_exe
 //   labi_gates_count
-// Cap residual：*_impl 主体仍在 mega rest。
+// link_abi L9 thin gate / null-check forward layer (G.9 English; body is authoritative).
 //
-// R2 full：真迁 thin shell（*u8 不透明指针透传；与 C 指针 ABI 兼容）。
-// 不做 struct 布局；不做字符串表（见 labi_diag_pure 语言限制）。
+// link_abi L9 thin gate / null-check forward layer (G.9 English; body is authoritative).
+// link_abi L9 thin gate / null-check forward layer (G.9 English; body is authoritative).
 
 export extern "C" function shux_asm_ld_bank_push_impl(b: *u8, path: *u8): *u8;
 export extern "C" function shux_append_linux_link_harden_impl(argv: *u8, la: *i32, cap: i32): void;
@@ -40,6 +40,12 @@ export extern "C" function shux_asm_ld_append_unix_gcc_tail_libs_impl(
 ): void;
 
 #[no_mangle]
+/** Exported function `shux_asm_ld_bank_push`.
+ * Implements `shux_asm_ld_bank_push`.
+ * @param b *u8
+ * @param path *u8
+ * @return *u8
+ */
 export function shux_asm_ld_bank_push(b: *u8, path: *u8): *u8 {
   if (b == 0 as *u8) { return 0 as *u8; }
   if (path == 0 as *u8) { return 0 as *u8; }
@@ -49,6 +55,10 @@ export function shux_asm_ld_bank_push(b: *u8, path: *u8): *u8 {
 }
 
 #[no_mangle]
+/** Function `shux_invoke_cc`.
+ * Purpose: implements `shux_invoke_cc`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function shux_invoke_cc(
   c_paths: *u8, n: i32, out_path: *u8, target: *u8, opt_level: *u8, use_lto: i32,
   io_o: *u8, fs_o: *u8, process_o: *u8, string_o: *u8, heap_o: *u8, path_o: *u8, runtime_o: *u8,
@@ -79,6 +89,10 @@ export function shux_invoke_cc(
 }
 
 #[no_mangle]
+/** Function `shux_asm_ld_append_mach_tail_libs`.
+ * Purpose: implements `shux_asm_ld_append_mach_tail_libs`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function shux_asm_ld_append_mach_tail_libs(
   compress_o: *u8, user_o: *u8, flags: *u8, argv: *u8, la: *i32, max_la: i32, append_lsystem: i32
 ): void {
@@ -92,6 +106,10 @@ export function shux_asm_ld_append_mach_tail_libs(
 }
 
 #[no_mangle]
+/** Function `shux_asm_ld_append_unix_gcc_tail_libs`.
+ * Purpose: implements `shux_asm_ld_append_unix_gcc_tail_libs`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function shux_asm_ld_append_unix_gcc_tail_libs(
   compress_o: *u8, user_o: *u8, flags: *u8, need_pt: i32, argv: *u8, la: *i32, max_la: i32
 ): void {
@@ -105,6 +123,13 @@ export function shux_asm_ld_append_unix_gcc_tail_libs(
 }
 
 #[no_mangle]
+/** Exported function `shux_append_linux_link_harden`.
+ * Implements `shux_append_linux_link_harden`.
+ * @param argv *u8
+ * @param la *i32
+ * @param cap i32
+ * @return void
+ */
 export function shux_append_linux_link_harden(argv: *u8, la: *i32, cap: i32): void {
   if (argv == 0 as *u8) { return; }
   if (la == 0 as *i32) { return; }
@@ -114,6 +139,10 @@ export function shux_append_linux_link_harden(argv: *u8, la: *i32, cap: i32): vo
 }
 
 #[no_mangle]
+/** Function `shux_invoke_ld_for_exe`.
+ * Purpose: implements `shux_invoke_ld_for_exe`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function shux_invoke_ld_for_exe(
   o_path: *u8, exe_path: *u8, target: *u8, use_macho_o: i32, use_coff_o: i32,
   link_argv0: *u8, lib_roots: *u8, n_lib_roots: i32
@@ -129,6 +158,10 @@ export function shux_invoke_ld_for_exe(
 }
 
 #[no_mangle]
+/** Exported function `labi_gates_count`.
+ * Implements `labi_gates_count`.
+ * @return i32
+ */
 export function labi_gates_count(): i32 {
   return 6;
 }

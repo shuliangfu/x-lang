@@ -1,8 +1,12 @@
 /**
- * Cookbook FMT-02：format_template_1_i32 模板填充（STD-166）。
+ * See implementation.
  */
 const fmt = import("std.fmt");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let pat: u8[5] = [120, 123, 125, 121, 0];
   let buf: u8[32] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,

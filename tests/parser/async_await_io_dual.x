@@ -1,15 +1,19 @@
-// async_await_io_dual.x — IO-A5：双 async 协程各 await read_fd，run 传 fd seed
+// See implementation.
 extern function read_fd(fd: i32, ptr: *u8, len: usize): i32;
 
-/** 从 fd 读最多 4 字节；独立 static 帧 + __io_rd_slot。 */
+/* See implementation. */
 async function read_chunk(fd: i32): i32 {
   let buf: u8[4] = [];
   let n: i32 = await unsafe { read_fd(fd, buf as *u8, 4) };
   return n;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
-  /* 两次 run：各实例化 shux_async_sched_read_chunk + seed push(fd) */
+  /* See implementation. */
   let n1: i32 = run read_chunk(0);
   let n2: i32 = run read_chunk(1);
   return n1 + n2;

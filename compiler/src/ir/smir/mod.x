@@ -14,18 +14,17 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// mod.x — SMIR 层模块入口（re-export）
+// mod.x — SMIR layer module entry (re-export)
 //
-// 模块：ir/smir
-// 层级：SMIR（Shux Mid IR，SSA + 显式所有权图）
-// Phase：Phase 2
-// 职责：聚合 smir/ 子模块导出（ssa / ownership / inline / alias / verify）。
-// 依赖：../shir / ../inst / ../contract / ../effect / ../abi
-// 设计约束：
-//   - SMIR 把语言语义转化为可验证约束（契约验证的主战场）
-//   - Linear move / borrow 边显式编码
-//   - region-aware alias analysis
-//   - 跨 X ABI 边界内联（契约快照策略，§1.6）
+// Module: ir/smir
+// Layer: SMIR (Shux Mid IR; SSA + explicit ownership graph)
+// Phase: Phase 2
+// Responsibility: Aggregate smir/ exports (ssa / ownership / inline / alias / verify).
+// Depends: ../shir / ../inst / ../contract / ../effect / ../abi
+// Design constraints:
+//   - SMIR turns language semantics into verifiable constraints
+//   - Linear move / borrow edges are encoded explicitly
+//   - Region-aware alias analysis; cross X ABI inlining (§1.6)
 //
-// 参考文档：analysis/IR核心设计.md §2.1（SMIR 层）/ §2.2（SMIR 职责）
-// 架构状态：v4.0 Architecture Freeze — 实现骨架，待 Phase 2 填充
+// Ref: analysis IR core design §2.1 (SMIR layer) / §2.2 (SMIR duties)
+// Status: v4.0 Architecture Freeze — implementation skeleton; fill in Phase 2

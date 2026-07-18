@@ -1,11 +1,19 @@
 /**
- * LANG-001 golden：无 SHUX_EDITION_2025 时走稳定路径 exit 0；启用 2025 时 exit 99。
+ * See implementation.
  */
 #if SHUX_EDITION_2025
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   return 99;
 }
 #else
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   return 0;
 }

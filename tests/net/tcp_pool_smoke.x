@@ -1,6 +1,10 @@
-// STD-164：TCP 连接池 idle 复用烟测
+// See implementation.
 const net = import("std.net");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   if (net.tcp_pool_smoke() != 0) { return 1; }
 

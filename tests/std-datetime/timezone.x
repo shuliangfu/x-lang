@@ -1,6 +1,10 @@
-// STD-135：std.datetime 固定偏移时区烟测
+// See implementation.
 const datetime = import("std.datetime");
 
+/** Internal function `test_jst_roundtrip`.
+ * Implements `test_jst_roundtrip`.
+ * @return i32
+ */
 function test_jst_roundtrip(): i32 {
   let tz: TimeZone = TimeZone { offset_min: 0, iana_id: -1 };
   let jst: u8[3] = [74, 83, 84];
@@ -16,6 +20,10 @@ function test_jst_roundtrip(): i32 {
   return 0;
 }
 
+/** Internal function `test_parse_offset`.
+ * Implements `test_parse_offset`.
+ * @return i32
+ */
 function test_parse_offset(): i32 {
   let off: i32 = 0;
   let p8: u8[6] = [43, 48, 56, 58, 48, 48];
@@ -30,6 +38,10 @@ function test_parse_offset(): i32 {
   return 0;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let r: i32 = test_jst_roundtrip();
   if (r != 0) { return r; }

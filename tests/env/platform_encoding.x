@@ -1,9 +1,13 @@
-// STD-132：std.env 平台编码 / 环境块边界烟测
+// See implementation.
 //
-// 覆盖空 value、value 含 '='、(ptr,len) key、超长 key 拒绝；KV 解析由 C 金样覆盖。
+// See implementation.
 const env = import("std.env");
 
-/** 校验 val 是否为 "a=b"（3 字节 + NUL）。 */
+/** Internal function `val_is_a_eq_b`.
+ * Implements `val_is_a_eq_b`.
+ * @param val *u8
+ * @return i32
+ */
 function val_is_a_eq_b(val: *u8): i32 {
   if (val[0] != 97) { return 0; }
   if (val[1] != 61) { return 0; }
@@ -12,7 +16,10 @@ function val_is_a_eq_b(val: *u8): i32 {
   return 1;
 }
 
-/** 空 value 与 value 含 '=' 的 setenv/getenv 往返（含零拷贝 ptr）。 */
+/** Internal function `test_setenv_boundaries`.
+ * Implements `test_setenv_boundaries`.
+ * @return i32
+ */
 function test_setenv_boundaries(): i32 {
   let name_empty: u8[8] = [88, 95, 80, 69, 95, 69, 0, 0];
   let val_empty: u8[1] = [0];
@@ -36,7 +43,10 @@ function test_setenv_boundaries(): i32 {
   return 0;
 }
 
-/** (ptr,len) key 与非法 key_len 边界。 */
+/** Internal function `test_key_len_boundary`.
+ * Implements `test_key_len_boundary`.
+ * @return i32
+ */
 function test_key_len_boundary(): i32 {
   let key4: u8[4] = [88, 95, 80, 69];
   let out: u8[8] = [];
@@ -53,6 +63,10 @@ function test_key_len_boundary(): i32 {
   return 0;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let r: i32 = test_setenv_boundaries();
   if (r != 0) { return r; }

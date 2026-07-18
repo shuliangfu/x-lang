@@ -1,14 +1,18 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// R2 full（2026-07-14）：backend_arch_emit_dispatch 真迁
-// G-02f-9 / G-02f-209：backend_arch_emit_* 短 ta 分派壳（arm64/riscv/x86）吃满本 .x
-// 产品 PREFER_X_O：g05_try_x_to_o(本文件) + rest (-DSHUX_BACKEND_ARCH_EMIT_DISPATCH_FROM_X，仅 marker) ld -r
+// See implementation.
+// See implementation.
+// See implementation.
 //   → src/asm/backend_arch_emit_dispatch.o
-// FROM_X rest 业务 T=0（仅 slice_marker）；L2 thin hybrid 仅 full.x 失败回退
-// Cap residual：arch_*_emit_* C 尾在 asm_backend_partial / 冷 full seed 外 TU
-// Prove：seeds/backend_arch_emit_dispatch_surface.from_x.c 锁 full surface IDENTICAL
+// See implementation.
+// See implementation.
+// backend_arch_emit_dispatch_x_doc_anchor: see function docblock below.
 
+/** Exported function `backend_arch_emit_dispatch_x_doc_anchor`.
+ * Implements `backend_arch_emit_dispatch_x_doc_anchor`.
+ * @return i32
+ */
 export function backend_arch_emit_dispatch_x_doc_anchor(): i32 {
   return 0;
 }
@@ -151,10 +155,17 @@ export extern "C" function arch_x86_64_emit_store_rax_to_rbx_offset(out: *u8, of
 export extern "C" function arch_x86_64_emit_sub_rbx_rax_then_mov(out: *u8): i32;
 export extern "C" function arch_x86_64_emit_xor_rbx_rax(out: *u8): i32;
 
-// G-02f-209：ta 分派壳真迁 .x
+// backend_arch_emit_ret_imm32: see function docblock below.
 #[no_mangle]
+/** Exported function `backend_arch_emit_ret_imm32`.
+ * Implements `backend_arch_emit_ret_imm32`.
+ * @param out *u8
+ * @param imm i32
+ * @param ta i32
+ * @return i32
+ */
 export function backend_arch_emit_ret_imm32(out: *u8, imm: i32, ta: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  // See implementation.
   unsafe {
   if (ta == 1) { return arch_arm64_emit_ret_imm32(out, imm); }
   if (ta == 2) { return arch_riscv64_emit_ret_imm32(out, imm); }
@@ -162,10 +173,18 @@ export function backend_arch_emit_ret_imm32(out: *u8, imm: i32, ta: i32): i32 {
   }
 }
 
-// G-02f-209：ta 分派壳真迁 .x
+// backend_arch_emit_mov_imm64_to_rax: see function docblock below.
 #[no_mangle]
+/** Exported function `backend_arch_emit_mov_imm64_to_rax`.
+ * Implements `backend_arch_emit_mov_imm64_to_rax`.
+ * @param out *u8
+ * @param lo i32
+ * @param hi i32
+ * @param ta i32
+ * @return i32
+ */
 export function backend_arch_emit_mov_imm64_to_rax(out: *u8, lo: i32, hi: i32, ta: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  // See implementation.
   unsafe {
   if (ta == 1) { return arch_arm64_emit_mov_imm64_to_rax(out, lo, hi); }
   if (ta == 2) { return arch_riscv64_emit_mov_imm64_to_rax(out, lo, hi); }
@@ -173,10 +192,17 @@ export function backend_arch_emit_mov_imm64_to_rax(out: *u8, lo: i32, hi: i32, t
   }
 }
 
-// G-02f-209：ta 分派壳真迁 .x
+// backend_arch_emit_mov_imm32_to_rbx: see function docblock below.
 #[no_mangle]
+/** Exported function `backend_arch_emit_mov_imm32_to_rbx`.
+ * Implements `backend_arch_emit_mov_imm32_to_rbx`.
+ * @param out *u8
+ * @param imm i32
+ * @param ta i32
+ * @return i32
+ */
 export function backend_arch_emit_mov_imm32_to_rbx(out: *u8, imm: i32, ta: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  // See implementation.
   unsafe {
   if (ta == 1) { return arch_arm64_emit_mov_imm32_to_rbx(out, imm); }
   if (ta == 2) { return arch_riscv64_emit_mov_imm32_to_rbx(out, imm); }
@@ -184,10 +210,16 @@ export function backend_arch_emit_mov_imm32_to_rbx(out: *u8, imm: i32, ta: i32):
   }
 }
 
-// G-02f-209：ta 分派壳真迁 .x
+// backend_arch_emit_neg_eax: see function docblock below.
 #[no_mangle]
+/** Exported function `backend_arch_emit_neg_eax`.
+ * Implements `backend_arch_emit_neg_eax`.
+ * @param out *u8
+ * @param ta i32
+ * @return i32
+ */
 export function backend_arch_emit_neg_eax(out: *u8, ta: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  // See implementation.
   unsafe {
   if (ta == 1) { return arch_arm64_emit_neg_eax(out); }
   if (ta == 2) { return arch_riscv64_emit_neg_eax(out); }
@@ -195,10 +227,16 @@ export function backend_arch_emit_neg_eax(out: *u8, ta: i32): i32 {
   }
 }
 
-// G-02f-209：ta 分派壳真迁 .x
+// backend_arch_emit_cmp_rbx_rax: see function docblock below.
 #[no_mangle]
+/** Exported function `backend_arch_emit_cmp_rbx_rax`.
+ * Comparison/utility `backend_arch_emit_cmp_rbx_rax`.
+ * @param out *u8
+ * @param ta i32
+ * @return i32
+ */
 export function backend_arch_emit_cmp_rbx_rax(out: *u8, ta: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  // See implementation.
   unsafe {
   if (ta == 1) { return arch_arm64_emit_cmp_rbx_rax(out); }
   if (ta == 2) { return arch_riscv64_emit_cmp_rbx_rax(out); }
@@ -206,10 +244,17 @@ export function backend_arch_emit_cmp_rbx_rax(out: *u8, ta: i32): i32 {
   }
 }
 
-// G-02f-209：ta 分派壳真迁 .x
+// backend_arch_emit_cmp_setcc: see function docblock below.
 #[no_mangle]
+/** Exported function `backend_arch_emit_cmp_setcc`.
+ * Comparison/utility `backend_arch_emit_cmp_setcc`.
+ * @param out *u8
+ * @param cc i32
+ * @param ta i32
+ * @return i32
+ */
 export function backend_arch_emit_cmp_setcc(out: *u8, cc: i32, ta: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  // See implementation.
   unsafe {
   if (ta == 1) { return arch_arm64_emit_cmp_setcc(out, cc); }
   if (ta == 2) { return arch_riscv64_emit_cmp_setcc(out, cc); }
@@ -217,10 +262,16 @@ export function backend_arch_emit_cmp_setcc(out: *u8, cc: i32, ta: i32): i32 {
   }
 }
 
-// G-02f-209：ta 分派壳真迁 .x
+// backend_arch_emit_push_rax: see function docblock below.
 #[no_mangle]
+/** Exported function `backend_arch_emit_push_rax`.
+ * Implements `backend_arch_emit_push_rax`.
+ * @param out *u8
+ * @param ta i32
+ * @return i32
+ */
 export function backend_arch_emit_push_rax(out: *u8, ta: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  // See implementation.
   unsafe {
   if (ta == 1) { return arch_arm64_emit_push_rax(out); }
   if (ta == 2) { return arch_riscv64_emit_push_rax(out); }
@@ -228,10 +279,16 @@ export function backend_arch_emit_push_rax(out: *u8, ta: i32): i32 {
   }
 }
 
-// G-02f-209：ta 分派壳真迁 .x
+// backend_arch_emit_pop_rbx: see function docblock below.
 #[no_mangle]
+/** Exported function `backend_arch_emit_pop_rbx`.
+ * Implements `backend_arch_emit_pop_rbx`.
+ * @param out *u8
+ * @param ta i32
+ * @return i32
+ */
 export function backend_arch_emit_pop_rbx(out: *u8, ta: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  // See implementation.
   unsafe {
   if (ta == 1) { return arch_arm64_emit_pop_rbx(out); }
   if (ta == 2) { return arch_riscv64_emit_pop_rbx(out); }
@@ -239,10 +296,16 @@ export function backend_arch_emit_pop_rbx(out: *u8, ta: i32): i32 {
   }
 }
 
-// G-02f-209：ta 分派壳真迁 .x
+// backend_arch_emit_pop_rax: see function docblock below.
 #[no_mangle]
+/** Exported function `backend_arch_emit_pop_rax`.
+ * Implements `backend_arch_emit_pop_rax`.
+ * @param out *u8
+ * @param ta i32
+ * @return i32
+ */
 export function backend_arch_emit_pop_rax(out: *u8, ta: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  // See implementation.
   unsafe {
   if (ta == 1) { return arch_arm64_emit_pop_rax(out); }
   if (ta == 2) { return arch_riscv64_emit_pop_rax(out); }
@@ -250,10 +313,16 @@ export function backend_arch_emit_pop_rax(out: *u8, ta: i32): i32 {
   }
 }
 
-// G-02f-209：ta 分派壳真迁 .x
+// backend_arch_emit_add_rax_rbx: see function docblock below.
 #[no_mangle]
+/** Exported function `backend_arch_emit_add_rax_rbx`.
+ * Implements `backend_arch_emit_add_rax_rbx`.
+ * @param out *u8
+ * @param ta i32
+ * @return i32
+ */
 export function backend_arch_emit_add_rax_rbx(out: *u8, ta: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  // See implementation.
   unsafe {
   if (ta == 1) { return arch_arm64_emit_add_rax_rbx(out); }
   if (ta == 2) { return arch_riscv64_emit_add_rax_rbx(out); }
@@ -261,10 +330,16 @@ export function backend_arch_emit_add_rax_rbx(out: *u8, ta: i32): i32 {
   }
 }
 
-// G-02f-209：ta 分派壳真迁 .x
+// backend_arch_emit_sub_rbx_rax_then_mov: see function docblock below.
 #[no_mangle]
+/** Exported function `backend_arch_emit_sub_rbx_rax_then_mov`.
+ * Implements `backend_arch_emit_sub_rbx_rax_then_mov`.
+ * @param out *u8
+ * @param ta i32
+ * @return i32
+ */
 export function backend_arch_emit_sub_rbx_rax_then_mov(out: *u8, ta: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  // See implementation.
   unsafe {
   if (ta == 1) { return arch_arm64_emit_sub_rbx_rax_then_mov(out); }
   if (ta == 2) { return arch_riscv64_emit_sub_rbx_rax_then_mov(out); }
@@ -272,10 +347,16 @@ export function backend_arch_emit_sub_rbx_rax_then_mov(out: *u8, ta: i32): i32 {
   }
 }
 
-// G-02f-209：ta 分派壳真迁 .x
+// backend_arch_emit_imul_rbx_rax: see function docblock below.
 #[no_mangle]
+/** Exported function `backend_arch_emit_imul_rbx_rax`.
+ * Implements `backend_arch_emit_imul_rbx_rax`.
+ * @param out *u8
+ * @param ta i32
+ * @return i32
+ */
 export function backend_arch_emit_imul_rbx_rax(out: *u8, ta: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  // See implementation.
   unsafe {
   if (ta == 1) { return arch_arm64_emit_imul_rbx_rax(out); }
   if (ta == 2) { return arch_riscv64_emit_imul_rbx_rax(out); }
@@ -283,10 +364,16 @@ export function backend_arch_emit_imul_rbx_rax(out: *u8, ta: i32): i32 {
   }
 }
 
-// G-02f-209：ta 分派壳真迁 .x
+// backend_arch_emit_mov_rax_to_rbx: see function docblock below.
 #[no_mangle]
+/** Exported function `backend_arch_emit_mov_rax_to_rbx`.
+ * Implements `backend_arch_emit_mov_rax_to_rbx`.
+ * @param out *u8
+ * @param ta i32
+ * @return i32
+ */
 export function backend_arch_emit_mov_rax_to_rbx(out: *u8, ta: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  // See implementation.
   unsafe {
   if (ta == 1) { return arch_arm64_emit_mov_rax_to_rbx(out); }
   if (ta == 2) { return arch_riscv64_emit_mov_rax_to_rbx(out); }
@@ -294,10 +381,17 @@ export function backend_arch_emit_mov_rax_to_rbx(out: *u8, ta: i32): i32 {
   }
 }
 
-// G-02f-209：ta 分派壳真迁 .x
+// backend_arch_emit_load_rbp_to_rax: see function docblock below.
 #[no_mangle]
+/** Exported function `backend_arch_emit_load_rbp_to_rax`.
+ * Implements `backend_arch_emit_load_rbp_to_rax`.
+ * @param out *u8
+ * @param off i32
+ * @param ta i32
+ * @return i32
+ */
 export function backend_arch_emit_load_rbp_to_rax(out: *u8, off: i32, ta: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  // See implementation.
   unsafe {
   if (ta == 1) { return arch_arm64_emit_load_rbp_to_rax(out, off); }
   if (ta == 2) { return arch_riscv64_emit_load_rbp_to_rax(out, off); }
@@ -305,10 +399,17 @@ export function backend_arch_emit_load_rbp_to_rax(out: *u8, off: i32, ta: i32): 
   }
 }
 
-// G-02f-209：ta 分派壳真迁 .x
+// backend_arch_emit_store_rax_to_rbp: see function docblock below.
 #[no_mangle]
+/** Exported function `backend_arch_emit_store_rax_to_rbp`.
+ * Implements `backend_arch_emit_store_rax_to_rbp`.
+ * @param out *u8
+ * @param off i32
+ * @param ta i32
+ * @return i32
+ */
 export function backend_arch_emit_store_rax_to_rbp(out: *u8, off: i32, ta: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  // See implementation.
   unsafe {
   if (ta == 1) { return arch_arm64_emit_store_rax_to_rbp(out, off); }
   if (ta == 2) { return arch_riscv64_emit_store_rax_to_rbp(out, off); }
@@ -316,10 +417,17 @@ export function backend_arch_emit_store_rax_to_rbp(out: *u8, off: i32, ta: i32):
   }
 }
 
-// G-02f-209：ta 分派壳真迁 .x
+// backend_arch_emit_lea_rbp_to_rax: see function docblock below.
 #[no_mangle]
+/** Exported function `backend_arch_emit_lea_rbp_to_rax`.
+ * Implements `backend_arch_emit_lea_rbp_to_rax`.
+ * @param out *u8
+ * @param off i32
+ * @param ta i32
+ * @return i32
+ */
 export function backend_arch_emit_lea_rbp_to_rax(out: *u8, off: i32, ta: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  // See implementation.
   unsafe {
   if (ta == 1) { return arch_arm64_emit_lea_rbp_to_rax(out, off); }
   if (ta == 2) { return arch_riscv64_emit_lea_rbp_to_rax(out, off); }
@@ -327,10 +435,16 @@ export function backend_arch_emit_lea_rbp_to_rax(out: *u8, off: i32, ta: i32): i
   }
 }
 
-// G-02f-209：ta 分派壳真迁 .x
+// backend_arch_emit_rax_plus_rbx_scale4: see function docblock below.
 #[no_mangle]
+/** Exported function `backend_arch_emit_rax_plus_rbx_scale4`.
+ * Implements `backend_arch_emit_rax_plus_rbx_scale4`.
+ * @param out *u8
+ * @param ta i32
+ * @return i32
+ */
 export function backend_arch_emit_rax_plus_rbx_scale4(out: *u8, ta: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  // See implementation.
   unsafe {
   if (ta == 1) { return arch_arm64_emit_rax_plus_rbx_scale4(out); }
   if (ta == 2) { return arch_riscv64_emit_rax_plus_rbx_scale4(out); }
@@ -338,10 +452,16 @@ export function backend_arch_emit_rax_plus_rbx_scale4(out: *u8, ta: i32): i32 {
   }
 }
 
-// G-02f-209：ta 分派壳真迁 .x
+// backend_arch_emit_rax_plus_rbx_scale1: see function docblock below.
 #[no_mangle]
+/** Exported function `backend_arch_emit_rax_plus_rbx_scale1`.
+ * Implements `backend_arch_emit_rax_plus_rbx_scale1`.
+ * @param out *u8
+ * @param ta i32
+ * @return i32
+ */
 export function backend_arch_emit_rax_plus_rbx_scale1(out: *u8, ta: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  // See implementation.
   unsafe {
   if (ta == 1) { return arch_arm64_emit_rax_plus_rbx_scale1(out); }
   if (ta == 2) { return arch_riscv64_emit_rax_plus_rbx_scale1(out); }
@@ -349,10 +469,16 @@ export function backend_arch_emit_rax_plus_rbx_scale1(out: *u8, ta: i32): i32 {
   }
 }
 
-// G-02f-209：ta 分派壳真迁 .x
+// backend_arch_emit_rax_plus_rbx_scale8: see function docblock below.
 #[no_mangle]
+/** Exported function `backend_arch_emit_rax_plus_rbx_scale8`.
+ * Implements `backend_arch_emit_rax_plus_rbx_scale8`.
+ * @param out *u8
+ * @param ta i32
+ * @return i32
+ */
 export function backend_arch_emit_rax_plus_rbx_scale8(out: *u8, ta: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  // See implementation.
   unsafe {
   if (ta == 1) { return arch_arm64_emit_rax_plus_rbx_scale8(out); }
   if (ta == 2) { return arch_riscv64_emit_rax_plus_rbx_scale8(out); }
@@ -360,10 +486,17 @@ export function backend_arch_emit_rax_plus_rbx_scale8(out: *u8, ta: i32): i32 {
   }
 }
 
-// G-02f-209：ta 分派壳真迁 .x
+// backend_arch_emit_store_rax_to_rbx_indirect: see function docblock below.
 #[no_mangle]
+/** Exported function `backend_arch_emit_store_rax_to_rbx_indirect`.
+ * Implements `backend_arch_emit_store_rax_to_rbx_indirect`.
+ * @param out *u8
+ * @param elem_sz i32
+ * @param ta i32
+ * @return i32
+ */
 export function backend_arch_emit_store_rax_to_rbx_indirect(out: *u8, elem_sz: i32, ta: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  // See implementation.
   unsafe {
   if (ta == 1) { return arch_arm64_emit_store_rax_to_rbx_indirect(out, elem_sz); }
   if (ta == 2) { return arch_riscv64_emit_store_rax_to_rbx_indirect(out, elem_sz); }
@@ -371,10 +504,16 @@ export function backend_arch_emit_store_rax_to_rbx_indirect(out: *u8, elem_sz: i
   }
 }
 
-// G-02f-209：ta 分派壳真迁 .x
+// backend_arch_emit_load_32_from_rax: see function docblock below.
 #[no_mangle]
+/** Exported function `backend_arch_emit_load_32_from_rax`.
+ * Implements `backend_arch_emit_load_32_from_rax`.
+ * @param out *u8
+ * @param ta i32
+ * @return i32
+ */
 export function backend_arch_emit_load_32_from_rax(out: *u8, ta: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  // See implementation.
   unsafe {
   if (ta == 1) { return arch_arm64_emit_load_32_from_rax(out); }
   if (ta == 2) { return arch_riscv64_emit_load_32_from_rax(out); }
@@ -382,10 +521,16 @@ export function backend_arch_emit_load_32_from_rax(out: *u8, ta: i32): i32 {
   }
 }
 
-// G-02f-209：ta 分派壳真迁 .x
+// backend_arch_emit_load_zext8_from_rax: see function docblock below.
 #[no_mangle]
+/** Exported function `backend_arch_emit_load_zext8_from_rax`.
+ * Implements `backend_arch_emit_load_zext8_from_rax`.
+ * @param out *u8
+ * @param ta i32
+ * @return i32
+ */
 export function backend_arch_emit_load_zext8_from_rax(out: *u8, ta: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  // See implementation.
   unsafe {
   if (ta == 1) { return arch_arm64_emit_load_zext8_from_rax(out); }
   if (ta == 2) { return arch_riscv64_emit_load_zext8_from_rax(out); }
@@ -393,10 +538,17 @@ export function backend_arch_emit_load_zext8_from_rax(out: *u8, ta: i32): i32 {
   }
 }
 
-// G-02f-209：ta 分派壳真迁 .x
+// backend_arch_emit_add_imm_to_rax: see function docblock below.
 #[no_mangle]
+/** Exported function `backend_arch_emit_add_imm_to_rax`.
+ * Implements `backend_arch_emit_add_imm_to_rax`.
+ * @param out *u8
+ * @param imm i32
+ * @param ta i32
+ * @return i32
+ */
 export function backend_arch_emit_add_imm_to_rax(out: *u8, imm: i32, ta: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  // See implementation.
   unsafe {
   if (ta == 1) { return arch_arm64_emit_add_imm_to_rax(out, imm); }
   if (ta == 2) { return arch_riscv64_emit_add_imm_to_rax(out, imm); }
@@ -404,10 +556,16 @@ export function backend_arch_emit_add_imm_to_rax(out: *u8, imm: i32, ta: i32): i
   }
 }
 
-// G-02f-209：ta 分派壳真迁 .x
+// backend_arch_emit_load_64_from_rax: see function docblock below.
 #[no_mangle]
+/** Exported function `backend_arch_emit_load_64_from_rax`.
+ * Implements `backend_arch_emit_load_64_from_rax`.
+ * @param out *u8
+ * @param ta i32
+ * @return i32
+ */
 export function backend_arch_emit_load_64_from_rax(out: *u8, ta: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  // See implementation.
   unsafe {
   if (ta == 1) { return arch_arm64_emit_load_64_from_rax(out); }
   if (ta == 2) { return arch_riscv64_emit_load_64_from_rax(out); }
@@ -415,10 +573,18 @@ export function backend_arch_emit_load_64_from_rax(out: *u8, ta: i32): i32 {
   }
 }
 
-// G-02f-209：ta 分派壳真迁 .x
+// backend_arch_emit_store_rax_to_rbx_offset: see function docblock below.
 #[no_mangle]
+/** Exported function `backend_arch_emit_store_rax_to_rbx_offset`.
+ * Implements `backend_arch_emit_store_rax_to_rbx_offset`.
+ * @param out *u8
+ * @param offset i32
+ * @param store_size i32
+ * @param ta i32
+ * @return i32
+ */
 export function backend_arch_emit_store_rax_to_rbx_offset(out: *u8, offset: i32, store_size: i32, ta: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  // See implementation.
   unsafe {
   if (ta == 1) { return arch_arm64_emit_store_rax_to_rbx_offset(out, offset, store_size); }
   if (ta == 2) { return arch_riscv64_emit_store_rax_to_rbx_offset(out, offset, store_size); }
@@ -426,10 +592,16 @@ export function backend_arch_emit_store_rax_to_rbx_offset(out: *u8, offset: i32,
   }
 }
 
-// G-02f-209：ta 分派壳真迁 .x
+// backend_arch_emit_mov_rbx_to_rax: see function docblock below.
 #[no_mangle]
+/** Exported function `backend_arch_emit_mov_rbx_to_rax`.
+ * Implements `backend_arch_emit_mov_rbx_to_rax`.
+ * @param out *u8
+ * @param ta i32
+ * @return i32
+ */
 export function backend_arch_emit_mov_rbx_to_rax(out: *u8, ta: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  // See implementation.
   unsafe {
   if (ta == 1) { return arch_arm64_emit_mov_rbx_to_rax(out); }
   if (ta == 2) { return arch_riscv64_emit_mov_rbx_to_rax(out); }
@@ -437,10 +609,17 @@ export function backend_arch_emit_mov_rbx_to_rax(out: *u8, ta: i32): i32 {
   }
 }
 
-// G-02f-209：ta 分派壳真迁 .x
+// backend_arch_emit_mov_rax_to_arg_reg: see function docblock below.
 #[no_mangle]
+/** Exported function `backend_arch_emit_mov_rax_to_arg_reg`.
+ * Implements `backend_arch_emit_mov_rax_to_arg_reg`.
+ * @param out *u8
+ * @param k i32
+ * @param ta i32
+ * @return i32
+ */
 export function backend_arch_emit_mov_rax_to_arg_reg(out: *u8, k: i32, ta: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  // See implementation.
   unsafe {
   if (ta == 1) { return 0; }
   if (ta == 2) { return arch_riscv64_emit_mov_rax_to_arg_reg(out, k); }
@@ -448,30 +627,52 @@ export function backend_arch_emit_mov_rax_to_arg_reg(out: *u8, k: i32, ta: i32):
   }
 }
 
-// G-02f-209：ta 分派壳真迁 .x
+// backend_arch_emit_ldr_sp_offset_to_wi: see function docblock below.
 #[no_mangle]
+/** Exported function `backend_arch_emit_ldr_sp_offset_to_wi`.
+ * Implements `backend_arch_emit_ldr_sp_offset_to_wi`.
+ * @param out *u8
+ * @param i i32
+ * @param ta i32
+ * @return i32
+ */
 export function backend_arch_emit_ldr_sp_offset_to_wi(out: *u8, i: i32, ta: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  // See implementation.
   unsafe {
   if (ta != 1) { return 0; }
   return arch_arm64_emit_ldr_sp_offset_to_wi(out, i);
   }
 }
 
-// G-02f-209：ta 分派壳真迁 .x
+// backend_arch_emit_add_sp_imm: see function docblock below.
 #[no_mangle]
+/** Exported function `backend_arch_emit_add_sp_imm`.
+ * Implements `backend_arch_emit_add_sp_imm`.
+ * @param out *u8
+ * @param n i32
+ * @param ta i32
+ * @return i32
+ */
 export function backend_arch_emit_add_sp_imm(out: *u8, n: i32, ta: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  // See implementation.
   unsafe {
   if (ta != 1) { return 0; }
   return arch_arm64_emit_add_sp_imm(out, n);
   }
 }
 
-// G-02f-209：ta 分派壳真迁 .x
+// backend_arch_emit_call: see function docblock below.
 #[no_mangle]
+/** Exported function `backend_arch_emit_call`.
+ * Implements `backend_arch_emit_call`.
+ * @param out *u8
+ * @param name *u8
+ * @param name_len i32
+ * @param ta i32
+ * @return i32
+ */
 export function backend_arch_emit_call(out: *u8, name: *u8, name_len: i32, ta: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  // See implementation.
   unsafe {
   if (ta == 1) { return arch_arm64_emit_call(out, name, name_len); }
   if (ta == 2) { return arch_riscv64_emit_call(out, name, name_len); }
@@ -479,10 +680,18 @@ export function backend_arch_emit_call(out: *u8, name: *u8, name_len: i32, ta: i
   }
 }
 
-// G-02f-209：ta 分派壳真迁 .x
+// backend_arch_emit_jz: see function docblock below.
 #[no_mangle]
+/** Exported function `backend_arch_emit_jz`.
+ * Implements `backend_arch_emit_jz`.
+ * @param out *u8
+ * @param label *u8
+ * @param label_len i32
+ * @param ta i32
+ * @return i32
+ */
 export function backend_arch_emit_jz(out: *u8, label: *u8, label_len: i32, ta: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  // See implementation.
   unsafe {
   if (ta == 1) { return arch_arm64_emit_jz(out, label, label_len); }
   if (ta == 2) { return arch_riscv64_emit_jz(out, label, label_len); }
@@ -490,10 +699,18 @@ export function backend_arch_emit_jz(out: *u8, label: *u8, label_len: i32, ta: i
   }
 }
 
-// G-02f-209：ta 分派壳真迁 .x
+// backend_arch_emit_jeq: see function docblock below.
 #[no_mangle]
+/** Exported function `backend_arch_emit_jeq`.
+ * Implements `backend_arch_emit_jeq`.
+ * @param out *u8
+ * @param label *u8
+ * @param label_len i32
+ * @param ta i32
+ * @return i32
+ */
 export function backend_arch_emit_jeq(out: *u8, label: *u8, label_len: i32, ta: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  // See implementation.
   unsafe {
   if (ta == 1) { return arch_arm64_emit_jeq(out, label, label_len); }
   if (ta == 2) { return arch_riscv64_emit_jeq(out, label, label_len); }
@@ -501,10 +718,18 @@ export function backend_arch_emit_jeq(out: *u8, label: *u8, label_len: i32, ta: 
   }
 }
 
-// G-02f-209：ta 分派壳真迁 .x
+// backend_arch_emit_jmp: see function docblock below.
 #[no_mangle]
+/** Exported function `backend_arch_emit_jmp`.
+ * Implements `backend_arch_emit_jmp`.
+ * @param out *u8
+ * @param label *u8
+ * @param label_len i32
+ * @param ta i32
+ * @return i32
+ */
 export function backend_arch_emit_jmp(out: *u8, label: *u8, label_len: i32, ta: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  // See implementation.
   unsafe {
   if (ta == 1) { return arch_arm64_emit_jmp(out, label, label_len); }
   if (ta == 2) { return arch_riscv64_emit_jmp(out, label, label_len); }
@@ -512,10 +737,18 @@ export function backend_arch_emit_jmp(out: *u8, label: *u8, label_len: i32, ta: 
   }
 }
 
-// G-02f-209：ta 分派壳真迁 .x
+// backend_arch_emit_jnz: see function docblock below.
 #[no_mangle]
+/** Exported function `backend_arch_emit_jnz`.
+ * Implements `backend_arch_emit_jnz`.
+ * @param out *u8
+ * @param label *u8
+ * @param label_len i32
+ * @param ta i32
+ * @return i32
+ */
 export function backend_arch_emit_jnz(out: *u8, label: *u8, label_len: i32, ta: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  // See implementation.
   unsafe {
   if (ta == 1) { return arch_arm64_emit_jnz(out, label, label_len); }
   if (ta == 2) { return arch_riscv64_emit_jnz(out, label, label_len); }
@@ -523,10 +756,16 @@ export function backend_arch_emit_jnz(out: *u8, label: *u8, label_len: i32, ta: 
   }
 }
 
-// G-02f-209：ta 分派壳真迁 .x
+// backend_arch_emit_not_eax: see function docblock below.
 #[no_mangle]
+/** Exported function `backend_arch_emit_not_eax`.
+ * Implements `backend_arch_emit_not_eax`.
+ * @param out *u8
+ * @param ta i32
+ * @return i32
+ */
 export function backend_arch_emit_not_eax(out: *u8, ta: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  // See implementation.
   unsafe {
   if (ta == 1) { return arch_arm64_emit_not_eax(out); }
   if (ta == 2) { return arch_riscv64_emit_not_eax(out); }
@@ -534,10 +773,16 @@ export function backend_arch_emit_not_eax(out: *u8, ta: i32): i32 {
   }
 }
 
-// G-02f-209：ta 分派壳真迁 .x
+// backend_arch_emit_and_rbx_rax: see function docblock below.
 #[no_mangle]
+/** Exported function `backend_arch_emit_and_rbx_rax`.
+ * Implements `backend_arch_emit_and_rbx_rax`.
+ * @param out *u8
+ * @param ta i32
+ * @return i32
+ */
 export function backend_arch_emit_and_rbx_rax(out: *u8, ta: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  // See implementation.
   unsafe {
   if (ta == 1) { return arch_arm64_emit_and_rbx_rax(out); }
   if (ta == 2) { return arch_riscv64_emit_and_rbx_rax(out); }
@@ -545,10 +790,16 @@ export function backend_arch_emit_and_rbx_rax(out: *u8, ta: i32): i32 {
   }
 }
 
-// G-02f-209：ta 分派壳真迁 .x
+// backend_arch_emit_or_rbx_rax: see function docblock below.
 #[no_mangle]
+/** Exported function `backend_arch_emit_or_rbx_rax`.
+ * Implements `backend_arch_emit_or_rbx_rax`.
+ * @param out *u8
+ * @param ta i32
+ * @return i32
+ */
 export function backend_arch_emit_or_rbx_rax(out: *u8, ta: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  // See implementation.
   unsafe {
   if (ta == 1) { return arch_arm64_emit_or_rbx_rax(out); }
   if (ta == 2) { return arch_riscv64_emit_or_rbx_rax(out); }
@@ -556,10 +807,16 @@ export function backend_arch_emit_or_rbx_rax(out: *u8, ta: i32): i32 {
   }
 }
 
-// G-02f-209：ta 分派壳真迁 .x
+// backend_arch_emit_xor_rbx_rax: see function docblock below.
 #[no_mangle]
+/** Exported function `backend_arch_emit_xor_rbx_rax`.
+ * Implements `backend_arch_emit_xor_rbx_rax`.
+ * @param out *u8
+ * @param ta i32
+ * @return i32
+ */
 export function backend_arch_emit_xor_rbx_rax(out: *u8, ta: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  // See implementation.
   unsafe {
   if (ta == 1) { return arch_arm64_emit_xor_rbx_rax(out); }
   if (ta == 2) { return arch_riscv64_emit_xor_rbx_rax(out); }
@@ -567,10 +824,16 @@ export function backend_arch_emit_xor_rbx_rax(out: *u8, ta: i32): i32 {
   }
 }
 
-// G-02f-209：ta 分派壳真迁 .x
+// backend_arch_emit_mov_rbx_to_ecx: see function docblock below.
 #[no_mangle]
+/** Exported function `backend_arch_emit_mov_rbx_to_ecx`.
+ * Implements `backend_arch_emit_mov_rbx_to_ecx`.
+ * @param out *u8
+ * @param ta i32
+ * @return i32
+ */
 export function backend_arch_emit_mov_rbx_to_ecx(out: *u8, ta: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  // See implementation.
   unsafe {
   if (ta == 1) { return 0; }
   if (ta == 2) { return arch_riscv64_emit_mov_rbx_to_ecx(out); }
@@ -578,10 +841,16 @@ export function backend_arch_emit_mov_rbx_to_ecx(out: *u8, ta: i32): i32 {
   }
 }
 
-// G-02f-209：ta 分派壳真迁 .x
+// backend_arch_emit_shl_cl_eax: see function docblock below.
 #[no_mangle]
+/** Exported function `backend_arch_emit_shl_cl_eax`.
+ * Implements `backend_arch_emit_shl_cl_eax`.
+ * @param out *u8
+ * @param ta i32
+ * @return i32
+ */
 export function backend_arch_emit_shl_cl_eax(out: *u8, ta: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  // See implementation.
   unsafe {
   if (ta == 1) { return arch_arm64_emit_shl_cl_eax(out); }
   if (ta == 2) { return arch_riscv64_emit_shl_cl_eax(out); }
@@ -589,10 +858,16 @@ export function backend_arch_emit_shl_cl_eax(out: *u8, ta: i32): i32 {
   }
 }
 
-// G-02f-209：ta 分派壳真迁 .x
+// backend_arch_emit_shr_cl_eax: see function docblock below.
 #[no_mangle]
+/** Exported function `backend_arch_emit_shr_cl_eax`.
+ * Implements `backend_arch_emit_shr_cl_eax`.
+ * @param out *u8
+ * @param ta i32
+ * @return i32
+ */
 export function backend_arch_emit_shr_cl_eax(out: *u8, ta: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  // See implementation.
   unsafe {
   if (ta == 1) { return arch_arm64_emit_shr_cl_eax(out); }
   if (ta == 2) { return arch_riscv64_emit_shr_cl_eax(out); }
@@ -600,10 +875,16 @@ export function backend_arch_emit_shr_cl_eax(out: *u8, ta: i32): i32 {
   }
 }
 
-// G-02f-209：ta 分派壳真迁 .x
+// backend_arch_emit_sar_cl_eax: see function docblock below.
 #[no_mangle]
+/** Exported function `backend_arch_emit_sar_cl_eax`.
+ * Implements `backend_arch_emit_sar_cl_eax`.
+ * @param out *u8
+ * @param ta i32
+ * @return i32
+ */
 export function backend_arch_emit_sar_cl_eax(out: *u8, ta: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  // See implementation.
   unsafe {
   if (ta == 1) { return arch_arm64_emit_sar_cl_eax(out); }
   if (ta == 2) { return arch_riscv64_emit_sar_cl_eax(out); }
@@ -611,10 +892,18 @@ export function backend_arch_emit_sar_cl_eax(out: *u8, ta: i32): i32 {
   }
 }
 
-// G-02f-209：ta 分派壳真迁 .x
+// backend_arch_emit_label: see function docblock below.
 #[no_mangle]
+/** Exported function `backend_arch_emit_label`.
+ * Implements `backend_arch_emit_label`.
+ * @param out *u8
+ * @param name *u8
+ * @param name_len i32
+ * @param ta i32
+ * @return i32
+ */
 export function backend_arch_emit_label(out: *u8, name: *u8, name_len: i32, ta: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  // See implementation.
   unsafe {
   if (ta == 1) { return arch_arm64_emit_label(out, name, name_len); }
   if (ta == 2) { return arch_riscv64_emit_label(out, name, name_len); }
@@ -622,10 +911,16 @@ export function backend_arch_emit_label(out: *u8, name: *u8, name_len: i32, ta: 
   }
 }
 
-// G-02f-209：ta 分派壳真迁 .x
+// backend_arch_emit_section_text: see function docblock below.
 #[no_mangle]
+/** Exported function `backend_arch_emit_section_text`.
+ * Implements `backend_arch_emit_section_text`.
+ * @param out *u8
+ * @param ta i32
+ * @return i32
+ */
 export function backend_arch_emit_section_text(out: *u8, ta: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  // See implementation.
   unsafe {
   if (ta == 1) { return arch_arm64_emit_section_text(out); }
   if (ta == 2) { return arch_riscv64_emit_section_text(out); }
@@ -633,10 +928,18 @@ export function backend_arch_emit_section_text(out: *u8, ta: i32): i32 {
   }
 }
 
-// G-02f-209：ta 分派壳真迁 .x
+// backend_arch_emit_globl: see function docblock below.
 #[no_mangle]
+/** Exported function `backend_arch_emit_globl`.
+ * Implements `backend_arch_emit_globl`.
+ * @param out *u8
+ * @param name *u8
+ * @param name_len i32
+ * @param ta i32
+ * @return i32
+ */
 export function backend_arch_emit_globl(out: *u8, name: *u8, name_len: i32, ta: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  // See implementation.
   unsafe {
   if (ta == 1) { return arch_arm64_emit_globl(out, name, name_len); }
   if (ta == 2) { return arch_riscv64_emit_globl(out, name, name_len); }
@@ -644,10 +947,17 @@ export function backend_arch_emit_globl(out: *u8, name: *u8, name_len: i32, ta: 
   }
 }
 
-// G-02f-209：ta 分派壳真迁 .x
+// backend_arch_emit_prologue: see function docblock below.
 #[no_mangle]
+/** Exported function `backend_arch_emit_prologue`.
+ * Implements `backend_arch_emit_prologue`.
+ * @param out *u8
+ * @param frame_sz i32
+ * @param ta i32
+ * @return i32
+ */
 export function backend_arch_emit_prologue(out: *u8, frame_sz: i32, ta: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  // See implementation.
   unsafe {
   if (ta == 1) { return arch_arm64_emit_prologue(out, frame_sz); }
   if (ta == 2) { return arch_riscv64_emit_prologue(out, frame_sz); }
@@ -655,10 +965,17 @@ export function backend_arch_emit_prologue(out: *u8, frame_sz: i32, ta: i32): i3
   }
 }
 
-// G-02f-209：ta 分派壳真迁 .x
+// backend_arch_emit_epilogue: see function docblock below.
 #[no_mangle]
+/** Exported function `backend_arch_emit_epilogue`.
+ * Implements `backend_arch_emit_epilogue`.
+ * @param out *u8
+ * @param frame_sz i32
+ * @param ta i32
+ * @return i32
+ */
 export function backend_arch_emit_epilogue(out: *u8, frame_sz: i32, ta: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0：extern 调用须 unsafe（Cap-T001 §0.25 commit3）。
+  // See implementation.
   unsafe {
   if (ta == 1) { return arch_arm64_emit_epilogue(out, frame_sz); }
   if (ta == 2) { return arch_riscv64_emit_epilogue(out, frame_sz); }

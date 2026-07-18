@@ -1,6 +1,10 @@
 // STD-014：Vec_u64 / Vec_f64 append_slice ↔ from_slice round-trip
 const vec = import("std.vec");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let src_u: u64[4] = [1 as u64, 2 as u64, 3 as u64, 4 as u64];
   let v64: Vec_u64 = vec.from_slice(src_u, 4);

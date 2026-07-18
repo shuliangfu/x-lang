@@ -1,24 +1,28 @@
-// 测试 std.env：env.getenv(key,len,out,cap)、getenv_exists、setenv、unsetenv、temp_dir
+// See implementation.
 //
-// 【文件职责】本文件为 std.env 的回归测试。
-// 【测试目的】确认 getenv、getenv_exists、setenv、unsetenv、temp_dir
-// 行为正确且不崩溃。
-// 【覆盖 API】getenv、getenv_exists、setenv、unsetenv、temp_dir、getenv_z、getenv_ptr。
-// 【预期结果】退出码 0 表示通过。
-// 【运行方式】bash tests/run-env.sh 或 ./tests/run-env.sh
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 const env = import("std.env");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
-  // key "PATH"（4 字节），用于可选测试：若不存在则跳过
+  // See implementation.
   let key_path: u8[8] = [80, 65, 84, 72, 0, 0, 0, 0];
   let buf: u8[256] = [];
   let n: i32 = env.getenv(&key_path[0], 4, &buf[0], 256);
   if (n < 0 && env.getenv_exists(&key_path[0], 4) == 0) {
-    // PATH 在某些环境可能不存在，跳过
+    // See implementation.
   }
-  // PATH 存在时 n >= 0（可能大于 buf 容量，表示截断但成功）
+  // See implementation.
   
-  // temp_dir：应成功并返回非负长度
+  // See implementation.
   let tmp: u8[64] = [];
   let td: i32 = env.temp_dir(&tmp[0], 64);
   if (td < 0) {
@@ -28,7 +32,7 @@ function main(): i32 {
     return 11;
   }
   
-  // env.setenv("X_E", "v", 1)：设置后应存在，且 getenv 可取值
+  // See implementation.
   let name: u8[4] = [88, 95, 69, 0];
   let val: u8[4] = [118, 0, 0, 0];
   if (env.setenv(&name[0], &val[0], 1) != 0) {
@@ -45,7 +49,7 @@ function main(): i32 {
   if (out_val[0] != 118) {
     return 7;
   }
-  // 零拷贝 getenv_z：name 为 NUL 结尾 "X_E"，应返回 value 指针且 len==1、*ptr=='v'
+  // See implementation.
   let len: i32 = 0;
   let p: *u8 = env.getenv_z(&name[0], &len);
   if (p == 0) {
@@ -58,7 +62,7 @@ function main(): i32 {
     return 13;
   }
   
-  // env.unsetenv("X_E")：删除后应不存在，getenv 返回 -1
+  // See implementation.
   if (env.unsetenv(&name[0]) != 0) {
     return 4;
   }
@@ -69,7 +73,7 @@ function main(): i32 {
   if (got2 != -1) {
     return 8;
   }
-  // unset 后 getenv_z 应返回 0
+  // See implementation.
   let q: *u8 = env.getenv_z(&name[0], &len);
   if (q != 0) {
     return 14;

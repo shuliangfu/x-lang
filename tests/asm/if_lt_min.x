@@ -1,4 +1,8 @@
-// 最小复现：if (a < b) 未置 i=1（run-asm-binop-var #38）。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: i32 = 10;
   let b: i32 = 20;

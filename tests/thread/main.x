@@ -1,6 +1,10 @@
-// 测试 std.thread：thread.id、thread.create(dummy_entry)、thread.join
+// See implementation.
 const thread = import("std.thread");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let main_id: i64 = thread.id();
   if (main_id == 0) { return 1; }

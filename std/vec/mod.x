@@ -14,38 +14,51 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.vec — 动态数组 Vec（对标 Zig ArrayList、Rust Vec、Go slice+append）
+// See implementation.
 //
-// 【文件职责】
-// 基于 std.heap 的可增长数组：Vec_i32、Vec_u8，提供
+// See implementation.
+// See implementation.
 // new/with_capacity、push/pop、get/len/capacity、
 // clear/truncate/reserve、append_slice/from_slice、is_empty、ptr、deinit。
-// DOD-S2：Vec3f_soa（默认三列 SoA）与 Vec3f_aos（opt-in 交错 AoS）。
+// See implementation.
 //
-// 【对标】
+// See implementation.
 // Zig: std.ArrayList(T) — init/deinit、append、appendSlice、items、len、capacity、clear；
 // Rust: Vec —
 // new/with_capacity、push/pop、get/len/capacity、clear/truncate/reserve、extend_from_slice；
 // Go: append(slice, ...)、len、cap。
 const heap = import("std.heap");
-/** 默认初始容量（元素个数）；首次 push 时若 cap==0 则分配此大小。设为 8
-* 减少首次扩容次数。 */
+/** Exported function `default_cap`.
+ * Implements `default_cap`.
+ * @return i32
+ */
 export function default_cap(): i32 { return 8; }
-/** append_slice/from_slice 走 C memcpy 的阈值；≥ 此值时用块拷贝。 */
+/** Exported function `copy_threshold`.
+ * Implements `copy_threshold`.
+ * @return i32
+ */
 export function copy_threshold(): i32 { return 8; }
 // ——— Vec_i32 ———
-/** 动态数组：堆分配 *i32 + len + cap + al；调用方须在不用时调用 vec_i32_deinit。 */
+/* See implementation. */
 allow(padding) struct Vec_i32 {
   ptr: *i32;
   len: i32;
   cap: i32;
   al: heap.Allocator;
 }
-/** 新建空 Vec_i32（ptr 为 null，cap 0，al 为 default_allocator）；首次 push 时分配。 */
+/** Exported function `new`.
+ * Implements `new`.
+ * @return Vec_i32
+ */
 export function new(): Vec_i32 {
   return Vec_i32 { ptr: 0, len: 0, cap: 0, al: heap.default_alloc() };
 }
-/** 预分配容量 capacity；按 v.al 分配；失败时 cap 置 0 并返回 -1，成功返回 0。 */
+/** Exported function `with_capacity`.
+ * Implements `with_capacity`.
+ * @param v *Vec_i32
+ * @param capacity i32
+ * @return i32
+ */
 export function with_capacity(v: *Vec_i32, capacity: i32): i32 {
   if (capacity <= 0) {
     v.ptr = 0;
@@ -58,7 +71,7 @@ export function with_capacity(v: *Vec_i32, capacity: i32): i32 {
     v.cap = 0;
     return -1;
   }
-  /* 根块末条须为 if/return，勿以赋值作 stmt_order 末条（隐式尾返回误判）。 */
+  /* See implementation. */
   if (0 == 0) {
     v.ptr = pu as *i32;
     v.cap = capacity;
@@ -67,8 +80,11 @@ export function with_capacity(v: *Vec_i32, capacity: i32): i32 {
   }
   return -1;
 }
-/** 确保至少能再放 1 个元素；不足则扩容（2 倍或 default_capacity）；按 v.al 分配/扩容。
-* arena 仅支持首次 bump，已有 ptr 时扩容返回 -1（AL-05）。 */
+/** Exported function `reserve`.
+ * Implements `reserve`.
+ * @param v *Vec_i32
+ * @return i32
+ */
 export function reserve(v: *Vec_i32): i32 {
   if (v.len < v.cap) { return 0; }
   let want: i32 = if (v.cap <= 0) { 8 } else { v.cap * 2 };
@@ -90,13 +106,18 @@ export function reserve(v: *Vec_i32): i32 {
   }
   return -1;
 }
-/** 追加元素 x；成功返回 0，分配失败返回 -1。 */
+/** Exported function `push`.
+ * Implements `push`.
+ * @param v *Vec_i32
+ * @param x i32
+ * @return i32
+ */
 export function push(v: *Vec_i32, x: i32): i32 {
   /*
-  * 须满足非 void 函数体 stmt_order 末条不能落在「赋值」上（否则 .x typeck
-  * * * * 将末条 expr 当隐式尾返回）；
-  * * * * * 用 if/else 使根块末条为 if（kind 5），与「先 if 再顺序赋值再
-  return」的解析顺序区分。
+  * See implementation.
+  * See implementation.
+  * See implementation.
+   * See implementation.
   */
   if (reserve(v) != 0) {
     return -1;
@@ -106,7 +127,13 @@ export function push(v: *Vec_i32, x: i32): i32 {
     return 0;
   }
 }
-/** MEM-C1 单态化：with_arena 热路径直接 arena64_alloc，无 allocator_alloc kind 分支。 */
+/** Exported function `push`.
+ * Implements `push`.
+ * @param v *Vec_i32
+ * @param x i32
+ * @param arena *heap.Arena64
+ * @return i32
+ */
 export function push(v: *Vec_i32, x: i32, arena: *heap.Arena64): i32 {
   if (v.len >= v.cap) {
     let want: i32 = if (v.cap <= 0) { 8 } else { v.cap * 2 };
@@ -124,9 +151,13 @@ export function push(v: *Vec_i32, x: i32, arena: *heap.Arena64): i32 {
   v.len = v.len + 1;
   return 0;
 }
-/** 移除并返回最后一个元素；空 vec 未定义。 */
+/** Exported function `pop`.
+ * Implements `pop`.
+ * @param v *Vec_i32
+ * @return i32
+ */
 export function pop(v: *Vec_i32): i32 {
-  /* 根块仅含单个 if，避免末条 expr_stmt 被误判为隐式尾返回（见
+  /* See implementation. */
   push）。 */
   if (0 == 0) {
     v.len = v.len - 1;
@@ -134,26 +165,63 @@ export function pop(v: *Vec_i32): i32 {
   }
   return 0;
 }
-/** 长度（元素个数）。 */
+/** Exported function `len`.
+ * Implements `len`.
+ * @param v Vec_i32
+ * @return i32
+ */
 export function len(v: Vec_i32): i32 { return v.len; }
-/** 容量（可容纳元素个数，不含 realloc）。 */
+/** Exported function `capacity`.
+ * Implements `capacity`.
+ * @param v Vec_i32
+ * @return i32
+ */
 export function capacity(v: Vec_i32): i32 { return v.cap; }
-/** 取第 i 个元素；i 越界未定义。 */
+/** Exported function `get`.
+ * Implements `get`.
+ * @param v Vec_i32
+ * @param i i32
+ * @return i32
+ */
 export function get(v: Vec_i32, i: i32): i32 { return v.ptr[i]; }
-/** 写第 i 个元素为 x；i 越界未定义。 */
+/** Exported function `set`.
+ * Implements `set`.
+ * @param v *Vec_i32
+ * @param i i32
+ * @param x i32
+ * @return void
+ */
 export function set(v: *Vec_i32, i: i32, x: i32): void { v.ptr[i] = x; }
-/** 是否为空（len==0）。返回 1 是，0 否。 */
+/** Exported function `is_empty`.
+ * Query helper `is_empty`.
+ * @param v Vec_i32
+ * @return i32
+ */
 export function is_empty(v: Vec_i32): i32 {
   if (v.len <= 0) { return 1; }
   return 0;
 }
-/** 清空长度，不释放内存。 */
+/** Exported function `clear`.
+ * Implements `clear`.
+ * @param v *Vec_i32
+ * @return void
+ */
 export function clear(v: *Vec_i32): void { v.len = 0; }
-/** 截断到 new_len；new_len > len 无操作。 */
+/** Exported function `truncate`.
+ * Implements `truncate`.
+ * @param v *Vec_i32
+ * @param new_len i32
+ * @return void
+ */
 export function truncate(v: *Vec_i32, new_len: i32): void {
   if (new_len < v.len) { v.len = new_len; }
 }
-/** 确保容量至少为 new_cap；按 v.al realloc；arena 已有 ptr 时扩容返回 -1。 */
+/** Exported function `reserve`.
+ * Implements `reserve`.
+ * @param v *Vec_i32
+ * @param new_cap i32
+ * @return i32
+ */
 export function reserve(v: *Vec_i32, new_cap: i32): i32 {
   if (new_cap <= v.cap) { return 0; }
   if (v.al.kind == heap.kind_arena() && v.ptr != 0) { return -1; }
@@ -173,8 +241,13 @@ export function reserve(v: *Vec_i32, new_cap: i32): i32 {
   }
   return -1;
 }
-/** 追加切片 ptr[0..n-1]；失败返回 -1，成功返回 0。≥8 元素走 C memcpy
-* 快路径。 */
+/** Exported function `extend`.
+ * Implements `extend`.
+ * @param v *Vec_i32
+ * @param ptr *i32
+ * @param n i32
+ * @return i32
+ */
 export function extend(v: *Vec_i32, ptr: *i32, n: i32): i32 {
   if (n <= 0) { return 0; }
   if (reserve(v, v.len + n) != 0) { return -1; }
@@ -184,8 +257,12 @@ export function extend(v: *Vec_i32, ptr: *i32, n: i32): i32 {
     return 0;
   }
 }
-/** 从切片 ptr[0..n-1] 拷贝构造新 Vec_i32；失败时返回 len=-1 的 vec。≥8 元素走
-* C memcpy 快路径。 */
+/** Exported function `from_slice`.
+ * Implements `from_slice`.
+ * @param ptr *i32
+ * @param n i32
+ * @return Vec_i32
+ */
 export function from_slice(ptr: *i32, n: i32): Vec_i32 {
   let v: Vec_i32 = new();
   if (n <= 0) { return v; }
@@ -197,9 +274,17 @@ export function from_slice(ptr: *i32, n: i32): Vec_i32 {
   }
   return Vec_i32 { ptr: 0, len: 0, cap: 0, al: heap.default_alloc() };
 }
-/** 零拷贝：返回内部缓冲首指针；与 len 组合即 (ptr, len)。 */
+/** Exported function `ptr`.
+ * Implements `ptr`.
+ * @param v Vec_i32
+ * @return *i32
+ */
 export function ptr(v: Vec_i32): *i32 { return v.ptr; }
-/** 释放堆内存并将 ptr 置为 null、len/cap 置 0；按 v.al 释放。 */
+/** Exported function `deinit`.
+ * Implements `deinit`.
+ * @param v *Vec_i32
+ * @return void
+ */
 export function deinit(v: *Vec_i32): void {
   if (v.ptr != 0) {
     heap.free(v.al, v.ptr as *u8);
@@ -209,18 +294,26 @@ export function deinit(v: *Vec_i32): void {
   v.cap = 0;
 }
 // ——— Vec_u8 ———
-/** 动态字节数组：堆/Arena 分配 *u8 + len + cap + al；调用方须在不用时调用 vec_u8_deinit。 */
+/* See implementation. */
 allow(padding) struct Vec_u8 {
   ptr: *u8;
   len: i32;
   cap: i32;
   al: heap.Allocator;
 }
-/** 新建空 Vec_u8；al 为 default_allocator（with_arena 内为 scope）。 */
+/** Exported function `new`.
+ * Implements `new`.
+ * @return Vec_u8
+ */
 export function new(): Vec_u8 {
   return Vec_u8 { ptr: 0, len: 0, cap: 0, al: heap.default_alloc() };
 }
-/** 预分配容量 capacity；按 v.al 分配；失败时 cap 置 0 并返回 -1。 */
+/** Exported function `with_capacity`.
+ * Implements `with_capacity`.
+ * @param v *Vec_u8
+ * @param capacity i32
+ * @return i32
+ */
 export function with_capacity(v: *Vec_u8, capacity: i32): i32 {
   if (capacity <= 0) {
     v.ptr = 0;
@@ -240,7 +333,11 @@ export function with_capacity(v: *Vec_u8, capacity: i32): i32 {
   }
   return -1;
 }
-/** 按 v.al 扩容预留 1 个元素；arena 已有 ptr 时不可 realloc（AL-05）。 */
+/** Exported function `reserve`.
+ * Implements `reserve`.
+ * @param v *Vec_u8
+ * @return i32
+ */
 export function reserve(v: *Vec_u8): i32 {
   if (v.len < v.cap) { return 0; }
   let want: i32 = if (v.cap <= 0) { 8 } else { v.cap * 2 };
@@ -261,8 +358,14 @@ export function reserve(v: *Vec_u8): i32 {
   }
   return -1;
 }
+/** Exported function `push`.
+ * Implements `push`.
+ * @param v *Vec_u8
+ * @param x u8
+ * @return i32
+ */
 export function push(v: *Vec_u8, x: u8): i32 {
-  /* 同 push：根块末条须避免「赋值」作隐式尾返回判定。 */
+  /* See implementation. */
   if (reserve(v) != 0) {
     return -1;
   } else {
@@ -271,7 +374,13 @@ export function push(v: *Vec_u8, x: u8): i32 {
     return 0;
   }
 }
-/** MEM-C1 单态化：with_arena 热路径直接 arena64_alloc，无 allocator_alloc kind 分支。 */
+/** Exported function `push`.
+ * Implements `push`.
+ * @param v *Vec_u8
+ * @param x u8
+ * @param arena *heap.Arena64
+ * @return i32
+ */
 export function push(v: *Vec_u8, x: u8, arena: *heap.Arena64): i32 {
   if (v.len >= v.cap) {
     let want: i32 = if (v.cap <= 0) { 8 } else { v.cap * 2 };
@@ -289,6 +398,11 @@ export function push(v: *Vec_u8, x: u8, arena: *heap.Arena64): i32 {
   v.len = v.len + 1;
   return 0;
 }
+/** Exported function `pop`.
+ * Implements `pop`.
+ * @param v *Vec_u8
+ * @return u8
+ */
 export function pop(v: *Vec_u8): u8 {
   if (0 == 0) {
     v.len = v.len - 1;
@@ -296,20 +410,69 @@ export function pop(v: *Vec_u8): u8 {
   }
   return 0 as u8;
 }
+/** Exported function `len`.
+ * Implements `len`.
+ * @param v Vec_u8
+ * @return i32
+ */
 export function len(v: Vec_u8): i32 { return v.len; }
-/** 热路径：指针取长，避免按值传 Vec_u8 结构体。 */
+/** Exported function `len_ptr`.
+ * Implements `len_ptr`.
+ * @param v *Vec_u8
+ * @return i32
+ */
 export function len_ptr(v: *Vec_u8): i32 { return v.len; }
+/** Exported function `capacity`.
+ * Implements `capacity`.
+ * @param v Vec_u8
+ * @return i32
+ */
 export function capacity(v: Vec_u8): i32 { return v.cap; }
+/** Exported function `get`.
+ * Implements `get`.
+ * @param v Vec_u8
+ * @param i i32
+ * @return u8
+ */
 export function get(v: Vec_u8, i: i32): u8 { return 0 as u8; }
+/** Exported function `set`.
+ * Implements `set`.
+ * @param v *Vec_u8
+ * @param i i32
+ * @param x u8
+ * @return void
+ */
 export function set(v: *Vec_u8, i: i32, x: u8): void { v.ptr[i] = x; }
+/** Exported function `is_empty`.
+ * Query helper `is_empty`.
+ * @param v Vec_u8
+ * @return i32
+ */
 export function is_empty(v: Vec_u8): i32 {
   if (v.len <= 0) { return 1; }
   return 0;
 }
+/** Exported function `clear`.
+ * Implements `clear`.
+ * @param v *Vec_u8
+ * @return void
+ */
 export function clear(v: *Vec_u8): void { v.len = 0; }
+/** Exported function `truncate`.
+ * Implements `truncate`.
+ * @param v *Vec_u8
+ * @param new_len i32
+ * @return void
+ */
 export function truncate(v: *Vec_u8, new_len: i32): void {
   if (new_len < v.len) { v.len = new_len; }
 }
+/** Exported function `reserve`.
+ * Implements `reserve`.
+ * @param v *Vec_u8
+ * @param new_cap i32
+ * @return i32
+ */
 export function reserve(v: *Vec_u8, new_cap: i32): i32 {
   if (new_cap <= v.cap) { return 0; }
   if (v.al.kind == heap.kind_arena() && v.ptr != 0) { return -1; }
@@ -328,6 +491,13 @@ export function reserve(v: *Vec_u8, new_cap: i32): i32 {
   }
   return -1;
 }
+/** Exported function `extend`.
+ * Implements `extend`.
+ * @param v *Vec_u8
+ * @param ptr *u8
+ * @param n i32
+ * @return i32
+ */
 export function extend(v: *Vec_u8, ptr: *u8, n: i32): i32 {
   if (n <= 0) { return 0; }
   if (reserve(v, v.len + n) != 0) { return -1; }
@@ -337,6 +507,12 @@ export function extend(v: *Vec_u8, ptr: *u8, n: i32): i32 {
     return 0;
   }
 }
+/** Exported function `from_slice`.
+ * Implements `from_slice`.
+ * @param ptr *u8
+ * @param n i32
+ * @return Vec_u8
+ */
 export function from_slice(ptr: *u8, n: i32): Vec_u8 {
   let v: Vec_u8 = new();
   if (n <= 0) { return v; }
@@ -348,7 +524,17 @@ export function from_slice(ptr: *u8, n: i32): Vec_u8 {
   }
   return Vec_u8 { ptr: 0, len: 0, cap: 0, al: heap.default_alloc() };
 }
+/** Exported function `ptr`.
+ * Implements `ptr`.
+ * @param v Vec_u8
+ * @return *u8
+ */
 export function ptr(v: Vec_u8): *u8 { return v.ptr; }
+/** Exported function `deinit`.
+ * Implements `deinit`.
+ * @param v *Vec_u8
+ * @return void
+ */
 export function deinit(v: *Vec_u8): void {
   if (v.ptr != 0) {
     heap.free(v.al, v.ptr);
@@ -358,25 +544,47 @@ export function deinit(v: *Vec_u8): void {
   v.cap = 0;
 }
 
-/** STD-112：按 Allocator 预分配 capacity；写入 v.al 并分配；失败 -1。 */
+/** Exported function `with_alloc`.
+ * Memory management helper `with_alloc`.
+ * @param v *Vec_u8
+ * @param al heap.Allocator
+ * @param capacity i32
+ * @return i32
+ */
 export function with_alloc(v: *Vec_u8, al: heap.Allocator, capacity: i32): i32 {
   v.al = al;
   return with_capacity(v, capacity);
 }
 
-/** STD-112：按 Allocator 扩容预留 1 个元素；临时覆盖 v.al 后委托 reserve_one。 */
+/** Exported function `reserve_one`.
+ * Implements `reserve_one`.
+ * @param v *Vec_u8
+ * @param al heap.Allocator
+ * @return i32
+ */
 export function reserve_one(v: *Vec_u8, al: heap.Allocator): i32 {
   v.al = al;
   return reserve(v);
 }
 
-/** STD-112：按 Allocator 追加元素；设置 v.al 后委托 push。 */
+/** Exported function `push`.
+ * Implements `push`.
+ * @param v *Vec_u8
+ * @param al heap.Allocator
+ * @param x u8
+ * @return i32
+ */
 export function push(v: *Vec_u8, al: heap.Allocator, x: u8): i32 {
   v.al = al;
   return push(v, x);
 }
 
-/** STD-112：按 Allocator 释放；arena 路径为 no-op。 */
+/** Exported function `deinit`.
+ * Implements `deinit`.
+ * @param v *Vec_u8
+ * @param al heap.Allocator
+ * @return void
+ */
 export function deinit(v: *Vec_u8, al: heap.Allocator): void {
   if (v.ptr != 0) {
     heap.free(al, v.ptr);
@@ -387,19 +595,26 @@ export function deinit(v: *Vec_u8, al: heap.Allocator): void {
 }
 
 // ——— Vec_u16（STD-161） ———
-/** u16 动态数组。 */
+/* See implementation. */
 allow(padding) struct Vec_u16 {
   ptr: *u16;
   len: i32;
   cap: i32;
 }
 
-/** 新建空 Vec_u16。 */
+/** Exported function `new`.
+ * Implements `new`.
+ * @return Vec_u16
+ */
 export function new(): Vec_u16 {
   return Vec_u16 { ptr: 0, len: 0, cap: 0 };
 }
 
-/** Vec_u16 扩容预留 1 个元素；失败 -1。 */
+/** Exported function `reserve`.
+ * Implements `reserve`.
+ * @param v *Vec_u16
+ * @return i32
+ */
 export function reserve(v: *Vec_u16): i32 {
   if (v.len < v.cap) { return 0; }
   let want: i32 = if (v.cap <= 0) { 8 } else { v.cap * 2 };
@@ -411,7 +626,12 @@ export function reserve(v: *Vec_u16): i32 {
   return 0;
 }
 
-/** 追加 u16；失败 -1。 */
+/** Exported function `push`.
+ * Implements `push`.
+ * @param v *Vec_u16
+ * @param x u16
+ * @return i32
+ */
 export function push(v: *Vec_u16, x: u16): i32 {
   if (reserve(v) != 0) { return -1; }
   v.ptr[v.len] = x;
@@ -419,13 +639,26 @@ export function push(v: *Vec_u16, x: u16): i32 {
   return 0;
 }
 
-/** Vec_u16 长度。 */
+/** Exported function `len`.
+ * Implements `len`.
+ * @param v Vec_u16
+ * @return i32
+ */
 export function len(v: Vec_u16): i32 { return v.len; }
 
-/** 取第 i 个 u16。 */
+/** Exported function `get`.
+ * Implements `get`.
+ * @param v Vec_u16
+ * @param i i32
+ * @return u16
+ */
 export function get(v: Vec_u16, i: i32): u16 { return v.ptr[i]; }
 
-/** 释放 Vec_u16。 */
+/** Exported function `deinit`.
+ * Implements `deinit`.
+ * @param v *Vec_u16
+ * @return void
+ */
 export function deinit(v: *Vec_u16): void {
   if (v.ptr != 0) { heap.free(v.ptr as *u8); v.ptr = 0; }
   v.len = 0;
@@ -434,19 +667,27 @@ export function deinit(v: *Vec_u16): void {
 
 // ——— Vec_u64（STD-014） ———
 
-/** u64 动态数组；堆经 alloc_u64。 */
+/* See implementation. */
 allow(padding) struct Vec_u64 {
   ptr: *u64;
   len: i32;
   cap: i32;
 }
 
-/** 新建空 Vec_u64。 */
+/** Exported function `new`.
+ * Implements `new`.
+ * @return Vec_u64
+ */
 export function new(): Vec_u64 {
   return Vec_u64 { ptr: 0, len: 0, cap: 0 };
 }
 
-/** 预分配 capacity；失败 -1。 */
+/** Exported function `with_capacity`.
+ * Implements `with_capacity`.
+ * @param v *Vec_u64
+ * @param capacity i32
+ * @return i32
+ */
 export function with_capacity(v: *Vec_u64, capacity: i32): i32 {
   if (capacity <= 0) {
     v.ptr = 0;
@@ -467,7 +708,11 @@ export function with_capacity(v: *Vec_u64, capacity: i32): i32 {
   return -1;
 }
 
-/** 扩容预留 1 个 u64；失败 -1。 */
+/** Exported function `reserve_one`.
+ * Implements `reserve_one`.
+ * @param v *Vec_u64
+ * @return i32
+ */
 export function reserve_one(v: *Vec_u64): i32 {
   if (v.len < v.cap) { return 0; }
   let want: i32 = if (v.cap <= 0) { 8 } else { v.cap * 2 };
@@ -482,7 +727,12 @@ export function reserve_one(v: *Vec_u64): i32 {
   return -1;
 }
 
-/** 确保容量至少 new_cap；失败 -1。 */
+/** Exported function `reserve`.
+ * Implements `reserve`.
+ * @param v *Vec_u64
+ * @param new_cap i32
+ * @return i32
+ */
 export function reserve(v: *Vec_u64, new_cap: i32): i32 {
   if (new_cap <= v.cap) { return 0; }
   let p: *u64 = if (v.ptr == 0) { heap.alloc(new_cap) } else { heap.realloc(v.ptr, new_cap) };
@@ -495,7 +745,13 @@ export function reserve(v: *Vec_u64, new_cap: i32): i32 {
   return -1;
 }
 
-/** 追加 u64 切片；失败 -1。 */
+/** Exported function `extend`.
+ * Implements `extend`.
+ * @param v *Vec_u64
+ * @param ptr *u64
+ * @param n i32
+ * @return i32
+ */
 export function extend(v: *Vec_u64, ptr: *u64, n: i32): i32 {
   if (n <= 0) { return 0; }
   if (reserve(v, v.len + n) != 0) { return -1; }
@@ -507,7 +763,12 @@ export function extend(v: *Vec_u64, ptr: *u64, n: i32): i32 {
   return -1;
 }
 
-/** 从 u64 切片构造 Vec_u64；失败 len=-1。 */
+/** Exported function `from_slice`.
+ * Implements `from_slice`.
+ * @param ptr *u64
+ * @param n i32
+ * @return Vec_u64
+ */
 export function from_slice(ptr: *u64, n: i32): Vec_u64 {
   let v: Vec_u64 = new();
   if (n <= 0) { return v; }
@@ -520,13 +781,26 @@ export function from_slice(ptr: *u64, n: i32): Vec_u64 {
   return Vec_u64 { ptr: 0, len: 0, cap: 0 };
 }
 
-/** Vec_u64 长度。 */
+/** Exported function `len`.
+ * Implements `len`.
+ * @param v Vec_u64
+ * @return i32
+ */
 export function len(v: Vec_u64): i32 { return v.len; }
 
-/** 取第 i 个 u64。 */
+/** Exported function `get`.
+ * Implements `get`.
+ * @param v Vec_u64
+ * @param i i32
+ * @return u64
+ */
 export function get(v: Vec_u64, i: i32): u64 { return v.ptr[i]; }
 
-/** 释放 Vec_u64。 */
+/** Exported function `deinit`.
+ * Implements `deinit`.
+ * @param v *Vec_u64
+ * @return void
+ */
 export function deinit(v: *Vec_u64): void {
   if (v.ptr != 0) { heap.free(v.ptr); v.ptr = 0; }
   v.len = 0;
@@ -535,19 +809,27 @@ export function deinit(v: *Vec_u64): void {
 
 // ——— Vec_f64（STD-014） ———
 
-/** f64 动态数组；堆经 alloc_f64。 */
+/* See implementation. */
 allow(padding) struct Vec_f64 {
   ptr: *f64;
   len: i32;
   cap: i32;
 }
 
-/** 新建空 Vec_f64。 */
+/** Exported function `new`.
+ * Implements `new`.
+ * @return Vec_f64
+ */
 export function new(): Vec_f64 {
   return Vec_f64 { ptr: 0, len: 0, cap: 0 };
 }
 
-/** 预分配 capacity；失败 -1。 */
+/** Exported function `with_capacity`.
+ * Implements `with_capacity`.
+ * @param v *Vec_f64
+ * @param capacity i32
+ * @return i32
+ */
 export function with_capacity(v: *Vec_f64, capacity: i32): i32 {
   if (capacity <= 0) {
     v.ptr = 0;
@@ -568,7 +850,11 @@ export function with_capacity(v: *Vec_f64, capacity: i32): i32 {
   return -1;
 }
 
-/** 扩容预留 1 个 f64；失败 -1。 */
+/** Exported function `reserve_one`.
+ * Implements `reserve_one`.
+ * @param v *Vec_f64
+ * @return i32
+ */
 export function reserve_one(v: *Vec_f64): i32 {
   if (v.len < v.cap) { return 0; }
   let want: i32 = if (v.cap <= 0) { 8 } else { v.cap * 2 };
@@ -583,7 +869,12 @@ export function reserve_one(v: *Vec_f64): i32 {
   return -1;
 }
 
-/** 确保容量至少 new_cap；失败 -1。 */
+/** Exported function `reserve`.
+ * Implements `reserve`.
+ * @param v *Vec_f64
+ * @param new_cap i32
+ * @return i32
+ */
 export function reserve(v: *Vec_f64, new_cap: i32): i32 {
   if (new_cap <= v.cap) { return 0; }
   let p: *f64 = if (v.ptr == 0) { heap.alloc(new_cap) } else { heap.realloc(v.ptr, new_cap) };
@@ -596,7 +887,13 @@ export function reserve(v: *Vec_f64, new_cap: i32): i32 {
   return -1;
 }
 
-/** 追加 f64 切片；失败 -1。 */
+/** Exported function `extend`.
+ * Implements `extend`.
+ * @param v *Vec_f64
+ * @param ptr *f64
+ * @param n i32
+ * @return i32
+ */
 export function extend(v: *Vec_f64, ptr: *f64, n: i32): i32 {
   if (n <= 0) { return 0; }
   if (reserve(v, v.len + n) != 0) { return -1; }
@@ -608,7 +905,12 @@ export function extend(v: *Vec_f64, ptr: *f64, n: i32): i32 {
   return -1;
 }
 
-/** 从 f64 切片构造 Vec_f64；失败 len=-1。 */
+/** Exported function `from_slice`.
+ * Implements `from_slice`.
+ * @param ptr *f64
+ * @param n i32
+ * @return Vec_f64
+ */
 export function from_slice(ptr: *f64, n: i32): Vec_f64 {
   let v: Vec_f64 = new();
   if (n <= 0) { return v; }
@@ -621,21 +923,34 @@ export function from_slice(ptr: *f64, n: i32): Vec_f64 {
   return Vec_f64 { ptr: 0, len: 0, cap: 0 };
 }
 
-/** Vec_f64 长度。 */
+/** Exported function `len`.
+ * Implements `len`.
+ * @param v Vec_f64
+ * @return i32
+ */
 export function len(v: Vec_f64): i32 { return v.len; }
 
-/** 取第 i 个 f64。 */
+/** Exported function `get`.
+ * Implements `get`.
+ * @param v Vec_f64
+ * @param i i32
+ * @return f64
+ */
 export function get(v: Vec_f64, i: i32): f64 { return v.ptr[i]; }
 
-/** 释放 Vec_f64。 */
+/** Exported function `deinit`.
+ * Implements `deinit`.
+ * @param v *Vec_f64
+ * @return void
+ */
 export function deinit(v: *Vec_f64): void {
   if (v.ptr != 0) { heap.free(v.ptr); v.ptr = 0; }
   v.len = 0;
   v.cap = 0;
 }
 
-// ——— DOD-S2：Vec3f SoA 默认 / AoS opt-in ———
-/** SoA 三列 f32 向量（x/y/z 各一列，列主序；DOD-S2 默认布局）。 */
+// See implementation.
+/* See implementation. */
 allow(padding) struct Vec3f_soa {
   col_x: *f32;
   col_y: *f32;
@@ -643,17 +958,25 @@ allow(padding) struct Vec3f_soa {
   len: i32;
   cap: i32;
 }
-/** AoS 交错 xyz 向量（DOD-S2 opt-in；每元素 3 连续 f32）。 */
+/* See implementation. */
 allow(padding) struct Vec3f_aos {
   ptr: *f32;
   len: i32;
   cap: i32;
 }
-/** 新建空 Vec3f_soa（三列 ptr 均为 null）。 */
+/** Exported function `vec3f_soa_new`.
+ * Implements `vec3f_soa_new`.
+ * @return Vec3f_soa
+ */
 export function vec3f_soa_new(): Vec3f_soa {
   return Vec3f_soa { col_x: 0, col_y: 0, col_z: 0, len: 0, cap: 0 };
 }
-/** 预分配每列 capacity 个 f32；失败返回 -1。 */
+/** Exported function `vec3f_soa_with_capacity`.
+ * Implements `vec3f_soa_with_capacity`.
+ * @param v *Vec3f_soa
+ * @param capacity i32
+ * @return i32
+ */
 export function vec3f_soa_with_capacity(v: *Vec3f_soa, capacity: i32): i32 {
   if (capacity <= 0) {
     v.col_x = 0;
@@ -682,7 +1005,11 @@ export function vec3f_soa_with_capacity(v: *Vec3f_soa, capacity: i32): i32 {
   }
   return -1;
 }
-/** 确保至少能再放 1 个三元组；三列同步扩容。 */
+/** Exported function `vec3f_soa_reserve_one`.
+ * Implements `vec3f_soa_reserve_one`.
+ * @param v *Vec3f_soa
+ * @return i32
+ */
 export function vec3f_soa_reserve_one(v: *Vec3f_soa): i32 {
   if (v.len < v.cap) { return 0; }
   let want: i32 = if (v.cap <= 0) { 8 } else { v.cap * 2 };
@@ -702,7 +1029,14 @@ export function vec3f_soa_reserve_one(v: *Vec3f_soa): i32 {
   }
   return -1;
 }
-/** 追加 (x,y,z)；成功 0，分配失败 -1。 */
+/** Exported function `vec3f_soa_push`.
+ * Implements `vec3f_soa_push`.
+ * @param v *Vec3f_soa
+ * @param x f32
+ * @param y f32
+ * @param z f32
+ * @return i32
+ */
 export function vec3f_soa_push(v: *Vec3f_soa, x: f32, y: f32, z: f32): i32 {
   if (vec3f_soa_reserve_one(v) != 0) {
     return -1;
@@ -717,22 +1051,53 @@ export function vec3f_soa_push(v: *Vec3f_soa, x: f32, y: f32, z: f32): i32 {
   }
   return -1;
 }
-/** 长度（三元组个数）。 */
+/** Exported function `vec3f_soa_len`.
+ * Query helper `vec3f_soa_len`.
+ * @param v Vec3f_soa
+ * @return i32
+ */
 export function vec3f_soa_len(v: Vec3f_soa): i32 { return v.len; }
-/** 读第 i 个 x 分量；i 越界未定义。 */
+/** Exported function `vec3f_soa_get_x`.
+ * Implements `vec3f_soa_get_x`.
+ * @param v Vec3f_soa
+ * @param i i32
+ * @return f32
+ */
 export function vec3f_soa_get_x(v: Vec3f_soa, i: i32): f32 { return v.col_x[i]; }
-/** 读第 i 个 y 分量。 */
+/** Exported function `vec3f_soa_get_y`.
+ * Implements `vec3f_soa_get_y`.
+ * @param v Vec3f_soa
+ * @param i i32
+ * @return f32
+ */
 export function vec3f_soa_get_y(v: Vec3f_soa, i: i32): f32 { return v.col_y[i]; }
-/** 读第 i 个 z 分量。 */
+/** Exported function `vec3f_soa_get_z`.
+ * Implements `vec3f_soa_get_z`.
+ * @param v Vec3f_soa
+ * @param i i32
+ * @return f32
+ */
 export function vec3f_soa_get_z(v: Vec3f_soa, i: i32): f32 { return v.col_z[i]; }
-/** 写第 i 个三元组；i 越界未定义。 */
+/** Exported function `vec3f_soa_set`.
+ * Implements `vec3f_soa_set`.
+ * @param v *Vec3f_soa
+ * @param i i32
+ * @param x f32
+ * @param y f32
+ * @param z f32
+ * @return void
+ */
 export function vec3f_soa_set(v: *Vec3f_soa, i: i32, x: f32, y: f32, z: f32): void {
   v.col_x[i] = x;
   v.col_y[i] = y;
   v.col_z[i] = z;
 }
-/** 列扫描：求所有 x 分量之和（SoA 热路径 demo）；*Vec3f_soa 与 push/deinit 一致，勿大 struct 按值传参。 */
-/** 列扫描：求所有 x 分量之和（SoA 热路径 demo）；*Vec3f_soa 与 push/deinit 一致。 */
+/* See implementation. */
+/** Exported function `vec3f_soa_sum_x`.
+ * Implements `vec3f_soa_sum_x`.
+ * @param v *Vec3f_soa
+ * @return f32
+ */
 export function vec3f_soa_sum_x(v: *Vec3f_soa): f32 {
   let s: f32 = 0.0;
   let i: i32 = 0;
@@ -742,7 +1107,11 @@ export function vec3f_soa_sum_x(v: *Vec3f_soa): f32 {
   }
   return s;
 }
-/** 释放三列堆内存。 */
+/** Exported function `vec3f_soa_deinit`.
+ * Implements `vec3f_soa_deinit`.
+ * @param v *Vec3f_soa
+ * @return void
+ */
 export function vec3f_soa_deinit(v: *Vec3f_soa): void {
   if (v.col_x != 0) { heap.free(v.col_x); v.col_x = 0; }
   if (v.col_y != 0) { heap.free(v.col_y); v.col_y = 0; }
@@ -750,11 +1119,19 @@ export function vec3f_soa_deinit(v: *Vec3f_soa): void {
   v.len = 0;
   v.cap = 0;
 }
-/** 新建空 Vec3f_aos。 */
+/** Exported function `vec3f_aos_new`.
+ * Implements `vec3f_aos_new`.
+ * @return Vec3f_aos
+ */
 export function vec3f_aos_new(): Vec3f_aos {
   return Vec3f_aos { ptr: 0, len: 0, cap: 0 };
 }
-/** 预分配 capacity 个三元组（3*cap f32）；失败 -1。 */
+/** Exported function `vec3f_aos_with_capacity`.
+ * Implements `vec3f_aos_with_capacity`.
+ * @param v *Vec3f_aos
+ * @param capacity i32
+ * @return i32
+ */
 export function vec3f_aos_with_capacity(v: *Vec3f_aos, capacity: i32): i32 {
   if (capacity <= 0) {
     v.ptr = 0;
@@ -775,7 +1152,11 @@ export function vec3f_aos_with_capacity(v: *Vec3f_aos, capacity: i32): i32 {
   }
   return -1;
 }
-/** AoS 扩容：元素槽 ×3 f32。 */
+/** Exported function `vec3f_aos_reserve_one`.
+ * Implements `vec3f_aos_reserve_one`.
+ * @param v *Vec3f_aos
+ * @return i32
+ */
 export function vec3f_aos_reserve_one(v: *Vec3f_aos): i32 {
   if (v.len < v.cap) { return 0; }
   let want: i32 = if (v.cap <= 0) { 8 } else { v.cap * 2 };
@@ -792,7 +1173,14 @@ export function vec3f_aos_reserve_one(v: *Vec3f_aos): i32 {
   }
   return -1;
 }
-/** AoS 追加 (x,y,z)。 */
+/** Exported function `vec3f_aos_push`.
+ * Implements `vec3f_aos_push`.
+ * @param v *Vec3f_aos
+ * @param x f32
+ * @param y f32
+ * @param z f32
+ * @return i32
+ */
 export function vec3f_aos_push(v: *Vec3f_aos, x: f32, y: f32, z: f32): i32 {
   if (vec3f_aos_reserve_one(v) != 0) {
     return -1;
@@ -807,9 +1195,18 @@ export function vec3f_aos_push(v: *Vec3f_aos, x: f32, y: f32, z: f32): i32 {
   }
   return -1;
 }
-/** AoS 读 x 分量（第 i 个三元组）。 */
+/** Exported function `vec3f_aos_get_x`.
+ * Implements `vec3f_aos_get_x`.
+ * @param v Vec3f_aos
+ * @param i i32
+ * @return f32
+ */
 export function vec3f_aos_get_x(v: Vec3f_aos, i: i32): f32 { return v.ptr[i * 3 + 0]; }
-/** AoS 扫描 x 分量之和（对照 SoA 列扫描）。 */
+/** Exported function `vec3f_aos_sum_x`.
+ * Implements `vec3f_aos_sum_x`.
+ * @param v Vec3f_aos
+ * @return f32
+ */
 export function vec3f_aos_sum_x(v: Vec3f_aos): f32 {
   let s: f32 = 0.0;
   let i: i32 = 0;
@@ -819,7 +1216,11 @@ export function vec3f_aos_sum_x(v: Vec3f_aos): f32 {
   }
   return s;
 }
-/** 释放 AoS 堆缓冲。 */
+/** Exported function `vec3f_aos_deinit`.
+ * Implements `vec3f_aos_deinit`.
+ * @param v *Vec3f_aos
+ * @return void
+ */
 export function vec3f_aos_deinit(v: *Vec3f_aos): void {
   if (v.ptr != 0) {
     heap.free(v.ptr);
@@ -828,11 +1229,21 @@ export function vec3f_aos_deinit(v: *Vec3f_aos): void {
   v.len = 0;
   v.cap = 0;
 }
-/** 空 vec 长度 0；保留兼容（测试用）。 */
+/** Exported function `len_empty`.
+ * Implements `len_empty`.
+ * @return i32
+ */
 export function len_empty(): i32 { return 0; }
-/** 占位；保留兼容。 */
+/* See implementation. */
 export function placeholder<T>(x: T): T { return x; }
-/** i32 单态占位：烟测用，避免泛型实例化拉整颗 mod.x 进 asm emit（自举 slice 下 elf_ec=-1）。 */
+/** Exported function `placeholder_i32`.
+ * Implements `placeholder_i32`.
+ * @param x i32
+ * @return i32
+ */
 export function placeholder_i32(x: i32): i32 { return x; }
-/** 模块尾占位：transitive import 解析时末位 function 会丢失，须保留非 API 锚点。 */
+/** Exported function `module_anchor`.
+ * Implements `module_anchor`.
+ * @return i32
+ */
 export function module_anchor(): i32 { return 0; }

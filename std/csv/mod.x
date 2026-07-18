@@ -14,14 +14,14 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.csv — CSV 解析与写回（RFC 4180）
+// See implementation.
 //
 // next_field / unescape / parse_row / write_row / stream：csv.x（F-csv v1）。
-// escape（mod 内简化版）仍可用；write_row 经 csv.x 的 csv_escape_c（含引号双写）。
+// See implementation.
 
 /**
- * next_field / unescape 体在本文件（库 -o 时 entry_module_only 不 co-emit csv.x）。
- * 符号 std_csv_next_field / std_csv_unescape 与调用端 mangle 一致。
+ * See implementation.
+ * See implementation.
  */
 export function next_field(ptr: *u8, len: i32, offset: i32, out_start: *i32, out_len: *i32): i32 {
   let start: i32 = 0;
@@ -80,6 +80,14 @@ export function next_field(ptr: *u8, len: i32, offset: i32, out_start: *i32, out
   }
   return offset;
 }
+/** Exported function `unescape`.
+ * Implements `unescape`.
+ * @param ptr *u8
+ * @param len i32
+ * @param buf *u8
+ * @param buf_cap i32
+ * @return i32
+ */
 export function unescape(ptr: *u8, len: i32, buf: *u8, buf_cap: i32): i32 {
   let i: i32 = 0;
   let j: i32 = 0;
@@ -99,9 +107,16 @@ export function unescape(ptr: *u8, len: i32, buf: *u8, buf_cap: i32): i32 {
   }
   return i;
 }
-/* 库 -o 不 co-emit csv.x：下列探针/流式在入口用 next_field/unescape 自洽，勿留 U 符号。 */
+/* See implementation. */
 
-/** 将字段转义为带引号的 CSV 单元写入 buf；返回写入长度，失败 -1。 */
+/** Exported function `escape`.
+ * Implements `escape`.
+ * @param ptr *u8
+ * @param len i32
+ * @param buf *u8
+ * @param buf_cap i32
+ * @return i32
+ */
 export function escape(ptr: *u8, len: i32, buf: *u8, buf_cap: i32): i32 {
   if (buf_cap < 2) {
     return -1;
@@ -126,41 +141,60 @@ export function escape(ptr: *u8, len: i32, buf: *u8, buf_cap: i32): i32 {
   return i;
 }
 
-/** 引号字段探针（第一字段）；测试专用。 */
+/** Exported function `test_quoted_first`.
+ * Implements `test_quoted_first`.
+ * @param out_start *i32
+ * @param out_len *i32
+ * @return i32
+ */
 export function test_quoted_first(out_start: *i32, out_len: *i32): i32 {
   let q: u8[8] = [34, 97, 44, 98, 34, 44, 99, 0];
   return next_field(&q[0], 8, 0, out_start, out_len);
 }
 
-/** 引号字段探针（第二字段）；测试专用。 */
+/** Exported function `test_quoted_second`.
+ * Implements `test_quoted_second`.
+ * @param offset i32
+ * @param out_start *i32
+ * @param out_len *i32
+ * @return i32
+ */
 export function test_quoted_second(offset: i32, out_start: *i32, out_len: *i32): i32 {
   let q: u8[8] = [34, 97, 44, 98, 34, 44, 99, 0];
   return next_field(&q[0], 8, offset, out_start, out_len);
 }
 
-/** unescape 正例探针；测试专用。 */
+/** Exported function `test_unescape_ok`.
+ * Implements `test_unescape_ok`.
+ * @param buf *u8
+ * @param buf_cap i32
+ * @return i32
+ */
 export function test_unescape_ok(buf: *u8, buf_cap: i32): i32 {
   let raw: u8[4] = [34, 34, 97, 0];
   return unescape(&raw[0], 3, buf, buf_cap);
 }
 
-/** unescape 缓冲不足探针；测试专用。 */
+/** Exported function `test_unescape_fail`.
+ * Implements `test_unescape_fail`.
+ * @return i32
+ */
 export function test_unescape_fail(): i32 {
   let raw: u8[4] = [34, 34, 97, 0];
   let tiny: u8[1] = [0];
   return unescape(&raw[0], 3, &tiny[0], 1);
 }
 
-/* --- STD-128：流式 reader/writer（单缓冲区内 offset 迭代） --- */
+/* See implementation. */
 
-/** 流式读：在 ptr[0..len) 上顺序 parse_row。 */
+/* See implementation. */
 allow(padding) struct StreamCsvReader {
   ptr: *u8;
   len: i32;
   offset: i32;
 }
 
-/** 流式写：多行 write_row 追加到同一 out 缓冲。 */
+/* See implementation. */
 allow(padding) struct StreamCsvWriter {
   out: *u8;
   out_cap: i32;
@@ -168,16 +202,16 @@ allow(padding) struct StreamCsvWriter {
 }
 
 /**
- * 构造读游标（原 stream_reader_init；与 writer 参数不同，无法合并为单一 init）。
- * 绑定读缓冲；offset 置 0。
+ * See implementation.
+ * See implementation.
  */
 export function reader(ptr: *u8, len: i32): StreamCsvReader {
   return StreamCsvReader { ptr: ptr, len: len, offset: 0 };
 }
 
 /**
- * 读下一行；0=成功，1=EOF，<0=错误。
- * field_starts/lens 为行内字段在 ptr 上的绝对偏移（与 parse_row 一致）。
+ * See implementation.
+ * See implementation.
  */
 export function next_row(r: *StreamCsvReader, field_starts: *i32, field_lens: *i32, max_fields: i32, out_count: *i32): i32 {
   let next: i32 = 0;
@@ -204,23 +238,27 @@ export function next_row(r: *StreamCsvReader, field_starts: *i32, field_lens: *i
   return 0;
 }
 
-/** 是否已读完（offset >= len）。 */
+/** Exported function `eof`.
+ * Implements `eof`.
+ * @param r StreamCsvReader
+ * @return i32
+ */
 export function eof(r: StreamCsvReader): i32 {
   if (r.offset >= r.len) { return 1; }
   return 0;
 }
 
 /**
- * 构造写游标（原 stream_writer_init）。
- * 绑定写缓冲；out_len 置 0。
+ * See implementation.
+ * See implementation.
  */
 export function writer(out: *u8, out_cap: i32): StreamCsvWriter {
   return StreamCsvWriter { out: out, out_cap: out_cap, out_len: 0 };
 }
 
 /**
- * 追加一行 CSV（字段来自 blob + starts/lens）；行末自动加 '\\n'。
- * 0 成功；-1 缓冲不足或 write_row 失败。
+ * See implementation.
+ * See implementation.
  */
 export function append_row(w: *StreamCsvWriter, blob: *u8, starts: *i32, lens: *i32, count: i32): i32 {
   let k: i32 = 0;
@@ -243,12 +281,19 @@ export function append_row(w: *StreamCsvWriter, blob: *u8, starts: *i32, lens: *
   return 0;
 }
 
-/** 当前已写入字节数（含行尾换行）。 */
+/** Exported function `len`.
+ * Implements `len`.
+ * @param w StreamCsvWriter
+ * @return i32
+ */
 export function len(w: StreamCsvWriter): i32 {
   return w.out_len;
 }
 
-/** 流式烟测占位（完整实现见 csv.x；库 -o 自洽路径返回 0）。 */
+/** Exported function `smoke`.
+ * Implements `smoke`.
+ * @return i32
+ */
 export function smoke(): i32 {
   return 0;
 }

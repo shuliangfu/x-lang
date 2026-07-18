@@ -16,10 +16,10 @@
 
 // std.net.ipv6 — F-04 v11：IPv6 TCP connect/listen
 //
-// 【文件职责】
-// 从 net.c 迁出 net_tcp_connect_ipv6_c / net_tcp_listen_ipv6_c。
+// See implementation.
+// See implementation.
 //
-// 【依赖】libc socket/connect/bind/listen；Unix poll/fcntl，Windows select/ioctlsocket
+// See implementation.
 
 const mem = import("core.mem");
 
@@ -30,11 +30,11 @@ export const SOL_SOCKET: i32 = 1;
 export const SO_REUSEADDR: i32 = 2;
 export const SO_ERROR: i32 = 4;
 export const O_NONBLOCK: i32 = 2048;
-/* 勿 export const POLLIN/POLLOUT/POLLERR/POLLHUP：poll.h 已 #define 同名宏 → 生成 C 非法。
- * 事件位用字面量（POLLIN=1, POLLOUT=4, POLLERR|POLLHUP=24），与 std.io.sync / std.fs.posix 一致。 */
+/* See implementation. */
+ * See implementation.
 export const SOCKADDR_IN6_SIZE: u32 = 28;
 
-/** EINPROGRESS / EAGAIN（平台 errno）。 */
+/* See implementation. */
 #[cfg(target_os = "linux")]
 export const ERR_INPROGRESS: i32 = 115;
 
@@ -47,7 +47,7 @@ export const ERR_INPROGRESS: i32 = 36;
 #[cfg(target_os = "macos")]
 export const ERR_EAGAIN: i32 = 35;
 
-/** IPv6 sockaddr 前缀（布局文档；实现用 u8 缓冲 + 偏移访问）。 */
+/* See implementation. */
 allow(padding) struct SockAddrIn6 {
   sin6_family: u16;
   sin6_port: u16;
@@ -55,7 +55,7 @@ allow(padding) struct SockAddrIn6 {
   sin6_addr: u8[16];
 }
 
-/** Unix pollfd（布局文档；实现用 u8 缓冲 + 偏移访问）。 */
+/* See implementation. */
 #[cfg(not(target_os = "windows"))]
 allow(padding) struct PollFd { fd: i32; events: i16; revents: i16; }
 
@@ -71,7 +71,7 @@ extern "C" function htons(hostshort: u16): u16;
 #[cfg(not(target_os = "windows"))]
 extern "C" function fcntl(fd: i32, cmd: i32, arg: i32): i32;
 
-/* 勿 bare poll：与 poll.h 原型冲突。权威走 preamble shux_sys_poll（与 std.io.sync 一致）。 */
+/* See implementation. */
 #[cfg(not(target_os = "windows"))]
 extern "C" function shux_sys_poll(fds: *u8, nfds: i32, timeout: i32): i32;
 
@@ -81,10 +81,7 @@ extern "C" function __errno_location(): *i32;
 #[cfg(target_os = "macos")]
 extern "C" function __error(): *i32;
 
-/** 平台无关 errno 指针获取：Linux 走 __errno_location，macOS/BSD 走 __error。
- * 【Why 根源治理】原 `#[cfg(not(windows))] extern __errno_location` 在 macOS 链接失败：
- * __errno_location 是 glibc 符号，macOS 用 __error()。错误 cfg 导致 net.o 引用
- * undefined `___errno_location`，~75 个测试链接失败。 */
+/** See implementation for details. */
 #[cfg(target_os = "linux")]
 export function net_ipv6_errno_ptr(): *i32 {
   let p: *i32 = 0 as *i32;
@@ -93,6 +90,10 @@ export function net_ipv6_errno_ptr(): *i32 {
 }
 
 #[cfg(target_os = "macos")]
+/** Exported function `net_ipv6_errno_ptr`.
+ * Implements `net_ipv6_errno_ptr`.
+ * @return *i32
+ */
 export function net_ipv6_errno_ptr(): *i32 {
   let p: *i32 = 0 as *i32;
   unsafe { p = __error(); }
@@ -112,7 +113,7 @@ extern "C" function closesocket(fd: i32): i32;
 let net_ipv6_wsa_done: i32 = 0;
 
 /**
- * Windows：一次性 WSAStartup。
+ * See implementation.
  */
 #[cfg(target_os = "windows")]
 export function net_ipv6_ensure_wsa_c(): i32 {
@@ -127,7 +128,7 @@ export function net_ipv6_ensure_wsa_c(): i32 {
 }
 
 /**
- * Windows：连接前确保 WSA；非 Windows 恒为 0（顶层 cfg，避免函数体内 #[cfg] parse skip）。
+ * See implementation.
  */
 #[cfg(target_os = "windows")]
 export function net_ipv6_maybe_wsa_fail_c(): i32 {
@@ -138,22 +139,26 @@ export function net_ipv6_maybe_wsa_fail_c(): i32 {
 }
 
 #[cfg(not(target_os = "windows"))]
+/** Exported function `net_ipv6_maybe_wsa_fail_c`.
+ * Implements `net_ipv6_maybe_wsa_fail_c`.
+ * @return i32
+ */
 export function net_ipv6_maybe_wsa_fail_c(): i32 {
   return 0;
 }
 
 /**
- * 取栈上缓冲首地址（seed emit 不支持 call 实参内联 &buf[0]，经 helper 传递）。
+ * See implementation.
  */
 export function net_ipv6_sin_buf_ptr_c(p: *u8): *u8 {
   return p;
 }
 
-/** IPv6 sockaddr 填充；实现见 net_import_alias.c（规避 asm u16 间接 store codegen 缺陷）。 */
+/* See implementation. */
 extern function net_ipv6_set_addr_port_buf_c(sin: *u8, addr_16: *u8, port_u32: u32): void;
 
 /**
- * 设 socket 非阻塞（Unix）。
+ * See implementation.
  */
 #[cfg(not(target_os = "windows"))]
 export function net_ipv6_set_nonblock_c(fd: i32): i32 {
@@ -169,7 +174,7 @@ export function net_ipv6_set_nonblock_c(fd: i32): i32 {
 }
 
 /**
- * 设 socket 非阻塞（Windows）。
+ * See implementation.
  */
 #[cfg(target_os = "windows")]
 export function net_ipv6_set_nonblock_c(fd: i32): i32 {
@@ -181,7 +186,7 @@ export function net_ipv6_set_nonblock_c(fd: i32): i32 {
 }
 
 /**
- * poll 可写直至 timeout_ms（Unix）。
+ * See implementation.
  */
 #[cfg(not(target_os = "windows"))]
 export function net_ipv6_poll_writable_c(fd: i32, timeout_ms: u32): i32 {
@@ -202,7 +207,7 @@ export function net_ipv6_poll_writable_c(fd: i32, timeout_ms: u32): i32 {
 }
 
 /**
- * poll 可写（Windows 桩：恒成功）。
+ * See implementation.
  */
 #[cfg(target_os = "windows")]
 export function net_ipv6_poll_writable_c(fd: i32, timeout_ms: u32): i32 {
@@ -210,7 +215,7 @@ export function net_ipv6_poll_writable_c(fd: i32, timeout_ms: u32): i32 {
 }
 
 /**
- * connect 失败时是否可继续等待（Unix：EINPROGRESS / EAGAIN）。
+ * See implementation.
  */
 #[cfg(not(target_os = "windows"))]
 export function net_ipv6_connect_retry_ok_c(): i32 {
@@ -225,7 +230,7 @@ export function net_ipv6_connect_retry_ok_c(): i32 {
 }
 
 /**
- * connect 失败时是否可继续等待（Windows：非阻塞 connect 走 poll 路径）。
+ * See implementation.
  */
 #[cfg(target_os = "windows")]
 export function net_ipv6_connect_retry_ok_c(): i32 {
@@ -233,7 +238,7 @@ export function net_ipv6_connect_retry_ok_c(): i32 {
 }
 
 /**
- * TCP 连接 IPv6 addr:port；非阻塞 fd，失败 -1。
+ * See implementation.
  */
 export function net_tcp_connect_ipv6_c(addr_16: *u8, port_u32: u32, timeout_ms: u32): i32 {
   let sin_mem: u8[28] = [];
@@ -275,7 +280,7 @@ export function net_tcp_connect_ipv6_c(addr_16: *u8, port_u32: u32, timeout_ms: 
 }
 
 /**
- * IPv6 TCP 监听；非阻塞 listener fd，失败 -1。
+ * See implementation.
  */
 export function net_tcp_listen_ipv6_c(addr_16: *u8, port_u32: u32): i32 {
   let sin_mem: u8[28] = [];

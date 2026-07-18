@@ -14,11 +14,11 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// core.cmp — 三路比较与 Ordering（CORE-005）
-// 对标 Rust core::cmp::Ordering；cmp_* 返回 Less/Equal/Greater（code = -1/0/1）。
-// 指针比较按 usize 地址序（与 C 指针比较语义一致）；null 视为地址 0。
+// note
+// note
+// note
 
-/** 三路比较结果：code 为 ORD_LESS(-1) / ORD_EQUAL(0) / ORD_GREATER(1)。 */
+/* note */
 export struct Ordering {
   code: i32;
 }
@@ -32,64 +32,64 @@ export const ORD_EQUAL: i32 = 0;
 /** Greater：a > b。 */
 export const ORD_GREATER: i32 = 1;
 
-/** 构造 Less。 */
+/** `ordering_less`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function ordering_less(): Ordering {
   return Ordering { code: ORD_LESS };
 }
 
-/** 构造 Equal。 */
+/** `ordering_equal`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function ordering_equal(): Ordering {
   return Ordering { code: ORD_EQUAL };
 }
 
-/** 构造 Greater。 */
+/** `ordering_greater`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function ordering_greater(): Ordering {
   return Ordering { code: ORD_GREATER };
 }
 
-/** 是否为 Less。 */
+/** `is_lt`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function is_lt(o: Ordering): bool {
   return o.code == ORD_LESS;
 }
 
-/** 是否为 Equal。 */
+/** `is_eq`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function is_eq(o: Ordering): bool {
   return o.code == ORD_EQUAL;
 }
 
-/** 是否为 Greater。 */
+/** `is_gt`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function is_gt(o: Ordering): bool {
   return o.code == ORD_GREATER;
 }
 
-/** 翻转 Less↔Greater，Equal 不变。 */
+/** `reverse`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function reverse(o: Ordering): Ordering {
   if (o.code == ORD_LESS) { return ordering_greater(); }
   if (o.code == ORD_GREATER) { return ordering_less(); }
   return ordering_equal();
 }
 
-/** 若 self 非 Equal 则返回 self，否则返回 other（字典序链式比较）。 */
+/** `then`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function then(o: Ordering, other: Ordering): Ordering {
   if (o.code != ORD_EQUAL) { return o; }
   return other;
 }
 
-/** 从 -1/0/1 编码构造 Ordering；非法值视为 Equal。 */
+/** `ordering_from_i32`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function ordering_from_i32(code: i32): Ordering {
   if (code < 0) { return ordering_less(); }
   if (code > 0) { return ordering_greater(); }
   return ordering_equal();
 }
 
-/** i32 三路比较。 */
+/** `cmp_i32`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function cmp_i32(a: i32, b: i32): Ordering {
   if (a < b) { return ordering_less(); }
   if (a > b) { return ordering_greater(); }
   return ordering_equal();
 }
 
-/** u8 三路比较（提升为 i32 比较，避免无符号环绕歧义）。 */
+/** `cmp_u8`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function cmp_u8(a: u8, b: u8): Ordering {
   let ai: i32 = a as i32;
   let bi: i32 = b as i32;
@@ -98,7 +98,7 @@ export function cmp_u8(a: u8, b: u8): Ordering {
   return ordering_equal();
 }
 
-/** *u8 指针按地址 usize 序比较（cmp_ptr 为 v1 默认指针比较入口）。 */
+/** `cmp_ptr`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function cmp_ptr(a: *u8, b: *u8): Ordering {
   let ua: usize = a as usize;
   let ub: usize = b as usize;

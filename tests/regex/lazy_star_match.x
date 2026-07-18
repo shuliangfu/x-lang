@@ -1,6 +1,10 @@
-// STD-065：`<.*?>` 非贪婪；`<a><b>` 应匹配最短 `<a>`
+// See implementation.
 const regex = import("std.regex");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let pat: u8[5] = [60, 46, 42, 63, 62];
   let re: *u8 = regex.compile(&pat[0], 5);

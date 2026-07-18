@@ -14,13 +14,13 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.test — 测试断言与 runner（对标 Zig std.testing、Rust test）
-// STD-054：bench_run / bench_report / fuzz_seed / fuzz_next / fuzz_run 占位 API。
-// STD-145：统一 runner（runner_reset / runner_case / runner_skip / runner_finish）。
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 【文件职责】assert、assert_eq、assert_ne 返回
-// 0=通过/1=失败；run 执行测试函数。
-// 【依赖】core；F-test v2 逻辑在 test.x（F-ZC 纯 .x；fn-ptr 在 runtime_test_fn_invoke.o）。
+// See implementation.
+// See implementation.
+// See implementation.
 extern function test_expect_c(cond: i32): i32;
 extern function test_expect_eq_i32_c(a: i32, b: i32): i32;
 extern function test_expect_eq_u32_c(a: u32, b: u32): i32;
@@ -37,57 +37,162 @@ extern function test_runner_reset_c(): void;
 extern function test_runner_report_case_c(name: *u8, len: i32, exit_code: i32): i32;
 extern function test_runner_report_skip_c(name: *u8, len: i32): i32;
 extern function test_runner_finish_c(): i32;
-/** 断言 cond 为真；返回 0 通过，1 失败。 */
+/** Exported function `assert`.
+ * Assertion helper `assert`: panics on failure, returns 0 on success.
+ * @param cond i32): i32 { let _rc: i32 = 0; unsafe { _rc = test_expect_c(cond
+ * @return void
+ */
 export function assert(cond: i32): i32 { let _rc: i32 = 0; unsafe { _rc = test_expect_c(cond); } return _rc; }
-/** 断言 a == b（i32）；返回 0 通过，1 失败。 */
+/** Exported function `assert_eq`.
+ * Assertion helper `assert_eq`: panics on failure, returns 0 on success.
+ * @param a i32
+ * @param b i32): i32 { let _rc: i32 = 0; unsafe { _rc = test_expect_eq_i32_c(a
+ * @param b
+ * @return void
+ */
 export function assert_eq(a: i32, b: i32): i32 { let _rc: i32 = 0; unsafe { _rc = test_expect_eq_i32_c(a, b); } return _rc; }
-/** 断言 a == b（u32）；返回 0 通过，1 失败。 */
+/** Exported function `assert_eq`.
+ * Assertion helper `assert_eq`: panics on failure, returns 0 on success.
+ * @param a u32
+ * @param b u32): i32 { let _rc: i32 = 0; unsafe { _rc = test_expect_eq_u32_c(a
+ * @param b
+ * @return void
+ */
 export function assert_eq(a: u32, b: u32): i32 { let _rc: i32 = 0; unsafe { _rc = test_expect_eq_u32_c(a, b); } return _rc; }
-/** 断言 a != b（i32）；返回 0 通过，1 失败。 */
+/** Exported function `assert_ne`.
+ * Assertion helper `assert_ne`: panics on failure, returns 0 on success.
+ * @param a i32
+ * @param b i32): i32 { let _rc: i32 = 0; unsafe { _rc = test_expect_ne_i32_c(a
+ * @param b
+ * @return void
+ */
 export function assert_ne(a: i32, b: i32): i32 { let _rc: i32 = 0; unsafe { _rc = test_expect_ne_i32_c(a, b); } return _rc; }
-/** expect 风格别名：与 assert 语义一致，供测试调用。 */
+/** Exported function `expect`.
+ * Implements `expect`.
+ * @param cond i32): i32 { return assert(cond
+ * @return void
+ */
 export function expect(cond: i32): i32 { return assert(cond); }
+/** Exported function `expect_eq_i32`.
+ * Implements `expect_eq_i32`.
+ * @param a i32
+ * @param b i32): i32 { return assert_eq(a
+ * @param b
+ * @return void
+ */
 export function expect_eq_i32(a: i32, b: i32): i32 { return assert_eq(a, b); }
+/** Exported function `expect_eq_u32`.
+ * Implements `expect_eq_u32`.
+ * @param a u32
+ * @param b u32): i32 { return assert_eq(a
+ * @param b
+ * @return void
+ */
 export function expect_eq_u32(a: u32, b: u32): i32 { return assert_eq(a, b); }
+/** Exported function `expect_ne_i32`.
+ * Implements `expect_ne_i32`.
+ * @param a i32
+ * @param b i32): i32 { return assert_ne(a
+ * @param b
+ * @return void
+ */
 export function expect_ne_i32(a: i32, b: i32): i32 { return assert_ne(a, b); }
-/** 执行测试函数 fn（无参返回 i32）；返回 fn 的返回值（0=通过）。 */
+/** Exported function `exec`.
+ * Implements `exec`.
+ * @param fn usize): i32 { let _rc: i32 = 0; unsafe { _rc = test_run_c(fn
+ * @return void
+ */
 export function exec(fn: usize): i32 { let _rc: i32 = 0; unsafe { _rc = test_run_c(fn); } return _rc; }
 
-/** 调用无参 fn 共 iters 次，返回纳秒耗时。 */
+/** Exported function `bench_run`.
+ * Implements `bench_run`.
+ * @param fn usize
+ * @param iters i32): i64 { let _rc: i64 = 0; unsafe { _rc = test_bench_run_c(fn
+ * @param iters
+ * @return void
+ */
 export function bench_run(fn: usize, iters: i32): i64 { let _rc: i64 = 0; unsafe { _rc = test_bench_run_c(fn, iters); } return _rc; }
 
-/** 写 bench 报告到 stderr：shux: [SHUX_BENCH] name=… ns=… */
+/** Exported function `bench_report`.
+ * Implements `bench_report`.
+ * @param name *u8
+ * @param len i32
+ * @param ns i64
+ * @return i32
+ */
 export function bench_report(name: *u8, len: i32, ns: i64): i32 {
   unsafe { return test_bench_report_c(name, len, ns); }
   return 0; // unreachable — typeck workaround
 }
 
-/** 读取 SHUX_FUZZ_SEED 或默认种子。 */
+/** Exported function `fuzz_seed`.
+ * Implements `fuzz_seed`.
+ * @param ) u32 { let _rc: u32 = 0; unsafe { _rc = test_fuzz_seed_c(
+ * @return void
+ */
 export function fuzz_seed(): u32 { let _rc: u32 = 0; unsafe { _rc = test_fuzz_seed_c(); } return _rc; }
 
-/** LCG 单步；state 为 in/out 种子指针。 */
+/** Exported function `fuzz_next`.
+ * Implements `fuzz_next`.
+ * @param state *u32): u32 { let _rc: u32 = 0; unsafe { _rc = test_fuzz_next_c(state
+ * @return void
+ */
 export function fuzz_next(state: *u32): u32 { let _rc: u32 = 0; unsafe { _rc = test_fuzz_next_c(state); } return _rc; }
 
-/** 每轮推进 PRNG 后调用 fn；全部返回 0 则 0。 */
+/** Exported function `fuzz_run`.
+ * Implements `fuzz_run`.
+ * @param fn usize
+ * @param iters i32): i32 { let _rc: i32 = 0; unsafe { _rc = test_fuzz_run_c(fn
+ * @param iters
+ * @return void
+ */
 export function fuzz_run(fn: usize, iters: i32): i32 { let _rc: i32 = 0; unsafe { _rc = test_fuzz_run_c(fn, iters); } return _rc; }
 
-/** STD-143：对 C 内置 noop 跑 bench，无需函数指针。 */
+/** Exported function `bench_run_noop`.
+ * Implements `bench_run_noop`.
+ * @param iters i32): i64 { let _rc: i64 = 0; unsafe { _rc = test_bench_run_noop_c(iters
+ * @return void
+ */
 export function bench_run_noop(iters: i32): i64 { let _rc: i64 = 0; unsafe { _rc = test_bench_run_noop_c(iters); } return _rc; }
 
-/** STD-143：对 C 内置 noop 跑 fuzz runner。 */
+/** Exported function `fuzz_run_noop`.
+ * Implements `fuzz_run_noop`.
+ * @param iters i32): i32 { let _rc: i32 = 0; unsafe { _rc = test_fuzz_run_noop_c(iters
+ * @return void
+ */
 export function fuzz_run_noop(iters: i32): i32 { let _rc: i32 = 0; unsafe { _rc = test_fuzz_run_noop_c(iters); } return _rc; }
 
-/** 重置 runner 计数（STD-145）。 */
+/** Exported function `runner_reset`.
+ * Implements `runner_reset`.
+ * @param ) void { unsafe { test_runner_reset_c(
+ * @return void
+ */
 export function runner_reset(): void { unsafe { test_runner_reset_c(); } }
 
-/** 报告单条用例；exit_code=0 为 pass。 */
+/** Exported function `runner_case`.
+ * Implements `runner_case`.
+ * @param name *u8
+ * @param len i32
+ * @param exit_code i32
+ * @return i32
+ */
 export function runner_case(name: *u8, len: i32, exit_code: i32): i32 {
   unsafe { return test_runner_report_case_c(name, len, exit_code); }
   return 0; // unreachable — typeck workaround
 }
 
-/** 报告 skip 用例。 */
+/** Exported function `runner_skip`.
+ * Implements `runner_skip`.
+ * @param name *u8
+ * @param len i32): i32 { let _rc: i32 = 0; unsafe { _rc = test_runner_report_skip_c(name
+ * @param len
+ * @return void
+ */
 export function runner_skip(name: *u8, len: i32): i32 { let _rc: i32 = 0; unsafe { _rc = test_runner_report_skip_c(name, len); } return _rc; }
 
-/** 输出汇总行；返回 fail 数。 */
+/** Exported function `runner_finish`.
+ * Implements `runner_finish`.
+ * @param ) i32 { let _rc: i32 = 0; unsafe { _rc = test_runner_finish_c(
+ * @return void
+ */
 export function runner_finish(): i32 { let _rc: i32 = 0; unsafe { _rc = test_runner_finish_c(); } return _rc; }

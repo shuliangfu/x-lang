@@ -14,21 +14,19 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// ssa.x — SSA 构建（φ 节点 + def-use 链）
+// ssa.x — SSA construction (phi nodes + def-use chains)
 //
-// 模块：ir/smir
-// 层级：SMIR
-// Phase：Phase 2
-// 职责：
-//   - SHIR → SMIR lowering 时构建 SSA 形式
-//   - 插入 φ 节点（支配边界）
-//   - 构建 def-use 链（每条 IRInst 的定义点与使用点）
-//   - 变量重命名（保证每个 SSAReg 唯一定值）
-// 依赖：../shir / ../inst
-// 设计约束：
-//   - SSA 是 SMIR 的不变量：每个 SSAReg 恰好被定义一次
-//   - def_inst 字段必须正确填充（§2.4 SSAReg）
-//   - φ 节点的入边数 = 前驱基本块数
+// Module: ir/smir
+// Layer: SMIR
+// Phase: Phase 2
+// Responsibility:
+//   - Build SSA form during SHIR → SMIR lowering
+//   - Insert phi nodes at dominance frontiers; build def-use chains
+//   - Variable renaming (each SSAReg has a unique definition)
+// Depends: ../shir / ../inst
+// Design constraints:
+//   - SSA is a SMIR invariant: each SSAReg is defined exactly once
+//   - Phi in-edge count equals predecessor basic-block count
 //
-// 参考文档：analysis/IR核心设计.md §2.1（SMIR 层）/ §2.4（SSAReg 数据结构）
-// 架构状态：v4.0 Architecture Freeze — 实现骨架，待 Phase 2 填充
+// Ref: analysis IR core design §2.1 (SMIR layer) / §2.4 (SSAReg data structure)
+// Status: v4.0 Architecture Freeze — implementation skeleton; fill in Phase 2

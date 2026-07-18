@@ -1,21 +1,21 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-30/31/73：真迁 .x — 固定措辞 typeck 诊断薄包装 + parse_strict + 空桩。
-// G-02f-86 / G-02f-163：driver_diag_copy_bytes / report_prefixed 真迁。
-// G-02f-163：asm_set_last_expr_kind / set_current_func 真迁。
-// G-02f-175：return_unresolved / return_subexpr 消息拼装真迁（copy_bytes + report_prefixed）。
-// G-02f-176：return_mismatch / assign_mismatch 消息拼装真迁。
-// G-02f-177：call_not_generic / wrong_num_type_args / requires_type_args 拼装真迁。
-// G-02f-178：struct_padding_before/trailing / field_bad_size 拼装真迁。
-// G-02f-179：asm unsupported / elf patch / macho reloc 笔记拼装真迁。
-// G-02f-180：P0-4 审计；va_list/pipeline_code 仍属语言/ABI 限制，当前总进度见 analysis/自举进度.md。
-// G-02f-96：driver_diag_report_x_pipeline_code 门闩（va_list 本体 C _impl，f-180 🔒）。
-// 产品：./shux-c -E → seeds/runtime_driver_diagnostic.from_x.c（+ C 尾 + 字符串抛光）。
-// C 尾：snprintf 调试诊断、va_list pipeline 码、scratch 缓冲、getenv 冷路径。
-// 注意：字符串字面量经 -E 成 slice；seed 抛光为 C 字符串传 lsp_diag_report_typeck。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 // G-02f-73：+ remaining snprintf/asm/parser diag wrappers as gates.
-// G-02f-31：+ fail/break-continue/enum/subscript/try 固定消息。
+// See implementation.
 
 export extern "C" function lsp_diag_report_typeck(line: i32, col: i32, msg: *u8): void;
 export extern "C" function getenv(name: *u8): *u8;
@@ -64,6 +64,12 @@ export extern "C" function driver_check_diag_emitted_note(): void;
 export extern "C" function diag_report(file: *u8, line: i32, col: i32, kind: *u8, msg: *u8, detail: *u8): void;
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_typeck_if_condition_not_bool`.
+ * Implements `driver_diagnostic_typeck_if_condition_not_bool`.
+ * @param line i32
+ * @param col i32
+ * @return void
+ */
 export function driver_diagnostic_typeck_if_condition_not_bool(line: i32, col: i32): void {
   unsafe {
     lsp_diag_report_typeck(line, col, "if condition must be bool (no implicit int-to-bool)");
@@ -71,6 +77,12 @@ export function driver_diagnostic_typeck_if_condition_not_bool(line: i32, col: i
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_typeck_while_condition_not_bool`.
+ * Implements `driver_diagnostic_typeck_while_condition_not_bool`.
+ * @param line i32
+ * @param col i32
+ * @return void
+ */
 export function driver_diagnostic_typeck_while_condition_not_bool(line: i32, col: i32): void {
   unsafe {
     lsp_diag_report_typeck(line, col, "while condition must be bool (no implicit int-to-bool)");
@@ -78,6 +90,12 @@ export function driver_diagnostic_typeck_while_condition_not_bool(line: i32, col
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_typeck_for_condition_not_bool`.
+ * Implements `driver_diagnostic_typeck_for_condition_not_bool`.
+ * @param line i32
+ * @param col i32
+ * @return void
+ */
 export function driver_diagnostic_typeck_for_condition_not_bool(line: i32, col: i32): void {
   unsafe {
     lsp_diag_report_typeck(line, col, "for condition must be bool (no implicit int-to-bool)");
@@ -85,6 +103,12 @@ export function driver_diagnostic_typeck_for_condition_not_bool(line: i32, col: 
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_typeck_deref_outside_unsafe`.
+ * Implements `driver_diagnostic_typeck_deref_outside_unsafe`.
+ * @param line i32
+ * @param col i32
+ * @return void
+ */
 export function driver_diagnostic_typeck_deref_outside_unsafe(line: i32, col: i32): void {
   unsafe {
     lsp_diag_report_typeck(line, col, "pointer dereference requires unsafe block");
@@ -92,6 +116,12 @@ export function driver_diagnostic_typeck_deref_outside_unsafe(line: i32, col: i3
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_typeck_extern_call_outside_unsafe`.
+ * Implements `driver_diagnostic_typeck_extern_call_outside_unsafe`.
+ * @param line i32
+ * @param col i32
+ * @return void
+ */
 export function driver_diagnostic_typeck_extern_call_outside_unsafe(line: i32, col: i32): void {
   unsafe {
     lsp_diag_report_typeck(line, col, "extern call requires unsafe block");
@@ -99,6 +129,12 @@ export function driver_diagnostic_typeck_extern_call_outside_unsafe(line: i32, c
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_typeck_linear_addr_of`.
+ * Implements `driver_diagnostic_typeck_linear_addr_of`.
+ * @param line i32
+ * @param col i32
+ * @return void
+ */
 export function driver_diagnostic_typeck_linear_addr_of(line: i32, col: i32): void {
   unsafe {
     lsp_diag_report_typeck(line, col, "cannot take address of linear value");
@@ -106,6 +142,13 @@ export function driver_diagnostic_typeck_linear_addr_of(line: i32, col: i32): vo
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_typeck_break_continue_outside`.
+ * Implements `driver_diagnostic_typeck_break_continue_outside`.
+ * @param line i32
+ * @param col i32
+ * @param is_break i32
+ * @return void
+ */
 export function driver_diagnostic_typeck_break_continue_outside(line: i32, col: i32, is_break: i32): void {
   unsafe {
     if (is_break != 0) {
@@ -117,14 +160,26 @@ export function driver_diagnostic_typeck_break_continue_outside(line: i32, col: 
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_typeck_enum_no_variant`.
+ * Implements `driver_diagnostic_typeck_enum_no_variant`.
+ * @param line i32
+ * @param col i32
+ * @return void
+ */
 export function driver_diagnostic_typeck_enum_no_variant(line: i32, col: i32): void {
   unsafe {
-    // 经 lsp_diag_report_typeck：LSP 模式带 T001，与产品 typeck 码口径一致。
+    // See implementation.
     lsp_diag_report_typeck(line, col, "enum has no variant");
   }
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_typeck_subscript_base`.
+ * Implements `driver_diagnostic_typeck_subscript_base`.
+ * @param line i32
+ * @param col i32
+ * @return void
+ */
 export function driver_diagnostic_typeck_subscript_base(line: i32, col: i32): void {
   unsafe {
     lsp_diag_report_typeck(line, col, "subscript base must be array, slice or pointer");
@@ -132,6 +187,12 @@ export function driver_diagnostic_typeck_subscript_base(line: i32, col: i32): vo
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_typeck_try_propagate_bad_enclosing`.
+ * Implements `driver_diagnostic_typeck_try_propagate_bad_enclosing`.
+ * @param line i32
+ * @param col i32
+ * @return void
+ */
 export function driver_diagnostic_typeck_try_propagate_bad_enclosing(line: i32, col: i32): void {
   unsafe {
     lsp_diag_report_typeck(line, col,
@@ -140,8 +201,12 @@ export function driver_diagnostic_typeck_try_propagate_bad_enclosing(line: i32, 
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_typeck_fail`.
+ * Implements `driver_diagnostic_typeck_fail`.
+ * @return void
+ */
 export function driver_diagnostic_typeck_fail(): void {
-  // 具体 XT001 已由其它路径发出；保留对 check-only 标志的副作用读取（与历史 C 一致）。
+  // See implementation.
   unsafe {
     let _a: i32 = driver_check_only_get();
     let _b: i32 = driver_check_diag_emitted_get();
@@ -149,14 +214,29 @@ export function driver_diagnostic_typeck_fail(): void {
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_entry_already`.
+ * Read path helper `driver_diagnostic_entry_already`.
+ * @param v i32
+ * @return void
+ */
 export function driver_diagnostic_entry_already(v: i32): void {
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_after_dep_codegen`.
+ * Implements `driver_diagnostic_after_dep_codegen`.
+ * @param j i32
+ * @param out_len i32
+ * @return void
+ */
 export function driver_diagnostic_after_dep_codegen(j: i32, out_len: i32): void {
 }
 
 #[no_mangle]
+/** Exported function `driver_parse_strict_enabled`.
+ * Implements `driver_parse_strict_enabled`.
+ * @return i32
+ */
 export function driver_parse_strict_enabled(): i32 {
   unsafe {
     let e: *u8 = getenv("SHUX_PARSE_STRICT");
@@ -184,6 +264,14 @@ export function driver_diagnostic_parse_fail(main_idx: i32, num_funcs: i32, aren
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_parse_skip_function`.
+ * Implements `driver_diagnostic_parse_skip_function`.
+ * @param byte_pos i32
+ * @param num_funcs_so_far i32
+ * @param name_len i32
+ * @param name *u8
+ * @return void
+ */
 export function driver_diagnostic_parse_skip_function(byte_pos: i32, num_funcs_so_far: i32, name_len: i32, name: *u8): void {
   unsafe {
     driver_diagnostic_parse_skip_function_impl(byte_pos, num_funcs_so_far, name_len, name);
@@ -191,6 +279,14 @@ export function driver_diagnostic_parse_skip_function(byte_pos: i32, num_funcs_s
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_typeck_func_fail`.
+ * Implements `driver_diagnostic_typeck_func_fail`.
+ * @param func_idx i32
+ * @param name *u8
+ * @param name_len i32
+ * @param kind i32
+ * @return void
+ */
 export function driver_diagnostic_typeck_func_fail(func_idx: i32, name: *u8, name_len: i32, kind: i32): void {
   unsafe {
     driver_diagnostic_typeck_func_fail_impl(func_idx, name, name_len, kind);
@@ -198,6 +294,15 @@ export function driver_diagnostic_typeck_func_fail(func_idx: i32, name: *u8, nam
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_typeck_ptr_field`.
+ * Implements `driver_diagnostic_typeck_ptr_field`.
+ * @param bt_kind i32
+ * @param inner_kind i32
+ * @param inner_nlen i32
+ * @param base_resolved_ref i32
+ * @param num_struct_layouts i32
+ * @return void
+ */
 export function driver_diagnostic_typeck_ptr_field(bt_kind: i32, inner_kind: i32, inner_nlen: i32, base_resolved_ref: i32, num_struct_layouts: i32): void {
   unsafe {
     driver_diagnostic_typeck_ptr_field_impl(bt_kind, inner_kind, inner_nlen, base_resolved_ref, num_struct_layouts);
@@ -205,6 +310,14 @@ export function driver_diagnostic_typeck_ptr_field(bt_kind: i32, inner_kind: i32
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_typeck_ret_fail`.
+ * Implements `driver_diagnostic_typeck_ret_fail`.
+ * @param stage i32
+ * @param op_expr_ref i32
+ * @param expect_ty_ref i32
+ * @param got_ty_ref i32
+ * @return void
+ */
 export function driver_diagnostic_typeck_ret_fail(stage: i32, op_expr_ref: i32, expect_ty_ref: i32, got_ty_ref: i32): void {
   unsafe {
     driver_diagnostic_typeck_ret_fail_impl(stage, op_expr_ref, expect_ty_ref, got_ty_ref);
@@ -212,6 +325,23 @@ export function driver_diagnostic_typeck_ret_fail(stage: i32, op_expr_ref: i32, 
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_typeck_binop_operands`.
+ * Implements `driver_diagnostic_typeck_binop_operands`.
+ * @param expr_ref i32
+ * @param left_ref i32
+ * @param right_ref i32
+ * @param left_kind i32
+ * @param right_kind i32
+ * @param left_block_ref i32
+ * @param right_block_ref i32
+ * @param left_ty_ref i32
+ * @param right_ty_ref i32
+ * @param left_ty *u8
+ * @param left_ty_len i32
+ * @param right_ty *u8
+ * @param right_ty_len i32
+ * @return void
+ */
 export function driver_diagnostic_typeck_binop_operands(expr_ref: i32, left_ref: i32, right_ref: i32, left_kind: i32, right_kind: i32, left_block_ref: i32, right_block_ref: i32, left_ty_ref: i32, right_ty_ref: i32, left_ty: *u8, left_ty_len: i32, right_ty: *u8, right_ty_len: i32): void {
   unsafe {
     driver_diagnostic_typeck_binop_operands_impl(expr_ref, left_ref, right_ref, left_kind, right_kind, left_block_ref, right_block_ref, left_ty_ref, right_ty_ref, left_ty, left_ty_len, right_ty, right_ty_len);
@@ -219,30 +349,63 @@ export function driver_diagnostic_typeck_binop_operands(expr_ref: i32, left_ref:
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_parser_onefunc_param_ref`.
+ * Implements `driver_diagnostic_parser_onefunc_param_ref`.
+ * @param func_name *u8
+ * @param func_name_len i32
+ * @param param_name *u8
+ * @param param_name_len i32
+ * @param stage i32
+ * @param param_idx i32
+ * @param type_ref i32
+ * @return void
+ */
 export function driver_diagnostic_parser_onefunc_param_ref(func_name: *u8, func_name_len: i32, param_name: *u8, param_name_len: i32, stage: i32, param_idx: i32, type_ref: i32): void {
   unsafe {
     driver_diagnostic_parser_onefunc_param_ref_impl(func_name, func_name_len, param_name, param_name_len, stage, param_idx, type_ref);
   }
 }
 
-// return_mismatch / assign_mismatch：见文件尾 G-02f-176 真迁
+// See implementation.
 
-// call_not_generic / wrong_num / requires_type_args：见文件尾 G-02f-177 真迁
+// driver_diagnostic_typeck_import_const_must_be_qualified: see function docblock below.
 
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_typeck_import_const_must_be_qualified`.
+ * Implements `driver_diagnostic_typeck_import_const_must_be_qualified`.
+ * @param line i32
+ * @param col i32
+ * @param name *u8
+ * @param name_len i32
+ * @param binding *u8
+ * @param binding_len i32
+ * @return void
+ */
 export function driver_diagnostic_typeck_import_const_must_be_qualified(line: i32, col: i32, name: *u8, name_len: i32, binding: *u8, binding_len: i32): void {
   unsafe {
     driver_diagnostic_typeck_import_const_must_be_qualified_impl(line, col, name, name_len, binding, binding_len);
   }
 }
 
-// struct_padding_* / field_bad_size：见文件尾 G-02f-178 真迁
+// See implementation.
 
 
-// assign_mismatch：见文件尾 G-02f-176 真迁
+// driver_diagnostic_typeck_block_enter: see function docblock below.
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_typeck_block_enter`.
+ * Implements `driver_diagnostic_typeck_block_enter`.
+ * @param func_idx i32
+ * @param block_ref i32
+ * @param n_const i32
+ * @param n_let i32
+ * @param n_loop i32
+ * @param n_for i32
+ * @param n_expr i32
+ * @param final_ref i32
+ * @return void
+ */
 export function driver_diagnostic_typeck_block_enter(func_idx: i32, block_ref: i32, n_const: i32, n_let: i32, n_loop: i32, n_for: i32, n_expr: i32, final_ref: i32): void {
   unsafe {
     driver_diagnostic_typeck_block_enter_impl(func_idx, block_ref, n_const, n_let, n_loop, n_for, n_expr, final_ref);
@@ -250,6 +413,13 @@ export function driver_diagnostic_typeck_block_enter(func_idx: i32, block_ref: i
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_typeck_fn_enter`.
+ * Implements `driver_diagnostic_typeck_fn_enter`.
+ * @param func_idx i32
+ * @param name *u8
+ * @param name_len i32
+ * @return void
+ */
 export function driver_diagnostic_typeck_fn_enter(func_idx: i32, name: *u8, name_len: i32): void {
   unsafe {
     driver_diagnostic_typeck_fn_enter_impl(func_idx, name, name_len);
@@ -257,14 +427,31 @@ export function driver_diagnostic_typeck_fn_enter(func_idx: i32, name: *u8, name
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_typeck_var_resolution`.
+ * Implements `driver_diagnostic_typeck_var_resolution`.
+ * @param expr_ref i32
+ * @param name *u8
+ * @param name_len i32
+ * @param func_idx i32
+ * @param block_ref i32
+ * @param source i32
+ * @param type_ref i32
+ * @return void
+ */
 export function driver_diagnostic_typeck_var_resolution(expr_ref: i32, name: *u8, name_len: i32, func_idx: i32, block_ref: i32, source: i32, type_ref: i32): void {
   unsafe {
     driver_diagnostic_typeck_var_resolution_impl(expr_ref, name, name_len, func_idx, block_ref, source, type_ref);
   }
 }
 
-// G-02f-164：SHUX_DEBUG_PIPE 探测真迁；reportf 经 pipe_note
+// driver_diagnostic_before_codegen: see function docblock below.
 #[no_mangle]
+/** Exported function `driver_diagnostic_before_codegen`.
+ * Implements `driver_diagnostic_before_codegen`.
+ * @param num_funcs i32
+ * @param out_len i32
+ * @return void
+ */
 export function driver_diagnostic_before_codegen(num_funcs: i32, out_len: i32): void {
   unsafe {
     if (driver_diag_env_debug_pipe() != 0) {
@@ -274,6 +461,11 @@ export function driver_diagnostic_before_codegen(num_funcs: i32, out_len: i32): 
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_source_len`.
+ * Query helper `driver_diagnostic_source_len`.
+ * @param len i32
+ * @return void
+ */
 export function driver_diagnostic_source_len(len: i32): void {
   unsafe {
     if (driver_diag_env_debug_pipe() != 0) {
@@ -283,6 +475,11 @@ export function driver_diagnostic_source_len(len: i32): void {
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_after_entry_parse`.
+ * Implements `driver_diagnostic_after_entry_parse`.
+ * @param num_funcs i32
+ * @return void
+ */
 export function driver_diagnostic_after_entry_parse(num_funcs: i32): void {
   unsafe {
     if (driver_diag_env_debug_pipe() != 0) {
@@ -292,6 +489,14 @@ export function driver_diagnostic_after_entry_parse(num_funcs: i32): void {
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_parse_commit_fail`.
+ * Implements `driver_diagnostic_parse_commit_fail`.
+ * @param byte_pos i32
+ * @param num_funcs_so_far i32
+ * @param name_len i32
+ * @param name *u8
+ * @return void
+ */
 export function driver_diagnostic_parse_commit_fail(byte_pos: i32, num_funcs_so_far: i32, name_len: i32, name: *u8): void {
   unsafe {
     driver_diagnostic_parse_commit_fail_impl(byte_pos, num_funcs_so_far, name_len, name);
@@ -299,6 +504,16 @@ export function driver_diagnostic_parse_commit_fail(byte_pos: i32, num_funcs_so_
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_parse_func_generic`.
+ * Implements `driver_diagnostic_parse_func_generic`.
+ * @param byte_pos i32
+ * @param num_funcs_so_far i32
+ * @param name *u8
+ * @param name_len i32
+ * @param num_generic_params i32
+ * @param is_main i32
+ * @return void
+ */
 export function driver_diagnostic_parse_func_generic(byte_pos: i32, num_funcs_so_far: i32, name: *u8, name_len: i32, num_generic_params: i32, is_main: i32): void {
   unsafe {
     driver_diagnostic_parse_func_generic_impl(byte_pos, num_funcs_so_far, name, name_len, num_generic_params, is_main);
@@ -306,6 +521,27 @@ export function driver_diagnostic_parse_func_generic(byte_pos: i32, num_funcs_so
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_parse_commit_shape`.
+ * Implements `driver_diagnostic_parse_commit_shape`.
+ * @param byte_pos i32
+ * @param num_funcs_so_far i32
+ * @param name *u8
+ * @param name_len i32
+ * @param phase i32
+ * @param block_ref i32
+ * @param pool_num_consts i32
+ * @param pool_num_lets i32
+ * @param pool_num_ifs i32
+ * @param pool_num_regions i32
+ * @param pool_num_stmt_order i32
+ * @param block_num_consts i32
+ * @param block_num_lets i32
+ * @param block_num_ifs i32
+ * @param block_num_regions i32
+ * @param block_num_stmt_order i32
+ * @param final_expr_ref i32
+ * @return void
+ */
 export function driver_diagnostic_parse_commit_shape(byte_pos: i32, num_funcs_so_far: i32, name: *u8, name_len: i32, phase: i32, block_ref: i32, pool_num_consts: i32, pool_num_lets: i32, pool_num_ifs: i32, pool_num_regions: i32, pool_num_stmt_order: i32, block_num_consts: i32, block_num_lets: i32, block_num_ifs: i32, block_num_regions: i32, block_num_stmt_order: i32, final_expr_ref: i32): void {
   unsafe {
     driver_diagnostic_parse_commit_shape_impl(byte_pos, num_funcs_so_far, name, name_len, phase, block_ref, pool_num_consts, pool_num_lets, pool_num_ifs, pool_num_regions, pool_num_stmt_order, block_num_consts, block_num_lets, block_num_ifs, block_num_regions, block_num_stmt_order, final_expr_ref);
@@ -313,6 +549,27 @@ export function driver_diagnostic_parse_commit_shape(byte_pos: i32, num_funcs_so
 }
 
 #[no_mangle]
+/** Exported function `parser_diagnostic_parse_commit_shape`.
+ * Implements `parser_diagnostic_parse_commit_shape`.
+ * @param byte_pos i32
+ * @param num_funcs_so_far i32
+ * @param name *u8
+ * @param name_len i32
+ * @param phase i32
+ * @param block_ref i32
+ * @param pool_num_consts i32
+ * @param pool_num_lets i32
+ * @param pool_num_ifs i32
+ * @param pool_num_regions i32
+ * @param pool_num_stmt_order i32
+ * @param block_num_consts i32
+ * @param block_num_lets i32
+ * @param block_num_ifs i32
+ * @param block_num_regions i32
+ * @param block_num_stmt_order i32
+ * @param final_expr_ref i32
+ * @return void
+ */
 export function parser_diagnostic_parse_commit_shape(byte_pos: i32, num_funcs_so_far: i32, name: *u8, name_len: i32, phase: i32, block_ref: i32, pool_num_consts: i32, pool_num_lets: i32, pool_num_ifs: i32, pool_num_regions: i32, pool_num_stmt_order: i32, block_num_consts: i32, block_num_lets: i32, block_num_ifs: i32, block_num_regions: i32, block_num_stmt_order: i32, final_expr_ref: i32): void {
   unsafe {
     parser_diagnostic_parse_commit_shape_impl(byte_pos, num_funcs_so_far, name, name_len, phase, block_ref, pool_num_consts, pool_num_lets, pool_num_ifs, pool_num_regions, pool_num_stmt_order, block_num_consts, block_num_lets, block_num_ifs, block_num_regions, block_num_stmt_order, final_expr_ref);
@@ -320,6 +577,11 @@ export function parser_diagnostic_parse_commit_shape(byte_pos: i32, num_funcs_so
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_after_entry_parse_module`.
+ * Implements `driver_diagnostic_after_entry_parse_module`.
+ * @param module *u8
+ * @return void
+ */
 export function driver_diagnostic_after_entry_parse_module(module: *u8): void {
   unsafe {
     driver_diagnostic_after_entry_parse_module_impl(module);
@@ -327,6 +589,11 @@ export function driver_diagnostic_after_entry_parse_module(module: *u8): void {
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_pipe_marker`.
+ * Implements `driver_diagnostic_pipe_marker`.
+ * @param id i32
+ * @return void
+ */
 export function driver_diagnostic_pipe_marker(id: i32): void {
   unsafe {
     if (driver_diag_env_debug_pipe() != 0) {
@@ -336,6 +603,12 @@ export function driver_diagnostic_pipe_marker(id: i32): void {
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_codegen_fail`.
+ * Implements `driver_diagnostic_codegen_fail`.
+ * @param dep_index i32
+ * @param is_dep i32
+ * @return void
+ */
 export function driver_diagnostic_codegen_fail(dep_index: i32, is_dep: i32): void {
   unsafe {
     driver_diagnostic_codegen_fail_impl(dep_index, is_dep);
@@ -343,17 +616,28 @@ export function driver_diagnostic_codegen_fail(dep_index: i32, is_dep: i32): voi
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_codegen_emit_func_fail`.
+ * Implements `driver_diagnostic_codegen_emit_func_fail`.
+ * @param module *u8
+ * @param func_index i32
+ * @return void
+ */
 export function driver_diagnostic_codegen_emit_func_fail(module: *u8, func_index: i32): void {
   unsafe {
     driver_diagnostic_codegen_emit_func_fail_impl(module, func_index);
   }
 }
 
-// asm unsupported/elf/macho：见文件尾 G-02f-179 真迁
+// See implementation.
 
 
-// G-02f-163：asm emit 状态
+// driver_diagnostic_asm_set_last_expr_kind: see function docblock below.
 #[no_mangle]
+/** Exported function `driver_diagnostic_asm_set_last_expr_kind`.
+ * Implements `driver_diagnostic_asm_set_last_expr_kind`.
+ * @param k i32
+ * @return void
+ */
 export function driver_diagnostic_asm_set_last_expr_kind(k: i32): void {
   unsafe {
     driver_diagnostic_asm_last_expr_kind_set(k);
@@ -361,6 +645,12 @@ export function driver_diagnostic_asm_set_last_expr_kind(k: i32): void {
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_asm_set_current_func`.
+ * Implements `driver_diagnostic_asm_set_current_func`.
+ * @param name *u8
+ * @param len i32
+ * @return void
+ */
 export function driver_diagnostic_asm_set_current_func(name: *u8, len: i32): void {
   unsafe {
     driver_diagnostic_asm_current_func_store(name, len);
@@ -369,6 +659,10 @@ export function driver_diagnostic_asm_set_current_func(name: *u8, len: i32): voi
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_asm_print_current_func`.
+ * Implements `driver_diagnostic_asm_print_current_func`.
+ * @return void
+ */
 export function driver_diagnostic_asm_print_current_func(): void {
   unsafe {
     driver_diagnostic_asm_print_current_func_impl();
@@ -376,6 +670,15 @@ export function driver_diagnostic_asm_print_current_func(): void {
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_asm_var_not_found`.
+ * Implements `driver_diagnostic_asm_var_not_found`.
+ * @param name *u8
+ * @param len i32
+ * @param num_locals i32
+ * @param first_slot *u8
+ * @param first_len i32
+ * @return void
+ */
 export function driver_diagnostic_asm_var_not_found(name: *u8, len: i32, num_locals: i32, first_slot: *u8, first_len: i32): void {
   unsafe {
     driver_diagnostic_asm_var_not_found_impl(name, len, num_locals, first_slot, first_len);
@@ -383,6 +686,11 @@ export function driver_diagnostic_asm_var_not_found(name: *u8, len: i32, num_loc
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_asm_fail_at`.
+ * Implements `driver_diagnostic_asm_fail_at`.
+ * @param loc i32
+ * @return void
+ */
 export function driver_diagnostic_asm_fail_at(loc: i32): void {
   unsafe {
     driver_diagnostic_asm_fail_at_impl(loc);
@@ -390,6 +698,11 @@ export function driver_diagnostic_asm_fail_at(loc: i32): void {
 }
 
 #[no_mangle]
+/** Exported function `driver_debug_log`.
+ * Implements `driver_debug_log`.
+ * @param step i32
+ * @return void
+ */
 export function driver_debug_log(step: i32): void {
   unsafe {
     driver_debug_log_impl(step);
@@ -397,6 +710,11 @@ export function driver_debug_log(step: i32): void {
 }
 
 #[no_mangle]
+/** Exported function `parser_diag_tok_kind`.
+ * Implements `parser_diag_tok_kind`.
+ * @param k i32
+ * @return void
+ */
 export function parser_diag_tok_kind(k: i32): void {
   unsafe {
     parser_diag_tok_kind_impl(k);
@@ -404,6 +722,11 @@ export function parser_diag_tok_kind(k: i32): void {
 }
 
 #[no_mangle]
+/** Exported function `parser_diag_ident_len`.
+ * Query helper `parser_diag_ident_len`.
+ * @param len i32
+ * @return void
+ */
 export function parser_diag_ident_len(len: i32): void {
   unsafe {
     parser_diag_ident_len_impl(len);
@@ -411,6 +734,11 @@ export function parser_diag_ident_len(len: i32): void {
 }
 
 #[no_mangle]
+/** Exported function `parser_diag_scan_fail`.
+ * Implements `parser_diag_scan_fail`.
+ * @param step i32
+ * @return void
+ */
 export function parser_diag_scan_fail(step: i32): void {
   unsafe {
     parser_diag_scan_fail_impl(step);
@@ -419,6 +747,16 @@ export function parser_diag_scan_fail(step: i32): void {
 
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_warn_pad_fields_same_cache_line`.
+ * Implements `driver_diagnostic_warn_pad_fields_same_cache_line`.
+ * @param sname *u8
+ * @param sname_len i32
+ * @param f0 *u8
+ * @param f0_len i32
+ * @param f1 *u8
+ * @param f1_len i32
+ * @return void
+ */
 export function driver_diagnostic_warn_pad_fields_same_cache_line(sname: *u8, sname_len: i32, f0: *u8, f0_len: i32, f1: *u8, f1_len: i32): void {
   unsafe {
     driver_diagnostic_warn_pad_fields_same_cache_line_impl(sname, sname_len, f0, f0_len, f1, f1_len);
@@ -426,6 +764,16 @@ export function driver_diagnostic_warn_pad_fields_same_cache_line(sname: *u8, sn
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_warn_hot_reorder_field`.
+ * Implements `driver_diagnostic_warn_hot_reorder_field`.
+ * @param sname *u8
+ * @param sname_len i32
+ * @param hot *u8
+ * @param hot_len i32
+ * @param cold *u8
+ * @param cold_len i32
+ * @return void
+ */
 export function driver_diagnostic_warn_hot_reorder_field(sname: *u8, sname_len: i32, hot: *u8, hot_len: i32, cold: *u8, cold_len: i32): void {
   unsafe {
     driver_diagnostic_warn_hot_reorder_field_impl(sname, sname_len, hot, hot_len, cold, cold_len);
@@ -433,6 +781,14 @@ export function driver_diagnostic_warn_hot_reorder_field(sname: *u8, sname_len: 
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_hint_unused_binding`.
+ * Implements `driver_diagnostic_hint_unused_binding`.
+ * @param line i32
+ * @param col i32
+ * @param name *u8
+ * @param name_len i32
+ * @return void
+ */
 export function driver_diagnostic_hint_unused_binding(line: i32, col: i32, name: *u8, name_len: i32): void {
   unsafe {
     driver_diagnostic_hint_unused_binding_impl(line, col, name, name_len);
@@ -442,8 +798,15 @@ export function driver_diagnostic_hint_unused_binding(line: i32, col: i32, name:
 
 /* ---- G-02f-86 / G-02f-163：diag copy_bytes / report_prefixed ---- */
 
-// G-02f-163：LSP 或 stderr 前缀诊断
+// driver_diag_report_prefixed: see function docblock below.
 #[no_mangle]
+/** Exported function `driver_diag_report_prefixed`.
+ * Implements `driver_diag_report_prefixed`.
+ * @param line i32
+ * @param col i32
+ * @param msg *u8
+ * @return void
+ */
 export function driver_diag_report_prefixed(line: i32, col: i32, msg: *u8): void {
   unsafe {
     if (lsp_diag_get_enabled() != 0) {
@@ -465,9 +828,15 @@ export function driver_diag_report_prefixed(line: i32, col: i32, msg: *u8): void
   }
 }
 
-// G-02f-116：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
+// parser_is_ident_allow: see function docblock below.
 
 #[no_mangle]
+/** Exported function `parser_is_ident_allow`.
+ * Implements `parser_is_ident_allow`.
+ * @param ident *u8
+ * @param len i32
+ * @return i32
+ */
 export function parser_is_ident_allow(ident: *u8, len: i32): i32 {
   if (ident == 0) { return 0; }
   if (len != 5) { return 0; }
@@ -478,9 +847,17 @@ export function parser_is_ident_allow(ident: *u8, len: i32): i32 {
   return 0;
 }
 
-// G-02f-121：driver_diag_copy_bytes 真迁 .x
+// driver_diag_copy_bytes: see function docblock below.
 
 #[no_mangle]
+/** Exported function `driver_diag_copy_bytes`.
+ * Implements `driver_diag_copy_bytes`.
+ * @param dst *u8
+ * @param dst_size i64
+ * @param src *u8
+ * @param src_len i32
+ * @return i32
+ */
 export function driver_diag_copy_bytes(dst: *u8, dst_size: i64, src: *u8, src_len: i32): i32 {
   if (dst == 0) { return 0; }
   if (dst_size == 0) { return 0; }
@@ -498,7 +875,15 @@ export function driver_diag_copy_bytes(dst: *u8, dst_size: i64, src: *u8, src_le
   return n;
 }
 
-// G-02f-175：拼装固定前缀 + expr 片段，走 report_prefixed（无 snprintf）
+// driver_diag_fill_expr_part: see function docblock below.
+/** Exported function `driver_diag_fill_expr_part`.
+ * Implements `driver_diag_fill_expr_part`.
+ * @param dst *u8
+ * @param cap i32
+ * @param expr_buf *u8
+ * @param expr_len i32
+ * @return void
+ */
 export function driver_diag_fill_expr_part(dst: *u8, cap: i32, expr_buf: *u8, expr_len: i32): void {
   if (dst == 0) { return; }
   if (cap <= 0) { return; }
@@ -516,6 +901,14 @@ export function driver_diag_fill_expr_part(dst: *u8, cap: i32, expr_buf: *u8, ex
   if (cap > 1) { dst[1] = 0; }
 }
 
+/** Exported function `driver_diag_append_cstr`.
+ * Implements `driver_diag_append_cstr`.
+ * @param dst *u8
+ * @param cap i32
+ * @param at i32
+ * @param src *u8
+ * @return i32
+ */
 export function driver_diag_append_cstr(dst: *u8, cap: i32, at: i32, src: *u8): i32 {
   if (dst == 0) { return at; }
   if (src == 0) { return at; }
@@ -533,6 +926,14 @@ export function driver_diag_append_cstr(dst: *u8, cap: i32, at: i32, src: *u8): 
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_typeck_return_unresolved`.
+ * Implements `driver_diagnostic_typeck_return_unresolved`.
+ * @param line i32
+ * @param col i32
+ * @param expr_buf *u8
+ * @param expr_len i32
+ * @return void
+ */
 export function driver_diagnostic_typeck_return_unresolved(line: i32, col: i32, expr_buf: *u8, expr_len: i32): void {
   let expr_part: u8[128] = [];
   let msg: u8[240] = [];
@@ -544,6 +945,14 @@ export function driver_diagnostic_typeck_return_unresolved(line: i32, col: i32, 
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_typeck_return_subexpr`.
+ * Implements `driver_diagnostic_typeck_return_subexpr`.
+ * @param line i32
+ * @param col i32
+ * @param expr_buf *u8
+ * @param expr_len i32
+ * @return void
+ */
 export function driver_diagnostic_typeck_return_subexpr(line: i32, col: i32, expr_buf: *u8, expr_len: i32): void {
   let expr_part: u8[128] = [];
   let msg: u8[240] = [];
@@ -554,7 +963,16 @@ export function driver_diagnostic_typeck_return_subexpr(line: i32, col: i32, exp
   driver_diag_report_prefixed(line, col, &msg[0]);
 }
 
-// G-02f-176：expected/found 双片段拼装
+// driver_diag_build_expected_found: see function docblock below.
+/** Exported function `driver_diag_build_expected_found`.
+ * Implements `driver_diag_build_expected_found`.
+ * @param msg *u8
+ * @param msg_cap i32
+ * @param pref *u8
+ * @param epart *u8
+ * @param fpart *u8
+ * @return void
+ */
 export function driver_diag_build_expected_found(msg: *u8, msg_cap: i32, pref: *u8, epart: *u8, fpart: *u8): void {
   let mid: *u8 = ", found ";
   let at: i32 = driver_diag_append_cstr(msg, msg_cap, 0, pref);
@@ -564,6 +982,16 @@ export function driver_diag_build_expected_found(msg: *u8, msg_cap: i32, pref: *
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_typeck_return_mismatch`.
+ * Implements `driver_diagnostic_typeck_return_mismatch`.
+ * @param line i32
+ * @param col i32
+ * @param expect_buf *u8
+ * @param expect_len i32
+ * @param found_buf *u8
+ * @param found_len i32
+ * @return void
+ */
 export function driver_diagnostic_typeck_return_mismatch(line: i32, col: i32, expect_buf: *u8, expect_len: i32, found_buf: *u8, found_len: i32): void {
   let epart: u8[112] = [];
   let fpart: u8[112] = [];
@@ -576,6 +1004,17 @@ export function driver_diagnostic_typeck_return_mismatch(line: i32, col: i32, ex
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_typeck_assign_mismatch`.
+ * Implements `driver_diagnostic_typeck_assign_mismatch`.
+ * @param is_compound i32
+ * @param line i32
+ * @param col i32
+ * @param expect_buf *u8
+ * @param expect_len i32
+ * @param found_buf *u8
+ * @param found_len i32
+ * @return void
+ */
 export function driver_diagnostic_typeck_assign_mismatch(is_compound: i32, line: i32, col: i32, expect_buf: *u8, expect_len: i32, found_buf: *u8, found_len: i32): void {
   let epart: u8[112] = [];
   let fpart: u8[112] = [];
@@ -590,7 +1029,15 @@ export function driver_diagnostic_typeck_assign_mismatch(is_compound: i32, line:
   driver_diag_report_prefixed(line, col, &msg[0]);
 }
 
-// G-02f-177：generic call 诊断 — 拼完整句后走 lsp_diag_report_typeck（无 %.*s）
+// driver_diag_append_i32: see function docblock below.
+/** Exported function `driver_diag_append_i32`.
+ * Implements `driver_diag_append_i32`.
+ * @param dst *u8
+ * @param cap i32
+ * @param at i32
+ * @param val i32
+ * @return i32
+ */
 export function driver_diag_append_i32(dst: *u8, cap: i32, at: i32, val: i32): i32 {
   if (dst == 0) { return at; }
   if (at + 1 >= cap) { return at; }
@@ -625,6 +1072,15 @@ export function driver_diag_append_i32(dst: *u8, cap: i32, at: i32, val: i32): i
   return at;
 }
 
+/** Exported function `driver_diag_append_name`.
+ * Implements `driver_diag_append_name`.
+ * @param dst *u8
+ * @param cap i32
+ * @param at i32
+ * @param name *u8
+ * @param name_len i32
+ * @return i32
+ */
 export function driver_diag_append_name(dst: *u8, cap: i32, at: i32, name: *u8, name_len: i32): i32 {
   if (name == 0) { return at; }
   if (name_len <= 0) { return at; }
@@ -640,6 +1096,14 @@ export function driver_diag_append_name(dst: *u8, cap: i32, at: i32, name: *u8, 
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_typeck_call_not_generic`.
+ * Implements `driver_diagnostic_typeck_call_not_generic`.
+ * @param line i32
+ * @param col i32
+ * @param name *u8
+ * @param name_len i32
+ * @return void
+ */
 export function driver_diagnostic_typeck_call_not_generic(line: i32, col: i32, name: *u8, name_len: i32): void {
   let msg: u8[240] = [];
   let at: i32 = driver_diag_append_cstr(&msg[0], 240, 0, "function '");
@@ -651,6 +1115,16 @@ export function driver_diagnostic_typeck_call_not_generic(line: i32, col: i32, n
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_typeck_call_wrong_num_type_args`.
+ * Implements `driver_diagnostic_typeck_call_wrong_num_type_args`.
+ * @param line i32
+ * @param col i32
+ * @param name *u8
+ * @param name_len i32
+ * @param expect_n i32
+ * @param got_n i32
+ * @return void
+ */
 export function driver_diagnostic_typeck_call_wrong_num_type_args(line: i32, col: i32, name: *u8, name_len: i32, expect_n: i32, got_n: i32): void {
   let msg: u8[240] = [];
   let at: i32 = driver_diag_append_cstr(&msg[0], 240, 0, "generic function '");
@@ -665,6 +1139,14 @@ export function driver_diagnostic_typeck_call_wrong_num_type_args(line: i32, col
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_typeck_call_requires_type_args`.
+ * Implements `driver_diagnostic_typeck_call_requires_type_args`.
+ * @param line i32
+ * @param col i32
+ * @param name *u8
+ * @param name_len i32
+ * @return void
+ */
 export function driver_diagnostic_typeck_call_requires_type_args(line: i32, col: i32, name: *u8, name_len: i32): void {
   let msg: u8[280] = [];
   let at: i32 = driver_diag_append_cstr(&msg[0], 280, 0, "generic function '");
@@ -677,8 +1159,17 @@ export function driver_diagnostic_typeck_call_requires_type_args(line: i32, col:
   }
 }
 
-// G-02f-178：struct padding / field size 诊断（line/col 固定 0,0，与 seed 一致）
+// driver_diagnostic_typeck_struct_padding_before: see function docblock below.
 #[no_mangle]
+/** Exported function `driver_diagnostic_typeck_struct_padding_before`.
+ * Implements `driver_diagnostic_typeck_struct_padding_before`.
+ * @param sname *u8
+ * @param sname_len i32
+ * @param gap i32
+ * @param fname *u8
+ * @param fname_len i32
+ * @return void
+ */
 export function driver_diagnostic_typeck_struct_padding_before(sname: *u8, sname_len: i32, gap: i32, fname: *u8, fname_len: i32): void {
   let msg: u8[320] = [];
   let at: i32 = driver_diag_append_cstr(&msg[0], 320, 0, "struct '");
@@ -694,6 +1185,13 @@ export function driver_diagnostic_typeck_struct_padding_before(sname: *u8, sname
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_typeck_struct_padding_trailing`.
+ * Implements `driver_diagnostic_typeck_struct_padding_trailing`.
+ * @param sname *u8
+ * @param sname_len i32
+ * @param gap i32
+ * @return void
+ */
 export function driver_diagnostic_typeck_struct_padding_trailing(sname: *u8, sname_len: i32, gap: i32): void {
   let msg: u8[320] = [];
   let at: i32 = driver_diag_append_cstr(&msg[0], 320, 0, "struct '");
@@ -707,6 +1205,14 @@ export function driver_diagnostic_typeck_struct_padding_trailing(sname: *u8, sna
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_typeck_struct_field_bad_size`.
+ * Implements `driver_diagnostic_typeck_struct_field_bad_size`.
+ * @param sname *u8
+ * @param sname_len i32
+ * @param fname *u8
+ * @param fname_len i32
+ * @return void
+ */
 export function driver_diagnostic_typeck_struct_field_bad_size(sname: *u8, sname_len: i32, fname: *u8, fname_len: i32): void {
   let msg: u8[280] = [];
   let at: i32 = driver_diag_append_cstr(&msg[0], 280, 0, "struct '");
@@ -719,7 +1225,12 @@ export function driver_diagnostic_typeck_struct_field_bad_size(sname: *u8, sname
   }
 }
 
-// G-02f-179：asm 笔记类（diag_report note，无 va_list reportf）
+// driver_diag_note: see function docblock below.
+/** Exported function `driver_diag_note`.
+ * Implements `driver_diag_note`.
+ * @param msg *u8
+ * @return void
+ */
 export function driver_diag_note(msg: *u8): void {
   unsafe {
     let m: *u8 = msg;
@@ -729,6 +1240,11 @@ export function driver_diag_note(msg: *u8): void {
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_asm_unsupported_expr`.
+ * Implements `driver_diagnostic_asm_unsupported_expr`.
+ * @param kind i32
+ * @return void
+ */
 export function driver_diagnostic_asm_unsupported_expr(kind: i32): void {
   let msg: u8[96] = [];
   let at: i32 = driver_diag_append_cstr(&msg[0], 96, 0, "asm codegen unsupported ExprKind=");
@@ -737,6 +1253,12 @@ export function driver_diagnostic_asm_unsupported_expr(kind: i32): void {
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_asm_elf_unresolved_patch`.
+ * Implements `driver_diagnostic_asm_elf_unresolved_patch`.
+ * @param name *u8
+ * @param len i32
+ * @return void
+ */
 export function driver_diagnostic_asm_elf_unresolved_patch(name: *u8, len: i32): void {
   let namebuf: u8[65] = [];
   driver_diag_fill_expr_part(&namebuf[0], 65, name, len);
@@ -750,6 +1272,11 @@ export function driver_diagnostic_asm_elf_unresolved_patch(name: *u8, len: i32):
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_asm_macho_empty_reloc`.
+ * Implements `driver_diagnostic_asm_macho_empty_reloc`.
+ * @param reloc_idx i32
+ * @return void
+ */
 export function driver_diagnostic_asm_macho_empty_reloc(reloc_idx: i32): void {
   let msg: u8[96] = [];
   let at: i32 = driver_diag_append_cstr(&msg[0], 96, 0, "macho empty reloc symbol at idx=");
@@ -758,6 +1285,11 @@ export function driver_diagnostic_asm_macho_empty_reloc(reloc_idx: i32): void {
 }
 
 #[no_mangle]
+/** Exported function `driver_diagnostic_asm_macho_missing_und_reloc`.
+ * Implements `driver_diagnostic_asm_macho_missing_und_reloc`.
+ * @param reloc_idx i32
+ * @return void
+ */
 export function driver_diagnostic_asm_macho_missing_und_reloc(reloc_idx: i32): void {
   let msg: u8[96] = [];
   let at: i32 = driver_diag_append_cstr(&msg[0], 96, 0, "macho undef reloc not in und pool at idx=");

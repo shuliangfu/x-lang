@@ -1,4 +1,8 @@
-// simd_dot_as_f32_smoke：while 体内 `(i % n) as f32` X parse 烟测。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let i: i32 = 0;
   while (i < 10) {

@@ -14,39 +14,69 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.schema — 结构化 typed decode/validate（STD-090；F-schema v2 逻辑在 schema.x）
+// See implementation.
 //
-// 【文件职责】
-// Schema 字段注册（标量/可选/col 映射）；JSON 对象 typed decode（含嵌套 object → 点分键）；
-// CSV 行与 SQLite 列文本统一映射；字段级错误路径。
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 【对标】Rust serde + validator、Go mapstructure 最小子集。
+// See implementation.
 
-/** Schema 句柄（不透明 C 存储指针）。 */
+/* See implementation. */
 allow(padding) struct Schema {
   handle: i64;
 }
 
-/** 字段类型：字符串。 */
+/** Exported function `text`.
+ * Implements `text`.
+ * @return i32
+ */
 export function text(): i32 { return 0; }
-/** 字段类型：i32。 */
+/** Exported function `int`.
+ * Implements `int`.
+ * @return i32
+ */
 export function int(): i32 { return 1; }
-/** 字段类型：bool。 */
+/** Exported function `flag`.
+ * Implements `flag`.
+ * @return i32
+ */
 export function flag(): i32 { return 2; }
-/** 字段类型：f64。 */
+/** Exported function `float`.
+ * Implements `float`.
+ * @return i32
+ */
 export function float(): i32 { return 3; }
 
-/** 成功。 */
+/** Exported function `err_ok`.
+ * Implements `err_ok`.
+ * @return i32
+ */
 export function err_ok(): i32 { return 0; }
-/** 空指针/非法句柄。 */
+/** Exported function `err_null`.
+ * Implements `err_null`.
+ * @return i32
+ */
 export function err_null(): i32 { return -1; }
-/** 必填字段缺失。 */
+/** Exported function `err_not_found`.
+ * Implements `err_not_found`.
+ * @return i32
+ */
 export function err_not_found(): i32 { return -2; }
-/** 类型不匹配。 */
+/** Exported function `err_type`.
+ * Implements `err_type`.
+ * @return i32
+ */
 export function err_type(): i32 { return -3; }
-/** 解析/格式非法。 */
+/** Exported function `err_invalid`.
+ * Implements `err_invalid`.
+ * @return i32
+ */
 export function err_invalid(): i32 { return -4; }
-/** 字段数超限。 */
+/** Exported function `err_full`.
+ * Implements `err_full`.
+ * @return i32
+ */
 export function err_full(): i32 { return -5; }
 
 extern function schema_create_c(): i64;
@@ -63,14 +93,21 @@ extern function schema_get_f64_c(handle: i64, name: *u8, name_len: i32, out: *f6
 extern function schema_last_error_field_c(handle: i64, out: *u8, out_cap: i32): i32;
 extern function schema_last_error_message_c(handle: i64, out: *u8, out_cap: i32): i32;
 
-/** 创建空 Schema。 */
+/** Exported function `new`.
+ * Implements `new`.
+ * @return Schema
+ */
 export function new(): Schema {
   let h: i64 = 0;
   unsafe { h = schema_create_c(); }
   return Schema { handle: h };
 }
 
-/** 释放 Schema。 */
+/** Exported function `free`.
+ * Memory management helper `free`.
+ * @param sch *Schema
+ * @return void
+ */
 export function free(sch: *Schema): void {
   let zero: i64 = 0;
   if (sch == 0) { return; }
@@ -80,7 +117,11 @@ export function free(sch: *Schema): void {
   }
 }
 
-/** 清空字段定义与 decode 缓存。 */
+/** Exported function `clear`.
+ * Implements `clear`.
+ * @param sch *Schema
+ * @return void
+ */
 export function clear(sch: *Schema): void {
   let zero: i64 = 0;
   if (sch == 0 || sch.handle == zero) { return; }
@@ -88,8 +129,8 @@ export function clear(sch: *Schema): void {
 }
 
 /**
- * 注册字段：name 为 JSON 键名；col_index 用于 CSV/SQLite 列序映射。
- * optional 非 0 表示可选字段。
+ * See implementation.
+ * See implementation.
  */
 export function add_field(sch: *Schema, name: *u8, name_len: i32, type: i32, optional: i32, col_index: i32): i32 {
   let zero: i64 = 0;
@@ -98,7 +139,13 @@ export function add_field(sch: *Schema, name: *u8, name_len: i32, type: i32, opt
   return 0; // unreachable — typeck workaround
 }
 
-/** 从 JSON 对象缓冲 typed decode；嵌套 object/array 递归展开为点分/索引键。 */
+/** Exported function `decode_json`.
+ * Implements `decode_json`.
+ * @param sch *Schema
+ * @param json *u8
+ * @param json_len i32
+ * @return i32
+ */
 export function decode_json(sch: *Schema, json: *u8, json_len: i32): i32 {
   let zero: i64 = 0;
   if (sch == 0 || sch.handle == zero || json == 0) { return err_null(); }
@@ -106,7 +153,14 @@ export function decode_json(sch: *Schema, json: *u8, json_len: i32): i32 {
   return 0; // unreachable — typeck workaround
 }
 
-/** 从 CSV 行 decode（按 col_index 映射）。 */
+/** Exported function `decode_csv_row`.
+ * Implements `decode_csv_row`.
+ * @param sch *Schema
+ * @param row *u8
+ * @param row_len i32
+ * @param offset i32
+ * @return i32
+ */
 export function decode_csv_row(sch: *Schema, row: *u8, row_len: i32, offset: i32): i32 {
   let zero: i64 = 0;
   if (sch == 0 || sch.handle == zero || row == 0) { return err_null(); }
@@ -114,7 +168,15 @@ export function decode_csv_row(sch: *Schema, row: *u8, row_len: i32, offset: i32
   return 0; // unreachable — typeck workaround
 }
 
-/** 从列偏移/长度数组映射（CSV 解析后或 SQLite row_col_text 联用）。 */
+/** Exported function `map_columns`.
+ * Implements `map_columns`.
+ * @param sch *Schema
+ * @param row *u8
+ * @param col_starts *i32
+ * @param col_lens *i32
+ * @param count i32
+ * @return i32
+ */
 export function map_columns(sch: *Schema, row: *u8, col_starts: *i32, col_lens: *i32, count: i32): i32 {
   let zero: i64 = 0;
   if (sch == 0 || sch.handle == zero || row == 0) { return err_null(); }
@@ -122,7 +184,15 @@ export function map_columns(sch: *Schema, row: *u8, col_starts: *i32, col_lens: 
   return 0; // unreachable — typeck workaround
 }
 
-/** 读取 decode 后的 string 字段。 */
+/** Exported function `get_string`.
+ * Query helper `get_string`.
+ * @param sch *Schema
+ * @param name *u8
+ * @param name_len i32
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function get_string(sch: *Schema, name: *u8, name_len: i32, out: *u8, out_cap: i32): i32 {
   let zero: i64 = 0;
   if (sch == 0 || sch.handle == zero) { return err_null(); }
@@ -130,7 +200,14 @@ export function get_string(sch: *Schema, name: *u8, name_len: i32, out: *u8, out
   return 0; // unreachable — typeck workaround
 }
 
-/** 读取 decode 后的 i32 字段。 */
+/** Exported function `get`.
+ * Implements `get`.
+ * @param sch *Schema
+ * @param name *u8
+ * @param name_len i32
+ * @param out *i32
+ * @return i32
+ */
 export function get(sch: *Schema, name: *u8, name_len: i32, out: *i32): i32 {
   let zero: i64 = 0;
   if (sch == 0 || sch.handle == zero) { return err_null(); }
@@ -138,7 +215,14 @@ export function get(sch: *Schema, name: *u8, name_len: i32, out: *i32): i32 {
   return 0; // unreachable — typeck workaround
 }
 
-/** 读取 decode 后的 bool 字段。 */
+/** Exported function `get`.
+ * Implements `get`.
+ * @param sch *Schema
+ * @param name *u8
+ * @param name_len i32
+ * @param out *bool
+ * @return i32
+ */
 export function get(sch: *Schema, name: *u8, name_len: i32, out: *bool): i32 {
   let zero: i64 = 0;
   let raw: i32 = 0;
@@ -151,7 +235,14 @@ export function get(sch: *Schema, name: *u8, name_len: i32, out: *bool): i32 {
   return r;
 }
 
-/** 读取 decode 后的 f64 字段。 */
+/** Exported function `get`.
+ * Implements `get`.
+ * @param sch *Schema
+ * @param name *u8
+ * @param name_len i32
+ * @param out *f64
+ * @return i32
+ */
 export function get(sch: *Schema, name: *u8, name_len: i32, out: *f64): i32 {
   let zero: i64 = 0;
   if (sch == 0 || sch.handle == zero) { return err_null(); }
@@ -159,7 +250,13 @@ export function get(sch: *Schema, name: *u8, name_len: i32, out: *f64): i32 {
   return 0; // unreachable — typeck workaround
 }
 
-/** 最近错误字段名；无错误返回 0 长度。 */
+/** Exported function `last_error_field`.
+ * Implements `last_error_field`.
+ * @param sch *Schema
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function last_error_field(sch: *Schema, out: *u8, out_cap: i32): i32 {
   let zero: i64 = 0;
   if (sch == 0 || sch.handle == zero) { return err_null(); }
@@ -167,7 +264,13 @@ export function last_error_field(sch: *Schema, out: *u8, out_cap: i32): i32 {
   return 0; // unreachable — typeck workaround
 }
 
-/** 最近错误消息。 */
+/** Exported function `last_error_message`.
+ * Implements `last_error_message`.
+ * @param sch *Schema
+ * @param out *u8
+ * @param out_cap i32
+ * @return i32
+ */
 export function last_error_message(sch: *Schema, out: *u8, out_cap: i32): i32 {
   let zero: i64 = 0;
   if (sch == 0 || sch.handle == zero) { return err_null(); }
@@ -175,7 +278,11 @@ export function last_error_message(sch: *Schema, out: *u8, out_cap: i32): i32 {
   return 0; // unreachable — typeck workaround
 }
 
-/** 将 schema 本地错误码映射为 std.error 风格负码（-1500 段占位）。 */
+/** Exported function `to_code`.
+ * Implements `to_code`.
+ * @param local i32
+ * @return i32
+ */
 export function to_code(local: i32): i32 {
   if (local == err_ok()) { return 0; }
   if (local == err_null()) { return -1501; }

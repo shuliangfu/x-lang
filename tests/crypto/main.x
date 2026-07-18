@@ -1,6 +1,10 @@
-// 测试 std.crypto：mem_eq、sha256、hmac_sha256
+// See implementation.
 const crypto = import("std.crypto");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: u8[4] = [1, 2, 3, 4];
   let b: u8[4] = [1, 2, 3, 4];

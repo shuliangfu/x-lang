@@ -20,6 +20,11 @@ struct Context {
   sp: u32;
 };
 
+/** Internal function `serial_putc`.
+ * Implements `serial_putc`.
+ * @param c u8
+ * @return void
+ */
 function serial_putc(c: u8): void {
   unsafe { asm!("outb %%al, %%dx" : : "a"(c), "d"(0x3F8)); }
 };
@@ -30,6 +35,12 @@ let ctx_task2: Context = { sp: 0 };
 
 #[used]
 #[naked]
+/** Internal function `switch_to`.
+ * Implements `switch_to`.
+ * @param old *Context
+ * @param new_ctx *Context
+ * @return void
+ */
 function switch_to(old: *Context, new_ctx: *Context): void {
   unsafe {
     asm!("movl 4(%esp), %eax; movl 8(%esp), %edx; pushl %ebp; pushl %ebx; pushl %esi; pushl %edi; movl %esp, (%eax); movl (%edx), %esp; popl %edi; popl %esi; popl %ebx; popl %ebp; ret");
@@ -41,6 +52,10 @@ let task2_stack: u32 = 0;
 let schedule_count: u32 = 0;
 
 #[used]
+/** Internal function `task1_entry`.
+ * Implements `task1_entry`.
+ * @return void
+ */
 function task1_entry(): void {
   serial_putc(49);  // '1'
   switch_to(&ctx_task1, &ctx_task2);
@@ -49,6 +64,10 @@ function task1_entry(): void {
 };
 
 #[used]
+/** Internal function `task2_entry`.
+ * Implements `task2_entry`.
+ * @return void
+ */
 function task2_entry(): void {
   serial_putc(50);  // '2'
   switch_to(&ctx_task2, &ctx_task1);
@@ -56,6 +75,13 @@ function task2_entry(): void {
   switch_to(&ctx_task2, &ctx_main);
 };
 
+/** Internal function `setup_task`.
+ * Implements `setup_task`.
+ * @param ctx *Context
+ * @param entry_addr u32
+ * @param stack_top u32
+ * @return void
+ */
 function setup_task(ctx: *Context, entry_addr: u32, stack_top: u32): void {
   // Build initial stack: edi, esi, ebx, ebp (all 0), return address (entry)
   let sp: u32 = stack_top - 20;
@@ -73,6 +99,10 @@ function setup_task(ctx: *Context, entry_addr: u32, stack_top: u32): void {
   unsafe { *ctx_sp = sp; }
 };
 
+/** Internal function `kmain`.
+ * Implements `kmain`.
+ * @return i32
+ */
 function kmain(): i32 {
   serial_putc(83);  // S
 
@@ -99,7 +129,16 @@ function kmain(): i32 {
 };
 
 #[entry]
+/** Internal function `start`.
+ * Implements `start`.
+ * @return void
+ */
 function start(): void {
   unsafe { asm!("mov $0x80000, %esp; call kmain; cli; hlt"); }
 };
+/** Internal function `main`.
+ * Program/test entry point.
+ * @param ) i32 { return kmain(
+ * @return void
+ */
 function main(): i32 { return kmain() + mb1.magic as i32; }

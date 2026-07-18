@@ -14,16 +14,16 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// simd_vector_inline.x — M8-tail：SIMD 向量 intrinsic let-init 内联 X 薄包装（bl→C pipeline_glue）。
+// See implementation.
 //
-// 【文件职责】
-//   - shuffle/select/binop2 向量 CALL 内联从 C glue 暴露 X 符号，供自举 backend 分派。
-//   - 实现委托 pipeline_asm_simd_try_inline_*_call_elf_c（pipeline_glue.c / simd_vector_inline.h）。
+// See implementation.
+// See implementation.
+// See implementation.
 
 const ast = import("ast");
 const backend = import("asm.backend");
 
-/** shuffle intrinsic 内联尝试（@shuffle / simd_shuffle / vec*_shuffle）。 */
+/* See implementation. */
 export extern function pipeline_asm_simd_try_inline_shuffle_call_elf_c(
   arena: *ASTArena,
   elf_ctx: *ElfCodegenCtx,
@@ -34,6 +34,10 @@ export extern function pipeline_asm_simd_try_inline_shuffle_call_elf_c(
   type_ref: i32,
 ): i32;
 
+/** Function `simd_try_inline_shuffle_call_elf`.
+ * Purpose: implements `simd_try_inline_shuffle_call_elf`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function simd_try_inline_shuffle_call_elf(
   arena: *ASTArena,
   elf_ctx: *ElfCodegenCtx,
@@ -47,7 +51,7 @@ export function simd_try_inline_shuffle_call_elf(
     arena, elf_ctx, call_ref, ctx, ta, stack_slot_off, type_ref);
 }
 
-/** select intrinsic 内联尝试（@select / simd_select / vec*_select）。 */
+/* See implementation. */
 export extern function pipeline_asm_simd_try_inline_select_call_elf_c(
   arena: *ASTArena,
   elf_ctx: *ElfCodegenCtx,
@@ -58,6 +62,10 @@ export extern function pipeline_asm_simd_try_inline_select_call_elf_c(
   type_ref: i32,
 ): i32;
 
+/** Function `simd_try_inline_select_call_elf`.
+ * Purpose: implements `simd_try_inline_select_call_elf`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function simd_try_inline_select_call_elf(
   arena: *ASTArena,
   elf_ctx: *ElfCodegenCtx,
@@ -71,7 +79,7 @@ export function simd_try_inline_select_call_elf(
     arena, elf_ctx, call_ref, ctx, ta, stack_slot_off, type_ref);
 }
 
-/** 两参向量 binop CALL 内联（vec8i_add / vec4f_mul 等）。 */
+/* See implementation. */
 export extern function pipeline_asm_simd_try_inline_binop2_call_elf_c(
   arena: *ASTArena,
   elf_ctx: *ElfCodegenCtx,
@@ -82,6 +90,10 @@ export extern function pipeline_asm_simd_try_inline_binop2_call_elf_c(
   type_ref: i32,
 ): i32;
 
+/** Function `simd_try_inline_binop2_call_elf`.
+ * Purpose: implements `simd_try_inline_binop2_call_elf`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function simd_try_inline_binop2_call_elf(
   arena: *ASTArena,
   elf_ctx: *ElfCodegenCtx,
@@ -95,7 +107,7 @@ export function simd_try_inline_binop2_call_elf(
     arena, elf_ctx, call_ref, ctx, ta, stack_slot_off, type_ref);
 }
 
-/** 三参 Vec4f FMA CALL 内联（vec4f_fma / vec4f_madd / simd_fma）。 */
+/* See implementation. */
 export extern function pipeline_asm_simd_try_inline_fma3_call_elf_c(
   arena: *ASTArena,
   elf_ctx: *ElfCodegenCtx,
@@ -106,6 +118,10 @@ export extern function pipeline_asm_simd_try_inline_fma3_call_elf_c(
   type_ref: i32,
 ): i32;
 
+/** Function `simd_try_inline_fma3_call_elf`.
+ * Purpose: implements `simd_try_inline_fma3_call_elf`; params/returns as declared (may be multi-line).
+ * Contracts: null/cap/PLATFORM as enforced in the body.
+ */
 export function simd_try_inline_fma3_call_elf(
   arena: *ASTArena,
   elf_ctx: *ElfCodegenCtx,

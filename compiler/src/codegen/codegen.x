@@ -14,18 +14,18 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// codegen.x — 代码生成（纯 .x，完全自举）
+// See implementation.
 //
-// 10.4.2 进展：import 前缀、std.io 判定、should_skip_emit、call_num_args_override 均在 .x；
-// asm backend.x 经 import codegen 直调 codegen_call_num_args_override，不再依赖 runtime.c。
+// See implementation.
+// See implementation.
 //
-// 职责：将 .x AST（Module + Arena）生成 C 源码，全部逻辑在 .x，不依赖任何 C 业务接口。
-// 输出：写入内存缓冲区 CodegenOutBuf，由 C 在调用 pipeline 后将 data[0..len-1] 写到 FILE*。
-// 依赖：import ast。
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// ABI / 可维护性（P3 审计摘要）：用户 struct 字段类型发射走 pipeline_* glue + emit_struct_field_type_via_pipeline，避免 ast_arena_type_get 撕裂；
-// emit_expr / FIELD_ACCESS / CALL 等路径仍局部使用 ast_arena_type_get(Expr/Type)，后续可按 pipeline_glue.c 模式逐步收口；
-// parser/typeck 中大 StructLayout/Type 写入已由 pipeline_module_struct_layout_* / pipeline_type_* 补丁覆盖，残余按值返回见各模块注释。
+// See implementation.
+// See implementation.
+// See implementation.
 
 // Cap-T001 / LANG-007 S0 (M1→M2 codegen): functions that call export-extern
 // pipeline_* / driver_* / glue use whole-body unsafe FFI gates.
@@ -35,47 +35,47 @@
 
 const ast = import("ast");
 
-/** dep 池 import 路径读写（定义在 pipeline_glue.c / ast_pool.c）。 */
+/* See implementation. */
 export extern function pipeline_dep_ctx_import_path_len(ctx: *PipelineDepCtx, idx: i32): i32;
 export extern function pipeline_dep_ctx_import_path_copy64(ctx: *PipelineDepCtx, idx: i32, dst: *u8): void;
 export extern function pipeline_dep_ctx_module_at(ctx: *PipelineDepCtx, idx: i32): *Module;
 export extern function pipeline_dep_ctx_arena_at(ctx: *PipelineDepCtx, idx: i32): *ASTArena;
 export extern function pipeline_dep_ctx_ndep(ctx: *PipelineDepCtx): i32;
 
-/** glue：按池 ref 安全读类型 kind / elem_ref / array_size，避免 X 对大 Type 按值返回撕裂（与 typeck 同源）。 */
+/* See implementation. */
 export extern function pipeline_type_named_name_into(arena: *ASTArena, ref: i32, out64: *u8): i32;
 export extern function pipeline_type_kind_ord_at(arena: *ASTArena, ref: i32): i32;
 export extern function pipeline_type_elem_ref_at(arena: *ASTArena, ref: i32): i32;
 export extern function pipeline_type_array_size_at(arena: *ASTArena, ref: i32): i32;
-/** glue：type_to_c_repr 全逻辑在 C，避免 dep prerun 全量 typeck 时 X 大函数 check_block 失败。 */
+/* See implementation. */
 export extern function pipeline_codegen_type_to_c_repr(arena: *ASTArena, scratch: *u8, cap: i32, type_ref: i32, struct_prefix: *u8, struct_prefix_len: i32): i32;
-/** 单文件 C co-emit：header+全 dep 类型+forward 只 emit 一次（pipeline 多 dep 各调 codegen_x_ast 时防重入）。 */
+/* See implementation. */
 export extern function pipeline_codegen_c_file_prologue_done_get(): i32;
 export extern function pipeline_codegen_c_file_prologue_done_set(v: i32): void;
 export extern function pipeline_codegen_c_file_prologue_done_reset(): void;
-/** 单文件 C：完整 struct tag 首次 claim 返回 1，重复返回 0（防 co-emit redefinition）。 */
+/* See implementation. */
 export extern function pipeline_codegen_struct_tag_try_claim(prefix: *u8, prefix_len: i32, name: *u8, name_len: i32): i32;
-/** glue：emit_struct_field_type_via_pipeline 全逻辑在 C，同上。 */
+/* See implementation. */
 export extern function pipeline_codegen_emit_struct_field_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, struct_prefix: *u8, struct_prefix_len: i32): i32;
-/** glue：发射完整 struct 字段声明，修正数组字段 `type name[n]` 顺序。 */
+/* See implementation. */
 export extern function pipeline_codegen_emit_struct_field_decl(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, field_name: *u8, field_name_len: i32, struct_prefix: *u8, struct_prefix_len: i32): i32;
-/** build_seed_asm_host：SHUX_EMIT_SEED_MEGA=1 时勿跳过 seed_mega emit。 */
+/* See implementation. */
 export extern function pipeline_codegen_emit_seed_mega_enabled(): i32;
 /** C-backend float literal emit (host snprintf; float_val + float_bits fallback).
  * Authority: pipeline_glue.c pipeline_codegen_emit_float_lit_c; product Darwin also exports
  * the same symbol from seeds/pipeline_glue_strict_minimal.from_x.c (same semantics, same commit).
  * PLATFORM: SHARED — required by force-regen codegen M2 (EXPR_FLOAT_LIT). */
 export extern function pipeline_codegen_emit_float_lit_c(out: *CodegenOutBuf, float_val: f64, bits_lo: i32, bits_hi: i32): i32;
-/** runtime_driver_diagnostic.c：emit_func 失败时打印函数名下标，便于定位 -E codegen fail。 */
+/* See implementation. */
 export extern function driver_diagnostic_codegen_emit_func_fail(module: *Module, func_index: i32): void;
-/** glue：按槽读 Module.struct_layouts，避免 X 对大 StructLayout 按值拷贝读字段不稳。 */
+/* See implementation. */
 export extern function pipeline_module_struct_layout_name_len(module: *Module, idx: i32): i32;
 export extern function pipeline_module_struct_layout_name_into(module: *Module, idx: i32, out64: *u8): void;
 export extern function pipeline_module_struct_layout_num_fields(module: *Module, idx: i32): i32;
 export extern function pipeline_module_struct_layout_field_type_ref(module: *Module, layout_idx: i32, field_idx: i32): i32;
 export extern function pipeline_module_struct_layout_field_name_len(module: *Module, layout_idx: i32, field_idx: i32): i32;
 export extern function pipeline_module_struct_layout_field_name_into(module: *Module, layout_idx: i32, field_idx: i32, out64: *u8): void;
-/** export struct 标记：定义模块优先于 merge/污染写入的同名 layout（is_export=0）。 */
+/* See implementation. */
 export extern function pipeline_module_struct_layout_is_export_at(module: *Module, idx: i32): i32;
 export extern function pipeline_module_import_kind_at(module: *Module, idx: i32): i32;
 export extern function pipeline_module_import_binding_name_len(module: *Module, idx: i32): i32;
@@ -90,9 +90,9 @@ export extern function driver_dep_arena_buf(i: i32): *u8;
 export extern function driver_dep_module_buf(i: i32): *u8;
 export extern function driver_dep_seeded_get(i: i32): i32;
 export extern function driver_dep_slot_for_path(path: *u8): i32;
-/** runtime.c：当前 codegen 单元的 dep 逻辑路径（如 std.io.core），dep 池 prefix 不可用时的回退。 */
+/* See implementation. */
 export extern function driver_get_current_dep_path_for_codegen(): *u8;
-/** Expr 变长附属池读 API。 */
+/* See implementation. */
 export extern function pipeline_expr_kind_ord_at(arena: *ASTArena, expr_ref: i32): i32;
 /** True if expr is a C static-initializer constant (pure lit tree; no free VAR).
  * PLATFORM: SHARED — gates mutable top-level let decl-site init vs init_globals. */
@@ -123,18 +123,18 @@ export extern function pipeline_module_top_level_let_name_byte_at(module: *Modul
 export extern function pipeline_module_top_level_let_type_ref(module: *Module, idx: i32): i32;
 export extern function pipeline_module_top_level_let_init_ref(module: *Module, idx: i32): i32;
 export extern function pipeline_codegen_dep_skip_x_bootstrap_partial(path: *u8): i32;
-/** glue：C 指针读 module.funcs[fi].name / params[pi].name，避免 .x 嵌套下标 typeck 与 asm GEP 问题。 */
+/* See implementation. */
 export extern function pipeline_module_func_name_copy64(module: *Module, fi: i32, dst: *u8): void;
 export extern function pipeline_module_func_param_name_copy32(module: *Module, fi: i32, pi: i32, dst: *u8): void;
-/** glue：读 funcs[fi].num_params 与 params[pi].name_len，供 expr_var_matches_func_param_index 等避免 mod.funcs[fi].params[pi] 下标 typeck。 */
+/* See implementation. */
 export extern function pipeline_module_func_num_params_at(module: *Module, fi: i32): i32;
 export extern function pipeline_module_func_param_name_len_at(module: *Module, fi: i32, pi: i32): i32;
 export extern function pipeline_module_func_name_len_at(module: *Module, fi: i32): i32;
-/** 泛型模板参数个数；>0 时 C 后端不 monomorphize，禁止 emit 非法 struct *_T。 */
+/* See implementation. */
 export extern function pipeline_module_func_num_generic_params_at(module: *Module, fi: i32): i32;
 export extern function pipeline_module_func_return_type_at(module: *Module, fi: i32): i32;
 export extern function pipeline_module_func_body_ref_at(module: *Module, fi: i32): i32;
-/** codegen 无名形参下标 sidecar 池（ast_pool.c）。 */
+/* See implementation. */
 export extern function pipeline_dep_ctx_empty_param_reset(ctx: *PipelineDepCtx): void;
 export extern function pipeline_dep_ctx_empty_param_append(ctx: *PipelineDepCtx, pi: i32): i32;
 export extern function pipeline_dep_ctx_empty_param_at(ctx: *PipelineDepCtx, i: i32): i32;
@@ -149,7 +149,7 @@ export extern function pipeline_module_func_is_no_mangle_at(module: *Module, fi:
 export extern function pipeline_module_func_is_interrupt_at(module: *Module, fi: i32): i32;
 export extern function pipeline_module_func_is_variadic_at(module: *Module, fi: i32): i32;
 export extern function pipeline_module_func_param_type_ref_at(module: *Module, fi: i32, pi: i32): i32;
-/** Block 池读（ast_pool.c）；emit_block 经 glue 访问 const/let/if/expr。 */
+/* See implementation. */
 export extern function pipeline_block_const_name_copy64(arena: *ASTArena, br: i32, ci: i32, dst: *u8): void;
 export extern function pipeline_block_const_name_len(arena: *ASTArena, br: i32, ci: i32): i32;
 export extern function pipeline_block_const_type_ref(arena: *ASTArena, br: i32, ci: i32): i32;
@@ -161,18 +161,22 @@ export extern function pipeline_block_let_init_ref(arena: *ASTArena, br: i32, li
 export extern function pipeline_block_if_cond_ref(arena: *ASTArena, br: i32, ii: i32): i32;
 export extern function pipeline_block_if_then_body_ref(arena: *ASTArena, br: i32, ii: i32): i32;
 export extern function pipeline_block_if_else_body_ref(arena: *ASTArena, br: i32, ii: i32): i32;
-/** MEM-B0：defer 子块 body ref（逆序 emit 用）。 */
+/* See implementation. */
 export extern function pipeline_block_defer_body_ref(arena: *ASTArena, br: i32, di: i32): i32;
 export extern function pipeline_module_func_ref_at(module: *Module, func_index: i32): i32;
-/** asm backend：`import a.b.c` + `a.b.c.method` 形式解析 C ABI 符号（backend_call_dispatch.c）。 */
+/* See implementation. */
 export extern function pipeline_asm_resolve_whole_import_qualified_symbol_c(arena: *ASTArena, cur_mod: *Module, callee_expr_ref: i32, sym_flat: *u8, out_match_imp_j: *i32): i32;
 export extern function pipeline_block_stmt_order_kind(arena: *ASTArena, br: i32, si: i32): u8;
 export extern function pipeline_block_stmt_order_idx(arena: *ASTArena, br: i32, si: i32): i32;
 
 /**
- * path 指向的 NUL 结尾字节是否与 "std.io.core" 完全一致（ codegen.c 同名逻辑迁入 .x，减少一处 extern）。
+ * See implementation.
  */
-/** import 路径是否为 std.io.driver（与 codegen.c 一致）。 */
+/** Exported function `codegen_path_is_std_io_driver_bytes`.
+ * Implements `codegen_path_is_std_io_driver_bytes`.
+ * @param path *u8
+ * @return i32
+ */
 export function codegen_path_is_std_io_driver_bytes(path: *u8): i32 {
   let expect: u8[14] = [115, 116, 100, 46, 105, 111, 46, 100, 114, 105, 118, 101, 114, 0];
   let i: i32 = 0;
@@ -188,10 +192,15 @@ export function codegen_path_is_std_io_driver_bytes(path: *u8): i32 {
   return 1;
 }
 
+/** Exported function `codegen_path_is_std_io_core_bytes`.
+ * Implements `codegen_path_is_std_io_core_bytes`.
+ * @param path *u8
+ * @return i32
+ */
 export function codegen_path_is_std_io_core_bytes(path: *u8): i32 {
   let expect: u8[12] = [115, 116, 100, 46, 105, 111, 46, 99, 111, 114, 101, 0];
   let i: i32 = 0;
-  /** asm 后端仅稳定追踪 i32 局部；u8 槽不在 ctx（pi/ei 须 i32 再与 expect 字节比）。 */
+  /* See implementation. */
   let pi: i32 = 0;
   let ei: i32 = 0;
   if (path == 0 as *u8) {
@@ -209,8 +218,8 @@ export function codegen_path_is_std_io_core_bytes(path: *u8): i32 {
 }
 
 /**
- * 将 import 路径转为 C 符号前缀（ASCII：`.`→`_`，末尾再补 `_`），与 codegen.c import_path_to_c_prefix 对齐。
- * path 为空指针视作空路径；buf_cap≤0 时不写入；缓冲区内保证写入结尾 NUL。
+ * See implementation.
+ * See implementation.
  */
 export function codegen_import_path_to_c_prefix_into(path: *u8, buf: *u8, buf_cap: i32): void {
   if (buf == 0 as *u8 || buf_cap <= 0) {
@@ -242,7 +251,7 @@ export function codegen_import_path_to_c_prefix_into(path: *u8, buf: *u8, buf_ca
 }
 
 /**
- * 将 dep 池第 idx 个逻辑 import 路径拷入 dst（64 字节）；无路径返回 0，否则返回字节长度。
+ * See implementation.
  */
 export function codegen_dep_import_path_len_at(ctx: *PipelineDepCtx, idx: i32, dst: *u8): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -258,7 +267,7 @@ export function codegen_dep_import_path_len_at(ctx: *PipelineDepCtx, idx: i32, d
 }
 
 /**
- * 在 dep 池中查找 current_codegen_module，路径写入 dst；返回长度，0 表示未找到或无路径。
+ * See implementation.
  */
 export function codegen_ctx_dep_path_for_current_codegen_module_into(ctx: *PipelineDepCtx, dst: *u8): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -280,8 +289,8 @@ export function codegen_ctx_dep_path_for_current_codegen_module_into(ctx: *Pipel
 }
 
 /**
- * 读取当前 codegen 模块第 import_idx 条 import 的原始 import path。
- * 返回长度，0 表示当前模块为空、索引无效或未记录路径。
+ * See implementation.
+ * See implementation.
  */
 export function codegen_module_import_path_len_at(module: *Module, import_idx: i32, dst: *u8): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -300,7 +309,7 @@ export function codegen_module_import_path_len_at(module: *Module, import_idx: i
 }
 
 /**
- * 以 import path 精确匹配 dep_ctx 中的全局 dep 槽位，返回 dep index；找不到返回 -1。
+ * See implementation.
  */
 export function codegen_find_dep_index_by_path(ctx: *PipelineDepCtx, path: *u8, path_len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -334,6 +343,12 @@ export function codegen_find_dep_index_by_path(ctx: *PipelineDepCtx, path: *u8, 
   }
 }
 
+/** Exported function `codegen_find_seeded_global_dep_slot_by_path`.
+ * Implements `codegen_find_seeded_global_dep_slot_by_path`.
+ * @param path *u8
+ * @param path_len i32
+ * @return i32
+ */
 export function codegen_find_seeded_global_dep_slot_by_path(path: *u8, path_len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -356,6 +371,11 @@ export function codegen_find_seeded_global_dep_slot_by_path(path: *u8, path_len:
   }
 }
 
+/** Exported function `codegen_module_num_imports`.
+ * Implements `codegen_module_num_imports`.
+ * @param module *Module
+ * @return i32
+ */
 export function codegen_module_num_imports(module: *Module): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -372,8 +392,8 @@ export function codegen_module_num_imports(module: *Module): i32 {
 }
 
 /**
- * 根据当前 codegen 模块在 dep 池中的逻辑路径，写入与 emit_func 一致的 C 符号前缀（buf 内 NUL 结尾），返回前缀字节长度（不含 NUL）。
- * 主模块未出现在 dep 池中时路径为空，返回 0；std.io.core 与 codegen_x_ast 一致不加前缀。
+ * See implementation.
+ * See implementation.
  */
 export function codegen_emit_prefix_len_from_ctx(ctx: *PipelineDepCtx, buf: *u8, buf_cap: i32): i32 {
   if (buf == 0 as *u8 || buf_cap <= 0 || ctx == 0 as *PipelineDepCtx) {
@@ -381,8 +401,8 @@ export function codegen_emit_prefix_len_from_ctx(ctx: *PipelineDepCtx, buf: *u8,
   }
   buf[0] = 0 as u8;
   /*
-   * 入口库模块：优先 entry_module_import_path（driver 钉死的 C 前缀），避免
-   * current_codegen_prefix 被 dep codegen 覆写后污染入口局部/调用前缀。
+   * See implementation.
+   * See implementation.
    */
   if (ctx.current_codegen_dep_index < 0 && ctx.entry_module_import_path_len > 0) {
     let pi: i32 = 0;
@@ -424,7 +444,13 @@ export function codegen_emit_prefix_len_from_ctx(ctx: *PipelineDepCtx, buf: *u8,
   return i;
 }
 
-/** 按形参类型选择 run v4 seed push 入口；与 codegen.c codegen_run_seed_push_fn 对齐。 */
+/** Exported function `codegen_emit_async_run_seed_push_name`.
+ * Implements `codegen_emit_async_run_seed_push_name`.
+ * @param out *CodegenOutBuf
+ * @param arena *ASTArena
+ * @param type_ref i32
+ * @return i32
+ */
 export function codegen_emit_async_run_seed_push_name(out: *CodegenOutBuf, arena: *ASTArena, type_ref: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -450,7 +476,13 @@ export function codegen_emit_async_run_seed_push_name(out: *CodegenOutBuf, arena
   }
 }
 
-/** 输出 async 调度 wrapper 调用 `shux_async_sched_<fn>()`。 */
+/** Exported function `codegen_emit_async_sched_call`.
+ * Implements `codegen_emit_async_sched_call`.
+ * @param out *CodegenOutBuf
+ * @param module *Module
+ * @param func_index i32
+ * @return i32
+ */
 export function codegen_emit_async_sched_call(out: *CodegenOutBuf, module: *Module, func_index: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -479,7 +511,13 @@ export function codegen_emit_async_sched_call(out: *CodegenOutBuf, module: *Modu
   }
 }
 
-/** 输出 async 调度 wrapper 调用 `shux_async_sched_<name>()`。 */
+/** Exported function `codegen_emit_async_sched_call_by_name`.
+ * Implements `codegen_emit_async_sched_call_by_name`.
+ * @param out *CodegenOutBuf
+ * @param fn_name *u8
+ * @param fn_len i32
+ * @return i32
+ */
 export function codegen_emit_async_sched_call_by_name(out: *CodegenOutBuf, fn_name: *u8, fn_len: i32): i32 {
   let sched_prefix: u8[17] = [115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 115, 99, 104, 101, 100, 95];
   if (out == 0 as *CodegenOutBuf || fn_name == 0 as *u8 || fn_len <= 0) {
@@ -497,7 +535,13 @@ export function codegen_emit_async_sched_call_by_name(out: *CodegenOutBuf, fn_na
   return append_byte(out, 41);
 }
 
-/** 输出 `shux_async_task_submit((int32_t (*)(void))fn)`；与 C 路径 spawn 对齐。 */
+/** Exported function `codegen_emit_async_task_submit_call`.
+ * Implements `codegen_emit_async_task_submit_call`.
+ * @param out *CodegenOutBuf
+ * @param module *Module
+ * @param func_index i32
+ * @return i32
+ */
 export function codegen_emit_async_task_submit_call(out: *CodegenOutBuf, module: *Module, func_index: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -533,7 +577,15 @@ export function codegen_emit_async_task_submit_call(out: *CodegenOutBuf, module:
   }
 }
 
-/** 输出 `shux_async_task_submit((int32_t (*)(void))prefix_name)`；spawn 的 binding import 回退路径复用。 */
+/** Exported function `codegen_emit_async_task_submit_call_by_symbol`.
+ * Implements `codegen_emit_async_task_submit_call_by_symbol`.
+ * @param out *CodegenOutBuf
+ * @param prefix *u8
+ * @param prefix_len i32
+ * @param fn_name *u8
+ * @param fn_len i32
+ * @return i32
+ */
 export function codegen_emit_async_task_submit_call_by_symbol(out: *CodegenOutBuf, prefix: *u8, prefix_len: i32, fn_name: *u8, fn_len: i32): i32 {
   let submit_name: u8[22] = [115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 116, 97, 115, 107, 95, 115, 117, 98, 109, 105, 116];
   let cast_prefix: u8[19] = [40, 105, 110, 116, 51, 50, 95, 116, 32, 40, 42, 41, 40, 118, 111, 105, 100, 41, 41];
@@ -561,7 +613,15 @@ export function codegen_emit_async_task_submit_call_by_symbol(out: *CodegenOutBu
   return 0;
 }
 
-/** binding import 的 run/spawn 回退：直接按 `binding.fn(...)` 的字段名与 import 前缀发射，避免依赖 dep module 元数据。 */
+/** Exported function `codegen_emit_async_binding_import_call`.
+ * Implements `codegen_emit_async_binding_import_call`.
+ * @param arena *ASTArena
+ * @param out *CodegenOutBuf
+ * @param call_expr_ref i32
+ * @param ctx *PipelineDepCtx
+ * @param is_spawn i32
+ * @return i32
+ */
 export function codegen_emit_async_binding_import_call(arena: *ASTArena, out: *CodegenOutBuf, call_expr_ref: i32, ctx: *PipelineDepCtx, is_spawn: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -689,7 +749,14 @@ export function codegen_emit_async_binding_import_call(arena: *ASTArena, out: *C
   }
 }
 
-/** `run dep.fn(args)` 等 METHOD_CALL async 回退：run 仅依赖 method 名，不需要 dep 前缀。 */
+/** Exported function `codegen_emit_async_method_call_run`.
+ * Implements `codegen_emit_async_method_call_run`.
+ * @param arena *ASTArena
+ * @param out *CodegenOutBuf
+ * @param method_expr_ref i32
+ * @param ctx *PipelineDepCtx
+ * @return i32
+ */
 export function codegen_emit_async_method_call_run(arena: *ASTArena, out: *CodegenOutBuf, method_expr_ref: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -755,7 +822,13 @@ export function codegen_emit_async_method_call_run(arena: *ASTArena, out: *Codeg
   }
 }
 
-/** 线性扫描 module.funcs，按 ASCII 函数名返回下标；找不到返回 -1。 */
+/** Exported function `codegen_find_module_func_index_by_name`.
+ * Implements `codegen_find_module_func_index_by_name`.
+ * @param module *Module
+ * @param nm *u8
+ * @param nm_len i32
+ * @return i32
+ */
 export function codegen_find_module_func_index_by_name(module: *Module, nm: *u8, nm_len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -789,7 +862,13 @@ export function codegen_find_module_func_index_by_name(module: *Module, nm: *u8,
   }
 }
 
-/** 绑定 import（`const dep = import("...")`）的 `dep.fn(...)` 回退解析依赖槽，找不到返回 -1。 */
+/** Exported function `codegen_resolve_binding_import_dep_index`.
+ * Implements `codegen_resolve_binding_import_dep_index`.
+ * @param ctx *PipelineDepCtx
+ * @param arena *ASTArena
+ * @param callee_expr_ref i32
+ * @return i32
+ */
 export function codegen_resolve_binding_import_dep_index(ctx: *PipelineDepCtx, arena: *ASTArena, callee_expr_ref: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -842,7 +921,13 @@ export function codegen_resolve_binding_import_dep_index(ctx: *PipelineDepCtx, a
   }
 }
 
-/** run/spawn 的 resolved_func_index 未填稳时，回退按 callee/method 名在线性扫描目标模块函数。 */
+/** Exported function `codegen_resolve_call_target_func_index`.
+ * Implements `codegen_resolve_call_target_func_index`.
+ * @param arena *ASTArena
+ * @param module *Module
+ * @param call_expr_ref i32
+ * @return i32
+ */
 export function codegen_resolve_call_target_func_index(arena: *ASTArena, module: *Module, call_expr_ref: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -880,9 +965,9 @@ export function codegen_resolve_call_target_func_index(arena: *ASTArena, module:
 }
 
 /**
- * 判断 field_access 的 base 是否为指向函数第 param_idx 个形参的 EXPR_VAR（含「恰好一个无名形参」时的无名 VAR）。
- * 多无名形参时不尝试绑定，避免与 current_emit_empty_var_next_index 顺序耦合。
- * 自举：勿将 module.funcs[func_index] 或 Param 按值拷入局部，改经 mod.funcs[func_index].params[param_idx] 逐字段读。
+ * See implementation.
+ * See implementation.
+ * See implementation.
  */
 export function expr_var_matches_func_param_index(arena: *ASTArena, var_ref: i32, mod: *Module, func_index: i32, param_idx: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -894,7 +979,7 @@ export function expr_var_matches_func_param_index(arena: *ASTArena, var_ref: i32
     if (func_index < 0 || func_index >= mod.num_funcs) {
       return 0;
     }
-    /** 经 glue 读 num_params / 形参名，勿 mod.funcs[fi].params[pi] 嵌套下标（typeck 报 subscript base）。 */
+    /* See implementation. */
     let np: i32 = pipeline_module_func_num_params_at(mod, func_index);
     if (param_idx < 0 || param_idx >= np) {
       return 0;
@@ -937,7 +1022,14 @@ export function expr_var_matches_func_param_index(arena: *ASTArena, var_ref: i32
   }
 }
 
-/** prefix+name 拼成的完整 C 符号与字面量逐字节比较；长度不一或指针为空则不相等。 */
+/** Exported function `codegen_symbuf_bytes_eq`.
+ * Implements `codegen_symbuf_bytes_eq`.
+ * @param buf *u8
+ * @param buf_len i32
+ * @param lit *u8
+ * @param lit_len i32
+ * @return i32
+ */
 export function codegen_symbuf_bytes_eq(buf: *u8, buf_len: i32, lit: *u8, lit_len: i32): i32 {
   if (buf == 0 as *u8 || lit == 0 as *u8 || buf_len != lit_len) {
     return 0;
@@ -953,8 +1045,8 @@ export function codegen_symbuf_bytes_eq(buf: *u8, buf_len: i32, lit: *u8, lit_le
 }
 
 /**
- * 对已知 0/1 参封装强制发射的实参个数（避免 0 参生成 (0,0)、单参族在 AST 误多参时压到 1）。
- * prefix/name 与已写 C 符号的前缀+标识符一致；逐字节拼接后与已知全名表匹配（无 strcmp）。
+ * See implementation.
+ * See implementation.
  */
 export function codegen_call_num_args_override(prefix: *u8, prefix_len: i32, name: *u8, name_len: i32, num_args: i32): i32 {
   if (num_args <= 0) {
@@ -1105,7 +1197,7 @@ export function codegen_call_num_args_override(prefix: *u8, prefix_len: i32, nam
 }
 
 /**
- * 判断 name 的前 exp_len 字节是否与 expect 所指前缀逐字节相等；空指针或 name_len 不足时返回 0。
+ * See implementation.
  */
 export function codegen_name_bytes_prefix_eq(name: *u8, name_len: i32, expect: *u8, exp_len: i32): i32 {
   if (name == 0 as *u8 || expect == 0 as *u8 || name_len < exp_len) {
@@ -1122,8 +1214,8 @@ export function codegen_name_bytes_prefix_eq(name: *u8, name_len: i32, expect: *
 }
 
 /**
- * 判断是否为 std_io_driver 在 preamble/runtime ABI 中已提供的桥接函数名（X codegen 不得生成函数体）。
- * name_len 允许与标识符长度或 AST 上报多 1（与 driver_read_ptr 等一致）。
+ * See implementation.
+ * See implementation.
  */
 export function codegen_is_std_io_driver_bridge_name(name: *u8, name_len: i32): i32 {
   if (name == 0 as *u8) {
@@ -1154,9 +1246,9 @@ export function codegen_is_std_io_driver_bridge_name(name: *u8, name_len: i32): 
   if (name_len == 22 && codegen_name_bytes_prefix_eq(name, name_len, &nm22[0], 22) != 0) {
     return 1;
   }
-  /* 【Why 根源】submit_*_batch 不得 skip co-emit：call 端仍用 std_io_driver_submit_*_batch，
-   * 跳过则只剩 preamble weak 返回 -1（run-io-driver r4=-1）。
-   * register/submit_read/submit_write 由 call 端改写 shux_io_*_buf，可 skip 本体。 */
+  /* See implementation. */
+   * See implementation.
+   * See implementation.
   return 0;
 }
 
@@ -1184,11 +1276,11 @@ export function codegen_should_skip_emit_std_io_core_io_dup(dep_path: *u8, name:
   /* shux_io_write_fixed — 19 */
   let n_wf: u8[19] = [115, 104, 117, 120, 95, 105, 111, 95, 119, 114, 105, 116, 101, 95, 102, 105, 120, 101, 100];
   /*
-   * 【Why 根源】勿 skip submit_read / submit_*_batch：
-   *   - core co-emit 会调 std_io_backend_io_*（同 TU 已有真体）；
-   *   - 旧 skip 只剩 preamble weak，且 weak 再调裸 io_write_batch/io_read_batch，
-   *     产品 -o 不硬链 runtime_asm_io_stubs（与 co-emit std_io_write_stdout 冲突）→
-   *     run-io-driver 双端 UNDEF _io_write_batch / 弱路径假红。
+   * See implementation.
+   * See implementation.
+   * See implementation.
+   * See implementation.
+   * See implementation.
    * Do NOT skip shux_io_submit_write either (no weak; Cap force hello residual).
    * PLATFORM: SHARED — product C path; Cap force + pin seed.
    */
@@ -1212,8 +1304,8 @@ export function codegen_should_skip_emit_std_io_core_io_dup(dep_path: *u8, name:
 }
 
 /**
- * std.io 的 handle_stdin/stdout/stderr/from_fd 为字面量返回；若 dep 槽误用 std_io_driver_ 前缀再生成会与 std_io_handle_* 重复。
- * dep_path 非空时须为 std.io（path_io）；prefix-only 分支传 dep_path=0，仅按 name 判断。
+ * See implementation.
+ * See implementation.
  */
 export function codegen_should_skip_emit_std_io_trivial_handle(dep_path: *u8, name: *u8, name_len: i32): i32 {
   let path_io: u8[7] = [115, 116, 100, 46, 105, 111, 0];
@@ -1249,18 +1341,18 @@ export function codegen_should_skip_emit_std_io_trivial_handle(dep_path: *u8, na
 }
 
 /**
- * 合并原 driver_should_skip_emit_* 三套逻辑：优先按 prefix+name 拼接是否等于 std_io_driver_driver_read_ptr(_len)；
- * 否则按 dep_path 是否为 std.io.driver/std.io 且 name 为 driver_read_ptr(_len) 判断。
- * dep_path/prefix 可为空指针；prefix_len≤0 时不走前缀拼接分支。
+ * See implementation.
+ * See implementation.
+ * See implementation.
  */
 export function codegen_should_skip_emit_func(dep_path: *u8, prefix: *u8, prefix_len: i32, name: *u8, name_len: i32): i32 {
-  /* Case A：拼接 prefix+name 等于完整 mangled 名 std_io_driver_driver_read_ptr_len（33）或 std_io_driver_driver_read_ptr（29）。 */
+  /* See implementation. */
   let full33: u8[33] = [115, 116, 100, 95, 105, 111, 95, 100, 114, 105, 118, 101, 114, 95, 100, 114, 105, 118, 101, 114, 95, 114, 101, 97, 100, 95, 112, 116, 114, 95, 108, 101, 110];
   let full29: u8[29] = [115, 116, 100, 95, 105, 111, 95, 100, 114, 105, 118, 101, 114, 95, 100, 114, 105, 118, 101, 114, 95, 114, 101, 97, 100, 95, 112, 116, 114];
-  /* Case B：import 路径 NUL 结尾（与 codegen_path_is_std_io_core_bytes 同样逐字节含末尾 NUL）。 */
+  /* See implementation. */
   let path_driver: u8[14] = [115, 116, 100, 46, 105, 111, 46, 100, 114, 105, 118, 101, 114, 0];
   let path_io: u8[7] = [115, 116, 100, 46, 105, 111, 0];
-  /* Case B：标识符本体；AST 可能上报 name_len exact+1。 */
+  /* See implementation. */
   let nm_len19: u8[19] = [100, 114, 105, 118, 101, 114, 95, 114, 101, 97, 100, 95, 112, 116, 114, 95, 108, 101, 110];
   let nm_len15: u8[15] = [100, 114, 105, 118, 101, 114, 95, 114, 101, 97, 100, 95, 112, 116, 114];
   /* driver_read_ptr_gen — 19 (same length as ptr_len; distinct suffix) */
@@ -1364,7 +1456,7 @@ export function codegen_should_skip_emit_func(dep_path: *u8, prefix: *u8, prefix
       }
     }
   }
-  /* std_io_driver：preamble 已提供的桥接函数，禁止再生成函数体（prefix 为 std_io_driver_ 或 dep 为 std.io.driver）。 */
+  /* See implementation. */
   let pref_abi14: u8[14] = [115, 116, 100, 95, 105, 111, 95, 100, 114, 105, 118, 101, 114, 95];
   if (prefix != 0 as *u8 && prefix_len == 14 && name != 0 as *u8 && codegen_name_bytes_prefix_eq(prefix, prefix_len, &pref_abi14[0], 14) != 0) {
     if (codegen_is_std_io_driver_bridge_name(name, name_len) != 0) {
@@ -1388,11 +1480,11 @@ export function codegen_should_skip_emit_func(dep_path: *u8, prefix: *u8, prefix
       return 1;
     }
   }
-  /* dep 误标为 std.io.driver 时 mod 的 handle_* 会以 std_io_driver_handle_* 再生成一次，与 std_io_handle_* 重复。
-   * 【Why 根源】仅凭 prefix_len==14 会误伤 std_heap_libc_（同为 14 字节）：
-   * trivial_handle 在 name_len==12 时又因 X→C 丢括号变成「任意 12 字符名即 skip」，
-   * 导致 heap_alloc_c 只留 extern、无函数体 → heap.o 缺 std_heap_libc_heap_alloc_c。
-   * 【Invariant】必须 prefix 确为 std_io_driver_ 才走 handle skip。 */
+  /* See implementation. */
+   * See implementation.
+   * See implementation.
+   * See implementation.
+   * See implementation.
   if (prefix != 0 as *u8 && prefix_len == 14 && name != 0 as *u8
       && codegen_name_bytes_prefix_eq(prefix, prefix_len, &pref_abi14[0], 14) != 0) {
     if (codegen_should_skip_emit_std_io_trivial_handle(0 as *u8, name, name_len) != 0) {
@@ -1419,8 +1511,8 @@ export function codegen_should_skip_emit_func(dep_path: *u8, prefix: *u8, prefix
 }
 
 /**
- * 校验 C 前缀是否为 std_io_driver（前 13 字节）；若 prefix_len > 13，则第 14 字节（index 13）须为 NUL 或 '_'。
- * prefix_len == 13 时表示恰好 13 字节字面量，无额外第 14 字节要求。
+ * See implementation.
+ * See implementation.
  */
 export function codegen_force_param_std_io_driver_prefix_ok(prefix: *u8, prefix_len: i32): i32 {
   let exp13: u8[13] = [115, 116, 100, 95, 105, 111, 95, 100, 114, 105, 118, 101, 114];
@@ -1444,7 +1536,7 @@ export function codegen_force_param_std_io_driver_prefix_ok(prefix: *u8, prefix_
 }
 
 /**
- * 生成函数定义时：prefix 为 std_io_driver 族且函数为 submit_*_batch_buf 时首参强制 size_t；仅 param_index==0 时可能返回 1。
+ * See implementation.
  */
 export function codegen_force_param_size_t(prefix: *u8, prefix_len: i32, name: *u8, name_len: i32, param_index: i32): i32 {
   let rd_batch: u8[21] = [115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100, 95, 98, 97, 116, 99, 104, 95, 98, 117, 102];
@@ -1468,8 +1560,8 @@ export function codegen_force_param_size_t(prefix: *u8, prefix_len: i32, name: *
 }
 
 /**
- * io.print 第二参在 .x 为 usize；dep 末尾用于衔接的 extern 桩若误为 int32_t 会与实现体 size_t 冲突。
- * 要求 C 符号前缀前 7 字节为 std_io_（与 codegen_import_path_to_c_prefix 对 std.io 一致）。
+ * See implementation.
+ * See implementation.
  */
 export function codegen_force_param_size_t_std_io_print_str_second(prefix: *u8, prefix_len: i32, name: *u8, name_len: i32, param_index: i32): i32 {
   if (param_index != 1) {
@@ -1497,7 +1589,7 @@ export function codegen_force_param_size_t_std_io_print_str_second(prefix: *u8, 
 }
 
 /**
- * 生成函数定义时：prefix 为 std_io_driver 族且函数为 register / submit_read / submit_write 时首参强制 ptrdiff_t；仅 param_index==0 时可能返回 1。
+ * See implementation.
  */
 export function codegen_force_param_ptrdiff_t(prefix: *u8, prefix_len: i32, name: *u8, name_len: i32, param_index: i32): i32 {
   let reg8: u8[8] = [114, 101, 103, 105, 115, 116, 101, 114];
@@ -1525,7 +1617,7 @@ export function codegen_force_param_ptrdiff_t(prefix: *u8, prefix_len: i32, name
 }
 
 /**
- * 生成函数定义时：prefix 为 std_io_driver 族时按函数名与参数下标强制 uint32_t（timeout_ms/nr 等）；param_index==1 或 ==3 时可能返回 1。
+ * See implementation.
  */
 export function codegen_force_param_uint32_t(prefix: *u8, prefix_len: i32, name: *u8, name_len: i32, param_index: i32): i32 {
   let rd11: u8[11] = [115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100];
@@ -1564,7 +1656,7 @@ export function codegen_force_param_uint32_t(prefix: *u8, prefix_len: i32, name:
 }
 
 /**
- * std.io.core：对 shux_io_register（1 实参）或 shux_io_submit_read / shux_io_submit_write（2 实参）在发射调用名时追加 `_buf`，与 runtime 侧宏一致。
+ * See implementation.
  */
 export function codegen_use_buf_wrapper(name: *u8, name_len: i32, num_args: i32): i32 {
   let reg15: u8[15] = [115, 104, 117, 95, 105, 111, 95, 114, 101, 103, 105, 115, 116, 101, 114];
@@ -1586,14 +1678,14 @@ export function codegen_use_buf_wrapper(name: *u8, name_len: i32, num_args: i32)
 }
 
 /**
- * std.io.driver 短名 register/submit_read/submit_write：调用处发射 preamble 的 shux_io_*_buf 包装，避免 struct 实参传给 ptrdiff_t 形参。
- * 返回 1 表示已写入完整 callee 符号名。
+ * See implementation.
+ * See implementation.
  */
 export function codegen_emit_io_driver_buf_call_name(out: *CodegenOutBuf, name: *u8, name_len: i32, num_args: i32): i32 {
   let reg8: u8[8] = [114, 101, 103, 105, 115, 116, 101, 114];
   let rd11: u8[11] = [115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100];
   let wr12: u8[12] = [115, 117, 98, 109, 105, 116, 95, 119, 114, 105, 116, 101];
-  /* 权威名：shux_io_*_buf（含 x；旧表误写成 shu_io_* 导致隐式声明）。 */
+  /* See implementation. */
   let sym_reg: u8[20] = [115, 104, 117, 120, 95, 105, 111, 95, 114, 101, 103, 105, 115, 116, 101, 114, 95, 98, 117, 102];
   let sym_rd: u8[23] = [115, 104, 117, 120, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100, 95, 98, 117, 102];
   let sym_wr: u8[24] = [115, 104, 117, 120, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 119, 114, 105, 116, 101, 95, 98, 117, 102];
@@ -1622,8 +1714,8 @@ export function codegen_emit_io_driver_buf_call_name(out: *CodegenOutBuf, name: 
 }
 
 /**
- * std.io.driver 的 register/submit_read/submit_write 函数体：C 侧首参已为 ptrdiff_t，直接调 shux_io_*_buf 包装。
- * 返回 1 表示已写入完整函数体（含闭合 `}`），调用方应 return 0；0 表示非此类函数。
+ * See implementation.
+ * See implementation.
  */
 export function codegen_try_emit_std_io_driver_buf_body(out: *CodegenOutBuf, module: *Module, fi: i32, prefix: *u8, prefix_len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -1701,7 +1793,12 @@ export function codegen_try_emit_std_io_driver_buf_body(out: *CodegenOutBuf, mod
   }
 }
 
-/** 从 arena 判断 base 是否为指针；有 resolved 且非 PTR 时明确返回 0（局部值 struct 必须用 `.`）。 */
+/** Exported function `field_access_base_is_pointer_ref`.
+ * Implements `field_access_base_is_pointer_ref`.
+ * @param arena *ASTArena
+ * @param base_ref i32
+ * @return i32
+ */
 export function field_access_base_is_pointer_ref(arena: *ASTArena, base_ref: i32): i32 {
   if (ast.ref_is_null(base_ref) || base_ref <= 0 || base_ref > arena.num_exprs) {
     return 0;
@@ -1718,9 +1815,9 @@ export function field_access_base_is_pointer_ref(arena: *ASTArena, base_ref: i32
 }
 
 /**
- * base 是否已有有效 resolved_type_ref。
- * 【Why】名字回退（slice_param_name）在类型已知时不得覆盖：局部 `let ctx: PipelineDepCtx` 值类型
- * 若仍按名 `ctx` 强制 `->`，会生成非法 C（member reference type is not a pointer）。
+ * See implementation.
+ * See implementation.
+ * See implementation.
  */
 export function field_access_base_type_resolved(arena: *ASTArena, base_ref: i32): i32 {
   if (ast.ref_is_null(base_ref) || base_ref <= 0 || base_ref > arena.num_exprs) {
@@ -1854,11 +1951,11 @@ export function emit_call_arg_slice_abi(arena: *ASTArena, out: *CodegenOutBuf, a
 }
 
 /**
- * 【Why 根源】回退：typeck 未填 resolved_type_ref 时，通过当前函数形参类型判断 base 是否为指针。
- * 用于 dep 模块 codegen：dep 模块函数体未走完整 typeck，EXPR_VAR 的 resolved_type_ref 可能为空，
- * field_access_base_is_pointer_ref 返回 0 → 字段访问误用 . 而非 ->（C 编译错误）。
- * 通过形参类型回退判断，确保 *T 形参的字段访问生成 ->。
- * 【Invariant】仅当 base 为 EXPR_VAR 且 var_name 匹配当前函数某形参名时生效。
+ * See implementation.
+ * See implementation.
+ * See implementation.
+ * See implementation.
+ * See implementation.
  */
 export function field_access_base_is_pointer_param(arena: *ASTArena, base_ref: i32, mod: *Module, func_index: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -1908,7 +2005,7 @@ export function field_access_base_is_pointer_param(arena: *ASTArena, base_ref: i
   }
 }
 
-/* 局部 let s: *T：无 resolved_type 时按 body 块 let 注解判 *T → C 用 -> */
+/* See implementation. */
 export function field_access_base_is_pointer_local(arena: *ASTArena, base_ref: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -1966,9 +2063,9 @@ export function field_access_base_is_pointer_local(arena: *ASTArena, base_ref: i
 }
 
 /**
- * base 是否匹配当前函数某形参且该形参 type_ref 有效（值类型或指针均可）。
- * 【Why 根源】dep co-emit 时 EXPR_VAR 常无 resolved_type_ref；名字回退把 "ctx" 一律当 *T → 生成
- *   `ctx->handle`，但 std.context 的 `ctx: Context` 是值类型须 `.`。形参类型已知时禁止名字回退。
+ * See implementation.
+ * See implementation.
+ * See implementation.
  */
 export function field_access_base_param_type_known(arena: *ASTArena, base_ref: i32, mod: *Module, func_index: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -2014,9 +2111,9 @@ export function field_access_base_param_type_known(arena: *ASTArena, base_ref: i
 }
 
 /**
- * 回退：base 为已知指针/slice 形参名时字段访问输出 ->。
- * 仅当 typeck 未填 resolved_type_ref 时由调用方启用；类型已解析时禁止用本表覆盖
- * （见 field_access_base_type_resolved），否则局部值 `ctx`/`out` 会被误编成 `->`。
+ * See implementation.
+ * See implementation.
+ * See implementation.
  */
 export function field_access_base_is_slice_param_name(arena: *ASTArena, base_ref: i32): i32 {
   if (ast.ref_is_null(base_ref) || base_ref <= 0 || base_ref > arena.num_exprs) {
@@ -2026,19 +2123,19 @@ export function field_access_base_is_slice_param_name(arena: *ASTArena, base_ref
   if (base.kind != ExprKind.EXPR_VAR || base.var_name_len <= 0) {
     return 0;
   }
-  /* "source" 6 字节：115,111,117,114,99,101 */
+  /* See implementation. */
   if (base.var_name_len == 6) {
     if (base.var_name[0] == 115 && base.var_name[1] == 111 && base.var_name[2] == 117 && base.var_name[3] == 114 && base.var_name[4] == 99 && base.var_name[5] == 101) {
       return 1;
     }
   }
-  /* "out_buf" 7 字节：111,117,116,95,98,117,102 */
+  /* See implementation. */
   if (base.var_name_len == 7) {
     if (base.var_name[0] == 111 && base.var_name[1] == 117 && base.var_name[2] == 116 && base.var_name[3] == 95 && base.var_name[4] == 98 && base.var_name[5] == 117 && base.var_name[6] == 102) {
       return 1;
     }
   }
-  /* 常见 *Module / *ASTArena / *PipelineDepCtx / *CodegenOutBuf / *ElfCodegenCtx 形参名 */
+  /* See implementation. */
   if (base.var_name_len == 6 && base.var_name[0] == 109 && base.var_name[1] == 111 && base.var_name[2] == 100 && base.var_name[3] == 117 && base.var_name[4] == 108 && base.var_name[5] == 101) {
     return 1;
   }
@@ -2054,15 +2151,21 @@ export function field_access_base_is_slice_param_name(arena: *ASTArena, base_ref
   if (base.var_name_len == 3 && base.var_name[0] == 99 && base.var_name[1] == 116 && base.var_name[2] == 120) {
     return 1;
   }
-  /* 勿把裸名 "out" 当指针：局部 `let out: Slice/Struct` 值类型极常见，误用 -> 会生成非法 C
-   *（invalid type argument of '->'）。CodegenOutBuf* 请用 out_buf / 依赖 resolved_type_ref。 */
+  /* See implementation. */
+   * See implementation.
   if (base.var_name_len == 7 && base.var_name[0] == 99 && base.var_name[1] == 117 && base.var_name[2] == 114 && base.var_name[3] == 95 && base.var_name[4] == 109 && base.var_name[5] == 111 && base.var_name[6] == 100) {
     return 1;
   }
   return 0;
 }
 
-/** stmt_order 是否已包含块内第 li 条 let（kind=1）。 */
+/** Exported function `block_stmt_order_has_let`.
+ * Implements `block_stmt_order_has_let`.
+ * @param arena *ASTArena
+ * @param block_ref i32
+ * @param let_idx i32
+ * @return i32
+ */
 export function block_stmt_order_has_let(arena: *ASTArena, block_ref: i32, let_idx: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -2080,8 +2183,8 @@ export function block_stmt_order_has_let(arena: *ASTArena, block_ref: i32, let_i
 }
 
 /**
- * 返回非 0 表示 name 已以 prefix 开头且应跳过再次前置 prefix。
- * 仅当前缀为 ASCII「build_」（6 字节）时启用：与 build.x 约定一致；preprocess_ 等仍须叠写以匹配链接 shim。
+ * See implementation.
+ * See implementation.
  */
 export function codegen_c_prefix_redundant_with_name(prefix: *u8, prefix_len: i32, name: *u8, name_len: i32): i32 {
   if (prefix == 0 as *u8 || name == 0 as *u8) {
@@ -2090,10 +2193,10 @@ export function codegen_c_prefix_redundant_with_name(prefix: *u8, prefix_len: i3
   if (prefix_len <= 0 || name_len < prefix_len) {
     return 0;
   }
-  /* 【Why 根源】ast_ 模块的 C 定义在 pipeline_glue.c 中使用双前缀（ast_ast_*），
-   *   不需要去重。所有其他模块的 C 定义使用单前缀（函数名已含模块前缀），
-   *   需要去重以避免双前缀（如 backend_backend_*、codegen_codegen_*、build_build_*）。
-   *   仅排除 ast_（prefix = "ast_"，4 字节：97,115,116,95）。 */
+  /* See implementation. */
+   * See implementation.
+   * See implementation.
+   * See implementation.
   if (prefix_len == 4 && prefix[0] == 97 && prefix[1] == 115 && prefix[2] == 116 && prefix[3] == 95) {
     return 0;
   }
@@ -2107,30 +2210,46 @@ export function codegen_c_prefix_redundant_with_name(prefix: *u8, prefix_len: i3
   return 1;
 }
 
-/** 代码生成输出缓冲区：data 为已写内容，len 为长度。C 侧在 pipeline 返回后将 data[0..len-1] 写入 FILE*。 */
-/* 9MiB：须 ≥ code_data + ELF 元数据；与 runtime.c / ast_pool PIPELINE_CODEGEN_OUTBUF_CAP 同步。 */
+/* See implementation. */
+/* See implementation. */
 export struct CodegenOutBuf {
   data: u8[9437184];
   len: i32;
 }
 
-/** 向缓冲区追加一字节（b 为 i32，取低 8 位，经查找表转为 u8）。返回 0 成功，缓冲区满返回 -1。 */
+/** Exported function `append_byte`.
+ * Implements `append_byte`.
+ * @param out *CodegenOutBuf
+ * @param b i32
+ * @return i32
+ */
 export function append_byte(out: *CodegenOutBuf, b: i32): i32 {
   if (out.len >= 9437184) {
     return -1;
   }
-  /** 勿 `let lo = b & 255` 再写 out.data：与下一赋值同体时 parse_into_buf 多函数模块会丢 append_byte body_ref。 */
+  /* See implementation. */
   out.data[out.len] = (b & 255) as u8;
   out.len = out.len + 1;
   return 0;
 }
 
-/** 向缓冲区追加一字节（b 为 u8）：转调 append_byte，避免 u8 直接写入 data[out.len] 在 parse_into_buf AST 上与 typeck 不兼容。 */
+/** Exported function `append_byte_u8`.
+ * Implements `append_byte_u8`.
+ * @param out *CodegenOutBuf
+ * @param b u8
+ * @return i32
+ */
 export function append_byte_u8(out: *CodegenOutBuf, b: u8): i32 {
   return append_byte(out, b as i32);
 }
 
-/** 从 ptr[0..len-1] 逐字节追加到 out，用于库前缀等变长内容。 */
+/** Exported function `emit_bytes_from_ptr`.
+ * Implements `emit_bytes_from_ptr`.
+ * @param out *CodegenOutBuf
+ * @param ptr *u8
+ * @param len i32
+ * @return i32
+ */
 export function emit_bytes_from_ptr(out: *CodegenOutBuf, ptr: *u8, len: i32): i32 {
   let i: i32 = 0;
   while (i < len) {
@@ -2143,11 +2262,18 @@ export function emit_bytes_from_ptr(out: *CodegenOutBuf, ptr: *u8, len: i32): i3
 }
 
 /**
- * 将 ptr..ptr+len-1 写入 out。第二参用 *u8 而非 u8[64]：大块按值传参在自举 codegen 上会撕裂/截断，导致 C 里函数名等标识符变成一串 NUL。
+ * See implementation.
  */
 export function emit_bytes_64(out: *CodegenOutBuf, ptr: *u8, len: i32): i32 {
   return emit_bytes_from_ptr(out, ptr, len);
 }
+/** Exported function `emit_bytes_32`.
+ * Implements `emit_bytes_32`.
+ * @param out *CodegenOutBuf
+ * @param buf u8[32]
+ * @param len i32
+ * @return i32
+ */
 export function emit_bytes_32(out: *CodegenOutBuf, buf: u8[32], len: i32): i32 {
   let i: i32 = 0;
   while (i < len) {
@@ -2158,6 +2284,13 @@ export function emit_bytes_32(out: *CodegenOutBuf, buf: u8[32], len: i32): i32 {
   }
   return 0;
 }
+/** Exported function `emit_bytes_22`.
+ * Implements `emit_bytes_22`.
+ * @param out *CodegenOutBuf
+ * @param buf u8[22]
+ * @param len i32
+ * @return i32
+ */
 export function emit_bytes_22(out: *CodegenOutBuf, buf: u8[22], len: i32): i32 {
   let i: i32 = 0;
   while (i < len) {
@@ -2168,6 +2301,13 @@ export function emit_bytes_22(out: *CodegenOutBuf, buf: u8[22], len: i32): i32 {
   }
   return 0;
 }
+/** Exported function `emit_bytes_9`.
+ * Implements `emit_bytes_9`.
+ * @param out *CodegenOutBuf
+ * @param buf u8[9]
+ * @param len i32
+ * @return i32
+ */
 export function emit_bytes_9(out: *CodegenOutBuf, buf: u8[9], len: i32): i32 {
   let i: i32 = 0;
   while (i < len) {
@@ -2178,6 +2318,13 @@ export function emit_bytes_9(out: *CodegenOutBuf, buf: u8[9], len: i32): i32 {
   }
   return 0;
 }
+/** Exported function `emit_bytes_8`.
+ * Implements `emit_bytes_8`.
+ * @param out *CodegenOutBuf
+ * @param buf u8[8]
+ * @param len i32
+ * @return i32
+ */
 export function emit_bytes_8(out: *CodegenOutBuf, buf: u8[8], len: i32): i32 {
   let i: i32 = 0;
   while (i < len) {
@@ -2188,6 +2335,13 @@ export function emit_bytes_8(out: *CodegenOutBuf, buf: u8[8], len: i32): i32 {
   }
   return 0;
 }
+/** Exported function `emit_bytes_7`.
+ * Implements `emit_bytes_7`.
+ * @param out *CodegenOutBuf
+ * @param buf u8[7]
+ * @param len i32
+ * @return i32
+ */
 export function emit_bytes_7(out: *CodegenOutBuf, buf: u8[7], len: i32): i32 {
   let i: i32 = 0;
   while (i < len) {
@@ -2198,6 +2352,13 @@ export function emit_bytes_7(out: *CodegenOutBuf, buf: u8[7], len: i32): i32 {
   }
   return 0;
 }
+/** Exported function `emit_bytes_6`.
+ * Implements `emit_bytes_6`.
+ * @param out *CodegenOutBuf
+ * @param buf u8[6]
+ * @param len i32
+ * @return i32
+ */
 export function emit_bytes_6(out: *CodegenOutBuf, buf: u8[6], len: i32): i32 {
   let i: i32 = 0;
   while (i < len) {
@@ -2208,6 +2369,13 @@ export function emit_bytes_6(out: *CodegenOutBuf, buf: u8[6], len: i32): i32 {
   }
   return 0;
 }
+/** Exported function `emit_bytes_5`.
+ * Implements `emit_bytes_5`.
+ * @param out *CodegenOutBuf
+ * @param buf u8[5]
+ * @param len i32
+ * @return i32
+ */
 export function emit_bytes_5(out: *CodegenOutBuf, buf: u8[5], len: i32): i32 {
   let i: i32 = 0;
   while (i < len) {
@@ -2218,6 +2386,13 @@ export function emit_bytes_5(out: *CodegenOutBuf, buf: u8[5], len: i32): i32 {
   }
   return 0;
 }
+/** Exported function `emit_bytes_4`.
+ * Implements `emit_bytes_4`.
+ * @param out *CodegenOutBuf
+ * @param buf u8[4]
+ * @param len i32
+ * @return i32
+ */
 export function emit_bytes_4(out: *CodegenOutBuf, buf: u8[4], len: i32): i32 {
   let i: i32 = 0;
   while (i < len) {
@@ -2228,6 +2403,13 @@ export function emit_bytes_4(out: *CodegenOutBuf, buf: u8[4], len: i32): i32 {
   }
   return 0;
 }
+/** Exported function `emit_bytes_3`.
+ * Implements `emit_bytes_3`.
+ * @param out *CodegenOutBuf
+ * @param buf u8[3]
+ * @param len i32
+ * @return i32
+ */
 export function emit_bytes_3(out: *CodegenOutBuf, buf: u8[3], len: i32): i32 {
   let i: i32 = 0;
   while (i < len) {
@@ -2238,6 +2420,13 @@ export function emit_bytes_3(out: *CodegenOutBuf, buf: u8[3], len: i32): i32 {
   }
   return 0;
 }
+/** Exported function `emit_bytes_2`.
+ * Implements `emit_bytes_2`.
+ * @param out *CodegenOutBuf
+ * @param buf u8[2]
+ * @param len i32
+ * @return i32
+ */
 export function emit_bytes_2(out: *CodegenOutBuf, buf: u8[2], len: i32): i32 {
   let i: i32 = 0;
   while (i < len) {
@@ -2249,7 +2438,12 @@ export function emit_bytes_2(out: *CodegenOutBuf, buf: u8[2], len: i32): i32 {
   return 0;
 }
 
-/** 将非负整数 val 的十进制表示追加到 out（先高位后当前位）。 */
+/** Exported function `format_uint`.
+ * Implements `format_uint`.
+ * @param out *CodegenOutBuf
+ * @param val i32
+ * @return i32
+ */
 export function format_uint(out: *CodegenOutBuf, val: i32): i32 {
   if (val >= 10) {
     let q: i32 = val / 10;
@@ -2268,7 +2462,12 @@ export function format_uint(out: *CodegenOutBuf, val: i32): i32 {
   return 0;
 }
 
-/** 非负 u64 十进制（EXPR_LIT 可超过 i32）。 */
+/** Exported function `format_uint64`.
+ * Implements `format_uint64`.
+ * @param out *CodegenOutBuf
+ * @param val u64
+ * @return i32
+ */
 export function format_uint64(out: *CodegenOutBuf, val: u64): i32 {
   if (val >= (10 as u64)) {
     let q: u64 = val / (10 as u64);
@@ -2287,14 +2486,19 @@ export function format_uint64(out: *CodegenOutBuf, val: u64): i32 {
   return 0;
 }
 
-/** 将 i64 整数的十进制表示写入 out（含负号；INT64_MIN 特判）。 */
+/** Exported function `format_int`.
+ * Implements `format_int`.
+ * @param out *CodegenOutBuf
+ * @param val i64
+ * @return i32
+ */
 export function format_int(out: *CodegenOutBuf, val: i64): i32 {
   if (val >= 0) {
     return format_uint64(out, val as u64);
   }
   let u: i64 = 0 - val;
   if (u < 0) {
-    /* INT64_MIN：0 - val 仍溢出；直接写 "-9223372036854775808" */
+    /* See implementation. */
     if (append_byte(out, 45) != 0) {
       return -1;
     }
@@ -2314,7 +2518,12 @@ export function format_int(out: *CodegenOutBuf, val: i64): i32 {
   return format_uint64(out, u as u64);
 }
 
-/** 写 indent 个空格。 */
+/** Exported function `emit_indent`.
+ * Implements `emit_indent`.
+ * @param out *CodegenOutBuf
+ * @param indent i32
+ * @return i32
+ */
 export function emit_indent(out: *CodegenOutBuf, indent: i32): i32 {
   let i: i32 = 0;
   while (i < indent) {
@@ -2326,7 +2535,12 @@ export function emit_indent(out: *CodegenOutBuf, indent: i32): i32 {
   return 0;
 }
 
-/** 写 break;\n（含缩进）。 */
+/** Exported function `emit_break_stmt`.
+ * Implements `emit_break_stmt`.
+ * @param out *CodegenOutBuf
+ * @param indent i32
+ * @return i32
+ */
 export function emit_break_stmt(out: *CodegenOutBuf, indent: i32): i32 {
   if (emit_indent(out, indent) != 0) {
     return -1;
@@ -2335,7 +2549,12 @@ export function emit_break_stmt(out: *CodegenOutBuf, indent: i32): i32 {
   return emit_bytes_8(out, br, 7);
 }
 
-/** 写 continue;\n（含缩进）。 */
+/** Exported function `emit_continue_stmt`.
+ * Implements `emit_continue_stmt`.
+ * @param out *CodegenOutBuf
+ * @param indent i32
+ * @return i32
+ */
 export function emit_continue_stmt(out: *CodegenOutBuf, indent: i32): i32 {
   if (emit_indent(out, indent) != 0) {
     return -1;
@@ -2344,12 +2563,22 @@ export function emit_continue_stmt(out: *CodegenOutBuf, indent: i32): i32 {
   return emit_bytes_from_ptr(out, &co[0], 10);
 }
 
-/** 将 pipeline_type_kind_ord_at 序数委托 emit_type_kind（勿 ast_arena_type_get 按值 Type）。 */
+/** Exported function `emit_type_kind_ord`.
+ * Implements `emit_type_kind_ord`.
+ * @param out *CodegenOutBuf
+ * @param tk i32
+ * @return i32
+ */
 export function emit_type_kind_ord(out: *CodegenOutBuf, tk: i32): i32 {
   return emit_type_kind(out, tk);
 }
 
-/** 根据 TypeKind 写 C 类型名到 out（仅内建类型）；纯 .x，按数组尺寸调用对应 emit_bytes_N。 */
+/** Exported function `emit_type_kind`.
+ * Implements `emit_type_kind`.
+ * @param out *CodegenOutBuf
+ * @param kind_ord i32
+ * @return i32
+ */
 export function emit_type_kind(out: *CodegenOutBuf, kind_ord: i32): i32 {
   if (kind_ord == (TypeKind.TYPE_I32 as i32)) {
     let s: u8[8] = [105, 110, 116, 51, 50, 95, 116, 0];
@@ -2398,7 +2627,14 @@ export function emit_type_kind(out: *CodegenOutBuf, kind_ord: i32): i32 {
   return -1;
 }
 
-/** 将 TypeKind 对应内建类型写入 scratch[w..)，返回下一写位置；-1 表示溢出 cap。对齐 emit_type_kind 的字符串。 */
+/** Exported function `type_kind_append_to_scratch`.
+ * Implements `type_kind_append_to_scratch`.
+ * @param scratch *u8
+ * @param cap i32
+ * @param w i32
+ * @param kind_ord i32
+ * @return i32
+ */
 export function type_kind_append_to_scratch(scratch: *u8, cap: i32, w: i32, kind_ord: i32): i32 {
   if (kind_ord == (TypeKind.TYPE_I32 as i32)) {
     let s: u8[8] = [105, 110, 116, 51, 50, 95, 116, 0];
@@ -2546,7 +2782,13 @@ export function type_kind_append_to_scratch(scratch: *u8, cap: i32, w: i32, kind
   return -1;
 }
 
-/** 向量 C typedef 名字写入 out（与 codegen.c vector_c_type_name 一致；typedef 体由 preamble / 宿主 C 保证）。 */
+/** Exported function `emit_vector_c_type_out`.
+ * Implements `emit_vector_c_type_out`.
+ * @param out *CodegenOutBuf
+ * @param elem_kind_ord i32
+ * @param lanes i32
+ * @return i32
+ */
 export function emit_vector_c_type_out(out: *CodegenOutBuf, elem_kind_ord: i32, lanes: i32): i32 {
   if (elem_kind_ord == (TypeKind.TYPE_I32 as i32)) {
     if (lanes == 4) {
@@ -2580,7 +2822,14 @@ export function emit_vector_c_type_out(out: *CodegenOutBuf, elem_kind_ord: i32, 
   return emit_bytes_from_ptr(out, &df[0], 7);
 }
 
-/** 将 pipeline_type_kind_ord_at 序数委托 type_kind_append_to_scratch（勿 ast_arena_type_get 按值 Type）。 */
+/** Exported function `type_kind_append_to_scratch_ord`.
+ * Implements `type_kind_append_to_scratch_ord`.
+ * @param scratch *u8
+ * @param cap i32
+ * @param w i32
+ * @param tk i32
+ * @return i32
+ */
 export function type_kind_append_to_scratch_ord(scratch: *u8, cap: i32, w: i32, tk: i32): i32 {
   let w2: i32 = type_kind_append_to_scratch(scratch, cap, w, tk);
   if (w2 < 0) {
@@ -2589,7 +2838,16 @@ export function type_kind_append_to_scratch_ord(scratch: *u8, cap: i32, w: i32, 
   return w2;
 }
 
-/** 写入 C c_type_str 等价串至 scratch（无 NUL）；逻辑在 pipeline_codegen_type_to_c_repr（C glue）。 */
+/** Exported function `type_to_c_repr`.
+ * Implements `type_to_c_repr`.
+ * @param arena *ASTArena
+ * @param scratch *u8
+ * @param cap i32
+ * @param type_ref i32
+ * @param struct_prefix *u8
+ * @param struct_prefix_len i32
+ * @return i32
+ */
 export function type_to_c_repr(arena: *ASTArena, scratch: *u8, cap: i32, type_ref: i32, struct_prefix: *u8, struct_prefix_len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -2598,7 +2856,16 @@ export function type_to_c_repr(arena: *ASTArena, scratch: *u8, cap: i32, type_re
   }
 }
 
-/** 写类型到 out（glue 读 kind/elem/array/name，勿 ast_arena_type_get 按值 Type）。 */
+/** Exported function `emit_type`.
+ * Implements `emit_type`.
+ * @param arena *ASTArena
+ * @param out *CodegenOutBuf
+ * @param type_ref i32
+ * @param struct_prefix *u8
+ * @param struct_prefix_len i32
+ * @param ctx *PipelineDepCtx
+ * @return i32
+ */
 export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, struct_prefix: *u8, struct_prefix_len: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -2630,18 +2897,18 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
     if (tk == TypeKind.TYPE_NAMED && name_len > 0) {
       let dep_prefix_buf: u8[128] = [];
       let dep_prefix_len: i32 = 0;
-      /* 解构 import("std.io.driver") 的 Buffer：与 preamble typedef std_io_Buffer / struct std_io_driver_Buffer 一致。 */
+      /* See implementation. */
       if (name_len == 6 && nm[0] == 66 && nm[1] == 117 && nm[2] == 102 && nm[3] == 102
           && nm[4] == 101 && nm[5] == 114) {
         let io_buf: u8[22] = [115, 116, 114, 117, 99, 116, 32, 115, 116, 100, 95, 105, 111, 95, 66, 117, 102, 102, 101, 114, 0, 0];
         return emit_bytes_from_ptr(out, &io_buf[0], 20);
       }
       /*
-       * core.option 具象 Option_*：定义模块前缀恒为 core_option_。
-       * 【Why 根源】dep 池按 type_ref 查不到跨模块 monomorph 时，旧逻辑用当前模块 struct_prefix
-       *   （如 core_slice_）生成 incomplete `struct core_slice_Option_i32`，而 co-emit 的
-       *   some/none 体是 `struct core_option_Option_i32` → length.x 等链接/编译失败。
-       * 【Invariant】裸名以 Option_ 开头的 TYPE_NAMED 一律 `struct core_option_<name>`。
+       * See implementation.
+       * See implementation.
+       * See implementation.
+       * See implementation.
+       * See implementation.
        */
       if (name_len >= 8 && nm[0] == 79 && nm[1] == 112 && nm[2] == 116 && nm[3] == 105
           && nm[4] == 111 && nm[5] == 110 && nm[6] == 95) {
@@ -2658,11 +2925,11 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
         }
         return 0;
       }
-      /* u16/i16/i8 无独立 TypeKind（存为 TYPE_NAMED），映射到 stdint.h 的 uint16_t/int16_t/int8_t。
-       * 【Why 根源】AST 枚举无 TYPE_U16/TYPE_I16/TYPE_I16，窄整型存为 TYPE_NAMED name="u16"/"i16"/"i8"，
-       *   不映射会被 fallback 当作用户 struct 输出 "struct ast_i8" 等，C 编译报 incomplete type。
-       * 【Invariant】u8 走 TYPE_U8 内建分支无需此处映射；仅 signed i8 需补（负数字面量 typeck 已放行）。
-       * 【Asm/Perf】emit_type 是 codegen 热路径但 TYPE_NAMED 命中率低，字面量字节比较无分支预测惩罚。 */
+      /* See implementation. */
+       * See implementation.
+       * See implementation.
+       * See implementation.
+       * See implementation.
       if (name_len == 3 && nm[0] == 117 && nm[1] == 49 && nm[2] == 54) {
         let u16_t: u8[9] = [117, 105, 110, 116, 49, 54, 95, 116, 0];
         return emit_bytes_8(out, u16_t, 8);
@@ -2676,8 +2943,8 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
         return emit_bytes_8(out, i8_t, 6);
       }
       /*
-       * 向量拼写 TYPE_NAMED（parser 部分路径未落 TYPE_VECTOR）：i32x4/u32x4/i32x8…
-       * 发 C typedef 名，禁 struct ast_i32x4 incomplete。
+       * See implementation.
+       * See implementation.
        */
       if (name_len == 5 && nm[0] == 105 && nm[1] == 51 && nm[2] == 50 && nm[3] == 120 && nm[4] == 52) {
         return emit_vector_c_type_out(out, TypeKind.TYPE_I32 as i32, 4);
@@ -2697,18 +2964,18 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
       if (name_len == 6 && nm[0] == 117 && nm[1] == 51 && nm[2] == 50 && nm[3] == 120 && nm[4] == 49 && nm[5] == 54) {
         return emit_vector_c_type_out(out, TypeKind.TYPE_U32 as i32, 16);
       }
-      /** 用户顶层 enum：C 无对应 tag 时按 int32_t 存储（与 typeck 布局一致）。 */
+      /* See implementation. */
       if (ctx != 0 as *PipelineDepCtx && ctx.current_codegen_module != 0 as *Module
           && codegen_type_is_module_user_enum(ctx.current_codegen_module, arena, type_ref) != 0) {
         let i32_enum: u8[8] = [105, 110, 116, 51, 50, 95, 116, 0];
         return emit_bytes_8(out, i32_enum, 7);
       }
-      /* dep 模块 user enum：emit "enum <prefix>_<name>" 而非 "struct <prefix>_<name>"
-       * 【Why 根源】TypeKind/ExprKind 等在 ast 模块定义为 enum，入口模块引用时
-       *   codegen_type_is_module_user_enum 仅查当前模块找不到，需遍历 dep 模块。
-       *   不做此检查会误走 struct 前缀生成 "struct ast_TypeKind"，C 编译报 incomplete type。
-       * 【Invariant】dep_enum_prefix_len > 0 仅当类型在 dep 模块 enums 中找到。
-       * 【Asm/Perf】仅 TYPE_NAMED 且非当前模块 enum 时触发，热路径无额外开销。 */
+      /* See implementation. */
+       * See implementation.
+       * See implementation.
+       * See implementation.
+       * See implementation.
+       * See implementation.
       if (ctx != 0 as *PipelineDepCtx) {
         let dep_enum_prefix: u8[128] = [];
         let dep_enum_prefix_len: i32 = codegen_type_dep_enum_prefix_into(ctx, arena, type_ref, &dep_enum_prefix[0], 128);
@@ -2743,12 +3010,12 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
         return -1;
       }
       dep_prefix_len = codegen_type_dep_struct_prefix_into(ctx, arena, type_ref, &dep_prefix_buf[0], 128);
-      /* 【Why 根源】dep_prefix 查找失败（struct_layouts 不含该类型）时，若类型名为限定名（如 ast.Module），
-       *   从限定名最后 '.' 之前提取模块路径，用 codegen_import_path_to_c_prefix_into 转为 C 前缀。
-       *   backend dep 模块的 struct_layouts 不含 ast 模块的 Module，dep_prefix 查找返回 0，
-       *   但限定名 "ast.Module" 明确指示定义模块为 ast，应生成 struct ast_Module 而非 struct backend_Module。
-       * 【Invariant】仅在 dep_prefix_len == 0 且 name 含 '.' 时触发；非限定名走原有 fallback 链。
-       * 【Asm/Perf】仅 dep_prefix 查找失败时触发，不增加热路径开销。 */
+      /* See implementation. */
+       * See implementation.
+       * See implementation.
+       * See implementation.
+       * See implementation.
+       * See implementation.
       if (dep_prefix_len == 0) {
         let qmod_end: i32 = 0;
         let qhas_dot: bool = false;
@@ -2775,12 +3042,12 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
           }
         }
       }
-      /* 【Why 根源】dep_prefix（定义模块前缀，如 platform_elf_）必须优先于 struct_prefix（当前模块前缀，如 peephole_）。
-       *   dep 模块函数签名引用跨模块 struct 时，struct_prefix 是当前 dep 模块前缀（由 codegen_x_ast 按 dep_index 计算），
-       *   但 C 编译器要求 struct 名与定义模块一致，否则跨模块调用类型不匹配（peephole_ElfCodegenCtx vs platform_elf_ElfCodegenCtx）。
-       *   入口模块 struct_prefix 为空，自然走 dep_prefix；dep 模块 struct_prefix 非空，旧逻辑错误地优先用它。
-       * 【Invariant】dep_prefix_len > 0 仅当类型在其他 dep 模块的 struct_layouts 中找到；当前模块自定义 struct 不在 dep 池，dep_prefix_len=0 走 struct_prefix。
-       * 【Asm/Perf】无额外开销——codegen_type_dep_struct_prefix_into 已在上方无条件调用，仅交换分支顺序。 */
+      /* See implementation. */
+       * See implementation.
+       * See implementation.
+       * See implementation.
+       * See implementation.
+       * See implementation.
       if (dep_prefix_len > 0) {
         if (emit_bytes_from_ptr(out, &dep_prefix_buf[0], dep_prefix_len) != 0) {
           return -1;
@@ -2791,22 +3058,22 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
         }
       } else if (ctx != 0 as *PipelineDepCtx && ctx.current_codegen_module != 0 as *Module
           && codegen_type_is_module_user_struct(ctx.current_codegen_module, arena, type_ref) != 0) {
-        /* dep 与入口库均经 codegen_emit_prefix_len_from_ctx（入口读 entry_module pin）。 */
+        /* See implementation. */
         let cur_pre: u8[128] = [];
         let cur_pre_len: i32 = codegen_emit_prefix_len_from_ctx(ctx, &cur_pre[0], 128);
         if (cur_pre_len > 0 && emit_bytes_from_ptr(out, &cur_pre[0], cur_pre_len) != 0) {
           return -1;
         }
       } else {
-        /* 无前缀时默认 ast_，生成 struct ast_ASTArena / struct ast_Type 等 */
+        /* See implementation. */
         let ast_p: u8[4] = [97, 115, 116, 95];
         if (emit_bytes_4(out, ast_p, 4) != 0) {
           return -1;
         }
       }
-      /* 【Why 根源】跨模块 struct 引用：typeck 存限定名（page_mmap.PageMmapHeap），C 需裸名（PageMmapHeap）。
-       * 取最后一个 '.' 之后的部分发射，与 dep struct_layout name / struct 定义一致，避免 C 非法点号。
-       * 【Asm/Perf】逐字节发射避免大块按值传参撕裂（对齐 emit_bytes_from_ptr 注释）。 */
+      /* See implementation. */
+       * See implementation.
+       * See implementation.
       let bare_off: i32 = 0;
       let bi: i32 = 0;
       while (bi < name_len && bi < 64) {
@@ -2824,7 +3091,7 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
       }
       return 0;
     }
-    /* C 中数组形参退化为指针，输出 elem_type * 以便 extern/定义一致，避免 build 对 preprocess_x_buf 签名的补丁 */
+    /* See implementation. */
     if (tk == TypeKind.TYPE_ARRAY && !ast.ref_is_null(elem_ref)) {
       if (emit_type(arena, out, elem_ref, struct_prefix, struct_prefix_len, ctx) != 0) {
         return -1;
@@ -2834,7 +3101,7 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
       }
       return append_byte(out, 42);
     }
-    /* T[] → struct shux_slice_<elem>（对齐 codegen.c c_type_to_buf） */
+    /* See implementation. */
     if (tk == TypeKind.TYPE_SLICE && !ast.ref_is_null(elem_ref)) {
       let slb: u8[256] = [];
       let nl: i32 = type_to_c_repr(arena, &slb[0], 256, type_ref, struct_prefix, struct_prefix_len);
@@ -2850,12 +3117,12 @@ export function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, 
       }
       return 0;
     }
-    /* 向量 SIMD 别名（如 i32x4_t）；typedef 须在 preamble / 宿主 C 与 codegen.c 一致 */
+    /* See implementation. */
     if (tk == TypeKind.TYPE_VECTOR && !ast.ref_is_null(elem_ref)) {
       elem_kind = pipeline_type_kind_ord_at(arena, elem_ref);
       return emit_vector_c_type_out(out, elem_kind, arr_sz);
     }
-    /** M-4：Linear(T) 与内层 T 同 C 布局，零 RT 开销（对齐 codegen.c c_type_to_buf）。 */
+    /* See implementation. */
     if (tk == TypeKind.TYPE_LINEAR && !ast.ref_is_null(elem_ref)) {
       return emit_type(arena, out, elem_ref, struct_prefix, struct_prefix_len, ctx);
     }
@@ -2969,9 +3236,9 @@ export function codegen_type_dep_struct_owner_index(ctx: *PipelineDepCtx, bare_n
 }
 
 /**
- * 入口模块 codegen 时，若 TYPE_NAMED 实际来自某个 dep 模块的 struct_layouts，
- * 则返回该 dep 的 C 前缀长度并写入 dst（如 lexer_ / std_io_driver_）。
- * 定义模块优先（export + current dep），避免 first-match 把 Error 错标为 std_context_Error。
+ * See implementation.
+ * See implementation.
+ * See implementation.
  */
 export function codegen_type_dep_struct_prefix_into(ctx: *PipelineDepCtx, arena: *ASTArena, type_ref: i32, dst: *u8, dst_cap: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -2990,9 +3257,9 @@ export function codegen_type_dep_struct_prefix_into(ctx: *PipelineDepCtx, arena:
     if (name_len <= 0) {
       return 0;
     }
-    /* 【Why 根源】typeck 存储限定名（如 page_mmap.PageMmapHeap），dep struct_layout name 是裸名（PageMmapHeap）。
-     * 取最后一个 '.' 之后的裸名偏移，用裸名与 dep layout name 比较（对齐 asm_slot_bytes_named_in_mod 修复 commit 45f97d71）。
-     * 【Invariant】bare_off 指向最后一个 '.' 之后首字节；bare_len = name_len - bare_off。 */
+    /* See implementation. */
+     * See implementation.
+     * See implementation.
     let bare_off: i32 = 0;
     let bi: i32 = 0;
     while (bi < name_len && bi < 64) {
@@ -3020,7 +3287,7 @@ export function codegen_type_dep_struct_prefix_into(ctx: *PipelineDepCtx, arena:
 }
 
 /**
- * 固定数组元素是否为 u8（u8[N] 走 uint8_t* 初值路径，与 hello 的 msg 缓冲一致）。
+ * See implementation.
  */
 export function type_array_elem_is_u8(arena: *ASTArena, type_ref: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -3045,7 +3312,7 @@ export function type_array_elem_is_u8(arena: *ASTArena, type_ref: i32): i32 {
 }
 
 /**
- * 局部固定数组：仅发射元素类型（如 int32_t）；[N] 须在变量名之后由 emit_local_fixed_array_suffix 输出。
+ * See implementation.
  */
 export function emit_local_fixed_array_elem_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -3060,7 +3327,13 @@ export function emit_local_fixed_array_elem_type(arena: *ASTArena, out: *Codegen
   }
 }
 
-/** 局部固定数组维度后缀：[N]，写在变量名之后（int32_t a[N]）。 */
+/** Exported function `emit_local_fixed_array_suffix`.
+ * Implements `emit_local_fixed_array_suffix`.
+ * @param arena *ASTArena
+ * @param out *CodegenOutBuf
+ * @param type_ref i32
+ * @return i32
+ */
 export function emit_local_fixed_array_suffix(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3077,14 +3350,14 @@ export function emit_local_fixed_array_suffix(arena: *ASTArena, out: *CodegenOut
 }
 
 /**
- * 切片 let s: T[] = arr：生成 { .data = arr, .length = N }（对齐 codegen.c codegen_init）。
- * @return 1 已写出初值；0 不适用（走 emit_expr）；-1 失败。
+ * See implementation.
+ * See implementation.
  */
 export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32, let_idx: i32, let_type_ref: i32, linit_ref: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
 
-    /** TYPE_SLICE 序数与 ast.TypeKind / pipeline_type_kind_ord_at 一致。 */
+    /* See implementation. */
     if (ast.ref_is_null(let_type_ref) || pipeline_type_kind_ord_at(arena, let_type_ref) != 11) {
       return 0;
     }
@@ -3148,7 +3421,7 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
       return -1;
     }
     let d3: u8[4] = [32, 125, 0, 0];
-    /* 成功须返回 1：调用方 else if (slice_init == 1) 才跳过 emit_expr；返回 0 会再发一遍 arr 名。 */
+    /* See implementation. */
     if (emit_bytes_4(out, d3, 2) != 0) {
       return -1;
     }
@@ -3157,7 +3430,7 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
 }
 
 /**
- * 数组字面量初值：{ e0, e1, ... }（用于 int32_t a[N] = { ... }，避免 (T[]){ } 赋给栈数组）。
+ * See implementation.
  */
 export function emit_braced_array_lit_init(arena: *ASTArena, out: *CodegenOutBuf, init_ref: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -3170,7 +3443,7 @@ export function emit_braced_array_lit_init(arena: *ASTArena, out: *CodegenOutBuf
       }
       return 0;
     }
-    /** 勿 `let e: Expr = ast_arena_expr_get`：大 Expr 按值拷贝在自举 typeck 撕裂 kind。 */
+    /* See implementation. */
     if (pipeline_expr_kind_ord_at(arena, init_ref) != (46 as i32)) {
       if (emit_expr(arena, out, init_ref, ctx) != 0) {
         return -1;
@@ -3191,7 +3464,7 @@ export function emit_braced_array_lit_init(arena: *ASTArena, out: *CodegenOutBuf
           return -1;
         }
       }
-      /** while 体内须 `if (f()==0) { ... } else { return -1 }`；`if (f()!=0) return -1` 在自举 typeck 会 segfault。 */
+      /* See implementation. */
       if (emit_expr(arena, out, pipeline_expr_array_lit_elem_ref(arena, init_ref, ai), ctx) == 0) {
         ai = ai + 1;
       } else {
@@ -3206,7 +3479,7 @@ export function emit_braced_array_lit_init(arena: *ASTArena, out: *CodegenOutBuf
 }
 
 /**
- * 发射「结构体定义」用的字段类型串；逻辑在 pipeline_codegen_emit_struct_field_type（C glue）。
+ * See implementation.
  */
 export function emit_struct_field_type_via_pipeline(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, struct_prefix: *u8, struct_prefix_len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -3333,9 +3606,9 @@ export function codegen_lookup_struct_field_type_ref(
 }
 
 /**
- * pipeline_module_struct_layout_name_into 给出的 struct 尾部名若与 IO 异步 ABI 固定名相同，则跳过 codegen 发射：
- * runtime.c / preamble 已定义完整的 ast_* 与 std_io_driver_* 等 tag，再输出会重复完整定义导致 C 编译失败。
- * 仅匹配裸名 Buffer、Completion、AsyncContext（与任意 struct_prefix 拼接后均由 ABI 层提供）。
+ * See implementation.
+ * See implementation.
+ * See implementation.
  */
 export function codegen_should_skip_emit_struct_layout_for_abi_dup(name: *u8, name_len: i32): i32 {
   if (name == 0 as *u8 || name_len <= 0) {
@@ -3344,16 +3617,16 @@ export function codegen_should_skip_emit_struct_layout_for_abi_dup(name: *u8, na
   let nm_buffer: u8[7] = [66, 117, 102, 102, 101, 114, 0];
   let nm_completion: u8[11] = [67, 111, 109, 112, 108, 101, 116, 105, 111, 110, 0];
   let nm_async_ctx: u8[13] = [65, 115, 121, 110, 99, 67, 111, 110, 116, 101, 120, 116, 0];
-  /* preamble 已定义 struct std_error_Error / ErrorChain — 勿再 emit。 */
+  /* See implementation. */
   let nm_error: u8[6] = [69, 114, 114, 111, 114, 0];
   let nm_error_chain: u8[11] = [69, 114, 114, 111, 114, 67, 104, 97, 105, 110, 0];
   /*
-   * rt_preamble 已 one-liner 定义 Option_i32/u8/u64/ptr_u8（slice get_* 等消费端在 option 体前需要完整类型）。
-   * 凡裸名 Option_* 一律 skip — preamble 权威，co-emit 再 emit → redefinition（stdlib-import/option）。
+   * See implementation.
+   * See implementation.
    * PLATFORM: SHARED — seed pin and .x must agree (dual-authority ban).
    */
   let nm_option_us: u8[8] = [79, 112, 116, 105, 111, 110, 95, 0];
-  /* 泛型模板 Option<T>：C 无 monomorphize，勿 emit 非法/空 layout。 */
+  /* See implementation. */
   let nm_option: u8[7] = [79, 112, 116, 105, 111, 110, 0];
   /*
    * rt_preamble one-liner also owns Result_i32 / Result_u8 (core_result_* tags).
@@ -3363,18 +3636,18 @@ export function codegen_should_skip_emit_struct_layout_for_abi_dup(name: *u8, na
   let nm_result_i32: u8[11] = [82, 101, 115, 117, 108, 116, 95, 105, 51, 50, 0];
   let nm_result_u8: u8[10] = [82, 101, 115, 117, 108, 116, 95, 117, 56, 0];
   /*
-   * rt_preamble / runtime.from_x 已 one-liner 定义：
+   * See implementation.
    *   struct std_string_String { ... }; typedef ... String;
    *   struct std_string_StrView { ... };
-   * 入口编 std/string 时再 emit 完整 layout → redefinition of 'std_string_String'。
-   * 【Invariant】与 Error/Option_i32 同策略：preamble 权威，codegen 跳过裸名。
+   * See implementation.
+   * See implementation.
    */
   let nm_string: u8[7] = [83, 116, 114, 105, 110, 103, 0];
   let nm_str_view: u8[8] = [83, 116, 114, 86, 105, 101, 119, 0];
   /*
-   * rt_preamble write_io_net_abi_inline 已 one-liner：
+   * See implementation.
    *   std_net_TcpStream/Listener/UdpSocket/Ipv4Addr/Ipv6Addr
-   * import std.net 再 emit layout → redefinition。preamble 为 ABI 权威。
+   * See implementation.
    */
   let nm_tcp_stream: u8[10] = [84, 99, 112, 83, 116, 114, 101, 97, 109, 0];
   let nm_tcp_listener: u8[12] = [84, 99, 112, 76, 105, 115, 116, 101, 110, 101, 114, 0];
@@ -3397,7 +3670,7 @@ export function codegen_should_skip_emit_struct_layout_for_abi_dup(name: *u8, na
   if (name_len == 10 && codegen_symbuf_bytes_eq(name, name_len, &nm_error_chain[0], 10) != 0) {
     return 1;
   }
-  /* Option_*（len>7 且前缀 Option_） */
+  /* See implementation. */
   if (name_len > 7 && codegen_symbuf_bytes_eq(name, 7, &nm_option_us[0], 7) != 0) {
     return 1;
   }
@@ -3458,7 +3731,13 @@ export function codegen_should_skip_emit_struct_layout_for_abi_dup(name: *u8, na
   return 0;
 }
 
-/** 当前模块 struct_layouts 中是否存在与 type 同名的 NAMED 类型（入口用户 struct，非 ast_ 前缀）。 */
+/** Exported function `codegen_type_is_module_user_struct`.
+ * Implements `codegen_type_is_module_user_struct`.
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param type_ref i32
+ * @return i32
+ */
 export function codegen_type_is_module_user_struct(module: *Module, arena: *ASTArena, type_ref: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3500,7 +3779,13 @@ export function codegen_type_is_module_user_struct(module: *Module, arena: *ASTA
   }
 }
 
-/** 当前模块登记的顶层 enum 名是否与 type_ref 的 TYPE_NAMED 一致（C 侧按 int32_t 表示）。 */
+/** Exported function `codegen_type_is_module_user_enum`.
+ * Implements `codegen_type_is_module_user_enum`.
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param type_ref i32
+ * @return i32
+ */
 export function codegen_type_is_module_user_enum(module: *Module, arena: *ASTArena, type_ref: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3540,12 +3825,15 @@ export function codegen_type_is_module_user_enum(module: *Module, arena: *ASTAre
   }
 }
 
-/** 遍历 dep 模块 enums，返回匹配 enum 的 C prefix（如 "ast_"）；未命中返回 0。
- * 【Why 根源】TypeKind/ExprKind 等在 ast 模块定义为 enum，入口模块引用时
- *   codegen_type_is_module_user_enum 仅查当前模块找不到，需遍历 dep 模块。
- *   不做此检查会误走 struct 前缀生成 "struct ast_TypeKind"，C 编译报 incomplete type。
- * 【Invariant】用裸名（最后一个 '.' 之后）与 dep enum name 比较，对齐 codegen_type_dep_struct_prefix_into。
- * 【Asm/Perf】仅 TYPE_NAMED 且非当前模块 enum 时触发，热路径无额外开销。 */
+/** Exported function `codegen_type_dep_enum_prefix_into`.
+ * Implements `codegen_type_dep_enum_prefix_into`.
+ * @param ctx *PipelineDepCtx
+ * @param arena *ASTArena
+ * @param type_ref i32
+ * @param dst *u8
+ * @param dst_cap i32
+ * @return i32
+ */
 export function codegen_type_dep_enum_prefix_into(ctx: *PipelineDepCtx, arena: *ASTArena, type_ref: i32, dst: *u8, dst_cap: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3612,8 +3900,8 @@ export function codegen_type_dep_enum_prefix_into(ctx: *PipelineDepCtx, arena: *
 }
 
 /**
- * 发射完整 struct 字段声明，支持多维数组的 `type name[N][M]` 顺序；
- * 与旧 C glue 的职责相同，但改在 X 侧走 emit_type(ctx) 以正确解析 dep struct 前缀。
+ * See implementation.
+ * See implementation.
  */
 export function codegen_emit_struct_field_decl_x(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, field_name: *u8, field_name_len: i32, struct_prefix: *u8, struct_prefix_len: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -3659,9 +3947,9 @@ export function codegen_emit_struct_field_decl_x(arena: *ASTArena, out: *Codegen
 }
 
 /**
- * 遍历 module.struct_layouts，发射完整 C struct（须在首次使用类型之前）；名称与字段名由 glue 读出。
- * 【Why 根源】dep co-emit 时仅 emit 本 dep 为定义所有者的 layout，跳过 merge/污染写入的异名模块类型，
- *   避免 `struct std_context_Error` 与 `struct std_error_Error` 双 tag（与 owner_index 前缀一致）。
+ * See implementation.
+ * See implementation.
+ * See implementation.
  */
 export function codegen_emit_module_struct_definitions(module: *Module, arena: *ASTArena, out: *CodegenOutBuf, struct_prefix: *u8, struct_prefix_len: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -3699,7 +3987,7 @@ export function codegen_emit_module_struct_definitions(module: *Module, arena: *
         k = k + 1;
         continue;
       }
-      /* 单文件 co-emit：同一 mangled tag 只完整 emit 一次。 */
+      /* See implementation. */
       let claim_pfx: u8[128] = [];
       let claim_plen: i32 = 0;
       if (struct_prefix != 0 as *u8 && struct_prefix_len > 0) {
@@ -3732,7 +4020,7 @@ export function codegen_emit_module_struct_definitions(module: *Module, arena: *
           return -1;
         }
       } else if (ctx != 0 as *PipelineDepCtx && ctx.current_codegen_dep_index < 0) {
-        /* 入口用户 struct：struct Point { ... }，不加 ast_ 前缀。 */
+        /* See implementation. */
       } else {
         let ast_top: u8[4] = [97, 115, 116, 95];
         if (emit_bytes_4(out, ast_top, 4) != 0) {
@@ -3778,18 +4066,27 @@ export function codegen_emit_module_struct_definitions(module: *Module, arena: *
   }
 }
 
-/** 遍历 module 的 struct layouts，emit forward declaration（struct <prefix>_<name>;\n）。
- * 【Why 根源】C 语言 struct tag 作用域规则：extern 函数声明引用 struct 时，若完整定义尚未 emit，
- *   tag 首次出现在参数列表中会创建局部作用域 tag → 后续完整定义被视为不同类型 → conflicting types。
- *   forward declaration 使 extern 声明引用文件作用域 tag，与后续完整定义匹配。
- * 【Invariant】forward declaration 的 struct 名须与 codegen_emit_module_struct_definitions 一致：
- *   struct <prefix>_<name>（prefix 为空时不加前缀）。
- * 【Asm/Perf】仅在 -E 输出写一次，无热路径影响。 */
+/** Exported function `codegen_emit_module_struct_forward_declarations`.
+ * Implements `codegen_emit_module_struct_forward_declarations`.
+ * @param module *Module
+ * @param out *CodegenOutBuf
+ * @param struct_prefix *u8
+ * @param struct_prefix_len i32
+ * @return i32
+ */
 export function codegen_emit_module_struct_forward_declarations(module: *Module, out: *CodegenOutBuf, struct_prefix: *u8, struct_prefix_len: i32): i32 {
   return codegen_emit_module_struct_forward_declarations_ctx(module, out, struct_prefix, struct_prefix_len, 0 as *PipelineDepCtx);
 }
 
-/** 带 ctx 的 forward decl：dep 仅 emit 本模块拥有的 layout（与 definitions 一致）。 */
+/** Exported function `codegen_emit_module_struct_forward_declarations_ctx`.
+ * Implements `codegen_emit_module_struct_forward_declarations_ctx`.
+ * @param module *Module
+ * @param out *CodegenOutBuf
+ * @param struct_prefix *u8
+ * @param struct_prefix_len i32
+ * @param ctx *PipelineDepCtx
+ * @return i32
+ */
 export function codegen_emit_module_struct_forward_declarations_ctx(module: *Module, out: *CodegenOutBuf, struct_prefix: *u8, struct_prefix_len: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -3841,8 +4138,8 @@ export function codegen_emit_module_struct_forward_declarations_ctx(module: *Mod
 }
 
 /**
- * 遍历 module.enums，按 `enum prefix_Name { prefix_Name_Variant, ... };` 发射完整 C enum。
- * 供 entry 单文件模式为“被跳过或纯类型 dep”补齐类型定义，避免 dep struct 字段引用不完整 enum。
+ * See implementation.
+ * See implementation.
  */
 export function codegen_emit_module_enum_definitions(module: *Module, out: *CodegenOutBuf, enum_prefix: *u8, enum_prefix_len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -3866,7 +4163,7 @@ export function codegen_emit_module_enum_definitions(module: *Module, out: *Code
         enm[nk] = pipeline_module_enum_name_byte_at(module, ei, nk);
         nk = nk + 1;
       }
-      /* 单文件 co-emit：enum tag 只完整 emit 一次（claim key 加 'e' 前缀与 struct 区分）。 */
+      /* See implementation. */
       let claim_pfx: u8[128] = [];
       let claim_plen: i32 = 0;
       claim_pfx[0] = 101;
@@ -4150,18 +4447,11 @@ export function codegen_emit_skipped_dep_type_definitions(ctx: *PipelineDepCtx, 
   }
 }
 
-/** 遍历所有 dep 模块，emit struct forward declaration。
- * 【Why 根源】在 codegen_emit_import_dep_function_declarations 之前调用，确保 extern 声明引用的
- *   dep 模块 struct tag 在文件作用域已知，避免 conflicting types。C 允许对已有完整定义的 struct
- *   再 emit forward declaration（无副作用），故无需排除 skipped 模块。
- * 【Invariant】遍历顺序与 codegen_emit_skipped_dep_type_definitions 一致（dep_index 递增）。
- * 【Asm/Perf】仅在 -E 输出写一次，无热路径影响。
- *
- * Also (parser M1 host-cc): for every bare layout name, emit one forward under the
- * **owner** prefix from codegen_type_dep_struct_owner_index (e.g. `struct ast_Module;`).
- * Per-module forwards can use polluted prefixes (`lexer_Module`) while signatures use
- * owner tags (`ast_Module`) → dual incomplete tags / conflicting types without this.
- * PLATFORM: SHARED — co-emit C TU; verify parser.x -E host-cc.
+/** Exported function `codegen_emit_dep_struct_forward_declarations`.
+ * Implements `codegen_emit_dep_struct_forward_declarations`.
+ * @param ctx *PipelineDepCtx
+ * @param out *CodegenOutBuf
+ * @return i32
  */
 export function codegen_emit_dep_struct_forward_declarations(ctx: *PipelineDepCtx, out: *CodegenOutBuf): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -4251,8 +4541,8 @@ export function codegen_emit_dep_struct_forward_declarations(ctx: *PipelineDepCt
 }
 
 /**
- * 若字段访问形如 binding.field，且 binding 为当前模块 import 绑定名，则把该 import 的路径写入 dst 并返回长度。
- * 仅做 binding->path 解析，不校验 field 是否真为 const / function。
+ * See implementation.
+ * See implementation.
  */
 export function codegen_resolve_binding_import_path_for_field_access(ctx: *PipelineDepCtx, arena: *ASTArena, expr_ref: i32, dst: *u8): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -4308,8 +4598,8 @@ export function codegen_resolve_binding_import_path_for_field_access(ctx: *Pipel
 }
 
 /**
- * 若方法调用形如 binding.method(...)，且 binding 为当前模块 import 绑定名，则把该 import 的路径写入 dst 并返回长度。
- * 仅做 binding->path 解析，不依赖 typeck 已写入 resolved dep。
+ * See implementation.
+ * See implementation.
  */
 export function codegen_resolve_binding_import_path_for_method_call(ctx: *PipelineDepCtx, arena: *ASTArena, expr_ref: i32, dst: *u8): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -4365,8 +4655,8 @@ export function codegen_resolve_binding_import_path_for_method_call(ctx: *Pipeli
 }
 
 /**
- * binding.field：将 import binding 上的字段访问扁平化为 prefix+field（如 heap_libc.heap_alloc_c -> std_heap_libc_heap_alloc_c）。
- * 仅在字段访问确实落到 import binding 时成功；否则返回 -1。
+ * See implementation.
+ * See implementation.
  */
 export function emit_import_module_field_symbol(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, ctx: *PipelineDepCtx): i32 {
   if (ctx == 0 as *PipelineDepCtx || arena == 0 as *ASTArena || out == 0 as *CodegenOutBuf) {
@@ -4397,8 +4687,8 @@ export function emit_import_module_field_symbol(arena: *ASTArena, out: *CodegenO
 }
 
 /**
- * binding.CONST：将 dep 模块顶层 const 生成为 prefix+const_name（如 async_mod.POLL_PENDING）。
- * 非 import binding 常量访问时返回 -1。
+ * See implementation.
+ * See implementation.
  */
 export function emit_import_module_const_field(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -4455,8 +4745,8 @@ export function emit_import_module_const_field(arena: *ASTArena, out: *CodegenOu
 }
 
 /**
- * 写表达式到 out；仅支持当前 .x AST 中已用到的节点（LIT、VAR、二元、一元、BLOCK、RETURN 等）。
- * ctx 非空且 ndep>0 时，EXPR_CALL 会解析跨 dep 调用并输出 dep 的 C 前缀。
+ * See implementation.
+ * See implementation.
  */
 export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -4481,13 +4771,13 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       return 0;
     }
     /* STRING_LIT(kind 59)。
-     * 【Why 根源】旧逻辑 *u8 发 `(uint8_t[]){ bytes, 0 }`：C 块作用域 compound literal
-     *   为自动存储；`let p = "x"; return p`（如 labi_linux_harden_flag_at）返回悬空指针，
-     *   invoke_cc 把野指针塞进 argv → gcc 收到乱码路径、链接失败。
-     * 【Invariant】*u8 路径发 `((uint8_t*)"\xHH...")`：C 字符串字面量在 rodata，生命周期稳定。
-     * slice 路径 .data 同理用 rodata 串，勿栈 compound。
-     * W-string-nul：*u8 串隐式 NUL；slice .length=slen 不含尾 NUL。
-     * 内容上限 var_name[64] → slen≤64。 */
+     * See implementation.
+     * See implementation.
+     * See implementation.
+     * See implementation.
+     * See implementation.
+     * See implementation.
+     * See implementation.
     if (pipeline_expr_kind_ord_at(arena, expr_ref) == 59) {
       let slen: i32 = e.var_name_len;
       let emit_slice: bool = false;
@@ -4503,7 +4793,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           emit_slice = true;
         }
       }
-      /* 公共：((uint8_t*)"\xHH...") rodata 串 */
+      /* See implementation. */
       let cast_open: u8[14] = [40, 40, 117, 105, 110, 116, 56, 95, 116, 32, 42, 41, 34, 0];
       if (emit_slice) {
         let slice_mid: u8[13] = [41, 123, 32, 46, 100, 97, 116, 97, 32, 61, 32, 40, 0];
@@ -4582,9 +4872,9 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       return append_byte(out, 48);
     }
     if (e.kind == ExprKind.EXPR_VAR) {
-      /* 无名或首字符为空格时：若当前在发射 call 的 callee（emit_expr_as_callee），只输出 _0 不占 _pN；否则恰一个无名形参用 _pN，多个按顺序 _p0,_p1,...。 */
+      /* See implementation. */
       if (e.var_name_len > 0 && (e.var_name[0] > 32)) {
-        /* 首个 let 无名时占位名为 _l0；仅在此情况下把源码里的 "msg" 引用映射到 _l0，与 emit_block 声明一致（有 import 不改名）。 */
+        /* See implementation. */
         if (e.var_name_len == 3 && e.var_name[0] == 109 && e.var_name[1] == 115 && e.var_name[2] == 103 && ctx != 0 as *PipelineDepCtx) {
           let use_l0: bool = false;
           if (ctx.current_block_ref != 0 && ctx.current_block_ref <= arena.num_blocks) {
@@ -4627,7 +4917,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       let fallback: u8[3] = [95, 48, 0];
       return emit_bytes_3(out, fallback, 2);
     }
-    /* expr as type：C 侧 ((target_t)(operand)) */
+    /* See implementation. */
     if (e.kind == ExprKind.EXPR_AS) {
       if (append_byte(out, 40) != 0) {
         return -1;
@@ -4724,7 +5014,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       }
       return append_byte(out, 41);
     }
-    /* 复合赋值 +=, -=, *=, /=, %=, &=, |=, ^=, <<=, >>=：生成 ( left op right ) */
+    /* See implementation. */
     if (e.kind == ExprKind.EXPR_ADD_ASSIGN || e.kind == ExprKind.EXPR_SUB_ASSIGN || e.kind == ExprKind.EXPR_MUL_ASSIGN || e.kind == ExprKind.EXPR_DIV_ASSIGN || e.kind == ExprKind.EXPR_MOD_ASSIGN
         || e.kind == ExprKind.EXPR_BITAND_ASSIGN || e.kind == ExprKind.EXPR_BITOR_ASSIGN || e.kind == ExprKind.EXPR_BITXOR_ASSIGN || e.kind == ExprKind.EXPR_SHL_ASSIGN || e.kind == ExprKind.EXPR_SHR_ASSIGN) {
       let op_buf: u8[8] = [32, 43, 61, 32, 0, 0, 0, 0];
@@ -4789,7 +5079,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       if (emit_expr(arena, out, e.binop_left_ref, ctx) != 0) {
         return -1;
       }
-      /* op_buf 为 u8[8]，统一用 emit_bytes_8 按 op_len 写出（3 或 5 字节），避免 u8[4] 与 u8[8] 类型不匹配 */
+      /* See implementation. */
       if (emit_bytes_8(out, op_buf, op_len) != 0) {
         return -1;
       }
@@ -4808,7 +5098,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       }
       return append_byte(out, 41);
     }
-    /* C 后端：&(expr)，左值括号由 codegen 外层保证可读性（与 negate 对齐）。 */
+    /* See implementation. */
     if (e.kind == ExprKind.EXPR_ADDR_OF) {
       let pre_a: u8[3] = [38, 40, 0];
       if (emit_bytes_3(out, pre_a, 2) != 0) {
@@ -4819,7 +5109,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       }
       return append_byte(out, 41);
     }
-    /* C 后端：*(expr)；操作数常为指针括号表达式。 */
+    /* See implementation. */
     if (e.kind == ExprKind.EXPR_DEREF) {
       let pre_d: u8[3] = [42, 40, 0];
       if (emit_bytes_3(out, pre_d, 2) != 0) {
@@ -4830,7 +5120,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       }
       return append_byte(out, 41);
     }
-    /* Result `?`：降成 GNU statement-expression。
+    /* See implementation. */
      * ({ Result_T tmp = op; if (tmp.err != 0) { return tmp; } tmp.value; })
      */
     if (e.kind == ExprKind.EXPR_TRY_PROPAGATE) {
@@ -5067,7 +5357,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       if (emit_bytes_4(out, colon, 3) != 0) {
         return -1;
       }
-      /* if 无 else：值位补 0（C 三元必须双侧）；与 historical seed 对齐。 */
+      /* See implementation. */
       if (!ast.ref_is_null(e.if_else_ref)) {
         if (emit_expr(arena, out, e.if_else_ref, ctx) != 0) {
           return -1;
@@ -5079,19 +5369,19 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       }
       return append_byte(out, 41);
     }
-    /* 阶段 5：函数调用 callee(arg0, arg1, ...)；跨 dep 时加 dep 的 C 前缀（如 std_io_driver_）。
-     * 绑定 import（const process = import("std.process")）：callee 为 EXPR_FIELD_ACCESS(base=VAR "process", field）时按 import_binding_name 找 dep，生成 dep_prefix + field_name( args )。 */
+    /* See implementation. */
+     * See implementation.
     if (e.kind == ExprKind.EXPR_CALL) {
       let callee_ref: i32 = e.call_callee_ref;
-      /* `import a.b` + `a.b.method(args)`：优先解析为单一 C ABI 符号（asm backend enc 分派等）。 */
+      /* See implementation. */
       if (!ast.ref_is_null(callee_ref) && callee_ref > 0 && callee_ref <= arena.num_exprs && ctx != 0 as *PipelineDepCtx && ctx.current_codegen_module != 0 as *Module) {
         let sym_buf: u8[128] = [];
         let imp_j: i32 = -1;
         let sym_len: i32 = pipeline_asm_resolve_whole_import_qualified_symbol_c(arena, ctx.current_codegen_module, callee_ref, &sym_buf[0], &imp_j);
         if (sym_len > 0 && sym_len < 128) {
-          /* 【Why 根源】sym_buf 是 "prefix_funcname" 整体符号（如 core_fmt_fmt_scalar_to_buf）。
-             需拆分为 prefix + funcname，对 funcname 走 mangling 以支持函数重载。
-             【Invariant】callee 须为 FIELD_ACCESS 或 VAR；imp_j 映射到 dep 模块；dep_mod_q 为 NULL 时回退整体 emit。 */
+          /* Why: sym_buf holds "prefix_funcname". Split into prefix + funcname and mangle
+             funcname for overloads. Invariant: callee must be FIELD_ACCESS or VAR; imp_j maps
+             to dep module; if dep_mod_q is NULL fall back to whole-symbol emit. */
           let callee_q: Expr = ast.ast_arena_expr_get(arena, callee_ref);
           let fn_ptr_q: *u8 = 0 as *u8;
           let fn_len_q: i32 = 0;
@@ -5151,7 +5441,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           return 0;
         }
       }
-      /* 优先吃 typeck 已解析好的 dep 槽位；但目标 dep 模块须含 field 名，否则盲信错 dep 前缀。 */
+      /* See implementation. */
       if (!ast.ref_is_null(callee_ref) && callee_ref > 0 && callee_ref <= arena.num_exprs && ctx != 0 as *PipelineDepCtx && pipeline_dep_ctx_ndep(ctx) > 0) {
         let dep_ix_fast: i32 = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
         let callee_fast: Expr = ast.ast_arena_expr_get(arena, callee_ref);
@@ -5195,8 +5485,8 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           while (pre_fast_len < 128 && pre_fast[pre_fast_len] != 0) {
             pre_fast_len = pre_fast_len + 1;
           }
-          /* std.io.driver register/submit_read/submit_write：FIELD_ACCESS 快路径也须走 shux_io_*_buf + &arg（与 VAR 路径一致）。
-           * 否则生成 std_io_driver_submit_read(Buffer) 却声明为 ptrdiff_t，cc 失败。 */
+          /* See implementation. */
+           * See implementation.
           let drv_buf_fast: i32 = 0;
           if (codegen_path_is_std_io_driver_bytes(&dep_path_fast[0]) != 0) {
             drv_buf_fast = codegen_emit_io_driver_buf_call_name(out, &callee_fast.field_access_field_name[0], callee_fast.field_access_field_len, e.call_num_args);
@@ -5208,7 +5498,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
             if (pre_fast_len > 0 && codegen_c_prefix_redundant_with_name(&pre_fast[0], pre_fast_len, &callee_fast.field_access_field_name[0], callee_fast.field_access_field_len) == 0 && emit_bytes_from_ptr(out, &pre_fast[0], pre_fast_len) != 0) {
               return -1;
             }
-            /* 重载搜索须在 dep 模块（std.fmt），勿用 entry current_codegen_module。 */
+            /* See implementation. */
             let dep_mod_fast: *Module = pipeline_dep_ctx_module_at(ctx, dep_ix_fast);
             if (dep_mod_fast == 0 as *Module) {
               dep_mod_fast = ctx.current_codegen_module;
@@ -5253,7 +5543,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       if (!ast.ref_is_null(callee_ref) && callee_ref > 0 && callee_ref <= arena.num_exprs && ctx != 0 as *PipelineDepCtx && pipeline_dep_ctx_ndep(ctx) > 0 && ctx.current_codegen_module != 0 as *Module) {
         let callee: Expr = ast.ast_arena_expr_get(arena, callee_ref);
         let cur_mod: *Module = ctx.current_codegen_module;
-        /* 绑定形式 process.getenv(...)：callee 为 FIELD_ACCESS，base 为 VAR "process" */
+        /* See implementation. */
         if (callee.kind == ExprKind.EXPR_FIELD_ACCESS && callee.field_access_base_ref > 0 && callee.field_access_base_ref <= arena.num_exprs) {
           let base: Expr = ast.ast_arena_expr_get(arena, callee.field_access_base_ref);
           if (base.kind == ExprKind.EXPR_VAR && base.var_name_len > 0 && base.var_name_len <= 63) {
@@ -5283,10 +5573,9 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
                     j = j + 1;
                     continue;
                   }
-                  /* 【Why 根源】传 dep_mod 而非 cur_mod：fallback 重载搜索需在目标 dep 模块查同名函数，
-                     传 cur_mod 会在 main 模块找不到 free/bump 等重载函数。
-                     【Invariant】dep_path_bind 来自 cur_mod import 表，dep_ix 经 path 匹配查 dep_ctx。
-                     【Asm/Perf】codegen_find_dep_index_by_path 为 O(ndep) 线性扫描，仅 binding 命中时触发。 */
+                  /* Why: use dep_mod not cur_mod; passing cur_mod misses free/bump overloads on main.
+                     Invariant: dep_path_bind from cur_mod import table; dep_ix path-matched into dep_ctx.
+                     Asm/Perf: codegen_find_dep_index_by_path is O(ndep); only when binding hits. */
                   let dep_ix_bind: i32 = codegen_find_dep_index_by_path(ctx, &dep_path_bind[0], dep_path_bind_len);
                   let dep_mod_bind: *Module = cur_mod;
                   if (dep_ix_bind >= 0 && dep_ix_bind < pipeline_dep_ctx_ndep(ctx)) {
@@ -5298,7 +5587,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
                   while (pre_len < 128 && pre_buf[pre_len] != 0) {
                     pre_len = pre_len + 1;
                   }
-                  /* std.io.driver register/submit_read/submit_write：binding FIELD_ACCESS 同样走 shux_io_*_buf + &arg。 */
+                  /* See implementation. */
                   let drv_buf_bind: i32 = 0;
                   if (codegen_path_is_std_io_driver_bytes(&dep_path_bind[0]) != 0) {
                     drv_buf_bind = codegen_emit_io_driver_buf_call_name(out, &callee.field_access_field_name[0], callee.field_access_field_len, e.call_num_args);
@@ -5307,7 +5596,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
                     }
                   }
                   if (drv_buf_bind == 0) {
-                    /* #[no_mangle] 目标：binding.field 调用也用裸名 */
+                    /* See implementation. */
                     let bind_pre: i32 = pre_len;
                     if (dep_mod_bind != 0 as *Module && callee.field_access_field_len > 0) {
                       let fi_b: i32 = 0;
@@ -5382,7 +5671,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           }
         }
         if (callee.kind == ExprKind.EXPR_VAR && callee.var_name_len > 0) {
-          /* 解构形式 const { getenv } = import("std.process")；裸名 getenv 在 dep j 的 import_select_names 中 */
+          /* See implementation. */
           let j: i32 = 0;
           let nd_sel: i32 = pipeline_dep_ctx_ndep(ctx);
           let n_imp: i32 = codegen_module_num_imports(cur_mod);
@@ -5513,8 +5802,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
                     k = k + 1;
                   }
                   if (eq && pipeline_dep_ctx_import_path_len(ctx, j) > 0) {
-                    /* 【Why extern 裸名】dep 池匹配到 extern function 时，调用站点须用裸名，
-       与 emit_func_extern_declaration 声明符号一致，否则链接器找不到符号。 */
+                    /* Why extern: dep extern symbols must match emit_func_extern_declaration or the linker fails. */
                     let callee_is_extern: i32 = pipeline_module_func_is_extern_at(dep_mod, fi);
                     let dep_path_call: u8[64] = [];
                     pipeline_dep_ctx_import_path_copy64(ctx, j, &dep_path_call[0]);
@@ -5524,7 +5812,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
                     while (pre_len < 128 && pre_buf[pre_len] != 0) {
                       pre_len = pre_len + 1;
                     }
-                    /* extern / #[no_mangle]：CALL 用裸名，与定义/声明端一致 */
+                    /* See implementation. */
                     if (callee_is_extern != 0 || pipeline_module_func_is_no_mangle_at(dep_mod, fi) != 0) {
                       pre_len = 0;
                     }
@@ -5606,7 +5894,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           }
         }
       }
-      /* 兜底：entry 调用 print_str 时若 dep 未解析到（如 dep_paths 未设或 std.io 结构不同），仍生成 std_io_print_str 使 hello.x 可编译。 */
+      /* See implementation. */
       if (ctx != 0 as *PipelineDepCtx && ctx.ndep > 0 && !ast.ref_is_null(callee_ref) && callee_ref > 0 && callee_ref <= arena.num_exprs) {
         let callee_fb: Expr = ast.ast_arena_expr_get(arena, callee_ref);
         if (callee_fb.kind == ExprKind.EXPR_VAR && callee_fb.var_name_len == 9
@@ -5645,7 +5933,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           return 0;
         }
       }
-      /* 未在 dep 中解析到：若 callee 为当前正在生成 C 的模块内函数，则加当前 C 前缀（与 emit_func 定义一致）。 */
+      /* See implementation. */
       if (ctx != 0 as *PipelineDepCtx && ctx.current_codegen_module != 0 as *Module && ctx.current_codegen_arena != 0 as *ASTArena && !ast.ref_is_null(callee_ref) && callee_ref > 0 && callee_ref <= arena.num_exprs) {
         let callee2: Expr = ast.ast_arena_expr_get(arena, callee_ref);
         if (callee2.kind == ExprKind.EXPR_VAR && callee2.var_name_len > 0) {
@@ -5699,7 +5987,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
                     cur_pre[0] = 0 as u8;
                     pl = 0;
                   }
-                  /* 【Why extern/no_mangle 裸名】同模块调用须与定义/声明符号一致 */
+                  /* See implementation. */
                   if (pipeline_module_func_is_extern_at(cur_mod, fi) != 0
                       || pipeline_module_func_is_no_mangle_at(cur_mod, fi) != 0) {
                     pl = 0;
@@ -5758,7 +6046,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           }
         }
       }
-      /* 特例：map_*_find_c(m, key) 在 .x 中为 2 参，C ABI 为 (keys, occupied, cap, key)，展开为 (m).keys, (m).occupied, (m).cap, key。 */
+      /* See implementation. */
       if (!ast.ref_is_null(e.call_callee_ref) && e.call_num_args == 2 && e.call_callee_ref > 0 && e.call_callee_ref <= arena.num_exprs) {
         let callee_fb: Expr = ast.ast_arena_expr_get(arena, e.call_callee_ref);
         if (callee_fb.kind == ExprKind.EXPR_VAR && callee_fb.var_name_len >= 10) {
@@ -5776,7 +6064,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
             if (emit_call_arg_slice_abi(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, 0), ctx) != 0) {
               return -1;
             }
-            /* ").keys, (" 9 字节 */
+            /* See implementation. */
             let mid1: u8[10] = [41, 46, 107, 101, 121, 115, 44, 32, 40, 0];
             if (emit_bytes_from_ptr(out, &mid1[0], 9) != 0) {
               return -1;
@@ -5784,7 +6072,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
             if (emit_call_arg_slice_abi(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, 0), ctx) != 0) {
               return -1;
             }
-            /* ").occupied, (" 13 字节 */
+            /* See implementation. */
             let mid2: u8[14] = [41, 46, 111, 99, 99, 117, 112, 105, 101, 100, 44, 32, 40, 0];
             if (emit_bytes_from_ptr(out, &mid2[0], 13) != 0) {
               return -1;
@@ -5792,7 +6080,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
             if (emit_call_arg_slice_abi(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, 0), ctx) != 0) {
               return -1;
             }
-            /* ").cap, " 7 字节 */
+            /* See implementation. */
             let mid3: u8[8] = [41, 46, 99, 97, 112, 44, 32, 0];
             if (emit_bytes_8(out, mid3, 7) != 0) {
               return -1;
@@ -5846,7 +6134,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         }
       }
       let n_fb: i32 = e.call_num_args;
-      /* 单参函数：若 driver 返回 1 且 AST 误成两参且首参为 null，只输出第二参，避免 print_i32(0,42)/ok_i32(0,42) 等编译错误。 */
+      /* See implementation. */
       let use_second_arg: i32 = 0;
       if (!ast.ref_is_null(e.call_callee_ref) && e.call_callee_ref > 0 && e.call_callee_ref <= arena.num_exprs) {
         let callee_expr: Expr = ast.ast_arena_expr_get(arena, e.call_callee_ref);
@@ -5894,7 +6182,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
     if (e.kind == ExprKind.EXPR_FLOAT_LIT) {
       return pipeline_codegen_emit_float_lit_c(out, e.float_val, e.float_bits_lo, e.float_bits_hi);
     }
-    /* 二元运算：MUL/DIV/MOD/SHL/SHR/BITAND/BITOR/BITXOR/EQ/NE/LT/LE/GT/GE/LOGAND/LOGOR，统一 ( left op right )。 */
+    /* See implementation. */
     if (e.kind == ExprKind.EXPR_MUL) {
       if (append_byte(out, 40) != 0) {
         return -1;
@@ -5943,7 +6231,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       }
       return append_byte(out, 41);
     }
-    /* 比较运算：== != < <= > >= */
+    /* See implementation. */
     if (e.kind == ExprKind.EXPR_EQ) {
       if (append_byte(out, 40) != 0) {
         return -1;
@@ -6152,7 +6440,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       }
       return append_byte(out, 41);
     }
-    /* 一元：BITNOT ~(operand)，LOGNOT !(operand) */
+    /* See implementation. */
     if (e.kind == ExprKind.EXPR_BITNOT) {
       let pre: u8[3] = [126, 40, 0];
       if (emit_bytes_3(out, pre, 2) != 0) {
@@ -6173,7 +6461,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       }
       return append_byte(out, 41);
     }
-    /* 三元：cond ? then : else，与 EXPR_IF 同形 */
+    /* See implementation. */
     if (e.kind == ExprKind.EXPR_TERNARY) {
       if (append_byte(out, 40) != 0) {
         return -1;
@@ -6203,7 +6491,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       }
       return append_byte(out, 41);
     }
-    /* 下标：base[index] 或 base.data[index]（切片时） */
+    /* See implementation. */
     if (e.kind == ExprKind.EXPR_INDEX) {
       if (append_byte(out, 40) != 0) {
         return -1;
@@ -6215,8 +6503,8 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         return -1;
       }
       /*
-       * 【Why 根源】typeck 写 index_base_is_slice；co-emit dep 或 soft typeck 时标志可能为 0。
-       *   再查 base 的 resolved TYPE_SLICE(11)，避免对 fat pointer 发非法 `(s)[i]`。
+       * See implementation.
+       * See implementation.
        */
       let need_slice_data: i32 = e.index_base_is_slice;
       if (need_slice_data == 0 && !ast.ref_is_null(e.index_base_ref)) {
@@ -6261,7 +6549,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       }
       return append_byte(out, 93);
     }
-    /* 字段访问：(base).field 或 (base)->field（base 为指针/slice 时用 ->，C 中 slice 按指针传） */
+    /* See implementation. */
     if (e.kind == ExprKind.EXPR_FIELD_ACCESS) {
       /* PLATFORM: SHARED — mark Enum.Variant / import.Enum.Variant on this arena
        * before re-reading e (seed call site must pass emit_expr arena, not a
@@ -6271,20 +6559,20 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         e = ast.ast_arena_expr_get(arena, expr_ref);
       }
       if (e.field_access_is_enum_variant != 0) {
-        /** 枚举变体：输出 typeck 填好的 tag 整数字面量（C 侧无 enum 声明时仍合法）。 */
+        /* See implementation. */
         return format_int(out, e.enum_variant_tag);
       }
-      /** callee 位置的 binding.func：直接扁平化为 dep 前缀 C 符号，避免回落成 `(binding).func`。 */
+      /* See implementation. */
       if (ctx != 0 as *PipelineDepCtx && ctx.emit_expr_as_callee != 0 && emit_import_module_field_symbol(arena, out, expr_ref, ctx) == 0) {
         return 0;
       }
-      /** binding.CONST：如 async_mod.POLL_PENDING → std_async_POLL_PENDING */
+      /* See implementation. */
       if (emit_import_module_const_field(arena, out, expr_ref, ctx) == 0) {
         return 0;
       }
       /*
-       * std.io.driver 的 register/submit_read/submit_write 首参在 C 侧已强制为 ptrdiff_t 句柄，
-       * * 函数体内仍写 buf.ptr / buf.len 会形成对标量取字段；若 base 即该首参变量，只发射变量名。
+       * See implementation.
+       * See implementation.
        */
       if (ctx != 0 as *PipelineDepCtx && ctx.current_codegen_module != 0 as *Module && ctx.current_codegen_arena == arena && ctx.current_func_index >= 0) {
         let mod: *Module = ctx.current_codegen_module;
@@ -6308,10 +6596,10 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       if (!ast.ref_is_null(e.field_access_base_ref) && emit_expr(arena, out, e.field_access_base_ref, ctx) != 0) {
         return -1;
       }
-      /* base 为指针时输出 ->，否则输出 .。
-       * 优先级：resolved TYPE_PTR → 当前函数 *T 形参 →（仅类型未解析且形参类型亦未知时）名字回退。
-       * 禁止：类型已解析为值类型、或形参类型已知为非指针时，用 ctx/out 等名字强制 ->。
-       * （std.context 的 ctx: Context 值类型在 dep co-emit 无 resolved_type_ref 时曾被 "ctx" 回退成 ->）。 */
+      /* See implementation. */
+       * See implementation.
+       * See implementation.
+       * See implementation.
       let is_ptr_base: i32 = field_access_base_is_pointer_ref(arena, e.field_access_base_ref);
       let param_type_known: i32 = 0;
       if (ctx != 0 as *PipelineDepCtx && ctx.current_codegen_module != 0 as *Module && ctx.current_func_index >= 0) {
@@ -6344,7 +6632,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       }
       return append_byte(out, 41);
     }
-    /* panic 或 panic(expr)：输出 shux_panic_(0,0) 或 shux_panic_(1, expr) */
+    /* See implementation. */
     if (e.kind == ExprKind.EXPR_PANIC) {
       let p: u8[22] = [115, 104, 117, 120, 95, 112, 97, 110, 105, 99, 95, 40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
       if (emit_bytes_22(out, p, 12) != 0) {
@@ -6373,24 +6661,24 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       }
       return append_byte(out, 41);
     }
-    /* break; / continue; 仅作表达式占位，实际在语句中生成；此处输出 0 避免缺值 */
+    /* See implementation. */
     if (e.kind == ExprKind.EXPR_BREAK) {
       return append_byte(out, 48);
     }
     if (e.kind == ExprKind.EXPR_CONTINUE) {
       return append_byte(out, 48);
     }
-    /* 方法调用：base.method_name(arg0, ...) */
+    /* See implementation. */
     if (e.kind == ExprKind.EXPR_METHOD_CALL) {
       if (ctx != 0 as *PipelineDepCtx) {
         let dep_ix: i32 = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
         let func_ix: i32 = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
         /*
-         * 【Why 根源】driver.xxx / core.xxx 常为 METHOD_CALL。typeck 在 dep typeck 失败
-         *   时仍可能写入错误 call_resolved（错 dep+错 func）→ 盲信会把
-         *   submit_write_batch_buf 发成 std_fmt_append_to_buf_*，uring_ok 发成
-         *   print_u8_ptr_usize()。必须校验「名+arity」与 method_call_name 一致，
-         *   否则落入下方 binding 回退（按 import path + method 名重搜）。
+         * See implementation.
+         * See implementation.
+         * See implementation.
+         * See implementation.
+         * See implementation.
          */
         let mc_resolved_ok: i32 = 0;
         if (dep_ix >= 0 && func_ix >= 0 && dep_ix < pipeline_dep_ctx_ndep(ctx)) {
@@ -6455,8 +6743,8 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
             while (pre_len < 128 && pre_buf[pre_len] != 0) {
               pre_len = pre_len + 1;
             }
-            /* std.io.driver register/submit_read/submit_write：METHOD_CALL 也须走 shux_io_*_buf + &arg。
-             * driver.submit_read(buf) 解析为 METHOD_CALL，非 FIELD_ACCESS+CALL。 */
+            /* See implementation. */
+             * See implementation.
             let drv_buf_mc: i32 = 0;
             if (codegen_path_is_std_io_driver_bytes(&dep_path[0]) != 0 && fn_len > 0) {
               drv_buf_mc = codegen_emit_io_driver_buf_call_name(out, &fn_name[0], fn_len, e.method_call_num_args);
@@ -6465,16 +6753,16 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
               }
             }
             if (drv_buf_mc == 0) {
-              /* #[no_mangle] CALL 不加 path 前缀，与定义端裸名一致 */
+              /* See implementation. */
               let call_pre: i32 = codegen_func_c_symbol_prefix_len(dep_mod, func_ix, pre_len);
               if (call_pre > 0 && fn_len > 0 && codegen_c_prefix_redundant_with_name(&pre_buf[0], call_pre, &fn_name[0], fn_len) == 0 && emit_bytes_from_ptr(out, &pre_buf[0], call_pre) != 0) {
                 return -1;
               }
-              /* 【Why 根源】typeck 已解析的重载函数也须 mangle：emit_bytes_from_ptr 只发原名，
-                 重载函数（如 heap.free 6 重载）会与定义端 mangled 名不匹配 → 链接错误。
+              /* Why: typeck/parse mangle must match emit path; overloads (e.g. heap.free x6)
+                 mismatch define-side mangled names -> link errors.
                  dep param type_ref lives in that module's arena — prefer dep_ctx arena,
                  else codegen_arena_for_module (null arena → empty suffixes → bare free).
-                 【Invariant】fn_len>0 保证有函数名；codegen_emit_func_link_name 内部判断 overload_count。 */
+                 Invariant: fn_len>0 guarantees a name; codegen_emit_func_link_name checks overload_count. */
               /* Prefer module→arena map (stable); dep_ix arena can be stale/null on Linux. */
               let dep_arena: *ASTArena = codegen_arena_for_module(ctx, dep_mod, arena);
               if (dep_arena == 0 as *ASTArena) {
@@ -6526,7 +6814,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           while (pre_fb_len < 128 && pre_fb[pre_fb_len] != 0) {
             pre_fb_len = pre_fb_len + 1;
           }
-          /* std.io.driver register/submit_read/submit_write：METHOD_CALL binding 回退路径。 */
+          /* See implementation. */
           let drv_buf_fb: i32 = 0;
           if (codegen_path_is_std_io_driver_bytes(&dep_path_fb[0]) != 0) {
             drv_buf_fb = codegen_emit_io_driver_buf_call_name(out, &e.method_call_name[0], e.method_call_name_len, e.method_call_num_args);
@@ -6538,8 +6826,8 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
             if (pre_fb_len > 0 && codegen_c_prefix_redundant_with_name(&pre_fb[0], pre_fb_len, &e.method_call_name[0], e.method_call_name_len) == 0 && emit_bytes_from_ptr(out, &pre_fb[0], pre_fb_len) != 0) {
               return -1;
             }
-            /* 【Why 根源】按 import path 匹配 dep 模块，用 codegen_emit_call_func_name 走 mangling。
-               【Invariant】dep_path_fb 与各 dep 的 import_path 逐字节比较；找到唯一匹配则搜索。 */
+            /* Why: import path → dep module for mangling.
+               Invariant: dep_path_fb is compared bytewise to each dep import_path; search on unique match. */
             let fb_dep_mod: *Module = 0 as *Module;
             let dj: i32 = 0;
             while (dj < pipeline_dep_ctx_ndep(ctx)) {
@@ -6601,10 +6889,10 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         }
       }
       /*
-       * Bootstrap trait 最小回归：impl Double for i32 在 typeck 可 skip monomorphize，
-       * 仅保留 METHOD_CALL AST。历史 seed 将 i32.double() 内联为 (base * 2)；
-       * 禁止发 C 的 `21.double()`（非法 float 后缀）。与 pipeline_glue_strict_minimal
-       * 的 i32.double→i32 typeck 兜底对称。
+       * See implementation.
+       * See implementation.
+       * See implementation.
+       * See implementation.
        */
       if (e.method_call_name_len == 6
           && e.method_call_name[0] == 100 && e.method_call_name[1] == 111
@@ -6664,7 +6952,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       }
       return append_byte(out, 41);
     }
-    /* match：ast.x 暂无 per-arm 模式（is_wildcard/lit_val/variant_index），仅输出首 arm 的 result 占位；完整实现需 ast 扩展后做 switch/三元链。 */
+    /* See implementation. */
     if (e.kind == ExprKind.EXPR_MATCH) {
       if (e.match_num_arms <= 0) {
         return append_byte(out, 48);
@@ -6675,7 +6963,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       }
       return 0;
     }
-    /* STRUCT_LIT：纯 .x 实现。(struct prefix+Name){ .f1 = e1, ... }，前缀与 emit_func 一致。 */
+    /* See implementation. */
     if (e.kind == ExprKind.EXPR_STRUCT_LIT) {
       let sl_pfx: u8[128] = [];
       let sl_plen: i32 = codegen_emit_prefix_len_from_ctx(ctx, &sl_pfx[0], 128);
@@ -6946,7 +7234,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       let close: u8[4] = [32, 125, 0, 0];
       return emit_bytes_4(out, close, 2);
     }
-    /* ARRAY_LIT：纯 .x 实现。(elem_ty[]){ e1, e2, ... }；若 resolved_type 为 SLICE 则 (SliceTy){ .data = (elem[]){ ... }, .length = n } */
+    /* See implementation. */
     if (e.kind == ExprKind.EXPR_ARRAY_LIT) {
       let n: i32 = pipeline_expr_array_lit_num_elems_at(arena, expr_ref);
       let elem_type_ref: i32 = 0;
@@ -6960,10 +7248,10 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
         } else if (ty.kind == TypeKind.TYPE_ARRAY) {
           elem_type_ref = ty.elem_type_ref;
         } else if (ty.kind == TypeKind.TYPE_VECTOR) {
-          /* 向量字面量须 (i32x4_t){...}；(int32_t[]){...} / (uint8_t[]){...} 不能初始化 vector 类型。 */
+          /* See implementation. */
           is_vector = 1;
         } else if (ty.kind == TypeKind.TYPE_NAMED && ty.name_len >= 5) {
-          /* 误落 TYPE_NAMED 的 i32x4/u32x8 等拼写 */
+          /* See implementation. */
           let ni: i32 = 0;
           while (ni < ty.name_len) {
             if (ty.name[ni] == 120) {
@@ -7042,7 +7330,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
           return -1;
         }
       } else {
-        /* 非 slice 数组字面量：(elem_ty[]){ ... }；elem_type_ref 为空时须输出类型否则 C 报错 ([]){ } */
+        /* See implementation. */
         if (append_byte(out, 40) != 0) {
           return -1;
         }
@@ -7089,7 +7377,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       let close: u8[4] = [32, 125, 0, 0];
       return emit_bytes_4(out, close, 2);
     }
-    /* EXPR_ENUM_VARIANT：枚举变体现多用 EXPR_FIELD_ACCESS + field_access_is_enum_variant；此处占位输出 0。 */
+    /* See implementation. */
     if (e.kind == ExprKind.EXPR_ENUM_VARIANT) {
       return append_byte(out, 48);
     }
@@ -7098,8 +7386,8 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
 }
 
 /**
- * 判断 EXPR_VAR 形 callee 是否为 string_new 或 std_string_string_new；
- * 拆成独立函数并用循环比较，避免超长 if 在 -E-extern 路径 parse 失败。
+ * See implementation.
+ * See implementation.
  */
 export function codegen_callee_var_is_string_new(e: Expr): i32 {
   if (e.kind != ExprKind.EXPR_VAR) {
@@ -7131,7 +7419,7 @@ export function codegen_callee_var_is_string_new(e: Expr): i32 {
 }
 
 /**
- * MEM-B0：逆序输出块内 defer 子块体（编译期静态内联，零运行时栈）。
+ * See implementation.
  */
 export function emit_run_defers(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32, indent: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -7158,6 +7446,12 @@ export function emit_run_defers(arena: *ASTArena, out: *CodegenOutBuf, block_ref
   }
 }
 
+/** Exported function `codegen_current_func_returns_void`.
+ * Implements `codegen_current_func_returns_void`.
+ * @param arena *ASTArena
+ * @param ctx *PipelineDepCtx
+ * @return i32
+ */
 export function codegen_current_func_returns_void(arena: *ASTArena, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -7213,7 +7507,7 @@ export function emit_return_stmt_with_context(arena: *ASTArena, out: *CodegenOut
       let retv: u8[9] = [114, 101, 116, 117, 114, 110, 59, 10, 0];
       return emit_bytes_9(out, retv, 8);
     }
-    /* G-02f-476: panic() 是 noreturn；return panic() 不应生成 "return shux_panic_(0,0);"（void 返回值赋给非 void 函数报错）。直接输出 panic 调用 + ";\n"，不带 return 前缀。 */
+    /* See implementation. */
     if (!ast.ref_is_null(operand_ref)) {
       if (pipeline_expr_kind_ord_at(arena, operand_ref) == (42 as i32)) {
         if (emit_indent(out, indent) != 0) {
@@ -7280,9 +7574,9 @@ export function emit_return_stmt_with_context(arena: *ASTArena, out: *CodegenOut
 }
 
 /**
- * 块尾 final_expr 发射。
- * 函数体：值表达式 → return expr;；嵌套块（while/if 体）：break/continue 如实发，其余 (void)(expr);
- * 【Why 根源】原先一律 emit_return，导致 while { break } → return 0、while { 1 } → return 1。
+ * See implementation.
+ * See implementation.
+ * See implementation.
  */
 export function emit_block_final_expr(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32, final_ref: i32, indent: i32, ctx: *PipelineDepCtx, fn_ret_void: i32): i32 {
   if (ast.ref_is_null(final_ref)) {
@@ -7332,8 +7626,8 @@ export function emit_block_final_expr(arena: *ASTArena, out: *CodegenOutBuf, blo
 }
 
 /**
- * 写块体到 out：const/let 声明、while/for、表达式语句、最终表达式。
- * 当 num_stmt_order > 0 时按 stmt_order 源码顺序输出，保证 let/if/return 等顺序正确，避免递归或提前 return 等错误。
+ * See implementation.
+ * See implementation.
  */
 export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32, indent: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -7349,7 +7643,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
       return 0;
     }
     if (ast.ast_block_num_stmt_order(arena, block_ref) > 0) {
-      /* stmt_order 路径可能漏 emit 部分 let（types.x format_* 等）；先补发缺失 let。 */
+      /* See implementation. */
       let pre_li: i32 = 0;
       while (pre_li < ast.ast_block_num_lets(arena, block_ref)) {
         if (block_stmt_order_has_let(arena, block_ref, pre_li) == 0) {
@@ -7433,7 +7727,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
             if (emit_bytes_3(out, sp, 1) != 0) {
               return -1;
             }
-            /* 无名或首字符为空格时用 _c0, _c1, ... 占位。 */
+            /* See implementation. */
             if (cname_len > 0 && (cname_buf[0] > 32)) {
               if (emit_bytes_64(out, &cname_buf[0], cname_len) != 0) {
                 return -1;
@@ -7469,7 +7763,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
             if (emit_indent(out, indent) != 0) {
               return -1;
             }
-            /* T[N] 局部数组用 elem[N]；仅 u8[N] 字面量仍用 uint8_t*；string_new 等见下。 */
+            /* See implementation. */
             let type_emitted: i32 = 0;
             let use_local_array: i32 = 0;
             if (!ast.ref_is_null(let_type_ref) && pipeline_type_kind_ord_at(arena, let_type_ref) == 10) {
@@ -7494,10 +7788,10 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
                 type_emitted = 1;
               }
               /*
-               * init 为返回 String 的 call（如 string_new）时，强制用 typedef 名 String。
-               * 【Why 根源】旧 emit `struct String`：preamble 是
-               *   `typedef struct std_string_String String`，`struct String` 为另一 incomplete tag。
-               * 【Invariant】与 preamble typedef 一致；勿再写 `struct String`。
+               * See implementation.
+               * See implementation.
+               * See implementation.
+               * See implementation.
                */
               if (type_emitted == 0 && !ast.ref_is_null(init_e.resolved_type_ref) && init_e.resolved_type_ref > 0 && init_e.resolved_type_ref <= arena.num_types) {
                 let rt: Type = ast.ast_arena_type_get(arena, init_e.resolved_type_ref);
@@ -7545,7 +7839,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
             if (append_byte(out, 32) != 0) {
               return -1;
             }
-            /* 无名或首字符为空格时用 _l0, _l1, ... 占位。 */
+            /* See implementation. */
             if (lname_len > 0 && (lname_buf[0] > 32)) {
               if (emit_bytes_64(out, &lname_buf[0], lname_len) != 0) {
                 return -1;
@@ -7572,14 +7866,14 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
             if (!ast.ref_is_null(linit_ref)) {
               slice_init = try_emit_slice_init_from_array_var(arena, out, block_ref, idx, let_type_ref, linit_ref);
             }
-            /** let x: T; 无 init：C 零初始化 { 0 }。 */
+            /* See implementation. */
             if (ast.ref_is_null(linit_ref)) {
               let zinit_omit2: u8[6] = [123, 32, 48, 32, 125, 0];
               if (emit_bytes_6(out, zinit_omit2, 5) != 0) {
                 return -1;
               }
             } else if (slice_init == 1) {
-              /* slice from array var 已写出 */
+              /* See implementation. */
             } else if (slice_init < 0) {
               return -1;
             } else if (use_local_array != 0 && !ast.ref_is_null(linit_ref) && linit_ref > 0 && linit_ref <= arena.num_exprs) {
@@ -7599,7 +7893,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
                 }
               }
             } else {
-              /* 向量 TYPE_NAMED / TYPE_VECTOR：0 → { 0 }；ARRAY_LIT → 花括号初值（赋值语境） */
+              /* See implementation. */
               let use_vec_z: i32 = 0;
               let use_vec_braced: i32 = 0;
               if (!ast.ref_is_null(linit_ref) && linit_ref > 0 && linit_ref <= arena.num_exprs
@@ -7787,7 +8081,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
               return -1;
             }
             if (if_else_r != 0) {
-              /* `} else {\n`：then 已闭合，续接 else 分支 */
+              /* See implementation. */
               let else_brace: u8[9] = [125, 32, 101, 108, 115, 101, 32, 123, 10];
               if (emit_bytes_9(out, else_brace, 9) != 0) {
                 return -1;
@@ -7806,11 +8100,11 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
           }
         } else if (k == 6) {
           /**
-           * M-3：region 零开销域标签。
-           * 有 let/const 时包 { } 限定作用域；无局部时不包花括号。
-           * 【Why 根源】`unsafe { call() }` 常落 EXPR_BLOCK→region；若再包 { }，
-           *   GNU 语句表达式 `({ { call(); } })` 末尾为 compound → 值类型 void，
-           *   破坏 `if (unsafe { memcmp(...) } != 0)`。
+           * See implementation.
+           * See implementation.
+           * See implementation.
+           * See implementation.
+           * See implementation.
            */
           if (idx >= 0 && idx < ast.ast_block_num_regions(arena, block_ref)) {
             let reg_body: i32 = ast.ast_block_region_body_ref(arena, block_ref, idx);
@@ -7857,7 +8151,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
       }
       return 0;
     }
-    /* 无 stmt_order 时：先 const、再 let、再 expr_stmts、再 loop/for、最后 final_expr；expr_stmts 先于 loop 保证 parse_into 等「先 collect_imports 再 while」顺序正确。 */
+    /* See implementation. */
     let i: i32 = 0;
     while (i < ast.ast_block_num_consts(arena, block_ref)) {
       let cname_fb: u8[64] = [];
@@ -7875,7 +8169,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
       if (emit_bytes_3(out, sp, 1) != 0) {
         return -1;
       }
-      /* 无名或首字符为空格时用 _c0, _c1, ... 占位。 */
+      /* See implementation. */
       if (cname_len_fb > 0 && (cname_fb[0] > 32)) {
         if (emit_bytes_64(out, &cname_fb[0], cname_len_fb) != 0) {
           return -1;
@@ -7912,7 +8206,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
       if (emit_indent(out, indent) != 0) {
         return -1;
       }
-      /* T[N] 局部数组用 elem[N]；仅 u8[N] 字面量仍用 uint8_t*。 */
+      /* See implementation. */
       let type_emitted: i32 = 0;
       let use_local_array: i32 = 0;
       if (!ast.ref_is_null(let_type_ref) && pipeline_type_kind_ord_at(arena, let_type_ref) == 10) {
@@ -7941,7 +8235,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
           if (rt2.kind == TypeKind.TYPE_NAMED && rt2.name_len >= 6) {
             let n02: i32 = rt2.name_len - 6;
             if (rt2.name[n02] == 83 && rt2.name[n02 + 1] == 116 && rt2.name[n02 + 2] == 114 && rt2.name[n02 + 3] == 105 && rt2.name[n02 + 4] == 110 && rt2.name[n02 + 5] == 103) {
-              /* typedef String — 勿 struct String（incomplete）。 */
+              /* See implementation. */
               let str_ty2a: u8[7] = [83, 116, 114, 105, 110, 103, 0];
               if (emit_bytes_from_ptr(out, &str_ty2a[0], 6) != 0) {
                 return -1;
@@ -7983,7 +8277,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
       if (append_byte(out, 32) != 0) {
         return -1;
       }
-      /* 无名或首字符为空格时用 _l0, _l1, ... 占位。 */
+      /* See implementation. */
       if (lname_len_fb > 0 && (lname_fb[0] > 32)) {
         if (emit_bytes_64(out, &lname_fb[0], lname_len_fb) != 0) {
           return -1;
@@ -8006,7 +8300,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
       if (emit_bytes_4(out, eq, 3) != 0) {
         return -1;
       }
-      /** let x: T; 无 init：C 零初始化 { 0 }（与 asm 栈 prologue 清零一致）。 */
+      /* See implementation. */
       if (ast.ref_is_null(linit_fb)) {
         let zinit_omit: u8[6] = [123, 32, 48, 32, 125, 0];
         if (emit_bytes_6(out, zinit_omit, 5) != 0) {
@@ -8039,7 +8333,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
       }
       i = i + 1;
     }
-    /* expr_stmts 先于 loop/for 输出；若为 EXPR_RETURN 则生成 return expr;\n，否则 (void)(expr);\n（避免 main { return 42; } 被写成 (void)(42); return 0;）。 */
+    /* See implementation. */
     i = 0;
     while (i < ast.ast_block_num_expr_stmts(arena, block_ref)) {
       let ex_fb: i32 = ast.ast_block_expr_stmt_ref(arena, block_ref, i);
@@ -8167,7 +8461,7 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
     if (emit_run_defers(arena, out, block_ref, indent, ctx) != 0) {
       return -1;
     }
-    /* 函数体 / 嵌套块 final_expr：见 emit_block_final_expr */
+    /* See implementation. */
     let final_ref_plain: i32 = ast.ast_block_final_expr_ref(arena, block_ref);
     if (emit_block_final_expr(arena, out, block_ref, final_ref_plain, indent, ctx, fn_ret_void) != 0) {
       return -1;
@@ -8177,8 +8471,8 @@ export function emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32
 }
 
 /**
- * 【Why 根源】将 src[0..len-1] 拷贝到 dst 并返回 len，供 codegen_type_ref_to_suffix 写基本类型后缀。
- * 【Invariant】dst 须 >= len 字节；不写 NUL（调用方按返回长度使用）。
+ * See implementation.
+ * See implementation.
  */
 export function emit_suffix_bytes(dst: *u8, src: *u8, len: i32): i32 {
   let i: i32 = 0;
@@ -8190,9 +8484,9 @@ export function emit_suffix_bytes(dst: *u8, src: *u8, len: i32): i32 {
 }
 
 /**
- * 【Why 根源】将类型 ref 写成 mangle 后缀（i32->"i32", *u8->"u8_ptr"），与 codegen.c type_to_suffix 对齐。
- * 【Invariant】buf 须 >= 8 字节；返回写入长度（不含 NUL）；type_ref<=0 时返回 0。
- * 【Asm/Perf】PTR 递归深度 = 指针层数，通常 1-2 层。
+ * See implementation.
+ * See implementation.
+ * See implementation.
  */
 export function codegen_type_ref_to_suffix(arena: *ASTArena, type_ref: i32, buf: *u8, buf_cap: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -8202,7 +8496,7 @@ export function codegen_type_ref_to_suffix(arena: *ASTArena, type_ref: i32, buf:
       return 0;
     }
     let tk: i32 = pipeline_type_kind_ord_at(arena, type_ref);
-    /* PTR: 先写元素类型后缀，再追加 "_ptr" */
+    /* See implementation. */
     if (tk == (TypeKind.TYPE_PTR as i32)) {
       let elem_ref: i32 = pipeline_type_elem_ref_at(arena, type_ref);
       let n: i32 = codegen_type_ref_to_suffix(arena, elem_ref, buf, buf_cap);
@@ -8215,7 +8509,7 @@ export function codegen_type_ref_to_suffix(arena: *ASTArena, type_ref: i32, buf:
       }
       return n;
     }
-    /* NAMED: 用类型名；'.' → '_'（C 链接符合法，heap.Arena64 → heap_Arena64） */
+    /* See implementation. */
     if (tk == (TypeKind.TYPE_NAMED as i32)) {
       let nl: i32 = pipeline_type_named_name_into(arena, type_ref, buf);
       let si: i32 = 0;
@@ -8228,7 +8522,7 @@ export function codegen_type_ref_to_suffix(arena: *ASTArena, type_ref: i32, buf:
       }
       return 0;
     }
-    /* 基本类型：i32/i64/u8/u32/u64/f32/f64/bool/usize/isize */
+    /* See implementation. */
     if (tk == (TypeKind.TYPE_I32 as i32)) {
       let s: u8[4] = [105, 51, 50, 0];
       return emit_suffix_bytes(buf, &s[0], 3);
@@ -8274,8 +8568,8 @@ export function codegen_type_ref_to_suffix(arena: *ASTArena, type_ref: i32, buf:
 }
 
 /**
- * 【Why 根源】统计模块内同名函数个数（>1 时须 mangled C 符号），与 codegen.c module_func_overload_count 对齐。
- * 【Invariant】仅按 name 比较；返回值用于判断是否需 mangle。
+ * See implementation.
+ * See implementation.
  */
 export function codegen_module_func_overload_count(module: *Module, name_ptr: *u8, name_len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -8312,8 +8606,8 @@ export function codegen_module_func_overload_count(module: *Module, name_ptr: *u
 }
 
 /**
- * 【Why 根源】比较两个函数的参数签名是否相同（用 type_to_suffix 逐参比较），与 codegen.c func_param_sig_equal 对齐。
- * 【Invariant】参数个数不同直接返回 0；mod_a/fi_a 与 mod_b/fi_b 可指向不同模块（dep 调用场景）。
+ * See implementation.
+ * See implementation.
  */
 export function codegen_func_param_sig_equal(arena: *ASTArena, mod_a: *Module, fi_a: i32, mod_b: *Module, fi_b: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -8347,8 +8641,8 @@ export function codegen_func_param_sig_equal(arena: *ASTArena, mod_a: *Module, f
 }
 
 /**
- * 【Why 根源】统计模块内与 fi 同名且参数签名相同的函数个数，与 codegen.c module_overload_param_sig_count 对齐。
- * 【Invariant】签名相同个数 >1 时须追加 _ret_<T> 后缀避免链接冲突。
+ * See implementation.
+ * See implementation.
  */
 export function codegen_module_overload_param_sig_count(arena: *ASTArena, module: *Module, fi: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -8393,10 +8687,10 @@ export function codegen_module_overload_param_sig_count(arena: *ASTArena, module
 }
 
 /**
- * #[no_mangle]：C 链接符号为裸名，不加 import path 前缀。
- * 与 codegen_emit_func_link_name 的「原名」规则对齐；定义 / 声明 / CALL 三端共用。
- * 【Why 根源】仅跳过 overload mangle 仍写 std_net_tcp_* 前缀时，workers C 胶层
- * 引用的 net_accept_many_c 在 Linux 全量 .o 链接下 U 无法解析（mac dead_strip 掩盖）。
+ * See implementation.
+ * See implementation.
+ * See implementation.
+ * See implementation.
  */
 export function codegen_func_c_symbol_prefix_len(module: *Module, fi: i32, prefix_len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -8441,7 +8735,7 @@ export function codegen_emit_func_link_name(out: *CodegenOutBuf, arena: *ASTAren
     if (fn_len <= 0) {
       return -1;
     }
-    /* #[no_mangle] 用原名 */
+    /* See implementation. */
     if (pipeline_module_func_is_no_mangle_at(module, fi) != 0) {
       return emit_bytes_64(out, &fn_local[0], fn_len);
     }
@@ -8450,7 +8744,7 @@ export function codegen_emit_func_link_name(out: *CodegenOutBuf, arena: *ASTAren
     if (overload_count <= 1) {
       return emit_bytes_64(out, &fn_local[0], fn_len);
     }
-    /* 需要 mangle: name_t1_t2... */
+    /* See implementation. */
     if (emit_bytes_64(out, &fn_local[0], fn_len) != 0) {
       return -1;
     }
@@ -8478,7 +8772,7 @@ export function codegen_emit_func_link_name(out: *CodegenOutBuf, arena: *ASTAren
       }
       pi = pi + 1;
     }
-    /* 参数签名相同时追加 _ret_<T>（参考 codegen.c line 1063） */
+    /* See implementation. */
     sig_count = codegen_module_overload_param_sig_count(arena, module, fi);
     if (sig_count > 1) {
       let ret_ref: i32 = pipeline_module_func_return_type_at(module, fi);
@@ -8500,10 +8794,10 @@ export function codegen_emit_func_link_name(out: *CodegenOutBuf, arena: *ASTAren
 }
 
 /**
- * 【Why 根源】type_ref 是 arena 局部索引：目标模块函数的 param type_ref 必须用该模块
- *   自己的 arena 做 suffix，否则 *u8+usize 会 mangle 成 print_u8（错 arena 把 PTR 看成
- *   U8、第二参 suffix 空）→ 定义端 print_u8_ptr_usize、调用端 print_u8 链接失败。
- * 【Invariant】优先按 Module* 在 dep 池回填 arena；找不到则用 fallback（调用方 arena）。
+ * See implementation.
+ * See implementation.
+ * See implementation.
+ * See implementation.
  */
 export function codegen_arena_for_module(ctx: *PipelineDepCtx, module: *Module, fallback: *ASTArena): *ASTArena {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -8529,12 +8823,12 @@ export function codegen_arena_for_module(ctx: *PipelineDepCtx, module: *Module, 
 }
 
 /**
- * 【Why 根源】CALL 端输出目标函数 C 符号名。
- *   1) typeck 的 call_resolved 仅在「名+arity」一致时可信；错 func_ix 会把 uring_ok
- *      体误发成 std_io_print_u8_ptr_usize()（0 实参却挂 2 参符号）。
- *   2) link_name 必须用目标模块 arena，否则 overload 后缀与定义端不一致（print_u8）。
- *   3) 未解析时按名+类型 / 唯一 arity 搜索；再扫全部 dep；最后 fallback 原名。
- * 【Invariant】arg 类型查调用方 arena；param 类型查 search_mod arena。
+ * See implementation.
+ * See implementation.
+ * See implementation.
+ * See implementation.
+ * See implementation.
+ * See implementation.
  */
 export function codegen_emit_call_func_name(out: *CodegenOutBuf, arena: *ASTArena, ctx: *PipelineDepCtx, expr_ref: i32, current_module: *Module, fallback_name: *u8, fallback_len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -8554,7 +8848,7 @@ export function codegen_emit_call_func_name(out: *CodegenOutBuf, arena: *ASTAren
       } else {
         nargs0 = call_e0.call_num_args;
       }
-      /* resolved 仅在名+arity 匹配时采用；否则作废并重搜。 */
+      /* See implementation. */
       if (func_ix >= 0) {
         let res_mod: *Module = 0 as *Module;
         if (dep_ix >= 0 && dep_ix < pipeline_dep_ctx_ndep(ctx)) {
@@ -8665,14 +8959,14 @@ export function codegen_emit_call_func_name(out: *CodegenOutBuf, arena: *ASTAren
                     types_match = 0;
                   } else {
                     let arg_ty: i32 = pipeline_expr_resolved_type_ref(arena, arg_ref);
-                    /* EXPR_AS：operand 无 resolved 时用 as 目标类型。 */
+                    /* See implementation. */
                     if (arg_ty <= 0 && pipeline_expr_kind_ord_at(arena, arg_ref) == 54) {
                       let as_tgt: i32 = pipeline_expr_as_target_type_ref_at(arena, arg_ref);
                       if (as_tgt > 0) {
                         arg_ty = as_tgt;
                       }
                     }
-                    /* STRING_LIT(kind 59) 无 resolved 时按 *u8 匹配 print(ptr,*u8)。 */
+                    /* See implementation. */
                     let is_str_lit: i32 = 0;
                     if (arg_ty <= 0 && pipeline_expr_kind_ord_at(arena, arg_ref) == 59) {
                       is_str_lit = 1;
@@ -8682,7 +8976,7 @@ export function codegen_emit_call_func_name(out: *CodegenOutBuf, arena: *ASTAren
                     let sb: u8[64] = [];
                     let na: i32 = 0;
                     let nb: i32 = 0;
-                    /** TYPE_ARRAY(10)→TYPE_PTR(9)：`buf: u8[N]` 对 `*u8` 按 elem 比后缀，否则 overload 全灭回退首同名。 */
+                    /* See implementation. */
                     if (is_str_lit == 0 && arg_ty > 0
                         && pipeline_type_kind_ord_at(arena, arg_ty) == 10
                         && pipeline_type_kind_ord_at(search_arena, param_ty) == 9) {
@@ -8787,7 +9081,7 @@ export function codegen_emit_call_func_name(out: *CodegenOutBuf, arena: *ASTAren
             }
           }
         }
-        /* 类型未解析：同名同 arity 唯一则用；优先唯一 extern/no_mangle。 */
+        /* See implementation. */
         if (found_count != 1 && call_nargs >= 0) {
           let arity_fi: i32 = -1;
           let arity_count: i32 = 0;
@@ -8832,7 +9126,7 @@ export function codegen_emit_call_func_name(out: *CodegenOutBuf, arena: *ASTAren
         }
       }
     }
-    /* binding/dep 未钉死：扫全部 dep 找同名同 arity（首个命中）。 */
+    /* See implementation. */
     if (ctx != 0 as *PipelineDepCtx && fallback_len > 0 && arena != 0 as *ASTArena) {
       let mc_e: Expr = ast.ast_arena_expr_get(arena, expr_ref);
       let mc_nargs: i32 = 0;
@@ -8881,14 +9175,14 @@ export function codegen_emit_call_func_name(out: *CodegenOutBuf, arena: *ASTAren
         dep_di = dep_di + 1;
       }
     }
-    /* 未解析：回退原名 */
+    /* See implementation. */
     return emit_bytes_from_ptr(out, fallback_name, fallback_len);
   }
 }
 
 /**
- * 自举：勿将 module.funcs[fi].name 整 u8[64] 按值传给 emit_bytes_64 或作 *u8 来源传给带名检查的帮助函数（asm 生成路径易成空名）。
- * 逐标量读入局部缓冲区再传递。
+ * See implementation.
+ * See implementation.
  */
 export function codegen_copy_func_name64_from_module(module: *Module, fi: i32, dst: *u8): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -8899,7 +9193,7 @@ export function codegen_copy_func_name64_from_module(module: *Module, fi: i32, d
 }
 
 /**
- * 形参名 u8[32]：同上，避免按值撕裂。
+ * See implementation.
  */
 export function codegen_copy_param_name32_from_module(module: *Module, fi: i32, pi: i32, dst: *u8): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -8961,6 +9255,19 @@ export function codegen_block_contains_return(arena: *ASTArena, block_ref: i32):
   }
 }
 
+/** Exported function `emit_func`.
+ * Implements `emit_func`.
+ * @param arena *ASTArena
+ * @param out *CodegenOutBuf
+ * @param module *Module
+ * @param fi i32
+ * @param is_entry bool
+ * @param prefix *u8
+ * @param prefix_len i32
+ * @param ctx *PipelineDepCtx
+ * @param call_init_globals i32
+ * @return i32
+ */
 export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module, fi: i32, is_entry: bool, prefix: *u8, prefix_len: i32, ctx: *PipelineDepCtx, call_init_globals: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -8972,28 +9279,28 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
     let force_entry_main: bool = false;
     let emit_c_main_symbol: bool = false;
     let main_name: u8[4] = [109, 97, 105, 110];
-    /* 自举：禁止整 Func 按值拷贝；一律 module.funcs[fi]. 访问。 */
+    /* See implementation. */
     if (fi < 0 || fi >= module.num_funcs) {
       return -1;
     }
     fn_len = pipeline_module_func_name_len_at(module, fi);
     codegen_copy_func_name64_from_module(module, fi, &fn_local[0]);
-    /* K10：#[used] 不被 C 编译器消除，外部链接 */
+    /* See implementation. */
     if (pipeline_module_func_is_used_at(module, fi) != 0) {
       let used_attr: u8[27] = [95, 95, 97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 117, 115, 101, 100, 41, 41, 32, 0, 0, 0, 0, 0];
       if (emit_bytes_from_ptr(out, &used_attr[0], 22) != 0) { return -1; }
     }
-    /* K3：#[naked] 无 prologue/epilogue */
+    /* See implementation. */
     if (pipeline_module_func_is_naked_at(module, fi) != 0) {
       let naked_attr: u8[29] = [95, 95, 97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 110, 97, 107, 101, 100, 41, 41, 32, 0, 0, 0, 0, 0, 0];
       if (emit_bytes_from_ptr(out, &naked_attr[0], 23) != 0) { return -1; }
     }
-    /* K5：#[entry] 入口不返回 */
+    /* See implementation. */
     if (pipeline_module_func_is_entry_at(module, fi) != 0) {
       let entry_attr: u8[30] = [95, 95, 97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 110, 111, 114, 101, 116, 117, 114, 110, 41, 41, 32, 0, 0, 0, 0];
       if (emit_bytes_from_ptr(out, &entry_attr[0], 26) != 0) { return -1; }
     }
-    /* A1：#[interrupt] 中断处理 */
+    /* See implementation. */
     if (pipeline_module_func_is_interrupt_at(module, fi) != 0) {
       let int_attr: u8[31] = [95, 95, 97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 105, 110, 116, 101, 114, 114, 117, 112, 116, 41, 41, 32, 0, 0, 0, 0];
       if (emit_bytes_from_ptr(out, &int_attr[0], 27) != 0) { return -1; }
@@ -9034,12 +9341,12 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
         return -1;
       }
     } else {
-      /* #[no_mangle] 不加 path 前缀，与 C ABI 胶层（net_accept_many_c 等）一致 */
+      /* See implementation. */
       let sym_pre: i32 = codegen_func_c_symbol_prefix_len(module, fi, prefix_len);
       if (sym_pre > 0 && codegen_c_prefix_redundant_with_name(prefix, sym_pre, &fn_local[0], fn_len) == 0 && emit_bytes_from_ptr(out, prefix, sym_pre) != 0) {
         return -1;
       }
-      /* 重载函数 mangle：同名 >1 时输出 name_t1_t2，与 extern 声明/CALL 三端一致（对齐 codegen.c func_link_name）。 */
+      /* See implementation. */
       if (codegen_emit_func_link_name(out, arena, module, fi) != 0) {
         return -1;
       }
@@ -9068,7 +9375,7 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
             return -1;
           }
         }
-        /* std.io.driver 的 submit_*_batch_buf 首参 size_t；register/submit_read/submit_write 首参 ptrdiff_t；timeout_ms/nr 为 uint32_t；其余或 int32_t 或自然类型。 */
+        /* See implementation. */
         if (codegen_force_param_size_t_std_io_print_str_second(prefix, prefix_len, &fn_local[0], fn_len, p) != 0) {
           let size_t_ps: u8[32] = [115, 105, 122, 101, 95, 116, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
           if (emit_bytes_32(out, size_t_ps, 7) != 0) {
@@ -9111,7 +9418,7 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
         if (append_byte(out, 32) != 0) {
           return -1;
         }
-        /* 无名或首字符为空格/控制字符时用 _p0, _p1, ... 占位，避免生成非法 C（如 "int32_t   "）。 */
+        /* See implementation. */
         if (pipeline_module_func_param_name_len_at(module, fi, p) > 0) {
           let plocal: u8[32] = [];
           codegen_copy_param_name32_from_module(module, fi, p, &plocal[0]);
@@ -9138,14 +9445,14 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
     if (emit_bytes_3(out, brace, 2) != 0) {
       return -1;
     }
-    /* std.io.driver register/submit_*：首参 ptrdiff_t，函数体直接调 shux_io_*_buf（与 codegen.c 一致）。 */
+    /* See implementation. */
     if (codegen_try_emit_std_io_driver_buf_body(out, module, fi, prefix, prefix_len) != 0) {
       return 0;
     }
-    /* void 函数不可生成「return expr」；仅有 body_expr_ref 时写成表达式语句。 */
+    /* See implementation. */
     let fn_ret_void: bool = pipeline_type_kind_ord_at(arena, pipeline_module_func_return_type_at(module, fi)) == (TypeKind.TYPE_VOID as i32);
-    /* 入口 main 且 call_init_globals 非 0（确有非 const 顶层 let）时，先调用 init_globals()。
-     * 注意：勿写单 if 内 (a && b && (c||d)) — X→C 展开会弄乱 &&/|| 优先级，导致无 init_globals 定义却插入调用。 */
+    /* See implementation. */
+     * See implementation.
     if (call_init_globals != 0) {
       if (is_entry) {
         if (emit_c_main_symbol) {
@@ -9159,7 +9466,7 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
         }
       }
     }
-    /* 供 emit_expr 中无名 EXPR_VAR 输出 _pN：恰一个无名形参记 single_empty；多个则按出现顺序用对应 param 下标 _p1,_p2,...。 */
+    /* See implementation. */
     let saved_empty: i32 = -1;
     let saved_count: i32 = 0;
     let saved_next: i32 = 0;
@@ -9218,7 +9525,7 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
         ctx.current_block_ref = saved_block;
       }
     } else if (!ast.ref_is_null(pipeline_module_func_body_expr_ref_at(module, fi))) {
-      /* parse_into_buf 的 expr-only 路径：仅有 body_expr_ref 无 body_ref */
+      /* See implementation. */
       if (fn_ret_void) {
         if (emit_indent(out, 2) != 0) {
           return -1;
@@ -9240,7 +9547,7 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
         if (emit_bytes_9(out, ret_keyword, 7) != 0) {
           return -1;
         }
-        /* parse_into 表达式体已包 return；若 body_expr_ref 仍为 EXPR_RETURN，避免双层 return。 */
+        /* See implementation. */
         let body_e: Expr = ast.ast_arena_expr_get(arena, pipeline_module_func_body_expr_ref_at(module, fi));
         if (body_e.kind == ExprKind.EXPR_RETURN) {
           if (!ast.ref_is_null(body_e.unary_operand_ref) && emit_expr(arena, out, body_e.unary_operand_ref, ctx) != 0) {
@@ -9314,12 +9621,12 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
 }
 
 /**
- * 为 is_extern 函数发射一行 C extern 原型（与同模块 CALL、emit_func 的符号名与形参 ABI 一致）。
- * 不产出函数体：定义在其它编译单元或由链接库提供；-E-extern / 单片 C 时需此声明才可编译。
+ * See implementation.
+ * See implementation.
  */
 /**
- * 裸名是否与 unistd.h 中 read/write 声明冲突（preamble 含 unistd.h）。
- * 仅 read/write：readv/writev/poll 使用我们的 Iovec/PollFd 布局，须自行 emit 原型。
+ * See implementation.
+ * See implementation.
  */
 export function codegen_is_libc_conflicting_extern_name(name: *u8, name_len: i32): i32 {
   if (name == 0 as *u8 || name_len <= 0) {
@@ -9337,12 +9644,12 @@ export function codegen_is_libc_conflicting_extern_name(name: *u8, name_len: i32
 }
 
 /**
- * 【Why 根源】C 后端跳过 num_generic_params>0 模板后，调用点仍发 prefix+name（如 main_id），
- *   若无单态化体则 cc 报 implicit declaration。历史 codegen.c 有 mono_instances；pipeline 仅有
- *   call_num_type_args 计数 + typeck 返回类型 fixup，缺实例发射。
- * 【Invariant】从同模块 CALL 推断 mono 类型：resolved_type_ref 优先，否则 arg0；name 或
- *   call_resolved_func_index 匹配模板。
- * 【Asm/Perf】线性扫 arena exprs；仅泛型定义路径调用，非热路径。
+ * See implementation.
+ * See implementation.
+ * See implementation.
+ * See implementation.
+ * See implementation.
+ * See implementation.
  */
 export function codegen_find_mono_type_for_generic_func(arena: *ASTArena, module: *Module, fi: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -9400,9 +9707,9 @@ export function codegen_find_mono_type_for_generic_func(arena: *ASTArena, module
 }
 
 /**
- * Bootstrap 单态化：identity 形泛型 `f<T>(x: T): T { return x; }`。
- * 调用点已发 prefix+name（非 id_i32）；此处用具体 mono 类型发同名 C 函数，体为 return param。
- * 返回 1=已 emit，0=不适用/无调用点（继续 skip 模板），-1=emit 失败。
+ * See implementation.
+ * See implementation.
+ * See implementation.
  */
 export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *CodegenOutBuf, module: *Module, fi: i32, prefix: *u8, prefix_len: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -9456,11 +9763,11 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
     let pn: u8[32] = [];
     pipeline_module_func_param_name_copy32(module, fi, 0, &pn[0]);
     if (pn_len <= 0) {
-      /* 无名形参：用 x */
+      /* See implementation. */
       pn[0] = 120;
       pn_len = 1;
     }
-    /* ret_type name(param) { return param; } — 与 CALL 站点 prefix+name 一致 */
+    /* See implementation. */
     if (emit_type(arena, out, mono_ty, prefix, prefix_len, ctx) != 0) {
       return -1;
     }
@@ -9516,22 +9823,33 @@ export function codegen_try_emit_generic_identity_mono(arena: *ASTArena, out: *C
   }
 }
 
+/** Exported function `emit_func_extern_declaration`.
+ * Implements `emit_func_extern_declaration`.
+ * @param arena *ASTArena
+ * @param out *CodegenOutBuf
+ * @param module *Module
+ * @param fi i32
+ * @param prefix *u8
+ * @param prefix_len i32
+ * @param ctx *PipelineDepCtx
+ * @return i32
+ */
 export function emit_func_extern_declaration(arena: *ASTArena, out: *CodegenOutBuf, module: *Module, fi: i32, prefix: *u8, prefix_len: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
 
-    /* 自举：经 module.funcs[fi] 逐字段读，避免整 Func 按值拷贝截断。 */
+    /* See implementation. */
     if (fi < 0 || fi >= module.num_funcs) {
       return -1;
     }
-    /* 未单态化泛型模板：无具体实例时勿 emit 非法 struct *_T 原型。identity mono 见定义路径。 */
+    /* See implementation. */
     if (pipeline_module_func_num_generic_params_at(module, fi) > 0) {
       return 0;
     }
     let fn_local: u8[64] = [];
     codegen_copy_func_name64_from_module(module, fi, &fn_local[0]);
     let fn_len: i32 = pipeline_module_func_name_len_at(module, fi);
-    /* unistd 已声明：勿 emit 冲突原型（int32_t vs int 等）。 */
+    /* See implementation. */
     if (pipeline_module_func_is_extern_at(module, fi) != 0 && codegen_is_libc_conflicting_extern_name(&fn_local[0], fn_len) != 0) {
       return 0;
     }
@@ -9540,22 +9858,22 @@ export function emit_func_extern_declaration(arena: *ASTArena, out: *CodegenOutB
     if (emit_bytes_from_ptr(out, &kw[0], 7) != 0) {
       return -1;
     }
-    /* K10：#[used] 不被 C 编译器消除，外部链接 */
+    /* See implementation. */
     if (pipeline_module_func_is_used_at(module, fi) != 0) {
       let used_attr: u8[27] = [95, 95, 97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 117, 115, 101, 100, 41, 41, 32, 0, 0, 0, 0, 0];
       if (emit_bytes_from_ptr(out, &used_attr[0], 22) != 0) { return -1; }
     }
-    /* K3：#[naked] 无 prologue/epilogue */
+    /* See implementation. */
     if (pipeline_module_func_is_naked_at(module, fi) != 0) {
       let naked_attr: u8[29] = [95, 95, 97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 110, 97, 107, 101, 100, 41, 41, 32, 0, 0, 0, 0, 0, 0];
       if (emit_bytes_from_ptr(out, &naked_attr[0], 23) != 0) { return -1; }
     }
-    /* K5：#[entry] 入口不返回 */
+    /* See implementation. */
     if (pipeline_module_func_is_entry_at(module, fi) != 0) {
       let entry_attr: u8[30] = [95, 95, 97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 110, 111, 114, 101, 116, 117, 114, 110, 41, 41, 32, 0, 0, 0, 0];
       if (emit_bytes_from_ptr(out, &entry_attr[0], 26) != 0) { return -1; }
     }
-    /* A1：#[interrupt] 中断处理 */
+    /* See implementation. */
     if (pipeline_module_func_is_interrupt_at(module, fi) != 0) {
       let int_attr: u8[31] = [95, 95, 97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 105, 110, 116, 101, 114, 114, 117, 112, 116, 41, 41, 32, 0, 0, 0, 0];
       if (emit_bytes_from_ptr(out, &int_attr[0], 27) != 0) { return -1; }
@@ -9566,20 +9884,18 @@ export function emit_func_extern_declaration(arena: *ASTArena, out: *CodegenOutB
     if (append_byte(out, 32) != 0) {
       return -1;
     }
-    /* 声明阶段不把库符号写成特殊入口名 main（与对本模块函数的 CALL 前缀规则一致）。 */
-    /* 【Why extern 裸名】extern function 符号由外部链接库提供（如 freestanding_io_x86_64.s），
-       须用裸名（shux_sys_mmap），不加 dep 前缀（std_sys_linux_shux_sys_mmap 会导致链接失败）。
-       类型 emit 仍用 prefix_len 以支持 dep 模块自定义类型参数。
-       【Invariant】name_prefix_len 仅影响函数名 emit，不影响返回类型/参数类型的 prefix 传递。 */
+    /* Why extern: external-link symbols need bare names (shux_sys_mmap), not dep-prefixed
+       (std_sys_linux_shux_sys_mmap fails to link). Type emit still uses prefix_len for dep
+       custom type params. Invariant: name_prefix_len only affects function-name emit. */
     let name_prefix_len: i32 = prefix_len;
     if (pipeline_module_func_is_extern_at(module, fi) != 0) {
-      /* 【Why 根源】extern function 分两类：
-       *   1. 真正外部链接库符号（如 shux_sys_mmap）：函数名不含模块前缀，须用裸名。
-       *   2. .x extern 声明但 C 实现在 pipeline_glue.c（如 ast_arena_expr_get）：
-       *      函数名已含模块前缀（ast_），C 定义为双前缀（ast_ast_arena_expr_get）。
-       *      须保留前缀使声明符号 = ast_ast_arena_expr_get，与 C 定义匹配。
-       * 判断：函数名是否以模块前缀开头。是 → 保留前缀（双前缀匹配 C 定义）；
-       *       否 → 裸名（外部链接库符号）。 */
+      /* See implementation. */
+       * See implementation.
+       * See implementation.
+       * See implementation.
+       * See implementation.
+       * See implementation.
+       * See implementation.
       let _starts_with_prefix: bool = false;
       if (prefix_len > 0 && fn_len >= prefix_len) {
         let _k: i32 = 0;
@@ -9596,12 +9912,12 @@ export function emit_func_extern_declaration(arena: *ASTArena, out: *CodegenOutB
         name_prefix_len = 0;
       }
     }
-    /* #[no_mangle]：声明端与定义端同为 C ABI 裸名 */
+    /* See implementation. */
     name_prefix_len = codegen_func_c_symbol_prefix_len(module, fi, name_prefix_len);
     if (name_prefix_len > 0 && codegen_c_prefix_redundant_with_name(prefix, name_prefix_len, &fn_local[0], fn_len) == 0 && emit_bytes_from_ptr(out, prefix, name_prefix_len) != 0) {
       return -1;
     }
-    /* 重载函数 mangle：与 emit_func 定义端一致，避免 extern 声明同名冲突（conflicting types）。 */
+    /* See implementation. */
     if (codegen_emit_func_link_name(out, arena, module, fi) != 0) {
       return -1;
     }
@@ -9687,10 +10003,10 @@ export function emit_func_extern_declaration(arena: *ASTArena, out: *CodegenOutB
         p = p + 1;
       }
     }
-    /* 变参：C ABI extern function 尾部发 `...`（C89 要求至少有一个命名参数后才合法）。
-     *  Why：printf/vfprintf 等 C 变参函数原型必须含 `...`，否则调用方实参类型/数量校验失效。
-     *  Invariant：仅 is_variadic==1 且 num_params>0 时发；X ABI 不支持变参，不会进入此分支。
-     *  Asm/Perf：仅 codegen 时一次性发射，无运行期开销。 */
+    /* See implementation. */
+     * See implementation.
+     * See implementation.
+     * See implementation.
     if (pipeline_module_func_is_variadic_at(module, fi) != 0 && pipeline_module_func_num_params_at(module, fi) > 0) {
       let ellipsis: u8[5] = [44, 32, 46, 46, 46];
       if (emit_bytes_from_ptr(out, &ellipsis[0], 5) != 0) {
@@ -9706,8 +10022,8 @@ export function emit_func_extern_declaration(arena: *ASTArena, out: *CodegenOutB
 }
 
 /**
- * 为当前模块直接 import 的 dep 预发函数原型。
- * 单文件/partial bootstrap 时，某些被跳过或未 co-emit 的 dep 仍会被调用；先补 extern，避免 C99 隐式声明报错。
+ * See implementation.
+ * See implementation.
  */
 export function codegen_emit_import_dep_function_declarations(module: *Module, out: *CodegenOutBuf, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -9816,11 +10132,11 @@ export function codegen_emit_import_dep_function_declarations(module: *Module, o
   }
 }
 
-/** 仅写 C 头（#include <stdint.h>\\n#include <stddef.h>\\n#include <sys/types.h>\\n）到 out。
- * 【Why 根源】ssize_t 由 POSIX <sys/types.h> 提供，asm 模块 file_io 用到 loaded_len: ssize_t；
- *   不 include 会导致 cc 报 'ssize_t' undeclared。dep 模块 struct 的 forward declaration 由
- *   codegen_emit_dep_struct_forward_declarations 在本函数之后 emit，不在 header 硬编码。
- * 拆成独立函数避免 C 代码生成时被重排到 while/return 之后。 */
+/** Exported function `codegen_x_ast_emit_header`.
+ * Implements `codegen_x_ast_emit_header`.
+ * @param out *CodegenOutBuf
+ * @return i32
+ */
 export function codegen_x_ast_emit_header(out: *CodegenOutBuf): i32 {
   let h: u8[64] = [35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 115, 116, 100, 105, 110, 116, 46, 104, 62, 10,
     35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 115, 116, 100, 100, 101, 102, 46, 104, 62, 10,
@@ -9830,38 +10146,47 @@ export function codegen_x_ast_emit_header(out: *CodegenOutBuf): i32 {
 }
 
 /**
- * 将 Module 生成 C 源码写入 out。
- * 先写 #include <stdint.h> 等头，再写各函数定义。
- * ctx 供跨 dep 调用时解析 C 符号前缀。
- * dep_index >= 0 表示当前为第 dep_index 个 dep，用 dep 池 import 路径算 C 前缀；-1 表示主模块。
- * 返回 0 成功，-1 失败。
+ * See implementation.
+ * See implementation.
+ * See implementation.
+ * See implementation.
+ * See implementation.
  */
 export extern function pipeline_codegen_std_dep_link_only(path: *u8): i32;
 
+/** Exported function `codegen_x_ast`.
+ * Implements `codegen_x_ast`.
+ * @param module *Module
+ * @param arena *ASTArena
+ * @param out *CodegenOutBuf
+ * @param ctx *PipelineDepCtx
+ * @param dep_index i32
+ * @return i32
+ */
 export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOutBuf, ctx: *PipelineDepCtx, dep_index: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
 
-    /* 供 CALL 未在 dep 解析时判断是否本模块函数并加当前 C 前缀 */
+    /* See implementation. */
     if (ctx != 0 as *PipelineDepCtx) {
       ctx.current_codegen_module = module;
       ctx.current_codegen_arena = arena;
       ctx.current_codegen_dep_index = dep_index;
     }
-    /* 库模块（dep）时用 dep_index 取路径算 C 前缀，用于函数名加前缀避免与 C 关键字冲突 */
+    /* See implementation. */
     let prefix_buf: u8[128] = [];
     let prefix_len: i32 = 0;
     let dep_path_prefix: u8[64] = [];
     let dep_path_prefix_len: i32 = 0;
     if (dep_index >= 0 && ctx != 0 as *PipelineDepCtx) {
       dep_path_prefix_len = codegen_dep_import_path_len_at(ctx, dep_index, &dep_path_prefix[0]);
-      /* 产品轨：std 预编 .o 权威时勿 co-emit dep 体（json/base64/csv/heap…），否则 dual-authority */
+      /* See implementation. */
       if (dep_path_prefix_len > 0 && pipeline_codegen_std_dep_link_only(&dep_path_prefix[0]) != 0) {
         return 0;
       }
     }
     if (dep_index >= 0 && ctx != 0 as *PipelineDepCtx && dep_path_prefix_len > 0) {
-      /* std.io.core 不加前缀，生成 shux_io_register 等符号，与 prepend 的 #define std_io_core_* 一致。 */
+      /* See implementation. */
       if (codegen_path_is_std_io_core_bytes(&dep_path_prefix[0]) == 0) {
         codegen_import_path_to_c_prefix_into(&dep_path_prefix[0], &prefix_buf[0], 128);
         while (prefix_len < 128 && prefix_buf[prefix_len] != 0) {
@@ -9869,7 +10194,7 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
         }
       }
     }
-    /* std.io.core 已在上方保持 prefix_len=0；前缀仍为空时用 dep 池路径经 codegen_import_path_to_c_prefix_into 填满（入口 dep_index<0 时路径空则保持无前缀）。 */
+    /* See implementation. */
     if (prefix_len == 0 && (dep_index < 0 || dep_path_prefix_len == 0 || codegen_path_is_std_io_core_bytes(&dep_path_prefix[0]) == 0)) {
       prefix_len = 0;
       prefix_buf[0] = 0 as u8;
@@ -9881,13 +10206,13 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
       }
     }
     /*
-     * 【Why 根源】入口库模块无 dep import path。driver 在 pipeline 前写入
-     *   entry_module_import_path_mirror 为 C 前缀（core_mem_ / std_string_）。
-     *   不可读 current_codegen_prefix_mirror：pipeline 先 codegen 各 dep，会把
-     *   current 覆写成最后 dep 的前缀（string 入口误成 core_mem_ → 全模块错前缀 +
+     * See implementation.
+     * See implementation.
+     * See implementation.
+     * See implementation.
      *   incomplete struct String）。
-     * 【Invariant】仅 dep_index < 0 且 entry_module_import_path_len > 0 时采用；
-     *   dep 仍由 import path 重算。用户程序 entry_len=0 → 无前缀。
+     * See implementation.
+     * See implementation.
      */
     if (prefix_len == 0 && dep_index < 0 && ctx != 0 as *PipelineDepCtx) {
       if (ctx.entry_module_import_path_len > 0) {
@@ -9910,11 +10235,11 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
       ctx.current_codegen_prefix_mirror[px] = 0 as u8;
       ctx.current_codegen_prefix_len = px;
     }
-    /* dep 模块 const 也需 emit：dep 模块函数体通过 EXPR_VAR 裸名引用同模块 const，
-     * 故 const 定义亦以裸名 emit（与 EXPR_VAR 一致），不加 dep 前缀。
-     * 入口模块与 dep 模块均可能含非 const let → 生成 init_globals()；但 dep 模块
-     * 入口函数非 main，不会调用其 init_globals（仅入口模块 main 调用），故 dep 模块
-     * 若有 let 需后续另行处理（当前 freestanding gate dep 模块均纯 const，无此问题）。 */
+    /* See implementation. */
+     * See implementation.
+     * See implementation.
+     * See implementation.
+     * See implementation.
     let call_init_globals: i32 = 0;
     if (module.num_top_level_lets > 0) {
       let ti: i32 = 0;
@@ -9930,11 +10255,11 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
     while (i < module.num_funcs) {
       if (i == 0) {
         /*
-         * 【Why 根源】pipeline 对每个 dep 与 entry 各调一次 codegen_x_ast；旧逻辑每个模块 i==0 都
-         *   emit_header + forward + import decls，导致单文件 C 中途再 #include、enum/struct 重复定义、
-         *   conflicting types（不完整 tag 与完整定义交错）。
-         * 【Invariant】全文件 prologue（header+全 dep 类型+forward）只 emit 一次；此后各模块只补
-         *   本模块 import extern 与函数体；entry 再补自身 enum/struct。
+         * See implementation.
+         * See implementation.
+         * See implementation.
+         * See implementation.
+         * See implementation.
          */
         if (pipeline_codegen_c_file_prologue_done_get() == 0) {
           if (codegen_x_ast_emit_header(out) != 0) {
@@ -9961,11 +10286,11 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
           }
           pipeline_codegen_c_file_prologue_done_set(1);
         }
-        /* 本模块 import 的 extern 原型（libc 冲突名在 emit_func_extern_declaration 内跳过）。 */
+        /* See implementation. */
         if (codegen_emit_import_dep_function_declarations(module, out, ctx) != 0) {
           return -1;
         }
-        /* entry 模块自身的 enum+struct；dep 类型已在 prologue 的 skipped_dep_type_definitions 中 emit。 */
+        /* See implementation. */
         if (dep_index < 0) {
           if (codegen_emit_module_enum_definitions(module, out, &prefix_buf[0], prefix_len) != 0) {
             return -1;
@@ -9993,12 +10318,12 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
           }
           fwd_fi = fwd_fi + 1;
         }
-        /* 顶层 let/const（入口与 dep 模块均 emit）：dep 模块 const 以裸名 emit 供本模块
-         * 函数体 EXPR_VAR 裸名引用；入口模块 main 调用 init_globals()，dep 模块不调用。
-         * 【Why 根源】emit_type 对 TYPE_ARRAY 输出 elem*（形参退化）；顶层 u8[N] 须
-         *   `static uint8_t name[N] [= {…}]`，否则 init_globals 写 `p = (uint8_t[]){ }` 悬空 → SIGSEGV。
-         * 【Invariant】固定数组在声明处带维与初值；init_globals 跳过 TYPE_ARRAY。
-         * 【Asm/Perf】与局部 fixed array 同形 emit_local_fixed_array_*。 */
+        /* See implementation. */
+         * See implementation.
+         * See implementation.
+         * See implementation.
+         * See implementation.
+         * See implementation.
         if (module.num_top_level_lets > 0) {
           let ti: i32 = 0;
           while (ti < module.num_top_level_lets) {
@@ -10128,11 +10453,11 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
             ti = ti + 1;
           }
           /*
-           * 入口模块且有 main 时，才把 dep 的非 const 顶层 let 并入 init_globals
-           * （co-emit 单文件：dep 会先 emit static 声明，main 再统一赋值）。
-           * 库模块多文件 -E（如 std/heap/mod.x）：dep 仅 extern、本 TU 无 dep static，
-           * 若仍扫描 dep let 会生成 `shu_heap_trace_on = -1` 等未声明标识符（cc -c 失败）。
-           * dep 自身的 let 由编译该 dep 文件时的 init_globals 负责。
+           * See implementation.
+           * See implementation.
+           * See implementation.
+           * See implementation.
+           * See implementation.
            */
           if (dep_index < 0 && any_let == 0 && module.main_func_index >= 0) {
             let dep_scan_i: i32 = 0;
@@ -10162,10 +10487,10 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
             }
           }
           if (any_let != 0 && dep_index < 0) {
-            /* 入口模块 init_globals 统一初始化入口模块 + dep 模块的非 const 顶层 let。
-             * dep 模块不再各自 emit init_globals，避免 C redefinition error。 */
+            /* See implementation. */
+             * See implementation.
             let init_globals_def: u8[32] = [115, 116, 97, 116, 105, 99, 32, 118, 111, 105, 100, 32, 105, 110, 105, 116, 95, 103, 108, 111, 98, 97, 108, 115, 40, 118, 111, 105, 100, 41, 32, 0];
-            /* 31 字节：`static void init_globals(void) `（含闭合 ) 与尾空格），少 2 字节会生成 `void {` 非法 C */
+            /* See implementation. */
             if (emit_bytes_from_ptr(out, &init_globals_def[0], 31) != 0) {
               return -1;
             }
@@ -10179,7 +10504,7 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
                 ti = ti + 1;
                 continue;
               }
-              /* 固定数组已在声明处初值/BSS；勿 `arr = (T[]){ }` 悬空 */
+              /* See implementation. */
               let ig_ty: i32 = pipeline_module_top_level_let_type_ref(module, ti);
               if (!ast.ref_is_null(ig_ty) && pipeline_type_kind_ord_at(arena, ig_ty) == TypeKind.TYPE_ARRAY) {
                 ti = ti + 1;
@@ -10213,8 +10538,8 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
               }
               ti = ti + 1;
             }
-            /* dep 模块非 const 顶层 let：仅可执行入口（有 main）且 co-emit 时统一赋值。
-             * link_only 预编 .o 的 dep 不在本 TU 声明 static，禁止写 shu_heap_trace_*。 */
+            /* See implementation. */
+             * See implementation.
             let dep_i: i32 = 0;
             let ndep: i32 = 0;
             if (module.main_func_index >= 0) {
@@ -10278,11 +10603,11 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
           }
         }
       }
-      /* 自举：按名跳过检测勿直接传 module.funcs[i].name 作 *u8（易空）。 */
+      /* See implementation. */
       let skip_name: u8[64] = [];
       codegen_copy_func_name64_from_module(module, i, &skip_name[0]);
       let skip_nl: i32 = pipeline_module_func_name_len_at(module, i);
-      /* 泛型：跳过未单态化模板（struct *_T 非法 C）；identity 形 bootstrap 单态化后发具体体。 */
+      /* See implementation. */
       if (pipeline_module_func_num_generic_params_at(module, i) > 0) {
         let mono_rc: i32 = codegen_try_emit_generic_identity_mono(arena, out, module, i, &prefix_buf[0], prefix_len, ctx);
         if (mono_rc < 0) {
@@ -10291,7 +10616,7 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
         i = i + 1;
         continue;
       }
-      /* is_extern：不生成定义，但发射 extern 原型，与同模块生成的调用站点符号一致（可省手写 *_extern.h）。 */
+      /* See implementation. */
       if (pipeline_module_func_is_extern_at(module, i) != 0) {
         if (emit_func_extern_declaration(arena, out, module, i, &prefix_buf[0], prefix_len, ctx) != 0) {
           return -1;
@@ -10299,8 +10624,8 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
         i = i + 1;
         continue;
       }
-      /* std.io.driver 的 driver_read_ptr_len/driver_read_ptr 跳过生成；std.io.core 的 shux_io_read_ptr_len/shux_io_read_ptr 由 io.o 提供也跳过；submit_*_batch_buf 按名跳过。
-       * -backend asm：无 C preamble 宏桥接到 io.o，须照常发射上述包装函数体，否则 Mach-O 残留 UNDEF（如 _driver_read_ptr/_submit_read）。io.o 仍提供 *_read_fixed 等底层实现符号。 */
+      /* See implementation. */
+       * See implementation.
       let skip: i32 = 0;
       let asm_backend: i32 = 0;
       if (ctx != 0 as *PipelineDepCtx && ctx.use_asm_backend != 0) {
@@ -10308,9 +10633,9 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
       }
       skip = codegen_should_skip_emit_func_by_name(&skip_name[0], skip_nl);
       /*
-       * 【Why 根源】C 后端 -o 会链入 std/{string,error,context}/*.o；dep 共 emit 再写体 →
-       *   数十× redefinition（hello 曾 68×）。asm 后端无 .o 预链，仍须 emit 体。
-       * 【Invariant】仅 dep（dep_index>=0）+ C 后端跳过；入口编该模块本身不跳。
+       * See implementation.
+       * See implementation.
+       * See implementation.
        */
       if (skip == 0 && asm_backend == 0) {
         let is_prelinked_dep: i32 = 0;
@@ -10404,7 +10729,7 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
         i = i + 1;
         continue;
       }
-      /* 入口函数（main_idx）或单函数时输出 main；多函数时仅 main_idx 对应函数输出 main */
+      /* See implementation. */
       let is_entry: bool = (i == module.main_func_index) || (module.num_funcs == 1);
       let saved_func_idx: i32 = -1;
       if (ctx != 0 as *PipelineDepCtx) {
@@ -10455,7 +10780,7 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
 }
 
 /**
- * 仅按函数名跳过发射：与 preamble / string.o 冲突的占位符与 string_new 族；逻辑由原 driver_should_skip_emit_func_by_name 迁入 .x。
+ * See implementation.
  */
 /**
  * Decide whether to skip emitting a function solely by bare name.
@@ -10496,7 +10821,7 @@ function codegen_should_skip_emit_func_by_name(name: *u8, name_len: i32): i32 {
 }
 
 /**
- * 判断是否为 submit_*_batch_buf：3 参调用处需补第 4 参 timeout_ms；原 driver_is_submit_batch_buf_call。
+ * See implementation.
  */
 function codegen_is_submit_batch_buf_call(name: *u8, name_len: i32): i32 {
   let rd_batch: u8[21] = [115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100, 95, 98, 97, 116, 99, 104, 95, 98, 117, 102];
@@ -10514,10 +10839,10 @@ function codegen_is_submit_batch_buf_call(name: *u8, name_len: i32): i32 {
 }
 
 /**
- * 生成函数定义时是否强制 int32_t：preamble 已由 ptrdiff_t/uint32_t 等覆盖，恒为 0；原 driver_force_param_i32。
+ * See implementation.
  */
 function codegen_force_param_i32(prefix: *u8, prefix_len: i32, name: *u8, name_len: i32, param_index: i32): i32 {
-  /* 保留参数以匹配 emit_func 等调用处；与 runtime.c 一致始终返回 0。 */
+  /* See implementation. */
   return 0;
 }
 
@@ -10540,11 +10865,11 @@ function codegen_should_skip_emit_func_core_read_ptr(name: *u8, name_len: i32): 
   /* shux_io_read_ptr — 16 */
   let shux_rp16: u8[16] = [115, 104, 117, 120, 95, 105, 111, 95, 114, 101, 97, 100, 95, 112, 116, 114];
   /*
-   * 【Why 根源】勿 skip shux_io_register / register_buffers / unregister / wait_readable：
-   *   旧 skip 假定 runtime_asm_io_stubs 提供强符号；产品 C 路径 macOS 不硬链 stubs.o
-   *   （与 co-emit std_io_write_stdout 冲突），且 preamble 无 register 的 weak →
-   *   run-io-driver main 经 shux_io_register_buf 裸调 _shux_io_register → 双端 UNDEF。
-   * co-emit core 体 → std_io_backend_io_register_buffer（同 TU 真体）为权威。
+   * See implementation.
+   * See implementation.
+   * See implementation.
+   * See implementation.
+   * See implementation.
    * PLATFORM: SHARED.
    */
   if (name == 0 as *u8) {
@@ -10570,11 +10895,11 @@ function codegen_should_skip_emit_func_core_read_ptr(name: *u8, name_len: i32): 
 }
 
 /**
- * std.io 的 read_fixed_fd/write_fixed_fd 须生成为 std_io_*_impl；prefix 前 7 字节须为 std_io_；与 runtime.c strncmp 长度一致（12/13 字节前缀）；原 driver_std_io_fixed_fd_emit_impl。
+ * See implementation.
  */
 function codegen_std_io_fixed_fd_emit_impl(prefix: *u8, prefix_len: i32, name: *u8, name_len: i32): i32 {
   let pre7: u8[7] = [115, 116, 100, 95, 105, 111, 95];
-  /* read_fixed_fd / write_fixed_fd 全名 13/14 字节；与 runtime.c driver_std_io_fixed_fd_emit_impl 一致。 */
+  /* See implementation. */
   let rd13: u8[13] = [114, 101, 97, 100, 95, 102, 105, 120, 101, 100, 95, 102, 100];
   let wr14: u8[14] = [119, 114, 105, 116, 101, 95, 102, 105, 120, 101, 100, 95, 102, 100];
   if (prefix == 0 as *u8 || name == 0 as *u8 || prefix_len < 7 || name_len <= 0) {

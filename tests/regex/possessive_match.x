@@ -1,6 +1,10 @@
-// STD-099：占有型量词 *+ / ++ / ?+ 烟测
+// See implementation.
 const regex = import("std.regex");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let pat_greedy: u8[3] = [46, 43, 33];
   let pat_poss: u8[4] = [46, 43, 43, 33];

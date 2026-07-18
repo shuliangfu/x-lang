@@ -1,4 +1,8 @@
-// 阶段 8 性能基线：固定工作量（循环 + 整数运算），便于 -O2/-Os 前后对比
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let n: i32 = 0;
   let i: i32 = 0;

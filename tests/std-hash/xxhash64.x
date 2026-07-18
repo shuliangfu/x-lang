@@ -1,16 +1,28 @@
-// STD-105：xxHash64 烟测（金样 u64 低/高 16 位分段比较，避免大 hex 字面量）
+// See implementation.
 const hash = import("std.hash");
 
-/** 比较 u64 低 32 位。 */
+/** Internal function `u64_lo`.
+ * Implements `u64_lo`.
+ * @param v u64
+ * @return u32
+ */
 function u64_lo(v: u64): u32 {
   return (v & 4294967295) as u32;
 }
 
-/** 比较 u64 高 32 位。 */
+/** Internal function `u64_hi`.
+ * Implements `u64_hi`.
+ * @param v u64
+ * @return u32
+ */
 function u64_hi(v: u64): u32 {
   return ((v >> 32) & 4294967295) as u32;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let buf: u8[3] = [97, 98, 99];
   let empty: u64 = hash.xxhash64(0 as *u8, 0);

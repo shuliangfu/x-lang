@@ -14,20 +14,20 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.fs.win32 — Windows 文件 IO（F-03 v2 纯 .x FFI，替代 fs.c Windows 分支）
+// See implementation.
 //
-// 【文件职责】
-// CreateFile/MapViewOfFile/ReadFile/WriteFile 等 kernel32 + TransmitFile（mswsock）。
-// 符号名与 mod.x fs_*_c 一致，供链接兼容。
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 【链接】
-// -lkernel32 -lws2_32 -lmswsock（TransmitFile）；无 fs.o。
+// See implementation.
+// See implementation.
 
-/** EXC-002：失败时保存 GetLastError，供 fs_last_error_c。 */
+/* See implementation. */
 let fs_saved_last_error: i32 = 0;
 let fs_saved_last_error_set: i32 = 0;
 
-/** FsStat 输出（与 mod.x FsStat 一致）。 */
+/* See implementation. */
 allow(padding) struct FsStatOut {
   size: i64;
   mode: u32;
@@ -38,7 +38,7 @@ allow(padding) struct FsStatOut {
 
 allow(padding) struct FsIovecBuf { ptr: *u8; len: usize; handle: usize; }
 
-/** WIN32_FIND_DATAA 简化布局（cFileName @ 44，dwFileAttributes @ 0）。 */
+/* See implementation. */
 allow(padding) struct Win32FindDataA {
   dwFileAttributes: u32;
   pad0: u8[40];
@@ -54,7 +54,7 @@ allow(padding) struct FsDirHandleWin {
 
 allow(padding) struct LargeInteger { quad: i64; }
 
-/** WIN32_FILE_ATTRIBUTE_DATA 简化布局。 */
+/* See implementation. */
 allow(padding) struct Win32FileAttrData {
   dwFileAttributes: u32;
   ftCreation: u8[8];
@@ -123,7 +123,7 @@ export const ERROR_INVALID_PARAMETER: u32 = 87;
 export const FS_IOV_BUF_MAX: i32 = 16;
 
 /**
- * 记录 GetLastError 到模块级变量。
+ * See implementation.
  */
 export function fs_note_last_error_win(): void {
   unsafe { fs_saved_last_error = GetLastError() as i32; }
@@ -140,7 +140,12 @@ export function fs_win32_handle_from_fd(fd: i32): *u8 {
   return h as *u8;
 }
 
-/** 只读 mmap：CreateFileMapping + MapViewOfFile。 */
+/** Exported function `fs_mmap_ro_c`.
+ * Implements `fs_mmap_ro_c`.
+ * @param path *u8
+ * @param out_size *usize
+ * @return *u8
+ */
 export function fs_mmap_ro_c(path: *u8, out_size: *usize): *u8 {
   let hFile: *u8;
   let hMap: *u8;
@@ -172,7 +177,12 @@ export function fs_mmap_ro_c(path: *u8, out_size: *usize): *u8 {
   return view;
 }
 
-/** 可写 mmap。 */
+/** Exported function `fs_mmap_rw_c`.
+ * Implements `fs_mmap_rw_c`.
+ * @param path *u8
+ * @param out_size *usize
+ * @return *u8
+ */
 export function fs_mmap_rw_c(path: *u8, out_size: *usize): *u8 {
   let hFile: *u8;
   let hMap: *u8;
@@ -215,7 +225,11 @@ export function fs_munmap_c(ptr: *u8, size: usize): i32 {
   return -1;
 }
 
-/** 只读打开 → CRT fd。 */
+/** Exported function `fs_open_read_c`.
+ * Read path helper `fs_open_read_c`.
+ * @param path *u8
+ * @return i32
+ */
 export function fs_open_read_c(path: *u8): i32 {
   let h: *u8;
   let fd: i32;
@@ -238,7 +252,11 @@ export function fs_open_read_c(path: *u8): i32 {
   return fd;
 }
 
-/** 写打开截断（CREATE_ALWAYS）。 */
+/** Exported function `fs_open_write_c`.
+ * Write path helper `fs_open_write_c`.
+ * @param path *u8
+ * @return i32
+ */
 export function fs_open_write_c(path: *u8): i32 {
   let h: *u8;
   let fd: i32;
@@ -257,7 +275,11 @@ export function fs_open_write_c(path: *u8): i32 {
   return fd;
 }
 
-/** 无缓冲只读打开。 */
+/** Exported function `fs_open_read_direct_c`.
+ * Read path helper `fs_open_read_direct_c`.
+ * @param path *u8
+ * @return i32
+ */
 export function fs_open_read_direct_c(path: *u8): i32 {
   let h: *u8;
   let fd: i32;
@@ -276,7 +298,10 @@ export function fs_open_read_direct_c(path: *u8): i32 {
   return fd;
 }
 
-/** 页大小对齐（GetSystemInfo）。 */
+/** Exported function `fs_direct_align_c`.
+ * Implements `fs_direct_align_c`.
+ * @return u64
+ */
 export function fs_direct_align_c(): u64 {
   let si: u8[48];
   unsafe { GetSystemInfo(&si[0]); }
@@ -284,10 +309,28 @@ export function fs_direct_align_c(): u64 {
   return page as u64;
 }
 
+/** Exported function `fs_fadvise_sequential_c`.
+ * Implements `fs_fadvise_sequential_c`.
+ * @param fd i32
+ * @return i32
+ */
 export function fs_fadvise_sequential_c(fd: i32): i32 { return 0; }
+/** Exported function `fs_fadvise_willneed_c`.
+ * Implements `fs_fadvise_willneed_c`.
+ * @param fd i32
+ * @param offset i64
+ * @param len usize
+ * @return i32
+ */
 export function fs_fadvise_willneed_c(fd: i32, offset: i64, len: usize): i32 { return 0; }
 
-/** ReadFile/WriteFile 循环复制。 */
+/** Exported function `fs_copy_file_range_c`.
+ * Implements `fs_copy_file_range_c`.
+ * @param fd_in i32
+ * @param fd_out i32
+ * @param len usize
+ * @return i64
+ */
 export function fs_copy_file_range_c(fd_in: i32, fd_out: i32, len: usize): i64 {
   let hIn: *u8 = fs_win32_handle_from_fd(fd_in);
   let hOut: *u8 = fs_win32_handle_from_fd(fd_out);
@@ -327,7 +370,15 @@ export function fs_copy_file_range_c(fd_in: i32, fd_out: i32, len: usize): i64 {
   return copied as i64;
 }
 
-/** 两段 ReadFile。 */
+/** Exported function `fs_readv2_c`.
+ * Read path helper `fs_readv2_c`.
+ * @param fd i32
+ * @param p0 *u8
+ * @param l0 usize
+ * @param p1 *u8
+ * @param l1 usize
+ * @return i64
+ */
 export function fs_readv2_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize): i64 {
   let h: *u8 = fs_win32_handle_from_fd(fd);
   let n0: u32 = 0;
@@ -348,7 +399,15 @@ export function fs_readv2_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize): i6
   return (n0 as i64) + (n1 as i64);
 }
 
-/** 两段 WriteFile。 */
+/** Exported function `fs_writev2_c`.
+ * Write path helper `fs_writev2_c`.
+ * @param fd i32
+ * @param p0 *u8
+ * @param l0 usize
+ * @param p1 *u8
+ * @param l1 usize
+ * @return i64
+ */
 export function fs_writev2_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize): i64 {
   let h: *u8 = fs_win32_handle_from_fd(fd);
   let n0: u32 = 0;
@@ -369,7 +428,13 @@ export function fs_writev2_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize): i
   return (n0 as i64) + (n1 as i64);
 }
 
-/** TransmitFile 零拷贝到 socket fd。 */
+/** Exported function `fs_sendfile_c`.
+ * Implements `fs_sendfile_c`.
+ * @param out_fd i32
+ * @param in_fd i32
+ * @param count usize
+ * @return i64
+ */
 export function fs_sendfile_c(out_fd: i32, in_fd: i32, count: usize): i64 {
   let hFile: *u8 = fs_win32_handle_from_fd(in_fd);
   let s: *u8 = fs_win32_handle_from_fd(out_fd);
@@ -386,14 +451,33 @@ export function fs_sendfile_c(out_fd: i32, in_fd: i32, count: usize): i64 {
   return -1;
 }
 
-/** Windows 无 splice：ReadFile/WriteFile 回退。 */
+/** Exported function `fs_pipe_splice_c`.
+ * Implements `fs_pipe_splice_c`.
+ * @param fd_in i32
+ * @param fd_out i32
+ * @param len usize
+ * @return i64
+ */
 export function fs_pipe_splice_c(fd_in: i32, fd_out: i32, len: usize): i64 {
   return fs_copy_file_range_c(fd_in, fd_out, len);
 }
 
+/** Exported function `fs_sync_range_c`.
+ * Implements `fs_sync_range_c`.
+ * @param fd i32
+ * @param offset i64
+ * @param len usize
+ * @return i32
+ */
 export function fs_sync_range_c(fd: i32, offset: i64, len: usize): i32 { return 0; }
 
-/** SetFilePointerEx + SetEndOfFile 预分配。 */
+/** Exported function `fs_fallocate_c`.
+ * Memory management helper `fs_fallocate_c`.
+ * @param fd i32
+ * @param offset i64
+ * @param len i64
+ * @return i32
+ */
 export function fs_fallocate_c(fd: i32, offset: i64, len: i64): i32 {
   let h: *u8;
   let cur: LargeInteger;
@@ -429,7 +513,11 @@ export function fs_fallocate_c(fd: i32, offset: i64, len: i64): i32 {
   return 0;
 }
 
-/** 追加写打开。 */
+/** Exported function `fs_open_append_c`.
+ * Implements `fs_open_append_c`.
+ * @param path *u8
+ * @return i32
+ */
 export function fs_open_append_c(path: *u8): i32 {
   let h: *u8;
   let fd: i32;
@@ -448,7 +536,11 @@ export function fs_open_append_c(path: *u8): i32 {
   return fd;
 }
 
-/** 写打开不截断。 */
+/** Exported function `fs_open_create_c`.
+ * Implements `fs_open_create_c`.
+ * @param path *u8
+ * @return i32
+ */
 export function fs_open_create_c(path: *u8): i32 {
   let h: *u8;
   let fd: i32;
@@ -467,6 +559,10 @@ export function fs_open_create_c(path: *u8): i32 {
   return fd;
 }
 
+/** Exported function `fs_last_error_c`.
+ * Implements `fs_last_error_c`.
+ * @return i32
+ */
 export function fs_last_error_c(): i32 {
   if (fs_saved_last_error_set != 0) {
     return fs_saved_last_error;
@@ -475,6 +571,13 @@ export function fs_last_error_c(): i32 {
   return 0; // unreachable — typeck workaround
 }
 
+/** Exported function `fs_posix_read_c`.
+ * Read path helper `fs_posix_read_c`.
+ * @param fd i32
+ * @param buf *u8
+ * @param count usize
+ * @return i64
+ */
 export function fs_posix_read_c(fd: i32, buf: *u8, count: usize): i64 {
   let c: u32 = count as u32;
   if (count > 0x7fffffff) {
@@ -484,6 +587,13 @@ export function fs_posix_read_c(fd: i32, buf: *u8, count: usize): i64 {
   return 0; // unreachable — typeck workaround
 }
 
+/** Exported function `fs_posix_write_c`.
+ * Write path helper `fs_posix_write_c`.
+ * @param fd i32
+ * @param buf *u8
+ * @param count usize
+ * @return i64
+ */
 export function fs_posix_write_c(fd: i32, buf: *u8, count: usize): i64 {
   let c: u32 = count as u32;
   if (count > 0x7fffffff) {
@@ -493,12 +603,24 @@ export function fs_posix_write_c(fd: i32, buf: *u8, count: usize): i64 {
   return 0; // unreachable — typeck workaround
 }
 
+/** Exported function `fs_posix_close_c`.
+ * Implements `fs_posix_close_c`.
+ * @param fd i32
+ * @return i32
+ */
 export function fs_posix_close_c(fd: i32): i32 {
   unsafe { return _close(fd); }
   return 0; // unreachable — typeck workaround
 }
 
-/** Windows：lseek+read 模拟 pread（小文件/烟测足够）。 */
+/** Exported function `fs_posix_pread_c`.
+ * Read path helper `fs_posix_pread_c`.
+ * @param fd i32
+ * @param buf *u8
+ * @param count usize
+ * @param offset i64
+ * @return i64
+ */
 export function fs_posix_pread_c(fd: i32, buf: *u8, count: usize, offset: i64): i64 {
   unsafe { if (_lseek(fd, offset as i32, 0) < 0) {
     return -1;
@@ -506,7 +628,14 @@ export function fs_posix_pread_c(fd: i32, buf: *u8, count: usize, offset: i64): 
   return fs_posix_read_c(fd, buf, count);
 }
 
-/** Windows：lseek+write 模拟 pwrite。 */
+/** Exported function `fs_posix_pwrite_c`.
+ * Write path helper `fs_posix_pwrite_c`.
+ * @param fd i32
+ * @param buf *u8
+ * @param count usize
+ * @param offset i64
+ * @return i64
+ */
 export function fs_posix_pwrite_c(fd: i32, buf: *u8, count: usize, offset: i64): i64 {
   unsafe { if (_lseek(fd, offset as i32, 0) < 0) {
     return -1;
@@ -514,6 +643,19 @@ export function fs_posix_pwrite_c(fd: i32, buf: *u8, count: usize, offset: i64):
   return fs_posix_write_c(fd, buf, count);
 }
 
+/** Exported function `fs_readv4_c`.
+ * Read path helper `fs_readv4_c`.
+ * @param fd i32
+ * @param p0 *u8
+ * @param l0 usize
+ * @param p1 *u8
+ * @param l1 usize
+ * @param p2 *u8
+ * @param l2 usize
+ * @param p3 *u8
+ * @param l3 usize
+ * @return i64
+ */
 export function fs_readv4_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize): i64 {
   let h: *u8 = fs_win32_handle_from_fd(fd);
   let n0: u32 = 0;
@@ -530,6 +672,19 @@ export function fs_readv4_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2:
   return (n0 as i64) + (n1 as i64) + (n2 as i64) + (n3 as i64);
 }
 
+/** Exported function `fs_writev4_c`.
+ * Write path helper `fs_writev4_c`.
+ * @param fd i32
+ * @param p0 *u8
+ * @param l0 usize
+ * @param p1 *u8
+ * @param l1 usize
+ * @param p2 *u8
+ * @param l2 usize
+ * @param p3 *u8
+ * @param l3 usize
+ * @return i64
+ */
 export function fs_writev4_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize): i64 {
   let h: *u8 = fs_win32_handle_from_fd(fd);
   let n0: u32 = 0;
@@ -546,6 +701,13 @@ export function fs_writev4_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2
   return (n0 as i64) + (n1 as i64) + (n2 as i64) + (n3 as i64);
 }
 
+/** Exported function `fs_readv_buf_c`.
+ * Read path helper `fs_readv_buf_c`.
+ * @param fd i32
+ * @param bufs *u8
+ * @param n i32
+ * @return i64
+ */
 export function fs_readv_buf_c(fd: i32, bufs: *u8, n: i32): i64 {
   let b: *FsIovecBuf = bufs as *FsIovecBuf;
   let h: *u8;
@@ -577,6 +739,13 @@ export function fs_readv_buf_c(fd: i32, bufs: *u8, n: i32): i64 {
   return total;
 }
 
+/** Exported function `fs_writev_buf_c`.
+ * Write path helper `fs_writev_buf_c`.
+ * @param fd i32
+ * @param bufs *u8
+ * @param n i32
+ * @return i64
+ */
 export function fs_writev_buf_c(fd: i32, bufs: *u8, n: i32): i64 {
   let b: *FsIovecBuf = bufs as *FsIovecBuf;
   let h: *u8;
@@ -608,6 +777,11 @@ export function fs_writev_buf_c(fd: i32, bufs: *u8, n: i32): i64 {
   return total;
 }
 
+/** Exported function `fs_sync_c`.
+ * Implements `fs_sync_c`.
+ * @param fd i32
+ * @return i32
+ */
 export function fs_sync_c(fd: i32): i32 {
   let h: *u8 = fs_win32_handle_from_fd(fd);
   if (h == 0) {
@@ -619,7 +793,12 @@ export function fs_sync_c(fd: i32): i32 {
   return -1;
 }
 
-/** out: *u8 — 与 mod.x FsStatOut 跨模块 *u8 边界一致（见 posix.fs_stat_c）。 */
+/** Exported function `fs_stat_c`.
+ * Implements `fs_stat_c`.
+ * @param path *u8
+ * @param out *u8
+ * @return i32
+ */
 export function fs_stat_c(path: *u8, out: *u8): i32 {
   let fad: Win32FileAttrData;
   let o: *FsStatOut = out as *FsStatOut;
@@ -644,6 +823,12 @@ export function fs_stat_c(path: *u8, out: *u8): i32 {
   return 0;
 }
 
+/** Exported function `fs_chmod_c`.
+ * Implements `fs_chmod_c`.
+ * @param path *u8
+ * @param mode u32
+ * @return i32
+ */
 export function fs_chmod_c(path: *u8, mode: u32): i32 {
   if (path == 0) {
     return -1;
@@ -655,6 +840,12 @@ export function fs_chmod_c(path: *u8, mode: u32): i32 {
   return 0;
 }
 
+/** Exported function `fs_mkdir_c`.
+ * Implements `fs_mkdir_c`.
+ * @param path *u8
+ * @param mode u32
+ * @return i32
+ */
 export function fs_mkdir_c(path: *u8, mode: u32): i32 {
   if (path == 0) {
     return -1;
@@ -666,6 +857,11 @@ export function fs_mkdir_c(path: *u8, mode: u32): i32 {
   return 0;
 }
 
+/** Exported function `fs_unlink_c`.
+ * Implements `fs_unlink_c`.
+ * @param path *u8
+ * @return i32
+ */
 export function fs_unlink_c(path: *u8): i32 {
   if (path == 0) {
     return -1;
@@ -677,6 +873,11 @@ export function fs_unlink_c(path: *u8): i32 {
   return 0;
 }
 
+/** Exported function `fs_rmdir_c`.
+ * Implements `fs_rmdir_c`.
+ * @param path *u8
+ * @return i32
+ */
 export function fs_rmdir_c(path: *u8): i32 {
   if (path == 0) {
     return -1;
@@ -688,7 +889,11 @@ export function fs_rmdir_c(path: *u8): i32 {
   return 0;
 }
 
-/** 打开目录：FindFirstFileA(path\\*)。 */
+/** Exported function `fs_dir_open_c`.
+ * Implements `fs_dir_open_c`.
+ * @param path *u8
+ * @return i64
+ */
 export function fs_dir_open_c(path: *u8): i64 {
   let pattern: u8[280];
   let h: *FsDirHandleWin;
@@ -727,6 +932,14 @@ export function fs_dir_open_c(path: *u8): i64 {
   return h as i64;
 }
 
+/** Exported function `fs_dir_read_c`.
+ * Read path helper `fs_dir_read_c`.
+ * @param handle i64
+ * @param name_out *u8
+ * @param name_cap i32
+ * @param is_dir_out *i32
+ * @return i32
+ */
 export function fs_dir_read_c(handle: i64, name_out: *u8, name_cap: i32, is_dir_out: *i32): i32 {
   let h: *FsDirHandleWin;
   let name: *u8;
@@ -739,7 +952,7 @@ export function fs_dir_read_c(handle: i64, name_out: *u8, name_cap: i32, is_dir_
     if (h[0].first != 0) {
       h[0].first = 0;
     } else {
-      /* 【Why】勿用 if (unsafe { FindNextFileA(...) } == 0)：表达式 unsafe → void 与 int 比较 */
+      /* See implementation. */
       let next_rc: i32 = 0;
       unsafe { next_rc = FindNextFileA(h[0].find, &h[0].fd); }
       if (next_rc == 0) {
@@ -768,6 +981,11 @@ export function fs_dir_read_c(handle: i64, name_out: *u8, name_cap: i32, is_dir_
   return 0;
 }
 
+/** Exported function `fs_dir_close_c`.
+ * Implements `fs_dir_close_c`.
+ * @param handle i64
+ * @return i32
+ */
 export function fs_dir_close_c(handle: i64): i32 {
   let h: *FsDirHandleWin;
   if (handle < 0) {
@@ -779,6 +997,10 @@ export function fs_dir_close_c(handle: i64): i32 {
   return 0;
 }
 
+/** Exported function `fs_win32_module_anchor`.
+ * Implements `fs_win32_module_anchor`.
+ * @return i32
+ */
 export function fs_win32_module_anchor(): i32 {
   return 0;
 }

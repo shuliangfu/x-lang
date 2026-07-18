@@ -14,36 +14,36 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// std.db.kv — mmap LSM-Tree 键值引擎 v3（WAL + 3 级 SST 去重合并 + 压实，无 SQL）
+// See implementation.
 //
-// 【文件职责】
-// 高频 Tick / 突触权重：Arena 序列化 → WAL 热写 → flush/compact 入主文件。
-// 底层 mmap 走 std.sys.mmap；实现见 kv.x + kv_mmap_glue.c（F-05 v2）。
+// See implementation.
+// See implementation.
+// See implementation.
 //
-// 【用法】
+// See implementation.
 //   const dbkv = import("std.db.kv");
 //   let store = dbkv.open(path, capacity);
 //   dbkv.append_ts(store, key, key_len, payload, payload_len, ts_ns);
 
 const mmap = import("std.sys.mmap");
 
-/** 成功。 */
+/* See implementation. */
 export const KV_OK: i32 = 0;
-/** 空参数。 */
+/* See implementation. */
 export const KV_ERR_NULL: i32 = -1;
-/** 打开/mmap 失败。 */
+/* See implementation. */
 export const KV_ERR_OPEN: i32 = -2;
-/** 空间不足。 */
+/* See implementation. */
 export const KV_ERR_FULL: i32 = -3;
-/** key 未找到。 */
+/* See implementation. */
 export const KV_ERR_NOT_FOUND: i32 = -6;
-/** 平台未实现。 */
+/* See implementation. */
 export const KV_NOT_IMPL: i32 = -9;
 
-/** 默认扇区大小（与 kv.x KV_SECTOR 一致）。 */
+/* See implementation. */
 export const KV_SECTOR_BYTES: i32 = 4096;
 
-/** 不透明 KV 存储句柄。 */
+/* See implementation. */
 export struct KvStore {
   handle: i64;
 }
@@ -61,76 +61,128 @@ extern function db_kv_wal_bytes_c(handle: i64): u64;
 extern function db_kv_sst_level_count_c(handle: i64): u32;
 extern function db_kv_smoke_c(path: *u8): i32;
 
-/** mmap 子系统是否可用（委托 std.sys.mmap）。 */
+/** Exported function `mmap_available`.
+ * Implements `mmap_available`.
+ * @return i32
+ */
 export function mmap_available(): i32 {
   return mmap.mmap_available();
 }
 
-/** 打开/创建 mmap KV + WAL（path.wal）；capacity_bytes 建议 ≥ 64KiB。 */
+/** Exported function `open`.
+ * Implements `open`.
+ * @param path *u8
+ * @param capacity_bytes u64
+ * @return KvStore
+ */
 export function open(path: *u8, capacity_bytes: u64): KvStore {
   let _rc: KvStore = 0;
   unsafe { _rc = KvStore { handle: db_kv_open_c(path, capacity_bytes) }; }
   return _rc;
 }
 
-/** 关闭并 munmap 主文件与 WAL。 */
+/** Exported function `close`.
+ * Implements `close`.
+ * @param store KvStore
+ * @return i32
+ */
 export function close(store: KvStore): i32 {
   unsafe { return db_kv_close_c(store.handle); }
   return 0; // unreachable — typeck workaround
 }
 
-/** msync 刷盘（主文件 + WAL）。 */
+/** Exported function `sync`.
+ * Implements `sync`.
+ * @param store KvStore
+ * @return i32
+ */
 export function sync(store: KvStore): i32 {
   unsafe { return db_kv_sync_c(store.handle); }
   return 0; // unreachable — typeck workaround
 }
 
-/** 写入键值（ts_ns=0）；热路径写 WAL 层。 */
+/** Exported function `put`.
+ * Implements `put`.
+ * @param store KvStore
+ * @param key *u8
+ * @param key_len u32
+ * @param val *u8
+ * @param val_len u32
+ * @return i32
+ */
 export function put(store: KvStore, key: *u8, key_len: u32, val: *u8, val_len: u32): i32 {
   unsafe { return db_kv_put_c(store.handle, key, key_len, val, val_len); }
   return 0; // unreachable — typeck workaround
 }
 
 /**
- * 时序追加：带 ts_ns 的 Append-Only 写（Tick / 权重流）。
- * Arena bump 序列化后写入 WAL mmap 区。
+ * See implementation.
+ * See implementation.
  */
 export function append_ts(store: KvStore, key: *u8, key_len: u32, val: *u8, val_len: u32, ts_ns: u64): i32 {
   unsafe { return db_kv_append_ts_c(store.handle, key, key_len, val, val_len, ts_ns); }
   return 0; // unreachable — typeck workaround
 }
 
-/** 读取最新值；成功返回字节数，KV_ERR_NOT_FOUND 等 <0。 */
+/** Exported function `get`.
+ * Implements `get`.
+ * @param store KvStore
+ * @param key *u8
+ * @param key_len u32
+ * @param out *u8
+ * @param out_cap u32
+ * @return i32
+ */
 export function get(store: KvStore, key: *u8, key_len: u32, out: *u8, out_cap: u32): i32 {
   unsafe { return db_kv_get_c(store.handle, key, key_len, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 
-/** WAL 刷入主文件（L0→L1 分层合并）。 */
+/** Exported function `wal_flush`.
+ * Implements `wal_flush`.
+ * @param store KvStore
+ * @return i32
+ */
 export function wal_flush(store: KvStore): i32 {
   unsafe { return db_kv_wal_flush_c(store.handle); }
   return 0; // unreachable — typeck workaround
 }
 
-/** LSM 压实：主文件去重保留最新 key，清空 WAL。 */
+/** Exported function `compact`.
+ * Implements `compact`.
+ * @param store KvStore
+ * @return i32
+ */
 export function compact(store: KvStore): i32 {
   unsafe { return db_kv_compact_c(store.handle); }
   return 0; // unreachable — typeck workaround
 }
 
-/** 压实世代号（每次 compact +1）。 */
+/** Exported function `compact_generation`.
+ * Implements `compact_generation`.
+ * @param store KvStore
+ * @return u64
+ */
 export function compact_generation(store: KvStore): u64 {
   unsafe { return db_kv_compact_gen_c(store.handle); }
   return 0 as u64; // unreachable — typeck workaround
 }
 
-/** 当前 WAL 区已用字节数（不含 4KiB 头）。 */
+/** Exported function `wal_bytes`.
+ * Implements `wal_bytes`.
+ * @param store KvStore
+ * @return u64
+ */
 export function wal_bytes(store: KvStore): u64 {
   unsafe { return db_kv_wal_bytes_c(store.handle); }
   return 0 as u64; // unreachable — typeck workaround
 }
 
-/** 已冻结 SST 层数（L2+ 侧车 *.sst.N；compact 后递增）。 */
+/** Exported function `sst_level_count`.
+ * Implements `sst_level_count`.
+ * @param store KvStore
+ * @return u32
+ */
 export function sst_level_count(store: KvStore): u32 {
   unsafe { return db_kv_sst_level_count_c(store.handle); }
   return 0 as u32; // unreachable — typeck workaround

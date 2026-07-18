@@ -1123,7 +1123,7 @@ export function driver_run_x_emit_c(): i32 {
   let m: *u8 = 0 as *u8;
   let rc: i32 = 0;
   let old_legacy: i32 = 0;
-  /* LANG-007：-E 路径须 allow_legacy_extern（与 mega runtime 同意图） */
+  /* LANG-007: -E path must set allow_legacy_extern (same intent as mega runtime). */
   unsafe {
     old_legacy = typeck_set_allow_legacy_extern_calls(1);
     driver_x_emit_work_reset();

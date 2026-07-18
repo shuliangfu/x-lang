@@ -1,20 +1,24 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-21：runtime_arrow_simd_glue 产品源迁 seeds/runtime_arrow_simd_glue.from_x.c。
-// 实现仍在 seed C；本文件为文档锚点。
-// G-02f-103：+ f32/i32 sum/dot kernels 薄门闩（hsum_ps 仍 C，__m128 ABI）。
+// See implementation.
+// See implementation.
+// See implementation.
 
 export extern "C" function arrow_f32_sum_kernel_impl(data: *u8, n: i32): f32;
 export extern "C" function arrow_f32_dot_kernel_impl(a: *u8, b: *u8, n: i32): f32;
 export extern "C" function arrow_i32_sum_valid_kernel_impl(data: *u8, bm: *u8, n: i32): i32;
 export extern "C" function arrow_f32_sum_valid_kernel_impl(data: *u8, bm: *u8, n: i32): f32;
 
+/** Exported function `runtime_arrow_simd_glue_x_doc_anchor`.
+ * Implements `runtime_arrow_simd_glue_x_doc_anchor`.
+ * @return i32
+ */
 export function runtime_arrow_simd_glue_x_doc_anchor(): i32 {
   return 0;
 }
 
-/* ---- G-02f-103：arrow simd kernels 门闩 ---- */
+/* See implementation. */
 
 #[no_mangle]
 export function arrow_f32_sum_kernel(data: *u8, n: i32): f32 {
@@ -25,6 +29,13 @@ export function arrow_f32_sum_kernel(data: *u8, n: i32): f32 {
 }
 
 #[no_mangle]
+/** Exported function `arrow_f32_dot_kernel`.
+ * Implements `arrow_f32_dot_kernel`.
+ * @param a *u8
+ * @param b *u8
+ * @param n i32
+ * @return f32
+ */
 export function arrow_f32_dot_kernel(a: *u8, b: *u8, n: i32): f32 {
   unsafe {
     return arrow_f32_dot_kernel_impl(a, b, n);
@@ -33,6 +44,13 @@ export function arrow_f32_dot_kernel(a: *u8, b: *u8, n: i32): f32 {
 }
 
 #[no_mangle]
+/** Exported function `arrow_i32_sum_valid_kernel`.
+ * Implements `arrow_i32_sum_valid_kernel`.
+ * @param data *u8
+ * @param bm *u8
+ * @param n i32
+ * @return i32
+ */
 export function arrow_i32_sum_valid_kernel(data: *u8, bm: *u8, n: i32): i32 {
   unsafe {
     return arrow_i32_sum_valid_kernel_impl(data, bm, n);
@@ -41,6 +59,13 @@ export function arrow_i32_sum_valid_kernel(data: *u8, bm: *u8, n: i32): i32 {
 }
 
 #[no_mangle]
+/** Exported function `arrow_f32_sum_valid_kernel`.
+ * Implements `arrow_f32_sum_valid_kernel`.
+ * @param data *u8
+ * @param bm *u8
+ * @param n i32
+ * @return f32
+ */
 export function arrow_f32_sum_valid_kernel(data: *u8, bm: *u8, n: i32): f32 {
   unsafe {
     return arrow_f32_sum_valid_kernel_impl(data, bm, n);

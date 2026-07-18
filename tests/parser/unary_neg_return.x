@@ -1,4 +1,8 @@
-// 一元运算解析测试（parser.x 最小支持）：return - <int>;
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   return -42;
 }

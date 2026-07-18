@@ -1,4 +1,7 @@
-/** M-4：return 消耗 linear；分支外二次使用应失败 */
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let a: Linear(i32) = 1;
   if (true) {

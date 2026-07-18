@@ -1,4 +1,8 @@
-// LANG-006：比较运算折叠为 0/1 后相加
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   return (5 > 3) + (2 == 2) + (1 >= 2);
 }

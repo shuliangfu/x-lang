@@ -1,10 +1,10 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-308/452 / P2 runtime rest：path 字节 → open 原语。
-// R2 full（2026-07-14）：.x 吃满 driver_fs_open_read_path / driver_fs_open_write；
-// 产品 PREFER_X_O：thin full .x + rest 在 FROM_X 下仅 marker（业务 H=0）。
-// 🔒 open 经 libc；O_CREAT/O_TRUNC 按 target_os cfg（与 std/fs/posix.x 同源数值）。
+// G-02f-308/452 / P2 runtime rest: path bytes → open primitives.
+// R2 full (2026-07-14): .x owns driver_fs_open_read_path / driver_fs_open_write.
+// Product PREFER_X_O: thin full .x + rest under FROM_X is marker-only (business H=0).
+// open via libc; O_CREAT/O_TRUNC values by target_os cfg (same numeric sources as std/fs/posix.x).
 
 export extern "C" function open(path: *u8, flags: i32, mode: i32): i32;
 
@@ -21,9 +21,14 @@ export const RT_FS_O_CREAT: i32 = 512;
 #[cfg(target_os = "macos")]
 export const RT_FS_O_TRUNC: i32 = 1024;
 
-/** path[0..path_len) 拷到 path_buf 并写尾 0；成功 1 / 失败 0。path_len 须 < 512。
- * Track-L：#[no_mangle] 与 surface 短名一致，禁止模块前缀 mangle（rt_fs_open_rt_fs_path_*）。
- * PLATFORM: SHARED — 链接名契约；双端 prove 同验。 */
+/**
+ * Copy path[0..path_len) into path_buf and write trailing NUL.
+ * Params: path — source bytes; path_len — length; path_buf — dest (>=512).
+ * Returns: 1 on success, 0 on failure.
+ * Contracts: path non-null; path_len in (0, 512); path_buf must hold path_len+1 bytes.
+ * Track-L: #[no_mangle] matches surface short name; forbid module-prefix mangle.
+ * PLATFORM: SHARED — link-name contract; dual-host prove.
+ */
 #[no_mangle]
 export function rt_fs_path_copy_nul(path: *u8, path_len: i32, path_buf: *u8): i32 {
   let i: i32 = 0;
@@ -44,7 +49,14 @@ export function rt_fs_path_copy_nul(path: *u8, path_len: i32, path_buf: *u8): i3
   return 1;
 }
 
-/** path[0..path_len-1] 打开只读；失败 -1。 */
+/**
+ * Open path[0..path_len) read-only via libc open.
+ * Params: path — path bytes; path_len — length (must be < 512 after copy_nul).
+ * Returns: file descriptor, or -1 on failure.
+ * Contracts: uses stack path_buf[512]; O_RDONLY; mode 0.
+ * Track-L: #[no_mangle] keeps surface short name.
+ * PLATFORM: SHARED — open via libc.
+ */
 #[no_mangle]
 export function driver_fs_open_read_path(path: *u8, path_len: i32): i32 {
   let path_buf: u8[512] = [];
@@ -58,7 +70,14 @@ export function driver_fs_open_read_path(path: *u8, path_len: i32): i32 {
   return fd;
 }
 
-/** path[0..path_len-1] 打开写（CREAT|TRUNC 0644）；失败 -1。 */
+/**
+ * Open path[0..path_len) for write (CREAT|TRUNC 0644=420) via libc open.
+ * Params: path — path bytes; path_len — length (must be < 512 after copy_nul).
+ * Returns: file descriptor, or -1 on failure.
+ * Contracts: flags = WRONLY|CREAT|TRUNC; mode 0644 (420 decimal).
+ * Track-L: #[no_mangle] keeps surface short name.
+ * PLATFORM: SHARED — O_CREAT/O_TRUNC values differ by cfg(target_os).
+ */
 #[no_mangle]
 export function driver_fs_open_write(path: *u8, path_len: i32): i32 {
   let path_buf: u8[512] = [];

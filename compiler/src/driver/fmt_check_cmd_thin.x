@@ -1,74 +1,74 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// fmt_check_cmd R2 thin + Cap residual pure 深迁（续）：
-//   lit/entry 门闩 + pure 业务真体（path_should_ignore / .x 后缀 / lint /
+// See implementation.
+// See implementation.
 //   file_list_push / walk process_child / collect_paths_from_arg /
-//   check_collect_default_product_dirs / check_one_file 门闩 /
-//   try_append 早退 / parse_ignore 前缀 / invoke_compile·dep_clear 分派 /
+// See implementation.
+// See implementation.
 //   set_current_file + print_collected + cwd_fallback +
 //   try_walk_if_product_subdir + path_resolve_abs +
-//   append_repo_lib_roots + missing_diag）进 thin.x；
-//   + wave BSS pure：collect_mode + user_passed_L 进 thin；
+// See implementation.
+// See implementation.
 //     check_init_user_lib_flags pure（G.7 shux_ptr_slot_get + lib_bufs_reset Cap）；
-//     FROM_X rest 无 pure-dup is_check / user_passed_L_get / init_user_lib_flags _impl。
-//   + wave BSS pure：file_list n 进 thin（fmt_file_list_n / n_set）；
-//     Cap residual：s_file_list 指针表 + store strdup + clear free 仍 rest；
-//     FROM_X rest 无 pure-dup file_list_n _impl。
-//   + wave BSS pure：user ignore n 进 thin（fmt_user_ignore_count / count_set）；
-//     Cap residual：s_ignore_paths[] 槽 + parse token 写槽 + at 读槽 仍 rest；
-//     FROM_X rest 无 pure-dup user_ignore_count _impl。
-//   + wave BSS pure：lib_bufs n 进 thin（fmt_check_lib_bufs_n / n_set / reset）；
-//     Cap residual：s_check_lib_bufs[] 路径槽 + try_append/argv_append 写槽 仍 rest；
-//     FROM_X rest 无 pure-dup lib_bufs_reset _impl。
-//   + wave BSS pure：user ignore path slots 进 thin（32×256 flat BSS + at + parse_ignore）；
-//     Cap residual：file_list ptrs / lib path slots / walk opendir / path_stat 仍 rest；
-//     FROM_X rest 无 pure-dup user_ignore_at / parse_ignore_opt _impl。
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
+// See implementation.
 //   + wave Cap residual pure：lib path slots + full try_append（8×512 BSS + at/store +
-//     path_stat public + shux_ptr_slot_set argv）；FROM_X 无 pure-dup try_append_impl；
+// See implementation.
 //     Cap residual：file_list ptrs / walk / stat / store / clear / argv_append / one_file /
-//     run_fmt / run_check 仍 rest（ALWAYS residual 9→8）。
+// See implementation.
 //   + wave Cap residual pure：full argv_append（getcwd + try_append cwd + compiler/src
-//     (+asm) path_stat + lib slots + shux_ptr_slot_set）；FROM_X 无 pure-dup argv_append_impl；
+// See implementation.
 //     Cap residual：file_list ptrs / walk / stat / store / clear / one_file / run_fmt /
-//     run_check 仍 rest（ALWAYS residual 8→7）。
+// See implementation.
 //   + wave Cap residual pure：file_list path slots + store + clear（8192×512 flat BSS +
-//     at/store byte-copy + clear n=0）；FROM_X 无 pure-dup store_impl / clear_impl；
-//     Cap residual：walk / path_stat / one_file_body / run_fmt / run_check 仍 rest
+// See implementation.
+// See implementation.
 //     （ALWAYS residual 7→5）。
 //   + wave Cap residual pure：driver_run_compiler_check full orch（mode/clear/init/
 //     argv scan + collect + one_file public + empty-list diags；quiet success）；
-//     FROM_X 无 pure-dup run_check_impl；Cap residual：walk / path_stat /
-//     one_file_body / run_fmt 仍 rest（ALWAYS residual 5→4）。
+// See implementation.
+// See implementation.
 //   + wave Cap residual pure：driver_run_fmt full orch（mode FMT + ignore n=0 + clear +
 //     argv --check/--fail-fast/--ignore= + collect/cwd walk + empty FMT001 +
 //     public fmt_one_file loop + check-mode summary lits；verbose fixed lit）；
-//     FROM_X 无 pure-dup run_fmt_impl；Cap residual：walk / path_stat /
-//     one_file_body 仍 rest（ALWAYS residual 4→3）。
+// See implementation.
+// See implementation.
 //   + wave Cap residual pure：check_one_file full body（file view + diag/lsp collect +
 //     check_argv build + inject "check" + append_default_libs + invoke + print +
-//     fallback CHK001 fixed lit + finalize）；FROM_X 无 pure-dup body_impl；
-//     Cap residual：walk opendir / path_stat 仍 rest（ALWAYS residual 3→2）。
+// See implementation.
+// See implementation.
 //   + wave Cap residual pure：fmt_path_stat_kind（opendir dir probe + access F_OK；
-//     no struct stat layout）；FROM_X 无 pure-dup path_stat_impl；
-//     Cap residual：walk opendir 仍 rest（ALWAYS residual 2→1）。
+// See implementation.
+// See implementation.
 //   + wave Cap residual pure：walk_dir_collect（opendir + readdir_name + path_stat
-//     classify + process_child；no struct dirent/stat layout）；FROM_X 无 pure-dup
+// See implementation.
 //     walk_dir_collect_impl（ALWAYS residual 1→0；fmt_check Cap residual pure done）。
 //   + wave rest C leaf：path_bss_slot pure（2×512 flat BSS + slot accessor）；
-//     FROM_X rest T 1→0（hybrid rest 仅无业务体）；cold keeps C static slot。
+// See implementation.
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_FMT_CHECK_THIN_FROM_X）ld -r
 //   → fmt_check_cmd_driver.o
 // Prove IDENTICAL：seeds/fmt_check_cmd_thin_surface.from_x.c
 // Cap residual pure：fmt_check ALWAYS residual 0 + path_bss pure（hybrid rest T=0）
-//   等 *_impl 仍在 full seed rest；FROM_X 下 pure-duplicate _impl 已剔除（含
+// See implementation.
 //   set_current_file / print / cwd_fallback / try_walk / path_resolve_abs /
 //   append_repo / missing_diag / collect_mode / user_passed_L / init / file_list_n /
 //   user_ignore_count / lib_bufs_n / user_ignore_at / parse_ignore_opt /
 //   try_append_lib_root / argv_append / file_list store+clear / run_check / run_fmt /
 //   check_one_file body / path_stat / walk_dir_collect / path_bss_slot；H↓）。
 //
-// -E 约束：无 while 重赋值；无零参-only 不稳写法；6 参用扁平 if。
+// See implementation.
 //
 
 export extern "C" function strstr(hay: *u8, needle: *u8): *u8;
@@ -92,7 +92,7 @@ export extern "C" function lsp_diag_count_severity(severity: i32): i32;
 export extern "C" function driver_check_diag_emitted_reset(): void;
 export extern "C" function driver_check_diag_emitted_get(): i32;
 export extern "C" function driver_check_only_set(v: i32): void;
-// Cap residual：单文件 fmt 真体（read/format/write）；orch 调 public 面。
+// See implementation.
 export extern "C" function driver_fmt_one_file(path: *u8, path_len: i32): i32;
 export extern "C" function driver_fmt_check_only_set(v: i32): void;
 export extern "C" function driver_fmt_check_only_get(): i32;
@@ -167,14 +167,23 @@ let g_fmt_default_product_sub_1: u8[5] = [99, 111, 114, 101, 0];
 let g_fmt_default_product_sub_2: u8[4] = [115, 116, 100, 0];
 let g_fmt_default_product_sub_3: u8[9] = [101, 120, 97, 109, 112, 108, 101, 115, 0];
 
-// deno check：全部成功时不打印逐文件 check OK
+// driver_check_quiet_ok_get: see function docblock below.
 #[no_mangle]
+/** Exported function `driver_check_quiet_ok_get`.
+ * Implements `driver_check_quiet_ok_get`.
+ * @return i32
+ */
 export function driver_check_quiet_ok_get(): i32 {
   return 1;
 }
 
-// 跳过 "." 名与空名
+// fmt_walk_skip_dot_name: see function docblock below.
 #[no_mangle]
+/** Exported function `fmt_walk_skip_dot_name`.
+ * Implements `fmt_walk_skip_dot_name`.
+ * @param name *u8
+ * @return i32
+ */
 export function fmt_walk_skip_dot_name(name: *u8): i32 {
   if (name == 0 as *u8) {
     return 1;
@@ -188,8 +197,18 @@ export function fmt_walk_skip_dot_name(name: *u8): i32 {
   return 0;
 }
 
-// rc!=0 且无 direct_diag 且无有效 nd* 时需要 fallback 收集
+// check_one_need_fallback_diag: see function docblock below.
 #[no_mangle]
+/** Exported function `check_one_need_fallback_diag`.
+ * Implements `check_one_need_fallback_diag`.
+ * @param rc i32
+ * @param nd i32
+ * @param nd_errors i32
+ * @param nd_warnings i32
+ * @param nd_infos i32
+ * @param direct_diag i32
+ * @return i32
+ */
 export function check_one_need_fallback_diag(rc: i32, nd: i32, nd_errors: i32, nd_warnings: i32, nd_infos: i32, direct_diag: i32): i32 {
   if (rc == 0) {
     return 0;
@@ -212,8 +231,13 @@ export function check_one_need_fallback_diag(rc: i32, nd: i32, nd_errors: i32, n
   return 1;
 }
 
-// POSIX / 或 Windows 盘符:
+// shux_path_is_absolute: see function docblock below.
 #[no_mangle]
+/** Exported function `shux_path_is_absolute`.
+ * Implements `shux_path_is_absolute`.
+ * @param path *u8
+ * @return i32
+ */
 export function shux_path_is_absolute(path: *u8): i32 {
   if (path == 0 as *u8) {
     return 0;
@@ -245,8 +269,14 @@ export function shux_path_is_absolute(path: *u8): i32 {
   return 0;
 }
 
-// rc==0 且 lint fail-on-warnings 时升失败（pure：直接调 check_lint_fail_on_warnings）
+// check_one_finalize_rc: see function docblock below.
 #[no_mangle]
+/** Exported function `check_one_finalize_rc`.
+ * Implements `check_one_finalize_rc`.
+ * @param rc i32
+ * @param warn_count i32
+ * @return i32
+ */
 export function check_one_finalize_rc(rc: i32, warn_count: i32): i32 {
   if (rc != 0) {
     return rc;
@@ -261,26 +291,46 @@ export function check_one_finalize_rc(rc: i32, warn_count: i32): i32 {
 }
 
 #[no_mangle]
+/** Exported function `driver_fmt_check_lit_check_error`.
+ * Implements `driver_fmt_check_lit_check_error`.
+ * @return *u8
+ */
 export function driver_fmt_check_lit_check_error(): *u8 {
   return &g_fmt_lit_check_error[0];
 }
 
 #[no_mangle]
+/** Exported function `driver_fmt_check_lit_fmt_error`.
+ * Implements `driver_fmt_check_lit_fmt_error`.
+ * @return *u8
+ */
 export function driver_fmt_check_lit_fmt_error(): *u8 {
   return &g_fmt_lit_fmt_error[0];
 }
 
 #[no_mangle]
+/** Exported function `driver_fmt_check_lit_chk002`.
+ * Implements `driver_fmt_check_lit_chk002`.
+ * @return *u8
+ */
 export function driver_fmt_check_lit_chk002(): *u8 {
   return &g_fmt_lit_chk002[0];
 }
 
 #[no_mangle]
+/** Exported function `driver_fmt_check_lit_fmt001`.
+ * Implements `driver_fmt_check_lit_fmt001`.
+ * @return *u8
+ */
 export function driver_fmt_check_lit_fmt001(): *u8 {
   return &g_fmt_lit_fmt001[0];
 }
 
 #[no_mangle]
+/** Exported function `driver_collect_error_kind`.
+ * Implements `driver_collect_error_kind`.
+ * @return *u8
+ */
 export function driver_collect_error_kind(): *u8 {
   if (driver_collect_mode_is_check() != 0) {
     return &g_fmt_lit_check_error[0];
@@ -289,6 +339,10 @@ export function driver_collect_error_kind(): *u8 {
 }
 
 #[no_mangle]
+/** Exported function `driver_collect_missing_path_code`.
+ * Implements `driver_collect_missing_path_code`.
+ * @return *u8
+ */
 export function driver_collect_missing_path_code(): *u8 {
   if (driver_collect_mode_is_check() != 0) {
     return &g_fmt_lit_chk002[0];
@@ -297,6 +351,11 @@ export function driver_collect_missing_path_code(): *u8 {
 }
 
 #[no_mangle]
+/** Exported function `fmt_builtin_ignore_at`.
+ * Implements `fmt_builtin_ignore_at`.
+ * @param i i32
+ * @return *u8
+ */
 export function fmt_builtin_ignore_at(i: i32): *u8 {
   if (i == 0) {
     return &g_fmt_builtin_ignore_0[0];
@@ -326,6 +385,11 @@ export function fmt_builtin_ignore_at(i: i32): *u8 {
 }
 
 #[no_mangle]
+/** Exported function `fmt_default_product_sub_at`.
+ * Implements `fmt_default_product_sub_at`.
+ * @param i i32
+ * @return *u8
+ */
 export function fmt_default_product_sub_at(i: i32): *u8 {
   if (i == 0) {
     return &g_fmt_default_product_sub_0[0];
@@ -359,8 +423,13 @@ export function fmt_user_ignore_at(i: i32): *u8 {
   return 0 as *u8;
 }
 
-// pure：相对路径 getcwd+字节拼；绝对路径字节拷贝；写 Cap residual BSS slot(1)
+// fmt_path_resolve_abs: see function docblock below.
 #[no_mangle]
+/** Exported function `fmt_path_resolve_abs`.
+ * Implements `fmt_path_resolve_abs`.
+ * @param path *u8
+ * @return *u8
+ */
 export function fmt_path_resolve_abs(path: *u8): *u8 {
   if (path == 0 as *u8) {
     return 0 as *u8;
@@ -464,7 +533,7 @@ export function check_user_passed_L_set(v: i32): void {
   }
 }
 
-// ---- G-02f-389：.x 后缀 pure；ignore n / file_list n pure BSS ----
+// See implementation.
 /** Return --ignore path slot count. Pure BSS under PREFER hybrid. PLATFORM: SHARED. */
 #[no_mangle]
 export function fmt_user_ignore_count(): i32 {
@@ -487,8 +556,13 @@ export function fmt_user_ignore_count_set(v: i32): void {
   }
 }
 
-// pure：路径是否以 ".x" 结尾（字节扫描，无 strlen）
+// fmt_path_ends_with_dot_x: see function docblock below.
 #[no_mangle]
+/** Exported function `fmt_path_ends_with_dot_x`.
+ * Implements `fmt_path_ends_with_dot_x`.
+ * @param path *u8
+ * @return i32
+ */
 export function fmt_path_ends_with_dot_x(path: *u8): i32 {
   if (path == 0 as *u8) {
     return 0;
@@ -683,7 +757,7 @@ export function fmt_check_lib_buf_store(i: i32, path: *u8): i32 {
   return 1;
 }
 
-// ---- lint pure / invoke·dep_clear pure 分派；path_stat pure (POSIX probe) ----
+// See implementation.
 // PLATFORM: POSIX — no struct stat layout (mac st_mode@4 vs Linux@24).
 // Directory: opendir success → 1; else access(F_OK)==0 → 0; else -1.
 // Matches seed S_ISDIR / exists semantics for product fmt/check path trees.
@@ -697,6 +771,10 @@ export extern "C" function shux_fmt_readdir_name(dirp: *u8): *u8;
 
 // pure：SHUX_LINT_CI_FAIL_ON=warn|warning
 #[no_mangle]
+/** Exported function `check_lint_fail_on_warnings`.
+ * Implements `check_lint_fail_on_warnings`.
+ * @return i32
+ */
 export function check_lint_fail_on_warnings(): i32 {
   unsafe {
     let v: *u8 = getenv("SHUX_LINT_CI_FAIL_ON");
@@ -727,8 +805,14 @@ export function check_lint_fail_on_warnings(): i32 {
   return 0;
 }
 
-// pure 分派：产品 X pipeline → driver_run_compiler_full（冷 seed 仍 #ifdef 双路径）
+// fmt_check_invoke_compile: see function docblock below.
 #[no_mangle]
+/** Exported function `fmt_check_invoke_compile`.
+ * Implements `fmt_check_invoke_compile`.
+ * @param argc i32
+ * @param check_argv *u8
+ * @return i32
+ */
 export function fmt_check_invoke_compile(argc: i32, check_argv: *u8): i32 {
   unsafe {
     return driver_run_compiler_full(argc, check_argv);
@@ -736,8 +820,12 @@ export function fmt_check_invoke_compile(argc: i32, check_argv: *u8): i32 {
   return 0;
 }
 
-// pure 分派：清 typeck dep 侧车（产品恒 X pipeline）
+// fmt_check_dep_clear: see function docblock below.
 #[no_mangle]
+/** Exported function `fmt_check_dep_clear`.
+ * Implements `fmt_check_dep_clear`.
+ * @return void
+ */
 export function fmt_check_dep_clear(): void {
   unsafe {
     driver_dep_seeded_clear_all();
@@ -911,8 +999,13 @@ export function check_init_user_lib_flags(argc: i32, argv: *u8, path_start: i32)
   }
 }
 
-// pure：写 current_file 到 Cap residual BSS slot(0)（字节拷贝，无 snprintf）
+// driver_check_set_current_file: see function docblock below.
 #[no_mangle]
+/** Exported function `driver_check_set_current_file`.
+ * Implements `driver_check_set_current_file`.
+ * @param path *u8
+ * @return void
+ */
 export function driver_check_set_current_file(path: *u8): void {
   unsafe {
     let buf: *u8 = fmt_check_path_bss_slot(0);
@@ -936,8 +1029,13 @@ export function driver_check_set_current_file(path: *u8): void {
   }
 }
 
-// pure：LSP human 打印；path 空则用 current_file BSS slot(0)
+// driver_check_print_collected_diagnostics: see function docblock below.
 #[no_mangle]
+/** Exported function `driver_check_print_collected_diagnostics`.
+ * Implements `driver_check_print_collected_diagnostics`.
+ * @param path *u8
+ * @return i32
+ */
 export function driver_check_print_collected_diagnostics(path: *u8): i32 {
   unsafe {
     if (path != 0 as *u8) {
@@ -1137,8 +1235,13 @@ export function check_one_file(path: *u8, argc: i32, argv: *u8): i32 {
 
 // ---- pure ignore / file_list orch / walk process_child + walk opendir pure ----
 
-// pure：内置 + --ignore 子串；null path → 忽略
+// path_should_ignore: see function docblock below.
 #[no_mangle]
+/** Exported function `path_should_ignore`.
+ * Implements `path_should_ignore`.
+ * @param path *u8
+ * @return i32
+ */
 export function path_should_ignore(path: *u8): i32 {
   if (path == 0 as *u8) {
     return 1;
@@ -1198,8 +1301,15 @@ export function file_list_push(path: *u8): i32 {
   return 0 - 1;
 }
 
-// pure：ignore / 递归 / .x 入表
+// walk_dir_collect_process_child: see function docblock below.
 #[no_mangle]
+/** Exported function `walk_dir_collect_process_child`.
+ * Implements `walk_dir_collect_process_child`.
+ * @param child *u8
+ * @param is_dir i32
+ * @param is_reg i32
+ * @return void
+ */
 export function walk_dir_collect_process_child(child: *u8, is_dir: i32, is_reg: i32): void {
   if (child == 0 as *u8) {
     return;
@@ -1403,8 +1513,13 @@ export function file_list_clear(): void {
 // ---- G-02f-408：try_walk pure；collect orch + cwd_fallback pure；
 //      append_repo pure / missing_diag pure；argv_append full pure ----
 
-// pure：getcwd + 字节拼接 cwd/sub + stat_kind public + walk（无 snprintf/rest _impl）
+// fmt_try_walk_if_product_subdir: see function docblock below.
 #[no_mangle]
+/** Exported function `fmt_try_walk_if_product_subdir`.
+ * Implements `fmt_try_walk_if_product_subdir`.
+ * @param sub *u8
+ * @return i32
+ */
 export function fmt_try_walk_if_product_subdir(sub: *u8): i32 {
   if (sub == 0 as *u8) {
     return 0;
@@ -1449,8 +1564,12 @@ export function fmt_try_walk_if_product_subdir(sub: *u8): i32 {
   return 0;
 }
 
-// pure：getcwd + walk_dir_collect public（栈 512B；无 rest _impl）
+// fmt_walk_cwd_fallback: see function docblock below.
 #[no_mangle]
+/** Exported function `fmt_walk_cwd_fallback`.
+ * Implements `fmt_walk_cwd_fallback`.
+ * @return void
+ */
 export function fmt_walk_cwd_fallback(): void {
   unsafe {
     let cwd: u8[512] = [];
@@ -1462,8 +1581,12 @@ export function fmt_walk_cwd_fallback(): void {
   }
 }
 
-// pure 编排：默认产品子目录 try_walk；全未命中则 cwd fallback pure
+// check_collect_default_product_dirs: see function docblock below.
 #[no_mangle]
+/** Exported function `check_collect_default_product_dirs`.
+ * Implements `check_collect_default_product_dirs`.
+ * @return void
+ */
 export function check_collect_default_product_dirs(): void {
   unsafe {
     let any_product: i32 = 0;
@@ -1544,8 +1667,13 @@ export function collect_paths_missing_diag_pure(path: *u8): void {
   }
 }
 
-// pure 编排：null / stat_kind / missing diag pure / dir→walk / file→push
+// collect_paths_from_arg: see function docblock below.
 #[no_mangle]
+/** Exported function `collect_paths_from_arg`.
+ * Implements `collect_paths_from_arg`.
+ * @param arg *u8
+ * @return void
+ */
 export function collect_paths_from_arg(arg: *u8): void {
   if (arg == 0 as *u8) {
     return;
@@ -1567,8 +1695,15 @@ export function collect_paths_from_arg(arg: *u8): void {
   }
 }
 
-// pure：从 path 所在目录向上 8 层找含 core+std 的仓库根并 try_append（无 snprintf/rest _impl）
+// check_append_repo_lib_roots: see function docblock below.
 #[no_mangle]
+/** Exported function `check_append_repo_lib_roots`.
+ * Implements `check_append_repo_lib_roots`.
+ * @param path *u8
+ * @param check_argv *u8
+ * @param n *i32
+ * @return void
+ */
 export function check_append_repo_lib_roots(path: *u8, check_argv: *u8, n: *i32): void {
   if (check_argv == 0 as *u8) {
     return;
@@ -1600,7 +1735,7 @@ export function check_append_repo_lib_roots(path: *u8, check_argv: *u8, n: *i32)
       check_try_append_lib_root(check_argv, n, &start[0]);
       return;
     }
-    // 解析 start：绝对路径拷贝，相对路径 cwd/path
+    // See implementation.
     if (path[0] == 47) {
       let i: i32 = 0;
       while (i < 511) {
@@ -1646,7 +1781,7 @@ export function check_append_repo_lib_roots(path: *u8, check_argv: *u8, n: *i32)
         j = j + 1;
       }
     }
-    // 取目录部分：最后 '/' 截断（根 '/' 保留为 "/"）
+    // See implementation.
     let last_slash: i32 = 0 - 1;
     let k: i32 = 0;
     while (k < 512) {
@@ -1665,7 +1800,7 @@ export function check_append_repo_lib_roots(path: *u8, check_argv: *u8, n: *i32)
         start[1] = 0;
       }
     }
-    // cur = start；向上 8 层 try_append
+    // See implementation.
     let cur: u8[512] = [];
     let ci: i32 = 0;
     while (ci < 512) {

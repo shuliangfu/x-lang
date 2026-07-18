@@ -1,4 +1,8 @@
-// SIMD-S3 烟测：let n=20 + i32[32]，可变 n 条带主循环（vpaddd）+ 标量 epilogue。
+// main: see function docblock below.
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let n: i32 = 20;
   let a: i32[32] = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];

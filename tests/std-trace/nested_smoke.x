@@ -1,7 +1,11 @@
-// STD-088：std.trace 嵌套 span + context 传播 + text 导出烟测
+// See implementation.
 const trace = import("std.trace");
 const context = import("std.context");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let zero: i64 = 0;
   let tr: Trace = trace.new();

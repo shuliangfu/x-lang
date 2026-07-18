@@ -1,8 +1,14 @@
-// tests/fs/windows_path_smoke.x — STD-022：Windows 反斜杠路径 fs 句柄烟测
-// 路径 "tests\fs\.win_xplat_tmp"；仅 Windows CI 须 runnable（见 std-fs-crossplatform.tsv）。
+// See implementation.
+// See implementation.
 const fs = import("std.fs");
 
-/** 写入反斜杠路径文件；成功返回 0。 */
+/** Internal function `wp_write`.
+ * Write path helper `wp_write`.
+ * @param path *u8
+ * @param payload *u8
+ * @param len usize
+ * @return i32
+ */
 function wp_write(path: *u8, payload: *u8, len: usize): i32 {
   let fd: i32 = fs.create(path);
   if (fd < 0) { return 1; }
@@ -16,6 +22,10 @@ function wp_write(path: *u8, payload: *u8, len: usize): i32 {
   return 0;
 }
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   /** "tests\fs\.win_xplat_tmp" */
   let path: u8[24] =

@@ -1,6 +1,10 @@
-// STD-071：std.context cancel/deadline/value bag 烟测
+// See implementation.
 const context = import("std.context");
 
+/** Internal function `main`.
+ * Program/test entry point.
+ * @return i32
+ */
 function main(): i32 {
   let bg: Context = context.background();
   if (context.is_cancelled(bg) != 0) {

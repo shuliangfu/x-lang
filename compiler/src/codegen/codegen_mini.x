@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// 最小 codegen 片段：import + struct + 一函数，用于验证 .x 流水线
+// See implementation.
 const ast = import("ast");
 
 export struct CodegenOutBuf {
@@ -22,6 +22,10 @@ export struct CodegenOutBuf {
   len: i32;
 }
 
+/** Exported function `foo`.
+ * Implements `foo`.
+ * @return i32
+ */
 export function foo(): i32 {
   return 0;
 }
