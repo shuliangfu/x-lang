@@ -10009,6 +10009,22 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
             if (!ast.ref_is_null(tl_ty) && pipeline_type_kind_ord_at(arena, tl_ty) == TypeKind.TYPE_ARRAY) {
               is_fixed_arr = 1;
             }
+            /* PLATFORM: SHARED — product preamble may #define O_CREAT/MAP_FAILED/S_IFMT for
+             * bare EXPR_VAR use when dep export const was historically not co-emitted. Now
+             * that top-level const/let are emitted as C objects, redeclaring the same name
+             * under an active macro is illegal (e.g. static const MAP_FAILED expands to
+             * static const ((int64_t)-1)). #undef first so the object is the single C
+             * authority; values still match std/fs/posix.x + preamble. */
+            let undef_kw: u8[8] = [35, 117, 110, 100, 101, 102, 32, 0]; /* "#undef " */
+            if (emit_bytes_from_ptr(out, &undef_kw[0], 7) != 0) {
+              return -1;
+            }
+            if (emit_bytes_from_ptr(out, &tl_name_buf[0], name_len) != 0) {
+              return -1;
+            }
+            if (append_byte(out, 10) != 0) {
+              return -1;
+            }
             if (is_const != 0) {
               let static_const: u8[15] = [115, 116, 97, 116, 105, 99, 32, 99, 111, 110, 115, 116, 32, 0, 0];
               if (emit_bytes_from_ptr(out, &static_const[0], 13) != 0) {

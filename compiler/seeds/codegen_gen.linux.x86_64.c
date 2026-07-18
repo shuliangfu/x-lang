@@ -10607,6 +10607,21 @@ int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTArena * arena, s
             if ((!(ast_ref_is_null(tl_ty)) && (pipeline_type_kind_ord_at(arena, tl_ty) ==10))) {
               (void)((is_fixed_arr = 1));
             }
+            /* PLATFORM: SHARED — #undef bare top-level names before static object emit so
+             * product preamble macros (O_CREAT, MAP_FAILED, S_IFMT, ...) and host macros
+             * do not expand the declarator. Keep in sync with codegen.x.
+             * (want_decl_init declared here: C decl-before-stmt for seed host cc.) */
+            int32_t want_decl_init = 0;
+            uint8_t undef_kw[8] = {35, 117, 110, 100, 101, 102, 32, 0};
+            if ((codegen_emit_bytes_from_ptr(out, &((undef_kw)[0]), 7) !=0)) {
+              return -(1);
+            }
+            if ((codegen_emit_bytes_from_ptr(out, &((tl_name_buf)[0]), name_len) !=0)) {
+              return -(1);
+            }
+            if ((codegen_append_byte(out, 10) !=0)) {
+              return -(1);
+            }
             if ((is_const !=0)) {
               uint8_t static_const[15] = {115, 116, 97, 116, 105, 99, 32, 99, 111, 110, 115, 116, 32, 0, 0};
               if ((codegen_emit_bytes_from_ptr(out, &((static_const)[0]), 13) !=0)) {
@@ -10643,7 +10658,6 @@ int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTArena * arena, s
              * Library/dep .o has no main → init_globals never runs; BSS must not wipe -1
              * sentinels (e.g. shu_heap_trace_on). VAR-dependent inits (a+2) stay init_globals.
              * Keep in sync with codegen.x. */
-            int32_t want_decl_init = 0;
             if (((is_fixed_arr !=0) && !(ast_ref_is_null(tl_init)))) {
               if ((pipeline_expr_kind_ord_at(arena, tl_init) ==((int32_t)(46)))) {
                 if ((pipeline_expr_array_lit_num_elems_at(arena, tl_init) > 0)) {
