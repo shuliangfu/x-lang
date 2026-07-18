@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "tu": "build_runtime",
+  "x_src": "src/build_runtime.x",
+  "seed_src": "seeds/build_runtime.from_x.c",
+  "phase": "phase2_thin_rest",
+  "status": {
+    "prove_x_o": "ok",
+    "ld_r": "ok",
+    "smoke_probe": "pending",
+    "snapshot_compare": "pending"
+  },
+  "role": {
+    "x": "thin/.x provider (IMPL mode, 5 wrappers)",
+    "seed": "seed/rest provider (5 _impl + 8 rest functions + main/entry)"
+  },
+  "counts": {
+    "x_symbols": 6,
+    "seed_symbols": 13,
+    "only_x": 1
+  },
+  "symbols": {
+    "x": [
+      "build_runtime_info",
+      "build_runtime_warn",
+      "build_patch_pipeline_gen_c",
+      "build_patch_driver_gen_c",
+      "build_run_legacy_steps",
+      "build_runtime_x_doc_anchor"
+    ],
+    "seed_impl": [
+      "build_runtime_info_impl",
+      "build_runtime_warn_impl",
+      "build_patch_pipeline_gen_c_impl",
+      "build_patch_driver_gen_c_impl",
+      "build_run_legacy_steps_impl"
+    ],
+    "seed_rest": [
+      "build_get_argv_i",
+      "build_append_literal",
+      "build_exec_cmd",
+      "build_patch_after_step",
+      "build_get_shu_path",
+      "build_run_step",
+      "build_run_asm_build",
+      "main"
+    ]
+  },
+  "rest_macro": "SHUX_BUILD_RUNTIME_FROM_X",
+  "impl_residuals": [
+    "build_runtime_info_impl",
+    "build_runtime_warn_impl",
+    "build_patch_pipeline_gen_c_impl",
+    "build_patch_driver_gen_c_impl",
+    "build_run_legacy_steps_impl"
+  ],
+  "direct_symbols": [],
+  "forward_decls": [
+    "build_runtime_info",
+    "build_runtime_warn",
+    "build_patch_pipeline_gen_c",
+    "build_patch_driver_gen_c",
+    "build_run_legacy_steps"
+  ],
+  "internal_call_rewrites": [],
+  "known_limitations": [
+    "main/entry 保留 seed：argv 语言限制（.x 无法表达 char **argv）+ #ifdef BUILD_TOOL_X_ENTRY 条件编译",
+    "签名修复：.x 中 build_patch_pipeline_gen_c/build_patch_driver_gen_c 原为 (path: *u8)，seed 为 (void)，已修复 .x 为无参数；build_run_legacy_steps 原为 ()，seed 为 (const char *shu_path)，已修复 .x 为 (shu_path: *u8)"
+  ],
+  "platform_notes": "IMPL 模式：5 个 wrapper 由 .x 提供，调用 seed 中 _impl。macOS merged 19 T + libc/外部 U；Ubuntu merged 19 T/W U=0",
+  "delete_seed_gate": {
+    "allowed_now": false,
+    "requirements": [
+      "provider boundary stabilized",
+      "ld -r validated",
+      "smoke or probe matched",
+      "no seed fallback on repeated builds",
+      "5 个 _impl 迁移到 .x（需 .x 支持文件 IO/字符串处理/system 调用）",
+      "main/entry argv 语言限制解决"
+    ]
+  }
+}

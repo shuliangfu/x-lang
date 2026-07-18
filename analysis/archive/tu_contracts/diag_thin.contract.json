@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "tu": "diag_thin",
+  "x_src": "src/diag_thin.x",
+  "seed_src": "seeds/diag.from_x.c",
+  "probe_dir": "../tests/probes/prove_x_o/diag_thin",
+  "phase": "phase0_trial",
+  "status": {
+    "prove_x_o": "ok",
+    "ld_r": "pending",
+    "smoke_probe": "pending",
+    "snapshot_compare": "pending"
+  },
+  "role": {
+    "x": "thin/.x provider",
+    "seed": "seed/rest provider"
+  },
+  "counts": {
+    "x_symbols": 78,
+    "seed_symbols": 106,
+    "only_x": 11,
+    "only_seed": 39
+  },
+  "symbols": {
+    "x": ["diag_bytes_match_at", "diag_code_details", "diag_code_eq", "diag_code_is_known", "diag_code_kind", "diag_code_suggest", "diag_code_summary", "diag_code_table_code_at", "diag_code_table_details_at", "diag_code_table_has", "diag_code_table_kind_at", "diag_code_table_len", "diag_code_table_summary_at", "diag_color_prefix", "diag_color_reset", "diag_cstr_len_bounded", "diag_ctx_get_file", "diag_ctx_get_source", "diag_ctx_get_source_len", "diag_ctx_get_use_color", "diag_ctx_set_all", "diag_entry_code", "diag_entry_details", "diag_entry_kind", "diag_entry_summary", "diag_extract_line", "diag_get_file", "diag_get_source", "diag_get_source_len", "diag_io_fflush", "diag_io_fprint_caret_mark", "diag_io_fprint_code_table_hdr", "diag_io_fprint_code_table_row", "diag_io_fprint_gutter_bar", "diag_io_fprint_gutter_blank", "diag_io_fprint_line_col", "diag_io_fprint_loc_file", "diag_io_fprint_loc_file_line", "diag_io_fprint_loc_file_line_col", "diag_io_fprint_loc_line_col", "diag_io_fprint_src_line", "diag_io_fprint_unknown_code", "diag_io_fputc", "diag_io_fputs", "diag_io_fputs_u04x", "diag_json_enabled", "diag_json_get_state", "diag_json_set_state", "diag_json_severity", "diag_json_write_str", "diag_kind_contains", "diag_kind_is_exact", "diag_levenshtein_ci", "diag_line_digits", "diag_print_code_explain", "diag_print_code_table", "diag_print_header", "diag_print_known_codes", "diag_push_file", "diag_push_snap_save", "diag_report", "diag_report_human", "diag_report_json", "diag_report_with_code", "diag_restore", "diag_set_file", "diag_set_json_mode", "diag_should_color", "diag_snap_load_i32", "diag_snap_load_ptr", "diag_snap_load_usize", "diag_snap_store_i32", "diag_snap_store_ptr", "diag_snap_store_usize", "diag_stderr", "diag_stdout", "diag_store_ptr_le", "diag_store_usize_le"],
+    "seed": ["diag_code_details", "diag_code_eq", "diag_code_is_known", "diag_code_kind", "diag_code_suggest", "diag_code_summary", "diag_code_table_code_at", "diag_code_table_code_at_impl", "diag_code_table_details_at", "diag_code_table_details_at_impl", "diag_code_table_has", "diag_code_table_has_impl", "diag_code_table_kind_at", "diag_code_table_kind_at_impl", "diag_code_table_len", "diag_code_table_len_impl", "diag_code_table_summary_at", "diag_code_table_summary_at_impl", "diag_color_prefix", "diag_color_reset", "diag_ctx_get_file", "diag_ctx_get_file_impl", "diag_ctx_get_source", "diag_ctx_get_source_impl", "diag_ctx_get_source_len", "diag_ctx_get_source_len_impl", "diag_ctx_get_use_color", "diag_ctx_get_use_color_impl", "diag_ctx_set_all", "diag_ctx_set_all_impl", "diag_entry_code", "diag_entry_code_impl", "diag_entry_details", "diag_entry_details_impl", "diag_entry_kind", "diag_entry_kind_impl", "diag_entry_summary", "diag_entry_summary_impl", "diag_extract_line", "diag_get_file", "diag_get_source", "diag_get_source_len", "diag_io_fflush", "diag_io_fflush_impl", "diag_io_fprint_caret_mark", "diag_io_fprint_caret_mark_impl", "diag_io_fprint_code_table_hdr", "diag_io_fprint_code_table_hdr_impl", "diag_io_fprint_code_table_row", "diag_io_fprint_code_table_row_impl", "diag_io_fprint_gutter_bar", "diag_io_fprint_gutter_bar_impl", "diag_io_fprint_gutter_blank", "diag_io_fprint_gutter_blank_impl", "diag_io_fprint_line_col", "diag_io_fprint_line_col_impl", "diag_io_fprint_loc_file", "diag_io_fprint_loc_file_impl", "diag_io_fprint_loc_file_line", "diag_io_fprint_loc_file_line_col", "diag_io_fprint_loc_file_line_col_impl", "diag_io_fprint_loc_file_line_impl", "diag_io_fprint_loc_line_col", "diag_io_fprint_loc_line_col_impl", "diag_io_fprint_src_line", "diag_io_fprint_src_line_impl", "diag_io_fprint_unknown_code", "diag_io_fprint_unknown_code_impl", "diag_io_fputc", "diag_io_fputc_impl", "diag_io_fputs", "diag_io_fputs_impl", "diag_io_fputs_u04x", "diag_io_fputs_u04x_impl", "diag_json_enabled", "diag_json_get_state", "diag_json_get_state_impl", "diag_json_set_state", "diag_json_set_state_impl", "diag_json_severity", "diag_json_write_str", "diag_kind_contains", "diag_kind_is_exact", "diag_levenshtein_ci", "diag_line_digits", "diag_print_code_explain", "diag_print_code_table", "diag_print_header", "diag_print_known_codes", "diag_push_file", "diag_report", "diag_report_human", "diag_report_json", "diag_report_with_code", "diag_reportf", "diag_reportf_with_code", "diag_restore", "diag_set_file", "diag_set_json_mode", "diag_should_color", "diag_stderr", "diag_stderr_impl", "diag_stdout", "diag_stdout_impl", "diag_vreportf", "diag_vreportf_with_code"],
+    "only_x": ["diag_bytes_match_at", "diag_cstr_len_bounded", "diag_push_snap_save", "diag_snap_load_i32", "diag_snap_load_ptr", "diag_snap_load_usize", "diag_snap_store_i32", "diag_snap_store_ptr", "diag_snap_store_usize", "diag_store_ptr_le", "diag_store_usize_le"],
+    "only_seed": ["diag_code_table_code_at_impl", "diag_code_table_details_at_impl", "diag_code_table_has_impl", "diag_code_table_kind_at_impl", "diag_code_table_len_impl", "diag_code_table_summary_at_impl", "diag_ctx_get_file_impl", "diag_ctx_get_source_impl", "diag_ctx_get_source_len_impl", "diag_ctx_get_use_color_impl", "diag_ctx_set_all_impl", "diag_entry_code_impl", "diag_entry_details_impl", "diag_entry_kind_impl", "diag_entry_summary_impl", "diag_io_fflush_impl", "diag_io_fprint_caret_mark_impl", "diag_io_fprint_code_table_hdr_impl", "diag_io_fprint_code_table_row_impl", "diag_io_fprint_gutter_bar_impl", "diag_io_fprint_gutter_blank_impl", "diag_io_fprint_line_col_impl", "diag_io_fprint_loc_file_impl", "diag_io_fprint_loc_file_line_col_impl", "diag_io_fprint_loc_file_line_impl", "diag_io_fprint_loc_line_col_impl", "diag_io_fprint_src_line_impl", "diag_io_fprint_unknown_code_impl", "diag_io_fputc_impl", "diag_io_fputs_impl", "diag_io_fputs_u04x_impl", "diag_json_get_state_impl", "diag_json_set_state_impl", "diag_reportf", "diag_reportf_with_code", "diag_stderr_impl", "diag_stdout_impl", "diag_vreportf", "diag_vreportf_with_code"]
+  },
+  "rest_macro": "",
+  "delete_seed_gate": {
+    "allowed_now": false,
+    "requirements": [
+      "provider boundary stabilized",
+      "ld -r validated",
+      "smoke or probe matched",
+      "no seed fallback on repeated builds"
+    ]
+  }
+}

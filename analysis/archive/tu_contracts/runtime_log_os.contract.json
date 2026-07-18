@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "tu": "runtime_log_os",
+  "x_src": "src/asm/runtime_log_os.x",
+  "seed_src": "seeds/runtime_log_os.from_x.c",
+  "phase": "phase2_thin_rest",
+  "status": {
+    "prove_x_o": "ok",
+    "ld_r": "ok",
+    "smoke_probe": "pending",
+    "snapshot_compare": "pending"
+  },
+  "role": {
+    "x": "thin/.x provider (IMPL mode)",
+    "seed": "seed/rest provider"
+  },
+  "counts": {
+    "x_symbols": 8,
+    "seed_symbols": 19,
+    "only_x": 1
+  },
+  "symbols": {
+    "x": [
+      "runtime_log_os_x_doc_anchor",
+      "log_apply_env_once",
+      "log_do_rotate",
+      "log_write_file_sync",
+      "log_write_sync",
+      "log_async_enqueue",
+      "log_emit_bytes",
+      "log_write_fd"
+    ],
+    "seed": [
+      "log_write_fd_impl",
+      "log_apply_env_once_impl",
+      "log_do_rotate_impl",
+      "log_write_file_sync_impl",
+      "log_write_sync_impl",
+      "log_async_enqueue_impl",
+      "log_emit_bytes_impl",
+      "log_set_min_level_c",
+      "log_set_sink_mask_c",
+      "log_set_file_sink_c",
+      "log_close_file_sink_c",
+      "log_set_rotate_c",
+      "log_set_async_enabled_c",
+      "log_async_flush_c",
+      "log_apply_env_once_c",
+      "log_get_min_level_c",
+      "log_emit_bytes_c",
+      "log_multi_sink_smoke_c",
+      "log_rotate_async_smoke_c"
+    ],
+    "only_x": ["runtime_log_os_x_doc_anchor"]
+  },
+  "rest_macro": "SHUX_RUNTIME_LOG_OS_FROM_X",
+  "impl_residuals": [
+    "log_write_fd_impl",
+    "log_apply_env_once_impl",
+    "log_do_rotate_impl",
+    "log_write_file_sync_impl",
+    "log_write_sync_impl",
+    "log_async_enqueue_impl",
+    "log_emit_bytes_impl"
+  ],
+  "direct_symbols": [],
+  "forward_decls": [
+    "log_write_fd",
+    "log_do_rotate",
+    "log_write_file_sync",
+    "log_write_sync",
+    "log_async_enqueue",
+    "log_apply_env_once",
+    "log_emit_bytes"
+  ],
+  "internal_call_rewrites": [
+    "log_write_file_sync_impl -> log_do_rotate + log_write_fd",
+    "log_write_sync_impl -> log_write_fd + log_write_file_sync",
+    "log_async_enqueue_impl -> log_async_flush_c",
+    "log_emit_bytes_impl -> log_async_enqueue + log_write_sync",
+    "log_async_flush_c -> log_write_sync",
+    "log_apply_env_once_c -> log_apply_env_once",
+    "log_get_min_level_c -> log_apply_env_once",
+    "log_emit_bytes_c -> log_emit_bytes"
+  ],
+  "known_limitations": [
+    "预存行为（非本次切割引入）：Linux 上 thin wrapper 为 W（weak）符号——prove_x_o.sh 默认 G05_X_O_WEAK=1，macOS Mach-O 忽略 weak 均为 T",
+    "类型擦除：.x 侧 log_write_fd 签名 (fd: i32, buf: *u8, n: i64): i64，seed 签名 (int fd, const void *buf, size_t len): int；C 链接器不看类型，ABI 兼容",
+    "log_write_fd 平台条件：seed 中 Windows(_write)/POSIX(write) 两个分支各有 log_write_fd_impl 定义，编译时仅一个生效；wrapper 在 #endif 后统一一次 #ifndef 保护"
+  ],
+  "platform_notes": "纯 IMPL 模式：7 个 IMPL wrapper（全部调用对应 _impl）。rest 模式下 thin 函数为 U 符号由 thin.o 提供。log_write_fd 的平台条件 _impl 在 Windows/POSIX 各一份定义",
+  "delete_seed_gate": {
+    "allowed_now": false,
+    "requirements": [
+      "provider boundary stabilized",
+      "ld -r validated",
+      "smoke or probe matched",
+      "no seed fallback on repeated builds"
+    ]
+  }
+}

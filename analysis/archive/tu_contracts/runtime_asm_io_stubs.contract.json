@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "tu": "runtime_asm_io_stubs",
+  "x_src": "src/asm/runtime_asm_io_stubs.x",
+  "seed_src": "seeds/runtime_asm_io_stubs.from_x.c",
+  "phase": "phase2_thin_rest",
+  "status": {
+    "prove_x_o": "ok",
+    "ld_r": "ok",
+    "smoke_probe": "pending",
+    "snapshot_compare": "pending"
+  },
+  "role": {
+    "x": "thin/.x provider (IMPL mode)",
+    "seed": "seed/rest provider"
+  },
+  "counts": {
+    "x_symbols": 4,
+    "seed_symbols": 41,
+    "only_x": 1
+  },
+  "symbols": {
+    "x": [
+      "runtime_asm_io_stubs_x_doc_anchor",
+      "seed_io_syscall_write",
+      "seed_io_syscall_read",
+      "seed_io_write_fd1"
+    ],
+    "seed": [
+      "seed_io_syscall_write_impl",
+      "seed_io_syscall_read_impl",
+      "seed_io_write_fd1_impl",
+      "io_write",
+      "io_read",
+      "io_read_ptr",
+      "io_read_ptr_len",
+      "io_register_buffer",
+      "shux_io_register",
+      "shux_io_register_buf",
+      "shux_io_submit_read",
+      "shux_io_submit_write",
+      "std_io_handle_stdin",
+      "std_io_handle_stdout",
+      "std_io_handle_stderr",
+      "std_io_write",
+      "std_io_read",
+      "std_io_print_i32",
+      "std_io_print_u32",
+      "std_io_print_i64",
+      "std_io_write_stdout",
+      "std_io_write_with_timeout",
+      "std_io_print_u8_ptr_usize",
+      "std_io_print_str",
+      "std_fmt_println",
+      "print_str",
+      "std_io_read_stdin_ptr",
+      "std_io_ptr_len",
+      "std_io_read_ptr_len",
+      "std_io_read_stdin_ptr_slice",
+      "std_io_read_ptr_slice",
+      "io_read_batch",
+      "io_write_batch",
+      "io_read_batch_buf",
+      "io_write_batch_buf",
+      "io_read_batch_provided",
+      "io_uring_connect",
+      "io_uring_accept",
+      "io_uring_accept_many",
+      "io_uring_connect_many",
+      "io_uring_prefetch_fd"
+    ],
+    "only_x": ["runtime_asm_io_stubs_x_doc_anchor"]
+  },
+  "rest_macro": "SHUX_RUNTIME_ASM_IO_STUBS_FROM_X",
+  "impl_residuals": [
+    "seed_io_syscall_write_impl",
+    "seed_io_syscall_read_impl",
+    "seed_io_write_fd1_impl"
+  ],
+  "direct_symbols": [],
+  "forward_decls": [
+    "seed_io_syscall_write",
+    "seed_io_syscall_read",
+    "seed_io_write_fd1"
+  ],
+  "internal_call_rewrites": [
+    "io_write -> seed_io_syscall_write (Linux x86_64 branch)",
+    "io_read -> seed_io_syscall_read (Linux x86_64 branch)",
+    "std_io_write_stdout -> seed_io_write_fd1",
+    "std_io_write_with_timeout -> seed_io_write_fd1"
+  ],
+  "known_limitations": [
+    "预存行为（非本次切割引入）：Linux 上 thin wrapper 为 W（weak）符号——prove_x_o.sh 默认 G05_X_O_WEAK=1，macOS Mach-O 忽略 weak 均为 T",
+    "平台条件：seed_io_syscall_write/read 及 _impl 仅 Linux x86_64 有定义（inline asm syscall）；macOS merged 有 2 U _impl（Linux only 预期，与 runtime_thread_glue 模式一致）",
+    "seed 末尾 #include runtime_net_udp_batch.from_x.c（Linux glibc only）引入 8 个额外函数，不计入本 TU 合同"
+  ],
+  "platform_notes": "纯 IMPL 模式：3 个 IMPL wrapper。seed_io_syscall_write/read 为 Linux x86_64 only（inline asm），wrapper 也仅在该平台 emit；seed_io_write_fd1 跨平台。rest 模式下 thin 函数为 U 符号由 thin.o 提供",
+  "delete_seed_gate": {
+    "allowed_now": false,
+    "requirements": [
+      "provider boundary stabilized",
+      "ld -r validated",
+      "smoke or probe matched",
+      "no seed fallback on repeated builds"
+    ]
+  }
+}

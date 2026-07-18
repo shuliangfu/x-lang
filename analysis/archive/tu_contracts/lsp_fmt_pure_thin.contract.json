@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "tu": "lsp_fmt_pure_thin",
+  "x_src": "src/lsp/lsp_fmt_pure_thin.x",
+  "seed_src": "",
+  "probe_dir": "../tests/probes/prove_x_o/lsp_fmt_pure_thin",
+  "phase": "phase0_trial",
+  "status": {
+    "prove_x_o": "ok",
+    "ld_r": "pending",
+    "smoke_probe": "pending",
+    "snapshot_compare": "pending"
+  },
+  "role": {
+    "x": "thin/.x provider",
+    "seed": "seed/rest provider"
+  },
+  "counts": {
+    "x_symbols": 24,
+    "seed_symbols": 0,
+    "only_x": 0,
+    "only_seed": 0
+  },
+  "symbols": {
+    "x": ["col_in_ident_span", "func_name_covers", "lsp_char_in_range", "lsp_find_key_after", "lsp_fmt_is_atom_head", "lsp_fmt_is_atom_tail", "lsp_fmt_is_inline_ws", "lsp_fmt_is_src_ws", "lsp_fmt_last_out", "lsp_fmt_prev_src", "lsp_fmt_space_after", "lsp_fmt_space_before", "lsp_fmt_src_ws_after", "lsp_fmt_src_ws_before", "lsp_fmt_unary_lhs", "lsp_hash_source", "lsp_json_escape_ident", "lsp_line_has_block_comment_end", "lsp_line_is_block_comment", "lsp_load_i32_at", "lsp_load_ptr_at", "lsp_match_bytes_at", "lsp_parse_bool_after", "lsp_store_i32"],
+    "seed": [],
+    "only_x": [],
+    "only_seed": []
+  },
+  "rest_macro": "",
+  "delete_seed_gate": {
+    "allowed_now": false,
+    "requirements": [
+      "provider boundary stabilized",
+      "ld -r validated",
+      "smoke or probe matched",
+      "no seed fallback on repeated builds"
+    ]
+  }
+}

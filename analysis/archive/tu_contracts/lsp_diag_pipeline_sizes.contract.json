@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "tu": "lsp_diag_pipeline_sizes",
+  "x_src": "src/lsp/lsp_diag_pipeline_sizes.x",
+  "seed_src": "seeds/lsp_diag_pipeline_sizes.from_x.c",
+  "phase": "phase2_thin_rest",
+  "status": {
+    "prove_x_o": "ok",
+    "ld_r": "ok",
+    "smoke_probe": "pending",
+    "snapshot_compare": "pending"
+  },
+  "role": {
+    "x": "thin/.x provider (DIRECT mode, full implementation)",
+    "seed": "seed/rest provider (empty in rest mode)"
+  },
+  "counts": {
+    "x_symbols": 3,
+    "seed_symbols": 0,
+    "only_x": 3
+  },
+  "symbols": {
+    "x": [
+      "lsp_diag_pipeline_sizeof_arena",
+      "lsp_diag_pipeline_sizeof_module",
+      "lsp_diag_pipeline_sizeof_dep_ctx"
+    ],
+    "seed": [],
+    "only_x": [
+      "lsp_diag_pipeline_sizeof_arena",
+      "lsp_diag_pipeline_sizeof_module",
+      "lsp_diag_pipeline_sizeof_dep_ctx"
+    ]
+  },
+  "rest_macro": "SHUX_LSP_DIAG_PIPELINE_SIZES_FROM_X",
+  "impl_residuals": [],
+  "forward_decls": [],
+  "internal_call_rewrites": [],
+  "known_limitations": [
+    "预存行为（非本次切割引入）：Linux 上 thin.o 的 3 个函数为 W（weak）符号——prove_x_o.sh 默认 G05_X_O_WEAK=1 给函数加 __attribute__((weak))，Linux 产生 W 符号；macOS Mach-O 忽略 weak 属性，均为 T 符号",
+    "DIRECT 模式（G-02f-1 真迁 .x）：.x 包含完整实现，seed 是 .x 的 C 翻译，rest 模式下 seed 为空"
+  ],
+  "platform_notes": "纯常量返回函数，无外部依赖，merged U = 0。无 libc 依赖",
+  "delete_seed_gate": {
+    "allowed_now": false,
+    "requirements": [
+      "provider boundary stabilized",
+      "ld -r validated",
+      "smoke or probe matched",
+      "no seed fallback on repeated builds"
+    ]
+  }
+}

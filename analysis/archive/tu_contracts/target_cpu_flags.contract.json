@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "tu": "target_cpu_flags",
+  "x_src": "src/driver/target_cpu_flags.x",
+  "seed_src": "seeds/target_cpu_pure.from_x.c",
+  "probe_dir": "../tests/probes/prove_x_o/target_cpu_flags",
+  "phase": "phase2_thin_rest",
+  "status": {
+    "prove_x_o": "ok",
+    "ld_r": "ok",
+    "smoke_probe": "pending",
+    "snapshot_compare": "pending"
+  },
+  "role": {
+    "x": "thin/.x provider",
+    "seed": "seed/rest provider"
+  },
+  "counts": {
+    "x_symbols": 5,
+    "seed_symbols": 12,
+    "only_x": 0,
+    "only_seed": 12
+  },
+  "symbols": {
+    "x": ["driver_get_pending_target_cpu_features", "driver_set_pending_target_cpu_features", "tcp_eq5", "tcp_eq6", "tcp_tolower"],
+    "seed": ["append_feat_name", "flags_has_token", "shu_simd_is_vector_type_spelling", "shu_simd_vector_lanes_esz_from_spelling", "shu_target_cpu_detect_arm64", "shu_target_cpu_detect_host", "shu_target_cpu_generic_for_host", "shu_target_cpu_print", "shu_target_cpu_resolve", "tcp_eq_at", "tcp_parse_named"],
+    "only_x": [],
+    "only_seed": ["append_feat_name", "flags_has_token", "shu_simd_is_vector_type_spelling", "shu_simd_vector_lanes_esz_from_spelling", "shu_target_cpu_detect_arm64", "shu_target_cpu_detect_host", "shu_target_cpu_generic_for_host", "shu_target_cpu_print", "shu_target_cpu_resolve", "tcp_eq_at", "tcp_parse_named"]
+  },
+  "rest_macro": "SHUX_L2_TARGET_CPU_FLAGS_FROM_X",
+  "delete_seed_gate": {
+    "allowed_now": false,
+    "requirements": [
+      "provider boundary stabilized",
+      "ld -r validated",
+      "smoke or probe matched",
+      "no seed fallback on repeated builds"
+    ]
+  }
+}

@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "tu": "async_cps_codegen",
+  "x_src": "src/async/async_cps_codegen.x",
+  "seed_src": "seeds/async_cps_codegen.from_x.c",
+  "phase": "phase2_thin_rest",
+  "status": {
+    "prove_x_o": "ok",
+    "ld_r": "ok",
+    "smoke_probe": "pending",
+    "snapshot_compare": "pending"
+  },
+  "role": {
+    "x": "thin/.x provider (mixed IMPL+DIRECT mode)",
+    "seed": "seed/rest provider"
+  },
+  "counts": {
+    "x_symbols": 8,
+    "seed_symbols": 21,
+    "only_x": 1
+  },
+  "symbols": {
+    "x": [
+      "async_cps_codegen_x_doc_anchor",
+      "async_cps_load_func_name",
+      "emit_hoisted_lets",
+      "expr_references_run_async",
+      "block_has_run_async_ref",
+      "async_cps_callee_is_io",
+      "async_cps_callee_is_future_wait_by_name",
+      "async_cps_callee_is_future_wait"
+    ],
+    "seed": [
+      "expr_references_run_async_impl",
+      "block_has_run_async_ref_impl",
+      "emit_hoisted_lets_impl",
+      "async_cps_module_references_run_async",
+      "async_cps_func_uses_void_entry",
+      "async_cps_codegen_emit_param_statics",
+      "async_cps_codegen_begin",
+      "async_cps_codegen_end",
+      "async_cps_expr_is_io_await",
+      "async_cps_expr_is_await_read",
+      "async_cps_expr_is_await_read_fd",
+      "async_cps_expr_is_await_write_fd",
+      "async_cps_expr_is_await_write",
+      "async_cps_expr_is_await_future_wait",
+      "async_cps_codegen_after_await",
+      "async_cps_codegen_after_await_io",
+      "async_cps_codegen_emit_phase_reset",
+      "async_cps_codegen_emit_sched_wrapper",
+      "async_cps_is_sched_wrapper_name",
+      "async_cps_resolve_sched_target",
+      "async_cps_module_has_sched_extern"
+    ],
+    "only_x": ["async_cps_codegen_x_doc_anchor"]
+  },
+  "rest_macro": "SHUX_ASYNC_CPS_CODEGEN_FROM_X",
+  "impl_residuals": [
+    "expr_references_run_async_impl",
+    "block_has_run_async_ref_impl",
+    "emit_hoisted_lets_impl"
+  ],
+  "direct_symbols": [
+    "async_cps_callee_is_io",
+    "async_cps_callee_is_future_wait_by_name",
+    "async_cps_callee_is_future_wait"
+  ],
+  "forward_decls": [
+    "block_has_run_async_ref",
+    "emit_hoisted_lets",
+    "expr_references_run_async",
+    "async_cps_callee_is_io",
+    "async_cps_callee_is_future_wait_by_name",
+    "async_cps_callee_is_future_wait"
+  ],
+  "internal_call_rewrites": [
+    "expr_references_run_async_impl -> expr_references_run_async + block_has_run_async_ref",
+    "block_has_run_async_ref_impl -> expr_references_run_async + block_has_run_async_ref",
+    "async_cps_module_references_run_async -> block_has_run_async_ref",
+    "async_cps_codegen_begin -> emit_hoisted_lets",
+    "async_cps_expr_is_io_await -> async_cps_callee_is_io",
+    "async_cps_expr_is_await_future_wait -> async_cps_callee_is_future_wait_by_name + async_cps_callee_is_future_wait"
+  ],
+  "known_limitations": [
+    "预存行为（非本次切割引入）：Linux 上 thin wrapper 为 W（weak）符号——prove_x_o.sh 默认 G05_X_O_WEAK=1，macOS Mach-O 忽略 weak 均为 T",
+    "类型擦除：.x 侧 IMPL wrapper 参数为 *u8（const struct ASTFunc* / const struct ASTExpr* / const struct ASTBlock* / FILE* 在 .x 无法表达）；seed 前向声明用实际 C 类型与调用处一致，thin.o 实际签名 uint8_t *，C 链接器不看类型，ABI 兼容",
+    "async_cps_load_func_name 无 #no_mangle：作为 thin.o 内部辅助函数供 DIRECT 函数调用（从 ASTFunc* 偏移 8 读取 name 字段）",
+    "递归调用链：expr_references_run_async_impl ↔ block_has_run_async_ref_impl 相互递归调用 thin wrapper，wrapper 再调回 _impl"
+  ],
+  "platform_notes": "混合模式：3 IMPL wrapper（emit_hoisted_lets/expr_references_run_async/block_has_run_async_ref，调用 _impl）+ 3 DIRECT（async_cps_callee_is_io/async_cps_callee_is_future_wait_by_name/async_cps_callee_is_future_wait，真迁 .x 完整实现）。rest 模式下 thin 函数为 U 符号由 thin.o 提供",
+  "delete_seed_gate": {
+    "allowed_now": false,
+    "requirements": [
+      "provider boundary stabilized",
+      "ld -r validated",
+      "smoke or probe matched",
+      "no seed fallback on repeated builds"
+    ]
+  }
+}

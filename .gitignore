@@ -1,6 +1,9 @@
-# 分析目录：构建产物等不提交；gate 所需的 analysis/*.md RFC 须入库（CI STBL/DOC/BOOT 等门禁）
+# 分析目录：默认只跟踪根下活文档 *.md；历史归档 analysis/archive/ 也入库（避免「归档后 git 又还原根目录」）
+# CI STBL/DOC/BOOT 等门禁依赖 analysis 根下 RFC/工单时，只保留活文档在根目录。
 analysis/*
 !analysis/*.md
+!analysis/archive/
+!analysis/archive/**
 
 # --- 构建产物 ---
 # 可执行文件（编译器 shux / shux_x / shux-c 等）

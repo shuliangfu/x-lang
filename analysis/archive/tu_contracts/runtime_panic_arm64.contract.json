@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "tu": "runtime_panic_arm64",
+  "x_src": "src/asm/runtime_panic_arm64.x",
+  "seed_src": "seeds/runtime_panic_arm64.from_x.c",
+  "probe_dir": "../tests/probes/prove_x_o/runtime_panic_arm64",
+  "phase": "phase2_thin_rest",
+  "status": {
+    "prove_x_o": "ok",
+    "ld_r": "ok",
+    "smoke_probe": "pending",
+    "snapshot_compare": "pending"
+  },
+  "role": {
+    "x": "thin/.x provider",
+    "seed": "seed/rest provider"
+  },
+  "counts": {
+    "x_symbols": 2,
+    "seed_symbols": 3,
+    "only_x": 1,
+    "only_seed": 3
+  },
+  "symbols": {
+    "x": ["runtime_panic_arm64_x_doc_anchor", "shux_crash_evidence_minimal"],
+    "seed": ["shux_crash_evidence_collect_c", "shux_crash_evidence_minimal_impl", "shux_panic_"],
+    "only_x": ["runtime_panic_arm64_x_doc_anchor"],
+    "only_seed": ["shux_crash_evidence_collect_c", "shux_crash_evidence_minimal_impl", "shux_panic_"]
+  },
+  "rest_macro": "SHUX_RUNTIME_PANIC_ARM64_FROM_X",
+  "delete_seed_gate": {
+    "allowed_now": false,
+    "requirements": [
+      "provider boundary stabilized",
+      "ld -r validated",
+      "smoke or probe matched",
+      "no seed fallback on repeated builds"
+    ]
+  }
+}

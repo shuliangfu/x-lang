@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "tu": "rt_stack",
+  "x_src": "src/runtime/rt_stack.x",
+  "seed_src": "seeds/rt_stack.from_x.c",
+  "probe_dir": "../tests/probes/prove_x_o/rt_stack",
+  "phase": "phase2_thin_rest",
+  "status": {
+    "prove_x_o": "ok",
+    "ld_r": "ok",
+    "smoke_probe": "pending",
+    "snapshot_compare": "pending"
+  },
+  "role": {
+    "x": "thin/.x provider",
+    "seed": "seed/rest provider"
+  },
+  "counts": {
+    "x_symbols": 1,
+    "seed_symbols": 3,
+    "only_x": 0,
+    "only_seed": 3
+  },
+  "symbols": {
+    "x": ["driver_stack_esc_gate_large_stack"],
+    "seed": ["driver_stack_esc_gate_large_stack_impl", "driver_stack_esc_gate_thread_fn", "labi_rt_stack_slice_marker"],
+    "only_x": [],
+    "only_seed": ["driver_stack_esc_gate_large_stack_impl", "driver_stack_esc_gate_thread_fn", "labi_rt_stack_slice_marker"]
+  },
+  "rest_macro": "SHUX_RT_STACK_FROM_X",
+  "delete_seed_gate": {
+    "allowed_now": false,
+    "requirements": [
+      "provider boundary stabilized",
+      "ld -r validated",
+      "smoke or probe matched",
+      "no seed fallback on repeated builds"
+    ]
+  }
+}

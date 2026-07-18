@@ -1,0 +1,132 @@
+{
+  "schema_version": 1,
+  "tu": "async_liveness",
+  "x_src": "src/async/async_liveness.x",
+  "seed_src": "seeds/async_liveness.from_x.c",
+  "phase": "phase2_thin_rest",
+  "status": {
+    "prove_x_o": "ok",
+    "ld_r": "ok",
+    "smoke_probe": "pending",
+    "snapshot_compare": "pending"
+  },
+  "role": {
+    "x": "thin/.x provider (DIRECT mode, 18 direct + 16 helpers + 1 doc_anchor)",
+    "seed": "seed/rest provider (14 rest functions incl frame_build_tag)"
+  },
+  "counts": {
+    "x_symbols": 35,
+    "seed_symbols": 14,
+    "only_x": 16
+  },
+  "symbols": {
+    "x_direct": [
+      "expr_has_await",
+      "expr_count_await",
+      "block_has_await",
+      "block_count_await",
+      "async_liveness_callee_is_io_read",
+      "async_liveness_callee_is_io_write",
+      "expr_has_io_read_await",
+      "expr_has_io_write_await",
+      "block_has_io_read_await",
+      "block_has_io_write_await",
+      "expr_refs_var",
+      "block_refs_var",
+      "block_rest_refs_var",
+      "frame_live_add",
+      "frame_live_at_await",
+      "analyze_block_linear",
+      "live_name_cmp",
+      "frame_mangle_ident"
+    ],
+    "x_helpers_only": [
+      "async_live_analyze_at_await",
+      "async_live_cstr_copy64",
+      "async_live_cstr_eq",
+      "async_live_def_row",
+      "async_live_expr_kind",
+      "async_live_is_binop_kind",
+      "async_live_is_unary_kind",
+      "async_live_load_def_name",
+      "async_live_load_func_name",
+      "async_live_load_i32",
+      "async_live_load_ptr",
+      "async_live_ptr_at",
+      "async_liveness_x_doc_anchor",
+      "frame_live_load_n",
+      "frame_live_name_eq",
+      "frame_live_row_ptr",
+      "frame_live_store_n"
+    ],
+    "seed_rest": [
+      "frame_build_tag",
+      "async_liveness_lookup_var_type",
+      "async_liveness_type_to_c_buf",
+      "async_liveness_type_size_bytes_module",
+      "async_liveness_func_has_await",
+      "async_liveness_func_needs_cps_frame",
+      "async_liveness_expr_has_await",
+      "async_liveness_layout_func",
+      "async_liveness_layout_func_module",
+      "async_liveness_module_struct_in_frame",
+      "async_liveness_analyze_func",
+      "async_liveness_emit_codegen_comment",
+      "async_liveness_emit_frame_local",
+      "async_liveness_emit_frame_typedef"
+    ]
+  },
+  "rest_macro": "SHUX_ASYNC_LIVENESS_FROM_X",
+  "impl_residuals": [],
+  "direct_symbols": [
+    "expr_has_await",
+    "expr_count_await",
+    "block_has_await",
+    "block_count_await",
+    "async_liveness_callee_is_io_read",
+    "async_liveness_callee_is_io_write",
+    "expr_has_io_read_await",
+    "expr_has_io_write_await",
+    "block_has_io_read_await",
+    "block_has_io_write_await",
+    "expr_refs_var",
+    "block_refs_var",
+    "block_rest_refs_var",
+    "frame_live_add",
+    "frame_live_at_await",
+    "analyze_block_linear",
+    "live_name_cmp",
+    "frame_mangle_ident"
+  ],
+  "forward_decls": [
+    "expr_has_await",
+    "block_has_await",
+    "block_has_io_read_await",
+    "block_has_io_write_await",
+    "expr_count_await",
+    "block_count_await",
+    "expr_refs_var",
+    "block_refs_var",
+    "analyze_block_linear",
+    "frame_build_tag",
+    "frame_mangle_ident",
+    "live_name_cmp"
+  ],
+  "internal_call_rewrites": [],
+  "known_limitations": [
+    "frame_build_tag 为 rest 函数：.x 编译器静默跳过使用字符串字面量的函数（frame_build_tag 使用 \"fn\" 和 \"__shux_async_frame_\"），故始终由 seed 提供。frame_mangle_ident 不使用字符串字面量（用字节字面量 out[0]=102 表达 'f'），.x 能正常生成，保持 DIRECT",
+    "prove_x_o 需 SHUX_PROVE_SKIP_LINT=1 跳过预存 lint 问题（嵌套 if 和 &&/|| 操作符）"
+  ],
+  "platform_notes": "DIRECT 模式：18 个函数由 .x 提供。frame_build_tag 因字符串字面量限制保留 seed。rest 模式下 seed 提供 14 个 rest 函数。macOS merged 49 T；Ubuntu merged 49 T/W U=0",
+  "delete_seed_gate": {
+    "allowed_now": false,
+    "requirements": [
+      "provider boundary stabilized",
+      "ld -r validated",
+      "smoke or probe matched",
+      "no seed fallback on repeated builds",
+      "frame_build_tag 字符串字面量限制解决（需 .x 支持字符串字面量或在 .x 重写不使用字符串字面量）",
+      "14 个 rest 函数迁移到 .x"
+    ]
+  }
+}

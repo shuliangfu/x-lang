@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "tu": "runtime_net_sock_fast",
+  "x_src": "src/asm/runtime_net_sock_fast.x",
+  "seed_src": "seeds/runtime_net_sock_fast.from_x.c",
+  "phase": "phase2_thin_rest",
+  "status": {
+    "prove_x_o": "ok",
+    "ld_r": "ok",
+    "smoke_probe": "pending",
+    "snapshot_compare": "pending"
+  },
+  "role": {
+    "x": "thin/.x provider",
+    "seed": "seed/rest provider"
+  },
+  "counts": {
+    "x_symbols": 3,
+    "seed_symbols": 6,
+    "only_x": 1,
+    "only_seed": 6
+  },
+  "symbols": {
+    "x": ["runtime_net_sock_fast_x_doc_anchor", "net_ensure_wsa", "net_wsa_ctor"],
+    "seed": ["net_ensure_wsa_impl", "net_wsa_ctor_impl", "net_set_blocking_c", "net_close_socket_c", "net_tcp_listen_c", "net_udp_bind_c"],
+    "only_x": ["runtime_net_sock_fast_x_doc_anchor"],
+    "only_seed": ["net_ensure_wsa_impl", "net_wsa_ctor_impl", "net_set_blocking_c", "net_close_socket_c", "net_tcp_listen_c", "net_udp_bind_c"]
+  },
+  "rest_macro": "SHUX_RUNTIME_NET_SOCK_FAST_FROM_X",
+  "delete_seed_gate": {
+    "allowed_now": false,
+    "requirements": ["provider boundary stabilized", "ld -r validated", "smoke or probe matched", "no seed fallback on repeated builds"]
+  }
+}

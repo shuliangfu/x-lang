@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "tu": "runtime_net_dns_fast",
+  "x_src": "src/asm/runtime_net_dns_fast.x",
+  "seed_src": "seeds/runtime_net_dns_fast.from_x.c",
+  "phase": "phase2_thin_rest",
+  "status": {
+    "prove_x_o": "ok",
+    "ld_r": "ok",
+    "smoke_probe": "pending",
+    "snapshot_compare": "pending"
+  },
+  "role": {
+    "x": "thin/.x provider",
+    "seed": "seed/rest provider"
+  },
+  "counts": {
+    "x_symbols": 4,
+    "seed_symbols": 6,
+    "only_x": 1,
+    "only_seed": 6
+  },
+  "symbols": {
+    "x": ["runtime_net_dns_fast_x_doc_anchor", "net_dns_ai_addconfig_c", "net_dns_map_gai_error_c", "net_dns_ensure_wsa_c"],
+    "seed": ["net_dns_ai_addconfig_c_impl", "net_dns_map_gai_error_c_impl", "net_dns_ensure_wsa_c_impl", "net_resolve_ipv4_c", "net_resolve_ipv4_ex_c", "net_resolve_ipv6_ex_c"],
+    "only_x": ["runtime_net_dns_fast_x_doc_anchor"],
+    "only_seed": ["net_dns_ai_addconfig_c_impl", "net_dns_map_gai_error_c_impl", "net_dns_ensure_wsa_c_impl", "net_resolve_ipv4_c", "net_resolve_ipv4_ex_c", "net_resolve_ipv6_ex_c"]
+  },
+  "rest_macro": "SHUX_RUNTIME_NET_DNS_FAST_FROM_X",
+  "delete_seed_gate": {
+    "allowed_now": false,
+    "requirements": ["provider boundary stabilized", "ld -r validated", "smoke or probe matched", "no seed fallback on repeated builds"]
+  }
+}

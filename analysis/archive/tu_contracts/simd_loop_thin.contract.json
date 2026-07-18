@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "tu": "simd_loop_thin",
+  "x_src": "src/asm/simd_loop_thin.x",
+  "seed_src": "seeds/simd_loop.from_x.c",
+  "probe_dir": "../tests/probes/prove_x_o/simd_loop_thin",
+  "phase": "phase0_trial",
+  "status": {
+    "prove_x_o": "ok",
+    "ld_r": "pending",
+    "smoke_probe": "pending",
+    "snapshot_compare": "pending"
+  },
+  "role": {
+    "x": "thin wrapper / partial provider",
+    "seed": "rest provider (_impl residual present)"
+  },
+  "counts": {
+    "x_symbols": 22,
+    "seed_symbols": 39,
+    "only_x": 0,
+    "only_seed": 17
+  },
+  "symbols": {
+    "x": ["glue_block_let_init_lit_c", "glue_emit_f32_soa_sum_strip_c", "glue_emit_full_const_peel_c", "glue_emit_runtime_strip_loop_c", "glue_expr_same_var_c", "glue_f32_slot_rbp_disp32", "glue_index_uses_var_c", "glue_parse_f32_soa_sum_assign_c", "glue_parse_i_lt_bound_c", "glue_parse_i_plus_one_step_c", "glue_parse_index_binop_assign_c", "glue_simd_local_var_stack_off_c", "glue_simd_loop_cpu_features_c", "glue_simd_loop_emit_chunk_binop_c", "glue_simd_loop_pick_lanes_c", "glue_simd_x86_cmp_rax_rbx_c", "glue_soa_f32_col_rbp_disp32", "glue_try_simd_peel_f32_soa_sum_while_elf_c", "glue_try_simd_peel_index_add_while_elf_c", "glue_var_array_i32_size_c", "glue_var_array_size_c", "glue_var_is_array_i32_n_c"],
+    "seed": ["glue_block_let_init_lit_c", "glue_block_let_init_lit_c_impl", "glue_emit_f32_soa_sum_strip_c", "glue_emit_f32_soa_sum_strip_c_impl", "glue_emit_full_const_peel_c", "glue_emit_full_const_peel_c_impl", "glue_emit_runtime_strip_loop_c", "glue_emit_runtime_strip_loop_c_impl", "glue_expr_same_var_c", "glue_expr_same_var_c_impl", "glue_f32_slot_rbp_disp32", "glue_index_uses_var_c", "glue_index_uses_var_c_impl", "glue_parse_f32_soa_sum_assign_c", "glue_parse_f32_soa_sum_assign_c_impl", "glue_parse_i_lt_bound_c", "glue_parse_i_lt_bound_c_impl", "glue_parse_i_plus_one_step_c", "glue_parse_i_plus_one_step_c_impl", "glue_parse_index_binop_assign_c", "glue_parse_index_binop_assign_c_impl", "glue_simd_local_var_stack_off_c", "glue_simd_local_var_stack_off_c_impl", "glue_simd_loop_cpu_features_c", "glue_simd_loop_cpu_features_c_impl", "glue_simd_loop_emit_chunk_binop_c", "glue_simd_loop_emit_chunk_binop_c_impl", "glue_simd_loop_pick_lanes_c", "glue_simd_x86_cmp_rax_rbx_c", "glue_simd_x86_cmp_rax_rbx_c_impl", "glue_soa_f32_col_rbp_disp32", "glue_try_simd_peel_f32_soa_sum_while_elf_c", "glue_try_simd_peel_f32_soa_sum_while_elf_c_impl", "glue_try_simd_peel_index_add_while_elf_c", "glue_try_simd_peel_index_add_while_elf_c_impl", "glue_var_array_i32_size_c", "glue_var_array_size_c", "glue_var_array_size_c_impl", "glue_var_is_array_i32_n_c"],
+    "only_x": [],
+    "only_seed": ["glue_block_let_init_lit_c_impl", "glue_emit_f32_soa_sum_strip_c_impl", "glue_emit_full_const_peel_c_impl", "glue_emit_runtime_strip_loop_c_impl", "glue_expr_same_var_c_impl", "glue_index_uses_var_c_impl", "glue_parse_f32_soa_sum_assign_c_impl", "glue_parse_i_lt_bound_c_impl", "glue_parse_i_plus_one_step_c_impl", "glue_parse_index_binop_assign_c_impl", "glue_simd_local_var_stack_off_c_impl", "glue_simd_loop_cpu_features_c_impl", "glue_simd_loop_emit_chunk_binop_c_impl", "glue_simd_x86_cmp_rax_rbx_c_impl", "glue_try_simd_peel_f32_soa_sum_while_elf_c_impl", "glue_try_simd_peel_index_add_while_elf_c_impl", "glue_var_array_size_c_impl"]
+  },
+  "rest_macro": "",
+  "delete_seed_gate": {
+    "allowed_now": false,
+    "requirements": [
+      "provider boundary stabilized",
+      "ld -r validated",
+      "smoke or probe matched",
+      "no seed fallback on repeated builds"
+    ]
+  }
+}

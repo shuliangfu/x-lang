@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "tu": "runtime_net_udp_batch",
+  "x_src": "src/asm/runtime_net_udp_batch.x",
+  "seed_src": "seeds/runtime_net_udp_batch.from_x.c",
+  "phase": "phase2_thin_rest",
+  "status": {
+    "prove_x_o": "ok",
+    "ld_r": "ok",
+    "smoke_probe": "pending",
+    "snapshot_compare": "pending"
+  },
+  "role": {
+    "x": "thin/.x provider (IMPL mode)",
+    "seed": "seed/rest provider"
+  },
+  "counts": {
+    "x_symbols": 3,
+    "seed_symbols": 6,
+    "only_x": 1,
+    "only_seed": 6
+  },
+  "symbols": {
+    "x": [
+      "runtime_net_udp_batch_x_doc_anchor",
+      "shu_udp_batch_set_addr_port",
+      "shu_udp_batch_poll_readable"
+    ],
+    "seed": [
+      "shu_udp_batch_set_addr_port_impl",
+      "shu_udp_batch_poll_readable_impl",
+      "shu_net_udp_recvmmsg2_c",
+      "shu_net_udp_sendmmsg2_c",
+      "shu_net_udp_recvmmsg_buf_c",
+      "shu_net_udp_sendmmsg_buf_c"
+    ],
+    "only_x": ["runtime_net_udp_batch_x_doc_anchor"],
+    "only_seed": [
+      "shu_udp_batch_set_addr_port_impl",
+      "shu_udp_batch_poll_readable_impl",
+      "shu_net_udp_recvmmsg2_c",
+      "shu_net_udp_sendmmsg2_c",
+      "shu_net_udp_recvmmsg_buf_c",
+      "shu_net_udp_sendmmsg_buf_c"
+    ]
+  },
+  "rest_macro": "SHUX_RUNTIME_NET_UDP_BATCH_FROM_X",
+  "impl_residuals": ["shu_udp_batch_set_addr_port_impl", "shu_udp_batch_poll_readable_impl"],
+  "forward_decls": [
+    "shu_udp_batch_set_addr_port",
+    "shu_udp_batch_poll_readable"
+  ],
+  "internal_call_rewrites": [],
+  "known_limitations": [
+    "预存 bug（非本次切割引入）：seed 第 13 行 #if defined(__linux__) && defined(__GLIBC__) 在 #include 之前检查，但 __GLIBC__ 由 glibc 头文件定义而非 gcc 预定义宏。导致 seed 在 Ubuntu 上编译为空 .o（生产构建同样受影响）。_impl 和 4 个 weak API 函数在 Ubuntu 上从未被实际定义。修复需将 #if 检查移到 includes 之后或仅检查 __linux__，属独立 issue"
+  ],
+  "platform_notes": "整个 seed 主体在 #if defined(__linux__) && defined(__GLIBC__) 块内；thin wrapper 在 .x 中无平台条件；非 Linux 平台产生未引用的 T + U 对（与 runtime_dynlib_os / runtime_tls_mbedtls_bio 同模式）",
+  "delete_seed_gate": {
+    "allowed_now": false,
+    "requirements": [
+      "provider boundary stabilized",
+      "ld -r validated",
+      "smoke or probe matched",
+      "预存 __GLIBC__ bug 修复（独立 issue）",
+      "no seed fallback on repeated builds"
+    ]
+  }
+}

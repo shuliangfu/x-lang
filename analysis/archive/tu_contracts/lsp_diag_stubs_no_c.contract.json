@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "tu": "lsp_diag_stubs_no_c",
+  "x_src": "src/lsp/lsp_diag_stubs_no_c.x",
+  "seed_src": "seeds/lsp_diag_stubs_no_c.from_x.c",
+  "probe_dir": "../tests/probes/prove_x_o/lsp_diag_stubs_no_c",
+  "phase": "phase2_thin_rest",
+  "status": {
+    "prove_x_o": "ok",
+    "ld_r": "ok",
+    "smoke_probe": "pending",
+    "snapshot_compare": "pending"
+  },
+  "role": {
+    "x": "thin/.x provider",
+    "seed": "seed/rest provider"
+  },
+  "counts": {
+    "x_symbols": 3,
+    "seed_symbols": 33,
+    "only_x": 1,
+    "only_seed": 33
+  },
+  "symbols": {
+    "x": ["json_escape_str", "lsp_diag_copy_text", "lsp_diag_stubs_no_c_x_doc_anchor"],
+    "seed": ["json_escape_str_impl", "lsp_build_completion_response", "lsp_build_definition_response", "lsp_build_document_symbol_response", "lsp_build_formatting_response", "lsp_build_hover_response", "lsp_build_initialize_result", "lsp_build_references_response", "lsp_build_rename_response", "lsp_build_response_with_result", "lsp_debug_ptr", "lsp_debug_u32", "lsp_diag_add", "lsp_diag_add_code", "lsp_diag_clear", "lsp_diag_collect_begin", "lsp_diag_collect_end", "lsp_diag_copy_text_impl", "lsp_diag_count_severity", "lsp_diag_format_diagnostics_json", "lsp_diag_invalidate_cache", "lsp_diag_prepare_pipeline_ctx", "lsp_diag_print_stderr_human", "lsp_diag_report_typeck", "lsp_diag_report_typeck_code", "lsp_diag_x_arena_ptr", "lsp_diag_x_ctx_ptr", "lsp_diag_x_module_ptr", "lsp_diag_x_reset_parse_buffers", "lsp_get_document_len", "lsp_get_document_ptr", "lsp_set_document_from_body", "shu_format_x_document"],
+    "only_x": ["lsp_diag_stubs_no_c_x_doc_anchor"],
+    "only_seed": ["json_escape_str_impl", "lsp_build_completion_response", "lsp_build_definition_response", "lsp_build_document_symbol_response", "lsp_build_formatting_response", "lsp_build_hover_response", "lsp_build_initialize_result", "lsp_build_references_response", "lsp_build_rename_response", "lsp_build_response_with_result", "lsp_debug_ptr", "lsp_debug_u32", "lsp_diag_add", "lsp_diag_add_code", "lsp_diag_clear", "lsp_diag_collect_begin", "lsp_diag_collect_end", "lsp_diag_copy_text_impl", "lsp_diag_count_severity", "lsp_diag_format_diagnostics_json", "lsp_diag_invalidate_cache", "lsp_diag_prepare_pipeline_ctx", "lsp_diag_print_stderr_human", "lsp_diag_report_typeck", "lsp_diag_report_typeck_code", "lsp_diag_x_arena_ptr", "lsp_diag_x_ctx_ptr", "lsp_diag_x_module_ptr", "lsp_diag_x_reset_parse_buffers", "lsp_get_document_len", "lsp_get_document_ptr", "lsp_set_document_from_body", "shu_format_x_document"]
+  },
+  "rest_macro": "SHUX_LSP_DIAG_STUBS_NO_C_FROM_X",
+  "delete_seed_gate": {
+    "allowed_now": false,
+    "requirements": [
+      "provider boundary stabilized",
+      "ld -r validated",
+      "smoke or probe matched",
+      "no seed fallback on repeated builds"
+    ]
+  }
+}
