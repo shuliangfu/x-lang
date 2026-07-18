@@ -4384,9 +4384,19 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
                 }
             }
             /* PLATFORM: SHARED — push 与 ensure 解耦：needs_* early 路径已 push 时
-             * invoke_cc_argv_push_existing 因去重返回 0，不得跳过 glue ensure。 */
+             * invoke_cc_argv_push_existing 因去重返回 0，不得跳过 glue ensure。
+             * L4 wipe: formal time.o is gitignored; push_existing alone silent-skips
+             * → U std_time_* (tests/time). G.7: complete need_time like need_math/env. */
             if (need_time) {
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, time_o);
+                if (include_root && include_root[0])
+                    (void)shux_ensure_formal_std_make_o(include_root, "std/time/time.o",
+                                                        "../std/time/time.o");
+                {
+                    const char *time_push = shux_rel_o_path_from_argv0(include_root, "std/time/time.o");
+                    if ((!time_push || !time_push[0]) && time_o && time_o[0])
+                        time_push = time_o;
+                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, time_push);
+                }
                 (void)shux_ensure_runtime_time_os_o(NULL);
                 {
                     const char *rto = shux_runtime_time_os_o_path(NULL);
@@ -6810,6 +6820,28 @@ static int labi_std_fk0_user_needs_rel(const char *user_o, const char *rel) {
             || shux_link_obj_needs_undef_sym(user_o, "random_rng_smoke_c")
             || shux_link_obj_needs_undef_sym(user_o, "random_fill_bytes_c");
     /*
+     * PLATFORM: SHARED — formal time.o = mod.x (std_time_*); OS time_*_c in runtime_time_os.o.
+     * fk0 had no probes → plan always skipped time.o; cold/L4 wipe then only time_os
+     * (PRIMARY) or silent skip_missing on_demand → U std_time_* (tests/time BLD001).
+     * G.7: complete fk0 authority; companion ensure of time_os is in STD ensure block.
+     */
+    if (strstr(rel, "std/time/time.o"))
+        return shux_link_obj_needs_undef_sym(user_o, "std_time_now_monotonic_ns")
+            || shux_link_obj_needs_undef_sym(user_o, "std_time_now_monotonic_ms")
+            || shux_link_obj_needs_undef_sym(user_o, "std_time_now_wall_ns")
+            || shux_link_obj_needs_undef_sym(user_o, "std_time_sleep_ms")
+            || shux_link_obj_needs_undef_sym(user_o, "std_time_sleep_ns")
+            || shux_link_obj_needs_undef_sym(user_o, "std_time_duration_ns")
+            || shux_link_obj_needs_undef_sym(user_o, "std_time_timer_start")
+            || shux_link_obj_needs_undef_sym(user_o, "std_time_start")
+            || shux_link_obj_needs_undef_sym(user_o, "std_time_elapsed_ns")
+            || shux_link_obj_needs_undef_sym(user_o, "std_time_format_wall_rfc3339")
+            || shux_link_obj_needs_undef_sym(user_o, "std_time_wall_local_offset_min")
+            || shux_link_obj_needs_undef_sym(user_o, "std_time_format_timezone_smoke")
+            || shux_link_obj_needs_undef_sym(user_o, "time_now_monotonic_ns_c")
+            || shux_link_obj_needs_undef_sym(user_o, "time_sleep_ns_c")
+            || shux_link_obj_needs_undef_sym(user_o, "time_now_wall_ns_c");
+    /*
      * PLATFORM: SHARED — formal fs.o = mod.x + posix.x (std_fs_*); asm skips std.fs co-emit.
      * No plan entry / no probes → U std_fs_invalid (tests/fs/main) BLD001. G.7 complete fk0.
      */
@@ -7731,6 +7763,14 @@ void shux_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char *
         }
     }
     if (labi_od_user_needs_any_sym_table(user_o, labi_od_time_sym_count(), labi_od_time_sym_at)) {
+        /* PLATFORM: SHARED — L4 wipe drops formal time.o; push_obj skip_missing alone
+         * leaves U std_time_*. G.7: ensure formal before push (same as plan STD block). */
+        {
+            const char *include_root = shux_repo_root_from_argv0(link_argv0);
+            if (include_root && include_root[0])
+                (void)shux_ensure_formal_std_make_o(include_root, "std/time/time.o",
+                                                    "../std/time/time.o");
+        }
         if (shux_ensure_runtime_time_os_o(link_argv0) == 0)
             link_abi_asm_ld_push_obj(shux_runtime_time_os_o_path(link_argv0), link_argv0,
                                      labi_od_time_os_rel(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
