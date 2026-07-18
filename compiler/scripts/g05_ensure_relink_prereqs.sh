@@ -2819,8 +2819,14 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     fi
   done
   # LANG-007：host-local typeck_gen.c 可能缺 S0 边界委托；补丁后若变更则重编 typeck_x.o
-
-
+  # PLATFORM: SHARED — true cold deletes typeck_x.o but often leaves a stale host-local
+  # typeck_gen.c (gitignored). That stale file can predate product contracts (e.g. void main
+  # ret_kind allows ord_void=16). Always re-pin seed when typeck_x.o is missing so L4 does
+  # not compile an old gen that still returns -4 on `function main(): void`.
+  if [ ! -f typeck_x.o ] && [ -f seeds/typeck_gen.linux.x86_64.c ]; then
+    cp -f seeds/typeck_gen.linux.x86_64.c typeck_gen.c
+    echo "g05_ensure: typeck_gen.c ← seeds/typeck_gen.linux.x86_64.c (cold: missing typeck_x.o)"
+  fi
   if [ -f typeck_gen.c ] && [ -f scripts/patch_typeck_gen_lang007.py ]; then
     _tg_before=$(wc -c < typeck_gen.c | tr -d ' ')
     python3 scripts/patch_typeck_gen_lang007.py || true
