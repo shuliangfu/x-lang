@@ -8138,6 +8138,22 @@ static int32_t g_pipeline_elf_label_shndx[PIPELINE_ELF_CTX_TABLE_CAP];
 static int32_t g_pipeline_elf_patch_shndx[PIPELINE_ELF_CTX_TABLE_CAP];
 static int32_t g_pipeline_elf_reloc_shndx[PIPELINE_ELF_CTX_TABLE_CAP];
 
+/**
+ * PLATFORM: SHARED — SHN_COMMON object sidecar (module mutable lets → linker BSS).
+ * Declared before write_elf so standard/pgo writers can emit COMMON st_shndx/size.
+ */
+static uint8_t *g_pipeline_elf_common_owner;
+static uint8_t g_pipeline_elf_sym_is_common[PIPELINE_ELF_CTX_TABLE_CAP];
+static int32_t g_pipeline_elf_sym_common_size[PIPELINE_ELF_CTX_TABLE_CAP];
+static int32_t g_pipeline_elf_sym_common_align[PIPELINE_ELF_CTX_TABLE_CAP];
+
+static void pipeline_elf_common_sidecar_reset(uint8_t *ctx_bytes) {
+  g_pipeline_elf_common_owner = ctx_bytes;
+  memset(g_pipeline_elf_sym_is_common, 0, sizeof(g_pipeline_elf_sym_is_common));
+  memset(g_pipeline_elf_sym_common_size, 0, sizeof(g_pipeline_elf_sym_common_size));
+  memset(g_pipeline_elf_sym_common_align, 0, sizeof(g_pipeline_elf_sym_common_align));
+}
+
 /** 未显式记录时的默认 reloc 段索引。 */
 static int32_t pipeline_elf_default_reloc_shndx(void) {
   return pipeline_elf_pgo_hot_enabled() ? PIPELINE_ELF_SHNX_TEXT_UNLIKELY : PIPELINE_ELF_SHNX_TEXT;
@@ -9441,22 +9457,6 @@ int32_t pipeline_elf_ctx_pad_code_to_4(uint8_t *ctx_bytes) {
       return -1;
   }
   return 0;
-}
-
-/**
- * PLATFORM: SHARED — sidecar flags for SHN_COMMON object symbols (module mutable lets).
- * st_shndx=SHN_COMMON (0xfff2): linker allocates writable BSS; st_value=align, st_size=size.
- */
-static uint8_t *g_pipeline_elf_common_owner;
-static uint8_t g_pipeline_elf_sym_is_common[PIPELINE_ELF_CTX_TABLE_CAP];
-static int32_t g_pipeline_elf_sym_common_size[PIPELINE_ELF_CTX_TABLE_CAP];
-static int32_t g_pipeline_elf_sym_common_align[PIPELINE_ELF_CTX_TABLE_CAP];
-
-static void pipeline_elf_common_sidecar_reset(uint8_t *ctx_bytes) {
-  g_pipeline_elf_common_owner = ctx_bytes;
-  memset(g_pipeline_elf_sym_is_common, 0, sizeof(g_pipeline_elf_sym_is_common));
-  memset(g_pipeline_elf_sym_common_size, 0, sizeof(g_pipeline_elf_sym_common_size));
-  memset(g_pipeline_elf_sym_common_align, 0, sizeof(g_pipeline_elf_sym_common_align));
 }
 
 /** 记录导出符号；端口 elf.x elf_add_sym。 */
