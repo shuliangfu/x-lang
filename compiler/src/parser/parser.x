@@ -1247,7 +1247,8 @@ export function parse_as_suffix_into(arena: *ASTArena, source: u8[], out: *Parse
 
 
 /**
- * 解析 unary：(-|!) unary | primary；成功时写 out.expr_ref、out.next_lex。
+ * 解析 unary：(-|~|!|&|*) unary | await|run|spawn unary | primary。
+ * PLATFORM: SHARED — `~` → EXPR_BITNOT (LANG-006); authority is parser_asm_unary_slice.inc.
  */
 /** 单行 extern bl→parser_parse_unary_into_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */
 export extern function parser_parse_unary_into_glue(arena: *ASTArena, lex: Lexer, source: u8[], out: *ParseExprResult): void;

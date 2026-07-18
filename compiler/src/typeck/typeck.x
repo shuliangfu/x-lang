@@ -4008,6 +4008,51 @@ decl_kind: i32, init_kind: i32): i32 {
   }
 }
 
+/**
+ * Coerce bool-typed const/let init into an integer declaration type.
+ *
+ * Purpose: LOGAND/LOGOR/EQ..GE/LOGNOT resolve to TYPE_BOOL, while product
+ * code often writes `const V: i32 = (a && b) || c` (LANG-006 c_logical).
+ * CTFE already folds those trees to 0/1 in const_folded_*; this only rewrites
+ * resolved_type_ref so type_refs_equal accepts the declared integer.
+ *
+ * Parameters: init_ref must already be type-checked; decl_ty_ref is the
+ * annotated const/let type; decl_kind is pipeline_type_kind_ord_at(decl).
+ * Returns 1 if coercion applied, 0 if not applicable.
+ * PLATFORM: SHARED — language coerce rule; verify with lang-const c_logical.
+ */
+export function typeck_coerce_init_bool_to_int_decl(arena: *ASTArena, init_ref: i32, decl_ty_ref: i32,
+decl_kind: i32): i32 {
+  // PLATFORM: SHARED — LANG-006 bool→integer init coerce (not emit-side fold).
+  unsafe {
+    let ord_bool: i32 = 1;
+    let ord_i32: i32 = 0;
+    let ord_u8: i32 = 2;
+    let ord_u32: i32 = 3;
+    let ord_u64: i32 = 4;
+    let ord_i64: i32 = 5;
+    let ord_usize: i32 = 6;
+    let ord_isize: i32 = 7;
+    let init_res: i32 = 0;
+    let init_tk: i32 = 0;
+    if (decl_kind != ord_i32 && decl_kind != ord_u8 && decl_kind != ord_u32 &&
+        decl_kind != ord_u64 && decl_kind != ord_i64 && decl_kind != ord_usize &&
+        decl_kind != ord_isize) {
+      return 0;
+    }
+    init_res = pipeline_expr_resolved_type_ref(arena, init_ref);
+    if (ast.ref_is_null(init_res)) {
+      return 0;
+    }
+    init_tk = pipeline_type_kind_ord_at(arena, init_res);
+    if (init_tk != ord_bool) {
+      return 0;
+    }
+    pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
+    return 1;
+  }
+}
+
 /** let 初值：数组类型收窄为 slice 声明（元素类型须一致）。 */
 export function typeck_coerce_init_slice_from_array(arena: *ASTArena, init_ref: i32, decl_ty_ref: i32,
 decl_kind: i32): i32 {
@@ -4089,6 +4134,9 @@ decl_ty_ref: i32): i32 {
       return 1;
     }
     if (typeck_coerce_init_int_binop_to_decl(arena, init_ref, decl_ty_ref, decl_kind, init_kind) != 0) {
+      return 1;
+    }
+    if (typeck_coerce_init_bool_to_int_decl(arena, init_ref, decl_ty_ref, decl_kind) != 0) {
       return 1;
     }
     if (typeck_coerce_init_slice_from_array(arena, init_ref, decl_ty_ref, decl_kind) != 0) {

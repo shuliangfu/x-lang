@@ -2,7 +2,8 @@
  * parser_asm_unary_slice.inc — parse_unary_into C 实现。
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
- * 与 parser.x parse_unary_into 一致：await/run/spawn/-,!,& 前缀 + primary 回落。
+ * 与 parser.x parse_unary_into 一致：await/run/spawn/-/~/!/&/star 前缀 + primary 回落。
+ * PLATFORM: SHARED — unary authority; TOKEN_TILDE must map to EXPR_BITNOT (LANG-006).
  */
 #ifndef PARSER_ASM_UNARY_SLICE_INCLUDED
 #define PARSER_ASM_UNARY_SLICE_INCLUDED
@@ -10,6 +11,7 @@
 /** 与 ast.x ExprKind 序一致。 */
 enum {
   PARSER_ASM_EXPR_NEG = 22,
+  PARSER_ASM_EXPR_BITNOT = 23,
   PARSER_ASM_EXPR_LOGNOT = 24,
   PARSER_ASM_EXPR_ADDR_OF = 51,
   PARSER_ASM_EXPR_DEREF = 52,
@@ -895,6 +897,18 @@ void parser_asm_parse_unary_into_slice_c(void *arena, struct parser_asm_lexer le
     if (!out->ok)
       return;
     if (parser_asm_unary_wrap_operand_c(arena, out, PARSER_ASM_EXPR_NEG, out->expr_ref, kw_line, kw_col) == 0)
+      out->ok = 0;
+    return;
+  }
+  /* PLATFORM: SHARED — `~x` BITNOT (LANG-006 CTFE / unary residual). Lexer emits TOKEN_TILDE. */
+  if (r.tok.kind == (int32_t)TOKEN_TILDE) {
+    int32_t kw_line = r.tok.line;
+    int32_t kw_col = r.tok.col;
+    parser_asm_lex_from_result_val_into(&lex, r);
+    parser_parse_unary_into(arena, lex, source, out);
+    if (!out->ok)
+      return;
+    if (parser_asm_unary_wrap_operand_c(arena, out, PARSER_ASM_EXPR_BITNOT, out->expr_ref, kw_line, kw_col) == 0)
       out->ok = 0;
     return;
   }

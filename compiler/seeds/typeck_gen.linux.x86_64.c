@@ -669,6 +669,7 @@ struct ast_ASTArena {
 #define typeck_typeck_coerce_init_array_vector_lit_to_decl typeck_coerce_init_array_vector_lit_to_decl
 #define typeck_typeck_coerce_init_vector_binop_to_decl typeck_coerce_init_vector_binop_to_decl
 #define typeck_typeck_coerce_init_int_binop_to_decl typeck_coerce_init_int_binop_to_decl
+#define typeck_typeck_coerce_init_bool_to_int_decl typeck_coerce_init_bool_to_int_decl
 #define typeck_typeck_coerce_init_slice_from_array typeck_coerce_init_slice_from_array
 #define typeck_typeck_coerce_init_expr_to_decl typeck_coerce_init_expr_to_decl
 #define typeck_typeck_diag_append_lit typeck_diag_append_lit
@@ -1663,6 +1664,7 @@ extern int32_t typeck_vector_lanes_of_type(struct ast_ASTArena * arena, int32_t 
 extern int32_t typeck_coerce_init_array_vector_lit_to_decl(struct ast_ASTArena * arena, int32_t init_ref, int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind);
 extern int32_t typeck_coerce_init_vector_binop_to_decl(struct ast_ASTArena * arena, int32_t init_ref, int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind);
 extern int32_t typeck_coerce_init_int_binop_to_decl(struct ast_ASTArena * arena, int32_t init_ref, int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind);
+extern int32_t typeck_coerce_init_bool_to_int_decl(struct ast_ASTArena * arena, int32_t init_ref, int32_t decl_ty_ref, int32_t decl_kind);
 extern int32_t typeck_coerce_init_slice_from_array(struct ast_ASTArena * arena, int32_t init_ref, int32_t decl_ty_ref, int32_t decl_kind);
 extern int32_t typeck_coerce_init_expr_to_decl(struct ast_Module * module, struct ast_ASTArena * arena, int32_t init_ref, int32_t decl_ty_ref);
 extern int32_t typeck_diag_append_lit(uint8_t * out, int32_t pos, int32_t cap, uint8_t * lit, int32_t lit_len);
@@ -4936,6 +4938,35 @@ int32_t typeck_coerce_init_int_binop_to_decl(struct ast_ASTArena * arena, int32_
   return pipeline_typeck_coerce_init_int_binop_to_decl_c(arena, init_ref, decl_ty_ref, decl_kind, init_kind);
   return 0;
 }
+/* PLATFORM: SHARED — LANG-006: bool-typed LOGAND/LOGOR/EQ.. init into integer decl. */
+int32_t typeck_coerce_init_bool_to_int_decl(struct ast_ASTArena * arena, int32_t init_ref, int32_t decl_ty_ref, int32_t decl_kind) {
+  {
+    int32_t ord_bool = 1;
+    int32_t ord_i32 = 0;
+    int32_t ord_u8 = 2;
+    int32_t ord_u32 = 3;
+    int32_t ord_u64 = 4;
+    int32_t ord_i64 = 5;
+    int32_t ord_usize = 6;
+    int32_t ord_isize = 7;
+    int32_t init_res = 0;
+    int32_t init_tk = 0;
+    if (((((((decl_kind !=ord_i32) && (decl_kind !=ord_u8)) && (decl_kind !=ord_u32)) && (decl_kind !=ord_u64)) && (decl_kind !=ord_i64)) && (decl_kind !=ord_usize)) && (decl_kind !=ord_isize)) {
+      return 0;
+    }
+    (void)((init_res = pipeline_expr_resolved_type_ref(arena, init_ref)));
+    if (ast_ref_is_null(init_res)) {
+      return 0;
+    }
+    (void)((init_tk = pipeline_type_kind_ord_at(arena, init_res)));
+    if ((init_tk !=ord_bool)) {
+      return 0;
+    }
+    (void)(pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref));
+    return 1;
+  }
+  return 0;
+}
 int32_t typeck_coerce_init_slice_from_array(struct ast_ASTArena * arena, int32_t init_ref, int32_t decl_ty_ref, int32_t decl_kind) {
   {
     int32_t ord_type_slice = 11;
@@ -5002,6 +5033,9 @@ int32_t typeck_coerce_init_expr_to_decl(struct ast_Module * module, struct ast_A
       return 1;
     }
     if ((typeck_coerce_init_int_binop_to_decl(arena, init_ref, decl_ty_ref, decl_kind, init_kind) !=0)) {
+      return 1;
+    }
+    if ((typeck_coerce_init_bool_to_int_decl(arena, init_ref, decl_ty_ref, decl_kind) !=0)) {
       return 1;
     }
     if ((typeck_coerce_init_slice_from_array(arena, init_ref, decl_ty_ref, decl_kind) !=0)) {
