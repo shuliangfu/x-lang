@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // G-02f-1：原 lsp_diag_pipeline_sizes.inc 瘦 struct sizeof 真迁 .x。

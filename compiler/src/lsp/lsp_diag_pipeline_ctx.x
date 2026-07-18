@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // G-02f-28：真迁 .x — LSP pipeline ctx 尺寸桥 + typeck_ 前缀去前缀别名。

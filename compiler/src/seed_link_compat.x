@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // G-02f-28：真迁 .x — seed 链接兼容：LSP/heap 名桥 + 简单 weak 转发/回退桩。

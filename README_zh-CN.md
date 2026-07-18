@@ -180,7 +180,7 @@ SHUX_BSTRICT_SKIP_BUILD=1 ./tests/run-all-bstrict.sh   # 产品闸门（约 123 
 ```
 shux/
 ├── README.md / README_zh-CN.md
-├── LICENSE / NOTICE
+├── LICENSE · LICENSE.AGPL-3.0 · LICENSE.Apache-2.0 · NOTICE · CONTRIBUTING.md
 ├── build.x / shux-build.sh
 ├── 当前进度.md / 自举方法.md / 自举步骤.md
 ├── analysis/                 # 架构、RFC、进度仪表盘
@@ -413,21 +413,26 @@ shux/
 
 ## 十四、许可证
 
-默认 **GNU Affero General Public License v3.0 or later**（AGPL-3.0-or-later），除非 [`NOTICE`](NOTICE) 对某路径另有说明。
+Shux 采用 **分层授权**（语言库宽松；编译器 copyleft）。详见 [`LICENSE`](LICENSE) 与 [`NOTICE`](NOTICE)。
 
-| 组件 | 许可 |
-|------|------|
-| 默认（编译器、core、std …） | AGPL-3.0-or-later |
-| `editors/vscode` | MIT |
-| 内嵌 orlp ed25519（`compiler/seeds/crypto/ed25519/`） | zlib |
+| 层 | 路径 | 许可 |
+|----|------|------|
+| A — 工具链 | `compiler/`、`tools/`、根目录 `build*.x` | **AGPL-3.0-or-later**（[`LICENSE.AGPL-3.0`](LICENSE.AGPL-3.0)） |
+| B — 语言库 | `core/`、`std/` | **Apache-2.0**（[`LICENSE.Apache-2.0`](LICENSE.Apache-2.0)） |
+| 样例 | `examples/`、`tests/` | **Apache-2.0** |
+| 编辑器 | `editors/vscode` | **MIT** |
+| 编辑器 | `editors/tree-sitter-shux`、`editors/vim` | **Apache-2.0** |
+| 第三方 | `compiler/seeds/crypto/ed25519/`（orlp） | **zlib** |
 
-全文：[`LICENSE`](LICENSE)。版权与第三方地图：[`NOTICE`](NOTICE)。
+**意图：** 使用 `core`/`std` 编写的程序不会被强制 AGPL；修改或再分发 **编译器/工具链** 适用 AGPL（或商业条款）。
 
-### 商业许可
+贡献约定：[`CONTRIBUTING.md`](CONTRIBUTING.md)。
 
-若需 **AGPL 豁免**（闭源嵌入、商业分发、修改后的网络服务不提供对应源码等），请联系：
+### 商业许可（仅 Layer A）
 
-- 符书亮（Shuliang Fu）— [admin@shuliangfu.com](mailto:admin@shuliangfu.com)
+若需对 **编译器/工具链** 做 **AGPL 豁免**（闭源嵌入、闭源分发修改后的工具链、修改后的网络服务不提供对应源码等），请联系：
+
+- 舒良府（ShuLiangfu）— [admin@shuliangfu.com](mailto:admin@shuliangfu.com)
 
 ---
 

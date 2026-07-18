@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# 为 Shux 核心 .x 源文件批量 prepend AGPL 标准文件头（已含 SPDX 则跳过）。
+# Prepend layered SPDX headers to product .x sources (skip if any SPDX present).
+#   compiler/src  → AGPL-3.0-or-later
+#   core, std     → Apache-2.0
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-MARKER='SPDX-License-Identifier: AGPL-3.0-or-later'
 
-read -r -d '' HEADER <<'EOF' || true
-// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+HEADER_AGPL='// Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // This program is free software: you can redistribute it and/or modify
@@ -21,22 +21,47 @@ read -r -d '' HEADER <<'EOF' || true
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+// Full text: LICENSE.AGPL-3.0
+'
 
-EOF
+HEADER_APACHE='// Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
+// SPDX-License-Identifier: Apache-2.0
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+// Full text: LICENSE.Apache-2.0
+'
 
 added=0
 skipped=0
 
-while IFS= read -r -d '' file; do
-  if grep -qF "$MARKER" "$file"; then
-    skipped=$((skipped + 1))
-    continue
-  fi
-  tmp="$(mktemp)"
-  printf '%s\n' "$HEADER" > "$tmp"
-  cat "$file" >> "$tmp"
-  mv "$tmp" "$file"
-  added=$((added + 1))
-done < <(find "$ROOT/compiler/src" "$ROOT/core" "$ROOT/std" -name '*.x' -type f -print0)
+prepend_tree() {
+  local dir="$1"
+  local header="$2"
+  while IFS= read -r -d '' file; do
+    if grep -qF 'SPDX-License-Identifier:' "$file"; then
+      skipped=$((skipped + 1))
+      continue
+    fi
+    tmp="$(mktemp)"
+    printf '%s\n' "$header" > "$tmp"
+    cat "$file" >> "$tmp"
+    mv "$tmp" "$file"
+    added=$((added + 1))
+  done < <(find "$dir" -name '*.x' -type f -print0 2>/dev/null)
+}
 
-echo "license header: added=$added skipped=$skipped"
+prepend_tree "$ROOT/compiler/src" "$HEADER_AGPL"
+prepend_tree "$ROOT/core" "$HEADER_APACHE"
+prepend_tree "$ROOT/std" "$HEADER_APACHE"
+
+echo "license header: added=$added skipped=$skipped (layered AGPL/Apache)"

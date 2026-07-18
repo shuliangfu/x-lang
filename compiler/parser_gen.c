@@ -3359,10 +3359,33 @@ int parser_parse_body_lets_into(struct ast_ASTArena * arena, struct lexer_Lexer 
         }
       }
       if ((init_handled ==0)) {
+        /* G.7: FLOAT compound let-init mirrors TOKEN_INT (kind 80); bare lit keeps alloc_float_lit.
+         * PLATFORM: SHARED — body/mid-block lets. */
         if ((((r.tok).kind) ==81)) {
-          (void)((let_init_ref = parser_alloc_float_lit(arena, ((r.tok).float_val))));
+          double float_val_saved = ((r.tok).float_val);
+          size_t float_start = (r.token_start);
+          if ((float_start ==0)) {
+            (void)((float_start = (((r.next_lex).pos) - 1)));
+          }
+          struct lexer_Lexer float_lex = (struct lexer_Lexer){ .pos = float_start, .line = ((r.tok).line), .col = ((r.tok).col) };
           (void)(parser_lex_from_result_ptr_into(&(lex), &(r)));
           (void)(lexer_next_into(&(r), lex, source));
+          int float_init_plain = ((((((((((r.tok).kind) ==95) || (((r.tok).kind) ==2)) || (((r.tok).kind) ==3)) || (((r.tok).kind) ==11)) || (((r.tok).kind) ==4)) || (((r.tok).kind) ==6)) || (((r.tok).kind) ==8)) || (((r.tok).kind) ==85));
+          if (((((r.tok).kind) ==128) || !(float_init_plain))) {
+            (void)(parser_parse_expr_result_reset(&(expr_tmp), float_lex));
+            (void)(parser_parse_expr_into(arena, float_lex, source, &(expr_tmp)));
+            if (!((expr_tmp.ok))) {
+              (void)(((lex_out->pos) = (lex.pos)));
+              (void)(((lex_out->line) = (lex.line)));
+              (void)(((lex_out->col) = (lex.col)));
+              return 0;
+            }
+            (void)((let_init_ref = (expr_tmp.expr_ref)));
+            (void)(parser_lexer_copy_from_parse_expr_result_into(&(lex), &(expr_tmp)));
+            (void)(lexer_next_into(&(r), lex, source));
+          } else {
+            (void)((let_init_ref = parser_alloc_float_lit(arena, float_val_saved)));
+          }
           (void)((init_handled = 1));
         }
       }

@@ -180,7 +180,7 @@ Root [`build.x`](build.x) describes what to build. Daily entry: `./shux-build.sh
 ```
 shux/
 ├── README.md / README_zh-CN.md
-├── LICENSE / NOTICE
+├── LICENSE · LICENSE.AGPL-3.0 · LICENSE.Apache-2.0 · NOTICE · CONTRIBUTING.md
 ├── build.x / shux-build.sh
 ├── 当前进度.md / 自举方法.md / 自举步骤.md
 ├── analysis/                 # architecture, RFCs, progress dashboard
@@ -413,21 +413,26 @@ Plugin install: [`editors/vscode/README.md`](editors/vscode/README.md).
 
 ## 14. License
 
-**GNU Affero General Public License v3.0 or later** (AGPL-3.0-or-later), unless a path says otherwise in [`NOTICE`](NOTICE).
+Shux uses **layered licensing** (language libraries permissive; compiler copyleft). See [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE).
 
-| Component | License |
-|-----------|---------|
-| Default (compiler, core, std, …) | AGPL-3.0-or-later |
-| `editors/vscode` | MIT |
-| Vendored orlp ed25519 (`compiler/seeds/crypto/ed25519/`) | zlib |
+| Layer | Paths | License |
+|-------|--------|---------|
+| A — Toolchain | `compiler/`, `tools/`, root `build*.x` | **AGPL-3.0-or-later** ([`LICENSE.AGPL-3.0`](LICENSE.AGPL-3.0)) |
+| B — Language libs | `core/`, `std/` | **Apache-2.0** ([`LICENSE.Apache-2.0`](LICENSE.Apache-2.0)) |
+| Samples | `examples/`, `tests/` | **Apache-2.0** |
+| Editors | `editors/vscode` | **MIT** |
+| Editors | `editors/tree-sitter-shux`, `editors/vim` | **Apache-2.0** |
+| Third-party | `compiler/seeds/crypto/ed25519/` (orlp) | **zlib** |
 
-Full text: [`LICENSE`](LICENSE). Copyright & third-party map: [`NOTICE`](NOTICE).
+**Intent:** programs you write that use `core`/`std` are not forced under AGPL. Modifying or redistributing the **compiler/toolchain** is AGPL (or commercial terms).
 
-### Commercial licensing
+Contributing terms: [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
-For **AGPL exemption** (proprietary embedding, closed distribution, modified network services without offering corresponding source), contact:
+### Commercial licensing (Layer A only)
 
-- Shuliang Fu — [admin@shuliangfu.com](mailto:admin@shuliangfu.com)
+For **AGPL exemption on the compiler/toolchain** (proprietary embedding, closed distribution of modified toolchain, modified network services without offering corresponding source), contact:
+
+- ShuLiangfu — [admin@shuliangfu.com](mailto:admin@shuliangfu.com)
 
 ---
 

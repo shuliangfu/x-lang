@@ -1,6 +1,6 @@
-// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
-// SPDX-License-Identifier: AGPL-3.0-or-later
-//
+// Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
+// SPDX-License-Identifier: Apache-2.0
+
 // std.net.io_batch — F-04 v11：TcpStream 批量读写薄包装（→ std.io io_*）
 
 extern function io_read_batch(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize, n: i32, timeout_ms: u32): i32;

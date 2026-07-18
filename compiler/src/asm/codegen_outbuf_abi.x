@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // 极薄 ABI：仅提供 asm/elf 路径所需的 CodegenOutBuf 布局，避免 `asm.x -E`

@@ -2,7 +2,7 @@
 name = "tree-sitter-shux"
 description = "Shux grammar for tree-sitter"
 version = "0.0.1"
-license = "AGPL-3.0-or-later"
+license = "Apache-2.0"
 readme = "README.md"
 keywords = ["incremental", "parsing", "tree-sitter", "shux"]
 categories = ["parsing", "text-editors"]

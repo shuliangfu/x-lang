@@ -50,11 +50,11 @@ tree-sitter test
 
 ## License
 
-**AGPL-3.0-or-later** (same as the Shux repository default).
+**Apache-2.0** (same layer as Shux `core/` / `std/`; see repo-root layered map).
 
-- This directory: [`LICENSE`](LICENSE) (pointer to repo-root terms)
-- Full text: [`../../LICENSE`](../../LICENSE)
-- Notices / third-party: [`../../NOTICE`](../../NOTICE)
+- This directory: [`LICENSE`](LICENSE)
+- Full text: [`../../LICENSE.Apache-2.0`](../../LICENSE.Apache-2.0)
+- Project map / notices: [`../../LICENSE`](../../LICENSE) · [`../../NOTICE`](../../NOTICE)
 
 Package metadata (`package.json`, `Cargo.toml`, `pyproject.toml`) must stay
 aligned with this SPDX identifier.

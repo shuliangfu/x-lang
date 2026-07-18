@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // G-02f-34..44/47/53/55/56/64..70：真迁 .x — link_abi needs_* / 空 .o / bank / 路径 / ld 门闩。

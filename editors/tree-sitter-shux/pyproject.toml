@@ -9,13 +9,13 @@ version = "0.0.1"
 keywords = ["incremental", "parsing", "tree-sitter", "shux"]
 classifiers = [
   "Intended Audience :: Developers",
-  "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
+  "License :: OSI Approved :: Apache Software License",
   "Topic :: Software Development :: Compilers",
   "Topic :: Text Processing :: Linguistic",
   "Typing :: Typed"
 ]
 requires-python = ">=3.8"
-license.text = "AGPL-3.0-or-later"
+license.text = "Apache-2.0"
 readme = "README.md"
 
 [project.urls]

@@ -1,18 +1,18 @@
-// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
+// SPDX-License-Identifier: Apache-2.0
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 //
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU Affero General Public License for more details.
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
-// You should have received a copy of the GNU Affero General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+// Full text: LICENSE.Apache-2.0
 
 // core.mem — 内存操作、copy/move/set/compare、对齐（自举前最小实现）
 // 自举前：对齐查询 align_of_*；mem_copy（不重叠）、mem_set、mem_zero、mem_move（允许重叠）、mem_compare；mem_swap；is_alignment_power_of_two；align_up/align_down。
