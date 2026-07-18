@@ -14,10 +14,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// build.x — Shux 构建配置（对标 Zig 的
-// build.zig），目标是以本文件为唯一「构建策略」来源，最终去掉 Makefile。
-// 自举分层、Target B 与验收命令见 compiler/docs/SELFHOST.md（与 src/asm/README.md
-// Goal 2 互补）。
+// build.x — Shux project build strategy (what to build, in what order, which
+// products). Written in Shux; intended as the single build-policy source so
+// the toolchain can retire Makefile-centric workflows over time.
+// Entry: `shux build` / `build_tool` / `shux-build.sh`.
+// Bootstrap layers, Target B, and acceptance gates: compiler/docs/SELFHOST.md
+// (complements src/asm/README.md Goal 2).
 //
 //
 // ========================================================================
