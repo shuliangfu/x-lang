@@ -12307,23 +12307,60 @@ static int32_t glue_field_access_layout_field_type_ref_by_name_c(struct ast_ASTA
   return 0;
 }
 
-/** CALL 实参：named struct 字段须 lea 传址（v.al→alloc）。 */
+/**
+ * CALL 实参 FIELD_ACCESS：仅 MEMORY class（>16B）leave address in rax.
+ * PLATFORM: LINUX+MACOS x86_64 SysV —
+ * 9–16B INTEGER (Allocator/StrView) is by-value dual-GP — must dual-load, not lea.
+ * G.7: matches glue_call_param_named_struct_pass_addr_elf_c + dual-GP param home.
+ */
 static int32_t glue_field_access_call_arg_struct_by_addr_elf_c(struct ast_ASTArena *arena, int32_t fa_ref) {
   int32_t fty;
   if (!pipeline_asm_emit_call_arg_active_c())
     return 0;
-  if (g_pipeline_asm_emit_call_param_ty_ref > 0) {
-    if (pipeline_type_kind_ord_at(arena, g_pipeline_asm_emit_call_param_ty_ref) == GLUE_TYPE_NAMED)
-      return 1;
-    if (glue_call_param_named_struct_pass_addr_elf_c(arena, g_pipeline_asm_emit_call_param_ty_ref) != 0)
-      return 1;
-  }
+  if (g_pipeline_asm_emit_call_param_ty_ref > 0)
+    return glue_call_param_named_struct_pass_addr_elf_c(arena, g_pipeline_asm_emit_call_param_ty_ref);
   fty = glue_field_access_field_type_ref_c(arena, g_pipeline_asm_emit_module, fa_ref);
   if (fty <= 0 && g_pipeline_asm_emit_module)
     fty = glue_field_access_layout_field_type_ref_by_name_c(arena, g_pipeline_asm_emit_module, fa_ref);
-  if (fty > 0 && pipeline_type_kind_ord_at(arena, fty) == GLUE_TYPE_NAMED)
-    return 1;
+  if (fty > 0)
+    return glue_call_param_named_struct_pass_addr_elf_c(arena, fty);
   return 0;
+}
+
+/**
+ * After field lvalue address is in rax: load CALL-arg aggregate by SysV class.
+ * PLATFORM: LINUX+MACOS x86_64 SysV — 9–16B dual-load rax+rdx; ≤8B load 64.
+ * Returns 1 if handled, 0 if not a call-arg aggregate (use scalar load_sz), -1 on emit error.
+ */
+static int32_t glue_field_call_arg_try_load_agg_from_rax_elf_c(struct ast_ASTArena *arena,
+                                                               struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                               int32_t fa_ref, int32_t ta) {
+  int32_t fty;
+  int32_t sz;
+  if (!pipeline_asm_emit_call_arg_active_c() || !arena || !elf_ctx)
+    return 0;
+  fty = 0;
+  if (g_pipeline_asm_emit_call_param_ty_ref > 0 &&
+      pipeline_type_kind_ord_at(arena, g_pipeline_asm_emit_call_param_ty_ref) == GLUE_TYPE_NAMED)
+    fty = g_pipeline_asm_emit_call_param_ty_ref;
+  if (fty <= 0)
+    fty = glue_field_access_field_type_ref_c(arena, g_pipeline_asm_emit_module, fa_ref);
+  if (fty <= 0 && g_pipeline_asm_emit_module)
+    fty = glue_field_access_layout_field_type_ref_by_name_c(arena, g_pipeline_asm_emit_module, fa_ref);
+  if (fty <= 0 || pipeline_type_kind_ord_at(arena, fty) != GLUE_TYPE_NAMED)
+    return 0;
+  sz = glue_type_named_layout_size_any_module_elf_c(arena, fty);
+  if (sz <= 0)
+    sz = glue_type_size_simple(g_pipeline_asm_emit_module, arena, fty, 0);
+  if (sz <= 0)
+    return 0;
+  if (sz > 16)
+    return 0; /* MEMORY: address already in rax via by_addr path */
+  if (sz > 8)
+    return pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx, ta) != 0 ? -1 : 1;
+  if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
+    return -1;
+  return 1;
 }
 
 /**
@@ -12362,6 +12399,13 @@ static int32_t pipeline_asm_emit_var_field_access_elf_c(struct ast_ASTArena *are
     return -1;
   if (glue_field_access_call_arg_struct_by_addr_elf_c(arena, expr_ref) != 0)
     return 0;
+  {
+    int32_t agg = glue_field_call_arg_try_load_agg_from_rax_elf_c(arena, elf_ctx, expr_ref, ta);
+    if (agg < 0)
+      return -1;
+    if (agg > 0)
+      return 0;
+  }
   load_sz = pipeline_expr_field_access_load_byte_sz(arena, g_pipeline_asm_emit_module, expr_ref);
   if (load_sz == 1)
     return backend_enc_load_zext8_from_rax_arch(elf_ctx, ta);
@@ -12457,9 +12501,15 @@ static int32_t pipeline_asm_emit_field_access_elf_fast_c(struct ast_ASTArena *ar
   /** 链式 FIELD_ACCESS（v.al.kind 等）：lvalue 寻址 + load；勿落 backend slow（与 rec 互递归 SIGSEGV）。 */
   {
     int32_t load_sz;
+    int32_t agg;
     if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, expr_ref, ctx, ta) != 0)
       return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
     if (glue_field_access_call_arg_struct_by_addr_elf_c(arena, expr_ref) != 0)
+      return 0;
+    agg = glue_field_call_arg_try_load_agg_from_rax_elf_c(arena, elf_ctx, expr_ref, ta);
+    if (agg < 0)
+      return -1;
+    if (agg > 0)
       return 0;
     load_sz = pipeline_expr_field_access_load_byte_sz(arena, g_pipeline_asm_emit_module, expr_ref);
     if (load_sz == 1)
