@@ -7,9 +7,9 @@
 | **Language** | Shux |
 | **Compiler** | `shux` / `shux_asm` (product binary after bootstrap) |
 | **Source extension** | `.x` |
-| **Build config** | `build.x` (role similar to Zig’s `build.zig`) |
+| **Build config** | `build.x` — project build strategy in Shux (steps, targets, products); entry via `shux build` / `build_tool` / `shux-build.sh` |
 | **Status (2026-07-18)** | **Product L4 pin** dual green (macOS + Ubuntu true cold + `run-all-bstrict` **123/123** @ `5c8204ae`); freestanding S4 / vec / soft-typeck residuals largely closed on daily L2 tip; **self-host not finished** (seed / hybrid C still required for cold start) |
-| **Live dashboard** | [`analysis/自举进度.md`](analysis/自举进度.md) · daily snapshot [`当前进度.md`](当前进度.md) |
+| **Live dashboard** | [`analysis/自举进度.md`](analysis/自举进度.md) · daily snapshot [`analysis/当前进度.md`](analysis/当前进度.md) |
 | **中文** | [README_zh-CN.md](README_zh-CN.md) |
 
 ---
@@ -147,7 +147,7 @@ SHUX_BSTRICT_SKIP_BUILD=1 ./tests/run-all-bstrict.sh   # product gate suite (~12
 ./tests/run-freestanding-hello.sh
 ```
 
-For **self-host / product release claims**, the project requires **L4 true cold** (wipe all `.o` under `compiler`/`std`/`core`, rebuild binaries) **plus** dual-platform `run-all-bstrict` green. Details: skill / [`自举方法.md`](自举方法.md) · [`compiler/docs/SELFHOST.md`](compiler/docs/SELFHOST.md).  
+For **self-host / product release claims**, the project requires **L4 true cold** (wipe all `.o` under `compiler`/`std`/`core`, rebuild binaries) **plus** dual-platform `run-all-bstrict` green. Details: skill / [`analysis/自举方法.md`](analysis/自举方法.md) · [`compiler/docs/SELFHOST.md`](compiler/docs/SELFHOST.md).  
 **Note:** daily L2 green on tip ≠ tip L4 pin; current release pin is **`5c8204ae`** until the next dual cold re-pin (see dashboard).
 
 ---
@@ -182,8 +182,7 @@ shux/
 ├── README.md / README_zh-CN.md
 ├── LICENSE · LICENSE.AGPL-3.0 · LICENSE.Apache-2.0 · NOTICE · CONTRIBUTING.md
 ├── build.x / shux-build.sh
-├── 当前进度.md / 自举方法.md / 自举步骤.md
-├── analysis/                 # architecture, RFCs, progress dashboard
+├── analysis/                 # process docs + RFCs (当前进度 / 自举方法 / 自举步骤 / 问题分析 / 自举进度 …)
 ├── docs/                     # language syntax (user-facing)
 ├── compiler/                 # compiler (.x + seed C / glue)
 │   ├── src/                  # lexer, parser, typeck, codegen, asm, pipeline, driver, lsp
@@ -267,7 +266,7 @@ Link is **on demand** (unused modules stay out of the final link when possible).
 
 ## 8. Self-host status (snapshot · 2026-07-18)
 
-> **Authoritative live numbers**: [`analysis/自举进度.md`](analysis/自举进度.md) · daily [`当前进度.md`](当前进度.md).  
+> **Authoritative live numbers**: [`analysis/自举进度.md`](analysis/自举进度.md) · daily [`analysis/当前进度.md`](analysis/当前进度.md).  
 > README only summarizes; **do not** treat Stage2 / prove / WPO / daily L2 green as product release by itself.
 
 ### Product track
@@ -313,7 +312,7 @@ These are **on the product path** (user `-backend asm` / freestanding) and are t
 - **Not** “every daily L2 commit is tip L4” — pin stays until the next dual true cold + bstrict
 - Final physical zero-C / full seed elimination (**G**) is still roadmap, not the weekly claim surface
 
-Methodology: Cap / R / L / M → [`自举方法.md`](自举方法.md). Ops: [`compiler/docs/SELFHOST.md`](compiler/docs/SELFHOST.md). Discipline: [`AGENTS.md`](AGENTS.md) + skill `shux-selfhost-product-gate`.
+Methodology: Cap / R / L / M → [`analysis/自举方法.md`](analysis/自举方法.md). Ops: [`compiler/docs/SELFHOST.md`](compiler/docs/SELFHOST.md). Discipline: [`AGENTS.md`](AGENTS.md) + skill `shux-selfhost-product-gate`.
 
 ### Near-term front row (high level)
 
@@ -342,9 +341,9 @@ Methodology: Cap / R / L / M → [`自举方法.md`](自举方法.md). Ops: [`co
 | Document | Role |
 |----------|------|
 | [`analysis/自举进度.md`](analysis/自举进度.md) | **KPI dashboard** (must update each wave) |
-| [`当前进度.md`](当前进度.md) | Daily snapshot / front row |
-| [`自举方法.md`](自举方法.md) | Cap / R / L / M method |
-| [`自举步骤.md`](自举步骤.md) | Executable gates |
+| [`analysis/当前进度.md`](analysis/当前进度.md) | Daily snapshot / front row |
+| [`analysis/自举方法.md`](analysis/自举方法.md) | Cap / R / L / M method |
+| [`analysis/自举步骤.md`](analysis/自举步骤.md) | Executable gates |
 | [`docs/README.md`](docs/README.md) | Language docs index |
 | [`analysis/需求分析.md`](analysis/需求分析.md) | Goals, perf & safety strategy |
 | [`analysis/构架分析.md`](analysis/构架分析.md) | Repo / compiler layout |

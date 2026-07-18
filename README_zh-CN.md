@@ -7,9 +7,9 @@
 | **语言名** | Shux（舒克斯） |
 | **编译器** | `shux` / `shux_asm`（自举链路后的产品二进制） |
 | **源文件后缀** | `.x` |
-| **构建配置** | `build.x`（角色类似 Zig 的 `build.zig`） |
+| **构建配置** | `build.x` — 用 Shux 描述的项目构建策略（步骤、目标、产物）；由 `shux build` / `build_tool` / `shux-build.sh` 执行 |
 | **现阶段（2026-07-18）** | **产品 L4 钉盘** 双端绿（macOS + Ubuntu 真冷 + `run-all-bstrict` **123/123** @ `5c8204ae`）；freestanding S4 / vec / 软 typeck 等日常 L2 residual 已大部收口；**尚未宣称完全自举**（冷启动仍依赖 seed / 过渡 C） |
-| **进度仪表盘** | [`analysis/自举进度.md`](analysis/自举进度.md) · 当天快照 [`当前进度.md`](当前进度.md) |
+| **进度仪表盘** | [`analysis/自举进度.md`](analysis/自举进度.md) · 当天快照 [`analysis/当前进度.md`](analysis/当前进度.md) |
 | **English** | [README.md](README.md) |
 
 ---
@@ -147,7 +147,7 @@ SHUX_BSTRICT_SKIP_BUILD=1 ./tests/run-all-bstrict.sh   # 产品闸门（约 123 
 ./tests/run-freestanding-hello.sh
 ```
 
-凡谈**自举 / 产品放行**，项目要求 **L4 真冷**（擦除 `compiler`/`std`/`core` 下全部 `.o` 并重链二进制）+ **双端** `run-all-bstrict` 全绿。详见 [`自举方法.md`](自举方法.md)、[`compiler/docs/SELFHOST.md`](compiler/docs/SELFHOST.md)。  
+凡谈**自举 / 产品放行**，项目要求 **L4 真冷**（擦除 `compiler`/`std`/`core` 下全部 `.o` 并重链二进制）+ **双端** `run-all-bstrict` 全绿。详见 [`analysis/自举方法.md`](analysis/自举方法.md)、[`compiler/docs/SELFHOST.md`](compiler/docs/SELFHOST.md)。  
 **注意：** 日常 tip 的 L2 绿 **≠** tip L4 钉盘；当前放行钉盘为 **`5c8204ae`**，直到下次双端真冷重钉（见仪表盘）。
 
 ---
@@ -182,8 +182,7 @@ shux/
 ├── README.md / README_zh-CN.md
 ├── LICENSE · LICENSE.AGPL-3.0 · LICENSE.Apache-2.0 · NOTICE · CONTRIBUTING.md
 ├── build.x / shux-build.sh
-├── 当前进度.md / 自举方法.md / 自举步骤.md
-├── analysis/                 # 架构、RFC、进度仪表盘
+├── analysis/                 # 过程文档 + RFC（当前进度 / 自举方法 / 自举步骤 / 问题分析 / 自举进度 …）
 ├── docs/                     # 语言语法（面向用户）
 ├── compiler/                 # 编译器（.x + seed C / glue）
 │   ├── src/                  # lexer / parser / typeck / codegen / asm / pipeline / driver / lsp
@@ -267,7 +266,7 @@ shux/
 
 ## 八、自举状态（摘要 · 2026-07-18）
 
-> **实时数字以** [`analysis/自举进度.md`](analysis/自举进度.md) · 当天 [`当前进度.md`](当前进度.md) **为准**。  
+> **实时数字以** [`analysis/自举进度.md`](analysis/自举进度.md) · 当天 [`analysis/当前进度.md`](analysis/当前进度.md) **为准**。  
 > README 只给摘要；**禁止**把 Stage2 / prove / WPO / **日常 L2 绿**单独写成 tip 产品 L4 或完全自举。
 
 ### 产品轨
@@ -313,7 +312,7 @@ shux/
 - **未**把「每个日常 L2 commit」写成 tip L4 —— 钉盘只在下次双端真冷 + bstrict 后更新
 - 终局物理零 C / 彻底去掉 seed（**G**）仍在路线图，不是本周叙事
 
-方法：Cap / R / L / M → [`自举方法.md`](自举方法.md)。运维：[`compiler/docs/SELFHOST.md`](compiler/docs/SELFHOST.md)。纪律：[`AGENTS.md`](AGENTS.md) + skill `shux-selfhost-product-gate`。
+方法：Cap / R / L / M → [`analysis/自举方法.md`](analysis/自举方法.md)。运维：[`compiler/docs/SELFHOST.md`](compiler/docs/SELFHOST.md)。纪律：[`AGENTS.md`](AGENTS.md) + skill `shux-selfhost-product-gate`。
 
 ### 近端前排（高层）
 
@@ -342,9 +341,9 @@ shux/
 | 文档 | 内容 |
 |------|------|
 | [`analysis/自举进度.md`](analysis/自举进度.md) | **KPI 仪表盘**（每波必改） |
-| [`当前进度.md`](当前进度.md) | 当天快照 / 前排 |
-| [`自举方法.md`](自举方法.md) | Cap / R / L / M 方法 |
-| [`自举步骤.md`](自举步骤.md) | 可执行闸门 |
+| [`analysis/当前进度.md`](analysis/当前进度.md) | 当天快照 / 前排 |
+| [`analysis/自举方法.md`](analysis/自举方法.md) | Cap / R / L / M 方法 |
+| [`analysis/自举步骤.md`](analysis/自举步骤.md) | 可执行闸门 |
 | [`docs/README.md`](docs/README.md) | 语言文档目录 |
 | [`analysis/需求分析.md`](analysis/需求分析.md) | 总目标、性能与安全策略 |
 | [`analysis/构架分析.md`](analysis/构架分析.md) | 仓库与编译器划分 |

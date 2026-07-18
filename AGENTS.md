@@ -13,7 +13,7 @@
    - 一个问题如果在不同模块有多个表现，说明根因在更底层
    - **防「修这里坏那里」**（强制细则见 skill  
      `~/.grok/skills/shux-selfhost-product-gate/SKILL.md` → **「上帝视角纪律」**；  
-     现场地图见 `问题分析文档.md` §0.17 / §0.18）：
+     现场地图见 `analysis/问题分析文档.md` §0.17 / §0.18）：
      - 动手前五问：产生 / 存储 / 消费 / 同模式爆炸半径 / 最小回归集
      - **一条债一层一个 commit**；禁止批量改 std、改测试期望、soft-skip 糊绿顶编译器债
      - seed 与 `.x` / glue 副本同 commit；改后 Ubuntu 重建对应 `.o` + g05
@@ -65,6 +65,6 @@
   - 旧 `.o` / 旧二进制会藏 ensure/链接/std 入链等隐性错误；细则见 skill  
     `~/.grok/skills/shux-selfhost-product-gate/SKILL.md` §3 与 `references/true-cold-test.md`
 - 日常探针可用 L2/L3；**宣称冷测绿 / 可自举必须 L4**
-- **验证节奏（防 14 号假绿）**：日常微步 = **日常真测**（本波二进制 + 探针/矩阵）；**真冷全测**以 **整体功能 / 一波 Cap·R·M 收口** 为主闸门，**日终兜底**（当天动过产品面却未 L4）；禁止每微 commit 全量 L4，禁止只靠晚上、白天工程轨假绿。细则：`自举方法.md` §0.2 · skill §3.3
+- **验证节奏（防 14 号假绿）**：日常微步 = **日常真测**（本波二进制 + 探针/矩阵）；**真冷全测**以 **整体功能 / 一波 Cap·R·M 收口** 为主闸门，**日终兜底**（当天动过产品面却未 L4）；禁止每微 commit 全量 L4，禁止只靠晚上、白天工程轨假绿。细则：`analysis/自举方法.md` §0.2 · skill §3.3
 - 修改 `pipeline_glue.c` 或 `ast_pool.c` 后需在 Ubuntu 重建 `pipeline_x.o`
 - 修改 `pipeline_glue_strict_minimal` seed 后重建 `build_asm/pipeline_glue_strict_minimal.o` + g05
