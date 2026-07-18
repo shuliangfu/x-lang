@@ -11360,6 +11360,11 @@ static int32_t glue_load_var_as_value_to_rax_rdx_elf_c(struct platform_elf_ElfCo
     if (tr <= 0)
       tr = pipeline_expr_resolved_type_ref(arena, var_expr_ref);
     sz = glue_type_size_simple(g_pipeline_asm_emit_module, arena, tr, 0);
+    if (sz <= 16 && tr > 0) {
+      int32_t nsz = glue_type_named_layout_size_any_module_elf_c(arena, tr);
+      if (nsz > sz)
+        sz = nsz;
+    }
     if (sz > 8 && sz <= 16 && ta == 0)
       return pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx, ta);
     return 0;
@@ -11372,6 +11377,11 @@ static int32_t glue_load_var_as_value_to_rax_rdx_elf_c(struct platform_elf_ElfCo
   if (tr <= 0)
       tr = pipeline_expr_resolved_type_ref(arena, var_expr_ref);
   sz = glue_type_size_simple(g_pipeline_asm_emit_module, arena, tr, 0);
+  if (sz <= 16 && tr > 0) {
+    int32_t nsz = glue_type_named_layout_size_any_module_elf_c(arena, tr);
+    if (nsz > sz)
+      sz = nsz;
+  }
   if (sz > 8 && sz <= 16)
     return backend_enc_load_rbp_to_rdx_arch(elf_ctx, off - 8, ta);
   return 0;
@@ -13510,6 +13520,15 @@ static int32_t glue_store_retval_pair_to_rbp_elf_c(struct ast_Module *m, struct 
   if (!elf_ctx)
     return -1;
   sz = glue_type_size_simple(m, arena, ty_ref, 0);
+  /**
+   * Import named structs (Allocator) often size_simple=8 without entry layout;
+   * dep layout is 16 — must dual-store rax+rdx (formal C SysV return).
+   */
+  if (sz <= 16 && arena && ty_ref > 0) {
+    int32_t nsz = glue_type_named_layout_size_any_module_elf_c(arena, ty_ref);
+    if (nsz > sz)
+      sz = nsz;
+  }
   if (sz > 16 && init_ref > 0 && arena && pipeline_expr_kind_ord_at(arena, init_ref) == 48)
     return glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, slot_off, sz, ta);
   if (sz > 8 && sz <= 16 && init_ref > 0 && arena &&
@@ -13554,6 +13573,9 @@ int32_t pipeline_asm_call_arg_value_byte_size_c(struct ast_ASTArena *arena, stru
     tr = glue_var_decl_type_ref_elf_c(arena, ctx, arg_ref);
     if (tr > 0) {
       int32_t sz2 = glue_type_size_simple(g_pipeline_asm_emit_module, arena, tr, 0);
+      if (sz2 > sz)
+        sz = sz2;
+      sz2 = glue_type_named_layout_size_any_module_elf_c(arena, tr);
       if (sz2 > sz)
         sz = sz2;
     }
