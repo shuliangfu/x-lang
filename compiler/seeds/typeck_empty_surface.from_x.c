@@ -5161,11 +5161,14 @@ int32_t typeck_check_expr_as(struct ast_Module * module, struct ast_ASTArena * a
 }
 int32_t typeck_check_expr_struct_lit_field(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx, int32_t field_i, int32_t num_fields) {
   int32_t init_sl = 0;
+  int32_t no_expected = 0;
+  /* PLATFORM: SHARED — do not pass outer function return as field expected type. */
+  (void)return_type_ref;
   if ((field_i >=num_fields)) {
     return 0;
   }
   (void)((init_sl = pipeline_expr_struct_lit_init_ref(arena, expr_ref, field_i)));
-  if ((!(ast_ref_is_null(init_sl)) && (check_expr(module, arena, init_sl, return_type_ref, ctx) !=0))) {
+  if ((!(ast_ref_is_null(init_sl)) && (check_expr(module, arena, init_sl, no_expected, ctx) !=0))) {
     return -(1);
   }
   return typeck_check_expr_struct_lit_field(module, arena, expr_ref, return_type_ref, ctx, (field_i + 1), num_fields);

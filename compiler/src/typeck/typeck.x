@@ -5827,18 +5827,25 @@ ctx: *PipelineDepCtx): i32 {
 }
 
 /**
- * EXPR_STRUCT_LIT 字段 init 检查（递归步进；避免 while 内 check_expr 触发 EMIT_HEAVY codegen SIGSEGV）。
+ * EXPR_STRUCT_LIT field init check (recursive step; avoid while+check_expr EMIT_HEAVY SIGSEGV).
+ * PLATFORM: SHARED — field inits must NOT inherit the outer function/return expected type.
+ * Passing the callee return (e.g. Vec_i32) into heap.default_alloc() as expected ret polluted
+ * overload pick (METHOD_CALL expected_ret slot) → soft XT001 on freestanding co-emit new().
+ * Check with expected=0; layout coerce stamps field types after ensure_struct_layout.
+ * return_type_ref param kept for call-site API stability; unused for field init expected.
  */
 export function typeck_check_expr_struct_lit_field(module: *Module, arena: *ASTArena, expr_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx, field_i: i32, num_fields: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
     let init_sl: i32 = 0;
+    let no_expected: i32 = 0;
     if (field_i >= num_fields) {
       return 0;
     }
     init_sl = pipeline_expr_struct_lit_init_ref(arena, expr_ref, field_i);
-    if (!ast.ref_is_null(init_sl) && check_expr(module, arena, init_sl, return_type_ref, ctx) != 0) {
+    /* expected=0: do not pass outer function return type into field METHOD_CALL/CALL. */
+    if (!ast.ref_is_null(init_sl) && check_expr(module, arena, init_sl, no_expected, ctx) != 0) {
       return - 1;
     }
     return typeck_check_expr_struct_lit_field(module, arena, expr_ref, return_type_ref, ctx,
