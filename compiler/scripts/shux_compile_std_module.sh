@@ -448,6 +448,23 @@ if command -v nm >/dev/null 2>&1 && command -v objcopy >/dev/null 2>&1 && [ -f "
       fi
     done
   fi
+  # PLATFORM: SHARED — core.slice co-emits core_option_* bodies; when both mod.o and
+  # option.o are pushed (--allow-multiple-definition) the wrong is_some/unwrap can win
+  # (Ubuntu length.x asm exit 4 after i32 path). Localize co-emitted option APIs so
+  # option.o remains the global authority; internal get_* still bind locally. G.7.
+  if [ "$out_root" = "core" ] && [ "$leaf" = "slice" ]; then
+    nm "$out_o" 2>/dev/null | awk '/ [TDB] / { print $3 }' | while IFS= read -r sym; do
+      bare="$sym"
+      case "$sym" in
+        _*) bare="${sym#_}" ;;
+      esac
+      case "$bare" in
+        core_option_*)
+          objcopy --localize-symbol="$sym" "$out_o" 2>/dev/null || true
+          ;;
+      esac
+    done
+  fi
   for clash in free open close malloc realloc calloc getcwd chdir pipe exit getenv setenv unsetenv getpid getppid waitpid exec; do
     if nm "$out_o" 2>/dev/null | grep -q " T ${clash}$"; then
       # Prefer product export std_<leaf>_<clash> (e.g. std_env_getenv). *_api was a
