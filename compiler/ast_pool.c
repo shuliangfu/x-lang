@@ -4015,6 +4015,9 @@ int32_t pipeline_asm_hoist_target_func_index(struct ast_Module *m) {
 /**
  * 累加 module 顶层 let/const 栈占用（供非 hoist 目标函数的 frame_size 估算）。
  */
+/** pipeline_glue.c — x86_64 text-embedded module mutable lets (true cross-fn share). */
+extern int32_t pipeline_asm_modlet_name_is_shared(uint8_t *name, int32_t name_len);
+
 int32_t pipeline_asm_sum_module_top_level_lets_stack(struct ast_ASTArena *a, struct ast_Module *m, int32_t off) {
   ModuleSidecar *sc;
   int32_t tl;
@@ -4033,6 +4036,9 @@ int32_t pipeline_asm_sum_module_top_level_lets_stack(struct ast_ASTArena *a, str
       break;
     ent = (TopLevelLetEntry *)grow_vec_at(&sc->top_level_lets, tl);
     if (!ent || ent->type_ref <= 0)
+      continue;
+    /* Modlet cells live in .text, not the per-fn frame. */
+    if (ent->name_len > 0 && pipeline_asm_modlet_name_is_shared(ent->name, ent->name_len) != 0)
       continue;
     type_ref = ent->type_ref;
     init_ref = ent->init_ref;

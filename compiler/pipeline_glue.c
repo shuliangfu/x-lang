@@ -236,7 +236,19 @@ int32_t pipeline_elf_ctx_sym_shndx_at(uint8_t *ctx_bytes, int32_t idx);
 int32_t pipeline_elf_pgo_hot_enabled(void);
 void pipeline_elf_ctx_set_emit_hot(uint8_t *ctx_bytes, int32_t hot);
 int32_t pipeline_elf_ctx_append_bytes(uint8_t *ctx_bytes, uint8_t *ptr, int32_t n);
+int32_t pipeline_elf_ctx_emit_code_len(uint8_t *ctx_bytes);
+int32_t pipeline_elf_ctx_ensure_label(uint8_t *ctx_bytes, uint8_t *name, int32_t name_len);
+int32_t pipeline_elf_ctx_append_patch(uint8_t *ctx_bytes, int32_t rel32_offset, uint8_t *name, int32_t name_len,
+                                      int32_t imm_bits);
 int32_t pipeline_elf_write_o_pgo_to_buf(uint8_t *ctx_bytes, struct codegen_CodegenOutBuf *out);
+/** Module mutable lit shared storage (true cross-fn); defs near register_module_top_level_lets. */
+int32_t pipeline_asm_modlet_name_is_shared(uint8_t *name, int32_t name_len);
+static int32_t pipeline_asm_modlet_load_to_rax_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name,
+                                                     int32_t name_len, int32_t ta);
+static int32_t pipeline_asm_modlet_store_from_rax_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name,
+                                                        int32_t name_len, int32_t ta);
+static int32_t pipeline_asm_modlet_prepare_and_emit_elf_c(struct ast_Module *m, struct ast_ASTArena *a,
+                                                          struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 int32_t pipeline_elf_ctx_total_code_len(uint8_t *ctx_bytes);
 int32_t pipeline_asm_wpo_pgo_is_hot_func(struct ast_Module *m, int32_t fi);
 /** ast_pool.c WPO emit 序（#include 之后定义）；ELF mega 主循环前向声明。 */
@@ -9177,20 +9189,31 @@ int32_t pipeline_asm_emit_assign_elf_c(struct ast_ASTArena *arena, struct platfo
     uint8_t vname[64];
     int32_t vlen;
     int32_t off;
+    int32_t is_modlet;
     vlen = pipeline_expr_var_name_len(arena, left_ref);
     if (vlen <= 0 || vlen > 63)
       return -1;
     pipeline_expr_var_name_into(arena, left_ref, vname);
     glue_index_scratch_spill_invalidate_var(arena, elf_ctx, ctx, left_ref, ta);
+    is_modlet = pipeline_asm_modlet_name_is_shared(vname, vlen);
     off = asm_ctx_local_find_offset_scoped((uint8_t *)ctx, arena, vname, vlen);
     if (off < 0)
       off = asm_ctx_local_find_offset((uint8_t *)ctx, vname, vlen);
-    if (off < 0)
+    if (off < 0 && is_modlet == 0)
       return -1;
     /** 写 a 前失效 a 的槽命中，避免 rhs 仍用旧缓存。 */
-    glue_binop_var_slot_cache_invalidate_slot(off);
+    if (off >= 0)
+      glue_binop_var_slot_cache_invalidate_slot(off);
     if (glue_emit_assign_rhs_to_rax_elf_c(arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta) != 0)
       return -1;
+    /* Module shared mutable let: store to text cell (true cross-fn). Prefer over stack. */
+    if (is_modlet != 0) {
+      if (pipeline_asm_modlet_store_from_rax_elf_c(elf_ctx, vname, vlen, ta) != 0)
+        return -1;
+      if (off >= 0)
+        glue_binop_var_slot_cache_kill_def_at_slot(off);
+      return 0;
+    }
     {
       int32_t ltr = glue_var_decl_type_ref_elf_c(arena, ctx, left_ref);
       if (ltr > 0 && pipeline_type_kind_ord_at(arena, ltr) == GLUE_TYPE_KIND_F32_ORD) {
@@ -12727,6 +12750,12 @@ int32_t pipeline_asm_emit_expr_elf_fast(struct ast_ASTArena *arena, struct platf
     if (vlen <= 0)
       return -1;
     pipeline_expr_var_name_into(arena, expr_ref, vname);
+    /**
+     * Prefer module shared modlet over hoist/local stack so set_g/get_g see one cell
+     * (true cross-fn share; not const-fold).
+     */
+    if (pipeline_asm_modlet_load_to_rax_elf_c(elf_ctx, vname, vlen, ta) == 0)
+      return 0;
     off = glue_call_arg_resolve_var_stack_off_elf_c(arena, ctx, expr_ref);
     if (off < 0) {
       int32_t mod_imm;
@@ -16794,15 +16823,246 @@ void pipeline_asm_module_func_param_name_copy32(struct ast_Module *m, int32_t fu
 }
 
 /**
+ * PLATFORM: SHARED (x86_64 asm) — module-level mutable lit lets as true cross-fn storage.
+ *
+ * Root issue: per-fn stack copies of top-level `let g` make set_g/get_g observe different slots.
+ * True ELF .bss is not fully wired yet; text-embedded 8B cells + RIP lea give one storage per
+ * TU (same link-time image, all funcs). Const lit still use imm path; non-x86 keeps stack path.
+ *
+ * Authority for load/store of covered names: modlet path below (not per-fn register + rbp).
+ */
+#define SHUX_ASM_MODLET_MAX 64
+typedef struct {
+  int32_t n;
+  int32_t name_len[SHUX_ASM_MODLET_MAX];
+  uint8_t name[SHUX_ASM_MODLET_MAX][64];
+  int32_t label_len[SHUX_ASM_MODLET_MAX];
+  uint8_t label[SHUX_ASM_MODLET_MAX][24];
+  int32_t init_imm[SHUX_ASM_MODLET_MAX];
+} pipeline_asm_modlet_table_t;
+
+static pipeline_asm_modlet_table_t g_pipeline_asm_modlet;
+
+static void pipeline_asm_modlet_reset(void) {
+  g_pipeline_asm_modlet.n = 0;
+}
+
+/** 1 if name is a text-embedded module shared mutable let for this mega emit. */
+int32_t pipeline_asm_modlet_name_is_shared(uint8_t *name, int32_t name_len) {
+  int32_t i;
+  int32_t k;
+  if (!name || name_len <= 0 || g_pipeline_asm_modlet.n <= 0)
+    return 0;
+  for (i = 0; i < g_pipeline_asm_modlet.n; i++) {
+    if (g_pipeline_asm_modlet.name_len[i] != name_len)
+      continue;
+    for (k = 0; k < name_len; k++) {
+      if (g_pipeline_asm_modlet.name[i][k] != name[k])
+        break;
+    }
+    if (k == name_len)
+      return 1;
+  }
+  return 0;
+}
+
+static int32_t pipeline_asm_modlet_find(uint8_t *name, int32_t name_len) {
+  int32_t i;
+  int32_t k;
+  if (!name || name_len <= 0)
+    return -1;
+  for (i = 0; i < g_pipeline_asm_modlet.n; i++) {
+    if (g_pipeline_asm_modlet.name_len[i] != name_len)
+      continue;
+    for (k = 0; k < name_len; k++) {
+      if (g_pipeline_asm_modlet.name[i][k] != name[k])
+        break;
+    }
+    if (k == name_len)
+      return i;
+  }
+  return -1;
+}
+
+/**
+ * PLATFORM: LINUX|UBUNTU x86_64 (and macOS x86_64 host) — lea rbx, [rip+label].
+ * Uses label patch (same machinery as enc_jmp); does not clobber rax.
+ */
+static int32_t pipeline_asm_modlet_lea_rbx_rip_x86(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t idx) {
+  uint8_t *cb;
+  uint8_t lea7[7];
+  int32_t rel32_at;
+  int32_t llen;
+  uint8_t *lname;
+  if (!elf_ctx || idx < 0 || idx >= g_pipeline_asm_modlet.n)
+    return -1;
+  cb = (uint8_t *)elf_ctx;
+  llen = g_pipeline_asm_modlet.label_len[idx];
+  lname = g_pipeline_asm_modlet.label[idx];
+  /* 48 8d 1d disp32  →  lea rbx, [rip+disp32] */
+  lea7[0] = 0x48;
+  lea7[1] = 0x8d;
+  lea7[2] = 0x1d;
+  lea7[3] = 0;
+  lea7[4] = 0;
+  lea7[5] = 0;
+  lea7[6] = 0;
+  if (pipeline_elf_ctx_append_bytes(cb, lea7, 7) != 0)
+    return -1;
+  rel32_at = pipeline_elf_ctx_emit_code_len(cb) - 4;
+  if (pipeline_elf_ctx_ensure_label(cb, lname, llen) != 0)
+    return -1;
+  return pipeline_elf_ctx_append_patch(cb, rel32_at, lname, llen, 0);
+}
+
+/** Load shared modlet cell into rax. 0=ok, -1=miss/err. */
+static int32_t pipeline_asm_modlet_load_to_rax_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name,
+                                                     int32_t name_len, int32_t ta) {
+  int32_t idx;
+  if (ta != 0 || !elf_ctx)
+    return -1;
+  idx = pipeline_asm_modlet_find(name, name_len);
+  if (idx < 0)
+    return -1;
+  if (pipeline_asm_modlet_lea_rbx_rip_x86(elf_ctx, idx) != 0)
+    return -1;
+  return backend_enc_load_qword_from_rbx_to_rax_arch(elf_ctx, ta);
+}
+
+/** Store rax into shared modlet cell. 0=ok, -1=miss/err. */
+static int32_t pipeline_asm_modlet_store_from_rax_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name,
+                                                        int32_t name_len, int32_t ta) {
+  int32_t idx;
+  if (ta != 0 || !elf_ctx)
+    return -1;
+  idx = pipeline_asm_modlet_find(name, name_len);
+  if (idx < 0)
+    return -1;
+  if (pipeline_asm_modlet_lea_rbx_rip_x86(elf_ctx, idx) != 0)
+    return -1;
+  return backend_enc_store_rax_to_rbx_indirect_arch(elf_ctx, 8, ta);
+}
+
+/**
+ * PLATFORM: SHARED x86_64 — once per mega emit: jmp over cells, label each 8B init, skip.
+ * Builds g_pipeline_asm_modlet for load/store authority.
+ */
+static int32_t pipeline_asm_modlet_prepare_and_emit_elf_c(struct ast_Module *m, struct ast_ASTArena *a,
+                                                          struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
+  int32_t tl;
+  int32_t n;
+  int32_t i;
+  uint8_t skip_lbl[24];
+  int32_t skip_len;
+  uint8_t z8[8];
+  pipeline_asm_modlet_reset();
+  if (!m || !a || !elf_ctx || ta != 0 || m->num_top_level_lets <= 0)
+    return 0;
+  n = m->num_top_level_lets;
+  for (tl = 0; tl < n; tl++) {
+    int32_t name_len;
+    int32_t init_ref;
+    int32_t init_kind;
+    int32_t k;
+    int32_t is_const;
+    int32_t idx;
+    if (g_pipeline_asm_modlet.n >= SHUX_ASM_MODLET_MAX)
+      break;
+    is_const = pipeline_module_top_level_let_is_const(m, tl);
+    if (is_const != 0)
+      continue;
+    name_len = pipeline_module_top_level_let_name_len(m, tl);
+    if (name_len <= 0 || name_len > 63)
+      continue;
+    init_ref = pipeline_module_top_level_let_init_ref(m, tl);
+    if (init_ref <= 0 || init_ref > a->num_exprs)
+      continue;
+    init_kind = pipeline_expr_kind_ord_at(a, init_ref);
+    if (init_kind != 0 && init_kind != 2)
+      continue;
+    idx = g_pipeline_asm_modlet.n;
+    g_pipeline_asm_modlet.name_len[idx] = name_len;
+    for (k = 0; k < name_len; k++)
+      g_pipeline_asm_modlet.name[idx][k] = pipeline_module_top_level_let_name_byte_at(m, tl, k);
+    g_pipeline_asm_modlet.init_imm[idx] = pipeline_expr_int_val_at(a, init_ref);
+    /* Label: Lshux_ml_<idx> */
+    {
+      int32_t llen = 0;
+      const char *pfx = "Lshux_ml_";
+      int32_t di;
+      int32_t v = idx;
+      uint8_t digs[8];
+      int32_t nd = 0;
+      while (pfx[llen] != 0 && llen < 16) {
+        g_pipeline_asm_modlet.label[idx][llen] = (uint8_t)pfx[llen];
+        llen++;
+      }
+      if (v == 0) {
+        digs[0] = (uint8_t)'0';
+        nd = 1;
+      } else {
+        while (v > 0 && nd < 8) {
+          digs[nd++] = (uint8_t)('0' + (v % 10));
+          v /= 10;
+        }
+      }
+      for (di = nd - 1; di >= 0 && llen < 23; di--)
+        g_pipeline_asm_modlet.label[idx][llen++] = digs[di];
+      g_pipeline_asm_modlet.label_len[idx] = llen;
+    }
+    g_pipeline_asm_modlet.n = idx + 1;
+  }
+  if (g_pipeline_asm_modlet.n <= 0)
+    return 0;
+  /* skip label after all cells */
+  {
+    const char *sp = "Lshux_ml_skip";
+    skip_len = 0;
+    while (sp[skip_len] != 0 && skip_len < 23) {
+      skip_lbl[skip_len] = (uint8_t)sp[skip_len];
+      skip_len++;
+    }
+  }
+  if (backend_enc_jmp_arch(elf_ctx, skip_lbl, skip_len, ta) != 0)
+    return -1;
+  for (i = 0; i < g_pipeline_asm_modlet.n; i++) {
+    int32_t imm = g_pipeline_asm_modlet.init_imm[i];
+    if (backend_enc_label_arch(elf_ctx, g_pipeline_asm_modlet.label[i], g_pipeline_asm_modlet.label_len[i], 0, ta) !=
+        0)
+      return -1;
+    z8[0] = (uint8_t)(imm & 255);
+    z8[1] = (uint8_t)((imm >> 8) & 255);
+    z8[2] = (uint8_t)((imm >> 16) & 255);
+    z8[3] = (uint8_t)((imm >> 24) & 255);
+    /* sign-extend high for negative imm (e.g. heap_trace_on = -1) */
+    if (imm < 0) {
+      z8[4] = 0xff;
+      z8[5] = 0xff;
+      z8[6] = 0xff;
+      z8[7] = 0xff;
+    } else {
+      z8[4] = 0;
+      z8[5] = 0;
+      z8[6] = 0;
+      z8[7] = 0;
+    }
+    if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, z8, 8) != 0)
+      return -1;
+  }
+  if (backend_enc_label_arch(elf_ctx, skip_lbl, skip_len, 0, ta) != 0)
+    return -1;
+  return 0;
+}
+
+/**
  * 非 hoist 目标函数：将 module 顶层 let/const 登记到 asm sidecar（g_mem_fence_seq 等跨函数 VAR）。
  */
 /**
  * PLATFORM: SHARED — register module top-level lets into a non-hoist function frame.
  *
  * True `const` with lit/bool init stay unregistered: loads use asm_module_top_level_const_lit_i32
- * imm path (bug ①). Mutable `let` with lit init (e.g. heap_trace counters) MUST register so
- * EXPR_ASSIGN can store; freestanding co-emit hits this for std.heap.libc (CG002).
- * Per-function stack copies are not true ELF .bss sharing — full BSS is a follow-on residual.
+ * imm path (bug ①). Mutable lit lets covered by modlet (x86_64 text cells) skip stack — true
+ * cross-fn share. Other mutable / non-lit still register for ASSIGN (CG002 residual shapes).
  */
 static void pipeline_asm_register_module_top_level_lets_c(struct backend_AsmFuncCtx *ctx, struct ast_Module *m,
                                                            struct ast_ASTArena *a, int32_t func_index) {
@@ -16834,12 +17094,15 @@ static void pipeline_asm_register_module_top_level_lets_c(struct backend_AsmFunc
       name_buf[k] = pipeline_module_top_level_let_name_byte_at(m, tl, k);
     if (asm_ctx_local_find_offset((uint8_t *)ctx, name_buf, name_len) >= 0)
       continue;
+    /* Shared modlet cell: do not allocate per-fn stack. */
+    if (pipeline_asm_modlet_name_is_shared(name_buf, name_len) != 0)
+      continue;
     type_ref = pipeline_module_top_level_let_type_ref(m, tl);
     init_ref = pipeline_module_top_level_let_init_ref(m, tl);
     is_const = pipeline_module_top_level_let_is_const(m, tl);
     /**
      * Skip only true const + lit/bool init (imm load path). Mutable lit let (is_const=0)
-     * must register for ASSIGN (heap_trace_note_alloc: shu_heap_trace_* = …).
+     * must register for ASSIGN when not on modlet (heap_trace co-emit on non-x86).
      */
     if (is_const != 0 && init_ref > 0 && init_ref <= a->num_exprs) {
       int32_t init_kind = pipeline_expr_kind_ord_at(a, init_ref);
@@ -16859,6 +17122,7 @@ static void pipeline_asm_register_module_top_level_lets_c(struct backend_AsmFunc
  * PLATFORM: SHARED — after prologue on non-hoist funcs, seed registered mutable top-level lit
  * slots with their init imm so first load is not garbage (trace_on = -1, counters = 0).
  * Hoist target already prepends real lets with inits; skip here.
+ * Modlet-covered names are inited once in the text blob — skip per-fn seed.
  */
 static int32_t pipeline_asm_emit_module_top_level_mutable_lit_inits_elf_c(
     struct ast_ASTArena *a, struct platform_elf_ElfCodegenCtx *elf_ctx, struct backend_AsmFuncCtx *ctx,
@@ -16886,6 +17150,8 @@ static int32_t pipeline_asm_emit_module_top_level_mutable_lit_inits_elf_c(
     for (k = 0; k < name_len; k++)
       name_buf[k] = pipeline_module_top_level_let_name_byte_at(m, tl, k);
     name_buf[name_len] = 0;
+    if (pipeline_asm_modlet_name_is_shared(name_buf, name_len) != 0)
+      continue;
     off = asm_ctx_local_find_offset((uint8_t *)ctx, name_buf, name_len);
     if (off < 0)
       continue;
@@ -20156,6 +20422,15 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(struct ast_Module *m
   pipeline_asm_wpo_pgo_emit_order_prepare(m);
   start_skip = asm_diag_start_func_skip();
   emit_n = pipeline_asm_wpo_pgo_emit_order_count(m);
+  /**
+   * PLATFORM: SHARED x86_64 — emit text-embedded module mutable lit cells once before funcs
+   * so set_g/get_g share storage (not per-fn stack). Non-x86: no-op, stack residual.
+   */
+  if (pipeline_asm_modlet_prepare_and_emit_elf_c(m, a, elf_ctx, ta) != 0) {
+    if (getenv("SHUX_ASM_DEBUG"))
+      fprintf(stderr, "shux: mega_body_c modlet prepare fail\n");
+    return -1;
+  }
   if (getenv("SHUX_ASM_DEBUG"))
     fprintf(stderr, "shux: mega_body_c start emit_n=%d start_skip=%d nf=%d\n", (int)emit_n, (int)start_skip,
             (int)pipeline_module_num_funcs(m));
