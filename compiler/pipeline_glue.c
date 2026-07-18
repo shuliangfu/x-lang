@@ -11581,7 +11581,15 @@ static int32_t glue_load_var_as_value_to_rax_rdx_elf_c(struct platform_elf_ElfCo
   return 0;
 }
 
-/** CALL 形参 named struct 是否 >8B（含 dep 模块 layout 回落；import Allocator 等）。 */
+/**
+ * CALL 形参 named struct 是否 >8B（含 dep 模块 layout 回落；import Allocator 等）。
+ * PLATFORM: SHARED (layout size) / LINUX+MACOS x86_64 SysV (call class consumers).
+ *
+ * Root (Option_u8 named=24): dep layout field type_refs live in **dep arena**.
+ * Sizing them with the caller arena reinterprets indices (e.g. bool → TYPE_SLICE 16)
+ * → metrics bool@16 + u8@1 + pad → 24 → false sret. G.7: size dep layouts only
+ * with pipeline_dep_ctx_arena_at (same contract as typeck_merge field mapping).
+ */
 static int32_t glue_type_named_layout_size_any_module_elf_c(struct ast_ASTArena *arena, int32_t ty_ref) {
   uint8_t name[64];
   int32_t nlen;
@@ -11593,9 +11601,10 @@ static int32_t glue_type_named_layout_size_any_module_elf_c(struct ast_ASTArena 
   int32_t k;
   int32_t j;
   struct ast_Module *dm;
+  struct ast_ASTArena *darena;
   if (!arena || ty_ref <= 0 || pipeline_type_kind_ord_at(arena, ty_ref) != GLUE_TYPE_NAMED)
     return 0;
-  /** After size_simple has dep bare-name match, trust it when >8. */
+  /** After size_simple has layout match, trust it when >8 (MEMORY / dual-GP widen). */
   sz = glue_type_size_simple(g_pipeline_asm_emit_module, arena, ty_ref, 0);
   if (sz > 8)
     return sz;
@@ -11612,11 +11621,13 @@ static int32_t glue_type_named_layout_size_any_module_elf_c(struct ast_ASTArena 
     nd = pipeline_dep_ctx_ndep(g_pipeline_asm_emit_dep_pipe);
     for (di = 0; di < nd; di++) {
       dm = pipeline_dep_ctx_module_at(g_pipeline_asm_emit_dep_pipe, di);
-      if (!dm)
+      darena = pipeline_dep_ctx_arena_at(g_pipeline_asm_emit_dep_pipe, di);
+      if (!dm || !darena)
         continue;
-      sz = glue_type_size_simple(dm, arena, ty_ref, 0);
-      if (sz > 8)
-        return sz;
+      /**
+       * Do not glue_type_size_simple(dm, caller_arena, ty_ref): that still sizes field
+       * type_refs against the caller pool. Use dep arena for metrics only.
+       */
       for (k = 0; k < (int32_t)dm->num_struct_layouts; k++) {
         int32_t ln = pipeline_module_struct_layout_name_len(dm, k);
         int32_t eq = 1;
@@ -11639,7 +11650,7 @@ static int32_t glue_type_named_layout_size_any_module_elf_c(struct ast_ASTArena 
         }
         if (!eq)
           continue;
-        sz = typeck_x_type_size_from_layout_glue(dm, arena, k, 1);
+        sz = typeck_x_type_size_from_layout_glue(dm, darena, k, 1);
         if (sz > 8)
           return sz;
       }
@@ -13653,12 +13664,17 @@ static int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *
      * glue_type_named_layout_size_any_module_elf_c bare-suffix match for SysV dual-GP
      * store/load/call — not size_simple (freestanding std.vec co-emit CG002 if bare size
      * walks inflate nested layout sizes inconsistently).
+     *
+     * PLATFORM: SHARED — field type_refs on dep layouts are dep-arena indices.
+     * Must size with pipeline_dep_ctx_arena_at, not caller arena (Option_u8→24 false sret).
      */
     if (g_pipeline_asm_emit_dep_pipe) {
       nd = pipeline_dep_ctx_ndep(g_pipeline_asm_emit_dep_pipe);
       for (di = 0; di < nd; di++) {
+        struct ast_ASTArena *da;
         dm = pipeline_dep_ctx_module_at(g_pipeline_asm_emit_dep_pipe, di);
-        if (!dm)
+        da = pipeline_dep_ctx_arena_at(g_pipeline_asm_emit_dep_pipe, di);
+        if (!dm || !da)
           continue;
         for (k = 0; k < (int32_t)dm->num_struct_layouts; k++) {
           int32_t ln = pipeline_module_struct_layout_name_len(dm, k);
@@ -13675,7 +13691,7 @@ static int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *
           }
           if (!eq)
             continue;
-          sz = typeck_x_type_size_from_layout_glue(dm, a, k, depth + 1);
+          sz = typeck_x_type_size_from_layout_glue(dm, da, k, depth + 1);
           if (sz > 0)
             return sz;
         }
