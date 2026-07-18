@@ -115,6 +115,8 @@ int32_t pipeline_module_enum_variant_tag_for_names(struct ast_Module *m, uint8_t
 
 /** 当前 asm_codegen_ast_to_elf 正在发射的 module（定义见本文件后部 pipeline_asm_emit_set_module）。 */
 static struct ast_Module *g_pipeline_asm_emit_module;
+/** WPO-S3 / LANG-006 call-site CTFE: set by pipeline_typeck_set_active_ctx_c before check. */
+static struct ast_Module *g_typeck_active_module;
 /** 当前 asm emit 函数下标；供形参 *T 槽 load/leа 判定（driver compile.x state 等）。 */
 static int32_t g_pipeline_asm_emit_func_index = -1;
 /** 当前 emit 用的 AST arena（param homing 形参 kind 查询）。 */
@@ -3661,6 +3663,43 @@ static int32_t glue_expr_is_func_param_at_c(struct ast_ASTArena *arena, struct a
       return 0;
     k = k + 1;
   }
+  return 1;
+}
+
+/**
+ * PLATFORM: SHARED — callee body is pure `return param0 binop param1` (2 scalar params).
+ * Authority for WPO-S2 call-site CTFE (pre-emit). Writes *out_binop_ko (4=add..8=mod).
+ * Mirrors glue_fold_func_returns_param01_scalar_binop (backend try_inline); kept here so
+ * typeck fold does not depend on emit-layer symbols.
+ */
+static int32_t glue_fold_func_returns_param01_scalar_binop_c(struct ast_ASTArena *arena, struct ast_Module *mod,
+                                                            int32_t func_idx, int32_t *out_binop_ko) {
+  int32_t ret_ref;
+  int32_t ko;
+  int32_t al;
+  int32_t ar;
+  int32_t ret_ty;
+  if (!out_binop_ko || !arena || !mod || func_idx < 0)
+    return 0;
+  if (pipeline_module_func_num_params_at(mod, func_idx) != 2)
+    return 0;
+  ret_ty = pipeline_module_func_return_type_at(mod, func_idx);
+  if (ret_ty > 0 &&
+      (asm_type_is_simd_vector_spelling(arena, ret_ty) != 0 || asm_type_is_simd_vector(arena, ret_ty) != 0))
+    return 0;
+  ret_ref = glue_fold_func_return_operand_ref_c(arena, mod, func_idx);
+  if (ret_ref <= 0)
+    return 0;
+  ko = pipeline_expr_kind_ord_at(arena, ret_ref);
+  if (ko < 4 || ko > 8)
+    return 0;
+  al = pipeline_expr_binop_left_ref_at(arena, ret_ref);
+  ar = pipeline_expr_binop_right_ref_at(arena, ret_ref);
+  if (glue_expr_is_func_param_at_c(arena, mod, func_idx, al, 0) == 0)
+    return 0;
+  if (glue_expr_is_func_param_at_c(arena, mod, func_idx, ar, 1) == 0)
+    return 0;
+  *out_binop_ko = ko;
   return 1;
 }
 
@@ -12851,9 +12890,24 @@ int32_t pipeline_asm_emit_expr_elf_fast(struct ast_ASTArena *arena, struct platf
   if (!e)
     return -1;
   ko = pipeline_expr_kind_ord_at(arena, expr_ref);
-  /** 形参/局部 VAR 勿走 CTFE 快速路径（池字段未初始化或与 C 布局错位时会误折叠为 0）。 */
-  if (e->const_folded_valid != 0 && ko != (int32_t)ast_ExprKind_EXPR_VAR)
-    return backend_enc_mov_imm32_to_w0_arch(elf_ctx, e->const_folded_val, ta);
+  /**
+   * 形参/局部 VAR 勿走 CTFE 快速路径（池字段未初始化或与 C 布局错位时会误折叠为 0）。
+   * CALL with pre-emit fold: default mov imm (authority = typeck CTFE).
+   * SHUX_WPO_MONO / SHUX_WPO_NO_FOLD still need the call dispatch (mono thunk or real call).
+   * PLATFORM: SHARED — env gates for WPO-S2 harness only.
+   */
+  if (e->const_folded_valid != 0 && ko != (int32_t)ast_ExprKind_EXPR_VAR) {
+    if (ko == (int32_t)ast_ExprKind_EXPR_CALL) {
+      const char *wpo_mono = getenv("SHUX_WPO_MONO");
+      const char *wpo_nofold = getenv("SHUX_WPO_NO_FOLD");
+      if ((wpo_mono && wpo_mono[0]) || (wpo_nofold && wpo_nofold[0]))
+        /* fall through to CALL emit / mono path */;
+      else
+        return backend_enc_mov_imm32_to_w0_arch(elf_ctx, e->const_folded_val, ta);
+    } else {
+      return backend_enc_mov_imm32_to_w0_arch(elf_ctx, e->const_folded_val, ta);
+    }
+  }
   if (ko == 0 || ko == 2)
     return backend_enc_mov_imm32_to_w0_arch(elf_ctx, pipeline_expr_int_val_at(arena, expr_ref), ta);
   if (ko == 1)
@@ -13493,6 +13547,111 @@ static void glue_typeck_fold_expr_ref(struct ast_ASTArena *a, int32_t expr_ref,
     }
     return;
   }
+
+  /**
+   * PLATFORM: SHARED — WPO-S2 / LANG-006 call-site CTFE (pre-emit authority).
+   * Fold pure local `f(c0,c1)` when f body is `return p0 binop p1` and both args
+   * are already folded or lit. Emit only *consumes* const_folded_* (mov imm);
+   * try_inline_wpo_const_scalar_binop_call_elf remains a safety net for trees
+   * that skip typeck fold. Vector lane-of-binop stays emit-side for now.
+   */
+  if (kd == ast_ExprKind_EXPR_CALL) {
+    int32_t nargs;
+    int32_t ai;
+    int32_t callee_ref;
+    int32_t clen;
+    int32_t fi;
+    int32_t binop_ko;
+    int32_t arg0;
+    int32_t arg1;
+    int32_t av0;
+    int32_t av1;
+    int32_t folded;
+    uint8_t cname[64];
+    struct ast_Module *mod;
+    struct ast_Expr *ea0;
+    struct ast_Expr *ea1;
+
+    nargs = pipeline_expr_call_num_args_at(a, expr_ref);
+    for (ai = 0; ai < nargs; ai++) {
+      int32_t ar = pipeline_expr_call_arg_ref(a, expr_ref, ai);
+      if (ar > 0)
+        glue_typeck_fold_expr_ref(a, ar, const_names, const_values, n_const_names);
+    }
+    /**
+     * WPO-S2 harness: SHUX_WPO_MONO needs a live CALL for mono thunks;
+     * SHUX_WPO_NO_FOLD needs a real call. Skip stamping CALL const_folded so
+     * parent binops do not erase the site (scale(c0,c1)-K would become 0).
+     */
+    {
+      const char *wpo_mono = getenv("SHUX_WPO_MONO");
+      const char *wpo_nofold = getenv("SHUX_WPO_NO_FOLD");
+      if ((wpo_mono && wpo_mono[0]) || (wpo_nofold && wpo_nofold[0]))
+        return;
+    }
+    mod = g_typeck_active_module;
+    if (!mod || nargs != 2)
+      return;
+    callee_ref = pipeline_expr_call_callee_ref_at(a, expr_ref);
+    if (callee_ref <= 0 || pipeline_expr_kind_ord_at(a, callee_ref) != 3)
+      return;
+    clen = pipeline_expr_var_name_len(a, callee_ref);
+    if (clen <= 0 || clen > 63)
+      return;
+    pipeline_expr_var_name_into(a, callee_ref, cname);
+    fi = glue_module_func_index_by_name_c(mod, cname, clen);
+    if (fi < 0)
+      return;
+    if (glue_fold_func_returns_param01_scalar_binop_c(a, mod, fi, &binop_ko) == 0)
+      return;
+    arg0 = pipeline_expr_call_arg_ref(a, expr_ref, 0);
+    arg1 = pipeline_expr_call_arg_ref(a, expr_ref, 1);
+    if (arg0 <= 0 || arg1 <= 0)
+      return;
+    ea0 = glue_arena_expr_at_ref(a, arg0);
+    ea1 = glue_arena_expr_at_ref(a, arg1);
+    if (!ea0 || !ea1)
+      return;
+    if (ea0->const_folded_valid)
+      av0 = ea0->const_folded_val;
+    else if (ea0->kind == ast_ExprKind_EXPR_LIT || ea0->kind == ast_ExprKind_EXPR_BOOL_LIT)
+      av0 = (int32_t)ea0->int_val;
+    else
+      return;
+    if (ea1->const_folded_valid)
+      av1 = ea1->const_folded_val;
+    else if (ea1->kind == ast_ExprKind_EXPR_LIT || ea1->kind == ast_ExprKind_EXPR_BOOL_LIT)
+      av1 = (int32_t)ea1->int_val;
+    else
+      return;
+    /* Same domain as glue_const_scalar_binop_eval_i32 (ko 4..8). */
+    switch (binop_ko) {
+    case 4:
+      folded = (int32_t)((int64_t)av0 + (int64_t)av1);
+      break;
+    case 5:
+      folded = (int32_t)((int64_t)av0 - (int64_t)av1);
+      break;
+    case 6:
+      folded = (int32_t)((int64_t)av0 * (int64_t)av1);
+      break;
+    case 7:
+      if (av1 == 0)
+        return;
+      folded = (int32_t)((int64_t)av0 / (int64_t)av1);
+      break;
+    case 8:
+      if (av1 == 0)
+        return;
+      folded = (int32_t)((int64_t)av0 % (int64_t)av1);
+      break;
+    default:
+      return;
+    }
+    e->const_folded_val = folded;
+    e->const_folded_valid = 1;
+    return;
+  }
 }
 
 /** Pure-lit / already-folded tree CTFE after typeck (no block const env). */
@@ -13514,6 +13673,9 @@ void pipeline_typeck_fold_expr_c(struct ast_ASTArena *arena, int32_t expr_ref) {
       glue_typeck_fold_expr_ref(arena, expr_ref, NULL, NULL, 0);
     } else if (e->kind == ast_ExprKind_EXPR_LIT || e->kind == ast_ExprKind_EXPR_BOOL_LIT ||
                e->kind == ast_ExprKind_EXPR_FLOAT_LIT) {
+      glue_typeck_fold_expr_ref(arena, expr_ref, NULL, NULL, 0);
+    } else if (e->kind == ast_ExprKind_EXPR_CALL) {
+      /* Call itself is not a pure const-expr tree; still try WPO call-site CTFE. */
       glue_typeck_fold_expr_ref(arena, expr_ref, NULL, NULL, 0);
     }
     return;
@@ -22732,8 +22894,7 @@ static int32_t typeck_glue_type_refs_equal_impl(struct ast_ASTArena *arena, int3
   return pipeline_typeck_type_refs_equal_same_kind_c(arena, a, b, ka);
 }
 
-/** WPO-S3：typeck 活跃 module（type 别名展开等 glue 回落）。 */
-static struct ast_Module *g_typeck_active_module;
+/** WPO-S3：typeck 活跃 module（type 别名展开等 glue 回落；定义见文件前部 g_typeck_active_module）。 */
 extern int32_t pipeline_module_num_type_aliases_at(struct ast_Module *m);
 extern int32_t pipeline_module_type_alias_name_len(struct ast_Module *m, int32_t idx);
 extern uint8_t pipeline_module_type_alias_name_byte_at(struct ast_Module *m, int32_t idx, int32_t off);
