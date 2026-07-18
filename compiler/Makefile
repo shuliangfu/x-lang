@@ -150,6 +150,12 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 ../core/debug/debug.o: ../core/debug/mod.x | scripts/shux_compile_std_module.sh
 	@sh scripts/shux_compile_std_module.sh $@ ../core/debug/mod.x
 
+# core.slice formal API (mod.x → core_slice_len_*/get_*). Glue from_ptr/subslice stays
+# in core/slice/slice.o (runtime_slice_glue). PLATFORM: SHARED — Ubuntu -backend asm
+# length.x BLD001 U core_slice_len_i32 when only glue .o existed; simple-group g9 + ensure.
+../core/slice/mod.o: ../core/slice/mod.x | scripts/shux_compile_std_module.sh
+	@sh scripts/shux_compile_std_module.sh $@ ../core/slice/mod.x
+
 # std.map：F 闭合 — 纯 .x -E-extern + cc -c。
 ../std/map/map.o: ../std/map/mod.x | scripts/shux_compile_std_module.sh
 	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/map/mod.x

@@ -10,13 +10,15 @@
 // nm 探针与 push/ensure 仍在 mega append_on_demand_user_objs。
 //
 // Simple groups: string=0 core_types=1 encoding=2 base64=3 csv=4 schema=5
-// core_option=6 core_result=7 core_debug=8. Formal core/*/*.o; g1 rel is core/types/types.o.
+// core_option=6 core_result=7 core_debug=8 core_slice=9.
+// Formal core/*/*.o; g1 rel is core/types/types.o; g9 rel is core/slice/mod.o (API, not glue).
 // PLATFORM: SHARED — no asm co-emit of option/result/debug (Ubuntu hang); link formal .o only.
+// g9: length.x needs core_slice_len_i32/get_* from mod.x; glue remains core/slice/slice.o.
 
 /** Return simple on_demand group count (must match seed labi_ondemand_list.from_x.c). */
 #[no_mangle]
 export function labi_od_simple_group_count(): i32 {
-  return 9;
+  return 10;
 }
 
 /** Return symbol probe count for simple group g. */
@@ -51,6 +53,10 @@ export function labi_od_simple_group_sym_count(g: i32): i32 {
   }
   if (g == 8) {
     return 6;
+  }
+  // core.slice formal API surface (tests/slice/length.x, subslice_split_chunks.x).
+  if (g == 9) {
+    return 10;
   }
   return 0;
 }
@@ -255,6 +261,50 @@ export function labi_od_simple_group_sym_at(g: i32, i: i32): *u8 {
     }
     return 0 as *u8;
   }
+  // PLATFORM: SHARED — core.slice formal API (mod.o). Glue from_ptr/subslice in slice.o.
+  if (g == 9) {
+    if (i == 0) {
+      let p: *u8 = "core_slice_len_i32";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "core_slice_get_i32";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "core_slice_get_i32_unchecked";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "core_slice_len_u8";
+      return p;
+    }
+    if (i == 4) {
+      let p: *u8 = "core_slice_get_u8";
+      return p;
+    }
+    if (i == 5) {
+      let p: *u8 = "core_slice_get_u8_unchecked";
+      return p;
+    }
+    if (i == 6) {
+      let p: *u8 = "core_slice_subslice_i32";
+      return p;
+    }
+    if (i == 7) {
+      let p: *u8 = "core_slice_subslice_u8";
+      return p;
+    }
+    if (i == 8) {
+      let p: *u8 = "core_slice_len_u64";
+      return p;
+    }
+    if (i == 9) {
+      let p: *u8 = "core_slice_get_u64";
+      return p;
+    }
+    return 0 as *u8;
+  }
   return 0 as *u8;
 }
 
@@ -298,6 +348,10 @@ export function labi_od_simple_group_rel(g: i32): *u8 {
   }
   if (g == 8) {
     let p: *u8 = "core/debug/debug.o";
+    return p;
+  }
+  if (g == 9) {
+    let p: *u8 = "core/slice/mod.o";
     return p;
   }
   return 0 as *u8;

@@ -7402,10 +7402,11 @@ void shux_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char *
                 continue;
             if (!labi_od_user_needs_simple_group(user_o, sg))
                 continue;
-            /* PLATFORM: SHARED — L4 wipe drops gitignored core types/option/result/debug .o;
-             * ensure via Makefile before push (same pattern as formal vec/math). */
+            /* PLATFORM: SHARED — L4 wipe drops gitignored core types/option/result/debug/slice .o;
+             * ensure via Makefile before push (same pattern as formal vec/math).
+             * g9 core/slice/mod.o is formal API; glue slice.o is pushed immediately after. */
             if (strstr(rel, "core/types/") || strstr(rel, "core/option/") || strstr(rel, "core/result/")
-                || strstr(rel, "core/debug/")) {
+                || strstr(rel, "core/debug/") || strstr(rel, "core/slice/")) {
                 const char *include_root = shux_repo_root_from_argv0(link_argv0);
                 char make_tgt[PATH_MAX];
                 if (include_root && include_root[0] &&
@@ -7414,6 +7415,16 @@ void shux_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char *
                 pushed_core_formal = 1;
             }
             link_abi_asm_ld_push_obj(NULL, link_argv0, rel, lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+            /* PLATFORM: SHARED — formal mod.o U from_ptr/subslice → always co-push glue slice.o.
+             * User.o for length.x has no U core_slice_*_from_ptr_c, so needs_core_slice alone misses glue. */
+            if (strstr(rel, "core/slice/mod.o")) {
+                const char *include_root = shux_repo_root_from_argv0(link_argv0);
+                if (include_root && include_root[0])
+                    (void)shux_ensure_formal_std_make_o(include_root, "core/slice/slice.o",
+                                                        "../core/slice/slice.o");
+                link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_core_slice(), lib_roots, n_lib_roots,
+                                         bank, argv, la, max_la, NULL);
+            }
         }
         /*
          * Formal core/*.o from shux_compile_std_module carry preamble weak process_arg*_c

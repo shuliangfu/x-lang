@@ -14,12 +14,13 @@
 #ifndef SHUX_LABI_ONDEMAND_LIST_FROM_X
 
 /* Simple groups: string=0 core_types=1 encoding=2 base64=3 csv=4 schema=5
- * core_option=6 core_result=7 core_debug=8.
+ * core_option=6 core_result=7 core_debug=8 core_slice=9.
  * PLATFORM: SHARED — g1 rel is core/types/types.o (was wrongly base64.o).
- * types/option/result/debug formal .o via Makefile + ensure; no asm co-emit (Ubuntu hang). */
+ * types/option/result/debug/slice formal .o via Makefile + ensure; no asm co-emit hang.
+ * g9 rel is core/slice/mod.o (API); glue from_ptr/subslice remains core/slice/slice.o. */
 
 int labi_od_simple_group_count(void) {
-  return 9;
+  return 10;
 }
 
 int labi_od_simple_group_sym_count(int g) {
@@ -43,6 +44,8 @@ int labi_od_simple_group_sym_count(int g) {
     return 4;
   if (g == 8)
     return 6;
+  if (g == 9)
+    return 10;
   return 0;
 }
 
@@ -161,6 +164,30 @@ const char *labi_od_simple_group_sym_at(int g, int i) {
       return "core_debug_debug_assert";
     return NULL;
   }
+  /* PLATFORM: SHARED — core.slice formal API (tests/slice/length.x BLD001 residual). */
+  if (g == 9) {
+    if (i == 0)
+      return "core_slice_len_i32";
+    if (i == 1)
+      return "core_slice_get_i32";
+    if (i == 2)
+      return "core_slice_get_i32_unchecked";
+    if (i == 3)
+      return "core_slice_len_u8";
+    if (i == 4)
+      return "core_slice_get_u8";
+    if (i == 5)
+      return "core_slice_get_u8_unchecked";
+    if (i == 6)
+      return "core_slice_subslice_i32";
+    if (i == 7)
+      return "core_slice_subslice_u8";
+    if (i == 8)
+      return "core_slice_len_u64";
+    if (i == 9)
+      return "core_slice_get_u64";
+    return NULL;
+  }
   return NULL;
 }
 
@@ -185,6 +212,8 @@ const char *labi_od_simple_group_rel(int g) {
     return "core/result/result.o";
   if (g == 8)
     return "core/debug/debug.o";
+  if (g == 9)
+    return "core/slice/mod.o";
   return NULL;
 }
 
