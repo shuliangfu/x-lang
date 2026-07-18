@@ -16760,15 +16760,18 @@ void pipeline_asm_fill_param_slots(struct backend_AsmFuncCtx *ctx, struct ast_Mo
     plen = pipeline_asm_module_func_param_name_len_at(mod, func_index, i);
     width = arena ? glue_func_param_home_width_c(arena, mod, func_index, i) : 8;
     /**
-     * Match asm_local_slot_reg_offset: byte0 lives at off+width (downward layout).
-     * Starting MEMORY homes at 16 and writing home-k would clobber [rbp-8]/[rbp]
-     * (saved rbx / saved rbp) → freestanding len(Vec) still SIGSEGV after copy.
+     * 8B (scalar/pointer/legacy medium): home at `off`, next off+8 (historical layout).
+     * MEMORY width>8: byte0 at off+width like asm_local_slot_reg_offset — starting a 32B
+     * home at 16 and writing home-k clobbers saved rbx/rbp.
      */
-    slot_off = off + width;
+    if (width > 8)
+      slot_off = off + width;
+    else
+      slot_off = off;
     if (asm_ctx_local_append((uint8_t *)ctx, pname_buf, plen, slot_off) < 0)
       return;
     ly->num_locals = asm_ctx_local_count((uint8_t *)ctx);
-    off = slot_off;
+    off = (width > 8) ? slot_off : (off + 8);
   }
   ly->next_offset = off;
 }
@@ -16876,11 +16879,11 @@ static int32_t pipeline_asm_emit_param_home_elf_sysv_f32_xmm_c(struct platform_e
   gp = g_pipeline_asm_func_sret_active ? 1 : 0;
   xmm = 0;
   stack_pos = 16; /* first incoming stack arg after saved rbp @ [rbp+0] ret @ [rbp+8] */
-  off = 16;       /* cursor before next home; [rbp-8]=saved rbx */
+  off = 16; /* cursor before next home; [rbp-8]=saved rbx */
   for (i = 0; i < np; i++) {
     int32_t psz = glue_func_param_agg_byte_size_c(arena, mod, func_index, i);
     int32_t home_w = glue_func_param_home_width_c(arena, mod, func_index, i);
-    int32_t home = off + home_w; /* byte0; matches fill_param_slots / asm_local_slot_reg_offset */
+    int32_t home = (home_w > 8) ? (off + home_w) : off; /* match fill_param_slots */
     int32_t is_f64 = glue_func_param_is_f64_c(arena, mod, func_index, i);
     int32_t is_f32 = glue_func_param_is_f32_c(arena, mod, func_index, i);
     if (is_f32) {
@@ -16934,7 +16937,7 @@ static int32_t pipeline_asm_emit_param_home_elf_sysv_f32_xmm_c(struct platform_e
         return -1;
       stack_pos += 8;
     }
-    off = home;
+    off = (home_w > 8) ? home : (off + 8);
   }
   return 0;
 }
@@ -16979,7 +16982,7 @@ int32_t pipeline_asm_emit_param_home_elf_c(struct platform_elf_ElfCodegenCtx *el
     for (i = 0; i < np; i++) {
       int32_t psz = glue_func_param_agg_byte_size_c(arena, mod, func_index, i);
       int32_t home_w = glue_func_param_home_width_c(arena, mod, func_index, i);
-      int32_t home = cur + home_w;
+      int32_t home = (home_w > 8) ? (cur + home_w) : cur;
       if (psz > 16) {
         int32_t nbytes = (psz + 7) & ~7;
         for (k = 0; k < nbytes; k += 8) {
@@ -17002,7 +17005,7 @@ int32_t pipeline_asm_emit_param_home_elf_c(struct platform_elf_ElfCodegenCtx *el
           return -1;
         stack_pos += 8;
       }
-      cur = home;
+      cur = (home_w > 8) ? home : (cur + 8);
     }
     return 0;
   }
