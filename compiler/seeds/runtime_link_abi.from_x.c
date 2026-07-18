@@ -3048,6 +3048,23 @@ int link_abi_generated_c_contains_substr_use_line(const char *c_path, const char
                 }
             }
         }
+        /*
+         * PLATFORM: SHARED — skip rt_preamble weak stub bodies.
+         * Preamble always emits weak process_args_* → process_shux_* (and similar).
+         * Counting those as "use" forced every -o to ensure runtime_process_argv.o
+         * (pure rv/hello residual). Real user calls are non-weak use_lines.
+         * G.7: complete use_line authority; no second skip table for process only.
+         */
+        {
+            size_t li;
+            /* "__attribute__((weak))" is 21 chars */
+            for (li = k; li + 21 <= line_end; li++) {
+                if (memcmp(view.data + li, "__attribute__((weak))", 21) == 0) {
+                    is_extern = 1;
+                    break;
+                }
+            }
+        }
         if (!is_extern && !is_define && !is_comment) {
             runtime_release_file_view(&view);
             return 1;
@@ -4072,9 +4089,23 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
                     link_abi_generated_c_contains_substr_use_line(cp, "process_spawn") ||
                     link_abi_generated_c_contains_substr_use_line(cp, "process_exec"))
                     need_process = 1;
-                /* 含 preamble 转发桩对 process_shux_*_get 的引用（非 use_line：定义体内亦须认） */
-                if (link_abi_generated_c_contains_substr(cp, "process_shux_argc_get") ||
-                    link_abi_generated_c_contains_substr(cp, "process_shux_argv_get"))
+                /*
+                 * PLATFORM: SHARED — process_argv glue only on real use_line.
+                 * Do NOT bare-substr process_shux_*: rt_preamble always injects weak
+                 * process_args_* → process_shux_* (pure rv/hello false positive →
+                 * every -o ensure runtime_process_argv.o). use_line skips weak stubs
+                 * (see link_abi_generated_c_contains_substr_use_line). Transitive U
+                 * from pushed std/*.o: post-module scan below (asm path complement).
+                 * G.7: complete need_process_argv_glue; no second always-on ensure.
+                 */
+                if (link_abi_generated_c_contains_substr_use_line(cp, "process_shux_argc_get") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "process_shux_argv_get") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "process_args_count_c") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "process_arg_c") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "args_iter_count_c") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "args_iter_at_c") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "std_process_args") ||
+                    link_abi_generated_c_contains_substr_use_line(cp, "std_env_args_iter"))
                     need_process_argv_glue = 1;
                 /* std_string_* API 或 string.o 内 bare C 辅助（vec_add_verify 等直接 extern shux_string_memcmp_c） */
                 if (link_abi_generated_c_contains_substr_use_line(cp, "std_string_") ||
@@ -4761,6 +4792,39 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
                         const char *rsg = shux_runtime_scheduler_glue_o_path(NULL);
                         if (rsg && rsg[0])
                             (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rsg);
+                    }
+                }
+            }
+            /*
+             * PLATFORM: SHARED — after std/*.o pushes, complement process_argv when any
+             * linked .o has U process_shux_* (string/math/… preamble weak). Early gate
+             * only sees user C use_line; formal .o U is invisible until push.
+             * Same authority as asm post-on_demand scan. Skip if process.o already on line.
+             * G.7: complete existing C-backend process_argv path; no second plan table.
+             */
+            {
+                int need_pav = 0;
+                int have_process_o = 0;
+                int have_pav = 0;
+                int ai;
+                for (ai = 0; ai < i && argv[ai]; ai++) {
+                    const char *e = argv[ai];
+                    if (!e || e[0] == '-')
+                        continue;
+                    if (strstr(e, "process.o") && !strstr(e, "process_argv"))
+                        have_process_o = 1;
+                    if (strstr(e, "runtime_process_argv.o") || strstr(e, "process_argv.o"))
+                        have_pav = 1;
+                    if (shux_link_obj_needs_undef_sym(e, "process_shux_argc_get")
+                        || shux_link_obj_needs_undef_sym(e, "process_shux_argv_get"))
+                        need_pav = 1;
+                }
+                if (need_pav && !have_process_o && !have_pav) {
+                    (void)shux_ensure_runtime_process_argv_o(NULL);
+                    {
+                        const char *rpa = shux_runtime_process_argv_o_path(NULL);
+                        if (rpa && rpa[0])
+                            (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rpa);
                     }
                 }
             }
@@ -6828,6 +6892,27 @@ static int labi_user_needs_runtime_env_os(const char *user_o) {
 }
 
 /*
+ * PLATFORM: SHARED — prepare residual: process_argv used to always ensure on every
+ * hosted -o (cold tree fork-cc even for pure rv/hello). Gate on user.o surface;
+ * transitive process_shux_* from formal/std .o still ensure+push via complements
+ * (asm post-on_demand scan + C post-module scan). null user_o keeps legacy hard ensure.
+ * G.7: complete existing labi_user_needs_runtime_* family; no second table.
+ */
+static int labi_user_needs_runtime_process_argv(const char *user_o) {
+    if (!user_o || !user_o[0])
+        return 1;
+    return shux_link_obj_needs_undef_sym(user_o, "process_shux_argc_get")
+        || shux_link_obj_needs_undef_sym(user_o, "process_shux_argv_get")
+        || shux_link_obj_needs_undef_sym(user_o, "process_arg_c")
+        || shux_link_obj_needs_undef_sym(user_o, "process_args_count_c")
+        || shux_link_obj_needs_undef_sym(user_o, "std_process_args")
+        || shux_link_obj_needs_undef_sym(user_o, "std_process_arg")
+        || shux_link_obj_needs_undef_sym(user_o, "std_process_argc")
+        || shux_link_obj_needs_undef_sym(user_o, "std_process_argv")
+        || shux_link_obj_needs_undef_sym(user_o, "std_env_args_iter");
+}
+
+/*
  * PLATFORM: SHARED — bulk residual TASK_SPECIAL: task.o (+ scheduler companions)
  * used to enter the asm link line whenever the .o existed (no UNDEF gate). Pure
  * rv/hello then dragged task+async when a warm tree had prebuilt task.o.
@@ -7719,19 +7804,18 @@ int shux_asm_ld_prepare_for_exe_link(const char *link_eff, const char *user_o, i
     if (!shux_link_freestanding_enabled(driver_freestanding)) {
         /*
          * PLATFORM: SHARED — minimal always-on runtime for hosted asm links:
-         * io stubs + process argv. Do NOT prebuild heavy OS companions here.
-         * random_fill / time_os / env_os: gate on user.o UNDEF (same authority as
-         * labi_user_needs_runtime_* + PRIMARY bulk / formal companion ensure).
-         * Pure rv/hello must not fork-cc those seeds on every -o (residual after
-         * PRIMARY gate). When need is true, ensure here so cold tree has .o before
-         * PRIMARY push_obj; append_std formal companion + on_demand also ensure.
-         * G.7: complete existing prepare_for_exe_link; no second ensure table.
+         * io stubs only. process_argv + random_fill / time_os / env_os: gate on
+         * user.o UNDEF (labi_user_needs_runtime_*). Pure rv/hello must not fork-cc
+         * those seeds on every -o. Complements + C post-module scan ensure transitive
+         * process_shux_*. G.7: complete existing prepare_for_exe_link.
          * glue (sqlite/http/sync/…) stays on-demand via plan steps / skip_missing.
          */
         if (shux_ensure_runtime_asm_io_stubs_o(link_eff) != 0)
             return -1;
-        if (shux_ensure_runtime_process_argv_o(link_eff) != 0)
-            return -1;
+        if (labi_user_needs_runtime_process_argv(user_o)) {
+            if (shux_ensure_runtime_process_argv_o(link_eff) != 0)
+                return -1;
+        }
         if (labi_user_needs_runtime_random_fill(user_o)) {
             if (shux_ensure_runtime_random_fill_o(link_eff) != 0)
                 return -1;
