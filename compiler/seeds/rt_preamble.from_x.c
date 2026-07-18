@@ -324,11 +324,14 @@ const char *const driver_preamble_io_net_lines[] = {
         "}\n"
         /* std.env mod.x extern args_iter_*_c：formal env.o is mod.x (std_env_*); args_iter body
          * is weak here (env.x no_mangle helpers are not the product formal surface).
-         * weak 委派 process_shux_*（runtime_process_argv.o 权威：constructor 从 CRT 绑 argc/argv）。
-         * 禁止 return 0 空桩：Darwin 上 user TU weak 先于 runtime weak，空桩会盖过真体并 dead_strip
-         * 掉 getter，导致 env_iter / args_iter 恒见 argc=0。process.o 强符号仍可覆盖本 weak。 */
-        "extern int32_t process_shux_argc_get(void);\n"
-        "extern uint8_t *process_shux_argv_get(int32_t i);\n"
+         * PLATFORM: SHARED — process_args_* weak-delegate to process_shux_*.
+         * Provide weak process_shux_* returning 0/NULL so Linux ld resolves refs inside
+         * these weak stubs when runtime_process_argv.o is not linked (pure/backtrace).
+         * Strong process_shux_* from runtime_process_argv.o still win when ensure links it
+         * (env/process real args). Do NOT empty process_args_* itself (Darwin would
+         * dead_strip getters and hide real argc forever). */
+        "__attribute__((weak)) int32_t process_shux_argc_get(void) { return 0; }\n"
+        "__attribute__((weak)) uint8_t *process_shux_argv_get(int32_t i) { (void)i; return (uint8_t *)0; }\n"
         "__attribute__((weak)) int32_t process_args_count_c(void) { return process_shux_argc_get(); }\n"
         "__attribute__((weak)) uint8_t *process_arg_c(int32_t i) { return process_shux_argv_get(i); }\n"
         "__attribute__((weak)) int32_t args_iter_count_c(void) { return process_args_count_c(); }\n"
