@@ -169,8 +169,13 @@ struct glue_AsmFuncCtxCall {
 #define GLUE_EXPR_VAR_ORD 3
 /** ast.x ExprKind.EXPR_ADDR_OF — &v for push(&v, x) arg typing. */
 #define GLUE_EXPR_ADDR_OF_ORD 51
-/** ast.x TypeKind.TYPE_PTR */
+/** ast.x ExprKind.EXPR_INDEX / EXPR_AS — sort(&b[0]) / cast arg typing. */
+#define GLUE_EXPR_INDEX_ORD 47
+#define GLUE_EXPR_AS_ORD 54
+/** ast.x TypeKind.TYPE_PTR / TYPE_ARRAY / TYPE_SLICE */
 #define GLUE_TYPE_PTR_ORD 9
+#define GLUE_TYPE_ARRAY_ORD 10
+#define GLUE_TYPE_SLICE_ORD 11
 
 extern int32_t pipeline_elf_ctx_append_bytes(uint8_t *ctx_bytes, uint8_t *ptr, int32_t n);
 extern int32_t pipeline_expr_kind_ord_at(struct ast_ASTArena *arena, int32_t expr_ref);
@@ -1122,6 +1127,8 @@ extern int32_t pipeline_expr_method_call_num_args_at(struct ast_ASTArena *a, int
 extern int32_t pipeline_expr_method_call_arg_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t idx);
 
 extern int32_t pipeline_expr_unary_operand_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
+extern int32_t pipeline_expr_index_base_ref(struct ast_ASTArena *a, int32_t expr_ref);
+extern int32_t pipeline_expr_as_target_type_ref_at(struct ast_ASTArena *a, int32_t expr_ref);
 extern int32_t pipeline_type_find_or_alloc_compound(struct ast_ASTArena *a, int32_t kind_ord, int32_t elem_ref,
                                                      int32_t array_size);
 extern int32_t pipeline_asm_call_expected_ret_ty_c(void);
@@ -1130,7 +1137,8 @@ extern int32_t pipeline_asm_call_expected_ret_ty_c(void);
  * PLATFORM: SHARED — resolve arg type for import overload mangle.
  * Prefer expr.resolved_type; for VAR fall back to scope-block let type
  * (g_pipeline_asm_emit_scope_block path used by FIELD_ACCESS layout).
- * ADDR_OF(VAR): *T from let/param type of operand (push(&v) when entry typeck skipped).
+ * ADDR_OF(VAR|INDEX): *T from operand (push(&v) / sort(&b[0]) when resolved missing).
+ * INDEX: array/slice/ptr elem type. AS: target type. G.7 single authority for asm arg types.
  */
 static int32_t glue_asm_call_arg_type_ref_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                            int32_t arg_ref) {
@@ -1145,7 +1153,36 @@ static int32_t glue_asm_call_arg_type_ref_c(struct ast_ASTArena *arena, struct b
   if (ty > 0)
     return ty;
   ko = pipeline_expr_kind_ord_at(arena, arg_ref);
-  /** &local: build *T so push(&v) scores Vec_u8_ptr_u8 not first Vec_i32 overload. */
+  /** `x as *T` / cast: use target type when typeck did not stick resolved_type. */
+  if (ko == GLUE_EXPR_AS_ORD) {
+    int32_t as_tgt = pipeline_expr_as_target_type_ref_at(arena, arg_ref);
+    if (as_tgt > 0)
+      return as_tgt;
+    return 0;
+  }
+  /**
+   * a[i]: recover elem type from base array/slice/ptr so &a[i] → *elem in ADDR_OF path.
+   * Root residual: sort.sort(&b[0], n) asm bound i32 when INDEX resolved_type was 0.
+   */
+  if (ko == GLUE_EXPR_INDEX_ORD) {
+    int32_t base_ref = pipeline_expr_index_base_ref(arena, arg_ref);
+    int32_t base_ty;
+    int32_t bk;
+    int32_t elem;
+    if (base_ref <= 0)
+      return 0;
+    base_ty = glue_asm_call_arg_type_ref_c(arena, ctx, base_ref);
+    if (base_ty <= 0)
+      base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
+    if (base_ty <= 0)
+      return 0;
+    bk = pipeline_type_kind_ord_at(arena, base_ty);
+    if (bk != GLUE_TYPE_ARRAY_ORD && bk != GLUE_TYPE_SLICE_ORD && bk != GLUE_TYPE_PTR_ORD)
+      return 0;
+    elem = pipeline_type_elem_ref_at(arena, base_ty);
+    return elem > 0 ? elem : 0;
+  }
+  /** &local / &a[i]: build *T so push(&v) / sort(&b[0]) score *u8 not first *i32. */
   if (ko == GLUE_EXPR_ADDR_OF_ORD) {
     int32_t op = pipeline_expr_unary_operand_ref_at(arena, arg_ref);
     int32_t elem;
@@ -1287,16 +1324,22 @@ static int32_t glue_asm_build_func_overload_mid_c(struct ast_Module *m, struct a
 /**
  * PLATFORM: SHARED — score field_name candidates in res_mod (want_np + arg/ret mid).
  * Returns best func_ix or -1. Used by import-binding formal mid path (G.7 one authority).
+ * best_score_out: optional; 1=name+arity only, +10/arg match, +20 zero-arg ret. Override r_func
+ * only when score >= 11 (typed arg evidence) so bare residual does not clobber correct resolve.
  */
-static int32_t glue_asm_score_import_binding_func_ix_c(struct ast_ASTArena *arena,
-                                                        struct backend_AsmFuncCtx *ctx, int32_t expr_ref,
-                                                        struct ast_Module *res_mod, struct ast_ASTArena *res_arena,
-                                                        const uint8_t *field_name, int32_t field_len,
-                                                        int32_t want_np, int32_t is_method) {
+static int32_t glue_asm_score_import_binding_func_ix_ex_c(struct ast_ASTArena *arena,
+                                                           struct backend_AsmFuncCtx *ctx, int32_t expr_ref,
+                                                           struct ast_Module *res_mod,
+                                                           struct ast_ASTArena *res_arena,
+                                                           const uint8_t *field_name, int32_t field_len,
+                                                           int32_t want_np, int32_t is_method,
+                                                           int32_t *best_score_out) {
   int32_t fi;
   int32_t exp_ty;
   int32_t best;
   int32_t best_score;
+  if (best_score_out)
+    *best_score_out = -1;
   if (!arena || !res_mod || !field_name || field_len <= 0)
     return -1;
   if (!res_arena)
@@ -1386,7 +1429,18 @@ static int32_t glue_asm_score_import_binding_func_ix_c(struct ast_ASTArena *aren
       best = fi;
     }
   }
+  if (best_score_out)
+    *best_score_out = best_score;
   return best;
+}
+
+static int32_t glue_asm_score_import_binding_func_ix_c(struct ast_ASTArena *arena,
+                                                        struct backend_AsmFuncCtx *ctx, int32_t expr_ref,
+                                                        struct ast_Module *res_mod, struct ast_ASTArena *res_arena,
+                                                        const uint8_t *field_name, int32_t field_len,
+                                                        int32_t want_np, int32_t is_method) {
+  return glue_asm_score_import_binding_func_ix_ex_c(arena, ctx, expr_ref, res_mod, res_arena, field_name,
+                                                    field_len, want_np, is_method, 0);
 }
 
 /**
@@ -1498,6 +1552,20 @@ static int32_t glue_asm_mangle_import_binding_call_sym_c(struct ast_ASTArena *ar
       if (use_fi < 0)
         use_fi = glue_asm_score_import_binding_func_ix_c(arena, ctx, expr_ref, res_mod, res_arena, field_name,
                                                         field_len, want_np, is_method);
+      /*
+       * PLATFORM: SHARED — overloaded names: re-score when arg types give evidence (score>=11).
+       * typeck may leave first-name residual for ADDR_OF(INDEX) while C re-scores via suffix;
+       * asm must re-score with INDEX/AS recovery (sort *u8). Do not override on score==1 only.
+       * G.7: complete same mangle authority.
+       */
+      if (use_fi >= 0 && res_mod &&
+          glue_module_func_overload_count_c_impl(res_mod, (uint8_t *)field_name, field_len) > 1) {
+        int32_t sc_best = -1;
+        int32_t scored = glue_asm_score_import_binding_func_ix_ex_c(
+            arena, ctx, expr_ref, res_mod, res_arena, field_name, field_len, want_np, is_method, &sc_best);
+        if (scored >= 0 && sc_best >= 11)
+          use_fi = scored;
+      }
     }
     if (res_mod && use_fi >= 0 && use_fi < pipeline_module_num_funcs(res_mod)) {
       formal_overloads = glue_module_func_overload_count_c_impl(res_mod, (uint8_t *)field_name, field_len);
