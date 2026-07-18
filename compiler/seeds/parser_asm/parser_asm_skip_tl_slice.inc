@@ -1255,6 +1255,15 @@ void parser_asm_write_extern_params_to_pools_c(void *arena, void *module, int32_
 
 /**
  * skip_one_extern_into：跳过一条顶层 extern function 声明，结果写入 *out。
+ *
+ * PLATFORM: SHARED — must stay shape-aligned with parse_one_extern_skip_into
+ * (optional ABI string after `extern`: "C" / "X"). G.7 single authority: this
+ * function is the only skip path; cfg_skip + skip_one_function_full delegate here.
+ *
+ * Why: parse accepted `extern "C" function ...;` but skip required bare
+ * `extern function`. A kept cfg-extern followed by a skipped sibling then left
+ * the lexer mid-declaration; subsequent top-level items (including main) were
+ * lost or re-ingested (cfg-extern residual / rt_diag always-on workaround).
  */
 void parser_asm_skip_one_extern_into_slice_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
                                              struct parser_asm_slice_u8 *source) {
@@ -1273,6 +1282,12 @@ void parser_asm_skip_one_extern_into_slice_c(struct parser_asm_lexer *out, struc
   }
   parser_asm_lex_from_result_val_into(&lex, r);
   lexer_next_into(&r, lex, source);
+  /* Optional ABI marker — same shape as parse_one_extern_skip_into (P0a).
+   * Skip path does not record abi_kind; only advance past the string token. */
+  if (r.tok.kind == (int32_t)TOKEN_STRING) {
+    parser_asm_lex_from_result_val_into(&lex, r);
+    lexer_next_into(&r, lex, source);
+  }
   if (r.tok.kind != (int32_t)TOKEN_FUNCTION) {
     out->pos = lex.pos;
     out->line = lex.line;
