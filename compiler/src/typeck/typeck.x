@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // This program is free software: you can redistribute it and/or modify
@@ -322,6 +322,17 @@ export extern function pipeline_expr_kind_ord_at(arena: *ASTArena, expr_ref: i32
 /** block const 初值须为常量表达式（C glue 递归 is_const_expr）。 */
 export extern function pipeline_typeck_block_const_init_is_const_c(arena: *ASTArena, block_ref: i32, const_idx: i32): i32;
 export extern function pipeline_typeck_const_init_not_constant_c(line: i32, col: i32): void;
+/**
+ * PLATFORM: SHARED — typeck CTFE producer (write const_folded_*).
+ * Authority for optim-level const fold is typeck/IR, not emit expansion.
+ * fold_expr: pure lit trees; fold_block_const_init: const chain env;
+ * fold_expr_in_block: let/return trees seeing block consts.
+ */
+export extern function pipeline_typeck_fold_expr_c(arena: *ASTArena, expr_ref: i32): void;
+export extern function pipeline_typeck_fold_block_const_init_c(arena: *ASTArena, block_ref: i32,
+const_idx: i32): void;
+export extern function pipeline_typeck_fold_expr_in_block_c(arena: *ASTArena, block_ref: i32,
+expr_ref: i32): void;
 /** 读 if/ternary/block 子 ref；勿 ast_arena_expr_get 按值拷贝 Expr。 */
 export extern function pipeline_expr_if_cond_ref_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_if_then_ref_at(arena: *ASTArena, expr_ref: i32): i32;
@@ -6179,13 +6190,21 @@ ctx: *PipelineDepCtx): i32 {
  */
 export function check_expr(module: *Module, arena: *ASTArena, expr_ref: i32, return_type_ref: i32,
 ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — post-check CTFE write of const_folded_* (not emit fold).
+  let rc: i32 = 0;
   if (ast.ref_is_null(expr_ref)) {
     return 0;
   }
   if (arena == 0 as * ASTArena || expr_ref <= 0 || expr_ref > arena.num_exprs) {
     return 0;
   }
-  return check_expr_impl(module, arena, expr_ref, return_type_ref, ctx);
+  rc = check_expr_impl(module, arena, expr_ref, return_type_ref, ctx);
+  if (rc == 0) {
+    unsafe {
+      pipeline_typeck_fold_expr_c(arena, expr_ref);
+    }
+  }
+  return rc;
 }
 
 /**
@@ -6342,6 +6361,10 @@ return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
         return - 1;
       }
     }
+    /** CTFE: fold const init with prior block consts (A=3; B=A+2). */
+    if (!ast.ref_is_null(cd_ir)) {
+      pipeline_typeck_fold_block_const_init_c(arena, block_ref, idx);
+    }
     return 0;
   }
 }
@@ -6402,6 +6425,10 @@ return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
       if (!ast.ref_is_null(init_ty) && pipeline_typeck_check_slice_region_assign_c(arena, ld_ir, ld_tr, init_ty) != 0) {
         return - 1;
       }
+    }
+    /** CTFE: re-fold let init with block const env (e.g. let x = B * 2). */
+    if (!ast.ref_is_null(ld_ir)) {
+      pipeline_typeck_fold_expr_in_block_c(arena, block_ref, ld_ir);
     }
     return 0;
   }

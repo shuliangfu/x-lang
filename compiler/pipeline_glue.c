@@ -13299,6 +13299,315 @@ void pipeline_typeck_const_init_not_constant_c(int32_t line, int32_t col) {
   lsp_diag_report_typeck((int)line, (int)col, "const init must be constant expression");
 }
 
+/**
+ * PLATFORM: SHARED — typeck CTFE producer (LANG-006 / residual IR authority).
+ *
+ * Writes `const_folded_valid` / `const_folded_val` on arena exprs. Emit only
+ * *consumes* these fields (mov imm); do not grow emit-side optim folds.
+ *
+ * Restores the producer lost when mega typeck.c was removed (G-02a): product
+ * typeck.x only validated `is_const_expr` and never folded. Pure lit trees and
+ * block-const chains (const A=3; const B=A+2) are folded bottom-up.
+ *
+ * names/values: prior const bindings in scope (may be NULL/0 for pure lits).
+ * i64 math in wide domain; store truncates to field width used by imm32 emit
+ * for product i32 paths (i64 CTFE still keeps full value via int_val on LIT).
+ */
+static void glue_typeck_fold_expr_ref(struct ast_ASTArena *a, int32_t expr_ref,
+                                     const char *const_names[], const int64_t *const_values,
+                                     int n_const_names) {
+  struct ast_Expr *e;
+  enum ast_ExprKind kd;
+  int32_t left_ref;
+  int32_t right_ref;
+  int32_t op_ref;
+  int i;
+  int64_t l;
+  int64_t r;
+  int64_t o;
+  int64_t out;
+
+  e = glue_arena_expr_at_ref(a, expr_ref);
+  if (!e)
+    return;
+  e->const_folded_valid = 0;
+  kd = e->kind;
+
+  if (kd == ast_ExprKind_EXPR_LIT || kd == ast_ExprKind_EXPR_BOOL_LIT) {
+    e->const_folded_val = (int32_t)e->int_val;
+    e->const_folded_valid = 1;
+    return;
+  }
+  if (kd == ast_ExprKind_EXPR_FLOAT_LIT) {
+    e->const_folded_val = (int32_t)e->float_val;
+    e->const_folded_valid = 1;
+    return;
+  }
+  if (kd == ast_ExprKind_EXPR_VAR) {
+    if (!const_names || !const_values || n_const_names <= 0 || e->var_name_len <= 0)
+      return;
+    for (i = 0; i < n_const_names; i++) {
+      if (!const_names[i])
+        continue;
+      if (strcmp(const_names[i], (const char *)e->var_name) == 0) {
+        e->const_folded_val = (int32_t)const_values[i];
+        e->const_folded_valid = 1;
+        return;
+      }
+    }
+    return;
+  }
+
+  if (kd >= ast_ExprKind_EXPR_ADD && kd <= ast_ExprKind_EXPR_LOGOR) {
+    left_ref = e->binop_left_ref;
+    right_ref = e->binop_right_ref;
+    glue_typeck_fold_expr_ref(a, left_ref, const_names, const_values, n_const_names);
+    glue_typeck_fold_expr_ref(a, right_ref, const_names, const_values, n_const_names);
+    {
+      struct ast_Expr *el = glue_arena_expr_at_ref(a, left_ref);
+      struct ast_Expr *er = glue_arena_expr_at_ref(a, right_ref);
+      if (!el || !er || !el->const_folded_valid || !er->const_folded_valid)
+        return;
+      l = (int64_t)el->const_folded_val;
+      r = (int64_t)er->const_folded_val;
+    }
+    switch (kd) {
+    case ast_ExprKind_EXPR_ADD:
+      out = l + r;
+      break;
+    case ast_ExprKind_EXPR_SUB:
+      out = l - r;
+      break;
+    case ast_ExprKind_EXPR_MUL:
+      out = l * r;
+      break;
+    case ast_ExprKind_EXPR_DIV:
+      if (r == 0)
+        return;
+      out = l / r;
+      break;
+    case ast_ExprKind_EXPR_MOD:
+      if (r == 0)
+        return;
+      out = l % r;
+      break;
+    case ast_ExprKind_EXPR_SHL:
+      out = (int64_t)((uint64_t)l << ((uint64_t)r & 63u));
+      break;
+    case ast_ExprKind_EXPR_SHR:
+      out = (int64_t)((uint64_t)l >> ((uint64_t)r & 63u));
+      break;
+    case ast_ExprKind_EXPR_BITAND:
+      out = l & r;
+      break;
+    case ast_ExprKind_EXPR_BITOR:
+      out = l | r;
+      break;
+    case ast_ExprKind_EXPR_BITXOR:
+      out = l ^ r;
+      break;
+    case ast_ExprKind_EXPR_EQ:
+      out = (l == r) ? 1 : 0;
+      break;
+    case ast_ExprKind_EXPR_NE:
+      out = (l != r) ? 1 : 0;
+      break;
+    case ast_ExprKind_EXPR_LT:
+      out = (l < r) ? 1 : 0;
+      break;
+    case ast_ExprKind_EXPR_LE:
+      out = (l <= r) ? 1 : 0;
+      break;
+    case ast_ExprKind_EXPR_GT:
+      out = (l > r) ? 1 : 0;
+      break;
+    case ast_ExprKind_EXPR_GE:
+      out = (l >= r) ? 1 : 0;
+      break;
+    case ast_ExprKind_EXPR_LOGAND:
+      out = (l && r) ? 1 : 0;
+      break;
+    case ast_ExprKind_EXPR_LOGOR:
+      out = (l || r) ? 1 : 0;
+      break;
+    default:
+      return;
+    }
+    e->const_folded_val = (int32_t)out;
+    e->const_folded_valid = 1;
+    return;
+  }
+
+  if (kd == ast_ExprKind_EXPR_NEG || kd == ast_ExprKind_EXPR_BITNOT || kd == ast_ExprKind_EXPR_LOGNOT) {
+    op_ref = e->unary_operand_ref;
+    glue_typeck_fold_expr_ref(a, op_ref, const_names, const_values, n_const_names);
+    {
+      struct ast_Expr *eo = glue_arena_expr_at_ref(a, op_ref);
+      if (!eo || !eo->const_folded_valid)
+        return;
+      o = (int64_t)eo->const_folded_val;
+    }
+    if (kd == ast_ExprKind_EXPR_NEG)
+      out = -o;
+    else if (kd == ast_ExprKind_EXPR_BITNOT)
+      out = ~o;
+    else
+      out = !o ? 1 : 0;
+    e->const_folded_val = (int32_t)out;
+    e->const_folded_valid = 1;
+    return;
+  }
+
+  if (kd == ast_ExprKind_EXPR_ARRAY_LIT) {
+    int ne = e->array_lit_num_elems;
+    int32_t tr;
+    int32_t tk;
+    for (i = 0; i < ne; i++)
+      glue_typeck_fold_expr_ref(a, pipeline_expr_array_lit_elem_ref(a, expr_ref, i), const_names,
+                                const_values, n_const_names);
+    /**
+     * C5-array-len: only when the lit was coerced to a scalar int type
+     * (`const N: i32 = [1,2,3,4]`). Real array materialization keeps
+     * const_folded_valid=0 so emit does not mov imm.
+     */
+    tr = e->resolved_type_ref;
+    if (tr > 0) {
+      tk = pipeline_type_kind_ord_at(a, tr);
+      /* TYPE_I32..TYPE_ISIZE = 0..7 in product enum. */
+      if (tk >= 0 && tk <= 7) {
+        e->const_folded_val = (int32_t)ne;
+        e->const_folded_valid = 1;
+      }
+    }
+    return;
+  }
+
+  if (kd == ast_ExprKind_EXPR_AS) {
+    glue_typeck_fold_expr_ref(a, e->as_operand_ref, const_names, const_values, n_const_names);
+    {
+      struct ast_Expr *eo = glue_arena_expr_at_ref(a, e->as_operand_ref);
+      if (eo && eo->const_folded_valid) {
+        e->const_folded_val = eo->const_folded_val; /* int32 product field */
+        e->const_folded_valid = 1;
+      }
+    }
+    return;
+  }
+}
+
+/** Pure-lit / already-folded tree CTFE after typeck (no block const env). */
+void pipeline_typeck_fold_expr_c(struct ast_ASTArena *arena, int32_t expr_ref) {
+  if (!arena || expr_ref <= 0)
+    return;
+  if (!glue_is_const_expr_ref(arena, expr_ref, NULL, 0)) {
+    /* Still recurse so nested pure subtrees can fold. */
+    struct ast_Expr *e = glue_arena_expr_at_ref(arena, expr_ref);
+    if (!e)
+      return;
+    if (e->kind >= ast_ExprKind_EXPR_ADD && e->kind <= ast_ExprKind_EXPR_LOGOR) {
+      glue_typeck_fold_expr_ref(arena, e->binop_left_ref, NULL, NULL, 0);
+      glue_typeck_fold_expr_ref(arena, e->binop_right_ref, NULL, NULL, 0);
+      glue_typeck_fold_expr_ref(arena, expr_ref, NULL, NULL, 0);
+    } else if (e->kind == ast_ExprKind_EXPR_NEG || e->kind == ast_ExprKind_EXPR_BITNOT ||
+               e->kind == ast_ExprKind_EXPR_LOGNOT) {
+      glue_typeck_fold_expr_ref(arena, e->unary_operand_ref, NULL, NULL, 0);
+      glue_typeck_fold_expr_ref(arena, expr_ref, NULL, NULL, 0);
+    } else if (e->kind == ast_ExprKind_EXPR_LIT || e->kind == ast_ExprKind_EXPR_BOOL_LIT ||
+               e->kind == ast_ExprKind_EXPR_FLOAT_LIT) {
+      glue_typeck_fold_expr_ref(arena, expr_ref, NULL, NULL, 0);
+    }
+    return;
+  }
+  glue_typeck_fold_expr_ref(arena, expr_ref, NULL, NULL, 0);
+}
+
+/**
+ * Build prior-const name/value env for block consts [0, const_idx), then fold
+ * the const_idx init (or fold expr_ref when const_idx < 0 using all consts).
+ */
+static void glue_typeck_block_const_env_build(struct ast_ASTArena *arena, int32_t block_ref, int max_const,
+                                             const char *names[64], char name_bufs[64][64],
+                                             int64_t values[64], int *out_n) {
+  int n = 0;
+  int i;
+  *out_n = 0;
+  if (!arena || max_const <= 0)
+    return;
+  for (i = 0; i < max_const && n < 64; i++) {
+    int32_t nlen = pipeline_block_const_name_len(arena, block_ref, i);
+    int32_t init_ref = pipeline_block_const_init_ref(arena, block_ref, i);
+    if (nlen <= 0 || nlen >= 64)
+      continue;
+    pipeline_block_const_name_copy64(arena, block_ref, i, (uint8_t *)name_bufs[n]);
+    name_bufs[n][nlen] = '\0';
+    names[n] = name_bufs[n];
+    values[n] = 0;
+    if (init_ref > 0) {
+      glue_typeck_fold_expr_ref(arena, init_ref, names, values, n);
+      {
+        struct ast_Expr *ie = glue_arena_expr_at_ref(arena, init_ref);
+        if (ie && ie->const_folded_valid)
+          values[n] = (int64_t)ie->const_folded_val;
+      }
+    }
+    n++;
+  }
+  *out_n = n;
+}
+
+/** Fold block const init at const_idx with prior consts in scope. */
+void pipeline_typeck_fold_block_const_init_c(struct ast_ASTArena *arena, int32_t block_ref,
+                                            int32_t const_idx) {
+  const char *names[64];
+  char name_bufs[64][64];
+  int64_t values[64];
+  int n = 0;
+  int32_t init_ref;
+  int32_t type_ref;
+  struct ast_Expr *ie;
+
+  if (!arena || const_idx < 0)
+    return;
+  glue_typeck_block_const_env_build(arena, block_ref, const_idx, names, name_bufs, values, &n);
+  init_ref = pipeline_block_const_init_ref(arena, block_ref, const_idx);
+  if (init_ref <= 0)
+    return;
+  glue_typeck_fold_expr_ref(arena, init_ref, names, values, n);
+  ie = glue_arena_expr_at_ref(arena, init_ref);
+  if (!ie || ie->const_folded_valid)
+    return;
+  /**
+   * C5-array-len: `const N: i32 = [1,2,3,4]` — array lit init with scalar const
+   * type folds to element count (LANG-006). Stamp resolved_type to const type
+   * so emit/codegen can treat the init as a scalar imm.
+   */
+  type_ref = pipeline_block_const_type_ref(arena, block_ref, const_idx);
+  if (type_ref > 0 && ie->kind == ast_ExprKind_EXPR_ARRAY_LIT) {
+    int32_t tk = pipeline_type_kind_ord_at(arena, type_ref);
+    if (tk >= 0 && tk <= 7) {
+      ie->resolved_type_ref = type_ref;
+      ie->const_folded_val = (int32_t)ie->array_lit_num_elems;
+      ie->const_folded_valid = 1;
+    }
+  }
+}
+
+/** Fold expr with all block consts as env (let init / return of const names). */
+void pipeline_typeck_fold_expr_in_block_c(struct ast_ASTArena *arena, int32_t block_ref,
+                                         int32_t expr_ref) {
+  const char *names[64];
+  char name_bufs[64][64];
+  int64_t values[64];
+  int n = 0;
+  int nconst;
+
+  if (!arena || expr_ref <= 0 || block_ref <= 0)
+    return;
+  nconst = ast_ast_block_num_consts(arena, block_ref);
+  glue_typeck_block_const_env_build(arena, block_ref, nconst, names, name_bufs, values, &n);
+  glue_typeck_fold_expr_ref(arena, expr_ref, names, values, n);
+}
+
 /** 读 struct_lit 字段数；避免 X 内 `let e: Expr = ast_arena_expr_get` 后字段访问 typeck 失败。 */
 int32_t pipeline_expr_struct_lit_num_fields(struct ast_ASTArena *a, int32_t expr_ref) {
   struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);

@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // This program is free software: you can redistribute it and/or modify
@@ -4469,6 +4469,17 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       return 0;
     }
     let e: Expr = ast.ast_arena_expr_get(arena, expr_ref);
+    /**
+     * PLATFORM: SHARED — consume typeck CTFE (const_folded_*). Authority is typeck fold,
+     * not emit-side optim; C path mirrors asm mov-imm when typeck folded the tree.
+     * Skip VAR: pool field may be stale; VAR names resolve via const/let slots.
+     */
+    if (e.const_folded_valid != 0 && pipeline_expr_kind_ord_at(arena, expr_ref) != 3) {
+      if (format_int(out, e.const_folded_val as i64) != 0) {
+        return -1;
+      }
+      return 0;
+    }
     /* STRING_LIT(kind 59)。
      * 【Why 根源】旧逻辑 *u8 发 `(uint8_t[]){ bytes, 0 }`：C 块作用域 compound literal
      *   为自动存储；`let p = "x"; return p`（如 labi_linux_harden_flag_at）返回悬空指针，

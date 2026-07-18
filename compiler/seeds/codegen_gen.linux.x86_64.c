@@ -5393,6 +5393,13 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
     if (((expr_ref <=0) || (expr_ref > (arena->num_exprs)))) {
       return 0;
     }
+    /* PLATFORM: SHARED — consume typeck CTFE (const_folded_*); not emit optim expand. Skip VAR. */
+    if (((e.const_folded_valid) != 0) && (pipeline_expr_kind_ord_at(arena, expr_ref) != 3)) {
+      if ((codegen_format_int(out, (int64_t)(e.const_folded_val)) != 0)) {
+        return -1;
+      }
+      return 0;
+    }
     if ((pipeline_expr_kind_ord_at(arena, expr_ref) ==59)) {
       int32_t slen = (e.var_name_len);
       int emit_slice = 0;
