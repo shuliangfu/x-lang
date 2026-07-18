@@ -27435,6 +27435,23 @@ int32_t pipeline_typeck_x_ast_library_c(struct ast_Module *module, struct ast_AS
 }
 
 /**
+ * Soft-suppress XT001 while dep prerun tries full library typeck then light-falls-back.
+ * PLATFORM: SHARED — freestanding co-emit one_ctx often has incomplete dep slots
+ * (ndep=1 empty); full typeck fails on import METHOD_CALL (heap.default_alloc / mem.mem_set)
+ * then light fallback continues. Emitting XT001 for that exploratory fail is product noise.
+ * Entry / final typeck still report hard XT001 (suppress cleared after prerun attempt).
+ */
+static int32_t g_pipeline_typeck_diag_soft_suppress = 0;
+
+void pipeline_typeck_diag_soft_suppress_set(int32_t v) {
+  g_pipeline_typeck_diag_soft_suppress = v ? 1 : 0;
+}
+
+int32_t pipeline_typeck_diag_soft_suppress_get(void) {
+  return g_pipeline_typeck_diag_soft_suppress;
+}
+
+/**
  * dep prerun typeck：优先全量 library typeck（写 CALL resolved_func_index，供 overload mangle）。
  * 【Why 根源】-E co-emit 只 typeck entry，dep 若仅 light typeck 则 body 内 alloc(al,size) 无 resolve，
  *   codegen 发裸 std_heap_alloc → 与定义 std_heap_alloc_Allocator_usize 不一致。
@@ -27448,7 +27465,10 @@ int32_t pipeline_typeck_dep_prerun_module_c(struct ast_Module *module, struct as
   if (!module || !arena || !ctx)
     return -5;
   pipeline_typeck_set_dep_ctx(ctx);
+  /* Suppress soft XT001 for exploratory full typeck; light fallback is intentional. */
+  pipeline_typeck_diag_soft_suppress_set(1);
   tc = typeck_typeck_x_ast_library(module, arena, ctx);
+  pipeline_typeck_diag_soft_suppress_set(0);
   if (tc == 0)
     return 0;
   if (getenv("SHUX_DEBUG_PIPE"))

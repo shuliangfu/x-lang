@@ -389,14 +389,21 @@ export function driver_diagnostic_codegen_fail(dep_index: i32, is_dep: i32): voi
   driver_diag_note(&msg[0]);
 }
 
+/** Soft-suppress flag set by pipeline_typeck_dep_prerun_module_c during exploratory full typeck. */
+export extern "C" function pipeline_typeck_diag_soft_suppress_get(): i32;
+
 /** Emit XT001 when typeck fails in a function. Params: func_idx; name[0..name_len) capped
  * at 64 bytes (or "(unknown)"); kind==-6 → "implicit tail return", else "check_block failed".
  * Path: append assemble → lsp_diag_add_code if LSP; else check note + diag_report_with_code
  * ("typeck error","XT001") and optional prefixed hint for kind -6. No va_list reportf.
- * PLATFORM: SHARED — pure authority in thin.x; FROM_X rest no pure-dup _impl. */
+ * PLATFORM: SHARED — pure authority in thin.x; FROM_X rest no pure-dup _impl.
+ * Soft-suppress: dep prerun full typeck may fail then light-fallback; do not spam XT001. */
 #[no_mangle]
 export function driver_diagnostic_typeck_func_fail(func_idx: i32, name: *u8, name_len: i32, kind: i32): void {
   unsafe {
+    if (pipeline_typeck_diag_soft_suppress_get() != 0) {
+      return;
+    }
     let msg: u8[240] = [];
     let at: i32 = driver_diag_append_cstr(&msg[0], 240, 0, ".x type check failed in function #");
     at = driver_diag_append_i32(&msg[0], 240, at, func_idx);

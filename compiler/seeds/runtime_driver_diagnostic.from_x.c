@@ -322,11 +322,16 @@ void driver_diagnostic_typeck_fail(void) {
  * cold keeps C body; FROM_X no pure-dup _impl (H↓).
  */
 #ifndef SHUX_L2_RDD_THIN_FROM_X
+extern int32_t pipeline_typeck_diag_soft_suppress_get(void);
 void driver_diagnostic_typeck_func_fail(int32_t func_idx, const uint8_t *name, int32_t name_len, int32_t kind)
 {
     char namebuf[72];
     int nl = (name && name_len > 0 && name_len <= 64) ? (int)name_len : 0;
     const char *why = kind == -6 ? "implicit tail return" : "check_block failed";
+
+    /* PLATFORM: SHARED — dep prerun soft-suppress (see pipeline_typeck_dep_prerun_module_c). */
+    if (pipeline_typeck_diag_soft_suppress_get() != 0)
+        return;
 
     if (nl > 0) {
         memcpy(namebuf, name, (size_t)nl);

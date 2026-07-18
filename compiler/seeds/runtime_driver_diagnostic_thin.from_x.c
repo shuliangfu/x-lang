@@ -765,7 +765,11 @@ void driver_diagnostic_codegen_fail(int32_t dep_index, int32_t is_dep) {
   (void)((at = driver_diag_append_cstr(&((msg)[0]), 160, at, ((uint8_t *)"\x29"))));
   (void)(driver_diag_note(&((msg)[0])));
 }
+extern int32_t pipeline_typeck_diag_soft_suppress_get(void);
 void driver_diagnostic_typeck_func_fail(int32_t func_idx, uint8_t * name, int32_t name_len, int32_t kind) {
+  /* PLATFORM: SHARED — dep prerun soft-suppress (see pipeline_typeck_dep_prerun_module_c). */
+  if (pipeline_typeck_diag_soft_suppress_get() != 0)
+    return;
   {
     uint8_t msg[240] = {};
     int32_t at = driver_diag_append_cstr(&((msg)[0]), 240, 0, ((uint8_t *)"\x2e\x78\x20\x74\x79\x70\x65\x20\x63\x68\x65\x63\x6b\x20\x66\x61\x69\x6c\x65\x64\x20\x69\x6e\x20\x66\x75\x6e\x63\x74\x69\x6f\x6e\x20\x23"));
