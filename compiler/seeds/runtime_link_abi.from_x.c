@@ -3305,8 +3305,8 @@ int pipeline_codegen_std_dep_link_only(uint8_t *path) {
        * channel_i32_*_c / backtrace_*_c（runtime_*_glue / platform）。 */
       "std.atomic", "std.sync", "std.thread",
       "std.time", "std.random",
-      /* 勿 link_only std.env：env.o 来自 env.x 内部符号（std_env_env_*），与 mod.x API
-       *（std_env_getenv）不一致；co-emit mod.x + runtime_env_os.o 的 env_*_c 为权威。 */
+      /* 勿 link_only std.env：C 路径仍可 co-emit mod；formal env.o 现为
+       * mod.x（std_env_*）+ runtime_env_os.o（env_*_c），asm 由 fk0 按需推入。 */
       "std.math", "std.hash",
       /* 勿 link_only std.sort：C 路径仍可 co-emit mod；formal sort.o 现为
        * mod.x+sort.x（std_sort_sort_*），asm 由 fk0 探针按需推入。 */
@@ -6500,6 +6500,8 @@ static const LabiStdPlanStep g_labi_std_plan[] = {
     {LABI_STD_OP_STD, "std/random/random.o", 0},
     {LABI_STD_OP_PRIMARY_ENV_OS, "compiler/runtime_env_os.o", 0},
     {LABI_STD_OP_STD, "std/env/env.o", 0},
+    /* PLATFORM: SHARED — formal fs.o for asm (std.fs co-emit skipped); fk0 gated. */
+    {LABI_STD_OP_STD, "std/fs/fs.o", 0},
     {LABI_STD_OP_STD, "std/sync/sync.o", 3},
     {LABI_STD_OP_GLUE_SYNC_PAIR, "compiler/runtime_sync_lock_diag_tls.o", 0},
     {LABI_STD_OP_STD, "std/encoding/encoding.o", 0},
@@ -6705,6 +6707,36 @@ static int labi_std_fk0_user_needs_rel(const char *user_o, const char *rel) {
             || shux_link_obj_needs_undef_sym(user_o, "std_sort_cmp_asc_fn")
             || shux_link_obj_needs_undef_sym(user_o, "std_sort_cmp_desc_fn")
             || shux_link_obj_needs_undef_sym(user_o, "std_sort_cmp_key_fn");
+    /*
+     * PLATFORM: SHARED — formal env.o = mod.x (std_env_*); OS env_*_c in runtime_env_os.o.
+     * Old env.x-only .o exported std_env_env_* / args helpers and fk0 had no probes →
+     * never pushed → Ubuntu -backend asm tests/env BLD001 (U std_env_getenv). G.7 complete.
+     */
+    if (strstr(rel, "std/env/env.o"))
+        return shux_link_obj_needs_undef_sym(user_o, "std_env_getenv")
+            || shux_link_obj_needs_undef_sym(user_o, "std_env_getenv_exists")
+            || shux_link_obj_needs_undef_sym(user_o, "std_env_getenv_z")
+            || shux_link_obj_needs_undef_sym(user_o, "std_env_getenv_ptr")
+            || shux_link_obj_needs_undef_sym(user_o, "std_env_setenv")
+            || shux_link_obj_needs_undef_sym(user_o, "std_env_unsetenv")
+            || shux_link_obj_needs_undef_sym(user_o, "std_env_temp_dir")
+            || shux_link_obj_needs_undef_sym(user_o, "std_env_iter")
+            || shux_link_obj_needs_undef_sym(user_o, "std_env_iter_count")
+            || shux_link_obj_needs_undef_sym(user_o, "std_env_args_iter");
+    /*
+     * PLATFORM: SHARED — formal fs.o = mod.x + posix.x (std_fs_*); asm skips std.fs co-emit.
+     * No plan entry / no probes → U std_fs_invalid (tests/fs/main) BLD001. G.7 complete fk0.
+     */
+    if (strstr(rel, "std/fs/fs.o"))
+        return shux_link_obj_needs_undef_sym(user_o, "std_fs_invalid")
+            || shux_link_obj_needs_undef_sym(user_o, "std_fs_open")
+            || shux_link_obj_needs_undef_sym(user_o, "std_fs_create")
+            || shux_link_obj_needs_undef_sym(user_o, "std_fs_close")
+            || shux_link_obj_needs_undef_sym(user_o, "std_fs_read")
+            || shux_link_obj_needs_undef_sym(user_o, "std_fs_write")
+            || shux_link_obj_needs_undef_sym(user_o, "std_fs_chunk_size")
+            || shux_link_obj_needs_undef_sym(user_o, "std_fs_mmap_ro")
+            || shux_link_obj_needs_undef_sym(user_o, "std_fs_last_error");
     /* 其它 fk==0：默认不硬链，避免残缺 .o 毒化纯 asm / 无 import 用户程序。
      * 需要时由 on_demand 或上方专用探针推入。 */
     return 0;

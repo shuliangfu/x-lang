@@ -18,12 +18,12 @@
  * PLATFORM: SHARED — pure table; seed labi_std_list.from_x.c must stay in sync. */
 #[no_mangle]
 export function labi_std_plan_count(): i32 {
-  return 59;
+  return 60;
 }
 
 /** Fill one plan step: op / rel path / flag_kind. Returns 1 if i is in range.
  * out: C int* / const char** / int*; .x writes via *i32 + *usize + *i32.
- * PLATFORM: SHARED — includes std/vec/vec.o (fk0) after sort; task remains last. */
+ * PLATFORM: SHARED — includes std/vec + std/fs (fk0) formal; task remains last. */
 #[no_mangle]
 export function labi_std_plan_step_at(
   i: i32, op_out: *i32, rel_out: *usize, flag_kind_out: *i32
@@ -31,7 +31,7 @@ export function labi_std_plan_step_at(
   if (i < 0) {
     return 0;
   }
-  if (i >= 59) {
+  if (i >= 60) {
     return 0;
   }
   if (i == 0) {
@@ -789,7 +789,21 @@ export function labi_std_plan_step_at(
     }
     return 1;
   }
+  /* PLATFORM: SHARED — formal fs.o (mod.x+posix.x); asm skips std.fs co-emit; fk0 gated. */
   if (i == 58) {
+    if (op_out != 0 as *i32) {
+      op_out[0] = 1;
+    }
+    if (rel_out != 0 as *usize) {
+      let p: *u8 = "std/fs/fs.o";
+      rel_out[0] = p as usize;
+    }
+    if (flag_kind_out != 0 as *i32) {
+      flag_kind_out[0] = 0;
+    }
+    return 1;
+  }
+  if (i == 59) {
     if (op_out != 0 as *i32) {
       op_out[0] = 30;
     }
@@ -806,10 +820,10 @@ export function labi_std_plan_step_at(
 }
 
 /** Pure: count of OP_STD entries with std/ prefix (audit / unit).
- * PLATFORM: SHARED — includes std/vec/vec.o. */
+ * PLATFORM: SHARED — includes std/vec/vec.o + std/fs/fs.o. */
 #[no_mangle]
 export function labi_std_default_std_rel_count(): i32 {
-  return 42;
+  return 43;
 }
 
 #[no_mangle]
@@ -983,6 +997,10 @@ export function labi_std_default_std_rel_at(j: i32): *u8 {
   }
   if (j == 41) {
     let p: *u8 = "std/vec/vec.o";
+    return p;
+  }
+  if (j == 42) {
+    let p: *u8 = "std/fs/fs.o";
     return p;
   }
   return 0 as *u8;

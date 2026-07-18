@@ -265,13 +265,19 @@ net-o-mbedtls:
 ../std/random/random.o: ../std/random/mod.x ../std/random/random.x | scripts/shux_compile_std_module.sh
 	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/random/mod.x ../std/random/random.x
 
-# std.env：F-env v2 纯 .x（F-ZC）；OS 胶层在 runtime_env_os.o。
-../std/env/env.o: ../std/env/env.x
-	@if [ -x ./shux_asm ]; then shux=./shux_asm; \
-	elif [ -x ./shux ]; then shux=./shux; \
-	elif [ -x ./shux-c ]; then shux=./shux-c; \
-	else echo "make env.o: need shux-c or shux (F-env zero-c)" >&2; exit 0; fi; \
-	sh scripts/shux_compile_std_x.sh auto ../std/env/env.x ../std/env/env.o
+# std.env：product surface = mod.x (std_env_getenv/…); OS glue in runtime_env_os.o.
+# PLATFORM: SHARED — do NOT compile only env.x (std_env_env_* / missing std_env_*);
+# asm fk0 pulls formal env.o; wrong authority → Ubuntu BLD001 (tests/env).
+# env.x is helpers (parse_kv / platform_encoding / no_mangle args_iter), not product API.
+../std/env/env.o: ../std/env/mod.x | scripts/shux_compile_std_module.sh
+	@sh scripts/shux_compile_std_module.sh $@ ../std/env/mod.x
+
+# std.fs：F-03 pure .x — formal .o for -backend asm (co-emit of std.fs is skipped).
+# PLATFORM: SHARED — mod.x product API + posix.x (import binding, not --bare-impl).
+# Ubuntu/macOS use posix; Windows host would need win32.x (not product gold).
+# Wrong/missing formal → U std_fs_invalid (tests/fs/main.x) BLD001.
+../std/fs/fs.o: ../std/fs/mod.x ../std/fs/posix.x | scripts/shux_compile_std_module.sh
+	@sh scripts/shux_compile_std_module.sh $@ ../std/fs/mod.x ../std/fs/posix.x
 
 # std.sync：F 闭合 — mod.x（用户 API）+ sync.x（impl 裸符号）用 -E-extern 编译；
 # OS/TLS 胶层在 runtime_sync_*.o，最终 exe 链接时按需推入。

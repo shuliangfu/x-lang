@@ -322,7 +322,8 @@ const char *const driver_preamble_io_net_lines[] = {
         "__attribute__((weak)) ptrdiff_t io_write_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms) {\n"
         "  (void)fd;(void)bufs;(void)n;(void)timeout_ms; return (ptrdiff_t)-1;\n"
         "}\n"
-        /* std.env mod.x extern args_iter_*_c：env.o 当前 mangling 为 std_env_env_args_iter_*，no_mangle 未生效。
+        /* std.env mod.x extern args_iter_*_c：formal env.o is mod.x (std_env_*); args_iter body
+         * is weak here (env.x no_mangle helpers are not the product formal surface).
          * weak 委派 process_shux_*（runtime_process_argv.o 权威：constructor 从 CRT 绑 argc/argv）。
          * 禁止 return 0 空桩：Darwin 上 user TU weak 先于 runtime weak，空桩会盖过真体并 dead_strip
          * 掉 getter，导致 env_iter / args_iter 恒见 argc=0。process.o 强符号仍可覆盖本 weak。 */
