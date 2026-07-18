@@ -27,7 +27,6 @@ export function dynlib_win_load_library_w_utf8(path: *u8): *u8 {
 
 // dynlib_win_normalize_path: see function docblock below.
 
-#[no_mangle]
 /** Exported function `dynlib_win_normalize_path`.
  * Implements `dynlib_win_normalize_path`.
  * @param out *u8
@@ -35,6 +34,7 @@ export function dynlib_win_load_library_w_utf8(path: *u8): *u8 {
  * @param path *u8
  * @return i32
  */
+#[no_mangle]
 export function dynlib_win_normalize_path(out: *u8, out_cap: i32, path: *u8): i32 {
   if (out == 0) { return 0; }
   if (out_cap < 2) { return 0; }

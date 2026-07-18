@@ -409,22 +409,22 @@ export function fs_libc_strlen(s: *u8): usize {
   unsafe { return strlen(s); }
   return 0 as usize; // unreachable — typeck workaround
 }
-#[cfg(target_os = "linux")]
 /** Exported function `fs_libc_errno_location`.
  * Implements `fs_libc_errno_location`.
  * @return *i32
  */
+#[cfg(target_os = "linux")]
 export function fs_libc_errno_location(): *i32 {
   let p: *i32 = 0 as *i32;
   unsafe { p = __errno_location(); }
   return p;
 }
 
-#[cfg(target_os = "macos")]
 /** Exported function `fs_libc_errno_location`.
  * Implements `fs_libc_errno_location`.
  * @return *i32
  */
+#[cfg(target_os = "macos")]
 export function fs_libc_errno_location(): *i32 {
   let p: *i32 = 0 as *i32;
   unsafe { p = __error(); }
@@ -472,7 +472,6 @@ export function fs_libc_poll(fds: *PollFd, nfds: u64, timeout: i32): i32 {
   unsafe { return shux_sys_poll(fds as *u8, nfds as i32, timeout); }
   return 0; // unreachable — typeck workaround
 }
-#[cfg(target_os = "linux")]
 /** Exported function `fs_libc_posix_fadvise`.
  * Implements `fs_libc_posix_fadvise`.
  * @param fd i32
@@ -481,11 +480,11 @@ export function fs_libc_poll(fds: *PollFd, nfds: u64, timeout: i32): i32 {
  * @param advice i32
  * @return i32
  */
+#[cfg(target_os = "linux")]
 export function fs_libc_posix_fadvise(fd: i32, offset: i64, len: i64, advice: i32): i32 {
   unsafe { return posix_fadvise(fd, offset, len, advice); }
   return 0; // unreachable — typeck workaround
 }
-#[cfg(target_os = "linux")]
 /** Exported function `fs_libc_copy_file_range`.
  * Implements `fs_libc_copy_file_range`.
  * @param fd_in i32
@@ -496,11 +495,11 @@ export function fs_libc_posix_fadvise(fd: i32, offset: i64, len: i64, advice: i3
  * @param flags u32
  * @return isize
  */
+#[cfg(target_os = "linux")]
 export function fs_libc_copy_file_range(fd_in: i32, off_in: *i64, fd_out: i32, off_out: *i64, len: usize, flags: u32): isize {
   unsafe { return copy_file_range(fd_in, off_in, fd_out, off_out, len, flags); }
   return 0 as isize; // unreachable — typeck workaround
 }
-#[cfg(target_os = "linux")]
 /** Exported function `fs_libc_sendfile`.
  * Implements `fs_libc_sendfile`.
  * @param out_fd i32
@@ -509,11 +508,11 @@ export function fs_libc_copy_file_range(fd_in: i32, off_in: *i64, fd_out: i32, o
  * @param count usize
  * @return isize
  */
+#[cfg(target_os = "linux")]
 export function fs_libc_sendfile(out_fd: i32, in_fd: i32, offset: *i64, count: usize): isize {
   unsafe { return sendfile(out_fd, in_fd, offset, count); }
   return 0 as isize; // unreachable — typeck workaround
 }
-#[cfg(target_os = "linux")]
 /** Exported function `fs_libc_splice`.
  * Implements `fs_libc_splice`.
  * @param fd_in i32
@@ -524,21 +523,21 @@ export function fs_libc_sendfile(out_fd: i32, in_fd: i32, offset: *i64, count: u
  * @param flags u32
  * @return isize
  */
+#[cfg(target_os = "linux")]
 export function fs_libc_splice(fd_in: i32, off_in: *i64, fd_out: i32, off_out: *i64, len: usize, flags: u32): isize {
   unsafe { return splice(fd_in, off_in, fd_out, off_out, len, flags); }
   return 0 as isize; // unreachable — typeck workaround
 }
-#[cfg(target_os = "linux")]
 /** Exported function `fs_libc_pipe`.
  * Implements `fs_libc_pipe`.
  * @param pipefd *i32
  * @return i32
  */
+#[cfg(target_os = "linux")]
 export function fs_libc_pipe(pipefd: *i32): i32 {
   unsafe { return pipe(pipefd); }
   return 0; // unreachable — typeck workaround
 }
-#[cfg(target_os = "linux")]
 /** Exported function `fs_libc_sync_file_range`.
  * Implements `fs_libc_sync_file_range`.
  * @param fd i32
@@ -547,11 +546,11 @@ export function fs_libc_pipe(pipefd: *i32): i32 {
  * @param flags u32
  * @return i32
  */
+#[cfg(target_os = "linux")]
 export function fs_libc_sync_file_range(fd: i32, offset: i64, nbytes: i64, flags: u32): i32 {
   unsafe { return sync_file_range(fd, offset, nbytes, flags); }
   return 0; // unreachable — typeck workaround
 }
-#[cfg(target_os = "linux")]
 /** Exported function `fs_libc_fallocate`.
  * Memory management helper `fs_libc_fallocate`.
  * @param fd i32
@@ -560,6 +559,7 @@ export function fs_libc_sync_file_range(fd: i32, offset: i64, nbytes: i64, flags
  * @param len i64
  * @return i32
  */
+#[cfg(target_os = "linux")]
 export function fs_libc_fallocate(fd: i32, mode: i32, offset: i64, len: i64): i32 {
   unsafe { return fallocate(fd, mode, offset, len); }
   return 0; // unreachable — typeck workaround

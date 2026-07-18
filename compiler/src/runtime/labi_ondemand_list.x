@@ -61,13 +61,13 @@ export function labi_od_simple_group_sym_count(g: i32): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `labi_od_simple_group_sym_at`.
  * Implements `labi_od_simple_group_sym_at`.
  * @param g i32
  * @param i i32
  * @return *u8
  */
+#[no_mangle]
 export function labi_od_simple_group_sym_at(g: i32, i: i32): *u8 {
   if (g < 0) {
     return 0 as *u8;
@@ -369,12 +369,12 @@ export function labi_od_kv_sym_count(): i32 {
   return 2;
 }
 
-#[no_mangle]
 /** Exported function `labi_od_kv_sym_at`.
  * Implements `labi_od_kv_sym_at`.
  * @param i i32
  * @return *u8
  */
+#[no_mangle]
 export function labi_od_kv_sym_at(i: i32): *u8 {
   if (i < 0) {
     return 0 as *u8;
@@ -390,21 +390,21 @@ export function labi_od_kv_sym_at(i: i32): *u8 {
   return 0 as *u8;
 }
 
-#[no_mangle]
 /** Exported function `labi_od_kv_rel`.
  * Implements `labi_od_kv_rel`.
  * @return *u8
  */
+#[no_mangle]
 export function labi_od_kv_rel(): *u8 {
   let p: *u8 = "std/db/kv/kv.o";
   return p;
 }
 
-#[no_mangle]
 /** Exported function `labi_od_kv_glue_rel`.
  * Implements `labi_od_kv_glue_rel`.
  * @return *u8
  */
+#[no_mangle]
 export function labi_od_kv_glue_rel(): *u8 {
   let p: *u8 = "compiler/runtime_kv_mmap_glue.o";
   return p;
@@ -416,12 +416,12 @@ export function labi_od_arrow_sym_count(): i32 {
   return 2;
 }
 
-#[no_mangle]
 /** Exported function `labi_od_arrow_sym_at`.
  * Implements `labi_od_arrow_sym_at`.
  * @param i i32
  * @return *u8
  */
+#[no_mangle]
 export function labi_od_arrow_sym_at(i: i32): *u8 {
   if (i < 0) {
     return 0 as *u8;
@@ -437,21 +437,21 @@ export function labi_od_arrow_sym_at(i: i32): *u8 {
   return 0 as *u8;
 }
 
-#[no_mangle]
 /** Exported function `labi_od_arrow_rel`.
  * Implements `labi_od_arrow_rel`.
  * @return *u8
  */
+#[no_mangle]
 export function labi_od_arrow_rel(): *u8 {
   let p: *u8 = "std/db/arrow/arrow.o";
   return p;
 }
 
-#[no_mangle]
 /** Exported function `labi_od_arrow_glue_rel`.
  * Implements `labi_od_arrow_glue_rel`.
  * @return *u8
  */
+#[no_mangle]
 export function labi_od_arrow_glue_rel(): *u8 {
   let p: *u8 = "compiler/runtime_arrow_simd_glue.o";
   return p;
@@ -463,12 +463,12 @@ export function labi_od_time_sym_count(): i32 {
   return 4;
 }
 
-#[no_mangle]
 /** Exported function `labi_od_time_sym_at`.
  * Implements `labi_od_time_sym_at`.
  * @param i i32
  * @return *u8
  */
+#[no_mangle]
 export function labi_od_time_sym_at(i: i32): *u8 {
   if (i < 0) {
     return 0 as *u8;
@@ -492,21 +492,21 @@ export function labi_od_time_sym_at(i: i32): *u8 {
   return 0 as *u8;
 }
 
-#[no_mangle]
 /** Exported function `labi_od_time_rel`.
  * Implements `labi_od_time_rel`.
  * @return *u8
  */
+#[no_mangle]
 export function labi_od_time_rel(): *u8 {
   let p: *u8 = "std/time/time.o";
   return p;
 }
 
-#[no_mangle]
 /** Exported function `labi_od_time_os_rel`.
  * Implements `labi_od_time_os_rel`.
  * @return *u8
  */
+#[no_mangle]
 export function labi_od_time_os_rel(): *u8 {
   let p: *u8 = "compiler/runtime_time_os.o";
   return p;
@@ -518,12 +518,12 @@ export function labi_od_queue_sym_count(): i32 {
   return 3;
 }
 
-#[no_mangle]
 /** Exported function `labi_od_queue_sym_at`.
  * Implements `labi_od_queue_sym_at`.
  * @param i i32
  * @return *u8
  */
+#[no_mangle]
 export function labi_od_queue_sym_at(i: i32): *u8 {
   if (i < 0) {
     return 0 as *u8;
@@ -543,21 +543,21 @@ export function labi_od_queue_sym_at(i: i32): *u8 {
   return 0 as *u8;
 }
 
-#[no_mangle]
 /** Exported function `labi_od_queue_rel`.
  * Implements `labi_od_queue_rel`.
  * @return *u8
  */
+#[no_mangle]
 export function labi_od_queue_rel(): *u8 {
   let p: *u8 = "std/queue/queue.o";
   return p;
 }
 
-#[no_mangle]
 /** Exported function `labi_od_queue_contention_rel`.
  * Implements `labi_od_queue_contention_rel`.
  * @return *u8
  */
+#[no_mangle]
 export function labi_od_queue_contention_rel(): *u8 {
   let p: *u8 = "compiler/runtime_queue_contention.o";
   return p;
@@ -570,171 +570,171 @@ export function labi_od_rel_net(): *u8 {
   return p;
 }
 
-#[no_mangle]
 /** Exported function `labi_od_rel_thread`.
  * Read path helper `labi_od_rel_thread`.
  * @return *u8
  */
+#[no_mangle]
 export function labi_od_rel_thread(): *u8 {
   let p: *u8 = "std/thread/thread.o";
   return p;
 }
 
-#[no_mangle]
 /** Exported function `labi_od_rel_heap`.
  * Implements `labi_od_rel_heap`.
  * @return *u8
  */
+#[no_mangle]
 export function labi_od_rel_heap(): *u8 {
   let p: *u8 = "std/heap/heap.o";
   return p;
 }
 
-#[no_mangle]
 /** Exported function `labi_od_rel_set`.
  * Implements `labi_od_rel_set`.
  * @return *u8
  */
+#[no_mangle]
 export function labi_od_rel_set(): *u8 {
   let p: *u8 = "std/set/set.o";
   return p;
 }
 
-#[no_mangle]
 /** Exported function `labi_od_rel_map`.
  * Implements `labi_od_rel_map`.
  * @return *u8
  */
+#[no_mangle]
 export function labi_od_rel_map(): *u8 {
   let p: *u8 = "std/map/map.o";
   return p;
 }
 
-#[no_mangle]
 /** Exported function `labi_od_rel_async_scheduler`.
  * Implements `labi_od_rel_async_scheduler`.
  * @return *u8
  */
+#[no_mangle]
 export function labi_od_rel_async_scheduler(): *u8 {
   let p: *u8 = "std/async/scheduler.o";
   return p;
 }
 
-#[no_mangle]
 /** Exported function `labi_od_rel_core_mem`.
  * Implements `labi_od_rel_core_mem`.
  * @return *u8
  */
+#[no_mangle]
 export function labi_od_rel_core_mem(): *u8 {
   let p: *u8 = "core/mem/mem.o";
   return p;
 }
 
-#[no_mangle]
 /** Exported function `labi_od_rel_sys_linux`.
  * Implements `labi_od_rel_sys_linux`.
  * @return *u8
  */
+#[no_mangle]
 export function labi_od_rel_sys_linux(): *u8 {
   let p: *u8 = "std/sys/linux.o";
   return p;
 }
 
-#[no_mangle]
 /** Exported function `labi_od_rel_page_mmap`.
  * Implements `labi_od_rel_page_mmap`.
  * @return *u8
  */
+#[no_mangle]
 export function labi_od_rel_page_mmap(): *u8 {
   let p: *u8 = "std/heap/page_mmap.o";
   return p;
 }
 
-#[no_mangle]
 /** Exported function `labi_od_rel_sys`.
  * Implements `labi_od_rel_sys`.
  * @return *u8
  */
+#[no_mangle]
 export function labi_od_rel_sys(): *u8 {
   let p: *u8 = "std/sys/sys.o";
   return p;
 }
 
-#[no_mangle]
 /** Exported function `labi_od_rel_core_slice`.
  * Implements `labi_od_rel_core_slice`.
  * @return *u8
  */
+#[no_mangle]
 export function labi_od_rel_core_slice(): *u8 {
   let p: *u8 = "core/slice/slice.o";
   return p;
 }
 
-#[no_mangle]
 /** Exported function `labi_od_rel_test`.
  * Implements `labi_od_rel_test`.
  * @return *u8
  */
+#[no_mangle]
 export function labi_od_rel_test(): *u8 {
   let p: *u8 = "std/test/test.o";
   return p;
 }
 
-#[no_mangle]
 /** Exported function `labi_od_rel_heap_user`.
  * Implements `labi_od_rel_heap_user`.
  * @return *u8
  */
+#[no_mangle]
 export function labi_od_rel_heap_user(): *u8 {
   let p: *u8 = "compiler/runtime_heap_user.o";
   return p;
 }
 
-#[no_mangle]
 /** Exported function `labi_od_rel_scheduler_glue`.
  * Implements `labi_od_rel_scheduler_glue`.
  * @return *u8
  */
+#[no_mangle]
 export function labi_od_rel_scheduler_glue(): *u8 {
   let p: *u8 = "compiler/runtime_scheduler_glue.o";
   return p;
 }
 
-#[no_mangle]
 /** Exported function `labi_od_rel_thread_glue`.
  * Read path helper `labi_od_rel_thread_glue`.
  * @return *u8
  */
+#[no_mangle]
 export function labi_od_rel_thread_glue(): *u8 {
   let p: *u8 = "compiler/runtime_thread_glue.o";
   return p;
 }
 
-#[no_mangle]
 /** Exported function `labi_od_rel_net_udp_batch`.
  * Implements `labi_od_rel_net_udp_batch`.
  * @return *u8
  */
+#[no_mangle]
 export function labi_od_rel_net_udp_batch(): *u8 {
   let p: *u8 = "compiler/runtime_net_udp_batch.o";
   return p;
 }
 
-#[no_mangle]
 /** Exported function `labi_od_rel_net_workers`.
  * Implements `labi_od_rel_net_workers`.
  * @return *u8
  */
+#[no_mangle]
 export function labi_od_rel_net_workers(): *u8 {
   let p: *u8 = "compiler/runtime_net_workers.o";
   return p;
 }
 
-#[no_mangle]
 /** Exported function `labi_od_rel_test_fn_invoke`.
  * Implements `labi_od_rel_test_fn_invoke`.
  * @return *u8
  */
+#[no_mangle]
 export function labi_od_rel_test_fn_invoke(): *u8 {
   let p: *u8 = "compiler/runtime_test_fn_invoke.o";
   return p;

@@ -51,13 +51,13 @@ export function queue_smoke_at_impl(q: *QueueSmokeState, i: i32): i32 {
   return idx;
 }
 
-#[no_mangle]
 /** Exported function `queue_smoke_at`.
  * Implements `queue_smoke_at`.
  * @param q *QueueSmokeState
  * @param i i32
  * @return i32
  */
+#[no_mangle]
 export function queue_smoke_at(q: *QueueSmokeState, i: i32): i32 {
   return queue_smoke_at_impl(q, i);
 }
@@ -104,13 +104,13 @@ export function queue_smoke_push_back_impl(q: *QueueSmokeState, x: i32): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `queue_smoke_push_back`.
  * Implements `queue_smoke_push_back`.
  * @param q *QueueSmokeState
  * @param x i32
  * @return i32
  */
+#[no_mangle]
 export function queue_smoke_push_back(q: *QueueSmokeState, x: i32): i32 {
   return queue_smoke_push_back_impl(q, x);
 }
@@ -149,12 +149,12 @@ export function queue_os_worker_trampoline_impl(arg: *u8): *u8 {
   return 0 as *u8;
 }
 
-#[no_mangle]
 /** Exported function `queue_os_worker_trampoline`.
  * Implements `queue_os_worker_trampoline`.
  * @param arg *u8
  * @return *u8
  */
+#[no_mangle]
 export function queue_os_worker_trampoline(arg: *u8): *u8 {
   return queue_os_worker_trampoline_impl(arg);
 }

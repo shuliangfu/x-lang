@@ -44,11 +44,11 @@ export function empty_len(): i32 { return 0; }
 export function sep(): u8 {
   return 92 as u8;
 }
-#[cfg(not(target_os = "windows"))]
 /** Exported function `sep`.
  * Implements `sep`.
  * @return u8
  */
+#[cfg(not(target_os = "windows"))]
 export function sep(): u8 {
   return 47 as u8;
 }

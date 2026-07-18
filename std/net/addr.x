@@ -81,12 +81,12 @@ export function net_tcp_local_addr_c(fd: i32): i64 {
   return net_sockaddr_in_pack_addr_port_c(sin_ptr);
 }
 
-#[cfg(target_os = "windows")]
 /** Exported function `net_tcp_local_addr_c`.
  * Implements `net_tcp_local_addr_c`.
  * @param fd i32
  * @return i64
  */
+#[cfg(target_os = "windows")]
 export function net_tcp_local_addr_c(fd: i32): i64 {
   let sin_mem: u8[16] = [];
   let len_i: i32 = 16;
@@ -115,12 +115,12 @@ export function net_tcp_peer_addr_c(fd: i32): i64 {
   return net_sockaddr_in_pack_addr_port_c(sin_ptr);
 }
 
-#[cfg(target_os = "windows")]
 /** Exported function `net_tcp_peer_addr_c`.
  * Implements `net_tcp_peer_addr_c`.
  * @param fd i32
  * @return i64
  */
+#[cfg(target_os = "windows")]
 export function net_tcp_peer_addr_c(fd: i32): i64 {
   let sin_mem: u8[16] = [];
   let len_i: i32 = 16;

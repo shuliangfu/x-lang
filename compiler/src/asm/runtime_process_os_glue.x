@@ -26,13 +26,13 @@ export function process_nop_sigchld(sig: i32): void {
   }
 }
 
-#[no_mangle]
 /** Exported function `process_dup_stdio_posix`.
  * Implements `process_dup_stdio_posix`.
  * @param fd i32
  * @param slot i32
  * @return i32
  */
+#[no_mangle]
 export function process_dup_stdio_posix(fd: i32, slot: i32): i32 {
   unsafe {
     return process_dup_stdio_posix_impl(fd, slot);

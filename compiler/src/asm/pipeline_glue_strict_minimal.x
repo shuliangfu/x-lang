@@ -30,7 +30,6 @@ export function pipeline_glue_strict_minimal_x_doc_anchor(): i32 {
 /* ---- G-02f-107 / G-02f-139：strict minimal typeck helpers ---- */
 
 // pipeline_typeck_named_equal_strict_minimal: see function docblock below.
-#[no_mangle]
 /** Exported function `pipeline_typeck_named_equal_strict_minimal`.
  * Implements `pipeline_typeck_named_equal_strict_minimal`.
  * @param arena *u8
@@ -38,6 +37,7 @@ export function pipeline_glue_strict_minimal_x_doc_anchor(): i32 {
  * @param b i32
  * @return i32
  */
+#[no_mangle]
 export function pipeline_typeck_named_equal_strict_minimal(arena: *u8, a: i32, b: i32): i32 {
   if (arena == 0) { return 0; }
   unsafe {
@@ -72,7 +72,6 @@ export function pipeline_typeck_named_equal_strict_minimal(arena: *u8, a: i32, b
 }
 
 // pipeline_typeck_import_binding_name_equal_strict_minimal: see function docblock below.
-#[no_mangle]
 /** Exported function `pipeline_typeck_import_binding_name_equal_strict_minimal`.
  * Implements `pipeline_typeck_import_binding_name_equal_strict_minimal`.
  * @param module *u8
@@ -81,6 +80,7 @@ export function pipeline_typeck_named_equal_strict_minimal(arena: *u8, a: i32, b
  * @param name_len i32
  * @return i32
  */
+#[no_mangle]
 export function pipeline_typeck_import_binding_name_equal_strict_minimal(module: *u8, dep_ix: i32, name: *u8, name_len: i32): i32 {
   if (module == 0) { return 0; }
   if (name == 0) { return 0; }
@@ -103,7 +103,6 @@ export function pipeline_typeck_import_binding_name_equal_strict_minimal(module:
 }
 
 // pipeline_expr_is_func_param_at_strict_minimal: see function docblock below.
-#[no_mangle]
 /** Exported function `pipeline_expr_is_func_param_at_strict_minimal`.
  * Implements `pipeline_expr_is_func_param_at_strict_minimal`.
  * @param arena *u8
@@ -113,6 +112,7 @@ export function pipeline_typeck_import_binding_name_equal_strict_minimal(module:
  * @param param_ix i32
  * @return i32
  */
+#[no_mangle]
 export function pipeline_expr_is_func_param_at_strict_minimal(arena: *u8, mod: *u8, func_idx: i32, expr_ref: i32, param_ix: i32): i32 {
   if (arena == 0) { return 0; }
   if (mod == 0) { return 0; }
@@ -175,7 +175,6 @@ export extern "C" function pipeline_expr_index_base_ref(arena: *u8, er: i32): i3
 // See implementation.
 export extern "C" function pipeline_visibility_allow_func(mod: *u8, fi: i32, cross_module: i32): i32;
 
-#[no_mangle]
 /** Exported function `pipeline_typeck_find_func_index_in_module_by_name_strict_minimal`.
  * Implements `pipeline_typeck_find_func_index_in_module_by_name_strict_minimal`.
  * @param mod *u8
@@ -184,6 +183,7 @@ export extern "C" function pipeline_visibility_allow_func(mod: *u8, fi: i32, cro
  * @param want_arity i32
  * @return i32
  */
+#[no_mangle]
 export function pipeline_typeck_find_func_index_in_module_by_name_strict_minimal(mod: *u8, name: *u8, name_len: i32, want_arity: i32): i32 {
   if (mod == 0) { return 0 - 1; }
   if (name == 0) { return 0 - 1; }
@@ -207,11 +207,11 @@ export function pipeline_typeck_find_func_index_in_module_by_name_strict_minimal
 }
 
 // See implementation.
-#[no_mangle]
 /** Function `pipeline_typeck_find_func_return_type_in_module_by_name_strict_minimal`.
  * Purpose: implements `pipeline_typeck_find_func_return_type_in_module_by_name_strict_minimal`; params/returns as declared (may be multi-line).
  * Contracts: null/cap/PLATFORM as enforced in the body.
  */
+#[no_mangle]
 export function pipeline_typeck_find_func_return_type_in_module_by_name_strict_minimal(
   mod: *u8, caller_arena: *u8, name: *u8, name_len: i32, from_dep_index: i32, want_arity: i32, ctx: *u8, func_index_out: *i32
 ): i32 {
@@ -234,11 +234,11 @@ export function pipeline_typeck_find_func_return_type_in_module_by_name_strict_m
 }
 
 // See implementation.
-#[no_mangle]
 /** Function `pipeline_typeck_map_import_binding_named_to_caller_strict_minimal`.
  * Purpose: implements `pipeline_typeck_map_import_binding_named_to_caller_strict_minimal`; params/returns as declared (may be multi-line).
  * Contracts: null/cap/PLATFORM as enforced in the body.
  */
+#[no_mangle]
 export function pipeline_typeck_map_import_binding_named_to_caller_strict_minimal(
   entry_mod: *u8, dep_ix: i32, caller_arena: *u8, nm: *u8, nlen: i32
 ): i32 {
@@ -283,7 +283,6 @@ export function pipeline_typeck_map_import_binding_named_to_caller_strict_minima
 // See implementation.
 
 // pipeline_typeck_slice_region_conflict_strict_minimal: see function docblock below.
-#[no_mangle]
 /** Exported function `pipeline_typeck_slice_region_conflict_strict_minimal`.
  * Implements `pipeline_typeck_slice_region_conflict_strict_minimal`.
  * @param arena *u8
@@ -291,6 +290,7 @@ export function pipeline_typeck_map_import_binding_named_to_caller_strict_minima
  * @param src_ref i32
  * @return i32
  */
+#[no_mangle]
 export function pipeline_typeck_slice_region_conflict_strict_minimal(arena: *u8, expect_ref: i32, src_ref: i32): i32 {
   if (arena == 0) { return 0; }
   if (expect_ref <= 0) { return 0; }
@@ -318,7 +318,6 @@ export function pipeline_typeck_slice_region_conflict_strict_minimal(arena: *u8,
 }
 
 // pipeline_typeck_slice_region_escape_strict_minimal: see function docblock below.
-#[no_mangle]
 /** Exported function `pipeline_typeck_slice_region_escape_strict_minimal`.
  * Implements `pipeline_typeck_slice_region_escape_strict_minimal`.
  * @param arena *u8
@@ -326,6 +325,7 @@ export function pipeline_typeck_slice_region_conflict_strict_minimal(arena: *u8,
  * @param src_ref i32
  * @return i32
  */
+#[no_mangle]
 export function pipeline_typeck_slice_region_escape_strict_minimal(arena: *u8, expect_ref: i32, src_ref: i32): i32 {
   if (arena == 0) { return 0; }
   if (expect_ref <= 0) { return 0; }
@@ -343,7 +343,6 @@ export function pipeline_typeck_slice_region_escape_strict_minimal(arena: *u8, e
 }
 
 // pipeline_typeck_expr_diag_line_col_strict_minimal: see function docblock below.
-#[no_mangle]
 /** Exported function `pipeline_typeck_expr_diag_line_col_strict_minimal`.
  * Implements `pipeline_typeck_expr_diag_line_col_strict_minimal`.
  * @param arena *u8
@@ -352,6 +351,7 @@ export function pipeline_typeck_slice_region_escape_strict_minimal(arena: *u8, e
  * @param col *i32
  * @return void
  */
+#[no_mangle]
 export function pipeline_typeck_expr_diag_line_col_strict_minimal(arena: *u8, expr_ref: i32, line: *i32, col: *i32): void {
   if (line != 0) { line[0] = 0; }
   if (col != 0) { col[0] = 0; }
@@ -380,7 +380,6 @@ export function g02f_load_i32_le(p: *u8, off: i32): i32 {
   return a;
 }
 
-#[no_mangle]
 /** Exported function `typeck_block_is_strict_ancestor_strict_minimal`.
  * Implements `typeck_block_is_strict_ancestor_strict_minimal`.
  * @param arena *u8
@@ -388,6 +387,7 @@ export function g02f_load_i32_le(p: *u8, off: i32): i32 {
  * @param descendant i32
  * @return i32
  */
+#[no_mangle]
 export function typeck_block_is_strict_ancestor_strict_minimal(arena: *u8, ancestor: i32, descendant: i32): i32 {
   if (arena == 0) { return 0; }
   if (ancestor <= 0) { return 0; }
@@ -410,7 +410,6 @@ export function typeck_block_is_strict_ancestor_strict_minimal(arena: *u8, ances
 }
 
 // typeck_expr_lval_root_var_strict_minimal: see function docblock below.
-#[no_mangle]
 /** Exported function `typeck_expr_lval_root_var_strict_minimal`.
  * Implements `typeck_expr_lval_root_var_strict_minimal`.
  * @param arena *u8
@@ -419,6 +418,7 @@ export function typeck_block_is_strict_ancestor_strict_minimal(arena: *u8, ances
  * @param out_len *i32
  * @return i32
  */
+#[no_mangle]
 export function typeck_expr_lval_root_var_strict_minimal(arena: *u8, expr_ref: i32, out: *u8, out_len: *i32): i32 {
   if (arena == 0) { return 0; }
   if (expr_ref <= 0) { return 0; }
@@ -452,7 +452,6 @@ export function typeck_expr_lval_root_var_strict_minimal(arena: *u8, expr_ref: i
 }
 
 // typeck_name_is_block_local_strict_minimal: see function docblock below.
-#[no_mangle]
 /** Exported function `typeck_name_is_block_local_strict_minimal`.
  * Implements `typeck_name_is_block_local_strict_minimal`.
  * @param module *u8
@@ -462,6 +461,7 @@ export function typeck_expr_lval_root_var_strict_minimal(arena: *u8, expr_ref: i
  * @param name_len i32
  * @return i32
  */
+#[no_mangle]
 export function typeck_name_is_block_local_strict_minimal(module: *u8, arena: *u8, ctx: *u8, name: *u8, name_len: i32): i32 {
   if (module == 0) { return 0; }
   if (arena == 0) { return 0; }
@@ -490,7 +490,6 @@ export function typeck_name_is_block_local_strict_minimal(module: *u8, arena: *u
 }
 
 // G-02f-141：&block_local；ADDR_OF=51
-#[no_mangle]
 /** Exported function `typeck_expr_is_addr_of_block_local_strict_minimal`.
  * Implements `typeck_expr_is_addr_of_block_local_strict_minimal`.
  * @param module *u8
@@ -499,6 +498,7 @@ export function typeck_name_is_block_local_strict_minimal(module: *u8, arena: *u
  * @param expr_ref i32
  * @return i32
  */
+#[no_mangle]
 export function typeck_expr_is_addr_of_block_local_strict_minimal(module: *u8, arena: *u8, ctx: *u8, expr_ref: i32): i32 {
   if (module == 0) { return 0; }
   if (arena == 0) { return 0; }
@@ -554,7 +554,6 @@ export function g02f_load_ptr_at(p: *u8, off: i32): *u8 {
 /* ---- G-02f-110 / G-02f-140 / G-02f-141：pipeline remaining typeck ---- */
 
 // debug_try_propagate_report_strict_minimal: see function docblock below.
-#[no_mangle]
 /** Exported function `debug_try_propagate_report_strict_minimal`.
  * Implements `debug_try_propagate_report_strict_minimal`.
  * @param arena *u8
@@ -564,6 +563,7 @@ export function g02f_load_ptr_at(p: *u8, off: i32): *u8 {
  * @param f i32
  * @return void
  */
+#[no_mangle]
 export function debug_try_propagate_report_strict_minimal(arena: *u8, er: i32, fi: i32, rt: i32, f: i32): void {
   let _a: *u8 = arena;
   let _e: i32 = er;
@@ -580,7 +580,6 @@ export function debug_try_propagate_report_strict_minimal(arena: *u8, er: i32, f
 
 // See implementation.
 // TYPE: I32=0 BOOL=1 U8=2 U32=3 U64=4 I64=5 USIZE=6 ISIZE=7 NAMED=8 PTR=9 ARRAY=10 SLICE=11 LINEAR=12 VECTOR=13 F32=14 F64=15 VOID=16
-#[no_mangle]
 /** Exported function `pipeline_typeck_dep_return_type_to_caller_strict_minimal`.
  * Implements `pipeline_typeck_dep_return_type_to_caller_strict_minimal`.
  * @param dep_arena *u8
@@ -588,6 +587,7 @@ export function debug_try_propagate_report_strict_minimal(arena: *u8, er: i32, f
  * @param caller_arena *u8
  * @return i32
  */
+#[no_mangle]
 export function pipeline_typeck_dep_return_type_to_caller_strict_minimal(dep_arena: *u8, dep_return_type_ref: i32, caller_arena: *u8): i32 {
   if (dep_return_type_ref <= 0) { return 0; }
   if (dep_arena == 0) { return 0; }
@@ -652,7 +652,6 @@ export function pipeline_typeck_dep_return_type_to_caller_strict_minimal(dep_are
 
 // See implementation.
 // LIT=0 FLOAT=1 BOOL=2 VAR=3 ADD..LOGOR=4..21 NEG=22 BITNOT=23 LOGNOT=24 ARRAY_LIT=46
-#[no_mangle]
 /** Exported function `pipeline_typeck_const_expr_ref_strict_minimal`.
  * Implements `pipeline_typeck_const_expr_ref_strict_minimal`.
  * @param arena *u8
@@ -661,6 +660,7 @@ export function pipeline_typeck_dep_return_type_to_caller_strict_minimal(dep_are
  * @param n_const_names i32
  * @return i32
  */
+#[no_mangle]
 export function pipeline_typeck_const_expr_ref_strict_minimal(arena: *u8, expr_ref: i32, const_names: *u8, n_const_names: i32): i32 {
   if (arena == 0) { return 0; }
   if (expr_ref <= 0) { return 0; }
@@ -726,7 +726,6 @@ export function pipeline_typeck_const_expr_ref_strict_minimal(arena: *u8, expr_r
 
 // G-02f-140：Result_<payload> → payload type ref；prefix "Result_"=7
 // TYPE_I32=0 BOOL=1 U8=2 U64=4 I64=5 USIZE=6 ISIZE=7
-#[no_mangle]
 /** Exported function `pipeline_typeck_result_payload_type_from_name_strict_minimal`.
  * Implements `pipeline_typeck_result_payload_type_from_name_strict_minimal`.
  * @param arena *u8
@@ -734,6 +733,7 @@ export function pipeline_typeck_const_expr_ref_strict_minimal(arena: *u8, expr_r
  * @param name_len i32
  * @return i32
  */
+#[no_mangle]
 export function pipeline_typeck_result_payload_type_from_name_strict_minimal(arena: *u8, name: *u8, name_len: i32): i32 {
   if (arena == 0) { return 0; }
   if (name == 0) { return 0; }
@@ -835,12 +835,12 @@ export function pipeline_typeck_result_payload_type_from_name_strict_minimal(are
 // See implementation.
 
 // ast_ExprKind: EXPR_ASSIGN=28, EXPR_ADD_ASSIGN=29, EXPR_SHR_ASSIGN=38
-#[no_mangle]
 /** Exported function `pipeline_typeck_expr_is_any_assign_kind_strict_minimal`.
  * Implements `pipeline_typeck_expr_is_any_assign_kind_strict_minimal`.
  * @param kind i32
  * @return i32
  */
+#[no_mangle]
 export function pipeline_typeck_expr_is_any_assign_kind_strict_minimal(kind: i32): i32 {
   if (kind == 28) {
     return 1;
@@ -855,7 +855,6 @@ export function pipeline_typeck_expr_is_any_assign_kind_strict_minimal(kind: i32
 
 // pipeline_typeck_const_name_matches_strict_minimal: see function docblock below.
 
-#[no_mangle]
 /** Exported function `pipeline_typeck_const_name_matches_strict_minimal`.
  * Implements `pipeline_typeck_const_name_matches_strict_minimal`.
  * @param name *u8
@@ -863,6 +862,7 @@ export function pipeline_typeck_expr_is_any_assign_kind_strict_minimal(kind: i32
  * @param lit *u8
  * @return i32
  */
+#[no_mangle]
 export function pipeline_typeck_const_name_matches_strict_minimal(name: *u8, name_len: i32, lit: *u8): i32 {
   if (name == 0) { return 0; }
   if (lit == 0) { return 0; }
@@ -879,13 +879,13 @@ export function pipeline_typeck_const_name_matches_strict_minimal(name: *u8, nam
 
 // pipeline_typeck_named_unqual_offset_strict_minimal: see function docblock below.
 
-#[no_mangle]
 /** Exported function `pipeline_typeck_named_unqual_offset_strict_minimal`.
  * Implements `pipeline_typeck_named_unqual_offset_strict_minimal`.
  * @param buf *u8
  * @param len i32
  * @return i32
  */
+#[no_mangle]
 export function pipeline_typeck_named_unqual_offset_strict_minimal(buf: *u8, len: i32): i32 {
   let i: i32 = len - 1;
   while (i > 0) {
@@ -897,7 +897,6 @@ export function pipeline_typeck_named_unqual_offset_strict_minimal(buf: *u8, len
 
 // field_name_equal_strict_minimal: see function docblock below.
 
-#[no_mangle]
 /** Exported function `field_name_equal_strict_minimal`.
  * Implements `field_name_equal_strict_minimal`.
  * @param buf *u8
@@ -905,6 +904,7 @@ export function pipeline_typeck_named_unqual_offset_strict_minimal(buf: *u8, len
  * @param lit *u8
  * @return i32
  */
+#[no_mangle]
 export function field_name_equal_strict_minimal(buf: *u8, len: i32, lit: *u8): i32 {
   if (buf == 0) { return 0; }
   if (lit == 0) { return 0; }
@@ -931,13 +931,13 @@ export extern "C" function driver_run_compiler_full(argc: i32, argv: *u8): i32;
 /* ---- G-02f-210：pure weak / residual shells ---- */
 
 // G-02f-210：parse bridge
-#[no_mangle]
 /** Exported function `parse_into_init`.
  * Implements `parse_into_init`.
  * @param module *u8
  * @param arena *u8
  * @return void
  */
+#[no_mangle]
 export function parse_into_init(module: *u8, arena: *u8): void {
   if (module == 0) { return; }
   if (arena == 0) { return; }
@@ -947,7 +947,6 @@ export function parse_into_init(module: *u8, arena: *u8): void {
 }
 
 // pipeline_asm_emit_addr_of_elf_c: see function docblock below.
-#[no_mangle]
 /** Exported function `pipeline_asm_emit_addr_of_elf_c`.
  * Implements `pipeline_asm_emit_addr_of_elf_c`.
  * @param arena *u8
@@ -957,6 +956,7 @@ export function parse_into_init(module: *u8, arena: *u8): void {
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
   if (arena == 0) { return 0 - 1; }
   if (elf_ctx == 0) { return 0 - 1; }
@@ -981,7 +981,6 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
 }
 
 // pipeline_typeck_resolve_call_func_index_c: see function docblock below.
-#[no_mangle]
 /** Exported function `pipeline_typeck_resolve_call_func_index_c`.
  * Implements `pipeline_typeck_resolve_call_func_index_c`.
  * @param m *u8
@@ -989,6 +988,7 @@ export function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_r
  * @param call_expr_ref i32
  * @return i32
  */
+#[no_mangle]
 export function pipeline_typeck_resolve_call_func_index_c(m: *u8, a: *u8, call_expr_ref: i32): i32 {
   if (m == 0) { return 0 - 1; }
   if (a == 0) { return 0 - 1; }
@@ -1017,7 +1017,6 @@ export function pipeline_typeck_resolve_call_func_index_c(m: *u8, a: *u8, call_e
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `pipeline_typeck_resolve_call_func_index_for_emit_c`.
  * Implements `pipeline_typeck_resolve_call_func_index_for_emit_c`.
  * @param m *u8
@@ -1025,18 +1024,19 @@ export function pipeline_typeck_resolve_call_func_index_c(m: *u8, a: *u8, call_e
  * @param call_expr_ref i32
  * @return i32
  */
+#[no_mangle]
 export function pipeline_typeck_resolve_call_func_index_for_emit_c(m: *u8, a: *u8, call_expr_ref: i32): i32 {
   return pipeline_typeck_resolve_call_func_index_c(m, a, call_expr_ref);
 }
 
 // pipeline_asm_init_is_empty_array_lit_c: see function docblock below.
-#[no_mangle]
 /** Exported function `pipeline_asm_init_is_empty_array_lit_c`.
  * Implements `pipeline_asm_init_is_empty_array_lit_c`.
  * @param arena *u8
  * @param init_ref i32
  * @return i32
  */
+#[no_mangle]
 export function pipeline_asm_init_is_empty_array_lit_c(arena: *u8, init_ref: i32): i32 {
   if (arena == 0) { return 0; }
   if (init_ref <= 0) { return 0; }
@@ -1049,7 +1049,6 @@ export function pipeline_asm_init_is_empty_array_lit_c(arena: *u8, init_ref: i32
 }
 
 // G-02f-210：layout metrics → size/align glue
-#[no_mangle]
 /** Exported function `typeck_x_type_size_from_layout_glue`.
  * Implements `typeck_x_type_size_from_layout_glue`.
  * @param module *u8
@@ -1058,6 +1057,7 @@ export function pipeline_asm_init_is_empty_array_lit_c(arena: *u8, init_ref: i32
  * @param depth i32
  * @return i32
  */
+#[no_mangle]
 export function typeck_x_type_size_from_layout_glue(module: *u8, arena: *u8, li: i32, depth: i32): i32 {
   if (li < 0) { return 0; }
   unsafe {
@@ -1069,7 +1069,6 @@ export function typeck_x_type_size_from_layout_glue(module: *u8, arena: *u8, li:
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `typeck_x_type_align_from_layout_glue`.
  * Implements `typeck_x_type_align_from_layout_glue`.
  * @param module *u8
@@ -1078,6 +1077,7 @@ export function typeck_x_type_size_from_layout_glue(module: *u8, arena: *u8, li:
  * @param depth i32
  * @return i32
  */
+#[no_mangle]
 export function typeck_x_type_align_from_layout_glue(module: *u8, arena: *u8, li: i32, depth: i32): i32 {
   if (li < 0) { return 1; }
   unsafe {
@@ -1090,12 +1090,12 @@ export function typeck_x_type_align_from_layout_glue(module: *u8, arena: *u8, li
 }
 
 // pipeline_typeck_read_ptr_slice_return_ref_c: see function docblock below.
-#[no_mangle]
 /** Exported function `pipeline_typeck_read_ptr_slice_return_ref_c`.
  * Read path helper `pipeline_typeck_read_ptr_slice_return_ref_c`.
  * @param arena *u8
  * @return i32
  */
+#[no_mangle]
 export function pipeline_typeck_read_ptr_slice_return_ref_c(arena: *u8): i32 {
   if (arena == 0) { return 0; }
   unsafe {
@@ -1113,7 +1113,6 @@ export function pipeline_typeck_read_ptr_slice_return_ref_c(arena: *u8): i32 {
 }
 
 // pipeline_typeck_linear_accepts_init_c: see function docblock below.
-#[no_mangle]
 /** Exported function `pipeline_typeck_linear_accepts_init_c`.
  * Implements `pipeline_typeck_linear_accepts_init_c`.
  * @param arena *u8
@@ -1121,6 +1120,7 @@ export function pipeline_typeck_read_ptr_slice_return_ref_c(arena: *u8): i32 {
  * @param init_ref i32
  * @return i32
  */
+#[no_mangle]
 export function pipeline_typeck_linear_accepts_init_c(arena: *u8, decl_ref: i32, init_ref: i32): i32 {
   if (arena == 0) { return 0; }
   if (decl_ref <= 0) { return 0; }
@@ -1136,7 +1136,6 @@ export function pipeline_typeck_linear_accepts_init_c(arena: *u8, decl_ref: i32,
 }
 
 // G-02f-210：layout warn noops
-#[no_mangle]
 /** Exported function `pipeline_typeck_pad_fields_warn_layout`.
  * Implements `pipeline_typeck_pad_fields_warn_layout`.
  * @param module *u8
@@ -1144,11 +1143,11 @@ export function pipeline_typeck_linear_accepts_init_c(arena: *u8, decl_ref: i32,
  * @param li i32
  * @return void
  */
+#[no_mangle]
 export function pipeline_typeck_pad_fields_warn_layout(module: *u8, arena: *u8, li: i32): void {
   return;
 }
 
-#[no_mangle]
 /** Exported function `pipeline_typeck_hot_reorder_warn_layout`.
  * Implements `pipeline_typeck_hot_reorder_warn_layout`.
  * @param module *u8
@@ -1156,11 +1155,11 @@ export function pipeline_typeck_pad_fields_warn_layout(module: *u8, arena: *u8, 
  * @param li i32
  * @return void
  */
+#[no_mangle]
 export function pipeline_typeck_hot_reorder_warn_layout(module: *u8, arena: *u8, li: i32): void {
   return;
 }
 
-#[no_mangle]
 /** Exported function `pipeline_type_stamp_block_let_region_c`.
  * Implements `pipeline_type_stamp_block_let_region_c`.
  * @param arena *u8
@@ -1169,11 +1168,11 @@ export function pipeline_typeck_hot_reorder_warn_layout(module: *u8, arena: *u8,
  * @param ctx *u8
  * @return i32
  */
+#[no_mangle]
 export function pipeline_type_stamp_block_let_region_c(arena: *u8, block_ref: i32, let_idx: i32, ctx: *u8): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `pipeline_typeck_check_allocator_region_assign_c`.
  * Memory management helper `pipeline_typeck_check_allocator_region_assign_c`.
  * @param module *u8
@@ -1183,6 +1182,7 @@ export function pipeline_type_stamp_block_let_region_c(arena: *u8, block_ref: i3
  * @param ctx *u8
  * @return i32
  */
+#[no_mangle]
 export function pipeline_typeck_check_allocator_region_assign_c(module: *u8, arena: *u8, site_expr_ref: i32, left_ref: i32, ctx: *u8): i32 {
   return 0;
 }
@@ -1191,13 +1191,13 @@ export function pipeline_typeck_check_allocator_region_assign_c(module: *u8, are
 // See implementation.
 
 // G-02f-210：main entry thin bridges
-#[no_mangle]
 /** Exported function `main_entry`.
  * Implements `main_entry`.
  * @param argc i32
  * @param argv *u8
  * @return i32
  */
+#[no_mangle]
 export function main_entry(argc: i32, argv: *u8): i32 {
   unsafe {
     return driver_run_compiler_full(argc, argv);
@@ -1205,13 +1205,13 @@ export function main_entry(argc: i32, argv: *u8): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `main_run_compiler_c`.
  * Implements `main_run_compiler_c`.
  * @param argc i32
  * @param argv *u8
  * @return i32
  */
+#[no_mangle]
 export function main_run_compiler_c(argc: i32, argv: *u8): i32 {
   unsafe {
     return driver_run_compiler_full(argc, argv);
@@ -1252,7 +1252,6 @@ export function glue_name_bytes_eq_c(name: *u8, name_len: i32, lit: *u8, lit_len
 }
 
 // pipeline_asm_build_import_binding_call_sym_c: see function docblock below.
-#[no_mangle]
 /** Exported function `pipeline_asm_build_import_binding_call_sym_c`.
  * Implements `pipeline_asm_build_import_binding_call_sym_c`.
  * @param pre *u8
@@ -1262,6 +1261,7 @@ export function glue_name_bytes_eq_c(name: *u8, name_len: i32, lit: *u8, lit_len
  * @param out_name *u8
  * @return i32
  */
+#[no_mangle]
 export function pipeline_asm_build_import_binding_call_sym_c(pre: *u8, pre_len: i32, field_name: *u8, field_len: i32, out_name: *u8): i32 {
   if (field_name == 0) { return 0 - 1; }
   if (field_len <= 0) { return 0 - 1; }
@@ -1316,13 +1316,13 @@ export function pipeline_asm_build_import_binding_call_sym_c(pre: *u8, pre_len: 
 }
 
 // pipeline_typeck_is_read_ptr_slice_callee_c: see function docblock below.
-#[no_mangle]
 /** Exported function `pipeline_typeck_is_read_ptr_slice_callee_c`.
  * Read path helper `pipeline_typeck_is_read_ptr_slice_callee_c`.
  * @param name *u8
  * @param name_len i32
  * @return i32
  */
+#[no_mangle]
 export function pipeline_typeck_is_read_ptr_slice_callee_c(name: *u8, name_len: i32): i32 {
   if (name == 0) { return 0; }
   if (name_len <= 0) { return 0; }
@@ -1371,7 +1371,6 @@ export function pipeline_typeck_is_read_ptr_slice_callee_c(name: *u8, name_len: 
 // See implementation.
 // TYPE: I32=0 U64=4 I64=5 USIZE=6 NAMED=8
 // EXPR: ADD=4 SUB=5 MUL=6 DIV=7 NEG=22
-#[no_mangle]
 /** Exported function `pipeline_typeck_coerce_init_int_binop_to_decl_c`.
  * Implements `pipeline_typeck_coerce_init_int_binop_to_decl_c`.
  * @param arena *u8
@@ -1381,6 +1380,7 @@ export function pipeline_typeck_is_read_ptr_slice_callee_c(name: *u8, name_len: 
  * @param init_kind i32
  * @return i32
  */
+#[no_mangle]
 export function pipeline_typeck_coerce_init_int_binop_to_decl_c(arena: *u8, init_ref: i32, decl_ty_ref: i32, decl_kind: i32, init_kind: i32): i32 {
   if (arena == 0) { return 0; }
   if (init_ref <= 0) { return 0; }
@@ -1430,7 +1430,6 @@ export function pipeline_typeck_coerce_init_int_binop_to_decl_c(arena: *u8, init
 }
 
 // pipeline_typeck_check_block_one_region_c: see function docblock below.
-#[no_mangle]
 /** Exported function `pipeline_typeck_check_block_one_region_c`.
  * Implements `pipeline_typeck_check_block_one_region_c`.
  * @param module *u8
@@ -1441,6 +1440,7 @@ export function pipeline_typeck_coerce_init_int_binop_to_decl_c(arena: *u8, init
  * @param ctx *u8
  * @return i32
  */
+#[no_mangle]
 export function pipeline_typeck_check_block_one_region_c(module: *u8, arena: *u8, block_ref: i32, region_idx: i32, return_type_ref: i32, ctx: *u8): i32 {
   if (module == 0) { return 0; }
   if (arena == 0) { return 0; }
@@ -1456,7 +1456,6 @@ export function pipeline_typeck_check_block_one_region_c(module: *u8, arena: *u8
 }
 
 // G-02f-216：after_parse_ok thin → impl
-#[no_mangle]
 /** Exported function `pipeline_typeck_after_parse_ok`.
  * Implements `pipeline_typeck_after_parse_ok`.
  * @param arena *u8
@@ -1465,6 +1464,7 @@ export function pipeline_typeck_check_block_one_region_c(module: *u8, arena: *u8
  * @param ctx *u8
  * @return i32
  */
+#[no_mangle]
 export function pipeline_typeck_after_parse_ok(arena: *u8, module: *u8, source: *u8, ctx: *u8): i32 {
   unsafe {
     return pipeline_typeck_after_parse_ok_impl_c(arena, module, source, ctx);
@@ -1473,7 +1473,6 @@ export function pipeline_typeck_after_parse_ok(arena: *u8, module: *u8, source: 
 }
 
 // G-02f-216：lsp diag parse+typeck thin → impl
-#[no_mangle]
 /** Exported function `pipeline_lsp_diag_parse_typeck_buf`.
  * Implements `pipeline_lsp_diag_parse_typeck_buf`.
  * @param module *u8
@@ -1483,6 +1482,7 @@ export function pipeline_typeck_after_parse_ok(arena: *u8, module: *u8, source: 
  * @param ctx *u8
  * @return i32
  */
+#[no_mangle]
 export function pipeline_lsp_diag_parse_typeck_buf(module: *u8, arena: *u8, source_data: *u8, source_len: i32, ctx: *u8): i32 {
   unsafe {
     return pipeline_lsp_diag_parse_typeck_buf_impl_c(module, arena, source_data, source_len, ctx);
@@ -1492,13 +1492,13 @@ export function pipeline_lsp_diag_parse_typeck_buf(module: *u8, arena: *u8, sour
 
 // See implementation.
 // INT32_MAX=2147483647 INT32_MIN=-2147483648
-#[no_mangle]
 /** Exported function `pipeline_typeck_check_expr_int_lit_c`.
  * Implements `pipeline_typeck_check_expr_int_lit_c`.
  * @param arena *u8
  * @param expr_ref i32
  * @return i32
  */
+#[no_mangle]
 export function pipeline_typeck_check_expr_int_lit_c(arena: *u8, expr_ref: i32): i32 {
   if (arena == 0) { return 0; }
   if (expr_ref <= 0) { return 0; }
@@ -1541,7 +1541,6 @@ export extern "C" function pipeline_module_func_param_type_ref_at(mod: *u8, fi: 
 export extern "C" function lsp_diag_report_typeck(line: i32, col: i32, fmt: *u8): void;
 
 // pipeline_typeck_reject_addr_of_linear_c: see function docblock below.
-#[no_mangle]
 /** Exported function `pipeline_typeck_reject_addr_of_linear_c`.
  * Implements `pipeline_typeck_reject_addr_of_linear_c`.
  * @param arena *u8
@@ -1551,6 +1550,7 @@ export extern "C" function lsp_diag_report_typeck(line: i32, col: i32, fmt: *u8)
  * @param ctx *u8
  * @return i32
  */
+#[no_mangle]
 export function pipeline_typeck_reject_addr_of_linear_c(arena: *u8, op_ref: i32, addr_expr_ref: i32, module: *u8, ctx: *u8): i32 {
   if (arena == 0) { return 0; }
   if (module == 0) { return 0; }
@@ -1602,7 +1602,6 @@ export function pipeline_typeck_reject_addr_of_linear_c(arena: *u8, op_ref: i32,
 }
 
 // typeck_soa_array_storage_size_glue: see function docblock below.
-#[no_mangle]
 /** Exported function `typeck_soa_array_storage_size_glue`.
  * Implements `typeck_soa_array_storage_size_glue`.
  * @param module *u8
@@ -1612,6 +1611,7 @@ export function pipeline_typeck_reject_addr_of_linear_c(arena: *u8, op_ref: i32,
  * @param depth i32
  * @return i32
  */
+#[no_mangle]
 export function typeck_soa_array_storage_size_glue(module: *u8, arena: *u8, elem_type_ref: i32, array_len: i32, depth: i32): i32 {
   if (module == 0) { return 0; }
   if (arena == 0) { return 0; }
@@ -1658,13 +1658,13 @@ export function typeck_soa_array_storage_size_glue(module: *u8, arena: *u8, elem
 }
 
 // pipeline_typeck_const_init_not_constant_c: see function docblock below.
-#[no_mangle]
 /** Exported function `pipeline_typeck_const_init_not_constant_c`.
  * Implements `pipeline_typeck_const_init_not_constant_c`.
  * @param line i32
  * @param col i32
  * @return void
  */
+#[no_mangle]
 export function pipeline_typeck_const_init_not_constant_c(line: i32, col: i32): void {
   // "const init must be constant expression"
   let msg: u8[48] = [];
@@ -1682,7 +1682,6 @@ export function pipeline_typeck_const_init_not_constant_c(line: i32, col: i32): 
 }
 
 // pipeline_typeck_check_scope_borrow_assign_c: see function docblock below.
-#[no_mangle]
 /** Exported function `pipeline_typeck_check_scope_borrow_assign_c`.
  * Implements `pipeline_typeck_check_scope_borrow_assign_c`.
  * @param module *u8
@@ -1693,6 +1692,7 @@ export function pipeline_typeck_const_init_not_constant_c(line: i32, col: i32): 
  * @param ctx *u8
  * @return i32
  */
+#[no_mangle]
 export function pipeline_typeck_check_scope_borrow_assign_c(module: *u8, arena: *u8, site_expr_ref: i32, left_ref: i32, right_ref: i32, ctx: *u8): i32 {
   if (module == 0) { return 0; }
   if (arena == 0) { return 0; }
@@ -1744,7 +1744,6 @@ export function pipeline_typeck_check_scope_borrow_assign_c(module: *u8, arena: 
 
 // See implementation.
 // EXPR_ADDR_OF=51 EXPR_VAR=3 EXPR_FIELD_ACCESS=44 TYPE_PTR=9
-#[no_mangle]
 /** Exported function `pipeline_typeck_check_struct_stack_escape_assign_c`.
  * Implements `pipeline_typeck_check_struct_stack_escape_assign_c`.
  * @param module *u8
@@ -1755,6 +1754,7 @@ export function pipeline_typeck_check_scope_borrow_assign_c(module: *u8, arena: 
  * @param ctx *u8
  * @return i32
  */
+#[no_mangle]
 export function pipeline_typeck_check_struct_stack_escape_assign_c(module: *u8, arena: *u8, site_expr_ref: i32, left_ref: i32, right_ref: i32, ctx: *u8): i32 {
   if (module == 0) { return 0; }
   if (arena == 0) { return 0; }
@@ -1886,7 +1886,6 @@ export function glue_msg_with_label_c(dst: *u8, cap: i32, pre: *u8, pre_n: i32, 
 }
 
 // pipeline_typeck_check_slice_region_assign_c: see function docblock below.
-#[no_mangle]
 /** Exported function `pipeline_typeck_check_slice_region_assign_c`.
  * Implements `pipeline_typeck_check_slice_region_assign_c`.
  * @param arena *u8
@@ -1895,6 +1894,7 @@ export function glue_msg_with_label_c(dst: *u8, cap: i32, pre: *u8, pre_n: i32, 
  * @param src_ref i32
  * @return i32
  */
+#[no_mangle]
 export function pipeline_typeck_check_slice_region_assign_c(arena: *u8, site_expr_ref: i32, expect_ref: i32, src_ref: i32): i32 {
   if (arena == 0) { return 0; }
   if (expect_ref <= 0) { return 0; }
@@ -1967,7 +1967,6 @@ export function pipeline_typeck_check_slice_region_assign_c(arena: *u8, site_exp
 }
 
 // pipeline_typeck_check_return_slice_region_c: see function docblock below.
-#[no_mangle]
 /** Exported function `pipeline_typeck_check_return_slice_region_c`.
  * Implements `pipeline_typeck_check_return_slice_region_c`.
  * @param arena *u8
@@ -1976,6 +1975,7 @@ export function pipeline_typeck_check_slice_region_assign_c(arena: *u8, site_exp
  * @param func_return_ref i32
  * @return i32
  */
+#[no_mangle]
 export function pipeline_typeck_check_return_slice_region_c(arena: *u8, ret_site_ref: i32, op_ref: i32, func_return_ref: i32): i32 {
   if (arena == 0) { return 0; }
   if (op_ref <= 0) { return 0; }
@@ -2048,7 +2048,6 @@ export function pipeline_typeck_check_return_slice_region_c(arena: *u8, ret_site
 }
 
 // pipeline_typeck_check_call_slice_region_c: see function docblock below.
-#[no_mangle]
 /** Exported function `pipeline_typeck_check_call_slice_region_c`.
  * Implements `pipeline_typeck_check_call_slice_region_c`.
  * @param module *u8
@@ -2057,6 +2056,7 @@ export function pipeline_typeck_check_return_slice_region_c(arena: *u8, ret_site
  * @param ctx *u8
  * @return i32
  */
+#[no_mangle]
 export function pipeline_typeck_check_call_slice_region_c(module: *u8, arena: *u8, call_expr_ref: i32, ctx: *u8): i32 {
   if (module == 0) { return 0; }
   if (arena == 0) { return 0; }
@@ -2094,7 +2094,6 @@ export function pipeline_typeck_check_call_slice_region_c(module: *u8, arena: *u
 
 // See implementation.
 // TYPE_NAMED=8
-#[no_mangle]
 /** Exported function `pipeline_typeck_check_expr_try_propagate_c`.
  * Implements `pipeline_typeck_check_expr_try_propagate_c`.
  * @param module *u8
@@ -2104,6 +2103,7 @@ export function pipeline_typeck_check_call_slice_region_c(module: *u8, arena: *u
  * @param ctx *u8
  * @return i32
  */
+#[no_mangle]
 export function pipeline_typeck_check_expr_try_propagate_c(module: *u8, arena: *u8, expr_ref: i32, return_type_ref: i32, ctx: *u8): i32 {
   if (module == 0) { return 0; }
   if (arena == 0) { return 0; }
@@ -2233,7 +2233,6 @@ export extern "C" function typeck_check_expr_if_ternary(module: *u8, arena: *u8,
 export extern "C" function typeck_check_expr_block(module: *u8, arena: *u8, er: i32, rt: i32, ctx: *u8): i32;
 
 // pipeline_typeck_check_expr_match_c: see function docblock below.
-#[no_mangle]
 /** Exported function `pipeline_typeck_check_expr_match_c`.
  * Implements `pipeline_typeck_check_expr_match_c`.
  * @param module *u8
@@ -2243,6 +2242,7 @@ export extern "C" function typeck_check_expr_block(module: *u8, arena: *u8, er: 
  * @param ctx *u8
  * @return i32
  */
+#[no_mangle]
 export function pipeline_typeck_check_expr_match_c(module: *u8, arena: *u8, expr_ref: i32, return_type_ref: i32, ctx: *u8): i32 {
   if (arena == 0) { return 0; }
   if (expr_ref <= 0) { return 0; }
@@ -2277,7 +2277,6 @@ export function pipeline_typeck_check_expr_match_c(module: *u8, arena: *u8, expr
 
 // See implementation.
 // SLICE=11 PTR=9 NAMED=8 USIZE=6 I32=0
-#[no_mangle]
 /** Exported function `pipeline_typeck_check_expr_field_access_c`.
  * Implements `pipeline_typeck_check_expr_field_access_c`.
  * @param module *u8
@@ -2287,6 +2286,7 @@ export function pipeline_typeck_check_expr_match_c(module: *u8, arena: *u8, expr
  * @param ctx *u8
  * @return i32
  */
+#[no_mangle]
 export function pipeline_typeck_check_expr_field_access_c(module: *u8, arena: *u8, expr_ref: i32, return_type_ref: i32, ctx: *u8): i32 {
   if (module == 0) { return 0; }
   if (arena == 0) { return 0; }
@@ -2440,7 +2440,6 @@ export extern "C" function pipeline_typeck_find_func_return_type_in_module_by_na
   call_expr_ref: i32, is_method: i32, ctx: *u8, func_index_out: *i32
 ): i32;
 
-#[no_mangle]
 /** Exported function `pipeline_typeck_check_expr_method_call_c`.
  * Implements `pipeline_typeck_check_expr_method_call_c`.
  * @param module *u8
@@ -2450,6 +2449,7 @@ export extern "C" function pipeline_typeck_find_func_return_type_in_module_by_na
  * @param ctx *u8
  * @return i32
  */
+#[no_mangle]
 export function pipeline_typeck_check_expr_method_call_c(module: *u8, arena: *u8, expr_ref: i32, return_type_ref: i32, ctx: *u8): i32 {
   if (module == 0) { return 0; }
   if (arena == 0) { return 0; }
@@ -2584,7 +2584,6 @@ export function pipeline_typeck_check_expr_method_call_c(module: *u8, arena: *u8
 // See implementation.
 // RETURN=41 PANIC=42 MATCH=43 FIELD=44 INDEX=47 CALL=48 METHOD=49 ADD..LOGOR=4..21
 // NEG=22 BITNOT=23 LOGNOT=24 ADDR_OF=51 DEREF=52 VAR=3 AS=54 STRUCT_LIT=45 try=57/58
-#[no_mangle]
 /** Exported function `pipeline_typeck_check_expr_impl_mega_c`.
  * Implements `pipeline_typeck_check_expr_impl_mega_c`.
  * @param module *u8
@@ -2594,6 +2593,7 @@ export function pipeline_typeck_check_expr_method_call_c(module: *u8, arena: *u8
  * @param ctx *u8
  * @return i32
  */
+#[no_mangle]
 export function pipeline_typeck_check_expr_impl_mega_c(module: *u8, arena: *u8, expr_ref: i32, return_type_ref: i32, ctx: *u8): i32 {
   if (arena == 0) { return 0; }
   if (expr_ref <= 0) { return 0; }
@@ -2630,7 +2630,6 @@ export function pipeline_typeck_check_expr_impl_mega_c(module: *u8, arena: *u8, 
 
 // See implementation.
 // FLOAT=1 LIT=0 BOOL=2 BREAK=39 CONTINUE=40 ENUM=50 IF=25 TERNARY=27 BLOCK=26 MATCH=43
-#[no_mangle]
 /** Exported function `pipeline_typeck_check_expr_impl_c`.
  * Implements `pipeline_typeck_check_expr_impl_c`.
  * @param module *u8
@@ -2640,6 +2639,7 @@ export function pipeline_typeck_check_expr_impl_mega_c(module: *u8, arena: *u8, 
  * @param ctx *u8
  * @return i32
  */
+#[no_mangle]
 export function pipeline_typeck_check_expr_impl_c(module: *u8, arena: *u8, expr_ref: i32, return_type_ref: i32, ctx: *u8): i32 {
   if (arena == 0) { return 0; }
   if (expr_ref <= 0) { return 0; }
@@ -2692,18 +2692,17 @@ export extern "C" function getenv(name: *u8): *u8;
 let g_typeck_entry_module_for_dep_map_x: *u8 = 0;
 
 // G-02f-220：set entry module for dep named map
-#[no_mangle]
 /** Exported function `pipeline_typeck_set_entry_module_for_dep_map_c`.
  * Implements `pipeline_typeck_set_entry_module_for_dep_map_c`.
  * @param module *u8
  * @return void
  */
+#[no_mangle]
 export function pipeline_typeck_set_entry_module_for_dep_map_c(module: *u8): void {
   g_typeck_entry_module_for_dep_map_x = module;
 }
 
 // pipeline_typeck_get_dep_return_type_in_caller_arena_c: see function docblock below.
-#[no_mangle]
 /** Exported function `pipeline_typeck_get_dep_return_type_in_caller_arena_c`.
  * Implements `pipeline_typeck_get_dep_return_type_in_caller_arena_c`.
  * @param from_dep_index i32
@@ -2712,6 +2711,7 @@ export function pipeline_typeck_set_entry_module_for_dep_map_c(module: *u8): voi
  * @param ctx *u8
  * @return i32
  */
+#[no_mangle]
 export function pipeline_typeck_get_dep_return_type_in_caller_arena_c(from_dep_index: i32, dep_return_type_ref: i32, caller_arena: *u8, ctx: *u8): i32 {
   if (from_dep_index < 0) { return 0; }
   if (ctx == 0) { return 0; }
@@ -2746,13 +2746,13 @@ export function pipeline_typeck_get_dep_return_type_in_caller_arena_c(from_dep_i
 }
 
 // ast_pipeline_module_func_num_generic_params_at: see function docblock below.
-#[no_mangle]
 /** Exported function `ast_pipeline_module_func_num_generic_params_at`.
  * Implements `ast_pipeline_module_func_num_generic_params_at`.
  * @param m *u8
  * @param fi i32
  * @return i32
  */
+#[no_mangle]
 export function ast_pipeline_module_func_num_generic_params_at(m: *u8, fi: i32): i32 {
   if (m == 0) { return 0; }
   unsafe {
@@ -2762,7 +2762,6 @@ export function ast_pipeline_module_func_num_generic_params_at(m: *u8, fi: i32):
 }
 
 // pipeline_typeck_check_block_impl_c: see function docblock below.
-#[no_mangle]
 /** Exported function `pipeline_typeck_check_block_impl_c`.
  * Implements `pipeline_typeck_check_block_impl_c`.
  * @param module *u8
@@ -2772,6 +2771,7 @@ export function ast_pipeline_module_func_num_generic_params_at(m: *u8, fi: i32):
  * @param ctx *u8
  * @return i32
  */
+#[no_mangle]
 export function pipeline_typeck_check_block_impl_c(module: *u8, arena: *u8, block_ref: i32, return_type_ref: i32, ctx: *u8): i32 {
   if (arena == 0) { return 0 - 1; }
   if (ctx == 0) { return 0 - 1; }
@@ -2905,13 +2905,13 @@ export function glue_lin_name_base(i: i32): i32 {
 }
 
 // pipeline_typeck_linear_name_already_moved_strict_minimal: see function docblock below.
-#[no_mangle]
 /** Exported function `pipeline_typeck_linear_name_already_moved_strict_minimal`.
  * Read path helper `pipeline_typeck_linear_name_already_moved_strict_minimal`.
  * @param name *u8
  * @param name_len i32
  * @return i32
  */
+#[no_mangle]
 export function pipeline_typeck_linear_name_already_moved_strict_minimal(name: *u8, name_len: i32): i32 {
   if (name == 0) { return 0; }
   if (name_len <= 0) { return 0; }
@@ -2937,18 +2937,17 @@ export function pipeline_typeck_linear_name_already_moved_strict_minimal(name: *
 }
 
 // pipeline_typeck_linear_reset_c: see function docblock below.
-#[no_mangle]
 /** Exported function `pipeline_typeck_linear_reset_c`.
  * Implements `pipeline_typeck_linear_reset_c`.
  * @return void
  */
+#[no_mangle]
 export function pipeline_typeck_linear_reset_c(): void {
   g_lin_moved_n = 0;
 }
 
 // See implementation.
 // TYPE_LINEAR=12
-#[no_mangle]
 /** Exported function `pipeline_typeck_linear_use_var_c`.
  * Implements `pipeline_typeck_linear_use_var_c`.
  * @param arena *u8
@@ -2958,6 +2957,7 @@ export function pipeline_typeck_linear_reset_c(): void {
  * @param name_len i32
  * @return i32
  */
+#[no_mangle]
 export function pipeline_typeck_linear_use_var_c(arena: *u8, type_ref: i32, expr_ref: i32, name: *u8, name_len: i32): i32 {
   if (arena == 0) { return 0; }
   if (name == 0) { return 0; }
@@ -2997,7 +2997,6 @@ export function pipeline_typeck_linear_use_var_c(arena: *u8, type_ref: i32, expr
 }
 
 // pipeline_typeck_after_parse_ok_impl_c: see function docblock below.
-#[no_mangle]
 /** Exported function `pipeline_typeck_after_parse_ok_impl_c`.
  * Implements `pipeline_typeck_after_parse_ok_impl_c`.
  * @param arena *u8
@@ -3006,6 +3005,7 @@ export function pipeline_typeck_linear_use_var_c(arena: *u8, type_ref: i32, expr
  * @param ctx *u8
  * @return i32
  */
+#[no_mangle]
 export function pipeline_typeck_after_parse_ok_impl_c(arena: *u8, module: *u8, source: *u8, ctx: *u8): i32 {
   if (arena == 0) { return 0 - 1; }
   if (module == 0) { return 0 - 1; }
@@ -3138,7 +3138,6 @@ export function glue_block_const_expr_is_const(arena: *u8, expr_ref: i32, block_
 }
 
 // pipeline_typeck_block_const_init_is_const_c: see function docblock below.
-#[no_mangle]
 /** Exported function `pipeline_typeck_block_const_init_is_const_c`.
  * Implements `pipeline_typeck_block_const_init_is_const_c`.
  * @param arena *u8
@@ -3146,6 +3145,7 @@ export function glue_block_const_expr_is_const(arena: *u8, expr_ref: i32, block_
  * @param const_idx i32
  * @return i32
  */
+#[no_mangle]
 export function pipeline_typeck_block_const_init_is_const_c(arena: *u8, block_ref: i32, const_idx: i32): i32 {
   if (arena == 0) { return 0; }
   if (const_idx < 0) { return 0; }
@@ -3179,7 +3179,6 @@ export extern "C" function ast_ast_block_final_expr_ref(arena: *u8, br: i32): i3
 
 // See implementation.
 // NAMED=8 PTR=9 LINEAR=12 SLICE=11 ARRAY=10 VECTOR=13
-#[no_mangle]
 /** Exported function `pipeline_typeck_type_refs_equal_c`.
  * Implements `pipeline_typeck_type_refs_equal_c`.
  * @param arena *u8
@@ -3187,6 +3186,7 @@ export extern "C" function ast_ast_block_final_expr_ref(arena: *u8, br: i32): i3
  * @param b i32
  * @return i32
  */
+#[no_mangle]
 export function pipeline_typeck_type_refs_equal_c(arena: *u8, a: i32, b: i32): i32 {
   if (a == 0) {
     if (b == 0) { return 1; }
@@ -3243,7 +3243,6 @@ export function pipeline_typeck_type_refs_equal_c(arena: *u8, a: i32, b: i32): i
 }
 
 // parser_diagnostic_parse_func_generic: see function docblock below.
-#[no_mangle]
 /** Exported function `parser_diagnostic_parse_func_generic`.
  * Implements `parser_diagnostic_parse_func_generic`.
  * @param byte_pos i32
@@ -3254,6 +3253,7 @@ export function pipeline_typeck_type_refs_equal_c(arena: *u8, a: i32, b: i32): i
  * @param is_main i32
  * @return void
  */
+#[no_mangle]
 export function parser_diagnostic_parse_func_generic(byte_pos: i32, num_funcs_so_far: i32, name: *u8, name_len: i32, num_generic_params: i32, is_main: i32): void {
   unsafe {
     driver_diagnostic_parse_func_generic(byte_pos, num_funcs_so_far, name, name_len, num_generic_params, is_main);
@@ -3261,7 +3261,6 @@ export function parser_diagnostic_parse_func_generic(byte_pos: i32, num_funcs_so
 }
 
 // parser_diagnostic_parse_commit_pre: see function docblock below.
-#[no_mangle]
 /** Exported function `parser_diagnostic_parse_commit_pre`.
  * Implements `parser_diagnostic_parse_commit_pre`.
  * @param arena *u8
@@ -3272,6 +3271,7 @@ export function parser_diagnostic_parse_func_generic(byte_pos: i32, num_funcs_so
  * @param final_expr_ref i32
  * @return void
  */
+#[no_mangle]
 export function parser_diagnostic_parse_commit_pre(arena: *u8, name: *u8, name_len: i32, block_ref: i32, pool: *u8, final_expr_ref: i32): void {
   unsafe {
     let pool_nc: i32 = 0;
@@ -3299,7 +3299,6 @@ export function parser_diagnostic_parse_commit_pre(arena: *u8, name: *u8, name_l
 }
 
 // parser_diagnostic_parse_commit_post: see function docblock below.
-#[no_mangle]
 /** Exported function `parser_diagnostic_parse_commit_post`.
  * Implements `parser_diagnostic_parse_commit_post`.
  * @param arena *u8
@@ -3309,6 +3308,7 @@ export function parser_diagnostic_parse_commit_pre(arena: *u8, name: *u8, name_l
  * @param pool *u8
  * @return void
  */
+#[no_mangle]
 export function parser_diagnostic_parse_commit_post(arena: *u8, name: *u8, name_len: i32, block_ref: i32, pool: *u8): void {
   unsafe {
     let pool_nc: i32 = 0;

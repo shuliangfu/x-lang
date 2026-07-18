@@ -31,11 +31,11 @@ function kmain(): i32 {
   return val as i32;
 }
 
-#[entry]
 /** Internal function `start`.
  * Implements `start`.
  * @return void
  */
+#[entry]
 function start(): void {
   unsafe {
     asm!("call kmain; cli; hlt");

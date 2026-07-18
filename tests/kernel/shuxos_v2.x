@@ -174,25 +174,25 @@ let current_task: u32 = 0;
 let task1_count: u32 = 0;
 let task2_count: u32 = 0;
 
-#[used]
-#[naked]
 /** Internal function `switch_to`.
  * Implements `switch_to`.
  * @param old *Context
  * @param new_ctx *Context
  * @return void
  */
+#[used]
+#[naked]
 function switch_to(old: *Context, new_ctx: *Context): void {
   unsafe {
     asm!("movl 4(%esp), %eax; movl 8(%esp), %edx; pushl %ebp; pushl %ebx; pushl %esi; pushl %edi; movl %esp, (%eax); movl (%edx), %esp; popl %edi; popl %esi; popl %ebx; popl %ebp; ret");
   }
 }
 
-#[interrupt]
 /** Internal function `timer_handler`.
  * Implements `timer_handler`.
  * @return void
  */
+#[interrupt]
 function timer_handler(): void {
   tick_count = tick_count + 1;
   schedule_tick = schedule_tick + 1;
@@ -200,11 +200,11 @@ function timer_handler(): void {
 }
 
 // === Tasks ===
-#[used]
 /** Internal function `task1`.
  * Implements `task1`.
  * @return void
  */
+#[used]
 function task1(): void {
   let i: u32 = 0;
   while (i < 5) {
@@ -215,11 +215,11 @@ function task1(): void {
   switch_to(&ctx_task1, &ctx_main);
 }
 
-#[used]
 /** Internal function `task2`.
  * Implements `task2`.
  * @return void
  */
+#[used]
 function task2(): void {
   let i: u32 = 0;
   while (i < 5) {
@@ -359,11 +359,11 @@ function kmain(): i32 {
   return 0;
 }
 
-#[entry]
 /** Internal function `start`.
  * Implements `start`.
  * @return void
  */
+#[entry]
 function start(): void {
   unsafe { asm!("mov $0x80000, %esp; call kmain; cli; hlt"); }
 }

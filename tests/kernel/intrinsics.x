@@ -6,7 +6,6 @@ struct MB1Header { magic: u32; flags: u32; checksum: u32; }
 #[link_section(".boot")]
 const mb1: MB1Header = { magic: 0x1BADB002, flags: 0, checksum: 0xE4524FFE, };
 
-#[used]
 /** Internal function `kputc`.
  * Implements `kputc`.
  * @param c u8): void { unsafe { asm!("outb %%al
@@ -14,20 +13,21 @@ const mb1: MB1Header = { magic: 0x1BADB002, flags: 0, checksum: 0xE4524FFE, };
  * @param "d"(0x3F8)
  * @return void
  */
-function kputc(c: u8): void { unsafe { asm!("outb %%al, %%dx" : : "a"(c), "d"(0x3F8)); } }
 #[used]
+function kputc(c: u8): void { unsafe { asm!("outb %%al, %%dx" : : "a"(c), "d"(0x3F8)); } }
 /** Internal function `kputint`.
  * Implements `kputint`.
  * @param n i32): void { if (n >= 10) { kputint(n / 10); } kputc((n % 10 + 48) as u8
  * @return void
  */
-function kputint(n: i32): void { if (n >= 10) { kputint(n / 10); } kputc((n % 10 + 48) as u8); }
 #[used]
+function kputint(n: i32): void { if (n >= 10) { kputint(n / 10); } kputc((n % 10 + 48) as u8); }
 /** Internal function `kputhex`.
  * Implements `kputhex`.
  * @param n u32
  * @return void
  */
+#[used]
 function kputhex(n: u32): void {
   let i: i32 = 28;
   while (i >= 0) { let nib: u32 = (n >> i) & 15; if (nib < 10) { kputc((nib + 48) as u8); } else { kputc((nib + 55) as u8); } i = i - 4; }
@@ -35,110 +35,110 @@ function kputhex(n: u32): void {
 
 // === Intrinsic wrapper functions ===
 
-#[used]
 /** Internal function `intrinsic_hlt`.
  * Implements `intrinsic_hlt`.
  * @param ) void { unsafe { asm!("hlt"
  * @return void
  */
+#[used]
 function intrinsic_hlt(): void { unsafe { asm!("hlt"); } }
 
-#[used]
 /** Internal function `intrinsic_cli`.
  * Implements `intrinsic_cli`.
  * @param ) void { unsafe { asm!("cli"
  * @return void
  */
+#[used]
 function intrinsic_cli(): void { unsafe { asm!("cli"); } }
 
-#[used]
 /** Internal function `intrinsic_sti`.
  * Implements `intrinsic_sti`.
  * @param ) void { unsafe { asm!("sti"
  * @return void
  */
+#[used]
 function intrinsic_sti(): void { unsafe { asm!("sti"); } }
 
-#[used]
 /** Internal function `intrinsic_pause`.
  * Implements `intrinsic_pause`.
  * @param ) void { unsafe { asm!("pause"
  * @return void
  */
+#[used]
 function intrinsic_pause(): void { unsafe { asm!("pause"); } }
 
-#[used]
 /** Internal function `intrinsic_mfence`.
  * Implements `intrinsic_mfence`.
  * @param ) void { unsafe { asm!("mfence"
  * @return void
  */
+#[used]
 function intrinsic_mfence(): void { unsafe { asm!("mfence"); } }
 
-#[used]
 /** Internal function `intrinsic_lfence`.
  * Implements `intrinsic_lfence`.
  * @param ) void { unsafe { asm!("lfence"
  * @return void
  */
+#[used]
 function intrinsic_lfence(): void { unsafe { asm!("lfence"); } }
 
-#[used]
 /** Internal function `intrinsic_sfence`.
  * Implements `intrinsic_sfence`.
  * @param ) void { unsafe { asm!("sfence"
  * @return void
  */
+#[used]
 function intrinsic_sfence(): void { unsafe { asm!("sfence"); } }
 
-#[used]
 /** Internal function `intrinsic_invlpg`.
  * Implements `intrinsic_invlpg`.
  * @param addr u32
  * @return void
  */
+#[used]
 function intrinsic_invlpg(addr: u32): void {
   unsafe { asm!("invlpg (%0)" : : "a"(addr) : "memory"); }
 }
 
-#[used]
 /** Internal function `intrinsic_read_cr0`.
  * Read path helper `intrinsic_read_cr0`.
  * @return u32
  */
+#[used]
 function intrinsic_read_cr0(): u32 {
   let val: u32 = 0;
   unsafe { asm!("mov %%cr0, %0" : "=a"(val)); }
   return val;
 }
 
-#[used]
 /** Internal function `intrinsic_read_cr3`.
  * Read path helper `intrinsic_read_cr3`.
  * @return u32
  */
+#[used]
 function intrinsic_read_cr3(): u32 {
   let val: u32 = 0;
   unsafe { asm!("mov %%cr3, %0" : "=a"(val)); }
   return val;
 }
 
-#[used]
 /** Internal function `intrinsic_write_cr3`.
  * Write path helper `intrinsic_write_cr3`.
  * @param addr u32
  * @return void
  */
+#[used]
 function intrinsic_write_cr3(addr: u32): void {
   unsafe { asm!("mov %0, %%cr3" : : "a"(addr)); }
 }
 
-#[used]
 /** Internal function `intrinsic_cpuid`.
  * Implements `intrinsic_cpuid`.
  * @param leaf u32
  * @return u32
  */
+#[used]
 function intrinsic_cpuid(leaf: u32): u32 {
   let a: u32 = leaf;
   let b: u32 = 0;
@@ -148,12 +148,12 @@ function intrinsic_cpuid(leaf: u32): u32 {
   return a;
 }
 
-#[used]
 /** Internal function `intrinsic_rdmsr`.
  * Implements `intrinsic_rdmsr`.
  * @param msr u32
  * @return u64
  */
+#[used]
 function intrinsic_rdmsr(msr: u32): u64 {
   let lo: u32 = 0;
   let hi: u32 = 0;
@@ -161,13 +161,13 @@ function intrinsic_rdmsr(msr: u32): u64 {
   return (lo as u64) | ((hi as u64) << 32);
 }
 
-#[used]
 /** Internal function `intrinsic_wrmsr`.
  * Implements `intrinsic_wrmsr`.
  * @param msr u32
  * @param val u64
  * @return void
  */
+#[used]
 function intrinsic_wrmsr(msr: u32, val: u64): void {
   let lo: u32 = (val & 0xFFFFFFFF) as u32;
   let hi: u32 = (val >> 32) as u32;
@@ -180,12 +180,12 @@ struct AtomicU32 {
   value: u32;
 }
 
-#[used]
 /** Internal function `atomic_u32_load`.
  * Implements `atomic_u32_load`.
  * @param a *AtomicU32
  * @return u32
  */
+#[used]
 function atomic_u32_load(a: *AtomicU32): u32 {
   let p: *volatile u32 = (a as u32 + 0) as *volatile u32;
   let v: u32 = 0;
@@ -193,32 +193,31 @@ function atomic_u32_load(a: *AtomicU32): u32 {
   return v;
 }
 
-#[used]
 /** Internal function `atomic_u32_store`.
  * Implements `atomic_u32_store`.
  * @param a *AtomicU32
  * @param val u32
  * @return void
  */
+#[used]
 function atomic_u32_store(a: *AtomicU32, val: u32): void {
   let p: *volatile u32 = (a as u32 + 0) as *volatile u32;
   unsafe { *p = val; }
 }
 
-#[used]
 /** Internal function `atomic_u32_fetch_add`.
  * Implements `atomic_u32_fetch_add`.
  * @param a *AtomicU32
  * @param val u32
  * @return u32
  */
+#[used]
 function atomic_u32_fetch_add(a: *AtomicU32, val: u32): u32 {
   let p: *volatile u32 = (a as u32 + 0) as *volatile u32;
   unsafe { asm!("lock xadd %0, (%1)" : "+a"(val) : "r"(p) : "memory", "cc"); }
   return val;
 }
 
-#[used]
 /** Internal function `atomic_u32_cas`.
  * Implements `atomic_u32_cas`.
  * @param a *AtomicU32
@@ -226,6 +225,7 @@ function atomic_u32_fetch_add(a: *AtomicU32, val: u32): u32 {
  * @param newval u32
  * @return u32
  */
+#[used]
 function atomic_u32_cas(a: *AtomicU32, expected: u32, newval: u32): u32 {
   let p: *volatile u32 = (a as u32 + 0) as *volatile u32;
   let prev: u32 = expected;
@@ -269,13 +269,13 @@ function kmain(): i32 {
   return 0;
 }
 
-#[entry]
 /** Internal function `start`.
  * Implements `start`.
  * @param ) void { unsafe { asm!("mov $0x80000
  * @param %esp; call kmain; cli; hlt"
  * @return void
  */
+#[entry]
 function start(): void { unsafe { asm!("mov $0x80000, %esp; call kmain; cli; hlt"); } }
 /** Internal function `main`.
  * Program/test entry point.

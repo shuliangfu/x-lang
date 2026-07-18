@@ -26,11 +26,11 @@ function serial_putint(n: i32): void {
 }
 
 // kmain must be externally visible (called from boot64.s _start64)
-#[used]
 /** Internal function `kmain`.
  * Implements `kmain`.
  * @return i32
  */
+#[used]
 function kmain(): i32 {
   serial_putc(81);
   serial_putc(58);

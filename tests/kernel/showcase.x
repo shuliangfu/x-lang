@@ -88,11 +88,11 @@ function kalloc(size: u32): u32 {
 // === IDT + PIC + PIT ===
 let tick_count: u32 = 0;
 
-#[interrupt]
 /** Internal function `timer_handler`.
  * Implements `timer_handler`.
  * @return void
  */
+#[interrupt]
 function timer_handler(): void {
   tick_count = tick_count + 1;
   unsafe { asm!("movb $0x20, %al; outb %al, $0x20"); }
@@ -171,11 +171,11 @@ function kmain(): i32 {
   return 0;
 }
 
-#[entry]
 /** Internal function `start`.
  * Implements `start`.
  * @return void
  */
+#[entry]
 function start(): void {
   unsafe { asm!("mov $0x80000, %esp; call kmain; cli; hlt"); }
 }

@@ -20,7 +20,6 @@ export function asm_backend_compat_stubs_x_doc_anchor(): i32 {
 /* ---- G-02f-99 / G-02f-139：format ---- */
 
 // shu_format_u32_to_buf: see function docblock below.
-#[no_mangle]
 /** Exported function `shu_format_u32_to_buf`.
  * Implements `shu_format_u32_to_buf`.
  * @param buf *u8
@@ -29,6 +28,7 @@ export function asm_backend_compat_stubs_x_doc_anchor(): i32 {
  * @param u u32
  * @return i32
  */
+#[no_mangle]
 export function shu_format_u32_to_buf(buf: *u8, off: i32, max: i32, u: u32): i32 {
   if (buf == 0) { return 0 - 1; }
   if (max < 1) { return 0 - 1; }
@@ -56,13 +56,13 @@ export function shu_format_u32_to_buf(buf: *u8, off: i32, max: i32, u: u32): i32
   return num_digits;
 }
 
-#[no_mangle]
 /** Exported function `shu_elf_ctx_append_u32_le`.
  * Implements `shu_elf_ctx_append_u32_le`.
  * @param elf_ctx *u8
  * @param word u32
  * @return i32
  */
+#[no_mangle]
 export function shu_elf_ctx_append_u32_le(elf_ctx: *u8, word: u32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   let b0: u8 = (word & 255) as u8;
@@ -80,13 +80,13 @@ export function shu_elf_ctx_append_u32_le(elf_ctx: *u8, word: u32): i32 {
   return r;
 }
 
-#[no_mangle]
 /** Exported function `shu_arm64_mov_imm32_to_w0_c`.
  * Implements `shu_arm64_mov_imm32_to_w0_c`.
  * @param elf_ctx *u8
  * @param imm32 i32
  * @return i32
  */
+#[no_mangle]
 export function shu_arm64_mov_imm32_to_w0_c(elf_ctx: *u8, imm32: i32): i32 {
   // See implementation.
   let u: u32 = imm32 as u32;

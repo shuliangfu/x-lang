@@ -43,12 +43,12 @@ function serial_puts_count(count: i32): void {
   serial_putc(10);
 }
 
-#[used]
 /** Internal function `kpanic`.
  * Implements `kpanic`.
  * @param code i32
  * @return void
  */
+#[used]
 function kpanic(code: i32): void {
   serial_puts_count(code);
   unsafe { asm!("cli; hlt"); }
@@ -72,11 +72,11 @@ function kmain(): i32 {
   return 0;
 }
 
-#[entry]
 /** Internal function `start`.
  * Implements `start`.
  * @return void
  */
+#[entry]
 function start(): void {
   unsafe {
     asm!("mov $0x80000, %esp; call kmain; cli; hlt");

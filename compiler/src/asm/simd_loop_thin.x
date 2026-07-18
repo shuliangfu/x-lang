@@ -16,29 +16,28 @@ export extern "C" function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32):
 export extern "C" function pipeline_type_array_size_at(arena: *u8, type_ref: i32): i32;
 export extern "C" function pipeline_type_elem_ref_at(arena: *u8, type_ref: i32): i32;
 
-#[no_mangle]
 /** Exported function `glue_f32_slot_rbp_disp32`.
  * Implements `glue_f32_slot_rbp_disp32`.
  * @param off i32
  * @return i32
  */
+#[no_mangle]
 export function glue_f32_slot_rbp_disp32(off: i32): i32 {
   return 0 - off;
 }
 
-#[no_mangle]
 /** Exported function `glue_soa_f32_col_rbp_disp32`.
  * Implements `glue_soa_f32_col_rbp_disp32`.
  * @param off_col0 i32
  * @param start_idx i32
  * @return i32
  */
+#[no_mangle]
 export function glue_soa_f32_col_rbp_disp32(off_col0: i32, start_idx: i32): i32 {
   return 0 - (off_col0 - start_idx * 4);
 }
 
 // glue_simd_loop_pick_lanes_c: see function docblock below.
-#[no_mangle]
 /** Exported function `glue_simd_loop_pick_lanes_c`.
  * Implements `glue_simd_loop_pick_lanes_c`.
  * @param feats u32
@@ -46,6 +45,7 @@ export function glue_soa_f32_col_rbp_disp32(off_col0: i32, start_idx: i32): i32 
  * @param lanes_out *i32
  * @return i32
  */
+#[no_mangle]
 export function glue_simd_loop_pick_lanes_c(feats: u32, binop_ko: i32, lanes_out: *i32): i32 {
   if (lanes_out == 0 as *i32) {
     return 0 - 1;
@@ -76,13 +76,13 @@ export function glue_simd_loop_pick_lanes_c(feats: u32, binop_ko: i32, lanes_out
 }
 
 // glue_var_array_i32_size_c: see function docblock below.
-#[no_mangle]
 /** Exported function `glue_var_array_i32_size_c`.
  * Implements `glue_var_array_i32_size_c`.
  * @param arena *u8
  * @param var_ref i32
  * @return i32
  */
+#[no_mangle]
 export function glue_var_array_i32_size_c(arena: *u8, var_ref: i32): i32 {
   unsafe {
     if (pipeline_expr_kind_ord_at(arena, var_ref) != 3) {
@@ -114,7 +114,6 @@ export function glue_var_array_i32_size_c(arena: *u8, var_ref: i32): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `glue_var_is_array_i32_n_c`.
  * Implements `glue_var_is_array_i32_n_c`.
  * @param arena *u8
@@ -122,6 +121,7 @@ export function glue_var_array_i32_size_c(arena: *u8, var_ref: i32): i32 {
  * @param n i32
  * @return i32
  */
+#[no_mangle]
 export function glue_var_is_array_i32_n_c(arena: *u8, var_ref: i32, n: i32): i32 {
   if (n <= 0) {
     return 0;
@@ -140,7 +140,6 @@ export function glue_var_is_array_i32_n_c(arena: *u8, var_ref: i32, n: i32): i32
 export extern "C" function glue_expr_same_var_c_impl(arena: *u8, a_ref: i32, b_ref: i32): i32;
 export extern "C" function glue_index_uses_var_c_impl(arena: *u8, index_expr_ref: i32, i_var_ref: i32): i32;
 
-#[no_mangle]
 /** Exported function `glue_expr_same_var_c`.
  * Implements `glue_expr_same_var_c`.
  * @param arena *u8
@@ -148,6 +147,7 @@ export extern "C" function glue_index_uses_var_c_impl(arena: *u8, index_expr_ref
  * @param b_ref i32
  * @return i32
  */
+#[no_mangle]
 export function glue_expr_same_var_c(arena: *u8, a_ref: i32, b_ref: i32): i32 {
   unsafe {
     return glue_expr_same_var_c_impl(arena, a_ref, b_ref);
@@ -155,7 +155,6 @@ export function glue_expr_same_var_c(arena: *u8, a_ref: i32, b_ref: i32): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `glue_index_uses_var_c`.
  * Implements `glue_index_uses_var_c`.
  * @param arena *u8
@@ -163,6 +162,7 @@ export function glue_expr_same_var_c(arena: *u8, a_ref: i32, b_ref: i32): i32 {
  * @param i_var_ref i32
  * @return i32
  */
+#[no_mangle]
 export function glue_index_uses_var_c(arena: *u8, index_expr_ref: i32, i_var_ref: i32): i32 {
   unsafe {
     return glue_index_uses_var_c_impl(arena, index_expr_ref, i_var_ref);
@@ -175,12 +175,12 @@ export extern "C" function glue_simd_x86_cmp_rax_rbx_c_impl(elf_ctx: *u8): i32;
 export extern "C" function glue_var_array_size_c_impl(arena: *u8, var_ref: i32): i32;
 export extern "C" function glue_simd_loop_emit_chunk_binop_c_impl(elf_ctx: *u8, binop_ko: i32, chunk_off_a: i32, chunk_off_b: i32, chunk_off_d: i32, lanes: i32, esz: i32, ta: i32, feats: u32): i32;
 
-#[no_mangle]
 /** Exported function `glue_simd_x86_cmp_rax_rbx_c`.
  * Comparison/utility `glue_simd_x86_cmp_rax_rbx_c`.
  * @param elf_ctx *u8
  * @return i32
  */
+#[no_mangle]
 export function glue_simd_x86_cmp_rax_rbx_c(elf_ctx: *u8): i32 {
   unsafe {
     return glue_simd_x86_cmp_rax_rbx_c_impl(elf_ctx);
@@ -188,13 +188,13 @@ export function glue_simd_x86_cmp_rax_rbx_c(elf_ctx: *u8): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `glue_var_array_size_c`.
  * Implements `glue_var_array_size_c`.
  * @param arena *u8
  * @param var_ref i32
  * @return i32
  */
+#[no_mangle]
 export function glue_var_array_size_c(arena: *u8, var_ref: i32): i32 {
   unsafe {
     return glue_var_array_size_c_impl(arena, var_ref);
@@ -202,7 +202,6 @@ export function glue_var_array_size_c(arena: *u8, var_ref: i32): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `glue_simd_loop_emit_chunk_binop_c`.
  * Implements `glue_simd_loop_emit_chunk_binop_c`.
  * @param elf_ctx *u8
@@ -216,6 +215,7 @@ export function glue_var_array_size_c(arena: *u8, var_ref: i32): i32 {
  * @param feats u32
  * @return i32
  */
+#[no_mangle]
 export function glue_simd_loop_emit_chunk_binop_c(elf_ctx: *u8, binop_ko: i32, chunk_off_a: i32, chunk_off_b: i32, chunk_off_d: i32, lanes: i32, esz: i32, ta: i32, feats: u32): i32 {
   unsafe {
     return glue_simd_loop_emit_chunk_binop_c_impl(elf_ctx, binop_ko, chunk_off_a, chunk_off_b, chunk_off_d, lanes, esz, ta, feats);
@@ -228,7 +228,6 @@ export extern "C" function glue_simd_local_var_stack_off_c_impl(arena: *u8, ctx:
 export extern "C" function glue_emit_full_const_peel_c_impl(elf_ctx: *u8, binop_ko: i32, off_a: i32, off_b: i32, off_d: i32, n_lit: i32, lanes: i32, esz: i32, ta: i32, feats: u32): i32;
 export extern "C" function glue_emit_runtime_strip_loop_c_impl(arena: *u8, elf_ctx: *u8, ctx: *u8, ta: i32, assign_body_ref: i32, binop_ko: i32, off_i: i32, off_n: i32, off_a: i32, off_b: i32, off_d: i32, array_n: i32, lanes: i32, feats: u32): i32;
 
-#[no_mangle]
 /** Exported function `glue_simd_local_var_stack_off_c`.
  * Implements `glue_simd_local_var_stack_off_c`.
  * @param arena *u8
@@ -236,6 +235,7 @@ export extern "C" function glue_emit_runtime_strip_loop_c_impl(arena: *u8, elf_c
  * @param var_expr_ref i32
  * @return i32
  */
+#[no_mangle]
 export function glue_simd_local_var_stack_off_c(arena: *u8, ctx: *u8, var_expr_ref: i32): i32 {
   unsafe {
     return glue_simd_local_var_stack_off_c_impl(arena, ctx, var_expr_ref);
@@ -243,7 +243,6 @@ export function glue_simd_local_var_stack_off_c(arena: *u8, ctx: *u8, var_expr_r
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `glue_emit_full_const_peel_c`.
  * Implements `glue_emit_full_const_peel_c`.
  * @param elf_ctx *u8
@@ -258,6 +257,7 @@ export function glue_simd_local_var_stack_off_c(arena: *u8, ctx: *u8, var_expr_r
  * @param feats u32
  * @return i32
  */
+#[no_mangle]
 export function glue_emit_full_const_peel_c(elf_ctx: *u8, binop_ko: i32, off_a: i32, off_b: i32, off_d: i32, n_lit: i32, lanes: i32, esz: i32, ta: i32, feats: u32): i32 {
   unsafe {
     return glue_emit_full_const_peel_c_impl(elf_ctx, binop_ko, off_a, off_b, off_d, n_lit, lanes, esz, ta, feats);
@@ -265,7 +265,6 @@ export function glue_emit_full_const_peel_c(elf_ctx: *u8, binop_ko: i32, off_a: 
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `glue_emit_runtime_strip_loop_c`.
  * Implements `glue_emit_runtime_strip_loop_c`.
  * @param arena *u8
@@ -284,6 +283,7 @@ export function glue_emit_full_const_peel_c(elf_ctx: *u8, binop_ko: i32, off_a: 
  * @param feats u32
  * @return i32
  */
+#[no_mangle]
 export function glue_emit_runtime_strip_loop_c(arena: *u8, elf_ctx: *u8, ctx: *u8, ta: i32, assign_body_ref: i32, binop_ko: i32, off_i: i32, off_n: i32, off_a: i32, off_b: i32, off_d: i32, array_n: i32, lanes: i32, feats: u32): i32 {
   unsafe {
     return glue_emit_runtime_strip_loop_c_impl(arena, elf_ctx, ctx, ta, assign_body_ref, binop_ko, off_i, off_n, off_a, off_b, off_d, array_n, lanes, feats);
@@ -297,7 +297,6 @@ export extern "C" function glue_parse_i_plus_one_step_c_impl(arena: *u8, step_re
 export extern "C" function glue_parse_index_binop_assign_c_impl(arena: *u8, assign_ref: i32, i_var_ref: i32, binop_ko: *i32, dst_base_ref: *i32, a_base_ref: *i32, b_base_ref: *i32): i32;
 export extern "C" function glue_parse_i_lt_bound_c_impl(arena: *u8, block_ref: i32, cond_ref: i32, i_var_ref: *i32, n_lit: *i32, n_is_const: *i32, n_var_ref: *i32): i32;
 
-#[no_mangle]
 /** Exported function `glue_block_let_init_lit_c`.
  * Implements `glue_block_let_init_lit_c`.
  * @param arena *u8
@@ -306,6 +305,7 @@ export extern "C" function glue_parse_i_lt_bound_c_impl(arena: *u8, block_ref: i
  * @param out_lit *i32
  * @return i32
  */
+#[no_mangle]
 export function glue_block_let_init_lit_c(arena: *u8, block_ref: i32, var_ref: i32, out_lit: *i32): i32 {
   unsafe {
     return glue_block_let_init_lit_c_impl(arena, block_ref, var_ref, out_lit);
@@ -313,7 +313,6 @@ export function glue_block_let_init_lit_c(arena: *u8, block_ref: i32, var_ref: i
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `glue_parse_i_plus_one_step_c`.
  * Implements `glue_parse_i_plus_one_step_c`.
  * @param arena *u8
@@ -321,6 +320,7 @@ export function glue_block_let_init_lit_c(arena: *u8, block_ref: i32, var_ref: i
  * @param i_var_ref i32
  * @return i32
  */
+#[no_mangle]
 export function glue_parse_i_plus_one_step_c(arena: *u8, step_ref: i32, i_var_ref: i32): i32 {
   unsafe {
     return glue_parse_i_plus_one_step_c_impl(arena, step_ref, i_var_ref);
@@ -328,7 +328,6 @@ export function glue_parse_i_plus_one_step_c(arena: *u8, step_ref: i32, i_var_re
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `glue_parse_index_binop_assign_c`.
  * Implements `glue_parse_index_binop_assign_c`.
  * @param arena *u8
@@ -340,6 +339,7 @@ export function glue_parse_i_plus_one_step_c(arena: *u8, step_ref: i32, i_var_re
  * @param b_base_ref *i32
  * @return i32
  */
+#[no_mangle]
 export function glue_parse_index_binop_assign_c(arena: *u8, assign_ref: i32, i_var_ref: i32, binop_ko: *i32, dst_base_ref: *i32, a_base_ref: *i32, b_base_ref: *i32): i32 {
   unsafe {
     return glue_parse_index_binop_assign_c_impl(arena, assign_ref, i_var_ref, binop_ko, dst_base_ref, a_base_ref, b_base_ref);
@@ -347,7 +347,6 @@ export function glue_parse_index_binop_assign_c(arena: *u8, assign_ref: i32, i_v
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `glue_parse_i_lt_bound_c`.
  * Implements `glue_parse_i_lt_bound_c`.
  * @param arena *u8
@@ -359,6 +358,7 @@ export function glue_parse_index_binop_assign_c(arena: *u8, assign_ref: i32, i_v
  * @param n_var_ref *i32
  * @return i32
  */
+#[no_mangle]
 export function glue_parse_i_lt_bound_c(arena: *u8, block_ref: i32, cond_ref: i32, i_var_ref: *i32, n_lit: *i32, n_is_const: *i32, n_var_ref: *i32): i32 {
   unsafe {
     return glue_parse_i_lt_bound_c_impl(arena, block_ref, cond_ref, i_var_ref, n_lit, n_is_const, n_var_ref);
@@ -373,11 +373,11 @@ export extern "C" function glue_emit_f32_soa_sum_strip_c_impl(arena: *u8, elf_ct
 export extern "C" function glue_try_simd_peel_f32_soa_sum_while_elf_c_impl(arena: *u8, elf_ctx: *u8, block_ref: i32, loop_idx: i32, ctx: *u8, ta: i32): i32;
 export extern "C" function glue_try_simd_peel_index_add_while_elf_c_impl(arena: *u8, elf_ctx: *u8, block_ref: i32, loop_idx: i32, ctx: *u8, ta: i32): i32;
 
-#[no_mangle]
 /** Exported function `glue_simd_loop_cpu_features_c`.
  * Implements `glue_simd_loop_cpu_features_c`.
  * @return u32
  */
+#[no_mangle]
 export function glue_simd_loop_cpu_features_c(): u32 {
   unsafe {
     return glue_simd_loop_cpu_features_c_impl();
@@ -385,7 +385,6 @@ export function glue_simd_loop_cpu_features_c(): u32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `glue_parse_f32_soa_sum_assign_c`.
  * Implements `glue_parse_f32_soa_sum_assign_c`.
  * @param arena *u8
@@ -396,6 +395,7 @@ export function glue_simd_loop_cpu_features_c(): u32 {
  * @param fa_ref *i32
  * @return i32
  */
+#[no_mangle]
 export function glue_parse_f32_soa_sum_assign_c(arena: *u8, assign_ref: i32, i_var_ref: i32, sum_ref: *i32, arr_ref: *i32, fa_ref: *i32): i32 {
   unsafe {
     return glue_parse_f32_soa_sum_assign_c_impl(arena, assign_ref, i_var_ref, sum_ref, arr_ref, fa_ref);
@@ -403,7 +403,6 @@ export function glue_parse_f32_soa_sum_assign_c(arena: *u8, assign_ref: i32, i_v
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `glue_emit_f32_soa_sum_strip_c`.
  * Implements `glue_emit_f32_soa_sum_strip_c`.
  * @param arena *u8
@@ -420,6 +419,7 @@ export function glue_parse_f32_soa_sum_assign_c(arena: *u8, assign_ref: i32, i_v
  * @param feats u32
  * @return i32
  */
+#[no_mangle]
 export function glue_emit_f32_soa_sum_strip_c(arena: *u8, elf_ctx: *u8, ctx: *u8, ta: i32, assign_body_ref: i32, off_col0: i32, off_s: i32, off_i: i32, off_n: i32, n_lit: i32, lanes: i32, feats: u32): i32 {
   unsafe {
     return glue_emit_f32_soa_sum_strip_c_impl(arena, elf_ctx, ctx, ta, assign_body_ref, off_col0, off_s, off_i, off_n, n_lit, lanes, feats);
@@ -427,7 +427,6 @@ export function glue_emit_f32_soa_sum_strip_c(arena: *u8, elf_ctx: *u8, ctx: *u8
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `glue_try_simd_peel_f32_soa_sum_while_elf_c`.
  * Implements `glue_try_simd_peel_f32_soa_sum_while_elf_c`.
  * @param arena *u8
@@ -438,6 +437,7 @@ export function glue_emit_f32_soa_sum_strip_c(arena: *u8, elf_ctx: *u8, ctx: *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function glue_try_simd_peel_f32_soa_sum_while_elf_c(arena: *u8, elf_ctx: *u8, block_ref: i32, loop_idx: i32, ctx: *u8, ta: i32): i32 {
   unsafe {
     return glue_try_simd_peel_f32_soa_sum_while_elf_c_impl(arena, elf_ctx, block_ref, loop_idx, ctx, ta);
@@ -445,7 +445,6 @@ export function glue_try_simd_peel_f32_soa_sum_while_elf_c(arena: *u8, elf_ctx: 
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `glue_try_simd_peel_index_add_while_elf_c`.
  * Implements `glue_try_simd_peel_index_add_while_elf_c`.
  * @param arena *u8
@@ -456,6 +455,7 @@ export function glue_try_simd_peel_f32_soa_sum_while_elf_c(arena: *u8, elf_ctx: 
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function glue_try_simd_peel_index_add_while_elf_c(arena: *u8, elf_ctx: *u8, block_ref: i32, loop_idx: i32, ctx: *u8, ta: i32): i32 {
   unsafe {
     return glue_try_simd_peel_index_add_while_elf_c_impl(arena, elf_ctx, block_ref, loop_idx, ctx, ta);

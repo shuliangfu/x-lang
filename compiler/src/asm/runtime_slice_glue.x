@@ -45,25 +45,25 @@ export function core_slice_i32_from_ptr_c(data: *i32, length: usize): ShuxSliceI
   return s;
 }
 
-#[no_mangle]
 /** Exported function `core_slice_u8_from_ptr_c`.
  * Implements `core_slice_u8_from_ptr_c`.
  * @param data *u8
  * @param length usize
  * @return ShuxSliceU8
  */
+#[no_mangle]
 export function core_slice_u8_from_ptr_c(data: *u8, length: usize): ShuxSliceU8 {
   let s: ShuxSliceU8 = ShuxSliceU8 { data: data, length: length };
   return s;
 }
 
-#[no_mangle]
 /** Exported function `core_slice_u64_from_ptr_c`.
  * Implements `core_slice_u64_from_ptr_c`.
  * @param data *u64
  * @param length usize
  * @return ShuxSliceU64
  */
+#[no_mangle]
 export function core_slice_u64_from_ptr_c(data: *u64, length: usize): ShuxSliceU64 {
   let s: ShuxSliceU64 = ShuxSliceU64 { data: data, length: length };
   return s;
@@ -92,7 +92,6 @@ export function core_subslice_i32_c(data: *i32, total_len: usize, start: usize, 
   return s;
 }
 
-#[no_mangle]
 /** Exported function `core_subslice_u8_c`.
  * Implements `core_subslice_u8_c`.
  * @param data *u8
@@ -101,6 +100,7 @@ export function core_subslice_i32_c(data: *i32, total_len: usize, start: usize, 
  * @param len usize
  * @return ShuxSliceU8
  */
+#[no_mangle]
 export function core_subslice_u8_c(data: *u8, total_len: usize, start: usize, len: usize): ShuxSliceU8 {
   if (start >= total_len) {
     let s: ShuxSliceU8 = ShuxSliceU8 { data: data, length: 0 };
@@ -115,7 +115,6 @@ export function core_subslice_u8_c(data: *u8, total_len: usize, start: usize, le
   return s;
 }
 
-#[no_mangle]
 /** Exported function `core_subslice_u64_c`.
  * Implements `core_subslice_u64_c`.
  * @param data *u64
@@ -124,6 +123,7 @@ export function core_subslice_u8_c(data: *u8, total_len: usize, start: usize, le
  * @param len usize
  * @return ShuxSliceU64
  */
+#[no_mangle]
 export function core_subslice_u64_c(data: *u64, total_len: usize, start: usize, len: usize): ShuxSliceU64 {
   if (start >= total_len) {
     let s: ShuxSliceU64 = ShuxSliceU64 { data: data, length: 0 };

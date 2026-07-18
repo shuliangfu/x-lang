@@ -1102,7 +1102,6 @@ export function kv_db_smoke_impl(path: *u8): i32 {
   return 0;
 }
 
-#[cfg(target_os = "linux")]
 /** Exported function `db_kv_open_c`.
  * Implements `db_kv_open_c`.
  * @param path *u8
@@ -1110,9 +1109,9 @@ export function kv_db_smoke_impl(path: *u8): i32 {
  * @param capacity_bytes
  * @return void
  */
+#[cfg(target_os = "linux")]
 export function db_kv_open_c(path: *u8, capacity_bytes: u64): i64 { return kv_db_open_impl(path, capacity_bytes); }
 
-#[cfg(target_os = "macos")]
 /** Exported function `db_kv_open_c`.
  * Implements `db_kv_open_c`.
  * @param path *u8
@@ -1120,38 +1119,39 @@ export function db_kv_open_c(path: *u8, capacity_bytes: u64): i64 { return kv_db
  * @param capacity_bytes
  * @return void
  */
+#[cfg(target_os = "macos")]
 export function db_kv_open_c(path: *u8, capacity_bytes: u64): i64 { return kv_db_open_impl(path, capacity_bytes); }
 
-#[cfg(target_os = "linux")]
 /** Exported function `db_kv_close_c`.
  * Implements `db_kv_close_c`.
  * @param handle i64): i32 { return kv_db_close_impl(handle
  * @return void
  */
+#[cfg(target_os = "linux")]
 export function db_kv_close_c(handle: i64): i32 { return kv_db_close_impl(handle); }
 
+/** Exported function `db_kv_close_c`.
+ * Implements `db_kv_close_c`.
+ * @param handle i64): i32 { return kv_db_close_impl(handle
+ * @return void
+ */
 #[cfg(target_os = "macos")]
-/** Exported function `db_kv_close_c`.
- * Implements `db_kv_close_c`.
- * @param handle i64): i32 { return kv_db_close_impl(handle
- * @return void
- */
 export function db_kv_close_c(handle: i64): i32 { return kv_db_close_impl(handle); }
 
-#[cfg(target_os = "linux")]
 /** Exported function `db_kv_sync_c`.
  * Implements `db_kv_sync_c`.
  * @param handle i64): i32 { return kv_db_sync_impl(handle
  * @return void
  */
+#[cfg(target_os = "linux")]
 export function db_kv_sync_c(handle: i64): i32 { return kv_db_sync_impl(handle); }
 
-#[cfg(target_os = "macos")]
 /** Exported function `db_kv_sync_c`.
  * Implements `db_kv_sync_c`.
  * @param handle i64): i32 { return kv_db_sync_impl(handle
  * @return void
  */
+#[cfg(target_os = "macos")]
 export function db_kv_sync_c(handle: i64): i32 { return kv_db_sync_impl(handle); }
 
 /** Exported function `db_kv_put_c`.
@@ -1181,7 +1181,6 @@ export function db_kv_append_ts_c(handle: i64, key: *u8, key_len: u32, val: *u8,
   return kv_db_append_wal(handle as *KvStoreMem, key, key_len, val, val_len, ts_ns);
 }
 
-#[cfg(target_os = "linux")]
 /** Exported function `db_kv_get_c`.
  * Implements `db_kv_get_c`.
  * @param handle i64
@@ -1195,9 +1194,9 @@ export function db_kv_append_ts_c(handle: i64, key: *u8, key_len: u32, val: *u8,
  * @param out_cap
  * @return void
  */
+#[cfg(target_os = "linux")]
 export function db_kv_get_c(handle: i64, key: *u8, key_len: u32, out: *u8, out_cap: u32): i32 { return kv_db_get_impl(handle, key, key_len, out, out_cap); }
 
-#[cfg(target_os = "macos")]
 /** Exported function `db_kv_get_c`.
  * Implements `db_kv_get_c`.
  * @param handle i64
@@ -1211,38 +1210,39 @@ export function db_kv_get_c(handle: i64, key: *u8, key_len: u32, out: *u8, out_c
  * @param out_cap
  * @return void
  */
+#[cfg(target_os = "macos")]
 export function db_kv_get_c(handle: i64, key: *u8, key_len: u32, out: *u8, out_cap: u32): i32 { return kv_db_get_impl(handle, key, key_len, out, out_cap); }
 
-#[cfg(target_os = "linux")]
 /** Exported function `db_kv_wal_flush_c`.
  * Implements `db_kv_wal_flush_c`.
  * @param handle i64): i32 { return kv_db_wal_flush_impl(handle
  * @return void
  */
+#[cfg(target_os = "linux")]
 export function db_kv_wal_flush_c(handle: i64): i32 { return kv_db_wal_flush_impl(handle); }
 
+/** Exported function `db_kv_wal_flush_c`.
+ * Implements `db_kv_wal_flush_c`.
+ * @param handle i64): i32 { return kv_db_wal_flush_impl(handle
+ * @return void
+ */
 #[cfg(target_os = "macos")]
-/** Exported function `db_kv_wal_flush_c`.
- * Implements `db_kv_wal_flush_c`.
- * @param handle i64): i32 { return kv_db_wal_flush_impl(handle
- * @return void
- */
 export function db_kv_wal_flush_c(handle: i64): i32 { return kv_db_wal_flush_impl(handle); }
 
-#[cfg(target_os = "linux")]
 /** Exported function `db_kv_compact_c`.
  * Implements `db_kv_compact_c`.
  * @param handle i64): i32 { return kv_db_compact_impl(handle
  * @return void
  */
+#[cfg(target_os = "linux")]
 export function db_kv_compact_c(handle: i64): i32 { return kv_db_compact_impl(handle); }
 
-#[cfg(target_os = "macos")]
 /** Exported function `db_kv_compact_c`.
  * Implements `db_kv_compact_c`.
  * @param handle i64): i32 { return kv_db_compact_impl(handle
  * @return void
  */
+#[cfg(target_os = "macos")]
 export function db_kv_compact_c(handle: i64): i32 { return kv_db_compact_impl(handle); }
 
 /** Exported function `db_kv_compact_gen_c`.
@@ -1289,34 +1289,34 @@ export function db_kv_sst_level_count_c(handle: i64): u32 {
   return 0 as u32;
 }
 
-#[cfg(target_os = "linux")]
 /** Exported function `db_kv_smoke_c`.
  * Implements `db_kv_smoke_c`.
  * @param path *u8): i32 { return kv_db_smoke_impl(path
  * @return void
  */
+#[cfg(target_os = "linux")]
 export function db_kv_smoke_c(path: *u8): i32 { return kv_db_smoke_impl(path); }
 
+/** Exported function `db_kv_smoke_c`.
+ * Implements `db_kv_smoke_c`.
+ * @param path *u8): i32 { return kv_db_smoke_impl(path
+ * @return void
+ */
 #[cfg(target_os = "macos")]
-/** Exported function `db_kv_smoke_c`.
- * Implements `db_kv_smoke_c`.
- * @param path *u8): i32 { return kv_db_smoke_impl(path
- * @return void
- */
 export function db_kv_smoke_c(path: *u8): i32 { return kv_db_smoke_impl(path); }
 
-#[cfg(target_os = "linux")]
 /** Exported function `db_kv_wal_compact_smoke_c`.
  * Implements `db_kv_wal_compact_smoke_c`.
  * @param path *u8): i32 { return kv_db_smoke_impl(path
  * @return void
  */
+#[cfg(target_os = "linux")]
 export function db_kv_wal_compact_smoke_c(path: *u8): i32 { return kv_db_smoke_impl(path); }
 
-#[cfg(target_os = "macos")]
 /** Exported function `db_kv_wal_compact_smoke_c`.
  * Implements `db_kv_wal_compact_smoke_c`.
  * @param path *u8): i32 { return kv_db_smoke_impl(path
  * @return void
  */
+#[cfg(target_os = "macos")]
 export function db_kv_wal_compact_smoke_c(path: *u8): i32 { return kv_db_smoke_impl(path); }

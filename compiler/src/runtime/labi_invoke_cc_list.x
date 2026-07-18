@@ -12,21 +12,21 @@
 
 export extern "C" function getenv(name: *u8): *u8;
 
-#[no_mangle]
 /** Exported function `labi_linux_harden_flag_count`.
  * Implements `labi_linux_harden_flag_count`.
  * @return i32
  */
+#[no_mangle]
 export function labi_linux_harden_flag_count(): i32 {
   return 5;
 }
 
-#[no_mangle]
 /** Exported function `labi_linux_harden_flag_at`.
  * Implements `labi_linux_harden_flag_at`.
  * @param i i32
  * @return *u8
  */
+#[no_mangle]
 export function labi_linux_harden_flag_at(i: i32): *u8 {
   if (i < 0) {
     return 0 as *u8;
@@ -54,21 +54,21 @@ export function labi_linux_harden_flag_at(i: i32): *u8 {
   return 0 as *u8;
 }
 
-#[no_mangle]
 /** Exported function `labi_invoke_cc_skip_native_env_count`.
  * Implements `labi_invoke_cc_skip_native_env_count`.
  * @return i32
  */
+#[no_mangle]
 export function labi_invoke_cc_skip_native_env_count(): i32 {
   return 3;
 }
 
-#[no_mangle]
 /** Exported function `labi_invoke_cc_skip_native_env_at`.
  * Implements `labi_invoke_cc_skip_native_env_at`.
  * @param i i32
  * @return *u8
  */
+#[no_mangle]
 export function labi_invoke_cc_skip_native_env_at(i: i32): *u8 {
   if (i < 0) {
     return 0 as *u8;
@@ -89,11 +89,11 @@ export function labi_invoke_cc_skip_native_env_at(i: i32): *u8 {
 }
 
 // invoke_cc_skip_native_tuning: see function docblock below.
-#[no_mangle]
 /** Exported function `invoke_cc_skip_native_tuning`.
  * Implements `invoke_cc_skip_native_tuning`.
  * @return i32
  */
+#[no_mangle]
 export function invoke_cc_skip_native_tuning(): i32 {
   let n: i32 = labi_invoke_cc_skip_native_env_count();
   let i: i32 = 0;
@@ -115,141 +115,141 @@ export function invoke_cc_skip_native_tuning(): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `labi_icc_rel_core_builtin_o`.
  * Implements `labi_icc_rel_core_builtin_o`.
  * @return *u8
  */
+#[no_mangle]
 export function labi_icc_rel_core_builtin_o(): *u8 {
   let p: *u8 = "core/builtin/builtin.o";
   return p;
 }
 
-#[no_mangle]
 /** Exported function `labi_icc_rel_core_builtin_abi_h`.
  * Implements `labi_icc_rel_core_builtin_abi_h`.
  * @return *u8
  */
+#[no_mangle]
 export function labi_icc_rel_core_builtin_abi_h(): *u8 {
   let p: *u8 = "core/builtin/builtin_abi.h";
   return p;
 }
 
-#[no_mangle]
 /** Exported function `labi_icc_rel_core_mem_o`.
  * Implements `labi_icc_rel_core_mem_o`.
  * @return *u8
  */
+#[no_mangle]
 export function labi_icc_rel_core_mem_o(): *u8 {
   let p: *u8 = "core/mem/mem.o";
   return p;
 }
 
-#[no_mangle]
 /** Exported function `labi_icc_rel_core_slice_o`.
  * Implements `labi_icc_rel_core_slice_o`.
  * @return *u8
  */
+#[no_mangle]
 export function labi_icc_rel_core_slice_o(): *u8 {
   let p: *u8 = "core/slice/slice.o";
   return p;
 }
 
-#[no_mangle]
 /** Exported function `labi_icc_rel_db_kv_o`.
  * Implements `labi_icc_rel_db_kv_o`.
  * @return *u8
  */
+#[no_mangle]
 export function labi_icc_rel_db_kv_o(): *u8 {
   let p: *u8 = "std/db/kv/kv.o";
   return p;
 }
 
-#[no_mangle]
 /** Exported function `labi_icc_rel_db_arrow_o`.
  * Implements `labi_icc_rel_db_arrow_o`.
  * @return *u8
  */
+#[no_mangle]
 export function labi_icc_rel_db_arrow_o(): *u8 {
   let p: *u8 = "std/db/arrow/arrow.o";
   return p;
 }
 
-#[no_mangle]
 /** Exported function `labi_icc_rel_csv_o`.
  * Implements `labi_icc_rel_csv_o`.
  * @return *u8
  */
+#[no_mangle]
 export function labi_icc_rel_csv_o(): *u8 {
   let p: *u8 = "std/csv/csv.o";
   return p;
 }
 
-#[no_mangle]
 /** Exported function `labi_icc_rel_error_o`.
  * Implements `labi_icc_rel_error_o`.
  * @return *u8
  */
+#[no_mangle]
 export function labi_icc_rel_error_o(): *u8 {
   let p: *u8 = "std/error/error.o";
   return p;
 }
 
-#[no_mangle]
 /** Exported function `labi_icc_rel_heap_o`.
  * Implements `labi_icc_rel_heap_o`.
  * @return *u8
  */
+#[no_mangle]
 export function labi_icc_rel_heap_o(): *u8 {
   let p: *u8 = "std/heap/heap.o";
   return p;
 }
 
-#[no_mangle]
 /** Exported function `labi_icc_rel_json_o`.
  * Implements `labi_icc_rel_json_o`.
  * @return *u8
  */
+#[no_mangle]
 export function labi_icc_rel_json_o(): *u8 {
   let p: *u8 = "std/json/json.o";
   return p;
 }
 
-#[no_mangle]
 /** Exported function `labi_icc_rel_log_o`.
  * Implements `labi_icc_rel_log_o`.
  * @return *u8
  */
+#[no_mangle]
 export function labi_icc_rel_log_o(): *u8 {
   let p: *u8 = "std/log/log.o";
   return p;
 }
 
-#[no_mangle]
 /** Exported function `labi_icc_rel_socketio_o`.
  * Implements `labi_icc_rel_socketio_o`.
  * @return *u8
  */
+#[no_mangle]
 export function labi_icc_rel_socketio_o(): *u8 {
   let p: *u8 = "std/socketio/socketio.o";
   return p;
 }
 
-#[no_mangle]
 /** Exported function `labi_icc_needs_rel_count`.
  * Implements `labi_icc_needs_rel_count`.
  * @return i32
  */
+#[no_mangle]
 export function labi_icc_needs_rel_count(): i32 {
   return 12;
 }
 
-#[no_mangle]
 /** Exported function `labi_icc_needs_rel_at`.
  * Implements `labi_icc_needs_rel_at`.
  * @param i i32
  * @return *u8
  */
+#[no_mangle]
 export function labi_icc_needs_rel_at(i: i32): *u8 {
   if (i < 0) {
     return 0 as *u8;

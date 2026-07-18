@@ -28,12 +28,12 @@ export function net_dns_ai_addconfig_c(): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `net_dns_map_gai_error_c`.
  * Implements `net_dns_map_gai_error_c`.
  * @param err i32
  * @return i32
  */
+#[no_mangle]
 export function net_dns_map_gai_error_c(err: i32): i32 {
   unsafe {
     return net_dns_map_gai_error_c_impl(err);
@@ -41,11 +41,11 @@ export function net_dns_map_gai_error_c(err: i32): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `net_dns_ensure_wsa_c`.
  * Implements `net_dns_ensure_wsa_c`.
  * @return i32
  */
+#[no_mangle]
 export function net_dns_ensure_wsa_c(): i32 {
   unsafe {
     return net_dns_ensure_wsa_c_impl();

@@ -39,24 +39,24 @@ export function typeck_lsp_alloc(size: usize): *u8 {
   return 0 as *u8;
 }
 
-#[no_mangle]
 /** Exported function `typeck_lsp_free`.
  * Memory management helper `typeck_lsp_free`.
  * @param ptr *u8
  * @return void
  */
+#[no_mangle]
 export function typeck_lsp_free(ptr: *u8): void {
   unsafe {
     lsp_io_lsp_free(ptr);
   }
 }
 
-#[no_mangle]
 /** Exported function `typeck_lsp_is_null`.
  * Implements `typeck_lsp_is_null`.
  * @param ptr *u8
  * @return i32
  */
+#[no_mangle]
 export function typeck_lsp_is_null(ptr: *u8): i32 {
   unsafe {
     let r: i32 = lsp_io_lsp_is_null(ptr);
@@ -65,11 +65,11 @@ export function typeck_lsp_is_null(ptr: *u8): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `typeck_lsp_main_impl`.
  * Implements `typeck_lsp_main_impl`.
  * @return i32
  */
+#[no_mangle]
 export function typeck_lsp_main_impl(): i32 {
   unsafe {
     let r: i32 = lsp_main_impl();
@@ -78,12 +78,12 @@ export function typeck_lsp_main_impl(): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `typeck_std_heap_alloc`.
  * Memory management helper `typeck_std_heap_alloc`.
  * @param size usize
  * @return *u8
  */
+#[no_mangle]
 export function typeck_std_heap_alloc(size: usize): *u8 {
   unsafe {
     let r: *u8 = lsp_io_std_heap_std_heap_alloc(size);
@@ -92,12 +92,12 @@ export function typeck_std_heap_alloc(size: usize): *u8 {
   return 0 as *u8;
 }
 
-#[no_mangle]
 /** Exported function `typeck_std_heap_alloc_zeroed`.
  * Memory management helper `typeck_std_heap_alloc_zeroed`.
  * @param size usize
  * @return *u8
  */
+#[no_mangle]
 export function typeck_std_heap_alloc_zeroed(size: usize): *u8 {
   unsafe {
     let r: *u8 = lsp_io_std_heap_std_heap_alloc_zeroed(size);
@@ -106,19 +106,18 @@ export function typeck_std_heap_alloc_zeroed(size: usize): *u8 {
   return 0 as *u8;
 }
 
-#[no_mangle]
 /** Exported function `typeck_std_heap_free`.
  * Memory management helper `typeck_std_heap_free`.
  * @param ptr *u8
  * @return void
  */
+#[no_mangle]
 export function typeck_std_heap_free(ptr: *u8): void {
   unsafe {
     lsp_io_std_heap_std_heap_free(ptr);
   }
 }
 
-#[no_mangle]
 /** Exported function `std_sys_read_file_into`.
  * Read path helper `std_sys_read_file_into`.
  * @param path *u8
@@ -126,6 +125,7 @@ export function typeck_std_heap_free(ptr: *u8): void {
  * @param cap i32
  * @return i32
  */
+#[no_mangle]
 export function std_sys_read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
   unsafe {
     let r: i32 = std_sys_os_read_file_into(path, buf, cap);
@@ -134,19 +134,18 @@ export function std_sys_read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `std_heap_free_u8_ptr`.
  * Memory management helper `std_heap_free_u8_ptr`.
  * @param ptr *u8
  * @return void
  */
+#[no_mangle]
 export function std_heap_free_u8_ptr(ptr: *u8): void {
   unsafe {
     std_heap_free(ptr);
   }
 }
 
-#[no_mangle]
 /** Exported function `ast_pipeline_module_struct_layout_set_packed`.
  * Implements `ast_pipeline_module_struct_layout_set_packed`.
  * @param module *u8
@@ -154,19 +153,20 @@ export function std_heap_free_u8_ptr(ptr: *u8): void {
  * @param v i32
  * @return void
  */
+#[no_mangle]
 export function ast_pipeline_module_struct_layout_set_packed(module: *u8, idx: i32, v: i32): void {
   unsafe {
     pipeline_module_struct_layout_set_packed(module, idx, v);
   }
 }
 
-#[no_mangle]
 /** Exported function `backend_asm_ctx_slot_offset`.
  * Implements `backend_asm_ctx_slot_offset`.
  * @param ctx *u8
  * @param slot_idx i32
  * @return i32
  */
+#[no_mangle]
 export function backend_asm_ctx_slot_offset(ctx: *u8, slot_idx: i32): i32 {
   unsafe {
     let r: i32 = asm_ctx_local_offset_at(ctx, slot_idx);
@@ -183,41 +183,41 @@ export function lsp_diag_lsp_build_diagnostics_response(id_val: i32, source: *u8
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Function `lsp_diag_lsp_build_semantic_tokens_response`.
  * Purpose: implements `lsp_diag_lsp_build_semantic_tokens_response`; params/returns as declared (may be multi-line).
  * Contracts: null/cap/PLATFORM as enforced in the body.
  */
+#[no_mangle]
 export function lsp_diag_lsp_build_semantic_tokens_response(id_val: i32, doc_buf: *u8, doc_len: i32, out_buf: *u8,
                                                      out_cap: i32): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Function `lsp_diag_hover_at`.
  * Purpose: implements `lsp_diag_hover_at`; params/returns as declared (may be multi-line).
  * Contracts: null/cap/PLATFORM as enforced in the body.
  */
+#[no_mangle]
 export function lsp_diag_hover_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_buf: *u8,
                            out_cap: i32): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Function `lsp_diag_references_at`.
  * Purpose: implements `lsp_diag_references_at`; params/returns as declared (may be multi-line).
  * Contracts: null/cap/PLATFORM as enforced in the body.
  */
+#[no_mangle]
 export function lsp_diag_references_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_lines: *i32,
                                 out_cols: *i32, max_refs: i32): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Function `lsp_diag_definition_at`.
  * Purpose: implements `lsp_diag_definition_at`; params/returns as declared (may be multi-line).
  * Contracts: null/cap/PLATFORM as enforced in the body.
  */
+#[no_mangle]
 export function lsp_diag_definition_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_line: *i32,
                                 out_col: *i32): i32 {
   return 0 - 1;
@@ -225,9 +225,7 @@ export function lsp_diag_definition_at(source: *u8, source_len: i32, line_0: i32
 
 /* See implementation. */
 
-#[no_mangle]
 // shux_expr_is_func_param_at: see function docblock below.
-#[no_mangle]
 /** Exported function `shux_expr_is_func_param_at`.
  * Implements `shux_expr_is_func_param_at`.
  * @param arena *u8
@@ -237,6 +235,7 @@ export function lsp_diag_definition_at(source: *u8, source_len: i32, line_0: i32
  * @param param_ix i32
  * @return i32
  */
+#[no_mangle]
 export function shux_expr_is_func_param_at(arena: *u8, mod: *u8, func_idx: i32, expr_ref: i32, param_ix: i32): i32 {
   if (arena == 0) { return 0; }
   if (mod == 0) { return 0; }
@@ -264,7 +263,6 @@ export function shux_expr_is_func_param_at(arena: *u8, mod: *u8, func_idx: i32, 
 }
 
 // shux_expr_is_param0_field_access: see function docblock below.
-#[no_mangle]
 /** Exported function `shux_expr_is_param0_field_access`.
  * Implements `shux_expr_is_param0_field_access`.
  * @param arena *u8
@@ -273,6 +271,7 @@ export function shux_expr_is_func_param_at(arena: *u8, mod: *u8, func_idx: i32, 
  * @param expr_ref i32
  * @return i32
  */
+#[no_mangle]
 export function shux_expr_is_param0_field_access(arena: *u8, mod: *u8, func_idx: i32, expr_ref: i32): i32 {
   if (arena == 0) { return 0; }
   if (mod == 0) { return 0; }
@@ -287,7 +286,6 @@ export function shux_expr_is_param0_field_access(arena: *u8, mod: *u8, func_idx:
 }
 
 // shux_module_func_index_by_name: see function docblock below.
-#[no_mangle]
 /** Exported function `shux_module_func_index_by_name`.
  * Implements `shux_module_func_index_by_name`.
  * @param mod *u8
@@ -295,6 +293,7 @@ export function shux_expr_is_param0_field_access(arena: *u8, mod: *u8, func_idx:
  * @param name_len i32
  * @return i32
  */
+#[no_mangle]
 export function shux_module_func_index_by_name(mod: *u8, name: *u8, name_len: i32): i32 {
   if (mod == 0) { return 0 - 1; }
   if (name == 0) { return 0 - 1; }

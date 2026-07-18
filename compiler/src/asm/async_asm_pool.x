@@ -45,13 +45,13 @@ export function async_asm_pool_x_doc_anchor(): i32 {
 
 // See implementation.
 // asm_pool_expr_is_await: see function docblock below.
-#[no_mangle]
 /** Exported function `asm_pool_expr_is_await`.
  * Implements `asm_pool_expr_is_await`.
  * @param a *u8
  * @param er i32
  * @return i32
  */
+#[no_mangle]
 export function asm_pool_expr_is_await(a: *u8, er: i32): i32 {
   if (a == 0) { return 0; }
   if (er <= 0) { return 0; }
@@ -72,13 +72,13 @@ export function asm_pool_expr_is_await(a: *u8, er: i32): i32 {
 }
 
 // asm_pool_expr_has_await: see function docblock below.
-#[no_mangle]
 /** Exported function `asm_pool_expr_has_await`.
  * Implements `asm_pool_expr_has_await`.
  * @param a *u8
  * @param er i32
  * @return i32
  */
+#[no_mangle]
 export function asm_pool_expr_has_await(a: *u8, er: i32): i32 {
   if (a == 0) { return 0; }
   if (er <= 0) { return 0; }
@@ -124,7 +124,6 @@ export function asm_pool_expr_has_await(a: *u8, er: i32): i32 {
 }
 
 // asm_pool_expr_is_var_named: see function docblock below.
-#[no_mangle]
 /** Exported function `asm_pool_expr_is_var_named`.
  * Implements `asm_pool_expr_is_var_named`.
  * @param a *u8
@@ -133,6 +132,7 @@ export function asm_pool_expr_has_await(a: *u8, er: i32): i32 {
  * @param nlen i32
  * @return i32
  */
+#[no_mangle]
 export function asm_pool_expr_is_var_named(a: *u8, er: i32, name: *u8, nlen: i32): i32 {
   if (a == 0) { return 0; }
   if (er <= 0) { return 0; }
@@ -155,7 +155,6 @@ export function asm_pool_expr_is_var_named(a: *u8, er: i32, name: *u8, nlen: i32
 }
 
 // asm_pool_expr_refs_name: see function docblock below.
-#[no_mangle]
 /** Exported function `asm_pool_expr_refs_name`.
  * Implements `asm_pool_expr_refs_name`.
  * @param a *u8
@@ -164,6 +163,7 @@ export function asm_pool_expr_is_var_named(a: *u8, er: i32, name: *u8, nlen: i32
  * @param nlen i32
  * @return i32
  */
+#[no_mangle]
 export function asm_pool_expr_refs_name(a: *u8, er: i32, name: *u8, nlen: i32): i32 {
   if (a == 0) { return 0; }
   if (er <= 0) { return 0; }
@@ -211,7 +211,6 @@ export function asm_pool_expr_refs_name(a: *u8, er: i32, name: *u8, nlen: i32): 
 }
 
 // asm_pool_block_rest_refs_name: see function docblock below.
-#[no_mangle]
 /** Exported function `asm_pool_block_rest_refs_name`.
  * Implements `asm_pool_block_rest_refs_name`.
  * @param a *u8
@@ -221,6 +220,7 @@ export function asm_pool_expr_refs_name(a: *u8, er: i32, name: *u8, nlen: i32): 
  * @param nlen i32
  * @return i32
  */
+#[no_mangle]
 export function asm_pool_block_rest_refs_name(a: *u8, br: i32, from_exclusive: i32, name: *u8, nlen: i32): i32 {
   if (a == 0) { return 0; }
   if (br <= 0) { return 0; }
@@ -265,7 +265,6 @@ export function asm_pool_block_rest_refs_name(a: *u8, br: i32, from_exclusive: i
 
 // See implementation.
 // asm_pool_type_size_bytes: see function docblock below.
-#[no_mangle]
 /** Exported function `asm_pool_type_size_bytes`.
  * Implements `asm_pool_type_size_bytes`.
  * @param a *u8
@@ -273,6 +272,7 @@ export function asm_pool_block_rest_refs_name(a: *u8, br: i32, from_exclusive: i
  * @param type_ref i32
  * @return i32
  */
+#[no_mangle]
 export function asm_pool_type_size_bytes(a: *u8, m: *u8, type_ref: i32): i32 {
   if (a == 0) { return 8; }
   if (type_ref <= 0) { return 8; }
@@ -356,7 +356,6 @@ export function asm_pool_store_i32_le(p: *u8, off: i32, v: i32): void {
 // See implementation.
 // AsyncAsmPoolLiveVar: name[64]@0 name_len@64 size_bytes@68 frame_data_off@72; stride 76
 // ASYNC_LIVE_MAX_VARS=64
-#[no_mangle]
 /** Exported function `asm_pool_live_add`.
  * Implements `asm_pool_live_add`.
  * @param lay *u8
@@ -365,6 +364,7 @@ export function asm_pool_store_i32_le(p: *u8, off: i32, v: i32): void {
  * @param sz i32
  * @return void
  */
+#[no_mangle]
 export function asm_pool_live_add(lay: *u8, name: *u8, nlen: i32, sz: i32): void {
   if (lay == 0) { return; }
   if (name == 0) { return; }
@@ -415,13 +415,13 @@ export function asm_pool_live_add(lay: *u8, name: *u8, nlen: i32, sz: i32): void
 }
 
 // async_asm_pool_fn_id_from_name: see function docblock below.
-#[no_mangle]
 /** Exported function `async_asm_pool_fn_id_from_name`.
  * Implements `async_asm_pool_fn_id_from_name`.
  * @param name *u8
  * @param name_len i32
  * @return u32
  */
+#[no_mangle]
 export function async_asm_pool_fn_id_from_name(name: *u8, name_len: i32): u32 {
   if (name == 0) { return 1; }
   if (name_len <= 0) { return 1; }
@@ -436,7 +436,6 @@ export function async_asm_pool_fn_id_from_name(name: *u8, name_len: i32): u32 {
 }
 
 // async_asm_pool_func_needs_cps: see function docblock below.
-#[no_mangle]
 /** Exported function `async_asm_pool_func_needs_cps`.
  * Implements `async_asm_pool_func_needs_cps`.
  * @param arena *u8
@@ -444,6 +443,7 @@ export function async_asm_pool_fn_id_from_name(name: *u8, name_len: i32): u32 {
  * @param func_index i32
  * @return i32
  */
+#[no_mangle]
 export function async_asm_pool_func_needs_cps(arena: *u8, mod: *u8, func_index: i32): i32 {
   if (arena == 0) { return 0; }
   if (mod == 0) { return 0; }

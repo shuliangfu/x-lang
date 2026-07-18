@@ -156,7 +156,6 @@ export extern "C" function arch_x86_64_emit_sub_rbx_rax_then_mov(out: *u8): i32;
 export extern "C" function arch_x86_64_emit_xor_rbx_rax(out: *u8): i32;
 
 // backend_arch_emit_ret_imm32: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_arch_emit_ret_imm32`.
  * Implements `backend_arch_emit_ret_imm32`.
  * @param out *u8
@@ -164,6 +163,7 @@ export extern "C" function arch_x86_64_emit_xor_rbx_rax(out: *u8): i32;
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_arch_emit_ret_imm32(out: *u8, imm: i32, ta: i32): i32 {
   // See implementation.
   unsafe {
@@ -174,7 +174,6 @@ export function backend_arch_emit_ret_imm32(out: *u8, imm: i32, ta: i32): i32 {
 }
 
 // backend_arch_emit_mov_imm64_to_rax: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_arch_emit_mov_imm64_to_rax`.
  * Implements `backend_arch_emit_mov_imm64_to_rax`.
  * @param out *u8
@@ -183,6 +182,7 @@ export function backend_arch_emit_ret_imm32(out: *u8, imm: i32, ta: i32): i32 {
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_arch_emit_mov_imm64_to_rax(out: *u8, lo: i32, hi: i32, ta: i32): i32 {
   // See implementation.
   unsafe {
@@ -193,7 +193,6 @@ export function backend_arch_emit_mov_imm64_to_rax(out: *u8, lo: i32, hi: i32, t
 }
 
 // backend_arch_emit_mov_imm32_to_rbx: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_arch_emit_mov_imm32_to_rbx`.
  * Implements `backend_arch_emit_mov_imm32_to_rbx`.
  * @param out *u8
@@ -201,6 +200,7 @@ export function backend_arch_emit_mov_imm64_to_rax(out: *u8, lo: i32, hi: i32, t
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_arch_emit_mov_imm32_to_rbx(out: *u8, imm: i32, ta: i32): i32 {
   // See implementation.
   unsafe {
@@ -211,13 +211,13 @@ export function backend_arch_emit_mov_imm32_to_rbx(out: *u8, imm: i32, ta: i32):
 }
 
 // backend_arch_emit_neg_eax: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_arch_emit_neg_eax`.
  * Implements `backend_arch_emit_neg_eax`.
  * @param out *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_arch_emit_neg_eax(out: *u8, ta: i32): i32 {
   // See implementation.
   unsafe {
@@ -228,13 +228,13 @@ export function backend_arch_emit_neg_eax(out: *u8, ta: i32): i32 {
 }
 
 // backend_arch_emit_cmp_rbx_rax: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_arch_emit_cmp_rbx_rax`.
  * Comparison/utility `backend_arch_emit_cmp_rbx_rax`.
  * @param out *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_arch_emit_cmp_rbx_rax(out: *u8, ta: i32): i32 {
   // See implementation.
   unsafe {
@@ -245,7 +245,6 @@ export function backend_arch_emit_cmp_rbx_rax(out: *u8, ta: i32): i32 {
 }
 
 // backend_arch_emit_cmp_setcc: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_arch_emit_cmp_setcc`.
  * Comparison/utility `backend_arch_emit_cmp_setcc`.
  * @param out *u8
@@ -253,6 +252,7 @@ export function backend_arch_emit_cmp_rbx_rax(out: *u8, ta: i32): i32 {
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_arch_emit_cmp_setcc(out: *u8, cc: i32, ta: i32): i32 {
   // See implementation.
   unsafe {
@@ -263,13 +263,13 @@ export function backend_arch_emit_cmp_setcc(out: *u8, cc: i32, ta: i32): i32 {
 }
 
 // backend_arch_emit_push_rax: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_arch_emit_push_rax`.
  * Implements `backend_arch_emit_push_rax`.
  * @param out *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_arch_emit_push_rax(out: *u8, ta: i32): i32 {
   // See implementation.
   unsafe {
@@ -280,13 +280,13 @@ export function backend_arch_emit_push_rax(out: *u8, ta: i32): i32 {
 }
 
 // backend_arch_emit_pop_rbx: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_arch_emit_pop_rbx`.
  * Implements `backend_arch_emit_pop_rbx`.
  * @param out *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_arch_emit_pop_rbx(out: *u8, ta: i32): i32 {
   // See implementation.
   unsafe {
@@ -297,13 +297,13 @@ export function backend_arch_emit_pop_rbx(out: *u8, ta: i32): i32 {
 }
 
 // backend_arch_emit_pop_rax: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_arch_emit_pop_rax`.
  * Implements `backend_arch_emit_pop_rax`.
  * @param out *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_arch_emit_pop_rax(out: *u8, ta: i32): i32 {
   // See implementation.
   unsafe {
@@ -314,13 +314,13 @@ export function backend_arch_emit_pop_rax(out: *u8, ta: i32): i32 {
 }
 
 // backend_arch_emit_add_rax_rbx: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_arch_emit_add_rax_rbx`.
  * Implements `backend_arch_emit_add_rax_rbx`.
  * @param out *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_arch_emit_add_rax_rbx(out: *u8, ta: i32): i32 {
   // See implementation.
   unsafe {
@@ -331,13 +331,13 @@ export function backend_arch_emit_add_rax_rbx(out: *u8, ta: i32): i32 {
 }
 
 // backend_arch_emit_sub_rbx_rax_then_mov: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_arch_emit_sub_rbx_rax_then_mov`.
  * Implements `backend_arch_emit_sub_rbx_rax_then_mov`.
  * @param out *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_arch_emit_sub_rbx_rax_then_mov(out: *u8, ta: i32): i32 {
   // See implementation.
   unsafe {
@@ -348,13 +348,13 @@ export function backend_arch_emit_sub_rbx_rax_then_mov(out: *u8, ta: i32): i32 {
 }
 
 // backend_arch_emit_imul_rbx_rax: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_arch_emit_imul_rbx_rax`.
  * Implements `backend_arch_emit_imul_rbx_rax`.
  * @param out *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_arch_emit_imul_rbx_rax(out: *u8, ta: i32): i32 {
   // See implementation.
   unsafe {
@@ -365,13 +365,13 @@ export function backend_arch_emit_imul_rbx_rax(out: *u8, ta: i32): i32 {
 }
 
 // backend_arch_emit_mov_rax_to_rbx: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_arch_emit_mov_rax_to_rbx`.
  * Implements `backend_arch_emit_mov_rax_to_rbx`.
  * @param out *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_arch_emit_mov_rax_to_rbx(out: *u8, ta: i32): i32 {
   // See implementation.
   unsafe {
@@ -382,7 +382,6 @@ export function backend_arch_emit_mov_rax_to_rbx(out: *u8, ta: i32): i32 {
 }
 
 // backend_arch_emit_load_rbp_to_rax: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_arch_emit_load_rbp_to_rax`.
  * Implements `backend_arch_emit_load_rbp_to_rax`.
  * @param out *u8
@@ -390,6 +389,7 @@ export function backend_arch_emit_mov_rax_to_rbx(out: *u8, ta: i32): i32 {
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_arch_emit_load_rbp_to_rax(out: *u8, off: i32, ta: i32): i32 {
   // See implementation.
   unsafe {
@@ -400,7 +400,6 @@ export function backend_arch_emit_load_rbp_to_rax(out: *u8, off: i32, ta: i32): 
 }
 
 // backend_arch_emit_store_rax_to_rbp: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_arch_emit_store_rax_to_rbp`.
  * Implements `backend_arch_emit_store_rax_to_rbp`.
  * @param out *u8
@@ -408,6 +407,7 @@ export function backend_arch_emit_load_rbp_to_rax(out: *u8, off: i32, ta: i32): 
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_arch_emit_store_rax_to_rbp(out: *u8, off: i32, ta: i32): i32 {
   // See implementation.
   unsafe {
@@ -418,7 +418,6 @@ export function backend_arch_emit_store_rax_to_rbp(out: *u8, off: i32, ta: i32):
 }
 
 // backend_arch_emit_lea_rbp_to_rax: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_arch_emit_lea_rbp_to_rax`.
  * Implements `backend_arch_emit_lea_rbp_to_rax`.
  * @param out *u8
@@ -426,6 +425,7 @@ export function backend_arch_emit_store_rax_to_rbp(out: *u8, off: i32, ta: i32):
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_arch_emit_lea_rbp_to_rax(out: *u8, off: i32, ta: i32): i32 {
   // See implementation.
   unsafe {
@@ -436,13 +436,13 @@ export function backend_arch_emit_lea_rbp_to_rax(out: *u8, off: i32, ta: i32): i
 }
 
 // backend_arch_emit_rax_plus_rbx_scale4: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_arch_emit_rax_plus_rbx_scale4`.
  * Implements `backend_arch_emit_rax_plus_rbx_scale4`.
  * @param out *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_arch_emit_rax_plus_rbx_scale4(out: *u8, ta: i32): i32 {
   // See implementation.
   unsafe {
@@ -453,13 +453,13 @@ export function backend_arch_emit_rax_plus_rbx_scale4(out: *u8, ta: i32): i32 {
 }
 
 // backend_arch_emit_rax_plus_rbx_scale1: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_arch_emit_rax_plus_rbx_scale1`.
  * Implements `backend_arch_emit_rax_plus_rbx_scale1`.
  * @param out *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_arch_emit_rax_plus_rbx_scale1(out: *u8, ta: i32): i32 {
   // See implementation.
   unsafe {
@@ -470,13 +470,13 @@ export function backend_arch_emit_rax_plus_rbx_scale1(out: *u8, ta: i32): i32 {
 }
 
 // backend_arch_emit_rax_plus_rbx_scale8: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_arch_emit_rax_plus_rbx_scale8`.
  * Implements `backend_arch_emit_rax_plus_rbx_scale8`.
  * @param out *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_arch_emit_rax_plus_rbx_scale8(out: *u8, ta: i32): i32 {
   // See implementation.
   unsafe {
@@ -487,7 +487,6 @@ export function backend_arch_emit_rax_plus_rbx_scale8(out: *u8, ta: i32): i32 {
 }
 
 // backend_arch_emit_store_rax_to_rbx_indirect: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_arch_emit_store_rax_to_rbx_indirect`.
  * Implements `backend_arch_emit_store_rax_to_rbx_indirect`.
  * @param out *u8
@@ -495,6 +494,7 @@ export function backend_arch_emit_rax_plus_rbx_scale8(out: *u8, ta: i32): i32 {
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_arch_emit_store_rax_to_rbx_indirect(out: *u8, elem_sz: i32, ta: i32): i32 {
   // See implementation.
   unsafe {
@@ -505,13 +505,13 @@ export function backend_arch_emit_store_rax_to_rbx_indirect(out: *u8, elem_sz: i
 }
 
 // backend_arch_emit_load_32_from_rax: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_arch_emit_load_32_from_rax`.
  * Implements `backend_arch_emit_load_32_from_rax`.
  * @param out *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_arch_emit_load_32_from_rax(out: *u8, ta: i32): i32 {
   // See implementation.
   unsafe {
@@ -522,13 +522,13 @@ export function backend_arch_emit_load_32_from_rax(out: *u8, ta: i32): i32 {
 }
 
 // backend_arch_emit_load_zext8_from_rax: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_arch_emit_load_zext8_from_rax`.
  * Implements `backend_arch_emit_load_zext8_from_rax`.
  * @param out *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_arch_emit_load_zext8_from_rax(out: *u8, ta: i32): i32 {
   // See implementation.
   unsafe {
@@ -539,7 +539,6 @@ export function backend_arch_emit_load_zext8_from_rax(out: *u8, ta: i32): i32 {
 }
 
 // backend_arch_emit_add_imm_to_rax: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_arch_emit_add_imm_to_rax`.
  * Implements `backend_arch_emit_add_imm_to_rax`.
  * @param out *u8
@@ -547,6 +546,7 @@ export function backend_arch_emit_load_zext8_from_rax(out: *u8, ta: i32): i32 {
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_arch_emit_add_imm_to_rax(out: *u8, imm: i32, ta: i32): i32 {
   // See implementation.
   unsafe {
@@ -557,13 +557,13 @@ export function backend_arch_emit_add_imm_to_rax(out: *u8, imm: i32, ta: i32): i
 }
 
 // backend_arch_emit_load_64_from_rax: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_arch_emit_load_64_from_rax`.
  * Implements `backend_arch_emit_load_64_from_rax`.
  * @param out *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_arch_emit_load_64_from_rax(out: *u8, ta: i32): i32 {
   // See implementation.
   unsafe {
@@ -574,7 +574,6 @@ export function backend_arch_emit_load_64_from_rax(out: *u8, ta: i32): i32 {
 }
 
 // backend_arch_emit_store_rax_to_rbx_offset: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_arch_emit_store_rax_to_rbx_offset`.
  * Implements `backend_arch_emit_store_rax_to_rbx_offset`.
  * @param out *u8
@@ -583,6 +582,7 @@ export function backend_arch_emit_load_64_from_rax(out: *u8, ta: i32): i32 {
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_arch_emit_store_rax_to_rbx_offset(out: *u8, offset: i32, store_size: i32, ta: i32): i32 {
   // See implementation.
   unsafe {
@@ -593,13 +593,13 @@ export function backend_arch_emit_store_rax_to_rbx_offset(out: *u8, offset: i32,
 }
 
 // backend_arch_emit_mov_rbx_to_rax: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_arch_emit_mov_rbx_to_rax`.
  * Implements `backend_arch_emit_mov_rbx_to_rax`.
  * @param out *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_arch_emit_mov_rbx_to_rax(out: *u8, ta: i32): i32 {
   // See implementation.
   unsafe {
@@ -610,7 +610,6 @@ export function backend_arch_emit_mov_rbx_to_rax(out: *u8, ta: i32): i32 {
 }
 
 // backend_arch_emit_mov_rax_to_arg_reg: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_arch_emit_mov_rax_to_arg_reg`.
  * Implements `backend_arch_emit_mov_rax_to_arg_reg`.
  * @param out *u8
@@ -618,6 +617,7 @@ export function backend_arch_emit_mov_rbx_to_rax(out: *u8, ta: i32): i32 {
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_arch_emit_mov_rax_to_arg_reg(out: *u8, k: i32, ta: i32): i32 {
   // See implementation.
   unsafe {
@@ -628,7 +628,6 @@ export function backend_arch_emit_mov_rax_to_arg_reg(out: *u8, k: i32, ta: i32):
 }
 
 // backend_arch_emit_ldr_sp_offset_to_wi: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_arch_emit_ldr_sp_offset_to_wi`.
  * Implements `backend_arch_emit_ldr_sp_offset_to_wi`.
  * @param out *u8
@@ -636,6 +635,7 @@ export function backend_arch_emit_mov_rax_to_arg_reg(out: *u8, k: i32, ta: i32):
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_arch_emit_ldr_sp_offset_to_wi(out: *u8, i: i32, ta: i32): i32 {
   // See implementation.
   unsafe {
@@ -645,7 +645,6 @@ export function backend_arch_emit_ldr_sp_offset_to_wi(out: *u8, i: i32, ta: i32)
 }
 
 // backend_arch_emit_add_sp_imm: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_arch_emit_add_sp_imm`.
  * Implements `backend_arch_emit_add_sp_imm`.
  * @param out *u8
@@ -653,6 +652,7 @@ export function backend_arch_emit_ldr_sp_offset_to_wi(out: *u8, i: i32, ta: i32)
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_arch_emit_add_sp_imm(out: *u8, n: i32, ta: i32): i32 {
   // See implementation.
   unsafe {
@@ -662,7 +662,6 @@ export function backend_arch_emit_add_sp_imm(out: *u8, n: i32, ta: i32): i32 {
 }
 
 // backend_arch_emit_call: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_arch_emit_call`.
  * Implements `backend_arch_emit_call`.
  * @param out *u8
@@ -671,6 +670,7 @@ export function backend_arch_emit_add_sp_imm(out: *u8, n: i32, ta: i32): i32 {
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_arch_emit_call(out: *u8, name: *u8, name_len: i32, ta: i32): i32 {
   // See implementation.
   unsafe {
@@ -681,7 +681,6 @@ export function backend_arch_emit_call(out: *u8, name: *u8, name_len: i32, ta: i
 }
 
 // backend_arch_emit_jz: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_arch_emit_jz`.
  * Implements `backend_arch_emit_jz`.
  * @param out *u8
@@ -690,6 +689,7 @@ export function backend_arch_emit_call(out: *u8, name: *u8, name_len: i32, ta: i
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_arch_emit_jz(out: *u8, label: *u8, label_len: i32, ta: i32): i32 {
   // See implementation.
   unsafe {
@@ -700,7 +700,6 @@ export function backend_arch_emit_jz(out: *u8, label: *u8, label_len: i32, ta: i
 }
 
 // backend_arch_emit_jeq: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_arch_emit_jeq`.
  * Implements `backend_arch_emit_jeq`.
  * @param out *u8
@@ -709,6 +708,7 @@ export function backend_arch_emit_jz(out: *u8, label: *u8, label_len: i32, ta: i
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_arch_emit_jeq(out: *u8, label: *u8, label_len: i32, ta: i32): i32 {
   // See implementation.
   unsafe {
@@ -719,7 +719,6 @@ export function backend_arch_emit_jeq(out: *u8, label: *u8, label_len: i32, ta: 
 }
 
 // backend_arch_emit_jmp: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_arch_emit_jmp`.
  * Implements `backend_arch_emit_jmp`.
  * @param out *u8
@@ -728,6 +727,7 @@ export function backend_arch_emit_jeq(out: *u8, label: *u8, label_len: i32, ta: 
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_arch_emit_jmp(out: *u8, label: *u8, label_len: i32, ta: i32): i32 {
   // See implementation.
   unsafe {
@@ -738,7 +738,6 @@ export function backend_arch_emit_jmp(out: *u8, label: *u8, label_len: i32, ta: 
 }
 
 // backend_arch_emit_jnz: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_arch_emit_jnz`.
  * Implements `backend_arch_emit_jnz`.
  * @param out *u8
@@ -747,6 +746,7 @@ export function backend_arch_emit_jmp(out: *u8, label: *u8, label_len: i32, ta: 
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_arch_emit_jnz(out: *u8, label: *u8, label_len: i32, ta: i32): i32 {
   // See implementation.
   unsafe {
@@ -757,13 +757,13 @@ export function backend_arch_emit_jnz(out: *u8, label: *u8, label_len: i32, ta: 
 }
 
 // backend_arch_emit_not_eax: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_arch_emit_not_eax`.
  * Implements `backend_arch_emit_not_eax`.
  * @param out *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_arch_emit_not_eax(out: *u8, ta: i32): i32 {
   // See implementation.
   unsafe {
@@ -774,13 +774,13 @@ export function backend_arch_emit_not_eax(out: *u8, ta: i32): i32 {
 }
 
 // backend_arch_emit_and_rbx_rax: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_arch_emit_and_rbx_rax`.
  * Implements `backend_arch_emit_and_rbx_rax`.
  * @param out *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_arch_emit_and_rbx_rax(out: *u8, ta: i32): i32 {
   // See implementation.
   unsafe {
@@ -791,13 +791,13 @@ export function backend_arch_emit_and_rbx_rax(out: *u8, ta: i32): i32 {
 }
 
 // backend_arch_emit_or_rbx_rax: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_arch_emit_or_rbx_rax`.
  * Implements `backend_arch_emit_or_rbx_rax`.
  * @param out *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_arch_emit_or_rbx_rax(out: *u8, ta: i32): i32 {
   // See implementation.
   unsafe {
@@ -808,13 +808,13 @@ export function backend_arch_emit_or_rbx_rax(out: *u8, ta: i32): i32 {
 }
 
 // backend_arch_emit_xor_rbx_rax: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_arch_emit_xor_rbx_rax`.
  * Implements `backend_arch_emit_xor_rbx_rax`.
  * @param out *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_arch_emit_xor_rbx_rax(out: *u8, ta: i32): i32 {
   // See implementation.
   unsafe {
@@ -825,13 +825,13 @@ export function backend_arch_emit_xor_rbx_rax(out: *u8, ta: i32): i32 {
 }
 
 // backend_arch_emit_mov_rbx_to_ecx: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_arch_emit_mov_rbx_to_ecx`.
  * Implements `backend_arch_emit_mov_rbx_to_ecx`.
  * @param out *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_arch_emit_mov_rbx_to_ecx(out: *u8, ta: i32): i32 {
   // See implementation.
   unsafe {
@@ -842,13 +842,13 @@ export function backend_arch_emit_mov_rbx_to_ecx(out: *u8, ta: i32): i32 {
 }
 
 // backend_arch_emit_shl_cl_eax: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_arch_emit_shl_cl_eax`.
  * Implements `backend_arch_emit_shl_cl_eax`.
  * @param out *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_arch_emit_shl_cl_eax(out: *u8, ta: i32): i32 {
   // See implementation.
   unsafe {
@@ -859,13 +859,13 @@ export function backend_arch_emit_shl_cl_eax(out: *u8, ta: i32): i32 {
 }
 
 // backend_arch_emit_shr_cl_eax: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_arch_emit_shr_cl_eax`.
  * Implements `backend_arch_emit_shr_cl_eax`.
  * @param out *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_arch_emit_shr_cl_eax(out: *u8, ta: i32): i32 {
   // See implementation.
   unsafe {
@@ -876,13 +876,13 @@ export function backend_arch_emit_shr_cl_eax(out: *u8, ta: i32): i32 {
 }
 
 // backend_arch_emit_sar_cl_eax: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_arch_emit_sar_cl_eax`.
  * Implements `backend_arch_emit_sar_cl_eax`.
  * @param out *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_arch_emit_sar_cl_eax(out: *u8, ta: i32): i32 {
   // See implementation.
   unsafe {
@@ -893,7 +893,6 @@ export function backend_arch_emit_sar_cl_eax(out: *u8, ta: i32): i32 {
 }
 
 // backend_arch_emit_label: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_arch_emit_label`.
  * Implements `backend_arch_emit_label`.
  * @param out *u8
@@ -902,6 +901,7 @@ export function backend_arch_emit_sar_cl_eax(out: *u8, ta: i32): i32 {
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_arch_emit_label(out: *u8, name: *u8, name_len: i32, ta: i32): i32 {
   // See implementation.
   unsafe {
@@ -912,13 +912,13 @@ export function backend_arch_emit_label(out: *u8, name: *u8, name_len: i32, ta: 
 }
 
 // backend_arch_emit_section_text: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_arch_emit_section_text`.
  * Implements `backend_arch_emit_section_text`.
  * @param out *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_arch_emit_section_text(out: *u8, ta: i32): i32 {
   // See implementation.
   unsafe {
@@ -929,7 +929,6 @@ export function backend_arch_emit_section_text(out: *u8, ta: i32): i32 {
 }
 
 // backend_arch_emit_globl: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_arch_emit_globl`.
  * Implements `backend_arch_emit_globl`.
  * @param out *u8
@@ -938,6 +937,7 @@ export function backend_arch_emit_section_text(out: *u8, ta: i32): i32 {
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_arch_emit_globl(out: *u8, name: *u8, name_len: i32, ta: i32): i32 {
   // See implementation.
   unsafe {
@@ -948,7 +948,6 @@ export function backend_arch_emit_globl(out: *u8, name: *u8, name_len: i32, ta: 
 }
 
 // backend_arch_emit_prologue: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_arch_emit_prologue`.
  * Implements `backend_arch_emit_prologue`.
  * @param out *u8
@@ -956,6 +955,7 @@ export function backend_arch_emit_globl(out: *u8, name: *u8, name_len: i32, ta: 
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_arch_emit_prologue(out: *u8, frame_sz: i32, ta: i32): i32 {
   // See implementation.
   unsafe {
@@ -966,7 +966,6 @@ export function backend_arch_emit_prologue(out: *u8, frame_sz: i32, ta: i32): i3
 }
 
 // backend_arch_emit_epilogue: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_arch_emit_epilogue`.
  * Implements `backend_arch_emit_epilogue`.
  * @param out *u8
@@ -974,6 +973,7 @@ export function backend_arch_emit_prologue(out: *u8, frame_sz: i32, ta: i32): i3
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_arch_emit_epilogue(out: *u8, frame_sz: i32, ta: i32): i32 {
   // See implementation.
   unsafe {

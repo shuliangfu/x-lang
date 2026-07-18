@@ -80,13 +80,13 @@ export function mega_store_ptr_le(p: *u8, off: i32, val: *u8): void {
 }
 
 // pipeline_seed_mega_ctx_reset: see function docblock below.
-#[no_mangle]
 /** Exported function `pipeline_seed_mega_ctx_reset`.
  * Implements `pipeline_seed_mega_ctx_reset`.
  * @param ctx *u8
  * @param mod *u8
  * @return void
  */
+#[no_mangle]
 export function pipeline_seed_mega_ctx_reset(ctx: *u8, mod: *u8): void {
   if (ctx == 0) { return; }
   unsafe {
@@ -98,14 +98,13 @@ export function pipeline_seed_mega_ctx_reset(ctx: *u8, mod: *u8): void {
   }
 }
 
-#[no_mangle]
 // pipeline_dep_ctx_target_arch_local: see function docblock below.
-#[no_mangle]
 /** Exported function `pipeline_dep_ctx_target_arch_local`.
  * Implements `pipeline_dep_ctx_target_arch_local`.
  * @param ctx *u8
  * @return i32
  */
+#[no_mangle]
 export function pipeline_dep_ctx_target_arch_local(ctx: *u8): i32 {
   if (ctx == 0) { return 0; }
   unsafe {

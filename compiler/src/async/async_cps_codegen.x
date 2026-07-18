@@ -40,13 +40,13 @@ export function async_cps_load_func_name(callee: *u8): *u8 {
   return a as *u8;
 }
 
-#[no_mangle]
 /** Exported function `emit_hoisted_lets`.
  * Implements `emit_hoisted_lets`.
  * @param f *u8
  * @param out *u8
  * @return void
  */
+#[no_mangle]
 export function emit_hoisted_lets(f: *u8, out: *u8): void {
   unsafe {
     emit_hoisted_lets_impl(f, out);
@@ -54,12 +54,12 @@ export function emit_hoisted_lets(f: *u8, out: *u8): void {
 }
 
 // async_cps_callee_is_io: see function docblock below.
-#[no_mangle]
 /** Exported function `async_cps_callee_is_io`.
  * Implements `async_cps_callee_is_io`.
  * @param callee *u8
  * @return i32
  */
+#[no_mangle]
 export function async_cps_callee_is_io(callee: *u8): i32 {
   let name: *u8 = async_cps_load_func_name(callee);
   if (name == 0) { return 0; }
@@ -122,22 +122,22 @@ export extern "C" function block_has_run_async_ref_impl(b: *u8): i32;
 
 #[no_mangle]
 export function expr_references_run_async(e: *u8): i32 { unsafe { return expr_references_run_async_impl(e); } return 0; }
-#[no_mangle]
 /** Exported function `block_has_run_async_ref`.
  * Implements `block_has_run_async_ref`.
  * @param b *u8): i32 { unsafe { return block_has_run_async_ref_impl(b
  * @return void
  */
+#[no_mangle]
 export function block_has_run_async_ref(b: *u8): i32 { unsafe { return block_has_run_async_ref_impl(b); } return 0; }
 
 // async_cps_callee_is_future_wait_by_name: see function docblock below.
 
-#[no_mangle]
 /** Exported function `async_cps_callee_is_future_wait_by_name`.
  * Implements `async_cps_callee_is_future_wait_by_name`.
  * @param n *u8
  * @return i32
  */
+#[no_mangle]
 export function async_cps_callee_is_future_wait_by_name(n: *u8): i32 {
   if (n == 0) { return 0; }
   if (n[0] == 0) { return 0; }
@@ -197,12 +197,12 @@ export function async_cps_callee_is_future_wait_by_name(n: *u8): i32 {
 }
 
 // async_cps_callee_is_future_wait: see function docblock below.
-#[no_mangle]
 /** Exported function `async_cps_callee_is_future_wait`.
  * Implements `async_cps_callee_is_future_wait`.
  * @param callee *u8
  * @return i32
  */
+#[no_mangle]
 export function async_cps_callee_is_future_wait(callee: *u8): i32 {
   let name: *u8 = async_cps_load_func_name(callee);
   if (name == 0) { return 0; }

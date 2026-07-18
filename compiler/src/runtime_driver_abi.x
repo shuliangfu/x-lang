@@ -73,11 +73,11 @@ export function driver_check_quiet_ok_get(): i32 {
   return 1;
 }
 
-#[no_mangle]
 /** Exported function `driver_typeck_force_c_enabled`.
  * Implements `driver_typeck_force_c_enabled`.
  * @return i32
  */
+#[no_mangle]
 export function driver_typeck_force_c_enabled(): i32 {
   unsafe {
     let e: *u8 = getenv("SHUX_TYPECK_FORCE_C");
@@ -95,11 +95,11 @@ export function driver_typeck_force_c_enabled(): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `driver_asm_build_skip_typeck`.
  * Implements `driver_asm_build_skip_typeck`.
  * @return i32
  */
+#[no_mangle]
 export function driver_asm_build_skip_typeck(): i32 {
   unsafe {
     let e: *u8 = getenv("SHUX_ASM_BUILD_SKIP_TYPECK");
@@ -117,11 +117,11 @@ export function driver_asm_build_skip_typeck(): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `driver_asm_entry_emit_heavy`.
  * Implements `driver_asm_entry_emit_heavy`.
  * @return i32
  */
+#[no_mangle]
 export function driver_asm_entry_emit_heavy(): i32 {
   unsafe {
     let e: *u8 = getenv("SHUX_ASM_ENTRY_EMIT_HEAVY");
@@ -139,11 +139,11 @@ export function driver_asm_entry_emit_heavy(): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `driver_asm_entry_module_only_from_env`.
  * Implements `driver_asm_entry_module_only_from_env`.
  * @return i32
  */
+#[no_mangle]
 export function driver_asm_entry_module_only_from_env(): i32 {
   unsafe {
     let e: *u8 = getenv("SHUX_ASM_ENTRY_MODULE_ONLY");
@@ -161,11 +161,11 @@ export function driver_asm_entry_module_only_from_env(): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `driver_asm_parse_metric_only_from_env`.
  * Implements `driver_asm_parse_metric_only_from_env`.
  * @return i32
  */
+#[no_mangle]
 export function driver_asm_parse_metric_only_from_env(): i32 {
   unsafe {
     let e: *u8 = getenv("SHUX_ASM_PARSE_METRIC_ONLY");
@@ -183,12 +183,12 @@ export function driver_asm_parse_metric_only_from_env(): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `driver_check_only_set`.
  * Implements `driver_check_only_set`.
  * @param v i32
  * @return void
  */
+#[no_mangle]
 export function driver_check_only_set(v: i32): void {
   unsafe {
     let p: *i32 = driver_check_only_flag_slot();
@@ -196,11 +196,11 @@ export function driver_check_only_set(v: i32): void {
   }
 }
 
-#[no_mangle]
 /** Exported function `driver_check_only_get`.
  * Implements `driver_check_only_get`.
  * @return i32
  */
+#[no_mangle]
 export function driver_check_only_get(): i32 {
   unsafe {
     let p: *i32 = driver_check_only_flag_slot();
@@ -212,11 +212,11 @@ export function driver_check_only_get(): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `driver_check_diag_emitted_reset`.
  * Implements `driver_check_diag_emitted_reset`.
  * @return void
  */
+#[no_mangle]
 export function driver_check_diag_emitted_reset(): void {
   unsafe {
     let p: *i32 = driver_check_diag_emitted_flag_slot();
@@ -224,11 +224,11 @@ export function driver_check_diag_emitted_reset(): void {
   }
 }
 
-#[no_mangle]
 /** Exported function `driver_check_diag_emitted_note`.
  * Implements `driver_check_diag_emitted_note`.
  * @return void
  */
+#[no_mangle]
 export function driver_check_diag_emitted_note(): void {
   unsafe {
     let p: *i32 = driver_check_diag_emitted_flag_slot();
@@ -236,11 +236,11 @@ export function driver_check_diag_emitted_note(): void {
   }
 }
 
-#[no_mangle]
 /** Exported function `driver_check_diag_emitted_get`.
  * Implements `driver_check_diag_emitted_get`.
  * @return i32
  */
+#[no_mangle]
 export function driver_check_diag_emitted_get(): i32 {
   unsafe {
     let p: *i32 = driver_check_diag_emitted_flag_slot();
@@ -252,12 +252,12 @@ export function driver_check_diag_emitted_get(): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `driver_freestanding_set`.
  * Memory management helper `driver_freestanding_set`.
  * @param v i32
  * @return void
  */
+#[no_mangle]
 export function driver_freestanding_set(v: i32): void {
   unsafe {
     let p: *i32 = driver_freestanding_flag_slot();
@@ -265,11 +265,11 @@ export function driver_freestanding_set(v: i32): void {
   }
 }
 
-#[no_mangle]
 /** Exported function `driver_freestanding_get`.
  * Memory management helper `driver_freestanding_get`.
  * @return i32
  */
+#[no_mangle]
 export function driver_freestanding_get(): i32 {
   unsafe {
     let p: *i32 = driver_freestanding_flag_slot();
@@ -281,12 +281,12 @@ export function driver_freestanding_get(): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `driver_sanitize_address_set`.
  * Implements `driver_sanitize_address_set`.
  * @param v i32
  * @return void
  */
+#[no_mangle]
 export function driver_sanitize_address_set(v: i32): void {
   unsafe {
     let p: *i32 = driver_sanitize_address_flag_slot();
@@ -294,11 +294,11 @@ export function driver_sanitize_address_set(v: i32): void {
   }
 }
 
-#[no_mangle]
 /** Exported function `driver_sanitize_address_get`.
  * Implements `driver_sanitize_address_get`.
  * @return i32
  */
+#[no_mangle]
 export function driver_sanitize_address_get(): i32 {
   unsafe {
     let p: *i32 = driver_sanitize_address_flag_slot();
@@ -320,12 +320,12 @@ export function driver_sanitize_address_get(): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `driver_fmt_check_only_set`.
  * Implements `driver_fmt_check_only_set`.
  * @param v i32
  * @return void
  */
+#[no_mangle]
 export function driver_fmt_check_only_set(v: i32): void {
   unsafe {
     let p: *i32 = driver_fmt_check_only_flag_slot();
@@ -333,11 +333,11 @@ export function driver_fmt_check_only_set(v: i32): void {
   }
 }
 
-#[no_mangle]
 /** Exported function `driver_fmt_check_only_get`.
  * Implements `driver_fmt_check_only_get`.
  * @return i32
  */
+#[no_mangle]
 export function driver_fmt_check_only_get(): i32 {
   unsafe {
     let p: *i32 = driver_fmt_check_only_flag_slot();
@@ -349,11 +349,11 @@ export function driver_fmt_check_only_get(): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `driver_x_pipeline_skip_typeck_get`.
  * Implements `driver_x_pipeline_skip_typeck_get`.
  * @return i32
  */
+#[no_mangle]
 export function driver_x_pipeline_skip_typeck_get(): i32 {
   unsafe {
     let p: *i32 = driver_x_pipeline_skip_typeck_flag_slot();
@@ -365,12 +365,12 @@ export function driver_x_pipeline_skip_typeck_get(): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `driver_x_pipeline_skip_typeck_set`.
  * Implements `driver_x_pipeline_skip_typeck_set`.
  * @param v i32
  * @return void
  */
+#[no_mangle]
 export function driver_x_pipeline_skip_typeck_set(v: i32): void {
   unsafe {
     let p: *i32 = driver_x_pipeline_skip_typeck_flag_slot();
@@ -378,11 +378,11 @@ export function driver_x_pipeline_skip_typeck_set(v: i32): void {
   }
 }
 
-#[no_mangle]
 /** Exported function `driver_x_pipeline_skip_codegen_get`.
  * Implements `driver_x_pipeline_skip_codegen_get`.
  * @return i32
  */
+#[no_mangle]
 export function driver_x_pipeline_skip_codegen_get(): i32 {
   unsafe {
     let p: *i32 = driver_x_pipeline_skip_codegen_flag_slot();
@@ -394,12 +394,12 @@ export function driver_x_pipeline_skip_codegen_get(): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `driver_x_pipeline_skip_codegen_set`.
  * Implements `driver_x_pipeline_skip_codegen_set`.
  * @param v i32
  * @return void
  */
+#[no_mangle]
 export function driver_x_pipeline_skip_codegen_set(v: i32): void {
   unsafe {
     let p: *i32 = driver_x_pipeline_skip_codegen_flag_slot();
@@ -407,12 +407,12 @@ export function driver_x_pipeline_skip_codegen_set(v: i32): void {
   }
 }
 
-#[no_mangle]
 /** Exported function `driver_skip_codegen_dep_0_set`.
  * Implements `driver_skip_codegen_dep_0_set`.
  * @param v i32
  * @return void
  */
+#[no_mangle]
 export function driver_skip_codegen_dep_0_set(v: i32): void {
   unsafe {
     let p: *i32 = driver_skip_codegen_dep_0_flag_slot();
@@ -420,11 +420,11 @@ export function driver_skip_codegen_dep_0_set(v: i32): void {
   }
 }
 
-#[no_mangle]
 /** Exported function `driver_skip_codegen_dep_0_get`.
  * Implements `driver_skip_codegen_dep_0_get`.
  * @return i32
  */
+#[no_mangle]
 export function driver_skip_codegen_dep_0_get(): i32 {
   unsafe {
     let p: *i32 = driver_skip_codegen_dep_0_flag_slot();
@@ -450,11 +450,11 @@ export function driver_typeck_skip_large_entry(): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `driver_is_large_stack_thread`.
  * Read path helper `driver_is_large_stack_thread`.
  * @return i32
  */
+#[no_mangle]
 export function driver_is_large_stack_thread(): i32 {
   unsafe {
     let p: *i32 = driver_large_stack_thread_flag_slot();
@@ -466,12 +466,12 @@ export function driver_is_large_stack_thread(): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `driver_large_stack_thread_mark`.
  * Read path helper `driver_large_stack_thread_mark`.
  * @param on i32
  * @return void
  */
+#[no_mangle]
 export function driver_large_stack_thread_mark(on: i32): void {
   unsafe {
     let p: *i32 = driver_large_stack_thread_flag_slot();
@@ -488,11 +488,11 @@ export function driver_set_current_dep_path_for_codegen(path: *u8): void {
   }
 }
 
-#[no_mangle]
 /** Exported function `driver_get_current_dep_path_for_codegen`.
  * Implements `driver_get_current_dep_path_for_codegen`.
  * @return *u8
  */
+#[no_mangle]
 export function driver_get_current_dep_path_for_codegen(): *u8 {
   unsafe {
     let r: *u8 = driver_current_dep_path_load();
@@ -501,12 +501,12 @@ export function driver_get_current_dep_path_for_codegen(): *u8 {
   return 0 as *u8;
 }
 
-#[no_mangle]
 /** Exported function `driver_print_check_ok`.
  * Implements `driver_print_check_ok`.
  * @param input_path *u8
  * @return void
  */
+#[no_mangle]
 export function driver_print_check_ok(input_path: *u8): void {
   unsafe {
     if (driver_check_quiet_ok_get() != 0) {
@@ -531,12 +531,12 @@ export function driver_compile_phase_timing_enabled(): i32 {
 }
 
 // driver_compile_phase_index_ok: see function docblock below.
-#[no_mangle]
 /** Exported function `driver_compile_phase_index_ok`.
  * Implements `driver_compile_phase_index_ok`.
  * @param phase i32
  * @return i32
  */
+#[no_mangle]
 export function driver_compile_phase_index_ok(phase: i32): i32 {
   if (phase < 0) {
     return 0;
@@ -547,12 +547,12 @@ export function driver_compile_phase_index_ok(phase: i32): i32 {
   return 1;
 }
 
-#[no_mangle]
 /** Exported function `driver_compile_phase_timing_begin`.
  * Implements `driver_compile_phase_timing_begin`.
  * @param phase i32
  * @return void
  */
+#[no_mangle]
 export function driver_compile_phase_timing_begin(phase: i32): void {
   unsafe {
     if (driver_compile_phase_timing_enabled() == 0) {
@@ -565,12 +565,12 @@ export function driver_compile_phase_timing_begin(phase: i32): void {
   }
 }
 
-#[no_mangle]
 /** Exported function `driver_compile_phase_timing_end`.
  * Implements `driver_compile_phase_timing_end`.
  * @param phase i32
  * @return void
  */
+#[no_mangle]
 export function driver_compile_phase_timing_end(phase: i32): void {
   unsafe {
     if (driver_compile_phase_timing_enabled() == 0) {
@@ -583,11 +583,11 @@ export function driver_compile_phase_timing_end(phase: i32): void {
   }
 }
 
-#[no_mangle]
 /** Exported function `driver_compile_phase_timing_flush`.
  * Implements `driver_compile_phase_timing_flush`.
  * @return void
  */
+#[no_mangle]
 export function driver_compile_phase_timing_flush(): void {
   unsafe {
     if (driver_compile_phase_timing_enabled() == 0) {
@@ -617,13 +617,13 @@ export function driver_peek_source_file(path: *u8, content: *u8, cap: i64): i32 
   return -1;
 }
 
-#[no_mangle]
 /** Exported function `driver_pipeline_fail_code`.
  * Implements `driver_pipeline_fail_code`.
  * @param rc i32
  * @param path *u8
  * @return void
  */
+#[no_mangle]
 export function driver_pipeline_fail_code(rc: i32, path: *u8): void {
   unsafe {
     driver_pipeline_fail_code_rc_impl(rc);
@@ -638,11 +638,11 @@ export function driver_pipeline_fail_code(rc: i32, path: *u8): void {
 }
 
 // driver_pipeline_no_large_stack_env: see function docblock below.
-#[no_mangle]
 /** Exported function `driver_pipeline_no_large_stack_env`.
  * Implements `driver_pipeline_no_large_stack_env`.
  * @return i32
  */
+#[no_mangle]
 export function driver_pipeline_no_large_stack_env(): i32 {
   unsafe {
     let e: *u8 = getenv("SHUX_PIPELINE_NO_LARGE_STACK");
@@ -705,13 +705,13 @@ export function driver_run_thread_on_large_stack(fn: *u8, arg: *u8): void {
   }
 }
 
-#[no_mangle]
 /** Exported function `driver_run_on_large_stack_pthread`.
  * Read path helper `driver_run_on_large_stack_pthread`.
  * @param fn *u8
  * @param arg *u8
  * @return void
  */
+#[no_mangle]
 export function driver_run_on_large_stack_pthread(fn: *u8, arg: *u8): void {
   if (fn == 0 as *u8) {
     return;
@@ -741,13 +741,13 @@ export function driver_print_x_smoke_summary(module: *u8, codegen_len: i64): voi
   }
 }
 
-#[no_mangle]
 /** Exported function `driver_source_has_top_level_import`.
  * Implements `driver_source_has_top_level_import`.
  * @param src *u8
  * @param src_len i64
  * @return i32
  */
+#[no_mangle]
 export function driver_source_has_top_level_import(src: *u8, src_len: i64): i32 {
   if (src == 0 as *u8) {
     return 0;
@@ -779,23 +779,23 @@ export function driver_source_has_top_level_import_path(path: *u8): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `driver_set_pipeline_entry_source_len`.
  * Query helper `driver_set_pipeline_entry_source_len`.
  * @param len i64
  * @return void
  */
+#[no_mangle]
 export function driver_set_pipeline_entry_source_len(len: i64): void {
   unsafe {
     driver_pipeline_entry_source_len_store(len);
   }
 }
 
-#[no_mangle]
 /** Exported function `driver_pipeline_entry_source_len`.
  * Query helper `driver_pipeline_entry_source_len`.
  * @return i64
  */
+#[no_mangle]
 export function driver_pipeline_entry_source_len(): i64 {
   unsafe {
     return driver_pipeline_entry_source_len_load_and_maybe_debug();
@@ -845,11 +845,11 @@ export function driver_parse_u32_cstr(s: *u8): i64 {
 }
 
 // driver_stack_limit_want_bytes: see function docblock below.
-#[no_mangle]
 /** Exported function `driver_stack_limit_want_bytes`.
  * Implements `driver_stack_limit_want_bytes`.
  * @return i64
  */
+#[no_mangle]
 export function driver_stack_limit_want_bytes(): i64 {
   let def: i64 = 536870912;
   unsafe {
@@ -1086,12 +1086,12 @@ export function driver_cstr_contains_bytes(hay: *u8, n0: u8, n1: u8, n2: u8, n3:
 }
 
 // driver_target_arg_os_kind: see function docblock below.
-#[no_mangle]
 /** Exported function `driver_target_arg_os_kind`.
  * Implements `driver_target_arg_os_kind`.
  * @param target *u8
  * @return i32
  */
+#[no_mangle]
 export function driver_target_arg_os_kind(target: *u8): i32 {
   if (target == 0 as *u8) {
     return 0;
@@ -1120,7 +1120,6 @@ export function driver_target_arg_os_kind(target: *u8): i32 {
 }
 
 // driver_argv_collect_defines: see function docblock below.
-#[no_mangle]
 /** Exported function `driver_argv_collect_defines`.
  * Implements `driver_argv_collect_defines`.
  * @param argc i32
@@ -1129,6 +1128,7 @@ export function driver_target_arg_os_kind(target: *u8): i32 {
  * @param max_defines i32
  * @return i32
  */
+#[no_mangle]
 export function driver_argv_collect_defines(argc: i32, argv: *u8, defines: *u8, max_defines: i32): i32 {
   if (argv == 0 as *u8) {
     return 0;
@@ -1224,11 +1224,11 @@ export function driver_argv_collect_defines(argc: i32, argv: *u8, defines: *u8, 
 /* ---- G-02f-83 / G-02f-243：entry_source_len_i32 / scan_top_level_import pure ---- */
 
 // driver_pipeline_entry_source_len_i32: see function docblock below.
-#[no_mangle]
 /** Exported function `driver_pipeline_entry_source_len_i32`.
  * Implements `driver_pipeline_entry_source_len_i32`.
  * @return i32
  */
+#[no_mangle]
 export function driver_pipeline_entry_source_len_i32(): i32 {
   unsafe {
     let len: i64 = driver_pipeline_entry_source_len_load_and_maybe_debug();
@@ -1244,13 +1244,13 @@ export function driver_pipeline_entry_source_len_i32(): i32 {
 }
 
 // driver_source_scan_top_level_import: see function docblock below.
-#[no_mangle]
 /** Exported function `driver_source_scan_top_level_import`.
  * Implements `driver_source_scan_top_level_import`.
  * @param src *u8
  * @param src_len i64
  * @return i32
  */
+#[no_mangle]
 export function driver_source_scan_top_level_import(src: *u8, src_len: i64): i32 {
   if (src == 0 as *u8) {
     return 0;
@@ -1324,12 +1324,12 @@ export function compile_phase_now_sec(): f64 {
   return 0.0;
 }
 
-#[no_mangle]
 /** Exported function `driver_large_stack_thread_trampoline`.
  * Read path helper `driver_large_stack_thread_trampoline`.
  * @param v *u8
  * @return *u8
  */
+#[no_mangle]
 export function driver_large_stack_thread_trampoline(v: *u8): *u8 {
   if (v == 0 as *u8) {
     return 0 as *u8;
@@ -1342,11 +1342,11 @@ export function driver_large_stack_thread_trampoline(v: *u8): *u8 {
 
 // compile_phase_timing_enabled: see function docblock below.
 
-#[no_mangle]
 /** Exported function `compile_phase_timing_enabled`.
  * Implements `compile_phase_timing_enabled`.
  * @return i32
  */
+#[no_mangle]
 export function compile_phase_timing_enabled(): i32 {
   unsafe {
     let e: *u8 = getenv("SHUX_COMPILE_PHASE_TIMING");
@@ -1357,12 +1357,12 @@ export function compile_phase_timing_enabled(): i32 {
 
 // driver_ascii_toupper: see function docblock below.
 
-#[no_mangle]
 /** Exported function `driver_ascii_toupper`.
  * Implements `driver_ascii_toupper`.
  * @param c i32
  * @return i32
  */
+#[no_mangle]
 export function driver_ascii_toupper(c: i32): i32 {
   if (c >= 97) {
     if (c <= 122) {

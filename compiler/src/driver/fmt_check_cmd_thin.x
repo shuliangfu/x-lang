@@ -168,22 +168,22 @@ let g_fmt_default_product_sub_2: u8[4] = [115, 116, 100, 0];
 let g_fmt_default_product_sub_3: u8[9] = [101, 120, 97, 109, 112, 108, 101, 115, 0];
 
 // driver_check_quiet_ok_get: see function docblock below.
-#[no_mangle]
 /** Exported function `driver_check_quiet_ok_get`.
  * Implements `driver_check_quiet_ok_get`.
  * @return i32
  */
+#[no_mangle]
 export function driver_check_quiet_ok_get(): i32 {
   return 1;
 }
 
 // fmt_walk_skip_dot_name: see function docblock below.
-#[no_mangle]
 /** Exported function `fmt_walk_skip_dot_name`.
  * Implements `fmt_walk_skip_dot_name`.
  * @param name *u8
  * @return i32
  */
+#[no_mangle]
 export function fmt_walk_skip_dot_name(name: *u8): i32 {
   if (name == 0 as *u8) {
     return 1;
@@ -198,7 +198,6 @@ export function fmt_walk_skip_dot_name(name: *u8): i32 {
 }
 
 // check_one_need_fallback_diag: see function docblock below.
-#[no_mangle]
 /** Exported function `check_one_need_fallback_diag`.
  * Implements `check_one_need_fallback_diag`.
  * @param rc i32
@@ -209,6 +208,7 @@ export function fmt_walk_skip_dot_name(name: *u8): i32 {
  * @param direct_diag i32
  * @return i32
  */
+#[no_mangle]
 export function check_one_need_fallback_diag(rc: i32, nd: i32, nd_errors: i32, nd_warnings: i32, nd_infos: i32, direct_diag: i32): i32 {
   if (rc == 0) {
     return 0;
@@ -232,12 +232,12 @@ export function check_one_need_fallback_diag(rc: i32, nd: i32, nd_errors: i32, n
 }
 
 // shux_path_is_absolute: see function docblock below.
-#[no_mangle]
 /** Exported function `shux_path_is_absolute`.
  * Implements `shux_path_is_absolute`.
  * @param path *u8
  * @return i32
  */
+#[no_mangle]
 export function shux_path_is_absolute(path: *u8): i32 {
   if (path == 0 as *u8) {
     return 0;
@@ -270,13 +270,13 @@ export function shux_path_is_absolute(path: *u8): i32 {
 }
 
 // check_one_finalize_rc: see function docblock below.
-#[no_mangle]
 /** Exported function `check_one_finalize_rc`.
  * Implements `check_one_finalize_rc`.
  * @param rc i32
  * @param warn_count i32
  * @return i32
  */
+#[no_mangle]
 export function check_one_finalize_rc(rc: i32, warn_count: i32): i32 {
   if (rc != 0) {
     return rc;
@@ -290,47 +290,47 @@ export function check_one_finalize_rc(rc: i32, warn_count: i32): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `driver_fmt_check_lit_check_error`.
  * Implements `driver_fmt_check_lit_check_error`.
  * @return *u8
  */
+#[no_mangle]
 export function driver_fmt_check_lit_check_error(): *u8 {
   return &g_fmt_lit_check_error[0];
 }
 
-#[no_mangle]
 /** Exported function `driver_fmt_check_lit_fmt_error`.
  * Implements `driver_fmt_check_lit_fmt_error`.
  * @return *u8
  */
+#[no_mangle]
 export function driver_fmt_check_lit_fmt_error(): *u8 {
   return &g_fmt_lit_fmt_error[0];
 }
 
-#[no_mangle]
 /** Exported function `driver_fmt_check_lit_chk002`.
  * Implements `driver_fmt_check_lit_chk002`.
  * @return *u8
  */
+#[no_mangle]
 export function driver_fmt_check_lit_chk002(): *u8 {
   return &g_fmt_lit_chk002[0];
 }
 
-#[no_mangle]
 /** Exported function `driver_fmt_check_lit_fmt001`.
  * Implements `driver_fmt_check_lit_fmt001`.
  * @return *u8
  */
+#[no_mangle]
 export function driver_fmt_check_lit_fmt001(): *u8 {
   return &g_fmt_lit_fmt001[0];
 }
 
-#[no_mangle]
 /** Exported function `driver_collect_error_kind`.
  * Implements `driver_collect_error_kind`.
  * @return *u8
  */
+#[no_mangle]
 export function driver_collect_error_kind(): *u8 {
   if (driver_collect_mode_is_check() != 0) {
     return &g_fmt_lit_check_error[0];
@@ -338,11 +338,11 @@ export function driver_collect_error_kind(): *u8 {
   return &g_fmt_lit_fmt_error[0];
 }
 
-#[no_mangle]
 /** Exported function `driver_collect_missing_path_code`.
  * Implements `driver_collect_missing_path_code`.
  * @return *u8
  */
+#[no_mangle]
 export function driver_collect_missing_path_code(): *u8 {
   if (driver_collect_mode_is_check() != 0) {
     return &g_fmt_lit_chk002[0];
@@ -350,12 +350,12 @@ export function driver_collect_missing_path_code(): *u8 {
   return &g_fmt_lit_fmt001[0];
 }
 
-#[no_mangle]
 /** Exported function `fmt_builtin_ignore_at`.
  * Implements `fmt_builtin_ignore_at`.
  * @param i i32
  * @return *u8
  */
+#[no_mangle]
 export function fmt_builtin_ignore_at(i: i32): *u8 {
   if (i == 0) {
     return &g_fmt_builtin_ignore_0[0];
@@ -384,12 +384,12 @@ export function fmt_builtin_ignore_at(i: i32): *u8 {
   return 0 as *u8;
 }
 
-#[no_mangle]
 /** Exported function `fmt_default_product_sub_at`.
  * Implements `fmt_default_product_sub_at`.
  * @param i i32
  * @return *u8
  */
+#[no_mangle]
 export function fmt_default_product_sub_at(i: i32): *u8 {
   if (i == 0) {
     return &g_fmt_default_product_sub_0[0];
@@ -424,12 +424,12 @@ export function fmt_user_ignore_at(i: i32): *u8 {
 }
 
 // fmt_path_resolve_abs: see function docblock below.
-#[no_mangle]
 /** Exported function `fmt_path_resolve_abs`.
  * Implements `fmt_path_resolve_abs`.
  * @param path *u8
  * @return *u8
  */
+#[no_mangle]
 export function fmt_path_resolve_abs(path: *u8): *u8 {
   if (path == 0 as *u8) {
     return 0 as *u8;
@@ -557,12 +557,12 @@ export function fmt_user_ignore_count_set(v: i32): void {
 }
 
 // fmt_path_ends_with_dot_x: see function docblock below.
-#[no_mangle]
 /** Exported function `fmt_path_ends_with_dot_x`.
  * Implements `fmt_path_ends_with_dot_x`.
  * @param path *u8
  * @return i32
  */
+#[no_mangle]
 export function fmt_path_ends_with_dot_x(path: *u8): i32 {
   if (path == 0 as *u8) {
     return 0;
@@ -770,11 +770,11 @@ export extern "C" function shux_fmt_access(path: *u8, mode: i32): i32;
 export extern "C" function shux_fmt_readdir_name(dirp: *u8): *u8;
 
 // pure：SHUX_LINT_CI_FAIL_ON=warn|warning
-#[no_mangle]
 /** Exported function `check_lint_fail_on_warnings`.
  * Implements `check_lint_fail_on_warnings`.
  * @return i32
  */
+#[no_mangle]
 export function check_lint_fail_on_warnings(): i32 {
   unsafe {
     let v: *u8 = getenv("SHUX_LINT_CI_FAIL_ON");
@@ -806,13 +806,13 @@ export function check_lint_fail_on_warnings(): i32 {
 }
 
 // fmt_check_invoke_compile: see function docblock below.
-#[no_mangle]
 /** Exported function `fmt_check_invoke_compile`.
  * Implements `fmt_check_invoke_compile`.
  * @param argc i32
  * @param check_argv *u8
  * @return i32
  */
+#[no_mangle]
 export function fmt_check_invoke_compile(argc: i32, check_argv: *u8): i32 {
   unsafe {
     return driver_run_compiler_full(argc, check_argv);
@@ -821,11 +821,11 @@ export function fmt_check_invoke_compile(argc: i32, check_argv: *u8): i32 {
 }
 
 // fmt_check_dep_clear: see function docblock below.
-#[no_mangle]
 /** Exported function `fmt_check_dep_clear`.
  * Implements `fmt_check_dep_clear`.
  * @return void
  */
+#[no_mangle]
 export function fmt_check_dep_clear(): void {
   unsafe {
     driver_dep_seeded_clear_all();
@@ -1000,12 +1000,12 @@ export function check_init_user_lib_flags(argc: i32, argv: *u8, path_start: i32)
 }
 
 // driver_check_set_current_file: see function docblock below.
-#[no_mangle]
 /** Exported function `driver_check_set_current_file`.
  * Implements `driver_check_set_current_file`.
  * @param path *u8
  * @return void
  */
+#[no_mangle]
 export function driver_check_set_current_file(path: *u8): void {
   unsafe {
     let buf: *u8 = fmt_check_path_bss_slot(0);
@@ -1030,12 +1030,12 @@ export function driver_check_set_current_file(path: *u8): void {
 }
 
 // driver_check_print_collected_diagnostics: see function docblock below.
-#[no_mangle]
 /** Exported function `driver_check_print_collected_diagnostics`.
  * Implements `driver_check_print_collected_diagnostics`.
  * @param path *u8
  * @return i32
  */
+#[no_mangle]
 export function driver_check_print_collected_diagnostics(path: *u8): i32 {
   unsafe {
     if (path != 0 as *u8) {
@@ -1236,12 +1236,12 @@ export function check_one_file(path: *u8, argc: i32, argv: *u8): i32 {
 // ---- pure ignore / file_list orch / walk process_child + walk opendir pure ----
 
 // path_should_ignore: see function docblock below.
-#[no_mangle]
 /** Exported function `path_should_ignore`.
  * Implements `path_should_ignore`.
  * @param path *u8
  * @return i32
  */
+#[no_mangle]
 export function path_should_ignore(path: *u8): i32 {
   if (path == 0 as *u8) {
     return 1;
@@ -1302,7 +1302,6 @@ export function file_list_push(path: *u8): i32 {
 }
 
 // walk_dir_collect_process_child: see function docblock below.
-#[no_mangle]
 /** Exported function `walk_dir_collect_process_child`.
  * Implements `walk_dir_collect_process_child`.
  * @param child *u8
@@ -1310,6 +1309,7 @@ export function file_list_push(path: *u8): i32 {
  * @param is_reg i32
  * @return void
  */
+#[no_mangle]
 export function walk_dir_collect_process_child(child: *u8, is_dir: i32, is_reg: i32): void {
   if (child == 0 as *u8) {
     return;
@@ -1514,12 +1514,12 @@ export function file_list_clear(): void {
 //      append_repo pure / missing_diag pure；argv_append full pure ----
 
 // fmt_try_walk_if_product_subdir: see function docblock below.
-#[no_mangle]
 /** Exported function `fmt_try_walk_if_product_subdir`.
  * Implements `fmt_try_walk_if_product_subdir`.
  * @param sub *u8
  * @return i32
  */
+#[no_mangle]
 export function fmt_try_walk_if_product_subdir(sub: *u8): i32 {
   if (sub == 0 as *u8) {
     return 0;
@@ -1565,11 +1565,11 @@ export function fmt_try_walk_if_product_subdir(sub: *u8): i32 {
 }
 
 // fmt_walk_cwd_fallback: see function docblock below.
-#[no_mangle]
 /** Exported function `fmt_walk_cwd_fallback`.
  * Implements `fmt_walk_cwd_fallback`.
  * @return void
  */
+#[no_mangle]
 export function fmt_walk_cwd_fallback(): void {
   unsafe {
     let cwd: u8[512] = [];
@@ -1582,11 +1582,11 @@ export function fmt_walk_cwd_fallback(): void {
 }
 
 // check_collect_default_product_dirs: see function docblock below.
-#[no_mangle]
 /** Exported function `check_collect_default_product_dirs`.
  * Implements `check_collect_default_product_dirs`.
  * @return void
  */
+#[no_mangle]
 export function check_collect_default_product_dirs(): void {
   unsafe {
     let any_product: i32 = 0;
@@ -1668,12 +1668,12 @@ export function collect_paths_missing_diag_pure(path: *u8): void {
 }
 
 // collect_paths_from_arg: see function docblock below.
-#[no_mangle]
 /** Exported function `collect_paths_from_arg`.
  * Implements `collect_paths_from_arg`.
  * @param arg *u8
  * @return void
  */
+#[no_mangle]
 export function collect_paths_from_arg(arg: *u8): void {
   if (arg == 0 as *u8) {
     return;
@@ -1696,7 +1696,6 @@ export function collect_paths_from_arg(arg: *u8): void {
 }
 
 // check_append_repo_lib_roots: see function docblock below.
-#[no_mangle]
 /** Exported function `check_append_repo_lib_roots`.
  * Implements `check_append_repo_lib_roots`.
  * @param path *u8
@@ -1704,6 +1703,7 @@ export function collect_paths_from_arg(arg: *u8): void {
  * @param n *i32
  * @return void
  */
+#[no_mangle]
 export function check_append_repo_lib_roots(path: *u8, check_argv: *u8, n: *i32): void {
   if (check_argv == 0 as *u8) {
     return;

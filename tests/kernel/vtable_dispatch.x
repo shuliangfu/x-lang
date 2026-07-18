@@ -28,24 +28,24 @@ function serial_putc(c: u8): void {
   }
 }
 
-#[used]
 /** Internal function `driver_a_putc`.
  * Implements `driver_a_putc`.
  * @param c u8
  * @return void
  */
+#[used]
 function driver_a_putc(c: u8): void {
   unsafe {
     asm!("outb %%al, %%dx" : : "a"(c), "d"(0x3F8));
   }
 }
 
-#[used]
 /** Internal function `driver_b_putc`.
  * Implements `driver_b_putc`.
  * @param c u8
  * @return void
  */
+#[used]
 function driver_b_putc(c: u8): void {
   unsafe {
     asm!("outb %%al, %%dx" : : "a"(c), "d"(0x2F8));
@@ -81,11 +81,11 @@ function kmain(): i32 {
   return 0;
 }
 
-#[entry]
 /** Internal function `start`.
  * Implements `start`.
  * @return void
  */
+#[entry]
 function start(): void {
   unsafe {
     asm!("mov $0x80000, %esp; call kmain; cli; hlt");

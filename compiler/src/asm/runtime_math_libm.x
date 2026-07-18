@@ -30,12 +30,12 @@ export function math_fenv_mask_to_fe(mask: i32): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `math_fenv_fe_to_mask`.
  * Implements `math_fenv_fe_to_mask`.
  * @param fe i32
  * @return i32
  */
+#[no_mangle]
 export function math_fenv_fe_to_mask(fe: i32): i32 {
   unsafe {
     return math_fenv_fe_to_mask_impl(fe);
@@ -43,12 +43,12 @@ export function math_fenv_fe_to_mask(fe: i32): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `math_fenv_emit_cap_report`.
  * Implements `math_fenv_emit_cap_report`.
  * @param avail i32
  * @return void
  */
+#[no_mangle]
 export function math_fenv_emit_cap_report(avail: i32): void {
   unsafe {
     math_fenv_emit_cap_report_impl(avail);
@@ -57,7 +57,6 @@ export function math_fenv_emit_cap_report(avail: i32): void {
 
 // math_special_near: see function docblock below.
 
-#[no_mangle]
 /** Exported function `math_special_near`.
  * Implements `math_special_near`.
  * @param a f64
@@ -65,6 +64,7 @@ export function math_fenv_emit_cap_report(avail: i32): void {
  * @param eps f64
  * @return i32
  */
+#[no_mangle]
 export function math_special_near(a: f64, b: f64, eps: f64): i32 {
   let d: f64 = a - b;
   if (d < 0.0) { d = 0.0 - d; }

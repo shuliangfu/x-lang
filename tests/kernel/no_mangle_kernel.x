@@ -35,13 +35,13 @@ function serial_putint(n: i32): void {
   serial_putc((n % 10 + 48) as u8);
 }
 
-#[no_mangle]
 /** Internal function `compute_value`.
  * Implements `compute_value`.
  * @param a i32
  * @param b i32
  * @return i32
  */
+#[no_mangle]
 function compute_value(a: i32, b: i32): i32 {
   return a * 100 + b;
 }
@@ -65,11 +65,11 @@ function kmain(): i32 {
   return 0;
 }
 
-#[entry]
 /** Internal function `start`.
  * Implements `start`.
  * @return void
  */
+#[entry]
 function start(): void {
   unsafe {
     asm!("mov $0x80000, %esp; call kmain; cli; hlt");

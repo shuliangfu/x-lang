@@ -29,35 +29,35 @@ export function runtime_path_fast_x_doc_anchor(): i32 {
 
 // path_sep_c: see function docblock below.
 
-#[no_mangle]
 /** Exported function `path_sep_c`.
  * Implements `path_sep_c`.
  * @return u8
  */
+#[no_mangle]
 export function path_sep_c(): u8 {
   // See implementation.
   return 47 as u8;
 }
 
-#[no_mangle]
 /** Exported function `path_is_sep_c`.
  * Implements `path_is_sep_c`.
  * @param c u8
  * @return i32
  */
+#[no_mangle]
 export function path_is_sep_c(c: u8): i32 {
   if (c == 47) { return 1; }
   if (c == 92) { return 1; }
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `path_last_sep_c`.
  * Implements `path_last_sep_c`.
  * @param path *u8
  * @param path_len i32
  * @return i32
  */
+#[no_mangle]
 export function path_last_sep_c(path: *u8, path_len: i32): i32 {
   let i: i32 = path_len - 1;
   while (i >= 0) {
@@ -69,7 +69,6 @@ export function path_last_sep_c(path: *u8, path_len: i32): i32 {
 
 // path_last_dot_c: see function docblock below.
 
-#[no_mangle]
 /** Exported function `path_last_dot_c`.
  * Implements `path_last_dot_c`.
  * @param path *u8
@@ -77,6 +76,7 @@ export function path_last_sep_c(path: *u8, path_len: i32): i32 {
  * @param len i32
  * @return i32
  */
+#[no_mangle]
 export function path_last_dot_c(path: *u8, start: i32, len: i32): i32 {
   let i: i32 = start + len - 1;
   while (i >= start) {
@@ -93,16 +93,15 @@ export function std_path_empty_len(): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `std_path_sep`.
  * Implements `std_path_sep`.
  * @return u8
  */
+#[no_mangle]
 export function std_path_sep(): u8 {
   return path_sep_c();
 }
 
-#[no_mangle]
 /** Exported function `std_path_join`.
  * Implements `std_path_join`.
  * @param out *u8
@@ -113,6 +112,7 @@ export function std_path_sep(): u8 {
  * @param b_len i32
  * @return i32
  */
+#[no_mangle]
 export function std_path_join(out: *u8, out_max: i32, a: *u8, a_len: i32, b: *u8, b_len: i32): i32 {
   let need_sep: i32 = 0;
   let total: i32 = 0;
@@ -144,7 +144,6 @@ export function std_path_join(out: *u8, out_max: i32, a: *u8, a_len: i32, b: *u8
   return k;
 }
 
-#[no_mangle]
 /** Exported function `std_path_dirname`.
  * Implements `std_path_dirname`.
  * @param path *u8
@@ -153,6 +152,7 @@ export function std_path_join(out: *u8, out_max: i32, a: *u8, a_len: i32, b: *u8
  * @param out_max i32
  * @return i32
  */
+#[no_mangle]
 export function std_path_dirname(path: *u8, path_len: i32, out: *u8, out_max: i32): i32 {
   let last: i32 = path_last_sep_c(path, path_len);
   let i: i32 = 0;
@@ -166,7 +166,6 @@ export function std_path_dirname(path: *u8, path_len: i32, out: *u8, out_max: i3
   return i;
 }
 
-#[no_mangle]
 /** Exported function `std_path_basename`.
  * Implements `std_path_basename`.
  * @param path *u8
@@ -175,6 +174,7 @@ export function std_path_dirname(path: *u8, path_len: i32, out: *u8, out_max: i3
  * @param out_max i32
  * @return i32
  */
+#[no_mangle]
 export function std_path_basename(path: *u8, path_len: i32, out: *u8, out_max: i32): i32 {
   let last: i32 = path_last_sep_c(path, path_len);
   let start: i32 = last + 1;
@@ -189,13 +189,13 @@ export function std_path_basename(path: *u8, path_len: i32, out: *u8, out_max: i
   return i;
 }
 
-#[no_mangle]
 /** Exported function `std_path_is_absolute`.
  * Implements `std_path_is_absolute`.
  * @param path *u8
  * @param path_len i32
  * @return i32
  */
+#[no_mangle]
 export function std_path_is_absolute(path: *u8, path_len: i32): i32 {
   let c0: u8 = 0;
   let is_alpha: i32 = 0;
@@ -227,17 +227,16 @@ export function std_path_is_absolute(path: *u8, path_len: i32): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `std_path_is_sep`.
  * Implements `std_path_is_sep`.
  * @param c u8
  * @return i32
  */
+#[no_mangle]
 export function std_path_is_sep(c: u8): i32 {
   return path_is_sep_c(c);
 }
 
-#[no_mangle]
 /** Exported function `std_path_extension`.
  * Implements `std_path_extension`.
  * @param path *u8
@@ -246,6 +245,7 @@ export function std_path_is_sep(c: u8): i32 {
  * @param out_max i32
  * @return i32
  */
+#[no_mangle]
 export function std_path_extension(path: *u8, path_len: i32, out: *u8, out_max: i32): i32 {
   let last_sl: i32 = path_last_sep_c(path, path_len);
   let base_start: i32 = last_sl + 1;
@@ -267,7 +267,6 @@ export function std_path_extension(path: *u8, path_len: i32, out: *u8, out_max: 
   return i;
 }
 
-#[no_mangle]
 /** Exported function `std_path_stem`.
  * Implements `std_path_stem`.
  * @param path *u8
@@ -276,6 +275,7 @@ export function std_path_extension(path: *u8, path_len: i32, out: *u8, out_max: 
  * @param out_max i32
  * @return i32
  */
+#[no_mangle]
 export function std_path_stem(path: *u8, path_len: i32, out: *u8, out_max: i32): i32 {
   let last_sl: i32 = path_last_sep_c(path, path_len);
   let base_start: i32 = last_sl + 1;
@@ -299,11 +299,11 @@ export function std_path_stem(path: *u8, path_len: i32, out: *u8, out_max: i32):
   return i;
 }
 
-#[no_mangle]
 /** Function `std_path_extension_and_stem`.
  * Purpose: implements `std_path_extension_and_stem`; params/returns as declared (may be multi-line).
  * Contracts: null/cap/PLATFORM as enforced in the body.
  */
+#[no_mangle]
 export function std_path_extension_and_stem(path: *u8, path_len: i32, ext_out: *u8, ext_max: i32,
                                      stem_out: *u8, stem_max: i32): i32 {
   let last_sl: i32 = path_last_sep_c(path, path_len);
@@ -340,7 +340,6 @@ export function std_path_extension_and_stem(path: *u8, path_len: i32, ext_out: *
   return (stem_len << 16) | (ext_len & 65535);
 }
 
-#[no_mangle]
 /** Exported function `std_path_clean`.
  * Implements `std_path_clean`.
  * @param path *u8
@@ -349,6 +348,7 @@ export function std_path_extension_and_stem(path: *u8, path_len: i32, ext_out: *
  * @param out_max i32
  * @return i32
  */
+#[no_mangle]
 export function std_path_clean(path: *u8, path_len: i32, out: *u8, out_max: i32): i32 {
   let seg_starts: i32[64] = [];
   let nseg: i32 = 0;
@@ -432,11 +432,11 @@ export function std_path_clean(path: *u8, path_len: i32, out: *u8, out_max: i32)
   return out_len;
 }
 
-#[no_mangle]
 /** Function `std_path_resolve`.
  * Purpose: implements `std_path_resolve`; params/returns as declared (may be multi-line).
  * Contracts: null/cap/PLATFORM as enforced in the body.
  */
+#[no_mangle]
 export function std_path_resolve(out: *u8, out_max: i32, base: *u8, base_len: i32,
                           ref: *u8, ref_len: i32): i32 {
   let dir_buf: u8[256] = [];

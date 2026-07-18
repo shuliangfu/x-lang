@@ -39,13 +39,13 @@ export extern "C" function shux_asm_ld_append_unix_gcc_tail_libs_impl(
   compress_o: *u8, user_o: *u8, flags: *u8, need_pt: i32, argv: *u8, la: *i32, max_la: i32
 ): void;
 
-#[no_mangle]
 /** Exported function `shux_asm_ld_bank_push`.
  * Implements `shux_asm_ld_bank_push`.
  * @param b *u8
  * @param path *u8
  * @return *u8
  */
+#[no_mangle]
 export function shux_asm_ld_bank_push(b: *u8, path: *u8): *u8 {
   if (b == 0 as *u8) { return 0 as *u8; }
   if (path == 0 as *u8) { return 0 as *u8; }
@@ -54,11 +54,11 @@ export function shux_asm_ld_bank_push(b: *u8, path: *u8): *u8 {
   return 0 as *u8;
 }
 
-#[no_mangle]
 /** Function `shux_invoke_cc`.
  * Purpose: implements `shux_invoke_cc`; params/returns as declared (may be multi-line).
  * Contracts: null/cap/PLATFORM as enforced in the body.
  */
+#[no_mangle]
 export function shux_invoke_cc(
   c_paths: *u8, n: i32, out_path: *u8, target: *u8, opt_level: *u8, use_lto: i32,
   io_o: *u8, fs_o: *u8, process_o: *u8, string_o: *u8, heap_o: *u8, path_o: *u8, runtime_o: *u8,
@@ -88,11 +88,11 @@ export function shux_invoke_cc(
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Function `shux_asm_ld_append_mach_tail_libs`.
  * Purpose: implements `shux_asm_ld_append_mach_tail_libs`; params/returns as declared (may be multi-line).
  * Contracts: null/cap/PLATFORM as enforced in the body.
  */
+#[no_mangle]
 export function shux_asm_ld_append_mach_tail_libs(
   compress_o: *u8, user_o: *u8, flags: *u8, argv: *u8, la: *i32, max_la: i32, append_lsystem: i32
 ): void {
@@ -105,11 +105,11 @@ export function shux_asm_ld_append_mach_tail_libs(
   }
 }
 
-#[no_mangle]
 /** Function `shux_asm_ld_append_unix_gcc_tail_libs`.
  * Purpose: implements `shux_asm_ld_append_unix_gcc_tail_libs`; params/returns as declared (may be multi-line).
  * Contracts: null/cap/PLATFORM as enforced in the body.
  */
+#[no_mangle]
 export function shux_asm_ld_append_unix_gcc_tail_libs(
   compress_o: *u8, user_o: *u8, flags: *u8, need_pt: i32, argv: *u8, la: *i32, max_la: i32
 ): void {
@@ -122,7 +122,6 @@ export function shux_asm_ld_append_unix_gcc_tail_libs(
   }
 }
 
-#[no_mangle]
 /** Exported function `shux_append_linux_link_harden`.
  * Implements `shux_append_linux_link_harden`.
  * @param argv *u8
@@ -130,6 +129,7 @@ export function shux_asm_ld_append_unix_gcc_tail_libs(
  * @param cap i32
  * @return void
  */
+#[no_mangle]
 export function shux_append_linux_link_harden(argv: *u8, la: *i32, cap: i32): void {
   if (argv == 0 as *u8) { return; }
   if (la == 0 as *i32) { return; }
@@ -138,11 +138,11 @@ export function shux_append_linux_link_harden(argv: *u8, la: *i32, cap: i32): vo
   }
 }
 
-#[no_mangle]
 /** Function `shux_invoke_ld_for_exe`.
  * Purpose: implements `shux_invoke_ld_for_exe`; params/returns as declared (may be multi-line).
  * Contracts: null/cap/PLATFORM as enforced in the body.
  */
+#[no_mangle]
 export function shux_invoke_ld_for_exe(
   o_path: *u8, exe_path: *u8, target: *u8, use_macho_o: i32, use_coff_o: i32,
   link_argv0: *u8, lib_roots: *u8, n_lib_roots: i32
@@ -157,11 +157,11 @@ export function shux_invoke_ld_for_exe(
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `labi_gates_count`.
  * Implements `labi_gates_count`.
  * @return i32
  */
+#[no_mangle]
 export function labi_gates_count(): i32 {
   return 6;
 }

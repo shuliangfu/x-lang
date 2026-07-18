@@ -30,12 +30,12 @@ export function net_ipv6_ensure_wsa_c(): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `net_ipv6_close_socket_c`.
  * Implements `net_ipv6_close_socket_c`.
  * @param fd i32
  * @return i32
  */
+#[no_mangle]
 export function net_ipv6_close_socket_c(fd: i32): i32 {
   unsafe {
     return net_ipv6_close_socket_c_impl(fd);
@@ -43,12 +43,12 @@ export function net_ipv6_close_socket_c(fd: i32): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `net_ipv6_set_nonblock_c`.
  * Implements `net_ipv6_set_nonblock_c`.
  * @param fd i32
  * @return i32
  */
+#[no_mangle]
 export function net_ipv6_set_nonblock_c(fd: i32): i32 {
   unsafe {
     return net_ipv6_set_nonblock_c_impl(fd);
@@ -56,13 +56,13 @@ export function net_ipv6_set_nonblock_c(fd: i32): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `net_ipv6_poll_writable_c`.
  * Implements `net_ipv6_poll_writable_c`.
  * @param fd i32
  * @param timeout_ms u32
  * @return i32
  */
+#[no_mangle]
 export function net_ipv6_poll_writable_c(fd: i32, timeout_ms: u32): i32 {
   unsafe {
     return net_ipv6_poll_writable_c_impl(fd, timeout_ms);
@@ -70,11 +70,11 @@ export function net_ipv6_poll_writable_c(fd: i32, timeout_ms: u32): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `net_ipv6_connect_retry_ok_c`.
  * Implements `net_ipv6_connect_retry_ok_c`.
  * @return i32
  */
+#[no_mangle]
 export function net_ipv6_connect_retry_ok_c(): i32 {
   unsafe {
     return net_ipv6_connect_retry_ok_c_impl();

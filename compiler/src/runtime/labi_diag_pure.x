@@ -83,13 +83,13 @@ export function link_diag_code_for_kind(kind: *u8): *u8 {
   return 0 as *u8;
 }
 
-#[no_mangle]
 /** Exported function `link_diag_runtime_obj_resolve_fail`.
  * Implements `link_diag_runtime_obj_resolve_fail`.
  * @param obj_name *u8
  * @param hint *u8
  * @return void
  */
+#[no_mangle]
 export function link_diag_runtime_obj_resolve_fail(obj_name: *u8, hint: *u8): void {
   let on: *u8 = obj_name;
   let msg: u8[320] = [];
@@ -115,13 +115,13 @@ export function link_diag_runtime_obj_resolve_fail(obj_name: *u8, hint: *u8): vo
   }
 }
 
-#[no_mangle]
 /** Exported function `link_diag_runtime_source_missing`.
  * Implements `link_diag_runtime_source_missing`.
  * @param obj_name *u8
  * @param source_path *u8
  * @return void
  */
+#[no_mangle]
 export function link_diag_runtime_source_missing(obj_name: *u8, source_path: *u8): void {
   let on: *u8 = obj_name;
   let sp: *u8 = source_path;
@@ -145,11 +145,11 @@ export function link_diag_runtime_source_missing(obj_name: *u8, source_path: *u8
   }
 }
 
-#[no_mangle]
 /** Function `link_diag_runtime_source_missing_under`.
  * Purpose: implements `link_diag_runtime_source_missing_under`; params/returns as declared (may be multi-line).
  * Contracts: null/cap/PLATFORM as enforced in the body.
  */
+#[no_mangle]
 export function link_diag_runtime_source_missing_under(
   obj_name: *u8, base_dir: *u8, suffix: *u8
 ): void {
@@ -180,13 +180,13 @@ export function link_diag_runtime_source_missing_under(
   }
 }
 
-#[no_mangle]
 /** Exported function `link_diag_runtime_obj_missing`.
  * Implements `link_diag_runtime_obj_missing`.
  * @param obj_name *u8
  * @param out_o *u8
  * @return void
  */
+#[no_mangle]
 export function link_diag_runtime_obj_missing(obj_name: *u8, out_o: *u8): void {
   let on: *u8 = obj_name;
   let oo: *u8 = out_o;
@@ -211,13 +211,13 @@ export function link_diag_runtime_obj_missing(obj_name: *u8, out_o: *u8): void {
   }
 }
 
-#[no_mangle]
 /** Exported function `link_diag_freestanding_missing`.
  * Memory management helper `link_diag_freestanding_missing`.
  * @param obj_name *u8
  * @param symbol_name *u8
  * @return void
  */
+#[no_mangle]
 export function link_diag_freestanding_missing(obj_name: *u8, symbol_name: *u8): void {
   let on: *u8 = obj_name;
   let sn: *u8 = symbol_name;
@@ -244,11 +244,11 @@ export function link_diag_freestanding_missing(obj_name: *u8, symbol_name: *u8):
   }
 }
 
-#[no_mangle]
 /** Exported function `link_diag_freestanding_unsupported`.
  * Memory management helper `link_diag_freestanding_unsupported`.
  * @return void
  */
+#[no_mangle]
 export function link_diag_freestanding_unsupported(): void {
   let msg: u8[192] = [];
   let kind: *u8 = 0 as *u8;
@@ -264,7 +264,6 @@ export function link_diag_freestanding_unsupported(): void {
   }
 }
 
-#[no_mangle]
 /** Exported function `link_diag_ld_debug_push`.
  * Implements `link_diag_ld_debug_push`.
  * @param rel *u8
@@ -272,6 +271,7 @@ export function link_diag_freestanding_unsupported(): void {
  * @param path *u8
  * @return void
  */
+#[no_mangle]
 export function link_diag_ld_debug_push(rel: *u8, stage: *u8, path: *u8): void {
   let r: *u8 = rel;
   let st: *u8 = stage;
@@ -300,13 +300,13 @@ export function link_diag_ld_debug_push(rel: *u8, stage: *u8, path: *u8): void {
   }
 }
 
-#[no_mangle]
 /** Exported function `link_diag_ld_debug_argv`.
  * Implements `link_diag_ld_debug_argv`.
  * @param label *u8
  * @param argv *u8
  * @return void
  */
+#[no_mangle]
 export function link_diag_ld_debug_argv(label: *u8, argv: *u8): void {
   /* See signature and body for contracts. */
   unsafe {

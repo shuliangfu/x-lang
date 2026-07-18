@@ -22,7 +22,6 @@ export function lsp_diag_stubs_no_c_x_doc_anchor(): i32 {
 // See implementation.
 // See implementation.
 // lsp_diag_copy_text_impl: see function docblock below.
-#[no_mangle]
 /** Exported function `lsp_diag_copy_text_impl`.
  * Implements `lsp_diag_copy_text_impl`.
  * @param dst *u8
@@ -30,6 +29,7 @@ export function lsp_diag_stubs_no_c_x_doc_anchor(): i32 {
  * @param src *u8
  * @return void
  */
+#[no_mangle]
 export function lsp_diag_copy_text_impl(dst: *u8, cap: i32, src: *u8): void {
   if (dst == 0 || cap <= 0) { return; }
   if (src == 0) { dst[0] = 0; return; }
@@ -45,7 +45,6 @@ export function lsp_diag_copy_text_impl(dst: *u8, cap: i32, src: *u8): void {
 // See implementation.
 // See implementation.
 // json_escape_str_impl: see function docblock below.
-#[no_mangle]
 /** Exported function `json_escape_str_impl`.
  * Implements `json_escape_str_impl`.
  * @param msg *u8
@@ -53,6 +52,7 @@ export function lsp_diag_copy_text_impl(dst: *u8, cap: i32, src: *u8): void {
  * @param out_cap i32
  * @return i32
  */
+#[no_mangle]
 export function json_escape_str_impl(msg: *u8, out: *u8, out_cap: i32): i32 {
   let k: i32 = 0;
   if (msg == 0 || out == 0 || out_cap <= 0) { return 0; }
@@ -91,7 +91,6 @@ export function lsp_diag_copy_text(dst: *u8, cap: i32, src: *u8): void {
   lsp_diag_copy_text_impl(dst, cap, src);
 }
 
-#[no_mangle]
 /** Exported function `json_escape_str`.
  * Implements `json_escape_str`.
  * @param msg *u8
@@ -99,6 +98,7 @@ export function lsp_diag_copy_text(dst: *u8, cap: i32, src: *u8): void {
  * @param out_cap i32
  * @return i32
  */
+#[no_mangle]
 export function json_escape_str(msg: *u8, out: *u8, out_cap: i32): i32 {
   return json_escape_str_impl(msg, out, out_cap);
 }

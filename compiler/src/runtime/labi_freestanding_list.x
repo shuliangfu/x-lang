@@ -10,31 +10,31 @@
 // link_abi L7 freestanding pure table (G.9 English; body is authoritative).
 // labi_fs_env_freestanding: see function docblock below.
 
-#[no_mangle]
 /** Exported function `labi_fs_env_freestanding`.
  * Memory management helper `labi_fs_env_freestanding`.
  * @return *u8
  */
+#[no_mangle]
 export function labi_fs_env_freestanding(): *u8 {
   let p: *u8 = "SHUX_FREESTANDING";
   return p;
 }
 
-#[no_mangle]
 /** Exported function `labi_fs_io_sym_count`.
  * Implements `labi_fs_io_sym_count`.
  * @return i32
  */
+#[no_mangle]
 export function labi_fs_io_sym_count(): i32 {
   return 13;
 }
 
-#[no_mangle]
 /** Exported function `labi_fs_io_sym_at`.
  * Implements `labi_fs_io_sym_at`.
  * @param i i32
  * @return *u8
  */
+#[no_mangle]
 export function labi_fs_io_sym_at(i: i32): *u8 {
   if (i < 0) {
     return 0 as *u8;
@@ -94,31 +94,31 @@ export function labi_fs_io_sym_at(i: i32): *u8 {
   return 0 as *u8;
 }
 
-#[no_mangle]
 /** Exported function `labi_fs_panic_sym`.
  * Implements `labi_fs_panic_sym`.
  * @return *u8
  */
+#[no_mangle]
 export function labi_fs_panic_sym(): *u8 {
   let p: *u8 = "shux_panic_";
   return p;
 }
 
-#[no_mangle]
 /** Exported function `labi_fs_ensure_catalog_count`.
  * Implements `labi_fs_ensure_catalog_count`.
  * @return i32
  */
+#[no_mangle]
 export function labi_fs_ensure_catalog_count(): i32 {
   return 2;
 }
 
 // link_abi L7 freestanding pure table (G.9 English; body is authoritative).
-#[no_mangle]
 /** Function `labi_fs_ensure_catalog_step_at`.
  * Purpose: implements `labi_fs_ensure_catalog_step_at`; params/returns as declared (may be multi-line).
  * Contracts: null/cap/PLATFORM as enforced in the body.
  */
+#[no_mangle]
 export function labi_fs_ensure_catalog_step_at(
   i: i32, stem_out: *usize, out_base_out: *usize, src_rel_out: *usize
 ): i32 {
@@ -161,12 +161,12 @@ export function labi_fs_ensure_catalog_step_at(
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `labi_fs_ensure_out_base`.
  * Implements `labi_fs_ensure_out_base`.
  * @param i i32
  * @return *u8
  */
+#[no_mangle]
 export function labi_fs_ensure_out_base(i: i32): *u8 {
   if (i < 0) {
     return 0 as *u8;
@@ -182,12 +182,12 @@ export function labi_fs_ensure_out_base(i: i32): *u8 {
   return 0 as *u8;
 }
 
-#[no_mangle]
 /** Exported function `labi_fs_ensure_src_rel`.
  * Implements `labi_fs_ensure_src_rel`.
  * @param i i32
  * @return *u8
  */
+#[no_mangle]
 export function labi_fs_ensure_src_rel(i: i32): *u8 {
   if (i < 0) {
     return 0 as *u8;
@@ -203,12 +203,12 @@ export function labi_fs_ensure_src_rel(i: i32): *u8 {
   return 0 as *u8;
 }
 
-#[no_mangle]
 /** Exported function `labi_fs_ensure_stem`.
  * Implements `labi_fs_ensure_stem`.
  * @param i i32
  * @return *u8
  */
+#[no_mangle]
 export function labi_fs_ensure_stem(i: i32): *u8 {
   if (i < 0) {
     return 0 as *u8;
@@ -224,41 +224,41 @@ export function labi_fs_ensure_stem(i: i32): *u8 {
   return 0 as *u8;
 }
 
-#[no_mangle]
 /** Exported function `labi_fs_crt0_out_base`.
  * Implements `labi_fs_crt0_out_base`.
  * @return *u8
  */
+#[no_mangle]
 export function labi_fs_crt0_out_base(): *u8 {
   let p: *u8 = "crt0_user.o";
   return p;
 }
 
-#[no_mangle]
 /** Exported function `labi_fs_crt0_src_rel`.
  * Implements `labi_fs_crt0_src_rel`.
  * @return *u8
  */
+#[no_mangle]
 export function labi_fs_crt0_src_rel(): *u8 {
   let p: *u8 = "src/asm/crt0_user_x86_64.s";
   return p;
 }
 
-#[no_mangle]
 /** Exported function `labi_fs_io_out_base`.
  * Implements `labi_fs_io_out_base`.
  * @return *u8
  */
+#[no_mangle]
 export function labi_fs_io_out_base(): *u8 {
   let p: *u8 = "freestanding_io.o";
   return p;
 }
 
-#[no_mangle]
 /** Exported function `labi_fs_io_src_rel`.
  * Implements `labi_fs_io_src_rel`.
  * @return *u8
  */
+#[no_mangle]
 export function labi_fs_io_src_rel(): *u8 {
   let p: *u8 = "src/asm/freestanding_io_x86_64.s";
   return p;

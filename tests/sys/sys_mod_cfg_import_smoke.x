@@ -14,11 +14,11 @@ function probe_platform(): i32 {
   return macos.macos_write_available();
 }
 
-#[cfg(target_os = "linux")]
 /** Internal function `probe_platform`.
  * Implements `probe_platform`.
  * @return i32
  */
+#[cfg(target_os = "linux")]
 function probe_platform(): i32 {
   return linux.linux_syscall_table_available();
 }

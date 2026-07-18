@@ -4,7 +4,6 @@ struct MB1Header { magic: u32; flags: u32; checksum: u32; }
 #[link_section(".boot")]
 const mb1: MB1Header = { magic: 0x1BADB002, flags: 0, checksum: 0xE4524FFE, };
 
-#[used]
 /** Internal function `kputc`.
  * Implements `kputc`.
  * @param c u8): void { unsafe { asm!("outb %%al
@@ -12,6 +11,7 @@ const mb1: MB1Header = { magic: 0x1BADB002, flags: 0, checksum: 0xE4524FFE, };
  * @param "d"(0x3F8)
  * @return void
  */
+#[used]
 function kputc(c: u8): void { unsafe { asm!("outb %%al, %%dx" : : "a"(c), "d"(0x3F8)); } }
 
 let tick_count: u32 = 0;
@@ -19,12 +19,12 @@ let current_task: u32 = 0;
 let ctx_task1: u32 = 0;
 let ctx_task2: u32 = 0;
 
-#[used]
-#[naked]
 /** Internal function `timer_preempt`.
  * Implements `timer_preempt`.
  * @return void
  */
+#[used]
+#[naked]
 function timer_preempt(): void {
   unsafe {
     asm!("pushal; incl tick_count; movb $0x20, %al; outb %al, $0x20;
@@ -35,11 +35,11 @@ function timer_preempt(): void {
   }
 }
 
-#[used]
 /** Internal function `task1_loop`.
  * Implements `task1_loop`.
  * @return void
  */
+#[used]
 function task1_loop(): void {
   unsafe { asm!("sti"); }
   while (0 == 0) {
@@ -50,11 +50,11 @@ function task1_loop(): void {
   }
 }
 
-#[used]
 /** Internal function `task2_loop`.
  * Implements `task2_loop`.
  * @return void
  */
+#[used]
 function task2_loop(): void {
   while (0 == 0) { }
 }
@@ -84,13 +84,13 @@ function setup_task(ctx_sp: *volatile u32, entry: u32, stack_top: u32): void {
   }
 }
 
-#[used]
 /** Internal function `idt_set_entry`.
  * Implements `idt_set_entry`.
  * @param index u32
  * @param handler u32
  * @return void
  */
+#[used]
 function idt_set_entry(index: u32, handler: u32): void {
   let base: u32 = 0x90000 + index * 8;
   unsafe {
@@ -134,13 +134,13 @@ function kmain(): i32 {
   return 0;
 }
 
-#[entry]
 /** Internal function `start`.
  * Implements `start`.
  * @param ) void { unsafe { asm!("mov $0x80000
  * @param %esp; call kmain; cli; hlt"
  * @return void
  */
+#[entry]
 function start(): void { unsafe { asm!("mov $0x80000, %esp; call kmain; cli; hlt"); } }
 /** Internal function `main`.
  * Program/test entry point.

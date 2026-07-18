@@ -20,13 +20,13 @@ export extern "C" function arch_riscv64_enc_enc_call_impl(elf_ctx: *u8, name: *u
 export extern "C" function arch_riscv64_enc_enc_mov_rax_to_arg_reg_impl(elf_ctx: *u8, k: i32): i32;
 
 // ADD X31, X31, #imm12  （SP+imm）
-#[no_mangle]
 /** Exported function `backend_enc_arm64_add_sp_imm12_c`.
  * Implements `backend_enc_arm64_add_sp_imm12_c`.
  * @param elf_ctx *u8
  * @param imm i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_arm64_add_sp_imm12_c(elf_ctx: *u8, imm: i32): i32 {
   if (elf_ctx == 0 as *u8) {
     return 0 - 1;
@@ -47,13 +47,13 @@ export function backend_enc_arm64_add_sp_imm12_c(elf_ctx: *u8, imm: i32): i32 {
 }
 
 // SUB X31, X31, #imm12
-#[no_mangle]
 /** Exported function `backend_enc_arm64_sub_sp_imm12_c`.
  * Implements `backend_enc_arm64_sub_sp_imm12_c`.
  * @param elf_ctx *u8
  * @param imm i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_arm64_sub_sp_imm12_c(elf_ctx: *u8, imm: i32): i32 {
   if (elf_ctx == 0 as *u8) {
     return 0 - 1;
@@ -74,13 +74,13 @@ export function backend_enc_arm64_sub_sp_imm12_c(elf_ctx: *u8, imm: i32): i32 {
 }
 
 // STR X0, [SP, #imm12*8]
-#[no_mangle]
 /** Exported function `backend_enc_arm64_str_x0_sp_offset_c`.
  * Implements `backend_enc_arm64_str_x0_sp_offset_c`.
  * @param elf_ctx *u8
  * @param off_bytes i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_arm64_str_x0_sp_offset_c(elf_ctx: *u8, off_bytes: i32): i32 {
   if (elf_ctx == 0 as *u8) {
     return 0 - 1;
@@ -104,13 +104,13 @@ export function backend_enc_arm64_str_x0_sp_offset_c(elf_ctx: *u8, off_bytes: i3
 }
 
 // arm64_enc_load_w0_from_rbp_c: see function docblock below.
-#[no_mangle]
 /** Exported function `arm64_enc_load_w0_from_rbp_c`.
  * Implements `arm64_enc_load_w0_from_rbp_c`.
  * @param elf_ctx *u8
  * @param offset i32
  * @return i32
  */
+#[no_mangle]
 export function arm64_enc_load_w0_from_rbp_c(elf_ctx: *u8, offset: i32): i32 {
   if (elf_ctx == 0 as *u8) {
     return 0 - 1;
@@ -132,13 +132,13 @@ export function arm64_enc_load_w0_from_rbp_c(elf_ctx: *u8, offset: i32): i32 {
 }
 
 // STUR w0, [x29, #-offset]
-#[no_mangle]
 /** Exported function `arm64_enc_store_w0_to_rbp_c`.
  * Implements `arm64_enc_store_w0_to_rbp_c`.
  * @param elf_ctx *u8
  * @param offset i32
  * @return i32
  */
+#[no_mangle]
 export function arm64_enc_store_w0_to_rbp_c(elf_ctx: *u8, offset: i32): i32 {
   if (elf_ctx == 0 as *u8) {
     return 0 - 1;
@@ -159,40 +159,39 @@ export function arm64_enc_store_w0_to_rbp_c(elf_ctx: *u8, offset: i32): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `arch_arm64_enc_enc_add_sp_imm12`.
  * Implements `arch_arm64_enc_enc_add_sp_imm12`.
  * @param elf_ctx *u8
  * @param imm i32
  * @return i32
  */
+#[no_mangle]
 export function arch_arm64_enc_enc_add_sp_imm12(elf_ctx: *u8, imm: i32): i32 {
   return backend_enc_arm64_add_sp_imm12_c(elf_ctx, imm);
 }
 
-#[no_mangle]
 /** Exported function `arch_arm64_enc_enc_sub_sp_imm12`.
  * Implements `arch_arm64_enc_enc_sub_sp_imm12`.
  * @param elf_ctx *u8
  * @param imm i32
  * @return i32
  */
+#[no_mangle]
 export function arch_arm64_enc_enc_sub_sp_imm12(elf_ctx: *u8, imm: i32): i32 {
   return backend_enc_arm64_sub_sp_imm12_c(elf_ctx, imm);
 }
 
-#[no_mangle]
 /** Exported function `arch_arm64_enc_enc_str_x0_sp_offset`.
  * Implements `arch_arm64_enc_enc_str_x0_sp_offset`.
  * @param elf_ctx *u8
  * @param off_bytes i32
  * @return i32
  */
+#[no_mangle]
 export function arch_arm64_enc_enc_str_x0_sp_offset(elf_ctx: *u8, off_bytes: i32): i32 {
   return backend_enc_arm64_str_x0_sp_offset_c(elf_ctx, off_bytes);
 }
 
-#[no_mangle]
 /** Exported function `arch_arm64_enc_enc_call`.
  * Implements `arch_arm64_enc_enc_call`.
  * @param elf_ctx *u8
@@ -200,6 +199,7 @@ export function arch_arm64_enc_enc_str_x0_sp_offset(elf_ctx: *u8, off_bytes: i32
  * @param name_len i32
  * @return i32
  */
+#[no_mangle]
 export function arch_arm64_enc_enc_call(elf_ctx: *u8, name: *u8, name_len: i32): i32 {
   unsafe {
     return backend_enc_arm64_call_c_impl(elf_ctx, name, name_len);
@@ -207,7 +207,6 @@ export function arch_arm64_enc_enc_call(elf_ctx: *u8, name: *u8, name_len: i32):
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `arch_riscv64_enc_enc_call`.
  * Implements `arch_riscv64_enc_enc_call`.
  * @param elf_ctx *u8
@@ -215,6 +214,7 @@ export function arch_arm64_enc_enc_call(elf_ctx: *u8, name: *u8, name_len: i32):
  * @param name_len i32
  * @return i32
  */
+#[no_mangle]
 export function arch_riscv64_enc_enc_call(elf_ctx: *u8, name: *u8, name_len: i32): i32 {
   unsafe {
     return arch_riscv64_enc_enc_call_impl(elf_ctx, name, name_len);
@@ -222,13 +222,13 @@ export function arch_riscv64_enc_enc_call(elf_ctx: *u8, name: *u8, name_len: i32
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `arch_riscv64_enc_enc_mov_rax_to_arg_reg`.
  * Implements `arch_riscv64_enc_enc_mov_rax_to_arg_reg`.
  * @param elf_ctx *u8
  * @param k i32
  * @return i32
  */
+#[no_mangle]
 export function arch_riscv64_enc_enc_mov_rax_to_arg_reg(elf_ctx: *u8, k: i32): i32 {
   unsafe {
     return arch_riscv64_enc_enc_mov_rax_to_arg_reg_impl(elf_ctx, k);
@@ -261,13 +261,13 @@ export extern "C" function arch_arm64_enc_enc_imul_rbx_rax(elf_ctx: *u8): i32;
 export extern "C" function arch_riscv64_enc_enc_imul_rbx_rax(elf_ctx: *u8): i32;
 export extern "C" function arch_x86_64_enc_enc_imul_rbx_rax(elf_ctx: *u8): i32;
 
-#[no_mangle]
 /** Exported function `backend_enc_push_rax_arch`.
  * Implements `backend_enc_push_rax_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_push_rax_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_push_rax(elf_ctx); }
@@ -279,13 +279,13 @@ export function backend_enc_push_rax_arch(elf_ctx: *u8, ta: i32): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_push_rbx_arch`.
  * Implements `backend_enc_push_rbx_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_push_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_push_rbx(elf_ctx); }
@@ -297,13 +297,13 @@ export function backend_enc_push_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_pop_rax_arch`.
  * Implements `backend_enc_pop_rax_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_pop_rax_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_pop_rax(elf_ctx); }
@@ -315,13 +315,13 @@ export function backend_enc_pop_rax_arch(elf_ctx: *u8, ta: i32): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_pop_rbx_arch`.
  * Implements `backend_enc_pop_rbx_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_pop_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_pop_rbx(elf_ctx); }
@@ -333,13 +333,13 @@ export function backend_enc_pop_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_epilogue_arch`.
  * Implements `backend_enc_epilogue_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_epilogue_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_epilogue(elf_ctx); }
@@ -351,13 +351,13 @@ export function backend_enc_epilogue_arch(elf_ctx: *u8, ta: i32): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_add_rax_rbx_arch`.
  * Implements `backend_enc_add_rax_rbx_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_add_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_add_rax_rbx(elf_ctx); }
@@ -369,7 +369,6 @@ export function backend_enc_add_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 // backend_enc_sub_rax_rbx_arch: see function docblock below.
 /** Exported function `backend_enc_sub_rax_rbx_arch`.
  * Implements `backend_enc_sub_rax_rbx_arch`.
@@ -377,6 +376,7 @@ export function backend_enc_add_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_sub_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_sub_rax_rbx(elf_ctx); }
@@ -388,13 +388,13 @@ export function backend_enc_sub_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_imul_rbx_rax_arch`.
  * Implements `backend_enc_imul_rbx_rax_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_imul_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_imul_rbx_rax(elf_ctx); }
@@ -438,13 +438,13 @@ export extern "C" function arch_arm64_enc_enc_test_rbx_rbx(elf_ctx: *u8): i32;
 export extern "C" function arch_riscv64_enc_enc_test_rbx_rbx(elf_ctx: *u8): i32;
 export extern "C" function arch_x86_64_enc_enc_test_rbx_rbx(elf_ctx: *u8): i32;
 
-#[no_mangle]
 /** Exported function `backend_enc_mov_rax_to_rbx_arch`.
  * Implements `backend_enc_mov_rax_to_rbx_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_mov_rax_to_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_mov_rax_to_rbx(elf_ctx); }
@@ -456,13 +456,13 @@ export function backend_enc_mov_rax_to_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_not_eax_arch`.
  * Implements `backend_enc_not_eax_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_not_eax_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_not_eax(elf_ctx); }
@@ -474,13 +474,13 @@ export function backend_enc_not_eax_arch(elf_ctx: *u8, ta: i32): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_and_rbx_rax_arch`.
  * Implements `backend_enc_and_rbx_rax_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_and_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_and_rbx_rax(elf_ctx); }
@@ -492,13 +492,13 @@ export function backend_enc_and_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_or_rbx_rax_arch`.
  * Implements `backend_enc_or_rbx_rax_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_or_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_or_rbx_rax(elf_ctx); }
@@ -510,13 +510,13 @@ export function backend_enc_or_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_xor_rbx_rax_arch`.
  * Implements `backend_enc_xor_rbx_rax_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_xor_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_xor_rbx_rax(elf_ctx); }
@@ -528,13 +528,13 @@ export function backend_enc_xor_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_mov_rbx_to_ecx_arch`.
  * Implements `backend_enc_mov_rbx_to_ecx_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_mov_rbx_to_ecx_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_mov_rbx_to_ecx(elf_ctx); }
@@ -546,13 +546,13 @@ export function backend_enc_mov_rbx_to_ecx_arch(elf_ctx: *u8, ta: i32): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_cltd_arch`.
  * Implements `backend_enc_cltd_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_cltd_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_cltd(elf_ctx); }
@@ -564,13 +564,13 @@ export function backend_enc_cltd_arch(elf_ctx: *u8, ta: i32): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_neg_eax_arch`.
  * Implements `backend_enc_neg_eax_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_neg_eax_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_neg_eax(elf_ctx); }
@@ -582,13 +582,13 @@ export function backend_enc_neg_eax_arch(elf_ctx: *u8, ta: i32): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_test_eax_eax_arch`.
  * Implements `backend_enc_test_eax_eax_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_test_eax_eax_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_test_eax_eax(elf_ctx); }
@@ -600,13 +600,13 @@ export function backend_enc_test_eax_eax_arch(elf_ctx: *u8, ta: i32): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_test_rbx_rbx_arch`.
  * Implements `backend_enc_test_rbx_rbx_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_test_rbx_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_test_rbx_rbx(elf_ctx); }
@@ -651,13 +651,13 @@ export extern "C" function arch_x86_64_enc_enc_shr_cl_rax(elf_ctx: *u8): i32;
 export extern "C" function arch_x86_64_enc_enc_sub_rbx_rax_then_mov(elf_ctx: *u8): i32;
 export extern "C" function arch_x86_64_enc_enc_xor_edx_edx(elf_ctx: *u8): i32;
 
-#[no_mangle]
 /** Exported function `backend_enc_shl_cl_eax_arch`.
  * Implements `backend_enc_shl_cl_eax_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_shl_cl_eax_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_shl_cl_eax(elf_ctx); }
@@ -669,13 +669,13 @@ export function backend_enc_shl_cl_eax_arch(elf_ctx: *u8, ta: i32): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_shr_cl_eax_arch`.
  * Implements `backend_enc_shr_cl_eax_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_shr_cl_eax_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_shr_cl_eax(elf_ctx); }
@@ -687,13 +687,13 @@ export function backend_enc_shr_cl_eax_arch(elf_ctx: *u8, ta: i32): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_sar_cl_eax_arch`.
  * Implements `backend_enc_sar_cl_eax_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_sar_cl_eax_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_sar_cl_eax(elf_ctx); }
@@ -705,13 +705,13 @@ export function backend_enc_sar_cl_eax_arch(elf_ctx: *u8, ta: i32): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_mov_edx_to_eax_arch`.
  * Implements `backend_enc_mov_edx_to_eax_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_mov_edx_to_eax_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_mov_edx_to_eax(elf_ctx); }
@@ -723,13 +723,13 @@ export function backend_enc_mov_edx_to_eax_arch(elf_ctx: *u8, ta: i32): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_setz_movzbl_eax_arch`.
  * Implements `backend_enc_setz_movzbl_eax_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_setz_movzbl_eax_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_setz_movzbl_eax(elf_ctx); }
@@ -741,13 +741,13 @@ export function backend_enc_setz_movzbl_eax_arch(elf_ctx: *u8, ta: i32): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_cmp_rbx_rax_arch`.
  * Comparison/utility `backend_enc_cmp_rbx_rax_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_cmp_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_cmp_rbx_rax(elf_ctx); }
@@ -759,13 +759,13 @@ export function backend_enc_cmp_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_sub_rbx_rax_then_mov_arch`.
  * Implements `backend_enc_sub_rbx_rax_then_mov_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_sub_rbx_rax_then_mov_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_sub_rbx_rax_then_mov(elf_ctx); }
@@ -777,13 +777,13 @@ export function backend_enc_sub_rbx_rax_then_mov_arch(elf_ctx: *u8, ta: i32): i3
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_shl_cl_rax_arch`.
  * Implements `backend_enc_shl_cl_rax_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_shl_cl_rax_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_shl_cl_eax(elf_ctx); }
@@ -795,13 +795,13 @@ export function backend_enc_shl_cl_rax_arch(elf_ctx: *u8, ta: i32): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_shr_cl_rax_arch`.
  * Implements `backend_enc_shr_cl_rax_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_shr_cl_rax_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_shr_cl_eax(elf_ctx); }
@@ -813,13 +813,13 @@ export function backend_enc_shr_cl_rax_arch(elf_ctx: *u8, ta: i32): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_sar_cl_rax_arch`.
  * Implements `backend_enc_sar_cl_rax_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_sar_cl_rax_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_sar_cl_eax(elf_ctx); }
@@ -831,13 +831,13 @@ export function backend_enc_sar_cl_rax_arch(elf_ctx: *u8, ta: i32): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_cmp_rax_rbx_arch`.
  * Comparison/utility `backend_enc_cmp_rax_rbx_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_cmp_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_cmp_rax_rbx(elf_ctx); }
@@ -849,13 +849,13 @@ export function backend_enc_cmp_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_idiv_rbx_arch`.
  * Implements `backend_enc_idiv_rbx_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_idiv_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_idiv_rbx(elf_ctx); }
@@ -872,13 +872,13 @@ export function backend_enc_idiv_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_div_rbx_arch`.
  * Implements `backend_enc_div_rbx_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_div_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_idiv_rbx(elf_ctx); }
@@ -945,7 +945,6 @@ export extern "C" function arch_x86_64_enc_enc_rax_plus_rbx_scale8(elf_ctx: *u8)
 export extern "C" function arch_x86_64_enc_enc_ret_imm32(elf_ctx: *u8, imm32: i32): i32;
 export extern "C" function arch_x86_64_enc_enc_store_rax_to_rbp(elf_ctx: *u8, offset: i32): i32;
 
-#[no_mangle]
 /** Exported function `backend_enc_prologue_arch`.
  * Implements `backend_enc_prologue_arch`.
  * @param elf_ctx *u8
@@ -953,6 +952,7 @@ export extern "C" function arch_x86_64_enc_enc_store_rax_to_rbp(elf_ctx: *u8, of
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_prologue_arch(elf_ctx: *u8, frame_sz: i32, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_prologue(elf_ctx, frame_sz); }
@@ -964,7 +964,6 @@ export function backend_enc_prologue_arch(elf_ctx: *u8, frame_sz: i32, ta: i32):
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_ret_imm32_arch`.
  * Implements `backend_enc_ret_imm32_arch`.
  * @param elf_ctx *u8
@@ -972,6 +971,7 @@ export function backend_enc_prologue_arch(elf_ctx: *u8, frame_sz: i32, ta: i32):
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_ret_imm32_arch(elf_ctx: *u8, imm32: i32, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_ret_imm32(elf_ctx, imm32); }
@@ -983,7 +983,6 @@ export function backend_enc_ret_imm32_arch(elf_ctx: *u8, imm32: i32, ta: i32): i
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_mov_imm32_to_rbx_arch`.
  * Implements `backend_enc_mov_imm32_to_rbx_arch`.
  * @param elf_ctx *u8
@@ -991,6 +990,7 @@ export function backend_enc_ret_imm32_arch(elf_ctx: *u8, imm32: i32, ta: i32): i
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_mov_imm32_to_rbx_arch(elf_ctx: *u8, imm32: i32, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_mov_imm32_to_rbx(elf_ctx, imm32); }
@@ -1002,7 +1002,6 @@ export function backend_enc_mov_imm32_to_rbx_arch(elf_ctx: *u8, imm32: i32, ta: 
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_mov_imm64_to_rax_arch`.
  * Implements `backend_enc_mov_imm64_to_rax_arch`.
  * @param elf_ctx *u8
@@ -1011,6 +1010,7 @@ export function backend_enc_mov_imm32_to_rbx_arch(elf_ctx: *u8, imm32: i32, ta: 
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_mov_imm64_to_rax_arch(elf_ctx: *u8, lo: i32, hi: i32, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_mov_imm64_to_rax(elf_ctx, lo, hi); }
@@ -1022,7 +1022,6 @@ export function backend_enc_mov_imm64_to_rax_arch(elf_ctx: *u8, lo: i32, hi: i32
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_cmp_setcc_movzbl_arch`.
  * Comparison/utility `backend_enc_cmp_setcc_movzbl_arch`.
  * @param elf_ctx *u8
@@ -1030,6 +1029,7 @@ export function backend_enc_mov_imm64_to_rax_arch(elf_ctx: *u8, lo: i32, hi: i32
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_cmp_setcc_movzbl_arch(elf_ctx: *u8, cc: i32, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_cmp_setcc_movzbl(elf_ctx, cc); }
@@ -1041,7 +1041,6 @@ export function backend_enc_cmp_setcc_movzbl_arch(elf_ctx: *u8, cc: i32, ta: i32
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_store_rax_to_rbp_arch`.
  * Implements `backend_enc_store_rax_to_rbp_arch`.
  * @param elf_ctx *u8
@@ -1049,6 +1048,7 @@ export function backend_enc_cmp_setcc_movzbl_arch(elf_ctx: *u8, cc: i32, ta: i32
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_store_rax_to_rbp_arch(elf_ctx: *u8, offset: i32, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_store_rax_to_rbp(elf_ctx, offset); }
@@ -1060,7 +1060,6 @@ export function backend_enc_store_rax_to_rbp_arch(elf_ctx: *u8, offset: i32, ta:
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_load_rbp_to_rax_arch`.
  * Implements `backend_enc_load_rbp_to_rax_arch`.
  * @param elf_ctx *u8
@@ -1068,6 +1067,7 @@ export function backend_enc_store_rax_to_rbp_arch(elf_ctx: *u8, offset: i32, ta:
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_load_rbp_to_rax_arch(elf_ctx: *u8, offset: i32, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_load_rbp_to_rax(elf_ctx, offset); }
@@ -1079,7 +1079,6 @@ export function backend_enc_load_rbp_to_rax_arch(elf_ctx: *u8, offset: i32, ta: 
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_lea_rbp_to_rax_arch`.
  * Implements `backend_enc_lea_rbp_to_rax_arch`.
  * @param elf_ctx *u8
@@ -1087,6 +1086,7 @@ export function backend_enc_load_rbp_to_rax_arch(elf_ctx: *u8, offset: i32, ta: 
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_lea_rbp_to_rax_arch(elf_ctx: *u8, offset: i32, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_lea_rbp_to_rax(elf_ctx, offset); }
@@ -1098,7 +1098,6 @@ export function backend_enc_lea_rbp_to_rax_arch(elf_ctx: *u8, offset: i32, ta: i
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_lea_rbp_to_rbx_arch`.
  * Implements `backend_enc_lea_rbp_to_rbx_arch`.
  * @param elf_ctx *u8
@@ -1106,6 +1105,7 @@ export function backend_enc_lea_rbp_to_rax_arch(elf_ctx: *u8, offset: i32, ta: i
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_lea_rbp_to_rbx_arch(elf_ctx: *u8, offset: i32, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_lea_rbp_to_rbx(elf_ctx, offset); }
@@ -1117,13 +1117,13 @@ export function backend_enc_lea_rbp_to_rbx_arch(elf_ctx: *u8, offset: i32, ta: i
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_rax_plus_rbx_scale1_arch`.
  * Implements `backend_enc_rax_plus_rbx_scale1_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_rax_plus_rbx_scale1_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_rax_plus_rbx_scale1(elf_ctx); }
@@ -1135,13 +1135,13 @@ export function backend_enc_rax_plus_rbx_scale1_arch(elf_ctx: *u8, ta: i32): i32
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_rax_plus_rbx_scale4_arch`.
  * Implements `backend_enc_rax_plus_rbx_scale4_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_rax_plus_rbx_scale4_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_rax_plus_rbx_scale4(elf_ctx); }
@@ -1153,13 +1153,13 @@ export function backend_enc_rax_plus_rbx_scale4_arch(elf_ctx: *u8, ta: i32): i32
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_rax_plus_rbx_scale8_arch`.
  * Implements `backend_enc_rax_plus_rbx_scale8_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_rax_plus_rbx_scale8_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_rax_plus_rbx_scale8(elf_ctx); }
@@ -1171,13 +1171,13 @@ export function backend_enc_rax_plus_rbx_scale8_arch(elf_ctx: *u8, ta: i32): i32
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_load_zext8_from_rax_arch`.
  * Implements `backend_enc_load_zext8_from_rax_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_load_zext8_from_rax_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_load_zext8_from_rax(elf_ctx); }
@@ -1189,7 +1189,6 @@ export function backend_enc_load_zext8_from_rax_arch(elf_ctx: *u8, ta: i32): i32
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_add_imm_to_rax_arch`.
  * Implements `backend_enc_add_imm_to_rax_arch`.
  * @param elf_ctx *u8
@@ -1197,6 +1196,7 @@ export function backend_enc_load_zext8_from_rax_arch(elf_ctx: *u8, ta: i32): i32
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_add_imm_to_rax_arch(elf_ctx: *u8, imm: i32, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_add_imm_to_rax(elf_ctx, imm); }
@@ -1208,7 +1208,6 @@ export function backend_enc_add_imm_to_rax_arch(elf_ctx: *u8, imm: i32, ta: i32)
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_add_imm_to_rbx_arch`.
  * Implements `backend_enc_add_imm_to_rbx_arch`.
  * @param elf_ctx *u8
@@ -1216,6 +1215,7 @@ export function backend_enc_add_imm_to_rax_arch(elf_ctx: *u8, imm: i32, ta: i32)
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_add_imm_to_rbx_arch(elf_ctx: *u8, imm: i32, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_add_imm_to_rbx(elf_ctx, imm); }
@@ -1227,7 +1227,6 @@ export function backend_enc_add_imm_to_rbx_arch(elf_ctx: *u8, imm: i32, ta: i32)
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_label_arch`.
  * Implements `backend_enc_label_arch`.
  * @param elf_ctx *u8
@@ -1237,6 +1236,7 @@ export function backend_enc_add_imm_to_rbx_arch(elf_ctx: *u8, imm: i32, ta: i32)
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_label_arch(elf_ctx: *u8, name: *u8, name_len: i32, is_func: i32, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_label(elf_ctx, name, name_len, is_func); }
@@ -1293,7 +1293,6 @@ export extern "C" function arch_x86_64_enc_enc_load_qword_from_rbx_to_rax(elf_ct
 export extern "C" function arch_x86_64_enc_enc_load_qword_rbx8_to_rdx(elf_ctx: *u8): i32;
 export extern "C" function arch_x86_64_enc_enc_store_rdx_to_rbp(elf_ctx: *u8, offset: i32): i32;
 
-#[no_mangle]
 /** Exported function `backend_enc_store_rax_to_rbx_indirect_arch`.
  * Implements `backend_enc_store_rax_to_rbx_indirect_arch`.
  * @param elf_ctx *u8
@@ -1301,6 +1300,7 @@ export extern "C" function arch_x86_64_enc_enc_store_rdx_to_rbp(elf_ctx: *u8, of
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_store_rax_to_rbx_indirect_arch(elf_ctx: *u8, elem_sz: i32, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_store_rax_to_rbx_indirect(elf_ctx, elem_sz); }
@@ -1312,13 +1312,13 @@ export function backend_enc_store_rax_to_rbx_indirect_arch(elf_ctx: *u8, elem_sz
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_load_32_from_rax_arch`.
  * Implements `backend_enc_load_32_from_rax_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_load_32_from_rax_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_load_32_from_rax(elf_ctx); }
@@ -1335,13 +1335,13 @@ export function backend_enc_load_32_from_rax_arch(elf_ctx: *u8, ta: i32): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_load_i32_indirect_to_rax_arch`.
  * Implements `backend_enc_load_i32_indirect_to_rax_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_load_i32_indirect_to_rax_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_load_32_from_rax(elf_ctx); }
@@ -1358,7 +1358,6 @@ export function backend_enc_load_i32_indirect_to_rax_arch(elf_ctx: *u8, ta: i32)
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_load_rbp_index_scratch_arch`.
  * Implements `backend_enc_load_rbp_index_scratch_arch`.
  * @param elf_ctx *u8
@@ -1366,6 +1365,7 @@ export function backend_enc_load_i32_indirect_to_rax_arch(elf_ctx: *u8, ta: i32)
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_load_rbp_index_scratch_arch(elf_ctx: *u8, offset: i32, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_load_rbp_to_x2(elf_ctx, offset); }
@@ -1377,13 +1377,13 @@ export function backend_enc_load_rbp_index_scratch_arch(elf_ctx: *u8, offset: i3
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_load_64_from_rax_arch`.
  * Implements `backend_enc_load_64_from_rax_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_load_64_from_rax_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_load_64_from_rax(elf_ctx); }
@@ -1395,7 +1395,6 @@ export function backend_enc_load_64_from_rax_arch(elf_ctx: *u8, ta: i32): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_store_rax_to_rbx_offset_arch`.
  * Implements `backend_enc_store_rax_to_rbx_offset_arch`.
  * @param elf_ctx *u8
@@ -1404,6 +1403,7 @@ export function backend_enc_load_64_from_rax_arch(elf_ctx: *u8, ta: i32): i32 {
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_store_rax_to_rbx_offset_arch(elf_ctx: *u8, offset: i32, store_size: i32, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_store_rax_to_rbx_offset(elf_ctx, offset, store_size); }
@@ -1415,13 +1415,13 @@ export function backend_enc_store_rax_to_rbx_offset_arch(elf_ctx: *u8, offset: i
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_mov_rbx_to_rax_arch`.
  * Implements `backend_enc_mov_rbx_to_rax_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_mov_rbx_to_rax_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_mov_rbx_to_rax(elf_ctx); }
@@ -1433,7 +1433,6 @@ export function backend_enc_mov_rbx_to_rax_arch(elf_ctx: *u8, ta: i32): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_jz_arch`.
  * Implements `backend_enc_jz_arch`.
  * @param elf_ctx *u8
@@ -1442,6 +1441,7 @@ export function backend_enc_mov_rbx_to_rax_arch(elf_ctx: *u8, ta: i32): i32 {
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_jz_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_jz(elf_ctx, label, label_len); }
@@ -1453,7 +1453,6 @@ export function backend_enc_jz_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_jeq_arch`.
  * Implements `backend_enc_jeq_arch`.
  * @param elf_ctx *u8
@@ -1462,6 +1461,7 @@ export function backend_enc_jz_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_jeq_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_jeq(elf_ctx, label, label_len); }
@@ -1473,7 +1473,6 @@ export function backend_enc_jeq_arch(elf_ctx: *u8, label: *u8, label_len: i32, t
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_jge_arch`.
  * Implements `backend_enc_jge_arch`.
  * @param elf_ctx *u8
@@ -1482,6 +1481,7 @@ export function backend_enc_jeq_arch(elf_ctx: *u8, label: *u8, label_len: i32, t
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_jge_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_jge(elf_ctx, label, label_len); }
@@ -1493,7 +1493,6 @@ export function backend_enc_jge_arch(elf_ctx: *u8, label: *u8, label_len: i32, t
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_jnz_arch`.
  * Implements `backend_enc_jnz_arch`.
  * @param elf_ctx *u8
@@ -1502,6 +1501,7 @@ export function backend_enc_jge_arch(elf_ctx: *u8, label: *u8, label_len: i32, t
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_jnz_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_jnz(elf_ctx, label, label_len); }
@@ -1513,7 +1513,6 @@ export function backend_enc_jnz_arch(elf_ctx: *u8, label: *u8, label_len: i32, t
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_jne_arch`.
  * Implements `backend_enc_jne_arch`.
  * @param elf_ctx *u8
@@ -1522,6 +1521,7 @@ export function backend_enc_jnz_arch(elf_ctx: *u8, label: *u8, label_len: i32, t
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_jne_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_jne(elf_ctx, label, label_len); }
@@ -1533,7 +1533,6 @@ export function backend_enc_jne_arch(elf_ctx: *u8, label: *u8, label_len: i32, t
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_jmp_arch`.
  * Implements `backend_enc_jmp_arch`.
  * @param elf_ctx *u8
@@ -1542,6 +1541,7 @@ export function backend_enc_jne_arch(elf_ctx: *u8, label: *u8, label_len: i32, t
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_jmp_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_jmp(elf_ctx, label, label_len); }
@@ -1553,7 +1553,6 @@ export function backend_enc_jmp_arch(elf_ctx: *u8, label: *u8, label_len: i32, t
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_mov_rax_to_arg_reg_arch`.
  * Implements `backend_enc_mov_rax_to_arg_reg_arch`.
  * @param elf_ctx *u8
@@ -1561,6 +1560,7 @@ export function backend_enc_jmp_arch(elf_ctx: *u8, label: *u8, label_len: i32, t
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_mov_rax_to_arg_reg_arch(elf_ctx: *u8, k: i32, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_mov_rax_to_arg_reg(elf_ctx, k); }
@@ -1572,13 +1572,13 @@ export function backend_enc_mov_rax_to_arg_reg_arch(elf_ctx: *u8, k: i32, ta: i3
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_rem_mod_arch`.
  * Implements `backend_enc_rem_mod_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_rem_mod_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_mov_edx_to_eax(elf_ctx); }
@@ -1606,13 +1606,13 @@ export function backend_enc_rem_mod_arch(elf_ctx: *u8, ta: i32): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_rem_mod_unsigned_arch`.
  * Implements `backend_enc_rem_mod_unsigned_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_rem_mod_unsigned_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_mov_edx_to_eax(elf_ctx); }
@@ -1634,7 +1634,6 @@ export function backend_enc_rem_mod_unsigned_arch(elf_ctx: *u8, ta: i32): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_call_stack_cleanup_arch`.
  * Implements `backend_enc_call_stack_cleanup_arch`.
  * @param elf_ctx *u8
@@ -1642,6 +1641,7 @@ export function backend_enc_rem_mod_unsigned_arch(elf_ctx: *u8, ta: i32): i32 {
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_call_stack_cleanup_arch(elf_ctx: *u8, nbytes: i32, ta: i32): i32 {
   if (nbytes <= 0) {
     return 0;
@@ -1668,7 +1668,6 @@ export function backend_enc_call_stack_cleanup_arch(elf_ctx: *u8, nbytes: i32, t
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_call_stack_reserve_arch`.
  * Implements `backend_enc_call_stack_reserve_arch`.
  * @param elf_ctx *u8
@@ -1676,6 +1675,7 @@ export function backend_enc_call_stack_cleanup_arch(elf_ctx: *u8, nbytes: i32, t
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_call_stack_reserve_arch(elf_ctx: *u8, nbytes: i32, ta: i32): i32 {
   if (nbytes <= 0) {
     return 0;
@@ -1698,7 +1698,6 @@ export function backend_enc_call_stack_reserve_arch(elf_ctx: *u8, nbytes: i32, t
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_store_x0_sp_offset_arch`.
  * Implements `backend_enc_store_x0_sp_offset_arch`.
  * @param elf_ctx *u8
@@ -1706,6 +1705,7 @@ export function backend_enc_call_stack_reserve_arch(elf_ctx: *u8, nbytes: i32, t
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_store_x0_sp_offset_arch(elf_ctx: *u8, off_bytes: i32, ta: i32): i32 {
   if (ta == 1) {
     if (elf_ctx == 0 as *u8) {
@@ -1731,7 +1731,6 @@ export function backend_enc_store_x0_sp_offset_arch(elf_ctx: *u8, off_bytes: i32
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_store_x_reg_to_rbp_arch`.
  * Implements `backend_enc_store_x_reg_to_rbp_arch`.
  * @param elf_ctx *u8
@@ -1740,6 +1739,7 @@ export function backend_enc_store_x0_sp_offset_arch(elf_ctx: *u8, off_bytes: i32
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_store_x_reg_to_rbp_arch(elf_ctx: *u8, reg: i32, offset: i32, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_store_x_reg_to_rbp(elf_ctx, reg, offset); }
@@ -1747,13 +1747,13 @@ export function backend_enc_store_x_reg_to_rbp_arch(elf_ctx: *u8, reg: i32, offs
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_load_qword_from_rbx_to_rax_arch`.
  * Implements `backend_enc_load_qword_from_rbx_to_rax_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_load_qword_from_rbx_to_rax_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta != 0) {
     return 0 - 1;
@@ -1762,13 +1762,13 @@ export function backend_enc_load_qword_from_rbx_to_rax_arch(elf_ctx: *u8, ta: i3
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_load_qword_rbx8_to_rdx_arch`.
  * Implements `backend_enc_load_qword_rbx8_to_rdx_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_load_qword_rbx8_to_rdx_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta != 0) {
     return 0 - 1;
@@ -1777,7 +1777,6 @@ export function backend_enc_load_qword_rbx8_to_rdx_arch(elf_ctx: *u8, ta: i32): 
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_store_rdx_to_rbp_arch`.
  * Implements `backend_enc_store_rdx_to_rbp_arch`.
  * @param elf_ctx *u8
@@ -1785,6 +1784,7 @@ export function backend_enc_load_qword_rbx8_to_rdx_arch(elf_ctx: *u8, ta: i32): 
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_store_rdx_to_rbp_arch(elf_ctx: *u8, offset: i32, ta: i32): i32 {
   if (ta != 0) {
     return 0 - 1;
@@ -1827,13 +1827,13 @@ export extern "C" function arch_x86_64_enc_enc_lea_rbx_plus_rcx_scale8(elf_ctx: 
 export extern "C" function arch_x86_64_enc_enc_load_rbp_to_eax32(elf_ctx: *u8, offset: i32): i32;
 export extern "C" function backend_enc_x86_jcc_rel32_c_impl(elf_ctx: *u8, opcode2: i32, label: *u8, label_len: i32): i32;
 
-#[no_mangle]
 /** Exported function `backend_enc_index_scratch_add_secondary_arch`.
  * Implements `backend_enc_index_scratch_add_secondary_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_index_scratch_add_secondary_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_u32_le(elf_ctx, 184680514); }
@@ -1845,13 +1845,13 @@ export function backend_enc_index_scratch_add_secondary_arch(elf_ctx: *u8, ta: i
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_index_scratch_sub_secondary_arch`.
  * Implements `backend_enc_index_scratch_sub_secondary_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_index_scratch_sub_secondary_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_u32_le(elf_ctx, 1258553410); }
@@ -1863,13 +1863,13 @@ export function backend_enc_index_scratch_sub_secondary_arch(elf_ctx: *u8, ta: i
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_index_scratch_rsub_secondary_arch`.
  * Implements `backend_enc_index_scratch_rsub_secondary_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_index_scratch_rsub_secondary_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_u32_le(elf_ctx, 1258487906); }
@@ -1881,13 +1881,13 @@ export function backend_enc_index_scratch_rsub_secondary_arch(elf_ctx: *u8, ta: 
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_rbx_index_rsub_secondary_arch`.
  * Implements `backend_enc_rbx_index_rsub_secondary_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_rbx_index_rsub_secondary_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_u32_le(elf_ctx, 1258422369); }
@@ -1899,13 +1899,13 @@ export function backend_enc_rbx_index_rsub_secondary_arch(elf_ctx: *u8, ta: i32)
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_rbx_index_add_secondary_arch`.
  * Implements `backend_enc_rbx_index_add_secondary_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_rbx_index_add_secondary_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_u32_le(elf_ctx, 184680481); }
@@ -1917,13 +1917,13 @@ export function backend_enc_rbx_index_add_secondary_arch(elf_ctx: *u8, ta: i32):
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_rbx_index_sub_secondary_arch`.
  * Implements `backend_enc_rbx_index_sub_secondary_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_rbx_index_sub_secondary_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_u32_le(elf_ctx, 1258553377); }
@@ -1935,13 +1935,13 @@ export function backend_enc_rbx_index_sub_secondary_arch(elf_ctx: *u8, ta: i32):
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_index_scratch_mul_secondary_arch`.
  * Implements `backend_enc_index_scratch_mul_secondary_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_index_scratch_mul_secondary_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_u32_le(elf_ctx, 453213250); }
@@ -1953,13 +1953,13 @@ export function backend_enc_index_scratch_mul_secondary_arch(elf_ctx: *u8, ta: i
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_rbx_index_mul_secondary_arch`.
  * Implements `backend_enc_rbx_index_mul_secondary_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_rbx_index_mul_secondary_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_u32_le(elf_ctx, 453213217); }
@@ -1971,7 +1971,6 @@ export function backend_enc_rbx_index_mul_secondary_arch(elf_ctx: *u8, ta: i32):
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_call_arch`.
  * Implements `backend_enc_call_arch`.
  * @param elf_ctx *u8
@@ -1980,6 +1979,7 @@ export function backend_enc_rbx_index_mul_secondary_arch(elf_ctx: *u8, ta: i32):
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_call_arch(elf_ctx: *u8, name: *u8, name_len: i32, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return backend_enc_arm64_call_c_impl(elf_ctx, name, name_len); }
@@ -1991,7 +1991,6 @@ export function backend_enc_call_arch(elf_ctx: *u8, name: *u8, name_len: i32, ta
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_load_rbp_to_rdx_arch`.
  * Implements `backend_enc_load_rbp_to_rdx_arch`.
  * @param elf_ctx *u8
@@ -1999,6 +1998,7 @@ export function backend_enc_call_arch(elf_ctx: *u8, name: *u8, name_len: i32, ta
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_load_rbp_to_rdx_arch(elf_ctx: *u8, offset: i32, ta: i32): i32 {
   if (ta != 0) {
     return 0 - 1;
@@ -2007,7 +2007,6 @@ export function backend_enc_load_rbp_to_rdx_arch(elf_ctx: *u8, offset: i32, ta: 
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_mov_rdx_to_arg_reg_arch`.
  * Implements `backend_enc_mov_rdx_to_arg_reg_arch`.
  * @param elf_ctx *u8
@@ -2015,6 +2014,7 @@ export function backend_enc_load_rbp_to_rdx_arch(elf_ctx: *u8, offset: i32, ta: 
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_mov_rdx_to_arg_reg_arch(elf_ctx: *u8, k: i32, ta: i32): i32 {
   if (ta != 0) {
     return 0 - 1;
@@ -2023,7 +2023,6 @@ export function backend_enc_mov_rdx_to_arg_reg_arch(elf_ctx: *u8, k: i32, ta: i3
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_mov_arg_reg_to_rax_arch`.
  * Implements `backend_enc_mov_arg_reg_to_rax_arch`.
  * @param elf_ctx *u8
@@ -2031,6 +2030,7 @@ export function backend_enc_mov_rdx_to_arg_reg_arch(elf_ctx: *u8, k: i32, ta: i3
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_mov_arg_reg_to_rax_arch(elf_ctx: *u8, k: i32, ta: i32): i32 {
   if (ta == 0) {
     unsafe { return arch_x86_64_enc_enc_mov_arg_reg_to_rax(elf_ctx, k); }
@@ -2038,7 +2038,6 @@ export function backend_enc_mov_arg_reg_to_rax_arch(elf_ctx: *u8, k: i32, ta: i3
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_load_rbp_pos_to_rax_arch`.
  * Implements `backend_enc_load_rbp_pos_to_rax_arch`.
  * @param elf_ctx *u8
@@ -2046,6 +2045,7 @@ export function backend_enc_mov_arg_reg_to_rax_arch(elf_ctx: *u8, k: i32, ta: i3
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_load_rbp_pos_to_rax_arch(elf_ctx: *u8, off_pos: i32, ta: i32): i32 {
   if (ta == 0) {
     unsafe { return arch_x86_64_enc_enc_load_rbp_pos_to_rax(elf_ctx, off_pos); }
@@ -2053,7 +2053,6 @@ export function backend_enc_load_rbp_pos_to_rax_arch(elf_ctx: *u8, off_pos: i32,
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_rbx_plus_index_scratch_scaled_arch`.
  * Implements `backend_enc_rbx_plus_index_scratch_scaled_arch`.
  * @param elf_ctx *u8
@@ -2061,6 +2060,7 @@ export function backend_enc_load_rbp_pos_to_rax_arch(elf_ctx: *u8, off_pos: i32,
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_rbx_plus_index_scratch_scaled_arch(elf_ctx: *u8, esz: i32, ta: i32): i32 {
   if (esz == 1) {
     if (ta == 1) {
@@ -2093,7 +2093,6 @@ export function backend_enc_rbx_plus_index_scratch_scaled_arch(elf_ctx: *u8, esz
 }
 
 // backend_enc_load_rbp_lane_to_rax_arch: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_enc_load_rbp_lane_to_rax_arch`.
  * Implements `backend_enc_load_rbp_lane_to_rax_arch`.
  * @param elf_ctx *u8
@@ -2102,6 +2101,7 @@ export function backend_enc_rbx_plus_index_scratch_scaled_arch(elf_ctx: *u8, esz
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_load_rbp_lane_to_rax_arch(elf_ctx: *u8, offset: i32, esz: i32, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_load_rbp_to_rax(elf_ctx, offset); }
@@ -2116,7 +2116,6 @@ export function backend_enc_load_rbp_lane_to_rax_arch(elf_ctx: *u8, offset: i32,
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_jle_arch`.
  * Implements `backend_enc_jle_arch`.
  * @param elf_ctx *u8
@@ -2125,6 +2124,7 @@ export function backend_enc_load_rbp_lane_to_rax_arch(elf_ctx: *u8, offset: i32,
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_jle_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32 {
   if (ta != 0) {
     return 0 - 1;
@@ -2133,7 +2133,6 @@ export function backend_enc_jle_arch(elf_ctx: *u8, label: *u8, label_len: i32, t
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_jl_arch`.
  * Implements `backend_enc_jl_arch`.
  * @param elf_ctx *u8
@@ -2142,6 +2141,7 @@ export function backend_enc_jle_arch(elf_ctx: *u8, label: *u8, label_len: i32, t
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_jl_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32 {
   if (ta != 0) {
     return 0 - 1;
@@ -2170,7 +2170,6 @@ export extern "C" function arch_x86_64_enc_enc_load_rbp_to_rbx(elf_ctx: *u8, off
 export extern "C" function arch_x86_64_enc_enc_load_rbp_to_ebx32(elf_ctx: *u8, offset: i32): i32;
 
 // arm64 only：LDR x0, [x29, #off]；imm12 = off/8
-#[no_mangle]
 /** Exported function `backend_enc_load_x29_pos_to_rax_arch`.
  * Implements `backend_enc_load_x29_pos_to_rax_arch`.
  * @param elf_ctx *u8
@@ -2178,6 +2177,7 @@ export extern "C" function arch_x86_64_enc_enc_load_rbp_to_ebx32(elf_ctx: *u8, o
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_load_x29_pos_to_rax_arch(elf_ctx: *u8, off_pos: i32, ta: i32): i32 {
   if (ta != 1) {
     return 0 - 1;
@@ -2200,7 +2200,6 @@ export function backend_enc_load_x29_pos_to_rax_arch(elf_ctx: *u8, off_pos: i32,
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_add_imm_to_index_scratch_arch`.
  * Implements `backend_enc_add_imm_to_index_scratch_arch`.
  * @param elf_ctx *u8
@@ -2208,6 +2207,7 @@ export function backend_enc_load_x29_pos_to_rax_arch(elf_ctx: *u8, off_pos: i32,
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_add_imm_to_index_scratch_arch(elf_ctx: *u8, imm: i32, ta: i32): i32 {
   if (ta == 1) {
     if (imm == 0) {
@@ -2231,7 +2231,6 @@ export function backend_enc_add_imm_to_index_scratch_arch(elf_ctx: *u8, imm: i32
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_load_rbp_index_secondary_scratch_arch`.
  * Implements `backend_enc_load_rbp_index_secondary_scratch_arch`.
  * @param elf_ctx *u8
@@ -2239,6 +2238,7 @@ export function backend_enc_add_imm_to_index_scratch_arch(elf_ctx: *u8, imm: i32
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx: *u8, offset: i32, ta: i32): i32 {
   if (ta == 1) {
     if (offset > 256) {
@@ -2259,7 +2259,6 @@ export function backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx: *u8, 
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_sub_imm_from_index_scratch_arch`.
  * Implements `backend_enc_sub_imm_from_index_scratch_arch`.
  * @param elf_ctx *u8
@@ -2267,6 +2266,7 @@ export function backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx: *u8, 
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_sub_imm_from_index_scratch_arch(elf_ctx: *u8, imm: i32, ta: i32): i32 {
   if (ta == 1) {
     if (imm == 0) {
@@ -2290,7 +2290,6 @@ export function backend_enc_sub_imm_from_index_scratch_arch(elf_ctx: *u8, imm: i
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_mul_imm_to_index_scratch_arch`.
  * Implements `backend_enc_mul_imm_to_index_scratch_arch`.
  * @param elf_ctx *u8
@@ -2298,6 +2297,7 @@ export function backend_enc_sub_imm_from_index_scratch_arch(elf_ctx: *u8, imm: i
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_mul_imm_to_index_scratch_arch(elf_ctx: *u8, lit: i32, ta: i32): i32 {
   if (lit <= 1) {
     return 0;
@@ -2321,7 +2321,6 @@ export function backend_enc_mul_imm_to_index_scratch_arch(elf_ctx: *u8, lit: i32
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_mul_imm_to_rbx_arch`.
  * Implements `backend_enc_mul_imm_to_rbx_arch`.
  * @param elf_ctx *u8
@@ -2329,6 +2328,7 @@ export function backend_enc_mul_imm_to_index_scratch_arch(elf_ctx: *u8, lit: i32
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_mul_imm_to_rbx_arch(elf_ctx: *u8, lit: i32, ta: i32): i32 {
   if (lit <= 1) {
     return 0;
@@ -2352,7 +2352,6 @@ export function backend_enc_mul_imm_to_rbx_arch(elf_ctx: *u8, lit: i32, ta: i32)
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_add_imm_to_rbx_index_arch`.
  * Implements `backend_enc_add_imm_to_rbx_index_arch`.
  * @param elf_ctx *u8
@@ -2360,6 +2359,7 @@ export function backend_enc_mul_imm_to_rbx_arch(elf_ctx: *u8, lit: i32, ta: i32)
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_add_imm_to_rbx_index_arch(elf_ctx: *u8, imm: i32, ta: i32): i32 {
   if (imm == 0) {
     return 0;
@@ -2383,7 +2383,6 @@ export function backend_enc_add_imm_to_rbx_index_arch(elf_ctx: *u8, imm: i32, ta
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_sub_imm_from_rbx_index_arch`.
  * Implements `backend_enc_sub_imm_from_rbx_index_arch`.
  * @param elf_ctx *u8
@@ -2391,6 +2390,7 @@ export function backend_enc_add_imm_to_rbx_index_arch(elf_ctx: *u8, imm: i32, ta
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_sub_imm_from_rbx_index_arch(elf_ctx: *u8, imm: i32, ta: i32): i32 {
   if (imm == 0) {
     return 0;
@@ -2414,7 +2414,6 @@ export function backend_enc_sub_imm_from_rbx_index_arch(elf_ctx: *u8, imm: i32, 
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_load_rbp_to_rbx_arch`.
  * Implements `backend_enc_load_rbp_to_rbx_arch`.
  * @param elf_ctx *u8
@@ -2422,6 +2421,7 @@ export function backend_enc_sub_imm_from_rbx_index_arch(elf_ctx: *u8, imm: i32, 
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_load_rbp_to_rbx_arch(elf_ctx: *u8, offset: i32, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_load_rbp_to_rbx(elf_ctx, offset); }
@@ -2433,7 +2433,6 @@ export function backend_enc_load_rbp_to_rbx_arch(elf_ctx: *u8, offset: i32, ta: 
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_load_rbp_lane_to_rbx_arch`.
  * Implements `backend_enc_load_rbp_lane_to_rbx_arch`.
  * @param elf_ctx *u8
@@ -2442,6 +2441,7 @@ export function backend_enc_load_rbp_to_rbx_arch(elf_ctx: *u8, offset: i32, ta: 
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_load_rbp_lane_to_rbx_arch(elf_ctx: *u8, offset: i32, esz: i32, ta: i32): i32 {
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_load_rbp_to_rbx(elf_ctx, offset); }
@@ -2458,13 +2458,13 @@ export function backend_enc_load_rbp_lane_to_rbx_arch(elf_ctx: *u8, offset: i32,
 
 // backend_enc_addss_rax_rbx_arch: see function docblock below.
 
-#[no_mangle]
 /** Exported function `backend_enc_addss_rax_rbx_arch`.
  * Implements `backend_enc_addss_rax_rbx_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_addss_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta != 0) {
     return 0 - 1;
@@ -2487,13 +2487,13 @@ export function backend_enc_addss_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_cvttss2si_eax_from_f32_bits_arch`.
  * Implements `backend_enc_cvttss2si_eax_from_f32_bits_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_cvttss2si_eax_from_f32_bits_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta != 0) {
     return 0 - 1;
@@ -2510,13 +2510,13 @@ export function backend_enc_cvttss2si_eax_from_f32_bits_arch(elf_ctx: *u8, ta: i
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_cvtsd2ss_eax_from_f64_bits_arch`.
  * Implements `backend_enc_cvtsd2ss_eax_from_f64_bits_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_cvtsd2ss_eax_from_f64_bits_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta != 0) {
     return 0 - 1;
@@ -2539,13 +2539,13 @@ export function backend_enc_cvtsd2ss_eax_from_f64_bits_arch(elf_ctx: *u8, ta: i3
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_cvtsi2ss_eax_from_i32_arch`.
  * Implements `backend_enc_cvtsi2ss_eax_from_i32_arch`.
  * @param elf_ctx *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_cvtsi2ss_eax_from_i32_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta != 0) {
     return 0 - 1;
@@ -2563,7 +2563,6 @@ export function backend_enc_cvtsi2ss_eax_from_i32_arch(elf_ctx: *u8, ta: i32): i
 }
 
 // movd xmmK, eax：66 0F 6E /r ；modrm = C0 | (k<<3)
-#[no_mangle]
 /** Exported function `backend_enc_mov_eax_to_xmm_arg_reg_arch`.
  * Implements `backend_enc_mov_eax_to_xmm_arg_reg_arch`.
  * @param elf_ctx *u8
@@ -2571,6 +2570,7 @@ export function backend_enc_cvtsi2ss_eax_from_i32_arch(elf_ctx: *u8, ta: i32): i
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_mov_eax_to_xmm_arg_reg_arch(elf_ctx: *u8, k: i32, ta: i32): i32 {
   if (ta != 0) {
     return 0 - 1;
@@ -2600,7 +2600,6 @@ export function backend_enc_mov_eax_to_xmm_arg_reg_arch(elf_ctx: *u8, k: i32, ta
 }
 
 // movd eax, xmmK：66 0F 7E /r
-#[no_mangle]
 /** Exported function `backend_enc_mov_xmm_arg_reg_to_eax_arch`.
  * Implements `backend_enc_mov_xmm_arg_reg_to_eax_arch`.
  * @param elf_ctx *u8
@@ -2608,6 +2607,7 @@ export function backend_enc_mov_eax_to_xmm_arg_reg_arch(elf_ctx: *u8, k: i32, ta
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx: *u8, k: i32, ta: i32): i32 {
   if (ta != 0) {
     return 0 - 1;
@@ -2637,7 +2637,6 @@ export function backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx: *u8, k: i32, ta
 }
 
 // backend_enc_store_eax_to_rbp_arch: see function docblock below.
-#[no_mangle]
 /** Exported function `backend_enc_store_eax_to_rbp_arch`.
  * Implements `backend_enc_store_eax_to_rbp_arch`.
  * @param elf_ctx *u8
@@ -2645,6 +2644,7 @@ export function backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx: *u8, k: i32, ta
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_store_eax_to_rbp_arch(elf_ctx: *u8, offset: i32, ta: i32): i32 {
   if (ta == 1) {
     if (elf_ctx == 0 as *u8) {
@@ -2693,31 +2693,30 @@ export function backend_enc_store_eax_to_rbp_arch(elf_ctx: *u8, offset: i32, ta:
 }
 
 // ---- G-02f-419：append/call/jcc/cdqe → seed impl pure forward ----
-#[no_mangle]
 /** Exported function `backend_enc_append_u32_le_c`.
  * Implements `backend_enc_append_u32_le_c`.
  * @param elf_ctx *u8
  * @param word u32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_append_u32_le_c(elf_ctx: *u8, word: u32): i32 {
   unsafe { return backend_enc_append_u32_le_c_impl(elf_ctx, word); }
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_append_u8_c`.
  * Implements `backend_enc_append_u8_c`.
  * @param elf_ctx *u8
  * @param byte i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_append_u8_c(elf_ctx: *u8, byte: i32): i32 {
   unsafe { return backend_enc_append_u8_c_impl(elf_ctx, byte); }
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_arm64_call_c`.
  * Implements `backend_enc_arm64_call_c`.
  * @param elf_ctx *u8
@@ -2725,12 +2724,12 @@ export function backend_enc_append_u8_c(elf_ctx: *u8, byte: i32): i32 {
  * @param name_len i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_arm64_call_c(elf_ctx: *u8, name: *u8, name_len: i32): i32 {
   unsafe { return backend_enc_arm64_call_c_impl(elf_ctx, name, name_len); }
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `backend_enc_x86_jcc_rel32_c`.
  * Implements `backend_enc_x86_jcc_rel32_c`.
  * @param elf_ctx *u8
@@ -2739,17 +2738,18 @@ export function backend_enc_arm64_call_c(elf_ctx: *u8, name: *u8, name_len: i32)
  * @param label_len i32
  * @return i32
  */
+#[no_mangle]
 export function backend_enc_x86_jcc_rel32_c(elf_ctx: *u8, opcode2: i32, label: *u8, label_len: i32): i32 {
   unsafe { return backend_enc_x86_jcc_rel32_c_impl(elf_ctx, opcode2, label, label_len); }
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `arch_x86_64_enc_enc_cdqe_rax`.
  * Implements `arch_x86_64_enc_enc_cdqe_rax`.
  * @param elf_ctx *u8
  * @return i32
  */
+#[no_mangle]
 export function arch_x86_64_enc_enc_cdqe_rax(elf_ctx: *u8): i32 {
   unsafe { return arch_x86_64_enc_enc_cdqe_rax_impl(elf_ctx); }
   return 0 - 1;

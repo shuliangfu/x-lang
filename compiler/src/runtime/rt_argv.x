@@ -5,13 +5,13 @@
 // Argv token compares (drv_eq_* / path_ends / target_has_arm); G.9 English; body authoritative.
 // drv_eq_minus_o: see function docblock below.
 
-#[no_mangle]
 /** Exported function `drv_eq_minus_o`.
  * Implements `drv_eq_minus_o`.
  * @param buf *u8
  * @param len i32
  * @return i32
  */
+#[no_mangle]
 export function drv_eq_minus_o(buf: *u8, len: i32): i32 {
   if (len != 2) {
     return 0;
@@ -22,13 +22,13 @@ export function drv_eq_minus_o(buf: *u8, len: i32): i32 {
   return 1;
 }
 
-#[no_mangle]
 /** Exported function `drv_eq_minus_L`.
  * Implements `drv_eq_minus_L`.
  * @param buf *u8
  * @param len i32
  * @return i32
  */
+#[no_mangle]
 export function drv_eq_minus_L(buf: *u8, len: i32): i32 {
   if (len != 2) {
     return 0;
@@ -39,13 +39,13 @@ export function drv_eq_minus_L(buf: *u8, len: i32): i32 {
   return 1;
 }
 
-#[no_mangle]
 /** Exported function `drv_eq_minus_O`.
  * Implements `drv_eq_minus_O`.
  * @param buf *u8
  * @param len i32
  * @return i32
  */
+#[no_mangle]
 export function drv_eq_minus_O(buf: *u8, len: i32): i32 {
   if (len != 2) {
     return 0;
@@ -56,13 +56,13 @@ export function drv_eq_minus_O(buf: *u8, len: i32): i32 {
   return 1;
 }
 
-#[no_mangle]
 /** Exported function `drv_eq_flto`.
  * Implements `drv_eq_flto`.
  * @param buf *u8
  * @param len i32
  * @return i32
  */
+#[no_mangle]
 export function drv_eq_flto(buf: *u8, len: i32): i32 {
   if (len != 5) {
     return 0;
@@ -74,13 +74,13 @@ export function drv_eq_flto(buf: *u8, len: i32): i32 {
 }
 
 // drv_eq_minus_freestanding: see function docblock below.
-#[no_mangle]
 /** Exported function `drv_eq_minus_freestanding`.
  * Memory management helper `drv_eq_minus_freestanding`.
  * @param buf *u8
  * @param len i32
  * @return i32
  */
+#[no_mangle]
 export function drv_eq_minus_freestanding(buf: *u8, len: i32): i32 {
   if (len != 13) { return 0; }
   if (buf[0] != 45) { return 0; }
@@ -100,13 +100,13 @@ export function drv_eq_minus_freestanding(buf: *u8, len: i32): i32 {
 }
 
 // drv_eq_legacy_f32_abi: see function docblock below.
-#[no_mangle]
 /** Exported function `drv_eq_legacy_f32_abi`.
  * Implements `drv_eq_legacy_f32_abi`.
  * @param buf *u8
  * @param len i32
  * @return i32
  */
+#[no_mangle]
 export function drv_eq_legacy_f32_abi(buf: *u8, len: i32): i32 {
   if (len != 15) { return 0; }
   if (buf[0] != 45) { return 0; }
@@ -128,13 +128,13 @@ export function drv_eq_legacy_f32_abi(buf: *u8, len: i32): i32 {
 }
 
 // drv_eq_fsanitize_address: see function docblock below.
-#[no_mangle]
 /** Exported function `drv_eq_fsanitize_address`.
  * Implements `drv_eq_fsanitize_address`.
  * @param buf *u8
  * @param len i32
  * @return i32
  */
+#[no_mangle]
 export function drv_eq_fsanitize_address(buf: *u8, len: i32): i32 {
   if (len != 18) { return 0; }
   if (buf[0] != 45) { return 0; }
@@ -159,13 +159,13 @@ export function drv_eq_fsanitize_address(buf: *u8, len: i32): i32 {
 }
 
 // drv_eq_minus_backend: see function docblock below.
-#[no_mangle]
 /** Exported function `drv_eq_minus_backend`.
  * Implements `drv_eq_minus_backend`.
  * @param buf *u8
  * @param len i32
  * @return i32
  */
+#[no_mangle]
 export function drv_eq_minus_backend(buf: *u8, len: i32): i32 {
   if (len != 8) { return 0; }
   if (buf[0] != 45) { return 0; }
@@ -180,13 +180,13 @@ export function drv_eq_minus_backend(buf: *u8, len: i32): i32 {
 }
 
 // drv_eq_minus_target: see function docblock below.
-#[no_mangle]
 /** Exported function `drv_eq_minus_target`.
  * Implements `drv_eq_minus_target`.
  * @param buf *u8
  * @param len i32
  * @return i32
  */
+#[no_mangle]
 export function drv_eq_minus_target(buf: *u8, len: i32): i32 {
   if (len < 7) { return 0; }
   if (buf[0] != 45) { return 0; }
@@ -200,13 +200,13 @@ export function drv_eq_minus_target(buf: *u8, len: i32): i32 {
 }
 
 // drv_eq_minus_target_cpu: see function docblock below.
-#[no_mangle]
 /** Exported function `drv_eq_minus_target_cpu`.
  * Implements `drv_eq_minus_target_cpu`.
  * @param buf *u8
  * @param len i32
  * @return i32
  */
+#[no_mangle]
 export function drv_eq_minus_target_cpu(buf: *u8, len: i32): i32 {
   if (len < 11) { return 0; }
   if (buf[0] != 45) { return 0; }
@@ -224,13 +224,13 @@ export function drv_eq_minus_target_cpu(buf: *u8, len: i32): i32 {
 }
 
 // drv_eq_print_target_cpu: see function docblock below.
-#[no_mangle]
 /** Exported function `drv_eq_print_target_cpu`.
  * Implements `drv_eq_print_target_cpu`.
  * @param buf *u8
  * @param len i32
  * @return i32
  */
+#[no_mangle]
 export function drv_eq_print_target_cpu(buf: *u8, len: i32): i32 {
   if (len == 18) {
     if (buf[0] != 45) { return 0; }
@@ -276,13 +276,13 @@ export function drv_eq_print_target_cpu(buf: *u8, len: i32): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `drv_eq_asm_word`.
  * Implements `drv_eq_asm_word`.
  * @param buf *u8
  * @param len i32
  * @return i32
  */
+#[no_mangle]
 export function drv_eq_asm_word(buf: *u8, len: i32): i32 {
   if (len != 3) {
     return 0;
@@ -293,13 +293,13 @@ export function drv_eq_asm_word(buf: *u8, len: i32): i32 {
   return 1;
 }
 
-#[no_mangle]
 /** Exported function `drv_eq_c_word`.
  * Implements `drv_eq_c_word`.
  * @param buf *u8
  * @param len i32
  * @return i32
  */
+#[no_mangle]
 export function drv_eq_c_word(buf: *u8, len: i32): i32 {
   if (len != 1) {
     return 0;
@@ -310,13 +310,13 @@ export function drv_eq_c_word(buf: *u8, len: i32): i32 {
   return 1;
 }
 
-#[no_mangle]
 /** Exported function `drv_path_ends_x`.
  * Implements `drv_path_ends_x`.
  * @param buf *u8
  * @param len i32
  * @return i32
  */
+#[no_mangle]
 export function drv_path_ends_x(buf: *u8, len: i32): i32 {
   if (len >= 2 && buf[(len - 2) as usize] == 46 && buf[(len - 1) as usize] == 120) {
     return 1;
@@ -328,13 +328,13 @@ export function drv_path_ends_x(buf: *u8, len: i32): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `drv_target_has_arm`.
  * Implements `drv_target_has_arm`.
  * @param buf *u8
  * @param len i32
  * @return i32
  */
+#[no_mangle]
 export function drv_target_has_arm(buf: *u8, len: i32): i32 {
   let start: i32 = 0;
   while (start + 5 <= len) {

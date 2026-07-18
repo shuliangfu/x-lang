@@ -73,11 +73,11 @@ export function net_udp_errno_ptr(): *i32 {
   return p;
 }
 
-#[cfg(target_os = "macos")]
 /** Exported function `net_udp_errno_ptr`.
  * Implements `net_udp_errno_ptr`.
  * @return *i32
  */
+#[cfg(target_os = "macos")]
 export function net_udp_errno_ptr(): *i32 {
   let p: *i32 = 0 as *i32;
   unsafe { p = __error(); }
@@ -128,11 +128,11 @@ export function net_udp_maybe_wsa_fail_c(): i32 {
   return 0;
 }
 
-#[cfg(not(target_os = "windows"))]
 /** Exported function `net_udp_maybe_wsa_fail_c`.
  * Implements `net_udp_maybe_wsa_fail_c`.
  * @return i32
  */
+#[cfg(not(target_os = "windows"))]
 export function net_udp_maybe_wsa_fail_c(): i32 {
   return 0;
 }

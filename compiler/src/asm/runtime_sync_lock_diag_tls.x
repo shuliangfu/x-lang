@@ -36,12 +36,12 @@ export function sync_lock_diag_find_meta_idx(m: *u8): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `sync_lock_diag_get_order`.
  * Implements `sync_lock_diag_get_order`.
  * @param m *u8
  * @return i32
  */
+#[no_mangle]
 export function sync_lock_diag_get_order(m: *u8): i32 {
   unsafe {
     return sync_lock_diag_get_order_impl(m);
@@ -51,7 +51,6 @@ export function sync_lock_diag_get_order(m: *u8): i32 {
 
 // sync_lock_diag_append_byte: see function docblock below.
 
-#[no_mangle]
 /** Exported function `sync_lock_diag_append_byte`.
  * Implements `sync_lock_diag_append_byte`.
  * @param out *u8
@@ -60,6 +59,7 @@ export function sync_lock_diag_get_order(m: *u8): i32 {
  * @param b u8
  * @return i32
  */
+#[no_mangle]
 export function sync_lock_diag_append_byte(out: *u8, pos: i32, cap: i32, b: u8): i32 {
   if (out == 0) { return 0 - 1; }
   if (pos < 0) { return 0 - 1; }
@@ -68,7 +68,6 @@ export function sync_lock_diag_append_byte(out: *u8, pos: i32, cap: i32, b: u8):
   return pos + 1;
 }
 
-#[no_mangle]
 /** Exported function `sync_lock_diag_append_lit`.
  * Implements `sync_lock_diag_append_lit`.
  * @param out *u8
@@ -78,6 +77,7 @@ export function sync_lock_diag_append_byte(out: *u8, pos: i32, cap: i32, b: u8):
  * @param n i32
  * @return i32
  */
+#[no_mangle]
 export function sync_lock_diag_append_lit(out: *u8, pos: i32, cap: i32, s: *u8, n: i32): i32 {
   let i: i32 = 0;
   while (i < n) {
@@ -88,7 +88,6 @@ export function sync_lock_diag_append_lit(out: *u8, pos: i32, cap: i32, s: *u8, 
   return pos;
 }
 
-#[no_mangle]
 /** Exported function `sync_lock_diag_append_i32`.
  * Implements `sync_lock_diag_append_i32`.
  * @param out *u8
@@ -97,6 +96,7 @@ export function sync_lock_diag_append_lit(out: *u8, pos: i32, cap: i32, s: *u8, 
  * @param v i32
  * @return i32
  */
+#[no_mangle]
 export function sync_lock_diag_append_i32(out: *u8, pos: i32, cap: i32, v: i32): i32 {
   if (out == 0) { return 0 - 1; }
   if (pos < 0) { return 0 - 1; }

@@ -145,17 +145,16 @@ export extern "C" function pipeline_debug_trace_named_func_bodies_impl(phase: *u
 export function parser_parse_into_init(module: *u8, arena: *u8): void {
 }
 
-#[no_mangle]
 /** Exported function `parser_get_module_num_imports`.
  * Implements `parser_get_module_num_imports`.
  * @param module *u8
  * @return i32
  */
+#[no_mangle]
 export function parser_get_module_num_imports(module: *u8): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `parser_get_module_import_path`.
  * Implements `parser_get_module_import_path`.
  * @param module *u8
@@ -163,6 +162,7 @@ export function parser_get_module_num_imports(module: *u8): i32 {
  * @param path_buf *u8
  * @return void
  */
+#[no_mangle]
 export function parser_get_module_import_path(module: *u8, idx: i32, path_buf: *u8): void {
   if (path_buf == 0 as *u8) {
     return;
@@ -172,46 +172,45 @@ export function parser_get_module_import_path(module: *u8, idx: i32, path_buf: *
   }
 }
 
-#[no_mangle]
 /** Exported function `asm_skip_heavy_set_pipeline_ctx`.
  * Implements `asm_skip_heavy_set_pipeline_ctx`.
  * @param ctx *u8
  * @return void
  */
+#[no_mangle]
 export function asm_skip_heavy_set_pipeline_ctx(ctx: *u8): void {
 }
 
-#[no_mangle]
 /** Exported function `pipeline_fill_array_lit_types_for_skipped_typeck`.
  * Implements `pipeline_fill_array_lit_types_for_skipped_typeck`.
  * @param m *u8
  * @param a *u8
  * @return void
  */
+#[no_mangle]
 export function pipeline_fill_array_lit_types_for_skipped_typeck(m: *u8, a: *u8): void {
 }
 
-#[no_mangle]
 /** Exported function `pipeline_fill_soa_field_access_for_asm_emit`.
  * Implements `pipeline_fill_soa_field_access_for_asm_emit`.
  * @param m *u8
  * @param a *u8
  * @return void
  */
+#[no_mangle]
 export function pipeline_fill_soa_field_access_for_asm_emit(m: *u8, a: *u8): void {
 }
 
-#[no_mangle]
 /** Exported function `pipeline_module_fixup_with_arena_stmt_orders`.
  * Implements `pipeline_module_fixup_with_arena_stmt_orders`.
  * @param m *u8
  * @param a *u8
  * @return void
  */
+#[no_mangle]
 export function pipeline_module_fixup_with_arena_stmt_orders(m: *u8, a: *u8): void {
 }
 
-#[no_mangle]
 /** Exported function `asm_asm_codegen_elf_o`.
  * Implements `asm_asm_codegen_elf_o`.
  * @param m *u8
@@ -221,11 +220,11 @@ export function pipeline_module_fixup_with_arena_stmt_orders(m: *u8, a: *u8): vo
  * @param o *u8
  * @return i32
  */
+#[no_mangle]
 export function asm_asm_codegen_elf_o(m: *u8, a: *u8, c: *u8, e: *u8, o: *u8): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `pipeline_parse_set_main_from_buf_c`.
  * Implements `pipeline_parse_set_main_from_buf_c`.
  * @param m *u8
@@ -234,6 +233,7 @@ export function asm_asm_codegen_elf_o(m: *u8, a: *u8, c: *u8, e: *u8, o: *u8): i
  * @param len i32
  * @return i32
  */
+#[no_mangle]
 export function pipeline_parse_set_main_from_buf_c(m: *u8, a: *u8, d: *u8, len: i32): i32 {
   return 0;
 }
@@ -248,11 +248,11 @@ export function pipeline_diag_emitted_reset(): void {
   }
 }
 
-#[no_mangle]
 /** Exported function `pipeline_diag_emitted_note`.
  * Implements `pipeline_diag_emitted_note`.
  * @return void
  */
+#[no_mangle]
 export function pipeline_diag_emitted_note(): void {
   unsafe {
     let p: *i32 = pipeline_diag_emitted_flag_slot();
@@ -260,11 +260,11 @@ export function pipeline_diag_emitted_note(): void {
   }
 }
 
-#[no_mangle]
 /** Exported function `pipeline_diag_emitted_get`.
  * Implements `pipeline_diag_emitted_get`.
  * @return i32
  */
+#[no_mangle]
 export function pipeline_diag_emitted_get(): i32 {
   unsafe {
     let p: *i32 = pipeline_diag_emitted_flag_slot();
@@ -276,11 +276,11 @@ export function pipeline_diag_emitted_get(): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `get_ndep`.
  * Query helper `get_ndep`.
  * @return i32
  */
+#[no_mangle]
 export function get_ndep(): i32 {
   unsafe {
     let p: *i32 = typeck_ndep_slot();
@@ -293,22 +293,22 @@ export function get_ndep(): i32 {
 /* ---- G-02f-34：set_ndep + dep_seeded get/set ---- */
 
 // pipeline_set_ndep: see function docblock below.
-#[no_mangle]
 /** Exported function `pipeline_set_ndep`.
  * Implements `pipeline_set_ndep`.
  * @param n i32
  * @return void
  */
+#[no_mangle]
 export function pipeline_set_ndep(n: i32): void {
   typeck_ndep_store(n);
 }
 
-#[no_mangle]
 /** Exported function `driver_dep_seeded_get`.
  * Implements `driver_dep_seeded_get`.
  * @param i i32
  * @return i32
  */
+#[no_mangle]
 export function driver_dep_seeded_get(i: i32): i32 {
   if (i < 0) {
     return 0;
@@ -326,13 +326,13 @@ export function driver_dep_seeded_get(i: i32): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `driver_dep_seeded_set`.
  * Implements `driver_dep_seeded_set`.
  * @param i i32
  * @param v i32
  * @return void
  */
+#[no_mangle]
 export function driver_dep_seeded_set(i: i32, v: i32): void {
   if (i < 0) {
     return;
@@ -346,12 +346,12 @@ export function driver_dep_seeded_set(i: i32, v: i32): void {
   }
 }
 
-#[no_mangle]
 /** Exported function `typeck_driver_dep_seeded_get`.
  * Implements `typeck_driver_dep_seeded_get`.
  * @param i i32
  * @return i32
  */
+#[no_mangle]
 export function typeck_driver_dep_seeded_get(i: i32): i32 {
   return driver_dep_seeded_get(i);
 }
@@ -374,12 +374,12 @@ export function get_dep_module(i: i32): *u8 {
   return 0 as *u8;
 }
 
-#[no_mangle]
 /** Exported function `get_dep_arena`.
  * Query helper `get_dep_arena`.
  * @param i i32
  * @return *u8
  */
+#[no_mangle]
 export function get_dep_arena(i: i32): *u8 {
   if (i < 0) {
     return 0 as *u8;
@@ -395,27 +395,26 @@ export function get_dep_arena(i: i32): *u8 {
   return 0 as *u8;
 }
 
-#[no_mangle]
 /** Exported function `typeck_get_dep_module`.
  * Implements `typeck_get_dep_module`.
  * @param i i32
  * @return *u8
  */
+#[no_mangle]
 export function typeck_get_dep_module(i: i32): *u8 {
   return get_dep_module(i);
 }
 
-#[no_mangle]
 /** Exported function `typeck_get_dep_arena`.
  * Implements `typeck_get_dep_arena`.
  * @param i i32
  * @return *u8
  */
+#[no_mangle]
 export function typeck_get_dep_arena(i: i32): *u8 {
   return get_dep_arena(i);
 }
 
-#[no_mangle]
 /** Exported function `pipeline_set_dep`.
  * Implements `pipeline_set_dep`.
  * @param i i32
@@ -423,6 +422,7 @@ export function typeck_get_dep_arena(i: i32): *u8 {
  * @param arena *u8
  * @return void
  */
+#[no_mangle]
 export function pipeline_set_dep(i: i32, mod: *u8, arena: *u8): void {
   if (i < 0) {
     return;
@@ -455,12 +455,12 @@ export function driver_dep_publish_slot(i: i32, arena: *u8, module: *u8, import_
   }
 }
 
-#[no_mangle]
 /** Exported function `typeck_driver_dep_module_buf`.
  * Implements `typeck_driver_dep_module_buf`.
  * @param i i32
  * @return *u8
  */
+#[no_mangle]
 export function typeck_driver_dep_module_buf(i: i32): *u8 {
   unsafe {
     let r: *u8 = driver_dep_module_buf(i);
@@ -469,12 +469,12 @@ export function typeck_driver_dep_module_buf(i: i32): *u8 {
   return 0 as *u8;
 }
 
-#[no_mangle]
 /** Exported function `typeck_driver_dep_arena_buf`.
  * Implements `typeck_driver_dep_arena_buf`.
  * @param i i32
  * @return *u8
  */
+#[no_mangle]
 export function typeck_driver_dep_arena_buf(i: i32): *u8 {
   unsafe {
     let r: *u8 = driver_dep_arena_buf(i);
@@ -557,12 +557,12 @@ export function shux_asm_out_buf_is_object_magic(data: *u8): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `shux_import_path_is_file_path`.
  * Implements `shux_import_path_is_file_path`.
  * @param import_path *u8
  * @return i32
  */
+#[no_mangle]
 export function shux_import_path_is_file_path(import_path: *u8): i32 {
   if (import_path == 0 as *u8) {
     return 0;
@@ -589,12 +589,12 @@ export function shux_import_path_is_file_path(import_path: *u8): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `shux_asm_user_std_dep_skip_x_typeck`.
  * Implements `shux_asm_user_std_dep_skip_x_typeck`.
  * @param dep_path *u8
  * @return i32
  */
+#[no_mangle]
 export function shux_asm_user_std_dep_skip_x_typeck(dep_path: *u8): i32 {
   if (dep_path == 0 as *u8) {
     return 0;
@@ -611,12 +611,12 @@ export function shux_asm_user_std_dep_skip_x_typeck(dep_path: *u8): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `shux_asm_user_std_net_dep_path`.
  * Implements `shux_asm_user_std_net_dep_path`.
  * @param dep_path *u8
  * @return i32
  */
+#[no_mangle]
 export function shux_asm_user_std_net_dep_path(dep_path: *u8): i32 {
   if (dep_path == 0 as *u8) {
     return 0;
@@ -633,12 +633,12 @@ export function shux_asm_user_std_net_dep_path(dep_path: *u8): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `shux_asm_user_std_io_driver_dep_path`.
  * Implements `shux_asm_user_std_io_driver_dep_path`.
  * @param dep_path *u8
  * @return i32
  */
+#[no_mangle]
 export function shux_asm_user_std_io_driver_dep_path(dep_path: *u8): i32 {
   if (dep_path == 0 as *u8) {
     return 0;
@@ -655,12 +655,12 @@ export function shux_asm_user_std_io_driver_dep_path(dep_path: *u8): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `shux_asm_user_dep_parse_skip_typeck_path`.
  * Implements `shux_asm_user_dep_parse_skip_typeck_path`.
  * @param dep_path *u8
  * @return i32
  */
+#[no_mangle]
 export function shux_asm_user_dep_parse_skip_typeck_path(dep_path: *u8): i32 {
   unsafe {
     if (shux_asm_user_std_net_dep_path(dep_path) != 0) {
@@ -674,13 +674,13 @@ export function shux_asm_user_dep_parse_skip_typeck_path(dep_path: *u8): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `shux_asm_out_buf_is_object`.
  * Implements `shux_asm_out_buf_is_object`.
  * @param data *u8
  * @param len i64
  * @return i32
  */
+#[no_mangle]
 export function shux_asm_out_buf_is_object(data: *u8, len: i64): i32 {
   if (data == 0 as *u8) {
     return 0;
@@ -707,7 +707,6 @@ export function shux_dep_prerun_entry_dir(main_entry_dir: *u8, lib_roots: *u8, n
   return main_entry_dir;
 }
 
-#[no_mangle]
 /** Exported function `shux_find_loaded_import_index`.
  * Implements `shux_find_loaded_import_index`.
  * @param import_path *u8
@@ -715,6 +714,7 @@ export function shux_dep_prerun_entry_dir(main_entry_dir: *u8, lib_roots: *u8, n
  * @param n_all i32
  * @return i32
  */
+#[no_mangle]
 export function shux_find_loaded_import_index(import_path: *u8, all_paths: *u8, n_all: i32): i32 {
   if (import_path == 0 as *u8) {
     return -1;
@@ -728,7 +728,6 @@ export function shux_find_loaded_import_index(import_path: *u8, all_paths: *u8, 
   return shux_find_loaded_import_index_scan(import_path, all_paths, n_all);
 }
 
-#[no_mangle]
 /** Exported function `shux_merge_deps_path_already_out`.
  * Read path helper `shux_merge_deps_path_already_out`.
  * @param path *u8
@@ -736,6 +735,7 @@ export function shux_find_loaded_import_index(import_path: *u8, all_paths: *u8, 
  * @param n_out i32
  * @return i32
  */
+#[no_mangle]
 export function shux_merge_deps_path_already_out(path: *u8, out_paths: *u8, n_out: i32): i32 {
   if (path == 0 as *u8) {
     return 0;
@@ -750,11 +750,11 @@ export function shux_merge_deps_path_already_out(path: *u8, out_paths: *u8, n_ou
 }
 
 // shux_emit_pipeline_glue_include: see function docblock below.
-#[no_mangle]
 /** Exported function `shux_emit_pipeline_glue_include`.
  * Implements `shux_emit_pipeline_glue_include`.
  * @return void
  */
+#[no_mangle]
 export function shux_emit_pipeline_glue_include(): void {
   // "\n#include \"pipeline_glue.c\"\n"
   let s: u8[32] = [];
@@ -768,7 +768,6 @@ export function shux_emit_pipeline_glue_include(): void {
 }
 
 // shux_import_dep_dir_from_path: see function docblock below.
-#[no_mangle]
 /** Exported function `shux_import_dep_dir_from_path`.
  * Implements `shux_import_dep_dir_from_path`.
  * @param path *u8
@@ -776,6 +775,7 @@ export function shux_emit_pipeline_glue_include(): void {
  * @param dep_dir_size i64
  * @return i32
  */
+#[no_mangle]
 export function shux_import_dep_dir_from_path(path: *u8, dep_dir: *u8, dep_dir_size: i64): i32 {
   if (path == 0 as *u8) { return 0 - 1; }
   if (dep_dir == 0 as *u8) { return 0 - 1; }
@@ -821,65 +821,65 @@ export function pipeline_debug_trace_body_x_mega_pre_reset(module: *u8, arena: *
   }
 }
 
-#[no_mangle]
 /** Exported function `pipeline_debug_trace_body_x_mega_post_reset`.
  * Implements `pipeline_debug_trace_body_x_mega_post_reset`.
  * @param module *u8
  * @param arena *u8
  * @return void
  */
+#[no_mangle]
 export function pipeline_debug_trace_body_x_mega_post_reset(module: *u8, arena: *u8): void {
   unsafe {
     pipeline_debug_trace_named_func_bodies("x_mega_post_reset", module, arena);
   }
 }
 
-#[no_mangle]
 /** Exported function `pipeline_debug_trace_body_x_mega_post_params`.
  * Implements `pipeline_debug_trace_body_x_mega_post_params`.
  * @param module *u8
  * @param arena *u8
  * @return void
  */
+#[no_mangle]
 export function pipeline_debug_trace_body_x_mega_post_params(module: *u8, arena: *u8): void {
   unsafe {
     pipeline_debug_trace_named_func_bodies("x_mega_post_params", module, arena);
   }
 }
 
-#[no_mangle]
 /** Exported function `pipeline_debug_trace_body_x_mega_post_frame`.
  * Implements `pipeline_debug_trace_body_x_mega_post_frame`.
  * @param module *u8
  * @param arena *u8
  * @return void
  */
+#[no_mangle]
 export function pipeline_debug_trace_body_x_mega_post_frame(module: *u8, arena: *u8): void {
   unsafe {
     pipeline_debug_trace_named_func_bodies("x_mega_post_frame", module, arena);
   }
 }
 
-#[no_mangle]
 /** Exported function `pipeline_debug_trace_body_x_mega_post_locals`.
  * Implements `pipeline_debug_trace_body_x_mega_post_locals`.
  * @param module *u8
  * @param arena *u8
  * @return void
  */
+#[no_mangle]
 export function pipeline_debug_trace_body_x_mega_post_locals(module: *u8, arena: *u8): void {
   unsafe {
     pipeline_debug_trace_named_func_bodies("x_mega_post_locals", module, arena);
   }
 }
 
-#[no_mangle]
 /** Exported function `pipeline_debug_trace_body_x_mega_pre_emit`.
  * Implements `pipeline_debug_trace_body_x_mega_pre_emit`.
  * @param module *u8
  * @param arena *u8
  * @return void
  */
+#[no_mangle]
 export function pipeline_debug_trace_body_x_mega_pre_emit(module: *u8, arena: *u8): void {
   unsafe {
     pipeline_debug_trace_named_func_bodies("x_mega_pre_emit", module, arena);
@@ -887,11 +887,11 @@ export function pipeline_debug_trace_body_x_mega_pre_emit(module: *u8, arena: *u
 }
 
 // driver_typeck_dep_sidecar_clear: see function docblock below.
-#[no_mangle]
 /** Exported function `driver_typeck_dep_sidecar_clear`.
  * Implements `driver_typeck_dep_sidecar_clear`.
  * @return void
  */
+#[no_mangle]
 export function driver_typeck_dep_sidecar_clear(): void {
   typeck_ndep_store(0);
   let i: i32 = 0;
@@ -903,11 +903,11 @@ export function driver_typeck_dep_sidecar_clear(): void {
 }
 
 // driver_dep_seeded_clear_slots: see function docblock below.
-#[no_mangle]
 /** Exported function `driver_dep_seeded_clear_slots`.
  * Implements `driver_dep_seeded_clear_slots`.
  * @return void
  */
+#[no_mangle]
 export function driver_dep_seeded_clear_slots(): void {
   let i: i32 = 0;
   while (i < 32) {
@@ -922,18 +922,17 @@ export function driver_dep_seeded_clear_slots(): void {
 }
 
 // driver_dep_seeded_clear_all: see function docblock below.
-#[no_mangle]
 /** Exported function `driver_dep_seeded_clear_all`.
  * Implements `driver_dep_seeded_clear_all`.
  * @return void
  */
+#[no_mangle]
 export function driver_dep_seeded_clear_all(): void {
   driver_dep_seeded_clear_slots();
   driver_typeck_dep_sidecar_clear();
 }
 
 // shux_get_entry_dir: see function docblock below.
-#[no_mangle]
 /** Exported function `shux_get_entry_dir`.
  * Implements `shux_get_entry_dir`.
  * @param input_path *u8
@@ -941,6 +940,7 @@ export function driver_dep_seeded_clear_all(): void {
  * @param size i64
  * @return void
  */
+#[no_mangle]
 export function shux_get_entry_dir(input_path: *u8, entry_dir: *u8, size: i64): void {
   if (entry_dir == 0 as *u8) {
     return;
@@ -993,12 +993,12 @@ export function shux_get_entry_dir(input_path: *u8, entry_dir: *u8, size: i64): 
 }
 
 // driver_asm_fclose_asm_out: see function docblock below.
-#[no_mangle]
 /** Exported function `driver_asm_fclose_asm_out`.
  * Implements `driver_asm_fclose_asm_out`.
  * @param fp *u8
  * @return void
  */
+#[no_mangle]
 export function driver_asm_fclose_asm_out(fp: *u8): void {
   unsafe {
     if (fp == 0 as *u8) {
@@ -1016,7 +1016,6 @@ export function driver_asm_fclose_asm_out(fp: *u8): void {
 /* See implementation. */
 
 // G-02f-229：lib_root + import（'.'→'/'）+ ".x"
-#[no_mangle]
 /** Exported function `shux_import_path_to_file_path`.
  * Implements `shux_import_path_to_file_path`.
  * @param lib_root *u8
@@ -1025,6 +1024,7 @@ export function driver_asm_fclose_asm_out(fp: *u8): void {
  * @param path_size i64
  * @return void
  */
+#[no_mangle]
 export function shux_import_path_to_file_path(lib_root: *u8, import_path: *u8, path: *u8, path_size: i64): void {
   if (path == 0 as *u8) {
     return;
@@ -1153,7 +1153,6 @@ export function pipe_cstr_join_slash(dst: *u8, cap: i32, a: *u8, b: *u8): void {
 }
 
 // shux_resolve_file_import_path: see function docblock below.
-#[no_mangle]
 /** Exported function `shux_resolve_file_import_path`.
  * Implements `shux_resolve_file_import_path`.
  * @param entry_dir *u8
@@ -1162,6 +1161,7 @@ export function pipe_cstr_join_slash(dst: *u8, cap: i32, a: *u8, b: *u8): void {
  * @param path_size i64
  * @return void
  */
+#[no_mangle]
 export function shux_resolve_file_import_path(entry_dir: *u8, import_path: *u8, path: *u8, path_size: i64): void {
   if (path == 0 as *u8) {
     return;
@@ -1199,12 +1199,12 @@ export function shux_resolve_file_import_path(entry_dir: *u8, import_path: *u8, 
 }
 
 // driver_dep_slot_for_path_scan: see function docblock below.
-#[no_mangle]
 /** Exported function `driver_dep_slot_for_path_scan`.
  * Implements `driver_dep_slot_for_path_scan`.
  * @param path *u8
  * @return i32
  */
+#[no_mangle]
 export function driver_dep_slot_for_path_scan(path: *u8): i32 {
   if (path == 0 as *u8) { return 0 - 1; }
   unsafe {
@@ -1220,12 +1220,12 @@ export function driver_dep_slot_for_path_scan(path: *u8): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `driver_dep_slot_for_path`.
  * Implements `driver_dep_slot_for_path`.
  * @param path *u8
  * @return i32
  */
+#[no_mangle]
 export function driver_dep_slot_for_path(path: *u8): i32 {
   if (path == 0 as *u8) {
     return 0 - 1;
@@ -1236,7 +1236,6 @@ export function driver_dep_slot_for_path(path: *u8): i32 {
 /* See implementation. */
 
 // shux_preprocess_raw_to_malloc: see function docblock below.
-#[no_mangle]
 /** Exported function `shux_preprocess_raw_to_malloc`.
  * Memory management helper `shux_preprocess_raw_to_malloc`.
  * @param raw *u8
@@ -1248,6 +1247,7 @@ export function driver_dep_slot_for_path(path: *u8): i32 {
  * @param ndefines i32
  * @return i32
  */
+#[no_mangle]
 export function shux_preprocess_raw_to_malloc(raw: *u8, raw_len: i64, out_src: *u8, out_src_len: *u8, path_diag: *u8, defines: *u8, ndefines: i32): i32 {
   if (raw_len < 0) {
     return 0 - 1;
@@ -1267,7 +1267,6 @@ export function shux_preprocess_raw_to_malloc(raw: *u8, raw_len: i64, out_src: *
 }
 
 // driver_dep_seed_slots: see function docblock below.
-#[no_mangle]
 /** Exported function `driver_dep_seed_slots`.
  * Implements `driver_dep_seed_slots`.
  * @param arenas *u8
@@ -1275,6 +1274,7 @@ export function shux_preprocess_raw_to_malloc(raw: *u8, raw_len: i64, out_src: *
  * @param n i32
  * @return void
  */
+#[no_mangle]
 export function driver_dep_seed_slots(arenas: *u8, modules: *u8, n: i32): void {
   let j: i32 = 0;
   while (j < 32) {
@@ -1331,12 +1331,12 @@ export function pipe_cstr_contains(hay: *u8, needle: *u8): i32 {
 }
 
 // shux_entry_lib_name_from_path: see function docblock below.
-#[no_mangle]
 /** Exported function `shux_entry_lib_name_from_path`.
  * Implements `shux_entry_lib_name_from_path`.
  * @param input_path *u8
  * @return *u8
  */
+#[no_mangle]
 export function shux_entry_lib_name_from_path(input_path: *u8): *u8 {
   if (input_path == 0 as *u8) {
     unsafe {
@@ -1402,12 +1402,12 @@ export function pipeline_get_dep_arena_slot(i: i32): *u8 {
   return 0 as *u8;
 }
 
-#[no_mangle]
 /** Exported function `pipeline_get_dep_module_slot`.
  * Implements `pipeline_get_dep_module_slot`.
  * @param i i32
  * @return *u8
  */
+#[no_mangle]
 export function pipeline_get_dep_module_slot(i: i32): *u8 {
   if (i < 0) {
     return 0 as *u8;
@@ -1452,13 +1452,13 @@ export function pipe_cstr_copy(dst: *u8, cap: i32, src: *u8): void {
   }
 }
 
-#[no_mangle]
 /** Exported function `pipeline_diag_import_open_fail_once`.
  * Implements `pipeline_diag_import_open_fail_once`.
  * @param import_path *u8
  * @param resolved_path *u8
  * @return void
  */
+#[no_mangle]
 export function pipeline_diag_import_open_fail_once(import_path: *u8, resolved_path: *u8): void {
   let q: u8[2] = [];
   q[0] = 63; // '?'
@@ -1501,13 +1501,13 @@ export function pipeline_diag_import_open_fail_once(import_path: *u8, resolved_p
 /* ---- G-02f-56：resolve_path / read_file / parse loaded import ---- */
 
 // pipeline_resolve_path: see function docblock below.
-#[no_mangle]
 /** Exported function `pipeline_resolve_path`.
  * Implements `pipeline_resolve_path`.
  * @param path_ptr *u8
  * @param path_len i32
  * @return i32
  */
+#[no_mangle]
 export function pipeline_resolve_path(path_ptr: *u8, path_len: i32): i32 {
   if (path_ptr == 0 as *u8) {
     return 0 - 1;
@@ -1536,11 +1536,11 @@ export function pipeline_resolve_path(path_ptr: *u8, path_len: i32): i32 {
 }
 
 // pipeline_read_file: see function docblock below.
-#[no_mangle]
 /** Exported function `pipeline_read_file`.
  * Read path helper `pipeline_read_file`.
  * @return i32
  */
+#[no_mangle]
 export function pipeline_read_file(): i32 {
   unsafe {
     if (pipeline_read_file_stage_prep() != 0) {
@@ -1554,13 +1554,13 @@ export function pipeline_read_file(): i32 {
 }
 
 // pipeline_parse_into_loaded_import: see function docblock below.
-#[no_mangle]
 /** Exported function `pipeline_parse_into_loaded_import`.
  * Implements `pipeline_parse_into_loaded_import`.
  * @param arena *u8
  * @param module *u8
  * @return i32
  */
+#[no_mangle]
 export function pipeline_parse_into_loaded_import(arena: *u8, module: *u8): i32 {
   if (arena == 0 as *u8) {
     return 0 - 1;
@@ -1582,7 +1582,6 @@ export function pipeline_parse_into_loaded_import(arena: *u8, module: *u8): i32 
 /* See implementation. */
 
 // shux_pipeline_run_x_pipeline_large_stack: see function docblock below.
-#[no_mangle]
 /** Exported function `shux_pipeline_run_x_pipeline_large_stack`.
  * Implements `shux_pipeline_run_x_pipeline_large_stack`.
  * @param module *u8
@@ -1593,6 +1592,7 @@ export function pipeline_parse_into_loaded_import(arena: *u8, module: *u8): i32 
  * @param ctx *u8
  * @return i32
  */
+#[no_mangle]
 export function shux_pipeline_run_x_pipeline_large_stack(module: *u8, arena: *u8, source_data: *u8, source_len: i64, out_buf: *u8, ctx: *u8): i32 {
   if (module == 0 as *u8) {
     return 0 - 1;
@@ -1615,7 +1615,6 @@ export function shux_pipeline_run_x_pipeline_large_stack(module: *u8, arena: *u8
 /* See implementation. */
 
 // shux_pipeline_dep_prerun_parse_skip_typeck: see function docblock below.
-#[no_mangle]
 /** Exported function `shux_pipeline_dep_prerun_parse_skip_typeck`.
  * Implements `shux_pipeline_dep_prerun_parse_skip_typeck`.
  * @param dep_mod *u8
@@ -1626,6 +1625,7 @@ export function shux_pipeline_run_x_pipeline_large_stack(module: *u8, arena: *u8
  * @param one_ctx *u8
  * @return i32
  */
+#[no_mangle]
 export function shux_pipeline_dep_prerun_parse_skip_typeck(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32 {
   if (dep_mod == 0 as *u8) {
     return 0 - 1;
@@ -1645,7 +1645,6 @@ export function shux_pipeline_dep_prerun_parse_skip_typeck(dep_mod: *u8, dep_are
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `shux_pipeline_dep_prerun_parse_only`.
  * Implements `shux_pipeline_dep_prerun_parse_only`.
  * @param dep_mod *u8
@@ -1654,6 +1653,7 @@ export function shux_pipeline_dep_prerun_parse_skip_typeck(dep_mod: *u8, dep_are
  * @param len i64
  * @return i32
  */
+#[no_mangle]
 export function shux_pipeline_dep_prerun_parse_only(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64): i32 {
   if (dep_mod == 0 as *u8) {
     return 0 - 1;
@@ -1699,7 +1699,6 @@ export function shux_pipeline_dep_prerun_typeck_only(dep_mod: *u8, dep_arena: *u
 }
 
 // shux_pipeline_dep_prerun_for_asm_module_o: see function docblock below.
-#[no_mangle]
 /** Exported function `shux_pipeline_dep_prerun_for_asm_module_o`.
  * Implements `shux_pipeline_dep_prerun_for_asm_module_o`.
  * @param dep_mod *u8
@@ -1710,6 +1709,7 @@ export function shux_pipeline_dep_prerun_typeck_only(dep_mod: *u8, dep_arena: *u
  * @param one_ctx *u8
  * @return i32
  */
+#[no_mangle]
 export function shux_pipeline_dep_prerun_for_asm_module_o(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32 {
   return shux_pipeline_dep_prerun_typeck_only(dep_mod, dep_arena, src, len, dep_out, one_ctx);
 }
@@ -1916,7 +1916,6 @@ export function pipe_strip_prefix_seg(import_path: *u8, dir_tail: *u8): *u8 {
 }
 
 // shux_resolve_import_file_path_multi: see function docblock below.
-#[no_mangle]
 /** Exported function `shux_resolve_import_file_path_multi`.
  * Implements `shux_resolve_import_file_path_multi`.
  * @param lib_roots *u8
@@ -1927,6 +1926,7 @@ export function pipe_strip_prefix_seg(import_path: *u8, dir_tail: *u8): *u8 {
  * @param path_size i64
  * @return void
  */
+#[no_mangle]
 export function shux_resolve_import_file_path_multi(lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, import_path: *u8, path: *u8, path_size: i64): void {
   if (path == 0 as *u8) {
     return;
@@ -2043,12 +2043,12 @@ export function shux_resolve_import_file_path_multi(lib_roots: *u8, n_lib_roots:
 /* See implementation. */
 
 // pipeline_set_entry_dir: see function docblock below.
-#[no_mangle]
 /** Exported function `pipeline_set_entry_dir`.
  * Implements `pipeline_set_entry_dir`.
  * @param path *u8
  * @return void
  */
+#[no_mangle]
 export function pipeline_set_entry_dir(path: *u8): void {
   unsafe {
     if (path == 0 as *u8) {
@@ -2064,13 +2064,13 @@ export function pipeline_set_entry_dir(path: *u8): void {
 }
 
 // pipeline_set_dep_slots: see function docblock below.
-#[no_mangle]
 /** Exported function `pipeline_set_dep_slots`.
  * Implements `pipeline_set_dep_slots`.
  * @param arenas *u8
  * @param modules *u8
  * @return void
  */
+#[no_mangle]
 export function pipeline_set_dep_slots(arenas: *u8, modules: *u8): void {
   let i: i32 = 0;
   while (i < 32) {
@@ -2091,7 +2091,6 @@ export function pipeline_set_dep_slots(arenas: *u8, modules: *u8): void {
 }
 
 // shux_pipeline_fill_ctx_path_buffers: see function docblock below.
-#[no_mangle]
 /** Exported function `shux_pipeline_fill_ctx_path_buffers`.
  * Implements `shux_pipeline_fill_ctx_path_buffers`.
  * @param ctx *u8
@@ -2100,6 +2099,7 @@ export function pipeline_set_dep_slots(arenas: *u8, modules: *u8): void {
  * @param n_lib_roots i32
  * @return void
  */
+#[no_mangle]
 export function shux_pipeline_fill_ctx_path_buffers(ctx: *u8, entry_dir: *u8, lib_roots: *u8, n_lib_roots: i32): void {
   if (ctx == 0 as *u8) {
     return;
@@ -2151,7 +2151,6 @@ export function pipe_cstr_len(s: *u8): i32 {
 }
 
 // shux_pipeline_pctx_seed_dep_slots: see function docblock below.
-#[no_mangle]
 /** Exported function `shux_pipeline_pctx_seed_dep_slots`.
  * Implements `shux_pipeline_pctx_seed_dep_slots`.
  * @param ctx *u8
@@ -2161,6 +2160,7 @@ export function pipe_cstr_len(s: *u8): i32 {
  * @param n i32
  * @return void
  */
+#[no_mangle]
 export function shux_pipeline_pctx_seed_dep_slots(ctx: *u8, dep_mods: *u8, dep_ar: *u8, import_paths: *u8, n: i32): void {
   if (ctx == 0 as *u8) {
     return;
@@ -2197,7 +2197,6 @@ export function shux_pipeline_pctx_seed_dep_slots(ctx: *u8, dep_mods: *u8, dep_a
 }
 
 // shux_pipeline_pctx_seed_dep_import_paths_only: see function docblock below.
-#[no_mangle]
 /** Exported function `shux_pipeline_pctx_seed_dep_import_paths_only`.
  * Implements `shux_pipeline_pctx_seed_dep_import_paths_only`.
  * @param ctx *u8
@@ -2205,6 +2204,7 @@ export function shux_pipeline_pctx_seed_dep_slots(ctx: *u8, dep_mods: *u8, dep_a
  * @param n i32
  * @return void
  */
+#[no_mangle]
 export function shux_pipeline_pctx_seed_dep_import_paths_only(ctx: *u8, import_paths: *u8, n: i32): void {
   if (ctx == 0 as *u8) {
     return;
@@ -2228,7 +2228,6 @@ export function shux_pipeline_pctx_seed_dep_import_paths_only(ctx: *u8, import_p
 }
 
 // shux_pipeline_one_ctx_for_dep_prerun: see function docblock below.
-#[no_mangle]
 /** Exported function `shux_pipeline_one_ctx_for_dep_prerun`.
  * Implements `shux_pipeline_one_ctx_for_dep_prerun`.
  * @param ctx *u8
@@ -2241,6 +2240,7 @@ export function shux_pipeline_pctx_seed_dep_import_paths_only(ctx: *u8, import_p
  * @param dep_src_len i64
  * @return void
  */
+#[no_mangle]
 export function shux_pipeline_one_ctx_for_dep_prerun(ctx: *u8, j: i32, dep_mods: *u8, dep_ars: *u8, dep_paths: *u8, ndep: i32, dep_src: *u8, dep_src_len: i64): void {
   if (ctx == 0 as *u8) {
     return;
@@ -2288,7 +2288,6 @@ export function shux_pipeline_one_ctx_for_dep_prerun(ctx: *u8, j: i32, dep_mods:
 /* See implementation. */
 
 // shux_driver_asm_prepare_entry_elf_emit: see function docblock below.
-#[no_mangle]
 /** Exported function `shux_driver_asm_prepare_entry_elf_emit`.
  * Implements `shux_driver_asm_prepare_entry_elf_emit`.
  * @param module *u8
@@ -2296,6 +2295,7 @@ export function shux_pipeline_one_ctx_for_dep_prerun(ctx: *u8, j: i32, dep_mods:
  * @param pctx *u8
  * @return void
  */
+#[no_mangle]
 export function shux_driver_asm_prepare_entry_elf_emit(module: *u8, arena: *u8, pctx: *u8): void {
   if (module == 0 as *u8) {
     return;
@@ -2314,7 +2314,6 @@ export function shux_driver_asm_prepare_entry_elf_emit(module: *u8, arena: *u8, 
 }
 
 // shux_asm_codegen_elf_o_large_stack: see function docblock below.
-#[no_mangle]
 /** Exported function `shux_asm_codegen_elf_o_large_stack`.
  * Implements `shux_asm_codegen_elf_o_large_stack`.
  * @param module *u8
@@ -2324,6 +2323,7 @@ export function shux_driver_asm_prepare_entry_elf_emit(module: *u8, arena: *u8, 
  * @param out_buf *u8
  * @return i32
  */
+#[no_mangle]
 export function shux_asm_codegen_elf_o_large_stack(module: *u8, arena: *u8, ctx: *u8, elf_ctx: *u8, out_buf: *u8): i32 {
   if (module == 0 as *u8) {
     return 0 - 1;
@@ -2341,7 +2341,6 @@ export function shux_asm_codegen_elf_o_large_stack(module: *u8, arena: *u8, ctx:
 }
 
 // shux_load_direct_imports_for_asm_layout: see function docblock below.
-#[no_mangle]
 /** Exported function `shux_load_direct_imports_for_asm_layout`.
  * Implements `shux_load_direct_imports_for_asm_layout`.
  * @param module *u8
@@ -2356,6 +2355,7 @@ export function shux_asm_codegen_elf_o_large_stack(module: *u8, arena: *u8, ctx:
  * @param out_n *i32
  * @return i32
  */
+#[no_mangle]
 export function shux_load_direct_imports_for_asm_layout(module: *u8, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, out_n: *i32): i32 {
   if (module == 0 as *u8) {
     return 0 - 1;
@@ -2403,7 +2403,6 @@ export function shux_load_direct_imports_for_asm_layout(module: *u8, lib_roots: 
 }
 
 // shux_merge_direct_then_transitive_dep_paths: see function docblock below.
-#[no_mangle]
 /** Exported function `shux_merge_direct_then_transitive_dep_paths`.
  * Implements `shux_merge_direct_then_transitive_dep_paths`.
  * @param module *u8
@@ -2414,6 +2413,7 @@ export function shux_load_direct_imports_for_asm_layout(module: *u8, lib_roots: 
  * @param out_n *i32
  * @return i32
  */
+#[no_mangle]
 export function shux_merge_direct_then_transitive_dep_paths(module: *u8, n_imports: i32, cpaths: *u8, n_closure: i32, out_paths: *u8, out_n: *i32): i32 {
   if (module == 0 as *u8) {
     return 0 - 1;
@@ -2505,7 +2505,6 @@ export function shux_merge_direct_then_transitive_dep_paths(module: *u8, n_impor
 /* See implementation. */
 
 // shux_merge_direct_then_transitive_deps: see function docblock below.
-#[no_mangle]
 /** Exported function `shux_merge_direct_then_transitive_deps`.
  * Implements `shux_merge_direct_then_transitive_deps`.
  * @param module *u8
@@ -2520,6 +2519,7 @@ export function shux_merge_direct_then_transitive_dep_paths(module: *u8, n_impor
  * @param out_n *i32
  * @return i32
  */
+#[no_mangle]
 export function shux_merge_direct_then_transitive_deps(module: *u8, n_imports: i32, cls: *u8, clens: *u8, cpaths: *u8, n_closure: i32, out_src: *u8, out_lens: *u8, out_paths: *u8, out_n: *i32): i32 {
   if (module == 0 as *u8) {
     return 0 - 1;
@@ -2654,7 +2654,6 @@ export function shux_merge_direct_then_transitive_deps(module: *u8, n_imports: i
 }
 
 // shux_collect_deps_transitive: see function docblock below.
-#[no_mangle]
 /** Exported function `shux_collect_deps_transitive`.
  * Implements `shux_collect_deps_transitive`.
  * @param module *u8
@@ -2671,6 +2670,7 @@ export function shux_merge_direct_then_transitive_deps(module: *u8, n_imports: i
  * @param n_deps *i32
  * @return i32
  */
+#[no_mangle]
 export function shux_collect_deps_transitive(module: *u8, arena_sz: i64, module_sz: i64, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, n_deps: *i32): i32 {
   if (module == 0 as *u8) {
     return 0 - 1;
@@ -2695,7 +2695,6 @@ export function shux_collect_deps_transitive(module: *u8, arena_sz: i64, module_
 }
 
 // shux_collect_dep_paths_transitive: see function docblock below.
-#[no_mangle]
 /** Exported function `shux_collect_dep_paths_transitive`.
  * Implements `shux_collect_dep_paths_transitive`.
  * @param module *u8
@@ -2710,6 +2709,7 @@ export function shux_collect_deps_transitive(module: *u8, arena_sz: i64, module_
  * @param n_deps *i32
  * @return i32
  */
+#[no_mangle]
 export function shux_collect_dep_paths_transitive(module: *u8, arena_sz: i64, module_sz: i64, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_paths: *u8, n_deps: *i32): i32 {
   if (module == 0 as *u8) {
     return 0 - 1;
@@ -2733,7 +2733,6 @@ export function shux_collect_dep_paths_transitive(module: *u8, arena_sz: i64, mo
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `pipeline_debug_trace_named_func_bodies`.
  * Implements `pipeline_debug_trace_named_func_bodies`.
  * @param phase *u8
@@ -2741,6 +2740,7 @@ export function shux_collect_dep_paths_transitive(module: *u8, arena_sz: i64, mo
  * @param arena *u8
  * @return void
  */
+#[no_mangle]
 export function pipeline_debug_trace_named_func_bodies(phase: *u8, module: *u8, arena: *u8): void {
   if (module == 0 as *u8) {
     return;
@@ -2756,7 +2756,6 @@ export function pipeline_debug_trace_named_func_bodies(phase: *u8, module: *u8, 
 /* ---- G-02f-63 / G-02f-242：typeck_for_ctx / lsp free_loaded ---- */
 
 // pipeline_typeck_module_for_ctx: see function docblock below.
-#[no_mangle]
 /** Exported function `pipeline_typeck_module_for_ctx`.
  * Implements `pipeline_typeck_module_for_ctx`.
  * @param module *u8
@@ -2764,6 +2763,7 @@ export function pipeline_debug_trace_named_func_bodies(phase: *u8, module: *u8, 
  * @param ctx *u8
  * @return i32
  */
+#[no_mangle]
 export function pipeline_typeck_module_for_ctx(module: *u8, arena: *u8, ctx: *u8): i32 {
   if (module == 0 as *u8) {
     return 0 - 1;
@@ -2782,7 +2782,6 @@ export function pipeline_typeck_module_for_ctx(module: *u8, arena: *u8, ctx: *u8
 }
 
 // shu_lsp_free_loaded_imports: see function docblock below.
-#[no_mangle]
 /** Exported function `shu_lsp_free_loaded_imports`.
  * Memory management helper `shu_lsp_free_loaded_imports`.
  * @param all_dep_mods *u8
@@ -2790,6 +2789,7 @@ export function pipeline_typeck_module_for_ctx(module: *u8, arena: *u8, ctx: *u8
  * @param n_all i32
  * @return void
  */
+#[no_mangle]
 export function shu_lsp_free_loaded_imports(all_dep_mods: *u8, all_dep_paths: *u8, n_all: i32): void {
   if (all_dep_mods == 0 as *u8) { return; }
   if (all_dep_paths == 0 as *u8) { return; }
@@ -2819,12 +2819,12 @@ export function shu_lsp_free_loaded_imports(all_dep_mods: *u8, all_dep_paths: *u
 // See implementation.
 // kind="preprocess error" / "pipeline error" / "import error"；code=PP001/PP002/XP005/IMP002/IMP004
 
-#[no_mangle]
 /** Exported function `pipeline_diag_preprocess_unclosed_if`.
  * Implements `pipeline_diag_preprocess_unclosed_if`.
  * @param path_diag *u8
  * @return void
  */
+#[no_mangle]
 export function pipeline_diag_preprocess_unclosed_if(path_diag: *u8): void {
   pipeline_diag_emitted_note();
   let kind: u8[24] = [];
@@ -2843,12 +2843,12 @@ export function pipeline_diag_preprocess_unclosed_if(path_diag: *u8): void {
   }
 }
 
-#[no_mangle]
 /** Exported function `pipeline_diag_preprocess_fail`.
  * Implements `pipeline_diag_preprocess_fail`.
  * @param path_diag *u8
  * @return void
  */
+#[no_mangle]
 export function pipeline_diag_preprocess_fail(path_diag: *u8): void {
   pipeline_diag_emitted_note();
   let kind: u8[24] = [];
@@ -2866,13 +2866,13 @@ export function pipeline_diag_preprocess_fail(path_diag: *u8): void {
   }
 }
 
-#[no_mangle]
 /** Exported function `pipeline_diag_import_preprocess_fail`.
  * Implements `pipeline_diag_import_preprocess_fail`.
  * @param import_path *u8
  * @param resolved_path *u8
  * @return void
  */
+#[no_mangle]
 export function pipeline_diag_import_preprocess_fail(import_path: *u8, resolved_path: *u8): void {
   pipeline_diag_emitted_note();
   let kind: u8[24] = [];
@@ -2892,13 +2892,13 @@ export function pipeline_diag_import_preprocess_fail(import_path: *u8, resolved_
   }
 }
 
-#[no_mangle]
 /** Exported function `pipeline_diag_preprocess_alloc_fail`.
  * Memory management helper `pipeline_diag_preprocess_alloc_fail`.
  * @param path_diag *u8
  * @param what *u8
  * @return void
  */
+#[no_mangle]
 export function pipeline_diag_preprocess_alloc_fail(path_diag: *u8, what: *u8): void {
   pipeline_diag_emitted_note();
   let kind: u8[24] = [];
@@ -2920,12 +2920,12 @@ export function pipeline_diag_preprocess_alloc_fail(path_diag: *u8, what: *u8): 
   }
 }
 
-#[no_mangle]
 /** Exported function `pipeline_diag_merge_dep_missing`.
  * Implements `pipeline_diag_merge_dep_missing`.
  * @param import_path *u8
  * @return void
  */
+#[no_mangle]
 export function pipeline_diag_merge_dep_missing(import_path: *u8): void {
   pipeline_diag_emitted_note();
   let kind: u8[16] = [];
@@ -2957,12 +2957,12 @@ export function pipeline_diag_merge_dep_missing(import_path: *u8): void {
 }
 
 // typeck_ndep_store: see function docblock below.
-#[no_mangle]
 /** Exported function `typeck_ndep_store`.
  * Implements `typeck_ndep_store`.
  * @param n i32
  * @return void
  */
+#[no_mangle]
 export function typeck_ndep_store(n: i32): void {
   let v: i32 = n;
   if (v > 32) { v = 32; }
@@ -2973,13 +2973,13 @@ export function typeck_ndep_store(n: i32): void {
 }
 
 // typeck_dep_module_set: see function docblock below.
-#[no_mangle]
 /** Exported function `typeck_dep_module_set`.
  * Implements `typeck_dep_module_set`.
  * @param i i32
  * @param mod *u8
  * @return void
  */
+#[no_mangle]
 export function typeck_dep_module_set(i: i32, mod: *u8): void {
   if (i < 0) { return; }
   if (i >= 32) { return; }
@@ -2989,13 +2989,13 @@ export function typeck_dep_module_set(i: i32, mod: *u8): void {
 }
 
 // typeck_dep_arena_set: see function docblock below.
-#[no_mangle]
 /** Exported function `typeck_dep_arena_set`.
  * Implements `typeck_dep_arena_set`.
  * @param i i32
  * @param arena *u8
  * @return void
  */
+#[no_mangle]
 export function typeck_dep_arena_set(i: i32, arena: *u8): void {
   if (i < 0) { return; }
   if (i >= 32) { return; }
@@ -3005,13 +3005,13 @@ export function typeck_dep_arena_set(i: i32, arena: *u8): void {
 }
 
 // driver_dep_arena_ptr_set: see function docblock below.
-#[no_mangle]
 /** Exported function `driver_dep_arena_ptr_set`.
  * Implements `driver_dep_arena_ptr_set`.
  * @param i i32
  * @param arena *u8
  * @return void
  */
+#[no_mangle]
 export function driver_dep_arena_ptr_set(i: i32, arena: *u8): void {
   if (i < 0) { return; }
   if (i >= 32) { return; }
@@ -3020,13 +3020,13 @@ export function driver_dep_arena_ptr_set(i: i32, arena: *u8): void {
   }
 }
 
-#[no_mangle]
 /** Exported function `driver_dep_module_ptr_set`.
  * Implements `driver_dep_module_ptr_set`.
  * @param i i32
  * @param module *u8
  * @return void
  */
+#[no_mangle]
 export function driver_dep_module_ptr_set(i: i32, module: *u8): void {
   if (i < 0) { return; }
   if (i >= 32) { return; }
@@ -3075,7 +3075,6 @@ export function pipe_load_ptr_slot(base: *u8, i: i32): *u8 {
 }
 
 // shux_dep_prerun_entry_dir_pick: see function docblock below.
-#[no_mangle]
 /** Exported function `shux_dep_prerun_entry_dir_pick`.
  * Implements `shux_dep_prerun_entry_dir_pick`.
  * @param main_entry_dir *u8
@@ -3083,6 +3082,7 @@ export function pipe_load_ptr_slot(base: *u8, i: i32): *u8 {
  * @param n_lib_roots i32
  * @return *u8
  */
+#[no_mangle]
 export function shux_dep_prerun_entry_dir_pick(main_entry_dir: *u8, lib_roots: *u8, n_lib_roots: i32): *u8 {
   if (lib_roots == 0 as *u8) { return main_entry_dir; }
   if (n_lib_roots <= 0) { return main_entry_dir; }
@@ -3095,7 +3095,6 @@ export function shux_dep_prerun_entry_dir_pick(main_entry_dir: *u8, lib_roots: *
   return main_entry_dir;
 }
 
-#[no_mangle]
 /** Exported function `shux_find_loaded_import_index_scan`.
  * Implements `shux_find_loaded_import_index_scan`.
  * @param path *u8
@@ -3103,6 +3102,7 @@ export function shux_dep_prerun_entry_dir_pick(main_entry_dir: *u8, lib_roots: *
  * @param n_all i32
  * @return i32
  */
+#[no_mangle]
 export function shux_find_loaded_import_index_scan(path: *u8, all_paths: *u8, n_all: i32): i32 {
   if (path == 0 as *u8) { return 0 - 1; }
   if (all_paths == 0 as *u8) { return 0 - 1; }
@@ -3118,7 +3118,6 @@ export function shux_find_loaded_import_index_scan(path: *u8, all_paths: *u8, n_
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `shux_merge_deps_path_already_out_scan`.
  * Read path helper `shux_merge_deps_path_already_out_scan`.
  * @param path *u8
@@ -3126,6 +3125,7 @@ export function shux_find_loaded_import_index_scan(path: *u8, all_paths: *u8, n_
  * @param n_out i32
  * @return i32
  */
+#[no_mangle]
 export function shux_merge_deps_path_already_out_scan(path: *u8, out_paths: *u8, n_out: i32): i32 {
   if (path == 0 as *u8) { return 0; }
   if (out_paths == 0 as *u8) { return 0; }
@@ -3144,7 +3144,6 @@ export function shux_merge_deps_path_already_out_scan(path: *u8, out_paths: *u8,
 /* See implementation. */
 
 // shux_pipeline_pctx_update_dep_slots_no_reset: see function docblock below.
-#[no_mangle]
 /** Exported function `shux_pipeline_pctx_update_dep_slots_no_reset`.
  * Implements `shux_pipeline_pctx_update_dep_slots_no_reset`.
  * @param ctx *u8
@@ -3154,6 +3153,7 @@ export function shux_merge_deps_path_already_out_scan(path: *u8, out_paths: *u8,
  * @param n i32
  * @return void
  */
+#[no_mangle]
 export function shux_pipeline_pctx_update_dep_slots_no_reset(ctx: *u8, dep_mods: *u8, dep_ars: *u8, import_paths: *u8, n: i32): void {
   if (ctx == 0 as *u8) {
     return;
@@ -3191,12 +3191,12 @@ export function shux_pipeline_pctx_update_dep_slots_no_reset(ctx: *u8, dep_mods:
 /* ---- G-02f-95 / G-02f-241：pipeline large-stack thread fns ---- */
 
 // pipeline_run_x_thread_fn: see function docblock below.
-#[no_mangle]
 /** Exported function `pipeline_run_x_thread_fn`.
  * Read path helper `pipeline_run_x_thread_fn`.
  * @param arg *u8
  * @return *u8
  */
+#[no_mangle]
 export function pipeline_run_x_thread_fn(arg: *u8): *u8 {
   if (arg == 0 as *u8) {
     return 0 as *u8;
@@ -3208,12 +3208,12 @@ export function pipeline_run_x_thread_fn(arg: *u8): *u8 {
 }
 
 // shux_asm_codegen_elf_o_thread_fn: see function docblock below.
-#[no_mangle]
 /** Exported function `shux_asm_codegen_elf_o_thread_fn`.
  * Read path helper `shux_asm_codegen_elf_o_thread_fn`.
  * @param arg *u8
  * @return *u8
  */
+#[no_mangle]
 export function shux_asm_codegen_elf_o_thread_fn(arg: *u8): *u8 {
   if (arg == 0 as *u8) {
     return 0 as *u8;
@@ -3228,11 +3228,11 @@ export function shux_asm_codegen_elf_o_thread_fn(arg: *u8): *u8 {
 
 export extern "C" function getenv(name: *u8): *u8;
 
-#[no_mangle]
 /** Exported function `pipeline_asm_debug_enabled`.
  * Implements `pipeline_asm_debug_enabled`.
  * @return i32
  */
+#[no_mangle]
 export function pipeline_asm_debug_enabled(): i32 {
   unsafe {
     let e: *u8 = getenv("SHUX_ASM_DEBUG");
@@ -3243,13 +3243,13 @@ export function pipeline_asm_debug_enabled(): i32 {
 
 // pipeline_debug_body_func_match: see function docblock below.
 
-#[no_mangle]
 /** Exported function `pipeline_debug_body_func_match`.
  * Implements `pipeline_debug_body_func_match`.
  * @param filter *u8
  * @param name *u8
  * @return i32
  */
+#[no_mangle]
 export function pipeline_debug_body_func_match(filter: *u8, name: *u8): i32 {
   if (filter == 0) { return 0; }
   if (filter[0] == 0) { return 0; }

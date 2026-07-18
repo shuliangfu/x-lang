@@ -47,107 +47,107 @@ let CFG_HOST_ARCH_RV64: u8[8] = [114, 105, 115, 99, 118, 54, 52, 0];
 #[cfg(not(target_arch = "riscv64"))]
 let CFG_HOST_ARCH_UNKNOWN: u8[8] = [117, 110, 107, 110, 111, 119, 110, 0];
 
-#[cfg(not(target_os = "linux"))]
-#[cfg(target_os = "macos")]
 /** Exported function `cfg_host_os_lit_non_linux`.
  * Implements `cfg_host_os_lit_non_linux`.
  * @return *u8
  */
+#[cfg(not(target_os = "linux"))]
+#[cfg(target_os = "macos")]
 export function cfg_host_os_lit_non_linux(): *u8 {
   return &CFG_HOST_OS_MACOS[0];
 }
-#[cfg(not(target_os = "linux"))]
-#[cfg(not(target_os = "macos"))]
-#[cfg(target_os = "freebsd")]
 /** Exported function `cfg_host_os_lit_non_linux`.
  * Implements `cfg_host_os_lit_non_linux`.
  * @return *u8
  */
+#[cfg(not(target_os = "linux"))]
+#[cfg(not(target_os = "macos"))]
+#[cfg(target_os = "freebsd")]
 export function cfg_host_os_lit_non_linux(): *u8 {
   return &CFG_HOST_OS_FREEBSD[0];
 }
+/** Exported function `cfg_host_os_lit_non_linux`.
+ * Implements `cfg_host_os_lit_non_linux`.
+ * @return *u8
+ */
 #[cfg(not(target_os = "linux"))]
 #[cfg(not(target_os = "macos"))]
 #[cfg(not(target_os = "freebsd"))]
 #[cfg(target_os = "windows")]
+export function cfg_host_os_lit_non_linux(): *u8 {
+  return &CFG_HOST_OS_WINDOWS[0];
+}
 /** Exported function `cfg_host_os_lit_non_linux`.
  * Implements `cfg_host_os_lit_non_linux`.
  * @return *u8
  */
-export function cfg_host_os_lit_non_linux(): *u8 {
-  return &CFG_HOST_OS_WINDOWS[0];
-}
 #[cfg(not(target_os = "linux"))]
 #[cfg(not(target_os = "macos"))]
 #[cfg(not(target_os = "freebsd"))]
 #[cfg(not(target_os = "windows"))]
-/** Exported function `cfg_host_os_lit_non_linux`.
- * Implements `cfg_host_os_lit_non_linux`.
- * @return *u8
- */
 export function cfg_host_os_lit_non_linux(): *u8 {
   return &CFG_HOST_OS_UNKNOWN[0];
 }
 
-#[cfg(not(target_arch = "x86_64"))]
-#[cfg(target_arch = "aarch64")]
 /** Exported function `cfg_host_arch_lit_non_x64`.
  * Implements `cfg_host_arch_lit_non_x64`.
  * @return *u8
  */
+#[cfg(not(target_arch = "x86_64"))]
+#[cfg(target_arch = "aarch64")]
 export function cfg_host_arch_lit_non_x64(): *u8 {
   return &CFG_HOST_ARCH_A64[0];
 }
-#[cfg(not(target_arch = "x86_64"))]
-#[cfg(target_arch = "riscv64")]
 /** Exported function `cfg_host_arch_lit_non_x64`.
  * Implements `cfg_host_arch_lit_non_x64`.
  * @return *u8
  */
+#[cfg(not(target_arch = "x86_64"))]
+#[cfg(target_arch = "riscv64")]
 export function cfg_host_arch_lit_non_x64(): *u8 {
   return &CFG_HOST_ARCH_RV64[0];
 }
-#[cfg(not(target_arch = "x86_64"))]
-#[cfg(not(target_arch = "aarch64"))]
-#[cfg(not(target_arch = "riscv64"))]
 /** Exported function `cfg_host_arch_lit_non_x64`.
  * Implements `cfg_host_arch_lit_non_x64`.
  * @return *u8
  */
+#[cfg(not(target_arch = "x86_64"))]
+#[cfg(not(target_arch = "aarch64"))]
+#[cfg(not(target_arch = "riscv64"))]
 export function cfg_host_arch_lit_non_x64(): *u8 {
   return &CFG_HOST_ARCH_UNKNOWN[0];
 }
 
-#[cfg(target_os = "linux")]
 /** Exported function `cfg_host_os_lit`.
  * Implements `cfg_host_os_lit`.
  * @return *u8
  */
+#[cfg(target_os = "linux")]
 export function cfg_host_os_lit(): *u8 {
   return &CFG_HOST_OS_LINUX[0];
 }
-#[cfg(not(target_os = "linux"))]
 /** Exported function `cfg_host_os_lit`.
  * Implements `cfg_host_os_lit`.
  * @return *u8
  */
+#[cfg(not(target_os = "linux"))]
 export function cfg_host_os_lit(): *u8 {
   return cfg_host_os_lit_non_linux();
 }
 
-#[cfg(target_arch = "x86_64")]
 /** Exported function `cfg_host_arch_lit`.
  * Implements `cfg_host_arch_lit`.
  * @return *u8
  */
+#[cfg(target_arch = "x86_64")]
 export function cfg_host_arch_lit(): *u8 {
   return &CFG_HOST_ARCH_X64[0];
 }
-#[cfg(not(target_arch = "x86_64"))]
 /** Exported function `cfg_host_arch_lit`.
  * Implements `cfg_host_arch_lit`.
  * @return *u8
  */
+#[cfg(not(target_arch = "x86_64"))]
 export function cfg_host_arch_lit(): *u8 {
   return cfg_host_arch_lit_non_x64();
 }

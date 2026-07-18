@@ -43,12 +43,12 @@ export function backtrace_capture_and_check_gold_c(): i32 {
 
 export extern "C" function backtrace_name_has_gold_anchor_c(name: *u8): i32;
 
-#[no_mangle]
 /** Exported function `name_has_gold_anchor`.
  * Implements `name_has_gold_anchor`.
  * @param name *u8
  * @return i32
  */
+#[no_mangle]
 export function name_has_gold_anchor(name: *u8): i32 {
   unsafe {
     return backtrace_name_has_gold_anchor_c(name);

@@ -26,13 +26,13 @@ export function shu_cpu_zero(set: *u8): void {
   }
 }
 
-#[no_mangle]
 /** Exported function `shu_cpu_set`.
  * Implements `shu_cpu_set`.
  * @param cpu u32
  * @param set *u8
  * @return void
  */
+#[no_mangle]
 export function shu_cpu_set(cpu: u32, set: *u8): void {
   unsafe {
     shu_cpu_set_impl(cpu, set);

@@ -80,7 +80,6 @@ export function asm_codegen_elf_o(module: *ast.Module, arena: *ast.ASTArena, ctx
   return 0;
 }
 
-#[cfg(target_os = "windows")]
 /** Exported function `asm_codegen_elf_o`.
  * Implements `asm_codegen_elf_o`.
  * @param module *ast.Module
@@ -90,6 +89,7 @@ export function asm_codegen_elf_o(module: *ast.Module, arena: *ast.ASTArena, ctx
  * @param out *codegen_outbuf_abi.CodegenOutBuf
  * @return i32
  */
+#[cfg(target_os = "windows")]
 export function asm_codegen_elf_o(module: *ast.Module, arena: *ast.ASTArena, ctx: *ast.PipelineDepCtx, elf_ctx: *elf.ElfCodegenCtx, out: *codegen_outbuf_abi.CodegenOutBuf): i32 {
   elf.elf_ctx_reset(elf_ctx);
   if (ctx.use_macho_o != 0 || ctx.use_coff_o != 0) {
@@ -119,7 +119,6 @@ export function asm_codegen_elf_o(module: *ast.Module, arena: *ast.ASTArena, ctx
   return 0;
 }
 
-#[cfg(target_os = "macos")]
 /** Exported function `asm_codegen_elf_o`.
  * Implements `asm_codegen_elf_o`.
  * @param module *ast.Module
@@ -129,6 +128,7 @@ export function asm_codegen_elf_o(module: *ast.Module, arena: *ast.ASTArena, ctx
  * @param out *codegen_outbuf_abi.CodegenOutBuf
  * @return i32
  */
+#[cfg(target_os = "macos")]
 export function asm_codegen_elf_o(module: *ast.Module, arena: *ast.ASTArena, ctx: *ast.PipelineDepCtx, elf_ctx: *elf.ElfCodegenCtx, out: *codegen_outbuf_abi.CodegenOutBuf): i32 {
   elf.elf_ctx_reset(elf_ctx);
   if (ctx.use_macho_o != 0 || ctx.use_coff_o != 0) {

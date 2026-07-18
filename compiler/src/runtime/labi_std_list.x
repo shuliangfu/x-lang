@@ -826,12 +826,12 @@ export function labi_std_default_std_rel_count(): i32 {
   return 43;
 }
 
-#[no_mangle]
 /** Exported function `labi_std_default_std_rel_at`.
  * Implements `labi_std_default_std_rel_at`.
  * @param j i32
  * @return *u8
  */
+#[no_mangle]
 export function labi_std_default_std_rel_at(j: i32): *u8 {
   if (j < 0) {
     return 0 as *u8;

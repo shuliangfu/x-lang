@@ -55,20 +55,20 @@ export function freestanding_write_available(): i32 {
   return 1;
 }
 
-#[cfg(target_os = "macos")]
 /** Exported function `freestanding_write_available`.
  * Write path helper `freestanding_write_available`.
  * @return i32
  */
+#[cfg(target_os = "macos")]
 export function freestanding_write_available(): i32 {
   return 0;
 }
 
-#[cfg(target_os = "freebsd")]
 /** Exported function `freestanding_write_available`.
  * Write path helper `freestanding_write_available`.
  * @return i32
  */
+#[cfg(target_os = "freebsd")]
 export function freestanding_write_available(): i32 {
   return 0;
 }
@@ -89,7 +89,6 @@ export function write(fd: i32, buf: *u8, len: i32): i32 {
   }
 }
 
-#[cfg(target_os = "macos")]
 /** Exported function `write`.
  * Write path helper `write`.
  * @param fd i32
@@ -97,11 +96,11 @@ export function write(fd: i32, buf: *u8, len: i32): i32 {
  * @param len i32
  * @return i32
  */
+#[cfg(target_os = "macos")]
 export function write(fd: i32, buf: *u8, len: i32): i32 {
   return macos.macos_write(fd, buf, len);
 }
 
-#[cfg(target_os = "freebsd")]
 /** Exported function `write`.
  * Write path helper `write`.
  * @param fd i32
@@ -109,6 +108,7 @@ export function write(fd: i32, buf: *u8, len: i32): i32 {
  * @param len i32
  * @return i32
  */
+#[cfg(target_os = "freebsd")]
 export function write(fd: i32, buf: *u8, len: i32): i32 {
   return freebsd.freebsd_write(fd, buf, len);
 }
@@ -136,35 +136,35 @@ export function write_stdout(buf: *u8, len: i32): i32 {
   return write(STDOUT_FD, buf, len);
 }
 
+/** Exported function `write_stdout`.
+ * Write path helper `write_stdout`.
+ * @param buf *u8
+ * @param len i32
+ * @return i32
+ */
 #[cfg(target_os = "macos")]
+export function write_stdout(buf: *u8, len: i32): i32 {
+  return write(STDOUT_FD, buf, len);
+}
+
 /** Exported function `write_stdout`.
  * Write path helper `write_stdout`.
  * @param buf *u8
  * @param len i32
  * @return i32
  */
-export function write_stdout(buf: *u8, len: i32): i32 {
-  return write(STDOUT_FD, buf, len);
-}
-
 #[cfg(target_os = "freebsd")]
-/** Exported function `write_stdout`.
- * Write path helper `write_stdout`.
- * @param buf *u8
- * @param len i32
- * @return i32
- */
 export function write_stdout(buf: *u8, len: i32): i32 {
   return write(STDOUT_FD, buf, len);
 }
 
-#[cfg(target_os = "windows")]
 /** Exported function `write_stdout`.
  * Write path helper `write_stdout`.
  * @param buf *u8
  * @param len i32
  * @return i32
  */
+#[cfg(target_os = "windows")]
 export function write_stdout(buf: *u8, len: i32): i32 {
   return write(STDOUT_FD, buf, len);
 }
@@ -180,35 +180,35 @@ export function write_stderr(buf: *u8, len: i32): i32 {
   return write(STDERR_FD, buf, len);
 }
 
+/** Exported function `write_stderr`.
+ * Write path helper `write_stderr`.
+ * @param buf *u8
+ * @param len i32
+ * @return i32
+ */
 #[cfg(target_os = "macos")]
+export function write_stderr(buf: *u8, len: i32): i32 {
+  return write(STDERR_FD, buf, len);
+}
+
 /** Exported function `write_stderr`.
  * Write path helper `write_stderr`.
  * @param buf *u8
  * @param len i32
  * @return i32
  */
-export function write_stderr(buf: *u8, len: i32): i32 {
-  return write(STDERR_FD, buf, len);
-}
-
 #[cfg(target_os = "freebsd")]
-/** Exported function `write_stderr`.
- * Write path helper `write_stderr`.
- * @param buf *u8
- * @param len i32
- * @return i32
- */
 export function write_stderr(buf: *u8, len: i32): i32 {
   return write(STDERR_FD, buf, len);
 }
 
-#[cfg(target_os = "windows")]
 /** Exported function `write_stderr`.
  * Write path helper `write_stderr`.
  * @param buf *u8
  * @param len i32
  * @return i32
  */
+#[cfg(target_os = "windows")]
 export function write_stderr(buf: *u8, len: i32): i32 {
   return write(STDERR_FD, buf, len);
 }
@@ -290,7 +290,6 @@ export function freebsd_write_available(): i32 {
   return freebsd.freebsd_write_available();
 }
 
-#[cfg(target_os = "freebsd")]
 /** Exported function `freebsd_write`.
  * Write path helper `freebsd_write`.
  * @param fd i32
@@ -298,28 +297,29 @@ export function freebsd_write_available(): i32 {
  * @param len i32
  * @return i32
  */
+#[cfg(target_os = "freebsd")]
 export function freebsd_write(fd: i32, buf: *u8, len: i32): i32 {
   return freebsd.freebsd_write(fd, buf, len);
 }
 
-#[cfg(target_os = "freebsd")]
 /** Exported function `freebsd_write_stdout`.
  * Write path helper `freebsd_write_stdout`.
  * @param buf *u8
  * @param len i32
  * @return i32
  */
+#[cfg(target_os = "freebsd")]
 export function freebsd_write_stdout(buf: *u8, len: i32): i32 {
   return freebsd.freebsd_write_stdout(buf, len);
 }
 
-#[cfg(target_os = "freebsd")]
 /** Exported function `freebsd_write_stderr`.
  * Write path helper `freebsd_write_stderr`.
  * @param buf *u8
  * @param len i32
  * @return i32
  */
+#[cfg(target_os = "freebsd")]
 export function freebsd_write_stderr(buf: *u8, len: i32): i32 {
   return freebsd.freebsd_write_stderr(buf, len);
 }
@@ -393,7 +393,6 @@ export function read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
   return linux.linux_read_file_into(path, buf, cap);
 }
 
-#[cfg(target_os = "macos")]
 /** Exported function `read_file_into`.
  * Read path helper `read_file_into`.
  * @param path *u8
@@ -401,11 +400,11 @@ export function read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
  * @param cap i32
  * @return i32
  */
+#[cfg(target_os = "macos")]
 export function read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
   return macos.macos_read_file_into(path, buf, cap);
 }
 
-#[cfg(target_os = "freebsd")]
 /** Exported function `read_file_into`.
  * Read path helper `read_file_into`.
  * @param path *u8
@@ -413,6 +412,7 @@ export function read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
  * @param cap i32
  * @return i32
  */
+#[cfg(target_os = "freebsd")]
 export function read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
   return freebsd.freebsd_read_file_into(path, buf, cap);
 }
@@ -453,7 +453,6 @@ export function read(fd: i32, buf: *u8, len: i32): i32 {
   return macos.macos_read(fd, buf, len);
 }
 
-#[cfg(target_os = "freebsd")]
 /** Exported function `read`.
  * Read path helper `read`.
  * @param fd i32
@@ -461,6 +460,7 @@ export function read(fd: i32, buf: *u8, len: i32): i32 {
  * @param len i32
  * @return i32
  */
+#[cfg(target_os = "freebsd")]
 export function read(fd: i32, buf: *u8, len: i32): i32 {
   return freebsd.freebsd_read(fd, buf, len);
 }
@@ -500,12 +500,12 @@ export function close(fd: i32): i32 {
   return macos.macos_close(fd);
 }
 
-#[cfg(target_os = "freebsd")]
 /** Exported function `close`.
  * Implements `close`.
  * @param fd i32
  * @return i32
  */
+#[cfg(target_os = "freebsd")]
 export function close(fd: i32): i32 {
   return freebsd.freebsd_close(fd);
 }
@@ -537,12 +537,12 @@ export function exit(code: i32): void {
   macos.macos_exit(code);
 }
 
-#[cfg(target_os = "freebsd")]
 /** Exported function `exit`.
  * Implements `exit`.
  * @param code i32
  * @return void
  */
+#[cfg(target_os = "freebsd")]
 export function exit(code: i32): void {
   freebsd.freebsd_exit(code);
 }

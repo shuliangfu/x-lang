@@ -118,7 +118,6 @@ export function backend_try_inline_dispatch_x_doc_anchor(): i32 {
 /* ---- G-02f-109 / G-02f-134：try_inline helpers ---- */
 
 // glue_module_func_index_by_name: see function docblock below.
-#[no_mangle]
 /** Exported function `glue_module_func_index_by_name`.
  * Implements `glue_module_func_index_by_name`.
  * @param mod *u8
@@ -126,6 +125,7 @@ export function backend_try_inline_dispatch_x_doc_anchor(): i32 {
  * @param nlen i32
  * @return i32
  */
+#[no_mangle]
 export function glue_module_func_index_by_name(mod: *u8, name: *u8, nlen: i32): i32 {
   if (mod == 0) { return 0 - 1; }
   if (name == 0) { return 0 - 1; }
@@ -154,7 +154,6 @@ export function glue_module_func_index_by_name(mod: *u8, name: *u8, nlen: i32): 
 }
 
 // glue_const_scalar_binop_eval_i32: see function docblock below.
-#[no_mangle]
 /** Exported function `glue_const_scalar_binop_eval_i32`.
  * Implements `glue_const_scalar_binop_eval_i32`.
  * @param ko i32
@@ -163,6 +162,7 @@ export function glue_module_func_index_by_name(mod: *u8, name: *u8, nlen: i32): 
  * @param out *i32
  * @return i32
  */
+#[no_mangle]
 export function glue_const_scalar_binop_eval_i32(ko: i32, a: i32, b: i32, out: *i32): i32 {
   if (out == 0) { return 0; }
   let wide: i64 = 0;
@@ -185,9 +185,7 @@ export function glue_const_scalar_binop_eval_i32(ko: i32, a: i32, b: i32, out: *
   return 1;
 }
 
-#[no_mangle]
 // glue_module_named_type_has_struct_layout: see function docblock below.
-#[no_mangle]
 /** Exported function `glue_module_named_type_has_struct_layout`.
  * Implements `glue_module_named_type_has_struct_layout`.
  * @param mod *u8
@@ -195,6 +193,7 @@ export function glue_const_scalar_binop_eval_i32(ko: i32, a: i32, b: i32, out: *
  * @param nlen i32
  * @return i32
  */
+#[no_mangle]
 export function glue_module_named_type_has_struct_layout(mod: *u8, name: *u8, nlen: i32): i32 {
   if (mod == 0) { return 0; }
   if (name == 0) { return 0; }
@@ -225,7 +224,6 @@ export function glue_module_named_type_has_struct_layout(mod: *u8, name: *u8, nl
 }
 
 // glue_type_ref_is_named_struct_layout: see function docblock below.
-#[no_mangle]
 /** Exported function `glue_type_ref_is_named_struct_layout`.
  * Implements `glue_type_ref_is_named_struct_layout`.
  * @param arena *u8
@@ -233,6 +231,7 @@ export function glue_module_named_type_has_struct_layout(mod: *u8, name: *u8, nl
  * @param ty_ref i32
  * @return i32
  */
+#[no_mangle]
 export function glue_type_ref_is_named_struct_layout(arena: *u8, mod: *u8, ty_ref: i32): i32 {
   if (ty_ref <= 0) { return 0; }
   if (mod == 0) { return 0; }
@@ -293,7 +292,6 @@ export function g02f_store_ptr_at(p: *u8, off: i32, val: *u8): void {
 
 // See implementation.
 // GLUE_EXPR_VAR=3 TYPE_PTR=9 TYPE_NAMED=8
-#[no_mangle]
 /** Exported function `asm_local_var_slot_holds_indirect_ptr`.
  * Implements `asm_local_var_slot_holds_indirect_ptr`.
  * @param arena *u8
@@ -302,6 +300,7 @@ export function g02f_store_ptr_at(p: *u8, off: i32, val: *u8): void {
  * @param asm_ctx *u8
  * @return i32
  */
+#[no_mangle]
 export function asm_local_var_slot_holds_indirect_ptr(arena: *u8, expr_ref: i32, mod: *u8, asm_ctx: *u8): i32 {
   if (arena == 0) { return 0; }
   if (expr_ref <= 0) { return 0; }
@@ -363,7 +362,6 @@ export function asm_local_var_slot_holds_indirect_ptr(arena: *u8, expr_ref: i32,
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `glue_local_var_slot_holds_indirect_ptr`.
  * Implements `glue_local_var_slot_holds_indirect_ptr`.
  * @param arena *u8
@@ -371,6 +369,7 @@ export function asm_local_var_slot_holds_indirect_ptr(arena: *u8, expr_ref: i32,
  * @param asm_ctx *u8
  * @return i32
  */
+#[no_mangle]
 export function glue_local_var_slot_holds_indirect_ptr(arena: *u8, er: i32, asm_ctx: *u8): i32 {
   let mod_ref: *u8 = 0 as *u8;
   if (asm_ctx != 0) {
@@ -380,7 +379,6 @@ export function glue_local_var_slot_holds_indirect_ptr(arena: *u8, er: i32, asm_
 }
 
 // glue_expr_is_func_param_at: see function docblock below.
-#[no_mangle]
 /** Exported function `glue_expr_is_func_param_at`.
  * Implements `glue_expr_is_func_param_at`.
  * @param arena *u8
@@ -390,6 +388,7 @@ export function glue_local_var_slot_holds_indirect_ptr(arena: *u8, er: i32, asm_
  * @param pix i32
  * @return i32
  */
+#[no_mangle]
 export function glue_expr_is_func_param_at(arena: *u8, mod: *u8, fi: i32, er: i32, pix: i32): i32 {
   if (arena == 0) { return 0; }
   if (mod == 0) { return 0; }
@@ -412,9 +411,7 @@ export function glue_expr_is_func_param_at(arena: *u8, mod: *u8, fi: i32, er: i3
   }
   return 0;
 }
-#[no_mangle]
 // glue_fold_func_return_operand_ref_module: see function docblock below.
-#[no_mangle]
 /** Exported function `glue_fold_func_return_operand_ref_module`.
  * Implements `glue_fold_func_return_operand_ref_module`.
  * @param arena *u8
@@ -422,6 +419,7 @@ export function glue_expr_is_func_param_at(arena: *u8, mod: *u8, fi: i32, er: i3
  * @param fi i32
  * @return i32
  */
+#[no_mangle]
 export function glue_fold_func_return_operand_ref_module(arena: *u8, mod: *u8, fi: i32): i32 {
   if (arena == 0) { return 0; }
   if (mod == 0) { return 0; }
@@ -460,7 +458,6 @@ export function glue_fold_func_return_operand_ref_module(arena: *u8, mod: *u8, f
 }
 
 // glue_try_fold_func_return_operand_ref: see function docblock below.
-#[no_mangle]
 /** Exported function `glue_try_fold_func_return_operand_ref`.
  * Implements `glue_try_fold_func_return_operand_ref`.
  * @param arena *u8
@@ -468,6 +465,7 @@ export function glue_fold_func_return_operand_ref_module(arena: *u8, mod: *u8, f
  * @param fi i32
  * @return i32
  */
+#[no_mangle]
 export function glue_try_fold_func_return_operand_ref(arena: *u8, mod: *u8, fi: i32): i32 {
   unsafe {
     let r: i32 = backend_fold_func_return_operand_ref(arena, mod, fi);
@@ -487,7 +485,6 @@ export function glue_try_fold_func_return_operand_ref(arena: *u8, mod: *u8, fi: 
 
 // See implementation.
 // module_ref@16，dep_pipe@1256；FIELD_ACCESS=44，VAR=3
-#[no_mangle]
 /** Exported function `glue_call_lookup_callee_mod_fi_arena`.
  * Implements `glue_call_lookup_callee_mod_fi_arena`.
  * @param caller_arena *u8
@@ -498,6 +495,7 @@ export function glue_try_fold_func_return_operand_ref(arena: *u8, mod: *u8, fi: 
  * @param out_fi *i32
  * @return i32
  */
+#[no_mangle]
 export function glue_call_lookup_callee_mod_fi_arena(caller_arena: *u8, call_ref: i32, ctx: *u8, out_ca: *u8, out_cm: *u8, out_fi: *i32): i32 {
   if (caller_arena == 0) { return 0; }
   if (call_ref <= 0) { return 0; }
@@ -608,7 +606,6 @@ export function glue_call_lookup_callee_mod_fi_arena(caller_arena: *u8, call_ref
 }
 
 // glue_fold_func_returns_param01_scalar_binop: see function docblock below.
-#[no_mangle]
 /** Exported function `glue_fold_func_returns_param01_scalar_binop`.
  * Implements `glue_fold_func_returns_param01_scalar_binop`.
  * @param arena *u8
@@ -617,6 +614,7 @@ export function glue_call_lookup_callee_mod_fi_arena(caller_arena: *u8, call_ref
  * @param out_binop_ko *i32
  * @return i32
  */
+#[no_mangle]
 export function glue_fold_func_returns_param01_scalar_binop(arena: *u8, mod: *u8, func_idx: i32, out_binop_ko: *i32): i32 {
   if (out_binop_ko == 0) { return 0; }
   if (arena == 0) { return 0; }
@@ -651,7 +649,6 @@ export function glue_fold_func_returns_param01_scalar_binop(arena: *u8, mod: *u8
   return 0;
 }
 // glue_enc_local_slot_ptr_or_addr: see function docblock below.
-#[no_mangle]
 /** Exported function `glue_enc_local_slot_ptr_or_addr`.
  * Implements `glue_enc_local_slot_ptr_or_addr`.
  * @param arena *u8
@@ -662,6 +659,7 @@ export function glue_fold_func_returns_param01_scalar_binop(arena: *u8, mod: *u8
  * @param asm_ctx *u8
  * @return i32
  */
+#[no_mangle]
 export function glue_enc_local_slot_ptr_or_addr(arena: *u8, elf: *u8, arg_ref: i32, slot_off: i32, ta: i32, asm_ctx: *u8): i32 {
   unsafe {
     if (glue_local_var_slot_holds_indirect_ptr(arena, arg_ref, asm_ctx) != 0) {
@@ -672,7 +670,6 @@ export function glue_enc_local_slot_ptr_or_addr(arena: *u8, elf: *u8, arg_ref: i
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `glue_arch_emit_local_slot_ptr_or_addr_text`.
  * Implements `glue_arch_emit_local_slot_ptr_or_addr_text`.
  * @param arena *u8
@@ -683,6 +680,7 @@ export function glue_enc_local_slot_ptr_or_addr(arena: *u8, elf: *u8, arg_ref: i
  * @param asm_ctx *u8
  * @return i32
  */
+#[no_mangle]
 export function glue_arch_emit_local_slot_ptr_or_addr_text(arena: *u8, out: *u8, arg_ref: i32, slot_off: i32, ta: i32, asm_ctx: *u8): i32 {
   unsafe {
     if (glue_local_var_slot_holds_indirect_ptr(arena, arg_ref, asm_ctx) != 0) {
@@ -692,9 +690,7 @@ export function glue_arch_emit_local_slot_ptr_or_addr_text(arena: *u8, out: *u8,
   }
   return 0;
 }
-#[no_mangle]
 // glue_struct_lit_field_init_param_index: see function docblock below.
-#[no_mangle]
 /** Exported function `glue_struct_lit_field_init_param_index`.
  * Implements `glue_struct_lit_field_init_param_index`.
  * @param arena *u8
@@ -705,6 +701,7 @@ export function glue_arch_emit_local_slot_ptr_or_addr_text(arena: *u8, out: *u8,
  * @param out_pix *i32
  * @return i32
  */
+#[no_mangle]
 export function glue_struct_lit_field_init_param_index(arena: *u8, mod: *u8, fi: i32, lit: i32, fj: i32, out_pix: *i32): i32 {
   if (out_pix == 0) { return 0 - 1; }
   unsafe {
@@ -723,9 +720,7 @@ export function glue_struct_lit_field_init_param_index(arena: *u8, mod: *u8, fi:
   return 0 - 1;
 }
 
-#[no_mangle]
 // G-02f-135：return Struct{f:param…}；STRUCT_LIT=45，max fields=8
-#[no_mangle]
 /** Exported function `glue_fold_func_returns_param_struct_lit`.
  * Implements `glue_fold_func_returns_param_struct_lit`.
  * @param arena *u8
@@ -734,6 +729,7 @@ export function glue_struct_lit_field_init_param_index(arena: *u8, mod: *u8, fi:
  * @param out_lit_ref *i32
  * @return i32
  */
+#[no_mangle]
 export function glue_fold_func_returns_param_struct_lit(arena: *u8, mod: *u8, func_idx: i32, out_lit_ref: *i32): i32 {
   if (out_lit_ref == 0) { return 0; }
   if (arena == 0) { return 0; }
@@ -763,7 +759,6 @@ export function glue_fold_func_returns_param_struct_lit(arena: *u8, mod: *u8, fu
 }
 
 // glue_struct_lit_field_index_by_name: see function docblock below.
-#[no_mangle]
 /** Exported function `glue_struct_lit_field_index_by_name`.
  * Implements `glue_struct_lit_field_index_by_name`.
  * @param arena *u8
@@ -772,6 +767,7 @@ export function glue_fold_func_returns_param_struct_lit(arena: *u8, mod: *u8, fu
  * @param fnlen i32
  * @return i32
  */
+#[no_mangle]
 export function glue_struct_lit_field_index_by_name(arena: *u8, lit_ref: i32, fn: *u8, fnlen: i32): i32 {
   if (arena == 0) { return 0 - 1; }
   if (fn == 0) { return 0 - 1; }
@@ -802,7 +798,6 @@ export function glue_struct_lit_field_index_by_name(arena: *u8, lit_ref: i32, fn
 }
 // See implementation.
 // CALL=48，FIELD_ACCESS=44
-#[no_mangle]
 /** Exported function `glue_inner_call_arg_for_field_access`.
  * Implements `glue_inner_call_arg_for_field_access`.
  * @param arena *u8
@@ -812,6 +807,7 @@ export function glue_struct_lit_field_index_by_name(arena: *u8, lit_ref: i32, fn
  * @param out_arg_ref *i32
  * @return i32
  */
+#[no_mangle]
 export function glue_inner_call_arg_for_field_access(arena: *u8, ctx: *u8, inner_call_ref: i32, outer_field_ref: i32, out_arg_ref: *i32): i32 {
   if (out_arg_ref == 0) { return 0; }
   if (inner_call_ref <= 0) { return 0; }
@@ -852,7 +848,6 @@ export function glue_inner_call_arg_for_field_access(arena: *u8, ctx: *u8, inner
 }
 
 // glue_dep_module_field_offset_by_name: see function docblock below.
-#[no_mangle]
 /** Exported function `glue_dep_module_field_offset_by_name`.
  * Implements `glue_dep_module_field_offset_by_name`.
  * @param pctx *u8
@@ -860,6 +855,7 @@ export function glue_inner_call_arg_for_field_access(arena: *u8, ctx: *u8, inner
  * @param flen i32
  * @return i32
  */
+#[no_mangle]
 export function glue_dep_module_field_offset_by_name(pctx: *u8, field_name: *u8, flen: i32): i32 {
   if (pctx == 0) { return 0 - 1; }
   if (field_name == 0) { return 0 - 1; }
@@ -909,7 +905,6 @@ export function glue_dep_module_field_offset_by_name(pctx: *u8, field_name: *u8,
 }
 
 // glue_inline_var_field_access_offset: see function docblock below.
-#[no_mangle]
 /** Exported function `glue_inline_var_field_access_offset`.
  * Implements `glue_inline_var_field_access_offset`.
  * @param arena *u8
@@ -919,6 +914,7 @@ export function glue_dep_module_field_offset_by_name(pctx: *u8, field_name: *u8,
  * @param fa_ref i32
  * @return i32
  */
+#[no_mangle]
 export function glue_inline_var_field_access_offset(arena: *u8, mod: *u8, pctx: *u8, asm_ctx: *u8, fa_ref: i32): i32 {
   if (arena == 0) { return 0 - 1; }
   if (mod == 0) { return 0 - 1; }
@@ -996,7 +992,6 @@ export function glue_inline_var_field_access_offset(arena: *u8, mod: *u8, pctx: 
 }
 
 // glue_try_array_lit_lane_const_i32: see function docblock below.
-#[no_mangle]
 /** Exported function `glue_try_array_lit_lane_const_i32`.
  * Implements `glue_try_array_lit_lane_const_i32`.
  * @param arena *u8
@@ -1005,6 +1000,7 @@ export function glue_inline_var_field_access_offset(arena: *u8, mod: *u8, pctx: 
  * @param out *i32
  * @return i32
  */
+#[no_mangle]
 export function glue_try_array_lit_lane_const_i32(arena: *u8, arr_ref: i32, lane: i32, out: *i32): i32 {
   if (arena == 0) { return 0; }
   if (arr_ref <= 0) { return 0; }
@@ -1020,7 +1016,6 @@ export function glue_try_array_lit_lane_const_i32(arena: *u8, arr_ref: i32, lane
 }
 
 // glue_fold_func_returns_param01_vector_binop: see function docblock below.
-#[no_mangle]
 /** Exported function `glue_fold_func_returns_param01_vector_binop`.
  * Implements `glue_fold_func_returns_param01_vector_binop`.
  * @param arena *u8
@@ -1029,6 +1024,7 @@ export function glue_try_array_lit_lane_const_i32(arena: *u8, arr_ref: i32, lane
  * @param out_binop_ko *i32
  * @return i32
  */
+#[no_mangle]
 export function glue_fold_func_returns_param01_vector_binop(arena: *u8, mod: *u8, func_idx: i32, out_binop_ko: *i32): i32 {
   if (out_binop_ko == 0) { return 0; }
   if (arena == 0) { return 0; }
@@ -1061,7 +1057,6 @@ export function glue_fold_func_returns_param01_vector_binop(arena: *u8, mod: *u8
 }
 
 // glue_fold_func_returns_param0_index_const: see function docblock below.
-#[no_mangle]
 /** Exported function `glue_fold_func_returns_param0_index_const`.
  * Implements `glue_fold_func_returns_param0_index_const`.
  * @param arena *u8
@@ -1070,6 +1065,7 @@ export function glue_fold_func_returns_param01_vector_binop(arena: *u8, mod: *u8
  * @param out_lane *i32
  * @return i32
  */
+#[no_mangle]
 export function glue_fold_func_returns_param0_index_const(arena: *u8, mod: *u8, func_idx: i32, out_lane: *i32): i32 {
   if (out_lane == 0) { return 0; }
   if (arena == 0) { return 0; }
@@ -1098,13 +1094,13 @@ export function glue_fold_func_returns_param0_index_const(arena: *u8, mod: *u8, 
 /* ---- G-02f-111 / G-02f-131：try_inline alloc/const-lit ---- */
 
 // glue_call_is_zero_arg_default_alloc: see function docblock below.
-#[no_mangle]
 /** Exported function `glue_call_is_zero_arg_default_alloc`.
  * Memory management helper `glue_call_is_zero_arg_default_alloc`.
  * @param arena *u8
  * @param call_ref i32
  * @return i32
  */
+#[no_mangle]
 export function glue_call_is_zero_arg_default_alloc(arena: *u8, call_ref: i32): i32 {
   if (arena == 0) { return 0; }
   if (call_ref <= 0) { return 0; }
@@ -1142,9 +1138,7 @@ export function glue_call_is_zero_arg_default_alloc(arena: *u8, call_ref: i32): 
   return 0;
 }
 
-#[no_mangle]
 // glue_const_struct_lit_field_can_inline: see function docblock below.
-#[no_mangle]
 /** Exported function `glue_const_struct_lit_field_can_inline`.
  * Implements `glue_const_struct_lit_field_can_inline`.
  * @param arena *u8
@@ -1154,6 +1148,7 @@ export function glue_call_is_zero_arg_default_alloc(arena: *u8, call_ref: i32): 
  * @param fj i32
  * @return i32
  */
+#[no_mangle]
 export function glue_const_struct_lit_field_can_inline(arena: *u8, mod: *u8, func_idx: i32, lit_ref: i32, fj: i32): i32 {
   if (arena == 0) { return 0; }
   unsafe {
@@ -1175,7 +1170,6 @@ export function glue_const_struct_lit_field_can_inline(arena: *u8, mod: *u8, fun
 }
 // See implementation.
 // glue_emit_default_alloc_to_rbx_offset: see function docblock below.
-#[no_mangle]
 /** Exported function `glue_emit_default_alloc_to_rbx_offset`.
  * Memory management helper `glue_emit_default_alloc_to_rbx_offset`.
  * @param elf_ctx *u8
@@ -1184,6 +1178,7 @@ export function glue_const_struct_lit_field_can_inline(arena: *u8, mod: *u8, fun
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function glue_emit_default_alloc_to_rbx_offset(elf_ctx: *u8, foff: i32, fsz: i32, ta: i32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   unsafe {
@@ -1216,7 +1211,6 @@ export function glue_emit_default_alloc_to_rbx_offset(elf_ctx: *u8, foff: i32, f
 }
 
 // glue_fold_func_returns_const_struct_lit: see function docblock below.
-#[no_mangle]
 /** Exported function `glue_fold_func_returns_const_struct_lit`.
  * Implements `glue_fold_func_returns_const_struct_lit`.
  * @param arena *u8
@@ -1225,6 +1219,7 @@ export function glue_emit_default_alloc_to_rbx_offset(elf_ctx: *u8, foff: i32, f
  * @param out_lit_ref *i32
  * @return i32
  */
+#[no_mangle]
 export function glue_fold_func_returns_const_struct_lit(arena: *u8, mod: *u8, func_idx: i32, out_lit_ref: *i32): i32 {
   if (out_lit_ref == 0) { return 0; }
   if (arena == 0) { return 0; }
@@ -1269,12 +1264,12 @@ export function glue_fold_func_returns_const_struct_lit(arena: *u8, mod: *u8, fu
 
 // glue_align_up8_c: see function docblock below.
 
-#[no_mangle]
 /** Exported function `glue_align_up8_c`.
  * Implements `glue_align_up8_c`.
  * @param n i32
  * @return i32
  */
+#[no_mangle]
 export function glue_align_up8_c(n: i32): i32 {
   let m: i32 = n % 8;
   if (m != 0) {
@@ -1283,12 +1278,12 @@ export function glue_align_up8_c(n: i32): i32 {
   return n;
 }
 
-#[no_mangle]
 /** Exported function `glue_is_vector_lane_scalar_binop_ko`.
  * Implements `glue_is_vector_lane_scalar_binop_ko`.
  * @param ko i32
  * @return i32
  */
+#[no_mangle]
 export function glue_is_vector_lane_scalar_binop_ko(ko: i32): i32 {
   if (ko == 51) {
     ko = 4;
@@ -1305,7 +1300,6 @@ export function glue_is_vector_lane_scalar_binop_ko(ko: i32): i32 {
 // glue_try_expr_const_i32: see function docblock below.
 
 
-#[no_mangle]
 /** Exported function `glue_try_expr_const_i32`.
  * Implements `glue_try_expr_const_i32`.
  * @param arena *u8
@@ -1313,6 +1307,7 @@ export function glue_is_vector_lane_scalar_binop_ko(ko: i32): i32 {
  * @param out *i32
  * @return i32
  */
+#[no_mangle]
 export function glue_try_expr_const_i32(arena: *u8, er: i32, out: *i32): i32 {
   if (arena == 0) { return 0; }
   if (er <= 0) { return 0; }
@@ -1335,7 +1330,6 @@ export function glue_try_expr_const_i32(arena: *u8, er: i32, out: *i32): i32 {
 // glue_try_inline_local_slot_off: see function docblock below.
 
 
-#[no_mangle]
 /** Exported function `glue_try_inline_local_slot_off`.
  * Implements `glue_try_inline_local_slot_off`.
  * @param ctx *u8
@@ -1344,6 +1338,7 @@ export function glue_try_expr_const_i32(arena: *u8, er: i32, out: *i32): i32 {
  * @param nlen i32
  * @return i32
  */
+#[no_mangle]
 export function glue_try_inline_local_slot_off(ctx: *u8, arena: *u8, name: *u8, nlen: i32): i32 {
   unsafe {
     let off: i32 = asm_ctx_local_find_offset_scoped(ctx, arena, name, nlen);
@@ -1358,7 +1353,6 @@ export function glue_try_inline_local_slot_off(ctx: *u8, arena: *u8, name: *u8, 
 // See implementation.
 
 // try_inline_x_plus_k_call_elf: see function docblock below.
-#[no_mangle]
 /** Exported function `try_inline_x_plus_k_call_elf`.
  * Implements `try_inline_x_plus_k_call_elf`.
  * @param arena *u8
@@ -1368,6 +1362,7 @@ export function glue_try_inline_local_slot_off(ctx: *u8, arena: *u8, name: *u8, 
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function try_inline_x_plus_k_call_elf(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
   if (arena == 0) { return 0; }
   if (elf_ctx == 0) { return 0; }
@@ -1428,7 +1423,6 @@ export function try_inline_x_plus_k_call_elf(arena: *u8, elf_ctx: *u8, expr_ref:
 }
 
 // try_inline_param0_single_field_call_elf: see function docblock below.
-#[no_mangle]
 /** Exported function `try_inline_param0_single_field_call_elf`.
  * Implements `try_inline_param0_single_field_call_elf`.
  * @param arena *u8
@@ -1438,6 +1432,7 @@ export function try_inline_x_plus_k_call_elf(arena: *u8, elf_ctx: *u8, expr_ref:
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function try_inline_param0_single_field_call_elf(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
   if (arena == 0) { return 0; }
   if (elf_ctx == 0) { return 0; }
@@ -1487,7 +1482,6 @@ export function try_inline_param0_single_field_call_elf(arena: *u8, elf_ctx: *u8
 }
 
 // try_inline_param0_field_sum_call_elf: see function docblock below.
-#[no_mangle]
 /** Exported function `try_inline_param0_field_sum_call_elf`.
  * Implements `try_inline_param0_field_sum_call_elf`.
  * @param arena *u8
@@ -1497,6 +1491,7 @@ export function try_inline_param0_single_field_call_elf(arena: *u8, elf_ctx: *u8
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function try_inline_param0_field_sum_call_elf(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
   if (arena == 0) { return 0; }
   if (elf_ctx == 0) { return 0; }
@@ -1560,11 +1555,11 @@ export function try_inline_param0_field_sum_call_elf(arena: *u8, elf_ctx: *u8, e
 }
 
 // See implementation.
-#[no_mangle]
 /** Function `try_inline_var_field_sum_binop_elf`.
  * Purpose: implements `try_inline_var_field_sum_binop_elf`; params/returns as declared (may be multi-line).
  * Contracts: null/cap/PLATFORM as enforced in the body.
  */
+#[no_mangle]
 export function try_inline_var_field_sum_binop_elf(
   arena: *u8, elf_ctx: *u8, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32
 ): i32 {
@@ -1653,11 +1648,11 @@ export function try_inline_var_field_sum_binop_elf(
 // See implementation.
 
 // See implementation.
-#[no_mangle]
 /** Function `try_inline_wpo_const_scalar_binop_call_elf`.
  * Purpose: implements `try_inline_wpo_const_scalar_binop_call_elf`; params/returns as declared (may be multi-line).
  * Contracts: null/cap/PLATFORM as enforced in the body.
  */
+#[no_mangle]
 export function try_inline_wpo_const_scalar_binop_call_elf(
   arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32
 ): i32 {
@@ -1701,11 +1696,11 @@ export function try_inline_wpo_const_scalar_binop_call_elf(
 }
 
 // See implementation.
-#[no_mangle]
 /** Function `try_inline_wpo_const_vector_lane_of_binop_call_elf`.
  * Purpose: implements `try_inline_wpo_const_vector_lane_of_binop_call_elf`; params/returns as declared (may be multi-line).
  * Contracts: null/cap/PLATFORM as enforced in the body.
  */
+#[no_mangle]
 export function try_inline_wpo_const_vector_lane_of_binop_call_elf(
   arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32
 ): i32 {
@@ -1765,7 +1760,6 @@ export function try_inline_wpo_const_vector_lane_of_binop_call_elf(
 }
 
 // try_call_wpo_mono_symbol_elf: see function docblock below.
-#[no_mangle]
 /** Exported function `try_call_wpo_mono_symbol_elf`.
  * Implements `try_call_wpo_mono_symbol_elf`.
  * @param arena *u8
@@ -1775,6 +1769,7 @@ export function try_inline_wpo_const_vector_lane_of_binop_call_elf(
  * @param ta i32
  * @return i32
  */
+#[no_mangle]
 export function try_call_wpo_mono_symbol_elf(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
   if (arena == 0) { return 0; }
   if (elf_ctx == 0) { return 0; }
@@ -1828,11 +1823,11 @@ export function try_call_wpo_mono_symbol_elf(arena: *u8, elf_ctx: *u8, expr_ref:
 }
 
 // See implementation.
-#[no_mangle]
 /** Function `try_inline_const_struct_lit_return_call_to_slot_elf`.
  * Purpose: implements `try_inline_const_struct_lit_return_call_to_slot_elf`; params/returns as declared (may be multi-line).
  * Contracts: null/cap/PLATFORM as enforced in the body.
  */
+#[no_mangle]
 export function try_inline_const_struct_lit_return_call_to_slot_elf(
   arena: *u8, elf_ctx: *u8, call_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32
 ): i32 {
@@ -1885,11 +1880,11 @@ export function try_inline_const_struct_lit_return_call_to_slot_elf(
 }
 
 // See implementation.
-#[no_mangle]
 /** Function `try_inline_struct_lit_return_call_to_slot_elf`.
  * Purpose: implements `try_inline_struct_lit_return_call_to_slot_elf`; params/returns as declared (may be multi-line).
  * Contracts: null/cap/PLATFORM as enforced in the body.
  */
+#[no_mangle]
 export function try_inline_struct_lit_return_call_to_slot_elf(
   arena: *u8, elf_ctx: *u8, call_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32
 ): i32 {
@@ -1937,11 +1932,11 @@ export function try_inline_struct_lit_return_call_to_slot_elf(
 
 // See implementation.
 
-#[no_mangle]
 /** Function `try_call_wpo_mono_vector_lane_of_binop_call_elf`.
  * Purpose: implements `try_call_wpo_mono_vector_lane_of_binop_call_elf`; params/returns as declared (may be multi-line).
  * Contracts: null/cap/PLATFORM as enforced in the body.
  */
+#[no_mangle]
 export function try_call_wpo_mono_vector_lane_of_binop_call_elf(
   arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32
 ): i32 {
@@ -2032,13 +2027,13 @@ export function try_call_wpo_mono_vector_lane_of_binop_call_elf(
 // See implementation.
 // EXPR_ARRAY_LIT=46 STRUCT_LIT=45
 
-#[no_mangle]
 /** Exported function `asm_array_lit_elem_byte_sz`.
  * Implements `asm_array_lit_elem_byte_sz`.
  * @param arena *u8
  * @param array_lit_ref i32
  * @return i32
  */
+#[no_mangle]
 export function asm_array_lit_elem_byte_sz(arena: *u8, array_lit_ref: i32): i32 {
   if (arena == 0) { return 4; }
   if (array_lit_ref <= 0) { return 4; }
@@ -2055,24 +2050,24 @@ export function asm_array_lit_elem_byte_sz(arena: *u8, array_lit_ref: i32): i32 
   return 8;
 }
 
-#[no_mangle]
 /** Exported function `pipeline_asm_array_lit_elem_byte_sz_c`.
  * Implements `pipeline_asm_array_lit_elem_byte_sz_c`.
  * @param arena *u8
  * @param array_lit_ref i32
  * @return i32
  */
+#[no_mangle]
 export function pipeline_asm_array_lit_elem_byte_sz_c(arena: *u8, array_lit_ref: i32): i32 {
   return asm_array_lit_elem_byte_sz(arena, array_lit_ref);
 }
 
-#[no_mangle]
 /** Exported function `asm_array_lit_reserve_stack_bytes`.
  * Implements `asm_array_lit_reserve_stack_bytes`.
  * @param arena *u8
  * @param init_ref i32
  * @return i32
  */
+#[no_mangle]
 export function asm_array_lit_reserve_stack_bytes(arena: *u8, init_ref: i32): i32 {
   if (arena == 0) { return 0; }
   if (init_ref <= 0) { return 0; }
@@ -2086,24 +2081,24 @@ export function asm_array_lit_reserve_stack_bytes(arena: *u8, init_ref: i32): i3
   return glue_align_up8_c(n * esz);
 }
 
-#[no_mangle]
 /** Exported function `pipeline_asm_array_lit_reserve_stack_bytes_c`.
  * Implements `pipeline_asm_array_lit_reserve_stack_bytes_c`.
  * @param arena *u8
  * @param init_ref i32
  * @return i32
  */
+#[no_mangle]
 export function pipeline_asm_array_lit_reserve_stack_bytes_c(arena: *u8, init_ref: i32): i32 {
   return asm_array_lit_reserve_stack_bytes(arena, init_ref);
 }
 
-#[no_mangle]
 /** Exported function `asm_struct_lit_reserve_stack_bytes`.
  * Implements `asm_struct_lit_reserve_stack_bytes`.
  * @param arena *u8
  * @param init_ref i32
  * @return i32
  */
+#[no_mangle]
 export function asm_struct_lit_reserve_stack_bytes(arena: *u8, init_ref: i32): i32 {
   if (arena == 0) { return 0; }
   if (init_ref <= 0) { return 0; }
@@ -2116,25 +2111,25 @@ export function asm_struct_lit_reserve_stack_bytes(arena: *u8, init_ref: i32): i
   return glue_align_up8_c(nf * 8);
 }
 
-#[no_mangle]
 /** Exported function `pipeline_asm_struct_lit_reserve_stack_bytes_c`.
  * Implements `pipeline_asm_struct_lit_reserve_stack_bytes_c`.
  * @param arena *u8
  * @param init_ref i32
  * @return i32
  */
+#[no_mangle]
 export function pipeline_asm_struct_lit_reserve_stack_bytes_c(arena: *u8, init_ref: i32): i32 {
   return asm_struct_lit_reserve_stack_bytes(arena, init_ref);
 }
 
 // asm_index_elem_byte_sz: see function docblock below.
-#[no_mangle]
 /** Exported function `asm_index_elem_byte_sz`.
  * Implements `asm_index_elem_byte_sz`.
  * @param arena *u8
  * @param index_expr_ref i32
  * @return i32
  */
+#[no_mangle]
 export function asm_index_elem_byte_sz(arena: *u8, index_expr_ref: i32): i32 {
   unsafe {
     return pipeline_asm_index_elem_byte_sz(arena, index_expr_ref);
@@ -2143,7 +2138,6 @@ export function asm_index_elem_byte_sz(arena: *u8, index_expr_ref: i32): i32 {
 }
 
 // pipeline_asm_enc_local_slot_ptr_or_addr_elf_c: see function docblock below.
-#[no_mangle]
 /** Exported function `pipeline_asm_enc_local_slot_ptr_or_addr_elf_c`.
  * Implements `pipeline_asm_enc_local_slot_ptr_or_addr_elf_c`.
  * @param arena *u8
@@ -2154,11 +2148,11 @@ export function asm_index_elem_byte_sz(arena: *u8, index_expr_ref: i32): i32 {
  * @param asm_ctx *u8
  * @return i32
  */
+#[no_mangle]
 export function pipeline_asm_enc_local_slot_ptr_or_addr_elf_c(arena: *u8, elf: *u8, arg_ref: i32, slot_off: i32, ta: i32, asm_ctx: *u8): i32 {
   return glue_enc_local_slot_ptr_or_addr(arena, elf, arg_ref, slot_off, ta, asm_ctx);
 }
 
-#[no_mangle]
 /** Exported function `pipeline_asm_arch_emit_local_slot_ptr_or_addr_text_c`.
  * Implements `pipeline_asm_arch_emit_local_slot_ptr_or_addr_text_c`.
  * @param arena *u8
@@ -2169,6 +2163,7 @@ export function pipeline_asm_enc_local_slot_ptr_or_addr_elf_c(arena: *u8, elf: *
  * @param asm_ctx *u8
  * @return i32
  */
+#[no_mangle]
 export function pipeline_asm_arch_emit_local_slot_ptr_or_addr_text_c(arena: *u8, out: *u8, arg_ref: i32, slot_off: i32, ta: i32, asm_ctx: *u8): i32 {
   return glue_arch_emit_local_slot_ptr_or_addr_text(arena, out, arg_ref, slot_off, ta, asm_ctx);
 }

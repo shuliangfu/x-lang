@@ -37,12 +37,12 @@ function serial_putint(n: i32): void {
 
 let tick_count: u32 = 0;
 
-#[used]
-#[naked]
 /** Internal function `timer_handler`.
  * Implements `timer_handler`.
  * @return void
  */
+#[used]
+#[naked]
 function timer_handler(): void {
   unsafe {
     asm!("pushal; incl tick_count; movb $0x20, %al; outb %al, $0x20; popal; iret");
@@ -112,11 +112,11 @@ function kmain(): i32 {
   return 0;
 }
 
-#[entry]
 /** Internal function `start`.
  * Implements `start`.
  * @return void
  */
+#[entry]
 function start(): void {
   unsafe {
     asm!("mov $0x80000, %esp; call kmain; cli; hlt");

@@ -8,31 +8,31 @@
 
 let g_driver_pending_target_cpu_features: u32 = 0;
 
-#[no_mangle]
 /** Exported function `driver_set_pending_target_cpu_features`.
  * Implements `driver_set_pending_target_cpu_features`.
  * @param features u32
  * @return void
  */
+#[no_mangle]
 export function driver_set_pending_target_cpu_features(features: u32): void {
   g_driver_pending_target_cpu_features = features;
 }
 
-#[no_mangle]
 /** Exported function `driver_get_pending_target_cpu_features`.
  * Implements `driver_get_pending_target_cpu_features`.
  * @return u32
  */
+#[no_mangle]
 export function driver_get_pending_target_cpu_features(): u32 {
   return g_driver_pending_target_cpu_features;
 }
 
-#[no_mangle]
 /** Exported function `tcp_tolower`.
  * Implements `tcp_tolower`.
  * @param c u8
  * @return u8
  */
+#[no_mangle]
 export function tcp_tolower(c: u8): u8 {
   if (c >= 65 && c <= 90) {
     return (c + 32) as u8;
@@ -40,7 +40,6 @@ export function tcp_tolower(c: u8): u8 {
   return c;
 }
 
-#[no_mangle]
 /** Exported function `tcp_eq5`.
  * Implements `tcp_eq5`.
  * @param name *u8
@@ -51,6 +50,7 @@ export function tcp_tolower(c: u8): u8 {
  * @param a4 u8
  * @return i32
  */
+#[no_mangle]
 export function tcp_eq5(name: *u8, a0: u8, a1: u8, a2: u8, a3: u8, a4: u8): i32 {
   if (tcp_tolower(name[0]) != a0) {
     return 0;
@@ -70,7 +70,6 @@ export function tcp_eq5(name: *u8, a0: u8, a1: u8, a2: u8, a3: u8, a4: u8): i32 
   return 1;
 }
 
-#[no_mangle]
 /** Exported function `tcp_eq6`.
  * Implements `tcp_eq6`.
  * @param name *u8
@@ -82,6 +81,7 @@ export function tcp_eq5(name: *u8, a0: u8, a1: u8, a2: u8, a3: u8, a4: u8): i32 
  * @param a5 u8
  * @return i32
  */
+#[no_mangle]
 export function tcp_eq6(name: *u8, a0: u8, a1: u8, a2: u8, a3: u8, a4: u8, a5: u8): i32 {
   if (tcp_eq5(name, a0, a1, a2, a3, a4) == 0) {
     return 0;

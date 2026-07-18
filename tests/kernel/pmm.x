@@ -6,7 +6,6 @@ struct MB1Header { magic: u32; flags: u32; checksum: u32; }
 #[link_section(".boot")]
 const mb1: MB1Header = { magic: 0x1BADB002, flags: 0, checksum: 0xE4524FFE, };
 
-#[used]
 /** Internal function `kputc`.
  * Implements `kputc`.
  * @param c u8): void { unsafe { asm!("outb %%al
@@ -14,13 +13,14 @@ const mb1: MB1Header = { magic: 0x1BADB002, flags: 0, checksum: 0xE4524FFE, };
  * @param "d"(0x3F8)
  * @return void
  */
-function kputc(c: u8): void { unsafe { asm!("outb %%al, %%dx" : : "a"(c), "d"(0x3F8)); } }
 #[used]
+function kputc(c: u8): void { unsafe { asm!("outb %%al, %%dx" : : "a"(c), "d"(0x3F8)); } }
 /** Internal function `kputint`.
  * Implements `kputint`.
  * @param n i32
  * @return void
  */
+#[used]
 function kputint(n: i32): void {
   if (n >= 10) { kputint(n / 10); }
   kputc((n % 10 + 48) as u8);
@@ -148,13 +148,13 @@ function kmain(): i32 {
   return 0;
 }
 
-#[entry]
 /** Internal function `start`.
  * Implements `start`.
  * @param ) void { unsafe { asm!("mov $0x80000
  * @param %esp; call kmain; cli; hlt"
  * @return void
  */
+#[entry]
 function start(): void { unsafe { asm!("mov $0x80000, %esp; call kmain; cli; hlt"); } }
 /** Internal function `main`.
  * Program/test entry point.

@@ -28,7 +28,6 @@ export function arrow_f32_sum_kernel(data: *u8, n: i32): f32 {
   return 0.0 as f32;
 }
 
-#[no_mangle]
 /** Exported function `arrow_f32_dot_kernel`.
  * Implements `arrow_f32_dot_kernel`.
  * @param a *u8
@@ -36,6 +35,7 @@ export function arrow_f32_sum_kernel(data: *u8, n: i32): f32 {
  * @param n i32
  * @return f32
  */
+#[no_mangle]
 export function arrow_f32_dot_kernel(a: *u8, b: *u8, n: i32): f32 {
   unsafe {
     return arrow_f32_dot_kernel_impl(a, b, n);
@@ -43,7 +43,6 @@ export function arrow_f32_dot_kernel(a: *u8, b: *u8, n: i32): f32 {
   return 0.0 as f32;
 }
 
-#[no_mangle]
 /** Exported function `arrow_i32_sum_valid_kernel`.
  * Implements `arrow_i32_sum_valid_kernel`.
  * @param data *u8
@@ -51,6 +50,7 @@ export function arrow_f32_dot_kernel(a: *u8, b: *u8, n: i32): f32 {
  * @param n i32
  * @return i32
  */
+#[no_mangle]
 export function arrow_i32_sum_valid_kernel(data: *u8, bm: *u8, n: i32): i32 {
   unsafe {
     return arrow_i32_sum_valid_kernel_impl(data, bm, n);
@@ -58,7 +58,6 @@ export function arrow_i32_sum_valid_kernel(data: *u8, bm: *u8, n: i32): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `arrow_f32_sum_valid_kernel`.
  * Implements `arrow_f32_sum_valid_kernel`.
  * @param data *u8
@@ -66,6 +65,7 @@ export function arrow_i32_sum_valid_kernel(data: *u8, bm: *u8, n: i32): i32 {
  * @param n i32
  * @return f32
  */
+#[no_mangle]
 export function arrow_f32_sum_valid_kernel(data: *u8, bm: *u8, n: i32): f32 {
   unsafe {
     return arrow_f32_sum_valid_kernel_impl(data, bm, n);

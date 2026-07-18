@@ -72,11 +72,11 @@ export function net_dns_ai_addconfig_c(): i32 {
   return 32;
 }
 
-#[cfg(not(target_os = "linux"))]
 /** Exported function `net_dns_ai_addconfig_c`.
  * Implements `net_dns_ai_addconfig_c`.
  * @return i32
  */
+#[cfg(not(target_os = "linux"))]
 export function net_dns_ai_addconfig_c(): i32 {
   return 1024;
 }
@@ -127,12 +127,12 @@ export function net_map_gai_error_c(err: i32): i32 {
   return 4;
 }
 
-#[cfg(target_os = "macos")]
 /** Exported function `net_map_gai_error_c`.
  * Implements `net_map_gai_error_c`.
  * @param err i32
  * @return i32
  */
+#[cfg(target_os = "macos")]
 export function net_map_gai_error_c(err: i32): i32 {
   if (err == 8) {
     return 1;
@@ -146,12 +146,12 @@ export function net_map_gai_error_c(err: i32): i32 {
   return 4;
 }
 
-#[cfg(target_os = "windows")]
 /** Exported function `net_map_gai_error_c`.
  * Implements `net_map_gai_error_c`.
  * @param err i32
  * @return i32
  */
+#[cfg(target_os = "windows")]
 export function net_map_gai_error_c(err: i32): i32 {
   if (err == 11001) {
     return 1;
@@ -201,11 +201,11 @@ function net_dns_maybe_wsa_fail_c(): i32 {
   return 0;
 }
 
-#[cfg(not(target_os = "windows"))]
 /** Exported function `net_dns_maybe_wsa_fail_c`.
  * Implements `net_dns_maybe_wsa_fail_c`.
  * @return i32
  */
+#[cfg(not(target_os = "windows"))]
 export function net_dns_maybe_wsa_fail_c(): i32 {
   return 0;
 }

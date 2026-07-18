@@ -35,12 +35,12 @@ let syscall_result: u32 = 0;
 
 // Naked syscall handler: reads eax (syscall number) and dispatches.
 // No EOI needed (software interrupt, not hardware IRQ).
-#[used]
-#[naked]
 /** Internal function `syscall_handler`.
  * Implements `syscall_handler`.
  * @return void
  */
+#[used]
+#[naked]
 function syscall_handler(): void {
   unsafe {
     asm!("cmp $1, %eax; je sys_print; cmp $3, %eax; je sys_add; jmp sys_done;
@@ -51,11 +51,11 @@ function syscall_handler(): void {
 }
 
 let tick_count: u32 = 0;
-#[interrupt]
 /** Internal function `timer_handler`.
  * Implements `timer_handler`.
  * @return void
  */
+#[interrupt]
 function timer_handler(): void {
   tick_count = tick_count + 1;
   unsafe { asm!("movb $0x20, %al; outb %al, $0x20"); }
@@ -143,11 +143,11 @@ function kmain(): i32 {
   return 0;
 }
 
-#[entry]
 /** Internal function `start`.
  * Implements `start`.
  * @return void
  */
+#[entry]
 function start(): void {
   unsafe { asm!("mov $0x90000, %esp; call kmain; cli; hlt"); }
 }

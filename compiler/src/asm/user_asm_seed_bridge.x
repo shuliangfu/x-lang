@@ -45,13 +45,13 @@ export function seed_asm_reject_empty_elf_text(module: *u8, elf_ctx: *u8): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `seed_platform_macho_write_macho_o_to_buf`.
  * Write path helper `seed_platform_macho_write_macho_o_to_buf`.
  * @param elf_ctx *u8
  * @param out_buf *u8
  * @return i32
  */
+#[no_mangle]
 export function seed_platform_macho_write_macho_o_to_buf(elf_ctx: *u8, out_buf: *u8): i32 {
   unsafe {
     return seed_platform_macho_write_macho_o_to_buf_impl(elf_ctx, out_buf);
@@ -59,13 +59,13 @@ export function seed_platform_macho_write_macho_o_to_buf(elf_ctx: *u8, out_buf: 
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `seed_platform_coff_write_coff_o_to_buf`.
  * Write path helper `seed_platform_coff_write_coff_o_to_buf`.
  * @param elf_ctx *u8
  * @param out_buf *u8
  * @return i32
  */
+#[no_mangle]
 export function seed_platform_coff_write_coff_o_to_buf(elf_ctx: *u8, out_buf: *u8): i32 {
   unsafe {
     return seed_platform_coff_write_coff_o_to_buf_impl(elf_ctx, out_buf);
@@ -78,11 +78,11 @@ export function seed_platform_coff_write_coff_o_to_buf(elf_ctx: *u8, out_buf: *u
 // See implementation.
 // seed_asm_debug_enabled: see function docblock below.
 
-#[no_mangle]
 /** Exported function `seed_asm_debug_enabled`.
  * Implements `seed_asm_debug_enabled`.
  * @return i32
  */
+#[no_mangle]
 export function seed_asm_debug_enabled(): i32 {
   unsafe {
     return seed_asm_debug_enabled_impl();
@@ -90,11 +90,11 @@ export function seed_asm_debug_enabled(): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `seed_asm_emit_trace_enabled`.
  * Implements `seed_asm_emit_trace_enabled`.
  * @return i32
  */
+#[no_mangle]
 export function seed_asm_emit_trace_enabled(): i32 {
   unsafe {
     return seed_asm_emit_trace_enabled_impl();
@@ -104,12 +104,12 @@ export function seed_asm_emit_trace_enabled(): i32 {
 
 // seed_elf_ctx_code_len: see function docblock below.
 
-#[no_mangle]
 /** Exported function `seed_elf_ctx_code_len`.
  * Query helper `seed_elf_ctx_code_len`.
  * @param elf_ctx *u8
  * @return i32
  */
+#[no_mangle]
 export function seed_elf_ctx_code_len(elf_ctx: *u8): i32 {
   if (elf_ctx == 0) { return 0; }
   unsafe {

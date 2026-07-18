@@ -41,33 +41,33 @@ struct IDTGate64 {
   reserved: u32;
 }
 
-#[used]
 /** Internal function `get_ist`.
  * Query helper `get_ist`.
  * @param gate IDTGate64
  * @return i32
  */
-function get_ist(gate: IDTGate64): i32 { return gate.ist as i32; }
 #[used]
+function get_ist(gate: IDTGate64): i32 { return gate.ist as i32; }
 /** Internal function `get_selector`.
  * Query helper `get_selector`.
  * @param gate IDTGate64
  * @return i32
  */
-function get_selector(gate: IDTGate64): i32 { return gate.selector as i32; }
 #[used]
+function get_selector(gate: IDTGate64): i32 { return gate.selector as i32; }
 /** Internal function `get_tss_ist1`.
  * Query helper `get_tss_ist1`.
  * @param tss TSS64
  * @return i32
  */
+#[used]
 function get_tss_ist1(tss: TSS64): i32 { return tss.ist1_low as i32; }
 
-#[used]
 /** Internal function `test_ist`.
  * Implements `test_ist`.
  * @return i32
  */
+#[used]
 function test_ist(): i32 {
   let handler: u64 = 0xFFFFFFFF80100000;
   let gate: IDTGate64 = {

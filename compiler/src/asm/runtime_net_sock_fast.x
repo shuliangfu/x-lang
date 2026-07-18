@@ -26,11 +26,11 @@ export function net_ensure_wsa(): void {
   }
 }
 
-#[no_mangle]
 /** Exported function `net_wsa_ctor`.
  * Implements `net_wsa_ctor`.
  * @return void
  */
+#[no_mangle]
 export function net_wsa_ctor(): void {
   unsafe {
     net_wsa_ctor_impl();

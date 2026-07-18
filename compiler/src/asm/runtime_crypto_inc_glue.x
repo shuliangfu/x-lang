@@ -34,19 +34,18 @@ export function shu_sha256_block(H: *u32, block: *u8): void {
 
 // shu_sha256_rotr32: see function docblock below.
 
-#[no_mangle]
 /** Exported function `shu_sha256_rotr32`.
  * Implements `shu_sha256_rotr32`.
  * @param x u32
  * @param n u32
  * @return u32
  */
+#[no_mangle]
 export function shu_sha256_rotr32(x: u32, n: u32): u32 {
   n = n & 31;
   return (x >> n) | (x << (32 - n));
 }
 
-#[no_mangle]
 /** Exported function `shu_sha256_ch`.
  * Implements `shu_sha256_ch`.
  * @param x u32
@@ -54,11 +53,11 @@ export function shu_sha256_rotr32(x: u32, n: u32): u32 {
  * @param z u32
  * @return u32
  */
+#[no_mangle]
 export function shu_sha256_ch(x: u32, y: u32, z: u32): u32 {
   return (x & y) ^ ((~x) & z);
 }
 
-#[no_mangle]
 /** Exported function `shu_sha256_maj`.
  * Implements `shu_sha256_maj`.
  * @param x u32
@@ -66,30 +65,31 @@ export function shu_sha256_ch(x: u32, y: u32, z: u32): u32 {
  * @param z u32
  * @return u32
  */
+#[no_mangle]
 export function shu_sha256_maj(x: u32, y: u32, z: u32): u32 {
   return (x & y) ^ (x & z) ^ (y & z);
 }
 
 // crypto_i32_sub_c: see function docblock below.
 
-#[no_mangle]
 /** Exported function `crypto_i32_sub_c`.
  * Implements `crypto_i32_sub_c`.
  * @param a i32
  * @param b i32
  * @return i32
  */
+#[no_mangle]
 export function crypto_i32_sub_c(a: i32, b: i32): i32 {
   return a - b;
 }
 
-#[no_mangle]
 /** Exported function `crypto_rotl32_c`.
  * Implements `crypto_rotl32_c`.
  * @param x u32
  * @param n u32
  * @return u32
  */
+#[no_mangle]
 export function crypto_rotl32_c(x: u32, n: u32): u32 {
   n = n & 31;
   return (x << n) | (x >> (32 - n));

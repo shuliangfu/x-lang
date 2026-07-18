@@ -11,11 +11,11 @@ export extern "C" function driver_set_current_dep_path_for_codegen(path: *u8): v
 // See implementation.
 // asm_driver_skip_codegen_dep_0_get: see function docblock below.
 
-#[no_mangle]
 /** Exported function `asm_driver_skip_codegen_dep_0_get`.
  * Implements `asm_driver_skip_codegen_dep_0_get`.
  * @return i32
  */
+#[no_mangle]
 export function asm_driver_skip_codegen_dep_0_get(): i32 {
   unsafe {
     let r: i32 = driver_skip_codegen_dep_0_get();
@@ -24,12 +24,12 @@ export function asm_driver_skip_codegen_dep_0_get(): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `asm_driver_set_current_dep_path_for_codegen`.
  * Implements `asm_driver_set_current_dep_path_for_codegen`.
  * @param path *u8
  * @return void
  */
+#[no_mangle]
 export function asm_driver_set_current_dep_path_for_codegen(path: *u8): void {
   unsafe {
     driver_set_current_dep_path_for_codegen(path);

@@ -30,12 +30,12 @@ export struct ShuxRuntimeFileView {
   needs_munmap: i32;
 }
 
-#[no_mangle]
 /** Exported function `std_fs_fs_open_read`.
  * Read path helper `std_fs_fs_open_read`.
  * @param path *u8
  * @return i32
  */
+#[no_mangle]
 export function std_fs_fs_open_read(path: *u8): i32 {
   if (path == 0 as *u8) {
     return 0 - 1;
@@ -48,11 +48,11 @@ export function std_fs_fs_open_read(path: *u8): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `shux_fs_open_write_flags`.
  * Write path helper `shux_fs_open_write_flags`.
  * @return i32
  */
+#[no_mangle]
 export function shux_fs_open_write_flags(): i32 {
   unsafe {
     return shux_fs_open_write_flags_impl();
@@ -61,22 +61,22 @@ export function shux_fs_open_write_flags(): i32 {
 }
 
 // shux_fs_open_write_mode: see function docblock below.
-#[no_mangle]
 /** Exported function `shux_fs_open_write_mode`.
  * Write path helper `shux_fs_open_write_mode`.
  * @return i32
  */
+#[no_mangle]
 export function shux_fs_open_write_mode(): i32 {
   // 0644
   return 420;
 }
 
-#[no_mangle]
 /** Exported function `std_fs_fs_open_write`.
  * Write path helper `std_fs_fs_open_write`.
  * @param path *u8
  * @return i32
  */
+#[no_mangle]
 export function std_fs_fs_open_write(path: *u8): i32 {
   if (path == 0 as *u8) {
     return 0 - 1;
@@ -90,12 +90,12 @@ export function std_fs_fs_open_write(path: *u8): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `std_fs_fs_close`.
  * Implements `std_fs_fs_close`.
  * @param fd i32
  * @return i32
  */
+#[no_mangle]
 export function std_fs_fs_close(fd: i32): i32 {
   unsafe {
     let r: i32 = close(fd);
@@ -104,16 +104,15 @@ export function std_fs_fs_close(fd: i32): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `std_fs_fs_invalid_handle`.
  * Implements `std_fs_fs_invalid_handle`.
  * @return i32
  */
+#[no_mangle]
 export function std_fs_fs_invalid_handle(): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `std_fs_fs_read`.
  * Read path helper `std_fs_fs_read`.
  * @param fd i32
@@ -121,6 +120,7 @@ export function std_fs_fs_invalid_handle(): i32 {
  * @param count usize
  * @return isize
  */
+#[no_mangle]
 export function std_fs_fs_read(fd: i32, buf: *u8, count: usize): isize {
   if (buf == 0 as *u8) {
     let neg: isize = (0 - 1) as isize;
@@ -134,7 +134,6 @@ export function std_fs_fs_read(fd: i32, buf: *u8, count: usize): isize {
   return neg2;
 }
 
-#[no_mangle]
 /** Exported function `std_fs_fs_write`.
  * Write path helper `std_fs_fs_write`.
  * @param fd i32
@@ -142,6 +141,7 @@ export function std_fs_fs_read(fd: i32, buf: *u8, count: usize): isize {
  * @param count usize
  * @return isize
  */
+#[no_mangle]
 export function std_fs_fs_write(fd: i32, buf: *u8, count: usize): isize {
   if (buf == 0 as *u8) {
     let neg: isize = (0 - 1) as isize;
@@ -155,17 +155,16 @@ export function std_fs_fs_write(fd: i32, buf: *u8, count: usize): isize {
   return neg2;
 }
 
-#[no_mangle]
 /** Exported function `fs_posix_close_c`.
  * Implements `fs_posix_close_c`.
  * @param fd i32
  * @return i32
  */
+#[no_mangle]
 export function fs_posix_close_c(fd: i32): i32 {
   return std_fs_fs_close(fd);
 }
 
-#[no_mangle]
 /** Exported function `fs_posix_read_c`.
  * Read path helper `fs_posix_read_c`.
  * @param fd i32
@@ -173,11 +172,11 @@ export function fs_posix_close_c(fd: i32): i32 {
  * @param count usize
  * @return isize
  */
+#[no_mangle]
 export function fs_posix_read_c(fd: i32, buf: *u8, count: usize): isize {
   return std_fs_fs_read(fd, buf, count);
 }
 
-#[no_mangle]
 /** Exported function `fs_posix_write_c`.
  * Write path helper `fs_posix_write_c`.
  * @param fd i32
@@ -185,6 +184,7 @@ export function fs_posix_read_c(fd: i32, buf: *u8, count: usize): isize {
  * @param count usize
  * @return isize
  */
+#[no_mangle]
 export function fs_posix_write_c(fd: i32, buf: *u8, count: usize): isize {
   return std_fs_fs_write(fd, buf, count);
 }
@@ -208,7 +208,6 @@ export function shux_read_file_into_path(path: *u8, buf: *u8, cap: i64): i32 {
   return -1;
 }
 
-#[no_mangle]
 /** Exported function `shux_write_path_bytes`.
  * Write path helper `shux_write_path_bytes`.
  * @param path *u8
@@ -216,6 +215,7 @@ export function shux_read_file_into_path(path: *u8, buf: *u8, cap: i64): i32 {
  * @param len i64
  * @return i32
  */
+#[no_mangle]
 export function shux_write_path_bytes(path: *u8, data: *u8, len: i64): i32 {
   if (path == 0 as *u8) {
     return -1;
@@ -229,12 +229,12 @@ export function shux_write_path_bytes(path: *u8, data: *u8, len: i64): i32 {
   return -1;
 }
 
-#[no_mangle]
 /** Exported function `runtime_release_file_view`.
  * Implements `runtime_release_file_view`.
  * @param view *u8
  * @return void
  */
+#[no_mangle]
 export function runtime_release_file_view(view: *u8): void {
   if (view == 0 as *u8) {
     return;
@@ -260,13 +260,13 @@ export function runtime_read_file_view(path: *u8, out: *u8): i32 {
   return -1;
 }
 
-#[no_mangle]
 /** Exported function `runtime_read_file_malloc`.
  * Read path helper `runtime_read_file_malloc`.
  * @param path *u8
  * @param out_len *u8
  * @return *u8
  */
+#[no_mangle]
 export function runtime_read_file_malloc(path: *u8, out_len: *u8): *u8 {
   if (path == 0 as *u8) {
     return 0 as *u8;
@@ -277,7 +277,6 @@ export function runtime_read_file_malloc(path: *u8, out_len: *u8): *u8 {
   return 0 as *u8;
 }
 
-#[no_mangle]
 /** Exported function `std_sys_os_read_file_into`.
  * Read path helper `std_sys_os_read_file_into`.
  * @param path *u8
@@ -285,6 +284,7 @@ export function runtime_read_file_malloc(path: *u8, out_len: *u8): *u8 {
  * @param cap i32
  * @return i32
  */
+#[no_mangle]
 export function std_sys_os_read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
   if (path == 0 as *u8) {
     return -1;
@@ -311,7 +311,6 @@ export function shux_read_fd_into_buf(fd: i32, buf: *u8, cap: i64): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `shux_runtime_file_view_read_malloc`.
  * Read path helper `shux_runtime_file_view_read_malloc`.
  * @param fd i32
@@ -319,6 +318,7 @@ export function shux_read_fd_into_buf(fd: i32, buf: *u8, cap: i64): i32 {
  * @param out *u8
  * @return i32
  */
+#[no_mangle]
 export function shux_runtime_file_view_read_malloc(fd: i32, size: i64, out: *u8): i32 {
   unsafe {
     return shux_runtime_file_view_read_malloc_impl(fd, size, out);

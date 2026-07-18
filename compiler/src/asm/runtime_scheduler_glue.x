@@ -46,32 +46,32 @@ export function shux_async_bound_ctx_cancelled(): i32 {
   unsafe { return shux_async_bound_ctx_cancelled_impl(); }
 }
 
-#[no_mangle]
 /** Exported function `shux_async_take_suspend_io_flag`.
  * Implements `shux_async_take_suspend_io_flag`.
  * @return i32
  */
+#[no_mangle]
 export function shux_async_take_suspend_io_flag(): i32 {
   unsafe { return shux_async_take_suspend_io_flag_impl(); }
 }
 
 
-#[no_mangle]
 /** Exported function `shu_coop_frame_step_jmp`.
  * Implements `shu_coop_frame_step_jmp`.
  * @param frame *u8
  * @return i32
  */
+#[no_mangle]
 export function shu_coop_frame_step_jmp(frame: *u8): i32 {
   unsafe { return shu_coop_frame_step_jmp_impl(frame); }
 }
 
-#[no_mangle]
 /** Exported function `shu_coop_frame_step_switch`.
  * Implements `shu_coop_frame_step_switch`.
  * @param frame *u8
  * @return i32
  */
+#[no_mangle]
 export function shu_coop_frame_step_switch(frame: *u8): i32 {
   unsafe { return shu_coop_frame_step_switch_impl(frame); }
 }
@@ -91,27 +91,26 @@ export function shux_async_init_workers(): void {
   unsafe { shux_async_init_workers_impl(); }
 }
 
-#[no_mangle]
 /** Exported function `shux_async_io_wait_push`.
  * Implements `shux_async_io_wait_push`.
  * @param fn *u8
  * @return i32
  */
+#[no_mangle]
 export function shux_async_io_wait_push(fn: *u8): i32 {
   unsafe { return shux_async_io_wait_push_impl(fn); }
 }
 
-#[no_mangle]
 /** Exported function `shux_async_maybe_bind_worker`.
  * Implements `shux_async_maybe_bind_worker`.
  * @param wid u32
  * @return void
  */
+#[no_mangle]
 export function shux_async_maybe_bind_worker(wid: u32): void {
   unsafe { shux_async_maybe_bind_worker_impl(wid); }
 }
 
-#[no_mangle]
 /** Exported function `shux_async_drain_queue`.
  * Implements `shux_async_drain_queue`.
  * @param q *u8
@@ -119,28 +118,29 @@ export function shux_async_maybe_bind_worker(wid: u32): void {
  * @param acc *i32
  * @return i32
  */
+#[no_mangle]
 export function shux_async_drain_queue(q: *u8, wid: u32, acc: *i32): i32 {
   unsafe { return shux_async_drain_queue_impl(q, wid, acc); }
 }
 
-#[no_mangle]
 /** Exported function `shux_async_spawn_ctx_echo_task`.
  * Implements `shux_async_spawn_ctx_echo_task`.
  * @return i32
  */
+#[no_mangle]
 export function shux_async_spawn_ctx_echo_task(): i32 {
   unsafe { return shux_async_spawn_ctx_echo_task_impl(); }
 }
 
 // shux_async_q_occupancy: see function docblock below.
 
-#[no_mangle]
 /** Exported function `shux_async_q_occupancy`.
  * Implements `shux_async_q_occupancy`.
  * @param head u32
  * @param tail u32
  * @return u32
  */
+#[no_mangle]
 export function shux_async_q_occupancy(head: u32, tail: u32): u32 {
   return tail - head;
 }
@@ -149,11 +149,11 @@ export function shux_async_q_occupancy(head: u32, tail: u32): u32 {
 
 export extern "C" function getenv(name: *u8): *u8;
 
-#[no_mangle]
 /** Exported function `shu_async_runtime_trace_enabled`.
  * Implements `shu_async_runtime_trace_enabled`.
  * @return i32
  */
+#[no_mangle]
 export function shu_async_runtime_trace_enabled(): i32 {
   unsafe {
     let e: *u8 = getenv("SHUX_ASYNC_RUNTIME_TRACE");
@@ -168,11 +168,11 @@ export function shu_async_runtime_trace_enabled(): i32 {
 
 // shux_async_io_wait_enabled: see function docblock below.
 
-#[no_mangle]
 /** Exported function `shux_async_io_wait_enabled`.
  * Implements `shux_async_io_wait_enabled`.
  * @return i32
  */
+#[no_mangle]
 export function shux_async_io_wait_enabled(): i32 {
   // SHUX_ASYNC_IO_WAIT == "1"
   unsafe {
@@ -184,11 +184,11 @@ export function shux_async_io_wait_enabled(): i32 {
   }
 }
 
-#[no_mangle]
 /** Exported function `shux_async_affinity_enabled`.
  * Implements `shux_async_affinity_enabled`.
  * @return i32
  */
+#[no_mangle]
 export function shux_async_affinity_enabled(): i32 {
   // SHUX_ASYNC_AFFINITY == "1"
   unsafe {
@@ -223,11 +223,11 @@ export function env_parse_u32_default(e: *u8, defv: u32): u32 {
   return v;
 }
 
-#[no_mangle]
 /** Exported function `shu_async_trace_topn`.
  * Implements `shu_async_trace_topn`.
  * @return u32
  */
+#[no_mangle]
 export function shu_async_trace_topn(): u32 {
   unsafe {
     let e: *u8 = getenv("SHUX_ASYNC_RUNTIME_TRACE_TOPN");
@@ -239,11 +239,11 @@ export function shu_async_trace_topn(): u32 {
   return 20;
 }
 
-#[no_mangle]
 /** Exported function `shu_async_trace_sample_rate`.
  * Implements `shu_async_trace_sample_rate`.
  * @return u32
  */
+#[no_mangle]
 export function shu_async_trace_sample_rate(): u32 {
   unsafe {
     let e: *u8 = getenv("SHUX_ASYNC_RUNTIME_TRACE_SAMPLE");
@@ -254,11 +254,11 @@ export function shu_async_trace_sample_rate(): u32 {
   return 1;
 }
 
-#[no_mangle]
 /** Exported function `shu_async_trace_slow_us`.
  * Implements `shu_async_trace_slow_us`.
  * @return u64
  */
+#[no_mangle]
 export function shu_async_trace_slow_us(): u64 {
   unsafe {
     let e: *u8 = getenv("SHUX_ASYNC_RUNTIME_TRACE_SLOW_US");

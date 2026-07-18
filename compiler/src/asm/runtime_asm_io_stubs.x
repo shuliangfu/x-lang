@@ -28,7 +28,6 @@ export function seed_io_syscall_write(fd: i32, buf: *u8, count: usize): i64 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `seed_io_syscall_read`.
  * Read path helper `seed_io_syscall_read`.
  * @param fd i32
@@ -36,6 +35,7 @@ export function seed_io_syscall_write(fd: i32, buf: *u8, count: usize): i64 {
  * @param count usize
  * @return i64
  */
+#[no_mangle]
 export function seed_io_syscall_read(fd: i32, buf: *u8, count: usize): i64 {
   unsafe {
     return seed_io_syscall_read_impl(fd, buf, count);
@@ -43,7 +43,6 @@ export function seed_io_syscall_read(fd: i32, buf: *u8, count: usize): i64 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `seed_io_write_fd1`.
  * Write path helper `seed_io_write_fd1`.
  * @param ptr *u8
@@ -51,6 +50,7 @@ export function seed_io_syscall_read(fd: i32, buf: *u8, count: usize): i64 {
  * @param timeout_ms u32
  * @return i32
  */
+#[no_mangle]
 export function seed_io_write_fd1(ptr: *u8, len: usize, timeout_ms: u32): i32 {
   unsafe {
     return seed_io_write_fd1_impl(ptr, len, timeout_ms);

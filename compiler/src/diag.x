@@ -97,7 +97,6 @@ export function diag_palette_caret_color(kind: *u8): *u8 {
 }
 
 // diag_report_human: see function docblock below.
-#[no_mangle]
 /** Exported function `diag_report_human`.
  * Implements `diag_report_human`.
  * @param file *u8
@@ -109,6 +108,7 @@ export function diag_palette_caret_color(kind: *u8): *u8 {
  * @param detail *u8
  * @return void
  */
+#[no_mangle]
 export function diag_report_human(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void {
   unsafe {
     let err: *u8 = diag_stderr();
@@ -188,7 +188,6 @@ export function diag_report_human(file: *u8, line: i32, col: i32, kind: *u8, cod
 }
 
 // diag_report: see function docblock below.
-#[no_mangle]
 /** Exported function `diag_report`.
  * Implements `diag_report`.
  * @param file *u8
@@ -199,6 +198,7 @@ export function diag_report_human(file: *u8, line: i32, col: i32, kind: *u8, cod
  * @param detail *u8
  * @return void
  */
+#[no_mangle]
 export function diag_report(file: *u8, line: i32, col: i32, kind: *u8, msg: *u8, detail: *u8): void {
   diag_report_with_code(file, line, col, kind, 0 as *u8, msg, detail);
 }
@@ -219,11 +219,11 @@ export function diag_report_with_code(file: *u8, line: i32, col: i32, kind: *u8,
 }
 
 // diag_get_file: see function docblock below.
-#[no_mangle]
 /** Exported function `diag_get_file`.
  * Implements `diag_get_file`.
  * @return *u8
  */
+#[no_mangle]
 export function diag_get_file(): *u8 {
   unsafe {
     return diag_ctx_get_file();
@@ -231,11 +231,11 @@ export function diag_get_file(): *u8 {
   return 0 as *u8;
 }
 
-#[no_mangle]
 /** Exported function `diag_get_source`.
  * Implements `diag_get_source`.
  * @return *u8
  */
+#[no_mangle]
 export function diag_get_source(): *u8 {
   unsafe {
     return diag_ctx_get_source();
@@ -243,11 +243,11 @@ export function diag_get_source(): *u8 {
   return 0 as *u8;
 }
 
-#[no_mangle]
 /** Exported function `diag_get_source_len`.
  * Query helper `diag_get_source_len`.
  * @return i64
  */
+#[no_mangle]
 export function diag_get_source_len(): i64 {
   unsafe {
     return diag_ctx_get_source_len();
@@ -256,7 +256,6 @@ export function diag_get_source_len(): i64 {
 }
 
 // diag_set_file: see function docblock below.
-#[no_mangle]
 /** Exported function `diag_set_file`.
  * Implements `diag_set_file`.
  * @param path *u8
@@ -264,6 +263,7 @@ export function diag_get_source_len(): i64 {
  * @param source_len i64
  * @return void
  */
+#[no_mangle]
 export function diag_set_file(path: *u8, source: *u8, source_len: i64): void {
   let c: i32 = diag_should_color();
   unsafe {
@@ -413,7 +413,6 @@ export function diag_snap_load_i32(snap: *u8, off: i32): i32 {
   return a;
 }
 
-#[no_mangle]
 /** Exported function `diag_push_file`.
  * Implements `diag_push_file`.
  * @param snapshot *u8
@@ -422,6 +421,7 @@ export function diag_snap_load_i32(snap: *u8, off: i32): i32 {
  * @param source_len i64
  * @return void
  */
+#[no_mangle]
 export function diag_push_file(snapshot: *u8, path: *u8, source: *u8, source_len: i64): void {
   unsafe {
     if (snapshot != 0) {
@@ -444,12 +444,12 @@ export function diag_push_file(snapshot: *u8, path: *u8, source: *u8, source_len
   }
 }
 
-#[no_mangle]
 /** Exported function `diag_restore`.
  * Implements `diag_restore`.
  * @param snapshot *u8
  * @return void
  */
+#[no_mangle]
 export function diag_restore(snapshot: *u8): void {
   if (snapshot == 0) { return; }
   unsafe {
@@ -462,12 +462,12 @@ export function diag_restore(snapshot: *u8): void {
 }
 
 // diag_code_is_known: see function docblock below.
-#[no_mangle]
 /** Exported function `diag_code_is_known`.
  * Implements `diag_code_is_known`.
  * @param code *u8
  * @return i32
  */
+#[no_mangle]
 export function diag_code_is_known(code: *u8): i32 {
   unsafe {
     return diag_code_table_has(code);
@@ -475,12 +475,12 @@ export function diag_code_is_known(code: *u8): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `diag_code_kind`.
  * Implements `diag_code_kind`.
  * @param code *u8
  * @return *u8
  */
+#[no_mangle]
 export function diag_code_kind(code: *u8): *u8 {
   unsafe {
     return diag_entry_kind(code);
@@ -488,12 +488,12 @@ export function diag_code_kind(code: *u8): *u8 {
   return 0 as *u8;
 }
 
-#[no_mangle]
 /** Exported function `diag_code_summary`.
  * Implements `diag_code_summary`.
  * @param code *u8
  * @return *u8
  */
+#[no_mangle]
 export function diag_code_summary(code: *u8): *u8 {
   unsafe {
     return diag_entry_summary(code);
@@ -501,12 +501,12 @@ export function diag_code_summary(code: *u8): *u8 {
   return 0 as *u8;
 }
 
-#[no_mangle]
 /** Exported function `diag_code_details`.
  * Implements `diag_code_details`.
  * @param code *u8
  * @return *u8
  */
+#[no_mangle]
 export function diag_code_details(code: *u8): *u8 {
   unsafe {
     return diag_entry_details(code);
@@ -515,12 +515,12 @@ export function diag_code_details(code: *u8): *u8 {
 }
 
 // diag_print_known_codes: see function docblock below.
-#[no_mangle]
 /** Exported function `diag_print_known_codes`.
  * Implements `diag_print_known_codes`.
  * @param out *u8
  * @return void
  */
+#[no_mangle]
 export function diag_print_known_codes(out: *u8): void {
   unsafe {
     let o: *u8 = out;
@@ -542,13 +542,13 @@ export function diag_print_known_codes(out: *u8): void {
 }
 
 // diag_print_code_explain: see function docblock below.
-#[no_mangle]
 /** Exported function `diag_print_code_explain`.
  * Implements `diag_print_code_explain`.
  * @param out *u8
  * @param code *u8
  * @return void
  */
+#[no_mangle]
 export function diag_print_code_explain(out: *u8, code: *u8): void {
   unsafe {
     let o: *u8 = out;
@@ -578,12 +578,12 @@ export function diag_print_code_explain(out: *u8, code: *u8): void {
 }
 
 // diag_print_code_table: see function docblock below.
-#[no_mangle]
 /** Exported function `diag_print_code_table`.
  * Implements `diag_print_code_table`.
  * @param out *u8
  * @return void
  */
+#[no_mangle]
 export function diag_print_code_table(out: *u8): void {
   unsafe {
     let o: *u8 = out;
@@ -602,12 +602,12 @@ export function diag_print_code_table(out: *u8): void {
 }
 
 // diag_set_json_mode: see function docblock below.
-#[no_mangle]
 /** Exported function `diag_set_json_mode`.
  * Implements `diag_set_json_mode`.
  * @param enable i32
  * @return void
  */
+#[no_mangle]
 export function diag_set_json_mode(enable: i32): void {
   unsafe {
     if (enable != 0) {
@@ -618,11 +618,11 @@ export function diag_set_json_mode(enable: i32): void {
   }
 }
 
-#[no_mangle]
 /** Exported function `diag_json_enabled`.
  * Implements `diag_json_enabled`.
  * @return i32
  */
+#[no_mangle]
 export function diag_json_enabled(): i32 {
   unsafe {
     let s: i32 = diag_json_get_state();
@@ -665,13 +665,13 @@ export function diag_should_color(): i32 {
 }
 
 // G-02f-154：use_color ? color : plain
-#[no_mangle]
 /** Exported function `diag_color_prefix`.
  * Implements `diag_color_prefix`.
  * @param plain *u8
  * @param color *u8
  * @return *u8
  */
+#[no_mangle]
 export function diag_color_prefix(plain: *u8, color: *u8): *u8 {
   unsafe {
     if (diag_ctx_get_use_color() != 0) {
@@ -683,11 +683,11 @@ export function diag_color_prefix(plain: *u8, color: *u8): *u8 {
 }
 
 // G-02f-154：use_color ? ANSI reset : ""
-#[no_mangle]
 /** Exported function `diag_color_reset`.
  * Implements `diag_color_reset`.
  * @return *u8
  */
+#[no_mangle]
 export function diag_color_reset(): *u8 {
   unsafe {
     if (diag_ctx_get_use_color() != 0) {
@@ -757,7 +757,6 @@ export function diag_store_usize_le(p: *u8, val: usize): void {
 /* ---- G-02f-97 / G-02f-154 / G-02f-156：print_header / extract_line / json ---- */
 
 // diag_print_header: see function docblock below.
-#[no_mangle]
 /** Exported function `diag_print_header`.
  * Implements `diag_print_header`.
  * @param kind *u8
@@ -767,6 +766,7 @@ export function diag_store_usize_le(p: *u8, val: usize): void {
  * @param reset *u8
  * @return void
  */
+#[no_mangle]
 export function diag_print_header(kind: *u8, code: *u8, msg: *u8, kind_color: *u8, reset: *u8): void {
   unsafe {
     let err: *u8 = diag_stderr();
@@ -800,7 +800,6 @@ export function diag_print_header(kind: *u8, code: *u8, msg: *u8, kind_color: *u
 }
 
 // diag_extract_line: see function docblock below.
-#[no_mangle]
 /** Exported function `diag_extract_line`.
  * Implements `diag_extract_line`.
  * @param line_no i32
@@ -808,6 +807,7 @@ export function diag_print_header(kind: *u8, code: *u8, msg: *u8, kind_color: *u
  * @param line_len_out *u8
  * @return i32
  */
+#[no_mangle]
 export function diag_extract_line(line_no: i32, line_start_out: *u8, line_len_out: *u8): i32 {
   if (line_no <= 0) { return 0 - 1; }
   if (line_start_out == 0) { return 0 - 1; }
@@ -853,13 +853,13 @@ export function diag_extract_line(line_no: i32, line_start_out: *u8, line_len_ou
 }
 
 // diag_json_write_str: see function docblock below.
-#[no_mangle]
 /** Exported function `diag_json_write_str`.
  * Write path helper `diag_json_write_str`.
  * @param out *u8
  * @param s *u8
  * @return void
  */
+#[no_mangle]
 export function diag_json_write_str(out: *u8, s: *u8): void {
   unsafe {
     let p: *u8 = s;
@@ -909,7 +909,6 @@ export function diag_json_write_str(out: *u8, s: *u8): void {
 }
 
 // diag_report_json: see function docblock below.
-#[no_mangle]
 /** Exported function `diag_report_json`.
  * Implements `diag_report_json`.
  * @param file *u8
@@ -920,6 +919,7 @@ export function diag_json_write_str(out: *u8, s: *u8): void {
  * @param msg *u8
  * @return void
  */
+#[no_mangle]
 export function diag_report_json(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8): void {
   unsafe {
     let err: *u8 = diag_stderr();
@@ -958,7 +958,6 @@ export function diag_report_json(file: *u8, line: i32, col: i32, kind: *u8, code
 /* See implementation. */
 
 // diag_code_suggest: see function docblock below.
-#[no_mangle]
 /** Exported function `diag_code_suggest`.
  * Implements `diag_code_suggest`.
  * @param code *u8
@@ -966,6 +965,7 @@ export function diag_report_json(file: *u8, line: i32, col: i32, kind: *u8, code
  * @param out_cap i64
  * @return *u8
  */
+#[no_mangle]
 export function diag_code_suggest(code: *u8, out: *u8, out_cap: i64): *u8 {
   if (code == 0) { return 0 as *u8; }
   unsafe {
@@ -1014,13 +1014,13 @@ export function diag_code_suggest(code: *u8, out: *u8, out_cap: i64): *u8 {
 }
 
 // diag_levenshtein_ci: see function docblock below.
-#[no_mangle]
 /** Exported function `diag_levenshtein_ci`.
  * Implements `diag_levenshtein_ci`.
  * @param a *u8
  * @param b *u8
  * @return i32
  */
+#[no_mangle]
 export function diag_levenshtein_ci(a: *u8, b: *u8): i32 {
   if (a == 0) { return 999; }
   if (b == 0) { return 999; }
@@ -1083,13 +1083,13 @@ export function diag_levenshtein_ci(a: *u8, b: *u8): i32 {
 // See implementation.
 
 // diag_kind_contains: see function docblock below.
-#[no_mangle]
 /** Exported function `diag_kind_contains`.
  * Implements `diag_kind_contains`.
  * @param kind *u8
  * @param needle *u8
  * @return i32
  */
+#[no_mangle]
 export function diag_kind_contains(kind: *u8, needle: *u8): i32 {
   if (kind == 0) { return 0; }
   if (needle == 0) { return 0; }
@@ -1120,12 +1120,12 @@ export function diag_kind_contains(kind: *u8, needle: *u8): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `diag_line_digits`.
  * Implements `diag_line_digits`.
  * @param line i32
  * @return i32
  */
+#[no_mangle]
 export function diag_line_digits(line: i32): i32 {
   let width: i32 = 1;
   while (line >= 10) {
@@ -1135,13 +1135,13 @@ export function diag_line_digits(line: i32): i32 {
   return width;
 }
 
-#[no_mangle]
 /** Exported function `diag_kind_is_exact`.
  * Implements `diag_kind_is_exact`.
  * @param kind *u8
  * @param needle *u8
  * @return i32
  */
+#[no_mangle]
 export function diag_kind_is_exact(kind: *u8, needle: *u8): i32 {
   if (kind == 0) { return 0; }
   if (needle == 0) { return 0; }
@@ -1157,13 +1157,13 @@ export function diag_kind_is_exact(kind: *u8, needle: *u8): i32 {
 }
 
 // Case-insensitive code equality (ASCII a-z).
-#[no_mangle]
 /** Exported function `diag_code_eq`.
  * Implements `diag_code_eq`.
  * @param lhs *u8
  * @param rhs *u8
  * @return i32
  */
+#[no_mangle]
 export function diag_code_eq(lhs: *u8, rhs: *u8): i32 {
   if (lhs == 0) { return 0; }
   if (rhs == 0) { return 0; }
@@ -1186,12 +1186,12 @@ export function diag_code_eq(lhs: *u8, rhs: *u8): i32 {
 
 // diag_json_severity: see function docblock below.
 
-#[no_mangle]
 /** Exported function `diag_json_severity`.
  * Implements `diag_json_severity`.
  * @param kind *u8
  * @return *u8
  */
+#[no_mangle]
 export function diag_json_severity(kind: *u8): *u8 {
   if (kind == 0) { return "error"; }
   if (kind[0] == 0) { return "error"; }

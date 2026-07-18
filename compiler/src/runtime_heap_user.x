@@ -23,12 +23,12 @@ export struct ShuxHeapArena64 {
   off: usize;
 }
 
-#[no_mangle]
 /** Exported function `heap_alloc_c`.
  * Memory management helper `heap_alloc_c`.
  * @param size usize
  * @return *u8
  */
+#[no_mangle]
 export function heap_alloc_c(size: usize): *u8 {
   if (size == 0) {
     return 0 as *u8;
@@ -40,25 +40,25 @@ export function heap_alloc_c(size: usize): *u8 {
   return 0 as *u8;
 }
 
-#[no_mangle]
 /** Exported function `heap_free_c`.
  * Memory management helper `heap_free_c`.
  * @param ptr *u8
  * @return void
  */
+#[no_mangle]
 export function heap_free_c(ptr: *u8): void {
   unsafe {
     free(ptr);
   }
 }
 
-#[no_mangle]
 /** Exported function `heap_realloc_c`.
  * Memory management helper `heap_realloc_c`.
  * @param ptr *u8
  * @param new_size usize
  * @return *u8
  */
+#[no_mangle]
 export function heap_realloc_c(ptr: *u8, new_size: usize): *u8 {
   if (new_size == 0) {
     unsafe {
@@ -73,12 +73,12 @@ export function heap_realloc_c(ptr: *u8, new_size: usize): *u8 {
   return 0 as *u8;
 }
 
-#[no_mangle]
 /** Exported function `heap_alloc_zeroed_c`.
  * Memory management helper `heap_alloc_zeroed_c`.
  * @param size usize
  * @return *u8
  */
+#[no_mangle]
 export function heap_alloc_zeroed_c(size: usize): *u8 {
   if (size == 0) {
     return 0 as *u8;

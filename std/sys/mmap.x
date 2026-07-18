@@ -53,7 +53,6 @@ export function mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
   return macos_m.macos_mmap_rw(path, min_size, out_size);
 }
 
-#[cfg(target_os = "freebsd")]
 /** Exported function `mmap_rw`.
  * Implements `mmap_rw`.
  * @param path *u8
@@ -61,6 +60,7 @@ export function mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
  * @param out_size *usize
  * @return *u8
  */
+#[cfg(target_os = "freebsd")]
 export function mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
   if (path == 0 || out_size == 0 || min_size == 0) {
     return 0 as *u8;
@@ -68,8 +68,6 @@ export function mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
   return freebsd_m.freebsd_mmap_rw(path, min_size, out_size);
 }
 
-#[cfg(target_os = "linux")]
-#[cfg(not(freestanding))]
 /** Exported function `mmap_rw`.
  * Implements `mmap_rw`.
  * @param path *u8
@@ -77,6 +75,8 @@ export function mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
  * @param out_size *usize
  * @return *u8
  */
+#[cfg(target_os = "linux")]
+#[cfg(not(freestanding))]
 export function mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
   if (path == 0 || out_size == 0 || min_size == 0) {
     return 0 as *u8;
@@ -98,13 +98,13 @@ export function munmap(ptr: *u8, size: usize): i32 {
   return macos_m.macos_munmap(ptr, size);
 }
 
-#[cfg(target_os = "freebsd")]
 /** Exported function `munmap`.
  * Implements `munmap`.
  * @param ptr *u8
  * @param size usize
  * @return i32
  */
+#[cfg(target_os = "freebsd")]
 export function munmap(ptr: *u8, size: usize): i32 {
   if (ptr == 0 || size == 0) {
     return -1;
@@ -112,14 +112,14 @@ export function munmap(ptr: *u8, size: usize): i32 {
   return freebsd_m.freebsd_munmap(ptr, size);
 }
 
-#[cfg(target_os = "linux")]
-#[cfg(not(freestanding))]
 /** Exported function `munmap`.
  * Implements `munmap`.
  * @param ptr *u8
  * @param size usize
  * @return i32
  */
+#[cfg(target_os = "linux")]
+#[cfg(not(freestanding))]
 export function munmap(ptr: *u8, size: usize): i32 {
   if (ptr == 0 || size == 0) {
     return -1;
@@ -141,13 +141,13 @@ export function msync(ptr: *u8, size: usize): i32 {
   return macos_m.macos_msync_sync(ptr, size);
 }
 
-#[cfg(target_os = "freebsd")]
 /** Exported function `msync`.
  * Implements `msync`.
  * @param ptr *u8
  * @param size usize
  * @return i32
  */
+#[cfg(target_os = "freebsd")]
 export function msync(ptr: *u8, size: usize): i32 {
   if (ptr == 0 || size == 0) {
     return -1;
@@ -155,14 +155,14 @@ export function msync(ptr: *u8, size: usize): i32 {
   return freebsd_m.freebsd_msync_sync(ptr, size);
 }
 
-#[cfg(target_os = "linux")]
-#[cfg(not(freestanding))]
 /** Exported function `msync`.
  * Implements `msync`.
  * @param ptr *u8
  * @param size usize
  * @return i32
  */
+#[cfg(target_os = "linux")]
+#[cfg(not(freestanding))]
 export function msync(ptr: *u8, size: usize): i32 {
   if (ptr == 0 || size == 0) {
     return -1;
@@ -188,13 +188,13 @@ export function mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
   return 0 as *u8;
 }
 
-#[cfg(target_os = "windows")]
 /** Exported function `munmap`.
  * Implements `munmap`.
  * @param ptr *u8
  * @param size usize
  * @return i32
  */
+#[cfg(target_os = "windows")]
 export function munmap(ptr: *u8, size: usize): i32 {
   if (ptr == 0 || size == 0) {
     return -1;
@@ -202,13 +202,13 @@ export function munmap(ptr: *u8, size: usize): i32 {
   return -1;
 }
 
-#[cfg(target_os = "windows")]
 /** Exported function `msync`.
  * Implements `msync`.
  * @param ptr *u8
  * @param size usize
  * @return i32
  */
+#[cfg(target_os = "windows")]
 export function msync(ptr: *u8, size: usize): i32 {
   if (ptr == 0 || size == 0) {
     return -1;

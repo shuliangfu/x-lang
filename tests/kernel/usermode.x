@@ -33,12 +33,12 @@ function serial_putint(n: i32): void {
 
 let syscall_result: u32 = 0;
 
-#[used]
-#[naked]
 /** Internal function `syscall_handler`.
  * Implements `syscall_handler`.
  * @return void
  */
+#[used]
+#[naked]
 function syscall_handler(): void {
   unsafe {
     asm!("cmp $1, %eax; je sys_print; cmp $2, %eax; je sys_add; cmp $99, %eax; je sys_done; jmp sys_done;
@@ -138,11 +138,11 @@ function kmain(): i32 {
   return 0;
 }
 
-#[used]
 /** Internal function `user_task`.
  * Implements `user_task`.
  * @return void
  */
+#[used]
 function user_task(): void {
   // Running in ring 3!
   unsafe { asm!("movl $1, %%eax; movl $85, %%ebx; int $0x80" : : : "eax", "ebx", "ecx", "memory"); }
@@ -154,11 +154,11 @@ function user_task(): void {
   unsafe { asm!("1: jmp 1b"); }
 }
 
-#[entry]
 /** Internal function `start`.
  * Implements `start`.
  * @return void
  */
+#[entry]
 function start(): void {
   unsafe { asm!("mov $0x90000, %esp; call kmain; cli; hlt"); }
 }

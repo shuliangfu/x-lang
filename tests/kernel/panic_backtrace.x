@@ -57,12 +57,12 @@ function serial_puthex(n: u32): void {
   }
 }
 
-#[used]
 /** Internal function `kpanic_backtrace`.
  * Implements `kpanic_backtrace`.
  * @param code i32
  * @return void
  */
+#[used]
 function kpanic_backtrace(code: i32): void {
   serial_putc(80);
   serial_putc(65);
@@ -94,12 +94,12 @@ function kpanic_backtrace(code: i32): void {
   unsafe { asm!("cli; hlt"); }
 }
 
-#[used]
 /** Internal function `func_b`.
  * Implements `func_b`.
  * @param val i32
  * @return i32
  */
+#[used]
 function func_b(val: i32): i32 {
   if (val == 0) {
     kpanic_backtrace(99);
@@ -107,12 +107,12 @@ function func_b(val: i32): i32 {
   return val + 1;
 }
 
-#[used]
 /** Internal function `func_a`.
  * Implements `func_a`.
  * @param val i32
  * @return i32
  */
+#[used]
 function func_a(val: i32): i32 {
   return func_b(val);
 }
@@ -128,11 +128,11 @@ function kmain(): i32 {
   return result;
 }
 
-#[entry]
 /** Internal function `start`.
  * Implements `start`.
  * @return void
  */
+#[entry]
 function start(): void {
   unsafe {
     asm!("mov $0x80000, %esp; call kmain; cli; hlt");

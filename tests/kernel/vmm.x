@@ -4,7 +4,6 @@ struct MB1Header { magic: u32; flags: u32; checksum: u32; }
 #[link_section(".boot")]
 const mb1: MB1Header = { magic: 0x1BADB002, flags: 0, checksum: 0xE4524FFE, };
 
-#[used]
 /** Internal function `kputc`.
  * Implements `kputc`.
  * @param c u8): void { unsafe { asm!("outb %%al
@@ -12,20 +11,21 @@ const mb1: MB1Header = { magic: 0x1BADB002, flags: 0, checksum: 0xE4524FFE, };
  * @param "d"(0x3F8)
  * @return void
  */
-function kputc(c: u8): void { unsafe { asm!("outb %%al, %%dx" : : "a"(c), "d"(0x3F8)); } }
 #[used]
+function kputc(c: u8): void { unsafe { asm!("outb %%al, %%dx" : : "a"(c), "d"(0x3F8)); } }
 /** Internal function `kputint`.
  * Implements `kputint`.
  * @param n i32): void { if (n >= 10) { kputint(n / 10); } kputc((n % 10 + 48) as u8
  * @return void
  */
-function kputint(n: i32): void { if (n >= 10) { kputint(n / 10); } kputc((n % 10 + 48) as u8); }
 #[used]
+function kputint(n: i32): void { if (n >= 10) { kputint(n / 10); } kputc((n % 10 + 48) as u8); }
 /** Internal function `kputhex`.
  * Implements `kputhex`.
  * @param n u32
  * @return void
  */
+#[used]
 function kputhex(n: u32): void {
   let i: i32 = 28;
   while (i >= 0) { let nib: u32 = (n >> i) & 15; if (nib < 10) { kputc((nib + 48) as u8); } else { kputc((nib + 55) as u8); } i = i - 4; }
@@ -36,49 +36,49 @@ const PMM_PAGE_SIZE: u32 = 4096;
 const PMM_START: u32 = 0x100000;
 const PMM_PAGES: u32 = 768;
 
-#[used]
 /** Internal function `pmm_init`.
  * Implements `pmm_init`.
  * @param ) void { let i: u32 = 0; while (i < 96) { unsafe { *((PMM_BITMAP + i) as *volatile u8
  * @return void
  */
-function pmm_init(): void { let i: u32 = 0; while (i < 96) { unsafe { *((PMM_BITMAP + i) as *volatile u8) = 0; } i = i + 1; } }
 #[used]
+function pmm_init(): void { let i: u32 = 0; while (i < 96) { unsafe { *((PMM_BITMAP + i) as *volatile u8) = 0; } i = i + 1; } }
 /** Internal function `pmm_test_bit`.
  * Implements `pmm_test_bit`.
  * @param page u32): u32 { let b: *volatile u8 = (PMM_BITMAP + page / 8) as *volatile u8; let v: u8 = 0; unsafe { v = *b; } return (v >> (page % 8)
  * @return void
  */
-function pmm_test_bit(page: u32): u32 { let b: *volatile u8 = (PMM_BITMAP + page / 8) as *volatile u8; let v: u8 = 0; unsafe { v = *b; } return (v >> (page % 8)) & 1; }
 #[used]
+function pmm_test_bit(page: u32): u32 { let b: *volatile u8 = (PMM_BITMAP + page / 8) as *volatile u8; let v: u8 = 0; unsafe { v = *b; } return (v >> (page % 8)) & 1; }
 /** Internal function `pmm_set_bit`.
  * Implements `pmm_set_bit`.
  * @param page u32
  * @param val u32
  * @return void
  */
+#[used]
 function pmm_set_bit(page: u32, val: u32): void {
   let p: *volatile u8 = (PMM_BITMAP + page / 8) as *volatile u8; let old: u8 = 0; unsafe { old = *p; }
   let mask: u8 = (1 as u8) << ((page % 8) as u8);
   if (val != 0) { unsafe { *p = old | mask; } } else { unsafe { *p = old & ((255 as u8) - mask); } }
 }
-#[used]
 /** Internal function `pmm_alloc`.
  * Memory management helper `pmm_alloc`.
  * @param ) u32 { let i: u32 = 0; while (i < PMM_PAGES) { if (pmm_test_bit(i) == 0) { pmm_set_bit(i
  * @param 1
  * @return void
  */
+#[used]
 function pmm_alloc(): u32 { let i: u32 = 0; while (i < PMM_PAGES) { if (pmm_test_bit(i) == 0) { pmm_set_bit(i, 1); return PMM_START + i * PMM_PAGE_SIZE; } i = i + 1; } return 0; }
 
 const PD_BASE: u32 = 0x60000;
 const PT_BASE: u32 = 0x61000;
 
-#[used]
 /** Internal function `paging_init`.
  * Implements `paging_init`.
  * @return void
  */
+#[used]
 function paging_init(): void {
   unsafe { *(PD_BASE as *volatile u32) = PT_BASE | 3; }
   let i: u32 = 0;
@@ -87,13 +87,13 @@ function paging_init(): void {
   unsafe { asm!("mov %cr0, %eax; or $0x80000000, %eax; mov %eax, %cr0"); }
 }
 
-#[used]
 /** Internal function `vmm_map`.
  * Implements `vmm_map`.
  * @param virt u32
  * @param phys u32
  * @return i32
  */
+#[used]
 function vmm_map(virt: u32, phys: u32): i32 {
   let pd_idx: u32 = virt >> 22;
   let pt_idx: u32 = (virt >> 12) & 1023;
@@ -114,12 +114,12 @@ function vmm_map(virt: u32, phys: u32): i32 {
   return 0;
 }
 
-#[used]
 /** Internal function `vmm_unmap`.
  * Implements `vmm_unmap`.
  * @param virt u32
  * @return void
  */
+#[used]
 function vmm_unmap(virt: u32): void {
   let pd_idx: u32 = virt >> 22;
   let pt_idx: u32 = (virt >> 12) & 1023;
@@ -151,13 +151,13 @@ function kmain(): i32 {
   return 0;
 }
 
-#[entry]
 /** Internal function `start`.
  * Implements `start`.
  * @param ) void { unsafe { asm!("mov $0x80000
  * @param %esp; call kmain; cli; hlt"
  * @return void
  */
+#[entry]
 function start(): void { unsafe { asm!("mov $0x80000, %esp; call kmain; cli; hlt"); } }
 /** Internal function `main`.
  * Program/test entry point.

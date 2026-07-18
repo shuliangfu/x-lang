@@ -30,11 +30,11 @@ export function log_apply_env_once(): void {
   }
 }
 
-#[no_mangle]
 /** Exported function `log_do_rotate`.
  * Implements `log_do_rotate`.
  * @return i32
  */
+#[no_mangle]
 export function log_do_rotate(): i32 {
   unsafe {
     return log_do_rotate_impl();
@@ -42,13 +42,13 @@ export function log_do_rotate(): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `log_write_file_sync`.
  * Write path helper `log_write_file_sync`.
  * @param buf *u8
  * @param len usize
  * @return i32
  */
+#[no_mangle]
 export function log_write_file_sync(buf: *u8, len: usize): i32 {
   unsafe {
     return log_write_file_sync_impl(buf, len);
@@ -56,13 +56,13 @@ export function log_write_file_sync(buf: *u8, len: usize): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `log_write_sync`.
  * Write path helper `log_write_sync`.
  * @param buf *u8
  * @param len usize
  * @return i32
  */
+#[no_mangle]
 export function log_write_sync(buf: *u8, len: usize): i32 {
   unsafe {
     return log_write_sync_impl(buf, len);
@@ -70,13 +70,13 @@ export function log_write_sync(buf: *u8, len: usize): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `log_async_enqueue`.
  * Implements `log_async_enqueue`.
  * @param buf *u8
  * @param len usize
  * @return i32
  */
+#[no_mangle]
 export function log_async_enqueue(buf: *u8, len: usize): i32 {
   unsafe {
     return log_async_enqueue_impl(buf, len);
@@ -84,13 +84,13 @@ export function log_async_enqueue(buf: *u8, len: usize): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `log_emit_bytes`.
  * Implements `log_emit_bytes`.
  * @param buf *u8
  * @param len usize
  * @return i32
  */
+#[no_mangle]
 export function log_emit_bytes(buf: *u8, len: usize): i32 {
   unsafe {
     return log_emit_bytes_impl(buf, len);

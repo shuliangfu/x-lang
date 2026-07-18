@@ -29,13 +29,13 @@ function alloc(al: Allocator, size: usize): *u8 {
   return size as *u8;
 }
 
-#[alloc]
 /** Internal function `bump`.
  * Implements `bump`.
  * @param al Allocator
  * @param size usize
  * @return *u8
  */
+#[alloc]
 function bump(al: Allocator, size: usize): *u8 {
   return alloc(al, size);
 }

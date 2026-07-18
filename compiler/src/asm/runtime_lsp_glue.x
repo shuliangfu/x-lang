@@ -103,7 +103,6 @@ export function lsp_uri_has_file_scheme(uri: *u8): i32 {
 }
 
 // lsp_uri_to_fs_path: see function docblock below.
-#[no_mangle]
 /** Exported function `lsp_uri_to_fs_path`.
  * Implements `lsp_uri_to_fs_path`.
  * @param uri *u8
@@ -111,6 +110,7 @@ export function lsp_uri_has_file_scheme(uri: *u8): i32 {
  * @param cap i64
  * @return void
  */
+#[no_mangle]
 export function lsp_uri_to_fs_path(uri: *u8, out: *u8, cap: i64): void {
   if (uri == 0 as *u8) {
     return;
@@ -166,7 +166,6 @@ export function lsp_uri_to_fs_path(uri: *u8, out: *u8, cap: i64): void {
 }
 
 // lsp_fs_path_to_uri: see function docblock below.
-#[no_mangle]
 /** Exported function `lsp_fs_path_to_uri`.
  * Implements `lsp_fs_path_to_uri`.
  * @param path *u8
@@ -174,6 +173,7 @@ export function lsp_uri_to_fs_path(uri: *u8, out: *u8, cap: i64): void {
  * @param cap i32
  * @return void
  */
+#[no_mangle]
 export function lsp_fs_path_to_uri(path: *u8, uri: *u8, cap: i32): void {
   if (path == 0 as *u8) {
     return;
@@ -224,12 +224,12 @@ export function lsp_fs_path_to_uri(path: *u8, uri: *u8, cap: i32): void {
 }
 
 // lsp_path_last_slash: see function docblock below.
-#[no_mangle]
 /** Exported function `lsp_path_last_slash`.
  * Implements `lsp_path_last_slash`.
  * @param path *u8
  * @return i32
  */
+#[no_mangle]
 export function lsp_path_last_slash(path: *u8): i32 {
   if (path == 0 as *u8) {
     return 0 - 1;
@@ -252,12 +252,12 @@ export function lsp_path_last_slash(path: *u8): i32 {
 }
 
 // lsp_update_entry_dir: see function docblock below.
-#[no_mangle]
 /** Exported function `lsp_update_entry_dir`.
  * Implements `lsp_update_entry_dir`.
  * @param path *u8
  * @return void
  */
+#[no_mangle]
 export function lsp_update_entry_dir(path: *u8): void {
   unsafe {
     if (path == 0 as *u8) {
@@ -283,11 +283,11 @@ export function lsp_update_entry_dir(path: *u8): void {
   }
 }
 
-#[no_mangle]
 /** Exported function `lsp_init_lib_roots_once`.
  * Implements `lsp_init_lib_roots_once`.
  * @return void
  */
+#[no_mangle]
 export function lsp_init_lib_roots_once(): void {
   unsafe {
     lsp_init_lib_roots_once_impl();
@@ -295,7 +295,6 @@ export function lsp_init_lib_roots_once(): void {
 }
 
 // lsp_diag_copy_text: see function docblock below.
-#[no_mangle]
 /** Exported function `lsp_diag_copy_text`.
  * Implements `lsp_diag_copy_text`.
  * @param dst *u8
@@ -303,6 +302,7 @@ export function lsp_init_lib_roots_once(): void {
  * @param src *u8
  * @return void
  */
+#[no_mangle]
 export function lsp_diag_copy_text(dst: *u8, cap: i32, src: *u8): void {
   if (dst == 0 as *u8) {
     return;
@@ -328,11 +328,11 @@ export function lsp_diag_copy_text(dst: *u8, cap: i32, src: *u8): void {
   }
 }
 
-#[no_mangle]
 /** Exported function `lsp_diag_x_ctx_alloc_size`.
  * Memory management helper `lsp_diag_x_ctx_alloc_size`.
  * @return i64
  */
+#[no_mangle]
 export function lsp_diag_x_ctx_alloc_size(): i64 {
   unsafe {
     return lsp_diag_x_ctx_alloc_size_impl();
@@ -341,7 +341,6 @@ export function lsp_diag_x_ctx_alloc_size(): i64 {
 }
 
 // json_escape_str: see function docblock below.
-#[no_mangle]
 /** Exported function `json_escape_str`.
  * Implements `json_escape_str`.
  * @param msg *u8
@@ -349,6 +348,7 @@ export function lsp_diag_x_ctx_alloc_size(): i64 {
  * @param cap i32
  * @return i32
  */
+#[no_mangle]
 export function json_escape_str(msg: *u8, out: *u8, cap: i32): i32 {
   if (out == 0 as *u8) {
     return 0;
@@ -437,19 +437,19 @@ export function json_escape_str(msg: *u8, out: *u8, cap: i32): i32 {
 
 
 // build_line_index: see function docblock below.
-#[no_mangle]
 /** Exported function `build_line_index`.
  * Implements `build_line_index`.
  * @param mod *u8): void { unsafe { build_line_index_impl(mod
  * @return void
  */
-export function build_line_index(mod: *u8): void { unsafe { build_line_index_impl(mod); } }
 #[no_mangle]
+export function build_line_index(mod: *u8): void { unsafe { build_line_index_impl(mod); } }
 /** Exported function `line_index_of_func`.
  * Implements `line_index_of_func`.
  * @param f *u8): i32 { unsafe { return line_index_of_func_impl(f
  * @return void
  */
+#[no_mangle]
 export function line_index_of_func(f: *u8): i32 { unsafe { return line_index_of_func_impl(f); } return 0; }
 
 // See implementation.
@@ -475,21 +475,20 @@ export extern "C" function type_to_string_impl(ty: *u8, buf: *u8, cap: i32): i32
 
 #[no_mangle]
 export function expr_at(e: *u8, line: i32, col: i32): i32 { unsafe { return expr_at_impl(e, line, col); } return 0; }
-#[no_mangle]
 /** Exported function `expr_max_line`.
  * Implements `expr_max_line`.
  * @param e *u8): i32 { unsafe { return expr_max_line_impl(e
  * @return void
  */
-export function expr_max_line(e: *u8): i32 { unsafe { return expr_max_line_impl(e); } return 0; }
 #[no_mangle]
+export function expr_max_line(e: *u8): i32 { unsafe { return expr_max_line_impl(e); } return 0; }
 /** Exported function `block_max_line`.
  * Implements `block_max_line`.
  * @param b *u8): i32 { unsafe { return block_max_line_impl(b
  * @return void
  */
-export function block_max_line(b: *u8): i32 { unsafe { return block_max_line_impl(b); } return 0; }
 #[no_mangle]
+export function block_max_line(b: *u8): i32 { unsafe { return block_max_line_impl(b); } return 0; }
 /** Exported function `add_ref_for_func`.
  * Implements `add_ref_for_func`.
  * @param f *u8
@@ -499,15 +498,15 @@ export function block_max_line(b: *u8): i32 { unsafe { return block_max_line_imp
  * @param col
  * @return void
  */
-export function add_ref_for_func(f: *u8, line: i32, col: i32): void { unsafe { add_ref_for_func_impl(f, line, col); } }
 #[no_mangle]
+export function add_ref_for_func(f: *u8, line: i32, col: i32): void { unsafe { add_ref_for_func_impl(f, line, col); } }
 /** Exported function `build_refs_index`.
  * Implements `build_refs_index`.
  * @param mod *u8): void { unsafe { build_refs_index_impl(mod
  * @return void
  */
-export function build_refs_index(mod: *u8): void { unsafe { build_refs_index_impl(mod); } }
 #[no_mangle]
+export function build_refs_index(mod: *u8): void { unsafe { build_refs_index_impl(mod); } }
 /** Exported function `find_def_in_module`.
  * Implements `find_def_in_module`.
  * @param mod *u8
@@ -521,8 +520,8 @@ export function build_refs_index(mod: *u8): void { unsafe { build_refs_index_imp
  * @param oc
  * @return void
  */
-export function find_def_in_module(mod: *u8, line: i32, col: i32, ol: *i32, oc: *i32): i32 { unsafe { return find_def_in_module_impl(mod, line, col, ol, oc); } return 0; }
 #[no_mangle]
+export function find_def_in_module(mod: *u8, line: i32, col: i32, ol: *i32, oc: *i32): i32 { unsafe { return find_def_in_module_impl(mod, line, col, ol, oc); } return 0; }
 /** Exported function `lsp_typeck_entry_module`.
  * Implements `lsp_typeck_entry_module`.
  * @param mod *u8
@@ -530,22 +529,22 @@ export function find_def_in_module(mod: *u8, line: i32, col: i32, ol: *i32, oc: 
  * @param only
  * @return void
  */
-export function lsp_typeck_entry_module(mod: *u8, only: i32): void { unsafe { lsp_typeck_entry_module_impl(mod, only); } }
 #[no_mangle]
+export function lsp_typeck_entry_module(mod: *u8, only: i32): void { unsafe { lsp_typeck_entry_module_impl(mod, only); } }
 /** Exported function `collect_refs_index_in_expr`.
  * Implements `collect_refs_index_in_expr`.
  * @param e *u8): void { unsafe { collect_refs_index_in_expr_impl(e
  * @return void
  */
-export function collect_refs_index_in_expr(e: *u8): void { unsafe { collect_refs_index_in_expr_impl(e); } }
 #[no_mangle]
+export function collect_refs_index_in_expr(e: *u8): void { unsafe { collect_refs_index_in_expr_impl(e); } }
 /** Exported function `collect_refs_index_in_block`.
  * Implements `collect_refs_index_in_block`.
  * @param b *u8): void { unsafe { collect_refs_index_in_block_impl(b
  * @return void
  */
-export function collect_refs_index_in_block(b: *u8): void { unsafe { collect_refs_index_in_block_impl(b); } }
 #[no_mangle]
+export function collect_refs_index_in_block(b: *u8): void { unsafe { collect_refs_index_in_block_impl(b); } }
 /** Exported function `find_def_in_expr`.
  * Implements `find_def_in_expr`.
  * @param mod *u8
@@ -561,8 +560,8 @@ export function collect_refs_index_in_block(b: *u8): void { unsafe { collect_ref
  * @param oc
  * @return void
  */
-export function find_def_in_expr(mod: *u8, e: *u8, line: i32, col: i32, ol: *i32, oc: *i32): i32 { unsafe { return find_def_in_expr_impl(mod, e, line, col, ol, oc); } return 0; }
 #[no_mangle]
+export function find_def_in_expr(mod: *u8, e: *u8, line: i32, col: i32, ol: *i32, oc: *i32): i32 { unsafe { return find_def_in_expr_impl(mod, e, line, col, ol, oc); } return 0; }
 /** Exported function `find_def_in_block`.
  * Implements `find_def_in_block`.
  * @param mod *u8
@@ -578,8 +577,8 @@ export function find_def_in_expr(mod: *u8, e: *u8, line: i32, col: i32, ol: *i32
  * @param oc
  * @return void
  */
-export function find_def_in_block(mod: *u8, b: *u8, line: i32, col: i32, ol: *i32, oc: *i32): i32 { unsafe { return find_def_in_block_impl(mod, b, line, col, ol, oc); } return 0; }
 #[no_mangle]
+export function find_def_in_block(mod: *u8, b: *u8, line: i32, col: i32, ol: *i32, oc: *i32): i32 { unsafe { return find_def_in_block_impl(mod, b, line, col, ol, oc); } return 0; }
 /** Exported function `collect_refs_add`.
  * Implements `collect_refs_add`.
  * @param name *u8
@@ -589,29 +588,29 @@ export function find_def_in_block(mod: *u8, b: *u8, line: i32, col: i32, ol: *i3
  * @param col
  * @return void
  */
-export function collect_refs_add(name: *u8, line: i32, col: i32): void { unsafe { collect_refs_add_impl(name, line, col); } }
 #[no_mangle]
+export function collect_refs_add(name: *u8, line: i32, col: i32): void { unsafe { collect_refs_add_impl(name, line, col); } }
 /** Exported function `collect_refs_in_expr`.
  * Implements `collect_refs_in_expr`.
  * @param e *u8): void { unsafe { collect_refs_in_expr_impl(e
  * @return void
  */
-export function collect_refs_in_expr(e: *u8): void { unsafe { collect_refs_in_expr_impl(e); } }
 #[no_mangle]
+export function collect_refs_in_expr(e: *u8): void { unsafe { collect_refs_in_expr_impl(e); } }
 /** Exported function `collect_refs_in_block`.
  * Implements `collect_refs_in_block`.
  * @param b *u8): void { unsafe { collect_refs_in_block_impl(b
  * @return void
  */
-export function collect_refs_in_block(b: *u8): void { unsafe { collect_refs_in_block_impl(b); } }
 #[no_mangle]
+export function collect_refs_in_block(b: *u8): void { unsafe { collect_refs_in_block_impl(b); } }
 /** Exported function `collect_refs_to_func`.
  * Implements `collect_refs_to_func`.
  * @param f *u8): void { unsafe { collect_refs_to_func_impl(f
  * @return void
  */
-export function collect_refs_to_func(f: *u8): void { unsafe { collect_refs_to_func_impl(f); } }
 #[no_mangle]
+export function collect_refs_to_func(f: *u8): void { unsafe { collect_refs_to_func_impl(f); } }
 /** Exported function `type_to_string`.
  * Implements `type_to_string`.
  * @param ty *u8
@@ -621,6 +620,7 @@ export function collect_refs_to_func(f: *u8): void { unsafe { collect_refs_to_fu
  * @param cap
  * @return void
  */
+#[no_mangle]
 export function type_to_string(ty: *u8, buf: *u8, cap: i32): i32 { unsafe { return type_to_string_impl(ty, buf, cap); } return 0; }
 
 // G-02f-111 / G-02f-253：JSON/offset/format document helpers。
@@ -652,7 +652,6 @@ export function try_apply_content_changes(doc: *u8, json: *u8): i32 {
 }
 
 // line_char_to_offset: see function docblock below.
-#[no_mangle]
 /** Exported function `line_char_to_offset`.
  * Implements `line_char_to_offset`.
  * @param doc *u8
@@ -661,6 +660,7 @@ export function try_apply_content_changes(doc: *u8, json: *u8): i32 {
  * @param character i32
  * @return i32
  */
+#[no_mangle]
 export function line_char_to_offset(doc: *u8, len: i32, line: i32, character: i32): i32 {
   if (doc == 0 as *u8) {
     return 0 - 1;
@@ -709,7 +709,6 @@ export function line_char_to_offset(doc: *u8, len: i32, line: i32, character: i3
 }
 
 // lsp_doc_line_count: see function docblock below.
-#[no_mangle]
 /** Exported function `lsp_doc_line_count`.
  * Implements `lsp_doc_line_count`.
  * @param doc *u8
@@ -718,6 +717,7 @@ export function line_char_to_offset(doc: *u8, len: i32, line: i32, character: i3
  * @param out_last_line_char *i32
  * @return void
  */
+#[no_mangle]
 export function lsp_doc_line_count(doc: *u8, len: i32, out_last_line: *i32, out_last_line_char: *i32): void {
   if (out_last_line == 0 as *i32) {
     return;
@@ -757,13 +757,13 @@ export function lsp_doc_line_count(doc: *u8, len: i32, out_last_line: *i32, out_
   }
 }
 
-#[no_mangle]
 /** Exported function `parse_first_content_change`.
  * Implements `parse_first_content_change`.
  * @param json *u8
  * @param out *u8
  * @return i32
  */
+#[no_mangle]
 export function parse_first_content_change(json: *u8, out: *u8): i32 {
   unsafe {
     return parse_first_content_change_impl(json, out);
@@ -882,7 +882,6 @@ export function lsp_match_quote_textdocument_quote(body: *u8, i: i32): i32 {
 }
 
 // lsp_find_text_value_from: see function docblock below.
-#[no_mangle]
 /** Exported function `lsp_find_text_value_from`.
  * Implements `lsp_find_text_value_from`.
  * @param body *u8
@@ -892,6 +891,7 @@ export function lsp_match_quote_textdocument_quote(body: *u8, i: i32): i32 {
  * @param out_cap i32
  * @return i32
  */
+#[no_mangle]
 export function lsp_find_text_value_from(body: *u8, len: i32, search_start: i32, out_buf: *u8, out_cap: i32): i32 {
   if (body == 0 as *u8) {
     return 0 - 1;
@@ -997,7 +997,6 @@ export function lsp_find_text_value_from(body: *u8, len: i32, search_start: i32,
 }
 
 // lsp_find_text_value: see function docblock below.
-#[no_mangle]
 /** Exported function `lsp_find_text_value`.
  * Implements `lsp_find_text_value`.
  * @param body *u8
@@ -1006,6 +1005,7 @@ export function lsp_find_text_value_from(body: *u8, len: i32, search_start: i32,
  * @param out_cap i32
  * @return i32
  */
+#[no_mangle]
 export function lsp_find_text_value(body: *u8, len: i32, out_buf: *u8, out_cap: i32): i32 {
   if (body == 0 as *u8) {
     return 0 - 1;
@@ -1034,13 +1034,13 @@ export function lsp_find_text_value(body: *u8, len: i32, out_buf: *u8, out_cap: 
   return lsp_find_text_value_from(body, len, 0, out_buf, out_cap);
 }
 
-#[no_mangle]
 /** Exported function `lsp_extract_formatting_options`.
  * Implements `lsp_extract_formatting_options`.
  * @param json *u8
  * @param out *u8
  * @return i32
  */
+#[no_mangle]
 export function lsp_extract_formatting_options(json: *u8, out: *u8): i32 {
   unsafe {
     return lsp_extract_formatting_options_impl(json, out);
@@ -1048,13 +1048,13 @@ export function lsp_extract_formatting_options(json: *u8, out: *u8): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `lsp_format_line_update_depth`.
  * Implements `lsp_format_line_update_depth`.
  * @param line *u8
  * @param depth *i32
  * @return void
  */
+#[no_mangle]
 export function lsp_format_line_update_depth(line: *u8, depth: *i32): void {
   if (depth == 0 as *i32) {
     return;
@@ -1064,12 +1064,12 @@ export function lsp_format_line_update_depth(line: *u8, depth: *i32): void {
   }
 }
 
-#[no_mangle]
 /** Exported function `lsp_fmt_try_emit_op`.
  * Implements `lsp_fmt_try_emit_op`.
  * @param ctx *u8
  * @return i32
  */
+#[no_mangle]
 export function lsp_fmt_try_emit_op(ctx: *u8): i32 {
   unsafe {
     return lsp_fmt_try_emit_op_impl(ctx);
@@ -1077,12 +1077,12 @@ export function lsp_fmt_try_emit_op(ctx: *u8): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `lsp_format_emit_segment`.
  * Implements `lsp_format_emit_segment`.
  * @param ctx *u8
  * @return i32
  */
+#[no_mangle]
 export function lsp_format_emit_segment(ctx: *u8): i32 {
   unsafe {
     return lsp_format_emit_segment_impl(ctx);
@@ -1090,12 +1090,12 @@ export function lsp_format_emit_segment(ctx: *u8): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `lsp_fmt_comma_expand_extra`.
  * Implements `lsp_fmt_comma_expand_extra`.
  * @param ctx *u8
  * @return i32
  */
+#[no_mangle]
 export function lsp_fmt_comma_expand_extra(ctx: *u8): i32 {
   unsafe {
     return lsp_fmt_comma_expand_extra_impl(ctx);
@@ -1103,12 +1103,12 @@ export function lsp_fmt_comma_expand_extra(ctx: *u8): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `lsp_format_find_break`.
  * Implements `lsp_format_find_break`.
  * @param ctx *u8
  * @return i32
  */
+#[no_mangle]
 export function lsp_format_find_break(ctx: *u8): i32 {
   unsafe {
     return lsp_format_find_break_impl(ctx);
@@ -1116,7 +1116,6 @@ export function lsp_format_find_break(ctx: *u8): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `lsp_format_document`.
  * Implements `lsp_format_document`.
  * @param src *u8
@@ -1124,6 +1123,7 @@ export function lsp_format_find_break(ctx: *u8): i32 {
  * @param cap i32
  * @return i32
  */
+#[no_mangle]
 export function lsp_format_document(src: *u8, out: *u8, cap: i32): i32 {
   unsafe {
     return lsp_format_document_impl(src, out, cap);
@@ -1131,7 +1131,6 @@ export function lsp_format_document(src: *u8, out: *u8, cap: i32): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `lsp_extract_string_value`.
  * Implements `lsp_extract_string_value`.
  * @param s *u8
@@ -1140,6 +1139,7 @@ export function lsp_format_document(src: *u8, out: *u8, cap: i32): i32 {
  * @param cap i32
  * @return i32
  */
+#[no_mangle]
 export function lsp_extract_string_value(s: *u8, from: i32, out: *u8, cap: i32): i32 {
   unsafe {
     return lsp_extract_string_value_impl(s, from, out, cap);
@@ -1149,12 +1149,12 @@ export function lsp_extract_string_value(s: *u8, from: i32, out: *u8, cap: i32):
 
 // lsp_fmt_is_atom_tail: see function docblock below.
 
-#[no_mangle]
 /** Exported function `lsp_fmt_is_atom_tail`.
  * Implements `lsp_fmt_is_atom_tail`.
  * @param c u8
  * @return i32
  */
+#[no_mangle]
 export function lsp_fmt_is_atom_tail(c: u8): i32 {
   if (c >= 97) {
     if (c <= 122) { return 1; }
@@ -1172,12 +1172,12 @@ export function lsp_fmt_is_atom_tail(c: u8): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `lsp_fmt_is_atom_head`.
  * Implements `lsp_fmt_is_atom_head`.
  * @param c u8
  * @return i32
  */
+#[no_mangle]
 export function lsp_fmt_is_atom_head(c: u8): i32 {
   if (c >= 97) {
     if (c <= 122) { return 1; }
@@ -1195,12 +1195,12 @@ export function lsp_fmt_is_atom_head(c: u8): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `lsp_fmt_unary_lhs`.
  * Implements `lsp_fmt_unary_lhs`.
  * @param prev u8
  * @return i32
  */
+#[no_mangle]
 export function lsp_fmt_unary_lhs(prev: u8): i32 {
   if (prev == 0) { return 1; }
   if (prev == 40) { return 1; }
@@ -1227,7 +1227,6 @@ export function lsp_fmt_unary_lhs(prev: u8): i32 {
 
 // col_in_ident_span: see function docblock below.
 
-#[no_mangle]
 /** Exported function `col_in_ident_span`.
  * Implements `col_in_ident_span`.
  * @param line i32
@@ -1237,6 +1236,7 @@ export function lsp_fmt_unary_lhs(prev: u8): i32 {
  * @param name *u8
  * @return i32
  */
+#[no_mangle]
 export function col_in_ident_span(line: i32, col: i32, sl: i32, sc: i32, name: *u8): i32 {
   if (name == 0) { return 0; }
   if (sl != line) { return 0; }
@@ -1290,7 +1290,6 @@ export function lsp_load_ptr_at(p: *u8, off: i32): *u8 {
   return a as *u8;
 }
 
-#[no_mangle]
 /** Exported function `func_name_covers`.
  * Implements `func_name_covers`.
  * @param f *u8
@@ -1298,6 +1297,7 @@ export function lsp_load_ptr_at(p: *u8, off: i32): *u8 {
  * @param col i32
  * @return i32
  */
+#[no_mangle]
 export function func_name_covers(f: *u8, line: i32, col: i32): i32 {
   if (f == 0) { return 0; }
   let name: *u8 = lsp_load_ptr_at(f, 8);
@@ -1308,7 +1308,6 @@ export function func_name_covers(f: *u8, line: i32, col: i32): i32 {
 }
 
 // lsp_parse_int: see function docblock below.
-#[no_mangle]
 /** Exported function `lsp_parse_int`.
  * Implements `lsp_parse_int`.
  * @param body *u8
@@ -1317,6 +1316,7 @@ export function func_name_covers(f: *u8, line: i32, col: i32): i32 {
  * @param out *i32
  * @return i32
  */
+#[no_mangle]
 export function lsp_parse_int(body: *u8, len: i32, offset: i32, out: *i32): i32 {
   if (body == 0 as *u8) {
     return 0 - 1;
@@ -1351,7 +1351,6 @@ export function lsp_parse_int(body: *u8, len: i32, offset: i32, out: *i32): i32 
   return offset;
 }
 
-#[no_mangle]
 /** Exported function `lsp_line_has_block_comment_end`.
  * Implements `lsp_line_has_block_comment_end`.
  * @param doc *u8
@@ -1359,6 +1358,7 @@ export function lsp_parse_int(body: *u8, len: i32, offset: i32, out: *i32): i32 
  * @param len i32
  * @return i32
  */
+#[no_mangle]
 export function lsp_line_has_block_comment_end(doc: *u8, start: i32, len: i32): i32 {
   let i: i32 = 0;
   while (i + 1 < len) {
@@ -1370,13 +1370,13 @@ export function lsp_line_has_block_comment_end(doc: *u8, start: i32, len: i32): 
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `lsp_fmt_last_out`.
  * Implements `lsp_fmt_last_out`.
  * @param out_buf *u8
  * @param out_len i32
  * @return u8
  */
+#[no_mangle]
 export function lsp_fmt_last_out(out_buf: *u8, out_len: i32): u8 {
   let k: i32 = out_len - 1;
   while (k >= 0) {
@@ -1389,7 +1389,6 @@ export function lsp_fmt_last_out(out_buf: *u8, out_len: i32): u8 {
   return 0 as u8;
 }
 
-#[no_mangle]
 /** Exported function `lsp_fmt_prev_src`.
  * Implements `lsp_fmt_prev_src`.
  * @param doc *u8
@@ -1397,6 +1396,7 @@ export function lsp_fmt_last_out(out_buf: *u8, out_len: i32): u8 {
  * @param j i32
  * @return u8
  */
+#[no_mangle]
 export function lsp_fmt_prev_src(doc: *u8, start: i32, j: i32): u8 {
   let k: i32 = j - 1;
   while (k >= 0) {
@@ -1411,7 +1411,6 @@ export function lsp_fmt_prev_src(doc: *u8, start: i32, j: i32): u8 {
   return 0 as u8;
 }
 
-#[no_mangle]
 /** Exported function `lsp_fmt_src_ws_before`.
  * Implements `lsp_fmt_src_ws_before`.
  * @param doc *u8
@@ -1419,6 +1418,7 @@ export function lsp_fmt_prev_src(doc: *u8, start: i32, j: i32): u8 {
  * @param j i32
  * @return i32
  */
+#[no_mangle]
 export function lsp_fmt_src_ws_before(doc: *u8, start: i32, j: i32): i32 {
   let k: i32 = j - 1;
   if (k < 0) { return 0; }
@@ -1428,7 +1428,6 @@ export function lsp_fmt_src_ws_before(doc: *u8, start: i32, j: i32): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `lsp_fmt_src_ws_after`.
  * Implements `lsp_fmt_src_ws_after`.
  * @param doc *u8
@@ -1437,6 +1436,7 @@ export function lsp_fmt_src_ws_before(doc: *u8, start: i32, j: i32): i32 {
  * @param j i32
  * @return i32
  */
+#[no_mangle]
 export function lsp_fmt_src_ws_after(doc: *u8, start: i32, len: i32, j: i32): i32 {
   let k: i32 = j + 1;
   if (k >= len) { return 0; }
@@ -1453,7 +1453,6 @@ export extern "C" function lsp_json_key_position(): *u8;
 export extern "C" function lsp_json_key_line(): *u8;
 export extern "C" function lsp_json_key_character(): *u8;
 
-#[no_mangle]
 /** Exported function `lsp_find_key_after`.
  * Implements `lsp_find_key_after`.
  * @param body *u8
@@ -1462,6 +1461,7 @@ export extern "C" function lsp_json_key_character(): *u8;
  * @param key *u8
  * @return i32
  */
+#[no_mangle]
 export function lsp_find_key_after(body: *u8, len: i32, start: i32, key: *u8): i32 {
   if (body == 0 as *u8) {
     return 0 - 1;
@@ -1507,7 +1507,6 @@ export function lsp_find_key_after(body: *u8, len: i32, start: i32, key: *u8): i
 }
 
 // lsp_extract_position_from_params: see function docblock below.
-#[no_mangle]
 /** Exported function `lsp_extract_position_from_params`.
  * Implements `lsp_extract_position_from_params`.
  * @param body *u8
@@ -1516,6 +1515,7 @@ export function lsp_find_key_after(body: *u8, len: i32, start: i32, key: *u8): i
  * @param out_character *i32
  * @return i32
  */
+#[no_mangle]
 export function lsp_extract_position_from_params(body: *u8, len: i32, out_line: *i32, out_character: *i32): i32 {
   if (body == 0 as *u8) {
     return 0 - 1;
@@ -1554,7 +1554,6 @@ export function lsp_extract_position_from_params(body: *u8, len: i32, out_line: 
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `lsp_line_is_block_comment`.
  * Implements `lsp_line_is_block_comment`.
  * @param doc *u8
@@ -1563,6 +1562,7 @@ export function lsp_extract_position_from_params(body: *u8, len: i32, out_line: 
  * @param in_block i32
  * @return i32
  */
+#[no_mangle]
 export function lsp_line_is_block_comment(doc: *u8, content_start: i32, content_len: i32, in_block: i32): i32 {
   if (doc == 0) { return 0; }
   if (content_len >= 2) {
@@ -1578,7 +1578,6 @@ export function lsp_line_is_block_comment(doc: *u8, content_start: i32, content_
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `lsp_parse_bool_after`.
  * Implements `lsp_parse_bool_after`.
  * @param body *u8
@@ -1588,6 +1587,7 @@ export function lsp_line_is_block_comment(doc: *u8, content_start: i32, content_
  * @param out_val *i32
  * @return i32
  */
+#[no_mangle]
 export function lsp_parse_bool_after(body: *u8, len: i32, start: i32, key: *u8, out_val: *i32): i32 {
   if (out_val == 0) { return 0 - 1; }
   let k: i32 = lsp_find_key_after(body, len, start, key);
@@ -1609,7 +1609,6 @@ export function lsp_parse_bool_after(body: *u8, len: i32, start: i32, key: *u8, 
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `lsp_fmt_space_before`.
  * Implements `lsp_fmt_space_before`.
  * @param doc *u8
@@ -1620,6 +1619,7 @@ export function lsp_parse_bool_after(body: *u8, len: i32, start: i32, key: *u8, 
  * @param out_cap i32
  * @return i32
  */
+#[no_mangle]
 export function lsp_fmt_space_before(doc: *u8, start: i32, j: i32, out_buf: *u8, out_len: *i32, out_cap: i32): i32 {
   if (out_buf == 0) { return 0; }
   if (out_len == 0) { return 0; }
@@ -1644,7 +1644,6 @@ export function lsp_fmt_space_before(doc: *u8, start: i32, j: i32, out_buf: *u8,
 
 // lsp_fmt_space_after: see function docblock below.
 
-#[no_mangle]
 /** Exported function `lsp_fmt_space_after`.
  * Implements `lsp_fmt_space_after`.
  * @param doc *u8
@@ -1656,6 +1655,7 @@ export function lsp_fmt_space_before(doc: *u8, start: i32, j: i32, out_buf: *u8,
  * @param out_cap i32
  * @return i32
  */
+#[no_mangle]
 export function lsp_fmt_space_after(doc: *u8, start: i32, len: i32, j: i32, out_buf: *u8, out_len: *i32, out_cap: i32): i32 {
   if (out_buf == 0) { return 0; }
   if (out_len == 0) { return 0; }
@@ -1681,7 +1681,6 @@ export function lsp_fmt_space_after(doc: *u8, start: i32, len: i32, j: i32, out_
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `lsp_json_escape_ident`.
  * Implements `lsp_json_escape_ident`.
  * @param s *u8
@@ -1689,6 +1688,7 @@ export function lsp_fmt_space_after(doc: *u8, start: i32, len: i32, j: i32, out_
  * @param esc_cap i32
  * @return i32
  */
+#[no_mangle]
 export function lsp_json_escape_ident(s: *u8, esc: *u8, esc_cap: i32): i32 {
   if (s == 0) { return 0; }
   if (esc == 0) { return 0; }
@@ -1721,13 +1721,13 @@ export function lsp_json_escape_ident(s: *u8, esc: *u8, esc_cap: i32): i32 {
 }
 
 
-#[no_mangle]
 /** Exported function `lsp_hash_source`.
  * Implements `lsp_hash_source`.
  * @param src *u8
  * @param len i32
  * @return u32
  */
+#[no_mangle]
 export function lsp_hash_source(src: *u8, len: i32): u32 {
   if (src == 0) { return 0; }
   let h: u64 = len as u64;

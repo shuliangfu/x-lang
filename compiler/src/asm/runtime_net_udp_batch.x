@@ -26,13 +26,13 @@ export function shu_udp_batch_set_addr_port(sin: *u8, addr_u32: u32, port_u32: u
   }
 }
 
-#[no_mangle]
 /** Exported function `shu_udp_batch_poll_readable`.
  * Read path helper `shu_udp_batch_poll_readable`.
  * @param fd i32
  * @param timeout_ms u32
  * @return i32
  */
+#[no_mangle]
 export function shu_udp_batch_poll_readable(fd: i32, timeout_ms: u32): i32 {
   unsafe {
     return shu_udp_batch_poll_readable_impl(fd, timeout_ms);

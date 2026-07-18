@@ -50,7 +50,6 @@ export function asm_codegen_elf_o(module: *Module, arena: *ASTArena, ctx: *Pipel
   return asm_asm_codegen_elf_o(module as *u8, arena as *u8, ctx as *u8, elf_ctx as *u8, out as *u8);
 }
 
-#[cfg(not(target_os = "linux"))]
 /** Exported function `asm_codegen_elf_o`.
  * Implements `asm_codegen_elf_o`.
  * @param module *Module
@@ -60,6 +59,7 @@ export function asm_codegen_elf_o(module: *Module, arena: *ASTArena, ctx: *Pipel
  * @param out *CodegenOutBuf
  * @return i32
  */
+#[cfg(not(target_os = "linux"))]
 export function asm_codegen_elf_o(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx, elf_ctx: *u8, out: *CodegenOutBuf): i32 {
   return asm_asm_codegen_elf_o(module as *u8, arena as *u8, ctx as *u8, elf_ctx as *u8, out as *u8);
 }

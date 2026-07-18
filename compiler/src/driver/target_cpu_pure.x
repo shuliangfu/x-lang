@@ -18,21 +18,21 @@ let g_driver_pending_target_cpu_features: u32 = 0;
 export extern function shu_target_cpu_detect_host(): u32;
 export extern function shu_target_cpu_generic_for_host(): u32;
 
-#[no_mangle]
 /** Exported function `driver_set_pending_target_cpu_features`.
  * Implements `driver_set_pending_target_cpu_features`.
  * @param features u32
  * @return void
  */
+#[no_mangle]
 export function driver_set_pending_target_cpu_features(features: u32): void {
   g_driver_pending_target_cpu_features = features;
 }
 
-#[no_mangle]
 /** Exported function `driver_get_pending_target_cpu_features`.
  * Implements `driver_get_pending_target_cpu_features`.
  * @return u32
  */
+#[no_mangle]
 export function driver_get_pending_target_cpu_features(): u32 {
   return g_driver_pending_target_cpu_features;
 }
@@ -184,7 +184,6 @@ export function tcp_parse_named(spec: *u8, base: usize, end: usize, out: *u32): 
   return -1;
 }
 
-#[no_mangle]
 /** Exported function `shu_target_cpu_resolve`.
  * Implements `shu_target_cpu_resolve`.
  * @param spec *u8
@@ -192,6 +191,7 @@ export function tcp_parse_named(spec: *u8, base: usize, end: usize, out: *u32): 
  * @param out *u32
  * @return i32
  */
+#[no_mangle]
 export function shu_target_cpu_resolve(spec: *u8, spec_len: usize, out: *u32): i32 {
   let start: usize = 0;
   let end: usize = 0;
@@ -219,7 +219,6 @@ export function shu_target_cpu_resolve(spec: *u8, spec_len: usize, out: *u32): i
   return tcp_parse_named(spec, start, end, out);
 }
 
-#[no_mangle]
 /** Exported function `tcp_eq5`.
  * Implements `tcp_eq5`.
  * @param name *u8
@@ -230,11 +229,11 @@ export function shu_target_cpu_resolve(spec: *u8, spec_len: usize, out: *u32): i
  * @param a4 u8
  * @return i32
  */
+#[no_mangle]
 export function tcp_eq5(name: *u8, a0: u8, a1: u8, a2: u8, a3: u8, a4: u8): i32 {
   return tcp_eq_at(name, 0, 5, a0, a1, a2, a3, a4, 0, 0, 0, 0);
 }
 
-#[no_mangle]
 /** Exported function `tcp_eq6`.
  * Implements `tcp_eq6`.
  * @param name *u8
@@ -246,17 +245,18 @@ export function tcp_eq5(name: *u8, a0: u8, a1: u8, a2: u8, a3: u8, a4: u8): i32 
  * @param a5 u8
  * @return i32
  */
+#[no_mangle]
 export function tcp_eq6(name: *u8, a0: u8, a1: u8, a2: u8, a3: u8, a4: u8, a5: u8): i32 {
   return tcp_eq_at(name, 0, 6, a0, a1, a2, a3, a4, a5, 0, 0, 0);
 }
 
-#[no_mangle]
 /** Exported function `shu_simd_is_vector_type_spelling`.
  * Implements `shu_simd_is_vector_type_spelling`.
  * @param name *u8
  * @param name_len usize
  * @return i32
  */
+#[no_mangle]
 export function shu_simd_is_vector_type_spelling(name: *u8, name_len: usize): i32 {
   if (name == 0 as *u8 || name_len == 0) {
     return 0;
@@ -277,7 +277,6 @@ export function shu_simd_is_vector_type_spelling(name: *u8, name_len: usize): i3
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `shu_simd_vector_lanes_esz_from_spelling`.
  * Implements `shu_simd_vector_lanes_esz_from_spelling`.
  * @param name *u8
@@ -286,6 +285,7 @@ export function shu_simd_is_vector_type_spelling(name: *u8, name_len: usize): i3
  * @param out_esz *i32
  * @return i32
  */
+#[no_mangle]
 export function shu_simd_vector_lanes_esz_from_spelling(name: *u8, name_len: usize, out_lanes: *i32, out_esz: *i32): i32 {
   let lanes: i32 = 4;
   let esz: i32 = 4;
@@ -312,7 +312,6 @@ export function shu_simd_vector_lanes_esz_from_spelling(name: *u8, name_len: usi
 /* See implementation. */
 
 // append_feat_name: see function docblock below.
-#[no_mangle]
 /** Exported function `append_feat_name`.
  * Implements `append_feat_name`.
  * @param buf *u8
@@ -321,6 +320,7 @@ export function shu_simd_vector_lanes_esz_from_spelling(name: *u8, name_len: usi
  * @param name *u8
  * @return void
  */
+#[no_mangle]
 export function append_feat_name(buf: *u8, cap: usize, pos: *usize, name: *u8): void {
   if (buf == 0) { return; }
   if (pos == 0) { return; }
@@ -350,13 +350,13 @@ export function append_feat_name(buf: *u8, cap: usize, pos: *usize, name: *u8): 
 }
 
 // flags_has_token: see function docblock below.
-#[no_mangle]
 /** Exported function `flags_has_token`.
  * Implements `flags_has_token`.
  * @param hay *u8
  * @param token *u8
  * @return i32
  */
+#[no_mangle]
 export function flags_has_token(hay: *u8, token: *u8): i32 {
   if (hay == 0) { return 0; }
   if (token == 0) { return 0; }

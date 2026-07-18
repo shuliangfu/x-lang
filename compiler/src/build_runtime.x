@@ -25,12 +25,12 @@ export function build_runtime_info(msg: *u8): void {
   }
 }
 
-#[no_mangle]
 /** Exported function `build_runtime_warn`.
  * Implements `build_runtime_warn`.
  * @param msg *u8
  * @return void
  */
+#[no_mangle]
 export function build_runtime_warn(msg: *u8): void {
   unsafe {
     build_runtime_warn_impl(msg);
@@ -47,17 +47,17 @@ export extern "C" function build_run_legacy_steps_impl(shu_path: *u8): i32;
 
 #[no_mangle]
 export function build_patch_pipeline_gen_c(): i32 { unsafe { return build_patch_pipeline_gen_c_impl(); } return 0; }
-#[no_mangle]
 /** Exported function `build_patch_driver_gen_c`.
  * Implements `build_patch_driver_gen_c`.
  * @param ) i32 { unsafe { return build_patch_driver_gen_c_impl(
  * @return void
  */
-export function build_patch_driver_gen_c(): i32 { unsafe { return build_patch_driver_gen_c_impl(); } return 0; }
 #[no_mangle]
+export function build_patch_driver_gen_c(): i32 { unsafe { return build_patch_driver_gen_c_impl(); } return 0; }
 /** Exported function `build_run_legacy_steps`.
  * Implements `build_run_legacy_steps`.
  * @param shu_path *u8): i32 { unsafe { return build_run_legacy_steps_impl(shu_path
  * @return void
  */
+#[no_mangle]
 export function build_run_legacy_steps(shu_path: *u8): i32 { unsafe { return build_run_legacy_steps_impl(shu_path); } return 0; }

@@ -26,7 +26,6 @@ export function shu_mbedtls_bio_send(ctx: *u8, buf: *u8, len: usize): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `shu_mbedtls_bio_recv`.
  * Implements `shu_mbedtls_bio_recv`.
  * @param ctx *u8
@@ -34,6 +33,7 @@ export function shu_mbedtls_bio_send(ctx: *u8, buf: *u8, len: usize): i32 {
  * @param len usize
  * @return i32
  */
+#[no_mangle]
 export function shu_mbedtls_bio_recv(ctx: *u8, buf: *u8, len: usize): i32 {
   unsafe {
     return shu_mbedtls_bio_recv_impl(ctx, buf, len);

@@ -31,25 +31,25 @@ function serial_putc(c: u8): void {
   }
 }
 
-#[used]
-#[naked]
 /** Internal function `switch_to`.
  * Implements `switch_to`.
  * @param old *Context
  * @param new_ctx *Context
  * @return void
  */
+#[used]
+#[naked]
 function switch_to(old: *Context, new_ctx: *Context): void {
   unsafe {
     asm!("movl 4(%esp), %eax; movl 8(%esp), %edx; pushl %ebp; pushl %ebx; pushl %esi; pushl %edi; movl %esp, (%eax); movl (%edx), %esp; popl %edi; popl %esi; popl %ebx; popl %ebp; ret");
   }
 }
 
-#[used]
 /** Internal function `thread_b`.
  * Read path helper `thread_b`.
  * @return void
  */
+#[used]
 function thread_b(): void {
   serial_putc(66);
   serial_putc(10);
@@ -91,11 +91,11 @@ function kmain(): i32 {
   return 0;
 }
 
-#[entry]
 /** Internal function `start`.
  * Implements `start`.
  * @return void
  */
+#[entry]
 function start(): void {
   unsafe {
     asm!("mov $0x80000, %esp; call kmain; cli; hlt");

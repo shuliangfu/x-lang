@@ -17,12 +17,12 @@ export function runtime_net_addr_fast_x_doc_anchor(): i32 {
 /* ---- G-02f-151：net addr pack ---- */
 
 // net_sockaddr_in_pack_addr_port_c: see function docblock below.
-#[no_mangle]
 /** Exported function `net_sockaddr_in_pack_addr_port_c`.
  * Implements `net_sockaddr_in_pack_addr_port_c`.
  * @param sin_ptr *u8
  * @return i64
  */
+#[no_mangle]
 export function net_sockaddr_in_pack_addr_port_c(sin_ptr: *u8): i64 {
   if (sin_ptr == 0) { return 0; }
   // See implementation.

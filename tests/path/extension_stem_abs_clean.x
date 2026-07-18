@@ -3,17 +3,17 @@
 const path = import("std.path");
 
 // expected_sep: see function docblock below.
+/** Internal function `expected_sep`.
+ * Implements `expected_sep`.
+ * @return u8
+ */
 #[cfg(target_os = "windows")]
-/** Internal function `expected_sep`.
- * Implements `expected_sep`.
- * @return u8
- */
 function expected_sep(): u8 { return 92 as u8; }
-#[cfg(not(target_os = "windows"))]
 /** Internal function `expected_sep`.
  * Implements `expected_sep`.
  * @return u8
  */
+#[cfg(not(target_os = "windows"))]
 function expected_sep(): u8 { return 47 as u8; }
 
 /** Internal function `main`.

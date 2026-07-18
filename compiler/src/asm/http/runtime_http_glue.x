@@ -37,7 +37,6 @@ export function http_set_timeouts(fd: i32, timeout_ms: u32): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `http_connect_timeout`.
  * Implements `http_connect_timeout`.
  * @param fd i32
@@ -45,12 +44,12 @@ export function http_set_timeouts(fd: i32, timeout_ms: u32): i32 {
  * @param timeout_ms u32
  * @return i32
  */
+#[no_mangle]
 export function http_connect_timeout(fd: i32, res: *u8, timeout_ms: u32): i32 {
   unsafe { return http_connect_timeout_impl(fd, res, timeout_ms); }
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `shu_http_send_all`.
  * Implements `shu_http_send_all`.
  * @param fd i32
@@ -59,6 +58,7 @@ export function http_connect_timeout(fd: i32, res: *u8, timeout_ms: u32): i32 {
  * @param is_socket i32
  * @return i32
  */
+#[no_mangle]
 export function shu_http_send_all(fd: i32, buf: *u8, len: i32, is_socket: i32): i32 {
   unsafe { return shu_http_send_all_impl(fd, buf, len, is_socket); }
   return 0 - 1;
@@ -76,17 +76,16 @@ export function parse_http_url(url: *u8, url_len: i32, host_buf: *u8, host_cap: 
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `http_transport_close`.
  * Implements `http_transport_close`.
  * @param tr *u8
  * @return void
  */
+#[no_mangle]
 export function http_transport_close(tr: *u8): void {
   unsafe { http_transport_close_impl(tr); }
 }
 
-#[no_mangle]
 /** Exported function `http_transport_send_all`.
  * Implements `http_transport_send_all`.
  * @param tr *u8
@@ -94,12 +93,12 @@ export function http_transport_close(tr: *u8): void {
  * @param len i32
  * @return i32
  */
+#[no_mangle]
 export function http_transport_send_all(tr: *u8, data: *u8, len: i32): i32 {
   unsafe { return http_transport_send_all_impl(tr, data, len); }
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `http_transport_recv_fill`.
  * Implements `http_transport_recv_fill`.
  * @param tr *u8
@@ -108,28 +107,29 @@ export function http_transport_send_all(tr: *u8, data: *u8, len: i32): i32 {
  * @param timeout_ms u32
  * @return i32
  */
+#[no_mangle]
 export function http_transport_recv_fill(tr: *u8, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   unsafe { return http_transport_recv_fill_impl(tr, out_buf, out_cap, timeout_ms); }
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Function `http_format_request`.
  * Purpose: implements `http_format_request`; params/returns as declared (may be multi-line).
  * Contracts: null/cap/PLATFORM as enforced in the body.
  */
+#[no_mangle]
 export function http_format_request(method: *u8, path_buf: *u8, host_buf: *u8, body_len: i32, req: *u8,
                              req_cap: i32): i32 {
   unsafe { return http_format_request_impl(method, path_buf, host_buf, body_len, req, req_cap); }
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `http_drain_request`.
  * Implements `http_drain_request`.
  * @param fd i32
  * @return i32
  */
+#[no_mangle]
 export function http_drain_request(fd: i32): i32 {
   unsafe { return http_drain_request_impl(fd); }
   return 0 - 1;
@@ -159,12 +159,12 @@ export function http_request_timeout_ex_c(method: *u8, url: *u8, url_len: i32, b
 
 // http_method_has_body: see function docblock below.
 
-#[no_mangle]
 /** Exported function `http_method_has_body`.
  * Implements `http_method_has_body`.
  * @param method *u8
  * @return i32
  */
+#[no_mangle]
 export function http_method_has_body(method: *u8): i32 {
   if (method == 0) { return 0; }
   // POST

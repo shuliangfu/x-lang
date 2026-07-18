@@ -52,12 +52,12 @@ export function async_live_load_func_name(callee: *u8): *u8 {
   return a as *u8;
 }
 
-#[no_mangle]
 /** Exported function `async_liveness_callee_is_io_read`.
  * Read path helper `async_liveness_callee_is_io_read`.
  * @param f *u8
  * @return i32
  */
+#[no_mangle]
 export function async_liveness_callee_is_io_read(f: *u8): i32 {
   let name: *u8 = async_live_load_func_name(f);
   if (name == 0) { return 0; }
@@ -71,12 +71,12 @@ export function async_liveness_callee_is_io_read(f: *u8): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `async_liveness_callee_is_io_write`.
  * Write path helper `async_liveness_callee_is_io_write`.
  * @param f *u8
  * @return i32
  */
+#[no_mangle]
 export function async_liveness_callee_is_io_write(f: *u8): i32 {
   let name: *u8 = async_live_load_func_name(f);
   if (name == 0) { return 0; }
@@ -185,12 +185,12 @@ export function async_live_is_unary_kind(k: i32): i32 {
 // forward decls via mutual recursion (define block_* after expr_*)
 
 // expr_has_await: see function docblock below.
-#[no_mangle]
 /** Exported function `expr_has_await`.
  * Implements `expr_has_await`.
  * @param e *u8
  * @return i32
  */
+#[no_mangle]
 export function expr_has_await(e: *u8): i32 {
   if (e == 0) { return 0; }
   let k: i32 = async_live_expr_kind(e);
@@ -293,12 +293,12 @@ export function expr_has_await(e: *u8): i32 {
 }
 
 // G-02f-166：expr_count_await
-#[no_mangle]
 /** Exported function `expr_count_await`.
  * Implements `expr_count_await`.
  * @param e *u8
  * @return i32
  */
+#[no_mangle]
 export function expr_count_await(e: *u8): i32 {
   if (e == 0) { return 0; }
   let k: i32 = async_live_expr_kind(e);
@@ -396,12 +396,12 @@ export function expr_count_await(e: *u8): i32 {
 }
 
 // G-02f-168：block_count_await / block_has_await
-#[no_mangle]
 /** Exported function `block_count_await`.
  * Implements `block_count_await`.
  * @param b *u8
  * @return i32
  */
+#[no_mangle]
 export function block_count_await(b: *u8): i32 {
   if (b == 0) { return 0; }
   let n: i32 = 0;
@@ -432,24 +432,24 @@ export function block_count_await(b: *u8): i32 {
   return n;
 }
 
-#[no_mangle]
 /** Exported function `block_has_await`.
  * Implements `block_has_await`.
  * @param b *u8
  * @return i32
  */
+#[no_mangle]
 export function block_has_await(b: *u8): i32 {
   if (block_count_await(b) > 0) { return 1; }
   return 0;
 }
 
 // G-02f-167：expr_has_io_read/write_await + block_has_io_*
-#[no_mangle]
 /** Exported function `expr_has_io_read_await`.
  * Read path helper `expr_has_io_read_await`.
  * @param e *u8
  * @return i32
  */
+#[no_mangle]
 export function expr_has_io_read_await(e: *u8): i32 {
   if (e == 0) { return 0; }
   let k: i32 = async_live_expr_kind(e);
@@ -558,12 +558,12 @@ export function expr_has_io_read_await(e: *u8): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `expr_has_io_write_await`.
  * Write path helper `expr_has_io_write_await`.
  * @param e *u8
  * @return i32
  */
+#[no_mangle]
 export function expr_has_io_write_await(e: *u8): i32 {
   if (e == 0) { return 0; }
   let k: i32 = async_live_expr_kind(e);
@@ -672,12 +672,12 @@ export function expr_has_io_write_await(e: *u8): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `block_has_io_read_await`.
  * Read path helper `block_has_io_read_await`.
  * @param b *u8
  * @return i32
  */
+#[no_mangle]
 export function block_has_io_read_await(b: *u8): i32 {
   if (b == 0) { return 0; }
   let nlets: i32 = async_live_load_i32(b, 24);
@@ -707,12 +707,12 @@ export function block_has_io_read_await(b: *u8): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `block_has_io_write_await`.
  * Write path helper `block_has_io_write_await`.
  * @param b *u8
  * @return i32
  */
+#[no_mangle]
 export function block_has_io_write_await(b: *u8): i32 {
   if (b == 0) { return 0; }
   let nlets: i32 = async_live_load_i32(b, 24);
@@ -816,13 +816,13 @@ export function async_live_load_def_name(defs: *u8, i: i32): *u8 {
   return async_live_load_ptr(defs, off);
 }
 
-#[no_mangle]
 /** Exported function `expr_refs_var`.
  * Implements `expr_refs_var`.
  * @param e *u8
  * @param name *u8
  * @return i32
  */
+#[no_mangle]
 export function expr_refs_var(e: *u8, name: *u8): i32 {
   if (e == 0) { return 0; }
   if (name == 0) { return 0; }
@@ -936,13 +936,13 @@ export function expr_refs_var(e: *u8, name: *u8): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `block_refs_var`.
  * Implements `block_refs_var`.
  * @param b *u8
  * @param name *u8
  * @return i32
  */
+#[no_mangle]
 export function block_refs_var(b: *u8, name: *u8): i32 {
   if (b == 0) { return 0; }
   if (name == 0) { return 0; }
@@ -974,7 +974,6 @@ export function block_refs_var(b: *u8, name: *u8): i32 {
 }
 
 // G-02f-170：block_rest_refs_var — stmt_order@172 entry size 8 kind@0 idx@4
-#[no_mangle]
 /** Exported function `block_rest_refs_var`.
  * Implements `block_rest_refs_var`.
  * @param b *u8
@@ -982,6 +981,7 @@ export function block_refs_var(b: *u8, name: *u8): i32 {
  * @param name *u8
  * @return i32
  */
+#[no_mangle]
 export function block_rest_refs_var(b: *u8, from_exclusive: i32, name: *u8): i32 {
   if (b == 0) { return 0; }
   if (name == 0) { return 0; }
@@ -1122,13 +1122,13 @@ export function frame_live_name_eq(row: *u8, name: *u8): i32 {
 }
 
 // frame_live_add: see function docblock below.
-#[no_mangle]
 /** Exported function `frame_live_add`.
  * Implements `frame_live_add`.
  * @param out *u8
  * @param name *u8
  * @return void
  */
+#[no_mangle]
 export function frame_live_add(out: *u8, name: *u8): void {
   if (out == 0) { return; }
   if (name == 0) { return; }
@@ -1159,7 +1159,6 @@ export function frame_live_add(out: *u8, name: *u8): void {
 /* See implementation. */
 
 // frame_live_at_await: see function docblock below.
-#[no_mangle]
 /** Exported function `frame_live_at_await`.
  * Implements `frame_live_at_await`.
  * @param b *u8
@@ -1169,6 +1168,7 @@ export function frame_live_add(out: *u8, name: *u8): void {
  * @param out *u8
  * @return void
  */
+#[no_mangle]
 export function frame_live_at_await(b: *u8, idx: i32, defs: *u8, nd: i32, out: *u8): void {
   if (nd <= 0) { return; }
   if (defs == 0) { return; }
@@ -1213,7 +1213,6 @@ export function async_live_analyze_at_await(b: *u8, si: i32, defs: *u8, n_def: i
   }
 }
 
-#[no_mangle]
 /** Exported function `analyze_block_linear`.
  * Implements `analyze_block_linear`.
  * @param b *u8
@@ -1222,6 +1221,7 @@ export function async_live_analyze_at_await(b: *u8, si: i32, defs: *u8, n_def: i
  * @param frame *u8
  * @return void
  */
+#[no_mangle]
 export function analyze_block_linear(b: *u8, prefix: *u8, n_prefix: i32, frame: *u8): void {
   if (b == 0) { return; }
   if (frame == 0) { return; }
@@ -1309,7 +1309,6 @@ export function analyze_block_linear(b: *u8, prefix: *u8, n_prefix: i32, frame: 
 
 
 // frame_mangle_ident: see function docblock below.
-#[no_mangle]
 /** Exported function `frame_mangle_ident`.
  * Implements `frame_mangle_ident`.
  * @param in_name *u8
@@ -1317,6 +1316,7 @@ export function analyze_block_linear(b: *u8, prefix: *u8, n_prefix: i32, frame: 
  * @param cap i32
  * @return void
  */
+#[no_mangle]
 export function frame_mangle_ident(in_name: *u8, out: *u8, cap: i32): void {
   if (out == 0) { return; }
   if (cap <= 0) { return; }
@@ -1369,7 +1369,6 @@ export function frame_mangle_ident(in_name: *u8, out: *u8, cap: i32): void {
 }
 
 // frame_build_tag: see function docblock below.
-#[no_mangle]
 /** Exported function `frame_build_tag`.
  * Implements `frame_build_tag`.
  * @param f *u8
@@ -1377,6 +1376,7 @@ export function frame_mangle_ident(in_name: *u8, out: *u8, cap: i32): void {
  * @param cap i32
  * @return void
  */
+#[no_mangle]
 export function frame_build_tag(f: *u8, out: *u8, cap: i32): void {
   if (out == 0) { return; }
   if (cap <= 1) { return; }
@@ -1412,13 +1412,13 @@ export function frame_build_tag(f: *u8, out: *u8, cap: i32): void {
 
 // live_name_cmp: see function docblock below.
 
-#[no_mangle]
 /** Exported function `live_name_cmp`.
  * Comparison/utility `live_name_cmp`.
  * @param a *u8
  * @param b *u8
  * @return i32
  */
+#[no_mangle]
 export function live_name_cmp(a: *u8, b: *u8): i32 {
   if (a == 0) {
     if (b == 0) { return 0; }

@@ -22,13 +22,13 @@ export extern "C" function pipeline_elf_ctx_emit_code_len(ctx: *u8): i32;
 export extern "C" function pipeline_elf_ctx_ensure_label(ctx: *u8, name: *u8, name_len: i32): i32;
 export extern "C" function pipeline_elf_ctx_append_patch(ctx: *u8, rel32_offset: i32, name: *u8, name_len: i32, imm_bits: i32): i32;
 
-#[no_mangle]
 /** Exported function `x86_enc_u8`.
  * Implements `x86_enc_u8`.
  * @param elf_ctx *u8
  * @param b u8
  * @return i32
  */
+#[no_mangle]
 export function x86_enc_u8(elf_ctx: *u8, b: u8): i32 {
   let bb: u8 = b;
   unsafe {
@@ -37,7 +37,6 @@ export function x86_enc_u8(elf_ctx: *u8, b: u8): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `x86_enc_bytes`.
  * Implements `x86_enc_bytes`.
  * @param elf_ctx *u8
@@ -45,6 +44,7 @@ export function x86_enc_u8(elf_ctx: *u8, b: u8): i32 {
  * @param n i32
  * @return i32
  */
+#[no_mangle]
 export function x86_enc_bytes(elf_ctx: *u8, buf: *u8, n: i32): i32 {
   unsafe {
     return pipeline_elf_ctx_append_bytes(elf_ctx, buf, n);
@@ -52,13 +52,13 @@ export function x86_enc_bytes(elf_ctx: *u8, buf: *u8, n: i32): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `x86_enc_u32_le`.
  * Implements `x86_enc_u32_le`.
  * @param elf_ctx *u8
  * @param imm i32
  * @return i32
  */
+#[no_mangle]
 export function x86_enc_u32_le(elf_ctx: *u8, imm: i32): i32 {
   // See implementation.
   let w: u32 = imm as u32;
@@ -76,7 +76,6 @@ export function x86_enc_u32_le(elf_ctx: *u8, imm: i32): i32 {
 }
 
 // x86_enc_jcc_rel32: see function docblock below.
-#[no_mangle]
 /** Exported function `x86_enc_jcc_rel32`.
  * Implements `x86_enc_jcc_rel32`.
  * @param elf_ctx *u8
@@ -85,6 +84,7 @@ export function x86_enc_u32_le(elf_ctx: *u8, imm: i32): i32 {
  * @param label_len i32
  * @return i32
  */
+#[no_mangle]
 export function x86_enc_jcc_rel32(elf_ctx: *u8, opcode2: u8, label: *u8, label_len: i32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   if (label == 0) { return 0 - 1; }
@@ -129,7 +129,6 @@ export function x86_enc_append_i32_le(elf_ctx: *u8, v: i32): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
 /** Exported function `x86_enc_movq_from_rbp_neg`.
  * Implements `x86_enc_movq_from_rbp_neg`.
  * @param elf_ctx *u8
@@ -138,6 +137,7 @@ export function x86_enc_append_i32_le(elf_ctx: *u8, v: i32): i32 {
  * @param disp32_modrm u8
  * @return i32
  */
+#[no_mangle]
 export function x86_enc_movq_from_rbp_neg(elf_ctx: *u8, offset: i32, disp8_modrm: u8, disp32_modrm: u8): i32 {
   let disp: i32 = 0 - offset;
   let r64: u8 = 72;
@@ -160,7 +160,6 @@ export function x86_enc_movq_from_rbp_neg(elf_ctx: *u8, offset: i32, disp8_modrm
   return x86_enc_append_i32_le(elf_ctx, disp);
 }
 
-#[no_mangle]
 /** Exported function `x86_enc_lea_from_rbp_neg`.
  * Implements `x86_enc_lea_from_rbp_neg`.
  * @param elf_ctx *u8
@@ -169,6 +168,7 @@ export function x86_enc_movq_from_rbp_neg(elf_ctx: *u8, offset: i32, disp8_modrm
  * @param disp32_modrm u8
  * @return i32
  */
+#[no_mangle]
 export function x86_enc_lea_from_rbp_neg(elf_ctx: *u8, offset: i32, disp8_modrm: u8, disp32_modrm: u8): i32 {
   let disp: i32 = 0 - offset;
   let r64: u8 = 72;
@@ -191,7 +191,6 @@ export function x86_enc_lea_from_rbp_neg(elf_ctx: *u8, offset: i32, disp8_modrm:
   return x86_enc_append_i32_le(elf_ctx, disp);
 }
 
-#[no_mangle]
 /** Exported function `x86_enc_movl_from_rbp_neg32`.
  * Implements `x86_enc_movl_from_rbp_neg32`.
  * @param elf_ctx *u8
@@ -200,6 +199,7 @@ export function x86_enc_lea_from_rbp_neg(elf_ctx: *u8, offset: i32, disp8_modrm:
  * @param disp32_modrm u8
  * @return i32
  */
+#[no_mangle]
 export function x86_enc_movl_from_rbp_neg32(elf_ctx: *u8, offset: i32, disp8_modrm: u8, disp32_modrm: u8): i32 {
   let disp: i32 = 0 - offset;
   let op: u8 = 139; // 0x8B
@@ -219,13 +219,13 @@ export function x86_enc_movl_from_rbp_neg32(elf_ctx: *u8, offset: i32, disp8_mod
   return x86_enc_append_i32_le(elf_ctx, disp);
 }
 
-#[no_mangle]
 /** Exported function `x86_enc_store_rax_to_rbp_neg`.
  * Implements `x86_enc_store_rax_to_rbp_neg`.
  * @param elf_ctx *u8
  * @param offset i32
  * @return i32
  */
+#[no_mangle]
 export function x86_enc_store_rax_to_rbp_neg(elf_ctx: *u8, offset: i32): i32 {
   let disp: i32 = 0 - offset;
   let r64: u8 = 72;
@@ -250,13 +250,13 @@ export function x86_enc_store_rax_to_rbp_neg(elf_ctx: *u8, offset: i32): i32 {
   return x86_enc_append_i32_le(elf_ctx, disp);
 }
 
-#[no_mangle]
 /** Exported function `x86_enc_store_rdx_to_rbp_neg`.
  * Implements `x86_enc_store_rdx_to_rbp_neg`.
  * @param elf_ctx *u8
  * @param offset i32
  * @return i32
  */
+#[no_mangle]
 export function x86_enc_store_rdx_to_rbp_neg(elf_ctx: *u8, offset: i32): i32 {
   let disp: i32 = 0 - offset;
   let r64: u8 = 72;
@@ -281,7 +281,6 @@ export function x86_enc_store_rdx_to_rbp_neg(elf_ctx: *u8, offset: i32): i32 {
   return x86_enc_append_i32_le(elf_ctx, disp);
 }
 
-#[no_mangle]
 /** Exported function `x86_enc_alu_imm32_to_reg`.
  * Implements `x86_enc_alu_imm32_to_reg`.
  * @param elf_ctx *u8
@@ -290,6 +289,7 @@ export function x86_enc_store_rdx_to_rbp_neg(elf_ctx: *u8, offset: i32): i32 {
  * @param reg_modrm u8
  * @return i32
  */
+#[no_mangle]
 export function x86_enc_alu_imm32_to_reg(elf_ctx: *u8, imm: i32, op_prefix: u8, reg_modrm: u8): i32 {
   if (imm == 0) { return 0; }
   if (imm >= 0 - 128 && imm <= 127) {

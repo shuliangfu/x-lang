@@ -23,7 +23,6 @@ export function runtime_string_fast_x_doc_anchor(): i32 {
 /* ---- G-02f-151：string fast pure helpers ---- */
 
 // shux_string_memrchr_c: see function docblock below.
-#[no_mangle]
 /** Exported function `shux_string_memrchr_c`.
  * Implements `shux_string_memrchr_c`.
  * @param ptr *u8
@@ -31,6 +30,7 @@ export function runtime_string_fast_x_doc_anchor(): i32 {
  * @param n i32
  * @return i32
  */
+#[no_mangle]
 export function shux_string_memrchr_c(ptr: *u8, c: u8, n: i32): i32 {
   if (ptr == 0) { return 0 - 1; }
   if (n <= 0) { return 0 - 1; }
@@ -43,7 +43,6 @@ export function shux_string_memrchr_c(ptr: *u8, c: u8, n: i32): i32 {
 }
 
 // shux_string_memchr_c: see function docblock below.
-#[no_mangle]
 /** Exported function `shux_string_memchr_c`.
  * Implements `shux_string_memchr_c`.
  * @param ptr *u8
@@ -51,6 +50,7 @@ export function shux_string_memrchr_c(ptr: *u8, c: u8, n: i32): i32 {
  * @param n i32
  * @return i32
  */
+#[no_mangle]
 export function shux_string_memchr_c(ptr: *u8, c: u8, n: i32): i32 {
   if (ptr == 0) { return 0 - 1; }
   if (n <= 0) { return 0 - 1; }
@@ -63,7 +63,6 @@ export function shux_string_memchr_c(ptr: *u8, c: u8, n: i32): i32 {
 }
 
 // shux_string_portable_memmem_c: see function docblock below.
-#[no_mangle]
 /** Exported function `shux_string_portable_memmem_c`.
  * Implements `shux_string_portable_memmem_c`.
  * @param hay *u8
@@ -72,6 +71,7 @@ export function shux_string_memchr_c(ptr: *u8, c: u8, n: i32): i32 {
  * @param needle_len i32
  * @return i32
  */
+#[no_mangle]
 export function shux_string_portable_memmem_c(hay: *u8, hay_len: i32, needle: *u8, needle_len: i32): i32 {
   if (needle == 0) { return 0 - 1; }
   if (needle_len <= 0) { return 0; }
@@ -95,7 +95,6 @@ export function shux_string_portable_memmem_c(hay: *u8, hay_len: i32, needle: *u
 }
 
 // shux_string_memmem_c: see function docblock below.
-#[no_mangle]
 /** Exported function `shux_string_memmem_c`.
  * Implements `shux_string_memmem_c`.
  * @param hay *u8
@@ -104,6 +103,7 @@ export function shux_string_portable_memmem_c(hay: *u8, hay_len: i32, needle: *u
  * @param needle_len i32
  * @return i32
  */
+#[no_mangle]
 export function shux_string_memmem_c(hay: *u8, hay_len: i32, needle: *u8, needle_len: i32): i32 {
   if (needle_len <= 0) { return 0; }
   if (hay_len < needle_len) { return 0 - 1; }
@@ -117,20 +117,19 @@ export function shux_string_memmem_c(hay: *u8, hay_len: i32, needle: *u8, needle
 /* See implementation. */
 
 // shux_string_ptr_at_c: see function docblock below.
-#[no_mangle]
 /** Exported function `shux_string_ptr_at_c`.
  * Implements `shux_string_ptr_at_c`.
  * @param ptr *u8
  * @param off i32
  * @return *u8
  */
+#[no_mangle]
 export function shux_string_ptr_at_c(ptr: *u8, off: i32): *u8 {
   if (ptr == 0) { return 0 as *u8; }
   return ptr + off;
 }
 
 // shux_string_memcmp_c: see function docblock below.
-#[no_mangle]
 /** Exported function `shux_string_memcmp_c`.
  * Comparison/utility `shux_string_memcmp_c`.
  * @param a *u8
@@ -138,6 +137,7 @@ export function shux_string_ptr_at_c(ptr: *u8, off: i32): *u8 {
  * @param n i32
  * @return i32
  */
+#[no_mangle]
 export function shux_string_memcmp_c(a: *u8, b: *u8, n: i32): i32 {
   if (n <= 0) { return 0; }
   let r: i32 = 0;
@@ -150,7 +150,6 @@ export function shux_string_memcmp_c(a: *u8, b: *u8, n: i32): i32 {
 }
 
 // shux_string_memcmp_at_c: see function docblock below.
-#[no_mangle]
 /** Exported function `shux_string_memcmp_at_c`.
  * Comparison/utility `shux_string_memcmp_at_c`.
  * @param a *u8
@@ -159,6 +158,7 @@ export function shux_string_memcmp_c(a: *u8, b: *u8, n: i32): i32 {
  * @param n i32
  * @return i32
  */
+#[no_mangle]
 export function shux_string_memcmp_at_c(a: *u8, off: i32, b: *u8, n: i32): i32 {
   if (n <= 0) { return 0; }
   unsafe {
@@ -168,7 +168,6 @@ export function shux_string_memcmp_at_c(a: *u8, off: i32, b: *u8, n: i32): i32 {
 }
 
 // shux_string_copy_c: see function docblock below.
-#[no_mangle]
 /** Exported function `shux_string_copy_c`.
  * Implements `shux_string_copy_c`.
  * @param dst *u8
@@ -176,6 +175,7 @@ export function shux_string_memcmp_at_c(a: *u8, off: i32, b: *u8, n: i32): i32 {
  * @param n i32
  * @return void
  */
+#[no_mangle]
 export function shux_string_copy_c(dst: *u8, src: *u8, n: i32): void {
   if (n <= 0) { return; }
   unsafe {

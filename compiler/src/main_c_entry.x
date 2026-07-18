@@ -7,13 +7,13 @@
 
 export extern "C" function shux_forward_main_to_main_entry(argc: i32, argv: *u8): i32;
 
-#[no_mangle]
 /** Exported function `main`.
  * Program/test entry point.
  * @param argc i32
  * @param argv *u8
  * @return i32
  */
+#[no_mangle]
 export function main(argc: i32, argv: *u8): i32 {
   unsafe {
     let r: i32 = shux_forward_main_to_main_entry(argc, argv);

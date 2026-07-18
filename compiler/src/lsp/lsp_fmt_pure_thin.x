@@ -87,12 +87,12 @@ export function lsp_match_bytes_at(buf: *u8, off: i32, lit: *u8, lit_len: i32): 
   return 1;
 }
 
-#[no_mangle]
 /** Exported function `lsp_fmt_is_atom_tail`.
  * Implements `lsp_fmt_is_atom_tail`.
  * @param c u8
  * @return i32
  */
+#[no_mangle]
 export function lsp_fmt_is_atom_tail(c: u8): i32 {
   if (lsp_char_in_range(c, 97 as u8, 122 as u8) != 0) { return 1; }
   if (lsp_char_in_range(c, 65 as u8, 90 as u8) != 0) { return 1; }
@@ -104,12 +104,12 @@ export function lsp_fmt_is_atom_tail(c: u8): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `lsp_fmt_is_atom_head`.
  * Implements `lsp_fmt_is_atom_head`.
  * @param c u8
  * @return i32
  */
+#[no_mangle]
 export function lsp_fmt_is_atom_head(c: u8): i32 {
   if (lsp_char_in_range(c, 97 as u8, 122 as u8) != 0) { return 1; }
   if (lsp_char_in_range(c, 65 as u8, 90 as u8) != 0) { return 1; }
@@ -121,12 +121,12 @@ export function lsp_fmt_is_atom_head(c: u8): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `lsp_fmt_unary_lhs`.
  * Implements `lsp_fmt_unary_lhs`.
  * @param prev u8
  * @return i32
  */
+#[no_mangle]
 export function lsp_fmt_unary_lhs(prev: u8): i32 {
   if (prev == 0) { return 1; }
   if (prev == 40) { return 1; }
@@ -151,13 +151,13 @@ export function lsp_fmt_unary_lhs(prev: u8): i32 {
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `lsp_fmt_last_out`.
  * Implements `lsp_fmt_last_out`.
  * @param out_buf *u8
  * @param out_len i32
  * @return u8
  */
+#[no_mangle]
 export function lsp_fmt_last_out(out_buf: *u8, out_len: i32): u8 {
   let k: i32 = out_len - 1;
   while (k >= 0) {
@@ -168,7 +168,6 @@ export function lsp_fmt_last_out(out_buf: *u8, out_len: i32): u8 {
   return 0 as u8;
 }
 
-#[no_mangle]
 /** Exported function `lsp_fmt_prev_src`.
  * Implements `lsp_fmt_prev_src`.
  * @param doc *u8
@@ -176,6 +175,7 @@ export function lsp_fmt_last_out(out_buf: *u8, out_len: i32): u8 {
  * @param j i32
  * @return u8
  */
+#[no_mangle]
 export function lsp_fmt_prev_src(doc: *u8, start: i32, j: i32): u8 {
   let k: i32 = j - 1;
   while (k >= 0) {
@@ -186,7 +186,6 @@ export function lsp_fmt_prev_src(doc: *u8, start: i32, j: i32): u8 {
   return 0 as u8;
 }
 
-#[no_mangle]
 /** Exported function `lsp_fmt_src_ws_before`.
  * Implements `lsp_fmt_src_ws_before`.
  * @param doc *u8
@@ -194,6 +193,7 @@ export function lsp_fmt_prev_src(doc: *u8, start: i32, j: i32): u8 {
  * @param j i32
  * @return i32
  */
+#[no_mangle]
 export function lsp_fmt_src_ws_before(doc: *u8, start: i32, j: i32): i32 {
   let k: i32 = j - 1;
   if (k < 0) { return 0; }
@@ -201,7 +201,6 @@ export function lsp_fmt_src_ws_before(doc: *u8, start: i32, j: i32): i32 {
   return lsp_fmt_is_inline_ws(c);
 }
 
-#[no_mangle]
 /** Exported function `lsp_fmt_src_ws_after`.
  * Implements `lsp_fmt_src_ws_after`.
  * @param doc *u8
@@ -210,6 +209,7 @@ export function lsp_fmt_src_ws_before(doc: *u8, start: i32, j: i32): i32 {
  * @param j i32
  * @return i32
  */
+#[no_mangle]
 export function lsp_fmt_src_ws_after(doc: *u8, start: i32, len: i32, j: i32): i32 {
   let k: i32 = j + 1;
   if (k >= len) { return 0; }
@@ -217,7 +217,6 @@ export function lsp_fmt_src_ws_after(doc: *u8, start: i32, len: i32, j: i32): i3
   return lsp_fmt_is_inline_ws(c);
 }
 
-#[no_mangle]
 /** Exported function `lsp_fmt_space_before`.
  * Implements `lsp_fmt_space_before`.
  * @param doc *u8
@@ -228,6 +227,7 @@ export function lsp_fmt_src_ws_after(doc: *u8, start: i32, len: i32, j: i32): i3
  * @param out_cap i32
  * @return i32
  */
+#[no_mangle]
 export function lsp_fmt_space_before(doc: *u8, start: i32, j: i32, out_buf: *u8, out_len: *i32, out_cap: i32): i32 {
   if (out_buf == 0) { return 0; }
   if (out_len == 0) { return 0; }
@@ -245,7 +245,6 @@ export function lsp_fmt_space_before(doc: *u8, start: i32, j: i32, out_buf: *u8,
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `lsp_fmt_space_after`.
  * Implements `lsp_fmt_space_after`.
  * @param doc *u8
@@ -257,6 +256,7 @@ export function lsp_fmt_space_before(doc: *u8, start: i32, j: i32, out_buf: *u8,
  * @param out_cap i32
  * @return i32
  */
+#[no_mangle]
 export function lsp_fmt_space_after(doc: *u8, start: i32, len: i32, j: i32, out_buf: *u8, out_len: *i32, out_cap: i32): i32 {
   if (out_buf == 0) { return 0; }
   if (out_len == 0) { return 0; }
@@ -280,7 +280,6 @@ export function lsp_fmt_space_after(doc: *u8, start: i32, len: i32, j: i32, out_
   return 0;
 }
 
-#[no_mangle]
 /** Exported function `lsp_json_escape_ident`.
  * Implements `lsp_json_escape_ident`.
  * @param s *u8
@@ -288,6 +287,7 @@ export function lsp_fmt_space_after(doc: *u8, start: i32, len: i32, j: i32, out_
  * @param esc_cap i32
  * @return i32
  */
+#[no_mangle]
 export function lsp_json_escape_ident(s: *u8, esc: *u8, esc_cap: i32): i32 {
   if (s == 0) { return 0; }
   if (esc == 0) { return 0; }
@@ -322,7 +322,6 @@ export function lsp_json_escape_ident(s: *u8, esc: *u8, esc_cap: i32): i32 {
 // See implementation.
 
 // col_in_ident_span: see function docblock below.
-#[no_mangle]
 /** Exported function `col_in_ident_span`.
  * Implements `col_in_ident_span`.
  * @param line i32
@@ -332,6 +331,7 @@ export function lsp_json_escape_ident(s: *u8, esc: *u8, esc_cap: i32): i32 {
  * @param name *u8
  * @return i32
  */
+#[no_mangle]
 export function col_in_ident_span(line: i32, col: i32, sl: i32, sc: i32, name: *u8): i32 {
   if (name == 0) { return 0; }
   if (sl != line) { return 0; }
@@ -348,7 +348,6 @@ export function col_in_ident_span(line: i32, col: i32, sl: i32, sc: i32, name: *
 }
 
 // lsp_find_key_after: see function docblock below.
-#[no_mangle]
 /** Exported function `lsp_find_key_after`.
  * Implements `lsp_find_key_after`.
  * @param body *u8
@@ -357,6 +356,7 @@ export function col_in_ident_span(line: i32, col: i32, sl: i32, sc: i32, name: *
  * @param key *u8
  * @return i32
  */
+#[no_mangle]
 export function lsp_find_key_after(body: *u8, len: i32, start: i32, key: *u8): i32 {
   if (body == 0) { return 0 - 1; }
   if (key == 0) { return 0 - 1; }
@@ -388,7 +388,6 @@ export function lsp_find_key_after(body: *u8, len: i32, start: i32, key: *u8): i
 }
 
 // lsp_parse_bool_after: see function docblock below.
-#[no_mangle]
 /** Exported function `lsp_parse_bool_after`.
  * Implements `lsp_parse_bool_after`.
  * @param body *u8
@@ -398,6 +397,7 @@ export function lsp_find_key_after(body: *u8, len: i32, start: i32, key: *u8): i
  * @param out_val *i32
  * @return i32
  */
+#[no_mangle]
 export function lsp_parse_bool_after(body: *u8, len: i32, start: i32, key: *u8, out_val: *i32): i32 {
   if (out_val == 0) { return 0 - 1; }
   let k: i32 = lsp_find_key_after(body, len, start, key);
@@ -420,7 +420,6 @@ export function lsp_parse_bool_after(body: *u8, len: i32, start: i32, key: *u8, 
 }
 
 // lsp_line_has_block_comment_end: see function docblock below.
-#[no_mangle]
 /** Exported function `lsp_line_has_block_comment_end`.
  * Implements `lsp_line_has_block_comment_end`.
  * @param doc *u8
@@ -428,6 +427,7 @@ export function lsp_parse_bool_after(body: *u8, len: i32, start: i32, key: *u8, 
  * @param len i32
  * @return i32
  */
+#[no_mangle]
 export function lsp_line_has_block_comment_end(doc: *u8, start: i32, len: i32): i32 {
   let i: i32 = 0;
   while (i + 1 < len) {
