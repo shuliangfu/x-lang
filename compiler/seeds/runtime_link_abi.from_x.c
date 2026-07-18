@@ -3753,10 +3753,13 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
     if (!opt_level || !*opt_level) opt_level = "2";
     if (include_root && include_root[0])
         ensure_std_net_o_auto_tls(include_root);
-    if (time_o && time_o[0] && access(time_o, R_OK) == 0) {
-        if (shux_ensure_runtime_time_os_o(NULL) != 0)
-            return -1;
-    }
+    /*
+     * PLATFORM: SHARED — do NOT pre-ensure runtime_time_os.o merely because
+     * std/time/time.o exists on a warm tree. That forced every pure rv/hello
+     * C link (and Darwin paths that still hit invoke_cc) to rebuild time_os.
+     * Authority: ensure only under need_time (below) + ASM PRIMARY/on_demand
+     * gated by labi_user_needs_runtime_time_os. G.7 complete existing need path.
+     */
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
     pid_t pid = 0;  /* Windows: 模拟 child 分支，直接构造 argv + _spawnvp */
 #else
@@ -6916,21 +6919,25 @@ void shux_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *us
                 rel ? rel : "compiler/runtime_panic.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
             break;
         case LABI_STD_OP_PRIMARY_TIME_OS:
-            /* PLATFORM: SHARED — on_demand also covers time.o+time_os; skip bulk when pure. */
+            /* PLATFORM: SHARED — on_demand also covers time.o+time_os; skip bulk when pure.
+             * ensure at push (glue pattern): prepare may have skipped or been bypassed. */
             if (!labi_user_needs_runtime_time_os(user_o))
                 break;
+            (void)shux_ensure_runtime_time_os_o(link_argv0);
             link_abi_asm_ld_push_obj(shux_runtime_time_os_o_path(link_argv0), link_argv0,
                 rel ? rel : "compiler/runtime_time_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
             break;
         case LABI_STD_OP_PRIMARY_RANDOM_FILL:
             if (!labi_user_needs_runtime_random_fill(user_o))
                 break;
+            (void)shux_ensure_runtime_random_fill_o(link_argv0);
             link_abi_asm_ld_push_obj(shux_runtime_random_fill_o_path(link_argv0), link_argv0,
                 rel ? rel : "compiler/runtime_random_fill.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
             break;
         case LABI_STD_OP_PRIMARY_ENV_OS:
             if (!labi_user_needs_runtime_env_os(user_o))
                 break;
+            (void)shux_ensure_runtime_env_os_o(link_argv0);
             link_abi_asm_ld_push_obj(shux_runtime_env_os_o_path(link_argv0), link_argv0,
                 rel ? rel : "compiler/runtime_env_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
             break;
@@ -7710,17 +7717,33 @@ int shux_asm_ld_prepare_for_exe_link(const char *link_eff, const char *user_o, i
             return -1;
     }
     if (!shux_link_freestanding_enabled(driver_freestanding)) {
-        /* hello 等最小链：仅 ensure 恒链 runtime 对象；glue 随 std/*.o 按需 skip_missing，勿预编译 sqlite/http 等。 */
+        /*
+         * PLATFORM: SHARED — minimal always-on runtime for hosted asm links:
+         * io stubs + process argv. Do NOT prebuild heavy OS companions here.
+         * random_fill / time_os / env_os: gate on user.o UNDEF (same authority as
+         * labi_user_needs_runtime_* + PRIMARY bulk / formal companion ensure).
+         * Pure rv/hello must not fork-cc those seeds on every -o (residual after
+         * PRIMARY gate). When need is true, ensure here so cold tree has .o before
+         * PRIMARY push_obj; append_std formal companion + on_demand also ensure.
+         * G.7: complete existing prepare_for_exe_link; no second ensure table.
+         * glue (sqlite/http/sync/…) stays on-demand via plan steps / skip_missing.
+         */
         if (shux_ensure_runtime_asm_io_stubs_o(link_eff) != 0)
             return -1;
         if (shux_ensure_runtime_process_argv_o(link_eff) != 0)
             return -1;
-        if (shux_ensure_runtime_random_fill_o(link_eff) != 0)
-            return -1;
-        if (shux_ensure_runtime_time_os_o(link_eff) != 0)
-            return -1;
-        if (shux_ensure_runtime_env_os_o(link_eff) != 0)
-            return -1;
+        if (labi_user_needs_runtime_random_fill(user_o)) {
+            if (shux_ensure_runtime_random_fill_o(link_eff) != 0)
+                return -1;
+        }
+        if (labi_user_needs_runtime_time_os(user_o)) {
+            if (shux_ensure_runtime_time_os_o(link_eff) != 0)
+                return -1;
+        }
+        if (labi_user_needs_runtime_env_os(user_o)) {
+            if (shux_ensure_runtime_env_os_o(link_eff) != 0)
+                return -1;
+        }
     }
     if (shux_ensure_crt0_user_o(link_eff, driver_freestanding) != 0)
         return -1;
