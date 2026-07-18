@@ -13140,6 +13140,16 @@ static int glue_is_const_expr_ref(struct ast_ASTArena *a, int32_t expr_ref, cons
   return 0;
 }
 
+/** PLATFORM: SHARED — expr is legal as a C static initializer (compile-time const, no free vars).
+ * Authority: glue_is_const_expr_ref with empty const-name set (pure lit trees + ops; VAR fails).
+ * Used by codegen want_decl_init for mutable top-level lets: lit sentinels (e.g. -1) stay at
+ * decl-site for library .o without main; VAR-dependent inits (e.g. a+2) stay init_globals-only. */
+int32_t pipeline_expr_is_c_static_const_init(struct ast_ASTArena *arena, int32_t expr_ref) {
+  if (!arena || expr_ref <= 0)
+    return 0;
+  return glue_is_const_expr_ref(arena, expr_ref, NULL, 0) ? 1 : 0;
+}
+
 /** block 内第 const_idx 条 const 的 init 是否为常量表达式；是返回 1，否返回 0。 */
 int32_t pipeline_typeck_block_const_init_is_const_c(struct ast_ASTArena *arena, int32_t block_ref, int32_t const_idx) {
   const char *names[64];

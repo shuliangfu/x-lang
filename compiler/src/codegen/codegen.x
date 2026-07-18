@@ -94,6 +94,9 @@ export extern function driver_dep_slot_for_path(path: *u8): i32;
 export extern function driver_get_current_dep_path_for_codegen(): *u8;
 /** Expr 变长附属池读 API。 */
 export extern function pipeline_expr_kind_ord_at(arena: *ASTArena, expr_ref: i32): i32;
+/** True if expr is a C static-initializer constant (pure lit tree; no free VAR).
+ * PLATFORM: SHARED — gates mutable top-level let decl-site init vs init_globals. */
+export extern function pipeline_expr_is_c_static_const_init(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_resolved_type_ref(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_as_target_type_ref_at(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_call_arg_ref(arena: *ASTArena, expr_ref: i32, idx: i32): i32;
@@ -10040,10 +10043,13 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
             /* Declaration-site init policy (C static storage):
              * - Fixed arrays: write init at decl (empty [] → BSS zeros; no compound-lit pointer).
              * - Non-array const: keep `= init` at decl.
-             * - Non-array mutable let: ALSO write lit/expr init at decl.
+             * - Non-array mutable let: decl-site ONLY when init is C static-const
+             *   (pipeline_expr_is_c_static_const_init: pure lit trees, e.g. -1).
              *   Why: library/dep TUs have no main, so init_globals never runs; BSS zero-init
              *   would wipe sentinels like shu_heap_trace_on = -1 (heap_trace never enables).
-             *   init_globals may still re-assign on entry co-emit (idempotent for lits).
+             *   VAR-dependent inits (e.g. let b = a + 2) are illegal as C static initializers
+             *   and must remain init_globals-only (two_lets / run-toplevel-let).
+             *   init_globals may still re-assign pure lits on entry co-emit (idempotent).
              * PLATFORM: SHARED — C .data vs .bss; non-zero static init must not become BSS 0. */
             let want_decl_init: i32 = 0;
             if (is_fixed_arr != 0 && !ast.ref_is_null(tl_init)) {
@@ -10058,9 +10064,11 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
             if (is_const != 0 && is_fixed_arr == 0 && !ast.ref_is_null(tl_init)) {
               want_decl_init = 1;
             }
-            /* Mutable scalar/struct let: same decl init as const (library .o path). */
+            /* Mutable scalar let: lit/const-expr only (not free-VAR trees). */
             if (is_const == 0 && is_fixed_arr == 0 && !ast.ref_is_null(tl_init)) {
-              want_decl_init = 1;
+              if (pipeline_expr_is_c_static_const_init(arena, tl_init) != 0) {
+                want_decl_init = 1;
+              }
             }
             if (want_decl_init != 0) {
               let eq: u8[4] = [32, 61, 32, 0];

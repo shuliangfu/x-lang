@@ -1587,6 +1587,7 @@ extern int32_t driver_dep_seeded_get(int32_t i);
 extern int32_t driver_dep_slot_for_path(uint8_t * path);
 extern uint8_t * driver_get_current_dep_path_for_codegen(void);
 extern int32_t pipeline_expr_kind_ord_at(struct ast_ASTArena * arena, int32_t expr_ref);
+extern int32_t pipeline_expr_is_c_static_const_init(struct ast_ASTArena * arena, int32_t expr_ref);
 extern int32_t pipeline_expr_resolved_type_ref(struct ast_ASTArena * arena, int32_t expr_ref);
 extern int32_t pipeline_expr_as_target_type_ref_at(struct ast_ASTArena * arena, int32_t expr_ref);
 extern int32_t pipeline_expr_call_arg_ref(struct ast_ASTArena * arena, int32_t expr_ref, int32_t idx);
@@ -10637,9 +10638,11 @@ int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTArena * arena, s
                 return -(1);
               }
             }
-            /* PLATFORM: SHARED — decl-site init for fixed arrays, const, AND mutable lets.
+            /* PLATFORM: SHARED — decl-site init for fixed arrays, const, and mutable lets
+             * whose init is a C static constant (pipeline_expr_is_c_static_const_init).
              * Library/dep .o has no main → init_globals never runs; BSS must not wipe -1
-             * sentinels (e.g. shu_heap_trace_on). Keep in sync with codegen.x. */
+             * sentinels (e.g. shu_heap_trace_on). VAR-dependent inits (a+2) stay init_globals.
+             * Keep in sync with codegen.x. */
             int32_t want_decl_init = 0;
             if (((is_fixed_arr !=0) && !(ast_ref_is_null(tl_init)))) {
               if ((pipeline_expr_kind_ord_at(arena, tl_init) ==((int32_t)(46)))) {
@@ -10654,7 +10657,9 @@ int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTArena * arena, s
               (void)((want_decl_init = 1));
             }
             if ((((is_const ==0) && (is_fixed_arr ==0)) && !(ast_ref_is_null(tl_init)))) {
-              (void)((want_decl_init = 1));
+              if ((pipeline_expr_is_c_static_const_init(arena, tl_init) !=0)) {
+                (void)((want_decl_init = 1));
+              }
             }
             if ((want_decl_init !=0)) {
               uint8_t eq[4] = {32, 61, 32, 0};
