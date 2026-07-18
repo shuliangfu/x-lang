@@ -2745,6 +2745,22 @@ param_ty_raw: i32, from_dep_index: i32, ctx: *PipelineDepCtx): i32 {
       }
     }
     /*
+     * PLATFORM: SHARED — string lit is *u8 by default (C interop) but also matches
+     * u8[] (TYPE_SLICE of u8) for product single-arg print/println("…") and any
+     * other u8[] param. Score 1000 so 1-arg slice overload wins over no-match.
+     */
+    if (pipeline_expr_kind_ord_at(caller_arena, arg_ref) == 59) {
+      let pk_sl: i32 = pipeline_type_kind_ord_at(caller_arena, param_ty);
+      let pe_sl: i32 = 0;
+      let u8_ord: i32 = 2;
+      if (pk_sl == 9 || pk_sl == 11) {
+        pe_sl = pipeline_type_elem_ref_at(caller_arena, param_ty);
+        if (pe_sl > 0 && pipeline_type_kind_ord_at(caller_arena, pe_sl) == u8_ord) {
+          return 1000;
+        }
+      }
+    }
+    /*
      * See implementation.
      * See implementation.
      * See implementation.
@@ -7378,6 +7394,7 @@ export function typeck_x_ast_impl(module: *Module, arena: *ASTArena, ctx: *Pipel
     let ret_kind: i32 = 0;
     let ord_i32: i32 = 0;
     let ord_i64: i32 = 5;
+    let ord_void: i32 = 16;
     let main_num_generic_params: i32 = 0;
     let body_ref: i32 = 0;
     let body_expr_ref: i32 = 0;
@@ -7412,8 +7429,10 @@ export function typeck_x_ast_impl(module: *Module, arena: *ASTArena, ctx: *Pipel
       return -12;
     }
     typeck_driver_diagnostic_pipe_marker(pipe_marker_main_generic_checked);
+    /* PLATFORM: SHARED — process entry may be i32/i64 (exit code) or void (Zig-like
+     * implicit exit 0). Codegen maps void main → C int32_t main + return 0. */
     ret_kind = pipeline_type_kind_ord_at(arena, ret_ty);
-    if (ret_kind != ord_i32 && ret_kind != ord_i64) {
+    if (ret_kind != ord_i32 && ret_kind != ord_i64 && ret_kind != ord_void) {
       return -4;
     }
     if (typeck_validate_struct_layouts_zero_padding(module, arena) != 0) {

@@ -1825,6 +1825,145 @@ export function field_access_base_type_resolved(arena: *ASTArena, base_ref: i32)
 }
 
 /**
+ * PLATFORM: SHARED — C mirror of asm glue_asm_try_emit_fmt_string_lit_import_call.
+ *
+ * Product contract (std.fmt README): `print("…")` / `println("…")` single string
+ * literal is a compiler specialization → call print/println(ptr, len) with the
+ * literal length. Asm backend already does this; C must not fall through to the
+ * bare `std_fmt_println(u8[]*)` overload with a raw pointer (empty stdout / UB).
+ *
+ * Returns: 1 if this call was fully emitted; 0 if not applicable; -1 on emit error.
+ */
+export function codegen_try_emit_fmt_string_lit_call(arena: *ASTArena, out: *CodegenOutBuf,
+expr_ref: i32, ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let e: Expr = ast.ast_arena_expr_get(arena, expr_ref);
+    let callee_ref: i32 = 0;
+    let callee: Expr = e;
+    let path: u8[64] = [];
+    let path_len: i32 = 0;
+    let pre: u8[128] = [];
+    let pre_len: i32 = 0;
+    let name_ptr: *u8 = 0 as *u8;
+    let name_len: i32 = 0;
+    let arg_ref: i32 = 0;
+    let arg: Expr = e;
+    let slen: i32 = 0;
+    let mid: u8[12] = [95, 117, 56, 95, 112, 116, 114, 95, 105, 51, 50, 0]; /* _u8_ptr_i32 */
+    let comma: u8[3] = [44, 32, 0];
+    let is_method: i32 = 0;
+    if (arena == 0 as *ASTArena || out == 0 as *CodegenOutBuf || ctx == 0 as *PipelineDepCtx) {
+      return 0;
+    }
+    if (expr_ref <= 0 || expr_ref > arena.num_exprs) {
+      return 0;
+    }
+    e = ast.ast_arena_expr_get(arena, expr_ref);
+    /*
+     * Product surface is binding.print/println("…"):
+     * - METHOD_CALL: fmt.println("…")  (parser default)
+     * - CALL + FIELD_ACCESS callee: fmt.println as callee (alt shape)
+     */
+    if (e.kind == ExprKind.EXPR_METHOD_CALL && e.method_call_num_args == 1
+        && e.method_call_name_len > 0) {
+      is_method = 1;
+      name_len = e.method_call_name_len;
+      name_ptr = &e.method_call_name[0];
+      path_len = codegen_resolve_binding_import_path_for_method_call(ctx, arena, expr_ref, &path[0]);
+      arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, 0);
+    } else if (e.kind == ExprKind.EXPR_CALL && e.call_num_args == 1) {
+      callee_ref = e.call_callee_ref;
+      if (callee_ref <= 0 || callee_ref > arena.num_exprs) {
+        return 0;
+      }
+      callee = ast.ast_arena_expr_get(arena, callee_ref);
+      if (callee.kind != ExprKind.EXPR_FIELD_ACCESS || callee.field_access_field_len <= 0) {
+        return 0;
+      }
+      name_len = callee.field_access_field_len;
+      name_ptr = &callee.field_access_field_name[0];
+      path_len = codegen_resolve_binding_import_path_for_field_access(ctx, arena, callee_ref, &path[0]);
+      arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
+    } else {
+      return 0;
+    }
+    /* println / print */
+    if (name_len == 7 && name_ptr[0] == 112 && name_ptr[1] == 114 && name_ptr[2] == 105
+        && name_ptr[3] == 110 && name_ptr[4] == 116 && name_ptr[5] == 108 && name_ptr[6] == 110) {
+      /* println */
+    } else if (name_len == 5 && name_ptr[0] == 112 && name_ptr[1] == 114 && name_ptr[2] == 105
+        && name_ptr[3] == 110 && name_ptr[4] == 116) {
+      /* print */
+    } else {
+      return 0;
+    }
+    if (path_len <= 0) {
+      return 0;
+    }
+    /* std.fmt (7) or std.debug (9) */
+    if (path_len == 7 && path[0] == 115 && path[1] == 116 && path[2] == 100 && path[3] == 46
+        && path[4] == 102 && path[5] == 109 && path[6] == 116) {
+      /* ok */
+    } else if (path_len == 9 && path[0] == 115 && path[1] == 116 && path[2] == 100 && path[3] == 46
+        && path[4] == 100 && path[5] == 101 && path[6] == 98 && path[7] == 117 && path[8] == 103) {
+      /* ok */
+    } else {
+      return 0;
+    }
+    if (arg_ref <= 0 || arg_ref > arena.num_exprs) {
+      return 0;
+    }
+    if (pipeline_expr_kind_ord_at(arena, arg_ref) != 59) {
+      return 0;
+    }
+    arg = ast.ast_arena_expr_get(arena, arg_ref);
+    slen = arg.var_name_len;
+    if (slen < 0) {
+      slen = 0;
+    }
+    if (slen > 64) {
+      slen = 64;
+    }
+    codegen_import_path_to_c_prefix_into(&path[0], &pre[0], 128);
+    pre_len = 0;
+    while (pre_len < 128 && pre[pre_len] != 0 as u8) {
+      pre_len = pre_len + 1;
+    }
+    if (pre_len <= 0) {
+      return 0;
+    }
+    /* std_fmt_println_u8_ptr_i32( (uint8_t*)"…", N ) */
+    if (emit_bytes_from_ptr(out, &pre[0], pre_len) != 0) {
+      return -1;
+    }
+    if (emit_bytes_from_ptr(out, name_ptr, name_len) != 0) {
+      return -1;
+    }
+    if (emit_bytes_from_ptr(out, &mid[0], 11) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 40) != 0) {
+      return -1;
+    }
+    if (emit_expr(arena, out, arg_ref, ctx) != 0) {
+      return -1;
+    }
+    if (emit_bytes_3(out, comma, 2) != 0) {
+      return -1;
+    }
+    if (format_int(out, slen as i64) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 41) != 0) {
+      return -1;
+    }
+    (void)is_method;
+    return 1;
+  }
+}
+
+/**
  * Emit one call argument under seed/glue slice ABI (PLATFORM: SHARED).
  *
  * Why: TYPE_SLICE params lower as `struct shux_slice_* *`. Locals stay by-value
@@ -5339,6 +5478,16 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
     /* See implementation. */
     if (e.kind == ExprKind.EXPR_CALL) {
       let callee_ref: i32 = e.call_callee_ref;
+      /* PLATFORM: SHARED — fmt/debug println("…") single-arg string-lit specialization. */
+      if (ctx != 0 as *PipelineDepCtx) {
+        let fmt_lit_rc: i32 = codegen_try_emit_fmt_string_lit_call(arena, out, expr_ref, ctx);
+        if (fmt_lit_rc < 0) {
+          return -1;
+        }
+        if (fmt_lit_rc > 0) {
+          return 0;
+        }
+      }
       /* See implementation. */
       if (!ast.ref_is_null(callee_ref) && callee_ref > 0 && callee_ref <= arena.num_exprs && ctx != 0 as *PipelineDepCtx && ctx.current_codegen_module != 0 as *Module) {
         let sym_buf: u8[128] = [];
@@ -6632,6 +6781,16 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
     }
     /* See implementation. */
     if (e.kind == ExprKind.EXPR_METHOD_CALL) {
+      /* PLATFORM: SHARED — fmt/debug println("…") (METHOD_CALL form). */
+      if (ctx != 0 as *PipelineDepCtx) {
+        let fmt_mc_rc: i32 = codegen_try_emit_fmt_string_lit_call(arena, out, expr_ref, ctx);
+        if (fmt_mc_rc < 0) {
+          return -1;
+        }
+        if (fmt_mc_rc > 0) {
+          return 0;
+        }
+      }
       if (ctx != 0 as *PipelineDepCtx) {
         let dep_ix: i32 = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
         let func_ix: i32 = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
@@ -7431,6 +7590,35 @@ export function codegen_current_func_returns_void(arena: *ASTArena, ctx: *Pipeli
   }
 }
 
+/** Return 1 when the current function is named the four bytes `main`.
+ * Purpose: Zig-like void main maps to process exit 0 on the C entry symbol.
+ * Parameters: ctx — dep context with current_codegen_module / current_func_index.
+ * Returns: 1 if name is main, else 0.
+ * PLATFORM: SHARED — language entry contract; dual-end product matrix.
+ */
+export function codegen_current_func_is_named_main(ctx: *PipelineDepCtx): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (ctx == 0 as *PipelineDepCtx || ctx.current_codegen_module == 0 as *Module || ctx.current_func_index < 0) {
+      return 0;
+    }
+    let mod: *Module = ctx.current_codegen_module;
+    if (ctx.current_func_index >= mod.num_funcs) {
+      return 0;
+    }
+    let nlen: i32 = pipeline_module_func_name_len_at(mod, ctx.current_func_index);
+    if (nlen != 4) {
+      return 0;
+    }
+    let nm: u8[64] = [];
+    codegen_copy_func_name64_from_module(mod, ctx.current_func_index, &nm[0]);
+    if (nm[0] == 109 && nm[1] == 97 && nm[2] == 105 && nm[3] == 110) {
+      return 1;
+    }
+    return 0;
+  }
+}
+
 /**
  * Emit a C `return` statement with Cap-T001 / host-cc awareness.
  *
@@ -7464,6 +7652,13 @@ export function emit_return_stmt_with_context(arena: *ASTArena, out: *CodegenOut
       }
       if (emit_indent(out, indent) != 0) {
         return -1;
+      }
+      /* PLATFORM: SHARED — Zig-like void main: process entry is C int32_t main, so
+       * bare `return;` becomes `return 0;` (implicit exit code 0). Non-main void
+       * functions keep a bare `return;`. */
+      if (codegen_current_func_is_named_main(ctx) != 0) {
+        let ret0: u8[12] = [114, 101, 116, 117, 114, 110, 32, 48, 59, 10, 0, 0];
+        return emit_bytes_from_ptr(out, &ret0[0], 10);
       }
       let retv: u8[9] = [114, 101, 116, 117, 114, 110, 59, 10, 0];
       return emit_bytes_9(out, retv, 8);
@@ -9266,17 +9461,13 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
       let int_attr: u8[31] = [95, 95, 97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 105, 110, 116, 101, 114, 114, 117, 112, 116, 41, 41, 32, 0, 0, 0, 0];
       if (emit_bytes_from_ptr(out, &int_attr[0], 27) != 0) { return -1; }
     }
-    if (emit_type(arena, out, pipeline_module_func_return_type_at(module, fi), prefix, prefix_len, ctx) != 0) {
-      return -1;
-    }
-    if (append_byte(out, 32) != 0) {
-      return -1;
-    }
     /*
      * Emit C symbol "main" only when the function name is the four bytes main.
      * Assign name_is_main after copy (let-hoist safe) — see function docblock.
      * Single-function entry with empty name still forces main (bootstrap path).
      * Do not write (is_entry && a) || b — X→C may drop parens.
+     * Must compute emit_c_main_symbol before return-type emit: void main becomes
+     * C int32_t main (Zig-like implicit exit 0), not host `void main`.
      */
     if (fn_len == 4 && fn_local[0] == 109 && fn_local[1] == 97 && fn_local[2] == 105 && fn_local[3] == 110) {
       name_is_main = true;
@@ -9296,6 +9487,20 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
     }
     if (force_entry_main) {
       emit_c_main_symbol = true;
+    }
+    /* PLATFORM: SHARED — process entry ABI: void main → int32_t main + exit 0. */
+    let ret_ty_ref: i32 = pipeline_module_func_return_type_at(module, fi);
+    let fn_ret_void_pre: bool = pipeline_type_kind_ord_at(arena, ret_ty_ref) == (TypeKind.TYPE_VOID as i32);
+    if (emit_c_main_symbol && fn_ret_void_pre) {
+      let i32_ty: u8[8] = [105, 110, 116, 51, 50, 95, 116, 0];
+      if (emit_bytes_8(out, i32_ty, 7) != 0) {
+        return -1;
+      }
+    } else if (emit_type(arena, out, ret_ty_ref, prefix, prefix_len, ctx) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 32) != 0) {
+      return -1;
     }
     if (emit_c_main_symbol) {
       if (emit_bytes_4(out, main_name, 4) != 0) {
@@ -9542,7 +9747,18 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
      */
     let need_fallback_return: bool = false;
     if (fn_ret_void) {
-      need_fallback_return = false;
+      /* PLATFORM: SHARED — void main (C process entry): fall off body → exit 0. */
+      if (emit_c_main_symbol) {
+        if (!ast.ref_is_null(pipeline_module_func_body_ref_at(module, fi))) {
+          if (codegen_block_contains_return(arena, pipeline_module_func_body_ref_at(module, fi)) == 0) {
+            need_fallback_return = true;
+          }
+        } else {
+          need_fallback_return = true;
+        }
+      } else {
+        need_fallback_return = false;
+      }
     } else if (!ast.ref_is_null(pipeline_module_func_body_expr_ref_at(module, fi))) {
       need_fallback_return = false;
     } else if (!ast.ref_is_null(pipeline_module_func_body_ref_at(module, fi))) {

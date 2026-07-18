@@ -17,8 +17,8 @@ sym_linear	symbol	linear value used after move	compiler/seeds/pipeline_glue_stri
 case_fp_region	case	fp_region_same	tests/typeck/slice_lifetime/region_same_ok.x	pos	ok
 case_fp_block	case	fp_region_block	tests/typeck/borrow/fp_region_block_reassign_ok.x	pos	ok
 case_fp_linear	case	fp_linear_two	tests/typeck/borrow/fp_linear_two_bindings_ok.x	pos	ok
-case_neg_escape	case	conflict_region_escape	tests/typeck/slice_lifetime/region_assign_escape.x	neg	8
-case_neg_mismatch	case	conflict_region_mismatch	tests/typeck/slice_lifetime/region_mismatch.x	neg	6
+case_neg_escape	case	conflict_region_escape	tests/typeck/slice_lifetime/region_assign_escape.x	neg	12
+case_neg_mismatch	case	conflict_region_mismatch	tests/typeck/slice_lifetime/region_mismatch.x	neg	10
 case_neg_linear	case	conflict_linear_move	tests/typeck/linear/double_move.x	neg	move
 gate	script	run-type-borrow-conflict-gate.sh	tests/run-type-borrow-conflict-gate.sh	-	manifest
 hook_borrow	hook_script	run-type-borrow-conflict.sh	run-type-borrow-conflict.sh	-	烟测

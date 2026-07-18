@@ -86,6 +86,14 @@ if [ ! -x /tmp/shux_hello ]; then
   echo "hello compile failed (no executable /tmp/shux_hello)" >&2
   exit 1
 fi
+set +e
 out=$(/tmp/shux_hello)
+rc=$?
+set -e
 echo "$out" | grep -q "Hello World" || { echo "expected 'Hello World' in output, got: $out"; exit 1; }
+# void main → process exit 0 (Zig-like; examples/hello.x contract)
+if [ "$rc" -ne 0 ]; then
+  echo "expected hello exit 0, got $rc" >&2
+  exit 1
+fi
 echo "Hello World test OK"

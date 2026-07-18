@@ -4,7 +4,7 @@
  * 文件职责：声明对 AST 模块做类型检查的入口 typeck_module，供 Driver 在 parse 之后、codegen 之前调用。
  * 所属模块：编译器前端 typeck，compiler/src/typeck/；被 src/main 引用。
  * 与其它文件的关系：依赖 ASTModule（前向声明），实现时包含 ast.h；不依赖 lexer/parser/codegen。
- * 重要约定：阶段 3 最小子集仅校验「有 main 则返回 i32、体为整数字面量」；库模块（无 main）直接通过。类型错误时向 stderr 输出并返回 -1。
+ * 重要约定：有 main 则返回类型须为 i32、i64 或 void（void = 隐含 exit 0）；库模块（无 main）直接通过。类型错误时向 stderr 输出并返回 -1。
  */
 
 #ifndef SHUX_TYPECK_H
@@ -14,7 +14,7 @@ struct ASTModule;
 
 /**
  * 对模块做类型检查。
- * 功能说明：若有 main 则校验返回类型为 i32、体为整数字面量；无 main 的库模块视为通过。若提供 dep_mods，则 CALL 可在依赖模块中解析（跨模块调用）。
+ * 功能说明：若有 main 则校验返回类型为 i32 / i64 / void；无 main 的库模块视为通过。若提供 dep_mods，则 CALL 可在依赖模块中解析（跨模块调用）。
  * 参数：m 已解析的 AST 模块；dep_mods 直接依赖模块数组（与 m->import_paths 顺序一致），可为 NULL；num_deps 直接依赖个数。
  *       all_dep_mods/n_all_deps 可选：全部传递依赖，用于结构体布局阶段解析跨模块类型（如 parser 内 OneFuncResult.next_lex: Lexer）；为 NULL/0 时仅用 dep_mods。
  * 返回值：0 通过；-1 类型错误且已向 stderr 输出 "typeck error: ..."。

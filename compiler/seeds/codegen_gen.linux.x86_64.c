@@ -3067,6 +3067,125 @@ int32_t codegen_field_access_base_type_resolved(struct ast_ASTArena * arena, int
   }
   return 1;
 }
+/* PLATFORM: SHARED — C mirror of asm glue_asm_try_emit_fmt_string_lit_import_call.
+ * METHOD_CALL or CALL+FIELD: fmt/debug print/println("…") → mangled (ptr,i32).
+ * Returns 1 emitted, 0 skip, -1 error. Align codegen.x. */
+int32_t codegen_try_emit_fmt_string_lit_call(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t expr_ref, struct ast_PipelineDepCtx * ctx) {
+  struct ast_Expr e;
+  struct ast_Expr callee;
+  struct ast_Expr arg;
+  int32_t callee_ref;
+  int32_t path_len = 0;
+  int32_t pre_len;
+  int32_t name_len = 0;
+  int32_t arg_ref = 0;
+  int32_t slen;
+  int32_t pi;
+  uint8_t path[64];
+  uint8_t pre[128];
+  uint8_t mid[12] = {95, 117, 56, 95, 112, 116, 114, 95, 105, 51, 50, 0}; /* _u8_ptr_i32 */
+  uint8_t comma[3] = {44, 32, 0};
+  uint8_t *name_ptr = ((uint8_t *)(0));
+  if ((((arena == ((struct ast_ASTArena *)(0))) || (out == ((struct codegen_CodegenOutBuf *)(0)))) || (ctx == ((struct ast_PipelineDepCtx *)(0))))) {
+    return 0;
+  }
+  if (((expr_ref <= 0) || (expr_ref > (arena->num_exprs)))) {
+    return 0;
+  }
+  e = ast_ast_arena_expr_get(arena, expr_ref);
+  /* METHOD_CALL=49 (parser default for fmt.println("…")) */
+  if (((((e.kind) == 49) && ((e.method_call_num_args) == 1)) && ((e.method_call_name_len) > 0))) {
+    name_len = (e.method_call_name_len);
+    name_ptr = &((e.method_call_name)[0]);
+    path_len = codegen_resolve_binding_import_path_for_method_call(ctx, arena, expr_ref, &((path)[0]));
+    arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, 0);
+  } else if ((((e.kind) == 48) && ((e.call_num_args) == 1))) {
+    /* CALL=48 + FIELD_ACCESS callee */
+    callee_ref = (e.call_callee_ref);
+    if (((callee_ref <= 0) || (callee_ref > (arena->num_exprs)))) {
+      return 0;
+    }
+    callee = ast_ast_arena_expr_get(arena, callee_ref);
+    if ((((callee.kind) != 44) || ((callee.field_access_field_len) <= 0))) {
+      return 0;
+    }
+    name_len = (callee.field_access_field_len);
+    name_ptr = &((callee.field_access_field_name)[0]);
+    path_len = codegen_resolve_binding_import_path_for_field_access(ctx, arena, callee_ref, &((path)[0]));
+    arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
+  } else {
+    return 0;
+  }
+  if (name_ptr == ((uint8_t *)(0))) {
+    return 0;
+  }
+  if (((((name_len == 7) && (name_ptr[0] == 112)) && (name_ptr[1] == 114)) && (name_ptr[2] == 105)) && (name_ptr[3] == 110) && (name_ptr[4] == 116) && (name_ptr[5] == 108) && (name_ptr[6] == 110)) {
+    /* println */
+  } else if (((((name_len == 5) && (name_ptr[0] == 112)) && (name_ptr[1] == 114)) && (name_ptr[2] == 105)) && (name_ptr[3] == 110) && (name_ptr[4] == 116)) {
+    /* print */
+  } else {
+    return 0;
+  }
+  if ((path_len <= 0)) {
+    return 0;
+  }
+  if (((((((((path_len == 7) && (path[0] == 115)) && (path[1] == 116)) && (path[2] == 100)) && (path[3] == 46)) && (path[4] == 102)) && (path[5] == 109)) && (path[6] == 116))) {
+    /* std.fmt */
+  } else if (((((((((((path_len == 9) && (path[0] == 115)) && (path[1] == 116)) && (path[2] == 100)) && (path[3] == 46)) && (path[4] == 100)) && (path[5] == 101)) && (path[6] == 98)) && (path[7] == 117)) && (path[8] == 103))) {
+    /* std.debug */
+  } else {
+    return 0;
+  }
+  if (((arg_ref <= 0) || (arg_ref > (arena->num_exprs)))) {
+    return 0;
+  }
+  if ((pipeline_expr_kind_ord_at(arena, arg_ref) != 59)) {
+    return 0;
+  }
+  arg = ast_ast_arena_expr_get(arena, arg_ref);
+  slen = (arg.var_name_len);
+  if ((slen < 0)) {
+    (void)((slen = 0));
+  }
+  if ((slen > 64)) {
+    (void)((slen = 64));
+  }
+  codegen_import_path_to_c_prefix_into(&((path)[0]), &((pre)[0]), 128);
+  pre_len = 0;
+  pi = 0;
+  while (((pi < 128) && (pre[pi] != ((uint8_t)(0))))) {
+    (void)((pre_len = (pre_len + 1)));
+    (void)((pi = (pi + 1)));
+  }
+  if ((pre_len <= 0)) {
+    return 0;
+  }
+  if ((codegen_emit_bytes_from_ptr(out, &((pre)[0]), pre_len) != 0)) {
+    return -1;
+  }
+  if ((codegen_emit_bytes_from_ptr(out, name_ptr, name_len) != 0)) {
+    return -1;
+  }
+  if ((codegen_emit_bytes_from_ptr(out, &((mid)[0]), 11) != 0)) {
+    return -1;
+  }
+  if ((codegen_append_byte(out, 40) != 0)) {
+    return -1;
+  }
+  if ((codegen_emit_expr(arena, out, arg_ref, ctx) != 0)) {
+    return -1;
+  }
+  if ((codegen_emit_bytes_3(out, comma, 2) != 0)) {
+    return -1;
+  }
+  if ((codegen_format_int(out, (int64_t)slen) != 0)) {
+    return -1;
+  }
+  if ((codegen_append_byte(out, 41) != 0)) {
+    return -1;
+  }
+  return 1;
+}
 /* PLATFORM: SHARED — call-arg slice ABI: TYPE_SLICE params are pointers (seed/glue).
  * Locals stay by-value → pass &(local); slice params already pointers → pass through.
  * Authority mirror of codegen.x emit_call_arg_slice_abi; only call/method arg positions. */
@@ -5400,6 +5519,7 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
       }
       return 0;
     }
+    /* EXPR_CALL handled below after STRING_LIT / other kinds; string-lit print special is at CALL entry. */
     if ((pipeline_expr_kind_ord_at(arena, expr_ref) ==59)) {
       int32_t slen = (e.var_name_len);
       int emit_slice = 0;
@@ -5984,6 +6104,16 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
     }
     if (((e.kind) ==48)) {
       int32_t callee_ref = (e.call_callee_ref);
+      /* PLATFORM: SHARED — fmt/debug println("…") single-arg string-lit specialization. */
+      if ((ctx != ((struct ast_PipelineDepCtx *)(0)))) {
+        int32_t fmt_lit_rc = codegen_try_emit_fmt_string_lit_call(arena, out, expr_ref, ctx);
+        if ((fmt_lit_rc < 0)) {
+          return -1;
+        }
+        if ((fmt_lit_rc > 0)) {
+          return 0;
+        }
+      }
       if (((((!(ast_ref_is_null(callee_ref)) && (callee_ref > 0)) && (callee_ref <=(arena->num_exprs))) && (ctx !=((struct ast_PipelineDepCtx *)(0)))) && ((ctx->current_codegen_module) !=((struct ast_Module *)(0))))) {
         uint8_t sym_buf[128] = {};
         int32_t imp_j = -(1);
@@ -7223,6 +7353,17 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
       return codegen_append_byte(out, 48);
     }
     if (((e.kind) ==49)) {
+      /* PLATFORM: SHARED — fmt/debug println("…") METHOD_CALL form. */
+      if ((ctx != ((struct ast_PipelineDepCtx *)(0)))) {
+        int32_t fmt_mc_rc = codegen_try_emit_fmt_string_lit_call(arena, out, expr_ref, ctx);
+        if ((fmt_mc_rc < 0)) {
+          return -1;
+        }
+        if ((fmt_mc_rc > 0)) {
+          return 0;
+        }
+      }
+
       uint8_t dot[2] = {46, 0};
       int32_t mi = 0;
       if ((ctx !=((struct ast_PipelineDepCtx *)(0)))) {
@@ -8055,6 +8196,31 @@ int32_t codegen_current_func_returns_void(struct ast_ASTArena * arena, struct as
   }
   return 0;
 }
+/* PLATFORM: SHARED — name==main helper for void main → exit 0 (align codegen.x). */
+int32_t codegen_current_func_is_named_main(struct ast_PipelineDepCtx * ctx) {
+  {
+    struct ast_Module * mod;
+    int32_t nlen;
+    uint8_t nm[64];
+    if (((ctx == ((struct ast_PipelineDepCtx *)(0))) || ((ctx->current_codegen_module) == ((struct ast_Module *)(0))) || ((ctx->current_func_index) < 0))) {
+      return 0;
+    }
+    mod = (ctx->current_codegen_module);
+    if (((ctx->current_func_index) >= (mod->num_funcs))) {
+      return 0;
+    }
+    nlen = pipeline_module_func_name_len_at(mod, (ctx->current_func_index));
+    if ((nlen != 4)) {
+      return 0;
+    }
+    (void)(codegen_copy_func_name64_from_module(mod, (ctx->current_func_index), &((nm)[0])));
+    if ((((((nm)[0] == 109) && ((nm)[1] == 97)) && ((nm)[2] == 105)) && ((nm)[3] == 110))) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
 int32_t codegen_emit_return_stmt_with_context(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t indent, int32_t operand_ref, struct ast_PipelineDepCtx * ctx, int32_t fn_ret_void) {
   {
     uint8_t ret[8] = {114, 101, 116, 117, 114, 110, 32, 0};
@@ -8079,6 +8245,11 @@ int32_t codegen_emit_return_stmt_with_context(struct ast_ASTArena * arena, struc
       }
       if ((codegen_emit_indent(out, indent) !=0)) {
         return -(1);
+      }
+      /* PLATFORM: SHARED — void main → return 0 (C int entry). */
+      if ((codegen_current_func_is_named_main(ctx) != 0)) {
+        uint8_t ret0[12] = {114, 101, 116, 117, 114, 110, 32, 48, 59, 10, 0, 0};
+        return codegen_emit_bytes_from_ptr(out, &((ret0)[0]), 10);
       }
       return codegen_emit_bytes_9(out, retv, 8);
     }
@@ -9708,12 +9879,6 @@ int32_t codegen_emit_func(struct ast_ASTArena * arena, struct codegen_CodegenOut
         return -(1);
       }
     }
-    if ((codegen_emit_type(arena, out, pipeline_module_func_return_type_at(module, fi), prefix, prefix_len, ctx) !=0)) {
-      return -(1);
-    }
-    if ((codegen_append_byte(out, 32) !=0)) {
-      return -(1);
-    }
     if ((((((fn_len ==4) && ((fn_local)[0] ==109)) && ((fn_local)[1] ==97)) && ((fn_local)[2] ==105)) && ((fn_local)[3] ==110))) {
       (void)((name_is_main = 1));
     }
@@ -9732,6 +9897,22 @@ int32_t codegen_emit_func(struct ast_ASTArena * arena, struct codegen_CodegenOut
     }
     if (force_entry_main) {
       (void)((emit_c_main_symbol = 1));
+    }
+    /* PLATFORM: SHARED — void main → int32_t main (align codegen.x). */
+    {
+      int32_t ret_ty_ref = pipeline_module_func_return_type_at(module, fi);
+      int fn_ret_void_pre = (pipeline_type_kind_ord_at(arena, ret_ty_ref) == ((int32_t)(16)));
+      if ((emit_c_main_symbol && fn_ret_void_pre)) {
+        uint8_t i32_ty[8] = {105, 110, 116, 51, 50, 95, 116, 0};
+        if ((codegen_emit_bytes_8(out, i32_ty, 7) !=0)) {
+          return -(1);
+        }
+      } else if ((codegen_emit_type(arena, out, ret_ty_ref, prefix, prefix_len, ctx) !=0)) {
+        return -(1);
+      }
+    }
+    if ((codegen_append_byte(out, 32) !=0)) {
+      return -(1);
     }
     if (emit_c_main_symbol) {
       if ((codegen_emit_bytes_4(out, main_name, 4) !=0)) {
@@ -9976,7 +10157,18 @@ int32_t codegen_emit_func(struct ast_ASTArena * arena, struct codegen_CodegenOut
      * PLATFORM: SHARED — seed pin matches codegen.x; verify parser.x host-cc. */
     int need_fallback_return = 0;
     if (fn_ret_void) {
-      (void)((need_fallback_return = 0));
+      /* PLATFORM: SHARED — void main process entry falls off → exit 0. */
+      if (emit_c_main_symbol) {
+        if (!(ast_ref_is_null(pipeline_module_func_body_ref_at(module, fi)))) {
+          if ((codegen_block_contains_return(arena, pipeline_module_func_body_ref_at(module, fi)) == 0)) {
+            (void)((need_fallback_return = 1));
+          }
+        } else {
+          (void)((need_fallback_return = 1));
+        }
+      } else {
+        (void)((need_fallback_return = 0));
+      }
     } else if (!(ast_ref_is_null(pipeline_module_func_body_expr_ref_at(module, fi)))) {
       (void)((need_fallback_return = 0));
     } else if (!(ast_ref_is_null(pipeline_module_func_body_ref_at(module, fi)))) {

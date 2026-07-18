@@ -102,7 +102,7 @@ elif [ -n "${SHUX_RUN_ALL_BOOTSTRAP_SHUX:-}" ]; then
   fi
 fi
 
-# W3 gold：pinned seed 上跑全量 123 项极慢且易挂；FAST 只跑白名单子集。
+# W3 gold：pinned seed 上跑全量 bstrict 白名单极慢且易挂；FAST 只跑子集。
 if [ -n "${SHUX_W3_BSTRICT_BEST_EFFORT:-}" ] && [ -z "${SHUX_W3_BSTRICT_FAST:-}" ]; then
   export SHUX_W3_BSTRICT_FAST=1
 fi
@@ -121,6 +121,9 @@ BSTRICT_SCRIPTS=(
   run-check.sh
   run-types-gate.sh
   run-hello.sh
+  # void main + single-arg println product contract (Zig-like exit 0; not dual-arg workaround).
+  # PLATFORM: SHARED — must stay on product shux_asm; complements run-hello.
+  run-void-main-gate.sh
   run-import.sh
   run-stdlib-import.sh
   run-std.sh
@@ -239,6 +242,9 @@ BSTRICT_SCRIPTS=(
   run-layout-overflow-gate.sh
   run-link-hardening-gate.sh
   run-pool-limits.sh
+  # Source hygiene: // comment prefixes + fmt damage (product .x tree).
+  # PLATFORM: SHARED — python gate only; no host binary dependency.
+  run-comment-prefix.sh
 )
 
 for script in "${BSTRICT_SCRIPTS[@]}"; do
@@ -324,9 +330,10 @@ for script in "${BSTRICT_SCRIPTS[@]}"; do
       fi
       script_link="$script_shu"
       ;;
-    run-typeck.sh|run-check.sh|run-lexer.sh|run-stdlib-import.sh|run-import.sh|run-hello.sh|run-option.sh|run-defer.sh|run-crypto.sh)
+    run-typeck.sh|run-check.sh|run-lexer.sh|run-stdlib-import.sh|run-import.sh|run-hello.sh|run-void-main-gate.sh|run-option.sh|run-defer.sh|run-crypto.sh)
       # 产品冷链验收：保留 script_shu=产品 shux（bstrict 已 cp shux_asm→shux）。
       # 禁止因脚本含 `-o` 就改绑 pin shux-c（CHK001 / 空产物假红）。
+      # void-main：must use this-SHA shux_asm (void main + single-arg println contract).
       script_link="${SHUX_LINK_SHUX:-$script_shu}"
       ;;
     *)

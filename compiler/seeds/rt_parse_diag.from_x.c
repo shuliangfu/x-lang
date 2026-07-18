@@ -155,9 +155,29 @@ static void rt_skip_ws_comment(RtScan *s) {
       rt_get(s);
       continue;
     }
+    /* line comment // ... */
     if (c == '/' && s->i + 1 < s->len && s->src[s->i + 1] == '/') {
       while (rt_peek(s) && rt_peek(s) != '\n')
         rt_get(s);
+      continue;
+    }
+    /* PLATFORM: SHARED — also skip C-style block comments (non-nested).
+     * Why: recovery previously skipped only // comments. Docblocks that
+     * mention the keyword function plus Type(T) were tokenized as a signature;
+     * the real function then false-failed as "expected '{' before function body"
+     * on `shux check` only (full compile path does not run this recovery). */
+    if (c == '/' && s->i + 1 < s->len && s->src[s->i + 1] == '*') {
+      rt_get(s); /* slash */
+      rt_get(s); /* star */
+      while (s->i < s->len) {
+        int n = rt_get(s);
+        if (n == 0)
+          break;
+        if (n == '*' && rt_peek(s) == '/') {
+          rt_get(s); /* closing slash */
+          break;
+        }
+      }
       continue;
     }
     return;

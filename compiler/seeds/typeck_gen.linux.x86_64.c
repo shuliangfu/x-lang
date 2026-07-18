@@ -3763,6 +3763,17 @@ int32_t typeck_overload_arg_param_score(struct ast_ASTArena * caller_arena, int3
         return 1000;
       }
     }
+    /* PLATFORM: SHARED — string lit (*u8 default) also matches *u8 / u8[] (align typeck.x). */
+    if ((pipeline_expr_kind_ord_at(caller_arena, arg_ref) ==59)) {
+      int32_t pk_sl = pipeline_type_kind_ord_at(caller_arena, param_ty);
+      int32_t pe_sl = 0;
+      if (((pk_sl ==9) || (pk_sl ==11))) {
+        (void)((pe_sl = pipeline_type_elem_ref_at(caller_arena, param_ty)));
+        if (((pe_sl > 0) && (pipeline_type_kind_ord_at(caller_arena, pe_sl) ==2))) {
+          return 1000;
+        }
+      }
+    }
     if ((pipeline_expr_kind_ord_at(caller_arena, arg_ref) ==0)) {
       int32_t pk_lit = pipeline_type_kind_ord_at(caller_arena, param_ty);
       if ((((((((pk_lit ==0) || (pk_lit ==2)) || (pk_lit ==3)) || (pk_lit ==4)) || (pk_lit ==5)) || (pk_lit ==6)) || (pk_lit ==7))) {
@@ -7603,8 +7614,9 @@ int32_t typeck_x_ast_impl(struct ast_Module * module, struct ast_ASTArena * aren
       return -(12);
     }
     (void)(typeck_driver_diagnostic_pipe_marker(pipe_marker_main_generic_checked));
+    /* PLATFORM: SHARED — main may return i32/i64 or void (implicit exit 0; align typeck.x). */
     (void)((ret_kind = pipeline_type_kind_ord_at(arena, ret_ty)));
-    if (((ret_kind !=ord_i32) && (ret_kind !=ord_i64))) {
+    if ((((ret_kind !=ord_i32) && (ret_kind !=ord_i64)) && (ret_kind !=16))) {
       return -(4);
     }
     if ((typeck_validate_struct_layouts_zero_padding(module, arena) !=0)) {

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # w3-bstrict-fast.sh — W3 bootstrap-gold 在 pinned seed 上的 L5 效率策略
 #
-# pinned seed / postlink 回退时，123 项 bstrict 多数 -o/asm 无信号且易挂起；
+# pinned seed / postlink 回退时，全量 bstrict 白名单多数 -o/asm 无信号且易挂起；
 # FAST 模式只跑有代表性的子集，其余秒级 SKIP，配合 per-script timeout + wall clock。
 
 # 判断 script 是否在 W3 FAST 白名单内（应实际执行）。
@@ -11,6 +11,7 @@ w3_bstrict_fast_should_run() {
     run-lexer.sh|run-typeck.sh|run-check.sh|run-parser.sh|\
     run-struct.sh|run-return-value.sh|run-return-expr.sh|\
     run-for.sh|run-if-expr.sh|run-match.sh|run-enum.sh|\
+    run-hello.sh|run-void-main-gate.sh|\
     run-scope-borrow-gate.sh|run-al06-gate.sh|\
     run-type-borrow-conflict-gate.sh|run-i64-ctfe-gate.sh|\
     run-safe-unsafe-audit-gate.sh|run-ub.sh|\

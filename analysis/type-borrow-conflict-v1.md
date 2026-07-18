@@ -49,8 +49,8 @@
 | `fp_region_same` | `region_same_ok.x` | pos | `check` 通过 |
 | `fp_region_block` | `fp_region_block_reassign_ok.x` | pos | `check` 通过 |
 | `fp_linear_two` | `fp_linear_two_bindings_ok.x` | pos | `check` 通过 |
-| `conflict_region_escape` | `region_assign_escape.x` | neg | `slice region escape` @8 |
-| `conflict_region_mismatch` | `region_mismatch.x` | neg | `slice region mismatch` @6 |
+| `conflict_region_escape` | `region_assign_escape.x` | neg | `slice region escape` @12 |
+| `conflict_region_mismatch` | `region_mismatch.x` | neg | `slice region mismatch` @10 |
 | `conflict_linear_move` | `double_move.x` | neg | `linear value used after move` |
 
 全量回归：`run-typeck-region.sh` + `run-typeck-linear.sh`。

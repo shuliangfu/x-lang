@@ -1351,9 +1351,13 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           if [ "$_rt_ef_ok" = "1" ]; then
             _rt_link_objs="$_rt_link_objs $_rt_e_o"
           fi
-          if [ "$_rt_pre_ok" = "1" ]; then
-            _rt_link_objs="$_rt_link_objs $_rt_p_o"
-          fi
+          # PLATFORM: SHARED — do NOT merge RT_SEED_SLICE objs into no_c.
+          # g05_relink_env always links:
+          #   rt_arena_buf / rt_emit_state / rt_preamble / rt_stack / rt_parse_diag
+          # as separate .o. Merging them here caused Darwin 22× duplicate symbols
+          # (parse_diag recovery + arena/emit/preamble/stack). Keep FROM_X on rest
+          # (above) so no_c leaves those symbols U; permanent slice .o provide them.
+          # Still merge non-slice hybrid pieces (content/util/argv/…/fs/fmt/dispatch…).
           if [ "$_rt_compile_ok" = "1" ]; then
             _rt_link_objs="$_rt_link_objs $_rt_cmp_o"
           fi
@@ -1369,23 +1373,14 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           if [ "$_rt_diag_ok" = "1" ]; then
             _rt_link_objs="$_rt_link_objs $_rt_diag_o"
           fi
-          if [ "$_rt_est_ok" = "1" ]; then
-            _rt_link_objs="$_rt_link_objs $_rt_est_o"
-          fi
           if [ "$_rt_elfd_ok" = "1" ]; then
             _rt_link_objs="$_rt_link_objs $_rt_elfd_o"
           fi
           if [ "$_rt_lr_ok" = "1" ]; then
             _rt_link_objs="$_rt_link_objs $_rt_lr_o"
           fi
-          if [ "$_rt_pd_ok" = "1" ]; then
-            _rt_link_objs="$_rt_link_objs $_rt_pd_o"
-          fi
           if [ "$_rt_fs_ok" = "1" ]; then
             _rt_link_objs="$_rt_link_objs $_rt_fs_o"
-          fi
-          if [ "$_rt_ab_ok" = "1" ]; then
-            _rt_link_objs="$_rt_link_objs $_rt_ab_o"
           fi
           if [ "$_rt_fo_ok" = "1" ]; then
             _rt_link_objs="$_rt_link_objs $_rt_fo_o"
@@ -1405,12 +1400,12 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           if [ "$_rt_rcp_ok" = "1" ]; then
             _rt_link_objs="$_rt_link_objs $_rt_rcp_o"
           fi
-          if [ "$_rt_st_ok" = "1" ]; then
-            _rt_link_objs="$_rt_link_objs $_rt_st_o"
-          fi
+          # Do NOT cp hybrid temps over permanent RT_SEED_SLICE .o (Makefile/seed
+          # path owns those). Hybrid thin+rest can be incomplete and would
+          # poison product asm codegen (CG002 code_len=0 on Darwin).
           # shellcheck disable=SC2086
           if $CC -r -nostdlib -o "$_rt_o" $_rt_link_objs "$_rt_rest_o" 2>/dev/null; then
-            echo "g05_ensure: $_rt_o ← R2..R10/diag/…/parsed/stack + rest (G-02f-317 hybrid)"
+            echo "g05_ensure: $_rt_o ← R2..R10/diag/…/parsed + rest (G-02f-317 hybrid; slices external)"
             _rt_done=1
           fi
         fi

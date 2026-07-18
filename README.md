@@ -8,7 +8,7 @@
 | **Compiler** | `shux` / `shux_asm` (product binary after bootstrap) |
 | **Source extension** | `.x` |
 | **Build config** | `build.x` — project build strategy in Shux (steps, targets, products); entry via `shux build` / `build_tool` / `shux-build.sh` |
-| **Status (2026-07-18)** | **Product L4 pin** dual green (macOS + Ubuntu true cold + `run-all-bstrict` **123/123** @ `5c8204ae`); freestanding S4 / vec / soft-typeck residuals largely closed on daily L2 tip; **self-host not finished** (seed / hybrid C still required for cold start) |
+| **Status (2026-07-18)** | **Product L4 pin** dual green @ **`c51759eb`** (true cold + bstrict **123/123** macOS+Ubuntu). Daily tip **`48ef9833`** + product-path fixes: dual L2 bstrict **123/123** again (logs `/tmp/{mac,ubuntu}_bstrict_v4.log`). Recent L2 closes: i64 CTFE fold gate, `/* */` recovery, borrow/lifetime baselines, g05 hybrid-slice poison. **Self-host not finished** (seed / hybrid C still required for cold start; tip L4 not re-pinned) |
 | **Live dashboard** | [`analysis/自举进度.md`](analysis/自举进度.md) · daily snapshot [`analysis/当前进度.md`](analysis/当前进度.md) |
 | **中文** | [README_zh-CN.md](README_zh-CN.md) |
 
@@ -118,12 +118,11 @@ export SHUX=./compiler/shux_asm   # prefer this-wave product binary
 ### Hello World
 
 ```x
-// examples/hello.x
+// Hello World — void main implies process exit 0 (Zig-like).
 const fmt = import("std.fmt");
 
-function main(): i32 {
-  let n: i32 = fmt.println("Hello World");
-  return if (n >= 0) { 0 } else { 1 };
+function main(): void {
+  fmt.println("Hello World");
 }
 ```
 
@@ -141,14 +140,14 @@ More samples: [`examples/`](examples/) (io, net, async, json, compress, …).
 ```bash
 export SHUX=./compiler/shux_asm
 ./tests/run-all.sh                 # full regression (when appropriate)
-SHUX_BSTRICT_SKIP_BUILD=1 ./tests/run-all-bstrict.sh   # product gate suite (~123 scripts)
+SHUX_BSTRICT_SKIP_BUILD=1 ./tests/run-all-bstrict.sh   # product gate suite (~125 scripts)
 ./tests/run-linux-a09-a11-gate.sh  # Linux gold bootstrap subset (Docker OK)
 # Linux x86_64 freestanding S4 smoke (return42 / panic / hello):
 ./tests/run-freestanding-hello.sh
 ```
 
 For **self-host / product release claims**, the project requires **L4 true cold** (wipe all `.o` under `compiler`/`std`/`core`, rebuild binaries) **plus** dual-platform `run-all-bstrict` green. Details: skill / [`analysis/自举方法.md`](analysis/自举方法.md) · [`compiler/docs/SELFHOST.md`](compiler/docs/SELFHOST.md).  
-**Note:** daily L2 green on tip ≠ tip L4 pin; current release pin is **`5c8204ae`** until the next dual cold re-pin (see dashboard).
+**Note:** daily L2 green on tip ≠ tip L4 pin. **Release pin stays `c51759eb`** until the next dual true cold re-pin. Tip may already show dual L2 bstrict green after product-path fixes (see §8).
 
 ---
 
@@ -264,61 +263,64 @@ Link is **on demand** (unused modules stay out of the final link when possible).
 
 ---
 
-## 8. Self-host status (snapshot · 2026-07-18)
+## 8. Self-host status (snapshot · 2026-07-18 · evening)
 
 > **Authoritative live numbers**: [`analysis/自举进度.md`](analysis/自举进度.md) · daily [`analysis/当前进度.md`](analysis/当前进度.md).  
-> README only summarizes; **do not** treat Stage2 / prove / WPO / daily L2 green as product release by itself.
+> README only summarizes; **do not** treat Stage2 / prove / WPO / daily L2 green as a tip L4 re-pin or as “self-host done”.
 
 ### Product track
 
 | Item | Status |
 |------|--------|
-| **L4 release pin** | **`5c8204ae`** — dual-host true cold + `run-all-bstrict` **123/123** (Ubuntu + macOS) |
-| Ubuntu L4 + full bstrict | ✅ **123/123** @ pin (logs under `/tmp/ubuntu_true_*_5c8204ae.log`) |
-| macOS L4 + full bstrict | ✅ **123/123** @ pin (logs under `/tmp/mac_true_*_5c8204ae.log`) |
+| **L4 release pin** | **`c51759eb`** — dual-host **true cold** + `run-all-bstrict` **123/123** (Ubuntu + macOS). Previous pin lineage includes `f16f7d48` / older `5c8204ae`-era waves — **do not** re-cite those as the live pin |
+| Ubuntu L4 + full bstrict | ✅ **123/123** @ pin (`/tmp/ubuntu_true_cold_c51759eb.log`, `/tmp/ubuntu_true_bstrict_c51759eb.log`) |
+| macOS L4 + full bstrict | ✅ **123/123** @ pin (`/tmp/mac_true_cold_c51759eb.log`, `/tmp/mac_true_bstrict_c51759eb.log`) |
 | Gold host | **Ubuntu x86_64** |
-| Product binary under test | `compiler/shux_asm` from **this-wave** L2/L3/L4 build — **never** an old `stage1` binary |
-| Daily tip (not auto tip-L4) | Active branch tip advances with L2 product fixes; **tip L4 is re-pinned only after a full cold + dual bstrict**, not after every micro commit |
+| Product binary under test | This-wave `compiler/shux_asm` (g05 / relink) — **never** leftover Stage2 `shux_asm2` or old `stage1` |
+| Branch tip (not tip L4) | **`48ef9833`** on `self-hosting` (+ local product-path worktree when present). **Tip L4 is re-pinned only after dual true cold + bstrict**, not after every L2 green |
+| Latest dual L2 bstrict (tip wave) | ✅ **123/123** macOS + Ubuntu after product relink (`SHUX_BSTRICT_SKIP_BUILD=1`; `/tmp/mac_bstrict_v4.log`, `/tmp/ubuntu_bstrict_v4.log`, `EXIT:0`). **≠** tip L4 re-pin |
 
-### Product surface recently closed (daily L2 · pin still `5c8204ae`)
+### Product surface recently closed (daily L2 · pin still `c51759eb`)
 
-These are **on the product path** (user `-backend asm` / freestanding) and are tracked on the dashboard; they do **not** by themselves re-pin tip L4:
+On the **user product path** (`shux_asm` / freestanding / gates). Green L2 **does not** auto-raise the L4 pin:
 
-| Area | Status (order of magnitude) |
-|------|------------------------------|
-| Freestanding S4 gate | ✅ `run-freestanding-hello` (return42 / panic_div / hello) |
-| Freestanding `std.vec` push | ✅ SysV MEMORY by-value param home (no SIGSEGV on push/boundary/cookbook) |
-| Freestanding hello CG002 | ✅ multi-arg `METHOD_CALL` stack path (`submit_read_batch` residual closed) |
-| Freestanding soft XT001 noise | ✅ dep-prerun exploratory typeck soft-suppress (cookbook `new` / `heap_mem_set_c`) |
-| NL-07 no-libc track | ✅ **L1–L10 + v5** closed on product pin (crt0 / soft libm / pure static matrix) |
-| Hosted asm matrix | ✅ return-value / hello / option / stdlib-import (and related L2 probes) green on Ubuntu gold |
+| Area | Status |
+|------|--------|
+| **i64 CTFE** (`run-i64-ctfe-gate`) | ✅ fold only when value fits `i32` (`glue_ctfe_fits_i32`); `INT64_MIN` no longer truncates to 0 → wrong exit |
+| **Block comments / docblocks** | ✅ `/* … */` recovery in parse seed; keep docblocks — do not “fix” by stripping comments |
+| **Borrow / lifetime baselines** | ✅ `type-borrow-conflict` + `lang-lifetime-diag` gates green with updated baselines |
+| **g05 link discipline** | ✅ do not merge hybrid RT slices over permanent cold slices (avoids CG002 / wrong-binary after relink) |
+| **Gate docs restored** | ✅ e.g. `analysis/安全与性能.md` required by product gates (not archive-only) |
+| Freestanding S4 / `std.vec` / soft XT001 | ✅ earlier L2 closes still hold (`run-freestanding-hello`, SysV MEMORY param home, …) |
+| NL-07 no-libc | ✅ L1–L10 + v5 on product pin (crt0 / soft libm / pure static matrix) |
+| Hosted asm matrix | ✅ return-value / hello / option / stdlib-import (+ related L2 probes) on Ubuntu gold |
 
 ### Engineering track (subset)
 
-| KPI / gate | Status (order of magnitude) |
-|------------|------------------------------|
+| KPI / gate | Status |
+|------------|--------|
 | **T** typeck surface | **18/18** |
 | **EMPTY** | **18/18** |
 | **N** prove IDENTICAL | **54/54** |
-| Cap residual pure (driver_abi / fmt_check / …) | major residual pure waves closed on product tip L4 |
-| **D Stage2** | ✅ freestanding / parity green (**≠** full product g05 chain) |
-| Stage2 **WPO** chain + strict-link + text-gate | ✅ engineering green (Ubuntu; Darwin N/A for some link gates) |
+| Cap residual pure | major waves closed on product pin lineage |
+| **D Stage2** | ✅ freestanding / parity (**≠** full product g05 chain) |
+| Stage2 **WPO** chain + strict-link + text-gate | ✅ engineering green (Ubuntu; some Darwin N/A) |
 
 ### What is *not* claimed
 
 - **Not** “compiler is 100% `.x` with zero seed”
 - **Not** “Stage2 `shux_asm2` is the product compiler”
 - **Not** “engineering WPO green = tip product L4”
-- **Not** “every daily L2 commit is tip L4” — pin stays until the next dual true cold + bstrict
-- Final physical zero-C / full seed elimination (**G**) is still roadmap, not the weekly claim surface
+- **Not** “dual L2 bstrict on tip = tip L4” — pin stays **`c51759eb`** until dual **true cold** re-pin
+- Final physical zero-C / full seed elimination (**G**) remains roadmap, not the weekly claim surface
 
 Methodology: Cap / R / L / M → [`analysis/自举方法.md`](analysis/自举方法.md). Ops: [`compiler/docs/SELFHOST.md`](compiler/docs/SELFHOST.md). Discipline: [`AGENTS.md`](AGENTS.md) + skill `shux-selfhost-product-gate`.
 
 ### Near-term front row (high level)
 
-1. Optional **9–16B Allocator** dual-GP SysV home alignment (formal C parity residual)  
-2. Side residuals: `vec_u16` BLD001 mangle, f64 let-init, cfg-extern / `.bss` / labi `len_empty` when they block a product surface  
-3. When SHARED product surfaces move: **re-pin tip L4** with dual true cold + bstrict; do not invent a second authority or soft-skip typeck  
+1. Land tip product-path work (i64 CTFE / block-comment / g05 ensure / baselines) in reviewable commits  
+2. Optional next product map only after green dual L2; **re-pin tip L4** only with dual true cold + bstrict  
+3. Side residuals when they block a product surface: ABI polish, cfg-extern / labi edges — **no** soft-skip typeck, **no** dual authority
 
 ---
 
@@ -332,7 +334,7 @@ Methodology: Cap / R / L / M → [`analysis/自举方法.md`](analysis/自举方
 | M3 | Generics, trait, modules, std growth | ✅ |
 | M4 | DCE, -O2/-Os, size/perf baseline | ✅ partial |
 | M5 | Bootstrap (compiler can rebuild itself) | 🟡 **usable product path + advanced self-host**; **seed still required for cold start** |
-| **Now** | Product L4 dual pin @ `5c8204ae` + freestanding/asm daily L2 residuals + residual ABI polish | See dashboard |
+| **Now** | Product L4 dual pin @ **`c51759eb`**; tip dual L2 bstrict **123/123** @ **`48ef9833`** wave; product residuals (CTFE / comments / g05) closed on L2 | See dashboard |
 
 ---
 

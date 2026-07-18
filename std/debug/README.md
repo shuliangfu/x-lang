@@ -26,10 +26,9 @@
 ```x
 const dbg = import("std.debug");
 
-function main(): i32 {
+function main(): void {
   dbg.println("trace");
   dbg.println(42);
   dbg.assert(true);
-  return 0;
 }
 ```

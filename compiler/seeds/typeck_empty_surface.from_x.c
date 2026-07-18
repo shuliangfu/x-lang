@@ -6062,7 +6062,8 @@ int32_t typeck_x_ast_impl(struct ast_Module * module, struct ast_ASTArena * aren
   }
   (void)(typeck_driver_diagnostic_pipe_marker(pipe_marker_main_generic_checked));
   (void)((ret_kind = pipeline_type_kind_ord_at(arena, ret_ty)));
-  if (((ret_kind !=ord_i32) && (ret_kind !=ord_i64))) {
+  /* PLATFORM: SHARED — main may return i32/i64 or void (align typeck.x). */
+  if ((((ret_kind !=ord_i32) && (ret_kind !=ord_i64)) && (ret_kind !=16))) {
     return -(4);
   }
   if ((typeck_validate_struct_layouts_zero_padding(module, arena) !=0)) {

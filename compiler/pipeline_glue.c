@@ -13612,9 +13612,18 @@ void pipeline_typeck_const_init_not_constant_c(int32_t line, int32_t col) {
  * block-const chains (const A=3; const B=A+2) are folded bottom-up.
  *
  * names/values: prior const bindings in scope (may be NULL/0 for pure lits).
- * i64 math in wide domain; store truncates to field width used by imm32 emit
- * for product i32 paths (i64 CTFE still keeps full value via int_val on LIT).
+ *
+ * PLATFORM: SHARED — product Expr.const_folded_val is still an i32 field in
+ * ast.x / seed layouts (ast.h documents i64 intent). Truncating wide i64 lits
+ * (e.g. 9223372036854775807 → -1) then folding `0 - lit - 1` → 0 is the
+ * fmt_i64_min / P0-4 silent wrong-code class. Rule:
+ *   - Only set const_folded_valid when the value fits in int32_t.
+ *   - Otherwise leave valid=0 so C emit uses full int_val on LIT / full binop tree.
  */
+static int glue_ctfe_fits_i32(int64_t v) {
+  return v >= (int64_t)INT32_MIN && v <= (int64_t)INT32_MAX;
+}
+
 static void glue_typeck_fold_expr_ref(struct ast_ASTArena *a, int32_t expr_ref,
                                      const char *const_names[], const int64_t *const_values,
                                      int n_const_names) {
@@ -13636,8 +13645,11 @@ static void glue_typeck_fold_expr_ref(struct ast_ASTArena *a, int32_t expr_ref,
   kd = e->kind;
 
   if (kd == ast_ExprKind_EXPR_LIT || kd == ast_ExprKind_EXPR_BOOL_LIT) {
-    e->const_folded_val = (int32_t)e->int_val;
-    e->const_folded_valid = 1;
+    /* P0-4: do not CTFE-truncate wide i64 literals into the i32 fold field. */
+    if (glue_ctfe_fits_i32(e->int_val)) {
+      e->const_folded_val = (int32_t)e->int_val;
+      e->const_folded_valid = 1;
+    }
     return;
   }
   if (kd == ast_ExprKind_EXPR_FLOAT_LIT) {
@@ -13652,8 +13664,10 @@ static void glue_typeck_fold_expr_ref(struct ast_ASTArena *a, int32_t expr_ref,
       if (!const_names[i])
         continue;
       if (strcmp(const_names[i], (const char *)e->var_name) == 0) {
-        e->const_folded_val = (int32_t)const_values[i];
-        e->const_folded_valid = 1;
+        if (glue_ctfe_fits_i32(const_values[i])) {
+          e->const_folded_val = (int32_t)const_values[i];
+          e->const_folded_valid = 1;
+        }
         return;
       }
     }
@@ -13735,6 +13749,8 @@ static void glue_typeck_fold_expr_ref(struct ast_ASTArena *a, int32_t expr_ref,
     default:
       return;
     }
+    if (!glue_ctfe_fits_i32(out))
+      return;
     e->const_folded_val = (int32_t)out;
     e->const_folded_valid = 1;
     return;
@@ -13755,6 +13771,8 @@ static void glue_typeck_fold_expr_ref(struct ast_ASTArena *a, int32_t expr_ref,
       out = ~o;
     else
       out = !o ? 1 : 0;
+    if (!glue_ctfe_fits_i32(out))
+      return;
     e->const_folded_val = (int32_t)out;
     e->const_folded_valid = 1;
     return;
@@ -28957,8 +28975,10 @@ int32_t pipeline_typeck_x_ast_impl_c(struct ast_Module *module, struct ast_ASTAr
     return -2;
   if (ast_ref_is_null(pipeline_module_func_return_type_at(module, mi)))
     return -3;
+  /* PLATFORM: SHARED — main may return i32/i64 or void (implicit exit 0; see typeck.x). */
   ret_kind = pipeline_type_kind_ord_at(arena, pipeline_module_func_return_type_at(module, mi));
-  if (ret_kind != (int32_t)ast_TypeKind_TYPE_I32 && ret_kind != (int32_t)ast_TypeKind_TYPE_I64)
+  if (ret_kind != (int32_t)ast_TypeKind_TYPE_I32 && ret_kind != (int32_t)ast_TypeKind_TYPE_I64
+      && ret_kind != (int32_t)ast_TypeKind_TYPE_VOID)
     return -4;
   if (pipeline_typeck_validate_struct_layouts_zero_padding_c(module, arena) != 0)
     return -7;

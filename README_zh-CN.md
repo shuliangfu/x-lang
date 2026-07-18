@@ -8,7 +8,7 @@
 | **编译器** | `shux` / `shux_asm`（自举链路后的产品二进制） |
 | **源文件后缀** | `.x` |
 | **构建配置** | `build.x` — 用 Shux 描述的项目构建策略（步骤、目标、产物）；由 `shux build` / `build_tool` / `shux-build.sh` 执行 |
-| **现阶段（2026-07-18）** | **产品 L4 钉盘** 双端绿（macOS + Ubuntu 真冷 + `run-all-bstrict` **123/123** @ `5c8204ae`）；freestanding S4 / vec / 软 typeck 等日常 L2 residual 已大部收口；**尚未宣称完全自举**（冷启动仍依赖 seed / 过渡 C） |
+| **现阶段（2026-07-18）** | **产品 L4 钉盘** 双端绿 @ **`c51759eb`**（真冷 + bstrict **123/123** macOS+Ubuntu）。日常 tip **`48ef9833`** + 产品路径修复后再次双端 L2 bstrict **123/123**（日志 `/tmp/{mac,ubuntu}_bstrict_v4.log`）。本波 L2 收口：i64 CTFE 折叠门、`/* */` 恢复、borrow/lifetime 基线、g05 hybrid slice 毒化。**尚未完全自举**（冷启动仍需 seed / 过渡 C；**未**把 tip 升为 L4 钉盘） |
 | **进度仪表盘** | [`analysis/自举进度.md`](analysis/自举进度.md) · 当天快照 [`analysis/当前进度.md`](analysis/当前进度.md) |
 | **English** | [README.md](README.md) |
 
@@ -118,12 +118,11 @@ export SHUX=./compiler/shux_asm   # 用本波产品二进制
 ### Hello World
 
 ```x
-// examples/hello.x
+// Hello World — void main 隐含 exit 0（Zig 风格）
 const fmt = import("std.fmt");
 
-function main(): i32 {
-  let n: i32 = fmt.println("Hello World");
-  return if (n >= 0) { 0 } else { 1 };
+function main(): void {
+  fmt.println("Hello World");
 }
 ```
 
@@ -141,14 +140,14 @@ $SHUX check examples/hello.x
 ```bash
 export SHUX=./compiler/shux_asm
 ./tests/run-all.sh
-SHUX_BSTRICT_SKIP_BUILD=1 ./tests/run-all-bstrict.sh   # 产品闸门（约 123 脚本）
+SHUX_BSTRICT_SKIP_BUILD=1 ./tests/run-all-bstrict.sh   # 产品闸门（约 125 脚本）
 ./tests/run-linux-a09-a11-gate.sh
 # Linux x86_64 freestanding S4 烟测（return42 / panic / hello）：
 ./tests/run-freestanding-hello.sh
 ```
 
 凡谈**自举 / 产品放行**，项目要求 **L4 真冷**（擦除 `compiler`/`std`/`core` 下全部 `.o` 并重链二进制）+ **双端** `run-all-bstrict` 全绿。详见 [`analysis/自举方法.md`](analysis/自举方法.md)、[`compiler/docs/SELFHOST.md`](compiler/docs/SELFHOST.md)。  
-**注意：** 日常 tip 的 L2 绿 **≠** tip L4 钉盘；当前放行钉盘为 **`5c8204ae`**，直到下次双端真冷重钉（见仪表盘）。
+**注意：** 日常 tip 的 L2 绿 **≠** tip L4 钉盘。**放行钉盘仍为 `c51759eb`**，直到下次双端真冷重钉。tip 在产品路径修复后可再绿双端 L2 bstrict（见 §八）。
 
 ---
 
@@ -264,33 +263,36 @@ shux/
 
 ---
 
-## 八、自举状态（摘要 · 2026-07-18）
+## 八、自举状态（摘要 · 2026-07-18 晚）
 
 > **实时数字以** [`analysis/自举进度.md`](analysis/自举进度.md) · 当天 [`analysis/当前进度.md`](analysis/当前进度.md) **为准**。  
-> README 只给摘要；**禁止**把 Stage2 / prove / WPO / **日常 L2 绿**单独写成 tip 产品 L4 或完全自举。
+> README 只给摘要；**禁止**把 Stage2 / prove / WPO / **日常 L2 绿**写成 tip L4 重钉或「完全自举」。
 
 ### 产品轨
 
 | 项 | 状态 |
 |----|------|
-| **L4 放行钉盘** | **`5c8204ae`** — 双端真冷 + `run-all-bstrict` **123/123**（Ubuntu + macOS） |
-| Ubuntu L4 + 全量 bstrict | ✅ **123/123** @ 钉盘（日志 `/tmp/ubuntu_true_*_5c8204ae.log`） |
-| macOS L4 + 全量 bstrict | ✅ **123/123** @ 钉盘（日志 `/tmp/mac_true_*_5c8204ae.log`） |
+| **L4 放行钉盘** | **`c51759eb`** — 双端 **真冷** + `run-all-bstrict` **123/123**（Ubuntu + macOS）。历史钉盘谱系含 `f16f7d48` / 更早 `5c8204ae` 波次 — **勿**再把旧 SHA 写成现行钉盘 |
+| Ubuntu L4 + 全量 bstrict | ✅ **123/123** @ 钉盘（`/tmp/ubuntu_true_cold_c51759eb.log`、`/tmp/ubuntu_true_bstrict_c51759eb.log`） |
+| macOS L4 + 全量 bstrict | ✅ **123/123** @ 钉盘（`/tmp/mac_true_cold_c51759eb.log`、`/tmp/mac_true_bstrict_c51759eb.log`） |
 | 金标主机 | **Ubuntu x86_64** |
-| 验收二进制 | **本波** L2/L3/L4 产出的 `compiler/shux_asm`，**禁止**旧 stage1 |
-| 日常 tip（≠ 自动 tip L4） | 分支 tip 会随日常 L2 产品修复前进；**只有**双端真冷 + bstrict 后才升 tip L4 钉盘 |
+| 验收二进制 | 本波 g05 / relink 的 `compiler/shux_asm` — **禁止**残留 Stage2 `shux_asm2` 或旧 stage1 |
+| 分支 tip（≠ tip L4） | **`48ef9833`**（`self-hosting`；可含未提交产品路径工作区）。**仅**双端真冷 + bstrict 后才升 tip L4 钉盘 |
+| 最新双端 L2 bstrict（tip 波） | ✅ **123/123** macOS + Ubuntu（产品 relink 后 `SHUX_BSTRICT_SKIP_BUILD=1`；`/tmp/mac_bstrict_v4.log`、`/tmp/ubuntu_bstrict_v4.log`，`EXIT:0`）。**≠** tip L4 重钉 |
 
-### 产品面近期已收口（日常 L2 · 钉盘仍为 `5c8204ae`）
+### 产品面近期已收口（日常 L2 · 钉盘仍为 `c51759eb`）
 
-下列属于**用户产品路径**（`-backend asm` / freestanding），详见仪表盘；**不能**单独当作 tip L4 已升：
+属**用户产品路径**（`shux_asm` / freestanding / 门禁）。L2 绿 **不会**自动抬 L4 钉盘：
 
-| 面 | 状态（量级） |
-|----|--------------|
-| Freestanding S4 闸门 | ✅ `run-freestanding-hello`（return42 / panic_div / hello） |
-| Freestanding `std.vec` push | ✅ SysV MEMORY by-value 形参 home（push/boundary/cookbook 无 SIGSEGV） |
-| Freestanding hello CG002 | ✅ 多参 `METHOD_CALL` 栈路径（`submit_read_batch` residual 关） |
-| Freestanding 软 XT001 噪声 | ✅ dep prerun 探测 typeck soft-suppress（cookbook `new` / `heap_mem_set_c`） |
-| NL-07 零 libc 轨 | ✅ **L1–L10 + v5** 已在产品钉盘收口（crt0 / soft libm / pure static 矩阵） |
+| 面 | 状态 |
+|----|------|
+| **i64 CTFE**（`run-i64-ctfe-gate`） | ✅ 仅当值能装进 `i32` 才折叠（`glue_ctfe_fits_i32`）；`INT64_MIN` 不再截断成 0 导致错误 exit |
+| **块注释 / docblock** | ✅ parse seed 恢复 `/* … */`；保留 docblock — **禁止**靠删注释「修绿」 |
+| **Borrow / lifetime 基线** | ✅ `type-borrow-conflict` + `lang-lifetime-diag` 门禁与基线绿 |
+| **g05 链接纪律** | ✅ 禁止 hybrid RT slice 覆盖永久 cold slice（避免 relink 后 CG002 / 错二进制） |
+| **门禁文档回库** | ✅ 如 `analysis/安全与性能.md` 为产品门禁硬依赖（不得只躺 archive） |
+| Freestanding S4 / `std.vec` / 软 XT001 | ✅ 前序 L2 收口仍成立 |
+| NL-07 零 libc | ✅ 产品钉盘上 L1–L10 + v5（crt0 / soft libm / pure static） |
 | Hosted asm 矩阵 | ✅ return-value / hello / option / stdlib-import 等 Ubuntu 金标 L2 绿 |
 
 ### 工程轨（量级）
@@ -300,25 +302,25 @@ shux/
 | **T** | **18/18** |
 | **EMPTY** | **18/18** |
 | **N** prove IDENTICAL | **54/54** |
-| Cap residual pure（driver_abi / fmt_check 等） | 产品 tip L4 上多波 residual pure 已收口 |
+| Cap residual pure | 钉盘谱系上多波已收口 |
 | **D Stage2** | ✅ freestanding / 行为 parity（**≠** 产品 g05 全链） |
-| Stage2 **WPO** 链 + strict-link + text-gate | ✅ 工程绿（Ubuntu；部分链接门 Darwin N/A） |
+| Stage2 **WPO** 链 + strict-link + text-gate | ✅ 工程绿（Ubuntu；部分 Darwin N/A） |
 
 ### 明确不宣称
 
 - **未**宣称「编译器已 100% `.x`、无 seed」
 - **未**把 Stage2 的 `shux_asm2` 当产品编译器
 - **未**把工程 WPO 绿等同 tip 产品 L4
-- **未**把「每个日常 L2 commit」写成 tip L4 —— 钉盘只在下次双端真冷 + bstrict 后更新
+- **未**把「tip 双端 L2 bstrict」写成 tip L4 —— 钉盘仍为 **`c51759eb`**，须下次双端 **真冷** 才重钉
 - 终局物理零 C / 彻底去掉 seed（**G**）仍在路线图，不是本周叙事
 
 方法：Cap / R / L / M → [`analysis/自举方法.md`](analysis/自举方法.md)。运维：[`compiler/docs/SELFHOST.md`](compiler/docs/SELFHOST.md)。纪律：[`AGENTS.md`](AGENTS.md) + skill `shux-selfhost-product-gate`。
 
 ### 近端前排（高层）
 
-1. （可选）**9–16B Allocator** 双 GP SysV home 与 formal C 对齐  
-2. （旁）`vec_u16` BLD001 mangle、f64 let-init、cfg-extern / `.bss` / labi `len_empty`（挡产品面再开）  
-3. SHARED 产品面变更后：**双端 tip L4 真冷 + bstrict** 重钉；禁止双权威、禁止 soft-skip typeck 糊绿  
+1. 将 tip 产品路径工作区（i64 CTFE / 块注释 / g05 ensure / 基线）落成可审 commit  
+2. 双端 L2 绿后另开地图；**tip L4 重钉**仅允许双端真冷 + bstrict  
+3. 旁路 residual 仅在挡产品面时开：ABI 余债、cfg-extern / labi 边角 — **禁** soft-skip typeck、**禁**双权威
 
 ---
 
@@ -332,7 +334,7 @@ shux/
 | M3 | 泛型、trait、模块、std 扩张 | ✅ |
 | M4 | DCE、-O2/-Os、体积/性能基线 | ✅ 部分 |
 | M5 | 自举（编译器可重编自身） | 🟡 **产品路径可用 + 自举推进中**；**冷启动仍需 seed** |
-| **当前** | 产品 L4 双端钉盘 @ `5c8204ae` + freestanding/asm 日常 L2 residual + ABI 余债 | 见仪表盘 |
+| **当前** | 产品 L4 双端钉盘 @ **`c51759eb`**；tip 双端 L2 bstrict **123/123** @ **`48ef9833`** 波；CTFE / 注释 / g05 等产品 residual 已在 L2 收口 | 见仪表盘 |
 
 ---
 
