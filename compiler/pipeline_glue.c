@@ -11391,6 +11391,8 @@ static int32_t glue_load_var_as_value_to_rax_rdx_elf_c(struct platform_elf_ElfCo
 static int32_t glue_type_named_layout_size_any_module_elf_c(struct ast_ASTArena *arena, int32_t ty_ref) {
   uint8_t name[64];
   int32_t nlen;
+  int32_t base_off;
+  int32_t base_len;
   int32_t sz;
   int32_t di;
   int32_t nd;
@@ -11399,12 +11401,19 @@ static int32_t glue_type_named_layout_size_any_module_elf_c(struct ast_ASTArena 
   struct ast_Module *dm;
   if (!arena || ty_ref <= 0 || pipeline_type_kind_ord_at(arena, ty_ref) != GLUE_TYPE_NAMED)
     return 0;
+  /** After size_simple has dep bare-name match, trust it when >8. */
   sz = glue_type_size_simple(g_pipeline_asm_emit_module, arena, ty_ref, 0);
   if (sz > 8)
     return sz;
   nlen = pipeline_type_named_name_into(arena, ty_ref, name);
   if (nlen <= 0 || nlen > 63)
     return sz;
+  base_off = 0;
+  for (k = 0; k < nlen; k++) {
+    if (name[k] == (uint8_t)'.')
+      base_off = k + 1;
+  }
+  base_len = nlen - base_off;
   if (g_pipeline_asm_emit_dep_pipe) {
     nd = pipeline_dep_ctx_ndep(g_pipeline_asm_emit_dep_pipe);
     for (di = 0; di < nd; di++) {
@@ -11416,17 +11425,29 @@ static int32_t glue_type_named_layout_size_any_module_elf_c(struct ast_ASTArena 
         return sz;
       for (k = 0; k < (int32_t)dm->num_struct_layouts; k++) {
         int32_t ln = pipeline_module_struct_layout_name_len(dm, k);
-        if (ln != nlen)
+        int32_t eq = 1;
+        if (ln == nlen) {
+          for (j = 0; j < nlen; j++) {
+            if (pipeline_module_struct_layout_name_byte_at(dm, k, j) != name[j]) {
+              eq = 0;
+              break;
+            }
+          }
+        } else if (ln == base_len && base_len > 0) {
+          for (j = 0; j < base_len; j++) {
+            if (pipeline_module_struct_layout_name_byte_at(dm, k, j) != name[base_off + j]) {
+              eq = 0;
+              break;
+            }
+          }
+        } else {
+          eq = 0;
+        }
+        if (!eq)
           continue;
-        for (j = 0; j < nlen; j++) {
-          if (pipeline_module_struct_layout_name_byte_at(dm, k, j) != name[j])
-            break;
-        }
-        if (j == nlen) {
-          sz = typeck_x_type_size_from_layout_glue(dm, arena, k, 1);
-          if (sz > 8)
-            return sz;
-        }
+        sz = typeck_x_type_size_from_layout_glue(dm, arena, k, 1);
+        if (sz > 8)
+          return sz;
       }
     }
   }
@@ -13322,6 +13343,8 @@ static int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *
   if (kind_ord == 8) {
     uint8_t name[64];
     int32_t nlen;
+    int32_t base_off;
+    int32_t base_len;
     int32_t k;
     int32_t di;
     int32_t nd;
@@ -13329,17 +13352,33 @@ static int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *
     nlen = pipeline_type_named_name_into(a, ty_ref, name);
     if (nlen <= 0 || nlen > 63)
       return 4;
+    /** heap.Allocator / string.StrView → bare layout name after last '.'. */
+    base_off = 0;
+    for (k = 0; k < nlen; k++) {
+      if (name[k] == (uint8_t)'.')
+        base_off = k + 1;
+    }
+    base_len = nlen - base_off;
     for (k = 0; m && k < (int32_t)m->num_struct_layouts; k++) {
       int32_t ln = pipeline_module_struct_layout_name_len(m, k);
       int32_t j;
       int32_t eq = 1;
-      if (ln != nlen)
-        continue;
-      for (j = 0; j < nlen; j++) {
-        if (pipeline_module_struct_layout_name_byte_at(m, k, j) != name[j]) {
-          eq = 0;
-          break;
+      if (ln == nlen) {
+        for (j = 0; j < nlen; j++) {
+          if (pipeline_module_struct_layout_name_byte_at(m, k, j) != name[j]) {
+            eq = 0;
+            break;
+          }
         }
+      } else if (ln == base_len && base_len > 0) {
+        for (j = 0; j < base_len; j++) {
+          if (pipeline_module_struct_layout_name_byte_at(m, k, j) != name[base_off + j]) {
+            eq = 0;
+            break;
+          }
+        }
+      } else {
+        eq = 0;
       }
       if (!eq)
         continue;
@@ -13348,7 +13387,7 @@ static int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *
     /**
      * Import named structs (Allocator / StrView): layout lives in dep modules, not entry.
      * PLATFORM: SHARED size; SysV 9–16B dual-GP consumers need true size (not default 4).
-     * G.7: single size authority — do not leave entry-only miss as 4 for dual-home paths.
+     * Match full name or bare suffix (layout names are unprefixed).
      */
     if (g_pipeline_asm_emit_dep_pipe) {
       nd = pipeline_dep_ctx_ndep(g_pipeline_asm_emit_dep_pipe);
@@ -13361,13 +13400,22 @@ static int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *
           int32_t j;
           int32_t eq = 1;
           int32_t sz;
-          if (ln != nlen)
-            continue;
-          for (j = 0; j < nlen; j++) {
-            if (pipeline_module_struct_layout_name_byte_at(dm, k, j) != name[j]) {
-              eq = 0;
-              break;
+          if (ln == nlen) {
+            for (j = 0; j < nlen; j++) {
+              if (pipeline_module_struct_layout_name_byte_at(dm, k, j) != name[j]) {
+                eq = 0;
+                break;
+              }
             }
+          } else if (ln == base_len && base_len > 0) {
+            for (j = 0; j < base_len; j++) {
+              if (pipeline_module_struct_layout_name_byte_at(dm, k, j) != name[base_off + j]) {
+                eq = 0;
+                break;
+              }
+            }
+          } else {
+            eq = 0;
           }
           if (!eq)
             continue;
