@@ -407,9 +407,30 @@ if command -v nm >/dev/null 2>&1 && command -v objcopy >/dev/null 2>&1 && [ -f "
   esac
   for clash in free open close malloc realloc calloc getcwd chdir pipe exit getenv setenv unsetenv getpid getppid waitpid exec; do
     if nm "$out_o" 2>/dev/null | grep -q " T ${clash}$"; then
-      objcopy --redefine-sym "${clash}=std_${leaf}_${clash}_api" "$out_o" 2>/dev/null || true
+      # Prefer product export std_<leaf>_<clash> (e.g. std_env_getenv). *_api was a
+      # historical clash guard; product import-binding calls std_env_getenv not *_api.
+      # PLATFORM: SHARED — Ubuntu asm -o of mod.x often emits bare names; mac may prefix.
+      prod="std_${leaf}_${clash}"
+      if nm "$out_o" 2>/dev/null | grep -q " T ${prod}$"; then
+        objcopy --redefine-sym "${clash}=std_${leaf}_${clash}_api" "$out_o" 2>/dev/null || true
+      else
+        objcopy --redefine-sym "${clash}=${prod}" "$out_o" 2>/dev/null || true
+      fi
     fi
   done
+  # PLATFORM: SHARED — env product surface: bare getenv_exists/z/ptr/temp_dir/iter*
+  # are not in the libc-clash list above; import calls std_env_*. Complete the rename.
+  if [ "$leaf" = "env" ]; then
+    for bare in getenv getenv_exists getenv_z getenv_ptr setenv unsetenv temp_dir \
+                iter iter_count iter_next args_iter args_iter_count args_iter_next; do
+      if nm "$out_o" 2>/dev/null | grep -q " T ${bare}$"; then
+        objcopy --redefine-sym "${bare}=std_env_${bare}" "$out_o" 2>/dev/null || true
+      fi
+      if nm "$out_o" 2>/dev/null | grep -q " T std_env_${bare}_api$"; then
+        objcopy --redefine-sym "std_env_${bare}_api=std_env_${bare}" "$out_o" 2>/dev/null || true
+      fi
+    done
+  fi
   # heap import-binding：impl 常产出裸 heap_alloc_c，用户/co-emit 与 http.o 等要
   # std_heap_libc_heap_alloc_c。只要 .o 有 T heap_alloc_c 且缺 std 前缀名就补别名
   # （勿仅依赖本 TU 的 U 引用——单文件 heap.o 落地时往往没有 U）。
