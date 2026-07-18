@@ -11664,6 +11664,11 @@ static int32_t glue_binop_operand_is_scalar_f32_elf_c(struct ast_ASTArena *arena
   }
   if (ko == 1)
     return glue_type_ref_is_scalar_f32_c(arena, pipeline_expr_resolved_type_ref(arena, expr_ref));
+  /* CALL/METHOD_CALL: same return-kind fallback as f64 (G.7 single authority). */
+  if (ko == 48 || ko == 49) {
+    int32_t rk = pipeline_asm_call_return_type_kind_ord_c(arena, expr_ref);
+    return rk == GLUE_TYPE_KIND_F32_ORD ? 1 : 0;
+  }
   /** f32 加法链：(t.x+t.y)+t.z 左子为 ADD 时 skip typeck 无 resolved_type，须递归判定。 */
   if (ko == 4) {
     int32_t lr = pipeline_expr_binop_left_ref_at(arena, expr_ref);
@@ -11677,13 +11682,21 @@ static int32_t glue_binop_operand_is_scalar_f32_elf_c(struct ast_ASTArena *arena
 }
 
 /**
- * binop：标量 f64 操作数（resolved / 局部声明 / 浮点字面量 / 加减链）。
- * PLATFORM: SHARED type / LINUX+MACOS x86_64 uses addsd/subsd.
+ * binop：标量 f64 操作数（resolved / 局部声明 / 浮点字面量 / 加减链 / call ret）。
+ * PLATFORM: SHARED type / LINUX+MACOS x86_64 uses addsd/subsd/ucomisd.
+ *
+ * CALL(48) and METHOD_CALL(49) must share one return-kind fallback:
+ * product `import("std.math"); math.pi()` is METHOD_CALL, and resolved_type is
+ * often empty on that path. Historical code only re-checked resolved for CALL,
+ * so cmp finish fell through to 32-bit cmpl of IEEE low halves (math_asm run=1
+ * on `math.pi() <= 3.0`). G.7: complete authority via call_return_type_kind_ord
+ * (already resolves kind 49 targets).
  */
 static int32_t glue_binop_operand_is_scalar_f64_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                                        int32_t expr_ref) {
   int32_t ko;
   int32_t tr;
+  int32_t rk;
   if (!arena || expr_ref <= 0)
     return 0;
   if (glue_expr_resolved_is_scalar_f64_c(arena, expr_ref))
@@ -11696,8 +11709,11 @@ static int32_t glue_binop_operand_is_scalar_f64_elf_c(struct ast_ASTArena *arena
   /** FLOAT_LIT default / unresolved → treat as f64 (typeck ensures_f64). */
   if (ko == 1)
     return 1;
-  if (ko == 48) /* CALL: use resolved only */
-    return glue_expr_resolved_is_scalar_f64_c(arena, expr_ref);
+  /* CALL (48) / METHOD_CALL (49): callee return kind when expr resolved is empty. */
+  if (ko == 48 || ko == 49) {
+    rk = pipeline_asm_call_return_type_kind_ord_c(arena, expr_ref);
+    return rk == GLUE_TYPE_KIND_F64_ORD ? 1 : 0;
+  }
   if (ko == 4 || ko == 5 || ko == 6 || ko == 7) {
     int32_t lr = pipeline_expr_binop_left_ref_at(arena, expr_ref);
     int32_t rr = pipeline_expr_binop_right_ref_at(arena, expr_ref);
