@@ -3669,6 +3669,138 @@ static int32_t glue_expr_is_func_param_at_c(struct ast_ASTArena *arena, struct a
 }
 
 /**
+ * PLATFORM: SHARED — evaluate pure 1-param scalar callee at a known arg const.
+ * Matches:
+ *   return p0
+ *   return p0 binop lit | lit binop p0  (ko 4..8)
+ *   return NEG/BITNOT/LOGNOT p0
+ * Authority for nested call-site CTFE (pre-emit): g(3) stamps so f(g(3),4) can fold.
+ * Does not expand emit try_inline; consumers only read const_folded_*.
+ */
+static int32_t glue_try_eval_pure_param0_scalar_func_c(struct ast_ASTArena *arena, struct ast_Module *mod,
+                                                      int32_t func_idx, int32_t arg_val, int32_t *out) {
+  int32_t ret_ref;
+  int32_t ko;
+  int32_t al;
+  int32_t ar;
+  int32_t uop;
+  int32_t lit_val;
+  int32_t ret_ty;
+  int32_t left_p0;
+  int32_t right_p0;
+  int32_t lit_ko;
+  if (!out || !arena || !mod || func_idx < 0)
+    return 0;
+  if (pipeline_module_func_num_params_at(mod, func_idx) != 1)
+    return 0;
+  ret_ty = pipeline_module_func_return_type_at(mod, func_idx);
+  if (ret_ty > 0 &&
+      (asm_type_is_simd_vector_spelling(arena, ret_ty) != 0 || asm_type_is_simd_vector(arena, ret_ty) != 0))
+    return 0;
+  ret_ref = glue_fold_func_return_operand_ref_c(arena, mod, func_idx);
+  if (ret_ref <= 0)
+    return 0;
+  /* Identity: return p0 */
+  if (glue_expr_is_func_param_at_c(arena, mod, func_idx, ret_ref, 0) != 0) {
+    *out = arg_val;
+    return 1;
+  }
+  ko = pipeline_expr_kind_ord_at(arena, ret_ref);
+  /* Unary: -p0 / ~p0 / !p0 (EXPR_NEG=22, BITNOT=23, LOGNOT=24 in product ExprKind). */
+  if (ko == (int32_t)ast_ExprKind_EXPR_NEG || ko == (int32_t)ast_ExprKind_EXPR_BITNOT ||
+      ko == (int32_t)ast_ExprKind_EXPR_LOGNOT) {
+    uop = pipeline_expr_unary_operand_ref_at(arena, ret_ref);
+    if (uop <= 0 || glue_expr_is_func_param_at_c(arena, mod, func_idx, uop, 0) == 0)
+      return 0;
+    if (ko == (int32_t)ast_ExprKind_EXPR_NEG)
+      *out = (int32_t)(-(int64_t)arg_val);
+    else if (ko == (int32_t)ast_ExprKind_EXPR_BITNOT)
+      *out = (int32_t)(~(int64_t)arg_val);
+    else
+      *out = arg_val ? 0 : 1;
+    return 1;
+  }
+  /* p0 binop lit | lit binop p0 (scalar add..mod only; same domain as 2-arg path). */
+  if (ko < 4 || ko > 8)
+    return 0;
+  al = pipeline_expr_binop_left_ref_at(arena, ret_ref);
+  ar = pipeline_expr_binop_right_ref_at(arena, ret_ref);
+  if (al <= 0 || ar <= 0)
+    return 0;
+  left_p0 = glue_expr_is_func_param_at_c(arena, mod, func_idx, al, 0);
+  right_p0 = glue_expr_is_func_param_at_c(arena, mod, func_idx, ar, 0);
+  if (left_p0 != 0 && right_p0 == 0) {
+    if (pipeline_expr_const_folded_valid_at(arena, ar) != 0)
+      lit_val = pipeline_expr_const_folded_val_at(arena, ar);
+    else {
+      lit_ko = pipeline_expr_kind_ord_at(arena, ar);
+      if (lit_ko != 0 && lit_ko != 2)
+        return 0;
+      lit_val = (int32_t)pipeline_expr_int_val_at(arena, ar);
+    }
+    switch (ko) {
+    case 4:
+      *out = (int32_t)((int64_t)arg_val + (int64_t)lit_val);
+      break;
+    case 5:
+      *out = (int32_t)((int64_t)arg_val - (int64_t)lit_val);
+      break;
+    case 6:
+      *out = (int32_t)((int64_t)arg_val * (int64_t)lit_val);
+      break;
+    case 7:
+      if (lit_val == 0)
+        return 0;
+      *out = (int32_t)((int64_t)arg_val / (int64_t)lit_val);
+      break;
+    case 8:
+      if (lit_val == 0)
+        return 0;
+      *out = (int32_t)((int64_t)arg_val % (int64_t)lit_val);
+      break;
+    default:
+      return 0;
+    }
+    return 1;
+  }
+  if (right_p0 != 0 && left_p0 == 0) {
+    if (pipeline_expr_const_folded_valid_at(arena, al) != 0)
+      lit_val = pipeline_expr_const_folded_val_at(arena, al);
+    else {
+      lit_ko = pipeline_expr_kind_ord_at(arena, al);
+      if (lit_ko != 0 && lit_ko != 2)
+        return 0;
+      lit_val = (int32_t)pipeline_expr_int_val_at(arena, al);
+    }
+    switch (ko) {
+    case 4:
+      *out = (int32_t)((int64_t)lit_val + (int64_t)arg_val);
+      break;
+    case 5:
+      *out = (int32_t)((int64_t)lit_val - (int64_t)arg_val);
+      break;
+    case 6:
+      *out = (int32_t)((int64_t)lit_val * (int64_t)arg_val);
+      break;
+    case 7:
+      if (arg_val == 0)
+        return 0;
+      *out = (int32_t)((int64_t)lit_val / (int64_t)arg_val);
+      break;
+    case 8:
+      if (arg_val == 0)
+        return 0;
+      *out = (int32_t)((int64_t)lit_val % (int64_t)arg_val);
+      break;
+    default:
+      return 0;
+    }
+    return 1;
+  }
+  return 0;
+}
+
+/**
  * PLATFORM: SHARED — callee body is pure `return param0 binop param1` (2 scalar params).
  * Authority for WPO-S2 call-site CTFE (pre-emit). Writes *out_binop_ko (4=add..8=mod).
  * Mirrors glue_fold_func_returns_param01_scalar_binop (backend try_inline); kept here so
@@ -13667,7 +13799,9 @@ static void glue_typeck_fold_expr_ref(struct ast_ASTArena *a, int32_t expr_ref,
   /**
    * PLATFORM: SHARED — WPO-S2 / LANG-006 call-site CTFE (pre-emit authority).
    * (1) Pure local `f(c0,c1)` when f body is `return p0 binop p1`.
-   * (2) Pure `laneK(vec_binop([const…],[const…]))` when outer is `return p0[K]`
+   * (2) Pure 1-param scalar: `id(c)` / `g(c)` where body is p0 / p0 op lit /
+   *     lit op p0 / unary(p0). Enables nested `f(g(3),4)` via arg fold first.
+   * (3) Pure `laneK(vec_binop([const…],[const…]))` when outer is `return p0[K]`
    *     and inner is vector `return p0 binop p1` with array-lit const lanes.
    * Emit only *consumes* const_folded_* (mov imm / C int); try_inline_* remain
    * safety nets. SHUX_WPO_MONO / NO_FOLD skip stamp so call sites stay live.
@@ -13773,7 +13907,7 @@ static void glue_typeck_fold_expr_ref(struct ast_ASTArena *a, int32_t expr_ref,
       return;
     }
 
-    /* (2) laneK(vec_binop([const…],[const…])) → scalar const */
+    /* (2)/(3) 1-arg: pure scalar unary, else laneK(vec_binop(...)) */
     if (nargs == 1) {
       int32_t lane;
       int32_t inner_call_ref;
@@ -13782,11 +13916,34 @@ static void glue_typeck_fold_expr_ref(struct ast_ASTArena *a, int32_t expr_ref,
       int32_t inner_fi;
       uint8_t iname[64];
 
+      arg0 = pipeline_expr_call_arg_ref(a, expr_ref, 0);
+      if (arg0 <= 0)
+        return;
+      /* (2) pure 1-param scalar (nested g(3) leaf). Prefer before vector lane. */
+      {
+        int32_t arg_const_ok = 0;
+        if (pipeline_expr_const_folded_valid_at(a, arg0) != 0) {
+          av0 = pipeline_expr_const_folded_val_at(a, arg0);
+          arg_const_ok = 1;
+        } else {
+          int32_t ako = pipeline_expr_kind_ord_at(a, arg0);
+          if (ako == 0 || ako == 2) {
+            av0 = (int32_t)pipeline_expr_int_val_at(a, arg0);
+            arg_const_ok = 1;
+          }
+        }
+        if (arg_const_ok != 0 &&
+            glue_try_eval_pure_param0_scalar_func_c(a, mod, fi, av0, &folded) != 0) {
+          e->const_folded_val = folded;
+          e->const_folded_valid = 1;
+          return;
+        }
+      }
+
+      /* (3) laneK(vec_binop([const…],[const…])) → scalar const */
       if (glue_fold_func_returns_param0_index_const_c(a, mod, fi, &lane) == 0)
         return;
-      inner_call_ref = pipeline_expr_call_arg_ref(a, expr_ref, 0);
-      if (inner_call_ref <= 0)
-        return;
+      inner_call_ref = arg0;
       if (pipeline_expr_kind_ord_at(a, inner_call_ref) != (int32_t)ast_ExprKind_EXPR_CALL)
         return;
       if (pipeline_expr_call_num_args_at(a, inner_call_ref) != 2)
