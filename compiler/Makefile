@@ -273,11 +273,11 @@ net-o-mbedtls:
 	@sh scripts/shux_compile_std_module.sh $@ ../std/env/mod.x
 
 # std.fs：F-03 pure .x — formal .o for -backend asm (co-emit of std.fs is skipped).
-# PLATFORM: SHARED — mod.x product API + posix.x (import binding, not --bare-impl).
-# Ubuntu/macOS use posix; Windows host would need win32.x (not product gold).
-# Wrong/missing formal → U std_fs_invalid (tests/fs/main.x) BLD001.
-../std/fs/fs.o: ../std/fs/mod.x ../std/fs/posix.x | scripts/shux_compile_std_module.sh
-	@sh scripts/shux_compile_std_module.sh $@ ../std/fs/mod.x ../std/fs/posix.x
+# PLATFORM: SHARED — product authority remains mod.x+posix via import; vehicle is
+# compile driver only (user -o KEEP_C path). Do NOT compile mod.x as entry on Linux
+# (libc name collisions / posix_fadvise order). Wrong/missing → U std_fs_invalid.
+../std/fs/fs.o: ../std/fs/mod.x ../std/fs/posix.x | scripts/shux_compile_std_fs_formal.sh
+	@sh scripts/shux_compile_std_fs_formal.sh $@
 
 # std.sync：F 闭合 — mod.x（用户 API）+ sync.x（impl 裸符号）用 -E-extern 编译；
 # OS/TLS 胶层在 runtime_sync_*.o，最终 exe 链接时按需推入。
