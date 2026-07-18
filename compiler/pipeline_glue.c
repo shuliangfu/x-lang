@@ -10654,6 +10654,9 @@ static int32_t glue_finish_index_base_rax_index_rbx_slow_elf_c(struct ast_ASTAre
 
 /**
  * 切片 base 的 length 字段载入 rbx（栈上 {data,length} 或 *slice 形参）。
+ *
+ * PLATFORM: SHARED fat layout; LINUX/MACOS x86_64 dual-GP home: data @ off, length @ off-8.
+ * Pointer-to-fat path keeps address arithmetic (+8) after loading the pointer.
  */
 static int32_t glue_emit_slice_length_to_rbx_elf_c(struct ast_ASTArena *arena,
                                                     struct platform_elf_ElfCodegenCtx *elf_ctx,
@@ -10683,7 +10686,8 @@ static int32_t glue_emit_slice_length_to_rbx_elf_c(struct ast_ASTArena *arena,
         return -1;
       return backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta);
     }
-    return backend_enc_load_rbp_to_rbx_arch(elf_ctx, off + 8, ta);
+    /** Dual-GP high half: length at off-8 (matches store in slice_from_array_let_init). */
+    return backend_enc_load_rbp_to_rbx_arch(elf_ctx, off - 8, ta);
   }
   if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, base_ref, ctx, ta) != 0)
     return -1;
@@ -14850,6 +14854,12 @@ static int glue_block_stmt_order_has_return(struct ast_ASTArena *arena, int32_t 
 /**
  * let s: T[] = arr（定长栈数组）：asm 栈槽写入 { .data = &arr, .length = N }。
  * 对齐 codegen.c codegen_init / codegen_try_emit_slice_init_from_array_var。
+ *
+ * PLATFORM: SHARED layout + LINUX/MACOS x86_64 SysV dual-GP home encoding.
+ * slot_off is rbp-distance to fat byte0 (data); high half (length) is at slot_off-8
+ * (same as param dual-home / glue_load_var_as_value_to_rax_rdx). Never use slot_off+8 —
+ * that writes past the low end of the home and leaves length unreadable via lea+add 8.
+ *
  * @return 1 已写入；0 不适用；-1 失败。
  */
 static int32_t glue_emit_slice_from_array_let_init_elf_c(struct ast_ASTArena *arena,
@@ -14911,7 +14921,8 @@ static int32_t glue_emit_slice_from_array_let_init_elf_c(struct ast_ASTArena *ar
     return -1;
   if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, arr_sz, 0, ta) != 0)
     return -1;
-  if (backend_enc_store_rax_to_rbp_arch(elf_ctx, slice_slot_off + 8, ta) != 0)
+  /** High half of dual-GP home: length at slot_off-8 (not +8). */
+  if (backend_enc_store_rax_to_rbp_arch(elf_ctx, slice_slot_off - 8, ta) != 0)
     return -1;
   return 1;
 }
@@ -16398,6 +16409,9 @@ static int32_t glue_field_access_effective_offset_c(struct ast_ASTArena *arena, 
 /**
  * FIELD_ACCESS 字节偏移：优先 module struct layout 中字段 offset（strict typeck 未填 field_access_offset 时），
  * 否则回落 expr 上 typeck 写入的 field_access_offset。
+ *
+ * TYPE_SLICE built-in fat layout (G.7 with pipeline_typeck_field_slice_c): data@0, length@8.
+ * PLATFORM: SHARED — both backends; asm uses this for lea+add when typeck offset missing.
  */
 int32_t pipeline_expr_field_access_layout_offset(struct ast_ASTArena *a, struct ast_Module *m, int32_t expr_ref) {
   struct ast_Expr *ex;
@@ -16426,6 +16440,16 @@ int32_t pipeline_expr_field_access_layout_offset(struct ast_ASTArena *a, struct 
     typed_off = glue_field_layout_offset_for_base_field(a, m, ex->field_access_base_ref, field_name, flen);
     if (typed_off >= 0)
       return typed_off;
+    /** Built-in T[] fat pointer — not a named struct layout. */
+    {
+      int32_t base_ty = pipeline_expr_resolved_type_ref(a, ex->field_access_base_ref);
+      if (base_ty > 0 && pipeline_type_kind_ord_at(a, base_ty) == GLUE_TYPE_KIND_SLICE) {
+        if (flen == 4 && memcmp(field_name, "data", 4) == 0)
+          return 0;
+        if (flen == 6 && memcmp(field_name, "length", 6) == 0)
+          return 8;
+      }
+    }
   }
   /** typeck layout_deps 已写入 offset 时回落 stored，勿再扫 module 全 layout 按字段名首匹配。 */
   if (stored != 0)

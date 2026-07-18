@@ -475,6 +475,12 @@ int32_t pipeline_typeck_field_layout_named_c(struct ast_Module *module, struct a
 
 /**
  * EXPR_FIELD_ACCESS：T[] 的 .length（usize）与 .data（*elem，当前仅 u8[]）。
+ *
+ * Fat layout (PLATFORM: SHARED / SysV dual-GP home): { .data @ +0, .length @ +8 }.
+ * Asm stack homes register byte0 at slot_off; high half at slot_off-8 (see
+ * asm_local_slot_reg_offset / param dual-home). Emit must use field_access_offset so
+ * lea base + add offset hits the correct half — previously offset stayed 0 and
+ * s.length loaded .data (tests/slice/data_field.x exit 2).
  */
 void pipeline_typeck_field_slice_c(struct ast_ASTArena *arena, int32_t expr_ref, int32_t base_ref) {
   int32_t base_ty;
@@ -504,9 +510,12 @@ void pipeline_typeck_field_slice_c(struct ast_ASTArena *arena, int32_t expr_ref,
     ut = typeck_ensure_usize_type_ref(arena);
     if (ut != 0)
       pipeline_expr_set_resolved_type_ref(arena, expr_ref, ut);
+    /** G.7 authority: fat pointer second word at +8 (layout half, not rbp-distance). */
+    pipeline_expr_set_field_access_offset(arena, expr_ref, 8);
     return;
   }
   if (fl == 4 && typeck_name_equal(&fn_buf[0], fl, (uint8_t *)&dat_nm[0], 4)) {
+    pipeline_expr_set_field_access_offset(arena, expr_ref, 0);
     if (pipeline_type_kind_ord_at(arena, elem_ty) == (int32_t)ast_TypeKind_TYPE_U8) {
       ptr_ref = find_or_alloc_ptr_type_ref(arena, elem_ty);
       if (ptr_ref != 0)
