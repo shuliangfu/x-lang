@@ -6773,12 +6773,37 @@ void shux_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *us
                 break;
             }
             if (rel && rel[0]) {
-                /* PLATFORM: SHARED — L4 wipe drops formal math.o; ensure before push (same as C need_math). */
-                if (fk == 9 && user_o && user_o[0]) {
+                /*
+                 * PLATFORM: SHARED — L4 wipe deletes gitignored formal std|core .o.
+                 * push_obj alone silent-skips missing files → Ubuntu asm BLD001 UNDEF
+                 * (e.g. std_vec_len_empty after true-cold). G.7: complete the existing
+                 * ensure authority (was only fk==9 math); do not invent a second path.
+                 * make_target is relative to compiler/ (../std/... or ../core/...).
+                 */
+                if (user_o && user_o[0]
+                    && ((rel[0] == 's' && strncmp(rel, "std/", 4) == 0)
+                        || (rel[0] == 'c' && strncmp(rel, "core/", 5) == 0))) {
                     const char *include_root = shux_repo_root_from_argv0(link_argv0);
-                    if (include_root && include_root[0])
-                        (void)shux_ensure_formal_std_make_o(include_root, "std/math/math.o",
-                                                            "../std/math/math.o");
+                    char make_tgt[PATH_MAX];
+                    if (include_root && include_root[0]
+                        && (size_t)snprintf(make_tgt, sizeof make_tgt, "../%s", rel) < sizeof make_tgt) {
+                        (void)shux_ensure_formal_std_make_o(include_root, rel, make_tgt);
+                        /*
+                         * Formal vec/set/map .o carry U std_heap_* / core_mem_*.
+                         * Mirror invoke_cc need_vec companions (ensure + push).
+                         */
+                        if (strstr(rel, "std/vec/vec.o") || strstr(rel, "std/set/set.o")
+                            || strstr(rel, "std/map/map.o")) {
+                            (void)shux_ensure_formal_std_make_o(include_root, "std/heap/heap.o",
+                                                                "../std/heap/heap.o");
+                            (void)shux_ensure_formal_std_make_o(include_root, "core/mem/mem.o",
+                                                                "../core/mem/mem.o");
+                            link_abi_asm_ld_push_obj(NULL, link_argv0, "std/heap/heap.o", lib_roots,
+                                                     n_lib_roots, bank, argv, la, max_la, NULL);
+                            link_abi_asm_ld_push_obj(NULL, link_argv0, "core/mem/mem.o", lib_roots,
+                                                     n_lib_roots, bank, argv, la, max_la, NULL);
+                        }
+                    }
                 }
                 link_abi_asm_ld_push_obj(NULL, link_argv0, rel, lib_roots, n_lib_roots, bank, argv, la, max_la, flag_out);
             }
