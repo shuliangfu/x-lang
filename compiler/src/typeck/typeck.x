@@ -205,6 +205,11 @@ export extern function pipeline_expr_struct_lit_num_fields(arena: *ASTArena, exp
 export extern function pipeline_expr_struct_lit_type_name_len(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_struct_lit_type_name_into(arena: *ASTArena, expr_ref: i32,
 out: *u8): void;
+/* Backfill struct_lit_struct_name on an anonymous struct literal from the
+ * contextual return type (see pipeline_glue.c pipeline_expr_struct_lit_type_name_set).
+ * PLATFORM: SHARED. */
+export extern function pipeline_expr_struct_lit_type_name_set(arena: *ASTArena, expr_ref: i32,
+name: *u8, name_len: i32): void;
 export extern function pipeline_expr_struct_lit_field_name_len(arena: *ASTArena, expr_ref: i32,
 j: i32): i32;
 export extern function pipeline_expr_struct_lit_field_name_into(arena: *ASTArena, expr_ref: i32, j: i32,
@@ -6275,8 +6280,23 @@ export function typeck_check_expr_struct_lit(
     }
     name_len = pipeline_expr_struct_lit_type_name_len(arena, expr_ref);
     if (name_len <= 0) {
+      /* Anonymous struct literal `{ field: expr, ... }`: backfill struct_lit_struct_name
+       * from contextual return_type_ref so codegen emits `(struct <module>_Pair){...}`
+       * instead of `(struct <module>_){...}` (incomplete type cc error). Resolve type
+       * alias to reach the underlying NAMED struct type. PLATFORM: SHARED. */
       if (!ast.ref_is_null(return_type_ref)
       && pipeline_type_kind_ord_at(arena, return_type_ref) == ord_named) {
+        let resolved_ref: i32 = typeck_resolve_type_alias_ref_local(module, arena, return_type_ref, 0);
+        if (!ast.ref_is_null(resolved_ref)
+        && pipeline_type_kind_ord_at(arena, resolved_ref) == ord_named) {
+          let backfill_name: u8[64] = [];
+          let backfill_len: i32 = pipeline_type_named_name_into(arena, resolved_ref, &backfill_name[0]);
+          if (backfill_len > 0 && backfill_len <= 63) {
+            /* Why setter (not get_copy/set_copy): avoids returning the ~400-byte ast.Expr
+             * by value across the X-ABI boundary (sret mismatch → SIGBUS on arm64). */
+            pipeline_expr_struct_lit_type_name_set(arena, expr_ref, &backfill_name[0], backfill_len);
+          }
+        }
         pipeline_expr_set_resolved_type_ref(arena, expr_ref, return_type_ref);
       }
       return 0;

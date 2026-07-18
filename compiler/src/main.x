@@ -740,14 +740,27 @@ export function main_cmd_build(argc: i32, argv: *u8): i32 {
  * When no -o is given, driver_argv_ensure_run_o injects a temp /tmp path as
  * -o so the C/asm backend links a real executable (instead of the no-`-o`
  * stdout/smoke fallback); driver_exec_compiled then execs that temp. An
- * explicit -o is honored as-is. PLATFORM: SHARED.
+ * explicit -o is honored as compile-only (write to the requested path, do
+ * not exec) so callers like tests/run-*.sh can inspect the binary's exit
+ * code themselves. PLATFORM: SHARED.
  */
 export function main_cmd_run(argc: i32, argv: *u8): i32 {
   if (argc < 2) {
     return 1;
   }
+  /* Detect an explicit user-supplied -o before driver_argv_ensure_run_o runs.
+   * Why: driver_argv_ensure_run_o silently injects a temp -o when none is
+   * present, so run_argv alone cannot tell whether the user asked for
+   * compile-only. When -o is explicit, skip the exec path so the compiled
+   * program's exit code does not leak through shux's own exit status. */
+  let has_explicit_o: i32 = main_argv_has_o_flag(argc, argv);
   let run_argc: i32 = argc;
   let run_argv: *u8 = driver_argv_ensure_run_o(argc, argv, &run_argc);
+  if (has_explicit_o != 0) {
+    /* Compile-only: do not set SHUX_RUN_QUIET (let cc warnings surface, since
+     * the user explicitly requested an output path) and do not exec. */
+    return main_run_compiler_x_path_impl(run_argc, run_argv);
+  }
   /* mute generated-C warning noise so only program output is printed; cc
      errors still surface (SHUX_RUN_QUIET only adds -w / -Wl,-w in invoke_cc). */
   /* "SHUX_RUN_QUIET" (14 bytes) + NUL terminator; setenv needs a C string. */
@@ -759,6 +772,24 @@ export function main_cmd_run(argc: i32, argv: *u8): i32 {
     return driver_exec_compiled(run_argc, run_argv);
   }
   return rc;
+}
+
+/* Returns 1 if any argv[i] (i in [1, argc)) equals "-o" (the canonical short
+ * form for output path), 0 otherwise. Used by main_cmd_run to distinguish
+ * compile-only invocations from in-memory compile-and-run. PLATFORM: SHARED.
+ * Contract: argc >= 1; argv may be null only when argc < 1 (returns 0). */
+function main_argv_has_o_flag(argc: i32, argv: *u8): i32 {
+  let i: i32 = 1;
+  let buf: u8[8] = [];
+  while (i < argc) {
+    let len: i32 = driver_get_argv_i(argc, argv, i, &buf[0], 8);
+    /* "-o" == bytes [45 ('-'), 111 ('o')] */
+    if (len == 2 && buf[0] == 45 && buf[1] == 111) {
+      return 1;
+    }
+    i = i + 1;
+  }
+  return 0;
 }
 
 /* See implementation. */

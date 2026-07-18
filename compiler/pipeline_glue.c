@@ -14168,6 +14168,31 @@ void pipeline_expr_struct_lit_type_name_into(struct ast_ASTArena *a, int32_t exp
   memcpy(out64, ex->struct_lit_struct_name, 64);
 }
 
+/**
+ * Backfill struct_lit_struct_name on an anonymous struct literal expression
+ * from the contextual return type (resolved through type alias).
+ *
+ * Why: anonymous `{ a: 1, b: 2 }` literals have empty struct_lit_struct_name;
+ *      codegen then emits `(struct <module>_){...}` → cc "incomplete type" error.
+ *      typeck backfills the name so codegen emits `(struct <module>_Pair){...}`.
+ * Contract: name_len must be in [1, 63]; null/invalid arena/ref is a no-op.
+ * PLATFORM: SHARED — called from typeck.x contextual typing backfill path.
+ */
+void pipeline_expr_struct_lit_type_name_set(struct ast_ASTArena *a, int32_t expr_ref,
+                                            uint8_t *name, int32_t name_len) {
+  struct ast_Expr *ex;
+  if (!a || !name || expr_ref <= 0 || expr_ref > a->num_exprs)
+    return;
+  if (name_len < 0 || name_len > 63)
+    return;
+  ex = glue_arena_expr_at_ref(a, expr_ref);
+  if (!ex)
+    return;
+  memset(ex->struct_lit_struct_name, 0, 64);
+  memcpy(ex->struct_lit_struct_name, name, (size_t)name_len);
+  ex->struct_lit_struct_name_len = name_len;
+}
+
 extern void driver_diagnostic_typeck_struct_padding_before(uint8_t *sname, int32_t sname_len, int32_t gap,
                                                            uint8_t *fname, int32_t fname_len);
 extern void driver_diagnostic_typeck_struct_padding_trailing(uint8_t *sname, int32_t sname_len, int32_t gap);
