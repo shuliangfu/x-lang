@@ -13323,6 +13323,9 @@ static int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *
     uint8_t name[64];
     int32_t nlen;
     int32_t k;
+    int32_t di;
+    int32_t nd;
+    struct ast_Module *dm;
     nlen = pipeline_type_named_name_into(a, ty_ref, name);
     if (nlen <= 0 || nlen > 63)
       return 4;
@@ -13341,6 +13344,38 @@ static int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *
       if (!eq)
         continue;
       return typeck_x_type_size_from_layout_glue(m, a, k, depth + 1);
+    }
+    /**
+     * Import named structs (Allocator / StrView): layout lives in dep modules, not entry.
+     * PLATFORM: SHARED size; SysV 9–16B dual-GP consumers need true size (not default 4).
+     * G.7: single size authority — do not leave entry-only miss as 4 for dual-home paths.
+     */
+    if (g_pipeline_asm_emit_dep_pipe) {
+      nd = pipeline_dep_ctx_ndep(g_pipeline_asm_emit_dep_pipe);
+      for (di = 0; di < nd; di++) {
+        dm = pipeline_dep_ctx_module_at(g_pipeline_asm_emit_dep_pipe, di);
+        if (!dm)
+          continue;
+        for (k = 0; k < (int32_t)dm->num_struct_layouts; k++) {
+          int32_t ln = pipeline_module_struct_layout_name_len(dm, k);
+          int32_t j;
+          int32_t eq = 1;
+          int32_t sz;
+          if (ln != nlen)
+            continue;
+          for (j = 0; j < nlen; j++) {
+            if (pipeline_module_struct_layout_name_byte_at(dm, k, j) != name[j]) {
+              eq = 0;
+              break;
+            }
+          }
+          if (!eq)
+            continue;
+          sz = typeck_x_type_size_from_layout_glue(dm, a, k, depth + 1);
+          if (sz > 0)
+            return sz;
+        }
+      }
     }
     return 4;
   }
