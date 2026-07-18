@@ -13883,6 +13883,18 @@ int32_t pipeline_asm_call_arg_value_byte_size_c(struct ast_ASTArena *arena, stru
                                                  int32_t arg_ref, int32_t pty) {
   int32_t sz = 0;
   int32_t tr;
+  /*
+   * PLATFORM: SHARED — TYPE_SLICE call/formal param is pointer (codegen.x), 1 GP (8B).
+   * Fat value size 16 must not dual-GP-pack (steals next arg's rsi). G.7 with call lea.
+   */
+  if (arena && pty > 0 &&
+      pipeline_type_kind_ord_at(arena, pty) == (int32_t)ast_TypeKind_TYPE_SLICE)
+    return 8;
+  if (arena && arg_ref > 0) {
+    tr = pipeline_expr_resolved_type_ref(arena, arg_ref);
+    if (tr > 0 && pipeline_type_kind_ord_at(arena, tr) == (int32_t)ast_TypeKind_TYPE_SLICE)
+      return 8;
+  }
   if (pty > 0)
     sz = glue_type_size_simple(g_pipeline_asm_emit_module, arena, pty, 0);
   if (sz <= 0 && arg_ref > 0 && arena) {
@@ -17318,6 +17330,15 @@ static int32_t glue_func_param_agg_byte_size_c(struct ast_ASTArena *arena, struc
   k = pipeline_type_kind_ord_at(arena, pty);
   if (k == 9)
     return 8; /* pointer */
+  /*
+   * PLATFORM: SHARED + LINUX/MACOS x86_64 SysV —
+   * TYPE_SLICE params are lowered as `struct shux_slice_* *` (codegen.x), one GP.
+   * Fat value is 16B but call/home must not dual-GP classify (that steals rsi for
+   * the next arg → get_i32(s,i) puts i in rdx; C expects i in rsi). G.7 complete
+   * with call-arg lea for TYPE_SLICE.
+   */
+  if (k == (int32_t)ast_TypeKind_TYPE_SLICE)
+    return 8;
   if (k == 8) {
     sz = glue_type_named_layout_size_any_module_elf_c(arena, pty);
     if (sz <= 0)
