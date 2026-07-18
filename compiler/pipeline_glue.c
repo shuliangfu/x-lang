@@ -2717,8 +2717,9 @@ static int32_t glue_vector_let_init_uses_direct_slot(struct ast_ASTArena *arena,
   return glue_is_vector_lane_scalar_binop_ko(ko);
 }
 
-/** TYPE_ARRAY 在 TypeKind 序数表中的值（与 ast.x / pipeline_type_kind_ord_at 一致）。 */
+/** TYPE_ARRAY / TYPE_SLICE 在 TypeKind 序数表中的值（与 ast.x / pipeline_type_kind_ord_at 一致）。 */
 #define GLUE_TYPE_KIND_ARRAY 10
+#define GLUE_TYPE_KIND_SLICE 11
 int32_t pipeline_type_array_size_at(struct ast_ASTArena *arena, int32_t ref);
 /** TYPE_F32 在 TypeKind 序数表中的值（与 pipeline_asm_index_elem_byte_sz_c 一致）。 */
 #define GLUE_TYPE_KIND_F32_ORD 14
@@ -2769,16 +2770,30 @@ int32_t pipeline_asm_let_init_stack_reserve_bytes(struct ast_ASTArena *arena, in
 /**
  * 块内 let 是否为 SIMD 向量（声明 type_ref 或 16B 槽宽 + 向量形初值）。
  * type_ref 为函数默认 i32 时，仍可能从 onefunc 侧车写入的正确 type_ref 识别。
+ *
+ * PLATFORM: SHARED — classification only; both Linux and Darwin asm emitters call this.
+ *
+ * 【Why】`T[]` fat pointer is also 16B `{data,length}`. The slot-size heuristic below used to
+ * treat `let s: i32[] = a` as SIMD, skipping `glue_emit_slice_from_array_let_init_elf_c` and
+ * memcpy-ing array bytes into the slice slot → Ubuntu bounds guard panics (length=0), mac may
+ * false-green via stack garbage. Exclude TYPE_SLICE / TYPE_ARRAY from the heuristic (authority).
  */
 static int32_t glue_block_let_is_simd_vector_type(struct ast_ASTArena *arena, int32_t block_ref, int32_t let_idx) {
   int32_t tr;
   int32_t init_ref;
   int32_t ko;
+  int32_t tk;
   if (!arena || block_ref <= 0 || let_idx < 0)
     return 0;
   tr = pipeline_block_let_type_ref(arena, block_ref, let_idx);
   if (tr > 0 && asm_type_is_simd_vector_spelling(arena, tr))
     return 1;
+  if (tr > 0) {
+    tk = pipeline_type_kind_ord_at(arena, tr);
+    /** Fat slice / fixed array are never SIMD lanes — do not use 16B+ VAR heuristic. */
+    if (tk == GLUE_TYPE_KIND_SLICE || tk == GLUE_TYPE_KIND_ARRAY)
+      return 0;
+  }
   init_ref = pipeline_block_let_init_ref(arena, block_ref, let_idx);
   if (tr > 0 && init_ref > 0 && pipeline_type_kind_ord_at(arena, tr) != 8 &&
       asm_local_slot_bytes(arena, tr) >= 16) {
@@ -4329,6 +4344,11 @@ static int32_t glue_index_deref_ptr_field_slot_rbx_elf_c(struct ast_ASTArena *ar
  * INDEX 基址入 rax/x0：局部 VAR 或 VAR-base FIELD_ACCESS（如 let/形参 p.arr）。
  * 形参 struct 为 load 指针 + 字段偏移；块内 let struct 为 lea + 偏移。0=OK，-1=错，-2=不适用。
  */
+/**
+ * INDEX base → rax: local VAR / VAR-base FIELD, then load `.data` when base is TYPE_SLICE.
+ * PLATFORM: SHARED — lit-index fast path and scaled INDEX both use this (must match
+ * glue_emit_index_eff_addr_base_* slice load at +0).
+ */
 static int32_t glue_try_index_var_or_field_base_to_rax_elf_c(struct ast_ASTArena *arena,
                                                               struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                               int32_t base_ref, struct backend_AsmFuncCtx *ctx,
@@ -4337,6 +4357,7 @@ static int32_t glue_try_index_var_or_field_base_to_rax_elf_c(struct ast_ASTArena
   int32_t boff;
   int32_t field_off;
   int32_t var_base;
+  int32_t tr;
 
   if (!arena || !elf_ctx || !ctx || base_ref <= 0)
     return -2;
@@ -4345,6 +4366,10 @@ static int32_t glue_try_index_var_or_field_base_to_rax_elf_c(struct ast_ASTArena
     boff = glue_var_expr_stack_off_elf_c(arena, ctx, base_ref);
     if (boff < 0)
       return -2;
+    /** Slice local `{ *data, length }`: load `.data` from slot (not lea fat pointer). */
+    tr = pipeline_expr_resolved_type_ref(arena, base_ref);
+    if (tr > 0 && pipeline_type_kind_ord_at(arena, tr) == GLUE_TYPE_KIND_SLICE)
+      return backend_enc_load_rbp_to_rax_arch(elf_ctx, boff, ta);
     return glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, base_ref, boff, ctx, ta);
   }
   if (ko == 44) {
@@ -4370,6 +4395,7 @@ static int32_t glue_try_index_var_or_field_base_to_rax_elf_c(struct ast_ASTArena
 
 /**
  * INDEX 基址入 rbx/x1：局部 VAR 或 VAR-base FIELD_ACCESS（assign 右值已在 rax，勿 clobber）。
+ * TYPE_SLICE：与 rax 路径对称，从 fat 槽 load `.data` 到 rbx。
  * 0=OK，-1=错，-2=不适用。
  */
 static int32_t glue_try_index_var_or_field_base_to_rbx_elf_c(struct ast_ASTArena *arena,
@@ -4380,6 +4406,7 @@ static int32_t glue_try_index_var_or_field_base_to_rbx_elf_c(struct ast_ASTArena
   int32_t boff;
   int32_t field_off;
   int32_t var_base;
+  int32_t tr;
 
   if (!arena || !elf_ctx || !ctx || base_ref <= 0)
     return -2;
@@ -4388,6 +4415,9 @@ static int32_t glue_try_index_var_or_field_base_to_rbx_elf_c(struct ast_ASTArena
     boff = glue_var_expr_stack_off_elf_c(arena, ctx, base_ref);
     if (boff < 0)
       return -2;
+    tr = pipeline_expr_resolved_type_ref(arena, base_ref);
+    if (tr > 0 && pipeline_type_kind_ord_at(arena, tr) == GLUE_TYPE_KIND_SLICE)
+      return backend_enc_load_rbp_to_rbx_arch(elf_ctx, boff, ta);
     return glue_enc_local_slot_ptr_or_addr_rbx_elf_c(arena, elf_ctx, base_ref, boff, ctx, ta);
   }
   if (ko == 44) {
@@ -6442,8 +6472,6 @@ static int32_t glue_try_index_var_plus_var_mul_lit_eff_addr_rax_elf_c(struct ast
     return -1;
   return glue_emit_index_rax_plus_rbx_scaled_elf_c(elf_ctx, esz, ta);
 }
-
-#define GLUE_TYPE_KIND_SLICE 11
 
 /**
  * DOD-S1：SoA 数组 `arr[i].field` 有效地址 → rax = base + col_base + index*stride。
