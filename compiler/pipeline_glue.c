@@ -11628,6 +11628,21 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(struct ast_ASTArena *arena, str
           return backend_enc_lea_rbp_to_rax_arch(elf_ctx, off, ta);
         if (pty > 0 && pipeline_type_kind_ord_at(arena, pty) == GLUE_TYPE_KIND_F32_ORD)
           return glue_load_f32_var_slot_to_rax_elf_c(elf_ctx, arena, ctx, expr_ref, off, ta);
+        /*
+         * PLATFORM: SHARED + LINUX/MACOS x86_64 SysV —
+         * TYPE_SLICE params lower as `struct shux_slice_* *` in C (codegen.x authority).
+         * Call sites must pass &local fat (sequential {data@0,length@8}), not dual-GP
+         * by-value. Dual-load here → formal C reads data ptr as struct* → SIGSEGV
+         * (Ubuntu tests/slice/length.x -backend asm after formal mod.o). G.7 complete.
+         */
+        if (pty > 0 && pipeline_type_kind_ord_at(arena, pty) == (int32_t)ast_TypeKind_TYPE_SLICE)
+          return backend_enc_lea_rbp_to_rax_arch(elf_ctx, off, ta);
+        {
+          int32_t arg_ty = pipeline_expr_resolved_type_ref(arena, expr_ref);
+          if (arg_ty > 0 &&
+              pipeline_type_kind_ord_at(arena, arg_ty) == (int32_t)ast_TypeKind_TYPE_SLICE)
+            return backend_enc_lea_rbp_to_rax_arch(elf_ctx, off, ta);
+        }
         /* ≤16B named struct / scalar: dual-half load when size 9–16 (SysV rax+rdx). */
         return glue_load_var_as_value_to_rax_rdx_elf_c(elf_ctx, arena, ctx, expr_ref, off, ta);
       }
