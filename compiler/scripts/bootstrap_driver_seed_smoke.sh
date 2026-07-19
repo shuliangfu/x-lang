@@ -22,12 +22,16 @@ TARGET="${1:-./shux}"
 # `/tmp/foo.$$.x` → stem `foo.12345` → `extern int32_t foo.12345_main` 非法 C。
 # Ubuntu 上 fresh smoke 亦曾失败靠 pinned 回退；Darwin pinned 常不可用，须路径自绿。
 # PLATFORM: WINDOWS — SHUX file-open uses Win32 CreateFileA which does not
-# recognize MSYS2 /tmp/ mapping; absolute /tmp/ path fails with IO001.
-# $TEMP (set to C:/shux_tmp short path in Windows build env) is recognized.
-# POSIX falls back to /tmp where CreateFileA is not in play.
+# recognize MSYS2 /tmp/ or /c/... mapping; absolute POSIX-style paths fail
+# with IO001. cygpath -m forces mixed-mode Windows path (C:/shux_tmp/...)
+# regardless of MSYS_NO_PATHCONV. POSIX falls back to /tmp.
 case "$(uname -s 2>/dev/null)" in
-  MINGW*|MSYS*|CYGWIN*) _SMOKE_TMP="${TEMP:-/tmp}" ;;
-  *) _SMOKE_TMP="/tmp" ;;
+  MINGW*|MSYS*|CYGWIN*)
+    _SMOKE_TMP="$(cygpath -m "${TEMP:-/tmp}" 2>/dev/null || echo "${TEMP:-/tmp}")"
+    ;;
+  *)
+    _SMOKE_TMP="/tmp"
+    ;;
 esac
 SMOKE_SRC="${_SMOKE_TMP}/shux_bootstrap_seed_smoke_$$.x"
 SMOKE_OUT="${_SMOKE_TMP}/shux_bootstrap_seed_smoke_out_$$"
