@@ -5,6 +5,7 @@
 # 本脚本覆盖全 std + asm 微测；gcc 回退 / import_alias 允许，非 D+E+F 闭合的必要条件。
 #
 # 用法：./tests/run-all-bstrict.sh
+# 真冷测试：SHUX_L4_COLD=1 ./tests/run-all-bstrict.sh
 # 不跑全量 run-all（其余用例仍走 shux-c）；验收 shux_asm 替代 seed 后白名单不回归。
 
 set -e
