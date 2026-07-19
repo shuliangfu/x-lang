@@ -499,9 +499,9 @@ int write_io_net_abi_inline(FILE *cf) {
         "#if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 201112L\n#error \"Generated code needs C11. Compile with -std=gnu11 or -std=c11.\"\n#endif\n",
         "#include <stddef.h>\n",
         "#include <stdint.h>\n",
-        "#include <unistd.h>\n",
-        "#include <sys/uio.h>\n",
-        "#include <poll.h>\n",
+        "#if !defined(_WIN32) && !defined(_WIN64)\n#include <unistd.h>\n#else\n#include <io.h>\n#include <sys/types.h>\n#endif\n",
+        "#if !defined(_WIN32) && !defined(_WIN64)\n#include <sys/uio.h>\n#endif\n",
+        "#if !defined(_WIN32) && !defined(_WIN64)\n#include <poll.h>\n#endif\n",
         /*
          * PLATFORM: POSIX — product -o co-emit of std.fs.posix uses bare O_*, S_IF*,
          * PROT_*, MAP_*, FS_IOV_BUF_MAX, DIRENT_D_NAME_OFF and bare fs_libc_open, plus
