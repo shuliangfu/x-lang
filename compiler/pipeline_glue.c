@@ -14025,6 +14025,83 @@ static void glue_typeck_fold_expr_ref(struct ast_ASTArena *a, int32_t expr_ref,
       return;
     }
   }
+
+  /**
+   * PLATFORM: SHARED — EXPR_MATCH CTFE (C5).
+   * Why: Pure-const match expressions (`match const_X { lit => const; ...; _ => const }`)
+   *      are common in state machines / config tables; folding them at typeck time lets
+   *      emit emit a single mov imm32 instead of a runtime cmp/branch dispatch.
+   * Invariant: Only stamps const_folded_valid=1 when (1) subject folds to a constant and
+   *            (2) the first matching arm (literal or wildcard) result also folds to a
+   *            constant. Enum-variant arms compare variant_index; guarded arms
+   *            (would need guard eval) are left unfolded (const_folded_valid stays 0).
+   * Asm/Perf: Replaces `mov rbx,subj; cmp;jmp;armN;mov w0,result;done` (~30 bytes)
+   *           with `mov w0, #const` (4 bytes); also enables parent binop folds.
+   */
+  if (kd == ast_ExprKind_EXPR_MATCH) {
+    int32_t matched_ref;
+    int32_t num_arms;
+    int32_t wild_idx;
+    int32_t i;
+    int32_t cmp_val;
+    int32_t arm_result_ref;
+    int32_t matched_val;
+    struct ast_Expr *em;
+    struct ast_Expr *er;
+
+    matched_ref = pipeline_expr_match_matched_ref_at(a, expr_ref);
+    if (matched_ref <= 0)
+      return;
+    glue_typeck_fold_expr_ref(a, matched_ref, const_names, const_values, n_const_names);
+    em = glue_arena_expr_at_ref(a, matched_ref);
+    if (!em || !em->const_folded_valid)
+      return;
+    matched_val = em->const_folded_val;
+
+    num_arms = pipeline_expr_match_num_arms_at(a, expr_ref);
+    if (num_arms <= 0 || num_arms > 32)
+      return;
+
+    /* First-match wins (mirrors ELF emit semantics). Wildcard only fires as fallback. */
+    wild_idx = -1;
+    for (i = 0; i < num_arms; i++) {
+      if (pipeline_expr_match_arm_is_wildcard(a, expr_ref, i) != 0) {
+        if (wild_idx < 0)
+          wild_idx = i;
+        continue;
+      }
+      if (pipeline_expr_match_arm_is_enum_variant(a, expr_ref, i) != 0)
+        cmp_val = pipeline_expr_match_arm_variant_index(a, expr_ref, i);
+      else
+        cmp_val = pipeline_expr_match_arm_lit_val(a, expr_ref, i);
+      if (cmp_val != matched_val)
+        continue;
+      arm_result_ref = pipeline_expr_match_arm_result_ref(a, expr_ref, i);
+      if (arm_result_ref <= 0)
+        return;
+      glue_typeck_fold_expr_ref(a, arm_result_ref, const_names, const_values, n_const_names);
+      er = glue_arena_expr_at_ref(a, arm_result_ref);
+      if (er && er->const_folded_valid) {
+        e->const_folded_val = er->const_folded_val;
+        e->const_folded_valid = 1;
+      }
+      return;
+    }
+
+    /* Wildcard arm fallback (only if no lit/variant arm matched). */
+    if (wild_idx >= 0) {
+      arm_result_ref = pipeline_expr_match_arm_result_ref(a, expr_ref, wild_idx);
+      if (arm_result_ref > 0) {
+        glue_typeck_fold_expr_ref(a, arm_result_ref, const_names, const_values, n_const_names);
+        er = glue_arena_expr_at_ref(a, arm_result_ref);
+        if (er && er->const_folded_valid) {
+          e->const_folded_val = er->const_folded_val;
+          e->const_folded_valid = 1;
+        }
+      }
+    }
+    return;
+  }
 }
 
 /** Pure-lit / already-folded tree CTFE after typeck (no block const env). */
@@ -14049,6 +14126,12 @@ void pipeline_typeck_fold_expr_c(struct ast_ASTArena *arena, int32_t expr_ref) {
       glue_typeck_fold_expr_ref(arena, expr_ref, NULL, NULL, 0);
     } else if (e->kind == ast_ExprKind_EXPR_CALL) {
       /* Call itself is not a pure const-expr tree; still try WPO call-site CTFE. */
+      glue_typeck_fold_expr_ref(arena, expr_ref, NULL, NULL, 0);
+    } else if (e->kind == ast_ExprKind_EXPR_MATCH) {
+      /* PLATFORM: SHARED — Match is not a pure const-expr (subject may be runtime).
+       * Still attempt CTFE: if the subject folds to a constant (e.g. `match 2 { ... }`
+       * or `match const_X { ... }` outside a block-const env), the handler inside
+       * glue_typeck_fold_expr_ref picks the matching arm and stamps the result. */
       glue_typeck_fold_expr_ref(arena, expr_ref, NULL, NULL, 0);
     }
     return;
