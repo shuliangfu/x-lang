@@ -23,6 +23,12 @@ TARGET="${1:-./shux}"
 # Ubuntu 上 fresh smoke 亦曾失败靠 pinned 回退；Darwin pinned 常不可用，须路径自绿。
 SMOKE_SRC="/tmp/shux_bootstrap_seed_smoke_$$.x"
 SMOKE_OUT="/tmp/shux_bootstrap_seed_smoke_out_$$"
+# PLATFORM: WINDOWS — MinGW gcc auto-appends .exe to -o targets. Without the
+# suffix, `[ -x "$SMOKE_OUT" ]` fails (file is SMOKE_OUT.exe, not SMOKE_OUT)
+# and bash direct exec yields Permission denied / not found. POSIX unchanged.
+case "$(uname -s 2>/dev/null)" in
+  MINGW*|MSYS*|CYGWIN*) SMOKE_OUT="${SMOKE_OUT}.exe" ;;
+esac
 PINNED_TMP="/tmp/shux_bootstrap_seed_pinned_$$"
 AUDIT_DIR="${SHUX_BOOTSTRAP_AUDIT_DIR:-../logs}"
 
@@ -73,14 +79,15 @@ run_smoke() {
   if [ "$_rc" -ne 0 ]; then
     # 回退：shux-c C 前端不支持 -backend c -o，用 -E + cc 替代
     echo "[$(date '+%H:%M:%S')] seed smoke: -backend c -o failed, trying -E + cc fallback ..."
-    "$bin" -E "$SMOKE_SRC" > "${SMOKE_OUT}.c" 2>"$_log"
+    # SMOKE_OUT may carry .exe on Windows; strip it for the .c companion path.
+    "$bin" -E "$SMOKE_SRC" > "${SMOKE_OUT%.exe}.c" 2>"$_log"
     _rc=$?
     if [ "$_rc" -ne 0 ]; then
       return 1
     fi
-    ${CC:-cc} -O2 -o "$SMOKE_OUT" "${SMOKE_OUT}.c" 2>>"$_log"
+    ${CC:-cc} -O2 -o "$SMOKE_OUT" "${SMOKE_OUT%.exe}.c" 2>>"$_log"
     _rc=$?
-    rm -f "${SMOKE_OUT}.c"
+    rm -f "${SMOKE_OUT%.exe}.c"
     if [ "$_rc" -ne 0 ]; then
       return 1
     fi
