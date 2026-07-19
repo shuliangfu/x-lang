@@ -133,7 +133,7 @@ chmod +x tests/run-win32-write-gate.sh tests/run-win32-read-file-gate.sh
 SHUX_WIN32_WRITE_FAIL=1 ./tests/run-win32-write-gate.sh
 SHUX_WIN32_READ_FILE_FAIL=1 ./tests/run-win32-read-file-gate.sh
 
-PIPELINE_GEN_CC=$(grep -cE "$PIPELINE_GEN_PAT" "$BOOT_LOG" 2>/dev/null || echo 0)
+PIPELINE_GEN_CC=$(grep -E "$PIPELINE_GEN_PAT" "$BOOT_LOG" 2>/dev/null | grep -vE 'info:.*no cc -c pipeline_gen' | wc -l | tr -d '[:space:]')
 if [ "$WIN_BSTRICT" = "1" ]; then
   echo "bootstrap-bstrict-windows-gate: C-03/E-06 v5 cc -c pipeline_gen.c count=${PIPELINE_GEN_CC} (must be 0)"
   if [ "${PIPELINE_GEN_CC:-0}" -gt 0 ] 2>/dev/null; then
