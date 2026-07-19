@@ -8,6 +8,14 @@
 #include <stdint.h>
 #include <string.h>
 #include <io.h>
+/* Why: MinGW <io.h> provides _open/_read/_write but does NOT define O_RDONLY,
+ *      O_WRONLY, O_CREAT, O_TRUNC. Those come from <fcntl.h>. Without it,
+ *      runtime.from_x.c driver_fs_open_read_path/write (open(buf, O_RDONLY))
+ *      fails to compile on Windows MSYS/MinGW.
+ * Invariant: <fcntl.h> on MinGW defines O_RDONLY/O_WRONLY/O_CREAT/O_TRUNC/_O_*.
+ *            Also enables the #ifdef O_WRONLY/O_CREAT/O_TRUNC guards in
+ *            driver_fs_open_write (runtime.from_x.c ~L3575). */
+#include <fcntl.h>
 #ifndef SEEK_SET
 #define SEEK_SET 0
 #define SEEK_CUR 1
