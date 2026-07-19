@@ -53,6 +53,7 @@ int shux_ensure_freestanding_io_o(const char *argv0, int driver_freestanding);
 int shux_ensure_crt0_user_o(const char *argv0, int driver_freestanding);
 int shux_ensure_runtime_arrow_simd_glue_o(const char *argv0);
 int shux_ensure_runtime_asm_io_stubs_o(const char *argv0);
+const char *labi_od_rel_page_mmap(void);
 int shux_ensure_runtime_atomic_glue_o(const char *argv0);
 int shux_ensure_runtime_backtrace_platform_o(const char *argv0);
 int shux_ensure_runtime_channel_glue_o(const char *argv0);
@@ -4903,6 +4904,30 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
                 if (!c_provides_std_heap) {
                     const char *heap_o_ondemand = shux_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o());
                     (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, heap_o_ondemand);
+                }
+                /*
+                 * PLATFORM: SHARED / LINUX gold — heap.o (mod.x) imports page_mmap and
+                 * references std_heap_page_mmap_page_mmap_heap_{init,alloc,deinit,available,
+                 * free} unconditionally (freestanding bump-heap path). On Ubuntu L4 cold the
+                 * C backend pushes heap.o but NOT page_mmap.o, so the link fails with
+                 * 'undefined reference to std_heap_page_mmap_page_mmap_heap_*'. Symmetric with
+                 * the asm on-demand path (link_abi_user_o_needs_std_heap_page_mmap push of
+                 * labi_od_rel_page_mmap). Also ensure + push runtime_asm_io_stubs.o which
+                 * provides the weak shux_sys_mmap / shux_sys_munmap that page_mmap.o calls
+                 * (same authority as the need_net block below for #if defined(__linux__)).
+                 * Root fix 2026-07-19: backtrace L4 cold was red on Ubuntu only because the
+                 * C backend heap chain missed page_mmap + asm_io_stubs companions.
+                 */
+                {
+                    const char *pm_o = shux_rel_o_path_from_argv0(include_root, labi_od_rel_page_mmap());
+                    if (invoke_cc_argv_push_existing(argv, &i, argv_cap, pm_o)) {
+                        (void)shux_ensure_runtime_asm_io_stubs_o(NULL);
+                        {
+                            const char *ris = shux_runtime_asm_io_stubs_o_path(NULL);
+                            if (ris && ris[0])
+                                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, ris);
+                        }
+                    }
                 }
             }
         }
