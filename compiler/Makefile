@@ -118,7 +118,7 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 # shux_compile_std_module --bare-impl process.x（mod.x 仍勿编入 .o，避免双定义）。
 ../std/process/process.o: ../std/process/mod.x ../std/process/process.x seeds/runtime_process_args_thin.from_x.c runtime_process_argv.o runtime_process_os_glue.o
 	@$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_process_args_thin.from_x.c -o $@.args && \
-	ld -r -o $@ $@.args runtime_process_argv.o runtime_process_os_glue.o && \
+	ld -r $(LD_R_MULTIDEF_FLAGS) -o $@ $@.args runtime_process_argv.o runtime_process_os_glue.o && \
 	rm -f $@.args
 
 # std.string：F 闭合 — 产品 -o 完整 emit（-x -E 会截断函数体）。
@@ -131,7 +131,7 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 # 避免 bootstrap asm backend 在 dirname/last_slash 链上反复卡住。
 ../std/path/path.o: ../std/path/mod.x seeds/runtime_path_fast.from_x.c scripts/cc_inc_tu.sh
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_path_fast.from_x.c -o ../std/path/path_core.o && \
-	ld -r -o ../std/path/path.o ../std/path/path_core.o && \
+	ld -r $(LD_R_MULTIDEF_FLAGS) -o ../std/path/path.o ../std/path/path_core.o && \
 	rm -f ../std/path/path_core.o
 
 # std.heap：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + libc + ops）。
@@ -197,7 +197,7 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 # runtime_panic/runtime_abort/runtime_crash_evidence_collect_c 三个 extern provider。
 ../std/runtime/runtime.o: ../std/runtime/runtime.x seeds/runtime_std_runtime_fast.from_x.c src/asm/runtime_std_runtime_fast.x
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_std_runtime_fast.from_x.c -o ../std/runtime/runtime_core.o && \
-	ld -r -o ../std/runtime/runtime.o ../std/runtime/runtime_core.o && \
+	ld -r $(LD_R_MULTIDEF_FLAGS) -o ../std/runtime/runtime.o ../std/runtime/runtime_core.o && \
 	rm -f ../std/runtime/runtime_core.o
 
 # std.net：F-04 v10～v14 纯 .x（F-ZC）；OS glue 由 runtime_net_*_fast.inc 提供（G-02e-18）。
@@ -255,17 +255,17 @@ net-o-mbedtls:
 	@if [ -x ./shux_asm ]; then \
 	  ./shux_asm -backend asm -L .. ../std/net/tls_mbedtls.x -o ../std/net/tls_mbedtls_main.o && \
 	  $(MAKE) runtime_tls_mbedtls_bio.o && \
-	  ld -r -o ../std/net/tls_mbedtls.o ../std/net/tls_mbedtls_main.o runtime_tls_mbedtls_bio.o && \
+	  ld -r $(LD_R_MULTIDEF_FLAGS) -o ../std/net/tls_mbedtls.o ../std/net/tls_mbedtls_main.o runtime_tls_mbedtls_bio.o && \
 	  $(MAKE) net-o-stub; \
 	elif [ -x ./shux ]; then \
 	  ./shux -backend asm -L .. ../std/net/tls_mbedtls.x -o ../std/net/tls_mbedtls_main.o && \
 	  $(MAKE) runtime_tls_mbedtls_bio.o && \
-	  ld -r -o ../std/net/tls_mbedtls.o ../std/net/tls_mbedtls_main.o runtime_tls_mbedtls_bio.o && \
+	  ld -r $(LD_R_MULTIDEF_FLAGS) -o ../std/net/tls_mbedtls.o ../std/net/tls_mbedtls_main.o runtime_tls_mbedtls_bio.o && \
 	  $(MAKE) net-o-stub; \
 	elif [ -x ./shux-c ]; then \
 	  ./shux-c -L .. ../std/net/tls_mbedtls.x -o ../std/net/tls_mbedtls_main.o && \
 	  $(MAKE) runtime_tls_mbedtls_bio.o && \
-	  ld -r -o ../std/net/tls_mbedtls.o ../std/net/tls_mbedtls_main.o runtime_tls_mbedtls_bio.o && \
+	  ld -r $(LD_R_MULTIDEF_FLAGS) -o ../std/net/tls_mbedtls.o ../std/net/tls_mbedtls_main.o runtime_tls_mbedtls_bio.o && \
 	  $(MAKE) net-o-stub; \
 	else \
 	  echo "net-o-mbedtls: need shux_asm, shux, or shux-c"; exit 1; \
@@ -542,9 +542,9 @@ sqlite-o-stub:
 	else shux=; fi; \
 	if [ -n "$$shux" ]; then \
 	  sh scripts/shux_compile_std_x.sh auto ../std/db/sqlite/sqlite.x ../std/db/sqlite/sqlite_main.o || exit 1; \
-	  ld -r -o ../std/db/sqlite/sqlite.o ../std/db/sqlite/sqlite_main.o runtime_sqlite_glue_stub.o; \
+	  ld -r $(LD_R_MULTIDEF_FLAGS) -o ../std/db/sqlite/sqlite.o ../std/db/sqlite/sqlite_main.o runtime_sqlite_glue_stub.o; \
 	else \
-	  ld -r -o ../std/db/sqlite/sqlite.o runtime_sqlite_glue_stub.o; \
+	  ld -r $(LD_R_MULTIDEF_FLAGS) -o ../std/db/sqlite/sqlite.o runtime_sqlite_glue_stub.o; \
 	  echo "sqlite.o-stub: need shux-c to merge sqlite.x"; \
 	fi
 
@@ -699,7 +699,7 @@ src/runtime_io_abi.o: seeds/runtime_io_abi.from_x.c src/runtime_io_abi.x src/run
 		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/runtime_io_abi.x > "$$_tmp" 2>/dev/null && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/runtime_io_abi_x.o && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_L2_RIO_THIN_FROM_X -DSHUX_RUNTIME_IO_ABI_FROM_X -c seeds/runtime_io_abi.from_x.c -o src/runtime_io_abi_rest.o && \
-		ld -r src/runtime_io_abi_x.o src/runtime_io_abi_rest.o -o $@ && \
+		ld -r $(LD_R_MULTIDEF_FLAGS) src/runtime_io_abi_x.o src/runtime_io_abi_rest.o -o $@ && \
 		rm -f "$$_tmp" src/runtime_io_abi_x.o src/runtime_io_abi_rest.o && \
 		echo "phase4: $@ <- .x + seed-rest (PREFER_X_O)"; \
 	}; then :; \
@@ -727,7 +727,7 @@ src/runtime_driver_abi.o: seeds/runtime_driver_abi.from_x.c src/runtime_driver_a
 		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/runtime_driver_abi_thin.x > "$$_tmp" 2>/dev/null && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/runtime_driver_abi_thin.o && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_L2_RDABI_THIN_FROM_X -c seeds/runtime_driver_abi.from_x.c -o src/runtime_driver_abi_rest.o && \
-		ld -r src/runtime_driver_abi_thin.o src/runtime_driver_abi_rest.o -o $@ && \
+		ld -r $(LD_R_MULTIDEF_FLAGS) src/runtime_driver_abi_thin.o src/runtime_driver_abi_rest.o -o $@ && \
 		rm -f "$$_tmp" src/runtime_driver_abi_thin.o src/runtime_driver_abi_rest.o && \
 		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O)"; \
 	}; then :; \
@@ -765,7 +765,7 @@ src/runtime_driver_diagnostic.o: seeds/runtime_driver_diagnostic.from_x.c src/ru
 		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/runtime_driver_diagnostic_thin.x > "$$_tmp" 2>/dev/null && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/runtime_driver_diagnostic_thin.o && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_L2_RDD_THIN_FROM_X -c seeds/runtime_driver_diagnostic.from_x.c -o src/runtime_driver_diagnostic_rest.o && \
-		ld -r src/runtime_driver_diagnostic_thin.o src/runtime_driver_diagnostic_rest.o -o $@ && \
+		ld -r $(LD_R_MULTIDEF_FLAGS) src/runtime_driver_diagnostic_thin.o src/runtime_driver_diagnostic_rest.o -o $@ && \
 		rm -f "$$_tmp" src/runtime_driver_diagnostic_thin.o src/runtime_driver_diagnostic_rest.o && \
 		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O)"; \
 	}; then :; \
@@ -857,7 +857,7 @@ src/driver/fmt_check_cmd.o: seeds/fmt_check_cmd.from_x.c src/driver/fmt_check_cm
 		} > "$$_tmp" && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/driver/fmt_check_cmd_thin.o && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_L2_FMT_CHECK_THIN_FROM_X -c seeds/fmt_check_cmd.from_x.c -o src/driver/fmt_check_cmd_rest.o && \
-		ld -r src/driver/fmt_check_cmd_thin.o src/driver/fmt_check_cmd_rest.o -o $@ && \
+		ld -r $(LD_R_MULTIDEF_FLAGS) src/driver/fmt_check_cmd_thin.o src/driver/fmt_check_cmd_rest.o -o $@ && \
 		rm -f "$$_tmp" "$$_tmp.raw" src/driver/fmt_check_cmd_thin.o src/driver/fmt_check_cmd_rest.o && \
 		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O)"; \
 	}; then :; \
@@ -892,7 +892,7 @@ src/driver/fmt_check_cmd_driver.o: seeds/fmt_check_cmd.from_x.c src/driver/fmt_c
 		} > "$$_tmp" && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/driver/fmt_check_cmd_driver_thin.o && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_L2_FMT_CHECK_THIN_FROM_X -DSHUX_USE_X_PIPELINE -c seeds/fmt_check_cmd.from_x.c -o src/driver/fmt_check_cmd_driver_rest.o && \
-		ld -r src/driver/fmt_check_cmd_driver_thin.o src/driver/fmt_check_cmd_driver_rest.o -o $@ && \
+		ld -r $(LD_R_MULTIDEF_FLAGS) src/driver/fmt_check_cmd_driver_thin.o src/driver/fmt_check_cmd_driver_rest.o -o $@ && \
 		rm -f "$$_tmp" "$$_tmp.raw" src/driver/fmt_check_cmd_driver_thin.o src/driver/fmt_check_cmd_driver_rest.o && \
 		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O, driver)"; \
 	}; then :; \
@@ -1508,7 +1508,7 @@ src/asm/backend_enc_dispatch.o: seeds/backend_enc_dispatch.from_x.c src/asm/back
 		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/asm/backend_enc_dispatch_thin.x > "$$_tmp" 2>/dev/null && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/asm/backend_enc_dispatch_thin.o && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_L2_ENC_DISPATCH_THIN_FROM_X -c seeds/backend_enc_dispatch.from_x.c -o src/asm/backend_enc_dispatch_rest.o && \
-		ld -r src/asm/backend_enc_dispatch_thin.o src/asm/backend_enc_dispatch_rest.o -o $@ && \
+		ld -r $(LD_R_MULTIDEF_FLAGS) src/asm/backend_enc_dispatch_thin.o src/asm/backend_enc_dispatch_rest.o -o $@ && \
 		rm -f "$$_tmp" src/asm/backend_enc_dispatch_thin.o src/asm/backend_enc_dispatch_rest.o && \
 		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O)"; \
 	}; then :; \
@@ -1529,7 +1529,7 @@ src/asm/backend_arch_emit_dispatch.o: seeds/backend_arch_emit_dispatch.from_x.c 
 		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/asm/backend_arch_emit_dispatch_thin.x > "$$_tmp" 2>/dev/null && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/asm/backend_arch_emit_dispatch_thin.o && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_L2_ARCH_EMIT_THIN_FROM_X -c seeds/backend_arch_emit_dispatch.from_x.c -o src/asm/backend_arch_emit_dispatch_rest.o && \
-		ld -r src/asm/backend_arch_emit_dispatch_thin.o src/asm/backend_arch_emit_dispatch_rest.o -o $@ && \
+		ld -r $(LD_R_MULTIDEF_FLAGS) src/asm/backend_arch_emit_dispatch_thin.o src/asm/backend_arch_emit_dispatch_rest.o -o $@ && \
 		rm -f "$$_tmp" src/asm/backend_arch_emit_dispatch_thin.o src/asm/backend_arch_emit_dispatch_rest.o && \
 		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O)"; \
 	}; then :; \
@@ -1546,7 +1546,7 @@ src/asm/backend_try_inline_dispatch.o: seeds/backend_try_inline_dispatch.from_x.
 		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/asm/backend_try_inline_dispatch_thin.x > "$$_tmp" 2>/dev/null && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/asm/backend_try_inline_dispatch_thin.o && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_L2_TRY_INLINE_THIN_FROM_X -c seeds/backend_try_inline_dispatch.from_x.c -o src/asm/backend_try_inline_dispatch_rest.o && \
-		ld -r src/asm/backend_try_inline_dispatch_thin.o src/asm/backend_try_inline_dispatch_rest.o -o $@ && \
+		ld -r $(LD_R_MULTIDEF_FLAGS) src/asm/backend_try_inline_dispatch_thin.o src/asm/backend_try_inline_dispatch_rest.o -o $@ && \
 		rm -f "$$_tmp" src/asm/backend_try_inline_dispatch_thin.o src/asm/backend_try_inline_dispatch_rest.o && \
 		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O)"; \
 	}; then :; \
@@ -1563,7 +1563,7 @@ src/asm/backend_call_dispatch.o: seeds/backend_call_dispatch.from_x.c src/asm/ba
 		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/asm/backend_call_dispatch_thin.x > "$$_tmp" 2>/dev/null && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/asm/backend_call_dispatch_thin.o && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_L2_CALL_DISPATCH_THIN_FROM_X -c seeds/backend_call_dispatch.from_x.c -o src/asm/backend_call_dispatch_rest.o && \
-		ld -r src/asm/backend_call_dispatch_thin.o src/asm/backend_call_dispatch_rest.o -o $@ && \
+		ld -r $(LD_R_MULTIDEF_FLAGS) src/asm/backend_call_dispatch_thin.o src/asm/backend_call_dispatch_rest.o -o $@ && \
 		rm -f "$$_tmp" src/asm/backend_call_dispatch_thin.o src/asm/backend_call_dispatch_rest.o && \
 		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O)"; \
 	}; then :; \
@@ -1783,7 +1783,7 @@ src/asm/simd_enc.o: seeds/simd_enc.from_x.c src/asm/simd_enc_thin.x src/asm/simd
 		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/asm/simd_enc_thin.x > "$$_tmp_thin" 2>/dev/null && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp_thin" -o src/asm/simd_enc_thin.o && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_L2_SIMD_ENC_THIN_FROM_X -c seeds/simd_enc.from_x.c -o src/asm/simd_enc_rest.o && \
-		ld -r src/asm/simd_enc_thin.o src/asm/simd_enc_rest.o -o $@ && \
+		ld -r $(LD_R_MULTIDEF_FLAGS) src/asm/simd_enc_thin.o src/asm/simd_enc_rest.o -o $@ && \
 		rm -f "$$_tmp_thin" src/asm/simd_enc_thin.o src/asm/simd_enc_rest.o && \
 		nm -gU $@ 2>/dev/null | awk '/ simd_rbp_disp32$$| _simd_rbp_disp32$$/ { found=1 } END { exit !found }' && \
 		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O)"; \
@@ -1803,7 +1803,7 @@ src/asm/simd_loop.o: seeds/simd_loop.from_x.c src/asm/simd_loop_thin.x src/asm/s
 		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/asm/simd_loop_thin.x > "$$_tmp_thin" 2>/dev/null && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp_thin" -o src/asm/simd_loop_thin.o && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_L2_SIMD_LOOP_THIN_FROM_X -c seeds/simd_loop.from_x.c -o src/asm/simd_loop_rest.o && \
-		ld -r src/asm/simd_loop_thin.o src/asm/simd_loop_rest.o -o $@ && \
+		ld -r $(LD_R_MULTIDEF_FLAGS) src/asm/simd_loop_thin.o src/asm/simd_loop_rest.o -o $@ && \
 		rm -f "$$_tmp_thin" src/asm/simd_loop_thin.o src/asm/simd_loop_rest.o && \
 		nm -gU $@ 2>/dev/null | awk '/ glue_simd_loop_pick_lanes_c$$| _glue_simd_loop_pick_lanes_c$$/ { found=1 } END { exit !found }' && \
 		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O)"; \
@@ -1866,6 +1866,21 @@ DRIVER_SEED_RUNTIME_REBUILD = src/runtime_driver_no_c.o
 endif
 # pipeline_glue_standalone 与 pipeline_x.o 重复时 glue 置链接末尾且允许多定义（覆盖 pipeline_gen 快照内旧 glue）。
 ASM_GLUE_STANDALONE_O = build_asm/pipeline_glue_standalone.o
+# Why: SHUX_WEAK (see include/shux_weak.h) expands to `__attribute__((weak))` on ELF
+#      (Linux/macOS) but to EMPTY on PE/MinGW (Windows). Seed .from_x.c files contain
+#      SHUX_WEAK stub fallbacks (e.g. process_args_count_c, parse, typeck_module) that
+#      have a matching strong real implementation in another .o (e.g.
+#      runtime_process_args_thin.from_x.c → process_args_count_c real impl). On ELF,
+#      `ld -r` permits weak+strong merge silently. On PE/MinGW, SHUX_WEAK becomes
+#      strong so both defs are strong → `ld -r` errors with "multiple definition".
+#      `LD_R_MULTIDEF_FLAGS` resolves this uniformly: first-seen wins, and seed .o
+#      ordering puts real impls before stubs in every `ld -r` rule.
+# Invariant: Applied to every `ld -r` rule that merges 2+ .o inputs. Single-input
+#            `ld -r` (rename-only, e.g. path.o/runtime.o) also gets the flag for
+#            consistency (no-op when no duplicates). `ld -r $(LD_FILTER_EXPORT)`
+#            (L1632 backend_x86_64_enc_c.o) is excluded — single .o + version script.
+# PLATFORM: SHARED — Darwin uses -multiply_defined suppress; ELF/PE uses
+#           --allow-multiple-definition. Both are no-ops when no duplicate exists.
 ifeq ($(UNAME_S),Darwin)
 LD_R_MULTIDEF_FLAGS = -multiply_defined suppress
 ASM_GLUE_DUP_LDFLAGS = -Wl,-multiply_defined,suppress
@@ -2401,7 +2416,7 @@ src/lsp/lsp_diag_stubs_no_c.o: seeds/lsp_diag_stubs_no_c.from_x.c src/lsp/lsp_di
 		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/lsp/lsp_diag_stubs_no_c.x > "$$_tmp" 2>/dev/null && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/lsp/lsp_diag_stubs_no_c_x.o && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_LSP_DIAG_STUBS_NO_C_FROM_X -c seeds/lsp_diag_stubs_no_c.from_x.c -o src/lsp/lsp_diag_stubs_no_c_rest.o && \
-		ld -r src/lsp/lsp_diag_stubs_no_c_x.o src/lsp/lsp_diag_stubs_no_c_rest.o -o $@ && \
+		ld -r $(LD_R_MULTIDEF_FLAGS) src/lsp/lsp_diag_stubs_no_c_x.o src/lsp/lsp_diag_stubs_no_c_rest.o -o $@ && \
 		rm -f "$$_tmp" src/lsp/lsp_diag_stubs_no_c_x.o src/lsp/lsp_diag_stubs_no_c_rest.o && \
 		echo "phase4: $@ <- .x + seed-rest (PREFER_X_O)"; \
 	}; then :; \
