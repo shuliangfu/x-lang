@@ -15,6 +15,11 @@ CFLAGS ?= -Wall -Wextra -I. -Iinclude -Isrc
 # Windows/MinGW: __attribute__((weak)) 函数符号不被 PE 格式支持，
 # 所有 weak 函数在 stub 文件中变为正常定义；用 --allow-multiple-definition 解决重复定义冲突。
 ifeq ($(OS),Windows_NT)
+# PLATFORM: WINDOWS — PE link flags for non-bootstrap targets (see MAIN_LINK_FLAGS
+#            for bootstrap-driver-seed stack reserve).
+#   --allow-multiple-definition: SHUX_WEAK expands to empty on PE, so weak stub
+#     .o files become strong defs; FIRST in link order wins. Required to resolve
+#     duplicate symbol conflicts between stubs and real implementations.
 WIN_LDFLAGS = -Wl,--allow-multiple-definition
 # Why: On MSYS Git Bash, make auto-detects SHELL = "C:/Program Files/Git/usr/bin/sh.exe"
 #      (path with embedded space) but fails to quote it, so the sh invocation
@@ -1971,7 +1976,15 @@ endif
 else ifeq ($(SHUX_IS_WIN_HOST),1)
 MAIN_LINK_O = src/asm/crt0_mingw.o
 MAIN_LINK_REBUILD = src/asm/crt0_mingw.o
-MAIN_LINK_FLAGS =
+# PLATFORM: WINDOWS — PE stack reserve 256MiB (matches pthread path stack_sz).
+# winpthreads crash with 256MiB posix_memalign'd custom stack during
+# pthread_join cleanup; bootstrap_nostdlib_pthread_is_stub()=1 on Windows
+# bypasses pthread, running X pipeline on main thread. But MSYS default
+# main thread stack is ~2MiB (ulimit -s = 2032), causing intermittent
+# stack overflow (exit=1) during deep parse_into/typeck_x_ast/codegen_x_ast
+# recursion. driver_bump_stack_limit is a no-op on Windows (#ifndef _WIN32).
+# PE --stack sets virtual address space reserve; OS pager commits on demand.
+MAIN_LINK_FLAGS = -Wl,--stack,268435456
 else
 MAIN_LINK_O = src/main_driver.o
 MAIN_LINK_REBUILD = src/main_driver.o
