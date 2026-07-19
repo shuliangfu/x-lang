@@ -107,6 +107,26 @@ static inline ssize_t pwrite(int fd, const void *buf, size_t count, off_t offset
     return n;
 }
 
+/* setenv — POSIX set environment variable; MinGW lacks it (has _putenv_s).
+ *           Returns 0 on success, -1 on error (POSIX semantics).
+ *           `overwrite == 0` and existing variable → no-op success.
+ * Why: driver_gen.c:559 calls setenv("SHUX_RUN_QUIET", "1", 1) (generated
+ *      from src/driver.x main_cmd_run). MinGW stdlib.h declares _putenv_s
+ *      but not setenv, causing implicit-declaration errors. */
+static inline int setenv(const char *name, const char *value, int overwrite) {
+    if (!overwrite && getenv(name) != NULL) return 0;
+    return _putenv_s(name, value) == 0 ? 0 : -1;
+}
+
+/* unsetenv — POSIX unset environment variable; MinGW lacks it (has _putenv_s).
+ *             Returns 0 on success, -1 on error (POSIX semantics).
+ *             POSIX requires unsetenv to remove the variable entirely; MinGW
+ *             _putenv_s(name, "") sets it to empty string (different but
+ *             close enough for SHUX usage which only checks getenv != NULL). */
+static inline int unsetenv(const char *name) {
+    return _putenv_s(name, "") == 0 ? 0 : -1;
+}
+
 #else
 /* macOS / Linux: delegate to the system <unistd.h>. */
 #include_next <unistd.h>
