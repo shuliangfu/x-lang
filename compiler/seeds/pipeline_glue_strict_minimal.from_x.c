@@ -340,6 +340,15 @@ extern int32_t pipeline_expr_array_lit_elem_ref(struct ast_ASTArena *arena, int3
 extern int32_t pipeline_expr_field_access_base_ref(struct ast_ASTArena *arena, int32_t expr_ref);
 extern int32_t pipeline_expr_field_access_name_len(struct ast_ASTArena *arena, int32_t expr_ref);
 extern void pipeline_expr_field_access_name_into(struct ast_ASTArena *arena, int32_t expr_ref, uint8_t *out);
+/* C5-enum-variant: read-only accessors used by the strict-minimal whitelist
+ * (pipeline_typeck_const_expr_ref_strict_minimal). The active-module getter
+ * returns the typeck module currently in scope (defined in pipeline_glue.c);
+ * the marker and the is_enum_variant probe live in ast_pool.c / pipeline_glue.c
+ * and are linked at g05 time. Declared here because the seed TU does not see
+ * the headers that originally export them. PLATFORM: SHARED. */
+extern struct ast_Module *pipeline_typeck_active_module_c(void);
+extern void pipeline_expr_try_mark_enum_field_access(struct ast_Module *m, struct ast_ASTArena *a, int32_t expr_ref);
+extern int32_t pipeline_expr_field_access_is_enum_variant(struct ast_ASTArena *a, int32_t expr_ref);
 extern int32_t pipeline_expr_index_base_ref(struct ast_ASTArena *arena, int32_t expr_ref);
 extern int32_t pipeline_expr_resolved_type_ref(struct ast_ASTArena *arena, int32_t expr_ref);
 extern int64_t pipeline_expr_int64_val_at(struct ast_ASTArena *arena, int32_t expr_ref);
@@ -1856,6 +1865,51 @@ int32_t pipeline_typeck_const_expr_ref_strict_minimal(struct ast_ASTArena *arena
         return 0;
     }
     return 1;
+  }
+  /**
+   * C5-enum-variant: a TypeName.Variant FIELD_ACCESS is a const expression
+   * iff the marker confirms it resolves to an enum variant tag.
+   *
+   * Why: This whitelist (called by typeck_check_block_one_const at seed
+   *      typeck_gen L6839) runs BEFORE the typeck-time marker
+   *      pipeline_typeck_try_mark_enum_field_access fires inside
+   *      typeck_check_expr at L6850. So at whitelist time a fresh
+   *      FIELD_ACCESS still has field_access_is_enum_variant=0, and the
+   *      whitelist cannot tell Color.Red (enum variant — const-eligible)
+   *      from obj.field (runtime struct access — NOT const-eligible).
+   *
+   *      We resolve the chicken-and-egg by pre-marking here using the
+   *      global g_typeck_active_module, which is set at module typeck
+   *      entry (ast_pool.c L6428 / pipeline_glue.c L22027) before any
+   *      block-level typeck runs. The marker is idempotent — early-
+   *      returns if already marked — so re-marking at L6850 is a no-op.
+   *
+   * Invariant: For non-enum FIELD_ACCESS (obj.field / array[x].field at
+   *            runtime) pipeline_expr_try_mark_enum_field_access leaves
+   *            field_access_is_enum_variant=0 (tag lookup returns -1), so
+   *            this branch correctly rejects them — they are NOT const.
+   *            Only TypeName.Variant shapes pass.
+   *
+   * Asm/Perf: Enables `const X: Color = Color.Red;` to typecheck, paving
+   *           the way for the fold handler in glue_typeck_fold_expr_ref to
+   *           stamp X.const_folded_val=tag. Downstream `match X { ... }`
+   *           then folds to a single mov w0,#imm (no runtime enum load).
+   *
+   * PLATFORM: SHARED — g_typeck_active_module is populated identically on
+   *           macOS arm64 and Ubuntu x86_64 at module typeck entry.
+   *           Mirrors glue_is_const_expr_ref in pipeline_glue.c (kept in
+   *           sync per "seed 与 glue 副本同 commit" rule).
+   */
+  if (kind == (int32_t)ast_ExprKind_EXPR_FIELD_ACCESS) {
+    /* C5-enum-variant: pre-mark via the active-module getter (defined in
+     * pipeline_glue.c) so enum-variant shapes pass; runtime obj.field
+     * stays non-const. See glue_is_const_expr_ref in pipeline_glue.c for
+     * the full rationale (kept in sync per "seed 与 glue 副本同 commit"). */
+    struct ast_Module *active_mod = pipeline_typeck_active_module_c();
+    pipeline_expr_try_mark_enum_field_access(active_mod, arena, expr_ref);
+    if (pipeline_expr_field_access_is_enum_variant(arena, expr_ref) != 0)
+      return 1;
+    return 0;
   }
   return 0;
 }

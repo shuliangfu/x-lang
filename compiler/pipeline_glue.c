@@ -1570,6 +1570,10 @@ int32_t pipeline_expr_struct_lit_num_fields(struct ast_ASTArena *a, int32_t expr
 int32_t pipeline_expr_struct_lit_init_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t j);
 int32_t pipeline_expr_enum_variant_tag_at(struct ast_ASTArena *a, int32_t expr_ref);
 int32_t pipeline_expr_field_access_is_enum_variant(struct ast_ASTArena *a, int32_t expr_ref);
+/* Forward declaration: definition lives in ast_pool.c (#include'd below at L21844).
+ * Required so the C5-enum-variant whitelist pre-mark and fold handler can call
+ * the marker before ast_pool.c is textually included. */
+void pipeline_expr_try_mark_enum_field_access(struct ast_Module *m, struct ast_ASTArena *a, int32_t expr_ref);
 int32_t pipeline_expr_field_access_base_ref(struct ast_ASTArena *a, int32_t expr_ref);
 int32_t pipeline_expr_field_access_name_len(struct ast_ASTArena *a, int32_t expr_ref);
 void pipeline_expr_field_access_name_into(struct ast_ASTArena *a, int32_t expr_ref, uint8_t *out);
@@ -13578,6 +13582,44 @@ static int glue_is_const_expr_ref(struct ast_ASTArena *a, int32_t expr_ref, cons
     }
     return 1;
   }
+  /**
+   * C5-enum-variant: a TypeName.Variant FIELD_ACCESS is a const expression
+   * iff the marker confirms it resolves to an enum variant tag.
+   *
+   * Why: This whitelist (pipeline_typeck_block_const_init_is_const_c) runs at
+   *      seed typeck_gen L6839, BEFORE the typeck-time marker
+   *      pipeline_typeck_try_mark_enum_field_access fires inside
+   *      typeck_check_expr at L6850. So at whitelist time a fresh
+   *      FIELD_ACCESS still has field_access_is_enum_variant=0, and the
+   *      whitelist cannot tell Color.Red (enum variant — const-eligible)
+   *      from obj.field (runtime struct access — NOT const-eligible).
+   *
+   *      We resolve the chicken-and-egg by pre-marking here using the
+   *      global g_typeck_active_module, which is set at module typeck
+   *      entry (ast_pool.c L6428 / pipeline_glue.c L22027) before any
+   *      block-level typeck runs. The marker is idempotent — early-
+   *      returns if already marked — so re-marking at L6850 is a no-op.
+   *
+   * Invariant: For non-enum FIELD_ACCESS (obj.field / array[x].field at
+   *            runtime) pipeline_expr_try_mark_enum_field_access leaves
+   *            field_access_is_enum_variant=0 (tag lookup returns -1), so
+   *            this branch correctly rejects them — they are NOT const.
+   *            Only TypeName.Variant shapes pass.
+   *
+   * Asm/Perf: Enables `const X: Color = Color.Red;` to typecheck, paving
+   *           the way for the fold handler in glue_typeck_fold_expr_ref to
+   *           stamp X.const_folded_val=tag. Downstream `match X { ... }`
+   *           then folds to a single mov w0,#imm (no runtime enum load).
+   *
+   * PLATFORM: SHARED — g_typeck_active_module is populated identically on
+   *           macOS arm64 and Ubuntu x86_64 at module typeck entry.
+   */
+  if (kd == ast_ExprKind_EXPR_FIELD_ACCESS) {
+    pipeline_expr_try_mark_enum_field_access(g_typeck_active_module, a, expr_ref);
+    if (pipeline_expr_field_access_is_enum_variant(a, expr_ref) != 0)
+      return 1;
+    return 0;
+  }
   return 0;
 }
 
@@ -13860,6 +13902,55 @@ static void glue_typeck_fold_expr_ref(struct ast_ASTArena *a, int32_t expr_ref,
         e->const_folded_valid = 1;
       }
     }
+    return;
+  }
+
+  /**
+   * PLATFORM: SHARED — C5-enum-variant CTFE (TypeName.Variant folds to tag).
+   *
+   * Why: Enum variants are statically assigned a discriminator tag at parse
+   *      time via pipeline_module_enum_variant_tag_for_names (ast_pool.c
+   *      L4204). The same source feeds both:
+   *        - MatchArmEntry.variant_index (pipeline_expr_append_match_arm,
+   *          ast_pool.c L5200) — drives arm comparison in EXPR_MATCH fold.
+   *        - Expr.enum_variant_tag (set by pipeline_expr_try_mark_enum_field_access,
+   *          ast_pool.c L4312) — drives emit's `mov w0,#tag` fast path.
+   *      Folding Color.Red into const_folded_val=tag enables two key wins:
+   *        (1) `const X: Color = Color.Red;` stamps X with the tag so
+   *            downstream `match X { Color.Red => ... }` folds to a single
+   *            immediate via the EXPR_MATCH handler (L14131-14137).
+   *        (2) Standalone `return Color.Red;` emits `mov w0,#tag` directly
+   *            instead of going through runtime enum-load glue.
+   *
+   * Invariant: const_folded_val holds the enum_variant_tag (i32 >= 0). The
+   *            marker is idempotent — re-running on an already-marked expr
+   *            early-returns without rewriting the tag. For non-enum
+   *            FIELD_ACCESS (obj.field) the marker leaves
+   *            field_access_is_enum_variant=0, so this branch correctly
+   *            skips stamping (const_folded_valid stays 0, set at L13664).
+   *            The marker needs the active module — g_typeck_active_module
+   *            is set at module typeck entry (ast_pool.c L6428 / glue L22027)
+   *            and remains live throughout block-level typeck.
+   *
+   * Asm/Perf: Replaces runtime tag-load sequence (`adrp xN, .enum_table;
+   *           ldr w0, [xN, #off]`) with `mov w0, #imm` (4 bytes vs ~12).
+   *           Eliminates a memory load and a relocation in the .text section.
+   *           For match-on-const-enum the entire jump table collapses to one
+   *           immediate materialization.
+   */
+  if (kd == ast_ExprKind_EXPR_FIELD_ACCESS) {
+    int32_t tag;
+    /* Pre-mark in case the whitelist path was bypassed (e.g. fold invoked
+     * from pipeline_typeck_fold_expr_c on a standalone FIELD_ACCESS expr
+     * without prior whitelist pre-mark). No-op if already marked. */
+    pipeline_expr_try_mark_enum_field_access(g_typeck_active_module, a, expr_ref);
+    if (pipeline_expr_field_access_is_enum_variant(a, expr_ref) == 0)
+      return; /* Non-enum FIELD_ACCESS: runtime struct access, not const. */
+    tag = pipeline_expr_enum_variant_tag_at(a, expr_ref);
+    if (tag < 0)
+      return; /* Defensive: marker set is_enum_variant=1 but tag readback failed. */
+    e->const_folded_val = tag;
+    e->const_folded_valid = 1;
     return;
   }
 
@@ -25526,6 +25617,28 @@ static struct ast_PipelineDepCtx *g_typeck_active_ctx;
 void pipeline_typeck_set_active_ctx_c(struct ast_Module *module, struct ast_PipelineDepCtx *ctx) {
   g_typeck_active_module = module;
   g_typeck_active_ctx = ctx;
+}
+
+/**
+ * C5-enum-variant: read-only accessor for the active typeck module.
+ *
+ * Why: The const-init whitelist (pipeline_typeck_block_const_init_is_const_c)
+ *      runs BEFORE the typeck-time marker pipeline_typeck_try_mark_enum_field_access
+ *      fires inside typeck_check_expr (seed typeck_gen L6839 vs L6850). To pre-mark
+ *      FIELD_ACCESS nodes at whitelist time we need the active module — but the
+ *      whitelist signature takes only (arena, block_ref, idx), no module param.
+ *      Rather than widening the signature (which would force seed modifications
+ *      across many call sites), we expose a getter for the active module that
+ *      the strict_minimal seed whitelist mirrors via extern.
+ *
+ * Invariant: Returns NULL outside the typeck phase; non-NULL throughout
+ *            typeck_parsed_module_c (ast_pool.c L6428 sets it; L22027 sets
+ *            it for the parse-coupled entry). Callers must NULL-check.
+ *
+ * PLATFORM: SHARED — populated identically on macOS arm64 and Ubuntu x86_64.
+ */
+struct ast_Module *pipeline_typeck_active_module_c(void) {
+  return g_typeck_active_module;
 }
 
 /** M-4：进入新函数 typeck 前清零 moved 集合。 */
