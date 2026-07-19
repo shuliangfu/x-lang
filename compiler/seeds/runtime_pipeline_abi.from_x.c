@@ -3453,10 +3453,23 @@ char *shux_preprocess_quiet(const char *source, size_t source_len, const char **
 }
 
 #ifdef _WIN32
-struct platform_elf_ElfCodegenCtx; /* 前向声明 */
-/* Windows stub: parser_parse_into_init / parser_parse_into / parser_get_module_num_imports / parser_get_module_import_path */
+struct platform_elf_ElfCodegenCtx; /* Forward declaration. */
+/* Why: Windows stub function signatures MUST match the extern declarations
+ *      earlier in this file (L1811/L1813/L1814/L2015/L2558/L2559/L3223-L3226/
+ *      L3253). MinGW gcc strictly enforces C type compatibility between
+ *      extern declaration and definition (void* vs uint8_t* are NOT
+ *      compatible types per C11 6.7.6.3p15), while Apple clang is lenient.
+ *      The previous uint8_t* parameter types caused 9 conflicting-types
+ *      errors at the Windows MSYS/MinGW compile stage.
+ * Invariant: parameter types mirror the extern declarations exactly —
+ *            void* where declared void*, struct pointers where declared
+ *            struct pointers, uint8_t* only where declared uint8_t*.
+ * PLATFORM: WINDOWS | MSYS | MINGW (block is #ifdef _WIN32 only).
+ * Windows stub: parser_parse_into_init / parser_parse_into /
+ *               parser_get_module_num_imports / parser_get_module_import_path
+ */
 #ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-void parser_parse_into_init(uint8_t * module, uint8_t * arena) {
+void parser_parse_into_init(void * module, void * arena) {
   (void)(0);
 }
 #endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
@@ -3465,13 +3478,13 @@ struct parser_ParseIntoResult parser_parse_into(void *arena, void *module, struc
     struct parser_ParseIntoResult r; r.ok = -1; r.main_idx = -1; (void)arena; (void)module; (void)source; return r;
 }
 #ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-int32_t parser_get_module_num_imports(uint8_t * module) {
+int32_t parser_get_module_num_imports(void * module) {
   return 0;
 }
 #endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 #ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-void parser_get_module_import_path(uint8_t * module, int32_t idx, uint8_t * path_buf) {
+void parser_get_module_import_path(void * module, int32_t idx, uint8_t * path_buf) {
   if ((path_buf ==((void *)(0)))) {
     return;
   }
@@ -3484,38 +3497,38 @@ void parser_get_module_import_path(uint8_t * module, int32_t idx, uint8_t * path
 
 /* asm stubs */
 #ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-void asm_skip_heavy_set_pipeline_ctx(uint8_t * ctx) {
+void asm_skip_heavy_set_pipeline_ctx(void * ctx) {
   (void)(0);
 }
 #endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 #ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-void pipeline_fill_array_lit_types_for_skipped_typeck(uint8_t * m, uint8_t * a) {
+void pipeline_fill_array_lit_types_for_skipped_typeck(void * m, void * a) {
   (void)(0);
 }
 #endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 #ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-void pipeline_fill_soa_field_access_for_asm_emit(uint8_t * m, uint8_t * a) {
+void pipeline_fill_soa_field_access_for_asm_emit(void * m, void * a) {
   (void)(0);
 }
 #endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 #ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-void pipeline_module_fixup_with_arena_stmt_orders(uint8_t * m, uint8_t * a) {
+void pipeline_module_fixup_with_arena_stmt_orders(void * m, void * a) {
   (void)(0);
 }
 #endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 #ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-int32_t asm_asm_codegen_elf_o(uint8_t * m, uint8_t * a, uint8_t * c, uint8_t * e, uint8_t * o) {
+int32_t asm_asm_codegen_elf_o(void * m, void * a, void * c, struct platform_elf_ElfCodegenCtx * e, void * o) {
   return (0 - 1);
 }
 #endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* 更多 pipeline stub */
 #ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-int32_t pipeline_parse_set_main_from_buf_c(uint8_t * m, uint8_t * a, uint8_t * d, int32_t len) {
+int32_t pipeline_parse_set_main_from_buf_c(struct ast_Module * m, struct ast_ASTArena * a, uint8_t * d, int32_t len) {
   /* Root: delegate to real parser (parser_x.o), not no-op stub. Without this,
    * shux_pipeline_run_x_pipeline_large_stack (used by -E/-x -E and asm paths)
    * never parses, so num_funcs=0 → P001 "no functions". */
