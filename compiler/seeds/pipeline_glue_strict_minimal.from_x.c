@@ -349,6 +349,22 @@ extern void pipeline_expr_field_access_name_into(struct ast_ASTArena *arena, int
 extern struct ast_Module *pipeline_typeck_active_module_c(void);
 extern void pipeline_expr_try_mark_enum_field_access(struct ast_Module *m, struct ast_ASTArena *a, int32_t expr_ref);
 extern int32_t pipeline_expr_field_access_is_enum_variant(struct ast_ASTArena *a, int32_t expr_ref);
+/* C5-ternary-if: read-only accessors for EXPR_IF / EXPR_TERNARY field layout
+ * (if_cond_ref / if_then_ref / if_else_ref). Both kinds share the same layout
+ * (see ast_pool.c::asm_wpo_collect_edges_from_expr L14836-14844); defined in
+ * pipeline_glue.c, linked at g05 time. Required so the strict-minimal whitelist
+ * can recurse into cond/then/else for `const Y = cond ? a : b;` and
+ * `const Y = if (cond) { a } else { b };`. PLATFORM: SHARED. */
+extern int32_t pipeline_expr_if_cond_ref_at(struct ast_ASTArena *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_if_then_ref_at(struct ast_ASTArena *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_if_else_ref_at(struct ast_ASTArena *arena, int32_t expr_ref);
+/* C5-block: read-only accessor for EXPR_BLOCK's block_ref field. The if-expr
+ * parser (parser_asm_if_expr_slice.inc::parser_asm_wrap_block_ref_as_expr_c)
+ * wraps each branch's parse_block result as an EXPR_BLOCK node holding the
+ * block_ref, so EXPR_IF recursion always reaches EXPR_BLOCK children.
+ * Without this whitelist entry, `const Y = if (c) { 100 } else { 200 };`
+ * is rejected at T001 even when c/100/200 are all const. PLATFORM: SHARED. */
+extern int32_t pipeline_expr_block_ref_at(struct ast_ASTArena *arena, int32_t expr_ref);
 extern int32_t pipeline_expr_index_base_ref(struct ast_ASTArena *arena, int32_t expr_ref);
 extern int32_t pipeline_expr_resolved_type_ref(struct ast_ASTArena *arena, int32_t expr_ref);
 extern int64_t pipeline_expr_int64_val_at(struct ast_ASTArena *arena, int32_t expr_ref);
@@ -501,6 +517,13 @@ extern int32_t ast_ast_block_num_expr_stmts(struct ast_ASTArena *arena, int32_t 
 extern int32_t ast_ast_block_num_stmt_order(struct ast_ASTArena *arena, int32_t block_ref);
 extern int32_t ast_ast_block_final_expr_ref(struct ast_ASTArena *arena, int32_t block_ref);
 extern int32_t ast_ast_block_expr_stmt_ref(struct ast_ASTArena *arena, int32_t block_ref, int32_t idx);
+/* C5-block: wrapper for pipeline_block_expr_stmt_ref (defined in pipeline_glue.c
+ * at L23328). Used by EXPR_BLOCK CTFE whitelist to fetch the single expr-stmt
+ * when the parser has normalized `{ expr }` (final_expr_ref=0, num_expr_stmts=1,
+ * expr_stmts[0]=expr). Declared separately from ast_ast_block_expr_stmt_ref
+ * above because the two are distinct symbols in pipeline_x.o — the
+ * ast_pipeline_* variant is the glue wrapper, ast_ast_* is the direct accessor. */
+extern int32_t ast_pipeline_block_expr_stmt_ref(struct ast_ASTArena *arena, int32_t block_ref, int32_t idx);
 extern int32_t pipeline_block_stmt_order_kind(struct ast_ASTArena *arena, int32_t block_ref, int32_t idx);
 extern int32_t pipeline_block_stmt_order_idx(struct ast_ASTArena *arena, int32_t block_ref, int32_t idx);
 extern int32_t pipeline_block_region_body_ref(struct ast_ASTArena *arena, int32_t block_ref, int32_t idx);
@@ -1910,6 +1933,92 @@ int32_t pipeline_typeck_const_expr_ref_strict_minimal(struct ast_ASTArena *arena
     if (pipeline_expr_field_access_is_enum_variant(arena, expr_ref) != 0)
       return 1;
     return 0;
+  }
+  /**
+   * C5-ternary-if: a ternary `cond ? then : else` or if-expression
+   * `if cond { then } else { else }` is a const expression iff cond, then,
+   * and else are all const expressions. EXPR_IF and EXPR_TERNARY share the
+   * same field layout (if_cond_ref / if_then_ref / if_else_ref).
+   *
+   * Why: Lets `const Y: i32 = (X == 2) ? 100 : 200;` and
+   *      `const Y: i32 = if (X == 2) { 100 } else { 200 };` pass the
+   *      const-init whitelist (pipeline_typeck_const_expr_ref_strict_minimal).
+   *      The fold handler in pipeline_glue.c::glue_typeck_fold_expr_ref then
+   *      picks the live branch and stamps the result.
+   *
+   * Invariant: Recurses into all three children (cond, then, else). If any
+   *            child is non-const the whole expression is non-const.
+   *
+   * PLATFORM: SHARED — Mirrors glue_is_const_expr_ref in pipeline_glue.c
+   *           (kept in sync per "seed 与 glue 副本同 commit" rule; Darwin
+   *           filtered pipeline localizes glue's strong version, so this
+   *           seed weak version is what's actually called on Darwin).
+   */
+  if (kind == (int32_t)ast_ExprKind_EXPR_TERNARY || kind == (int32_t)ast_ExprKind_EXPR_IF) {
+    int32_t cond_ref = pipeline_expr_if_cond_ref_at(arena, expr_ref);
+    int32_t then_ref = pipeline_expr_if_then_ref_at(arena, expr_ref);
+    int32_t else_ref = pipeline_expr_if_else_ref_at(arena, expr_ref);
+    if (cond_ref <= 0 || then_ref <= 0 || else_ref <= 0)
+      return 0;
+    return pipeline_typeck_const_expr_ref_strict_minimal(arena, cond_ref, const_names, n_const_names) &&
+           pipeline_typeck_const_expr_ref_strict_minimal(arena, then_ref, const_names, n_const_names) &&
+           pipeline_typeck_const_expr_ref_strict_minimal(arena, else_ref, const_names, n_const_names);
+  }
+  /**
+   * C5-block: a single-stmt block `({ expr })` is a const expression iff the
+   * block has no side-effecting statements (no const/let decls, no loops, no
+   * if-statements, no regions) and exactly one expression statement whose
+   * expr is const. This is required for EXPR_IF support because the
+   * if-expression parser wraps each branch as EXPR_BLOCK
+   * (parser_asm_if_expr_slice.inc::parser_asm_wrap_block_ref_as_expr_c);
+   * recursing into then_ref/else_ref reaches EXPR_BLOCK children.
+   *
+   * Why: Lets `const Y: i32 = if (X==2) { 100 } else { 200 };` pass the
+   *      const-init whitelist by treating the wrapped `{ 100 }` block as the
+   *      inner literal's value. Multi-stmt / side-effecting blocks stay
+   *      non-const (correctly: those have runtime ordering concerns).
+   *
+   * Invariant: Only single-expr-stmt, no-decl blocks are accepted. The fold
+   *            handler in glue_typeck_fold_expr_ref mirrors this check and
+   *            stamps e->const_folded_val from the final expr's folded value.
+   *
+   * PLATFORM: SHARED — Mirrors glue_is_const_expr_ref in pipeline_glue.c
+   *           (kept in sync per "seed 与 glue 副本同 commit" rule; Darwin
+   *           filtered pipeline localizes glue's strong version, so this
+   *           seed weak version is what's actually called on Darwin).
+   */
+  if (kind == (int32_t)ast_ExprKind_EXPR_BLOCK) {
+    int32_t block_ref = pipeline_expr_block_ref_at(arena, expr_ref);
+    int32_t final_expr_ref;
+    int32_t n_es;
+    if (block_ref <= 0)
+      return 0;
+    if (ast_ast_block_num_consts(arena, block_ref) > 0)
+      return 0;
+    if (ast_ast_block_num_lets(arena, block_ref) > 0)
+      return 0;
+    if (ast_ast_block_num_loops(arena, block_ref) > 0)
+      return 0;
+    if (ast_ast_block_num_for_loops(arena, block_ref) > 0)
+      return 0;
+    if (ast_ast_block_num_if_stmts(arena, block_ref) > 0)
+      return 0;
+    if (ast_ast_block_num_regions(arena, block_ref) > 0)
+      return 0;
+    /* Parser normalizes `{ expr }` (final_expr_ref set, num_expr_stmts=0)
+     * into `expr_stmts[0] = expr; final_expr_ref = 0`. Accept either form. */
+    n_es = ast_ast_block_num_expr_stmts(arena, block_ref);
+    final_expr_ref = ast_ast_block_final_expr_ref(arena, block_ref);
+    if (final_expr_ref <= 0) {
+      if (n_es != 1)
+        return 0;
+      final_expr_ref = ast_pipeline_block_expr_stmt_ref(arena, block_ref, 0);
+    } else if (n_es != 0) {
+      return 0;
+    }
+    if (final_expr_ref <= 0)
+      return 0;
+    return pipeline_typeck_const_expr_ref_strict_minimal(arena, final_expr_ref, const_names, n_const_names);
   }
   return 0;
 }

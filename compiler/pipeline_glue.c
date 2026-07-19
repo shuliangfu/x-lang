@@ -7169,6 +7169,7 @@ int32_t ast_ast_block_num_if_stmts(struct ast_ASTArena *a, int32_t br);
 int32_t ast_ast_block_num_regions(struct ast_ASTArena *a, int32_t br);
 int32_t ast_ast_block_region_body_ref(struct ast_ASTArena *a, int32_t br, int32_t ri);
 int32_t ast_ast_block_num_expr_stmts(struct ast_ASTArena *a, int32_t br);
+int32_t ast_ast_block_final_expr_ref(struct ast_ASTArena *a, int32_t br);
 int32_t ast_ast_block_while_body_ref(struct ast_ASTArena *a, int32_t br, int32_t wi);
 int32_t ast_ast_block_while_cond_ref(struct ast_ASTArena *a, int32_t br, int32_t wi);
 int32_t ast_ast_block_for_body_ref(struct ast_ASTArena *a, int32_t br, int32_t fi);
@@ -13620,6 +13621,116 @@ static int glue_is_const_expr_ref(struct ast_ASTArena *a, int32_t expr_ref, cons
       return 1;
     return 0;
   }
+  /**
+   * C5-ternary-if: a ternary `cond ? then : else` or if-expression
+   * `if cond { then } else { else }` is a const expression iff cond, then,
+   * and else are all const expressions. EXPR_IF and EXPR_TERNARY share the
+   * same field layout (if_cond_ref / if_then_ref / if_else_ref, see
+   * ast_pool.c::asm_wpo_collect_edges_from_expr L14836-14844), so one
+   * branch covers both kinds.
+   *
+   * Why: Lets `const Y: i32 = (X == 2) ? 100 : 200;` and
+   *      `const Y: i32 = if (X == 2) { 100 } else { 200 };` pass the
+   *      const-init whitelist (pipeline_typeck_block_const_init_is_const_c
+   *      at seed typeck_gen L6839). The fold handler in
+   *      glue_typeck_fold_expr_ref then picks the live branch and stamps
+   *      the result. Mirrors EXPR_MATCH treatment (subject + arms recursion
+   *      but no top-level whitelist case; here we whitelist because both
+   *      branches are statically reachable from a const POV — only one is
+   *      selected at CTFE, but both must be const-eligible to type-check
+   *      `const Y = cond ? a : b;` regardless of which branch fires).
+   *
+   * Invariant: Recurses into all three children (cond, then, else). If any
+   *            child is non-const (e.g. runtime VAR or function call) the
+   *            whole expression is non-const. This is stricter than the
+   *            fold handler, which only needs the *selected* branch to
+   *            fold — the whitelist must accept both because the typeck
+   *            pass runs before CTFE picks a branch.
+   *
+   * Asm/Perf: Enables `const Y = cond ? a : b;` to typecheck, paving the
+   *           way for the fold handler to emit `mov w0, #const` (4 bytes)
+   *           instead of runtime cmp/branch + 2× value materialization
+   *           (~24 bytes). Also unlocks parent binop folds.
+   *
+   * PLATFORM: SHARED — EXPR_IF / EXPR_TERNARY field layout is identical on
+   *           macOS arm64 and Ubuntu x86_64 (ast_pool.c L14836).
+   */
+  if (kd == ast_ExprKind_EXPR_TERNARY || kd == ast_ExprKind_EXPR_IF) {
+    int32_t cond_ref = pipeline_expr_if_cond_ref_at(a, expr_ref);
+    int32_t then_ref = pipeline_expr_if_then_ref_at(a, expr_ref);
+    int32_t else_ref = pipeline_expr_if_else_ref_at(a, expr_ref);
+    if (cond_ref <= 0 || then_ref <= 0 || else_ref <= 0)
+      return 0;
+    return glue_is_const_expr_ref(a, cond_ref, const_names, n_const_names) &&
+           glue_is_const_expr_ref(a, then_ref, const_names, n_const_names) &&
+           glue_is_const_expr_ref(a, else_ref, const_names, n_const_names);
+  }
+  /**
+   * C5-block: a single-stmt block `({ expr })` is a const expression iff the
+   * block has no side-effecting statements (no const/let decls, no loops, no
+   * if-statements, no regions) and exactly one expression statement whose
+   * expr is const. This is required for EXPR_IF support because the
+   * if-expression parser wraps each branch as EXPR_BLOCK
+   * (parser_asm_if_expr_slice.inc::parser_asm_wrap_block_ref_as_expr_c);
+   * recursing into then_ref/else_ref reaches EXPR_BLOCK children.
+   *
+   * Why: Lets `const Y: i32 = if (X==2) { 100 } else { 200 };` pass the
+   *      const-init whitelist by treating the wrapped `{ 100 }` block as the
+   *      inner literal's value. Multi-stmt / side-effecting blocks stay
+   *      non-const (correctly: those have runtime ordering concerns that
+   *      CTFE cannot model at this stage).
+   *
+   * Invariant: Strict side-effect scan (num_consts/lets/loops/for_loops/
+   *            if_stmts/regions all zero, num_expr_stmts == 1). The fold
+   *            handler mirrors this check and stamps e->const_folded_val
+   *            from ast_ast_block_final_expr_ref's folded value.
+   *
+   * Asm/Perf: Unlocks EXPR_IF CTFE end-to-end. Combined with EXPR_TERNARY +
+   *           EXPR_IF handlers, enables `const Y = cond ? a : b;` and
+   *           `const Y = if (c) { a } else { b };` to emit `mov w0, #const`
+   *           (4 bytes / 1 instr) instead of runtime cmp/branch + materialize.
+   *
+   * PLATFORM: SHARED — EXPR_BLOCK layout and Block accessors are identical
+   *           on macOS arm64 and Ubuntu x86_64. Mirrored in seed
+   *           pipeline_glue_strict_minimal.from_x.c (Darwin filtered pipeline
+   *           localizes this strong version, so seed weak version is what
+   *           Darwin calls).
+   */
+  if (kd == ast_ExprKind_EXPR_BLOCK) {
+    int32_t block_ref = pipeline_expr_block_ref_at(a, expr_ref);
+    int32_t final_expr_ref;
+    int32_t n_es;
+    if (block_ref <= 0)
+      return 0;
+    if (ast_ast_block_num_consts(a, block_ref) > 0)
+      return 0;
+    if (ast_ast_block_num_lets(a, block_ref) > 0)
+      return 0;
+    if (ast_ast_block_num_loops(a, block_ref) > 0)
+      return 0;
+    if (ast_ast_block_num_for_loops(a, block_ref) > 0)
+      return 0;
+    if (ast_ast_block_num_if_stmts(a, block_ref) > 0)
+      return 0;
+    if (ast_ast_block_num_regions(a, block_ref) > 0)
+      return 0;
+    /* Parser normalizes `{ expr }` (final_expr_ref set, num_expr_stmts=0)
+     * into `expr_stmts[0] = expr; final_expr_ref = 0`. So accept either
+     * form: prefer final_expr_ref when set, else fall back to the single
+     * expr_stmt. Reject multi-stmt blocks (num_expr_stmts > 1). */
+    n_es = ast_ast_block_num_expr_stmts(a, block_ref);
+    final_expr_ref = ast_ast_block_final_expr_ref(a, block_ref);
+    if (final_expr_ref <= 0) {
+      if (n_es != 1)
+        return 0;
+      final_expr_ref = ast_pipeline_block_expr_stmt_ref(a, block_ref, 0);
+    } else if (n_es != 0) {
+      return 0;
+    }
+    if (final_expr_ref <= 0)
+      return 0;
+    return glue_is_const_expr_ref(a, final_expr_ref, const_names, n_const_names);
+  }
   return 0;
 }
 
@@ -14242,6 +14353,142 @@ static void glue_typeck_fold_expr_ref(struct ast_ASTArena *a, int32_t expr_ref,
     }
     return;
   }
+  /**
+   * C5-ternary-if: fold `cond ? then : else` and `if cond { then } else { else }`
+   * to the selected branch's constant when cond folds. EXPR_IF and EXPR_TERNARY
+   * share the if_cond_ref / if_then_ref / if_else_ref field layout (see
+   * ast_pool.c::asm_wpo_collect_edges_from_expr L14836-14844), so one branch
+   * covers both kinds.
+   *
+   * Why: Pure-const ternaries/if-exprs (`const Y = (X==2) ? 100 : 200;` or
+   *      `let Y = if (X==2) { 100 } else { 200 };` with X a prior const) are
+   *      common in config / lookup tables. Folding them at typeck time lets
+   *      emit emit `mov w0, #const` (4 bytes) instead of runtime cmp/branch +
+   *      2× value materialization (~24 bytes). Mirrors EXPR_MATCH handler
+   *      (subject fold → branch select → result fold → stamp), generalized
+   *      to the 2-branch case.
+   *
+   * Invariant: Only stamps const_folded_valid=1 when (1) cond folds to a
+   *            constant and (2) the selected branch (then if cond != 0,
+   *            else if cond == 0) also folds to a constant. If cond does
+   *            not fold (runtime value) both branches are still recursed
+   *            into so nested pure subtrees can fold, but the ternary/if
+   *            node itself stays valid=0 (runtime cmp/branch emit path).
+   *            Asm-emit branch (cond==0/!=0) is unchanged.
+   *
+   * Asm/Perf: Replaces `cmp; b.eq else; mov w0, then; b done; else: mov w0,
+   *           else; done:` (~24 bytes / 5 instrs) with `mov w0, #const`
+   *           (4 bytes / 1 instr). Also unlocks parent binop folds.
+   *
+   * PLATFORM: SHARED — EXPR_IF / EXPR_TERNARY field layout and accessors
+   *           (pipeline_expr_if_cond_ref_at / _then_ref_at / _else_ref_at)
+   *           are identical on macOS arm64 and Ubuntu x86_64.
+   */
+  if (kd == ast_ExprKind_EXPR_TERNARY || kd == ast_ExprKind_EXPR_IF) {
+    int32_t cond_ref = pipeline_expr_if_cond_ref_at(a, expr_ref);
+    int32_t then_ref = pipeline_expr_if_then_ref_at(a, expr_ref);
+    int32_t else_ref = pipeline_expr_if_else_ref_at(a, expr_ref);
+    int32_t sel_ref;
+    struct ast_Expr *ec;
+    struct ast_Expr *es;
+
+    if (cond_ref <= 0)
+      return;
+    glue_typeck_fold_expr_ref(a, cond_ref, const_names, const_values, n_const_names);
+    ec = glue_arena_expr_at_ref(a, cond_ref);
+    if (!ec || !ec->const_folded_valid) {
+      /* Cond did not fold (runtime). Still recurse into both branches so
+       * nested pure subtrees (e.g. `cond ? A+1 : B*2` where A,B are const)
+       * can fold their inner binops, even though the ternary itself stays
+       * runtime. Mirror the ARRAY_LIT/STRUCT_LIT treatment. */
+      if (then_ref > 0)
+        glue_typeck_fold_expr_ref(a, then_ref, const_names, const_values, n_const_names);
+      if (else_ref > 0)
+        glue_typeck_fold_expr_ref(a, else_ref, const_names, const_values, n_const_names);
+      return;
+    }
+    /* Cond folded: pick the live branch. SHUX ternary/if treats any non-zero
+     * int as true (mirrors C semantics; bool is i32 0/1 in the IR). */
+    sel_ref = (ec->const_folded_val != 0) ? then_ref : else_ref;
+    if (sel_ref <= 0)
+      return;
+    glue_typeck_fold_expr_ref(a, sel_ref, const_names, const_values, n_const_names);
+    es = glue_arena_expr_at_ref(a, sel_ref);
+    if (es && es->const_folded_valid) {
+      e->const_folded_val = es->const_folded_val;
+      e->const_folded_valid = 1;
+    }
+    return;
+  }
+  /**
+   * C5-block: fold a single-stmt EXPR_BLOCK `({ expr })` by folding the
+   * block's final expr_stmt and stamping the EXPR_BLOCK node with its
+   * folded value. Mirrors the whitelist side-effect scan: only blocks with
+   * no const/let/loop/if-stmt/region decls and exactly one expr_stmt are
+   * eligible. This is the second half of EXPR_IF support — the if-expr
+   * parser wraps each branch as EXPR_BLOCK, so when EXPR_IF picks a branch
+   * it recurses into an EXPR_BLOCK child, which must fold through to the
+   * inner literal.
+   *
+   * Why: Without this, `const Y = if (X==2) { 100 } else { 200 };` would
+   *      pass the whitelist (EXPR_BLOCK accepted) but the EXPR_IF fold
+   *      would recurse into the EXPR_BLOCK branch and find const_folded_valid=0
+   *      (no handler stamped it), so the EXPR_IF wouldn't propagate the
+   *      value upward. This handler closes the loop.
+   *
+   * Invariant: Same strict side-effect scan as whitelist. If the block has
+   *            any side-effecting stmts, return without stamping (the
+   *            EXPR_BLOCK stays runtime). The final expr is folded
+   *            unconditionally so nested pure subtrees still get CTFE.
+   *
+   * Asm/Perf: Stamps const_folded_val on the EXPR_BLOCK so the parent
+   *           EXPR_IF handler can propagate it to the const decl. Final
+   *           emit then produces `mov w0, #const` (4 bytes / 1 instr).
+   *
+   * PLATFORM: SHARED — Mirrors whitelist case in glue_is_const_expr_ref
+   *           above. ast_ast_block_final_expr_ref returns Block.final_expr_ref
+   *           directly (verified at pipeline_glue.c L23405-23411).
+   */
+  if (kd == ast_ExprKind_EXPR_BLOCK) {
+    int32_t block_ref = pipeline_expr_block_ref_at(a, expr_ref);
+    int32_t final_expr_ref;
+    int32_t n_es;
+    struct ast_Expr *ef;
+    if (block_ref <= 0)
+      return;
+    if (ast_ast_block_num_consts(a, block_ref) > 0)
+      return;
+    if (ast_ast_block_num_lets(a, block_ref) > 0)
+      return;
+    if (ast_ast_block_num_loops(a, block_ref) > 0)
+      return;
+    if (ast_ast_block_num_for_loops(a, block_ref) > 0)
+      return;
+    if (ast_ast_block_num_if_stmts(a, block_ref) > 0)
+      return;
+    if (ast_ast_block_num_regions(a, block_ref) > 0)
+      return;
+    /* Parser normalizes `{ expr }` (final_expr_ref set, num_expr_stmts=0)
+     * into `expr_stmts[0] = expr; final_expr_ref = 0`. Accept either form. */
+    n_es = ast_ast_block_num_expr_stmts(a, block_ref);
+    final_expr_ref = ast_ast_block_final_expr_ref(a, block_ref);
+    if (final_expr_ref <= 0) {
+      if (n_es != 1)
+        return;
+      final_expr_ref = ast_pipeline_block_expr_stmt_ref(a, block_ref, 0);
+    } else if (n_es != 0) {
+      return;
+    }
+    if (final_expr_ref <= 0)
+      return;
+    glue_typeck_fold_expr_ref(a, final_expr_ref, const_names, const_values, n_const_names);
+    ef = glue_arena_expr_at_ref(a, final_expr_ref);
+    if (ef && ef->const_folded_valid) {
+      e->const_folded_val = ef->const_folded_val;
+      e->const_folded_valid = 1;
+    }
+    return;
+  }
 }
 
 /** Pure-lit / already-folded tree CTFE after typeck (no block const env). */
@@ -14278,6 +14525,25 @@ void pipeline_typeck_fold_expr_c(struct ast_ASTArena *arena, int32_t expr_ref) {
        * fit in i32 const_folded_val). Still recurse into each field init so
        * inner binop/unary/lit trees fold; struct node itself stays valid=0.
        * Mirrors EXPR_ARRAY_LIT treatment in pipeline_typeck_fold_expr_c. */
+      glue_typeck_fold_expr_ref(arena, expr_ref, NULL, NULL, 0);
+    } else if (e->kind == ast_ExprKind_EXPR_TERNARY || e->kind == ast_ExprKind_EXPR_IF) {
+      /* PLATFORM: SHARED — Ternary `cond ? a : b` and if-expression
+       * `if cond { a } else { b }` are not pure const-expr trees (cond may
+       * be runtime). Still attempt CTFE: if cond folds to a constant
+       * (e.g. `let Y = (X==2) ? 100 : 200;` with X a prior const outside a
+       * block-const env), the handler inside glue_typeck_fold_expr_ref
+       * picks the live branch and stamps the result. Mirrors EXPR_MATCH
+       * treatment above. */
+      glue_typeck_fold_expr_ref(arena, expr_ref, NULL, NULL, 0);
+    } else if (e->kind == ast_ExprKind_EXPR_BLOCK) {
+      /* PLATFORM: SHARED — Block expression `({ stmt; expr })` is not a pure
+       * const-expr tree when stmt has side effects. Still attempt CTFE on
+       * the final expr so single-stmt blocks (e.g. if-expression branches
+       * `{ 100 }` produced by parser_asm_wrap_block_ref_as_expr_c) fold
+       * when the final expr folds. Mirrors EXPR_MATCH / EXPR_TERNARY /
+       * EXPR_IF treatment: attempt fold with NULL const env; the handler
+       * inside glue_typeck_fold_expr_ref will skip if side-effect scan
+       * fails. */
       glue_typeck_fold_expr_ref(arena, expr_ref, NULL, NULL, 0);
     }
     return;

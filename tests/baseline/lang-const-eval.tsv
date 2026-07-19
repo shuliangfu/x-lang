@@ -28,4 +28,6 @@ case_array_len	case	c_array_len.x	tests/lang-const/c_array_len.x	v1	exit 4
 case_match_const	case	c_match_const.x	tests/lang-const/c_match_const.x	v1	exit 20
 case_struct_lit_const	case	c_struct_lit_const.x	tests/lang-const/c_struct_lit_const.x	v1	exit 9
 case_enum_variant_const	case	c_enum_variant_const.x	tests/lang-const/c_enum_variant_const.x	v1	exit 200
+case_ternary_const	case	c_ternary_const.x	tests/lang-const/c_ternary_const.x	v1	exit 100
+case_if_const	case	c_if_const.x	tests/lang-const/c_if_const.x	v1	exit 100
 case_let_const_hook	script	run-let-const.sh	tests/run-let-const.sh	v1	let/const 回归
