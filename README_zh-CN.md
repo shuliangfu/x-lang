@@ -1,6 +1,7 @@
 # Shux（舒克斯）
 
-> **用现代化语言写高性能、强安全代码** — 参考 C 的类型与执行模型，语法尽量简单、易读、易维护；不靠重型类型论，而靠「显式约定 + 少未定义行为 + 默认安全」拿到性能与内存安全。
+> **写底层代码，终于可以又简单、又安全、又快。**  
+> 你熟悉的 C 心智模型 · 接近 Rust 的内存安全、却不靠重型类型论 · 默认代码质量目标**超越**精心编写的 C · 学习成本以**天**计，不以月计。
 
 | 项目 | 说明 |
 |------|------|
@@ -8,33 +9,53 @@
 | **编译器** | `shux` / `shux_asm`（自举链路后的产品二进制） |
 | **源文件后缀** | `.x` |
 | **构建配置** | `build.x` — 用 Shux 描述的项目构建策略（步骤、目标、产物）；由 `shux build` / `build_tool` / `shux-build.sh` 执行 |
-| **现阶段（2026-07-18）** | **产品 L4 钉盘**仍 **`c51759eb`**（钉盘时真冷 + bstrict **123/123**）。**现行产品 bstrict 套件 = 125**（+void-main + comment-prefix）。tip 验证：mac 真冷 L4 **125/125** @ **`d8aa86e2`**；Ubuntu i64 ABI 修后 125（`SKIP_BUILD`）。**尚未完全自举**（冷启动仍需 seed / 过渡 C；**未** tip L4 升钉） |
+| **现阶段（2026-07-19）** | **产品 L4 钉盘 `5cc73d54`**（双端真冷 + bstrict **125/125**）。tip **`229708f1`**：C5 `EXPR_MATCH` CTFE，双端 L2 绿（**≠** tip L4 升钉）。**尚未完全自举**（冷启动仍需 seed / 过渡 C） |
 | **进度仪表盘** | [`analysis/自举进度.md`](analysis/自举进度.md) · 当天快照 [`analysis/当前进度.md`](analysis/当前进度.md) |
 | **English** | [README.md](README.md) |
 
 ---
 
-## 一、项目定位
+## 一、为什么是 Shux — **三高一低**
 
-Shux 是一门**系统级编程语言**：无 GC、零成本抽象、显式内存模型，目标生成代码质量比肩乃至超过精心编写的 C。相对 C：语法更干净、诊断带位置、工具链一体；相对 Rust：类型系统刻意克制，只在可空、边界、所有权/借用、别名等关键处**足够显式**，让编译器能静态证明安全并放心优化。
+Shux 是一门面向内核、驱动、运行时与高性能工具的**系统级编程语言**：无 GC、零成本抽象、显式内存模型，可 freestanding。
 
-### 核心目标
+多数语言逼你二选一。Shux 拒绝这个假选择：
+
+| 支柱 | 目标 | 落地含义 |
+|------|------|----------|
+| **高性能** | **默认就比精心写的 C 更快** | 无 GC；默认 ASM 后端 + 可选 C 后端；激进别名 / `noalias`、BCE、泛型单态化；Arena / region 热路径零 malloc。性能主要靠**编译器**，不是每个调用点靠人肉优化 |
+| **高安全** | **安全子集内接近 Rust** | 编译期 region / 借用 / 线性类型检查；`Option` / `Result` 优先于静默空指针；带长度切片；`unsafe` 仅用于硬件与 syscall 边界——**可审计**，不是默认可 UB |
+| **高可读** | **比 C 更简单、更好维护** | `T[]` 自带长度；无头文件地狱（目录即模块）；`defer` / `with_arena` / 作用域分配器；字段访问只有 `.`；诊断带真实位置 |
+| **低学习成本** | **C 程序员按「天」上手** | 控制流与心智模型接近 C；无 lifetime 注解迷宫；可渐进：先写「类 C」，再引入现代安全特性；`shux build` / fmt / LSP 一体 |
+
+**每条语言特性的评审铁律（最高优先级）：**
+
+> *这会让 C 程序员觉得更麻烦吗？*  
+> 会 → 砍掉、藏进编译器，或关进 `unsafe`。**「比 C 更简单」是设计评审的第一准则**；安全与性能由编译器智能补齐，而不是把负担推给作者。
+
+### 诚实对照
+
+| 对照 | Shux 的选择 |
+|------|-------------|
+| **相对 C** | 同样贴近机器 —— 语法更干净、更少脚枪、工具链一体，在 C 常有 UB 的地方给出安全证明 |
+| **相对 Rust** | 同样追求内存安全 —— **不必**过「重型 borrow checker 生活方式」；region + 推断 + 线性类型扛重活 |
+| **相对 Zig** | 同样崇尚简单与显式 —— 再加默认安全子集与更强的静态安全叙事 |
+
+### 支撑目标
 
 | 目标 | 含义 |
 |------|------|
-| **极致性能** | 无 GC；默认 ASM 后端 + 可选 C 后端；别名 / `noalias` 服务 autovec 与 DCE |
-| **内存安全** | 安全子集内默认无泄漏、悬垂、越界、数据竞争；`unsafe` 可审计 |
-| **轻量** | 依赖少、可执行文件小、可 freestanding / 嵌入式；标准库按需入链 |
+| **轻量** | 依赖少、二进制小、可 freestanding / 嵌入式；标准库按需入链 |
 | **标准库** | 完整 `core/` + `std/`；跨平台一套 API（差异收在 `std.sys`） |
-| **易上手** | 学习曲线远低于「大型 C 工程」；工具链顺手 |
 | **编译自举** | 终局：编译器与标准库 100% `.x`；宿主 C / seed 仅冷启动（**进行中，未宣称完成**） |
 
 ### 设计宗旨
 
-- **目的**：在关键路径上极致压榨性能。  
+- **目的**：在关键路径极致压榨性能 —— **默认代码质量优于「普通认真写的 C」**，而不是「你够小心才一样快」。
 - **原则**：可维护、开发简单、**内存安全**（安全子集无静默 UB）。
+- **方法**：region 内存 + 借用门控 + 线性类型；别名分析服务 autovec / DCE；`unsafe` 保持薄且可审。
 
-设计长文：[`analysis/语法与类型设计-高性能与内存安全.md`](analysis/语法与类型设计-高性能与内存安全.md)、[`analysis/需求分析.md`](analysis/需求分析.md)。
+设计长文：[`analysis/语法与类型设计-高性能与内存安全.md`](analysis/语法与类型设计-高性能与内存安全.md)、[`analysis/需求分析.md`](analysis/需求分析.md)、[`analysis/安全与性能.md`](analysis/安全与性能.md)。
 
 ---
 
@@ -147,7 +168,7 @@ SHUX_BSTRICT_SKIP_BUILD=1 ./tests/run-all-bstrict.sh   # 产品闸门（约 125 
 ```
 
 凡谈**自举 / 产品放行**，项目要求 **L4 真冷**（擦除 `compiler`/`std`/`core` 下全部 `.o` 并重链二进制）+ **双端** `run-all-bstrict` 全绿。详见 [`analysis/自举方法.md`](analysis/自举方法.md)、[`compiler/docs/SELFHOST.md`](compiler/docs/SELFHOST.md)。  
-**注意：** 日常 tip 的 L2 绿 **≠** tip L4 钉盘。**放行钉盘仍为 `c51759eb`**，直到下次双端真冷重钉。tip 在产品路径修复后可再绿双端 L2 bstrict（见 §八）。
+**注意：** 日常 tip 的 L2 绿 **≠** tip L4 钉盘。**放行钉盘为 `5cc73d54`**（双端真冷 125/125）。tip 日常工作（如 CTFE fold）可双端 L2 绿而不升 L4 钉盘（见 §八）。
 
 ---
 
@@ -263,7 +284,7 @@ shux/
 
 ---
 
-## 八、自举状态（摘要 · 2026-07-18 晚）
+## 八、自举状态（摘要 · 2026-07-19）
 
 > **实时数字以** [`analysis/自举进度.md`](analysis/自举进度.md) · 当天 [`analysis/当前进度.md`](analysis/当前进度.md) **为准**。  
 > README 只给摘要；**禁止**把 Stage2 / prove / WPO / **日常 L2 绿**写成 tip L4 重钉或「完全自举」。
@@ -272,29 +293,28 @@ shux/
 
 | 项 | 状态 |
 |----|------|
-| **L4 放行钉盘** | **`c51759eb`** — 双端 **真冷** + `run-all-bstrict` **123/123**（**钉盘时**）。其后套件扩至 **125**。历史钉盘谱系含 `f16f7d48` / 更早 `5c8204ae` — **勿**把旧 SHA 写成现行钉盘 |
+| **L4 放行钉盘** | **`5cc73d54`** — 双端 **真冷** + `run-all-bstrict` **125/125**（Ubuntu + macOS）。当日升钉序列：`ea1f6827` → `5cc73d54`；更早含 `a74e25a1` / `c51759eb` — **勿**把旧 SHA 写成现行钉盘 |
 | 产品 bstrict 套件数 | **125**（`tests/run-all-bstrict.sh`；日志须 `OK (125 scripts…)`） |
-| Ubuntu L4 + 全量 bstrict（钉盘） | ✅ **123/123** @ 钉盘（`/tmp/ubuntu_true_cold_c51759eb.log`、`/tmp/ubuntu_true_bstrict_c51759eb.log`） |
-| macOS L4 + 全量 bstrict（钉盘） | ✅ **123/123** @ 钉盘（`/tmp/mac_true_cold_c51759eb.log`、`/tmp/mac_true_bstrict_c51759eb.log`） |
+| Ubuntu L4 + 全量 bstrict（钉盘） | ✅ **125/125** @ **`5cc73d54`** |
+| macOS L4 + 全量 bstrict（钉盘） | ✅ **125/125** @ **`5cc73d54`** |
 | 金标主机 | **Ubuntu x86_64** |
 | 验收二进制 | 本波 g05 / relink 的 `compiler/shux_asm` — **禁止**残留 Stage2 `shux_asm2` 或旧 stage1 |
-| 分支 tip（≠ tip L4） | **`d8aa86e2`** 波（`self-hosting`；可含 Makefile ABI 守卫未提交）。**仅**双端真冷 + bstrict **125** 后才升 tip L4 钉盘 |
-| 最新 tip bstrict 125 | ✅ mac 真冷 **125/125** @ `d8aa86e2`（`/tmp/mac_true_cold_d8aa86e2.log`）；Ubuntu i64 ABI 修后 **125/125**（`/tmp/ubuntu_bstrict_after_i64fix.log`，`SKIP_BUILD`）。**≠** tip L4 重钉 |
+| 分支 tip（≠ tip L4） | **`229708f1`**（`self-hosting`）— C5 `EXPR_MATCH` CTFE，双端 L2 绿。**仅**双端真冷 + bstrict **125** 后才升 tip L4 钉盘 |
+| 最新 tip 日常 L2 | ✅ mac + Ubuntu 矩阵 + bstrict **125/125** @ `229708f1`（**≠** tip L4 重钉；CTFE fold 非 ABI/链接） |
 
-### 产品面近期已收口（日常 L2 · 钉盘仍为 `c51759eb`）
+### 产品面 2026-07-19 已收口
 
 属**用户产品路径**（`shux_asm` / freestanding / 门禁）。L2 绿 **不会**自动抬 L4 钉盘：
 
 | 面 | 状态 |
 |----|------|
-| **i64 CTFE**（`run-i64-ctfe-gate`） | ✅ 仅当值能装进 `i32` 才折叠（`glue_ctfe_fits_i32`）；`INT64_MIN` 不再截断成 0 导致错误 exit |
-| **块注释 / docblock** | ✅ parse seed 恢复 `/* … */`；保留 docblock — **禁止**靠删注释「修绿」 |
-| **Borrow / lifetime 基线** | ✅ `type-borrow-conflict` + `lang-lifetime-diag` 门禁与基线绿 |
-| **g05 链接纪律** | ✅ 禁止 hybrid RT slice 覆盖永久 cold slice（避免 relink 后 CG002 / 错二进制） |
-| **门禁文档回库** | ✅ 如 `analysis/安全与性能.md` 为产品门禁硬依赖（不得只躺 archive） |
-| Freestanding S4 / `std.vec` / 软 XT001 | ✅ 前序 L2 收口仍成立 |
-| NL-07 零 libc | ✅ 产品钉盘上 L1–L10 + v5（crt0 / soft libm / pure static） |
-| Hosted asm 矩阵 | ✅ return-value / hello / option / stdlib-import 等 Ubuntu 金标 L2 绿 |
+| **C2 · `std.net` PRIMARY UNDEF** | ✅ `net.o` 合入 `mod.x`；`use_line` 真调用识别；cookbook `net_listen_bind.x -o` 绿 — 已入钉盘谱系 |
+| **C3=C4 · bare `{…}` 结构体字面量** | ✅ parser `LBRACE` let-init handler；bare struct-lit + `unsafe`/`while` 不再丢 let → P001 |
+| **C8 · vec/set/map/queue 重复符号** | ✅ `c_provides` 守卫 `mem.o`+`heap.o` 推入（fk0 GAP）— **升钉 `5cc73d54`** |
+| **Backtrace C 后端 heap 链** | ✅ 补推 `page_mmap.o` + asm IO stubs — 钉盘 `ea1f6827` |
+| **C5 · `EXPR_MATCH` CTFE** | ✅ const subject + const arms 折成 imm32（`lang-const` 13/13）；tip `229708f1`，双端 L2，**未**升 L4 |
+| **Driver · `shux run` / 裸 `shux file.x`** | ✅ 内存内 compile-and-run（18→19 波） |
+| Freestanding S4 / NL-07 零 libc / Hosted asm 矩阵 | ✅ 产品钉盘上仍成立 |
 
 ### 工程轨（量级）
 
@@ -312,16 +332,16 @@ shux/
 - **未**宣称「编译器已 100% `.x`、无 seed」
 - **未**把 Stage2 的 `shux_asm2` 当产品编译器
 - **未**把工程 WPO 绿等同 tip 产品 L4
-- **未**把「tip 双端 L2 bstrict」写成 tip L4 —— 钉盘仍为 **`c51759eb`**，须下次双端 **真冷** 才重钉
+- **未**把「tip 双端 L2 bstrict」写成 tip L4 —— 钉盘为 **`5cc73d54`**，须下次双端 **真冷** 才重钉
 - 终局物理零 C / 彻底去掉 seed（**G**）仍在路线图，不是本周叙事
 
 方法：Cap / R / L / M → [`analysis/自举方法.md`](analysis/自举方法.md)。运维：[`compiler/docs/SELFHOST.md`](compiler/docs/SELFHOST.md)。纪律：[`AGENTS.md`](AGENTS.md) + skill `shux-selfhost-product-gate`。
 
 ### 近端前排（高层）
 
-1. 将 tip 产品路径工作区（i64 CTFE / 块注释 / g05 ensure / 基线）落成可审 commit  
-2. 双端 L2 绿后另开地图；**tip L4 重钉**仅允许双端真冷 + bstrict  
-3. 旁路 residual 仅在挡产品面时开：ABI 余债、cfg-extern / labi 边角 — **禁** soft-skip typeck、**禁**双权威
+1. 下一产品 Cap 仅在有明确候选时开地图（C5 guard / struct-lit / enum-variant fold；C6 X ABI P0b；C7 plan 瘦身）— **禁**无地图 tip L4  
+2. **tip L4 重钉**仅当 ABI / 链接 / seed 面变动且双端真冷 + bstrict 125  
+3. residual 仅在挡产品面时开 — **禁** soft-skip typeck、**禁**双权威
 
 ---
 
@@ -335,7 +355,7 @@ shux/
 | M3 | 泛型、trait、模块、std 扩张 | ✅ |
 | M4 | DCE、-O2/-Os、体积/性能基线 | ✅ 部分 |
 | M5 | 自举（编译器可重编自身） | 🟡 **产品路径可用 + 自举推进中**；**冷启动仍需 seed** |
-| **当前** | 产品 L4 双端钉盘 @ **`c51759eb`**（钉盘时 123）；现行套件 **125**；tip mac L4+125 @ **`d8aa86e2`** + Ubuntu 125（i64 ABI 修后）— **未** tip L4 升钉 | 见仪表盘 |
+| **当前** | 产品 L4 双端钉盘 @ **`5cc73d54`**（125/125）；tip **`229708f1`**（C5 CTFE 双端 L2）— **未** tip L4 升钉 | 见仪表盘 |
 
 ---
 
@@ -438,4 +458,4 @@ Shux 采用 **分层授权**（语言库宽松；编译器 copyleft）。详见 
 
 ---
 
-*Shux — 极致性能取向，简单、可读、可维护、内存安全。*
+*Shux — 三高一低：比 C 更快 · 接近 Rust 的安全 · 比 C 更简单 · 按天上手。*
