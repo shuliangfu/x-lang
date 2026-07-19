@@ -1,41 +1,50 @@
 /* unistd.h — Windows MinGW compatibility shim for <unistd.h>.
- * Why: MinGW provides <unistd.h> but the deprecated POSIX aliases it
- *      declares via <io.h> (open/read/write/close/lseek/access/etc.) have
- *      `const char *` signatures that conflict with SHUX-generated
- *      `extern int32_t open(uint8_t *, int32_t, int32_t)` in typeck_gen.c
- *      L84 (C11 6.7.6.3p15 type incompatibility: uint8_t* vs const char*).
- *      Apple clang is lenient; MinGW gcc strictly enforces this and aborts
- *      with "conflicting types for 'open'".
+ * Why: MinGW <unistd.h> pulls in <io.h> which declares `int open(const char *,
+ *      int, ...)` (deprecated POSIX alias of _open). This conflicts with
+ *      SHUX-generated `extern int32_t open(uint8_t *, int32_t, int32_t)` in
+ *      typeck_gen.c L84 / codegen_gen.c / parser_gen.c / seeds/<file>.from_x.c
+ *      per C11 6.7.6.3p15 type incompatibility (uint8_t* vs const char*).
+ *      Apple clang is lenient; MinGW gcc strictly aborts with
+ *      "conflicting types for 'open'".
  *
- *      The fix: pull in MinGW's <unistd.h> with NO_OLDNAMES defined, which
- *      suppresses io.h's deprecated alias block (L328 #ifndef NO_OLDNAMES
- *      ... #endif L347). Then re-declare SHUX's expected signatures (uint8_t*
- *      / int32_t) as inline wrappers delegating to MinGW _-prefixed
- *      functions (_open/_read/_write/_close/_lseek). pread/pwrite (which
- *      MinGW lacks entirely) are emulated via _lseek + _read/_write.
+ *      Earlier attempt used NO_OLDNAMES to suppress io.h's deprecated alias
+ *      block, but that also removed off_t / unlink / rmdir / read / write /
+ *      close / lseek declarations, breaking SHUX code that uses those.
  *
- * On macOS/Linux the system <unistd.h> (which already declares
- * pread/pwrite and does NOT declare `open` — POSIX puts `open` in
- * <fcntl.h>) is used via #include_next, so this shim is a no-op there.
+ *      The current fix: pull in MinGW <unistd.h> unchanged (keeping all
+ *      deprecated aliases for read/write/close/lseek/unlink/rmdir/off_t),
+ *      then macro-redirect SHUX's `open` identifier to `shux_posix_open`
+ *      (a static inline wrapper calling MinGW `_open` with the SHUX-expected
+ *      signature). The macro rewrites SHUX's L84 `extern int32_t open(...)`
+ *      declaration too, turning it into an extern declaration for
+ *      shux_posix_open — which is satisfied by the prior static inline
+ *      definition (C99 6.2.2p4: prior internal linkage wins).
+ *
+ *      pread / pwrite (which MinGW lacks entirely) are emulated via
+ *      _lseek + _read / _write.
+ *
+ * On macOS/Linux the system <unistd.h> (which already declares pread/pwrite
+ * and does NOT declare `open` — POSIX puts `open` in <fcntl.h>) is used via
+ * #include_next, so this shim is a no-op there.
  *
  * Invariant: pread/pwrite are non-atomic (save cur → seek → I/O →
- *            restore cur). For SHUX, the shux_sys_pread/pwrite helpers
- *            are currently defined-but-unused static inline helpers
- *            (verified via grep), so non-atomicity is acceptable.
- * PLATFORM: WINDOWS | MSYS | MINGW (provides NO_OLDNAMES + wrappers);
+ *            restore cur). For SHUX, shux_sys_pread/pwrite helpers are
+ *            currently defined-but-unused static inline helpers (verified
+ *            via grep), so non-atomicity is acceptable.
+ * PLATFORM: WINDOWS | MSYS | MINGW (provides open macro + pread/pwrite);
  *           POSIX (delegates to system header via #include_next). */
 #ifndef SHUX_UNISTD_H
 #define SHUX_UNISTD_H
 
 #if defined(_WIN32) || defined(_WIN64)
 
-/* NO_OLDNAMES suppresses io.h's deprecated POSIX alias block (open/read/
- * write/close/lseek/access/etc. with const char* signatures) that conflicts
- * with SHUX's own uint8_t* extern declarations. Temporarily defined only
- * for the duration of <unistd.h> inclusion. */
-#define NO_OLDNAMES
+/* Pull in MinGW's own <unistd.h> unchanged — declares read/write/close/
+ * lseek/unlink/rmdir/access and pulls in <io.h> (for _open/_read/etc.)
+ * and <sys/types.h> (for off_t / ssize_t). This includes the deprecated
+ * `open(const char *, int, ...)` alias that conflicts with SHUX's L84
+ * extern declaration, but we redirect SHUX's `open` token to a wrapper
+ * below before any SHUX code references `open`. */
 #include_next <unistd.h>
-#undef NO_OLDNAMES
 
 /* ssize_t / off_t fallbacks — MinGW <unistd.h> should provide these via
  * <sys/types.h>, but guard for safety. */
@@ -51,36 +60,27 @@ typedef long off_t;
 
 #include <io.h>  /* _read / _write / _close / _lseek / _open */
 
-/* SHUX-expected POSIX wrappers — call MinGW _-prefixed functions.
- * Why: NO_OLDNAMES removed io.h's deprecated `open`/`read`/`write`/`close`/
- *      `lseek` aliases, so SHUX-generated code calling these would have no
- *      declaration. We provide SHUX's expected signatures (uint8_t* /
- *      int32_t) as inline wrappers delegating to MinGW _-prefixed functions.
- *
- *      The `open` wrapper matches SHUX's L84 `extern int32_t open(uint8_t *,
- *      int32_t, int32_t)` declaration exactly. Per C99 6.2.2p4, the prior
- *      static inline definition establishes internal linkage, and the
- *      subsequent `extern` declaration in typeck_gen.c L84 preserves that
- *      internal linkage (no conflict). */
-static inline int32_t open(uint8_t *path, int32_t flags, int32_t mode) {
+/* shux_posix_open — SHUX-expected signature wrapper for MinGW _open.
+ * Why: SHUX-generated code declares `extern int32_t open(uint8_t *,
+ *      int32_t, int32_t)` (typeck_gen.c L84 et al.) and calls `open(path,
+ *      flags, mode)` from fs_libc_open. The macro `#define open
+ *      shux_posix_open` below redirects both the extern declaration and
+ *      the call site to this wrapper, which calls MinGW `_open` (standard
+ *      _-prefixed function, no signature conflict). */
+static inline int32_t shux_posix_open(uint8_t *path, int32_t flags, int32_t mode) {
     return (int32_t)_open((const char *)path, (int)flags, (int)mode);
 }
 
-static inline ssize_t read(int fd, void *buf, size_t count) {
-    return (ssize_t)_read(fd, buf, (unsigned int)count);
-}
-
-static inline ssize_t write(int fd, const void *buf, size_t count) {
-    return (ssize_t)_write(fd, buf, (unsigned int)count);
-}
-
-static inline int close(int fd) {
-    return _close(fd);
-}
-
-static inline long lseek(int fd, long offset, int origin) {
-    return _lseek(fd, offset, origin);
-}
+/* Redirect SHUX's `open` identifier to shux_posix_open.
+ * Textual macro replacement applies to:
+ *   - SHUX's L84 `extern int32_t open(uint8_t *, int32_t, int32_t);` →
+ *     `extern int32_t shux_posix_open(uint8_t *, int32_t, int32_t);`
+ *     (satisfied by the static inline above; C99 6.2.2p4 prior internal
+ *     linkage wins, so no extern/static conflict).
+ *   - SHUX's L85 `return open(path, flags, mode);` → calls shux_posix_open.
+ * Does NOT affect MinGW io.h's `int open(const char *, int, ...)` alias
+ * (already declared before this macro is defined). */
+#define open shux_posix_open
 
 /* pread — POSIX positional read; MinGW lacks it entirely.
  *         Non-atomic emulation: save cur → seek → read → restore cur.
