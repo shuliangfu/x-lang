@@ -2772,19 +2772,22 @@ uint8_t *driver_parsed_open_out_file(uint8_t *out_path, uint8_t *tmp_c_out64, in
         runtime_diag_errno_path((const char *)(void *)out_path, "build error", "mkstemp", tmp);
         return NULL;
     }
-    cf = fdopen(fd, "w");
-    if (!cf) {
-        runtime_diag_errno_path((const char *)(void *)out_path, "build error", "fdopen", tmp);
-        close(fd);
-        unlink(tmp);
-        return NULL;
-    }
+    /* PLATFORM: WINDOWS | POSIX — Windows forbids renaming a file held open by
+     * fdopen/fopen (POSIX allows it). Close the mkstemp fd BEFORE rename, then
+     * reopen the renamed .c path. Without this, rename fails with
+     * STATUS_SHARING_VIOLATION / "Permission denied" (BLD001). */
+    close(fd);
     snprintf(g_driver_parsed_tmp_c, sizeof(g_driver_parsed_tmp_c), "%s.c", tmp);
     if (rename(tmp, g_driver_parsed_tmp_c) != 0) {
         runtime_diag_errno_path_pair((const char *)(void *)out_path, "build error", "rename", tmp,
                                      g_driver_parsed_tmp_c);
         unlink(tmp);
-        fclose(cf);
+        return NULL;
+    }
+    cf = fopen(g_driver_parsed_tmp_c, "w");
+    if (!cf) {
+        runtime_diag_errno_path((const char *)(void *)out_path, "build error", "fopen", g_driver_parsed_tmp_c);
+        unlink(g_driver_parsed_tmp_c);
         return NULL;
     }
     if (tmp_c_out64) {
