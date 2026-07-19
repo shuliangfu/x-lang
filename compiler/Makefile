@@ -1843,24 +1843,43 @@ DRIVER_SEED_FRONTEND_EXTRA = $(DRIVER_SEED_C_FRONTEND_LEGACY)
 #      -Wl,--allow-multiple-definition resolves conflicts with real impls
 #      from codegen_x.o / parser_x.o / typeck_x.o (first seen wins).
 # PLATFORM: SHARED — same .o needed on all platforms in LEGACY mode.
-DRIVER_SEED_SUPPORT_EXTRA = src/runtime_driver_strict_glue_stubs.o src/async/async_liveness.o src/async/async_cps_codegen.o src/lexer/cfg_eval_bootstrap_stub.o src/typeck/typeck_f64_bits.o
+# Why: src/runtime_driver_strict_glue_stubs.o MOVED from DRIVER_SEED_SUPPORT_EXTRA
+#      to DRIVER_SEED_GLUE_SUFFIX (link end) on 2026-07-19.
+#      Reason: stubs .o contains BOTH (a) symbols with NO real impl (parse,
+#      lexer_new, typeck_module for the deleted C frontend) AND (b) symbols
+#      WITH real impls in pipeline_x.o / parser_x.o (driver_get_module_num_funcs,
+#      parser_parse_into_init, pipeline_run_x_pipeline, etc.). When the stubs .o
+#      linked BEFORE pipeline_x.o, Windows PE `--allow-multiple-definition` made
+#      FIRST win → stub `driver_get_module_num_funcs` returning 0 shadowed the
+#      real impl, causing `shux -c file.x` to report `num_funcs=0` and silently
+#      exit. On ELF/Darwin SHUX_WEAK expands to weak attr so real (strong) impl
+#      wins regardless of order — bug was Windows-only.
+#      Moving stubs to link END guarantees: real impls win when present; stubs
+#      only fill in for symbols with no real impl (C frontend API for lsp_diag).
+# Invariant: DRIVER_SEED_SUPPORT_EXTRA retains the non-stub satellites
+#            (async_liveness, async_cps_codegen, cfg_eval_*, typeck_f64_bits).
+# PLATFORM: SHARED — fix is Windows-critical; no-op on ELF/Darwin (weak already
+#           correct); verified both modes.
+DRIVER_SEED_SUPPORT_EXTRA = src/async/async_liveness.o src/async/async_cps_codegen.o src/lexer/cfg_eval_bootstrap_stub.o src/typeck/typeck_f64_bits.o
 DRIVER_SEED_LINK_FLAGS = -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_TYPECK -DSHUX_USE_X_CODEGEN
 DRIVER_SEED_RUNTIME_REBUILD = src/runtime_driver.o src/async/async_cps_codegen.o
 else ifeq ($(SHUX_NO_C_SEED_LINK),1)
 # E-04 v1：无 C ast/lexer/runtime_driver（勿用于已提交 G-06 种子的 relink）。
 # runtime_driver_strict_glue_stubs.o：提供 lexer_new/parse/preprocess 等 C API weak 桩，供 lsp_diag.o 等
 # 非 SHUX_NO_C_FRONTEND 编译单元引用（lsp_diag.c 未走 no_c 守卫，仍需符号满足链接）。
+# Stubs .o 链在 DRIVER_SEED_GLUE_SUFFIX（链接末尾），保证 pipeline_x.o 真实实现优先胜出。
 DRIVER_SEED_RUNTIME_O = src/runtime_driver_no_c.o
 DRIVER_SEED_FRONTEND_EXTRA =
-DRIVER_SEED_SUPPORT_EXTRA = src/runtime_driver_strict_glue_stubs.o src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o
+DRIVER_SEED_SUPPORT_EXTRA = src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o
 DRIVER_SEED_LINK_FLAGS = -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_TYPECK -DSHUX_USE_X_CODEGEN
 DRIVER_SEED_RUNTIME_REBUILD = src/runtime_driver_no_c.o
 else
 # G-02a：默认 no_c 模式（X pipeline 自洽；C 前端 API weak stubs 满足链接但不调用）。
 # 2026-07-08：从 seed-compat 切换到 no_c；macOS arm64 check ✅、compile 走 -E+cc fallback ✅；Linux x86_64 全绿。
+# Stubs .o 链在 DRIVER_SEED_GLUE_SUFFIX（链接末尾），保证 pipeline_x.o 真实实现优先胜出。
 DRIVER_SEED_RUNTIME_O = src/runtime_driver_no_c.o
 DRIVER_SEED_FRONTEND_EXTRA =
-DRIVER_SEED_SUPPORT_EXTRA = src/runtime_driver_strict_glue_stubs.o src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o
+DRIVER_SEED_SUPPORT_EXTRA = src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o
 DRIVER_SEED_LINK_FLAGS = -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_TYPECK -DSHUX_USE_X_CODEGEN
 DRIVER_SEED_RUNTIME_REBUILD = src/runtime_driver_no_c.o
 endif
@@ -1890,7 +1909,14 @@ ASM_GLUE_DUP_LDFLAGS = -Wl,--allow-multiple-definition
 endif
 RELINK_SHUX_GLUE_SUFFIX = build_asm/pipeline_glue_strict_minimal.o
 DRIVER_SEED_GLUE_PREFIX =
-DRIVER_SEED_GLUE_SUFFIX = $(ASM_GLUE_STANDALONE_O)
+# Why: src/runtime_driver_strict_glue_stubs.o placed at link END (after glue) so
+#      real impls in pipeline_x.o / parser_x.o / typeck_x.o / codegen_x.o link
+#      FIRST and win on Windows PE (--allow-multiple-definition: FIRST wins).
+#      Stubs only fill in symbols with no real impl (parse, lexer_new,
+#      typeck_module for the deleted C frontend, referenced by lsp_diag.o).
+#      On ELF/Darwin SHUX_WEAK=weak so order is a no-op there.
+# PLATFORM: SHARED — Windows-critical; no-op on ELF/Darwin.
+DRIVER_SEED_GLUE_SUFFIX = $(ASM_GLUE_STANDALONE_O) src/runtime_driver_strict_glue_stubs.o
 # LSP_DIAG_LINK_O：fmt 命令依赖 shu_format_x_document 的真实实现，必须链入 lsp_diag.o
 # 而非 lsp_diag_stubs_no_c.o（no-op stub 会让 fmt 静默无操作）。
 # 历史：E-02 v1 误注 "lsp_diag.c 已删" 但文件实存；链接 stub 导致 fmt 不生效。
@@ -2442,15 +2468,15 @@ DRIVER_SEED_PREREQS = $(SHUX_C) pipeline_x.o parser_x.o lexer_x.o typeck_x.o cod
 # legacy shux-c 复用 bootstrap-driver-seed 的现有权威闭包，避免手写对象清单与 pinned seed 漂移。
 LEGACY_SHUX_C_LINK_BASE := $(BOOTSTRAP_DRIVER_SEED_LINK_BASE)
 LEGACY_SHUX_C_USER_ASM_LINK := $(USER_ASM_SEED_HOST_OBJS) $(USER_ASM_SEED_HOST_STUBS) $(BOOTSTRAP_DRIVER_SEED_USER_ASM_OBJS)
-LEGACY_SHUX_C_PREREQS := $(LEGACY_SHUX_C_LINK_BASE) $(LEGACY_SHUX_C_USER_ASM_LINK) build_asm/pipeline_glue_strict_minimal.o ast_gen2.o
+LEGACY_SHUX_C_PREREQS := $(LEGACY_SHUX_C_LINK_BASE) $(LEGACY_SHUX_C_USER_ASM_LINK) build_asm/pipeline_glue_strict_minimal.o src/runtime_driver_strict_glue_stubs.o ast_gen2.o
 
 ifeq ($(SHUX_LEGACY_C_FRONTEND),1)
-$(SHUX_C): DRIVER_SEED_GLUE_SUFFIX = build_asm/pipeline_glue_strict_minimal.o
+$(SHUX_C): DRIVER_SEED_GLUE_SUFFIX = build_asm/pipeline_glue_strict_minimal.o src/runtime_driver_strict_glue_stubs.o
 $(SHUX_C): $(LEGACY_SHUX_C_PREREQS)
 	$(CC) $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS) -o $@ $(LEGACY_SHUX_C_LINK_BASE) $(LEGACY_SHUX_C_USER_ASM_LINK) $(DRIVER_SEED_GLUE_SUFFIX) ast_gen2.o
 endif
 
-bootstrap-driver-seed: DRIVER_SEED_GLUE_SUFFIX = build_asm/pipeline_glue_strict_minimal.o
+bootstrap-driver-seed: DRIVER_SEED_GLUE_SUFFIX = build_asm/pipeline_glue_strict_minimal.o src/runtime_driver_strict_glue_stubs.o
 bootstrap-driver-seed: $(DRIVER_SEED_PREREQS) build_asm/pipeline_glue_strict_minimal.o
 	@# PLATFORM: SHARED — P0-4: refuse stale int32_t Expr.int_val before any pipeline_x / glue link.
 	@$(MAKE) check-pipeline-gen-expr-i64-abi
