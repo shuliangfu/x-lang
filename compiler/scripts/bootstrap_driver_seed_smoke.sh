@@ -21,15 +21,23 @@ TARGET="${1:-./shux}"
 # 【Why】路径中不可含「.数字.」：codegen 用源文件 stem 作 C 符号前缀，
 # `/tmp/foo.$$.x` → stem `foo.12345` → `extern int32_t foo.12345_main` 非法 C。
 # Ubuntu 上 fresh smoke 亦曾失败靠 pinned 回退；Darwin pinned 常不可用，须路径自绿。
-SMOKE_SRC="/tmp/shux_bootstrap_seed_smoke_$$.x"
-SMOKE_OUT="/tmp/shux_bootstrap_seed_smoke_out_$$"
+# PLATFORM: WINDOWS — SHUX file-open uses Win32 CreateFileA which does not
+# recognize MSYS2 /tmp/ mapping; absolute /tmp/ path fails with IO001.
+# $TEMP (set to C:/shux_tmp short path in Windows build env) is recognized.
+# POSIX falls back to /tmp where CreateFileA is not in play.
+case "$(uname -s 2>/dev/null)" in
+  MINGW*|MSYS*|CYGWIN*) _SMOKE_TMP="${TEMP:-/tmp}" ;;
+  *) _SMOKE_TMP="/tmp" ;;
+esac
+SMOKE_SRC="${_SMOKE_TMP}/shux_bootstrap_seed_smoke_$$.x"
+SMOKE_OUT="${_SMOKE_TMP}/shux_bootstrap_seed_smoke_out_$$"
 # PLATFORM: WINDOWS — MinGW gcc auto-appends .exe to -o targets. Without the
 # suffix, `[ -x "$SMOKE_OUT" ]` fails (file is SMOKE_OUT.exe, not SMOKE_OUT)
 # and bash direct exec yields Permission denied / not found. POSIX unchanged.
 case "$(uname -s 2>/dev/null)" in
   MINGW*|MSYS*|CYGWIN*) SMOKE_OUT="${SMOKE_OUT}.exe" ;;
 esac
-PINNED_TMP="/tmp/shux_bootstrap_seed_pinned_$$"
+PINNED_TMP="${_SMOKE_TMP}/shux_bootstrap_seed_pinned_$$"
 AUDIT_DIR="${SHUX_BOOTSTRAP_AUDIT_DIR:-../logs}"
 
 maybe_codesign() {
@@ -57,7 +65,7 @@ printf '%s\n' 'function main(): i32 { return 42; }' >"$SMOKE_SRC"
 # 参数：bin — 待测 shux 路径；成功返回 0。
 run_smoke() {
   local bin="$1"
-  local _log="/tmp/shux_bootstrap_seed_smoke_$$.log"
+  local _log="${_SMOKE_TMP}/shux_bootstrap_seed_smoke_$$.log"
   local _rc=0
   echo "[$(date '+%H:%M:%S')] seed smoke: -c check ..."
   # shux-c (C frontend) 不支持 -c，用 -E 替代（同样做 parse+typeck）
