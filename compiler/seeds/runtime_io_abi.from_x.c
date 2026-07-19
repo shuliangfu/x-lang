@@ -19,10 +19,12 @@
 #include <sys/mman.h>
 #endif
 #include <sys/stat.h>
-#ifndef _WIN32
+/* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW
+ *            (read/write/close/lseek/open/pread/pwrite/setenv/unsetenv).
+ *            macOS/Linux delegate to system <unistd.h> via #include_next.
+ *            Historical #ifndef _WIN32 guard removed — shim is a no-op
+ *            on POSIX and provides needed declarations on Windows. */
 #include <unistd.h>
-#endif
-
 /* 【Why 根源】MinGW open() 默认文本模式，read/write 做 CRLF↔LF 转换，
  * 导致 fstat 报告的 st_size（物理字节数）与 read 实际返回字节数不一致。
  * 例：fmt 写入 37 字节 LF，文本模式 write 磁盘为 40 字节 CRLF；

@@ -15,9 +15,12 @@ static int net_ipv6_wsa_done = 0;
 #include <netinet/in.h>
 #include <poll.h>
 #include <sys/socket.h>
-#ifndef _WIN32
+/* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW
+ *            (read/write/close/lseek/open/pread/pwrite/setenv/unsetenv).
+ *            macOS/Linux delegate to system <unistd.h> via #include_next.
+ *            Historical #ifndef _WIN32 guard removed — shim is a no-op
+ *            on POSIX and provides needed declarations on Windows. */
 #include <unistd.h>
-#endif
 #endif
 
 /* 【Why 根源】asm codegen 对 u16 间接 store 会错发 64 位 store；IPv6 sockaddr_in6 填充须走 C。

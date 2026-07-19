@@ -29,11 +29,12 @@ void diag_json_set_state(int v);
 #include <string.h>
 
 #if !defined(_WIN32)
-#ifndef _WIN32
+/* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW
+ *            (read/write/close/lseek/open/pread/pwrite/setenv/unsetenv).
+ *            include/poll.h and include/sys/uio.h shims also available.
+ *            macOS/Linux delegate to system headers via #include_next.
+ *            Historical #ifndef _WIN32 guard removed for safe includes. */
 #include <unistd.h>
-
-/* G-02f-74 / G-02f-157：print_* 已折叠为 public */
-#endif
 #endif
 
 typedef struct DiagContext {

@@ -8,11 +8,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#ifndef _WIN32
+/* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW
+ *            (read/write/close/lseek/open/pread/pwrite/setenv/unsetenv).
+ *            include/poll.h and include/sys/uio.h shims also available.
+ *            macOS/Linux delegate to system headers via #include_next.
+ *            Historical #ifndef _WIN32 guard removed for safe includes. */
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
-#endif
 extern int32_t rt_exec_suffix2_non_exe(uint8_t * exe, size_t n);
 extern int32_t rt_exec_suffix4_non_exe(uint8_t * exe, size_t n);
 extern int32_t rt_exec_check_non_exe(uint8_t * exe, size_t n);

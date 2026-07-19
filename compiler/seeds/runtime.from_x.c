@@ -311,19 +311,19 @@ extern int codegen_codegen_entry_library_module_to_c(struct ASTModule *m, const 
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#ifndef _WIN32
-#ifndef _WIN32
+/* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW
+ *            (read/write/close/lseek/open/pread/pwrite/setenv/unsetenv).
+ *            include/poll.h and include/sys/uio.h shims also available.
+ *            macOS/Linux delegate to system headers via #include_next.
+ *            Historical #ifndef _WIN32 guard removed for safe includes. */
 #include <unistd.h>
-#include <sys/wait.h>
-#endif
 #include <fcntl.h>
-#ifndef _WIN32
-#include <sys/resource.h>
-#endif
 #include <sys/stat.h>
-#ifndef _WIN32
 #include <sys/time.h>
-#endif
+
+#ifndef _WIN32
+#include <sys/wait.h>
+#include <sys/resource.h>
 #endif
 #include <sys/stat.h>
 #include <pthread.h>
@@ -1171,12 +1171,16 @@ int run_compiler_c(int argc, char **argv);
 
 #endif /* SHUX_USE_X_PIPELINE */
 
-#ifndef _WIN32
+/* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW
+ *            (read/write/close/lseek/open/pread/pwrite/setenv/unsetenv).
+ *            include/poll.h and include/sys/uio.h shims also available.
+ *            macOS/Linux delegate to system headers via #include_next.
+ *            Historical #ifndef _WIN32 guard removed for safe includes. */
 #include <unistd.h>
-#include <sys/wait.h>
+
 #ifndef _WIN32
+#include <sys/wait.h>
 #include <sys/utsname.h>
-#endif
 #endif
 
 #define MAX_ALL_DEPS 128

@@ -11,9 +11,12 @@
 
 #if !defined(_WIN32) && !defined(_WIN64)
 #include <string.h>
-#ifndef _WIN32
+/* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW
+ *            (read/write/close/lseek/open/pread/pwrite/setenv/unsetenv).
+ *            macOS/Linux delegate to system <unistd.h> via #include_next.
+ *            Historical #ifndef _WIN32 guard removed — shim is a no-op
+ *            on POSIX and provides needed declarations on Windows. */
 #include <unistd.h>
-#endif
 #endif
 
 /** 与 std.io IO_ASYNC_NOT_READY 一致。 */

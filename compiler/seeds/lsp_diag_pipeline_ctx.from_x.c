@@ -11,14 +11,12 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <stdio.h>
-#ifndef _WIN32
+/* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW
+ *            (read/write/close/lseek/open/pread/pwrite/setenv/unsetenv).
+ *            include/poll.h and include/sys/uio.h shims also available.
+ *            macOS/Linux delegate to system headers via #include_next.
+ *            Historical #ifndef _WIN32 guard removed for safe includes. */
 #include <unistd.h>
-
-/* G-02f-74 lsp ctx gates */
-void lsp_diag_pipeline_ctx_fill_paths(void *ctx_void, const char *entry_dir, const char **lib_roots, int n_lib_roots);
-int32_t typeck_lsp_main(void);
-int32_t lsp_write_all(int32_t fd, const uint8_t *buf, int32_t len);
-#endif
 
 extern size_t pipeline_sizeof_dep_ctx(void);
 extern int32_t typeck_lsp_build_diagnostics_response(int32_t id_val, uint8_t * source, int32_t source_len, uint8_t * out_buf, int32_t out_cap);

@@ -3,9 +3,12 @@
  * Logic still C until full .x port.
  */
 /* runtime_panic_arm64.c — ARM64/macOS 用最小 panic 实现。提供 shux_panic_ 符号供链接。 */
-#ifndef _WIN32
+/* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW
+ *            (read/write/close/lseek/open/pread/pwrite/setenv/unsetenv).
+ *            macOS/Linux delegate to system <unistd.h> via #include_next.
+ *            Historical #ifndef _WIN32 guard removed — shim is a no-op
+ *            on POSIX and provides needed declarations on Windows. */
 #include <unistd.h>
-#endif
 #include <stdlib.h>
 #include <stdio.h>
 

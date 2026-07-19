@@ -25,9 +25,12 @@ int log_write_fd_impl(int fd, const void *buf, size_t len) { return (int)_write(
 
 
 #else
-#ifndef _WIN32
+/* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW
+ *            (read/write/close/lseek/open/pread/pwrite/setenv/unsetenv).
+ *            macOS/Linux delegate to system <unistd.h> via #include_next.
+ *            Historical #ifndef _WIN32 guard removed — shim is a no-op
+ *            on POSIX and provides needed declarations on Windows. */
 #include <unistd.h>
-#endif
 #include <fcntl.h>
 #include <sys/stat.h>
 /* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_log_os.x）提供 public wrapper */

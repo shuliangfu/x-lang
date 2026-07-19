@@ -70,10 +70,12 @@ void closedir_win(DIR *d) {
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#ifndef _WIN32
+/* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW
+ *            (read/write/close/lseek/open/pread/pwrite/setenv/unsetenv).
+ *            macOS/Linux delegate to system <unistd.h> via #include_next.
+ *            Historical #ifndef _WIN32 guard removed — shim is a no-op
+ *            on POSIX and provides needed declarations on Windows. */
 #include <unistd.h>
-#endif
-
 #ifdef SHUX_L2_FMT_CHECK_THIN_FROM_X
 int32_t driver_check_quiet_ok_get(void);
 int fmt_walk_skip_dot_name(const char *name);

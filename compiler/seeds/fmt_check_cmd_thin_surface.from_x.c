@@ -6,29 +6,17 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#ifndef _WIN32
+/* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW
+ *            (read/write/close/lseek/open/pread/pwrite/setenv/unsetenv).
+ *            include/poll.h and include/sys/uio.h shims also available.
+ *            macOS/Linux delegate to system headers via #include_next.
+ *            Historical #ifndef _WIN32 guard removed for safe includes. */
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/uio.h>
 #include <poll.h>
 #include <dirent.h>
-static inline uint8_t *shux_fmt_opendir(uint8_t *name) {
-  return (uint8_t *)opendir((const char *)name);
-}
-static inline int32_t shux_fmt_closedir(uint8_t *dirp) {
-  return dirp ? (int32_t)closedir((DIR *)(void *)dirp) : (int32_t)-1;
-}
-static inline int32_t shux_fmt_access(uint8_t *path, int32_t mode) {
-  return path ? (int32_t)access((const char *)path, (int)mode) : (int32_t)-1;
-}
-static inline uint8_t *shux_fmt_readdir_name(uint8_t *dirp) {
-  struct dirent *ent;
-  if (!dirp) return (uint8_t *)0;
-  ent = readdir((DIR *)(void *)dirp);
-  return ent ? (uint8_t *)ent->d_name : (uint8_t *)0;
-}
-#endif
 #if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 201112L
 #error "Generated code needs C11. Compile with -std=gnu11 or -std=c11."
 #endif

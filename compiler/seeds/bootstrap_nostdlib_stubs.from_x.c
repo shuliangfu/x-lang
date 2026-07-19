@@ -40,10 +40,12 @@
 #include <sys/utsname.h>
 #endif
 #include <pthread.h>
-#ifndef _WIN32
+/* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW
+ *            (read/write/close/lseek/open/pread/pwrite/setenv/unsetenv).
+ *            macOS/Linux delegate to system <unistd.h> via #include_next.
+ *            Historical #ifndef _WIN32 guard removed — shim is a no-op
+ *            on POSIX and provides needed declarations on Windows. */
 #include <unistd.h>
-#endif
-
 /** bootstrap opendir 用最小 dirent（勿链 libc libdl）。 */
 struct dirent {
     char d_name[256];

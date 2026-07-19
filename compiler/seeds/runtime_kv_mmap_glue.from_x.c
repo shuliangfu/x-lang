@@ -15,10 +15,12 @@
 #include <sys/mman.h>
 #endif
 #include <sys/stat.h>
-#ifndef _WIN32
+/* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW
+ *            (read/write/close/lseek/open/pread/pwrite/setenv/unsetenv).
+ *            macOS/Linux delegate to system <unistd.h> via #include_next.
+ *            Historical #ifndef _WIN32 guard removed — shim is a no-op
+ *            on POSIX and provides needed declarations on Windows. */
 #include <unistd.h>
-#endif
-
 /**
  * mmap 映射文件（O_RDWR|O_CREAT；不足 min_size 则 ftruncate）。
  * 成功返回映射地址（intptr），失败返回 0；out_size 写入映射长度。
