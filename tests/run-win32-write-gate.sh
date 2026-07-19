@@ -7,7 +7,11 @@ cd "$(dirname "$0")/.."
 
 FAIL=${SHUX_WIN32_WRITE_FAIL:-0}
 X="tests/sys/win32_write_smoke.x"
-OUT="/tmp/shux_win32_write.$$.exe"
+# Why: bash direct exec of .exe under /tmp/ hits Windows Device Guard / Smart
+#      App Control intermittently (Permission denied, exit 126). $TEMP (set to
+#      C:/shux_tmp short path in Windows build env) is reliable. POSIX falls
+#      back to /tmp where Device Guard does not apply.
+OUT="${TEMP:-/tmp}/shux_win32_write.$$.exe"
 SHUX="${SHUX:-./compiler/shux-c}"
 
 if [ "$(uname -s 2>/dev/null)" != "MINGW"* ] && [ "$(uname -s 2>/dev/null)" != "MSYS"* ] \

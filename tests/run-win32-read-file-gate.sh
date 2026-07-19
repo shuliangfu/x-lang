@@ -10,7 +10,11 @@ X="tests/sys/win32_read_file_smoke.x"
 # Why: Win32 CreateFileA does not recognize MSYS2 /tmp/ mapping; the smoke
 #      binary uses a relative path, so the gate file must live in CWD.
 GATE_FILE="shux_win32_read_gate.txt"
-OUT="/tmp/shux_win32_read_file.$$.exe"
+# Why: bash direct exec of .exe under /tmp/ hits Windows Device Guard / Smart
+#      App Control intermittently (Permission denied, exit 126). $TEMP (set to
+#      C:/shux_tmp short path in Windows build env) is reliable. POSIX falls
+#      back to /tmp where Device Guard does not apply.
+OUT="${TEMP:-/tmp}/shux_win32_read_file.$$.exe"
 SHUX="${SHUX:-./compiler/shux-c}"
 
 if [ "$(uname -s 2>/dev/null)" != "MINGW"* ] && [ "$(uname -s 2>/dev/null)" != "MSYS"* ] \

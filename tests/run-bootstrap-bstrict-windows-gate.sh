@@ -75,7 +75,11 @@ if ! grep -qE "$EXPECT_MARKER" "$BOOT_LOG"; then
 fi
 
 echo "bootstrap-bstrict-windows-gate: smoke return-value via shux_asm ..."
-RV_OUT="/tmp/shux_win_rv_$$"
+# Why: bash direct exec of .exe under /tmp/ hits Windows Device Guard / Smart
+#      App Control intermittently (Permission denied, exit 126). $TEMP (set to
+#      C:/shux_tmp short path in Windows build env) is reliable. POSIX falls
+#      back to /tmp where Device Guard does not apply.
+RV_OUT="${TEMP:-/tmp}/shux_win_rv_$$"
 RV_BACKEND_ARGS="-backend c"
 rm -f "$RV_OUT" "${RV_OUT}.c" "${RV_OUT}.exe" "${RV_OUT}.out"
 compile_rv() {
