@@ -37,7 +37,28 @@ if [ "$WIN_BSTRICT" = "1" ]; then
   BOOT_LOG=/tmp/boot_win_bstrict.log
   EXPECT_MARKER='bootstrap-driver-bstrict OK|asm_only_strict|asm_only_experimental|B-strict OK'
 else
-  echo "bootstrap-bstrict-windows-gate: make bootstrap-driver-hybrid (B-hybrid default) ..."
+  # Why: bootstrap-driver-hybrid depends on $(TARGET)=shux, whose link rule
+  #      (makefile L611-612) uses only $(OBJS_CORE)=14 .o in SHUX_LEGACY_C_FRONTEND=1
+  #      mode — missing parse/typeck_module/preprocess/pipeline_*/codegen_* symbols.
+  #      shux must be built by bootstrap-driver-seed (full symbol set: 30+ .o
+  #      including pipeline_x.o/parser_x.o/typeck_x.o/codegen_x.o/preprocess_x.o).
+  #      On macOS/Linux shux-x/shux-c are seed copies; shux itself is never
+  #      built standalone. Without this prerequisite the hybrid link fails
+  #      with 30+ undefined references. bootstrap-driver-bstrict already
+  #      depends on bootstrap-driver-seed (L2580); B-hybrid does not.
+  # Invariant: bootstrap-driver-seed is PHONY — always relinks shux with the
+  #            full DRIVER_SEED_PREREQS symbol set, then cp to shux-x/shux-c.
+  #            Subsequent bootstrap-driver-hybrid sees shux up-to-date and
+  #            skips the 14-.o link rule, running only build_shux_asm.sh.
+  # PLATFORM: WINDOWS | MSYS | MINGW (script only runs on MSYS2 hosts; see
+  #           ci_is_windows_msys guard above).
+  echo "bootstrap-bstrict-windows-gate: make bootstrap-driver-seed (full symbol set) then bootstrap-driver-hybrid (B-hybrid default) ..."
+  make -C compiler bootstrap-driver-seed 2>&1 | tee /tmp/boot_win_seed.log
+  SEED_RC=${PIPESTATUS[0]}
+  if [ "$SEED_RC" -ne 0 ]; then
+    echo "bootstrap-bstrict-windows-gate FAIL: bootstrap-driver-seed rc=$SEED_RC" >&2
+    exit 1
+  fi
   make -C compiler bootstrap-driver-hybrid 2>&1 | tee /tmp/boot_win_hybrid.log
   BOOT_LOG=/tmp/boot_win_hybrid.log
   EXPECT_MARKER='Target-B-hybrid|B-hybrid|bootstrap-driver-hybrid OK'
