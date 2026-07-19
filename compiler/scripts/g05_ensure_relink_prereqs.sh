@@ -23,7 +23,11 @@ echo "g05_ensure_relink_prereqs: load env (shell, no make)"
 # shellcheck disable=SC2046
 eval "$(bash scripts/g05_relink_env.sh)"
 
-CC="${G05_CC:-cc}"
+# Why: Windows MSYS2/MinGW ships gcc only (no cc alias). Honor caller-provided
+#      $CC (e.g. CC=gcc exported by Windows build env), then G05_CC override,
+#      then fall back to cc for POSIX. Without this, g05 hot-rebuild emits
+#      "cc: command not found" on Windows.
+CC="${G05_CC:-${CC:-cc}}"
 BASE_CFLAGS="-Wall -Wextra -I. -Iinclude -Isrc"
 # 与 Makefile RUNTIME_DRIVER_NO_C_CFLAGS 一致（runtime.c → runtime_driver_no_c.o）
 # Cap residual 数据在 RT_SEED_SLICE_OBJS（g05_relink_env）；runtime 开 SHUX_RT_*_FROM_X。
