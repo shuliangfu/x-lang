@@ -59,6 +59,7 @@ typedef long off_t;
 #endif
 
 #include <io.h>  /* _read / _write / _close / _lseek / _open */
+#include <stdlib.h>  /* getenv / _putenv_s (MinGW declares setenv family here) */
 
 /* shux_posix_open — SHUX-expected signature wrapper for MinGW _open.
  * Why: SHUX-generated code declares `extern int32_t open(uint8_t *,
