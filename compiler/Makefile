@@ -788,7 +788,19 @@ src/runtime.o: seeds/runtime.from_x.c src/runtime.x include/diag.h
 # Makefile 为 prerequisite：编译宏（如 SHUX_USE_X_PREPROCESS）变更时须重编，否则 runtime_driver.o 缺 preprocess() 导致链接 Undefined _preprocess。
 # SHUX_ASM_USE_COMPILER_IMPL_C：driver_run_compiler_full 走 impl_c（parse_argv+post_parse），避免 compile.x X emit 路径 silent fail（与 B-strict shux_asm 同）。
 # E-03 v2：SHUX_LEGACY_PREPROCESS_C=1 时 runtime preprocess() 仍调 C preprocess_c_fallback。
-RUNTIME_DRIVER_CFLAGS = -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_PREPROCESS -DSHUX_ASM_USE_COMPILER_IMPL_C
+# PLATFORM: SHARED — RUNTIME_DRIVER_CFLAGS compiles src/runtime_driver.o (LEGACY mode link unit).
+#   G-02a: C frontend (typeck.c/parser.c/preprocess.c/codegen.c) physically deleted; only
+#   SHUX_WEAK stubs in runtime_driver_strict_glue_stubs.from_x.c remain (parse/typeck_module
+#   return -1). LEGACY mode MUST define SHUX_NO_C_FRONTEND to match RUNTIME_DRIVER_NO_C_CFLAGS,
+#   otherwise #if !defined(SHUX_NO_C_FRONTEND) blocks (e.g. driver_run_asm_backend L4320 C typeck
+#   precheck) get compiled in and call stub parse() → return -1 → exit=1 on Windows.
+#   Why LEGACY still exists: Windows MSYS has no pinned seed; needs runtime_driver.o (not
+#   runtime_driver_no_c.o) for the shux-c standalone build recipe (L2486-2490). But the .o
+#   content is now identical to no_c — only the link target name differs.
+#   Invariant: RUNTIME_DRIVER_CFLAGS and RUNTIME_DRIVER_NO_C_CFLAGS keep the same SHUX_NO_C_FRONTEND
+#              gate; only SHUX_USE_X_TYPECK/SHUX_USE_X_CODEGEN differ (LEGACY omits them because
+#              DRIVER_SEED_LINK_FLAGS already defines them at link time for all .o units).
+RUNTIME_DRIVER_CFLAGS = -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_PREPROCESS -DSHUX_NO_C_FRONTEND -DSHUX_ASM_USE_COMPILER_IMPL_C
 RUNTIME_DRIVER_NO_C_CFLAGS = -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_PREPROCESS -DSHUX_USE_X_TYPECK -DSHUX_USE_X_CODEGEN -DSHUX_NO_C_FRONTEND -DSHUX_ASM_USE_COMPILER_IMPL_C
 # Cap residual 数据/符号在 rt_* 切片（g05 同构）：driver_abi 始终 extern 引用；
 # 冷启动 bootstrap-driver-seed 必须链 RT_SEED_SLICE_OBJS，runtime 侧开 FROM_X 避免 static 副本漂移。
