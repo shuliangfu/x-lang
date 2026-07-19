@@ -26,8 +26,22 @@ WIN_LDFLAGS = -Wl,--allow-multiple-definition
 #            system /bin/sh via PATH lookup.
 # PLATFORM: WINDOWS | MSYS | MINGW (SHELL override); no-op elsewhere.
 SHELL := sh
+# Why: MSYS Git Bash ships /usr/local/bin/python3 as a 2-line shim
+#      (#!/usr/bin/env bash; exec python "$@"). env's PATH-search for bash
+#      resolves to "C:/Program Files/Git/usr/bin/bash.exe" (path with space),
+#      and env invokes it unquoted — bash sees "C:\Program" as the command
+#      name and aborts with "bash: C:\Program: No such file or directory".
+#      Direct `python` resolves via PATH to "/c/Program Files/Python312/python"
+#      (also has a space), but bash's PATH lookup handles spaces correctly
+#      (unlike env's execve via the shim). On macOS/Linux `python3` is the
+#      canonical name and is used unchanged.
+# Invariant: PYTHON := python only on Windows_NT; verified that
+#            `python --version` returns Python 3.12.x on Windows MSYS.
+# PLATFORM: WINDOWS | MSYS | MINGW (PYTHON override); no-op elsewhere.
+PYTHON := python
 else
 WIN_LDFLAGS =
+PYTHON := python3
 endif
 # 仅编译 pipeline_gen.c / driver_gen.c 等生成代码时加：静默已知警告，使 bootstrap-driver 整次 0 警告
 # GCC 不识别 -Wno-logical-op-parentheses / -Wno-bitwise-op-parentheses / -Wno-incompatible-pointer-types-discards-qualifiers，会出 cc1 note；仅 Clang 追加
@@ -1698,7 +1712,7 @@ typeck_gen.c: src/typeck/typeck.x
 	perl scripts/fix_slim_arena_gen_c.pl $@
 
 typeck_x.o: typeck_gen.c
-	@python3 scripts/patch_typeck_gen_lang007.py
+	@$(PYTHON) scripts/patch_typeck_gen_lang007.py
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c typeck_gen.c -o typeck_x.o
 	@test $$(stat -f%z typeck_x.o 2>/dev/null || stat -c%s typeck_x.o) -gt 10000 || (echo "typeck_x.o too small (corrupt gen? rm typeck_gen.c && make typeck_gen.c typeck_x.o)" >&2; exit 1)
 
