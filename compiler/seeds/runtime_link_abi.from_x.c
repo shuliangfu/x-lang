@@ -3033,11 +3033,25 @@ int link_abi_generated_c_contains_substr_use_line(const char *c_path, const char
             is_comment = 1;
         if (k + 2 <= line_end && view.data[k] == '/' && view.data[k + 1] == '*')
             is_comment = 1;
-        /* preamble 类型声明：struct/typedef std_string_* / std_net_* 不是真实引用 */
-        if (k + 6 <= line_end && memcmp(view.data + k, "struct", 6) == 0)
-            is_extern = 1; /* 复用 skip 标志 */
-        if (k + 7 <= line_end && memcmp(view.data + k, "typedef", 7) == 0)
-            is_extern = 1;
+        /*
+         * PLATFORM: SHARED — preamble type decls (struct/typedef std_net_*) are NOT real refs.
+         * But variable decls like "struct Foo x = std_net_listen(...)" ARE real refs: the needle
+         * is the function call (std_net_listen), not the struct name (Foo). The legacy check
+         * "line-startswith struct/typedef" falsely skipped such lines → need_net=0 → net.o not
+         * pushed → BLD001 undefined _std_net_listen.
+         * Root cause fix (2026-07-19): distinguish struct/typedef DEFINITION (needle is the
+         * type name, preceded by "struct "/"typedef ") from variable decl (needle is the
+         * function call, preceded by "= "/"("/"," etc.). Only skip the former.
+         */
+        {
+            size_t p = off;
+            while (p > line_start && (view.data[p - 1] == ' ' || view.data[p - 1] == '\t'))
+                p--;
+            if (p >= line_start + 7 && memcmp(view.data + p - 7, "struct ", 7) == 0)
+                is_extern = 1; /* needle is the struct name in a definition or variable decl */
+            if (p >= line_start + 8 && memcmp(view.data + p - 8, "typedef ", 8) == 0)
+                is_extern = 1; /* needle is the typedef name */
+        }
         /* weak placeholder 体：仅当本行含 placeholder（如 std_string_placeholder）才跳过 */
         {
             size_t li;

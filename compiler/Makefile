@@ -177,7 +177,12 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 	rm -f ../std/runtime/runtime_core.o
 
 # std.net：F-04 v10～v14 纯 .x（F-ZC）；OS glue 由 runtime_net_*_fast.inc 提供（G-02e-18）。
-../std/net/net.o: ../std/net/alpn.x ../std/net/dns.x ../std/net/io_batch.x ../std/net/addr.x ../std/net/ipv6.x ../std/net/sock.x ../std/net/udp.x ../std/net/tcp.x ../std/net/udp_batch.x ../std/net/workers.x seeds/runtime_net_dns_fast.from_x.c seeds/runtime_net_io_batch_fast.from_x.c seeds/runtime_net_addr_fast.from_x.c seeds/runtime_net_ipv6_fast.from_x.c seeds/runtime_net_sock_fast.from_x.c scripts/cc_inc_tu.sh
+# PLATFORM: SHARED — mod.x MUST be compiled into net.o; otherwise std_net_listen /
+# std_net_close_listener / std_net_accept etc. exported symbols are missing from
+# net.o, and any user program calling net.* API hits Undefined symbol BLD001.
+# Root cause fix (2026-07-19): add mod.x via shux_compile_std_module.sh (matches
+# string/heap/sys/fs pattern). Sub-module .x keep shux_compile_std_x.sh bare path.
+../std/net/net.o: ../std/net/mod.x ../std/net/alpn.x ../std/net/dns.x ../std/net/io_batch.x ../std/net/addr.x ../std/net/ipv6.x ../std/net/sock.x ../std/net/udp.x ../std/net/tcp.x ../std/net/udp_batch.x ../std/net/workers.x seeds/runtime_net_dns_fast.from_x.c seeds/runtime_net_io_batch_fast.from_x.c seeds/runtime_net_addr_fast.from_x.c seeds/runtime_net_ipv6_fast.from_x.c seeds/runtime_net_sock_fast.from_x.c scripts/cc_inc_tu.sh | scripts/shux_compile_std_module.sh
 	@objs=""; \
 	shux="$${SHUX:-}"; \
 	if [ -z "$$shux" ] || [ ! -x "$$shux" ]; then \
@@ -191,13 +196,15 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 	  sh scripts/shux_compile_std_x.sh $$shux ../std/net/$$x.x ../std/net/$$x.o || exit 1; \
 	  objs="$$objs ../std/net/$$x.o"; \
 	  done; \
+	  sh scripts/shux_compile_std_module.sh ../std/net/mod.o ../std/net/mod.x || exit 1; \
+	  objs="$$objs ../std/net/mod.o"; \
 	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_net_dns_fast.from_x.c -o ../std/net/net_dns_fast.o && \
 	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_net_io_batch_fast.from_x.c -o ../std/net/net_io_batch_fast.o && \
 	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_net_addr_fast.from_x.c -o ../std/net/net_addr_fast.o && \
 	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_net_ipv6_fast.from_x.c -o ../std/net/net_ipv6_fast.o && \
 	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_net_sock_fast.from_x.c -o ../std/net/net_sock_fast.o && \
 	  ld -r $(LD_R_MULTIDEF_FLAGS) -o $@ $$objs ../std/net/net_dns_fast.o ../std/net/net_io_batch_fast.o ../std/net/net_addr_fast.o ../std/net/net_ipv6_fast.o ../std/net/net_sock_fast.o && \
-	  rm -f ../std/net/net_dns_fast.o ../std/net/net_io_batch_fast.o ../std/net/net_addr_fast.o ../std/net/net_ipv6_fast.o ../std/net/net_sock_fast.o; \
+	  rm -f ../std/net/mod.o ../std/net/net_dns_fast.o ../std/net/net_io_batch_fast.o ../std/net/net_addr_fast.o ../std/net/net_ipv6_fast.o ../std/net/net_sock_fast.o; \
 	else \
 	  echo "net.o: need shux-c to merge net_*.x"; exit 0; \
 	fi
