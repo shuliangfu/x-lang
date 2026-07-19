@@ -37,6 +37,40 @@ build_seed_asm_host_dump_tail() {
   tail -n "$_lines" "$_file" | sed 's/^/  /' >&2
 }
 
+# Real partial must contain the strong symbol backend_asm_codegen_ast_seed_mega
+# (phase1 weak stubs only carry W linkage). Defined here (instead of further
+# down) so the "no executable seed" early fallback path can call
+# build_backend_partial_from_c_fallback() before the asm.x -E flow.
+has_real_partial_seed_mega() {
+  _obj="$1"
+  nm "$_obj" 2>/dev/null | awk '/ T / {
+    s=$3; sub(/^_/, "", s)
+    if (s == "backend_asm_codegen_ast_seed_mega") found=1
+  } END { exit !found }'
+}
+
+# Source-based fallback partial build — used when:
+#   (a) no executable seed binary is available (Windows MSYS cold start), OR
+#   (b) asm.x -E fails / produces unusable output (existing path further down).
+# Builds seeds/backend_seed_mega_fallback.from_x.c via cc_inc_tu.sh and
+# verifies the result has the strong seed_mega symbol; rejects silently-broken
+# builds.
+build_backend_partial_from_c_fallback() {
+  rm -f "$BACKEND_PARTIAL"
+  build_seed_asm_host_warn "fallback cc $BACKEND_FALLBACK_SRC -> $BACKEND_PARTIAL"
+  if ! sh scripts/cc_inc_tu.sh "$BACKEND_FALLBACK_SRC" "$BACKEND_PARTIAL" 2>"$OUT_DIR/backend_seed_mega_fallback.err"; then
+    build_seed_asm_host_dump_tail "$OUT_DIR/backend_seed_mega_fallback.err" 20
+    rm -f "$BACKEND_PARTIAL"
+    return 1
+  fi
+  if ! has_real_partial_seed_mega "$BACKEND_PARTIAL"; then
+    build_seed_asm_host_error "fallback partial 缺少强 seed_mega"
+    rm -f "$BACKEND_PARTIAL"
+    return 1
+  fi
+  return 0
+}
+
 clear_asm_seed_stale_logs() {
   rm -f "$OUT_DIR/asm_full_gen.err" "$OUT_DIR/asm_full_gen.c.tmp"
 }
@@ -325,32 +359,8 @@ has_nm_sym() {
   } END { exit !found }'
 }
 
-# 真 partial 须含强符号 backend_asm_codegen_ast_seed_mega（phase1 弱桩为 W）。
-has_real_partial_seed_mega() {
-  _obj="$1"
-  nm "$_obj" 2>/dev/null | awk '/ T / {
-    s=$3; sub(/^_/, "", s)
-    if (s == "backend_asm_codegen_ast_seed_mega") found=1
-  } END { exit !found }'
-}
-
-# BACKEND_FALLBACK_SRC defined at top of script (early-fallback path needs it).
-
-build_backend_partial_from_c_fallback() {
-  rm -f "$BACKEND_PARTIAL"
-  build_seed_asm_host_warn "fallback cc $BACKEND_FALLBACK_SRC -> $BACKEND_PARTIAL"
-  if ! sh scripts/cc_inc_tu.sh "$BACKEND_FALLBACK_SRC" "$BACKEND_PARTIAL" 2>"$OUT_DIR/backend_seed_mega_fallback.err"; then
-    build_seed_asm_host_dump_tail "$OUT_DIR/backend_seed_mega_fallback.err" 20
-    rm -f "$BACKEND_PARTIAL"
-    return 1
-  fi
-  if ! has_real_partial_seed_mega "$BACKEND_PARTIAL"; then
-    build_seed_asm_host_error "fallback partial 缺少强 seed_mega"
-    rm -f "$BACKEND_PARTIAL"
-    return 1
-  fi
-  return 0
-}
+# has_real_partial_seed_mega and build_backend_partial_from_c_fallback are
+# defined at the top of the script (early-fallback path needs them).
 
 # 从 .o 收集 backend/peephole/platform 导出符号名（保留 nm 原样：Darwin 带 _，ELF 不带）。
 collect_backend_export_syms() {
