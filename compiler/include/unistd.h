@@ -60,15 +60,6 @@ typedef long off_t;
 
 #include <io.h>  /* _read / _write / _close / _lseek / _open */
 
-/* Forward-declare getenv / _putenv_s instead of pulling in <stdlib.h>.
- * Why: Including <stdlib.h> here would conflict with SHUX-generated
- *      `extern uint8_t * calloc(size_t, size_t)` and `extern void free(uint8_t *)`
- *      declarations in parser_gen.c / typeck_gen.c / codegen_gen.c (SHUX
- *      emits uint8_t* return types where MinGW stdlib.h declares void*).
- *      Forward declarations avoid the conflict and match MinGW's signatures. */
-char *getenv(const char *name);
-int _putenv_s(const char *name, const char *value);
-
 /* shux_posix_open — SHUX-expected signature wrapper for MinGW _open.
  * Why: SHUX-generated code declares `extern int32_t open(uint8_t *,
  *      int32_t, int32_t)` (typeck_gen.c L84 et al.) and calls `open(path,
@@ -116,25 +107,11 @@ static inline ssize_t pwrite(int fd, const void *buf, size_t count, off_t offset
     return n;
 }
 
-/* setenv — POSIX set environment variable; MinGW lacks it (has _putenv_s).
- *           Returns 0 on success, -1 on error (POSIX semantics).
- *           `overwrite == 0` and existing variable → no-op success.
- * Why: driver_gen.c:559 calls setenv("SHUX_RUN_QUIET", "1", 1) (generated
- *      from src/driver.x main_cmd_run). MinGW stdlib.h declares _putenv_s
- *      but not setenv, causing implicit-declaration errors. */
-static inline int setenv(const char *name, const char *value, int overwrite) {
-    if (!overwrite && getenv(name) != NULL) return 0;
-    return _putenv_s(name, value) == 0 ? 0 : -1;
-}
-
-/* unsetenv — POSIX unset environment variable; MinGW lacks it (has _putenv_s).
- *             Returns 0 on success, -1 on error (POSIX semantics).
- *             POSIX requires unsetenv to remove the variable entirely; MinGW
- *             _putenv_s(name, "") sets it to empty string (different but
- *             close enough for SHUX usage which only checks getenv != NULL). */
-static inline int unsetenv(const char *name) {
-    return _putenv_s(name, "") == 0 ? 0 : -1;
-}
+/* setenv/unsetenv shims for MinGW — included from shared header so the same
+ * guarded block can be reused from x_stubs.h (force-included for driver_gen.c
+ * and other .o builds that don't pull <unistd.h>) without duplicate static
+ * inline definitions. See include/shux_posix_env.h for details. */
+#include <shux_posix_env.h>
 
 #else
 /* macOS / Linux: delegate to the system <unistd.h>. */
