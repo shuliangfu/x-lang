@@ -4600,16 +4600,24 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
                     }
                 }
                 if (!have_vec_body) {
+                    int c_prov_cm_v = 0;
+                    int c_prov_sh_v = 0;
+                    for (jscan = 0; jscan < n; jscan++) {
+                        const char *cp = c_paths[jscan];
+                        if (!cp) continue;
+                        if (link_abi_generated_c_provides_core_mem(cp)) c_prov_cm_v = 1;
+                        if (link_abi_generated_c_provides_std_heap(cp)) c_prov_sh_v = 1;
+                    }
                     if (include_root && include_root[0]) {
                         (void)shux_ensure_formal_std_make_o(include_root, "std/vec/vec.o", "../std/vec/vec.o");
-                        (void)shux_ensure_formal_std_make_o(include_root, "std/heap/heap.o", "../std/heap/heap.o");
-                        (void)shux_ensure_formal_std_make_o(include_root, "core/mem/mem.o", "../core/mem/mem.o");
+                        if (!c_prov_sh_v) (void)shux_ensure_formal_std_make_o(include_root, "std/heap/heap.o", "../std/heap/heap.o");
+                        if (!c_prov_cm_v) (void)shux_ensure_formal_std_make_o(include_root, "core/mem/mem.o", "../core/mem/mem.o");
                     }
                     if (invoke_cc_argv_push_existing(argv, &i, argv_cap,
                         shux_rel_o_path_from_argv0(include_root, "std/vec/vec.o"))) {
-                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
+                        if (!c_prov_sh_v) (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
                             shux_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o()));
-                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
+                        if (!c_prov_cm_v) (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
                             shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o()));
                     }
                 }
@@ -4640,40 +4648,60 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
              * L4 wipe: formal set/heap/mem via Makefile ensure before push.
              */
             if (need_set) {
+                int c_prov_cm_s = 0, c_prov_sh_s = 0;
+                for (jscan = 0; jscan < n; jscan++) {
+                    const char *cp = c_paths[jscan];
+                    if (!cp) continue;
+                    if (link_abi_generated_c_provides_core_mem(cp)) c_prov_cm_s = 1;
+                    if (link_abi_generated_c_provides_std_heap(cp)) c_prov_sh_s = 1;
+                }
                 if (include_root && include_root[0]) {
                     (void)shux_ensure_formal_std_make_o(include_root, "std/set/set.o", "../std/set/set.o");
-                    (void)shux_ensure_formal_std_make_o(include_root, "std/heap/heap.o", "../std/heap/heap.o");
-                    (void)shux_ensure_formal_std_make_o(include_root, "core/mem/mem.o", "../core/mem/mem.o");
+                    if (!c_prov_sh_s) (void)shux_ensure_formal_std_make_o(include_root, "std/heap/heap.o", "../std/heap/heap.o");
+                    if (!c_prov_cm_s) (void)shux_ensure_formal_std_make_o(include_root, "core/mem/mem.o", "../core/mem/mem.o");
                 }
                 if (invoke_cc_argv_push_existing(argv, &i, argv_cap,
                         shux_rel_o_path_from_argv0(include_root, "std/set/set.o"))) {
-                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
+                    if (!c_prov_sh_s) (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
                         shux_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o()));
-                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
+                    if (!c_prov_cm_s) (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
                         shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o()));
-                    /* set.o → U _std_hash_bytes；need_hash 推送已在上方，此处显式补链 */
                     (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, hash_o);
                 }
             }
             if (need_map) {
+                int c_prov_cm_m = 0, c_prov_sh_m = 0;
+                for (jscan = 0; jscan < n; jscan++) {
+                    const char *cp = c_paths[jscan];
+                    if (!cp) continue;
+                    if (link_abi_generated_c_provides_core_mem(cp)) c_prov_cm_m = 1;
+                    if (link_abi_generated_c_provides_std_heap(cp)) c_prov_sh_m = 1;
+                }
                 if (include_root && include_root[0]) {
                     (void)shux_ensure_formal_std_make_o(include_root, "std/map/map.o", "../std/map/map.o");
-                    (void)shux_ensure_formal_std_make_o(include_root, "std/heap/heap.o", "../std/heap/heap.o");
-                    (void)shux_ensure_formal_std_make_o(include_root, "core/mem/mem.o", "../core/mem/mem.o");
+                    if (!c_prov_sh_m) (void)shux_ensure_formal_std_make_o(include_root, "std/heap/heap.o", "../std/heap/heap.o");
+                    if (!c_prov_cm_m) (void)shux_ensure_formal_std_make_o(include_root, "core/mem/mem.o", "../core/mem/mem.o");
                 }
                 if (invoke_cc_argv_push_existing(argv, &i, argv_cap,
                         shux_rel_o_path_from_argv0(include_root, "std/map/map.o"))) {
-                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
+                    if (!c_prov_sh_m) (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
                         shux_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o()));
-                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
+                    if (!c_prov_cm_m) (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
                         shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o()));
                 }
             }
             if (need_queue && invoke_cc_argv_push_existing(argv, &i, argv_cap,
                     shux_rel_o_path_from_argv0(include_root, "std/queue/queue.o"))) {
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
+                int c_prov_cm_q = 0, c_prov_sh_q = 0;
+                for (jscan = 0; jscan < n; jscan++) {
+                    const char *cp = c_paths[jscan];
+                    if (!cp) continue;
+                    if (link_abi_generated_c_provides_core_mem(cp)) c_prov_cm_q = 1;
+                    if (link_abi_generated_c_provides_std_heap(cp)) c_prov_sh_q = 1;
+                }
+                if (!c_prov_sh_q) (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
                     shux_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o()));
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
+                if (!c_prov_cm_q) (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
                     shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o()));
             }
             if (need_regex)
