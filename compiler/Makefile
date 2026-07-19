@@ -1176,6 +1176,16 @@ src/typeck/typeck_f64_bits.o: src/typeck/typeck_f64_bits_x86_64.s
 else
 $(error typeck_f64_bits: unsupported Darwin arch $(UNAME_M); add .s)
 endif
+else ifeq ($(SHUX_IS_WIN_HOST),1)
+# Windows MSYS/MinGW x86_64: PE/COFF doesn't support ELF-style .type directive;
+# use _mingw variant (x64 PE COFF doesn't add underscore prefix, so symbol names
+# match the SysV variant — see typeck_f64_bits_x86_64_mingw.s docblock).
+ifeq ($(UNAME_M),x86_64)
+src/typeck/typeck_f64_bits.o: src/typeck/typeck_f64_bits_x86_64_mingw.s
+	$(CC) -c -o $@ $<
+else
+$(error typeck_f64_bits: unsupported Windows arch $(UNAME_M); add .s)
+endif
 else
 $(error typeck_f64_bits: unsupported OS $(UNAME_S); add .s)
 endif
