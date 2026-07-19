@@ -59,7 +59,15 @@ typedef long off_t;
 #endif
 
 #include <io.h>  /* _read / _write / _close / _lseek / _open */
-#include <stdlib.h>  /* getenv / _putenv_s (MinGW declares setenv family here) */
+
+/* Forward-declare getenv / _putenv_s instead of pulling in <stdlib.h>.
+ * Why: Including <stdlib.h> here would conflict with SHUX-generated
+ *      `extern uint8_t * calloc(size_t, size_t)` and `extern void free(uint8_t *)`
+ *      declarations in parser_gen.c / typeck_gen.c / codegen_gen.c (SHUX
+ *      emits uint8_t* return types where MinGW stdlib.h declares void*).
+ *      Forward declarations avoid the conflict and match MinGW's signatures. */
+char *getenv(const char *name);
+int _putenv_s(const char *name, const char *value);
 
 /* shux_posix_open — SHUX-expected signature wrapper for MinGW _open.
  * Why: SHUX-generated code declares `extern int32_t open(uint8_t *,
