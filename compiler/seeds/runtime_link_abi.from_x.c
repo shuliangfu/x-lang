@@ -8943,7 +8943,25 @@ SHUX_WEAK void bootstrap_init_environ(int argc, char **argv) {
   (void)(0);
 }
 
+/* PLATFORM: SHARED — pthread large-stack availability gate.
+ *   POSIX (Linux/macOS): winpthreads absent; real pthreads support 256MiB
+ *     posix_memalign'd custom stack via pthread_attr_setstack. Return 0
+ *     so driver_run_thread_on_large_stack takes the pthread path for
+ *     deep recursion beyond main thread's 8MiB RLIMIT_STACK.
+ *   WINDOWS (MSYS/MinGW): winpthreads exist but pthread_attr_setstack
+ *     with 256MiB posix_memalign'd stack crashes during pthread_join
+ *     cleanup (exit=127 after thread fn returns). Return 1 to force
+ *     driver_run_fn_on_current_large_stack path (driver_bump_stack_limit
+ *     raises soft limit; pipeline runs on main thread). See AGENTS.md
+ *     "平台边界必须标注" + project memory "Windows/MinGW weak" constraints.
+ *   Authority: this SHUX_WEAK def is the sole linked definition on all
+ *     platforms; the strong def in bootstrap_nostdlib_stubs.from_x.c
+ *     (returns 1) is an orphan target never linked. G.4 single authority. */
 SHUX_WEAK int bootstrap_nostdlib_pthread_is_stub(void) {
+#if defined(_WIN32) || defined(_WIN64)
+  return 1;
+#else
   return 0;
+#endif
 }
 
