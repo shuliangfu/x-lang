@@ -150,7 +150,7 @@ int runtime_read_file_view_impl(const char *path, ShuxRuntimeFileView *out) {
     if (!path || !out)
         return -1;
     memset(out, 0, sizeof(*out));
-    fd = open(path, O_RDONLY | SHUX_O_BINARY);
+    fd = open(path, O_RDONLY | SHUX_O_BINARY, 0);
     if (fd < 0)
         return -1;
     if (fstat(fd, &st) != 0 || !S_ISREG(st.st_mode) || st.st_size < 0) {
@@ -283,7 +283,7 @@ int shux_read_file_into_path_impl(const char *path, void *buf, size_t cap) {
 
     if (cap > (size_t)INT32_MAX)
         return -1;
-    fd = open(path, O_RDONLY | SHUX_O_BINARY);
+    fd = open(path, O_RDONLY | SHUX_O_BINARY, 0);
     if (fd < 0)
         return -1;
 #ifdef SHUX_L2_RIO_THIN_FROM_X

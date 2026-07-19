@@ -5377,7 +5377,7 @@ static int shux_elf64_obj_scan_undef(const char *o_path, const char *want_sym) {
     int found = 0;
     if (!o_path || !o_path[0])
         return 0;
-    fd = open(o_path, O_RDONLY);
+    fd = open(o_path, O_RDONLY, 0);
     if (fd < 0)
         return 0;
     if (fstat(fd, &st) != 0 || st.st_size < (off_t)sizeof(Elf64_Ehdr)) {

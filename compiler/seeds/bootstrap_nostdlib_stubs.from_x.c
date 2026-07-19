@@ -1954,7 +1954,7 @@ DIR *opendir(const char *name) {
     d = (struct bootstrap_dir *)calloc(1, sizeof(*d));
     if (!d)
         return NULL;
-    d->fd = open(name, O_RDONLY | 0200000 /* O_DIRECTORY */);
+    d->fd = open(name, O_RDONLY | 0200000 /* O_DIRECTORY */, 0);
     if (d->fd < 0) {
         free(d);
         return NULL;
