@@ -7,7 +7,9 @@ cd "$(dirname "$0")/.."
 
 FAIL=${SHUX_WIN32_READ_FILE_FAIL:-0}
 X="tests/sys/win32_read_file_smoke.x"
-GATE_FILE="/tmp/shux_win32_read_gate.txt"
+# Why: Win32 CreateFileA does not recognize MSYS2 /tmp/ mapping; the smoke
+#      binary uses a relative path, so the gate file must live in CWD.
+GATE_FILE="shux_win32_read_gate.txt"
 OUT="/tmp/shux_win32_read_file.$$.exe"
 SHUX="${SHUX:-./compiler/shux-c}"
 
