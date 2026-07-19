@@ -3821,7 +3821,27 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     if (!src)
         return 1;
     diag_set_file(input_path, src, src_len);
-#if !defined(SHUX_NO_C_FRONTEND)
+#if !defined(SHUX_NO_C_FRONTEND) && !defined(SHUX_USE_X_PIPELINE)
+    /*
+     * Why: Both C-frontend fallback paths (smoke + check) require the deleted
+     *      C frontend (parse / typeck_module / driver_c_typeck_entry). With
+     *      SHUX_USE_X_PIPELINE defined (default on all current modes:
+     *      macOS no_c, Linux no_c, Windows LEGACY), these paths are dead and
+     *      must NOT be compiled: on Windows PE/MinGW SHUX_WEAK expands to
+     *      empty, so the weak stubs in runtime_driver_strict_glue_stubs.o
+     *      (parse, typeck_module, driver_c_frontend_smoke_impl) become STRONG
+     *      defs. With --allow-multiple-definition the stub `parse()` returns
+     *      -1 → driver_c_frontend_smoke returns 1 → silent exit=1 on every
+     *      `shux -c file.x` invocation. Guarding with !SHUX_USE_X_PIPELINE
+     *      (matching the existing inner guard on driver_c_typeck_entry) makes
+     *      `-c file.x` route through the X pipeline exactly as on macOS no_c.
+     * Invariant: When SHUX_USE_X_PIPELINE is defined, the X pipeline path
+     *            (parser_parse_into_init + parser_parse_into_buf) handles
+     *            `-c file.x` smoke and `shux check` alike; this entire
+     *            block is skipped.
+     * PLATFORM: SHARED — guard applies on all platforms; verified macOS arm64
+     *           (no_c + LEGACY) and Windows MSYS x86_64.
+     */
     /* 无 -o 烟测走 C 前端（含 import 时 X asm parse 易 0 func）；shux check 不走烟测。 */
     if (out_path == NULL && !driver_check_only_get()) {
         int smoke_rc = driver_c_frontend_smoke(input_path, src, lib_roots_arr, n_lib_roots);
@@ -3832,13 +3852,11 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
      * shux check + asm 后端：优先走下方 X pipeline（check_only_mode），与 compile 同 parse/typeck 路径。
      * 无 X pipeline 时回退 C typeck。
      */
-#if !defined(SHUX_USE_X_PIPELINE)
     if (driver_check_only_get()) {
         int ck = driver_c_typeck_entry(input_path, src, lib_roots_arr, n_lib_roots, 1);
         free(src);
         return ck;
     }
-#endif
 #endif
     size_t arena_sz = pipeline_sizeof_arena();
     size_t module_sz = pipeline_sizeof_module();
