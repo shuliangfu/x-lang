@@ -167,7 +167,7 @@ int runtime_read_file_view_impl(const char *path, ShuxRuntimeFileView *out) {
     mapped = mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0);
     close(fd);
     if (mapped == MAP_FAILED) {
-        fd_fallback = open(path, O_RDONLY | SHUX_O_BINARY);
+        fd_fallback = open(path, O_RDONLY | SHUX_O_BINARY, 0);
         if (fd_fallback < 0)
             return -1;
 #ifdef SHUX_L2_RIO_THIN_FROM_X

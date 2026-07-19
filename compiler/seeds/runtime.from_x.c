@@ -3564,7 +3564,7 @@ int driver_fs_open_read_path(const uint8_t *path, int path_len) {
     char buf[512];
     memcpy(buf, path, (size_t)path_len);
     buf[path_len] = '\0';
-    return open(buf, O_RDONLY);
+    return open(buf, O_RDONLY, 0);
 }
 
 
