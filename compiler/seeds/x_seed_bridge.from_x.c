@@ -8,9 +8,17 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
-#ifndef _WIN32
+/* Why: io_read (L200) and io_write (L209) call POSIX read()/write(), which
+ *      require <unistd.h> declarations. The historical `#ifndef _WIN32`
+ *      guard assumed Windows lacked <unistd.h>, but the project's
+ *      include/unistd.h shim now provides read/write/close/lseek/open wrappers
+ *      on MinGW (calling _read/_write/_close/_lseek/_open). Removing the
+ *      guard lets Windows MSYS/MinGW resolve read/write via the shim.
+ * Invariant: include/unistd.h shim is in -Iinclude search path (CFLAGS L14);
+ *            on macOS/Linux it delegates to system <unistd.h> via
+ *            #include_next (no behavior change).
+ * PLATFORM: SHARED (include always; was Windows-skipped before). */
 #include <unistd.h>
-#endif
 #include <stdio.h>
 #include <stdarg.h>
 /* sys/types for ssize_t if not from unistd */
