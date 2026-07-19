@@ -1832,7 +1832,18 @@ DRIVER_SEED_C_FRONTEND_LEGACY =
 ifeq ($(SHUX_LEGACY_C_FRONTEND),1)
 DRIVER_SEED_RUNTIME_O = src/runtime_driver.o
 DRIVER_SEED_FRONTEND_EXTRA = $(DRIVER_SEED_C_FRONTEND_LEGACY)
-DRIVER_SEED_SUPPORT_EXTRA = src/async/async_liveness.o src/async/async_cps_codegen.o src/lexer/cfg_eval_bootstrap_stub.o src/typeck/typeck_f64_bits.o
+# Why: runtime_driver_strict_glue_stubs.o provides C API weak/strong stubs
+#      (typeck_module, typeck_one_function, parse, preprocess_*, codegen_*,
+#      lsp_*, shu_c_resolve_and_load_imports, etc.) that satisfy U refs from
+#      runtime_driver.o / rt_preamble.o / lsp_diag.o / parser_x.o / pipeline_x.o /
+#      preprocess_x.o / backend_try_inline_dispatch.o. Without this .o the
+#      link fails on Windows MSYS/MinGW with 40+ "undefined reference" errors.
+#      The default (no_c) branch already includes it; LEGACY mode was missing it.
+#      On MinGW (PE), SHUX_WEAK expands to EMPTY (strong defs) and
+#      -Wl,--allow-multiple-definition resolves conflicts with real impls
+#      from codegen_x.o / parser_x.o / typeck_x.o (first seen wins).
+# PLATFORM: SHARED — same .o needed on all platforms in LEGACY mode.
+DRIVER_SEED_SUPPORT_EXTRA = src/runtime_driver_strict_glue_stubs.o src/async/async_liveness.o src/async/async_cps_codegen.o src/lexer/cfg_eval_bootstrap_stub.o src/typeck/typeck_f64_bits.o
 DRIVER_SEED_LINK_FLAGS = -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_TYPECK -DSHUX_USE_X_CODEGEN
 DRIVER_SEED_RUNTIME_REBUILD = src/runtime_driver.o src/async/async_cps_codegen.o
 else ifeq ($(SHUX_NO_C_SEED_LINK),1)
