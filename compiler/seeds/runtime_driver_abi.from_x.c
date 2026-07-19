@@ -2748,7 +2748,9 @@ void driver_pipeline_dep_ctx_set_skip_codegen_dep_0(void *ctx, int32_t v) {
     ((struct ast_PipelineDepCtx *)ctx)->skip_codegen_dep_0 = (int)v;
 }
 
-static char g_driver_parsed_tmp_c[64];
+/* PLATFORM: SHARED — 256 bytes matches .x rt_cp_step_open_out malloc(256)
+ * and accommodates Windows long TEMP paths (C:\shux_tmp\shux_shux_x.YZXDC4.c). */
+static char g_driver_parsed_tmp_c[256];
 
 uint8_t *driver_parsed_open_out_file(uint8_t *out_path, uint8_t *tmp_c_out64, int32_t *emit_stdout) {
     char tmp[128];
@@ -2787,8 +2789,8 @@ uint8_t *driver_parsed_open_out_file(uint8_t *out_path, uint8_t *tmp_c_out64, in
     }
     if (tmp_c_out64) {
         size_t n = strlen(g_driver_parsed_tmp_c);
-        if (n > 63)
-            n = 63;
+        if (n > 255)
+            n = 255;
         memcpy(tmp_c_out64, g_driver_parsed_tmp_c, n);
         tmp_c_out64[n] = 0;
     }
