@@ -2439,7 +2439,7 @@ bootstrap-driver-seed: $(DRIVER_SEED_PREREQS) build_asm/pipeline_glue_strict_min
 	@chmod +x scripts/build_seed_asm_host.sh scripts/gen_g06_phase1_backend_stub.sh 2>/dev/null || true
 	@os=$$(uname -s | tr '[:upper:]' '[:lower:]'); arch=$$(uname -m 2>/dev/null | tr '[:upper:]' '[:lower:]'); \
 	  case "$$arch" in x86_64|amd64) arch=x86_64 ;; aarch64|arm64) arch=arm64 ;; esac; \
-	  case "$$os" in darwin) os=darwin ;; linux) os=linux ;; esac; \
+	  case "$$os" in darwin) os=darwin ;; linux) os=linux ;; msys_nt*|mingw*_nt*|mingw*|cygwin*) os=windows ;; esac; \
 	  seed_partial="seeds/asm_backend_partial.$${os}.$${arch}.o"; \
 	  if [ ! -s build_asm/seed_host/asm_backend_partial.o ] && [ -f "$$seed_partial" ] && [ -s "$$seed_partial" ]; then \
 	  if nm "$$seed_partial" 2>/dev/null | awk '/ T / { s=$$3; sub(/^_/, "", s); if (s=="backend_asm_codegen_ast_seed_mega") found=1 } END { exit !found }'; then \

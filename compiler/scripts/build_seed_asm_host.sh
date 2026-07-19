@@ -8,6 +8,16 @@ cd "$(dirname "$0")/.."
 OUT_DIR=build_asm/seed_host
 mkdir -p "$OUT_DIR"
 
+# Path constants — defined early so the "no executable seed" fallback below
+# can call build_backend_partial_from_c_fallback() before the asm.x -E path
+# (which requires a seed binary).
+# PLATFORM: SHARED — same paths on macOS/Linux/Windows.
+ASM_FULL_C="$OUT_DIR/asm_full_gen.c"
+ASM_FULL_O="$OUT_DIR/asm_full.o"
+BACKEND_PARTIAL="$OUT_DIR/asm_backend_partial.o"
+SYMS="$OUT_DIR/asm_backend_export.txt"
+BACKEND_FALLBACK_SRC="seeds/backend_seed_mega_fallback.from_x.c"
+
 build_seed_asm_host_info() {
   printf 'info: build_seed_asm_host: %s\n' "$*" >&2
 }
@@ -34,7 +44,16 @@ clear_asm_seed_stale_logs() {
 _seed_os="$(uname -s 2>/dev/null | tr '[:upper:]' '[:lower:]')"
 _seed_arch="$(uname -m 2>/dev/null | tr '[:upper:]' '[:lower:]')"
 case "$_seed_arch" in x86_64|amd64) _seed_arch="x86_64" ;; aarch64|arm64) _seed_arch="arm64" ;; esac
-case "$_seed_os" in darwin) _seed_os="darwin" ;; linux) _seed_os="linux" ;; esac
+# PLATFORM: WINDOWS | MSYS | MINGW — MSYS Git Bash returns "MSYS_NT-10.0-xxxxx" or
+# "MINGW64_NT-10.0-xxxxx" for uname -s. Without normalization, the host seed
+# lookup (seeds/bootstrap_shuxc.${os}.${arch}) would never match a committed
+# "windows.x86_64" file. Map both MSYS_NT* and MINGW*_NT* to "windows".
+# Invariant: macOS/Linux/FreeBSD unchanged; Windows canonical name "windows".
+case "$_seed_os" in
+  darwin) _seed_os="darwin" ;;
+  linux) _seed_os="linux" ;;
+  msys_nt*|mingw*_nt*|mingw*|cygwin*) _seed_os="windows" ;;
+esac
 HOST_SEED="./seeds/bootstrap_shuxc.${_seed_os}.${_seed_arch}"
 
 default_asm_e_max_rss_mb() {
@@ -99,7 +118,27 @@ elif can_seed_run ./shux_asm; then
   SHUX_E=./shux_asm
 fi
 if [ ! -x "$SHUX_E" ]; then
-  build_seed_asm_host_error "缺少可执行 seed（shux-seed-phase1 / shux-c）"
+  # No executable seed available. This happens on Windows MSYS cold start
+  # (no committed bootstrap_shuxc.windows.x86_64 binary) and on any fresh
+  # checkout before phase1 link produces shux-seed-phase1.
+  # Why: Without a seed binary, we cannot run `shux-c -E src/asm/asm_seed_full.x`
+  #      to generate the asm partial. But we CAN build the partial directly
+  #      from the C source fallback (seeds/backend_seed_mega_fallback.from_x.c),
+  #      which provides the same backend_asm_codegen_ast_seed_mega strong symbol.
+  #      The fallback is also used by the asm.x -E failure path below; this
+  #      just promotes it to the primary path when no seed binary exists.
+  # Invariant: build_backend_partial_from_c_fallback verifies the resulting .o
+  #            has the strong seed_mega symbol via has_real_partial_seed_mega,
+  #            so a silently-broken fallback build is rejected.
+  # PLATFORM: WINDOWS | MSYS | MINGW (primary use case); also catches any
+  #           other host without a pre-built seed binary.
+  build_seed_asm_host_warn "no executable seed (shux-c / bootstrap_shuxc) — try source fallback partial"
+  if build_backend_partial_from_c_fallback; then
+    clear_asm_seed_stale_logs
+    build_seed_asm_host_info "OK ($OUT_DIR) via source fallback partial (no executable seed)"
+    exit 0
+  fi
+  build_seed_asm_host_error "缺少可执行 seed（shux-seed-phase1 / shux-c）且 source fallback partial 失败"
   exit 1
 fi
 
@@ -295,7 +334,7 @@ has_real_partial_seed_mega() {
   } END { exit !found }'
 }
 
-BACKEND_FALLBACK_SRC="seeds/backend_seed_mega_fallback.from_x.c"
+# BACKEND_FALLBACK_SRC defined at top of script (early-fallback path needs it).
 
 build_backend_partial_from_c_fallback() {
   rm -f "$BACKEND_PARTIAL"
@@ -371,16 +410,18 @@ ld_partial_export() {
 }
 
 # asm.x 全量 -E：ld -r 仅导出 backend/peephole/platform 入口，避免与 pipeline_x.o / codegen_x.o 重复符号
-ASM_FULL_C="$OUT_DIR/asm_full_gen.c"
-ASM_FULL_O="$OUT_DIR/asm_full.o"
-BACKEND_PARTIAL="$OUT_DIR/asm_backend_partial.o"
-SYMS="$OUT_DIR/asm_backend_export.txt"
+# (Path constants ASM_FULL_C / ASM_FULL_O / BACKEND_PARTIAL / SYMS defined at top of script.)
 
 # G-06：冷启动种子 partial（make clean 后 asm.x -E 可能失败时沿用）
 os="$(uname -s | tr '[:upper:]' '[:lower:]')"
 arch="$(uname -m 2>/dev/null | tr '[:upper:]' '[:lower:]')"
 case "$arch" in x86_64|amd64) arch="x86_64" ;; aarch64|arm64) arch="arm64" ;; esac
-case "$os" in darwin) os="darwin" ;; linux) os="linux" ;; esac
+# PLATFORM: WINDOWS | MSYS | MINGW — same normalization as HOST_SEED lookup above.
+case "$os" in
+  darwin) os="darwin" ;;
+  linux) os="linux" ;;
+  msys_nt*|mingw*_nt*|mingw*|cygwin*) os="windows" ;;
+esac
 SEED_PARTIAL="seeds/asm_backend_partial.${os}.${arch}.o"
 
 darwin_seed_full_e_allowed() {
