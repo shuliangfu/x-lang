@@ -668,26 +668,26 @@ export function driver_run_x_emit_x(state: *DriverXEmitState): i32 {
       return 1;
     }
     if (len > 262144) {
-      let written: isize = fs_posix_write_c(fd, out.data, 262144);
-      fs_posix_close_c(fd);
+      let written: isize = unsafe { fs_posix_write_c(fd, out.data, 262144) };
+      unsafe { fs_posix_close_c(fd); }
       if (written < 0 || (written as i32) != 262144) {
         return 1;
       }
     } else {
-      let written: isize = fs_posix_write_c(fd, out.data, len as usize);
-      fs_posix_close_c(fd);
+      let written: isize = unsafe { fs_posix_write_c(fd, out.data, len as usize) };
+      unsafe { fs_posix_close_c(fd); }
       if (written < 0 || (written as i32) != len) {
         return 1;
       }
     }
   } else {
     if (len > 262144) {
-      let written: isize = fs_posix_write_c(1, out.data, 262144);
+      let written: isize = unsafe { fs_posix_write_c(1, out.data, 262144) };
       if (written < 0 || (written as i32) != 262144) {
         return 1;
       }
     } else {
-      let written: isize = fs_posix_write_c(1, out.data, len as usize);
+      let written: isize = unsafe { fs_posix_write_c(1, out.data, len as usize) };
       if (written < 0 || (written as i32) != len) {
         return 1;
       }
