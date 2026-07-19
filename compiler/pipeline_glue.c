@@ -13558,6 +13558,26 @@ static int glue_is_const_expr_ref(struct ast_ASTArena *a, int32_t expr_ref, cons
     }
     return 1;
   }
+  /**
+   * C5-struct-lit: a struct literal is a const expression iff every field
+   * initializer is a const expression. The struct value itself cannot fit
+   * in the i32 const_folded_val field, so callers that demand a scalar
+   * result (e.g. `const N: i32 = <struct lit>`) still fail at typeck; this
+   * branch only enables nested folding of inner field inits such as
+   * `S { x: A+1, y: B*2 }` where A,B are prior block consts. Mirrors the
+   * ARRAY_LIT recursion above. PLATFORM: SHARED.
+   */
+  if (kd == ast_ExprKind_EXPR_STRUCT_LIT) {
+    ne = e->struct_lit_num_fields;
+    for (i = 0; i < ne; i++) {
+      int32_t init_ref = pipeline_expr_struct_lit_init_ref(a, expr_ref, i);
+      if (init_ref <= 0)
+        return 0;
+      if (!glue_is_const_expr_ref(a, init_ref, const_names, n_const_names))
+        return 0;
+    }
+    return 1;
+  }
   return 0;
 }
 
@@ -13798,6 +13818,35 @@ static void glue_typeck_fold_expr_ref(struct ast_ASTArena *a, int32_t expr_ref,
         e->const_folded_val = (int32_t)ne;
         e->const_folded_valid = 1;
       }
+    }
+    return;
+  }
+
+  /**
+   * PLATFORM: SHARED — C5-struct-lit field CTFE (扩全).
+   * Why: Struct literals frequently carry field initializers that are pure
+   *      const expressions (`S { x: A+1, y: A*3 }` where A is a prior const).
+   *      Without recursion the inner binop trees stay unfolded, forcing emit
+   *      to emit runtime `mov;add;mov;mul;mov` sequences instead of immediates.
+   * Invariant: The struct value itself cannot fit in the i32 const_folded_val
+   *            field, so this branch NEVER stamps e->const_folded_valid=1 on
+   *            the STRUCT_LIT node. It only descends into each field init so
+   *            that the inner Expr trees (binop/unary/lit/var/nested-call)
+   *            get folded in place; emit then reads those inner stamps. This
+   *            mirrors ARRAY_LIT's element recursion but skips the scalar
+   *            coercion stamp (struct cannot be coerced to scalar int).
+   * Asm/Perf: For `S { x: A+1, y: A*3 }` with A=2 folded prior, emit drops
+   *           `mov edi,2; add edi,1; mov [..x],edi; mov edi,2; imul edi,3;`
+   *           in favor of `mov DWORD[..x],3; mov DWORD[..y],6;` (constant
+   *           materialization only), shrinking the hot path and removing
+   *           two ALU dependencies.
+   */
+  if (kd == ast_ExprKind_EXPR_STRUCT_LIT) {
+    int nf = e->struct_lit_num_fields;
+    for (i = 0; i < nf; i++) {
+      int32_t init_ref = pipeline_expr_struct_lit_init_ref(a, expr_ref, i);
+      if (init_ref > 0)
+        glue_typeck_fold_expr_ref(a, init_ref, const_names, const_values, n_const_names);
     }
     return;
   }
@@ -14132,6 +14181,12 @@ void pipeline_typeck_fold_expr_c(struct ast_ASTArena *arena, int32_t expr_ref) {
        * Still attempt CTFE: if the subject folds to a constant (e.g. `match 2 { ... }`
        * or `match const_X { ... }` outside a block-const env), the handler inside
        * glue_typeck_fold_expr_ref picks the matching arm and stamps the result. */
+      glue_typeck_fold_expr_ref(arena, expr_ref, NULL, NULL, 0);
+    } else if (e->kind == ast_ExprKind_EXPR_STRUCT_LIT) {
+      /* PLATFORM: SHARED — Struct lit is not a pure const-expr (struct cannot
+       * fit in i32 const_folded_val). Still recurse into each field init so
+       * inner binop/unary/lit trees fold; struct node itself stays valid=0.
+       * Mirrors EXPR_ARRAY_LIT treatment in pipeline_typeck_fold_expr_c. */
       glue_typeck_fold_expr_ref(arena, expr_ref, NULL, NULL, 0);
     }
     return;
