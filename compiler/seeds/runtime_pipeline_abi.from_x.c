@@ -25,6 +25,7 @@
  * G-02f-241: thread_fn bounds + collect process_one + emit prepare bounds.
  * G-02f-242: typeck_module_for_ctx pure; P1-5 soft near-close.
  */
+#include <shux_weak.h>
 #include "win32_compat.h"
 #include "runtime_pipeline_abi.h"
 #include "runtime_driver_abi.h"
@@ -1603,7 +1604,7 @@ int driver_asm_fp_is_stdout(FILE *fp) {
 }
 
 /* 产品链与 runtime_driver_abi 同链；driver_abi 为权威定义。弱化避免 Darwin ld 双 T。 */
-__attribute__((weak)) void driver_asm_fflush_stdout(void) {
+SHUX_WEAK void driver_asm_fflush_stdout(void) {
     fflush(stdout);
 }
 

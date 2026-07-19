@@ -41,18 +41,10 @@
  * 与 main.c 关系：main.c 仅保留极简 main() 调 main_entry；本文件承载全部 C 侧驱动与 I/O，与 main.x 一一对应构建 shux。
  * 阶段 10 方向：逐步收成薄壳（入口、ABI、`-E` 桥接）；业务逻辑已迁 .x（pipeline/driver/LSP）；日常构建入口见仓库根目录 build.x + compiler/build_tool。
  */
+#include <shux_weak.h>
 
 #include "win32_compat.h"
 
-/* SHUX_WEAK: POSIX 用 weak attribute；Windows/MinGW 不支持 weak 函数符号，改为正常定义，
- * 配合 Makefile 的 -Wl,--allow-multiple-definition 解决重复定义冲突。 */
-#ifndef SHUX_WEAK
-#if defined(_WIN32) || defined(_WIN64)
-#define SHUX_WEAK
-#else
-#define SHUX_WEAK __attribute__((weak))
-#endif
-#endif
 
 #if !defined(_WIN32) && !defined(_WIN64)
 #define SHUX_TMP_PREFIX "/tmp/shux_"

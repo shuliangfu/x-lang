@@ -1,5 +1,6 @@
 /* regen from fmt_check_cmd_thin.x -E (path_bss pure rest T=0 + shux_fmt_* wrappers) */
 /* prove prologue (g05_try_x_to_o aligned + uio/poll + dirent wrappers) */
+#include <shux_weak.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/types.h>
@@ -69,7 +70,7 @@ typedef struct { uint32_t e[16]; } u32x16_t;
 typedef struct { uint8_t *ptr; size_t len; size_t handle; } shu_batch_buf_t;
 extern int io_register_buffer(uint8_t *ptr, size_t len);
 extern int io_register_buffers_4(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3, unsigned nr);
-__attribute__((weak)) int io_register_buffers_buf_c(const shu_batch_buf_t *bufs, int nr) { (void)bufs; (void)nr; return -1; }
+SHUX_WEAK int io_register_buffers_buf_c(const shu_batch_buf_t *bufs, int nr) { (void)bufs; (void)nr; return -1; }
 static inline int io_register_buffers_buf_i32(intptr_t bufs, int nr) { return io_register_buffers_buf_c((const shu_batch_buf_t *)(uintptr_t)bufs, nr); }
 #define io_register_buffers_buf(bufs, nr) io_register_buffers_buf_i32((intptr_t)(void *)(bufs), (nr))
 extern void io_unregister_buffers(void);
@@ -222,54 +223,54 @@ struct std_net_UdpSocket { int32_t fd; };
 #define std_io_driver_io_register_buffers_buf(bufs, nr) io_register_buffers_buf((intptr_t)(void *)(bufs), (int)(nr))
 #ifndef __cplusplus
 /* 仅补 co-emit 未定义的符号；勿桩 shux_io_submit_write / submit_read_batch_buf（同 TU 强定义）。 */
-__attribute__((weak)) int32_t shux_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m) {
+SHUX_WEAK int32_t shux_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m) {
   size_t r; (void)timeout_m; if (!ptr) return 0; if (handle != 0) return -1;
   r = fread(ptr, 1, len, stdin); if (r == 0 && ferror(stdin)) return -1; return (int32_t)r;
 }
-__attribute__((weak)) int32_t shux_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle) {
+SHUX_WEAK int32_t shux_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle) {
   (void)ptr; (void)len; (void)handle; return -1;
 }
-__attribute__((weak)) int32_t shux_io_read_fixed(size_t h, uint32_t bi, size_t o, size_t l, uint32_t t) {
+SHUX_WEAK int32_t shux_io_read_fixed(size_t h, uint32_t bi, size_t o, size_t l, uint32_t t) {
   (void)h;(void)bi;(void)o;(void)l;(void)t; return -1;
 }
-__attribute__((weak)) int32_t shux_io_write_fixed(size_t h, uint32_t bi, size_t o, size_t l, uint32_t t) {
+SHUX_WEAK int32_t shux_io_write_fixed(size_t h, uint32_t bi, size_t o, size_t l, uint32_t t) {
   (void)h;(void)bi;(void)o;(void)l;(void)t; return -1;
 }
-__attribute__((weak)) int32_t shux_io_read_ptr_backend(void) { return 0; }
-__attribute__((weak)) int io_register_buffers_4(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3, unsigned nr) {
+SHUX_WEAK int32_t shux_io_read_ptr_backend(void) { return 0; }
+SHUX_WEAK int io_register_buffers_4(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3, unsigned nr) {
   (void)p0;(void)l0;(void)p1;(void)l1;(void)p2;(void)l2;(void)p3;(void)l3;(void)nr; return -1;
 }
-__attribute__((weak)) int io_wait_readable(int32_t *fds, int n, unsigned timeout_ms) {
+SHUX_WEAK int io_wait_readable(int32_t *fds, int n, unsigned timeout_ms) {
   (void)fds;(void)n;(void)timeout_ms; return -1;
 }
-__attribute__((weak)) ptrdiff_t io_read_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms) {
+SHUX_WEAK ptrdiff_t io_read_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms) {
   (void)fd;(void)bufs;(void)n;(void)timeout_ms; return (ptrdiff_t)-1;
 }
-__attribute__((weak)) ptrdiff_t io_write_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms) {
+SHUX_WEAK ptrdiff_t io_write_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms) {
   (void)fd;(void)bufs;(void)n;(void)timeout_ms; return (ptrdiff_t)-1;
 }
 extern int32_t process_shux_argc_get(void);
 extern uint8_t *process_shux_argv_get(int32_t i);
-__attribute__((weak)) int32_t process_args_count_c(void) { return process_shux_argc_get(); }
-__attribute__((weak)) uint8_t *process_arg_c(int32_t i) { return process_shux_argv_get(i); }
-__attribute__((weak)) int32_t args_iter_count_c(void) { return process_args_count_c(); }
-__attribute__((weak)) uint8_t *args_iter_at_c(int32_t i) { return process_arg_c(i); }
-__attribute__((weak)) uint64_t std_io_driver_driver_read_ptr_gen(void) { return 0; }
-__attribute__((weak)) int64_t ctx_background_c(void) { return 0; }
-__attribute__((weak)) void ctx_cancel_c(int64_t c) { (void)c; }
-__attribute__((weak)) int64_t ctx_deadline_ns_c(int64_t c) { (void)c; return 0; }
-__attribute__((weak)) void ctx_free_c(int64_t c) { (void)c; }
-__attribute__((weak)) int32_t ctx_get_value_c(int64_t h, uint8_t *key, int64_t *out) {
+SHUX_WEAK int32_t process_args_count_c(void) { return process_shux_argc_get(); }
+SHUX_WEAK uint8_t *process_arg_c(int32_t i) { return process_shux_argv_get(i); }
+SHUX_WEAK int32_t args_iter_count_c(void) { return process_args_count_c(); }
+SHUX_WEAK uint8_t *args_iter_at_c(int32_t i) { return process_arg_c(i); }
+SHUX_WEAK uint64_t std_io_driver_driver_read_ptr_gen(void) { return 0; }
+SHUX_WEAK int64_t ctx_background_c(void) { return 0; }
+SHUX_WEAK void ctx_cancel_c(int64_t c) { (void)c; }
+SHUX_WEAK int64_t ctx_deadline_ns_c(int64_t c) { (void)c; return 0; }
+SHUX_WEAK void ctx_free_c(int64_t c) { (void)c; }
+SHUX_WEAK int32_t ctx_get_value_c(int64_t h, uint8_t *key, int64_t *out) {
   (void)h;(void)key; if (out) *out = 0; return 0;
 }
-__attribute__((weak)) int32_t ctx_is_cancelled_c(int64_t c) { (void)c; return 0; }
-__attribute__((weak)) int64_t ctx_remaining_ns_c(int64_t c) { (void)c; return 0; }
-__attribute__((weak)) int32_t ctx_set_value_c(int64_t h, uint8_t *key, int64_t value) {
+SHUX_WEAK int32_t ctx_is_cancelled_c(int64_t c) { (void)c; return 0; }
+SHUX_WEAK int64_t ctx_remaining_ns_c(int64_t c) { (void)c; return 0; }
+SHUX_WEAK int32_t ctx_set_value_c(int64_t h, uint8_t *key, int64_t value) {
   (void)h;(void)key;(void)value; return 0;
 }
-__attribute__((weak)) int64_t ctx_with_cancel_c(int64_t p) { (void)p; return 0; }
-__attribute__((weak)) int64_t ctx_with_deadline_c(int64_t p, int64_t ns) { (void)p;(void)ns; return 0; }
-__attribute__((weak)) int64_t ctx_with_timeout_c(int64_t p, int64_t ns) { (void)p;(void)ns; return 0; }
+SHUX_WEAK int64_t ctx_with_cancel_c(int64_t p) { (void)p; return 0; }
+SHUX_WEAK int64_t ctx_with_deadline_c(int64_t p, int64_t ns) { (void)p;(void)ns; return 0; }
+SHUX_WEAK int64_t ctx_with_timeout_c(int64_t p, int64_t ns) { (void)p;(void)ns; return 0; }
 #endif
 struct std_net_Ipv4Addr { uint8_t a; uint8_t b; uint8_t c; uint8_t d; };
 struct std_net_Ipv6Addr { uint8_t b0,b1,b2,b3,b4,b5,b6,b7,b8,b9,b10,b11,b12,b13,b14,b15; };
@@ -314,8 +315,8 @@ extern int32_t core_types_placeholder(void);
 extern int32_t std_heap_alloc_size_zero(void);
 extern int32_t std_runtime_runtime_ready(void);
 #ifndef __cplusplus
-__attribute__((weak)) int32_t std_vec_vec_len_empty(void) { return 0; }
-__attribute__((weak)) int32_t std_vec_len_empty(void) { return 0; }
+SHUX_WEAK int32_t std_vec_vec_len_empty(void) { return 0; }
+SHUX_WEAK int32_t std_vec_len_empty(void) { return 0; }
 #else
 extern int32_t std_vec_vec_len_empty(void);
 extern int32_t std_vec_len_empty(void);
@@ -324,7 +325,7 @@ extern int32_t std_vec_len_empty(void);
 #define alloc_size_zero std_heap_alloc_size_zero
 #define runtime_ready std_runtime_runtime_ready
 #ifndef __cplusplus
-__attribute__((weak)) int32_t std_string_placeholder(void) { return 0; }
+SHUX_WEAK int32_t std_string_placeholder(void) { return 0; }
 #else
 extern int32_t std_string_placeholder(void);
 #endif

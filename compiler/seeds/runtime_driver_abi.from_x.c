@@ -44,6 +44,7 @@
  *         merge flags/env/phase/peek/smoke/stack/defines; C uname + pthread create bulk.
  * .x covers: + argv_collect pure + large_stack orch + entry_len/scan/stack want/path.
  */
+#include <shux_weak.h>
 #include "win32_compat.h"
 #include "runtime_driver_abi.h"
 #include "runtime_io_abi.h"
@@ -100,15 +101,6 @@ void driver_compile_phase_timing_clear(void);
 #include <stdlib.h>
 #include <string.h>
 
-/* SHUX_WEAK: POSIX 用 weak attribute；Windows/MinGW 不支持 weak 函数符号，改为正常定义，
- * 配合 Makefile 的 -Wl,--allow-multiple-definition 解决重复定义冲突。 */
-#ifndef SHUX_WEAK
-#if defined(_WIN32) || defined(_WIN64)
-#define SHUX_WEAK
-#else
-#define SHUX_WEAK __attribute__((weak))
-#endif
-#endif
 #ifndef _WIN32
 #include <sys/time.h>
 #include <sys/utsname.h>
@@ -361,7 +353,7 @@ int32_t driver_fmt_check_only_get(void) {
 }
 #endif
 
-/* 【Why 根源】MinGW PE 格式不真正支持 __attribute__((weak))：weak 函数被当作普通强符号，
+/* 【Why 根源】MinGW PE 格式不真正支持 SHUX_WEAK：weak 函数被当作普通强符号，
  * 与 fmt_check_cmd.c 的强符号并存；--allow-multiple-definition 选第一个遇到的定义，
  * 链接器不保证按 OBJS_CORE 顺序选 fmt_check_cmd.o 的版本。当 weak 版本被选中且返回 0，
  * check 成功后会逐文件打印 "check OK"，与 deno check 静默成功语义矛盾。

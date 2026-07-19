@@ -9,6 +9,7 @@
  * pipeline_glue.c（编入 pipeline_x.o）仍引用若干 backend_* 名，全量 asm.x -E 后部分已改名或未导出；
  * 本 TU 提供薄转发，使 bootstrap-driver-seed / shu_stage2 在 macOS arm64 上可链通。
  */
+#include <shux_weak.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -28,7 +29,7 @@ typedef struct {
  * build_asm/types.o 自举 asm 仅 emit format_u32_to_buf，arch 模块仍引用本符号。
  * weak：strict 链已链 build_asm/types.o 时由真符号覆盖，避免 duplicate symbol。
  */
-__attribute__((weak)) int32_t append_asm_line(struct codegen_CodegenOutBuf *out, uint8_t *ptr, int32_t len) {
+SHUX_WEAK int32_t append_asm_line(struct codegen_CodegenOutBuf *out, uint8_t *ptr, int32_t len) {
   ShuCodegenOutBuf *buf = (ShuCodegenOutBuf *)out;
   int32_t i;
   if (!buf || !ptr || len < 0)
@@ -83,7 +84,7 @@ int32_t shu_format_u32_to_buf(uint8_t *buf, int32_t off, int32_t max, uint32_t u
  * 将 i32 十进制写入 buf[off..]；与 types.x format_i32_to_buf 语义一致。
  * weak：strict 链 build_asm/types.o 已提供时勿 duplicate。
  */
-__attribute__((weak)) int32_t format_i32_to_buf(uint8_t *buf, int32_t off, int32_t max, int32_t val) {
+SHUX_WEAK int32_t format_i32_to_buf(uint8_t *buf, int32_t off, int32_t max, int32_t val) {
   static const uint8_t min_i32[11] = {'-', '2', '1', '4', '7', '4', '8', '3', '6', '4', '8'};
   uint32_t u;
   int32_t k;
@@ -115,22 +116,22 @@ __attribute__((weak)) int32_t format_i32_to_buf(uint8_t *buf, int32_t off, int32
  * Linux ELF：arch/*.x 经 import types 解析为 asm_types_* 链名；build_asm/types.o 导出 append_asm_line。
  * weak 转发，strict 链 types.o 真符号存在时仍可由 append_asm_line 覆盖本 TU 弱定义。
  */
-__attribute__((weak)) int32_t asm_types_append_asm_line(struct codegen_CodegenOutBuf *out, uint8_t *ptr, int32_t len) {
+SHUX_WEAK int32_t asm_types_append_asm_line(struct codegen_CodegenOutBuf *out, uint8_t *ptr, int32_t len) {
   return append_asm_line(out, ptr, len);
 }
 
 /** 与 asm_types_append_asm_line 同理：types.format_i32_to_buf → asm_types_format_i32_to_buf。 */
-__attribute__((weak)) int32_t asm_types_format_i32_to_buf(uint8_t *buf, int32_t off, int32_t max, int32_t val) {
+SHUX_WEAK int32_t asm_types_format_i32_to_buf(uint8_t *buf, int32_t off, int32_t max, int32_t val) {
   return format_i32_to_buf(buf, off, max, val);
 }
 
 /** types.format_u32_to_buf → asm_types_format_u32_to_buf（partial seed -E 路径）。 */
-__attribute__((weak)) int32_t asm_types_format_u32_to_buf(uint8_t *buf, int32_t off, int32_t max, int32_t u) {
+SHUX_WEAK int32_t asm_types_format_u32_to_buf(uint8_t *buf, int32_t off, int32_t max, int32_t u) {
   return shu_format_u32_to_buf(buf, off, max, (uint32_t)u);
 }
 
 /** types.format_u32_hex8_to_buf：8 位十六进制，与 types.x 一致。 */
-__attribute__((weak)) int32_t asm_types_format_u32_hex8_to_buf(uint8_t *buf, int32_t off, int32_t val) {
+SHUX_WEAK int32_t asm_types_format_u32_hex8_to_buf(uint8_t *buf, int32_t off, int32_t val) {
   static const uint8_t hex[16] = {'0', '1', '2', '3', '4', '5', '6', '7',
                                   '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
   uint32_t v = (uint32_t)val;
@@ -149,7 +150,7 @@ __attribute__((weak)) int32_t asm_types_format_u32_hex8_to_buf(uint8_t *buf, int
  */
 extern uint8_t *pipeline_elf_ctx_code_data_ptr(uint8_t *ctx_bytes);
 
-__attribute__((weak)) int32_t asm_types_elf_read_u32_le(void *ctx, int32_t pos) {
+SHUX_WEAK int32_t asm_types_elf_read_u32_le(void *ctx, int32_t pos) {
   uint8_t *base;
   uint8_t *p;
   if (!ctx || pos < 0)
@@ -165,14 +166,14 @@ __attribute__((weak)) int32_t asm_types_elf_read_u32_le(void *ctx, int32_t pos) 
  * ast.x ref_is_null 调用的 Expr 布局 prime；自举 ast.o 未 emit 时为空操作。
  * weak：build_asm/ast.o 真 emit 时由其覆盖。
  */
-__attribute__((weak)) void expr_layout_prime_call_resolved(void) {
+SHUX_WEAK void expr_layout_prime_call_resolved(void) {
 }
 
 /**
  * arm64 call 实参恢复：ldr x{reg}, [sp] 或 [sp, #slot*16]；与 arm64.x 一致。
  * weak：build_asm/arm64.o 已 emit 时由其覆盖。
  */
-__attribute__((weak)) int32_t emit_ldr_sp_slot_to_xreg(struct codegen_CodegenOutBuf *out, int32_t slot, int32_t reg) {
+SHUX_WEAK int32_t emit_ldr_sp_slot_to_xreg(struct codegen_CodegenOutBuf *out, int32_t slot, int32_t reg) {
   static const uint8_t digit[8] = {'0', '1', '2', '3', '4', '5', '6', '7'};
   uint8_t buf[48];
   int32_t s;
@@ -474,11 +475,11 @@ int32_t pipeline_asm_emit_call_args_text(struct ast_ASTArena *arena, struct code
 extern int32_t backend_asm_codegen_ast(void *module, void *arena, void *out_buf, void *ctx);
 extern int32_t backend_asm_codegen_ast_to_elf(void *module, void *arena, void *elf_ctx, void *ctx);
 
-__attribute__((weak)) int32_t backend_asm_codegen_ast_seed_mega(void *module, void *arena, void *out_buf, void *ctx) {
+SHUX_WEAK int32_t backend_asm_codegen_ast_seed_mega(void *module, void *arena, void *out_buf, void *ctx) {
   return backend_asm_codegen_ast(module, arena, out_buf, ctx);
 }
 
-__attribute__((weak)) int32_t backend_asm_codegen_ast_to_elf_seed_mega(void *module, void *arena, void *elf_ctx,
+SHUX_WEAK int32_t backend_asm_codegen_ast_to_elf_seed_mega(void *module, void *arena, void *elf_ctx,
                                                                          void *ctx) {
   return backend_asm_codegen_ast_to_elf(module, arena, elf_ctx, ctx);
 }
@@ -488,12 +489,12 @@ extern int32_t peephole_peephole_run(void *out_buf);
 extern int32_t peephole_peephole_elf_run(void *elf_ctx);
 
 /* experimental bootstrap 里 build_asm/peephole.o 可能退化成 CI text stub；此时用弱兜底保证可链接。 */
-__attribute__((weak)) int32_t peephole_peephole_run(void *out_buf) {
+SHUX_WEAK int32_t peephole_peephole_run(void *out_buf) {
   (void)out_buf;
   return 0;
 }
 
-__attribute__((weak)) int32_t peephole_peephole_elf_run(void *elf_ctx) {
+SHUX_WEAK int32_t peephole_peephole_elf_run(void *elf_ctx) {
   (void)elf_ctx;
   return 0;
 }
@@ -509,7 +510,7 @@ int32_t peephole_elf_run(void *elf_ctx) {
 /** lsp_diag_gen.c 尚未含 semanticTokens（pinned seed 旧版）；真 partial 不再携带 phase1 弱桩时须兜底。
  * lsp_diag.x 再生后由 lsp_diag_x.o 强符号覆盖。
  */
-__attribute__((weak)) int32_t typeck_lsp_build_semantic_tokens_response(int32_t id_val, uint8_t *doc_buf, int32_t doc_len,
+SHUX_WEAK int32_t typeck_lsp_build_semantic_tokens_response(int32_t id_val, uint8_t *doc_buf, int32_t doc_len,
                                                                         uint8_t *out_buf, int32_t out_cap) {
   (void)id_val;
   (void)doc_buf;

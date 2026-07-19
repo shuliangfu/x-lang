@@ -5,6 +5,7 @@
  *         then merge into this seed (weak polish + fold/arch C tail).
  * .x covers: typeck_lsp_* / std_heap/sys bridges / lsp_diag_* weak -1 stubs.
  */
+#include <shux_weak.h>
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -22,16 +23,16 @@ extern ptrdiff_t lsp_io_read_message(int32_t fd, uint8_t *body_out, int32_t body
 
 extern int32_t lsp_main_impl(void);
 extern int32_t lsp_diag_lsp_build_diagnostics_response(int32_t id_val, uint8_t *source, int32_t source_len,
-                                                       uint8_t *out_buf, int32_t out_cap) __attribute__((weak));
+                                                       uint8_t *out_buf, int32_t out_cap) SHUX_WEAK;
 extern int32_t lsp_diag_lsp_build_semantic_tokens_response(int32_t id_val, uint8_t *doc_buf, int32_t doc_len,
-                                                           uint8_t *out_buf, int32_t out_cap) __attribute__((weak));
+                                                           uint8_t *out_buf, int32_t out_cap) SHUX_WEAK;
 extern int32_t lsp_diag_hover_at(uint8_t *source, int32_t source_len, int32_t line_0, int32_t col_0,
-                                 uint8_t *out_buf, int32_t out_cap) __attribute__((weak));
+                                 uint8_t *out_buf, int32_t out_cap) SHUX_WEAK;
 extern int32_t lsp_diag_references_at(uint8_t *source, int32_t source_len, int32_t line_0, int32_t col_0,
                                       int32_t *out_lines, int32_t *out_cols, int32_t max_refs)
-    __attribute__((weak));
+    SHUX_WEAK;
 extern int32_t lsp_diag_definition_at(uint8_t *source, int32_t source_len, int32_t line_0, int32_t col_0,
-                                      int32_t *out_line, int32_t *out_col) __attribute__((weak));
+                                      int32_t *out_line, int32_t *out_col) SHUX_WEAK;
 
 /* Forward declarations: when SHUX_SEED_LINK_COMPAT_FROM_X is defined,
    the .x implementations provide these symbols via thin .o. */
@@ -54,23 +55,23 @@ int32_t shux_module_func_index_by_name(struct ast_Module *mod, uint8_t *name, in
 
 /* G-02f-440：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef SHUX_SEED_LINK_COMPAT_FROM_X
-__attribute__((weak)) int32_t lsp_diag_lsp_build_diagnostics_response(int32_t id_val, uint8_t * source, int32_t source_len, uint8_t * out_buf, int32_t out_cap) {
+SHUX_WEAK int32_t lsp_diag_lsp_build_diagnostics_response(int32_t id_val, uint8_t * source, int32_t source_len, uint8_t * out_buf, int32_t out_cap) {
   return (0 - 1);
 }
 
-__attribute__((weak)) int32_t lsp_diag_lsp_build_semantic_tokens_response(int32_t id_val, uint8_t * doc_buf, int32_t doc_len, uint8_t * out_buf, int32_t out_cap) {
+SHUX_WEAK int32_t lsp_diag_lsp_build_semantic_tokens_response(int32_t id_val, uint8_t * doc_buf, int32_t doc_len, uint8_t * out_buf, int32_t out_cap) {
   return (0 - 1);
 }
 
-__attribute__((weak)) int32_t lsp_diag_hover_at(uint8_t * source, int32_t source_len, int32_t line_0, int32_t col_0, uint8_t * out_buf, int32_t out_cap) {
+SHUX_WEAK int32_t lsp_diag_hover_at(uint8_t * source, int32_t source_len, int32_t line_0, int32_t col_0, uint8_t * out_buf, int32_t out_cap) {
   return (0 - 1);
 }
 
-__attribute__((weak)) int32_t lsp_diag_references_at(uint8_t * source, int32_t source_len, int32_t line_0, int32_t col_0, int32_t * out_lines, int32_t * out_cols, int32_t max_refs) {
+SHUX_WEAK int32_t lsp_diag_references_at(uint8_t * source, int32_t source_len, int32_t line_0, int32_t col_0, int32_t * out_lines, int32_t * out_cols, int32_t max_refs) {
   return (0 - 1);
 }
 
-__attribute__((weak)) int32_t lsp_diag_definition_at(uint8_t * source, int32_t source_len, int32_t line_0, int32_t col_0, int32_t * out_line, int32_t * out_col) {
+SHUX_WEAK int32_t lsp_diag_definition_at(uint8_t * source, int32_t source_len, int32_t line_0, int32_t col_0, int32_t * out_line, int32_t * out_col) {
   return (0 - 1);
 }
 #endif /* SHUX_SEED_LINK_COMPAT_FROM_X */
@@ -115,19 +116,19 @@ extern int32_t append_asm_line(struct codegen_CodegenOutBuf *out, uint8_t *ptr, 
 
 /* G-02f-440：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef SHUX_SEED_LINK_COMPAT_FROM_X
-__attribute__((weak)) uint8_t *typeck_lsp_alloc(size_t size) {
+SHUX_WEAK uint8_t *typeck_lsp_alloc(size_t size) {
   return lsp_io_lsp_alloc(size);
 }
 
 
-__attribute__((weak)) void typeck_lsp_free(uint8_t * ptr) {
+SHUX_WEAK void typeck_lsp_free(uint8_t * ptr) {
   (void)(({   {
     (void)(lsp_io_lsp_free(ptr));
   }
  }));
 }
 
-__attribute__((weak)) int32_t typeck_lsp_is_null(uint8_t * ptr) {
+SHUX_WEAK int32_t typeck_lsp_is_null(uint8_t * ptr) {
   (void)(({   {
     int32_t r = lsp_io_lsp_is_null(ptr);
     return r;
@@ -137,12 +138,12 @@ __attribute__((weak)) int32_t typeck_lsp_is_null(uint8_t * ptr) {
 }
 #endif /* SHUX_SEED_LINK_COMPAT_FROM_X */
 
-__attribute__((weak)) ptrdiff_t typeck_read_message(int32_t fd, uint8_t *body_out, int32_t body_cap, uint8_t *state_buf) {
+SHUX_WEAK ptrdiff_t typeck_read_message(int32_t fd, uint8_t *body_out, int32_t body_cap, uint8_t *state_buf) {
   return lsp_io_read_message(fd, body_out, body_cap, state_buf);
 }
 
 #ifndef SHUX_SEED_LINK_COMPAT_FROM_X
-__attribute__((weak)) int32_t typeck_lsp_main_impl(void) {
+SHUX_WEAK int32_t typeck_lsp_main_impl(void) {
   (void)(({   {
     int32_t r = lsp_main_impl();
     return r;
@@ -152,28 +153,28 @@ __attribute__((weak)) int32_t typeck_lsp_main_impl(void) {
 }
 #endif /* SHUX_SEED_LINK_COMPAT_FROM_X */
 
-__attribute__((weak)) int32_t typeck_lsp_build_diagnostics_response(int32_t id_val, uint8_t *source, int32_t source_len,
+SHUX_WEAK int32_t typeck_lsp_build_diagnostics_response(int32_t id_val, uint8_t *source, int32_t source_len,
                                                                     uint8_t *out_buf, int32_t out_cap) {
   if (!lsp_diag_lsp_build_diagnostics_response)
     return -1;
   return lsp_diag_lsp_build_diagnostics_response(id_val, source, source_len, out_buf, out_cap);
 }
 
-__attribute__((weak)) int32_t typeck_lsp_build_semantic_tokens_response(int32_t id_val, uint8_t *doc_buf, int32_t doc_len,
+SHUX_WEAK int32_t typeck_lsp_build_semantic_tokens_response(int32_t id_val, uint8_t *doc_buf, int32_t doc_len,
                                                                         uint8_t *out_buf, int32_t out_cap) {
   if (!lsp_diag_lsp_build_semantic_tokens_response)
     return -1;
   return lsp_diag_lsp_build_semantic_tokens_response(id_val, doc_buf, doc_len, out_buf, out_cap);
 }
 
-__attribute__((weak)) int32_t typeck_lsp_diag_hover_at(uint8_t *source, int32_t source_len, int32_t line_0, int32_t col_0,
+SHUX_WEAK int32_t typeck_lsp_diag_hover_at(uint8_t *source, int32_t source_len, int32_t line_0, int32_t col_0,
                                                        uint8_t *out_buf, int32_t out_cap) {
   if (!lsp_diag_hover_at)
     return -1;
   return lsp_diag_hover_at(source, source_len, line_0, col_0, out_buf, out_cap);
 }
 
-__attribute__((weak)) int32_t typeck_lsp_diag_references_at(uint8_t *source, int32_t source_len, int32_t line_0,
+SHUX_WEAK int32_t typeck_lsp_diag_references_at(uint8_t *source, int32_t source_len, int32_t line_0,
                                                             int32_t col_0, int32_t *out_lines, int32_t *out_cols,
                                                             int32_t max_refs) {
   if (!lsp_diag_references_at)
@@ -181,7 +182,7 @@ __attribute__((weak)) int32_t typeck_lsp_diag_references_at(uint8_t *source, int
   return lsp_diag_references_at(source, source_len, line_0, col_0, out_lines, out_cols, max_refs);
 }
 
-__attribute__((weak)) int32_t typeck_lsp_diag_definition_at(uint8_t *source, int32_t source_len, int32_t line_0,
+SHUX_WEAK int32_t typeck_lsp_diag_definition_at(uint8_t *source, int32_t source_len, int32_t line_0,
                                                             int32_t col_0, int32_t *out_line, int32_t *out_col) {
   if (!lsp_diag_definition_at)
     return -1;
@@ -190,23 +191,23 @@ __attribute__((weak)) int32_t typeck_lsp_diag_definition_at(uint8_t *source, int
 
 /* G-02f-440：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef SHUX_SEED_LINK_COMPAT_FROM_X
-__attribute__((weak)) uint8_t *typeck_std_heap_alloc(size_t size) {
+SHUX_WEAK uint8_t *typeck_std_heap_alloc(size_t size) {
   return lsp_io_std_heap_std_heap_alloc(size);
 }
 
-__attribute__((weak)) uint8_t *typeck_std_heap_alloc_zeroed(size_t size) {
+SHUX_WEAK uint8_t *typeck_std_heap_alloc_zeroed(size_t size) {
   return lsp_io_std_heap_std_heap_alloc_zeroed(size);
 }
 
 
-__attribute__((weak)) void typeck_std_heap_free(uint8_t * ptr) {
+SHUX_WEAK void typeck_std_heap_free(uint8_t * ptr) {
   (void)(({   {
     (void)(lsp_io_std_heap_std_heap_free(ptr));
   }
  }));
 }
 
-__attribute__((weak)) int32_t std_sys_read_file_into(uint8_t * path, uint8_t * buf, int32_t cap) {
+SHUX_WEAK int32_t std_sys_read_file_into(uint8_t * path, uint8_t * buf, int32_t cap) {
   (void)(({   {
     int32_t r = std_sys_os_read_file_into(path, buf, cap);
     return r;
@@ -215,7 +216,7 @@ __attribute__((weak)) int32_t std_sys_read_file_into(uint8_t * path, uint8_t * b
   return 0;
 }
 
-__attribute__((weak)) void std_heap_free_u8_ptr(uint8_t * ptr) {
+SHUX_WEAK void std_heap_free_u8_ptr(uint8_t * ptr) {
   (void)(({   {
     (void)(std_heap_free(ptr));
   }
@@ -223,26 +224,26 @@ __attribute__((weak)) void std_heap_free_u8_ptr(uint8_t * ptr) {
 }
 #endif /* SHUX_SEED_LINK_COMPAT_FROM_X */
 
-__attribute__((weak)) int32_t std_io_read_usize_u8_ptr_usize_u32(size_t handle, uint8_t *ptr, size_t len,
+SHUX_WEAK int32_t std_io_read_usize_u8_ptr_usize_u32(size_t handle, uint8_t *ptr, size_t len,
                                                                  uint32_t timeout_ms) {
   return (int32_t)io_read((int)handle, ptr, len, (unsigned)timeout_ms);
 }
 
-__attribute__((weak)) int32_t std_io_write_usize_u8_ptr_usize_u32(size_t handle, uint8_t *ptr, size_t len,
+SHUX_WEAK int32_t std_io_write_usize_u8_ptr_usize_u32(size_t handle, uint8_t *ptr, size_t len,
                                                                   uint32_t timeout_ms) {
   return (int32_t)io_write((int)handle, ptr, len, (unsigned)timeout_ms);
 }
 
 /* G-02f-440：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef SHUX_SEED_LINK_COMPAT_FROM_X
-__attribute__((weak)) void ast_pipeline_module_struct_layout_set_packed(uint8_t * module, int32_t idx, int32_t v) {
+SHUX_WEAK void ast_pipeline_module_struct_layout_set_packed(uint8_t * module, int32_t idx, int32_t v) {
   (void)(({   {
     (void)(pipeline_module_struct_layout_set_packed(module, idx, v));
   }
  }));
 }
 
-__attribute__((weak)) int32_t backend_asm_ctx_slot_offset(uint8_t * ctx, int32_t slot_idx) {
+SHUX_WEAK int32_t backend_asm_ctx_slot_offset(uint8_t * ctx, int32_t slot_idx) {
   (void)(({   {
     int32_t r = asm_ctx_local_offset_at(ctx, slot_idx);
     return r;
@@ -252,7 +253,7 @@ __attribute__((weak)) int32_t backend_asm_ctx_slot_offset(uint8_t * ctx, int32_t
 }
 #endif /* SHUX_SEED_LINK_COMPAT_FROM_X */
 
-__attribute__((weak)) int32_t backend_fold_func_return_operand_ref(void *arena, struct ast_Module *mod, int32_t func_idx) {
+SHUX_WEAK int32_t backend_fold_func_return_operand_ref(void *arena, struct ast_Module *mod, int32_t func_idx) {
   int32_t body_ref;
   int32_t fin;
   int32_t nes;
@@ -357,7 +358,7 @@ int32_t shux_module_func_index_by_name(struct ast_Module *mod, uint8_t *name, in
 #endif /* SHUX_SEED_LINK_COMPAT_FROM_X */
 
 
-__attribute__((weak)) int32_t backend_fold_func_returns_param0_field_sum(void *arena, struct ast_Module *mod,
+SHUX_WEAK int32_t backend_fold_func_returns_param0_field_sum(void *arena, struct ast_Module *mod,
                                                                          int32_t func_idx) {
   int32_t ret_ref;
   int32_t al;
@@ -373,7 +374,7 @@ __attribute__((weak)) int32_t backend_fold_func_returns_param0_field_sum(void *a
   return shux_expr_is_param0_field_access(arena, mod, func_idx, ar) ? 1 : 0;
 }
 
-__attribute__((weak)) int32_t backend_fold_func_returns_param0_single_field(void *arena, struct ast_Module *mod,
+SHUX_WEAK int32_t backend_fold_func_returns_param0_single_field(void *arena, struct ast_Module *mod,
                                                                             int32_t func_idx) {
   int32_t ret_ref = backend_fold_func_return_operand_ref(arena, mod, func_idx);
   if (ret_ref <= 0)
@@ -381,7 +382,7 @@ __attribute__((weak)) int32_t backend_fold_func_returns_param0_single_field(void
   return shux_expr_is_param0_field_access(arena, mod, func_idx, ret_ref);
 }
 
-__attribute__((weak)) int32_t backend_fold_func_x_plus_k_chain(void *arena, struct ast_Module *mod, int32_t func_idx,
+SHUX_WEAK int32_t backend_fold_func_x_plus_k_chain(void *arena, struct ast_Module *mod, int32_t func_idx,
                                                                int32_t depth) {
   int32_t ret_ref;
   int32_t right_ref;
@@ -474,7 +475,7 @@ static const char *shux_x86_arg_reg_name(int32_t k) {
 }
 
 
-__attribute__((weak)) int32_t arch_x86_64_emit_prologue(struct codegen_CodegenOutBuf *out, int32_t frame_sz) {
+SHUX_WEAK int32_t arch_x86_64_emit_prologue(struct codegen_CodegenOutBuf *out, int32_t frame_sz) {
   if (frame_sz < 0)
     frame_sz = 0;
   if (shux_append_asmf(out, "pushq %%rbp") != 0)
@@ -484,90 +485,90 @@ __attribute__((weak)) int32_t arch_x86_64_emit_prologue(struct codegen_CodegenOu
   return shux_append_asmf(out, "subq $%d, %%rsp", frame_sz);
 }
 
-__attribute__((weak)) int32_t arch_x86_64_emit_epilogue(struct codegen_CodegenOutBuf *out, int32_t frame_sz) {
+SHUX_WEAK int32_t arch_x86_64_emit_epilogue(struct codegen_CodegenOutBuf *out, int32_t frame_sz) {
   (void)frame_sz;
   if (shux_append_asmf(out, "movq %%rsp, %%rbp") != 0)
     return -1;
   return shux_append_asmf(out, "ret");
 }
 
-__attribute__((weak)) int32_t arch_x86_64_emit_ret_imm32(struct codegen_CodegenOutBuf *out, int32_t imm) {
+SHUX_WEAK int32_t arch_x86_64_emit_ret_imm32(struct codegen_CodegenOutBuf *out, int32_t imm) {
   return shux_append_asmf(out, "movl $%d, %%eax", imm);
 }
 
-__attribute__((weak)) int32_t arch_x86_64_emit_mov_imm32_to_rbx(struct codegen_CodegenOutBuf *out, int32_t imm) {
+SHUX_WEAK int32_t arch_x86_64_emit_mov_imm32_to_rbx(struct codegen_CodegenOutBuf *out, int32_t imm) {
   return shux_append_asmf(out, "movl $%d, %%ebx", imm);
 }
 
-__attribute__((weak)) int32_t arch_x86_64_emit_mov_imm64_to_rax(struct codegen_CodegenOutBuf *out, int32_t lo, int32_t hi) {
+SHUX_WEAK int32_t arch_x86_64_emit_mov_imm64_to_rax(struct codegen_CodegenOutBuf *out, int32_t lo, int32_t hi) {
   return shux_append_asmf(out, "movq $0x%08x%08x, %%rax", (uint32_t)hi, (uint32_t)lo);
 }
 
-__attribute__((weak)) int32_t arch_x86_64_emit_mov_rax_to_arg_reg(struct codegen_CodegenOutBuf *out, int32_t k) {
+SHUX_WEAK int32_t arch_x86_64_emit_mov_rax_to_arg_reg(struct codegen_CodegenOutBuf *out, int32_t k) {
   return shux_append_asmf(out, "movq %%rax, %%%s", shux_x86_arg_reg_name(k));
 }
 
-__attribute__((weak)) int32_t arch_x86_64_emit_call(struct codegen_CodegenOutBuf *out, uint8_t *name, int32_t name_len) {
+SHUX_WEAK int32_t arch_x86_64_emit_call(struct codegen_CodegenOutBuf *out, uint8_t *name, int32_t name_len) {
   return shux_append_asmf(out, "call %.*s", (int)name_len, (const char *)name);
 }
 
-__attribute__((weak)) int32_t arch_x86_64_emit_section_text(struct codegen_CodegenOutBuf *out) {
+SHUX_WEAK int32_t arch_x86_64_emit_section_text(struct codegen_CodegenOutBuf *out) {
   return shux_append_asmf(out, ".text");
 }
 
-__attribute__((weak)) int32_t arch_x86_64_emit_globl(struct codegen_CodegenOutBuf *out, uint8_t *name, int32_t name_len) {
+SHUX_WEAK int32_t arch_x86_64_emit_globl(struct codegen_CodegenOutBuf *out, uint8_t *name, int32_t name_len) {
   return shux_append_asmf(out, ".globl %.*s", (int)name_len, (const char *)name);
 }
 
-__attribute__((weak)) int32_t arch_x86_64_emit_push_rax(struct codegen_CodegenOutBuf *out) {
+SHUX_WEAK int32_t arch_x86_64_emit_push_rax(struct codegen_CodegenOutBuf *out) {
   return shux_append_asmf(out, "pushq %%rax");
 }
 
-__attribute__((weak)) int32_t arch_x86_64_emit_add_sp_imm(struct codegen_CodegenOutBuf *out, int32_t nbytes) {
+SHUX_WEAK int32_t arch_x86_64_emit_add_sp_imm(struct codegen_CodegenOutBuf *out, int32_t nbytes) {
   if (nbytes <= 0)
     return 0;
   return shux_append_asmf(out, "addq $%d, %%rsp", nbytes);
 }
 
-__attribute__((weak)) int32_t arch_x86_64_emit_pop_rbx(struct codegen_CodegenOutBuf *out) {
+SHUX_WEAK int32_t arch_x86_64_emit_pop_rbx(struct codegen_CodegenOutBuf *out) {
   return shux_append_asmf(out, "popq %%rbx");
 }
 
-__attribute__((weak)) int32_t arch_x86_64_emit_pop_rax(struct codegen_CodegenOutBuf *out) {
+SHUX_WEAK int32_t arch_x86_64_emit_pop_rax(struct codegen_CodegenOutBuf *out) {
   return shux_append_asmf(out, "popq %%rax");
 }
 
-__attribute__((weak)) int32_t arch_x86_64_emit_add_rax_rbx(struct codegen_CodegenOutBuf *out) {
+SHUX_WEAK int32_t arch_x86_64_emit_add_rax_rbx(struct codegen_CodegenOutBuf *out) {
   return shux_append_asmf(out, "addq %%rbx, %%rax");
 }
 
-__attribute__((weak)) int32_t arch_x86_64_emit_sub_rbx_rax_then_mov(struct codegen_CodegenOutBuf *out) {
+SHUX_WEAK int32_t arch_x86_64_emit_sub_rbx_rax_then_mov(struct codegen_CodegenOutBuf *out) {
   if (shux_append_asmf(out, "subq %%rax, %%rbx") != 0)
     return -1;
   return shux_append_asmf(out, "movq %%rbx, %%rax");
 }
 
-__attribute__((weak)) int32_t arch_x86_64_emit_imul_rbx_rax(struct codegen_CodegenOutBuf *out) {
+SHUX_WEAK int32_t arch_x86_64_emit_imul_rbx_rax(struct codegen_CodegenOutBuf *out) {
   return shux_append_asmf(out, "imulq %%rbx, %%rax");
 }
 
-__attribute__((weak)) int32_t arch_x86_64_emit_neg_eax(struct codegen_CodegenOutBuf *out) {
+SHUX_WEAK int32_t arch_x86_64_emit_neg_eax(struct codegen_CodegenOutBuf *out) {
   return shux_append_asmf(out, "negl %%eax");
 }
 
-__attribute__((weak)) int32_t arch_x86_64_emit_mov_rax_to_rbx(struct codegen_CodegenOutBuf *out) {
+SHUX_WEAK int32_t arch_x86_64_emit_mov_rax_to_rbx(struct codegen_CodegenOutBuf *out) {
   return shux_append_asmf(out, "movq %%rax, %%rbx");
 }
 
-__attribute__((weak)) int32_t arch_x86_64_emit_mov_rbx_to_rax(struct codegen_CodegenOutBuf *out) {
+SHUX_WEAK int32_t arch_x86_64_emit_mov_rbx_to_rax(struct codegen_CodegenOutBuf *out) {
   return shux_append_asmf(out, "movq %%rbx, %%rax");
 }
 
-__attribute__((weak)) int32_t arch_x86_64_emit_cmp_rbx_rax(struct codegen_CodegenOutBuf *out) {
+SHUX_WEAK int32_t arch_x86_64_emit_cmp_rbx_rax(struct codegen_CodegenOutBuf *out) {
   return shux_append_asmf(out, "cmpl %%eax, %%ebx");
 }
 
-__attribute__((weak)) int32_t arch_x86_64_emit_cmp_setcc(struct codegen_CodegenOutBuf *out, int32_t cc) {
+SHUX_WEAK int32_t arch_x86_64_emit_cmp_setcc(struct codegen_CodegenOutBuf *out, int32_t cc) {
   if (shux_append_asmf(out, "cmpl %%eax, %%ebx") != 0)
     return -1;
   if (shux_append_asmf(out, "%s %%al", shux_x86_setcc_name(cc)) != 0)
@@ -575,63 +576,63 @@ __attribute__((weak)) int32_t arch_x86_64_emit_cmp_setcc(struct codegen_CodegenO
   return shux_append_asmf(out, "movzbl %%al, %%eax");
 }
 
-__attribute__((weak)) int32_t arch_x86_64_emit_not_eax(struct codegen_CodegenOutBuf *out) {
+SHUX_WEAK int32_t arch_x86_64_emit_not_eax(struct codegen_CodegenOutBuf *out) {
   return shux_append_asmf(out, "notl %%eax");
 }
 
-__attribute__((weak)) int32_t arch_x86_64_emit_and_rbx_rax(struct codegen_CodegenOutBuf *out) {
+SHUX_WEAK int32_t arch_x86_64_emit_and_rbx_rax(struct codegen_CodegenOutBuf *out) {
   return shux_append_asmf(out, "andl %%ebx, %%eax");
 }
 
-__attribute__((weak)) int32_t arch_x86_64_emit_or_rbx_rax(struct codegen_CodegenOutBuf *out) {
+SHUX_WEAK int32_t arch_x86_64_emit_or_rbx_rax(struct codegen_CodegenOutBuf *out) {
   return shux_append_asmf(out, "orl %%ebx, %%eax");
 }
 
-__attribute__((weak)) int32_t arch_x86_64_emit_xor_rbx_rax(struct codegen_CodegenOutBuf *out) {
+SHUX_WEAK int32_t arch_x86_64_emit_xor_rbx_rax(struct codegen_CodegenOutBuf *out) {
   return shux_append_asmf(out, "xorl %%ebx, %%eax");
 }
 
-__attribute__((weak)) int32_t arch_x86_64_emit_mov_rbx_to_ecx(struct codegen_CodegenOutBuf *out) {
+SHUX_WEAK int32_t arch_x86_64_emit_mov_rbx_to_ecx(struct codegen_CodegenOutBuf *out) {
   return shux_append_asmf(out, "movl %%ebx, %%ecx");
 }
 
-__attribute__((weak)) int32_t arch_x86_64_emit_shl_cl_eax(struct codegen_CodegenOutBuf *out) {
+SHUX_WEAK int32_t arch_x86_64_emit_shl_cl_eax(struct codegen_CodegenOutBuf *out) {
   return shux_append_asmf(out, "sall %%cl, %%eax");
 }
 
-__attribute__((weak)) int32_t arch_x86_64_emit_shr_cl_eax(struct codegen_CodegenOutBuf *out) {
+SHUX_WEAK int32_t arch_x86_64_emit_shr_cl_eax(struct codegen_CodegenOutBuf *out) {
   return shux_append_asmf(out, "shrl %%cl, %%eax");
 }
 
-__attribute__((weak)) int32_t arch_x86_64_emit_sar_cl_eax(struct codegen_CodegenOutBuf *out) {
+SHUX_WEAK int32_t arch_x86_64_emit_sar_cl_eax(struct codegen_CodegenOutBuf *out) {
   return shux_append_asmf(out, "sarl %%cl, %%eax");
 }
 
-__attribute__((weak)) int32_t arch_x86_64_emit_store_rax_to_rbp(struct codegen_CodegenOutBuf *out, int32_t off) {
+SHUX_WEAK int32_t arch_x86_64_emit_store_rax_to_rbp(struct codegen_CodegenOutBuf *out, int32_t off) {
   return shux_append_asmf(out, "movq %%rax, -%d(%%rbp)", off);
 }
 
-__attribute__((weak)) int32_t arch_x86_64_emit_load_rbp_to_rax(struct codegen_CodegenOutBuf *out, int32_t off) {
+SHUX_WEAK int32_t arch_x86_64_emit_load_rbp_to_rax(struct codegen_CodegenOutBuf *out, int32_t off) {
   return shux_append_asmf(out, "movq -%d(%%rbp), %%rax", off);
 }
 
-__attribute__((weak)) int32_t arch_x86_64_emit_lea_rbp_to_rax(struct codegen_CodegenOutBuf *out, int32_t off) {
+SHUX_WEAK int32_t arch_x86_64_emit_lea_rbp_to_rax(struct codegen_CodegenOutBuf *out, int32_t off) {
   return shux_append_asmf(out, "leaq -%d(%%rbp), %%rax", off);
 }
 
-__attribute__((weak)) int32_t arch_x86_64_emit_rax_plus_rbx_scale1(struct codegen_CodegenOutBuf *out) {
+SHUX_WEAK int32_t arch_x86_64_emit_rax_plus_rbx_scale1(struct codegen_CodegenOutBuf *out) {
   return shux_append_asmf(out, "leaq (%%rax,%%rbx,1), %%rax");
 }
 
-__attribute__((weak)) int32_t arch_x86_64_emit_rax_plus_rbx_scale4(struct codegen_CodegenOutBuf *out) {
+SHUX_WEAK int32_t arch_x86_64_emit_rax_plus_rbx_scale4(struct codegen_CodegenOutBuf *out) {
   return shux_append_asmf(out, "leaq (%%rax,%%rbx,4), %%rax");
 }
 
-__attribute__((weak)) int32_t arch_x86_64_emit_rax_plus_rbx_scale8(struct codegen_CodegenOutBuf *out) {
+SHUX_WEAK int32_t arch_x86_64_emit_rax_plus_rbx_scale8(struct codegen_CodegenOutBuf *out) {
   return shux_append_asmf(out, "leaq (%%rax,%%rbx,8), %%rax");
 }
 
-__attribute__((weak)) int32_t arch_x86_64_emit_store_rax_to_rbx_indirect(struct codegen_CodegenOutBuf *out, int32_t elem_sz) {
+SHUX_WEAK int32_t arch_x86_64_emit_store_rax_to_rbx_indirect(struct codegen_CodegenOutBuf *out, int32_t elem_sz) {
   if (elem_sz == 1)
     return shux_append_asmf(out, "movb %%al, (%%rbx)");
   if (elem_sz == 4)
@@ -639,70 +640,70 @@ __attribute__((weak)) int32_t arch_x86_64_emit_store_rax_to_rbx_indirect(struct 
   return shux_append_asmf(out, "movq %%rax, (%%rbx)");
 }
 
-__attribute__((weak)) int32_t arch_x86_64_emit_load_32_from_rax(struct codegen_CodegenOutBuf *out) {
+SHUX_WEAK int32_t arch_x86_64_emit_load_32_from_rax(struct codegen_CodegenOutBuf *out) {
   return shux_append_asmf(out, "movl (%%rax), %%eax");
 }
 
-__attribute__((weak)) int32_t arch_x86_64_emit_load_zext8_from_rax(struct codegen_CodegenOutBuf *out) {
+SHUX_WEAK int32_t arch_x86_64_emit_load_zext8_from_rax(struct codegen_CodegenOutBuf *out) {
   return shux_append_asmf(out, "movzbl (%%rax), %%eax");
 }
 
-__attribute__((weak)) int32_t arch_x86_64_emit_add_imm_to_rax(struct codegen_CodegenOutBuf *out, int32_t imm) {
+SHUX_WEAK int32_t arch_x86_64_emit_add_imm_to_rax(struct codegen_CodegenOutBuf *out, int32_t imm) {
   if (imm == 0)
     return 0;
   return shux_append_asmf(out, "addq $%d, %%rax", imm);
 }
 
-__attribute__((weak)) int32_t arch_x86_64_emit_load_64_from_rax(struct codegen_CodegenOutBuf *out) {
+SHUX_WEAK int32_t arch_x86_64_emit_load_64_from_rax(struct codegen_CodegenOutBuf *out) {
   return shux_append_asmf(out, "movq (%%rax), %%rax");
 }
 
-__attribute__((weak)) int32_t arch_x86_64_emit_store_rax_to_rbx_offset(struct codegen_CodegenOutBuf *out, int32_t off,
+SHUX_WEAK int32_t arch_x86_64_emit_store_rax_to_rbx_offset(struct codegen_CodegenOutBuf *out, int32_t off,
                                                                        int32_t store_size) {
   if (store_size == 8)
     return shux_append_asmf(out, "movq %%rax, %d(%%rbx)", off);
   return shux_append_asmf(out, "movl %%eax, %d(%%rbx)", off);
 }
 
-__attribute__((weak)) int32_t arch_x86_64_emit_jz(struct codegen_CodegenOutBuf *out, uint8_t *label, int32_t label_len) {
+SHUX_WEAK int32_t arch_x86_64_emit_jz(struct codegen_CodegenOutBuf *out, uint8_t *label, int32_t label_len) {
   if (shux_append_asmf(out, "test %%eax, %%eax") != 0)
     return -1;
   return shux_append_asmf(out, "je %.*s", (int)label_len, (const char *)label);
 }
 
-__attribute__((weak)) int32_t arch_x86_64_emit_jeq(struct codegen_CodegenOutBuf *out, uint8_t *label, int32_t label_len) {
+SHUX_WEAK int32_t arch_x86_64_emit_jeq(struct codegen_CodegenOutBuf *out, uint8_t *label, int32_t label_len) {
   return shux_append_asmf(out, "je %.*s", (int)label_len, (const char *)label);
 }
 
-__attribute__((weak)) int32_t arch_x86_64_emit_jnz(struct codegen_CodegenOutBuf *out, uint8_t *label, int32_t label_len) {
+SHUX_WEAK int32_t arch_x86_64_emit_jnz(struct codegen_CodegenOutBuf *out, uint8_t *label, int32_t label_len) {
   if (shux_append_asmf(out, "test %%eax, %%eax") != 0)
     return -1;
   return shux_append_asmf(out, "jne %.*s", (int)label_len, (const char *)label);
 }
 
-__attribute__((weak)) int32_t arch_x86_64_emit_jmp(struct codegen_CodegenOutBuf *out, uint8_t *label, int32_t label_len) {
+SHUX_WEAK int32_t arch_x86_64_emit_jmp(struct codegen_CodegenOutBuf *out, uint8_t *label, int32_t label_len) {
   return shux_append_asmf(out, "jmp %.*s", (int)label_len, (const char *)label);
 }
 
-__attribute__((weak)) int32_t arch_x86_64_emit_label(struct codegen_CodegenOutBuf *out, uint8_t *name, int32_t name_len) {
+SHUX_WEAK int32_t arch_x86_64_emit_label(struct codegen_CodegenOutBuf *out, uint8_t *name, int32_t name_len) {
   return shux_append_asmf(out, "%.*s:", (int)name_len, (const char *)name);
 }
 
 #define SHUX_ARCH_TEXT_STUB0(name) \
-  __attribute__((weak)) int32_t name(struct codegen_CodegenOutBuf *out) { \
+  SHUX_WEAK int32_t name(struct codegen_CodegenOutBuf *out) { \
     (void)out; \
     return -1; \
   }
 
 #define SHUX_ARCH_TEXT_STUB1(name, t1, a1) \
-  __attribute__((weak)) int32_t name(struct codegen_CodegenOutBuf *out, t1 a1) { \
+  SHUX_WEAK int32_t name(struct codegen_CodegenOutBuf *out, t1 a1) { \
     (void)out; \
     (void)a1; \
     return -1; \
   }
 
 #define SHUX_ARCH_TEXT_STUB2(name, t1, a1, t2, a2) \
-  __attribute__((weak)) int32_t name(struct codegen_CodegenOutBuf *out, t1 a1, t2 a2) { \
+  SHUX_WEAK int32_t name(struct codegen_CodegenOutBuf *out, t1 a1, t2 a2) { \
     (void)out; \
     (void)a1; \
     (void)a2; \
@@ -804,7 +805,7 @@ SHUX_ARCH_TEXT_STUB0(arch_riscv64_emit_sub_rbx_rax_then_mov)
 SHUX_ARCH_TEXT_STUB0(arch_riscv64_emit_xor_rbx_rax)
 
 
-__attribute__((weak)) int32_t arch_arm64_enc_enc_u32_le(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t val) {
+SHUX_WEAK int32_t arch_arm64_enc_enc_u32_le(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t val) {
   uint8_t bytes[4];
   bytes[0] = (uint8_t)(val & 255);
   bytes[1] = (uint8_t)((val >> 8) & 255);
@@ -814,13 +815,13 @@ __attribute__((weak)) int32_t arch_arm64_enc_enc_u32_le(struct platform_elf_ElfC
 }
 
 #define SHUX_ARM64_GLUE_STUB1(name)                                    \
-  __attribute__((weak)) int32_t name(struct platform_elf_ElfCodegenCtx *elf_ctx) { \
+  SHUX_WEAK int32_t name(struct platform_elf_ElfCodegenCtx *elf_ctx) { \
     (void)elf_ctx;                                                     \
     return -1;                                                         \
   }
 
 #define SHUX_ARM64_GLUE_STUB3(name)                                                        \
-  __attribute__((weak)) int32_t name(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t a, int32_t b) { \
+  SHUX_WEAK int32_t name(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t a, int32_t b) { \
     (void)elf_ctx;                                                                         \
     (void)a;                                                                               \
     (void)b;                                                                               \
@@ -863,20 +864,20 @@ SHUX_ARM64_GLUE_STUB3(arch_arm64_enc_enc_ldr_sp_slot_to_xreg)
 #undef SHUX_ARM64_GLUE_STUB3
 
 #define SHUX_ARCH_ENC_STUB0(name)                                               \
-  __attribute__((weak)) int32_t name(struct platform_elf_ElfCodegenCtx *elf_ctx) { \
+  SHUX_WEAK int32_t name(struct platform_elf_ElfCodegenCtx *elf_ctx) { \
     (void)elf_ctx;                                                              \
     return -1;                                                                  \
   }
 
 #define SHUX_ARCH_ENC_STUB1(name, t1, a1)                                             \
-  __attribute__((weak)) int32_t name(struct platform_elf_ElfCodegenCtx *elf_ctx, t1 a1) { \
+  SHUX_WEAK int32_t name(struct platform_elf_ElfCodegenCtx *elf_ctx, t1 a1) { \
     (void)elf_ctx;                                                                    \
     (void)a1;                                                                         \
     return -1;                                                                        \
   }
 
 #define SHUX_ARCH_ENC_STUB2(name, t1, a1, t2, a2)                                             \
-  __attribute__((weak)) int32_t name(struct platform_elf_ElfCodegenCtx *elf_ctx, t1 a1, t2 a2) { \
+  SHUX_WEAK int32_t name(struct platform_elf_ElfCodegenCtx *elf_ctx, t1 a1, t2 a2) { \
     (void)elf_ctx;                                                                           \
     (void)a1;                                                                                \
     (void)a2;                                                                                \
@@ -884,7 +885,7 @@ SHUX_ARM64_GLUE_STUB3(arch_arm64_enc_enc_ldr_sp_slot_to_xreg)
   }
 
 #define SHUX_ARCH_ENC_STUB3(name, t1, a1, t2, a2, t3, a3)                                             \
-  __attribute__((weak)) int32_t name(struct platform_elf_ElfCodegenCtx *elf_ctx, t1 a1, t2 a2, t3 a3) { \
+  SHUX_WEAK int32_t name(struct platform_elf_ElfCodegenCtx *elf_ctx, t1 a1, t2 a2, t3 a3) { \
     (void)elf_ctx;                                                                                    \
     (void)a1;                                                                                          \
     (void)a2;                                                                                          \

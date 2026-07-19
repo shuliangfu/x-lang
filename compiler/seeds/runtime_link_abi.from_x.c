@@ -6,6 +6,7 @@
  * .x covers: + shux_invoke_cc, append_linux_link_harden; link_abi exported set nearly gated.
  * G-02f-89/91/92/94: path/diag/needs + cc_ex/nm/nostdlib helpers gated over _impl.
  */
+#include <shux_weak.h>
 #include "win32_compat.h"
 #include "runtime_link_abi.h"
 #include "runtime_proc_abi.h"
@@ -112,13 +113,6 @@ const char *shux_empty_cstr(void) {
 #include <sys/mman.h>
 #endif
 
-#ifndef SHUX_WEAK
-#if defined(_WIN32) || defined(_WIN64)
-#define SHUX_WEAK
-#else
-#define SHUX_WEAK __attribute__((weak))
-#endif
-#endif
 #if defined(__APPLE__)
 #include <mach-o/dyld.h>
 #endif
@@ -4972,7 +4966,7 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
             argv[i++] = (char *)"-lc";
 #endif
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
-        /* 【Why 根源】PE/COFF 格式不支持 weak 符号：__attribute__((weak)) 函数被 MinGW 当
+        /* 【Why 根源】PE/COFF 格式不支持 weak 符号：SHUX_WEAK 函数被 MinGW 当
            普通强符号定义。shux codegen 对 std/*.o 中函数生成 weak 别名（如 log_write_c、
            core_crypto_mem_eq_c），多份 .o 链入时产生 multiple definition error。
            --allow-multiple-definition 让 ld 选第一个定义，与 ELF weak 语义对齐。

@@ -10,6 +10,7 @@
  */
 
 #if !defined(_WIN32) && !defined(_WIN64)
+#include <shux_weak.h>
 #include <string.h>
 /* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW
  *            (read/write/close/lseek/open/pread/pwrite/setenv/unsetenv).
@@ -23,26 +24,26 @@
 #define SHUX_ASYNC_IO_NOT_READY (-2)
 
 /** io.o 未链入时 weak 桩（与 scheduler_glue.c poll 桩一致）。 */
-__attribute__((weak)) int shux_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle) {
+SHUX_WEAK int shux_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle) {
     (void)ptr;
     (void)len;
     (void)handle;
     return -1;
 }
 
-__attribute__((weak)) int32_t shux_io_complete_read_async_slot(int slot) {
+SHUX_WEAK int32_t shux_io_complete_read_async_slot(int slot) {
     (void)slot;
     return SHUX_ASYNC_IO_NOT_READY;
 }
 
-__attribute__((weak)) int shux_io_submit_write_async(const uint8_t *ptr, size_t len, size_t handle) {
+SHUX_WEAK int shux_io_submit_write_async(const uint8_t *ptr, size_t len, size_t handle) {
     (void)ptr;
     (void)len;
     (void)handle;
     return -1;
 }
 
-__attribute__((weak)) int32_t shux_io_complete_write_async_slot(int slot) {
+SHUX_WEAK int32_t shux_io_complete_write_async_slot(int slot) {
     (void)slot;
     return SHUX_ASYNC_IO_NOT_READY;
 }

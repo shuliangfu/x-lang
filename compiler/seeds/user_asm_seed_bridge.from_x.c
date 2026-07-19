@@ -10,6 +10,7 @@
  * 本文件提供强符号实现，并链入 build_asm/seed_host/asm_backend_partial.o（shux-c -E asm.x 抽出）。
  * 无 C codegen 回退、无 cc -c 汇编 GAS 兜底：asm 失败即返回错误。
  */
+#include <shux_weak.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
@@ -271,7 +272,7 @@ int32_t seed_asm_reject_empty_elf_text(void *module, void *elf_ctx) {
 #if defined(__APPLE__)
 extern int32_t platform_macho_write_macho_o_to_buf(void *elf_ctx, void *out_buf) __attribute__((weak_import));
 #elif defined(_WIN32) || defined(_WIN64)
-extern int32_t platform_coff_write_coff_o_to_buf(void *elf_ctx, void *out_buf) __attribute__((weak));
+extern int32_t platform_coff_write_coff_o_to_buf(void *elf_ctx, void *out_buf) SHUX_WEAK;
 #endif
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 

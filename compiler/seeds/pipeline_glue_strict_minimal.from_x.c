@@ -13,6 +13,7 @@
  *
  * strict_core partial 已含 pipeline_x 几乎全部符号；本 TU 仅补 runtime 入口与裸名 parse_into_init。
  */
+#include <shux_weak.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <limits.h>
@@ -115,7 +116,7 @@ struct parser_ParseIntoResult {
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-222：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-__attribute__((weak)) void parser_diagnostic_parse_func_generic(int32_t byte_pos, int32_t num_funcs_so_far, uint8_t *name,
+SHUX_WEAK void parser_diagnostic_parse_func_generic(int32_t byte_pos, int32_t num_funcs_so_far, uint8_t *name,
                                                                 int32_t name_len, int32_t num_generic_params,
                                                                 int32_t is_main) {
   extern void driver_diagnostic_parse_func_generic(int32_t byte_pos, int32_t num_funcs_so_far, const uint8_t *name,
@@ -127,7 +128,7 @@ __attribute__((weak)) void parser_diagnostic_parse_func_generic(int32_t byte_pos
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-222：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-__attribute__((weak)) void parser_diagnostic_parse_commit_pre(struct ast_ASTArena *arena, uint8_t *name, int32_t name_len,
+SHUX_WEAK void parser_diagnostic_parse_commit_pre(struct ast_ASTArena *arena, uint8_t *name, int32_t name_len,
                                                               int32_t block_ref, uint8_t *pool, int32_t final_expr_ref) {
   extern int32_t pipeline_onefunc_num_consts(uint8_t *out);
   extern int32_t pipeline_onefunc_num_lets(uint8_t *out);
@@ -154,7 +155,7 @@ __attribute__((weak)) void parser_diagnostic_parse_commit_pre(struct ast_ASTAren
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-222：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-__attribute__((weak)) void parser_diagnostic_parse_commit_post(struct ast_ASTArena *arena, uint8_t *name, int32_t name_len,
+SHUX_WEAK void parser_diagnostic_parse_commit_post(struct ast_ASTArena *arena, uint8_t *name, int32_t name_len,
                                                                int32_t block_ref, uint8_t *pool) {
   extern int32_t pipeline_onefunc_num_consts(uint8_t *out);
   extern int32_t pipeline_onefunc_num_lets(uint8_t *out);
@@ -598,7 +599,7 @@ extern int32_t driver_run_compiler_full(int32_t argc, char **argv);
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /** runtime 期望的程序入口名；weak 以便与 asm_experimental_symbol_bridge 共存（B-strict 链 build_asm/pipeline.o 时）。 */
 /* G-02f-210：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-__attribute__((weak)) int32_t main_entry(int32_t argc, char **argv) {
+SHUX_WEAK int32_t main_entry(int32_t argc, char **argv) {
   return driver_run_compiler_full(argc, argv);
 }
 #endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
@@ -606,7 +607,7 @@ __attribute__((weak)) int32_t main_entry(int32_t argc, char **argv) {
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-210：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-__attribute__((weak)) int32_t main_run_compiler_c(int32_t argc, uint8_t *argv) {
+SHUX_WEAK int32_t main_run_compiler_c(int32_t argc, uint8_t *argv) {
   return driver_run_compiler_full(argc, (char **)argv);
 }
 #endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
@@ -621,7 +622,7 @@ extern void parser_parse_into_init(struct ast_Module *module, struct ast_ASTAren
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-220：逻辑源 .x（真迁）；seed 保留 debug getenv 冷路径 */
-__attribute__((weak)) int32_t ast_pipeline_module_func_num_generic_params_at(struct ast_Module *m, int32_t fi) {
+SHUX_WEAK int32_t ast_pipeline_module_func_num_generic_params_at(struct ast_Module *m, int32_t fi) {
   int32_t n = pipeline_module_func_num_generic_params_at(m, fi);
   if (getenv("SHUX_DEBUG_FUNC_GENERIC_GET"))
     diag_reportf(NULL, 0, 0, "note", NULL,
@@ -646,7 +647,7 @@ extern int32_t pipeline_lsp_diag_parse_typeck_buf_impl_c(struct ast_Module *modu
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-221：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-__attribute__((weak)) int32_t pipeline_typeck_after_parse_ok_impl_c(struct ast_ASTArena *arena, struct ast_Module *module,
+SHUX_WEAK int32_t pipeline_typeck_after_parse_ok_impl_c(struct ast_ASTArena *arena, struct ast_Module *module,
                                                                     struct shux_slice_uint8_t *source,
                                                                     struct ast_PipelineDepCtx *ctx) {
   int32_t ok;
@@ -682,7 +683,7 @@ __attribute__((weak)) int32_t pipeline_typeck_after_parse_ok_impl_c(struct ast_A
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-216：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-__attribute__((weak)) int32_t pipeline_typeck_after_parse_ok(struct ast_ASTArena *arena, struct ast_Module *module,
+SHUX_WEAK int32_t pipeline_typeck_after_parse_ok(struct ast_ASTArena *arena, struct ast_Module *module,
                                                              struct shux_slice_uint8_t *source,
                                                              struct ast_PipelineDepCtx *ctx) {
   return pipeline_typeck_after_parse_ok_impl_c(arena, module, source, ctx);
@@ -692,7 +693,7 @@ __attribute__((weak)) int32_t pipeline_typeck_after_parse_ok(struct ast_ASTArena
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-216：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-__attribute__((weak)) int32_t pipeline_lsp_diag_parse_typeck_buf(struct ast_Module *module, struct ast_ASTArena *arena,
+SHUX_WEAK int32_t pipeline_lsp_diag_parse_typeck_buf(struct ast_Module *module, struct ast_ASTArena *arena,
                                                                   uint8_t *source_data, int32_t source_len,
                                                                   struct ast_PipelineDepCtx *ctx) {
   return pipeline_lsp_diag_parse_typeck_buf_impl_c(module, arena, source_data, source_len, ctx);
@@ -702,7 +703,7 @@ __attribute__((weak)) int32_t pipeline_lsp_diag_parse_typeck_buf(struct ast_Modu
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-210：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-__attribute__((weak)) int32_t typeck_x_type_size_from_layout_glue(struct ast_Module *module,
+SHUX_WEAK int32_t typeck_x_type_size_from_layout_glue(struct ast_Module *module,
                                                                    struct ast_ASTArena *arena, int32_t li,
                                                                    int32_t depth) {
   int32_t sz = 0;
@@ -718,7 +719,7 @@ __attribute__((weak)) int32_t typeck_x_type_size_from_layout_glue(struct ast_Mod
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-210：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-__attribute__((weak)) int32_t typeck_x_type_align_from_layout_glue(struct ast_Module *module,
+SHUX_WEAK int32_t typeck_x_type_align_from_layout_glue(struct ast_Module *module,
                                                                     struct ast_ASTArena *arena, int32_t li,
                                                                     int32_t depth) {
   int32_t sz = 0;
@@ -734,7 +735,7 @@ __attribute__((weak)) int32_t typeck_x_type_align_from_layout_glue(struct ast_Mo
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-217：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-__attribute__((weak)) int32_t typeck_soa_array_storage_size_glue(struct ast_Module *module,
+SHUX_WEAK int32_t typeck_soa_array_storage_size_glue(struct ast_Module *module,
                                                                  struct ast_ASTArena *arena, int32_t elem_type_ref,
                                                                  int32_t array_len, int32_t depth) {
   uint8_t name[64];
@@ -786,7 +787,7 @@ __attribute__((weak)) int32_t typeck_soa_array_storage_size_glue(struct ast_Modu
 
 static struct ast_Module *g_typeck_entry_module_for_dep_map_strict_minimal;
 
-__attribute__((weak)) int32_t pipeline_typeck_get_dep_return_type_in_caller_arena_c(int32_t from_dep_index,
+SHUX_WEAK int32_t pipeline_typeck_get_dep_return_type_in_caller_arena_c(int32_t from_dep_index,
                                                                                      int32_t dep_return_type_ref,
                                                                                      struct ast_ASTArena *caller_arena,
                                                                                      struct ast_PipelineDepCtx *ctx);
@@ -794,7 +795,7 @@ __attribute__((weak)) int32_t pipeline_typeck_get_dep_return_type_in_caller_aren
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-220：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-__attribute__((weak)) void pipeline_typeck_set_entry_module_for_dep_map_c(struct ast_Module *module) {
+SHUX_WEAK void pipeline_typeck_set_entry_module_for_dep_map_c(struct ast_Module *module) {
   g_typeck_entry_module_for_dep_map_strict_minimal = module;
 }
 #endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
@@ -1238,7 +1239,7 @@ int32_t pipeline_typeck_dep_return_type_to_caller_strict_minimal(struct ast_ASTA
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-222：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-__attribute__((weak)) int32_t pipeline_typeck_type_refs_equal_c(struct ast_ASTArena *arena, int32_t a, int32_t b) {
+SHUX_WEAK int32_t pipeline_typeck_type_refs_equal_c(struct ast_ASTArena *arena, int32_t a, int32_t b) {
   int32_t kind;
   (void)g_typeck_entry_module_for_dep_map_strict_minimal;
   if (a == 0 || b == 0)
@@ -1276,7 +1277,7 @@ __attribute__((weak)) int32_t pipeline_typeck_type_refs_equal_c(struct ast_ASTAr
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-217：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-__attribute__((weak)) int32_t pipeline_typeck_reject_addr_of_linear_c(struct ast_ASTArena *arena, int32_t op_ref,
+SHUX_WEAK int32_t pipeline_typeck_reject_addr_of_linear_c(struct ast_ASTArena *arena, int32_t op_ref,
                                                                       int32_t addr_expr_ref, struct ast_Module *module,
                                                                       struct ast_PipelineDepCtx *ctx) {
   int32_t vnlen;
@@ -1355,7 +1356,7 @@ int32_t pipeline_asm_emit_addr_of_elf_c(struct ast_ASTArena *arena, struct platf
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-210：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-__attribute__((weak)) int32_t pipeline_typeck_resolve_call_func_index_c(struct ast_Module *m, struct ast_ASTArena *a,
+SHUX_WEAK int32_t pipeline_typeck_resolve_call_func_index_c(struct ast_Module *m, struct ast_ASTArena *a,
                                                                         int32_t call_expr_ref) {
   int32_t fx;
   int32_t callee_ref;
@@ -1389,7 +1390,7 @@ __attribute__((weak)) int32_t pipeline_typeck_resolve_call_func_index_c(struct a
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-210：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-__attribute__((weak)) int32_t pipeline_typeck_resolve_call_func_index_for_emit_c(struct ast_Module *m,
+SHUX_WEAK int32_t pipeline_typeck_resolve_call_func_index_for_emit_c(struct ast_Module *m,
                                                                                  struct ast_ASTArena *a,
                                                                                  int32_t call_expr_ref) {
   return pipeline_typeck_resolve_call_func_index_c(m, a, call_expr_ref);
@@ -1397,7 +1398,7 @@ __attribute__((weak)) int32_t pipeline_typeck_resolve_call_func_index_for_emit_c
 #endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
 /* G-02f-220：🔒 PipelineDepCtx.typeck_loop_depth 字段写 helper */
-__attribute__((weak)) void pipeline_typeck_loop_depth_set_c(struct ast_PipelineDepCtx *ctx, int32_t depth) {
+SHUX_WEAK void pipeline_typeck_loop_depth_set_c(struct ast_PipelineDepCtx *ctx, int32_t depth) {
   if (!ctx)
     return;
   ctx->typeck_loop_depth = depth;
@@ -1406,7 +1407,7 @@ __attribute__((weak)) void pipeline_typeck_loop_depth_set_c(struct ast_PipelineD
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-210：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-__attribute__((weak)) void pipeline_typeck_pad_fields_warn_layout(struct ast_Module *module, struct ast_ASTArena *arena,
+SHUX_WEAK void pipeline_typeck_pad_fields_warn_layout(struct ast_Module *module, struct ast_ASTArena *arena,
                                                                   int32_t li) {
   (void)module;
   (void)arena;
@@ -1417,7 +1418,7 @@ __attribute__((weak)) void pipeline_typeck_pad_fields_warn_layout(struct ast_Mod
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-210：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-__attribute__((weak)) int32_t pipeline_typeck_read_ptr_slice_return_ref_c(struct ast_ASTArena *arena) {
+SHUX_WEAK int32_t pipeline_typeck_read_ptr_slice_return_ref_c(struct ast_ASTArena *arena) {
   static const uint8_t lbl[] = "io_read_ptr";
   int32_t u8_ref;
   if (!arena)
@@ -1446,7 +1447,7 @@ int pipeline_typeck_linear_name_already_moved_strict_minimal(const uint8_t *name
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-221：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-__attribute__((weak)) void pipeline_typeck_linear_reset_c(void) {
+SHUX_WEAK void pipeline_typeck_linear_reset_c(void) {
   g_typeck_linear_moved_n = 0;
 }
 #endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
@@ -1454,7 +1455,7 @@ __attribute__((weak)) void pipeline_typeck_linear_reset_c(void) {
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-221：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-__attribute__((weak)) int32_t pipeline_typeck_linear_use_var_c(struct ast_ASTArena *arena, int32_t type_ref,
+SHUX_WEAK int32_t pipeline_typeck_linear_use_var_c(struct ast_ASTArena *arena, int32_t type_ref,
                                                                int32_t expr_ref, uint8_t *name, int32_t name_len) {
   int32_t line;
   int32_t col;
@@ -1484,7 +1485,7 @@ __attribute__((weak)) int32_t pipeline_typeck_linear_use_var_c(struct ast_ASTAre
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-210：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-__attribute__((weak)) int32_t pipeline_typeck_linear_accepts_init_c(struct ast_ASTArena *arena, int32_t decl_ref,
+SHUX_WEAK int32_t pipeline_typeck_linear_accepts_init_c(struct ast_ASTArena *arena, int32_t decl_ref,
                                                                     int32_t init_ref) {
   if (!arena || decl_ref <= 0 || init_ref <= 0)
     return 0;
@@ -1692,7 +1693,7 @@ int32_t typeck_expr_is_addr_of_block_local_strict_minimal(struct ast_Module *mod
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-218：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-__attribute__((weak)) int32_t pipeline_typeck_check_slice_region_assign_c(struct ast_ASTArena *arena,
+SHUX_WEAK int32_t pipeline_typeck_check_slice_region_assign_c(struct ast_ASTArena *arena,
                                                                           int32_t site_expr_ref, int32_t expect_ref,
                                                                           int32_t src_ref) {
   int32_t line;
@@ -1736,7 +1737,7 @@ __attribute__((weak)) int32_t pipeline_typeck_check_slice_region_assign_c(struct
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-217：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-__attribute__((weak)) int32_t pipeline_typeck_check_struct_stack_escape_assign_c(struct ast_Module *module,
+SHUX_WEAK int32_t pipeline_typeck_check_struct_stack_escape_assign_c(struct ast_Module *module,
                                                                                   struct ast_ASTArena *arena,
                                                                                   int32_t site_expr_ref,
                                                                                   int32_t left_ref, int32_t right_ref,
@@ -1794,7 +1795,7 @@ __attribute__((weak)) int32_t pipeline_typeck_check_struct_stack_escape_assign_c
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-216：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-__attribute__((weak)) int32_t pipeline_typeck_coerce_init_int_binop_to_decl_c(struct ast_ASTArena *arena,
+SHUX_WEAK int32_t pipeline_typeck_coerce_init_int_binop_to_decl_c(struct ast_ASTArena *arena,
                                                                                int32_t init_ref, int32_t decl_ty_ref,
                                                                                int32_t decl_kind, int32_t init_kind) {
   if (!arena || init_ref <= 0)
@@ -1827,7 +1828,7 @@ __attribute__((weak)) int32_t pipeline_typeck_coerce_init_int_binop_to_decl_c(st
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-217：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-__attribute__((weak)) void pipeline_typeck_const_init_not_constant_c(int32_t line, int32_t col) {
+SHUX_WEAK void pipeline_typeck_const_init_not_constant_c(int32_t line, int32_t col) {
   lsp_diag_report_typeck((int)line, (int)col, "const init must be constant expression");
 }
 #endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
@@ -2028,7 +2029,7 @@ int32_t pipeline_typeck_const_expr_ref_strict_minimal(struct ast_ASTArena *arena
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-210：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-__attribute__((weak)) int32_t pipeline_asm_init_is_empty_array_lit_c(struct ast_ASTArena *arena, int32_t init_ref) {
+SHUX_WEAK int32_t pipeline_asm_init_is_empty_array_lit_c(struct ast_ASTArena *arena, int32_t init_ref) {
   if (!arena || init_ref <= 0)
     return 0;
   if (pipeline_expr_kind_ord_at(arena, init_ref) != (int32_t)ast_ExprKind_EXPR_ARRAY_LIT)
@@ -2040,7 +2041,7 @@ __attribute__((weak)) int32_t pipeline_asm_init_is_empty_array_lit_c(struct ast_
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-216：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-__attribute__((weak)) int32_t pipeline_asm_build_import_binding_call_sym_c(const uint8_t *pre, int32_t pre_len,
+SHUX_WEAK int32_t pipeline_asm_build_import_binding_call_sym_c(const uint8_t *pre, int32_t pre_len,
                                                                            const uint8_t *field_name, int32_t field_len,
                                                                            uint8_t *out_name) {
   int32_t pos;
@@ -2077,7 +2078,7 @@ __attribute__((weak)) int32_t pipeline_asm_build_import_binding_call_sym_c(const
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-221：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-__attribute__((weak)) int32_t pipeline_typeck_block_const_init_is_const_c(struct ast_ASTArena *arena, int32_t block_ref,
+SHUX_WEAK int32_t pipeline_typeck_block_const_init_is_const_c(struct ast_ASTArena *arena, int32_t block_ref,
                                                                           int32_t const_idx) {
   const char *names[64];
   char name_bufs[64][64];
@@ -2106,7 +2107,7 @@ __attribute__((weak)) int32_t pipeline_typeck_block_const_init_is_const_c(struct
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* M-3：region 内未标注 T[] 继承当前域；换新 type_ref，禁止 in-place 改共享池节点。 */
-__attribute__((weak)) int32_t pipeline_type_stamp_block_let_region_c(struct ast_ASTArena *arena, int32_t block_ref,
+SHUX_WEAK int32_t pipeline_type_stamp_block_let_region_c(struct ast_ASTArena *arena, int32_t block_ref,
                                                                      int32_t let_idx,
                                                                      struct ast_PipelineDepCtx *ctx) {
   int32_t ty_ref;
@@ -2138,7 +2139,7 @@ __attribute__((weak)) int32_t pipeline_type_stamp_block_let_region_c(struct ast_
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-210：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-__attribute__((weak)) void pipeline_typeck_hot_reorder_warn_layout(struct ast_Module *module,
+SHUX_WEAK void pipeline_typeck_hot_reorder_warn_layout(struct ast_Module *module,
                                                                    struct ast_ASTArena *arena, int32_t li) {
   (void)module;
   (void)arena;
@@ -2150,7 +2151,7 @@ __attribute__((weak)) void pipeline_typeck_hot_reorder_warn_layout(struct ast_Mo
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-216：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc
  * 字面量完整长度 14/22/21/17；并兼容历史短 len 19/18/16 前缀匹配。 */
-__attribute__((weak)) int32_t pipeline_typeck_is_read_ptr_slice_callee_c(uint8_t *name, int32_t name_len) {
+SHUX_WEAK int32_t pipeline_typeck_is_read_ptr_slice_callee_c(uint8_t *name, int32_t name_len) {
   static const uint8_t n0[] = "read_ptr_slice";
   static const uint8_t n1[] = "shux_io_read_ptr_slice";
   static const uint8_t n2[] = "driver_read_ptr_slice";
@@ -2179,7 +2180,7 @@ __attribute__((weak)) int32_t pipeline_typeck_is_read_ptr_slice_callee_c(uint8_t
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-220：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-__attribute__((weak)) int32_t pipeline_typeck_get_dep_return_type_in_caller_arena_c(int32_t from_dep_index,
+SHUX_WEAK int32_t pipeline_typeck_get_dep_return_type_in_caller_arena_c(int32_t from_dep_index,
                                                                                       int32_t dep_return_type_ref,
                                                                                       struct ast_ASTArena *caller_arena,
                                                                                       struct ast_PipelineDepCtx *ctx) {
@@ -2214,7 +2215,7 @@ __attribute__((weak)) int32_t pipeline_typeck_get_dep_return_type_in_caller_aren
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-216：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-__attribute__((weak)) int32_t pipeline_typeck_check_expr_int_lit_c(struct ast_ASTArena *arena, int32_t expr_ref) {
+SHUX_WEAK int32_t pipeline_typeck_check_expr_int_lit_c(struct ast_ASTArena *arena, int32_t expr_ref) {
   int64_t value;
   int32_t ty;
   if (!arena || expr_ref <= 0 || expr_ref > arena->num_exprs)
@@ -2235,7 +2236,7 @@ __attribute__((weak)) int32_t pipeline_typeck_check_expr_int_lit_c(struct ast_AS
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-219：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-__attribute__((weak)) int32_t pipeline_typeck_check_expr_match_c(struct ast_Module *module, struct ast_ASTArena *arena,
+SHUX_WEAK int32_t pipeline_typeck_check_expr_match_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                                  int32_t expr_ref, int32_t return_type_ref,
                                                                  struct ast_PipelineDepCtx *ctx) {
   int32_t matched_ref;
@@ -2407,7 +2408,7 @@ int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module,
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-217：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-__attribute__((weak)) int32_t pipeline_typeck_check_scope_borrow_assign_c(struct ast_Module *module,
+SHUX_WEAK int32_t pipeline_typeck_check_scope_borrow_assign_c(struct ast_Module *module,
                                                                           struct ast_ASTArena *arena,
                                                                           int32_t site_expr_ref, int32_t left_ref,
                                                                           int32_t right_ref,
@@ -2457,7 +2458,7 @@ __attribute__((weak)) int32_t pipeline_typeck_check_scope_borrow_assign_c(struct
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-210：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-__attribute__((weak)) int32_t pipeline_typeck_check_allocator_region_assign_c(struct ast_Module *module,
+SHUX_WEAK int32_t pipeline_typeck_check_allocator_region_assign_c(struct ast_Module *module,
                                                                               struct ast_ASTArena *arena,
                                                                               int32_t site_expr_ref,
                                                                               int32_t left_ref,
@@ -2474,7 +2475,7 @@ __attribute__((weak)) int32_t pipeline_typeck_check_allocator_region_assign_c(st
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-218：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-__attribute__((weak)) int32_t pipeline_typeck_check_return_slice_region_c(struct ast_ASTArena *arena,
+SHUX_WEAK int32_t pipeline_typeck_check_return_slice_region_c(struct ast_ASTArena *arena,
                                                                           int32_t ret_site_ref, int32_t op_ref,
                                                                           int32_t func_return_ref) {
   int32_t got_ref;
@@ -2516,7 +2517,7 @@ __attribute__((weak)) int32_t pipeline_typeck_check_return_slice_region_c(struct
  * M-3 AL-06：region 作用域内 return 未标注 T[] — 与 operand stamp 无关。
  * typeck.x 在类型匹配失败前调用；产品链须导出此符号（非 full pipeline_glue standalone）。
  */
-__attribute__((weak)) int32_t pipeline_typeck_check_return_slice_region_in_scope_c(struct ast_ASTArena *arena,
+SHUX_WEAK int32_t pipeline_typeck_check_return_slice_region_in_scope_c(struct ast_ASTArena *arena,
                                                                                   int32_t site_expr_ref,
                                                                                   int32_t return_type_ref,
                                                                                   struct ast_PipelineDepCtx *ctx) {
@@ -2585,7 +2586,7 @@ int32_t pipeline_typeck_result_payload_type_from_name_strict_minimal(struct ast_
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-218：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-__attribute__((weak)) int32_t pipeline_typeck_check_expr_try_propagate_c(struct ast_Module *module,
+SHUX_WEAK int32_t pipeline_typeck_check_expr_try_propagate_c(struct ast_Module *module,
                                                                          struct ast_ASTArena *arena, int32_t expr_ref,
                                                                          int32_t return_type_ref,
                                                                          struct ast_PipelineDepCtx *ctx) {
@@ -2642,7 +2643,7 @@ __attribute__((weak)) int32_t pipeline_typeck_check_expr_try_propagate_c(struct 
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-218：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-__attribute__((weak)) int32_t pipeline_typeck_check_call_slice_region_c(struct ast_Module *module,
+SHUX_WEAK int32_t pipeline_typeck_check_call_slice_region_c(struct ast_Module *module,
                                                                         struct ast_ASTArena *arena,
                                                                         int32_t call_expr_ref,
                                                                         struct ast_PipelineDepCtx *ctx) {
@@ -2684,7 +2685,7 @@ __attribute__((weak)) int32_t pipeline_typeck_check_call_slice_region_c(struct a
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* M-3 / MEM-C1：region 推 scope；with_arena 与 unsafe 分支对齐 full pipeline_glue。 */
-__attribute__((weak)) int32_t pipeline_typeck_check_block_one_region_c(struct ast_Module *module,
+SHUX_WEAK int32_t pipeline_typeck_check_block_one_region_c(struct ast_Module *module,
                                                                        struct ast_ASTArena *arena, int32_t block_ref,
                                                                        int32_t region_idx, int32_t return_type_ref,
                                                                        struct ast_PipelineDepCtx *ctx) {
@@ -2749,7 +2750,7 @@ int32_t field_name_equal_strict_minimal(uint8_t *buf, int32_t len, const char *l
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-219：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-__attribute__((weak)) int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *module,
+SHUX_WEAK int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *module,
                                                                         struct ast_ASTArena *arena, int32_t expr_ref,
                                                                         int32_t return_type_ref,
                                                                         struct ast_PipelineDepCtx *ctx) {
@@ -2849,7 +2850,7 @@ __attribute__((weak)) int32_t pipeline_typeck_check_expr_field_access_c(struct a
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-219：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-__attribute__((weak)) int32_t pipeline_typeck_check_expr_impl_mega_c(struct ast_Module *module,
+SHUX_WEAK int32_t pipeline_typeck_check_expr_impl_mega_c(struct ast_Module *module,
                                                                      struct ast_ASTArena *arena, int32_t expr_ref,
                                                                      int32_t return_type_ref,
                                                                      struct ast_PipelineDepCtx *ctx) {
@@ -2897,7 +2898,7 @@ __attribute__((weak)) int32_t pipeline_typeck_check_expr_impl_mega_c(struct ast_
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-219：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-__attribute__((weak)) int32_t pipeline_typeck_check_expr_impl_c(struct ast_Module *module,
+SHUX_WEAK int32_t pipeline_typeck_check_expr_impl_c(struct ast_Module *module,
                                                                 struct ast_ASTArena *arena, int32_t expr_ref,
                                                                 int32_t return_type_ref,
                                                                 struct ast_PipelineDepCtx *ctx) {
@@ -2926,7 +2927,7 @@ __attribute__((weak)) int32_t pipeline_typeck_check_expr_impl_c(struct ast_Modul
 #endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
 /* G-02f-220：🔒 PipelineDepCtx.current_block_ref 字段写 helper（typeck.x 勿直写字段） */
-__attribute__((weak)) int32_t pipeline_typeck_block_impl_bind_ctx_c(struct ast_PipelineDepCtx *ctx, int32_t block_ref) {
+SHUX_WEAK int32_t pipeline_typeck_block_impl_bind_ctx_c(struct ast_PipelineDepCtx *ctx, int32_t block_ref) {
   int32_t saved;
   if (!ctx)
     return 0;
@@ -2936,7 +2937,7 @@ __attribute__((weak)) int32_t pipeline_typeck_block_impl_bind_ctx_c(struct ast_P
 }
 
 /* G-02f-220：🔒 current_block_ref 恢复 */
-__attribute__((weak)) void pipeline_typeck_block_impl_restore_ctx_c(struct ast_PipelineDepCtx *ctx,
+SHUX_WEAK void pipeline_typeck_block_impl_restore_ctx_c(struct ast_PipelineDepCtx *ctx,
                                                                     int32_t saved_block_ref) {
   if (!ctx)
     return;
@@ -2944,7 +2945,7 @@ __attribute__((weak)) void pipeline_typeck_block_impl_restore_ctx_c(struct ast_P
 }
 
 /* G-02f-220：🔒 current_block_ref 触摸 */
-__attribute__((weak)) void pipeline_typeck_block_impl_touch_ctx_block_c(struct ast_PipelineDepCtx *ctx,
+SHUX_WEAK void pipeline_typeck_block_impl_touch_ctx_block_c(struct ast_PipelineDepCtx *ctx,
                                                                         int32_t block_ref) {
   if (!ctx)
     return;
@@ -2954,7 +2955,7 @@ __attribute__((weak)) void pipeline_typeck_block_impl_touch_ctx_block_c(struct a
 #ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-220：逻辑源 .x（真迁，经 bind/restore）；seed 保留同语义 C 供产品 cc */
-__attribute__((weak)) int32_t pipeline_typeck_check_block_impl_c(struct ast_Module *module,
+SHUX_WEAK int32_t pipeline_typeck_check_block_impl_c(struct ast_Module *module,
                                                                  struct ast_ASTArena *arena, int32_t block_ref,
                                                                  int32_t return_type_ref,
                                                                  struct ast_PipelineDepCtx *ctx) {

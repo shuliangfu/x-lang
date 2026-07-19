@@ -8,6 +8,7 @@
  *            macOS/Linux delegate to system <unistd.h> via #include_next.
  *            Historical #ifndef _WIN32 guard removed — shim is a no-op
  *            on POSIX and provides needed declarations on Windows. */
+#include <shux_weak.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -46,7 +47,7 @@ void shux_crash_evidence_minimal(int has_msg, int msg_val) {
 
 
 
-__attribute__((weak)) void shux_crash_evidence_collect_c(int has_msg, int msg_val) {
+SHUX_WEAK void shux_crash_evidence_collect_c(int has_msg, int msg_val) {
   shux_crash_evidence_minimal_impl(has_msg, msg_val);
 }
 

@@ -7,6 +7,7 @@
  * （产品 rest 业务 T=0）。冷启动/无 PREFER 时仍编译完整 C 体。
  * Cap residual 行访问 API 在 runtime_driver_abi（平台层，供 .x 取表）。
  */
+#include <shux_weak.h>
 #include <stdio.h>
 #include <stddef.h>
 #include <stdint.h>
