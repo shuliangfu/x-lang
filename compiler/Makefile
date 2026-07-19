@@ -16,6 +16,16 @@ CFLAGS ?= -Wall -Wextra -I. -Iinclude -Isrc
 # 所有 weak 函数在 stub 文件中变为正常定义；用 --allow-multiple-definition 解决重复定义冲突。
 ifeq ($(OS),Windows_NT)
 WIN_LDFLAGS = -Wl,--allow-multiple-definition
+# Why: On MSYS Git Bash, make auto-detects SHELL = "C:/Program Files/Git/usr/bin/sh.exe"
+#      (path with embedded space) but fails to quote it, so the sh invocation
+#      becomes "C:/Program" + args and every recipe aborts with
+#      "bash: C:\Program: No such file or directory". Forcing SHELL := sh
+#      makes make PATH-search sh, resolving to MSYS /usr/bin/sh (no spaces).
+# Invariant: SHELL := sh relies on MSYS Git Bash having sh in PATH (default
+#            install). Safe: only triggered on Windows_NT; macOS/Linux use
+#            system /bin/sh via PATH lookup.
+# PLATFORM: WINDOWS | MSYS | MINGW (SHELL override); no-op elsewhere.
+SHELL := sh
 else
 WIN_LDFLAGS =
 endif
