@@ -134,11 +134,37 @@ tests/run-*.sh 总数:        881
 - (c) 接受路径 B 删除（丢失 7 个边界覆盖）
 - (d) 暂缓 C7，转其他候选（如 shux-x 5GB 方案 B / Cap C9 排期 / C6 P0b 波 3 std/ 标注）
 
+### 实际执行结果（2026-07-19 · 用户选路径 C 后）
+
+用户选择路径 C（重构合并）。实际执行 2/8 完成，剩余 6 个阻塞：
+
+| 脚本 | 状态 | 阻塞原因 |
+|------|------|----------|
+| run-core-assert.sh | ✅ 合并到 run-debug.sh（commit `bedb40ca`） | — |
+| run-io-driver-process.sh | ✅ 直接删除（hello.x 被 run-hello.sh 覆盖 + spawn_wait.x 被 run-process.sh L84 覆盖） | — |
+| run-std-debug.sh | 🔴 阻塞 | **副产品发现 std.debug bug**：`println` 返回 `io.write_stderr` 字节数（11），而 `tests/std-debug/main.x` 期望 `a == 0`；语义不匹配导致 ec=1。bug 超出 C7 范围。 |
+| run-fmt-unary-gate.sh | 🔴 阻塞 | **副产品发现 fmt 命令 bug**：`return -i` 被错误格式化为 `return - i`（一元负号被加空格）；`return -1` 同样被错误格式化。shux_asm + shux-c 都有此 bug（同一二进制）。bug 超出 C7 范围。 |
+| run-perf-simd-shuxffle-select.sh | 🟡 类型不匹配 | STD-061 perf 对比（shuffle/select 生产 vs 标量桩基线），不适合合并到功能测试脚本 run-asm-vector-var.sh。 |
+| run-std-simd-shuxffle-select-gate.sh | 🟡 类型不匹配 | STD-047 manifest 完整性 gate，不适合合并到功能测试脚本。 |
+| run-std-io-context-gate.sh | 🟡 类型不匹配 | STD-091 std.io ↔ std.context 联动 gate，与 run-io.sh 功能测试类型不同。 |
+| run-std-net-context-gate.sh | 🟡 类型不匹配 | STD-092 std.net ↔ std.context 联动 gate，与 run-net.sh 功能测试类型不同。 |
+
+**路径 C 真实可行性**：2/8 完成（1 合并 + 1 删除）。剩余 6 个中 2 个有 bug（需先修 bug）、4 个是 gate/perf 类型不匹配（需调整合并策略或转路径 A 纳入白名单）。
+
+**副产品发现的 bug（需单独修复，超出 C7 范围）**：
+1. **std.debug.println 返回值语义 bug**：`println(ptr: *u8, len: i32)` 返回 `io.write_stderr` 的返回值（字节数），而非 0/1（成功/失败）。导致 `tests/std-debug/main.x` 的 `a == 0` 检查失败。修复方向：要么 println 返回 0/1（改实现），要么 main.x 改为 `a >= 0`（改测试）。
+2. **fmt 命令一元负号 bug**：`return -i` / `return -1` 被错误格式化为 `return - i` / `return - 1`（一元负号后加空格）。但 `let a: i32 = -1;` 和 `neg(-1)` 的 -1 保持紧贴（正确）。修复方向：fmt 命令的 unary minus 识别逻辑漏了 `return` 上下文。
+
 ## 6. 建议下一步
 
-鉴于 C7 候选描述与实际调查有差距，且 3 种裁剪路径各有代价，**建议用 AskUserQuestion 确认裁剪路径后再动手**。这符合 AGENTS.md G.7 "全面分析后再动手" 和 God-View First "先建问题地图，再动手" 原则。
+鉴于 C7 路径 C 实际执行 2/8 完成，剩余 6 个阻塞（2 bug + 4 类型不匹配），**建议**：
 
-**不推荐**：在未确认路径前执行任何代码改动（删除/合并/扩容都涉及不可逆操作或 L4 验证成本）。
+- (a) 接受当前进度（2/8），C7 本波收口，剩余 6 个转后续波次（需先修 2 个 bug + 评估 4 个 gate/perf 合并策略）
+- (b) 调整路径：剩余 4 个 gate/perf 转路径 A（纳入白名单扩容 125→129），保留覆盖但与瘦身相反
+- (c) 修复 2 个 bug 后继续路径 C（std.debug + fmt unary 修复，工作量另计）
+- (d) 暂缓 C7，转其他候选
+
+**当前 PoC 已 commit** `bedb40ca`（run-core-assert.sh → run-debug.sh 合并 + audit 文档）。本波 C7 可在此收口。
 
 ## 7. 验证清单（路径选定后执行）
 
