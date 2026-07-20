@@ -110,7 +110,7 @@ if [ -n "$SHUX_BIN" ]; then
   RUN_OK=1
   for s in "${RUN_LIST[@]}"; do
     out="/tmp/shux_yellow_$(basename "$s" .x)"
-    if $RUN_SHUX -L . "$s" -o "$out" 2>/tmp/shux_yellow_build.log; then
+    if $RUN_SHUX build -L . "$s" -o "$out" 2>/tmp/shux_yellow_build.log; then
       ec=0
       "$out" >/dev/null 2>&1 || ec=$?
       if [ "$ec" -ne 0 ]; then

@@ -88,7 +88,7 @@ case "$(basename "$CHECK_SHUX")" in
     fi
     ;;
 esac
-if ! SHUX="$LINK_SHUX" "$LINK_SHUX" "$REGION_SMOKE" -o "$REGION_OUT" 2>/tmp/shux_zc3_region_build.log; then
+if ! SHUX="$LINK_SHUX" "$LINK_SHUX" build "$REGION_SMOKE" -o "$REGION_OUT" 2>/tmp/shux_zc3_region_build.log; then
   echo "zc3 FAIL: compile $REGION_SMOKE" >&2
   tail -8 /tmp/shux_zc3_region_build.log 2>/dev/null || true
   exit 1

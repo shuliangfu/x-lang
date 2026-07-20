@@ -12,7 +12,7 @@ make -C compiler -q 2>/dev/null || make -C compiler shux-c
 run_one() {
   local x="$1"
   local exe="/tmp/shux_fmt_std_$$_${su##*/}"
-  if ! $RUN_SHUX -L . "$x" -o "$exe" 2>&1; then
+  if ! $RUN_SHUX build -L . "$x" -o "$exe" 2>&1; then
     echo "fmt-std test: compile failed ($x)"
     rm -f "$exe"
     exit 1

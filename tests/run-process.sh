@@ -33,7 +33,7 @@ run_one() {
   local name="$1"
   local src="$2"
   local exe="/tmp/shux_process_$$_${name}"
-  if ! $LINK_SHUX -L . "$src" -o "$exe" 2>&1; then
+  if ! $LINK_SHUX build -L . "$src" -o "$exe" 2>&1; then
     echo "process test $name: compile failed"
     return 1
   fi
@@ -51,7 +51,7 @@ run_one() {
 }
 
 # 1. exit(99)
-$LINK_SHUX -L . tests/process/main.x -o /tmp/shux_process_exit 2>&1
+$LINK_SHUX build -L . tests/process/main.x -o /tmp/shux_process_exit 2>&1
 exitcode=0; /tmp/shux_process_exit >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 99 ] && { echo "process test exit: expected 99, got $exitcode"; exit 1; }
 rm -f /tmp/shux_process_exit

@@ -52,7 +52,7 @@ _compile_ec=$?
 set -e
 _OPTION_NOTE=""
 if [ "$_compile_ec" -ne 0 ]; then
-  echo "option: product -o failed on $LINK_SHUX (exit $_compile_ec)" >&2
+  echo "option: product -o failed on $LINK_SHUX build (exit $_compile_ec)" >&2
   exit "$_compile_ec"
 fi
 

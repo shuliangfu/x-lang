@@ -38,7 +38,7 @@ check_emit() {
 
 check_emit
 
-if ! "$SHUX" "$SRC" -o "$OUT" >/tmp/shux_scope_alloc_run.log 2>&1; then
+if ! "$SHUX" build "$SRC" -o "$OUT" >/tmp/shux_scope_alloc_run.log 2>&1; then
   echo "scope-allocator-gate FAIL: build $SRC" >&2
   tail -8 /tmp/shux_scope_alloc_run.log 2>/dev/null || true
   [ "$FAIL" = "1" ] && exit 1
@@ -56,7 +56,7 @@ echo "scope-allocator-gate OK run exit=0"
 # MEM-C1：scope_alloc 展开（SHUX_KEEP_C 保留生成 C 供 emit 断言；带 import 时 -E 会 DCE 掉入口 main）
 SCOPE_SRC="tests/mem/scope_alloc.x"
 SCOPE_OUT="/tmp/shux_scope_alloc_$$"
-if ! SHUX_KEEP_C=1 "$SHUX" "$SCOPE_SRC" -o "$SCOPE_OUT" >/tmp/shux_scope_alloc_scope_run.log 2>&1; then
+if ! SHUX_KEEP_C=1 "$SHUX" build "$SCOPE_SRC" -o "$SCOPE_OUT" >/tmp/shux_scope_alloc_scope_run.log 2>&1; then
   echo "scope-allocator-gate FAIL: build $SCOPE_SRC" >&2
   tail -8 /tmp/shux_scope_alloc_scope_run.log 2>/dev/null || true
   [ "$FAIL" = "1" ] && exit 1

@@ -57,12 +57,12 @@ rm -f "$SECOND_CHECK_ERR"
 echo "run-without-c: building shux_asm (asm backend, minimal C link) ..."
 (cd "$COMPILER_DIR" && ./build_tool ./shux asm)
 if [ ! -x "$SHUX_ASM" ]; then
-  echo "run-without-c: $SHUX_ASM not produced; asm build failed. Fix build_shux_asm.sh / -backend asm first."
+  echo "run-without-c: $SHUX_ASM build not produced; asm build failed. Fix build_shux_asm.sh / -backend asm first."
   exit 1
 fi
 
 # 4) 用 shux_asm 跑全量测试（不执行 make，不覆盖 compiler/shux）
-echo "run-without-c: running full test suite with SHUX=$SHUX_ASM ..."
+echo "run-without-c: running full test suite with SHUX=$SHUX_ASM build ..."
 SHUX="$SHUX_ASM" ./tests/run-all.sh
 
 echo "run-without-c: all tests passed with shux_asm (no-C-runtime path)."

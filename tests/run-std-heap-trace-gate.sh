@@ -86,7 +86,7 @@ if SHUX_BIN="$(resolve_shu 2>/dev/null)"; then
   make -C compiler -q shux-c 2>/dev/null || SHUX_LEGACY_C_FRONTEND=1 make -C compiler shux-c
   # shellcheck source=tests/lib/bootstrap-link-shux.sh
   . "$(dirname "$0")/lib/bootstrap-link-shux.sh"
-  if $RUN_SHUX -L . "$SMOKE" -o /tmp/shux_std_heap_trace 2>/tmp/shux_std_heap_trace_build.log; then
+  if $RUN_SHUX build -L . "$SMOKE" -o /tmp/shux_std_heap_trace 2>/tmp/shux_std_heap_trace_build.log; then
     exitcode=0
     /tmp/shux_std_heap_trace >/dev/null 2>&1 || exitcode=$?
     if [ "$exitcode" -eq 0 ]; then

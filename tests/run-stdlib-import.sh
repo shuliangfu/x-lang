@@ -97,7 +97,7 @@ fi
 if [ "$LINK_SHUX" != "$CHECK_SHUX" ] && [ -n "$LINK_SHUX" ]; then
   echo "stdlib-import: link via $(basename "$LINK_SHUX") (check via $(basename "$CHECK_SHUX"))"
 fi
-if ! $LINK_SHUX $STDLIB_IMPORT_BACKEND -L . tests/stdlib-import/main.x -o /tmp/shux_stdlib_import >/dev/null 2>&1; then
+if ! $LINK_SHUX build $STDLIB_IMPORT_BACKEND -L . tests/stdlib-import/main.x -o /tmp/shux_stdlib_import >/dev/null 2>&1; then
   echo "stdlib-import: compile failed (link via ${LINK_SHUX##*/} $STDLIB_IMPORT_BACKEND)" >&2
   exit 1
 fi

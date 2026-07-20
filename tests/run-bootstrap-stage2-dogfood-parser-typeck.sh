@@ -101,4 +101,4 @@ if [ "$CHECK_FAIL" -gt 0 ]; then
 fi
 
 boot019_emit_report "ok" "$CHECK_OK" "$LINK_OK" "$LINK_SKIP"
-echo "bootstrap-stage2-dogfood parser/typeck OK (SHUX=$SHUX check_ok=$CHECK_OK)"
+echo "bootstrap-stage2-dogfood parser/typeck OK (SHUX=$SHUX build check_ok=$CHECK_OK)"

@@ -34,7 +34,7 @@ fi
 # shellcheck source=tests/lib/boot-017-stdlib-dogfood.sh
 . tests/lib/boot-017-stdlib-dogfood.sh
 
-echo "=== BOOT-017: stdlib per-module check dogfood (SHUX=$SHUX RUNS=$RUNS) ==="
+echo "=== BOOT-017: stdlib per-module check dogfood (SHUX=$SHUX build RUNS=$RUNS) ==="
 
 export SHUX_EXE RUNS BASELINE FAIL_REGRESS UPDATE_BASELINE ROOT MATRIX
 python3 <<'PY'

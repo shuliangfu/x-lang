@@ -34,7 +34,7 @@ if [ ! -x "$SHUX_EXE" ]; then
   exit 1
 fi
 
-echo "=== compile dogfood (SHUX=$SHUX RUNS=$RUNS) ==="
+echo "=== compile dogfood (SHUX=$SHUX build RUNS=$RUNS) ==="
 
 export SHUX_EXE RUNS BASELINE FAIL_REGRESS UPDATE_BASELINE ROOT
 python3 <<'PY'

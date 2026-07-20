@@ -21,7 +21,7 @@ rm -f /tmp/shux_import_hello /tmp/shux_import_const_binding /tmp/shux_import_con
 
 # 方式 1：无 -o 时 parse/typeck 烟测（见下方 grep）
 if [ -z "${SHUX_SKIP_PARSE_SMOKE:-}" ]; then
-  out=$($RUN_SHUX -L . tests/import/main.x 2>&1)
+  out=$($RUN_SHUX build -L . tests/import/main.x 2>&1)
   echo "$out" | grep -qE "parse OK|typeck OK|int32_t main" || {
     echo "expected parse/typeck smoke or generated main() in output"; echo "$out" | head -8; exit 1;
   }
@@ -40,7 +40,7 @@ fi
 _import_ok=0
 for _import_try in $(seq 1 "$_import_compile_attempts"); do
   # seed/shux_asm：非 TTY stdout 重定向会挂起；须 tee|cat Drain。
-  if $LINK_SHUX -L . tests/import/main.x -o /tmp/shux_import_hello 2>&1 | tee /tmp/shux_import_hello_build.log | cat >/dev/null; then
+  if $LINK_SHUX build -L . tests/import/main.x -o /tmp/shux_import_hello 2>&1 | tee /tmp/shux_import_hello_build.log | cat >/dev/null; then
     _import_ok=1
     break
   fi
@@ -52,19 +52,19 @@ fi
 /tmp/shux_import_hello | grep -q "Hello World" || { echo "import main: expected Hello World"; exit 1; }
 
 # 方式 2：const types = import("core.types");
-$LINK_SHUX -L . tests/import/const_binding.x -o /tmp/shux_import_const_binding 2>&1
+$LINK_SHUX build -L . tests/import/const_binding.x -o /tmp/shux_import_const_binding 2>&1
 /tmp/shux_import_const_binding >/dev/null || { echo "const_binding: expected exit 0"; exit 1; }
 
 # 方式 3：const io = import("std.io"); → io.print_str
-$LINK_SHUX -L . tests/import/const_select.x -o /tmp/shux_import_const_select 2>&1
+$LINK_SHUX build -L . tests/import/const_select.x -o /tmp/shux_import_const_select 2>&1
 /tmp/shux_import_const_select | grep -q "Hello World" || { echo "const_select: expected Hello World"; exit 1; }
 
 # 方式 4：绑定 import + 模块前缀调用
-$LINK_SHUX -L . tests/import/const_select_alias_fn.x -o /tmp/shux_import_const_select_alias 2>&1
+$LINK_SHUX build -L . tests/import/const_select_alias_fn.x -o /tmp/shux_import_const_select_alias 2>&1
 /tmp/shux_import_const_select_alias | grep -q "Hello World" || { echo "const_select_alias: expected Hello World"; exit 1; }
 
 # 边界：import 不存在的模块，应报错且退出非 0
-err=$($RUN_SHUX -L . tests/import/missing_module.x -o /tmp/shux_import_bad 2>&1) || true
+err=$($RUN_SHUX build -L . tests/import/missing_module.x -o /tmp/shux_import_bad 2>&1) || true
 echo "$err" | grep -qE "cannot open import|failed to parse import" || { echo "expected import error for missing module, got: $err"; exit 1; }
 
 echo "import test OK"

@@ -125,7 +125,7 @@ if async_is_linux_x64_asm; then
     [ "$rc" = "0" ] || { echo "async_switch_sched failed exit=$rc"; exit 1; }
     echo "async_switch_sched OK"
   elif grep -qE 'not available|bootstrap-driver' "$sched_log" 2>/dev/null; then
-    echo "async_switch_sched N/A (asm backend not in $SHUX yet)"
+    echo "async_switch_sched N/A (asm backend not in $SHUX build yet)"
   else
     cat "$sched_log" >&2
     echo "async_switch_sched FAIL: compile" >&2
@@ -136,8 +136,7 @@ else
 fi
 
 # import std.async + coop_pingpong_jmp：非 Linux x86_64 优先 shux-c，避免 seed -o 挂起。
-SHUX_IMPORT=${SHUX_IMPORT:-$SHUX}
-if ! async_is_linux_x64_asm && [ -x ./compiler/shux-c ]; then
+SHUX_IMPORT=${SHUX_IMPORT:-$SHUX} build if ! async_is_linux_x64_asm && [ -x ./compiler/shux-c ]; then
   SHUX_IMPORT=./compiler/shux-c
 elif ! "$SHUX_IMPORT" -L . -E tests/parser/import_std_async.x >/dev/null 2>&1; then
   SHUX_IMPORT=./compiler/shux-c

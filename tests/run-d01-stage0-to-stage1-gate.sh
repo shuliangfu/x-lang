@@ -75,7 +75,7 @@ fi
 
 # Stage 1 须可执行且具备 asm 后端（区别于纯 shux-c）
 if ! "$SHUX_ASM" --help 2>/dev/null | grep -qE '\-backend|backend'; then
-  die "$SHUX_ASM missing -backend (not Stage1 asm compiler?)"
+  die "$SHUX_ASM build missing -backend (not Stage1 asm compiler?)"
 fi
 
-echo "d01 stage0-to-stage1 gate OK (Stage1=$SHUX_ASM native executable)"
+echo "d01 stage0-to-stage1 gate OK (Stage1=$SHUX_ASM build native executable)"

@@ -28,7 +28,7 @@ if [ "$_IS_MSYS" -eq 1 ]; then
   fmt_norm_st=$?
   set -e
   if [ "$fmt_norm_st" -ne 0 ]; then
-    echo "fmt normalize failed before --check on MSYS (SHUX=$SHUX file=$OK_FILE)" >&2
+    echo "fmt normalize failed before --check on MSYS (SHUX=$SHUX build file=$OK_FILE)" >&2
     exit 1
   fi
 fi

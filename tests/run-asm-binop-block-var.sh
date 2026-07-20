@@ -24,7 +24,7 @@ run_one() {
   local tag="$4"
   local max_b_ldur="$5"
   local max_a_ldur="${6:-99}"
-  $SHUX "$src" -o "$out" 2>&1
+  $SHUX build "$src" -o "$out" 2>&1
   local exitcode=0
   "$out" >/dev/null 2>&1 || exitcode=$?
   if [ "$exitcode" -ne "$want" ]; then

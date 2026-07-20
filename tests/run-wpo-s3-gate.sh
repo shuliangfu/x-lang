@@ -135,7 +135,7 @@ elif [ "$SHUX_ASM_NATIVE" = "1" ]; then
 
   # 同模块 &p 逃逸：make_pair 须直写栈槽，sum_via_ptr 可读有效指针
   ESC_OUT="/tmp/shux_wpo_stack_promote_escape"
-  "$SHUX_ASM_BIN" tests/wpo/stack_promote_escape.x -o "$ESC_OUT" 2>/tmp/shux_wpo_s3_escape_build.log
+  "$SHUX_ASM_BIN" build tests/wpo/stack_promote_escape.x -o "$ESC_OUT" 2>/tmp/shux_wpo_s3_escape_build.log
   if [ ! -x "$ESC_OUT" ]; then
     echo "wpo-s3 escape asm FAIL: link/exe missing (see /tmp/shux_wpo_s3_escape_build.log)" >&2
     tail -8 /tmp/shux_wpo_s3_escape_build.log 2>/dev/null || true
@@ -156,7 +156,7 @@ elif [ "$SHUX_ASM_NATIVE" = "1" ]; then
 
   # 跨模块 &p → import read_pair_ptr：make_pair 内联 + 指针实参 call helper
   ESC_CROSS_OUT="/tmp/shux_wpo_stack_promote_escape_cross"
-  "$SHUX_ASM_BIN" -backend asm tests/wpo/stack_promote_escape_cross.x -o "$ESC_CROSS_OUT" 2>/tmp/shux_wpo_s3_escape_cross_build.log
+  "$SHUX_ASM_BIN" build -backend asm tests/wpo/stack_promote_escape_cross.x -o "$ESC_CROSS_OUT" 2>/tmp/shux_wpo_s3_escape_cross_build.log
   if [ ! -x "$ESC_CROSS_OUT" ]; then
     echo "wpo-s3 escape_cross asm FAIL: link/exe missing (see /tmp/shux_wpo_s3_escape_cross_build.log)" >&2
     tail -8 /tmp/shux_wpo_s3_escape_cross_build.log 2>/dev/null || true
@@ -177,7 +177,7 @@ elif [ "$SHUX_ASM_NATIVE" = "1" ]; then
 
   # struct 跨 await：asm sync stub / C CPS 帧保留 Pair（exit 10 = 3+4+3）
   AWAIT_OUT="/tmp/shux_wpo_stack_promote_await"
-  "$SHUX_ASM_BIN" tests/wpo/stack_promote_await.x -o "$AWAIT_OUT" 2>/tmp/shux_wpo_s3_await_build.log
+  "$SHUX_ASM_BIN" build tests/wpo/stack_promote_await.x -o "$AWAIT_OUT" 2>/tmp/shux_wpo_s3_await_build.log
   if [ ! -x "$AWAIT_OUT" ]; then
     echo "wpo-s3 await asm FAIL: link/exe missing (see /tmp/shux_wpo_s3_await_build.log)" >&2
     tail -8 /tmp/shux_wpo_s3_await_build.log 2>/dev/null || true

@@ -37,10 +37,10 @@ DO_BENCH=0
 
 if [ ! -x "$SHUX" ]; then
   if [ -n "${SHUX_CI_NO_SKIP:-}" ]; then
-    echo "run-perf-wpo-s2 FAIL: need executable $SHUX for WPO-S2 asm fold bench" >&2
+    echo "run-perf-wpo-s2 FAIL: need executable $SHUX build for WPO-S2 asm fold bench" >&2
     exit 1
   fi
-  echo "run-perf-wpo-s2: skip (need $SHUX for WPO-S2 asm fold bench)"
+  echo "run-perf-wpo-s2: skip (need $SHUX build for WPO-S2 asm fold bench)"
   exit 0
 fi
 

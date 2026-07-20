@@ -11,7 +11,7 @@ ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
 
 GENERIC_OUT="${TMPDIR:-/tmp}/shux_generic"
 
-$LINK_SHUX -L . tests/generic/main.x -o "$GENERIC_OUT" 2>&1
+$LINK_SHUX build -L . tests/generic/main.x -o "$GENERIC_OUT" 2>&1
 exitcode=0
 "$GENERIC_OUT" >/dev/null 2>&1 || exitcode=$?
 if [ "$exitcode" -ne 42 ]; then

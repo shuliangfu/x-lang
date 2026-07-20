@@ -7,11 +7,11 @@ SHUX=${SHUX:-./compiler/shux_asm}
 . "$(dirname "$0")/lib/bootstrap-link-shux.sh"
 LINK_SHUX="$RUN_SHUX"
 
-$LINK_SHUX tests/enum/minimal.x -o /tmp/shux_enum_min 2>&1
+$LINK_SHUX build tests/enum/minimal.x -o /tmp/shux_enum_min 2>&1
 exitcode=0; /tmp/shux_enum_min >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 0 ] && { echo "expected 0 (enum minimal), got $exitcode"; exit 1; }
 
-$LINK_SHUX tests/enum/simple.x -o /tmp/shux_enum_simple 2>&1
+$LINK_SHUX build tests/enum/simple.x -o /tmp/shux_enum_simple 2>&1
 exitcode=0; /tmp/shux_enum_simple >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 1 ] && { echo "expected 1 (enum simple), got $exitcode"; exit 1; }
 

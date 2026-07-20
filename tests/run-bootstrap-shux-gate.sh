@@ -14,7 +14,7 @@ if [ -z "${SKIP_BOOTSTRAP_DRIVER_SEED:-}" ]; then
 fi
 
 if [ ! -x "$SHUX" ]; then
-  echo "run-bootstrap-shux-gate: $SHUX not executable after bootstrap-driver-seed" >&2
+  echo "run-bootstrap-shux-gate: $SHUX build not executable after bootstrap-driver-seed" >&2
   exit 127
 fi
 

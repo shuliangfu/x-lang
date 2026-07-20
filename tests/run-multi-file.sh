@@ -10,7 +10,7 @@ if [ -z "${SHUX_SKIP_SUBSCRIPT_MAKE:-}" ]; then
 fi
 
 # seed/shux_asm：非 TTY stdout 会挂起；须 tee|cat Drain（nohup >>log / W3 bstrict 同根因）。
-if ! "$RUN_SHUX" tests/multi-file/main.x -o /tmp/shux_multi_file 2>&1 | tee /tmp/shux_multi_file_build.log | cat >/dev/null; then
+if ! "$RUN_SHUX" build tests/multi-file/main.x -o /tmp/shux_multi_file 2>&1 | tee /tmp/shux_multi_file_build.log | cat >/dev/null; then
   echo "multi-file: compile failed (see /tmp/shux_multi_file_build.log)" >&2
   exit 1
 fi

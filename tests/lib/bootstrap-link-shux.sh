@@ -6,7 +6,7 @@
 . "$(dirname "${BASH_SOURCE[0]:-$0}")/ci-host.sh"
 
 # 默认与 SHUX 相同；run-all 会 export SHUX_LINK_SHUX=./compiler/shux-c。
-# bootstrap（SHUX_RUN_ALL_BOOTSTRAP_SHUX=1）：-o 链接默认 shux-c；seed shux 仍由各脚本 $SHUX 做 check/typeck。
+# bootstrap（SHUX_RUN_ALL_BOOTSTRAP_SHUX=1）：-o 链接默认 shux-c；seed shux 仍由各脚本 $SHUX build 做 check/typeck。
 # 非 x86_64 bootstrap：-o 链接优先 shux-c（seed asm 跨 arch 不可用）。
 # MSYS2：seed -o / -backend c 全链路挂起（见 run-async.sh）；x86_64 亦须 shux-c。
 case "$(uname -s 2>/dev/null)" in
@@ -76,7 +76,7 @@ if [ -z "${SHUX_LINK_SHUX:-}" ]; then
     RUN_SHUX=./compiler/shux_asm
   fi
 fi
-# 多数 run-*.sh 直接调用 $RUN_SHUX 而未透传 SHUX_LINK_BACKEND_ARGS。
+# 多数 run-*.sh 直接调用 $RUN_SHUX build 而未透传 SHUX_LINK_BACKEND_ARGS。
 # Darwin 下注入 wrapper，保证 -backend c 落到产品 -o。
 if [ -n "${SHUX_LINK_BACKEND_ARGS:-}" ] && [ -z "${SHUX_NO_BACKEND_WRAP:-}" ]; then
   _be_wrap="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/shux-backend-wrap.sh"

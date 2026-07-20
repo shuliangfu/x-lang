@@ -36,7 +36,7 @@ esac
 vector_link_o() {
   local x="$1" out="$2" label="$3"
   set +e
-  $LINK_SHUX $VEC_BACKEND "$x" -o "$out" >"/tmp/shux_vec_${label}_build.log" 2>&1
+  $LINK_SHUX build $VEC_BACKEND "$x" -o "$out" >"/tmp/shux_vec_${label}_build.log" 2>&1
   local ec=$?
   set -e
   if [ "$ec" -ne 0 ] || [ ! -x "$out" ]; then

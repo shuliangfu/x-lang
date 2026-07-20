@@ -46,9 +46,9 @@ cfg_merge_compile_o() {
       compile_ec=0
       compile_log=$(mktemp)
       if command -v timeout >/dev/null 2>&1; then
-        timeout "$compile_timeout" "$comp" "$src" -o "$out" >"$compile_log" 2>&1 || compile_ec=$?
+        timeout "$compile_timeout" "$comp" build "$src" -o "$out" >"$compile_log" 2>&1 || compile_ec=$?
       else
-        "$comp" "$src" -o "$out" >"$compile_log" 2>&1 || compile_ec=$?
+        "$comp" build "$src" -o "$out" >"$compile_log" 2>&1 || compile_ec=$?
       fi
       if [ "$compile_ec" -eq 124 ]; then
         echo "run-asm-binop-cfg-merge: FAIL: $tag compile timeout (${compile_timeout}s) via $comp" >&2
@@ -59,7 +59,7 @@ cfg_merge_compile_o() {
       rm -f "$compile_log"
       if [ "$compile_ec" -eq 0 ]; then
         if [ "$comp" != "$SHUX" ]; then
-          echo "run-asm-binop-cfg-merge: note: used $comp for $tag ($SHUX SIGSEGV/unstable)"
+          echo "run-asm-binop-cfg-merge: note: used $comp for $tag ($SHUX build SIGSEGV/unstable)"
         fi
         return 0
       fi

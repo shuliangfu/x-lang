@@ -13,7 +13,7 @@ run_one() {
   local src="$1"
   local label="$2"
   local exe="/tmp/shux_runtime_$$_${label}"
-  if ! $RUN_SHUX -L . "$src" -o "$exe" 2>&1; then
+  if ! $RUN_SHUX build -L . "$src" -o "$exe" 2>&1; then
     echo "runtime test ($label): compile failed"
     rm -f "$exe"
     exit 1

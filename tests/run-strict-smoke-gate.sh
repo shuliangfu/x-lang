@@ -15,7 +15,7 @@ STRICT_FAILED="$BUILD_DIR/shux_asm.strict_failed"
 BUILD_LOG="${BUILD_LOG:-}"
 
 if [ ! -x "$SHUX_ASM" ]; then
-  echo "strict-smoke gate FAIL: $SHUX_ASM missing (make -C compiler bootstrap-driver-bstrict)" >&2
+  echo "strict-smoke gate FAIL: $SHUX_ASM build missing (make -C compiler bootstrap-driver-bstrict)" >&2
   exit 1
 fi
 

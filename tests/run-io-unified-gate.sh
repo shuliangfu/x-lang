@@ -50,7 +50,7 @@ fi
 rm -f tests/bench/.io_batch_rw_smoke_tmp
 
 echo "=== IO unified: batch_rw_smoke.x ($(ci_host_summary)) ==="
-$RUN_SHUX -L . tests/io/batch_rw_smoke.x -o /tmp/shux_io_batch_rw_smoke 2>&1
+$RUN_SHUX build -L . tests/io/batch_rw_smoke.x -o /tmp/shux_io_batch_rw_smoke 2>&1
 ec=0
 /tmp/shux_io_batch_rw_smoke || ec=$?
 rm -f tests/bench/.io_batch_rw_smoke_tmp

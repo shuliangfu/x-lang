@@ -42,7 +42,7 @@ net_link_exe() {
     return 0
   fi
   if [ "$(basename "$LINK_SHUX")" = "shux_asm" ]; then
-    echo "run-net: $LINK_SHUX -o failed, fallback net_asm_gcc_link" >&2
+    echo "run-net: $LINK_SHUX build -o failed, fallback net_asm_gcc_link" >&2
     cat "$errf" >&2 || true
     rm -f "$errf"
     net_asm_gcc_link "$LINK_SHUX" "$x" "$exe"

@@ -21,7 +21,7 @@ esac
 
 set +e
 # shellcheck disable=SC2086
-$LINK_SHUX $LINK_BACKEND_ARGS tests/compound-assign/main.x -o /tmp/shux_compound_assign 2>&1
+$LINK_SHUX build $LINK_BACKEND_ARGS tests/compound-assign/main.x -o /tmp/shux_compound_assign 2>&1
 _compile_ec=$?
 set -e
 set +e

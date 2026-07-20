@@ -29,7 +29,7 @@ fi
 
 rm -f "$OUT" 2>/dev/null || true
 
-if ! "$SHUX" "${EXTRA[@]}" -o "$OUT" "$X" 2>/tmp/shux_sys_read_file.log; then
+if ! "$SHUX" build "${EXTRA[@]}" -o "$OUT" "$X" 2>/tmp/shux_sys_read_file.log; then
   echo "sys-read-file-gate FAIL: compile $X on $OS" >&2
   tail -n 10 /tmp/shux_sys_read_file.log 2>/dev/null || true
   rm -f "$OUT" "$GATE_FILE" 2>/dev/null || true

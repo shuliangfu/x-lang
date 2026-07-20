@@ -11,7 +11,7 @@ cd "$(dirname "$0")/.."
 # 修复：Windows 下统一 export 短路径 TEMP/TMP，确保所有 make 子进程继承。
 # 【Why 根源治理 Windows pthread 大栈失败】driver_run_thread_on_large_stack 在 Windows MinGW 上
 # 用 pthread_attr_setstack 创建 256MiB 大栈线程时失败，导致无 -o 时的 token dump 路径返回 127
-# （run-import/run-std/run-stdlib-import 等用 `out=$($SHUX file.x)` 检查 parse/typeck 输出全挂）。
+# （run-import/run-std/run-stdlib-import 等用 `out=$($SHUX build file.x)` 检查 parse/typeck 输出全挂）。
 # 修复：Windows 下 export SHUX_PIPELINE_NO_LARGE_STACK=1，跳过 pthread，直接在当前栈上跑。
 case "$(uname -s 2>/dev/null)" in
   MINGW*|MSYS*|CYGWIN*)
@@ -55,7 +55,7 @@ if [ -n "$SHUX" ]; then
     # B-strict run-all（tests/run-all-bstrict.sh）：勿 bootstrap-driver-seed 覆盖 shux_asm。
     if [ -n "${SHUX_BSTRICT_RUN_ALL:-}" ]; then
         if [ ! -x "$SHUX" ]; then
-            echo "run-all.sh: SHUX_BSTRICT_RUN_ALL but $SHUX not executable" >&2
+            echo "run-all.sh: SHUX_BSTRICT_RUN_ALL but $SHUX build not executable" >&2
             exit 127
         fi
         export SHUX_RUN_ALL_BOOTSTRAP_SHUX=1

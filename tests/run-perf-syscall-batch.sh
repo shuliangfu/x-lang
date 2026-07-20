@@ -51,7 +51,7 @@ done
 echo "=== PERF-008: syscall batch strace bench (baseline=${BASELINE}) ==="
 
 if ! dod_native_exe "$LINK_SHUX"; then
-  echo "syscall-batch perf SKIP: ${LINK_SHUX} not native"
+  echo "syscall-batch perf SKIP: ${LINK_SHUX} build not native"
   exit 0
 fi
 

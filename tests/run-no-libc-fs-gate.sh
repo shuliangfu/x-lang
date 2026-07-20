@@ -43,7 +43,7 @@ fi
 printf 'FS' >"$GATE_FILE"
 rm -f "$OUT" 2>/dev/null || true
 
-if ! "$SHUX" -freestanding -backend asm -o "$OUT" "$X" 2>/tmp/shux_nolibc_fs.log; then
+if ! "$SHUX" build -freestanding -backend asm -o "$OUT" "$X" 2>/tmp/shux_nolibc_fs.log; then
   tail -n 12 /tmp/shux_nolibc_fs.log 2>/dev/null || true
   rm -f "$OUT" "$GATE_FILE" 2>/dev/null || true
   die "compile $X failed"

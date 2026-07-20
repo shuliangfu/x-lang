@@ -51,7 +51,7 @@ if [ -n "$chk_out" ]; then
 fi
 chmod +x tests/run-fmt-check-cmd.sh 2>/dev/null || true
 if ! SHUX="$SHUX" ./tests/run-fmt-check-cmd.sh 2>&1 | tee /tmp/shux_fmt_check_cmd.log; then
-  echo "run-fmt-check-cmd failed (SHUX=$SHUX MSYSTEM=${MSYSTEM:-})" >&2
+  echo "run-fmt-check-cmd failed (SHUX=$SHUX build MSYSTEM=${MSYSTEM:-})" >&2
   tail -20 /tmp/shux_fmt_check_cmd.log 2>/dev/null || true
   exit 1
 fi

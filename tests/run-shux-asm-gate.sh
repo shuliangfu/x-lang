@@ -9,7 +9,7 @@ cd "$(dirname "$0")/.."
 SHUX="${SHUX:-./compiler/shux_asm}"
 
 if [ ! -x "$SHUX" ]; then
-  echo "run-shux-asm-gate: $SHUX not executable (run: make -C compiler bootstrap-driver-bstrict)" >&2
+  echo "run-shux-asm-gate: $SHUX build not executable (run: make -C compiler bootstrap-driver-bstrict)" >&2
   exit 127
 fi
 

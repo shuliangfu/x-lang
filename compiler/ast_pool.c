@@ -10204,7 +10204,10 @@ int32_t pipeline_codegen_type_kind_copy(uint8_t *dst, int32_t cap, int32_t kind)
   return n;
 }
 
-/** codegen.x：VECTOR 类型 C 名（elem_kind=TYPE_I32/U32，lanes=4/8/16）；无匹配 0。 */
+/** codegen.x：VECTOR 类型 C 名（elem_kind=ord_i32/u32/f32，lanes=4/8/16）；无匹配 0。
+ * PLATFORM: SHARED — used by both C and asm backends via type_to_c_repr_inner.
+ * elem_kind is the ord value returned by pipeline_type_kind_ord_at:
+ *   0=I32, 3=U32, 14=F32 (see typeck.x ord_i32/ord_u32/ord_f32). */
 int32_t pipeline_codegen_vector_type_cstr(int32_t elem_kind, int32_t lanes, uint8_t **out_ptr) {
   if (!out_ptr)
     return 0;
@@ -10234,6 +10237,23 @@ int32_t pipeline_codegen_vector_type_cstr(int32_t elem_kind, int32_t lanes, uint
     }
     if (lanes == 16) {
       *out_ptr = (uint8_t *)"u32x16_t";
+      return 8;
+    }
+  }
+  /* F32 vector (Vec4f / f32x4 / f32x8 / f32x16). elem_kind=14 == ord_f32.
+   * Without this branch, Vec4f falls back to int32_t and collides with
+   * Vec8i (i32x8_t) when both overload `add`/`sub`/`mul` etc. */
+  if (elem_kind == 14) {
+    if (lanes == 4) {
+      *out_ptr = (uint8_t *)"f32x4_t";
+      return 7;
+    }
+    if (lanes == 8) {
+      *out_ptr = (uint8_t *)"f32x8_t";
+      return 7;
+    }
+    if (lanes == 16) {
+      *out_ptr = (uint8_t *)"f32x16_t";
       return 8;
     }
   }

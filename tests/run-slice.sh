@@ -54,7 +54,7 @@ make -C compiler -q ../core/slice/slice.o 2>/dev/null \
 slice_simple_link_o() {
   local x="$1" out="$2" struct_decl="$3" want_exit="$4"
   set +e
-  $LINK_SHUX $SLICE_LINK_BACKEND_ARGS "$x" -o "$out" 2>&1
+  $LINK_SHUX build $SLICE_LINK_BACKEND_ARGS "$x" -o "$out" 2>&1
   local ec=$?
   set -e
   if [ "$ec" -eq 0 ] && [ -x "$out" ]; then
@@ -68,7 +68,7 @@ slice_simple_link_o() {
   # 禁止：手写 struct + -E 截断拼装（20KiB 截断 / int64_t vs size_t 双定义）。
   # 回退仅允许产品 -backend c -o（完整 KEEP_C 链）；失败则硬红。
   set +e
-  $LINK_SHUX -backend c "$x" -o "$out" 2>&1
+  $LINK_SHUX build -backend c "$x" -o "$out" 2>&1
   ec=$?
   set -e
   if [ "$ec" -eq 0 ] && [ -x "$out" ]; then
@@ -103,7 +103,7 @@ slice_dep_link_or_check() {
   fi
   set +e
   # 与 simple 路径一致：产品 -o 带 backend（默认 c），禁止静默 SKIP 假绿
-  $LINK_SHUX $SLICE_LINK_BACKEND_ARGS -L . "$x" -o "$out" 2>/tmp/shux_slice_dep_link.log
+  $LINK_SHUX build $SLICE_LINK_BACKEND_ARGS -L . "$x" -o "$out" 2>/tmp/shux_slice_dep_link.log
   local ec=$?
   set -e
   if [ "$ec" -ne 0 ] || [ ! -x "$out" ]; then

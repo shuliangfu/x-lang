@@ -10,7 +10,7 @@ run_one() {
   local out="$2"
   local want="$3"
   local tag="$4"
-  $SHUX "$src" -o "$out"
+  $SHUX build "$src" -o "$out"
   local exitcode=0
   "$out" >/dev/null 2>&1 || exitcode=$?
   [ "$exitcode" -ne "$want" ] && { echo "run-asm-assign-index-block FAIL: $tag expected exit $want, got $exitcode"; exit 1; }
@@ -27,7 +27,7 @@ run_one_reuse() {
   local want="$3"
   local tag="$4"
   local max_ldur="$5"
-  $SHUX "$src" -o "$out"
+  $SHUX build "$src" -o "$out"
   local exitcode=0
   "$out" >/dev/null 2>&1 || exitcode=$?
   [ "$exitcode" -ne "$want" ] && { echo "run-asm-assign-index-block FAIL: $tag expected exit $want, got $exitcode"; exit 1; }

@@ -47,7 +47,7 @@ fi
 struct_link_o() {
   local x="$1" out="$2"
   set +e
-  $LINK_SHUX $STRUCT_LINK_BACKEND_ARGS $STRUCT_CODEGEN_BACKEND_ARGS -L . "$x" -o "$out" 2>&1
+  $LINK_SHUX build $STRUCT_LINK_BACKEND_ARGS $STRUCT_CODEGEN_BACKEND_ARGS -L . "$x" -o "$out" 2>&1
   local ec=$?
   set -e
   if [ "$ec" -ne 0 ] && [ -z "${SHUX_BOOTSTRAP_MIN:-}" ] \

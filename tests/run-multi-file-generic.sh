@@ -7,7 +7,7 @@ make -C compiler -q 2>/dev/null || make -C compiler
 # shellcheck source=tests/lib/bootstrap-link-shux.sh
 . "$(dirname "$0")/lib/bootstrap-link-shux.sh"
 
-$RUN_SHUX -L tests/multi-file-generic tests/multi-file-generic/main.x -o /tmp/shux_multi_file_gen 2>&1
+$RUN_SHUX build -L tests/multi-file-generic tests/multi-file-generic/main.x -o /tmp/shux_multi_file_gen 2>&1
 exitcode=0
 /tmp/shux_multi_file_gen >/dev/null 2>&1 || exitcode=$?
 if [ "$exitcode" -ne 42 ]; then

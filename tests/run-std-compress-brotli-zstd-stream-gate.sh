@@ -36,7 +36,7 @@ if [ -x ./compiler/shux-c ]; then
   # shellcheck source=tests/lib/bootstrap-link-shux.sh
   . tests/lib/bootstrap-link-shux.sh
   EXE="/tmp/shux_compress_br_zs_stream_$$"
-  $RUN_SHUX -L . "$SMOKE_X" -o "$EXE" >/dev/null
+  $RUN_SHUX build -L . "$SMOKE_X" -o "$EXE" >/dev/null
   "$EXE" || { echo "std-compress-brotli-zstd-stream FAIL: smoke exit=$?" >&2; rm -f "$EXE"; exit 1; }
   rm -f "$EXE"
 fi

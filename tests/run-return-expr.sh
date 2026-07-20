@@ -10,7 +10,7 @@ SHUX=${SHUX:-./compiler/shux}
 . "$(dirname "$0")/lib/bootstrap-link-shux.sh"
 LINK_SHUX="$RUN_SHUX"
 
-$LINK_SHUX tests/return-expr/explicit.x -o /tmp/shux_return_explicit 2>&1
+$LINK_SHUX build tests/return-expr/explicit.x -o /tmp/shux_return_explicit 2>&1
 exitcode=0
 /tmp/shux_return_explicit >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 42 ] && { echo "expected 42 (explicit return), got $exitcode"; exit 1; }

@@ -10,7 +10,7 @@ run_one() {
   local out="$2"
   local want="$3"
   local tag="$4"
-  $SHUX "$src" -o "$out" 2>&1
+  $SHUX build "$src" -o "$out" 2>&1
   local exitcode=0
   "$out" >/dev/null 2>&1 || exitcode=$?
   if [ "$exitcode" -ne "$want" ]; then

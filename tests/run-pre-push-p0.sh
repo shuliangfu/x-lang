@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 source "$(dirname "$0")/lib/ensure-compiler-seed.sh"
 export SHUX="${SHUX:-./compiler/shux_asm}"
 if [ ! -x "$SHUX" ]; then
-  echo "run-pre-push-p0: missing $SHUX (make -C compiler bootstrap-driver-bstrict)" >&2
+  echo "run-pre-push-p0: missing $SHUX build (make -C compiler bootstrap-driver-bstrict)" >&2
   exit 1
 fi
 

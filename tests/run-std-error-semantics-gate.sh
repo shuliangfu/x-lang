@@ -90,7 +90,7 @@ if SHUX_BIN="$(resolve_shu 2>/dev/null)"; then
   make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
   # shellcheck source=tests/lib/bootstrap-link-shux.sh
   . "$(dirname "$0")/lib/bootstrap-link-shux.sh"
-  if $RUN_SHUX -L . "$SMOKE" -o /tmp/shux_std_error_semantics 2>/tmp/shux_std_error_sem_build.log; then
+  if $RUN_SHUX build -L . "$SMOKE" -o /tmp/shux_std_error_semantics 2>/tmp/shux_std_error_sem_build.log; then
     ec=0
     /tmp/shux_std_error_semantics >/dev/null 2>&1 || ec=$?
     if [ "$ec" -eq 0 ]; then

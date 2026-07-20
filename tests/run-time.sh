@@ -22,7 +22,7 @@ run_one() {
   local name="$1"
   local src="$2"
   local exe="/tmp/shux_time_$$_${name}"
-  if ! $LINK_SHUX -L . "$src" -o "$exe" 2>&1; then
+  if ! $LINK_SHUX build -L . "$src" -o "$exe" 2>&1; then
     echo "time test $name: compile failed"
     return 1
   fi

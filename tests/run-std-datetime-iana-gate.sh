@@ -56,7 +56,7 @@ if [ -x ./compiler/shux-c ]; then
   # shellcheck source=tests/lib/bootstrap-link-shux.sh
   . tests/lib/bootstrap-link-shux.sh
   EXE="/tmp/shux_std_dt_iana_x_$$"
-  $RUN_SHUX -L . "$SMOKE_X" -o "$EXE" >/dev/null
+  $RUN_SHUX build -L . "$SMOKE_X" -o "$EXE" >/dev/null
   "$EXE" || { echo "std-datetime-iana FAIL: x smoke" >&2; rm -f "$EXE"; exit 1; }
   rm -f "$EXE"
 fi

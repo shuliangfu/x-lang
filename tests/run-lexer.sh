@@ -15,7 +15,7 @@ if [ -n "$SHUX" ]; then
   if [ -x ./compiler/shux-c ] && [ "${SHUX##*/}" != "shux-c" ]; then
     NEG_SHUX=./compiler/shux-c
   fi
-  "$NEG_SHUX" tests/lexer/invalid_char.x -o /tmp/shux_lexer_fail 2>/dev/null && { echo "lexer: expected compile failure for invalid char"; exit 1; }
+  "$NEG_SHUX" build tests/lexer/invalid_char.x -o /tmp/shux_lexer_fail 2>/dev/null && { echo "lexer: expected compile failure for invalid char"; exit 1; }
   rm -f "$out"
 else
   make -C compiler shux-c 2>/dev/null || true
@@ -31,6 +31,6 @@ else
   "$LEXER_SHUX" tests/lexer/comments.x > "$out"
   diff -u --strip-trailing-cr tests/lexer/expected-comments.txt "$out" || exit 1
   rm -f "$out"
-  "$LEXER_SHUX" tests/lexer/invalid_char.x -o /tmp/shux_lexer_fail 2>/dev/null && { echo "lexer: expected compile failure for invalid char"; exit 1; }
+  "$LEXER_SHUX" build tests/lexer/invalid_char.x -o /tmp/shux_lexer_fail 2>/dev/null && { echo "lexer: expected compile failure for invalid char"; exit 1; }
 fi
 echo "lexer test OK"

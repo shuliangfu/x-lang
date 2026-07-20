@@ -16,7 +16,7 @@ ensure_runtime_panic_o
 SHUX=${SHUX:-./compiler/shux}
 LINK_SHUX="${SHUX_LINK_SHUX:-${RUN_SHUX:-$SHUX}}"
 exe="/tmp/shux_queue_$$"
-if ! $LINK_SHUX -L . tests/queue/main.x -o "$exe" 2>&1; then
+if ! $LINK_SHUX build -L . tests/queue/main.x -o "$exe" 2>&1; then
   echo "queue test: compile failed"
   rm -f "$exe"
   exit 1

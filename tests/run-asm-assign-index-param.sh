@@ -14,7 +14,7 @@ run_one() {
   local fn="$3"
   local want="$4"
   local comp="$5"
-  "$comp" "$src" -o "$out" 2>&1
+  "$comp" build "$src" -o "$out" 2>&1
   local exitcode=0
   "$out" >/dev/null 2>&1 || exitcode=$?
   [ "$exitcode" -ne "$want" ] && {

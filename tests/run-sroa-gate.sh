@@ -37,7 +37,7 @@ if SHUX_NO_SROA=1 "$SHUX" build -E "$SRC" >"${C_OUT}.scalar" 2>/dev/null; then
     echo "sroa-gate WARN: SHUX_NO_SROA=1 did not preserve make_pair call" >&2
   fi
 fi
-SHUX_KEEP_C=1 "$SHUX" "$SRC" -o "$OUT" 2>/tmp/shux_sroa_run.log || {
+SHUX_KEEP_C=1 "$SHUX" build "$SRC" -o "$OUT" 2>/tmp/shux_sroa_run.log || {
   echo "sroa-gate FAIL: compile/run failed" >&2
   tail -8 /tmp/shux_sroa_run.log 2>/dev/null || true
   exit 1
@@ -68,7 +68,7 @@ if echo "$CROSS_MAIN" | grep -qE 'sum_pair\(|stack_promote_lib_sum_pair\('; then
   echo "sroa-cross-gate FAIL: sum_pair call still in main" >&2
   exit 1
 fi
-SHUX_KEEP_C=1 "$SHUX" "$CROSS_SRC" -o "$CROSS_OUT" 2>/dev/null || {
+SHUX_KEEP_C=1 "$SHUX" build "$CROSS_SRC" -o "$CROSS_OUT" 2>/dev/null || {
   echo "sroa-cross-gate FAIL: compile/run failed" >&2
   exit 1
 }

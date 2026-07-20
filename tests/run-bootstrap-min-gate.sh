@@ -125,7 +125,7 @@ run_script() {
           export SHUX_MIN_LINK_IO=1
           ;;
       esac
-      # run-parser / run-for / run-match 等直接用 $SHUX -o；与 RUN_SHUX 对齐走同一包装。
+      # run-parser / run-for / run-match 等直接用 $SHUX build -o；与 RUN_SHUX 对齐走同一包装。
       case "$script" in
         run-parser.sh|run-for.sh|run-match.sh)
           script_shu="$min_wrap"

@@ -72,11 +72,10 @@ expect_typeck_error() {
     use_x=1
   fi
   local err
-  if [ "$use_x" = 1 ]; then
-    err=$(run_typeck_timeout "$shux" -x "$file" 2>&1) || true
-  else
-    err=$(run_typeck_timeout "$shux" "$file" 2>&1) || true
-  fi
+  # NOTE: `build` path emits "typeck error[XT001]: ..." prefix; `check` path emits
+  # "error[XT001]" without the "typeck" prefix. Use `build -o /tmp/...` so the
+  # grep "typeck error" matches consistently across shux / shux-c / shux_asm.
+  err=$(run_typeck_timeout "$shux" build "$file" -o /tmp/shux_typeck_neg_$(basename "$file" .x).o 2>&1) || true
   echo "$err" | grep -q "typeck error" || { echo "expected typeck error in $file (e.g. $msg), got: $err"; exit 1; }
 }
 
@@ -85,9 +84,9 @@ expect_return_breadcrumb_error() {
   local shux="${2:-./compiler/shux-x}"
   local err
   # 产品 -o/默认编译路径稳定出 typeck 诊断；`check` 对 import 模块曾假绿（exit 0 无输出）。
-  err=$(run_typeck_timeout "$shux" -L . "$file" 2>&1) || true
+  err=$(run_typeck_timeout "$shux" build -L . "$file" -o /tmp/shux_typeck_breadcrumb_fail 2>&1) || true
   if ! echo "$err" | grep -q "typeck error"; then
-    err=$(run_typeck_timeout "$shux" -x -L . "$file" -o /tmp/shux_typeck_breadcrumb_fail 2>&1) || true
+    err=$(run_typeck_timeout "$shux" build -L . "$file" -o /tmp/shux_typeck_breadcrumb_fail 2>&1) || true
   fi
   # 允许 result.Result_i32 或短名 Result_i32（qualified type 诊断为正确形态）
   echo "$err" | grep -qE "return expression type mismatch: expected i32, found (result\.)?Result_i32" || {
@@ -118,14 +117,14 @@ if [ -n "$SHUX" ]; then
       if [ ! -x "$TYPECK_NEG_SHUX" ]; then
         TYPECK_NEG_SHUX="$SHUX"
       fi
-      err_assign_x=$(run_typeck_timeout "$TYPECK_NEG_SHUX" tests/typeck/type_mismatch_assign.x -o /tmp/shux_typeck_assign_fail.o 2>&1) || true
+      err_assign_x=$(run_typeck_timeout "$TYPECK_NEG_SHUX" build tests/typeck/type_mismatch_assign.x -o /tmp/shux_typeck_assign_fail.o 2>&1) || true
       echo "$err_assign_x" | grep -q "assignment type mismatch: expected i32, found bool" || {
         echo "expected X 'assignment type mismatch: expected i32, found bool' in type_mismatch_assign.x; got: $err_assign_x"
         exit 1
       }
-      err_ret_x=$(run_typeck_timeout "$TYPECK_NEG_SHUX" tests/typeck/return_operand_type_mismatch.x -o /tmp/shux_typeck_ret_fail.o 2>&1) || true
+      err_ret_x=$(run_typeck_timeout "$TYPECK_NEG_SHUX" build tests/typeck/return_operand_type_mismatch.x -o /tmp/shux_typeck_ret_fail.o 2>&1) || true
       echo "$err_ret_x" | grep -q "typeck error" || {
-        echo "expected $TYPECK_NEG_SHUX pipeline typeck error on return_operand_type_mismatch.x (bool vs i32 return); got: $err_ret_x"
+        echo "expected $TYPECK_NEG_SHUX build pipeline typeck error on return_operand_type_mismatch.x (bool vs i32 return); got: $err_ret_x"
         exit 1
       }
       # strict 链负例仍借 seed 宿主拿稳定报错短语；正例直接验当前 SHUX，
@@ -143,14 +142,14 @@ if [ -n "$SHUX" ]; then
           fi
           ;;
       esac
-      err_assign_x=$(run_typeck_timeout "$TYPECK_NEG_SHUX" tests/typeck/type_mismatch_assign.x -o /tmp/shux_typeck_assign_fail.o 2>&1) || true
+      err_assign_x=$(run_typeck_timeout "$TYPECK_NEG_SHUX" build tests/typeck/type_mismatch_assign.x -o /tmp/shux_typeck_assign_fail.o 2>&1) || true
       echo "$err_assign_x" | grep -q "assignment type mismatch: expected i32, found bool" || {
         echo "expected typeck 'assignment type mismatch: expected i32, found bool' in type_mismatch_assign.x; got: $err_assign_x"
         exit 1
       }
-      err_ret_x=$(run_typeck_timeout "$TYPECK_NEG_SHUX" tests/typeck/return_operand_type_mismatch.x -o /tmp/shux_typeck_ret_fail.o 2>&1) || true
+      err_ret_x=$(run_typeck_timeout "$TYPECK_NEG_SHUX" build tests/typeck/return_operand_type_mismatch.x -o /tmp/shux_typeck_ret_fail.o 2>&1) || true
       echo "$err_ret_x" | grep -q "typeck error" || {
-        echo "expected $TYPECK_NEG_SHUX pipeline typeck error on return_operand_type_mismatch.x (bool vs i32 return); got: $err_ret_x"
+        echo "expected $TYPECK_NEG_SHUX build pipeline typeck error on return_operand_type_mismatch.x (bool vs i32 return); got: $err_ret_x"
         exit 1
       }
       TYPECK_SHUX="$TYPECK_NEG_SHUX"
@@ -171,7 +170,7 @@ if [ -n "$SHUX" ]; then
     # 60811830: default mode 走 compile+run（不再输出 typeck OK）；
     # typeck 正例改用 -E（烟测路径，typeck only），关注分离：-E 测 typeck / run 运行程序。
     # 注意：_main undefined（parser struct-lit + unsafe-block 组合 bug，P1 待办）不阻塞 -E 路径。
-    out_pos=$(run_typeck_timeout "$TYPECK_SHUX" -E "$f" 2>&1) || true
+    out_pos=$(run_typeck_timeout "$TYPECK_SHUX" build -E "$f" 2>&1) || true
     echo "$out_pos" | grep -q "typeck OK" || { echo "missing typeck OK for $f: $out_pos"; exit 1; }
   done
 else
@@ -185,7 +184,7 @@ else
     TYPECK_SHUX=./compiler/shux
   fi
   # 60811830: default mode 走 compile+run；typeck 正例用 -E（typeck only）。
-  out=$(run_typeck_timeout "$TYPECK_SHUX" -E tests/lexer/main.x 2>&1)
+  out=$(run_typeck_timeout "$TYPECK_SHUX" build -E tests/lexer/main.x 2>&1)
   echo "$out" | grep -q "typeck OK" || { echo "missing 'typeck OK' in output"; exit 1; }
   expect_typeck_error tests/typeck/type_mismatch_assign.x "assignment type mismatch" "$TYPECK_SHUX"
   expect_typeck_error tests/typeck/if_condition_not_bool.x "if condition must be bool" "$TYPECK_SHUX"
@@ -201,7 +200,7 @@ else
   # 负例宿主：优先当前 TYPECK_SHUX/产品链；避免 pin shux-x 空诊断
   _ret_host="${TYPECK_SHUX:-${SHUX:-./compiler/shux}}"
   if [ -x "$_ret_host" ]; then
-    err_ret_x=$(run_typeck_timeout "$_ret_host" tests/typeck/return_operand_type_mismatch.x -o /tmp/shux_typeck_ret_fail_defaults.o 2>&1) || true
+    err_ret_x=$(run_typeck_timeout "$_ret_host" build tests/typeck/return_operand_type_mismatch.x -o /tmp/shux_typeck_ret_fail_defaults.o 2>&1) || true
     echo "$err_ret_x" | grep -q "typeck error" || {
       echo "expected $_ret_host return_operand_type_mismatch typeck error; got: $err_ret_x"
       exit 1
@@ -211,7 +210,7 @@ else
     # 60811830: default mode 走 compile+run（不再输出 typeck OK）；
     # typeck 正例改用 -E（烟测路径，typeck only），关注分离：-E 测 typeck / run 运行程序。
     # 注意：_main undefined（parser struct-lit + unsafe-block 组合 bug，P1 待办）不阻塞 -E 路径。
-    out_pos=$(run_typeck_timeout "$TYPECK_SHUX" -E "$f" 2>&1) || true
+    out_pos=$(run_typeck_timeout "$TYPECK_SHUX" build -E "$f" 2>&1) || true
     echo "$out_pos" | grep -q "typeck OK" || { echo "missing typeck OK for $f: $out_pos"; exit 1; }
   done
 fi

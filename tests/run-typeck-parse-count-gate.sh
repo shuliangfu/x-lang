@@ -68,7 +68,7 @@ compile_ok=0
 if typeck_parse_count_compile "$SHUX"; then
   compile_ok=1
 elif [ "$SHUX" != "./compiler/shux" ] && [ -x "./compiler/shux" ]; then
-  echo "typeck-parse-count-gate: WARN $SHUX failed; fallback ./compiler/shux (seed parse metric, nostdlib shux_asm typeck OOM)" >&2
+  echo "typeck-parse-count-gate: WARN $SHUX build failed; fallback ./compiler/shux (seed parse metric, nostdlib shux_asm typeck OOM)" >&2
   if typeck_parse_count_compile "./compiler/shux"; then
     compile_ok=1
   fi

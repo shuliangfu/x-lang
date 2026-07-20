@@ -60,12 +60,12 @@ fi
 X_O="${X_EXE}.o"
 rm -f "$X_EXE" "$X_O" "$STUB_EXE"
 
-if ! SHUX="$SHUX_BIN" "$SHUX_BIN" -L . "$X_SRC" -o "$X_O"; then
+if ! SHUX="$SHUX_BIN" "$SHUX_BIN" build -L . "$X_SRC" -o "$X_O"; then
   echo "simd-shuffle-select-perf FAIL: compile $X_SRC" >&2
   exit 1
 fi
 if ! cc -O2 -o "$X_EXE" "$X_O" -lm 2>/dev/null; then
-  if ! SHUX="$SHUX_BIN" "$SHUX_BIN" -L . "$X_SRC" -o "$X_EXE"; then
+  if ! SHUX="$SHUX_BIN" "$SHUX_BIN" build -L . "$X_SRC" -o "$X_EXE"; then
     echo "simd-shuffle-select-perf FAIL: link $X_EXE" >&2
     exit 1
   fi

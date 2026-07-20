@@ -33,8 +33,8 @@ abi_f32_xmm_run_smoke() {
   local rc=0
 
   rm -f "$obj" "$bin"
-  if ! SHUX="$SHUX_BIN" "$SHUX_BIN" "$src" -o "$bin" 2>/dev/null; then
-    if ! SHUX="$SHUX_BIN" "$SHUX_BIN" "$src" -o "$obj"; then
+  if ! SHUX="$SHUX_BIN" "$SHUX_BIN" build "$src" -o "$bin" 2>/dev/null; then
+    if ! SHUX="$SHUX_BIN" "$SHUX_BIN" build "$src" -o "$obj"; then
       echo "abi-f32-xmm FAIL: compile $src" >&2
       exit 1
     fi
@@ -80,8 +80,8 @@ echo "=== ABI f32 xmm: CLI -legacy-f32-abi ==="
 CLI_BIN="/tmp/shux_abi_f32_xmm_cli_legacy"
 CLI_OBJ="/tmp/shux_abi_f32_xmm_cli_legacy.o"
 rm -f "$CLI_BIN" "$CLI_OBJ"
-if ! SHUX="$SHUX_BIN" "$SHUX_BIN" -backend asm -L . -legacy-f32-abi tests/abi/f32_call_xmm_smoke.x -o "$CLI_BIN" 2>/dev/null; then
-  if ! SHUX="$SHUX_BIN" "$SHUX_BIN" -backend asm -L . -legacy-f32-abi tests/abi/f32_call_xmm_smoke.x -o "$CLI_OBJ"; then
+if ! SHUX="$SHUX_BIN" "$SHUX_BIN" build -backend asm -L . -legacy-f32-abi tests/abi/f32_call_xmm_smoke.x -o "$CLI_BIN" 2>/dev/null; then
+  if ! SHUX="$SHUX_BIN" "$SHUX_BIN" build -backend asm -L . -legacy-f32-abi tests/abi/f32_call_xmm_smoke.x -o "$CLI_OBJ"; then
     echo "abi-f32-xmm FAIL: compile with -legacy-f32-abi" >&2
     exit 1
   fi
