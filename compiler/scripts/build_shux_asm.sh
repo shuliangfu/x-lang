@@ -4371,12 +4371,24 @@ ensure_asm_lsp_codegen_extern_obj() {
 ensure_runtime_cc_stubs() {
   echo " cc -c src/asm/runtime_asm_build.o <- seeds/runtime_asm_build.from_x.c"
   $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_asm_build.from_x.c -o src/asm/runtime_asm_build.o
-  echo " cc -c src/runtime_driver.o <- seeds/runtime.from_x.c (-DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_PREPROCESS)"
-  local rt_flags="-DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_PREPROCESS"
-  if [ "${SHUX_LEGACY_PREPROCESS_C:-0}" = "1" ]; then
-  rt_flags="$rt_flags -DSHUX_LEGACY_PREPROCESS_C"
+  # PLATFORM: SHARED — Do NOT clobber src/runtime_driver.o if it already exists.
+  # make bootstrap-driver-seed / g05_ensure build src/runtime_driver.o with the
+  # full RUNTIME_DRIVER_CFLAGS (-DSHUX_NO_C_FRONTEND -DSHUX_RT_*_FROM_X
+  # -DSHUX_ASM_USE_COMPILER_IMPL_C). This fallback only has a subset of flags
+  # (-DSHUX_USE_X_PREPROCESS); rebuilding with the subset produces a .o with
+  # different symbol definitions that breaks the g05/make product link (the
+  # X pipeline silently returns -1). Only build the fallback when the
+  # authoritative .o is ABSENT (cold start with no prior make/g05).
+  if [ -f src/runtime_driver.o ] && [ -s src/runtime_driver.o ]; then
+    echo " ensure: src/runtime_driver.o exists (make/g05 authority); skip fallback rebuild"
+  else
+    echo " cc -c src/runtime_driver.o <- seeds/runtime.from_x.c (-DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_PREPROCESS)"
+    local rt_flags="-DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_PREPROCESS"
+    if [ "${SHUX_LEGACY_PREPROCESS_C:-0}" = "1" ]; then
+      rt_flags="$rt_flags -DSHUX_LEGACY_PREPROCESS_C"
+    fi
+    $CC $CFLAGS -I. -Iinclude -Isrc $rt_flags -c seeds/runtime.from_x.c -o src/runtime_driver.o
   fi
-  $CC $CFLAGS -I. -Iinclude -Isrc $rt_flags -c seeds/runtime.from_x.c -o src/runtime_driver.o
 }
 
 # B-strict shux_asm：driver_run_compiler_full 走 impl_c（完整 parse_argv），勿与 seed 共用 runtime_driver.o 宏。
