@@ -209,10 +209,13 @@ int32_t parser_asm_vector_type_ref_from_ident_spelling_c(void *arena, struct par
     return parser_asm_alloc_vector_type_ref_c(arena, 3, 8);
   if (nlen == 6 && name_buf[0] == 117 && name_buf[1] == 51 && name_buf[2] == 120 && name_buf[3] == 49 && name_buf[4] == 54)
     return parser_asm_alloc_vector_type_ref_c(arena, 3, 16);
+  /* f32x4: elem_ord=14 (TYPE_F32), NOT 13 (TYPE_VECTOR). 13 made elem a
+   * nonsensical TYPE_VECTOR so codegen fell back to int32_t. PLATFORM: SHARED. */
   if (nlen == 5 && name_buf[0] == 102 && name_buf[1] == 51 && name_buf[2] == 50 && name_buf[3] == 120 && name_buf[4] == 52)
-    return parser_asm_alloc_vector_type_ref_c(arena, 13, 4);
+    return parser_asm_alloc_vector_type_ref_c(arena, 14, 4);
+  /* Vec4f: elem_ord=14 (TYPE_F32). Was 13 (TYPE_VECTOR) — same bug as f32x4. */
   if (nlen == 5 && name_buf[0] == 86 && name_buf[1] == 101 && name_buf[2] == 99 && name_buf[3] == 52 && name_buf[4] == 102)
-    return parser_asm_alloc_vector_type_ref_c(arena, 13, 4);
+    return parser_asm_alloc_vector_type_ref_c(arena, 14, 4);
   if (nlen == 5 && name_buf[0] == 86 && name_buf[1] == 101 && name_buf[2] == 99 && name_buf[3] == 56 && name_buf[4] == 105)
     return parser_asm_alloc_vector_type_ref_c(arena, 0, 8);
   return 0;

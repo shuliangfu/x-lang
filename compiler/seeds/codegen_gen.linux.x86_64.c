@@ -2253,6 +2253,92 @@ int32_t codegen_resolve_binding_import_dep_index(struct ast_PipelineDepCtx * ctx
   }
   return 0;
 }
+extern int32_t pipeline_typeck_type_refs_equal_c(struct ast_ASTArena * arena, int32_t a, int32_t b);
+int32_t codegen_find_module_func_index_by_name_overload(struct ast_ASTArena * arena, struct ast_Module * module,
+int32_t call_expr_ref, uint8_t * nm, int32_t nm_len) {
+  {
+    int32_t fi = 0;
+    int32_t first_idx = -1;
+    int32_t best_idx = -1;
+    int32_t best_score = -1;
+    int32_t num_args = 0;
+    if (((module ==0) || (nm ==0)) || (nm_len <=0)) {
+      return -(1);
+    }
+    if (((call_expr_ref >0) && (call_expr_ref <= (arena->num_exprs)))) {
+      (void)((num_args = pipeline_expr_call_num_args_at(arena, call_expr_ref)));
+    }
+    while ((fi < (module->num_funcs))) {
+      int32_t fn_len = pipeline_module_func_name_len_at(module, fi);
+      if (((fn_len ==nm_len) && (fn_len > 0))) {
+        uint8_t fn_name[64] = {};
+        int32_t matched = 1;
+        int32_t bi = 0;
+        pipeline_module_func_name_copy64(module, fi, &((fn_name)[0]));
+        while ((bi < fn_len)) {
+          if (((fn_name)[bi] != (nm)[bi])) {
+            matched = 0;
+            bi = fn_len;
+          } else {
+            bi = (bi + 1);
+          }
+        }
+        if ((matched !=0)) {
+          if ((first_idx < 0)) {
+            first_idx = fi;
+          }
+          if ((num_args > 0)) {
+            int32_t np = pipeline_module_func_num_params_at(module, fi);
+            if ((np ==num_args)) {
+              int32_t ai = 0;
+              int32_t score = 0;
+              int32_t ok = 1;
+              while ((ai < num_args)) {
+                int32_t arg_ref = pipeline_expr_call_arg_ref(arena, call_expr_ref, ai);
+                int32_t param_ty = pipeline_module_func_param_type_ref_at(module, fi, ai);
+                int32_t arg_ty = 0;
+                int32_t sc = 0;
+                if ((arg_ref <=0)) {
+                  ok = 0;
+                  break;
+                }
+                (void)((arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref)));
+                if (((arg_ty > 0) && (param_ty > 0)) && (pipeline_typeck_type_refs_equal_c(arena, arg_ty, param_ty) !=0)) {
+                  sc = 1000;
+                } else if (((arg_ty > 0) && (param_ty > 0))) {
+                  int32_t ak = pipeline_type_kind_ord_at(arena, arg_ty);
+                  int32_t pk = pipeline_type_kind_ord_at(arena, param_ty);
+                  if (((ak ==pk) && (ak !=0))) {
+                    sc = 1;
+                  } else {
+                    sc = -(1);
+                  }
+                } else {
+                  sc = 0;
+                }
+                if ((sc < 0)) {
+                  ok = 0;
+                  break;
+                }
+                score = (score + sc);
+                ai = (ai + 1);
+              }
+              if (((ok !=0) && (score > best_score))) {
+                best_score = score;
+                best_idx = fi;
+              }
+            }
+          }
+        }
+      }
+      fi = (fi + 1);
+    }
+    if ((best_idx >=0)) {
+        return best_idx;
+    }
+    return first_idx;
+  }
+}
 int32_t codegen_resolve_call_target_func_index(struct ast_ASTArena * arena, struct ast_Module * module, int32_t call_expr_ref) {
   {
     int32_t func_ix = -(1);
@@ -2273,15 +2359,15 @@ int32_t codegen_resolve_call_target_func_index(struct ast_ASTArena * arena, stru
         return -(1);
       }
       if ((((callee_e.kind) ==3) && ((callee_e.var_name_len) > 0))) {
-        return codegen_find_module_func_index_by_name(module, &(((callee_e.var_name))[0]), (callee_e.var_name_len));
+        return codegen_find_module_func_index_by_name_overload(arena, module, call_expr_ref, &(((callee_e.var_name))[0]), (callee_e.var_name_len));
       }
       if ((((callee_e.kind) ==44) && ((callee_e.field_access_field_len) > 0))) {
-        return codegen_find_module_func_index_by_name(module, &(((callee_e.field_access_field_name))[0]), (callee_e.field_access_field_len));
+        return codegen_find_module_func_index_by_name_overload(arena, module, call_expr_ref, &(((callee_e.field_access_field_name))[0]), (callee_e.field_access_field_len));
       }
       return -(1);
     }
     if ((((call_e.kind) ==49) && ((call_e.method_call_name_len) > 0))) {
-      return codegen_find_module_func_index_by_name(module, &(((call_e.method_call_name))[0]), (call_e.method_call_name_len));
+      return codegen_find_module_func_index_by_name_overload(arena, module, call_expr_ref, &(((call_e.method_call_name))[0]), (call_e.method_call_name_len));
     }
     return -(1);
   }
@@ -3944,6 +4030,24 @@ int32_t codegen_emit_vector_c_type_out(struct codegen_CodegenOutBuf * out, int32
     }
     if ((lanes ==16)) {
       uint8_t sa[9] = {117, 51, 50, 120, 49, 54, 95, 116, 0};
+      return codegen_emit_bytes_from_ptr(out, &((sa)[0]), 8);
+    }
+  }
+  /* F32 vector: "f32x4_t" / "f32x8_t" / "f32x16_t". elem_kind_ord==14 == TYPE_F32.
+   * Without this branch, Vec4f falls through to the int32_t default and
+   * collides with Vec8i (i32x8_t) overloads. Mirrors codegen.x emit_vector_c_type_out.
+   * PLATFORM: SHARED. Manually mirrored because shux-c -E-extern hangs on macOS. */
+  if ((elem_kind_ord ==((int32_t)(14)))) {
+    if ((lanes ==4)) {
+      uint8_t s[8] = {102, 51, 50, 120, 52, 95, 116, 0};
+      return codegen_emit_bytes_from_ptr(out, &((s)[0]), 7);
+    }
+    if ((lanes ==8)) {
+      uint8_t s[8] = {102, 51, 50, 120, 56, 95, 116, 0};
+      return codegen_emit_bytes_from_ptr(out, &((s)[0]), 7);
+    }
+    if ((lanes ==16)) {
+      uint8_t sa[9] = {102, 51, 50, 120, 49, 54, 95, 116, 0};
       return codegen_emit_bytes_from_ptr(out, &((sa)[0]), 8);
     }
   }
@@ -9267,6 +9371,52 @@ int32_t codegen_type_ref_to_suffix(struct ast_ASTArena * arena, int32_t type_ref
       uint8_t s[4] = {102, 54, 52, 0};
       return codegen_emit_suffix_bytes(buf, &((s)[0]), 3);
     }
+    /* TYPE_VECTOR: mangle suffix <elem>x<lanes> (i32x4/f32x4/i32x8) so same-name vector
+     * overloads get distinct C link symbols. Mirrors codegen.x codegen_type_ref_to_suffix.
+     * PLATFORM: SHARED. */
+    if ((tk ==((int32_t)(13)))) {
+      int32_t elem_ref = pipeline_type_elem_ref_at(arena, type_ref);
+      int32_t lanes = pipeline_type_array_size_at(arena, type_ref);
+      int32_t ek = 0;
+      int32_t pos = 0;
+      if ((elem_ref <= 0) || (lanes <= 0)) {
+        return 0;
+      }
+      ek = pipeline_type_kind_ord_at(arena, elem_ref);
+      if ((ek ==((int32_t)(0)))) {
+        uint8_t pre[4] = {105, 51, 50, 0};
+        pos = codegen_emit_suffix_bytes(buf, &((pre)[0]), 3);
+      } else if ((ek ==((int32_t)(3)))) {
+        uint8_t pre[4] = {117, 51, 50, 0};
+        pos = codegen_emit_suffix_bytes(buf, &((pre)[0]), 3);
+      } else if ((ek ==((int32_t)(14)))) {
+        uint8_t pre[4] = {102, 51, 50, 0};
+        pos = codegen_emit_suffix_bytes(buf, &((pre)[0]), 3);
+      } else {
+        return 0;
+      }
+      if ((pos <= 0)) {
+        return 0;
+      }
+      if ((pos < buf_cap)) {
+        (buf)[pos] = 120;
+        pos = (pos + 1);
+      } else {
+        return pos;
+      }
+      if ((lanes ==4) && (pos < buf_cap)) {
+        (buf)[pos] = 52;
+        return (pos + 1);
+      } else if ((lanes ==8) && (pos < buf_cap)) {
+        (buf)[pos] = 56;
+        return (pos + 1);
+      } else if ((lanes ==16) && ((pos + 1) < buf_cap)) {
+        (buf)[pos] = 49;
+        (buf)[(pos + 1)] = 54;
+        return (pos + 2);
+      }
+      return pos;
+    }
     if ((tk ==((int32_t)(1)))) {
       uint8_t s[5] = {98, 111, 111, 108, 0};
       return codegen_emit_suffix_bytes(buf, &((s)[0]), 4);
@@ -9586,7 +9736,26 @@ int32_t codegen_emit_call_func_name(struct codegen_CodegenOutBuf * out, struct a
                 if (ast_ref_is_null(arg_ref)) {
                   (void)((types_match = 0));
                 } else {
+                  extern int32_t pipeline_expr_var_name_len(struct ast_ASTArena * a, int32_t expr_ref);
+                  extern void pipeline_expr_var_name_into(struct ast_ASTArena * a, int32_t expr_ref, uint8_t * out);
+                  extern int32_t pipeline_module_func_param_type_ref_for_name(struct ast_Module * m, int32_t func_index, uint8_t * vname, int32_t vname_len);
                   int32_t arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
+                  /* PLATFORM: SHARED — dep module bodies not typeck'd: param VAR args have
+                   * resolved_type=0. When arg is a VAR naming a param of the CURRENTLY emitted
+                   * function, use that param's declared type. Mirrors codegen.x. */
+                  if (((arg_ty <=0) && (ctx !=0)) && ((ctx->current_codegen_module !=0) && (ctx->current_func_index >=0))) {
+                    if (pipeline_expr_kind_ord_at(arena, arg_ref) ==3) {
+                      int32_t av_len = pipeline_expr_var_name_len(arena, arg_ref);
+                      if (((av_len > 0) && (av_len <= 63))) {
+                        uint8_t av_buf[64] = {};
+                        pipeline_expr_var_name_into(arena, arg_ref, &((av_buf)[0]));
+                        int32_t apt = pipeline_module_func_param_type_ref_for_name(ctx->current_codegen_module, ctx->current_func_index, &((av_buf)[0]), av_len);
+                        if ((apt > 0)) {
+                          (void)((arg_ty = apt));
+                        }
+                      }
+                    }
+                  }
                   if (((arg_ty <=0) && (pipeline_expr_kind_ord_at(arena, arg_ref) ==54))) {
                     int32_t as_tgt = pipeline_expr_as_target_type_ref_at(arena, arg_ref);
                     if ((as_tgt > 0)) {
@@ -9622,6 +9791,7 @@ int32_t codegen_emit_call_func_name(struct codegen_CodegenOutBuf * out, struct a
                       (void)((nb = codegen_type_ref_to_suffix(search_arena, param_ty, &((sb)[0]), 64)));
                     }
                   }
+                  { extern int getenv(const char *); if (getenv("SHUX_CGFCN")) fprintf(stderr, "SHUX_CGFCN: fi_s=%d pi=%d arg_ty=%d param_ty=%d na=%d nb=%d\n", (int)fi_s, (int)pi, (int)arg_ty, (int)param_ty, (int)na, (int)nb); }
                   if ((na !=nb)) {
                     (void)((types_match = 0));
                   } else {

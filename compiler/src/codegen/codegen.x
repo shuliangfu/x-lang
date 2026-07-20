@@ -921,6 +921,109 @@ export function codegen_resolve_binding_import_dep_index(ctx: *PipelineDepCtx, a
   }
 }
 
+/** Exported function `codegen_find_module_func_index_by_name_overload`.
+ * Implements `codegen_find_module_func_index_by_name_overload`.
+ * Overload-aware fallback: when typeck did not set call_resolved_func_index (e.g. dep
+ * module body not typeck'd), score same-name funcs by arg resolved_type vs param type
+ * and pick the best. Falls back to first-match when no args or all scores tie.
+ * Why: codegen_find_module_func_index_by_name returns the FIRST match by name, which is
+ * wrong when a module has same-name overloads (std_simd mul Vec8i vs Vec4f). Without this,
+ * dot(a:Vec4f,b:Vec4f) { return hsum(mul(a,b)); } emits the Vec8i mul (first) -> cc
+ * "conflicting types". PLATFORM: SHARED.
+ * @param arena *ASTArena
+ * @param module *Module
+ * @param call_expr_ref i32
+ * @param nm *u8
+ * @param nm_len i32
+ * @return i32
+ */
+export function codegen_find_module_func_index_by_name_overload(arena: *ASTArena, module: *Module,
+call_expr_ref: i32, nm: *u8, nm_len: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let fi: i32 = 0;
+    let first_idx: i32 = -1;
+    let best_idx: i32 = -1;
+    let best_score: i32 = -1;
+    let num_args: i32 = 0;
+    if (module == 0 as *Module || nm == 0 as *u8 || nm_len <= 0) {
+      return -1;
+    }
+    if (call_expr_ref > 0 && call_expr_ref <= arena.num_exprs) {
+      num_args = pipeline_expr_call_num_args_at(arena, call_expr_ref);
+    }
+    while (fi < module.num_funcs) {
+      let fn_len: i32 = pipeline_module_func_name_len_at(module, fi);
+      if (fn_len == nm_len && fn_len > 0) {
+        let fn_name: u8[64] = [];
+        let matched: i32 = 1;
+        let bi: i32 = 0;
+        pipeline_module_func_name_copy64(module, fi, &fn_name[0]);
+        while (bi < fn_len) {
+          if (fn_name[bi] != nm[bi]) {
+            matched = 0;
+            bi = fn_len;
+          } else {
+            bi = bi + 1;
+          }
+        }
+        if (matched != 0) {
+          if (first_idx < 0) {
+            first_idx = fi;
+          }
+          if (num_args > 0) {
+            let np: i32 = pipeline_module_func_num_params_at(module, fi);
+            if (np == num_args) {
+              let ai: i32 = 0;
+              let score: i32 = 0;
+              let ok: i32 = 1;
+              while (ai < num_args) {
+                let arg_ref: i32 = pipeline_expr_call_arg_ref(arena, call_expr_ref, ai);
+                let param_ty: i32 = pipeline_module_func_param_type_ref_at(module, fi, ai);
+                let arg_ty: i32 = 0;
+                let sc: i32 = 0;
+                if (arg_ref <= 0) {
+                  ok = 0;
+                  break;
+                }
+                arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
+                if (arg_ty > 0 && param_ty > 0 && pipeline_typeck_type_refs_equal_c(arena, arg_ty, param_ty) != 0) {
+                  sc = 1000;
+                } else if (arg_ty > 0 && param_ty > 0) {
+                  let ak: i32 = pipeline_type_kind_ord_at(arena, arg_ty);
+                  let pk: i32 = pipeline_type_kind_ord_at(arena, param_ty);
+                  if (ak == pk && ak != 0) {
+                    sc = 1;
+                  } else {
+                    sc = -1;
+                  }
+                } else {
+                  sc = 0;
+                }
+                if (sc < 0) {
+                  ok = 0;
+                  break;
+                }
+                score = score + sc;
+                ai = ai + 1;
+              }
+              if (ok != 0 && score > best_score) {
+                best_score = score;
+                best_idx = fi;
+              }
+            }
+          }
+        }
+      }
+      fi = fi + 1;
+    }
+    if (best_idx >= 0) {
+      return best_idx;
+    }
+    return first_idx;
+  }
+}
+
 /** Exported function `codegen_resolve_call_target_func_index`.
  * Implements `codegen_resolve_call_target_func_index`.
  * @param arena *ASTArena
@@ -950,15 +1053,15 @@ export function codegen_resolve_call_target_func_index(arena: *ASTArena, module:
       }
       let callee_e: Expr = ast.ast_arena_expr_get(arena, call_e.call_callee_ref);
       if (callee_e.kind == ExprKind.EXPR_VAR && callee_e.var_name_len > 0) {
-        return codegen_find_module_func_index_by_name(module, &callee_e.var_name[0], callee_e.var_name_len);
+        return codegen_find_module_func_index_by_name_overload(arena, module, call_expr_ref, &callee_e.var_name[0], callee_e.var_name_len);
       }
       if (callee_e.kind == ExprKind.EXPR_FIELD_ACCESS && callee_e.field_access_field_len > 0) {
-        return codegen_find_module_func_index_by_name(module, &callee_e.field_access_field_name[0], callee_e.field_access_field_len);
+        return codegen_find_module_func_index_by_name_overload(arena, module, call_expr_ref, &callee_e.field_access_field_name[0], callee_e.field_access_field_len);
       }
       return -1;
     }
     if (call_e.kind == ExprKind.EXPR_METHOD_CALL && call_e.method_call_name_len > 0) {
-      return codegen_find_module_func_index_by_name(module, &call_e.method_call_name[0], call_e.method_call_name_len);
+      return codegen_find_module_func_index_by_name_overload(arena, module, call_expr_ref, &call_e.method_call_name[0], call_e.method_call_name_len);
     }
     return -1;
   }
@@ -2913,9 +3016,13 @@ export function type_kind_append_to_scratch(scratch: *u8, cap: i32, w: i32, kind
 
 /** Exported function `emit_vector_c_type_out`.
  * Implements `emit_vector_c_type_out`.
+ * Emits the C type name (i32x4_t / u32x8_t / f32x4_t ...) for a VECTOR type
+ * given its element TypeKind ord and lane count. The emitted names must match
+ * the typedefs in seeds/rt_preamble.from_x.c (§10 vector block).
+ * PLATFORM: SHARED — used by both C and asm codegen paths.
  * @param out *CodegenOutBuf
- * @param elem_kind_ord i32
- * @param lanes i32
+ * @param elem_kind_ord i32 — TypeKind ord of the vector element (I32/U32/F32)
+ * @param lanes i32 — 4 / 8 / 16
  * @return i32
  */
 export function emit_vector_c_type_out(out: *CodegenOutBuf, elem_kind_ord: i32, lanes: i32): i32 {
@@ -2944,6 +3051,22 @@ export function emit_vector_c_type_out(out: *CodegenOutBuf, elem_kind_ord: i32, 
     }
     if (lanes == 16) {
       let sa: u8[9] = [117, 51, 50, 120, 49, 54, 95, 116, 0];
+      return emit_bytes_from_ptr(out, &sa[0], 8);
+    }
+  }
+  /* F32 vector: "f32x4_t" / "f32x8_t" / "f32x16_t". Without this branch, Vec4f
+   * falls through to the int32_t default and collides with Vec8i overloads. */
+  if (elem_kind_ord == (TypeKind.TYPE_F32 as i32)) {
+    if (lanes == 4) {
+      let s: u8[8] = [102, 51, 50, 120, 52, 95, 116, 0];
+      return emit_bytes_from_ptr(out, &s[0], 7);
+    }
+    if (lanes == 8) {
+      let s: u8[8] = [102, 51, 50, 120, 56, 95, 116, 0];
+      return emit_bytes_from_ptr(out, &s[0], 7);
+    }
+    if (lanes == 16) {
+      let sa: u8[9] = [102, 51, 50, 120, 49, 54, 95, 116, 0];
       return emit_bytes_from_ptr(out, &sa[0], 8);
     }
   }
@@ -8707,6 +8830,56 @@ export function codegen_type_ref_to_suffix(arena: *ASTArena, type_ref: i32, buf:
       let s: u8[4] = [102, 54, 52, 0];
       return emit_suffix_bytes(buf, &s[0], 3);
     }
+    /* TYPE_VECTOR: mangle suffix as <elem>x<lanes> (e.g. i32x4 / f32x4 / i32x8) so
+     * same-name vector overloads (std_simd_add Vec8i vs Vec4f) get distinct C link
+     * symbols. Without this, two vector overloads both emit a bare name and cc reports
+     * "conflicting types". PLATFORM: SHARED — mirrors emit_vector_c_type_out spelling. */
+    if (tk == (TypeKind.TYPE_VECTOR as i32)) {
+      let elem_ref: i32 = pipeline_type_elem_ref_at(arena, type_ref);
+      let lanes: i32 = pipeline_type_array_size_at(arena, type_ref);
+      let ek: i32 = 0;
+      let pos: i32 = 0;
+      if (elem_ref <= 0 || lanes <= 0) {
+        return 0;
+      }
+      ek = pipeline_type_kind_ord_at(arena, elem_ref);
+      /* element prefix: i32->"i32", u32->"u32", f32->"f32" */
+      if (ek == (TypeKind.TYPE_I32 as i32)) {
+        let pre: u8[4] = [105, 51, 50, 0];
+        pos = emit_suffix_bytes(buf, &pre[0], 3);
+      } else if (ek == (TypeKind.TYPE_U32 as i32)) {
+        let pre: u8[4] = [117, 51, 50, 0];
+        pos = emit_suffix_bytes(buf, &pre[0], 3);
+      } else if (ek == (TypeKind.TYPE_F32 as i32)) {
+        let pre: u8[4] = [102, 51, 50, 0];
+        pos = emit_suffix_bytes(buf, &pre[0], 3);
+      } else {
+        return 0;
+      }
+      if (pos <= 0) {
+        return 0;
+      }
+      /* 'x' separator */
+      if (pos < buf_cap) {
+        buf[pos] = 120;
+        pos = pos + 1;
+      } else {
+        return pos;
+      }
+      /* lanes decimal: 4 / 8 / 16 */
+      if (lanes == 4 && pos < buf_cap) {
+        buf[pos] = 52;
+        return pos + 1;
+      } else if (lanes == 8 && pos < buf_cap) {
+        buf[pos] = 56;
+        return pos + 1;
+      } else if (lanes == 16 && pos + 1 < buf_cap) {
+        buf[pos] = 49;
+        buf[pos + 1] = 54;
+        return pos + 2;
+      }
+      return pos;
+    }
     if (tk == (TypeKind.TYPE_BOOL as i32)) {
       let s: u8[5] = [98, 111, 111, 108, 0];
       return emit_suffix_bytes(buf, &s[0], 4);
@@ -9115,6 +9288,27 @@ export function codegen_emit_call_func_name(out: *CodegenOutBuf, arena: *ASTAren
                     types_match = 0;
                   } else {
                     let arg_ty: i32 = pipeline_expr_resolved_type_ref(arena, arg_ref);
+                    /*
+                     * PLATFORM: SHARED — dep module bodies are not typeck'd, so param VAR
+                     * args have resolved_type=0. When the arg is a VAR that names a param of
+                     * the CURRENTLY emitted function, use that param's declared type as arg_ty.
+                     * Without this, dot(a:Vec4f) { hsum(mul(a,b)); } emits Vec8i mul (first
+                     * arity match) instead of Vec4f mul → cc "conflicting types".
+                     */
+                    if (arg_ty <= 0 && ctx != 0 as *PipelineDepCtx
+                        && ctx.current_codegen_module != 0 as *Module && ctx.current_func_index >= 0
+                        && pipeline_expr_kind_ord_at(arena, arg_ref) == 3) {
+                      let av_len: i32 = pipeline_expr_var_name_len(arena, arg_ref);
+                      if (av_len > 0 && av_len <= 63) {
+                        let av_buf: u8[64] = [];
+                        pipeline_expr_var_name_into(arena, arg_ref, &av_buf[0]);
+                        let apt: i32 = pipeline_module_func_param_type_ref_for_name(
+                            ctx.current_codegen_module, ctx.current_func_index, &av_buf[0], av_len);
+                        if (apt > 0) {
+                          arg_ty = apt;
+                        }
+                      }
+                    }
                     /* See implementation. */
                     if (arg_ty <= 0 && pipeline_expr_kind_ord_at(arena, arg_ref) == 54) {
                       let as_tgt: i32 = pipeline_expr_as_target_type_ref_at(arena, arg_ref);
