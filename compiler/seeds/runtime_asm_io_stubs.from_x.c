@@ -246,7 +246,8 @@ SHUX_WEAK int32_t std_io_write_with_timeout(uint8_t *ptr, size_t len, uint32_t t
 
 /** std.io.print(ptr,len) C ABI：mangled std_io_print_u8_ptr_usize。 */
 SHUX_WEAK int32_t std_io_print_u8_ptr_usize(uint8_t *ptr, size_t len) {
-  return std_io_write_stdout(ptr, len);
+  int32_t r = std_io_write_stdout(ptr, len);
+  return (r >= 0) ? 0 : -1;
 }
 
 /** 兼容旧链接名 std_io_print_str。 */
@@ -258,7 +259,8 @@ SHUX_WEAK int32_t std_io_print_str(uint8_t *ptr, size_t len) {
  * PLATFORM: SHARED — println without trailing newline; string-lit special path uses bare.
  * Authority: this TU only (G.7); LABI_STD_OP_IO_STUBS / ensure runtime_asm_io_stubs.o. */
 int32_t std_fmt_print(uint8_t *ptr, size_t len) {
-  return std_io_print_str(ptr, len);
+  int32_t r = std_io_print_str(ptr, len);
+  return (r >= 0) ? 0 : -1;
 }
 
 /** Overload mid for print(*u8, i32) — import-binding mangle when fmt has many print overloads.
@@ -273,10 +275,12 @@ int32_t std_fmt_print_u8_ptr_i32(uint8_t *ptr, int32_t len) {
 /** std.fmt.println(ptr,len): print + single \\n; asm CALL surface (no fmt co-emit).
  * PLATFORM: SHARED — pairs with std_fmt_print; do not invent a second stub path. */
 int32_t std_fmt_println(uint8_t *ptr, size_t len) {
-  int32_t r = std_io_print_str(ptr, len);
+  int32_t r = std_io_write_stdout(ptr, len);
+  if (r < 0)
+    return -1;
   uint8_t nl = 10;
-  (void)std_io_print_str(&nl, 1);
-  return r;
+  int32_t rn = std_io_write_stdout(&nl, 1);
+  return (rn >= 0) ? 0 : -1;
 }
 
 /** Overload mid for println(*u8, i32) — same mangle contract as std_fmt_print_u8_ptr_i32. */

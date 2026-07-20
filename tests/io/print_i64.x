@@ -1,11 +1,11 @@
 // See implementation.
-const io = import("std.io");
+const fmt = import("std.fmt");
 
 /** Internal function `main`.
  * Program/test entry point.
  * @return i32
  */
 function main(): i32 {
-  let n: i32 = io.print(123);
+  let n: i32 = fmt.println(123);
   return n;
 }

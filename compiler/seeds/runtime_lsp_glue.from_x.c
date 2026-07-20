@@ -3048,6 +3048,20 @@ int lsp_format_emit_segment(const uint8_t *doc, int start, int len, uint8_t *out
             }
         }
         if (c == '-' && lsp_fmt_is_atom_tail(prev) && !lsp_fmt_unary_lhs(prev)) {
+            int is_return = 0;
+            if (j >= 7) {
+                if (doc[start + j - 7] == 'r' && doc[start + j - 6] == 'e' &&
+                    doc[start + j - 5] == 't' && doc[start + j - 4] == 'u' &&
+                    doc[start + j - 3] == 'r' && doc[start + j - 2] == 'n' &&
+                    doc[start + j - 1] == ' ') {
+                    is_return = 1;
+                }
+            }
+            if (is_return) {
+                out_buf[out_len++] = c;
+                j++;
+                continue;
+            }
             int next_i = j + 1;
             uint8_t next = 0;
             while (next_i < len) {

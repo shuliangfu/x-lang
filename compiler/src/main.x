@@ -835,13 +835,8 @@ export function entry(argc: i32, argv: *u8): i32 {
       if (str_eq(&arg_buf[0], alen, &w_test[0], 4) != 0) {
         return driver_cmd_test(argc - 1, driver_argv_drop_subcommand(argc, argv));
       }
-      /* Bare .x path with no subcommand: "shux file.x" == "compile and run"
-         (matches the documented `shux [options] file.x` contract). main_cmd_run
-         compiles the product in memory (temp -o when none given) then execs it;
-         no a.out, no generated C to stdout. -E / build / run / fmt / check /
-         test and options-first invocations are handled elsewhere and never
-         reach here. PLATFORM: SHARED. */
-      return main_cmd_run(argc, argv);
+      driver_print_usage_write();
+      return 1;
     }
   }
   let state: DriverXEmitState = driver_emit_state_default();

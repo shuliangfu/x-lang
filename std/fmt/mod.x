@@ -29,88 +29,73 @@ export function placeholder(): i32 { return 0; }
 
 /** Exported function `format`.
  * Implements `format`.
- * @param x i32): i32 { return fmt.fmt_i32(x
- * @return void
+ * @param x i32
+ * @return i32
  */
 export function format(x: i32): i32 { return fmt.fmt_i32(x); }
+
 /** Exported function `to_buf`.
  * Implements `to_buf`.
  * @param buf *u8
  * @param cap i32
- * @param x i32): i32 { return fmt.fmt_i32_to_buf(buf
- * @param cap
- * @param x
- * @return void
+ * @param x i32
+ * @return i32
  */
 export function to_buf(buf: *u8, cap: i32, x: i32): i32 { return fmt.fmt_i32_to_buf(buf, cap, x); }
 /** Exported function `to_buf`.
  * Implements `to_buf`.
  * @param buf *u8
  * @param cap i32
- * @param u u32): i32 { return fmt.fmt_u32_to_buf(buf
- * @param cap
- * @param u
- * @return void
+ * @param u u32
+ * @return i32
  */
 export function to_buf(buf: *u8, cap: i32, u: u32): i32 { return fmt.fmt_u32_to_buf(buf, cap, u); }
 /** Exported function `to_buf`.
  * Implements `to_buf`.
  * @param buf *u8
  * @param cap i32
- * @param x i64): i32 { return fmt.fmt_i64_to_buf(buf
- * @param cap
- * @param x
- * @return void
+ * @param x i64
+ * @return i32
  */
 export function to_buf(buf: *u8, cap: i32, x: i64): i32 { return fmt.fmt_i64_to_buf(buf, cap, x); }
 /** Exported function `to_buf`.
  * Implements `to_buf`.
  * @param buf *u8
  * @param cap i32
- * @param u u64): i32 { return fmt.fmt_u64_to_buf(buf
- * @param cap
- * @param u
- * @return void
+ * @param u u64
+ * @return i32
  */
 export function to_buf(buf: *u8, cap: i32, u: u64): i32 { return fmt.fmt_u64_to_buf(buf, cap, u); }
 /** Exported function `to_buf`.
  * Implements `to_buf`.
  * @param buf *u8
  * @param cap i32
- * @param x usize): i32 { return fmt.fmt_usize_to_buf(buf
- * @param cap
- * @param x
- * @return void
+ * @param x usize
+ * @return i32
  */
 export function to_buf(buf: *u8, cap: i32, x: usize): i32 { return fmt.fmt_usize_to_buf(buf, cap, x); }
 /** Exported function `to_buf`.
  * Implements `to_buf`.
  * @param buf *u8
  * @param cap i32
- * @param x isize): i32 { return fmt.fmt_isize_to_buf(buf
- * @param cap
- * @param x
- * @return void
+ * @param x isize
+ * @return i32
  */
 export function to_buf(buf: *u8, cap: i32, x: isize): i32 { return fmt.fmt_isize_to_buf(buf, cap, x); }
 /** Exported function `to_buf`.
  * Implements `to_buf`.
  * @param buf *u8
  * @param cap i32
- * @param b bool): i32 { return fmt.fmt_bool_to_buf(buf
- * @param cap
- * @param b
- * @return void
+ * @param b bool
+ * @return i32
  */
 export function to_buf(buf: *u8, cap: i32, b: bool): i32 { return fmt.fmt_bool_to_buf(buf, cap, b); }
 /** Exported function `to_buf`.
  * Implements `to_buf`.
  * @param buf *u8
  * @param cap i32
- * @param x f64): i32 { return fmt.fmt_f64_to_buf(buf
- * @param cap
- * @param x
- * @return void
+ * @param x f64
+ * @return i32
  */
 export function to_buf(buf: *u8, cap: i32, x: f64): i32 { return fmt.fmt_f64_to_buf(buf, cap, x); }
 /** Exported function `to_buf_prec`.
@@ -128,20 +113,16 @@ export function to_buf_prec(buf: *u8, cap: i32, x: f64, prec: i32): i32 {
  * Implements `hex_to_buf`.
  * @param buf *u8
  * @param cap i32
- * @param u u32): i32 { return fmt.fmt_u32_hex_to_buf(buf
- * @param cap
- * @param u
- * @return void
+ * @param u u32
+ * @return i32
  */
 export function hex_to_buf(buf: *u8, cap: i32, u: u32): i32 { return fmt.fmt_u32_hex_to_buf(buf, cap, u); }
 /** Exported function `hex_to_buf`.
  * Implements `hex_to_buf`.
  * @param buf *u8
  * @param cap i32
- * @param u u64): i32 { return fmt.fmt_u64_hex_to_buf(buf
- * @param cap
- * @param u
- * @return void
+ * @param u u64
+ * @return i32
  */
 export function hex_to_buf(buf: *u8, cap: i32, u: u64): i32 { return fmt.fmt_u64_hex_to_buf(buf, cap, u); }
 /** Exported function `append_to_buf`.
@@ -197,22 +178,27 @@ export function format_template(buf: *u8, cap: i32, pat: *u8, pat_len: i32, val:
   return o;
 }
 
-// See implementation.
 /** Exported function `print`.
  * Implements `print`.
  * @param ptr *u8
- * @param len i32): i32 { return io.print(ptr
- * @param len as usize
- * @return void
+ * @param len i32
+ * @return i32
  */
-export function print(ptr: *u8, len: i32): i32 { return io.print(ptr, len as usize); }
+export function print(ptr: *u8, len: i32): i32 {
+  let r: i32 = io.write_stdout(ptr, len as usize);
+  if (r < 0) { return -1; }
+  return 0;
+}
 /** Exported function `print`.
  * Implements `print`.
- * @param s u8[]): i32 { return io.print(s.data
- * @param s.length
- * @return void
+ * @param s u8[]
+ * @return i32
  */
-export function print(s: u8[]): i32 { return io.print(s.data, s.length); }
+export function print(s: u8[]): i32 {
+  let r: i32 = io.write_stdout(s.data, s.length);
+  if (r < 0) { return -1; }
+  return 0;
+}
 
 /** Exported function `println`.
  * Implements `println`.
@@ -221,10 +207,12 @@ export function print(s: u8[]): i32 { return io.print(s.data, s.length); }
  * @return i32
  */
 export function println(ptr: *u8, len: i32): i32 {
-  let r: i32 = io.print(ptr, len as usize);
+  let r: i32 = io.write_stdout(ptr, len as usize);
+  if (r < 0) { return -1; }
   let nl: u8[1] = [10];
-  let ign: i32 = io.print(&nl[0], 1);
-  return r;
+  let rn: i32 = io.write_stdout(&nl[0], 1);
+  if (rn < 0) { return -1; }
+  return 0;
 }
 /** Exported function `println`.
  * Implements `println`.
@@ -232,10 +220,12 @@ export function println(ptr: *u8, len: i32): i32 {
  * @return i32
  */
 export function println(s: u8[]): i32 {
-  let r: i32 = io.print(s.data, s.length);
+  let r: i32 = io.write_stdout(s.data, s.length);
+  if (r < 0) { return -1; }
   let nl: u8[1] = [10];
-  let ign: i32 = io.print(&nl[0], 1);
-  return r;
+  let rn: i32 = io.write_stdout(&nl[0], 1);
+  if (rn < 0) { return -1; }
+  return 0;
 }
 
 /** Exported function `print`.
@@ -248,7 +238,9 @@ export function print(x: i32): i32 {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   let n: i32 = fmt.fmt_i32_to_buf(&buf[0], 32, x);
   if (n < 0) { return -1; }
-  return io.print(&buf[0], n as usize);
+  let r: i32 = io.write_stdout(&buf[0], n as usize);
+  if (r < 0) { return -1; }
+  return 0;
 }
 /** Exported function `println`.
  * Implements `println`.
@@ -256,15 +248,16 @@ export function print(x: i32): i32 {
  * @return i32
  */
 export function println(x: i32): i32 {
-  /* See implementation. */
   let buf: u8[32] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   let n: i32 = fmt.fmt_i32_to_buf(&buf[0], 32, x);
   if (n < 0) { return -1; }
-  let r: i32 = io.print(&buf[0], n as usize);
+  let r: i32 = io.write_stdout(&buf[0], n as usize);
+  if (r < 0) { return -1; }
   let nl: u8[1] = [10];
-  let ign: i32 = io.print(&nl[0], 1);
-  return r;
+  let rn: i32 = io.write_stdout(&nl[0], 1);
+  if (rn < 0) { return -1; }
+  return 0;
 }
 /** Exported function `print`.
  * Implements `print`.
@@ -276,7 +269,9 @@ export function print(x: u32): i32 {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   let n: i32 = fmt.fmt_u32_to_buf(&buf[0], 32, x);
   if (n < 0) { return -1; }
-  return io.print(&buf[0], n as usize);
+  let r: i32 = io.write_stdout(&buf[0], n as usize);
+  if (r < 0) { return -1; }
+  return 0;
 }
 /** Exported function `println`.
  * Implements `println`.
@@ -284,15 +279,16 @@ export function print(x: u32): i32 {
  * @return i32
  */
 export function println(x: u32): i32 {
-  /* See implementation. */
   let buf: u8[32] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   let n: i32 = fmt.fmt_u32_to_buf(&buf[0], 32, x);
   if (n < 0) { return -1; }
-  let r: i32 = io.print(&buf[0], n as usize);
+  let r: i32 = io.write_stdout(&buf[0], n as usize);
+  if (r < 0) { return -1; }
   let nl: u8[1] = [10];
-  let ign: i32 = io.print(&nl[0], 1);
-  return r;
+  let rn: i32 = io.write_stdout(&nl[0], 1);
+  if (rn < 0) { return -1; }
+  return 0;
 }
 /** Exported function `print`.
  * Implements `print`.
@@ -304,7 +300,9 @@ export function print(x: i64): i32 {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   let n: i32 = fmt.fmt_i64_to_buf(&buf[0], 32, x);
   if (n < 0) { return -1; }
-  return io.print(&buf[0], n as usize);
+  let r: i32 = io.write_stdout(&buf[0], n as usize);
+  if (r < 0) { return -1; }
+  return 0;
 }
 /** Exported function `println`.
  * Implements `println`.
@@ -312,15 +310,16 @@ export function print(x: i64): i32 {
  * @return i32
  */
 export function println(x: i64): i32 {
-  /* See implementation. */
   let buf: u8[32] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   let n: i32 = fmt.fmt_i64_to_buf(&buf[0], 32, x);
   if (n < 0) { return -1; }
-  let r: i32 = io.print(&buf[0], n as usize);
+  let r: i32 = io.write_stdout(&buf[0], n as usize);
+  if (r < 0) { return -1; }
   let nl: u8[1] = [10];
-  let ign: i32 = io.print(&nl[0], 1);
-  return r;
+  let rn: i32 = io.write_stdout(&nl[0], 1);
+  if (rn < 0) { return -1; }
+  return 0;
 }
 /** Exported function `print`.
  * Implements `print`.
@@ -332,7 +331,9 @@ export function print(x: u64): i32 {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   let n: i32 = fmt.fmt_u64_to_buf(&buf[0], 32, x);
   if (n < 0) { return -1; }
-  return io.print(&buf[0], n as usize);
+  let r: i32 = io.write_stdout(&buf[0], n as usize);
+  if (r < 0) { return -1; }
+  return 0;
 }
 /** Exported function `println`.
  * Implements `println`.
@@ -340,15 +341,16 @@ export function print(x: u64): i32 {
  * @return i32
  */
 export function println(x: u64): i32 {
-  /* See implementation. */
   let buf: u8[32] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   let n: i32 = fmt.fmt_u64_to_buf(&buf[0], 32, x);
   if (n < 0) { return -1; }
-  let r: i32 = io.print(&buf[0], n as usize);
+  let r: i32 = io.write_stdout(&buf[0], n as usize);
+  if (r < 0) { return -1; }
   let nl: u8[1] = [10];
-  let ign: i32 = io.print(&nl[0], 1);
-  return r;
+  let rn: i32 = io.write_stdout(&nl[0], 1);
+  if (rn < 0) { return -1; }
+  return 0;
 }
 /** Exported function `print`.
  * Implements `print`.
@@ -360,7 +362,9 @@ export function print(x: usize): i32 {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   let n: i32 = fmt.fmt_usize_to_buf(&buf[0], 32, x);
   if (n < 0) { return -1; }
-  return io.print(&buf[0], n as usize);
+  let r: i32 = io.write_stdout(&buf[0], n as usize);
+  if (r < 0) { return -1; }
+  return 0;
 }
 /** Exported function `println`.
  * Implements `println`.
@@ -368,15 +372,16 @@ export function print(x: usize): i32 {
  * @return i32
  */
 export function println(x: usize): i32 {
-  /* See implementation. */
   let buf: u8[32] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   let n: i32 = fmt.fmt_usize_to_buf(&buf[0], 32, x);
   if (n < 0) { return -1; }
-  let r: i32 = io.print(&buf[0], n as usize);
+  let r: i32 = io.write_stdout(&buf[0], n as usize);
+  if (r < 0) { return -1; }
   let nl: u8[1] = [10];
-  let ign: i32 = io.print(&nl[0], 1);
-  return r;
+  let rn: i32 = io.write_stdout(&nl[0], 1);
+  if (rn < 0) { return -1; }
+  return 0;
 }
 /** Exported function `print`.
  * Implements `print`.
@@ -388,7 +393,9 @@ export function print(x: isize): i32 {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   let n: i32 = fmt.fmt_isize_to_buf(&buf[0], 32, x);
   if (n < 0) { return -1; }
-  return io.print(&buf[0], n as usize);
+  let r: i32 = io.write_stdout(&buf[0], n as usize);
+  if (r < 0) { return -1; }
+  return 0;
 }
 /** Exported function `println`.
  * Implements `println`.
@@ -396,15 +403,16 @@ export function print(x: isize): i32 {
  * @return i32
  */
 export function println(x: isize): i32 {
-  /* See implementation. */
   let buf: u8[32] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   let n: i32 = fmt.fmt_isize_to_buf(&buf[0], 32, x);
   if (n < 0) { return -1; }
-  let r: i32 = io.print(&buf[0], n as usize);
+  let r: i32 = io.write_stdout(&buf[0], n as usize);
+  if (r < 0) { return -1; }
   let nl: u8[1] = [10];
-  let ign: i32 = io.print(&nl[0], 1);
-  return r;
+  let rn: i32 = io.write_stdout(&nl[0], 1);
+  if (rn < 0) { return -1; }
+  return 0;
 }
 /** Exported function `print`.
  * Implements `print`.
@@ -415,7 +423,9 @@ export function print(x: bool): i32 {
   let buf: u8[8] = [0, 0, 0, 0, 0, 0, 0, 0];
   let n: i32 = fmt.fmt_bool_to_buf(&buf[0], 8, x);
   if (n < 0) { return -1; }
-  return io.print(&buf[0], n as usize);
+  let r: i32 = io.write_stdout(&buf[0], n as usize);
+  if (r < 0) { return -1; }
+  return 0;
 }
 /** Exported function `println`.
  * Implements `println`.
@@ -423,14 +433,15 @@ export function print(x: bool): i32 {
  * @return i32
  */
 export function println(x: bool): i32 {
-  /* See implementation. */
   let buf: u8[8] = [0, 0, 0, 0, 0, 0, 0, 0];
   let n: i32 = fmt.fmt_bool_to_buf(&buf[0], 8, x);
   if (n < 0) { return -1; }
-  let r: i32 = io.print(&buf[0], n as usize);
+  let r: i32 = io.write_stdout(&buf[0], n as usize);
+  if (r < 0) { return -1; }
   let nl: u8[1] = [10];
-  let ign: i32 = io.print(&nl[0], 1);
-  return r;
+  let rn: i32 = io.write_stdout(&nl[0], 1);
+  if (rn < 0) { return -1; }
+  return 0;
 }
 /** Exported function `print`.
  * Implements `print`.
@@ -444,7 +455,9 @@ export function print(x: f64): i32 {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   let n: i32 = fmt.fmt_f64_to_buf(&buf[0], 64, x);
   if (n < 0) { return -1; }
-  return io.print(&buf[0], n as usize);
+  let r: i32 = io.write_stdout(&buf[0], n as usize);
+  if (r < 0) { return -1; }
+  return 0;
 }
 /** Exported function `println`.
  * Implements `println`.
@@ -452,228 +465,18 @@ export function print(x: f64): i32 {
  * @return i32
  */
 export function println(x: f64): i32 {
-  /* See implementation. */
   let buf: u8[64] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   let n: i32 = fmt.fmt_f64_to_buf(&buf[0], 64, x);
   if (n < 0) { return -1; }
-  let r: i32 = io.print(&buf[0], n as usize);
+  let r: i32 = io.write_stdout(&buf[0], n as usize);
+  if (r < 0) { return -1; }
   let nl: u8[1] = [10];
-  let ign: i32 = io.print(&nl[0], 1);
-  return r;
-}
-
-/** Exported function `format`.
- * Implements `format`.
- * @param buf *u8
- * @param cap i32
- * @param a i32
- * @param b i32
- * @return i32
- */
-export function format(buf: *u8, cap: i32, a: i32, b: i32): i32 {
-  let n1: i32 = fmt.fmt_i32_to_buf(buf, cap, a);
-  if (n1 < 0) { return -1; }
-  let n2: i32 = fmt.fmt_i32_to_buf(&buf[n1], cap - n1, b);
-  if (n2 < 0) { return -1; }
-  return n1 + n2;
-}
-/** Exported function `format`.
- * Implements `format`.
- * @param buf *u8
- * @param cap i32
- * @param a i32
- * @param b u32
- * @return i32
- */
-export function format(buf: *u8, cap: i32, a: i32, b: u32): i32 {
-  let n1: i32 = fmt.fmt_i32_to_buf(buf, cap, a);
-  if (n1 < 0) { return -1; }
-  let n2: i32 = fmt.fmt_u32_to_buf(&buf[n1], cap - n1, b);
-  if (n2 < 0) { return -1; }
-  return n1 + n2;
-}
-/** Exported function `format`.
- * Implements `format`.
- * @param buf *u8
- * @param cap i32
- * @param a u32
- * @param b i32
- * @return i32
- */
-export function format(buf: *u8, cap: i32, a: u32, b: i32): i32 {
-  let n1: i32 = fmt.fmt_u32_to_buf(buf, cap, a);
-  if (n1 < 0) { return -1; }
-  let n2: i32 = fmt.fmt_i32_to_buf(&buf[n1], cap - n1, b);
-  if (n2 < 0) { return -1; }
-  return n1 + n2;
-}
-/** Exported function `format`.
- * Implements `format`.
- * @param buf *u8
- * @param cap i32
- * @param a u32
- * @param b u32
- * @return i32
- */
-export function format(buf: *u8, cap: i32, a: u32, b: u32): i32 {
-  let n1: i32 = fmt.fmt_u32_to_buf(buf, cap, a);
-  if (n1 < 0) { return -1; }
-  let n2: i32 = fmt.fmt_u32_to_buf(&buf[n1], cap - n1, b);
-  if (n2 < 0) { return -1; }
-  return n1 + n2;
-}
-/** Exported function `format`.
- * Implements `format`.
- * @param buf *u8
- * @param cap i32
- * @param a i64
- * @param b i32
- * @return i32
- */
-export function format(buf: *u8, cap: i32, a: i64, b: i32): i32 {
-  let n1: i32 = fmt.fmt_i64_to_buf(buf, cap, a);
-  if (n1 < 0) { return -1; }
-  let n2: i32 = fmt.fmt_i32_to_buf(&buf[n1], cap - n1, b);
-  if (n2 < 0) { return -1; }
-  return n1 + n2;
-}
-/** Exported function `format`.
- * Implements `format`.
- * @param buf *u8
- * @param cap i32
- * @param a i32
- * @param b i64
- * @return i32
- */
-export function format(buf: *u8, cap: i32, a: i32, b: i64): i32 {
-  let n1: i32 = fmt.fmt_i32_to_buf(buf, cap, a);
-  if (n1 < 0) { return -1; }
-  let n2: i32 = fmt.fmt_i64_to_buf(&buf[n1], cap - n1, b);
-  if (n2 < 0) { return -1; }
-  return n1 + n2;
-}
-/** Exported function `format`.
- * Implements `format`.
- * @param buf *u8
- * @param cap i32
- * @param a i64
- * @param b i64
- * @return i32
- */
-export function format(buf: *u8, cap: i32, a: i64, b: i64): i32 {
-  let n1: i32 = fmt.fmt_i64_to_buf(buf, cap, a);
-  if (n1 < 0) { return -1; }
-  let n2: i32 = fmt.fmt_i64_to_buf(&buf[n1], cap - n1, b);
-  if (n2 < 0) { return -1; }
-  return n1 + n2;
-}
-/** Exported function `format`.
- * Implements `format`.
- * @param buf *u8
- * @param cap i32
- * @param a u64
- * @param b u64
- * @return i32
- */
-export function format(buf: *u8, cap: i32, a: u64, b: u64): i32 {
-  let n1: i32 = fmt.fmt_u64_to_buf(buf, cap, a);
-  if (n1 < 0) { return -1; }
-  let n2: i32 = fmt.fmt_u64_to_buf(&buf[n1], cap - n1, b);
-  if (n2 < 0) { return -1; }
-  return n1 + n2;
-}
-/** Exported function `format`.
- * Implements `format`.
- * @param buf *u8
- * @param cap i32
- * @param a usize
- * @param b usize
- * @return i32
- */
-export function format(buf: *u8, cap: i32, a: usize, b: usize): i32 {
-  let n1: i32 = fmt.fmt_usize_to_buf(buf, cap, a);
-  if (n1 < 0) { return -1; }
-  let n2: i32 = fmt.fmt_usize_to_buf(&buf[n1], cap - n1, b);
-  if (n2 < 0) { return -1; }
-  return n1 + n2;
-}
-/** Exported function `format`.
- * Implements `format`.
- * @param buf *u8
- * @param cap i32
- * @param a isize
- * @param b i32
- * @return i32
- */
-export function format(buf: *u8, cap: i32, a: isize, b: i32): i32 {
-  let n1: i32 = fmt.fmt_isize_to_buf(buf, cap, a);
-  if (n1 < 0) { return -1; }
-  let n2: i32 = fmt.fmt_i32_to_buf(&buf[n1], cap - n1, b);
-  if (n2 < 0) { return -1; }
-  return n1 + n2;
-}
-/** Exported function `format`.
- * Implements `format`.
- * @param buf *u8
- * @param cap i32
- * @param a i32
- * @param b usize
- * @return i32
- */
-export function format(buf: *u8, cap: i32, a: i32, b: usize): i32 {
-  let n1: i32 = fmt.fmt_i32_to_buf(buf, cap, a);
-  if (n1 < 0) { return -1; }
-  let n2: i32 = fmt.fmt_usize_to_buf(&buf[n1], cap - n1, b);
-  if (n2 < 0) { return -1; }
-  return n1 + n2;
-}
-/** Exported function `format`.
- * Implements `format`.
- * @param buf *u8
- * @param cap i32
- * @param p *u8
- * @param v i32
- * @return i32
- */
-export function format(buf: *u8, cap: i32, p: *u8, v: i32): i32 {
-  let n1: i32 = fmt.fmt_ptr_to_buf(buf, cap, p);
-  if (n1 < 0) { return -1; }
-  let n2: i32 = fmt.fmt_i32_to_buf(&buf[n1], cap - n1, v);
-  if (n2 < 0) { return -1; }
-  return n1 + n2;
-}
-/** Exported function `format`.
- * Implements `format`.
- * @param buf *u8
- * @param cap i32
- * @param a bool
- * @param b bool
- * @return i32
- */
-export function format(buf: *u8, cap: i32, a: bool, b: bool): i32 {
-  let n1: i32 = fmt.fmt_bool_to_buf(buf, cap, a);
-  if (n1 < 0) { return -1; }
-  let n2: i32 = fmt.fmt_bool_to_buf(&buf[n1], cap - n1, b);
-  if (n2 < 0) { return -1; }
-  return n1 + n2;
-}
-/** Exported function `format`.
- * Implements `format`.
- * @param buf *u8
- * @param cap i32
- * @param x f64
- * @param v i32
- * @return i32
- */
-export function format(buf: *u8, cap: i32, x: f64, v: i32): i32 {
-  let n1: i32 = fmt.fmt_f64_to_buf(buf, cap, x);
-  if (n1 < 0) { return -1; }
-  let n2: i32 = fmt.fmt_i32_to_buf(&buf[n1], cap - n1, v);
-  if (n2 < 0) { return -1; }
-  return n1 + n2;
+  let rn: i32 = io.write_stdout(&nl[0], 1);
+  if (rn < 0) { return -1; }
+  return 0;
 }
 
 /** Exported function `format`.

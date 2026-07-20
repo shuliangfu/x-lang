@@ -1588,16 +1588,9 @@ void driver_print_usage_write(void) {
     /* Deno-style help layout: yellow section headers, blue subcommand names,
      * yellow flags, two-column alignment with description column. */
 static const char usage_plain[] =
-    "Shux (shux) compiler\n"
+    "Shux compiler\n"
     "\n"
-    "Usage: shux [OPTIONS] [COMMAND]\n"
-    "\n"
-    "  build   Compile .x to binary/object\n"
-    "  run     Compile and run .x\n"
-    "  check   Parse + typeck only\n"
-    "  fmt     Format .x sources\n"
-    "  explain Explain a diagnostic code\n"
-    "  test    Run test script\n"
+    "Usage: shux [COMMAND] [OPTIONS]\n"
     "\n"
     "Subcommands:\n"
     "\n"
@@ -1659,16 +1652,9 @@ static const char usage_plain[] =
     "Release default: shux_asm -backend asm -O2 (f32 xmm ABI on unless legacy).\n"
     "See compiler/docs/F32_XMM_ABI.md for f32 ABI and deprecation timeline.\n";
 static const char usage_color[] =
-    "\033[32mShux (shux) compiler\033[0m\n"
+    "\033[32mShux compiler\033[0m\n"
     "\n"
-    "\033[32mUsage:\033[0m shux [OPTIONS] [COMMAND]\n"
-    "\n"
-    "  \033[34mbuild\033[0m   Compile .x to binary/object\n"
-    "  \033[34mrun\033[0m     Compile and run .x\n"
-    "  \033[34mcheck\033[0m   Parse + typeck only\n"
-    "  \033[34mfmt\033[0m     Format .x sources\n"
-    "  \033[34mexplain\033[0m Explain a diagnostic code\n"
-    "  \033[34mtest\033[0m    Run test script\n"
+    "\033[32mUsage:\033[0m shux [COMMAND] [OPTIONS]\n"
     "\n"
     "\033[32mSubcommands:\033[0m\n"
     "\n"

@@ -90,6 +90,7 @@ extern int32_t main_cmd_run(int32_t argc, uint8_t *argv);
 extern int32_t driver_cmd_fmt(int32_t argc, uint8_t *argv);
 extern int32_t driver_cmd_check(int32_t argc, uint8_t *argv);
 extern int32_t driver_cmd_test(int32_t argc, uint8_t *argv);
+extern void driver_print_usage_write(void);
 #define main_eq_minus_E eq_minus_E
 #define main_eq_minus_E_extern eq_minus_E_extern
 #define main_eq_asm eq_asm
@@ -587,8 +588,8 @@ SHUX_LIB_WEAK int32_t main_entry(int32_t argc, uint8_t * argv) {
  }
   if (main_str_eq((&((arg_buf)[0])), alen, (&((w_test)[0])), 4) != 0) {   return driver_cmd_test(argc - 1, driver_argv_drop_subcommand(argc, argv));
  }
-  /* Bare .x path with no subcommand: "shux file.x" == compile and run. */
-  return main_cmd_run(argc, argv);
+  driver_print_usage_write();
+  return 1;
  }
  }
   struct main_DriverXEmitState state = main_driver_emit_state_default();

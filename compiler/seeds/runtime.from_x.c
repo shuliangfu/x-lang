@@ -2680,7 +2680,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
             /* codegen 跳过 std.io.print(ptr,len)；C 前端链 io.o 时由弱符号提供，避免 hello 等 Undefined _std_io_print_u8_ptr_usize。 */
             fprintf(cf, "__attribute__((weak)) int32_t std_io_print_u8_ptr_usize(uint8_t *ptr, size_t len) {\n");
             fprintf(cf, "  if (!ptr || len == 0) return 0;\n");
-            fprintf(cf, "  return (fwrite(ptr, 1, len, stdout) == len) ? (int32_t)len : -1;\n");
+            fprintf(cf, "  return (fwrite(ptr, 1, len, stdout) == len) ? 0 : -1;\n");
             fprintf(cf, "}\n");
             /* 纯 .x io 烟测：无 io.o 时 weak read/write 走 stdio，handle 0/1/2 与 stdin/stdout/stderr 一致。 */
             fprintf(cf, "__attribute__((weak)) int32_t shux_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m) {\n");
@@ -7038,16 +7038,9 @@ void driver_print_usage_c(void) {
      * Kept identical to driver_print_usage_write in runtime_driver_abi.from_x.c
      * per AGENTS.md §4 (no dual authority drift). */
 static const char usage_plain[] =
-    "Shux (shux) compiler\n"
+    "Shux compiler\n"
     "\n"
-    "Usage: shux [OPTIONS] [COMMAND]\n"
-    "\n"
-    "  build   Compile .x to binary/object\n"
-    "  run     Compile and run .x\n"
-    "  check   Parse + typeck only\n"
-    "  fmt     Format .x sources\n"
-    "  explain Explain a diagnostic code\n"
-    "  test    Run test script\n"
+    "Usage: shux [COMMAND] [OPTIONS]\n"
     "\n"
     "Subcommands:\n"
     "\n"
@@ -7109,23 +7102,11 @@ static const char usage_plain[] =
     "Release default: shux_asm -backend asm -O2 (f32 xmm ABI on unless legacy).\n"
     "See compiler/docs/F32_XMM_ABI.md for f32 ABI and deprecation timeline.\n";
 static const char usage_color[] =
-    "\033[32mShux (shux) compiler\033[0m\n"
+    "\033[32mShux compiler\033[0m\n"
     "\n"
     "\033[32mUsage:\033[0m shux [OPTIONS] [COMMAND]\n"
     "\n"
     "  \033[34mbuild\033[0m   Compile .x to binary/object\n"
-    "  \033[34mrun\033[0m     Compile and run .x\n"
-    "  \033[34mcheck\033[0m   Parse + typeck only\n"
-    "  \033[34mfmt\033[0m     Format .x sources\n"
-    "  \033[34mexplain\033[0m Explain a diagnostic code\n"
-    "  \033[34mtest\033[0m    Run test script\n"
-    "\n"
-    "\033[32mSubcommands:\033[0m\n"
-    "\n"
-    "  \033[34mbuild\033[0m\n"
-    "    Compile .x to binary/object (default a.out)\n"
-    "    Usage: shux build [options] file.x [-o exe]\n"
-    "    Options:\n"
     "      \033[32m-backend\033[0m asm|c                    Backend \033[90m(default asm)\033[0m\n"
     "      \033[32m-O\033[0m <0|1|2|3|s>                    Optimization level \033[90m(default 2)\033[0m\n"
     "      \033[32m-o\033[0m <path>                         Output binary or .o\n"
