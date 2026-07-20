@@ -1,5 +1,4 @@
 #include <stdint.h>
-
 extern int32_t ast_pipeline_onefunc_append_const(uint8_t * restrict out, uint8_t * restrict name, int32_t name_len, int32_t init_val, int32_t init_ref, int32_t type_ref);
 extern int32_t ast_pipeline_onefunc_const_init_ref(uint8_t * restrict out, int32_t i);
 extern int32_t ast_pipeline_onefunc_const_type_ref(uint8_t * restrict out, int32_t i);
@@ -10,30 +9,130 @@ extern int32_t ast_pipeline_onefunc_const_type_ref(uint8_t * restrict out, int32
 #endif
 #include <stddef.h>
 #include <stdint.h>
+#if !defined(_WIN32) && !defined(_WIN64)
 #include <unistd.h>
+#else
+#include <io.h>
+#include <sys/types.h>
+#endif
+#if !defined(_WIN32) && !defined(_WIN64)
 #include <sys/uio.h>
+#endif
+#if !defined(_WIN32) && !defined(_WIN64)
 #include <poll.h>
+#endif
+#ifndef O_RDONLY
+#define O_RDONLY 0
+#endif
+#ifndef O_WRONLY
+#define O_WRONLY 1
+#endif
+#ifndef O_RDWR
+#define O_RDWR 2
+#endif
+#if defined(__APPLE__)
+#ifndef O_CREAT
+#define O_CREAT 512
+#endif
+#ifndef O_TRUNC
+#define O_TRUNC 1024
+#endif
+#ifndef O_APPEND
+#define O_APPEND 8
+#endif
+#ifndef F_NOCACHE
+#define F_NOCACHE 48
+#endif
+#else
+#ifndef O_CREAT
+#define O_CREAT 64
+#endif
+#ifndef O_TRUNC
+#define O_TRUNC 512
+#endif
+#ifndef O_APPEND
+#define O_APPEND 1024
+#endif
+#endif
+#ifndef PROT_READ
+#define PROT_READ 1
+#endif
+#ifndef PROT_WRITE
+#define PROT_WRITE 2
+#endif
+#ifndef MAP_SHARED
+#define MAP_SHARED 1
+#endif
+#ifndef MAP_PRIVATE
+#define MAP_PRIVATE 2
+#endif
+#ifndef MAP_FAILED
+#define MAP_FAILED ((int64_t)-1)
+#endif
+#ifndef S_IFMT
+#define S_IFMT 61440u
+#endif
+#ifndef S_IFDIR
+#define S_IFDIR 16384u
+#endif
+#ifndef S_IFREG
+#define S_IFREG 32768u
+#endif
+#ifndef FS_IOV_BUF_MAX
+#define FS_IOV_BUF_MAX 16
+#endif
+#ifndef DIRENT_D_NAME_OFF
+#if defined(__APPLE__)
+#define DIRENT_D_NAME_OFF ((size_t)21)
+#else
+#define DIRENT_D_NAME_OFF ((size_t)19)
+#endif
+#endif
+#if !defined(_WIN32) && !defined(_WIN64)
+#if defined(__APPLE__)
+extern int *__error(void);
+#else
+extern int *__errno_location(void);
+#endif
+extern int32_t fcntl(int32_t fd, int32_t cmd, int32_t arg);
+extern int32_t madvise(uint8_t *addr, size_t len, int32_t advice);
+extern int32_t open(uint8_t *path, int32_t flags, int32_t mode);
+static inline int32_t fs_libc_open(uint8_t *path, int32_t flags, int32_t mode) {
+  return open(path, flags, mode);
+}
+#define fs_note_last_error_posix std_fs_posix_fs_note_last_error_posix
+#endif
 static inline ssize_t shux_sys_read(int32_t fd, uint8_t *buf, size_t count) {
   return read((int)fd, (void *)buf, count);
 }
 static inline ssize_t shux_sys_write(int32_t fd, uint8_t *buf, size_t count) {
   return write((int)fd, (const void *)buf, count);
 }
+#if !defined(_WIN32) && !defined(_WIN64)
 static inline ssize_t shux_sys_readv(int32_t fd, uint8_t *iov, int32_t iovcnt) {
   return readv((int)fd, (const struct iovec *)(const void *)iov, (int)iovcnt);
 }
+#endif
+#if !defined(_WIN32) && !defined(_WIN64)
 static inline ssize_t shux_sys_writev(int32_t fd, uint8_t *iov, int32_t iovcnt) {
   return writev((int)fd, (const struct iovec *)(const void *)iov, (int)iovcnt);
 }
+#endif
+#if !defined(_WIN32) && !defined(_WIN64)
 static inline int32_t shux_sys_poll(uint8_t *fds, int32_t nfds, int32_t timeout) {
   return (int32_t)poll((struct pollfd *)(void *)fds, (nfds_t)nfds, (int)timeout);
 }
+#endif
+#if !defined(_WIN32) && !defined(_WIN64)
 static inline ssize_t shux_sys_pread(int32_t fd, uint8_t *buf, size_t count, int64_t offset) {
   return pread((int)fd, (void *)buf, count, (off_t)offset);
 }
+#endif
+#if !defined(_WIN32) && !defined(_WIN64)
 static inline ssize_t shux_sys_pwrite(int32_t fd, uint8_t *buf, size_t count, int64_t offset) {
   return pwrite((int)fd, (const void *)buf, count, (off_t)offset);
 }
+#endif
 static inline int32_t shux_fs_unlink(uint8_t *path) {
   return (int32_t)unlink((const char *)path);
 }
@@ -219,11 +318,7 @@ struct std_net_UdpSocket { int32_t fd; };
 #define std_io_driver_io_register_buffers_buf(bufs, nr) io_register_buffers_buf((intptr_t)(void *)(bufs), (int)(nr))
 #include <stdio.h>
 #ifndef __cplusplus
-/* 仅补 co-emit 未定义的符号；勿桩 shux_io_submit_write / submit_read_batch_buf（同 TU 强定义）。 */
-__attribute__((weak)) int32_t shux_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m) {
-  size_t r; (void)timeout_m; if (!ptr) return 0; if (handle != 0) return -1;
-  r = fread(ptr, 1, len, stdin); if (r == 0 && ferror(stdin)) return -1; return (int32_t)r;
-}
+/* 仅补 co-emit 未定义的符号；勿桩 submit_read / submit_*_batch / submit_write（core 强定义）。 */
 __attribute__((weak)) int32_t shux_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle) {
   (void)ptr; (void)len; (void)handle; return -1;
 }
@@ -246,8 +341,8 @@ __attribute__((weak)) ptrdiff_t io_read_batch_buf(int fd, const struct std_io_dr
 __attribute__((weak)) ptrdiff_t io_write_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms) {
   (void)fd;(void)bufs;(void)n;(void)timeout_ms; return (ptrdiff_t)-1;
 }
-extern int32_t process_shux_argc_get(void);
-extern uint8_t *process_shux_argv_get(int32_t i);
+__attribute__((weak)) int32_t process_shux_argc_get(void) { return 0; }
+__attribute__((weak)) uint8_t *process_shux_argv_get(int32_t i) { (void)i; return (uint8_t *)0; }
 __attribute__((weak)) int32_t process_args_count_c(void) { return process_shux_argc_get(); }
 __attribute__((weak)) uint8_t *process_arg_c(int32_t i) { return process_shux_argv_get(i); }
 __attribute__((weak)) int32_t args_iter_count_c(void) { return process_args_count_c(); }
@@ -994,6 +1089,7 @@ struct parser_ExternParseResult {
   int32_t num_params;
   int32_t abi_kind;
   int32_t is_variadic;
+  int32_t has_body;
 };
 
 struct parser_TrySkipAllowResult {
@@ -1339,6 +1435,7 @@ extern void pipeline_module_func_set_return_type(struct ast_Module * module, int
 extern void pipeline_module_func_set_body_ref(struct ast_Module * module, int32_t fi, int32_t body_ref);
 extern void pipeline_module_func_set_body_expr_ref(struct ast_Module * module, int32_t fi, int32_t body_expr_ref);
 extern void pipeline_module_func_set_is_extern(struct ast_Module * module, int32_t fi, int32_t is_extern);
+extern int32_t pipeline_module_func_is_extern_at(struct ast_Module * module, int32_t fi);
 extern void pipeline_module_func_set_is_async(struct ast_Module * module, int32_t fi, int32_t is_async);
 extern void pipeline_module_func_set_is_export(struct ast_Module * module, int32_t fi, int32_t is_export);
 extern void pipeline_module_func_set_is_used(struct ast_Module * module, int32_t fi, int32_t is_used);
@@ -1584,7 +1681,7 @@ struct lexer_Lexer parser_rewind_lex_for_lparen_control_stmt(struct lexer_Lexer 
     int32_t back_lp = 2;
     while ((back_lp <=128)) {
       struct lexer_Lexer lex_lp = (struct lexer_Lexer){ .pos = parser_lexer_pos_before_run((lp_base.pos), back_lp), .line = ((r_in.tok).line), .col = ((r_in.tok).col) };
-      struct lexer_LexerResult r_lp = (struct lexer_LexerResult){ .next_lex = lex_lp, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
+      struct lexer_LexerResult r_lp = (struct lexer_LexerResult){ .next_lex = lex_lp, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
       (void)(lexer_next_into(&(r_lp), lex_lp, source));
       if ((((((r_lp.tok).kind) ==4) || (((r_lp.tok).kind) ==6)) || (((r_lp.tok).kind) ==8))) {
         return parser_rewind_lex_for_following_stmt(lex_in, r_lp);
@@ -1655,13 +1752,13 @@ void parser_onefunc_result_layout_prime(void) {
   }
 }
 void parser_set_onefunc_fail(struct parser_OneFuncResult * out, struct lexer_Lexer next_lex) {
-  (void)(parser_diagnostic_parse_skip(((int32_t)((next_lex.pos))), -(1), (out->name_len), &(((out->name))[0])));
+  (void)(parser_diagnostic_parse_skip(((int32_t)((next_lex.pos))), -1, (out->name_len), &(((out->name))[0])));
   (void)(((out->ok) = 0));
   (void)(((out->next_lex) = next_lex));
 }
 int parser_onefunc_finish_after_return_lex(struct parser_OneFuncResult * out, struct parser_OneFuncResult * impl_snap, struct shux_slice_uint8_t * source, struct lexer_Lexer lex_after_expr, uint8_t * func_name, int32_t func_name_len, int32_t return_expr_ref) {
   {
-    struct lexer_LexerResult r_tail = (struct lexer_LexerResult){ .next_lex = lex_after_expr, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
+    struct lexer_LexerResult r_tail = (struct lexer_LexerResult){ .next_lex = lex_after_expr, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
     struct lexer_Lexer lex_tail = lex_after_expr;
     if ((parser_advance_past_stmt_semicolon_into(&(r_tail), lex_after_expr, source) ==0)) {
       return 0;
@@ -1693,8 +1790,8 @@ void parser_onefunc_result_layout_prime_c(void) {
 void parser_onefunc_result_layout_prime_d(void) {
   {
     uint8_t ccn[64] = {};
-    struct parser_OneFuncResult _q4 = (struct parser_OneFuncResult){ .has_binop = 0, .binop_right_val = 0, .binop_left_param_idx = -(1), .binop_right_param_idx = -(1), .has_unary_neg = 0, .return_val = 0, .has_call_expr = 0, .call_callee_name = {ccn[0], ccn[1], ccn[2], ccn[3], ccn[4], ccn[5], ccn[6], ccn[7], ccn[8], ccn[9], ccn[10], ccn[11], ccn[12], ccn[13], ccn[14], ccn[15], ccn[16], ccn[17], ccn[18], ccn[19], ccn[20], ccn[21], ccn[22], ccn[23], ccn[24], ccn[25], ccn[26], ccn[27], ccn[28], ccn[29], ccn[30], ccn[31], ccn[32], ccn[33], ccn[34], ccn[35], ccn[36], ccn[37], ccn[38], ccn[39], ccn[40], ccn[41], ccn[42], ccn[43], ccn[44], ccn[45], ccn[46], ccn[47], ccn[48], ccn[49], ccn[50], ccn[51], ccn[52], ccn[53], ccn[54], ccn[55], ccn[56], ccn[57], ccn[58], ccn[59], ccn[60], ccn[61], ccn[62], ccn[63]} };
-    (void)(((_q4.binop_left_param_idx) = -(1)));
+    struct parser_OneFuncResult _q4 = (struct parser_OneFuncResult){ .has_binop = 0, .binop_right_val = 0, .binop_left_param_idx = -1, .binop_right_param_idx = -1, .has_unary_neg = 0, .return_val = 0, .has_call_expr = 0, .call_callee_name = {ccn[0], ccn[1], ccn[2], ccn[3], ccn[4], ccn[5], ccn[6], ccn[7], ccn[8], ccn[9], ccn[10], ccn[11], ccn[12], ccn[13], ccn[14], ccn[15], ccn[16], ccn[17], ccn[18], ccn[19], ccn[20], ccn[21], ccn[22], ccn[23], ccn[24], ccn[25], ccn[26], ccn[27], ccn[28], ccn[29], ccn[30], ccn[31], ccn[32], ccn[33], ccn[34], ccn[35], ccn[36], ccn[37], ccn[38], ccn[39], ccn[40], ccn[41], ccn[42], ccn[43], ccn[44], ccn[45], ccn[46], ccn[47], ccn[48], ccn[49], ccn[50], ccn[51], ccn[52], ccn[53], ccn[54], ccn[55], ccn[56], ccn[57], ccn[58], ccn[59], ccn[60], ccn[61], ccn[62], ccn[63]} };
+    (void)(((_q4.binop_left_param_idx) = -1));
   }
 }
 void parser_onefunc_result_layout_prime_d_b(void) {
@@ -1835,7 +1932,7 @@ void parser_onefunc_res_wire_dummy_if_mul(struct parser_OneFuncResult * res) {
 }
 void parser_onefunc_res_wire_dummy_call_binop(struct parser_OneFuncResult * res, uint8_t * name64) {
   {
-    struct parser_OneFuncResult _w = (struct parser_OneFuncResult){ .has_binop = 0, .binop_right_val = 0, .binop_left_param_idx = -(1), .binop_right_param_idx = -(1), .has_unary_neg = 0, .return_val = 0, .has_call_expr = 0, .call_callee_name = {name64[0], name64[1], name64[2], name64[3], name64[4], name64[5], name64[6], name64[7], name64[8], name64[9], name64[10], name64[11], name64[12], name64[13], name64[14], name64[15], name64[16], name64[17], name64[18], name64[19], name64[20], name64[21], name64[22], name64[23], name64[24], name64[25], name64[26], name64[27], name64[28], name64[29], name64[30], name64[31], name64[32], name64[33], name64[34], name64[35], name64[36], name64[37], name64[38], name64[39], name64[40], name64[41], name64[42], name64[43], name64[44], name64[45], name64[46], name64[47], name64[48], name64[49], name64[50], name64[51], name64[52], name64[53], name64[54], name64[55], name64[56], name64[57], name64[58], name64[59], name64[60], name64[61], name64[62], name64[63]} };
+    struct parser_OneFuncResult _w = (struct parser_OneFuncResult){ .has_binop = 0, .binop_right_val = 0, .binop_left_param_idx = -1, .binop_right_param_idx = -1, .has_unary_neg = 0, .return_val = 0, .has_call_expr = 0, .call_callee_name = {name64[0], name64[1], name64[2], name64[3], name64[4], name64[5], name64[6], name64[7], name64[8], name64[9], name64[10], name64[11], name64[12], name64[13], name64[14], name64[15], name64[16], name64[17], name64[18], name64[19], name64[20], name64[21], name64[22], name64[23], name64[24], name64[25], name64[26], name64[27], name64[28], name64[29], name64[30], name64[31], name64[32], name64[33], name64[34], name64[35], name64[36], name64[37], name64[38], name64[39], name64[40], name64[41], name64[42], name64[43], name64[44], name64[45], name64[46], name64[47], name64[48], name64[49], name64[50], name64[51], name64[52], name64[53], name64[54], name64[55], name64[56], name64[57], name64[58], name64[59], name64[60], name64[61], name64[62], name64[63]} };
     (void)(ast_pool_onefunc_reset(parser_onefunc_result_pool_ptr(&(_w))));
     (void)(parser_copy_onefunc_into(res, &(_w)));
   }
@@ -2120,7 +2217,7 @@ void parser_parse_block_into(struct ast_ASTArena * arena, struct lexer_Lexer lex
   {
     size_t scratch_sz = pipeline_sizeof_onefunc_result();
     uint8_t * scratch_raw = calloc(1, scratch_sz);
-    if ((scratch_raw ==((uint8_t *)(0)))) {
+    if ((scratch_raw ==0)) {
       (void)(((out->ok) = 0));
       return;
     }
@@ -2180,17 +2277,17 @@ void parser_parse_block_into(struct ast_ASTArena * arena, struct lexer_Lexer lex
       }
       (void)((li = (li + 1)));
     }
-    struct lexer_LexerResult r_peek_blk = (struct lexer_LexerResult){ .next_lex = lex_cur, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
+    struct lexer_LexerResult r_peek_blk = (struct lexer_LexerResult){ .next_lex = lex_cur, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
     (void)(lexer_next_into(&(r_peek_blk), lex_cur, source));
     struct lexer_LexerResult r = r_peek_blk;
     (void)((lex_cur = parser_rewind_lex_for_following_stmt(lex_cur, r_peek_blk)));
     int stmt_tok_ready = 1;
     int32_t pb_break = 0;
-    struct lexer_Lexer stmt_start = (struct lexer_Lexer){ .pos = ((size_t)(0)), .line = 0, .col = 0 };
+    struct lexer_Lexer stmt_start = (struct lexer_Lexer){ .pos = 0, .line = 0, .col = 0 };
     struct parser_ParseExprResult expr_stmt_res = (struct parser_ParseExprResult){ .ok = 0, .expr_ref = 0, .next_lex = stmt_start };
-    struct lexer_LexerResult rpeek_fe = (struct lexer_LexerResult){ .next_lex = lex_cur, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
+    struct lexer_LexerResult rpeek_fe = (struct lexer_LexerResult){ .next_lex = lex_cur, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
     int32_t ex_pool_i = 0;
-    while ((1 ==1)) {
+    while (1) {
       if ((pb_break !=0)) {
         break;
       }
@@ -2246,7 +2343,7 @@ void parser_parse_block_into(struct ast_ASTArena * arena, struct lexer_Lexer lex
         if ((label_start_blk ==0)) {
           (void)((label_start_blk = parser_lexer_pos_before_run(((r.next_lex).pos), label_len_blk)));
         }
-        struct lexer_LexerResult colon_blk = (struct lexer_LexerResult){ .next_lex = (r.next_lex), .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
+        struct lexer_LexerResult colon_blk = (struct lexer_LexerResult){ .next_lex = (r.next_lex), .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
         (void)(lexer_next_into(&(colon_blk), (r.next_lex), source));
         (void)((lex_cur = (colon_blk.next_lex)));
         (void)(lexer_next_into(&(r), lex_cur, source));
@@ -2315,7 +2412,7 @@ void parser_parse_block_into(struct ast_ASTArena * arena, struct lexer_Lexer lex
           (void)(((out->ok) = 0));
           return;
         }
-        (void)(pipeline_block_labeled_set_names(arena, block_ref, li_ret, &((label_row_ret)[0]), label_len_blk, ((uint8_t *)(0)), 0));
+        (void)(pipeline_block_labeled_set_names(arena, block_ref, li_ret, &((label_row_ret)[0]), label_len_blk, 0, 0));
         continue;
       }
       if ((((r.tok).kind) ==11)) {
@@ -2784,7 +2881,7 @@ void parser_parse_block_into(struct ast_ASTArena * arena, struct lexer_Lexer lex
         return;
       }
       (void)((lex_cur = (expr_stmt_res.next_lex)));
-      (void)((rpeek_fe = (struct lexer_LexerResult){ .next_lex = lex_cur, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 }));
+      (void)((rpeek_fe = (struct lexer_LexerResult){ .next_lex = lex_cur, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0, .ident = 0, .ident_len = 0 }, .token_start = 0 }));
       (void)(lexer_next_into(&(rpeek_fe), lex_cur, source));
       if ((((rpeek_fe.tok).kind) ==85)) {
         (void)(((b.final_expr_ref) = (expr_stmt_res.expr_ref)));
@@ -2808,7 +2905,7 @@ void parser_parse_block_into(struct ast_ASTArena * arena, struct lexer_Lexer lex
       }
       if ((((r.tok).kind) ==95)) {
         (void)(parser_lex_from_result_ptr_into(&(lex_cur), &(r)));
-        struct lexer_LexerResult after_semi_blk = (struct lexer_LexerResult){ .next_lex = lex_cur, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
+        struct lexer_LexerResult after_semi_blk = (struct lexer_LexerResult){ .next_lex = lex_cur, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
         (void)(lexer_next_into(&(after_semi_blk), lex_cur, source));
         (void)((r = after_semi_blk));
       }
@@ -2875,7 +2972,7 @@ struct parser_ParseResult parser_parse(struct shux_slice_uint8_t * source) {
   {
     size_t arena_heap_bytes = pipeline_sizeof_arena();
     struct lexer_Lexer lex = lexer_init();
-    struct lexer_LexerResult r = (struct lexer_LexerResult){ .next_lex = lex, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
+    struct lexer_LexerResult r = (struct lexer_LexerResult){ .next_lex = lex, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
     (void)(lexer_next_into(&(r), lex, source));
     if ((((r.tok).kind) !=1)) {
       return (struct parser_ParseResult){ .ok = 0, .return_val = 0 };
@@ -2924,7 +3021,7 @@ struct parser_ParseResult parser_parse(struct shux_slice_uint8_t * source) {
       (void)(parser_lex_from_next_into(&(lex), r));
     } else {
       uint8_t * raw_arena = calloc(1, arena_heap_bytes);
-      if ((raw_arena ==((uint8_t *)(0)))) {
+      if ((raw_arena ==0)) {
         return (struct parser_ParseResult){ .ok = 0, .return_val = 0 };
       }
       struct ast_ASTArena * heap_arena = ((struct ast_ASTArena *)(raw_arena));
@@ -3020,7 +3117,7 @@ int32_t parser_parse_type_ref_for_arena_into(struct ast_ASTArena * arena, struct
 int parser_parse_body_lets_into(struct ast_ASTArena * arena, struct lexer_Lexer lex, struct shux_slice_uint8_t * source, struct parser_OneFuncResult * out, struct lexer_Lexer * lex_out) {
   {
     uint8_t * pool = parser_onefunc_result_pool_ptr(out);
-    struct lexer_LexerResult r = (struct lexer_LexerResult){ .next_lex = lex, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
+    struct lexer_LexerResult r = (struct lexer_LexerResult){ .next_lex = lex, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
     struct parser_ParseExprResult expr_tmp = (struct parser_ParseExprResult){ .ok = 0, .expr_ref = 0, .next_lex = lex };
     (void)(lexer_next_into(&(r), lex, source));
     if (((((r.tok).kind) !=2) && (((r.tok).kind) !=3))) {
@@ -3030,7 +3127,7 @@ int parser_parse_body_lets_into(struct ast_ASTArena * arena, struct lexer_Lexer 
       (void)(((lex_out->col) = (lex.col)));
       return 1;
     }
-    while ((1 ==1)) {
+    while (1) {
       if (((((r.tok).kind) !=2) && (((r.tok).kind) !=3))) {
         break;
       }
@@ -3117,7 +3214,7 @@ int parser_parse_body_lets_into(struct ast_ASTArena * arena, struct lexer_Lexer 
           return 0;
         }
         (void)((let_omit_init = 1));
-        (void)((let_init_ref = -(1)));
+        (void)((let_init_ref = -1));
         (void)((let_init_val = 0));
       } else {
         (void)(parser_lex_from_result_ptr_into(&(lex), &(r)));
@@ -3225,6 +3322,29 @@ int parser_parse_body_lets_into(struct ast_ASTArena * arena, struct lexer_Lexer 
         }
       }
       if ((init_handled ==0)) {
+        if ((((r.tok).kind) ==84)) {
+          size_t lbrace_start = (r.token_start);
+          if ((lbrace_start ==0)) {
+            (void)((lbrace_start = (lex.pos)));
+          }
+          (void)(parser_lex_from_result_ptr_into(&(lex), &(r)));
+          struct lexer_Lexer lbrace_lex = (struct lexer_Lexer){ .pos = lbrace_start, .line = ((r.tok).line), .col = ((r.tok).col) };
+          (void)(parser_parse_expr_result_reset(&(expr_tmp), lbrace_lex));
+          (void)(parser_parse_expr_into(arena, lbrace_lex, source, &(expr_tmp)));
+          if (!((expr_tmp.ok))) {
+            (void)(((lex_out->pos) = (lex.pos)));
+            (void)(((lex_out->line) = (lex.line)));
+            (void)(((lex_out->col) = (lex.col)));
+            return 0;
+          }
+          (void)((let_init_ref = (expr_tmp.expr_ref)));
+          (void)(parser_lexer_copy_from_parse_expr_result_into(&(lex), &(expr_tmp)));
+          (void)(lexer_next_into(&(r), lex, source));
+          (void)(parser_rewind_lex_for_following_stmt_into(&(lex), lex, r));
+          (void)((init_handled = 1));
+        }
+      }
+      if ((init_handled ==0)) {
         if ((((r.tok).kind) ==130)) {
           int32_t str_ref = ast_ast_arena_expr_alloc(arena);
           if ((str_ref !=0)) {
@@ -3305,7 +3425,7 @@ int parser_parse_body_lets_into(struct ast_ASTArena * arena, struct lexer_Lexer 
           (void)(lexer_next_into(&(r), lex, source));
           (void)(parser_rewind_lex_for_following_stmt_into(&(lex), lex, r));
           if ((((r.tok).kind) ==95)) {
-            struct lexer_LexerResult after_semi_str = (struct lexer_LexerResult){ .next_lex = (r.next_lex), .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
+            struct lexer_LexerResult after_semi_str = (struct lexer_LexerResult){ .next_lex = (r.next_lex), .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
             (void)(lexer_next_into(&(after_semi_str), (r.next_lex), source));
             (void)(parser_lexer_copy_into(&(lex), parser_lex_at_token_from_result(after_semi_str)));
             (void)(lexer_next_into(&(r), lex, source));
@@ -3359,8 +3479,6 @@ int parser_parse_body_lets_into(struct ast_ASTArena * arena, struct lexer_Lexer 
         }
       }
       if ((init_handled ==0)) {
-        /* G.7: FLOAT compound let-init mirrors TOKEN_INT (kind 80); bare lit keeps alloc_float_lit.
-         * PLATFORM: SHARED — body/mid-block lets. */
         if ((((r.tok).kind) ==81)) {
           double float_val_saved = ((r.tok).float_val);
           size_t float_start = (r.token_start);
@@ -3523,14 +3641,14 @@ int parser_parse_body_lets_into(struct ast_ASTArena * arena, struct lexer_Lexer 
       if (!(cast_init_semi_done)) {
         if ((((r.tok).kind) ==95)) {
           (void)(parser_lex_from_result_ptr_into(&(lex), &(r)));
-          struct lexer_LexerResult after_semi = (struct lexer_LexerResult){ .next_lex = lex, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
+          struct lexer_LexerResult after_semi = (struct lexer_LexerResult){ .next_lex = lex, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
           (void)(lexer_next_into(&(after_semi), lex, source));
           (void)(parser_lexer_copy_into(&(lex), parser_lex_at_token_from_result(after_semi)));
           (void)(lexer_next_into(&(r), lex, source));
         } else {
           if ((((((((((r.tok).kind) !=2) && (((r.tok).kind) !=3)) && (((r.tok).kind) !=11)) && (((r.tok).kind) !=4)) && (((r.tok).kind) !=6)) && (((r.tok).kind) !=8)) && (((r.tok).kind) !=85))) {
             if (is_let) {
-              if (!((((let_init_ref !=0) || (let_init_val !=0)) || (let_init_ref ==-(1))))) {
+              if (!((((let_init_ref !=0) || (let_init_val !=0)) || (let_init_ref ==-1)))) {
                 (void)(((lex_out->pos) = (lex.pos)));
                 (void)(((lex_out->line) = (lex.line)));
                 (void)(((lex_out->col) = (lex.col)));
@@ -3788,10 +3906,10 @@ int32_t parser_diag_fail_at_token_kind_buf(uint8_t * data, int32_t len) {
   return 0;
 }
 struct parser_ParseIntoResult parser_parse_into_result_empty_module_or_fail_tok(int32_t fail_tok) {
-  if ((fail_tok ==((int32_t)(130)))) {
-    return (struct parser_ParseIntoResult){ .ok = -(2), .main_idx = -(1) };
+  if ((fail_tok ==130)) {
+    return (struct parser_ParseIntoResult){ .ok = -2, .main_idx = -1 };
   }
-  return (struct parser_ParseIntoResult){ .ok = 0, .main_idx = -(1) };
+  return (struct parser_ParseIntoResult){ .ok = 0, .main_idx = -1 };
 }
 void parser_copy_slice_to_name64(struct shux_slice_uint8_t * source, size_t start, int32_t nlen, uint8_t * out) {
   {
@@ -3854,7 +3972,7 @@ int parser_token_is_label_start(struct lexer_LexerResult r, struct shux_slice_ui
     if ((((r.tok).kind) !=59)) {
       return 0;
     }
-    struct lexer_LexerResult nx = (struct lexer_LexerResult){ .next_lex = (r.next_lex), .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
+    struct lexer_LexerResult nx = (struct lexer_LexerResult){ .next_lex = (r.next_lex), .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
     (void)(lexer_next_into(&(nx), (r.next_lex), source));
     return (((nx.tok).kind) ==91);
   }
@@ -3939,18 +4057,18 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
     (void)(parser_onefunc_res_wire_dummy_for_if(&(impl_snap)));
     int return_type_is_bool = 0;
     int32_t return_expr_ref_storage = 0;
-    size_t name_start = ((size_t)(0));
+    size_t name_start = 0;
     int32_t func_name_len_storage[1] = {};
-    struct lexer_Lexer lex_before_ret = (struct lexer_Lexer){ .pos = ((size_t)(0)), .line = 0, .col = 0 };
+    struct lexer_Lexer lex_before_ret = (struct lexer_Lexer){ .pos = 0, .line = 0, .col = 0 };
     int32_t ret_type_ref = 0;
-    struct lexer_Lexer lex_before_type = (struct lexer_Lexer){ .pos = ((size_t)(0)), .line = 0, .col = 0 };
+    struct lexer_Lexer lex_before_type = (struct lexer_Lexer){ .pos = 0, .line = 0, .col = 0 };
     int32_t type_ref_param = 0;
     int32_t plen_param = 0;
     int32_t param_idx = 0;
-    uint8_t * param_pool = ((uint8_t *)(0));
+    uint8_t * param_pool = 0;
     uint8_t pname_row[32] = {};
     int32_t zi_param = 0;
-    struct lexer_LexerResult r = (struct lexer_LexerResult){ .next_lex = lex, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
+    struct lexer_LexerResult r = (struct lexer_LexerResult){ .next_lex = lex, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
     (void)(lexer_next_into(&(r), lex, source));
     if ((((r.tok).kind) ==59)) {
     } else {
@@ -4024,7 +4142,7 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
     if ((((r.tok).kind) ==83)) {
       (void)(parser_lex_from_next_into(&(lex), r));
     } else {
-      while ((1 ==1)) {
+      while (1) {
         if ((((r.tok).kind) !=59)) {
           (void)(parser_set_onefunc_fail(out_ref, lex));
           return;
@@ -4123,15 +4241,15 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
         (void)(parser_onefunc_push_src_stmt(out, 1, lsr));
         (void)((lsr = (lsr + 1)));
       }
-      struct lexer_LexerResult r_peek = (struct lexer_LexerResult){ .next_lex = lex, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
+      struct lexer_LexerResult r_peek = (struct lexer_LexerResult){ .next_lex = lex, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
       (void)(lexer_next_into(&(r_peek), lex, source));
       (void)((r = r_peek));
       (void)((lex = parser_rewind_lex_for_following_stmt(lex, r_peek)));
       int stmt_tok_ready = 1;
-      struct lexer_Lexer stmt_start = (struct lexer_Lexer){ .pos = ((size_t)(0)), .line = 0, .col = 0 };
+      struct lexer_Lexer stmt_start = (struct lexer_Lexer){ .pos = 0, .line = 0, .col = 0 };
       struct parser_ParseExprResult expr_stmt_res = (struct parser_ParseExprResult){ .ok = 0, .expr_ref = 0, .next_lex = stmt_start };
       int32_t ex_i = 0;
-      while ((1 ==1)) {
+      while (1) {
         if (!(stmt_tok_ready)) {
           (void)(lexer_next_into(&(r), lex, source));
         }
@@ -4143,7 +4261,7 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
           }
           if (parser_return_kw_immediately_before(source, ret_id_start)) {
             struct lexer_Lexer ret_kw_lex = (struct lexer_Lexer){ .pos = (ret_id_start - 7), .line = ((r.tok).line), .col = ((r.tok).col) };
-            struct lexer_LexerResult r_ret_kw = (struct lexer_LexerResult){ .next_lex = ret_kw_lex, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
+            struct lexer_LexerResult r_ret_kw = (struct lexer_LexerResult){ .next_lex = ret_kw_lex, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
             (void)(lexer_next_into(&(r_ret_kw), ret_kw_lex, source));
             (void)((r = r_ret_kw));
             (void)((lex = ret_kw_lex));
@@ -4312,7 +4430,7 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
           }
         }
         if (parser_token_is_label_start(r, source)) {
-          struct lexer_LexerResult colon_fn = (struct lexer_LexerResult){ .next_lex = (r.next_lex), .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
+          struct lexer_LexerResult colon_fn = (struct lexer_LexerResult){ .next_lex = (r.next_lex), .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
           (void)(lexer_next_into(&(colon_fn), (r.next_lex), source));
           (void)((lex = (colon_fn.next_lex)));
           (void)(lexer_next_into(&(r), lex, source));
@@ -4591,7 +4709,7 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
         }
         if ((((r.tok).kind) ==95)) {
           (void)(parser_lex_from_result_ptr_into(&(lex), &(r)));
-          struct lexer_LexerResult after_semi = (struct lexer_LexerResult){ .next_lex = lex, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
+          struct lexer_LexerResult after_semi = (struct lexer_LexerResult){ .next_lex = lex, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
           (void)(lexer_next_into(&(after_semi), lex, source));
           (void)((r = after_semi));
         }
@@ -5083,7 +5201,7 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
                 return;
               }
             }
-            while ((1 ==1)) {
+            while (1) {
               if (((((r.tok).kind) ==95) || (((r.tok).kind) ==0))) {
                 break;
               }
@@ -5145,7 +5263,7 @@ int32_t parser_import_path_dot_segment_len(enum token_TokenKind kind, int32_t id
     if ((ko ==29)) {
       return 5;
     }
-    return -(1);
+    return -1;
   }
 }
 extern void parser_import_path_dot_segment_copy_glue(struct shux_slice_uint8_t * source, size_t token_start, int32_t seg_len, uint8_t * path_buf, int32_t path_len);
@@ -5211,8 +5329,8 @@ struct lexer_Lexer parser_skip_one_struct(struct lexer_Lexer lex, struct shux_sl
 extern int32_t parser_module_try_register_enum_name_glue(struct ast_Module * module, uint8_t * name, int32_t name_len);
 int32_t parser_module_try_register_enum_name(struct ast_Module * module, uint8_t * name, int32_t name_len) {
   {
-    if (((((module ==((struct ast_Module *)(0))) || (name ==((uint8_t *)(0)))) || (name_len <=0)) || (name_len > 63))) {
-      return -(1);
+    if (((((module ==0) || (name ==0)) || (name_len <=0)) || (name_len > 63))) {
+      return -1;
     }
     int32_t ei = 0;
     while ((ei < (module->num_module_enums))) {
@@ -5234,7 +5352,7 @@ int32_t parser_module_try_register_enum_name(struct ast_Module * module, uint8_t
     }
     int32_t slot = pipeline_module_enum_alloc(module);
     if ((slot < 0)) {
-      return -(1);
+      return -1;
     }
     (void)(pipeline_module_enum_set_name(module, slot, name, name_len));
     return slot;
@@ -5394,9 +5512,12 @@ void parser_extern_parse_set_fail(struct parser_ExternParseResult * out, struct 
   {
     uint8_t empty64[64] = {};
     (void)(((out->next_lex) = lex));
-    (void)(((out->name_len) = -(1)));
+    (void)(((out->name_len) = -1));
     (void)(((out->return_ty_ref) = 0));
     (void)(((out->num_params) = 0));
+    (void)(((out->abi_kind) = 0));
+    (void)(((out->is_variadic) = 0));
+    (void)(((out->has_body) = 0));
     int32_t ni = 0;
     while ((ni < 64)) {
       (void)((((out->name))[ni] = (empty64)[ni]));
@@ -5418,7 +5539,7 @@ int32_t parser_module_register_arena_func(struct ast_Module * module, int32_t fu
   {
     int32_t fi = pipeline_module_func_alloc_slot(module);
     if ((fi < 0)) {
-      return -(1);
+      return -1;
     }
     (void)(pipeline_module_func_name_write(module, fi, &(((f.name))[0]), (f.name_len)));
     (void)(pipeline_module_func_set_num_params(module, fi, (f.num_params)));
@@ -5530,7 +5651,7 @@ int32_t parser_struct_layout_first_name_match_idx(struct ast_Module * module, ui
       }
       (void)((k = (k + 1)));
     }
-    return -(1);
+    return -1;
   }
   return 0;
 }
@@ -5563,7 +5684,7 @@ int32_t parser_struct_layout_placeholder_idx(struct ast_Module * module, uint8_t
       }
       (void)((k = (k + 1)));
     }
-    return -(1);
+    return -1;
   }
   return 0;
 }
@@ -5702,18 +5823,18 @@ void parser_parse_into_try_skip_allow_into_buf(struct parser_TrySkipAllowResult 
 struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, struct ast_Module * module, struct shux_slice_uint8_t * source) {
   {
     struct lexer_Lexer lex = lexer_init();
-    int32_t main_idx = -(1);
+    int32_t main_idx = -1;
     struct parser_CollectImportsResult import_res = (struct parser_CollectImportsResult){ .lex = lex };
     (void)(parser_collect_imports(lex, source, module, &(import_res)));
     (void)(parser_copy_lex_from_import_into(&(lex), import_res));
     int32_t loop_count = 0;
-    while ((1 ==1)) {
+    while (1) {
       if ((loop_count >=131072)) {
-        return (struct parser_ParseIntoResult){ .ok = -(1), .main_idx = -(1003) };
+        return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1003 };
       }
       (void)((loop_count = (loop_count + 1)));
       struct lexer_Lexer iter_start = lex;
-      struct lexer_LexerResult r = (struct lexer_LexerResult){ .next_lex = lex, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
+      struct lexer_LexerResult r = (struct lexer_LexerResult){ .next_lex = lex, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
       struct lexer_Lexer current_tok_lex = lex;
       (void)(lexer_next_into(&(r), lex, source));
       (void)(parser_lex_from_next_into(&(lex), r));
@@ -5907,7 +6028,26 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, str
         continue;
       }
       if ((((r.tok).kind) ==54)) {
+        int32_t num_funcs_before_extern = (module->num_funcs);
         (void)(parser_parse_one_extern_and_add_into(arena, module, iter_start, source, &(lex)));
+        if (((module->num_funcs) > num_funcs_before_extern)) {
+          int32_t fi_ext = num_funcs_before_extern;
+          if ((pipeline_module_func_is_extern_at(module, fi_ext) ==0)) {
+            struct lexer_LexerResult r_brace = (struct lexer_LexerResult){ .next_lex = lex, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
+            (void)(lexer_next_into(&(r_brace), lex, source));
+            if ((((r_brace.tok).kind) ==84)) {
+              int32_t type_ref_extern = pipeline_module_func_return_type_at(module, fi_ext);
+              struct parser_ParseBlockResult block_res_extern = (struct parser_ParseBlockResult){ .ok = 0, .block_ref = 0, .next_lex = (r_brace.next_lex) };
+              (void)(parser_parse_block_into(arena, (r_brace.next_lex), source, type_ref_extern, &(block_res_extern)));
+              if ((block_res_extern.ok)) {
+                (void)(pipeline_module_func_set_body_ref(module, fi_ext, (block_res_extern.block_ref)));
+                (void)((lex = (block_res_extern.next_lex)));
+              } else {
+                (void)(parser_skip_balanced_braces_into(&(lex), lex, source));
+              }
+            }
+          }
+        }
         if ((((lex.pos) ==(iter_start.pos)) && ((lex.pos) < (source->length)))) {
           (void)(parser_skip_one_extern_into(&(lex), lex, source));
         }
@@ -5980,7 +6120,7 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, str
       }
       (void)(parser_parse_one_function_impl(&(res), arena, lex, source));
       if (!((res.ok))) {
-        return (struct parser_ParseIntoResult){ .ok = -(2), .main_idx = -(1) };
+        return (struct parser_ParseIntoResult){ .ok = -2, .main_idx = -1 };
       }
       int32_t is_main_storage[1] = {};
       if (((((((res.name_len) ==4) && (((res.name))[0] ==109)) && (((res.name))[1] ==97)) && (((res.name))[2] ==105)) && (((res.name))[3] ==110))) {
@@ -5996,7 +6136,7 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, str
           (void)((type_ref = ast_ast_arena_type_alloc(arena)));
         }
         if ((type_ref ==0)) {
-          return (struct parser_ParseIntoResult){ .ok = -(1), .main_idx = -(1001) };
+          return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1001 };
         }
         struct ast_Type t_fb = ast_ast_arena_type_get(arena, type_ref);
         (void)(((t_fb.kind) = 0));
@@ -6008,7 +6148,7 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, str
       int32_t expr_ref = 0;
       (void)((expr_ref = ast_ast_arena_expr_alloc(arena)));
       if ((expr_ref ==0)) {
-        return (struct parser_ParseIntoResult){ .ok = -(1), .main_idx = -(1002) };
+        return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1002 };
       }
       struct ast_Expr e = ast_ast_arena_expr_get(arena, expr_ref);
       (void)((e = ast_ast_arena_expr_get(arena, expr_ref)));
@@ -6020,7 +6160,7 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, str
           (void)((((e.var_name))[rvi] = ((res.return_var_name))[rvi]));
           (void)((rvi = (rvi + 1)));
         }
-        uint8_t rvz = ((uint8_t)(0));
+        uint8_t rvz = 0;
         while ((rvi < 64)) {
           (void)((((e.var_name))[rvi] = rvz));
           (void)((rvi = (rvi + 1)));
@@ -6072,14 +6212,14 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, str
       if ((((res.return_var_name_len) > 0) && ((res.return_expr_ref) ==0))) {
         int32_t var_wrapped = parser_expr_wrap_in_return(arena, type_ref, final_expr_ref);
         if ((var_wrapped ==0)) {
-          return (struct parser_ParseIntoResult){ .ok = -(1), .main_idx = -(1003) };
+          return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1003 };
         }
         (void)((final_expr_ref = var_wrapped));
       }
       if (((res.has_mul) && !((res.has_binop)))) {
         int32_t mul_right_ref = ast_ast_arena_expr_alloc(arena);
         if ((mul_right_ref ==0)) {
-          return (struct parser_ParseIntoResult){ .ok = -(1), .main_idx = -(1) };
+          return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
         }
         struct ast_Expr mre = ast_ast_arena_expr_get(arena, mul_right_ref);
         (void)(((mre.kind) = 0));
@@ -6115,7 +6255,7 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, str
         (void)(ast_ast_arena_expr_set(arena, mul_right_ref, mre));
         int32_t mul_ref = ast_ast_arena_expr_alloc(arena);
         if ((mul_ref ==0)) {
-          return (struct parser_ParseIntoResult){ .ok = -(1), .main_idx = -(1) };
+          return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
         }
         struct ast_Expr me = ast_ast_arena_expr_get(arena, mul_ref);
         (void)(((me.kind) = 6));
@@ -6158,7 +6298,7 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, str
         } else {
           int32_t bool_type_ref = ast_ast_arena_type_alloc(arena);
           if ((bool_type_ref ==0)) {
-            return (struct parser_ParseIntoResult){ .ok = -(1), .main_idx = -(1005) };
+            return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1005 };
           }
           struct ast_Type bt = ast_ast_arena_type_get(arena, bool_type_ref);
           (void)(((bt.kind) = 1));
@@ -6168,7 +6308,7 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, str
           (void)(ast_ast_arena_type_set(arena, bool_type_ref, bt));
           (void)((cond_ref = ast_ast_arena_expr_alloc(arena)));
           if ((cond_ref ==0)) {
-            return (struct parser_ParseIntoResult){ .ok = -(1), .main_idx = -(1) };
+            return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
           }
           struct ast_Expr ce = ast_ast_arena_expr_get(arena, cond_ref);
           (void)(((ce.kind) = 2));
@@ -6209,7 +6349,7 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, str
         }
         int32_t then_ref = ast_ast_arena_expr_alloc(arena);
         if ((then_ref ==0)) {
-          return (struct parser_ParseIntoResult){ .ok = -(1), .main_idx = -(1) };
+          return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
         }
         struct ast_Expr te = ast_ast_arena_expr_get(arena, then_ref);
         (void)(((te.kind) = 0));
@@ -6245,7 +6385,7 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, str
         (void)(ast_ast_arena_expr_set(arena, then_ref, te));
         int32_t else_ref = ast_ast_arena_expr_alloc(arena);
         if ((else_ref ==0)) {
-          return (struct parser_ParseIntoResult){ .ok = -(1), .main_idx = -(1) };
+          return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
         }
         struct ast_Expr ee = ast_ast_arena_expr_get(arena, else_ref);
         (void)(((ee.kind) = 0));
@@ -6281,7 +6421,7 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, str
         (void)(ast_ast_arena_expr_set(arena, else_ref, ee));
         int32_t if_expr_ref = ast_ast_arena_expr_alloc(arena);
         if ((if_expr_ref ==0)) {
-          return (struct parser_ParseIntoResult){ .ok = -(1), .main_idx = -(1) };
+          return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
         }
         struct ast_Expr ie = ast_ast_arena_expr_get(arena, if_expr_ref);
         (void)(((ie.kind) = 25));
@@ -7198,18 +7338,18 @@ struct parser_TrySkipAllowResult parser_parse_into_try_skip_allow_from_buf(struc
 struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena, struct ast_Module * module, uint8_t * data, int32_t len) {
   {
     struct lexer_Lexer lex = lexer_init();
-    int32_t main_idx = -(1);
+    int32_t main_idx = -1;
     struct parser_CollectImportsResult import_res = (struct parser_CollectImportsResult){ .lex = lex };
     (void)(parser_collect_imports_buf(lex, data, len, module, &(import_res)));
     (void)(parser_copy_lex_from_import_into(&(lex), import_res));
     int32_t loop_count_buf = 0;
-    while ((1 ==1)) {
+    while (1) {
       if ((loop_count_buf >=131072)) {
-        return (struct parser_ParseIntoResult){ .ok = -(1), .main_idx = -(1003) };
+        return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1003 };
       }
       (void)((loop_count_buf = (loop_count_buf + 1)));
       struct lexer_Lexer iter_start_buf = lex;
-      struct lexer_LexerResult r = (struct lexer_LexerResult){ .next_lex = lex, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
+      struct lexer_LexerResult r = (struct lexer_LexerResult){ .next_lex = lex, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
       struct lexer_Lexer current_tok_lex_buf = lex;
       (void)(lexer_next_buf_into(&(r), lex, data, len));
       (void)(parser_lex_from_next_into(&(lex), r));
@@ -7418,7 +7558,27 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena,
         continue;
       }
       if ((((r.tok).kind) ==54)) {
+        int32_t num_funcs_before_extern_buf = (module->num_funcs);
         (void)(parser_parse_one_extern_and_add_into_buf(arena, module, iter_start_buf, data, len, &(lex)));
+        if (((module->num_funcs) > num_funcs_before_extern_buf)) {
+          int32_t fi_ext_buf = num_funcs_before_extern_buf;
+          if ((pipeline_module_func_is_extern_at(module, fi_ext_buf) ==0)) {
+            struct shux_slice_uint8_t slice_ext_buf = parser_slice_from_buf(data, len);
+            struct lexer_LexerResult r_brace_buf = (struct lexer_LexerResult){ .next_lex = lex, .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
+            (void)(lexer_next_into(&(r_brace_buf), lex, &(slice_ext_buf)));
+            if ((((r_brace_buf.tok).kind) ==84)) {
+              int32_t type_ref_extern_buf = pipeline_module_func_return_type_at(module, fi_ext_buf);
+              struct parser_ParseBlockResult block_res_extern_buf = (struct parser_ParseBlockResult){ .ok = 0, .block_ref = 0, .next_lex = (r_brace_buf.next_lex) };
+              (void)(parser_parse_block_into(arena, (r_brace_buf.next_lex), &(slice_ext_buf), type_ref_extern_buf, &(block_res_extern_buf)));
+              if ((block_res_extern_buf.ok)) {
+                (void)(pipeline_module_func_set_body_ref(module, fi_ext_buf, (block_res_extern_buf.block_ref)));
+                (void)((lex = (block_res_extern_buf.next_lex)));
+              } else {
+                (void)(parser_skip_balanced_braces_into(&(lex), lex, &(slice_ext_buf)));
+              }
+            }
+          }
+        }
         if ((((lex.pos) ==(iter_start_buf.pos)) && ((lex.pos) < ((size_t)(len))))) {
           (void)(parser_skip_one_extern_into_buf(&(lex), iter_start_buf, data, len));
         }
@@ -7559,7 +7719,7 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena,
           (void)((((e.var_name))[rvi] = ((res.return_var_name))[rvi]));
           (void)((rvi = (rvi + 1)));
         }
-        uint8_t rvz = ((uint8_t)(0));
+        uint8_t rvz = 0;
         while ((rvi < 64)) {
           (void)((((e.var_name))[rvi] = rvz));
           (void)((rvi = (rvi + 1)));
@@ -8352,7 +8512,7 @@ int32_t parser_get_module_num_imports(struct ast_Module * module) {
 }
 void parser_get_module_import_path(struct ast_Module * module, int32_t i, uint8_t * out) {
   if (((i < 0) || (i >=(module->num_imports)))) {
-    uint8_t z = ((uint8_t)(0));
+    uint8_t z = 0;
     (void)(((out)[0] = z));
     return;
   }
@@ -8368,4 +8528,3 @@ int32_t parser_copy_module_import_path64(struct ast_Module * module, int32_t i, 
     return path_len;
   }
 }
-/* stripped: parser.x export main harness (not for product link) */
