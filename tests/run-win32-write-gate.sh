@@ -45,6 +45,14 @@ if [ ! -x "$OUT" ] && [ ! -f "$OUT" ]; then
 fi
 
 rc=0
+# PLATFORM: WINDOWS | MSYS | MINGW — sign the compiled .exe so Smart App
+# Control (SAC) does not intermittently block it. No-op on POSIX.
+_sign_cert="${SHUX_CODESIGN_THUMBPRINT:-697D4125CC086F4BF683053A2BD6025B939D96FC}"
+if command -v powershell.exe >/dev/null 2>&1; then
+  _win_out="$(cygpath -m "$OUT" 2>/dev/null || echo "$OUT")"
+  powershell.exe -NoProfile -Command \
+    "Set-AuthenticodeSignature -FilePath '$_win_out' -Certificate (Get-Item \"Cert:\\LocalMachine\\My\\$_sign_cert\")" >/dev/null 2>&1 || true
+fi
 OUT=$( "$OUT" 2>/dev/null ) || rc=$?
 rm -f "$OUT" 2>/dev/null || true
 

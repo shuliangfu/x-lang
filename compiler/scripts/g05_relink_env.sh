@@ -124,17 +124,33 @@ if [ "${SHUX_NO_C_SEED_LINK:-0}" != "1" ] && [ "${SHUX_LEGACY_C_FRONTEND:-0}" = 
   _DRIVER_SEED_RUNTIME_O="src/runtime_driver.o"
   _LEXER_LINK_O="src/lexer/lexer.o"
   _AST_LINK_O="src/ast/ast_seed.o"
-  _DRIVER_SEED_SUPPORT="src/runtime_driver_strict_glue_stubs.o src/async/async_liveness.o src/async/async_cps_codegen.o src/lexer/cfg_eval_bootstrap_stub.o src/typeck/typeck_f64_bits.o"
+  # NOTE: runtime_driver_strict_glue_stubs.o is NOT here — it goes in _GLUE_SUFFIX
+  # (link END) per Makefile L1936. See _GLUE_SUFFIX below for why.
+  _DRIVER_SEED_SUPPORT="src/async/async_liveness.o src/async/async_cps_codegen.o src/lexer/cfg_eval_bootstrap_stub.o src/typeck/typeck_f64_bits.o"
 else
   # no_c default (G-02a): X pipeline self-contained, no C lexer/ast.
   _DRIVER_SEED_RUNTIME_O="src/runtime_driver_no_c.o"
   _LEXER_LINK_O=""
   _AST_LINK_O=""
-  _DRIVER_SEED_SUPPORT="src/runtime_driver_strict_glue_stubs.o src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o"
+  # NOTE: runtime_driver_strict_glue_stubs.o is NOT here — it goes in _GLUE_SUFFIX
+  # (link END) per Makefile L1936. See _GLUE_SUFFIX below for why.
+  _DRIVER_SEED_SUPPORT="src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o"
 fi
 _X_FRONTEND="parser_x.o lexer_x.o typeck_x.o codegen_x.o x_frontend_link_alias.o"
 _DRIVER_SUBCMD="driver_fmt_x.o driver_check_x.o driver_test_x.o driver_compile_x.o driver_build_x.o driver_run_x.o driver_emit_x.o"
-_GLUE_SUFFIX="build_asm/pipeline_glue_strict_minimal.o"
+# _GLUE_SUFFIX mirrors the Makefile target-specific DRIVER_SEED_GLUE_SUFFIX
+# (makefile L2499/L2504, applies to bootstrap-driver-seed & shux-c LEGACY):
+#   build_asm/pipeline_glue_strict_minimal.o src/runtime_driver_strict_glue_stubs.o
+# Why runtime_driver_strict_glue_stubs.o at link END (not in _DRIVER_SEED_SUPPORT
+# middle): stubs .o has symbols WITH real impls in pipeline_x.o (e.g.
+# driver_get_module_num_funcs, parser_parse_into_init, pipeline_run_x_pipeline).
+# On Windows PE --allow-multiple-definition FIRST-wins; linking stubs BEFORE
+# pipeline_x.o makes the stub shadow the real impl → shux -c silently reports
+# num_funcs=0 / pipeline returned -1 (XP001/XP003). On ELF/Darwin SHUX_WEAK=weak
+# so real impl wins regardless of order. Moving stubs to link END (after
+# pipeline_glue_strict_minimal.o, after all real impls) guarantees real impls
+# win on PE. Mirrors Makefile L1863-1875 fix (2026-07-19 stubs move). G.7.
+_GLUE_SUFFIX="build_asm/pipeline_glue_strict_minimal.o src/runtime_driver_strict_glue_stubs.o"
 
 # Cap residual：与 Makefile RT_SEED_SLICE_OBJS / build_shux_asm asm_bootstrap_support_extra_link 同源。
 # runtime_driver_abi 始终 extern 这些符号；no_c runtime 在 SHUX_RT_*_FROM_X 下不内嵌 BSS 定义。
@@ -153,7 +169,16 @@ _RT_SEED_SLICE_OBJS="src/runtime/rt_arena_buf.o src/runtime/rt_emit_state.o src/
 _DRIVER_SEED_OBJS="$_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o src/runtime_pipeline_abi.o $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o src/seed_link_compat.o"
 
 # 最终链接 obj 序（与 make g05-export-relink 一致）
-G05_OBJS="$_DRIVER_SEED_OBJS driver_x.o $_PIPELINE_LINK_O lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $_DRIVER_SUBCMD src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $_USER_ASM_LINK $_GLUE_SUFFIX"
+# ast_gen2.o: in LEGACY mode, append at link END (mirrors Makefile shux-c LEGACY L2501
+# which ends with ast_gen2.o). ast_gen2.o provides ast_arena_* / ast_block_*
+# used by the C frontend runtime (runtime_driver.o). In no_c default the X
+# pipeline uses ast_ast_* (not ast_arena_*), so ast_gen2.o is not needed.
+if [ "${SHUX_NO_C_SEED_LINK:-0}" != "1" ] && [ "${SHUX_LEGACY_C_FRONTEND:-0}" = "1" ]; then
+  _AST_GEN2="ast_gen2.o"
+else
+  _AST_GEN2=""
+fi
+G05_OBJS="$_DRIVER_SEED_OBJS driver_x.o $_PIPELINE_LINK_O lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $_DRIVER_SUBCMD src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $_USER_ASM_LINK $_GLUE_SUFFIX $_AST_GEN2"
 
 G05_CFLAGS="$_BASE_CFLAGS $_DRIVER_SEED_LINK_FLAGS $_ASM_GLUE_DUP_LDFLAGS $_MAIN_LINK_FLAGS"
 

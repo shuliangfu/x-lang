@@ -128,6 +128,14 @@ fi
 if [ ! -x "$RV_BIN" ] && [ -f "$RV_OUT" ]; then
   cc -std=gnu11 -o "${RV_BIN}.exe" "$RV_OUT" 2>/dev/null && RV_BIN="${RV_BIN}.exe" || true
 fi
+# PLATFORM: WINDOWS | MSYS | MINGW — sign the compiled return-value .exe so
+# Smart App Control (SAC) does not block it (Permission denied). No-op on POSIX.
+if command -v powershell.exe >/dev/null 2>&1; then
+  _rv_cert="${SHUX_CODESIGN_THUMBPRINT:-697D4125CC086F4BF683053A2BD6025B939D96FC}"
+  _rv_win="$(cygpath -m "$RV_BIN" 2>/dev/null || echo "$RV_BIN")"
+  powershell.exe -NoProfile -Command \
+    "Set-AuthenticodeSignature -FilePath '$_rv_win' -Certificate (Get-Item \"Cert:\\LocalMachine\\My\\$_rv_cert\")" >/dev/null 2>&1 || true
+fi
 EX=0
 "$RV_BIN" >/dev/null 2>&1 || EX=$?
 rm -f "$RV_OUT" "${RV_OUT}.c" "${RV_OUT}.exe" "$RV_BIN"

@@ -45,9 +45,25 @@ PINNED_TMP="${_SMOKE_TMP}/shux_bootstrap_seed_pinned_$$"
 AUDIT_DIR="${SHUX_BOOTSTRAP_AUDIT_DIR:-../logs}"
 
 maybe_codesign() {
-  if [ "$(uname -s 2>/dev/null)" = "Darwin" ] && command -v codesign >/dev/null 2>&1; then
-    codesign -s - --force "$1" >/dev/null 2>&1 || true
-  fi
+  case "$(uname -s 2>/dev/null)" in
+    Darwin)
+      command -v codesign >/dev/null 2>&1 && codesign -s - --force "$1" >/dev/null 2>&1 || true
+      ;;
+    MINGW*|MSYS*|CYGWIN*)
+      # PLATFORM: WINDOWS — Smart App Control (SAC) intermittently blocks
+      # unsigned .exe compiled to $TEMP (Permission denied, exit 126). Sign
+      # with the ShuxDevCert self-signed cert (one-time setup per
+      # analysis/Windows平台限制与测试指南.md §3.4). No-op if cert missing
+      # or powershell unavailable.
+      if command -v powershell.exe >/dev/null 2>&1; then
+        local _cert _win_path
+        _cert="${SHUX_CODESIGN_THUMBPRINT:-697D4125CC086F4BF683053A2BD6025B939D96FC}"
+        _win_path="$(cygpath -m "$1" 2>/dev/null || echo "$1")"
+        powershell.exe -NoProfile -Command \
+          "Set-AuthenticodeSignature -FilePath '$_win_path' -Certificate (Get-Item \"Cert:\\LocalMachine\\My\\$_cert\")" >/dev/null 2>&1 || true
+      fi
+      ;;
+  esac
 }
 
 cleanup() {
@@ -71,6 +87,11 @@ run_smoke() {
   local bin="$1"
   local _log="${_SMOKE_TMP}/shux_bootstrap_seed_smoke_$$.log"
   local _rc=0
+  # PLATFORM: WINDOWS | MSYS | MINGW — make just relinked $bin (./shux) fresh and
+  # unsigned; Smart App Control blocks unsigned .exe (Permission denied). Sign
+  # it before any invocation so the -c / -backend c -o smoke can run. No-op on
+  # POSIX (maybe_codesign only acts on Darwin/macOS + MINGW).
+  maybe_codesign "$bin"
   echo "[$(date '+%H:%M:%S')] seed smoke: -c check ..."
   # shux-c (C frontend) 不支持 -c，用 -E 替代（同样做 parse+typeck）
   if "$bin" -c "$SMOKE_SRC" 2>&1 | tee "$_log"; then
@@ -105,6 +126,9 @@ run_smoke() {
     fi
   fi
   [ -x "$SMOKE_OUT" ] || return 1
+  # PLATFORM: WINDOWS — sign the compiled smoke .exe so SAC does not block it
+  # (matches run-win32-read-file-gate.sh fix per §2.3).
+  maybe_codesign "$SMOKE_OUT"
   local ec=0
   "$SMOKE_OUT" 2>&1 | tee "$_log" || ec=$?
   [ "$ec" -eq 42 ]
