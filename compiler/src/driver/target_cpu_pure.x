@@ -62,6 +62,7 @@ export function tcp_tolower(c: u8): u8 {
  * @param lit8 u8
  * @return i32
  */
+#[no_mangle]
 export function tcp_eq_at(name: *u8, base: usize, n: usize, lit0: u8, lit1: u8, lit2: u8, lit3: u8, lit4: u8, lit5: u8, lit6: u8, lit7: u8, lit8: u8): i32 {
   let i: usize = 0;
   let want: u8 = 0;
@@ -89,6 +90,7 @@ export function tcp_eq_at(name: *u8, base: usize, n: usize, lit0: u8, lit1: u8, 
  * @param f u32
  * @return void
  */
+#[no_mangle]
 export function tcp_set_u32(out: *u32, f: u32): void {
   out[0] = f;
 }
@@ -101,6 +103,7 @@ export function tcp_set_u32(out: *u32, f: u32): void {
  * @param out *u32
  * @return i32
  */
+#[no_mangle]
 export function tcp_parse_named(spec: *u8, base: usize, end: usize, out: *u32): i32 {
   let n: usize = 0;
   let f: u32 = 0;
