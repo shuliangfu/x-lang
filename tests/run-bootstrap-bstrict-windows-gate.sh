@@ -33,7 +33,21 @@ PIPELINE_GEN_PAT='(^|[[:space:]])cc -c (\.\./)?pipeline_gen\.c([[:space:]]|$)'
 
 if [ "$WIN_BSTRICT" = "1" ]; then
   echo "bootstrap-bstrict-windows-gate: E-06 v5 make bootstrap-driver-bstrict (Windows B-strict) ..."
+  # Why: `make | tee` masks make's exit code with tee's (always 0). Without
+  #      capturing PIPESTATUS a real make failure (e.g. relink-shux Error 2
+  #      from g05_relink_env unsupported host) is silently swallowed and the
+  #      gate reports OK based only on log markers — a false green. This was
+  #      the 2026-07-20 Windows gate state: make returned Error 2 but the gate
+  #      exited 0. B-hybrid branch below already captures SEED_RC; B-strict
+  #      must do the same for its single make call.
+  set -o pipefail
   make -C compiler bootstrap-driver-bstrict 2>&1 | tee /tmp/boot_win_bstrict.log
+  BOOT_RC=${PIPESTATUS[0]}
+  set +o pipefail
+  if [ "$BOOT_RC" -ne 0 ]; then
+    echo "bootstrap-bstrict-windows-gate FAIL: make bootstrap-driver-bstrict rc=$BOOT_RC" >&2
+    exit 1
+  fi
   BOOT_LOG=/tmp/boot_win_bstrict.log
   EXPECT_MARKER='bootstrap-driver-bstrict OK|asm_only_strict|asm_only_experimental|B-strict OK'
 else
