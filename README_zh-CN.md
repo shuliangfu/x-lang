@@ -9,7 +9,7 @@
 | **编译器** | `shux` / `shux_asm`（自举链路后的产品二进制） |
 | **源文件后缀** | `.x` |
 | **构建配置** | `build.x` — 用 Shux 描述的项目构建策略（步骤、目标、产物）；由 `shux build` / `build_tool` / `shux-build.sh` 执行 |
-| **现阶段（2026-07-19）** | **产品 L4 钉盘 `5cc73d54`**（双端真冷 + bstrict **125/125**）。tip **`229708f1`**：C5 `EXPR_MATCH` CTFE，双端 L2 绿（**≠** tip L4 升钉）。**尚未完全自举**（冷启动仍需 seed / 过渡 C） |
+| **现阶段（2026-07-20）** | **产品 L4 钉盘 `deaf773b`**（双端真冷 + bstrict **125/125** + Windows hybrid gate）。tip **`0c9458ed`**：CLI help 美化（Deno 风格），双端 L2 绿（**≠** tip L4 升钉）。**尚未完全自举**（冷启动仍需 seed / 过渡 C） |
 | **进度仪表盘** | [`analysis/自举进度.md`](analysis/自举进度.md) · 当天快照 [`analysis/当前进度.md`](analysis/当前进度.md) |
 | **English** | [README.md](README.md) |
 
@@ -168,28 +168,92 @@ SHUX_BSTRICT_SKIP_BUILD=1 ./tests/run-all-bstrict.sh   # 产品闸门（约 125 
 ```
 
 凡谈**自举 / 产品放行**，项目要求 **L4 真冷**（擦除 `compiler`/`std`/`core` 下全部 `.o` 并重链二进制）+ **双端** `run-all-bstrict` 全绿。详见 [`analysis/自举方法.md`](analysis/自举方法.md)、[`compiler/docs/SELFHOST.md`](compiler/docs/SELFHOST.md)。  
-**注意：** 日常 tip 的 L2 绿 **≠** tip L4 钉盘。**放行钉盘为 `5cc73d54`**（双端真冷 125/125）。tip 日常工作（如 CTFE fold）可双端 L2 绿而不升 L4 钉盘（见 §八）。
+**注意：** 日常 tip 的 L2 绿 **≠** tip L4 钉盘。**放行钉盘为 `deaf773b`**（双端真冷 125/125 + Windows hybrid gate）。tip 日常工作（如 CLI help 美化）可双端 L2 绿而不升 L4 钉盘（见 §八）。
 
 ---
 
 ## 四、编译器用法
 
-默认 **ASM 后端**（`-backend asm`）。
+默认 **ASM 后端**（`-backend asm`）。必须使用子命令，禁止隐式编译运行。
 
-| 命令 | 说明 |
+```bash
+shux [COMMAND] [OPTIONS]
+```
+
+### 子命令
+
+| 命令 | 说明 | 用法 |
+|------|------|------|
+| `build` | 编译 .x 到二进制/目标文件（默认 a.out） | `shux build [options] file.x [-o exe]` |
+| `run` | 编译并运行 .x | `shux run [options] file.x` |
+| `check` | 仅 parse + typeck（不生成代码） | `shux check [paths...]` |
+| `fmt` | 格式化 .x 源码 | `shux fmt [--check] [paths...]` |
+| `explain` | 解释诊断代码 | `shux explain <CODE>` |
+| `test` | 运行测试脚本 | `shux test [script.sh]` |
+
+### 构建选项（build / run）
+
+| 选项 | 说明 |
 |------|------|
-| `shux file.x` | 编译并运行 |
-| `shux build` | 读 `build.x`，跑构建 runner |
-| `shux build file.x -o exe` | 编译到可执行文件 |
-| `shux check file.x` | 仅 parse + typeck |
-| `shux fmt file.x` | 格式化 |
-| `shux test [script]` | 跑测试（默认 `tests/run-all.sh`） |
-| `shux --lsp` | 语言服务器（stdio JSON-RPC） |
-| `shux -E file.x` | 输出 C（调试） |
-| `shux -backend c file.x` | 强制 C 后端 |
-| `shux -O2 file.x -o app` | 优化（默认 **-O2**） |
-| `shux -freestanding …` | Linux x86_64 nostdlib 静态 |
-| `shux -h` | 帮助 |
+| `-backend asm\|c` | 后端（默认 asm） |
+| `-O <0\|1\|2\|3\|s>` | 优化级别（默认 2） |
+| `-o <path>` | 输出二进制或 .o |
+| `-L <dir>` | 库搜索路径 |
+| `-target <triple>` | 目标三元组（如 `aarch64-linux-gnu`） |
+| `-target-cpu <cpu>` | `native\|generic\|avx2\|...` |
+| `-freestanding` | Nostdlib 静态链接（Linux x86_64 ELF） |
+| `-legacy-f32-abi` | 传统 SysV f32 CALL（f64 扩展；默认 xmm ABI） |
+| `-E` | 输出 C（调试） |
+| `-flto` | 链接时优化（C 后端） |
+
+### 全局选项
+
+| 选项 | 说明 |
+|------|------|
+| `--print-target-cpu` | 打印宿主 CPU 特性并退出 |
+| `--explain <CODE>` | 打印诊断代码解释并退出 |
+| `--help, -h` | 显示帮助 |
+
+### 环境变量
+
+| 变量 | 效果 |
+|------|------|
+| `SHUX_ABI_F32_XMM=0` | 等同于 `-legacy-f32-abi`（x86_64 SysV） |
+| `SHUX_OPT` | 默认 -O 级别 |
+| `NO_COLOR` | 禁用彩色输出 |
+| `CLICOLOR_FORCE=1` | 强制彩色输出（即使管道重定向） |
+| `SHUX_FORCE_COLOR=1` | 等同于 CLICOLOR_FORCE |
+
+### 示例
+
+```bash
+# 编译并运行
+shux run examples/hello.x
+
+# 编译到可执行文件
+shux build examples/hello.x -o hello && ./hello
+
+# 仅 parse + typeck
+shux check examples/hello.x
+
+# 格式化源码
+shux fmt src/
+
+# 解释诊断代码
+shux explain XP003
+
+# 运行测试脚本
+shux test tests/run-all-bstrict.sh
+
+# 语言服务器（stdio JSON-RPC）
+shux --lsp
+
+# 强制 C 后端
+shux build -backend c file.x
+
+# Freestanding（Linux x86_64 nostdlib）
+shux build -freestanding file.x
+```
 
 根目录 [`build.x`](build.x) 描述编什么。日常入口：`./shux-build.sh` / `build_tool`。
 
@@ -284,7 +348,7 @@ shux/
 
 ---
 
-## 八、自举状态（摘要 · 2026-07-19）
+## 八、自举状态（摘要 · 2026-07-20）
 
 > **实时数字以** [`analysis/自举进度.md`](analysis/自举进度.md) · 当天 [`analysis/当前进度.md`](analysis/当前进度.md) **为准**。  
 > README 只给摘要；**禁止**把 Stage2 / prove / WPO / **日常 L2 绿**写成 tip L4 重钉或「完全自举」。
@@ -293,16 +357,17 @@ shux/
 
 | 项 | 状态 |
 |----|------|
-| **L4 放行钉盘** | **`5cc73d54`** — 双端 **真冷** + `run-all-bstrict` **125/125**（Ubuntu + macOS）。当日升钉序列：`ea1f6827` → `5cc73d54`；更早含 `a74e25a1` / `c51759eb` — **勿**把旧 SHA 写成现行钉盘 |
+| **L4 放行钉盘** | **`deaf773b`** — 双端 **真冷** + `run-all-bstrict` **125/125**（Ubuntu + macOS）+ Windows hybrid gate。当日升钉序列：`305cfbe1` → `deaf773b`；更早含 `5cc73d54` / `a74e25a1` / `c51759eb` — **勿**把旧 SHA 写成现行钉盘 |
 | 产品 bstrict 套件数 | **125**（`tests/run-all-bstrict.sh`；日志须 `OK (125 scripts…)`） |
-| Ubuntu L4 + 全量 bstrict（钉盘） | ✅ **125/125** @ **`5cc73d54`** |
-| macOS L4 + 全量 bstrict（钉盘） | ✅ **125/125** @ **`5cc73d54`** |
+| Ubuntu L4 + 全量 bstrict（钉盘） | ✅ **125/125** @ **`deaf773b`** |
+| macOS L4 + 全量 bstrict（钉盘） | ✅ **125/125** @ **`deaf773b`** |
+| Windows hybrid gate（钉盘） | ✅ warm 绿 @ **`deaf773b`** |
 | 金标主机 | **Ubuntu x86_64** |
 | 验收二进制 | 本波 g05 / relink 的 `compiler/shux_asm` — **禁止**残留 Stage2 `shux_asm2` 或旧 stage1 |
-| 分支 tip（≠ tip L4） | **`229708f1`**（`self-hosting`）— C5 `EXPR_MATCH` CTFE，双端 L2 绿。**仅**双端真冷 + bstrict **125** 后才升 tip L4 钉盘 |
-| 最新 tip 日常 L2 | ✅ mac + Ubuntu 矩阵 + bstrict **125/125** @ `229708f1`（**≠** tip L4 重钉；CTFE fold 非 ABI/链接） |
+| 分支 tip（≠ tip L4） | **`0c9458ed`**（`self-hosting`）— CLI help 美化（Deno 风格），双端 L2 绿。**仅**双端真冷 + bstrict **125** 后才升 tip L4 钉盘 |
+| 最新 tip 日常 L2 | ✅ mac + Ubuntu 矩阵 + bstrict **125/125** @ `0c9458ed`（**≠** tip L4 重钉；CLI help 美化非 ABI/链接） |
 
-### 产品面 2026-07-19 已收口
+### 产品面 2026-07-20 已收口
 
 属**用户产品路径**（`shux_asm` / freestanding / 门禁）。L2 绿 **不会**自动抬 L4 钉盘：
 
@@ -310,10 +375,14 @@ shux/
 |----|------|
 | **C2 · `std.net` PRIMARY UNDEF** | ✅ `net.o` 合入 `mod.x`；`use_line` 真调用识别；cookbook `net_listen_bind.x -o` 绿 — 已入钉盘谱系 |
 | **C3=C4 · bare `{…}` 结构体字面量** | ✅ parser `LBRACE` let-init handler；bare struct-lit + `unsafe`/`while` 不再丢 let → P001 |
-| **C8 · vec/set/map/queue 重复符号** | ✅ `c_provides` 守卫 `mem.o`+`heap.o` 推入（fk0 GAP）— **升钉 `5cc73d54`** |
-| **Backtrace C 后端 heap 链** | ✅ 补推 `page_mmap.o` + asm IO stubs — 钉盘 `ea1f6827` |
+| **C8 · vec/set/map/queue 重复符号** | ✅ `c_provides` 守卫 `mem.o`+`heap.o` 推入（fk0 GAP）— 已入钉盘谱系 |
+| **Backtrace C 后端 heap 链** | ✅ 补推 `page_mmap.o` + asm IO stubs — 已入钉盘谱系 |
 | **C5 · `EXPR_MATCH` CTFE** | ✅ const subject + const arms 折成 imm32（`lang-const` 13/13）；tip `229708f1`，双端 L2，**未**升 L4 |
-| **Driver · `shux run` / 裸 `shux file.x`** | ✅ 内存内 compile-and-run（18→19 波） |
+| **C6 · X ABI P0b** | ✅ wave 1 unsafe 包裹（9 处）+ wave 2 ABI 一致性（3 处）— **升钉 `deaf773b`** |
+| **Windows hybrid gate** | ✅ MSYS2/MinGW bootstrap-driver-bstrict + return-value 42 + win32-write-gate + win32-read-file-gate + C-03 — **升钉 `deaf773b`** |
+| **CLI help 美化** | ✅ Deno 风格绿色配色 + 子命令独立分组 + `shux [COMMAND] [OPTIONS]` 顺序 |
+| **std.print 架构** | ✅ 统一归属 `std.fmt`（stdout）+ `std.debug`（stderr）；`std.io` 仅保留底层 write 原语 |
+| **强制子命令** | ✅ 删除 `shux file.x` 隐式 fallback，必须使用 `shux run` / `shux build` |
 | Freestanding S4 / NL-07 零 libc / Hosted asm 矩阵 | ✅ 产品钉盘上仍成立 |
 
 ### 工程轨（量级）

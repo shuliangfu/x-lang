@@ -9,7 +9,7 @@
 | **Compiler** | `shux` / `shux_asm` (product binary after bootstrap) |
 | **Source extension** | `.x` |
 | **Build config** | `build.x` — project build strategy in Shux (steps, targets, products); entry via `shux build` / `build_tool` / `shux-build.sh` |
-| **Status (2026-07-19)** | **Product L4 pin `5cc73d54`** (dual-host true cold + bstrict **125/125**). Tip **`229708f1`**: C5 `EXPR_MATCH` CTFE, dual L2 green (**≠** tip L4 re-pin). **Self-host not finished** (seed / hybrid C still required for cold start) |
+| **Status (2026-07-20)** | **Product L4 pin `deaf773b`** (dual-host true cold + bstrict **125/125** + Windows hybrid gate). Tip **`0c9458ed`**: CLI help beautify (Deno-style), dual L2 green (**≠** tip L4 re-pin). **Self-host not finished** (seed / hybrid C still required for cold start) |
 | **Live dashboard** | [`analysis/自举进度.md`](analysis/自举进度.md) · daily snapshot [`analysis/当前进度.md`](analysis/当前进度.md) |
 | **中文** | [README_zh-CN.md](README_zh-CN.md) |
 
@@ -149,7 +149,7 @@ function main(): void {
 
 ```bash
 export SHUX=./compiler/shux_asm
-$SHUX examples/hello.x
+$SHUX run examples/hello.x
 $SHUX build examples/hello.x -o hello && ./hello
 $SHUX check examples/hello.x
 ```
@@ -168,7 +168,7 @@ SHUX_BSTRICT_SKIP_BUILD=1 ./tests/run-all-bstrict.sh   # product gate suite (~12
 ```
 
 For **self-host / product release claims**, the project requires **L4 true cold** (wipe all `.o` under `compiler`/`std`/`core`, rebuild binaries) **plus** dual-platform `run-all-bstrict` green. Details: skill / [`analysis/自举方法.md`](analysis/自举方法.md) · [`compiler/docs/SELFHOST.md`](compiler/docs/SELFHOST.md).  
-**Note:** daily L2 green on tip ≠ tip L4 pin. **Release pin is `5cc73d54`** (125/125 dual true cold). Tip daily work (e.g. CTFE folds) may be dual-L2 green without re-pinning L4 (see §8).
+**Note:** daily L2 green on tip ≠ tip L4 pin. **Release pin is `deaf773b`** (125/125 dual true cold + Windows hybrid gate). Tip daily work (e.g. CLI help beautify) may be dual-L2 green without re-pinning L4 (see §8).
 
 ---
 
@@ -176,20 +176,84 @@ For **self-host / product release claims**, the project requires **L4 true cold*
 
 Default backend: **ASM** (`-backend asm`).
 
-| Command | Description |
-|---------|-------------|
-| `shux file.x` | Compile and run (`shux run`) |
-| `shux build` | Read `build.x`, run build runner |
-| `shux build file.x -o exe` | Compile to executable |
-| `shux check file.x` | Parse + typeck only |
-| `shux fmt file.x` | Format |
-| `shux test [script]` | Run tests (default `tests/run-all.sh`) |
-| `shux --lsp` | Language server (stdio JSON-RPC) |
-| `shux -E file.x` | Emit C (debug) |
-| `shux -backend c file.x` | Force C backend |
-| `shux -O2 file.x -o app` | Optimize (default **-O2**) |
-| `shux -freestanding …` | Linux x86_64 nostdlib static |
-| `shux -h` | Help |
+```bash
+shux [COMMAND] [OPTIONS]
+```
+
+### Subcommands
+
+| Command | Description | Usage |
+|---------|-------------|-------|
+| `build` | Compile .x to binary/object (default a.out) | `shux build [options] file.x [-o exe]` |
+| `run` | Compile and run .x | `shux run [options] file.x` |
+| `check` | Parse + typeck only (no codegen) | `shux check [paths...]` |
+| `fmt` | Format .x sources | `shux fmt [--check] [paths...]` |
+| `explain` | Explain a diagnostic code | `shux explain <CODE>` |
+| `test` | Run test script | `shux test [script.sh]` |
+
+### Build options (build / run)
+
+| Option | Description |
+|--------|-------------|
+| `-backend asm\|c` | Backend (default asm) |
+| `-O <0\|1\|2\|3\|s>` | Optimization level (default 2) |
+| `-o <path>` | Output binary or .o |
+| `-L <dir>` | Library search path |
+| `-target <triple>` | Target triple (e.g. `aarch64-linux-gnu`) |
+| `-target-cpu <cpu>` | `native\|generic\|avx2\|...` |
+| `-freestanding` | Nostdlib static link (Linux x86_64 ELF) |
+| `-legacy-f32-abi` | Legacy SysV f32 CALL (f64 widen; default xmm ABI) |
+| `-E` | Emit C (debug) |
+| `-flto` | Link-time optimization (C backend) |
+
+### Global options
+
+| Option | Description |
+|--------|-------------|
+| `--print-target-cpu` | Print host CPU features and exit |
+| `--explain <CODE>` | Print diagnostic code explanation and exit |
+| `--help, -h` | Show this help |
+
+### Environment variables
+
+| Variable | Effect |
+|----------|--------|
+| `SHUX_ABI_F32_XMM=0` | Same as `-legacy-f32-abi` (x86_64 SysV) |
+| `SHUX_OPT` | Default -O level if omitted |
+| `NO_COLOR` | Disable color output |
+| `CLICOLOR_FORCE=1` | Force color output even when piped |
+| `SHUX_FORCE_COLOR=1` | Same as CLICOLOR_FORCE |
+
+### Examples
+
+```bash
+# Compile and run
+shux run examples/hello.x
+
+# Compile to executable
+shux build examples/hello.x -o hello && ./hello
+
+# Parse + typeck only
+shux check examples/hello.x
+
+# Format sources
+shux fmt src/
+
+# Explain diagnostic code
+shux explain XP003
+
+# Run test script
+shux test tests/run-all-bstrict.sh
+
+# Language server (stdio JSON-RPC)
+shux --lsp
+
+# Force C backend
+shux build -backend c file.x
+
+# Freestanding (Linux x86_64 nostdlib)
+shux build -freestanding file.x
+```
 
 Root [`build.x`](build.x) describes what to build. Daily entry: `./shux-build.sh` / `build_tool`.
 
@@ -284,7 +348,7 @@ Link is **on demand** (unused modules stay out of the final link when possible).
 
 ---
 
-## 8. Self-host status (snapshot · 2026-07-19)
+## 8. Self-host status (snapshot · 2026-07-20)
 
 > **Authoritative live numbers**: [`analysis/自举进度.md`](analysis/自举进度.md) · daily [`analysis/当前进度.md`](analysis/当前进度.md).  
 > README only summarizes; **do not** treat Stage2 / prove / WPO / daily L2 green as a tip L4 re-pin or as “self-host done”.
@@ -293,16 +357,17 @@ Link is **on demand** (unused modules stay out of the final link when possible).
 
 | Item | Status |
 |------|--------|
-| **L4 release pin** | **`5cc73d54`** — dual-host **true cold** + `run-all-bstrict` **125/125** (Ubuntu + macOS). Prior pins today: `ea1f6827` → `5cc73d54`; earlier lineage includes `a74e25a1` / `c51759eb` — **do not** re-cite those as the live pin |
+| **L4 release pin** | **`deaf773b`** — dual-host **true cold** + `run-all-bstrict` **125/125** (Ubuntu + macOS) + Windows hybrid gate. Prior pins today: `305cfbe1` → `deaf773b`; earlier lineage includes `5cc73d54` / `a74e25a1` / `c51759eb` — **do not** re-cite those as the live pin |
 | Product bstrict suite size | **125** scripts (`tests/run-all-bstrict.sh`; must log `OK (125 scripts…)`) |
-| Ubuntu L4 + full bstrict (pin) | ✅ **125/125** @ **`5cc73d54`** |
-| macOS L4 + full bstrict (pin) | ✅ **125/125** @ **`5cc73d54`** |
+| Ubuntu L4 + full bstrict (pin) | ✅ **125/125** @ **`deaf773b`** |
+| macOS L4 + full bstrict (pin) | ✅ **125/125** @ **`deaf773b`** |
+| Windows hybrid gate (pin) | ✅ warm green @ **`deaf773b`** |
 | Gold host | **Ubuntu x86_64** |
 | Product binary under test | This-wave `compiler/shux_asm` (g05 / relink) — **never** leftover Stage2 `shux_asm2` or old `stage1` |
-| Branch tip (not tip L4) | **`229708f1`** on `self-hosting` — C5 `EXPR_MATCH` CTFE, dual L2 green. **Tip L4 re-pin only after dual true cold + bstrict 125**, not after every L2 green |
-| Latest tip daily L2 | ✅ mac + Ubuntu L2 matrices + bstrict **125/125** @ `229708f1` (**≠** tip L4 re-pin; CTFE fold is not ABI/link) |
+| Branch tip (not tip L4) | **`0c9458ed`** on `self-hosting` — CLI help beautify (Deno-style), dual L2 green. **Tip L4 re-pin only after dual true cold + bstrict 125**, not after every L2 green |
+| Latest tip daily L2 | ✅ mac + Ubuntu L2 matrices + bstrict **125/125** @ `0c9458ed` (**≠** tip L4 re-pin; CLI help beautify is not ABI/link) |
 
-### Product surface closed on 2026-07-19
+### Product surface closed on 2026-07-20
 
 On the **user product path** (`shux_asm` / freestanding / gates). Green L2 **does not** auto-raise the L4 pin:
 
@@ -310,10 +375,14 @@ On the **user product path** (`shux_asm` / freestanding / gates). Green L2 **doe
 |------|--------|
 | **C2 · `std.net` PRIMARY UNDEF** | ✅ `net.o` includes `mod.x`; `use_line` real-call detection; cookbook `net_listen_bind.x -o` green — in pin lineage |
 | **C3=C4 · bare `{…}` struct lit** | ✅ parser `LBRACE` let-init handler; bare struct-lit + `unsafe`/`while` no longer drops lets → P001 |
-| **C8 · vec/set/map/queue duplicate** | ✅ guard `mem.o`+`heap.o` push with `c_provides` (fk0 GAP) — **raised L4 pin to `5cc73d54`** |
-| **Backtrace C-backend heap chain** | ✅ push `page_mmap.o` + asm IO stubs — pin `ea1f6827` |
+| **C8 · vec/set/map/queue duplicate** | ✅ guard `mem.o`+`heap.o` push with `c_provides` (fk0 GAP) — in pin lineage |
+| **Backtrace C-backend heap chain** | ✅ push `page_mmap.o` + asm IO stubs — in pin lineage |
 | **C5 · `EXPR_MATCH` CTFE** | ✅ const subject + const arms fold to imm32 (`lang-const` 13/13); tip `229708f1`, dual L2, **not** L4 re-pin |
-| **Driver · `shux run` / bare `shux file.x`** | ✅ in-memory compile-and-run (from 18→19 wave) |
+| **C6 · X ABI P0b** | ✅ wave 1 unsafe wrapping (9 sites) + wave 2 ABI consistency (3 sites) — **raised L4 pin to `deaf773b`** |
+| **Driver · `shux run` / bare `shux file.x`** | ✅ in-memory compile-and-run |
+| **Windows hybrid gate** | ✅ MSYS2/MinGW bootstrap-driver-bstrict + return-value 42 + win32-write-gate + win32-read-file-gate + C-03 — **raised L4 pin to `deaf773b`** |
+| **CLI help beautify** | ✅ Deno-style green color scheme + per-subcommand sections + `shux [COMMAND] [OPTIONS]` order |
+| **std.print architecture** | ✅ unified under `std.fmt` (stdout) + `std.debug` (stderr); `std.io` retains low-level write primitives only |
 | Freestanding S4 / NL-07 no-libc / hosted asm matrix | ✅ still hold on product pin |
 
 ### Engineering track (subset)
@@ -332,7 +401,8 @@ On the **user product path** (`shux_asm` / freestanding / gates). Green L2 **doe
 - **Not** “compiler is 100% `.x` with zero seed”
 - **Not** “Stage2 `shux_asm2` is the product compiler”
 - **Not** “engineering WPO green = tip product L4”
-- **Not** “dual L2 bstrict on tip = tip L4” — pin is **`5cc73d54`** until the next dual **true cold** re-pin
+- **Not** “dual L2 bstrict on tip = tip L4” — pin is **`deaf773b`** until the next dual **true cold** re-pin
+- **Not** “Windows hybrid green = product L4 / self-host done” — Windows hybrid is probe-only
 - Final physical zero-C / full seed elimination (**G**) remains roadmap, not the weekly claim surface
 
 Methodology: Cap / R / L / M → [`analysis/自举方法.md`](analysis/自举方法.md). Ops: [`compiler/docs/SELFHOST.md`](compiler/docs/SELFHOST.md). Discipline: [`AGENTS.md`](AGENTS.md) + skill `shux-selfhost-product-gate`.
@@ -355,7 +425,7 @@ Methodology: Cap / R / L / M → [`analysis/自举方法.md`](analysis/自举方
 | M3 | Generics, trait, modules, std growth | ✅ |
 | M4 | DCE, -O2/-Os, size/perf baseline | ✅ partial |
 | M5 | Bootstrap (compiler can rebuild itself) | 🟡 **usable product path + advanced self-host**; **seed still required for cold start** |
-| **Now** | Product L4 dual pin @ **`5cc73d54`** (125/125); tip **`229708f1`** (C5 CTFE dual L2) — **not** tip L4 re-pin | See dashboard |
+| **Now** | Product L4 dual pin @ **`deaf773b`** (125/125 + Windows hybrid gate); tip **`0c9458ed`** (CLI help beautify) — **not** tip L4 re-pin | See dashboard |
 
 ---
 
