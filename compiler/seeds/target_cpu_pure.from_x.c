@@ -1,16 +1,28 @@
-/* target_cpu_pure.from_x.c — G-02f-2/3/4/5 product pure half of target_cpu.o
+/* seeds/target_cpu_pure.from_x.c — G-02f-2/3/4/5 product pure half of target_cpu.o
  * G-02f-132 true .x pure helpers.
  * G-02f-131 true .x pure helpers.
  * G-02f-111 helper gates.
  * G-02f-110 helper gates.
  * G-02f-103 helper gates.
  * G-02f-97 pure helper gates.
- * G-02f-257：SHUX_L2_TARGET_CPU_FLAGS_FROM_X 时省略 pending/tolower/eq5/eq6
- *           （由 src/driver/target_cpu_flags.x → .o 提供，再 ld -r）。
+ * G-02f-257：SHUX_L2_TARGET_CPU_FLAGS_FROM_X 时省略所有 .x 业务函数
+ *           （由 src/driver/target_cpu_pure.x → .o 提供，再 ld -r）。
  *
  * Source of truth: src/driver/target_cpu_pure.x (+ print is stdio C co-located; f-5)
  * Hand-synced when full shux-c -E hangs on multi-helper TUs.
  * Product default: single TU → src/driver/target_cpu.o (no ld -r).
+ *
+ * R2 full（2026-07-20）：公共业务符号由 full .x 提供（12 函数 + BSS）：
+ *   driver_set_pending + driver_get_pending + tcp_tolower + tcp_eq_at + tcp_set_u32
+ *   + tcp_parse_named + shu_target_cpu_resolve + tcp_eq5 + tcp_eq6
+ *   + shu_simd_is_vector_type_spelling + shu_simd_vector_lanes_esz_from_spelling
+ *   + append_feat_name + flags_has_token
+ * Cap residual（mega rest 冷路径）：shu_target_cpu_print (FILE/fprintf) +
+ *   OS detect (sysctl/proc/#if platform) 在本文件 #endif 后始终编译。
+ * FROM_X 下本文件业务 H=0（仅 extern 声明 + slice marker）。
+ * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
+ *
+ * Prove：seeds/target_cpu_pure_surface.from_x.c（-E 同构）nm IDENTICAL。
  *
  * Exports: pending, resolve, simd spelling, print.
  * G-02f-6: also embeds OS detect_host / generic_for_host (#if/sysctl/proc).
@@ -23,6 +35,7 @@
 #include "target_cpu.h"
 
 #ifndef SHUX_L2_TARGET_CPU_FLAGS_FROM_X
+/* Cold start: full C bodies for all .x business funcs */
 static uint32_t g_driver_pending_target_cpu_features;
 
 void driver_set_pending_target_cpu_features(uint32_t features) {
@@ -38,13 +51,7 @@ uint8_t tcp_tolower(uint8_t c) {
   if (c >= 65 && c <= 90)
     return (uint8_t)(c + 32);
   return c;
-
 }
-#else
-/* L2 flags.o provides pending/tolower/eq5/eq6; rest TU only needs tolower for tcp_eq_at. */
-extern uint8_t tcp_tolower(uint8_t c);
-#endif
-
 
 /** Compare name[base..base+n) case-insensitively to lowercase lit[0..n). */
 /* G-02f-131：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
@@ -55,9 +62,12 @@ int32_t tcp_eq_at(const uint8_t *name, size_t base, size_t n, const uint8_t *lit
       return 0;
   }
   return 1;
-
 }
 
+/* tcp_set_u32: simple *out = f; kept for .x symbol parity (cold start inlines). */
+void tcp_set_u32(uint32_t *out, uint32_t f) {
+  *out = f;
+}
 
 /* G-02f-160：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t tcp_parse_named(const uint8_t *spec, size_t base, size_t end, uint32_t *out) {
@@ -125,7 +135,6 @@ int32_t tcp_parse_named(const uint8_t *spec, size_t base, size_t end, uint32_t *
   return -1;
 }
 
-
 int shu_target_cpu_resolve(const char *spec, size_t spec_len, uint32_t *out) {
   const uint8_t *s = (const uint8_t *)spec;
   size_t start = 0;
@@ -148,7 +157,6 @@ int shu_target_cpu_resolve(const char *spec, size_t spec_len, uint32_t *out) {
   return tcp_parse_named(s, start, end, out);
 }
 
-#ifndef SHUX_L2_TARGET_CPU_FLAGS_FROM_X
 /* G-02f-132：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t tcp_eq5(const uint8_t *name, uint8_t a0, uint8_t a1, uint8_t a2, uint8_t a3, uint8_t a4) {
   uint8_t lit[5];
@@ -158,9 +166,7 @@ int32_t tcp_eq5(const uint8_t *name, uint8_t a0, uint8_t a1, uint8_t a2, uint8_t
   lit[3] = a3;
   lit[4] = a4;
   return tcp_eq_at(name, 0, 5, lit);
-
 }
-
 
 /* G-02f-132：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t tcp_eq6(const uint8_t *name, uint8_t a0, uint8_t a1, uint8_t a2, uint8_t a3, uint8_t a4,
@@ -173,14 +179,7 @@ int32_t tcp_eq6(const uint8_t *name, uint8_t a0, uint8_t a1, uint8_t a2, uint8_t
   lit[4] = a4;
   lit[5] = a5;
   return tcp_eq_at(name, 0, 6, lit);
-
 }
-#else
-extern int32_t tcp_eq5(const uint8_t *name, uint8_t a0, uint8_t a1, uint8_t a2, uint8_t a3, uint8_t a4);
-extern int32_t tcp_eq6(const uint8_t *name, uint8_t a0, uint8_t a1, uint8_t a2, uint8_t a3, uint8_t a4,
-                       uint8_t a5);
-#endif
-
 
 int shu_simd_is_vector_type_spelling(const char *name, size_t name_len) {
   const uint8_t *n = (const uint8_t *)name;
@@ -231,8 +230,6 @@ int shu_simd_vector_lanes_esz_from_spelling(const char *name, size_t name_len, i
   return 0;
 }
 
-/* --- G-02f-5：print（stdio / FILE* 语言限制，逻辑与原 target_cpu.inc 一致）--- */
-
 /* G-02f-160：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 void append_feat_name(char *buf, size_t cap, size_t *pos, const char *name) {
   size_t nlen;
@@ -248,6 +245,56 @@ void append_feat_name(char *buf, size_t cap, size_t *pos, const char *name) {
   buf[*pos] = '\0';
 }
 
+/**
+ * 在 flags 行（x86）或 Features 行（arm）中查找 token（前后空白/逗号分隔）。
+ * Linux /proc/cpuinfo 解析使用；pure 字符串匹配，全平台提供。
+ */
+/* G-02f-160：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int flags_has_token(const char *hay, const char *token) {
+    const char *p;
+    size_t tlen;
+
+    if (!hay || !token)
+        return 0;
+    tlen = strlen(token);
+    for (p = hay; (p = strstr(p, token)) != NULL; p++) {
+        char before = (p > hay) ? p[-1] : ' ';
+        char after = p[tlen];
+        if ((before == ' ' || before == '\t' || before == ',' || p == hay) &&
+            (after == ' ' || after == '\t' || after == ',' || after == '\0' || after == '\n'))
+            return 1;
+        p += tlen > 0 ? tlen - 1 : 0;
+    }
+    return 0;
+}
+
+#else
+/* FROM_X: .x provides all business funcs; rest TU only has language-limit residual */
+extern void driver_set_pending_target_cpu_features(uint32_t features);
+extern uint32_t driver_get_pending_target_cpu_features(void);
+extern uint8_t tcp_tolower(uint8_t c);
+extern int32_t tcp_eq_at(const uint8_t *name, size_t base, size_t n, const uint8_t *lit);
+extern void tcp_set_u32(uint32_t *out, uint32_t f);
+extern int32_t tcp_parse_named(const uint8_t *spec, size_t base, size_t end, uint32_t *out);
+extern int shu_target_cpu_resolve(const char *spec, size_t spec_len, uint32_t *out);
+extern int32_t tcp_eq5(const uint8_t *name, uint8_t a0, uint8_t a1, uint8_t a2, uint8_t a3, uint8_t a4);
+extern int32_t tcp_eq6(const uint8_t *name, uint8_t a0, uint8_t a1, uint8_t a2, uint8_t a3, uint8_t a4,
+                       uint8_t a5);
+extern int shu_simd_is_vector_type_spelling(const char *name, size_t name_len);
+extern int shu_simd_vector_lanes_esz_from_spelling(const char *name, size_t name_len, int32_t *out_lanes,
+                                                    int32_t *out_esz);
+extern void append_feat_name(char *buf, size_t cap, size_t *pos, const char *name);
+extern int flags_has_token(const char *hay, const char *token);
+#endif
+
+/* slice_marker: indicates business funcs are provided by .x (R2 full) */
+int target_cpu_pure_slice_marker(void) {
+  return 1;
+}
+
+/* --- Cap residual: language-limit funcs (always compiled) --- */
+
+/* --- G-02f-5：print（stdio / FILE* 语言限制，逻辑与原 target_cpu.inc 一致）--- */
 
 void shu_target_cpu_print(FILE *out, uint32_t features) {
   char list[256];
@@ -295,29 +342,6 @@ void shu_target_cpu_print(FILE *out, uint32_t features) {
 #include <sys/sysctl.h>
 #include <sys/types.h>
 #endif
-
-/**
- * 在 flags 行（x86）或 Features 行（arm）中查找 token（前后空白/逗号分隔）。
- * Linux /proc/cpuinfo 解析使用；pure 字符串匹配，全平台提供。
- */
-/* G-02f-160：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int flags_has_token(const char *hay, const char *token) {
-    const char *p;
-    size_t tlen;
-
-    if (!hay || !token)
-        return 0;
-    tlen = strlen(token);
-    for (p = hay; (p = strstr(p, token)) != NULL; p++) {
-        char before = (p > hay) ? p[-1] : ' ';
-        char after = p[tlen];
-        if ((before == ' ' || before == '\t' || before == ',' || p == hay) &&
-            (after == ' ' || after == '\t' || after == ',' || after == '\0' || after == '\n'))
-            return 1;
-        p += tlen > 0 ? tlen - 1 : 0;
-    }
-    return 0;
-}
 
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
 
@@ -392,9 +416,7 @@ uint32_t shu_target_cpu_detect_x86_linux(void) {
 #endif
 
 #if defined(__APPLE__)
-/**
- * macOS x86：sysctl machdep.cpu.leaf7_features / machdep.cpu.feature_bits。
- */
+/** macOS x86：sysctl machdep.cpu.leaf7_features / machdep.cpu.feature_bits。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 uint32_t shu_target_cpu_detect_x86_macos(void) {
     uint64_t leaf7 = 0;
@@ -556,4 +578,3 @@ uint32_t shu_target_cpu_generic_for_host(void) {
     return 0;
 #endif
 }
-

@@ -241,6 +241,12 @@ MODULES=(
   # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：Parsed/FILE/invoke_cc/work 在 driver_abi
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/rt_run_compiler_parsed.from_x.c 全 C 体
   "rt_run_compiler_parsed|src/runtime/rt_run_compiler_parsed.x|seeds/rt_run_compiler_parsed_surface.from_x.c||"
+  # target_cpu_pure R2 full：.x 吃满 12 公共业务（pending/tolower/eq_at/set_u32/parse_named/resolve/
+  #   eq5/eq6/simd_spelling/simd_lanes/append_feat/flags_has_token）+ BSS；
+  # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：shu_target_cpu_print (FILE/fprintf) +
+  #   OS detect (sysctl/proc/#if) 在 mega rest
+  # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/target_cpu_pure.from_x.c 全 C 体
+  "target_cpu_pure|src/driver/target_cpu_pure.x|seeds/target_cpu_pure_surface.from_x.c||"
 )
 
 # 找 shux 二进制：优先 $SHUX（文档/进度验收），再 shux_asm / shux / shux-c
